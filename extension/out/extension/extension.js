@@ -38,7 +38,8 @@ class PokemonQuickPickItem {
         this.color = color;
         this.name = name_;
         this.label = name_;
-        this.description = `${color} ${type}`;
+        // LOCAL-PATCH: "default pikachu" 대신 "피카츄"
+        this.description = `${localize.getLocalizedPokemonName(type)}${color === 'shiny' ? ' · 색이 다른 개체' : ''}`;
     }
     name;
     label;
@@ -350,11 +351,31 @@ function activate(context) {
             await vscode.window.showErrorMessage(koT('There are no pokemon to remove.'));
             return;
         }
-        const pokemon = await vscode.window.showQuickPick(pokemonList.map((val) => {
-            return new PokemonQuickPickItem(val.name, val.type, val.color);
-        }), {
+        // LOCAL-PATCH: 맨 위에 "모두 지우기" — 한 번 더 묻고, 지운 뒤 알림의 [되돌리기]로 다시 불러옴
+        const pokemon = await vscode.window.showQuickPick([
+            { label: '$(trash) 포켓몬 모두 지우기', description: `${pokemonList.length}마리`, removeAll: true },
+            { label: '', kind: vscode.QuickPickItemKind.Separator },
+            ...pokemonList.map((val) => {
+                return new PokemonQuickPickItem(val.name, val.type, val.color);
+            }),
+        ], {
             placeHolder: koT('Select the pokemon to remove.'),
         });
+        if (pokemon?.removeAll) {
+            const ok = await vscode.window.showWarningMessage(`포켓몬 ${pokemonList.length}마리를 모두 지울까요?`, { modal: true }, '모두 지우기');
+            if (ok !== '모두 지우기') {
+                return;
+            }
+            panel.resetPokemon();
+            await storeCollectionAsMemento(context, []);
+            const undo = await vscode.window.showInformationMessage(`포켓몬 ${pokemonList.length}마리를 지웠어요.`, '되돌리기');
+            if (undo === '되돌리기') {
+                const specs = pokemonList.map((item) => new PokemonSpecification(item.color, item.type, getConfiguredSize(), item.name));
+                specs.forEach((spec) => getPokemonPanel()?.spawnPokemon(spec));
+                await storeCollectionAsMemento(context, specs);
+            }
+            return;
+        }
         if (pokemon) {
             panel.deletePokemon(pokemon.name);
             const collection = pokemonList
