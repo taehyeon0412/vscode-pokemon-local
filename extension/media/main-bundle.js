@@ -5292,8 +5292,8 @@ exports.InvalidStateError = InvalidStateError;
 // 메인 스레드가 바빠도(같은 프로세스의 다른 패널 등) 이어지고, 0.1초 타이머보다 길게 잡아 다음 이동이 조금 늦어도 안 멈춤
 const GLIDE_MS = 150;
 function glideSprite(el, dx, dy) {
-    if ((!dx && !dy) || Math.abs(dx) > 40 || Math.abs(dy) > 40) {
-        return; // 안 움직였거나 순간이동(바닥 재배치 등)
+    if (el.noGlide || (!dx && !dy) || Math.abs(dx) > 40 || Math.abs(dy) > 40) {
+        return; // 드래그 중 · 안 움직였거나 순간이동(바닥 재배치 등)
     }
     // 아직 덜 온 거리는 이어받음
     const prev = el.glideAnim;
@@ -5702,7 +5702,7 @@ function calculateFloor(size, theme) {
 /* POKEMON-MOVES-PATCH */
 const POKEMON_MOVES = {"bulbasaur":["grass",0.26,26,21],"ivysaur":["grass",0.46,23,22],"venusaur":["grass",0.72,25,20],"venusaur_female":["grass",0.72,25,20],"charmander":["fire",0.24,26,21],"charmeleon":["fire",0.46,24,20],"charizard":["fire",0.74,28,16],"squirtle":["water",0.25,21,20],"wartortle":["water",0.46,22,20],"blastoise":["water",0.73,26,16],"pikachu":["electric",0.27,7,14,24,31],"pikachu_female":["electric",0.27,7,14,24,31],"raichu":["electric",0.63,3,12,26,31],"vulpix":["fire",0.22,26,22],"ninetales":["fire",0.68,27,21],"oddish":["grass",0.27,23,21],"gloom":["grass",0.43,26,21],"vileplume":["grass",0.64,25,19],"paras":["grass",0.19,24,23],"parasect":["grass",0.46,26,19],"psyduck":["water",0.27,24,21],"golduck":["water",0.67,24,20],"growlithe":["fire",0.33,24,19],"arcanine":["fire",0.79,28,18],"poliwag":["water",0.22,22,22],"poliwhirl":["water",0.41,23,20],"poliwrath":["water",0.69,23,19],"bellsprout":["grass",0.22,23,20],"weepinbell":["grass",0.42,23,22],"victreebel":["grass",0.64,24,14],"tentacool":["water",0.3,23,18],"tentacruel":["water",0.7,26,18],"ponyta":["fire",0.47,24,20],"rapidash":["fire",0.67,27,19],"slowpoke":["water",0.26,27,23],"slowbro":["water",0.64,25,19],"magnemite":["electric",0.28,9,17,20,30],"magneton":["electric",0.59,7,7,22,30],"seel":["water",0.28,25,20],"dewgong":["water",0.61,26,18],"shellder":["water",0.23,21,17],"cloyster":["water",0.72,24,15],"krabby":["water",0.28,26,23],"kingler":["water",0.61,30,16],"voltorb":["electric",0.29,9,16,24,31],"electrode":["electric",0.64,5,10,27,31],"exeggcute":["grass",0.28,28,18],"exeggutor":["grass",0.73,28,10],"tangela":["grass",0.52,23,20],"horsea":["water",0.21,22,20],"seadra":["water",0.53,21,16],"goldeen":["water",0.27,21,20],"seaking":["water",0.56,26,18],"staryu":["water",0.31,20,20],"starmie":["water",0.71,22,18],"electabuzz":["electric",0.64,1,9,22,31],"magmar":["fire",0.66,22,18],"magikarp":["water",0,25,18],"gyarados":["water",0.76,27,14],"lapras":["water",0.74,23,16],"vaporeon":["water",0.72,27,20],"jolteon":["electric",0.72,1,13,25,31],"flareon":["fire",0.72,25,18],"omanyte":["water",0.34,21,22],"omastar":["water",0.66,23,18],"kabuto":["water",0.34,24,21],"kabutops":["water",0.66,26,19],"zapdos":["electric",0.84,1,7,25,31],"moltres":["fire",0.84,26,14],"chikorita":["grass",0.26,21,20],"bayleef":["grass",0.46,25,13],"meganium":["grass",0.72,25,12],"meganium_female":["grass",0.72,25,12],"cyndaquil":["fire",0.24,24,22],"quilava":["fire",0.46,25,19],"typhlosion":["fire",0.74,25,16],"totodile":["water",0.25,24,21],"croconaw":["water",0.46,23,17],"feraligatr":["water",0.73,27,14],"chinchou":["water",0.29,24,20],"lanturn":["water",0.58,27,18],"pichu":["electric",0.01,8,16,23,31],"pichu_spiky_eared":["electric",0.01,8,14,23,31],"mareep":["electric",0.18,6,13,26,31],"flaaffy":["electric",0.37,3,11,24,31],"ampharos":["electric",0.69,2,8,25,32],"bellossom":["grass",0.64,20,19],"marill":["water",0.11,22,22],"azumarill":["water",0.49,22,18],"politoed":["water",0.67,23,19],"hoppip":["grass",0.11,20,15],"skiploom":["grass",0.31,21,18],"jumpluff":["grass",0.58,21,16],"sunkern":["grass",0,20,22],"sunflora":["grass",0.5,21,18],"wooper":["water",0.02,22,22],"quagsire":["water",0.51,23,17],"slowking":["water",0.64,22,18],"qwilfish":["water",0.53,25,18],"slugma":["fire",0.11,24,20],"magcargo":["fire",0.51,25,19],"corsola":["water",0.47,25,21],"remoraid":["water",0.22,24,20],"octillery":["water",0.62,25,18],"mantine":["water",0.63,28,15],"houndour":["fire",0.29,24,20],"houndoom":["fire",0.67,25,18],"kingdra":["water",0.76,25,20],"elekid":["electric",0.36,10,13,23,31],"magby":["fire",0.37,21,18],"raikou":["electric",0.84,1,7,28,31],"entei":["fire",0.84,26,17],"suicune":["water",0.84,28,20],"hooh":["fire",1,50,39],"celebi":["grass",0.89,22,20],"treecko":["grass",0.24,24,22],"grovyle":["grass",0.46,22,20],"sceptile":["grass",0.73,26,14],"torchic":["fire",0.24,22,21],"combusken":["fire",0.46,22,20],"blaziken":["fire",0.73,25,16],"mudkip":["water",0.24,21,22],"marshtomp":["water",0.46,22,20],"swampert":["water",0.74,27,18],"lotad":["water",0.04,24,20],"lombre":["water",0.31,24,16],"ludicolo":["water",0.62,26,13],"seedot":["grass",0.04,21,21],"nuzleaf":["grass",0.31,22,20],"shiftry":["grass",0.62,24,19],"wingull":["water",0.16,24,21],"pelipper":["water",0.53,24,16],"surskit":["water",0.15,23,22],"shroomish":["grass",0.21,23,22],"breloom":["grass",0.58,25,15],"electrike":["electric",0.21,2,18,25,31],"manectric":["electric",0.61,2,8,26,31],"plusle":["electric",0.46,9,15,23,31],"minun":["electric",0.46,9,15,23,31],"roselia":["grass",0.44,21,20],"carvanha":["water",0.23,25,20],"sharpedo":["water",0.58,27,19],"wailmer":["water",0.44,24,20],"wailord":["water",0.67,52,48],"numel":["fire",0.23,26,20],"camerupt":["fire",0.58,29,20],"torkoal":["fire",0.6,27,20],"cacnea":["grass",0.3,22,22],"cacturne":["grass",0.61,24,18],"barboach":["water",0.2,23,18],"whiscash":["water",0.6,26,21],"corphish":["water",0.24,23,18],"crawdaunt":["water",0.6,23,17],"lileep":["grass",0.34,24,18],"cradily":["grass",0.66,25,16],"feebas":["water",0,22,23],"milotic":["water",0.76,26,18],"tropius":["grass",0.58,29,16],"spheal":["water",0.2,23,22],"sealeo":["water",0.47,26,18],"walrein":["water",0.73,29,12],"clamperl":["water",0.32,20,24],"huntail":["water",0.63,26,18],"gorebyss":["water",0.63,25,19],"relicanth":["water",0.63,24,22],"luvdisc":["water",0.29,23,22],"kyogre":["water",1,50,47],"turtwig":["grass",0.26,24,21],"grotle":["grass",0.46,23,21],"torterra":["grass",0.72,25,19],"chimchar":["fire",0.24,22,20],"monferno":["fire",0.46,25,18],"infernape":["fire",0.74,26,16],"piplup":["water",0.25,22,21],"prinplup":["water",0.46,23,18],"empoleon":["water",0.73,24,16],"bibarel":["water",0.47,30,22],"shinx":["electric",0.14,6,17,26,31],"luxio":["electric",0.36,2,12,26,31],"luxray":["electric",0.72,1,9,26,31],"budew":["grass",0.18,21,23],"roserade":["grass",0.7,23,14],"wormadam_plant":["grass",0.5,22,18],"wormadam_sandy":["grass",0.5,22,18],"wormadam_trash":["grass",0.5,22,18],"pachirisu":["electric",0.46,7,15,25,30],"buizel":["water",0.29,26,22],"floatzel":["water",0.66,24,14],"cherubi":["grass",0.17,20,19],"cherrim":["grass",0.56,21,21],"shellos_west":["water",0.28,23,18],"shellos_east":["water",0.28,22,21],"gastrodon_west":["water",0.61,23,16],"gastrodon_east":["water",0.61,24,16],"carnivine":["grass",0.56,24,15],"finneon":["water",0.29,23,22],"lumineon":["water",0.58,24,20],"mantyke":["water",0.32,25,19],"snover":["grass",0.3,23,20],"abomasnow":["grass",0.65,26,17],"magnezone":["electric",0.74,3,9,27,32],"tangrowth":["grass",0.74,24,16],"electivire":["electric",0.76,4,7,29,31],"magmortar":["fire",0.76,25,15],"leafeon":["grass",0.72,26,20],"rotom":["electric",0.53,5,11,23,31],"rotom_heat":["electric",0.53,2,11,25,30],"rotom_wash":["electric",0.53,2,8,26,31],"rotom_frost":["electric",0.53,3,8,24,30],"rotom_fan":["electric",0.53,3,7,28,31],"rotom_mow":["electric",0.53,1,11,26,31],"palkia":["water",1,53,36],"heatran":["fire",0.89,29,18],"phione":["water",0.62,22,22],"manaphy":["water",0.89,22,20],"shaymin":["grass",0.89,23,22],"shaymin_sky":["grass",0.89,22,18],"victini":["fire",0.89,21,20],"pansage":["grass",0.26,21,20],"pansear":["fire",0.26,21,19],"panpour":["water",0.26,21,18],"zebstrika":["electric",0.66,2,5,31,30],"tympole":["water",0.21,23,22],"leavanny":["grass",0.67,21,15],"cottonee":["grass",0.18,22,18],"petilil":["grass",0.18,22,18],"basculin_red_striped":["water",0.58,22,20],"basculin_blue_striped":["water",0.58,22,20],"maractus":["grass",0.58,20,14],"tirtouga":["water",0.34,26,18],"ducklett":["water",0.23,22,18],"deerling_spring":["grass",0.3,25,18],"deerling_summer":["grass",0.3,25,18],"deerling_autumn":["grass",0.3,25,18],"deerling_winter":["grass",0.3,25,18],"emolga":["electric",0.51,7,10,24,25],"alomomola":["water",0.6,21,15],"galvantula":["electric",0.6,4,13,28,28],"litwick":["fire",0.17,21,18],"stunfisk":["electric",0.6,7,15,25,28],"heatmor":["fire",0.63,28,14],"virizion":["grass",0.84,28,12],"keldeo":["water",0.84,25,15],"froakie":["water",0.25,21,21],"frogadier":["water",0.46,46,48],"greninja":["water",0.73,25,14]};
 const POKEMON_ACTS = {"charizard":"fly","butterfree":"fly","pidgey":"fly","pidgeotto":"fly","pidgeot":"fly","spearow":"fly","fearow":"fly","zubat":"fly","golbat":"fly","poliwag":"jump","poliwhirl":"jump","poliwrath":"jump","farfetchd":"fly","hitmonlee":"jump","hitmonchan":"jump","scyther":"jump","aerodactyl":"fly","articuno":"fly","zapdos":"fly","moltres":"fly","dragonite":"fly","hoothoot":"fly","noctowl":"fly","ledyba":"fly","ledian":"fly","crobat":"fly","togetic":"fly","natu":"fly","xatu":"fly","politoed":"jump","yanma":"fly","murkrow":"fly","gligar":"fly","sneasel":"jump","delibird":"fly","skarmory":"fly","lugia":"fly","hooh":"fly","beautifly":"fly","taillow":"fly","swellow":"fly","wingull":"fly","pelipper":"fly","masquerain":"fly","ninjask":"fly","spoink":"jump","grumpig":"jump","swablu":"fly","altaria":"fly","tropius":"fly","salamence":"fly","starly":"fly","staravia":"fly","staraptor":"fly","mothim":"fly","combee_male":"fly","combee_female":"fly","vespiquen":"fly","buneary":"jump","lopunny":"jump","honchkrow":"fly","chatot":"fly","riolu":"jump","lucario":"jump","croagunk":"jump","toxicroak":"jump","weavile":"jump","togekiss":"fly","yanmega":"fly","gliscor":"fly","pidove":"fly","woobat":"fly","tympole":"jump","sigilyph":"fly","ducklett":"fly","emolga":"fly","braviary":"fly","mandibuzz":"fly","froakie":"jump","frogadier":"jump","greninja":"jump"};
-// 타입별 기술 + 특수 행동 — make-moves.py 가 main-bundle.js 의 handleMouseOver 앞에 표와 같이 넣는다
+// 타입별 기술 + 특수 행동 + 드래그 — make-moves.py 가 main-bundle.js 의 handleMouseOver 앞에 표와 같이 넣는다
 // POKEMON_MOVES[키] = [기술, 세기, 입 x, 입 y] / 전기는 [기술, 세기, 왼, 위, 오른, 아래] 몸 테두리
 //   — 좌표는 오른쪽 보는 걷기 그림 첫 프레임 기준 픽셀, 세기는 종족값 기준 0~1 (클수록 크고 길고 화려하게)
 // POKEMON_ACTS[키] = 'fly'(날개 있는 비행 타입 — 패널 2/3 높이로 날아다니다 내려옴) | 'jump'(개굴닌자류 — 멀리뛰기)
@@ -5764,14 +5764,15 @@ class MoveState {
 // 날아올라 좌우로 날아다니다(살짝 출렁) 내려앉음
 class FlyState {
     label = "swipe" /* States.swipe */;
-    constructor(pokemon) {
+    // startBottom 이 있으면 그 높이에서 바로 날기 (드래그로 놓았을 때)
+    constructor(pokemon, startBottom) {
         this.pokemon = pokemon;
         this.dir = Math.random() < 0.5 ? -1 : 1;
         const h = spriteSize(pokemon);
-        this.top = Math.max(pokemon.floor + h, window.innerHeight * FLY_HEIGHT - h / 2);
+        this.top = startBottom ?? Math.max(pokemon.floor + h, window.innerHeight * FLY_HEIGHT - h / 2);
         this.climb = Math.max(2, (this.top - pokemon.floor) / 12); // 1.2초 만에 오르내림
-        this.cruise = Math.round(moveRand(40, 80)); // 4~8초
-        this.phase = 'up';
+        this.cruise = Math.round(startBottom === undefined ? moveRand(40, 80) : moveRand(15, 30)); // 4~8초, 놓았을 땐 짧게
+        this.phase = startBottom === undefined ? 'up' : 'cruise';
         this.t = 0;
         faceState(this, this.dir < 0);
     }
@@ -5832,6 +5833,42 @@ class JumpState {
         p.positionLeft(this.x0 + this.dir * this.dist * k);
         p.positionBottom(p.floor + 4 * this.height * k * (1 - k));
         return this.i >= this.n ? states_1.FrameResult.stateComplete : states_1.FrameResult.stateContinue;
+    }
+}
+
+// 잡혀 있는 동안 — 제자리(움직임은 마우스가), 걷기 그림으로 바둥
+class DragState {
+    label = "swipe" /* States.swipe */;
+    constructor(left) {
+        faceState(this, left);
+    }
+    nextFrame() {
+        return states_1.FrameResult.stateContinue;
+    }
+}
+
+// 놓으면 떨어져서 한 번 통 튀고 착지
+class FallState {
+    label = "swipe" /* States.swipe */;
+    constructor(pokemon, left) {
+        this.pokemon = pokemon;
+        this.v = 0;
+        this.bounced = false;
+        faceState(this, left);
+    }
+    nextFrame() {
+        const p = this.pokemon;
+        this.v += 3;
+        p.positionBottom(Math.max(p.floor, p.bottom - this.v));
+        if (p.bottom > p.floor) {
+            return states_1.FrameResult.stateContinue;
+        }
+        if (!this.bounced && this.v > 12) {
+            this.bounced = true;
+            this.v = -this.v * 0.35;
+            return states_1.FrameResult.stateContinue;
+        }
+        return states_1.FrameResult.stateComplete;
     }
 }
 
@@ -6172,10 +6209,89 @@ function useMove(pokemon) {
 
 function handleMoveClick(e) {
     exports.allPokemon.pokemonCollection.forEach((element) => {
-        if (element.collision === e.currentTarget) {
+        if (element.collision === e.currentTarget && !(performance.now() - (element.pokemon.el.dragEndAt ?? -1e9) < 300)) {
             useMove(element.pokemon);
         }
     });
+}
+
+// 드래그 — 4px 넘게 움직이면 잡음 (그냥 클릭은 기술), 잡는 동안 파닥파닥, 놓으면 떨어짐 · 나는 애는 그 높이에서 날다 내려옴
+let drag;
+
+function handleDragStart(e) {
+    if (e.button !== 0) {
+        return;
+    }
+    const element = exports.allPokemon.pokemonCollection.find((el) => el.collision === e.currentTarget);
+    if (!element) {
+        return;
+    }
+    const target = e.currentTarget;
+    target.setPointerCapture(e.pointerId);
+    drag = { pokemon: element.pokemon, target, x0: e.clientX, y0: e.clientY, lastX: e.clientX, grabbed: false };
+    target.addEventListener('pointermove', handleDragMove);
+    target.addEventListener('pointerup', handleDragEnd);
+    target.addEventListener('pointercancel', handleDragEnd);
+}
+
+function grab(d) {
+    const p = d.pokemon;
+    const el = p.el;
+    d.grabbed = true;
+    d.left0 = p.left;
+    d.bottom0 = p.bottom;
+    el.glideAnim?.cancel();
+    el.noGlide = true; // 마우스를 바로 따라오게
+    p.holdState = undefined;
+    p.holdStateEnum = undefined;
+    p.currentStateEnum = "swipe" /* States.swipe */;
+    p.currentState = new DragState(facingLeft(el));
+    p.hideSpeechBubble();
+    el.dragWiggle = el.animate([{ rotate: '-14deg' }, { rotate: '14deg' }], { duration: 110, iterations: Infinity, direction: 'alternate', easing: 'ease-in-out' });
+    d.target.classList.add('dragging');
+}
+
+function handleDragMove(e) {
+    if (!drag) {
+        return;
+    }
+    const dx = e.clientX - drag.x0;
+    const dy = e.clientY - drag.y0;
+    if (!drag.grabbed) {
+        if (Math.abs(dx) + Math.abs(dy) <= 4) {
+            return;
+        }
+        grab(drag);
+    }
+    const p = drag.pokemon;
+    p.positionLeft(Math.min(Math.max(drag.left0 + dx, 0), rightEdge(p)));
+    p.positionBottom(Math.min(Math.max(drag.bottom0 - dy, p.floor), window.innerHeight - spriteSize(p)));
+    // 끄는 쪽으로 몸을 돌림
+    if (Math.abs(e.clientX - drag.lastX) > 2) {
+        faceState(p.currentState, e.clientX < drag.lastX);
+        drag.lastX = e.clientX;
+    }
+}
+
+function handleDragEnd() {
+    if (!drag) {
+        return;
+    }
+    const { pokemon: p, target, grabbed } = drag;
+    drag = undefined;
+    target.removeEventListener('pointermove', handleDragMove);
+    target.removeEventListener('pointerup', handleDragEnd);
+    target.removeEventListener('pointercancel', handleDragEnd);
+    if (!grabbed) {
+        return; // 그냥 클릭 — 기술은 click 에서
+    }
+    target.classList.remove('dragging');
+    p.el.dragWiggle?.cancel();
+    p.el.noGlide = false;
+    // 바로 뒤따르는 click 이 기술로 이어지지 않게
+    p.el.dragEndAt = performance.now();
+    const left = p.currentState.horizontalDirection === states_1.HorizontalDirection.left;
+    p.currentState = p.bottom > p.floor + 1 && POKEMON_ACTS[p.label] === 'fly' ? new FlyState(p, p.bottom) : new FallState(p, left);
 }
 
 function startMoveAuto() {
@@ -6225,7 +6341,7 @@ function startAnimations(collision, pokemon, stateApi) {
     if (!stateApi) {
         stateApi = acquireVsCodeApi();
     }
-    collision.addEventListener('mouseover', handleMouseOver); /* POKEMON-MOVES-PATCH */ collision.addEventListener('click', handleMoveClick); startMoveAuto(); /* /POKEMON-MOVES-PATCH */
+    collision.addEventListener('mouseover', handleMouseOver); /* POKEMON-MOVES-PATCH */ collision.addEventListener('click', handleMoveClick); collision.addEventListener('pointerdown', handleDragStart); startMoveAuto(); /* /POKEMON-MOVES-PATCH */
     setInterval(() => {
         var updates = exports.allPokemon.seekNewFriends();
         updates.forEach((message) => {

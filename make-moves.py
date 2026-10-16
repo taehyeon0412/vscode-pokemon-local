@@ -52,7 +52,7 @@ BEGIN = "/* POKEMON-MOVES-PATCH */"
 END = "/* /POKEMON-MOVES-PATCH */"
 CODE_ANCHOR = "function handleMouseOver(e) {"
 HOOK_ANCHOR = "collision.addEventListener('mouseover', handleMouseOver);"
-HOOK = " collision.addEventListener('click', handleMoveClick); startMoveAuto(); "
+HOOK = " collision.addEventListener('click', handleMoveClick); collision.addEventListener('pointerdown', handleDragStart); startMoveAuto(); "
 
 
 def pokemon_list():

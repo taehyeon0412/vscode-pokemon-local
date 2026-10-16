@@ -312,3 +312,11 @@ img.pokemon {
 img.pokemon {
 	will-change: transform, translate;
 }
+
+/* LOCAL-PATCH: 잡아서 옮기기 (moves.js 드래그) */
+.collision {
+	cursor: grab;
+}
+.collision.dragging {
+	cursor: grabbing;
+}

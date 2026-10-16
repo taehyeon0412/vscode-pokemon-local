@@ -1,4 +1,4 @@
-// 타입별 기술 + 특수 행동 — make-moves.py 가 main-bundle.js 의 handleMouseOver 앞에 표와 같이 넣는다
+// 타입별 기술 + 특수 행동 + 드래그 — make-moves.py 가 main-bundle.js 의 handleMouseOver 앞에 표와 같이 넣는다
 // POKEMON_MOVES[키] = [기술, 세기, 입 x, 입 y] / 전기는 [기술, 세기, 왼, 위, 오른, 아래] 몸 테두리
 //   — 좌표는 오른쪽 보는 걷기 그림 첫 프레임 기준 픽셀, 세기는 종족값 기준 0~1 (클수록 크고 길고 화려하게)
 // POKEMON_ACTS[키] = 'fly'(날개 있는 비행 타입 — 패널 2/3 높이로 날아다니다 내려옴) | 'jump'(개굴닌자류 — 멀리뛰기)
@@ -60,14 +60,15 @@ class MoveState {
 // 날아올라 좌우로 날아다니다(살짝 출렁) 내려앉음
 class FlyState {
     label = "swipe" /* States.swipe */;
-    constructor(pokemon) {
+    // startBottom 이 있으면 그 높이에서 바로 날기 (드래그로 놓았을 때)
+    constructor(pokemon, startBottom) {
         this.pokemon = pokemon;
         this.dir = Math.random() < 0.5 ? -1 : 1;
         const h = spriteSize(pokemon);
-        this.top = Math.max(pokemon.floor + h, window.innerHeight * FLY_HEIGHT - h / 2);
+        this.top = startBottom ?? Math.max(pokemon.floor + h, window.innerHeight * FLY_HEIGHT - h / 2);
         this.climb = Math.max(2, (this.top - pokemon.floor) / 12); // 1.2초 만에 오르내림
-        this.cruise = Math.round(moveRand(40, 80)); // 4~8초
-        this.phase = 'up';
+        this.cruise = Math.round(startBottom === undefined ? moveRand(40, 80) : moveRand(15, 30)); // 4~8초, 놓았을 땐 짧게
+        this.phase = startBottom === undefined ? 'up' : 'cruise';
         this.t = 0;
         faceState(this, this.dir < 0);
     }
@@ -128,6 +129,42 @@ class JumpState {
         p.positionLeft(this.x0 + this.dir * this.dist * k);
         p.positionBottom(p.floor + 4 * this.height * k * (1 - k));
         return this.i >= this.n ? states_1.FrameResult.stateComplete : states_1.FrameResult.stateContinue;
+    }
+}
+
+// 잡혀 있는 동안 — 제자리(움직임은 마우스가), 걷기 그림으로 바둥
+class DragState {
+    label = "swipe" /* States.swipe */;
+    constructor(left) {
+        faceState(this, left);
+    }
+    nextFrame() {
+        return states_1.FrameResult.stateContinue;
+    }
+}
+
+// 놓으면 떨어져서 한 번 통 튀고 착지
+class FallState {
+    label = "swipe" /* States.swipe */;
+    constructor(pokemon, left) {
+        this.pokemon = pokemon;
+        this.v = 0;
+        this.bounced = false;
+        faceState(this, left);
+    }
+    nextFrame() {
+        const p = this.pokemon;
+        this.v += 3;
+        p.positionBottom(Math.max(p.floor, p.bottom - this.v));
+        if (p.bottom > p.floor) {
+            return states_1.FrameResult.stateContinue;
+        }
+        if (!this.bounced && this.v > 12) {
+            this.bounced = true;
+            this.v = -this.v * 0.35;
+            return states_1.FrameResult.stateContinue;
+        }
+        return states_1.FrameResult.stateComplete;
     }
 }
 
@@ -468,10 +505,89 @@ function useMove(pokemon) {
 
 function handleMoveClick(e) {
     exports.allPokemon.pokemonCollection.forEach((element) => {
-        if (element.collision === e.currentTarget) {
+        if (element.collision === e.currentTarget && !(performance.now() - (element.pokemon.el.dragEndAt ?? -1e9) < 300)) {
             useMove(element.pokemon);
         }
     });
+}
+
+// 드래그 — 4px 넘게 움직이면 잡음 (그냥 클릭은 기술), 잡는 동안 파닥파닥, 놓으면 떨어짐 · 나는 애는 그 높이에서 날다 내려옴
+let drag;
+
+function handleDragStart(e) {
+    if (e.button !== 0) {
+        return;
+    }
+    const element = exports.allPokemon.pokemonCollection.find((el) => el.collision === e.currentTarget);
+    if (!element) {
+        return;
+    }
+    const target = e.currentTarget;
+    target.setPointerCapture(e.pointerId);
+    drag = { pokemon: element.pokemon, target, x0: e.clientX, y0: e.clientY, lastX: e.clientX, grabbed: false };
+    target.addEventListener('pointermove', handleDragMove);
+    target.addEventListener('pointerup', handleDragEnd);
+    target.addEventListener('pointercancel', handleDragEnd);
+}
+
+function grab(d) {
+    const p = d.pokemon;
+    const el = p.el;
+    d.grabbed = true;
+    d.left0 = p.left;
+    d.bottom0 = p.bottom;
+    el.glideAnim?.cancel();
+    el.noGlide = true; // 마우스를 바로 따라오게
+    p.holdState = undefined;
+    p.holdStateEnum = undefined;
+    p.currentStateEnum = "swipe" /* States.swipe */;
+    p.currentState = new DragState(facingLeft(el));
+    p.hideSpeechBubble();
+    el.dragWiggle = el.animate([{ rotate: '-14deg' }, { rotate: '14deg' }], { duration: 110, iterations: Infinity, direction: 'alternate', easing: 'ease-in-out' });
+    d.target.classList.add('dragging');
+}
+
+function handleDragMove(e) {
+    if (!drag) {
+        return;
+    }
+    const dx = e.clientX - drag.x0;
+    const dy = e.clientY - drag.y0;
+    if (!drag.grabbed) {
+        if (Math.abs(dx) + Math.abs(dy) <= 4) {
+            return;
+        }
+        grab(drag);
+    }
+    const p = drag.pokemon;
+    p.positionLeft(Math.min(Math.max(drag.left0 + dx, 0), rightEdge(p)));
+    p.positionBottom(Math.min(Math.max(drag.bottom0 - dy, p.floor), window.innerHeight - spriteSize(p)));
+    // 끄는 쪽으로 몸을 돌림
+    if (Math.abs(e.clientX - drag.lastX) > 2) {
+        faceState(p.currentState, e.clientX < drag.lastX);
+        drag.lastX = e.clientX;
+    }
+}
+
+function handleDragEnd() {
+    if (!drag) {
+        return;
+    }
+    const { pokemon: p, target, grabbed } = drag;
+    drag = undefined;
+    target.removeEventListener('pointermove', handleDragMove);
+    target.removeEventListener('pointerup', handleDragEnd);
+    target.removeEventListener('pointercancel', handleDragEnd);
+    if (!grabbed) {
+        return; // 그냥 클릭 — 기술은 click 에서
+    }
+    target.classList.remove('dragging');
+    p.el.dragWiggle?.cancel();
+    p.el.noGlide = false;
+    // 바로 뒤따르는 click 이 기술로 이어지지 않게
+    p.el.dragEndAt = performance.now();
+    const left = p.currentState.horizontalDirection === states_1.HorizontalDirection.left;
+    p.currentState = p.bottom > p.floor + 1 && POKEMON_ACTS[p.label] === 'fly' ? new FlyState(p, p.bottom) : new FallState(p, left);
 }
 
 function startMoveAuto() {
