@@ -4,6 +4,18 @@ exports.getLocalizedPokemonName = exports.stringListAsQuickPickItemList = export
 const fs = require("fs");
 const path = require("path");
 const vscode = require("vscode");
+// LOCAL-PATCH: 메뉴 문구는 VS Code 언어와 상관없이 무조건 한국어 (l10n/bundle.l10n.ko.json)
+const KO_TEXT = (() => {
+    try {
+        return JSON.parse(require('fs').readFileSync(require('path').join(__dirname, '../../l10n/bundle.l10n.ko.json'), 'utf8'));
+    }
+    catch {
+        return {};
+    }
+})();
+function koT(message, ...args) {
+    return (KO_TEXT[message] ?? message).replace(/\{(\d+)\}/g, (m, i) => (args[i] !== undefined ? String(args[i]) : m));
+}
 const pokemon_data_1 = require("./pokemon-data");
 /**
  * Cache for loaded Pokemon translations
@@ -14,7 +26,7 @@ let pokemonTranslationsCache = {};
  * Supported Pokemon translation locales
  * These correspond to the folders in l10n/pokemon/
  */
-exports.SUPPORTED_LOCALES = ['en-US', 'fr-FR', 'de-DE', 'ja-JP'];
+exports.SUPPORTED_LOCALES = ['ko', 'en-US', 'fr-FR', 'de-DE', 'ja-JP'];
 const GENERATIONS = ['gen1', 'gen2', 'gen3', 'gen4', 'gen5'];
 /* POKEMON-EXTRA-PATCH */ GENERATIONS.push('gen6'); /* /POKEMON-EXTRA-PATCH */
 const FALLBACK_LOCALE = 'en-US';
@@ -40,7 +52,7 @@ function getPokemonLocale() {
         return configuredLocale.toLowerCase().replace(/_/g, '-');
     }
     // Default: use VS Code's language
-    return vscode.env.language.toLowerCase().replace(/_/g, '-');
+    return 'ko'; // LOCAL-PATCH: 자동이어도 무조건 한국어 이름
 }
 /**
  * Gets the extension path, with caching
@@ -130,7 +142,7 @@ class TranslatedQuickPickItem {
 exports.TranslatedQuickPickItem = TranslatedQuickPickItem;
 function stringListAsQuickPickItemList(collection) {
     return collection.map((el) => {
-        return { label: vscode.l10n.t(String(el)), value: el };
+        return { label: koT(String(el)), value: el };
     });
 }
 exports.stringListAsQuickPickItemList = stringListAsQuickPickItemList;

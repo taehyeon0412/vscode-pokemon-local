@@ -53,7 +53,7 @@
 				{
 					"type": "webview",
 					"id": "pokemonView",
-					"name": "VS Code Pokémon",
+					"name": "포켓몬",
 					"when": "vscode-pokemon.position == 'explorer'",
 					"icon": "media/icon/dark-add.svg"
 				}
@@ -81,23 +81,23 @@
 		"commands": [
 			{
 				"command": "vscode-pokemon.start",
-				"title": "Start pokemon coding session",
-				"category": "Pokemon Coding"
+				"title": "포켓몬 패널 열기",
+				"category": "포켓몬"
 			},
 			{
 				"command": "vscode-pokemon.export-pokemon-list",
-				"title": "Export pokemon list",
-				"category": "Pokemon Coding"
+				"title": "포켓몬 목록 내보내기",
+				"category": "포켓몬"
 			},
 			{
 				"command": "vscode-pokemon.import-pokemon-list",
-				"title": "Import pokemon list",
-				"category": "Pokemon Coding"
+				"title": "포켓몬 목록 가져오기",
+				"category": "포켓몬"
 			},
 			{
 				"command": "vscode-pokemon.spawn-pokemon",
-				"title": "Spawn additional pokemon",
-				"category": "Pokemon Coding",
+				"title": "포켓몬 소환",
+				"category": "포켓몬",
 				"icon": {
 					"dark": "media/icon/dark-add.svg",
 					"light": "media/icon/light-add.svg"
@@ -105,8 +105,8 @@
 			},
 			{
 				"command": "vscode-pokemon.spawn-random-pokemon",
-				"title": "Spawn random additional pokemon",
-				"category": "Pokemon Coding",
+				"title": "무작위 포켓몬 소환",
+				"category": "포켓몬",
 				"icon": {
 					"dark": "media/icon/dark-random.svg",
 					"light": "media/icon/light-random.svg"
@@ -114,8 +114,8 @@
 			},
 			{
 				"command": "vscode-pokemon.delete-pokemon",
-				"title": "Remove pokemon",
-				"category": "Pokemon Coding",
+				"title": "포켓몬 지우기",
+				"category": "포켓몬",
 				"icon": {
 					"dark": "media/icon/dark-trash.svg",
 					"light": "media/icon/light-trash.svg"
@@ -123,8 +123,8 @@
 			},
 			{
 				"command": "vscode-pokemon.remove-all-pokemon",
-				"title": "Remove all pokemon",
-				"category": "Pokemon Coding",
+				"title": "포켓몬 모두 지우기",
+				"category": "포켓몬",
 				"icon": {
 					"dark": "media/icon/dark-trash.svg",
 					"light": "media/icon/light-trash.svg"
@@ -132,18 +132,18 @@
 			},
 			{
 				"command": "vscode-pokemon.roll-call",
-				"title": "Roll-call",
-				"category": "Pokemon Coding"
+				"title": "출석 부르기",
+				"category": "포켓몬"
 			},
 			{
 				"command": "vscode-pokemon.configure-keybindings",
-				"title": "Configure keybindings",
-				"category": "Pokemon Coding"
+				"title": "단축키 설정",
+				"category": "포켓몬"
 			},
 			{
 				"command": "vscode-pokemon.change-pokemon-language",
-				"title": "Change Pokemon language",
-				"category": "Pokemon Coding"
+				"title": "포켓몬 이름 언어 바꾸기",
+				"category": "포켓몬"
 			}
 		],
 		"keybindings": [
@@ -170,7 +170,7 @@
 		],
 		"configuration": [
 			{
-				"title": "VS Code Pokemon",
+				"title": "VS Code 포켓몬",
 				"properties": {
 					"vscode-pokemon.pokemonSize": {
 						"type": "string",
@@ -181,7 +181,7 @@
 							"large"
 						],
 						"default": "medium",
-						"description": "Pokemon size"
+						"description": "포켓몬 크기"
 					},
 					"vscode-pokemon.position": {
 						"type": "string",
@@ -190,7 +190,7 @@
 							"explorer"
 						],
 						"default": "explorer",
-						"description": "VSCode pokemon webview position"
+						"description": "포켓몬 패널 위치"
 					},
 					"vscode-pokemon.theme": {
 						"type": "string",
@@ -201,7 +201,7 @@
 							"beach"
 						],
 						"default": "none",
-						"description": "Background theme assets for your pokemon"
+						"description": "배경 (none · forest 숲 · castle 성 · beach 해변)"
 					},
 					"vscode-pokemon.defaultPokemon": {
 						"type": "array",
@@ -233,25 +233,26 @@
 							]
 						},
 						"default": [],
-						"description": "List of default pokemon to automatically spawn on startup. Each pokemon should have a 'type' (required, or 'random' to spawn a random species), and optionally 'name', 'shiny', and 'pool' (for random selection). Example: [{\"type\": \"pikachu\", \"name\": \"Sparky\"}, {\"type\": \"random\", \"pool\": [\"eevee\", \"gengar\", \"snorlax\"]}]"
+						"description": "저장된 포켓몬이 하나도 없을 때 처음에 소환할 포켓몬 목록. type 은 포켓몬 키(예: pikachu) 또는 'random', name · shiny · pool 은 선택"
 					},
 					"vscode-pokemon.shinyOdds": {
 						"type": "number",
 						"default": 8192,
 						"minimum": 1,
-						"description": "Odds (1 in N) for a Pokémon to be shiny. Lower = more shinies. Default is 8192."
+						"description": "색이 다른 개체가 나올 확률 (N 마리 중 1). 낮을수록 자주 나옴, 기본 8192"
 					},
 					"vscode-pokemon.pokemonLanguage": {
 						"type": "string",
 						"enum": [
+							"ko",
 							"auto",
 							"en-US",
 							"fr-FR",
 							"de-DE",
 							"ja-JP"
 						],
-						"default": "auto",
-						"description": "Language for Pokemon names. 'auto' uses VS Code's language, or you can choose a specific language (e.g., 'fr-FR' for French, 'en-US' for English, 'de-DE' for German, 'ja-JP' for Japanese). Only official Pokemon languages are supported."
+						"default": "ko",
+						"description": "포켓몬 이름 언어. 기본은 한국어 — 'auto' 도 한국어로 나옴"
 					}
 				}
 			}

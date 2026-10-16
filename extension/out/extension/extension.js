@@ -2,6 +2,18 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.spawnPokemonDeactivate = exports.activate = exports.storeCollectionAsMemento = exports.PokemonSpecification = exports.shouldSpawnInitialCollection = void 0;
 const vscode = require("vscode");
+// LOCAL-PATCH: 메뉴 문구는 VS Code 언어와 상관없이 무조건 한국어 (l10n/bundle.l10n.ko.json)
+const KO_TEXT = (() => {
+    try {
+        return JSON.parse(require('fs').readFileSync(require('path').join(__dirname, '../../l10n/bundle.l10n.ko.json'), 'utf8'));
+    }
+    catch {
+        return {};
+    }
+})();
+function koT(message, ...args) {
+    return (KO_TEXT[message] ?? message).replace(/\{(\d+)\}/g, (m, i) => (args[i] !== undefined ? String(args[i]) : m));
+}
 const localize = require("../common/localize");
 const names_1 = require("../common/names");
 const pokemon_data_1 = require("../common/pokemon-data");
@@ -334,13 +346,13 @@ function activate(context) {
         panel.listPokemon();
         const pokemonList = await listPromise;
         if (!pokemonList.length) {
-            await vscode.window.showErrorMessage(vscode.l10n.t('There are no pokemon to remove.'));
+            await vscode.window.showErrorMessage(koT('There are no pokemon to remove.'));
             return;
         }
         const pokemon = await vscode.window.showQuickPick(pokemonList.map((val) => {
             return new PokemonQuickPickItem(val.name, val.type, val.color);
         }), {
-            placeHolder: vscode.l10n.t('Select the pokemon to remove.'),
+            placeHolder: koT('Select the pokemon to remove.'),
         });
         if (pokemon) {
             panel.deletePokemon(pokemon.name);
@@ -362,7 +374,7 @@ function activate(context) {
         }
         else {
             await createPokemonPlayground(context);
-            await vscode.window.showInformationMessage(vscode.l10n.t("A Pokemon Playground has been created. You can now use the 'Remove All Pokemon' Command to remove all Pokemon."));
+            await vscode.window.showInformationMessage(koT("A Pokemon Playground has been created. You can now use the 'Remove All Pokemon' Command to remove all Pokemon."));
         }
     }));
     context.subscriptions.push(vscode.commands.registerCommand('vscode-pokemon.roll-call', async () => {
@@ -377,28 +389,28 @@ function activate(context) {
     context.subscriptions.push(vscode.commands.registerCommand('vscode-pokemon.configure-keybindings', async () => {
         const items = [
             {
-                label: vscode.l10n.t('Spawn additional pokemon'),
+                label: koT('Spawn additional pokemon'),
                 description: 'vscode-pokemon.spawn-pokemon',
                 commandId: 'vscode-pokemon.spawn-pokemon',
             },
             {
-                label: vscode.l10n.t('Spawn random pokemon'),
+                label: koT('Spawn random pokemon'),
                 description: 'vscode-pokemon.spawn-random-pokemon',
                 commandId: 'vscode-pokemon.spawn-random-pokemon',
             },
             {
-                label: vscode.l10n.t('Remove pokemon'),
+                label: koT('Remove pokemon'),
                 description: 'vscode-pokemon.delete-pokemon',
                 commandId: 'vscode-pokemon.delete-pokemon',
             },
             {
-                label: vscode.l10n.t('Remove all pokemon'),
+                label: koT('Remove all pokemon'),
                 description: 'vscode-pokemon.remove-all-pokemon',
                 commandId: 'vscode-pokemon.remove-all-pokemon',
             },
         ];
         const picked = await vscode.window.showQuickPick(items, {
-            placeHolder: vscode.l10n.t('Select a command to configure its keybinding'),
+            placeHolder: koT('Select a command to configure its keybinding'),
             matchOnDescription: true,
         });
         if (!picked) {
@@ -414,23 +426,27 @@ function activate(context) {
         const languageLabels = {
             auto: {
                 label: '$(globe) Auto',
-                description: vscode.l10n.t('Use VS Code language'),
+                description: koT('Use VS Code language'),
             },
             'en-US': {
                 label: '🇺🇸 English (US)',
-                description: vscode.l10n.t('English names'),
+                description: koT('English names'),
             },
             'fr-FR': {
                 label: '🇫🇷 Français (FR)',
-                description: vscode.l10n.t('French names'),
+                description: koT('French names'),
             },
             'de-DE': {
                 label: '🇩🇪 Deutsch (DE)',
-                description: vscode.l10n.t('German names'),
+                description: koT('German names'),
             },
             'ja-JP': {
                 label: '🇯🇵 日本語 (JP)',
-                description: vscode.l10n.t('Japanese names'),
+                description: koT('Japanese names'),
+            },
+            ko: {
+                label: '🇰🇷 한국어 (KO)',
+                description: koT('Korean names'),
             },
         };
         /* eslint-enable @typescript-eslint/naming-convention */
@@ -439,7 +455,7 @@ function activate(context) {
                 label: languageLabels['auto'].label,
                 description: languageLabels['auto'].description,
                 detail: currentLanguage === 'auto'
-                    ? vscode.l10n.t('Current')
+                    ? koT('Current')
                     : undefined,
                 value: 'auto',
             },
@@ -447,13 +463,13 @@ function activate(context) {
                 label: languageLabels[locale]?.label || locale,
                 description: languageLabels[locale]?.description || locale,
                 detail: currentLanguage === locale
-                    ? vscode.l10n.t('Current')
+                    ? koT('Current')
                     : undefined,
                 value: locale,
             })),
         ];
         const picked = await vscode.window.showQuickPick(languageOptions, {
-            placeHolder: vscode.l10n.t('Select language for Pokemon names'),
+            placeHolder: koT('Select language for Pokemon names'),
         });
         if (!picked) {
             return;
@@ -466,14 +482,14 @@ function activate(context) {
         // This ensures the cache is immediately available
         const testPokemon = 'bulbasaur';
         localize.getLocalizedPokemonName(testPokemon);
-        await vscode.window.showInformationMessage(vscode.l10n.t('Pokemon language changed to {0}. The change will persist after restart.', picked.label));
+        await vscode.window.showInformationMessage(koT('Pokemon language changed to {0}. The change will persist after restart.', picked.label));
     }));
     context.subscriptions.push(vscode.commands.registerCommand('vscode-pokemon.export-pokemon-list', async () => {
         const pokemonCollection = PokemonSpecification.collectionFromMemento(context, getConfiguredSize());
         const pokemonJson = JSON.stringify(pokemonCollection, null, 2);
         const fileName = `pokemonCollection-${Date.now()}.json`;
         if (!vscode.workspace.workspaceFolders) {
-            await vscode.window.showErrorMessage(vscode.l10n.t('You must have a folder or workspace open to export pokemonCollection.'));
+            await vscode.window.showErrorMessage(koT('You must have a folder or workspace open to export pokemonCollection.'));
             return;
         }
         const filePath = vscode.Uri.joinPath(vscode.workspace.workspaceFolders[0].uri, fileName);
@@ -518,7 +534,7 @@ function activate(context) {
                 await storeCollectionAsMemento(context, collection);
             }
             catch (e) {
-                await vscode.window.showErrorMessage(vscode.l10n.t('Failed to import pokemon: {0}', e?.message));
+                await vscode.window.showErrorMessage(koT('Failed to import pokemon: {0}', e?.message));
             }
         }
     }));
@@ -533,24 +549,24 @@ function activate(context) {
             const generationItems = Object.values(types_1.PokemonGeneration)
                 .filter((gen) => typeof gen === 'number')
                 .map((gen) => ({
-                label: `$(folder) ${vscode.l10n.t('Generation {0}', gen)}`,
-                description: vscode.l10n.t('Browse Gen {0} Pokemon', gen),
+                label: `$(folder) ${koT('Generation {0}', gen)}`,
+                description: koT('Browse Gen {0} Pokemon', gen),
                 isGeneration: true,
                 gen: gen,
             }));
             const allPokemonOptions = Object.entries(pokemon_data_1.POKEMON_DATA).map(([type, config]) => ({
                 label: localize.getLocalizedPokemonName(type),
                 value: type,
-                description: `#${config.id.toString().padStart(4, '0')} - Gen ${config.generation}`,
+                description: `#${config.id.toString().padStart(4, '0')} - ${config.generation}세대`,
                 isGeneration: false,
             }));
             const qp = vscode.window.createQuickPick();
-            qp.placeholder = vscode.l10n.t('Select a generation or start typing to search for a Pokemon...');
+            qp.placeholder = koT('Select a generation or start typing to search for a Pokemon...');
             qp.matchOnDescription = true;
             const setGenerationOnlyItems = () => {
                 qp.items = [
                     {
-                        label: vscode.l10n.t('Generations'),
+                        label: koT('Generations'),
                         kind: vscode.QuickPickItemKind.Separator,
                     },
                     ...generationItems,
@@ -562,12 +578,12 @@ function activate(context) {
                     (opt.description?.toLowerCase().includes(q) ?? false));
                 qp.items = [
                     {
-                        label: vscode.l10n.t('Generations'),
+                        label: koT('Generations'),
                         kind: vscode.QuickPickItemKind.Separator,
                     },
                     ...generationItems,
                     {
-                        label: vscode.l10n.t('Results'),
+                        label: koT('Results'),
                         kind: vscode.QuickPickItemKind.Separator,
                     },
                     ...results,
@@ -604,15 +620,15 @@ function activate(context) {
                     disposables.forEach((d) => d.dispose());
                     qp.dispose();
                     const picked = await vscode.window.showQuickPick(pokemonOptions, {
-                        placeHolder: vscode.l10n.t('Select a Pokemon'),
+                        placeHolder: koT('Select a Pokemon'),
                     });
                     if (picked) {
                         selectedPokemonType = picked;
                         // Handle the rest of the flow
                         const possibleColors = (0, pokemon_collection_1.availableColors)(selectedPokemonType.value);
                         const name = await vscode.window.showInputBox({
-                            placeHolder: vscode.l10n.t('Leave blank for a random name'),
-                            prompt: vscode.l10n.t('Name your Pokemon'),
+                            placeHolder: koT('Leave blank for a random name'),
+                            prompt: koT('Name your Pokemon'),
                             value: (0, names_1.randomName)(),
                         });
                         if (name === undefined) {
@@ -651,8 +667,8 @@ function activate(context) {
             // Rest of the existing code
             const possibleColors = (0, pokemon_collection_1.availableColors)(selectedPokemonType.value);
             const name = await vscode.window.showInputBox({
-                placeHolder: vscode.l10n.t('Leave blank for a random name'),
-                prompt: vscode.l10n.t('Name your Pokemon'),
+                placeHolder: koT('Leave blank for a random name'),
+                prompt: koT('Name your Pokemon'),
                 value: (0, names_1.randomName)(),
             });
             if (name === undefined) {
@@ -667,7 +683,7 @@ function activate(context) {
         }
         else {
             await createPokemonPlayground(context);
-            await vscode.window.showInformationMessage(vscode.l10n.t("A Pokemon Playground has been created. You can now use the 'Spawn Additional Pokemon' Command to add more Pokemon."));
+            await vscode.window.showInformationMessage(koT("A Pokemon Playground has been created. You can now use the 'Spawn Additional Pokemon' Command to add more Pokemon."));
         }
     }));
     context.subscriptions.push(vscode.commands.registerCommand('vscode-pokemon.spawn-random-pokemon', async () => {
@@ -686,7 +702,7 @@ function activate(context) {
         }
         else {
             await createPokemonPlayground(context);
-            await vscode.window.showInformationMessage(vscode.l10n.t("A Pokemon Playground has been created. You can now use the 'Remove All Pokemon' Command to remove all Pokemon."));
+            await vscode.window.showInformationMessage(koT("A Pokemon Playground has been created. You can now use the 'Remove All Pokemon' Command to remove all Pokemon."));
         }
     }));
     // Listening to configuration changes
@@ -743,7 +759,7 @@ function activate(context) {
 exports.activate = activate;
 function updateStatusBar() {
     spawnPokemonStatusBar.text = `$(squirrel)`;
-    spawnPokemonStatusBar.tooltip = vscode.l10n.t('Spawn Pokemon');
+    spawnPokemonStatusBar.tooltip = koT('Spawn Pokemon');
     spawnPokemonStatusBar.show();
 }
 function spawnPokemonDeactivate() {
@@ -973,7 +989,7 @@ class PokemonPanel extends PokemonWebviewContainer {
             }
         }
         // Otherwise, create a new panel.
-        const panel = vscode.window.createWebviewPanel(PokemonPanel.viewType, vscode.l10n.t('Pokemon Panel'), vscode.ViewColumn.Two, getWebviewOptions(extensionUri));
+        const panel = vscode.window.createWebviewPanel(PokemonPanel.viewType, koT('Pokemon Panel'), vscode.ViewColumn.Two, getWebviewOptions(extensionUri));
         PokemonPanel.currentPanel = new PokemonPanel(panel, extensionUri, pokemonColor, pokemonType, pokemonSize, pokemonGeneration, pokemonOriginalSpriteSize, theme, themeKind, throwBallWithMouse);
     }
     resetPokemon() {
@@ -1052,7 +1068,7 @@ class PokemonWebviewViewProvider extends PokemonWebviewContainer {
     }
     getWebview() {
         if (this._webviewView === undefined) {
-            throw new Error(vscode.l10n.t('Panel not active, make sure the pokemon view is visible before running this command.'));
+            throw new Error(koT('Panel not active, make sure the pokemon view is visible before running this command.'));
         }
         else {
             return this._webviewView.webview;
