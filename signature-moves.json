@@ -37,7 +37,7 @@
   "clefairy": ["손가락흔들기", "metronome", {}],
   "clefable": ["문라이트", "glow", {"c": "moon"}],
   "vulpix": ["불꽃세례", "breath", {"c": "fire", "speed": 0.8, "life": 0.8}],
-  "ninetales": ["회오리불꽃", "rings", {"c": "fire", "n": 5}],
+  "ninetales": ["회오리불꽃", "vortex", {"c": "fire"}],
   "jigglypuff": ["노래하기", "notes", {"c": "fairy"}],
   "wigglytuff": ["하이퍼보이스", "rings", {"c": "fairy", "forward": 1, "n": 5}],
   "zubat": ["초음파", "rings", {"c": "poison", "forward": 1, "n": 3}],

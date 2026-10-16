@@ -1041,6 +1041,74 @@ const SIG_FX = {
             }) });
         },
     },
+    // 회오리 기둥 — 포켓몬 앞에 깔때기 모양으로 빙글빙글 솟음 (회오리불꽃). 앞쪽 입자는 크고 밝게 · 뒤쪽은 작고 어둡게, 아래는 뜨거운 색 · 위로 갈수록 바깥 색
+    vortex: {
+        ms: (P) => 1300 + 500 * P,
+        run: (g, o, ms) => {
+            const cols = sigPal(o.c);
+            const H = (1.7 + 0.6 * g.P) * g.h * (o.height ?? 1);
+            const rTop = (0.55 + 0.3 * g.P) * g.w;
+            const rBottom = 0.12 * g.w;
+            const cx = g.body.front + g.dir * (rTop + 0.2 * g.w);
+            const ground = g.body.bottom;
+            const start = performance.now();
+            const spin = g.dir * moveRand(9, 12);
+            // 바닥 불빛
+            sigParticle({ x: cx, y: ground, s: g.s, max: ms / 1000, draw: (ctx, p, t, px) => {
+                ctx.globalAlpha = fadeInOut(t, 0.15, 0.3) * (0.5 + 0.5 * Math.abs(Math.sin(p.life * 14)));
+                const dots = 18;
+                for (let k = 0; k < dots; k++) {
+                    const a = (k / dots) * Math.PI * 2 + p.life * 4;
+                    dotAt(ctx, px, p.s, p.x + Math.cos(a) * rTop * 0.8, p.y + Math.sin(a) * p.s * 2, cols[k % 2 ? 1 : 2]);
+                }
+            } });
+            // 기둥을 감고 올라가는 나선 띠 두 줄 — 꼬인 회오리 모양
+            sigParticle({ x: cx, y: ground, s: g.s, max: ms / 1000, draw: (ctx, p, t, px) => {
+                const grow = Math.min(1, p.life / 0.25);
+                const top = H * grow * (t > 0.8 ? 1 - (t - 0.8) / 0.2 : 1);
+                for (let strand = 0; strand < 2; strand++) {
+                    for (let h = 0; h < top; h += p.s) {
+                        const frac = h / H;
+                        const r = rBottom + (rTop - rBottom) * frac;
+                        const theta = strand * Math.PI + frac * 9 + p.life * spin;
+                        const front = Math.sin(theta) > 0;
+                        ctx.globalAlpha = (front ? 0.95 : 0.35) * fadeInOut(t, 0.05, 0.25);
+                        dotAt(ctx, px, p.s, p.x + Math.cos(theta) * r, p.y - h + Math.sin(theta) * r * 0.15, cols[Math.min(cols.length - 1, Math.floor(frac * cols.length))], front ? 2 : 1, 1);
+                    }
+                }
+            } });
+            sigEmitter({ until: start + ms - 300, rate: 110 + 110 * g.P, fx: () => {
+                const grow = Math.min(1, (performance.now() - start) / 250); // 처음엔 솟아오르며 커짐
+                if (Math.random() < 0.12 + 0.1 * g.P) {
+                    // 회오리 밖으로 튀는 불똥
+                    const a = moveRand(0, Math.PI * 2);
+                    sigParticle({ x: cx + Math.cos(a) * rTop * 0.6, y: ground - moveRand(0.2, 0.9) * H * grow, s: g.s, vx: Math.cos(a) * moveRand(30, 70) * g.s, vy: -moveRand(10, 50) * g.s, g: 60 * g.s, drag: 1, max: moveRand(0.4, 0.8), color: movePick(cols.slice(0, 2)), draw: DRAW.dot });
+                    return;
+                }
+                sigParticle({
+                    x: cx, y: ground, s: g.s, max: moveRand(0.5, 0.9), theta: moveRand(0, Math.PI * 2), h: moveRand(0, 0.15) * H, rise: moveRand(0.9, 1.3) * H * grow,
+                    update: (p, dt) => {
+                        p.theta += spin * dt;
+                        p.h += p.rise * dt;
+                        p.frac = Math.min(1, p.h / H);
+                        const r = rBottom + (rTop - rBottom) * p.frac;
+                        p.depth = Math.sin(p.theta);
+                        p.x = cx + Math.cos(p.theta) * r;
+                        p.y = ground - p.h + p.depth * r * 0.15;
+                    },
+                    draw: (ctx, p, t, px) => {
+                        if (p.frac === undefined) {
+                            return;
+                        }
+                        const front = p.depth > 0;
+                        const size = (front ? 2 : 1) + (g.P > 0.6 && front ? 1 : 0);
+                        ctx.globalAlpha = (front ? 1 : 0.55) * fadeInOut(t, 0.1, 0.35) * (p.frac > 0.85 ? (1 - p.frac) / 0.15 : 1);
+                        dotAt(ctx, px, p.s, p.x, p.y, cols[Math.min(cols.length - 1, Math.floor(p.frac * cols.length))], size, size);
+                    },
+                });
+            } });
+        },
+    },
     // 몸 둘레 스파크 (예전 전기 기술 그대로) — 10만볼트 · 전기쇼크
     spark: {
         ms: (P) => 550 + 650 * P,

@@ -29,6 +29,7 @@
 | 연출 | 이런 기술 |
 |:-:|---|
 | 🔥 **뿜기** | 리자몽 블래스트번 · 미뇽 용의분노 · 또가스 독가스 · 프리져 눈보라 |
+| 🌪️ **회오리** | 나인테일 회오리불꽃 — 포켓몬 앞에 불꽃 회오리 기둥이 꼬이며 솟아올라요 |
 | ☀️ **광선** | 이상해꽃 솔라빔 · 갸라도스 파괴광선 · 쥬쥬 오로라빔(무지개) · 뮤츠 사이코브레이크 |
 | 🌿 **채찍 · 실** | 이상해씨 덩굴채찍 · 캐터피 실뿜기 · 내루미 핥기 |
 | 🎯 **날리기** | 쥬피썬더 바늘미사일 · 별가사리 스피드스타 · 나옹 고양이돈받기(동전) · 텅구리 뼈다귀부메랑 · 루주라 악마의키스(하트) |
@@ -232,7 +233,7 @@ python3 ~/.claude/vscode-pokemon-local/install.py
 "hitmonchan": [["불꽃펀치", "punch", {"c": "fire"}], ["냉동펀치", "punch", {"c": "ice"}]]
 ```
 
-- 연출 틀: `breath` 뿜기 · `beam` 광선 · `projectile` 날리기 · `bubbles` 거품 · `water` 물대포 · `powder` 가루 · `rings` 고리 · `spark` 스파크 · `bolt` 하늘 번개 · `glow` 반짝임 · `shield` 보호막 · `quake` 지진 · `rockfall` 바위 · `dash` 돌진 · `slash` 할퀴기 · `punch` 주먹 · `zzz` · `notes` 음표 · `splash` 튀어오르기 · `metronome` 손가락흔들기
+- 연출 틀: `breath` 뿜기 · `vortex` 회오리 · `beam` 광선 · `projectile` 날리기 · `bubbles` 거품 · `water` 물대포 · `powder` 가루 · `rings` 고리 · `spark` 스파크 · `bolt` 하늘 번개 · `glow` 반짝임 · `shield` 보호막 · `quake` 지진 · `rockfall` 바위 · `dash` 돌진 · `slash` 할퀴기 · `punch` 주먹 · `zzz` · `notes` 음표 · `splash` 튀어오르기 · `metronome` 손가락흔들기
 - 색(`c`): `fire` `water` `ice` `grass` `solar` `electric` `psychic` `poison` `ghost` `dragon` `fairy` `rock` `ground` `steel` … (`moves.js` 의 `SIG_PALETTE`)
 - 옵션은 `moves.js` 의 `SIG_FX` 각 틀 위 주석에 있어요 (`width` 굵기, `len` 길이, `n` 개수, `wave` 물결, `rainbow` 무지개, `arc` 포물선, `roll` 구르기 …)
 
