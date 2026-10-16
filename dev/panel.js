@@ -265,6 +265,14 @@ async function shot() {
         __ult.fire(actor);
     } else if (fx === 'clash') {
         __ult.clash(actor, Number(q.get('vs') ?? __ult.list().length - 1), q.get('ua') ? JSON.parse(q.get('ua')) : undefined, q.get('ub') ? JSON.parse(q.get('ub')) : undefined, q.get('win') || undefined); // 필살기 대결 (win=a|b|draw 로 승패를 정함)
+    } else if (fx === 'sig') {
+        // 클릭 기술 하나 (opts = [이름, 틀, 옵션]) — &x=0.15 면 패널 그 위치에 세우고 오른쪽을 보고
+        if (q.get('x')) {
+            __ult.place(actor, window.innerWidth * Number(q.get('x')));
+        }
+        __ult.sig(actor, o, false);
+    } else if (fx === 'beamclash') {
+        __ult.beamclash(actor, Number(q.get('vs') ?? __ult.list().length - 1)); // 광선 힘겨루기
     } else if (fx === 'press') {
         __ult.press(actor, Number(q.get('hold') ?? 1100)); // 진짜 꾹 누르기처럼 (기 모으기 → 필살기)
     } else {

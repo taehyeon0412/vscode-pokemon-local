@@ -87,6 +87,7 @@ def main():
     ap.add_argument("--ua", help='--shot clash 에서 쓰는 애 필살기 JSON, 예 \'["파괴광선","ultbeam",{"c":"hyper"}]\'')
     ap.add_argument("--ub", help="--shot clash 에서 받아칠 애 필살기 JSON")
     ap.add_argument("--winner", help="--shot clash 승패: a | b | draw")
+    ap.add_argument("--x", help="--shot sig 에서 세울 곳 (패널 너비 비율, 예 0.15)")
     ap.add_argument("--p")
     ap.add_argument("--size", default="nano")
     ap.add_argument("--theme", default="forest")
@@ -115,6 +116,8 @@ def main():
                         q[k] = getattr(a, k)
                 if a.winner:
                     q["win"] = a.winner
+                if a.x:
+                    q["x"] = a.x
                 path = os.path.join(os.path.abspath(a.out), f"{a.shot}-{at}.png")
                 # 정확한 크기의 iframe 에 띄워 찍고 그 부분만 자름 — 띄우기(약 1.5초) + at + 여유
                 w, h = (int(v) for v in a.win.split("x"))

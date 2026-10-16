@@ -907,6 +907,16 @@ window.__ult = {
         return ultClash(a, ua || movePick(pool), this.pick(j), ub, force);
     },
     kind: (fx, o) => duelKind(fx, o), // 대결 모양 종류 (duel.js 가 뒤에 붙어서 함수로)
+    // 클릭 기술 하나를 정해서 (점검 · 사진용) — left 면 왼쪽을 보고
+    sig(i = 0, spec, left = false) {
+        useSignature(this.pick(i), spec, left);
+    },
+    // 광선 힘겨루기 — i 가 광선을 쏘고 j(광선 쓰는 애)가 받아침
+    beamclash(i = 0, j = 1, spec) {
+        const a = this.pick(i);
+        const b = this.pick(j);
+        startClash(a, spec || beamMoves(a.label)[0], b.left < a.left, b);
+    },
     click(i = 0) {
         const p = this.pick(i);
         useMove(p, p.left + spriteSize(p) / 2 > window.innerWidth / 2);
