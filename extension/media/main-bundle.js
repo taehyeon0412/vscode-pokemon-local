@@ -7811,7 +7811,8 @@ function useSignature(pokemon, sig, left) {
     }, 120);
 }
 
-function useMove(pokemon) {
+// faceLeft 를 주면 그쪽을 보고 씀 (클릭 — 화면 가운데 쪽)
+function useMove(pokemon, faceLeft) {
     const move = POKEMON_MOVES[pokemon.label];
     const sig = POKEMON_SHAPE[pokemon.label] && sigEntry(pokemon.label);
     const current = pokemon.currentState;
@@ -7819,7 +7820,7 @@ function useMove(pokemon) {
         return;
     }
     const flying = current instanceof FlyState;
-    const left = flying ? current.dir < 0 : facingLeft(pokemon.el);
+    const left = faceLeft ?? (flying ? current.dir < 0 : facingLeft(pokemon.el));
     if (flying) {
         // 공중에서 쓰고 계속 날기
         pokemon.holdState = current;
@@ -7849,8 +7850,10 @@ function useMove(pokemon) {
 
 function handleMoveClick(e) {
     exports.allPokemon.pokemonCollection.forEach((element) => {
-        if (element.collision === e.currentTarget && !(performance.now() - (element.pokemon.el.dragEndAt ?? -1e9) < 300)) {
-            useMove(element.pokemon);
+        const p = element.pokemon;
+        if (element.collision === e.currentTarget && !(performance.now() - (p.el.dragEndAt ?? -1e9) < 300)) {
+            // 가운데보다 왼쪽이면 오른쪽을 보고, 오른쪽이면 왼쪽을 보고
+            useMove(p, p.left + spriteSize(p) / 2 > window.innerWidth / 2);
         }
     });
 }
