@@ -2,7 +2,9 @@
 
 **VS Code 패널에서 포켓몬을 키워요.** 클릭하면 기술을 쓰고, 잡아서 던지면 쿵 넘어지고, 날개 달린 애들은 하늘을 날아다녀요.
 
-<p align="center"><img src="docs/demo.gif" alt="포켓몬들이 기술을 쓰고 날아다니는 데모" width="800"></p>
+<p align="center"><a href="docs/demo.gif"><img src="docs/demo.png" alt="포켓몬들이 기술을 쓰고 날아다니는 데모 — 누르면 재생" width="800"></a></p>
+
+<p align="center"><sub>그림 오른쪽 위 <b>▶ 재생</b> 을 누르면 움직이는 장면(GIF)이 열려요</sub></p>
 
 > 마켓의 [vscode-pokemon](https://github.com/jakobhoeg/vscode-pokemon) 5.0.2 를 바탕으로 고친 수정본이에요.
 > 확장 이름이 `local.vscode-pokemon` 이라 마켓 업데이트와 상관없이 그대로 유지돼요.
@@ -14,11 +16,66 @@
 | | 이렇게 하면 | 이렇게 돼요 |
 |:-:|---|---|
 | 🖱️ | 포켓몬을 **클릭** | 기술을 써요 — 화면 가운데 쪽을 보고 쓰고, 머리 위에 기술 이름이 떠요 |
+| 💥 | 포켓몬을 **1초 꾹 누르기** | **필살기** — 화면이 어두워지고 컷인 · 큰 글씨와 함께 그 포켓몬만의 필살기 (아래) |
 | ✋ | 포켓몬을 **잡아서 끌기** | 잡혀 있는 동안 파닥파닥 바둥거려요 |
 | 💫 | 높은 데서 **놓기** | 쿵 넘어져서 머리 위로 별이 빙글빙글 돌다가 비틀 일어나요 |
 | ➕ | 패널 위 **+** | 포켓몬을 불러요 — 한글 이름으로 검색돼요 |
 | 🗑️ | 패널 위 **휴지통** | 한 마리씩 또는 모두 지우기 — 모두 지운 뒤에도 알림의 [되돌리기]로 다시 불러와요 |
 | ⚙️ | 패널 위 **⚙** | 기본 포켓몬 · 크기 · 배경 · 이름 언어를 한 번에 바꿔요 — 기본 포켓몬은 실수로 지워도 ↩ 되돌리기 |
+
+### 💥 필살기 — 1초 꾹 누르기
+
+<table>
+<tr>
+<td align="center"><a href="docs/ult-pikachu.gif"><img src="docs/ult-pikachu.png" alt="피카츄 1000만볼트 — 누르면 재생" width="400"></a><br><b>피카츄</b> · 1000만볼트</td>
+<td align="center"><a href="docs/ult-venusaur.gif"><img src="docs/ult-venusaur.png" alt="이상해꽃 솔라빔 — 누르면 재생" width="400"></a><br><b>이상해꽃</b> · 솔라빔</td>
+</tr>
+<tr>
+<td align="center"><a href="docs/ult-charizard.gif"><img src="docs/ult-charizard.png" alt="리자몽 블래스트번 — 누르면 재생" width="400"></a><br><b>리자몽</b> · 블래스트번</td>
+<td align="center"><a href="docs/ult-groudon.gif"><img src="docs/ult-groudon.png" alt="그란돈 단애의칼 — 누르면 재생" width="400"></a><br><b>그란돈</b> · 단애의칼</td>
+</tr>
+<tr>
+<td align="center"><a href="docs/ult-greninja.gif"><img src="docs/ult-greninja.png" alt="개굴닌자 거대 물수리검 — 누르면 재생" width="400"></a><br><b>개굴닌자</b> · 거대 물수리검</td>
+<td align="center"><a href="docs/ult-mew.gif"><img src="docs/ult-mew.png" alt="뮤 오리진즈슈퍼노바 — 누르면 재생" width="400"></a><br><b>뮤</b> · 오리진즈슈퍼노바</td>
+</tr>
+</table>
+
+<p align="center"><sub>오른쪽 위 <b>▶ 재생</b> 을 누르면 움직이는 장면(GIF)이 열려요</sub></p>
+
+포켓몬을 **1초 넘게 꾹** 누르면 기운이 차오르다가 필살기가 나가요. 1초 전에 떼면 평소처럼 기술, 누른 채 움직이면 잡기예요.
+
+1. **누르는 동안** — 빛이 몸으로 빨려 들고 발밑 고리가 차오르며 몸이 부르르, 화면이 서서히 어두워짐
+2. **번쩍** — 그 포켓몬만 빛을 받고, 큰 그림이 가로 띠로 휙 지나가며 **"리자몽의 필살기! 블래스트번"**
+3. **필살기** — 평소 기술보다 훨씬 크게. 맞은 포켓몬은 벌러덩 · 떠오름 · 빙글
+
+- **637마리 모두** 필살기가 **2개 이상** 있어요 (메타몽만 변신 하나) — 서로 다른 연출로, 쓸 때마다 **번갈아** 나와요 (한 바퀴 다 나올 때까지 같은 게 안 나오고, 연달아도 안 나옴). 이름은 Z기술 · 거다이맥스 · 전용기 · 대표 기술에서 — 피카츄 100만볼트(노란 번개) / 1000만볼트(무지개 번개 11줄기 · 마지막에 거대 번개 기둥), 라이츄 라이트닝서프라이드 / 스파킹기가볼트, 뮤 오리진즈슈퍼노바, 그란돈 단애의칼, 디아루가 시간의포효, 개굴닌자 거대 물수리검 …
+- **광선을 쏘는 애들은 거대 광선** — 이상해꽃 · 라플레시아 솔라빔, 망나뇽 · 갸라도스 · 포릴곤Z 파괴광선, 뮤츠 사이코브레이크, 거북왕 하이드로캐논(두 줄), 쥬쥬 오로라빔(무지개) …
+- ⚔️ **필살기 대결** — 꾹 눌러 필살기를 쓰면 **절반쯤**, 멀리 있는 포켓몬이 자기 필살기로 받아쳐요. 위아래 두 컷인과 가운데 **VS** → **서로의 고유 필살기가 그 모양 그대로** 가운데서 맞부딪혀 밀고 밀림 (불덩이 vs 몸통 돌진, 거대 광선 vs 바위 기둥, 회오리 vs 용성군 …) → 센 쪽 필살기가 뚫고 나가 진 쪽에서 그 방식으로 터지고 벌러덩, 사이에 있던 애들도 휩쓸려요 (**"효과는 굉장했다!"**). 무승부면 가운데서 대폭발
+- 🎲 잉어킹은 화면 끝까지 튀어올랐다가 *"그러나 아무 일도 일어나지 않았다!"* (가끔 갸라도스로 변해 파괴광선), 메타몽은 가장 가까운 포켓몬으로 변신해 그 애의 필살기, 삐삐는 손가락흔들기로 아무 필살기나
+
+| 연출 | 이런 필살기 |
+|:-:|---|
+| ☀️ **거대 광선** | 솔라빔 · 파괴광선 · 하이드로캐논 · 사이코브레이크 · 냉동빔 — 모아서 화면 끝까지, 닿은 애는 벌러덩 |
+| 🔥 **거대 구체 · 대폭발** | 다이내믹풀플레임 · 섀도볼 · 파동탄 · 오리진즈슈퍼노바 · 대폭발 — 화면이 하얗게 |
+| 🌑 **블랙홀 · 그림자** | 블랙홀이클립스(다른 애들을 빨아들임) · 무한암야로의유인(그림자 손) |
+| 🌍 **땅 · 자연** | 라이징랜드오버 · 단애의칼(용암) · 스톤에지 기둥 · 블룸샤인엑스트라 · 하이드로보텍스 소용돌이 |
+| ⛈️ **하늘 · 날씨** | 번개 폭풍 · 눈보라 · 월즈엔드폴(거대 바위) · 용성군 · 스파킹기가볼트(번개 창) · 1000만볼트 |
+| 🎯 **날리기** | 바늘미사일 · 리프스톰 · 스피드스타 · 거대 물수리검 |
+| 💨 **몸 · 마음** | 울트라대시어택 · 파이널다이브클래시 · 전력무쌍격렬권 · 맥시멈사이브레이커(모두 공중에 띄움) |
+
+<details>
+<summary><b>따로 정하지 않은 포켓몬은 타입 기본 필살기 (Z기술)</b></summary>
+
+| 타입 | 필살기 | 타입 | 필살기 | 타입 | 필살기 |
+|---|---|---|---|---|---|
+| 노말 | 울트라대시어택 | 불꽃 | 다이내믹풀플레임 | 물 | 하이드로보텍스 |
+| 풀 | 블룸샤인엑스트라 | 전기 | 스파킹기가볼트 | 얼음 | 레이징지오프리즈 |
+| 격투 | 전력무쌍격렬권 | 독 | 애시드포이즌딜리트 | 땅 | 라이징랜드오버 |
+| 비행 | 파이널다이브클래시 | 에스퍼 | 맥시멈사이브레이커 | 벌레 | 절대포식회전참 |
+| 바위 | 월즈엔드폴 | 고스트 | 무한암야로의유인 | 드래곤 | 얼티메이트드래곤번 |
+| 악 | 블랙홀이클립스 | 강철 | 초월나선연격 | 페어리 | 러블리스타임팩트 |
+
+</details>
 
 ### 🌟 1세대 151마리 — 여러 기술 중 무작위
 
@@ -31,7 +88,7 @@
 
 #### ⚔️ 광선 힘겨루기
 
-<p align="center"><img src="docs/clash.gif" alt="이상해꽃 솔라빔과 뮤츠 환상빔이 맞부딪혀 밀고 밀리다 솔라빔이 뚫고 나가는 모습" width="800"></p>
+<p align="center"><a href="docs/clash.gif"><img src="docs/clash.png" alt="이상해꽃 솔라빔과 뮤츠 환상빔이 맞부딪혀 밀고 밀리다 솔라빔이 뚫고 나가는 모습 — 누르면 재생" width="800"></a></p>
 
 광선류 기술(솔라빔 · 파괴광선 · 사이코브레이크 · 냉동빔 · 오로라빔 …)을 쏘면 **가끔(절반쯤)**, 바라보는 쪽 **가장 먼 곳의 광선 쓰는 포켓몬**이 돌아서서 받아쳐요.
 
@@ -117,15 +174,13 @@
 
 </details>
 
-### ⚔️ 2세대부터 — 타입별 기술
+### ⚔️ 2세대부터 — 대표 기술 + 타입 기술
 
-| 타입 | 기술 | 이런 애들 |
-|:-:|---|---|
-| 🔥 불꽃 | 입에서 불꽃이 활활, 센 애는 불똥까지 | 블레이범 · 번치코 · 초염몽 |
-| 💧 물 | 물대포를 쭉 | 장크로다일 · 대짱이 · 엠페르트 |
-| ⚡ 전기 | 몸 둘레로 번개가 지직 | 전룡 · 렌트라 · 에몽가 |
-| 🍃 풀 | 나뭇잎이 빙글빙글 | 메가니움 · 나무킹 · 토대부기 |
-| 🥷 전용기 | **물수리검** — 던지는 자세로 표창을 슝슝슝 | 개굴닌자 |
+2~6세대도 1세대처럼 **포켓몬마다 대표 기술(1~3개) + 타입 기술**(18타입 모두) 중 무작위예요. 예전엔 불꽃 · 물 · 전기 · 풀 타입만 클릭 기술이 있어서 안농 · 리그레처럼 클릭해도 아무것도 안 나오는 애들이 있었어요.
+
+- 예: 루카리오 파동탄 · 본러시, 한카리아스 드래곤다이브, 핫삼 불릿펀치, 마기라스 스톤에지, 토게피 손가락흔들기 …
+- **광선을 쏘는 애들은 클릭해도 광선** — 메가니움 솔라빔, 폴리곤2 · 포릴곤Z 파괴광선 · 트라이어택, 레지 삼총사, 디아루가 시간의포효, 리그레 환상빔 … (1세대도 라플레시아 솔라빔 · 망나뇽 파괴광선처럼 빠졌던 광선을 채움 — 광선 힘겨루기에도 끼어요)
+- 🥷 **물수리검** — 개굴닌자는 던지는 자세로 표창을 슝슝슝
 
 > 💪 **강할수록 화려해요.** 같은 기술이라도 진화할수록 크고 길어지고, 전설 포켓몬이 제일 화려해요.
 
@@ -252,6 +307,28 @@ python3 ~/.claude/vscode-pokemon-local/install.py
 - 색(`c`): `fire` `water` `ice` `grass` `solar` `electric` `psychic` `poison` `ghost` `dragon` `fairy` `rock` `ground` `steel` … (`moves.js` 의 `SIG_PALETTE`)
 - 옵션은 `moves.js` 의 `SIG_FX` 각 틀 위 주석에 있어요 (`width` 굵기, `len` 길이, `n` 개수, `wave` 물결, `rainbow` 무지개, `arc` 포물선, `roll` 구르기 …)
 
+### 필살기 · 2세대부터 기술 바꾸기 — `moves-data/*.json`
+
+세대별 파일(`gen1` `gen2` `gen3` `gen4` `gen56`)에 포켓몬마다 한 줄 — `moves` 는 클릭 기술에 더할 것, `ult` 는 필살기 `[이름, 필살기 틀, 옵션]` (여러 개면 쓸 때마다 하나). 고친 뒤 `python3 dev/validate-data.py` 로 검사 → `python3 make-moves.py` → `python3 install.py`
+
+```jsonc
+"dragonite": {
+  "moves": [["파괴광선", "beam", {"c": "hyper", "width": 1.4, "sparkle": "hyper"}]],
+  "ult": ["파괴광선", "ultbeam", {"c": "hyper", "width": 1.3}]
+},
+"unown": { "ult": ["잠재파워", "ultorb", {"c": "hypno"}] }   // unown_a … 모두 (밑줄 앞 이름으로 찾음)
+```
+
+- 필살기 틀 22개와 옵션은 [`ult/SPEC.md`](ult/SPEC.md) — `ultbeam` 광선 · `ultorb` 구체 · `ultnova` 대폭발 · `ultblackhole` · `ultsparkle` · `ultquake` · `ultpillar` 기둥 · `ultbloom` · `ultvortex` · `ultstorm` 날씨 · `ultskyfall` 낙하 · `ultthunder` · `ultvolt` · `ultswarm` 날리기 · `ultrush` 돌진 · `ultdive` 내리꽂기 · `ultbarrage` 연타 · `ultpsy` · `ultshadow` · `ultsplash` `ultcopy` `ultmetronome`
+- 필살기가 없으면 `make-moves.py` 의 `TYPE_ULTS`(타입 기본)
+- 꾹 누르는 시간 · 연출 길이 · 대결 확률은 `ult/core.js` 맨 위 (`ULT_HOLD_MS` 1초 · `ULT_INTRO_MS` · `ULT_DIM` 어둡기 · `ULT_CLASH_CHANCE` 0.5)
+
+### 필살기 연출 고치기 — `ult/`
+
+`core.js`(꾹 누르기 · 기 모으기 · 시작 연출 · 도구) + `fx-energy.js` · `fx-earth.js` · `fx-sky.js` · `fx-body.js`(틀). 만드는 법은 [`ult/SPEC.md`](ult/SPEC.md).
+
+VS Code 없이 브라우저로 보기 — 이 폴더에서 `python3 -m http.server 8765` → <http://localhost:8765/dev/preview.html> (포켓몬마다 필살기 · 기술 버튼, 틀 · 옵션 시험). 점검은 `python3 dev/smoke.py --fx all` (머리 없는 Edge/Chrome 으로 모든 틀을 돌려 오류 · 입자 수), 장면 사진은 `--shot ultbeam --at 1500,2500`.
+
 ### 포켓몬 추가 — `add-pokemon.py`
 
 원본에 없는 포켓몬을 [PMD SpriteCollab](https://github.com/PMDCollab/SpriteCollab) 그림으로 만들어 등록합니다 (걷기 · 서 있기, 색이 다른 개체 포함, 한글 이름, 기술 표까지).
@@ -267,8 +344,11 @@ python3 install.py
 ```
 extension/        확장 본체 (원본 + 수정) — install.py 가 이걸 묶어 설치
 moves.js          기술 · 행동 코드 원본 — make-moves.py 가 extension/media/main-bundle.js 에 끼워 넣음
-make-moves.py     타입 · 종족값 · 입 위치로 기술 표 + 행동 표 + 1세대 전용 기술 표 생성
+ult/              필살기 코드 (core.js + fx-*.js 연출 틀) · SPEC.md 설계 — moves.js 뒤에 이어 붙음
+make-moves.py     타입 · 종족값 · 입 위치로 기술 표 + 행동 표 + 대표 기술 표 + 필살기 표 생성
 signature-moves.json  1세대 151마리 전용 기술 (이름 · 연출 틀 · 색)
+moves-data/       세대별 클릭 기술 추가분 + 필살기 (gen1 · gen2 · gen3 · gen4 · gen56)
+dev/              미리보기(preview.html · panel.html) · 점검(smoke.py) · 데이터 검사(validate-data.py)
 add-pokemon.py    포켓몬 추가 (그림 생성 + 등록)
 install.py        vsix 로 묶어 설치 (install.sh 는 예전 명령용)
 pokemon.json      add-pokemon 으로 추가한 포켓몬 목록
@@ -285,7 +365,7 @@ docs/             README 그림 (데모 · 장면 캡처)
 |---|---|---|
 | `POKEMON-FIT-PATCH` | `media/main-bundle.js` | 배경 자동 맞춤 |
 | `POKEMON-EXTRA-PATCH` | `main-bundle.js`, `out/common/pokemon-data.js` · `types.js` · `localize.js` | 추가 포켓몬 데이터 · 6세대 메뉴 · 한글 이름 세대 (add-pokemon.py 가 다시 씀) |
-| `POKEMON-MOVES-PATCH` | `main-bundle.js` | 기술 · 1세대 전용 기술 · 행동 · 드래그 (make-moves.py 가 다시 씀) |
+| `POKEMON-MOVES-PATCH` | `main-bundle.js` | 기술 · 대표 기술 · 행동 · 드래그 · 필살기(꾹 누르기) (make-moves.py 가 다시 씀) |
 | `LOCAL-PATCH` | `main-bundle.js`, `media/pokemon.css` | 저장 1초에 한 번, GPU 이동(`glideSprite`) |
 | `LOCAL-PATCH` | `out/extension/extension.js`, `main-bundle.js` | ⚙ 설정 메뉴(`vscode-pokemon.settings-menu`), 빈 패널이 `fresh-session` 을 보내면 기본 포켓몬 소환 |
 | `LOCAL-PATCH` | `out/extension/extension.js`, `out/common/localize.js` | 메뉴 문구를 `koT` 로 `l10n/bundle.l10n.ko.json` 에서 (VS Code 언어 무시), 이름 언어 자동 → 한국어 |

@@ -458,7 +458,9 @@ function moveTick(now) {
             // 전용기 발사기 — 정해진 시각마다 shots 개, 아니면 초당 rate 개
             if (e.shots !== undefined) {
                 while (e.shots > 0 && now >= e.nextShot) {
-                    e.fx(e, e.shot++);
+                    if (!safeFx(e, () => e.fx(e, e.shot++))) {
+                        break;
+                    }
                     e.shots -= 1;
                     e.nextShot += e.every;
                 }
@@ -466,7 +468,9 @@ function moveTick(now) {
                 e.acc += dt * e.rate;
                 while (e.acc >= 1) {
                     e.acc -= 1;
-                    e.fx(e);
+                    if (!safeFx(e, () => e.fx(e))) {
+                        break;
+                    }
                 }
             }
             continue;
@@ -504,7 +508,12 @@ function moveTick(now) {
         if (p.move === 'grass') {
             p.y += Math.sin(p.phase + p.life * 14) * p.s * 0.6;
         }
-        p.update?.(p, dt);
+        try {
+            p.update?.(p, dt);
+        } catch (err) {
+            moveFault(err);
+            p.life = p.max;
+        }
         if (p.move === 'dizzy') {
             const a = p.phase + p.life * 9;
             p.x = p.cx + Math.cos(a) * p.rx;
@@ -517,7 +526,23 @@ function moveTick(now) {
                 moveParticles.push({ move: 'trail', x: p.x, y: p.y + moveRand(-1, 1) * p.s, life: 0, s: p.s, vx: -p.dir * moveRand(5, 20) * p.s, vy: moveRand(-6, 6) * p.s, g: 40 * p.s, drag: 1, max: 0.25 });
             }
         }
-        drawParticle(ctx, p);
+    }
+    // 그리기 — 층(z) 순서: z<0 맨 밑 → 보통(나중 것부터 그려서 먼저 만든 게 위) → z>0 맨 위
+    for (const layer of [-1, 0, 1]) {
+        for (let i = moveParticles.length - 1; i >= 0; i--) {
+            const p = moveParticles[i];
+            const z = p.z ?? 0;
+            if ((z < 0 ? -1 : z > 0 ? 1 : 0) !== layer || p.life >= p.max) {
+                continue;
+            }
+            try {
+                drawParticle(ctx, p);
+            } catch (err) {
+                moveFault(err);
+                p.life = p.max;
+                ctx.globalCompositeOperation = 'source-over';
+            }
+        }
     }
     ctx.globalAlpha = 1;
 
@@ -526,6 +551,25 @@ function moveTick(now) {
     } else {
         moveRaf = 0;
         moveLast = 0;
+    }
+}
+
+// 효과 하나의 오류 — 기록만 하고 그 입자 · 발사기만 없앰 (moveTick 은 계속)
+function moveFault(err) {
+    if (typeof ultError === 'function') {
+        ultError('moveTick', err);
+    } else {
+        console.error(err);
+    }
+}
+function safeFx(e, fn) {
+    try {
+        fn();
+        return true;
+    } catch (err) {
+        moveFault(err);
+        e.until = 0;
+        return false;
     }
 }
 
@@ -1736,6 +1780,7 @@ function startClash(a, sigA, leftA, b) {
     const meet = Math.abs(b.left - a.left) / 2 / CLASH_SPEED;
     const hold = Math.ceil((0.12 + CLASH_CHARGE + meet + CLASH_SEC + 1.5) * 10);
     for (const [p, left] of [[a, leftA], [b, !leftA]]) {
+        p.clashUntil = performance.now() + hold * 100; // 힘겨루기 중엔 필살기 안 됨
         p.currentStateEnum = "swipe" /* States.swipe */;
         p.currentState = new MoveState(left, hold);
         p.hideSpeechBubble();
@@ -2142,6 +2187,10 @@ function useMove(pokemon, faceLeft) {
 function handleMoveClick(e) {
     exports.allPokemon.pokemonCollection.forEach((element) => {
         const p = element.pokemon;
+        if (element.collision === e.currentTarget && p.el.ultFired) {
+            p.el.ultFired = false; // 꾹 눌러 필살기를 쓴 뒤 손을 뗀 것
+            return;
+        }
         if (element.collision === e.currentTarget && !(performance.now() - (p.el.dragEndAt ?? -1e9) < 300)) {
             // 가운데보다 왼쪽이면 오른쪽을 보고, 오른쪽이면 왼쪽을 보고
             useMove(p, p.left + spriteSize(p) / 2 > window.innerWidth / 2);
@@ -2169,6 +2218,7 @@ function handleDragStart(e) {
 }
 
 function grab(d) {
+    ultCancelPress(); // 움직였으면 꾹 누르기가 아니라 잡기
     const p = d.pokemon;
     const el = p.el;
     d.grabbed = true;
@@ -2240,7 +2290,7 @@ function startMoveAuto() {
             (element) => has(element.pokemon.label) && ['sit-idle', 'walk-right', 'walk-left'].includes(element.pokemon.currentStateEnum),
         );
     setInterval(() => {
-        if (document.hidden) {
+        if (document.hidden || ultActive) {
             return;
         }
         if (Math.random() < 1 / MOVE_AUTO_AVG_SEC) {

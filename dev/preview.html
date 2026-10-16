@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>필살기 미리보기</title>
+    <!-- 저장소 폴더에서: python -m http.server 8765 → http://localhost:8765/dev/preview.html -->
+    <style>
+        :root { color-scheme: dark; --bg: #16181d; --panel: #1f2229; --line: #343844; --text: #e6e8ee; --muted: #9aa0ad; --accent: #f5c400; }
+        body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.5 system-ui, sans-serif; }
+        header { padding: 12px 16px; border-bottom: 1px solid var(--line); display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+        h1 { font-size: 15px; margin: 0 12px 0 0; }
+        label { color: var(--muted); display: inline-flex; gap: 6px; align-items: center; }
+        input, select, button { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font: inherit; }
+        input[type=number] { width: 64px; }
+        #keys { width: min(520px, 90vw); }
+        button { cursor: pointer; }
+        button:hover { border-color: var(--accent); }
+        button.ult { border-color: #8a6d00; }
+        main { padding: 16px; display: grid; gap: 16px; }
+        #wrap { border: 1px solid var(--line); width: max-content; max-width: 100%; overflow: auto; }
+        iframe { display: block; border: 0; }
+        #mons { display: flex; flex-wrap: wrap; gap: 8px; }
+        .mon { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; display: flex; gap: 6px; align-items: center; }
+        .mon b { font-weight: 600; }
+        .mon small { color: var(--muted); }
+        #fx { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        #opts { width: min(360px, 80vw); font-family: ui-monospace, monospace; }
+        #status { color: var(--muted); }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>필살기 미리보기</h1>
+        <label>포켓몬 <input id="keys" value="bulbasaur,charmander,charizard,squirtle,dratini,dragonair,pikachu,ninetales,chikorita,pidgeot,raichu,parasect,ponyta,unown_w,carnivine,graveler,rhydon,elgyem"></label>
+        <label>크기 <select id="size"><option>nano</option><option>small</option><option>medium</option><option>large</option></select></label>
+        <label>패널 <input id="w" type="number" value="640"> × <input id="h" type="number" value="300"></label>
+        <label>배경 <select id="theme"><option>forest</option><option>castle</option><option>beach</option><option>none</option></select></label>
+        <button id="load">다시 띄우기</button>
+        <span id="status"></span>
+    </header>
+    <main>
+        <div id="wrap"><iframe id="panel"></iframe></div>
+        <div id="mons"></div>
+        <div id="fx">
+            <label>틀로 시험 <select id="fxname"></select></label>
+            <label>옵션 <select id="variant"></select></label>
+            <input id="opts" value="{}">
+            <label>쓰는 애 <select id="actor"></select></label>
+            <button id="fire" class="ult">이 틀로 쓰기</button>
+        </div>
+    </main>
+    <script>
+        const $ = (id) => document.getElementById(id);
+        const frame = $('panel');
+        const win = () => frame.contentWindow;
+        function load() {
+            frame.style.width = `${$('w').value}px`;
+            frame.style.height = `${$('h').value}px`;
+            const q = new URLSearchParams({ p: $('keys').value.replace(/\s/g, ''), size: $('size').value, theme: $('theme').value });
+            frame.src = `panel.html?${q}`;
+            $('status').textContent = '띄우는 중…';
+            $('mons').textContent = '';
+            const wait = setInterval(() => {
+                if (win()?.document?.title !== 'READY') {
+                    return;
+                }
+                clearInterval(wait);
+                ready();
+            }, 100);
+        }
+        function ready() {
+            const U = win().__ult;
+            const labels = U.list();
+            $('status').textContent = `${labels.length}마리 · 필살기 틀 ${U.fx().length}개 — 패널에서 포켓몬을 1초 꾹 누르면 필살기`;
+            $('mons').textContent = '';
+            $('actor').textContent = '';
+            labels.forEach((key, i) => {
+                const p = U.pick(i);
+                const ults = U.of(key).map((u) => `${u[0]} (${u[1]})`).join(' · ');
+                const div = document.createElement('div');
+                div.className = 'mon';
+                div.innerHTML = `<b></b><small></small>`;
+                div.querySelector('b').textContent = p.name;
+                div.querySelector('small').textContent = ults;
+                const ult = document.createElement('button');
+                ult.className = 'ult';
+                ult.textContent = '필살기';
+                ult.onclick = () => U.fire(i);
+                const click = document.createElement('button');
+                click.textContent = '기술';
+                click.onclick = () => U.click(i);
+                div.append(ult, click);
+                $('mons').append(div);
+                $('actor').append(new Option(p.name, i));
+            });
+            const V = win().__VARIANTS;
+            $('fxname').textContent = '';
+            U.fx().forEach((fx) => $('fxname').append(new Option(fx, fx)));
+            const fill = () => {
+                $('variant').textContent = '';
+                (V[$('fxname').value] || [{}]).forEach((o) => $('variant').append(new Option(JSON.stringify(o), JSON.stringify(o))));
+                $('opts').value = $('variant').value || '{}';
+            };
+            $('fxname').onchange = fill;
+            $('variant').onchange = () => ($('opts').value = $('variant').value);
+            fill();
+        }
+        $('fire').onclick = () => {
+            let o = {};
+            try {
+                o = JSON.parse($('opts').value || '{}');
+            } catch {
+                $('status').textContent = '옵션 JSON 이 잘못됨';
+                return;
+            }
+            win().__ult.fire(Number($('actor').value), [`${$('fxname').value}`, $('fxname').value, o]);
+        };
+        $('load').onclick = load;
+        load();
+    </script>
+</body>
+</html>

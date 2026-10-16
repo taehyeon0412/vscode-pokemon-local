@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
-"""타입별 기술(불꽃 · 물대포 · 스파크 · 나뭇잎), 1세대 전용 기술(signature-moves.json)과 특수 행동(비행 · 멀리뛰기)을 extension/media/main-bundle.js 에 넣는다.
+"""타입별 기술, 대표 기술(signature-moves.json · moves-data/*.json), 필살기(꾹 누르기 — ult/)와 특수 행동(비행 · 멀리뛰기)을 extension/media/main-bundle.js 에 넣는다.
 
   python3 ~/.claude/vscode-pokemon-local/make-moves.py
   python3 ~/.claude/vscode-pokemon-local/install.py    ← 그다음 설치
+  python3 make-moves.py --out dev/build/test.js        ← 미리보기용 (main-bundle.js 는 그대로, 망가진 데이터 파일은 건너뜀)
 
-- 기술: 첫 번째 타입 → 없으면 두 번째 타입 중 불꽃 · 물 · 전기 · 풀 (타입은 PokeAPI csv, pokemon-types.json 에 저장해 두고 재사용)
+- 클릭 기술: 대표 기술(1세대 signature-moves.json + moves-data 의 moves) + 타입 기술(TYPE_MOVES, 종족값 단계) 중 무작위 — 모든 포켓몬
+- 필살기: moves-data 의 ult → 없으면 타입 기본(TYPE_ULTS). 키는 rotom_heat → rotom 처럼 밑줄 앞으로 줄여 가며 찾음
+- 예전 기술(POKEMON_MOVES): 첫 번째 타입 → 없으면 두 번째 타입 중 불꽃 · 물 · 전기 · 풀 (타입은 PokeAPI csv, pokemon-types.json 에 저장해 두고 재사용)
 - 입 위치: 오른쪽 보는 걷기 그림 첫 프레임에서 위쪽 60% 안의 가장 오른쪽 점 (전기는 입 대신 몸 테두리 — 몸 둘레에서 스파크)
 - 세기: 종족값(능력치 합) 200 → 0, 650 → 1 — 셀수록 기술이 크고 길고 화려함 (pokemon-stats.json 에 저장해 두고 재사용)
 - 행동: 날개 있는 비행 타입은 fly, JUMPERS(개굴닌자류)는 jump
-- 동작 코드는 moves.js — 고친 뒤 이 스크립트를 다시 실행 (블록을 지우고 다시 씀)
+- 동작 코드는 moves.js + ult/core.js + ult/fx-*.js — 고친 뒤 이 스크립트를 다시 실행 (블록을 지우고 다시 씀)
 - add-pokemon.py 가 포켓몬을 추가할 때도 자동으로 실행
 Pillow 필요 (pip3 install pillow).
 """
@@ -28,6 +31,8 @@ EXT = os.path.join(HERE, "extension")
 BUNDLE = os.path.join(EXT, "media", "main-bundle.js")
 TYPES_CACHE = os.path.join(HERE, "pokemon-types.json")
 SIGNATURE_FILE = os.path.join(HERE, "signature-moves.json")
+DATA_DIR = os.path.join(HERE, "moves-data")
+ULT_DIR = os.path.join(HERE, "ult")
 STATS_CACHE = os.path.join(HERE, "pokemon-stats.json")
 CSV_BASE = "https://raw.githubusercontent.com/PokeAPI/pokeapi/master/data/v2/csv"
 MOVE_OF_TYPE = {"fire": "fire", "water": "water", "electric": "electric", "grass": "grass"}
@@ -69,6 +74,28 @@ TYPE_MOVES = {
     "fairy": [("천사의키스", "projectile", {"shape": "heart", "c": "fairy", "n": 3, "every": 160, "speed": 0.6}, 0), ("문포스", "projectile", {"shape": "ball", "c": "moon", "n": 1, "big": 1}, 1)],
 }
 
+# 타입 기본 필살기 — 첫 번째 타입 (노말+X 면 X). 이름 · 연출 틀 · 옵션 (ult/SPEC.md)
+TYPE_ULTS = {
+    "normal": ["울트라대시어택", "ultrush", {"c": "normal"}],
+    "fire": ["다이내믹풀플레임", "ultorb", {"c": "fire", "style": "flame"}],
+    "water": ["하이드로보텍스", "ultvortex", {"c": "water"}],
+    "grass": ["블룸샤인엑스트라", "ultbloom", {"mode": "bloom", "c": "grass"}],
+    "electric": ["스파킹기가볼트", "ultthunder", {"mode": "spear", "c": "electric"}],
+    "ice": ["레이징지오프리즈", "ultskyfall", {"shape": "ice", "n": 1, "c": "ice"}],
+    "fighting": ["전력무쌍격렬권", "ultbarrage", {"kind": "punch", "c": "fight"}],
+    "poison": ["애시드포이즌딜리트", "ultstorm", {"kind": "acid", "c": "poison"}],
+    "ground": ["라이징랜드오버", "ultquake", {"c": "ground"}],
+    "flying": ["파이널다이브클래시", "ultdive", {"c": "wind"}],
+    "psychic": ["맥시멈사이브레이커", "ultpsy", {"c": "psychic"}],
+    "bug": ["절대포식회전참", "ultbarrage", {"kind": "slash", "c": "bug", "spin": 1}],
+    "rock": ["월즈엔드폴", "ultskyfall", {"shape": "rock", "n": 1, "c": "rock"}],
+    "ghost": ["무한암야로의유인", "ultshadow", {"c": "ghost"}],
+    "dragon": ["얼티메이트드래곤번", "ultdive", {"c": "dragon"}],
+    "dark": ["블랙홀이클립스", "ultblackhole", {"c": "dark"}],
+    "steel": ["초월나선연격", "ultrush", {"c": "steel", "drill": 1}],
+    "fairy": ["러블리스타임팩트", "ultsparkle", {"mode": "twinkle", "c": "fairy"}],
+}
+
 # 타입 기술 없이 대표 기술만 — 잉어킹(튀어오르기 · 몸통박치기) · 메타몽 · 단데기 · 딱충이
 ONLY_SIGNATURE = {"magikarp", "ditto", "metapod", "kakuna"}
 
@@ -79,7 +106,7 @@ BEGIN = "/* POKEMON-MOVES-PATCH */"
 END = "/* /POKEMON-MOVES-PATCH */"
 CODE_ANCHOR = "function handleMouseOver(e) {"
 HOOK_ANCHOR = "collision.addEventListener('mouseover', handleMouseOver);"
-HOOK = " collision.addEventListener('click', handleMoveClick); collision.addEventListener('pointerdown', handleDragStart); startMoveAuto(); "
+HOOK = " collision.addEventListener('click', handleMoveClick); collision.addEventListener('pointerdown', handleDragStart); collision.addEventListener('pointerdown', handleUltPress); startMoveAuto(); "
 
 
 def pokemon_list():
@@ -148,14 +175,54 @@ def mouth(gif):
     return x, round(sum(ys) / len(ys))
 
 
-def signatures(pokemon):
-    # 대표 기술 표 (여러 개면 펼침) — 암컷 모습(_female)은 기본 모습 것을 그대로
+def as_list(v):
+    return v if isinstance(v[0], list) else [v]
+
+
+def lookup(table, key, field=None):
+    # rotom_heat → rotom, basculin_red_striped → basculin_red → basculin (field 가 있으면 그 값이 있는 것까지)
+    while True:
+        v = table.get(key)
+        if v is not None and (field is None or field in v):
+            return v if field is None else v[field]
+        if "_" not in key:
+            return None
+        key = key.rsplit("_", 1)[0]
+
+
+def load_data(lenient):
+    # moves-data/*.json 합치기 — {키: {moves, ult}}
+    data = {}
+    if not os.path.isdir(DATA_DIR):
+        return data
+    for name in sorted(os.listdir(DATA_DIR)):
+        if not name.endswith(".json"):
+            continue
+        try:
+            part = json.load(open(os.path.join(DATA_DIR, name), encoding="utf-8"))
+        except Exception as e:  # noqa: BLE001
+            if not lenient:
+                sys.exit(f"moves-data/{name}: {e}")
+            print(f"건너뜀 moves-data/{name}: {e}")
+            continue
+        data.update({k: v for k, v in part.items() if not k.startswith("_")})
+    return data
+
+
+def signatures(pokemon, data):
+    # 대표 기술 (여러 개면 펼침) — 1세대 signature-moves.json + moves-data 의 moves. 다른 모습(_female 등)은 기본 모습 것
     raw = {k: v for k, v in json.load(open(SIGNATURE_FILE, encoding="utf-8")).items() if not k.startswith("_")}
+    out = {}
     for key in pokemon:
-        base = key[: -len("_female")] if key.endswith("_female") else None
-        if base and base in raw and key not in raw:
-            raw[key] = raw[base]
-    return {k: (v if isinstance(v[0], list) else [v]) for k, v in raw.items() if k in pokemon}
+        base = lookup(raw, key)
+        out[key] = (as_list(base) if base else []) + list(lookup(data, key, "moves") or [])
+    return out
+
+
+def primary_type(types):
+    if not types:
+        return "normal"
+    return types[1] if types[0] == "normal" and len(types) > 1 else types[0]
 
 
 def moveset(sig, types, bst):
@@ -168,7 +235,7 @@ def moveset(sig, types, bst):
     return [m for m in pool if not (m[0] in seen or seen.add(m[0]))]
 
 
-def write_bundle(table, acts, lib, movesets, shape):
+def write_bundle(table, acts, lib, movesets, shape, ult_lib, ults, out):
     src = open(BUNDLE, encoding="utf-8").read()
     # 지난번 블록 지우기 — 한 줄짜리(연결)부터, 그다음 여러 줄(코드)
     src = re.sub(" " + re.escape(BEGIN) + r" [^\n]*?" + re.escape(END), "", src)
@@ -176,29 +243,45 @@ def write_bundle(table, acts, lib, movesets, shape):
     if src.count(CODE_ANCHOR) != 1 or src.count(HOOK_ANCHOR) != 1:
         sys.exit("main-bundle.js: 넣을 자리를 못 찾음")
     code = open(os.path.join(HERE, "moves.js"), encoding="utf-8").read()
+    # 필살기 — 본체(core) → 연출 틀(fx-*) → 대결 본체(duel) → 대결 모양(duel-*)
+    fx = sorted(f for f in os.listdir(ULT_DIR) if f.startswith("fx-") and f.endswith(".js"))
+    duel = sorted(f for f in os.listdir(ULT_DIR) if f.startswith("duel-") and f.endswith(".js"))
+    for name in ["core.js", *fx, "duel.js", *duel]:
+        code += f"\n// ===== ult/{name} =====\n" + open(os.path.join(ULT_DIR, name), encoding="utf-8").read()
     moves = "const POKEMON_MOVES = " + json.dumps(table, separators=(",", ":")) + ";\n"
     moves += "const POKEMON_ACTS = " + json.dumps(acts, separators=(",", ":")) + ";\n"
     moves += "const MOVE_LIB = " + json.dumps(lib, ensure_ascii=False, separators=(",", ":")) + ";\n"
     moves += "const POKEMON_MOVESET = " + json.dumps(movesets, separators=(",", ":")) + ";\n"
     moves += "const POKEMON_SHAPE = " + json.dumps(shape, separators=(",", ":")) + ";\n"
+    moves += "const ULT_LIB = " + json.dumps(ult_lib, ensure_ascii=False, separators=(",", ":")) + ";\n"
+    moves += "const POKEMON_ULT = " + json.dumps(ults, separators=(",", ":")) + ";\n"
     i = src.index(CODE_ANCHOR)
     src = src[:i] + BEGIN + "\n" + moves + code + END + "\n" + src[i:]
     i = src.index(HOOK_ANCHOR) + len(HOOK_ANCHOR)
     src = src[:i] + " " + BEGIN + HOOK + END + src[i:]
-    open(BUNDLE, "w", encoding="utf-8").write(src)
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    open(out, "w", encoding="utf-8").write(src)
 
 
 def main():
+    out = BUNDLE
+    if "--out" in sys.argv:
+        out = os.path.abspath(sys.argv[sys.argv.index("--out") + 1])
+    lenient = out != BUNDLE or "--lenient" in sys.argv
+    data = load_data(lenient)
     types = pokemon_types()
     stats = pokemon_stats()
     table = {}
     acts = {}
     pokemon = pokemon_list()
-    sig = signatures(pokemon)
+    sig = signatures(pokemon, data)
     shape = {}
     lib = []
     lib_index = {}
     movesets = {}
+    ult_lib = []
+    ult_index = {}
+    ults = {}
     for key, (dex, gen) in pokemon.items():
         move = next((MOVE_OF_TYPE[t] for t in types.get(dex, []) if t in MOVE_OF_TYPE), None)
         gif = os.path.join(EXT, "media", f"gen{gen}", key, "default_walk_8fps.gif")
@@ -207,10 +290,12 @@ def main():
         power = round(min(1, max(0, (stats.get(dex, 400) - 200) / 450)), 2)
         if move:
             table[key] = [move, power, *(body(gif) if move == "electric" else mouth(gif))]
-        # 우선 대표 기술이 있는 1세대만 (2세대부터는 위 타입별 기술 그대로)
-        pool = moveset(sig[key], [] if key.removesuffix("_female") in ONLY_SIGNATURE else types.get(dex, []), stats.get(dex, 400)) if key in sig else []
+        if walk_alpha(gif).getbbox() is None:
+            continue  # 빈 그림
+        # 클릭 기술 — 대표 기술 + 타입 기술 (모든 포켓몬)
+        pool = moveset(sig[key], [] if key.removesuffix("_female") in ONLY_SIGNATURE else types.get(dex, []), stats.get(dex, 400))
+        shape[key] = [power, *mouth(gif), *body(gif)]
         if pool:
-            shape[key] = [power, *mouth(gif), *body(gif)]
             ids = []
             for m in pool:
                 k = json.dumps(m, ensure_ascii=False, sort_keys=True)
@@ -219,18 +304,36 @@ def main():
                     lib.append(m)
                 ids.append(lib_index[k])
             movesets[key] = ids
+        # 필살기 — moves-data → 타입 기본
+        ult = lookup(data, key, "ult") or TYPE_ULTS[primary_type(types.get(dex, []))]
+        ids = []
+        for m in as_list(ult):
+            m = [m[0], m[1], m[2] if len(m) > 2 else {}]
+            k = json.dumps(m, ensure_ascii=False, sort_keys=True)
+            if k not in ult_index:
+                ult_index[k] = len(ult_lib)
+                ult_lib.append(m)
+            ids.append(ult_index[k])
+        ults[key] = ids
         if dex in JUMPERS:
             acts[key] = "jump"
         elif "flying" in types.get(dex, []) and dex not in WINGLESS:
             acts[key] = "fly"
-    write_bundle(table, acts, lib, movesets, shape)
-    subprocess.run(["node", "--check", BUNDLE], check=True)
+    write_bundle(table, acts, lib, movesets, shape, ult_lib, ults, out)
+    subprocess.run(["node", "--check", out], check=True)
     counts = {m: sum(1 for v in table.values() if v[0] == m) for m in MOVE_OF_TYPE.values()}
     print(f"기술 {len(table)}종 — " + " · ".join(f"{m} {n}" for m, n in counts.items()))
     sizes = [len(v) for v in movesets.values()]
     vortex = sum(1 for v in movesets.values() if any(lib[i][1] == "vortex" for i in v))
     print(f"기술 묶음 {len(movesets)}마리 · 평균 {sum(sizes) / len(sizes):.1f}개 · 기술 모음 {len(lib)}개 · 연출 틀 {len({m[1] for m in lib})}개 · 회오리 쓰는 애 {vortex}마리")
     print(f"행동 — 비행 {sum(1 for a in acts.values() if a == 'fly')} · 멀리뛰기 {sum(1 for a in acts.values() if a == 'jump')}")
+    by_fx = {}
+    for ids in ults.values():
+        for i in ids:
+            by_fx[ult_lib[i][1]] = by_fx.get(ult_lib[i][1], 0) + 1
+    print(f"필살기 {len(ults)}마리 · 필살기 모음 {len(ult_lib)}개 — " + " · ".join(f"{k} {v}" for k, v in sorted(by_fx.items(), key=lambda kv: -kv[1])))
+    if out != BUNDLE:
+        print(f"→ {out}")
 
 
 if __name__ == "__main__":
