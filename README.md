@@ -43,29 +43,56 @@ https://github.com/user-attachments/assets/9a9e4ef3-09b4-462f-aef2-65a5109702d6
 
 **포켓몬을 1초 넘게 꾹 누르면** 기운이 차오르다가 필살기가 나가요.
 
+<table>
+<tr>
+<td width="50%" align="center">
+
 **⚡ 피카츄 · 1000만볼트**
 
 https://github.com/user-attachments/assets/ac868132-9a49-408f-8db7-4aa42367385b
+
+</td>
+<td width="50%" align="center">
 
 **🌿 이상해꽃 · 솔라빔**
 
 https://github.com/user-attachments/assets/0cfdaa95-5fc2-48ff-bfc5-b8c46c2e46c3
 
+</td>
+</tr>
+<tr>
+<td width="50%" align="center">
+
 **🔥 리자몽 · 블래스트번**
 
 https://github.com/user-attachments/assets/e7d5d5a4-971b-48a3-9285-c20adc8facfa
+
+</td>
+<td width="50%" align="center">
 
 **🌋 그란돈 · 단애의칼**
 
 https://github.com/user-attachments/assets/74cd9b5c-14b1-4c0a-a2cd-8013a4032da1
 
+</td>
+</tr>
+<tr>
+<td width="50%" align="center">
+
 **🐸 개굴닌자 · 거대 물수리검**
 
 https://github.com/user-attachments/assets/73f9b9c0-ad44-4bb8-ad3c-4600d9cac7e2
 
+</td>
+<td width="50%" align="center">
+
 **🌸 뮤 · 오리진즈슈퍼노바**
 
 https://github.com/user-attachments/assets/a26e96db-79ee-427a-a6f2-49a4cd27c889
+
+</td>
+</tr>
+</table>
 
 ### 이렇게 나가요
 

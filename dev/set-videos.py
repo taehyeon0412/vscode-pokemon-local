@@ -7,7 +7,7 @@
 
 GitHub 는 비디오 주소에 파일 이름을 안 남겨서, 주소마다 내려받아 dist/videos 의 mp4 와 내용(sha1)을 비교해 어떤 장면인지 맞춤.
 이슈를 등록하기 전에는 올린 사람만 열 수 있어서(로그인 없이는 404) gh 로그인 토큰을 붙여 받음 — 토큰은 github.com 에만, 옮겨 가는 저장소(S3)엔 안 보냄.
-GitHub 는 <video> 태그를 지우고, 비디오 주소가 한 줄에 따로 있을 때만 플레이어로 보여 줌 — 그래서 표 대신 위아래로.
+GitHub 는 비디오 주소가 문단에 따로 있으면 플레이어로 보여 줌 — 표 칸 안이어도 됨(앞뒤 빈 줄), 그래서 필살기 6개는 2개씩 나란히.
 """
 import hashlib
 import io
@@ -79,14 +79,19 @@ def main():
         s, k = re.subn(pattern, repl, s, flags=re.S)
         n += k
 
-    if "demo" in v:
+    if "demo" in v and v["demo"] not in s:
         # 가운데 블록 밖으로 — 비디오 주소는 한 줄에 따로
         sub(r'<a href="docs/demo\.gif">.*?</a>\n\n<sub>그림 오른쪽 위.*?</sub>\n\n', "")
         sub(r"(\*\*\[🕹️ 놀기\]\(#play\).*?\*\*\n\n</div>\n)", r"\1\n" + v["demo"] + "\n")
     if all(k in v for k, _ in ULTS):
-        block = "\n\n".join(f"**{title}**\n\n{v[k]}" for k, title in ULTS)
-        sub(r"<table>\n<tr>\n<td align=\"center\"><a href=\"docs/ult-pikachu\.gif\">.*?</table>\n", block + "\n")
-        sub(r"\n<p align=\"center\"><sub>오른쪽 위 <b>▶ 재생</b>.*?</sub></p>\n", "\n")
+
+        def cell(k, title):
+            return f'<td width="50%" align="center">\n\n**{title}**\n\n{v[k]}\n\n</td>'
+
+        rows = [f"<tr>\n{cell(*ULTS[i])}\n{cell(*ULTS[i + 1])}\n</tr>" for i in range(0, len(ULTS), 2)]
+        block = "<table>\n" + "\n".join(rows) + "\n</table>\n"
+        # GIF 표든 이미 바꾼 비디오든, 설명 줄과 다음 제목 사이를 통째로 — 다시 돌려도 됨
+        sub(r"(기운이 차오르다가 필살기가 나가요\.\n\n).*?(?=\n### 이렇게 나가요)", lambda m: m.group(1) + block)
     for k in ("duel", "clash"):
         if k in v:
             sub(rf'<p align="center"><a href="docs/{k}\.gif">.*?</a></p>', v[k])
