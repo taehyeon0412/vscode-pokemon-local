@@ -424,11 +424,20 @@ function activate(context) {
     const THEME_LABELS = { none: '없음', forest: '숲', castle: '성', beach: '해변' };
     const LANGUAGE_LABELS = { ko: '한국어', auto: '한국어 (자동)', 'en-US': '영어', 'fr-FR': '프랑스어', 'de-DE': '독일어', 'ja-JP': '일본어' };
     const defaultName = (d) => (d.type === 'random' ? '무작위' : localize.getLocalizedPokemonName(d.type));
+    // 기본 포켓몬이 바뀔 때마다 바로 전 목록을 10개까지 기억 — ↩ 되돌리기
+    const DEFAULT_HISTORY_KEY = 'defaultPokemonHistory';
     async function defaultPokemonMenu() {
         const config = vscode.workspace.getConfiguration('vscode-pokemon');
         const list = config.get('defaultPokemon', []);
-        const save = (next) => config.update('defaultPokemon', next, vscode.ConfigurationTarget.Global);
+        const history = context.globalState.get(DEFAULT_HISTORY_KEY, []);
+        const save = async (next) => {
+            await context.globalState.update(DEFAULT_HISTORY_KEY, [...history, list].slice(-10));
+            await config.update('defaultPokemon', next, vscode.ConfigurationTarget.Global);
+        };
+        const previous = history[history.length - 1];
+        const summary = (l) => (l.length ? `${l.length}마리 — ${l.map(defaultName).join(', ')}` : '비어 있음');
         const pick = await vscode.window.showQuickPick([
+            ...(previous ? [{ label: '$(discard) 되돌리기', description: `바로 전 목록으로 · ${summary(previous)}`, value: 'undo' }] : []),
             { label: '$(save) 지금 데리고 있는 포켓몬으로 저장', value: 'save' },
             { label: '$(add) 포켓몬 추가', value: 'add' },
             ...(list.length
@@ -446,7 +455,12 @@ function activate(context) {
         if (!pick) {
             return;
         }
-        if (pick.value === 'save') {
+        if (pick.value === 'undo') {
+            await context.globalState.update(DEFAULT_HISTORY_KEY, history.slice(0, -1));
+            await config.update('defaultPokemon', previous, vscode.ConfigurationTarget.Global);
+            await vscode.window.showInformationMessage(`기본 포켓몬을 되돌렸어요 (${summary(previous)}).`);
+        }
+        else if (pick.value === 'save') {
             const panel = getPokemonPanel();
             const webview = getWebview();
             if (!panel || !webview) {
@@ -490,7 +504,10 @@ function activate(context) {
             }
         }
         else if (pick.value === 'clear') {
-            await save([]);
+            const ok = await vscode.window.showWarningMessage(`기본 포켓몬 ${list.length}마리를 모두 비울까요? (되돌리기로 다시 살릴 수 있어요)`, { modal: true }, '비우기');
+            if (ok === '비우기') {
+                await save([]);
+            }
         }
     }
     context.subscriptions.push(vscode.commands.registerCommand('vscode-pokemon.settings-menu', async () => {
