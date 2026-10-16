@@ -1013,38 +1013,61 @@ const SIG_FX = {
             });
         },
     },
-    // 솔라빔 — 이상해꽃. 햇빛 기둥이 내려오고 빛 알갱이가 입 앞으로 빨려 들며 빛 구슬이 커짐 → 화면 번쩍 + 앞으로 터지는 충격파 · 빛 조각 → 굵은 빛줄기(앞으로 퍼지는 고리 · 옆으로 흩날리는 빛) → 가늘어지며 사라짐
+    // 솔라빔 — 이상해꽃. 1.2초 모으기: 화면이 어두워지고 햇빛 기둥만 밝아짐 · 빛 알갱이가 점점 빨리 빨려 듦 · 빛 구슬이 세 번 두근대며 커지고 몸이 떨림 → 마지막에 확 움츠러들었다가
+    // 펑: 화면 번쩍 · 화면 흔들림 · 반동 · 충격파 두 겹 · 앞으로 튀는 빛 조각 → 멀리 갈수록 넓어지는 빛줄기(따라 나가는 고리 · 흩날리는 빛 · 끝에서 튀는 빛) → 가늘어지며 사라지고 화면이 밝아짐
     solarbeam: {
-        ms: (P) => 1600 + 500 * P,
-        run: (g, o, ms) => {
+        ms: (P) => 1200 + 900 + 300 * P,
+        run: (g, o, ms, pokemon) => {
             const P = g.P;
             const cols = sigPal('solar');
-            const charge = 700 + 200 * P;
+            const charge = 1200;
+            const fire = ms - charge;
             const R = Math.max(g.w, 40);
             const cx = g.mouth.x + g.dir * 7 * g.s;
             const cy = g.mouth.y;
             const now = performance.now();
-            // 하늘에서 햇빛 기둥
-            sigParticle({ x: g.body.cx, y: 0, s: g.s, max: (charge + 250) / 1000, hw: R * 0.7, draw: (ctx, p, t, px) => {
-                const a = fadeInOut(t, 0.3, 0.25);
-                ctx.globalAlpha = a * 0.18;
+            const hw = R * 0.7;
+            // 0~1 모으기 진행
+            const progress = () => Math.min(1, (performance.now() - now) / charge);
+            // 화면이 어두워짐 — 햇빛 기둥 자리만 빼고, 먼저 그린 효과 밑으로 깔림
+            sigParticle({ x: g.body.cx, y: 0, s: g.s, max: ms / 1000, draw: (ctx, p, t, px) => {
+                const c = charge / 1000;
+                const f = fire / 1000;
+                const a = p.life < c ? Math.min(1, p.life / (0.7 * c)) : p.life < c + 0.6 * f ? 1 : 1 - (p.life - c - 0.6 * f) / (0.4 * f);
+                const x0 = px(p.x - hw);
+                const x1 = px(p.x + hw);
+                const bottom = g.body.bottom;
+                ctx.globalCompositeOperation = 'destination-over';
+                ctx.globalAlpha = 0.5 * a;
+                ctx.fillStyle = '#05080f';
+                ctx.fillRect(0, 0, x0, window.innerHeight);
+                ctx.fillRect(x1, 0, window.innerWidth - x1, window.innerHeight);
+                ctx.fillRect(x0, bottom, x1 - x0, window.innerHeight - bottom);
+                ctx.globalCompositeOperation = 'source-over';
+            } });
+            // 하늘에서 햇빛 기둥 — 점점 밝아짐
+            sigParticle({ x: g.body.cx, y: 0, s: g.s, max: (charge + 300) / 1000, draw: (ctx, p, t, px) => {
+                const a = Math.min(1, p.life / (charge / 1000)) * (t > 0.8 ? (1 - t) / 0.2 : 1);
+                ctx.globalAlpha = 0.08 + a * 0.2;
                 ctx.fillStyle = '#fff6a8';
-                ctx.fillRect(px(p.x - p.hw), 0, px(2 * p.hw), g.body.bottom);
-                ctx.globalAlpha = a * 0.3;
+                ctx.fillRect(px(p.x - hw), 0, px(2 * hw), g.body.bottom);
+                ctx.globalAlpha = 0.1 + a * 0.3;
                 ctx.fillStyle = '#ffffff';
-                ctx.fillRect(px(p.x - p.hw * 0.3), 0, px(0.6 * p.hw), g.body.bottom);
+                ctx.fillRect(px(p.x - hw * 0.3), 0, px(0.6 * hw), g.body.bottom);
             } });
             // 땅에서 올라오는 빛
             sigEmitter({ until: now + charge, rate: 14 + 14 * P, fx: () => sigParticle({
-                x: g.body.cx + moveRand(-1, 1) * R * 0.8, y: g.body.bottom, s: g.s, vy: -moveRand(25, 50) * g.s, max: moveRand(0.5, 0.8), cols, draw: DRAW.sparkle,
+                x: g.body.cx + moveRand(-1, 1) * hw, y: g.body.bottom, s: g.s, vy: -moveRand(25, 50) * g.s, max: moveRand(0.5, 0.8), cols, draw: DRAW.sparkle,
             }) });
-            // 빛 알갱이가 입 앞으로 빨려 듦 (꼬리 달고)
-            sigEmitter({ until: now + charge - 100, rate: 80 + 60 * P, fx: () => {
+            // 빛 알갱이가 입 앞으로 빨려 듦 — 갈수록 많이 · 빨리
+            sigEmitter({ until: now + charge - 100, rate: 40, fx: (e) => {
+                const k0 = progress();
+                e.rate = (40 + 40 * P) * (1 + 3 * k0);
                 const a = moveRand(0, Math.PI * 2);
-                const r = R * moveRand(1.1, 1.9);
+                const r = R * moveRand(1.1, 2);
                 const x0 = cx + Math.cos(a) * r;
                 const y0 = cy + Math.sin(a) * r * 0.8;
-                sigParticle({ x: x0, y: y0, x0, y0, s: g.s, max: moveRand(0.3, 0.4), color: movePick(cols), size: Math.random() < 0.35 ? 2 : 1,
+                sigParticle({ x: x0, y: y0, x0, y0, s: g.s, max: moveRand(0.3, 0.4) * (1 - 0.4 * k0), color: movePick(cols), size: Math.random() < 0.35 ? 2 : 1,
                     update: (p) => {
                         const k = Math.min(1, (p.life / p.max) ** 2);
                         p.x = p.x0 + (cx - p.x0) * k;
@@ -1054,70 +1077,94 @@ const SIG_FX = {
                         ctx.globalAlpha = Math.min(1, t * 4);
                         dotAt(ctx, px, p.s, p.x, p.y, p.color, p.size, p.size);
                         ctx.globalAlpha *= 0.5;
-                        dotAt(ctx, px, p.s, p.x + (p.x0 - p.x) * 0.12, p.y + (p.y0 - p.y) * 0.12, cols[2], p.size, p.size);
+                        dotAt(ctx, px, p.s, p.x + (p.x0 - p.x) * 0.15, p.y + (p.y0 - p.y) * 0.15, cols[2], p.size, p.size);
                     },
                 });
             } });
-            // 줄어드는 고리 셋
-            for (let k = 0; k < 3; k++) {
-                setTimeout(() => sigRing(cx, cy, g.s, R * 1.3, R * 0.15, 1, 0.3, [cols[2], cols[0]]), k * (charge / 3.5));
-            }
-            // 커지는 빛 구슬 + 도는 빛살 + 둘레를 도는 빛 점
-            sigParticle({ x: cx, y: cy, s: g.s, max: charge / 1000 + 0.12, draw: (ctx, p, t, px) => {
-                const grow = Math.min(1, p.life / (charge / 1000));
-                const r = (1 + (4 + 4 * P) * grow) * p.s * (1 + 0.15 * Math.sin(p.life * 40));
-                for (const [k, c, a] of [[1.8, cols[3], 0.35], [1.35, cols[2], 1], [1, cols[1], 1], [0.55, cols[0], 1]]) {
+            // 두근 세 번 — 고리가 좁혀 들고 반짝
+            const beats = [0.25, 0.5, 0.72];
+            beats.forEach((b) => setTimeout(() => {
+                sigRing(cx, cy, g.s, R * 1.5, R * 0.15, 1, 0.3, [cols[2], cols[0]]);
+                sigBurst(cx, cy, g.s, cols, 8, 50);
+            }, b * charge));
+            // 몸 떨림 — 뒤쪽 절반 동안 점점 세게
+            const shakeAt = (amp, n) => pokemon.el.animate([{ translate: `-${amp}px 0` }, { translate: `${amp}px 0` }], { duration: 45, iterations: n, direction: 'alternate', composite: 'add' });
+            setTimeout(() => shakeAt(0.5 * g.s, 7), charge * 0.5);
+            setTimeout(() => shakeAt(1 * g.s, 6), charge * 0.75);
+            // 빛 구슬 — 두근대며 커지다 마지막에 확 움츠러듦 + 도는 빛살 + 둘레를 도는 빛 점
+            sigParticle({ x: cx, y: cy, s: g.s, max: charge / 1000 + 0.05, draw: (ctx, p, t, px) => {
+                const T = Math.min(1, p.life / (charge / 1000));
+                let r = 1 + (4 + 4 * P) * Math.min(1, T / 0.85);
+                for (const b of beats) {
+                    const d = (T - b) / 0.06;
+                    if (d > 0 && d < 1) {
+                        r *= 1 + 0.3 * Math.sin(d * Math.PI);
+                    }
+                }
+                if (T > 0.88) {
+                    r *= 1 - 0.55 * ((T - 0.88) / 0.12);
+                }
+                r *= p.s * (1 + 0.1 * Math.sin(p.life * 40));
+                const hot = T > 0.88;
+                for (const [k, c, a] of [[1.8, cols[3], 0.35], [1.35, cols[2], 1], [1, hot ? cols[0] : cols[1], 1], [0.55, cols[0], 1]]) {
                     ctx.globalAlpha = a;
                     sigDisc(ctx, px, p.s, p.x, p.y, r * k, c);
                 }
-                // 도는 빛살 — 긴 것 · 짧은 것 번갈아
                 const rays = 8;
                 for (let j = 0; j < rays; j++) {
-                    const a = p.life * 3 + (j * Math.PI * 2) / rays;
-                    const len = r * (j % 2 ? 2.2 : 3.4) * (0.8 + 0.2 * Math.sin(p.life * 30 + j));
+                    const a = p.life * (3 + 6 * T) + (j * Math.PI * 2) / rays;
+                    const len = r * (j % 2 ? 2.2 : 3.4) * (0.8 + 0.2 * Math.sin(p.life * 30 + j)) * (hot ? 1.4 : 1);
                     const w = j % 2 ? 1 : 2;
-                    ctx.globalAlpha = 0.5 + 0.5 * grow;
+                    ctx.globalAlpha = 0.4 + 0.6 * T;
                     for (let d = r * 1.2; d < len; d += p.s) {
                         dotAt(ctx, px, p.s, p.x + Math.cos(a) * d - ((w - 1) * p.s) / 2, p.y + Math.sin(a) * d - ((w - 1) * p.s) / 2, d < len * 0.6 ? cols[0] : cols[2], w, w);
                     }
                 }
                 ctx.globalAlpha = 1;
                 for (let j = 0; j < 6; j++) {
-                    const a = p.life * 8 + (j * Math.PI) / 3;
+                    const a = p.life * (8 + 10 * T) + (j * Math.PI) / 3;
                     dotAt(ctx, px, p.s, p.x + Math.cos(a) * r * 2.4, p.y + Math.sin(a) * r * 2.4, j % 2 ? cols[0] : cols[2]);
                 }
             } });
             setTimeout(() => {
-                const fire = ms - charge;
-                screenFlash(g.s, 0.3, '#f4ffd6');
+                screenFlash(g.s, 0.55, '#f4ffd6', 0.35);
+                // 화면 흔들림 · 반동
+                const amp = 2 + 2 * P;
+                const shake = (el) => el?.animate([{ translate: `-${amp}px 0` }, { translate: `${amp}px 0` }], { duration: 55, iterations: 8, direction: 'alternate', composite: 'add' });
+                exports.allPokemon.pokemonCollection.forEach((element) => element.el !== pokemon.el && shake(element.el));
+                shake(document.getElementById('foreground'));
+                pokemon.el.animate([{ translate: `${-g.dir * 4 * g.s}px 0` }, { translate: '0 0' }], { duration: 350, easing: 'ease-out', composite: 'add' });
                 // 입 앞에서 펑 — 충격파 두 겹 + 앞쪽으로 퍼지는 빛 조각
-                sigRing(cx, cy, g.s, 2 * g.s, R * (1.2 + 0.6 * P), 1, 0.4, [cols[0], cols[2]]);
-                setTimeout(() => sigRing(cx, cy, g.s, 2 * g.s, R * (1.8 + P), 0.8, 0.5, [cols[1], cols[3]]), 90);
-                for (let i = 0; i < 26 + 20 * P; i++) {
-                    const a = moveRand(-1.1, 1.1);
-                    const sp = moveRand(60, 170) * g.s;
-                    sigParticle({ x: cx, y: cy, s: g.s, vx: g.dir * Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 2.5, max: moveRand(0.35, 0.6), color: movePick(cols), size: Math.random() < 0.3 ? 2 : 1, draw: DRAW.dot });
+                sigRing(cx, cy, g.s, 2 * g.s, R * (1.4 + 0.6 * P), 1, 0.4, [cols[0], cols[2]]);
+                setTimeout(() => sigRing(cx, cy, g.s, 2 * g.s, R * (2.2 + P), 0.8, 0.55, [cols[1], cols[3]]), 90);
+                for (let i = 0; i < 34 + 24 * P; i++) {
+                    const a = moveRand(-1.2, 1.2);
+                    const sp = moveRand(70, 200) * g.s;
+                    sigParticle({ x: cx, y: cy, s: g.s, vx: g.dir * Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 2.5, max: moveRand(0.35, 0.65), color: movePick(cols), size: Math.random() < 0.35 ? 2 : 1, draw: DRAW.dot });
                 }
-                // 굵은 빛줄기 — 처음엔 더 굵게 터지고, 끝엔 가늘어짐
-                sigParticle({ x: g.mouth.x, y: cy, s: g.s, max: fire / 1000, dir: g.dir, reach: g.dir > 0 ? window.innerWidth - g.mouth.x : g.mouth.x, W: 4 + 3 * P, rings: [], nextRing: 0,
+                // 굵은 빛줄기 — 처음엔 더 굵게 터지고, 멀리 갈수록 넓게, 끝엔 가늘어짐
+                sigParticle({ x: g.mouth.x, y: cy, s: g.s, max: fire / 1000, dir: g.dir, reach: g.dir > 0 ? window.innerWidth - g.mouth.x : g.mouth.x, W: 4 + 3 * P, rings: [], nextRing: 0, nextSpray: 0,
                     update: (p) => {
                         const L = Math.min(p.reach, p.life * 2400);
-                        // 옆으로 흩날리는 빛
-                        for (let j = 0; j < 2; j++) {
+                        for (let j = 0; j < 3; j++) {
                             const side = Math.random() < 0.5 ? -1 : 1;
-                            sigParticle({ x: p.x + p.dir * L * Math.random(), y: p.y + side * p.W * p.s * 0.5, s: p.s, vx: p.dir * moveRand(20, 60) * p.s, vy: side * moveRand(15, 50) * p.s, drag: 2, max: moveRand(0.25, 0.45), cols, draw: DRAW.sparkle });
+                            sigParticle({ x: p.x + p.dir * L * Math.random(), y: p.y + side * p.W * p.s * 0.5, s: p.s, vx: p.dir * moveRand(20, 60) * p.s, vy: side * moveRand(15, 60) * p.s, drag: 2, max: moveRand(0.25, 0.45), cols, draw: DRAW.sparkle });
                         }
-                        // 앞으로 퍼져 나가는 고리
                         if (p.life >= p.nextRing && p.life < p.max * 0.75) {
-                            p.nextRing = p.life + 0.09;
+                            p.nextRing = p.life + 0.08;
                             p.rings.push(p.life);
                         }
                         p.rings = p.rings.filter((r0) => p.life - r0 < 0.45);
+                        // 화면 끝에 닿으면 튀는 빛
+                        if (L >= p.reach && p.life >= p.nextSpray && p.life < p.max * 0.7) {
+                            p.nextSpray = p.life + 0.07;
+                            sigBurst(p.x + p.dir * (p.reach - 2 * p.s), p.y, p.s, cols, 6, 70);
+                        }
                     },
                     draw: (ctx, p, t, px) => {
                         const L = Math.min(p.reach, p.life * 2400);
-                        const burst = Math.max(0, 1 - p.life / 0.15);
-                        const w = (p.W + 4 * burst) * (t > 0.7 ? 0.3 + (0.7 * (1 - t)) / 0.3 : 1) * (1 + 0.12 * Math.sin(p.life * 50));
+                        const burst = Math.max(0, 1 - p.life / 0.2);
+                        const w = (p.W + 6 * burst) * (t > 0.7 ? 0.3 + (0.7 * (1 - t)) / 0.3 : 1) * (1 + 0.12 * Math.sin(p.life * 50));
                         const fade = t > 0.85 ? (1 - t) / 0.15 : 1;
                         // 멀리 갈수록 넓게 퍼짐
                         const seg = 6 * p.s;
@@ -1132,8 +1179,8 @@ const SIG_FX = {
                         // 앞머리 빛 덩어리
                         if (L < p.reach) {
                             ctx.globalAlpha = 1;
-                            sigDisc(ctx, px, p.s, p.x + p.dir * L, p.y, w * 1.2 * p.s, cols[1]);
-                            sigDisc(ctx, px, p.s, p.x + p.dir * L, p.y, w * 0.7 * p.s, cols[0]);
+                            sigDisc(ctx, px, p.s, p.x + p.dir * L, p.y, w * 1.3 * p.s, cols[1]);
+                            sigDisc(ctx, px, p.s, p.x + p.dir * L, p.y, w * 0.8 * p.s, cols[0]);
                         }
                         // 빛줄기를 따라 나가며 커지는 고리
                         for (const r0 of p.rings) {
