@@ -43,7 +43,8 @@
 		"onWebviewPanel:pokemonCoding",
 		"onView:explorer",
 		"onView:pokemonView",
-		"onStartupFinished"
+		"onStartupFinished",
+		"onCommand:vscode-pokemon.settings-menu"
 	],
 	"main": "./out/extension/extension.js",
 	"browser": "./dist/web/extension-web.js",
@@ -62,6 +63,11 @@
 		"menus": {
 			"view/title": [
 				{
+					"command": "vscode-pokemon.settings-menu",
+					"when": "view == pokemonView",
+					"group": "navigation@0"
+				},
+				{
 					"command": "vscode-pokemon.spawn-pokemon",
 					"when": "view == pokemonView",
 					"group": "navigation@1"
@@ -79,6 +85,12 @@
 			]
 		},
 		"commands": [
+			{
+				"command": "vscode-pokemon.settings-menu",
+				"title": "설정",
+				"category": "포켓몬",
+				"icon": "$(gear)"
+			},
 			{
 				"command": "vscode-pokemon.start",
 				"title": "포켓몬 패널 열기",
@@ -233,7 +245,7 @@
 							]
 						},
 						"default": [],
-						"description": "저장된 포켓몬이 하나도 없을 때 처음에 소환할 포켓몬 목록. type 은 포켓몬 키(예: pikachu) 또는 'random', name · shiny · pool 은 선택"
+						"description": "기본 포켓몬 — 패널이 빈 채로 시작할 때(새 작업 폴더 · 처음 켤 때) 자동으로 소환. ⚙ 설정 버튼에서 고르면 편함. type 은 포켓몬 키(예: pikachu) 또는 'random', name · shiny · pool 은 선택"
 					},
 					"vscode-pokemon.shinyOdds": {
 						"type": "number",

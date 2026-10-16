@@ -6497,6 +6497,7 @@ function pokemonPanelApp(basePokemonUri, theme, themeKind, pokemonColor, pokemon
     }
     else {
         console.log('No recoverable pokemon state, starting an empty session.');
+        stateApi?.postMessage({ command: 'fresh-session' }); // LOCAL-PATCH: 비어서 시작 → 확장이 기본 포켓몬 소환
         pokemonCounter = normalizePokemonCounter(state?.pokemonCounter);
         saveState(stateApi);
     }

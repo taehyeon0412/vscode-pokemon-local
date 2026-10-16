@@ -165,6 +165,7 @@ function getSessionPokemonCollection(context) {
     return getConfiguredDefaultPokemon();
 }
 function getDefaultPokemonForFreshSession(context) {
+    return []; // LOCAL-PATCH: 기본 포켓몬은 패널이 'fresh-session' 을 보낼 때 소환 (여기서도 하면 두 번 나옴)
     const savedCollection = PokemonSpecification.collectionFromMemento(context, getConfiguredSize());
     if (savedCollection.length > 0) {
         return [];
@@ -417,6 +418,110 @@ function activate(context) {
             return;
         }
         await vscode.commands.executeCommand('workbench.action.openGlobalKeybindings', picked.commandId);
+    }));
+    // LOCAL-PATCH: ⚙ 설정 메뉴 — 기본 포켓몬 · 크기 · 배경 · 이름 언어 (패널 제목 줄 + 왼쪽)
+    const SIZE_LABELS = { nano: '아주 작게', small: '작게', medium: '보통', large: '크게' };
+    const THEME_LABELS = { none: '없음', forest: '숲', castle: '성', beach: '해변' };
+    const LANGUAGE_LABELS = { ko: '한국어', auto: '한국어 (자동)', 'en-US': '영어', 'fr-FR': '프랑스어', 'de-DE': '독일어', 'ja-JP': '일본어' };
+    const defaultName = (d) => (d.type === 'random' ? '무작위' : localize.getLocalizedPokemonName(d.type));
+    async function defaultPokemonMenu() {
+        const config = vscode.workspace.getConfiguration('vscode-pokemon');
+        const list = config.get('defaultPokemon', []);
+        const save = (next) => config.update('defaultPokemon', next, vscode.ConfigurationTarget.Global);
+        const pick = await vscode.window.showQuickPick([
+            { label: '$(save) 지금 데리고 있는 포켓몬으로 저장', value: 'save' },
+            { label: '$(add) 포켓몬 추가', value: 'add' },
+            ...(list.length
+                ? [
+                    { label: '$(remove) 빼기', description: list.map(defaultName).join(', '), value: 'remove' },
+                    { label: '$(play) 지금 패널에 불러오기', value: 'spawn' },
+                    { label: '$(trash) 모두 비우기', value: 'clear' },
+                ]
+                : []),
+        ], {
+            placeHolder: list.length
+                ? `기본 포켓몬 ${list.length}마리 — 패널이 빈 채로 시작할 때(새 작업 폴더 · 처음 켤 때) 나와요`
+                : '기본 포켓몬이 없어요 — 패널이 빈 채로 시작할 때 나올 포켓몬을 정하세요',
+        });
+        if (!pick) {
+            return;
+        }
+        if (pick.value === 'save') {
+            const panel = getPokemonPanel();
+            const webview = getWebview();
+            if (!panel || !webview) {
+                await vscode.window.showErrorMessage(koT('Panel not active, make sure the pokemon view is visible before running this command.'));
+                return;
+            }
+            const listPromise = waitForPokemonList(webview);
+            panel.listPokemon();
+            const current = await listPromise;
+            if (!current.length) {
+                await vscode.window.showInformationMessage('패널에 포켓몬이 없어요.');
+                return;
+            }
+            await save(current.map((p) => ({ type: p.type, name: p.name, shiny: p.color === 'shiny' })));
+            await vscode.window.showInformationMessage(`기본 포켓몬으로 ${current.length}마리를 저장했어요.`);
+        }
+        else if (pick.value === 'add') {
+            const options = Object.entries(pokemon_data_1.POKEMON_DATA).map(([type, data]) => ({
+                label: localize.getLocalizedPokemonName(type),
+                description: `#${data.id.toString().padStart(4, '0')} - ${data.generation}세대`,
+                value: type,
+            }));
+            const chosen = await vscode.window.showQuickPick(options, { placeHolder: '추가할 포켓몬 — 이름으로 찾고 여러 마리 고르기', matchOnDescription: true, canPickMany: true });
+            if (chosen?.length) {
+                await save(list.concat(chosen.map((c) => ({ type: c.value }))));
+            }
+        }
+        else if (pick.value === 'remove') {
+            const chosen = await vscode.window.showQuickPick(list.map((d, i) => ({ label: defaultName(d), description: d.name ?? '', index: i })), { placeHolder: '뺄 포켓몬을 고르세요', canPickMany: true });
+            if (chosen?.length) {
+                const drop = new Set(chosen.map((c) => c.index));
+                await save(list.filter((_, i) => !drop.has(i)));
+            }
+        }
+        else if (pick.value === 'spawn') {
+            const panel = getPokemonPanel();
+            if (panel) {
+                const specs = getConfiguredDefaultPokemon();
+                specs.forEach((spec) => panel.spawnPokemon(spec));
+                await storeCollectionAsMemento(context, PokemonSpecification.collectionFromMemento(context, getConfiguredSize()).concat(specs));
+            }
+        }
+        else if (pick.value === 'clear') {
+            await save([]);
+        }
+    }
+    context.subscriptions.push(vscode.commands.registerCommand('vscode-pokemon.settings-menu', async () => {
+        const config = vscode.workspace.getConfiguration('vscode-pokemon');
+        const defaults = config.get('defaultPokemon', []);
+        const size = getConfiguredSize();
+        const theme = getConfiguredTheme();
+        const language = config.get('pokemonLanguage', 'ko');
+        const picked = await vscode.window.showQuickPick([
+            { label: '$(star) 기본 포켓몬', description: defaults.length ? `${defaults.length}마리 — ${defaults.map(defaultName).join(', ')}` : '없음', detail: '패널이 빈 채로 시작할 때 자동으로 나와요', value: 'default' },
+            { label: '$(zoom-in) 크기', description: SIZE_LABELS[size] ?? size, value: 'size' },
+            { label: '$(symbol-color) 배경', description: THEME_LABELS[theme] ?? theme, value: 'theme' },
+            { label: '$(globe) 이름 언어', description: LANGUAGE_LABELS[language] ?? language, value: 'language' },
+        ], { placeHolder: '포켓몬 설정' });
+        if (!picked) {
+            return;
+        }
+        if (picked.value === 'default') {
+            await defaultPokemonMenu();
+        }
+        else if (picked.value === 'size' || picked.value === 'theme') {
+            const labels = picked.value === 'size' ? SIZE_LABELS : THEME_LABELS;
+            const current = picked.value === 'size' ? size : theme;
+            const chosen = await vscode.window.showQuickPick(Object.entries(labels).map(([value, label]) => ({ label, description: value === current ? '현재' : '', value })), { placeHolder: picked.value === 'size' ? '포켓몬 크기' : '배경' });
+            if (chosen) {
+                await config.update(picked.value === 'size' ? 'pokemonSize' : 'theme', chosen.value, vscode.ConfigurationTarget.Global);
+            }
+        }
+        else if (picked.value === 'language') {
+            await vscode.commands.executeCommand('vscode-pokemon.change-pokemon-language');
+        }
     }));
     context.subscriptions.push(vscode.commands.registerCommand('vscode-pokemon.change-pokemon-language', async () => {
         const config = vscode.workspace.getConfiguration('vscode-pokemon');
@@ -956,6 +1061,14 @@ function handleWebviewMessage(message) {
         case 'info':
             void vscode.window.showInformationMessage(message.text);
             return;
+        case 'fresh-session': {
+            // LOCAL-PATCH: 패널이 빈 채로 시작 → 기본 포켓몬 소환
+            const panel = getPokemonPanel();
+            if (panel) {
+                getConfiguredDefaultPokemon().forEach((spec) => panel.spawnPokemon(spec));
+            }
+            return;
+        }
     }
 }
 /**

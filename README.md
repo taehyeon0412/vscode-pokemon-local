@@ -46,6 +46,8 @@
 | 기능 | 내용 |
 |---|---|
 | 배경 자동 맞춤 | 숲 · 성 · 해변 배경이 패널 높이에 맞게 늘고 줄어듦 (땅 높이는 항상 포켓몬 발에 맞춤) |
+| 설정 버튼 | 패널 제목 줄 + 왼쪽 ⚙ — 기본 포켓몬 · 크기 · 배경 · 이름 언어를 한 메뉴에서 |
+| 기본 포켓몬 | 패널이 빈 채로 시작할 때(새 작업 폴더 · 다른 컴퓨터에서 처음 켤 때) 자동 소환 — 원본은 사실상 안 나왔음 |
 | 한국어판 | 포켓몬 이름(1~6세대) · 소환 메뉴 · 명령 · 설정 이름이 VS Code 언어와 상관없이 무조건 한국어 |
 | 6세대 추가 | 개구마르 · 개굴반장 · 개굴닌자 (소환 메뉴의 Generation 6) |
 | 타입별 기술 | 클릭하거나 가끔 저절로 — 불꽃(불꽃 · 불똥), 물(물대포), 전기(몸 둘레 스파크), 풀(나뭇잎) |
@@ -87,11 +89,13 @@ python3 ~/.claude/vscode-pokemon-local/install.py
 ### 포켓몬 목록 옮기기
 
 포켓몬 목록과 위치는 VS Code 가 작업 폴더별로 저장해서 새 컴퓨터엔 없습니다.
+**⚙ → 기본 포켓몬 → 지금 데리고 있는 포켓몬으로 저장** 해 두면 설정 동기화로 넘어가서, 새 컴퓨터에서 패널이 빈 채로 시작할 때 그 포켓몬들이 나옵니다.
 `backup-pokemon-list.json` (원래 데리고 있던 18마리)을 쓰려면 명령 팔레트의 **포켓몬: 포켓몬 목록 가져오기** 에서 고르면 됩니다.
 
 ## 사용법
 
 - 소환: 포켓몬 패널 위 **+** → 세대 선택 → 포켓몬 (검색창에 한글 이름으로 찾아도 됨)
+- 설정: 패널 위 **⚙** → 기본 포켓몬(지금 데리고 있는 애들로 저장 · 추가 · 빼기 · 바로 불러오기) · 크기 · 배경 · 이름 언어
 - 기술: 포켓몬 **클릭**. 기술이 있는 타입(불꽃 · 물 · 전기 · 풀)만 반응하고, 평균 20초마다 누군가 저절로도 씀
 - 비행 · 멀리뛰기: 저절로 (비행 평균 25초, 점프 12초마다 해당하는 애 하나)
 
@@ -146,6 +150,7 @@ docs/             README 그림 (데모 · 장면 캡처)
 | `POKEMON-EXTRA-PATCH` | `main-bundle.js`, `out/common/pokemon-data.js` · `types.js` · `localize.js` | 추가 포켓몬 데이터 · 6세대 메뉴 · 한글 이름 세대 (add-pokemon.py 가 다시 씀) |
 | `POKEMON-MOVES-PATCH` | `main-bundle.js` | 기술 · 행동 (make-moves.py 가 다시 씀) |
 | `LOCAL-PATCH` | `main-bundle.js`, `media/pokemon.css` | 저장 1초에 한 번, GPU 이동(`glideSprite`) |
+| `LOCAL-PATCH` | `out/extension/extension.js`, `main-bundle.js` | ⚙ 설정 메뉴(`vscode-pokemon.settings-menu`), 빈 패널이 `fresh-session` 을 보내면 기본 포켓몬 소환 |
 | `LOCAL-PATCH` | `out/extension/extension.js`, `out/common/localize.js` | 메뉴 문구를 `koT` 로 `l10n/bundle.l10n.ko.json` 에서 (VS Code 언어 무시), 이름 언어 자동 → 한국어 |
 | — | `package.json` | publisher `local`, 이름 "VS Code Pokemon (내 PC)", 명령 · 패널 · 설정 이름 한국어, `pokemonLanguage` 기본 `ko` |
 | — | `out/common/localize.js` | 확장 ID 를 `local.vscode-pokemon` 으로 |
