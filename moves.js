@@ -6,6 +6,7 @@
 const MOVE_AUTO_AVG_SEC = 20; // 평균 이 초마다 누군가 한 번 저절로 기술
 const ACT_AUTO_AVG_SEC = { fly: 25, jump: 12 }; // 평균 이 초마다 해당하는 애 중 하나가
 const FLY_HEIGHT = 2 / 3; // 패널 높이 대비
+const GLIDE_LAG_MS = 150; // 보이는 그림이 실제 위치를 따라오는 시간 (main-bundle 의 GLIDE_MS)
 // 전용기 — chance 확률로 기본 기술 대신. sprite 는 쓰는 동안 바꿀 그림(<색>_<sprite>_8fps.gif),
 // 표창은 first ms 뒤부터 every ms 마다 count 개 (던지는 그림 한 바퀴 = 0.42초에 맞춤)
 const MOVE_SPECIAL = {
@@ -143,13 +144,12 @@ class DragState {
     }
 }
 
-// 놓으면 떨어져서 한 번 통 튀고 착지
+// 놓으면 떨어져서 착지 — 통 튀기는 안 함 (보이는 그림이 한 걸음 늦게 따라와서, 튀면 바닥 닿기 전 공중에서 멈춘 것처럼 보임)
 class FallState {
     label = "swipe" /* States.swipe */;
     constructor(pokemon, left) {
         this.pokemon = pokemon;
         this.v = 0;
-        this.bounced = false;
         this.left = left;
         this.drop = pokemon.bottom - pokemon.floor; // 몸 크기의 3/4 넘게 떨어지면 착지하면서 넘어짐
         faceState(this, left);
@@ -161,11 +161,6 @@ class FallState {
         if (p.bottom > p.floor) {
             return states_1.FrameResult.stateContinue;
         }
-        if (!this.bounced && this.v > 12) {
-            this.bounced = true;
-            this.v = -this.v * 0.35;
-            return states_1.FrameResult.stateContinue;
-        }
         if (this.drop > spriteSize(p) * 0.75) {
             p.currentState = new TumbleState(p, this.left);
             return states_1.FrameResult.stateContinue;
@@ -174,7 +169,7 @@ class FallState {
     }
 }
 
-// 쿵 넘어졌다 일어남 — 보는 쪽으로 옆으로 눕고(바닥에 닿게 75% 높이를 축으로), 머리 위 별 빙글, 비틀 세우기
+// 쿵 넘어졌다 일어남 — 착지 직후 보는 쪽으로 옆으로 눕고(바닥에 닿게 75% 높이를 축으로), 머리 위 별 빙글, 비틀 세우기
 class TumbleState {
     label = "swipe" /* States.swipe */;
     constructor(pokemon, left) {
@@ -193,15 +188,15 @@ class TumbleState {
             { rotate: `${tilt}deg`, offset: 0.62, easing: 'ease-out' },
             { rotate: `${-tilt * 0.12}deg`, offset: 0.85 }, // 비틀
             { rotate: '0deg', offset: 1 },
-        ], { duration: 1500 });
+        ], { duration: 1500, delay: GLIDE_LAG_MS }); // 그림이 실제로 바닥에 닿은 뒤 넘어짐
         el.tumbleAnim.onfinish = () => {
             el.style.transformOrigin = '';
         };
-        setTimeout(() => startDizzy(pokemon, left), 220);
+        setTimeout(() => startDizzy(pokemon, left), GLIDE_LAG_MS + 220);
     }
     nextFrame() {
         this.frames += 1;
-        return this.frames >= 15 ? states_1.FrameResult.stateComplete : states_1.FrameResult.stateContinue;
+        return this.frames >= 17 ? states_1.FrameResult.stateComplete : states_1.FrameResult.stateContinue;
     }
 }
 
