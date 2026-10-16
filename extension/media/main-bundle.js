@@ -7409,11 +7409,12 @@ const SIG_FX = {
 };
 
 // 광선 힘겨루기 — 광선을 쏘면 가끔, 바라보는 쪽 가장 먼 광선 쓰는 애가 돌아서서 받아침
-// 모으기 → 두 광선이 가운데서 쾅 → 만나는 곳이 밀고 밀리며 불꽃 · 번개 · 고리 → 센 쪽이 뚫고 나가 진 쪽이 벌러덩 (아니면 가운데서 대폭발 · 둘 다 벌러덩)
+// 모으기 → 두 광선이 가운데서 쾅 → 3.6초 동안 0.9초마다 한쪽이 천천히 밀어붙이며 에너지가 솟구쳐 바닥에 튀고 번개가 땅에 꽂힘, 마지막엔 점점 격해짐
+// → 센 쪽이 뚫고 나가 진 쪽이 벌러덩 (아니면 가운데서 대폭발 · 둘 다 벌러덩)
 const CLASH_CHANCE = 0.5;
 const CLASH_DRAW = 0.35;
 const CLASH_CHARGE = 0.9;
-const CLASH_SEC = 2.4;
+const CLASH_SEC = 3.6;
 const CLASH_SPEED = 1800;
 const isBeam = (m) => !!m && ((m[1] === 'beam' && !m[2]?.len) || m[1] === 'solarbeam');
 const beamMoves = (key) => (POKEMON_MOVESET[key] || []).map((i) => MOVE_LIB[i]).filter(isBeam);
@@ -7442,7 +7443,7 @@ function startClash(a, sigA, leftA, b) {
         b.holdStateEnum = b.currentStateEnum;
     }
     const meet = Math.abs(b.left - a.left) / 2 / CLASH_SPEED;
-    const hold = Math.ceil((0.12 + CLASH_CHARGE + meet + CLASH_SEC + 1.2) * 10);
+    const hold = Math.ceil((0.12 + CLASH_CHARGE + meet + CLASH_SEC + 1.5) * 10);
     for (const [p, left] of [[a, leftA], [b, !leftA]]) {
         p.currentStateEnum = "swipe" /* States.swipe */;
         p.currentState = new MoveState(left, hold);
@@ -7478,28 +7479,52 @@ function runClash(a, sigA, leftA, b, sigB, leftB) {
     const mid = (A.x + B.x) / 2;
     const tm = CLASH_CHARGE + half / CLASH_SPEED;
     const tO = tm + CLASH_SEC;
+    const THROUGH = 0.35; // 이긴 광선이 뚫고 나가는 시간
     const draw = Math.random() < CLASH_DRAW;
     const winner = draw ? null : Math.random() < Math.min(0.85, Math.max(0.15, 0.5 + (A.P - B.P) * 1.2)) ? A : B;
     const loser = winner === A ? B : A;
-    const phase = moveRand(0, Math.PI * 2);
     const R = Math.max(A.g.w, B.g.w, 40);
+    const ground = Math.max(A.g.body.bottom, B.g.body.bottom);
+    const both = [...A.cols, ...B.cols, '#ffffff'];
     showMoveName(A.g, `${sigA[0]}!`);
     setTimeout(() => showMoveName(B.g, `${sigB[0]}!`), 350);
-    // 만나는 곳 — shift 가 +1 이면 B 입, -1 이면 A 입
+    // 밀고 밀리기 — 0.9초쯤마다 한쪽이 천천히 밀어붙임, 마지막 구간은 이길 쪽으로 (무승부면 가운데로)
+    const n = Math.max(3, Math.round(CLASH_SEC / 0.9));
+    const pushes = [];
+    let sgn = Math.random() < 0.5 ? 1 : -1;
+    for (let i = 0; i < n; i++) {
+        pushes.push(i === n - 1 ? (winner ? (winner === A ? 0.6 : -0.6) : moveRand(-0.08, 0.08)) : sgn * moveRand(0.25, 0.5));
+        sgn = -sgn;
+    }
+    const seg = (t) => {
+        const u = Math.min(0.9999, Math.max(0, (t - tm) / CLASH_SEC)) * n;
+        const k = Math.floor(u);
+        return { k, f: u - k, from: k ? pushes[k - 1] : 0, to: pushes[k] };
+    };
+    const smooth = (f) => f * f * (3 - 2 * f);
+    // 만나는 곳 — +1 이면 B 입, -1 이면 A 입
     const shiftAt = (t) => {
         if (t < tO) {
-            const u = Math.max(0, (t - tm) / CLASH_SEC);
-            const lean = winner ? (winner === A ? 1 : -1) * 0.3 * Math.max(0, (u - 0.65) / 0.35) : 0;
-            const v = (0.2 + 0.4 * u) * Math.sin(u * Math.PI * 5 + phase) + 0.07 * Math.sin(u * Math.PI * 22) + lean;
-            return Math.max(-0.75, Math.min(0.75, v));
+            const { f, from, to } = seg(t);
+            return from + (to - from) * smooth(f) + 0.02 * Math.sin(t * 5);
         }
-        const s0 = shiftAt(tO - 0.001);
+        const s0 = pushes[n - 1];
         if (!winner) {
             return s0;
         }
-        const k = Math.min(1, (t - tO) / 0.25);
+        const k = Math.min(1, (t - tO) / THROUGH);
         return s0 + ((winner === A ? 1 : -1) - s0) * k * k;
     };
+    // 지금 밀어붙이는 쪽 (+1 이면 A) 과 세기 0~1
+    const pushNow = (t) => {
+        if (t < tm || t >= tO) {
+            return [0, 0];
+        }
+        const { f, from, to } = seg(t);
+        return [Math.sign(to - from), Math.sin(f * Math.PI)];
+    };
+    // 마지막 1/4 — 점점 격해짐 0~1
+    const climaxAt = (t) => Math.min(1, Math.max(0, ((t - tm) / CLASH_SEC - 0.72) / 0.28));
     const pointAt = (sh) => {
         const x = mid + A.dir * half * sh;
         return [x, A.y + (B.y - A.y) * ((x - A.x) / (B.x - A.x || 1))];
@@ -7518,14 +7543,14 @@ function runClash(a, sigA, leftA, b, sigB, leftB) {
             ctx.globalAlpha = a0 * alpha;
             const th = Math.max(1, Math.round(w * k)) * X.s;
             for (let d = 0; d < len; d += seg) {
-                const y = X.y + (ye - X.y) * (d / (len || 1)) + (X.wave ? Math.sin(d / (5 * X.s) - life * 25) * X.s * 1.5 : 0);
-                ctx.fillStyle = X.rainbow && k > 1.5 ? `hsl(${(d / X.s) * 12 + life * 900}, 100%, 70%)` : X.rainbow && k > 1 ? '#ffffff' : c;
+                const y = X.y + (ye - X.y) * (d / (len || 1)) + (X.wave ? Math.sin(d / (5 * X.s) - life * 12) * X.s * 1.5 : 0);
+                ctx.fillStyle = X.rainbow && k > 1.5 ? `hsl(${(d / X.s) * 12 + life * 400}, 100%, 70%)` : X.rainbow && k > 1 ? '#ffffff' : c;
                 ctx.fillRect(px(X.dir > 0 ? X.x + d : X.x - d - seg), px(y - th / 2), seg, th);
             }
         }
         ctx.globalAlpha = alpha;
         for (let j = 0; j < 3; j++) {
-            const d = ((life * 500 + (j * len) / 3) % (len || 1));
+            const d = (life * 300 + (j * len) / 3) % (len || 1);
             const ry = w * 1.1 * X.s;
             for (let q = 0; q < 10; q++) {
                 const an = (q / 10) * Math.PI * 2;
@@ -7563,6 +7588,25 @@ function runClash(a, sigA, leftA, b, sigB, leftB) {
             draw: DRAW.dot,
         });
     };
+    // 솟구친 에너지 — 포물선으로 떨어져 바닥에 닿으면 톡 튐
+    const splash = (x, y, up) => {
+        const an = up ? moveRand(-Math.PI * 0.85, -Math.PI * 0.15) : moveRand(0, Math.PI * 2);
+        const sp = moveRand(60, up ? 220 : 140) * s;
+        sigParticle({ x, y, s, vx: Math.cos(an) * sp, vy: Math.sin(an) * sp, g: 260 * s, drag: 0.6, max: 1.6, color: movePick(both), size: movePick([1, 2, 2, 3]),
+            update: (q) => {
+                if (q.y >= ground && q.vy > 0) {
+                    q.life = q.max;
+                    sigBurst(q.x, ground, s, [q.color, '#ffffff'], 3, 30);
+                }
+            },
+            draw: (ctx, q, t, px) => {
+                ctx.globalAlpha = 1;
+                dotAt(ctx, px, s, q.x, q.y, q.color, q.size, q.size);
+                ctx.globalAlpha = 0.4;
+                dotAt(ctx, px, s, q.x - q.vx * 0.025, q.y - q.vy * 0.025, q.color, q.size, q.size);
+            },
+        });
+    };
     const boom = (x, y, big, cols) => {
         screenFlash(s, big ? 0.6 : 0.45, '#ffffff', 0.4);
         shakeOthers(big ? 4 : 3, 10);
@@ -7573,15 +7617,17 @@ function runClash(a, sigA, leftA, b, sigB, leftB) {
             const sp = moveRand(60, big ? 240 : 180) * s;
             sigParticle({ x, y, s, vx: Math.cos(an) * sp, vy: Math.sin(an) * sp - 30 * s, g: 120 * s, drag: 1.5, max: moveRand(0.4, 0.8), color: movePick(cols), size: Math.random() < 0.4 ? 2 : 1, draw: DRAW.dot });
         }
+        for (let i = 0; i < (big ? 24 : 12); i++) {
+            splash(x, y, true);
+        }
     };
-    const both = [...A.cols, ...B.cols, '#ffffff'];
-    const st = { fired: false, met: false, hit: false, nextRing: 0, nextShake: 0, nextArc: 0, arcs: [] };
-    // 화면이 어두워지고 두 포켓몬만 동그랗게 밝음 — 먼저 그린 효과 밑으로 깔림
+    const st = { fired: false, met: false, hit: false, seg: -1, acc: 0, sparkAcc: 0, nextRing: 0, nextShake: 0, nextArc: 0, nextBolt: 0, arcs: [] };
+    // 화면이 어두워지고 두 포켓몬만 동그랗게 밝음 (막판엔 더 어둡게) — 먼저 그린 효과 밑으로 깔림
     const spots = [A, B].map((X) => [X.g.body.cx, X.g.body.cy, Math.max(X.g.w, X.g.h) * 0.75]);
-    sigParticle({ x: 0, y: 0, s, max: tO + 1.2, draw: (ctx, q) => {
+    sigParticle({ x: 0, y: 0, s, max: tO + 1.4, draw: (ctx, q) => {
         const a0 = Math.min(1, q.life / CLASH_CHARGE) * (q.life > tO + 0.6 ? Math.max(0, 1 - (q.life - tO - 0.6) / 0.6) : 1);
         ctx.globalCompositeOperation = 'destination-over';
-        ctx.globalAlpha = 0.5 * a0;
+        ctx.globalAlpha = (0.5 + 0.15 * climaxAt(q.life)) * a0;
         ctx.fillStyle = '#05080f';
         ctx.beginPath();
         ctx.rect(0, 0, window.innerWidth, window.innerHeight);
@@ -7592,8 +7638,8 @@ function runClash(a, sigA, leftA, b, sigB, leftB) {
         ctx.fill('evenodd');
         ctx.globalCompositeOperation = 'source-over';
     } });
-    sigParticle({ x: 0, y: 0, s, max: tO + 1.2,
-        update: (q) => {
+    sigParticle({ x: 0, y: 0, s, max: tO + 1.4,
+        update: (q, dt) => {
             const t = q.life;
             if (t < CLASH_CHARGE) {
                 pullIn(A);
@@ -7611,35 +7657,65 @@ function runClash(a, sigA, leftA, b, sigB, leftB) {
             }
             const [xm, ym] = pointAt(shiftAt(t));
             if (t >= tm && t < tO) {
+                const c = climaxAt(t);
+                const [, pa] = pushNow(t);
                 if (!st.met) {
                     st.met = true;
                     boom(xm, ym, false, both);
                     tremble(A, CLASH_SEC * 1000);
                     tremble(B, CLASH_SEC * 1000);
                 }
-                // 만나는 곳에서 튀는 불꽃 · 번개 · 고리 · 흔들림
-                for (let j = 0; j < 3; j++) {
-                    const an = moveRand(0, Math.PI * 2);
-                    const sp = moveRand(50, 150) * s;
-                    sigParticle({ x: xm, y: ym, s, vx: Math.cos(an) * sp, vy: Math.sin(an) * sp - 40 * s, g: 160 * s, drag: 1, max: moveRand(0.3, 0.55), color: movePick(both), size: Math.random() < 0.3 ? 2 : 1, draw: DRAW.dot });
+                // 한쪽이 밀어붙이기 시작할 때마다 — 고리 · 에너지가 확 솟구침
+                const { k } = seg(t);
+                if (k !== st.seg) {
+                    st.seg = k;
+                    sigRing(xm, ym, s, R * 0.4, R * (1.8 + c), 1, 0.6, [A.cols[1], B.cols[1], '#ffffff']);
+                    for (let j = 0; j < 14; j++) {
+                        splash(xm, ym, true);
+                    }
+                    shakeOthers(2, 8);
+                    if (k > 0) {
+                        screenFlash(s, 0.15, '#ffffff', 0.2);
+                    }
                 }
+                // 계속 튀는 에너지 · 짧은 불꽃 — 세게 밀수록, 막판일수록 많이
+                st.acc += dt * (18 + 50 * c + 14 * pa);
+                while (st.acc >= 1) {
+                    st.acc -= 1;
+                    splash(xm, ym, Math.random() < 0.7);
+                }
+                st.sparkAcc += dt * (50 + 80 * c);
+                while (st.sparkAcc >= 1) {
+                    st.sparkAcc -= 1;
+                    const an = moveRand(0, Math.PI * 2);
+                    const sp = moveRand(40, 110) * s;
+                    sigParticle({ x: xm, y: ym, s, vx: Math.cos(an) * sp, vy: Math.sin(an) * sp, drag: 2, max: moveRand(0.2, 0.35), color: movePick(both), draw: DRAW.dot });
+                }
+                // 빛 덩어리 둘레 번개 · 땅에 꽂히는 번개 · 고리 · 흔들림
                 if (t >= st.nextArc) {
-                    st.nextArc = t + 0.06;
+                    st.nextArc = t + 0.16 - 0.08 * c;
                     const an = moveRand(0, Math.PI * 2);
                     const r = R * moveRand(0.5, 0.9);
-                    st.arcs.push({ until: t + 0.08, path: zigzag(xm, ym, xm + Math.cos(an) * r, ym + Math.sin(an) * r, s, 2) });
+                    st.arcs.push({ until: t + 0.14, w: 1, path: zigzag(xm, ym, xm + Math.cos(an) * r, ym + Math.sin(an) * r, s, 2) });
+                }
+                if (t >= st.nextBolt && ground - ym > 8 * s) {
+                    st.nextBolt = t + moveRand(0.45, 0.7) - 0.25 * c;
+                    const gx = xm + moveRand(-0.7, 0.7) * R;
+                    st.arcs.push({ until: t + 0.18, w: 2, path: zigzag(xm, ym, gx, ground, s, 3) });
+                    sigBurst(gx, ground, s, both, 8, 60);
+                    sigRing(gx, ground, s, 2 * s, R * 0.6, 0.3, 0.35, [A.cols[0], B.cols[0]]);
                 }
                 if (t >= st.nextRing) {
-                    st.nextRing = t + 0.28;
-                    sigRing(xm, ym, s, R * 0.3, R * 1.3, 1, 0.35, [A.cols[1], B.cols[1], '#ffffff']);
+                    st.nextRing = t + 0.55 - 0.25 * c;
+                    sigRing(xm, ym, s, R * 0.3, R * 1.2, 1, 0.5, [A.cols[1], B.cols[1], '#ffffff']);
                 }
                 if (t >= st.nextShake) {
-                    st.nextShake = t + 0.6;
-                    shakeOthers(1.5, 6);
+                    st.nextShake = t + (c > 0 ? 0.25 : 0.9);
+                    shakeOthers(1.2 + 2 * c, c > 0 ? 3 : 5);
                 }
             }
             st.arcs = st.arcs.filter((arc) => arc.until > t);
-            if (t >= tO && !st.hit && (!winner || t >= tO + 0.25)) {
+            if (t >= tO && !st.hit && (!winner || t >= tO + THROUGH)) {
                 st.hit = true;
                 if (winner) {
                     const lg = sigGeometry(loser.p, loser.left);
@@ -7666,7 +7742,9 @@ function runClash(a, sigA, leftA, b, sigB, leftB) {
             }
             const sh = shiftAt(life);
             const [xm, ym] = pointAt(sh);
-            const pulse = 1 + 0.12 * Math.sin(life * 50);
+            const c = climaxAt(life);
+            const [pd, pa] = pushNow(life);
+            const pulse = (1 + 0.08 * Math.sin(life * 18)) * (1 + 0.3 * c);
             const burst = Math.max(0, 1 - (life - CLASH_CHARGE) / 0.2);
             if (life < tm) {
                 // 아직 날아가는 중 — 앞머리 빛 덩어리
@@ -7684,25 +7762,36 @@ function runClash(a, sigA, leftA, b, sigB, leftB) {
             }
             if (life < tO || winner) {
                 for (const X of [A, B]) {
-                    if (life >= tO + 0.25 && X === loser) {
+                    if (life >= tO + THROUGH && X === loser) {
                         continue;
                     }
-                    const push = X === A ? sh : -sh;
-                    const after = life > tO + 0.6 ? Math.max(0, 1 - (life - tO - 0.6) / 0.5) : 1;
-                    const w = X.W * (1 + 0.3 * push) * pulse * (life >= tO ? 1.3 * (0.4 + 0.6 * after) : 1);
+                    // 밀어붙이는 쪽은 굵어지고 밀리는 쪽은 살짝 가늘어짐
+                    const mine = X === A ? pd : -pd;
+                    const after = life > tO + 0.7 ? Math.max(0, 1 - (life - tO - 0.7) / 0.5) : 1;
+                    const w = X.W * (1 + 0.35 * pa * (mine > 0 ? 1 : mine < 0 ? -0.4 : 0)) * pulse * (life >= tO ? 1.3 * (0.4 + 0.6 * after) : 1);
                     drawBeam(ctx, px, X, xm, ym, w, life, after);
                 }
             }
-            if (life < tO + (winner ? 0.25 : 0)) {
-                // 만나는 곳 빛 덩어리 — 두 색이 번갈아
-                const r = (Math.max(A.W, B.W) * 1.6 + 1.5 * Math.sin(life * 45)) * s;
-                const flick = Math.floor(life / 0.05) % 2;
-                for (const [m, c, a0] of [[2.1, (flick ? A : B).cols[2], 0.4], [1.5, (flick ? B : A).cols[1], 1], [1, '#ffffff', 1]]) {
+            if (life < tO + (winner ? THROUGH : 0)) {
+                // 만나는 곳 빛 덩어리 — 바깥은 밀어붙이는 쪽 색, 둘레로 천천히 도는 에너지 가시
+                const strong = pd < 0 ? B : A;
+                const weak = strong === A ? B : A;
+                const r = (Math.max(A.W, B.W) * 1.6 * (1 + 0.6 * c) + Math.sin(life * 12)) * s;
+                for (const [m, col, a0] of [[2.1, strong.cols[2], 0.4], [1.5, weak.cols[1], 1], [1, '#ffffff', 1]]) {
                     ctx.globalAlpha = a0;
-                    sigDisc(ctx, px, s, xm, ym, r * m, c);
+                    sigDisc(ctx, px, s, xm, ym, r * m, col);
+                }
+                ctx.globalAlpha = 0.85;
+                const spikes = 10;
+                for (let j = 0; j < spikes; j++) {
+                    const an = life * 1.2 + (j * Math.PI * 2) / spikes;
+                    const len = r * (2.3 + 0.7 * Math.sin(life * 6 + j * 1.7)) * (1 + 0.4 * c);
+                    for (let d = r * 1.6; d < len; d += s) {
+                        dotAt(ctx, px, s, xm + Math.cos(an) * d, ym + Math.sin(an) * d, d < len * 0.75 ? '#ffffff' : (j % 2 ? A : B).cols[1]);
+                    }
                 }
                 ctx.globalAlpha = 1;
-                st.arcs.forEach((arc) => zapLine(ctx, px, s, arc.path, 1, flick ? A.cols[1] : B.cols[1]));
+                st.arcs.forEach((arc) => zapLine(ctx, px, s, arc.path, arc.w, strong.cols[1]));
             }
         },
     });
