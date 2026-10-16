@@ -460,7 +460,7 @@ function activate(context) {
         const pick = await vscode.window.showQuickPick([
             ...(previous ? [{ label: '$(discard) 되돌리기', description: `바로 전 목록으로 · ${summary(previous)}`, value: 'undo' }] : []),
             { label: '$(save) 지금 데리고 있는 포켓몬으로 저장', value: 'save' },
-            { label: '$(add) 포켓몬 추가', value: 'add' },
+            { label: '$(checklist) 포켓몬 고르기', description: '체크 = 기본 포켓몬, 새로 체크하면 바로 소환', value: 'add' },
             ...(list.length
                 ? [
                     { label: '$(remove) 빼기', description: list.map(defaultName).join(', '), value: 'remove' },
@@ -499,15 +499,34 @@ function activate(context) {
             await vscode.window.showInformationMessage(`기본 포켓몬으로 ${current.length}마리를 저장했어요.`);
         }
         else if (pick.value === 'add') {
-            const options = Object.entries(pokemon_data_1.POKEMON_DATA).map(([type, data]) => ({
+            // 지금 기본 포켓몬은 체크된 채로 맨 위에 — 확인하면 체크된 걸로 덮어쓰고, 새로 체크한 애는 바로 소환
+            const current = new Set(list.map((d) => d.type));
+            const option = ([type, data]) => ({
                 label: localize.getLocalizedPokemonName(type),
                 description: `#${data.id.toString().padStart(4, '0')} - ${data.generation}세대`,
                 value: type,
-            }));
-            const chosen = await vscode.window.showQuickPick(options, { placeHolder: '추가할 포켓몬 — 이름으로 찾고 여러 마리 고르기', matchOnDescription: true, canPickMany: true });
-            if (chosen?.length) {
-                await save(list.concat(chosen.map((c) => ({ type: c.value }))));
+                picked: current.has(type),
+            });
+            const all = Object.entries(pokemon_data_1.POKEMON_DATA);
+            const chosen = await vscode.window.showQuickPick([
+                ...(current.size ? [{ label: '지금 기본 포켓몬', kind: vscode.QuickPickItemKind.Separator }, ...all.filter(([type]) => current.has(type)).map(option)] : []),
+                { label: '전체 포켓몬', kind: vscode.QuickPickItemKind.Separator },
+                ...all.filter(([type]) => !current.has(type)).map(option),
+            ], { placeHolder: '체크한 포켓몬이 기본 포켓몬이 돼요 — 이름으로 찾기, 새로 체크한 애는 바로 소환', matchOnDescription: true, canPickMany: true });
+            if (!chosen) {
+                return;
             }
+            const keep = new Set(chosen.map((c) => c.value));
+            const added = chosen.filter((c) => !current.has(c.value)).map((c) => ({ type: c.value, name: c.label }));
+            await save(list.filter((d) => keep.has(d.type)).concat(added));
+            const panel = getPokemonPanel();
+            if (panel && added.length) {
+                const specs = added.map((d) => new PokemonSpecification(maybeMakeShiny((0, pokemon_collection_1.availableColors)(d.type)), d.type, getConfiguredSize(), d.name));
+                specs.forEach((spec) => panel.spawnPokemon(spec));
+                await storeCollectionAsMemento(context, PokemonSpecification.collectionFromMemento(context, getConfiguredSize()).concat(specs));
+            }
+            const removed = list.filter((d) => !keep.has(d.type)).length;
+            await vscode.window.showInformationMessage(`기본 포켓몬 ${list.length - removed + added.length}마리${added.length ? ` · ${added.length}마리 추가하고 소환` : ''}${removed ? ` · ${removed}마리 뺌` : ''}`);
         }
         else if (pick.value === 'remove') {
             const chosen = await vscode.window.showQuickPick(list.map((d, i) => ({ label: defaultName(d), description: d.name ?? '', index: i })), { placeHolder: '뺄 포켓몬을 고르세요', canPickMany: true });
