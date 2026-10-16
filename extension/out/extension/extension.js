@@ -305,6 +305,7 @@ function getWebview() {
     }
 }
 function activate(context) {
+    spriteErrorLog = require('path').join(context.globalStorageUri.fsPath, 'sprite-errors.log'); // LOCAL-PATCH
     // Reset the Pokemon translations cache at startup to load the correct language
     localize.resetPokemonTranslationsCache();
     context.subscriptions.push(vscode.commands.registerCommand('vscode-pokemon.start', async () => {
@@ -1110,6 +1111,7 @@ class PokemonWebviewContainer {
 			</html>`;
     }
 }
+let spriteErrorLog; // LOCAL-PATCH: activate 에서 정함
 function handleWebviewMessage(message) {
     switch (message.command) {
         case 'alert':
@@ -1117,6 +1119,13 @@ function handleWebviewMessage(message) {
             return;
         case 'info':
             void vscode.window.showInformationMessage(message.text);
+            return;
+        case 'sprite-error':
+            // LOCAL-PATCH: 웹뷰가 끝내 못 불러온 포켓몬 그림 — VS Code 저장 폴더의 sprite-errors.log
+            if (spriteErrorLog) {
+                require('fs').mkdirSync(require('path').dirname(spriteErrorLog), { recursive: true });
+                require('fs').appendFileSync(spriteErrorLog, `${new Date().toISOString()} ${message.text}\n`);
+            }
             return;
         case 'fresh-session': {
             // LOCAL-PATCH: 패널이 빈 채로 시작 → 기본 포켓몬 소환

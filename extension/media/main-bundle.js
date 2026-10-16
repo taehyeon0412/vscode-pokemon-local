@@ -5508,10 +5508,12 @@ class BasePokemonType {
     }
     setAnimation(face, hasLeftFacingSprite) {
         const validFace = !hasLeftFacingSprite && face === 'walk_left' ? 'walk' : face;
-        if (this.el.src.endsWith(`_${validFace}_8fps.gif`)) {
+        // LOCAL-PATCH: 끝내 못 불러온 그림은 대신 그림으로 (spriteLoadFailed), 다시 시도 중인 ?retry 는 무시
+        const next = this.el.spriteFallbacks?.[validFace] ?? validFace;
+        if (this.el.src.split('?')[0].endsWith(`_${next}_8fps.gif`)) {
             return;
         }
-        this.el.src = `${this.pokemonRoot}_${validFace}_8fps.gif`;
+        this.el.src = `${this.pokemonRoot}_${next}_8fps.gif`;
     }
     chooseNextState(fromState) {
         // Work out next state
@@ -7238,9 +7240,40 @@ function startAnimations(collision, pokemon, stateApi) {
         }
     });
 }
+// LOCAL-PATCH: 포켓몬 그림을 못 불러올 때 — 깨진 상자 대신
+// 확장을 다시 설치하는 순간엔 파일이 잠깐 없어서 → 0.6 · 1.2 · 1.8초 뒤 다시 시도 (보통 여기서 돌아옴)
+// 끝내 없으면 같은 포켓몬의 서 있기 → 걷기 그림으로, 그것도 없으면 숨기고 확장에 기록 (sprite-errors.log)
+function spriteLoadFailed(el, stateApi) {
+    const src = el.src.split('?')[0];
+    const face = (src.match(/_([a-z_]+)_8fps\.gif$/) || [])[1];
+    if (!face) {
+        return;
+    }
+    el.spriteTries = el.spriteTries || {};
+    const tries = (el.spriteTries[src] = (el.spriteTries[src] || 0) + 1);
+    if (tries <= 3) {
+        setTimeout(() => {
+            if (el.src.split('?')[0] === src) {
+                el.src = `${src}?retry=${tries}`;
+            }
+        }, 600 * tries);
+        return;
+    }
+    stateApi?.postMessage({ command: 'sprite-error', text: src });
+    el.spriteFallbacks = el.spriteFallbacks || {};
+    const broken = new Set(Object.keys(el.spriteFallbacks).concat(face));
+    const fallback = ['idle', 'walk'].find((f) => !broken.has(f));
+    if (!fallback) {
+        el.style.visibility = 'hidden';
+        return;
+    }
+    el.spriteFallbacks[face] = fallback;
+    el.src = src.replace(/_[a-z_]+_8fps\.gif$/, `_${fallback}_8fps.gif`);
+}
 function addPokemonToPanel(pokemonType, basePokemonUri, gen, originalSpriteSize, pokemonColor, pokemonSize, left, bottom, floor, name, stateApi, incrementCounter = true) {
     var pokemonSpriteElement = document.createElement('img');
     pokemonSpriteElement.className = 'pokemon';
+    pokemonSpriteElement.addEventListener('error', () => spriteLoadFailed(pokemonSpriteElement, stateApi)); // LOCAL-PATCH
     document.getElementById('pokemonContainer').appendChild(pokemonSpriteElement);
     var collisionElement = document.createElement('div');
     collisionElement.className = 'collision';
