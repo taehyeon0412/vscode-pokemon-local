@@ -1,0 +1,32 @@
+{
+  "froakie": {
+    "id": 656,
+    "name": "Froakie",
+    "generation": 6,
+    "colors": [
+      "default",
+      "shiny"
+    ],
+    "size": 32
+  },
+  "frogadier": {
+    "id": 657,
+    "name": "Frogadier",
+    "generation": 6,
+    "colors": [
+      "default",
+      "shiny"
+    ],
+    "size": 64
+  },
+  "greninja": {
+    "id": 658,
+    "name": "Greninja",
+    "generation": 6,
+    "colors": [
+      "default",
+      "shiny"
+    ],
+    "size": 32
+  }
+}

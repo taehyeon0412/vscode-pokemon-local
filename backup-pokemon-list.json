@@ -1,0 +1,110 @@
+[
+  {
+    "color": "default",
+    "type": "bulbasaur",
+    "size": "nano",
+    "name": "\uc774\uc0c1\ud574\uc528"
+  },
+  {
+    "color": "default",
+    "type": "charmander",
+    "size": "nano",
+    "name": "\ud30c\uc774\ub9ac"
+  },
+  {
+    "color": "default",
+    "type": "charizard",
+    "size": "nano",
+    "name": "\ub9ac\uc790\ubabd"
+  },
+  {
+    "color": "default",
+    "type": "squirtle",
+    "size": "nano",
+    "name": "\uaf2c\ubd80\uae30"
+  },
+  {
+    "color": "default",
+    "type": "dratini",
+    "size": "nano",
+    "name": "\ubbf8\ub1fd"
+  },
+  {
+    "color": "default",
+    "type": "dragonair",
+    "size": "nano",
+    "name": "\uc2e0\ub1fd"
+  },
+  {
+    "color": "default",
+    "type": "pikachu",
+    "size": "nano",
+    "name": "\ud53c\uce74\uce04"
+  },
+  {
+    "color": "default",
+    "type": "ninetales",
+    "size": "nano",
+    "name": "\ub098\uc778\ud14c\uc77c"
+  },
+  {
+    "color": "default",
+    "type": "chikorita",
+    "size": "nano",
+    "name": "\uce58\ucf54\ub9ac\ud0c0"
+  },
+  {
+    "color": "default",
+    "type": "pidgeot",
+    "size": "nano",
+    "name": "\ud53c\uc874\ud22c"
+  },
+  {
+    "color": "default",
+    "type": "raichu",
+    "size": "nano",
+    "name": "\ub77c\uc774\uce04"
+  },
+  {
+    "color": "default",
+    "type": "parasect",
+    "size": "nano",
+    "name": "Parasect"
+  },
+  {
+    "color": "default",
+    "type": "ponyta",
+    "size": "nano",
+    "name": "Ponyta"
+  },
+  {
+    "color": "default",
+    "type": "unown_w",
+    "size": "nano",
+    "name": "Unown W"
+  },
+  {
+    "color": "default",
+    "type": "carnivine",
+    "size": "nano",
+    "name": "Carnivine"
+  },
+  {
+    "color": "default",
+    "type": "graveler",
+    "size": "nano",
+    "name": "Graveler"
+  },
+  {
+    "color": "default",
+    "type": "rhydon",
+    "size": "nano",
+    "name": "Rhydon"
+  },
+  {
+    "color": "default",
+    "type": "elgyem",
+    "size": "nano",
+    "name": "Elgyem"
+  }
+]
