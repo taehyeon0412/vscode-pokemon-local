@@ -6337,12 +6337,32 @@ function handleMouseOver(e) {
 }
 // LOCAL-PATCH: 마지막 저장 시각 (모든 포켓몬 공용)
 let lastSavedAt = 0;
+// LOCAL-PATCH: 포켓몬 0.1초 틱을 setInterval 대신 화면 그리기(requestAnimationFrame)에 맞춰
+// VS Code 웹뷰에선 setInterval 이 1초로 늦춰질 때가 있음 (그리기는 정상 60fps) — 1초마다 툭툭 끊기고 천천히 떨어지던 원인
+// 패널이 안 보이면 그리기도 멈춰서 그동안은 안 돌고 CPU 도 안 씀
+const tickCallbacks = [];
+let tickLast = 0;
+function everyTick(fn) {
+    tickCallbacks.push(fn);
+    if (tickCallbacks.length > 1) {
+        return;
+    }
+    const loop = (now) => {
+        if (now - tickLast >= 100) {
+            // 늦게 와도 한 번만 (몰아서 여러 번 안 돌림), 0.1초 박자는 유지
+            tickLast = now - ((now - tickLast) % 100);
+            tickCallbacks.forEach((f) => f());
+        }
+        requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+}
 function startAnimations(collision, pokemon, stateApi) {
     if (!stateApi) {
         stateApi = acquireVsCodeApi();
     }
     collision.addEventListener('mouseover', handleMouseOver); /* POKEMON-MOVES-PATCH */ collision.addEventListener('click', handleMoveClick); collision.addEventListener('pointerdown', handleDragStart); startMoveAuto(); /* /POKEMON-MOVES-PATCH */
-    setInterval(() => {
+    everyTick(() => {
         var updates = exports.allPokemon.seekNewFriends();
         updates.forEach((message) => {
             stateApi?.postMessage({
@@ -6356,7 +6376,7 @@ function startAnimations(collision, pokemon, stateApi) {
             lastSavedAt = Date.now();
             saveState(stateApi);
         }
-    }, 100);
+    });
 }
 function addPokemonToPanel(pokemonType, basePokemonUri, gen, originalSpriteSize, pokemonColor, pokemonSize, left, bottom, floor, name, stateApi, incrementCounter = true) {
     var pokemonSpriteElement = document.createElement('img');
