@@ -787,6 +787,60 @@ function sigBurst(x, y, s, cols, n = 6, speed = 40) {
     }
 }
 
+// 지그재그 번개 길 (시작점은 그대로, 나머지는 옆으로 jit 칸씩 흔들림)
+function zigzag(x0, y0, x1, y1, s, jit = 2.5) {
+    const len = Math.hypot(x1 - x0, y1 - y0);
+    const nx = -(y1 - y0) / (len || 1);
+    const ny = (x1 - x0) / (len || 1);
+    const steps = Math.max(4, Math.round(len / (3 * s)));
+    const path = [];
+    for (let k = 0; k <= steps; k++) {
+        const off = k === 0 || k === steps ? 0 : moveRand(-jit, jit) * s;
+        path.push([x0 + ((x1 - x0) * k) / steps + nx * off, y0 + ((y1 - y0) * k) / steps + ny * off]);
+    }
+    return path;
+}
+// 번개 줄 — 하얀 심 + 둘레 색
+function zapLine(ctx, px, s, pts, w, tint) {
+    for (let k = 1; k < pts.length; k++) {
+        const [x0, y0] = pts[k - 1];
+        const [x1, y1] = pts[k];
+        const m = Math.max(1, Math.round(Math.hypot(x1 - x0, y1 - y0) / s));
+        for (let j = 0; j <= m; j++) {
+            const x = x0 + ((x1 - x0) * j) / m;
+            const y = y0 + ((y1 - y0) * j) / m;
+            dotAt(ctx, px, s, x - s, y - s, tint, w + 2, w + 2);
+            dotAt(ctx, px, s, x - (w > 1 ? s / 2 : 0), y - (w > 1 ? s / 2 : 0), '#ffffff', w, w);
+        }
+    }
+}
+// 가지 하나 — 줄 중간에서 비스듬히
+function zapBranch(path, len, angle, s) {
+    const at = path[Math.floor((path.length - 1) * moveRand(0.3, 0.7))];
+    const b = angle + movePick([-0.8, 0.8]);
+    return zigzag(at[0], at[1], at[0] + Math.cos(b) * len, at[1] + Math.sin(b) * len, s, 1.5);
+}
+// 화면 전체 번쩍
+function screenFlash(s, alpha, color = '#fffbe0', max = 0.28) {
+    sigParticle({ x: 0, y: 0, s, max, draw: (ctx, p, t) => {
+        ctx.globalAlpha = alpha * (1 - t);
+        ctx.fillStyle = color;
+        ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+    } });
+}
+// 퍼지는 고리 (ry 는 납작한 정도)
+function sigRing(x, y, s, r0, r1, flat, max, cols) {
+    sigParticle({ x, y, s, max, draw: (ctx, p, t, px) => {
+        const r = r0 + (r1 - r0) * t;
+        ctx.globalAlpha = 1 - t;
+        const dots = Math.max(24, Math.round(r / p.s) * 2);
+        for (let j = 0; j < dots; j++) {
+            const a = (j / dots) * Math.PI * 2;
+            dotAt(ctx, px, p.s, p.x + Math.cos(a) * r, p.y + Math.sin(a) * r * flat, cols[j % cols.length]);
+        }
+    } });
+}
+
 // 돌진 — 앞으로 휙 나갔다 돌아옴, 뒤로 잔상 줄, 끝에 쿵
 class DashState {
     label = "swipe" /* States.swipe */;
@@ -1290,6 +1344,126 @@ const SIG_FX = {
                     drawGlyph(ctx, px, p.s, p.x, p.y, GLYPHS.note, p.color);
                 },
             }) });
+        },
+    },
+    // 100만볼트 — 피카츄. 모으기(몸으로 빨려 드는 고리 · 세지는 스파크) → 화면 번쩍 + 사방으로 무지개빛 굵은 번개 · 하늘 번개 · 충격파 · 불똥 → 지직지직 여운
+    megavolt: {
+        ms: (P) => 1500 + 400 * P,
+        run: (g, o, ms) => {
+            const P = g.P;
+            // 작은 크기에서도 크게 보이게 최소 반지름
+            const R = Math.max(g.body.rx, g.body.ry, 14);
+            const charge = 350;
+            // 모으기 — 바깥에서 몸으로 빨려 드는 고리
+            sigParticle({ x: g.body.cx, y: g.body.cy, s: g.s, max: charge / 1000, draw: (ctx, p, t, px) => {
+                const r = R * (2.4 - 1.8 * t);
+                ctx.globalAlpha = 0.4 + 0.6 * t;
+                const dots = 28;
+                for (let k = 0; k < dots; k++) {
+                    const a = (k / dots) * Math.PI * 2 - p.life * 10;
+                    dotAt(ctx, px, p.s, p.x + Math.cos(a) * r, p.y + Math.sin(a) * r * 0.8, k % 2 ? '#ffffff' : '#ffe53b');
+                }
+            } });
+            SIG_FX.spark.run({ ...g, P: Math.min(1, P + 0.3) }, {}, ms - 200);
+            setTimeout(() => {
+                screenFlash(g.s, 0.38);
+                // 사방으로 굵은 번개 — 0.07초마다 모양을 새로 그려 지직거림, 가지도 침
+                const n = 10 + Math.round(4 * P);
+                const tints = ['#ffe53b', '#ff7ad9', '#6fdcff', '#9dff6f', '#ffe53b'];
+                for (let i = 0; i < n; i++) {
+                    const angle = (i / n) * Math.PI * 2 + moveRand(-0.2, 0.2);
+                    const len = R * moveRand(2.8, 4) * (1 + P);
+                    sigParticle({ x: g.body.cx, y: g.body.cy, s: g.s, max: moveRand(0.55, 0.8), angle, len, tint: tints[i % tints.length],
+                        update: (p) => {
+                            if (!p.path || p.life - p.drawn > 0.07) {
+                                p.drawn = p.life;
+                                p.path = zigzag(p.x, p.y, p.x + Math.cos(p.angle) * p.len, p.y + Math.sin(p.angle) * p.len, p.s);
+                                p.branch = zapBranch(p.path, p.len * 0.3, p.angle, p.s);
+                            }
+                        },
+                        draw: (ctx, p, t, px) => {
+                            ctx.globalAlpha = t > 0.7 ? (1 - t) / 0.3 : 1;
+                            zapLine(ctx, px, p.s, p.path, 2, p.tint);
+                            zapLine(ctx, px, p.s, p.branch, 1, p.tint);
+                        },
+                    });
+                }
+                // 하늘에서 쾅
+                SIG_FX.bolt.run({ ...g, P: 1 }, {});
+                // 충격파 두 겹
+                for (let k = 0; k < 2; k++) {
+                    setTimeout(() => sigRing(g.body.cx, g.body.cy, g.s, R * 0.8, R * (3.8 + 2 * P), 0.75, 0.5, ['#fff59d', '#fff59d', '#ffffff']), k * 140);
+                }
+                // 사방으로 튀는 불똥
+                sigBurst(g.body.cx, g.body.cy, g.s, ['#ffffff', '#fff59d', '#ffe53b', '#ff7ad9', '#6fdcff'], 24 + Math.round(24 * P), 110);
+            }, charge);
+        },
+    },
+    // 번개 — 라이츄. 머리 위로 먹구름이 몰려와 번쩍이고, 굵은 번개가 라이츄에게 두 번 · 둘레 땅에 여러 번 내리꽂힘 (칠 때마다 화면 번쩍 · 땅 충격파 · 불똥)
+    thunder: {
+        ms: (P) => 1800 + 400 * P,
+        run: (g, o, ms) => {
+            const P = g.P;
+            // 작은 크기에서도 구름 · 번개가 크게 보이게 최소 크기
+            const W = Math.max(g.w, 40) * (1.1 + 0.6 * P);
+            const ch = Math.max(0.3 * g.h, 12) + 3 * g.s;
+            const cloudY = Math.max(ch, Math.min(g.body.top - 1.2 * g.h, 0.12 * g.h + ch));
+            const ground = g.body.bottom;
+            // 친 순간들 (초) — 0: 라이츄, 나머지: 둘레 땅
+            const side = 3 + Math.round(2 * P);
+            const strikes = [{ at: 0.35, main: true }];
+            for (let i = 0; i < side; i++) {
+                const dir = i % 2 ? -1 : 1;
+                strikes.push({ at: 0.5 + i * 0.13, x: g.body.cx + dir * moveRand(0.6, 1.3) * W });
+            }
+            strikes.push({ at: 0.5 + side * 0.13 + 0.12, main: true });
+            // 먹구름 — 덩어리 셋, 칠 때마다 속이 번쩍
+            const lumps = [[-0.75, 0.35, 0.55, 0.65], [0, 0, 0.85, 1], [0.75, 0.3, 0.6, 0.7]];
+            sigParticle({ x: g.body.cx, y: cloudY, s: g.s, max: ms / 1000, draw: (ctx, p, t, px) => {
+                const lit = strikes.some((k) => p.life >= k.at && p.life - k.at < 0.08);
+                ctx.globalAlpha = fadeInOut(t, 0.15, 0.25) * 0.9;
+                for (const [ox, oy, rw, rh] of lumps) {
+                    const cx = p.x + ox * W;
+                    const cy = p.y - ch + oy * ch;
+                    const hw = rw * W;
+                    const hh = rh * ch;
+                    for (let y = -hh; y <= hh; y += p.s) {
+                        const half = hw * Math.sqrt(Math.max(0, 1 - (y / hh) * (y / hh)));
+                        ctx.fillStyle = lit ? (y < 0 ? '#fffbe0' : '#ffe53b') : y < -hh * 0.4 ? '#6b7090' : '#454a63';
+                        ctx.fillRect(px(cx - half), px(cy + y), Math.max(p.s, px(2 * half)), p.s);
+                    }
+                }
+            } });
+            SIG_FX.spark.run({ ...g, P: Math.min(1, P + 0.3) }, {}, ms - 200);
+            for (const k of strikes) {
+                setTimeout(() => {
+                    const x = k.main ? g.body.cx : k.x;
+                    const y1 = k.main ? g.body.cy : ground;
+                    screenFlash(g.s, k.main ? 0.4 : 0.2);
+                    // 지직거리는 굵은 번개 + 가지 둘
+                    sigParticle({ x, y: cloudY, s: g.s, max: k.main ? 0.4 : 0.3, y1, w: k.main ? 3 : 2,
+                        update: (p) => {
+                            if (!p.path || p.life - p.drawn > 0.05) {
+                                p.drawn = p.life;
+                                p.path = zigzag(p.x + moveRand(-1, 1) * g.s, p.y, p.x, p.y1, p.s, 3.5);
+                                const len = (p.y1 - p.y) * 0.35;
+                                p.branches = [zapBranch(p.path, len, Math.PI / 2, p.s), zapBranch(p.path, len * 0.7, Math.PI / 2, p.s)];
+                            }
+                        },
+                        draw: (ctx, p, t, px) => {
+                            if (Math.floor(p.life / 0.05) % 3 === 2) {
+                                return;
+                            }
+                            ctx.globalAlpha = t > 0.7 ? (1 - t) / 0.3 : 1;
+                            zapLine(ctx, px, p.s, p.path, p.w, '#ffe53b');
+                            p.branches.forEach((b) => zapLine(ctx, px, p.s, b, 1, '#fff59d'));
+                        },
+                    });
+                    // 땅 충격파 · 불똥
+                    sigRing(x, ground, g.s, 2 * g.s, (k.main ? 1.4 : 0.8) * W, 0.25, k.main ? 0.5 : 0.35, ['#fff59d', '#ffffff', '#ffe53b']);
+                    sigBurst(x, k.main ? g.body.cy : ground, g.s, ['#ffffff', '#fff59d', '#ffe53b', '#ffb300'], k.main ? 22 + Math.round(16 * P) : 10, k.main ? 100 : 70);
+                }, k.at * 1000);
+            }
         },
     },
     // 물수리검 — 개굴닌자 (예전 전용기 그대로, 던지는 그림)

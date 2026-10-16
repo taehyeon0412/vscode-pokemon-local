@@ -52,7 +52,7 @@ TYPE_MOVES = {
     "normal": [("몸통박치기", "dash", {"c": "normal"}, 0), ("전광석화", "dash", {"c": "normal", "fast": 1}, 0), ("하이퍼보이스", "rings", {"c": "normal", "forward": 1, "n": 4}, 1), ("파괴광선", "beam", {"c": "hyper", "width": 1.4, "sparkle": "hyper"}, 2)],
     "fire": [("불꽃세례", "breath", {"c": "fire", "speed": 0.8, "life": 0.8}, 0), ("회오리불꽃", "vortex", {"c": "fire"}, 0), ("화염방사", "breath", {"c": "fire", "smoke": 1}, 1)],
     "water": [("물대포", "water", {}, 0), ("거품", "bubbles", {"c": "water"}, 0), ("바다회오리", "vortex", {"c": "water"}, 0), ("하이드로펌프", "beam", {"c": "water", "width": 1.5, "sparkle": "water"}, 2)],
-    "electric": [("전기쇼크", "spark", {}, 0), ("10만볼트", "spark", {}, 1), ("번개", "bolt", {"c": "electric"}, 2)],
+    "electric": [("전기쇼크", "spark", {}, 0), ("10만볼트", "spark", {}, 1), ("번개", "thunder", {}, 2)],
     "grass": [("덩굴채찍", "beam", {"c": "grass", "len": 2.5, "width": 0.4, "wave": 1}, 0), ("잎날가르기", "projectile", {"shape": "leaf", "c": "grass", "n": 5, "every": 90}, 0), ("수면가루", "powder", {"c": "sleep"}, 1), ("솔라빔", "beam", {"c": "solar", "width": 1.4, "sparkle": "solar"}, 2)],
     "ice": [("얼음뭉치", "projectile", {"shape": "needle", "c": "ice", "n": 2, "every": 120}, 0), ("냉동빔", "beam", {"c": "ice", "sparkle": "ice"}, 1), ("눈보라", "breath", {"c": "ice", "snow": 1, "speed": 1.2, "rise": -0.4, "rate": 1.3}, 2)],
     "fighting": [("태권당수", "slash", {"c": "fight", "n": 1}, 0), ("메가톤펀치", "punch", {"c": "fight", "n": 1, "big": 1}, 0), ("크로스촙", "slash", {"c": "fight", "x": 1}, 1)],
