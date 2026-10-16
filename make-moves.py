@@ -46,6 +46,32 @@ JUMPERS = {
     123,  # 스라크 (비행 타입이지만 뛰는 쪽)
     617,  # 어지리더
 }
+# 타입별 기술 — (이름, 연출 틀, 옵션, 필요 단계) 단계: 0 누구나 · 1 종족값 400+ · 2 종족값 500+
+# 회오리(회오리불꽃 · 바다회오리 · 회오리 · 모래지옥)는 그 타입이면 누구나, 폭풍은 비행 타입 중 400+
+TYPE_MOVES = {
+    "normal": [("몸통박치기", "dash", {"c": "normal"}, 0), ("전광석화", "dash", {"c": "normal", "fast": 1}, 0), ("하이퍼보이스", "rings", {"c": "normal", "forward": 1, "n": 4}, 1), ("파괴광선", "beam", {"c": "hyper", "width": 1.4, "sparkle": "hyper"}, 2)],
+    "fire": [("불꽃세례", "breath", {"c": "fire", "speed": 0.8, "life": 0.8}, 0), ("회오리불꽃", "vortex", {"c": "fire"}, 0), ("화염방사", "breath", {"c": "fire", "smoke": 1}, 1)],
+    "water": [("물대포", "water", {}, 0), ("거품", "bubbles", {"c": "water"}, 0), ("바다회오리", "vortex", {"c": "water"}, 0), ("하이드로펌프", "beam", {"c": "water", "width": 1.5, "sparkle": "water"}, 2)],
+    "electric": [("전기쇼크", "spark", {}, 0), ("10만볼트", "spark", {}, 1), ("번개", "bolt", {"c": "electric"}, 2)],
+    "grass": [("덩굴채찍", "beam", {"c": "grass", "len": 2.5, "width": 0.4, "wave": 1}, 0), ("잎날가르기", "projectile", {"shape": "leaf", "c": "grass", "n": 5, "every": 90}, 0), ("수면가루", "powder", {"c": "sleep"}, 1), ("솔라빔", "beam", {"c": "solar", "width": 1.4, "sparkle": "solar"}, 2)],
+    "ice": [("얼음뭉치", "projectile", {"shape": "needle", "c": "ice", "n": 2, "every": 120}, 0), ("냉동빔", "beam", {"c": "ice", "sparkle": "ice"}, 1), ("눈보라", "breath", {"c": "ice", "snow": 1, "speed": 1.2, "rise": -0.4, "rate": 1.3}, 2)],
+    "fighting": [("태권당수", "slash", {"c": "fight", "n": 1}, 0), ("메가톤펀치", "punch", {"c": "fight", "n": 1, "big": 1}, 0), ("크로스촙", "slash", {"c": "fight", "x": 1}, 1)],
+    "poison": [("독침", "projectile", {"shape": "needle", "c": "poison", "n": 1}, 0), ("용해액", "breath", {"c": "poison", "speed": 0.7, "rise": -0.6, "life": 0.8}, 0), ("오물폭탄", "projectile", {"shape": "ball", "c": "sludge", "n": 2, "arc": 120, "every": 200}, 1)],
+    "ground": [("진흙뿌리기", "projectile", {"shape": "ball", "c": "ground", "n": 2, "arc": 140, "every": 150, "speed": 0.8}, 0), ("모래지옥", "vortex", {"c": "ground"}, 0), ("지진", "quake", {"c": "ground"}, 1)],
+    "flying": [("바람일으키기", "rings", {"c": "wind", "forward": 1, "n": 3}, 0), ("날개치기", "dash", {"c": "wind"}, 0), ("폭풍", "vortex", {"c": "wind"}, 1)],
+    "psychic": [("염동력", "rings", {"c": "psychic", "n": 3}, 0), ("환상빔", "beam", {"c": "psychic", "wave": 1}, 1), ("사이코키네시스", "rings", {"c": "psychic", "n": 6}, 2)],
+    "bug": [("실뿜기", "beam", {"c": "silk", "width": 0.3, "wave": 1, "len": 4}, 0), ("바늘미사일", "projectile", {"shape": "needle", "c": "bug", "n": 4, "every": 90}, 0), ("시저크로스", "slash", {"c": "bug", "x": 1}, 1)],
+    "rock": [("돌떨구기", "rockfall", {"c": "rock", "n": 2}, 0), ("스톤샤워", "rockfall", {"c": "rock", "n": 5}, 1)],
+    "ghost": [("핥기", "beam", {"c": "tongue", "len": 1.6, "width": 0.6}, 0), ("나이트헤드", "rings", {"c": "ghost", "n": 4}, 0), ("섀도볼", "projectile", {"shape": "ball", "c": "ghost", "n": 1, "big": 1, "speed": 0.8}, 1)],
+    "dragon": [("용의분노", "breath", {"c": "dragon", "speed": 0.9}, 0), ("회오리", "vortex", {"c": "dragon"}, 0), ("용의숨결", "breath", {"c": "dragon", "smoke": 1}, 1)],
+    "dark": [("물기", "slash", {"c": "dark", "n": 2}, 0), ("악의파동", "rings", {"c": "dark", "n": 4}, 1)],
+    "steel": [("아이언테일", "slash", {"c": "steel", "n": 1}, 0), ("러스터캐논", "beam", {"c": "steel", "sparkle": "steel"}, 1)],
+    "fairy": [("천사의키스", "projectile", {"shape": "heart", "c": "fairy", "n": 3, "every": 160, "speed": 0.6}, 0), ("문포스", "projectile", {"shape": "ball", "c": "moon", "n": 1, "big": 1}, 1)],
+}
+
+# 타입 기술 없이 대표 기술만 — 잉어킹(튀어오르기 · 몸통박치기) · 메타몽 · 단데기 · 딱충이
+ONLY_SIGNATURE = {"magikarp", "ditto", "metapod", "kakuna"}
+
 # 비행 타입이지만 날개가 없는 애들 — 안 날아다님
 WINGLESS = {130, 187, 188, 189, 226, 458, 425, 426, 384, 641, 642, 645, 84, 85}
 
@@ -123,16 +149,26 @@ def mouth(gif):
 
 
 def signatures(pokemon):
-    # 전용 기술 표 — 암컷 모습(_female)은 기본 모습 것을 그대로
+    # 대표 기술 표 (여러 개면 펼침) — 암컷 모습(_female)은 기본 모습 것을 그대로
     raw = {k: v for k, v in json.load(open(SIGNATURE_FILE, encoding="utf-8")).items() if not k.startswith("_")}
     for key in pokemon:
         base = key[: -len("_female")] if key.endswith("_female") else None
         if base and base in raw and key not in raw:
             raw[key] = raw[base]
-    return {k: v for k, v in raw.items() if k in pokemon}
+    return {k: (v if isinstance(v[0], list) else [v]) for k, v in raw.items() if k in pokemon}
 
 
-def write_bundle(table, acts, sig, shape):
+def moveset(sig, types, bst):
+    # 대표 기술 + 타입 기술 (종족값 단계까지), 같은 이름은 한 번만
+    tier = (bst >= 400) + (bst >= 500)
+    pool = list(sig)
+    for t in types:
+        pool += [[name, fx, opt] for name, fx, opt, need in TYPE_MOVES.get(t, []) if tier >= need]
+    seen = set()
+    return [m for m in pool if not (m[0] in seen or seen.add(m[0]))]
+
+
+def write_bundle(table, acts, lib, movesets, shape):
     src = open(BUNDLE, encoding="utf-8").read()
     # 지난번 블록 지우기 — 한 줄짜리(연결)부터, 그다음 여러 줄(코드)
     src = re.sub(" " + re.escape(BEGIN) + r" [^\n]*?" + re.escape(END), "", src)
@@ -142,7 +178,8 @@ def write_bundle(table, acts, sig, shape):
     code = open(os.path.join(HERE, "moves.js"), encoding="utf-8").read()
     moves = "const POKEMON_MOVES = " + json.dumps(table, separators=(",", ":")) + ";\n"
     moves += "const POKEMON_ACTS = " + json.dumps(acts, separators=(",", ":")) + ";\n"
-    moves += "const POKEMON_SIGNATURE = " + json.dumps(sig, ensure_ascii=False, separators=(",", ":")) + ";\n"
+    moves += "const MOVE_LIB = " + json.dumps(lib, ensure_ascii=False, separators=(",", ":")) + ";\n"
+    moves += "const POKEMON_MOVESET = " + json.dumps(movesets, separators=(",", ":")) + ";\n"
     moves += "const POKEMON_SHAPE = " + json.dumps(shape, separators=(",", ":")) + ";\n"
     i = src.index(CODE_ANCHOR)
     src = src[:i] + BEGIN + "\n" + moves + code + END + "\n" + src[i:]
@@ -159,6 +196,9 @@ def main():
     pokemon = pokemon_list()
     sig = signatures(pokemon)
     shape = {}
+    lib = []
+    lib_index = {}
+    movesets = {}
     for key, (dex, gen) in pokemon.items():
         move = next((MOVE_OF_TYPE[t] for t in types.get(dex, []) if t in MOVE_OF_TYPE), None)
         gif = os.path.join(EXT, "media", f"gen{gen}", key, "default_walk_8fps.gif")
@@ -167,17 +207,29 @@ def main():
         power = round(min(1, max(0, (stats.get(dex, 400) - 200) / 450)), 2)
         if move:
             table[key] = [move, power, *(body(gif) if move == "electric" else mouth(gif))]
-        if key in sig:
+        # 우선 대표 기술이 있는 1세대만 (2세대부터는 위 타입별 기술 그대로)
+        pool = moveset(sig[key], [] if key.removesuffix("_female") in ONLY_SIGNATURE else types.get(dex, []), stats.get(dex, 400)) if key in sig else []
+        if pool:
             shape[key] = [power, *mouth(gif), *body(gif)]
+            ids = []
+            for m in pool:
+                k = json.dumps(m, ensure_ascii=False, sort_keys=True)
+                if k not in lib_index:
+                    lib_index[k] = len(lib)
+                    lib.append(m)
+                ids.append(lib_index[k])
+            movesets[key] = ids
         if dex in JUMPERS:
             acts[key] = "jump"
         elif "flying" in types.get(dex, []) and dex not in WINGLESS:
             acts[key] = "fly"
-    write_bundle(table, acts, sig, shape)
+    write_bundle(table, acts, lib, movesets, shape)
     subprocess.run(["node", "--check", BUNDLE], check=True)
     counts = {m: sum(1 for v in table.values() if v[0] == m) for m in MOVE_OF_TYPE.values()}
     print(f"기술 {len(table)}종 — " + " · ".join(f"{m} {n}" for m, n in counts.items()))
-    print(f"전용 기술 {len(shape)}종 (연출 틀 {len({(v[0] if isinstance(v[0], list) else v)[1] for v in sig.values()})}개)")
+    sizes = [len(v) for v in movesets.values()]
+    vortex = sum(1 for v in movesets.values() if any(lib[i][1] == "vortex" for i in v))
+    print(f"기술 묶음 {len(movesets)}마리 · 평균 {sum(sizes) / len(sizes):.1f}개 · 기술 모음 {len(lib)}개 · 연출 틀 {len({m[1] for m in lib})}개 · 회오리 쓰는 애 {vortex}마리")
     print(f"행동 — 비행 {sum(1 for a in acts.values() if a == 'fly')} · 멀리뛰기 {sum(1 for a in acts.values() if a == 'jump')}")
 
 

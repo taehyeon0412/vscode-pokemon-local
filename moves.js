@@ -567,7 +567,8 @@ function startMoveEffect(pokemon, move, left, emitMs, special) {
 
 
 // ───── 1세대 전용 기술 ─────
-// POKEMON_SIGNATURE[키] = [이름, 연출 틀, 옵션] (여러 개면 쓸 때마다 하나), POKEMON_SHAPE[키] = [세기, 입 x, 입 y, 왼, 위, 오른, 아래]
+// MOVE_LIB = [[이름, 연출 틀, 옵션], …] 기술 모음, POKEMON_MOVESET[키] = [MOVE_LIB 번호, …] 그 포켓몬이 쓸 수 있는 기술 (클릭마다 하나를 무작위로)
+// POKEMON_SHAPE[키] = [세기, 입 x, 입 y, 왼, 위, 오른, 아래]
 // 둘 다 make-moves.py 가 signature-moves.json · 걷기 그림으로 만들어 넣음. 연출 틀은 아래 SIG_FX
 const SIG_PALETTE = {
     fire: ['#fff6b3', '#ffc93c', '#ff7a21', '#d9381e'], dragon: ['#eef2ff', '#a9b8ff', '#7a5cff', '#4a2aa8'],
@@ -589,11 +590,12 @@ const SIG_PALETTE = {
     bone: ['#ffffff', '#f5efe0', '#dccfb0', '#a8987a'], gold: ['#fffbe0', '#ffe680', '#f5c400', '#b88a00'],
     egg: ['#ffffff', '#fff8e8', '#f0e0c0', '#c9b48a'], star: ['#ffffff', '#fff8b0', '#ffe14d', '#f5b300'],
     aura: ['#ffffff', '#d8ecff', '#7ab8ff', '#3a7ae0'], bug: ['#f4ffd0', '#d6f06a', '#a8c93a', '#6f8f1f'],
+    dark: ['#e6dcff', '#8f78c9', '#4f3a85', '#261a45'],
 };
 const sigPal = (c) => (Array.isArray(c) ? c : SIG_PALETTE[c] || SIG_PALETTE.normal);
 const sigEntry = (key) => {
-    const raw = POKEMON_SIGNATURE[key];
-    return raw && (Array.isArray(raw[0]) ? movePick(raw) : raw);
+    const set = POKEMON_MOVESET[key];
+    return set && MOVE_LIB[movePick(set)];
 };
 
 // 쓰는 순간의 위치 — 그림이 돌아가 있을 수 있어서 안 도는 클릭 영역 기준
@@ -1290,6 +1292,15 @@ const SIG_FX = {
             }) });
         },
     },
+    // 물수리검 — 개굴닌자 (예전 전용기 그대로, 던지는 그림)
+    shuriken: {
+        sprite: 'shoot',
+        ms: () => MOVE_SPECIAL.greninja.first + MOVE_SPECIAL.greninja.every * (MOVE_SPECIAL.greninja.count - 1),
+        run: (g, o, ms, pokemon) => {
+            const [P, mx, my] = POKEMON_SHAPE[pokemon.label];
+            startMoveEffect(pokemon, ['water', P, mx, my], g.left, ms, MOVE_SPECIAL.greninja);
+        },
+    },
     // 튀어오르기 — 잉어킹 (그러나 아무 일도 일어나지 않았다!)
     splash: {
         ms: () => 100,
@@ -1303,7 +1314,7 @@ const SIG_FX = {
     metronome: {
         ms: () => 1500,
         run: (g, o, ms, pokemon) => {
-            const pool = Object.values(POKEMON_SIGNATURE).flatMap((v) => (Array.isArray(v[0]) ? v : [v])).filter((v) => !['metronome', 'splash'].includes(v[1]));
+            const pool = MOVE_LIB.filter((v) => !['metronome', 'splash', 'shuriken'].includes(v[1]));
             const [name, fx, opt = {}] = movePick(pool);
             setTimeout(() => {
                 const g2 = sigGeometry(pokemon, g.left);
@@ -1319,7 +1330,7 @@ function useSignature(pokemon, sig, left) {
     const T = SIG_FX[fx];
     const ms = T.ms(POKEMON_SHAPE[pokemon.label][0], o);
     pokemon.currentStateEnum = "swipe" /* States.swipe */;
-    pokemon.currentState = new MoveState(left, Math.ceil((ms + 300) / 100));
+    pokemon.currentState = new MoveState(left, Math.ceil((ms + 300) / 100), T.sprite);
     pokemon.hideSpeechBubble();
     setTimeout(() => {
         const g = sigGeometry(pokemon, left);
@@ -1462,7 +1473,7 @@ function startMoveAuto() {
             return;
         }
         if (Math.random() < 1 / MOVE_AUTO_AVG_SEC) {
-            const list = ready((key) => POKEMON_MOVES[key] || POKEMON_SIGNATURE[key]);
+            const list = ready((key) => POKEMON_MOVES[key] || POKEMON_MOVESET[key]);
             if (list.length) {
                 useMove(movePick(list).pokemon);
             }
