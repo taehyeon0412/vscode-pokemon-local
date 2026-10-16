@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""타입별 기술(불꽃 · 물대포 · 스파크 · 나뭇잎)과 특수 행동(비행 · 멀리뛰기)을 extension/media/main-bundle.js 에 넣는다.
+"""타입별 기술(불꽃 · 물대포 · 스파크 · 나뭇잎), 1세대 전용 기술(signature-moves.json)과 특수 행동(비행 · 멀리뛰기)을 extension/media/main-bundle.js 에 넣는다.
 
   python3 ~/.claude/vscode-pokemon-local/make-moves.py
   python3 ~/.claude/vscode-pokemon-local/install.py    ← 그다음 설치
@@ -27,6 +27,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 EXT = os.path.join(HERE, "extension")
 BUNDLE = os.path.join(EXT, "media", "main-bundle.js")
 TYPES_CACHE = os.path.join(HERE, "pokemon-types.json")
+SIGNATURE_FILE = os.path.join(HERE, "signature-moves.json")
 STATS_CACHE = os.path.join(HERE, "pokemon-stats.json")
 CSV_BASE = "https://raw.githubusercontent.com/PokeAPI/pokeapi/master/data/v2/csv"
 MOVE_OF_TYPE = {"fire": "fire", "water": "water", "electric": "electric", "grass": "grass"}
@@ -121,7 +122,17 @@ def mouth(gif):
     return x, round(sum(ys) / len(ys))
 
 
-def write_bundle(table, acts):
+def signatures(pokemon):
+    # 전용 기술 표 — 암컷 모습(_female)은 기본 모습 것을 그대로
+    raw = {k: v for k, v in json.load(open(SIGNATURE_FILE, encoding="utf-8")).items() if not k.startswith("_")}
+    for key in pokemon:
+        base = key[: -len("_female")] if key.endswith("_female") else None
+        if base and base in raw and key not in raw:
+            raw[key] = raw[base]
+    return {k: v for k, v in raw.items() if k in pokemon}
+
+
+def write_bundle(table, acts, sig, shape):
     src = open(BUNDLE, encoding="utf-8").read()
     # 지난번 블록 지우기 — 한 줄짜리(연결)부터, 그다음 여러 줄(코드)
     src = re.sub(" " + re.escape(BEGIN) + r" [^\n]*?" + re.escape(END), "", src)
@@ -131,6 +142,8 @@ def write_bundle(table, acts):
     code = open(os.path.join(HERE, "moves.js"), encoding="utf-8").read()
     moves = "const POKEMON_MOVES = " + json.dumps(table, separators=(",", ":")) + ";\n"
     moves += "const POKEMON_ACTS = " + json.dumps(acts, separators=(",", ":")) + ";\n"
+    moves += "const POKEMON_SIGNATURE = " + json.dumps(sig, ensure_ascii=False, separators=(",", ":")) + ";\n"
+    moves += "const POKEMON_SHAPE = " + json.dumps(shape, separators=(",", ":")) + ";\n"
     i = src.index(CODE_ANCHOR)
     src = src[:i] + BEGIN + "\n" + moves + code + END + "\n" + src[i:]
     i = src.index(HOOK_ANCHOR) + len(HOOK_ANCHOR)
@@ -143,22 +156,28 @@ def main():
     stats = pokemon_stats()
     table = {}
     acts = {}
-    for key, (dex, gen) in pokemon_list().items():
+    pokemon = pokemon_list()
+    sig = signatures(pokemon)
+    shape = {}
+    for key, (dex, gen) in pokemon.items():
         move = next((MOVE_OF_TYPE[t] for t in types.get(dex, []) if t in MOVE_OF_TYPE), None)
         gif = os.path.join(EXT, "media", f"gen{gen}", key, "default_walk_8fps.gif")
         if not os.path.exists(gif):
             continue
+        power = round(min(1, max(0, (stats.get(dex, 400) - 200) / 450)), 2)
         if move:
-            power = round(min(1, max(0, (stats.get(dex, 400) - 200) / 450)), 2)
             table[key] = [move, power, *(body(gif) if move == "electric" else mouth(gif))]
+        if key in sig:
+            shape[key] = [power, *mouth(gif), *body(gif)]
         if dex in JUMPERS:
             acts[key] = "jump"
         elif "flying" in types.get(dex, []) and dex not in WINGLESS:
             acts[key] = "fly"
-    write_bundle(table, acts)
+    write_bundle(table, acts, sig, shape)
     subprocess.run(["node", "--check", BUNDLE], check=True)
     counts = {m: sum(1 for v in table.values() if v[0] == m) for m in MOVE_OF_TYPE.values()}
     print(f"기술 {len(table)}종 — " + " · ".join(f"{m} {n}" for m, n in counts.items()))
+    print(f"전용 기술 {len(shape)}종 (연출 틀 {len({(v[0] if isinstance(v[0], list) else v)[1] for v in sig.values()})}개)")
     print(f"행동 — 비행 {sum(1 for a in acts.values() if a == 'fly')} · 멀리뛰기 {sum(1 for a in acts.values() if a == 'jump')}")
 
 

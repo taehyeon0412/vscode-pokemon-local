@@ -5702,7 +5702,9 @@ function calculateFloor(size, theme) {
 /* POKEMON-MOVES-PATCH */
 const POKEMON_MOVES = {"bulbasaur":["grass",0.26,26,21],"ivysaur":["grass",0.46,23,22],"venusaur":["grass",0.72,25,20],"venusaur_female":["grass",0.72,25,20],"charmander":["fire",0.24,26,21],"charmeleon":["fire",0.46,24,20],"charizard":["fire",0.74,28,16],"squirtle":["water",0.25,21,20],"wartortle":["water",0.46,22,20],"blastoise":["water",0.73,26,16],"pikachu":["electric",0.27,7,14,24,31],"pikachu_female":["electric",0.27,7,14,24,31],"raichu":["electric",0.63,3,12,26,31],"vulpix":["fire",0.22,26,22],"ninetales":["fire",0.68,27,21],"oddish":["grass",0.27,23,21],"gloom":["grass",0.43,26,21],"vileplume":["grass",0.64,25,19],"paras":["grass",0.19,24,23],"parasect":["grass",0.46,26,19],"psyduck":["water",0.27,24,21],"golduck":["water",0.67,24,20],"growlithe":["fire",0.33,24,19],"arcanine":["fire",0.79,28,18],"poliwag":["water",0.22,22,22],"poliwhirl":["water",0.41,23,20],"poliwrath":["water",0.69,23,19],"bellsprout":["grass",0.22,23,20],"weepinbell":["grass",0.42,23,22],"victreebel":["grass",0.64,24,14],"tentacool":["water",0.3,23,18],"tentacruel":["water",0.7,26,18],"ponyta":["fire",0.47,24,20],"rapidash":["fire",0.67,27,19],"slowpoke":["water",0.26,27,23],"slowbro":["water",0.64,25,19],"magnemite":["electric",0.28,9,17,20,30],"magneton":["electric",0.59,7,7,22,30],"seel":["water",0.28,25,20],"dewgong":["water",0.61,26,18],"shellder":["water",0.23,21,17],"cloyster":["water",0.72,24,15],"krabby":["water",0.28,26,23],"kingler":["water",0.61,30,16],"voltorb":["electric",0.29,9,16,24,31],"electrode":["electric",0.64,5,10,27,31],"exeggcute":["grass",0.28,28,18],"exeggutor":["grass",0.73,28,10],"tangela":["grass",0.52,23,20],"horsea":["water",0.21,22,20],"seadra":["water",0.53,21,16],"goldeen":["water",0.27,21,20],"seaking":["water",0.56,26,18],"staryu":["water",0.31,20,20],"starmie":["water",0.71,22,18],"electabuzz":["electric",0.64,1,9,22,31],"magmar":["fire",0.66,22,18],"magikarp":["water",0,25,18],"gyarados":["water",0.76,27,14],"lapras":["water",0.74,23,16],"vaporeon":["water",0.72,27,20],"jolteon":["electric",0.72,1,13,25,31],"flareon":["fire",0.72,25,18],"omanyte":["water",0.34,21,22],"omastar":["water",0.66,23,18],"kabuto":["water",0.34,24,21],"kabutops":["water",0.66,26,19],"zapdos":["electric",0.84,1,7,25,31],"moltres":["fire",0.84,26,14],"chikorita":["grass",0.26,21,20],"bayleef":["grass",0.46,25,13],"meganium":["grass",0.72,25,12],"meganium_female":["grass",0.72,25,12],"cyndaquil":["fire",0.24,24,22],"quilava":["fire",0.46,25,19],"typhlosion":["fire",0.74,25,16],"totodile":["water",0.25,24,21],"croconaw":["water",0.46,23,17],"feraligatr":["water",0.73,27,14],"chinchou":["water",0.29,24,20],"lanturn":["water",0.58,27,18],"pichu":["electric",0.01,8,16,23,31],"pichu_spiky_eared":["electric",0.01,8,14,23,31],"mareep":["electric",0.18,6,13,26,31],"flaaffy":["electric",0.37,3,11,24,31],"ampharos":["electric",0.69,2,8,25,32],"bellossom":["grass",0.64,20,19],"marill":["water",0.11,22,22],"azumarill":["water",0.49,22,18],"politoed":["water",0.67,23,19],"hoppip":["grass",0.11,20,15],"skiploom":["grass",0.31,21,18],"jumpluff":["grass",0.58,21,16],"sunkern":["grass",0,20,22],"sunflora":["grass",0.5,21,18],"wooper":["water",0.02,22,22],"quagsire":["water",0.51,23,17],"slowking":["water",0.64,22,18],"qwilfish":["water",0.53,25,18],"slugma":["fire",0.11,24,20],"magcargo":["fire",0.51,25,19],"corsola":["water",0.47,25,21],"remoraid":["water",0.22,24,20],"octillery":["water",0.62,25,18],"mantine":["water",0.63,28,15],"houndour":["fire",0.29,24,20],"houndoom":["fire",0.67,25,18],"kingdra":["water",0.76,25,20],"elekid":["electric",0.36,10,13,23,31],"magby":["fire",0.37,21,18],"raikou":["electric",0.84,1,7,28,31],"entei":["fire",0.84,26,17],"suicune":["water",0.84,28,20],"hooh":["fire",1,50,39],"celebi":["grass",0.89,22,20],"treecko":["grass",0.24,24,22],"grovyle":["grass",0.46,22,20],"sceptile":["grass",0.73,26,14],"torchic":["fire",0.24,22,21],"combusken":["fire",0.46,22,20],"blaziken":["fire",0.73,25,16],"mudkip":["water",0.24,21,22],"marshtomp":["water",0.46,22,20],"swampert":["water",0.74,27,18],"lotad":["water",0.04,24,20],"lombre":["water",0.31,24,16],"ludicolo":["water",0.62,26,13],"seedot":["grass",0.04,21,21],"nuzleaf":["grass",0.31,22,20],"shiftry":["grass",0.62,24,19],"wingull":["water",0.16,24,21],"pelipper":["water",0.53,24,16],"surskit":["water",0.15,23,22],"shroomish":["grass",0.21,23,22],"breloom":["grass",0.58,25,15],"electrike":["electric",0.21,2,18,25,31],"manectric":["electric",0.61,2,8,26,31],"plusle":["electric",0.46,9,15,23,31],"minun":["electric",0.46,9,15,23,31],"roselia":["grass",0.44,21,20],"carvanha":["water",0.23,25,20],"sharpedo":["water",0.58,27,19],"wailmer":["water",0.44,24,20],"wailord":["water",0.67,52,48],"numel":["fire",0.23,26,20],"camerupt":["fire",0.58,29,20],"torkoal":["fire",0.6,27,20],"cacnea":["grass",0.3,22,22],"cacturne":["grass",0.61,24,18],"barboach":["water",0.2,23,18],"whiscash":["water",0.6,26,21],"corphish":["water",0.24,23,18],"crawdaunt":["water",0.6,23,17],"lileep":["grass",0.34,24,18],"cradily":["grass",0.66,25,16],"feebas":["water",0,22,23],"milotic":["water",0.76,26,18],"tropius":["grass",0.58,29,16],"spheal":["water",0.2,23,22],"sealeo":["water",0.47,26,18],"walrein":["water",0.73,29,12],"clamperl":["water",0.32,20,24],"huntail":["water",0.63,26,18],"gorebyss":["water",0.63,25,19],"relicanth":["water",0.63,24,22],"luvdisc":["water",0.29,23,22],"kyogre":["water",1,50,47],"turtwig":["grass",0.26,24,21],"grotle":["grass",0.46,23,21],"torterra":["grass",0.72,25,19],"chimchar":["fire",0.24,22,20],"monferno":["fire",0.46,25,18],"infernape":["fire",0.74,26,16],"piplup":["water",0.25,22,21],"prinplup":["water",0.46,23,18],"empoleon":["water",0.73,24,16],"bibarel":["water",0.47,30,22],"shinx":["electric",0.14,6,17,26,31],"luxio":["electric",0.36,2,12,26,31],"luxray":["electric",0.72,1,9,26,31],"budew":["grass",0.18,21,23],"roserade":["grass",0.7,23,14],"wormadam_plant":["grass",0.5,22,18],"wormadam_sandy":["grass",0.5,22,18],"wormadam_trash":["grass",0.5,22,18],"pachirisu":["electric",0.46,7,15,25,30],"buizel":["water",0.29,26,22],"floatzel":["water",0.66,24,14],"cherubi":["grass",0.17,20,19],"cherrim":["grass",0.56,21,21],"shellos_west":["water",0.28,23,18],"shellos_east":["water",0.28,22,21],"gastrodon_west":["water",0.61,23,16],"gastrodon_east":["water",0.61,24,16],"carnivine":["grass",0.56,24,15],"finneon":["water",0.29,23,22],"lumineon":["water",0.58,24,20],"mantyke":["water",0.32,25,19],"snover":["grass",0.3,23,20],"abomasnow":["grass",0.65,26,17],"magnezone":["electric",0.74,3,9,27,32],"tangrowth":["grass",0.74,24,16],"electivire":["electric",0.76,4,7,29,31],"magmortar":["fire",0.76,25,15],"leafeon":["grass",0.72,26,20],"rotom":["electric",0.53,5,11,23,31],"rotom_heat":["electric",0.53,2,11,25,30],"rotom_wash":["electric",0.53,2,8,26,31],"rotom_frost":["electric",0.53,3,8,24,30],"rotom_fan":["electric",0.53,3,7,28,31],"rotom_mow":["electric",0.53,1,11,26,31],"palkia":["water",1,53,36],"heatran":["fire",0.89,29,18],"phione":["water",0.62,22,22],"manaphy":["water",0.89,22,20],"shaymin":["grass",0.89,23,22],"shaymin_sky":["grass",0.89,22,18],"victini":["fire",0.89,21,20],"pansage":["grass",0.26,21,20],"pansear":["fire",0.26,21,19],"panpour":["water",0.26,21,18],"zebstrika":["electric",0.66,2,5,31,30],"tympole":["water",0.21,23,22],"leavanny":["grass",0.67,21,15],"cottonee":["grass",0.18,22,18],"petilil":["grass",0.18,22,18],"basculin_red_striped":["water",0.58,22,20],"basculin_blue_striped":["water",0.58,22,20],"maractus":["grass",0.58,20,14],"tirtouga":["water",0.34,26,18],"ducklett":["water",0.23,22,18],"deerling_spring":["grass",0.3,25,18],"deerling_summer":["grass",0.3,25,18],"deerling_autumn":["grass",0.3,25,18],"deerling_winter":["grass",0.3,25,18],"emolga":["electric",0.51,7,10,24,25],"alomomola":["water",0.6,21,15],"galvantula":["electric",0.6,4,13,28,28],"litwick":["fire",0.17,21,18],"stunfisk":["electric",0.6,7,15,25,28],"heatmor":["fire",0.63,28,14],"virizion":["grass",0.84,28,12],"keldeo":["water",0.84,25,15],"froakie":["water",0.25,21,21],"frogadier":["water",0.46,46,48],"greninja":["water",0.73,25,14]};
 const POKEMON_ACTS = {"charizard":"fly","butterfree":"fly","pidgey":"fly","pidgeotto":"fly","pidgeot":"fly","spearow":"fly","fearow":"fly","zubat":"fly","golbat":"fly","poliwag":"jump","poliwhirl":"jump","poliwrath":"jump","farfetchd":"fly","hitmonlee":"jump","hitmonchan":"jump","scyther":"jump","aerodactyl":"fly","articuno":"fly","zapdos":"fly","moltres":"fly","dragonite":"fly","hoothoot":"fly","noctowl":"fly","ledyba":"fly","ledian":"fly","crobat":"fly","togetic":"fly","natu":"fly","xatu":"fly","politoed":"jump","yanma":"fly","murkrow":"fly","gligar":"fly","sneasel":"jump","delibird":"fly","skarmory":"fly","lugia":"fly","hooh":"fly","beautifly":"fly","taillow":"fly","swellow":"fly","wingull":"fly","pelipper":"fly","masquerain":"fly","ninjask":"fly","spoink":"jump","grumpig":"jump","swablu":"fly","altaria":"fly","tropius":"fly","salamence":"fly","starly":"fly","staravia":"fly","staraptor":"fly","mothim":"fly","combee_male":"fly","combee_female":"fly","vespiquen":"fly","buneary":"jump","lopunny":"jump","honchkrow":"fly","chatot":"fly","riolu":"jump","lucario":"jump","croagunk":"jump","toxicroak":"jump","weavile":"jump","togekiss":"fly","yanmega":"fly","gliscor":"fly","pidove":"fly","woobat":"fly","tympole":"jump","sigilyph":"fly","ducklett":"fly","emolga":"fly","braviary":"fly","mandibuzz":"fly","froakie":"jump","frogadier":"jump","greninja":"jump"};
-// 타입별 기술 + 특수 행동 + 드래그 — make-moves.py 가 main-bundle.js 의 handleMouseOver 앞에 표와 같이 넣는다
+const POKEMON_SIGNATURE = {"bulbasaur":["덩굴채찍","beam",{"c":"grass","len":2.5,"width":0.4,"wave":1}],"ivysaur":["잎날가르기","projectile",{"shape":"leaf","c":"grass","n":5,"every":90}],"venusaur":["솔라빔","beam",{"c":"solar","width":1.4,"sparkle":"solar"}],"charmander":["불꽃세례","breath",{"c":"fire","speed":0.8,"life":0.8}],"charmeleon":["화염방사","breath",{"c":"fire","smoke":1}],"charizard":["블래스트번","breath",{"c":"fire","smoke":1,"ember":1,"grow":1.5,"speed":1.2,"rate":1.4}],"squirtle":["거품","bubbles",{"c":"water"}],"wartortle":["물대포","water",{}],"blastoise":["하이드로캐논","beam",{"c":"water","width":1.6,"sparkle":"water"}],"caterpie":["실뿜기","beam",{"c":"silk","width":0.3,"wave":1,"len":4}],"metapod":["단단해지기","shield",{"c":"steel"}],"butterfree":["수면가루","powder",{"c":"sleep"}],"weedle":["독침","projectile",{"shape":"needle","c":"poison","n":1}],"kakuna":["단단해지기","shield",{"c":"steel"}],"beedrill":["더블니들","projectile",{"shape":"needle","c":"poison","n":2,"every":120,"speed":1.3}],"pidgey":["바람일으키기","rings",{"c":"wind","forward":1,"n":3}],"pidgeotto":["날개치기","dash",{"c":"wind"}],"pidgeot":["폭풍","rings",{"c":"wind","forward":1,"n":6}],"rattata":["전광석화","dash",{"c":"normal","fast":1}],"raticate":["필살앞니","slash",{"c":"normal","n":2}],"spearow":["쪼기","punch",{"c":"normal","n":2}],"fearow":["회오리부리","dash",{"c":"wind","roll":1}],"ekans":["용해액","breath",{"c":"poison","speed":0.7,"rise":-0.6,"life":0.8}],"arbok":["오물폭탄","projectile",{"shape":"ball","c":"sludge","n":2,"arc":120,"every":200}],"pikachu":["10만볼트","spark",{}],"raichu":["번개","bolt",{"c":"electric"}],"sandshrew":["구르기","dash",{"c":"ground","roll":1}],"sandslash":["베어가르기","slash",{"c":"normal","n":3}],"nidoran_female":["할퀴기","slash",{"c":"normal","n":2}],"nidorina":["독침","projectile",{"shape":"needle","c":"poison","n":2,"every":150}],"nidoqueen":["대지의힘","quake",{"c":"ground"}],"nidoran_male":["뿔찌르기","dash",{"c":"normal"}],"nidorino":["독찌르기","punch",{"c":"poison","n":2}],"nidoking":["지진","quake",{"c":"ground"}],"clefairy":["손가락흔들기","metronome",{}],"clefable":["문라이트","glow",{"c":"moon"}],"vulpix":["불꽃세례","breath",{"c":"fire","speed":0.8,"life":0.8}],"ninetales":["회오리불꽃","rings",{"c":"fire","n":5}],"jigglypuff":["노래하기","notes",{"c":"fairy"}],"wigglytuff":["하이퍼보이스","rings",{"c":"fairy","forward":1,"n":5}],"zubat":["초음파","rings",{"c":"poison","forward":1,"n":3}],"golbat":["흡혈","slash",{"c":"blood","n":2}],"oddish":["독가루","powder",{"c":"poison"}],"gloom":["저리가루","powder",{"c":"paralyze"}],"vileplume":["꽃잎댄스","powder",{"c":"petal","petal":1,"around":1}],"paras":["버섯포자","powder",{"c":"spore"}],"parasect":["버섯포자","powder",{"c":"spore","around":1}],"venonat":["환상빔","beam",{"c":"psychic","wave":1}],"venomoth":["은빛바람","powder",{"c":"silver","drift":1}],"diglett":["구멍파기","quake",{"c":"ground"}],"dugtrio":["지진","quake",{"c":"ground"}],"meowth":["고양이돈받기","projectile",{"shape":"coin","c":"gold","n":4,"every":110,"arc":160,"speed":0.7}],"persian":["베어가르기","slash",{"c":"normal","n":3}],"psyduck":["염동력","rings",{"c":"psychic","n":3}],"golduck":["하이드로펌프","water",{}],"mankey":["마구할퀴기","slash",{"c":"normal","n":5}],"primeape":["크로스촙","slash",{"c":"fight","x":1}],"growlithe":["불꽃세례","breath",{"c":"fire","speed":0.8,"life":0.8}],"arcanine":["신속","dash",{"c":"normal","fast":1}],"poliwag":["거품","bubbles",{"c":"water"}],"poliwhirl":["최면술","rings",{"c":"hypno","n":4,"spiral":1}],"poliwrath":["폭포오르기","punch",{"c":"water","n":2}],"abra":["순간이동","glow",{"c":"psychic"}],"kadabra":["환상빔","beam",{"c":"psychic","wave":1,"width":1.2}],"alakazam":["사이코키네시스","rings",{"c":"psychic","n":6}],"machop":["태권당수","slash",{"c":"fight","n":1}],"machoke":["지구던지기","punch",{"c":"fight","n":1}],"machamp":["다이너마이트펀치","punch",{"c":"fire","n":3}],"bellsprout":["덩굴채찍","beam",{"c":"grass","len":2.5,"width":0.4,"wave":1}],"weepinbell":["용해액","breath",{"c":"poison","speed":0.7,"rise":-0.6,"life":0.8}],"victreebel":["리프블레이드","slash",{"c":"grass","n":2}],"tentacool":["용해액","breath",{"c":"poison","speed":0.7,"rise":-0.6,"life":0.8}],"tentacruel":["오물웨이브","rings",{"c":"poison","n":5}],"geodude":["돌떨구기","rockfall",{"c":"rock","n":2}],"graveler":["구르기","dash",{"c":"rock","roll":1}],"golem":["대폭발","quake",{"c":"rock"}],"ponyta":["화염자동차","dash",{"c":"fire","roll":1}],"rapidash":["플레어드라이브","dash",{"c":"fire","fast":1}],"slowpoke":["하품","zzz",{}],"slowbro":["염동력","rings",{"c":"psychic","n":4}],"magnemite":["전기쇼크","spark",{}],"magneton":["전자포","beam",{"c":"electric","width":1.2,"sparkle":"electric"}],"farfetchd":["연속자르기","slash",{"c":"grass","n":3}],"doduo":["쪼기","punch",{"c":"normal","n":2}],"dodrio":["난동부리기","dash",{"c":"normal","fast":1}],"seel":["오로라빔","beam",{"c":"ice","rainbow":1}],"dewgong":["냉동빔","beam",{"c":"ice","sparkle":"ice"}],"grimer":["오물공격","projectile",{"shape":"ball","c":"sludge","n":1,"arc":120}],"muk":["오물폭탄","projectile",{"shape":"ball","c":"sludge","n":3,"arc":120,"every":180}],"shellder":["고드름침","projectile",{"shape":"needle","c":"ice","n":3,"every":110}],"cloyster":["스파이크캐논","projectile",{"shape":"needle","c":"steel","n":5,"every":90,"speed":1.3}],"gastly":["핥기","beam",{"c":"tongue","len":1.6,"width":0.6}],"haunter":["나이트헤드","rings",{"c":"ghost","n":4}],"gengar":["섀도볼","projectile",{"shape":"ball","c":"ghost","n":1,"big":1,"speed":0.8}],"onix":["스톤샤워","rockfall",{"c":"rock","n":5}],"drowzee":["최면술","rings",{"c":"hypno","n":4,"spiral":1}],"hypno":["사이코키네시스","rings",{"c":"psychic","n":5}],"krabby":["거품광선","bubbles",{"c":"water","many":1}],"kingler":["찝게햄머","punch",{"c":"water","n":1,"big":1}],"voltorb":["자폭","spark",{}],"electrode":["대폭발","bolt",{"c":"electric"}],"exeggcute":["최면술","rings",{"c":"hypno","n":3,"spiral":1}],"exeggutor":["알폭탄","projectile",{"shape":"egg","c":"egg","n":2,"arc":140,"every":220,"speed":0.8}],"cubone":["뼈다귀치기","punch",{"c":"bone","n":1}],"marowak":["뼈다귀부메랑","projectile",{"shape":"bone","c":"bone","n":1,"boomerang":1,"speed":0.9}],"hitmonlee":["무릎차기","dash",{"c":"fight","fast":1}],"hitmonchan":[["불꽃펀치","punch",{"c":"fire","n":2}],["냉동펀치","punch",{"c":"ice","n":2}],["번개펀치","punch",{"c":"electric","n":2}]],"lickitung":["핥기","beam",{"c":"tongue","len":2.2,"width":0.7}],"koffing":["독가스","breath",{"c":"gas","speed":0.5,"grow":1.8,"rise":0.3,"life":1.4,"rate":0.6}],"weezing":["오물폭탄","projectile",{"shape":"ball","c":"sludge","n":3,"arc":120,"every":180}],"rhyhorn":["돌진","dash",{"c":"rock"}],"rhydon":["뿔드릴","dash",{"c":"rock","roll":1}],"chansey":["알낳기","glow",{"c":"heal"}],"tangela":["덩굴채찍","beam",{"c":"grass","len":2.5,"width":0.5,"wave":1}],"kangaskhan":["연속펀치","punch",{"c":"normal","n":4}],"horsea":["연막","breath",{"c":"smoke","speed":0.6,"grow":2,"rise":0.2,"life":1.3,"rate":0.7}],"seadra":["하이드로펌프","water",{}],"goldeen":["뿔찌르기","dash",{"c":"water"}],"seaking":["폭포오르기","dash",{"c":"water","fast":1}],"staryu":["스피드스타","projectile",{"shape":"star","c":"star","n":3,"every":120}],"starmie":["파워젬","projectile",{"shape":"star","c":"psychic","n":3,"every":120,"speed":1.2}],"mrmime":["배리어","shield",{"c":"psychic"}],"scyther":["연속자르기","slash",{"c":"grass","n":4}],"jynx":["악마의키스","projectile",{"shape":"heart","c":"fairy","n":3,"every":160,"speed":0.6}],"electabuzz":["번개펀치","punch",{"c":"electric","n":2}],"magmar":["불꽃펀치","punch",{"c":"fire","n":2}],"pinsir":["시저크로스","slash",{"c":"bug","x":1}],"tauros":["돌진","dash",{"c":"ground","fast":1}],"magikarp":["튀어오르기","splash",{}],"gyarados":["파괴광선","beam",{"c":"hyper","width":1.6,"sparkle":"hyper"}],"lapras":["파도타기","water",{"surf":1}],"ditto":["변신","glow",{"c":"fairy"}],"eevee":["전광석화","dash",{"c":"normal","fast":1}],"vaporeon":["물의파동","rings",{"c":"water","forward":1,"n":4}],"jolteon":["바늘미사일","projectile",{"shape":"needle","c":"electric","n":5,"every":80,"speed":1.4}],"flareon":["화염방사","breath",{"c":"fire","smoke":1}],"porygon":["트라이어택","projectile",{"shape":"ball","tri":1,"n":3,"every":140}],"omanyte":["물대포","water",{}],"omastar":["원시의힘","rockfall",{"c":"rock","n":3}],"kabuto":["할퀴기","slash",{"c":"normal","n":2}],"kabutops":["베어가르기","slash",{"c":"water","n":3,"x":1}],"aerodactyl":["날개치기","dash",{"c":"rock","fast":1}],"snorlax":["잠자기","zzz",{"big":1}],"articuno":["눈보라","breath",{"c":"ice","snow":1,"speed":1.2,"rise":-0.4,"rate":1.3}],"zapdos":["번개","bolt",{"c":"electric"}],"moltres":["열풍","rings",{"c":"fire","forward":1,"n":6}],"dratini":["용의분노","breath",{"c":"dragon","speed":0.9}],"dragonair":["용의숨결","breath",{"c":"dragon","smoke":1}],"dragonite":["역린","dash",{"c":"dragon","fast":1}],"mewtwo":["사이코브레이크","beam",{"c":"psychic","width":1.6,"wave":1,"sparkle":"psychic"}],"mew":["파동탄","projectile",{"shape":"ball","c":"aura","n":1,"big":1}],"venusaur_female":["솔라빔","beam",{"c":"solar","width":1.4,"sparkle":"solar"}],"pikachu_female":["10만볼트","spark",{}]};
+const POKEMON_SHAPE = {"bulbasaur":[0.26,26,21,8,15,27,30],"ivysaur":[0.46,23,22,4,15,24,31],"venusaur":[0.72,25,20,1,8,27,31],"venusaur_female":[0.72,25,20,1,8,27,31],"charmander":[0.24,26,21,8,15,27,31],"charmeleon":[0.46,24,20,4,11,25,31],"charizard":[0.74,28,16,2,8,29,31],"squirtle":[0.25,21,20,7,16,22,31],"wartortle":[0.46,22,20,5,12,23,31],"blastoise":[0.73,26,16,2,9,27,31],"caterpie":[0,25,20,7,15,26,31],"metapod":[0.01,25,22,9,14,26,31],"butterfree":[0.43,24,13,2,11,25,29],"weedle":[0,26,22,9,15,27,30],"kakuna":[0.01,21,18,9,12,22,30],"beedrill":[0.43,24,10,7,9,25,29],"pidgey":[0.11,21,22,8,18,22,31],"pidgeotto":[0.33,24,18,6,9,25,32],"pidgeot":[0.62,28,16,3,3,29,32],"rattata":[0.12,25,24,7,19,26,31],"raticate":[0.47,24,23,2,17,25,31],"spearow":[0.14,23,24,4,17,24,31],"fearow":[0.54,27,20,1,11,28,32],"ekans":[0.2,24,20,3,14,25,31],"arbok":[0.55,27,16,4,9,28,31],"pikachu":[0.27,23,21,7,14,24,31],"pikachu_female":[0.27,23,21,7,14,24,31],"raichu":[0.63,25,18,3,12,26,31],"sandshrew":[0.22,23,20,6,15,24,31],"sandslash":[0.56,25,22,5,12,26,32],"nidoran_female":[0.17,24,23,10,16,25,31],"nidorina":[0.37,25,21,4,13,26,30],"nidoqueen":[0.68,25,18,3,10,26,31],"nidoran_male":[0.16,24,22,9,17,25,31],"nidorino":[0.37,24,23,5,15,26,31],"nidoking":[0.68,26,18,3,10,27,31],"clefairy":[0.27,22,20,8,15,23,31],"clefable":[0.63,22,20,5,12,23,31],"vulpix":[0.22,26,22,3,15,27,31],"ninetales":[0.68,27,21,1,11,28,31],"jigglypuff":[0.16,23,21,10,16,24,31],"wigglytuff":[0.52,22,20,6,12,23,31],"zubat":[0.1,22,17,10,11,24,31],"golbat":[0.57,22,16,13,10,23,32],"oddish":[0.27,23,21,9,18,24,31],"gloom":[0.43,26,21,8,12,27,31],"vileplume":[0.64,25,19,5,13,26,31],"paras":[0.19,24,23,8,16,26,31],"parasect":[0.46,26,19,6,9,27,31],"venonat":[0.23,25,15,7,13,26,31],"venomoth":[0.56,26,18,10,7,27,31],"diglett":[0.14,21,25,8,21,22,32],"dugtrio":[0.5,24,20,3,13,27,32],"meowth":[0.2,25,20,3,15,26,30],"persian":[0.53,26,22,2,14,27,31],"psyduck":[0.27,24,21,10,13,25,31],"golduck":[0.67,24,20,8,11,25,31],"mankey":[0.23,24,22,6,15,25,31],"primeape":[0.57,26,20,8,10,27,31],"growlithe":[0.33,24,19,7,13,26,31],"arcanine":[0.79,28,18,1,9,29,31],"poliwag":[0.22,22,22,4,16,23,31],"poliwhirl":[0.41,23,20,10,14,24,31],"poliwrath":[0.69,23,19,7,11,24,31],"abra":[0.24,23,18,5,11,24,29],"kadabra":[0.44,23,20,4,11,24,31],"alakazam":[0.67,25,19,8,8,26,31],"machop":[0.23,21,20,11,14,22,31],"machoke":[0.46,22,16,11,10,23,31],"machamp":[0.68,24,16,4,9,25,31],"bellsprout":[0.22,23,20,11,14,24,31],"weepinbell":[0.42,23,22,8,13,24,30],"victreebel":[0.64,24,14,1,7,26,31],"tentacool":[0.3,23,18,10,12,25,30],"tentacruel":[0.7,26,18,5,8,28,30],"geodude":[0.22,21,23,11,19,22,31],"graveler":[0.42,23,20,7,12,24,31],"golem":[0.66,29,22,6,11,30,31],"ponyta":[0.47,24,20,2,12,25,31],"rapidash":[0.67,27,19,1,7,28,31],"slowpoke":[0.26,27,23,4,17,28,31],"slowbro":[0.64,25,19,2,11,26,31],"magnemite":[0.28,19,22,9,17,20,30],"magneton":[0.59,21,14,7,7,22,30],"farfetchd":[0.39,23,21,8,12,24,31],"doduo":[0.24,22,16,11,9,23,31],"dodrio":[0.6,29,16,5,3,31,31],"seel":[0.28,25,20,5,11,26,31],"dewgong":[0.61,26,18,1,11,27,32],"grimer":[0.28,22,20,6,15,23,31],"muk":[0.67,26,18,5,11,28,31],"shellder":[0.23,21,17,9,13,24,29],"cloyster":[0.72,24,15,1,3,25,31],"gastly":[0.24,22,14,5,7,24,28],"haunter":[0.46,22,18,7,10,23,29],"gengar":[0.67,23,18,7,10,24,30],"onix":[0.41,26,15,1,2,27,31],"drowzee":[0.28,25,20,9,12,26,31],"hypno":[0.63,24,18,9,9,25,31],"krabby":[0.28,26,23,5,19,27,31],"kingler":[0.61,30,16,2,9,31,31],"voltorb":[0.29,23,22,9,16,24,31],"electrode":[0.64,26,18,5,10,27,31],"exeggcute":[0.28,28,18,4,9,29,31],"exeggutor":[0.73,28,10,5,5,29,31],"cubone":[0.27,25,21,11,12,26,31],"marowak":[0.5,25,17,9,9,26,30],"hitmonlee":[0.57,21,17,10,11,22,31],"hitmonchan":[0.57,21,18,9,11,22,31],"lickitung":[0.41,24,22,3,13,26,31],"koffing":[0.31,25,16,5,10,26,31],"weezing":[0.64,26,11,1,6,27,32],"rhyhorn":[0.32,24,22,1,15,25,31],"rhydon":[0.63,29,19,2,10,30,31],"chansey":[0.56,25,22,8,15,27,32],"tangela":[0.52,23,20,8,14,24,31],"kangaskhan":[0.64,25,17,6,8,26,31],"horsea":[0.21,22,20,8,13,23,29],"seadra":[0.53,21,16,3,8,22,29],"goldeen":[0.27,21,20,1,14,23,29],"seaking":[0.56,26,18,1,7,27,30],"staryu":[0.31,20,20,9,13,21,31],"starmie":[0.71,22,18,9,8,23,31],"mrmime":[0.58,23,18,10,10,24,31],"scyther":[0.67,24,18,5,8,27,31],"jynx":[0.57,21,16,6,8,22,31],"electabuzz":[0.64,21,18,1,9,22,31],"magmar":[0.66,22,18,3,9,23,31],"pinsir":[0.67,26,12,9,10,27,31],"tauros":[0.64,28,21,1,11,30,31],"magikarp":[0,25,18,6,12,26,30],"gyarados":[0.76,27,14,2,3,28,32],"lapras":[0.74,23,16,1,8,24,31],"ditto":[0.2,22,22,8,18,23,31],"eevee":[0.28,22,21,5,15,23,31],"vaporeon":[0.72,27,20,1,11,28,31],"jolteon":[0.72,24,20,1,13,25,31],"flareon":[0.72,25,18,1,12,26,31],"porygon":[0.43,25,22,4,15,26,31],"omanyte":[0.34,21,22,7,15,23,31],"omastar":[0.66,23,18,4,11,24,31],"kabuto":[0.34,24,21,10,16,25,30],"kabutops":[0.66,26,19,9,10,27,31],"aerodactyl":[0.7,27,14,4,6,28,32],"snorlax":[0.76,25,18,5,4,26,31],"articuno":[0.84,24,14,1,4,25,27],"zapdos":[0.84,24,16,1,7,25,31],"moltres":[0.84,26,14,1,2,27,26],"dratini":[0.22,22,18,6,11,23,31],"dragonair":[0.49,25,13,1,6,26,31],"dragonite":[0.89,26,15,4,6,27,31],"mewtwo":[1,23,14,3,5,24,31],"mew":[0.89,26,18,7,11,27,30]};
+// 타입별 기술 + 1세대 전용 기술 + 특수 행동 + 드래그 — make-moves.py 가 main-bundle.js 의 handleMouseOver 앞에 표와 같이 넣는다
 // POKEMON_MOVES[키] = [기술, 세기, 입 x, 입 y] / 전기는 [기술, 세기, 왼, 위, 오른, 아래] 몸 테두리
 //   — 좌표는 오른쪽 보는 걷기 그림 첫 프레임 기준 픽셀, 세기는 종족값 기준 0~1 (클수록 크고 길고 화려하게)
 // POKEMON_ACTS[키] = 'fly'(날개 있는 비행 타입 — 패널 2/3 높이로 날아다니다 내려옴) | 'jump'(개굴닌자류 — 멀리뛰기)
@@ -6048,6 +6050,10 @@ function drawParticle(ctx, p) {
     const t = p.life / p.max;
     // 도트 느낌 — 그림 픽셀 칸에 맞춰 찍음
     const px = (v) => Math.round(v / s) * s;
+    if (p.draw) {
+        p.draw(ctx, p, t, px);
+        return;
+    }
     switch (p.move) {
         case 'fire': {
             const colors = ['#fff6b3', '#ffc93c', '#ff7a21', '#d9381e'];
@@ -6154,6 +6160,23 @@ function moveTick(now) {
             moveEmitters.splice(i, 1);
             continue;
         }
+        if (e.fx) {
+            // 전용기 발사기 — 정해진 시각마다 shots 개, 아니면 초당 rate 개
+            if (e.shots !== undefined) {
+                while (e.shots > 0 && now >= e.nextShot) {
+                    e.fx(e, e.shot++);
+                    e.shots -= 1;
+                    e.nextShot += e.every;
+                }
+            } else {
+                e.acc += dt * e.rate;
+                while (e.acc >= 1) {
+                    e.acc -= 1;
+                    e.fx(e);
+                }
+            }
+            continue;
+        }
         if (e.move === 'shuriken') {
             if (e.shots > 0 && now >= e.nextShot) {
                 spawnParticle(e);
@@ -6187,6 +6210,7 @@ function moveTick(now) {
         if (p.move === 'grass') {
             p.y += Math.sin(p.phase + p.life * 14) * p.s * 0.6;
         }
+        p.update?.(p, dt);
         if (p.move === 'dizzy') {
             const a = p.phase + p.life * 9;
             p.x = p.cx + Math.cos(a) * p.rx;
@@ -6247,10 +6271,706 @@ function startMoveEffect(pokemon, move, left, emitMs, special) {
     }
 }
 
+
+// ───── 1세대 전용 기술 ─────
+// POKEMON_SIGNATURE[키] = [이름, 연출 틀, 옵션] (여러 개면 쓸 때마다 하나), POKEMON_SHAPE[키] = [세기, 입 x, 입 y, 왼, 위, 오른, 아래]
+// 둘 다 make-moves.py 가 signature-moves.json · 걷기 그림으로 만들어 넣음. 연출 틀은 아래 SIG_FX
+const SIG_PALETTE = {
+    fire: ['#fff6b3', '#ffc93c', '#ff7a21', '#d9381e'], dragon: ['#eef2ff', '#a9b8ff', '#7a5cff', '#4a2aa8'],
+    poison: ['#f3d6ff', '#c77ce8', '#9b45cc', '#6a2196'], sludge: ['#e3b8f5', '#a45ccc', '#74309a', '#4a1a66'],
+    gas: ['#e8d8f0', '#bf9fd6', '#9677b0', '#6d5687'], smoke: ['#f2f2f2', '#c9c9c9', '#9a9a9a', '#6e6e6e'],
+    water: ['#ffffff', '#bfe9ff', '#6cc3ff', '#2f8fe0'], ice: ['#ffffff', '#e3faff', '#9fe8ff', '#55c2ef'],
+    grass: ['#e6ffb8', '#8be04e', '#4cae3c', '#2f7d32'], solar: ['#ffffff', '#fffbd0', '#d6ff8a', '#6fd35a'],
+    psychic: ['#fff0fa', '#ff9fd6', '#e05db0', '#a33a99'], hypno: ['#f6e8ff', '#c99cff', '#9a62ff', '#6a3ad9'],
+    electric: ['#ffffff', '#fff8a8', '#ffe53b', '#f2b600'], ghost: ['#efe0ff', '#a87ee6', '#6b3fb0', '#3a1f66'],
+    normal: ['#ffffff', '#f2f2f2', '#d6d6d6', '#a8a8a8'], wind: ['#ffffff', '#eaf6ff', '#c9e6f5', '#9cc9e0'],
+    rock: ['#e6d6b8', '#bda27a', '#8a7252', '#5c4a33'], ground: ['#f0dcae', '#d1b178', '#a88a55', '#7a6238'],
+    steel: ['#ffffff', '#e6ecf2', '#b9c6d4', '#7d8ea3'], silk: ['#ffffff', '#f7f7f0', '#e3e3d2', '#c4c4ae'],
+    fairy: ['#fff3fa', '#ffc9e6', '#ff94c9', '#e85aa8'], petal: ['#ffe6f2', '#ffb3d6', '#ff7ab8', '#e0508f'],
+    sleep: ['#e8fffb', '#b2f0e6', '#6fd6c8', '#3aa89a'], paralyze: ['#fffde0', '#fff27a', '#f5d93a', '#c9a800'],
+    spore: ['#fff2d9', '#ffd79a', '#e8ad5c', '#b8792e'], silver: ['#ffffff', '#f0f4f8', '#cfd8e0', '#9fadba'],
+    moon: ['#ffffff', '#fffbe6', '#ffe8a3', '#f0c96a'], heal: ['#ffffff', '#e3ffe0', '#9bf0a0', '#45c35a'],
+    hyper: ['#ffffff', '#fff4c2', '#ffb94d', '#ff7a1a'], fight: ['#ffffff', '#ffe0c2', '#ff9d5c', '#d9542b'],
+    blood: ['#ffe0e6', '#ff8fa3', '#e0405a', '#a31f3a'], tongue: ['#ffe3ec', '#ffb0c8', '#ff7aa3', '#d9507a'],
+    bone: ['#ffffff', '#f5efe0', '#dccfb0', '#a8987a'], gold: ['#fffbe0', '#ffe680', '#f5c400', '#b88a00'],
+    egg: ['#ffffff', '#fff8e8', '#f0e0c0', '#c9b48a'], star: ['#ffffff', '#fff8b0', '#ffe14d', '#f5b300'],
+    aura: ['#ffffff', '#d8ecff', '#7ab8ff', '#3a7ae0'], bug: ['#f4ffd0', '#d6f06a', '#a8c93a', '#6f8f1f'],
+};
+const sigPal = (c) => (Array.isArray(c) ? c : SIG_PALETTE[c] || SIG_PALETTE.normal);
+const sigEntry = (key) => {
+    const raw = POKEMON_SIGNATURE[key];
+    return raw && (Array.isArray(raw[0]) ? movePick(raw) : raw);
+};
+
+// 쓰는 순간의 위치 — 그림이 돌아가 있을 수 있어서 안 도는 클릭 영역 기준
+function sigGeometry(pokemon, left) {
+    const [P, mx, my, l, t, r, b] = POKEMON_SHAPE[pokemon.label];
+    const size = pokemon._originalSpriteSize || 32;
+    const rect = pokemon.collision.getBoundingClientRect();
+    const s = rect.width / size;
+    const dir = left ? -1 : 1;
+    const sx = (v) => rect.left + (left ? size - v : v) * s;
+    return {
+        P, s, dir, left, w: rect.width, h: rect.height,
+        mouth: { x: sx(mx + 0.5) + dir * s, y: rect.top + (my + 0.5) * s },
+        body: {
+            cx: (sx(l) + sx(r)) / 2, cy: rect.top + ((t + b) / 2) * s, rx: ((r - l) / 2) * s, ry: ((b - t) / 2) * s,
+            top: rect.top + t * s, bottom: rect.top + b * s, front: sx(r),
+        },
+    };
+}
+
+function sigStart() {
+    if (!moveRaf) {
+        moveRaf = requestAnimationFrame(moveTick);
+    }
+}
+function sigParticle(p) {
+    moveParticles.push({ life: 0, vx: 0, vy: 0, g: 0, drag: 0, ...p });
+    sigStart();
+}
+function sigEmitter(e) {
+    moveEmitters.push({ acc: 1, shot: 0, ...e });
+    sigStart();
+}
+// 그림 칸에 맞춘 점 하나
+const dotAt = (ctx, px, s, x, y, color, w = 1, h = 1) => {
+    ctx.fillStyle = color;
+    ctx.fillRect(px(x), px(y), w * s, h * s);
+};
+const fadeInOut = (t, inT = 0.1, outT = 0.25) => (t < inT ? t / inT : t > 1 - outT ? (1 - t) / outT : 1);
+// 3x3 · 4x4 · 5x5 그림 (# = 칠함)
+const GLYPHS = {
+    z4: ['####', '..#.', '.#..', '####'],
+    z5: ['#####', '...#.', '..#..', '.#...', '#####'],
+    note: ['..##', '..#.', '..#.', '###.', '##..'],
+    heart: ['.#.#.', '#####', '#####', '.###.', '..#..'],
+};
+function drawGlyph(ctx, px, s, x, y, rows, color) {
+    ctx.fillStyle = color;
+    rows.forEach((row, j) => [...row].forEach((ch, i) => ch === '#' && ctx.fillRect(px(x + i * s), px(y + j * s), s, s)));
+}
+
+// 머리 위 기술 이름 "솔라빔!"
+function showMoveName(g, text) {
+    sigParticle({
+        move: 'label', text, x: g.body.cx, y: Math.max(14, g.body.top - 6), vy: -8, max: 1.5, s: g.s,
+        draw: (ctx, p, t) => {
+            ctx.globalAlpha = fadeInOut(t, 0.08, 0.3);
+            ctx.font = 'bold 11px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.75)';
+            ctx.strokeText(p.text, p.x, p.y);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(p.text, p.x, p.y);
+        },
+    });
+}
+
+// 입자 그리기 모음
+const DRAW = {
+    // 불길 — 시간에 따라 색이 바뀌며 커짐, 끝은 연기
+    stream: (ctx, p, t, px) => {
+        const size = p.s * Math.round(1 + t * p.grow);
+        const n = p.cols.length;
+        if (t < 0.85 || !p.smoke) {
+            ctx.globalAlpha = t < 0.85 ? 1 : (1 - t) / 0.15;
+            ctx.fillStyle = p.cols[Math.min(n - 1, Math.floor((t / 0.85) * n))];
+        } else {
+            ctx.globalAlpha = (1 - t) / 0.15;
+            ctx.fillStyle = '#7a7a7a';
+        }
+        ctx.fillRect(px(p.x - size / 2), px(p.y - size / 2), size, size);
+    },
+    dot: (ctx, p, t, px) => {
+        ctx.globalAlpha = fadeInOut(t, 0.1, 0.35);
+        dotAt(ctx, px, p.s, p.x, p.y, p.color, p.size || 1, p.size || 1);
+    },
+    sparkle: (ctx, p, t, px) => {
+        ctx.globalAlpha = fadeInOut(t, 0.2, 0.4) * (0.6 + 0.4 * Math.abs(Math.sin(p.life * 20)));
+        dotAt(ctx, px, p.s, p.x, p.y, p.cols[0]);
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            dotAt(ctx, px, p.s, p.x + dx * p.s, p.y + dy * p.s, p.cols[2]);
+        }
+    },
+    bubble: (ctx, p, t, px) => {
+        ctx.globalAlpha = fadeInOut(t, 0.1, 0.15);
+        const r = p.r;
+        if (t > 0.9) {
+            for (const [dx, dy] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) {
+                dotAt(ctx, px, p.s, p.x + dx * (r + 1) * p.s, p.y + dy * (r + 1) * p.s, p.cols[1]);
+            }
+            return;
+        }
+        const dots = Math.max(6, r * 8);
+        for (let i = 0; i < dots; i++) {
+            const a = (i / dots) * Math.PI * 2;
+            dotAt(ctx, px, p.s, p.x + Math.cos(a) * r * p.s, p.y + Math.sin(a) * r * p.s, p.cols[2]);
+        }
+        dotAt(ctx, px, p.s, p.x - (r / 2) * p.s, p.y - (r / 2) * p.s, p.cols[0]);
+    },
+};
+
+// 날아가는 물체 모양
+const SHAPES = {
+    needle: (ctx, p, px) => {
+        const len = p.big ? 7 : 5;
+        for (let k = 0; k < len; k++) {
+            dotAt(ctx, px, p.s, p.x - p.dir * k * p.s, p.y, k === 0 ? p.cols[0] : k < 3 ? p.cols[2] : p.cols[3]);
+        }
+    },
+    star: (ctx, p, px) => {
+        const plus = Math.floor(p.life / 0.06) % 2 === 0;
+        const r = p.big ? 2 : 1;
+        for (let k = 1; k <= r; k++) {
+            for (const [dx, dy] of plus ? [[1, 0], [-1, 0], [0, 1], [0, -1]] : [[1, 1], [-1, 1], [1, -1], [-1, -1]]) {
+                dotAt(ctx, px, p.s, p.x + dx * k * p.s, p.y + dy * k * p.s, p.cols[2]);
+            }
+        }
+        dotAt(ctx, px, p.s, p.x, p.y, p.cols[0]);
+    },
+    ball: (ctx, p, px) => {
+        const r = p.big ? 3 : 2;
+        for (let dy = -r; dy <= r; dy++) {
+            for (let dx = -r; dx <= r; dx++) {
+                const d = dx * dx + dy * dy;
+                if (d <= r * r) {
+                    dotAt(ctx, px, p.s, p.x + dx * p.s, p.y + dy * p.s, d >= (r - 0.5) * (r - 0.5) ? p.cols[3] : p.cols[2]);
+                }
+            }
+        }
+        dotAt(ctx, px, p.s, p.x - p.s, p.y - p.s, p.cols[0]);
+    },
+    rock: (ctx, p, px) => {
+        const n = p.big ? 4 : 3;
+        for (let dy = 0; dy < n; dy++) {
+            for (let dx = 0; dx < n; dx++) {
+                dotAt(ctx, px, p.s, p.x + dx * p.s, p.y + dy * p.s, dx + dy === 0 ? p.cols[0] : dx + dy >= 2 * n - 3 ? p.cols[3] : p.cols[2]);
+            }
+        }
+    },
+    leaf: (ctx, p, px) => {
+        const flat = Math.floor(p.life / 0.08) % 2 === 0;
+        dotAt(ctx, px, p.s, p.x, p.y, p.cols[2], flat ? 2 : 1, flat ? 1 : 2);
+    },
+    coin: (ctx, p, px) => {
+        // 뒤집히며 날아감 — 넓었다 좁았다
+        const wide = Math.floor(p.life / 0.07) % 3;
+        const w = [3, 2, 1][wide];
+        dotAt(ctx, px, p.s, p.x - Math.floor(w / 2) * p.s, p.y - p.s, p.cols[2], w, 3);
+        dotAt(ctx, px, p.s, p.x, p.y - p.s, p.cols[0]);
+    },
+    egg: (ctx, p, px) => {
+        dotAt(ctx, px, p.s, p.x - p.s, p.y - 2 * p.s, p.cols[1], 3, 4);
+        dotAt(ctx, px, p.s, p.x, p.y - 3 * p.s, p.cols[1]);
+        dotAt(ctx, px, p.s, p.x, p.y, '#e0905a');
+    },
+    bone: (ctx, p, px) => {
+        const flat = Math.floor(p.life / 0.06) % 2 === 0;
+        if (flat) {
+            dotAt(ctx, px, p.s, p.x - 2 * p.s, p.y, p.cols[1], 5, 1);
+            for (const dx of [-3, 3]) {
+                dotAt(ctx, px, p.s, p.x + dx * p.s, p.y - p.s, p.cols[0], 1, 3);
+            }
+        } else {
+            dotAt(ctx, px, p.s, p.x, p.y - 2 * p.s, p.cols[1], 1, 5);
+            for (const dy of [-3, 3]) {
+                dotAt(ctx, px, p.s, p.x - p.s, p.y + dy * p.s, p.cols[0], 3, 1);
+            }
+        }
+    },
+    heart: (ctx, p, px) => drawGlyph(ctx, px, p.s, p.x - 2 * p.s, p.y - 2 * p.s, GLYPHS.heart, p.cols[2]),
+};
+
+// 터지는 작은 조각
+function sigBurst(x, y, s, cols, n = 6, speed = 40) {
+    for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 + moveRand(-0.3, 0.3);
+        sigParticle({ x, y, s, vx: Math.cos(a) * speed * s, vy: Math.sin(a) * speed * s - 10 * s, g: 120 * s, drag: 1, max: moveRand(0.25, 0.45), color: movePick(cols), draw: DRAW.dot });
+    }
+}
+
+// 돌진 — 앞으로 휙 나갔다 돌아옴, 뒤로 잔상 줄, 끝에 쿵
+class DashState {
+    label = "swipe" /* States.swipe */;
+    constructor(pokemon, g, o) {
+        this.pokemon = pokemon;
+        this.g = g;
+        this.o = o;
+        const w = spriteSize(pokemon);
+        let dir = g.dir;
+        const room = (d) => (d > 0 ? rightEdge(pokemon) - pokemon.left : pokemon.left);
+        if (room(dir) < w * 0.6) {
+            dir = -dir;
+        }
+        this.dir = dir;
+        this.dist = Math.min(w * (1.2 + g.P * 0.8) * (o.fast ? 1.3 : 1), room(dir));
+        this.out = o.fast ? 2 : 3;
+        this.back = 4;
+        this.i = 0;
+        this.x0 = pokemon.left;
+        faceState(this, dir < 0);
+        if (o.roll) {
+            pokemon.el.animate([{ rotate: '0deg' }, { rotate: `${dir * 360}deg` }], { duration: this.out * 100 + 150 });
+        }
+    }
+    nextFrame() {
+        const p = this.pokemon;
+        const cols = sigPal(this.o.c);
+        this.i += 1;
+        if (this.i <= this.out) {
+            p.positionLeft(this.x0 + this.dir * this.dist * (this.i / this.out));
+            const rect = p.collision.getBoundingClientRect();
+            for (let k = 0; k < 3; k++) {
+                const y = rect.top + rect.height * moveRand(0.35, 0.9);
+                const x = this.dir > 0 ? rect.left : rect.right;
+                sigParticle({ x, y, s: this.g.s, vx: -this.dir * 60 * this.g.s, max: 0.25, len: Math.round(moveRand(4, 7)), dir: this.dir, color: movePick(cols.slice(1)), draw: (ctx, q, t, px) => {
+                    ctx.globalAlpha = 1 - t;
+                    dotAt(ctx, px, q.s, q.dir > 0 ? q.x - q.len * q.s : q.x, q.y, q.color, q.len, 1);
+                } });
+            }
+            if (this.i === this.out) {
+                const rect2 = p.collision.getBoundingClientRect();
+                sigImpact(this.dir > 0 ? rect2.right : rect2.left, rect2.top + rect2.height * 0.6, this.g.s, cols, this.g.P);
+            }
+            return states_1.FrameResult.stateContinue;
+        }
+        const k = (this.i - this.out) / this.back;
+        p.positionLeft(this.x0 + this.dir * this.dist * (1 - Math.min(1, k)));
+        return k >= 1 ? states_1.FrameResult.stateComplete : states_1.FrameResult.stateContinue;
+    }
+}
+
+// 쿵 — 가운데 번쩍 + 바깥으로 뻗는 선 8개
+function sigImpact(x, y, s, cols, P, big) {
+    sigParticle({ x, y, s, max: 0.3, cols, reach: (big ? 8 : 5) + 3 * P, draw: (ctx, p, t, px) => {
+        ctx.globalAlpha = 1 - t * t;
+        const len = Math.round(2 + t * p.reach);
+        for (let i = 0; i < 8; i++) {
+            const a = (i / 8) * Math.PI * 2;
+            for (let k = Math.round(t * 2) + 1; k <= len; k++) {
+                dotAt(ctx, px, p.s, p.x + Math.cos(a) * k * p.s, p.y + Math.sin(a) * k * p.s, k === len ? p.cols[0] : p.cols[2]);
+            }
+        }
+        const r = Math.round(1 + t * 2);
+        dotAt(ctx, px, p.s, p.x - r * p.s, p.y - r * p.s, p.cols[0], 2 * r + 1, 2 * r + 1);
+    } });
+}
+
+// 튀어오르기 — 제자리에서 퐁퐁
+class SplashState {
+    label = "swipe" /* States.swipe */;
+    constructor(pokemon, left) {
+        this.pokemon = pokemon;
+        this.i = 0;
+        this.h = spriteSize(pokemon) * 0.45;
+        faceState(this, left);
+    }
+    nextFrame() {
+        const p = this.pokemon;
+        this.i += 1;
+        p.positionBottom(p.floor + Math.abs(Math.sin((this.i * Math.PI) / 5)) * this.h);
+        return this.i >= 10 ? states_1.FrameResult.stateComplete : states_1.FrameResult.stateContinue;
+    }
+}
+
+// 연출 틀 — ms: 기술 쓰는 동안 멈춰 있을 시간, run: 그리기 시작 (g = 위치, o = 옵션)
+const SIG_FX = {
+    // 입에서 뿜기 — 화염방사 · 용의숨결 · 독가스 · 눈보라
+    breath: {
+        ms: (P, o) => (550 + 650 * P) * (o.dur ?? 1),
+        run: (g, o, ms) => {
+            const cols = sigPal(o.c);
+            sigEmitter({ until: performance.now() + ms, rate: (70 + 110 * g.P) * (o.rate ?? 1), fx: () => {
+                if (o.ember && Math.random() < 0.25 * g.P) {
+                    sigParticle({ x: g.mouth.x, y: g.mouth.y, s: g.s, vx: g.dir * moveRand(50, 80) * (1 + 0.5 * g.P) * g.s, vy: moveRand(-20, -5) * g.s, g: 25 * g.s, drag: 1.2, max: moveRand(0.5, 0.9), color: movePick(cols.slice(0, 2)), draw: DRAW.dot });
+                    return;
+                }
+                if (o.snow && Math.random() < 0.3) {
+                    sigParticle({ x: g.mouth.x, y: g.mouth.y, s: g.s, vx: g.dir * moveRand(30, 60) * g.s, vy: moveRand(-10, 15) * g.s, g: 20 * g.s, drag: 0.6, max: moveRand(0.6, 1.0), cols: ['#ffffff', '#ffffff', '#cfefff'], draw: DRAW.sparkle });
+                    return;
+                }
+                sigParticle({
+                    x: g.mouth.x, y: g.mouth.y, s: g.s, cols, smoke: o.smoke,
+                    vx: g.dir * moveRand(28, 48) * (1 + 0.8 * g.P) * g.s * (o.speed ?? 1),
+                    vy: moveRand(-10, 6) * (1 + 0.6 * g.P) * g.s * (o.spread ?? 1),
+                    g: -14 * g.s * (o.rise ?? 1), drag: 2.6 - g.P,
+                    max: moveRand(0.35, 0.6) * (1 + 0.7 * g.P) * (o.life ?? 1),
+                    grow: (2 + 2.5 * g.P) * (o.grow ?? 1), draw: DRAW.stream,
+                });
+            } });
+        },
+    },
+    // 물대포 (예전 물 기술 그대로) · 파도타기는 바닥을 따라
+    water: {
+        ms: (P) => 550 + 650 * P,
+        run: (g, o, ms) => sigEmitter({ move: 'water', power: g.P, dir: g.dir, s: g.s, until: performance.now() + ms, x: o.surf ? g.body.front : g.mouth.x, y: o.surf ? g.body.bottom - 3 * g.s : g.mouth.y }),
+    },
+    // 거품
+    bubbles: {
+        ms: (P) => 700 + 500 * P,
+        run: (g, o, ms) => {
+            const cols = sigPal(o.c);
+            sigEmitter({ until: performance.now() + ms, rate: (14 + 18 * g.P) * (o.many ? 2 : 1), fx: () => sigParticle({
+                x: g.mouth.x, y: g.mouth.y, s: g.s, cols, phase: moveRand(0, 6),
+                vx: g.dir * moveRand(25, 45) * g.s * (o.many ? 1.5 : 1), vy: moveRand(-10, -2) * g.s, g: -6 * g.s, drag: 0.9, max: moveRand(0.8, 1.3),
+                r: Math.random() < 0.3 + 0.4 * g.P ? (g.P > 0.7 && Math.random() < 0.3 ? 3 : 2) : 1,
+                update: (p, dt) => {
+                    p.y += Math.sin(p.phase + p.life * 10) * 0.3 * p.s;
+                },
+                draw: DRAW.bubble,
+            }) });
+        },
+    },
+    // 광선 — 솔라빔 · 파괴광선 · 냉동빔 · 오로라빔(무지개) · 환상빔(물결) · 덩굴채찍 · 실뿜기 · 핥기(len 으로 짧게)
+    beam: {
+        ms: (P, o) => (o.len ? 450 : 600 + 400 * P),
+        run: (g, o, ms) => {
+            const cols = sigPal(o.c);
+            const W = Math.max(1, Math.round((2 + 2 * g.P) * (o.width ?? 1)));
+            const reach = o.len ? o.len * g.w : g.dir > 0 ? window.innerWidth - g.mouth.x : g.mouth.x;
+            sigParticle({ x: g.mouth.x, y: g.mouth.y, s: g.s, max: ms / 1000, dir: g.dir, cols, W, reach,
+                update: (p) => {
+                    if (o.sparkle && Math.random() < 0.6) {
+                        const k = Math.min(p.reach, p.life * 1600) * Math.random();
+                        sigParticle({ x: p.x + p.dir * k, y: p.y + moveRand(-1, 1) * p.W * p.s, s: p.s, vy: moveRand(-20, 20) * p.s, max: 0.3, cols: sigPal(o.sparkle), draw: DRAW.sparkle });
+                    }
+                },
+                draw: (ctx, p, t, px) => {
+                    const L = Math.min(p.reach, p.life * 1600);
+                    ctx.globalAlpha = (t > 0.8 ? (1 - t) / 0.2 : 1) * (0.85 + 0.15 * Math.random());
+                    for (let k = 0; k < L; k += p.s) {
+                        const x = p.x + p.dir * k;
+                        const yo = o.wave ? Math.sin(k / (5 * p.s) - p.life * 25) * p.s * 1.5 : 0;
+                        const layers = o.rainbow
+                            ? [[p.W + 2, `hsl(${(k / p.s) * 12 + p.life * 900}, 100%, 70%)`], [Math.max(1, p.W - 1), '#ffffff']]
+                            : [[p.W + 2, p.cols[3]], [p.W, p.cols[2]], [Math.max(1, p.W - 2), p.cols[0]]];
+                        for (const [th, color] of layers) {
+                            ctx.fillStyle = color;
+                            ctx.fillRect(px(x), px(p.y + yo - (th * p.s) / 2), p.s, th * p.s);
+                        }
+                    }
+                },
+            });
+        },
+    },
+    // 날리기 — 독침 · 바늘미사일 · 스피드스타 · 오물폭탄 · 섀도볼 · 알폭탄 · 고양이돈받기 · 뼈다귀부메랑 · 악마의키스 · 트라이어택
+    projectile: {
+        ms: (P, o) => ((o.n ?? 1 + Math.round(2 * P)) - 1) * (o.every ?? 150) + 400,
+        run: (g, o) => {
+            const n = o.n ?? 1 + Math.round(2 * g.P);
+            sigEmitter({ until: performance.now() + (n - 1) * (o.every ?? 150) + 50, shots: n, every: o.every ?? 150, nextShot: performance.now(), fx: (e, i) => {
+                const speed = (100 + 60 * g.P) * g.s * (o.speed ?? 1);
+                sigParticle({
+                    x: g.mouth.x, y: g.mouth.y + moveRand(-1, 1) * g.s, s: g.s, dir: g.dir,
+                    vx: g.dir * speed, v0: g.dir * speed, vy: moveRand(-6, 6) * g.s - (o.arc ? o.arc * 0.45 * g.s : 0), g: (o.arc ?? 0) * g.s,
+                    max: o.boomerang ? 1.0 : 2.2, big: o.big || g.P > 0.75, ground: g.body.bottom,
+                    cols: o.tri ? sigPal(['fire', 'ice', 'electric'][i % 3]) : sigPal(o.c), shape: SHAPES[o.shape] || SHAPES.ball,
+                    update: (p) => {
+                        if (o.boomerang) {
+                            p.vx = p.v0 * Math.cos((Math.PI * p.life) / 1.0);
+                        }
+                        if (o.arc && p.y >= p.ground) {
+                            sigBurst(p.x, p.ground, p.s, p.cols, 6, 35);
+                            p.life = p.max;
+                        }
+                        if (p.x < -30 || p.x > window.innerWidth + 30) {
+                            p.life = p.max;
+                        }
+                        if ((o.shape === 'ball' || o.shape === 'star') && Math.random() < 0.4) {
+                            sigParticle({ x: p.x - p.dir * 2 * p.s, y: p.y + moveRand(-1, 1) * p.s, s: p.s, max: 0.2, color: p.cols[1], draw: DRAW.dot });
+                        }
+                    },
+                    draw: (ctx, p, t, px) => {
+                        ctx.globalAlpha = 1;
+                        p.shape(ctx, p, px);
+                    },
+                });
+            } });
+        },
+    },
+    // 가루 — 수면가루 · 독가루 · 저리가루 · 버섯포자 · 꽃잎댄스(around) · 은빛바람(drift)
+    powder: {
+        ms: (P) => 900 + 300 * P,
+        run: (g, o, ms) => {
+            const cols = sigPal(o.c);
+            sigEmitter({ until: performance.now() + ms, rate: 25 + 35 * g.P, fx: () => {
+                const a = moveRand(0, Math.PI * 2);
+                const x = o.around ? g.body.cx + Math.cos(a) * g.body.rx * 1.3 : g.mouth.x + g.dir * moveRand(0, 3) * g.w;
+                const y = o.around ? g.body.cy + Math.sin(a) * g.body.ry * 1.3 : moveRand(g.body.top - 0.3 * g.h, g.mouth.y);
+                sigParticle({
+                    x, y, s: g.s, phase: moveRand(0, 6), petal: o.petal, color: movePick(cols.slice(1)), size: Math.random() < 0.2 ? 2 : 1,
+                    vx: g.dir * moveRand(4, 16) * g.s * (o.drift ? 4 : 1) + (o.around ? Math.cos(a) * 15 * g.s : 0), vy: moveRand(4, 12) * g.s, g: 2 * g.s, drag: 0.5, max: moveRand(0.8, 1.3),
+                    update: (p) => {
+                        p.x += Math.sin(p.phase + p.life * 5) * 0.3 * p.s;
+                    },
+                    draw: o.petal
+                        ? (ctx, p, t, px) => {
+                            const flat = Math.floor(p.life / 0.1) % 2 === 0;
+                            ctx.globalAlpha = fadeInOut(t, 0.1, 0.3);
+                            dotAt(ctx, px, p.s, p.x, p.y, p.color, flat ? 2 : 1, flat ? 1 : 2);
+                        }
+                        : DRAW.dot,
+                });
+            } });
+        },
+    },
+    // 퍼지는 고리 — 염동력 · 사이코키네시스 · 최면술(spiral) · 나이트헤드 · 회오리불꽃 / 앞으로 퍼지는 물결 — 바람일으키기 · 초음파 · 하이퍼보이스(forward)
+    rings: {
+        ms: (P, o) => (o.n ?? 3) * 140 + 500,
+        run: (g, o) => {
+            const cols = sigPal(o.c);
+            const n = o.n ?? 3;
+            sigEmitter({ until: performance.now() + n * 140, shots: n, every: 140, nextShot: performance.now(), fx: (e, i) => sigParticle({
+                x: o.forward ? g.mouth.x : g.body.cx, y: o.forward ? g.mouth.y : g.body.cy, s: g.s, dir: g.dir, i,
+                vx: o.forward ? g.dir * (90 + 40 * g.P) * g.s : 0, max: o.forward ? 0.7 : 0.55, cols,
+                r0: o.forward ? 2 : 0.4 * Math.max(g.body.rx, g.body.ry) / g.s, r1: o.forward ? 9 + 4 * g.P : (1.5 + 0.4 * g.P) * Math.max(g.body.rx, g.body.ry) / g.s,
+                draw: (ctx, p, t, px) => {
+                    const r = (p.r0 + (p.r1 - p.r0) * t) * p.s;
+                    ctx.globalAlpha = 1 - t;
+                    if (o.forward) {
+                        for (let a = -0.95; a <= 0.95; a += 0.12) {
+                            dotAt(ctx, px, p.s, p.x + p.dir * Math.cos(a) * r, p.y + Math.sin(a) * r, p.cols[(p.i % 2) + 1]);
+                        }
+                        return;
+                    }
+                    const dots = Math.max(16, Math.round(r / p.s) * 3);
+                    for (let k = 0; k < dots; k++) {
+                        if (o.spiral && (k + Math.floor(p.life * 30)) % 4 > 1) {
+                            continue;
+                        }
+                        const a = (k / dots) * Math.PI * 2 + (o.spiral ? p.life * 6 : 0);
+                        dotAt(ctx, px, p.s, p.x + Math.cos(a) * r, p.y + Math.sin(a) * r * 0.75, p.cols[(k + p.i) % 2 ? 1 : 2]);
+                    }
+                },
+            }) });
+        },
+    },
+    // 몸 둘레 스파크 (예전 전기 기술 그대로) — 10만볼트 · 전기쇼크
+    spark: {
+        ms: (P) => 550 + 650 * P,
+        run: (g, o, ms) => sigEmitter({ move: 'electric', power: g.P, dir: g.dir, s: g.s, until: performance.now() + ms, cx: g.body.cx, cy: g.body.cy, rx: g.body.rx, ry: g.body.ry, nextFlash: g.P > 0.4 ? performance.now() : 0 }),
+    },
+    // 반짝이며 올라감 — 문라이트 · 알낳기 · 순간이동 · 변신
+    glow: {
+        ms: (P) => 800 + 300 * P,
+        run: (g, o, ms) => {
+            const cols = sigPal(o.c);
+            sigEmitter({ until: performance.now() + ms, rate: 18 + 25 * g.P, fx: () => sigParticle({
+                x: g.body.cx + moveRand(-1, 1) * g.body.rx, y: g.body.bottom - moveRand(0, 2) * g.body.ry, s: g.s,
+                vy: -moveRand(15, 35) * g.s, max: moveRand(0.6, 1.0), cols, draw: DRAW.sparkle,
+            }) });
+        },
+    },
+    // 보호막 — 단단해지기 · 배리어
+    shield: {
+        ms: () => 1000,
+        run: (g, o) => {
+            const cols = sigPal(o.c);
+            const pad = 3 * g.s;
+            sigParticle({ x: g.body.cx, y: g.body.cy, s: g.s, max: 1.0, cols, hw: g.body.rx + pad, hh: g.body.ry + pad, draw: (ctx, p, t, px) => {
+                const pulse = 0.45 + 0.55 * Math.abs(Math.sin(p.life * 9));
+                ctx.globalAlpha = fadeInOut(t, 0.1, 0.25) * 0.18;
+                ctx.fillStyle = p.cols[1];
+                ctx.fillRect(px(p.x - p.hw), px(p.y - p.hh), 2 * p.hw, 2 * p.hh);
+                ctx.globalAlpha = fadeInOut(t, 0.1, 0.25) * pulse;
+                for (let k = -p.hw; k <= p.hw; k += 2 * p.s) {
+                    dotAt(ctx, px, p.s, p.x + k, p.y - p.hh, p.cols[2]);
+                    dotAt(ctx, px, p.s, p.x + k, p.y + p.hh, p.cols[2]);
+                }
+                for (let k = -p.hh; k <= p.hh; k += 2 * p.s) {
+                    dotAt(ctx, px, p.s, p.x - p.hw, p.y + k, p.cols[2]);
+                    dotAt(ctx, px, p.s, p.x + p.hw, p.y + k, p.cols[2]);
+                }
+                const shine = -p.hw + ((p.life * 2) % 1) * 2 * p.hw;
+                for (let k = 0; k < p.hh * 2; k += p.s) {
+                    dotAt(ctx, px, p.s, p.x + shine - k * 0.5, p.y - p.hh + k, p.cols[0]);
+                }
+            } });
+        },
+    },
+    // 하늘에서 번개 — 번개 · 대폭발
+    bolt: {
+        ms: () => 900,
+        run: (g) => {
+            const path = [];
+            const steps = Math.max(4, Math.round(g.body.top / (4 * g.s)));
+            for (let i = 0; i <= steps; i++) {
+                path.push([g.body.cx + (i === steps ? 0 : moveRand(-3, 3) * g.s), (g.body.top * i) / steps]);
+            }
+            sigParticle({ x: 0, y: 0, s: g.s, max: 0.5, path, thick: g.P > 0.6 ? 2 : 1, draw: (ctx, p, t, px) => {
+                if (Math.floor(p.life / 0.06) % 2 === 1) {
+                    return;
+                }
+                ctx.globalAlpha = 1;
+                for (let i = 1; i < p.path.length; i++) {
+                    const [x0, y0] = p.path[i - 1];
+                    const [x1, y1] = p.path[i];
+                    const n = Math.max(1, Math.round(Math.hypot(x1 - x0, y1 - y0) / p.s));
+                    for (let k = 0; k <= n; k++) {
+                        const x = x0 + ((x1 - x0) * k) / n;
+                        const y = y0 + ((y1 - y0) * k) / n;
+                        dotAt(ctx, px, p.s, x - p.s, y, '#ffe53b', 1 + 2 * p.thick, 1);
+                        dotAt(ctx, px, p.s, x, y, '#ffffff', p.thick, 1);
+                    }
+                }
+            } });
+            setTimeout(() => SIG_FX.spark.run(g, {}, 500), 90);
+        },
+    },
+    // 땅 흔들기 — 지진 · 대지의힘 · 구멍파기
+    quake: {
+        ms: () => 900,
+        run: (g, o) => {
+            const cols = sigPal(o.c ?? 'ground');
+            const amp = 2 + 3 * g.P;
+            // 포켓몬 · 앞쪽 풀을 하나씩 흔듦 — 포켓몬 상자를 통째로 움직이면 위치 기준이 바뀌어 포켓몬이 화면 밖으로 튐
+            const shake = (el) => el?.animate([{ translate: `-${amp}px 0` }, { translate: `${amp}px 0` }], { duration: 60, iterations: 12, direction: 'alternate', composite: 'add' });
+            exports.allPokemon.pokemonCollection.forEach((element) => shake(element.el));
+            shake(document.getElementById('foreground'));
+            for (let i = 0; i < 18 + 18 * g.P; i++) {
+                const side = Math.random() < 0.5 ? -1 : 1;
+                sigParticle({ x: g.body.cx + side * moveRand(0, 0.8) * g.w, y: g.body.bottom, s: g.s, vx: side * moveRand(20, 60) * g.s, vy: -moveRand(10, 45) * g.s, g: 140 * g.s, drag: 0.5, max: moveRand(0.4, 0.8), color: movePick(cols.slice(1)), size: Math.random() < 0.3 ? 2 : 1, draw: DRAW.dot });
+            }
+        },
+    },
+    // 바위 떨어뜨리기 — 돌떨구기 · 스톤샤워 · 원시의힘
+    rockfall: {
+        ms: (P, o) => (o.n ?? 3) * 150 + 700,
+        run: (g, o) => {
+            const cols = sigPal(o.c ?? 'rock');
+            const n = o.n ?? 3;
+            sigEmitter({ until: performance.now() + n * 150, shots: n, every: 150, nextShot: performance.now(), fx: () => sigParticle({
+                x: g.body.front + g.dir * moveRand(0.3, 2.5) * g.w, y: -10, s: g.s, vy: moveRand(30, 60) * g.s, g: 500 * g.s, max: 2,
+                big: g.P > 0.5, cols, ground: g.body.bottom,
+                update: (p) => {
+                    if (p.y >= p.ground - (p.big ? 4 : 3) * p.s) {
+                        sigBurst(p.x, p.ground, p.s, p.cols, 7, 40);
+                        p.life = p.max;
+                    }
+                },
+                draw: (ctx, p, t, px) => {
+                    ctx.globalAlpha = 1;
+                    SHAPES.rock(ctx, p, px);
+                },
+            }) });
+        },
+    },
+    // 돌진 — 전광석화 · 몸통박치기 · 구르기(roll) · 신속(fast)
+    dash: {
+        ms: () => 100,
+        run: (g, o, ms, pokemon) => {
+            pokemon.currentState = new DashState(pokemon, g, o);
+        },
+    },
+    // 할퀴기 자국 — 할퀴기 · 베어가르기 · 마구할퀴기 · 시저크로스(x)
+    slash: {
+        ms: (P, o) => (o.n ?? 3) * 80 + 450,
+        run: (g, o) => {
+            const cols = sigPal(o.c);
+            const n = o.n ?? 3;
+            sigEmitter({ until: performance.now() + n * 80, shots: n, every: 80, nextShot: performance.now(), fx: (e, i) => sigParticle({
+                x: g.body.front + g.dir * (4 + (i % 2) * 3) * g.s, y: g.mouth.y + (i - (n - 1) / 2) * 3 * g.s, s: g.s, dir: g.dir, max: 0.45, cols,
+                L: Math.round(7 + 4 * g.P),
+                draw: (ctx, p, t, px) => {
+                    const shown = Math.ceil(Math.min(1, p.life / 0.08) * p.L);
+                    ctx.globalAlpha = t > 0.55 ? (1 - t) / 0.45 : 1;
+                    for (const flip of o.x ? [1, -1] : [1]) {
+                        for (let k = 0; k < shown; k++) {
+                            const x = p.x + p.dir * (k - p.L / 2) * p.s;
+                            const y = p.y + flip * (k - p.L / 2) * p.s;
+                            dotAt(ctx, px, p.s, x, y + p.s, p.cols[2]);
+                            dotAt(ctx, px, p.s, x, y, p.cols[0]);
+                        }
+                    }
+                },
+            }) });
+        },
+    },
+    // 주먹 · 부리 — 쪼기 · 연속펀치 · 불꽃/냉동/번개펀치 · 찝게햄머(big)
+    punch: {
+        ms: (P, o) => (o.n ?? 1) * 150 + 350,
+        run: (g, o) => {
+            const cols = sigPal(o.c);
+            const n = o.n ?? 1;
+            sigEmitter({ until: performance.now() + n * 150, shots: n, every: 150, nextShot: performance.now(), fx: () => sigImpact(g.body.front + g.dir * moveRand(3, 6) * g.s, g.mouth.y + moveRand(-3, 3) * g.s, g.s, cols, g.P, o.big) });
+        },
+    },
+    // Z — 잠자기 · 하품
+    zzz: {
+        ms: () => 1600,
+        run: (g, o) => {
+            sigEmitter({ until: performance.now() + 1200, shots: 3, every: 400, nextShot: performance.now(), fx: (e, i) => sigParticle({
+                x: g.body.cx + g.dir * g.body.rx * 0.4, y: g.body.top, s: g.s, vx: g.dir * 8 * g.s, vy: -18 * g.s, max: 1.1, big: o.big && i > 0,
+                draw: (ctx, p, t, px) => {
+                    ctx.globalAlpha = fadeInOut(t, 0.15, 0.3);
+                    drawGlyph(ctx, px, p.s, p.x, p.y, p.big ? GLYPHS.z5 : GLYPHS.z4, '#dbe8ff');
+                },
+            }) });
+        },
+    },
+    // 음표 — 노래하기
+    notes: {
+        ms: () => 1600,
+        run: (g, o) => {
+            const cols = sigPal(o.c);
+            sigEmitter({ until: performance.now() + 1400, shots: 5, every: 280, nextShot: performance.now(), fx: () => sigParticle({
+                x: g.mouth.x, y: g.mouth.y - 3 * g.s, s: g.s, phase: moveRand(0, 6), color: movePick(cols.slice(1)),
+                vx: g.dir * moveRand(15, 30) * g.s, vy: -moveRand(10, 20) * g.s, max: 1.1,
+                update: (p) => {
+                    p.x += Math.sin(p.phase + p.life * 7) * 0.4 * p.s;
+                },
+                draw: (ctx, p, t, px) => {
+                    ctx.globalAlpha = fadeInOut(t, 0.15, 0.3);
+                    drawGlyph(ctx, px, p.s, p.x, p.y, GLYPHS.note, p.color);
+                },
+            }) });
+        },
+    },
+    // 튀어오르기 — 잉어킹 (그러나 아무 일도 일어나지 않았다!)
+    splash: {
+        ms: () => 100,
+        run: (g, o, ms, pokemon) => {
+            pokemon.currentState = new SplashState(pokemon, g.left);
+            // 첫 이름("튀어오르기!")이 사라진 뒤에
+            setTimeout(() => showMoveName(sigGeometry(pokemon, g.left), '그러나 아무 일도 일어나지 않았다!'), 1500);
+        },
+    },
+    // 손가락흔들기 — 1세대 아무 기술이나 하나
+    metronome: {
+        ms: () => 1500,
+        run: (g, o, ms, pokemon) => {
+            const pool = Object.values(POKEMON_SIGNATURE).flatMap((v) => (Array.isArray(v[0]) ? v : [v])).filter((v) => !['metronome', 'splash'].includes(v[1]));
+            const [name, fx, opt = {}] = movePick(pool);
+            setTimeout(() => {
+                const g2 = sigGeometry(pokemon, g.left);
+                showMoveName({ ...g2, body: { ...g2.body, top: g2.body.top - 14 } }, `${name}!`);
+                SIG_FX[fx].run(g2, opt, SIG_FX[fx].ms(g2.P, opt), pokemon);
+            }, 600);
+        },
+    },
+};
+
+function useSignature(pokemon, sig, left) {
+    const [name, fx, o = {}] = sig;
+    const T = SIG_FX[fx];
+    const ms = T.ms(POKEMON_SHAPE[pokemon.label][0], o);
+    pokemon.currentStateEnum = "swipe" /* States.swipe */;
+    pokemon.currentState = new MoveState(left, Math.ceil((ms + 300) / 100));
+    pokemon.hideSpeechBubble();
+    setTimeout(() => {
+        const g = sigGeometry(pokemon, left);
+        showMoveName(g, `${name}!`);
+        T.run(g, o, ms, pokemon);
+    }, 120);
+}
+
 function useMove(pokemon) {
     const move = POKEMON_MOVES[pokemon.label];
+    const sig = POKEMON_SHAPE[pokemon.label] && sigEntry(pokemon.label);
     const current = pokemon.currentState;
-    if (!move || !pokemon.canSwipe || current instanceof MoveState || current instanceof JumpState || current instanceof TumbleState) {
+    if ((!move && !sig) || !pokemon.canSwipe || current instanceof MoveState || current instanceof JumpState || current instanceof TumbleState || current instanceof DashState || current instanceof SplashState) {
         return;
     }
     const flying = current instanceof FlyState;
@@ -6263,6 +6983,10 @@ function useMove(pokemon) {
         // 마우스를 올려 멈춘 상태(swipe)면 그 전 상태를 그대로 두고 끝나면 돌아감
         pokemon.holdState = current;
         pokemon.holdStateEnum = pokemon.currentStateEnum;
+    }
+    if (sig) {
+        useSignature(pokemon, sig, left);
+        return;
     }
     const special = MOVE_SPECIAL[pokemon.label] && Math.random() < MOVE_SPECIAL[pokemon.label].chance ? MOVE_SPECIAL[pokemon.label] : undefined;
     const emitMs = special ? special.first + special.every * (special.count - 1) : 550 + 650 * move[1];
@@ -6376,7 +7100,7 @@ function startMoveAuto() {
             return;
         }
         if (Math.random() < 1 / MOVE_AUTO_AVG_SEC) {
-            const list = ready((key) => POKEMON_MOVES[key]);
+            const list = ready((key) => POKEMON_MOVES[key] || POKEMON_SIGNATURE[key]);
             if (list.length) {
                 useMove(movePick(list).pokemon);
             }
