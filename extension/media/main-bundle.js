@@ -5854,6 +5854,8 @@ class FallState {
         this.pokemon = pokemon;
         this.v = 0;
         this.bounced = false;
+        this.left = left;
+        this.drop = pokemon.bottom - pokemon.floor; // 몸 크기의 3/4 넘게 떨어지면 착지하면서 넘어짐
         faceState(this, left);
     }
     nextFrame() {
@@ -5868,7 +5870,59 @@ class FallState {
             this.v = -this.v * 0.35;
             return states_1.FrameResult.stateContinue;
         }
+        if (this.drop > spriteSize(p) * 0.75) {
+            p.currentState = new TumbleState(p, this.left);
+            return states_1.FrameResult.stateContinue;
+        }
         return states_1.FrameResult.stateComplete;
+    }
+}
+
+// 쿵 넘어졌다 일어남 — 보는 쪽으로 옆으로 눕고(바닥에 닿게 75% 높이를 축으로), 머리 위 별 빙글, 비틀 세우기
+class TumbleState {
+    label = "swipe" /* States.swipe */;
+    constructor(pokemon, left) {
+        this.pokemon = pokemon;
+        this.frames = 0;
+        faceState(this, left);
+        const el = pokemon.el;
+        const tilt = left ? -90 : 90;
+        el.tumbleAnim?.cancel();
+        el.style.transformOrigin = '50% 75%';
+        el.tumbleAnim = el.animate([
+            { rotate: '0deg', offset: 0, easing: 'ease-in' },
+            { rotate: `${tilt}deg`, offset: 0.12 },
+            { rotate: `${tilt * 0.9}deg`, offset: 0.18 }, // 쿵 — 살짝 튕김
+            { rotate: `${tilt}deg`, offset: 0.24 },
+            { rotate: `${tilt}deg`, offset: 0.62, easing: 'ease-out' },
+            { rotate: `${-tilt * 0.12}deg`, offset: 0.85 }, // 비틀
+            { rotate: '0deg', offset: 1 },
+        ], { duration: 1500 });
+        el.tumbleAnim.onfinish = () => {
+            el.style.transformOrigin = '';
+        };
+        setTimeout(() => startDizzy(pokemon, left), 220);
+    }
+    nextFrame() {
+        this.frames += 1;
+        return this.frames >= 15 ? states_1.FrameResult.stateComplete : states_1.FrameResult.stateContinue;
+    }
+}
+
+// 누운 머리 위로 별 세 개 빙글
+function startDizzy(pokemon, left) {
+    const rect = pokemon.collision.getBoundingClientRect(); // 그림은 돌아가 있어서 안 도는 클릭 영역 기준
+    const w = rect.width;
+    const h = rect.height;
+    const s = w / (pokemon._originalSpriteSize || 32);
+    for (let i = 0; i < 3; i++) {
+        moveParticles.push({
+            move: 'dizzy', life: 0, max: 1.0, s, vx: 0, vy: 0, g: 0, drag: 0,
+            cx: rect.left + (left ? 0.22 : 0.78) * w, cy: rect.top + 0.56 * h, rx: 0.18 * w, ry: 0.07 * h, phase: (i * Math.PI * 2) / 3,
+        });
+    }
+    if (!moveRaf) {
+        moveRaf = requestAnimationFrame(moveTick);
     }
 }
 
@@ -6051,6 +6105,18 @@ function drawParticle(ctx, p) {
             dot(0, 0, '#ffffff');
             break;
         }
+        case 'dizzy': {
+            const dot = (dx, dy, color) => {
+                ctx.fillStyle = color;
+                ctx.fillRect(px(p.x + dx * s), px(p.y + dy * s), s, s);
+            };
+            ctx.globalAlpha = t < 0.8 ? 1 : (1 - t) / 0.2;
+            for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+                dot(dx, dy, '#ffd23f');
+            }
+            dot(0, 0, '#fff7c2');
+            break;
+        }
         case 'trail':
             ctx.globalAlpha = 1 - t;
             ctx.fillStyle = '#8fd3ff';
@@ -6126,6 +6192,11 @@ function moveTick(now) {
         if (p.move === 'grass') {
             p.y += Math.sin(p.phase + p.life * 14) * p.s * 0.6;
         }
+        if (p.move === 'dizzy') {
+            const a = p.phase + p.life * 9;
+            p.x = p.cx + Math.cos(a) * p.rx;
+            p.y = p.cy + Math.sin(a) * p.ry;
+        }
         if (p.move === 'shuriken') {
             if (p.x < -20 || p.x > window.innerWidth + 20) {
                 p.life = p.max;
@@ -6184,7 +6255,7 @@ function startMoveEffect(pokemon, move, left, emitMs, special) {
 function useMove(pokemon) {
     const move = POKEMON_MOVES[pokemon.label];
     const current = pokemon.currentState;
-    if (!move || !pokemon.canSwipe || current instanceof MoveState || current instanceof JumpState) {
+    if (!move || !pokemon.canSwipe || current instanceof MoveState || current instanceof JumpState || current instanceof TumbleState) {
         return;
     }
     const flying = current instanceof FlyState;
@@ -6241,6 +6312,8 @@ function grab(d) {
     d.left0 = p.left;
     d.bottom0 = p.bottom;
     el.glideAnim?.cancel();
+    el.tumbleAnim?.cancel();
+    el.style.transformOrigin = '';
     el.noGlide = true; // 마우스를 바로 따라오게
     p.holdState = undefined;
     p.holdStateEnum = undefined;
