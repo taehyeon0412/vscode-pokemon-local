@@ -9,13 +9,11 @@ VS Code 패널에서 포켓몬을 키워요<br>
 
 ![포켓몬 637마리](https://img.shields.io/badge/%ED%8F%AC%EC%BC%93%EB%AA%AC-637%EB%A7%88%EB%A6%AC-ffcb05?style=for-the-badge) ![필살기 891개](https://img.shields.io/badge/%ED%95%84%EC%82%B4%EA%B8%B0-891%EA%B0%9C-e3350d?style=for-the-badge) ![연출 22가지](https://img.shields.io/badge/%EC%97%B0%EC%B6%9C-22%EA%B0%80%EC%A7%80-3b4cca?style=for-the-badge) ![한국어](https://img.shields.io/badge/%EC%96%B8%EC%96%B4-%ED%95%9C%EA%B5%AD%EC%96%B4-2a75bb?style=for-the-badge)
 
-<a href="docs/demo.gif"><img src="docs/demo.png" alt="포켓몬들이 기술을 쓰고 날아다니는 데모 — 누르면 재생" width="800"></a>
-
-<sub>그림 오른쪽 위 <b>▶ 재생</b> 을 누르면 움직이는 장면이 열려요</sub>
-
 **[🕹️ 놀기](#play) · [💥 필살기](#ult) · [⚡ 기술](#moves) · [🌿 저절로](#auto) · [📦 설치](#install) · [🛠️ 고치기](#dev)**
 
 </div>
+
+https://github.com/user-attachments/assets/9a9e4ef3-09b4-462f-aef2-65a5109702d6
 
 > [!NOTE]
 > 마켓의 [vscode-pokemon](https://github.com/jakobhoeg/vscode-pokemon) 5.0.2 를 고친 수정본이에요.<br>
@@ -45,20 +43,29 @@ VS Code 패널에서 포켓몬을 키워요<br>
 
 **포켓몬을 1초 넘게 꾹 누르면** 기운이 차오르다가 필살기가 나가요.
 
-<table>
-<tr>
-<td align="center"><a href="docs/ult-pikachu.gif"><img src="docs/ult-pikachu.png" alt="피카츄 1000만볼트 — 누르면 재생" width="400"></a><br><b>피카츄</b> · 1000만볼트</td>
-<td align="center"><a href="docs/ult-venusaur.gif"><img src="docs/ult-venusaur.png" alt="이상해꽃 솔라빔 — 누르면 재생" width="400"></a><br><b>이상해꽃</b> · 솔라빔</td>
-</tr>
-<tr>
-<td align="center"><a href="docs/ult-charizard.gif"><img src="docs/ult-charizard.png" alt="리자몽 블래스트번 — 누르면 재생" width="400"></a><br><b>리자몽</b> · 블래스트번</td>
-<td align="center"><a href="docs/ult-groudon.gif"><img src="docs/ult-groudon.png" alt="그란돈 단애의칼 — 누르면 재생" width="400"></a><br><b>그란돈</b> · 단애의칼</td>
-</tr>
-<tr>
-<td align="center"><a href="docs/ult-greninja.gif"><img src="docs/ult-greninja.png" alt="개굴닌자 거대 물수리검 — 누르면 재생" width="400"></a><br><b>개굴닌자</b> · 거대 물수리검</td>
-<td align="center"><a href="docs/ult-mew.gif"><img src="docs/ult-mew.png" alt="뮤 오리진즈슈퍼노바 — 누르면 재생" width="400"></a><br><b>뮤</b> · 오리진즈슈퍼노바</td>
-</tr>
-</table>
+**⚡ 피카츄 · 1000만볼트**
+
+https://github.com/user-attachments/assets/ac868132-9a49-408f-8db7-4aa42367385b
+
+**🌿 이상해꽃 · 솔라빔**
+
+https://github.com/user-attachments/assets/0cfdaa95-5fc2-48ff-bfc5-b8c46c2e46c3
+
+**🔥 리자몽 · 블래스트번**
+
+https://github.com/user-attachments/assets/e7d5d5a4-971b-48a3-9285-c20adc8facfa
+
+**🌋 그란돈 · 단애의칼**
+
+https://github.com/user-attachments/assets/74cd9b5c-14b1-4c0a-a2cd-8013a4032da1
+
+**🐸 개굴닌자 · 거대 물수리검**
+
+https://github.com/user-attachments/assets/73f9b9c0-ad44-4bb8-ad3c-4600d9cac7e2
+
+**🌸 뮤 · 오리진즈슈퍼노바**
+
+https://github.com/user-attachments/assets/a26e96db-79ee-427a-a6f2-49a4cd27c889
 
 ### 이렇게 나가요
 
@@ -90,7 +97,7 @@ VS Code 패널에서 포켓몬을 키워요<br>
 
 ### ⚔️ 필살기 대결
 
-<p align="center"><a href="docs/duel.gif"><img src="docs/duel.png" alt="리자몽 블래스트번 vs 거북왕 하이드로캐논 필살기 대결 — 누르면 재생" width="800"></a></p>
+https://github.com/user-attachments/assets/88f4c140-3ecd-4e36-985b-df35707fb560
 
 꾹 눌러 쓰면 **절반쯤**, 멀리 있는 포켓몬이 자기 필살기로 받아쳐요. 위 장면은 **리자몽 블래스트번 vs 거북왕 하이드로캐논**이에요.
 
@@ -154,7 +161,7 @@ VS Code 패널에서 포켓몬을 키워요<br>
 
 ### ⚔️ 광선 힘겨루기
 
-<p align="center"><a href="docs/clash.gif"><img src="docs/clash.png" alt="이상해꽃 솔라빔과 뮤츠 사이코브레이크가 맞부딪혀 밀고 밀리는 광선 힘겨루기 — 누르면 재생" width="800"></a></p>
+https://github.com/user-attachments/assets/2b41631d-201f-4cf8-a2b9-cdc346b9af91
 
 광선 기술을 클릭으로 쏘면 **절반쯤**, 바라보는 쪽 가장 먼 곳의 광선 쓰는 포켓몬이 돌아서서 받아쳐요. 위 장면은 **이상해꽃 솔라빔 vs 뮤츠 사이코브레이크**예요.
 
