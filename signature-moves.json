@@ -2,7 +2,7 @@
   "_설명": "포켓몬별 대표 기술 (여기에 타입 기술이 더해져 클릭마다 무작위)  — [기술 이름, 연출 틀, 옵션]. 여러 개를 [[...], [...]] 로 주면 쓸 때마다 하나를 고름. 암컷 모습(_female)은 기본 모습 것을 그대로 씀. 연출 틀 · 옵션은 moves.js 의 SIG_FX 참고",
   "bulbasaur": ["덩굴채찍", "beam", {"c": "grass", "len": 2.5, "width": 0.4, "wave": 1}],
   "ivysaur": ["잎날가르기", "projectile", {"shape": "leaf", "c": "grass", "n": 5, "every": 90}],
-  "venusaur": ["솔라빔", "beam", {"c": "solar", "width": 1.4, "sparkle": "solar"}],
+  "venusaur": ["솔라빔", "solarbeam", {}],
   "charmander": ["불꽃세례", "breath", {"c": "fire", "speed": 0.8, "life": 0.8}],
   "charmeleon": ["화염방사", "breath", {"c": "fire", "smoke": 1}],
   "charizard": ["블래스트번", "breath", {"c": "fire", "smoke": 1, "ember": 1, "grow": 1.5, "speed": 1.2, "rate": 1.4}],
