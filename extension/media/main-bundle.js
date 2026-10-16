@@ -5878,15 +5878,15 @@ class FallState {
     }
 }
 
-// 쿵 넘어졌다 일어남 — 착지 직후 보는 쪽으로 옆으로 눕고(바닥에 닿게 75% 높이를 축으로), 머리 위 별 빙글, 비틀 세우기
+// 쿵 넘어졌다 일어남 — 착지 직후 보는 쪽으로 옆으로 눕고(바닥에 닿게 75% 높이를 축으로), 머리 위 별 빙글, 비틀 세우기 · back 이면 뒤로 벌러덩
 class TumbleState {
     label = "swipe" /* States.swipe */;
-    constructor(pokemon, left) {
+    constructor(pokemon, left, back = false) {
         this.pokemon = pokemon;
         this.frames = 0;
         faceState(this, left);
         const el = pokemon.el;
-        const tilt = left ? -90 : 90;
+        const tilt = left !== back ? -90 : 90;
         el.tumbleAnim?.cancel();
         el.style.transformOrigin = '50% 75%';
         el.tumbleAnim = el.animate([
@@ -5901,7 +5901,7 @@ class TumbleState {
         el.tumbleAnim.onfinish = () => {
             el.style.transformOrigin = '';
         };
-        setTimeout(() => startDizzy(pokemon, left), GLIDE_LAG_MS + 220);
+        setTimeout(() => startDizzy(pokemon, left !== back), GLIDE_LAG_MS + 220);
     }
     nextFrame() {
         this.frames += 1;
@@ -6364,11 +6364,14 @@ function showMoveName(g, text) {
             ctx.globalAlpha = fadeInOut(t, 0.08, 0.3);
             ctx.font = 'bold 11px sans-serif';
             ctx.textAlign = 'center';
+            // 화면 끝에서 글자가 잘리지 않게 안쪽으로
+            const half = ctx.measureText(p.text).width / 2 + 3;
+            const x = Math.min(Math.max(p.x, half), window.innerWidth - half);
             ctx.lineWidth = 3;
             ctx.strokeStyle = 'rgba(0, 0, 0, 0.75)';
-            ctx.strokeText(p.text, p.x, p.y);
+            ctx.strokeText(p.text, x, p.y);
             ctx.fillStyle = '#ffffff';
-            ctx.fillText(p.text, p.x, p.y);
+            ctx.fillText(p.text, x, p.y);
         },
     });
 }
@@ -7405,6 +7408,306 @@ const SIG_FX = {
     },
 };
 
+// 광선 힘겨루기 — 광선을 쏘면 가끔, 바라보는 쪽 가장 먼 광선 쓰는 애가 돌아서서 받아침
+// 모으기 → 두 광선이 가운데서 쾅 → 만나는 곳이 밀고 밀리며 불꽃 · 번개 · 고리 → 센 쪽이 뚫고 나가 진 쪽이 벌러덩 (아니면 가운데서 대폭발 · 둘 다 벌러덩)
+const CLASH_CHANCE = 0.5;
+const CLASH_DRAW = 0.35;
+const CLASH_CHARGE = 0.9;
+const CLASH_SEC = 2.4;
+const CLASH_SPEED = 1800;
+const isBeam = (m) => !!m && ((m[1] === 'beam' && !m[2]?.len) || m[1] === 'solarbeam');
+const beamMoves = (key) => (POKEMON_MOVESET[key] || []).map((i) => MOVE_LIB[i]).filter(isBeam);
+
+function findRival(pokemon, left) {
+    const dir = left ? -1 : 1;
+    const w = spriteSize(pokemon);
+    let best;
+    for (const element of exports.allPokemon.pokemonCollection) {
+        const q = element.pokemon;
+        if (q === pokemon || !POKEMON_SHAPE[q.label] || !q.canSwipe || q.bottom > q.floor + 1 || !['sit-idle', 'walk-right', 'walk-left'].includes(q.currentStateEnum) || !beamMoves(q.label).length) {
+            continue;
+        }
+        const d = (q.left - pokemon.left) * dir;
+        if (d >= w * 2.5 && (!best || d > best.d)) {
+            best = { q, d };
+        }
+    }
+    return best?.q;
+}
+
+function startClash(a, sigA, leftA, b) {
+    const sigB = movePick(beamMoves(b.label));
+    if (b.currentStateEnum !== "swipe" /* States.swipe */) {
+        b.holdState = b.currentState;
+        b.holdStateEnum = b.currentStateEnum;
+    }
+    const meet = Math.abs(b.left - a.left) / 2 / CLASH_SPEED;
+    const hold = Math.ceil((0.12 + CLASH_CHARGE + meet + CLASH_SEC + 1.2) * 10);
+    for (const [p, left] of [[a, leftA], [b, !leftA]]) {
+        p.currentStateEnum = "swipe" /* States.swipe */;
+        p.currentState = new MoveState(left, hold);
+        p.hideSpeechBubble();
+    }
+    setTimeout(() => runClash(a, sigA, leftA, b, sigB, !leftA), 120);
+}
+
+// 맞은 쪽 — 뒤로 밀려 벌러덩
+function knockBack(p, left, away, amount) {
+    p.holdState = undefined;
+    p.holdStateEnum = undefined;
+    p.currentStateEnum = "swipe" /* States.swipe */;
+    p.positionLeft(Math.min(Math.max(p.left + away * amount, 0), rightEdge(p)));
+    p.currentState = new TumbleState(p, left, true);
+}
+
+function runClash(a, sigA, leftA, b, sigB, leftB) {
+    const side = (p, sig, left) => {
+        const g = sigGeometry(p, left);
+        const [, fx, o = {}] = sig;
+        const solar = fx === 'solarbeam';
+        return {
+            p, g, left, s: g.s, P: g.P, dir: g.dir, x: g.mouth.x, y: g.mouth.y,
+            cols: sigPal(solar ? 'solar' : o.c), rainbow: !!o.rainbow, wave: !!o.wave,
+            W: 1.2 * (solar ? 4 + 3 * g.P : Math.max(2, Math.round((2 + 2 * g.P) * (o.width ?? 1)))),
+        };
+    };
+    const A = side(a, sigA, leftA);
+    const B = side(b, sigB, leftB);
+    const s = (A.s + B.s) / 2;
+    const half = Math.abs(B.x - A.x) / 2;
+    const mid = (A.x + B.x) / 2;
+    const tm = CLASH_CHARGE + half / CLASH_SPEED;
+    const tO = tm + CLASH_SEC;
+    const draw = Math.random() < CLASH_DRAW;
+    const winner = draw ? null : Math.random() < Math.min(0.85, Math.max(0.15, 0.5 + (A.P - B.P) * 1.2)) ? A : B;
+    const loser = winner === A ? B : A;
+    const phase = moveRand(0, Math.PI * 2);
+    const R = Math.max(A.g.w, B.g.w, 40);
+    showMoveName(A.g, `${sigA[0]}!`);
+    setTimeout(() => showMoveName(B.g, `${sigB[0]}!`), 350);
+    // 만나는 곳 — shift 가 +1 이면 B 입, -1 이면 A 입
+    const shiftAt = (t) => {
+        if (t < tO) {
+            const u = Math.max(0, (t - tm) / CLASH_SEC);
+            const lean = winner ? (winner === A ? 1 : -1) * 0.3 * Math.max(0, (u - 0.65) / 0.35) : 0;
+            const v = (0.2 + 0.4 * u) * Math.sin(u * Math.PI * 5 + phase) + 0.07 * Math.sin(u * Math.PI * 22) + lean;
+            return Math.max(-0.75, Math.min(0.75, v));
+        }
+        const s0 = shiftAt(tO - 0.001);
+        if (!winner) {
+            return s0;
+        }
+        const k = Math.min(1, (t - tO) / 0.25);
+        return s0 + ((winner === A ? 1 : -1) - s0) * k * k;
+    };
+    const pointAt = (sh) => {
+        const x = mid + A.dir * half * sh;
+        return [x, A.y + (B.y - A.y) * ((x - A.x) / (B.x - A.x || 1))];
+    };
+    const shakeOthers = (amp, n) => {
+        const shake = (el) => el?.animate([{ translate: `-${amp}px 0` }, { translate: `${amp}px 0` }], { duration: 55, iterations: n, direction: 'alternate', composite: 'add' });
+        exports.allPokemon.pokemonCollection.forEach((element) => element.pokemon !== a && element.pokemon !== b && shake(element.el));
+        shake(document.getElementById('foreground'));
+    };
+    const tremble = (X, ms) => X.p.el.animate([{ translate: `-${X.s * 0.6}px 0` }, { translate: `${X.s * 0.6}px 0` }], { duration: 45, iterations: Math.round(ms / 45), direction: 'alternate', composite: 'add' });
+    // 빛줄기 — 입에서 (xe, ye) 까지, 고리가 만나는 곳 쪽으로 흘러감
+    const drawBeam = (ctx, px, X, xe, ye, w, life, alpha) => {
+        const len = Math.abs(xe - X.x);
+        const seg = 4 * X.s;
+        for (const [k, c, a0] of [[2.2, X.cols[3], 0.35], [1.6, X.cols[2], 0.9], [1.15, X.cols[1], 1], [0.6, X.cols[0], 1]]) {
+            ctx.globalAlpha = a0 * alpha;
+            const th = Math.max(1, Math.round(w * k)) * X.s;
+            for (let d = 0; d < len; d += seg) {
+                const y = X.y + (ye - X.y) * (d / (len || 1)) + (X.wave ? Math.sin(d / (5 * X.s) - life * 25) * X.s * 1.5 : 0);
+                ctx.fillStyle = X.rainbow && k > 1.5 ? `hsl(${(d / X.s) * 12 + life * 900}, 100%, 70%)` : X.rainbow && k > 1 ? '#ffffff' : c;
+                ctx.fillRect(px(X.dir > 0 ? X.x + d : X.x - d - seg), px(y - th / 2), seg, th);
+            }
+        }
+        ctx.globalAlpha = alpha;
+        for (let j = 0; j < 3; j++) {
+            const d = ((life * 500 + (j * len) / 3) % (len || 1));
+            const ry = w * 1.1 * X.s;
+            for (let q = 0; q < 10; q++) {
+                const an = (q / 10) * Math.PI * 2;
+                dotAt(ctx, px, X.s, X.x + X.dir * d + Math.cos(an) * X.s, X.y + (ye - X.y) * (d / (len || 1)) + Math.sin(an) * ry, q % 2 ? X.cols[0] : X.cols[2]);
+            }
+        }
+    };
+    // 모으는 빛 구슬
+    const drawOrb = (ctx, px, X, k, life) => {
+        const r = (1 + (3 + 3 * X.P) * k) * X.s * (1 + 0.15 * Math.sin(life * 40));
+        const ox = X.x + X.dir * 3 * X.s;
+        for (const [m, c, a0] of [[1.8, X.cols[3], 0.35], [1.35, X.cols[2], 1], [1, X.cols[1], 1], [0.55, X.cols[0], 1]]) {
+            ctx.globalAlpha = a0;
+            sigDisc(ctx, px, X.s, ox, X.y, r * m, c);
+        }
+        ctx.globalAlpha = 0.5 + 0.5 * k;
+        for (let j = 0; j < 6; j++) {
+            const an = life * 5 + (j * Math.PI) / 3;
+            for (let d = r * 1.2; d < r * (j % 2 ? 2 : 3); d += X.s) {
+                dotAt(ctx, px, X.s, ox + Math.cos(an) * d, X.y + Math.sin(an) * d, X.cols[0]);
+            }
+        }
+    };
+    const pullIn = (X) => {
+        const an = moveRand(0, Math.PI * 2);
+        const r = R * moveRand(0.9, 1.6);
+        const x0 = X.x + Math.cos(an) * r;
+        const y0 = X.y + Math.sin(an) * r * 0.8;
+        sigParticle({ x: x0, y: y0, x0, y0, s: X.s, max: 0.3, color: movePick(X.cols),
+            update: (q) => {
+                const k = Math.min(1, (q.life / q.max) ** 2);
+                q.x = q.x0 + (X.x - q.x0) * k;
+                q.y = q.y0 + (X.y - q.y0) * k;
+            },
+            draw: DRAW.dot,
+        });
+    };
+    const boom = (x, y, big, cols) => {
+        screenFlash(s, big ? 0.6 : 0.45, '#ffffff', 0.4);
+        shakeOthers(big ? 4 : 3, 10);
+        sigRing(x, y, s, 2 * s, R * (big ? 3 : 2), 1, 0.5, [cols[0], '#ffffff']);
+        setTimeout(() => sigRing(x, y, s, 2 * s, R * (big ? 4.2 : 2.8), 0.7, 0.6, [cols[1], cols[2]]), 100);
+        for (let i = 0; i < (big ? 70 : 45); i++) {
+            const an = moveRand(0, Math.PI * 2);
+            const sp = moveRand(60, big ? 240 : 180) * s;
+            sigParticle({ x, y, s, vx: Math.cos(an) * sp, vy: Math.sin(an) * sp - 30 * s, g: 120 * s, drag: 1.5, max: moveRand(0.4, 0.8), color: movePick(cols), size: Math.random() < 0.4 ? 2 : 1, draw: DRAW.dot });
+        }
+    };
+    const both = [...A.cols, ...B.cols, '#ffffff'];
+    const st = { fired: false, met: false, hit: false, nextRing: 0, nextShake: 0, nextArc: 0, arcs: [] };
+    // 화면이 어두워지고 두 포켓몬만 동그랗게 밝음 — 먼저 그린 효과 밑으로 깔림
+    const spots = [A, B].map((X) => [X.g.body.cx, X.g.body.cy, Math.max(X.g.w, X.g.h) * 0.75]);
+    sigParticle({ x: 0, y: 0, s, max: tO + 1.2, draw: (ctx, q) => {
+        const a0 = Math.min(1, q.life / CLASH_CHARGE) * (q.life > tO + 0.6 ? Math.max(0, 1 - (q.life - tO - 0.6) / 0.6) : 1);
+        ctx.globalCompositeOperation = 'destination-over';
+        ctx.globalAlpha = 0.5 * a0;
+        ctx.fillStyle = '#05080f';
+        ctx.beginPath();
+        ctx.rect(0, 0, window.innerWidth, window.innerHeight);
+        for (const [x, y, r] of q.life < tO ? spots : []) {
+            ctx.moveTo(x + r, y);
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+        }
+        ctx.fill('evenodd');
+        ctx.globalCompositeOperation = 'source-over';
+    } });
+    sigParticle({ x: 0, y: 0, s, max: tO + 1.2,
+        update: (q) => {
+            const t = q.life;
+            if (t < CLASH_CHARGE) {
+                pullIn(A);
+                if (t > 0.35) {
+                    pullIn(B);
+                }
+                return;
+            }
+            if (!st.fired) {
+                st.fired = true;
+                screenFlash(s, 0.35, '#ffffff', 0.25);
+                for (const X of [A, B]) {
+                    sigRing(X.x, X.y, X.s, 2 * X.s, R * 1.2, 1, 0.35, [X.cols[0], X.cols[2]]);
+                }
+            }
+            const [xm, ym] = pointAt(shiftAt(t));
+            if (t >= tm && t < tO) {
+                if (!st.met) {
+                    st.met = true;
+                    boom(xm, ym, false, both);
+                    tremble(A, CLASH_SEC * 1000);
+                    tremble(B, CLASH_SEC * 1000);
+                }
+                // 만나는 곳에서 튀는 불꽃 · 번개 · 고리 · 흔들림
+                for (let j = 0; j < 3; j++) {
+                    const an = moveRand(0, Math.PI * 2);
+                    const sp = moveRand(50, 150) * s;
+                    sigParticle({ x: xm, y: ym, s, vx: Math.cos(an) * sp, vy: Math.sin(an) * sp - 40 * s, g: 160 * s, drag: 1, max: moveRand(0.3, 0.55), color: movePick(both), size: Math.random() < 0.3 ? 2 : 1, draw: DRAW.dot });
+                }
+                if (t >= st.nextArc) {
+                    st.nextArc = t + 0.06;
+                    const an = moveRand(0, Math.PI * 2);
+                    const r = R * moveRand(0.5, 0.9);
+                    st.arcs.push({ until: t + 0.08, path: zigzag(xm, ym, xm + Math.cos(an) * r, ym + Math.sin(an) * r, s, 2) });
+                }
+                if (t >= st.nextRing) {
+                    st.nextRing = t + 0.28;
+                    sigRing(xm, ym, s, R * 0.3, R * 1.3, 1, 0.35, [A.cols[1], B.cols[1], '#ffffff']);
+                }
+                if (t >= st.nextShake) {
+                    st.nextShake = t + 0.6;
+                    shakeOthers(1.5, 6);
+                }
+            }
+            st.arcs = st.arcs.filter((arc) => arc.until > t);
+            if (t >= tO && !st.hit && (!winner || t >= tO + 0.25)) {
+                st.hit = true;
+                if (winner) {
+                    const lg = sigGeometry(loser.p, loser.left);
+                    boom(lg.body.cx, lg.body.cy, true, [...winner.cols, '#ffffff']);
+                    knockBack(loser.p, loser.left, -loser.dir, spriteSize(loser.p) * 0.8);
+                    setTimeout(() => showMoveName(sigGeometry(loser.p, loser.left), '효과는 굉장했다!'), 200);
+                } else {
+                    boom(xm, ym, true, both);
+                    for (const X of [A, B]) {
+                        knockBack(X.p, X.left, -X.dir, spriteSize(X.p) * 0.5);
+                    }
+                    setTimeout(() => showMoveName({ s, body: { cx: xm, top: ym - 10 * s } }, '무승부!'), 200);
+                }
+            }
+        },
+        draw: (ctx, q, t, px) => {
+            const life = q.life;
+            if (life < CLASH_CHARGE) {
+                drawOrb(ctx, px, A, life / CLASH_CHARGE, life);
+                if (life > 0.35) {
+                    drawOrb(ctx, px, B, (life - 0.35) / (CLASH_CHARGE - 0.35), life);
+                }
+                return;
+            }
+            const sh = shiftAt(life);
+            const [xm, ym] = pointAt(sh);
+            const pulse = 1 + 0.12 * Math.sin(life * 50);
+            const burst = Math.max(0, 1 - (life - CLASH_CHARGE) / 0.2);
+            if (life < tm) {
+                // 아직 날아가는 중 — 앞머리 빛 덩어리
+                const k = Math.min(1, ((life - CLASH_CHARGE) * CLASH_SPEED) / half);
+                for (const X of [A, B]) {
+                    const xe = X.x + X.dir * half * k;
+                    const ye = X.y + (ym - X.y) * k;
+                    const w = X.W * (1 + burst) * pulse;
+                    drawBeam(ctx, px, X, xe, ye, w, life, 1);
+                    ctx.globalAlpha = 1;
+                    sigDisc(ctx, px, X.s, xe, ye, w * 1.2 * X.s, X.cols[1]);
+                    sigDisc(ctx, px, X.s, xe, ye, w * 0.7 * X.s, X.cols[0]);
+                }
+                return;
+            }
+            if (life < tO || winner) {
+                for (const X of [A, B]) {
+                    if (life >= tO + 0.25 && X === loser) {
+                        continue;
+                    }
+                    const push = X === A ? sh : -sh;
+                    const after = life > tO + 0.6 ? Math.max(0, 1 - (life - tO - 0.6) / 0.5) : 1;
+                    const w = X.W * (1 + 0.3 * push) * pulse * (life >= tO ? 1.3 * (0.4 + 0.6 * after) : 1);
+                    drawBeam(ctx, px, X, xm, ym, w, life, after);
+                }
+            }
+            if (life < tO + (winner ? 0.25 : 0)) {
+                // 만나는 곳 빛 덩어리 — 두 색이 번갈아
+                const r = (Math.max(A.W, B.W) * 1.6 + 1.5 * Math.sin(life * 45)) * s;
+                const flick = Math.floor(life / 0.05) % 2;
+                for (const [m, c, a0] of [[2.1, (flick ? A : B).cols[2], 0.4], [1.5, (flick ? B : A).cols[1], 1], [1, '#ffffff', 1]]) {
+                    ctx.globalAlpha = a0;
+                    sigDisc(ctx, px, s, xm, ym, r * m, c);
+                }
+                ctx.globalAlpha = 1;
+                st.arcs.forEach((arc) => zapLine(ctx, px, s, arc.path, 1, flick ? A.cols[1] : B.cols[1]));
+            }
+        },
+    });
+}
+
 function useSignature(pokemon, sig, left) {
     const [name, fx, o = {}] = sig;
     const T = SIG_FX[fx];
@@ -7438,6 +7741,11 @@ function useMove(pokemon) {
         pokemon.holdStateEnum = pokemon.currentStateEnum;
     }
     if (sig) {
+        const rival = !flying && isBeam(sig) && Math.random() < CLASH_CHANCE && findRival(pokemon, left);
+        if (rival) {
+            startClash(pokemon, sig, left, rival);
+            return;
+        }
         useSignature(pokemon, sig, left);
         return;
     }
