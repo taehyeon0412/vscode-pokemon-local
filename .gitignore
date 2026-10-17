@@ -4,3 +4,7 @@ __pycache__/
 diag.log
 dev/build/
 dev/shots/
+
+# 게임 기획 문서는 내 PC에만 (2026-10-17 태현 님)
+docs/game-design/
+docs/game-design-partner.md
