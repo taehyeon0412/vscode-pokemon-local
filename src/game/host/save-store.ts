@@ -127,6 +127,18 @@ export class SaveStore {
     return this.saveNow(save);
   }
 
+  /** 끝내 쓰지 못한 세이브를 보관함에 — 다음에 세이브를 다시 읽어도 그 진행을 잃지 않게. 보관했으면 true */
+  async keepUnsaved(note: string): Promise<boolean> {
+    if (!this.pending) return false;
+    try {
+      await this.archive.add('unsaved', note, this.pending);
+      return true;
+    } catch (e) {
+      this.log(`쓰지 못한 세이브를 보관하지 못함 (${String(e)})`);
+      return false;
+    }
+  }
+
   /** 밖에서 잠금 (창 잠금을 잃음 등) — 그 뒤로는 쓰지 않음 */
   lock(reason: string): void {
     if (this.lockReason) return;

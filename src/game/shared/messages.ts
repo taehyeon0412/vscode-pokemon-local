@@ -3,6 +3,10 @@
  * 원래 확장의 메시지({ command: 'spawn-pokemon' } 등)와 섞이지 않게 command 는 늘 'game'.
  *
  * 흐름 (src/game/README.md "웹뷰 생명주기"):
+ *   🎮 ── 확장 ── load ──▶ game.js ── ready ──▶ 확장 ── title (세이브 요약) ──▶ S02 타이틀
+ *   S02 ── title-new (새 세이브) · title-continue ──▶ 확장이 게임 모드로 → start
+ *   일반 모드로 (S02 ③ · S06 ⑪) ── exit (마지막 상태) ──▶ 확장이 저장 → stop
+ *   🎮 · 🏠 (제목줄) 로 게임에서 나감 ── 확장 ── suspend ──▶ 웹뷰가 hidden (마지막 상태) ──▶ 저장 → stop (0.5초 안에 답이 없으면 확장 상태로)
  *   웹뷰가 뜸 ── boot ──▶ 확장 ── load (게임 모드일 때만) ──▶ boot.js 가 game.js 를 불러옴
  *   game.js ── ready ──▶ 확장 ── start (epoch · 상태) ──▶ 웹뷰가 계산 · 그리기를 맡음
  *   웹뷰 ── state (1초마다, 바뀌었을 때) · save-now (잡기 · 전투 끝 등) ──▶ 확장이 저장
@@ -12,6 +16,7 @@
  *   단, 확장이 넘겨받기 바로 전 epoch 의 메시지는 받아 줌 (패널을 접는 순간의 잡기 · 마지막 상태를 잃지 않게).
  */
 import type { GameState } from '../core/engine';
+import type { Save } from '../core/save';
 
 export const GAME_COMMAND = 'game';
 
@@ -19,18 +24,36 @@ export const GAME_COMMAND = 'game';
 export const SAVE_REASONS = ['catch', 'battle-end', 'stage-clear', 'mode-change', 'new-game'] as const;
 export type SaveReason = (typeof SAVE_REASONS)[number];
 
+/** 타이틀에서 방금 누른 것이 안 된 까닭 — 문구는 features/title/model.ts 한 곳에서 */
+export const TITLE_NOTICES = ['busy', 'no-save', 'locked', 'write-failed', 'bad-save'] as const;
+export type TitleNotice = (typeof TITLE_NOTICES)[number];
+
+/** 타이틀(S02)에 보일 것 — 세이브가 어떤지 · 다른 창이 게임 중인지 · 요약 */
+export interface TitleInfo {
+  save: 'none' | 'ok' | 'broken' | 'newer';
+  /** 다른 VS Code 창이 게임 중 (새로 하기 · 이어 하기를 막음 — 그 창이 끝나면 확장이 다시 보냄) */
+  busy: boolean;
+  summary: { playTimeMs: number; money: number; badges: string[]; lead: { form: string; species: number; level: number } | null } | null;
+  notice?: TitleNotice;
+}
+
 export type WebviewToHost =
   | { command: typeof GAME_COMMAND; type: 'boot' }
   | { command: typeof GAME_COMMAND; type: 'ready' }
   | { command: typeof GAME_COMMAND; type: 'state'; epoch: number; state: GameState }
   | { command: typeof GAME_COMMAND; type: 'save-now'; epoch: number; reason: SaveReason; state: GameState }
   | { command: typeof GAME_COMMAND; type: 'hidden'; epoch: number; state: GameState }
-  | { command: typeof GAME_COMMAND; type: 'load-failed'; message: string };
+  | { command: typeof GAME_COMMAND; type: 'load-failed'; message: string }
+  | { command: typeof GAME_COMMAND; type: 'title-new'; save: Save }
+  | { command: typeof GAME_COMMAND; type: 'title-continue' }
+  /** 일반 모드로 — 게임 중이면 마지막 상태도 (epoch 는 맡은 것, 없으면 null) */
+  | { command: typeof GAME_COMMAND; type: 'exit'; epoch: number | null; state: GameState | null };
 
 export type HostToWebview =
   | { command: typeof GAME_COMMAND; type: 'load' }
   | { command: typeof GAME_COMMAND; type: 'start'; epoch: number; state: GameState }
   | { command: typeof GAME_COMMAND; type: 'suspend' }
+  | { command: typeof GAME_COMMAND; type: 'title'; info: TitleInfo }
   | { command: typeof GAME_COMMAND; type: 'stop' };
 
 type Obj = Record<string, unknown>;
@@ -52,6 +75,12 @@ export function isWebviewToHost(v: unknown): v is WebviewToHost {
       return hasState(v) && (SAVE_REASONS as readonly unknown[]).includes(v.reason);
     case 'load-failed':
       return typeof v.message === 'string';
+    case 'title-new':
+      return isObj(v.save);
+    case 'title-continue':
+      return true;
+    case 'exit':
+      return (v.epoch === null || typeof v.epoch === 'number') && (v.state === null || (isObj(v.state) && isObj(v.state.save)));
     default:
       return false;
   }
@@ -66,6 +95,13 @@ export function isHostToWebview(v: unknown): v is HostToWebview {
       return true;
     case 'start':
       return hasState(v);
+    case 'title':
+      return (
+        isObj(v.info) &&
+        typeof v.info.save === 'string' &&
+        typeof v.info.busy === 'boolean' &&
+        (v.info.notice === undefined || (TITLE_NOTICES as readonly unknown[]).includes(v.info.notice))
+      );
     default:
       return false;
   }

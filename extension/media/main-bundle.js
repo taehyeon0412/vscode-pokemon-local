@@ -8016,7 +8016,7 @@ function startMoveAuto() {
             (element) => has(element.pokemon.label) && ['sit-idle', 'walk-right', 'walk-left'].includes(element.pokemon.currentStateEnum),
         );
     setInterval(() => {
-        if (document.hidden || ultActive) {
+        if (document.hidden || ultActive || document.body.classList.contains('pokemon-game-on') /* GAME-PATCH: 게임 모드 중에는 자동 기술 안 씀 */) {
             return;
         }
         if (Math.random() < 1 / MOVE_AUTO_AVG_SEC) {
@@ -28882,7 +28882,10 @@ function everyTick(fn) {
         if (now - tickLast >= 100) {
             // 늦게 와도 한 번만 (몰아서 여러 번 안 돌림), 0.1초 박자는 유지
             tickLast = now - ((now - tickLast) % 100);
-            tickCallbacks.forEach((f) => f());
+            // GAME-PATCH: 게임 모드 화면이 덮고 있는 동안은 일반 모드 포켓몬을 멈춤 (src/game/webview/main.ts)
+            if (!document.body.classList.contains('pokemon-game-on')) {
+                tickCallbacks.forEach((f) => f());
+            }
         }
         requestAnimationFrame(loop);
     };

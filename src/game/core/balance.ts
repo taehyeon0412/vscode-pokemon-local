@@ -15,6 +15,16 @@ export const BALANCE = {
   maxLevel: 100,
   /** 개체값 상한 (스탯마다 0~31) — 3.4 */
   maxIv: 31,
+  /** 포인트 1개 크기 — 4장 성장 (HP 는 크게) */
+  pointHp: 1.5,
+  pointOther: 0.5,
+  /** ★ 등급 경계 — 개체값 합계 (0~155) 가 이 값 이상이면 ★2 · ★3 · ★4 · ★5 (4장) */
+  starThresholds: [32, 63, 94, 125],
+  /** 스타팅 레벨 — 4장 */
+  starterLevel: 5,
+  /** 스타팅 처음 기술: 후보 수 · 고르는 수 (mvp-spec 3.6 · S04) */
+  starterMoveCandidates: 4,
+  starterMoves: 2,
 } as const;
 
 /** 시간 박자 — 저장 · 그리기 · 계산 (mvp-spec 3.1 · 9장) */
@@ -31,4 +41,8 @@ export const TIMING = {
   headlessMaxCatchUpMs: 1000,
   /** 웹뷰 → 확장 상태 보내기 간격 (바뀐 게 있을 때만) */
   snapshotIntervalMs: 1000,
+  /** 🎮 · 🏠 로 게임에서 나갈 때 웹뷰의 마지막 상태를 기다리는 시간 (안 오면 확장 상태로 저장) */
+  exitWaitMs: 500,
+  /** 타이틀에서 다른 창이 게임 중일 때, 그 창이 끝났는지 보는 간격 */
+  titleBusyPollMs: 2000,
 } as const;

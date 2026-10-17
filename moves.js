@@ -2290,7 +2290,7 @@ function startMoveAuto() {
             (element) => has(element.pokemon.label) && ['sit-idle', 'walk-right', 'walk-left'].includes(element.pokemon.currentStateEnum),
         );
     setInterval(() => {
-        if (document.hidden || ultActive) {
+        if (document.hidden || ultActive || document.body.classList.contains('pokemon-game-on') /* GAME-PATCH: 게임 모드 중에는 자동 기술 안 씀 */) {
             return;
         }
         if (Math.random() < 1 / MOVE_AUTO_AVG_SEC) {

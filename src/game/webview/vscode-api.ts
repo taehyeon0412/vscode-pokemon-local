@@ -9,10 +9,25 @@ export interface GamePort {
   postMessage(message: WebviewToHost): void;
 }
 
+/** boot.js 가 확장에게 받아 game.js 에 넘기는 것 */
+export interface GameConfig {
+  /** 확장 media 폴더의 웹뷰 주소 (포켓몬 그림: <media>/gen<N>/<모습>/default_walk_8fps.gif) */
+  media: string;
+  /** 포켓몬 크기 설정: nano · small · medium · large */
+  size: string;
+  /** game.js 주소 (game.css 를 옆에서 찾음) */
+  script: string;
+}
+
 declare global {
   interface Window {
     pokemonVscodeApi?: { postMessage(message: unknown): void };
+    pokemonGameConfig?: GameConfig;
   }
+}
+
+export function getGameConfig(): GameConfig {
+  return window.pokemonGameConfig ?? { media: '', size: 'nano', script: '' };
 }
 
 export function getGamePort(): GamePort | undefined {

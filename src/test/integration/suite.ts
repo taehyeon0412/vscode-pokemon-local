@@ -8,9 +8,13 @@ import * as assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
 import * as vscode from 'vscode';
 import { createNewSave } from '../../game/core/save';
+import { createStartSave } from '../../game/features/starter/model';
 import type { GameTestApi } from '../../game/host/test-api';
 
 const EXT_ID = 'local.vscode-pokemon';
+/** 🎮 (포켓몬 보기 제목줄) · 🏠 (게임 중 제목줄) */
+const GAME_COMMAND_ID = 'vscode-pokemon.game-mode';
+const NORMAL_COMMAND_ID = 'vscode-pokemon.normal-mode';
 /** 끄기 전에 남기는 표시 돈 */
 const SHUTDOWN_MONEY = 4242;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -61,6 +65,58 @@ export async function run(): Promise<void> {
       const list = await game.probeNormalWebview();
       assert.equal(typeof list, 'string', '일반 모드 웹뷰가 포켓몬 목록으로 답해야 함');
       assert.equal(d().mode, 'normal');
+    }],
+
+    ['🎮 · 🏠 명령과 포켓몬 보기 제목줄 버튼이 있음 (🎮 는 게임 빌드가 있을 때 · 게임 중에는 🏠, ＋ 🔀 🗑 는 게임 중에 숨김)', async () => {
+      const all = await vscode.commands.getCommands(true);
+      assert.ok(all.includes(GAME_COMMAND_ID));
+      assert.ok(all.includes(NORMAL_COMMAND_ID));
+      const menus = (ext.packageJSON as { contributes?: { menus?: Record<string, { command: string; when?: string }[]> } }).contributes?.menus?.['view/title'] ?? [];
+      const when = (c: string) => menus.find((m) => m.command === c)?.when ?? '';
+      assert.equal(when(GAME_COMMAND_ID), 'view == pokemonView && vscode-pokemon.gameAvailable && !vscode-pokemon.gameMode');
+      assert.equal(when(NORMAL_COMMAND_ID), 'view == pokemonView && vscode-pokemon.gameMode');
+      for (const c of ['vscode-pokemon.spawn-pokemon', 'vscode-pokemon.spawn-random-pokemon', 'vscode-pokemon.delete-pokemon']) {
+        assert.ok(when(c).includes('!vscode-pokemon.gameMode'), `${c} 는 게임 중에 숨겨야 함`);
+      }
+    }],
+
+    ['🎮 → 타이틀: 웹뷰가 game.js 를 불러와 준비되면 세이브 요약을 받음 · 일반 모드 웹뷰도 살아 있음', async () => {
+      const titles = d().stats.titles;
+      await vscode.commands.executeCommand(GAME_COMMAND_ID);
+      await waitFor('타이틀 요약을 보냄 (웹뷰 game.js 의 ready 뒤)', () => d().mode === 'title' && d().stats.titles > titles);
+      assert.equal(d().owner, 'none', '타이틀에서는 게임이 돌지 않음');
+      assert.equal(typeof (await game.probeNormalWebview()), 'string');
+    }],
+
+    ['타이틀에서 새로 하기 → 게임 모드 → 웹뷰가 맡음 → 🎮 로 일반 모드 (저장)', async () => {
+      game.fromWebview({ command: 'game', type: 'title-new', save: createStartSave(Date.now(), 1) });
+      await waitFor('웹뷰가 맡음', () => d().mode === 'game' && d().owner === 'webview');
+      await vscode.commands.executeCommand(GAME_COMMAND_ID);
+      await waitFor('일반 모드', () => d().mode === 'normal');
+      const raw = game.readStoredRaw() as { party?: string[] } | undefined;
+      assert.deepEqual(raw?.party, ['m1']);
+    }],
+
+    ['🎮 → 타이틀 → 이어 하기 → 일반 모드 (S06 ⑪ 처럼 웹뷰가 exit)', async () => {
+      await vscode.commands.executeCommand(GAME_COMMAND_ID);
+      await waitFor('타이틀', () => d().mode === 'title');
+      game.fromWebview({ command: 'game', type: 'title-continue' });
+      await waitFor('웹뷰가 맡음', () => d().mode === 'game' && d().owner === 'webview');
+      game.fromWebview({ command: 'game', type: 'exit', epoch: null, state: null });
+      await waitFor('일반 모드', () => d().mode === 'normal');
+    }],
+
+    ['게임 중 제목줄 🏠: 웹뷰가 마지막 상태로 답하고 (suspend → hidden) 저장 · 일반 모드', async () => {
+      await vscode.commands.executeCommand(GAME_COMMAND_ID);
+      await waitFor('타이틀', () => d().mode === 'title');
+      game.fromWebview({ command: 'game', type: 'title-continue' });
+      await waitFor('웹뷰가 맡음', () => d().mode === 'game' && d().owner === 'webview');
+      const accepted = d().stats.accepted;
+      const started = Date.now();
+      await vscode.commands.executeCommand(NORMAL_COMMAND_ID);
+      assert.equal(d().mode, 'normal');
+      assert.ok(d().stats.accepted > accepted, '웹뷰의 마지막 상태(hidden)를 받아야 함');
+      assert.ok(Date.now() - started < 2000, '답을 받으면 바로 나감');
     }],
 
     ['게임 모드: 웹뷰가 game.js 를 불러와 계산을 맡고 상태를 돌려줌', async () => {

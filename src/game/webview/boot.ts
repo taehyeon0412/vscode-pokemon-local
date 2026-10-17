@@ -9,6 +9,7 @@ const me = document.currentScript as HTMLScriptElement | null;
 const gameSrc = me?.dataset.gameSrc;
 const nonce = me?.nonce;
 const port = getGamePort();
+window.pokemonGameConfig = { media: me?.dataset.media ?? '', size: me?.dataset.size ?? 'nano', script: gameSrc ?? '' };
 let requested = false;
 
 window.addEventListener('message', (event: MessageEvent<unknown>) => {

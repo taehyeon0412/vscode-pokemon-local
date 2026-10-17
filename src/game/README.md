@@ -32,6 +32,11 @@ data  ←  core  ←  shared  ←  features/*/model  ←  host
 패널을 접거나 다른 탭으로 가면 웹뷰가 버려져요 (`retainContextWhenHidden` 은 메모리 때문에 쓰지 않아요). 그래서 **상태의 원본은 확장 쪽**에 두고, 누가 계산할지를 넘겨요.
 
 ```
+🎮 ── 확장 (타이틀) ── load ──▶ game.js ── ready ──▶ 확장 ── title (세이브 요약 · 다른 창이 게임 중인지) ──▶ 타이틀 화면
+타이틀 ── title-new (새 세이브) · title-continue ──▶ 확장이 검사 · 보관 · 창 잠금 → 게임 모드 → load → ready → start
+일반 모드로 (타이틀 · 게임의 버튼) ── exit (게임 중이면 마지막 상태) ──▶ 확장이 바로 저장 → stop
+🎮 를 다시 누름 (타이틀 · 게임 중) → 확장이 바로 저장 → stop
+
 웹뷰가 뜸 ── boot ──▶ 확장 ── load (게임 모드일 때만) ──▶ boot.js 가 game.js 를 불러옴
 game.js ── ready ──▶ 확장 ── start (epoch · 상태) ──▶ 웹뷰가 계산 · 그리기를 맡음
 웹뷰 ── state (1초마다, 바뀌었을 때) · save-now ──▶ 확장이 저장 (5초마다 확인 · 바로 저장)
@@ -68,5 +73,6 @@ game.js ── ready ──▶ 확장 ── start (epoch · 상태) ──▶ �
 | `node scripts/fetch-pokeapi.mjs` | 게임 데이터 다시 받기 (add-pokemon.py 로 포켓몬을 넣은 뒤 · PokeAPI 커밋을 바꾼 뒤) — CI 가 맞는지 확인 |
 | `npm run test:integration` | 실제 VS Code 를 띄워 패널 접기 · 펴기 · 저장 · 일반 모드 · 껐다 켜기 확인 (따로 된 사용자 폴더, `VSCODE_TEST_VERSION=1.73.0` 로 가장 낮은 버전) |
 | `python install.py` | 빌드해서 내 VS Code 에 설치 |
+| `python dev/game-shots.py` | 게임 화면 사진 (머리 없는 Edge, 패널 높이 68 ~ 140 · 좁은 패널 · 밝은 테마) → `dev/shots/game/`. 브라우저로 보려면 `dev/game.html?screen=title&save=ok` (가짜 확장 = `dev/game-host.js`) |
 
 주석의 `mvp-spec 3.3` · `S02 ①` · `U2` 같은 번호는 기획 문서(공개하지 않음)의 장 · 화면 · 기능 번호예요.

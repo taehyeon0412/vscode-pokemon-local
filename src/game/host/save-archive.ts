@@ -7,8 +7,10 @@
 import { createHash } from 'crypto';
 import { promises as fs } from 'fs';
 import { join } from 'path';
+import { writeAtomic } from './save-file';
 
-export type ArchiveReason = 'broken' | 'repaired' | 'before-migration' | 'newer' | 'replaced';
+/** unsaved = 일반 모드로 나갈 때 끝내 쓰지 못한 진행 (디스크 오류 등) */
+export type ArchiveReason = 'broken' | 'repaired' | 'before-migration' | 'newer' | 'replaced' | 'unsaved';
 
 export interface ArchiveEntry {
   file: string;
@@ -35,7 +37,8 @@ export class FileSaveArchive implements SaveArchive {
     // 이름 = 시각-까닭-원본해시.json (이름 순서 = 시간 순서)
     const stamp = new Date(this.now()).toISOString().replace(/[-:]/g, '').replace('.', '').replace('Z', '');
     const file = `${stamp}-${reason}-${hash}.json`;
-    await fs.writeFile(join(this.dir, file), JSON.stringify({ at: this.now(), reason, note, raw }, null, 1), 'utf8');
+    // 새로 하기 전 세이브는 여기가 유일한 사본이 되므로 디스크에 확실히 (정전 · 블루스크린에도 남게)
+    writeAtomic(join(this.dir, file), JSON.stringify({ at: this.now(), reason, note, raw }, null, 1), { durable: true });
     const all = [...names, file].sort();
     for (const old of all.slice(0, Math.max(0, all.length - this.keep))) await fs.rm(join(this.dir, old), { force: true });
   }

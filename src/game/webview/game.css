@@ -1,0 +1,256 @@
+/*
+ * 게임 모드 화면 — game.js 가 불러옴 (extension/media/game/game.css).
+ * 색은 VS Code 테마 변수를 따라감. 가장 낮은 패널 = 68px (mvp-spec 1장: 정보줄 20 + 포켓몬 32 × 1.5).
+ */
+
+/* 게임 화면이 보이는 동안 일반 모드 층을 숨김 (포켓몬 · 공 · 배경 · 앞 풀) — 일반 모드 계산도 멈춤 (main-bundle.js GAME-PATCH) */
+body.pokemon-game-on #pokemonCanvas,
+body.pokemon-game-on #pokemonContainer,
+body.pokemon-game-on #foreground {
+  display: none;
+}
+body.pokemon-game-on {
+  /* 일반 모드가 배경 그림을 style 로 넣어서 !important */
+  background-image: none !important;
+}
+
+#pokemon-game {
+  position: fixed;
+  inset: 0;
+  /* 일반 모드의 기술 · 필살기 층(4 ~ 수백)보다 위 */
+  z-index: 10000;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--vscode-editor-background);
+  color: var(--vscode-foreground);
+  font-family: var(--vscode-font-family);
+  font-size: 12px;
+  line-height: 1.3;
+}
+#pokemon-game[hidden],
+#pokemon-game:empty {
+  display: none;
+}
+#pokemon-game * {
+  box-sizing: border-box;
+}
+
+.pg-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* 위 정보줄 20px — 왼쪽 · 가운데 · 오른쪽 */
+.pg-infobar {
+  flex: 0 0 20px;
+  height: 20px;
+  display: grid;
+  /* 양쪽 칸은 내용만큼은 꼭 (버튼이 잘리지 않게), 남는 자리는 똑같이 나눠 가운데가 가운데에 · 좁으면 가운데 이름이 말줄임 */
+  grid-template-columns: minmax(max-content, 1fr) minmax(0, auto) minmax(max-content, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 0 6px;
+  white-space: nowrap;
+}
+.pg-infobar-left,
+.pg-infobar-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+}
+.pg-infobar-right {
+  justify-content: flex-end;
+}
+.pg-infobar-center {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pg-body {
+  flex: 1;
+  position: relative;
+  min-height: 0;
+}
+
+.pg-button {
+  /* pokemon.css 의 button { width: 100% } 를 덮음 */
+  width: auto;
+  height: 18px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 2px;
+  font: inherit;
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+  cursor: pointer;
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+}
+.pg-button:hover:not(:disabled) {
+  background: var(--vscode-button-hoverBackground);
+}
+.pg-button.pg-secondary {
+  color: var(--vscode-button-secondaryForeground);
+  background: var(--vscode-button-secondaryBackground);
+}
+.pg-button.pg-secondary:hover:not(:disabled) {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+.pg-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.pg-button:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
+}
+
+.pg-dim {
+  opacity: 0.7;
+}
+.pg-warning {
+  color: var(--vscode-editorWarning-foreground, #cca700);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.pg-sprite {
+  display: inline-block;
+  image-rendering: pixelated;
+  flex: none;
+}
+.pg-face-left {
+  transform: scaleX(-1);
+}
+
+/* 패널이 너무 낮음 */
+.pg-too-small {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  color: var(--vscode-editorWarning-foreground, #cca700);
+}
+
+/* S02 타이틀 */
+.pg-title-text {
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+.pg-title-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 0 8px 2px;
+}
+.pg-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 8px;
+  max-width: 100%;
+  white-space: nowrap;
+}
+/* 가운데 정렬 — 넘치면 왼쪽부터 보이게 (justify-content: center 는 양쪽으로 넘쳐 앞이 잘림, safe center 는 Chromium 115 부터) */
+.pg-row > :first-child {
+  margin-left: auto;
+}
+.pg-row > :last-child {
+  margin-right: auto;
+}
+.pg-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+}
+.pg-ask {
+  color: var(--vscode-editorWarning-foreground, #cca700);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.pg-button {
+  flex: none;
+}
+
+/* 좁은 패널 — 요약은 시간 → 돈 → 배지 → 이름 순으로 통째로 숨김 (숫자 중간에서 잘리지 않게) */
+@media (max-width: 560px) {
+  .pg-sum-time,
+  .pg-ask-what {
+    display: none;
+  }
+}
+@media (max-width: 480px) {
+  .pg-sum-money {
+    display: none;
+  }
+}
+@media (max-width: 400px) {
+  .pg-sum-badges {
+    display: none;
+  }
+}
+@media (max-width: 330px) {
+  .pg-sum-lead {
+    display: none;
+  }
+}
+
+/* S06 스테이지 (단계 3 껍데기) */
+.pg-stage-name {
+  font-weight: bold;
+}
+/* 번호는 작게 (mvp-spec S06 ②) */
+.pg-stage-code {
+  font-size: 10px;
+  font-weight: normal;
+}
+.pg-stage-body {
+  overflow: hidden;
+}
+.pg-stage-note {
+  position: absolute;
+  top: 2px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pg-stage-lead {
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  transform: translateX(-50%);
+  line-height: 0;
+}
+.pg-ground {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  background: var(--vscode-editorWidget-border, #6b6b6b);
+  opacity: 0.6;
+}

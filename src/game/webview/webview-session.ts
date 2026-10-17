@@ -4,7 +4,11 @@
  */
 import { TIMING } from '../core/balance';
 import { advance, clampFrameDelta, type GameState } from '../core/engine';
-import { GAME_COMMAND, type HostToWebview, type SaveReason, type WebviewToHost } from '../shared/messages';
+import type { Save } from '../core/save';
+import { GAME_COMMAND, type HostToWebview, type SaveReason, type TitleInfo, type WebviewToHost } from '../shared/messages';
+
+/** 지금 보일 화면 — none 이면 일반 모드 (게임 화면을 숨김) */
+export type Screen = 'none' | 'title' | 'game';
 
 export interface WebviewSessionDeps {
   post(message: WebviewToHost): void;
@@ -17,8 +21,45 @@ export class WebviewSession {
   private state: GameState | null = null;
   private dirty = false;
   private lastSentAt = 0;
+  private titleInfo: TitleInfo | null = null;
+  private screenNow: Screen = 'none';
+  private readonly listeners = new Set<() => void>();
 
   constructor(private readonly deps: WebviewSessionDeps) {}
+
+  get screen(): Screen {
+    return this.screenNow;
+  }
+
+  get title(): TitleInfo | null {
+    return this.titleInfo;
+  }
+
+  /** 화면이 바뀔 때 (title · start · stop) — 화면 컴포넌트가 다시 그림 */
+  subscribe(fn: () => void): () => void {
+    this.listeners.add(fn);
+    return () => this.listeners.delete(fn);
+  }
+
+  /** S02 새로 하기 — 웹뷰가 만든 새 세이브 (확장이 검사하고 지금 세이브는 보관함에) */
+  newGame(save: Save): void {
+    this.deps.post({ command: GAME_COMMAND, type: 'title-new', save });
+  }
+
+  /** S02 이어 하기 */
+  continueGame(): void {
+    this.deps.post({ command: GAME_COMMAND, type: 'title-continue' });
+  }
+
+  /** 일반 모드로 (S02 ③ · S06 ⑪) — 게임 중이면 마지막 상태를 같이 */
+  exit(): void {
+    const running = this.epoch !== null && this.state !== null;
+    this.deps.post({ command: GAME_COMMAND, type: 'exit', epoch: running ? this.epoch : null, state: running ? this.state : null });
+  }
+
+  private changed(): void {
+    for (const fn of this.listeners) fn();
+  }
 
   get running(): boolean {
     return this.epoch !== null && this.state !== null;
@@ -39,6 +80,16 @@ export class WebviewSession {
         this.state = message.state;
         this.dirty = false;
         this.lastSentAt = this.deps.now();
+        this.titleInfo = null;
+        this.screenNow = 'game';
+        this.changed();
+        return;
+      case 'title':
+        this.epoch = null;
+        this.state = null;
+        this.titleInfo = message.info;
+        this.screenNow = 'title';
+        this.changed();
         return;
       case 'suspend':
         // VS Code 밖 · 자동 전투 꺼짐 — 마지막 상태를 넘기고 멈춤
@@ -48,6 +99,9 @@ export class WebviewSession {
         this.epoch = null;
         this.state = null;
         this.dirty = false;
+        this.titleInfo = null;
+        this.screenNow = 'none';
+        this.changed();
         return;
     }
   }

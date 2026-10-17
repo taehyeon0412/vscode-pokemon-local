@@ -14,6 +14,8 @@ export interface GameTestApi {
   enterGame(): Promise<EnterResult>;
   exitGame(): Promise<void>;
   startNewSave(save: Save): Promise<'done' | 'busy' | 'failed'>;
+  /** 웹뷰가 보낸 것처럼 (타이틀 버튼 누르기 등 — 웹뷰 화면은 확장 쪽 테스트에서 누를 수 없어서) */
+  fromWebview(message: unknown): void;
   /** 게임 상태의 세이브를 바꾸고 저장은 기다리게만 둠 — VS Code 를 끌 때(deactivate) 저장되는지 보려고 (게임 모드에서) */
   queueUnsaved(patch: Partial<Save>): boolean;
   flush(): Promise<boolean>;
@@ -46,6 +48,7 @@ export function createTestApi(
     enterGame: () => session.enterGame(),
     exitGame: () => session.exitGame(),
     startNewSave: (save) => session.startNewSave(save),
+    fromWebview: (message) => session.handleMessage(message),
     queueUnsaved: (patch) => session.changeSave((s) => ({ ...s, ...patch })),
     flush: () => store.flush(),
     readStoredRaw: () => storage.read(),

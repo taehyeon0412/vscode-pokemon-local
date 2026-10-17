@@ -12,6 +12,11 @@ describe('웹뷰 → 확장 메시지 모양', () => {
     { command: 'game', type: 'state', epoch: 1, state },
     { command: 'game', type: 'hidden', epoch: 2, state },
     { command: 'game', type: 'save-now', epoch: 1, reason: 'catch', state },
+    { command: 'game', type: 'load-failed', message: 'x' },
+    { command: 'game', type: 'title-new', save: state.save },
+    { command: 'game', type: 'title-continue' },
+    { command: 'game', type: 'exit', epoch: null, state: null },
+    { command: 'game', type: 'exit', epoch: 3, state },
   ])('받음: $type', (m) => {
     expect(isWebviewToHost(m)).toBe(true);
   });
@@ -22,6 +27,9 @@ describe('웹뷰 → 확장 메시지 모양', () => {
     ['epoch 없음', { command: 'game', type: 'state', state }],
     ['상태 없음', { command: 'game', type: 'state', epoch: 1 }],
     ['모르는 저장 까닭', { command: 'game', type: 'save-now', epoch: 1, reason: 'because', state }],
+    ['새로 하기 세이브 없음', { command: 'game', type: 'title-new' }],
+    ['나가기 epoch 이 글자', { command: 'game', type: 'exit', epoch: '1', state: null }],
+    ['나가기 상태가 이상함', { command: 'game', type: 'exit', epoch: 1, state: 'x' }],
     ['객체가 아님', 'game'],
   ])('버림: %s', (_n, m) => {
     expect(isWebviewToHost(m)).toBe(false);
@@ -35,5 +43,11 @@ describe('확장 → 웹뷰 메시지 모양', () => {
     expect(isHostToWebview({ command: 'game', type: 'start', epoch: 3, state })).toBe(true);
     expect(isHostToWebview({ command: 'game', type: 'start', epoch: 3 })).toBe(false);
     expect(isHostToWebview({ command: 'list-pokemon' })).toBe(false);
+  });
+
+  it('title (S02 요약)', () => {
+    expect(isHostToWebview({ command: 'game', type: 'title', info: { save: 'none', busy: false, summary: null } })).toBe(true);
+    expect(isHostToWebview({ command: 'game', type: 'title', info: { save: 'none' } })).toBe(false);
+    expect(isHostToWebview({ command: 'game', type: 'title' })).toBe(false);
   });
 });

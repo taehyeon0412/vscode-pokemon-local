@@ -60,6 +60,8 @@ export function activate(context: vscode.ExtensionContext): GameHost {
     warn: (m) => void vscode.window.showWarningMessage(m),
     now: () => Date.now(),
     newSeed: () => Math.floor(Math.random() * 0x100000000),
+    // 제목줄: 게임 중에는 🎮 대신 🏠, ＋ 🔀 🗑 는 숨김 (게임 화면이 덮고 있어 눌러도 안 보임) — package.json menus 의 when
+    onModeChanged: (mode) => void vscode.commands.executeCommand('setContext', 'vscode-pokemon.gameMode', mode !== 'normal'),
   });
 
   const ready: Promise<LoadResult> = game.init({ readOnly: true }).then((r) => {
@@ -68,12 +70,28 @@ export function activate(context: vscode.ExtensionContext): GameHost {
     return r;
   });
 
-  context.subscriptions.push(vscode.window.onDidChangeWindowState((s) => game.onWindowFocusChanged(s.focused)));
-  game.onWindowFocusChanged(vscode.window.state.focused);
-
   const gameDir = vscode.Uri.joinPath(context.extensionUri, 'media', 'game');
   const hasWebviewBuild = ['boot.js', 'game.js'].every((f) => existsSync(join(context.extensionPath, 'media', 'game', f)));
   let view: vscode.WebviewView | undefined;
+
+  context.subscriptions.push(vscode.window.onDidChangeWindowState((s) => game.onWindowFocusChanged(s.focused)));
+  // 🎮 (패널 제목줄, S01 ①) — 포켓몬 보기를 먼저 보이게 하고, 일반 모드면 타이틀 · 아니면 일반 모드로.
+  // 게임 중인데 보기가 접혀 있었으면 (명령 팔레트) 보이게만 함 — 나가 버리지 않게
+  context.subscriptions.push(
+    vscode.commands.registerCommand('vscode-pokemon.game-mode', async () => {
+      const wasVisible = view?.visible === true;
+      await vscode.commands.executeCommand('pokemonView.focus');
+      if (!wasVisible && game.currentMode !== 'normal') return;
+      await game.toggleGame();
+    }),
+    // 🏠 (게임 중 제목줄) — 자동저장 후 일반 모드로
+    vscode.commands.registerCommand('vscode-pokemon.normal-mode', () => game.exitGame()),
+  );
+  // 게임 빌드가 있을 때만 🎮 를 보임 (install.py 가 빌드하지 못하면 일반 모드만)
+  void vscode.commands.executeCommand('setContext', 'vscode-pokemon.gameAvailable', hasWebviewBuild);
+  void vscode.commands.executeCommand('setContext', 'vscode-pokemon.gameMode', false);
+  game.onWindowFocusChanged(vscode.window.state.focused);
+
   let viewConnection: vscode.Disposable | undefined;
 
   return {
@@ -86,7 +104,11 @@ export function activate(context: vscode.ExtensionContext): GameHost {
       if (!hasWebviewBuild || webview !== view?.webview) return '';
       const boot = webview.asWebviewUri(vscode.Uri.joinPath(gameDir, 'boot.js'));
       const src = webview.asWebviewUri(vscode.Uri.joinPath(gameDir, 'game.js'));
-      return `<script nonce="${nonce}" src="${boot.toString()}" data-game-src="${src.toString()}"></script>`;
+      const media = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'media'));
+      // 포켓몬 크기 설정 (nano · small · medium · large) — 바뀌면 원래 확장이 HTML 을 다시 만들어 여기로 다시 옴
+      const size = vscode.workspace.getConfiguration('vscode-pokemon').get<string>('pokemonSize', 'nano');
+      const attr = (v: string) => v.replace(/[&"<>]/g, (c) => `&#${c.charCodeAt(0)};`);
+      return `<script nonce="${nonce}" src="${attr(boot.toString())}" data-game-src="${attr(src.toString())}" data-media="${attr(media.toString())}" data-size="${attr(size)}"></script>`;
     },
     deactivate() {
       // 모두 동기 — VS Code 가 꺼지는 중에도 마지막 저장 · 창 잠금 풀기가 끝남

@@ -10,9 +10,10 @@
  *
  * VS Code 를 모른다 (웹뷰는 ViewPort, 저장은 SaveStore, 창 잠금은 WindowLease 로만 만남) → 자동 테스트에서 그대로 돌림.
  */
+import { TIMING } from '../core/balance';
 import { advance, createGameState, readRuntime, shouldRunWhenHidden, type GameState } from '../core/engine';
 import { validateSave, type Save } from '../core/save';
-import { GAME_COMMAND, isWebviewToHost, type HostToWebview } from '../shared/messages';
+import { GAME_COMMAND, isWebviewToHost, type HostToWebview, type TitleInfo, type TitleNotice } from '../shared/messages';
 import { HeadlessRunner, type HeadlessRunnerOptions } from './headless-runner';
 import type { LoadResult, SaveStore } from './save-store';
 import type { WindowLease } from './window-lease';
@@ -23,10 +24,11 @@ export interface ViewPort {
   readonly visible: boolean;
 }
 
-export type Mode = 'normal' | 'game';
+/** normal = 일반 모드 · title = 타이틀 (S02, 게임은 아직 안 돎) · game = 게임 중 */
+export type Mode = 'normal' | 'title' | 'game';
 export type Owner = 'none' | 'webview' | 'host';
-/** 게임 모드에 들어가기 결과 — no-save · locked · busy 는 단계 3 타이틀(S02)에서 안내 */
-export type EnterResult = 'entered' | 'already' | 'no-save' | 'locked' | 'busy';
+/** 게임 모드에 들어가기 결과 — no-save · locked · busy · failed (잠금 파일을 못 씀) 는 타이틀(S02)에서 안내 */
+export type EnterResult = 'entered' | 'already' | 'no-save' | 'locked' | 'busy' | 'failed';
 
 export interface SessionDeps {
   store: SaveStore;
@@ -38,11 +40,14 @@ export interface SessionDeps {
   /** 사용자에게 보이는 경고 (VS Code 알림) — 없으면 기록만 */
   warn?(message: string): void;
   runner?: HeadlessRunnerOptions;
+  /** 모드가 바뀜 — 제목줄 버튼 (🎮 ↔ 🏠 · ＋ 🔀 🗑 숨기기) */
+  onModeChanged?(mode: Mode): void;
 }
 
 /** 세는 것 — 기록 · 테스트용 */
 export interface SessionStats {
   boots: number;
+  titles: number;
   accepted: number;
   stale: number;
   rejected: number;
@@ -70,8 +75,12 @@ export class GameSession {
   private loading: Promise<LoadResult> = Promise.resolve({ kind: 'none' });
   /** 들어가기 · 나가기 · 새로 하기를 한 줄로 세움 (겹치면 잠금 · 저장이 꼬임) */
   private transitions: Promise<unknown> = Promise.resolve();
+  /** 나가는 중 웹뷰의 마지막 상태(hidden)를 기다림 — 오면 부름 */
+  private finalWait: (() => void) | null = null;
+  /** 타이틀에서 다른 창이 게임을 끝냈는지 지켜봄 */
+  private busyWatch: ReturnType<typeof setInterval> | null = null;
   private readonly runner: HeadlessRunner;
-  readonly stats: SessionStats = { boots: 0, accepted: 0, stale: 0, rejected: 0, headlessSteps: 0 };
+  readonly stats: SessionStats = { boots: 0, titles: 0, accepted: 0, stale: 0, rejected: 0, headlessSteps: 0 };
 
   constructor(private readonly deps: SessionDeps) {
     this.runner = new HeadlessRunner((ms) => this.onHeadless(ms), deps.runner);
@@ -112,10 +121,14 @@ export class GameSession {
       case 'boot':
         this.stats.boots++;
         this.webviewReady = false; // 웹뷰가 새로 뜸 — game.js 는 아직
-        if (this.mode === 'game') this.post({ type: 'load' });
+        if (this.mode !== 'normal') this.post({ type: 'load' });
         return;
       case 'ready':
         this.webviewReady = true;
+        if (this.mode === 'title') {
+          void this.sendTitle();
+          return;
+        }
         if (this.mode !== 'game') return;
         // 아주 빨리 접어서 안 보이는 채로 준비됐으면 맡기지 않고 여기서 들고 있음
         if (this.view && !this.view.visible) this.hostOwns('패널이 안 보이는 채로 웹뷰가 준비됨');
@@ -128,6 +141,12 @@ export class GameSession {
         if (this.accept(message.epoch, message.state) && this.state) void this.deps.store.saveNow(this.state.save);
         return;
       case 'hidden': {
+        // 🎮 · 🏠 로 나가는 중에 달라고 한 마지막 상태 — 받기만 하고 나가기를 이어 감
+        if (this.finalWait && this.owner === 'webview' && message.epoch === this.epoch) {
+          this.accept(message.epoch, message.state);
+          this.finalWait();
+          return;
+        }
         const relevant =
           (this.owner === 'webview' && message.epoch === this.epoch) || (this.owner === 'host' && message.epoch === this.handoverEpoch);
         if (!relevant) {
@@ -148,16 +167,44 @@ export class GameSession {
       }
       case 'load-failed':
         this.webviewReady = false;
-        this.deps.log(`웹뷰가 game.js 를 불러오지 못함: ${message.message}`);
-        // 아무도 계산하지 않는 채로 두지 않음 — 자동 전투면 여기서 이어 감
-        if (this.mode === 'game' && this.owner !== 'host') this.hostOwns('웹뷰가 게임을 못 불러옴');
+        this.deps.log(`웹뷰가 게임 화면을 불러오지 못함: ${message.message}`);
+        if (this.mode === 'title') {
+          // 타이틀이 안 뜨면 🎮 가 아무 반응 없는 것처럼 보임 — 알리고 일반 모드로 (다음 🎮 에서 다시 시도)
+          this.setMode('normal');
+          this.post({ type: 'stop' }); // 화면 오류로 온 것이면 웹뷰도 일반 모드로
+          this.warn('포켓몬 게임 화면을 불러오지 못했어요 — 창을 다시 로드해 보세요 (Developer: Reload Window).');
+        } else if (this.mode === 'game') {
+          this.warn('포켓몬 게임 화면에 문제가 생겼어요 — 제목줄 🏠 로 일반 모드로 나갈 수 있어요 (진행은 저장돼요).');
+          // 아무도 계산하지 않는 채로 두지 않음 — 자동 전투면 여기서 이어 감
+          if (this.owner !== 'host') this.hostOwns('웹뷰가 게임을 못 불러옴');
+        }
+        return;
+      case 'title-new':
+        if (this.mode === 'title') void this.newFromTitle(message.save);
+        return;
+      case 'title-continue':
+        if (this.mode === 'title') void this.continueFromTitle();
+        return;
+      case 'exit':
+        // 게임 중이면 웹뷰가 들고 있던 마지막 상태를 받고 나감 (S02 ③ · S06 ⑪ — 모드 전환은 바로 저장)
+        if (this.mode === 'game' && message.epoch !== null && message.state) this.accept(message.epoch, message.state);
+        if (this.mode !== 'normal') void this.serial(() => this.leaveGame({ askWebview: false }));
+        // 이미 일반 모드인데 웹뷰는 게임 화면이라고 여김 (stop 을 놓침 등) — 다시 알려 줌
+        else this.post({ type: 'stop' });
         return;
     }
   }
 
   onVisibilityChanged(visible: boolean): void {
     // 다시 보이면 웹뷰가 새로 떠서 boot → ready 로 상태를 달라고 하므로 여기서는 숨을 때만
-    if (!visible) this.takeOver('패널이 안 보임');
+    if (visible) return;
+    this.takeOver('패널이 안 보임');
+    // 게임에 들어갔는데 웹뷰가 준비(ready)되기 전에 접음 — 아무도 계산하지 않게 두지 않음
+    if (this.mode === 'game' && this.owner === 'none') this.hostOwns('웹뷰가 준비되기 전에 패널이 안 보임');
+  }
+
+  get currentMode(): Mode {
+    return this.mode;
   }
 
   /** VS Code 창 포커스 (mvp-spec 3.3 "VS Code 밖") — 자동 전투가 꺼져 있으면 밖에 있는 동안 멈춤 */
@@ -167,63 +214,44 @@ export class GameSession {
     else this.maybeSuspend();
   }
 
-  /** 게임 모드로 (🎮) — 창 잠금을 쥐고, 다른 창에서 하던 진행을 덮지 않게 세이브를 다시 읽고 들어감 */
-  enterGame(): Promise<EnterResult> {
+  /** 🎮 — 일반 모드면 타이틀(S02)을 열고, 타이틀 · 게임 중이면 일반 모드로 */
+  toggleGame(): Promise<void> {
+    // 줄에 선 뒤에 정함 — 빠르게 두 번 누르면 열고 닫음 (누른 순간의 모드로 정하면 둘 다 "열기")
     return this.serial(async () => {
       await this.loading;
-      if (this.mode === 'game') return 'already';
-      if (this.deps.lease && !this.deps.lease.acquire()) return 'busy';
-      await this.init({ readOnly: false });
-      let result: EnterResult = 'entered';
-      if (this.deps.store.lockedReason) result = 'locked';
-      else if (!this.state) result = 'no-save';
-      if (result !== 'entered') {
-        this.deps.lease?.release();
-        this.deps.log(`게임 모드에 들어가지 않음: ${result}${this.deps.store.lockedReason ? ` (${this.deps.store.lockedReason})` : ''}`);
-        return result;
-      }
-      this.mode = 'game';
-      this.deps.store.setWritable(true);
-      this.deps.log('게임 모드로');
-      // 웹뷰에 아직 game.js 가 없으면 boot.js 가 불러오고, 이미 있으면 game.js 가 ready 로 답함
-      this.post({ type: 'load' });
-      return result;
+      if (this.mode === 'normal') this.beginTitle();
+      else await this.leaveGame({ askWebview: true });
     });
   }
 
-  /** 일반 모드로 — 마지막 상태를 바로 저장하고 창 잠금을 놓음 */
+  /** 타이틀(S02)을 엶 — 웹뷰가 game.js 를 불러와 준비되면 세이브 요약을 보냄 */
+  openTitle(): Promise<void> {
+    return this.serial(async () => {
+      await this.loading;
+      if (this.mode === 'normal') this.beginTitle();
+    });
+  }
+
+  private beginTitle(): void {
+    this.setMode('title');
+    this.deps.log('타이틀로');
+    // 웹뷰에 아직 game.js 가 없으면 boot.js 가 불러오고, 이미 있으면 game.js 가 ready 로 답함
+    this.post({ type: 'load' });
+  }
+
+  /** 게임 모드로 (S02 이어 하기 · 새로 하기 뒤) — 창 잠금을 쥐고, 다른 창에서 하던 진행을 덮지 않게 세이브를 다시 읽고 들어감 */
+  enterGame(): Promise<EnterResult> {
+    return this.serial(() => this.doEnter());
+  }
+
+  /** 일반 모드로 — 마지막 상태를 바로 저장하고 창 잠금을 놓음. 웹뷰가 맡고 있으면 마지막 상태를 받아서 */
   exitGame(): Promise<void> {
-    return this.serial(() => this.leaveGame());
+    return this.serial(() => this.leaveGame({ askWebview: true }));
   }
 
   /** 새로 하기 (S02 ①) — 지금 세이브는 보관함에 두고 이 세이브로. 다른 창이 게임 중이면 'busy', 못 쓰면 'failed' */
   startNewSave(save: Save): Promise<'done' | 'busy' | 'failed'> {
-    return this.serial(async () => {
-      await this.loading;
-      const temporary = this.mode !== 'game';
-      if (temporary ? this.deps.lease && !this.deps.lease.acquire() : this.deps.lease && !this.deps.lease.held) return 'busy';
-      if (temporary) this.deps.store.setWritable(true);
-      let ok = false;
-      try {
-        ok = await this.deps.store.replace(save);
-      } catch (e) {
-        this.deps.log(`새로 하기 실패: ${String(e)}`);
-      } finally {
-        if (temporary) {
-          this.deps.store.setWritable(false);
-          this.deps.lease?.release();
-        }
-      }
-      if (!ok) return 'failed';
-      this.state = createGameState(save, this.deps.newSeed());
-      this.loadResult = { kind: 'ok', save, problems: [], migratedFrom: null };
-      // 게임 중이면 웹뷰가 옛 진행을 보내 새 세이브를 덮지 않게 새 epoch 으로
-      if (!temporary) {
-        if (this.owner === 'webview') this.handToWebview();
-        else this.hostOwns('새로 하기');
-      }
-      return 'done';
-    });
+    return this.serial(() => this.doReplace(save, { keepLease: false }));
   }
 
   /**
@@ -242,18 +270,183 @@ export class GameSession {
   /** 저장소가 잠김 (다른 창이 씀 · 창 잠금을 잃음 등) — 게임 중이면 멈추고 일반 모드로 (잠겨 있어 쓰지 않음) */
   onStoreLocked(reason: string): void {
     this.deps.log(`세이브가 잠김: ${reason}`);
+    // 타이틀은 읽을 때마다 잠길 수 있어서 (더 새 버전 세이브) 여기서 다시 보내지 않음 — 요약에 이미 save: 'newer' 로 감
     if (this.mode !== 'game') return;
     this.warn(`포켓몬 게임을 멈췄어요 — ${reason}. 세이브는 덮어쓰지 않았어요.`);
-    void this.exitGame();
+    // 잠겨서 어차피 쓰지 않으니 웹뷰의 마지막 상태를 기다리지 않음
+    void this.serial(() => this.leaveGame({ askWebview: false }));
   }
 
   /** 확장이 꺼질 때 (동기 — VS Code 가 꺼지는 중에도 끝남) — 마지막 저장을 했으면 true */
   dispose(): boolean {
+    this.stopBusyWatch();
+    this.finalWait?.();
     this.runner.stop();
     if (this.state && this.mode === 'game') this.deps.store.set(this.state.save);
     const ok = this.deps.store.dispose();
     this.deps.lease?.release();
     return ok;
+  }
+
+  /** 타이틀에 세이브 요약을 보냄 (줄에 섬) */
+  private sendTitle(notice?: TitleNotice): Promise<void> {
+    return this.serial(() => this.postTitle(notice));
+  }
+
+  /** 세이브 요약 — 다른 창이 바꿨을 수 있어 파일에서 다시 읽음 (읽기만). 다른 창이 게임 중이면 끝날 때까지 지켜봄 */
+  private async postTitle(notice?: TitleNotice): Promise<void> {
+    if (this.mode !== 'title') return;
+    const r = await this.init({ readOnly: true });
+    const save = r.kind === 'ok' ? r.save : null;
+    const leadUid = save?.party[0];
+    const lead = leadUid ? save?.monsters[leadUid] : undefined;
+    const info: TitleInfo = {
+      save: r.kind,
+      busy: this.otherWindowPlaying(),
+      summary: save
+        ? { playTimeMs: save.playTimeMs, money: save.money, badges: [...save.badges], lead: lead ? { form: lead.form, species: lead.species, level: lead.level } : null }
+        : null,
+    };
+    if (notice) info.notice = notice;
+    this.stats.titles++;
+    this.post({ type: 'title', info });
+    this.watchBusy(info.busy);
+  }
+
+  /** S02 새로 하기 — 웹뷰가 만든 새 세이브를 검사하고 지금 세이브는 보관함에, 그리고 게임으로. 한 줄에서 끝까지 (중간에 🎮 가 끼지 않게) */
+  private newFromTitle(raw: Save): Promise<void> {
+    return this.serial(async () => {
+      if (this.mode !== 'title') return;
+      const checked = validateSave(raw);
+      if (!checked.ok) {
+        this.deps.log(`새로 하기 세이브를 버림: ${checked.reason}`);
+        await this.postTitle('bad-save');
+        return;
+      }
+      // 창 잠금은 바꾸기부터 들어가기까지 쥔 채로 (그 틈에 다른 창이 가져가지 않게)
+      const r = await this.doReplace(checked.save, { keepLease: true });
+      if (r !== 'done') {
+        await this.postTitle(r === 'busy' ? 'busy' : 'write-failed');
+        return;
+      }
+      await this.enterFromTitle();
+    });
+  }
+
+  /** S02 이어 하기 */
+  private continueFromTitle(): Promise<void> {
+    return this.serial(async () => {
+      if (this.mode === 'title') await this.enterFromTitle();
+    });
+  }
+
+  private async enterFromTitle(): Promise<void> {
+    const r = await this.doEnter();
+    if (r === 'entered' || r === 'already') return;
+    const why: Record<Exclude<EnterResult, 'entered' | 'already'>, TitleNotice> = { 'no-save': 'no-save', locked: 'locked', busy: 'busy', failed: 'write-failed' };
+    await this.postTitle(why[r]);
+  }
+
+  /** 줄을 서지 않는 들어가기 — serial 안에서만 부름 */
+  private async doEnter(): Promise<EnterResult> {
+    await this.loading;
+    if (this.mode === 'game') return 'already';
+    const lease = this.tryAcquire();
+    if (lease !== 'ok') return lease;
+    await this.init({ readOnly: false });
+    let result: EnterResult = 'entered';
+    if (this.deps.store.lockedReason) result = 'locked';
+    else if (!this.state) result = 'no-save';
+    if (result !== 'entered') {
+      this.deps.lease?.release();
+      this.deps.log(`게임 모드에 들어가지 않음: ${result}${this.deps.store.lockedReason ? ` (${this.deps.store.lockedReason})` : ''}`);
+      return result;
+    }
+    this.setMode('game');
+    this.deps.store.setWritable(true);
+    this.deps.log('게임 모드로');
+    // 웹뷰에 아직 game.js 가 없으면 boot.js 가 불러오고, 이미 있으면 game.js 가 ready 로 답함
+    this.post({ type: 'load' });
+    return result;
+  }
+
+  /** 줄을 서지 않는 새로 하기 — serial 안에서만 부름. keepLease: 게임에 바로 들어갈 거라 창 잠금을 쥔 채로 둠 */
+  private async doReplace(save: Save, options: { keepLease: boolean }): Promise<'done' | 'busy' | 'failed'> {
+    await this.loading;
+    const temporary = this.mode !== 'game';
+    if (temporary) {
+      const lease = this.tryAcquire();
+      if (lease !== 'ok') return lease;
+    } else if (this.deps.lease && !this.deps.lease.held) return 'busy';
+    if (temporary) this.deps.store.setWritable(true);
+    let ok = false;
+    try {
+      ok = await this.deps.store.replace(save);
+    } catch (e) {
+      this.deps.log(`새로 하기 실패: ${String(e)}`);
+    } finally {
+      if (temporary) {
+        this.deps.store.setWritable(false);
+        if (!ok || !options.keepLease) this.deps.lease?.release();
+      }
+    }
+    if (!ok) return 'failed';
+    this.state = createGameState(save, this.deps.newSeed());
+    this.loadResult = { kind: 'ok', save, problems: [], migratedFrom: null };
+    // 게임 중이면 웹뷰가 옛 진행을 보내 새 세이브를 덮지 않게 새 epoch 으로
+    if (!temporary) {
+      if (this.owner === 'webview') this.handToWebview();
+      else this.hostOwns('새로 하기');
+    }
+    return 'done';
+  }
+
+  /** 창 잠금 — 잠금 파일을 못 만들면 (디스크 가득 등) 던지지 않고 'failed' */
+  private tryAcquire(): 'ok' | 'busy' | 'failed' {
+    if (!this.deps.lease) return 'ok';
+    try {
+      return this.deps.lease.acquire() ? 'ok' : 'busy';
+    } catch (e) {
+      this.deps.log(`창 잠금 파일을 쓰지 못함: ${String(e)}`);
+      return 'failed';
+    }
+  }
+
+  private otherWindowPlaying(): boolean {
+    try {
+      return this.deps.lease?.heldByOther() ?? false;
+    } catch {
+      return false;
+    }
+  }
+
+  /** 타이틀에서 다른 창이 게임 중 — 그 창이 끝나면 요약을 다시 보내 버튼을 살림 */
+  private watchBusy(busy: boolean): void {
+    this.stopBusyWatch();
+    if (!busy) return;
+    this.busyWatch = setInterval(() => {
+      if (this.mode !== 'title') this.stopBusyWatch();
+      else if (!this.otherWindowPlaying()) {
+        this.stopBusyWatch();
+        void this.sendTitle();
+      }
+    }, TIMING.titleBusyPollMs);
+  }
+
+  private stopBusyWatch(): void {
+    if (this.busyWatch) clearInterval(this.busyWatch);
+    this.busyWatch = null;
+  }
+
+  private setMode(mode: Mode): void {
+    if (this.mode === mode) return;
+    this.mode = mode;
+    if (mode !== 'title') this.stopBusyWatch();
+    try {
+      this.deps.onModeChanged?.(mode);
+    } catch (e) {
+      this.deps.log(`모드 알림 실패: ${String(e)}`);
+    }
   }
 
   private serial<T>(fn: () => Promise<T>): Promise<T> {
@@ -262,22 +455,55 @@ export class GameSession {
     return run;
   }
 
-  private async leaveGame(): Promise<void> {
+  /** 웹뷰가 맡고 있으면 마지막 상태를 달라고 하고 잠깐 기다림 (🎮 · 🏠 로 나갈 때 — 마지막 1초를 잃지 않게) */
+  private collectFinalState(): Promise<void> {
+    if (this.owner !== 'webview' || !this.webviewReady || !this.view?.visible) return Promise.resolve();
+    return new Promise<void>((resolve) => {
+      const timer = setTimeout(() => finish(), TIMING.exitWaitMs);
+      const finish = () => {
+        clearTimeout(timer);
+        this.finalWait = null;
+        resolve();
+      };
+      this.finalWait = finish;
+      this.post({ type: 'suspend' });
+    });
+  }
+
+  /** askWebview: 웹뷰에 마지막 상태를 달라고 함 (exit 메시지로 이미 받았으면 false) */
+  private async leaveGame(options: { askWebview: boolean }): Promise<void> {
+    if (this.mode === 'title') {
+      this.setMode('normal');
+      this.post({ type: 'stop' });
+      this.deps.log('타이틀에서 일반 모드로');
+      return;
+    }
     if (this.mode !== 'game') return;
+    // 이미 잠겨서 나가는 것이면 (onStoreLocked) 알림은 거기서 했음
+    const lockedBefore = this.deps.store.lockedReason !== null;
+    if (options.askWebview) await this.collectFinalState();
     this.runner.stop();
-    this.mode = 'normal';
+    this.setMode('normal');
     this.owner = 'none';
     this.epoch++;
     this.handoverEpoch = null;
     this.suspendRequested = false;
     this.post({ type: 'stop' });
     this.deps.log('일반 모드로');
-    if (this.state && !(await this.deps.store.saveNow(this.state.save)) && !this.deps.store.lockedReason) {
-      // 잠김이 아닌데 못 씀 (디스크 오류 등) — 한 번 더, 그래도 안 되면 알림
-      if (!(await this.deps.store.saveNow(this.state.save))) this.warn('포켓몬 게임 마지막 저장을 하지 못했어요 (디스크를 확인해 주세요).');
-    }
+    if (this.state) await this.finalSave(this.state.save, lockedBefore);
     this.deps.store.setWritable(false);
     this.deps.lease?.release();
+  }
+
+  /** 일반 모드로 갈 때 마지막 저장 — 못 쓰면 그 진행을 보관함에 남기고 알림 (다시 읽을 때 잃지 않게) */
+  private async finalSave(save: Save, lockedBefore: boolean): Promise<void> {
+    if (await this.deps.store.saveNow(save)) return;
+    const locked = this.deps.store.lockedReason;
+    if (!locked && (await this.deps.store.saveNow(save))) return; // 잠김이 아닌데 못 씀 (디스크 오류 등) — 한 번 더
+    const kept = await this.deps.store.keepUnsaved(locked ? `일반 모드로 갈 때 잠겨서 안 씀: ${locked}` : '일반 모드로 갈 때 쓰지 못함');
+    const tail = kept ? ' 이 진행은 세이브 백업에 남겨 뒀어요.' : '';
+    if (locked && !lockedBefore) this.warn(`포켓몬 게임 마지막 진행은 저장하지 않았어요 — ${locked}.${tail}`);
+    else if (!locked) this.warn(`포켓몬 게임 마지막 저장을 하지 못했어요 (디스크를 확인해 주세요).${tail}`);
   }
 
   private warn(message: string): void {

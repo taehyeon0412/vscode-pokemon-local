@@ -8,7 +8,7 @@
         const q = new URLSearchParams(location.search);
         f.style.width = `${q.get('w')}px`;
         f.style.height = `${q.get('h')}px`;
-        f.src = `panel.html?${q.get('q')}`;
+        f.src = `${q.get('page') || 'panel.html'}?${q.get('q')}`; // page: 게임 모드 미리보기는 game.html
     </script>
 </body>
 </html>

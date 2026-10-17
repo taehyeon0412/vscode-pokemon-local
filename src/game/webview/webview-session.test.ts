@@ -86,3 +86,66 @@ describe('웹뷰 세션', () => {
     expect(s.current!.save.playTimeMs).toBe(100);
   });
 });
+
+describe('웹뷰 화면 고르기 (단계 3)', () => {
+  const title = { command: 'game', type: 'title', info: { save: 'ok', busy: false, summary: null } } as const;
+
+  it('title → 타이틀 화면 (계산은 안 맡음) · start → 게임 · stop → 일반 모드, 바뀔 때마다 알림', () => {
+    const { s } = make();
+    let changes = 0;
+    s.subscribe(() => changes++);
+    expect(s.screen).toBe('none');
+    s.handleMessage(title);
+    expect(s.screen).toBe('title');
+    expect(s.title).toEqual(title.info);
+    expect(s.running).toBe(false);
+    s.handleMessage(start());
+    expect(s.screen).toBe('game');
+    expect(s.title).toBeNull();
+    s.handleMessage({ command: 'game', type: 'stop' });
+    expect(s.screen).toBe('none');
+    expect(changes).toBe(3);
+  });
+
+  it('게임 중에 title 이 오면 계산을 놓음 (새 epoch 을 기다림)', () => {
+    const { s, sent, frames } = make();
+    s.handleMessage(start());
+    s.handleMessage(title);
+    frames(2000);
+    expect(s.running).toBe(false);
+    expect(sent).toEqual([]);
+  });
+
+  it('새로 하기 · 이어 하기', () => {
+    const { s, sent } = make();
+    const save = sampleSave();
+    s.newGame(save);
+    s.continueGame();
+    expect(sent).toEqual([
+      { command: 'game', type: 'title-new', save },
+      { command: 'game', type: 'title-continue' },
+    ]);
+  });
+
+  it('일반 모드로: 타이틀에서는 상태 없이, 게임 중이면 맡은 epoch · 마지막 상태와 함께', () => {
+    const { s, sent, frames } = make();
+    s.handleMessage(title);
+    s.exit();
+    expect(sent.at(-1)).toEqual({ command: 'game', type: 'exit', epoch: null, state: null });
+    s.handleMessage(start(7));
+    frames(500);
+    s.exit();
+    const m = sent.at(-1)!;
+    expect(m).toMatchObject({ type: 'exit', epoch: 7 });
+    expect(m.type === 'exit' && m.state?.save.playTimeMs).toBeGreaterThan(400);
+  });
+
+  it('구독을 끊으면 알리지 않음', () => {
+    const { s } = make();
+    let changes = 0;
+    const off = s.subscribe(() => changes++);
+    off();
+    s.handleMessage(title);
+    expect(changes).toBe(0);
+  });
+});

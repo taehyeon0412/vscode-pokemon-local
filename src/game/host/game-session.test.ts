@@ -3,7 +3,9 @@ import { MemoryLeaseFile, MemorySaveArchive, MemorySaveStorage, sampleSave } fro
 import type { GameState } from '../core/engine';
 import type { Save } from '../core/save';
 import type { HostToWebview } from '../shared/messages';
-import { GameSession, type ViewPort } from './game-session';
+import { TIMING } from '../core/balance';
+import { createStartSave } from '../features/starter/model';
+import { GameSession, type Mode, type ViewPort } from './game-session';
 import { SaveStore } from './save-store';
 import { WindowLease } from './window-lease';
 
@@ -29,8 +31,12 @@ let lease: WindowLease | undefined;
 let store: SaveStore;
 let session: GameSession;
 let view: FakeView;
+let warns: string[];
+let modes: Mode[];
 
 async function setup(save?: unknown, opts: { lease?: boolean } = {}): Promise<void> {
+  warns = [];
+  modes = [];
   storage = new MemorySaveStorage(save);
   archive = new MemorySaveArchive();
   leaseFile = new MemoryLeaseFile();
@@ -44,6 +50,8 @@ async function setup(save?: unknown, opts: { lease?: boolean } = {}): Promise<vo
     now: () => now,
     newSeed: () => 1234,
     log: () => undefined,
+    warn: (m) => warns.push(m),
+    onModeChanged: (m) => modes.push(m),
     runner: { intervalMs: 250, maxCatchUpMs: 1000, now: () => now },
   });
   await session.init();
@@ -67,6 +75,12 @@ async function enterAndStart(save: Save, opts: { lease?: boolean } = {}) {
   const start = view.last('start');
   if (!start) throw new Error('start 가 안 옴');
   return start;
+}
+
+/** 🎮 · 🏠 로 나가기 — 웹뷰가 마지막 상태로 답하지 않는 경우라 기다리는 시간만큼 흘려보냄 (답하는 경우는 따로 테스트) */
+async function exitNow(p: Promise<void> = session.exitGame()): Promise<void> {
+  await vi.advanceTimersByTimeAsync(TIMING.exitWaitMs);
+  await p;
 }
 
 /** 확장 쪽 계산을 ms 만큼 돌림 */
@@ -335,7 +349,7 @@ describe('일반 모드로 · 새로 하기 · 잠김 · 끄기', () => {
   it('일반 모드로: stop 을 보내고 바로 저장, 그 뒤 ready 는 무시', async () => {
     const start = await enterAndStart(sampleSave());
     session.handleMessage(msg({ type: 'state', epoch: start.epoch, state: withPlay(start.state, 4000) }));
-    await session.exitGame();
+    await exitNow();
     expect(view.last('stop')).toBeDefined();
     expect(stored()?.playTimeMs).toBe(4000);
     const count = view.sent.length;
@@ -345,7 +359,7 @@ describe('일반 모드로 · 새로 하기 · 잠김 · 끄기', () => {
 
   it('일반 모드로 나간 뒤에는 이 창이 쓰지 않음', async () => {
     await enterAndStart(sampleSave());
-    await session.exitGame();
+    await exitNow();
     const writes = storage.writes;
     await vi.advanceTimersByTimeAsync(10_000);
     expect(storage.writes).toBe(writes);
@@ -429,5 +443,346 @@ describe('일반 모드로 · 새로 하기 · 잠김 · 끄기', () => {
     expect(session.dispose()).toBe(true);
     expect(stored()?.playTimeMs).toBe(500);
     expect(leaseFile.record).toBeNull();
+  });
+});
+
+describe('🎮 · S02 타이틀 (단계 3)', () => {
+  const flush = () => vi.advanceTimersByTimeAsync(0);
+
+  /** 🎮 → load → (game.js) ready → title */
+  async function openTitle(save?: unknown, opts: { lease?: boolean } = {}) {
+    await setup(save, opts);
+    await session.toggleGame();
+    expect(snap().mode).toBe('title');
+    expect(view.last('load')).toBeDefined();
+    session.handleMessage(msg({ type: 'ready' }));
+    await flush();
+    const title = view.last('title');
+    if (!title) throw new Error('title 이 안 옴');
+    return title.info;
+  }
+
+  it('🎮 → 타이틀: 세이브 요약 (팀 맨 앞 · 돈 · 배지 · 플레이 시간), 아직 게임은 안 돎 · 창 잠금도 안 쥠', async () => {
+    const info = await openTitle(sampleSave({ money: 4321, badges: ['forest'], playTimeMs: 60_000 }), { lease: true });
+    expect(info).toEqual({
+      save: 'ok',
+      busy: false,
+      summary: { playTimeMs: 60_000, money: 4321, badges: ['forest'], lead: { form: 'bulbasaur', species: 1, level: 5 } },
+    });
+    expect(session.stats.titles).toBe(1);
+    expect(snap().owner).toBe('none');
+    expect(view.count('start')).toBe(0);
+    expect(lease?.held).toBe(false);
+  });
+
+  it('타이틀 중에 웹뷰가 새로 뜨면 (boot) 다시 불러오고 요약을 다시 보냄', async () => {
+    await openTitle(sampleSave());
+    session.handleMessage(msg({ type: 'boot' }));
+    expect(view.sent.at(-1)).toEqual({ command: 'game', type: 'load' });
+    session.handleMessage(msg({ type: 'ready' }));
+    await flush();
+    expect(session.stats.titles).toBe(2);
+  });
+
+  it('세이브 없음 · 망가짐 · 더 새 버전', async () => {
+    expect(await openTitle()).toEqual({ save: 'none', busy: false, summary: null });
+    expect((await openTitle({ version: 1, monsters: 'oops' })).save).toBe('broken');
+    expect((await openTitle({ ...sampleSave(), version: 99 })).save).toBe('newer');
+    expect(archive.items).toEqual([]); // 타이틀은 읽기만
+  });
+
+  it('더 새 버전 세이브로 타이틀을 열어도 요약은 한 번 (읽을 때 잠김 → 다시 보내기 → 다시 읽기로 돌지 않음, bugs #56)', async () => {
+    await openTitle({ ...sampleSave(), version: 99 });
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(view.count('title')).toBe(1);
+  });
+
+  it('타이틀은 다른 창이 바꾼 세이브를 다시 읽음', async () => {
+    await setup(sampleSave({ money: 1 }));
+    storage.write(sampleSave({ money: 2 }));
+    await session.openTitle();
+    session.handleMessage(msg({ type: 'ready' }));
+    await flush();
+    expect(view.last('title')?.info.summary?.money).toBe(2);
+  });
+
+  it('이어 하기 → 게임 모드 → (ready) 세이브 그대로 start', async () => {
+    await openTitle(sampleSave({ money: 555 }), { lease: true });
+    session.handleMessage(msg({ type: 'title-continue' }));
+    await flush();
+    expect(snap().mode).toBe('game');
+    expect(lease?.held).toBe(true);
+    session.handleMessage(msg({ type: 'ready' }));
+    expect(view.last('start')?.state.save.money).toBe(555);
+  });
+
+  it('이어 할 세이브가 없으면 타이틀에 그대로 · 안내', async () => {
+    await openTitle();
+    session.handleMessage(msg({ type: 'title-continue' }));
+    await flush();
+    expect(snap().mode).toBe('title');
+    expect(view.last('title')?.info.notice).toBe('no-save');
+  });
+
+  it('새로 하기 → 새 세이브로 바로 저장 · 지금 세이브는 보관함에 · 게임 모드로', async () => {
+    await openTitle(sampleSave({ money: 999 }), { lease: true });
+    const fresh = createStartSave(now, 7);
+    session.handleMessage(msg({ type: 'title-new', save: fresh }));
+    await flush();
+    // 저장소가 쓸 때 updatedAt 을 찍음 (다른 창이 썼는지 확인용) — 나머지는 그대로
+    const sameAsFresh = (s: Save | undefined) => expect({ ...s, updatedAt: fresh.updatedAt }).toEqual(fresh);
+    sameAsFresh(stored());
+    expect(archive.items.map((i) => i.reason)).toEqual(['replaced']);
+    expect((archive.items[0]?.raw as Save).money).toBe(999);
+    expect(snap().mode).toBe('game');
+    session.handleMessage(msg({ type: 'ready' }));
+    sameAsFresh(view.last('start')?.state.save);
+  });
+
+  it('세이브가 없을 때 새로 하기 — 보관할 것 없음', async () => {
+    await openTitle();
+    session.handleMessage(msg({ type: 'title-new', save: createStartSave(now, 7) }));
+    await flush();
+    expect(snap().mode).toBe('game');
+    expect(archive.items).toEqual([]);
+    expect(stored()?.party).toEqual(['m1']);
+  });
+
+  it('새로 하기 세이브가 이상하면 버리고 타이틀에 안내 (지금 세이브는 그대로)', async () => {
+    await openTitle(sampleSave({ money: 999 }));
+    session.handleMessage(msg({ type: 'title-new', save: { version: 1, monsters: 'oops' } }));
+    await flush();
+    expect(snap().mode).toBe('title');
+    expect(stored()?.money).toBe(999);
+    expect(view.last('title')?.info.notice).toBe('bad-save');
+  });
+
+  it('다른 창이 게임 중: 타이틀에 표시, 새로 하기 · 이어 하기 모두 막고 세이브는 그대로', async () => {
+    await setup(sampleSave({ money: 999 }), { lease: true });
+    leaseFile.write({ owner: 'other-window', pid: 2, until: now + 30_000 });
+    await session.toggleGame();
+    session.handleMessage(msg({ type: 'ready' }));
+    await flush();
+    expect(view.last('title')?.info.busy).toBe(true);
+    session.handleMessage(msg({ type: 'title-continue' }));
+    await flush();
+    expect(snap().mode).toBe('title');
+    expect(view.last('title')?.info.notice).toBe('busy');
+    session.handleMessage(msg({ type: 'title-new', save: createStartSave(now, 7) }));
+    await flush();
+    expect(snap().mode).toBe('title');
+    expect(stored()?.money).toBe(999);
+    expect(archive.items).toEqual([]);
+  });
+
+  it('타이틀에서 일반 모드로 (S02 ③): stop · 아무것도 쓰지 않음', async () => {
+    await openTitle(sampleSave());
+    session.handleMessage(msg({ type: 'exit', epoch: null, state: null }));
+    await flush();
+    expect(snap().mode).toBe('normal');
+    expect(view.sent.at(-1)).toEqual({ command: 'game', type: 'stop' });
+    expect(storage.writes).toBe(0);
+  });
+
+  it('게임에서 일반 모드로 (S06 ⑪): 웹뷰의 마지막 상태를 받아 바로 저장 · 창 잠금을 놓음', async () => {
+    const start = await enterAndStart(sampleSave(), { lease: true });
+    session.handleMessage(msg({ type: 'exit', epoch: start.epoch, state: withPlay(start.state, 4321) }));
+    await flush();
+    expect(snap().mode).toBe('normal');
+    expect(stored()?.playTimeMs).toBe(4321);
+    expect(lease?.held).toBe(false);
+    expect(view.last('stop')).toBeDefined();
+  });
+
+  it('지난 epoch 의 exit 상태는 버리고 (확장 상태로 저장) 그래도 나감', async () => {
+    const start = await enterAndStart(sampleSave({ playTimeMs: 100 }));
+    session.handleMessage(msg({ type: 'exit', epoch: start.epoch - 1, state: withPlay(start.state, 999_999) }));
+    await flush();
+    expect(snap().mode).toBe('normal');
+    expect(stored()?.playTimeMs).toBe(100);
+  });
+
+  it('🎮 를 게임 중에 누르면 일반 모드로 (저장)', async () => {
+    const start = await enterAndStart(sampleSave());
+    session.handleMessage(msg({ type: 'state', epoch: start.epoch, state: withPlay(start.state, 777) }));
+    await exitNow(session.toggleGame());
+    expect(snap().mode).toBe('normal');
+    expect(stored()?.playTimeMs).toBe(777);
+  });
+
+  it('일반 모드에서 온 타이틀 메시지는 무시 (exit 에는 stop 으로 다시 알려 줌)', async () => {
+    await setup(sampleSave());
+    session.handleMessage(msg({ type: 'title-new', save: createStartSave(now, 7) }));
+    session.handleMessage(msg({ type: 'title-continue' }));
+    session.handleMessage(msg({ type: 'exit', epoch: null, state: null }));
+    await flush();
+    expect(snap().mode).toBe('normal');
+    expect(view.sent).toEqual([{ command: 'game', type: 'stop' }]);
+    expect(storage.writes).toBe(0);
+  });
+
+  it('🎮 를 빠르게 두 번 → 타이틀을 열고 바로 닫음 (꼬이지 않음)', async () => {
+    await setup(sampleSave());
+    const a = session.toggleGame();
+    const b = session.toggleGame();
+    await Promise.all([a, b]);
+    expect(snap().mode).toBe('normal');
+    expect(view.sent.map((m) => m.type)).toEqual(['load', 'stop']);
+  });
+});
+
+describe('단계 3 검토에서 고친 것 (bugs #59 ~)', () => {
+  const flush = () => vi.advanceTimersByTimeAsync(0);
+
+  async function titleOpen(save?: unknown, opts: { lease?: boolean } = {}) {
+    await setup(save, opts);
+    await session.toggleGame();
+    session.handleMessage(msg({ type: 'ready' }));
+    await flush();
+  }
+
+  it('🎮 로 게임에서 나가면 웹뷰에 마지막 상태를 달라고 하고 (suspend), 답(hidden)을 받아 저장 — 기다리지 않고 바로', async () => {
+    const start = await enterAndStart(sampleSave());
+    session.handleMessage(msg({ type: 'state', epoch: start.epoch, state: withPlay(start.state, 1000) }));
+    const p = session.toggleGame();
+    await flush();
+    expect(view.sent.at(-1)).toEqual({ command: 'game', type: 'suspend' });
+    session.handleMessage(msg({ type: 'hidden', epoch: start.epoch, state: withPlay(start.state, 1900) }));
+    await p;
+    expect(snap().mode).toBe('normal');
+    expect(stored()?.playTimeMs).toBe(1900);
+    expect(view.sent.at(-1)).toEqual({ command: 'game', type: 'stop' });
+  });
+
+  it('웹뷰가 0.5초 안에 답하지 않으면 확장이 가진 상태로 저장하고 나감', async () => {
+    const start = await enterAndStart(sampleSave());
+    session.handleMessage(msg({ type: 'state', epoch: start.epoch, state: withPlay(start.state, 1000) }));
+    await exitNow(session.toggleGame());
+    expect(snap().mode).toBe('normal');
+    expect(stored()?.playTimeMs).toBe(1000);
+  });
+
+  it('S06 🏠 (exit 에 마지막 상태가 옴) 은 다시 묻지 않음', async () => {
+    const start = await enterAndStart(sampleSave());
+    session.handleMessage(msg({ type: 'exit', epoch: start.epoch, state: withPlay(start.state, 3000) }));
+    await flush();
+    expect(view.count('suspend')).toBe(0);
+    expect(stored()?.playTimeMs).toBe(3000);
+  });
+
+  it('새로 하기를 누르고 곧바로 🎮 → 새 세이브는 쓰고, 결국 일반 모드 · 창 잠금도 놓음 (나가려던 사람을 게임에 넣지 않음)', async () => {
+    await titleOpen(sampleSave({ money: 999 }), { lease: true });
+    const fresh = createStartSave(now, 7);
+    session.handleMessage(msg({ type: 'title-new', save: fresh }));
+    const toggle = session.toggleGame();
+    await exitNow(toggle);
+    expect(snap().mode).toBe('normal');
+    expect(lease?.held).toBe(false);
+    expect(stored()?.party).toEqual(['m1']);
+    expect(stored()?.money).toBe(fresh.money);
+  });
+
+  it('타이틀에서 🎮 로 나간 뒤 늦게 온 이어 하기는 무시', async () => {
+    await titleOpen(sampleSave(), { lease: true });
+    await session.toggleGame();
+    session.handleMessage(msg({ type: 'title-continue' }));
+    await flush();
+    expect(snap().mode).toBe('normal');
+    expect(lease?.held).toBe(false);
+  });
+
+  it('창 잠금 파일을 못 만들면 (디스크 가득) 던지지 않고 타이틀에 안내', async () => {
+    await titleOpen(sampleSave(), { lease: true });
+    leaseFile.create = () => {
+      throw new Error('ENOSPC');
+    };
+    session.handleMessage(msg({ type: 'title-continue' }));
+    await flush();
+    expect(snap().mode).toBe('title');
+    expect(view.last('title')?.info.notice).toBe('write-failed');
+  });
+
+  it('타이틀 중 게임 화면을 못 불러오면 알리고 일반 모드로 (다음 🎮 에서 다시)', async () => {
+    await setup(sampleSave());
+    await session.toggleGame();
+    session.handleMessage(msg({ type: 'load-failed', message: 'x' }));
+    expect(snap().mode).toBe('normal');
+    expect(warns).toHaveLength(1);
+    expect(view.sent.at(-1)).toEqual({ command: 'game', type: 'stop' });
+    await session.toggleGame();
+    expect(snap().mode).toBe('title');
+  });
+
+  it('게임 중 화면 오류는 알리고 확장이 들고 있음 (🏠 로 나갈 수 있음)', async () => {
+    await enterAndStart(autoSave());
+    session.handleMessage(msg({ type: 'load-failed', message: '화면 오류' }));
+    expect(snap().owner).toBe('host');
+    expect(warns).toHaveLength(1);
+  });
+
+  it('나가는 사이 다른 창이 세이브를 바꿨으면 덮지 않고, 이 진행은 백업에 두고 알림', async () => {
+    const start = await enterAndStart(sampleSave({ updatedAt: 1 }));
+    storage.write(sampleSave({ updatedAt: 999, money: 77 }));
+    session.handleMessage(msg({ type: 'exit', epoch: start.epoch, state: withPlay(start.state, 5000) }));
+    await flush();
+    expect(snap().mode).toBe('normal');
+    expect(stored()?.money).toBe(77);
+    expect(archive.items.find((i) => i.reason === 'unsaved')?.raw).toMatchObject({ playTimeMs: 5000 });
+    expect(warns).toHaveLength(1);
+    expect(warns[0]).toContain('백업');
+  });
+
+  it('나갈 때 디스크 오류로 두 번 못 쓰면 진행을 백업에 두고 알림 (다시 읽어도 잃지 않게)', async () => {
+    const start = await enterAndStart(sampleSave());
+    storage.failNext = 2;
+    session.handleMessage(msg({ type: 'exit', epoch: start.epoch, state: withPlay(start.state, 6000) }));
+    await flush();
+    expect(archive.items.find((i) => i.reason === 'unsaved')?.raw).toMatchObject({ playTimeMs: 6000 });
+    expect(warns[0]).toContain('디스크');
+  });
+
+  it('게임 중에 잠겨서 나가면 알림은 한 번만', async () => {
+    const start = await enterAndStart(sampleSave({ updatedAt: 1 }));
+    storage.write(sampleSave({ updatedAt: 999 }));
+    session.handleMessage(msg({ type: 'save-now', epoch: start.epoch, reason: 'catch', state: start.state }));
+    await flush();
+    expect(snap().mode).toBe('normal');
+    expect(warns).toHaveLength(1);
+  });
+
+  it('다른 창이 게임 중인 타이틀은 그 창이 끝나면 저절로 다시 보냄 (버튼이 살아남)', async () => {
+    await setup(sampleSave(), { lease: true });
+    leaseFile.write({ owner: 'other-window', pid: 2, until: now + 60_000 });
+    await session.toggleGame();
+    session.handleMessage(msg({ type: 'ready' }));
+    await flush();
+    expect(view.last('title')?.info.busy).toBe(true);
+    const titles = session.stats.titles;
+    await vi.advanceTimersByTimeAsync(TIMING.titleBusyPollMs * 2);
+    expect(session.stats.titles).toBe(titles); // 아직 게임 중 — 다시 보내지 않음
+    leaseFile.remove();
+    await vi.advanceTimersByTimeAsync(TIMING.titleBusyPollMs);
+    expect(view.last('title')?.info.busy).toBe(false);
+    await session.toggleGame();
+    const after = session.stats.titles;
+    await vi.advanceTimersByTimeAsync(TIMING.titleBusyPollMs * 3);
+    expect(session.stats.titles).toBe(after); // 일반 모드에서는 지켜보지 않음
+  });
+
+  it('모드가 바뀔 때마다 알림 (제목줄 🎮 ↔ 🏠)', async () => {
+    await titleOpen(sampleSave());
+    session.handleMessage(msg({ type: 'title-continue' }));
+    await flush();
+    session.handleMessage(msg({ type: 'ready' }));
+    await exitNow();
+    expect(modes).toEqual(['title', 'game', 'normal']);
+  });
+
+  it('게임에 들어갔는데 웹뷰가 준비되기 전에 패널을 접으면 확장이 들고 있음 (자동 전투면 계속)', async () => {
+    await setup(autoSave());
+    await session.enterGame();
+    session.onVisibilityChanged(false);
+    expect(snap().owner).toBe('host');
+    expect(snap().running).toBe(true);
   });
 });
