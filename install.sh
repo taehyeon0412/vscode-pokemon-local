@@ -54,8 +54,8 @@ native_path() {
   if command -v cygpath >/dev/null 2>&1; then cygpath -w "$1"; else echo "$1"; fi
 }
 
-# code 는 stdin 을 읽지 않게 (curl | bash 에서 남은 스크립트를 먹지 않도록)
-run_code() { "$CODE" "$@" </dev/null; }
+# code 는 stdin 을 읽지 않게 (curl | bash 에서 남은 스크립트를 먹지 않도록) · Node 경고 줄은 숨김
+run_code() { NODE_NO_WARNINGS=1 "$CODE" "$@" </dev/null; }
 
 installed_version() {
   run_code --list-extensions --show-versions 2>/dev/null | tr -d '\r' | grep -i "^$EXT_ID@" | cut -d@ -f2 || true
