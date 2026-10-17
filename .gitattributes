@@ -1,2 +1,4 @@
 # 셸 스크립트는 어느 PC에서 받아도 LF (curl | bash · Git Bash 에서 \r 오류가 안 나게)
 *.sh text eol=lf
+# 만든 데이터 — GitHub 에서 diff 를 접어 보이게 (scripts/fetch-pokeapi.mjs 가 만듦)
+src/game/data/generated/** linguist-generated=true

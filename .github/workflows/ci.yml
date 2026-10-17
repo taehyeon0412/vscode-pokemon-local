@@ -30,8 +30,20 @@ jobs:
       - name: 타입 검사 · 코드 규칙 (층 사이 의존 방향 포함)
         run: npm run check
 
-      - name: 자동 테스트 (계산 규칙 · 세이브 · 확장 ↔ 웹뷰)
+      - name: 자동 테스트 (계산 규칙 · 세이브 · 확장 ↔ 웹뷰 · 데이터)
         run: npm test
+
+      - uses: actions/cache@v4
+        with:
+          path: .cache/pokeapi
+          key: pokeapi-${{ hashFiles('scripts/fetch-pokeapi.mjs') }}
+          restore-keys: pokeapi-
+
+      - name: 데이터가 지금 포켓몬 목록 · 스크립트와 맞는지 (포켓몬을 넣고 데이터를 다시 안 받았으면 실패)
+        run: |
+          node scripts/fetch-pokeapi.mjs
+          # 새로 생긴 파일까지 (git diff 는 추적 안 된 파일을 못 봄)
+          test -z "$(git status --porcelain -- src/game/data/generated)" || { git status --porcelain -- src/game/data/generated; git diff --stat -- src/game/data/generated; exit 1; }
 
       - name: 설치 스크립트 문법
         run: bash -n install.sh
@@ -45,7 +57,8 @@ jobs:
           import glob, sys, zipfile
           names = zipfile.ZipFile(glob.glob('dist/*.vsix')[0]).namelist()
           need = ['extension/out/game/host.js', 'extension/media/game/boot.js',
-                  'extension/media/game/game.js', 'extension/out/extension/game-loader.js']
+                  'extension/media/game/game.js', 'extension/out/extension/game-loader.js',
+                  'extension/THIRD-PARTY-NOTICES.txt']
           missing = [n for n in need if n not in names]
           extra = [n for n in names if n.endswith('.map') or '.test' in n]
           print('missing:', missing, 'extra:', extra)

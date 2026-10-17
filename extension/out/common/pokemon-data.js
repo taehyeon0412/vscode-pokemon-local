@@ -5163,6 +5163,21 @@ const POKEMON_DATA_RAW = {
     froakie: { id: 656, name: "Froakie", generation: 6, cry: "Froakie!", possibleColors: ["default", "shiny"], },
     frogadier: { id: 657, name: "Frogadier", generation: 6, cry: "Frogadier!", possibleColors: ["default", "shiny"], originalSpriteSize: 64, },
     greninja: { id: 658, name: "Greninja", generation: 6, cry: "Greninja!", possibleColors: ["default", "shiny"], },
+    snivy: { id: 495, name: "Snivy", generation: 5, cry: "Snivy!", possibleColors: ["default", "shiny"], },
+    servine: { id: 496, name: "Servine", generation: 5, cry: "Servine!", possibleColors: ["default", "shiny"], },
+    serperior: { id: 497, name: "Serperior", generation: 5, cry: "Serperior!", possibleColors: ["default", "shiny"], originalSpriteSize: 64, },
+    tepig: { id: 498, name: "Tepig", generation: 5, cry: "Tepig!", possibleColors: ["default", "shiny"], },
+    pignite: { id: 499, name: "Pignite", generation: 5, cry: "Pignite!", possibleColors: ["default", "shiny"], },
+    emboar: { id: 500, name: "Emboar", generation: 5, cry: "Emboar!", possibleColors: ["default", "shiny"], originalSpriteSize: 64, },
+    oshawott: { id: 501, name: "Oshawott", generation: 5, cry: "Oshawott!", possibleColors: ["default", "shiny"], },
+    dewott: { id: 502, name: "Dewott", generation: 5, cry: "Dewott!", possibleColors: ["default", "shiny"], },
+    samurott: { id: 503, name: "Samurott", generation: 5, cry: "Samurott!", possibleColors: ["default", "shiny"], originalSpriteSize: 64, },
+    chespin: { id: 650, name: "Chespin", generation: 6, cry: "Chespin!", possibleColors: ["default", "shiny"], },
+    quilladin: { id: 651, name: "Quilladin", generation: 6, cry: "Quilladin!", possibleColors: ["default", "shiny"], },
+    chesnaught: { id: 652, name: "Chesnaught", generation: 6, cry: "Chesnaught!", possibleColors: ["default", "shiny"], originalSpriteSize: 64, },
+    fennekin: { id: 653, name: "Fennekin", generation: 6, cry: "Fennekin!", possibleColors: ["default", "shiny"], },
+    braixen: { id: 654, name: "Braixen", generation: 6, cry: "Braixen!", possibleColors: ["default", "shiny"], },
+    delphox: { id: 655, name: "Delphox", generation: 6, cry: "Delphox!", possibleColors: ["default", "shiny"], },
 /* /POKEMON-EXTRA-PATCH */
 };
 exports.POKEMON_DATA = Object.fromEntries(Object.entries(POKEMON_DATA_RAW).filter(([, config]) => config.possibleColors.length > 0));

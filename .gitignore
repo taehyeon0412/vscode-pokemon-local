@@ -11,6 +11,7 @@ extension/media/game/
 extension/out/game/
 .test-out/
 .vscode-test/
+.cache/
 
 # 게임 기획 문서는 내 PC에만 (2026-10-17 태현 님)
 docs/game-design/

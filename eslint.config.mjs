@@ -13,6 +13,7 @@ const BAN = {
   ui: { regex: '(^|/)ui(/|$)', message: '공통 부품(ui)은 화면 층에서만 가져와요.' },
   components: { regex: '(^|/)components(/|$)', message: '화면 컴포넌트는 화면 층에서만 가져와요.' },
   features: { regex: '(^|/)features(/|$)', message: '규칙 · 상태(core)는 기능(features)을 모르게 — 의존은 core → features 한 방향이에요.' },
+  core: { regex: '(^|/)core(/|$)', message: '데이터(data)는 가장 아래 층 — 규칙 · 상태(core)를 가져오지 않아요.' },
   shared: { regex: '(^|/)shared(/|$)', message: '규칙 · 상태(core)는 메시지(shared)를 모르게 — shared 가 core 를 가져와요.' },
 };
 
@@ -38,6 +39,8 @@ export default tseslint.config(
       'no-console': ['error', { allow: ['warn', 'error'] }],
     },
   },
+  // 데이터는 가장 아래 층 — 아무것도 가져오지 않음
+  { files: ['src/game/data/**'], rules: ban('vscode', 'preact', 'node', 'host', 'webview', 'ui', 'components', 'features', 'shared', 'core') },
   { files: ['src/game/core/**'], rules: ban('vscode', 'preact', 'node', 'host', 'webview', 'ui', 'components', 'features', 'shared') },
   { files: ['src/game/shared/**'], rules: ban('vscode', 'preact', 'node', 'host', 'webview', 'ui', 'components', 'features') },
   { files: ['src/game/features/**/model.ts', 'src/game/features/**/model/**'], rules: ban('vscode', 'preact', 'node', 'host', 'webview', 'ui', 'components') },
@@ -57,7 +60,7 @@ export default tseslint.config(
   {
     // 도구 스크립트 · 테스트는 Node 에서 돌고 console 로 알림
     files: ['scripts/**', 'src/test/**'],
-    languageOptions: { globals: { process: 'readonly', console: 'readonly', __dirname: 'readonly' } },
+    languageOptions: { globals: { process: 'readonly', console: 'readonly', __dirname: 'readonly', fetch: 'readonly' } },
     rules: { 'no-console': 'off' },
   },
 );

@@ -28,5 +28,155 @@
       "shiny"
     ],
     "size": 32
+  },
+  "snivy": {
+    "id": 495,
+    "name": "Snivy",
+    "generation": 5,
+    "colors": [
+      "default",
+      "shiny"
+    ],
+    "size": 32
+  },
+  "servine": {
+    "id": 496,
+    "name": "Servine",
+    "generation": 5,
+    "colors": [
+      "default",
+      "shiny"
+    ],
+    "size": 32
+  },
+  "serperior": {
+    "id": 497,
+    "name": "Serperior",
+    "generation": 5,
+    "colors": [
+      "default",
+      "shiny"
+    ],
+    "size": 64
+  },
+  "tepig": {
+    "id": 498,
+    "name": "Tepig",
+    "generation": 5,
+    "colors": [
+      "default",
+      "shiny"
+    ],
+    "size": 32
+  },
+  "pignite": {
+    "id": 499,
+    "name": "Pignite",
+    "generation": 5,
+    "colors": [
+      "default",
+      "shiny"
+    ],
+    "size": 32
+  },
+  "emboar": {
+    "id": 500,
+    "name": "Emboar",
+    "generation": 5,
+    "colors": [
+      "default",
+      "shiny"
+    ],
+    "size": 64
+  },
+  "oshawott": {
+    "id": 501,
+    "name": "Oshawott",
+    "generation": 5,
+    "colors": [
+      "default",
+      "shiny"
+    ],
+    "size": 32
+  },
+  "dewott": {
+    "id": 502,
+    "name": "Dewott",
+    "generation": 5,
+    "colors": [
+      "default",
+      "shiny"
+    ],
+    "size": 32
+  },
+  "samurott": {
+    "id": 503,
+    "name": "Samurott",
+    "generation": 5,
+    "colors": [
+      "default",
+      "shiny"
+    ],
+    "size": 64
+  },
+  "chespin": {
+    "id": 650,
+    "name": "Chespin",
+    "generation": 6,
+    "colors": [
+      "default",
+      "shiny"
+    ],
+    "size": 32
+  },
+  "quilladin": {
+    "id": 651,
+    "name": "Quilladin",
+    "generation": 6,
+    "colors": [
+      "default",
+      "shiny"
+    ],
+    "size": 32
+  },
+  "chesnaught": {
+    "id": 652,
+    "name": "Chesnaught",
+    "generation": 6,
+    "colors": [
+      "default",
+      "shiny"
+    ],
+    "size": 64
+  },
+  "fennekin": {
+    "id": 653,
+    "name": "Fennekin",
+    "generation": 6,
+    "colors": [
+      "default",
+      "shiny"
+    ],
+    "size": 32
+  },
+  "braixen": {
+    "id": 654,
+    "name": "Braixen",
+    "generation": 6,
+    "colors": [
+      "default",
+      "shiny"
+    ],
+    "size": 32
+  },
+  "delphox": {
+    "id": 655,
+    "name": "Delphox",
+    "generation": 6,
+    "colors": [
+      "default",
+      "shiny"
+    ],
+    "size": 32
   }
 }

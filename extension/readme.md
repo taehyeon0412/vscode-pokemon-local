@@ -172,6 +172,8 @@ Extracting and creating .gif files involves quite a bit of tedious manual work, 
 - Pokemon Sprites: © The Pokémon Company / Nintendo / Game Freak
 - The sprites are used for non-commercial, fan project purposes only
 - Original sprite artwork belongs to the respective copyright holders
+- Some sprites (Froakie line, the Gen 5 · Gen 6 starters): [PMD SpriteCollab](https://github.com/PMDCollab/SpriteCollab), CC BY-NC 4.0, converted to GIF — artists are listed in `THIRD-PARTY-NOTICES.txt`
+- Game mode data (stats, learnsets, moves, evolutions): [PokeAPI](https://github.com/PokeAPI/pokeapi), BSD 3-Clause — full license in `THIRD-PARTY-NOTICES.txt`
 
 ### Acknowledgments
 - All sprites are property of their original creators

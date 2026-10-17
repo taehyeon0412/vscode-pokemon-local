@@ -1,0 +1,71 @@
+VS Code 포켓몬 (한국어판 수정본) — 함께 들어 있는 다른 사람의 작품
+Third-party notices for this extension. 이 파일은 scripts/make-notices.mjs 가 만듦.
+
+이 확장은 비상업 팬 작품이에요. 포켓몬 · 포켓몬 이름 · 캐릭터는 Nintendo / Creatures / GAME FREAK / The Pokémon Company 의 것이고,
+이 확장은 그 회사들과 관계가 없어요.
+Pokémon and Pokémon character names are trademarks of Nintendo. This is a non-commercial fan project, not affiliated with them.
+
+------------------------------------------------------------
+1. 원작 확장 — jakobhoeg/vscode-pokemon (https://github.com/jakobhoeg/vscode-pokemon), CC0 1.0 (LICENSE.txt)
+   이 확장은 그 코드를 고친 것이에요.
+
+------------------------------------------------------------
+2. 포켓몬 그림 — PMD SpriteCollab (https://github.com/PMDCollab/SpriteCollab)
+   CC BY-NC 4.0 — 비상업 용도, 출처 표시 (https://creativecommons.org/licenses/by-nc/4.0/)
+   아래 포켓몬의 그림은 SpriteCollab 의 그림 시트를 받아 바꿨어요:
+   서 있기 · 걷기 애니메이션만 잘라 GIF 로, 발을 바닥에 맞추고 32×32 또는 64×64 칸에 넣음 (add-pokemon.py).
+   작가 (credits.txt 의 지금 기여자) · [라이선스 표시]:
+  #0495 snivy (주리비얀) — NeroIntruder, G〜  [PMDCollab_1]
+    https://github.com/PMDCollab/SpriteCollab/tree/master/sprite/0495
+  #0496 servine (샤비) — NeroIntruder  [PMDCollab_1]
+    https://github.com/PMDCollab/SpriteCollab/tree/master/sprite/0496
+  #0497 serperior (샤로다) — NeroIntruder  [PMDCollab_1]
+    https://github.com/PMDCollab/SpriteCollab/tree/master/sprite/0497
+  #0498 tepig (뚜꾸리) — NeroIntruder, Emboarger, NikolaP, 3P1C  [PMDCollab_1, PMDCollab_2]
+    https://github.com/PMDCollab/SpriteCollab/tree/master/sprite/0498
+  #0499 pignite (차오꿀) — NeroIntruder, Emboarger  [PMDCollab_1]
+    https://github.com/PMDCollab/SpriteCollab/tree/master/sprite/0499
+  #0500 emboar (염무왕) — NeroIntruder, Emboarger  [PMDCollab_1]
+    https://github.com/PMDCollab/SpriteCollab/tree/master/sprite/0500
+  #0501 oshawott (수댕이) — Emmuffin, ◥θ┴θ◤  [PMDCollab_1]
+    https://github.com/PMDCollab/SpriteCollab/tree/master/sprite/0501
+  #0502 dewott (쌍검자비) — JFain  [PMDCollab_1, CC_BY-NC_4]
+    https://github.com/PMDCollab/SpriteCollab/tree/master/sprite/0502
+  #0503 samurott (대검귀) — Top_Kec  [PMDCollab_1]
+    https://github.com/PMDCollab/SpriteCollab/tree/master/sprite/0503
+  #0650 chespin (도치마론) — Emmuffin, G〜  [PMDCollab_1, PMDCollab_2, CC_BY-NC_4]
+    https://github.com/PMDCollab/SpriteCollab/tree/master/sprite/0650
+  #0651 quilladin (도치보구) — ◥θ┴θ◤, baronessfaron, Soulja  [CC_BY-NC_4]
+    https://github.com/PMDCollab/SpriteCollab/tree/master/sprite/0651
+  #0652 chesnaught (브리가론) — Soulja  [CC_BY-NC_4]
+    https://github.com/PMDCollab/SpriteCollab/tree/master/sprite/0652
+  #0653 fennekin (푸호꼬) — Smalusion, Emmuffin  [PMDCollab_1]
+    https://github.com/PMDCollab/SpriteCollab/tree/master/sprite/0653
+  #0654 braixen (테르나) — Emmuffin, baronessfaron  [PMDCollab_1, CC_BY-NC_4]
+    https://github.com/PMDCollab/SpriteCollab/tree/master/sprite/0654
+  #0655 delphox (마폭시) — Jhony-Rex, Emmuffin  [PMDCollab_1]
+    https://github.com/PMDCollab/SpriteCollab/tree/master/sprite/0655
+  #0656 froakie (개구마르) — Emmuffin  [PMDCollab_1]
+    https://github.com/PMDCollab/SpriteCollab/tree/master/sprite/0656
+  #0657 frogadier (개굴반장) — Caitemis  [CC_BY-NC_4]
+    https://github.com/PMDCollab/SpriteCollab/tree/master/sprite/0657
+  #0658 greninja (개굴닌자) — Jhony-Rex, Soulja  [PMDCollab_1, CC_BY-NC_4]
+    https://github.com/PMDCollab/SpriteCollab/tree/master/sprite/0658
+
+------------------------------------------------------------
+3. 게임 데이터 — PokeAPI (https://github.com/PokeAPI/pokeapi), BSD 3-Clause
+   종족값 · 기술표 · 기술 · 진화 · 포획률 · 한글 이름을 커밋 5ee47a9a9c1229632ec4b473a9c1c53026e005dd 에서 받아 JSON 으로 바꿨어요 (scripts/fetch-pokeapi.mjs).
+
+Copyright (c) © 2013–2023 Paul Hallett and PokéAPI contributors (https://github.com/PokeAPI/pokeapi#contributing). Pokémon and Pokémon character names are trademarks of Nintendo.
+
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+
+* Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+
+* Neither the name of PokéAPI nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.

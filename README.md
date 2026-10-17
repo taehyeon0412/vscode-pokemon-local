@@ -7,7 +7,7 @@
 VS Code 패널에서 포켓몬을 키워요<br>
 클릭하면 기술 · 꾹 누르면 필살기 · 잡아서 던지면 쿵 · 날개 달린 애들은 하늘로
 
-![포켓몬 637마리](https://img.shields.io/badge/%ED%8F%AC%EC%BC%93%EB%AA%AC-637%EB%A7%88%EB%A6%AC-ffcb05?style=for-the-badge) ![필살기 891개](https://img.shields.io/badge/%ED%95%84%EC%82%B4%EA%B8%B0-891%EA%B0%9C-e3350d?style=for-the-badge) ![연출 22가지](https://img.shields.io/badge/%EC%97%B0%EC%B6%9C-22%EA%B0%80%EC%A7%80-3b4cca?style=for-the-badge) ![한국어](https://img.shields.io/badge/%EC%96%B8%EC%96%B4-%ED%95%9C%EA%B5%AD%EC%96%B4-2a75bb?style=for-the-badge)
+![포켓몬 652마리](https://img.shields.io/badge/%ED%8F%AC%EC%BC%93%EB%AA%AC-652%EB%A7%88%EB%A6%AC-ffcb05?style=for-the-badge) ![필살기 891개](https://img.shields.io/badge/%ED%95%84%EC%82%B4%EA%B8%B0-891%EA%B0%9C-e3350d?style=for-the-badge) ![연출 22가지](https://img.shields.io/badge/%EC%97%B0%EC%B6%9C-22%EA%B0%80%EC%A7%80-3b4cca?style=for-the-badge) ![한국어](https://img.shields.io/badge/%EC%96%B8%EC%96%B4-%ED%95%9C%EA%B5%AD%EC%96%B4-2a75bb?style=for-the-badge)
 
 **[🕹️ 놀기](#play) · [💥 필살기](#ult) · [⚡ 기술](#moves) · [🌿 저절로](#auto) · [📦 설치](#install) · [🛠️ 고치기](#dev)**
 
@@ -131,7 +131,9 @@ https://github.com/user-attachments/assets/a26e96db-79ee-427a-a6f2-49a4cd27c889
 
 > 1초 전에 떼면 평소처럼 기술, 누른 채 움직이면 잡기예요.
 
-### 637마리 모두 2개 이상
+### 원래 637마리는 모두 2개 이상
+
+> 새로 넣은 스타팅 15마리 (주리비얀 · 뚜꾸리 · 수댕이 · 도치마론 · 푸호꼬 계열)는 아직 타입 기본 필살기 1개예요.
 
 - 서로 다른 연출로 쓸 때마다 **번갈아** 나와요 — 한 바퀴 다 나올 때까지 같은 게 안 나와요
 - 이름은 **Z기술 · 거다이맥스 · 전용기 · 대표 기술**에서 골랐어요
@@ -567,6 +569,7 @@ extension/            확장 본체 (원본 + 수정) — install.py 가 이걸 
 src/game/             게임 모드 원본 (TypeScript) — 빌드하면 extension/ 안으로 (구조는 src/game/README.md)
 src/test/             실제 VS Code 테스트 · 테스트 도우미
 scripts/build.mjs     게임 모드 빌드 (esbuild)
+scripts/fetch-pokeapi.mjs  게임 데이터 받기 (PokeAPI → src/game/data/generated/, 포켓몬을 더 넣으면 다시)
 package.json          게임 모드 개발 도구 (npm) — 확장 자체 설정은 extension/package.json
 .vscode/              F5 개발 창 (launch.json · tasks.json)
 moves.js              기술 · 행동 코드 원본 — make-moves.py 가 extension/media/main-bundle.js 에 끼워 넣음
@@ -615,5 +618,5 @@ docs/                 README 그림 · 영상
 
 - 원작 코드: [jakobhoeg/vscode-pokemon](https://github.com/jakobhoeg/vscode-pokemon) — CC0
 - 포켓몬 그림 저작권: © The Pokémon Company / Nintendo / Game Freak — 개인 비상업 용도
-- 6세대 그림: [PMD SpriteCollab](https://github.com/PMDCollab/SpriteCollab) — CC BY-NC 4.0 (작가는 저장소 `sprite/<번호>/credits.txt`)
-- 타입 · 종족값 · 한글 이름: [PokeAPI](https://github.com/PokeAPI/pokeapi)
+- 새로 넣은 그림 (6세대 · 스타팅 15마리): [PMD SpriteCollab](https://github.com/PMDCollab/SpriteCollab) — CC BY-NC 4.0 (작가는 저장소 `sprite/<번호>/credits.txt`)
+- 타입 · 종족값 · 한글 이름 · 게임 모드 데이터 (기술표 · 기술 · 진화 · 포획률): [PokeAPI](https://github.com/PokeAPI/pokeapi) — BSD-3-Clause (`scripts/fetch-pokeapi.mjs` 가 고정된 커밋에서 받음)

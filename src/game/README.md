@@ -5,6 +5,8 @@
 ## 폴더 — 기능별로, 의존은 한 방향
 
 ```
+data/        게임 데이터 (가장 아래 층): 종족값 · 울트라썬문 레벨업 기술표 · 기술 · 진화 · 포획률 · 그림 목록
+  generated/   scripts/fetch-pokeapi.mjs 가 만든 JSON (손으로 고치지 않음)
 core/        규칙 · 상태. 화면도 VS Code 도 Node 도 모름 → 확장 쪽 · 웹뷰 쪽 어디서든 같은 결과
   balance.ts   게임 숫자 모음 (기획 명세 4장과 1:1)
   save/        세이브 형식 · 검사(고치기) · 옛 버전 옮기기
@@ -18,8 +20,8 @@ webview/     웹뷰 쪽: boot.js (늘 불러옴, 아주 작음) · game.js (게�
 ```
 
 ```
-core  ←  shared  ←  features/*/model  ←  host
-                 ←  ui · features/*/components  ←  webview
+data  ←  core  ←  shared  ←  features/*/model  ←  host
+                          ←  ui · features/*/components  ←  webview
 ```
 
 - 화살표 반대로는 가져오지 못해요. `npm run lint` 가 막아요 (`eslint.config.mjs` 의 `BAN`), 그리고 `tsconfig.core.json` 은 DOM · Node 타입이 없어서 `core` 에서 `document` · `process` 를 쓰면 타입 오류가 나요.
@@ -63,6 +65,7 @@ game.js ── ready ──▶ 확장 ── start (epoch · 상태) ──▶ �
 | `npm run watch` + **F5** | 고칠 때마다 다시 묶고, 개발용 VS Code 창에서 바로 확인 |
 | `npm test` | 자동 테스트 (몇 초) |
 | `npm run check` | 타입 검사 + 코드 규칙 |
+| `node scripts/fetch-pokeapi.mjs` | 게임 데이터 다시 받기 (add-pokemon.py 로 포켓몬을 넣은 뒤 · PokeAPI 커밋을 바꾼 뒤) — CI 가 맞는지 확인 |
 | `npm run test:integration` | 실제 VS Code 를 띄워 패널 접기 · 펴기 · 저장 · 일반 모드 · 껐다 켜기 확인 (따로 된 사용자 폴더, `VSCODE_TEST_VERSION=1.73.0` 로 가장 낮은 버전) |
 | `python install.py` | 빌드해서 내 VS Code 에 설치 |
 

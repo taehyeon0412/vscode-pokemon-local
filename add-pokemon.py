@@ -16,8 +16,10 @@ import io
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
+import time
 import urllib.request
 
 from PIL import Image
@@ -122,7 +124,24 @@ def put_block(rel, anchor, code, after):
         sys.exit(f"{rel}: 넣을 자리를 못 찾음")
     i = src.index(anchor) + (len(anchor) if after else 0)
     src = src[:i] + "\n" + EXTRA_BEGIN + code + EXTRA_END + src[i:]
-    open(path, "w", encoding="utf-8").write(src)
+    write_atomic(path, src)
+
+
+def write_atomic(path, text):
+    # 임시 파일에 다 쓴 뒤 바꿈 — 쓰다가 실패해도 main-bundle.js 가 비거나 반쯤 남지 않게.
+    # 윈도우에서 다른 프로그램(VS Code · 백신)이 잠깐 잡고 있으면 조금 쉬며 몇 번 다시
+    tmp = f"{path}.{os.getpid()}.tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        f.write(text)
+    for attempt in range(6):
+        try:
+            os.replace(tmp, path)
+            return
+        except OSError:
+            if attempt == 5:
+                os.remove(tmp)
+                raise
+            time.sleep(0.2 * (attempt + 1))
 
 
 def register(pokemon):
@@ -180,11 +199,18 @@ def main():
     ko_path = os.path.join(EXT, "l10n", "pokemon", "ko", f"gen{gen}.json")
     names = json.load(open(ko_path, encoding="utf-8")) if os.path.exists(ko_path) else {}
     names[key] = ko
-    json.dump(names, open(ko_path, "w", encoding="utf-8"), ensure_ascii=False, indent="\t")
+    write_atomic(ko_path, json.dumps(names, ensure_ascii=False, indent="\t") + "\n")
 
     register(manifest)
     # 새 포켓몬도 타입별 기술 · 입 위치 반영
     subprocess.run([sys.executable, os.path.join(HERE, "make-moves.py")], check=True)
+    # 게임 모드 데이터 · 함께 들어 있는 작품 고지도 새 포켓몬에 맞게 (Node.js 가 있으면)
+    node = shutil.which("node")
+    if node:
+        for script in ("fetch-pokeapi.mjs", "make-notices.mjs"):
+            subprocess.run([node, os.path.join(HERE, "scripts", script)], check=True)
+    else:
+        print("Node.js 가 없어 게임 데이터 · 고지를 다시 만들지 못함 — node scripts/fetch-pokeapi.mjs · node scripts/make-notices.mjs 를 돌려 주세요")
     print(f"{ko}({key}) #{num} gen{gen} · {canvas}×{canvas} · {', '.join(loaded)} — 설치: python3 {HERE}/install.py")
 
 
