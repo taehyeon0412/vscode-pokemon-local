@@ -435,6 +435,23 @@ python3 ~/.claude/vscode-pokemon-local/install.py
 </details>
 
 <details>
+<summary><b>게임 모드 개발 — <code>src/game</code> (Node.js 20.9 이상)</b></summary>
+
+<br>
+
+```bash
+npm ci                      # 처음 한 번
+npm run watch               # 고칠 때마다 다시 묶음 → VS Code 에서 F5 (개발 창)
+npm test                    # 자동 테스트
+npm run check               # 타입 검사 + 코드 규칙
+npm run test:integration    # 실제 VS Code 를 띄워 확인 (따로 된 사용자 폴더)
+```
+
+`python3 install.py` 는 Node.js 가 있으면 게임 모드를 먼저 빌드해서 같이 묶어요. 구조 · 웹뷰 생명주기 · 세이브 규칙은 [`src/game/README.md`](src/game/README.md).
+
+</details>
+
+<details>
 <summary><b>릴리스 내기 (저장소 주인)</b></summary>
 
 <br>
@@ -547,6 +564,11 @@ python3 install.py
 
 ```
 extension/            확장 본체 (원본 + 수정) — install.py 가 이걸 묶어 설치
+src/game/             게임 모드 원본 (TypeScript) — 빌드하면 extension/ 안으로 (구조는 src/game/README.md)
+src/test/             실제 VS Code 테스트 · 테스트 도우미
+scripts/build.mjs     게임 모드 빌드 (esbuild)
+package.json          게임 모드 개발 도구 (npm) — 확장 자체 설정은 extension/package.json
+.vscode/              F5 개발 창 (launch.json · tasks.json)
 moves.js              기술 · 행동 코드 원본 — make-moves.py 가 extension/media/main-bundle.js 에 끼워 넣음
 ult/                  필살기 코드 (core · fx-* 연출 틀 · duel 대결) · SPEC.md 설계 — moves.js 뒤에 이어 붙음
 make-moves.py         타입 · 종족값 · 입 위치로 기술 표 · 행동 표 · 대표 기술 표 · 필살기 표 생성
@@ -580,6 +602,7 @@ docs/                 README 그림 · 영상
 | `LOCAL-PATCH` | `main-bundle.js` · `media/pokemon.css` | 저장 1초에 한 번, GPU 이동(`glideSprite`) |
 | `LOCAL-PATCH` | `out/extension/extension.js` · `main-bundle.js` | ⚙ 설정 메뉴(`vscode-pokemon.settings-menu`), 빈 패널이 `fresh-session` 을 보내면 기본 포켓몬 소환 |
 | `LOCAL-PATCH` | `out/extension/extension.js` · `out/common/localize.js` | 메뉴 문구를 `koT` 로 `l10n/bundle.l10n.ko.json` 에서 (VS Code 언어 무시), 이름 언어 자동 → 한국어 |
+| `GAME-PATCH` | `out/extension/extension.js` · `out/extension/game-loader.js` | 게임 모드 연결 (`src/game` 빌드를 불러옴 · 웹뷰 API 를 일반 모드와 같이 씀 · 끌 때 저장). 게임 빌드가 없거나 오류가 나도 일반 모드는 그대로 |
 | — | `package.json` | publisher `local`, 이름 "VS Code Pokemon (내 PC)", 명령 · 패널 · 설정 이름 한국어, `pokemonLanguage` 기본 `ko` |
 | — | `out/common/localize.js` | 확장 ID 를 `local.vscode-pokemon` 으로 |
 | — | `l10n/pokemon/ko/` | 한글 이름 (PokeAPI) |

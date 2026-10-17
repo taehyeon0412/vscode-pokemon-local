@@ -6,6 +6,7 @@
 
 수정 · 포켓몬 추가 후 다시 실행. 끝나면 VS Code 에서 "Developer: Reload Window".
 묶은 파일은 dist/ 에 남음 (VS Code 없이 다른 데서 설치할 때 code --install-extension 으로).
+게임 모드(src/game)는 Node.js 가 있으면 먼저 빌드해서 같이 묶음 (없으면 일반 모드만).
 """
 import json
 import os
@@ -90,7 +91,34 @@ def build():
     return vsix
 
 
+GAME_OUTPUTS = [os.path.join(EXT, "out", "game"), os.path.join(EXT, "media", "game")]
+
+
+def build_game(strict):
+    """게임 모드(src/game)를 묶어 extension/ 안으로.
+    Node.js 가 없거나 빌드가 실패하면 게임 모드는 빼고 일반 모드만 묶음 (strict = 릴리스용이면 실패로 멈춤)"""
+    if not os.path.exists(os.path.join(HERE, "package.json")):
+        return
+    npm = shutil.which("npm")
+    try:
+        if not npm:
+            raise RuntimeError("Node.js(npm)가 없음")
+        # 빌드 출력은 stderr 로 (--no-install 의 stdout 은 vsix 경로 한 줄만)
+        if not os.path.isdir(os.path.join(HERE, "node_modules")):
+            # 설치 스크립트는 돌리지 않음 (CI 와 같게 — esbuild 는 없어도 돎)
+            subprocess.run([npm, "ci", "--no-audit", "--no-fund", "--ignore-scripts"], cwd=HERE, check=True, stdout=sys.stderr)
+        subprocess.run([npm, "run", "build:release"], cwd=HERE, check=True, stdout=sys.stderr)
+    except (RuntimeError, OSError, subprocess.CalledProcessError) as e:
+        if strict:
+            raise
+        # 반쯤 된 · 옛 게임 빌드가 섞이지 않게 지우고 일반 모드만
+        for d in GAME_OUTPUTS:
+            shutil.rmtree(d, ignore_errors=True)
+        print(f"게임 모드 빌드를 못 해서 ({e}) 일반 모드만 묶어요.", file=sys.stderr)
+
+
 def main():
+    build_game(strict="--no-install" in sys.argv[1:])
     vsix = build()
     if "--no-install" in sys.argv[1:]:
         # GitHub Actions 릴리스용 — 묶기만 하고 설치는 안 함

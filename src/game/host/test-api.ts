@@ -1,0 +1,57 @@
+/**
+ * 실제 VS Code 테스트(src/test/integration)에서만 쓰는 손잡이.
+ * 확장이 Test 모드로 켜졌을 때만 activate 의 반환값에 실림 — 사용자 PC 에서는 없음.
+ */
+import type { Save } from '../core/save';
+import type { EnterResult, GameSession, SessionStats } from './game-session';
+import type { SaveArchive } from './save-archive';
+import type { SaveStorage } from './save-file';
+import type { LoadResult, SaveStore } from './save-store';
+
+export interface GameTestApi {
+  ready: Promise<LoadResult>;
+  debug(): { mode: string; owner: string; epoch: number; load: string; running: boolean; playTimeMs: number | null; money: number | null; stats: SessionStats };
+  enterGame(): Promise<EnterResult>;
+  exitGame(): Promise<void>;
+  startNewSave(save: Save): Promise<'done' | 'busy' | 'failed'>;
+  /** 게임 상태의 세이브를 바꾸고 저장은 기다리게만 둠 — VS Code 를 끌 때(deactivate) 저장되는지 보려고 (게임 모드에서) */
+  queueUnsaved(patch: Partial<Save>): boolean;
+  flush(): Promise<boolean>;
+  readStoredRaw(): unknown;
+  writeStoredRaw(raw: unknown): void;
+  /** 세이브 파일에서 다시 읽기 (확장을 다시 켠 것처럼) */
+  reload(): Promise<LoadResult>;
+  archiveCount(): Promise<number>;
+  /** 일반 모드 웹뷰(main-bundle)에 포켓몬 목록을 물어봄 — 답이 오면 일반 모드가 살아 있음 */
+  probeNormalWebview(): Promise<unknown>;
+}
+
+export function createTestApi(
+  session: GameSession,
+  store: SaveStore,
+  storage: SaveStorage,
+  archive: SaveArchive,
+  ready: Promise<LoadResult>,
+  probeNormalWebview: () => Promise<unknown>,
+): GameTestApi {
+  return {
+    ready,
+    debug() {
+      const s = session.snapshot;
+      return {
+        mode: s.mode, owner: s.owner, epoch: s.epoch, load: s.load, running: s.running,
+        playTimeMs: s.state?.save.playTimeMs ?? null, money: s.state?.save.money ?? null, stats: { ...session.stats },
+      };
+    },
+    enterGame: () => session.enterGame(),
+    exitGame: () => session.exitGame(),
+    startNewSave: (save) => session.startNewSave(save),
+    queueUnsaved: (patch) => session.changeSave((s) => ({ ...s, ...patch })),
+    flush: () => store.flush(),
+    readStoredRaw: () => storage.read(),
+    writeStoredRaw: (raw) => storage.write(raw),
+    reload: () => session.init({ readOnly: true }),
+    archiveCount: async () => (await archive.list()).length,
+    probeNormalWebview,
+  };
+}

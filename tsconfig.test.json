@@ -1,0 +1,12 @@
+{
+  // 테스트 · 도구 스크립트 — Node 와 DOM 타입을 모두 씀
+  "extends": "./src/game/tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2021", "DOM"],
+    "types": ["node", "vscode"],
+    "allowJs": true,
+    "checkJs": false,
+    "resolveJsonModule": true
+  },
+  "include": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/test/**/*.ts", "vitest.config.ts"]
+}

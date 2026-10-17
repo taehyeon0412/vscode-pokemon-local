@@ -1,0 +1,135 @@
+/**
+ * 세이브 형식 — mvp-spec 9장 "저장 구조".
+ *
+ * 이미 나눠 준 세이브가 있으니 형식을 바꿀 때는:
+ *   1. SAVE_VERSION 을 올리고 새 형식을 SaveV{n} 으로 더한다 (옛 형식은 지우지 않음)
+ *   2. migrate.ts 의 MIGRATIONS 에 "옛 버전 → 새 버전" 함수를 더한다
+ *   3. 옛 세이브 표본으로 테스트를 더한다 (migrate.test.ts)
+ */
+export const SAVE_VERSION = 1;
+
+/** 스탯 5개 (mvp-spec 3.5): HP · 공격 · 방어 · 스피드 · 필살 */
+export const STAT_KEYS = ['hp', 'attack', 'defense', 'speed', 'ultimate'] as const;
+export type StatKey = (typeof STAT_KEYS)[number];
+export type Stats = Record<StatKey, number>;
+
+/** 상태 이상 (mvp-spec 3.3 U14) — 한 포켓몬에 하나만, 전투가 끝나도 이어짐 */
+export type StatusCondition =
+  | { kind: 'poison' }
+  | { kind: 'burn' }
+  | { kind: 'paralysis' }
+  | { kind: 'sleep'; turnsLeft: number };
+export const STATUS_KINDS = ['poison', 'burn', 'paralysis', 'sleep'] as const;
+
+/** 기술 칸 하나 — moveId 는 PokeAPI 기술 번호 */
+export interface MoveSlot {
+  moveId: number;
+  pp: number;
+}
+
+export interface Monster {
+  /** 세이브 안에서만 쓰는 번호 ("m1", "m2" …) */
+  uid: string;
+  /** 전국 도감 번호 */
+  species: number;
+  /** 그림 폴더 이름 (예: bulbasaur · nidoran_female) — extension/media/gen<N>/<form>/ */
+  form: string;
+  level: number;
+  /** 쌓인 경험치 */
+  exp: number;
+  /** 개체값 0~31 — 잡을 때 정해지고 안 바뀜 (★ 등급) */
+  ivs: Stats;
+  /** 나눈 포인트 (레벨업 자동 2 + 고른 2) */
+  points: Stats;
+  /** 아직 안 나눈 고르는 포인트 (S18 에서 나눔) */
+  unspentPoints: number;
+  /** 0~4개 */
+  moves: MoveSlot[];
+  /** 지금 HP (0 = 쓰러짐) */
+  hp: number;
+  status: StatusCondition | null;
+  shiny: boolean;
+  /** 잡은 곳: 'starter' 또는 스테이지 id */
+  caughtAt: string;
+}
+
+/** 아이템 (mvp-spec S14 · 3.6) — PokeAPI 아이템 이름과 같은 꼴 */
+export const ITEM_IDS = [
+  'poke-ball', 'great-ball', 'ultra-ball',
+  'potion', 'super-potion', 'full-heal', 'revive',
+  'fire-stone', 'water-stone', 'thunder-stone', 'leaf-stone', 'moon-stone', 'linking-cord',
+] as const;
+export type ItemId = (typeof ITEM_IDS)[number];
+
+/** 스테이지 (mvp-spec 3.2) — 숲 1-1 · 1-2 · 1-3 */
+export const STAGE_IDS = ['forest-1', 'forest-2', 'forest-3'] as const;
+export type StageId = (typeof STAGE_IDS)[number];
+
+export interface FacilitySpot {
+  kind: 'hospital' | 'shop';
+  /** 스테이지 안 자리 (0 = 처음 · 1 = 끝) */
+  at: number;
+}
+
+export interface StageProgress {
+  /** 그 스테이지를 처음 시작할 때 뽑은 시드 (병원 · 상점 자리 · 트레이너) */
+  seed: number;
+  /** 0 ~ 1 */
+  progress: number;
+  cleared: boolean;
+  defeatedTrainers: string[];
+  facilities: FacilitySpot[];
+}
+
+/** 이어 하기로 돌아갈 곳 (mvp-spec S02 ②) */
+export type Location =
+  | { screen: 'title' } // S02 — 아직 스타팅 전
+  | { screen: 'stage'; stageId: StageId } // S06
+  | { screen: 'gym' } // S16 대기실
+  | { screen: 'world-map' }; // S07
+export const LOCATION_SCREENS = ['title', 'stage', 'gym', 'world-map'] as const;
+
+/** 전투 중에 껐을 때의 상대 — 다시 열면 그 전투를 시작 모습부터 (mvp-spec S02 ②) */
+export type Encounter =
+  | { kind: 'wild'; monster: Monster; start: EncounterStart }
+  | { kind: 'trainer'; trainerId: string; stageId: StageId }
+  | { kind: 'gym-leader' };
+export const ENCOUNTER_STARTS = ['normal', 'preemptive', 'ambush'] as const;
+export type EncounterStart = (typeof ENCOUNTER_STARTS)[number];
+
+export interface LastHospital {
+  stageId: StageId;
+  at: number;
+}
+
+export interface SaveV1 {
+  version: 1;
+  createdAt: number;
+  updatedAt: number;
+  playTimeMs: number;
+  /** S03 에서 고르기 전에는 null */
+  player: { gender: 'male' | 'female' } | null;
+  /** 팀 · 보관함의 포켓몬 전부 (uid → 포켓몬) */
+  monsters: Record<string, Monster>;
+  /** 팀 순서, 맨 앞 = 선두 (최대 BALANCE.partySize) */
+  party: string[];
+  /** 보관함 */
+  box: string[];
+  /** 다음에 잡은 포켓몬의 uid 숫자 */
+  nextMonsterUid: number;
+  bag: Partial<Record<ItemId, number>>;
+  money: number;
+  /** 받은 배지 (예: 'forest') */
+  badges: string[];
+  stages: Partial<Record<StageId, StageProgress>>;
+  location: Location;
+  /** 졌을 때 돌아갈 병원 (mvp-spec 3.8) */
+  lastHospital: LastHospital | null;
+  /** 만난 · 잡은 종 (도감 번호) — NEW! 표시 */
+  dex: { seen: number[]; caught: number[] };
+  pendingEncounter: Encounter | null;
+  settings: { notifications: boolean; autoBattle: boolean };
+}
+
+/** 지금 버전의 세이브 */
+export type Save = SaveV1;

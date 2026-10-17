@@ -1,0 +1,33 @@
+/**
+ * 옛 버전 세이브 → 지금 버전.
+ * 확장을 업데이트한 사용자의 세이브가 그대로 이어지게, 형식을 바꿀 때마다 여기에 하나씩 더한다 (지우지 않음).
+ */
+import { SAVE_VERSION } from './schema';
+
+type RawSave = Record<string, unknown>;
+/** 키 = 옮기기 전 버전. 결과의 version 은 키 + 1 이어야 함 */
+export type Migrations = Readonly<Record<number, (old: RawSave) => RawSave>>;
+
+/** 지금은 1판뿐이라 비어 있음. 2판을 만들면: { 1: (v1) => ({ ...v1, version: 2, 새칸: 기본값 }) } */
+export const MIGRATIONS: Migrations = {};
+
+export type MigrateResult =
+  | { ok: true; data: RawSave; from: number }
+  | { ok: false; reason: 'newer'; version: number }
+  | { ok: false; reason: 'unknown-version'; version: unknown };
+
+export function migrateSave(raw: RawSave, migrations: Migrations = MIGRATIONS, current: number = SAVE_VERSION): MigrateResult {
+  const from = raw.version;
+  if (typeof from !== 'number' || !Number.isInteger(from) || from < 1) return { ok: false, reason: 'unknown-version', version: from };
+  // 더 새 확장에서 만든 세이브 — 옛 확장으로 덮어쓰면 날아가므로 손대지 않음
+  if (from > current) return { ok: false, reason: 'newer', version: from };
+
+  let data = raw;
+  for (let v = from; v < current; v++) {
+    const step = migrations[v];
+    if (!step) return { ok: false, reason: 'unknown-version', version: v };
+    data = step(data);
+    if (data.version !== v + 1) throw new Error(`세이브 옮기기 ${v} → ${v + 1} 가 version 을 ${String(data.version)} 로 둠`);
+  }
+  return { ok: true, data, from };
+}

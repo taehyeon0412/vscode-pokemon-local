@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "createdAt": 1760700000000,
+  "updatedAt": 1760703600000,
+  "playTimeMs": 3600000,
+  "player": { "gender": "male" },
+  "monsters": {
+    "m1": {
+      "uid": "m1", "species": 1, "form": "bulbasaur", "level": 12, "exp": 1728,
+      "ivs": { "hp": 31, "attack": 12, "defense": 8, "speed": 20, "ultimate": 5 },
+      "points": { "hp": 4, "attack": 10, "defense": 4, "speed": 6, "ultimate": 0 },
+      "unspentPoints": 2,
+      "moves": [{ "moveId": 33, "pp": 30 }, { "moveId": 22, "pp": 20 }, { "moveId": 73, "pp": 10 }],
+      "hp": 34, "status": null, "shiny": false, "caughtAt": "starter"
+    },
+    "m2": {
+      "uid": "m2", "species": 10, "form": "caterpie", "level": 4, "exp": 64,
+      "ivs": { "hp": 1, "attack": 2, "defense": 3, "speed": 4, "ultimate": 5 },
+      "points": { "hp": 0, "attack": 0, "defense": 0, "speed": 0, "ultimate": 0 },
+      "unspentPoints": 0,
+      "moves": [{ "moveId": 33, "pp": 35 }],
+      "hp": 0, "status": { "kind": "poison" }, "shiny": true, "caughtAt": "forest-1"
+    },
+    "m3": {
+      "uid": "m3", "species": 43, "form": "oddish", "level": 7, "exp": 343,
+      "ivs": { "hp": 15, "attack": 15, "defense": 15, "speed": 15, "ultimate": 15 },
+      "points": { "hp": 2, "attack": 2, "defense": 2, "speed": 2, "ultimate": 4 },
+      "unspentPoints": 0,
+      "moves": [{ "moveId": 71, "pp": 25 }, { "moveId": 77, "pp": 35 }],
+      "hp": 18, "status": { "kind": "sleep", "turnsLeft": 2 }, "shiny": false, "caughtAt": "forest-2"
+    }
+  },
+  "party": ["m1", "m2"],
+  "box": ["m3"],
+  "nextMonsterUid": 4,
+  "bag": { "poke-ball": 2, "great-ball": 1, "potion": 3, "leaf-stone": 1 },
+  "money": 2350,
+  "badges": [],
+  "stages": {
+    "forest-1": {
+      "seed": 123456, "progress": 1, "cleared": true, "defeatedTrainers": ["t1", "t2"],
+      "facilities": [{ "kind": "hospital", "at": 0.45 }, { "kind": "shop", "at": 0.7 }]
+    },
+    "forest-2": {
+      "seed": 987654, "progress": 0.35, "cleared": false, "defeatedTrainers": [],
+      "facilities": [{ "kind": "hospital", "at": 0.5 }]
+    }
+  },
+  "location": { "screen": "stage", "stageId": "forest-2" },
+  "lastHospital": { "stageId": "forest-1", "at": 0.45 },
+  "dex": { "seen": [1, 10, 13, 43, 46], "caught": [1, 10, 43] },
+  "pendingEncounter": {
+    "kind": "wild",
+    "monster": {
+      "uid": "wild", "species": 13, "form": "weedle", "level": 6, "exp": 0,
+      "ivs": { "hp": 7, "attack": 9, "defense": 11, "speed": 13, "ultimate": 2 },
+      "points": { "hp": 0, "attack": 0, "defense": 0, "speed": 0, "ultimate": 0 },
+      "unspentPoints": 0,
+      "moves": [{ "moveId": 40, "pp": 35 }],
+      "hp": 22, "status": null, "shiny": false, "caughtAt": "forest-2"
+    },
+    "start": "preemptive"
+  },
+  "settings": { "notifications": true, "autoBattle": true }
+}

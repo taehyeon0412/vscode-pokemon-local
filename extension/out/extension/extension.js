@@ -306,6 +306,12 @@ function getWebview() {
 }
 function activate(context) {
     spriteErrorLog = require('path').join(context.globalStorageUri.fsPath, 'sprite-errors.log'); // LOCAL-PATCH
+    try { // GAME-PATCH: 게임 모드 (없거나 오류가 나도 일반 모드는 그대로)
+        pokemonGame = require('./game-loader').loadGame(context);
+    }
+    catch (e) {
+        console.error('[pokemon-game] 게임 모드를 불러오지 못함 — 일반 모드만 씀', e);
+    }
     // Reset the Pokemon translations cache at startup to load the correct language
     localize.resetPokemonTranslationsCache();
     context.subscriptions.push(vscode.commands.registerCommand('vscode-pokemon.start', async () => {
@@ -918,6 +924,7 @@ function activate(context) {
             },
         });
     }
+    return pokemonGame && pokemonGame.exports; // GAME-PATCH: 실제 VS Code 테스트용 (Test 모드에서만 값이 있음)
 }
 exports.activate = activate;
 function updateStatusBar() {
@@ -929,6 +936,11 @@ function spawnPokemonDeactivate() {
     spawnPokemonStatusBar.dispose();
 }
 exports.spawnPokemonDeactivate = spawnPokemonDeactivate;
+// GAME-PATCH: VS Code 가 꺼질 때 게임 세이브 마지막 저장
+function deactivate() {
+    return pokemonGame && pokemonGame.deactivate();
+}
+exports.deactivate = deactivate;
 function getWebviewOptions(extensionUri) {
     return {
         // Enable javascript in the webview
@@ -1095,6 +1107,9 @@ class PokemonWebviewContainer {
                 <div id="foreground"></div>
                 <script nonce="${nonce}" src="${scriptUri}"></script>
                 <script nonce="${nonce}">
+                    // GAME-PATCH: VS Code API 는 한 번만 받을 수 있어서 여기서 받아 일반 모드와 게임 모드가 같이 씀
+                    const pokemonVscodeApi = acquireVsCodeApi();
+                    window.pokemonVscodeApi = pokemonVscodeApi;
                     pokemonApp.pokemonPanelApp(
                         "${basePokemonUri}",
                         "${this.theme()}",
@@ -1105,13 +1120,16 @@ class PokemonWebviewContainer {
                         "${this.throwBallWithMouse()}",
                         "${this.pokemonGeneration()}",
                         "${this.pokemonOriginalSpriteSize()}",
+                        pokemonVscodeApi,
                     );
                 </script>
+                <!-- GAME-PATCH: 게임 불러오기 (포켓몬 보기에만) -->${pokemonGame ? pokemonGame.webviewHtml(webview, nonce) : ''}
             </body>
 			</html>`;
     }
 }
 let spriteErrorLog; // LOCAL-PATCH: activate 에서 정함
+let pokemonGame; // GAME-PATCH: activate 에서 정함 (game-loader.js)
 function handleWebviewMessage(message) {
     switch (message.command) {
         case 'alert':
@@ -1235,6 +1253,7 @@ class PokemonWebviewViewProvider extends PokemonWebviewContainer {
     async resolveWebviewView(webviewView) {
         this._webviewView = webviewView;
         webviewView.webview.options = getWebviewOptions(this._extensionUri);
+        pokemonGame && pokemonGame.attachView(webviewView); // GAME-PATCH: HTML 을 넣기 전에 (게임 불러오기 태그가 이 보기에만 들어가게)
         webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
         webviewView.webview.onDidReceiveMessage(handleWebviewMessage, null, this._disposables);
         const collection = getDefaultPokemonForFreshSession(this._context);

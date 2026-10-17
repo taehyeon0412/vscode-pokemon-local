@@ -5,6 +5,13 @@ diag.log
 dev/build/
 dev/shots/
 
+# 게임 모드 개발 도구 · 빌드 결과 (install.py · GitHub Actions 가 빌드)
+node_modules/
+extension/media/game/
+extension/out/game/
+.test-out/
+.vscode-test/
+
 # 게임 기획 문서는 내 PC에만 (2026-10-17 태현 님)
 docs/game-design/
 docs/game-design-partner.md

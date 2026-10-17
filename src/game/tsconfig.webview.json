@@ -1,0 +1,10 @@
+{
+  // 웹뷰 쪽 (패널 속 작은 브라우저) — VS Code · Node 는 모름 (확장과는 메시지로만)
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2021", "DOM", "DOM.Iterable"],
+    "types": []
+  },
+  "include": ["webview/**/*.ts", "webview/**/*.tsx", "ui/**/*.ts", "ui/**/*.tsx", "features/**/*.ts", "features/**/*.tsx"],
+  "exclude": ["**/*.test.ts", "**/*.test.tsx"]
+}

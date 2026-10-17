@@ -1,4 +1,4 @@
-# 태그 v* 를 올리면 — vsix 를 묶어 GitHub 릴리스에 vscode-pokemon-local.vsix 로 올림
+# 태그 v* 를 올리면 — CI 를 전부 통과한 vsix 를 GitHub 릴리스에 vscode-pokemon-local.vsix 로 올림
 # README 의 설치 한 줄(install.sh)이 releases/latest/download/vscode-pokemon-local.vsix 를 받음
 name: Release
 
@@ -7,13 +7,22 @@ on:
     tags: ['v*']
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
+  check:
+    uses: ./.github/workflows/ci.yml
+
+  # 쓰기 권한은 이 작업에만 — 의존성 설치 · 빌드는 하지 않고 CI 가 만든 vsix 를 올리기만
   release:
+    needs: check
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - name: 태그와 extension/package.json 버전이 같은지
         run: |
@@ -24,16 +33,16 @@ jobs:
             exit 1
           fi
 
-      - name: vsix 묶기
-        run: |
-          vsix="$(python3 install.py --no-install)"
-          cp "$vsix" dist/vscode-pokemon-local.vsix
-          ls -l dist/
+      - uses: actions/download-artifact@v4
+        with:
+          name: vsix
+          path: dist
 
       - name: 릴리스 올리기
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          cp dist/*.vsix vscode-pokemon-local.vsix
           {
             echo "## 설치 / 업데이트"
             echo
@@ -48,5 +57,5 @@ jobs:
               cat ".github/release-notes/${GITHUB_REF_NAME}.md"
             fi
           } > notes.md
-          gh release create "$GITHUB_REF_NAME" dist/vscode-pokemon-local.vsix \
-            --title "$GITHUB_REF_NAME" --notes-file notes.md --verify-tag
+          gh release create "$GITHUB_REF_NAME" vscode-pokemon-local.vsix \
+            --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --notes-file notes.md --verify-tag

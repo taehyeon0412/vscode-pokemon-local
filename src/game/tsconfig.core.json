@@ -1,0 +1,11 @@
+{
+  // 규칙 · 상태 (core) · 메시지 (shared) · 기능별 model — 화면(DOM)도 VS Code도 Node도 모름.
+  // 여기서 document · vscode · process 를 쓰면 타입 오류가 나서, 확장 쪽 · 웹뷰 쪽 어디서든 같은 코드가 돈다.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2021"],
+    "types": []
+  },
+  "include": ["core/**/*.ts", "shared/**/*.ts", "features/**/model.ts", "features/**/model/**/*.ts"],
+  "exclude": ["**/*.test.ts"]
+}

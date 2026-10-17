@@ -1,0 +1,15 @@
+{
+  // F5 — 고친 확장을 개발용 VS Code 창에서 바로 띄움 (설치 안 해도 됨).
+  // 고치면 npm: watch 가 다시 묶으니, 개발 창에서 "Developer: Reload Window" 만 하면 됨.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "포켓몬 확장 (개발 창)",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": ["--extensionDevelopmentPath=${workspaceFolder}/extension"],
+      "outFiles": ["${workspaceFolder}/extension/out/**/*.js"],
+      "preLaunchTask": "npm: watch"
+    }
+  ]
+}

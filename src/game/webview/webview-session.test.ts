@@ -1,0 +1,88 @@
+import { describe, expect, it } from 'vitest';
+import { sampleSave } from '../../test/fixtures/save';
+import { createGameState } from '../core/engine';
+import type { WebviewToHost } from '../shared/messages';
+import { WebviewSession } from './webview-session';
+
+function make() {
+  let now = 0;
+  const sent: WebviewToHost[] = [];
+  const s = new WebviewSession({ post: (m) => sent.push(m), now: () => now });
+  const frames = (ms: number, dt = 16) => {
+    for (let t = 0; t < ms; t += dt) {
+      now += dt;
+      s.frame(dt);
+    }
+  };
+  return { s, sent, frames };
+}
+
+const start = (epoch = 1) => ({ command: 'game', type: 'start', epoch, state: createGameState(sampleSave({ playTimeMs: 0 }), 1) }) as const;
+
+describe('웹뷰 세션', () => {
+  it('맡기 전에는 계산도 보내기도 안 함', () => {
+    const { s, sent, frames } = make();
+    frames(2000);
+    expect(s.running).toBe(false);
+    expect(sent).toEqual([]);
+  });
+
+  it('맡으면 계산하고, 바뀐 상태를 1초에 한 번 보냄', () => {
+    const { s, sent, frames } = make();
+    s.handleMessage(start(4));
+    frames(992);
+    expect(sent).toEqual([]);
+    frames(32);
+    expect(sent).toHaveLength(1);
+    const m = sent[0]!;
+    expect(m.type === 'state' && m.epoch).toBe(4);
+    expect(m.type === 'state' && m.state.save.playTimeMs).toBeGreaterThan(900);
+  });
+
+  it('숨으면 마지막 상태(hidden)를 넘기고 멈춤', () => {
+    const { s, sent, frames } = make();
+    s.handleMessage(start(2));
+    frames(500);
+    s.hide();
+    const hidden = sent.at(-1)!;
+    expect(hidden.type).toBe('hidden');
+    expect(hidden.type === 'hidden' && hidden.state.save.playTimeMs).toBe(500);
+    expect(s.running).toBe(false);
+    frames(2000);
+    expect(sent.at(-1)).toBe(hidden);
+  });
+
+  it('suspend (VS Code 밖 · 자동 전투 꺼짐) 이면 hidden 으로 마지막 상태를 넘기고 멈춤', () => {
+    const { s, sent, frames } = make();
+    s.handleMessage(start(5));
+    frames(200);
+    s.handleMessage({ command: 'game', type: 'suspend' });
+    expect(sent.at(-1)).toMatchObject({ type: 'hidden', epoch: 5 });
+    expect(s.running).toBe(false);
+  });
+
+  it('다시 보이면 · 이미 불러온 game.js 에 load 가 오면 ready 로 상태를 달라고 함', () => {
+    const { s, sent } = make();
+    s.show();
+    s.handleMessage({ command: 'game', type: 'load' });
+    expect(sent.map((m) => m.type)).toEqual(['ready', 'ready']);
+  });
+
+  it('stop 이면 멈춤 · save-now 는 바로 보냄', () => {
+    const { s, sent } = make();
+    s.handleMessage(start());
+    s.saveNow('catch');
+    expect(sent.at(-1)).toMatchObject({ type: 'save-now', reason: 'catch', epoch: 1 });
+    s.handleMessage({ command: 'game', type: 'stop' });
+    expect(s.running).toBe(false);
+    s.saveNow('catch');
+    expect(sent).toHaveLength(1);
+  });
+
+  it('오래 멈췄다 온 프레임은 0.1초까지만 계산', () => {
+    const { s } = make();
+    s.handleMessage(start());
+    s.frame(60_000);
+    expect(s.current!.save.playTimeMs).toBe(100);
+  });
+});
