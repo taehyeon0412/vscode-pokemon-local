@@ -1,0 +1,52 @@
+# 태그 v* 를 올리면 — vsix 를 묶어 GitHub 릴리스에 vscode-pokemon-local.vsix 로 올림
+# README 의 설치 한 줄(install.sh)이 releases/latest/download/vscode-pokemon-local.vsix 를 받음
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: 태그와 extension/package.json 버전이 같은지
+        run: |
+          want="${GITHUB_REF_NAME#v}"
+          have="$(python3 -c "import json; print(json.load(open('extension/package.json', encoding='utf-8'))['version'])")"
+          if [ "$want" != "$have" ]; then
+            echo "::error::태그 $GITHUB_REF_NAME 와 extension/package.json 버전 $have 이 달라요"
+            exit 1
+          fi
+
+      - name: vsix 묶기
+        run: |
+          vsix="$(python3 install.py --no-install)"
+          cp "$vsix" dist/vscode-pokemon-local.vsix
+          ls -l dist/
+
+      - name: 릴리스 올리기
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "## 설치 / 업데이트"
+            echo
+            echo '```bash'
+            echo "curl -fsSL https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/main/install.sh | bash"
+            echo '```'
+            echo
+            echo "끝나면 VS Code 명령 팔레트에서 **Developer: Reload Window**. 자세한 건 [README](https://github.com/${GITHUB_REPOSITORY}#install)."
+            # 버전별 바뀐 내용이 있으면 덧붙임
+            if [ -f ".github/release-notes/${GITHUB_REF_NAME}.md" ]; then
+              echo
+              cat ".github/release-notes/${GITHUB_REF_NAME}.md"
+            fi
+          } > notes.md
+          gh release create "$GITHUB_REF_NAME" dist/vscode-pokemon-local.vsix \
+            --title "$GITHUB_REF_NAME" --notes-file notes.md --verify-tag

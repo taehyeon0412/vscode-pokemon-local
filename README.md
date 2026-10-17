@@ -2,7 +2,7 @@
 
 # 🎮 VS Code Pokemon
 
-**한국어판 · 내 PC 전용**
+**한국어판 수정본**
 
 VS Code 패널에서 포켓몬을 키워요<br>
 클릭하면 기술 · 꾹 누르면 필살기 · 잡아서 던지면 쿵 · 날개 달린 애들은 하늘로
@@ -18,6 +18,33 @@ https://github.com/user-attachments/assets/9a9e4ef3-09b4-462f-aef2-65a5109702d6
 > [!NOTE]
 > 마켓의 [vscode-pokemon](https://github.com/jakobhoeg/vscode-pokemon) 5.0.2 를 고친 수정본이에요.<br>
 > 확장 이름이 `local.vscode-pokemon` 이라 마켓 업데이트와 상관없이 그대로예요.
+
+<a id="install"></a>
+
+## 📦 설치 / 업데이트
+
+다른 컴퓨터에서 아래 한 줄이면 끝 (Windows는 **Git Bash**에서):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/taehyeon0412/vscode-pokemon-local/main/install.sh | bash
+```
+
+설치 후에는 `bash ~/.vscode-pokemon/update.sh` 로 언제든 최신본을 받습니다.<br>
+끝나면 VS Code 명령 팔레트(Ctrl+Shift+P / ⌘⇧P)에서 **Developer: Reload Window**.
+
+> **요구사항**: VS Code · curl — macOS / Linux / Windows(Git Bash) 지원
+
+<details>
+<summary><b>설치 한 줄이 하는 일 · 지우는 법</b></summary>
+
+<br>
+
+- [최신 릴리스](https://github.com/taehyeon0412/vscode-pokemon-local/releases/latest)의 `vscode-pokemon-local.vsix` 를 `~/.vscode-pokemon/` 에 받아서 설치해요
+- 마켓 버전(`jakobhoeg.vscode-pokemon`)이 깔려 있으면 지워요 — 명령 · 패널 이름이 같아서 둘 다 있으면 충돌해요
+- `code` 명령을 못 찾으면 받아 둔 파일 위치를 알려 줘요 → 확장 탭 `…` → **Install from VSIX…** 로 설치
+- 지우기: `code --uninstall-extension local.vscode-pokemon` 그리고 `rm -rf ~/.vscode-pokemon`
+
+</details>
 
 <br>
 
@@ -345,27 +372,9 @@ https://github.com/user-attachments/assets/2b41631d-201f-4cf8-a2b9-cdc346b9af91
 
 <br>
 
-<a id="install"></a>
+<a id="setup"></a>
 
-## 📦 새 컴퓨터에 설치
-
-필요한 것: **VS Code** · **Python 3**
-
-```bash
-# 1. 마켓 버전이 깔려 있으면 지우기 (명령 · 패널 이름이 같아서 둘 다 있으면 충돌)
-code --uninstall-extension jakobhoeg.vscode-pokemon
-
-# 2. 받기 — 이 경로에 두면 Claude Code 전역 지침의 명령과 그대로 맞음
-git clone https://github.com/taehyeon0412/vscode-pokemon-local.git ~/.claude/vscode-pokemon-local
-
-# 3. 설치 (윈도우는 python install.py)
-python3 ~/.claude/vscode-pokemon-local/install.py
-```
-
-4. VS Code 명령 팔레트(⌘⇧P / Ctrl+Shift+P)에서 **Developer: Reload Window**
-
-> [!TIP]
-> `code` 명령을 못 찾으면 `install.py` 가 만든 `dist/local.vscode-pokemon-*.vsix` 를 확장 탭 `…` → **Install from VSIX…** 로 설치해도 돼요.
+## ⚙️ 설치한 뒤
 
 <details>
 <summary><b>권장 설정 (settings.json)</b></summary>
@@ -400,6 +409,43 @@ python3 ~/.claude/vscode-pokemon-local/install.py
 ## 🛠️ 고치기
 
 <sub>직접 고치거나 포켓몬을 더 넣고 싶은 사람을 위한 내용이에요. 모든 수정은 이 폴더에서 하고 마지막에 <code>python3 install.py</code> → Reload Window.</sub>
+
+<details>
+<summary><b>저장소를 받아서 직접 설치 — <code>install.py</code></b></summary>
+
+<br>
+
+필요한 것: **VS Code** · **Python 3**
+
+```bash
+# 1. 마켓 버전이 깔려 있으면 지우기 (명령 · 패널 이름이 같아서 둘 다 있으면 충돌)
+code --uninstall-extension jakobhoeg.vscode-pokemon
+
+# 2. 받기 — 이 경로에 두면 Claude Code 전역 지침의 명령과 그대로 맞음
+git clone https://github.com/taehyeon0412/vscode-pokemon-local.git ~/.claude/vscode-pokemon-local
+
+# 3. 설치 (윈도우는 python install.py)
+python3 ~/.claude/vscode-pokemon-local/install.py
+```
+
+4. VS Code 명령 팔레트(⌘⇧P / Ctrl+Shift+P)에서 **Developer: Reload Window**
+
+`code` 명령을 못 찾으면 `install.py` 가 만든 `dist/local.vscode-pokemon-*.vsix` 를 확장 탭 `…` → **Install from VSIX…** 로 설치해도 돼요. `python3 install.py --no-install` 은 묶기만 해요.
+
+</details>
+
+<details>
+<summary><b>릴리스 내기 (저장소 주인)</b></summary>
+
+<br>
+
+`extension/package.json` 의 `version` 을 올리고 커밋 → 같은 번호로 태그를 올리면 GitHub Actions 가 vsix 를 묶어 [릴리스](https://github.com/taehyeon0412/vscode-pokemon-local/releases)에 올려요. 설치 한 줄은 늘 최신 릴리스를 받아요.
+
+```bash
+git tag v5.0.2 && git push origin v5.0.2
+```
+
+</details>
 
 <details>
 <summary><b>필살기 · 2세대부터 기술 바꾸기 — <code>moves-data/*.json</code></b></summary>
@@ -508,7 +554,9 @@ signature-moves.json  1세대 151마리 전용 기술 (이름 · 연출 틀 · �
 moves-data/           세대별 클릭 기술 추가분 + 필살기 (gen1 · gen2 · gen3 · gen4 · gen56)
 dev/                  미리보기(preview.html · panel.html) · 점검(smoke.py) · 데이터 검사(validate-data.py)
 add-pokemon.py        포켓몬 추가 (그림 생성 + 등록)
-install.py            vsix 로 묶어 설치 (install.sh 는 예전 명령용)
+install.py            vsix 로 묶어 설치 (--no-install 은 묶기만)
+install.sh            한 줄 설치 · 업데이트 — 최신 릴리스 vsix 를 받아 설치
+.github/workflows/    ci.yml (푸시마다 묶어 보기) · release.yml (태그 → 릴리스)
 pokemon.json          add-pokemon 으로 추가한 포켓몬 목록
 pokemon-types.json / pokemon-stats.json   PokeAPI 타입 · 종족값 저장본 (다시 안 받음)
 backup-pokemon-list.json                  옮기기 전 포켓몬 목록

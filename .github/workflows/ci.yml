@@ -1,0 +1,19 @@
+# 푸시마다 — 설치 스크립트 문법 · vsix 가 묶이는지
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: 설치 스크립트 문법
+        run: bash -n install.sh
+
+      - name: vsix 묶기
+        run: python3 install.py --no-install

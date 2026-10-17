@@ -2,6 +2,7 @@
 """내 PC 전용 vscode-pokemon — extension/ 을 vsix 로 묶어 VS Code 에 설치 (맥 · 윈도우 · 리눅스)
 
   python3 install.py        (윈도우는 python install.py)
+  python3 install.py --no-install    묶기만 (dist/ 에 vsix, 설치는 안 함)
 
 수정 · 포켓몬 추가 후 다시 실행. 끝나면 VS Code 에서 "Developer: Reload Window".
 묶은 파일은 dist/ 에 남음 (VS Code 없이 다른 데서 설치할 때 code --install-extension 으로).
@@ -91,6 +92,10 @@ def build():
 
 def main():
     vsix = build()
+    if "--no-install" in sys.argv[1:]:
+        # GitHub Actions 릴리스용 — 묶기만 하고 설치는 안 함
+        print(vsix)
+        return
     code = code_cli()
     if not code:
         sys.exit(f"VS Code 명령(code)을 못 찾음 — 직접 설치: code --install-extension \"{vsix}\"")
