@@ -7123,10 +7123,10 @@
     // ═════ 뮤츠 — mewtwo: 사이코브레이크 (ultorb 위에 덮어씀) · 사이코키네시스 (ultpsy 위에 덮어씀, 메가뮤츠Y) — 아래 Object.assign ═════
     const MEWP = ['#ffffff', '#e8c8ff', '#a66bff', '#4b2390']; // 뮤츠 염력 (하양 → 연보라 → 보라 → 짙은 보라)
     // 염력에 들린 바위 — 울퉁불퉁한 돌덩이 (보랏빛 테두리가 빛남)
-    function psyRock(ctx, px, s, x, y, z, glow) {
+    function psyRock(ctx, px, s, x, y, z, glow, gc = MEWP[2]) {
         const r = [[-0.5, -0.35, 1, 0.75], [-0.35, -0.6, 0.65, 0.35], [-0.6, -0.1, 0.4, 0.4]];
         ctx.globalAlpha = 0.75 * glow;
-        ctx.fillStyle = MEWP[2];
+        ctx.fillStyle = gc;
         for (const [a, b, w, h] of r) {
             ctx.fillRect(px(x + a * z - s), px(y + b * z - s), px(w * z) + 2 * s, px(h * z) + 2 * s);
         }
@@ -8327,6 +8327,233 @@
         ULT_FX.ultpsy = {
             ms: (P, o) => (o.mewtwo ? 8800 + 200 * P : o.mew ? 8000 + 200 * P : basePsy.ms(P, o)),
             run: (u, o, ms, pokemon) => (o.mewtwo ? runPsychokinesis(u, o, ms, pokemon) : o.mew ? runMewMetronome(u, o, ms, pokemon) : basePsy.run(u, o, ms, pokemon)),
+        };
+    }
+    // ═════ 필살기 강화 — 공통 틀 모두 앞에 2초 기 모으기 (2026-10-19 태현 님: 모든 포켓몬 필살기를 리자몽 · 거북왕처럼) ═════
+    // 쓰는 애 뒤로 그 필살기 색의 오라가 활활 · 빛줄기와 빛가루가 소용돌이치며 몸으로 빨려 듦 · 발밑 돌덩이가 떠올라 맴돎 · 두근할 때마다
+    // 퍼지는 고리와 흔들림 · 막판엔 기가 넘쳐 지직 → 임팩트 프레임(하양 · 검정 한순간) · 충격파 두 겹 · 돌덩이가 사방으로 튕겨 나감
+    // (하늘 틀은 머리 위로 빛기둥이 솟고, 땅 틀은 땅에 빛나는 금이 달림) → 원래 틀. 틀 동안 몸에 그 색 테두리 (기를 두름).
+    // 전용 필살기(개굴닌자 · 루카리오 · 리자몽 · 이상해꽃 · 거북왕 · 뮤츠 · 뮤)는 자기 기 모으기가 있어서 그대로
+    const POWER_SEC = 1.9;
+    const POWER_FX = ['ultbeam', 'ultorb', 'ultnova', 'ultblackhole', 'ultsparkle', 'ultquake', 'ultpillar', 'ultbloom', 'ultvortex',
+        'ultstorm', 'ultskyfall', 'ultthunder', 'ultvolt', 'ultswarm', 'ultrush', 'ultdive', 'ultbarrage', 'ultpsy', 'ultshadow'];
+    const POWER_SKY = ['ultstorm', 'ultskyfall', 'ultthunder', 'ultvolt', 'ultswarm'];
+    const POWER_EARTH = ['ultquake', 'ultpillar', 'ultbloom', 'ultvortex'];
+    const powerCustom = (o) => !!(o.ninja || o.clones || o.lucario || o.turtle || o.mewtwo || o.mew || o.flare || o.blast || o.venus || o.aura);
+    const auraEdge = (s, cols) => {
+        const d = Math.max(1, Math.round(s * 0.6));
+        return `drop-shadow(${d}px 0 0 ${cols[1]}) drop-shadow(-${d}px 0 0 ${cols[1]}) drop-shadow(0 ${d}px 0 ${cols[2]}) drop-shadow(0 -${d}px 0 ${cols[0]})`;
+    };
+    function runPowerUp(u, o, fx, pokemon) {
+        const sec = POWER_SEC;
+        const cols = ultCols(o, fx);
+        const P = strength(u);
+        const { W, H, S: s, dir } = u;
+        const G = u.ground;
+        const img = pokemon.el;
+        const me = monBox(pokemon);
+        const left = dir < 0;
+        const edge = Math.max(1, Math.round(u.s * 0.75));
+        const sky = POWER_SKY.includes(fx);
+        const earth = POWER_EARTH.includes(fx);
+        const Ro = Math.max(s * 4, me.w * 0.3);
+        const pullR = Math.max(Ro * 4, short(u) * 0.42);
+        const cy = me.b - me.h * 0.5;
+        const T0 = 0.1;
+        const TI = sec - 0.12; // 임팩트 프레임
+        const sc = scene(u, sec + 1.6, `power ${fx}`);
+        hideMon(pokemon, true);
+        hideUntil(pokemon, sec * 1000 + 80);
+        sc.at(sec - 0.02, () => {
+            hideMon(pokemon, false);
+            img.style.filter = [o.tint, auraEdge(u.s, cols)].filter(Boolean).join(' ');
+        });
+        const k = (t) => clamp((t - T0) / 0.5, 0, 1); // 오라 세기
+        const shiver = (t) => (t < TI ? rnd(-1, 1) * s * 0.7 * clamp((t - 0.5) / 1.1, 0, 1) : 0);
+        // 떠오르는 돌덩이 — 모으는 동안 발밑에서 떠올라 맴돌다, 임팩트에 사방으로
+        const rocks = [];
+        const nR = Math.round(8 + 6 * P);
+        for (let i = 0; i < nR; i++) {
+            const side = i % 2 ? -1 : 1;
+            const x0 = clamp(me.x + side * (me.w * 0.55 + pullR * 0.9 * hash(i, 201)), s * 3, W - s * 3);
+            rocks.push({
+                x0, x: x0, y: G, t0: T0 + 0.15 + i * 0.07, h: Math.max(me.h * 0.5, G * 0.1) * (0.35 + 1.1 * hash(i, 202)),
+                z: Math.max(2 * s, Math.min(me.w * 0.2, s * 6) * (0.5 + hash(i, 203))), ph: hash(i, 204) * TAU,
+                vx: side * W * (0.12 + 0.3 * hash(i, 205)), vy: -H * (0.35 + 0.5 * hash(i, 206)), done: false,
+            });
+        }
+        sc.add({ max: sec + 1.6,
+            update: (it, dt) => {
+                const life = sc.t;
+                for (const r of rocks) {
+                    if (life < r.t0 || r.done) {
+                        continue;
+                    }
+                    if (life < sec) {
+                        r.x = r.x0 + Math.sin(life * 1.6 + r.ph) * s * 2;
+                        r.y = G - r.z * 0.3 - r.h * easeOut((life - r.t0) / 0.7) + Math.sin(life * 2.6 + r.ph) * s * 1.5;
+                    } else {
+                        r.x += r.vx * dt;
+                        r.y += r.vy * dt;
+                        r.vy += H * 2.4 * dt;
+                        r.done = r.y > G + r.z;
+                    }
+                }
+            },
+            draw: (ctx, it, t, px) => {
+                const life = sc.t;
+                // 화면이 그 색으로 물듦 · 발밑 빛
+                const a = k(life) * (life < sec ? 1 : Math.max(0, 1 - (life - sec) / 0.4));
+                if (a > 0.01) {
+                    ctx.globalAlpha = 0.12 * a;
+                    ctx.fillStyle = cols[3];
+                    ctx.fillRect(0, 0, W, H);
+                    ellipse(ctx, px, s, me.x, G, me.w * (0.9 + 0.3 * Math.sin(life * 9)), me.w * 0.14, cols[2], 0.5 * a);
+                    ellipse(ctx, px, s, me.x, G, me.w * 0.55, me.w * 0.08, cols[0], 0.7 * a);
+                }
+                for (const r of rocks) {
+                    if (life >= r.t0 && !r.done) {
+                        psyRock(ctx, px, s, r.x, r.y, r.z, life < sec ? 0.5 + 0.4 * Math.sin(life * 8 + r.ph) : 0.3, cols[2]);
+                    }
+                }
+            } });
+        // 오라 (쓰는 애 뒤) — 그 색 불꽃 모양 기운, 막판에 확 커짐. 진짜 그림이 다시 보이면 바로 끔 (캔버스가 그림 위라 덮음)
+        sc.add({ max: sec - 0.02, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            const burst = 1 + 0.45 * easeOut((life - (TI - 0.3)) / 0.3);
+            const kk = k(life);
+            if (kk > 0.02) {
+                const beat = Math.max(0, Math.sin(life * 7)) ** 6;
+                flameTongue(ctx, px, s, me.x, me.b + s * 2, me.w * (1.05 + 0.2 * P) * burst, me.h * (1.3 + 0.25 * P + 0.15 * beat) * burst * (0.55 + 0.45 * kk), cols, life, kk);
+            }
+        } });
+        // 쓰는 애 (꼭두각시) — 부르르 떨고 두근할 때마다 빛남
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life >= sec - 0.02) {
+                return;
+            }
+            const x = me.x + shiver(life);
+            drawLitMon(ctx, img, x, me.b, me.w, left, cols[1], edge, 1);
+            const beat = Math.max(0, Math.sin(life * 7)) ** 6;
+            drawMon(ctx, img, x, me.b, me.w, left, k(life) * (0.12 + 0.3 * beat) + (life > TI ? 0.6 : 0), cols[0]);
+        } });
+        // 빨려 드는 빛줄기 · 빛가루
+        chargeSwirl(sc, () => [me.x, cy], T0, TI, pullR, Ro, cols, dir);
+        // 피어오르는 빛가루
+        let rise = 0;
+        sc.tick((t, dt) => {
+            if (t > sec) {
+                return;
+            }
+            rise += dt * (25 + 35 * P) * k(t);
+            while (rise >= 1 && room(1)) {
+                rise -= 1;
+                sigParticle({ x: me.x + rnd(-0.6, 0.6) * me.w, y: G - rnd(0, 0.4) * me.h, s, vy: -rnd(0.4, 0.9) * me.h * 1.6, vx: rnd(-6, 6), max: rnd(0.4, 0.8), color: pick(cols), size: pick([1, 1, 2]),
+                    draw: (ctx, p, tt, px) => {
+                        ctx.globalAlpha = fadeInOut(tt, 0.1, 0.5);
+                        dotAt(ctx, px, p.s, p.x, p.y, p.color, p.size, p.size * 2);
+                    } });
+            }
+            rise = Math.min(rise, 1);
+        });
+        // 두근 — 퍼지는 고리 · 흔들림 (점점 세게)
+        [0.55, 1.0, 1.38, 1.66].forEach((tb, i) => sc.at(tb, () => {
+            ring(sc, me.x, cy, me.w * 0.5, pullR * (0.75 + 0.15 * i), 0.85, 0.5, [cols[1], cols[2]], 1);
+            ultShake(1 + i * 0.6, 140);
+        }));
+        // 막판 지직 — 오라 가장자리에서 바깥으로 뻗는 짧은 번개 (하나씩 깜빡이며 자리를 바꿈)
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            const z = clamp((life - (sec - 0.95)) / 0.3, 0, 1);
+            if (z <= 0) {
+                return;
+            }
+            const n = 2 + Math.round(2 * P);
+            for (let j = 0; j < n; j++) {
+                const seed = Math.floor(life * 9 + j * 0.37);
+                if (hash(seed, j + 40) < 0.35) {
+                    continue; // 깜빡
+                }
+                const a = -Math.PI * (0.05 + 0.9 * hash(seed, j));
+                const r0 = Math.max(me.w * 0.55, me.h * 0.5);
+                const len = Math.max(me.w, me.h) * (0.35 + 0.3 * hash(seed, j + 9));
+                const x0 = me.x + Math.cos(a) * r0;
+                const y0 = cy + Math.sin(a) * r0;
+                const pts = jag(x0, y0, x0 + Math.cos(a) * len, y0 + Math.sin(a) * len, Math.max(2 * s, len / 5), 0.3);
+                drawBolt(ctx, px, s, pts, 1, cols[1], cols[3], 0.85 * z);
+            }
+        } });
+        // 임팩트 프레임 — 하양 · 검정 한순간 (번쩍은 적당히)
+        sc.at(TI, () => {
+            sc.add({ max: 0.05, draw: (ctx) => {
+                ctx.globalAlpha = 0.75;
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, W, H);
+            } });
+        });
+        sc.at(TI + 0.05, () => {
+            sc.add({ max: 0.06, draw: (ctx) => {
+                ctx.globalAlpha = 0.5;
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(0, 0, W, H);
+            } });
+        });
+        // 터져 나옴 — 충격파 두 겹 · 빛가루 · 흔들림 (+ 하늘 틀은 빛기둥, 땅 틀은 빛나는 금)
+        sc.at(sec - 0.01, () => {
+            ring(sc, me.x, cy, me.w * 0.6, pullR * 1.5, 0.8, 0.55, ['#ffffff', cols[1], cols[2]], 2);
+            ring(sc, me.x, G, me.w * 0.4, pullR * 1.2, 0.25, 0.6, [cols[0], cols[2]], 1);
+            sparkles(me.x, cy, s, cols, Math.round(16 + 14 * P), pullR * 0.7, 30);
+            ultShake(3 + 2 * P, 300);
+            if (sky) {
+                const top = me.b - me.h;
+                const hw = Math.max(s * 2, me.w * 0.22);
+                sc.add({ max: 0.7, draw: (ctx, it, t, px) => {
+                    const grow = easeOut(t / 0.25);
+                    const y0 = top - (top + s) * grow;
+                    const fade = 1 - clamp((t - 0.35) / 0.65, 0, 1);
+                    for (const [m, c] of [[1.6, cols[2]], [1, cols[1]], [0.45, '#ffffff']]) {
+                        ctx.globalAlpha = (m > 1 ? 0.55 : 0.95) * fade;
+                        ctx.fillStyle = c;
+                        const w = Math.max(s, px(hw * m * (1 - 0.4 * t)));
+                        ctx.fillRect(px(me.x - w / 2), px(y0), w, px(top - y0));
+                    }
+                } });
+            }
+            if (earth) {
+                groundArcs(sc, me.x, G - s, Math.max(W * 0.3, pullR * 1.3), 0.7, cols[0], 4, 1, G - s);
+                debris(me.x, G - s, s, ROCK, Math.round(10 + 8 * P), H * 0.5);
+            }
+        });
+    }
+    for (const fx of POWER_FX) {
+        const base = ULT_FX[fx];
+        if (!base) {
+            continue;
+        }
+        ULT_FX[fx] = {
+            plain: base, // 기 모으기 없이 (잉어킹 → 갸라도스 파괴광선처럼 바로 쏠 때)
+            ms: (P, o) => base.ms(P, o) + (powerCustom(o) ? 0 : POWER_SEC * 1000),
+            run: (u, o, ms, pokemon) => {
+                if (powerCustom(o) || !pokemon?.el) {
+                    return base.run(u, o, ms, pokemon);
+                }
+                try {
+                    runPowerUp(u, o, fx, pokemon);
+                } catch (err) {
+                    fail(`power ${fx}`, err);
+                }
+                setTimeout(() => {
+                    if (ultActive?.pokemon !== pokemon) {
+                        return; // 그새 끝남 (패널이 닫힘 등)
+                    }
+                    try {
+                        base.run(ultGeometry(pokemon, u.left), o, ms - POWER_SEC * 1000, pokemon);
+                    } catch (err) {
+                        fail(fx, err);
+                    }
+                }, POWER_SEC * 1000);
+            },
         };
     }
 })();

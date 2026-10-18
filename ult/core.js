@@ -857,7 +857,7 @@ Object.assign(ULT_FX, {
                 ultTitle('…갸라도스!?', null, sigPal('hyper'), 1.2);
                 setTimeout(() => {
                     const g2 = ultGeometry(pokemon, u.left);
-                    const beam = ULT_FX.ultbeam || ULT_FX.ultgeneric;
+                    const beam = ULT_FX.ultbeam?.plain || ULT_FX.ultbeam || ULT_FX.ultgeneric; // 기 모으기 없이 바로
                     try {
                         beam.run({ ...g2, mouth: { x: g2.mouth.x + u.dir * g2.w * 0.5, y: g2.mouth.y - g2.h * 0.6 }, P: 1 }, { c: 'hyper', width: 1.3, sparkle: 'hyper' }, 2000, pokemon);
                     } catch (err) {
