@@ -1348,7 +1348,7 @@
         },
 
         // ── 연타 — 가장 가까운 포켓몬에게 달려가 수십 발(분신 · 집중선 · 연타 수) → 끌어당겼다 마지막 한 방 → 공중제비로 제자리 ──
-        // aura: 파동 인파이트 (루카리오) — 처음에 파동을 모으고 · 내내 파랑 · 검정 파동 불꽃 · 마지막에 거대 파동 장타가 화면 끝까지
+        // aura: 파동 인파이트 (루카리오) — 처음에 파동을 모으고 · 내내 파랑 · 검정 파동 불꽃 · 마지막에 동그란 파동 고리가 연달아 앞으로 날아감
         ultbarrage: {
             ms: (P, o) => (o.aura ? 5200 : 3800) + 200 * P,
             run: (u, o, ms, pokemon) => {
@@ -1668,43 +1668,66 @@
                         }
                     });
                     if (o.aura) {
-                        // 파동 장타 — 주먹 끝에서 거대한 파동이 화면 끝까지 쭉 (검정 · 파랑 · 하얀 심 띠, 띠를 타고 흐르는 고리, 하얀 앞머리)
+                        // 파동 장타 — 주먹 끝에서 동그란 파동 고리(가운데가 빈 도넛)가 다섯 겹 연달아 앞으로 날아가며 점점 커짐
+                        // (검정 테두리 · 파랑 · 하얀 심, 속은 옅게 빛남, 가장자리에서 파동 불똥이 흩날림) — 지나가는 길의 애는 고리가 닿을 때 날아감
                         const x0 = pp.x + side * w * 0.45;
-                        const band = Math.max(h * 0.9, U * 0.7);
-                        const y0 = Math.min(b.y, u.ground - band * 0.7); // 띠가 땅 밑으로 잘리지 않게
-                        const reach = Math.max(U, side > 0 ? W - x0 : x0);
-                        sigParticle({ x: x0, y: y0, s: S, max: WAVE + 0.25, draw: safeDraw((ctx, q, t, px) => {
-                            const T2 = q.life;
-                            const len = reach * easeOut(T2 / 0.25);
-                            const fade = T2 > WAVE - 0.15 ? clamp((WAVE + 0.25 - T2) / 0.4, 0, 1) : 1;
-                            const thick = band * (1 + 0.12 * Math.sin(T2 * 40)) * (0.5 + 0.5 * fade);
-                            const x1 = side > 0 ? q.x : q.x - len;
-                            for (const [f, c, al] of [[1.3, '#141a33', 0.85], [1, cols[3], 0.9], [0.7, cols[2], 1], [0.42, cols[1], 1], [0.16, '#ffffff', 1]]) {
-                                const hh = Math.max(S, Math.round((thick * f) / 2 / S) * S);
-                                ctx.globalAlpha = al * fade;
-                                ctx.fillStyle = c;
-                                ctx.fillRect(px(x1), px(q.y - hh), px(len), 2 * hh);
-                            }
-                            ctx.globalAlpha = 0.9 * fade;
-                            for (let j = 0; j < 6; j++) {
-                                const d = ((T2 * 1.6 + j / 6) % 1) * len;
-                                const r = band * (0.75 + 0.5 * (d / reach));
-                                for (let a = 0; a < TAU; a += 0.22) {
-                                    dotAt(ctx, px, S, q.x + side * d + Math.cos(a) * r * 0.22, q.y + Math.sin(a) * r, j % 2 ? '#ffffff' : cols[1], 1, 1);
-                                }
-                            }
-                            const hx = q.x + side * len;
-                            sigDisc(ctx, px, S, hx, q.y, band * 0.7 * (0.8 + 0.2 * Math.sin(T2 * 50)), cols[1]);
-                            sigDisc(ctx, px, S, hx, q.y, band * 0.4, '#ffffff');
-                        }) });
-                        // 지나가는 길에 있는 애 모두 날아감 (앞머리가 닿을 때)
+                        const reach = Math.max(U, side > 0 ? W - x0 : x0) + U;
+                        const rMax = clamp(Math.max(h, U) * 1.8, U, u.H * 0.4);
+                        const yc = clamp(b.y, rMax * 0.9 + 4, u.ground - rMax * 0.9);
+                        const travel = 0.75;
+                        const far = (e) => reach * (1 - (1 - e) ** 1.6); // 빠르게 나가 끝에서 조금 느려짐
+                        for (let k = 0; k < 5; k++) {
+                            later(k * 120, () => {
+                                ultShake(k === 0 ? 5 : 1.5, k === 0 ? 450 : 120);
+                                sigParticle({ x: x0, y: yc, s: S, max: travel, spark: 0,
+                                    update: safeUpd((q, dt) => {
+                                        const e = q.life / travel;
+                                        q.cx = x0 + side * far(e);
+                                        q.r = rMax * (0.3 + 0.7 * easeOut(e)) * (0.85 + 0.15 * (k / 4));
+                                        q.spark += dt * 45;
+                                        while (q.spark >= 1 && roomFor()) {
+                                            q.spark -= 1;
+                                            const an = moveRand(0, TAU);
+                                            sigParticle({ x: q.cx + Math.cos(an) * q.r * 0.38, y: q.y + Math.sin(an) * q.r, s: S, vx: Math.cos(an) * 50 + side * 90, vy: Math.sin(an) * 60, drag: 2, max: moveRand(0.3, 0.5), color: movePick(['#ffffff', cols[1], cols[2], '#2e3d73']), size: movePick([1, 2]), draw: DRAW.dot });
+                                        }
+                                        q.spark = Math.min(q.spark, 1);
+                                    }),
+                                    draw: safeDraw((ctx, q, t, px) => {
+                                        if (!q.r) {
+                                            return;
+                                        }
+                                        const a = t < 0.8 ? 1 : (1 - t) / 0.2;
+                                        const rx = q.r * 0.38;
+                                        // 속 — 아주 옅은 빛 (고리만 또렷하게, 도넛처럼)
+                                        ctx.globalAlpha = 0.06 * a;
+                                        ctx.fillStyle = cols[1];
+                                        for (let dy = -q.r * 0.79; dy <= q.r * 0.79; dy += S) {
+                                            const half = rx * 0.79 * Math.sqrt(Math.max(0, 1 - (dy / (q.r * 0.79)) ** 2));
+                                            ctx.fillRect(px(q.cx - half), px(q.y + dy), Math.max(S, px(2 * half)), S);
+                                        }
+                                        // 고리 — 바깥부터 검정 · 짙은 파랑 · 파랑 · 하얀 심
+                                        for (const [f, c, th] of [[1, '#141a33', 2], [0.93, cols[3], 2], [0.86, cols[2], 2], [0.79, '#ffffff', 1]]) {
+                                            const path = new Path2D();
+                                            const n = clamp(Math.round((TAU * q.r * f) / (2 * S)), 24, 220);
+                                            for (let i = 0; i < n; i++) {
+                                                const an = (i / n) * TAU;
+                                                path.rect(px(q.cx + Math.cos(an) * rx * f - S), px(q.y + Math.sin(an) * q.r * f - S), th * S, th * S);
+                                            }
+                                            ctx.globalAlpha = a;
+                                            ctx.fillStyle = c;
+                                            ctx.fill(path);
+                                        }
+                                    }) });
+                            });
+                        }
+                        // 지나가는 길에 있는 애 — 첫 고리가 닿는 때 날아감
                         u.others().forEach((q) => {
                             const dx = (q.x - x0) * side;
-                            if (dx > -q.w * 0.5 && Math.abs(q.y - y0) < band + q.h) {
-                                later(clamp((dx / reach) * 250, 0, 250), () => ultHit(q, side, 'tumble'));
+                            if (dx > -q.w * 0.5 && Math.abs(q.y - yc) < rMax + q.h * 0.5) {
+                                const e = 1 - (1 - clamp(dx / reach, 0, 1)) ** (1 / 1.6);
+                                later(e * travel * 1000, () => ultHit(q, side, 'tumble'));
                             }
                         });
-                        later(250, () => ultShake(6, 500));
                     }
                 });
                 later(tHome * 1000, () => {
