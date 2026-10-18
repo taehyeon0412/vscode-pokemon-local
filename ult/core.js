@@ -60,6 +60,9 @@ const ULT_FINALE = {};
 // fx-sky.js 의 그리기 도구 — 전용 필살기(fx-unique.js)가 씀
 const ULT_KIT = {};
 function ultFinale(kind, ...args) {
+    if (ultActive?.o?.plain) {
+        return; // plain — 공통 강화 없이 원래 틀 그대로 (파이어, 2026-10-19 태현 님)
+    }
     try {
         ULT_FINALE[kind]?.(...args);
     } catch (err) {
@@ -357,7 +360,7 @@ function useUltimate(pokemon, ult, opt = {}) {
     pokemon.currentStateEnum = "swipe" /* States.swipe */;
     pokemon.currentState = new UltState(left, until);
     pokemon.hideSpeechBubble();
-    ultActive = { pokemon, until, name, fx, pre };
+    ultActive = { pokemon, until, name, fx, pre, o };
     // 필살기 동안은 효과를 앞쪽 풀 · 나무 위로 (평소엔 그 밑)
     moveCanvasReady();
     moveCanvas.style.zIndex = '6';

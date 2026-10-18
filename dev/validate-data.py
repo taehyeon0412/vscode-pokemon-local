@@ -52,7 +52,7 @@ ULT = {
     "ultshadow": "c",
     "ultsplash": "", "ultcopy": "", "ultmetronome": "",
 }
-COMMON_ULT = {"tint", "tc", "uniq"}  # uniq — ult/fx-unique.js 의 전용 필살기 이름
+COMMON_ULT = {"tint", "tc", "uniq", "plain"}  # uniq — ult/fx-unique.js 의 전용 필살기 이름
 ENUMS = {
     ("ultorb", "style"): {"energy", "flame", "shadow", "aura", "water", "ice", "leaf"},
     ("ultsparkle", "mode"): {"twinkle", "moon"},

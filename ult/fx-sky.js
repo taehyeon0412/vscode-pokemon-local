@@ -8461,7 +8461,8 @@
         ultthunder: (o) => (o.mode === 'pillar' ? 0.6 : 0.7), ultvolt: 1.0, ultswarm: (o) => (o.giant ? 0.3 : 1.2),
         ultdive: 0.4, ultbarrage: 0.4, ultpsy: 0.6, ultshadow: 1.0 };
     const extraOf = (fx, o) => (typeof POWER_EXTRA[fx] === 'function' ? POWER_EXTRA[fx](o) : POWER_EXTRA[fx] ?? 0);
-    const powerCustom = (o) => !!(o.ninja || o.clones || o.lucario || o.turtle || o.mewtwo || o.mew || o.flare || o.blast || o.venus || o.aura);
+    // plain: 공통 강화(기 모으기 · 큰 마무리) 없이 원래 틀 그대로 — 파이어 (2026-10-19 태현 님: 원래가 더 나았다)
+    const powerCustom = (o) => !!(o.ninja || o.clones || o.lucario || o.turtle || o.mewtwo || o.mew || o.flare || o.blast || o.venus || o.aura || o.plain);
     const auraEdge = (s, cols) => {
         const d = Math.max(1, Math.round(s * 0.6));
         return `drop-shadow(${d}px 0 0 ${cols[1]}) drop-shadow(-${d}px 0 0 ${cols[1]}) drop-shadow(0 ${d}px 0 ${cols[2]}) drop-shadow(0 -${d}px 0 ${cols[0]})`;
