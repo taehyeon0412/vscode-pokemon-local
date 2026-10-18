@@ -18975,9 +18975,11 @@ window.__ult = {
     // 층마다 가로 물결 줄기가 한쪽 가장자리에서 뒤로부터 휘어 나와 앞면을 가로질러 rot 쪽(+1: 왼쪽)으로 쓩 흘러가 반대편으로 감겨 듦
     // (뒷면엔 옅은 줄기가 거꾸로). 속은 하얗게 빛나고 줄기는 하양 · 밝은 물빛 · 보랏빛, 자잘한 바람 결이 빠르게 흐르고
     // 가장자리에서 물보라가 도는 쪽으로 흩날림 → 다 돌면 물보라로 터지며 사라짐.
-    // x0 에서 솟아 커지면서 가운데가 x1 로 옮겨 감. touch(r) — 커지는 돔에 닿은 애 (휘말리게)
-    function swirlDome(sc, x0, x1, G, R0, Rmax, dur, cols, rot, touch) {
+    // x0 에서 솟아 커지면서 가운데가 x1 로 옮겨 감. 높이는 vmax 까지 (넘으면 옆으로 넓게). touch(r) — 커지는 돔에 닿은 애 (휘말리게)
+    function swirlDome(sc, x0, x1, G, R0, Rmax, vmax, dur, cols, rot, touch) {
         const u = sc.u;
+        // 세로 납작함 — 낮은 패널이면 꼭대기가 vmax 를 넘지 않게 옆으로 넓은 반원으로
+        const V = Math.min(0.92, vmax / Rmax);
         const s = u.S;
         const H = u.H;
         const TILT = 0.2; // 위에서 살짝 내려다본 고리 납작함
@@ -18995,7 +18997,7 @@ window.__ult = {
             const hw = R * Math.sqrt(Math.max(0, 1 - h * h));
             const phi = f * Math.PI;
             const b = back ? -1 : 1;
-            return [cx + rot * b * Math.cos(phi) * hw, G - h * R * 0.92 + b * Math.sin(phi) * hw * TILT];
+            return [cx + rot * b * Math.cos(phi) * hw, G - h * R * V + b * Math.sin(phi) * hw * TILT];
         };
         const headOf = (seed, span, speed) => (hash(seed, 6) * (1 + span) + phase * speed) % (1 + span);
         sc.add({ max: dur,
@@ -19011,7 +19013,7 @@ window.__ult = {
                     if (look <= 0) {
                         look = 0.1;
                         for (const r of u.others()) {
-                            if (((r.x - cx) / R) ** 2 + ((G - r.y) / (R * 0.92)) ** 2 < 1) {
+                            if (((r.x - cx) / R) ** 2 + ((G - r.y) / (R * V)) ** 2 < 1) {
                                 touch(r);
                             }
                         }
@@ -19044,7 +19046,7 @@ window.__ult = {
             },
             draw: (ctx, it, t, px) => {
                 const life = it.life;
-                const ry = R * 0.92;
+                const ry = R * V;
                 const a = life < tBreak ? 1 : Math.max(0, 1 - (life - tBreak) / (dur - tBreak));
                 const thick = clamp(Math.round(R / (55 * s)), 1, 4);
                 const rows = clamp(Math.round(ry / (8 * s)), 7, 18);
@@ -19529,9 +19531,12 @@ window.__ult = {
             }
             // 나선 물 돔 — 꽂힌 자리에서 솟아 지난번 크기의 2.2배까지 커지며 개굴닌자 쪽으로 팽이처럼 돎 (커지면서 가운데가 화면 쪽으로)
             // → 그 위에 베인 자국 · 꼭두각시를 다시 그림 (돔보다 앞에)
-            const Rd = Math.min(Math.max(D * 1.5, short(u) * 0.5) * 2.2, Math.max(W, G) * 0.9);
-            const x1 = dir > 0 ? Math.min(fx, Math.max(W * 0.5, W - Rd * 0.6)) : Math.max(fx, Math.min(W * 0.5, Rd * 0.6));
-            swirlDome(sc, fx, x1, G, D * 0.4, Rd, TD, cols, dir, (r) => hit(r, -dir, 'spin'));
+            // 높이는 패널 안에 (위에 조금 여유), 너비는 그 높이의 1.5배까지 — 화면에 다 들어가면 커지면서 개굴닌자 쪽으로 굴러와 반원이 통째로 보이게
+            const vmax = G - Math.max(10, H * 0.05);
+            const Rd = Math.min(Math.max(D * 1.5, short(u) * 0.5) * 2.2, Math.max(W, G) * 0.9, (vmax / 0.92) * 1.5);
+            const m = Math.max(10, W * 0.02);
+            const x1 = 2 * Rd + 2 * m <= W ? (dir > 0 ? Math.min(fx, W - Rd - m) : Math.max(fx, Rd + m)) : W / 2;
+            swirlDome(sc, fx, x1, G, D * 0.4, Rd, vmax, TD, cols, dir, (r) => hit(r, -dir, 'spin'));
             sc.add({ max: sec, draw: drawCuts });
             sc.add({ max: sec, draw: drawPup });
             ring(sc, fx, fy, D * 0.3, Math.max(W, H) * 0.7, 0.8, 0.6, ['#ffffff', cols[1], cols[2]], 3);
