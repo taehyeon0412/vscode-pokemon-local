@@ -25,7 +25,7 @@ if (q.get('shim')) {
 
 // 틀마다 시험할 옵션 — SPEC.md 의 옵션을 고루
 const VARIANTS = {
-    ultbeam: [{ c: 'hyper' }, { solar: 1 }, { c: 'ice', rainbow: 1 }, { c: 'water', double: 1, sparkle: 'water' }, { c: 'psychic', spiral: 1, wave: 1 }],
+    ultbeam: [{ c: 'hyper' }, { solar: 1 }, { c: 'ice', rainbow: 1 }, { c: 'water', double: 1, sparkle: 'water' }, { c: 'psychic', spiral: 1, wave: 1 }, { c: 'solar', venus: 1 }],
     ultorb: [{ c: 'fire', style: 'flame' }, { c: 'ghost', style: 'shadow' }, { c: 'aura', style: 'aura' }, { c: 'aura', style: 'aura', lucario: 1 }, { c: 'psychic', sky: 1 }],
     ultnova: [{ c: 'fire' }, { c: 'normal', white: 1 }],
     ultblackhole: [{ c: 'dark' }],

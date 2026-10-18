@@ -30,7 +30,7 @@ SIG = {
     "zzz": "big", "notes": "c", "megavolt": "", "thunder": "", "shuriken": "", "splash": "", "metronome": "",
 }
 ULT = {
-    "ultbeam": "c width rainbow wave spiral solar sparkle double charge",
+    "ultbeam": "c width rainbow wave spiral solar sparkle double charge venus",
     "ultorb": "c size style sky lucario",
     "ultnova": "c white",
     "ultblackhole": "c",
