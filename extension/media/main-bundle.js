@@ -20386,6 +20386,119 @@ window.__ult = {
             }
         }
     }
+    // 불꽃 구 — (x, y) 둘레로 동그랗게 타오르는 불덩이: 겹친 색(바깥 빨강 → 주황 → 노랑 → 하얀 심)의 테두리가 저마다 일렁이고
+    // 위쪽은 불꽃이 조금 더 솟음. 반지름 R × k, maxY 아래(땅 속)는 안 그림, cool(0 ~ 1)만큼 안쪽 색부터 줄어듦(식음).
+    // 테두리는 각도 128칸으로 미리 계산 (칸마다 sin 을 안 하게)
+    function fireOrb(ctx, px, s, x, y, R, cols, T, k = 1, maxY = Infinity, alpha = 1, cool = 0) {
+        if (k <= 0.02 || alpha <= 0.01 || R < s * 2) {
+            return;
+        }
+        const NA = 128;
+        const edges = [];
+        let Rm = 0;
+        for (const [j, m] of [[0, 1], [1, 0.8], [2, 0.6], [3, 0.38]]) {
+            const row = new Float32Array(NA);
+            for (let i = 0; i < NA; i++) {
+                const a = (i / NA) * TAU - Math.PI;
+                const up = Math.max(0, -Math.sin(a));
+                const lick = up * up * (0.3 - 0.06 * j) * (0.7 + 0.3 * Math.sin(a * 5 - T * 11 + j)) + up * 0.08 * Math.sin(a * 9 + T * 13 + j);
+                row[i] = R * k * m * Math.max(0, 1 - cool * (0.3 + 0.35 * j)) * (1 + 0.06 * Math.sin(a * 7 + T * 9 + j * 2) + 0.04 * Math.sin(a * 12 - T * 14 + j) + lick);
+                Rm = Math.max(Rm, row[i]);
+            }
+            edges.push(row);
+        }
+        const c = s * Math.max(1, Math.round((R * k) / (60 * s))); // 아주 큰 구는 칸을 키움 (가볍게)
+        const paths = [new Path2D(), new Path2D(), new Path2D(), new Path2D()];
+        const y1 = Math.min(y + Rm, maxY);
+        for (let gy = Math.floor((y - Rm) / c) * c; gy < y1; gy += c) {
+            const dy = gy + c / 2 - y;
+            for (let gx = Math.floor((x - Rm) / c) * c; gx < x + Rm; gx += c) {
+                const dx = gx + c / 2 - x;
+                const d = Math.hypot(dx, dy);
+                if (d >= Rm) {
+                    continue;
+                }
+                const i = Math.min(NA - 1, Math.floor(((Math.atan2(dy, dx) + Math.PI) / TAU) * NA));
+                let layer = -1;
+                while (layer < 3 && d < edges[layer + 1][i]) {
+                    layer++;
+                }
+                if (layer >= 0) {
+                    paths[layer].rect(px(gx), px(gy), c, c);
+                }
+            }
+        }
+        fillPaths(ctx, paths, [cols[3], cols[2], cols[1], cols[0]], alpha);
+    }
+    // 도는 불씨 고리 — (x, y) 둘레 반지름 r 로 불씨 세 줄이 꼬리를 끌며 빙글빙글 (dirn 방향)
+    function orbitEmbers(ctx, px, s, x, y, r, cols, T, dirn, alpha = 1) {
+        if (alpha <= 0.01) {
+            return;
+        }
+        ringDots(ctx, px, s, x, y, r, 1, [cols[1], cols[2]], 0.45 * alpha);
+        const paths = [new Path2D(), new Path2D(), new Path2D(), new Path2D()];
+        for (let j = 0; j < 3; j++) {
+            for (let i = 0; i < 26; i++) {
+                const a = T * 6 * dirn + (j / 3) * TAU - i * 0.06 * dirn;
+                const ci = i < 3 ? 0 : i < 9 ? 1 : i < 17 ? 2 : 3;
+                const z = i < 3 ? 2 * s : s;
+                paths[ci].rect(px(x + Math.cos(a) * r - z / 2), px(y + Math.sin(a) * r - z / 2), z, z);
+            }
+        }
+        fillPaths(ctx, paths, [cols[0], cols[1], cols[2], cols[3]], alpha);
+    }
+    // 불기둥 대폭발 — 땅(x, G)에서 동그란 불꽃이 확 퍼지고(반쯤 땅에 묻힌 불꽃 구) 화면 꼭대기 너머까지 굵은 불기둥이 치솟음
+    // (밑동이 넓고 겹친 색이 위로 물결치며 흐름) → 가늘어지며 사그라듦. 밑동 양옆엔 불꽃 혀, 기둥을 따라 불씨가 솟음
+    function firePillar(sc, x, G, w, dur, cols) {
+        const { S: s, H } = sc.u;
+        const R = w * 2.2; // 폭발 구 반지름
+        const top = G + H * 0.1; // 기둥 높이 — 화면 위 밖까지
+        let spark = 0;
+        return sc.add({ max: dur,
+            update: (it, dt) => {
+                spark += dt * 90 * (1 - it.life / dur);
+                while (spark >= 1) {
+                    spark -= 1;
+                    fireBits(x + rnd(-1, 1) * w * 0.45, G - rnd(0, G * 0.8), s, cols, 1, { angle: -Math.PI / 2, spread: 0.4, speed: H * 0.9, drag: 1, life: 0.6 });
+                }
+            },
+            draw: (ctx, it, t, px) => {
+                const life = it.life;
+                // 폭발 구 — 0.25초 만에 확 커지고, 안쪽(하양 → 노랑)부터 식어 줄어들다 끝에만 빨리 옅어짐
+                if (life < 0.75) {
+                    const grow = easeOut(Math.min(1, life / 0.25));
+                    const cool = clamp((life - 0.25) / 0.5, 0, 1);
+                    fireOrb(ctx, px, s, x, G, R, cols, life, grow * (1 + cool * 0.15), G + s, life > 0.6 ? (0.75 - life) / 0.15 : 1, cool);
+                }
+                // 불기둥
+                const up = easeOut(Math.min(1, life / 0.22));
+                const down = t > 0.6 ? easeIn((t - 0.6) / 0.4) : 0;
+                const Hp = top * up;
+                const half0 = w * 0.5 * (1 - 0.8 * down) * (0.7 + 0.3 * up);
+                if (half0 >= s) {
+                    for (const [m, c, a] of [[1, cols[3], 0.75], [0.78, cols[2], 0.85], [0.55, cols[1], 0.95], [0.3, cols[0], 1]]) {
+                        ctx.globalAlpha = a * (1 - down * 0.5);
+                        ctx.fillStyle = c;
+                        for (let yy = 0; yy < Hp; yy += s) {
+                            const f = yy / Hp;
+                            const base = 1 + 0.9 * Math.max(0, 1 - yy / (w * 1.2)) ** 2; // 밑동이 넓게
+                            const tip = f > 0.85 ? Math.sqrt((1 - f) / 0.15) : 1;
+                            const flick = 1 + 0.14 * Math.sin(life * 18 - (yy / w) * 2.5 + m * 3) + 0.07 * Math.sin(life * 31 + (yy / w) * 6 + m);
+                            const half = half0 * m * base * tip * flick;
+                            if (half < s * 0.5) {
+                                continue;
+                            }
+                            const sway = Math.sin((yy / w) * 0.8 - life * 5) * w * 0.06;
+                            ctx.fillRect(px(x + sway - half), px(G - yy - s), Math.max(s, px(2 * half)), s);
+                        }
+                    }
+                }
+                // 밑동 양옆 불꽃 혀
+                for (const f of [-1, 1]) {
+                    flameTongue(ctx, px, s, x + f * w * 0.8, G, w * 0.8, w * 1.8 * up * (1 - down), cols, life + f, 1 - down, f * 0.25);
+                }
+            } });
+    }
     // 불씨 — 작은 불 점들이 튀어 날아감 (한꺼번에 n 개)
     function fireBits(x, y, s, cols, n, o = {}) {
         n = Math.min(Math.round(n), Math.max(0, LIVE_MAX - moveParticles.length));
@@ -20448,9 +20561,9 @@ window.__ult = {
     }
 
     // 플레어드라이브 — 몸을 웅크려 불꽃을 모으고 땅을 차고 하늘 높이 솟음(날갯짓하듯 몸이 들썩 · 바람 고리 · 불비 같은 불꽃 꼬리)
-    // → 꼭대기에서 온몸이 불꽃 혀에 휩싸임 → 점화하듯 확 (세 번 두근) → 불비 같은 굵은 혜성 꼬리를 끌며 대각선으로 급강하
-    // — 하늘에서 불꽃 유성이 같은 방향으로 함께 쏟아져 여기저기 펑 (용성군처럼)
-    // → 내리꽂혀 멈칫 → 거대한 화톳불이 솟구침 · 불길 띠가 땅을 따라 양옆으로 번짐(닿은 애 떠오름) → 불 속에서 솟아올라 날갯짓하며 제자리로 → 불똥이 피어오름
+    // → 꼭대기에서 동그란 불꽃 구에 감싸임(둘레로 불씨 세 줄이 빙글빙글) → 점화하듯 확 (세 번 두근) — 하늘에서 불꽃 유성이 하나씩 천천히 쏟아지기 시작 (용성군처럼)
+    // → 불꽃 구째로 굵은 혜성 꼬리를 끌며 대각선으로 급강하 → 내리꽂히는 순간 대폭발: 동그란 불꽃이 확 퍼지고 화면 꼭대기까지 불기둥이 치솟음
+    // · 불길 띠가 땅을 따라 양옆으로 번짐(닿은 애 떠오름) → 불기둥 속에서 솟아올라 날갯짓하며 제자리로 → 불똥이 피어오름
     // 나는 동안은 진짜 그림을 숨기고 캔버스에 꼭두각시로 (같은 자리에 내려와서 다시 보임)
     function runFlareDrive(u, o, ms, pokemon) {
         const cols = sigPal(o.c || 'fire');
@@ -20467,12 +20580,11 @@ window.__ult = {
         const q = nearest(u);
         const tx = q ? clamp(q.x, W * 0.1, W * 0.9) : clamp(me.x + dir * W * 0.4, W * 0.15, W * 0.85);
         const fd = Math.sign(tx - me.x) || dir; // 날아갈 쪽
-        // 때 — 땅을 참 · 꼭대기 · 급강하 · 내리꽂힘 · 멈칫 끝(폭발) · 솟아오름 · 돌아옴 · 착지
+        // 때 — 땅을 참 · 꼭대기 · 급강하 · 내리꽂힘(대폭발) · 솟아오름 · 돌아옴 · 착지
         const T0 = 0.45;
         const T1 = 1.15;
         const T2 = 2.05;
         const TI = 2.45;
-        const TO = 2.6;
         const TU = 3.0;
         const TH = 3.6;
         const TL = 4.3;
@@ -20485,6 +20597,7 @@ window.__ult = {
         const vyN = (G - topB) / (Math.hypot(tx - ax, G - topB) || 1);
         const diveRot = fd * 0.6 * Math.atan2(G - topB, Math.abs(tx - ax) || 1); // 머리부터 — 그림이 너무 눕지 않게 반쯤만
         const upB = G - H * 0.25;
+        const Ro = Math.max(me.w, me.h) * 0.95; // 불꽃 구 반지름
         // 날갯짓 — 0.28초마다 몸이 들썩 (아래로 바람 고리)
         const BEAT = 0.28;
         const flapBob = (t) => -Math.abs(Math.sin((t / BEAT) * Math.PI)) * s * 3;
@@ -20522,9 +20635,20 @@ window.__ult = {
         };
         // 불꽃에 휩싸인 세기 — 꼭대기에서 휩싸이고, 솟아오르며 식음
         const fireAt = (t) => (t < T1 ? 0 : t < T1 + 0.3 ? (t - T1) / 0.3 : t < TU ? 1 : t < TH ? 1 - (t - TU) / (TH - TU) : 0);
+        // 불꽃 구 크기 — 꼭대기에서 커지고(두근두근), 불기둥 속에선 없다가, 솟아오를 때 작게 남아 사그라듦
+        const orbAt = (t) => {
+            if (t < T1 || t >= TH || (t >= TI && t < TU)) {
+                return 0;
+            }
+            if (t >= TU) {
+                return 0.75 * (1 - (t - TU) / (TH - TU));
+            }
+            const beat = pulses.reduce((m, tp) => Math.max(m, clamp(1 - Math.abs(t - tp) / 0.1, 0, 1)), 0);
+            return easeOut(clamp((t - T1) / 0.3, 0, 1)) * (1 + 0.15 * beat);
+        };
         const sc = scene(u, sec + 0.3, 'ultdive');
         ultDark(0.25, ms - 200);
-        emberRise(sc, TO, sec, cols);
+        emberRise(sc, TI, sec, cols);
         try {
             pokemon.el.style.filter = fireLine(u.s);
         } catch (err) {
@@ -20552,7 +20676,7 @@ window.__ult = {
                 ring(sc, x, b + s * 2, me.w * 0.4, me.w * 1.8, 0.3, 0.3, ['#ffffff', '#ffe2b0'], 1);
             }
         });
-        // 꼬리 · 불꽃 혀 · 꼭두각시 (한 덩어리 — 폭발이 생기면 그 위에 다시 그림)
+        // 꼬리 · 불꽃 구 · 도는 불씨 · 꼭두각시 (한 덩어리 — 폭발이 생기면 그 위에 다시 그림)
         const drawFlyer = (ctx, it, t, px) => {
             const life = sc.t;
             if (life < T0 || life >= TL) {
@@ -20564,13 +20688,16 @@ window.__ult = {
             if (life < T1) {
                 fireTail(ctx, px, s, cx, cy + me.h * 0.1, 0, -1, me.h * 2.6 * clamp((life - T0) / 0.2, 0, 1), me.w * 0.8, cols, life, 0.95);
             } else if (life >= T2 && life < TI) {
-                fireTail(ctx, px, s, cx, cy, vxN, vyN, marg * 3.4, me.w * 1.5, cols, life, 1);
+                fireTail(ctx, px, s, cx, cy, vxN, vyN, marg * 3.6, Ro * 1.7, cols, life, 1);
             }
             const fire = fireAt(life);
-            if (fire > 0.01) {
-                // 온몸을 감싼 불꽃 혀 — 내리꽂을 땐 꼭대기가 뒤로 기움
-                const diving = life >= T2 && life < TU;
-                flameTongue(ctx, px, s, x, b + me.h * 0.15, me.w * 1.7, me.h * 2.1, cols, life, fire, diving ? -vxN * 1.4 : 0);
+            const orb = orbAt(life);
+            if (orb > 0.01) {
+                // 동그란 불꽃 구 — 리자몽이 그 안에 · 둘레로 불씨 세 줄이 빙글빙글 (내리꽂을 때까지)
+                fireOrb(ctx, px, s, cx, cy, Ro, cols, life, orb, G, 0.95);
+                if (life < TI) {
+                    orbitEmbers(ctx, px, s, cx, cy, Ro * orb * 1.3, cols, life, fd, clamp((life - T1 - 0.2) / 0.2, 0, 1));
+                }
             }
             drawLitMon(ctx, img, x, b, me.w, fd < 0, '#ffc93c', edge, 1, rot);
             // 달아오름 — 하얀 · 노란 실루엣이 두근두근
@@ -20578,7 +20705,7 @@ window.__ult = {
                 drawMon(ctx, img, x, b, me.w, fd < 0, fire * (0.2 + 0.15 * Math.sin(life * 18)), cols[0], rot);
             }
         };
-        sc.add({ max: TO, draw: drawFlyer });
+        sc.add({ max: TI, draw: drawFlyer });
         // 불씨 — 휩싸인 동안 몸에서 튀어 오름
         let bits = 0;
         sc.tick((t, dt) => {
@@ -20591,7 +20718,7 @@ window.__ult = {
             const [cx, cy] = center(t);
             while (bits >= 1) {
                 bits -= 1;
-                fireBits(cx, cy - me.h * 0.6, s, cols, 1, { angle: -Math.PI / 2, spread: 1, speed: H * 0.4, drag: 1.6, life: 0.6, rx: me.w * 0.5 });
+                fireBits(cx, cy - Ro * 0.9, s, cols, 1, { angle: -Math.PI / 2, spread: 1, speed: H * 0.4, drag: 1.6, life: 0.6, rx: Ro * 0.6 });
             }
         });
         // 점화 — 다 휩싸이면 확 (하얀 번쩍 · 고리 · 불씨)
@@ -20599,13 +20726,13 @@ window.__ult = {
             const [cx, cy] = center(T1 + 0.3);
             screenFlash(s, 0.2, cols[1], 0.12);
             ultShake(3, 220);
-            ring(sc, cx, cy, me.w * 0.4, marg * 2, 0.85, 0.4, ['#ffffff', cols[1], cols[2]], 2);
-            fireBits(cx, cy, s, cols, 40, { spread: TAU, speed: H * 0.6, drag: 2.4, life: 0.7 });
+            ring(sc, cx, cy, Ro, marg * 2.4, 1, 0.45, ['#ffffff', cols[1], cols[2]], 2);
+            fireBits(cx, cy, s, cols, 40, { spread: TAU, speed: H * 0.6, drag: 2.4, life: 0.7, rx: Ro * 0.6, ry: Ro * 0.6 });
         });
         for (const tp of pulses) {
             sc.at(tp, () => {
                 const [cx, cy] = center(tp);
-                ring(sc, cx, cy, marg * 1.2, me.w * 0.6, 0.85, 0.3, [cols[1], '#ffffff', cols[3]], 2);
+                ring(sc, cx, cy, marg * 1.6, Ro * 1.1, 1, 0.3, [cols[1], '#ffffff', cols[3]], 2);
                 ultShake(1.5, 150);
             });
         }
@@ -20614,14 +20741,14 @@ window.__ult = {
             const [cx, cy] = center(T2);
             ring(sc, cx, cy, me.w * 0.5, marg * 1.6, 0.8, 0.35, ['#ffffff', cols[1]], 2);
         });
-        // 불꽃 유성 — 급강하하는 동안 하늘(화면 위 밖)에서 같은 방향으로 쏟아져 리자몽이 떨어질 곳 둘레에 펑펑 (용성군처럼)
+        // 불꽃 유성 — 점화 뒤부터 하늘(화면 위 밖)에서 하나씩 천천히(1 ~ 1.3초) 같은 방향으로 쏟아져 리자몽이 떨어질 곳 둘레에 펑펑 (용성군처럼)
         const nMet = clamp(Math.round(W / 90), 6, 12);
         const lenMet = (G + 30) / Math.max(0.3, vyN);
         const mets = [];
         for (let i = 0; i < nMet; i++) {
             const lx = clamp(tx + (hash(i, 31) - 0.5) * W * 0.8, W * 0.05, W * 0.95);
-            const land = TI - 0.3 + (i / nMet) * 0.75 + (hash(i, 32) - 0.5) * 0.08;
-            mets.push({ lx, land, t0: land - (0.45 + 0.15 * hash(i, 33)), r: Math.max(s * 3, me.w * (0.26 + 0.14 * hash(i, 34))), sx: lx - vxN * lenMet, sy: G - vyN * lenMet });
+            const t0 = T1 + 0.45 + (i / nMet) * 1.15 + (hash(i, 32) - 0.5) * 0.08;
+            mets.push({ lx, t0, land: t0 + 1 + 0.3 * hash(i, 33), r: Math.max(s * 3, me.w * (0.26 + 0.14 * hash(i, 34))), sx: lx - vxN * lenMet, sy: G - vyN * lenMet });
         }
         const metAt = (m, t) => {
             const k = clamp((t - m.t0) / (m.land - m.t0), 0, 1);
@@ -20667,46 +20794,42 @@ window.__ult = {
                 }
             });
         }
-        // ② 내리꽂힘 — 멈칫 → 거대한 화톳불 · 불길 띠가 땅을 따라 양옆으로
-        sc.at(TI, () => {
-            screenFlash(s, 0.2, cols[0], 0.08);
-            ultShake(3, 120);
-            ring(sc, tx, G - me.h * 0.4, me.w * 0.4, me.w * 1.6, 0.6, 0.15, ['#ffffff', cols[1]], 2);
-        });
+        // ② 내리꽂힘 — 닿는 순간 대폭발: 동그란 불꽃이 확 퍼지고 불기둥이 화면 꼭대기까지 · 불길 띠가 땅을 따라 양옆으로
         const spread = W * 0.75; // 땅 불길이 번지는 빠르기 (px/초)
         const fireEnd = TL + 0.7;
-        sc.at(TO, () => {
-            screenFlash(s, 0.45, cols[0], 0.25);
-            ultShake(8, 550);
-            bonfire(sc, tx, G, Math.max(s * 8, Math.min(D * 0.75, (G - 10) / 2.5)), 1.6, cols);
-            ring(sc, tx, G - H * 0.2, D * 0.3, Math.max(W, H) * 0.65, 0.7, 0.55, ['#ffffff', cols[1], cols[2]], 3);
+        sc.at(TI, () => {
+            screenFlash(s, 0.55, cols[0], 0.3);
+            ultShake(9, 650);
+            firePillar(sc, tx, G, Math.max(me.w * 1.6, D * 0.5), 1.9, cols);
+            ring(sc, tx, G - H * 0.2, D * 0.3, Math.max(W, H) * 0.7, 0.7, 0.55, ['#ffffff', cols[1], cols[2]], 3);
             ring(sc, tx, G - s, D * 0.4, D * 3, 0.18, 0.5, [cols[1], '#ffffff'], 2);
             debris(tx, G - H * 0.1, s, cols, 40, H * 1.2, { ground: G, size: [1, 2, 2] });
+            fireBits(tx, G - s, s, cols, 60, { angle: -Math.PI / 2, spread: Math.PI * 1.3, speed: H * 1.1, drag: 2, life: 0.9 });
             sc.add({ max: sec, draw: drawFlyer });
         });
         // 땅 불길 띠 — 폭발 자리에서 양옆으로 번지며 타오르다 사그라듦 (불길에 닿은 애 떠오름)
         sc.add({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
-            if (life < TO || life > fireEnd) {
+            if (life < TI || life > fireEnd) {
                 return;
             }
-            const k = life - TO;
+            const k = life - TI;
             const reach = spread * k;
             const fade = clamp((fireEnd - life) / 0.6, 0, 1);
             groundFlames(ctx, px, s, clamp(tx - reach, 0, W), clamp(tx + reach, 0, W), G, Math.max(6 * s, H * 0.12) * clamp(k / 0.2, 0, 1), life, cols, 0.92 * fade);
         } });
         sc.tick((t) => {
-            if (t < TO || t > fireEnd - 0.4) {
+            if (t < TI || t > fireEnd - 0.4) {
                 return;
             }
-            const reach = spread * (t - TO);
+            const reach = spread * (t - TI);
             for (const r of u.others()) {
                 if (Math.abs(r.x - tx) < reach) {
                     hit(r, Math.sign(r.x - tx) || fd, 'lift');
                 }
             }
         });
-        // ③ 불 속에서 솟아오름 → 날갯짓하며 돌아와 착지 (진짜가 다시 보임)
+        // ③ 불기둥 속에서 솟아오름 → 날갯짓하며 돌아와 착지 (진짜가 다시 보임)
         sc.at(TU, () => {
             ultShake(3, 220);
             ring(sc, tx, G - me.h * 0.5, me.w * 0.5, marg * 1.8, 0.8, 0.35, ['#ffffff', cols[1], cols[2]], 2);
