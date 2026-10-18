@@ -129,7 +129,8 @@ def main():
     if not code:
         sys.exit(f"VS Code 명령(code)을 못 찾음 — 직접 설치: code --install-extension \"{vsix}\"")
     subprocess.run([code, "--install-extension", vsix, "--force"], check=True)
-    print('설치 끝 — 열려 있는 포켓몬 보기는 2~4초 뒤 저절로 새로 고침돼요. (확장 쪽 코드가 바뀌었으면 VS Code 가 "다시 로드" 를 물어봐요)')
+    # 윈도우 콘솔(cp949)에서도 찍히는 글자만
+    print('설치 끝. 열려 있는 포켓몬 보기는 2~4초 뒤 저절로 새로 고침돼요. (확장 쪽 코드가 바뀌었으면 VS Code 가 "다시 로드" 를 물어봐요)')
 
 
 if __name__ == "__main__":
