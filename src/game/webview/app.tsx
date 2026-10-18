@@ -48,7 +48,7 @@ function Screens({ v, media, actions }: { v: ViewState; media: string; actions: 
     return <TitleScreen info={v.title} media={media} pending={v.pending} onNew={actions.newGame} onContinue={actions.continueGame} onExit={actions.exit} />;
   }
   if (v.screen === 'game' && v.state) {
-    return <StagePlaceholder state={v.state} layout={v.layout} media={media} pending={v.pending} onExit={actions.exit} />;
+    return <StagePlaceholder state={v.state} layout={v.layout} media={media} />;
   }
   return null;
 }
