@@ -621,5 +621,5 @@ docs/                 README 그림 · 영상
 
 - 원작 코드: [jakobhoeg/vscode-pokemon](https://github.com/jakobhoeg/vscode-pokemon) — CC0
 - 포켓몬 그림 저작권: © The Pokémon Company / Nintendo / Game Freak — 개인 비상업 용도
-- 새로 넣은 그림 (6세대 · 스타팅 15마리): [PMD SpriteCollab](https://github.com/PMDCollab/SpriteCollab) — CC BY-NC 4.0 (작가는 저장소 `sprite/<번호>/credits.txt`)
+- 새로 넣은 그림 (6세대 · 스타팅 15마리 · 블래스트번 때 변신하는 메가리자몽X): [PMD SpriteCollab](https://github.com/PMDCollab/SpriteCollab) — CC BY-NC 4.0 (작가는 저장소 `sprite/<번호>/credits.txt`, 다른 모습은 `add-form.py`)
 - 타입 · 종족값 · 한글 이름 · 게임 모드 데이터 (기술표 · 기술 · 진화 · 포획률): [PokeAPI](https://github.com/PokeAPI/pokeapi) — BSD-3-Clause (`scripts/fetch-pokeapi.mjs` 가 고정된 커밋에서 받음)

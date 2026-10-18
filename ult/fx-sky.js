@@ -4504,7 +4504,8 @@
 
     // 플레어드라이브 — 몸을 웅크려 불꽃을 모으고 땅을 차고 하늘 높이 솟음(날갯짓하듯 몸이 들썩 · 바람 고리 · 불꽃 꼬리)
     // → 꼭대기에서 몸 테두리를 따라 불꽃이 일렁이며 불꽃이 활활 피어오르는 불덩이 → 점화하듯 확 터짐 (세 번 두근)
-    // → 불꽃 알갱이 혜성 꼬리를 끌며 대각선으로 급강하 → 내리꽂혀 멈칫 → 땅속에서 불꽃이 쾅 솟구침 · 불길이 땅을 따라 양옆으로 번짐(닿은 애 떠오름)
+    // → 불꽃 알갱이 혜성 꼬리를 끌며 대각선으로 급강하 — 하늘에서 불꽃 유성이 같은 방향으로 함께 쏟아져 여기저기 펑 (용성군처럼)
+    // → 내리꽂혀 멈칫 → 땅속에서 불꽃이 쾅 솟구침 · 불길이 땅을 따라 양옆으로 번짐(닿은 애 떠오름)
     // → 불 속에서 솟아올라 날갯짓하며 제자리로 → 불똥이 피어오름 (불꽃은 화염방사와 같은 네모 불꽃 알갱이)
     // 나는 동안은 진짜 그림을 숨기고 캔버스에 꼭두각시로 (같은 자리에 내려와서 다시 보임)
     function runFlareDrive(u, o, ms, pokemon) {
@@ -4724,6 +4725,66 @@
             const [cx, cy] = center(T2);
             ring(sc, cx, cy, me.w * 0.5, marg * 1.6, 0.8, 0.35, ['#ffffff', cols[1]], 2);
         });
+        // 불꽃 유성 — 급강하하는 동안 하늘(화면 위 밖)에서 같은 방향으로 쏟아져 리자몽이 떨어질 곳 둘레에 펑펑 (용성군처럼)
+        const nMet = clamp(Math.round(W / 90), 6, 12);
+        const lenMet = (G + 30) / Math.max(0.3, vyN);
+        const mets = [];
+        for (let i = 0; i < nMet; i++) {
+            const lx = clamp(tx + (hash(i, 31) - 0.5) * W * 0.8, W * 0.05, W * 0.95);
+            const land = TI - 0.3 + (i / nMet) * 0.75 + (hash(i, 32) - 0.5) * 0.08;
+            mets.push({ lx, land, t0: land - (0.45 + 0.15 * hash(i, 33)), r: Math.max(s * 3, me.w * (0.26 + 0.14 * hash(i, 34))), sx: lx - vxN * lenMet, sy: G - vyN * lenMet });
+        }
+        const metAt = (m, t) => {
+            const k = clamp((t - m.t0) / (m.land - m.t0), 0, 1);
+            const e = 0.7 * k + 0.3 * k * k;
+            return [lerp(m.sx, m.lx, e), lerp(m.sy, G - m.r * 0.6, e)];
+        };
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            for (const m of mets) {
+                if (life < m.t0 || life >= m.land) {
+                    continue;
+                }
+                const pts = [];
+                for (let k = 0; k <= 8; k++) {
+                    const tt = Math.max(m.t0, life - k * 0.025);
+                    pts.push(metAt(m, tt));
+                    if (tt === m.t0) {
+                        break;
+                    }
+                }
+                waterRibbon(ctx, px, s, pts, (m.r / s) * 1.3, [null, cols[3], EMBER[0]], 0.6);
+                waterRibbon(ctx, px, s, pts, (m.r / s) * 0.9, cols, 0.85);
+                const [x, y] = metAt(m, life);
+                fireBall(ctx, px, s, x, y, m.r, cols, life);
+            }
+        } });
+        let metBits = 0;
+        sc.tick((t, dt) => {
+            metBits += dt * 40;
+            while (metBits >= 1) {
+                metBits -= 1;
+                for (const m of mets) {
+                    if (t > m.t0 && t < m.land) {
+                        const [x, y] = metAt(m, t);
+                        fireBits(x, y, s, cols, 1, { angle: Math.atan2(-vyN, -vxN), spread: 0.6, speed: H * 0.3, drag: 2.2, grow: 3, life: 0.45 });
+                    }
+                }
+            }
+        });
+        for (const m of mets) {
+            sc.at(m.land, () => {
+                fireBits(m.lx, G - s, s, cols, 45, { angle: -Math.PI / 2, spread: Math.PI * 1.1, speed: H * 0.7, drag: 2.4, grow: 4, life: 0.7 });
+                ring(sc, m.lx, G - s, m.r, m.r * 4, 0.2, 0.35, [cols[1], '#ffffff'], 2);
+                debris(m.lx, G - m.r, s, cols, 10, H * 0.6, { ground: G });
+                ultShake(2.5, 150);
+                for (const r of u.others()) {
+                    if (Math.abs(r.x - m.lx) < m.r * 3 + r.w * 0.5) {
+                        hit(r, Math.sign(r.x - m.lx) || fd, 'lift');
+                    }
+                }
+            });
+        }
         // ② 내리꽂힘 — 멈칫 → 불기둥 대폭발 · 불길이 땅을 따라 양옆으로
         sc.at(TI, () => {
             screenFlash(s, 0.2, cols[0], 0.08);
@@ -4782,9 +4843,11 @@
         });
     }
 
-    // 블래스트번 — 숨을 크게 들이마심(불꽃이 입으로 빨려 들고 몸이 달아오르며 젖혀짐) → 거대한 불덩이를 땅에 내뿜음(포물선 · 불꽃 꼬리)
-    // → 불덩이가 땅속으로 → 땅이 붉게 달아오르며 금이 쩍쩍 · 우르르 · 불똥이 튐 → 땅속 대폭발: 불꽃 알갱이가 쾅 터져 불기둥처럼 솟구치고
-    // 땅을 따라 양옆으로 번짐(닿은 애 떠오름 · 날아감) → 연기로 사그라듦 → 불똥이 피어오름 (불꽃은 화염방사와 같은 네모 불꽃 알갱이)
+    // 블래스트번 (메가리자몽 X) — 주황 불꽃이 소용돌이치며 알처럼 감쌈(세 번 두근 · 금이 감) → 펑! 깨지며 메가리자몽X 로 변신
+    // (진짜 그림은 숨기고 megax 그림 — add-form.py · PMD SpriteCollab) → 파란 불꽃이 활활 · 포효 → 파란 불꽃이 가슴으로 모이고 발밑이 파랗게
+    // → 리자몽을 중심으로 파란 불꽃 대폭발: 파란 불기둥 · 사방으로 터지는 불꽃 · 땅을 따라 화면 끝까지 번지는 파란 불길(닿은 애 날아감)
+    // → 파란 불꽃이 잦아들고 → 하얗게 빛나며 원래 모습으로
+    const BLUE = ['#eaf6ff', '#8fd8ff', '#3fa2ff', '#1b4fd1']; // 파란 불꽃 (하양 → 하늘 → 파랑 → 짙은 파랑)
     function runBlastBurn(u, o, ms, pokemon) {
         const cols = sigPal(o.c || 'fire');
         const P = strength(u);
@@ -4795,165 +4858,184 @@
         const img = pokemon.el;
         const me = monBox(pokemon);
         const D = Math.min(Math.max(H / 3, short(u) * 0.4) * (0.9 + 0.2 * P), W * 0.42, H * 0.62);
-        const q = nearest(u);
-        const fd = q ? Math.sign(q.x - me.x) || dir : dir;
-        const R = Math.max(s * 8, Math.min(D * 1.05, (G - 10) / 2.4)); // 불꽃 분출 크기 — 가장 높이 솟아도 화면 안에
-        const tx = clamp(q ? q.x : me.x + fd * W * 0.4, R * 1.2, W - R * 1.2);
-        const mx = u.mouth.x;
-        const my = u.mouth.y;
-        const r1 = Math.max(s * 4, D * 0.28); // 불덩이 반지름
-        // 때 — 들이마심 · 내뿜음 · 땅에 닿음 · 대폭발
-        const TF = 1.0;
-        const TFly = 1.15;
-        const TG = 1.6;
-        const TB = 2.05;
-        const ball = (t) => {
-            const k = clamp((t - TFly) / (TG - TFly), 0, 1);
-            const m = 1 - k;
-            const c = [(mx + tx) / 2, Math.min(my, G) - H * 0.15];
-            return [m * m * mx + 2 * m * k * c[0] + k * k * tx, m * m * my + 2 * m * k * c[1] + k * k * (G - r1 * 0.5)];
-        };
+        // 메가 그림 — 같은 폴더의 megax_idle (정면). 도트 크기는 원래 그림과 같게 (u.s 배)
+        const mega = new Image();
+        mega.src = (img.src || '').replace(/[^/]+\.gif(\?.*)?$/, 'megax_idle_8fps.gif');
+        const megaW = () => (mega.naturalWidth || 64) * u.s;
+        const megaReady = () => mega.complete && mega.naturalWidth > 0;
+        // 때 — 알 · 두근 셋 · 깨짐(변신) · 포효 · 모으기 · 대폭발 · 원래대로
+        const TM = 1.3;
+        const pulses = [0.5, 0.8, 1.05];
+        const TR = 1.65;
+        const TB = 2.7;
+        const TBack = sec - 0.45;
+        const R = Math.max(s * 8, Math.min(D * 1.05, (G - 10) / 2.4));
         const sc = scene(u, sec + 0.3, 'ultpillar');
-        ultDark(0.25, ms - 200);
-        emberRise(sc, TB, sec, cols);
-        try {
-            pokemon.el.style.filter = fireLine(u.s);
-        } catch (err) {
-            fail('fire', err);
-        }
-        // ① 숨을 들이마심 — 불꽃 · 불똥이 입으로 빨려 들고 몸이 두근두근 달아오름 → 몸을 젖힘
+        ultDark(0.3, ms - 200);
+        emberRise(sc, TB, sec, BLUE);
+        const ex = me.x;
+        const ey = me.b - me.h * 0.5;
+
+        // ① 알 — 주황 불꽃 두 줄씩 소용돌이치며 모여 리자몽을 감싸는 불꽃 알이 됨, 두근두근 · 금이 감
+        sc.add({ max: TM + 0.05, draw: (ctx, it, t, px) => {
+            const life = it.life;
+            const k = clamp(life / TM, 0, 1);
+            const rx = Math.max(me.w * 0.95, s * 10) * (1 + 0.08 * Math.sin(life * 18));
+            const ry = Math.max(me.h * 0.8, s * 9) * (1 + 0.08 * Math.sin(life * 18));
+            // 소용돌이 (처음 반)
+            if (k < 0.7) {
+                const a = clamp(Math.min(k / 0.1, (0.7 - k) / 0.15), 0, 1);
+                const paths = [new Path2D(), new Path2D(), new Path2D()];
+                for (let j = 0; j < 4; j++) {
+                    for (let i = 0; i < 28; i++) {
+                        const f = (i / 28 + life * 1.4) % 1;
+                        const r = lerp(Math.max(rx * 2.6, D), rx, f);
+                        const an = (j / 4) * TAU + f * 4 * dir + life * 8 * dir;
+                        paths[f > 0.6 ? 2 : f > 0.3 ? 1 : 0].rect(px(ex + Math.cos(an) * r - s), px(ey + Math.sin(an) * r * 0.75 - s), 2 * s, 2 * s);
+                    }
+                }
+                fillPaths(ctx, paths, [cols[3], cols[2], cols[0]], 0.95 * a);
+            }
+            // 알 껍질 — 점점 진해짐
+            const shell = clamp((k - 0.15) / 0.5, 0, 1);
+            if (shell > 0) {
+                ellipse(ctx, px, s, ex, ey, rx, ry, cols[3], 0.75 * shell);
+                ellipse(ctx, px, s, ex, ey, rx * 0.86, ry * 0.86, cols[2], 0.85 * shell);
+                ellipse(ctx, px, s, ex, ey - ry * 0.05, rx * 0.62, ry * 0.62, cols[1], 0.9 * shell);
+                ellipse(ctx, px, s, ex, ey - ry * 0.1, rx * 0.32, ry * 0.32, cols[0], 0.9 * shell);
+                ringDots(ctx, px, s, ex, ey, rx * 1.04, ry / rx, ['#ffffff', cols[1]], 0.8 * shell);
+            }
+            // 금 — 꼭대기에서 아래로 갈라짐
+            const crack = clamp((k - 0.7) / 0.3, 0, 1);
+            if (crack > 0) {
+                for (let j = 0; j < 4; j++) {
+                    const pts = [[ex + (j - 1.5) * rx * 0.2, ey - ry * 0.95]];
+                    for (let q = 1; q <= 5; q++) {
+                        pts.push([ex + (j - 1.5) * rx * 0.25 + (hash(j * 7 + q, 41) - 0.5) * rx * 0.5, ey - ry * 0.95 + (ry * 1.7 * q) / 5]);
+                    }
+                    const n = Math.max(2, Math.round(pts.length * crack));
+                    fillPts(ctx, px, s, pts.slice(0, n), 2, '#ffffff', 1);
+                }
+            }
+        } });
         sc.tick((t) => {
-            if (t > TF - 0.05 || !room(4)) {
+            if (t < TM - 0.1 && room(3)) {
+                fireBits(ex, ey, s, cols, 2, { spread: TAU, speed: H * 0.15, drag: 3, grow: 2.5, life: 0.5, rx: me.w, ry: me.h * 0.8 });
+            }
+        });
+        for (const tp of pulses) {
+            sc.at(tp, () => {
+                ring(sc, ex, ey, me.w * 2.6, me.w * 0.9, 0.85, 0.3, [cols[1], '#ffffff', cols[3]], 2);
+                ultShake(1.5 + tp, 150);
+            });
+        }
+        // ② 깨짐 — 하얀 번쩍 · 불꽃 조각이 사방으로 → 메가리자몽X
+        sc.at(TM, () => {
+            screenFlash(s, 0.55, '#ffffff', 0.28);
+            ultShake(6, 450);
+            ring(sc, ex, ey, me.w * 0.5, Math.max(W, H) * 0.6, 0.8, 0.5, ['#ffffff', cols[1], BLUE[2]], 3);
+            fireBits(ex, ey, s, cols, 110, { spread: TAU, speed: H * 0.9, drag: 2.6, grow: 3.5, life: 0.8, rx: me.w * 0.5, ry: me.h * 0.4 });
+            debris(ex, ey, s, [cols[0], cols[1], cols[2]], 30, H * 0.9, { ground: G, size: [1, 2, 2] });
+            hideMon(pokemon, true);
+        });
+        hideUntil(pokemon, ms + 100);
+        // 메가리자몽X — 파란 테두리, 나타날 때 하얗게 → 사라지기 직전 다시 하얗게 (원래대로)
+        sc.add({ max: sec, draw: (ctx) => {
+            const life = sc.t;
+            if (life < TM || life >= TBack + 0.15 || !megaReady()) {
                 return;
             }
-            for (let j = 0; j < 4; j++) {
+            const w = megaW();
+            const roar = life > TR && life < TR + 0.35 ? Math.sin(((life - TR) / 0.35) * Math.PI) * s * 2 : 0;
+            drawLitMon(ctx, mega, ex + roar * 0.5, me.b, w, false, BLUE[2], Math.max(1, Math.round(u.s * 0.75)), 1);
+            const flash = life < TM + 0.35 ? 1 - (life - TM) / 0.35 : life > TBack - 0.25 ? (life - TBack + 0.25) / 0.4 : 0;
+            if (flash > 0) {
+                drawMon(ctx, mega, ex, me.b, w, false, Math.min(1, flash), '#ffffff');
+            }
+        } });
+        // 파란 불꽃 — 메가X 몸에서 활활 (모을 때 · 폭발 뒤엔 더 세게)
+        let blue = 0;
+        sc.tick((t, dt) => {
+            if (t < TM || t > TBack) {
+                return;
+            }
+            blue += dt * (t > TR && t < TB ? 260 : 150);
+            const w = megaW();
+            while (blue >= 1) {
+                blue -= 1;
+                fireBits(ex, me.b - w * 0.3, s, BLUE, 1, { angle: -Math.PI / 2, spread: 0.6, speed: H * 0.4, drag: 2.2, grow: 3, life: 0.55, rx: w * 0.3, ry: w * 0.18 });
+            }
+        });
+        // ③ 포효 → 파란 불꽃이 가슴으로 모이고 발밑이 파랗게 달아오름
+        sc.at(TR, () => {
+            ultShake(4, 350);
+            ring(sc, ex, me.b - megaW() * 0.3, megaW() * 0.3, Math.max(W, H) * 0.5, 0.8, 0.45, ['#ffffff', BLUE[1], BLUE[2]], 2);
+        });
+        sc.tick((t) => {
+            if (t < TR + 0.2 || t > TB - 0.05 || !room(4)) {
+                return;
+            }
+            const cy = me.b - megaW() * 0.3;
+            for (let j = 0; j < 3; j++) {
                 const a0 = rnd(0, TAU);
                 const r0 = D * rnd(0.8, 1.5);
-                sigParticle({ x: mx, y: my, s, max: rnd(0.3, 0.45), a0, r0, color: pick(cols), size: pick([1, 2]),
+                sigParticle({ x: ex, y: cy, s, max: rnd(0.3, 0.45), a0, r0, color: pick(BLUE), size: pick([1, 2]),
                     update: (p) => {
-                        const k = (p.life / p.max) ** 1.4;
-                        const an = p.a0 + k * 3 * fd;
-                        p.x = mx + Math.cos(an) * p.r0 * (1 - k);
-                        p.y = my + Math.sin(an) * p.r0 * (1 - k) * 0.7;
+                        const k = p.life / p.max;
+                        p.x = ex + Math.cos(p.a0 + k * 4 * dir) * p.r0 * (1 - k);
+                        p.y = cy + Math.sin(p.a0 + k * 4 * dir) * p.r0 * (1 - k) * 0.7;
                     },
                     draw: DRAW.dot });
             }
         });
-        sc.add({ max: sec, draw: (ctx) => {
-            const life = sc.t;
-            if (life > TFly + 0.2) {
-                return;
-            }
-            const heat = clamp(life / TF, 0, 1) * (0.25 + 0.2 * Math.sin(life * 16));
-            drawMon(ctx, img, me.x, me.b, me.w, shownLeft(img), heat, cols[0]);
-        } });
-        sc.at(TF - 0.3, () => recoil(pokemon, [{ translate: '0 0' }, { translate: `${-fd * 3 * u.s}px ${-u.s * 3}px` }], 300));
-        // ② 내뿜음 — 입에서 불덩이가 커져 포물선으로 땅에 (불꽃 꼬리 · 연기)
-        sc.at(TF, () => {
-            ultShake(4, 300);
-            ring(sc, mx, my, r1 * 0.5, D * 1.2, 0.8, 0.3, ['#ffffff', cols[1], cols[2]], 2);
-            recoil(pokemon, [{ translate: `${-fd * 3 * u.s}px ${-u.s * 3}px` }, { translate: `${fd * 2 * u.s}px 0` }, { translate: '0 0' }], 350);
-            flames(mx, my, s, cols, 14, H * 0.5, 4);
-        });
         sc.add({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
-            if (life < TF || life >= TG) {
+            if (life < TR || life > TBack) {
                 return;
             }
-            const grow = easeOut((life - TF) / 0.15);
-            const [x, y] = life < TFly ? [mx + fd * r1 * 0.6 * grow, my] : ball(life);
-            if (life > TFly) {
-                const pts = [];
-                for (let k = 0; k <= 10; k++) {
-                    const tt = Math.max(TFly, life - k * 0.025);
-                    pts.push(ball(tt));
-                    if (tt === TFly) {
-                        break;
-                    }
-                }
-                waterRibbon(ctx, px, s, pts, (r1 / s) * 1.5, [null, cols[3], EMBER[0]], 0.7);
-                waterRibbon(ctx, px, s, pts, (r1 / s) * 1.0, cols, 0.9);
-            }
-            fireBall(ctx, px, s, x, y, r1 * grow, cols, life);
+            const k = clamp((life - TR) / (TB - TR), 0, 1);
+            const a = life < TB + 1.5 ? 1 : clamp(1 - (life - TB - 1.5) / 0.6, 0, 1);
+            const pulse = 0.7 + 0.3 * Math.sin(life * 18);
+            ellipse(ctx, px, s, ex, G - s, megaW() * (0.4 + 0.5 * k), megaW() * 0.06 * (1 + k), BLUE[3], 0.6 * a, G);
+            ellipse(ctx, px, s, ex, G - s, megaW() * (0.25 + 0.3 * k), megaW() * 0.04 * (1 + k), BLUE[1], 0.8 * pulse * a, G);
         } });
-        sc.tick((t) => {
-            if (t > TFly && t < TG && room(2)) {
-                const [x, y] = ball(t);
-                puff(x, y, s, SMOKE, r1 * 0.3, r1 * 0.9, 0.5, 0, -10, 0.35);
-            }
-        });
-        // ③ 땅에 닿음 — 땅이 붉게 달아오르며 금이 쩍쩍 (양옆으로), 우르르, 불똥이 튐
-        const cracks = [];
-        for (let j = 0; j < 6; j++) {
-            const side = j % 2 ? 1 : -1;
-            const len = R * (0.8 + 0.8 * hash(j, 21));
-            const pts = [[tx, G - s]];
-            for (let k = 1; k <= 6; k++) {
-                pts.push([tx + side * (len * k) / 6, G - s - Math.abs(hash(j * 10 + k, 22) - 0.5) * s * 4 * (j < 2 ? 1 : 2.5)]);
-            }
-            cracks.push(pts);
-        }
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
-            const life = sc.t;
-            if (life < TG || life > TB + 2.4) {
-                return;
-            }
-            const k = life < TB ? easeOut((life - TG) / (TB - TG)) : 1;
-            const a = life < TB + 1.6 ? 1 : 1 - (life - TB - 1.6) / 0.8;
-            const pulse = 0.7 + 0.3 * Math.sin(life * 20);
-            ellipse(ctx, px, s, tx, G - s, R * (0.3 + 0.9 * k), R * 0.12 * (0.5 + k), cols[3], 0.6 * a);
-            ellipse(ctx, px, s, tx, G - s, R * (0.18 + 0.55 * k), R * 0.07 * (0.5 + k), cols[2], 0.8 * pulse * a);
-            ellipse(ctx, px, s, tx, G - s, R * (0.08 + 0.25 * k), R * 0.04 * (0.5 + k), cols[0], pulse * a);
-            for (const pts of cracks) {
-                const n = Math.max(2, Math.round(pts.length * k));
-                const seg = pts.slice(0, n);
-                fillPts(ctx, px, s, seg, 3, EMBER[0], 0.9 * a);
-                fillPts(ctx, px, s, seg, 2, cols[2], pulse * a);
-                fillPts(ctx, px, s, seg, 1, cols[0], pulse * a);
-            }
-        } });
-        sc.at(TG, () => {
-            ultShake(3, (TB - TG) * 1000);
-            ring(sc, tx, G - s, r1, R * 1.4, 0.2, 0.35, [cols[1], '#ffffff'], 2);
-            debris(tx, G - s, s, cols, 18, H * 0.6, { ground: G, angle: -Math.PI / 2, spread: 1.4 });
-        });
-        sc.tick((t) => {
-            if (t > TG && t < TB && room(2)) {
-                sigParticle({ x: tx + rnd(-1, 1) * R * 0.6, y: G - s, s, vx: rnd(-1, 1) * H * 0.1, vy: -H * rnd(0.4, 0.9), g: H * 1.5, max: rnd(0.4, 0.7), color: pick(cols), size: pick([1, 2]), draw: DRAW.dot });
-            }
-        });
-        // ④ 땅속 대폭발 — 뭉게 불구름이 버섯구름처럼 피어오르고 옆으로 굴러 퍼짐, 둘레 애들 떠올랐다 날아감
+        // ④ 파란 불꽃 대폭발 — 파란 불기둥 · 사방으로 터지는 불꽃 · 땅을 따라 화면 끝까지 번지는 파란 불길
+        const spread = W * 0.8;
+        const fireEnd = TB + 2.0;
         sc.at(TB, () => {
-            screenFlash(s, 0.45, cols[0], 0.25);
+            screenFlash(s, 0.5, BLUE[0], 0.28);
             ultShake(8, 650);
-            fireEruption(sc, tx, G, R, 1.4, cols);
-            // 터지는 순간 — 땅에서 하얀 · 노란 빛이 확 (금방 사그라듦)
-            sc.add({ max: 0.3, draw: (ctx, it, t, px) => {
-                const r = R * (0.3 + 0.8 * easeOut(t / 0.5));
-                ellipse(ctx, px, s, tx, G - s, r * 1.4, r * 0.7, cols[1], (1 - t) * 0.8, G);
-                ellipse(ctx, px, s, tx, G - s, r * 0.8, r * 0.45, cols[0], 1 - t, G);
-            } });
-            ring(sc, tx, G - R * 0.5, R * 0.3, Math.max(W, H) * 0.7, 0.7, 0.6, ['#ffffff', cols[1], cols[2]], 3);
-            ring(sc, tx, G - s, R * 0.4, R * 3.5, 0.18, 0.6, [cols[1], '#ffffff'], 2);
-            debris(tx, G - R * 0.3, s, cols, 50, H * 1.2, { ground: G, size: [1, 2, 2] });
-            debris(tx, G - R * 0.3, s, EMBER, 20, H * 0.9, { ground: G });
-            for (const r of u.others()) {
-                if (Math.abs(r.x - tx) < R * 1.4) {
-                    hit(r, Math.sign(r.x - tx) || fd, 'lift');
-                }
-            }
+            fireEruption(sc, ex, G, R, 1.3, BLUE);
+            fireBits(ex, me.b - megaW() * 0.3, s, BLUE, 200, { spread: TAU, speed: H * 1.2, drag: 2.4, grow: 4, life: 0.9 });
+            ring(sc, ex, G - R * 0.5, R * 0.3, Math.max(W, H) * 0.8, 0.7, 0.6, ['#ffffff', BLUE[1], BLUE[2]], 3);
+            ring(sc, ex, G - s, R * 0.4, Math.max(W, H), 0.18, 0.7, [BLUE[1], '#ffffff'], 2);
+            debris(ex, G - R * 0.3, s, BLUE, 40, H * 1.2, { ground: G, size: [1, 2, 2] });
         });
-        sc.tick((t) => {
-            if (t < TB + 0.3 || t > TB + 1.5) {
+        let groundAcc = 0;
+        sc.tick((t, dt) => {
+            if (t < TB || t > fireEnd) {
                 return;
             }
-            const reach = R * (1.4 + 2.2 * (t - TB - 0.3));
+            const reach = spread * (t - TB);
+            const x0 = clamp(ex - reach, 0, W);
+            const x1 = clamp(ex + reach, 0, W);
+            groundAcc += dt * 360 * ((x1 - x0) / W) * clamp((fireEnd - t) / 0.6, 0, 1);
+            while (groundAcc >= 1) {
+                groundAcc -= 1;
+                fireBits(rnd(x0, x1), G - s, s, BLUE, 1, { angle: -Math.PI / 2, spread: 0.5, speed: H * 0.4, drag: 1.5, grow: 3.5, life: 0.6 });
+            }
             for (const r of u.others()) {
-                if (Math.abs(r.x - tx) < reach) {
-                    hit(r, Math.sign(r.x - tx) || fd, 'tumble');
+                if (Math.abs(r.x - ex) < reach) {
+                    hit(r, Math.sign(r.x - ex) || dir, 'tumble');
                 }
             }
         });
+        // ⑤ 원래대로 — 하얗게 빛나며 메가가 풀리고 진짜 그림이 다시 보임
+        sc.at(TBack, () => {
+            sparkles(ex, me.b - me.h * 0.5, s, ['#ffffff', BLUE[1]], 14, me.w, H * 0.2);
+            ring(sc, ex, me.b - me.h * 0.5, me.w * 0.4, me.w * 2.5, 0.8, 0.35, ['#ffffff', cols[1]], 2);
+        });
+        sc.at(TBack + 0.15, () => hideMon(pokemon, false));
     }
 
     Object.assign(ULT_FX, {

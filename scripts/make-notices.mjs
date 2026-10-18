@@ -38,10 +38,9 @@ async function main() {
     if (name && id) names.set(id, name);
   }
 
-  const sprites = [];
-  for (const [key, p] of Object.entries(added).sort((a, b) => a[1].id - b[1].id)) {
-    const num = String(p.id).padStart(4, '0');
-    const credits = await get(`${SPRITE_BASE}/sprite/${num}/credits.txt`, `credits-${num}.txt`);
+  // 작가 · 라이선스 한 줄 — dir = sprite/ 아래 폴더 (모습이면 <번호>/<모습>)
+  const credit = async (dir, label) => {
+    const credits = await get(`${SPRITE_BASE}/sprite/${dir}/credits.txt`, `credits-${dir.replace('/', '-')}.txt`);
     const authors = new Set();
     const licenses = new Set();
     for (const line of credits.split(/\r?\n/)) {
@@ -50,7 +49,19 @@ async function main() {
       authors.add(names.get(who) ?? who);
       licenses.add(license);
     }
-    sprites.push(`  #${num} ${key} (${koNames[key] ?? p.name}) — ${[...authors].join(', ')}  [${[...licenses].join(', ')}]\n    https://github.com/PMDCollab/SpriteCollab/tree/master/sprite/${num}`);
+    return `  ${label} — ${[...authors].join(', ')}  [${[...licenses].join(', ')}]\n    https://github.com/PMDCollab/SpriteCollab/tree/master/sprite/${dir}`;
+  };
+  const sprites = [];
+  for (const [key, p] of Object.entries(added).sort((a, b) => a[1].id - b[1].id)) {
+    const num = String(p.id).padStart(4, '0');
+    sprites.push(await credit(num, `#${num} ${key} (${koNames[key] ?? p.name})`));
+  }
+  // 필살기 연출에서 잠깐 바꿔 그리는 다른 모습 (add-form.py · pokemon-forms.json — 예: 메가리자몽X)
+  const formsPath = join(ROOT, 'pokemon-forms.json');
+  const forms = existsSync(formsPath) ? JSON.parse(readFileSync(formsPath, 'utf8')) : {};
+  for (const [key, f] of Object.entries(forms).sort((a, b) => a[1].id - b[1].id)) {
+    const num = String(f.id).padStart(4, '0');
+    sprites.push(await credit(`${num}/${f.form}`, `#${num}/${f.form} ${key} (${f.ko ?? f.name})`));
   }
 
   const pokeapiLicense = await get(`https://raw.githubusercontent.com/PokeAPI/pokeapi/${meta.ref}/LICENSE.md`, `pokeapi-license-${meta.ref.slice(0, 12)}.md`);
@@ -70,7 +81,7 @@ Pokémon and Pokémon character names are trademarks of Nintendo. This is a non-
 2. 포켓몬 그림 — PMD SpriteCollab (https://github.com/PMDCollab/SpriteCollab)
    CC BY-NC 4.0 — 비상업 용도, 출처 표시 (https://creativecommons.org/licenses/by-nc/4.0/)
    아래 포켓몬의 그림은 SpriteCollab 의 그림 시트를 받아 바꿨어요:
-   서 있기 · 걷기 애니메이션만 잘라 GIF 로, 발을 바닥에 맞추고 32×32 또는 64×64 칸에 넣음 (add-pokemon.py).
+   서 있기 · 걷기 애니메이션만 잘라 GIF 로, 발을 바닥에 맞추고 32×32 또는 64×64 칸에 넣음 (add-pokemon.py · 다른 모습은 add-form.py).
    작가 (credits.txt 의 지금 기여자) · [라이선스 표시]:
 ${sprites.join('\n')}
 

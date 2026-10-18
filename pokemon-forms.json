@@ -1,0 +1,12 @@
+{
+  "charizard_megax": {
+    "id": 6,
+    "form": "0001",
+    "base": "charizard",
+    "tag": "megax",
+    "name": "Mega Charizard X",
+    "ko": "메가리자몽X",
+    "generation": 1,
+    "size": 64
+  }
+}
