@@ -341,6 +341,7 @@ function activate(context) {
         console.error(e);
     });
     context.subscriptions.push(vscode.window.registerWebviewViewProvider(PokemonWebviewViewProvider.viewType, webviewViewProvider));
+    watchInstall(context); // LOCAL-PATCH: 다시 설치하면 저절로 새로 고침
     context.subscriptions.push(vscode.commands.registerCommand('vscode-pokemon.delete-pokemon', async () => {
         const panel = getPokemonPanel();
         if (panel === undefined) {
@@ -1129,6 +1130,93 @@ class PokemonWebviewContainer {
     }
 }
 let spriteErrorLog; // LOCAL-PATCH: activate 에서 정함
+// LOCAL-PATCH: python install.py 로 다시 설치하면 (설치는 지금 도는 확장 폴더를 그 자리에서 덮어씀) 창을 다시 로드하지 않아도 반영되게.
+// - 웹뷰 파일(media/main-bundle.js · media/game/*.js)의 내용이 바뀌면 → 열려 있는 포켓몬 보기 · 패널에 HTML 을 다시 넣어 새로 고침
+//   (포켓몬 크기를 바꿀 때와 같은 길 — 포켓몬 목록 · 게임은 그대로 이어짐)
+// - 확장 쪽 코드(out/extension · out/game/host.js · package.json)의 내용이 바뀌면 → 창을 다시 로드해야 해서 버튼으로 물어봄
+// 2초마다 파일 시각만 보고(설치가 폴더를 지웠다 다시 만들어도 이어서 봄), 시각이 바뀌면 내용을 비교함 (설치는 안 바뀐 파일도 새로 씀).
+// 새로 고칠 때마다 VS Code 저장 폴더의 install-refresh.log 에 한 줄
+function watchInstall(context) {
+    const fs = require('fs');
+    const path = require('path');
+    const crypto = require('crypto');
+    const root = context.extensionPath;
+    const web = ['media/main-bundle.js', 'media/game/boot.js', 'media/game/game.js'];
+    const code = ['out/extension/extension.js', 'out/extension/game-loader.js', 'out/game/host.js', 'package.json'];
+    const digest = (rel) => {
+        try {
+            return crypto.createHash('sha1').update(fs.readFileSync(path.join(root, rel))).digest('hex');
+        }
+        catch {
+            return ''; // 없음 (게임 빌드가 없는 설치 · 설치 도중)
+        }
+    };
+    const seen = {};
+    [...web, ...code].forEach((rel) => (seen[rel] = digest(rel)));
+    const changed = (list) => list.filter((rel) => {
+        const d = digest(rel);
+        if (!d || d === seen[rel]) {
+            return false;
+        }
+        seen[rel] = d;
+        return true;
+    });
+    const log = (text) => {
+        try {
+            fs.mkdirSync(context.globalStorageUri.fsPath, { recursive: true });
+            fs.appendFileSync(path.join(context.globalStorageUri.fsPath, 'install-refresh.log'), `${new Date().toISOString()} ${text}\n`);
+        }
+        catch { }
+    };
+    let asking = false;
+    const check = () => {
+        const w = changed(web);
+        if (w.length > 0) {
+            log(`새로 고침 ${refreshWebviews()}개 — ${w.join(', ')}`);
+        }
+        const c = changed(code);
+        if (c.length > 0 && !asking) {
+            asking = true;
+            log(`확장 코드 바뀜 — ${c.join(', ')}`);
+            void vscode.window.showInformationMessage('포켓몬 확장 코드가 바뀌었어요 — 창을 다시 로드해야 반영돼요.', '다시 로드').then((pick) => {
+                asking = false;
+                if (pick) {
+                    void vscode.commands.executeCommand('workbench.action.reloadWindow');
+                }
+            });
+        }
+    };
+    let timer;
+    const onStat = (cur, prev) => {
+        if (cur.mtimeMs !== prev.mtimeMs) {
+            clearTimeout(timer);
+            timer = setTimeout(check, 1500); // 설치가 다 끝날 때까지 조금 기다림
+        }
+    };
+    const files = [...web, ...code].map((rel) => path.join(root, rel));
+    files.forEach((f) => fs.watchFile(f, { interval: 2000, persistent: false }, onStat));
+    context.subscriptions.push({ dispose: () => {
+            clearTimeout(timer);
+            files.forEach((f) => fs.unwatchFile(f, onStat));
+        } });
+}
+// LOCAL-PATCH: 열려 있는 포켓몬 보기(탐색기) · 패널에 HTML 을 다시 넣음 — 새로 고친 개수
+function refreshWebviews() {
+    let n = 0;
+    for (const c of [webviewViewProvider && webviewViewProvider._webviewView ? webviewViewProvider : undefined, PokemonPanel.currentPanel]) {
+        if (!c) {
+            continue;
+        }
+        try {
+            c._update();
+            n++;
+        }
+        catch (e) {
+            console.error('[pokemon] 새로 고침 못 함 (닫힌 보기)', e);
+        }
+    }
+    return n;
+}
 let pokemonGame; // GAME-PATCH: activate 에서 정함 (game-loader.js)
 function handleWebviewMessage(message) {
     switch (message.command) {

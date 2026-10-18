@@ -4,7 +4,8 @@
   python3 install.py        (윈도우는 python install.py)
   python3 install.py --no-install    묶기만 (dist/ 에 vsix, 설치는 안 함)
 
-수정 · 포켓몬 추가 후 다시 실행. 끝나면 VS Code 에서 "Developer: Reload Window".
+수정 · 포켓몬 추가 후 다시 실행. 열려 있는 포켓몬 보기는 2~4초 뒤 저절로 새로 고침
+(확장 쪽 코드가 바뀌었으면 VS Code 가 "다시 로드" 버튼으로 물어봄).
 묶은 파일은 dist/ 에 남음 (VS Code 없이 다른 데서 설치할 때 code --install-extension 으로).
 게임 모드(src/game)는 Node.js 가 있으면 먼저 빌드해서 같이 묶음 (없으면 일반 모드만).
 """
@@ -128,7 +129,7 @@ def main():
     if not code:
         sys.exit(f"VS Code 명령(code)을 못 찾음 — 직접 설치: code --install-extension \"{vsix}\"")
     subprocess.run([code, "--install-extension", vsix, "--force"], check=True)
-    print('VS Code 에서 "Developer: Reload Window" 를 실행하면 반영됩니다.')
+    print('설치 끝 — 열려 있는 포켓몬 보기는 2~4초 뒤 저절로 새로 고침돼요. (확장 쪽 코드가 바뀌었으면 VS Code 가 "다시 로드" 를 물어봐요)')
 
 
 if __name__ == "__main__":
