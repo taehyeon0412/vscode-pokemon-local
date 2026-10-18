@@ -1348,8 +1348,9 @@
         },
 
         // ── 연타 — 가장 가까운 포켓몬에게 달려가 수십 발(분신 · 집중선 · 연타 수) → 끌어당겼다 마지막 한 방 → 공중제비로 제자리 ──
+        // aura: 파동 인파이트 (루카리오) — 처음에 파동을 모으고 · 내내 파랑 · 검정 파동 불꽃 · 마지막에 거대 파동 장타가 화면 끝까지
         ultbarrage: {
-            ms: (P) => 3800 + 200 * P,
+            ms: (P, o) => (o.aura ? 5200 : 3800) + 200 * P,
             run: (u, o, ms, pokemon) => {
                 const K = 0.4 + 0.6 * u.P;
                 const S = u.S;
@@ -1371,13 +1372,14 @@
                 const box0 = tgt ? { x: tgt.x, y: tgt.y, w: tgt.w, h: tgt.h, bottom: tgt.bottom, top: tgt.bottom - tgt.h } : { x: vx, y: ys - h * 0.5, w: Math.max(w, 24), h: Math.max(h, 24), bottom: ys, top: ys - Math.max(h, 24) };
                 const ax = clamp(box0.x - side * (box0.w * 0.4 + w * 0.42), half, W - half);
                 const ay = tgt ? box0.bottom : ys;
-                const tGo = 0.3;
+                const tGo = o.aura ? 0.85 : 0.3;
                 const A = clamp(Math.abs(ax - xs) / 1600, 0.12, 0.35);
                 const tF0 = tGo + A;
                 const F = 1.45 + 0.35 * K;
                 const tF1 = tF0 + F;
                 const tBlow = tF1 + 0.2;
-                const tBack = tBlow + 0.42;
+                const WAVE = o.aura ? 1.0 : 0; // 파동 장타가 화면 끝까지 뻗는 동안 자세를 잡고 버팀
+                const tBack = tBlow + 0.42 + WAVE;
                 const BK = 0.45;
                 const tHome = tBack + BK;
                 const end = ms / 1000;
@@ -1553,6 +1555,22 @@
                 }) });
                 // ① 준비 — 빨려 드는 기
                 emit(tGo * 1000, 90, () => roomFor() && pullIn(() => pp.x, () => pp.y - h * 0.5, U, S, cols));
+                if (o.aura) {
+                    // 파랑 · 검정 파동 불꽃 — 내내 몸에서 피어오름 / 모을 때 파동이 확 피어오르는 고리 두 번 (검정은 어두운 화면에서도 보이게 짙은 남색)
+                    const NAVY = ['#1d2a55', '#2e3d73', '#3b4a8a'];
+                    emit(end * 1000, 60, () => {
+                        if (!roomFor()) {
+                            return;
+                        }
+                        const dark = Math.random() < 0.45;
+                        sigParticle({ x: pp.x + moveRand(-0.5, 0.5) * w, y: pp.y - moveRand(0, 0.85) * h, s: S, vx: moveRand(-10, 10), vy: -moveRand(50, 110), drag: 1.5, max: moveRand(0.3, 0.55), color: movePick(dark ? NAVY : [cols[1], cols[2], cols[3]]), size: movePick([1, 2, 2]), draw: DRAW.dot });
+                    });
+                    later(tGo * 300, () => sigRing(xs, ys - h * 0.5, S, 4, U * 1.6, 1, 0.35, ['#ffffff', cols[1], NAVY[2]]));
+                    later(tGo * 700, () => {
+                        sigRing(xs, ys - h * 0.5, S, 4, U * 2.2, 1, 0.35, ['#ffffff', cols[2], NAVY[1]]);
+                        ultShake(2, 160);
+                    });
+                }
                 // 연타 수 · 집중선 (맞는 동안)
                 later(tF0 * 1000, () => {
                     focusLines(tBlow - tF0 + 0.15, S, () => {
@@ -1649,6 +1667,45 @@
                             ultHit(q, side, 'tumble');
                         }
                     });
+                    if (o.aura) {
+                        // 파동 장타 — 주먹 끝에서 거대한 파동이 화면 끝까지 쭉 (검정 · 파랑 · 하얀 심 띠, 띠를 타고 흐르는 고리, 하얀 앞머리)
+                        const x0 = pp.x + side * w * 0.45;
+                        const band = Math.max(h * 0.9, U * 0.7);
+                        const y0 = Math.min(b.y, u.ground - band * 0.7); // 띠가 땅 밑으로 잘리지 않게
+                        const reach = Math.max(U, side > 0 ? W - x0 : x0);
+                        sigParticle({ x: x0, y: y0, s: S, max: WAVE + 0.25, draw: safeDraw((ctx, q, t, px) => {
+                            const T2 = q.life;
+                            const len = reach * easeOut(T2 / 0.25);
+                            const fade = T2 > WAVE - 0.15 ? clamp((WAVE + 0.25 - T2) / 0.4, 0, 1) : 1;
+                            const thick = band * (1 + 0.12 * Math.sin(T2 * 40)) * (0.5 + 0.5 * fade);
+                            const x1 = side > 0 ? q.x : q.x - len;
+                            for (const [f, c, al] of [[1.3, '#141a33', 0.85], [1, cols[3], 0.9], [0.7, cols[2], 1], [0.42, cols[1], 1], [0.16, '#ffffff', 1]]) {
+                                const hh = Math.max(S, Math.round((thick * f) / 2 / S) * S);
+                                ctx.globalAlpha = al * fade;
+                                ctx.fillStyle = c;
+                                ctx.fillRect(px(x1), px(q.y - hh), px(len), 2 * hh);
+                            }
+                            ctx.globalAlpha = 0.9 * fade;
+                            for (let j = 0; j < 6; j++) {
+                                const d = ((T2 * 1.6 + j / 6) % 1) * len;
+                                const r = band * (0.75 + 0.5 * (d / reach));
+                                for (let a = 0; a < TAU; a += 0.22) {
+                                    dotAt(ctx, px, S, q.x + side * d + Math.cos(a) * r * 0.22, q.y + Math.sin(a) * r, j % 2 ? '#ffffff' : cols[1], 1, 1);
+                                }
+                            }
+                            const hx = q.x + side * len;
+                            sigDisc(ctx, px, S, hx, q.y, band * 0.7 * (0.8 + 0.2 * Math.sin(T2 * 50)), cols[1]);
+                            sigDisc(ctx, px, S, hx, q.y, band * 0.4, '#ffffff');
+                        }) });
+                        // 지나가는 길에 있는 애 모두 날아감 (앞머리가 닿을 때)
+                        u.others().forEach((q) => {
+                            const dx = (q.x - x0) * side;
+                            if (dx > -q.w * 0.5 && Math.abs(q.y - y0) < band + q.h) {
+                                later(clamp((dx / reach) * 250, 0, 250), () => ultHit(q, side, 'tumble'));
+                            }
+                        });
+                        later(250, () => ultShake(6, 500));
+                    }
                 });
                 later(tHome * 1000, () => {
                     if (ys >= u.ground - 4) {

@@ -26,7 +26,7 @@ if (q.get('shim')) {
 // 틀마다 시험할 옵션 — SPEC.md 의 옵션을 고루
 const VARIANTS = {
     ultbeam: [{ c: 'hyper' }, { solar: 1 }, { c: 'ice', rainbow: 1 }, { c: 'water', double: 1, sparkle: 'water' }, { c: 'psychic', spiral: 1, wave: 1 }],
-    ultorb: [{ c: 'fire', style: 'flame' }, { c: 'ghost', style: 'shadow' }, { c: 'aura', style: 'aura' }, { c: 'psychic', sky: 1 }],
+    ultorb: [{ c: 'fire', style: 'flame' }, { c: 'ghost', style: 'shadow' }, { c: 'aura', style: 'aura' }, { c: 'aura', style: 'aura', lucario: 1 }, { c: 'psychic', sky: 1 }],
     ultnova: [{ c: 'fire' }, { c: 'normal', white: 1 }],
     ultblackhole: [{ c: 'dark' }],
     ultsparkle: [{ mode: 'twinkle', c: 'fairy' }, { mode: 'moon', c: 'moon' }],
@@ -41,7 +41,7 @@ const VARIANTS = {
     ultswarm: [{ shape: 'needle', c: 'bug' }, { shape: 'leaf', c: 'grass', n: 40 }, { shape: 'star', c: 'star' }, { shape: 'shuriken', c: 'water', giant: 1 }, { shape: 'shuriken', c: 'water', giant: 1, ninja: 1 }, { shape: 'shuriken', c: 'water', clones: 5 }, { shape: 'heart', c: 'fairy' }],
     ultrush: [{ c: 'normal' }, { c: 'steel', drill: 1 }, { c: 'fire', flame: 1 }, { c: 'electric', elec: 1 }, { c: 'water', water: 1, fast: 1 }],
     ultdive: [{ c: 'wind' }, { c: 'normal', heavy: 1 }, { c: 'electric', elec: 1 }, { c: 'dragon', flame: 1 }],
-    ultbarrage: [{ kind: 'punch', c: 'fight' }, { kind: 'slash', c: 'bug', spin: 1 }, { kind: 'kick', c: 'fire' }],
+    ultbarrage: [{ kind: 'punch', c: 'fight' }, { kind: 'slash', c: 'bug', spin: 1 }, { kind: 'kick', c: 'fire' }, { kind: 'punch', c: 'aura', aura: 1 }],
     ultpsy: [{ c: 'psychic' }],
     ultshadow: [{ c: 'ghost' }],
     ultsplash: [{}],

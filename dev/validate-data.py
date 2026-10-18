@@ -31,7 +31,7 @@ SIG = {
 }
 ULT = {
     "ultbeam": "c width rainbow wave spiral solar sparkle double charge",
-    "ultorb": "c size style sky",
+    "ultorb": "c size style sky lucario",
     "ultnova": "c white",
     "ultblackhole": "c",
     "ultsparkle": "mode c",
@@ -46,7 +46,7 @@ ULT = {
     "ultswarm": "shape c n giant ninja clones",
     "ultrush": "c drill flame elec water fast",
     "ultdive": "c heavy elec flame",
-    "ultbarrage": "kind c spin",
+    "ultbarrage": "kind c spin aura",
     "ultpsy": "c",
     "ultshadow": "c",
     "ultsplash": "", "ultcopy": "", "ultmetronome": "",
