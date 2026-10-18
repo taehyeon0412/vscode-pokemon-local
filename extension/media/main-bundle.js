@@ -22040,7 +22040,7 @@ window.__ult = {
     const TIDE = ['#ffffff', '#bfe9ff', '#6cc3ff', '#2468c8']; // 물 (하양 → 하늘 → 물빛 → 짙은 파랑)
     const GUNM = ['#262c36', '#56606e', '#939eae', '#d3dbe6']; // 대포 쇠 (짙은 → 밝은)
     // 물줄기 — (x0, y0)에서 dir 쪽으로 len, 굵기 w. 가운데가 amp 만큼 위아래로 꼬이며(phase) 나아가고(입구에선 곧게), 겹친 색 · 가장자리 하얀 물거품
-    function waterJet(ctx, px, s, x0, y0, dir, len, w, cols, T, phase, amp, maxY = Infinity, alpha = 1) {
+    function waterJet(ctx, px, s, x0, y0, dir, len, w, cols, T, phase, amp, maxY = Infinity, alpha = 1, prof = null) {
         if (len < s || w < s || alpha <= 0.01) {
             return;
         }
@@ -22051,9 +22051,12 @@ window.__ult = {
             ctx.fillStyle = c;
             for (let j = 0; j <= n; j++) {
                 const at = j * s;
-                const twist = amp * Math.sin(at / (w * 2.2) - T * 12 + phase) * Math.min(1, at / (w * 1.5));
-                const cy = y0 + twist;
-                const half = w * 0.5 * m * (1 + 0.1 * Math.sin(at / w * 4 - T * 26 + m * 3)) * Math.sqrt(Math.min(1, at / (w * 0.4) + 0.3));
+                const f = prof ? Math.min(1, at / prof.L) : 1;
+                const sm = f * f * (3 - 2 * f); // 퍼지는 정도
+                const ws = prof ? lerp(prof.w0, 1, sm) : 1;
+                const twist = amp * ws * Math.sin(at / (w * 2.2) - T * 12 + phase) * Math.min(1, at / (w * 1.5));
+                const cy = y0 + twist + (prof ? prof.dy * sm : 0);
+                const half = w * ws * 0.5 * m * (1 + 0.1 * Math.sin(at / w * 4 - T * 26 + m * 3)) * Math.sqrt(Math.min(1, at / (w * ws * 0.4) + 0.3));
                 if (half < s * 0.5) {
                     continue;
                 }
@@ -22255,7 +22258,13 @@ window.__ult = {
             const thin = t > TN ? Math.max(0, 1 - (t - TN) / 0.35) : 1;
             return bw * burst * thin;
         };
-        const ybAt = (t) => lerp(yb, ybBig, mergeAt(t));
+        // 출력 최대 — 광선은 대포 높이 · 거북왕 크기만 한 굵기에서 시작해 flareL 동안 굵어지며 위로 퍼짐 (허공에서 시작하지 않게)
+        const flareL = Math.max(me.w * 3, W * 0.18);
+        const spreadAt = (t, x) => {
+            const f = Math.min(1, Math.abs(x - (cF + slideAt(t))) / flareL);
+            return f * f * (3 - 2 * f);
+        };
+        const centerAt = (t, x) => yb + (ybBig - yb) * mergeAt(t) * spreadAt(t, x);
         // 반동 — 쏘는 동안 땅을 긁으며 뒤로 밀리고 덜덜 떨림 (출력 최대 때 한 번 더)
         const slideAt = (t) => (t < TB ? 0 : -dir * Math.min(s * 12, (t - TB) * s * 22)) - (t > TMAX ? dir * Math.min(s * 6, (t - TMAX) * s * 30) : 0) + (t > TB && t < TN ? -dir * Math.sin(t * 55) * s * (1 + mergeAt(t)) : 0);
         // 쏘는 순간 대포 앞 물 폭발 — 앞 대포는 거북왕 위, 뒤 대포는 거북왕 뒤 (몸을 덮지 않게)
@@ -22264,7 +22273,7 @@ window.__ult = {
             for (const [t0, big] of [[TB, 1], [TMAX, 1.4]]) {
                 const k = (life - t0) / 0.45;
                 if (k >= 0 && k <= 1) {
-                    fireOrb(ctx, px, s, cx + slideAt(life) + dir * Ro, ybAt(life), bw * 0.45 * big, TIDE, life + cx, (1 + 1.3 * (1 - k)) * (1 - k * k), G, 1, k, [1, 0.8, 0.6, 0.38], 0.2);
+                    fireOrb(ctx, px, s, cx + slideAt(life) + dir * Ro, yb, bw * 0.45 * big, TIDE, life + cx, (1 + 1.3 * (1 - k)) * (1 - k * k), G, 1, k, [1, 0.8, 0.6, 0.38], 0.2);
                 }
             }
         };
@@ -22279,13 +22288,14 @@ window.__ult = {
             const len = reachAt(life);
             const sx = slideAt(life);
             const mk = mergeAt(life);
-            const y0 = ybAt(life);
+            const dy = (ybBig - yb) * mk;
             for (const [cx, ph] of [[cB, Math.PI], [cF, 0]]) {
                 const L = len + (cx === cB ? Math.abs(cF - cB) : 0);
-                waterJet(ctx, px, s, cx + sx, y0, dir, L, w * 0.62 * (1 + 0.5 * mk), TIDE, life, ph, w * 0.32 * (1 - mk), G);
+                waterJet(ctx, px, s, cx + sx, yb, dir, L, w * 0.62 * (1 + 0.5 * mk), TIDE, life, ph, w * 0.32 * (1 - mk), G, 1, mk > 0 ? { w0: 1 / (1 + 0.5 * mk), L: flareL, dy } : null);
             }
             if (mk > 0) {
-                waterJet(ctx, px, s, cF + sx, y0, dir, len, w * 2 * mk, TIDE, life, 0, 0, G); // 합쳐진 거대한 물 광선
+                const wBig = w * 2 * mk;
+                waterJet(ctx, px, s, cF + sx, yb, dir, len, wBig, TIDE, life, 0, 0, G, 1, { w0: clamp((me.h * 1.1) / wBig, 0.15, 1), L: flareL, dy }); // 합쳐진 거대한 물 광선 — 대포에서 뿜어져 퍼짐
             }
             const half = w * (0.68 + 0.4 * mk);
             ctx.globalAlpha = 0.7;
@@ -22293,21 +22303,22 @@ window.__ult = {
             const nRing = Math.max(2, Math.round(len / (w * 2)));
             for (let k = 0; k < nRing; k++) {
                 const at = ((life * (2.2 + mk) + k / nRing) % 1) * len;
-                if (at < w) {
-                    continue;
+                if (at < w || (mk > 0 && at < flareL)) {
+                    continue; // 퍼지는 동안엔 고리를 안 그림
                 }
+                const y0 = centerAt(life, cF + sx + dir * at);
                 const top = y0 - half;
                 const bot = Math.min(G, y0 + half);
                 ctx.fillRect(px(cF + sx + dir * at - s), px(top), 2 * s, Math.max(s, px(bot - top)));
             }
             if (life < TH + 0.05) {
-                fireOrb(ctx, px, s, cF + sx + dir * len, y0, w * 0.85, TIDE, life, 1, G, 1, 0, [1, 0.8, 0.6, 0.38], 0.2); // 날아가는 물 머리
+                fireOrb(ctx, px, s, cF + sx + dir * len, yb, w * 0.85, TIDE, life, 1, G, 1, 0, [1, 0.8, 0.6, 0.38], 0.2); // 날아가는 물 머리
             }
             if (life >= TH && Math.abs(ix - cF) <= len) {
                 const kk = Math.min(1, w / bw) * (1 + 0.5 * mk);
                 ellipse(ctx, px, s, ix, G, w * 2.8 * kk, w * 0.24 * kk, TIDE[2], 0.6);
                 ellipse(ctx, px, s, ix, G, w * 1.7 * kk, w * 0.15 * kk, TIDE[1], 0.8);
-                fireOrb(ctx, px, s, ix, y0, w * 1.15, TIDE, life + 3, (1 + 0.1 * Math.sin(life * 25)) * kk, G, 1, 0, [1, 0.82, 0.62, 0.4], 0.5);
+                fireOrb(ctx, px, s, ix, centerAt(life, ix), w * 1.15, TIDE, life + 3, (1 + 0.1 * Math.sin(life * 25)) * kk, G, 1, 0, [1, 0.82, 0.62, 0.4], 0.5);
             }
         } });
         // 발밑 금 — 쏘는 순간 발이 땅에 박히며 양옆으로 갈라짐
@@ -22486,11 +22497,11 @@ window.__ult = {
             }
             shed += dt * 60 * (1 + mk);
             const len = reachAt(t);
-            const y0 = ybAt(t);
-            const half = widthAt(t) * (0.55 + 0.45 * mk);
             while (shed >= 1) {
                 shed -= 1;
                 const x = cF + slideAt(t) + dir * rnd(0.1, 1) * len;
+                const y0 = centerAt(t, x);
+                const half = widthAt(t) * (0.55 + 0.45 * mk) * lerp(1, 1, spreadAt(t, x)) * (mk > 0 ? lerp(clamp((me.h * 1.1) / (widthAt(t) * 2), 0.15, 1), 1, spreadAt(t, x)) : 1);
                 const up = Math.random() < 0.5;
                 splash(x, up ? y0 - half : Math.min(G - s, y0 + half), s, TIDE, 1, H * 0.45, { angle: up ? -Math.PI / 2 : -Math.PI / 2 + dir * 0.4, spread: 0.9, life: 0.6 });
             }
@@ -22510,10 +22521,11 @@ window.__ult = {
         sc.at(TMAX, () => {
             screenFlash(s, 0.35, '#ffffff', 0.12);
             ultShake(12, 900);
-            ring(sc, cF, ybBig, bw, bw * 6, 1, 0.45, ['#ffffff', TIDE[1], TIDE[2]], 3);
-            ring(sc, ix, ybBig, bw, Math.max(W, H) * 0.8, 0.6, 0.6, ['#ffffff', TIDE[1]], 3);
+            const iyBig = yb + (ybBig - yb) * spreadAt(TMAX, ix);
+            ring(sc, cF, yb, bw, bw * 6, 1, 0.45, ['#ffffff', TIDE[1], TIDE[2]], 3);
+            ring(sc, ix, iyBig, bw, Math.max(W, H) * 0.8, 0.6, 0.6, ['#ffffff', TIDE[1]], 3);
             crownSplash(sc, ix, G, Math.min(G * 0.55, bw * 2.4), 1.2, TIDE);
-            splash(ix, ybBig, s, TIDE, 90, H * 1.4, { spread: 2.6 });
+            splash(ix, iyBig, s, TIDE, 90, H * 1.4, { spread: 2.6 });
         });
         let pulse = 0;
         let fount = 0;
@@ -22525,17 +22537,17 @@ window.__ult = {
             pulse += dt;
             if (pulse >= 0.25 - 0.08 * mk) {
                 pulse = 0;
-                ring(sc, ix, ybAt(t), bw * 0.5, bw * (2.5 + 1.5 * mk), 0.7, 0.3, [TIDE[1], '#ffffff'], 2);
+                ring(sc, ix, centerAt(t, ix), bw * 0.5, bw * (2.5 + 1.5 * mk), 0.7, 0.3, [TIDE[1], '#ffffff'], 2);
                 ultShake(4 + 3 * mk, 200);
             }
             fount += dt * 100 * (1 + mk);
             while (fount >= 1) {
                 fount -= 1;
-                splash(ix, ybAt(t) - bw * 0.3, s, TIDE, 1, H * (1.2 + 0.3 * mk), { angle: -Math.PI / 2 - dir * 0.4, spread: 1.8 });
+                splash(ix, centerAt(t, ix) - bw * 0.3, s, TIDE, 1, H * (1.2 + 0.3 * mk), { angle: -Math.PI / 2 - dir * 0.4, spread: 1.8 });
             }
             const band = bw * (0.7 + 0.6 * mk);
             for (const r of u.others()) {
-                if ((r.x - cF) * dir > 0 && Math.abs(r.y - ybAt(t)) < band + r.h * 0.5) {
+                if ((r.x - cF) * dir > 0 && Math.abs(r.y - centerAt(t, r.x)) < band + r.h * 0.5) {
                     hit(r, dir, 'tumble');
                 }
             }
