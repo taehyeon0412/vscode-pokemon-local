@@ -11,6 +11,7 @@
     const UNIQ = {}; // 이름 → { fx, ms(P, o), run(u, o, ms, pokemon) }
 
     // 꼭두각시 — 진짜 그림을 숨기고 footAt(t) 높이에 테두리 두른 그림. until 초까지 (그 뒤 진짜 그림이 다시 보임)
+    // extra: x(t) 자리 · dx(t) 옆으로 · scale(t) 크기 · rot(t) 기울기 · glow(t) 한 색으로 빛남(glowColor)
     function puppet(sc, pokemon, u, footAt, edgeColor, until, extra) {
         const img = pokemon.el;
         const me = monBox(pokemon);
@@ -23,11 +24,13 @@
             if (life >= until - 0.02) {
                 return;
             }
-            const x = me.x + (extra?.dx?.(life) ?? 0);
-            drawLitMon(ctx, img, x, footAt(life), me.w, u.dir < 0, edgeColor, edge, 1);
+            const x = extra?.x ? extra.x(life) : me.x + (extra?.dx?.(life) ?? 0);
+            const w = me.w * (extra?.scale?.(life) ?? 1);
+            const rot = extra?.rot?.(life) ?? 0;
+            drawLitMon(ctx, img, x, footAt(life), w, u.dir < 0, edgeColor, edge, 1, rot);
             const glow = extra?.glow?.(life) ?? 0;
             if (glow > 0.01) {
-                drawMon(ctx, img, x, footAt(life), me.w, u.dir < 0, glow, extra?.glowColor ?? '#ffffff');
+                drawMon(ctx, img, x, footAt(life), w, u.dir < 0, glow, extra?.glowColor ?? '#ffffff', rot);
             }
         } });
     }
@@ -189,6 +192,402 @@
         sc.at(TD + 0.45, () => {
             ring(sc, me.x, G - s, me.w * 0.4, me.w * 2, 0.25, 0.4, [ZAPC[1], ZAPC[2]], 1);
             sparkles(me.x, me.b - me.h * 0.5, s, ZAPC, 12, me.w, H * 0.15);
+        });
+    }
+
+    // ═════ 팬텀 — 섀도볼 (ultorb) ═════
+    // 화면이 새까매지고 땅에 보랏빛 안개가 깔림 → 하늘에 거대한 웃는 얼굴(빨간 눈 · 이빨 웃음)이 스르륵 → 팬텀이 둥실 떠서 머리 위에 섀도볼을 키움
+    // (유령 기운이 소용돌이치며 빨려 듦) → 작은 섀도볼을 여러 개 난사(유령 꼬리를 끌며 다른 포켓몬 · 땅에 하나씩 펑) → 하늘 얼굴이 크게 웃음
+    // → 거대한 섀도볼을 던짐 → 임팩트 프레임 · 보랏빛 빛의 반구 → 얼굴이 히죽 웃으며 사라짐 (약 6.8초)
+    const GHOST = ['#efe0ff', '#a87ee6', '#6b3fb0', '#3a1f66'];
+    UNIQ.gengar = { fx: 'ultorb', ms: (P) => 6800 + 200 * P, run: runGengarBall };
+    // 하늘의 웃는 얼굴 — (x, y) 가운데, 크기 R. open 0~1 웃음 크기, eye 0~1 눈 번쩍
+    function grinFace(ctx, px, s, x, y, R, alpha, open, eye) {
+        if (alpha <= 0.01) {
+            return;
+        }
+        const c = s * Math.max(1, Math.round(R / (40 * s)));
+        const fill = (x0, y0, w, h, col, a) => {
+            ctx.globalAlpha = a * alpha;
+            ctx.fillStyle = col;
+            ctx.fillRect(px(x0), px(y0), Math.max(c, px(w)), Math.max(c, px(h)));
+        };
+        // 눈 — 안쪽이 아래로 처진 빨간 아몬드 (화난 눈) · 하얀 눈동자
+        const ew = R * 0.36;
+        const eh = R * 0.2;
+        for (const sd of [-1, 1]) {
+            const ex = x + sd * R * 0.4;
+            const ey = y - R * 0.3;
+            for (let gx = -ew / 2; gx <= ew / 2; gx += c) {
+                const f = (gx + ew / 2) / ew; // 0 → 1 (왼쪽 → 오른쪽)
+                const inner = sd > 0 ? 1 - f : f; // 안쪽(얼굴 가운데) 쪽 1
+                const top = ey - eh * 0.5 + eh * 0.55 * inner;
+                const bot = ey + eh * 0.5 * (1 - 0.25 * inner) * Math.sqrt(Math.max(0, Math.sin(Math.PI * Math.min(1, f * 0.98 + 0.01))));
+                if (bot - top < c) {
+                    continue;
+                }
+                fill(ex + gx, top - c, c, bot - top + 2 * c, '#2a0010', 0.9);
+                fill(ex + gx, top, c, bot - top, eye > 0.5 ? '#ffffff' : '#ff2a4a', 1);
+            }
+            fill(ex + sd * -ew * 0.12 - c, ey - c * 0.5, c * 2, c * 2, '#ffffff', 0.95);
+        }
+        // 웃음 — 입꼬리가 올라간 초승달 · 위아래 뾰족한 이빨
+        const mw = R * 0.95;
+        const deep = R * (0.26 + 0.22 * open);
+        for (let gx = -mw; gx <= mw; gx += c) {
+            const f = gx / mw;
+            const top = y + R * 0.18 - R * 0.22 * f * f;
+            const hgt = deep * Math.pow(Math.max(0, 1 - f * f), 0.7);
+            if (hgt < c) {
+                continue;
+            }
+            const bot = top + hgt;
+            fill(x + gx, top - c, c, hgt + 2 * c, '#2a0a3a', 0.95);
+            fill(x + gx, top, c, hgt, '#1a0522', 1);
+            const k = (Math.round(gx / c) % 6 + 6) % 6;
+            const toothUp = hgt * 0.45 * (1 - Math.abs(k - 2.5) / 3);
+            const toothDn = hgt * 0.4 * (1 - Math.abs(((k + 3) % 6) - 2.5) / 3);
+            fill(x + gx, top, c, toothUp, '#ffffff', 1);
+            fill(x + gx, bot - toothDn, c, toothDn, '#f0e8ff', 1);
+        }
+    }
+    function runGengarBall(u, o, ms, pokemon) {
+        const P = strength(u);
+        const sec = ms / 1000;
+        const { W, H, S: s, dir } = u;
+        const G = u.ground;
+        const hit = makeHit();
+        const me = monBox(pokemon);
+        const lift = me.h * 0.25;
+        const TF = 0.35; // 얼굴
+        const TC0 = 0.6; // 모으기
+        const TS = 2.2; // 작은 섀도볼 난사
+        const TL = 3.0; // 크게 웃음
+        const TT = 3.25; // 거대한 섀도볼 던짐
+        const TFLY = 0.5;
+        const TB = TT + TFLY; // 맞음
+        const faceR = clamp(Math.min(W * 0.26, H * 0.32), 30, 180);
+        const fx0 = W / 2;
+        const fy0 = clamp(H * 0.3, faceR * 0.7, Math.max(faceR * 0.7, G - faceR * 1.6));
+        const Rb = clamp(Math.max(me.w * 0.55, short(u) * 0.1), 6 * s, H * 0.14);
+        const footAt = (t) => me.b - lift * easeOut(clamp((t - 0.2) / 0.5, 0, 1)) * (t > sec - 0.6 ? clamp((sec - 0.15 - t) / 0.45, 0, 1) : 1) + Math.sin(t * 3) * s;
+        const ball = (t) => [me.x + dir * me.w * 0.1, footAt(t) - me.h - Rb * 1.2];
+        const q = nearest(u);
+        const tx = q ? q.x : clamp(me.x + dir * W * 0.45, W * 0.1, W * 0.9);
+        const sc = scene(u, sec + 0.4, 'uniq gengar');
+        ultDark(0.6, ms - 200);
+        // 땅에 깔리는 보랏빛 안개
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            const a = clamp(life / 0.6, 0, 1) * clamp((sec - life) / 0.6, 0, 1);
+            const paths = [new Path2D(), new Path2D()];
+            const c = Math.max(s, Math.round(short(u) / 90));
+            for (let x = 0; x < W; x += c * 2) {
+                const hgt = (Math.sin(x * 0.03 + life * 1.5) * 0.5 + 0.7 + 0.4 * Math.sin(x * 0.011 - life)) * H * 0.07;
+                paths[0].rect(Math.round(x / c) * c, Math.round((G - hgt) / c) * c, c * 2, hgt + c);
+                paths[1].rect(Math.round(x / c) * c, Math.round((G - hgt * 0.5) / c) * c, c * 2, hgt * 0.5 + c);
+            }
+            ctx.globalAlpha = 0.35 * a;
+            ctx.fillStyle = GHOST[2];
+            ctx.fill(paths[0]);
+            ctx.globalAlpha = 0.45 * a;
+            ctx.fillStyle = GHOST[1];
+            ctx.fill(paths[1]);
+        } });
+        // 하늘의 웃는 얼굴
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            const a = clamp((life - TF) / 0.7, 0, 1) * clamp((sec - 0.3 - life) / 0.6, 0, 1) * 0.75;
+            const open = life > TL ? 0.6 + 0.4 * Math.abs(Math.sin((life - TL) * 9)) * clamp((TB + 0.6 - life) / 0.3, 0, 1) : 0.2;
+            const eye = (life > TL && life < TL + 0.12) || (life > TB && life < TB + 0.1) ? 1 : 0;
+            grinFace(ctx, px, s, fx0, fy0 + Math.sin(life * 1.4) * s * 2, faceR * (1 + 0.04 * Math.sin(life * 2)), a, open, eye);
+        } });
+        // 팬텀 (꼭두각시) — 둥실
+        puppet(sc, pokemon, u, footAt, GHOST[1], sec - 0.1, { glow: (t) => clamp((t - TC0) / 1.5, 0, 1) * 0.15 * (1 + Math.sin(t * 9)), glowColor: GHOST[0] });
+        // 머리 위 섀도볼 — 키움 (던질 때까지)
+        chargeSwirl(sc, ball, TC0, TT - 0.1, Math.max(me.w * 4, short(u) * 0.45), Math.max(s * 4, Rb * 0.6), GHOST, dir);
+        const shadowBall = (ctx, px, x, y, r, life, a = 1) => {
+            fireOrb(ctx, px, s, x, y, r, GHOST, life, 1, G, a, 0, [1.1, 0.92, 0.7, 0.45], 0.5);
+            // 속은 검게 · 보랏빛 소용돌이
+            const sw = new Path2D();
+            for (let i = 0; i < 14; i++) {
+                const an = (i / 14) * TAU - life * 7;
+                const rr = r * (0.2 + 0.4 * ((i % 3) / 2));
+                sw.rect(px(x + Math.cos(an) * rr), px(y + Math.sin(an) * rr), s, s);
+            }
+            ctx.globalAlpha = a;
+            ctx.fillStyle = '#12061f';
+            ctx.fillRect(px(x - r * 0.3), px(y - r * 0.3), px(r * 0.6), px(r * 0.6));
+            ctx.fillStyle = GHOST[1];
+            ctx.fill(sw);
+        };
+        sc.add({ max: TT + 0.02, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life < TC0) {
+                return;
+            }
+            const [x, y] = ball(life);
+            const k = easeOut((life - TC0) / 1.4) * (1 + 0.1 * Math.max(0, Math.sin(life * 8)) ** 4);
+            shadowBall(ctx, px, x, y, Rb * k, life);
+        } });
+        // 작은 섀도볼 난사 — 다른 포켓몬 (모자라면 땅 곳곳)
+        const spots = u.others().map((r) => ({ r, x: r.x }));
+        while (spots.length < 5) {
+            spots.push({ x: clamp(me.x + dir * W * (0.2 + 0.16 * spots.length) * (spots.length % 2 ? 1 : 0.7), W * 0.05, W * 0.95) });
+        }
+        spots.slice(0, 6).forEach((sp, i) => {
+            const t0 = TS + i * 0.12;
+            sc.at(t0, () => {
+                const [x0, y0] = ball(t0);
+                const r0 = Rb * 0.45;
+                ultShake(1.5, 120);
+                sc.add({ max: 0.6, trail: [],
+                    update: (b) => {
+                        const k = clamp(b.life / 0.45, 0, 1);
+                        const cur = sp.r ? where(u, sp.r) : null;
+                        const ex = cur ? cur.x : sp.x;
+                        const ey = cur ? cur.y : G - r0;
+                        const cxq = (x0 + ex) / 2;
+                        const cyq = Math.min(y0, ey) - H * 0.15;
+                        b.x = (1 - k) * (1 - k) * x0 + 2 * (1 - k) * k * cxq + k * k * ex;
+                        b.y = (1 - k) * (1 - k) * y0 + 2 * (1 - k) * k * cyq + k * k * ey;
+                        b.trail.unshift([b.x, b.y]);
+                        b.trail.length = Math.min(b.trail.length, 7);
+                        if (k >= 1 && !b.done) {
+                            b.done = true;
+                            b.max = 0;
+                            ring(sc, b.x, b.y, r0, r0 * 4, 0.85, 0.35, ['#ffffff', GHOST[1], GHOST[2]], 2);
+                            fireBits(b.x, b.y, s, GHOST, 14, { speed: H * 0.5, life: 0.6 });
+                            if (sp.r) {
+                                hit(where(u, sp.r), away(u, sp.r.x), 'tumble');
+                            }
+                            ultShake(2.5, 160);
+                        }
+                    },
+                    draw: (ctx, b, tt, px) => {
+                        b.trail.forEach(([x, y], j) => {
+                            ctx.globalAlpha = 0.5 * (1 - j / 7);
+                            ctx.fillStyle = j < 3 ? GHOST[1] : GHOST[2];
+                            const z = Math.max(s, r0 * (1 - j / 7));
+                            ctx.fillRect(px(x - z / 2), px(y - z / 2), z, z);
+                        });
+                        shadowBall(ctx, px, b.x, b.y, r0, b.life + i);
+                    } });
+            });
+        });
+        // 거대한 섀도볼 — 가장 가까운 애 (없으면 앞쪽)에게
+        sc.at(TT, () => ultShake(3, 200));
+        sc.add({ max: TB + 0.02, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life < TT) {
+                return;
+            }
+            const k = (life - TT) / TFLY;
+            const [x0, y0] = ball(TT);
+            const ey = G - Rb;
+            const x = lerp(x0, tx, k);
+            const y = lerp(y0, ey, k * k) - Math.sin(k * Math.PI) * H * 0.08;
+            shadowBall(ctx, px, x, y, Rb * 1.1, life);
+        } });
+        sc.at(TB, () => {
+            impactFrames(sc, W, H, 0.6, 0.6);
+            blastDome(sc, tx, G, clamp(Math.max(H * 0.45, Rb * 5), 30, Math.min(G * 0.92, W * 0.5)), 2.0, GHOST);
+            ring(sc, tx, G - s, Rb, W * 0.7, 0.25, 0.8, ['#ffffff', GHOST[1], GHOST[2]], 3);
+            ultShake(8 + 3 * P, 1100);
+            for (const r of u.others()) {
+                sc.at(TB + 0.15, () => hit(where(u, r), away(u, r.x), 'lift', 0.5));
+            }
+        });
+        emberRise(sc, TB + 0.4, sec, GHOST);
+    }
+
+    // ═════ 잠만보 — 기가임팩트 (ultdive) ═════
+    // 쿨쿨 자다(Z 가 피어오름) 번쩍 눈을 뜨고 "!" → 하얀 기운이 활활 · 땅이 우르릉, 돌덩이가 떠오름 → 땅을 박차고 화면 위로 휙 (먼지 고리)
+    // → 과녁 땅에 그림자가 점점 커짐 · 바람 가르는 줄 → 1.6배로 커진 잠만보가 쿵! 내리꽂힘 — 임팩트 프레임 · 화면 전체 흔들림 · 땅 충격파 세 겹
+    // · 땅 금이 화면 끝까지 · 모두 튀어 오름 · 흙먼지 · 주황빛 빛의 반구 → 깡충 제자리로 돌아와 다시 쿨쿨 (약 7.2초)
+    const SNOR = ['#ffffff', '#fff4c2', '#ffb94d', '#ff7a1a'];
+    UNIQ.snorlax = { fx: 'ultdive', ms: (P) => 7200 + 200 * P, run: runGigaImpact };
+    // Z — 작은 도트 글자
+    function zGlyph(ctx, px, s, x, y, z, color, a) {
+        ctx.globalAlpha = a;
+        ctx.fillStyle = color;
+        const n = 4;
+        for (let i = 0; i < n; i++) {
+            ctx.fillRect(px(x + i * z), px(y), z, z);
+            ctx.fillRect(px(x + i * z), px(y + (n - 1) * z), z, z);
+            ctx.fillRect(px(x + (n - 1 - i) * z), px(y + i * z), z, z);
+        }
+    }
+    function runGigaImpact(u, o, ms, pokemon) {
+        const P = strength(u);
+        const sec = ms / 1000;
+        const { W, H, S: s, dir } = u;
+        const G = u.ground;
+        const hit = makeHit();
+        const me = monBox(pokemon);
+        const TWAKE = 0.75; // 눈 번쩍
+        const TC0 = 0.9; // 기운
+        const TJ = 2.1; // 뛰어오름
+        const TGONE = TJ + 0.3;
+        const TF = 3.2; // 내려옴
+        const TI = 3.55; // 쿵
+        const TBACK = TI + 2.1; // 돌아감
+        const THOME = TBACK + 0.55;
+        const BIG = 1.6;
+        const q = nearest(u);
+        let tx = q ? q.x : me.x + dir * W * 0.4;
+        if (Math.abs(tx - me.x) < me.w * 1.2) {
+            tx = me.x + (Math.sign(tx - me.x) || dir) * me.w * 1.2;
+        }
+        tx = clamp(tx, me.w * BIG * 0.5, W - me.w * BIG * 0.5);
+        const scaleAt = (t) => (t < TF ? 1 : t < TBACK ? lerp(BIG, 1, easeOut(clamp((t - TI - 0.8) / 0.9, 0, 1))) : 1);
+        const xAt = (t) => (t < TF ? me.x : t < TBACK ? tx : lerp(tx, me.x, clamp((t - TBACK) / (THOME - TBACK), 0, 1)));
+        const footAt = (t) => {
+            if (t < TJ) {
+                return me.b;
+            }
+            if (t < TF) {
+                return lerp(me.b, -me.h * 0.2, easeIn((t - TJ) / (TGONE - TJ)));
+            }
+            if (t < TI) {
+                return lerp(-me.h * BIG, G, easeIn((t - TF) / (TI - TF)));
+            }
+            if (t < TBACK) {
+                return G;
+            }
+            const k = clamp((t - TBACK) / (THOME - TBACK), 0, 1);
+            return lerp(G, me.b, k) - Math.sin(k * Math.PI) * me.h * 0.6;
+        };
+        const sc = scene(u, sec + 0.4, 'uniq snorlax');
+        ultDark(0.3, ms - 200);
+        // Z — 자는 동안 · 끝에 다시
+        const zzz = (t0, t1) => sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life < t0 || life > t1) {
+                return;
+            }
+            for (let i = 0; i < 3; i++) {
+                const ph = ((life - t0) * 0.9 + i / 3) % 1;
+                const z = Math.max(s, Math.round((me.w * (0.05 + 0.04 * ph)) / s) * s);
+                zGlyph(ctx, px, s, xAt(life) + dir * me.w * (0.25 + ph * 0.3), footAt(life) - me.h * (0.9 + ph * 0.9), z, '#ffffff', Math.sin(ph * Math.PI) * 0.9);
+            }
+        } });
+        zzz(0, TWAKE);
+        zzz(THOME + 0.2, sec);
+        // 하얀 기운 · 떠오르는 돌덩이
+        sc.add({ max: TJ + 0.1, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            const k = clamp((life - TC0) / 0.4, 0, 1);
+            if (k > 0.02) {
+                K.flameTongue(ctx, px, s, me.x, me.b + s * 2, me.w * 1.2, me.h * (1.3 + 0.1 * Math.sin(life * 9)), SNOR, life, k);
+            }
+        } });
+        const rocks = [];
+        for (let i = 0; i < 12; i++) {
+            const side = i % 2 ? -1 : 1;
+            rocks.push({ x: clamp(me.x + side * (me.w * 0.7 + W * 0.25 * hash(i, 301)), s * 3, W - s * 3), t0: TC0 + i * 0.06, h: me.h * (0.4 + 0.9 * hash(i, 302)), z: Math.max(2 * s, me.w * (0.08 + 0.1 * hash(i, 303))), ph: hash(i, 304) * TAU });
+        }
+        sc.add({ max: TI + 0.1, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            for (const r of rocks) {
+                if (life < r.t0) {
+                    continue;
+                }
+                const fall = life > TJ ? easeIn(clamp((life - TJ) / 0.5, 0, 1)) : 0;
+                const y = G - r.z * 0.3 - r.h * easeOut((life - r.t0) / 0.6) * (1 - fall) + Math.sin(life * 3 + r.ph) * s;
+                K.psyRock(ctx, px, s, r.x, y, r.z, 0.4, SNOR[2]);
+            }
+        } });
+        // 과녁 그림자 — 점점 커지고 진해짐
+        sc.add({ max: TI, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life < TGONE) {
+                return;
+            }
+            const k = clamp((life - TGONE) / (TI - TGONE), 0, 1);
+            ellipse(ctx, px, s, tx, G - s, me.w * BIG * 0.6 * (0.3 + 0.7 * k), me.w * 0.12 * (0.3 + 0.7 * k), '#000000', 0.25 + 0.35 * k, G + s);
+            if (Math.floor(life * 8) % 2 === 0) {
+                ellipse(ctx, px, s, tx, G - s, me.w * BIG * 0.7, me.w * 0.15, SNOR[3], 0.25, G + s);
+            }
+        } });
+        // 바람 가르는 줄 — 떨어지는 동안 위에서 아래로
+        sc.add({ max: TI, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life < TF - 0.1) {
+                return;
+            }
+            const y = footAt(life);
+            ctx.globalAlpha = 0.6;
+            ctx.fillStyle = '#ffffff';
+            for (let i = 0; i < 6; i++) {
+                const x = tx + (hash(i, 311) - 0.5) * me.w * BIG;
+                const len = H * (0.15 + 0.2 * hash(i, 312));
+                ctx.fillRect(px(x), px(y - me.h * BIG - len), s, px(len));
+            }
+        } });
+        // 잠만보 (꼭두각시)
+        puppet(sc, pokemon, u, footAt, SNOR[2], sec - 0.1, {
+            x: xAt, scale: scaleAt,
+            glow: (t) => (t > TWAKE && t < TJ ? clamp((t - TC0) / 0.6, 0, 1) * 0.15 * (1 + Math.sin(t * 12)) : t > TI && t < TI + 0.2 ? 0.8 : 0),
+            glowColor: '#ffffff',
+        });
+        // "!" — 눈 번쩍
+        sc.add({ max: TWAKE + 0.7, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life < TWAKE) {
+                return;
+            }
+            const k = easeOut((life - TWAKE) / 0.15);
+            const z = Math.max(s, Math.round((me.w * 0.07) / s) * s);
+            const x = me.x + dir * me.w * 0.35;
+            const y = me.b - me.h * 1.05 - (1 - k) * me.h * 0.2;
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = SNOR[3];
+            ctx.fillRect(px(x - z), px(y - z * 5), z * 3, z * 6);
+            ctx.fillRect(px(x - z), px(y + z * 2), z * 3, z * 3);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(px(x), px(y - z * 4), z, z * 4);
+            ctx.fillRect(px(x), px(y + z * 3), z, z);
+        } });
+        sc.at(TWAKE, () => {
+            ring(sc, me.x, me.b - me.h * 0.5, me.w * 0.4, me.w * 1.8, 0.85, 0.3, ['#ffffff', SNOR[2]], 2);
+            ultShake(2, 200);
+        });
+        [1.2, 1.55, 1.85].forEach((tb, i) => sc.at(tb, () => {
+            ring(sc, me.x, G - s, me.w * 0.5, me.w * (2 + i), 0.25, 0.4, [SNOR[1], SNOR[2]], 1);
+            ultShake(2 + i, 200);
+        }));
+        // 뛰어오름
+        sc.at(TJ, () => {
+            ring(sc, me.x, G - s, me.w * 0.4, me.w * 3.5, 0.25, 0.5, ['#ffffff', SNOR[1]], 2);
+            debris(me.x, G - s, s, ['#8a7252', '#5c4a33', '#bda27a'], 24, H * 0.7, { ground: G });
+            for (let i = 0; i < 3; i++) {
+                K.puff(me.x + rnd(-0.6, 0.6) * me.w, G - s * 2, s, '#c9b896', me.w * 0.15, me.w * 0.4, rnd(0.5, 0.8), rnd(-60, 60), -rnd(10, 30), 0.25);
+            }
+            ultShake(5, 400);
+        });
+        // 쿵!
+        sc.at(TI, () => {
+            impactFrames(sc, W, H, 0.8, 0.55);
+            ultShake(12 + 3 * P, 1600);
+            blastDome(sc, tx, G, clamp(Math.max(H * 0.5, me.w * BIG * 1.6), 30, Math.min(G * 0.92, W * 0.5)), 1.9, SNOR);
+            for (let j = 0; j < 3; j++) {
+                sc.at(TI + j * 0.15, () => ring(sc, tx, G - s, me.w, W * (0.6 + j * 0.25), 0.18, 0.8, j ? [SNOR[1], SNOR[2]] : ['#ffffff', SNOR[1], SNOR[2]], 3 - j));
+            }
+            groundArcs(sc, tx, G - s, W, 1.2, SNOR[1], 6, 2, G - s);
+            debris(tx, G - s, s, ['#8a7252', '#5c4a33', '#bda27a', SNOR[2]], 50, H * 1.2, { ground: G, size: [1, 2, 3] });
+            for (let i = 0; i < 6; i++) {
+                const side = i % 2 ? -1 : 1;
+                K.puff(tx + side * rnd(0.6, 1.6) * me.w * BIG, G - s * 2, s, '#c9b896', me.w * 0.2, me.w * 0.55, rnd(0.6, 1), side * rnd(60, 180), -rnd(10, 30), 0.28);
+            }
+            debris(tx, G - s, s, ['#c9b896', '#bda27a', '#e6d6b8'], 40, H * 0.5, { angle: -Math.PI / 2, spread: 2.6, ground: G, life: 1.2 });
+            for (const r of u.others()) {
+                sc.at(TI + Math.abs(r.x - tx) / (W * 2), () => hit(where(u, r), away(u, r.x), 'lift', 0.4));
+            }
+        });
+        sc.at(THOME, () => {
+            ring(sc, me.x, G - s, me.w * 0.4, me.w * 2, 0.25, 0.35, [SNOR[1], SNOR[2]], 1);
+            ultShake(3, 200);
         });
     }
 
