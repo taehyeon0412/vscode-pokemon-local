@@ -2791,6 +2791,336 @@
         emberRise(sc, TB + 0.4, sec, VOID);
     }
 
+    // 얼음 덩어리 — 갇힌 애 (r = { x, bottom, w, h }) 위에, k 0~1 커짐
+    function iceBlock(ctx, px, s, r, k, pal) {
+        const bwid = r.w * 1.2 * k;
+        const bh = r.h * 1.2 * k;
+        if (bwid < s * 2) {
+            return;
+        }
+        const x0 = r.x - bwid / 2;
+        const y0 = r.bottom - bh;
+        for (let xx = 0; xx < bwid; xx += s) {
+            const jg = (Math.floor(xx / (2 * s)) % 3) * s;
+            ctx.globalAlpha = 0.38;
+            ctx.fillStyle = pal[1];
+            ctx.fillRect(px(x0 + xx), px(y0 + jg), s, px(bh - jg));
+            ctx.globalAlpha = 0.95;
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(px(x0 + xx), px(y0 + jg), s, s);
+        }
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(px(x0), px(y0), s, px(bh));
+        ctx.fillStyle = pal[3];
+        ctx.fillRect(px(x0 + bwid - s), px(y0 + s * 2), s, px(bh - s * 2));
+        ctx.fillRect(px(x0), px(r.bottom - s), px(bwid), s);
+        ctx.globalAlpha = 0.8;
+        ctx.fillStyle = '#ffffff';
+        for (let i = 0; i < Math.min(bwid, bh) * 0.5; i += s) {
+            ctx.fillRect(px(x0 + bwid * 0.2 + i), px(y0 + bh * 0.25 + i), s, s);
+        }
+    }
+    // 눈 결정 — 가지 여섯, 가지마다 곁가지 둘 (rot 돌기)
+    function snowflake(ctx, px, s, x, y, R, rot, cols, alpha) {
+        if (R < s * 2 || alpha <= 0.01) {
+            return;
+        }
+        const path = [new Path2D(), new Path2D()];
+        for (let i = 0; i < 6; i++) {
+            const a = rot + (i * TAU) / 6;
+            for (let d = 0; d < R; d += s) {
+                path[d > R * 0.7 ? 1 : 0].rect(px(x + Math.cos(a) * d), px(y + Math.sin(a) * d), s, s);
+            }
+            for (const at of [0.45, 0.72]) {
+                for (const sd of [-1, 1]) {
+                    const b = a + sd * 0.8;
+                    const bx = x + Math.cos(a) * R * at;
+                    const by = y + Math.sin(a) * R * at;
+                    for (let d = 0; d < R * (0.95 - at) * 0.9; d += s) {
+                        path[1].rect(px(bx + Math.cos(b) * d), px(by + Math.sin(b) * d), s, s);
+                    }
+                }
+            }
+        }
+        path[0].rect(px(x - s), px(y - s), 3 * s, 3 * s);
+        K.fillPaths(ctx, path, [cols[0], cols[2]], alpha);
+    }
+
+    // ═════ 프리저 — 절대영도 (ultnova) ═════
+    // 눈보라가 비스듬히 몰아치고 땅에 서리가 번짐 → 프리저가 떠올라 날갯짓 · 둘레로 눈 결정이 돌고 등 뒤에 거대한 눈 결정이 돌며 커짐
+    // → 임팩트 프레임 · 절대영도의 파동 — 땅을 따라 얼음 가시가 양옆으로 퍼지며 솟고 다른 포켓몬이 모두 얼음 덩어리에 갇힘
+    // → 정적 → 와장창 깨지며 얼음 조각 · 하얀 빛의 반구 (약 7.2초)
+    const FROST = ['#ffffff', '#e8fbff', '#a8e8ff', '#5aa8e0'];
+    UNIQ.articuno = { fx: 'ultnova', ms: (P) => 7200 + 200 * P, run: runSheerCold };
+    function runSheerCold(u, o, ms, pokemon) {
+        const P = strength(u);
+        const sec = ms / 1000;
+        const { W, H, S: s, dir } = u;
+        const G = u.ground;
+        const hit = makeHit();
+        const me = monBox(pokemon);
+        const lift = me.h * 0.35;
+        const TC0 = 0.6;
+        const TW = 2.4; // 파동
+        const WSEC = 0.9;
+        const TS = TW + WSEC + 0.55; // 깨짐
+        const footAt = (t) => me.b - lift * easeOut(clamp((t - 0.3) / 0.6, 0, 1)) * (1 - easeIn(clamp((t - (sec - 0.6)) / 0.45, 0, 1))) + Math.sin(t * 3) * s * 1.5;
+        const core = (t) => [me.x, footAt(t) - me.h * 0.5];
+        const reach = Math.max(me.x, W - me.x);
+        const spikes = [];
+        for (const sd of [-1, 1]) {
+            for (let d = me.w * 0.7; d < reach; d += Math.max(W * 0.045, 8 * s)) {
+                const x = me.x + sd * d;
+                if (x < -s * 4 || x > W + s * 4) {
+                    continue;
+                }
+                spikes.push({ x, h: Math.max(6 * s, H * (0.08 + 0.12 * hash(d, 591 + sd))), w: Math.max(4 * s, W * (0.02 + 0.015 * hash(d, 592))), lean: sd * 0.15 * hash(d, 593), t0: TW + (d / reach) * WSEC });
+            }
+        }
+        const frozen = [];
+        const sc = scene(u, sec + 0.4, 'uniq articuno');
+        ultDark(0.45, ms - 200);
+        // 차가운 하늘 · 비스듬한 눈보라
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            const a = clamp(life / 0.6, 0, 1) * clamp((sec - 0.3 - life) / 0.6, 0, 1);
+            ctx.globalAlpha = 0.14 * a;
+            ctx.fillStyle = FROST[3];
+            ctx.fillRect(0, 0, W, H);
+            ctx.globalAlpha = 0.75 * a;
+            ctx.fillStyle = '#ffffff';
+            const m = Math.round(50 * clamp(W / 480, 0.6, 2));
+            for (let j = 0; j < m; j++) {
+                const k = (hash(j, 601) + life * (0.5 + 0.4 * hash(j, 602))) % 1;
+                const x = ((hash(j, 603) * W * 1.4 - k * W * 0.4 * dir) % W + W) % W;
+                const y = k * G;
+                ctx.fillRect(px(x), px(y), s * 2, s);
+            }
+        } });
+        // 땅에 번지는 서리
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            const k = easeOut(clamp((life - 0.3) / 2, 0, 1)) * clamp((sec - 0.3 - life) / 0.6, 0, 1);
+            const half = reach * k;
+            const path = new Path2D();
+            for (let x = Math.max(0, me.x - half); x < Math.min(W, me.x + half); x += s * 2) {
+                const hgt = s * (1 + Math.round(2 * hash(Math.round(x / s), 611)));
+                path.rect(px(x), px(G - hgt), s * 2, hgt);
+            }
+            ctx.globalAlpha = 0.85;
+            ctx.fillStyle = FROST[1];
+            ctx.fill(path);
+        } });
+        // 등 뒤 거대한 눈 결정 (프리저 뒤)
+        sc.add({ max: TS, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            const k = easeOut(clamp((life - TC0) / 1.4, 0, 1)) * (1 - clamp((life - TS + 0.15) / 0.15, 0, 1));
+            const [x, y] = core(life);
+            snowflake(ctx, px, s, x, y, Math.max(me.w * 1.2, H * 0.25) * k, life * 0.6, FROST, 0.85 * k);
+        } });
+        puppet(sc, pokemon, u, footAt, FROST[2], sec - 0.1, { glow: (t) => (t > TW - 0.05 && t < TW + 0.1 ? 0.7 : clamp((t - TC0) / 1, 0, 1) * (t < TW ? 0.15 * (1 + Math.sin(t * 10)) : 0)), glowColor: '#ffffff' });
+        // 둘레로 도는 작은 눈 결정
+        sc.add({ max: TW + 0.2, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            const k = clamp((life - TC0) / 0.5, 0, 1);
+            const [x, y] = core(life);
+            for (let i = 0; i < 6; i++) {
+                const a = life * 2.5 * dir + (i * TAU) / 6;
+                snowflake(ctx, px, s, x + Math.cos(a) * me.w * 0.9, y + Math.sin(a) * me.w * 0.45, Math.max(3 * s, me.w * 0.12), -life * 2, FROST, 0.9 * k);
+            }
+        } });
+        chargeSwirl(sc, core, TC0, TW - 0.05, Math.max(me.w * 4, short(u) * 0.45), Math.max(s * 4, me.w * 0.3), FROST, dir);
+        // 절대영도 파동 — 얼음 가시 · 얼음 덩어리
+        sc.at(TW, () => {
+            impactFrames(sc, W, H, 0.75, 0.4);
+            ring(sc, me.x, G - s, me.w * 0.5, reach * 1.1, 0.2, WSEC, ['#ffffff', FROST[1], FROST[2]], 3);
+            ring(sc, me.x, footAt(TW) - me.h * 0.5, me.w * 0.5, Math.max(W, H) * 0.8, 0.85, WSEC + 0.2, [FROST[0], FROST[2]], 2);
+            ultShake(5 + 2 * P, 700);
+        });
+        const spikeDraw = (ctx, px, sp, k, white) => {
+            const hh = sp.h * k;
+            for (let y = 0; y < hh; y += s) {
+                const f = y / Math.max(1, hh);
+                const half = (sp.w / 2) * (f > 0.55 ? (1 - f) / 0.45 : 1);
+                if (half < s * 0.5) {
+                    continue;
+                }
+                const cx = sp.x + sp.lean * y;
+                const yy = px(G - y - s);
+                ctx.globalAlpha = 0.9;
+                ctx.fillStyle = white ? '#ffffff' : FROST[2];
+                ctx.fillRect(px(cx - half), yy, Math.max(s, px(2 * half)), s);
+                ctx.fillStyle = white ? '#ffffff' : FROST[1];
+                ctx.fillRect(px(cx - half), yy, Math.max(s, px(half * 0.6)), s);
+                ctx.fillStyle = FROST[3];
+                ctx.fillRect(px(cx + half * 0.5), yy, Math.max(s, px(half * 0.5)), s);
+            }
+        };
+        sc.add({ max: TS + 0.05, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            for (const sp of spikes) {
+                if (life >= sp.t0) {
+                    spikeDraw(ctx, px, sp, easeOut((life - sp.t0) / 0.15), life > TS - 0.12);
+                }
+            }
+            for (const f of frozen) {
+                iceBlock(ctx, px, s, where(u, f.r), easeOut((life - f.t0) / 0.15), FROST);
+            }
+        } });
+        for (const r of u.others()) {
+            const tf = TW + (Math.abs(r.x - me.x) / reach) * WSEC;
+            sc.at(tf, () => {
+                frozen.push({ r, t0: tf });
+                hit(where(u, r), away(u, r.x), 'shake', 0);
+            });
+        }
+        // 와장창 · 하얀 반구
+        sc.at(TS, () => {
+            impactFrames(sc, W, H, 0.7, 0.4);
+            for (const sp of spikes) {
+                if (hash(sp.x, 621) > 0.5) {
+                    K.shards(sp.x, G - sp.h * 0.5, s, Math.max(s, Math.round(sp.w / (6 * s)) * s), FROST, 3, H * 0.6, G);
+                }
+            }
+            for (const f of frozen) {
+                const r = where(u, f.r);
+                K.shards(r.x, r.y, s, Math.max(s, Math.round(r.w / (12 * s)) * s), FROST, 9, H * 0.8, G);
+                sc.at(TS + 0.05, () => hit(r, away(u, r.x), 'lift', 0.3));
+            }
+            blastDome(sc, me.x, G, clamp(Math.max(H * 0.52, W * 0.25), 30, Math.min(G * 0.92, W * 0.5)), 1.9, FROST);
+            ultShake(9 + 3 * P, 1100);
+        });
+        emberRise(sc, TS + 0.4, sec, FROST);
+    }
+
+    // ═════ 썬더 — 번개 (ultstorm) ═════
+    // 먹구름이 몰려와 구름 속이 번쩍 → 썬더가 구름 아래로 솟아 날개에 번개 깃이 돋고 구름에서 번개가 썬더에게 연달아 이어짐(충전)
+    // → 번개가 화면 곳곳에 차례로 내리꽂힘(다른 포켓몬 먼저, 꽂힌 땅마다 터짐 · 전기가 기어감) → 하늘을 가로지르는 거대한 번개 새가 번쩍
+    // → 가운데로 내리꽂혀 굵은 번개 기둥 · 노란 빛의 반구 → 제자리로 (약 7.4초)
+    UNIQ.zapdos = { fx: 'ultstorm', ms: (P) => 7400 + 200 * P, run: runZapdosThunder };
+    function runZapdosThunder(u, o, ms, pokemon) {
+        const P = strength(u);
+        const sec = ms / 1000;
+        const { W, H, S: s, dir } = u;
+        const G = u.ground;
+        const hit = makeHit();
+        const me = monBox(pokemon);
+        const bandH = Math.max(40, H * 0.3);
+        const cloudY = bandH * 0.38;
+        const lift = me.h * 0.5;
+        const charges = [0.8, 1.15, 1.45, 1.7, 1.9];
+        const TRAIN = 2.15; // 번개 비
+        const NB = 10;
+        const TBIRD = TRAIN + NB * 0.11 + 0.25; // 번개 새
+        const TI = TBIRD + 0.45; // 내리꽂힘
+        const footAt = (t) => me.b - lift * easeOut(clamp((t - 0.4) / 0.5, 0, 1)) * (1 - easeIn(clamp((t - (sec - 0.6)) / 0.45, 0, 1))) + Math.sin(t * 3) * s * 1.5;
+        const core = (t) => [me.x, footAt(t) - me.h * 0.5];
+        const spots = u.others().map((r) => ({ r }));
+        while (spots.length < NB) {
+            spots.push({ x: W * (0.06 + 0.88 * hash(spots.length, 631)) });
+        }
+        const cxF = clamp(me.x + dir * W * 0.4, W * 0.15, W * 0.85);
+        const sc = scene(u, sec + 0.4, 'uniq zapdos');
+        ultDark(0.45, ms - 200);
+        let lit = 0;
+        sc.tick((t, dt) => {
+            lit = Math.max(0, lit - dt);
+        });
+        skyBand(sc, '#070914', bandH * 1.2, 0.7, sec);
+        cloudBank(sc, { y: cloudY, h: bandH * 0.42, cols: ['#6b7090', '#454a63', '#2c3045'], sec, lit: () => (lit > 0 ? 1 : 0), speed: 30 * dir, litCols: ['#ffffff', ZAPC[1], ZAPC[2]] });
+        // 날개 번개 깃 (썬더 뒤)
+        sc.add({ max: TI + 0.3, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            const k = clamp((life - 0.6) / 0.4, 0, 1) * (1 - clamp((life - TI) / 0.3, 0, 1));
+            if (k <= 0.02) {
+                return;
+            }
+            const [x, y] = core(life);
+            for (let j = 0; j < 7; j++) {
+                const seed = Math.floor(life * 14 + j);
+                const a = -Math.PI * (0.1 + 0.8 * (j / 6)) + (hash(seed, j) - 0.5) * 0.2;
+                const len = Math.max(me.w, me.h) * (0.6 + 0.4 * hash(seed, j + 3)) * k;
+                drawBolt(ctx, px, s, jag(x, y, x + Math.cos(a) * len, y + Math.sin(a) * len, Math.max(2 * s, len / 5), 0.3), 1, ZAPC[2], ZAPC[3], 0.9 * k);
+            }
+        } });
+        puppet(sc, pokemon, u, footAt, ZAPC[2], sec - 0.1, { glow: (t) => (charges.some((c) => t > c && t < c + 0.08) ? 0.8 : clamp((t - 0.6) / 0.6, 0, 1) * 0.12 * (1 + Math.sin(t * 18))), glowColor: '#ffffff' });
+        // 충전 — 구름에서 썬더로
+        charges.forEach((tc, i) => sc.at(tc, () => {
+            const [x, y] = core(tc);
+            strike(sc, x + rnd(-1, 1) * me.w, cloudY, x, y, { w: 2, mid: ZAPC[2], glow: ZAPC[3], dur: 0.25, branches: 1 });
+            lit = 0.1;
+            ring(sc, x, y, me.w * 0.4, me.w * (1.4 + i * 0.25), 0.85, 0.3, ['#ffffff', ZAPC[2]], 2);
+            ultShake(1.5 + i * 0.4, 140);
+        }));
+        // 번개 비
+        spots.slice(0, NB).forEach((sp, i) => sc.at(TRAIN + i * 0.11, () => {
+            const x = sp.r ? where(u, sp.r).x : sp.x;
+            strike(sc, x + rnd(-0.5, 0.5) * W * 0.05, cloudY, x, G - s, { w: 3, mid: ZAPC[1], glow: ZAPC[3], dur: 0.35, branches: 2 });
+            lit = 0.12;
+            ring(sc, x, G - s, s * 2, W * 0.1, 0.25, 0.4, ['#ffffff', ZAPC[2]], 2);
+            groundArcs(sc, x, G - s, W * 0.1, 0.6, ZAPC[2], 2, 1, G - s);
+            fireBits(x, G - s, s, ZAPC, 10, { angle: -Math.PI / 2, spread: 2, speed: H * 0.5, g: H * 1.5, life: 0.6 });
+            ultShake(3, 160);
+            if (sp.r) {
+                hit(where(u, sp.r), away(u, x), 'tumble', 0.5);
+            }
+        }));
+        // 거대한 번개 새 — 하늘을 가로지르며 번쩍, 가운데로 내리꽂힘
+        sc.add({ max: TI + 0.05, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life < TBIRD) {
+                return;
+            }
+            const k = clamp((life - TBIRD) / (TI - TBIRD), 0, 1);
+            const bx = lerp(cxF - dir * W * 0.35, cxF, easeIn(k));
+            const by = lerp(bandH * 0.9, G - H * 0.15, easeIn(k));
+            const span = Math.min(W * 0.6, H * 1.0) * (1 - 0.35 * k);
+            const flap = Math.sin(life * 16) * 0.18;
+            const seedT = Math.floor(life * 20);
+            const jit = (i, sd) => (hash(seedT + i, sd + 9) - 0.5) * s * 4;
+            // 날개 — 앞쪽 가장자리 (활처럼) + 뒤로 늘어진 깃 세 줄
+            for (const sd of [-1, 1]) {
+                const edge = [];
+                for (let i = 0; i <= 7; i++) {
+                    const f = i / 7;
+                    edge.push([bx + sd * span * f * 0.5, by - Math.sin(f * Math.PI * 0.85) * span * (0.26 + flap) + f * f * span * 0.1 + jit(i, sd)]);
+                }
+                drawBolt(ctx, px, s, edge, 3, ZAPC[1], ZAPC[3], 1);
+                for (const at of [3, 5, 7]) {
+                    const [ex, ey] = edge[at];
+                    drawBolt(ctx, px, s, jag(ex, ey, ex - sd * span * 0.06 - dir * span * 0.05, ey + span * (0.16 + at * 0.012), 3 * s, 0.25), 1, ZAPC[2], ZAPC[3], 0.9);
+                }
+            }
+            // 몸통 · 꼬리 부채 · 부리
+            drawBolt(ctx, px, s, jag(bx + dir * span * 0.1, by - span * 0.06, bx - dir * span * 0.18, by + span * 0.06, 3 * s, 0.15), 3, '#ffffff', ZAPC[2], 1);
+            for (const tl of [-0.5, 0, 0.5]) {
+                const tx0 = bx - dir * span * 0.18;
+                const ty0 = by + span * 0.06;
+                drawBolt(ctx, px, s, jag(tx0, ty0, tx0 - dir * span * 0.2, ty0 + span * (0.1 + tl * 0.12), 3 * s, 0.25), 2, ZAPC[1], ZAPC[3], 0.95);
+            }
+            drawBolt(ctx, px, s, [[bx + dir * span * 0.1, by - span * 0.06], [bx + dir * span * 0.22, by - span * 0.02]], 2, '#ffffff', ZAPC[2], 1);
+            fireOrb(ctx, px, s, bx, by - span * 0.03, Math.max(4 * s, span * 0.07), ZAPC, life, 1, G, 1, 0, [1, 0.8, 0.6, 0.38], 0.4);
+        } });
+        sc.at(TBIRD, () => {
+            lit = 0.4;
+            impactFrames(sc, W, H, 0.45, 0.25);
+            ultShake(4, 500);
+        });
+        sc.at(TI, () => {
+            impactFrames(sc, W, H, 0.8, 0.5);
+            strike(sc, cxF, 0, cxF, G - s, { w: 7, mid: ZAPC[1], glow: ZAPC[3], dur: 0.6, branches: 4 });
+            K.firePillar(sc, cxF, G, clamp(W * 0.12, 8 * s, W * 0.2), 1.5, ZAPC);
+            blastDome(sc, cxF, G, clamp(Math.max(H * 0.5, W * 0.24), 30, Math.min(G * 0.92, W * 0.48)), 1.9, ZAPC);
+            groundArcs(sc, cxF, G - s, W * 0.6, 1.2, ZAPC[1], 6, 2, G - s);
+            lit = 0.5;
+            ultShake(10 + 3 * P, 1300);
+            for (const r of u.others()) {
+                sc.at(TI + 0.12, () => hit(where(u, r), away(u, cxF), 'lift', 0.3));
+            }
+        });
+        emberRise(sc, TI + 0.4, sec, ZAPC);
+    }
+
     // ── 틀에 끼워 넣기 — uniq 가 이 파일에 있는 이름이면 그 연출, 아니면 원래 틀 그대로 ──
     for (const fx of new Set(Object.values(UNIQ).map((d) => d.fx))) {
         const base = ULT_FX[fx];
