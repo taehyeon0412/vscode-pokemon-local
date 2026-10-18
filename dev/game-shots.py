@@ -52,6 +52,7 @@ SHOTS = [
     ("title-two-warnings-68", "720x68", {"screen": "title", "save": "broken", "busy": "1", "notice": "write-failed"}),
     ("stage-narrow-240", "240x68", {"screen": "game"}),
     ("stage-wide-1858", "1858x160", {"screen": "game"}),
+    ("title-wide-1858", "1858x160", {"screen": "title", "save": "ok"}),
 ]
 
 

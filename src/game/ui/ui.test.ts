@@ -30,6 +30,24 @@ describe('화면 틀 (mvp-spec 1장)', () => {
   it('모르는 크기 설정은 아주 작게로', () => {
     expect(fitLayout('huge', 500)).toMatchObject({ wanted: 'nano', size: 'nano' });
   });
+
+  it('글자 · 버튼 배율은 패널 높이에 맞춰: 92 아래 1 · 92 ~ 139 1.15 · 140 이상 1.3', () => {
+    expect(fitLayout('nano', 68).uiScale).toBe(1);
+    expect(fitLayout('nano', 91).uiScale).toBe(1);
+    expect(fitLayout('nano', 92).uiScale).toBe(1.15);
+    expect(fitLayout('nano', 139).uiScale).toBe(1.15);
+    expect(fitLayout('nano', 160).uiScale).toBe(1.3);
+  });
+
+  it('남는 높이가 없으면 배율을 올리지 않음 — 글자 때문에 포켓몬 크기가 줄지 않게', () => {
+    // 크게 (최소 140) 를 140px 에: 남는 높이 0 → 1, 그래도 포켓몬은 크게 그대로
+    expect(fitLayout('large', 140)).toMatchObject({ size: 'large', uiScale: 1 });
+    // 145px: 남는 5 → 1.15 (정보줄 +3) 는 되고 1.3 (정보줄 +6) 은 안 됨
+    expect(fitLayout('large', 145)).toMatchObject({ size: 'large', uiScale: 1.15 });
+    expect(fitLayout('large', 146)).toMatchObject({ size: 'large', uiScale: 1.3 });
+    // 작게 (최소 92) 를 92px 에: 남는 0 → 1
+    expect(fitLayout('small', 92)).toMatchObject({ size: 'small', uiScale: 1 });
+  });
 });
 
 describe('글자 모양', () => {

@@ -98,6 +98,10 @@ if (!port) {
   // game.css 를 받기 전에는 숨김 (모양 없는 화면이 번쩍이지 않게)
   root.hidden = true;
   document.body.appendChild(root);
+  // 글자 · 버튼 · 정보줄 배율 (패널 높이에 맞춰, game.css 의 --pg-ui) — style 속성 대신 CSSOM 으로 (웹뷰 보안 규칙)
+  const applyUiScale = () => root.style.setProperty('--pg-ui', String(store.get().layout.uiScale));
+  applyUiScale();
+  store.subscribe(applyUiScale);
   const css = document.createElement('link');
   css.rel = 'stylesheet';
   css.href = config.script.replace(/game\.js(?=$|[?#])/, 'game.css');
