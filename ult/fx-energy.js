@@ -552,20 +552,26 @@
         const dbl = !!o.double;
         const Tb = dbl ? T * 0.64 : T; // 한 줄 굵기
         const sep = dbl ? T * 0.52 : 0; // 두 줄이 가운데서 떨어진 정도
-        const ox = u.mouth.x + dir * Math.max(2 * S, T * 0.12);
+        // 입 앞 빛 구 — 포켓몬 크기에 맞춰 작게 (빔 굵기에 맞추면 쓰는 애를 통째로 가림)
+        const orbR = Math.max(3 * S, Math.min(T * 0.6, u.R * 0.3));
+        const ox = u.mouth.x + dir * Math.max(2 * S, orbR * 0.6);
         const oy = u.mouth.y;
         const reach = Math.max(1, dir > 0 ? W - ox : ox);
         const span = sep + Tb * 0.68;
         const yFar = Math.max(Math.min(oy, u.ground - span), Math.min(span, H * 0.5)); // 땅에 묻히지 않는 높이 — 입이 땅에 가까우면 입 앞 위쪽에서 쏨
+        const yMouth = Math.min(oy, u.ground - orbR * 1.3);
         const flare = T * 1.4; // 물결(wave)이 이 거리까지 서서히 커짐
-        const lineY = () => yFar; // 곧게 — 처음부터 끝까지 같은 높이 (입에서 올라가며 휘면 꺾여 보임)
-        const offAt = () => (dbl ? sep : 0);
+        // 나팔 모양 — 빛 구에서 가늘게 시작해 spreadL 동안 굵어지고, 높이도 입에서 광선 높이로 부드럽게
+        const spreadL = Math.max(T * 1.6, orbR * 6);
+        const spreadK = (d) => smooth(d / spreadL);
+        const th0 = clamp((orbR * 1.3) / Tb, 0.2, 1);
+        const lineY = (d) => lerp(yMouth, yFar, smooth(d / (spreadL * 1.1)));
+        const offAt = (d) => (dbl ? sep * lerp(th0, 1, spreadK(d)) : 0);
         const waveAt = (d, f) => (o.wave ? Math.sin(d / (T * 0.5) - f * 15) * T * 0.22 * smooth(d / flare) : 0);
-        const thAt = (d) => Tb * (1 + (0.1 * d) / reach); // 처음부터 굵게 (가늘게 시작하면 가장자리가 휘어 보임), 멀리 갈수록 아주 살짝 넓게
+        const thAt = (d) => Tb * (1 + (0.1 * d) / reach) * lerp(th0, 1, spreadK(d)); // 멀리 갈수록 아주 살짝 넓게
         const lines = dbl ? [-1, 1] : [0];
         const speed = Math.max(1500, W * 3.6);
-        const orbR = Math.max(3 * S, T * 0.6); // 광선 끝을 덮는 크기
-        const C = { x: ox, y: yFar }; // 모이는 곳 — 광선 높이
+        const C = { x: ox, y: yMouth }; // 모이는 곳 — 입 앞
         const flash = overlay(total);
         const beats = [0.3, 0.55, 0.76];
         const st = { fired: false, acc: 0, aura: 0, beats: 0, arcs: [], nextArc: 0, rings: [], nextRing: 0, spray: 0, edge: 0, dust: 0, hit: new Set(), nextHit: 0, gone: false, sc: 1 };

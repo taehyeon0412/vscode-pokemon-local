@@ -876,6 +876,25 @@ function screenFlash(s, alpha, color = '#fffbe0', max = 0.28) {
     } });
 }
 // 꽉 찬 원 (그림 칸 단위 가로줄로)
+// 빔이 나오는 자리의 작은 빛 구 — 겹 원(바깥 짙은 색 → 하얀 심) · 둘레에 짧은 빛살이 돎. 빔 시작의 네모 단면을 덮어 자연스럽게
+function muzzleGlow(ctx, px, s, x, y, r, cols, t, alpha = 1) {
+    if (r < s || alpha <= 0.01) {
+        return;
+    }
+    for (const [m, c, a] of [[1.25, cols[3], 0.45], [1, cols[2], 0.9], [0.72, cols[1], 1], [0.45, '#ffffff', 1]]) {
+        ctx.globalAlpha = a * alpha;
+        sigDisc(ctx, px, s, x, y, Math.max(s * 0.6, r * m), c);
+    }
+    ctx.globalAlpha = 0.85 * alpha;
+    for (let j = 0; j < 8; j++) {
+        const a = t * 5 + (j * Math.PI * 2) / 8;
+        const len = r * (j % 2 ? 1.7 : 2.3) * (0.85 + 0.2 * Math.sin(t * 30 + j));
+        for (let d = r * 1.1; d < len; d += s) {
+            ctx.fillStyle = d < len * 0.6 ? cols[0] : cols[1];
+            ctx.fillRect(px(x + Math.cos(a) * d), px(y + Math.sin(a) * d), s, s);
+        }
+    }
+}
 function sigDisc(ctx, px, s, x, y, r, color) {
     ctx.fillStyle = color;
     for (let dy = -r; dy <= r; dy += s) {
@@ -1044,7 +1063,8 @@ const SIG_FX = {
                 },
                 draw: (ctx, p, t, px) => {
                     const L = Math.min(p.reach, p.life * 1600);
-                    ctx.globalAlpha = (t > 0.8 ? (1 - t) / 0.2 : 1) * (0.85 + 0.15 * Math.random());
+                    const alpha = (t > 0.8 ? (1 - t) / 0.2 : 1) * (0.85 + 0.15 * Math.random());
+                    ctx.globalAlpha = alpha;
                     for (let k = 0; k < L; k += p.s) {
                         const x = p.x + p.dir * k;
                         const yo = o.wave ? Math.sin(k / (5 * p.s) - p.life * 25) * p.s * 1.5 : 0;
@@ -1056,6 +1076,9 @@ const SIG_FX = {
                             ctx.fillRect(px(x), px(p.y + yo - (th * p.s) / 2), p.s, th * p.s);
                         }
                     }
+                    // 입 앞 작은 빛 구 — 쏘는 순간 크게 터졌다 줄어듦
+                    const r = Math.max(1.5 * p.s, (p.W + 2) * p.s * 0.75) * (1 + 0.6 * Math.max(0, 1 - p.life / 0.12)) * (1 + 0.08 * Math.sin(p.life * 40));
+                    muzzleGlow(ctx, px, p.s, p.x, p.y, r, o.rainbow ? ['#ffffff', '#fff3b0', '#ffb3e6', '#9ec5ff'] : p.cols, p.life, alpha);
                 },
             });
         },

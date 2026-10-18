@@ -6715,6 +6715,25 @@ function screenFlash(s, alpha, color = '#fffbe0', max = 0.28) {
     } });
 }
 // 꽉 찬 원 (그림 칸 단위 가로줄로)
+// 빔이 나오는 자리의 작은 빛 구 — 겹 원(바깥 짙은 색 → 하얀 심) · 둘레에 짧은 빛살이 돎. 빔 시작의 네모 단면을 덮어 자연스럽게
+function muzzleGlow(ctx, px, s, x, y, r, cols, t, alpha = 1) {
+    if (r < s || alpha <= 0.01) {
+        return;
+    }
+    for (const [m, c, a] of [[1.25, cols[3], 0.45], [1, cols[2], 0.9], [0.72, cols[1], 1], [0.45, '#ffffff', 1]]) {
+        ctx.globalAlpha = a * alpha;
+        sigDisc(ctx, px, s, x, y, Math.max(s * 0.6, r * m), c);
+    }
+    ctx.globalAlpha = 0.85 * alpha;
+    for (let j = 0; j < 8; j++) {
+        const a = t * 5 + (j * Math.PI * 2) / 8;
+        const len = r * (j % 2 ? 1.7 : 2.3) * (0.85 + 0.2 * Math.sin(t * 30 + j));
+        for (let d = r * 1.1; d < len; d += s) {
+            ctx.fillStyle = d < len * 0.6 ? cols[0] : cols[1];
+            ctx.fillRect(px(x + Math.cos(a) * d), px(y + Math.sin(a) * d), s, s);
+        }
+    }
+}
 function sigDisc(ctx, px, s, x, y, r, color) {
     ctx.fillStyle = color;
     for (let dy = -r; dy <= r; dy += s) {
@@ -6883,7 +6902,8 @@ const SIG_FX = {
                 },
                 draw: (ctx, p, t, px) => {
                     const L = Math.min(p.reach, p.life * 1600);
-                    ctx.globalAlpha = (t > 0.8 ? (1 - t) / 0.2 : 1) * (0.85 + 0.15 * Math.random());
+                    const alpha = (t > 0.8 ? (1 - t) / 0.2 : 1) * (0.85 + 0.15 * Math.random());
+                    ctx.globalAlpha = alpha;
                     for (let k = 0; k < L; k += p.s) {
                         const x = p.x + p.dir * k;
                         const yo = o.wave ? Math.sin(k / (5 * p.s) - p.life * 25) * p.s * 1.5 : 0;
@@ -6895,6 +6915,9 @@ const SIG_FX = {
                             ctx.fillRect(px(x), px(p.y + yo - (th * p.s) / 2), p.s, th * p.s);
                         }
                     }
+                    // 입 앞 작은 빛 구 — 쏘는 순간 크게 터졌다 줄어듦
+                    const r = Math.max(1.5 * p.s, (p.W + 2) * p.s * 0.75) * (1 + 0.6 * Math.max(0, 1 - p.life / 0.12)) * (1 + 0.08 * Math.sin(p.life * 40));
+                    muzzleGlow(ctx, px, p.s, p.x, p.y, r, o.rainbow ? ['#ffffff', '#fff3b0', '#ffb3e6', '#9ec5ff'] : p.cols, p.life, alpha);
                 },
             });
         },
@@ -14331,20 +14354,26 @@ window.__ult = {
         const dbl = !!o.double;
         const Tb = dbl ? T * 0.64 : T; // 한 줄 굵기
         const sep = dbl ? T * 0.52 : 0; // 두 줄이 가운데서 떨어진 정도
-        const ox = u.mouth.x + dir * Math.max(2 * S, T * 0.12);
+        // 입 앞 빛 구 — 포켓몬 크기에 맞춰 작게 (빔 굵기에 맞추면 쓰는 애를 통째로 가림)
+        const orbR = Math.max(3 * S, Math.min(T * 0.6, u.R * 0.3));
+        const ox = u.mouth.x + dir * Math.max(2 * S, orbR * 0.6);
         const oy = u.mouth.y;
         const reach = Math.max(1, dir > 0 ? W - ox : ox);
         const span = sep + Tb * 0.68;
         const yFar = Math.max(Math.min(oy, u.ground - span), Math.min(span, H * 0.5)); // 땅에 묻히지 않는 높이 — 입이 땅에 가까우면 입 앞 위쪽에서 쏨
+        const yMouth = Math.min(oy, u.ground - orbR * 1.3);
         const flare = T * 1.4; // 물결(wave)이 이 거리까지 서서히 커짐
-        const lineY = () => yFar; // 곧게 — 처음부터 끝까지 같은 높이 (입에서 올라가며 휘면 꺾여 보임)
-        const offAt = () => (dbl ? sep : 0);
+        // 나팔 모양 — 빛 구에서 가늘게 시작해 spreadL 동안 굵어지고, 높이도 입에서 광선 높이로 부드럽게
+        const spreadL = Math.max(T * 1.6, orbR * 6);
+        const spreadK = (d) => smooth(d / spreadL);
+        const th0 = clamp((orbR * 1.3) / Tb, 0.2, 1);
+        const lineY = (d) => lerp(yMouth, yFar, smooth(d / (spreadL * 1.1)));
+        const offAt = (d) => (dbl ? sep * lerp(th0, 1, spreadK(d)) : 0);
         const waveAt = (d, f) => (o.wave ? Math.sin(d / (T * 0.5) - f * 15) * T * 0.22 * smooth(d / flare) : 0);
-        const thAt = (d) => Tb * (1 + (0.1 * d) / reach); // 처음부터 굵게 (가늘게 시작하면 가장자리가 휘어 보임), 멀리 갈수록 아주 살짝 넓게
+        const thAt = (d) => Tb * (1 + (0.1 * d) / reach) * lerp(th0, 1, spreadK(d)); // 멀리 갈수록 아주 살짝 넓게
         const lines = dbl ? [-1, 1] : [0];
         const speed = Math.max(1500, W * 3.6);
-        const orbR = Math.max(3 * S, T * 0.6); // 광선 끝을 덮는 크기
-        const C = { x: ox, y: yFar }; // 모이는 곳 — 광선 높이
+        const C = { x: ox, y: yMouth }; // 모이는 곳 — 입 앞
         const flash = overlay(total);
         const beats = [0.3, 0.55, 0.76];
         const st = { fired: false, acc: 0, aura: 0, beats: 0, arcs: [], nextArc: 0, rings: [], nextRing: 0, spray: 0, edge: 0, dust: 0, hit: new Set(), nextHit: 0, gone: false, sc: 1 };
@@ -32849,8 +32878,9 @@ function duelStart(D) {
         const xAt = (d, w) => (dir > 0 ? x0 + d : x0 - d - w);
         for (const ln of lines) {
             for (let i = 0; i < n; i++) {
-                ys[i] = X.y0 + ln * sep + wave(i * seg + seg / 2);
-                hs[i] = st.hb * sc;
+                const spread = lerp(clamp((st.orbR * 0.75) / st.hb, 0.25, 1), 1, smooth((i * seg) / (st.h * 3))); // 나팔 모양 — 입 앞 빛 구에서 가늘게 시작
+                ys[i] = X.y0 + ln * sep * spread + wave(i * seg + seg / 2);
+                hs[i] = st.hb * sc * spread;
             }
             if (o.spiral) {
                 beamSpiral(ctx, px, D, X, n, L, false, fade);

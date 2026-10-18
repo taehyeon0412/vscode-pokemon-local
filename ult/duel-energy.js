@@ -832,8 +832,9 @@
         const xAt = (d, w) => (dir > 0 ? x0 + d : x0 - d - w);
         for (const ln of lines) {
             for (let i = 0; i < n; i++) {
-                ys[i] = X.y0 + ln * sep + wave(i * seg + seg / 2);
-                hs[i] = st.hb * sc;
+                const spread = lerp(clamp((st.orbR * 0.75) / st.hb, 0.25, 1), 1, smooth((i * seg) / (st.h * 3))); // 나팔 모양 — 입 앞 빛 구에서 가늘게 시작
+                ys[i] = X.y0 + ln * sep * spread + wave(i * seg + seg / 2);
+                hs[i] = st.hb * sc * spread;
             }
             if (o.spiral) {
                 beamSpiral(ctx, px, D, X, n, L, false, fade);
