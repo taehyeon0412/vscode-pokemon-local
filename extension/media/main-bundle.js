@@ -14396,8 +14396,9 @@ window.__ult = {
         const Tb = dbl ? T * 0.64 : T; // 한 줄 굵기
         const sep = dbl ? T * 0.52 : 0; // 두 줄이 가운데서 떨어진 정도
         // 입 앞 빛 구 — 포켓몬 크기에 맞춰 작게 (빔 굵기에 맞추면 쓰는 애를 통째로 가림)
-        const orbR = Math.max(3 * S, Math.min(T * 0.6, u.R * 0.3));
-        const ox = u.mouth.x + dir * Math.max(2 * S, orbR * 0.6);
+        // 빛 구 크기는 실제 그림 너비로 (작은 애는 작게 — 겉 빛까지 1.45배라 쓰는 애를 덮지 않게), 입보다 조금 앞에 (2026-10-19)
+        const orbR = Math.max(2.5 * S, Math.min(T * 0.6, u.w * 0.22));
+        const ox = u.mouth.x + dir * Math.max(2 * S, orbR * 1.3);
         const oy = u.mouth.y;
         const reach = Math.max(1, dir > 0 ? W - ox : ox);
         const span = sep + Tb * 0.68;
