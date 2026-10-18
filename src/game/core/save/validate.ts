@@ -8,8 +8,9 @@ import { BALANCE } from '../balance';
 import {
   ENCOUNTER_STARTS, ITEM_IDS, LOCATION_SCREENS, SAVE_VERSION, STAGE_IDS, STAT_KEYS, STATUS_KINDS,
   type Encounter, type FacilitySpot, type ItemId, type LastHospital, type Location, type Monster,
-  type MoveSlot, type Save, type StageId, type StageProgress, type Stats, type StatusCondition,
+  type MoveSlot, type PendingChoice, type Save, type StageId, type StageProgress, type Stats, type StatusCondition,
 } from './schema';
+import { evolutionsOf, moveOf, speciesOf } from '../../data';
 
 export type ValidateResult =
   | { ok: true; save: Save; problems: string[] }
@@ -22,7 +23,7 @@ const MAX_SLEEP_TURNS = 3;
 /** SaveV1 의 칸 이름 — 모르는 칸은 고칠 때 뺌 */
 const KNOWN_KEYS: readonly (keyof Save)[] = [
   'version', 'createdAt', 'updatedAt', 'playTimeMs', 'player', 'monsters', 'party', 'box', 'nextMonsterUid',
-  'bag', 'money', 'badges', 'stages', 'location', 'lastHospital', 'dex', 'pendingEncounter', 'settings',
+  'bag', 'money', 'badges', 'stages', 'location', 'lastHospital', 'dex', 'pendingEncounter', 'pendingChoices', 'settings',
 ];
 
 /** 포켓몬 uid 의 숫자 상한 ("m" + 9자리) — 열쇠 이름 규칙과 nextMonsterUid 가 늘 맞게 */
@@ -262,6 +263,37 @@ function readEncounter(v: unknown, path: string, fx: Fixer): Encounter | null {
   return null;
 }
 
+/** 전투 끝에 남은 고르기 — 없는 포켓몬 · 모르는 기술 · 이상한 칸은 빼고 (빠져도 다음 레벨업 · 진화 때 다시 나옴). 옛 세이브에 칸이 없으면 빈 목록 */
+function readChoices(v: unknown, path: string, fx: Fixer, monsters: Record<string, Monster>, renamed: Map<string, string>): PendingChoice[] {
+  if (v === undefined) return [];
+  if (!Array.isArray(v)) {
+    fx.note(path, '목록이 아님 → 비움');
+    return [];
+  }
+  const out: PendingChoice[] = [];
+  v.forEach((c, i) => {
+    const p = `${path}[${i}]`;
+    // 열쇠 이름을 고친 포켓몬이면 새 이름으로 · 목록에 진짜로 있는 포켓몬만 (toString 같은 이름은 안 됨)
+    const uid = isObj(c) && typeof c.uid === 'string' ? (renamed.get(c.uid) ?? c.uid) : null;
+    if (isObj(c) && uid !== null && Object.prototype.hasOwnProperty.call(monsters, uid)) {
+      if (c.kind === 'learn' && Number.isInteger(c.moveId) && moveOf(c.moveId as number)) {
+        out.push({ kind: 'learn', uid, moveId: c.moveId as number });
+        return;
+      }
+      const newMoves = Array.isArray(c.newMoves) ? c.newMoves.filter((m): m is number => Number.isInteger(m) && !!moveOf(m as number)).slice(0, 4) : null;
+      // 진화는 그 종의 진짜 진화만 · 포켓몬마다 하나만 (손으로 고친 세이브에서 뮤츠로 "진화" 하지 않게)
+      const realEvolution = Number.isInteger(c.to) && evolutionsOf(monsters[uid]!.species).some((e) => e.to === c.to);
+      const already = out.some((x) => x.kind === 'evolve' && x.uid === uid);
+      if (c.kind === 'evolve' && realEvolution && !already && speciesOf(c.to as number) && newMoves && Number.isInteger(c.level) && (c.level as number) >= 1 && (c.level as number) <= BALANCE.maxLevel && (c.item === null || isItemId(c.item))) {
+        out.push({ kind: 'evolve', uid, to: c.to as number, newMoves, level: c.level as number, item: c.item as ItemId | null });
+        return;
+      }
+    }
+    fx.note(p, '고르기를 읽지 못해 뺌');
+  });
+  return out;
+}
+
 function readBag(v: unknown, path: string, fx: Fixer): Save['bag'] {
   const bag: Save['bag'] = {};
   if (!isObj(v)) {
@@ -418,6 +450,7 @@ export function validateSave(raw: unknown): ValidateResult {
     lastHospital: readLastHospital(raw.lastHospital ?? null, 'lastHospital', fx),
     dex: { seen, caught },
     pendingEncounter: readEncounter(raw.pendingEncounter ?? null, 'pendingEncounter', fx),
+    pendingChoices: readChoices(raw.pendingChoices, 'pendingChoices', fx, monsters, renamed),
     settings: {
       notifications: fx.bool(settingsRaw.notifications, 'settings.notifications', true),
       autoBattle: fx.bool(settingsRaw.autoBattle, 'settings.autoBattle', false),

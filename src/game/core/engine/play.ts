@@ -13,8 +13,9 @@ import { spotBetween, spotRng, stageLayout, walkDelta, type StageLayout } from '
 import { statsOf } from '../rules/stats';
 import type { Save, StageId, StageProgress } from '../save';
 import { withJosa } from '../text';
-import { speciesOf } from '../../data';
+import { moveOf, speciesOf } from '../../data';
 import { applyBattleResult, battleDone, battleInput, battleStep, battleWaiting, firstAlive, startBattle, switchable, type BattleInput } from './battle';
+import { battleRewards, resolveEvolve, resolveLearn } from './rewards';
 import { Rng } from './rng';
 import { MAX_SPEED, type GameState, type RuntimeState, type StageRuntime } from './state';
 import { takeSteps } from './step';
@@ -32,10 +33,18 @@ export type GameInput =
   /** 전투 메뉴 · 필살기 · 다음 포켓몬 (Space 는 위 'space' 로 — 힘대결 연타 · 맞받아치기) */
   | { kind: 'battle'; input: BattleInput }
   /** S09 ⑫ 자동 전투 스위치 — 세이브 설정에 (다음 전투에도 그대로) */
-  | { kind: 'auto-battle'; on: boolean };
+  | { kind: 'auto-battle'; on: boolean }
+  /** S12 계속 (Space · Enter · 클릭) */
+  | { kind: 'result-continue' }
+  /** S23 — 바꿀 칸 (null = 배우지 않기) */
+  | { kind: 'learn'; replace: number | null; uid?: string; moveId?: number }
+  /** S22 — 남길 지금 기술 (진화 연출이 끝난 뒤) · 멈추기 (Esc, 연출 중) · 빨리 넘기기 (Space) */
+  | { kind: 'evolve'; keep: number[]; uid?: string; to?: number }
+  | { kind: 'evolve-cancel'; uid?: string; to?: number }
+  | { kind: 'evolve-skip' };
 
 /** 안 볼 때 직접 해야 하는 순간 — 확장이 VS Code 알림 (U9, 설정에서 끔) */
-export type GameNotice = 'shiny' | 'request';
+export type GameNotice = 'shiny' | 'request' | 'choice';
 
 /** 부탁 자리에 멈춰 있을 때 진행 % 를 자리 바로 앞에 둠 — 고르기 전에 꺼도 다시 켜면 그 부탁부터 */
 const BEFORE_SPOT = 1e-7;
@@ -52,8 +61,6 @@ export function leadSpeed(save: Save): number {
   const s = m ? speciesOf(m.species) : undefined;
   return m && s ? statsOf(s.base, m.ivs, m.points, m.level).speed : 0;
 }
-
-const nameOf = (dex: number) => speciesOf(dex)?.name.ko ?? '???';
 
 /** 처음 들어온 스테이지면 시드를 뽑고, 병원 · 상점 자리를 세이브에도 적어 둠 (그 뒤로는 세이브 쪽이 기준) */
 function ensureStage(save: Save, rt: RuntimeState, id: StageId): { save: Save; rt: RuntimeState; prog: StageProgress; layout: StageLayout } {
@@ -87,6 +94,8 @@ function checkedStage(rt: RuntimeState, save: Save, id: StageId, layout: StageLa
   const st = rt.stage;
   if (!st || rt.stageId !== id) return null;
   if ((st.phase === 'appear' || st.phase === 'battle') && save.pendingEncounter?.kind !== 'wild') return null;
+  // 고를 것 (S23 · S22) 이 남았는데 걷기 · 전투 상태가 오면 버림 → 고르기부터 (고르기를 둔 채 걷지 않게)
+  if (save.pendingChoices.length > 0 && st.phase !== 'result' && st.phase !== 'choice') return null;
   if (st.phase === 'request') {
     const spots = layout.spots.filter((s) => s.kind === 'request');
     const n = spots.findIndex((s) => s.at === st.at);
@@ -110,10 +119,18 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
   const pending0 = save.pendingEncounter;
   let stage: StageRuntime =
     checkedStage(rt, save, id, layout, prog.progress) ??
-    // 전투 중에 껐다 켜면 그 전투를 처음부터 (mvp-spec 9장)
-    (pending0?.kind === 'wild' ? { phase: 'battle', battle: startBattle(save, pending0.monster, pending0.start) } : prog.progress >= 1 ? { phase: 'end' } : { phase: 'walk' });
+    // 고르다 껐으면 그 고르기부터 (S23 · S22) · 전투 중에 껐다 켜면 그 전투를 처음부터 (mvp-spec 9장)
+    (save.pendingChoices.length > 0
+      ? { phase: 'choice', ms: 0 }
+      : pending0?.kind === 'wild'
+        ? { phase: 'battle', battle: startBattle(save, pending0.monster, pending0.start) }
+        : prog.progress >= 1
+          ? { phase: 'end' }
+          : { phase: 'walk' });
   let signal: SaveSignal | null = null;
   let notice: GameNotice | null = null;
+  // 안 볼 때 고를 것이 남은 세이브로 시작했으면 (껐다 켬 등) 한 번 알림 — 그 뒤로는 기다리는 중이라 확장 계산이 멈춤
+  if (rt.headless && stage.phase === 'choice' && rt.stage?.phase !== 'choice' && save.pendingChoices.length > 0) notice = 'choice';
   if (shinyWhileAway(save, rt, stage)) return { save, rt: { ...rt, stage, stageId: id }, signal, notice };
 
   switch (stage.phase) {
@@ -178,28 +195,45 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
     }
     case 'battle': {
       const rng = new Rng(rt.rngState);
-      const battle = battleStep(stage.battle, save, stepMs, rng, { auto: save.settings.autoBattle });
+      const battle = battleStep(stage.battle, save, stepMs, rng, { auto: save.settings.autoBattle, away: rt.headless });
       rt = { ...rt, rngState: rng.state };
       if (!battleDone(battle)) {
         stage = { phase: 'battle', battle };
         break;
       }
-      // 경험치 · 레벨업 · 결과 화면 (S12) 은 단계 7, 패배 화면 (S17) 은 단계 9
-      const name = nameOf(battle.foe.species);
-      // 이겼어도 (반동 · 독으로) 내 팀이 다 쓰러졌으면 진 것과 같이 (applyBattleResult 가 임시로 회복)
+      // 이겼어도 (반동 · 독으로) 내 팀이 다 쓰러졌으면 진 것과 같이 (applyBattleResult 가 임시로 회복 — 패배 화면 S17 은 단계 9)
       const wiped = battle.me.hp <= 0 && switchable(battle, save).length === 0;
+      const before = save;
       save = applyBattleResult(save, battle);
-      const text =
-        battle.result === 'win' && !wiped
-          ? `야생 ${withJosa(name, '을/를')} 쓰러뜨렸다!`
-          : battle.result === 'flee' && !wiped
-            ? '무사히 도망쳤다!'
-            : '눈앞이 깜깜해졌다… (임시: 팀을 회복했어요 — 패배 화면은 단계 9)';
+      signal = battle.result === 'catch' ? 'catch' : 'battle-end';
+      if ((battle.result === 'win' || battle.result === 'catch') && !wiped) {
+        // S12 전투 결과 — 경험치 · 레벨업 · 돈 · 아이템 · 잡은 포켓몬 (세이브에 바로), 고를 것은 pendingChoices
+        const wild = before.pendingEncounter?.kind === 'wild' ? before.pendingEncounter.monster : null;
+        const r = battleRewards(save, battle, wild, id, rng);
+        save = r.save;
+        rt = { ...rt, rngState: rng.state };
+        stage = { phase: 'result', summary: r.summary, ms: 0 };
+        break;
+      }
+      const text = battle.result === 'flee' && !wiped ? '무사히 도망쳤다!' : '눈앞이 깜깜해졌다… (임시: 팀을 회복했어요 — 패배 화면은 단계 9)';
       rt = { ...rt, toast: { text, ms: TIMING.toastMs } };
       stage = { phase: 'walk' };
-      signal = 'battle-end';
       break;
     }
+    case 'result': {
+      const ms = stage.ms + stepMs;
+      if (ms < TIMING.resultMs) {
+        stage = { ...stage, ms };
+        break;
+      }
+      stage = afterResult(save);
+      if (stage.phase === 'choice' && rt.headless) notice = 'choice';
+      break;
+    }
+    case 'choice':
+      // 고를 것이 없으면 다시 걸음 · 있으면 고를 때까지 (ms = 진화 연출, 다 차면 그대로)
+      stage = save.pendingChoices.length === 0 ? { phase: 'walk' } : { phase: 'choice', ms: Math.min(TIMING.evolveAnimMs, stage.ms + stepMs) };
+      break;
     case 'request': {
       if (!stage.result) break; // 고를 때까지 기다림 (고른 순간 진행 % 는 자리로 — applyInput)
       const ms = stage.ms + stepMs;
@@ -257,6 +291,7 @@ export function isWaitingForInput(state: GameState): boolean {
   const st = state.runtime.stage;
   if (shinyWhileAway(state.save, state.runtime, st)) return true;
   if (st?.phase === 'battle') return !state.save.settings.autoBattle && battleWaiting(st.battle);
+  if (st?.phase === 'choice') return state.save.pendingChoices.length > 0;
   return (st?.phase === 'request' && !st.result) || st?.phase === 'end' || st?.phase === 'hold';
 }
 
@@ -266,7 +301,10 @@ export function applyInput(state: GameState, input: GameInput): GameState {
   const save = state.save;
   switch (input.kind) {
     case 'space':
-      if (stage?.phase === 'battle') return withBattleInput(state, { kind: 'space' });
+      if (stage?.phase === 'battle') return withBattleInput(state, { kind: 'space', extraMs: state.runtime.stepAccMs });
+      // S12 계속 · S22 진화 연출 빨리 넘기기
+      if (stage?.phase === 'result') return applyInput(state, { kind: 'result-continue' });
+      if (stage?.phase === 'choice') return applyInput(state, { kind: 'evolve-skip' });
       if (stage?.phase !== 'appear' || stage.space || stage.ms > BALANCE.preemptiveWindowMs) return state;
       return { ...state, runtime: { ...state.runtime, stage: { ...stage, space: true } } };
     case 'battle':
@@ -274,6 +312,36 @@ export function applyInput(state: GameState, input: GameInput): GameState {
     case 'auto-battle':
       if (save.settings.autoBattle === input.on) return state;
       return { ...state, save: { ...save, settings: { ...save.settings, autoBattle: input.on } } };
+    case 'result-continue':
+      if (stage?.phase !== 'result') return state;
+      return { ...state, runtime: { ...state.runtime, stage: afterResult(save) } };
+    case 'learn': {
+      const c = save.pendingChoices[0];
+      if (stage?.phase !== 'choice' || c?.kind !== 'learn') return state;
+      // 화면이 다시 그려지기 전에 두 번 눌러도 다음 고르기 (다른 포켓몬) 에 들어가지 않게 — 화면이 보던 고르기와 맞을 때만
+      if ((input.uid !== undefined && input.uid !== c.uid) || (input.moveId !== undefined && input.moveId !== c.moveId)) return state;
+      // 무엇을 잊고 배웠는지 한 줄 (숫자 하나로 기술이 바뀌니 알게)
+      const m = save.monsters[c.uid];
+      const learned = moveOf(c.moveId)?.name.ko ?? '?';
+      const forgot = input.replace !== null && m ? moveOf(m.moves[input.replace]?.moveId ?? -1)?.name.ko : undefined;
+      const text = forgot ? `${withJosa(forgot, '을/를')} 잊고 ${withJosa(learned, '을/를')} 배웠다!` : `${withJosa(learned, '을/를')} 배우지 않았다`;
+      return afterChoice(state, resolveLearn(save, input.replace), state.runtime.rngState, text);
+    }
+    case 'evolve':
+    case 'evolve-cancel': {
+      const head = save.pendingChoices[0];
+      if (stage?.phase !== 'choice' || head?.kind !== 'evolve') return state;
+      if ((input.uid !== undefined && input.uid !== head.uid) || (input.to !== undefined && input.to !== head.to)) return state;
+      // 남길 기술은 연출이 끝난 뒤에 고름 · 멈추기 (Esc) 는 연출 중에만 (원작처럼)
+      if (input.kind === 'evolve' && stage.ms < TIMING.evolveAnimMs) return state;
+      if (input.kind === 'evolve-cancel' && (stage.ms >= TIMING.evolveAnimMs || stage.ms < TIMING.evolveGuardMs)) return state;
+      const rng = new Rng(state.runtime.rngState);
+      const text = input.kind === 'evolve-cancel' ? '진화를 멈췄다 — 다음 레벨업 때 다시' : undefined;
+      return afterChoice(state, resolveEvolve(save, input.kind === 'evolve' ? input.keep : null, rng), rng.state, text);
+    }
+    case 'evolve-skip':
+      if (stage?.phase !== 'choice' || save.pendingChoices[0]?.kind !== 'evolve' || stage.ms >= TIMING.evolveAnimMs || stage.ms < TIMING.evolveGuardMs) return state;
+      return { ...state, runtime: { ...state.runtime, stage: { phase: 'choice', ms: TIMING.evolveAnimMs } } };
     case 'request': {
       if (stage?.phase !== 'request' || stage.result || save.location.screen !== 'stage') return state;
       const id = save.location.stageId;
@@ -303,6 +371,16 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       return { save: { ...save, stages: { ...save.stages, [id]: fresh } }, runtime: { ...state.runtime, rngState: rng.state, stage: { phase: 'walk' } } };
     }
   }
+}
+
+/** S12 다음 — 고를 것 (S23 · S22) 이 있으면 고르기, 없으면 다시 걸음 */
+function afterResult(save: Save): StageRuntime {
+  return save.pendingChoices.length > 0 ? { phase: 'choice', ms: 0 } : { phase: 'walk' };
+}
+
+/** 하나 고른 뒤 — 다음 고르기 (새 연출부터) 또는 걸음 · 한 줄 알림 (걸을 때 주인공 머리 위) */
+function afterChoice(state: GameState, save: Save, rngState: number, toast?: string): GameState {
+  return { save, runtime: { ...state.runtime, rngState, stage: afterResult(save), toast: toast ? { text: toast, ms: TIMING.toastMs } : state.runtime.toast } };
 }
 
 function withBattleInput(state: GameState, input: BattleInput): GameState {

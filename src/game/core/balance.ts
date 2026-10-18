@@ -123,6 +123,43 @@ export const BALANCE = {
   reviveFraction: 0.5,
   /** 야생 AI: 공격 30% · 기술 70% */
   wildAttackChance: 0.3,
+
+  // ---- 잡기 (mvp-spec 3.4 · 4장 "잡기")
+  /** 잡을 확률 = (포획률 / 255) × (1 − 남은 HP 비율 × 2/3) × 볼 배율 × 타이밍, 최대 1 · 마지막 기회 × 0.5 */
+  catchHpWeight: 2 / 3,
+  ballScale: { 'poke-ball': 1, 'great-ball': 1.5, 'ultra-ball': 2 },
+  lastChanceScale: 0.5,
+  /** 타이밍 원: 원이 다 줄어든 순간에서 ± 이 시간 안이면 완벽 · 좋음 */
+  catchPerfectMs: 100,
+  catchGoodMs: 250,
+  catchPerfectScale: 1.5,
+  catchGoodScale: 1.25,
+
+  // ---- 경험치 · 성장 (mvp-spec 3.5 · 4장 "경험치 · 성장")
+  /** 경험치 = 상대 기본 경험치 × 상대 레벨 / 7 · 트레이너 × 1.5 · 팀 나머지 × 0.5 · 상대가 내 레벨보다 5 이상 낮으면 × 0.5 */
+  expDivisor: 7,
+  expTrainerScale: 1.5,
+  expShareScale: 0.5,
+  expLowGap: 5,
+  expLowScale: 0.5,
+  /** 레벨업마다 포인트: 자동 2 (종족값이 높은 스탯일수록 잘 뽑힘) + 고르는 2 (S18) */
+  pointsAutoPerLevel: 2,
+  pointsFreePerLevel: 2,
+  /** 특수 조건 진화 [제안]: 앞 진화 레벨 + 10, 앞 진화가 없으면 Lv 30 */
+  otherEvolutionGap: 10,
+  otherEvolutionDefault: 30,
+  /** 진화할 때 새 기술 2개 · 대표 기술이 모자라면 지금 레벨 + 5 까지 배우는 기술 중 가장 센 것 [제안] */
+  evolutionNewMoves: 2,
+  evolutionMoveReach: 5,
+
+  // ---- 돈 · 아이템 (mvp-spec 3.7 · 4장 "돈 · 아이템")
+  /** 야생을 이기면 30% 로 상대 레벨 × 5원 · 잭팟 1% 1000원 */
+  wildMoneyChance: 0.3,
+  wildMoneyPerLevel: 5,
+  jackpotChance: 0.01,
+  jackpotMoney: 1000,
+  /** 야생을 이기면 약 10% 로 아이템 — 몬스터볼 · 상처약 반반 [제안] */
+  wildItemChance: 0.1,
 } as const;
 
 /** 시간 박자 — 저장 · 그리기 · 계산 (mvp-spec 3.1 · 9장) */
@@ -169,4 +206,14 @@ export const TIMING = {
   clashResultMs: 800,
   /** 전투 끝 결과 (쓰러뜨렸다 · 도망쳤다) 를 보여 주는 시간 */
   battleOverMs: 1800,
+  /** S11 타이밍 원이 줄어드는 시간 · 그 뒤 늦게 눌러도 받는 시간 · 볼이 흔들리고 결과를 보여 주는 시간 */
+  catchRingMs: 1200,
+  catchShakeMs: 1100,
+  /** 이긴 뒤 마지막 기회 — 볼을 고르지 않으면 이 시간 뒤 그냥 지나감 [제안] */
+  lastChanceMs: 6000,
+  /** S12 결과를 보여 주는 시간 (계속 · Space · Enter 로 넘김) [제안] */
+  resultMs: 3500,
+  /** S22 진화 연출 (Space = 빨리 넘기기) · 시작하고 이 시간 동안은 Space · Esc 를 안 받음 (결과에서 Space 를 두 번 눌러 연출을 통째로 놓치지 않게) */
+  evolveAnimMs: 4000,
+  evolveGuardMs: 800,
 } as const;

@@ -4,12 +4,16 @@
 import type { BattleAction, BattleState } from '../../core/engine';
 import { canAct, faintedTeam, itemLeft, switchable } from '../../core/engine';
 import { isShooting } from '../../core/rules/battle';
+import { BALLS, isBall } from '../../core/rules/catch';
 import { BATTLE_ITEMS, itemName } from '../../core/rules/items';
 import type { Save } from '../../core/save';
 import { typeNameKo } from '../../core/text';
 import { formOf, moveOf, speciesOf, type TypeName } from '../../data';
 
 export type MenuPage = 'main' | 'skills' | 'items' | 'switch' | 'revive';
+
+/** 4 아이템 페이지 — 볼 먼저 (S11), 그다음 전투 아이템 */
+const MENU_ITEMS = [...BALLS, ...BATTLE_ITEMS];
 
 export interface MenuItem {
   key: string;
@@ -33,14 +37,14 @@ export function menuItems(b: BattleState, save: Save, page: MenuPage, compact = 
   switch (page) {
     case 'main': {
       const skillsOk = b.me.moves.some((s) => s.pp > 0);
-      const itemsOk = BATTLE_ITEMS.some((i) => canAct(b, save, { kind: 'item', item: i }));
-      const anyItem = BATTLE_ITEMS.some((i) => itemLeft(b, save, i) > 0);
+      const itemsOk = MENU_ITEMS.some((i) => canAct(b, save, { kind: 'item', item: i }));
+      const anyItem = MENU_ITEMS.some((i) => itemLeft(b, save, i) > 0);
       const switchOk = switchable(b, save).length > 0;
       const items: MenuItem[] = [
         { key: 'attack', num: 1, label: '1 공격', go: { action: { kind: 'attack' } }, enabled: canAct(b, save, { kind: 'attack' }), title: '1 공격 — 약한 기본기, 횟수 제한 없음' },
         { key: 'guard', num: 2, label: '2 방어', go: { action: { kind: 'guard' } }, enabled: canAct(b, save, { kind: 'guard' }), title: '2 방어 — 다음 내 행동까지 받는 피해 절반 (연달아 쓰면 줄어듦)' },
         { key: 'skills', num: 3, label: '3 스킬', go: { page: 'skills' }, enabled: b.phase === 'choose' && skillsOk, title: skillsOk ? '3 스킬' : '쓸 수 있는 기술이 없어요 (1 공격만)' },
-        { key: 'items', num: 4, label: '4 아이템', go: { page: 'items' }, enabled: b.phase === 'choose' && itemsOk, title: itemsOk ? '4 아이템 (볼은 다음 단계 — 잡기)' : anyItem ? '지금 쓸 수 있는 아이템이 없어요 (HP 가득 · 상태 이상 없음 · 쓰러진 포켓몬 없음)' : '아이템이 없어요 (볼은 다음 단계 — 잡기)' },
+        { key: 'items', num: 4, label: '4 아이템', go: { page: 'items' }, enabled: b.phase === 'choose' && itemsOk, title: itemsOk ? '4 아이템 (볼 · 상처약 …)' : anyItem ? '지금 쓸 수 있는 아이템이 없어요 (HP 가득 · 상태 이상 없음 · 쓰러진 포켓몬 없음)' : '가방에 쓸 아이템이 없어요' },
         { key: 'more', num: 5, label: switchOk ? '5 교체 · 도망' : '5 도망', go: switchOk ? { page: 'switch' } : { action: { kind: 'flee' } }, enabled: b.phase === 'choose', title: switchOk ? '5 교체 · 도망' : '5 도망' },
       ];
       if (!compact) return items;
@@ -63,8 +67,9 @@ export function menuItems(b: BattleState, save: Save, page: MenuPage, compact = 
         back,
       ];
     case 'items':
+      // 가진 것만 (볼 먼저 — S11 ① 볼 고르기) · 번호는 그 순서대로
       return [
-        ...BATTLE_ITEMS.map((item, i): MenuItem => ({
+        ...MENU_ITEMS.filter((item) => itemLeft(b, save, item) > 0).map((item, i): MenuItem => ({
           key: item,
           num: i + 1,
           label: `${i + 1} ${itemName(item)}`,
@@ -72,7 +77,7 @@ export function menuItems(b: BattleState, save: Save, page: MenuPage, compact = 
           // 기력의조각 → 살릴 포켓몬 고르기
           go: item === 'revive' ? { page: 'revive' } : { action: { kind: 'item', item } },
           enabled: canAct(b, save, { kind: 'item', item }),
-          title: item === 'revive' ? '쓰러진 팀 포켓몬을 HP 절반으로 (교체로 낼 수 있게)' : undefined,
+          title: item === 'revive' ? '쓰러진 팀 포켓몬을 HP 절반으로 (교체로 낼 수 있게)' : isBall(item) ? '볼 던지기 — 원이 작아질 때 Space (HP 가 낮을수록 잘 잡힘)' : undefined,
         })),
         back,
       ];
@@ -282,6 +287,9 @@ export function battleViewKey(b: BattleState, auto: boolean): string {
     b.foe.status?.kind ?? '',
     b.anim ? `${b.anim.side}${b.anim.action.kind}${Math.floor(b.anim.ms / 100)}` : '',
     b.clash ? `${b.clash.taps}:${Math.floor(b.clash.ms / 100)}` : '',
+    // 볼: 누른 때 · 정해진 결과 · 흔들림이 끝나는 때 (원은 CSS 로 줄어듦) · 마지막 기회 남은 시간 (막대)
+    b.catch ? `${b.catch.ball}:${b.catch.pressMs ?? ''}:${b.catch.caught ?? ''}` : '',
+    b.phase === 'last' ? Math.floor(b.lastMs / 250) : '',
     b.popups.length ? b.popups.map((p) => `${p.text}${b.t - p.ms}`).join(',') : '',
     b.me.moves.map((s) => s.pp).join(','),
   ].join('|');

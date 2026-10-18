@@ -21,6 +21,7 @@ export function createNewSave(now: number): Save {
     lastHospital: null,
     dex: { seen: [], caught: [] },
     pendingEncounter: null,
+    pendingChoices: [],
     settings: { notifications: true, autoBattle: false },
   };
 }

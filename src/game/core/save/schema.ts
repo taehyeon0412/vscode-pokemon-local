@@ -97,6 +97,20 @@ export type Encounter =
 export const ENCOUNTER_STARTS = ['normal', 'preemptive', 'ambush'] as const;
 export type EncounterStart = (typeof ENCOUNTER_STARTS)[number];
 
+/**
+ * 전투가 끝난 뒤 사람이 골라야 하는 것 (mvp-spec S12 → S23 · S22) — 세이브에 남겨 두어 껐다 켜도 이어 고름.
+ * 경험치 · 레벨 · 스탯은 전투가 끝날 때 이미 세이브에 들어감, 여기는 고르는 것만 (차례대로)
+ */
+export type PendingChoice =
+  /** S23 — 기술 4칸이 차 있을 때 새 기술 (바꿀 기술 고르기 · 배우지 않기) */
+  | { kind: 'learn'; uid: string; moveId: number }
+  /**
+   * S22 — 진화: 지금 기술 2개 남기기 + 새 기술 2개. level = 진화 조건이 맞은 레벨 (그 뒤 오른 레벨의 새 기술은 진화한 · 안 한 모습으로 고를 때 다시 셈).
+   * item = 돌 · 연결의끈으로 들어왔으면 그 아이템 (멈추면 돌려줌, 단계 8)
+   */
+  | { kind: 'evolve'; uid: string; to: number; newMoves: number[]; level: number; item: ItemId | null };
+export const PENDING_KINDS = ['learn', 'evolve'] as const;
+
 export interface LastHospital {
   stageId: StageId;
   at: number;
@@ -128,6 +142,8 @@ export interface SaveV1 {
   /** 만난 · 잡은 종 (도감 번호) — NEW! 표시 */
   dex: { seen: number[]; caught: number[] };
   pendingEncounter: Encounter | null;
+  /** 전투 끝에 남은 고르기 (S23 · S22) — 앞에서부터 */
+  pendingChoices: PendingChoice[];
   settings: { notifications: boolean; autoBattle: boolean };
 }
 

@@ -140,7 +140,7 @@ describe('단계 5 · 6 검토에서 고친 것 — 화면 (bugs #104 ~)', () =>
   });
 
   it('4 아이템이 흐린 까닭: 아이템은 있는데 지금 못 쓰는 것과 아예 없는 것을 구별 (플레이 리뷰어)', () => {
-    const withPotion = { ...save, bag: { ...save.bag, potion: 2 } };
+    const withPotion = { ...save, bag: { potion: 2 } }; // 볼은 야생에게 늘 쓸 수 있어서 상처약만
     const full = myTurn(startBattle(withPotion, wild, 'normal'));
     const atFull = { ...full, me: { ...full.me, hp: full.me.maxHp } };
     expect(menuItems(atFull, withPotion, 'main').find((i) => i.key === 'items')?.title).toContain('지금 쓸 수 있는');

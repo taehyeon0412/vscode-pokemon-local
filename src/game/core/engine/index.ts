@@ -11,11 +11,13 @@ export {
   switchable,
   ultCounterOpen,
   type BattleAction,
+  type BattleCatch,
   type BattleInput,
   type BattlePopup,
   type BattleState,
   type Side,
 } from './battle';
+export type { BattleSummary } from './rewards';
 export {
   createGameState,
   MAX_SPEED,

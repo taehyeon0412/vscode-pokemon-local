@@ -9,6 +9,7 @@ import type { ComponentChildren } from 'preact';
 import { BALANCE, TIMING } from '../../../core/balance';
 import type { BattleState, GameInput, Side } from '../../../core/engine';
 import { clashWithTaps, isShooting, type Fighter } from '../../../core/rules/battle';
+import { catchTiming } from '../../../core/rules/catch';
 import type { Save } from '../../../core/save';
 import { moveOf, speciesOf } from '../../../data';
 import { Button } from '../../../ui/Button';
@@ -91,7 +92,8 @@ function FighterBody(props: { b: BattleState; side: Side; x: number; target: num
     act?.kind === 'switch' ? 'pg-recall' : '',
     act?.kind === 'ult' ? 'pg-charging' : '',
     hurt ? 'pg-hurt' : '',
-    f.hp <= 0 ? 'pg-fainted' : '',
+    // 마지막 기회 동안은 쓰러진 상대를 흐리게 남김 (어디에 던지는지 보이게)
+    f.hp <= 0 ? (b.phase === 'last' && side === 'foe' ? 'pg-down' : 'pg-fainted') : '',
     f.guard < 1 ? 'pg-guarded' : '',
   ].join(' ');
   return (
@@ -162,6 +164,64 @@ function Effects({ b, geo, ground, midMe, midFoe }: { b: BattleState; geo: Battl
   return <>{out}</>;
 }
 
+/**
+ * S11 볼 던지기 (gdd S11) — 트레이너에게서 볼이 날아가 상대를 담고, ④ 타이밍 원이 줄어듦 (다 줄어든 순간 = 안쪽 원과 딱 맞음 → Space) → 흔들흔들
+ * 원이 줄어드는 시간 = TIMING.catchRingMs (엔진의 판정과 같음)
+ */
+function Catch({ b, geo, ground }: { b: BattleState; geo: BattleGeometry; ground: number }) {
+  const c = b.catch;
+  if (!c) return null;
+  // 던진 때로 열쇠 — 다시 그려져도 (팝업이 사라짐 등) 볼 · 원이 처음부터 다시 돌지 않게
+  const key = `c${c.startT}`;
+  const size = Math.round(geo.foeSpritePx * 1.1);
+  const mid = ground + Math.round(geo.foeSpritePx * 0.45);
+  const shaking = c.caught !== null;
+  // 누른 순간 원을 그 크기로 멈추고 색으로 알려 줌 (완벽 금색 · 좋음 초록 · 빗나감 회색 + 빨랐다 / 늦었다)
+  const timing = c.pressMs !== null ? catchTiming(c.pressMs, TIMING.catchRingMs) : null;
+  const pressedScale = c.pressMs !== null ? Math.max(1, 2.8 - 1.8 * Math.min(1, c.pressMs / TIMING.catchRingMs)) : 1;
+  const feedback =
+    timing === 'perfect' ? '완벽!' : timing === 'good' ? '좋아!' : timing === 'none' && c.pressMs !== null ? (c.pressMs < TIMING.catchRingMs ? '조금 빨랐다' : '조금 늦었다') : null;
+  return (
+    <>
+      <span
+        key={`${key}b`}
+        class={`pg-thrown-ball ${shaking ? (b.phase === 'over' ? 'pg-thrown-caught' : 'pg-thrown-shake') : 'pg-thrown-throw'}`}
+        style={{ left: `${geo.foeX}px`, bottom: `${ground}px`, '--pg-dx': `${geo.trainerX - geo.foeX}px` }}
+        title={c.ball}
+      />
+      {!shaking && (
+        <>
+          <span key={`${key}t`} class="pg-catch-target" style={{ left: `${geo.foeX}px`, bottom: `${mid}px`, width: `${size}px`, height: `${size}px` }} />
+          {c.pressMs === null ? (
+            // 원은 실제 시간으로 줄어듦 — 패널을 다시 열어 다시 그려져도 이어서 (지난 시간만큼 앞당겨 시작)
+            <span
+              key={`${key}r`}
+              class="pg-catch-ring"
+              style={{ left: `${geo.foeX}px`, bottom: `${mid}px`, width: `${size}px`, height: `${size}px`, animationDuration: `${TIMING.catchRingMs}ms`, animationDelay: `-${c.ms}ms` }}
+            />
+          ) : (
+            <span
+              key={`${key}p`}
+              class={`pg-catch-ring pg-ring-${timing}`}
+              style={{ left: `${geo.foeX}px`, bottom: `${mid}px`, width: `${size}px`, height: `${size}px`, transform: `translate(-50%, 50%) scale(${pressedScale})` }}
+            />
+          )}
+        </>
+      )}
+      {feedback && (
+        <span key={`${key}f`} class={`pg-pop pg-ring-text pg-ring-${timing}`} style={{ left: `${geo.foeX}px`, bottom: `${mid + size / 2 + 4}px` }}>
+          {feedback}
+        </span>
+      )}
+      {b.phase === 'over' && b.result === 'catch' && (
+        <span key={`${key}s`} class="pg-fx pg-fx-pulse" style={{ left: `${geo.foeX}px`, bottom: `${ground + 8}px`, animationDuration: '900ms' }}>
+          ✨
+        </span>
+      )}
+    </>
+  );
+}
+
 /** 위 가운데 · 또는 (낮은 패널) 상대 오른쪽 */
 function msgStyle(geo: BattleGeometry) {
   return geo.msgSide ? { left: `${geo.msgSide.left}px`, maxWidth: `${geo.msgSide.maxWidth}px`, transform: 'none' } : undefined;
@@ -221,10 +281,14 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput }: Ba
   return (
     <>
       {hasMe && <FighterBody key={`me${b.me.uid}`} b={b} side="me" x={geo.meX} target={geo.foeX} px={geo.meSpritePx} media={media} ground={ground} />}
-      <FighterBody key="foe" b={b} side="foe" x={geo.foeX} target={geo.meX} px={geo.foeSpritePx} media={media} ground={ground} />
+      {/* 볼에 들어가 있는 동안 (던짐 · 흔들림 · 잡힘) 상대 그림은 숨김 */}
+      {b.phase !== 'catch' && !(b.phase === 'over' && b.result === 'catch') && (
+        <FighterBody key="foe" b={b} side="foe" x={geo.foeX} target={geo.meX} px={geo.foeSpritePx} media={media} ground={ground} />
+      )}
       {hasMe && <HpBlock f={b.me} side="me" x={geo.meHpX} bottom={geo.meHpBottom} wide={geo.meHpWide} />}
       <HpBlock f={b.foe} side="foe" x={geo.foeHpX} bottom={geo.foeHpBottom} wide={geo.foeHpWide} />
       {b.phase === 'clash' ? <Clash b={b} geo={geo} y={Math.round((midMe + midFoe) / 2)} /> : <Effects b={b} geo={geo} ground={ground} midMe={midMe} midFoe={midFoe} />}
+      <Catch b={b} geo={geo} ground={ground} />
       {(['me', 'foe'] as const).map((side) =>
         popups(side).map((p, i) => (
           <span key={p.id} class={`pg-pop pg-pop-${p.kind}`} style={{ left: `${side === 'me' ? geo.meHpX : geo.foeHpX}px`, bottom: `${popBase(side) + i * POP_STACK_PX}px` }}>

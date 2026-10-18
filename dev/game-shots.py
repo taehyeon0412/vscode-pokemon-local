@@ -89,6 +89,19 @@ SHOTS = [
     ("battle-narrow-240-68", "240x68", {"screen": "game", "battle": "choose"}),
     ("battle-narrow-320-92", "320x92", {"screen": "game", "battle": "choose", "size": "small"}),
     ("battle-skills-320", "320x200", {"screen": "game", "battle": "skills", "size": "medium", "click": "skills"}),
+    ("battle-items-200", "720x200", {"screen": "game", "battle": "items", "size": "medium", "click": "items"}),
+    ("battle-catch-200", "720x200", {"screen": "game", "battle": "catch", "size": "medium", "budget": "900", "animAt": "0.7"}),
+    ("battle-catch-68", "720x68", {"screen": "game", "battle": "catch", "budget": "900", "animAt": "0.7"}),
+    ("battle-last-200", "720x200", {"screen": "game", "battle": "last", "size": "medium", "budget": "1500"}),
+    ("battle-last-68", "720x68", {"screen": "game", "battle": "last", "budget": "1500"}),
+    ("scene-result-116", "720x116", {"screen": "game", "scene": "result", "size": "medium", "budget": "1500"}),
+    ("scene-result-68", "720x68", {"screen": "game", "scene": "result", "budget": "1500"}),
+    ("scene-learn-116", "720x116", {"screen": "game", "scene": "learn", "size": "medium"}),
+    ("scene-learn-68", "720x68", {"screen": "game", "scene": "learn"}),
+    ("scene-evolve-200", "720x200", {"screen": "game", "scene": "evolve", "size": "medium", "budget": "1500", "animAt": "2.6"}),
+    ("scene-evolve-pick-116", "720x116", {"screen": "game", "scene": "evolve-pick", "size": "medium"}),
+    ("scene-evolve-pick-68", "720x68", {"screen": "game", "scene": "evolve-pick"}),
+    ("scene-learn-320", "320x116", {"screen": "game", "scene": "learn", "size": "medium"}),
     ("battle-light-200", "720x200", {"screen": "game", "battle": "choose", "size": "medium", "theme": "light"}),
 ]
 
@@ -124,10 +137,10 @@ def png_size(path):
     return struct.unpack(">II", head[16:24])
 
 
-def shoot(url, win, path):
+def shoot(url, win, path, budget=3500):
     with tempfile.TemporaryDirectory() as prof:
         cmd = [browser(), "--headless=new", "--disable-gpu", "--no-first-run", "--no-default-browser-check", "--hide-scrollbars", "--mute-audio",
-               "--force-device-scale-factor=1", f"--user-data-dir={prof}", f"--window-size={win.replace('x', ',')}", "--virtual-time-budget=3500",
+               "--force-device-scale-factor=1", f"--user-data-dir={prof}", f"--window-size={win.replace('x', ',')}", f"--virtual-time-budget={budget}",
                f"--screenshot={path}", url]
         subprocess.run(cmd, capture_output=True, timeout=60)
 
@@ -150,8 +163,8 @@ def main():
                 os.remove(path)
             # 머리 없는 브라우저는 찍는 순간에야 창 크기가 맞음 → 처음부터 정확한 크기인 iframe 에 띄움 (dev/frame.html), 창 = iframe 크기
             w, h = win.split("x")
-            frame = f"http://127.0.0.1:{port}/dev/frame.html?" + urllib.parse.urlencode({"w": w, "h": h, "page": "game.html", "q": urllib.parse.urlencode({**params, "shim": "1"})})
-            shoot(frame, win, path)
+            frame = f"http://127.0.0.1:{port}/dev/frame.html?" + urllib.parse.urlencode({"w": w, "h": h, "page": "game.html", "q": urllib.parse.urlencode({**{k: v for k, v in params.items() if k != "budget"}, "shim": "1"})})
+            shoot(frame, win, path, int(params.get("budget", 3500)))
             if os.path.exists(path):
                 w, h = png_size(path)
                 print(f"{path}  ({w}x{h})")

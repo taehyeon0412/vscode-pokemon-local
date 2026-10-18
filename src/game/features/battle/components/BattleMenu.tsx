@@ -5,7 +5,10 @@
  */
 import type { ComponentChildren } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { canUlt, counterOpen, switchable, ultCounterOpen, type BattleState, type GameInput } from '../../../core/engine';
+import { TIMING } from '../../../core/balance';
+import { canUlt, counterOpen, itemLeft, switchable, ultCounterOpen, type BattleState, type GameInput } from '../../../core/engine';
+import { BALLS, type BallId } from '../../../core/rules/catch';
+import { itemName } from '../../../core/rules/items';
 import type { Save } from '../../../core/save';
 import { speciesOf } from '../../../data';
 import { Button } from '../../../ui/Button';
@@ -51,8 +54,8 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false }: 
 
   // 단축키: 숫자 = 메뉴 · 다음 포켓몬 · Z = 필살기 · ← / Esc / Backspace = 뒤로 (Space 는 main.ts — 맞받아치기 · 연타)
   // 듣는 건 한 번만 달고, 지금 값은 ref 로 (초당 30번 다시 그려도 다시 달지 않게)
-  const now = useRef({ b, items, page, team, choose, pick, onInput });
-  now.current = { b, items, page, team, choose, pick, onInput };
+  const now = useRef({ b, items, page, team, choose, pick, onInput, balls: [] as readonly BallId[] });
+  now.current = { b, items, page, team, choose, pick, onInput, balls: BALLS.filter((ball) => itemLeft(b, save, ball) > 0) };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -61,6 +64,12 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false }: 
       if (e.code === 'KeyZ') {
         e.preventDefault();
         c.onInput({ kind: 'battle', input: { kind: 'ult' } });
+        return;
+      }
+      if (c.b.phase === 'last') {
+        const ball = c.balls[Number(e.key) - 1];
+        if (/^[1-9]$/.test(e.key) && ball) c.onInput({ kind: 'battle', input: { kind: 'ball', ball } });
+        else if (e.key === 'Escape') c.onInput({ kind: 'battle', input: { kind: 'no-ball' } });
         return;
       }
       if (c.b.phase === 'pick' && /^[1-9]$/.test(e.key)) {
@@ -99,7 +108,8 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false }: 
   const key = document.hasFocus() ? '(Space)' : '(클릭!)';
 
   // 처음 메뉴는 늘 깔아 두고 (안 쓸 때는 안 보이게) 그 위에 지금 줄을 얹음 — 줄이 바뀌어도 필살기 게이지 · 💥 자리가 그대로
-  const onMain = page === 'main' && !ultCounter && !counter && !picking && b.phase !== 'clash' && b.phase !== 'over';
+  const onMain = page === 'main' && !ultCounter && !counter && !picking && b.phase !== 'clash' && b.phase !== 'over' && b.phase !== 'catch' && b.phase !== 'last';
+  const balls = BALLS.filter((ball) => itemLeft(b, save, ball) > 0);
   let row: ComponentChildren = null;
   if (ultCounter) {
     row = (
@@ -125,6 +135,36 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false }: 
         ))}
       </>
     );
+  } else if (b.phase === 'last') {
+    // S11 마지막 기회 — 볼 고르기 (가진 것만) · 안 던짐 · 남은 시간
+    row = (
+      <>
+        <span class="pg-last-tag">◓ 마지막 기회!</span>
+        {balls.map((ball, i) => (
+          <Button key={ball} onClick={() => onInput({ kind: 'battle', input: { kind: 'ball', ball } })} title="쓰러진 포켓몬 — 잡을 확률 × 0.5">
+            {`${i + 1} ${itemName(ball)}`}
+            <span class="pg-sub">×{itemLeft(b, save, ball)}</span>
+          </Button>
+        ))}
+        <Button secondary onClick={() => onInput({ kind: 'battle', input: { kind: 'no-ball' } })} title="Esc">
+          안 던짐
+        </Button>
+        {/* 남은 초 — 필살기 게이지와 헷갈리지 않게 막대 대신 숫자 */}
+        <span class="pg-last-sec" title="안 고르면 그냥 지나가요">
+          {Math.max(0, Math.ceil((TIMING.lastChanceMs - b.lastMs) / 1000))}
+        </span>
+      </>
+    );
+  } else if (b.phase === 'catch' && b.catch) {
+    // S11 타이밍 원 — 원이 딱 맞을 때 Space (클릭도 됨)
+    row =
+      b.catch.caught === null && b.catch.pressMs === null ? (
+        <Button onClick={() => onInput({ kind: 'space' })} title="원이 안쪽 원에 딱 맞을 때">
+          {`⭕ 원이 딱 맞을 때 ${key}`}
+        </Button>
+      ) : (
+        <span class="pg-dim">{b.catch.caught === null ? '던졌다!' : '흔들… 흔들…'}</span>
+      );
   } else if (page !== 'main' && b.phase !== 'clash' && b.phase !== 'over') {
     row = renderItems(items);
   }

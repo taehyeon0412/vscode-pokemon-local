@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { BALANCE, TIMING } from '../balance';
 import { stageLayout, type Spot } from '../rules/stage';
 import type { Save } from '../save';
-import { sampleSave } from '../../../test/fixtures/save';
+import { sampleSave, viaJson } from '../../../test/fixtures/save';
 import { shinyWildSeed } from '../../../test/fixtures/stage';
 import { startBattle } from './battle';
 import { advance, applyInput, isWaitingForInput, leadSpeed, step, withSpeed } from './play';
-import { createGameState, type GameState } from './state';
+import { createGameState, readRuntime, type GameState } from './state';
 
 const STEP = TIMING.simStepMs;
 
@@ -113,10 +113,17 @@ describe('야생 조우 (mvp-spec 3.2)', () => {
       s = r.state;
       saves = saves.concat(r.saves);
     }
-    expect(phase(s)).toBe('walk');
+    // 이기면 S12 결과 (단계 7) → 잠깐 뒤 걸음 (고를 게 있으면 고르기) · 도망 · 지면 알림만
+    expect(['result', 'walk']).toContain(phase(s));
     expect(s.save.pendingEncounter).toBeNull();
     expect(saves).toContain('battle-end');
-    expect(s.runtime.toast?.text).toMatch(/쓰러뜨렸다|도망쳤다|깜깜/);
+    if (phase(s) === 'result') {
+      expect(s.runtime.stage).toMatchObject({ summary: { title: expect.stringMatching(/쓰러뜨렸다/) } });
+      s = advance(s, TIMING.resultMs + 100).state;
+      expect(['walk', 'choice']).toContain(phase(s));
+    } else {
+      expect(s.runtime.toast?.text).toMatch(/도망쳤다|깜깜/);
+    }
   });
 
   it('처음 만난 종이면 NEW! (이미 만난 종이면 아님)', () => {
@@ -321,5 +328,75 @@ describe('단계 5 · 6 검토에서 고친 것 — 안 볼 때 이로치 (bugs 
     expect(later.runtime.stage).toEqual(away.runtime.stage);
     // 다시 보면 이어서
     expect(isWaitingForInput({ ...away, runtime: { ...away.runtime, headless: false } })).toBe(false);
+  });
+});
+
+describe('S12 결과 · S23 · S22 — 스테이지 쪽 (단계 7)', () => {
+  const choiceSave = (s: GameState): GameState => ({
+    ...s,
+    save: { ...s.save, pendingChoices: [{ kind: 'learn', uid: 'm1', moveId: 22 }, { kind: 'evolve', uid: 'm1', to: 2, newMoves: [75, 76], level: 16, item: null }] },
+    runtime: { ...s.runtime, stage: { phase: 'choice', ms: 0 } },
+  });
+
+  it('고를 것이 있으면 기다림 (안 볼 때 확장은 멈춤) · 하나 고르면 다음 · 다 고르면 걸음', () => {
+    let s = choiceSave(start());
+    expect(isWaitingForInput(s)).toBe(true);
+    expect(phase(advance(s, 10_000).state)).toBe('choice');
+    s = applyInput(s, { kind: 'learn', replace: null });
+    expect(s.save.pendingChoices[0]?.kind).toBe('evolve');
+    // 진화: 연출이 끝나기 전에는 남길 기술을 못 고름 · Space 로 빨리 넘김 · 연출 중 Esc = 멈추기
+    expect(applyInput(s, { kind: 'evolve', keep: [33] })).toBe(s);
+    // 연출 시작 0.8초 동안은 Space · Esc 를 안 받음 (결과에서 Space 를 두 번 눌러 연출을 놓치지 않게 — 플레이 리뷰어)
+    expect(applyInput(s, { kind: 'space' })).toBe(s);
+    expect(applyInput(s, { kind: 'evolve-cancel' })).toBe(s);
+    s = { ...s, runtime: { ...s.runtime, stage: { phase: 'choice', ms: TIMING.evolveGuardMs } } };
+    const skipped = applyInput(s, { kind: 'space' });
+    expect(skipped.runtime.stage).toEqual({ phase: 'choice', ms: TIMING.evolveAnimMs });
+    const evolved = applyInput(skipped, { kind: 'evolve', keep: [33] });
+    expect(evolved.save.monsters.m1!.species).toBe(2);
+    expect(phase(evolved)).toBe('walk');
+    const cancelled = applyInput(s, { kind: 'evolve-cancel' });
+    expect(cancelled.save.monsters.m1!.species).toBe(1);
+    expect(cancelled.runtime.toast?.text).toContain('진화를 멈췄다');
+    // 다른 고르기를 보던 화면의 입력은 안 받음 (두 번 누름)
+    expect(applyInput(s, { kind: 'evolve-cancel', uid: 'm2' })).toBe(s);
+    expect(applyInput(skipped, { kind: 'evolve-cancel' })).toBe(skipped);
+  });
+
+  it('고르다 껐다 켜면 그 고르기부터 (세이브에 남아 있음)', () => {
+    const s = choiceSave(start());
+    const reloaded = step(createGameState(viaJson(s.save), 5), STEP).state;
+    expect(phase(reloaded)).toBe('choice');
+  });
+
+  it('결과는 잠깐 보여 주고 (Space · Enter 로 넘김) → 고를 게 있으면 고르기 · 안 볼 때면 알림', () => {
+    const base = start();
+    const summary = { title: 't', exp: [], money: 0, item: null, caught: null, learned: [], choices: 0 };
+    const result: GameState = { ...base, runtime: { ...base.runtime, stageId: 'forest-1', stage: { phase: 'result', summary, ms: 0 } } };
+    expect(phase(applyInput(result, { kind: 'space' }))).toBe('walk');
+    expect(phase(advance(result, TIMING.resultMs + 100).state)).toBe('walk');
+    const withChoice: GameState = { ...result, save: { ...result.save, pendingChoices: [{ kind: 'learn', uid: 'm1', moveId: 22 }] }, runtime: { ...result.runtime, headless: true } };
+    const r = advance(withChoice, TIMING.resultMs + 100);
+    expect(phase(r.state)).toBe('choice');
+    expect(r.notices).toEqual(['choice']);
+    // 고를 것이 남은 세이브를 안 볼 때 처음 불러와도 한 번 알림
+    const fresh = createGameState(withChoice.save, 3);
+    expect(advance({ ...fresh, runtime: { ...fresh.runtime, headless: true } }, 500).notices).toEqual(['choice']);
+  });
+
+  it('결과 · 고르기 진행 중 상태도 확장 ↔ 웹뷰로 (모양이 이상하면 버림)', () => {
+    const summary = { title: '야생 구구를 쓰러뜨렸다!', exp: [{ uid: 'm1', name: '이상해씨', gain: 28, from: 5, to: 6 }], money: 20, item: '몬스터볼', caught: null, learned: [], choices: 0 };
+    expect(readRuntime({ rngState: 1, stepAccMs: 0, stage: { phase: 'result', summary, ms: 10 } }, 1).stage).toEqual({ phase: 'result', summary, ms: 10 });
+    expect(readRuntime({ rngState: 1, stepAccMs: 0, stage: { phase: 'result', summary: { title: 3 }, ms: 10 } }, 1).stage).toBeNull();
+    expect(readRuntime({ rngState: 1, stepAccMs: 0, stage: { phase: 'choice', ms: 100 } }, 1).stage).toEqual({ phase: 'choice', ms: 100 });
+  });
+});
+describe('고를 것이 남았는데 걷기 상태가 오면 (단계 7 테스터)', () => {
+  it('걷지 않고 고르기부터', () => {
+    const base = start();
+    const s: GameState = { ...base, save: { ...base.save, pendingChoices: [{ kind: 'learn', uid: 'm1', moveId: 22 }] }, runtime: { ...base.runtime, stageId: 'forest-1', stage: { phase: 'walk' } } };
+    const next = step(s, STEP).state;
+    expect(phase(next)).toBe('choice');
+    expect(prog(next)).toBe(prog(s));
   });
 });

@@ -10,14 +10,16 @@ export interface ButtonProps {
   autoFocus?: boolean;
   /** 찾기용 이름 (data-name) — 예: 확인 창이 뜰 때 취소에 포커스 */
   name?: string;
+  /** 더 붙일 class (예: pg-pin — 좁아도 줄어들지 않는 버튼) */
+  extraClass?: string;
 }
 
 /** 게임 버튼 — VS Code 테마 색을 따라감 (game.css .pg-button) */
-export function Button({ children, onClick, disabled, secondary, title, autoFocus, name }: ButtonProps) {
+export function Button({ children, onClick, disabled, secondary, title, autoFocus, name, extraClass }: ButtonProps) {
   return (
     <button
       type="button"
-      class={secondary ? 'pg-button pg-secondary' : 'pg-button'}
+      class={`${secondary ? 'pg-button pg-secondary' : 'pg-button'}${extraClass ? ` ${extraClass}` : ''}`}
       disabled={disabled}
       title={title}
       autoFocus={autoFocus}

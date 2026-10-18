@@ -6,7 +6,9 @@
  *   anim   기술 연출 (게이지 멈춤) — 상대가 쏘는 기술이면 맞받아치기 창 1.5초 · 필살기로 끼어들면 그 기술은 취소 (PP 는 깎인 채)
  *   clash  힘대결 4초 — Space · 클릭 연타, 끝나면 확률로 승패 · 진 쪽이 이긴 기술의 피해
  *   pick   내 포켓몬이 쓰러짐 → 다음 포켓몬 고르기 (자동 전투면 상성 좋은 포켓몬)
- *   over   이김 · 짐 · 도망 — 잠깐 보여 주고 끝 (세이브에 돌려주는 건 play.ts)
+ *   catch  볼을 던짐 (S11) — 타이밍 원 1.2초 (Space · 클릭) → 흔들흔들 → 잡힘 (끝) · 빠져나옴 (전투 계속, 마지막 기회면 이김)
+ *   last   야생을 쓰러뜨림 → 마지막 기회 (볼 고르기 · 안 던짐 · 6초) — 볼이 없거나 내 팀이 다 쓰러졌으면 건너뜀
+ *   over   이김 · 짐 · 도망 · 잡음 — 잠깐 보여 주고 끝 (세이브에 돌려주는 건 play.ts)
  * 전투 중에는 세이브를 바꾸지 않음 (껐다 켜면 그 전투를 처음부터, mvp-spec 9장) — 끝날 때 HP · PP · 상태 이상 · 쓴 아이템을 한 번에.
  */
 import { BALANCE, TIMING } from '../balance';
@@ -27,6 +29,7 @@ import {
   ultGain,
   type Fighter,
 } from '../rules/battle';
+import { BALLS, catchChance, catchTiming, isBall, type BallId } from '../rules/catch';
 import { itemName } from '../rules/items';
 import { effectivenessText } from '../rules/types';
 import { ITEM_IDS, type EncounterStart, type ItemId, type Monster, type MoveSlot, type Save, type StatusCondition } from '../save';
@@ -70,6 +73,18 @@ export interface BattleClash {
   winner: Side | null;
 }
 
+/** S11 볼 던지기 — 타이밍 원이 줄어드는 동안 Space (pressMs) → 흔들흔들 (그때 잡힘 · 빠져나옴이 정해짐) → 결과 */
+export interface BattleCatch {
+  ball: BallId;
+  ms: number;
+  pressMs: number | null;
+  /** 이긴 뒤 마지막 기회 (쓰러진 포켓몬에게 한 번 — 확률 × 0.5) */
+  last: boolean;
+  caught: boolean | null;
+  /** 던진 때 (전투 시간) — 그림이 다시 그려져도 같은 볼 · 같은 원으로 이어지게 */
+  startT: number;
+}
+
 /** 머리 위에 잠깐 뜨는 글 (피해 숫자 · 효과가 굉장했다! · 급소) */
 export interface BattlePopup {
   /** 순번 — 같은 걸음에 같은 글이 두 번 떠도 따로 그리게 */
@@ -88,10 +103,16 @@ export interface BattleState {
   bench: Record<string, { hp: number; moves: MoveSlot[]; status: StatusCondition | null; ult?: number }>;
   /** 이 전투에서 쓴 아이템 (끝나면 가방에서 뺌) */
   bagUsed: Partial<Record<ItemId, number>>;
-  phase: 'run' | 'choose' | 'anim' | 'clash' | 'pick' | 'over';
+  /** catch = 볼을 던짐 (S11) · last = 이긴 뒤 마지막 기회 (볼을 고르거나 그냥 지나감) */
+  phase: 'run' | 'choose' | 'anim' | 'clash' | 'pick' | 'catch' | 'last' | 'over';
   anim: BattleAnim | null;
   clash: BattleClash | null;
-  result: 'win' | 'lose' | 'flee' | null;
+  catch: BattleCatch | null;
+  /** 마지막 기회를 기다린 시간 */
+  lastMs: number;
+  result: 'win' | 'lose' | 'flee' | 'catch' | null;
+  /** 이 전투에 나와 싸운 내 포켓몬 (경험치를 다 받음 — 나머지는 절반) */
+  fought: string[];
   overMs: number;
   fleeTries: number;
   /** 지금 한 줄 ("이상해씨의 덩굴채찍!") */
@@ -136,7 +157,10 @@ export function startBattle(save: Save, wild: Monster, start: EncounterStart): B
     phase: lead ? 'run' : 'over',
     anim: null,
     clash: null,
+    catch: null,
+    lastMs: 0,
     result: lead ? null : 'lose',
+    fought: lead ? [lead.uid] : [],
     overMs: 0,
     fleeTries: 0,
     msg: !lead ? '싸울 수 있는 포켓몬이 없다…' : start === 'preemptive' ? '⚡ 선제공격!' : start === 'ambush' ? '💢 기습당했다!' : `가랏, ${nameOf(me)}!`,
@@ -387,6 +411,7 @@ function finishAnim(b0: BattleState, save: Save, rng: Rng): BattleState {
         const next = fighterOf(saved ? { ...target, ...saved } : target);
         next.ult = saved?.ult ?? 0;
         b.me = next;
+        if (!b.fought.includes(next.uid)) b.fought = [...b.fought, next.uid];
         b.msg = `가랏, ${nameOf(next)}!`;
       }
       break;
@@ -413,7 +438,12 @@ function finishAnim(b0: BattleState, save: Save, rng: Rng): BattleState {
 /** 쓰러졌는지 보고 다음 단계로 */
 function afterHits(b: BattleState, save: Save): BattleState {
   if (b.foe.hp <= 0) {
-    return { ...b, phase: 'over', result: 'win', overMs: 0, msg: `${withJosa(label(b.foe, 'foe'), '이/가')} 쓰러졌다!` };
+    const down = `${withJosa(label(b.foe, 'foe'), '이/가')} 쓰러졌다!`;
+    // 야생은 마지막 기회 한 번 (mvp-spec S11) — 볼이 없으면 "볼이 없어요" 로 건너뜀 · 내 팀도 다 쓰러졌으면 (반동 · 독) 진 것과 같아 건너뜀
+    const wiped = b.me.hp <= 0 && switchable(b, save).length === 0;
+    const hasBall = BALLS.some((ball) => itemLeft(b, save, ball) > 0);
+    if (b.kind === 'wild' && hasBall && !wiped) return { ...b, phase: 'last', lastMs: 0, msg: `${down} 마지막 기회 — 볼을 던질까?` };
+    return { ...b, phase: 'over', result: 'win', overMs: 0, msg: b.kind === 'wild' && !hasBall && !wiped ? `${down} (볼이 없어 잡을 수 없어요)` : down };
   }
   if (b.me.hp <= 0) {
     const bench = { ...b.bench, [b.me.uid]: { hp: 0, moves: b.me.moves, status: b.me.status } };
@@ -439,6 +469,8 @@ function resolveClash(b0: BattleState, rng: Rng): BattleState {
 export interface BattleStepOptions {
   /** 자동 전투 — 내 행동도 AI 가 고름 (필살기는 차면 바로 [제안]) */
   auto: boolean;
+  /** 사람이 안 봄 (확장이 계산) — 마지막 기회는 바로 지나감 (볼은 사람이 던짐) */
+  away?: boolean;
 }
 
 /** 걸음 하나 */
@@ -496,9 +528,54 @@ export function battleStep(b0: BattleState, save: Save, stepMs: number, rng: Rng
       const next = bestNext(team, b.foe.types);
       return next ? pickNext(b, save, next.uid) : b;
     }
+    case 'catch':
+      return catchStep(b, save, stepMs, rng);
+    case 'last': {
+      const lastMs = b.lastMs + stepMs;
+      // 볼을 고르지 않으면 (자동 전투 · 안 봄 · 그냥 둠) 지나감 [제안]
+      if (opts.away || lastMs >= TIMING.lastChanceMs) return { ...b, lastMs, phase: 'over', result: 'win', overMs: 0, msg: `${withJosa(label(b.foe, 'foe'), '이/가')} 쓰러졌다!` };
+      return { ...b, lastMs };
+    }
     case 'over':
       return { ...b, overMs: b.overMs + stepMs };
   }
+}
+
+/** 볼 던지기 시작 — 전투 중이면 내 행동 하나 (게이지 0) · 쓴 볼은 끝날 때 가방에서 뺌 */
+function throwBall(b: BattleState, ball: BallId, last: boolean): BattleState {
+  const me = last ? b.me : { ...b.me, gauge: 0, guard: 1, guardStreak: 0, streakMove: null, streakCount: 0 };
+  return {
+    ...b,
+    me,
+    phase: 'catch',
+    anim: null,
+    catch: { ball, ms: 0, pressMs: null, last, caught: null, startT: b.t },
+    bagUsed: { ...b.bagUsed, [ball]: (b.bagUsed[ball] ?? 0) + 1 },
+    msg: `가랏, ${itemName(ball)}!`,
+  };
+}
+
+function catchStep(b: BattleState, save: Save, stepMs: number, rng: Rng): BattleState {
+  const c = { ...b.catch!, ms: b.catch!.ms + stepMs };
+  const decideAt = TIMING.catchRingMs + BALANCE.catchGoodMs;
+  if (c.caught === null) {
+    if (c.ms < decideAt) return { ...b, catch: c };
+    // 원이 다 줄어든 뒤 (늦게 누를 틈까지) — 확률로 정하고 흔들흔들
+    const timing = catchTiming(c.pressMs, TIMING.catchRingMs);
+    const p = catchChance({ captureRate: speciesOf(b.foe.species)?.captureRate ?? 45, hp: b.foe.hp, maxHp: b.foe.maxHp, ball: c.ball, timing, lastChance: c.last });
+    const caught = rng.next() < p;
+    const nice = timing === 'perfect' ? ' 완벽한 타이밍!' : timing === 'good' ? ' 좋은 타이밍!' : '';
+    return { ...b, catch: { ...c, caught }, msg: `흔들… 흔들…${nice}` };
+  }
+  if (c.ms < decideAt + TIMING.catchShakeMs) return { ...b, catch: c };
+  const name = label(b.foe, 'foe');
+  if (c.caught) return { ...b, catch: c, phase: 'over', result: 'catch', overMs: 0, msg: `신난다! ${withJosa(name, '을/를')} 잡았다!` };
+  if (c.last) return { ...b, catch: null, phase: 'over', result: 'win', overMs: 0, msg: `아깝다! ${withJosa(name, '이/가')} 빠져나왔다…` };
+  // 볼을 던진 것도 내 행동 하나 — 독 · 화상 피해 (다른 아이템처럼)
+  const nb0: BattleState = { ...b, catch: null, me: { ...b.me }, popups: [...b.popups] };
+  afterAction(nb0, 'me');
+  const nb = afterHits(nb0, save);
+  return { ...nb, msg: nb.phase === 'choose' || nb.phase === 'pick' || nb.phase === 'over' ? nb.msg : `아깝다! ${withJosa(name, '이/가')} 빠져나왔다!` };
 }
 
 function pickNext(b: BattleState, save: Save, uid: string): BattleState {
@@ -506,7 +583,7 @@ function pickNext(b: BattleState, save: Save, uid: string): BattleState {
   if (!m) return b;
   const next = fighterOf(m);
   next.ult = b.bench[uid]?.ult ?? 0;
-  return { ...b, me: next, phase: 'run', msg: `가랏, ${nameOf(next)}!` };
+  return { ...b, me: next, phase: 'run', msg: `가랏, ${nameOf(next)}!`, fought: b.fought.includes(uid) ? b.fought : [...b.fought, uid] };
 }
 
 /** 전투 결과를 보여 주는 시간이 다 지났는지 */
@@ -522,9 +599,12 @@ export function battleWaiting(b: BattleState): boolean {
 export type BattleInput =
   | { kind: 'act'; action: BattleAction }
   | { kind: 'ult' }
-  /** Space · 클릭 — 힘대결 연타 · 맞받아치기 · 필살기 맞받아치기 */
-  | { kind: 'space' }
-  | { kind: 'pick'; uid: string };
+  /** Space · 클릭 — 힘대결 연타 · 맞받아치기 · 필살기 맞받아치기 · 타이밍 원 (extraMs = 걸음이 되지 못한 시간) */
+  | { kind: 'space'; extraMs?: number }
+  | { kind: 'pick'; uid: string }
+  /** 이긴 뒤 마지막 기회: 볼 던지기 · 그냥 지나가기 */
+  | { kind: 'ball'; ball: BallId }
+  | { kind: 'no-ball' };
 
 /** 지금 할 수 있는 행동인지 (메뉴를 흐리게) */
 export function canAct(b: BattleState, save: Save, action: BattleAction): boolean {
@@ -543,7 +623,8 @@ export function canAct(b: BattleState, save: Save, action: BattleAction): boolea
         const fainted = faintedTeam(b, save);
         return action.uid === undefined ? fainted.length > 0 : fainted.some((m) => m.uid === action.uid);
       }
-      return false; // 볼 (단계 7 S11)
+      // 볼은 야생에게만 (원작 규칙 [제안])
+      return isBall(action.item) && b.kind === 'wild';
     case 'switch':
       return switchable(b, save).some((m) => m.uid === action.uid);
     case 'flee':
@@ -592,7 +673,14 @@ export function battleInput(b: BattleState, save: Save, input: BattleInput, rng:
   switch (input.kind) {
     case 'act':
       if (!canAct(b, save, input.action)) return b;
+      if (input.action.kind === 'item' && isBall(input.action.item)) return throwBall(b, input.action.item, false);
       return startAction(b, 'me', input.action, rng);
+    case 'ball':
+      if (b.phase !== 'last' || itemLeft(b, save, input.ball) <= 0) return b;
+      return throwBall(b, input.ball, true);
+    case 'no-ball':
+      if (b.phase !== 'last') return b;
+      return { ...b, phase: 'over', result: 'win', overMs: 0, msg: `${withJosa(label(b.foe, 'foe'), '이/가')} 쓰러졌다!` };
     case 'ult': {
       if (ultCounterOpen(b)) return startClash({ ...b, me: { ...b.me, ult: 0 } }, 'ult', null, null);
       if (!canUlt(b)) return b;
@@ -604,6 +692,13 @@ export function battleInput(b: BattleState, save: Save, input: BattleInput, rng:
       return nb;
     }
     case 'space': {
+      // 타이밍 원 — 처음 누른 때만 (다 줄어든 뒤 조금 늦게까지)
+      if (b.phase === 'catch' && b.catch) {
+        // extraMs = 아직 걸음이 되지 못한 시간 (화면의 원은 실제 시간으로 줄어듦 — 판정을 그 시간에 맞춤)
+        const at = b.catch.ms + Math.min(TIMING.simStepMs, Math.max(0, input.extraMs ?? 0));
+        if (b.catch.caught !== null || b.catch.pressMs !== null || at > TIMING.catchRingMs + BALANCE.catchGoodMs) return b;
+        return { ...b, catch: { ...b.catch, pressMs: at } };
+      }
       if (b.phase === 'clash' && b.clash) {
         if (b.clash.winner !== null) return b; // 승자가 정해진 뒤 연타는 안 셈
         const taps = Math.min(Math.round(BALANCE.clashTapMax / BALANCE.clashTap), b.clash.taps + 1);
@@ -659,7 +754,7 @@ type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
 const fin = (v: unknown, min = -1e12, max = 1e12): v is number => typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max;
 const SIDES = ['me', 'foe'];
-const PHASES = ['run', 'choose', 'anim', 'clash', 'pick', 'over'];
+const PHASES = ['run', 'choose', 'anim', 'clash', 'pick', 'catch', 'last', 'over'];
 const ACTIONS = ['attack', 'move', 'guard', 'item', 'switch', 'flee', 'ult', 'skip'];
 const STATUS = ['poison', 'burn', 'paralysis', 'sleep'];
 const POPUP_KINDS = ['damage', 'heal', 'info'];
@@ -729,7 +824,11 @@ export function readBattle(raw: unknown): BattleState | null {
   if (clash !== null && !(isObj(clash) && (clash.kind === 'move' || clash.kind === 'ult') && (clash.me === null || fin(clash.me, 1, 100000)) && (clash.foe === null || fin(clash.foe, 1, 100000)) && fin(clash.base, 0, 1) && fin(clash.taps, 0, 1000) && fin(clash.ms, 0) && (clash.winner === null || SIDES.includes(clash.winner as string)))) return null;
   if (raw.phase === 'anim' && anim === null) return null;
   if (raw.phase === 'clash' && clash === null) return null;
-  if (!(raw.result === null || raw.result === 'win' || raw.result === 'lose' || raw.result === 'flee')) return null;
+  const ct = raw.catch;
+  if (ct !== null && !(isObj(ct) && (BALLS as readonly string[]).includes(ct.ball as string) && fin(ct.ms, 0) && (ct.pressMs === null || fin(ct.pressMs, 0)) && typeof ct.last === 'boolean' && (ct.caught === null || typeof ct.caught === 'boolean') && fin(ct.startT, 0))) return null;
+  if (raw.phase === 'catch' && ct === null) return null;
+  if (!fin(raw.lastMs, 0) || !Array.isArray(raw.fought) || !raw.fought.every((u) => typeof u === 'string')) return null;
+  if (!(raw.result === null || raw.result === 'win' || raw.result === 'lose' || raw.result === 'flee' || raw.result === 'catch')) return null;
   // 끝난 전투에는 결과가, 진행 중에는 결과가 없어야 함
   if ((raw.phase === 'over') !== (raw.result !== null)) return null;
   if (!fin(raw.overMs, 0) || !fin(raw.fleeTries, 0, 1000) || typeof raw.msg !== 'string' || !fin(raw.t, 0) || !fin(raw.popupSeq, 0)) return null;

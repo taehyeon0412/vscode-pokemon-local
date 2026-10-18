@@ -1,7 +1,7 @@
 // 게임 모드 미리보기의 가짜 확장 쪽 — dev/game.html 에서 씀 (사진은 dev/game-shots.py)
 //   ?screen=title|game  save=none|ok|broken|newer  busy=1  notice=글  size=nano|small|medium|large  theme=dark|light  click=new|continue|exit
 //   progress=0~1 (숲 1-1 진행, 스테이지 시드 42 — 그 자리 바로 앞에서 시작해 흔적 · 조우 · 부탁을 찍음)
-//   battle=choose|skills|counter|clash|ult-cut|ult-beam|attack|pick|over|auto  dur=연출 ms (전투 장면을 바로 — 아래 battleKind)  animAt=초 (CSS 움직임을 그 시점에 멈춤)
+//   scene=result|learn|evolve|evolve-pick  battle=choose|skills|items|catch|last|counter|clash|ult-cut|ult-beam|attack|pick|over|auto  dur=연출 ms (전투 장면을 바로 — 아래 battleKind)  animAt=초 (CSS 움직임을 그 시점에 멈춤)
 // 확장이 하는 일 중 화면에 보이는 것만 흉내: ready → title · start, title-new · title-continue → start, exit → stop
 (function () {
     const q = new URLSearchParams(location.search);
@@ -34,7 +34,7 @@
         party: ['m1'], box: [], nextMonsterUid: 2, bag: { 'poke-ball': 3 }, money: 1000, badges: [],
         stages: { 'forest-1': { seed: 42, progress: Number(q.get('progress') || (q.get('battle') ? 0.0483 : 0)), cleared: false, defeatedTrainers: [], facilities: [] } },
         location: { screen: 'stage', stageId: 'forest-1' }, lastHospital: null, dex: { seen: [1], caught: [1] },
-        pendingEncounter: null, settings: { notifications: true, autoBattle: false },
+        pendingEncounter: null, pendingChoices: [], settings: { notifications: true, autoBattle: false },
     };
     const info = {
         save: saveKind,
@@ -65,7 +65,7 @@
         const dur = Number(q.get('dur') || 20000);
         const b = {
             kind: 'wild', me, foe, bench: {}, bagUsed: {}, phase: 'run', anim: null, clash: null, result: null, overMs: 0, fleeTries: 0,
-            msg: '가랏, 이상해씨!', popups: [], popupSeq: 0, t: 5000, ultAt: { me: null, foe: null }, start: 'normal',
+            msg: '가랏, 이상해씨!', popups: [], popupSeq: 0, t: 5000, catch: null, lastMs: 0, fought: ['m1'], ultAt: { me: null, foe: null }, start: 'normal',
         };
         if (battleKind === 'choose' || battleKind === 'skills') Object.assign(b, { phase: 'choose', me: { ...me, gauge: 1 }, msg: '이상해씨는 무엇을 할까?' });
         if (battleKind === 'counter') Object.assign(b, { phase: 'anim', anim: { side: 'foe', action: { kind: 'move', moveId: 52 }, ms: 0, dur, counter: true }, msg: '야생 파이리의 불꽃세례!' });
@@ -74,7 +74,21 @@
         if (battleKind === 'attack') Object.assign(b, { phase: 'anim', anim: { side: 'me', action: { kind: 'attack' }, ms: 0, dur, counter: false }, msg: '이상해씨의 공격!' });
         if (battleKind === 'pick') Object.assign(b, { phase: 'pick', me: { ...me, hp: 0, gauge: 0 }, bench: { m1: { hp: 0, moves: me.moves, status: null } }, msg: '이상해씨가 쓰러졌다! 다음 포켓몬을 골라요 (숫자 키)' });
         if (battleKind === 'over') Object.assign(b, { phase: 'over', foe: { ...foe, hp: 0 }, result: 'win', msg: '야생 파이리가 쓰러졌다!' });
+        if (battleKind === 'items') { save.bag = { 'poke-ball': 3, 'great-ball': 1, potion: 2 }; Object.assign(b, { phase: 'choose', me: { ...me, gauge: 1 }, msg: '이상해씨는 무엇을 할까? (1 ~ 5)' }); }
+        if (battleKind === 'catch') Object.assign(b, { phase: 'catch', catch: { ball: 'poke-ball', ms: 0, pressMs: null, last: false, caught: null }, msg: '가랏, 몬스터볼! 원이 작아질 때 Space' });
+        if (battleKind === 'last') { save.bag = { 'poke-ball': 3, 'great-ball': 1 }; Object.assign(b, { phase: 'last', foe: { ...foe, hp: 0 }, msg: '야생 파이리가 쓰러졌다! 마지막 기회 — 볼을 던질까?' }); }
         runtime = { rngState: 1, stepAccMs: 0, speed: 1, stage: { phase: 'battle', battle: b }, stageId: 'forest-1', toast: null };
+    }
+
+    // 전투 뒤 장면 (단계 7) — scene=result|learn|evolve|evolve-pick
+    const scene = q.get('scene');
+    if (scene) {
+        save.monsters.m1 = { ...save.monsters.m1, level: scene === 'result' ? 6 : 16, moves: [{ moveId: 33, pp: 30 }, { moveId: 22, pp: 20 }, { moveId: 52, pp: 25 }, { moveId: 84, pp: 30 }] };
+        let stage = { phase: 'choice', ms: scene === 'evolve-pick' ? 4000 : 0 };
+        if (scene === 'result') stage = { phase: 'result', ms: 0, summary: { title: '야생 피죤을 쓰러뜨렸다!', exp: [{ uid: 'm1', name: '이상해씨', gain: 28, from: 5, to: 6 }], money: 20, item: '몬스터볼', caught: null, learned: [{ name: '이상해씨', move: '덩굴채찍' }], choices: 1 } };
+        if (scene === 'learn') save.pendingChoices = [{ kind: 'learn', uid: 'm1', moveId: 75 }];
+        if (scene === 'evolve' || scene === 'evolve-pick') save.pendingChoices = [{ kind: 'evolve', uid: 'm1', to: 2, newMoves: [75, 76], level: 16, item: null }];
+        runtime = { rngState: 1, stepAccMs: 0, speed: 1, stage, stageId: 'forest-1', toast: null };
     }
 
     let epoch = 0;
@@ -85,6 +99,13 @@
     window.pokemonVscodeApi = {
         postMessage(m) {
             window.pokemonGameLog.push(m);
+            // 화면 오류 글을 페이지 위에 (사진으로 원인 보기)
+            if (m.type === 'load-failed') {
+                const d = document.createElement('pre');
+                d.style.cssText = 'position:fixed;left:0;bottom:0;z-index:99999;margin:0;color:#f88;background:#000;font-size:10px;white-space:pre-wrap';
+                d.textContent = m.message;
+                document.body.appendChild(d);
+            }
             if (m.command !== 'game') return;
             if (m.type === 'ready') return screen === 'game' ? start(save) : toWebview({ type: 'title', info });
             if (m.type === 'title-new') return start(m.save);
@@ -107,6 +128,18 @@
         window.cancelAnimationFrame = (id) => clearTimeout(id);
     }
 
+    // 디버그: probe=선택자 → 계산된 스타일 몇 개를 페이지 아래에
+    if (q.get('probe')) {
+        setTimeout(() => {
+            const el = document.querySelector(q.get('probe'));
+            const d = document.createElement('pre');
+            d.style.cssText = 'position:fixed;left:0;bottom:0;z-index:99999;margin:0;color:#8f8;background:#000;font-size:10px;white-space:pre-wrap';
+            if (!el) d.textContent = 'no element';
+            else { const cs = getComputedStyle(el); d.textContent = ['background-color', 'opacity', 'z-index', 'position', 'width', 'height', 'display'].map((k) => k + '=' + cs.getPropertyValue(k)).join(' · '); }
+            document.body.appendChild(d);
+        }, 900);
+    }
+
     const s = document.createElement('script');
     s.src = '../extension/media/game/game.js';
     document.body.appendChild(s);
@@ -114,7 +147,7 @@
     // 버튼 누르기 (사진용)
     const click = q.get('click');
     if (click) {
-        const label = { new: '새로 하기', continue: '이어 하기', exit: '일반 모드', skills: '3 스킬' }[click];
+        const label = { new: '새로 하기', continue: '이어 하기', exit: '일반 모드', skills: '3 스킬', items: '4 아이템' }[click];
         const alt = { skills: '3✨' }[click];
         // game.js 를 받아 화면이 그려질 때까지 기다렸다가
         const tryClick = (left) => {

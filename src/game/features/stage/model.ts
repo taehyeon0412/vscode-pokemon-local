@@ -9,6 +9,7 @@ import { requestAt, type RequestTemplate } from '../../core/rules/request';
 import { stageLayout } from '../../core/rules/stage';
 import type { FacilitySpot, StageId } from '../../core/save';
 import { battleViewKey } from '../battle/model';
+import { resultViewKey } from '../result/model';
 
 export interface StageInfo {
   id: StageId;
@@ -136,5 +137,6 @@ export function stageViewKey(state: GameState): string {
     state.save.bag['poke-ball'] ?? 0,
     pending?.kind === 'wild' ? pending.start : '',
     st?.phase === 'battle' ? battleViewKey(st.battle, state.save.settings.autoBattle) : '',
+    resultViewKey(state),
   ].join('|');
 }

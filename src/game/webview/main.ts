@@ -146,6 +146,10 @@ if (!port) {
     } else if (phase === 'request' && ((e.key === 'Enter' && !onButton) || e.key === 'Escape')) {
       e.preventDefault();
       actions.input({ kind: 'request', help: e.key === 'Enter' });
+    } else if (phase === 'result' && e.key === 'Enter' && !onButton) {
+      // S12 계속 (S23 · S22 의 숫자 · Enter · Esc 는 ChoiceBox 가 들음)
+      e.preventDefault();
+      actions.input({ kind: 'result-continue' });
     }
   });
 

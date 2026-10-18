@@ -6,7 +6,7 @@
  * 선제공격은 Space 또는 길 클릭 [제안] — 코딩 중에는 편집기에 포커스가 있어 Space 가 코드에 들어가므로, 클릭하면 패널에 포커스도 옴.
  */
 import { BALANCE } from '../../../core/balance';
-import type { GameInput, GameState } from '../../../core/engine';
+import { itemLeft, type GameInput, type GameState } from '../../../core/engine';
 import { bestHelper, requestAt } from '../../../core/rules/request';
 import { withJosa } from '../../../core/text';
 import { speciesOf } from '../../../data';
@@ -17,6 +17,9 @@ import { InfoBar } from '../../../ui/InfoBar';
 import { INFO_BAR_PX, type Layout } from '../../../ui/layout';
 import { BattleLayer, BattleMenuBar } from '../../battle/components/BattleLayer';
 import { battleGeometry, battleSpritePx } from '../../battle/model';
+import { ChoiceBox } from '../../result/components/ChoiceBox';
+import { ResultBox } from '../../result/components/ResultBox';
+import { choiceView } from '../../result/model';
 import { contactX, heroX, minimapOf, STAGES, stagePx, visibleObjects } from '../model';
 import { Hero } from './Hero';
 import { Minimap } from './Minimap';
@@ -118,6 +121,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput }: StageScr
   const objects = visibleObjects(state, widthPx, layout.scale);
   const stageRt = state.runtime.stage;
   const battle = stageRt?.phase === 'battle' ? stageRt.battle : null;
+  const choice = choiceView(state);
   const geo = battle
     ? battleGeometry({
         widthPx,
@@ -139,7 +143,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput }: StageScr
         <BattleMenuBar battle={battle} save={save} onInput={onInput} withAuto={geo.autoInMenu} compact={geo.compact} />
       ) : (
         <InfoBar
-          left={<BallCount count={save.bag['poke-ball'] ?? 0} />}
+          left={<BallCount count={battle ? itemLeft(battle, save, 'poke-ball') : (save.bag['poke-ball'] ?? 0)} />}
           center={info && map ? <Minimap stage={info} progress={map.progress} facilities={map.facilities} gym={map.gym} /> : <span>🌲 숲</span>}
         />
       )}
@@ -147,7 +151,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput }: StageScr
         class={battle ? 'pg-body pg-field pg-in-battle' : 'pg-body pg-field'}
         onPointerDown={() => {
           // 튀어나온 순간 길을 클릭해도 선제공격 [제안] · 힘대결 중 클릭 = 연타 (gdd S10 ⑤)
-          if (phase === 'appear' || battle?.phase === 'clash') onInput({ kind: 'space' });
+          // 볼을 던졌을 때 클릭 = 타이밍 원 Space (S11)
+          if (phase === 'appear' || battle?.phase === 'clash' || battle?.phase === 'catch') onInput({ kind: 'space' });
         }}
       >
         <div class="pg-bg" style={{ backgroundImage: art('background'), backgroundPositionX: `${-Math.round(offset * 0.35)}px` }} />
@@ -159,6 +164,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput }: StageScr
         {battle && geo && <BattleLayer battle={battle} save={save} media={media} ground={ground} geo={geo} onInput={onInput} />}
         <EncounterBox state={state} />
         <RequestBox state={state} onInput={onInput} />
+        {stageRt?.phase === 'result' && <ResultBox summary={stageRt.summary} next={save.pendingChoices[0]?.kind ?? null} onInput={onInput} />}
+        {choice && <ChoiceBox view={choice} media={media} scale={layout.scale} onInput={onInput} />}
         {phase === 'end' && (
           <div class="pg-banner pg-end pg-wrap">
             <span class="pg-ellipsis">🏁 스테이지 끝까지 왔어요! (클리어 카드는 다음 단계들에서)</span>

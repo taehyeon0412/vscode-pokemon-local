@@ -5,6 +5,7 @@
 import { TIMING } from '../balance';
 import { STAGE_IDS, type Save, type StageId } from '../save';
 import { readBattle, type BattleState } from './battle';
+import type { BattleSummary } from './rewards';
 
 /**
  * 스테이지에서 지금 하는 일 (S06):
@@ -13,6 +14,8 @@ import { readBattle, type BattleState } from './battle';
  * - battle: 전투 1:1 (engine/battle.ts) — 상대는 save.pendingEncounter, 전투 중 상태는 여기 (세이브에는 끝나고 한 번에)
  * - hold: 안 볼 때 (확장이 계산) 직접 봐야 할 순간 (이로치 흔적) 앞에서 멈춤 — 다시 보이면 이어 감 (U9)
  * - request: 길 위의 부탁 — 고를 때까지 기다림, 고르면 결과를 잠깐 보여 줌
+ * - result: S12 전투 결과 (경험치 · 레벨업 · 돈 · 아이템 · 잡은 포켓몬) — 잠깐 보여 주고 (계속으로 넘김) 고를 게 있으면 choice, 없으면 walk
+ * - choice: S23 새 기술 · S22 진화 — save.pendingChoices 맨 앞을 고를 때까지 기다림 (ms = 진화 연출 시간)
  * - end: 스테이지 끝 (클리어 카드는 단계 9)
  */
 export type StageRuntime =
@@ -21,9 +24,11 @@ export type StageRuntime =
   | { phase: 'battle'; battle: BattleState }
   | { phase: 'hold'; why: 'shiny' }
   | { phase: 'request'; at: number; number: number; result: RequestResult | null; ms: number }
+  | { phase: 'result'; summary: BattleSummary; ms: number }
+  | { phase: 'choice'; ms: number }
   | { phase: 'end' };
 
-export const STAGE_PHASES = ['walk', 'appear', 'battle', 'request', 'end', 'hold'] as const;
+export const STAGE_PHASES = ['walk', 'appear', 'battle', 'request', 'end', 'hold', 'result', 'choice'] as const;
 
 /** 부탁 결과 — 글 · 받은 것 (따로 둬서 좁은 패널에서도 받은 것이 안 잘리게) */
 export interface RequestResult {
@@ -70,6 +75,24 @@ type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
 const num = (v: unknown, min: number, max: number): number | null => (typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max ? v : null);
 
+const text = (v: unknown, max = 200): string | null => (typeof v === 'string' ? v.slice(0, max) : null);
+
+/** S12 에 보여 줄 것 — 보여 주기만이라 모양만 봄 (이상하면 null → 결과 화면 없이 이어 감) */
+function readSummary(raw: unknown): BattleSummary | null {
+  if (!isObj(raw) || text(raw.title) === null || !Array.isArray(raw.exp) || !Array.isArray(raw.learned)) return null;
+  const exp = raw.exp
+    .slice(0, 6)
+    .filter(isObj)
+    .map((e) => ({ uid: text(e.uid, 20) ?? '', name: text(e.name, 30) ?? '', gain: num(e.gain, 0, 1e9) ?? 0, from: num(e.from, 1, 100) ?? 1, to: num(e.to, 1, 100) ?? 1 }));
+  const learned = raw.learned
+    .slice(0, 12)
+    .filter(isObj)
+    .map((l) => ({ name: text(l.name, 30) ?? '', move: text(l.move, 30) ?? '' }));
+  const c = raw.caught;
+  const caught = isObj(c) && text(c.name, 30) !== null && typeof c.toBox === 'boolean' ? { name: text(c.name, 30) as string, toBox: c.toBox } : null;
+  return { title: text(raw.title) as string, exp, money: num(raw.money, 0, 1e9) ?? 0, item: text(raw.item, 30), caught, learned, choices: num(raw.choices, 0, 1000) ?? 0 };
+}
+
 /** 웹뷰에서 온 스테이지 진행 중 상태 — 모양이 이상하면 null (다음 걸음에 세이브를 보고 다시 정함) */
 function readStage(raw: unknown): StageRuntime | null {
   if (!isObj(raw)) return null;
@@ -100,6 +123,12 @@ function readStage(raw: unknown): StageRuntime | null {
       if (ms === null || at === null || n === null || result === undefined) return null;
       return { phase: 'request', at, number: Math.floor(n), result, ms };
     }
+    case 'result': {
+      const summary = readSummary(raw.summary);
+      return ms !== null && summary ? { phase: 'result', summary, ms } : null;
+    }
+    case 'choice':
+      return ms !== null ? { phase: 'choice', ms } : null;
     default:
       return null;
   }

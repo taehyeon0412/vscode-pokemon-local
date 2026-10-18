@@ -9,6 +9,7 @@ import formsJson from './generated/forms.json';
 import learnsetsJson from './generated/learnsets.json';
 import metaJson from './generated/meta.json';
 import movesJson from './generated/moves.json';
+import signatureJson from './generated/signature.json';
 import speciesJson from './generated/species.json';
 
 export const TYPE_NAMES = [
@@ -163,6 +164,13 @@ export function allSpecies(): number[] {
 
 export function allForms(): string[] {
   return Object.keys(forms);
+}
+
+const signature = signatureJson as unknown as Readonly<Record<string, readonly number[]>>;
+
+/** 진화할 때 들어오는 대표 기술 후보 (확장의 대표 기술 중 게임에 있는 피해 기술, scripts/build-signature.mjs) — 없으면 빈 목록 */
+export function signatureOf(dex: number): readonly number[] {
+  return hasOwn(signature, String(dex)) ? (signature[String(dex)] ?? []) : [];
 }
 
 /** 기술 전부 (번호 순서) */

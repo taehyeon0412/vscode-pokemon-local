@@ -206,6 +206,50 @@ describe('고정된 1판 세이브 표본 (src/test/fixtures/save-v1.json)', () 
     expect(r.problems).toEqual([]);
     expect(r.save.party).toEqual(['m1', 'm2']);
     expect(r.save.pendingEncounter?.kind).toBe('wild');
-    expect(viaJson(r.save)).toEqual(raw);
+    // pendingChoices 는 단계 7 에 더한 칸 (전투 끝의 S23 · S22 고르기) — 그 전 1판 세이브에는 없고, 고칠 것 없이 빈 목록으로 읽음 (버전을 안 올려도 되는 덧붙임)
+    expect(viaJson(r.save)).toEqual({ ...(raw as object), pendingChoices: [] });
+  });
+
+  it('단계 7 의 고르기 칸이 있는 세이브도 그대로 · 없는 포켓몬 · 모르는 기술을 가리키는 고르기는 뺌', async () => {
+    const raw = (await import('../../../test/fixtures/save-v1.json')).default as Record<string, unknown>;
+    const choices = [
+      { kind: 'learn', uid: 'm1', moveId: 22 },
+      { kind: 'evolve', uid: 'm1', to: 2, newMoves: [75, 76], level: 16, item: null },
+      { kind: 'learn', uid: 'm99', moveId: 22 },
+      { kind: 'learn', uid: 'm1', moveId: 999999 },
+    ];
+    const r = readSave(viaJson({ ...raw, pendingChoices: choices }));
+    expect(r.kind).toBe('ok');
+    if (r.kind !== 'ok') return;
+    expect(r.save.pendingChoices).toEqual(choices.slice(0, 2));
+    expect(r.problems.length).toBe(2);
+  });
+});
+
+describe('pendingChoices 검사 (단계 7 코드 리뷰어)', () => {
+  it('toString 같은 이름 · 고친 열쇠 이름', async () => {
+    const raw = (await import('../../../test/fixtures/save-v1.json')).default as Record<string, unknown>;
+    const r = readSave(viaJson({ ...raw, pendingChoices: [{ kind: 'learn', uid: 'toString', moveId: 22 }, { kind: 'learn', uid: 'constructor', moveId: 22 }] }));
+    expect(r.kind).toBe('ok');
+    if (r.kind !== 'ok') return;
+    expect(r.save.pendingChoices).toEqual([]);
+    // 열쇠 이름이 규칙에 안 맞아 바뀐 포켓몬을 가리키면 새 이름으로
+    const monsters = raw.monsters as Record<string, unknown>;
+    const renamedRaw = { ...raw, monsters: { ...monsters, odd: { ...(monsters.m2 as object), uid: 'odd' } }, box: ['odd'], pendingChoices: [{ kind: 'learn', uid: 'odd', moveId: 22 }] };
+    const r2 = readSave(viaJson(renamedRaw));
+    expect(r2.kind).toBe('ok');
+    if (r2.kind !== 'ok') return;
+    expect(r2.save.pendingChoices).toHaveLength(1);
+    expect(r2.save.monsters[r2.save.pendingChoices[0]!.uid]).toBeDefined();
+  });
+});
+describe('진화 고르기 검사 (단계 7 테스터)', () => {
+  it('그 종의 진짜 진화만 · 포켓몬마다 하나만', async () => {
+    const raw = (await import('../../../test/fixtures/save-v1.json')).default as Record<string, unknown>;
+    const evo = (to: number) => ({ kind: 'evolve', uid: 'm1', to, newMoves: [75], level: 16, item: null });
+    const r = readSave(viaJson({ ...raw, pendingChoices: [evo(150), evo(2), evo(2)] }));
+    expect(r.kind).toBe('ok');
+    if (r.kind !== 'ok') return;
+    expect(r.save.pendingChoices).toEqual([evo(2)]);
   });
 });
