@@ -38,6 +38,28 @@ export function healTeam(save: Save): Save {
   return { ...save, monsters };
 }
 
+/**
+ * 걷는 동안 회복 (2026-10-18 태현 님) — 걸은 시간 1분에 최대 HP 의 10%, 살아 있는 팀만 (상태 이상 · PP 는 그대로).
+ * 걸은 시간 = 진행 % × 걷는 시간 → 걸음 크기 (웹뷰 16ms · 확장 250ms) 와 상관없이 같은 결과
+ */
+export function walkRegen(save: Save, fromProgress: number, toProgress: number): Save {
+  if (!(toProgress > fromProgress)) return save;
+  const minutes = (p: number) => (p * BALANCE.stageWalkMs) / 60_000;
+  let monsters: Save['monsters'] | null = null;
+  for (const uid of save.party) {
+    const m = save.monsters[uid];
+    if (!m || m.hp <= 0) continue;
+    const max = maxHpOf(m);
+    if (m.hp >= max) continue;
+    const per = max * BALANCE.walkRegenPerMinute;
+    const heal = Math.floor(per * minutes(toProgress)) - Math.floor(per * minutes(fromProgress));
+    if (heal <= 0) continue;
+    monsters ??= { ...save.monsters };
+    monsters[uid] = { ...m, hp: Math.min(max, m.hp + heal) };
+  }
+  return monsters ? { ...save, monsters } : save;
+}
+
 /** 팀이 다 회복돼 있는지 (병원 [회복] 을 흐리게) */
 export function teamHealthy(save: Save): boolean {
   return save.party.every((uid) => {

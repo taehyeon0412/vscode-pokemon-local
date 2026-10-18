@@ -4,7 +4,7 @@ import { BALANCE } from '../balance';
 import { Rng } from '../engine/rng';
 import { resolveEvolve } from '../engine/rewards';
 import type { Save } from '../save';
-import { buy, fieldUseBlock, healTeam, itemEvolution, maxHpOf, moveInTeam, priceOf, spendPoint, swapWithBox, teamHealthy, toBox, useFieldItem } from './bag';
+import { buy, fieldUseBlock, healTeam, itemEvolution, maxHpOf, moveInTeam, priceOf, spendPoint, swapWithBox, teamHealthy, toBox, useFieldItem, walkRegen } from './bag';
 
 const GLOOM = 44;
 const withBox = (): Save => {
@@ -111,5 +111,25 @@ describe('S19 가방 — 전투 밖 (mvp-spec S19 막는 것 [제안])', () => {
     expect(cancelled.monsters.m1!.species).toBe(GLOOM);
     const done = resolveEvolve(r.save, [33], new Rng(1));
     expect(done.monsters.m1!.species).toBe(45);
+  });
+});
+
+describe('걷는 동안 회복 (2026-10-18 태현 님)', () => {
+  it('걸은 시간 1분에 최대 HP 의 10% · 쓰러진 포켓몬 · HP 가득은 그대로 · 잘게 걸어도 같은 양', () => {
+    const s0 = sampleSave();
+    const m = { ...s0.monsters.m1!, hp: 1 };
+    const s: Save = { ...s0, monsters: { ...s0.monsters, m1: m, m2: { ...s0.monsters.m2!, hp: 0 } } };
+    const oneMinute = 60_000 / BALANCE.stageWalkMs;
+    const per = maxHpOf(m) * BALANCE.walkRegenPerMinute;
+    const r = walkRegen(s, 0.2, 0.2 + oneMinute);
+    const healed = r.monsters.m1!.hp - 1;
+    expect(healed).toBeGreaterThanOrEqual(Math.floor(per));
+    expect(healed).toBeLessThanOrEqual(Math.ceil(per));
+    expect(r.monsters.m2!.hp).toBe(0);
+    let fine: Save = s;
+    for (let i = 0; i < 100; i++) fine = walkRegen(fine, 0.2 + (oneMinute * i) / 100, 0.2 + (oneMinute * (i + 1)) / 100);
+    expect(fine.monsters.m1!.hp).toBe(r.monsters.m1!.hp);
+    const full: Save = { ...s0, monsters: { ...s0.monsters, m1: { ...m, hp: maxHpOf(m) } } };
+    expect(walkRegen(full, 0, 0.5)).toBe(full);
   });
 });

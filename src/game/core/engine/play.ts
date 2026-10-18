@@ -10,7 +10,7 @@
  * 상태는 늘 새 객체로 만듦 (그 자리에서 고치지 않음 — 확장 ↔ 웹뷰 · 저장소가 같은 객체를 나눠 써도 안 바뀌게).
  */
 import { BALANCE, TIMING } from '../balance';
-import { buy, healTeam, isShopItem, moveInTeam, spendPoint, swapWithBox, toBox, useFieldItem } from '../rules/bag';
+import { buy, healTeam, isShopItem, moveInTeam, spendPoint, swapWithBox, toBox, useFieldItem, walkRegen } from '../rules/bag';
 import { ambushChance, createWild, pickupAt, planWild, resolveStart, wildKey } from '../rules/encounter';
 import { itemName, requestAt, resolveRequest } from '../rules/request';
 import { spotBetween, spotRng, stageCode, stageLayout, trainerId, walkDelta, type Spot, type StageLayout } from '../rules/stage';
@@ -229,6 +229,7 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
   // 안 볼 때 고를 것이 남은 세이브로 시작했으면 (껐다 켬 등) 한 번 알림 — 그 뒤로는 기다리는 중이라 확장 계산이 멈춤
   if (rt.headless && stage.phase === 'choice' && rt.stage?.phase !== 'choice' && save.pendingChoices.length > 0) notice = 'choice';
   if (shinyWhileAway(save, rt, stage)) return { save, rt: { ...rt, stage, stageId: id }, signal, notice };
+  const walking = stage.phase === 'walk';
 
   switch (stage.phase) {
     case 'walk': {
@@ -390,6 +391,8 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
     case 'badge':
       break;
   }
+  // 걷는 동안 회복 — 이번 걸음에 나아간 만큼 (1분에 최대 HP 10%)
+  if (walking) save = walkRegen(save, prog.progress, save.stages[id]?.progress ?? prog.progress);
   return { save, rt: { ...rt, stage, stageId: id }, signal, notice };
 }
 

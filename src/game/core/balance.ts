@@ -168,6 +168,8 @@ export const BALANCE = {
   trainerMoneyPerLevel: 20,
   gymFirstMoney: 3000,
   gymRematchMoney: 300,
+  /** 걷는 동안 회복: 걸은 시간 1분에 최대 HP 의 10% (쓰러진 포켓몬은 그대로) — 2026-10-18 태현 님 (1-1 에서 첫 병원 전에 계속 지는 것을 줄임) · 숫자는 [임시값] */
+  walkRegenPerMinute: 0.1,
   /** 졌을 때 잃는 돈 (관장전은 안 잃음 — gdd 4.10) */
   defeatMoneyLoss: 0.1,
   /** 상점 값 (원, 4장) — 마스터볼은 안 팖 */
