@@ -145,8 +145,8 @@ def main():
             budget = 4000 + (hi - lo) * 7000
         else:
             params["smoke"] = a.fx or "all"
-            # 필살기가 길어져서 (기 모으기 · 큰 마무리 · 전용 7 ~ 9초) 넉넉히 — 틀마다 옵션 12벌 · 한 벌 11초
-            budget = 4000 + 130 * 11000 if (a.fx or "all") == "all" else 4000 + len(a.fx.split(",")) * 12 * 11000
+            # 필살기가 길어져서 (기 모으기 · 큰 마무리 · 전용 7 ~ 9초) 넉넉히 — 틀마다 옵션 24벌 · 한 벌 11초
+            budget = 4000 + 200 * 11000 if (a.fx or "all") == "all" else 4000 + len(a.fx.split(",")) * 24 * 11000
             if a.fx in ("duel", "clash"):
                 budget = 4000 + 24 * 11000
         out = run(base + "?" + urllib.parse.urlencode(params), win, budget, ["--dump-dom"])
