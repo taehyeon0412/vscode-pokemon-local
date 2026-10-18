@@ -46,9 +46,9 @@ describe('스테이지 길 (mvp-spec 3.2 · gdd 4.5 · 4.6)', () => {
     expect(spotBetween(l, first.at - 0.000001, 1)).toEqual(first);
   });
 
-  it('걷는 시간 15분 = 진행 100%', () => {
+  it('걷는 시간 20분 = 진행 100% (15분 → 20분: 단계 11, 2026-10-19 태현 님)', () => {
     expect(walkDelta(BALANCE.stageWalkMs)).toBeCloseTo(1);
-    expect(walkDelta(50) * (15 * 60 * 20)).toBeCloseTo(1);
+    expect(walkDelta(50) * (20 * 60 * 20)).toBeCloseTo(1);
   });
 });
 

@@ -19,7 +19,7 @@ describe('트레이너 (mvp-spec S08 · 4장)', () => {
     expect(trainerId('forest-2', 1)).toBe('forest-2:t1');
   });
 
-  it('사람 (이름 · 옷) 은 늘 같음 · 데리고 나오는 포켓몬 수는 내 살아 있는 포켓몬 + 1 까지 · 레벨 = 레벨대 위끝', () => {
+  it('사람 (이름 · 옷) 은 늘 같음 · 데리고 나오는 포켓몬 수는 내 살아 있는 포켓몬 + 1 까지 · 레벨 = 레벨대 가운데 (위끝 → 가운데: 단계 11, 2026-10-19 태현 님)', () => {
     expect(trainerInfo('forest-1', 0)).toEqual(trainerInfo('forest-1', 0));
     expect(trainerInfo('forest-1', 0).name).toMatch(/ /);
     for (let seed = 1; seed < 40; seed++) {
@@ -28,7 +28,8 @@ describe('트레이너 (mvp-spec S08 · 4장)', () => {
       expect(team.length).toBeGreaterThanOrEqual(1);
       expect(team.length).toBeLessThanOrEqual(3);
       for (const m of team) {
-        expect(m.level).toBe(stageLevelBand('forest-2')[1]);
+        const [lo, hi] = stageLevelBand('forest-2');
+        expect(m.level).toBe(Math.round((lo + hi) / 2));
         expect(formsOfSpecies(m.species).length).toBeGreaterThan(0);
       }
     }

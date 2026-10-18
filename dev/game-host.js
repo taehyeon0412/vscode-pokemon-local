@@ -127,7 +127,7 @@
             save.pendingEncounter = { kind: 'trainer', trainerId: 'forest-1:t0', stageId: 'forest-1' };
             stage = place === 'trainer' ? { phase: 'trainer', n: 0, ms: 1200 } : { phase: 'battle', battle: battle('trainer', '등산가 민수', foeMon('foe0', 11, 'metapod', 6), [foeMon('foe1', 14, 'kakuna', 6)]) };
         }
-        if (place === 'defeat') { st.progress = 0.4724 - 1e-7; save.lastHospital = { stageId: 'forest-1', at: 0.4724 }; stage = { phase: 'defeat', gym: false, lost: 100 }; }
+        if (place === 'defeat') { st.progress = 0.4724 - 1e-7; st.run.reach = 0.61; st.run.retries = Number(q.get('retries') || 0); save.lastHospital = { stageId: 'forest-1', at: 0.4724 }; stage = { phase: 'defeat', gym: false, lost: 100 }; }
         if (place === 'clear') { st.progress = 1; st.cleared = true; save.playTimeMs = 2280000; stage = { phase: 'clear' }; }
         let stageId = 'forest-1';
         if (place === 'lobby' || place === 'gym-battle' || place === 'badge') {

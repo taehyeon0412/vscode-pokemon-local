@@ -1,14 +1,15 @@
 /**
  * 조우 · 발견 (mvp-spec 3.2 · gdd 4.6) — 그 자리에서 무엇을 만나는지. 자리 시드로 정해서 언제 누가 계산해도 같음.
  *
- * 숲 포켓몬 = 확장에 그림이 있는 풀 · 벌레 1단계 (전설 · 환상 · 아기 빼고), 10% 는 독 · 드래곤 · 페어리.
+ * 숲 포켓몬 = 확장에 그림이 있는 풀 · 벌레 1단계 (전설 · 환상 · 아기 빼고) · 30% 는 노말 · 비행으로만 된 1단계 (공격 기술이 있는 것 — 단계 11, 2026-10-19 태현 님) ·
+ *   그 나머지의 10% 는 독 · 드래곤 · 페어리. 타입이 겹치면 풀 · 벌레 → 독 · 드래곤 · 페어리 → 노말 · 비행 순으로 한 곳에만.
  * 종족값 합 450 이 넘는 1단계 (스라크 · 헤라크로스 등) 는 1-3 에만. 레벨이 진화 레벨을 넘으면 진화형 (돌 · 교환은 안 나옴).
  * 스타팅 18종 계열은 야생에 안 나옴 (mvp-spec 9장 [제안] — 처음 고른 포켓몬이 특별하게).
  */
 import { BALANCE } from '../balance';
 import type { Rng } from '../engine/rng';
 import type { EncounterStart, ItemId, Monster, StageId } from '../save';
-import { allSpecies, evolutionsOf, formOf, formsOfSpecies, speciesOf, type ReadonlySpecies, type TypeName } from '../../data';
+import { allSpecies, evolutionsOf, formOf, formsOfSpecies, learnsetOf, moveOf, speciesOf, type ReadonlySpecies, type TypeName } from '../../data';
 import { createMonster, wildMoves } from './monster';
 import { spotRng, stageLevelBand, type Spot } from './stage';
 
@@ -41,20 +42,26 @@ const hasAny = (types: readonly TypeName[], want: readonly TypeName[]) => types.
 interface Pool {
   common: number[];
   rare: number[];
+  /** 노말 · 비행 (숲에 섞임, mixedTypeChance) */
+  mixed: number[];
 }
 const pools = new Map<StageId, Pool>();
+
+/** 레벨업으로 피해 기술을 하나라도 배우는지 (메타몽처럼 변신만 있으면 숲에 섞지 않음) */
+const canAttack = (dex: number) => learnsetOf(dex).some(([, id]) => (moveOf(id)?.class ?? 'status') !== 'status');
 
 /** 그 스테이지에 나오는 1단계 종 (도감 번호) */
 export function forestPool(stageId: StageId): Pool {
   let pool = pools.get(stageId);
   if (pool) return pool;
-  pool = { common: [], rare: [] };
+  pool = { common: [], rare: [], mixed: [] };
   for (const dex of allSpecies()) {
     const s = speciesOf(dex);
     if (!s || !isWildable(s) || isStarterLine(s) || formsOfSpecies(dex).length === 0) continue;
     if (baseTotal(s) > BALANCE.bigBaseTotal && stageId !== 'forest-3') continue;
     if (hasAny(s.types, ['grass', 'bug'])) pool.common.push(dex);
     else if (hasAny(s.types, ['poison', 'dragon', 'fairy'])) pool.rare.push(dex);
+    else if (s.types.every((t) => t === 'normal' || t === 'flying') && canAttack(dex)) pool.mixed.push(dex);
   }
   pools.set(stageId, pool);
   return pool;
@@ -103,7 +110,7 @@ export const wildKey = (spot: Spot, retries = 0) => spot.index + retries * 10_00
 export function planWild(stageId: StageId, stageSeed: number, spot: Spot, retries = 0): WildPlan {
   const rng = spotRng(stageSeed, wildKey(spot, retries), 1);
   const pool = forestPool(stageId);
-  const list = pool.rare.length > 0 && rng.chance(BALANCE.rareTypeChance) ? pool.rare : pool.common;
+  const list = pool.mixed.length > 0 && rng.chance(BALANCE.mixedTypeChance) ? pool.mixed : pool.rare.length > 0 && rng.chance(BALANCE.rareTypeChance) ? pool.rare : pool.common;
   const base = list[rng.int(0, list.length - 1)] ?? 1;
   const [lo, hi] = stageLevelBand(stageId);
   const strong = rng.chance(BALANCE.strongTraceChance);

@@ -83,7 +83,13 @@ export function DefeatBox({ state, onInput }: BoxProps) {
   const st = state.runtime.stage;
   if (st?.phase !== 'defeat') return null;
   const lh = state.save.lastHospital;
-  const atHospital = state.save.location.screen === 'stage' && lh?.stageId === state.save.location.stageId;
+  const loc = state.save.location;
+  const atHospital = loc.screen === 'stage' && lh?.stageId === loc.stageId;
+  const run = loc.screen === 'stage' ? state.save.stages[loc.stageId]?.run : undefined;
+  const reach = Math.round((run?.reach ?? 0) * 100);
+  // 이 판에서 두 번 넘게 졌으면 — 같은 길 · 같은 트레이너라 그대로 다시 걸으면 또 질 수 있음 (단계 11 테스터)
+  const stuck = !st.gym && (run?.retries ?? 0) >= 2;
+  const from = atHospital && lh ? Math.round(lh.at * 100) : 0;
   return (
     <div class="pg-banner pg-defeat pg-two">
       <span class="pg-line pg-ellipsis">
@@ -91,9 +97,18 @@ export function DefeatBox({ state, onInput }: BoxProps) {
         {st.lost > 0 ? <span class="pg-reward pg-loss">💰 −{formatMoney(st.lost)}</span> : <span class="pg-dim">돈은 그대로</span>}
       </span>
       <span class="pg-line">
-        <span class="pg-dim pg-ellipsis">잡은 포켓몬 · 경험치는 그대로 · 팀은 다 회복했어요</span>
+        <span class="pg-dim pg-ellipsis">
+          {stuck ? (
+            '자꾸 지면 🗺 지도로 깬 스테이지에서 키우거나, 약해진 야생에게 볼을 던져 팀을 늘려 보세요'
+          ) : (
+            <>
+              잡은 포켓몬 · 경험치는 그대로 · 팀은 다 회복했어요
+              {!st.gym && reach > from && <span class="pg-long"> · {reach}% 까지 갔었어요</span>}
+            </>
+          )}
+        </span>
         <Button onClick={() => onInput({ kind: 'defeat-continue' })} title="Enter">
-          {st.gym ? '대기실로' : atHospital ? '다시 시작 (🏥 병원 앞)' : '다시 시작 (스테이지 처음)'}
+          {st.gym ? '대기실로' : atHospital ? `다시 시작 (🏥 병원 앞 ${from}%)` : '다시 시작 (처음 0%)'}
         </Button>
       </span>
     </div>
@@ -149,7 +164,7 @@ export function LobbyBox({ state, onInput, onBox, onShop, onMap }: BoxProps & { 
       <span class="pg-line">
         <b class="pg-ellipsis">🏟 숲 체육관 — {GYM_LEADER.name}</b>
         <span class={v.short ? 'pg-lv-short' : 'pg-dim'} title="추천 레벨 · 내 팀 평균 레벨">
-          추천 Lv {v.recommended} · <span class="pg-long">내 팀 </span>평균 Lv {v.average}
+          추천 Lv {v.recommended} · <span class="pg-long">센 3마리 </span>평균 Lv {v.average}
         </span>
         {state.save.badges.includes('forest') && <span class="pg-reward">🏅</span>}
       </span>

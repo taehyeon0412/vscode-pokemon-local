@@ -23,7 +23,7 @@ describe('스테이지 이름표', () => {
 });
 
 describe('길 위의 것들을 화면에', () => {
-  it('스테이지 길이 = 15분 × 걷는 빠르기 × 크기 배율', () => {
+  it('스테이지 길이 = 걷는 시간 (20분) × 걷는 빠르기 × 크기 배율', () => {
     expect(stagePx(1)).toBe((BALANCE.stageWalkMs / 1000) * WALK_PX_PER_SEC);
     expect(stagePx(2)).toBe(stagePx(1) * 2);
   });

@@ -100,7 +100,8 @@ describe('트레이너 (S08 · 2026-10-18 태현 님)', () => {
     s = until(s, (x) => phase(x) === 'result', 300_000);
     expect(s.save.stages['forest-1']!.defeatedTrainers).toContain(`forest-1:t${spot.trainer}`);
     expect(s.save.stages['forest-1']!.run.trainers).toBe(1);
-    expect(s.save.money - money).toBe(foes * stageLevelBand('forest-1')[1] * BALANCE.trainerMoneyPerLevel);
+    const [lo, hi] = stageLevelBand('forest-1');
+    expect(s.save.money - money).toBe(foes * Math.round((lo + hi) / 2) * BALANCE.trainerMoneyPerLevel);
     expect(s.runtime.stage).toMatchObject({ summary: { title: expect.stringMatching(/승부에서 이겼다/) } });
     // 같은 자리를 다시 지나가도 안 나옴
     const again = until({ ...s, save: { ...s.save, stages: { 'forest-1': { ...s.save.stages['forest-1']!, progress: spot.at - 0.00001 } } }, runtime: { ...s.runtime, stage: { phase: 'walk' } } }, (x) => prog(x) > spot.at + 0.0005, 5000);

@@ -117,6 +117,8 @@ SHOTS = [
     ("p89-trainer-battle-68", "720x68", {"screen": "game", "place": "trainer-battle"}),
     ("p89-defeat-68", "720x68", {"screen": "game", "place": "defeat"}),
     ("p89-defeat-320", "320x92", {"screen": "game", "place": "defeat"}),
+    ("p11-defeat-stuck-116", "720x116", {"screen": "game", "place": "defeat", "retries": "2", "size": "medium"}),
+    ("p11-defeat-116", "720x116", {"screen": "game", "place": "defeat", "size": "medium"}),
     ("p89-clear-68", "720x68", {"screen": "game", "place": "clear"}),
     ("p89-clear-116", "720x116", {"screen": "game", "place": "clear", "size": "medium"}),
     ("p89-clear-320", "320x116", {"screen": "game", "place": "clear", "size": "medium"}),

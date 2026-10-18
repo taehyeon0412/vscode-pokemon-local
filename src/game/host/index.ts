@@ -128,7 +128,7 @@ export function activate(context: vscode.ExtensionContext): GameHost {
       await teamOut.takeOut();
     }),
     vscode.commands.registerCommand('vscode-pokemon.team-in', () => teamOut.putIn()),
-    // 개발 창 (F5) 에서만 보이는 빨리 감기 — 15분 스테이지를 시험하려고 (사용자 설치본에는 안 보임)
+    // 개발 창 (F5) 에서만 보이는 빨리 감기 — 20분 스테이지를 시험하려고 (사용자 설치본에는 안 보임)
     vscode.commands.registerCommand('vscode-pokemon.game-speed', async () => {
       if (!debug) return; // 사용자 설치본에서는 단축키로 묶어도 아무것도 안 함
       const pick = await vscode.window.showQuickPick(['1', '10', '30', '60'], { placeHolder: '게임 시간 배속 (개발용)' });

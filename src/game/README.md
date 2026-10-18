@@ -76,6 +76,6 @@ game.js ── ready ──▶ 확장 ── start (epoch · 상태) ──▶ �
 | `npm run test:integration` | 실제 VS Code 를 띄워 패널 접기 · 펴기 · 저장 · 일반 모드 · 껐다 켜기 확인 (따로 된 사용자 폴더, `VSCODE_TEST_VERSION=1.73.0` 로 가장 낮은 버전) |
 | `python install.py` | 빌드해서 내 VS Code 에 설치 |
 | `python dev/game-shots.py` | 게임 화면 사진 (머리 없는 Edge, 패널 높이 68 ~ 160 · 좁은 · 넓은 패널 · 밝은 테마) → `dev/shots/game/`. 브라우저로 보려면 `dev/game.html?screen=game&progress=0.04` (가짜 확장 = `dev/game-host.js`, `shim=1` = 머리 없는 브라우저용 타이머 그리기) |
-| 명령 팔레트 "포켓몬: 게임 빨리 감기 (개발 창)" | F5 개발 창에서만 — 게임 시간을 10 · 30 · 60배로 (15분 스테이지 시험용, 사용자 설치본에서는 아무것도 안 함) |
+| 명령 팔레트 "포켓몬: 게임 빨리 감기 (개발 창)" | F5 개발 창에서만 — 게임 시간을 10 · 30 · 60배로 (20분 스테이지 시험용, 사용자 설치본에서는 아무것도 안 함) |
 
 주석의 `mvp-spec 3.3` · `S02 ①` · `U2` 같은 번호는 기획 문서(공개하지 않음)의 장 · 화면 · 기능 번호예요.

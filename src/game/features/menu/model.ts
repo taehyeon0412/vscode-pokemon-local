@@ -174,9 +174,13 @@ export function clearView(save: Save, id: StageId): { title: string; bonus: numb
   };
 }
 
-/** S16 ④ 추천 레벨 · 내 팀 평균 레벨 (모자라면 빨간색) */
+/** S16 ④ 추천 레벨 · 내 팀에서 가장 센 3마리 평균 레벨 (모자라면 빨간색) — 관장이 3마리라 (5마리 평균이면 이길 만한데도 빨간색: 단계 11 플레이 리뷰) */
 export function lobbyView(save: Save): { recommended: number; average: number; short: boolean } {
-  const levels = save.party.map((uid) => save.monsters[uid]?.level ?? 0).filter((l) => l > 0);
+  const levels = save.party
+    .map((uid) => save.monsters[uid]?.level ?? 0)
+    .filter((l) => l > 0)
+    .sort((a, b) => b - a)
+    .slice(0, BALANCE.gymTeam.length);
   const average = levels.length ? Math.round((levels.reduce((a, b) => a + b, 0) / levels.length) * 10) / 10 : 0;
   return { recommended: BALANCE.gymRecommendedLevel, average, short: average < BALANCE.gymRecommendedLevel };
 }

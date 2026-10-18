@@ -2,7 +2,7 @@
  * 트레이너 · 관장 (mvp-spec S08 · 3.9 · 4장) — 누가 어떤 포켓몬을 데리고 나오는지. 시드로 정해서 언제 누가 계산해도 같음.
  *
  * 트레이너: 스테이지마다 2 ~ 3명 (stage.ts trainerCount) · 사람 (이름 · 옷 색) 은 스테이지 · 번호로 늘 같음, 데리고 나오는 포켓몬은 판마다.
- *   상대 마릿수 1 ~ 3 · 내 살아 있는 포켓몬 수 + 1 까지 (스타팅 1마리일 때 3마리 연속을 막음) · 레벨 = 스테이지 레벨대 위끝 (2026-10-18 태현 님)
+ *   상대 마릿수 1 ~ 3 · 내 살아 있는 포켓몬 수 + 1 까지 (스타팅 1마리일 때 3마리 연속을 막음) · 레벨 = 스테이지 레벨대 가운데 (반올림 — 1-1 Lv 3 · 1-2 Lv 8 · 1-3 Lv 12, 위끝 → 가운데: 2026-10-19 태현 님) · 포켓몬은 숲 보통 목록 (풀 · 벌레만, 노말 · 비행은 안 섞음)
  * 관장: 파라스 Lv 13 · 냄새꼬 Lv 14 · 에이스 버터플 Lv 15 (필살기 게이지 절반 찬 채로 나옴) — 늘 같은 3마리 (다시 도전할 때 공략이 쌓임, gdd 4.7)
  */
 import { BALANCE } from '../balance';
@@ -58,10 +58,11 @@ export function trainerTeamSize(stageSeed: number, n: number, alive: number): nu
   return Math.max(1, Math.min(want, alive + 1));
 }
 
-/** 트레이너 포켓몬 — 숲 목록에서, 레벨 = 그 스테이지 레벨대 위끝 (진화 레벨을 넘으면 진화형) */
+/** 트레이너 포켓몬 — 숲 목록에서, 레벨 = 그 스테이지 레벨대 가운데 (위끝 → 가운데: 단계 11 시뮬, 2026-10-19 태현 님) (진화 레벨을 넘으면 진화형) */
 export function trainerTeam(stageId: StageId, stageSeed: number, n: number, alive: number): Monster[] {
   const pool = forestPool(stageId).common;
-  const level = stageLevelBand(stageId)[1];
+  const [lo, hi] = stageLevelBand(stageId);
+  const level = Math.round((lo + hi) / 2);
   const out: Monster[] = [];
   for (let i = 0; i < trainerTeamSize(stageSeed, n, alive); i++) {
     const rng = spotRng(stageSeed, 5000 + n, 10 + i);

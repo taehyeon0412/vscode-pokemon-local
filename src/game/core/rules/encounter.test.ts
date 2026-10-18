@@ -26,6 +26,17 @@ describe('숲 포켓몬 (mvp-spec 3.2)', () => {
     }
     for (const dex of pool.rare) expect(speciesOf(dex)!.types.some((t) => t === 'grass' || t === 'bug')).toBe(false);
     expect(pool.common).toContain(10); // 캐터피
+    // 노말 · 비행 (단계 11: 숲이 불꽃 스타팅에만 쉬워서 섞음, 2026-10-19 태현 님) — 풀 · 벌레 · 독 · 드래곤 · 페어리가 아닌 1단계
+    expect(pool.mixed.length).toBeGreaterThan(10);
+    for (const dex of pool.mixed) {
+      const s = speciesOf(dex)!;
+      expect(s.types.every((t) => t === 'normal' || t === 'flying'), String(dex)).toBe(true);
+      expect(s.legendary || s.mythical || s.baby, String(dex)).toBe(false);
+      expect(s.stage, String(dex)).toBe(1);
+    }
+    expect(pool.mixed).toContain(16); // 구구
+    expect(pool.mixed).not.toContain(132); // 메타몽 (변신만)
+    expect(pool.mixed).not.toContain(278); // 갈모매 (물 · 비행 — 숲길에 물결 흔적)
   });
 
   it('스타팅 18종 계열은 야생에 안 나옴 (mvp-spec 9장 [제안])', () => {
@@ -62,13 +73,15 @@ describe('숲 포켓몬 (mvp-spec 3.2)', () => {
     expect(createWild('forest-1', 42, spot(3, 0.2))).toEqual(createWild('forest-1', 42, spot(3, 0.2)));
   });
 
-  it('레벨대 안에서 진행 % 에 따라 오름 · 센 흔적은 위끝 + 2 · 비율 (센 약 15% · 드문 타입 약 10% · 이로치 약 2%)', () => {
+  it('레벨대 안에서 진행 % 에 따라 오름 · 센 흔적은 위끝 + 2 · 비율 (센 약 15% · 노말 · 비행 약 30% · 드문 타입은 나머지의 10% = 약 7% · 이로치 약 2%)', () => {
     let strong = 0;
     let rare = 0;
     let shiny = 0;
     let shinyCapable = 0;
     const N = 4000;
     const rarePool = new Set(forestPool('forest-1').rare);
+    const mixedPool = new Set(forestPool('forest-1').mixed);
+    let mixed = 0;
     let early = 0;
     let late = 0;
     for (let i = 0; i < N; i++) {
@@ -89,11 +102,15 @@ describe('숲 포켓몬 (mvp-spec 3.2)', () => {
         expect(formOf(p.form)?.shiny).toBe(true);
       }
       if (rarePool.has(speciesOf(p.dex)?.evolvesFrom ?? -1) || rarePool.has(p.dex)) rare++;
+      if (mixedPool.has(speciesOf(p.dex)?.evolvesFrom ?? -1) || mixedPool.has(p.dex)) mixed++;
     }
+    // 노말 · 비행 30% · 독 · 드래곤 · 페어리는 나머지의 10% (= 7%)
+    expect(mixed / N).toBeGreaterThan(0.26);
+    expect(mixed / N).toBeLessThan(0.34);
     expect(strong / N).toBeGreaterThan(0.12);
     expect(strong / N).toBeLessThan(0.18);
-    expect(rare / N).toBeGreaterThan(0.06);
-    expect(rare / N).toBeLessThan(0.14);
+    expect(rare / N).toBeGreaterThan(0.05);
+    expect(rare / N).toBeLessThan(0.09);
     expect(shiny / shinyCapable).toBeGreaterThan(0.01);
     expect(shiny / shinyCapable).toBeLessThan(0.035);
     expect(late).toBeGreaterThan(early);
