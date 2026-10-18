@@ -25,14 +25,14 @@ if (q.get('shim')) {
 
 // 틀마다 시험할 옵션 — SPEC.md 의 옵션을 고루
 const VARIANTS = {
-    ultbeam: [{ c: 'hyper' }, { solar: 1 }, { c: 'ice', rainbow: 1 }, { c: 'water', double: 1, sparkle: 'water' }, { c: 'psychic', spiral: 1, wave: 1 }, { c: 'solar', venus: 1 }, { c: 'water', turtle: 1 }, { c: 'hyper', uniq: 'gyarados' }, { c: 'ice', uniq: 'lapras' }, { c: 'wind', uniq: 'lugia' }, { c: 'fire', uniq: 'hooh' }, { c: 'water', uniq: 'kyogre' }, { c: 'dragon', uniq: 'dialga' }, { c: 'ice', rainbow: 1, uniq: 'suicune' }],
+    ultbeam: [{ c: 'hyper' }, { solar: 1 }, { c: 'ice', rainbow: 1 }, { c: 'water', double: 1, sparkle: 'water' }, { c: 'psychic', spiral: 1, wave: 1 }, { c: 'solar', venus: 1 }, { c: 'water', turtle: 1 }, { c: 'hyper', uniq: 'gyarados' }, { c: 'ice', uniq: 'lapras' }, { c: 'wind', uniq: 'lugia' }, { c: 'fire', uniq: 'hooh' }, { c: 'water', uniq: 'kyogre' }, { c: 'dragon', uniq: 'dialga' }, { c: 'ice', rainbow: 1, uniq: 'suicune' }, { c: 'water', uniq: 'feraligatr' }],
     ultorb: [{ c: 'fire', style: 'flame' }, { c: 'ghost', style: 'shadow' }, { c: 'aura', style: 'aura' }, { c: 'aura', style: 'aura', lucario: 1 }, { c: 'water', turtle: 1 }, { c: 'psychic', mewtwo: 1 }, { c: 'psychic', mew: 1 }, { c: 'psychic', sky: 1 }, { c: 'ghost', style: 'shadow', uniq: 'gengar' }],
-    ultnova: [{ c: 'fire' }, { c: 'normal', white: 1 }, { c: 'ice', white: 1, uniq: 'articuno' }],
+    ultnova: [{ c: 'fire' }, { c: 'normal', white: 1 }, { c: 'ice', white: 1, uniq: 'articuno' }, { c: 'fire', uniq: 'typhlosion' }],
     ultblackhole: [{ c: 'dark' }, { c: 'dark', uniq: 'darkrai' }, { uniq: 'umbreon' }],
     ultsparkle: [{ mode: 'twinkle', c: 'fairy' }, { mode: 'moon', c: 'moon' }, { mode: 'twinkle', c: 'star', uniq: 'eevee' }, { mode: 'moon', c: 'moon', uniq: 'gardevoir' }, { mode: 'twinkle', c: 'fairy', uniq: 'togekiss' }],
     ultquake: [{ c: 'ground' }, { c: 'fire', lava: 1 }, { c: 'fire', lava: 1, uniq: 'groudon' }, { c: 'fire', lava: 1, uniq: 'entei' }],
     ultpillar: [{ kind: 'fire' }, { kind: 'rock' }, { kind: 'ice' }, { kind: 'water' }, { kind: 'light' }, { kind: 'vine' }, { kind: 'shadow' }, { kind: 'fire', c: 'fire', blast: 1 }, { kind: 'vine', c: 'grass', venus: 1 }, { kind: 'rock', n: 6, uniq: 'tyranitar' }],
-    ultbloom: [{ mode: 'bloom', c: 'grass' }, { mode: 'vine', c: 'grass' }],
+    ultbloom: [{ mode: 'bloom', c: 'grass' }, { mode: 'vine', c: 'grass' }, { mode: 'vine', c: 'grass', uniq: 'meganium' }],
     ultvortex: [{ c: 'water' }, { c: 'fire', n: 2 }],
     ultstorm: [...['thunder', 'blizzard', 'wind', 'acid', 'petal', 'leaf', 'sand', 'rain', 'fire'].map((kind) => ({ kind })), { kind: 'thunder', c: 'electric', uniq: 'zapdos' }],
     ultskyfall: [{ shape: 'rock', n: 1 }, { shape: 'ice', n: 1 }, { shape: 'meteor', n: 8, c: 'dragon' }, { shape: 'star', n: 6, c: 'star' }, { shape: 'star', n: 12, c: 'gold', uniq: 'arceus' }, { shape: 'meteor', n: 8, uniq: 'salamence' }],
