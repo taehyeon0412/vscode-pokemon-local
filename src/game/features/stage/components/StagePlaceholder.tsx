@@ -4,6 +4,7 @@
  * 가운데 자리는 ③ 주인공 자리 — 단계 4 에서 주인공 · 자동 걷기 · 배경 · 미니맵 막대 · 흔적 · 조우로 바뀜 (지금은 팀 맨 앞 포켓몬을 임시로)
  */
 import type { GameState } from '../../../core/engine';
+import { BallCount } from '../../../ui/BallCount';
 import { InfoBar } from '../../../ui/InfoBar';
 import type { Layout } from '../../../ui/layout';
 import { Sprite } from '../../../ui/Sprite';
@@ -23,7 +24,7 @@ export function StagePlaceholder({ state, layout, media }: StagePlaceholderProps
   return (
     <div class="pg-screen pg-stage">
       <InfoBar
-        left={<span title="몬스터볼">◓×{save.bag['poke-ball'] ?? 0}</span>}
+        left={<BallCount count={save.bag['poke-ball'] ?? 0} />}
         center={
           stage ? (
             <span class="pg-stage-name">

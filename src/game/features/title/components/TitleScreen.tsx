@@ -1,7 +1,8 @@
 /**
  * S02 타이틀 (gdd S02):
- *                      포켓몬 게임 모드                      [③일반 모드]
+ *                      포켓몬 게임 모드
  *               [①새로 하기]      [②이어 하기]
+ * ③ 일반 모드는 화면 안에 두지 않음 — 패널 제목줄 🏠 와 겹쳐서 (2026-10-18 태현 님)
  * 이어 하기 옆 요약 줄 (🌱 이상해씨 Lv 5 · 🏅0 · 1,000원 · 12분) 은 리드 [제안] — 좁은 패널에서는 시간 → 돈 → 배지 순으로 숨김 (game.css)
  */
 import { useEffect, useRef, useState } from 'preact/hooks';
@@ -19,7 +20,6 @@ export interface TitleScreenProps {
   pending: boolean;
   onNew(): void;
   onContinue(): void;
-  onExit(): void;
 }
 
 /** 요약 그림은 패널 크기와 상관없이 원본 크기 (버튼 · 글자 옆에서 혼자 커지지 않게) */
@@ -45,7 +45,7 @@ function Summary({ summary, media }: { summary: TitleSummary; media: string }) {
   );
 }
 
-export function TitleScreen({ info, media, pending, onNew, onContinue, onExit }: TitleScreenProps) {
+export function TitleScreen({ info, media, pending, onNew, onContinue }: TitleScreenProps) {
   const view = titleView(info);
   const [confirming, setConfirming] = useState(false);
   // 확장이 새 요약을 보내면 (안 됐다는 안내 등) 확인을 닫음
@@ -68,14 +68,7 @@ export function TitleScreen({ info, media, pending, onNew, onContinue, onExit }:
         if (confirming && e.key === 'Escape') setConfirming(false);
       }}
     >
-      <InfoBar
-        center={<span class="pg-title-text">포켓몬 게임 모드</span>}
-        right={
-          <Button secondary onClick={onExit} disabled={pending} title="일반 모드로">
-            일반 모드
-          </Button>
-        }
-      />
+      <InfoBar center={<span class="pg-title-text">포켓몬 게임 모드</span>} />
       <div class="pg-body pg-title-body">
         <div class="pg-row">
           {confirming ? (

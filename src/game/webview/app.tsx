@@ -45,7 +45,7 @@ export function App({ store, media, actions }: { store: Store<ViewState>; media:
 function Screens({ v, media, actions }: { v: ViewState; media: string; actions: AppActions }) {
   if (v.layout.tooSmall) return <TooSmall layout={v.layout} />;
   if (v.screen === 'title' && v.title) {
-    return <TitleScreen info={v.title} media={media} pending={v.pending} onNew={actions.newGame} onContinue={actions.continueGame} onExit={actions.exit} />;
+    return <TitleScreen info={v.title} media={media} pending={v.pending} onNew={actions.newGame} onContinue={actions.continueGame} />;
   }
   if (v.screen === 'game' && v.state) {
     return <StagePlaceholder state={v.state} layout={v.layout} media={media} />;
@@ -53,7 +53,7 @@ function Screens({ v, media, actions }: { v: ViewState; media: string; actions: 
   return null;
 }
 
-/** 화면 오류를 잡아 빈 패널 대신 안내 — 제목줄 🏠 / 🎮 로 일반 모드로 나갈 수 있음 */
+/** 화면 오류를 잡아 빈 패널 대신 안내 — 패널 제목줄 🏠 로 일반 모드로 나갈 수 있음 */
 class Guard extends Component<{ onError(e: unknown): void; children: ComponentChildren }, { failed: boolean }> {
   override state = { failed: false };
 

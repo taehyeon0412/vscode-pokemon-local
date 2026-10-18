@@ -53,7 +53,8 @@ body.pokemon-game-on {
   grid-template-columns: minmax(max-content, 1fr) minmax(0, auto) minmax(max-content, 1fr);
   align-items: center;
   gap: 8px;
-  padding: 0 6px;
+  /* 패널 가장자리에 딱 붙지 않게 */
+  padding: 0 14px;
   white-space: nowrap;
 }
 .pg-infobar-left,
@@ -218,6 +219,36 @@ body.pokemon-game-on {
 /* S06 스테이지 (단계 3 껍데기) */
 .pg-stage-name {
   font-weight: bold;
+}
+/* ① 볼 개수 — 코드로 그린 몬스터볼 (빨강 · 검은 띠 · 흰색 + 가운데 단추) */
+.pg-balls {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  font-weight: bold;
+}
+.pg-ball {
+  position: relative;
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid #1b1b1b;
+  background: linear-gradient(#e3350d 0 44%, #1b1b1b 44% 56%, #f2f2f2 56%);
+}
+.pg-ball::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
+  border-radius: 50%;
+  background: #f2f2f2;
+  border: 1px solid #1b1b1b;
+  box-sizing: border-box;
 }
 /* 번호는 작게 (mvp-spec S06 ②) */
 .pg-stage-code {
