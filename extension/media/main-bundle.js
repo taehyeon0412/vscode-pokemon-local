@@ -22201,11 +22201,11 @@ window.__ult = {
             } });
         }
     }
-    // 하이드로캐논 — 어깨의 두 대포에 2초 동안 물이 모임(둘레의 물줄기 · 물방울이 소용돌이치며 빨려 들고, 물 소용돌이 고리가 돌며 올라가고,
-    // 발밑 물웅덩이에서 물줄기 네 가닥이 대포로 빨려 올라감, 대포 끝 물 구가 두근두근 커졌다 마지막에 꽉 압축)
-    // → 번쩍! → 두 대포 앞 물 폭발과 함께 굵은 물줄기 두 가닥이 서로 꼬이며(나선) 화면 끝까지 쏟아짐
-    // (하얀 압력 고리가 달리고 물보라가 흩날림, 반동으로 땅을 긁으며 뒤로 밀림) · 가장 가까운 애 자리에 왕관 물보라 · 거대한 물기둥 · 물방울 분수 · 충격파
-    // → 물줄기가 그치면 그 자리에서 높은 해일이 두 겹으로 양옆으로 밀려가 화면을 휩쓺(물마루에서 물보라) → 비 → 물 불꽃놀이.
+    // 하이드로캐논 — 어깨의 두 대포에 2초 동안 물이 모임(물 소용돌이 고리 · 물웅덩이에서 빨려 오르는 물줄기 · 대포 끝 물 구가 두근두근)
+    // → 정적 0.4초 (화면이 거의 까매지고 대포만 빛남 · 집중선이 거북왕으로 빨려 듦 · 물 구가 꽉 압축) → 임팩트 프레임 (하양 · 검정 번쩍, 각 0.06초)
+    // → 굵은 물줄기 두 가닥이 서로 꼬이며 화면 끝까지 (발이 땅에 박히며 금이 가고 충격파 세 겹 · 하얀 압력 고리 · 흩날리는 물보라)
+    // · 가장 가까운 애 자리에 왕관 물보라 · 거대한 물기둥 → 1초 뒤 출력 최대: 두 가닥이 하나로 합쳐지며 두 배로 굵은 거대한 물 광선 (새 충격파 · 큰 흔들림)
+    // → 물줄기가 그치면 맞는 자리에서 거대한 물 폭발 → 높은 해일 두 겹 (물마루 물보라) → 비 → 물 불꽃놀이.
     // 거북왕은 진짜 그림을 숨기고 물줄기 앞에 꼭두각시로 (정면 그림 — 대포는 양 어깨, 아래에서 58% 높이)
     function runHydroCannon(u, o, ms, pokemon) {
         const P = strength(u);
@@ -22224,16 +22224,20 @@ window.__ult = {
         const Ro = Math.max(s * 4, me.w * 0.24); // 대포 끝 물 구
         const bw = clamp(H * 0.16 * (0.9 + 0.2 * P), 16, Math.max(20, me.h * 1.7)); // 물줄기 두 가닥을 합친 굵기
         const yb = Math.max(bw * 0.65, Math.min(cyM, G - bw * 0.45)); // 대포 높이 — 아래 가닥이 땅을 스치며 물보라
-        const blenF = (dir > 0 ? W - cF : cF) + bw;
+        const ybBig = Math.max(bw * 1.1, Math.min(yb, G - bw * 1.05)); // 출력 최대 — 두 배 굵기의 아래가 땅 위에 오게
+        const blenF = (dir > 0 ? W - cF : cF) + bw * 2;
         const q = nearest(u);
         const ahead = q && Math.sign(q.x - me.x) === dir && Math.abs(q.x - me.x) > me.w * 0.6;
         const ix = clamp(ahead ? q.x : me.x + dir * W * 0.55, W * 0.05, W * 0.95);
+        // 때 — (모으기) · 정적 · 임팩트 프레임 · 발사 · 다 닿음 · 출력 최대 · 그침 · 해일
         const TC0 = 0.25;
-        const TF = 2.3;
-        const TB = 2.42;
+        const TQ = 2.2;
+        const TF = TQ + 0.4;
+        const TB = TF + 0.12;
         const TH = TB + 0.16;
-        const TN = TH + 1.9;
-        const TW = TN + 0.05;
+        const TMAX = TB + 1.0;
+        const TN = TMAX + 1.3;
+        const TW = TN + 0.2;
         const pulses = [0.95, 1.45, 1.85, 2.1];
         const pullR = Math.max(Ro * 6, D * 1.2);
         const sc = scene(u, sec + 0.3, 'ultbeam');
@@ -22242,27 +22246,30 @@ window.__ult = {
         hideUntil(pokemon, ms + 100);
         const beatAt = (t) => pulses.reduce((m, tp) => Math.max(m, clamp(1 - Math.abs(t - tp) / 0.1, 0, 1)), 0);
         const reachAt = (t) => blenF * easeOut(clamp((t - TB) / (TH - TB), 0, 1));
+        const mergeAt = (t) => easeOut(clamp((t - TMAX) / 0.25, 0, 1)); // 출력 최대 — 두 가닥이 하나로
         const widthAt = (t) => {
             if (t < TB) {
                 return 0;
             }
-            const burst = 1 + 0.35 * clamp(1 - (t - TB) / 0.3, 0, 1);
+            const burst = 1 + 0.35 * clamp(1 - (t - TB) / 0.3, 0, 1) + 0.3 * clamp(1 - (t - TMAX) / 0.3, 0, 1) * (t > TMAX ? 1 : 0);
             const thin = t > TN ? Math.max(0, 1 - (t - TN) / 0.35) : 1;
             return bw * burst * thin;
         };
-        // 반동 — 쏘는 동안 땅을 긁으며 뒤로 밀리고 덜덜 떨림
-        const slideAt = (t) => (t < TB ? 0 : -dir * Math.min(s * 12, (t - TB) * s * 22)) + (t > TB && t < TN ? -dir * Math.sin(t * 55) * s : 0);
-
+        const ybAt = (t) => lerp(yb, ybBig, mergeAt(t));
+        // 반동 — 쏘는 동안 땅을 긁으며 뒤로 밀리고 덜덜 떨림 (출력 최대 때 한 번 더)
+        const slideAt = (t) => (t < TB ? 0 : -dir * Math.min(s * 12, (t - TB) * s * 22)) - (t > TMAX ? dir * Math.min(s * 6, (t - TMAX) * s * 30) : 0) + (t > TB && t < TN ? -dir * Math.sin(t * 55) * s * (1 + mergeAt(t)) : 0);
         // 쏘는 순간 대포 앞 물 폭발 — 앞 대포는 거북왕 위, 뒤 대포는 거북왕 뒤 (몸을 덮지 않게)
         const muzzleBlast = (cx) => (ctx, it, t, px) => {
             const life = sc.t;
-            const k = (life - TB) / 0.45;
-            if (k < 0 || k > 1) {
-                return;
+            for (const [t0, big] of [[TB, 1], [TMAX, 1.4]]) {
+                const k = (life - t0) / 0.45;
+                if (k >= 0 && k <= 1) {
+                    fireOrb(ctx, px, s, cx + slideAt(life) + dir * Ro, ybAt(life), bw * 0.45 * big, TIDE, life + cx, (1 + 1.3 * (1 - k)) * (1 - k * k), G, 1, k, [1, 0.8, 0.6, 0.38], 0.2);
+                }
             }
-            fireOrb(ctx, px, s, cx + slideAt(life) + dir * Ro, yb, bw * 0.45, TIDE, life + cx, (1 + 1.3 * (1 - k)) * (1 - k * k), G, 1, k, [1, 0.8, 0.6, 0.38], 0.2);
         };
-        // ③ 물줄기 (거북왕 뒤) — 두 가닥이 서로 꼬이며 · 날아가는 물 머리 · 맞는 자리 물 덩이
+
+        // ③ 물줄기 (거북왕 뒤) — 두 가닥이 꼬이다가 출력 최대 때 하나로 합쳐진 거대한 물 광선 · 날아가는 물 머리 · 맞는 자리 물 덩이
         sc.add({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
             const w = widthAt(life);
@@ -22271,64 +22278,83 @@ window.__ult = {
             }
             const len = reachAt(life);
             const sx = slideAt(life);
+            const mk = mergeAt(life);
+            const y0 = ybAt(life);
             for (const [cx, ph] of [[cB, Math.PI], [cF, 0]]) {
                 const L = len + (cx === cB ? Math.abs(cF - cB) : 0);
-                waterJet(ctx, px, s, cx + sx, yb, dir, L, w * 0.62, TIDE, life, ph, w * 0.32, G);
+                waterJet(ctx, px, s, cx + sx, y0, dir, L, w * 0.62 * (1 + 0.5 * mk), TIDE, life, ph, w * 0.32 * (1 - mk), G);
             }
-            // 하얀 압력 고리 — 물줄기를 따라 달려감
+            if (mk > 0) {
+                waterJet(ctx, px, s, cF + sx, y0, dir, len, w * 2 * mk, TIDE, life, 0, 0, G); // 합쳐진 거대한 물 광선
+            }
+            const half = w * (0.68 + 0.4 * mk);
             ctx.globalAlpha = 0.7;
             ctx.fillStyle = '#ffffff';
             const nRing = Math.max(2, Math.round(len / (w * 2)));
             for (let k = 0; k < nRing; k++) {
-                const at = ((life * 2.2 + k / nRing) % 1) * len;
+                const at = ((life * (2.2 + mk) + k / nRing) % 1) * len;
                 if (at < w) {
                     continue;
                 }
-                const top = yb - w * 0.68;
-                const bot = Math.min(G, yb + w * 0.68);
+                const top = y0 - half;
+                const bot = Math.min(G, y0 + half);
                 ctx.fillRect(px(cF + sx + dir * at - s), px(top), 2 * s, Math.max(s, px(bot - top)));
             }
             if (life < TH + 0.05) {
-                fireOrb(ctx, px, s, cF + sx + dir * len, yb, w * 0.85, TIDE, life, 1, G, 1, 0, [1, 0.8, 0.6, 0.38], 0.2); // 날아가는 물 머리
+                fireOrb(ctx, px, s, cF + sx + dir * len, y0, w * 0.85, TIDE, life, 1, G, 1, 0, [1, 0.8, 0.6, 0.38], 0.2); // 날아가는 물 머리
             }
             if (life >= TH && Math.abs(ix - cF) <= len) {
-                const kk = Math.min(1, w / bw);
+                const kk = Math.min(1, w / bw) * (1 + 0.5 * mk);
                 ellipse(ctx, px, s, ix, G, w * 2.8 * kk, w * 0.24 * kk, TIDE[2], 0.6);
                 ellipse(ctx, px, s, ix, G, w * 1.7 * kk, w * 0.15 * kk, TIDE[1], 0.8);
-                fireOrb(ctx, px, s, ix, yb, w * 1.15, TIDE, life + 3, (1 + 0.1 * Math.sin(life * 25)) * kk, G, 1, 0, [1, 0.82, 0.62, 0.4], 0.5);
+                fireOrb(ctx, px, s, ix, y0, w * 1.15, TIDE, life + 3, (1 + 0.1 * Math.sin(life * 25)) * kk, G, 1, 0, [1, 0.82, 0.62, 0.4], 0.5);
+            }
+        } });
+        // 발밑 금 — 쏘는 순간 발이 땅에 박히며 양옆으로 갈라짐
+        const cracks = [-1, 1].map((d) => jag(me.x, G - s, me.x + d * me.w * 2.2, G - s, Math.max(3 * s, me.w * 0.15), 0.08));
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life < TB || life > TN + 0.8) {
+                return;
+            }
+            const k = clamp((life - TB) / 0.25, 0, 1);
+            const fade = 1 - clamp((life - TN) / 0.8, 0, 1);
+            for (const c of cracks) {
+                const n = Math.max(2, Math.round(c.length * k));
+                fillPts(ctx, px, s, c.slice(0, n), 2, '#2a2620', fade);
+                fillPts(ctx, px, s, c.slice(0, n), 1, TIDE[1], fade * (0.6 + 0.4 * Math.sin(life * 20)));
             }
         } });
         sc.add({ max: sec, draw: muzzleBlast(cB) }); // 뒤 대포 물 폭발 (거북왕 뒤)
-        // 거북왕 (물줄기 앞)
+        // 거북왕 (물줄기 앞) — 쏘는 동안 발이 땅에 박혀 조금 내려앉음
         sc.add({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
             if (life >= sec - 0.12) {
                 return;
             }
             const back = life > TN ? clamp((life - TN - 0.4) / 0.5, 0, 1) : 0; // 다 쏘고 제자리로
-            const squeeze = life > TF - 0.2 && life < TB ? s * 1.5 : 0; // 압축 — 움츠림
+            const squeeze = life > TQ && life < TB ? s * 1.5 : 0; // 압축 — 움츠림
+            const dig = life > TB && life < TN + 0.4 ? s * 1.5 : 0; // 발이 땅에 박힘
             const x = me.x + slideAt(Math.min(life, TN)) * (1 - back);
-            drawLitMon(ctx, img, x, me.b + squeeze, me.w, left, TIDE[2], edge, 1);
+            drawLitMon(ctx, img, x, me.b + squeeze + dig, me.w, left, TIDE[2], edge, 1);
             const glow = clamp((life - TC0) / 1.5, 0, 1) * (life < TN + 0.3 ? 1 : 0);
-            drawMon(ctx, img, x, me.b + squeeze, me.w, left, glow * (0.12 + 0.1 * Math.sin(life * 18)), TIDE[1]);
+            drawMon(ctx, img, x, me.b + squeeze + dig, me.w, left, glow * (0.12 + 0.1 * Math.sin(life * 18)), TIDE[1]);
         } });
         sc.at(sec - 0.12, () => hideMon(pokemon, false));
         sc.add({ max: sec, draw: muzzleBlast(cF) });
 
         // ① 기 모으기 — 대포 끝 물 구 · 물 소용돌이 고리 · 물웅덩이에서 빨려 오르는 물줄기 · 빨려 드는 물줄기와 물방울
-        chargeSwirl(sc, () => [me.x, cyM], TC0, TF, pullR, Ro * 2, TIDE, dir);
+        chargeSwirl(sc, () => [me.x, cyM], TC0, TQ, pullR, Ro * 2, TIDE, dir);
         const feeds = [-2.1, -1.3, 1.3, 2.1].map((f, i) => ({ x: me.x + f * me.w * 0.8, to: f < 0 ? cB : cF, seed: i }));
         sc.add({ max: TB + 0.1, draw: (ctx, it, t, px) => {
             const life = sc.t;
-            const k = clamp((life - TC0) / (TF - TC0), 0, 1);
-            const ramp = clamp((life - TC0) / 0.4, 0, 1) * clamp((TB - life) / 0.12, 0, 1);
+            const k = clamp((life - TC0) / (TQ - TC0), 0, 1);
+            const ramp = clamp((life - TC0) / 0.4, 0, 1) * clamp((TQ + 0.1 - life) / 0.15, 0, 1);
             if (ramp <= 0) {
                 return;
             }
-            // 물웅덩이
             ellipse(ctx, px, s, me.x, G, me.w * (1.2 + 1.2 * k), me.w * 0.16 * (1 + k), TIDE[3], 0.5 * ramp);
             ellipse(ctx, px, s, me.x, G, me.w * (0.8 + 0.8 * k) * (1 + 0.08 * Math.sin(life * 9)), me.w * 0.1 * (1 + k), TIDE[2], 0.7 * ramp);
-            // 빨려 오르는 물줄기 — 물웅덩이 가장자리에서 대포로 휘어 오름 (물방울이 타고 올라감)
             const streams = [new Path2D(), new Path2D()];
             const beads = new Path2D();
             for (const fd of feeds) {
@@ -22336,7 +22362,7 @@ window.__ult = {
                 for (let j = 0; j <= 12; j++) {
                     const f = j / 12;
                     const sway = Math.sin(f * 5 + life * 6 + fd.seed) * me.w * 0.08 * Math.sin(f * Math.PI);
-                    pts.push([lerp(fd.x, fd.to, f * f) + sway, lerp(G, cyM, Math.sqrt(f)) ]);
+                    pts.push([lerp(fd.x, fd.to, f * f) + sway, lerp(G, cyM, Math.sqrt(f))]);
                 }
                 const grow = clamp((life - TC0 - 0.2 - fd.seed * 0.12) / 0.4, 0, 1);
                 const n = Math.max(2, Math.round(pts.length * grow));
@@ -22355,15 +22381,11 @@ window.__ult = {
             ctx.fill(streams[1]);
             ctx.fillStyle = '#ffffff';
             ctx.fill(beads);
-            // 물 소용돌이 고리 — 세 겹이 돌며 위로
             for (let j = 0; j < 3; j++) {
-                const h = ((life * 0.6 + j / 3) % 1);
+                const h = (life * 0.6 + j / 3) % 1;
                 swirlRing(ctx, px, s, me.x, G - me.h * (0.1 + 1.0 * h), me.w * (1.1 - 0.35 * h) * (0.8 + 0.4 * k), 0.28, life, j % 2 ? dir : -dir, [TIDE[1], TIDE[2]], ramp * Math.sin(h * Math.PI));
             }
-            // 대포 끝 물 구 — 두근두근 커지다 마지막에 꽉 압축 → 번쩍
-            const press = clamp((life - TF + 0.2) / 0.2, 0, 1);
-            const flash = clamp((life - TF) / 0.06, 0, 1);
-            const orb = (0.4 + 0.6 * k) * (1 + 0.15 * beatAt(life)) * (1 - 0.4 * press + 0.9 * flash);
+            const orb = (0.4 + 0.6 * k) * (1 + 0.15 * beatAt(life));
             for (const cx of [cB, cF]) {
                 fireOrb(ctx, px, s, cx, cyM, Ro, TIDE, life + cx, orb * ramp, G, 0.95, 0, [1, 0.8, 0.6, 0.38], 0.3);
             }
@@ -22371,7 +22393,7 @@ window.__ult = {
         } });
         let drops = 0;
         sc.tick((t, dt) => {
-            if (t < TC0 || t > TF) {
+            if (t < TC0 || t > TQ) {
                 return;
             }
             drops += dt * 18;
@@ -22386,43 +22408,97 @@ window.__ult = {
                 ultShake(1.5 + (tp - pulses[0]) * 1.5, 150);
             });
         }
-        sc.at(TF, () => {
-            screenFlash(s, 0.75, '#ffffff', 0.14);
-            ultShake(6, 250);
-            ring(sc, me.x, cyM, me.w * 0.5, pullR * 1.3, 1, 0.35, ['#ffffff', TIDE[1], TIDE[2]], 3);
-        });
-        // 쏘는 순간 — 큰 고리 두 겹 · 물보라 원뿔 · 흔들림
+        // ② 정적 — 화면이 거의 까매지고 대포만 빛남 · 집중선이 거북왕으로 빨려 듦 · 물 구가 꽉 압축되며 하얗게
+        const focusX = me.x;
+        const focusY = cyM;
+        const rays = [];
+        for (let i = 0; i < 64; i++) {
+            rays.push({ a: (i / 64) * TAU + (hash(i, 101) - 0.5) * 0.08, len: 0.2 + 0.3 * hash(i, 102), sp: 0.8 + 0.6 * hash(i, 103), ph: hash(i, 105), w: hash(i, 104) > 0.6 ? 2 : 1 });
+        }
+        const farR = Math.hypot(Math.max(focusX, W - focusX), Math.max(focusY, H - focusY)) * 1.05;
+        sc.add({ max: TB + 0.05, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            const k = (life - TQ) / (TF - TQ);
+            if (k < 0 || life > TF) {
+                return;
+            }
+            const dark = clamp(k / 0.25, 0, 1);
+            ctx.globalAlpha = 0.78 * dark;
+            ctx.fillStyle = '#05070c';
+            ctx.fillRect(0, 0, W, H);
+            const lines = [new Path2D(), new Path2D()];
+            for (const r of rays) {
+                const head = farR * (0.9 - (((life - TQ) * r.sp * 2.2 + r.ph) % 1) * 0.75); // 바깥에서 가운데로 빨려 듦
+                const tail = head + farR * r.len;
+                const inner = Math.max(me.w * 1.4, head);
+                addLine(lines[r.w - 1], px, s, [[focusX + Math.cos(r.a) * inner, focusY + Math.sin(r.a) * inner], [focusX + Math.cos(r.a) * tail, focusY + Math.sin(r.a) * tail]], r.w);
+            }
+            ctx.globalAlpha = 0.75 * dark;
+            ctx.fillStyle = '#ffffff';
+            ctx.fill(lines[0]);
+            ctx.fillStyle = TIDE[1];
+            ctx.fill(lines[1]);
+            const press = 1 - 0.45 * easeIn(k);
+            for (const cx of [cB, cF]) {
+                fireOrb(ctx, px, s, cx, cyM, Ro, TIDE, life + cx, press * (1 + 0.1 * Math.sin(life * 50)), G, 1, 0, [1, 0.92, 0.84, 0.7], 0.2);
+            }
+        } });
+        sc.at(TQ, () => ultShake(2, 400));
+        // ③ 임팩트 프레임 — 하양 → 검정(거북왕과 대포 빛만 하얗게) 번쩍, 각 0.06초
+        sc.add({ max: TB + 0.05, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life < TF || life >= TB) {
+                return;
+            }
+            if (life < TF + 0.06) {
+                ctx.globalAlpha = 0.92;
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, W, H);
+                return;
+            }
+            ctx.globalAlpha = 0.9;
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, W, H);
+            drawMon(ctx, img, me.x, me.b, me.w, left, 1, '#ffffff');
+            for (const cx of [cB, cF]) {
+                ellipse(ctx, px, s, cx, cyM, Ro * 1.2, Ro * 1.2, '#ffffff', 1);
+            }
+        } });
+        // 쏘는 순간 — 충격파 세 겹 · 물보라 원뿔 · 발밑 흙 · 큰 흔들림
         sc.at(TB, () => {
-            ultShake(10, 600);
-            ring(sc, cF, yb, bw * 0.5, bw * 4.5, 1, 0.4, ['#ffffff', TIDE[1]], 3);
-            ring(sc, cF, yb, bw * 0.4, bw * 2.5, 0.6, 0.3, [TIDE[1], '#ffffff'], 2);
+            ultShake(11, 650);
             splash(cF, yb, s, TIDE, 60, H * 1.0, { angle: -Math.PI / 2 - dir * 0.6, spread: 2.4 });
+            debris(me.x, G - s, s, ['#6b5a3e', '#8a7350', '#4a4038'], 20, H * 0.6, { ground: G, angle: -Math.PI / 2, spread: 2.4 });
         });
-        // 쏘는 동안 — 물줄기에서 흩날리는 물보라 · 땅을 긁는 발밑 물보라
+        [0, 0.08, 0.16].forEach((dt, i) => sc.at(TB + dt, () => ring(sc, cF, yb, bw * 0.5, bw * (3 + i * 1.6), 1 - i * 0.2, 0.4, ['#ffffff', TIDE[1]], 3 - i)));
+        // 쏘는 동안 — 물줄기에서 흩날리는 물보라 · 땅을 긁는 발밑 물보라 (출력 최대 때 더 많이)
         let skid = 0;
         let shed = 0;
         sc.tick((t, dt) => {
             if (t < TB || t > TN) {
                 return;
             }
-            skid += dt * 40;
+            const mk = mergeAt(t);
+            skid += dt * 40 * (1 + mk);
             while (skid >= 1) {
                 skid -= 1;
                 splash(me.x + slideAt(t) - dir * me.w * 0.3, G - s, s, TIDE, 1, H * 0.5, { angle: -Math.PI / 2 - dir * 0.7, spread: 0.8, life: 0.6 });
             }
-            shed += dt * 60;
+            shed += dt * 60 * (1 + mk);
             const len = reachAt(t);
+            const y0 = ybAt(t);
+            const half = widthAt(t) * (0.55 + 0.45 * mk);
             while (shed >= 1) {
                 shed -= 1;
                 const x = cF + slideAt(t) + dir * rnd(0.1, 1) * len;
                 const up = Math.random() < 0.5;
-                splash(x, up ? yb - bw * 0.55 : Math.min(G - s, yb + bw * 0.45), s, TIDE, 1, H * 0.45, { angle: up ? -Math.PI / 2 : -Math.PI / 2 + dir * 0.4, spread: 0.9, life: 0.6 });
+                splash(x, up ? y0 - half : Math.min(G - s, y0 + half), s, TIDE, 1, H * 0.45, { angle: up ? -Math.PI / 2 : -Math.PI / 2 + dir * 0.4, spread: 0.9, life: 0.6 });
             }
         });
         // 맞는 자리 — 왕관 물보라 · 거대한 물기둥 · 충격파 · 물방울
         const TX = TB + (TH - TB) * clamp(Math.abs(ix - cF) / blenF, 0, 1);
         sc.at(TX, () => {
-            screenFlash(s, 0.35, TIDE[1], 0.12);
+            screenFlash(s, 0.3, TIDE[1], 0.12);
             ultShake(10, 800);
             ring(sc, ix, yb, bw * 0.6, Math.max(W, H) * 0.7, 0.6, 0.55, ['#ffffff', TIDE[1], TIDE[2]], 3);
             ring(sc, ix, G - s, bw * 0.5, bw * 5, 0.18, 0.5, [TIDE[1], '#ffffff'], 2);
@@ -22430,30 +22506,62 @@ window.__ult = {
             geyser(sc, ix, G, bw * 0.75, Math.min(G * 0.92, H * 0.75), TN - TX + 0.7, TIDE);
             splash(ix, yb, s, TIDE, 70, H * 1.2, { spread: 2.6 });
         });
+        // 출력 최대 — 새 충격파 · 번쩍 · 큰 흔들림 · 맞는 자리에 더 큰 왕관 물보라
+        sc.at(TMAX, () => {
+            screenFlash(s, 0.35, '#ffffff', 0.12);
+            ultShake(12, 900);
+            ring(sc, cF, ybBig, bw, bw * 6, 1, 0.45, ['#ffffff', TIDE[1], TIDE[2]], 3);
+            ring(sc, ix, ybBig, bw, Math.max(W, H) * 0.8, 0.6, 0.6, ['#ffffff', TIDE[1]], 3);
+            crownSplash(sc, ix, G, Math.min(G * 0.55, bw * 2.4), 1.2, TIDE);
+            splash(ix, ybBig, s, TIDE, 90, H * 1.4, { spread: 2.6 });
+        });
         let pulse = 0;
         let fount = 0;
         sc.tick((t, dt) => {
             if (t < TH || t > TN) {
                 return;
             }
+            const mk = mergeAt(t);
             pulse += dt;
-            if (pulse >= 0.25) {
+            if (pulse >= 0.25 - 0.08 * mk) {
                 pulse = 0;
-                ring(sc, ix, yb, bw * 0.5, bw * 2.5, 0.7, 0.3, [TIDE[1], '#ffffff'], 2);
-                ultShake(4, 200);
+                ring(sc, ix, ybAt(t), bw * 0.5, bw * (2.5 + 1.5 * mk), 0.7, 0.3, [TIDE[1], '#ffffff'], 2);
+                ultShake(4 + 3 * mk, 200);
             }
-            fount += dt * 100;
+            fount += dt * 100 * (1 + mk);
             while (fount >= 1) {
                 fount -= 1;
-                splash(ix, yb - bw * 0.3, s, TIDE, 1, H * 1.2, { angle: -Math.PI / 2 - dir * 0.4, spread: 1.8 });
+                splash(ix, ybAt(t) - bw * 0.3, s, TIDE, 1, H * (1.2 + 0.3 * mk), { angle: -Math.PI / 2 - dir * 0.4, spread: 1.8 });
             }
+            const band = bw * (0.7 + 0.6 * mk);
             for (const r of u.others()) {
-                if ((r.x - cF) * dir > 0 && Math.abs(r.y - yb) < bw * 0.7 + r.h * 0.5) {
+                if ((r.x - cF) * dir > 0 && Math.abs(r.y - ybAt(t)) < band + r.h * 0.5) {
                     hit(r, dir, 'tumble');
                 }
             }
         });
-        // ④ 높은 해일 두 겹 — 맞는 자리에서 양옆으로 밀려가 화면을 휩쓺 (물마루에서 물보라, 닿은 애 벌러덩)
+        // ④ 거대한 물 폭발 — 물줄기가 그치면 맞는 자리에서 물 구가 확 부풀어 터짐
+        const boomR = Math.min(G * 0.7, Math.max(W * 0.22, bw * 3));
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const k = sc.t - TN;
+            if (k < 0 || k > 0.7) {
+                return;
+            }
+            const grow = easeOut(clamp(k / 0.3, 0, 1));
+            fireOrb(ctx, px, s, ix, G - s, boomR, TIDE, sc.t, grow * (1 + 0.1 * k), G + s, 1, clamp((k - 0.25) / 0.45, 0, 1), [1, 0.86, 0.7, 0.5], 0.2);
+        } });
+        sc.at(TN, () => {
+            screenFlash(s, 0.45, TIDE[0], 0.18);
+            ultShake(12, 900);
+            ring(sc, ix, G - boomR * 0.3, boomR * 0.3, Math.max(W, H) * 0.9, 0.7, 0.6, ['#ffffff', TIDE[1], TIDE[2]], 3);
+            splash(ix, G - s, s, TIDE, 120, H * 1.5, { spread: 2.6, r: boomR * 0.3 });
+            for (const r of u.others()) {
+                if (Math.abs(r.x - ix) < boomR + r.w * 0.5) {
+                    hit(r, Math.sign(r.x - ix) || dir, 'lift');
+                }
+            }
+        });
+        // ⑤ 높은 해일 두 겹 — 맞는 자리에서 양옆으로 밀려가 화면을 휩쓺 (물마루에서 물보라, 닿은 애 벌러덩)
         const waveH = Math.min(G * 0.62, Math.max(bw * 2.4, H * 0.42));
         const waveSp = W * 0.85;
         const waves = [{ t0: TW, h: 1 }, { t0: TW + 0.35, h: 0.65 }];
@@ -22467,7 +22575,7 @@ window.__ult = {
                 const up = easeOut(clamp(k / 0.25, 0, 1));
                 const down = clamp((k - 1.0) / 0.6, 0, 1);
                 for (const d of [-1, 1]) {
-                    waveFront(ctx, px, s, ix + d * waveSp * k, G, d, waveH * wv.h * up * (1 - 0.8 * down), waveH * 2.2 * wv.h, TIDE, life + d + wv.h, 1 - down);
+                    waveFront(ctx, px, s, ix + d * (boomR * 0.5 + waveSp * k), G, d, waveH * wv.h * up * (1 - 0.8 * down), waveH * 2.2 * wv.h, TIDE, life + d + wv.h, 1 - down);
                 }
             }
         } });
@@ -22481,20 +22589,17 @@ window.__ult = {
             while (crest >= 1) {
                 crest -= 1;
                 const d = Math.random() < 0.5 ? -1 : 1;
-                splash(ix + d * waveSp * k, G - waveH * easeOut(clamp(k / 0.25, 0, 1)) * 0.95, s, TIDE, 1, H * 0.6, { angle: -Math.PI / 2 + d * 0.5, spread: 1, life: 0.7 });
+                splash(ix + d * (boomR * 0.5 + waveSp * k), G - waveH * easeOut(clamp(k / 0.25, 0, 1)) * 0.95, s, TIDE, 1, H * 0.6, { angle: -Math.PI / 2 + d * 0.5, spread: 1, life: 0.7 });
             }
             for (const r of u.others()) {
-                if (Math.abs(r.x - ix) < waveSp * k) {
+                if (Math.abs(r.x - ix) < boomR * 0.5 + waveSp * k) {
                     hit(r, Math.sign(r.x - ix) || dir, 'tumble');
                 }
             }
         });
-        sc.at(TW, () => {
-            ultShake(8, 700);
-            splash(ix, G - s, s, TIDE, 60, H * 1.3, { spread: 2.6 });
-        });
+        sc.at(TW, () => ultShake(8, 700));
         waterRain(sc, TW + 0.3, sec, TIDE);
-        waterFireworks(sc, TW + 1.0, 4, W * 0.15, W * 0.85);
+        waterFireworks(sc, TW + 0.9, 4, W * 0.15, W * 0.85);
     }
     // 메가거북왕 — PMD SpriteCollab 에 몸 그림이 없어서(초상화만) 원래 그림(정면)을 1.3배로 키우고 대포를 그려 올림:
     // 등딱지 위 거대한 대포 하나(앞 위로 비스듬히, 끝에 굵은 포구) + 양팔 작은 대포. white 1 이면 하얀 실루엣, 0 ~ 1 이면 그만큼 하얗게.
@@ -22951,7 +23056,7 @@ window.__ult = {
     const baseBeam = ULT_FX.ultbeam;
     if (baseBeam) {
         ULT_FX.ultbeam = {
-            ms: (P, o) => (o.venus ? 7000 + 200 * P : o.turtle ? 7800 + 200 * P : baseBeam.ms(P, o)),
+            ms: (P, o) => (o.venus ? 7000 + 200 * P : o.turtle ? 8600 + 200 * P : baseBeam.ms(P, o)),
             run: (u, o, ms, pokemon) => (o.venus ? runSolarBeam(u, o, ms, pokemon) : o.turtle ? runHydroCannon(u, o, ms, pokemon) : baseBeam.run(u, o, ms, pokemon)),
         };
     }
