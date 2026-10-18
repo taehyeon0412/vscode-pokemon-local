@@ -6276,35 +6276,62 @@
             fireOrb(ctx, px, s, x, G, R * 0.6, cols, k, up * (1 - down), G + s, 1, down, [1, 0.82, 0.62, 0.4], 0.3);
         } });
     }
-    // 무지개 — 비가 그친 뒤 화면 위로 일곱 빛깔 반원이 은은하게 떠오름 (t0 부터 끝까지)
-    const RAINBOW = ['#ff5b5b', '#ffa94d', '#ffe066', '#7be07b', '#5cc8ff', '#6c7bff', '#b07cff'];
-    function rainbowArc(sc, t0, sec) {
+    // 물 불꽃놀이 — 땅에서 물줄기 폭죽이 하나씩 솟아(0.45초) 하늘에서 물방울 고리 두 겹으로 활짝 터짐 (가운데 번쩍 · 반짝이는 물방울이
+    // 꼬리를 끌며 흩어져 천천히 떨어짐). x0 ~ x1 사이에 n 발이 0.22초 간격으로 (t0 부터)
+    const SPARKW = ['#ffffff', '#bfe9ff', '#6cc3ff', '#7ff3ff']; // 물 불꽃 (하양 · 하늘 · 물빛 · 청록)
+    const dropDraw = (ctx, p, t, px) => {
+        const sp = Math.hypot(p.vx, p.vy) || 1;
+        const tw = 0.7 + 0.3 * Math.sin(p.life * 30 + p.ph); // 반짝반짝
+        const z = p.s * (p.z || 1);
+        const n = p.z > 1 ? 5 : 3; // 굵은 물방울은 꼬리가 길게
+        ctx.fillStyle = p.color;
+        for (let k = 0; k < n; k++) {
+            ctx.globalAlpha = Math.min(1, (1 - t) * 1.3) * tw * (1 - k / n);
+            const zz = k === 0 ? z : Math.max(p.s, z - p.s);
+            ctx.fillRect(px(p.x - (p.vx / sp) * k * z * 1.1 - zz / 2), px(p.y - (p.vy / sp) * k * z * 1.1 - zz / 2), zz, zz);
+        }
+    };
+    function waterFireworks(sc, t0, n, x0, x1) {
         const { W, H, S: s, ground: G } = sc.u;
-        const R = Math.min(W * 0.48, (G + H * 0.1) * 0.95);
-        const cx = W * 0.5;
-        const cy = G + R * 0.15;
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
-            const a = clamp((sc.t - t0) / 0.6, 0, 1) * clamp((sec - sc.t) / 0.5, 0, 1);
-            if (a <= 0) {
-                return;
-            }
-            const band = Math.max(2, Math.round((R * 0.035) / s));
-            RAINBOW.forEach((c, i) => {
-                const r = R - i * band * s;
-                const pts = [];
-                for (let k = 0; k <= 48; k++) {
-                    const an = Math.PI + (k / 48) * Math.PI;
-                    pts.push([cx + Math.cos(an) * r, cy + Math.sin(an) * r * 0.85]);
+        for (let i = 0; i < n; i++) {
+            const x = clamp(lerp(x0, x1, (i + 0.5) / n) + (hash(i, 95) - 0.5) * W * 0.08, W * 0.06, W * 0.94);
+            const top = Math.max(H * 0.1, G * (0.18 + 0.22 * hash(i, 96)));
+            const tl = t0 + i * 0.22;
+            const R = Math.min(W * 0.22, G * (0.22 + 0.08 * hash(i, 97)));
+            sc.add({ max: tl + 0.5, draw: (ctx, it, t, px) => {
+                const k = (sc.t - tl) / 0.45;
+                if (k < 0 || k > 1) {
+                    return;
                 }
-                fillPts(ctx, px, s, pts, band, c, 0.28 * a);
+                const y = lerp(G - s, top, easeOut(k));
+                fireTail(ctx, px, s, x, y, 0, -1, Math.min(G - y, H * 0.18), s * 5, TIDE, sc.t + i, 1);
+            } });
+            sc.at(tl + 0.45, () => {
+                ultShake(2, 120);
+                ring(sc, x, top, s * 2, R * 0.9, 1, 0.4, ['#ffffff', SPARKW[3]], 2);
+                for (const [m, sp0, z] of [[40, 2.4, 2], [20, 1.3, 1]]) {
+                    for (let j = 0; j < m && room(); j++) {
+                        const a = (j / m) * TAU + rnd(-0.04, 0.04);
+                        const sp = R * sp0 * rnd(0.9, 1.1);
+                        sigParticle({ x, y: top, s, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, g: H * 0.28, drag: 1.7, max: rnd(1.2, 1.7), color: z > 1 ? SPARKW[(i + j) % 4] : '#ffffff', ph: rnd(0, TAU), z, draw: dropDraw });
+                    }
+                }
+                sparkles(x, top, s, ['#ffffff', SPARKW[3]], 14, R * 0.6, H * 0.05);
             });
-        } });
+            sc.add({ max: tl + 0.7, draw: (ctx, it, t, px) => {
+                const k = (sc.t - tl - 0.45) / 0.2;
+                if (k < 0 || k > 1) {
+                    return;
+                }
+                fireOrb(ctx, px, s, x, top, R * 0.35, SPARKW, sc.t, (1 - k) * 1.2, Infinity, 1, k, [1, 0.8, 0.6, 0.38], 0.2); // 가운데 번쩍 (둥글게)
+            } });
+        }
     }
     // 하이드로캐논 — 어깨의 두 대포에 2초 동안 물이 모임(둘레의 물줄기 · 물방울이 소용돌이치며 빨려 들고, 물 소용돌이 고리가 돌며 올라가고,
     // 발밑 물웅덩이에서 물줄기 네 가닥이 대포로 빨려 올라감, 대포 끝 물 구가 두근두근 커졌다 마지막에 꽉 압축)
     // → 번쩍! → 두 대포 앞 물 폭발과 함께 굵은 물줄기 두 가닥이 서로 꼬이며(나선) 화면 끝까지 쏟아짐
     // (하얀 압력 고리가 달리고 물보라가 흩날림, 반동으로 땅을 긁으며 뒤로 밀림) · 가장 가까운 애 자리에 왕관 물보라 · 거대한 물기둥 · 물방울 분수 · 충격파
-    // → 물줄기가 그치면 그 자리에서 높은 해일이 두 겹으로 양옆으로 밀려가 화면을 휩쓺(물마루에서 물보라) → 비 → 무지개.
+    // → 물줄기가 그치면 그 자리에서 높은 해일이 두 겹으로 양옆으로 밀려가 화면을 휩쓺(물마루에서 물보라) → 비 → 물 불꽃놀이.
     // 거북왕은 진짜 그림을 숨기고 물줄기 앞에 꼭두각시로 (정면 그림 — 대포는 양 어깨, 아래에서 58% 높이)
     function runHydroCannon(u, o, ms, pokemon) {
         const P = strength(u);
@@ -6593,7 +6620,7 @@
             splash(ix, G - s, s, TIDE, 60, H * 1.3, { spread: 2.6 });
         });
         waterRain(sc, TW + 0.3, sec, TIDE);
-        rainbowArc(sc, TW + 1.1, sec);
+        waterFireworks(sc, TW + 1.0, 4, W * 0.15, W * 0.85);
     }
     // 메가거북왕 — PMD SpriteCollab 에 몸 그림이 없어서(초상화만) 원래 그림(정면)을 1.3배로 키우고 대포를 그려 올림:
     // 등딱지 위 거대한 대포 하나(앞 위로 비스듬히, 끝에 굵은 포구) + 양팔 작은 대포. white 1 이면 하얀 실루엣, 0 ~ 1 이면 그만큼 하얗게.
@@ -6651,7 +6678,7 @@
     // → 펑! 메가거북왕 → 등의 거대한 대포를 치켜들고 포구에 1.6초 동안 거대한 물 구가 커짐(표면에 물살이 휘감아 돌고 도는 물 고리 · 빨려 드는 물줄기 · 두근두근)
     // — 그동안 팔 대포가 작은 물탄을 앞쪽 곳곳에 연달아 쏴 작은 물기둥이 터짐 → 대포가 과녁으로 내려와 쾅! 물 구 발사 (큰 반동으로 땅을 긁으며 밀림,
     // 나선 물살 · 물의파동 고리를 끌며 날아감) → 맞은 자리: 거대한 물 구가 확 부풀어 터짐 · 왕관 물보라 · 물기둥 셋 · 충격파 · 높은 해일 두 겹(물마루 물보라)
-    // → 비 → 무지개 → 하얀 실루엣이 깜빡이며 원래 모습으로
+    // → 비 → 물 불꽃놀이 → 하얀 실루엣이 깜빡이며 원래 모습으로
     function runMegaLauncher(u, o, ms, pokemon) {
         const P = strength(u);
         const sec = ms / 1000;
@@ -6968,7 +6995,7 @@
             }
         });
         waterRain(sc, TX + 0.6, sec, TIDE);
-        rainbowArc(sc, TX + 1.6, sec);
+        waterFireworks(sc, TX + 1.4, 5, W * 0.12, W * 0.88);
         sc.at(TBack, () => {
             hideMon(pokemon, false);
             sparkles(cx, me.b - me.h * 0.5, s, ['#ffffff', TIDE[0], TIDE[1]], 16, me.w, H * 0.2);
