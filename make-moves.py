@@ -161,18 +161,70 @@ def body(gif):
     return list(walk_alpha(gif).getbbox())
 
 
-def mouth(gif):
+# 자동으로 찾으면 잎 · 볏 · 뿔 · 배 끝에 걸리는 포켓몬 — 그림 높이의 몇 % 줄에서 가장 앞 점 (fy),
+# [fx, fy] 는 그 줄에서 왼쪽부터 fx 너비 안의 가장 앞 점 (집게 · 팔 · 뿔이 머리보다 앞에 있을 때). 2026-10-19 확인표로 맞춤
+MOUTH_FIX = {
+    "abomasnow": 0.3, "aggron": 0.3, "ambipom": 0.38, "azumarill": 0.6, "barboach": 0.5, "bayleef": 0.35,
+    "bellossom": 0.5, "blastoise": 0.42, "bonsly": 0.5, "breloom": 0.5, "budew": 0.55, "butterfree": 0.5,
+    "cherubi": 0.6, "chikorita": 0.42, "chinchou": 0.55, "combee_female": 0.45, "combee_male": 0.45,
+    "combusken": 0.4, "corphish": 0.5, "crustle": 0.68, "drifblim": 0.5, "electrode": 0.55, "empoleon": 0.4,
+    "exeggutor": 0.75, "flaaffy": 0.42, "gastly": 0.62, "gloom": 0.62, "golbat": 0.45, "goldeen": 0.5,
+    "gurdurr": 0.55, "gyarados": 0.3, "haunter": 0.42, "heracross_female": 0.42, "heracross_male": 0.42,
+    "hooh": 0.55, "hoppip": 0.6, "hypno": 0.35, "jumpluff": 0.55, "jynx": 0.38, "kingler": [0.75, 0.55],
+    "koffing": 0.5, "krabby": [0.7, 0.6], "lanturn": 0.6, "leafeon": 0.4, "leavanny": 0.3, "lombre": 0.5,
+    "lotad": 0.7, "ludicolo": 0.55, "machamp": [0.75, 0.18], "magmar": 0.3, "magmortar": 0.35,
+    "maractus": 0.3, "meganium": 0.3, "meganium_female": 0.3, "metapod": 0.45, "oddish": 0.72,
+    "omastar": 0.55, "panpour": 0.45, "parasect": 0.72, "petilil": 0.55, "piloswine": 0.7, "pinsir": 0.45,
+    "probopass": 0.55, "rayquaza": 0.45, "roserade": 0.4, "samurott": [0.75, 0.3], "scolipede": 0.3,
+    "sentret": 0.6, "shedinja": 0.5, "shellder": 0.55, "skiploom": 0.62, "snorlax": [0.7, 0.22],
+    "stantler": 0.5, "sunflora": 0.45, "sunkern": 0.62, "torterra": 0.65, "turtwig": 0.5, "venomoth": 0.42,
+    "venonat": 0.55, "venusaur": 0.7, "venusaur_female": 0.7, "vileplume": 0.78, "zubat": 0.5,
+}
+
+
+def mouth(gif, key=None):
+    # 머리 앞 — 가는 부분(더듬이 · 잎 끝 · 가스 꼬리처럼 1~2칸 폭)은 빼고, 위쪽 55% 줄마다 가장 앞 점을 보되
+    # 아래로 갈수록 깎아서 (배 · 팔에 속지 않게) 가장 앞으로 나온 줄을 고름
     alpha = walk_alpha(gif)
+    if alpha.getbbox() is None:
+        return 0, 0
+    w, h0 = alpha.size
+    px = alpha.load()
     left, top, right, bottom = alpha.getbbox()
-    head_end = top + max(1, int((bottom - top) * 0.6))
-    rightmost = {}
-    for y in range(top, head_end):
-        xs = [x for x in range(left, right) if alpha.getpixel((x, y)) >= 128]
+    h = bottom - top
+
+    def solid(x, y):
+        return 0 <= x < w and 0 <= y < h0 and px[x, y] >= 128
+
+    fix = MOUTH_FIX.get(key)
+    if fix is not None:
+        fx, fy = fix if isinstance(fix, list) else (1, fix)
+        y = min(bottom - 1, round(top + fy * h))
+        xs = [x for x in range(left, right) if solid(x, y) and x <= left + fx * (right - left)]
+        return (max(xs) if xs else right - 1), y
+
+    def thick(x, y):
+        return (solid(x, y) and solid(x - 1, y) and solid(x - 2, y) and (solid(x, y - 1) or solid(x, y + 1))
+                and (solid(x - 1, y - 1) or solid(x - 1, y + 1)))
+
+    rows = {}
+    for y in range(top, top + max(1, int(h * 0.55))):
+        xs = [x for x in range(left, right) if thick(x, y)]
         if xs:
-            rightmost[y] = max(xs)
-    x = max(rightmost.values())
-    ys = [y for y, rx in rightmost.items() if rx >= x - 1]
-    return x, round(sum(ys) / len(ys))
+            rows[y] = max(xs)
+    if not rows:  # 아주 가는 그림 — 예전 방식 (위쪽 60%에서 가장 앞 점)
+        for y in range(top, top + max(1, int(h * 0.6))):
+            xs = [x for x in range(left, right) if solid(x, y)]
+            if xs:
+                rows[y] = max(xs)
+        x = max(rows.values())
+        ys = [y for y, rx in rows.items() if rx >= x - 1]
+        return x, round(sum(ys) / len(ys))
+    _, y0, x0 = max((rx - 0.35 * (y - top), -y, rx) for y, rx in rows.items())  # 같으면 위쪽 줄
+    y0 = -y0
+    ys = [y for y, rx in rows.items() if rx >= x0 - 1 and abs(y - y0) <= max(2, h * 0.08)]
+    y = round(sum(ys) / len(ys))
+    return max([x for x in range(left, right) if solid(x, y)] or [x0]), y
 
 
 def as_list(v):
@@ -289,12 +341,12 @@ def main():
             continue
         power = round(min(1, max(0, (stats.get(dex, 400) - 200) / 450)), 2)
         if move:
-            table[key] = [move, power, *(body(gif) if move == "electric" else mouth(gif))]
+            table[key] = [move, power, *(body(gif) if move == "electric" else mouth(gif, key))]
         if walk_alpha(gif).getbbox() is None:
             continue  # 빈 그림
         # 클릭 기술 — 대표 기술 + 타입 기술 (모든 포켓몬)
         pool = moveset(sig[key], [] if key.removesuffix("_female") in ONLY_SIGNATURE else types.get(dex, []), stats.get(dex, 400))
-        shape[key] = [power, *mouth(gif), *body(gif)]
+        shape[key] = [power, *mouth(gif, key), *body(gif)]
         if pool:
             ids = []
             for m in pool:
