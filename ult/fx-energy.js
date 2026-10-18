@@ -717,17 +717,6 @@
                     spray(q.x, q.y, S, [...cols, '#ffffff'], 18, 80 * Z, 240 * Z, { g: 250 * Z, drag: 1 });
                 }
             }
-            // 큰 마무리 — 가늘어지기 시작할 때 처음 맞은 애 자리 (없으면 앞쪽 멀리)에 빛의 반구
-            if (!st.boomed && f >= fadeAt) {
-                st.boomed = true;
-                let bx = ox + dir * reach * 0.8;
-                for (const q of u.others()) {
-                    if (st.hit.has(q.pokemon) && Math.abs(q.x - ox) < Math.abs(bx - ox)) {
-                        bx = q.x;
-                    }
-                }
-                ultFinale('dome', u, bx, Math.max(T * 2.2, H * 0.32), cols);
-            }
             // 사라지며 빛가루
             if (!st.gone && f >= fire - Math.min(0.35, fire * 0.15)) {
                 st.gone = true;
@@ -1181,7 +1170,6 @@
             }
             ultShake(6 + 3 * P, 900);
             explode(u, x, y, Rb, cols, { style, n: 60 + 40 * P, sec: 0.95 });
-            ultFinale('dome', u, x, Rb * 1.3, cols); // 큰 마무리 — 빛의 반구
             if (style === 'aura' || style === 'water' || style === 'ice') {
                 for (let j = 0; j < 3; j++) {
                     ring(x, y, S, Rb * 0.3, Rb * (1.4 + j * 0.5), 1, 0.6, [cols[0], cols[1], '#ffffff'], { delay: 0.12 + j * 0.1 });
@@ -1423,7 +1411,6 @@
             ultShake(9 + 3 * P, 1400);
             part({ x: C.x, y: C.y, s: S, max: 0.65, far, n: 18, r0: R0 * 0.5, a0: 0, cols, draw: DR.rays });
             explode(u, C.x, C.y, Rn, cols, { n: 120 + 60 * P, sec: 1.2, rays: 0, smoke: 26, embers: 50 });
-            ultFinale('dome', u, C.x, Rn * 1.05, cols); // 큰 마무리 — 빛의 반구
             for (let j = 0; j < 4; j++) {
                 ring(C.x, C.y, S, R0, far * (1 + j * 0.06), 1 - j * 0.08, 0.7 + j * 0.15, j % 2 ? [cols[1], cols[2]] : ['#ffffff', cols[0]], { size: 2, delay: j * 0.12 });
             }
@@ -1593,7 +1580,6 @@
                 sigParticle({ x: bx, y: by, s: S, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 1.4, max: moveRand(0.5, 1), r: movePick([1, 1, 2]), cols: ['#ffffff', cols[0], cols[1], cols[2]], draw: DR.star });
             }
             explode(u, bx, by, Math.max(rB * 3, H * 0.26), cols, { n: 70, sec: 0.9, rays: 0, smoke: 8, embers: 24 });
-            ultFinale('dome', u, bx, Math.max(rB * 4, H * 0.35), cols); // 큰 마무리 — 빛의 반구
             for (let j = 0; j < 3; j++) {
                 ring(bx, by, S, rB, far * (1 + j * 0.08), 1 - j * 0.12, 0.7 + j * 0.15, j % 2 ? [cols[1], cols[2]] : ['#ffffff', cols[0]], { size: 2, delay: j * 0.1 });
             }
@@ -1775,7 +1761,6 @@
             flash('#ffe6f4', 0.6, 0.35, 0.04);
             ultShake(4 + 2 * P, 500);
             sigImpact(x, y, S, ['#ffffff', pink[1], pink[2], cols[2]], 1, true);
-            ultFinale('dome', u, x, Math.max(u.R * 2.2, H * 0.3), o.c ? cols : pink); // 큰 마무리 — 빛의 반구
             for (let i = 0; i < 14 && room(); i++) {
                 const a = (i / 14) * TAU + moveRand(-0.2, 0.2);
                 const sp = moveRand(140, 320) * Z;
@@ -1997,8 +1982,6 @@
         const burst = () => {
             flash(cols[0], 0.75, 0.55, 0.06);
             ultShake(5 + 2 * P, 800);
-            const qm = nearest(u, u.body.cx);
-            ultFinale('pillar', u, qm ? qm.x : u.body.cx + dir * W * 0.3, Math.max(u.R * 1.1, H * 0.2), cols); // 큰 마무리 — 달빛 기둥
             part({ x: M.x, y: M.y, s: S, max: 0.6, far: Math.hypot(W, H), n: 16, r0: Rm * 1.1, a0: 0.1, cols: [cols[1], cols[2], cols[0], cols[3]], draw: DR.rays });
             for (let i = 0; i < 40 && room(); i++) {
                 const a = moveRand(0, TAU);

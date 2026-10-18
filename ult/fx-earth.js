@@ -679,7 +679,6 @@
                     chunk(rnd(0, W), -rnd(5, 40), D, rnd(-30, 30), rnd(0, 0.3) * H, grav, G, pick(rock), pick([2, 3, 3]), rock[0], true, 2.5);
                 }]),
                 [tC, () => {
-                    ultFinale('pillar', u, clamp(x0 + u.dir * W * 0.3, W * 0.1, W * 0.9), Math.max(8 * D, H * 0.2), lava ? LAVA.slice(1) : cols); // 큰 마무리 — 땅 기둥
                     screenFlash(D, 0.6, lava ? LAVA[1] : '#ffffff', 0.4);
                     shake(7 + 3 * P, 850);
                     sigRing(x0, G, D, D * 2, W * 0.9, 0.1, 0.7, [glow[0], glow[1], '#ffffff']);
@@ -743,8 +742,6 @@
             const tf = te + plan.rise + plan.hold + (last ? plan.finale : 0);
             pillars.push({ i, x: f.front + f.dir * (a0 + step * (i + 0.5)), w, h, tw, te, tf, tg: tf + plan.fall, last, seed: rnd(0, 1000), lean: rnd(-0.06, 0.06), acc: 0, pacc: 0 });
         }
-        const lastP = pillars[pillars.length - 1];
-        ultFinaleAt(lastP.te + 0.05, () => ['dome', u, lastP.x, Math.max(lastP.w * 1.8, H * 0.3), cols]); // 큰 마무리 — 빛의 반구
         // 지금 상태 — g: 솟음(1.07 까지 넘쳤다 1), k: 무너짐 0~1
         const stateOf = (pl, t) => {
             const age = t - pl.te;
@@ -1690,7 +1687,6 @@
                     }
                 }],
                 [tLand + 0.12, () => sigRing(cxF, G, D, bw * 0.3, W * 0.6, 0.2, 0.6, [flowerC[0], flowerC[1]])],
-                [tLand + 0.15, () => ultFinale('dome', u, cxF, Math.max(bw * 1.1, H * 0.36), beamCols)], // 큰 마무리 — 내려앉은 햇빛이 빛의 반구로
                 [tE - 0.3, () => shake(3 + P, 600)],
             ],
             update,
@@ -1872,7 +1868,6 @@
             screenFlash(D, 0.6, '#ffffff', 0.4);
             shake(7 + 3 * P, 900);
             const mid = f.front + f.dir * f.room * 0.55;
-            ultFinale('bloom', u, mid, H * 0.35, null); // 큰 마무리 — 거대한 꽃
             sigRing(mid, G, D, 2 * D, W * 0.8, 0.12, 0.7, [cols[0], '#ffffff', cols[1]]);
             sigRing(mid, G, D, 2 * D, W * 0.5, 0.2, 0.5, [cols[1], cols[2]]);
             for (let i = 0; i < 80; i++) {
@@ -1995,7 +1990,6 @@
         const rTop = clamp(Math.min(W * 0.17, H * 0.42), 7 * D, 160) * (0.75 + 0.35 * P) * (n === 2 ? 0.78 : 1);
         const Hc = G + 6 * D;
         const tB = sec - 0.95; // 펑
-        ultFinaleAt(tB, () => columns.length && ['dome', u, columns.reduce((a, c) => a + c.cx, 0) / columns.length, rTop * 2.4, cols]); // 큰 마무리 — 빛의 반구
         const spin = f.dir * (5.5 + 2 * P);
         const streaks = 4 + (P > 0.7 ? 1 : 0);
         // 몸통 · 뒤쪽 줄 [색, 진하기] — 불은 밝게

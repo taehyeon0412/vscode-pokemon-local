@@ -145,7 +145,7 @@
   "snorlax": {"ult": [["기가임팩트", "ultdive", {"heavy": 1, "c": "normal", "uniq": "snorlax"}], ["코골기", "ultnova", {"c": "sleep"}]]},
   "articuno": {"ult": [["절대영도", "ultnova", {"c": "ice", "white": 1, "uniq": "articuno"}], ["눈보라", "ultstorm", {"kind": "blizzard", "c": "ice"}]]},
   "zapdos": {"ult": [["번개", "ultstorm", {"kind": "thunder", "c": "electric", "uniq": "zapdos"}], ["방전", "ultthunder", {"mode": "pillar", "c": "electric"}]]},
-  "moltres": {"ult": [["불새", "ultdive", {"c": "fire", "flame": 1, "plain": 1}], ["열풍", "ultstorm", {"kind": "fire", "c": "fire", "plain": 1}]]},
+  "moltres": {"ult": [["불새", "ultdive", {"c": "fire", "flame": 1}], ["열풍", "ultstorm", {"kind": "fire", "c": "fire"}]]},
   "dratini": {"ult": [["얼티메이트드래곤번", "ultdive", {"c": "dragon"}], ["회오리", "ultvortex", {"c": "dragon"}]]},
   "dragonair": {"moves": [["파괴광선", "beam", {"c": "hyper", "width": 1.4, "sparkle": "hyper"}]], "ult": [["용성군", "ultskyfall", {"shape": "meteor", "n": 10, "c": "dragon"}], ["용의파동", "ultorb", {"style": "energy", "c": "dragon", "size": 1.2}]]},
   "dragonite": {"moves": [["파괴광선", "beam", {"c": "hyper", "width": 1.4, "sparkle": "hyper"}]], "ult": [["파괴광선", "ultbeam", {"c": "hyper", "width": 1.3, "sparkle": "hyper"}], ["역린", "ultrush", {"c": "dragon", "fast": 1, "tc": "dragon", "uniq": "dragonite"}]]},

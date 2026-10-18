@@ -55,37 +55,17 @@ const ULT_DEFAULT_C = { ultbeam: 'hyper', ultnova: 'hyper', ultvolt: 'electric',
 const ULT_ORB_C = { energy: 'hyper', flame: 'fire', shadow: 'ghost', aura: 'aura', water: 'water', ice: 'ice', leaf: 'grass' };
 const ultCols = (o, fx) => sigPal(o.c || (fx === 'ultorb' && ULT_ORB_C[o.style]) || ULT_DEFAULT_C[fx] || 'gold');
 const ultClamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
-// 큰 마무리 — 공통 틀이 절정에서 부름 (fx-sky.js 가 채움: dome 빛의 반구 대폭발 · pillar 화면 꼭대기까지 기둥). 2026-10-19
+// 큰 마무리 — 전용 필살기(fx-unique.js)가 부름 (fx-sky.js 가 채움: bloom 거대한 꽃). 2026-10-19
 const ULT_FINALE = {};
-// fx-sky.js 의 그리기 도구 — 전용 필살기(fx-unique.js)가 씀
-const ULT_KIT = {};
 function ultFinale(kind, ...args) {
-    if (ultActive?.o?.plain) {
-        return; // plain — 공통 강화 없이 원래 틀 그대로 (파이어, 2026-10-19 태현 님)
-    }
     try {
         ULT_FINALE[kind]?.(...args);
     } catch (err) {
         ultError(`finale ${kind}`, err);
     }
 }
-// sec 초 뒤에 — make() 가 [kind, ...args] 를 돌려줌 (그때의 자리로). 그새 필살기가 끝났으면 안 함
-function ultFinaleAt(sec, make) {
-    const who = ultActive?.pokemon;
-    setTimeout(() => {
-        if (who && ultActive?.pokemon !== who) {
-            return;
-        }
-        try {
-            const a = make();
-            if (a) {
-                ultFinale(...a);
-            }
-        } catch (err) {
-            ultError('finaleAt', err);
-        }
-    }, sec * 1000);
-}
+// fx-sky.js 의 그리기 도구 — 전용 필살기(fx-unique.js)가 씀
+const ULT_KIT = {};
 // 받침 — 받침 있으면 a, 없으면 b ("리자몽으로" · "피카츄로")
 const josa = (word, a, b) => {
     const c = word.charCodeAt(word.length - 1) - 0xac00;
@@ -360,7 +340,7 @@ function useUltimate(pokemon, ult, opt = {}) {
     pokemon.currentStateEnum = "swipe" /* States.swipe */;
     pokemon.currentState = new UltState(left, until);
     pokemon.hideSpeechBubble();
-    ultActive = { pokemon, until, name, fx, pre, o };
+    ultActive = { pokemon, until, name, fx, pre };
     // 필살기 동안은 효과를 앞쪽 풀 · 나무 위로 (평소엔 그 밑)
     moveCanvasReady();
     moveCanvas.style.zIndex = '6';
@@ -888,7 +868,7 @@ Object.assign(ULT_FX, {
                 ultTitle('…갸라도스!?', null, sigPal('hyper'), 1.2);
                 setTimeout(() => {
                     const g2 = ultGeometry(pokemon, u.left);
-                    const beam = ULT_FX.ultbeam?.plain || ULT_FX.ultbeam || ULT_FX.ultgeneric; // 기 모으기 없이 바로
+                    const beam = ULT_FX.ultbeam || ULT_FX.ultgeneric;
                     try {
                         beam.run({ ...g2, mouth: { x: g2.mouth.x + u.dir * g2.w * 0.5, y: g2.mouth.y - g2.h * 0.6 }, P: 1 }, { c: 'hyper', width: 1.3, sparkle: 'hyper' }, 2000, pokemon);
                     } catch (err) {
