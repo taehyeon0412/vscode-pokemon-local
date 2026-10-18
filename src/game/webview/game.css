@@ -65,6 +65,10 @@ body.pokemon-game-on {
   min-width: 0;
   overflow: hidden;
 }
+/* 왼쪽 칸 (S06 ① 볼 개수) 은 칸의 가운데 — 패널 끝과 가운데 이름 사이 (넓은 패널에서 끝에 붙어 안 보이지 않게, 좁으면 칸이 줄어 왼쪽으로) */
+.pg-infobar-left {
+  justify-content: center;
+}
 .pg-infobar-right {
   justify-content: flex-end;
 }
