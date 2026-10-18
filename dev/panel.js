@@ -25,11 +25,11 @@ if (q.get('shim')) {
 
 // 틀마다 시험할 옵션 — SPEC.md 의 옵션을 고루
 const VARIANTS = {
-    ultbeam: [{ c: 'hyper' }, { solar: 1 }, { c: 'ice', rainbow: 1 }, { c: 'water', double: 1, sparkle: 'water' }, { c: 'psychic', spiral: 1, wave: 1 }, { c: 'solar', venus: 1 }, { c: 'water', turtle: 1 }],
+    ultbeam: [{ c: 'hyper' }, { solar: 1 }, { c: 'ice', rainbow: 1 }, { c: 'water', double: 1, sparkle: 'water' }, { c: 'psychic', spiral: 1, wave: 1 }, { c: 'solar', venus: 1 }, { c: 'water', turtle: 1 }, { c: 'hyper', uniq: 'gyarados' }],
     ultorb: [{ c: 'fire', style: 'flame' }, { c: 'ghost', style: 'shadow' }, { c: 'aura', style: 'aura' }, { c: 'aura', style: 'aura', lucario: 1 }, { c: 'water', turtle: 1 }, { c: 'psychic', mewtwo: 1 }, { c: 'psychic', mew: 1 }, { c: 'psychic', sky: 1 }, { c: 'ghost', style: 'shadow', uniq: 'gengar' }],
     ultnova: [{ c: 'fire' }, { c: 'normal', white: 1 }],
     ultblackhole: [{ c: 'dark' }],
-    ultsparkle: [{ mode: 'twinkle', c: 'fairy' }, { mode: 'moon', c: 'moon' }],
+    ultsparkle: [{ mode: 'twinkle', c: 'fairy' }, { mode: 'moon', c: 'moon' }, { mode: 'twinkle', c: 'star', uniq: 'eevee' }],
     ultquake: [{ c: 'ground' }, { c: 'fire', lava: 1 }],
     ultpillar: [{ kind: 'fire' }, { kind: 'rock' }, { kind: 'ice' }, { kind: 'water' }, { kind: 'light' }, { kind: 'vine' }, { kind: 'shadow' }, { kind: 'fire', c: 'fire', blast: 1 }, { kind: 'vine', c: 'grass', venus: 1 }],
     ultbloom: [{ mode: 'bloom', c: 'grass' }, { mode: 'vine', c: 'grass' }],

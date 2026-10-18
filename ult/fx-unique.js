@@ -5,7 +5,7 @@
     const K = ULT_KIT;
     const { TAU, rnd, pick, clamp, lerp, easeOut, easeIn, hash, room, strength, short, away, where, makeHit, nearest, scene, jag, drawBolt, ellipse, ring,
         strike, groundArcs, debris, sparkles, skyBand, cloudBank, drawMon, drawLitMon, monBox, hideMon, hideUntil, glint, fireOrb, chargeSwirl, blastDome,
-        fireBits, emberRise, impactFrames } = K;
+        fireBits, emberRise, impactFrames, beamBody } = K;
     const { ZAPC } = K.pal;
     const hsl = (h, l = 60) => `hsl(${Math.round(((h % 360) + 360) % 360)}, 100%, ${l}%)`;
     const UNIQ = {}; // 이름 → { fx, ms(P, o), run(u, o, ms, pokemon) }
@@ -589,6 +589,311 @@
             ring(sc, me.x, G - s, me.w * 0.4, me.w * 2, 0.25, 0.35, [SNOR[1], SNOR[2]], 1);
             ultShake(3, 200);
         });
+    }
+
+    // ═════ 갸라도스 — 파괴광선 (ultbeam) ═════
+    // 먹구름 · 장대비 · 구름 속 번쩍 → 발밑에 물 소용돌이, 몸이 솟으며 세 번 포효(입에서 퍼지는 고리 · 흔들림) → 입에 주황 빛이 빨려 들어 커짐
+    // → 임팩트 프레임 · 굵은 파괴광선이 바로 앞 땅부터 저 멀리까지 휩쓸며 지나감 (닿은 땅마다 차례로 폭발 · 흙 · 닿은 애 벌러덩)
+    // → 마지막 자리에서 주황빛 빛의 반구 → 비가 그침 (약 7.6초)
+    const HYPER = ['#ffffff', '#fff4c2', '#ffb94d', '#ff7a1a'];
+    UNIQ.gyarados = { fx: 'ultbeam', ms: (P) => 7600 + 200 * P, run: runGyaraBeam };
+    function runGyaraBeam(u, o, ms, pokemon) {
+        const P = strength(u);
+        const sec = ms / 1000;
+        const { W, H, S: s, dir } = u;
+        const G = u.ground;
+        const hit = makeHit();
+        const me = monBox(pokemon);
+        const bandH = Math.max(40, H * 0.3);
+        const lift = me.h * 0.18;
+        const roars = [0.75, 1.15, 1.55];
+        const TC0 = 1.4; // 모으기
+        const TF = 2.5; // 쏨
+        const SW = 1.5; // 휩쓰는 시간
+        const TE = TF + SW; // 마지막 자리 대폭발
+        const footAt = (t) => me.b - lift * easeOut(clamp((t - 0.4) / 0.6, 0, 1)) * (1 - easeIn(clamp((t - (sec - 0.7)) / 0.5, 0, 1))) + Math.sin(t * 2.6) * s;
+        const mouthAt = (t) => [u.mouth.x + dir * s * 2, u.mouth.y - (me.b - footAt(t))];
+        const bw = clamp(H * 0.11 * (0.9 + 0.3 * P), 8 * s, H * 0.2);
+        // 휩쓰는 각도 — 바로 앞 땅 → 화면 끝 땅
+        const [mx0, my0] = mouthAt(TF);
+        const drop = Math.max(s * 6, G - my0 - bw * 0.3);
+        const far = dir > 0 ? W - mx0 : mx0;
+        const d0 = Math.max(me.w * 0.6, far * 0.12);
+        const d1 = Math.max(far * 0.98, me.w);
+        // 닿는 땅이 고르게 앞으로 (각도로 나누면 끝에서만 확 빨라짐)
+        const angAt = (t) => {
+            const k = clamp((t - TF - 0.15) / (SW - 0.15), 0, 1);
+            return Math.atan2(drop, lerp(d0, d1, k * k * (3 - 2 * k)));
+        };
+        const contactX = (t) => {
+            const [mx, my] = mouthAt(t);
+            return mx + (dir * (G - my)) / Math.tan(angAt(t));
+        };
+        const sc = scene(u, sec + 0.4, 'uniq gyarados');
+        ultDark(0.4, ms - 200);
+        let lit = 0;
+        sc.tick((t, dt) => {
+            lit = Math.max(0, lit - dt);
+        });
+        skyBand(sc, '#060c18', bandH * 1.2, 0.7, sec);
+        cloudBank(sc, { y: bandH * 0.38, h: bandH * 0.42, cols: ['#5f6b86', '#3d4660', '#272e42'], sec, lit: () => (lit > 0 ? 1 : 0), speed: 30 * dir, litCols: ['#ffffff', '#dbe8ff', '#9fb4e0'] });
+        K.waterRain(sc, 0.2, sec - 0.4, K.pal.TIDE);
+        [0.5, 1.3, 2.2, 3.6].forEach((tb) => sc.at(tb, () => {
+            lit = 0.1;
+            strike(sc, rnd(0.1, 0.9) * W, bandH * 0.3, rnd(0.1, 0.9) * W, bandH * 0.9 + rnd(0, H * 0.1), { w: 1, mid: '#dbe8ff', glow: '#6c88c8', dur: 0.2, branches: 1 });
+        }));
+        // 발밑 물 소용돌이
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            const a = clamp((life - 0.3) / 0.4, 0, 1) * clamp((sec - 0.4 - life) / 0.4, 0, 1);
+            if (a > 0.02) {
+                K.swirlRing(ctx, px, s, me.x, G - s, me.w * (0.9 + 0.1 * Math.sin(life * 5)), 0.22, life, dir, K.pal.TIDE, a);
+                K.swirlRing(ctx, px, s, me.x, G - s, me.w * 0.55, 0.22, life * 1.4, dir, K.pal.TIDE, a * 0.8);
+            }
+        } });
+        // 갸라도스 (꼭두각시)
+        puppet(sc, pokemon, u, footAt, '#6cc3ff', sec - 0.1, { glow: (t) => (t > TF - 0.05 && t < TF + 0.12 ? 0.8 : clamp((t - TC0) / 1, 0, 1) * (t < TF ? 0.15 * (1 + Math.sin(t * 16)) : 0)), glowColor: '#fff4c2' });
+        // 포효 — 입에서 퍼지는 고리
+        roars.forEach((tr, i) => sc.at(tr, () => {
+            const [mx, my] = mouthAt(tr);
+            for (let j = 0; j < 2; j++) {
+                sc.at(tr + j * 0.08, () => ring(sc, mx, my, me.w * 0.3, me.w * (2.2 + i * 0.6), 0.9, 0.5, ['#ffffff', '#bfe9ff'], 2 - j));
+            }
+            K.splash(me.x, G - s, s, K.pal.TIDE, 10, H * 0.6);
+            ultShake(3 + i * 1.5, 300);
+            lit = 0.08;
+        }));
+        // 모으기 — 입 앞 주황 빛
+        chargeSwirl(sc, mouthAt, TC0, TF - 0.05, Math.max(me.w * 3.5, short(u) * 0.4), Math.max(s * 4, bw * 0.4), HYPER, dir);
+        sc.add({ max: TF + 0.1, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life < TC0) {
+                return;
+            }
+            const [mx, my] = mouthAt(life);
+            const k = easeOut((life - TC0) / (TF - TC0)) * (1 + 0.1 * Math.max(0, Math.sin(life * 10)) ** 4);
+            fireOrb(ctx, px, s, mx, my, bw * 0.55, HYPER, life, k, G, 1, 0, [1, 0.8, 0.6, 0.38], 0.3);
+        } });
+        // 쏨 — 휩쓰는 파괴광선
+        sc.at(TF, () => {
+            impactFrames(sc, W, H, 0.75, 0.5);
+            ultShake(6 + 2 * P, (SW + 0.3) * 1000);
+        });
+        sc.add({ max: TE + 0.35, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life < TF) {
+                return;
+            }
+            const [mx, my] = mouthAt(life);
+            const a = angAt(life);
+            const ux = Math.cos(a) * dir;
+            const uy = Math.sin(a);
+            const len = (G - my) / Math.max(0.05, uy);
+            const fade = life > TE ? 1 - (life - TE) / 0.35 : 1;
+            const ww = bw * (life < TF + 0.15 ? 1.4 - 0.4 * ((life - TF) / 0.15) : 1) * (0.92 + 0.08 * Math.sin(life * 40)) * fade;
+            beamBody(ctx, px, s, mx, my, ux, uy, len + bw * 0.3, ww, HYPER, life, 1, G);
+            fireOrb(ctx, px, s, mx, my, bw * 0.5, HYPER, life, 1, G, fade, 0, [1, 0.8, 0.6, 0.38], 0.3);
+            // 닿은 땅 — 빛 덩이
+            const cx = mx + ux * len;
+            ellipse(ctx, px, s, cx, G - s, bw * 1.3, bw * 0.35, HYPER[2], 0.7 * fade, G + s);
+            ellipse(ctx, px, s, cx, G - s, bw * 0.7, bw * 0.2, '#ffffff', 0.9 * fade, G + s);
+        } });
+        // 지나간 땅마다 차례로 폭발
+        let lastX = null;
+        sc.tick((t) => {
+            if (t < TF + 0.05 || t > TE) {
+                return;
+            }
+            const cx = contactX(t);
+            if (lastX === null || Math.abs(cx - lastX) > bw * 0.9) {
+                lastX = cx;
+                if (cx > -bw && cx < W + bw) {
+                    const R = bw * rnd(0.8, 1.25);
+                    sc.add({ max: 0.55, draw: (ctx, q, tt, px) => {
+                        fireOrb(ctx, px, s, cx, G, R, HYPER, q.life + cx, easeOut(Math.min(1, tt / 0.3)), G + s, tt > 0.7 ? (1 - tt) / 0.3 : 1, clamp((tt - 0.3) / 0.6, 0, 1));
+                    } });
+                    debris(cx, G - s, s, ['#8a7252', '#5c4a33', HYPER[2], HYPER[3]], 8, H * 0.6, { ground: G });
+                    ultShake(2, 120);
+                    for (const r of u.others()) {
+                        if (Math.abs(r.x - cx) < bw * 1.5 + r.w * 0.5) {
+                            hit(where(u, r), dir, 'tumble');
+                        }
+                    }
+                }
+            }
+        });
+        // 마지막 자리 — 주황빛 빛의 반구
+        sc.at(TE, () => {
+            const cx = clamp(contactX(TE), W * 0.06, W * 0.94);
+            impactFrames(sc, W, H, 0.6, 0.4);
+            blastDome(sc, cx, G, clamp(Math.max(H * 0.42, bw * 3.5), 30, Math.min(G * 0.92, W * 0.45)), 1.9, HYPER);
+            ring(sc, cx, G - s, bw, W * 0.6, 0.25, 0.8, ['#ffffff', HYPER[1], HYPER[2]], 3);
+            ultShake(8 + 2 * P, 1000);
+        });
+        emberRise(sc, TE + 0.4, sec, HYPER);
+    }
+
+    // ═════ 이브이 — 나인에볼부스트 (ultsparkle) ═════
+    // 이브이 둘레 하늘에 진화형 일곱(샤미드 · 쥬피썬더 · 부스터 · 에브이 · 블래키 · 리피아 · 글레이시아)이 하나씩 반짝 나타남(각자 제 색 빛)
+    // → 일곱이 제 색 빛줄기를 이브이에게 쏘아 넣음 · 이브이가 무지갯빛으로 빛나며 두근 → 진화형들은 빛가루로 흩어지고 임팩트 프레임
+    // → 무지개 꼬리를 끌며 가장 가까운 애에게 박치기 → 무지갯빛 빛의 반구 → 제자리로 (약 7.2초)
+    const EVOS = [['vaporeon', 1, 'water'], ['jolteon', 1, 'electric'], ['flareon', 1, 'fire'], ['espeon', 2, 'psychic'], ['umbreon', 2, 'dark'], ['leafeon', 4, 'grass'], ['glaceon', 4, 'ice']];
+    const PRISM = ['#ffffff', '#fff3b0', '#ffb3e6', '#9ec5ff'];
+    const evoImgs = new Map();
+    function evoImg(root, name, gen) {
+        const src = root.replace(/\/gen\d+\/[a-z]+(_[^/]*)?\/([^/]*)$/, `/gen${gen}/${name}/default`) + '_walk_8fps.gif';
+        let img = evoImgs.get(src);
+        if (!img) {
+            img = new Image();
+            img.src = src;
+            evoImgs.set(src, img);
+        }
+        return img;
+    }
+    UNIQ.eevee = { fx: 'ultsparkle', ms: (P) => 7200 + 200 * P, run: runNineEvo };
+    function runNineEvo(u, o, ms, pokemon) {
+        const P = strength(u);
+        const sec = ms / 1000;
+        const { W, H, S: s, dir } = u;
+        const G = u.ground;
+        const hit = makeHit();
+        const me = monBox(pokemon);
+        const left = dir < 0;
+        const edge = Math.max(1, Math.round(u.s * 0.75));
+        const TA = 0.35; // 진화형 나타남 (하나씩)
+        const TBEAM = 1.75; // 빛줄기
+        const TGO = 3.25; // 흩어짐 · 박치기 시작
+        const TDASH = 0.35;
+        const THIT = TGO + 0.2 + TDASH;
+        const TBACK = THIT + 1.9;
+        const q = nearest(u);
+        let tx = q ? q.x : me.x + dir * W * 0.4;
+        tx = clamp(tx - Math.sign(tx - me.x || dir) * me.w * 0.4, me.w * 0.5, W - me.w * 0.5);
+        const cy0 = me.b - me.h * 0.5;
+        const Rr = clamp(Math.min(W * 0.3, (G - me.h) * 0.75), me.w * 1.8, Math.max(me.w * 1.8, H * 0.6));
+        const ew0 = me.w * 0.95;
+        // 반원 가운데 — 패널 끝에 선 애라도 일곱이 다 보이게 안쪽으로
+        const ax = clamp(me.x, Math.min(W / 2, Rr + ew0 * 0.6), Math.max(W / 2, W - Rr - ew0 * 0.6));
+        const evos = EVOS.map(([name, gen, c], i) => {
+            const a = -Math.PI * (0.08 + (0.84 * i) / (EVOS.length - 1));
+            return { img: evoImg(pokemon.pokemonRoot || '', name, gen), cols: sigPal(c), t0: TA + i * 0.17,
+                x: clamp(ax + Math.cos(a) * Rr, ew0 * 0.6, W - ew0 * 0.6), b: clamp(cy0 + Math.sin(a) * Rr * 0.85 + ew0 * 0.45, ew0 * 1.1, G), w: ew0 };
+        });
+        const xAt = (t) => (t < TGO + 0.2 ? me.x : t < THIT ? lerp(me.x, tx, easeIn((t - TGO - 0.2) / TDASH)) : t < TBACK ? tx : lerp(tx, me.x, clamp((t - TBACK) / 0.45, 0, 1)));
+        const footAt = (t) => (t > TBACK ? me.b - Math.sin(clamp((t - TBACK) / 0.45, 0, 1) * Math.PI) * me.h * 0.4 : me.b);
+        const sc = scene(u, sec + 0.4, 'uniq eevee');
+        ultDark(0.4, ms - 200);
+        // 진화형 — 둥실 · 제 색 테두리 · 발밑 빛
+        sc.add({ max: TGO + 0.4, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            evos.forEach((e, i) => {
+                if (life < e.t0) {
+                    return;
+                }
+                const k = easeOut((life - e.t0) / 0.25);
+                const gone = clamp((life - TGO) / 0.3, 0, 1);
+                const a = k * (1 - gone);
+                if (a <= 0.01) {
+                    return;
+                }
+                const b = e.b + Math.sin(life * 2.5 + i) * s * 1.5;
+                K.ringDots(ctx, px, s, e.x, b - e.w * 0.45, e.w * 0.62, 0.9, [e.cols[1], e.cols[2]], 0.6 * a, 1);
+                for (const [dx, dy] of [[edge, 0], [-edge, 0], [0, edge], [0, -edge]]) {
+                    drawMon(ctx, e.img, e.x + dx, b + dy, e.w * (0.6 + 0.4 * k), left, 0.9 * a, e.cols[1]);
+                }
+                drawMon(ctx, e.img, e.x, b, e.w * (0.6 + 0.4 * k), left, a);
+                if (life < e.t0 + 0.15 || gone > 0) {
+                    drawMon(ctx, e.img, e.x, b, e.w * (0.6 + 0.4 * k), left, gone > 0 ? gone : 1 - (life - e.t0) / 0.15, '#ffffff');
+                }
+            });
+        } });
+        evos.forEach((e) => sc.at(e.t0, () => {
+            ring(sc, e.x, e.b - e.w * 0.45, s * 2, e.w * 1.3, 0.85, 0.35, ['#ffffff', e.cols[1], e.cols[2]], 2);
+            sparkles(e.x, e.b - e.w * 0.45, s, ['#ffffff', ...e.cols.slice(0, 3)], 8, e.w * 0.6, H * 0.1);
+            ultShake(1.2, 100);
+        }));
+        // 빛줄기 — 진화형마다 제 색으로 이브이에게
+        sc.add({ max: TGO + 0.1, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life < TBEAM) {
+                return;
+            }
+            evos.forEach((e, i) => {
+                const k = clamp((life - TBEAM - i * 0.06) / 0.2, 0, 1);
+                if (k <= 0) {
+                    return;
+                }
+                const x0 = e.x;
+                const y0 = e.b - e.w * 0.45;
+                const dx = me.x - x0;
+                const dy = cy0 - y0;
+                const L = Math.hypot(dx, dy) || 1;
+                beamBody(ctx, px, s, x0, y0, dx / L, dy / L, L * k, Math.max(3 * s, me.w * 0.16), e.cols, life + i, 0.9 * (1 - clamp((life - TGO + 0.1) / 0.2, 0, 1)));
+            });
+        } });
+        [TBEAM + 0.4, TBEAM + 0.8, TBEAM + 1.15].forEach((tb, i) => sc.at(tb, () => {
+            ring(sc, me.x, cy0, me.w * 0.4, me.w * (1.8 + i * 0.5), 0.85, 0.4, ['#ffffff', hsl(i * 120, 75)], 2);
+            ultShake(1.5 + i, 160);
+        }));
+        // 무지갯빛 오라 (이브이 뒤)
+        sc.add({ max: TBACK, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            const k = clamp((life - TBEAM) / 0.6, 0, 1) * (1 - clamp((life - THIT) / 0.4, 0, 1));
+            if (k > 0.02) {
+                const h0 = life * 300;
+                K.flameTongue(ctx, px, s, xAt(life), footAt(life) + s * 2, me.w * 1.2, me.h * 1.5, [hsl(h0, 90), hsl(h0 + 60, 70), hsl(h0 + 120, 60), hsl(h0 + 180, 50)], life, k);
+            }
+        } });
+        // 박치기 꼬리
+        sc.add({ max: THIT + 0.3, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life < TGO + 0.2) {
+                return;
+            }
+            const x1 = xAt(Math.min(life, THIT));
+            const fade = life > THIT ? 1 - (life - THIT) / 0.3 : 1;
+            for (let j = 0; j < 7; j++) {
+                ctx.globalAlpha = 0.8 * fade;
+                ctx.fillStyle = hsl(j * 51 + life * 400, 65);
+                const y = cy0 - me.h * 0.3 + (j / 6) * me.h * 0.6;
+                ctx.fillRect(Math.min(me.x, x1), Math.round(y), Math.abs(x1 - me.x), Math.max(s, Math.round(me.h * 0.09)));
+            }
+        } });
+        // 이브이 (꼭두각시) — 무지갯빛으로 빛남
+        const img = pokemon.el;
+        hideMon(pokemon, true);
+        hideUntil(pokemon, (sec - 0.1) * 1000 + 100);
+        sc.at(sec - 0.12, () => hideMon(pokemon, false));
+        sc.add({ max: sec - 0.1, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life >= sec - 0.12) {
+                return;
+            }
+            const x = xAt(life);
+            const fy = footAt(life);
+            drawLitMon(ctx, img, x, fy, me.w, left, hsl(life * 300, 70), edge, 1);
+            const glow = clamp((life - TBEAM) / 1, 0, 1) * (life < THIT ? 0.25 + 0.2 * Math.sin(life * 14) : 0) + (life > TGO && life < TGO + 0.15 ? 0.7 : 0);
+            if (glow > 0.01) {
+                drawMon(ctx, img, x, fy, me.w, left, glow, hsl(life * 300, 85));
+            }
+        } });
+        // 흩어짐 · 임팩트 프레임
+        sc.at(TGO, () => {
+            impactFrames(sc, W, H, 0.6, 0.35);
+            evos.forEach((e) => sparkles(e.x, e.b - e.w * 0.45, s, ['#ffffff', ...e.cols.slice(0, 2)], 10, e.w * 0.5, H * 0.15));
+            ring(sc, me.x, cy0, me.w * 0.5, me.w * 3, 0.85, 0.4, ['#ffffff', PRISM[2], PRISM[3]], 2);
+            ultShake(3, 250);
+        });
+        // 박치기 — 무지갯빛 빛의 반구
+        sc.at(THIT, () => {
+            impactFrames(sc, W, H, 0.7, 0.45);
+            blastDome(sc, clamp(tx + dir * me.w * 0.4, W * 0.06, W * 0.94), G, clamp(Math.max(H * 0.45, me.w * 3), 30, Math.min(G * 0.92, W * 0.45)), 1.8, PRISM);
+            ultShake(7 + 2 * P, 1000);
+            for (const r of u.others()) {
+                sc.at(THIT + 0.1, () => hit(where(u, r), away(u, r.x), Math.abs(r.x - tx) < W * 0.25 ? 'spin' : 'lift', 0.5));
+            }
+        });
+        emberRise(sc, THIT + 0.4, sec, PRISM);
     }
 
     // ── 틀에 끼워 넣기 — uniq 가 이 파일에 있는 이름이면 그 연출, 아니면 원래 틀 그대로 ──
