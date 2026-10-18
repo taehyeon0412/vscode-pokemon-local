@@ -4734,7 +4734,7 @@
             }
         });
     }
-    // 반구 대폭발 (드래곤볼 베지터 자폭처럼) — 땅(x, G)에서 매끈한 빛의 반구가 0.45초 만에 부풀어 눈부시게 빛나다 사그라듦.
+    // 반구 대폭발 (드래곤볼 베지터 자폭처럼) — 땅(x, G)에서 매끈한 빛의 반구가 0.6초 동안 서서히 부풀어 눈부시게 빛나다 사그라듦.
     // 거의 하얀 심 · 얇게 번지는 테두리(색 사이는 도트를 섞어 부드럽게) · 바깥으로 번지는 빛 무리 · 반구 안을 비스듬히 흐르는 옅은 빛줄기
     // · 화면 전체가 빛에 물듦 · 밑동의 돌덩이들이 빛 앞에서 검은 실루엣으로 천천히 떠오름. cols = 하양 → 짙은 색
     const ROCK = ['#2e2620', '#4a3d33', '#6b5a4a', '#8a7660'];
@@ -4751,7 +4751,7 @@
         for (let i = 0; i < 28; i++) {
             const side = i % 2 ? -1 : 1;
             const off = R * (0.15 + 1.05 * hash(i, 71));
-            rocks.push({ x: x + side * off, y: G - s * 2 * hash(i, 72), vx: side * R * (0.05 + 0.2 * hash(i, 73)), vy: -H * (0.06 + 0.22 * hash(i, 74)), t0: (off / R) * 0.35, z: s * (3 + Math.floor(hash(i, 75) * 3)), col: ROCK[Math.floor(hash(i, 76) * 3)] });
+            rocks.push({ x: x + side * off, y: G - s * 2 * hash(i, 72), vx: side * R * (0.04 + 0.16 * hash(i, 73)), vy: -H * (0.05 + 0.18 * hash(i, 74)), t0: (off / R) * 0.45, z: s * (3 + Math.floor(hash(i, 75) * 3)), col: ROCK[Math.floor(hash(i, 76) * 3)] });
         }
         let spark = 0;
         return sc.add({ max: dur,
@@ -4761,7 +4761,7 @@
                     if (life > r.t0) {
                         r.x += r.vx * dt;
                         r.y += r.vy * dt;
-                        r.vy *= 1 - dt * 0.6;
+                        r.vy *= 1 - dt * 0.5;
                     }
                 }
                 spark += dt * 40 * (1 - life / dur);
@@ -4773,8 +4773,8 @@
             },
             draw: (ctx, it, t, px) => {
                 const life = it.life;
-                const grow = easeOut(Math.min(1, life / 0.45));
-                const fade = life > dur - 0.5 ? Math.max(0, (dur - life) / 0.5) : 1;
+                const grow = 1 - (1 - Math.min(1, life / 0.6)) ** 2; // 처음에 확 튀어나가지 않고 서서히 커짐
+                const fade = life > dur - 0.6 ? Math.max(0, (dur - life) / 0.6) : 1;
                 const rr = R * grow;
                 // 화면 전체가 빛에 물듦
                 ctx.globalAlpha = 0.22 * grow * fade;
@@ -4787,7 +4787,7 @@
                     const ux = Math.cos(-0.6);
                     const uy = Math.sin(-0.6);
                     for (const st of streaks) {
-                        const shift = ((life * st.sp + st.r) % 1) * rr * 0.4 - rr * 0.2;
+                        const shift = ((life * st.sp * 0.8 + st.r) % 1) * rr * 0.4 - rr * 0.2;
                         const x0 = x + Math.cos(st.a) * rr * st.r + ux * shift;
                         const y0 = G + Math.sin(st.a) * rr * st.r + uy * shift;
                         const x1 = x0 + ux * rr * st.len;
@@ -5228,7 +5228,7 @@
         const TM = 3.0;
         const TF = 4.6;
         const TX = TF + 0.12;
-        const DOME = 2.0; // 반구 대폭발 길이
+        const DOME = 2.5; // 반구 대폭발 길이
         const TR2 = TX + DOME - 0.25; // 빛이 사그라들 때 메가리자몽X 가 다시 보임
         const TBack = sec - 0.5;
         const firePulses = [0.8, 1.25, 1.6];
@@ -5380,10 +5380,10 @@
             ultShake(5, 200);
         });
         // ⑤ 파란 반구 대폭발 · 돌 파편 · 먼지 · 충격파 · 화면 끝까지 번지는 파란 땅 불길
-        const spread = W * 0.8;
-        const fireEnd = TX + 2.2;
+        const spread = W * 0.64;
+        const fireEnd = TX + 2.75;
         sc.at(TX, () => {
-            ultShake(10, 800);
+            ultShake(10, 1000);
             blastDome(sc, ex, G, R, DOME, BLUE);
             ring(sc, ex, G - R * 0.4, R * 0.4, Math.max(W, H) * 0.9, 0.7, 0.6, ['#ffffff', BLUE[1], BLUE[2]], 3);
             ring(sc, ex, G - s, R * 0.5, Math.max(W, H), 0.16, 0.7, [BLUE[1], '#ffffff'], 2);
@@ -5497,7 +5497,7 @@
     const basePillar = ULT_FX.ultpillar;
     if (basePillar) {
         ULT_FX.ultpillar = {
-            ms: (P, o) => (o.blast ? 8000 + 200 * P : basePillar.ms(P, o)),
+            ms: (P, o) => (o.blast ? 8500 + 200 * P : basePillar.ms(P, o)),
             run: (u, o, ms, pokemon) => (o.blast ? runBlastBurn(u, o, ms, pokemon) : basePillar.run(u, o, ms, pokemon)),
         };
     }

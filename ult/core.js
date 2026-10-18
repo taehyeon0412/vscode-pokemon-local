@@ -311,7 +311,7 @@ function useUltimate(pokemon, ult, opt = {}) {
     const P = POKEMON_SHAPE[pokemon.label][0];
     let ms = 3000;
     try {
-        ms = ultClamp(T.ms(P, o) || 3000, 800, 8000);
+        ms = ultClamp(T.ms(P, o) || 3000, 800, 9000); // 가장 긴 것: 리자몽 블래스트번 (8.5 ~ 8.9초)
     } catch (err) {
         ultError(`${fx}.ms`, err);
     }
