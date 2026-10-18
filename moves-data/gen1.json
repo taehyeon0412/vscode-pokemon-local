@@ -5,7 +5,7 @@
   "venusaur": {"ult": [["솔라빔", "ultbeam", {"c": "solar", "solar": 1, "width": 1.4, "sparkle": "solar"}], ["하드플랜트", "ultpillar", {"kind": "vine", "c": "grass", "n": 6, "tc": "grass"}]]},
   "charmander": {"ult": [["다이내믹풀플레임", "ultorb", {"style": "flame", "c": "fire"}], ["니트로차지", "ultrush", {"c": "fire", "flame": 1}]]},
   "charmeleon": {"ult": [["다이내믹풀플레임", "ultorb", {"style": "flame", "c": "fire", "size": 1.2}], ["화염방사", "ultbeam", {"c": "fire", "width": 1.2, "wave": 1, "sparkle": "fire", "tc": "fire"}]]},
-  "charizard": {"ult": [["블래스트번", "ultnova", {"c": "fire"}], ["블래스트번", "ultorb", {"style": "flame", "c": "aura", "sky": 1, "size": 1.5, "tint": "hue-rotate(200deg) saturate(1.6)", "tc": "aura"}]]},
+  "charizard": {"ult": [["플레어드라이브", "ultdive", {"c": "fire", "flare": 1, "tc": "fire"}], ["블래스트번", "ultpillar", {"kind": "fire", "c": "fire", "blast": 1, "tc": "fire"}]]},
   "squirtle": {"ult": [["로케트박치기", "ultrush", {"c": "water", "water": 1}], ["거품광선", "ultswarm", {"shape": "ball", "c": "water", "n": 45}]]},
   "wartortle": {"ult": [["하이드로보텍스", "ultvortex", {"c": "water"}], ["아쿠아테일", "ultrush", {"c": "water", "water": 1, "fast": 1}]]},
   "blastoise": {"ult": [["하이드로캐논", "ultbeam", {"c": "water", "double": 1, "width": 1.3, "sparkle": "water"}], ["거다이포격", "ultstorm", {"kind": "rain", "c": "water", "tc": "water"}]]},

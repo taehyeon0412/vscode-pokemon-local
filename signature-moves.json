@@ -5,7 +5,7 @@
   "venusaur": ["솔라빔", "solarbeam", {}],
   "charmander": ["불꽃세례", "breath", {"c": "fire", "speed": 0.8, "life": 0.8}],
   "charmeleon": ["화염방사", "breath", {"c": "fire", "smoke": 1}],
-  "charizard": ["블래스트번", "breath", {"c": "fire", "smoke": 1, "ember": 1, "grow": 1.5, "speed": 1.2, "rate": 1.4}],
+  "charizard": ["화염방사", "breath", {"c": "fire", "smoke": 1, "ember": 1, "grow": 1.5, "speed": 1.2, "rate": 1.4}],
   "squirtle": ["거품", "bubbles", {"c": "water"}],
   "wartortle": ["물대포", "water", {}],
   "blastoise": ["하이드로캐논", "beam", {"c": "water", "width": 1.6, "sparkle": "water"}],
