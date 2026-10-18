@@ -2,7 +2,7 @@
   "_설명": "1세대 포켓몬별 클릭 기술 추가분(moves — 광선이 빠진 애만) + 꾹 누르기 필살기(ult) — [이름, 틀, 옵션], 여러 개면 쓸 때마다 하나를 고름. 틀 · 옵션은 ult/SPEC.md 참고",
   "bulbasaur": {"moves": [["솔라빔", "solarbeam", {}]], "ult": [["솔라빔", "ultbeam", {"c": "solar", "solar": 1}], ["덩굴채찍", "ultbloom", {"mode": "vine", "c": "grass"}]]},
   "ivysaur": {"moves": [["솔라빔", "solarbeam", {}]], "ult": [["솔라빔", "ultbeam", {"c": "solar", "solar": 1, "sparkle": "grass"}], ["잎날가르기", "ultswarm", {"shape": "leaf", "c": "grass", "n": 40}]]},
-  "venusaur": {"ult": [["솔라빔", "ultbeam", {"c": "solar", "venus": 1, "tc": "solar"}], ["하드플랜트", "ultpillar", {"kind": "vine", "c": "grass", "n": 6, "tc": "grass"}]]},
+  "venusaur": {"ult": [["솔라빔", "ultbeam", {"c": "solar", "venus": 1, "tc": "solar"}], ["하드플랜트", "ultpillar", {"kind": "vine", "c": "grass", "venus": 1, "tc": "grass"}]]},
   "charmander": {"ult": [["다이내믹풀플레임", "ultorb", {"style": "flame", "c": "fire"}], ["니트로차지", "ultrush", {"c": "fire", "flame": 1}]]},
   "charmeleon": {"ult": [["다이내믹풀플레임", "ultorb", {"style": "flame", "c": "fire", "size": 1.2}], ["화염방사", "ultbeam", {"c": "fire", "width": 1.2, "wave": 1, "sparkle": "fire", "tc": "fire"}]]},
   "charizard": {"ult": [["플레어드라이브", "ultdive", {"c": "fire", "flare": 1, "tc": "fire"}], ["블래스트번", "ultpillar", {"kind": "fire", "c": "fire", "blast": 1, "tc": "aura"}]]},

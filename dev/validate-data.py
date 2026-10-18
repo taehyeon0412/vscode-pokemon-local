@@ -36,7 +36,7 @@ ULT = {
     "ultblackhole": "c",
     "ultsparkle": "mode c",
     "ultquake": "c lava",
-    "ultpillar": "kind c n blast",
+    "ultpillar": "kind c n blast venus",
     "ultbloom": "mode c",
     "ultvortex": "c n",
     "ultstorm": "kind c",

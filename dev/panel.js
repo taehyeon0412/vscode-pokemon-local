@@ -31,7 +31,7 @@ const VARIANTS = {
     ultblackhole: [{ c: 'dark' }],
     ultsparkle: [{ mode: 'twinkle', c: 'fairy' }, { mode: 'moon', c: 'moon' }],
     ultquake: [{ c: 'ground' }, { c: 'fire', lava: 1 }],
-    ultpillar: [{ kind: 'fire' }, { kind: 'rock' }, { kind: 'ice' }, { kind: 'water' }, { kind: 'light' }, { kind: 'vine' }, { kind: 'shadow' }, { kind: 'fire', c: 'fire', blast: 1 }],
+    ultpillar: [{ kind: 'fire' }, { kind: 'rock' }, { kind: 'ice' }, { kind: 'water' }, { kind: 'light' }, { kind: 'vine' }, { kind: 'shadow' }, { kind: 'fire', c: 'fire', blast: 1 }, { kind: 'vine', c: 'grass', venus: 1 }],
     ultbloom: [{ mode: 'bloom', c: 'grass' }, { mode: 'vine', c: 'grass' }],
     ultvortex: [{ c: 'water' }, { c: 'fire', n: 2 }],
     ultstorm: ['thunder', 'blizzard', 'wind', 'acid', 'petal', 'leaf', 'sand', 'rain', 'fire'].map((kind) => ({ kind })),

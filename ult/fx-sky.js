@@ -5430,7 +5430,7 @@
         });
     }
 
-    // ═════ 이상해꽃 — venus: 솔라빔 (ultbeam 위에 덮어씀, 아래 Object.assign) ═════
+    // ═════ 이상해꽃 — venus: 솔라빔 (ultbeam 위에 덮어씀) · 하드플랜트 (ultpillar 위에 덮어씀) — 아래 Object.assign ═════
     const SUN = ['#ffffff', '#fff7c2', '#ffe066', '#9be05a']; // 햇빛 (하양 → 연노랑 → 금빛 → 연두 테두리)
     const PINK = ['#fff0f5', '#ffc2d6', '#ff8fb8', '#e0507e']; // 꽃잎 (연분홍 → 진분홍)
     // 광선 몸통 — (x0, y0)에서 (ux, uy) 쪽으로 len, 굵기 w. 겹친 색(바깥 cols[3] → 하얀 심), 가장자리 물결이 앞으로 흐르고
@@ -5784,6 +5784,343 @@
         });
     }
 
+    // 하드플랜트 (메가이상해꽃) — 초록 기운 · 잎이 소용돌이치며 모이고 발밑이 초록으로 빛남(초록 빛 구 · 덩굴 싹이 꿈틀) 1.5초
+    // → 진화 모션(하얀 실루엣이 이상해꽃 ↔ 메가이상해꽃으로 점점 빠르게, 빛줄기) → 펑! 메가이상해꽃 (진짜 그림은 숨기고 같은 폴더의 mega 그림 — add-form.py · PMD SpriteCollab,
+    // 그림이 없으면 원래 모습 그대로) → 앞발로 땅을 쿵 — 빛나는 금이 앞으로 달려가고 그 자리마다 거대한 덩굴 · 나무뿌리가 파도처럼 연달아 솟아 휘감음(닿은 애 떠오름)
+    // → 끝에서 거대한 꽃이 피어 꽃잎 폭풍이 화면을 휩쓺 → 덩굴이 땅속으로 → 하얀 실루엣이 깜빡이며 원래 모습으로
+    const VINE = ['#e9ffb0', '#9be05a', '#4fa83a', '#1f5a2a']; // 잎 · 덩굴 (연두 → 짙은 초록)
+    const BARK = ['#2e2014', '#5a4030', '#7a5a40']; // 나무뿌리 (짙은 → 옅은 갈색)
+    // 덩굴 한 줄기 — 땅(x, G)에서 솟아 끝이 side 쪽으로 갈고리처럼 말림. 길이 h, 밑동 굵기 w → 끝으로 가늘게, grow(0 ~ 1)만큼 자람.
+    // 짙은 테두리 · 초록 몸통 · 밝은 줄 · 마디 무늬, 가는 덩굴이 나선으로 휘감고(앞쪽일 때만 보임), 큰 잎 몇 장 · 밑동엔 갈색 뿌리가 땅을 뚫고 퍼짐
+    function vine(ctx, px, s, x, G, h, w, T, grow, side, seed) {
+        if (grow <= 0.02 || h < s * 2) {
+            return;
+        }
+        const L = h * 1.15 * grow;
+        const N = Math.max(8, Math.round(L / (s * 2)));
+        const step = L / N;
+        const pts = [];
+        let a = -Math.PI / 2;
+        let px0 = x;
+        let py0 = G;
+        for (let i = 0; i <= N; i++) {
+            const f = (i / N) * grow;
+            pts.push([px0, py0, f, a]);
+            // 처음엔 거의 곧게, 위로 갈수록 휘고 끝은 갈고리처럼 말림 · 살랑살랑
+            a = -Math.PI / 2 + side * (0.35 * f * f + 12 * Math.max(0, f - 0.62) ** 2) + Math.sin(T * 2 + seed + f * 3) * 0.12 * f;
+            px0 += Math.cos(a) * step;
+            py0 += Math.sin(a) * step;
+        }
+        const wAt = (f) => w * (1 - 0.72 * f);
+        // 밑동 뿌리 — 양옆으로 갈라져 땅을 뚫고 퍼짐
+        const roots = [new Path2D(), new Path2D()];
+        for (const sd of [-1, 1]) {
+            for (let r = 0; r < 2; r++) {
+                const len = w * (1.6 + r * 0.9) * grow;
+                const pts2 = [[x + sd * w * 0.3, G - w * 0.4], [x + sd * len * 0.6, G - w * 0.15 + r * s], [x + sd * len, G + s]];
+                addLine(roots[0], px, s, pts2, Math.max(2, (w * (0.5 - r * 0.15)) / s) + 2);
+                addLine(roots[1], px, s, pts2, Math.max(1, (w * (0.5 - r * 0.15)) / s));
+            }
+        }
+        fillPaths(ctx, roots, [BARK[0], BARK[1]], 1);
+        // 몸통 — 테두리 · 몸 · 밝은 줄 · 마디
+        const body = [new Path2D(), new Path2D(), new Path2D(), new Path2D()];
+        for (let i = 1; i < pts.length; i++) {
+            const f = pts[i][2];
+            const wc = Math.max(1, wAt(f) / s);
+            const seg = [[pts[i - 1][0], pts[i - 1][1]], [pts[i][0], pts[i][1]]];
+            addLine(body[0], px, s, seg, wc + 2);
+            addLine(body[1], px, s, seg, wc);
+            const nx = -Math.sin(pts[i][3]) * wAt(f) * 0.25 * -side;
+            const ny = Math.cos(pts[i][3]) * wAt(f) * 0.25 * -side;
+            addLine(body[2], px, s, seg.map(([p, q]) => [p + nx, q + ny]), Math.max(1, wc * 0.3));
+            if (i % 5 === 0) {
+                addLine(body[3], px, s, [[pts[i][0] - ny * 3.5, pts[i][1] + nx * 3.5], [pts[i][0] + ny * 3.5, pts[i][1] - nx * 3.5]], 1); // 마디
+            }
+        }
+        fillPaths(ctx, body, [VINE[3], VINE[2], VINE[1], VINE[3]], 1);
+        // 휘감는 가는 덩굴 — 나선 (앞쪽일 때만 보임)
+        const wrap = [new Path2D(), new Path2D()];
+        for (let i = 1; i < pts.length; i++) {
+            const f = pts[i][2];
+            if (f > 0.8) {
+                break;
+            }
+            const ph = f * 16 + seed;
+            if (Math.cos(ph) < 0) {
+                continue;
+            }
+            const off = Math.sin(ph) * wAt(f) * 0.55;
+            const off0 = Math.sin(ph - 16 / N) * wAt(f) * 0.55;
+            const nx = -Math.sin(pts[i][3]);
+            const ny = Math.cos(pts[i][3]);
+            const seg = [[pts[i - 1][0] + nx * off0, pts[i - 1][1] + ny * off0], [pts[i][0] + nx * off, pts[i][1] + ny * off]];
+            const wc = Math.max(1, (wAt(f) * 0.22) / s);
+            addLine(wrap[0], px, s, seg, wc + 2);
+            addLine(wrap[1], px, s, seg, wc);
+        }
+        fillPaths(ctx, wrap, [VINE[3], VINE[1]], 1);
+        // 큰 잎 — 몸통 중간중간에서 바깥으로 (물방울 모양: 끝이 둥글고 줄기 쪽이 뾰족)
+        for (let k = 0; k < 3; k++) {
+            const i = Math.round((0.3 + 0.2 * k) * N);
+            if (i >= pts.length) {
+                break;
+            }
+            const [lx, ly, f, la] = pts[i];
+            const sd = k % 2 ? 1 : -1;
+            const la2 = la + sd * (1.1 + 0.15 * Math.sin(T * 4 + k + seed));
+            const ll = Math.max(4 * s, w * 1.8 * (1 - 0.3 * f));
+            fireTail(ctx, px, s, lx + Math.cos(la2) * ll, ly + Math.sin(la2) * ll, Math.cos(la2), Math.sin(la2), ll, ll * 0.55, VINE, T + k, 1);
+        }
+    }
+    function runHardPlant(u, o, ms, pokemon) {
+        const P = strength(u);
+        const sec = ms / 1000;
+        const { W, H, S: s, dir } = u;
+        const G = u.ground;
+        const hit = makeHit();
+        const img = pokemon.el;
+        const me = monBox(pokemon);
+        const edge = Math.max(1, Math.round(u.s * 0.75));
+        const D = Math.min(Math.max(H / 3, short(u) * 0.4) * (0.9 + 0.2 * P), W * 0.42, H * 0.62);
+        const left = dir < 0;
+        // 메가 그림 — 같은 폴더의 mega_idle (정면). 없으면 원래 그림으로
+        const mega = new Image();
+        mega.src = (img.src || '').replace(/[^/]+\.gif(\?.*)?$/, 'mega_idle_8fps.gif');
+        const megaReady = () => mega.complete && mega.naturalWidth > 0;
+        const megaImg = () => (megaReady() ? mega : img);
+        const megaW = () => (megaReady() ? mega.naturalWidth * u.s : me.w);
+        const megaLeft = () => (megaReady() ? false : left);
+        // 때 — (기 모으기) · 진화 모션 · 펑(메가) · 쿵 · (덩굴 파도) · 꽃 · 꽃잎 폭풍 · 덩굴이 들어감 · 원래대로
+        const TE = 1.5;
+        const TM = 2.8;
+        const TS = 3.5;
+        const TV = TS + 0.15;
+        const NV = 6;
+        const GAP = 0.17;
+        const TFL = TV + NV * GAP + 0.25;
+        const TST = TFL + 0.55;
+        const TIN = TST + 1.0;
+        const TBack = sec - 0.5;
+        const Ro = Math.max(me.w, me.h) * 0.75;
+        const pullR = Math.max(Ro * 3.5, D * 1.1);
+        const cx = me.x;
+        const cy = me.b - me.h * 0.45;
+        // 덩굴이 솟을 자리 — 앞쪽 끝까지 고르게 (앞이 좁으면 뒤쪽으로)
+        const fwd = dir > 0 ? W - me.x : me.x;
+        const vd = fwd > W * 0.35 ? dir : -dir;
+        const x0 = me.x + vd * me.w * 0.7;
+        const span = Math.max(W * 0.3, (vd > 0 ? W - x0 : x0) - W * 0.04);
+        const spots = [];
+        for (let i = 0; i < NV; i++) {
+            const f = (i + 0.6) / NV;
+            spots.push({ x: x0 + vd * span * f, t0: TV + i * GAP, h: Math.min(G * 0.8, lerp(H * 0.3, H * 0.62, i / (NV - 1))), w: Math.max(5 * s, Math.max(H * 0.04, lerp(me.w * 0.45, me.w * 0.75, i / (NV - 1)))), seed: i * 1.7 });
+        }
+        const bloomR = Math.min(G * 0.45, Math.max(D * 0.9, me.w * 2.2));
+        const fx = clamp(spots[NV - 1].x, bloomR * 0.8, W - bloomR * 0.8); // 거대한 꽃 — 화면 밖으로 잘리지 않게
+        const growAt = (sp, t) => {
+            const k = (t - sp.t0) / 0.35;
+            if (k <= 0) {
+                return 0;
+            }
+            const up = k < 1 ? 1 - (1 - k) ** 3 + Math.sin(k * Math.PI) * 0.12 : 1; // 쑥 솟으며 살짝 넘침
+            return up * (1 - easeIn(clamp((t - TIN) / 0.5, 0, 1)));
+        };
+        const sc = scene(u, sec + 0.3, 'ultpillar');
+        ultDark(0.3, ms - 200);
+        hideMon(pokemon, true);
+        hideUntil(pokemon, ms + 100);
+
+        // 꼭두각시 — 기 모으기(초록 빛 구) · 진화 모션 · 메가 · 원래대로 깜빡
+        const pulses = [0.7, 1.05, 1.35];
+        const beatAt = (t) => pulses.reduce((m, tp) => Math.max(m, clamp(1 - Math.abs(t - tp) / 0.1, 0, 1)), 0);
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life >= TBack) {
+                return;
+            }
+            if (life < TE + 0.25) {
+                const k = easeOut(clamp((life - 0.1) / 0.3, 0, 1)) * (0.6 + 0.4 * clamp(life / TE, 0, 1)) * (1 + 0.15 * beatAt(life)) * (1 - clamp((life - TE) / 0.25, 0, 1));
+                fireOrb(ctx, px, s, cx, cy, Ro, VINE, life, k, G, 0.9, 0, [1, 0.8, 0.6, 0.38], 0.4);
+                orbitEmbers(ctx, px, s, cx, cy, Ro * k * 1.3, VINE, life, dir, clamp((life - 0.3) / 0.2, 0, 1) * (1 - clamp((life - TE) / 0.15, 0, 1)));
+            }
+            if (life < TE) {
+                drawLitMon(ctx, img, cx, me.b, me.w, left, VINE[1], edge, 1);
+                drawMon(ctx, img, cx, me.b, me.w, left, clamp((life - 0.3) / 0.5, 0, 1) * (0.2 + 0.12 * Math.sin(life * 18)), VINE[0]);
+                return;
+            }
+            if (life < TM) {
+                const k = (life - TE) / (TM - TE);
+                const ramp = clamp(k / 0.15, 0, 1);
+                const paths = [new Path2D(), new Path2D()];
+                for (let i = 0; i < 12; i++) {
+                    const a = (i / 12) * TAU + life * 0.9 * dir;
+                    const L = pullR * (0.55 + 0.35 * Math.sin(life * 6 + i * 1.7)) * ramp;
+                    addLine(paths[i % 2], px, s, [[cx + Math.cos(a) * Ro * 0.9, cy + Math.sin(a) * Ro * 0.9], [cx + Math.cos(a) * L, cy + Math.sin(a) * L]], i % 2 ? 1 : 2);
+                }
+                fillPaths(ctx, paths, ['#ffffff', '#e9ffb0'], 0.8 * ramp);
+                fireOrb(ctx, px, s, cx, cy, Ro, GLOW, life, (0.6 + 0.5 * k) * ramp, G, 0.6);
+                const flips = (life - TE) * (3 + 8.5 * k);
+                const showMega = k > 0.9 || Math.floor(flips) % 2 === 1;
+                const im = showMega ? megaImg() : img;
+                const swell = 1.1 + (k > 0.9 ? 0.15 : 0.3 * Math.sin((flips % 1) * Math.PI));
+                const w = (showMega ? megaW() : me.w) * swell;
+                const lf = showMega ? megaLeft() : left;
+                drawLitMon(ctx, im, cx, me.b, w, lf, showMega ? PINK[2] : VINE[1], edge * 2, 1);
+                drawMon(ctx, im, cx, me.b, w, lf, 1, '#ffffff');
+                return;
+            }
+            const w = megaW();
+            const stomp = life > TS - 0.25 && life < TS ? -Math.sin(((life - TS + 0.25) / 0.25) * Math.PI) * s * 4 : 0; // 앞발을 들었다 쿵
+            drawLitMon(ctx, megaImg(), cx, me.b + stomp, w, megaLeft(), VINE[2], edge, 1);
+            const appear = clamp(1 - (life - TM) / 0.35, 0, 1);
+            if (appear > 0) {
+                drawMon(ctx, megaImg(), cx, me.b, w, megaLeft(), appear, '#ffffff');
+            }
+            if (life > TBack - 0.4) {
+                const back = Math.floor((life - TBack + 0.4) / 0.06) % 2 === 1;
+                drawMon(ctx, back ? img : megaImg(), cx, me.b, back ? me.w : w, back ? left : megaLeft(), 1, '#ffffff');
+            }
+        } });
+
+        // ① 기 모으기 — 초록 기운 · 잎이 소용돌이치며 모이고, 발밑이 빛나며 덩굴 싹이 꿈틀
+        chargeSwirl(sc, () => [cx, cy], 0.2, TE, pullR, Ro, VINE, dir);
+        sc.add({ max: TM, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            const k = clamp(life / TE, 0, 1) * clamp((TM - life) / 0.3, 0, 1);
+            if (k <= 0) {
+                return;
+            }
+            ellipse(ctx, px, s, cx, G, me.w * (1 + k), me.w * 0.18 * (1 + k), VINE[2], 0.5 * k);
+            ellipse(ctx, px, s, cx, G, me.w * 0.6 * (1 + k), me.w * 0.1 * (1 + k), VINE[1], 0.7 * k);
+            for (let i = 0; i < 4; i++) {
+                const sx = cx + (i - 1.5) * me.w * 0.55;
+                vine(ctx, px, s, sx, G, me.h * (0.35 + 0.15 * Math.sin(life * 3 + i)), Math.max(2 * s, me.w * 0.07), life, k, i < 2 ? -1 : 1, i * 2.1);
+            }
+        } });
+        for (const tp of pulses) {
+            sc.at(tp, () => {
+                ring(sc, cx, cy, pullR * 0.6, Ro * 1.1, 1, 0.3, [VINE[1], '#ffffff', VINE[3]], 2);
+                ultShake(1.5, 150);
+            });
+        }
+        // ② 진화 모션 — 하얀 고리 · 반짝이
+        sc.at(TE, () => {
+            screenFlash(s, 0.25, '#ffffff', 0.15);
+            ring(sc, cx, cy, Ro * 0.5, pullR, 1, 0.45, ['#ffffff', VINE[0]], 2);
+        });
+        let glint = 0;
+        sc.tick((t, dt) => {
+            if (t < TE || t > TM) {
+                return;
+            }
+            glint += dt * 14;
+            while (glint >= 1) {
+                glint -= 1;
+                sparkles(cx, cy, s, ['#ffffff', VINE[0], PINK[1]], 1, Ro * 1.6, H * 0.15);
+            }
+        });
+        // ③ 펑 — 메가이상해꽃 (하얀 번쩍 · 큰 고리 · 꽃잎 · 잎)
+        sc.at(TM, () => {
+            screenFlash(s, 0.6, '#ffffff', 0.3);
+            ultShake(6, 450);
+            ring(sc, cx, cy, Ro * 0.5, Math.max(W, H) * 0.6, 1, 0.5, ['#ffffff', PINK[1], VINE[1]], 3);
+            petalBurst(cx, cy, s, 30, H * 0.9, { r: Ro * 0.6 });
+            fireBits(cx, cy, s, VINE, 40, { spread: TAU, speed: H * 0.8, drag: 2.4, life: 0.7 });
+        });
+        // ④ 쿵 — 빛나는 금이 덩굴 자리를 따라 앞으로 달려감
+        sc.at(TS, () => {
+            ultShake(8, 500);
+            ring(sc, cx, G - s, me.w * 0.5, me.w * 4, 0.18, 0.45, [VINE[1], '#ffffff'], 2);
+            debris(cx, G - s, s, ['#6b5a3e', '#8a7350', '#4f8a2e'], 24, H * 0.7, { ground: G, angle: -Math.PI / 2, spread: 2.2 });
+        });
+        const crack = jag(x0, G - s, x0 + vd * span, G - s, Math.max(3 * s, span / 24), 0.04);
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life < TS || life > TIN + 0.5) {
+                return;
+            }
+            const k = clamp((life - TS) / (TV + (NV - 1) * GAP - TS), 0, 1);
+            const n = Math.max(2, Math.round(crack.length * k));
+            const fade = 1 - clamp((life - TIN) / 0.5, 0, 1);
+            fillPts(ctx, px, s, crack.slice(0, n), 3, BARK[0], fade);
+            fillPts(ctx, px, s, crack.slice(0, n), 1, VINE[0], fade * (0.7 + 0.3 * Math.sin(life * 20)));
+        } });
+        // ⑤ 덩굴 파도 — 자리마다 가운데 큰 덩굴 + 양옆 작은 덩굴 + 나무뿌리, 흙이 튀고 닿은 애 떠오름
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            for (const sp of spots) {
+                const g = growAt(sp, life);
+                if (g <= 0.01) {
+                    continue;
+                }
+                vine(ctx, px, s, sp.x - vd * sp.w * 1.3, G, sp.h * 0.6, sp.w * 0.55, life, g, -vd, sp.seed + 2); // 작은 덩굴
+                vine(ctx, px, s, sp.x, G, sp.h, sp.w, life, g, vd, sp.seed); // 굵은 덩굴
+            }
+        } });
+        for (const sp of spots) {
+            sc.at(sp.t0, () => {
+                ultShake(4, 180);
+                debris(sp.x, G - s, s, ['#6b5a3e', '#8a7350', '#4f8a2e', '#7cc24a'], 16, H * 0.8, { ground: G, angle: -Math.PI / 2, spread: 1.8 });
+                fireBits(sp.x, G - s, s, VINE, 10, { angle: -Math.PI / 2, spread: 1.4, speed: H * 0.6, drag: 2.2, life: 0.6 });
+                for (const r of u.others()) {
+                    if (Math.abs(r.x - sp.x) < sp.w * 3 + r.w * 0.5) {
+                        hit(r, vd, 'lift');
+                    }
+                }
+            });
+        }
+        // ⑥ 끝에서 거대한 꽃이 핌 → 꽃잎 폭풍이 화면을 휩쓺
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life < TFL || life > TST + 0.1) {
+                return;
+            }
+            const k = easeOut(clamp((life - TFL) / 0.35, 0, 1));
+            const end = clamp((life - TST) / 0.1, 0, 1);
+            const r = bloomR * k * (1 + 0.15 * end);
+            for (let i = 0; i < 8; i++) {
+                const a = -Math.PI + (i / 7) * Math.PI + (life - TFL) * 0.4 * vd;
+                const ex = Math.cos(a);
+                const ey = Math.sin(a) * 0.85;
+                fireTail(ctx, px, s, fx + ex * r, G - s + ey * r, ex, ey, r * 0.95, r * 0.55, PINK, life + i, 1 - end);
+            }
+            fireOrb(ctx, px, s, fx, G - s, bloomR * 0.35, SUN, life, k * (1 - end), G, 1, 0, [1, 0.8, 0.6, 0.38], 0.2);
+        } });
+        sc.at(TFL, () => {
+            ultShake(5, 300);
+            ring(sc, fx, G - s, bloomR * 0.2, bloomR * 1.5, 0.8, 0.4, [PINK[1], '#ffffff'], 2);
+        });
+        sc.at(TST, () => {
+            screenFlash(s, 0.4, PINK[0], 0.15);
+            ultShake(7, 500);
+            petalBurst(fx, G - bloomR * 0.4, s, 60, H * 1.2, { r: bloomR * 0.5 });
+            ring(sc, fx, G - s, bloomR * 0.5, Math.max(W, H) * 0.7, 0.7, 0.6, ['#ffffff', PINK[1], PINK[2]], 3);
+        });
+        // 꽃잎 바람 — 꽃 쪽에서 화면을 가로질러 휩쓸고 지나감 (닿은 애 벌러덩)
+        let gust = 0;
+        sc.tick((t, dt) => {
+            if (t < TST || t > TST + 1.1) {
+                return;
+            }
+            gust += dt * 70;
+            while (gust >= 1) {
+                gust -= 1;
+                petalBurst(vd > 0 ? W + s * 4 : -s * 4, rnd(G * 0.15, G - s * 2), s, 1, H * 1.6, { angle: vd > 0 ? Math.PI : 0, spread: 0.3, life: 1.1 });
+            }
+            for (const r of u.others()) {
+                hit(r, -vd, 'tumble');
+            }
+        });
+        // ⑦ 덩굴이 땅속으로 → 원래대로
+        sc.at(TIN, () => ultShake(3, 300));
+        sc.at(TBack, () => {
+            hideMon(pokemon, false);
+            sparkles(cx, me.b - me.h * 0.5, s, ['#ffffff', VINE[0], PINK[1]], 16, me.w, H * 0.2);
+            ring(sc, cx, me.b - me.h * 0.5, me.w * 0.4, me.w * 2.5, 0.8, 0.35, ['#ffffff', VINE[1]], 2);
+        });
+    }
+
     Object.assign(ULT_FX, {
         // 화면 전체 날씨 폭격 — kind: thunder blizzard wind acid petal leaf sand rain fire, c
         ultstorm: {
@@ -5851,8 +6188,8 @@
     const basePillar = ULT_FX.ultpillar;
     if (basePillar) {
         ULT_FX.ultpillar = {
-            ms: (P, o) => (o.blast ? 8500 + 200 * P : basePillar.ms(P, o)),
-            run: (u, o, ms, pokemon) => (o.blast ? runBlastBurn(u, o, ms, pokemon) : basePillar.run(u, o, ms, pokemon)),
+            ms: (P, o) => (o.blast ? 8500 + 200 * P : o.venus ? 8000 + 200 * P : basePillar.ms(P, o)),
+            run: (u, o, ms, pokemon) => (o.blast ? runBlastBurn(u, o, ms, pokemon) : o.venus ? runHardPlant(u, o, ms, pokemon) : basePillar.run(u, o, ms, pokemon)),
         };
     }
     const baseBeam = ULT_FX.ultbeam;
