@@ -2956,6 +2956,715 @@
         });
     }
 
+    // ═════ 개굴닌자 — ninja: 거대 물수리검 / clones: 그림자분신 물수리검 ═════
+    // 물빛 테두리 — 그림에 거는 CSS filter (흐림 없이 상하좌우로 밀어 찍어 도트 그대로). 필살기가 끝나면 core 가 지움
+    const waterAura = (s) => {
+        const d = Math.max(1, Math.round(s * 0.75));
+        return `drop-shadow(${d}px 0 0 #8fe3ff) drop-shadow(-${d}px 0 0 #8fe3ff) drop-shadow(0 ${d}px 0 #4fb4ff) drop-shadow(0 -${d}px 0 #c8f4ff)`;
+    };
+    // 캔버스에 그릴 때 뒤집을지 — _left_ 그림은 이미 왼쪽을 봄
+    const faceFlip = (img, left) => left !== (img.src || '').includes('_left_');
+    // 한 색 실루엣 (번쩍 · 테두리) — 그림이 바뀔 수 있어 0.1초마다 새로
+    const silCache = new Map();
+    function silhouette(img, w, h, color) {
+        w = Math.max(1, Math.round(w));
+        h = Math.max(1, Math.round(h));
+        const key = `${img.src}|${color}|${w}|${h}`;
+        let c = silCache.get(key);
+        if (!c) {
+            if (silCache.size > 24) {
+                silCache.clear();
+            }
+            c = { cv: document.createElement('canvas'), t: -1e9 };
+            silCache.set(key, c);
+        }
+        const now = performance.now();
+        if (now - c.t > 100) {
+            c.t = now;
+            c.cv.width = w;
+            c.cv.height = h;
+            const x = c.cv.getContext('2d');
+            x.imageSmoothingEnabled = false;
+            x.drawImage(img, 0, 0, w, h);
+            x.globalCompositeOperation = 'source-in';
+            x.fillStyle = color;
+            x.fillRect(0, 0, w, h);
+        }
+        return c.cv;
+    }
+    // 포켓몬 그림 (발 가운데 x · bottom) — color 면 그 색 실루엣
+    function drawMon(ctx, img, x, bottom, w, left, alpha = 1, color = null) {
+        if (!img?.naturalWidth || w < 2 || alpha <= 0.01) {
+            return;
+        }
+        const h = w * (img.naturalHeight / img.naturalWidth);
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+        ctx.globalAlpha = Math.min(1, alpha);
+        ctx.translate(Math.round(x), Math.round(bottom - h / 2));
+        if (faceFlip(img, left)) {
+            ctx.scale(-1, 1);
+        }
+        ctx.drawImage(color ? silhouette(img, w, h, color) : img, -w / 2, -h / 2, w, h);
+        ctx.restore();
+    }
+    // 물 띠 꼬리 — pts 는 지금 자리부터 뒤로. 앞이 굵고(w0 칸) 뒤로 갈수록 가늘게, 바깥 물색 · 안 밝게 · 심 하얗게
+    // (2칸마다 굵기를 다시 재서 — 빨리 날아 점 사이가 멀어도 계단 없이 부드럽게 가늘어짐)
+    function waterRibbon(ctx, px, s, pts, w0, cols, alpha = 1) {
+        if (pts.length < 2 || alpha <= 0.01) {
+            return;
+        }
+        let total = 0;
+        for (let i = 1; i < pts.length; i++) {
+            total += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+        }
+        if (total < s) {
+            return;
+        }
+        const paths = [new Path2D(), new Path2D(), new Path2D()];
+        const step = 2 * s;
+        let along = 0;
+        for (let i = 1; i < pts.length; i++) {
+            const [x0, y0] = pts[i - 1];
+            const [x1, y1] = pts[i];
+            const L = Math.hypot(x1 - x0, y1 - y0);
+            for (let d = 0; d < L; d += step) {
+                const k = 1 - (along + d) / total;
+                const x = x0 + ((x1 - x0) * d) / L;
+                const y = y0 + ((y1 - y0) * d) / L;
+                const w = w0 * s * k;
+                for (const [path, f] of [[paths[0], 1], [paths[1], 0.55], [paths[2], 0.2]]) {
+                    const size = Math.round((w * f) / s) * s;
+                    if (size >= s) {
+                        path.rect(px(x - size / 2), px(y - size / 2), size, size);
+                    }
+                }
+            }
+            along += L;
+        }
+        fillPaths(ctx, paths, [cols[2], cols[1], '#ffffff'], alpha);
+    }
+    // 반짝 — 십자 빛살 (r 길이)
+    function glint(ctx, px, s, x, y, r, alpha) {
+        const paths = [new Path2D(), new Path2D()];
+        const n = Math.max(2, Math.round(r / s));
+        for (let i = 1; i <= n; i++) {
+            for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+                paths[i < n * 0.5 ? 0 : 1].rect(px(x + dx * i * s), px(y + dy * i * s), s, s);
+            }
+        }
+        paths[0].rect(px(x - s), px(y - s), 3 * s, 3 * s);
+        fillPaths(ctx, paths, ['#ffffff', '#bfe9ff'], alpha);
+    }
+    // 물기둥 — 땅(G)에서 솟았다 무너짐 (hw 반폭 · hTop 높이 · dur 초). 꼭대기에서 물보라가 튀고 밑동엔 물결
+    function geyser(sc, x, G, hw, hTop, dur, cols) {
+        const s = sc.u.S;
+        let spray = 0;
+        sc.add({ max: dur,
+            update: (it, dt) => {
+                const t = it.life / dur;
+                if (t > 0.55) {
+                    return;
+                }
+                spray += dt * 50;
+                const top = G - hTop * easeOut(t / 0.3);
+                while (spray >= 1) {
+                    spray -= 1;
+                    if (!room()) {
+                        continue;
+                    }
+                    const a = -Math.PI / 2 + rnd(-0.9, 0.9);
+                    const sp = hTop * rnd(0.4, 0.9);
+                    sigParticle({ x: x + rnd(-1, 1) * hw * 0.5, y: top, s, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, g: hTop * 2.4, drag: 0.4, max: rnd(0.5, 0.9), color: pick(cols), size: pick([1, 2, 2]), draw: DRAW.dot });
+                }
+            },
+            draw: (ctx, it, t, px) => {
+                const up = easeOut(t / 0.3);
+                const down = t > 0.5 ? easeIn((t - 0.5) / 0.5) : 0;
+                const top = G - hTop * up * (1 - 0.9 * down);
+                const width = hw * (0.55 + 0.45 * up) * (1 + 0.5 * down);
+                const a = 0.95 * (1 - 0.8 * down);
+                const paths = [new Path2D(), new Path2D(), new Path2D(), new Path2D()];
+                for (let y = G - s; y > top; y -= s) {
+                    const k = (G - y) / Math.max(1, G - top);
+                    const wob = Math.sin(y * 0.11 + it.life * 24) * s * 1.5;
+                    const half = Math.max(s, width * (1 - 0.3 * k));
+                    paths[0].rect(px(x - half + wob), px(y), Math.max(s, px(half * 2)), s);
+                    paths[1].rect(px(x - half * 0.72 - wob * 0.5), px(y), Math.max(s, px(half * 1.44)), s);
+                    paths[2].rect(px(x - half * 0.38 + wob * 0.5), px(y), Math.max(s, px(half * 0.76)), s);
+                    if ((Math.floor(y / s) + Math.floor(it.life * 40)) % 6 < 2) {
+                        paths[3].rect(px(x - half * 0.12), px(y), Math.max(s, px(half * 0.24)), s);
+                    }
+                }
+                fillPaths(ctx, paths, [cols[3], cols[2], cols[1], cols[0]], a);
+                // 꼭대기 — 둥근 물 머리
+                ellipse(ctx, px, s, x, top, width * 1.25, width * 0.55, cols[2], a);
+                ellipse(ctx, px, s, x, top - s, width * 0.8, width * 0.32, cols[1], a);
+                ellipse(ctx, px, s, x, top - s, width * 0.35, width * 0.14, '#ffffff', a);
+            } });
+        ring(sc, x, G - s, hw, hw * 4, 0.18, dur * 0.7, [cols[1], '#ffffff'], 2);
+    }
+    // 끝에 내리는 물방울 비 (t0 부터)
+    function waterRain(sc, t0, sec, cols) {
+        const { W, H, S: s, ground: G } = sc.u;
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const k = sc.t - t0;
+            if (k <= 0) {
+                return;
+            }
+            const a = clamp(k / 0.2, 0, 1) * clamp((sec - sc.t) / 0.35, 0, 1);
+            const path = new Path2D();
+            const m = Math.round(36 * clamp(W / 480, 0.6, 2));
+            for (let j = 0; j < m; j++) {
+                const y = wrap(hash(j, 2) * H + k * H * (1.2 + hash(j, 3) * 0.6), H + 20, -20);
+                if (y < G) {
+                    path.rect(px(hash(j, 1) * W), px(y), s, 3 * s);
+                }
+            }
+            ctx.globalAlpha = 0.6 * a;
+            ctx.fillStyle = cols[1];
+            ctx.fill(path);
+        } });
+    }
+    // 몸 둘레에서 물방울이 피어오름 (물빛 오라)
+    function auraBubbles(sc, t0, t1, cols) {
+        const u = sc.u;
+        let acc = 0;
+        sc.tick((t, dt) => {
+            if (t < t0 || t > t1) {
+                return;
+            }
+            acc += dt * 22;
+            while (acc >= 1) {
+                acc -= 1;
+                if (room()) {
+                    sigParticle({ x: u.body.cx + rnd(-1, 1) * u.w * 0.55, y: u.body.bottom - rnd(0, u.h * 0.8), s: u.S, vy: -u.H * rnd(0.12, 0.25), max: rnd(0.4, 0.7), color: pick([cols[0], cols[1], cols[2]]), draw: DRAW.dot });
+                }
+            }
+        });
+    }
+    const recoil = (pokemon, frames, ms) => {
+        try {
+            pokemon.el.animate(frames, { duration: ms, easing: 'ease-out', composite: 'add' });
+        } catch (err) {
+            fail('recoil', err);
+        }
+    };
+
+    // 거대 물수리검 — 물 회오리가 감싸 펑(물빛 테두리) → 등 뒤에서 표창이 커짐(두근두근 · 반짝) → 던짐(물 띠 꼬리 · 허공에 베인 자국)
+    // → 화면 끝에 꽂혀 물기둥 → 돌아와 받는 순간 베인 자국이 한꺼번에 터짐 → 물방울 비
+    function runNinjaShuriken(u, o, ms, pokemon) {
+        const cols = sigPal(o.c || 'water');
+        const P = strength(u);
+        const sec = ms / 1000;
+        const { W, H, S: s, dir } = u;
+        const G = u.ground;
+        const hit = makeHit();
+        const D = Math.min(Math.max(H / 3, short(u) * 0.4) * (0.9 + 0.2 * P), W * 0.42, H * 0.62);
+        const C = s * Math.max(1, Math.round(D / (26 * s)));
+        // 때 — 변신 펑 · 던짐 · 끝에 꽂힘 · 돌아섬 · 받음 · 베인 자국 터짐
+        const T1 = 0.85;
+        const T2 = 1.75;
+        const T3 = 2.3;
+        const T4 = 2.6;
+        const T5 = 3.3;
+        const T6 = 3.45;
+        const bx = clamp(u.body.cx - dir * u.w * 0.2, D * 0.5, W - D * 0.5);
+        const by = clamp(u.body.top - D * 0.42, D * 0.5 + 2, G - D * 0.5);
+        const fx = dir > 0 ? W - D * 0.32 : D * 0.32;
+        const fy = clamp(G - D * 0.5, D * 0.5 + 2, G - D * 0.45);
+        const hand = [u.body.cx + dir * u.w * 0.2, u.body.cy];
+        const yr = Math.max(D * 0.55, Math.min(by, fy) - D * 0.7);
+        const bump = Math.max(0, (fy + hand[1]) / 2 - yr);
+        // 자리 — 등 뒤 · 나감(땅 가까이 내려가며 — 땅에 선 애들을 베고 지나감) · 꽂혀 부르르 · 돌아옴(위로 크게)
+        const pos = (t) => {
+            if (t < T2) {
+                return [bx, by];
+            }
+            if (t < T3) {
+                const k = (t - T2) / (T3 - T2);
+                const e = 1 - (1 - k) ** 2;
+                return [lerp(bx, fx, e), lerp(by, fy, Math.min(1, e * 1.6))];
+            }
+            if (t < T4) {
+                return [fx + Math.sin(t * 90) * s * 1.5, fy];
+            }
+            const k = clamp((t - T4) / (T5 - T4), 0, 1);
+            const e = k * k * (3 - 2 * k);
+            return [lerp(fx, hand[0], e), lerp(fy, hand[1], e) - Math.sin(k * Math.PI) * bump];
+        };
+        const flying = (t) => (t >= T2 && t < T3) || (t >= T4 && t <= T5);
+        const sc = scene(u, sec + 0.3, 'ultswarm');
+        ultDark(0.25, ms - 200);
+        let ang = 0;
+        sc.tick((t, dt) => {
+            const spin = t < T1 ? 0 : t < T2 ? 3 + 23 * ((t - T1) / (T2 - T1)) : t < T3 ? 26 : t < T4 ? 34 : 26;
+            ang += spin * dt * dir;
+        });
+
+        // ① 물 회오리 — 물줄기 네 가닥이 발밑에서 감아 올라가며 조여듦 (뒤 가닥은 옅게, 앞 가닥은 굵게)
+        const vx = u.body.cx;
+        const vTop = Math.max(4, u.body.top - Math.max(u.h * 0.9, short(u) * 0.2));
+        const vR = Math.max(u.w * 0.9, short(u) * 0.12);
+        sc.add({ max: T1 + 0.05, draw: (ctx, it, t, px) => {
+            const life = it.life;
+            const yTop = G - (G - vTop) * easeOut(life / 0.3);
+            const squeeze = 1 - 0.35 * easeIn(life / T1);
+            const back = new Path2D();
+            const paths = [new Path2D(), new Path2D(), new Path2D()];
+            for (let j = 0; j < 4; j++) {
+                for (let y = G - s; y > yTop; y -= s) {
+                    const k = (G - y) / Math.max(1, G - vTop);
+                    const a = (j / 4) * TAU + k * 7 + life * 16 * dir;
+                    const z = Math.sin(a);
+                    const x = vx + Math.cos(a) * vR * squeeze * (0.75 + 0.35 * k);
+                    const th = z > 0.3 ? 3 : 2;
+                    (z < -0.2 ? back : paths[z > 0.85 ? 2 : z > 0.3 ? 1 : 0]).rect(px(x - s), px(y), th * s, s);
+                }
+            }
+            ctx.globalAlpha = 0.35;
+            ctx.fillStyle = cols[3];
+            ctx.fill(back);
+            fillPaths(ctx, paths, [cols[2], cols[1], '#ffffff'], 0.95);
+        } });
+        sc.tick((t) => {
+            if (t < T1 - 0.1 && room(4)) {
+                for (let j = 0; j < 4; j++) {
+                    const a0 = rnd(0, TAU);
+                    const r0 = vR * rnd(2, 3.2);
+                    sigParticle({ x: vx, y: u.body.cy, s, max: rnd(0.3, 0.45), a0, r0, color: pick(cols),
+                        update: (p) => {
+                            const k = p.life / p.max;
+                            p.x = vx + Math.cos(p.a0 + k * 4 * dir) * p.r0 * (1 - k);
+                            p.y = u.body.cy + Math.sin(p.a0 + k * 4 * dir) * p.r0 * (1 - k) * 0.7;
+                        },
+                        draw: DRAW.dot });
+                }
+            }
+        });
+        sc.at(T1, () => {
+            screenFlash(s, 0.4, cols[1], 0.22);
+            ultShake(3, 260);
+            ring(sc, vx, u.body.cy, u.w * 0.5, Math.max(u.w * 3, short(u) * 0.4), 0.8, 0.45, ['#ffffff', cols[1], cols[2]], 2);
+            debris(vx, u.body.cy, s, cols, 36, H * 0.9, { ground: G, size: [1, 2, 2] });
+            sparkles(vx, u.body.cy, s, ['#ffffff', cols[0], cols[1]], 12, u.w, H * 0.2);
+            try {
+                pokemon.el.style.filter = waterAura(u.s);
+            } catch (err) {
+                fail('aura', err);
+            }
+        });
+        auraBubbles(sc, T1, sec - 0.3, cols);
+
+        // ② 등 뒤 표창 — 물줄기가 빨려 들며 커지고 두 번 두근, 다 되면 반짝
+        sc.tick((t) => {
+            if (t < T1 || t > T2 - 0.1 || !room(3)) {
+                return;
+            }
+            for (let j = 0; j < 3; j++) {
+                const a0 = rnd(0, TAU);
+                const r0 = D * rnd(0.9, 1.5);
+                sigParticle({ x: bx, y: by, s, max: rnd(0.3, 0.42), a0, r0, color: pick(cols), size: pick([1, 2]),
+                    update: (p) => {
+                        const k = p.life / p.max;
+                        const a = p.a0 + k * 5 * dir;
+                        p.x = bx + Math.cos(a) * p.r0 * (1 - k);
+                        p.y = by + Math.sin(a) * p.r0 * (1 - k) * 0.8;
+                    },
+                    draw: DRAW.dot });
+            }
+        });
+        for (const tb of [T1 + 0.3, T1 + 0.6]) {
+            sc.at(tb, () => {
+                ring(sc, bx, by, D * 1.25, D * 0.45, 0.85, 0.3, [cols[1], '#ffffff'], 2);
+                screenFlash(s, 0.12, cols[1], 0.1);
+                ultShake(1.5, 150);
+            });
+        }
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const k = sc.t - (T2 - 0.14);
+            if (k < 0 || k > 0.3) {
+                return;
+            }
+            const r = D * 0.55 * Math.sin((k / 0.3) * Math.PI);
+            glint(ctx, px, s, bx + D * 0.3, by - D * 0.3, r, 1);
+        } });
+        sc.at(T2 - 0.25, () => recoil(pokemon, [{ translate: '0 0' }, { translate: `${-dir * 3 * u.s}px ${-u.s}px` }], 250));
+
+        // ③ 던짐 · 날아감 — 물 띠 꼬리 · 속도선 · 허공에 베인 자국 · 지나가며 베기
+        const cuts = [];
+        let lastCut = null;
+        sc.tick((t) => {
+            if (!flying(t)) {
+                return;
+            }
+            const [x, y] = pos(t);
+            if (!lastCut || Math.hypot(x - lastCut[0], y - lastCut[1]) > D * 0.75) {
+                lastCut = [x, y];
+                if (cuts.length < 10) {
+                    cuts.push({ x, y, a: pick([-1, 1]) * rnd(0.55, 1.0), len: D * rnd(0.8, 1.1), t0: t });
+                }
+            }
+            if (room(4)) {
+                for (let j = 0; j < 2; j++) {
+                    const a = rnd(0, TAU);
+                    sigParticle({ x: x + Math.cos(a) * D * 0.45, y: y + Math.sin(a) * D * 0.45, s, vx: Math.cos(a + (Math.PI / 2) * dir) * H * 0.4, vy: Math.sin(a + (Math.PI / 2) * dir) * H * 0.4, g: H * 1.2, drag: 1, max: rnd(0.3, 0.6), color: pick(cols), size: pick([1, 2]), draw: DRAW.dot });
+                }
+            }
+            for (const r of u.others()) {
+                if (Math.abs(x - r.x) < D * 0.45 + r.w * 0.3 && Math.abs(y - r.y) < D * 0.55 + r.h * 0.5 && hit(r, t < T3 ? dir : -dir, 'tumble')) {
+                    screenFlash(s, 0.25, '#ffffff', 0.12);
+                    ultShake(4, 250);
+                    debris(r.x, r.y, s, cols, 16, H * 0.8, { ground: G });
+                    ring(sc, r.x, r.y, s * 2, r.w * 1.6, 0.8, 0.35, ['#ffffff', cols[1]], 2);
+                }
+            }
+        });
+        // 베인 자국 — 지나간 자리에 남았다가, 받는 순간(T6) 굵게 번쩍하고 사라짐
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (!cuts.length || life > T6 + 0.35) {
+                return;
+            }
+            const hot = life >= T6 && life < T6 + 0.1;
+            const w = hot ? 3 : 1;
+            const paths = [new Path2D(), new Path2D()];
+            for (const c of cuts) {
+                const L = c.len * Math.min(1, (life - c.t0) / 0.06);
+                const ux = Math.cos(c.a);
+                const uy = Math.sin(c.a);
+                for (let d = -c.len / 2; d < -c.len / 2 + L; d += s) {
+                    paths[0].rect(px(c.x + ux * d - uy * s), px(c.y + uy * d + ux * s), w * s, w * s);
+                    paths[1].rect(px(c.x + ux * d), px(c.y + uy * d), w * s, w * s);
+                }
+            }
+            fillPaths(ctx, paths, [cols[2], '#ffffff'], life < T6 ? 0.85 : hot ? 1 : 1 - (life - T6 - 0.1) / 0.25);
+        } });
+        // 물 띠 꼬리 · 표창
+        sc.add({ max: T5 + 0.12, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life < T1) {
+                return;
+            }
+            let size = D * easeOut((life - T1) / (T2 - T1 - 0.1));
+            if (life > T5) {
+                size *= 1 - (life - T5) / 0.12;
+            }
+            if (size < C * 2) {
+                return;
+            }
+            const [x, y] = pos(life);
+            if (flying(life)) {
+                const t0 = life < T3 ? T2 : T4;
+                const pts = [];
+                for (let k = 0; k <= 10; k++) {
+                    const tt = Math.max(t0, life - k * 0.025);
+                    pts.push(pos(tt));
+                    if (tt === t0) {
+                        break;
+                    }
+                }
+                waterRibbon(ctx, px, s, pts, (D / s) * 0.4, cols, 0.85);
+            }
+            drawBigShuriken(ctx, x, y, size, C, ang, cols, 1);
+            ctx.globalAlpha = 0.8;
+            for (let j = 0; j < 4; j++) {
+                const a = ang + (j / 4) * TAU + 0.6;
+                dotAt(ctx, px, s, x + Math.cos(a) * size * 0.47, y + Math.sin(a) * size * 0.47, '#ffffff', 2, 2);
+            }
+        } });
+        sc.at(T2, () => {
+            screenFlash(s, 0.35, '#ffffff', 0.18);
+            ultShake(4, 300);
+            ring(sc, bx, by, D * 0.3, D * 1.3, 0.8, 0.4, ['#ffffff', cols[1]], 2);
+            recoil(pokemon, [{ translate: `${dir * 5 * u.s}px 0` }, { translate: '0 0' }], 280);
+        });
+        // ④ 화면 끝에 꽂힘 — 물기둥 · 큰 고리 · 물보라, 둘레 애들 떠오름
+        sc.at(T3, () => {
+            screenFlash(s, 0.5, '#ffffff', 0.25);
+            ultShake(6, 450);
+            geyser(sc, fx, G, D * 0.3, Math.min(H * 0.8, G - 4), 1.2, cols);
+            ring(sc, fx, fy, D * 0.3, D * 1.8, 0.8, 0.5, ['#ffffff', cols[1], cols[2]], 3);
+            debris(fx, fy, s, cols, 50, H * 1.2, { ground: G, size: [1, 2, 2] });
+            sparkles(fx, fy, s, ['#ffffff', cols[1]], 12, D * 0.5, H * 0.3);
+            for (const r of u.others()) {
+                if (Math.abs(r.x - fx) < D * 1.1) {
+                    hit(r, dir, 'lift');
+                }
+            }
+        });
+        // ⑤ 받음 — 펑 물보라 · 몸이 커졌다 돌아옴
+        sc.at(T5, () => {
+            screenFlash(s, 0.5, cols[0], 0.3);
+            ultShake(5, 400);
+            ring(sc, u.body.cx, u.body.cy, s * 2, D * 1.6, 0.8, 0.5, ['#ffffff', cols[1], cols[2]], 2);
+            debris(u.body.cx, u.body.cy, s, cols, 40, H * 1.1, { ground: G, size: [1, 2, 2] });
+            sparkles(u.body.cx, u.body.cy, s, ['#ffffff', cols[0], cols[1]], 14, u.w, H * 0.25);
+            recoil(pokemon, [{ translate: '0 0' }, { translate: `0 ${-3 * u.s}px` }, { translate: '0 0' }], 300);
+        });
+        // ⑥ 베인 자국이 한꺼번에 터짐 → 물방울 비
+        sc.at(T6, () => {
+            screenFlash(s, 0.3, '#ffffff', 0.12);
+            ultShake(4, 300);
+            for (const c of cuts) {
+                debris(c.x, c.y, s, cols, 8, H * 0.5, { ground: G, r: c.len * 0.4 });
+            }
+        });
+        waterRain(sc, T6, sec, cols);
+    }
+
+    // 그림자분신 물수리검 — 펑 펑 펑 화면 여기저기 분신 → 모두 머리 위에 표창 → 한 점으로 동시에 던짐(X 베기)
+    // → 표창이 하나로 합쳐져 커지다 대폭발(물기둥 셋 · 화면 가르는 X) → 분신이 연기로 사라짐 → 물방울 비
+    function runShadowClones(u, o, ms, pokemon) {
+        const cols = sigPal(o.c || 'water');
+        const P = strength(u);
+        const sec = ms / 1000;
+        const { W, H, S: s, dir } = u;
+        const G = u.ground;
+        const hit = makeHit();
+        const img = pokemon.el;
+        const n = Math.min(clamp(Math.round(o.clones ?? 5), 2, 8), W < 360 ? 3 : W < 560 ? 4 : 8);
+        const D = Math.min(Math.max(H / 3, short(u) * 0.4) * (0.9 + 0.2 * P), W * 0.42, H * 0.62);
+        const C = s * Math.max(1, Math.round(D / (26 * s)));
+        const cw = u.w;
+        const ch = img?.naturalWidth ? cw * (img.naturalHeight / img.naturalWidth) : u.h;
+        const d = Math.max(10 * s, Math.min(cw, short(u) * 0.16));
+        const c2 = s * Math.max(1, Math.round(d / (22 * s)));
+        // 노리는 곳 — 가장 가까운 애, 없으면 앞쪽
+        const q = nearest(u);
+        // 높이는 합쳐진 거대 표창이 땅 밑으로 잘리지 않게
+        const tx = q ? clamp(q.x, W * 0.12, W * 0.88) : clamp(u.body.cx + dir * W * 0.36, W * 0.18, W * 0.82);
+        const ty = Math.max(D * 0.55, Math.min(q ? q.y : G - u.h * 0.6, G - D * 0.55));
+        // 때
+        const tIn = 0.2;
+        const tForm = tIn + n * 0.12 + 0.15;
+        const tThrow = tForm + 0.55;
+        const tHit = tThrow + 0.4;
+        const tBoom = tHit + 0.5;
+        const tOut = tBoom + 0.45;
+        // 분신 자리 — 노리는 곳 둘레에 왼쪽 땅 → 하늘 → 오른쪽 땅 (진짜와 겹치면 비켜 섬), 나타나는 차례는 섞어서
+        const rx = clamp(W * 0.3, cw * 2, W * 0.42);
+        const air = Math.max(0, Math.min(H * 0.42, (G - ch - 4) * 0.7));
+        const seq = [...Array(n).keys()].sort((a, b) => hash(a, 9) - hash(b, 9));
+        const clones = [];
+        for (let j = 0; j < n; j++) {
+            const a = Math.PI + (n === 1 ? 0.5 : j / (n - 1)) * Math.PI;
+            const lift = Math.max(0, -Math.sin(a)) * air;
+            const fit = (v) => clamp(v, cw * 0.6, W - cw * 0.6);
+            let x = fit(tx + Math.cos(a) * rx);
+            if (lift < u.h && Math.abs(x - u.body.cx) < cw * 1.5) {
+                // 진짜에게서 비켜 섬 — 화면 끝에 막히면 반대쪽으로
+                const side = Math.sign(x - u.body.cx) || -dir;
+                x = fit(u.body.cx + side * cw * 1.6);
+                if (Math.abs(x - u.body.cx) < cw * 1.5) {
+                    x = fit(u.body.cx - side * cw * 1.6);
+                }
+            }
+            const order = seq.indexOf(j);
+            clones.push({ x, b: G - lift, left: tx < x, tIn: tIn + order * 0.12, tOut: tOut + order * 0.07 });
+        }
+        // 던지는 애들 — 분신 모두 + 진짜
+        const throwers = clones.map((c, i) => ({ hx: c.x, hy: c.b - ch - d * 0.6, left: c.left, t0: tThrow + 0.03 * i }));
+        throwers.push({ hx: u.body.cx, hy: Math.max(d * 0.6, u.body.top - d * 0.6), left: tx < u.body.cx, t0: tThrow });
+        for (const th of throwers) {
+            th.pos = (t) => {
+                if (t < th.t0) {
+                    return [th.hx, th.hy];
+                }
+                const k = clamp((t - th.t0) / (tHit - th.t0), 0, 1);
+                const e = k * k;
+                return [lerp(th.hx, tx, e), lerp(th.hy, ty, e) - Math.sin(k * Math.PI) * d * 0.5];
+            };
+        }
+        const sc = scene(u, sec + 0.3, 'ultswarm');
+        ultDark(0.3, ms - 200);
+        let ang = 0;
+        sc.tick((t, dt) => {
+            ang += (t < tHit ? 24 : 34) * dt;
+        });
+        // 진짜도 물빛 테두리
+        sc.at(0.05, () => {
+            try {
+                pokemon.el.style.filter = waterAura(u.s);
+            } catch (err) {
+                fail('aura', err);
+            }
+            ring(sc, u.body.cx, u.body.cy, u.w * 0.4, u.w * 2, 0.8, 0.35, ['#ffffff', cols[1]], 2);
+        });
+        auraBubbles(sc, 0.05, sec - 0.3, cols);
+
+        // ① 분신 — 물빛 테두리 · 하늘에 뜬 애는 둥실, 나타날 때 · 사라질 때 하얗게 번쩍
+        sc.add({ max: sec, draw: (ctx) => {
+            const life = sc.t;
+            for (const c of clones) {
+                if (life < c.tIn || life > c.tOut + 0.08) {
+                    continue;
+                }
+                const k = life - c.tIn;
+                const bob = c.b < G - s ? Math.sin(life * 5 + c.x) * s * 1.5 : 0;
+                const back = life > tThrow - 0.2 && life < tThrow ? easeOut((life - tThrow + 0.2) / 0.2) : life >= tThrow ? 1 - easeOut((life - tThrow) / 0.15) : 0;
+                const x = c.x + (c.left ? 1 : -1) * back * 3 * s;
+                const b = c.b + bob;
+                const alpha = life > c.tOut ? 1 - (life - c.tOut) / 0.08 : 1;
+                for (const [dx, dy] of [[s, 0], [-s, 0], [0, s], [0, -s]]) {
+                    drawMon(ctx, img, x + dx, b + dy, cw, c.left, alpha * 0.9, cols[2]);
+                }
+                drawMon(ctx, img, x, b, cw, c.left, alpha * 0.92);
+                const flash = k < 0.12 ? 1 - k / 0.12 : life > c.tOut ? 1 : 0;
+                if (flash > 0) {
+                    drawMon(ctx, img, x, b, cw, c.left, flash, '#ffffff');
+                }
+            }
+        } });
+        const poof = (x, y, big) => {
+            for (let j = 0; j < (big ? 5 : 3); j++) {
+                puff(x + rnd(-1, 1) * cw * 0.4, y + rnd(-1, 1) * ch * 0.3, s, '#dfe8f2', cw * 0.2, cw * 0.55, rnd(0.35, 0.5), rnd(-1, 1) * 20, -rnd(10, 30), 0.5);
+            }
+            ring(sc, x, y, s * 2, cw * 1.4, 0.8, 0.3, ['#ffffff', cols[1]], 2);
+            sparkles(x, y, s, ['#ffffff', cols[1]], 4, cw * 0.4, H * 0.1);
+        };
+        for (const c of clones) {
+            sc.at(c.tIn, () => {
+                poof(c.x, c.b - ch / 2, true);
+                ultShake(1.2, 120);
+            });
+            sc.at(c.tOut, () => poof(c.x, c.b - ch / 2, false));
+        }
+        // ② 머리 위 표창 — 물이 감겨 커짐 → ③ 한 점으로 (물 띠 꼬리)
+        sc.tick((t) => {
+            if (t < tForm || t > tForm + 0.35 || !room(throwers.length)) {
+                return;
+            }
+            for (const th of throwers) {
+                const a0 = rnd(0, TAU);
+                const r0 = d * rnd(0.9, 1.4);
+                sigParticle({ x: th.hx, y: th.hy, s, max: rnd(0.25, 0.35), a0, r0, color: pick(cols),
+                    update: (p) => {
+                        const k = p.life / p.max;
+                        p.x = th.hx + Math.cos(p.a0 + k * 5) * p.r0 * (1 - k);
+                        p.y = th.hy + Math.sin(p.a0 + k * 5) * p.r0 * (1 - k) * 0.8;
+                    },
+                    draw: DRAW.dot });
+            }
+        });
+        sc.add({ max: tHit + 0.02, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life < tForm) {
+                return;
+            }
+            const size = d * easeOut((life - tForm) / 0.4);
+            if (size < c2 * 2) {
+                return;
+            }
+            for (const th of throwers) {
+                if (life > th.t0) {
+                    const pts = [];
+                    for (let k = 0; k <= 8; k++) {
+                        const tt = Math.max(th.t0, life - k * 0.025);
+                        pts.push(th.pos(tt));
+                        if (tt === th.t0) {
+                            break;
+                        }
+                    }
+                    waterRibbon(ctx, px, s, pts, Math.max(2, (size / s) * 0.35), cols, 0.8);
+                }
+                const [x, y] = th.pos(life);
+                drawBigShuriken(ctx, x, y, size, c2, th.left ? -ang : ang, cols, 1);
+            }
+        } });
+        sc.at(tThrow, () => {
+            screenFlash(s, 0.3, '#ffffff', 0.15);
+            ultShake(3, 220);
+            recoil(pokemon, [{ translate: `${(tx < u.body.cx ? -1 : 1) * 5 * u.s}px 0` }, { translate: '0 0' }], 260);
+        });
+        // ④ 한 점에 모임 — X 베기 · 표창이 하나로 합쳐져 커짐 (두 번 두근 · 반짝)
+        sc.at(tHit, () => {
+            screenFlash(s, 0.5, '#ffffff', 0.2);
+            ultShake(6, 380);
+            ring(sc, tx, ty, d * 0.5, D * 1.4, 0.8, 0.4, ['#ffffff', cols[1], cols[2]], 3);
+            debris(tx, ty, s, cols, 30, H * 0.9, { ground: G, size: [1, 2, 2] });
+            for (const r of u.others()) {
+                if (Math.abs(r.x - tx) < D * 0.8 && Math.abs(r.y - ty) < D) {
+                    hit(r, r.x < tx ? -1 : 1, 'tumble');
+                }
+            }
+        });
+        const cross = (ctx, px, cx, cy, L, w, alpha) => {
+            const paths = [new Path2D(), new Path2D()];
+            for (const f of [1, -1]) {
+                addLine(paths[0], px, s, [[cx - L, cy - f * L * 0.55], [cx + L, cy + f * L * 0.55]], w + 2);
+                addLine(paths[1], px, s, [[cx - L, cy - f * L * 0.55], [cx + L, cy + f * L * 0.55]], w);
+            }
+            fillPaths(ctx, paths, [cols[2], '#ffffff'], alpha);
+        };
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            // X 베기 (모일 때 작게 · 터질 때 화면을 가르게)
+            if (life >= tHit && life < tHit + 0.3) {
+                const k = (life - tHit) / 0.3;
+                cross(ctx, px, tx, ty, D * 0.8 * easeOut(k * 3), 1, 1 - k);
+            }
+            if (life >= tBoom && life < tBoom + 0.45) {
+                const k = (life - tBoom) / 0.45;
+                cross(ctx, px, tx, ty, W * 0.7 * easeOut(k * 4), k < 0.2 ? 3 : 2, 1 - k * k);
+            }
+            // 합쳐진 거대 표창
+            if (life >= tHit && life < tBoom) {
+                const k = (life - tHit) / (tBoom - tHit);
+                const size = lerp(d * 1.5, D, easeOut(k * 1.3)) * (1 + 0.06 * Math.sin(life * 40));
+                drawBigShuriken(ctx, tx, ty, size, C, ang, cols, 1);
+                if (k > 0.7) {
+                    glint(ctx, px, s, tx + size * 0.3, ty - size * 0.3, D * 0.5 * Math.sin(((k - 0.7) / 0.3) * Math.PI), 1);
+                }
+            }
+        } });
+        sc.tick((t) => {
+            if (t < tHit || t > tBoom - 0.05 || !room(3)) {
+                return;
+            }
+            for (let j = 0; j < 3; j++) {
+                const a0 = rnd(0, TAU);
+                const r0 = D * rnd(0.9, 1.5);
+                sigParticle({ x: tx, y: ty, s, max: rnd(0.25, 0.35), a0, r0, color: pick(cols), size: pick([1, 2]),
+                    update: (p) => {
+                        const k = p.life / p.max;
+                        p.x = tx + Math.cos(p.a0 + k * 5) * p.r0 * (1 - k);
+                        p.y = ty + Math.sin(p.a0 + k * 5) * p.r0 * (1 - k) * 0.8;
+                    },
+                    draw: DRAW.dot });
+            }
+        });
+        for (const tb of [tHit + 0.18, tHit + 0.36]) {
+            sc.at(tb, () => {
+                ring(sc, tx, ty, D * 1.3, D * 0.5, 0.85, 0.25, [cols[1], '#ffffff'], 2);
+                ultShake(2, 150);
+            });
+        }
+        // ⑤ 대폭발 — 하얀 번쩍 · 물기둥 셋 · 큰 고리 · 화면 가르는 X, 둘레 애들 빙글
+        sc.at(tBoom, () => {
+            screenFlash(s, 0.65, '#ffffff', 0.3);
+            ultShake(8, 520);
+            geyser(sc, tx, G, D * 0.35, Math.min(H * 0.85, G - 4), 1.2, cols);
+            ring(sc, tx, ty, D * 0.4, Math.max(W, H) * 0.7, 0.75, 0.6, ['#ffffff', cols[1], cols[2]], 3);
+            debris(tx, ty, s, cols, 60, H * 1.3, { ground: G, size: [1, 2, 2] });
+            sparkles(tx, ty, s, ['#ffffff', cols[0], cols[1]], 16, D * 0.6, H * 0.3);
+            for (const r of u.others()) {
+                if (Math.abs(r.x - tx) < W * 0.35) {
+                    hit(r, r.x < tx ? -1 : 1, 'spin');
+                }
+            }
+        });
+        sc.at(tBoom + 0.1, () => {
+            for (const f of [-1, 1]) {
+                const gx = tx + f * D * 0.9;
+                if (gx > D * 0.2 && gx < W - D * 0.2) {
+                    geyser(sc, gx, G, D * 0.22, Math.min(H * 0.6, G - 4), 1.0, cols);
+                }
+            }
+        });
+        waterRain(sc, tBoom + 0.2, sec, cols);
+    }
+
     Object.assign(ULT_FX, {
         // 화면 전체 날씨 폭격 — kind: thunder blizzard wind acid petal leaf sand rain fire, c
         ultstorm: {
@@ -2986,9 +3695,20 @@
             run: (u, o, ms, pokemon) => runVolt(u, o, ms, pokemon),
         },
         // 화면 가득 날리기 — shape (needle star ball rock leaf coin egg bone heart shuriken) c n / giant: 거대한 것 하나
+        // ninja: 개굴닌자 거대 물수리검 (변신 · 꽂혀서 물기둥) / clones: 그림자분신 물수리검 (분신 수)
         ultswarm: {
-            ms: (P, o) => (o.giant ? 3300 : 2900 + 300 * P),
-            run: (u, o, ms, pokemon) => (o.giant ? runGiantThrow(u, o, ms, pokemon) : runSwarm(u, o, ms, pokemon)),
+            ms: (P, o) => (o.clones ? 3900 + 200 * P : o.ninja ? 4100 + 200 * P : o.giant ? 3300 : 2900 + 300 * P),
+            run: (u, o, ms, pokemon) => {
+                if (o.clones) {
+                    runShadowClones(u, o, ms, pokemon);
+                } else if (o.ninja) {
+                    runNinjaShuriken(u, o, ms, pokemon);
+                } else if (o.giant) {
+                    runGiantThrow(u, o, ms, pokemon);
+                } else {
+                    runSwarm(u, o, ms, pokemon);
+                }
+            },
         },
     });
 })();

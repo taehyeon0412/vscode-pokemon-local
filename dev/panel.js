@@ -38,7 +38,7 @@ const VARIANTS = {
     ultskyfall: [{ shape: 'rock', n: 1 }, { shape: 'ice', n: 1 }, { shape: 'meteor', n: 8, c: 'dragon' }, { shape: 'star', n: 6, c: 'star' }],
     ultthunder: [{ mode: 'spear' }, { mode: 'pillar' }],
     ultvolt: [{ rainbow: 1 }, { c: 'electric', rainbow: 0 }],
-    ultswarm: [{ shape: 'needle', c: 'bug' }, { shape: 'leaf', c: 'grass', n: 40 }, { shape: 'star', c: 'star' }, { shape: 'shuriken', c: 'water', giant: 1 }, { shape: 'heart', c: 'fairy' }],
+    ultswarm: [{ shape: 'needle', c: 'bug' }, { shape: 'leaf', c: 'grass', n: 40 }, { shape: 'star', c: 'star' }, { shape: 'shuriken', c: 'water', giant: 1 }, { shape: 'shuriken', c: 'water', giant: 1, ninja: 1 }, { shape: 'shuriken', c: 'water', clones: 5 }, { shape: 'heart', c: 'fairy' }],
     ultrush: [{ c: 'normal' }, { c: 'steel', drill: 1 }, { c: 'fire', flame: 1 }, { c: 'electric', elec: 1 }, { c: 'water', water: 1, fast: 1 }],
     ultdive: [{ c: 'wind' }, { c: 'normal', heavy: 1 }, { c: 'electric', elec: 1 }, { c: 'dragon', flame: 1 }],
     ultbarrage: [{ kind: 'punch', c: 'fight' }, { kind: 'slash', c: 'bug', spin: 1 }, { kind: 'kick', c: 'fire' }],

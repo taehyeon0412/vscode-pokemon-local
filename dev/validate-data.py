@@ -43,7 +43,7 @@ ULT = {
     "ultskyfall": "shape n c",
     "ultthunder": "mode c",
     "ultvolt": "c rainbow max",
-    "ultswarm": "shape c n giant",
+    "ultswarm": "shape c n giant ninja clones",
     "ultrush": "c drill flame elec water fast",
     "ultdive": "c heavy elec flame",
     "ultbarrage": "kind c spin",
