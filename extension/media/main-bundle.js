@@ -8231,6 +8231,32 @@ const ULT_DEFAULT_C = { ultbeam: 'hyper', ultnova: 'hyper', ultvolt: 'electric',
 const ULT_ORB_C = { energy: 'hyper', flame: 'fire', shadow: 'ghost', aura: 'aura', water: 'water', ice: 'ice', leaf: 'grass' };
 const ultCols = (o, fx) => sigPal(o.c || (fx === 'ultorb' && ULT_ORB_C[o.style]) || ULT_DEFAULT_C[fx] || 'gold');
 const ultClamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+// 큰 마무리 — 공통 틀이 절정에서 부름 (fx-sky.js 가 채움: dome 빛의 반구 대폭발 · pillar 화면 꼭대기까지 기둥). 2026-10-19
+const ULT_FINALE = {};
+function ultFinale(kind, ...args) {
+    try {
+        ULT_FINALE[kind]?.(...args);
+    } catch (err) {
+        ultError(`finale ${kind}`, err);
+    }
+}
+// sec 초 뒤에 — make() 가 [kind, ...args] 를 돌려줌 (그때의 자리로). 그새 필살기가 끝났으면 안 함
+function ultFinaleAt(sec, make) {
+    const who = ultActive?.pokemon;
+    setTimeout(() => {
+        if (who && ultActive?.pokemon !== who) {
+            return;
+        }
+        try {
+            const a = make();
+            if (a) {
+                ultFinale(...a);
+            }
+        } catch (err) {
+            ultError('finaleAt', err);
+        }
+    }, sec * 1000);
+}
 // 받침 — 받침 있으면 a, 없으면 b ("리자몽으로" · "피카츄로")
 const josa = (word, a, b) => {
     const c = word.charCodeAt(word.length - 1) - 0xac00;
@@ -10101,6 +10127,7 @@ window.__ult = {
                     ultShake(4 + 5 * K, 900);
                     pp.flash = 1;
                     bigBoom(wx, cy, S, bc, size);
+                    ultFinale('dome', u, wx, Math.max(size * 1.4, u.H * 0.34), ac); // 큰 마무리
                     // 벽이 번쩍
                     sigParticle({ x: wx, y: 0, s: S, max: 0.35, draw: safeDraw((ctx, q, t, px) => {
                         ctx.globalAlpha = 0.8 * (1 - t);
@@ -10417,6 +10444,7 @@ window.__ult = {
                     ultShake(heavy ? 11 : 5 + 4 * K, heavy ? 1500 : 900);
                     pp.flash = 1;
                     bigBoom(tx, ty - S * 2, S, bc, size, { flat: 0.6 });
+                    ultFinale('dome', u, tx, Math.max(size * 1.3, u.H * (heavy ? 0.45 : 0.34)), ac); // 큰 마무리
                     crater(tx, ty - S, S, ac, size * 0.75, 1.8);
                     const reach = heavy ? W * 1.1 : W * 0.4 + size;
                     groundWave(tx, ty - S, S, ac, reach, heavy ? 0.9 : 0.8);
@@ -10735,6 +10763,9 @@ window.__ult = {
                     ultShake(5 + 5 * K, 850);
                     pp.flash = 1;
                     bigBoom(b.x, b.y, S, ['#ffffff', ...cols.slice(0, 3)], size);
+                    if (!o.aura) {
+                        ultFinale('dome', u, b.x, Math.max(size * 1.4, u.H * 0.34), cols); // 큰 마무리
+                    }
                     if (spinning || kind === 'slash') {
                         const L = Math.max(b.h, U * 0.6) * 3;
                         slashMark(b.x, b.y, S, cols, L, 0.8, 0.55, 2);
@@ -11020,6 +11051,7 @@ window.__ult = {
                     ultShake(5 + 3 * K, 750);
                     pp.flash = 0.8;
                     groundWave(cx, u.ground - S, S, cols, W * 0.9, 0.8);
+                    ultFinale('dome', u, cx, H * 0.42, cols); // 큰 마무리
                     for (const q of lift) {
                         const r = q.pokemon.collision.getBoundingClientRect();
                         const x = r.left + r.width / 2;
@@ -11264,6 +11296,7 @@ window.__ult = {
                 });
                 // 검은 폭발 — 내동댕이
                 later(tFling * 1000, () => {
+                    ultFinale('dome', u, grabs.length ? boxOf(grabs[0]).x : xs + u.dir * W * 0.3, H * 0.4, cols); // 큰 마무리
                     screenFlash(S, 0.42, cols[1], 0.24);
                     later(70, () => screenFlash(S, 0.3, '#ffffff', 0.16));
                     ultShake(5 + 4 * K, 850);
@@ -12153,6 +12186,7 @@ window.__ult = {
                     chunk(rnd(0, W), -rnd(5, 40), D, rnd(-30, 30), rnd(0, 0.3) * H, grav, G, pick(rock), pick([2, 3, 3]), rock[0], true, 2.5);
                 }]),
                 [tC, () => {
+                    ultFinale('pillar', u, clamp(x0 + u.dir * W * 0.3, W * 0.1, W * 0.9), Math.max(8 * D, H * 0.2), lava ? LAVA.slice(1) : cols); // 큰 마무리 — 땅 기둥
                     screenFlash(D, 0.6, lava ? LAVA[1] : '#ffffff', 0.4);
                     shake(7 + 3 * P, 850);
                     sigRing(x0, G, D, D * 2, W * 0.9, 0.1, 0.7, [glow[0], glow[1], '#ffffff']);
@@ -12216,6 +12250,8 @@ window.__ult = {
             const tf = te + plan.rise + plan.hold + (last ? plan.finale : 0);
             pillars.push({ i, x: f.front + f.dir * (a0 + step * (i + 0.5)), w, h, tw, te, tf, tg: tf + plan.fall, last, seed: rnd(0, 1000), lean: rnd(-0.06, 0.06), acc: 0, pacc: 0 });
         }
+        const lastP = pillars[pillars.length - 1];
+        ultFinaleAt(lastP.te + 0.05, () => ['dome', u, lastP.x, Math.max(lastP.w * 1.8, H * 0.3), cols]); // 큰 마무리 — 빛의 반구
         // 지금 상태 — g: 솟음(1.07 까지 넘쳤다 1), k: 무너짐 0~1
         const stateOf = (pl, t) => {
             const age = t - pl.te;
@@ -13161,6 +13197,7 @@ window.__ult = {
                     }
                 }],
                 [tLand + 0.12, () => sigRing(cxF, G, D, bw * 0.3, W * 0.6, 0.2, 0.6, [flowerC[0], flowerC[1]])],
+                [tLand + 0.15, () => ultFinale('dome', u, cxF, Math.max(bw * 1.1, H * 0.36), beamCols)], // 큰 마무리 — 내려앉은 햇빛이 빛의 반구로
                 [tE - 0.3, () => shake(3 + P, 600)],
             ],
             update,
@@ -13342,6 +13379,7 @@ window.__ult = {
             screenFlash(D, 0.6, '#ffffff', 0.4);
             shake(7 + 3 * P, 900);
             const mid = f.front + f.dir * f.room * 0.55;
+            ultFinale('bloom', u, mid, H * 0.35, null); // 큰 마무리 — 거대한 꽃
             sigRing(mid, G, D, 2 * D, W * 0.8, 0.12, 0.7, [cols[0], '#ffffff', cols[1]]);
             sigRing(mid, G, D, 2 * D, W * 0.5, 0.2, 0.5, [cols[1], cols[2]]);
             for (let i = 0; i < 80; i++) {
@@ -13464,6 +13502,7 @@ window.__ult = {
         const rTop = clamp(Math.min(W * 0.17, H * 0.42), 7 * D, 160) * (0.75 + 0.35 * P) * (n === 2 ? 0.78 : 1);
         const Hc = G + 6 * D;
         const tB = sec - 0.95; // 펑
+        ultFinaleAt(tB, () => columns.length && ['dome', u, columns.reduce((a, c) => a + c.cx, 0) / columns.length, rTop * 2.4, cols]); // 큰 마무리 — 빛의 반구
         const spin = f.dir * (5.5 + 2 * P);
         const streaks = 4 + (P > 0.7 ? 1 : 0);
         // 몸통 · 뒤쪽 줄 [색, 진하기] — 불은 밝게
@@ -14518,6 +14557,17 @@ window.__ult = {
                     spray(q.x, q.y, S, [...cols, '#ffffff'], 18, 80 * Z, 240 * Z, { g: 250 * Z, drag: 1 });
                 }
             }
+            // 큰 마무리 — 가늘어지기 시작할 때 처음 맞은 애 자리 (없으면 앞쪽 멀리)에 빛의 반구
+            if (!st.boomed && f >= fadeAt) {
+                st.boomed = true;
+                let bx = ox + dir * reach * 0.8;
+                for (const q of u.others()) {
+                    if (st.hit.has(q.pokemon) && Math.abs(q.x - ox) < Math.abs(bx - ox)) {
+                        bx = q.x;
+                    }
+                }
+                ultFinale('dome', u, bx, Math.max(T * 2.2, H * 0.32), cols);
+            }
             // 사라지며 빛가루
             if (!st.gone && f >= fire - Math.min(0.35, fire * 0.15)) {
                 st.gone = true;
@@ -14971,6 +15021,7 @@ window.__ult = {
             }
             ultShake(6 + 3 * P, 900);
             explode(u, x, y, Rb, cols, { style, n: 60 + 40 * P, sec: 0.95 });
+            ultFinale('dome', u, x, Rb * 1.3, cols); // 큰 마무리 — 빛의 반구
             if (style === 'aura' || style === 'water' || style === 'ice') {
                 for (let j = 0; j < 3; j++) {
                     ring(x, y, S, Rb * 0.3, Rb * (1.4 + j * 0.5), 1, 0.6, [cols[0], cols[1], '#ffffff'], { delay: 0.12 + j * 0.1 });
@@ -15212,6 +15263,7 @@ window.__ult = {
             ultShake(9 + 3 * P, 1400);
             part({ x: C.x, y: C.y, s: S, max: 0.65, far, n: 18, r0: R0 * 0.5, a0: 0, cols, draw: DR.rays });
             explode(u, C.x, C.y, Rn, cols, { n: 120 + 60 * P, sec: 1.2, rays: 0, smoke: 26, embers: 50 });
+            ultFinale('dome', u, C.x, Rn * 1.05, cols); // 큰 마무리 — 빛의 반구
             for (let j = 0; j < 4; j++) {
                 ring(C.x, C.y, S, R0, far * (1 + j * 0.06), 1 - j * 0.08, 0.7 + j * 0.15, j % 2 ? [cols[1], cols[2]] : ['#ffffff', cols[0]], { size: 2, delay: j * 0.12 });
             }
@@ -15381,6 +15433,7 @@ window.__ult = {
                 sigParticle({ x: bx, y: by, s: S, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 1.4, max: moveRand(0.5, 1), r: movePick([1, 1, 2]), cols: ['#ffffff', cols[0], cols[1], cols[2]], draw: DR.star });
             }
             explode(u, bx, by, Math.max(rB * 3, H * 0.26), cols, { n: 70, sec: 0.9, rays: 0, smoke: 8, embers: 24 });
+            ultFinale('dome', u, bx, Math.max(rB * 4, H * 0.35), cols); // 큰 마무리 — 빛의 반구
             for (let j = 0; j < 3; j++) {
                 ring(bx, by, S, rB, far * (1 + j * 0.08), 1 - j * 0.12, 0.7 + j * 0.15, j % 2 ? [cols[1], cols[2]] : ['#ffffff', cols[0]], { size: 2, delay: j * 0.1 });
             }
@@ -15562,6 +15615,7 @@ window.__ult = {
             flash('#ffe6f4', 0.6, 0.35, 0.04);
             ultShake(4 + 2 * P, 500);
             sigImpact(x, y, S, ['#ffffff', pink[1], pink[2], cols[2]], 1, true);
+            ultFinale('dome', u, x, Math.max(u.R * 2.2, H * 0.3), o.c ? cols : pink); // 큰 마무리 — 빛의 반구
             for (let i = 0; i < 14 && room(); i++) {
                 const a = (i / 14) * TAU + moveRand(-0.2, 0.2);
                 const sp = moveRand(140, 320) * Z;
@@ -15783,6 +15837,8 @@ window.__ult = {
         const burst = () => {
             flash(cols[0], 0.75, 0.55, 0.06);
             ultShake(5 + 2 * P, 800);
+            const qm = nearest(u, u.body.cx);
+            ultFinale('pillar', u, qm ? qm.x : u.body.cx + dir * W * 0.3, Math.max(u.R * 1.1, H * 0.2), cols); // 큰 마무리 — 달빛 기둥
             part({ x: M.x, y: M.y, s: S, max: 0.6, far: Math.hypot(W, H), n: 16, r0: Rm * 1.1, a0: 0.1, cols: [cols[1], cols[2], cols[0], cols[3]], draw: DR.rays });
             for (let i = 0; i < 40 && room(); i++) {
                 const a = moveRand(0, TAU);
@@ -16703,6 +16759,10 @@ window.__ult = {
         const area = clamp((W * H) / (480 * 300), 0.45, 2.2);
         const N = Math.round(K.n * area * (0.55 + 0.45 * P));
         const climax = sec * 0.5;
+        ultFinaleAt(climax + 0.25, () => {
+            const fx0 = clamp(u.body.cx + dir * W * 0.32, W * 0.15, W * 0.85);
+            return kind === 'petal' || kind === 'leaf' ? ['bloom', u, fx0, H * 0.34, kind === 'leaf' ? sigPal('grass') : null] : ['pillar', u, fx0, Math.max(s * 8, W * 0.12), cols];
+        }); // 큰 마무리
         // 세기 0~1 — 들어왔다 빠짐, 절정에서 더 세게
         const env = (t) => clamp(t / 0.5, 0, 1) * clamp((sec - t) / 0.6, 0, 1);
         const bump = (t) => Math.max(0, 1 - Math.abs(t - climax - 0.25) / 0.55);
@@ -17315,6 +17375,7 @@ window.__ult = {
         tx = clamp(tx, D * 0.5, W - D * 0.5);
         const tHit = 1.35;
         const tBreak = tHit + 0.5;
+        ultFinaleAt(tBreak - 0.02, () => ['dome', u, tx, D * 1.25, cols]); // 큰 마무리
         const x0 = tx - dir * W * 0.16;
         const y0 = -D * 0.8;
         const yEnd = G - D * 0.42;
@@ -17605,6 +17666,9 @@ window.__ult = {
         const STAR = [];
         ['...1...', '..121..', '1112111', '.12221.', '..121..', '.11.11.', '.1...1.'].forEach((row, y) => [...row].forEach((ch, x) => ch !== '.' && STAR.push([x - 3, y - 3, ch === '2' ? 0 : 1])));
         const impact = (x, gy, R, big) => {
+            if (big) {
+                ultFinale('dome', u, x, Math.max(R * 9, H * 0.36), tcol); // 큰 마무리
+            }
             screenFlash(s, big ? 0.75 : 0.3, big ? '#ffffff' : cols[1], big ? 0.45 : 0.2);
             ultShake(big ? 8 + 2 * P : 3.5 + P, big ? 1000 : 300);
             ring(sc, x, gy, s * 2, W * (big ? 0.95 : 0.26), 0.25, big ? 0.9 : 0.5, ['#ffffff', cols[1], cols[2]], big ? 3 : 2);
@@ -17927,6 +17991,7 @@ window.__ult = {
             const Rmax = clamp(short(u) * 0.45, 50, 230) * (0.8 + 0.3 * P);
             const bx = tX;
             const by = Math.min(tY, G - s);
+            ultFinale('dome', u, bx, Math.max(Rmax * 1.2, H * 0.36), cols); // 큰 마무리
             screenFlash(s, 0.85, '#ffffff', 0.3);
             sc.at(tBoom + 0.1, () => screenFlash(s, 0.4, cols[1], 0.25));
             ultShake(9 + 3 * P, 1300);
@@ -18066,6 +18131,9 @@ window.__ult = {
 
             // 땅 — 충격파 · 번쩍 · 튀는 흙과 불똥 · 기어가는 전기
             lit = 0.12;
+            if (big) {
+                ultFinale('pillar', u, x, pw * 2.4, cols); // 큰 마무리
+            }
             screenFlash(s, big ? 0.7 : 0.16, big ? '#ffffff' : cols[1], big ? 0.35 : 0.12);
             ultShake(big ? 8 + 2 * P : 3.5 + 2 * P, big ? 900 : 320);
             ring(sc, x, G - s, pw * 0.5, pw * (big ? 6 : 3.5), 0.25, big ? 0.8 : 0.5, ['#ffffff', cols[1], cols[2]], big ? 3 : 2);
@@ -18103,6 +18171,10 @@ window.__ult = {
         const MX = !!o.max; // 극대 — 줄기 11개 · 더 굵게 · 네 번 두근 · 마지막에 거대 번개 기둥
         const charge = MX ? 1.15 : 0.9;
         const end = sec - 0.7;
+        ultFinaleAt(end - 0.3, () => {
+            const q = nearest(u);
+            return ['dome', u, q ? q.x : clamp(cx + u.dir * W * 0.35, W * 0.1, W * 0.9), H * (MX ? 0.46 : 0.4), cols];
+        }); // 큰 마무리
         const pulses = MX ? [charge, charge + 0.7, charge + 1.35, charge + 2] : [charge, charge + 0.85, charge + 1.65];
         const R0 = clamp(short(u) * 0.06, 10, 34) * (0.8 + 0.3 * P) * (MX ? 1.25 : 1);
         const bw = clamp(Math.round((clamp(short(u) * 0.028, 5, 18) * (0.8 + 0.4 * P) * (MX ? 1.35 : 1)) / s), 2, MX ? 10 : 8);
@@ -18623,6 +18695,14 @@ window.__ult = {
         }
         // 마지막 — 여러 번 맞은 애 둘레가 번쩍
         sc.at(t0 + waves * gap + 0.6, () => {
+            let best = null;
+            for (const [p, c] of hits) {
+                if (!best || c > best[1]) {
+                    best = [p, c];
+                }
+            }
+            const qb = (best && u.others().find((q) => q.pokemon === best[0])) || nearest(u);
+            ultFinale('dome', u, qb ? qb.x : clamp(ox + dir * W * 0.4, W * 0.1, W * 0.9), Math.max(R * 2.5, H * 0.33), cols); // 큰 마무리
             for (const [p, c] of hits) {
                 if (c >= 2) {
                     const r = u.others().find((q) => q.pokemon === p);
@@ -18695,6 +18775,7 @@ window.__ult = {
         const tTurn = 1.5;
         const tBack = 1.8;
         const tCatch = 2.55;
+        ultFinaleAt(tTurn - 0.05, () => ['dome', u, fx, D * 1.3, cols]); // 큰 마무리
         const sc = scene(u, sec + 0.3, 'ultswarm');
         // 거대한 것 — 표창은 칸마다 돌려 그림, 나머지 모양은 SHAPES 를 아주 크게 (모양마다 도는 그림)
         const giant = (ctx, x, y, size, a, alpha, life) => {
@@ -24232,6 +24313,96 @@ window.__ult = {
             run: (u, o, ms, pokemon) => (o.mewtwo ? runPsychokinesis(u, o, ms, pokemon) : o.mew ? runMewMetronome(u, o, ms, pokemon) : basePsy.run(u, o, ms, pokemon)),
         };
     }
+    // ═════ 큰 마무리 — 공통 틀이 절정에서 ultFinale(kind, …) 로 부름 (2026-10-19 태현 님: 모든 필살기를 리자몽 · 거북왕처럼) ═════
+    // 임팩트 프레임(하양 · 검정 한순간) — 번쩍은 적당히
+    function impactFrames(sc, W, H, white = 0.7, black = 0.45) {
+        sc.add({ max: 0.05, draw: (ctx) => {
+            ctx.globalAlpha = white;
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, W, H);
+        } });
+        sc.at(0.05, () => sc.add({ max: 0.06, draw: (ctx) => {
+            ctx.globalAlpha = black;
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, W, H);
+        } }));
+    }
+    // dome — 땅(x)에서 그 색 빛의 반구가 서서히 부풀어 눈부시게 빛나다 사그라듦 (블래스트번 · 베지터 자폭처럼) + 땅 충격파 · 불티
+    ULT_FINALE.dome = (u, x, R, cols, opt = {}) => {
+        const { W, H, S: s } = u;
+        const G = u.ground;
+        const dur = opt.dur ?? 1.9;
+        const Rr = clamp(R, s * 12, Math.min(G * 0.92, W * 0.5));
+        const xx = clamp(x, s * 4, W - s * 4);
+        const sc = scene(u, dur + 1.4, 'finale dome');
+        impactFrames(sc, W, H);
+        sc.at(0.06, () => {
+            blastDome(sc, xx, G, Rr, dur, cols);
+            ring(sc, xx, G - s, Rr * 0.3, Rr * 1.7, 0.25, 0.8, ['#ffffff', cols[1], cols[2]], 2);
+            ultShake(6, 900);
+        });
+        sc.at(0.45, () => ring(sc, xx, G - Rr * 0.45, Rr * 0.9, Rr * 2.1, 0.6, 0.9, [cols[0], cols[2]], 1));
+        emberRise(sc, 0.5, dur + 1.3, cols);
+    };
+    // pillar — 땅(x)에서 화면 꼭대기까지 일자로 넓은 그 색 기둥 · 퍼지는 구 · 뻗는 줄기 · 파편 · 작은 폭발들 (플레어드라이브 불기둥처럼)
+    ULT_FINALE.pillar = (u, x, w, cols, opt = {}) => {
+        const { W, H, S: s } = u;
+        const G = u.ground;
+        const dur = opt.dur ?? 1.5;
+        const ww = clamp(w, s * 6, W * 0.3);
+        const xx = clamp(x, ww * 0.5, W - ww * 0.5);
+        const sc = scene(u, dur + 1.4, 'finale pillar');
+        impactFrames(sc, W, H, 0.6, 0.4);
+        sc.at(0.06, () => {
+            firePillar(sc, xx, G, ww, dur, cols);
+            ring(sc, xx, G - s, ww * 0.5, ww * 3, 0.25, 0.7, ['#ffffff', cols[1], cols[2]], 2);
+            ultShake(5, 700);
+        });
+        emberRise(sc, 0.4, dur + 1.3, cols);
+    };
+    // bloom — 땅(x)에서 거대한 꽃이 활짝 피었다(꽃잎 여덟 장 · 가운데 햇빛 구) 꽃잎 폭풍 · 꽃잎이 살랑살랑 떨어짐 (솔라빔 · 하드플랜트처럼). pc = 꽃잎 색 (없으면 분홍)
+    ULT_FINALE.bloom = (u, x, R, pc) => {
+        const { W, H, S: s, dir } = u;
+        const G = u.ground;
+        const pcol = pc || PINK;
+        const bloomR = clamp(R, s * 10, G * 0.6);
+        const xx = clamp(x, bloomR * 0.8, W - bloomR * 0.8);
+        const TP = 0.95; // 꽃잎 폭풍
+        const sc = scene(u, 2.8, 'finale bloom');
+        sc.add({ max: TP + 0.12, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            const k = easeOut(clamp(life / 0.35, 0, 1));
+            const end = clamp((life - TP) / 0.1, 0, 1);
+            const r = bloomR * k * (1 + 0.15 * end);
+            for (let i = 0; i < 8; i++) {
+                const a = -Math.PI + (i / 7) * Math.PI + life * 0.4 * dir;
+                const ex = Math.cos(a);
+                const ey = Math.sin(a) * 0.85;
+                fireTail(ctx, px, s, xx + ex * r, G - s + ey * r, ex, ey, r * 0.95, r * 0.55, pcol, life + i, 1 - end);
+            }
+            fireOrb(ctx, px, s, xx, G - s, bloomR * 0.35, SUN, life, k * (1 - end), G, 1, 0, [1, 0.8, 0.6, 0.38], 0.2);
+        } });
+        ultShake(4, 300);
+        ring(sc, xx, G - s, bloomR * 0.2, bloomR * 1.5, 0.8, 0.4, [pcol[1], '#ffffff'], 2);
+        sc.at(TP, () => {
+            impactFrames(sc, W, H, 0.5, 0.3);
+            ultShake(7, 500);
+            petalBurst(xx, G - bloomR * 0.4, s, 60, H * 1.2, { r: bloomR * 0.5 });
+            ring(sc, xx, G - s, bloomR * 0.5, Math.max(W, H) * 0.7, 0.7, 0.6, ['#ffffff', pcol[1], pcol[2]], 3);
+            sparkles(xx, G - bloomR * 0.5, s, ['#ffffff', SUN[1], pcol[1]], 20, bloomR, H * 0.25);
+        });
+        let fall = 0;
+        sc.tick((t, dt) => {
+            if (t < TP || t > TP + 1.5) {
+                return;
+            }
+            fall += dt * 16;
+            while (fall >= 1) {
+                fall -= 1;
+                petalBurst(rnd(0, W), -s * 2, s, 1, H * 0.25, { angle: Math.PI / 2, spread: 0.6, life: 2 });
+            }
+        });
+    };
     // ═════ 필살기 강화 — 공통 틀 모두 앞에 2초 기 모으기 (2026-10-19 태현 님: 모든 포켓몬 필살기를 리자몽 · 거북왕처럼) ═════
     // 쓰는 애 뒤로 그 필살기 색의 오라가 활활 · 빛줄기와 빛가루가 소용돌이치며 몸으로 빨려 듦 · 발밑 돌덩이가 떠올라 맴돎 · 두근할 때마다
     // 퍼지는 고리와 흔들림 · 막판엔 기가 넘쳐 지직 → 임팩트 프레임(하양 · 검정 한순간) · 충격파 두 겹 · 돌덩이가 사방으로 튕겨 나감
@@ -24242,6 +24413,13 @@ window.__ult = {
         'ultstorm', 'ultskyfall', 'ultthunder', 'ultvolt', 'ultswarm', 'ultrush', 'ultdive', 'ultbarrage', 'ultpsy', 'ultshadow'];
     const POWER_SKY = ['ultstorm', 'ultskyfall', 'ultthunder', 'ultvolt', 'ultswarm'];
     const POWER_EARTH = ['ultquake', 'ultpillar', 'ultbloom', 'ultvortex'];
+    // 큰 마무리(ultFinale)가 다 보이게 틀 뒤에 더 주는 시간 (초) — 틀 안의 시간은 그대로
+    const POWER_EXTRA = { ultorb: 0.7, ultbeam: 1.5, ultblackhole: 1.2, ultsparkle: (o) => (o.mode === 'moon' ? 0.8 : 0), ultquake: 0.2, ultpillar: 0.3,
+        ultbloom: (o) => (o.mode === 'vine' ? 1.3 : 0.6), ultvortex: 1.1,
+        ultstorm: (o) => (o.kind === 'petal' || o.kind === 'leaf' ? 1.2 : 0.3), ultskyfall: (o) => ((o.n ?? (['meteor', 'star'].includes(o.shape) ? 8 : 1)) > 1 ? 1.1 : 0.6),
+        ultthunder: (o) => (o.mode === 'pillar' ? 0.6 : 0.7), ultvolt: 1.0, ultswarm: (o) => (o.giant ? 0.3 : 1.2),
+        ultdive: 0.4, ultbarrage: 0.4, ultpsy: 0.6, ultshadow: 1.0 };
+    const extraOf = (fx, o) => (typeof POWER_EXTRA[fx] === 'function' ? POWER_EXTRA[fx](o) : POWER_EXTRA[fx] ?? 0);
     const powerCustom = (o) => !!(o.ninja || o.clones || o.lucario || o.turtle || o.mewtwo || o.mew || o.flare || o.blast || o.venus || o.aura);
     const auraEdge = (s, cols) => {
         const d = Math.max(1, Math.round(s * 0.6));
@@ -24436,7 +24614,7 @@ window.__ult = {
         }
         ULT_FX[fx] = {
             plain: base, // 기 모으기 없이 (잉어킹 → 갸라도스 파괴광선처럼 바로 쏠 때)
-            ms: (P, o) => base.ms(P, o) + (powerCustom(o) ? 0 : POWER_SEC * 1000),
+            ms: (P, o) => base.ms(P, o) + (powerCustom(o) ? 0 : (POWER_SEC + extraOf(fx, o)) * 1000),
             run: (u, o, ms, pokemon) => {
                 if (powerCustom(o) || !pokemon?.el) {
                     return base.run(u, o, ms, pokemon);
@@ -24451,7 +24629,7 @@ window.__ult = {
                         return; // 그새 끝남 (패널이 닫힘 등)
                     }
                     try {
-                        base.run(ultGeometry(pokemon, u.left), o, ms - POWER_SEC * 1000, pokemon);
+                        base.run(ultGeometry(pokemon, u.left), o, ms - (POWER_SEC + extraOf(fx, o)) * 1000, pokemon);
                     } catch (err) {
                         fail(fx, err);
                     }

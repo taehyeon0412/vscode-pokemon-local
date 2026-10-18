@@ -987,6 +987,7 @@
                     ultShake(4 + 5 * K, 900);
                     pp.flash = 1;
                     bigBoom(wx, cy, S, bc, size);
+                    ultFinale('dome', u, wx, Math.max(size * 1.4, u.H * 0.34), ac); // 큰 마무리
                     // 벽이 번쩍
                     sigParticle({ x: wx, y: 0, s: S, max: 0.35, draw: safeDraw((ctx, q, t, px) => {
                         ctx.globalAlpha = 0.8 * (1 - t);
@@ -1303,6 +1304,7 @@
                     ultShake(heavy ? 11 : 5 + 4 * K, heavy ? 1500 : 900);
                     pp.flash = 1;
                     bigBoom(tx, ty - S * 2, S, bc, size, { flat: 0.6 });
+                    ultFinale('dome', u, tx, Math.max(size * 1.3, u.H * (heavy ? 0.45 : 0.34)), ac); // 큰 마무리
                     crater(tx, ty - S, S, ac, size * 0.75, 1.8);
                     const reach = heavy ? W * 1.1 : W * 0.4 + size;
                     groundWave(tx, ty - S, S, ac, reach, heavy ? 0.9 : 0.8);
@@ -1621,6 +1623,9 @@
                     ultShake(5 + 5 * K, 850);
                     pp.flash = 1;
                     bigBoom(b.x, b.y, S, ['#ffffff', ...cols.slice(0, 3)], size);
+                    if (!o.aura) {
+                        ultFinale('dome', u, b.x, Math.max(size * 1.4, u.H * 0.34), cols); // 큰 마무리
+                    }
                     if (spinning || kind === 'slash') {
                         const L = Math.max(b.h, U * 0.6) * 3;
                         slashMark(b.x, b.y, S, cols, L, 0.8, 0.55, 2);
@@ -1906,6 +1911,7 @@
                     ultShake(5 + 3 * K, 750);
                     pp.flash = 0.8;
                     groundWave(cx, u.ground - S, S, cols, W * 0.9, 0.8);
+                    ultFinale('dome', u, cx, H * 0.42, cols); // 큰 마무리
                     for (const q of lift) {
                         const r = q.pokemon.collision.getBoundingClientRect();
                         const x = r.left + r.width / 2;
@@ -2150,6 +2156,7 @@
                 });
                 // 검은 폭발 — 내동댕이
                 later(tFling * 1000, () => {
+                    ultFinale('dome', u, grabs.length ? boxOf(grabs[0]).x : xs + u.dir * W * 0.3, H * 0.4, cols); // 큰 마무리
                     screenFlash(S, 0.42, cols[1], 0.24);
                     later(70, () => screenFlash(S, 0.3, '#ffffff', 0.16));
                     ultShake(5 + 4 * K, 850);

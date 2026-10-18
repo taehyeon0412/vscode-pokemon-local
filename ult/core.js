@@ -55,6 +55,32 @@ const ULT_DEFAULT_C = { ultbeam: 'hyper', ultnova: 'hyper', ultvolt: 'electric',
 const ULT_ORB_C = { energy: 'hyper', flame: 'fire', shadow: 'ghost', aura: 'aura', water: 'water', ice: 'ice', leaf: 'grass' };
 const ultCols = (o, fx) => sigPal(o.c || (fx === 'ultorb' && ULT_ORB_C[o.style]) || ULT_DEFAULT_C[fx] || 'gold');
 const ultClamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+// 큰 마무리 — 공통 틀이 절정에서 부름 (fx-sky.js 가 채움: dome 빛의 반구 대폭발 · pillar 화면 꼭대기까지 기둥). 2026-10-19
+const ULT_FINALE = {};
+function ultFinale(kind, ...args) {
+    try {
+        ULT_FINALE[kind]?.(...args);
+    } catch (err) {
+        ultError(`finale ${kind}`, err);
+    }
+}
+// sec 초 뒤에 — make() 가 [kind, ...args] 를 돌려줌 (그때의 자리로). 그새 필살기가 끝났으면 안 함
+function ultFinaleAt(sec, make) {
+    const who = ultActive?.pokemon;
+    setTimeout(() => {
+        if (who && ultActive?.pokemon !== who) {
+            return;
+        }
+        try {
+            const a = make();
+            if (a) {
+                ultFinale(...a);
+            }
+        } catch (err) {
+            ultError('finaleAt', err);
+        }
+    }, sec * 1000);
+}
 // 받침 — 받침 있으면 a, 없으면 b ("리자몽으로" · "피카츄로")
 const josa = (word, a, b) => {
     const c = word.charCodeAt(word.length - 1) - 0xac00;
