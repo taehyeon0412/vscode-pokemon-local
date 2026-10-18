@@ -5523,31 +5523,34 @@
     }
 
     // 솔라빔 — 등의 꽃이 활짝 → 2초 동안 하늘에서 햇빛 줄기가 내려오고 둘레의 빛 줄기 · 빛가루가 소용돌이치며 꽃으로 모여듦
-    // (꽃잎이 꽃 둘레를 돌며 좁혀 들고, 꽃 위의 햇빛 구가 네 번 두근하며 커짐) → 번쩍! 임팩트 → 꽃에서 굵은 햇빛 광선이 앞쪽 땅(가장 가까운 애)으로 쏟아짐
-    // (광선을 따라 에너지 마디가 달리고 꽃잎이 나선으로 감아 돎, 꽃 앞엔 빛살이 도는 햇빛 구) · 맞은 자리에 빛 덩이 · 충격파 · 흙 · 빛가루
-    // → 광선이 가늘어지며 맞은 자리에서 거대한 빛의 꽃이 피었다 → 꽃잎 폭풍으로 흩날림
+    // (꽃잎이 꽃 둘레를 돌며 좁혀 들고, 꽃 위의 햇빛 구가 네 번 두근하며 커짐) → 번쩍! → 꽃 앞 빛 폭발과 함께 굵은 햇빛 광선이 땅과 나란히 화면 끝까지
+    // (광선 아래가 땅 위에 오게 · 굵기는 이상해꽃 크기에 맞춰, 하얀 에너지 고리 · 마디가 달리고 꽃잎이 나선으로 감아 돎, 반동으로 몸이 밀리며 떨림)
+    // · 가장 가까운 애 자리에서 빛 폭발(빛 덩이 · 빛나는 땅 · 도는 빛살 · 분수 같은 빛가루 · 충격파) → 광선이 가늘어지며 그 자리에 거대한 빛의 꽃이 피었다 꽃잎 폭풍.
+    // 이상해꽃은 진짜 그림을 숨기고 광선 앞에 꼭두각시로 그림 (광선에 가려 안 보이지 않게), 꽃 위 햇빛 구만 그 위에
     function runSolarBeam(u, o, ms, pokemon) {
         const P = strength(u);
         const sec = ms / 1000;
         const { W, H, S: s, dir } = u;
         const G = u.ground;
         const hit = makeHit();
+        const img = pokemon.el;
         const me = monBox(pokemon);
+        const edge = Math.max(1, Math.round(u.s * 0.75));
+        const left = dir < 0;
         const D = Math.min(Math.max(H / 3, short(u) * 0.4) * (0.9 + 0.2 * P), W * 0.42, H * 0.62);
-        // 꽃 — 이상해꽃 그림(32칸)에서 꽃 가운데는 가로 한가운데 · 아래에서 61% 높이. 빛은 꽃 조금 앞 위에서
+        // 꽃 — 이상해꽃 그림(32칸)에서 꽃 가운데는 가로 한가운데 · 아래에서 61% 높이
         const mx = me.x + dir * me.w * 0.08;
         const my = me.b - me.h * 0.66;
         const Ro = Math.max(s * 6, me.w * 0.45); // 햇빛 구
-        const bw = clamp(H * 0.15 * (0.9 + 0.2 * P), 12, H * 0.3); // 광선 굵기
-        // 맞는 곳 — 가장 가까운 애의 발치, 없으면 앞쪽 땅
+        const bw = clamp(H * 0.12 * (0.9 + 0.2 * P), 12, Math.max(16, me.h * 1.3)); // 광선 굵기 — 이상해꽃 크기에 맞춰
+        // 광선 — 땅과 나란히, 아래가 땅 위에 오는 높이로 꽃 앞에서 화면 끝까지
+        const yb = Math.max(bw, Math.min(my, G - bw * 0.8));
+        const bx = me.x + dir * me.w * 0.45; // 광선 시작 — 이상해꽃 앞쪽 (몸을 덮지 않게)
+        const blen = (dir > 0 ? W - bx : bx) + bw;
+        // 빛 폭발 자리 — 앞쪽에서 가장 가까운 애, 없으면 앞쪽 55%
         const q = nearest(u);
-        // 과녁이 너무 가까우면 광선이 짧아 보여서 적어도 화면 너비의 35% 는 뻗음 (가까운 애는 광선이 지나가며 맞음)
-        const far = (x) => (Math.abs(x - mx) < W * 0.35 ? mx + dir * W * 0.35 : x);
-        const ix = clamp(q ? far(q.x) : mx + dir * W * 0.6, W * 0.05, W * 0.95);
-        const iy = G - s * 2;
-        const blen = Math.hypot(ix - mx, iy - my) || 1;
-        const ux = (ix - mx) / blen;
-        const uy = (iy - my) / blen;
+        const ahead = q && Math.sign(q.x - me.x) === dir && Math.abs(q.x - me.x) > me.w * 0.6;
+        const ix = clamp(ahead ? q.x : me.x + dir * W * 0.55, W * 0.05, W * 0.95);
         // 때 — (기 모으기) · 번쩍 · 광선 · 다 닿음 · 가늘어짐 · 빛의 꽃 · 꽃잎 폭풍
         const TC0 = 0.25;
         const TF = 2.3;
@@ -5560,9 +5563,74 @@
         const pullR = Math.max(Ro * 4, D * 1.1);
         const sc = scene(u, sec + 0.3, 'ultbeam');
         ultDark(0.35, ms - 200);
+        hideMon(pokemon, true);
+        hideUntil(pokemon, ms + 100);
         const beatAt = (t) => pulses.reduce((m, tp) => Math.max(m, clamp(1 - Math.abs(t - tp) / 0.1, 0, 1)), 0);
-        // 꽃이 활짝 — 살짝 웅크렸다 폄
-        sc.at(0.05, () => recoil(pokemon, [{ translate: '0 0' }, { translate: `0 ${u.s * 2}px` }], 350));
+        const reachAt = (t) => blen * easeOut(clamp((t - TB) / (TH - TB), 0, 1));
+        const widthAt = (t) => {
+            if (t < TB) {
+                return 0;
+            }
+            const burst = 1 + 0.35 * clamp(1 - (t - TB) / 0.3, 0, 1); // 쏘는 순간 굵게
+            const thin = t > TN ? Math.max(0, 1 - (t - TN) / 0.35) : 1;
+            return bw * burst * thin * (1 + 0.04 * Math.sin(t * 40));
+        };
+
+        // ③ 광선 (이상해꽃 뒤) — 몸통 · 날아가는 머리 · 감아 도는 꽃잎 · 빛 폭발 자리
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            const w = widthAt(life);
+            if (w < s) {
+                return;
+            }
+            const len = reachAt(life);
+            beamBody(ctx, px, s, bx, yb, dir, 0, len, w, SUN, life, 1, G);
+            if (life < TH + 0.05) {
+                fireOrb(ctx, px, s, bx + dir * len, yb, w * 0.8, SUN, life, 1, G, 1, 0, [1, 0.8, 0.6, 0.38], 0.3); // 날아가는 광선 머리
+            }
+            const pp = new Path2D();
+            for (let i = 0; i < 16; i++) {
+                const f = (life * 1.4 + i / 16) % 1;
+                const ph = life * 12 * dir + i * 0.9;
+                const y = yb + Math.sin(ph) * w * 0.8;
+                if (y < G) {
+                    petalAt(pp, px, s, bx + dir * f * len, y, s * (Math.cos(ph) > 0 ? 2 : 1), Math.sin(life * 10 + i) > 0);
+                }
+            }
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = PINK[2];
+            ctx.fill(pp);
+            // 빛 폭발 자리 — 빛나는 땅 · 도는 빛살 · 빛 덩이
+            if (life >= TH && Math.abs(ix - bx) <= len) {
+                const kk = Math.min(1, w / bw);
+                ellipse(ctx, px, s, ix, G, w * 2.4 * kk, w * 0.25 * kk, SUN[3], 0.6);
+                ellipse(ctx, px, s, ix, G, w * 1.5 * kk, w * 0.16 * kk, SUN[1], 0.8);
+                const ir = new Path2D();
+                for (let i = 0; i < 12; i++) {
+                    const a = (i / 12) * TAU + life * 1.5;
+                    const L = w * (1.5 + 0.8 * Math.sin(life * 11 + i * 2.3)) * kk;
+                    addLine(ir, px, s, [[ix + Math.cos(a) * w * 0.6, yb + Math.sin(a) * w * 0.6], [ix + Math.cos(a) * L, Math.min(G, yb + Math.sin(a) * L)]], 2);
+                }
+                ctx.globalAlpha = 0.6;
+                ctx.fillStyle = SUN[1];
+                ctx.fill(ir);
+                fireOrb(ctx, px, s, ix, yb, w * 1.15, SUN, life + 3, (1 + 0.12 * Math.sin(life * 25)) * kk, G, 1, 0, [1, 0.8, 0.6, 0.38], 0.6);
+            }
+        } });
+        // 이상해꽃 (광선 앞) — 쏘는 동안 반동으로 뒤로 밀리며 떨림
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life >= sec - 0.12) {
+                return;
+            }
+            const firing = life > TB && life < TN + 0.2;
+            const kick = firing ? -dir * s * (1.5 + Math.sin(life * 60)) * (life < TB + 0.15 ? 2 : 1) : 0;
+            drawLitMon(ctx, img, me.x + kick, me.b, me.w, left, SUN[2], edge, 1);
+            const glow = clamp((life - TC0) / 1.5, 0, 1) * (life < TN + 0.3 ? 1 : 0);
+            drawMon(ctx, img, me.x + kick, me.b, me.w, left, glow * (0.15 + 0.1 * Math.sin(life * 18)), SUN[1]);
+        } });
+        sc.at(sec - 0.12, () => hideMon(pokemon, false));
+        // 꽃이 활짝
         sc.at(0.1, () => {
             petalBurst(mx, my, s, 14, H * 0.5, { r: Ro });
             ring(sc, mx, my, Ro * 0.5, Ro * 3, 0.8, 0.4, [PINK[1], '#ffffff'], 2);
@@ -5577,7 +5645,6 @@
             if (ramp <= 0) {
                 return;
             }
-            // 햇빛 줄기 — 화면 위에서 꽃으로 비스듬히 모이는 다섯 줄 (점점 밝아지며 깜빡) + 줄기를 타고 꽃으로 흘러내리는 빛 알갱이
             const rays = [new Path2D(), new Path2D()];
             const motes = new Path2D();
             for (let i = 0; i < 5; i++) {
@@ -5585,9 +5652,7 @@
                 addLine(rays[i % 2], px, s, [[top, -s * 2], [mx, my]], 1);
                 for (let j = 0; j < 4; j++) {
                     const f = ((life - TC0) * (0.8 + 1.2 * k) + j / 4 + i * 0.13) % 1;
-                    const x = lerp(top, mx, f * f);
-                    const y = lerp(-s * 2, my, f * f);
-                    motes.rect(px(x - s), px(y - s), 2 * s, 2 * s);
+                    motes.rect(px(lerp(top, mx, f * f) - s), px(lerp(-s * 2, my, f * f) - s), 2 * s, 2 * s);
                 }
             }
             ctx.globalAlpha = ramp * (0.45 + 0.35 * k) * (0.8 + 0.2 * Math.sin(life * 9));
@@ -5598,7 +5663,6 @@
             ctx.globalAlpha = ramp;
             ctx.fillStyle = '#ffffff';
             ctx.fill(motes);
-            // 꽃 둘레를 도는 꽃잎 — 점점 빨라지며 좁혀 듦
             const pp = new Path2D();
             const rr = lerp(Ro * 2.6, Ro * 1.3, k);
             for (let i = 0; i < 10; i++) {
@@ -5608,11 +5672,31 @@
             ctx.globalAlpha = ramp;
             ctx.fillStyle = PINK[2];
             ctx.fill(pp);
-            // 햇빛 구 — 점점 커지며 두근두근, 번쩍 때 확
             const flash = clamp((life - TF) / 0.06, 0, 1);
             const orb = (0.45 + 0.55 * k) * (1 + 0.15 * beatAt(life) + 0.4 * flash);
             fireOrb(ctx, px, s, mx, my, Ro, SUN, life, orb * ramp, Infinity, 0.95, 0, [1, 0.8, 0.6, 0.38], 0.5);
             orbitEmbers(ctx, px, s, mx, my, Ro * orb * 1.35, SUN, life, dir, ramp * clamp((life - TC0 - 0.3) / 0.3, 0, 1));
+        } });
+        // 쏘는 동안 꽃 위 햇빛 구 · 도는 빛살 (이상해꽃 위)
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            const w = widthAt(life);
+            if (w < s) {
+                return;
+            }
+            // 꽃 위에 작게 — 이상해꽃 몸이 보이게
+            const oy = my - Ro * 0.35;
+            const rays = new Path2D();
+            for (let i = 0; i < 10; i++) {
+                const a = -Math.PI + ((i + 0.5) / 10) * Math.PI + Math.sin(life * 2 + i) * 0.1;
+                const L = Ro * (1.2 + 0.5 * Math.sin(life * 13 + i * 1.9));
+                addLine(rays, px, s, [[mx + Math.cos(a) * Ro * 0.5, oy + Math.sin(a) * Ro * 0.5], [mx + Math.cos(a) * L, oy + Math.sin(a) * L]], 1);
+            }
+            ctx.globalAlpha = 0.7;
+            ctx.fillStyle = SUN[1];
+            ctx.fill(rays);
+            const blast = 1 + 0.6 * clamp(1 - (life - TB) / 0.25, 0, 1); // 쏘는 순간 크게 터졌다 줄어듦
+            fireOrb(ctx, px, s, mx, oy, Ro * 0.5, SUN, life, blast + 0.1 * Math.sin(life * 30), G, 1, 0, [1, 0.8, 0.6, 0.38], 0.3);
         } });
         for (const tp of pulses) {
             sc.at(tp, () => {
@@ -5626,89 +5710,23 @@
             ultShake(5, 250);
             ring(sc, mx, my, Ro, pullR * 1.2, 1, 0.35, ['#ffffff', SUN[1], SUN[2]], 3);
         });
-        // ③ 광선 — 머리가 0.14초 만에 맞는 곳까지 → 2초 동안 쏟아지다 가늘어짐
-        const reachAt = (t) => blen * easeOut(clamp((t - TB) / (TH - TB), 0, 1));
-        const widthAt = (t) => {
-            if (t < TB) {
-                return 0;
-            }
-            const burst = 1 + 0.35 * clamp(1 - (t - TB) / 0.3, 0, 1); // 쏘는 순간 굵게
-            const thin = t > TN ? Math.max(0, 1 - (t - TN) / 0.35) : 1;
-            return bw * burst * thin * (1 + 0.04 * Math.sin(t * 40));
-        };
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
-            const life = sc.t;
-            const w = widthAt(life);
-            if (w < s) {
-                return;
-            }
-            const len = reachAt(life);
-            // 꽃 앞 빛살 — 도는 빛줄기
-            const rays = new Path2D();
-            for (let i = 0; i < 12; i++) {
-                const a = (i / 12) * TAU + life * 2.5 * dir;
-                const L = w * (1.2 + 0.6 * Math.sin(life * 13 + i * 1.9));
-                addLine(rays, px, s, [[mx + Math.cos(a) * w * 0.55, my + Math.sin(a) * w * 0.55], [mx + Math.cos(a) * L, my + Math.sin(a) * L]], 2);
-            }
-            ctx.globalAlpha = 0.55;
-            ctx.fillStyle = SUN[1];
-            ctx.fill(rays);
-            beamBody(ctx, px, s, mx, my, ux, uy, len, w, SUN, life, 1, G);
-            if (life < TH + 0.05) {
-                fireOrb(ctx, px, s, mx + ux * len, my + uy * len, w * 0.8, SUN, life, 1, G, 1, 0, [1, 0.8, 0.6, 0.38], 0.3); // 날아가는 광선 머리
-            }
-            // 광선을 감아 도는 꽃잎 — 나선으로 앞으로 달려감
-            const pp = new Path2D();
-            for (let i = 0; i < 16; i++) {
-                const f = (life * 1.4 + i / 16) % 1;
-                const at = f * len;
-                const ph = life * 12 * dir + i * 0.9;
-                const off = Math.sin(ph) * w * 0.8;
-                const x = mx + ux * at - uy * off;
-                const y = my + uy * at + ux * off;
-                if (y < G) {
-                    petalAt(pp, px, s, x, y, s * (Math.cos(ph) > 0 ? 2 : 1), Math.sin(life * 10 + i) > 0);
-                }
-            }
-            ctx.globalAlpha = 1;
-            ctx.fillStyle = PINK[2];
-            ctx.fill(pp);
-            // 꽃 앞 햇빛 구
-            const blast = 1 + 1.2 * clamp(1 - (life - TB) / 0.25, 0, 1); // 쏘는 순간 크게 터졌다 줄어듦
-            fireOrb(ctx, px, s, mx, my, w * 0.65, SUN, life, blast + 0.1 * Math.sin(life * 30), Infinity, 1, 0, [1, 0.8, 0.6, 0.38], 0.3);
-            // 맞은 자리 — 빛 덩이
-            if (life >= TH) {
-                const kk = Math.min(1, w / bw);
-                ellipse(ctx, px, s, ix, G, w * 2.4 * kk, w * 0.25 * kk, SUN[3], 0.6); // 빛나는 땅
-                ellipse(ctx, px, s, ix, G, w * 1.5 * kk, w * 0.16 * kk, SUN[1], 0.8);
-                const ir = new Path2D();
-                for (let i = 0; i < 10; i++) {
-                    const a = -Math.PI + ((i + 0.5) / 10) * Math.PI + Math.sin(life * 3 + i) * 0.15;
-                    const L = w * (1.6 + 0.8 * Math.sin(life * 11 + i * 2.3)) * kk;
-                    addLine(ir, px, s, [[ix + Math.cos(a) * w * 0.6, iy + Math.sin(a) * w * 0.6], [ix + Math.cos(a) * L, iy + Math.sin(a) * L]], 2);
-                }
-                ctx.globalAlpha = 0.6;
-                ctx.fillStyle = SUN[1];
-                ctx.fill(ir);
-                fireOrb(ctx, px, s, ix, iy, w * 1.3, SUN, life + 3, (1 + 0.12 * Math.sin(life * 25)) * kk, G, 1, 0, [1, 0.8, 0.6, 0.38], 0.6);
-            }
-        } });
-        // 쏘는 순간 — 꽃 앞 큰 고리 · 흔들림
+        // 쏘는 순간 — 꽃 앞 큰 고리 · 빛가루
         sc.at(TB, () => {
             ultShake(6, 400);
-            ring(sc, mx, my, bw * 0.5, bw * 3.5, 1, 0.35, ['#ffffff', SUN[1]], 3);
-            fireBits(mx, my, s, SUN, 40, { spread: TAU, speed: H * 0.8, drag: 2.4, life: 0.6, rx: bw * 0.3, ry: bw * 0.3 });
+            ring(sc, bx, yb, bw * 0.5, bw * 3.5, 1, 0.35, ['#ffffff', SUN[1]], 3);
+            fireBits(bx, yb, s, SUN, 40, { spread: TAU, speed: H * 0.8, drag: 2.4, life: 0.6, rx: bw * 0.3, ry: bw * 0.3 });
         });
-        // 다 닿는 순간 — 하얀 임팩트 · 큰 충격파 · 흙 · 빛가루
-        sc.at(TH, () => {
+        // 빛 폭발 자리에 닿는 순간 — 큰 충격파 · 흙 · 빛가루
+        const TX = TB + (TH - TB) * clamp(Math.abs(ix - bx) / blen, 0, 1);
+        sc.at(TX, () => {
             screenFlash(s, 0.4, SUN[0], 0.12);
             ultShake(9, 700);
-            ring(sc, ix, iy, bw * 0.6, Math.max(W, H) * 0.6, 0.6, 0.55, ['#ffffff', SUN[1], SUN[2]], 3);
+            ring(sc, ix, yb, bw * 0.6, Math.max(W, H) * 0.6, 0.6, 0.55, ['#ffffff', SUN[1], SUN[2]], 3);
             ring(sc, ix, G - s, bw * 0.5, bw * 4, 0.18, 0.5, [SUN[2], '#ffffff'], 2);
             debris(ix, G - s, s, ['#6b5a3e', '#8a7350', '#4f8a2e', '#7cc24a'], 36, H * 1.1, { ground: G, angle: -Math.PI / 2 - dir * 0.5, spread: 1.6 });
-            fireBits(ix, iy, s, SUN, 50, { angle: -Math.PI / 2 - dir * 0.4, spread: Math.PI * 1.2, speed: H * 1.1, drag: 2, life: 0.8 });
+            fireBits(ix, yb, s, SUN, 50, { angle: -Math.PI / 2 - dir * 0.4, spread: Math.PI * 1.2, speed: H * 1.1, drag: 2, life: 0.8 });
         });
-        // 광선이 쏟아지는 동안 — 0.3초마다 충격파, 빛가루 · 흙이 튀고, 광선에 닿은 애 날아감
+        // 광선이 쏟아지는 동안 — 0.3초마다 충격파, 빛가루가 분수처럼, 광선에 닿은 애 날아감
         let pulse = 0;
         let bits = 0;
         sc.tick((t, dt) => {
@@ -5718,26 +5736,24 @@
             pulse += dt;
             if (pulse >= 0.3) {
                 pulse = 0;
-                ring(sc, ix, iy, bw * 0.5, bw * 2.2, 0.7, 0.3, [SUN[1], '#ffffff'], 2);
+                ring(sc, ix, yb, bw * 0.5, bw * 2.2, 0.7, 0.3, [SUN[1], '#ffffff'], 2);
                 ultShake(3, 200);
             }
             bits += dt * 90;
             while (bits >= 1) {
                 bits -= 1;
-                fireBits(ix, iy - bw * 0.3, s, SUN, 1, { angle: -Math.PI / 2 - dir * 0.5, spread: 1.6, speed: H * 1.1, drag: 1.6, g: H * 1.2, life: 0.8 });
+                fireBits(ix, yb - bw * 0.3, s, SUN, 1, { angle: -Math.PI / 2 - dir * 0.5, spread: 1.6, speed: H * 1.1, drag: 1.6, g: H * 1.2, life: 0.8 });
             }
             for (const r of u.others()) {
-                const vx = r.x - mx;
-                const vy = r.y - my;
-                const along = vx * ux + vy * uy;
-                const across = Math.abs(-vx * uy + vy * ux);
-                if ((along > 0 && along < blen && across < bw * 0.6 + r.h * 0.5) || Math.hypot(r.x - ix, r.y - iy) < bw * 1.5) {
-                    hit(r, Math.sign(r.x - mx) || dir, 'tumble');
+                const along = (r.x - bx) * dir;
+                if (along > 0 && Math.abs(r.y - yb) < bw * 0.6 + r.h * 0.5) {
+                    hit(r, dir, 'tumble');
                 }
             }
         });
-        // ④ 빛의 꽃 — 맞은 자리에 꽃잎 여덟 장이 활짝 피었다 → 꽃잎 폭풍
+        // ④ 빛의 꽃 — 빛 폭발 자리 땅에서 꽃잎 여덟 장이 활짝 피었다 → 꽃잎 폭풍
         const bloomR = Math.min(bw * 2.4, G * 0.6);
+        const iy = G - s * 2;
         sc.add({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
             if (life < TBL || life > TP + 0.1) {
@@ -5747,7 +5763,7 @@
             const end = clamp((life - TP) / 0.1, 0, 1);
             const r = bloomR * k * (1 + 0.15 * end);
             for (let i = 0; i < 8; i++) {
-                const a = -Math.PI + (i / 7) * Math.PI + (life - TBL) * 0.4 * dir; // 위쪽 반원 + 아래로 살짝
+                const a = -Math.PI + (i / 7) * Math.PI + (life - TBL) * 0.4 * dir;
                 const ex = Math.cos(a);
                 const ey = Math.sin(a) * 0.85;
                 fireTail(ctx, px, s, ix + ex * r, iy + ey * r, ex, ey, r * 0.95, r * 0.55, PINK, life + i, 1 - end);
@@ -5785,11 +5801,47 @@
     }
 
     // 하드플랜트 (메가이상해꽃) — 초록 기운 · 잎이 소용돌이치며 모이고 발밑이 초록으로 빛남(초록 빛 구 · 덩굴 싹이 꿈틀) 1.5초
-    // → 진화 모션(하얀 실루엣이 이상해꽃 ↔ 메가이상해꽃으로 점점 빠르게, 빛줄기) → 펑! 메가이상해꽃 (진짜 그림은 숨기고 같은 폴더의 mega 그림 — add-form.py · PMD SpriteCollab,
-    // 그림이 없으면 원래 모습 그대로) → 앞발로 땅을 쿵 — 빛나는 금이 앞으로 달려가고 그 자리마다 거대한 덩굴 · 나무뿌리가 파도처럼 연달아 솟아 휘감음(닿은 애 떠오름)
+    // → 진화 모션(하얀 실루엣이 이상해꽃 ↔ 메가이상해꽃으로 점점 빠르게, 빛줄기) → 펑! 메가이상해꽃 (PMD SpriteCollab 에 메가이상해꽃 몸 그림이 없어서(초상화만)
+    // 진짜 그림을 숨기고 원래 그림을 1.35배로 키워 등에 거대한 꽃을 그려 올림 — megaVenus) → 앞발로 땅을 쿵 — 빛나는 금이 앞으로 달려가고 그 자리마다 거대한 덩굴 · 나무뿌리가 파도처럼 연달아 솟아 휘감음(닿은 애 떠오름)
     // → 끝에서 거대한 꽃이 피어 꽃잎 폭풍이 화면을 휩쓺 → 덩굴이 땅속으로 → 하얀 실루엣이 깜빡이며 원래 모습으로
     const VINE = ['#e9ffb0', '#9be05a', '#4fa83a', '#1f5a2a']; // 잎 · 덩굴 (연두 → 짙은 초록)
     const BARK = ['#2e2014', '#5a4030', '#7a5a40']; // 나무뿌리 (짙은 → 옅은 갈색)
+    const WHITE4 = ['#ffffff', '#ffffff', '#ffffff', '#ffffff'];
+    // 메가이상해꽃 — 원래 그림(img)을 1.35배로, 등의 꽃 자리(가운데 · 아래에서 61%)에 거대한 꽃: 바깥 꽃잎 일곱 장 · 안쪽 꽃잎 · 노란 꽃술 · 양옆 큰 잎.
+    // white 1 이면 하얀 실루엣(진화 모션), 0 ~ 1 이면 그만큼 하얗게 덮음
+    function megaVenus(ctx, px, s, img, x, b, w, left, T, edge, white = 0) {
+        const wM = w * 1.35;
+        const fx = x;
+        const fy = b - wM * 0.62;
+        const rf = wM * 0.36;
+        const solid = white >= 1;
+        if (solid) {
+            drawLitMon(ctx, img, x, b, wM, left, PINK[2], edge, 1);
+            drawMon(ctx, img, x, b, wM, left, 1, '#ffffff');
+        } else {
+            drawLitMon(ctx, img, x, b, wM, left, VINE[2], edge, 1);
+        }
+        // 양옆 큰 잎
+        for (const sd of [-1, 1]) {
+            const a = Math.PI / 2 - sd * (Math.PI / 2 + 0.35) + Math.sin(T * 3 + sd) * 0.05;
+            fireTail(ctx, px, s, fx + Math.cos(a) * rf * 1.15, fy + Math.sin(a) * rf * 1.15, Math.cos(a), Math.sin(a), rf * 0.9, rf * 0.5, solid ? WHITE4 : VINE, T + sd, 1);
+        }
+        // 바깥 꽃잎 · 안쪽 꽃잎
+        for (const [n, len, wid, cols, off] of [[7, 1, 0.72, PINK, 0], [6, 0.68, 0.6, ['#fff7fb', '#ffe0ec', '#ffc2d6', '#ff8fb8'], 0.25]]) {
+            for (let i = 0; i < n; i++) {
+                const a = -Math.PI - 0.2 + ((i + off) / (n - 1)) * (Math.PI + 0.4) + Math.sin(T * 3 + i) * 0.05;
+                const L = rf * len;
+                fireTail(ctx, px, s, fx + Math.cos(a) * L, fy + Math.sin(a) * L * 0.8, Math.cos(a), Math.sin(a) * 0.8, L * 0.95, L * wid, solid ? WHITE4 : cols, T + i, 1);
+            }
+        }
+        // 노란 꽃술
+        ellipse(ctx, px, s, fx, fy, rf * 0.3, rf * 0.2, solid ? '#ffffff' : '#ff9f1c', 1);
+        ellipse(ctx, px, s, fx, fy - s, rf * 0.2, rf * 0.13, solid ? '#ffffff' : '#ffe066', 1);
+        if (!solid && white > 0) {
+            drawMon(ctx, img, x, b, wM, left, white, '#ffffff');
+            fireOrb(ctx, px, s, fx, fy, rf * 0.9, WHITE4, T, 1, Infinity, white * 0.8);
+        }
+    }
     // 덩굴 한 줄기 — 땅(x, G)에서 솟아 끝이 side 쪽으로 갈고리처럼 말림. 길이 h, 밑동 굵기 w → 끝으로 가늘게, grow(0 ~ 1)만큼 자람.
     // 짙은 테두리 · 초록 몸통 · 밝은 줄 · 마디 무늬, 가는 덩굴이 나선으로 휘감고(앞쪽일 때만 보임), 큰 잎 몇 장 · 밑동엔 갈색 뿌리가 땅을 뚫고 퍼짐
     function vine(ctx, px, s, x, G, h, w, T, grow, side, seed) {
@@ -5884,13 +5936,6 @@
         const edge = Math.max(1, Math.round(u.s * 0.75));
         const D = Math.min(Math.max(H / 3, short(u) * 0.4) * (0.9 + 0.2 * P), W * 0.42, H * 0.62);
         const left = dir < 0;
-        // 메가 그림 — 같은 폴더의 mega_idle (정면). 없으면 원래 그림으로
-        const mega = new Image();
-        mega.src = (img.src || '').replace(/[^/]+\.gif(\?.*)?$/, 'mega_idle_8fps.gif');
-        const megaReady = () => mega.complete && mega.naturalWidth > 0;
-        const megaImg = () => (megaReady() ? mega : img);
-        const megaW = () => (megaReady() ? mega.naturalWidth * u.s : me.w);
-        const megaLeft = () => (megaReady() ? false : left);
         // 때 — (기 모으기) · 진화 모션 · 펑(메가) · 쿵 · (덩굴 파도) · 꽃 · 꽃잎 폭풍 · 덩굴이 들어감 · 원래대로
         const TE = 1.5;
         const TM = 2.8;
@@ -5962,25 +6007,21 @@
                 fireOrb(ctx, px, s, cx, cy, Ro, GLOW, life, (0.6 + 0.5 * k) * ramp, G, 0.6);
                 const flips = (life - TE) * (3 + 8.5 * k);
                 const showMega = k > 0.9 || Math.floor(flips) % 2 === 1;
-                const im = showMega ? megaImg() : img;
                 const swell = 1.1 + (k > 0.9 ? 0.15 : 0.3 * Math.sin((flips % 1) * Math.PI));
-                const w = (showMega ? megaW() : me.w) * swell;
-                const lf = showMega ? megaLeft() : left;
-                drawLitMon(ctx, im, cx, me.b, w, lf, showMega ? PINK[2] : VINE[1], edge * 2, 1);
-                drawMon(ctx, im, cx, me.b, w, lf, 1, '#ffffff');
+                if (showMega) {
+                    megaVenus(ctx, px, s, img, cx, me.b, me.w * swell, left, life, edge * 2, 1);
+                } else {
+                    drawLitMon(ctx, img, cx, me.b, me.w * swell, left, VINE[1], edge * 2, 1);
+                    drawMon(ctx, img, cx, me.b, me.w * swell, left, 1, '#ffffff');
+                }
                 return;
             }
-            const w = megaW();
             const stomp = life > TS - 0.25 && life < TS ? -Math.sin(((life - TS + 0.25) / 0.25) * Math.PI) * s * 4 : 0; // 앞발을 들었다 쿵
-            drawLitMon(ctx, megaImg(), cx, me.b + stomp, w, megaLeft(), VINE[2], edge, 1);
-            const appear = clamp(1 - (life - TM) / 0.35, 0, 1);
-            if (appear > 0) {
-                drawMon(ctx, megaImg(), cx, me.b, w, megaLeft(), appear, '#ffffff');
+            if (life > TBack - 0.4 && Math.floor((life - TBack + 0.4) / 0.06) % 2 === 1) {
+                drawMon(ctx, img, cx, me.b, me.w, left, 1, '#ffffff'); // 원래대로 — 깜빡
+                return;
             }
-            if (life > TBack - 0.4) {
-                const back = Math.floor((life - TBack + 0.4) / 0.06) % 2 === 1;
-                drawMon(ctx, back ? img : megaImg(), cx, me.b, back ? me.w : w, back ? left : megaLeft(), 1, '#ffffff');
-            }
+            megaVenus(ctx, px, s, img, cx, me.b + stomp, me.w, left, life, edge, life > TBack - 0.4 ? 1 : clamp(1 - (life - TM) / 0.35, 0, 0.99));
         } });
 
         // ① 기 모으기 — 초록 기운 · 잎이 소용돌이치며 모이고, 발밑이 빛나며 덩굴 싹이 꿈틀
