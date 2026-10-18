@@ -7,6 +7,7 @@
 import io
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -51,7 +52,7 @@ ULT = {
     "ultshadow": "c",
     "ultsplash": "", "ultcopy": "", "ultmetronome": "",
 }
-COMMON_ULT = {"tint", "tc"}
+COMMON_ULT = {"tint", "tc", "uniq"}  # uniq — ult/fx-unique.js 의 전용 필살기 이름
 ENUMS = {
     ("ultorb", "style"): {"energy", "flame", "shadow", "aura", "water", "ice", "leaf"},
     ("ultsparkle", "mode"): {"twinkle", "moon"},
@@ -72,6 +73,10 @@ def keys_by_gen():
     return json.loads(out)
 
 
+# 전용 필살기 이름 → 틀 (ult/fx-unique.js 의 UNIQ.<이름> = { fx: '<틀>' … })
+UNIQ = dict(re.findall(r"UNIQ\.(\w+)\s*=\s*\{\s*fx:\s*'(\w+)'", open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "ult", "fx-unique.js"), encoding="utf-8").read()))
+
+
 def check_move(where, m, table, common=frozenset()):
     errs = []
     if not isinstance(m, list) or len(m) < 2 or not isinstance(m[0], str) or not m[0]:
@@ -83,6 +88,12 @@ def check_move(where, m, table, common=frozenset()):
     if not isinstance(o, dict):
         return [f"{where}: 옵션이 객체가 아님"]
     allowed = set(table[fx].split()) | common
+    if "uniq" in o and table is ULT:
+        u = UNIQ.get(o["uniq"])
+        if u is None:
+            errs.append(f"{where}: ult/fx-unique.js 에 없는 전용 필살기 '{o['uniq']}'")
+        elif u != fx:
+            errs.append(f"{where}: 전용 필살기 '{o['uniq']}' 은 '{u}' 틀 — '{fx}' 아님")
     for k, v in o.items():
         if k not in allowed:
             errs.append(f"{where}: '{fx}' 에 없는 옵션 '{k}'")

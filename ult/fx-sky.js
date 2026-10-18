@@ -8678,4 +8678,13 @@
             },
         };
     }
+    // 전용 필살기(fx-unique.js)가 쓰는 도구 — 이 파일 안 이름을 밖으로
+    Object.assign(ULT_KIT, {
+        TAU, rnd, pick, clamp, lerp, easeOut, easeIn, hash, wrap, room, strength, fail, short, away, where, makeHit, nearest, scene,
+        addLine, fillPts, jag, branchOf, drawBolt, ellipse, ringDots, ring, strike, groundArcs, glowMark, debris, puff, flames, sparkles, chunk, skyBand, lump, cloudBank, fillPaths,
+        faceFlip, silhouette, drawMon, drawLitMon, monBox, hideMon, hideUntil, darkPoof, shards, waterRibbon, glint, geyser, swirlDome, waterRain, auraBubbles, recoil,
+        flameTongue, groundFlames, fireTail, fireOrb, orbitEmbers, firePillar, chargeSwirl, blastDome, domeLight, fireBits, emberRise, beamBody, petalAt, petalBurst,
+        vine, waterJet, waveFront, splash, swirlRing, crownSplash, waterFireworks, psyRock, galaxy, impactFrames, auraEdge, runPowerUp, megaVenus, megaTurtle,
+        pal: { SUN, PINK, VINE, BARK, TIDE, GUNM, MEWP, MEWPK, STARC, BLUE, GLOW, ROCK, ICEC, ZAPC, SPARKW, DARK, BAYER },
+    });
 })();

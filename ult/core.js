@@ -57,6 +57,8 @@ const ultCols = (o, fx) => sigPal(o.c || (fx === 'ultorb' && ULT_ORB_C[o.style])
 const ultClamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 // 큰 마무리 — 공통 틀이 절정에서 부름 (fx-sky.js 가 채움: dome 빛의 반구 대폭발 · pillar 화면 꼭대기까지 기둥). 2026-10-19
 const ULT_FINALE = {};
+// fx-sky.js 의 그리기 도구 — 전용 필살기(fx-unique.js)가 씀
+const ULT_KIT = {};
 function ultFinale(kind, ...args) {
     try {
         ULT_FINALE[kind]?.(...args);

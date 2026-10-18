@@ -24,7 +24,7 @@
   "fearow": {"ult": [["회오리부리", "ultrush", {"c": "wind", "drill": 1, "fast": 1}], ["공중날기", "ultdive", {"c": "wind"}]]},
   "ekans": {"ult": [["애시드포이즌딜리트", "ultstorm", {"kind": "acid", "c": "poison"}], ["오물폭탄", "ultorb", {"style": "energy", "c": "sludge"}]]},
   "arbok": {"ult": [["독엄니", "ultbarrage", {"kind": "slash", "c": "poison"}], ["뱀눈초리", "ultshadow", {"c": "poison", "tc": "poison"}]]},
-  "pikachu": {"ult": [["100만볼트", "ultvolt", {"c": "electric", "rainbow": 0}], ["1000만볼트", "ultvolt", {"rainbow": 1, "max": 1}]]},
+  "pikachu": {"ult": [["100만볼트", "ultvolt", {"c": "electric", "rainbow": 0}], ["1000만볼트", "ultvolt", {"rainbow": 1, "max": 1, "uniq": "pikachu", "tc": "electric"}]]},
   "raichu": {"ult": [["라이트닝서프라이드", "ultrush", {"c": "electric", "elec": 1, "fast": 1}], ["스파킹기가볼트", "ultthunder", {"mode": "spear", "c": "electric"}]]},
   "sandshrew": {"ult": [["구르기", "ultrush", {"c": "ground"}], ["모래바람", "ultstorm", {"kind": "sand", "c": "ground"}]]},
   "sandslash": {"ult": [["모래지옥", "ultvortex", {"c": "ground"}], ["베어가르기", "ultbarrage", {"kind": "slash", "c": "ground", "spin": 1}]]},
