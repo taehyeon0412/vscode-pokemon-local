@@ -1145,7 +1145,14 @@ function watchInstall(context) {
     const code = ['out/extension/extension.js', 'out/extension/game-loader.js', 'out/game/host.js', 'package.json'];
     const digest = (rel) => {
         try {
-            return crypto.createHash('sha1').update(fs.readFileSync(path.join(root, rel))).digest('hex');
+            let data = fs.readFileSync(path.join(root, rel));
+            if (rel === 'package.json') {
+                // VS Code 가 설치할 때마다 __metadata(설치 시각 등)를 적어 넣음 — 그건 빼고 비교
+                const pkg = JSON.parse(data.toString('utf8'));
+                delete pkg.__metadata;
+                data = JSON.stringify(pkg);
+            }
+            return crypto.createHash('sha1').update(data).digest('hex');
         }
         catch {
             return ''; // 없음 (게임 빌드가 없는 설치 · 설치 도중)
