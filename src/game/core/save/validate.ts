@@ -8,7 +8,7 @@ import { BALANCE } from '../balance';
 import {
   ENCOUNTER_STARTS, ITEM_IDS, LOCATION_SCREENS, SAVE_VERSION, STAGE_IDS, STAT_KEYS, STATUS_KINDS,
   type Encounter, type FacilitySpot, type ItemId, type LastHospital, type Location, type Monster,
-  type MoveSlot, type PendingChoice, type Save, type StageId, type StageProgress, type Stats, type StatusCondition,
+  type MoveSlot, type PendingChoice, type Save, type StageId, type StageProgress, type StageRun, type Stats, type StatusCondition,
 } from './schema';
 import { evolutionsOf, moveOf, speciesOf } from '../../data';
 
@@ -25,6 +25,9 @@ const KNOWN_KEYS: readonly (keyof Save)[] = [
   'version', 'createdAt', 'updatedAt', 'playTimeMs', 'player', 'monsters', 'party', 'box', 'nextMonsterUid',
   'bag', 'money', 'badges', 'stages', 'location', 'lastHospital', 'dex', 'pendingEncounter', 'pendingChoices', 'settings',
 ];
+
+/** 클리어 카드에 보일 새로 만난 포켓몬 수 */
+export const RUN_SEEN_MAX = 6;
 
 /** 포켓몬 uid 의 숫자 상한 ("m" + 9자리) — 열쇠 이름 규칙과 nextMonsterUid 가 늘 맞게 */
 const MAX_UID_NUMBER = 999_999_999;
@@ -210,7 +213,22 @@ function readFacilities(v: unknown, path: string, fx: Fixer): FacilitySpot[] {
   return out;
 }
 
-function readStage(v: unknown, path: string, fx: Fixer): StageProgress | null {
+/** 이번 판 기록 — 옛 세이브에 칸이 없으면 빈 기록 (단계 9 에서 더함, 버전은 1 그대로) */
+function readRun(v: unknown, path: string, fx: Fixer, playTimeMs: number): StageRun {
+  if (v === undefined) return { startMs: playTimeMs, caught: 0, trainers: 0, seen: [], reach: 0, retries: 0 };
+  const r = isObj(v) ? v : {};
+  if (!isObj(v)) fx.note(path, '객체가 아님 → 빈 기록');
+  return {
+    startMs: fx.int(r.startMs, `${path}.startMs`, 0, Number.MAX_SAFE_INTEGER, playTimeMs),
+    caught: fx.int(r.caught, `${path}.caught`, 0, 100_000, 0),
+    trainers: fx.int(r.trainers, `${path}.trainers`, 0, 100, 0),
+    seen: fx.speciesList(r.seen, `${path}.seen`).slice(0, RUN_SEEN_MAX),
+    reach: r.reach === undefined ? 0 : fx.ratio(r.reach, `${path}.reach`),
+    retries: r.retries === undefined ? 0 : fx.int(r.retries, `${path}.retries`, 0, 100_000, 0),
+  };
+}
+
+function readStage(v: unknown, path: string, fx: Fixer, playTimeMs: number): StageProgress | null {
   if (!isObj(v)) {
     fx.note(path, '스테이지 진행이 객체가 아니어서 뺌');
     return null;
@@ -221,6 +239,7 @@ function readStage(v: unknown, path: string, fx: Fixer): StageProgress | null {
     cleared: fx.bool(v.cleared, `${path}.cleared`, false),
     defeatedTrainers: fx.texts(v.defeatedTrainers, `${path}.defeatedTrainers`),
     facilities: readFacilities(v.facilities, `${path}.facilities`, fx),
+    run: readRun(v.run, `${path}.run`, fx, playTimeMs),
   };
 }
 
@@ -401,6 +420,7 @@ export function validateSave(raw: unknown): ValidateResult {
     else fx.note('player', '주인공을 읽지 못함 → 고르기 전');
   }
 
+  const playTimeMs = fx.int(raw.playTimeMs, 'playTimeMs', 0, Number.MAX_SAFE_INTEGER, 0);
   const stages: Save['stages'] = {};
   if (isObj(raw.stages)) {
     for (const [id, s] of Object.entries(raw.stages)) {
@@ -408,7 +428,7 @@ export function validateSave(raw: unknown): ValidateResult {
         fx.note(`stages.${id}`, '알 수 없는 스테이지를 뺌');
         continue;
       }
-      const stage = readStage(s, `stages.${id}`, fx);
+      const stage = readStage(s, `stages.${id}`, fx, playTimeMs);
       if (stage) stages[id] = stage;
     }
   } else {
@@ -436,7 +456,7 @@ export function validateSave(raw: unknown): ValidateResult {
     version: SAVE_VERSION,
     createdAt: fx.int(raw.createdAt, 'createdAt', 0, Number.MAX_SAFE_INTEGER, 0),
     updatedAt: fx.int(raw.updatedAt, 'updatedAt', 0, Number.MAX_SAFE_INTEGER, 0),
-    playTimeMs: fx.int(raw.playTimeMs, 'playTimeMs', 0, Number.MAX_SAFE_INTEGER, 0),
+    playTimeMs,
     player,
     monsters,
     party,

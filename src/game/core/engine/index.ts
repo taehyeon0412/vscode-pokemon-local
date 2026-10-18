@@ -1,8 +1,26 @@
 export { Rng } from './rng';
 export { clampFrameDelta, takeSteps } from './step';
-export { advance, applyInput, isWaitingForInput, step, withSpeed, type GameInput, type GameNotice, type SaveSignal } from './play';
+export {
+  advance,
+  applyInput,
+  canHeal,
+  canOpenMenus,
+  canShop,
+  canSwapBox,
+  canTravel,
+  gymUnlocked,
+  inBattle,
+  isWaitingForInput,
+  stageUnlocked,
+  step,
+  withSpeed,
+  type GameInput,
+  type GameNotice,
+  type SaveSignal,
+} from './play';
 export {
   battleDone,
+  battleWaiting,
   canAct,
   canUlt,
   counterOpen,
@@ -13,11 +31,12 @@ export {
   type BattleAction,
   type BattleCatch,
   type BattleInput,
+  type BattleKind,
   type BattlePopup,
   type BattleState,
   type Side,
 } from './battle';
-export type { BattleSummary } from './rewards';
+export { clearBonusExp, FOREST_BADGE, type BattleSummary } from './rewards';
 export {
   createGameState,
   MAX_SPEED,

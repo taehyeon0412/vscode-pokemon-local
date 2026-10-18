@@ -3,12 +3,13 @@
  * 메시지 · 보임/안 보임 · 그리기 박자를 세션에 잇고, 화면(Preact)을 #pokemon-game 에 그린다.
  */
 import { h, render } from 'preact';
+import { STAGE_IDS } from '../core/save';
 import { stageViewKey } from '../features/stage/model';
 import { createStartSave } from '../features/starter/model';
 import { GAME_COMMAND, isHostToWebview } from '../shared/messages';
 import { fitLayout } from '../ui/layout';
 import { Store } from '../ui/store';
-import { App, type AppActions, type ViewState } from './app';
+import { App, OVERLAY_INPUTS, overlayAllowed, type AppActions, type ViewState } from './app';
 import { FrameLoop } from './frame-loop';
 import './game.css';
 import { getGameConfig, getGamePort } from './vscode-api';
@@ -34,6 +35,7 @@ if (!port) {
     layout: fitLayout(config.size, window.innerHeight),
     widthPx: window.innerWidth,
     pending: false,
+    overlay: null,
   });
   let viewRefreshedAt = 0;
   let lastViewKey = '';
@@ -51,6 +53,8 @@ if (!port) {
       // 패널이 너무 낮으면 게임을 멈춤 (mvp-spec 1장) — 그동안의 시간은 흘려보냄
       if (store.get().layout.tooSmall) return;
       session.frame(dt);
+      // 판이 떠 있는 동안은 게임이 멈춤 — 판에서 누른 것은 input 이 바로 그림 (초당 30번 열쇠 계산을 쉼)
+      if (store.get().overlay) return;
       const now = performance.now();
       if (now - viewRefreshedAt >= VIEW_REFRESH_MS) {
         viewRefreshedAt = now;
@@ -76,7 +80,15 @@ if (!port) {
   session.subscribe(() => {
     viewRefreshedAt = performance.now();
     setPending(false);
-    store.set({ screen: session.screen, title: session.title, state: session.current });
+    // 새로 맡김 (다른 쪽에서 계산한 상태) · 타이틀 · 일반 모드 — 떠 있던 판은 닫음
+    store.set({ screen: session.screen, title: session.title, state: session.current, overlay: null });
+  });
+
+  // 판이 떠 있는 동안 게임을 멈춤 · 지금 상태에서 띄울 수 없는 판은 닫음
+  store.subscribe(() => {
+    const v = store.get();
+    if (v.overlay && v.state && !overlayAllowed(v.overlay, v.state)) store.set({ overlay: null });
+    session.setPaused(store.get().overlay !== null);
   });
 
   store.subscribe(() => document.body.classList.toggle(GAME_ON_CLASS, store.get().screen !== 'none'));
@@ -102,8 +114,19 @@ if (!port) {
       session.exit();
     },
     input: (input) => {
+      // 판이 떠 있으면 판에서 누른 것만 (전투 숫자 키 · Space 가 뒤에서 눌리지 않게)
+      if (store.get().overlay && !OVERLAY_INPUTS.includes(input.kind)) return;
       // 받은 입력은 바로 화면에 (다음 새로 그림을 기다리지 않게)
       if (session.input(input)) store.set({ state: session.current });
+    },
+    open: (overlay) => {
+      const cur = session.current;
+      if (cur && overlayAllowed(overlay, cur)) store.set({ overlay });
+    },
+    // 지도에서 연 내 포켓몬 (④ 팀 바꾸기) 을 닫으면 지도로 ("부른 화면으로")
+    close: () => {
+      const o = store.get().overlay;
+      store.set({ overlay: o?.kind === 'team' && o.back ? { kind: o.back } : null });
     },
     crashed: (e) => {
       loop.stop();
@@ -135,7 +158,18 @@ if (!port) {
   //   전투 메뉴 숫자 · Z 는 BattleMenu 가 들음
   window.addEventListener('keydown', (e) => {
     if (store.get().screen !== 'game' || e.repeat) return;
-    const phase = session.current?.runtime.stage?.phase;
+    const overlay = store.get().overlay;
+    if (overlay) {
+      // 판 (지도 · 내 포켓몬 …) 의 Esc 는 판이 들음 · S21 프로필은 여기서
+      if (overlay.kind === 'profile' && e.key === 'Escape') {
+        e.preventDefault();
+        actions.close();
+      }
+      return;
+    }
+    const stage = session.current?.runtime.stage;
+    const phase = stage?.phase;
+    const loc = session.current?.save.location;
     // 버튼에 포커스가 있으면 Enter · Space 는 그 버튼이 받음 (Tab 으로 [지나간다] 에 두고 Enter)
     const onButton = e.target instanceof HTMLButtonElement;
     if (e.code === 'Space' && !(onButton && phase !== 'appear' && phase !== 'battle')) {
@@ -150,6 +184,20 @@ if (!port) {
       // S12 계속 (S23 · S22 의 숫자 · Enter · Esc 는 ChoiceBox 가 들음)
       e.preventDefault();
       actions.input({ kind: 'result-continue' });
+    } else if (stage?.phase === 'facility' && ((e.key === 'Enter' && !onButton) || e.key === 'Escape')) {
+      // 병원 · 상점 앞: Enter = 들어가기 · Esc = 지나가기 / 병원 안: Esc = 나가기
+      e.preventDefault();
+      if (stage.inside) {
+        if (e.key === 'Escape') actions.input({ kind: 'facility-leave' });
+      } else actions.input({ kind: 'facility', enter: e.key === 'Enter' });
+    } else if (e.key === 'Enter' && !onButton && (phase === 'defeat' || phase === 'clear' || phase === 'badge')) {
+      // S17 다시 시작 · S24 다음 스테이지 · MVP 끝 카드 → 세계 지도
+      e.preventDefault();
+      if (phase === 'defeat') actions.input({ kind: 'defeat-continue' });
+      else if (phase === 'badge') {
+        actions.input({ kind: 'badge-continue' });
+        actions.open({ kind: 'map' });
+      } else if (loc?.screen === 'stage') actions.input({ kind: 'travel', to: STAGE_IDS[STAGE_IDS.indexOf(loc.stageId) + 1] ?? 'gym' });
     }
   });
 

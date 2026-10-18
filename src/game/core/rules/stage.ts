@@ -5,15 +5,17 @@
  * 주의: BALANCE 의 스테이지 숫자 (나오는 수 · 구간) 를 바꾸면 같은 시드라도 길이 바뀜 → 하던 스테이지의 진행 % 가 다른 곳을 가리킴 (mvp-spec 9장).
  *
  * 자리 (0 = 처음 · 1 = 끝):
- *   야생 12 ~ 18 · 떨어진 아이템 4 ~ 6 · 길 위의 부탁 1 ~ 2 → 고르게 나눈 칸에 섞어 놓음 (서로 붙지 않게)
- *   병원 · 상점 1 ~ 2 곳씩 → "중간쯤" 랜덤 (지나가기만 — 들어가기는 단계 8)
+ *   야생 12 ~ 18 · 떨어진 아이템 4 ~ 6 · 길 위의 부탁 1 ~ 2 · 트레이너 2 ~ 3 → 고르게 나눈 칸에 섞어 놓음 (서로 붙지 않게)
+ *   트레이너는 수 · 자리가 스테이지마다 정해져 있음 (시드와 상관없음 — 이긴 트레이너 "forest-1:t0" 이 다시 걸어도 같은 사람 · 졌다 새 시드로 다시 걸어도
+ *   못 이긴 트레이너가 다시 시작하는 곳 뒤로 밀려 건너뛰어지지 않게). 다른 것들은 트레이너 · 시설 자리를 피해 놓음
+ *   병원 · 상점 1 ~ 2 곳씩 → "중간쯤" 랜덤 (그 앞에서 멈추고 [들어가기] [지나가기])
  *   배경 속 포켓몬 10 ~ 16 → 보기만 (부딪히지 않음)
  */
 import { BALANCE } from '../balance';
 import { Rng } from '../engine/rng';
-import type { FacilitySpot, StageId } from '../save';
+import { STAGE_IDS, type FacilitySpot, type StageId } from '../save';
 
-export type SpotKind = 'wild' | 'item' | 'request';
+export type SpotKind = 'wild' | 'item' | 'request' | 'trainer';
 
 export interface Spot {
   kind: SpotKind;
@@ -21,6 +23,8 @@ export interface Spot {
   at: number;
   /** 스테이지 안 번호 — 그 자리의 시드 (spotSeed) 를 만들 때 */
   index: number;
+  /** 트레이너 번호 (길 순서, 0 부터) — trainerId 의 t0 · t1 … */
+  trainer?: number;
 }
 
 export interface StageLayout {
@@ -59,15 +63,40 @@ function shuffle<T>(rng: Rng, list: T[]): T[] {
 /** 시설과 이만큼은 떨어지게 (시설 앞에서 바로 조우하지 않게) */
 const FACILITY_GAP = 0.012;
 
-function buildLayout(seed: number, saved: readonly FacilitySpot[]): StageLayout {
+/** 그 스테이지의 트레이너 수 — 스테이지마다 정해짐 (시드와 상관없음) */
+export function trainerCount(stageId: StageId): number {
+  const rng = new Rng(mixSeed(0x7a1e5, STAGE_IDS.indexOf(stageId) + 1));
+  return between(rng, BALANCE.stageTrainers);
+}
+
+/** 트레이너 자리 (길 순서) — 스테이지마다 정해짐: 0.12 ~ 0.92 를 고르게 나눈 칸 안에서 조금 흔들어 */
+export function trainerSpots(stageId: StageId): number[] {
+  const n = trainerCount(stageId);
+  const rng = new Rng(mixSeed(0x7a1e6, STAGE_IDS.indexOf(stageId) + 1));
+  const [lo, hi] = TRAINER_RANGE;
+  const cell = (hi - lo) / n;
+  return Array.from({ length: n }, (_, i) => Math.round((lo + cell * (i + 0.5) + (rng.next() - 0.5) * cell * 0.5) * 100000) / 100000);
+}
+
+/** 트레이너가 서는 구간 · 다른 것들이 트레이너와 떨어지는 거리 */
+const TRAINER_RANGE = [0.12, 0.92] as const;
+const TRAINER_GAP = 0.02;
+
+/** 이긴 트레이너 기록에 쓰는 이름 ("forest-1:t0") */
+export function trainerId(stageId: StageId, n: number): string {
+  return `${stageId}:t${n}`;
+}
+
+function buildLayout(stageId: StageId, seed: number, saved: readonly FacilitySpot[]): StageLayout {
   const rng = new Rng(mixSeed(seed, 0x51a6e));
-  // 병원 · 상점 — 중간쯤, 서로 붙지 않게 (세이브에 적힌 자리가 있어도 랜덤은 똑같이 뽑아서 아래 자리들이 같게)
+  const trainers = trainerSpots(stageId);
+  // 병원 · 상점 — 중간쯤, 서로 · 트레이너와 붙지 않게 (세이브에 적힌 자리가 있어도 랜덤은 똑같이 뽑아서 아래 자리들이 같게)
   let facilities: FacilitySpot[] = [];
   const [fLo, fHi] = BALANCE.stageFacilityRange;
   const place = (kind: FacilitySpot['kind']) => {
     for (let tries = 0; tries < 20; tries++) {
       const at = fLo + rng.next() * (fHi - fLo);
-      if (facilities.every((f) => Math.abs(f.at - at) > 0.05)) {
+      if (facilities.every((f) => Math.abs(f.at - at) > 0.05) && trainers.every((t) => Math.abs(t - at) > TRAINER_GAP * 2)) {
         facilities.push({ kind, at: Math.round(at * 10000) / 10000 });
         return;
       }
@@ -84,14 +113,23 @@ function buildLayout(seed: number, saved: readonly FacilitySpot[]): StageLayout 
     ...Array<SpotKind>(between(rng, BALANCE.stageItems)).fill('item'),
     ...Array<SpotKind>(between(rng, BALANCE.stageRequests)).fill('request'),
   ]);
+  // 트레이너 앞뒤 (± TRAINER_GAP) 는 길에서 빼고 남은 길이를 고르게 나눔 — 트레이너 곁에 붙지 않고 서로도 붙지 않게
   const [sLo, sHi] = BALANCE.stageSpotRange;
-  const cell = (sHi - sLo) / kinds.length;
+  const holes = trainers.map((t) => [t - TRAINER_GAP, t + TRAINER_GAP] as const);
+  const free = sHi - sLo - holes.reduce((sum, [a, b]) => sum + (Math.min(b, sHi) - Math.max(a, sLo)), 0);
+  const onTrack = (u: number) => {
+    let at = sLo + u;
+    for (const [a, b] of holes) if (at > a) at += b - a;
+    return at;
+  };
+  const cell = free / kinds.length;
   const spots: Spot[] = kinds.map((kind, i) => {
-    let at = sLo + cell * (i + 0.5) + (rng.next() - 0.5) * cell * 0.6;
+    let at = onTrack(cell * (i + 0.5) + (rng.next() - 0.5) * cell * 0.6);
     const near = facilities.find((f) => Math.abs(f.at - at) < FACILITY_GAP);
     if (near) at = near.at + (at >= near.at ? FACILITY_GAP : -FACILITY_GAP);
     return { kind, at: Math.round(at * 100000) / 100000, index: i };
   });
+  trainers.forEach((at, n) => spots.push({ kind: 'trainer', at, index: 900 + n, trainer: n }));
   spots.sort((a, b) => a.at - b.at);
 
   const sceneryCount = between(rng, BALANCE.stageScenery);
@@ -109,7 +147,7 @@ export function stageLayout(stageId: StageId, seed: number, saved: readonly Faci
   const key = `${stageId}:${seed >>> 0}:${saved.map((f) => `${f.kind}@${f.at}`).join(',')}`;
   let layout = cache.get(key);
   if (!layout) {
-    layout = buildLayout(seed >>> 0, saved);
+    layout = buildLayout(stageId, seed >>> 0, saved);
     if (cache.size > 16) cache.clear();
     cache.set(key, layout);
   }
@@ -128,6 +166,11 @@ export function spotBetween(layout: StageLayout, from: number, to: number): Spot
 /** 걸음 하나만큼 나아가는 진행 % */
 export function walkDelta(stepMs: number): number {
   return stepMs / BALANCE.stageWalkMs;
+}
+
+/** 스테이지 번호 "1-1" (지역 1 = 숲) — 글로만 쓸 때 (이름은 features/stage/model 의 STAGES) */
+export function stageCode(id: StageId): string {
+  return `1-${STAGE_IDS.indexOf(id) + 1}`;
 }
 
 /** 스테이지 레벨대 */

@@ -36,12 +36,16 @@ export const BALANCE = {
   stageHospitals: [1, 2],
   stageShops: [1, 2],
   stageScenery: [10, 16],
+  /** 트레이너 — 스테이지마다 2 ~ 3명 (스테이지마다 정해진 수 · 자리는 판마다) · 상대 마릿수 1 ~ 3, 내 살아 있는 포켓몬 + 1 까지 (2026-10-18 태현 님) */
+  stageTrainers: [2, 3],
+  trainerTeamSize: [1, 3],
   /** 만나는 것들이 놓이는 구간 (시작하자마자 · 끝에서 바로 만나지 않게) [제안] */
   stageSpotRange: [0.04, 0.97],
   /** 병원 · 상점 = "중간쯤 랜덤 자리" [제안] */
   stageFacilityRange: [0.3, 0.75],
   /** 숲 레벨대 [낮은 끝, 높은 끝] — 진행 % 에 따라 올라감 */
-  stageLevels: { 'forest-1': [3, 6], 'forest-2': [6, 10], 'forest-3': [10, 13] },
+  /** 1-1 은 2 ~ 5 (처음 3 ~ 6 → 단계 9 시뮬: 스타팅 한 마리 자동 전투로 1-1 에서 평균 9.7번 짐 — 진 뒤 회복이 생겨서 드러남 → 7.0번) [임시값] */
+  stageLevels: { 'forest-1': [2, 5], 'forest-2': [6, 10], 'forest-3': [10, 13] },
   /** 센 포켓몬 흔적: 확률 · 레벨대 위끝 + */
   strongTraceChance: 0.15,
   strongLevelBonus: 2,
@@ -160,6 +164,34 @@ export const BALANCE = {
   jackpotMoney: 1000,
   /** 야생을 이기면 약 10% 로 아이템 — 몬스터볼 · 상처약 반반 [제안] */
   wildItemChance: 0.1,
+  /** 트레이너: 쓰러뜨린 마리마다 상대 레벨 × 20원 · 관장: 처음 3000원 (+ 리프의 돌 · 배지) · 다시 이기면 300원 (4장) */
+  trainerMoneyPerLevel: 20,
+  gymFirstMoney: 3000,
+  gymRematchMoney: 300,
+  /** 졌을 때 잃는 돈 (관장전은 안 잃음 — gdd 4.10) */
+  defeatMoneyLoss: 0.1,
+  /** 상점 값 (원, 4장) — 마스터볼은 안 팖 */
+  shopPrices: { 'poke-ball': 200, 'great-ball': 600, 'ultra-ball': 1200, potion: 300, 'super-potion': 700, 'full-heal': 600, revive: 1500 },
+  /** 스테이지 클리어 보너스 경험치 = 그 스테이지 레벨대 위끝 × 10 (팀 전원) · 관장 (처음 이길 때) 은 그 2배 [제안] · 클리어 볼 +1 */
+  clearExpPerLevel: 10,
+  gymClearExpScale: 2,
+  clearBalls: 1,
+
+  // ---- 관장 (mvp-spec 3.9) — 숲 관장 = 파라스 Lv 13 · 냄새꼬 Lv 14 · 에이스 버터플 Lv 15 (필살기 게이지 절반)
+  gymTeam: [
+    [46, 13],
+    [44, 14],
+    [12, 15],
+  ],
+  gymAceUlt: 0.5,
+  /** 추천 레벨 (S16 ④) */
+  gymRecommendedLevel: 15,
+  /** 트레이너 AI: 필살기 게이지가 차면 0.5 ~ 3초 기다렸다가 · 상대 필살기를 맞받아칠 확률 (관장은 늘) [제안] */
+  trainerUltWaitMs: [500, 3000],
+  trainerUltCounterChance: 0.5,
+  /** 관장 AI: 내 공격 · 기술 연출이 시작되고 이 시간에 필살기로 끼어듦 (0.3초 안) · 끼어들 틈이 없으면 이만큼 기다렸다가 그냥 씀 */
+  leaderCutMs: 150,
+  leaderUltWaitMs: 4000,
 } as const;
 
 /** 시간 박자 — 저장 · 그리기 · 계산 (mvp-spec 3.1 · 9장) */
@@ -216,4 +248,11 @@ export const TIMING = {
   /** S22 진화 연출 (Space = 빨리 넘기기) · 시작하고 이 시간 동안은 Space · Esc 를 안 받음 (결과에서 Space 를 두 번 눌러 연출을 통째로 놓치지 않게) */
   evolveAnimMs: 4000,
   evolveGuardMs: 800,
+  /** 병원 · 상점 앞에서 [들어가기] [지나가기] 를 기다리는 시간 → 지나감 (2026-10-18 태현 님) */
+  facilityPromptMs: 5000,
+  /** 트레이너와 눈이 마주침: "!" → "승부다!" + ◓ 개수 → 전투 */
+  trainerAlertMs: 700,
+  trainerMeetMs: 2200,
+  /** 상대 트레이너가 다음 포켓몬을 내보내는 시간 */
+  foeSendMs: 1300,
 } as const;

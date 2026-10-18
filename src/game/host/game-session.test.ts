@@ -6,9 +6,13 @@ import type { HostToWebview } from '../shared/messages';
 import { TIMING } from '../core/balance';
 import { createStartSave } from '../features/starter/model';
 import { shinyWildSeed } from '../../test/fixtures/stage';
+import { stageLayout } from '../core/rules/stage';
 import { GameSession, type Mode, type ViewPort } from './game-session';
 import { SaveStore } from './save-store';
 import { WindowLease } from './window-lease';
+
+/** 시드 42 숲 1-1 의 첫 부탁 바로 앞 (길이 바뀌어도 — 단계 9 에서 트레이너가 들어가 자리가 바뀜) */
+const nearRequest = () => stageLayout('forest-1', 42).spots.find((s) => s.kind === 'request')!.at - 0.0005;
 
 class FakeView implements ViewPort {
   visible = true;
@@ -341,7 +345,7 @@ describe('VS Code 밖 (창 포커스) — mvp-spec 3.3', () => {
 
   it('VS Code 밖 (자동 전투) 에서 이로치 흔적을 만나면 멈추고 알림 (U9 — 명세 검사관 · 코드 리뷰어)', async () => {
     const { seed, spot } = shinyWildSeed();
-    const save = sampleSave({ settings: { notifications: true, autoBattle: true }, stages: { 'forest-1': { seed, progress: spot.at - 0.0005, cleared: false, defeatedTrainers: [], facilities: [] } } });
+    const save = sampleSave({ settings: { notifications: true, autoBattle: true }, stages: { 'forest-1': { seed, progress: spot.at - 0.0005, cleared: false, defeatedTrainers: [], facilities: [], run: { startMs: 0, caught: 0, trainers: 0, seen: [], reach: 0, retries: 0 } } } });
     const start = await enterAndStart(save);
     session.onWindowFocusChanged(false);
     session.handleMessage(msg({ type: 'hidden', epoch: start.epoch, state: start.state }));
@@ -813,10 +817,10 @@ describe('단계 3 검토에서 고친 것 (bugs #59 ~)', () => {
 describe('단계 4 검토에서 고친 것 — 스테이지 (확장 쪽)', () => {
   /** 숲 1-1 을 막 시작한 자동 전투 세이브 (시드 42 — 첫 부탁은 87% 쯤) */
   const stageSave = (progress = 0) =>
-    sampleSave({ settings: { notifications: true, autoBattle: true }, stages: { 'forest-1': { seed: 42, progress, cleared: false, defeatedTrainers: [], facilities: [] } } });
+    sampleSave({ settings: { notifications: true, autoBattle: true }, stages: { 'forest-1': { seed: 42, progress, cleared: false, defeatedTrainers: [], facilities: [], run: { startMs: 0, caught: 0, trainers: 0, seen: [], reach: 0, retries: 0 } } } });
 
   it('안 볼 때 (자동 전투) 걷다가 부탁에서 멈추면 계산 · 저장을 멈춤 — 깨어나 저장만 되풀이하지 않게 (테스터)', async () => {
-    await enterAndStart(stageSave(0.8784));
+    await enterAndStart(stageSave(nearRequest()));
     session.onVisibilityChanged(false);
     expect(snap().running).toBe(true);
     runHost(2000);
@@ -865,7 +869,7 @@ describe('단계 5 · 6 — 전투 · 안 볼 때 알림 (확장 쪽, U9)', () =
     const { seed, spot } = shinyWildSeed();
     return sampleSave({
       settings: { notifications, autoBattle: true },
-      stages: { 'forest-1': { seed, progress: spot.at - 0.0005, cleared: false, defeatedTrainers: [], facilities: [] } },
+      stages: { 'forest-1': { seed, progress: spot.at - 0.0005, cleared: false, defeatedTrainers: [], facilities: [], run: { startMs: 0, caught: 0, trainers: 0, seen: [], reach: 0, retries: 0 } } },
     });
   };
 
@@ -890,7 +894,7 @@ describe('단계 5 · 6 — 전투 · 안 볼 때 알림 (확장 쪽, U9)', () =
   });
 
   it('안 볼 때 부탁에 오면 알림 (고를 때까지 멈춤)', async () => {
-    await enterAndStart(sampleSave({ settings: { notifications: true, autoBattle: true }, stages: { 'forest-1': { seed: 42, progress: 0.8784, cleared: false, defeatedTrainers: [], facilities: [] } } }));
+    await enterAndStart(sampleSave({ settings: { notifications: true, autoBattle: true }, stages: { 'forest-1': { seed: 42, progress: nearRequest(), cleared: false, defeatedTrainers: [], facilities: [], run: { startMs: 0, caught: 0, trainers: 0, seen: [], reach: 0, retries: 0 } } } }));
     session.onVisibilityChanged(false);
     runHost(2000);
     expect(snap().state?.runtime.stage?.phase).toBe('request');

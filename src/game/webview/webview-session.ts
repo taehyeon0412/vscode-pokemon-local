@@ -23,6 +23,8 @@ export class WebviewSession {
   private lastSentAt = 0;
   private titleInfo: TitleInfo | null = null;
   private screenNow: Screen = 'none';
+  /** 판 (지도 · 내 포켓몬 · 프로필 …) 이 떠 있음 — 계산을 쉼 (바뀐 상태는 그대로 보냄) */
+  private paused = false;
   private readonly listeners = new Set<() => void>();
 
   constructor(private readonly deps: WebviewSessionDeps) {}
@@ -59,6 +61,11 @@ export class WebviewSession {
 
   private changed(): void {
     for (const fn of this.listeners) fn();
+  }
+
+  /** 판이 뜨면 true — 게임 시간을 멈춤 (S21 "떠 있는 동안 전투가 멈춤" · 메뉴를 보는 동안 걸음이 멈춤) */
+  setPaused(paused: boolean): void {
+    this.paused = paused;
   }
 
   get running(): boolean {
@@ -109,6 +116,14 @@ export class WebviewSession {
   /** 그리기 한 번마다 — 지난 시간만큼 계산하고, 바뀌었으면 1초에 한 번 확장에 보냄 */
   frame(dtMs: number): void {
     if (this.epoch === null || !this.state) return;
+    if (this.paused) {
+      // 멈춘 동안에도 판에서 바꾼 것 (산 물건 · 팀 순서) 은 보냄 — 껐다 켜도 남게
+      if (this.dirty && this.deps.now() - this.lastSentAt >= TIMING.snapshotIntervalMs) {
+        this.deps.post({ command: GAME_COMMAND, type: 'state', epoch: this.epoch, state: this.state });
+        this.markSent();
+      }
+      return;
+    }
     const r = advance(this.state, clampFrameDelta(dtMs));
     this.state = r.state;
     if (r.steps > 0) this.dirty = true;

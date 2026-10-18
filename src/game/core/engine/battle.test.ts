@@ -411,13 +411,14 @@ describe('전투 끝 → 세이브 (mvp-spec 3.3 · 9장)', () => {
     expect(save.monsters.m1!.hp).toBe(20); // 원래 세이브는 그대로
   });
 
-  it('지면 (임시 — 패배 화면은 단계 9) 팀을 다 회복', () => {
+  it('지면 전투 결과는 그대로 세이브에 (회복 · 돈 · 다시 시작은 S17 패배 — play.ts, 단계 9)', () => {
     const { b, save } = setup();
     const lost: BattleState = { ...b, phase: 'over', result: 'lose', me: { ...b.me, hp: 0, status: { kind: 'poison' }, moves: [{ moveId: TACKLE, pp: 0 }] } };
     const next = applyBattleResult(save, lost);
-    expect(next.monsters.m1!.hp).toBe(fighterOf({ ...save.monsters.m1!, hp: 99999 }).maxHp);
-    expect(next.monsters.m1!.status).toBeNull();
-    expect(next.monsters.m1!.moves[0]!.pp).toBe(35);
+    expect(next.monsters.m1!.hp).toBe(0);
+    expect(next.monsters.m1!.moves[0]!.pp).toBe(0);
+    expect(next.pendingEncounter).toBeNull();
+    expect(fighterOf).toBeTypeOf('function');
   });
 });
 
@@ -486,11 +487,11 @@ describe('단계 5 · 6 검토에서 고친 것 (bugs #104 ~)', () => {
     expect(applyBattleResult(save, { ...used, phase: 'over', result: 'flee' }).monsters.m2!.hp).toBe(used.bench.m2!.hp);
   });
 
-  it('이겼어도 내 팀이 다 쓰러져 있으면 (반동 · 독으로 같이) 진 것처럼 회복 — 다음 조우가 망가지지 않게 (코드 리뷰어)', () => {
+  it('이겼어도 내 팀이 다 쓰러져 있으면 (반동 · 독으로 같이) — 쓰러진 채 세이브에 (패배 S17 이 회복, play.ts)', () => {
     const { b, save } = setup();
     const solo: Save = { ...save, party: ['m1'] };
     const won: BattleState = { ...b, phase: 'over', result: 'win', me: { ...b.me, hp: 0 } };
-    expect(applyBattleResult(solo, won).monsters.m1!.hp).toBeGreaterThan(0);
+    expect(applyBattleResult(solo, won).monsters.m1!.hp).toBe(0);
   });
 
   it('피해 글마다 순번 — 같은 걸음에 같은 글이 두 번 떠도 둘 다 (코드 리뷰어)', () => {

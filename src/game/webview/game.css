@@ -579,7 +579,11 @@ body.pokemon-game-on {
   background: var(--vscode-editorWidget-background, #252526);
   white-space: nowrap;
   font-size: calc(11px * var(--pg-ui, 1));
-  z-index: 4;
+  /* 상자 (병원 · 클리어 카드 · 대기실) 위에 — 회복 · 레벨업 알림이 상자에 깔리지 않게 */
+  z-index: 6;
+  max-width: calc(100% - 16px);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ② 미니맵 — 이름 + 막대 (내 위치 · 병원 · 상점 · 체육관) + % */
@@ -1402,4 +1406,303 @@ body.pokemon-game-on {
   .pg-choice-row .pg-sub {
     display: none;
   }
+}
+
+/* ---- 단계 8 · 9 — 메뉴 판 · 병원 · 상점 · 트레이너 · 패배 · 클리어 · 체육관 (임시 디자인 — 단계 12 에서 다시) ---- */
+/* S06 ⑦ ~ ⑩ 오른쪽 위 버튼 */
+.pg-menu-buttons {
+  display: inline-flex;
+  gap: 3px;
+}
+.pg-icon-btn {
+  position: relative;
+  padding: 0 calc(5px * var(--pg-ui, 1));
+}
+/* 남은 포인트 · 할 일이 있음 */
+.pg-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 2px;
+  border-radius: 50%;
+  background: #e0362c;
+  vertical-align: top;
+}
+
+/* 메뉴 판 (S07 · S14 · S18 · S19 · S20) — 패널 전체를 덮음, 넘치면 안에서 스크롤 */
+.pg-panel {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  background: var(--vscode-editor-background);
+  border-top: 1px solid var(--vscode-editorWidget-border, #555);
+}
+.pg-panel-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: calc(20px * var(--pg-ui, 1));
+  padding: 0 8px;
+  white-space: nowrap;
+  background: var(--vscode-editorWidget-background, #252526);
+}
+.pg-panel-title {
+  flex: none;
+  max-width: 55%;
+}
+.pg-panel-head > .pg-button {
+  margin-left: auto;
+}
+.pg-panel-extra {
+  flex: 1;
+  min-width: 0;
+  opacity: 0.75;
+  font-size: calc(11px * var(--pg-ui, 1));
+}
+.pg-panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 2px 8px;
+}
+.pg-panel-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: calc(22px * var(--pg-ui, 1));
+  white-space: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+.pg-panel-label {
+  flex: none;
+  min-width: 2.5em;
+  font-size: calc(11px * var(--pg-ui, 1));
+}
+.pg-panel-sep {
+  flex: none;
+  opacity: 0.7;
+  padding: 0 2px;
+}
+.pg-panel-row .pg-button {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+/* 포켓몬 · 아이템 칩 */
+.pg-chip {
+  flex: none;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: calc(20px * var(--pg-ui, 1));
+  max-width: 11em;
+  padding: 0 6px 0 2px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  font: inherit;
+  color: inherit;
+  background: rgba(128, 128, 128, 0.18);
+  cursor: pointer;
+}
+.pg-chip:hover {
+  border-color: var(--vscode-focusBorder);
+}
+.pg-chip-on {
+  border-color: var(--vscode-focusBorder);
+  background: rgba(88, 166, 255, 0.22);
+}
+.pg-chip-down,
+.pg-chip-dim {
+  opacity: 0.55;
+}
+.pg-lead {
+  position: absolute;
+  left: 1px;
+  top: -2px;
+  font-size: 8px;
+  line-height: 10px;
+  padding: 0 2px;
+  border-radius: 2px;
+  color: #fff;
+  background: #2f6fd0;
+}
+.pg-star {
+  flex: none;
+  color: #e3b341;
+  letter-spacing: -1px;
+}
+.pg-stat {
+  flex: none;
+  opacity: 0.9;
+}
+.pg-move {
+  flex: none;
+  padding: 0 5px;
+  border-radius: 3px;
+  background: rgba(128, 128, 128, 0.18);
+}
+.pg-expbar {
+  position: relative;
+  flex: none;
+  display: inline-block;
+  width: calc(48px * var(--pg-ui, 1));
+  height: 4px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: rgba(128, 128, 128, 0.35);
+}
+.pg-expbar .pg-bar-fill {
+  background: #58a6ff;
+}
+.pg-money {
+  font-weight: bold;
+}
+
+/* 대기실 상점 · S21 프로필 — 정보줄 아래 길 위에만 덮음 */
+.pg-overlay-field {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: calc(20px * var(--pg-ui, 1));
+  z-index: 30;
+}
+.pg-profile-wrap {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.18);
+}
+.pg-profile {
+  z-index: 31;
+}
+.pg-paused {
+  flex: none;
+  font-weight: bold;
+  color: var(--vscode-editorWarning-foreground, #cca700);
+}
+/* S21 — 전투 중 포켓몬을 누를 수 있음 */
+.pg-in-battle .pg-fighter {
+  cursor: pointer;
+}
+
+/* S06 ⑥ 병원 · 상점 앞에 멈춤 */
+.pg-facility-active {
+  animation: pg-bob 1s ease-in-out infinite;
+}
+
+/* S06 ⑤ · S08 트레이너 — 코드로 그린 사람 (왼쪽을 봄) · 눈이 마주치면 "!" */
+.pg-trainer,
+.pg-foe-trainer {
+  line-height: 0;
+  z-index: 2;
+}
+.pg-trainer-mark {
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  transform: translateX(-50%);
+  font-size: calc(14px * var(--pg-scale, 1));
+  line-height: 1;
+  font-weight: 900;
+  color: #e0362c;
+  text-shadow: 0 0 2px #fff;
+  animation: pg-pop-in 0.25s ease-out both;
+}
+@keyframes pg-pop-in {
+  0% { transform: translateX(-50%) scale(0.2); }
+  100% { transform: translateX(-50%) scale(1); }
+}
+/* 상대 몬스터볼 개수 (S08 ⑧) · 쓰러뜨린 만큼 흐리게 */
+.pg-foe-balls {
+  display: inline-flex;
+  gap: 2px;
+  line-height: 0;
+}
+/* 상대 트레이너 왼쪽 옆 (낮은 패널에서도 위로 잘리지 않게) */
+.pg-foe-trainer .pg-foe-balls {
+  position: absolute;
+  right: 100%;
+  bottom: 55%;
+  margin-right: 3px;
+}
+.pg-ball-down {
+  opacity: 0.3;
+  filter: grayscale(1);
+}
+
+/* S17 · S24 · S16 · MVP 끝 카드 */
+.pg-loss {
+  background: rgba(209, 68, 47, 0.25);
+}
+.pg-clear {
+  border-color: #2ea043;
+}
+.pg-clear-new {
+  flex: none;
+  line-height: 0;
+}
+.pg-badge-card {
+  border-color: #e3b341;
+  box-shadow: 0 0 6px rgba(227, 179, 65, 0.5);
+}
+.pg-lv-short {
+  color: #f85149;
+  font-weight: bold;
+}
+
+/* S16 체육관 — 코드로 그린 방 (바닥 판자 · 벽) */
+.pg-gym-room {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(transparent 0 72%, rgba(120, 82, 48, 0.55) 72% 100%),
+    repeating-linear-gradient(90deg, rgba(46, 139, 62, 0.12) 0 18px, rgba(46, 139, 62, 0.05) 18px 36px);
+}
+
+/* 좁은 패널 — 버튼 · 안내의 긴 글은 숨기고 그림 글자만 (전체 이름은 title) */
+@media (max-width: 480px) {
+  .pg-long {
+    display: none;
+  }
+  .pg-clear-new {
+    display: none;
+  }
+  .pg-icon-btn {
+    padding: 0 3px;
+  }
+}
+/* 상점 — 높이가 되면 여러 줄로 */
+.pg-panel-row.pg-panel-wrap {
+  flex-wrap: wrap;
+  overflow-x: hidden;
+  row-gap: 3px;
+  padding: 2px 0;
+}
+/* MVP 끝 카드 — 배지가 천천히 한 번 빛남 (깜빡임 없이) */
+.pg-badge-glow {
+  display: inline-block;
+  animation: pg-badge-glow 2.4s ease-in-out 1 both;
+}
+@keyframes pg-badge-glow {
+  0% { transform: translateY(-40%) scale(0.6); opacity: 0; filter: none; }
+  50% { transform: translateY(0) scale(1.25); opacity: 1; filter: drop-shadow(0 0 6px #e3b341); }
+  100% { transform: none; filter: drop-shadow(0 0 2px #e3b341); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pg-badge-glow {
+    animation: none;
+    filter: drop-shadow(0 0 2px #e3b341);
+  }
+}
+/* 오른쪽 위 ◓ 버튼의 선두 포켓몬 그림 */
+.pg-icon-btn .pg-sprite {
+  vertical-align: middle;
 }

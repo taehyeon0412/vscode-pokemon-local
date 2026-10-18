@@ -8,6 +8,8 @@ import * as assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
 import * as vscode from 'vscode';
 import { createNewSave } from '../../game/core/save';
+import { healed } from '../../game/core/rules/bag';
+import { expForLevel } from '../../game/core/rules/stats';
 import { createStartSave } from '../../game/features/starter/model';
 import type { GameTestApi } from '../../game/host/test-api';
 
@@ -103,6 +105,8 @@ export async function run(): Promise<void> {
       save.settings.autoBattle = true;
       // 시드 42 = 첫 자리들이 야생 (부탁은 87% 쯤 — 부탁은 고를 때까지 멈추므로 그 전까지만 봄)
       save.stages['forest-1'] = { ...save.stages['forest-1']!, seed: 42, progress: 0 };
+      // 지면 S17 패배 화면에서 [다시 시작] 을 기다림 (단계 9) — 숲 1-1 을 지지 않고 걷게 Lv 15 로
+      save.monsters.m1 = healed({ ...save.monsters.m1!, level: 15, exp: expForLevel(15) });
       await vscode.commands.executeCommand(GAME_COMMAND_ID);
       await waitFor('타이틀', () => d().mode === 'title');
       game.fromWebview({ command: 'game', type: 'title-new', save });

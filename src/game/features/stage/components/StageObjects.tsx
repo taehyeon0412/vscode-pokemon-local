@@ -1,9 +1,10 @@
 /**
- * 길 위의 것들 (S06 ④ ⑥ ⑭ ⑮ ⑯) — 위치는 model.ts 의 visibleObjects, 여기는 모양만 (임시 디자인: 이모지 · CSS 움직임 — 단계 12 에서 다시).
+ * 길 위의 것들 (S06 ④ ⑤ ⑥ ⑭ ⑮ ⑯) — 위치는 model.ts 의 visibleObjects, 여기는 모양만 (임시 디자인: 이모지 · 코드로 그린 사람 · CSS 움직임 — 단계 12 에서 다시).
  */
 import type { TraceKind } from '../../../core/rules/encounter';
 import { Sprite } from '../../../ui/Sprite';
 import type { StageObject } from '../model';
+import { Hero } from './Hero';
 
 const TRACE_ICON: Record<TraceKind, string> = {
   grass: '🌿',
@@ -45,8 +46,15 @@ export function StageObjects({ objects, media, scale, ground }: ObjectsProps) {
             );
           case 'facility':
             return (
-              <span key={o.key} class="pg-obj pg-facility" style={style} title={o.facility.kind === 'hospital' ? '병원 (들어가기는 다음 단계)' : '상점 (들어가기는 다음 단계)'}>
+              <span key={o.key} class={o.active ? 'pg-obj pg-facility pg-facility-active' : 'pg-obj pg-facility'} style={style} title={o.facility.kind === 'hospital' ? '병원 — 회복 · 보관함' : '상점'}>
                 {o.facility.kind === 'hospital' ? '🏥' : '🏪'}
+              </span>
+            );
+          case 'trainer':
+            return (
+              <span key={o.key} class={o.alert ? 'pg-obj pg-trainer pg-trainer-alert' : 'pg-obj pg-trainer'} style={style} title={o.info.name}>
+                {o.alert && <span class="pg-trainer-mark">!</span>}
+                <Hero px={2 * scale} walking={false} hat={o.info.hat} shirt={o.info.shirt} faceLeft label={o.info.name} />
               </span>
             );
           case 'item':

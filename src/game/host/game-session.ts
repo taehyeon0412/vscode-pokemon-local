@@ -581,12 +581,15 @@ export class GameSession {
 
   private notify(notice: GameNotice): void {
     if (!this.state?.save.settings.notifications) return;
-    const text =
-      notice === 'shiny'
-        ? '✨ 반짝이는 흔적을 찾았어요! 포켓몬 패널을 열면 이어서 걸어요.'
-        : notice === 'request'
-          ? '❓ 길에서 부탁하는 사람이 기다려요. 포켓몬 패널을 열어 골라 주세요.'
-          : '🧬 진화 · 새 기술을 고를 차례예요. 포켓몬 패널을 열어 골라 주세요.';
+    const TEXT: Record<GameNotice, string> = {
+      shiny: '✨ 반짝이는 흔적을 찾았어요! 포켓몬 패널을 열면 이어서 걸어요.',
+      request: '❓ 길에서 부탁하는 사람이 기다려요. 포켓몬 패널을 열어 골라 주세요.',
+      choice: '🧬 진화 · 새 기술을 고를 차례예요. 포켓몬 패널을 열어 골라 주세요.',
+      gym: '🏟 체육관 대기실에 도착했어요! 포켓몬 패널을 열어 관장에게 도전해 보세요.',
+      clear: '🎉 스테이지를 깼어요! 포켓몬 패널을 열어 다음 스테이지를 골라 주세요.',
+      defeat: '😵 포켓몬들이 쓰러졌어요… 포켓몬 패널을 열어 다시 시작해 주세요.',
+    };
+    const text = TEXT[notice];
     this.deps.log(`알림: ${text}`);
     try {
       this.deps.notify?.(text);

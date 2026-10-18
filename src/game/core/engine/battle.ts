@@ -8,7 +8,10 @@
  *   pick   내 포켓몬이 쓰러짐 → 다음 포켓몬 고르기 (자동 전투면 상성 좋은 포켓몬)
  *   catch  볼을 던짐 (S11) — 타이밍 원 1.2초 (Space · 클릭) → 흔들흔들 → 잡힘 (끝) · 빠져나옴 (전투 계속, 마지막 기회면 이김)
  *   last   야생을 쓰러뜨림 → 마지막 기회 (볼 고르기 · 안 던짐 · 6초) — 볼이 없거나 내 팀이 다 쓰러졌으면 건너뜀
+ *   send   트레이너 · 관장이 다음 포켓몬을 내보냄 (1:1 토너먼트 — 내 포켓몬은 HP 그대로, gdd S08 ③)
  *   over   이김 · 짐 · 도망 · 잡음 — 잠깐 보여 주고 끝 (세이브에 돌려주는 건 play.ts)
+ * 상대 필살기 (gdd 4.7): 야생 = 차면 바로 · 트레이너 = 0.5 ~ 3초 기다렸다가 (게이지가 도는 동안만 셈) · 관장 = 내 공격 · 기술 연출에 끼어듦.
+ *   트레이너 · 관장은 내 필살기를 필살기로 맞받아침 (관장은 늘 · 트레이너는 반) — "상대도 마찬가지"
  * 전투 중에는 세이브를 바꾸지 않음 (껐다 켜면 그 전투를 처음부터, mvp-spec 9장) — 끝날 때 HP · PP · 상태 이상 · 쓴 아이템을 한 번에.
  */
 import { BALANCE, TIMING } from '../balance';
@@ -38,6 +41,8 @@ import { moveOf, speciesOf, type ReadonlyMove } from '../../data';
 import type { Rng } from './rng';
 
 export type Side = 'me' | 'foe';
+/** 야생 · 트레이너 (스테이지) · 관장 (체육관) */
+export type BattleKind = 'wild' | 'trainer' | 'gym';
 
 export type BattleAction =
   | { kind: 'attack' }
@@ -96,15 +101,25 @@ export interface BattlePopup {
 }
 
 export interface BattleState {
-  kind: 'wild';
+  kind: BattleKind;
   me: Fighter;
   foe: Fighter;
+  /** 트레이너 · 관장: 아직 안 나온 상대 포켓몬 (차례대로) */
+  foeQueue: Monster[];
+  /** 쓰러뜨린 상대 (경험치 · 돈) */
+  foeDown: { species: number; level: number }[];
+  /** 상대 필살기를 쓰기까지 남은 기다림 (트레이너 · 관장, 게이지가 찬 뒤) */
+  foeUltWait: number | null;
+  /** 상대 트레이너 이름 ("곤충채집 소년 민수") — 야생은 null */
+  foeName: string | null;
+  /** send — 다음 포켓몬을 내보내는 데 지난 시간 */
+  sendMs: number;
   /** 이 전투에서 바뀐 내 포켓몬 (교체로 나온 포켓몬의 HP · PP · 상태) — 끝나면 세이브에 */
   bench: Record<string, { hp: number; moves: MoveSlot[]; status: StatusCondition | null; ult?: number }>;
   /** 이 전투에서 쓴 아이템 (끝나면 가방에서 뺌) */
   bagUsed: Partial<Record<ItemId, number>>;
   /** catch = 볼을 던짐 (S11) · last = 이긴 뒤 마지막 기회 (볼을 고르거나 그냥 지나감) */
-  phase: 'run' | 'choose' | 'anim' | 'clash' | 'pick' | 'catch' | 'last' | 'over';
+  phase: 'run' | 'choose' | 'anim' | 'clash' | 'pick' | 'catch' | 'last' | 'send' | 'over';
   anim: BattleAnim | null;
   clash: BattleClash | null;
   catch: BattleCatch | null;
@@ -127,7 +142,10 @@ export interface BattleState {
 
 const POPUP_MS = 1200;
 const nameOf = (f: Fighter) => speciesOf(f.species)?.name.ko ?? '???';
-const label = (f: Fighter, side: Side) => (side === 'foe' ? `야생 ${nameOf(f)}` : nameOf(f));
+/** 한 줄에 쓰는 이름 — 상대는 "야생 ○○" · "상대 ○○" */
+const label = (b: BattleState, side: Side) => (side === 'foe' ? `${b.kind === 'wild' ? '야생' : '상대'} ${nameOf(b.foe)}` : nameOf(b.me));
+/** 상대 AI 성격 — 야생은 무작위, 트레이너 · 관장은 상성을 봄 */
+const foeStyle = (b: BattleState) => (b.kind === 'wild' ? 'wild' : 'smart');
 const other = (s: Side): Side => (s === 'me' ? 'foe' : 'me');
 /** 내 차례 한 줄 — 곁눈으로 봐도 "기다리는 중" 인 걸 알게 */
 const chooseMsg = (b: BattleState) => `${withJosa(nameOf(b.me), '은/는')} 무엇을 할까? (1 ~ 5)`;
@@ -152,6 +170,11 @@ export function startBattle(save: Save, wild: Monster, start: EncounterStart): B
     kind: 'wild',
     me,
     foe,
+    foeQueue: [],
+    foeDown: [],
+    foeUltWait: null,
+    foeName: null,
+    sendMs: 0,
     bench: {},
     bagUsed: {},
     phase: lead ? 'run' : 'over',
@@ -171,6 +194,25 @@ export function startBattle(save: Save, wild: Monster, start: EncounterStart): B
     start,
   };
   return b;
+}
+
+/**
+ * 트레이너 · 관장 1:1 토너먼트 (gdd S08 ③ · 3.9) — 상대 포켓몬이 차례대로 나옴 (도망 · 볼 없음).
+ * 관장의 마지막 포켓몬 (에이스) 은 필살기 게이지가 절반 찬 채로 나옴
+ */
+export function startTrainerBattle(save: Save, team: readonly Monster[], kind: 'trainer' | 'gym', foeName: string): BattleState {
+  const [first, ...rest] = team;
+  if (!first) throw new Error('상대 포켓몬이 없음');
+  const b = startBattle(save, first, 'normal');
+  if (kind === 'gym' && rest.length === 0) b.foe.ult = BALANCE.gymAceUlt;
+  const lead = b.me.uid !== 'none';
+  return {
+    ...b,
+    kind,
+    foeQueue: rest.map((m) => ({ ...m })),
+    foeName,
+    msg: lead ? `${withJosa(foeName, '이/가')} ${withJosa(nameOf(b.foe), '을/를')} 내보냈다! 가랏, ${nameOf(b.me)}!` : b.msg,
+  };
 }
 
 /** 지금 가방에 남은 그 아이템 수 (전투 중 쓴 것 빼고) */
@@ -224,10 +266,10 @@ function startAction(b0: BattleState, side: Side, action0: BattleAction, rng: Rn
       const left = st.turnsLeft - 1;
       actor.status = left > 0 ? { kind: 'sleep', turnsLeft: left } : null;
       action = { kind: 'skip' };
-      b.msg = left > 0 ? `${withJosa(label(actor, side), '은/는')} 쿨쿨 잠들어 있다` : `${withJosa(label(actor, side), '이/가')} 눈을 떴다!`;
+      b.msg = left > 0 ? `${withJosa(label(b, side), '은/는')} 쿨쿨 잠들어 있다` : `${withJosa(label(b, side), '이/가')} 눈을 떴다!`;
     } else if (st?.kind === 'paralysis' && rng.chance(BALANCE.paralysisSkip)) {
       action = { kind: 'skip' };
-      b.msg = `${withJosa(label(actor, side), '은/는')} 몸이 저려 움직일 수 없다!`;
+      b.msg = `${withJosa(label(b, side), '은/는')} 몸이 저려 움직일 수 없다!`;
     }
   }
 
@@ -245,13 +287,13 @@ function startAction(b0: BattleState, side: Side, action0: BattleAction, rng: Rn
   let counter = false;
   switch (action.kind) {
     case 'attack':
-      b.msg = `${label(actor, side)}의 공격!`;
+      b.msg = `${label(b, side)}의 공격!`;
       break;
     case 'move': {
       const id = action.moveId;
       actor.moves = actor.moves.map((s) => (s.moveId === id ? { ...s, pp: Math.max(0, s.pp - 1) } : s));
       const mv = moveOf(id);
-      b.msg = `${label(actor, side)}의 ${moveName(id)}!`;
+      b.msg = `${label(b, side)}의 ${moveName(id)}!`;
       dur = TIMING.moveAnimMs;
       // 상대가 쏘는 기술 → 나도 쏘는 기술이 있으면 늘 맞받아치기 창 (누르면 지금 행동 게이지를 다 씀 — 2026-10-18 태현 님)
       if (side === 'foe' && b.me.hp > 0 && isShooting(mv) && mv && counterMove(b.me, mv)) {
@@ -263,7 +305,7 @@ function startAction(b0: BattleState, side: Side, action0: BattleAction, rng: Rn
     case 'guard':
       actor.guard = guardFactor(actor.guardStreak);
       actor.guardStreak += 1;
-      b.msg = actor.guard < 1 ? `${withJosa(label(actor, side), '은/는')} 몸을 지켰다!` : `${withJosa(label(actor, side), '은/는')} 몸을 지키려 했지만 지쳤다…`;
+      b.msg = actor.guard < 1 ? `${withJosa(label(b, side), '은/는')} 몸을 지켰다!` : `${withJosa(label(b, side), '은/는')} 몸을 지키려 했지만 지쳤다…`;
       dur = TIMING.guardAnimMs;
       break;
     case 'item':
@@ -281,7 +323,7 @@ function startAction(b0: BattleState, side: Side, action0: BattleAction, rng: Rn
     case 'ult':
       actor.ult = 0;
       b.ultAt = { ...b.ultAt, [side]: b.t };
-      b.msg = `${label(actor, side)}의 필살기!`;
+      b.msg = `${label(b, side)}의 필살기!`;
       dur = TIMING.ultAnimMs;
       break;
     case 'skip':
@@ -308,8 +350,10 @@ function hit(b: BattleState, attackerSide: Side, power: number, type: ReadonlyMo
   if (eff) popup(b, other(attackerSide), eff, 'info');
   if (r.crit && dmg > 0) popup(b, other(attackerSide), '급소에 맞았다!', 'info');
   if (dmg > 0) {
-    if (!opts.useUlt) a.ult = Math.min(1, a.ult + ultGain('hit', a, { wild: attackerSide === 'foe' }));
-    d.ult = Math.min(1, d.ult + ultGain('hurt', d, { guarded, wild: attackerSide === 'me' }));
+    // × 0.5 는 야생 포켓몬만 (트레이너 · 관장 포켓몬은 그대로 — 테스터)
+    const wild = b.kind === 'wild';
+    if (!opts.useUlt) a.ult = Math.min(1, a.ult + ultGain('hit', a, { wild: wild && attackerSide === 'foe' }));
+    d.ult = Math.min(1, d.ult + ultGain('hurt', d, { guarded, wild: wild && attackerSide === 'me' }));
   }
   // 흡수 (+) · 반동 (−)
   if (opts.move && opts.move.drain !== 0 && dmg > 0) {
@@ -436,15 +480,25 @@ function finishAnim(b0: BattleState, save: Save, rng: Rng): BattleState {
 }
 
 /** 쓰러졌는지 보고 다음 단계로 */
-function afterHits(b: BattleState, save: Save): BattleState {
-  if (b.foe.hp <= 0) {
-    const down = `${withJosa(label(b.foe, 'foe'), '이/가')} 쓰러졌다!`;
+function afterHits(b0: BattleState, save: Save): BattleState {
+  if (b0.foe.hp <= 0) {
+    const b: BattleState = { ...b0, foeDown: [...b0.foeDown, { species: b0.foe.species, level: b0.foe.level }] };
+    const down = `${withJosa(label(b, 'foe'), '이/가')} 쓰러졌다!`;
     // 야생은 마지막 기회 한 번 (mvp-spec S11) — 볼이 없으면 "볼이 없어요" 로 건너뜀 · 내 팀도 다 쓰러졌으면 (반동 · 독) 진 것과 같아 건너뜀
     const wiped = b.me.hp <= 0 && switchable(b, save).length === 0;
+    if (b.kind !== 'wild') {
+      const who = b.foeName ?? '상대';
+      // 내 포켓몬도 같이 쓰러졌으면 (독 · 화상 · 반동) 그 HP 0 을 남김 — 다음 포켓몬 목록 · 전투 끝 세이브에 (살아난 채로 다시 나오지 않게, 코드 리뷰어)
+      const nb: BattleState = b.me.hp <= 0 ? { ...b, bench: { ...b.bench, [b.me.uid]: { hp: 0, moves: b.me.moves, status: b.me.status, ult: b.me.ult } } } : b;
+      if (wiped) return { ...nb, phase: 'over', result: 'lose', overMs: 0, msg: `${down} 내 포켓몬도 다 쓰러졌다… 눈앞이 깜깜해졌다` };
+      if (nb.foeQueue.length > 0) return { ...nb, phase: 'send', sendMs: 0, foeUltWait: null, msg: `${down} ${withJosa(who, '은/는')} 다음 포켓몬을 꺼낸다…` };
+      return { ...nb, phase: 'over', result: 'win', overMs: 0, msg: `${down} ${withJosa(who, '과/와')}의 승부에서 이겼다!` };
+    }
     const hasBall = BALLS.some((ball) => itemLeft(b, save, ball) > 0);
     if (b.kind === 'wild' && hasBall && !wiped) return { ...b, phase: 'last', lastMs: 0, msg: `${down} 마지막 기회 — 볼을 던질까?` };
     return { ...b, phase: 'over', result: 'win', overMs: 0, msg: b.kind === 'wild' && !hasBall && !wiped ? `${down} (볼이 없어 잡을 수 없어요)` : down };
   }
+  const b = b0;
   if (b.me.hp <= 0) {
     const bench = { ...b.bench, [b.me.uid]: { hp: 0, moves: b.me.moves, status: b.me.status } };
     const nb = { ...b, bench };
@@ -486,9 +540,11 @@ export function battleStep(b0: BattleState, save: Save, stepMs: number, rng: Rng
       const foe = { ...b.foe, gauge: Math.min(1, b.foe.gauge + gaugeRate(b.foe, b.me) * stepMs) };
       b = { ...b, me, foe };
       // 필살기: 야생 = 차면 바로 (끼어들지는 않음 [제안]) · 자동 전투의 내 필살기도 차면 바로 — 같은 걸음에 둘 다 쓰면 필살기 힘대결 (4장 동시 필살기)
-      if (opts.auto && b.me.ult >= 1 && b.foe.ult >= 1) return startClash({ ...b, me: { ...b.me, ult: 0 }, foe: { ...b.foe, ult: 0 } }, 'ult', null, null);
-      if (b.foe.ult >= 1) return startAction(b, 'foe', { kind: 'ult' }, rng);
-      if (opts.auto && b.me.ult >= 1) return startAction(b, 'me', { kind: 'ult' }, rng);
+      if (opts.auto && b.me.ult >= 1 && b.foe.ult >= 1) return startClash({ ...b, me: { ...b.me, ult: 0 }, foe: { ...b.foe, ult: 0 }, foeUltWait: null }, 'ult', null, null);
+      const tick = foeUltTick(b, stepMs, rng);
+      b = tick.b;
+      if (tick.fire) return startAction(b, 'foe', { kind: 'ult' }, rng);
+      if (opts.auto && b.me.ult >= 1) return myUlt(b, rng);
       const meReady = b.me.gauge >= 1;
       const foeReady = b.foe.gauge >= 1;
       if (meReady && (!foeReady || b.me.stats.speed >= b.foe.stats.speed)) {
@@ -496,15 +552,22 @@ export function battleStep(b0: BattleState, save: Save, stepMs: number, rng: Rng
         const pick = aiPick(b.me, b.foe, 'smart', rng);
         return startAction(b, 'me', pick, rng);
       }
-      if (foeReady) return startAction(b, 'foe', aiPick(b.foe, b.me, 'wild', rng), rng);
+      if (foeReady) return startAction(b, 'foe', aiPick(b.foe, b.me, foeStyle(b), rng), rng);
       return b;
     }
     case 'choose':
       if (opts.auto) return startAction(b, 'me', aiPick(b.me, b.foe, 'smart', rng), rng);
-      return b; // 양쪽 멈춤 — 내가 고를 때까지
+      return b; // 양쪽 멈춤 — 내가 고를 때까지 (상대 필살기 기다림도 멈춤)
     case 'anim': {
       const anim = { ...b.anim!, ms: b.anim!.ms + stepMs };
       b = { ...b, anim };
+      // 관장이 내 공격 · 기술 연출에 필살기로 끼어듦 — 내 기술은 취소 (PP 는 깎인 채, 내가 끼어들 때와 같은 규칙) · 트레이너는 끼어들지 않음 (gdd 4.7 성격)
+      if (b.kind === 'gym' && anim.side === 'me' && (anim.action.kind === 'attack' || anim.action.kind === 'move') && b.foe.hp > 0 && b.foe.ult >= 1) {
+        if (anim.ms >= BALANCE.leaderCutMs && anim.ms - stepMs < BALANCE.leaderCutMs) {
+          const nb = startAction({ ...b, anim: null, foeUltWait: null }, 'foe', { kind: 'ult' }, rng);
+          return { ...nb, msg: `끼어들었다! ${nb.msg}` };
+        }
+      }
       if (anim.ms < anim.dur) return b;
       return finishAnim(b, save, rng);
     }
@@ -533,12 +596,49 @@ export function battleStep(b0: BattleState, save: Save, stepMs: number, rng: Rng
     case 'last': {
       const lastMs = b.lastMs + stepMs;
       // 볼을 고르지 않으면 (자동 전투 · 안 봄 · 그냥 둠) 지나감 [제안]
-      if (opts.away || lastMs >= TIMING.lastChanceMs) return { ...b, lastMs, phase: 'over', result: 'win', overMs: 0, msg: `${withJosa(label(b.foe, 'foe'), '이/가')} 쓰러졌다!` };
+      if (opts.away || lastMs >= TIMING.lastChanceMs) return { ...b, lastMs, phase: 'over', result: 'win', overMs: 0, msg: `${withJosa(label(b, 'foe'), '이/가')} 쓰러졌다!` };
       return { ...b, lastMs };
+    }
+    case 'send': {
+      const sendMs = b.sendMs + stepMs;
+      if (sendMs < TIMING.foeSendMs) return { ...b, sendMs };
+      const [next, ...rest] = b.foeQueue;
+      if (!next) return { ...b, phase: 'over', result: 'win', overMs: 0 };
+      const foe = fighterOf(next);
+      // 관장의 마지막 포켓몬 = 에이스 (필살기 게이지 절반, gdd 4.7)
+      if (b.kind === 'gym' && rest.length === 0) foe.ult = BALANCE.gymAceUlt;
+      const nb: BattleState = { ...b, foe, foeQueue: rest, sendMs: 0, foeUltWait: null, msg: `${withJosa(b.foeName ?? '상대', '은/는')} ${withJosa(nameOf(foe), '을/를')} 내보냈다!` };
+      // 내 포켓몬도 같이 쓰러졌으면 (반동 · 독) 다음 포켓몬 고르기
+      if (nb.me.hp <= 0) {
+        if (switchable(nb, save).length === 0) return { ...nb, phase: 'over', result: 'lose', overMs: 0, msg: '눈앞이 깜깜해졌다…' };
+        return { ...nb, phase: 'pick', msg: `${nb.msg} 다음 포켓몬을 골라요 (숫자 키)` };
+      }
+      return nb.me.gauge >= 1 ? { ...nb, phase: 'choose', msg: chooseMsg(nb) } : { ...nb, phase: 'run' };
     }
     case 'over':
       return { ...b, overMs: b.overMs + stepMs };
   }
+}
+
+/** 상대 필살기를 쓸 때인지 — 야생: 차면 바로 · 트레이너: 0.5 ~ 3초 기다렸다가 · 관장: 끼어들 틈 (내 공격 · 기술) 이 없으면 4초 뒤 */
+function foeUltTick(b: BattleState, stepMs: number, rng: Rng): { b: BattleState; fire: boolean } {
+  if (b.foe.ult < 1 || b.foe.hp <= 0) return { b: b.foeUltWait === null ? b : { ...b, foeUltWait: null }, fire: false };
+  if (b.kind === 'wild') return { b, fire: true };
+  if (b.foeUltWait === null) {
+    const [lo, hi] = BALANCE.trainerUltWaitMs;
+    return { b: { ...b, foeUltWait: b.kind === 'gym' ? BALANCE.leaderUltWaitMs : rng.int(lo, hi) }, fire: false };
+  }
+  const left = b.foeUltWait - stepMs;
+  return left <= 0 ? { b: { ...b, foeUltWait: null }, fire: true } : { b: { ...b, foeUltWait: left }, fire: false };
+}
+
+/** 내 필살기 — 트레이너 · 관장의 게이지가 차 있으면 필살기로 맞받아침 (관장은 늘 · 트레이너는 반) → 필살기 힘대결 */
+function myUlt(b: BattleState, rng: Rng): BattleState {
+  if (b.kind !== 'wild' && b.foe.ult >= 1 && b.foe.hp > 0 && (b.kind === 'gym' || rng.chance(BALANCE.trainerUltCounterChance))) {
+    const nb = startClash({ ...b, me: { ...b.me, ult: 0 }, foe: { ...b.foe, ult: 0 }, foeUltWait: null }, 'ult', null, null);
+    return { ...nb, msg: '상대도 필살기로 맞받아쳤다! 필살기 힘대결!' };
+  }
+  return startAction(b, 'me', { kind: 'ult' }, rng);
 }
 
 /** 볼 던지기 시작 — 전투 중이면 내 행동 하나 (게이지 0) · 쓴 볼은 끝날 때 가방에서 뺌 */
@@ -568,7 +668,7 @@ function catchStep(b: BattleState, save: Save, stepMs: number, rng: Rng): Battle
     return { ...b, catch: { ...c, caught }, msg: `흔들… 흔들…${nice}` };
   }
   if (c.ms < decideAt + TIMING.catchShakeMs) return { ...b, catch: c };
-  const name = label(b.foe, 'foe');
+  const name = label(b, 'foe');
   if (c.caught) return { ...b, catch: c, phase: 'over', result: 'catch', overMs: 0, msg: `신난다! ${withJosa(name, '을/를')} 잡았다!` };
   if (c.last) return { ...b, catch: null, phase: 'over', result: 'win', overMs: 0, msg: `아깝다! ${withJosa(name, '이/가')} 빠져나왔다…` };
   // 볼을 던진 것도 내 행동 하나 — 독 · 화상 피해 (다른 아이템처럼)
@@ -680,14 +780,14 @@ export function battleInput(b: BattleState, save: Save, input: BattleInput, rng:
       return throwBall(b, input.ball, true);
     case 'no-ball':
       if (b.phase !== 'last') return b;
-      return { ...b, phase: 'over', result: 'win', overMs: 0, msg: `${withJosa(label(b.foe, 'foe'), '이/가')} 쓰러졌다!` };
+      return { ...b, phase: 'over', result: 'win', overMs: 0, msg: `${withJosa(label(b, 'foe'), '이/가')} 쓰러졌다!` };
     case 'ult': {
       if (ultCounterOpen(b)) return startClash({ ...b, me: { ...b.me, ult: 0 } }, 'ult', null, null);
       if (!canUlt(b)) return b;
       // 상대 기술 연출 중에 끼어들면 상대 기술은 취소 (상대 PP 는 깎인 채 — 2026-10-18 태현 님)
       const interrupted = b.phase === 'anim' && b.anim?.side === 'foe';
-      const nb = startAction(interrupted ? { ...b, anim: null } : b, 'me', { kind: 'ult' }, rng);
-      if (interrupted) return { ...nb, msg: `끼어들었다! ${nb.msg}` };
+      const nb = myUlt(interrupted ? { ...b, anim: null } : b, rng);
+      if (interrupted && nb.phase === 'anim') return { ...nb, msg: `끼어들었다! ${nb.msg}` };
       // 고르는 중에 쓴 필살기 — 끝나면 다시 고르기 (내 행동 게이지는 그대로)
       return nb;
     }
@@ -721,7 +821,7 @@ export function battleInput(b: BattleState, save: Save, input: BattleInput, rng:
   }
 }
 
-/** 전투 끝 — 내 포켓몬 HP · PP · 상태 이상과 쓴 아이템을 세이브에. 지면 (임시, 패배 화면은 단계 9) 팀을 회복 */
+/** 전투 끝 — 내 포켓몬 HP · PP · 상태 이상과 쓴 아이템을 세이브에 (지면 S17 패배 — 돈 · 회복 · 다시 시작은 play.ts) */
 export function applyBattleResult(save: Save, b: BattleState): Save {
   const monsters = { ...save.monsters };
   const changed = { ...b.bench, [b.me.uid]: { hp: b.me.hp, moves: b.me.moves, status: b.me.status } };
@@ -732,20 +832,7 @@ export function applyBattleResult(save: Save, b: BattleState): Save {
   }
   const bag = { ...save.bag };
   for (const [item, n] of Object.entries(b.bagUsed) as [ItemId, number][]) bag[item] = Math.max(0, (bag[item] ?? 0) - n);
-  let next: Save = { ...save, monsters, bag, pendingEncounter: null };
-  // 이겼어도 (반동 · 독으로 같이 쓰러져) 살아 있는 포켓몬이 없으면 진 것과 같이
-  const anyAlive = next.party.some((uid) => (next.monsters[uid]?.hp ?? 0) > 0);
-  if (b.result === 'lose' || !anyAlive) {
-    // 패배 화면 (S17) 은 단계 9 — 그 전까지는 팀을 회복하고 계속 걸음 (임시)
-    const healed = { ...next.monsters };
-    for (const uid of next.party) {
-      const m = healed[uid];
-      const s = m ? speciesOf(m.species) : undefined;
-      if (m && s) healed[uid] = { ...m, hp: fighterOf({ ...m, hp: 99999 }).maxHp, status: null, moves: m.moves.map((x) => ({ ...x, pp: moveOf(x.moveId)?.pp ?? x.pp })) };
-    }
-    next = { ...next, monsters: healed };
-  }
-  return next;
+  return { ...save, monsters, bag, pendingEncounter: null };
 }
 
 // ---------- 다른 쪽 (웹뷰) 에서 온 전투 상태 검사 — 모양이 이상하면 null (그 전투를 처음부터)
@@ -754,7 +841,8 @@ type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
 const fin = (v: unknown, min = -1e12, max = 1e12): v is number => typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max;
 const SIDES = ['me', 'foe'];
-const PHASES = ['run', 'choose', 'anim', 'clash', 'pick', 'catch', 'last', 'over'];
+const PHASES = ['run', 'choose', 'anim', 'clash', 'pick', 'catch', 'last', 'send', 'over'];
+const KINDS = ['wild', 'trainer', 'gym'];
 const ACTIONS = ['attack', 'move', 'guard', 'item', 'switch', 'flee', 'ult', 'skip'];
 const STATUS = ['poison', 'burn', 'paralysis', 'sleep'];
 const POPUP_KINDS = ['damage', 'heal', 'info'];
@@ -792,7 +880,8 @@ function okFighter(f: unknown): boolean {
     fin(f.guard, 0, 1) &&
     fin(f.guardStreak, 0, 1000) &&
     (f.streakMove === null || fin(f.streakMove, 1, 100000)) &&
-    fin(f.streakCount, 0, 10000)
+    fin(f.streakCount, 0, 10000) &&
+    (f.star === undefined || (fin(f.star, 1, 5) && Number.isInteger(f.star)))
   );
 }
 
@@ -814,8 +903,19 @@ function okBag(bag: unknown): boolean {
   return isObj(bag) && Object.entries(bag).every(([k, n]) => (ITEM_IDS as readonly string[]).includes(k) && fin(n, 0, 9999) && Number.isInteger(n));
 }
 
+/** 아직 안 나온 상대 포켓몬 — fighterOf 가 쓰는 칸만 봄 (세이브에는 안 들어감) */
+function okFoeMonster(m: unknown): boolean {
+  if (!isObj(m) || typeof m.uid !== 'string' || !fin(m.species, 1, 2000) || typeof m.form !== 'string' || !fin(m.level, 1, 100) || typeof m.shiny !== 'boolean') return false;
+  const statsOk = (s: unknown) => isObj(s) && ['hp', 'attack', 'defense', 'speed', 'ultimate'].every((k) => fin(s[k], 0, 1e6));
+  return statsOk(m.ivs) && statsOk(m.points) && okMoves(m.moves) && fin(m.hp, 0, 1e6) && okStatus(m.status);
+}
+
 export function readBattle(raw: unknown): BattleState | null {
-  if (!isObj(raw) || raw.kind !== 'wild' || !okFighter(raw.me) || !okFighter(raw.foe)) return null;
+  if (!isObj(raw) || !KINDS.includes(raw.kind as string) || !okFighter(raw.me) || !okFighter(raw.foe)) return null;
+  if (!Array.isArray(raw.foeQueue) || raw.foeQueue.length > 6 || !raw.foeQueue.every(okFoeMonster)) return null;
+  if (!Array.isArray(raw.foeDown) || raw.foeDown.length > 6 || !raw.foeDown.every((d) => isObj(d) && fin(d.species, 1, 2000) && fin(d.level, 1, 100))) return null;
+  if (!(raw.foeUltWait === null || fin(raw.foeUltWait, -1e6, 1e6)) || !(raw.foeName === null || (typeof raw.foeName === 'string' && raw.foeName.length <= 40)) || !fin(raw.sendMs, 0)) return null;
+  if (raw.kind !== 'wild' && typeof raw.foeName !== 'string') return null;
   if (!PHASES.includes(raw.phase as string) || !okBench(raw.bench) || !okBag(raw.bagUsed)) return null;
   if (!Array.isArray(raw.popups) || !raw.popups.every((p) => isObj(p) && fin(p.id, 0) && SIDES.includes(p.side as string) && typeof p.text === 'string' && fin(p.ms, 0) && POPUP_KINDS.includes(p.kind as string))) return null;
   const anim = raw.anim;

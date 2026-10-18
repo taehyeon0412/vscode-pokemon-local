@@ -8,7 +8,7 @@ import { validateSave } from './validate';
 
 export * from './schema';
 export { createNewSave } from './create';
-export { validateSave, MAX_SPECIES, type ValidateResult } from './validate';
+export { validateSave, MAX_SPECIES, RUN_SEEN_MAX, type ValidateResult } from './validate';
 export { migrateSave, MIGRATIONS, type Migrations, type MigrateResult } from './migrate';
 
 export type ReadSaveResult =

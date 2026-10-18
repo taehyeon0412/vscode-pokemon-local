@@ -1,13 +1,15 @@
 /**
- * S06 스테이지 (gdd S06 · mvp-spec 3.2) — 자동으로 걷는 화면.
- *   정보줄: ① 볼 개수 · ② 미니맵 (오른쪽 ⑦ ~ ⑩ 은 단계 8)
- *   길: 숲 배경 2겹이 흐르고 (확장에 있는 숲 그림) ③ 주인공은 제자리걸음, ④ 흔적 · ⑭ 아이템 · ⑯ 부탁 · ⑥ 병원 · 상점 · ⑮ 배경 포켓몬
- * 전투 (S09 · S10) 는 같은 길 위에서 — features/battle 의 BattleLayer (주인공은 왼쪽 끝 트레이너 자리로, 야생은 튀어나온 자리 그대로).
+ * S06 스테이지 (gdd S06 · mvp-spec 3.2) — 자동으로 걷는 화면 · S16 체육관 (대기실 · 관장전) 도 같은 틀.
+ *   정보줄: ① 볼 개수 · ② 미니맵 (체육관은 이름) · ⑦ ~ ⑩ 오른쪽 위 버튼 (걷는 중에만)
+ *   길: 숲 배경 2겹이 흐르고 (확장에 있는 숲 그림) ③ 주인공은 제자리걸음, ④ 흔적 · ⑤ 트레이너 · ⑭ 아이템 · ⑯ 부탁 · ⑥ 병원 · 상점 · ⑮ 배경 포켓몬
+ *   체육관: 코드로 그린 방 · 오른쪽에 관장 (임시 디자인)
+ * 전투 (S09 · S10) 는 같은 길 위에서 — features/battle 의 BattleLayer (주인공은 왼쪽 끝 트레이너 자리로, 야생은 튀어나온 자리 그대로 · 트레이너는 오른쪽 끝).
  * 선제공격은 Space 또는 길 클릭 [제안] — 코딩 중에는 편집기에 포커스가 있어 Space 가 코드에 들어가므로, 클릭하면 패널에 포커스도 옴.
  */
 import { BALANCE } from '../../../core/balance';
-import { itemLeft, type GameInput, type GameState } from '../../../core/engine';
+import { canOpenMenus, itemLeft, type GameInput, type GameState } from '../../../core/engine';
 import { bestHelper, requestAt } from '../../../core/rules/request';
+import { GYM_LEADER } from '../../../core/rules/trainer';
 import { withJosa } from '../../../core/text';
 import { speciesOf } from '../../../data';
 import { BallCount } from '../../../ui/BallCount';
@@ -16,11 +18,15 @@ import { typeNameKo } from '../../../ui/format';
 import { InfoBar } from '../../../ui/InfoBar';
 import { INFO_BAR_PX, type Layout } from '../../../ui/layout';
 import { BattleLayer, BattleMenuBar } from '../../battle/components/BattleLayer';
-import { battleGeometry, battleSpritePx } from '../../battle/model';
+import { battleGeometry, battleSpritePx, foeTrainerX, trainerBattleFoeX } from '../../battle/model';
+import { MenuButtons } from '../../menu/components/MenuButtons';
+import { ShopPanel } from '../../menu/components/ShopPanel';
+import { hasUnspent, type Overlay } from '../../menu/model';
 import { ChoiceBox } from '../../result/components/ChoiceBox';
 import { ResultBox } from '../../result/components/ResultBox';
 import { choiceView } from '../../result/model';
-import { contactX, heroX, minimapOf, STAGES, stagePx, visibleObjects } from '../model';
+import { contactX, foeTrainerView, heroX, minimapOf, STAGES, stagePx, visibleObjects } from '../model';
+import { BadgeCard, ClearCard, DefeatBox, FacilityBox, LobbyBox, TrainerBanner } from './FieldBoxes';
 import { Hero } from './Hero';
 import { Minimap } from './Minimap';
 import { StageObjects } from './StageObjects';
@@ -31,6 +37,8 @@ export interface StageScreenProps {
   widthPx: number;
   media: string;
   onInput(input: GameInput): void;
+  /** 판 열기 (지도 · 내 포켓몬 · 가방 · 설정 · 상점 · 프로필) */
+  onOpen(o: Overlay): void;
 }
 
 /** VS Code 테마 — 밝은 테마면 밝은 숲 그림 (일반 모드와 같은 그림 · 같은 규칙) */
@@ -107,21 +115,29 @@ function RequestBox({ state, onInput }: { state: GameState; onInput(i: GameInput
   );
 }
 
-export function StageScreen({ state, layout, widthPx, media, onInput }: StageScreenProps) {
+/** 팀 맨 앞 포켓몬 그림 (오른쪽 위 ◓ 버튼) */
+function leadOf(save: GameState['save']): { form: string; shiny: boolean } | null {
+  const m = save.party[0] ? save.monsters[save.party[0]] : undefined;
+  return m ? { form: m.form, shiny: m.shiny } : null;
+}
+
+export function StageScreen({ state, layout, widthPx, media, onInput, onOpen }: StageScreenProps) {
   const save = state.save;
+  const gym = save.location.screen === 'gym';
   const stageId = save.location.screen === 'stage' ? save.location.stageId : null;
   const info = stageId ? STAGES[stageId] : null;
   const map = minimapOf(state);
-  const phase = state.runtime.stage?.phase ?? 'walk';
+  const phase = state.runtime.stage?.phase ?? (gym ? 'lobby' : 'walk');
   const progress = map?.progress ?? 0;
   const offset = progress * stagePx(layout.scale);
   const ground = GROUND_PX[layout.size] - 2;
   const hero = heroX(widthPx);
   const heroPx = 2 * layout.scale;
-  const objects = visibleObjects(state, widthPx, layout.scale);
+  const objects = gym ? [] : visibleObjects(state, widthPx, layout.scale);
   const stageRt = state.runtime.stage;
   const battle = stageRt?.phase === 'battle' ? stageRt.battle : null;
   const choice = choiceView(state);
+  const foeTrainer = foeTrainerView(state);
   const geo = battle
     ? battleGeometry({
         widthPx,
@@ -129,22 +145,35 @@ export function StageScreen({ state, layout, widthPx, media, onInput }: StageScr
         scale: layout.scale,
         uiScale: layout.uiScale,
         ground,
-        foeX: contactX(widthPx, layout.scale),
+        foeX: battle.kind === 'wild' ? contactX(widthPx, layout.scale) : trainerBattleFoeX(widthPx, layout.scale, battleSpritePx(battle.foe.form, layout.scale, layout.heightPx)),
         meSpritePx: battleSpritePx(battle.me.form, layout.scale, layout.heightPx),
         foeSpritePx: battleSpritePx(battle.foe.form, layout.scale, layout.heightPx),
         heroPx: HERO_ROWS * heroPx,
       })
     : null;
-  const art = (layer: 'background' | 'foreground') => (media ? `url("${media}/backgrounds/forest/${layer}-${themeKind()}-${layout.size}.png")` : 'none');
+  const art = (layer: 'background' | 'foreground') => (media && !gym ? `url("${media}/backgrounds/forest/${layer}-${themeKind()}-${layout.size}.png")` : 'none');
+  // 체육관: 주인공은 왼쪽 (대기실) · 관장은 오른쪽 끝
+  const heroLeft = geo ? geo.trainerX : gym ? Math.round(widthPx * 0.18) : hero;
+  const showToast = state.runtime.toast && (phase === 'walk' || phase === 'clear' || phase === 'lobby' || phase === 'facility');
+  const shopInside = stageRt?.phase === 'facility' && stageRt.inside && stageRt.kind === 'shop';
 
   return (
-    <div class={`pg-screen pg-stage pg-size-${layout.size}`}>
+    <div class={`pg-screen pg-stage pg-size-${layout.size}${gym ? ' pg-gym' : ''}`}>
       {battle && geo?.menuInBar ? (
         <BattleMenuBar battle={battle} save={save} onInput={onInput} withAuto={geo.autoInMenu} compact={geo.compact} />
       ) : (
         <InfoBar
           left={<BallCount count={battle ? itemLeft(battle, save, 'poke-ball') : (save.bag['poke-ball'] ?? 0)} />}
-          center={info && map ? <Minimap stage={info} progress={map.progress} facilities={map.facilities} gym={map.gym} /> : <span>🌲 숲</span>}
+          center={
+            gym ? (
+              <span class="pg-stage-name">🏟 숲 체육관 {save.badges.includes('forest') && '🏅'}</span>
+            ) : info && map ? (
+              <Minimap stage={info} progress={map.progress} facilities={map.facilities} gym={map.gym} />
+            ) : (
+              <span>🌲 숲</span>
+            )
+          }
+          right={canOpenMenus(state) ? <MenuButtons onOpen={onOpen} dot={hasUnspent(save)} media={media} lead={leadOf(save)} /> : null}
         />
       )}
       <div
@@ -155,26 +184,46 @@ export function StageScreen({ state, layout, widthPx, media, onInput }: StageScr
           if (phase === 'appear' || battle?.phase === 'clash' || battle?.phase === 'catch') onInput({ kind: 'space' });
         }}
       >
-        <div class="pg-bg" style={{ backgroundImage: art('background'), backgroundPositionX: `${-Math.round(offset * 0.35)}px` }} />
-        <div class="pg-fg" style={{ backgroundImage: art('foreground'), backgroundPositionX: `${-Math.round(offset * 0.7)}px` }} />
+        {gym ? (
+          <div class="pg-gym-room" />
+        ) : (
+          <>
+            <div class="pg-bg" style={{ backgroundImage: art('background'), backgroundPositionX: `${-Math.round(offset * 0.35)}px` }} />
+            <div class="pg-fg" style={{ backgroundImage: art('foreground'), backgroundPositionX: `${-Math.round(offset * 0.7)}px` }} />
+          </>
+        )}
         <StageObjects objects={objects} media={media} scale={layout.scale} ground={ground} />
-        <span class="pg-obj pg-hero-wrap" style={{ left: `${geo ? geo.trainerX : hero}px`, bottom: `${ground}px` }}>
+        <span class="pg-obj pg-hero-wrap" style={{ left: `${heroLeft}px`, bottom: `${ground}px` }}>
           <Hero px={heroPx} walking={phase === 'walk'} />
         </span>
-        {battle && geo && <BattleLayer battle={battle} save={save} media={media} ground={ground} geo={geo} onInput={onInput} />}
+        {/* 전투 중 상대 트레이너 · 관장 = 오른쪽 끝 (남은 볼) · 대기실의 관장 */}
+        {((battle && foeTrainer) || (gym && !battle)) && (
+          <span class="pg-obj pg-foe-trainer" style={{ left: `${foeTrainerX(widthPx, layout.scale)}px`, bottom: `${ground}px` }} title={foeTrainer?.name ?? GYM_LEADER.name}>
+            {foeTrainer && (
+              <span class="pg-foe-balls">
+                {Array.from({ length: foeTrainer.balls }, (_, i) => (
+                  <span key={i} class={i < foeTrainer.left ? 'pg-ball' : 'pg-ball pg-ball-down'} />
+                ))}
+              </span>
+            )}
+            <Hero px={heroPx} walking={false} hat={foeTrainer?.hat ?? GYM_LEADER.hat} shirt={foeTrainer?.shirt ?? GYM_LEADER.shirt} faceLeft label={foeTrainer?.name ?? GYM_LEADER.name} />
+          </span>
+        )}
+        {battle && geo && <BattleLayer battle={battle} save={save} media={media} ground={ground} geo={geo} onInput={onInput} onProfile={(side) => onOpen({ kind: 'profile', side })} />}
         <EncounterBox state={state} />
+        {stageRt?.phase === 'trainer' && foeTrainer?.talking && <TrainerBanner name={foeTrainer.name} balls={foeTrainer.balls} />}
         <RequestBox state={state} onInput={onInput} />
+        <FacilityBox state={state} media={media} onInput={onInput} onBox={() => onOpen({ kind: 'team' })} />
+        {shopInside && <ShopPanel save={save} note={state.runtime.toast?.text} onInput={onInput} onClose={() => onInput({ kind: 'facility-leave' })} />}
         {stageRt?.phase === 'result' && <ResultBox summary={stageRt.summary} next={save.pendingChoices[0]?.kind ?? null} onInput={onInput} />}
         {choice && <ChoiceBox view={choice} media={media} scale={layout.scale} onInput={onInput} />}
-        {phase === 'end' && (
-          <div class="pg-banner pg-end pg-wrap">
-            <span class="pg-ellipsis">🏁 스테이지 끝까지 왔어요! (클리어 카드는 다음 단계들에서)</span>
-            <Button onClick={() => onInput({ kind: 'restart-stage' })}>처음부터 다시 걷기</Button>
-          </div>
-        )}
-        {state.runtime.toast && phase === 'walk' && (
+        <DefeatBox state={state} media={media} onInput={onInput} />
+        <ClearCard state={state} media={media} onInput={onInput} onMap={() => onOpen({ kind: 'map' })} onTeam={() => onOpen({ kind: 'team' })} />
+        <LobbyBox state={state} media={media} onInput={onInput} onBox={() => onOpen({ kind: 'team' })} onShop={() => onOpen({ kind: 'shop' })} onMap={() => onOpen({ kind: 'map' })} />
+        <BadgeCard state={state} media={media} onInput={onInput} onMap={() => onOpen({ kind: 'map' })} />
+        {showToast && state.runtime.toast && (
           // 주인공 머리 위 — 주운 자리에서 바로 보이게
-          <div key={state.runtime.toast.text} class="pg-toast" style={{ left: `${hero}px`, bottom: `${ground + HERO_ROWS * heroPx + 4}px` }}>
+          <div key={state.runtime.toast.text} class="pg-toast" style={{ left: `${Math.max(80, heroLeft)}px`, bottom: `${ground + HERO_ROWS * heroPx + 4}px` }}>
             {state.runtime.toast.text}
           </div>
         )}

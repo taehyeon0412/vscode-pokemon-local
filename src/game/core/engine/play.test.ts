@@ -12,7 +12,7 @@ const STEP = TIMING.simStepMs;
 
 /** 숲 1-1 을 막 시작한 세이브 (시설 자리는 아직 안 적힘) */
 function start(seed = 42): GameState {
-  const save = sampleSave({ stages: { 'forest-1': { seed, progress: 0, cleared: false, defeatedTrainers: [], facilities: [] } }, dex: { seen: [1], caught: [1] } });
+  const save = sampleSave({ stages: { 'forest-1': { seed, progress: 0, cleared: false, defeatedTrainers: [], facilities: [], run: { startMs: 0, caught: 0, trainers: 0, seen: [], reach: 0, retries: 0 } } }, dex: { seen: [1], caught: [1] } });
   return createGameState(save, 7);
 }
 
@@ -64,15 +64,21 @@ describe('S06 자동 걷기 (mvp-spec 3.2)', () => {
     expect(withSpeed(start(), 999).runtime.speed).toBe(60);
   });
 
-  it('끝까지 걸으면 멈춤 (클리어 카드는 단계 9) · 처음부터 다시 (임시)', () => {
+  it('끝까지 걸으면 S24 클리어 카드에서 멈춤 (단계 9) · 볼 +1 · 깬 표시 · 바로 저장', () => {
     let s = start();
     s = { ...s, save: { ...s.save, stages: { 'forest-1': { ...s.save.stages['forest-1']!, progress: 0.99999 } } }, runtime: { ...s.runtime, stage: { phase: 'walk' } } };
-    s = until(s, (x) => phase(x) === 'end', 5000);
+    const balls = s.save.bag['poke-ball'] ?? 0;
+    const r = advance(s, 5000);
+    s = until(r.state, (x) => phase(x) === 'clear', 5000);
+    expect(r.saves).toContain('stage-clear');
     expect(prog(s)).toBe(1);
-    expect(advance(s, 5000).state.save.stages['forest-1']!.progress).toBe(1);
-    const again = applyInput(s, { kind: 'restart-stage' });
-    expect(prog(again)).toBe(0);
-    expect(phase(again)).toBe('walk');
+    expect(s.save.stages['forest-1']!.cleared).toBe(true);
+    expect(s.save.bag['poke-ball']).toBe(balls + BALANCE.clearBalls);
+    expect(isWaitingForInput(s)).toBe(true);
+    // 카드에서 껐다 켜도 카드 그대로 · 보상은 한 번만
+    const reloaded = advance(createGameState(viaJson(s.save), 3), 1000).state;
+    expect(phase(reloaded)).toBe('clear');
+    expect(reloaded.save.bag['poke-ball']).toBe(balls + BALANCE.clearBalls);
   });
 });
 
@@ -220,7 +226,7 @@ describe('길 위의 부탁 (gdd 4.6)', () => {
 describe('다른 쪽에서 온 진행 중 상태 검사 (코드 리뷰어 · 테스터)', () => {
   it('다른 스테이지 것 · 상대 없는 전투 · 길에 없는 부탁 자리는 버리고 세이브를 보고 다시 정함', () => {
     const s = advance(start(), 100).state;
-    const other = { ...s, runtime: { ...s.runtime, stageId: 'forest-2' as const, stage: { phase: 'end' as const } } };
+    const other = { ...s, runtime: { ...s.runtime, stageId: 'forest-2' as const, stage: { phase: 'clear' as const } } };
     expect(phase(step(other, STEP).state)).toBe('walk');
     const fakeBattle = { ...s, runtime: { ...s.runtime, stage: { phase: 'battle' as const, battle: startBattle(s.save, s.save.monsters.m2!, 'normal') } } };
     const r = step(fakeBattle, STEP);
@@ -232,15 +238,19 @@ describe('다른 쪽에서 온 진행 중 상태 검사 (코드 리뷰어 · 테
   });
 });
 
-describe('처음부터 다시 걷기 (임시) · 나가는 포켓몬', () => {
-  it('새 시드로 — 같은 아이템 · 부탁이 다시 나오지 않음 · 시설 자리도 새로', () => {
+describe('깬 스테이지 다시 걷기 (#62) · 나가는 포켓몬', () => {
+  it('새 시드로 (새 길) — 같은 아이템 · 부탁이 다시 나오지 않음 · 병원 · 상점 자리 · 이긴 트레이너는 그대로', () => {
     let s = start();
-    s = { ...s, save: { ...s.save, stages: { 'forest-1': { ...s.save.stages['forest-1']!, progress: 0.99999 } } }, runtime: { ...s.runtime, stage: { phase: 'walk' } } };
-    s = until(s, (x) => phase(x) === 'end', 5000);
-    const again = applyInput(s, { kind: 'restart-stage' });
+    s = { ...s, save: { ...s.save, stages: { 'forest-1': { ...s.save.stages['forest-1']!, progress: 0.99999, defeatedTrainers: ['forest-1:t0'] } } }, runtime: { ...s.runtime, stage: { phase: 'walk' } } };
+    s = until(s, (x) => phase(x) === 'clear', 5000);
+    const again = applyInput(s, { kind: 'travel', to: 'forest-1' });
     expect(again.save.stages['forest-1']!.seed).not.toBe(s.save.stages['forest-1']!.seed);
-    expect(again.save.stages['forest-1']!.facilities).toEqual([]);
+    expect(again.save.stages['forest-1']!.facilities).toEqual(s.save.stages['forest-1']!.facilities);
+    expect(again.save.stages['forest-1']!.facilities.length).toBeGreaterThan(0);
+    expect(again.save.stages['forest-1']!.defeatedTrainers).toEqual(['forest-1:t0']);
+    expect(again.save.stages['forest-1']!.cleared).toBe(true);
     expect(prog(again)).toBe(0);
+    expect(phase(step(again, STEP).state)).toBe('walk');
   });
 
   it('기습 계산의 "내 스피드" = 쓰러지지 않은 첫 포켓몬 (mvp-spec 3.3)', () => {
@@ -371,7 +381,7 @@ describe('S12 결과 · S23 · S22 — 스테이지 쪽 (단계 7)', () => {
 
   it('결과는 잠깐 보여 주고 (Space · Enter 로 넘김) → 고를 게 있으면 고르기 · 안 볼 때면 알림', () => {
     const base = start();
-    const summary = { title: 't', exp: [], money: 0, item: null, caught: null, learned: [], choices: 0 };
+    const summary = { title: 't', exp: [], money: 0, item: null, caught: null, learned: [], choices: 0, badge: null };
     const result: GameState = { ...base, runtime: { ...base.runtime, stageId: 'forest-1', stage: { phase: 'result', summary, ms: 0 } } };
     expect(phase(applyInput(result, { kind: 'space' }))).toBe('walk');
     expect(phase(advance(result, TIMING.resultMs + 100).state)).toBe('walk');
@@ -385,7 +395,7 @@ describe('S12 결과 · S23 · S22 — 스테이지 쪽 (단계 7)', () => {
   });
 
   it('결과 · 고르기 진행 중 상태도 확장 ↔ 웹뷰로 (모양이 이상하면 버림)', () => {
-    const summary = { title: '야생 구구를 쓰러뜨렸다!', exp: [{ uid: 'm1', name: '이상해씨', gain: 28, from: 5, to: 6 }], money: 20, item: '몬스터볼', caught: null, learned: [], choices: 0 };
+    const summary = { title: '야생 구구를 쓰러뜨렸다!', exp: [{ uid: 'm1', name: '이상해씨', gain: 28, from: 5, to: 6 }], money: 20, item: '몬스터볼', caught: null, learned: [], choices: 0, badge: null };
     expect(readRuntime({ rngState: 1, stepAccMs: 0, stage: { phase: 'result', summary, ms: 10 } }, 1).stage).toEqual({ phase: 'result', summary, ms: 10 });
     expect(readRuntime({ rngState: 1, stepAccMs: 0, stage: { phase: 'result', summary: { title: 3 }, ms: 10 } }, 1).stage).toBeNull();
     expect(readRuntime({ rngState: 1, stepAccMs: 0, stage: { phase: 'choice', ms: 100 } }, 1).stage).toEqual({ phase: 'choice', ms: 100 });

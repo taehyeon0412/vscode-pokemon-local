@@ -1,6 +1,7 @@
 // 게임 모드 미리보기의 가짜 확장 쪽 — dev/game.html 에서 씀 (사진은 dev/game-shots.py)
 //   ?screen=title|game  save=none|ok|broken|newer  busy=1  notice=글  size=nano|small|medium|large  theme=dark|light  click=new|continue|exit
 //   progress=0~1 (숲 1-1 진행, 스테이지 시드 42 — 그 자리 바로 앞에서 시작해 흔적 · 조우 · 부탁을 찍음)
+//   place=facility|hospital|shop|trainer|trainer-battle|defeat|clear|lobby|gym-battle|badge (단계 8 · 9)  click=map|team|bag|settings|profile|item
 //   scene=result|learn|evolve|evolve-pick  battle=choose|skills|items|catch|last|counter|clash|ult-cut|ult-beam|attack|pick|over|auto  dur=연출 ms (전투 장면을 바로 — 아래 battleKind)  animAt=초 (CSS 움직임을 그 시점에 멈춤)
 // 확장이 하는 일 중 화면에 보이는 것만 흉내: ready → title · start, title-new · title-continue → start, exit → stop
 (function () {
@@ -32,7 +33,7 @@
         monsters: { m1: { uid: 'm1', species: 1, form: 'bulbasaur', level: 5, exp: 125, ivs: { hp: 1, attack: 1, defense: 1, speed: 1, ultimate: 1 },
             points: { hp: 0, attack: 0, defense: 0, speed: 0, ultimate: 0 }, unspentPoints: 0, moves: [{ moveId: 33, pp: 35 }], hp: 20, status: null, shiny: false, caughtAt: 'starter' } },
         party: ['m1'], box: [], nextMonsterUid: 2, bag: { 'poke-ball': 3 }, money: 1000, badges: [],
-        stages: { 'forest-1': { seed: 42, progress: Number(q.get('progress') || (q.get('battle') ? 0.0483 : 0)), cleared: false, defeatedTrainers: [], facilities: [] } },
+        stages: { 'forest-1': { seed: 42, progress: Number(q.get('progress') || (q.get('battle') ? 0.0483 : 0)), cleared: false, defeatedTrainers: [], facilities: [], run: { startMs: 0, caught: 0, trainers: 0, seen: [], reach: 0, retries: 0 } } },
         location: { screen: 'stage', stageId: 'forest-1' }, lastHospital: null, dex: { seen: [1], caught: [1] },
         pendingEncounter: null, pendingChoices: [], settings: { notifications: true, autoBattle: false },
     };
@@ -64,7 +65,7 @@
         const foe = fighter(wild, ['fire'], { hp: 20, attack: 12, defense: 10, speed: 12, ultimate: 11 }, 13, { gauge: 0.6, ult: 0.3 });
         const dur = Number(q.get('dur') || 20000);
         const b = {
-            kind: 'wild', me, foe, bench: {}, bagUsed: {}, phase: 'run', anim: null, clash: null, result: null, overMs: 0, fleeTries: 0,
+            kind: 'wild', me, foe, foeQueue: [], foeDown: [], foeUltWait: null, foeName: null, sendMs: 0, bench: {}, bagUsed: {}, phase: 'run', anim: null, clash: null, result: null, overMs: 0, fleeTries: 0,
             msg: '가랏, 이상해씨!', popups: [], popupSeq: 0, t: 5000, catch: null, lastMs: 0, fought: ['m1'], ultAt: { me: null, foe: null }, start: 'normal',
         };
         if (battleKind === 'choose' || battleKind === 'skills') Object.assign(b, { phase: 'choose', me: { ...me, gauge: 1 }, msg: '이상해씨는 무엇을 할까?' });
@@ -89,6 +90,55 @@
         if (scene === 'learn') save.pendingChoices = [{ kind: 'learn', uid: 'm1', moveId: 75 }];
         if (scene === 'evolve' || scene === 'evolve-pick') save.pendingChoices = [{ kind: 'evolve', uid: 'm1', to: 2, newMoves: [75, 76], level: 16, item: null }];
         runtime = { rngState: 1, stepAccMs: 0, speed: 1, stage, stageId: 'forest-1', toast: null };
+    }
+
+    // 단계 8 · 9 장면 — place=facility|hospital|shop|trainer|trainer-battle|defeat|clear|lobby|gym-battle|badge
+    //   시드 42 숲 1-1: 병원 0.4724 · 상점 0.6132 · 트레이너 t0 0.40344 (등산가 민수, ◓ 3) · 부탁 0.75728
+    const place = q.get('place');
+    if (place) {
+        const st = save.stages['forest-1'];
+        st.facilities = [{ kind: 'hospital', at: 0.4724 }, { kind: 'shop', at: 0.6132 }];
+        st.run = { startMs: 0, caught: 2, trainers: 1, seen: [10, 13, 43], reach: 0, retries: 0 };
+        const caterpie = { ...save.monsters.m1, uid: 'm2', species: 10, form: 'caterpie', level: 4, moves: [{ moveId: 33, pp: 35 }], hp: 16, unspentPoints: 2, caughtAt: 'forest-1' };
+        const weedle = { ...save.monsters.m1, uid: 'm3', species: 13, form: 'weedle', level: 3, moves: [{ moveId: 40, pp: 35 }], hp: 14, caughtAt: 'forest-1' };
+        save.monsters.m1 = { ...save.monsters.m1, moves: [{ moveId: 33, pp: 35 }, { moveId: 22, pp: 25 }] };
+        Object.assign(save.monsters, { m2: caterpie, m3: weedle });
+        save.party = ['m1', 'm2'];
+        save.box = ['m3'];
+        save.nextMonsterUid = 4;
+        save.bag = { 'poke-ball': 3, potion: 2, 'leaf-stone': 1 };
+        const fighter = (m, types, stats, hp, extra) => ({
+            uid: m.uid, species: m.species, form: m.form, level: m.level, shiny: false, types, stats, maxHp: stats.hp, hp, star: 3,
+            moves: m.moves.map((x) => ({ ...x })), status: null, gauge: 0, ult: 0, guard: 1, guardStreak: 0, streakMove: null, streakCount: 0, ...extra,
+        });
+        const foeMon = (uid, species, form, level) => ({ ...save.monsters.m1, uid, species, form, level, moves: [{ moveId: 33, pp: 35 }], hp: 25, caughtAt: 'trainer' });
+        const battle = (kind, foeName, foe, queue) => ({
+            kind, me: fighter(save.monsters.m1, ['grass', 'poison'], { hp: 21, attack: 11, defense: 11, speed: 10, ultimate: 12 }, 15, { gauge: 1 }),
+            foe: fighter(foe, ['bug'], { hp: 25, attack: 12, defense: 10, speed: 12, ultimate: 11 }, 18, { gauge: 0.4 }),
+            foeQueue: queue, foeDown: [], foeUltWait: null, foeName, sendMs: 0,
+            bench: {}, bagUsed: {}, phase: 'choose', anim: null, clash: null, result: null, overMs: 0, fleeTries: 0,
+            msg: '이상해씨는 무엇을 할까? (1 ~ 5)', popups: [], popupSeq: 0, t: 5000, catch: null, lastMs: 0, fought: ['m1'], ultAt: { me: null, foe: null }, start: 'normal',
+        });
+        let stage = { phase: 'walk' };
+        if (place === 'facility' || place === 'hospital') { st.progress = 0.4724 - 1e-7; stage = { phase: 'facility', kind: 'hospital', at: 0.4724, ms: 1500, inside: place === 'hospital' }; }
+        if (place === 'shop') { st.progress = 0.6132; stage = { phase: 'facility', kind: 'shop', at: 0.6132, ms: 0, inside: true }; }
+        if (place === 'trainer' || place === 'trainer-battle') {
+            st.progress = 0.40344;
+            save.pendingEncounter = { kind: 'trainer', trainerId: 'forest-1:t0', stageId: 'forest-1' };
+            stage = place === 'trainer' ? { phase: 'trainer', n: 0, ms: 1200 } : { phase: 'battle', battle: battle('trainer', '등산가 민수', foeMon('foe0', 11, 'metapod', 6), [foeMon('foe1', 14, 'kakuna', 6)]) };
+        }
+        if (place === 'defeat') { st.progress = 0.4724 - 1e-7; save.lastHospital = { stageId: 'forest-1', at: 0.4724 }; stage = { phase: 'defeat', gym: false, lost: 100 }; }
+        if (place === 'clear') { st.progress = 1; st.cleared = true; save.playTimeMs = 2280000; stage = { phase: 'clear' }; }
+        let stageId = 'forest-1';
+        if (place === 'lobby' || place === 'gym-battle' || place === 'badge') {
+            save.location = { screen: 'gym' };
+            save.stages['forest-3'] = { ...st, progress: 1, cleared: true };
+            stageId = null;
+            if (place === 'badge') save.badges = ['forest'];
+            if (place === 'gym-battle') save.pendingEncounter = { kind: 'gym-leader' };
+            stage = place === 'lobby' ? { phase: 'lobby' } : place === 'badge' ? { phase: 'badge' } : { phase: 'battle', battle: battle('gym', '관장 나래', foeMon('gym0', 46, 'paras', 13), [foeMon('gym1', 44, 'gloom', 14), foeMon('gym2', 12, 'butterfree', 15)]) };
+        }
+        runtime = { rngState: 1, stepAccMs: 0, speed: 1, stage, stageId, toast: null };
     }
 
     let epoch = 0;
@@ -147,11 +197,25 @@
     // 버튼 누르기 (사진용)
     const click = q.get('click');
     if (click) {
-        const label = { new: '새로 하기', continue: '이어 하기', exit: '일반 모드', skills: '3 스킬', items: '4 아이템' }[click];
+        // map|team|bag|settings = 오른쪽 위 버튼 (S07 · S18 · S19 · S20) · profile = 상대 포켓몬 누르기 (S21) · item = 가방에서 상처약 고르기
+        const label = { new: '새로 하기', continue: '이어 하기', exit: '일반 모드', skills: '3 스킬', items: '4 아이템', map: '🗺', team: '◓', bag: '🎒', settings: '⚙', item: '상처약' }[click];
         const alt = { skills: '3✨' }[click];
         // game.js 를 받아 화면이 그려질 때까지 기다렸다가
         const tryClick = (left) => {
-            const b = [...document.querySelectorAll('#pokemon-game button')].find((x) => x.textContent.includes(label) || (alt && x.textContent.includes(alt)));
+            if (click === 'profile') {
+                const f = document.querySelector('#pokemon-game .pg-fighter-foe');
+                if (f) return f.click();
+                if (left > 0) setTimeout(() => tryClick(left - 1), 100);
+                return;
+            }
+            if (click === 'item') {
+                const bag = [...document.querySelectorAll('#pokemon-game button')].find((x) => x.textContent.includes('🎒'));
+                if (bag) { bag.click(); setTimeout(() => [...document.querySelectorAll('#pokemon-game .pg-chip')].find((x) => x.textContent.includes('상처약'))?.click(), 200); return; }
+                if (left > 0) setTimeout(() => tryClick(left - 1), 100);
+                return;
+            }
+            const byTitle = { team: '내 포켓몬' }[click];
+            const b = [...document.querySelectorAll('#pokemon-game button')].find((x) => (byTitle && (x.title || '').includes(byTitle)) || x.textContent.includes(label) || (alt && x.textContent.includes(alt)));
             if (b && !document.getElementById('pokemon-game').hidden) b.click();
             else if (left > 0) setTimeout(() => tryClick(left - 1), 100);
         };

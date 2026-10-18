@@ -1,6 +1,7 @@
 /**
  * S09 전투 · S10 힘대결 화면 층 (gdd S09 · S10, mvp-spec S09 · S10) — 스테이지 길 위에 그대로 (배경은 멈춤).
- *   ① 내 트레이너 = 주인공 (StageScreen 이 왼쪽 끝으로 옮김) · ③ 내 포켓몬 · ④ 야생 (튀어나온 그 자리)
+ *   ① 내 트레이너 = 주인공 (StageScreen 이 왼쪽 끝으로 옮김) · ③ 내 포켓몬 · ④ 야생 (튀어나온 그 자리) · 트레이너 · 관장전은 ② 상대 트레이너 (오른쪽 끝) 앞
+ *   ⑨ 포켓몬을 누르면 S21 프로필 (onProfile — 힘대결 · 잡기 원 · 끝에서는 안 열림)
  *   ⑥ 이름 · HP · 레벨 · ⑩ 행동 게이지 (HP 바 바로 아래) · 상대 ⑧ 필살기 게이지 (상대 HP 바 바로 위)
  *   ⑦ ⑧ ⑪ 메뉴 줄 = BattleMenu (내 HP 바 바로 위, 낮은 패널이면 정보줄 자리) · ⑫ 자동 전투 스위치 (트레이너 머리 위)
  * 연출은 CSS 로 간단히 (임시 디자인 — 원래 확장 필살기 연출에 잇는 건 단계 12).
@@ -14,7 +15,7 @@ import type { Save } from '../../../core/save';
 import { moveOf, speciesOf } from '../../../data';
 import { Button } from '../../../ui/Button';
 import { Sprite } from '../../../ui/Sprite';
-import { duelKind, hpColor, moveColor, moveFx, STATUS_LABEL, type BattleGeometry } from '../model';
+import { duelKind, hpColor, moveColor, moveFx, profileOpenable, STATUS_LABEL, type BattleGeometry } from '../model';
 import { BattleMenu } from './BattleMenu';
 
 export interface BattleLayerProps {
@@ -24,7 +25,13 @@ export interface BattleLayerProps {
   ground: number;
   geo: BattleGeometry;
   onInput(input: GameInput): void;
+  /** S21 — 포켓몬을 누름 (열 수 있을 때만 넘김) */
+  onProfile?(side: Side): void;
 }
+
+/** 상대 이름 앞 — 야생 · 상대 (트레이너 · 관장) */
+const foePrefix = (b: BattleState) => (b.kind === 'wild' ? '야생 ' : '상대 ');
+
 
 const nameOf = (f: Fighter) => speciesOf(f.species)?.name.ko ?? '???';
 /** 맞은 쪽 그림이 깜빡이는 시간 */
@@ -59,9 +66,9 @@ export function AutoButton({ save, onInput, short }: { save: Save; onInput(i: Ga
   );
 }
 
-function HpBlock({ f, side, x, bottom, wide }: { f: Fighter; side: Side; x: number; bottom: number; wide: number }) {
+function HpBlock({ f, side, x, bottom, wide, prefix }: { f: Fighter; side: Side; x: number; bottom: number; wide: number; prefix: string }) {
   const status = f.status ? STATUS_LABEL[f.status.kind] : null;
-  const title = `${side === 'foe' ? '야생 ' : ''}${nameOf(f)} Lv${f.level} · HP ${f.hp}/${f.maxHp}${status ? ` · ${status}` : ''}`;
+  const title = `${side === 'foe' ? prefix : ''}${nameOf(f)} Lv${f.level} · HP ${f.hp}/${f.maxHp}${status ? ` · ${status}` : ''}`;
   return (
     <div class={`pg-hpblock pg-hpblock-${side}`} style={{ left: `${x}px`, bottom: `${bottom}px`, width: `${wide}px` }} title={title}>
       {side === 'foe' && <Bar value={f.ult} cls={f.ult >= 1 ? 'pg-bar-ult pg-full' : 'pg-bar-ult'} />}
@@ -78,8 +85,8 @@ function HpBlock({ f, side, x, bottom, wide }: { f: Fighter; side: Side; x: numb
 }
 
 /** 포켓몬 그림 + 지금 하는 행동의 몸 움직임 (달려들기 · 들어가기 · 쓰러짐 · 맞음) */
-function FighterBody(props: { b: BattleState; side: Side; x: number; target: number; px: number; media: string; ground: number }) {
-  const { b, side, x, target, px, media, ground } = props;
+function FighterBody(props: { b: BattleState; side: Side; x: number; target: number; px: number; media: string; ground: number; onProfile?(side: Side): void }) {
+  const { b, side, x, target, px, media, ground, onProfile } = props;
   const f = b[side];
   const anim = b.anim?.side === side ? b.anim : null;
   const act = anim?.action;
@@ -97,7 +104,7 @@ function FighterBody(props: { b: BattleState; side: Side; x: number; target: num
     f.guard < 1 ? 'pg-guarded' : '',
   ].join(' ');
   return (
-    <span class={`pg-obj pg-fighter pg-fighter-${side}${side === 'me' ? ' pg-sendout' : ''}`} style={{ left: `${x}px`, bottom: `${ground}px` }} title={`${side === 'foe' ? '야생 ' : ''}${nameOf(f)} Lv${f.level}`}>
+    <span class={`pg-obj pg-fighter pg-fighter-${side}${side === 'me' ? ' pg-sendout' : ''}`} style={{ left: `${x}px`, bottom: `${ground}px` }} title={`${side === 'foe' ? foePrefix(b) : ''}${nameOf(f)} Lv${f.level}${onProfile ? ' — 누르면 프로필' : ''}`} onClick={onProfile ? () => onProfile(side) : undefined}>
       <span key={animKey(b)} class={cls} style={{ '--pg-dx': `${Math.round((target - x) * 0.75)}px`, animationDuration: anim ? `${anim.dur}ms` : undefined }}>
         <Sprite media={media} form={f.form} shiny={f.shiny} scale={1} px={px} faceLeft={side === 'foe'} />
       </span>
@@ -147,7 +154,7 @@ function Effects({ b, geo, ground, midMe, midFoe }: { b: BattleState; geo: Battl
     out.push(
       <div key={`${key}c`} class={`pg-ult-cut pg-ult-cut-${anim.side}`} style={{ animationDuration: dur }}>
         <span>
-          💥 {anim.side === 'foe' ? '야생 ' : ''}
+          💥 {anim.side === 'foe' ? foePrefix(b) : ''}
           {nameOf(f)}의 필살기!
         </span>
       </div>,
@@ -269,7 +276,8 @@ function Clash({ b, geo, y }: { b: BattleState; geo: BattleGeometry; y: number }
   );
 }
 
-export function BattleLayer({ battle: b, save, media, ground, geo, onInput }: BattleLayerProps) {
+export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onProfile }: BattleLayerProps) {
+  const profile = onProfile && profileOpenable(b) ? onProfile : undefined;
   const midMe = ground + Math.round(geo.meSpritePx * 0.45);
   const midFoe = ground + Math.round(geo.foeSpritePx * 0.45);
   const popups = (side: Side) => b.popups.filter((p) => p.side === side);
@@ -280,13 +288,13 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput }: Ba
   const hasMe = b.me.uid !== 'none';
   return (
     <>
-      {hasMe && <FighterBody key={`me${b.me.uid}`} b={b} side="me" x={geo.meX} target={geo.foeX} px={geo.meSpritePx} media={media} ground={ground} />}
+      {hasMe && <FighterBody key={`me${b.me.uid}`} b={b} side="me" x={geo.meX} target={geo.foeX} px={geo.meSpritePx} media={media} ground={ground} onProfile={profile} />}
       {/* 볼에 들어가 있는 동안 (던짐 · 흔들림 · 잡힘) 상대 그림은 숨김 */}
       {b.phase !== 'catch' && !(b.phase === 'over' && b.result === 'catch') && (
-        <FighterBody key="foe" b={b} side="foe" x={geo.foeX} target={geo.meX} px={geo.foeSpritePx} media={media} ground={ground} />
+        <FighterBody key={`foe${b.foeDown.length}`} b={b} side="foe" x={geo.foeX} target={geo.meX} px={geo.foeSpritePx} media={media} ground={ground} onProfile={profile} />
       )}
-      {hasMe && <HpBlock f={b.me} side="me" x={geo.meHpX} bottom={geo.meHpBottom} wide={geo.meHpWide} />}
-      <HpBlock f={b.foe} side="foe" x={geo.foeHpX} bottom={geo.foeHpBottom} wide={geo.foeHpWide} />
+      {hasMe && <HpBlock f={b.me} side="me" x={geo.meHpX} bottom={geo.meHpBottom} wide={geo.meHpWide} prefix="" />}
+      {b.phase !== 'send' && <HpBlock f={b.foe} side="foe" x={geo.foeHpX} bottom={geo.foeHpBottom} wide={geo.foeHpWide} prefix={foePrefix(b)} />}
       {b.phase === 'clash' ? <Clash b={b} geo={geo} y={Math.round((midMe + midFoe) / 2)} /> : <Effects b={b} geo={geo} ground={ground} midMe={midMe} midFoe={midFoe} />}
       <Catch b={b} geo={geo} ground={ground} />
       {(['me', 'foe'] as const).map((side) =>

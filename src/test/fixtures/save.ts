@@ -36,7 +36,7 @@ export function sampleSave(overrides: Partial<Save> = {}): Save {
     party: ['m1', 'm2'],
     nextMonsterUid: 3,
     location: { screen: 'stage', stageId: 'forest-1' },
-    stages: { 'forest-1': { seed: 42, progress: 0.4, cleared: false, defeatedTrainers: [], facilities: [{ kind: 'hospital', at: 0.5 }] } },
+    stages: { 'forest-1': { seed: 42, progress: 0.4, cleared: false, defeatedTrainers: [], facilities: [{ kind: 'hospital', at: 0.5 }], run: { startMs: 0, caught: 0, trainers: 0, seen: [], reach: 0, retries: 0 } } },
     dex: { seen: [1, 10, 13], caught: [1, 10] },
     ...overrides,
   };

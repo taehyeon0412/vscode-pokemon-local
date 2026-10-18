@@ -3,7 +3,9 @@ import { BALANCE } from '../balance';
 import { Rng } from '../engine/rng';
 import { formOf, moveOf, speciesOf } from '../../data';
 import { ambushChance, createWild, evolveForLevel, forestPool, pickupAt, planWild, resolveStart, sceneryAt, STARTER_SPECIES, traceKindOf } from './encounter';
-import { mixSeed, stageLayout, type Spot } from './stage';
+import { mixSeed, stageLayout, stageLevelBand, type Spot } from './stage';
+
+const [LO1, HI1] = stageLevelBand('forest-1');
 
 const spot = (index: number, at: number): Spot => ({ kind: 'wild', at, index });
 
@@ -74,10 +76,10 @@ describe('숲 포켓몬 (mvp-spec 3.2)', () => {
       const p = planWild('forest-1', mixSeed(i, 5), spot(i, at));
       if (p.strong) {
         strong++;
-        expect(p.level).toBe(6 + BALANCE.strongLevelBonus);
+        expect(p.level).toBe(HI1 + BALANCE.strongLevelBonus);
       } else {
-        expect(p.level).toBeGreaterThanOrEqual(3);
-        expect(p.level).toBeLessThanOrEqual(6);
+        expect(p.level).toBeGreaterThanOrEqual(LO1);
+        expect(p.level).toBeLessThanOrEqual(HI1);
         if (at < 0.2) early += p.level;
         if (at >= 0.8) late += p.level;
       }
@@ -135,7 +137,7 @@ describe('걷는 동안 발견 (gdd 4.6)', () => {
       else if (p.item === 'potion') n.potion!++;
       else if (p.money !== undefined) {
         n.money!++;
-        expect(p.money).toBe(60);
+        expect(p.money).toBe(HI1 * BALANCE.pickupMoneyPerLevel);
       } else {
         n.stone!++;
         expect(['leaf-stone', 'moon-stone']).toContain(p.item);

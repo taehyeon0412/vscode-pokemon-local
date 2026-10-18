@@ -71,14 +71,31 @@ export interface FacilitySpot {
   at: number;
 }
 
+/** 이번에 걷는 판의 기록 — S24 클리어 카드 요약 (잡은 포켓몬 · 이긴 트레이너 · 걸린 시간 · 새로 만난 포켓몬) */
+export interface StageRun {
+  /** 이 판을 시작한 때의 플레이 시간 (ms) */
+  startMs: number;
+  caught: number;
+  trainers: number;
+  /** 이 판에서 처음 만난 종 (도감 번호, 앞에서부터 몇 마리만) */
+  seen: number[];
+  /** 이 판에서 가장 멀리 간 곳 — 졌다 다시 걸을 때 그 앞의 떨어진 아이템 · 부탁은 안 나옴 (이미 주웠고 · 골랐음) */
+  reach: number;
+  /** 이 판에서 진 횟수 — 졌다 다시 걸으면 야생을 다시 뽑음 (S17, 시드 · 길은 그대로) */
+  retries: number;
+}
+
 export interface StageProgress {
-  /** 그 스테이지를 처음 시작할 때 뽑은 시드 (병원 · 상점 자리 · 트레이너) */
+  /** 이번 판의 시드 (길) — 깬 스테이지를 다시 걸으면 새로 뽑음 (병원 · 상점 자리는 facilities 그대로 · 트레이너 자리는 스테이지마다 정해짐) */
   seed: number;
   /** 0 ~ 1 */
   progress: number;
   cleared: boolean;
+  /** 이긴 트레이너 ("forest-1:t0") — 다시 걸어도 안 나옴 (2026-10-18 태현 님) */
   defeatedTrainers: string[];
   facilities: FacilitySpot[];
+  /** 이번 판 기록 — 옛 1판 세이브에 없으면 빈 기록으로 읽음 */
+  run: StageRun;
 }
 
 /** 이어 하기로 돌아갈 곳 (mvp-spec S02 ②) */

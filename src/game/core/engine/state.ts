@@ -3,32 +3,45 @@
  * 이 상태 하나가 웹뷰와 확장 사이를 오가고, 누가 계산하든 같은 함수(advance)로 앞으로 간다 (play.ts).
  */
 import { TIMING } from '../balance';
-import { STAGE_IDS, type Save, type StageId } from '../save';
+import { STAGE_IDS, type FacilitySpot, type Save, type StageId } from '../save';
 import { readBattle, type BattleState } from './battle';
 import type { BattleSummary } from './rewards';
 
+type FacilityKind = FacilitySpot['kind'];
+
 /**
- * 스테이지에서 지금 하는 일 (S06):
+ * 지금 하는 일 — 스테이지 (S06) · 체육관 (S16) 이 같이 씀:
  * - walk: 자동으로 걸음
  * - appear: 야생이 튀어나와 "나타났다!" (Space 선제공격 창) — 상대는 save.pendingEncounter
+ * - trainer: 트레이너와 눈이 마주침 "!" → "승부다!" + ◓ 개수 → 전투 (S08, 자동 전투여도 멈추지 않음) — save.pendingEncounter = trainer
+ * - facility: 병원 · 상점 앞 [들어가기] [지나가기] (5초 뒤 지나감) · inside = 들어가 있음 (S13 · S14, 나가기를 누를 때까지)
  * - battle: 전투 1:1 (engine/battle.ts) — 상대는 save.pendingEncounter, 전투 중 상태는 여기 (세이브에는 끝나고 한 번에)
  * - hold: 안 볼 때 (확장이 계산) 직접 봐야 할 순간 (이로치 흔적) 앞에서 멈춤 — 다시 보이면 이어 감 (U9)
  * - request: 길 위의 부탁 — 고를 때까지 기다림, 고르면 결과를 잠깐 보여 줌
- * - result: S12 전투 결과 (경험치 · 레벨업 · 돈 · 아이템 · 잡은 포켓몬) — 잠깐 보여 주고 (계속으로 넘김) 고를 게 있으면 choice, 없으면 walk
+ * - result: S12 전투 결과 (경험치 · 레벨업 · 돈 · 아이템 · 잡은 포켓몬) — 잠깐 보여 주고 (계속으로 넘김) 고를 게 있으면 choice, 없으면 걷기 · 대기실
  * - choice: S23 새 기술 · S22 진화 — save.pendingChoices 맨 앞을 고를 때까지 기다림 (ms = 진화 연출 시간)
- * - end: 스테이지 끝 (클리어 카드는 단계 9)
+ *   then = 'badge' 면 다 고른 뒤 MVP 끝 카드 (관장을 처음 이김)
+ * - defeat: S17 패배 — 돈 · 회복 · 다시 시작 자리는 이미 세이브에, [다시 시작] 을 기다림
+ * - clear: S24 스테이지 클리어 카드 (진행 100%) — [다음 스테이지] [지도] [포켓몬 교체] 를 기다림
+ * - lobby: S16 체육관 대기실 (병원 · 보관함 · 상점 · 도전 · 세계 지도)
+ * - badge: 관장을 처음 이김 — 배지 · "숲 클리어! 다음 지역은 준비 중이에요" (MVP 끝 카드)
  */
 export type StageRuntime =
   | { phase: 'walk' }
   | { phase: 'appear'; ms: number; space: boolean; ambush: boolean; isNew: boolean }
+  | { phase: 'trainer'; n: number; ms: number }
   | { phase: 'battle'; battle: BattleState }
   | { phase: 'hold'; why: 'shiny' }
   | { phase: 'request'; at: number; number: number; result: RequestResult | null; ms: number }
-  | { phase: 'result'; summary: BattleSummary; ms: number }
-  | { phase: 'choice'; ms: number }
-  | { phase: 'end' };
+  | { phase: 'facility'; kind: FacilityKind; at: number; ms: number; inside: boolean }
+  | { phase: 'result'; summary: BattleSummary; ms: number; then?: 'badge' }
+  | { phase: 'choice'; ms: number; then?: 'badge' }
+  | { phase: 'defeat'; gym: boolean; lost: number }
+  | { phase: 'clear' }
+  | { phase: 'lobby' }
+  | { phase: 'badge' };
 
-export const STAGE_PHASES = ['walk', 'appear', 'battle', 'request', 'end', 'hold', 'result', 'choice'] as const;
+export const STAGE_PHASES = ['walk', 'appear', 'trainer', 'battle', 'request', 'hold', 'facility', 'result', 'choice', 'defeat', 'clear', 'lobby', 'badge'] as const;
 
 /** 부탁 결과 — 글 · 받은 것 (따로 둬서 좁은 패널에서도 받은 것이 안 잘리게) */
 export interface RequestResult {
@@ -52,7 +65,7 @@ export interface RuntimeState {
   speed: number;
   /** null = 아직 안 정함 (처음 · 다시 불러온 직후) → 다음 걸음에 세이브를 보고 정함 */
   stage: StageRuntime | null;
-  /** stage 가 어느 스테이지 것인지 — 장소가 바뀌면 (단계 9) 이전 스테이지의 진행 중 상태를 버림 */
+  /** stage 가 어느 스테이지 것인지 (체육관이면 null) — 장소가 바뀌면 이전 스테이지의 진행 중 상태를 버림 */
   stageId: StageId | null;
   toast: Toast | null;
   /** 확장이 안 볼 때 계산 중 (웹뷰가 맡으면 false) — 이로치 흔적 앞에서 멈추고 알림 (U9) */
@@ -90,8 +103,10 @@ function readSummary(raw: unknown): BattleSummary | null {
     .map((l) => ({ name: text(l.name, 30) ?? '', move: text(l.move, 30) ?? '' }));
   const c = raw.caught;
   const caught = isObj(c) && text(c.name, 30) !== null && typeof c.toBox === 'boolean' ? { name: text(c.name, 30) as string, toBox: c.toBox } : null;
-  return { title: text(raw.title) as string, exp, money: num(raw.money, 0, 1e9) ?? 0, item: text(raw.item, 30), caught, learned, choices: num(raw.choices, 0, 1000) ?? 0 };
+  return { title: text(raw.title) as string, exp, money: num(raw.money, 0, 1e9) ?? 0, item: text(raw.item, 30), caught, learned, choices: num(raw.choices, 0, 1000) ?? 0, badge: text(raw.badge, 30) };
 }
+
+const okThen = (v: unknown) => v === undefined || v === 'badge';
 
 /** 웹뷰에서 온 스테이지 진행 중 상태 — 모양이 이상하면 null (다음 걸음에 세이브를 보고 다시 정함) */
 function readStage(raw: unknown): StageRuntime | null {
@@ -99,8 +114,23 @@ function readStage(raw: unknown): StageRuntime | null {
   const ms = num(raw.ms, 0, 1e9);
   switch (raw.phase) {
     case 'walk':
-    case 'end':
+    case 'clear':
+    case 'lobby':
+    case 'badge':
       return { phase: raw.phase };
+    case 'trainer': {
+      const n = num(raw.n, 0, 10);
+      return ms !== null && n !== null && Number.isInteger(n) ? { phase: 'trainer', n, ms } : null;
+    }
+    case 'facility': {
+      const at = num(raw.at, 0, 1);
+      if (ms === null || at === null || (raw.kind !== 'hospital' && raw.kind !== 'shop') || typeof raw.inside !== 'boolean') return null;
+      return { phase: 'facility', kind: raw.kind, at, ms, inside: raw.inside };
+    }
+    case 'defeat': {
+      const lost = num(raw.lost, 0, 1e9);
+      return typeof raw.gym === 'boolean' && lost !== null ? { phase: 'defeat', gym: raw.gym, lost } : null;
+    }
     case 'appear':
       if (ms === null || typeof raw.space !== 'boolean' || typeof raw.ambush !== 'boolean' || typeof raw.isNew !== 'boolean') return null;
       return { phase: 'appear', ms, space: raw.space, ambush: raw.ambush, isNew: raw.isNew };
@@ -125,10 +155,12 @@ function readStage(raw: unknown): StageRuntime | null {
     }
     case 'result': {
       const summary = readSummary(raw.summary);
-      return ms !== null && summary ? { phase: 'result', summary, ms } : null;
+      if (ms === null || !summary || !okThen(raw.then)) return null;
+      return raw.then === 'badge' ? { phase: 'result', summary, ms, then: 'badge' } : { phase: 'result', summary, ms };
     }
     case 'choice':
-      return ms !== null ? { phase: 'choice', ms } : null;
+      if (ms === null || !okThen(raw.then)) return null;
+      return raw.then === 'badge' ? { phase: 'choice', ms, then: 'badge' } : { phase: 'choice', ms };
     default:
       return null;
   }

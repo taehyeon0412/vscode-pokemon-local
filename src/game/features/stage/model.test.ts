@@ -7,7 +7,7 @@ import { STAGE_IDS } from '../../core/save';
 import { CONTACT_PX, heroX, minimapOf, STAGES, stageLabel, stagePx, visibleObjects, WALK_PX_PER_SEC } from './model';
 
 function at(progress: number, stage: GameState['runtime']['stage'] = { phase: 'walk' }): GameState {
-  const s = createGameState(sampleSave({ stages: { 'forest-1': { seed: 42, progress, cleared: false, defeatedTrainers: [], facilities: [] } } }), 1);
+  const s = createGameState(sampleSave({ stages: { 'forest-1': { seed: 42, progress, cleared: false, defeatedTrainers: [], facilities: [], run: { startMs: 0, caught: 0, trainers: 0, seen: [], reach: 0, retries: 0 } } } }), 1);
   return { ...s, runtime: { ...s.runtime, stage } };
 }
 const layout = stageLayout('forest-1', 42);
@@ -64,5 +64,24 @@ describe('길 위의 것들을 화면에', () => {
 
   it('미니맵: 진행 % · 시설 자리 (체육관은 1-3 에만)', () => {
     expect(minimapOf(at(0.37))).toEqual({ progress: 0.37, facilities: layout.facilities, gym: false });
+  });
+});
+
+describe('S08 · S09 상대 볼 개수 (단계 9 테스터)', () => {
+  it('상대가 쓰러진 순간 (다음 포켓몬을 내보내는 중) 에도 전부 = 처음 마릿수, 남은 것만 줄어듦', async () => {
+    const { startTrainerBattle } = await import('../../core/engine/battle');
+    const { foeTrainerView } = await import('./model');
+    const { sampleMonster, sampleSave } = await import('../../../test/fixtures/save');
+    const { createGameState } = await import('../../core/engine');
+    const save = sampleSave({ pendingEncounter: { kind: 'trainer', trainerId: 'forest-1:t0', stageId: 'forest-1' } });
+    const foe = (uid: string) => sampleMonster({ uid, species: 10, form: 'caterpie', level: 3 });
+    const b0 = startTrainerBattle(save, [foe('a'), foe('b')], 'trainer', 't');
+    const view = (b: typeof b0) => {
+      const s = createGameState(save, 1);
+      return foeTrainerView({ ...s, runtime: { ...s.runtime, stage: { phase: 'battle', battle: b }, stageId: 'forest-1' } });
+    };
+    expect(view(b0)).toMatchObject({ balls: 2, left: 2 });
+    const down = { ...b0, phase: 'send' as const, foe: { ...b0.foe, hp: 0 }, foeDown: [{ species: 10, level: 3 }] };
+    expect(view(down)).toMatchObject({ balls: 2, left: 1 });
   });
 });

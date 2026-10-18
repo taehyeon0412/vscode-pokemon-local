@@ -7,7 +7,7 @@ import type { Rng } from '../engine/rng';
 import type { Monster, MoveSlot, StatusCondition, Stats } from '../save';
 import { moveOf, speciesOf, type ReadonlyMove, type TypeName } from '../../data';
 import { duelKind } from './duel';
-import { statsOf, statValue } from './stats';
+import { starGrade, statsOf, statValue } from './stats';
 import { effectiveness } from './types';
 
 /** 전투에 나온 포켓몬 하나 (전투 중에만 — 끝나면 HP · PP · 상태 이상을 세이브에 돌려줌) */
@@ -35,6 +35,8 @@ export interface Fighter {
   /** 연달아 세지는 기술: 마지막으로 쓴 그 기술 · 연달아 쓴 횟수 (다른 행동 · 교체면 처음부터) */
   streakMove: number | null;
   streakCount: number;
+  /** ★ 등급 (S21 프로필 — 상대도 보임, 좋은 개체를 골라 잡게) · 옛 상태에는 없을 수 있음 */
+  star?: number;
 }
 
 export function fighterOf(m: Monster): Fighter {
@@ -59,6 +61,7 @@ export function fighterOf(m: Monster): Fighter {
     guardStreak: 0,
     streakMove: null,
     streakCount: 0,
+    star: starGrade(m.ivs),
   };
 }
 

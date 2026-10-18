@@ -53,7 +53,7 @@ export function createStartSave(now: number, seed: number, dex: number = TEMPORA
     party: ['m1'],
     nextMonsterUid: 2,
     location: { screen: 'stage', stageId: 'forest-1' },
-    stages: { 'forest-1': { seed: rng.int(0, 0xffffffff), progress: 0, cleared: false, defeatedTrainers: [], facilities: [] } },
+    stages: { 'forest-1': { seed: rng.int(0, 0xffffffff), progress: 0, cleared: false, defeatedTrainers: [], facilities: [], run: { startMs: 0, caught: 0, trainers: 0, seen: [], reach: 0, retries: 0 } } },
     dex: { seen: [dex], caught: [dex] },
   };
 }

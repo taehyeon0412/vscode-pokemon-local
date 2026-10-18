@@ -133,7 +133,7 @@ describe('망가진 세이브 — 고쳐서 읽음 (포켓몬을 잃지 않게)'
       pendingEncounter: { kind: 'wild', monster: { species: 'x' }, start: 'normal' },
     });
     expect(save.location).toEqual({ screen: 'title' });
-    expect(save.stages).toEqual({ 'forest-1': { seed: 1, progress: 1, cleared: false, defeatedTrainers: ['t1'], facilities: [] } });
+    expect(save.stages).toEqual({ 'forest-1': { seed: 1, progress: 1, cleared: false, defeatedTrainers: ['t1'], facilities: [], run: { startMs: save.playTimeMs, caught: 0, trainers: 0, seen: [], reach: 0, retries: 0 } } });
     expect(save.pendingEncounter).toBeNull();
   });
 
@@ -207,7 +207,10 @@ describe('고정된 1판 세이브 표본 (src/test/fixtures/save-v1.json)', () 
     expect(r.save.party).toEqual(['m1', 'm2']);
     expect(r.save.pendingEncounter?.kind).toBe('wild');
     // pendingChoices 는 단계 7 에 더한 칸 (전투 끝의 S23 · S22 고르기) — 그 전 1판 세이브에는 없고, 고칠 것 없이 빈 목록으로 읽음 (버전을 안 올려도 되는 덧붙임)
-    expect(viaJson(r.save)).toEqual({ ...(raw as object), pendingChoices: [] });
+    // stages.*.run 은 단계 9 에 더한 칸 (S24 요약) — 없으면 빈 기록 (시작 = 지금 플레이 시간)
+    const rawStages = (raw as { stages: Record<string, object>; playTimeMs: number });
+    const stages = Object.fromEntries(Object.entries(rawStages.stages).map(([k, v]) => [k, { ...v, run: { startMs: rawStages.playTimeMs, caught: 0, trainers: 0, seen: [], reach: 0, retries: 0 } }]));
+    expect(viaJson(r.save)).toEqual({ ...(raw as object), stages, pendingChoices: [] });
   });
 
   it('단계 7 의 고르기 칸이 있는 세이브도 그대로 · 없는 포켓몬 · 모르는 기술을 가리키는 고르기는 뺌', async () => {

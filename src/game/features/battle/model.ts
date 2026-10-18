@@ -2,7 +2,7 @@
  * S09 전투 화면 — 화면을 모르는 부분: 메뉴에 무엇이 있고 무엇이 흐린지 · 단축키 · 연출 모양 고르기.
  */
 import type { BattleAction, BattleState } from '../../core/engine';
-import { canAct, faintedTeam, itemLeft, switchable } from '../../core/engine';
+import { canAct, counterOpen, faintedTeam, itemLeft, switchable, ultCounterOpen } from '../../core/engine';
 import { isShooting } from '../../core/rules/battle';
 import { BALLS, isBall } from '../../core/rules/catch';
 import { BATTLE_ITEMS, itemName } from '../../core/rules/items';
@@ -40,15 +40,18 @@ export function menuItems(b: BattleState, save: Save, page: MenuPage, compact = 
       const itemsOk = MENU_ITEMS.some((i) => canAct(b, save, { kind: 'item', item: i }));
       const anyItem = MENU_ITEMS.some((i) => itemLeft(b, save, i) > 0);
       const switchOk = switchable(b, save).length > 0;
+      // 트레이너 · 관장전은 도망 불가 (gdd 4.7) — 5 = 교체만
+      const fleeOk = b.kind === 'wild';
+      const moreTitle = switchOk ? (fleeOk ? '5 교체 · 도망' : '5 교체 (트레이너와의 승부에서는 도망칠 수 없어요)') : fleeOk ? '5 도망' : '바꿀 포켓몬이 없어요 (트레이너와의 승부에서는 도망칠 수 없어요)';
       const items: MenuItem[] = [
         { key: 'attack', num: 1, label: '1 공격', go: { action: { kind: 'attack' } }, enabled: canAct(b, save, { kind: 'attack' }), title: '1 공격 — 약한 기본기, 횟수 제한 없음' },
         { key: 'guard', num: 2, label: '2 방어', go: { action: { kind: 'guard' } }, enabled: canAct(b, save, { kind: 'guard' }), title: '2 방어 — 다음 내 행동까지 받는 피해 절반 (연달아 쓰면 줄어듦)' },
         { key: 'skills', num: 3, label: '3 스킬', go: { page: 'skills' }, enabled: b.phase === 'choose' && skillsOk, title: skillsOk ? '3 스킬' : '쓸 수 있는 기술이 없어요 (1 공격만)' },
         { key: 'items', num: 4, label: '4 아이템', go: { page: 'items' }, enabled: b.phase === 'choose' && itemsOk, title: itemsOk ? '4 아이템 (볼 · 상처약 …)' : anyItem ? '지금 쓸 수 있는 아이템이 없어요 (HP 가득 · 상태 이상 없음 · 쓰러진 포켓몬 없음)' : '가방에 쓸 아이템이 없어요' },
-        { key: 'more', num: 5, label: switchOk ? '5 교체 · 도망' : '5 도망', go: switchOk ? { page: 'switch' } : { action: { kind: 'flee' } }, enabled: b.phase === 'choose', title: switchOk ? '5 교체 · 도망' : '5 도망' },
+        { key: 'more', num: 5, label: switchOk ? (fleeOk ? '5 교체 · 도망' : '5 교체') : fleeOk ? '5 도망' : '5 교체', go: switchOk ? { page: 'switch' } : { action: { kind: 'flee' } }, enabled: b.phase === 'choose' && (switchOk || fleeOk), title: moreTitle },
       ];
       if (!compact) return items;
-      return items.map((i) => ({ ...i, label: COMPACT_LABEL[i.key === 'more' ? (switchOk ? 'switch' : 'flee') : i.key] ?? i.label }));
+      return items.map((i) => ({ ...i, label: COMPACT_LABEL[i.key === 'more' ? (switchOk || !fleeOk ? 'switch' : 'flee') : i.key] ?? i.label }));
     }
     case 'skills':
       return [
@@ -94,7 +97,7 @@ export function menuItems(b: BattleState, save: Save, page: MenuPage, compact = 
           go: { action: { kind: 'switch', uid: m.uid } },
           enabled: canAct(b, save, { kind: 'switch', uid: m.uid }),
         })),
-        { key: 'flee', num: Math.min(team.length, 4) + 1, label: `${Math.min(team.length, 4) + 1} 도망`, go: { action: { kind: 'flee' } }, enabled: canAct(b, save, { kind: 'flee' }) },
+        { key: 'flee', num: Math.min(team.length, 4) + 1, label: `${Math.min(team.length, 4) + 1} 도망`, go: { action: { kind: 'flee' } }, enabled: canAct(b, save, { kind: 'flee' }), title: b.kind === 'wild' ? undefined : '트레이너와의 승부에서는 도망칠 수 없어요' },
         back,
       ];
     }
@@ -113,6 +116,12 @@ export function menuItems(b: BattleState, save: Save, page: MenuPage, compact = 
         back,
       ];
   }
+}
+
+/** S21 을 열 수 있는 때 — 힘대결 · 잡기 원 · 끝 · 다음 포켓몬 고르기 (숫자 키) 에는 안 열림 (멈춤으로 타이밍을 피하지 않게 [제안]) */
+export function profileOpenable(b: BattleState): boolean {
+  if (counterOpen(b) || ultCounterOpen(b)) return false; // 맞받아치기 창 (1.5초 · 1초) 도 타이밍
+  return b.phase === 'run' || b.phase === 'choose' || b.phase === 'anim' || b.phase === 'last' || b.phase === 'send';
 }
 
 /** HP 바 색 — 반 넘음 초록 · 반 아래 노랑 · 5분의 1 아래 빨강 */
@@ -180,6 +189,20 @@ const MENU_EST_PX = 380;
 export const COMPACT_WIDTH_PX = 560;
 /** 한 줄을 상대 오른쪽에 둘 때 필요한 최소 너비 */
 const MSG_SIDE_MIN_PX = 100;
+
+/**
+ * 트레이너 · 관장전의 상대 포켓몬 자리 — 오른쪽 끝 = 상대 트레이너 구역 (포켓몬이 안 들어감, gdd S09 ②), 그 앞에서 싸움.
+ * 야생은 튀어나온 그 자리 (contactX)
+ */
+export function trainerBattleFoeX(widthPx: number, scale: number, foeSpritePx: number): number {
+  const zone = 8 + 20 * scale + 4;
+  return Math.round(widthPx - zone - foeSpritePx / 2 - Math.max(0, widthPx * 0.1));
+}
+
+/** 상대 트레이너가 서는 자리 (오른쪽 끝, 가운데 x) */
+export function foeTrainerX(widthPx: number, scale: number): number {
+  return Math.round(widthPx - 8 - 10 * scale);
+}
 
 export interface BattleGeometry {
   trainerX: number;

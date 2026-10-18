@@ -96,9 +96,12 @@ export function traceKindOf(types: readonly TypeName[]): TraceKind {
   return 'grass';
 }
 
+/** 졌다 다시 걸을 때 (retries) 같은 자리의 야생을 다시 뽑는 열쇠 (mvp-spec S17 "야생은 다시 뽑음") */
+export const wildKey = (spot: Spot, retries = 0) => spot.index + retries * 10_007;
+
 /** 그 야생 자리에 무엇이 있는지 (만나기 전에도 흔적 모양 · 크게 흔들림 · 반짝임을 그리려고 미리 정함) */
-export function planWild(stageId: StageId, stageSeed: number, spot: Spot): WildPlan {
-  const rng = spotRng(stageSeed, spot.index, 1);
+export function planWild(stageId: StageId, stageSeed: number, spot: Spot, retries = 0): WildPlan {
+  const rng = spotRng(stageSeed, wildKey(spot, retries), 1);
   const pool = forestPool(stageId);
   const list = pool.rare.length > 0 && rng.chance(BALANCE.rareTypeChance) ? pool.rare : pool.common;
   const base = list[rng.int(0, list.length - 1)] ?? 1;
@@ -112,15 +115,16 @@ export function planWild(stageId: StageId, stageSeed: number, spot: Spot): WildP
 }
 
 /** 만난 야생 포켓몬 — 개체값 · 기술을 지금 정함 (잡으면 그대로 가져감) */
-export function createWild(stageId: StageId, stageSeed: number, spot: Spot): Monster {
-  const plan = planWild(stageId, stageSeed, spot);
+export function createWild(stageId: StageId, stageSeed: number, spot: Spot, retries = 0): Monster {
+  const plan = planWild(stageId, stageSeed, spot, retries);
+  const key = wildKey(spot, retries);
   return createMonster({
     uid: 'wild',
     dex: plan.dex,
     form: plan.form,
     level: plan.level,
-    moves: wildMoves(plan.dex, plan.level, spotRng(stageSeed, spot.index, 7)),
-    rng: spotRng(stageSeed, spot.index, 2),
+    moves: wildMoves(plan.dex, plan.level, spotRng(stageSeed, key, 7)),
+    rng: spotRng(stageSeed, key, 2),
     caughtAt: stageId,
     shiny: plan.shiny,
   });
