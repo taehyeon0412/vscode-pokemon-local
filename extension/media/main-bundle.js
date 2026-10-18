@@ -23033,14 +23033,16 @@ window.__ult = {
         const TT = 2.75; // 던짐
         const TFLY = 0.55;
         const TX = TT + TFLY; // 맞음 — 내파
-        const TB = TX + 0.22; // 대폭발
-        const TD = TB + 1.4; // 내려앉음
+        const TB = TX + 0.35; // 대폭발 (그 전 0.35초는 블랙홀처럼 빨려 듦)
+        const DOME = 2.0;
+        const TD = TB + DOME + 0.1; // 내려앉음
         const Ro = Math.max(s * 5, me.w * 0.38);
         const pullR = Math.max(Ro * 4, D * 1.1);
         const q = nearest(u);
         const ahead = q && Math.sign(q.x - me.x) === dir && Math.abs(q.x - me.x) > me.w;
         const ix = clamp(ahead ? q.x : me.x + dir * W * 0.5, W * 0.08, W * 0.92);
         const boomR = Math.min(G * 0.7, Math.max(D * 1.3, me.w * 3));
+        const domeR = Math.min(Math.max(D * 1.5, me.w * 3.2), W * 0.5, G * 0.9); // 보랏빛 빛의 반구
         const iy = G - Math.min(boomR * 0.35, G * 0.3);
         const bob = (t) => Math.sin(t * 3) * s * 1.5;
         const footAt = (t) => {
@@ -23059,10 +23061,10 @@ window.__ult = {
         hideUntil(pokemon, ms + 100);
         // 떠오르는 돌덩이
         const rocks = [];
-        for (let i = 0; i < 10; i++) {
+        for (let i = 0; i < 14; i++) {
             const side = i % 2 ? -1 : 1;
             const x0 = clamp(me.x + side * (me.w * 0.8 + D * 1.2 * hash(i, 111)), W * 0.03, W * 0.97);
-            rocks.push({ x0, t0: TC0 + 0.1 + i * 0.09, h: G * (0.2 + 0.35 * hash(i, 112)), z: Math.max(3 * s, me.w * (0.14 + 0.12 * hash(i, 113))), ph: hash(i, 114) * TAU, lt: TT + 0.05 + i * 0.035 });
+            rocks.push({ x0, t0: TC0 + 0.1 + i * 0.09, h: G * (0.2 + 0.35 * hash(i, 112)), z: Math.max(3 * s, me.w * (0.12 + 0.22 * hash(i, 113))), ph: hash(i, 114) * TAU, lt: TT + 0.05 + i * 0.025 });
         }
         const rockAt = (r, t) => {
             const up = easeOut(clamp((t - r.t0) / 0.6, 0, 1));
@@ -23075,6 +23077,17 @@ window.__ult = {
             return [lerp(x, ix + (hash(r.ph, 1) - 0.5) * boomR * 0.4, k * k), lerp(y, iy, k * k)];
         };
 
+        // 화면이 보랏빛으로 (모을수록 · 빨려 들 때 짙게)
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            const a = clamp((life - TC0) / 1.5, 0, 1) * 0.14 + (life > TX && life < TB ? 0.18 : 0);
+            const fade = 1 - clamp((life - TB) / 0.3, 0, 1);
+            if (a * fade > 0.01) {
+                ctx.globalAlpha = a * fade;
+                ctx.fillStyle = MEWP[3];
+                ctx.fillRect(0, 0, W, H);
+            }
+        } });
         // 보랏빛 오라 · 돌덩이 (뮤츠 뒤)
         sc.add({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
@@ -23131,6 +23144,19 @@ window.__ult = {
             ctx.globalAlpha = 0.8;
             ctx.fillStyle = MEWP[3];
             ctx.fill(sw);
+            // 구에 지직거리는 하양 · 보라 전기 줄기 (0.05초마다 모양이 바뀜)
+            const r0 = Ro * (0.3 + 0.7 * k);
+            const seed = Math.floor(life * 20);
+            for (let j = 0; j < 3; j++) {
+                const a0 = hash(seed, j) * TAU;
+                const pts = [];
+                for (let q = 0; q <= 5; q++) {
+                    const rr = r0 * (0.6 + 0.9 * (q / 5));
+                    const aa = a0 + (hash(seed + q, j + 7) - 0.5) * 0.9;
+                    pts.push([hx + Math.cos(aa) * rr, hy + Math.sin(aa) * rr]);
+                }
+                drawBolt(ctx, px, s, pts, 1, MEWP[0], MEWP[2], 0.9 * k);
+            }
         } });
         let warp = 0;
         sc.tick((t, dt) => {
@@ -23142,6 +23168,20 @@ window.__ult = {
                 warp = 0;
                 ring(sc, me.x, footAt(t) - me.h * 0.5, me.w * 0.6, pullR * 1.2, 0.85, 0.6, [MEWP[1], MEWP[2]], 1); // 일그러짐 고리
                 ultShake(1.5, 150);
+            }
+        });
+        let zap = 0;
+        sc.tick((t, dt) => {
+            if (t < TC0 + 0.3 || t > TT) {
+                return;
+            }
+            zap += dt;
+            if (zap >= 0.11) {
+                zap = 0;
+                const [hx, hy] = Math.random() < 0.5 ? hand(t) : [me.x, footAt(t) - me.h * 0.5];
+                const a = rnd(0, TAU);
+                const L = me.w * rnd(0.8, 1.6);
+                strike(sc, hx, hy, hx + Math.cos(a) * L, Math.min(G, hy + Math.sin(a) * L), { mid: MEWP[0], glow: MEWP[2], dur: 0.16, branches: 1, w: 1 }); // 둘레에 튀는 보랏빛 번개
             }
         });
         for (const r of rocks) {
@@ -23210,14 +23250,25 @@ window.__ult = {
                     draw: DRAW.dot });
             }
         });
-        // ③ 대폭발 — 공간이 일그러지는 보랏빛 폭발 · 보랏빛 번개 · 충격파 세 겹 · 돌덩이
+        // 블랙홀 — 맞은 자리가 검게 빨려 듦 (어두운 구 · 도는 보랏빛 고리)
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const k = (sc.t - TX) / (TB - TX);
+            if (k < 0 || k > 1) {
+                return;
+            }
+            const r = boomR * 0.28 * Math.sin(Math.min(1, k * 1.2) * Math.PI * 0.5) * (1 - easeIn(clamp((k - 0.8) / 0.2, 0, 1)));
+            for (let j = 0; j < 3; j++) {
+                swirlRing(ctx, px, s, ix, iy, r * (1.4 + 0.4 * j) + s * 2, 0.45, sc.t + j, j % 2 ? dir : -dir, [MEWP[1], MEWP[2]], 0.9);
+            }
+            ellipse(ctx, px, s, ix, iy, r * 1.1, r * 1.1, MEWP[3], 1);
+            ellipse(ctx, px, s, ix, iy, r * 0.85, r * 0.85, '#0c0414', 1);
+        } });
+        // ③ 대폭발 — 보랏빛 빛의 반구(blastDome) · 공간이 일그러지는 줄 · 보랏빛 번개 · 충격파 세 겹 · 돌덩이
         sc.add({ max: sec, draw: (ctx, it, t, px) => {
             const k = sc.t - TB;
             if (k < 0 || k > 0.9) {
                 return;
             }
-            const grow = easeOut(clamp(k / 0.3, 0, 1)) * (1 - easeIn(clamp((k - 0.6) / 0.3, 0, 1))); // 끝엔 작아지며 사라짐
-            fireOrb(ctx, px, s, ix, iy, boomR, MEWP, sc.t, grow * (1 + 0.08 * k), G + s, 1, clamp((k - 0.35) / 0.45, 0, 1), [1, 0.86, 0.68, 0.46], 0.25);
             // 일그러짐 — 가로로 어긋난 보랏빛 줄들이 깜빡
             if (k < 0.5) {
                 const lines = new Path2D();
@@ -23232,13 +23283,14 @@ window.__ult = {
             }
         } });
         sc.at(TB, () => {
-            screenFlash(s, 0.7, '#ffffff', 0.12);
-            ultShake(12, 900);
+            screenFlash(s, 0.8, '#ffffff', 0.14);
+            ultShake(12, 1000);
+            blastDome(sc, ix, G, domeR, DOME, MEWP);
             ring(sc, ix, G - s, boomR * 0.4, Math.max(W, H), 0.16, 0.7, [MEWP[1], '#ffffff'], 2);
-            for (let i = 0; i < 8; i++) {
-                const a = (i / 8) * TAU + rnd(-0.2, 0.2);
-                const L = boomR * rnd(0.9, 1.5);
-                strike(sc, ix, iy, ix + Math.cos(a) * L, Math.min(G, iy + Math.sin(a) * L), { mid: MEWP[0], glow: MEWP[2], dur: 0.45, branches: 1, w: 2 });
+            for (let i = 0; i < 10; i++) {
+                const a = -Math.PI + ((i + 0.5) / 10) * Math.PI + rnd(-0.15, 0.15);
+                const L = domeR * rnd(1.0, 1.6);
+                strike(sc, ix, G - domeR * 0.3, ix + Math.cos(a) * L, Math.min(G, G - domeR * 0.3 + Math.sin(a) * L), { mid: MEWP[0], glow: MEWP[2], dur: 0.5, branches: 2, w: 2 });
             }
             debris(ix, G - s, s, ROCK, 40, H * 1.3, { ground: G, size: [2, 2, 3], angle: -Math.PI / 2, spread: 2.6 });
             fireBits(ix, iy, s, MEWP, 70, { spread: TAU, speed: H * 1.2, drag: 2, life: 0.9 });
@@ -23259,7 +23311,7 @@ window.__ult = {
             glim += dt * 20;
             while (glim >= 1) {
                 glim -= 1;
-                sparkles(ix + rnd(-1, 1) * boomR, G - rnd(0, boomR), s, ['#ffffff', MEWP[1], MEWP[2]], 1, s * 2, H * 0.15);
+                sparkles(ix + rnd(-1, 1) * domeR, G - rnd(0, domeR), s, ['#ffffff', MEWP[1], MEWP[2]], 1, s * 2, H * 0.15);
             }
         });
         sc.at(TD + 0.4, () => ring(sc, me.x, me.b - s, me.w * 0.4, me.w * 2.5, 0.2, 0.4, [MEWP[1], '#ffffff'], 2));
@@ -23354,6 +23406,16 @@ window.__ult = {
         };
         const beatAt = (t, list) => list.reduce((m, tp) => Math.max(m, clamp(1 - Math.abs(t - tp) / 0.1, 0, 1)), 0);
         const pulses = [0.7, 1.05, 1.35];
+        // 화면이 보랏빛으로 (띄우고 돌릴 때 짙게)
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            const a = 0.08 * clamp(life / 1, 0, 1) + 0.12 * clamp((life - TL1) / 0.5, 0, 1) * (1 - clamp((life - TI) / 0.5, 0, 1));
+            if (a > 0.01) {
+                ctx.globalAlpha = a;
+                ctx.fillStyle = MEWP[3];
+                ctx.fillRect(0, 0, W, H);
+            }
+        } });
 
         // 보랏빛 꼬리 · 돌덩이 · 떠오른 포켓몬들 (메가뮤츠Y 뒤)
         sc.add({ max: sec, draw: (ctx, it, t, px) => {
@@ -23374,6 +23436,31 @@ window.__ult = {
             ctx.globalAlpha = 0.6;
             ctx.fillStyle = MEWP[2];
             ctx.fill(tails);
+            // 두꺼운 보랏빛 염력 소용돌이 띠 — 도는 길을 따라
+            const vk = clamp((life - TO1 + 0.3) / 0.4, 0, 1) * (1 - clamp((life - TS) / 0.3, 0, 1));
+            for (let j = 0; j < 3; j++) {
+                swirlRing(ctx, px, s, ocx, ocy, orx * (0.92 + 0.08 * j), ory / orx, life * (1 + 0.3 * j) + j, dir, [j === 1 ? '#ffffff' : MEWP[1], MEWP[2]], 0.85 * vk);
+            }
+            // 염력 사슬 — 메가뮤츠Y 손에서 띄운 애들로 지직거리는 보랏빛 번개 (0.06초마다 모양이 바뀜)
+            if (life < TSL) {
+                const w = megaW();
+                const hx = me.x + dir * w * 0.3;
+                const hy = footAt(life) - w * 0.55;
+                const seed = Math.floor(life / 0.06);
+                lifted.forEach((L, i) => {
+                    const [x, b] = liftAt(L, life);
+                    const tx = x;
+                    const ty = b - L.h * 0.5;
+                    const pts = [[hx, hy]];
+                    for (let q = 1; q < 6; q++) {
+                        const f = q / 6;
+                        const off = (hash(seed + i * 13, q) - 0.5) * Math.hypot(tx - hx, ty - hy) * 0.18;
+                        pts.push([lerp(hx, tx, f) - (ty - hy) / (Math.hypot(tx - hx, ty - hy) || 1) * off, lerp(hy, ty, f) + (tx - hx) / (Math.hypot(tx - hx, ty - hy) || 1) * off]);
+                    }
+                    pts.push([tx, ty]);
+                    drawBolt(ctx, px, s, pts, 1, MEWP[0], MEWP[2], 0.8 * clamp((life - L.t0) / 0.2, 0, 1));
+                });
+            }
             for (const R of rocks) {
                 const RL = { x: R.x0, b: G, h: R.z, a0: R.a0, t0: R.t0 };
                 const [x, b] = liftAt(RL, life, orx * R.rr, ory * R.rr);
@@ -23519,6 +23606,30 @@ window.__ult = {
             }
             for (const R of rocks) {
                 debris(R.x0, G - s, s, ROCK, 5, H * 0.6, { ground: G, angle: -Math.PI / 2, spread: 2 });
+            }
+        });
+        // 내리꽂힌 자리마다 작은 보랏빛 폭발 · 메가뮤츠Y 둘레 거대한 염력 폭발
+        const bigR = Math.min(G * 0.75, Math.max(D * 1.2, me.w * 3.5));
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const k = sc.t - TI;
+            if (k < 0 || k > 0.8) {
+                return;
+            }
+            const grow = easeOut(clamp(k / 0.25, 0, 1)) * (1 - easeIn(clamp((k - 0.55) / 0.25, 0, 1)));
+            const cool = clamp((k - 0.25) / 0.45, 0, 1);
+            fireOrb(ctx, px, s, me.x, footAt(TI) - me.h * 0.5, bigR, MEWP, sc.t, grow, G + s, 1, cool, [1, 0.86, 0.68, 0.46], 0.25);
+            lifted.forEach((L, i) => {
+                fireOrb(ctx, px, s, L.x, G, Math.max(L.w * 1.3, s * 6), MEWP, sc.t + i, grow, G + s, 1, cool, [1, 0.82, 0.62, 0.4], 0.3);
+            });
+        } });
+        sc.at(TI, () => {
+            for (const L of lifted) {
+                strike(sc, L.x, G - s, L.x + rnd(-1, 1) * L.w, Math.max(s * 2, G - L.h * 4), { mid: MEWP[0], glow: MEWP[2], dur: 0.4, branches: 1, w: 2 }); // 위로 솟는 번개
+            }
+            for (let i = 0; i < 8; i++) {
+                const a = -Math.PI + ((i + 0.5) / 8) * Math.PI;
+                const cy0 = footAt(TI) - me.h * 0.5;
+                strike(sc, me.x, cy0, me.x + Math.cos(a) * bigR * 1.4, Math.min(G, cy0 + Math.sin(a) * bigR * 1.4), { mid: MEWP[0], glow: MEWP[2], dur: 0.45, branches: 1, w: 2 });
             }
         });
         // 갈라진 땅 — 메가뮤츠Y 발밑에서 양옆으로
@@ -24058,7 +24169,7 @@ window.__ult = {
     const baseOrb = ULT_FX.ultorb;
     if (baseOrb) {
         ULT_FX.ultorb = {
-            ms: (P, o) => (o.lucario ? 5600 + 200 * P : o.turtle ? 8500 + 200 * P : o.mewtwo ? 7200 + 200 * P : o.mew ? 8200 + 200 * P : baseOrb.ms(P, o)),
+            ms: (P, o) => (o.lucario ? 5600 + 200 * P : o.turtle ? 8500 + 200 * P : o.mewtwo ? 8600 + 200 * P : o.mew ? 8200 + 200 * P : baseOrb.ms(P, o)),
             run: (u, o, ms, pokemon) => (o.lucario ? runTrueAuraSphere(u, o, ms, pokemon) : o.turtle ? runMegaLauncher(u, o, ms, pokemon) : o.mewtwo ? runPsystrike(u, o, ms, pokemon) : o.mew ? runGenesisSupernova(u, o, ms, pokemon) : baseOrb.run(u, o, ms, pokemon)),
         };
     }
