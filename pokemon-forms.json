@@ -8,5 +8,15 @@
     "ko": "메가리자몽X",
     "generation": 1,
     "size": 64
+  },
+  "mewtwo_megay": {
+    "id": 150,
+    "form": "0002",
+    "base": "mewtwo",
+    "tag": "megay",
+    "name": "Mega Mewtwo Y",
+    "ko": "메가뮤츠Y",
+    "generation": 1,
+    "size": 32
   }
 }

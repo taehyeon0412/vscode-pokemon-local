@@ -31,7 +31,7 @@ SIG = {
 }
 ULT = {
     "ultbeam": "c width rainbow wave spiral solar sparkle double charge venus turtle",
-    "ultorb": "c size style sky lucario turtle",
+    "ultorb": "c size style sky lucario turtle mewtwo",
     "ultnova": "c white",
     "ultblackhole": "c",
     "ultsparkle": "mode c",
@@ -47,7 +47,7 @@ ULT = {
     "ultrush": "c drill flame elec water fast",
     "ultdive": "c heavy elec flame flare",
     "ultbarrage": "kind c spin aura",
-    "ultpsy": "c",
+    "ultpsy": "c mewtwo",
     "ultshadow": "c",
     "ultsplash": "", "ultcopy": "", "ultmetronome": "",
 }

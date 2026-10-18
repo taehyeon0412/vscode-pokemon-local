@@ -149,6 +149,6 @@
   "dratini": ["용의분노", "breath", {"c": "dragon", "speed": 0.9}],
   "dragonair": ["용의숨결", "breath", {"c": "dragon", "smoke": 1}],
   "dragonite": ["역린", "dash", {"c": "dragon", "fast": 1}],
-  "mewtwo": ["사이코브레이크", "beam", {"c": "psychic", "width": 1.6, "wave": 1, "sparkle": "psychic"}],
+  "mewtwo": ["섀도볼", "projectile", {"shape": "ball", "c": "ghost", "n": 1, "big": 1}],
   "mew": ["파동탄", "projectile", {"shape": "ball", "c": "aura", "n": 1, "big": 1}]
 }

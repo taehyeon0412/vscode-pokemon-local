@@ -172,7 +172,7 @@ Extracting and creating .gif files involves quite a bit of tedious manual work, 
 - Pokemon Sprites: © The Pokémon Company / Nintendo / Game Freak
 - The sprites are used for non-commercial, fan project purposes only
 - Original sprite artwork belongs to the respective copyright holders
-- Some sprites (Froakie line, the Gen 5 · Gen 6 starters, Mega Charizard X used in Charizard's Blast Burn): [PMD SpriteCollab](https://github.com/PMDCollab/SpriteCollab), CC BY-NC 4.0, converted to GIF — artists are listed in `THIRD-PARTY-NOTICES.txt`
+- Some sprites (Froakie line, the Gen 5 · Gen 6 starters, Mega Charizard X and Mega Mewtwo Y used in their ultimates): [PMD SpriteCollab](https://github.com/PMDCollab/SpriteCollab), CC BY-NC 4.0, converted to GIF — artists are listed in `THIRD-PARTY-NOTICES.txt`
 - Game mode data (stats, learnsets, moves, evolutions): [PokeAPI](https://github.com/PokeAPI/pokeapi), BSD 3-Clause — full license in `THIRD-PARTY-NOTICES.txt`
 
 ### Acknowledgments
