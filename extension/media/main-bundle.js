@@ -18971,75 +18971,118 @@ window.__ult = {
         ring(sc, x, G - s, hw, hw * 4, 0.18, dur * 0.7, [cols[1], '#ffffff'], 2);
         return it;
     }
-    // 물 돔 — 땅에 반원이 솟아 점점 커지며 물결 띠가 rot 쪽(+1: 오른쪽 아래 → 꼭대기 → 왼쪽 아래)으로 감겨 돌고,
-    // 가장자리에서 물보라가 도는 쪽으로 흩날림 → 다 커지면 물이 쏟아지며 무너짐. 속은 물빛 여러 겹 · 하얀 심, 테두리는 보랏빛
-    // x0 에서 솟아 커지면서 가운데가 x1 로 옮겨 감 (화면 끝에서 솟아도 반원이 거의 다 보이게)
-    function waterDome(sc, x0, x1, G, Rmax, dur, cols, rot) {
-        const s = sc.u.S;
-        const H = sc.u.H;
+    // 나선 물 돔 (나선수리검처럼) — 땅에 반원이 솟아 점점 커지며 세로축으로 팽이처럼 돎:
+    // 층마다 가로 물결 줄기가 한쪽 가장자리에서 뒤로부터 휘어 나와 앞면을 가로질러 rot 쪽(+1: 왼쪽)으로 쓩 흘러가 반대편으로 감겨 듦
+    // (뒷면엔 옅은 줄기가 거꾸로). 속은 하얗게 빛나고 줄기는 하양 · 밝은 물빛 · 보랏빛, 자잘한 바람 결이 빠르게 흐르고
+    // 가장자리에서 물보라가 도는 쪽으로 흩날림 → 다 돌면 물보라로 터지며 사라짐.
+    // x0 에서 솟아 커지면서 가운데가 x1 로 옮겨 감. touch(r) — 커지는 돔에 닿은 애 (휘말리게)
+    function swirlDome(sc, x0, x1, G, R0, Rmax, dur, cols, rot, touch) {
+        const u = sc.u;
+        const s = u.S;
+        const H = u.H;
+        const TILT = 0.2; // 위에서 살짝 내려다본 고리 납작함
         const tGrow = dur * 0.55;
-        const tBreak = dur * 0.78;
+        const tBreak = dur * 0.8;
         const grow = (life) => clamp(life / tGrow, 0, 1);
-        const radius = (life) => {
-            const k = grow(life);
-            const R = Rmax * (0.15 + 0.85 * easeOut(k) + 0.05 * Math.sin(k * Math.PI));
-            return life > tBreak ? R * (1 + 0.15 * ((life - tBreak) / (dur - tBreak))) : R;
-        };
         let cx = x0;
-        let R = Rmax * 0.15;
+        let R = R0;
         let phase = 0;
-        // 돔 위 한 점 (th 0 → π 가 도는 쪽) [x, y, 바깥 x, 바깥 y] · 그 점에서 도는 쪽 접선
-        const at = (th, r) => {
-            const ang = rot > 0 ? th : Math.PI - th;
-            return [cx + Math.cos(ang) * r, G - Math.sin(ang) * r * 0.92, Math.cos(ang), -Math.sin(ang)];
-        };
-        const tangent = (th) => [-rot * Math.sin(th), -Math.cos(th)];
         let spray = 0;
         let broke = false;
+        let look = 0;
+        // 높이 h(0 바닥 → 1 꼭대기) 고리 위 한 점 — f 0 → 1 이 앞면을 rot 쪽으로 가로지름, back 이면 뒷면(거꾸로 · 위쪽)
+        const ringAt = (h, f, back = false) => {
+            const hw = R * Math.sqrt(Math.max(0, 1 - h * h));
+            const phi = f * Math.PI;
+            const b = back ? -1 : 1;
+            return [cx + rot * b * Math.cos(phi) * hw, G - h * R * 0.92 + b * Math.sin(phi) * hw * TILT];
+        };
+        const headOf = (seed, span, speed) => (hash(seed, 6) * (1 + span) + phase * speed) % (1 + span);
         sc.add({ max: dur,
             update: (it, dt) => {
                 const life = it.life;
-                cx = lerp(x0, x1, easeOut(grow(life)));
-                R = radius(life);
-                phase += dt * (2.4 + 2.4 * grow(life));
+                const k = grow(life);
+                cx = lerp(x0, x1, easeOut(k));
+                R = lerp(R0, Rmax, easeOut(k)) * (life > tBreak ? 1 + 0.12 * ((life - tBreak) / (dur - tBreak)) : 1);
+                phase += dt * (1.0 + 1.4 * k);
                 if (life < tBreak) {
-                    spray += dt * 80;
+                    // 닿은 애 휘말림
+                    look -= dt;
+                    if (look <= 0) {
+                        look = 0.1;
+                        for (const r of u.others()) {
+                            if (((r.x - cx) / R) ** 2 + ((G - r.y) / (R * 0.92)) ** 2 < 1) {
+                                touch(r);
+                            }
+                        }
+                    }
+                    // 물보라 — 앞면이 빠져나가는 가장자리에서 도는 쪽으로
+                    spray += dt * 90;
                     while (spray >= 1) {
                         spray -= 1;
                         if (!room()) {
                             continue;
                         }
-                        const th = rnd(0.15, Math.PI - 0.15);
-                        const [ex, ey, nx, ny] = at(th, R);
-                        const [tx, ty] = tangent(th);
-                        const sp = H * rnd(0.35, 0.7);
-                        sigParticle({ x: ex, y: ey, s, vx: tx * sp + nx * sp * 0.4, vy: ty * sp + ny * sp * 0.4, g: H * 1.6, drag: 0.6, max: rnd(0.4, 0.7), color: pick(Math.random() < 0.2 ? [DARK[0], DARK[1]] : cols), size: pick([1, 2, 2]), draw: DRAW.dot });
+                        const [ex, ey] = ringAt(Math.random() ** 0.7 * 0.95, rnd(0.85, 1));
+                        const sp = H * rnd(0.4, 0.8);
+                        sigParticle({ x: ex, y: ey, s, vx: -rot * sp, vy: -sp * rnd(0.1, 0.5), g: H * 1.4, drag: 0.7, max: rnd(0.4, 0.7), color: pick(Math.random() < 0.2 ? [DARK[0], DARK[1]] : cols), size: pick([1, 2, 2]), draw: DRAW.dot });
                     }
                 } else if (!broke) {
-                    // 무너짐 — 돔 겉면이 물방울로 쏟아짐
+                    // 터짐 — 온 겉면이 물보라로 흩어짐
                     broke = true;
-                    ultShake(3, 250);
-                    for (let i = 0; i < 44 && room(); i++) {
-                        const th = rnd(0.05, Math.PI - 0.05);
-                        const [ex, ey, nx, ny] = at(th, R);
-                        const [tx, ty] = tangent(th);
-                        const sp = H * rnd(0.3, 0.6);
-                        sigParticle({ x: ex, y: ey, s, vx: nx * sp + tx * sp * 0.5, vy: ny * sp + ty * sp * 0.5, g: H * 2, drag: 0.5, max: rnd(0.5, 0.9), color: pick(cols), size: pick([1, 2, 2]), draw: DRAW.dot });
+                    ultShake(5, 350);
+                    for (let i = 0; i < 70 && room(); i++) {
+                        const [ex, ey] = ringAt(Math.random() * 0.95, Math.random(), Math.random() < 0.3);
+                        const dx = ex - cx;
+                        const dy = ey - (G - R * 0.4);
+                        const L = Math.hypot(dx, dy) || 1;
+                        const sp = H * rnd(0.4, 0.9);
+                        sigParticle({ x: ex, y: ey, s, vx: (dx / L) * sp - rot * sp * 0.3, vy: (dy / L) * sp - sp * 0.3, g: H * 1.8, drag: 0.5, max: rnd(0.5, 1), color: pick(Math.random() < 0.2 ? [DARK[0], DARK[1]] : cols), size: pick([1, 2, 2]), draw: DRAW.dot });
                     }
-                    ring(sc, cx, G - s, R * 0.8, R * 1.8, 0.18, 0.5, [cols[1], '#ffffff'], 2);
+                    ring(sc, cx, G - s, R * 0.6, R * 1.6, 0.18, 0.5, [cols[1], '#ffffff'], 2);
                 }
             },
             draw: (ctx, it, t, px) => {
                 const life = it.life;
                 const ry = R * 0.92;
-                const a = life < tBreak ? 1 : 1 - (life - tBreak) / (dur - tBreak);
-                // 몸 — 겹겹이, 가장자리가 도는 쪽으로 물결침
-                for (const [f, c, al] of [[1, DARK[1], 0.85], [0.95, cols[3], 0.8], [0.84, cols[2], 0.8], [0.62, cols[1], 0.75], [0.34, '#ffffff', 0.8]]) {
+                const a = life < tBreak ? 1 : Math.max(0, 1 - (life - tBreak) / (dur - tBreak));
+                const thick = clamp(Math.round(R / (55 * s)), 1, 4);
+                const rows = clamp(Math.round(ry / (8 * s)), 7, 18);
+                // 줄기 하나 — 높이 h, 앞머리 f0, 길이 span (머리가 굵고 하얗게, 가로로 납작하게)
+                const streak = (h, f0, span, back, heads, mids, tails, w0, cap) => {
+                    const hw = R * Math.sqrt(Math.max(0, 1 - h * h));
+                    const n = clamp(Math.round((span * Math.PI * hw) / (2.5 * s)), 4, cap);
+                    for (let j = 0; j < n; j++) {
+                        const f = f0 - (j / (n - 1)) * span;
+                        if (f < 0 || f > 1) {
+                            continue;
+                        }
+                        const [qx, qy] = ringAt(h, f, back);
+                        if (qy > G - s) {
+                            continue;
+                        }
+                        const head = j < n * 0.25;
+                        const w = head ? w0 + 1 : j < n * 0.6 ? w0 : Math.max(1, w0 - 1);
+                        (head ? heads : j < n * 0.6 ? mids : tails).rect(px(qx - ((w + 1) * s) / 2), px(qy - (w * s) / 2), (w + 1) * s, Math.max(s, w * s - s));
+                    }
+                };
+                // 뒷면 — 옅은 줄기가 거꾸로 (몸 뒤에)
+                const back = new Path2D();
+                for (let k = 0; k < rows; k++) {
+                    const seed = 500 + k;
+                    const span = 0.3 + 0.25 * hash(seed, 4);
+                    streak(((k + 0.5) / rows) * 0.95, headOf(seed, span, 0.8 + 0.4 * hash(seed, 5)), span, true, back, back, back, Math.max(1, thick - 1), 40);
+                }
+                ctx.globalAlpha = 0.35 * a;
+                ctx.fillStyle = cols[1];
+                ctx.fill(back);
+                // 몸 — 속이 하얗게 빛나는 반투명 겹
+                const fill = (f, c, al) => {
                     const path = new Path2D();
                     const rx = R * f;
                     const rr = ry * f;
                     for (let dy = 0; dy < rr; dy += s) {
-                        const half = rx * Math.sqrt(Math.max(0, 1 - (dy / rr) ** 2)) + Math.sin(dy * 0.12 + life * 18 * rot) * s * 1.2 * f;
+                        const half = rx * Math.sqrt(Math.max(0, 1 - (dy / rr) ** 2));
                         if (half >= s / 2) {
                             path.rect(px(cx - half), px(G - dy - s), Math.max(s, px(2 * half)), s);
                         }
@@ -19047,45 +19090,41 @@ window.__ult = {
                     ctx.globalAlpha = a * al;
                     ctx.fillStyle = c;
                     ctx.fill(path);
-                }
-                // 0 짙은 물결 띠 · 1 밝은 꼬리 · 2 하얀 머리 · 3 보랏빛 · 4 테두리 (이 차례로 칠함 — 하얀 게 위)
-                const paths = [new Path2D(), new Path2D(), new Path2D(), new Path2D(), new Path2D()];
-                const arc = (rf, span, head, n, path, thick, tail = null) => {
-                    for (let j = 0; j < n; j++) {
-                        const th = head - (j / (n - 1)) * span;
-                        if (th < 0.06 || th > Math.PI - 0.06) {
-                            continue;
-                        }
-                        const [qx, qy] = at(th, R * rf);
-                        const w = j < n * 0.3 ? thick : j < n * 0.65 ? Math.max(1, thick - 2) : 1;
-                        (tail && j >= n * 0.3 ? tail : path).rect(px(qx - s), px(qy - s), w * s, w * s);
-                    }
                 };
-                // 굵은 짙은 물결 띠 셋 — 크게 감겨 돎
-                for (let k = 0; k < 3; k++) {
-                    arc(0.48 + 0.2 * k, 1.25, (k * 1.4 + phase * (0.85 + 0.1 * k)) % (Math.PI + 1.25), 34, paths[0], 5);
-                }
-                // 하얀 물결 — 띠 사이사이를 더 빨리 (머리 하얗게 · 꼬리 밝은 물빛), 몇 줄은 보랏빛
-                for (let k = 0; k < 9; k++) {
-                    const span = 0.5 + 0.4 * hash(k, 4);
-                    const head = (hash(k, 6) * (Math.PI + span) + phase * (1.1 + 0.5 * hash(k, 5))) % (Math.PI + span);
-                    if (k % 4 === 3) {
-                        arc(0.3 + 0.62 * hash(k, 3), span, head, 18, paths[3], 2);
-                    } else {
-                        arc(0.3 + 0.62 * hash(k, 3), span, head, 20, paths[2], 4, paths[1]);
+                fill(1.04, DARK[1], 0.4);
+                fill(1, cols[2], 0.42);
+                fill(0.82, cols[1], 0.48);
+                fill(0.6, '#ffffff', 0.45);
+                fill(0.36, '#ffffff', 0.75);
+                // 앞면 줄기 — 층마다 셋, 위층일수록 조금 느리게 (뒤틀린 회오리). 0 꼬리(물빛) 1 가운데(밝은 물빛) 2 머리(하양) 3 보랏빛 4 바람 결 · 테두리
+                const P0 = [new Path2D(), new Path2D(), new Path2D(), new Path2D(), new Path2D()];
+                for (let k = 0; k < rows; k++) {
+                    const h = ((k + 0.5) / rows) * 0.95;
+                    for (let m = 0; m < 3; m++) {
+                        const seed = k * 7 + m;
+                        const span = 0.32 + 0.3 * hash(seed, 4);
+                        const f0 = headOf(seed, span, (0.9 + 0.6 * hash(seed, 5)) * (1.15 - 0.35 * h));
+                        if (hash(seed, 8) < 0.18) {
+                            streak(h, f0, span, false, P0[3], P0[3], P0[3], thick, 50);
+                        } else {
+                            streak(h, f0, span, false, P0[2], P0[1], P0[0], thick, 50);
+                        }
                     }
                 }
-                // 테두리 — 하얀 선 한 줄 · 그 위를 도는 반짝
-                const n = clamp(Math.round((Math.PI * R) / s), 12, 400);
+                // 바람 결 — 자잘한 하얀 대시가 빠르게
+                for (let i = 0; i < 70; i++) {
+                    const [qx, qy] = ringAt(hash(i, 11) * 0.95, (hash(i, 12) + phase * (1.6 + hash(i, 13))) % 1);
+                    if (qy < G - s) {
+                        P0[4].rect(px(qx - 2 * s), px(qy + (hash(i, 14) - 0.5) * 4 * s), 4 * s, s);
+                    }
+                }
+                // 테두리
+                const n = clamp(Math.round((Math.PI * R) / s), 12, 500);
                 for (let i = 0; i <= n; i++) {
-                    const [ex, ey] = at((i / n) * Math.PI, R);
-                    paths[4].rect(px(ex), px(ey), s, s);
+                    const th = (i / n) * Math.PI;
+                    P0[4].rect(px(cx + Math.cos(th) * R), px(G - Math.sin(th) * ry), s, s);
                 }
-                for (let m = 0; m < 6; m++) {
-                    const [ex, ey] = at(((m / 6) * Math.PI + phase) % Math.PI, R);
-                    paths[2].rect(px(ex - s), px(ey - s), 2 * s, 2 * s);
-                }
-                fillPaths(ctx, paths, [cols[3], cols[1], '#ffffff', DARK[0], '#ffffff'], a);
+                fillPaths(ctx, P0, [cols[2], cols[1], '#ffffff', DARK[0], '#ffffff'], a);
             } });
     }
     // 끝에 내리는 물방울 비 (t0 부터)
@@ -19137,9 +19176,9 @@ window.__ult = {
 
     // 거대 물수리검 — 물 회오리가 감싸 펑(물빛 테두리) → 뛰어오르는 순간부터 작은 표창이 돌며 물빛 · 보랏빛 기운을 빨아들여 커짐(두근두근 · 반짝)
     // → 내리꽂듯 던짐(물빛 · 보랏빛 꼬리 · 물방울과 보랏빛 기운이 흩날림 · 허공에 베인 자국 · 지나가며 베기) → 화면 끝에 꽂혀 멈칫
-    // → 물기둥이 솟고 그 안에서 표창이 하얗게 달아오르다 물기둥째 대폭발 — 반원 물 돔이 점점 커지며 개굴닌자 쪽으로 감겨 돌고 무너짐(조각이 사방으로)
-    // → 착지하면 베인 자국이 한꺼번에 터짐 → 물방울 비
-    // 뛰는 동안은 진짜 그림을 숨기고 캔버스에 꼭두각시로 (같은 자리에 내려와서 다시 보임)
+    // → 물기둥이 솟고 그 안에서 표창이 하얗게 달아오르다 물기둥째 대폭발 — 나선 물 돔(나선수리검처럼)이 지금 크기의 두 배 넘게 커지며 개굴닌자 쪽으로 팽이처럼 돎
+    // → 개굴닌자는 돔 앞에 착지해 서 있다가, 돔이 물보라로 터지는 순간 허공의 베인 자국도 한꺼번에 터짐 → 물방울 비
+    // 뛰는 동안 · 돔이 있는 동안은 진짜 그림을 숨기고 캔버스에 꼭두각시로 (돔보다 앞에 보이게, 같은 자리에 내려와서 다시 보임)
     function runNinjaShuriken(u, o, ms, pokemon) {
         const cols = sigPal(o.c || 'water');
         const P = strength(u);
@@ -19160,10 +19199,11 @@ window.__ult = {
         const T3 = 2.35;
         const T3b = 2.5;
         const TB = 2.9;
-        const TD = 0.95; // 물 돔이 솟아 도는 시간
-        const T5 = 3.35;
-        const TL = 3.65;
-        const T6 = 3.7;
+        const TD = 2.4; // 나선 물 돔이 솟아 커지며 도는 시간 (0.8 지점에서 터짐)
+        const T5 = TB + 0.25;
+        const TL = TB + 0.55;
+        const T6 = TB + TD * 0.8;
+        const TR = TB + TD; // 진짜 그림이 다시 보임 (돔이 사라진 뒤 — 돔은 캔버스라 진짜 그림을 덮어서)
         const tFull = T2 - 0.1;
         const pulses = [T1 + 0.45, T1 + 0.8];
         const still = (t) => (t >= T3 && t < T3b ? T3 : t); // 멈칫 — 그동안 꼭두각시 · 표창이 그대로
@@ -19227,7 +19267,7 @@ window.__ult = {
             const spin = t < T1 ? 0 : t < T2 ? 6 + 24 * clamp((t - T1) / (T2 - T1), 0, 1) : t < T3 ? 28 : t < T3b ? 0 : 44;
             ang += spin * dt * dir;
         });
-        waterRain(sc, TB + 0.15, sec, cols);
+        waterRain(sc, T6, sec, cols);
 
         // ① 물 회오리 — 물줄기 네 가닥이 발밑에서 감아 올라가며 조여듦 (뒤 가닥은 옅게, 앞 가닥은 굵게)
         const vx = u.body.cx;
@@ -19285,12 +19325,12 @@ window.__ult = {
             hideMon(pokemon, true);
         });
         hideUntil(pokemon, ms + 100);
-        auraBubbles(sc, TL, sec - 0.3, cols);
+        auraBubbles(sc, TR, sec - 0.3, cols);
 
         // 베인 자국 — 지나간 자리에 남았다가, 착지하면(T6) 굵게 번쩍하고 사라짐 (하얀 심 · 보라 테두리)
         const cuts = [];
         let lastCut = null;
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+        const drawCuts = (ctx, it, t, px) => {
             const life = sc.t;
             if (!cuts.length || life > T6 + 0.35) {
                 return;
@@ -19308,8 +19348,9 @@ window.__ult = {
                 }
             }
             fillPaths(ctx, paths, [DARK[1], '#ffffff'], life < T6 ? 0.85 : hot ? 1 : 1 - (life - T6 - 0.1) / 0.25);
-        } });
-        // 꼭두각시 — 물빛 테두리, 뛰고 내릴 때 보랏빛 잔상
+        };
+        sc.add({ max: TB, draw: drawCuts });
+        // 꼭두각시 — 물빛 테두리, 뛰고 내릴 때 보랏빛 잔상 (돔이 생기면 돔 위에 다시 그림)
         const ghosts = [];
         let lastGhost = -1;
         sc.tick((t) => {
@@ -19320,16 +19361,17 @@ window.__ult = {
                 ghosts.length = Math.min(ghosts.length, 8);
             }
         });
-        sc.add({ max: sec, draw: (ctx) => {
+        const drawPup = (ctx) => {
             const t = sc.t;
             for (const g of ghosts) {
                 drawMon(ctx, img, g.x, g.b, me.w, u.left, 0.45 * (1 - (t - g.t) / 0.25), DARK[1], g.r);
             }
-            if (t >= T1 && t < TL) {
+            if (t >= T1 && t < TR) {
                 const [x, b, r] = pup(t);
                 drawLitMon(ctx, img, x, b, me.w, u.left, '#8fe3ff', edge, 1, r);
             }
-        } });
+        };
+        sc.add({ max: TB, draw: drawPup });
         // ② 모으기 — 물빛 · 보랏빛 두 줄기씩 소용돌이치며 표창으로 빨려 듦 (점이 안쪽으로 흘러감) + 알갱이, 두 번 두근, 다 되면 반짝
         sc.add({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
@@ -19485,9 +19527,13 @@ window.__ult = {
             if (column) {
                 column.max = 0;
             }
-            // 반원 물 돔 — 꽂힌 자리에서 솟아 점점 커지며 개굴닌자 쪽으로 감겨 돎 (커지면서 반원이 화면 안에 거의 다 들어오게 옮겨 감)
-            const Rd = Math.min(Math.max(D * 1.5, short(u) * 0.5), W * 0.42, (G - 4) / 0.92);
-            waterDome(sc, fx, dir > 0 ? Math.min(fx, W - Rd * 0.85) : Math.max(fx, Rd * 0.85), G, Rd, TD, cols, dir);
+            // 나선 물 돔 — 꽂힌 자리에서 솟아 지난번 크기의 2.2배까지 커지며 개굴닌자 쪽으로 팽이처럼 돎 (커지면서 가운데가 화면 쪽으로)
+            // → 그 위에 베인 자국 · 꼭두각시를 다시 그림 (돔보다 앞에)
+            const Rd = Math.min(Math.max(D * 1.5, short(u) * 0.5) * 2.2, Math.max(W, G) * 0.9);
+            const x1 = dir > 0 ? Math.min(fx, Math.max(W * 0.5, W - Rd * 0.6)) : Math.max(fx, Math.min(W * 0.5, Rd * 0.6));
+            swirlDome(sc, fx, x1, G, D * 0.4, Rd, TD, cols, dir, (r) => hit(r, -dir, 'spin'));
+            sc.add({ max: sec, draw: drawCuts });
+            sc.add({ max: sec, draw: drawPup });
             ring(sc, fx, fy, D * 0.3, Math.max(W, H) * 0.7, 0.8, 0.6, ['#ffffff', cols[1], cols[2]], 3);
             ring(sc, fx, fy, D * 0.2, Math.max(W, H) * 0.45, 0.8, 0.5, ['#ffffff', DARK[1]], 2);
             ring(sc, fx, G - s, D * 0.4, D * 3, 0.2, 0.5, [cols[1], '#ffffff'], 2);
@@ -19499,20 +19545,13 @@ window.__ult = {
             }
             sparkles(fx, fy, s, ['#ffffff', cols[0], cols[1]], 16, D * 0.6, H * 0.3);
             shards(fx, fy, s, Math.max(s, Math.round(D / 22 / s) * s), cols, 14, H * 0.9, G - s);
-            for (const r of u.others()) {
-                if (Math.abs(r.x - fx) < W * 0.4) {
-                    hit(r, r.x < fx ? -1 : 1, 'spin');
-                }
-            }
         });
-        // ⑤ 내려와 착지(진짜가 다시 보임) → 베인 자국이 한꺼번에 터짐
+        // ⑤ 돔이 커지는 동안 내려와 착지(돔 앞에 섬) → 돔이 터지는 순간 베인 자국도 한꺼번에 터짐 → 돔이 사라지면 진짜 그림으로
         sc.at(TL, () => {
-            hideMon(pokemon, false);
             ultShake(3, 200);
             ring(sc, me.x, me.b - s, me.w * 0.4, me.w * 3, 0.2, 0.4, [cols[1], '#ffffff'], 2);
-            debris(me.x, me.b - s, s, cols, 16, H * 0.5, { ground: G, angle: -Math.PI / 2, spread: 2.4 });
-            recoil(pokemon, [{ translate: `0 ${u.s * 2}px` }, { translate: '0 0' }], 200);
         });
+        sc.at(TR, () => hideMon(pokemon, false));
         sc.at(T6, () => {
             screenFlash(s, 0.25, '#ffffff', 0.12);
             ultShake(4, 300);
@@ -19858,7 +19897,7 @@ window.__ult = {
         // 화면 가득 날리기 — shape (needle star ball rock leaf coin egg bone heart shuriken) c n / giant: 거대한 것 하나
         // ninja: 개굴닌자 거대 물수리검 (변신 · 꽂혀서 물기둥) / clones: 그림자분신 물수리검 (분신 수)
         ultswarm: {
-            ms: (P, o) => (o.clones ? 3500 + 200 * P : o.ninja ? 4300 + 200 * P : o.giant ? 3300 : 2900 + 300 * P),
+            ms: (P, o) => (o.clones ? 3500 + 200 * P : o.ninja ? 5900 + 200 * P : o.giant ? 3300 : 2900 + 300 * P),
             run: (u, o, ms, pokemon) => {
                 if (o.clones) {
                     runShadowClones(u, o, ms, pokemon);
