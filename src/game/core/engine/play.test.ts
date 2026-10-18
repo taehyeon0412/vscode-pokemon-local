@@ -3,6 +3,8 @@ import { BALANCE, TIMING } from '../balance';
 import { stageLayout, type Spot } from '../rules/stage';
 import type { Save } from '../save';
 import { sampleSave } from '../../../test/fixtures/save';
+import { shinyWildSeed } from '../../../test/fixtures/stage';
+import { startBattle } from './battle';
 import { advance, applyInput, isWaitingForInput, leadSpeed, step, withSpeed } from './play';
 import { createGameState, type GameState } from './state';
 
@@ -94,8 +96,9 @@ describe('떨어진 아이템 (gdd 4.6)', () => {
 });
 
 describe('야생 조우 (mvp-spec 3.2)', () => {
-  it('흔적 자리에 오면 튀어나옴 → 만난 종 기록 · 상대는 세이브에 (전투 중에 꺼도 그 전투부터) → 전투 → (임시) 이긴 것으로 · 바로 저장', () => {
-    const { state, spot } = nearSpot(start(), 'wild');
+  it('흔적 자리에 오면 튀어나옴 → 만난 종 기록 · 상대는 세이브에 (전투 중에 꺼도 그 전투부터) → 전투 (자동) → 끝나면 걸음 · 바로 저장', () => {
+    const s0 = start();
+    const { state, spot } = nearSpot({ ...s0, save: { ...s0.save, settings: { ...s0.save.settings, autoBattle: true } } }, 'wild');
     let s = until(state, (x) => phase(x) === 'appear');
     expect(prog(s)).toBe(spot.at);
     const pending = s.save.pendingEncounter;
@@ -105,7 +108,7 @@ describe('야생 조우 (mvp-spec 3.2)', () => {
     s = until(s, (x) => phase(x) === 'battle', TIMING.appearMs + 100);
     expect(s.save.pendingEncounter).not.toBeNull();
     let saves: string[] = [];
-    for (let t = 0; t < TIMING.battlePlaceholderMs + 200 && phase(s) === 'battle'; t += 250) {
+    for (let t = 0; t < 300_000 && phase(s) === 'battle'; t += 250) {
       const r = advance(s, 250);
       s = r.state;
       saves = saves.concat(r.saves);
@@ -113,7 +116,7 @@ describe('야생 조우 (mvp-spec 3.2)', () => {
     expect(phase(s)).toBe('walk');
     expect(s.save.pendingEncounter).toBeNull();
     expect(saves).toContain('battle-end');
-    expect(s.runtime.toast?.text).toContain('쓰러뜨렸다');
+    expect(s.runtime.toast?.text).toMatch(/쓰러뜨렸다|도망쳤다|깜깜/);
   });
 
   it('처음 만난 종이면 NEW! (이미 만난 종이면 아님)', () => {
@@ -212,7 +215,7 @@ describe('다른 쪽에서 온 진행 중 상태 검사 (코드 리뷰어 · 테
     const s = advance(start(), 100).state;
     const other = { ...s, runtime: { ...s.runtime, stageId: 'forest-2' as const, stage: { phase: 'end' as const } } };
     expect(phase(step(other, STEP).state)).toBe('walk');
-    const fakeBattle = { ...s, runtime: { ...s.runtime, stage: { phase: 'battle' as const, ms: 2999 } } };
+    const fakeBattle = { ...s, runtime: { ...s.runtime, stage: { phase: 'battle' as const, battle: startBattle(s.save, s.save.monsters.m2!, 'normal') } } };
     const r = step(fakeBattle, STEP);
     expect(phase(r.state)).toBe('walk');
     expect(r.save).toBeNull();
@@ -238,5 +241,85 @@ describe('처음부터 다시 걷기 (임시) · 나가는 포켓몬', () => {
     const fainted = { ...save, monsters: { ...save.monsters, m1: { ...save.monsters.m1!, hp: 0 } } };
     expect(leadSpeed(fainted)).not.toBe(leadSpeed(save));
     expect(leadSpeed({ ...save, party: [] })).toBe(0);
+  });
+});
+
+describe('전투 (단계 5 · 6) — 스테이지 쪽', () => {
+  const withAutoBattle = (s: GameState, on: boolean): GameState => ({ ...s, save: { ...s.save, settings: { ...s.save.settings, autoBattle: on } } });
+  const battleOf = (s: GameState) => (s.runtime.stage?.phase === 'battle' ? s.runtime.stage.battle : null);
+
+  it('튀어나온 뒤 전투가 시작되고, 내 차례에는 (자동 전투가 꺼져 있으면) 기다림 — 안 볼 때 확장이 멈추게', () => {
+    const { state } = nearSpot(start(), 'wild');
+    const fight = until(state, (x) => battleOf(x)?.phase === 'choose', 60_000);
+    expect(battleOf(fight)?.phase).toBe('choose');
+    expect(isWaitingForInput(fight)).toBe(true);
+    expect(isWaitingForInput(withAutoBattle(fight, true))).toBe(false);
+    // 기다리는 동안 진행 · 전투는 그대로 (플레이 시간만 흐름)
+    const later = advance(fight, 10_000).state;
+    expect(battleOf(later)?.phase).toBe('choose');
+    expect(prog(later)).toBe(prog(fight));
+  });
+
+  it('메뉴 입력 → 전투가 이어짐 · 전투가 아닐 때 전투 입력은 무시', () => {
+    const { state } = nearSpot(start(), 'wild');
+    const fight = until(state, (x) => battleOf(x)?.phase === 'choose', 60_000);
+    const acted = applyInput(fight, { kind: 'battle', input: { kind: 'act', action: { kind: 'attack' } } });
+    expect(battleOf(acted)?.phase).toBe('anim');
+    const walking = start();
+    expect(applyInput(walking, { kind: 'battle', input: { kind: 'ult' } })).toBe(walking);
+  });
+
+  it('⑫ 자동 전투 스위치 = 세이브 설정 (같은 값이면 그대로)', () => {
+    const s = start();
+    const on = applyInput(s, { kind: 'auto-battle', on: true });
+    expect(on.save.settings.autoBattle).toBe(true);
+    expect(applyInput(on, { kind: 'auto-battle', on: true })).toBe(on);
+    expect(applyInput(on, { kind: 'auto-battle', on: false }).save.settings.autoBattle).toBe(false);
+  });
+
+  it('안 볼 때 (확장이 계산) 이로치 흔적 바로 앞에서 멈추고 알림 신호 → 다시 보이면 그 흔적으로 걸어가 만남 (U9)', () => {
+    const { seed, spot } = shinyWildSeed();
+    const base = start(seed);
+    const near: GameState = {
+      ...base,
+      save: { ...base.save, stages: { 'forest-1': { ...base.save.stages['forest-1']!, progress: spot.at - 0.0005 } } },
+      runtime: { ...base.runtime, stage: { phase: 'walk' }, headless: true },
+    };
+    const r = advance(near, 3000);
+    expect(phase(r.state)).toBe('hold');
+    expect(r.notices).toEqual(['shiny']);
+    expect(prog(r.state)).toBeLessThan(spot.at);
+    expect(isWaitingForInput(r.state)).toBe(true);
+    const shown = { ...r.state, runtime: { ...r.state.runtime, headless: false } };
+    const met = until(shown, (x) => phase(x) === 'appear', 5000);
+    expect(met.save.pendingEncounter).toMatchObject({ kind: 'wild', monster: { shiny: true } });
+  });
+
+  it('보일 때는 이로치 흔적에서 멈추지 않고 바로 만남 · 부탁 알림은 안 볼 때만', () => {
+    const { seed, spot } = shinyWildSeed();
+    const base = start(seed);
+    const near: GameState = { ...base, save: { ...base.save, stages: { 'forest-1': { ...base.save.stages['forest-1']!, progress: spot.at - 0.0005 } } }, runtime: { ...base.runtime, stage: { phase: 'walk' } } };
+    const r = advance(near, 3000);
+    expect(phase(r.state)).not.toBe('hold');
+    expect(r.notices).toEqual([]);
+    const { state } = nearSpot(start(), 'request');
+    expect(advance(state, 3000).notices).toEqual([]);
+    expect(advance({ ...state, runtime: { ...state.runtime, headless: true } }, 3000).notices).toEqual(['request']);
+  });
+});
+
+describe('단계 5 · 6 검토에서 고친 것 — 안 볼 때 이로치 (bugs #104 ~)', () => {
+  it('안 볼 때 눈앞에 이로치가 나와 있으면 (튀어나옴 · 전투 중에 떠남) 자동 전투로 쓰러뜨리지 않고 기다림 (코드 리뷰어)', () => {
+    const { state } = nearSpot(start(), 'wild');
+    const met = until(state, (x) => phase(x) === 'battle');
+    const pending = met.save.pendingEncounter!;
+    const shinySave = { ...met.save, settings: { ...met.save.settings, autoBattle: true }, pendingEncounter: pending.kind === 'wild' ? { ...pending, monster: { ...pending.monster, shiny: true } } : pending };
+    const battle = met.runtime.stage?.phase === 'battle' ? met.runtime.stage.battle : null;
+    const away: GameState = { save: shinySave, runtime: { ...met.runtime, headless: true, stage: { phase: 'battle', battle: { ...battle!, foe: { ...battle!.foe, shiny: true } } } } };
+    expect(isWaitingForInput(away)).toBe(true);
+    const later = advance(away, 5000).state;
+    expect(later.runtime.stage).toEqual(away.runtime.stage);
+    // 다시 보면 이어서
+    expect(isWaitingForInput({ ...away, runtime: { ...away.runtime, headless: false } })).toBe(false);
   });
 });

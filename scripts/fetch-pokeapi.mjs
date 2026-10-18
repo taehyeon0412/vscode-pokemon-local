@@ -45,12 +45,16 @@ const EXCLUDED = new Map(Object.entries(EXCLUDED_MOVES).flatMap(([why, keys]) =>
 const POWER_OVERRIDE = { 'triple-kick': 60 }; // 10 + 20 + 30
 /** 전투 규칙이 따로 처리할 부가 효과 */
 const MOVE_EFFECTS = { 'false-swipe': 'leave-1hp' };
+/** 모으기 · 반동으로 쉬는 기술은 한 번에 쏘는 기술로 · 위력 × 이 값 (2026-10-18 태현 님) */
+const ONE_SHOT_SCALE = 0.7;
+/** 연달아 쓸수록 세지는 기술 — 연달아 쓸 때마다 위력 +10% (2026-10-18 태현 님, 규칙은 core) */
+const STREAK_MOVES = new Set(['rollout', 'fury-cutter', 'rage', 'ice-ball', 'echoed-voice']);
 
 /**
  * 게임에서 쓸 기술인지.
  * - 변화 기술: 상태 이상(독 · 화상 · 마비 · 잠듦)을 거는 것만 (능력치만 바꾸는 · 회복 · 혼란 · 씨뿌리기 등은 뺌)
- * - 피해 기술: 위력이 정해지지 않은 것(고정 · 무게 · 레벨 피해 등) · 일격필살 · 모으기(2턴) · 반동으로 쉬는 것 · 특수 효과 ·
- *   EXCLUDED_MOVES 는 뺌. 연속기는 평균 횟수만큼 위력을 곱함 (2~5회 = 3회), 반동 · 흡수는 drain(%)으로 남김
+ * - 피해 기술: 위력이 정해지지 않은 것(고정 · 무게 · 레벨 피해 등) · 일격필살 · 특수 효과 · EXCLUDED_MOVES 는 뺌.
+ *   모으기(2턴) · 반동으로 쉬는 것은 한 번에 쏘는 기술로 (oneShot, 위력 × 0.7). 연속기는 평균 횟수만큼 위력을 곱함 (2~5회 = 3회), 반동 · 흡수는 drain(%)으로 남김
  */
 function classifyMove(m, flags, ailmentName, categoryName) {
   const damageClass = m.damage_class_id === '1' ? 'status' : m.damage_class_id === '2' ? 'physical' : 'special';
@@ -63,9 +67,7 @@ function classifyMove(m, flags, ailmentName, categoryName) {
   if (categoryName === 'ohko') return { keep: false, reason: '일격필살' };
   if (!DAMAGE_CATEGORIES.has(categoryName ?? 'unique')) return { keep: false, reason: `특수한 효과 (${categoryName})` };
   if (EXCLUDED.has(m.identifier)) return { keep: false, reason: EXCLUDED.get(m.identifier) };
-  if (flags.has('charge')) return { keep: false, reason: '모으기 (2턴)' };
-  if (flags.has('recharge')) return { keep: false, reason: '반동으로 쉬는 기술' };
-  return { keep: true, damageClass, ailment };
+  return { keep: true, damageClass, ailment, oneShot: flags.has('charge') || flags.has('recharge') };
 }
 
 function averageHits(meta) {
@@ -282,7 +284,7 @@ async function main() {
       name: mvName.get(moveId) ?? {},
       type: typeName.get(m.type_id),
       class: v.damageClass,
-      power: m.power === null ? 0 : (POWER_OVERRIDE[m.identifier] ?? Math.round(m.power * hits)),
+      power: m.power === null ? 0 : (POWER_OVERRIDE[m.identifier] ?? Math.round(m.power * hits * (v.oneShot ? ONE_SHOT_SCALE : 1))),
       basePower: m.power ?? 0,
       hits: hits === 1 ? null : [num(meta.min_hits), num(meta.max_hits)],
       accuracy: m.accuracy, // null = 반드시 맞음
@@ -295,6 +297,8 @@ async function main() {
       contact: flags.has('contact'),
     };
     if (MOVE_EFFECTS[m.identifier]) out.effect = MOVE_EFFECTS[m.identifier];
+    if (v.oneShot) out.oneShot = true;
+    if (STREAK_MOVES.has(m.identifier)) out.streak = true;
     movesOut[moveId] = out;
     return true;
   };

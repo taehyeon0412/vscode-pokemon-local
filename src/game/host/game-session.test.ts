@@ -5,6 +5,7 @@ import type { Save } from '../core/save';
 import type { HostToWebview } from '../shared/messages';
 import { TIMING } from '../core/balance';
 import { createStartSave } from '../features/starter/model';
+import { shinyWildSeed } from '../../test/fixtures/stage';
 import { GameSession, type Mode, type ViewPort } from './game-session';
 import { SaveStore } from './save-store';
 import { WindowLease } from './window-lease';
@@ -33,10 +34,12 @@ let session: GameSession;
 let view: FakeView;
 let warns: string[];
 let modes: Mode[];
+let notices: string[];
 
 async function setup(save?: unknown, opts: { lease?: boolean } = {}): Promise<void> {
   warns = [];
   modes = [];
+  notices = [];
   storage = new MemorySaveStorage(save);
   archive = new MemorySaveArchive();
   leaseFile = new MemoryLeaseFile();
@@ -52,6 +55,7 @@ async function setup(save?: unknown, opts: { lease?: boolean } = {}): Promise<vo
     log: () => undefined,
     warn: (m) => warns.push(m),
     onModeChanged: (m) => modes.push(m),
+    notify: (m) => notices.push(m),
     runner: { intervalMs: 250, maxCatchUpMs: 1000, now: () => now },
   });
   await session.init();
@@ -323,11 +327,27 @@ describe('VS Code 밖 (창 포커스) — mvp-spec 3.3', () => {
     expect(snap().owner).toBe('webview');
   });
 
-  it('자동 전투가 켜져 있으면 VS Code 밖이어도 계속 (멈추지 않음)', async () => {
-    await enterAndStart(autoSave());
+  it('자동 전투가 켜져 있어도 VS Code 밖이면 웹뷰를 멈추고 확장이 넘겨받아 계속 계산 (그림 없이 — mvp-spec 3.3, 단계 5 · 6 검토)', async () => {
+    const start = await enterAndStart(autoSave());
     session.onWindowFocusChanged(false);
-    expect(view.count('suspend')).toBe(0);
+    expect(view.count('suspend')).toBe(1);
+    session.handleMessage(msg({ type: 'hidden', epoch: start.epoch, state: start.state }));
+    expect(snap().owner).toBe('host');
+    expect(snap().running).toBe(true);
+    expect(snap().state?.runtime.headless).toBe(true);
+    session.onWindowFocusChanged(true);
     expect(snap().owner).toBe('webview');
+  });
+
+  it('VS Code 밖 (자동 전투) 에서 이로치 흔적을 만나면 멈추고 알림 (U9 — 명세 검사관 · 코드 리뷰어)', async () => {
+    const { seed, spot } = shinyWildSeed();
+    const save = sampleSave({ settings: { notifications: true, autoBattle: true }, stages: { 'forest-1': { seed, progress: spot.at - 0.0005, cleared: false, defeatedTrainers: [], facilities: [] } } });
+    const start = await enterAndStart(save);
+    session.onWindowFocusChanged(false);
+    session.handleMessage(msg({ type: 'hidden', epoch: start.epoch, state: start.state }));
+    runHost(3000);
+    expect(snap().state?.runtime.stage?.phase).toBe('hold');
+    expect(notices).toHaveLength(1);
   });
 
   it('VS Code 밖에서 웹뷰가 보낸 상태로 자동 전투가 꺼졌으면 그때 멈춤', async () => {
@@ -337,10 +357,13 @@ describe('VS Code 밖 (창 포커스) — mvp-spec 3.3', () => {
     expect(view.count('suspend')).toBe(1);
   });
 
-  it('suspend 로 멈췄는데 늦게 온 상태가 자동 전투면, 보이는 웹뷰에 다시 맡김 (보이는 패널이 멈춰 있지 않게)', async () => {
+  it('suspend 로 멈췄으면 늦게 온 상태가 자동 전투여도 확장이 들고 계산 · 포커스가 돌아오면 웹뷰에 다시 맡김', async () => {
     const start = await enterAndStart(sampleSave());
     session.onWindowFocusChanged(false);
     session.handleMessage(msg({ type: 'hidden', epoch: start.epoch, state: withAuto(start.state, true) }));
+    expect(snap().owner).toBe('host');
+    expect(snap().running).toBe(true);
+    session.onWindowFocusChanged(true);
     expect(snap().owner).toBe('webview');
   });
 });
@@ -804,12 +827,24 @@ describe('단계 4 검토에서 고친 것 — 스테이지 (확장 쪽)', () =>
     expect(session.stats.headlessSteps).toBe(steps);
   });
 
-  it('안 볼 때 계산 중 전투 (임시) 가 끝나면 바로 저장', async () => {
+  it('안 볼 때 (자동 전투) 전투를 끝까지 계산하고 끝나면 바로 저장', async () => {
     await enterAndStart(stageSave(0.0483));
     session.onVisibilityChanged(false);
-    const writes = storage.writes;
-    runHost(TIMING.appearMs + TIMING.battlePlaceholderMs + 1000);
-    await vi.advanceTimersByTimeAsync(0);
+    let sawBattle = false;
+    let writes = -1;
+    let done = false;
+    for (let i = 0; i < 600 && !done; i++) {
+      runHost(500);
+      await vi.advanceTimersByTimeAsync(0);
+      const st = snap().state?.runtime.stage?.phase;
+      if (st === 'battle' && !sawBattle) {
+        sawBattle = true;
+        writes = storage.writes;
+      }
+      done = sawBattle && st === 'walk';
+    }
+    expect(sawBattle).toBe(true);
+    expect(done).toBe(true);
     expect(storage.writes).toBeGreaterThan(writes);
     expect(stored()?.pendingEncounter).toBeNull();
   });
@@ -822,5 +857,53 @@ describe('단계 4 검토에서 고친 것 — 스테이지 (확장 쪽)', () =>
     const again = view.last('start')!;
     session.handleMessage(msg({ type: 'state', epoch: again.epoch, state: { ...again.state, runtime: { ...again.state.runtime, speed: 1 } } }));
     expect(snap().state?.runtime.speed).toBe(10);
+  });
+});
+
+describe('단계 5 · 6 — 전투 · 안 볼 때 알림 (확장 쪽, U9)', () => {
+  const shinySave = (notifications: boolean) => {
+    const { seed, spot } = shinyWildSeed();
+    return sampleSave({
+      settings: { notifications, autoBattle: true },
+      stages: { 'forest-1': { seed, progress: spot.at - 0.0005, cleared: false, defeatedTrainers: [], facilities: [] } },
+    });
+  };
+
+  it('안 볼 때 (자동 전투) 이로치 흔적 바로 앞에서 멈추고 VS Code 알림 한 번 — 계산도 멈춤', async () => {
+    await enterAndStart(shinySave(true));
+    session.onVisibilityChanged(false);
+    runHost(3000);
+    expect(snap().state?.runtime.stage?.phase).toBe('hold');
+    expect(notices).toHaveLength(1);
+    expect(notices[0]).toContain('반짝');
+    expect(snap().running).toBe(false);
+    runHost(5000);
+    expect(notices).toHaveLength(1);
+  });
+
+  it('설정에서 알림을 끄면 멈추기만 하고 알림은 없음', async () => {
+    await enterAndStart(shinySave(false));
+    session.onVisibilityChanged(false);
+    runHost(3000);
+    expect(snap().state?.runtime.stage?.phase).toBe('hold');
+    expect(notices).toHaveLength(0);
+  });
+
+  it('안 볼 때 부탁에 오면 알림 (고를 때까지 멈춤)', async () => {
+    await enterAndStart(sampleSave({ settings: { notifications: true, autoBattle: true }, stages: { 'forest-1': { seed: 42, progress: 0.8784, cleared: false, defeatedTrainers: [], facilities: [] } } }));
+    session.onVisibilityChanged(false);
+    runHost(2000);
+    expect(snap().state?.runtime.stage?.phase).toBe('request');
+    expect(notices.some((n) => n.includes('부탁'))).toBe(true);
+  });
+
+  it('확장이 들고 있을 때만 "안 볼 때" 표시 — 웹뷰가 다시 맡으면 꺼짐', async () => {
+    const start = await enterAndStart(sampleSave({ settings: { notifications: true, autoBattle: true } }));
+    expect(start.state.runtime.headless).toBe(false);
+    session.onVisibilityChanged(false);
+    expect(snap().state?.runtime.headless).toBe(true);
+    session.onVisibilityChanged(true);
+    session.handleMessage(msg({ type: 'ready' }));
+    expect(view.last('start')?.state.runtime.headless).toBe(false);
   });
 });

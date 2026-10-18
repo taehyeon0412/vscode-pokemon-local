@@ -647,3 +647,539 @@ body.pokemon-game-on {
     background: color-mix(in srgb, #2ea043 70%, transparent);
   }
 }
+
+/* ---- S09 전투 · S10 힘대결 (단계 5 · 6, 임시 디자인 — 단계 12 에서 다시) ---- */
+/* 주인공이 전투 때 왼쪽 끝 트레이너 자리로 물러남 · 끝나면 다시 가운데로 */
+.pg-hero-wrap {
+  transition: left 0.45s ease-out;
+}
+.pg-fighter {
+  line-height: 0;
+  z-index: 3;
+}
+.pg-fx-body {
+  display: inline-block;
+  animation-fill-mode: both;
+}
+.pg-sendout {
+  animation: pg-sendout 0.45s ease-out both;
+}
+@keyframes pg-sendout {
+  0% { transform: translateX(-50%) scale(0.2); opacity: 0; filter: brightness(3); }
+  70% { transform: translateX(-50%) scale(1.08); opacity: 1; }
+  100% { transform: translateX(-50%) scale(1); filter: none; }
+}
+/* 몸이 닿는 기술 — 상대 쪽으로 달려들었다 돌아옴 (--pg-dx = 상대까지 거리의 3/4) */
+.pg-lunge {
+  animation-name: pg-lunge;
+  animation-timing-function: ease-in-out;
+}
+/* 맞는 순간 = 연출 끝쪽 (피해 숫자 · HP 가 그때 바뀜) */
+@keyframes pg-lunge {
+  0%, 35% { transform: translateX(0); }
+  82%, 94% { transform: translateX(var(--pg-dx, 0)); }
+  100% { transform: translateX(calc(var(--pg-dx, 0px) * 0.6)); }
+}
+.pg-recall {
+  animation-name: pg-recall;
+}
+@keyframes pg-recall {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(0.1); opacity: 0; filter: brightness(3); }
+}
+.pg-guarded {
+  filter: drop-shadow(0 0 3px #58a6ff);
+}
+.pg-charging {
+  animation-name: pg-charge;
+}
+@keyframes pg-charge {
+  0% { filter: none; }
+  30%, 60% { filter: drop-shadow(0 0 6px #ffd33d) brightness(1.4); transform: scale(1.08); }
+  100% { filter: none; transform: scale(1); }
+}
+.pg-hurt {
+  animation: pg-hurt 0.3s steps(2) both !important;
+}
+@keyframes pg-hurt {
+  0% { opacity: 0.2; transform: translateX(-3px); }
+  50% { opacity: 1; transform: translateX(3px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+.pg-fainted {
+  opacity: 0;
+  transform: translateY(30%);
+  transition: opacity 0.6s, transform 0.6s;
+}
+
+/* ⑥ HP · 레벨 + ⑩ 행동 게이지 (상대는 위에 ⑧ 필살기 게이지) — 포켓몬 바로 위 */
+.pg-hpblock {
+  position: absolute;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  z-index: 4;
+  line-height: 1;
+  font-size: calc(9px * var(--pg-ui, 1));
+  text-shadow: 0 0 2px var(--vscode-editor-background), 0 0 2px var(--vscode-editor-background);
+}
+.pg-hprow {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: calc(11px * var(--pg-ui, 1));
+  white-space: nowrap;
+}
+.pg-lv,
+.pg-hpnum {
+  flex: none;
+}
+.pg-hpnum {
+  opacity: 0.8;
+}
+.pg-bar {
+  position: relative;
+  display: block;
+  flex: 1;
+  min-width: 0;
+  height: calc(4px * var(--pg-ui, 1));
+  border-radius: 2px;
+  overflow: hidden;
+  background: rgba(128, 128, 128, 0.35);
+}
+.pg-bar-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 2px;
+  background: #58a6ff;
+  transition: width 0.25s ease-out;
+}
+.pg-hp-ok .pg-bar-fill {
+  background: #3fb950;
+}
+.pg-hp-mid .pg-bar-fill {
+  background: #d29922;
+}
+.pg-hp-low .pg-bar-fill {
+  background: #f85149;
+}
+.pg-bar-act,
+.pg-bar-ult {
+  flex: none;
+  height: calc(3px * var(--pg-ui, 1));
+}
+.pg-bar-act .pg-bar-fill {
+  transition: none;
+}
+.pg-bar-act.pg-full .pg-bar-fill {
+  background: #ffd33d;
+}
+.pg-bar-ult .pg-bar-fill,
+.pg-bar-myult .pg-bar-fill {
+  background: #ff8c3a;
+}
+/* 꽉 차면 몇 번만 반짝이고 그대로 (기다리는 동안 계속 깜빡이지 않게 — 곁눈에 거슬리고 매 프레임 다시 그림) */
+.pg-bar-ult.pg-full,
+.pg-bar-myult.pg-full {
+  animation: pg-glow 0.6s ease-in-out 6 alternate;
+  box-shadow: 0 0 3px 1px rgba(255, 140, 58, 0.7);
+}
+@keyframes pg-glow {
+  0% { box-shadow: 0 0 0 0 rgba(255, 140, 58, 0); }
+  100% { box-shadow: 0 0 4px 1px rgba(255, 140, 58, 0.9); }
+}
+.pg-status {
+  flex: none;
+  padding: 0 2px;
+  border-radius: 2px;
+  font-size: calc(8px * var(--pg-ui, 1));
+  color: #fff;
+  background: #6e7681;
+  text-shadow: none;
+}
+.pg-status-poison { background: #8957e5; }
+.pg-status-burn { background: #d1442f; }
+.pg-status-paralysis { background: #b08800; }
+.pg-status-sleep { background: #57606a; }
+
+/* ⑦ 메뉴 줄 + ⑧ 내 필살기 게이지 · 💥 — 내 HP 바 바로 위 (낮은 패널이면 정보줄 자리) */
+.pg-bmenu-wrap {
+  position: absolute;
+  z-index: 6;
+}
+.pg-bmenu {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 100%;
+  white-space: nowrap;
+}
+.pg-bmenu-items {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  overflow: hidden;
+}
+/* 좁으면 메뉴 글자가 먼저 줄어듦 (필살기 게이지 · 💥 는 그대로) */
+.pg-bmenu-items .pg-button {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 calc(6px * var(--pg-ui, 1));
+}
+.pg-bmenu > .pg-button {
+  flex: none;
+}
+.pg-my-turn .pg-bmenu-items .pg-button:not(:disabled):not(.pg-secondary) {
+  box-shadow: 0 0 0 1px #ffd33d inset;
+}
+.pg-counter .pg-button {
+  font-weight: bold;
+  color: #000;
+  background: #ffd33d;
+  animation: pg-twinkle 0.4s ease-in-out infinite;
+}
+.pg-bar-myult {
+  flex: none;
+  width: calc(40px * var(--pg-ui, 1));
+  height: calc(6px * var(--pg-ui, 1));
+}
+.pg-infobar.pg-infobar-battle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+}
+/* ⑫ 자동 전투 스위치 — 트레이너 머리 위 (트레이너가 왼쪽 끝이라 패널 왼쪽에 맞춤, 잘리지 않게) */
+.pg-auto {
+  position: absolute;
+  left: 4px;
+  z-index: 5;
+}
+.pg-auto .pg-button {
+  height: calc(16px * var(--pg-ui, 1));
+  line-height: calc(16px * var(--pg-ui, 1));
+  padding: 0 calc(5px * var(--pg-ui, 1));
+  font-size: calc(10px * var(--pg-ui, 1));
+}
+
+/* 지금 한 줄 ("이상해씨의 덩굴채찍!") */
+.pg-bmsg {
+  position: absolute;
+  left: 50%;
+  top: 3px;
+  transform: translateX(-50%);
+  max-width: calc(100% - 16px);
+  padding: 1px calc(10px * var(--pg-ui, 1));
+  border-radius: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: calc(11px * var(--pg-ui, 1));
+  background: var(--vscode-editorWidget-background, #252526);
+  border: 1px solid var(--vscode-editorWidget-border, #555);
+  z-index: 5;
+  pointer-events: none;
+}
+.pg-bmsg-over {
+  font-weight: bold;
+  border-color: #d29922;
+}
+
+/* 피해 숫자 · 효과가 굉장했다! · 급소 — 머리 위로 떠오름 */
+.pg-pop {
+  position: absolute;
+  transform: translateX(-50%);
+  z-index: 7;
+  white-space: nowrap;
+  pointer-events: none;
+  font-weight: bold;
+  font-size: calc(11px * var(--pg-ui, 1));
+  text-shadow: 0 0 2px #000, 0 0 2px #000;
+  animation: pg-pop-rise 1.2s ease-out both;
+}
+.pg-pop-damage { color: #ff7b72; }
+.pg-pop-heal { color: #56d364; }
+.pg-pop-info {
+  color: #ffd33d;
+  font-size: calc(10px * var(--pg-ui, 1));
+}
+@keyframes pg-pop-rise {
+  0% { transform: translateX(-50%) translateY(4px) scale(0.8); opacity: 0; }
+  15% { transform: translateX(-50%) translateY(0) scale(1.1); opacity: 1; }
+  75% { opacity: 1; }
+  100% { transform: translateX(-50%) translateY(-10px); opacity: 0; }
+}
+
+/* 연출 — 날아가는 기술 · 맞은 자리 · 방어 · 아이템 · 필살기 */
+.pg-fx {
+  position: absolute;
+  transform: translateX(-50%);
+  z-index: 6;
+  line-height: 1;
+  pointer-events: none;
+  font-size: calc(14px * var(--pg-scale, 1));
+  animation-fill-mode: both;
+}
+.pg-shot {
+  animation-name: pg-shot;
+  animation-timing-function: linear;
+  filter: drop-shadow(0 0 4px currentColor);
+}
+@keyframes pg-shot {
+  0% { transform: translateX(-50%) scale(0.5); opacity: 0; }
+  12% { opacity: 1; }
+  96% { transform: translateX(calc(-50% + var(--pg-dx, 0px))) scale(1.15); opacity: 1; }
+  100% { transform: translateX(calc(-50% + var(--pg-dx, 0px))) scale(1.6); opacity: 0.4; }
+}
+.pg-fx-impact {
+  animation-name: pg-impact;
+}
+@keyframes pg-impact {
+  0%, 75% { transform: translateX(-50%) scale(0.3); opacity: 0; }
+  88% { transform: translateX(-50%) scale(1.4); opacity: 1; }
+  100% { transform: translateX(-50%) scale(1.1); opacity: 0.6; }
+}
+.pg-fx-pulse {
+  animation-name: pg-fx-pulse;
+}
+@keyframes pg-fx-pulse {
+  0% { transform: translateX(-50%) translateY(0) scale(0.5); opacity: 0; }
+  30%, 70% { transform: translateX(-50%) translateY(-30%) scale(1.15); opacity: 1; }
+  100% { transform: translateX(-50%) translateY(-50%) scale(1); opacity: 0; }
+}
+/* 필살기 폭발 — 상대 몸 위 (HP 바를 가리지 않게 작게 · 낮게), 터지는 순간 = 끝쪽 */
+.pg-fx-boom {
+  font-size: calc(20px * var(--pg-scale, 1));
+  animation-name: pg-boom;
+}
+@keyframes pg-boom {
+  0%, 72% { transform: translateX(-50%) scale(0.2); opacity: 0; }
+  86% { transform: translateX(-50%) scale(1.5); opacity: 1; }
+  100% { transform: translateX(-50%) scale(1.2); opacity: 0.7; }
+}
+/* 필살기 컷인 — 패널을 가로질러 이름 (띠 높이 = 패널 높이 비례 40 ~ 120px, gdd 3.0) */
+.pg-ult-cut {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(50% - clamp(20px, 20vh, 60px));
+  height: clamp(40px, 40vh, 120px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 8;
+  white-space: nowrap;
+  overflow: hidden;
+  font-weight: bold;
+  font-size: clamp(12px, 12vh, 26px);
+  color: #fff;
+  text-shadow: 0 0 3px #000;
+  background: linear-gradient(90deg, transparent, rgba(255, 110, 40, 0.85) 20%, rgba(255, 110, 40, 0.85) 80%, transparent);
+  pointer-events: none;
+  animation-name: pg-cut;
+  animation-fill-mode: both;
+}
+.pg-ult-cut-foe {
+  background: linear-gradient(90deg, transparent, rgba(160, 60, 220, 0.85) 20%, rgba(160, 60, 220, 0.85) 80%, transparent);
+}
+@keyframes pg-cut {
+  0% { transform: translateX(-100%); opacity: 0; }
+  12% { transform: translateX(0); opacity: 1; }
+  40% { transform: translateX(0); opacity: 1; }
+  55% { transform: translateX(30%); opacity: 0; }
+  100% { opacity: 0; }
+}
+/* 필살기 빛줄기 — 쓴 쪽에서 상대까지 */
+.pg-ult-beam {
+  position: absolute;
+  height: calc(10px * var(--pg-scale, 1));
+  border-radius: 999px;
+  z-index: 6;
+  pointer-events: none;
+  box-shadow: 0 0 10px 3px rgba(255, 255, 255, 0.6);
+  animation-name: pg-ult-beam;
+  animation-fill-mode: both;
+}
+@keyframes pg-ult-beam {
+  0%, 45% { transform: translateY(50%) scaleX(0); opacity: 0; }
+  78% { transform: translateY(50%) scaleX(1); opacity: 1; }
+  92% { transform: translateY(50%) scaleX(1) scaleY(1.3); opacity: 1; }
+  100% { transform: translateY(50%) scaleX(1) scaleY(0.6); opacity: 0.5; }
+}
+
+/* S10 힘대결 — 두 줄기가 가운데서 밀고 밀림 (모양 = 쏘는 기술 짝짓기 표의 11종, 지금은 무늬만) */
+/* 줄 굵기 = 패널 높이 9% · 10 ~ 34px (gdd 3.0) */
+.pg-clash-beam {
+  position: absolute;
+  height: clamp(10px, 9vh, 34px);
+  transform: translateY(50%);
+  border-radius: 999px;
+  z-index: 6;
+  pointer-events: none;
+  box-shadow: 0 0 8px 2px rgba(255, 255, 255, 0.45);
+  animation: pg-clash-wobble 0.18s ease-in-out infinite alternate;
+  transition: width 0.15s ease-out, left 0.15s ease-out;
+}
+.pg-clash-beam.pg-clash-ult {
+  height: clamp(12px, 11vh, 40px);
+}
+/* 승자가 정해짐 — 이긴 줄기가 끝까지 뚫고 나감 */
+.pg-clash-beam.pg-clash-done {
+  animation: none;
+  transition: width 0.6s ease-in, left 0.6s ease-in;
+}
+.pg-clash-point.pg-clash-done {
+  animation: none;
+  font-size: calc(26px * var(--pg-scale, 1));
+  transition: left 0.6s ease-in;
+}
+.pg-clash-beam.pg-duel-bolt {
+  background-image: repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.85) 0 3px, transparent 3px 9px);
+}
+.pg-clash-beam.pg-duel-wave,
+.pg-clash-beam.pg-duel-storm {
+  background-image: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.5) 0 6px, transparent 6px 12px);
+}
+.pg-clash-beam.pg-duel-swarm,
+.pg-clash-beam.pg-duel-meteor {
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.85) 30%, transparent 32%);
+  background-size: 10px 100%;
+}
+.pg-clash-beam.pg-duel-orb,
+.pg-clash-beam.pg-duel-dome {
+  border-radius: 40% / 50%;
+}
+.pg-clash-beam.pg-duel-tornado,
+.pg-clash-beam.pg-duel-ground {
+  background-image: repeating-linear-gradient(60deg, rgba(0, 0, 0, 0.25) 0 4px, transparent 4px 8px);
+}
+@keyframes pg-clash-wobble {
+  0% { transform: translateY(50%) scaleY(0.85); }
+  100% { transform: translateY(50%) scaleY(1.15); }
+}
+.pg-clash-point {
+  z-index: 7;
+  font-size: calc(18px * var(--pg-scale, 1));
+  transform: translateX(-50%) translateY(40%);
+  animation: pg-throb 0.25s ease-in-out infinite alternate;
+  transition: left 0.15s ease-out;
+}
+@keyframes pg-throb {
+  0% { transform: translateX(-50%) translateY(40%) scale(0.9) rotate(-8deg); }
+  100% { transform: translateX(-50%) translateY(40%) scale(1.25) rotate(8deg); }
+}
+.pg-clash-info {
+  position: absolute;
+  left: 50%;
+  top: 3px;
+  transform: translateX(-50%);
+  max-width: calc(100% - 16px);
+  display: flex;
+  align-items: center;
+  gap: calc(8px * var(--pg-ui, 1));
+  padding: 1px calc(10px * var(--pg-ui, 1));
+  border-radius: 4px;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: calc(11px * var(--pg-ui, 1));
+  background: var(--vscode-editorWidget-background, #252526);
+  border: 1px solid #d29922;
+  z-index: 8;
+}
+.pg-clash-tap {
+  font-weight: bold;
+  color: var(--vscode-editorWarning-foreground, #cca700);
+}
+.pg-clash-time {
+  position: relative;
+  flex: none;
+  width: calc(40px * var(--pg-ui, 1));
+  height: calc(4px * var(--pg-ui, 1));
+  border-radius: 2px;
+  overflow: hidden;
+  background: rgba(128, 128, 128, 0.35);
+}
+.pg-clash-time .pg-bar-fill {
+  transition: none;
+}
+
+/* 버튼 이름 뒤 작은 글 (PP · 개수 · 레벨) · 좁은 패널의 짧은 메뉴 */
+.pg-sub {
+  margin-left: 0.25em;
+  font-size: 0.75em;
+  opacity: 0.75;
+}
+.pg-compact .pg-bar-myult {
+  width: calc(24px * var(--pg-ui, 1));
+}
+.pg-compact .pg-bmenu-items .pg-button {
+  padding: 0 calc(4px * var(--pg-ui, 1));
+}
+
+@supports (background: color-mix(in srgb, red 50%, blue)) {
+  .pg-bmsg,
+  .pg-clash-info {
+    background: color-mix(in srgb, var(--vscode-editor-background) 82%, transparent);
+  }
+}
+
+/* 움직임 줄이기를 켠 사람 — 계속 흔들리는 것은 멈춤 */
+@media (prefers-reduced-motion: reduce) {
+  .pg-clash-beam,
+  .pg-clash-point,
+  .pg-counter .pg-button,
+  .pg-bar-ult.pg-full,
+  .pg-bar-myult.pg-full {
+    animation: none;
+  }
+}
+
+/* 전투 중에는 길 위의 다른 것 (다음 흔적 · 아이템 · 부탁 · 시설 · 배경 포켓몬) 을 흐리게 — 누구랑 싸우는지 헷갈리지 않게 */
+.pg-in-battle .pg-trace,
+.pg-in-battle .pg-item,
+.pg-in-battle .pg-npc,
+.pg-in-battle .pg-facility,
+.pg-in-battle .pg-scenery {
+  opacity: 0.3;
+}
+/* 상대 · 내 이름 (HP 줄 앞) */
+.pg-hpname {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 5.5em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 메뉴 줄: 처음 메뉴를 깔고 지금 줄을 같은 칸에 얹음 — 필살기 게이지 · 💥 자리가 그대로 */
+.pg-stack {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+.pg-layer {
+  grid-area: 1 / 1;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  overflow: hidden;
+}
+.pg-layer.pg-hidden {
+  visibility: hidden;
+}
+
+/* 아주 좁은 패널 (300px 아래) — 짧은 메뉴도 안 잘리게 */
+@media (max-width: 300px) {
+  .pg-compact .pg-bar-myult {
+    width: calc(14px * var(--pg-ui, 1));
+  }
+  .pg-compact .pg-bmenu-items .pg-button,
+  .pg-compact > .pg-button {
+    padding: 0 2px;
+  }
+}

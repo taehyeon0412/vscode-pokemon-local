@@ -95,7 +95,7 @@ describe('게임 상태 앞으로 가기', () => {
   });
 
   it('다른 쪽에서 온 진행 중 상태가 이상하면 새 시드 · 0 으로', () => {
-    const base = { speed: 1, stage: null, stageId: null, toast: null };
+    const base = { speed: 1, stage: null, stageId: null, toast: null, headless: false };
     expect(readRuntime({ rngState: 12, stepAccMs: 30 }, 1)).toEqual({ rngState: 12, stepAccMs: 30, ...base });
     expect(readRuntime({ rngState: -1, stepAccMs: 900 }, 7)).toEqual({ rngState: 7, stepAccMs: 0, ...base });
     expect(readRuntime('x', 8)).toEqual({ rngState: 8, stepAccMs: 0, ...base });

@@ -8,13 +8,15 @@ export interface SpriteProps {
   action?: SpriteAction;
   /** 왼쪽을 봄 (원본 그림은 오른쪽을 봄 — 일반 모드 faceLeft 와 같음) */
   faceLeft?: boolean;
+  /** 키를 직접 (전투의 큰 포켓몬 상한 등) — 없으면 원본 × 배율 */
+  px?: number;
   title?: string;
 }
 
 /** 포켓몬 그림 하나 — 픽셀이 뭉개지지 않게, 키는 원본 × 배율 */
-export function Sprite({ media, form, scale, shiny, action, faceLeft, title }: SpriteProps) {
+export function Sprite({ media, form, scale, shiny, action, faceLeft, title, px: fixedPx }: SpriteProps) {
   const src = spriteSrc(media, form, { shiny, action });
-  const px = spritePx(form, scale);
+  const px = fixedPx ?? spritePx(form, scale);
   if (!src) return <span class="pg-sprite pg-sprite-missing" style={{ width: `${px}px`, height: `${px}px` }} title={title} />;
   return (
     <img

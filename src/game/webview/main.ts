@@ -131,14 +131,17 @@ if (!port) {
   render(h(App, { store, media: config.media, actions }), root);
 
   // 단축키 (mvp-spec 1장: 패널을 클릭해 둔 상태에서만 — 웹뷰 안 키보드라 VS Code 전역 단축키 아님)
-  //   Space = 선제공격 (야생이 튀어나온 순간) · Enter / Esc = 부탁 [도와준다] / [지나간다]
+  //   Space = 선제공격 (야생이 튀어나온 순간) · 전투 중 맞받아치기 · 힘대결 연타 · Enter / Esc = 부탁 [도와준다] / [지나간다]
+  //   전투 메뉴 숫자 · Z 는 BattleMenu 가 들음
   window.addEventListener('keydown', (e) => {
     if (store.get().screen !== 'game' || e.repeat) return;
     const phase = session.current?.runtime.stage?.phase;
     // 버튼에 포커스가 있으면 Enter · Space 는 그 버튼이 받음 (Tab 으로 [지나간다] 에 두고 Enter)
     const onButton = e.target instanceof HTMLButtonElement;
-    if (e.code === 'Space' && !(onButton && phase !== 'appear')) {
+    if (e.code === 'Space' && !(onButton && phase !== 'appear' && phase !== 'battle')) {
       e.preventDefault(); // 화면이 스크롤되지 않게
+      // 전투 중에는 방금 누른 메뉴 버튼에 포커스가 남아 있어도 Space 는 게임으로 (버튼이 또 눌리지 않게 포커스를 뺌)
+      if (onButton) e.target.blur();
       actions.input({ kind: 'space' });
     } else if (phase === 'request' && ((e.key === 'Enter' && !onButton) || e.key === 'Escape')) {
       e.preventDefault();

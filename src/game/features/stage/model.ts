@@ -8,6 +8,7 @@ import { planWild, sceneryAt, type Scenery, type WildPlan } from '../../core/rul
 import { requestAt, type RequestTemplate } from '../../core/rules/request';
 import { stageLayout } from '../../core/rules/stage';
 import type { FacilitySpot, StageId } from '../../core/save';
+import { battleViewKey } from '../battle/model';
 
 export interface StageInfo {
   id: StageId;
@@ -66,7 +67,7 @@ export function visibleObjects(state: GameState, widthPx: number, scale: number)
   const layout = stageLayout(id, prog.seed, prog.facilities);
   const len = stagePx(scale);
   const hero = heroX(widthPx);
-  const contact = hero + CONTACT_PX * scale;
+  const contact = contactX(widthPx, scale);
   const margin = 80 * scale;
   const inView = (x: number) => x > -margin && x < widthPx + margin;
   const stage = state.runtime.stage;
@@ -88,8 +89,8 @@ export function visibleObjects(state: GameState, widthPx: number, scale: number)
     if (!inView(x)) continue;
     const reached = s.at <= prog.progress;
     if (s.kind === 'wild') {
-      // 만난 자리: 튀어나옴 · 전투 동안만 그 포켓몬으로, 끝나면 사라짐
-      const meeting = reached && s.at === prog.progress && (stage?.phase === 'appear' || stage?.phase === 'battle');
+      // 만난 자리: 튀어나오는 동안만 그 포켓몬으로 (전투 중에는 전투 층이 같은 자리에 그림), 끝나면 사라짐
+      const meeting = reached && s.at === prog.progress && stage?.phase === 'appear';
       if (!reached || meeting) out.push({ key: `w${s.index}`, kind: 'wild', x, plan: planWild(id, prog.seed, s), met: meeting });
     } else if (s.kind === 'item') {
       if (!reached) out.push({ key: `i${s.index}`, kind: 'item', x });
@@ -99,6 +100,11 @@ export function visibleObjects(state: GameState, widthPx: number, scale: number)
     }
   }
   return out.sort((a, b) => a.x - b.x);
+}
+
+/** 야생이 튀어나온 자리 (= 전투하는 자리, gdd S09: 야생은 튀어나온 그 자리에서 싸움) */
+export function contactX(widthPx: number, scale: number): number {
+  return heroX(widthPx) + CONTACT_PX * scale;
 }
 
 /** 미니맵 (S06 ②): 진행 % · 병원 · 상점 · 체육관 자리 */
@@ -129,5 +135,6 @@ export function stageViewKey(state: GameState): string {
     state.runtime.toast?.text ?? '',
     state.save.bag['poke-ball'] ?? 0,
     pending?.kind === 'wild' ? pending.start : '',
+    st?.phase === 'battle' ? battleViewKey(st.battle, state.save.settings.autoBattle) : '',
   ].join('|');
 }

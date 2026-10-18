@@ -97,8 +97,10 @@ export async function run(): Promise<void> {
       assert.deepEqual(raw?.party, ['m1']);
     }],
 
-    ['스테이지 (단계 4): 웹뷰가 자동으로 걷고 (60배) 야생을 만나 기록 · 전투 (임시) 뒤 계속 걸음 · 확장에 상태가 옴', async () => {
+    ['스테이지 · 전투 (단계 4 ~ 6): 웹뷰가 자동으로 걷고 (60배) 야생을 만나 기록 · 자동 전투 뒤 계속 걸음 · 확장에 상태가 옴', async () => {
       const save = createStartSave(Date.now(), 1);
+      // 자동 전투 — 꺼져 있으면 내 차례에 멈춰 기다림 (S09)
+      save.settings.autoBattle = true;
       // 시드 42 = 첫 자리들이 야생 (부탁은 87% 쯤 — 부탁은 고를 때까지 멈추므로 그 전까지만 봄)
       save.stages['forest-1'] = { ...save.stages['forest-1']!, seed: 42, progress: 0 };
       await vscode.commands.executeCommand(GAME_COMMAND_ID);
@@ -108,8 +110,8 @@ export async function run(): Promise<void> {
       assert.ok(game.setSpeed(60), '게임 중이면 배속을 바꿀 수 있음');
       await waitFor('야생 두 종 이상 만남 · 진행 12% 넘음', () => d().seen >= 3 && (d().progress ?? 0) > 0.12, 30_000);
       const p = d().progress ?? 0;
-      await sleep(1500);
-      assert.ok((d().progress ?? 0) > p, '전투 (임시) 뒤에도 계속 걸음');
+      await sleep(3000);
+      assert.ok((d().progress ?? 0) > p, '전투 뒤에도 계속 걸음');
       game.setSpeed(1);
       await vscode.commands.executeCommand(GAME_COMMAND_ID);
       await waitFor('일반 모드', () => d().mode === 'normal');

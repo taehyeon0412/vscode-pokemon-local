@@ -11,7 +11,7 @@
  * VS Code 를 모른다 (웹뷰는 ViewPort, 저장은 SaveStore, 창 잠금은 WindowLease 로만 만남) → 자동 테스트에서 그대로 돌림.
  */
 import { TIMING } from '../core/balance';
-import { advance, createGameState, isWaitingForInput, readRuntime, shouldRunWhenHidden, withSpeed, type GameState } from '../core/engine';
+import { advance, createGameState, isWaitingForInput, readRuntime, shouldRunWhenHidden, withSpeed, type GameNotice, type GameState } from '../core/engine';
 import { validateSave, type Save } from '../core/save';
 import { GAME_COMMAND, isWebviewToHost, type HostToWebview, type TitleInfo, type TitleNotice } from '../shared/messages';
 import { HeadlessRunner, type HeadlessRunnerOptions } from './headless-runner';
@@ -39,6 +39,8 @@ export interface SessionDeps {
   log(message: string): void;
   /** 사용자에게 보이는 경고 (VS Code 알림) — 없으면 기록만 */
   warn?(message: string): void;
+  /** 안 볼 때 직접 해야 하는 순간 알림 (U9 — VS Code 알림, 세이브 설정 notifications 가 켜져 있을 때만) */
+  notify?(message: string): void;
   runner?: HeadlessRunnerOptions;
   /** 모드가 바뀜 — 제목줄 버튼 (🎮 ↔ 🏠 · ＋ 🔀 🗑 숨기기) */
   onModeChanged?(mode: Mode): void;
@@ -158,9 +160,9 @@ export class GameSession {
         this.accept(message.epoch, message.state);
         this.takeOver('웹뷰가 멈춤');
         this.handoverEpoch = null; // hidden 이 마지막 — 같은 epoch 의 메시지는 더 받지 않음
-        // suspend 로 멈췄는데 그 사이 포커스가 돌아왔거나 (늦게 온 상태로 보니) 자동 전투면 보이는 웹뷰에 다시 맡김.
+        // suspend 로 멈췄는데 그 사이 포커스가 돌아왔으면 보이는 웹뷰에 다시 맡김.
         // 다른 까닭의 hidden 은 웹뷰가 다시 보일 때 ready 로 옴
-        if (suspended && this.webviewReady && this.mode === 'game' && this.state && this.view?.visible && (this.windowFocused || shouldRunWhenHidden(this.state))) {
+        if (suspended && this.webviewReady && this.mode === 'game' && this.state && this.view?.visible && this.windowFocused) {
           this.handToWebview();
         }
         return;
@@ -207,7 +209,7 @@ export class GameSession {
     return this.mode;
   }
 
-  /** VS Code 창 포커스 (mvp-spec 3.3 "VS Code 밖") — 자동 전투가 꺼져 있으면 밖에 있는 동안 멈춤 */
+  /** VS Code 창 포커스 (mvp-spec 3.3 "VS Code 밖") — 밖에 있는 동안은 확장이 맡음 (자동 전투면 계산 · 아니면 멈춤) */
   onWindowFocusChanged(focused: boolean): void {
     this.windowFocused = focused;
     if (focused && this.mode === 'game' && this.owner === 'host' && this.webviewReady && this.view?.visible) this.handToWebview();
@@ -535,15 +537,18 @@ export class GameSession {
     this.owner = 'webview';
     this.handoverEpoch = null;
     this.suspendRequested = false;
+    this.markHeadless(false);
     this.post({ type: 'start', epoch: this.epoch, state: this.state });
     this.deps.log(`웹뷰가 계산을 맡음 (epoch ${this.epoch})`);
     this.maybeSuspend();
   }
 
-  /** VS Code 밖인데 자동 전투가 꺼진 채 웹뷰가 맡고 있으면 멈춤 */
+  /**
+   * VS Code 밖 (창 포커스 없음) 이면 웹뷰를 멈추고 확장이 넘겨받음 — mvp-spec 3.3: "VS Code 밖" 도 안 볼 때라 그림 없이 계산만
+   * (자동 전투면 확장이 이어 계산하고 이로치 흔적 · 부탁 앞에서 멈춤 + 알림 U9, 꺼져 있으면 멈춤)
+   */
   private maybeSuspend(): void {
     if (this.mode !== 'game' || this.owner !== 'webview' || this.windowFocused || this.suspendRequested || !this.state) return;
-    if (shouldRunWhenHidden(this.state)) return;
     this.suspendRequested = true;
     this.post({ type: 'suspend' });
   }
@@ -554,6 +559,7 @@ export class GameSession {
     this.handoverEpoch = this.epoch;
     this.epoch++;
     this.owner = 'host';
+    this.markHeadless(true);
     this.updateRunner();
     this.deps.log(`${why} → 확장이 넘겨받음 (epoch ${this.epoch}, ${this.runner.running ? '자동 전투라 계속 계산' : '멈춤'})`);
   }
@@ -563,8 +569,25 @@ export class GameSession {
     this.epoch++;
     this.owner = 'host';
     this.handoverEpoch = null;
+    this.markHeadless(true);
     this.updateRunner();
     this.deps.log(`${why} → 확장이 들고 있음 (epoch ${this.epoch})`);
+  }
+
+  /** 확장이 안 볼 때 계산 중인지 게임 상태에 적음 — 이로치 흔적 앞에서 멈추는 데 씀 (U9) */
+  private markHeadless(on: boolean): void {
+    if (this.state && this.state.runtime.headless !== on) this.state = { ...this.state, runtime: { ...this.state.runtime, headless: on } };
+  }
+
+  private notify(notice: GameNotice): void {
+    if (!this.state?.save.settings.notifications) return;
+    const text = notice === 'shiny' ? '✨ 반짝이는 흔적을 찾았어요! 포켓몬 패널을 열면 이어서 걸어요.' : '❓ 길에서 부탁하는 사람이 기다려요. 포켓몬 패널을 열어 골라 주세요.';
+    this.deps.log(`알림: ${text}`);
+    try {
+      this.deps.notify?.(text);
+    } catch {
+      // 알림이 실패해도 게임 흐름은 그대로
+    }
   }
 
   /** 안 볼 때 계산은 지금 상태의 자동 전투 설정으로 정함 (늦게 온 상태로 바뀌면 다시 정함) */
@@ -585,7 +608,7 @@ export class GameSession {
     }
     const ok = this.applyFromWebview(state);
     if (ok && late) this.updateRunner();
-    if (ok && current) this.maybeSuspend(); // 자동 전투를 방금 끈 채 VS Code 밖이면 멈춤
+    if (ok && current) this.maybeSuspend(); // VS Code 밖인데 웹뷰가 맡고 있으면 넘겨받음
     return ok;
   }
 
@@ -599,7 +622,7 @@ export class GameSession {
     if (checked.problems.length > 0) this.deps.log(`웹뷰가 보낸 상태를 고침: ${checked.problems.slice(0, 3).join(' / ')}`);
     // 배속은 확장 쪽 값이 기준 (개발 창 빨리 감기 — 웹뷰가 보낸 값은 믿지 않음)
     const speed = this.state?.runtime.speed ?? 1;
-    this.state = { save: checked.save, runtime: { ...readRuntime(state.runtime, this.deps.newSeed()), speed } };
+    this.state = { save: checked.save, runtime: { ...readRuntime(state.runtime, this.deps.newSeed()), speed, headless: this.owner === 'host' } };
     this.stats.accepted++;
     this.deps.store.set(this.state.save);
     return true;
@@ -626,6 +649,7 @@ export class GameSession {
       if (r.saves.length > 0) void this.deps.store.saveNow(this.state.save);
       else this.deps.store.set(this.state.save);
     }
+    for (const n of r.notices) this.notify(n);
     if (isWaitingForInput(this.state)) this.runner.stop();
   }
 }

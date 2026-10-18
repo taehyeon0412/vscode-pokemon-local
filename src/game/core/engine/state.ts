@@ -4,23 +4,26 @@
  */
 import { TIMING } from '../balance';
 import { STAGE_IDS, type Save, type StageId } from '../save';
+import { readBattle, type BattleState } from './battle';
 
 /**
  * 스테이지에서 지금 하는 일 (S06):
  * - walk: 자동으로 걸음
  * - appear: 야생이 튀어나와 "나타났다!" (Space 선제공격 창) — 상대는 save.pendingEncounter
- * - battle: 전투 (단계 5 전까지는 잠깐 보여 주고 이긴 것으로 — 임시)
+ * - battle: 전투 1:1 (engine/battle.ts) — 상대는 save.pendingEncounter, 전투 중 상태는 여기 (세이브에는 끝나고 한 번에)
+ * - hold: 안 볼 때 (확장이 계산) 직접 봐야 할 순간 (이로치 흔적) 앞에서 멈춤 — 다시 보이면 이어 감 (U9)
  * - request: 길 위의 부탁 — 고를 때까지 기다림, 고르면 결과를 잠깐 보여 줌
  * - end: 스테이지 끝 (클리어 카드는 단계 9)
  */
 export type StageRuntime =
   | { phase: 'walk' }
   | { phase: 'appear'; ms: number; space: boolean; ambush: boolean; isNew: boolean }
-  | { phase: 'battle'; ms: number }
+  | { phase: 'battle'; battle: BattleState }
+  | { phase: 'hold'; why: 'shiny' }
   | { phase: 'request'; at: number; number: number; result: RequestResult | null; ms: number }
   | { phase: 'end' };
 
-export const STAGE_PHASES = ['walk', 'appear', 'battle', 'request', 'end'] as const;
+export const STAGE_PHASES = ['walk', 'appear', 'battle', 'request', 'end', 'hold'] as const;
 
 /** 부탁 결과 — 글 · 받은 것 (따로 둬서 좁은 패널에서도 받은 것이 안 잘리게) */
 export interface RequestResult {
@@ -47,6 +50,8 @@ export interface RuntimeState {
   /** stage 가 어느 스테이지 것인지 — 장소가 바뀌면 (단계 9) 이전 스테이지의 진행 중 상태를 버림 */
   stageId: StageId | null;
   toast: Toast | null;
+  /** 확장이 안 볼 때 계산 중 (웹뷰가 맡으면 false) — 이로치 흔적 앞에서 멈추고 알림 (U9) */
+  headless: boolean;
 }
 
 export interface GameState {
@@ -58,7 +63,7 @@ export interface GameState {
 export const MAX_SPEED = 60;
 
 export function createGameState(save: Save, seed: number): GameState {
-  return { save, runtime: { rngState: seed >>> 0, stepAccMs: 0, speed: 1, stage: null, stageId: null, toast: null } };
+  return { save, runtime: { rngState: seed >>> 0, stepAccMs: 0, speed: 1, stage: null, stageId: null, toast: null, headless: false } };
 }
 
 type Obj = Record<string, unknown>;
@@ -76,8 +81,12 @@ function readStage(raw: unknown): StageRuntime | null {
     case 'appear':
       if (ms === null || typeof raw.space !== 'boolean' || typeof raw.ambush !== 'boolean' || typeof raw.isNew !== 'boolean') return null;
       return { phase: 'appear', ms, space: raw.space, ambush: raw.ambush, isNew: raw.isNew };
-    case 'battle':
-      return ms === null ? null : { phase: 'battle', ms };
+    case 'battle': {
+      const battle = readBattle(raw.battle);
+      return battle ? { phase: 'battle', battle } : null;
+    }
+    case 'hold':
+      return raw.why === 'shiny' ? { phase: 'hold', why: 'shiny' } : null;
     case 'request': {
       const at = num(raw.at, 0, 1);
       const n = num(raw.number, 0, 100);
@@ -109,6 +118,7 @@ export function readRuntime(raw: unknown, fallbackSeed: number, stepMs: number =
     stage: readStage(r.stage),
     stageId: (STAGE_IDS as readonly unknown[]).includes(r.stageId) ? (r.stageId as StageId) : null,
     toast,
+    headless: false, // 웹뷰에서 온 상태는 늘 보이는 쪽 — 확장이 넘겨받을 때 다시 켬
   };
 }
 

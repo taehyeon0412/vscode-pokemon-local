@@ -72,6 +72,59 @@ export const BALANCE = {
   /** 길 위의 부탁 성공 확률: 맞는 타입 기술이 있으면 · 없으면 [임시값] */
   requestChanceMatch: 0.85,
   requestChanceOther: 0.3,
+
+  // ---- 전투 (mvp-spec 3.3 · 4장 "전투") — [임시값], 해 보며 맞춤
+  /** 행동 게이지: 스피드가 같으면 이 시간마다 한 번 · 빠른 쪽은 최대 이 배까지 자주 */
+  gaugeMs: 2500,
+  maxSpeedRatio: 2,
+  /** 1 공격 = 약한 기본기 (타입 없음) */
+  attackPower: 30,
+  critChance: 1 / 16,
+  critMultiplier: 1.5,
+  /** 같은 타입 기술 (자속) */
+  stab: 1.5,
+  /** 피해 무작위 0.85 ~ 1 */
+  damageRandomMin: 0.85,
+  /** 방어: 받는 피해 × (첫 번 0.5 · 연달아 0.75 · 그다음 1) */
+  guardFactors: [0.5, 0.75, 1],
+  /** 필살기 위력 · 게이지 (때림 +18% · 맞음 +25% · 방어 중에 맞으면 +5% 더, 야생 × 0.5)
+   *  처음 10% · 15% → 야생전 216판 시뮬에서 필살기가 찬 전투가 3% 뿐이라 올림 (약 3판에 1번, 단계 5 · 6 플레이 리뷰) */
+  ultPower: 100,
+  ultGainHit: 0.18,
+  ultGainHurt: 0.25,
+  ultGainGuardBonus: 0.05,
+  ultGainWildScale: 0.5,
+  /** 필살 스탯이 같은 레벨의 필살 종족값 40 ~ 120 포켓몬 사이 어디쯤인지 → 게이지가 차는 빠르기 × 0.8 ~ 1.2 [제안] */
+  ultGainStatRange: [40, 120],
+  ultGainFactorRange: [0.8, 1.2],
+  /** 맞받아치기: 내 행동 게이지가 이만큼 이상 · 버튼이 떠 있는 시간은 TIMING.counterWindowMs */
+  counterMinGauge: 0.5,
+  /** 힘대결: 센 쪽 50 ~ 80% (차이가 50% 이상이면 80) · 연타 1번 +1%p · 최대 +20%p · 합쳐서 최대 95% */
+  clashMin: 0.5,
+  clashMax: 0.8,
+  clashRatioFull: 0.5,
+  clashTap: 0.01,
+  clashTapMax: 0.2,
+  clashCap: 0.95,
+  /** 도망: 50% + (내 스피드 − 상대) / 상대 × 50%, 10 ~ 95%, 실패할 때마다 +10%p */
+  fleeBase: 0.5,
+  fleeStep: 0.1,
+  fleeRange: [0.1, 0.95],
+  /** 연달아 쓸수록 세지는 기술 — 연달아 쓸 때마다 +10% (2026-10-18 태현 님) */
+  streakStep: 0.1,
+  /** 상태 이상 (원작 규칙 [제안]) */
+  poisonDamage: 1 / 8,
+  burnDamage: 1 / 16,
+  burnAttackScale: 0.5,
+  paralysisGaugeScale: 0.5,
+  paralysisSkip: 0.25,
+  sleepTurns: [1, 3],
+  /** 회복약 · 기력의조각 (쓰러진 포켓몬을 최대 HP 의 절반으로 [제안 — 원작]) */
+  potionHeal: 20,
+  superPotionHeal: 50,
+  reviveFraction: 0.5,
+  /** 야생 AI: 공격 30% · 기술 70% */
+  wildAttackChance: 0.3,
 } as const;
 
 /** 시간 박자 — 저장 · 그리기 · 계산 (mvp-spec 3.1 · 9장) */
@@ -94,12 +147,28 @@ export const TIMING = {
   titleBusyPollMs: 2000,
   /** 야생이 튀어나와 "나타났다!" 를 보여 주는 시간 → 전투로 */
   appearMs: 1600,
-  /** 전투 자리 (단계 5 전까지 임시) — 이만큼 뒤에 이긴 것으로 */
-  battlePlaceholderMs: 3000,
   /** 아이템을 주웠다 · 부탁 결과 같은 짧은 알림 */
   toastMs: 2500,
   /** 부탁 결과를 보여 주는 시간 → 다시 걸음 */
   requestResultMs: 2500,
   /** [지나간다] 뒤 다시 걷기까지 */
   requestPassMs: 600,
+  /** 전투 연출 시간 (그동안 행동 게이지가 멈춤 [제안]) */
+  attackAnimMs: 700,
+  moveAnimMs: 900,
+  guardAnimMs: 500,
+  itemAnimMs: 700,
+  switchAnimMs: 700,
+  fleeAnimMs: 700,
+  ultAnimMs: 2200,
+  /** 상대가 쏘는 기술을 쓸 때 맞받아치기 버튼이 떠 있는 시간 (4장) — 그동안 그 기술은 날아오는 중 */
+  counterWindowMs: 1500,
+  /** 상대 필살기에 내 필살기로 맞받아칠 수 있는 시간 (그 안에 Z · Space = 필살기 힘대결) */
+  ultCounterWindowMs: 1000,
+  /** 힘대결 길이 (연타하는 시간) */
+  clashMs: 4000,
+  /** 힘대결 승자가 정해진 뒤 이긴 줄기가 뚫고 나가는 시간 → 피해 */
+  clashResultMs: 800,
+  /** 전투 끝 결과 (쓰러뜨렸다 · 도망쳤다) 를 보여 주는 시간 */
+  battleOverMs: 1800,
 } as const;

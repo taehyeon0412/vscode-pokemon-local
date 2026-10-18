@@ -71,6 +71,10 @@ export interface MoveData {
   contact: boolean;
   /** 전투 규칙이 따로 처리할 부가 효과 (leave-1hp = 칼등치기: HP 1 을 남김) */
   effect?: 'leave-1hp';
+  /** 원작의 모으기 · 반동으로 쉬는 기술 — 게임에서는 한 번에 쏨 (위력은 이미 × 0.7) */
+  oneShot?: true;
+  /** 연달아 쓸수록 세지는 기술 (구르기 · 연속자르기 · 분노 등) — 연달아 쓸 때마다 위력 +10% (core/rules/battle) */
+  streak?: true;
 }
 
 /** 진화 하나 — 어떤 갈래를 어떻게 쓸지는 규칙 쪽 (단계 7, mvp-spec 3.6) */
@@ -159,4 +163,9 @@ export function allSpecies(): number[] {
 
 export function allForms(): string[] {
   return Object.keys(forms);
+}
+
+/** 기술 전부 (번호 순서) */
+export function allMoves(): ReadonlyMove[] {
+  return Object.values(moves).sort((a, b) => a.id - b.id);
 }

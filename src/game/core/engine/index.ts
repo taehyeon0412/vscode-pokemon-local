@@ -1,6 +1,21 @@
 export { Rng } from './rng';
 export { clampFrameDelta, takeSteps } from './step';
-export { advance, applyInput, isWaitingForInput, step, withSpeed, type GameInput, type SaveSignal } from './play';
+export { advance, applyInput, isWaitingForInput, step, withSpeed, type GameInput, type GameNotice, type SaveSignal } from './play';
+export {
+  battleDone,
+  canAct,
+  canUlt,
+  counterOpen,
+  faintedTeam,
+  itemLeft,
+  switchable,
+  ultCounterOpen,
+  type BattleAction,
+  type BattleInput,
+  type BattlePopup,
+  type BattleState,
+  type Side,
+} from './battle';
 export {
   createGameState,
   MAX_SPEED,

@@ -118,14 +118,28 @@ describe('기술', () => {
     }
   });
 
-  it('뺀 기술: 일격필살 · 고정 피해 · 쓰러지며 쓰는 · 모으기 · 반동으로 쉬는 · 능력치만 바꾸는', () => {
+  it('뺀 기술: 일격필살 · 고정 피해 · 쓰러지며 쓰는 · 능력치만 바꾸는', () => {
     const keys = new Set([...learned].map((id) => moveOf(id)!.key));
-    for (const k of ['fissure', 'guillotine', 'dragon-rage', 'seismic-toss', 'night-shade', 'self-destruct', 'explosion', 'solar-beam', 'fly', 'dig', 'hyper-beam', 'growl', 'harden', 'swords-dance', 'leech-seed']) {
+    for (const k of ['fissure', 'guillotine', 'dragon-rage', 'seismic-toss', 'night-shade', 'self-destruct', 'explosion', 'growl', 'harden', 'swords-dance', 'leech-seed']) {
       expect(keys.has(k), k).toBe(false);
     }
     for (const k of ['tackle', 'vine-whip', 'ember', 'water-gun', 'poison-powder', 'sleep-powder', 'stun-spore', 'thunder-wave', 'absorb', 'double-edge']) {
       expect(keys.has(k), k).toBe(true);
     }
+  });
+
+  it('모으기 · 반동으로 쉬는 기술은 한 번에 쏘는 기술로 · 위력 × 0.7 (2026-10-18 태현 님)', () => {
+    for (const [key, base] of [['solar-beam', 120], ['hyper-beam', 150], ['fly', 90], ['dig', 80]] as const) {
+      const m = [...learned].map((id) => moveOf(id)!).find((x) => x.key === key)!;
+      expect(m, key).toBeDefined();
+      expect(m.oneShot).toBe(true);
+      expect(m.power).toBe(Math.round(base * 0.7));
+    }
+  });
+
+  it('연달아 세지는 기술 표시: 구르기 · 연속자르기 · 분노 (규칙은 core)', () => {
+    const streak = [...learned].map((id) => moveOf(id)!).filter((m) => m.streak).map((m) => m.key);
+    for (const k of ['rollout', 'fury-cutter', 'rage']) expect(streak).toContain(k);
   });
 
   it('연속기는 평균 횟수만큼 위력 (2~5회 = 3회) · 흡수 · 반동은 % 로', () => {

@@ -8,6 +8,7 @@ import type { Rng } from '../engine/rng';
 import type { ItemId, Save } from '../save';
 import { moveOf, speciesOf, type TypeName } from '../../data';
 import { withJosa } from '../text';
+import { itemName } from './items';
 import { spotRng } from './stage';
 
 export interface RequestReward {
@@ -117,14 +118,7 @@ export interface RequestOutcome {
   save: Save;
 }
 
-const ITEM_NAMES: Partial<Record<ItemId, string>> = {
-  'poke-ball': '몬스터볼',
-  potion: '상처약',
-  'super-potion': '좋은상처약',
-  'leaf-stone': '리프의돌',
-  'moon-stone': '달의돌',
-};
-export const itemName = (id: ItemId): string => ITEM_NAMES[id] ?? id;
+export { itemName };
 
 /** 보상을 세이브에 더함 — 받은 것 글 ("상처약 2개") 도 같이 */
 export function giveReward(save: Save, reward: RequestReward, rng: Rng): { save: Save; got: string[] } {
