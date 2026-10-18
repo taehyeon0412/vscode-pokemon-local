@@ -103,6 +103,10 @@
 				{
 					"command": "vscode-pokemon.normal-mode",
 					"when": "vscode-pokemon.gameMode"
+				},
+				{
+					"command": "vscode-pokemon.game-speed",
+					"when": "vscode-pokemon.gameDev && vscode-pokemon.gameMode"
 				}
 			]
 		},
@@ -124,6 +128,11 @@
 					"dark": "media/icon/dark-home.svg",
 					"light": "media/icon/light-home.svg"
 				}
+			},
+			{
+				"command": "vscode-pokemon.game-speed",
+				"title": "게임 빨리 감기 (개발 창)",
+				"category": "포켓몬"
 			},
 			{
 				"command": "vscode-pokemon.settings-menu",

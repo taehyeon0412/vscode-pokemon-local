@@ -97,6 +97,27 @@ export async function run(): Promise<void> {
       assert.deepEqual(raw?.party, ['m1']);
     }],
 
+    ['스테이지 (단계 4): 웹뷰가 자동으로 걷고 (60배) 야생을 만나 기록 · 전투 (임시) 뒤 계속 걸음 · 확장에 상태가 옴', async () => {
+      const save = createStartSave(Date.now(), 1);
+      // 시드 42 = 첫 자리들이 야생 (부탁은 87% 쯤 — 부탁은 고를 때까지 멈추므로 그 전까지만 봄)
+      save.stages['forest-1'] = { ...save.stages['forest-1']!, seed: 42, progress: 0 };
+      await vscode.commands.executeCommand(GAME_COMMAND_ID);
+      await waitFor('타이틀', () => d().mode === 'title');
+      game.fromWebview({ command: 'game', type: 'title-new', save });
+      await waitFor('웹뷰가 맡음', () => d().mode === 'game' && d().owner === 'webview');
+      assert.ok(game.setSpeed(60), '게임 중이면 배속을 바꿀 수 있음');
+      await waitFor('야생 두 종 이상 만남 · 진행 12% 넘음', () => d().seen >= 3 && (d().progress ?? 0) > 0.12, 30_000);
+      const p = d().progress ?? 0;
+      await sleep(1500);
+      assert.ok((d().progress ?? 0) > p, '전투 (임시) 뒤에도 계속 걸음');
+      game.setSpeed(1);
+      await vscode.commands.executeCommand(GAME_COMMAND_ID);
+      await waitFor('일반 모드', () => d().mode === 'normal');
+      const raw = game.readStoredRaw() as { dex?: { seen?: number[] }; stages?: Record<string, { progress: number }> } | undefined;
+      assert.ok((raw?.dex?.seen?.length ?? 0) >= 3, '만난 종이 세이브에');
+      assert.ok((raw?.stages?.['forest-1']?.progress ?? 0) > 0.12, '진행 % 가 세이브에');
+    }],
+
     ['🎮 → 타이틀 → 이어 하기 → 일반 모드 (S06 ⑪ 처럼 웹뷰가 exit)', async () => {
       await vscode.commands.executeCommand(GAME_COMMAND_ID);
       await waitFor('타이틀', () => d().mode === 'title');

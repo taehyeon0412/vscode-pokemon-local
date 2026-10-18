@@ -3,7 +3,7 @@
  * 화면(DOM)을 모르는 부분만 모아서 자동 테스트로 확인한다 (그리기 · 이벤트 연결은 main.ts).
  */
 import { TIMING } from '../core/balance';
-import { advance, clampFrameDelta, type GameState } from '../core/engine';
+import { advance, applyInput, clampFrameDelta, type GameInput, type GameState } from '../core/engine';
 import type { Save } from '../core/save';
 import { GAME_COMMAND, type HostToWebview, type SaveReason, type TitleInfo, type WebviewToHost } from '../shared/messages';
 
@@ -112,10 +112,26 @@ export class WebviewSession {
     const r = advance(this.state, clampFrameDelta(dtMs));
     this.state = r.state;
     if (r.steps > 0) this.dirty = true;
+    // 전투 끝 · 잡기 · 스테이지 클리어 — 1초를 기다리지 않고 바로 저장해 달라고 함 (mvp-spec 3.1)
+    const reason = r.saves[0];
+    if (reason) {
+      this.saveNow(reason);
+      return;
+    }
     if (this.dirty && this.deps.now() - this.lastSentAt >= TIMING.snapshotIntervalMs) {
       this.deps.post({ command: GAME_COMMAND, type: 'state', epoch: this.epoch, state: this.state });
       this.markSent();
     }
+  }
+
+  /** 입력 (Space · 부탁 고르기 등) — 맡고 있을 때만. 받았으면 true (화면을 바로 다시 그리게) */
+  input(input: GameInput): boolean {
+    if (this.epoch === null || !this.state) return false;
+    const next = applyInput(this.state, input);
+    if (next === this.state) return false;
+    this.state = next;
+    this.dirty = true;
+    return true;
   }
 
   /** 잡기 · 전투 끝 등 — 바로 저장해 달라고 함 */

@@ -3015,7 +3015,7 @@ const POKEMON_DATA_RAW = {
         name: 'Turtwig',
         generation: types_1.PokemonGeneration.Gen4,
         cry: 'Turtwig!',
-        possibleColors: ["default" /* PokemonColor.default */],
+        possibleColors: ["default" /* PokemonColor.default */, "shiny" /* PokemonColor.shiny */], // LOCAL-PATCH: 이로치 그림 (shiny_*.gif) 이 있는데 빠져 있었음
     },
     grotle: {
         id: 388,

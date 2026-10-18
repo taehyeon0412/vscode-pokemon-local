@@ -11,7 +11,9 @@ core/        규칙 · 상태. 화면도 VS Code 도 Node 도 모름 → 확장 
   balance.ts   게임 숫자 모음 (기획 명세 4장과 1:1)
   save/        세이브 형식 · 검사(고치기) · 옛 버전 옮기기
   engine/      시간 흐름 (고정 걸음) · 시드 랜덤 · 게임 상태
-  rules/       계산 함수 (피해 · 상성 · 잡기 · 경험치 …) — 단계 5부터
+  rules/       계산 함수 — 스탯 · 스테이지 길 (시드) · 조우 · 부탁 · 포켓몬 만들기 (단계 3 ~ 4), 피해 · 상성 · 잡기 · 경험치는 단계 5 ~ 7
+  engine/play.ts 걸음 · 입력 — 확장 쪽 (안 볼 때) · 웹뷰 쪽 (보일 때) 이 같은 함수로 같은 결과
+  text.ts      조사 고르기 (을/를 · 이/가)
 shared/      확장 ↔ 웹뷰 메시지 모양 (양쪽이 같은 정의)
 features/    화면 하나 ≈ 폴더 하나 (model.ts = 상태 바꾸기, components/ = 화면) — 단계 3부터
 ui/          같이 쓰는 화면 부품 (버튼 · HP 바 · 게이지 …) — 단계 3부터
@@ -73,6 +75,7 @@ game.js ── ready ──▶ 확장 ── start (epoch · 상태) ──▶ �
 | `node scripts/fetch-pokeapi.mjs` | 게임 데이터 다시 받기 (add-pokemon.py 로 포켓몬을 넣은 뒤 · PokeAPI 커밋을 바꾼 뒤) — CI 가 맞는지 확인 |
 | `npm run test:integration` | 실제 VS Code 를 띄워 패널 접기 · 펴기 · 저장 · 일반 모드 · 껐다 켜기 확인 (따로 된 사용자 폴더, `VSCODE_TEST_VERSION=1.73.0` 로 가장 낮은 버전) |
 | `python install.py` | 빌드해서 내 VS Code 에 설치 |
-| `python dev/game-shots.py` | 게임 화면 사진 (머리 없는 Edge, 패널 높이 68 ~ 140 · 좁은 패널 · 밝은 테마) → `dev/shots/game/`. 브라우저로 보려면 `dev/game.html?screen=title&save=ok` (가짜 확장 = `dev/game-host.js`) |
+| `python dev/game-shots.py` | 게임 화면 사진 (머리 없는 Edge, 패널 높이 68 ~ 160 · 좁은 · 넓은 패널 · 밝은 테마) → `dev/shots/game/`. 브라우저로 보려면 `dev/game.html?screen=game&progress=0.04` (가짜 확장 = `dev/game-host.js`, `shim=1` = 머리 없는 브라우저용 타이머 그리기) |
+| 명령 팔레트 "포켓몬: 게임 빨리 감기 (개발 창)" | F5 개발 창에서만 — 게임 시간을 10 · 30 · 60배로 (15분 스테이지 시험용, 사용자 설치본에서는 아무것도 안 함) |
 
 주석의 `mvp-spec 3.3` · `S02 ①` · `U2` 같은 번호는 기획 문서(공개하지 않음)의 장 · 화면 · 기능 번호예요.

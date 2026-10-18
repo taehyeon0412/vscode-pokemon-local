@@ -4,9 +4,11 @@
  */
 import { BALANCE } from '../../core/balance';
 import { Rng } from '../../core/engine';
-import { expForLevel, maxHp } from '../../core/rules/stats';
-import { createNewSave, STAT_KEYS, type Monster, type MoveSlot, type Save, type Stats } from '../../core/save';
-import { formsOfSpecies, learnsetOf, moveOf, speciesOf, type ReadonlyMove } from '../../data';
+import { createMonster } from '../../core/rules/monster';
+import { createNewSave, type Save } from '../../core/save';
+import { learnsetOf, moveOf, speciesOf, type ReadonlyMove } from '../../data';
+
+export { createMonster } from '../../core/rules/monster';
 
 /** 단계 10 전까지 쓰는 임시 스타팅 — 이상해씨 */
 export const TEMPORARY_STARTER = 1;
@@ -38,39 +40,6 @@ export function defaultStarterMoves(dex: number): ReadonlyMove[] {
     if (own) picked[picked.length - 1] = own;
   }
   return picked;
-}
-
-function randomIvs(rng: Rng): Stats {
-  const out = {} as Stats;
-  for (const k of STAT_KEYS) out[k] = rng.int(0, BALANCE.maxIv);
-  return out;
-}
-
-const noPoints = (): Stats => ({ hp: 0, attack: 0, defense: 0, speed: 0, ultimate: 0 });
-
-/** 포켓몬 한 마리 만들기 — 개체값은 시드 랜덤, HP 는 가득 */
-export function createMonster(options: { uid: string; dex: number; level: number; moves: readonly ReadonlyMove[]; rng: Rng; caughtAt: string }): Monster {
-  const species = speciesOf(options.dex);
-  const form = formsOfSpecies(options.dex)[0];
-  if (!species || !form) throw new Error(`종 ${options.dex} 데이터 · 그림이 없음`);
-  const ivs = randomIvs(options.rng);
-  const points = noPoints();
-  const moves: MoveSlot[] = options.moves.map((m) => ({ moveId: m.id, pp: m.pp }));
-  return {
-    uid: options.uid,
-    species: options.dex,
-    form,
-    level: options.level,
-    exp: expForLevel(options.level),
-    ivs,
-    points,
-    unspentPoints: 0,
-    moves,
-    hp: maxHp(species.base, ivs, points, options.level),
-    status: null,
-    shiny: false,
-    caughtAt: options.caughtAt,
-  };
 }
 
 /** 새로 하기 (S02 ①) — 스타팅 한 마리와 함께 숲 1-1 에서 시작하는 세이브 */

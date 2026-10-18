@@ -605,6 +605,7 @@ docs/                 README 그림 · 영상
 | `LOCAL-PATCH` | `main-bundle.js` · `media/pokemon.css` | 저장 1초에 한 번, GPU 이동(`glideSprite`) |
 | `LOCAL-PATCH` | `out/extension/extension.js` · `main-bundle.js` | ⚙ 설정 메뉴(`vscode-pokemon.settings-menu`), 빈 패널이 `fresh-session` 을 보내면 기본 포켓몬 소환 |
 | `LOCAL-PATCH` | `out/extension/extension.js` · `out/common/localize.js` | 메뉴 문구를 `koT` 로 `l10n/bundle.l10n.ko.json` 에서 (VS Code 언어 무시), 이름 언어 자동 → 한국어 |
+| `LOCAL-PATCH` | `out/common/pokemon-data.js` · `media/main-bundle.js` | 모부기 이로치 (그림은 있는데 색 목록에 빠져 있었음) |
 | `GAME-PATCH` | `out/extension/extension.js` · `out/extension/game-loader.js` | 게임 모드 연결 (`src/game` 빌드를 불러옴 · 웹뷰 API 를 일반 모드와 같이 씀 · 끌 때 저장). 게임 빌드가 없거나 오류가 나도 일반 모드는 그대로 |
 | `GAME-PATCH` | `media/main-bundle.js` · `moves.js` | 게임 화면이 덮고 있는 동안 (`body.pokemon-game-on`) 일반 모드 포켓몬 움직임 · 자동 기술을 멈춤 |
 | — | `package.json` · `media/icon/*-game.svg` | 포켓몬 보기 제목줄 🎮 버튼 (`vscode-pokemon.game-mode`) |

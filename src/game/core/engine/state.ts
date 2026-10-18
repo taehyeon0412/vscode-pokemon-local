@@ -1,16 +1,52 @@
 /**
- * 게임 상태 = 세이브 (저장함) + 진행 중 상태 (저장 안 함 — 랜덤 상태 · 남은 걸음 시간 · 나중에 전투 중 상태).
- * 이 상태 하나가 웹뷰와 확장 사이를 오가고, 누가 계산하든 같은 함수(advance)로 앞으로 간다.
+ * 게임 상태 = 세이브 (저장함) + 진행 중 상태 (저장 안 함 — 랜덤 상태 · 남은 걸음 시간 · 지금 화면에서 하는 일).
+ * 이 상태 하나가 웹뷰와 확장 사이를 오가고, 누가 계산하든 같은 함수(advance)로 앞으로 간다 (play.ts).
  */
 import { TIMING } from '../balance';
-import type { Save } from '../save';
-import { takeSteps } from './step';
+import { STAGE_IDS, type Save, type StageId } from '../save';
+
+/**
+ * 스테이지에서 지금 하는 일 (S06):
+ * - walk: 자동으로 걸음
+ * - appear: 야생이 튀어나와 "나타났다!" (Space 선제공격 창) — 상대는 save.pendingEncounter
+ * - battle: 전투 (단계 5 전까지는 잠깐 보여 주고 이긴 것으로 — 임시)
+ * - request: 길 위의 부탁 — 고를 때까지 기다림, 고르면 결과를 잠깐 보여 줌
+ * - end: 스테이지 끝 (클리어 카드는 단계 9)
+ */
+export type StageRuntime =
+  | { phase: 'walk' }
+  | { phase: 'appear'; ms: number; space: boolean; ambush: boolean; isNew: boolean }
+  | { phase: 'battle'; ms: number }
+  | { phase: 'request'; at: number; number: number; result: RequestResult | null; ms: number }
+  | { phase: 'end' };
+
+export const STAGE_PHASES = ['walk', 'appear', 'battle', 'request', 'end'] as const;
+
+/** 부탁 결과 — 글 · 받은 것 (따로 둬서 좁은 패널에서도 받은 것이 안 잘리게) */
+export interface RequestResult {
+  ok: boolean;
+  text: string;
+  reward: string | null;
+}
+
+/** 짧은 알림 ("몬스터볼을 주웠다!") — ms 가 다 지나면 사라짐 */
+export interface Toast {
+  text: string;
+  ms: number;
+}
 
 export interface RuntimeState {
   /** Rng 상태 */
   rngState: number;
   /** 아직 걸음이 되지 못한 시간 (ms) */
   stepAccMs: number;
+  /** 시간 배속 — 1 (개발 창에서만 빨리 감기) */
+  speed: number;
+  /** null = 아직 안 정함 (처음 · 다시 불러온 직후) → 다음 걸음에 세이브를 보고 정함 */
+  stage: StageRuntime | null;
+  /** stage 가 어느 스테이지 것인지 — 장소가 바뀌면 (단계 9) 이전 스테이지의 진행 중 상태를 버림 */
+  stageId: StageId | null;
+  toast: Toast | null;
 }
 
 export interface GameState {
@@ -18,18 +54,61 @@ export interface GameState {
   runtime: RuntimeState;
 }
 
+/** 개발 창 빨리 감기 상한 */
+export const MAX_SPEED = 60;
+
 export function createGameState(save: Save, seed: number): GameState {
-  return { save, runtime: { rngState: seed >>> 0, stepAccMs: 0 } };
+  return { save, runtime: { rngState: seed >>> 0, stepAccMs: 0, speed: 1, stage: null, stageId: null, toast: null } };
 }
 
-/** 다른 쪽(웹뷰)에서 온 진행 중 상태 — 이상한 값은 새 시드 · 0 으로 */
+type Obj = Record<string, unknown>;
+const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
+const num = (v: unknown, min: number, max: number): number | null => (typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max ? v : null);
+
+/** 웹뷰에서 온 스테이지 진행 중 상태 — 모양이 이상하면 null (다음 걸음에 세이브를 보고 다시 정함) */
+function readStage(raw: unknown): StageRuntime | null {
+  if (!isObj(raw)) return null;
+  const ms = num(raw.ms, 0, 1e9);
+  switch (raw.phase) {
+    case 'walk':
+    case 'end':
+      return { phase: raw.phase };
+    case 'appear':
+      if (ms === null || typeof raw.space !== 'boolean' || typeof raw.ambush !== 'boolean' || typeof raw.isNew !== 'boolean') return null;
+      return { phase: 'appear', ms, space: raw.space, ambush: raw.ambush, isNew: raw.isNew };
+    case 'battle':
+      return ms === null ? null : { phase: 'battle', ms };
+    case 'request': {
+      const at = num(raw.at, 0, 1);
+      const n = num(raw.number, 0, 100);
+      const r = raw.result;
+      const result =
+        r === null
+          ? null
+          : isObj(r) && typeof r.ok === 'boolean' && typeof r.text === 'string' && (r.reward === null || typeof r.reward === 'string')
+            ? { ok: r.ok, text: r.text.slice(0, 300), reward: r.reward === null ? null : (r.reward as string).slice(0, 100) }
+            : undefined;
+      if (ms === null || at === null || n === null || result === undefined) return null;
+      return { phase: 'request', at, number: Math.floor(n), result, ms };
+    }
+    default:
+      return null;
+  }
+}
+
+/** 다른 쪽(웹뷰)에서 온 진행 중 상태 — 이상한 값은 새 시드 · 기본값으로 */
 export function readRuntime(raw: unknown, fallbackSeed: number, stepMs: number = TIMING.simStepMs): RuntimeState {
-  const r = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {};
+  const r = isObj(raw) ? raw : {};
   const rng = r.rngState;
   const acc = r.stepAccMs;
+  const toast = isObj(r.toast) && typeof r.toast.text === 'string' && num(r.toast.ms, 0, 60_000) !== null ? { text: r.toast.text.slice(0, 300), ms: r.toast.ms as number } : null;
   return {
     rngState: typeof rng === 'number' && Number.isInteger(rng) && rng >= 0 && rng <= 0xffffffff ? rng : fallbackSeed >>> 0,
     stepAccMs: typeof acc === 'number' && Number.isFinite(acc) && acc >= 0 && acc < stepMs ? acc : 0,
+    speed: num(r.speed, 1, MAX_SPEED) ?? 1,
+    stage: readStage(r.stage),
+    stageId: (STAGE_IDS as readonly unknown[]).includes(r.stageId) ? (r.stageId as StageId) : null,
+    toast,
   };
 }
 
@@ -39,18 +118,4 @@ export function readRuntime(raw: unknown, fallbackSeed: number, stepMs: number =
  */
 export function shouldRunWhenHidden(state: GameState): boolean {
   return state.save.settings.autoBattle;
-}
-
-/** 걸음 하나 — 지금은 플레이 시간만. 전투 · 스테이지가 생기면 여기서 나눠 부름 */
-export function step(state: GameState, stepMs: number): GameState {
-  return { ...state, save: { ...state.save, playTimeMs: state.save.playTimeMs + stepMs } };
-}
-
-/** 지난 시간만큼 앞으로 — 보일 때(웹뷰) · 안 보일 때(확장) 같은 함수 */
-export function advance(state: GameState, elapsedMs: number, stepMs: number = TIMING.simStepMs): { state: GameState; steps: number } {
-  const { steps, accMs } = takeSteps(state.runtime.stepAccMs, elapsedMs, stepMs);
-  let next = state;
-  for (let i = 0; i < steps; i++) next = step(next, stepMs);
-  if (steps === 0 && accMs === state.runtime.stepAccMs) return { state, steps };
-  return { state: { ...next, runtime: { ...next.runtime, stepAccMs: accMs } }, steps };
 }

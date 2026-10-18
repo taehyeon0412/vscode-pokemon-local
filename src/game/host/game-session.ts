@@ -11,7 +11,7 @@
  * VS Code 를 모른다 (웹뷰는 ViewPort, 저장은 SaveStore, 창 잠금은 WindowLease 로만 만남) → 자동 테스트에서 그대로 돌림.
  */
 import { TIMING } from '../core/balance';
-import { advance, createGameState, readRuntime, shouldRunWhenHidden, type GameState } from '../core/engine';
+import { advance, createGameState, isWaitingForInput, readRuntime, shouldRunWhenHidden, withSpeed, type GameState } from '../core/engine';
 import { validateSave, type Save } from '../core/save';
 import { GAME_COMMAND, isWebviewToHost, type HostToWebview, type TitleInfo, type TitleNotice } from '../shared/messages';
 import { HeadlessRunner, type HeadlessRunnerOptions } from './headless-runner';
@@ -262,6 +262,15 @@ export class GameSession {
     if (this.mode !== 'game' || !this.state) return false;
     this.state = { ...this.state, save: change(this.state.save) };
     this.deps.store.set(this.state.save);
+    if (this.owner === 'webview') this.handToWebview();
+    else this.updateRunner();
+    return true;
+  }
+
+  /** 시간 배속 (개발 창 빨리 감기 · 테스트) — 게임 중에만. 웹뷰가 맡고 있으면 바뀐 상태로 다시 맡김 */
+  setSpeed(speed: number): boolean {
+    if (this.mode !== 'game' || !this.state) return false;
+    this.state = withSpeed(this.state, speed);
     if (this.owner === 'webview') this.handToWebview();
     else this.updateRunner();
     return true;
@@ -560,7 +569,8 @@ export class GameSession {
 
   /** 안 볼 때 계산은 지금 상태의 자동 전투 설정으로 정함 (늦게 온 상태로 바뀌면 다시 정함) */
   private updateRunner(): void {
-    const run = this.state !== null && this.mode === 'game' && this.owner === 'host' && shouldRunWhenHidden(this.state);
+    // 사람이 골라야 하는 순간 (부탁 · 스테이지 끝) 에는 안 볼 때 계산할 게 없음 — 깨어나 저장만 되풀이하지 않게
+    const run = this.state !== null && this.mode === 'game' && this.owner === 'host' && shouldRunWhenHidden(this.state) && !isWaitingForInput(this.state);
     if (run) this.runner.start();
     else this.runner.stop();
   }
@@ -587,7 +597,9 @@ export class GameSession {
       return false;
     }
     if (checked.problems.length > 0) this.deps.log(`웹뷰가 보낸 상태를 고침: ${checked.problems.slice(0, 3).join(' / ')}`);
-    this.state = { save: checked.save, runtime: readRuntime(state.runtime, this.deps.newSeed()) };
+    // 배속은 확장 쪽 값이 기준 (개발 창 빨리 감기 — 웹뷰가 보낸 값은 믿지 않음)
+    const speed = this.state?.runtime.speed ?? 1;
+    this.state = { save: checked.save, runtime: { ...readRuntime(state.runtime, this.deps.newSeed()), speed } };
     this.stats.accepted++;
     this.deps.store.set(this.state.save);
     return true;
@@ -598,11 +610,22 @@ export class GameSession {
       this.runner.stop();
       return;
     }
-    const r = advance(this.state, elapsedMs);
+    let r: ReturnType<typeof advance>;
+    try {
+      r = advance(this.state, elapsedMs);
+    } catch (e) {
+      // 같은 오류가 0.25초마다 나지 않게 멈춤 (웹뷰가 다시 맡으면 그쪽에서 이어 감)
+      this.runner.stop();
+      this.warn(`포켓몬 게임 계산에 오류가 나서 안 보는 동안의 진행을 멈췄어요 (${String(e)}).`);
+      return;
+    }
     this.state = r.state;
     if (r.steps > 0) {
       this.stats.headlessSteps += r.steps;
-      this.deps.store.set(this.state.save);
+      // 전투 끝 등은 바로, 나머지는 5초 안에 (mvp-spec 3.1)
+      if (r.saves.length > 0) void this.deps.store.saveNow(this.state.save);
+      else this.deps.store.set(this.state.save);
     }
+    if (isWaitingForInput(this.state)) this.runner.stop();
   }
 }

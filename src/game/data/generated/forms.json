@@ -422,7 +422,7 @@
 "deoxys_speed":{"species":386,"gen":3,"size":32,"shiny":true},
 "deoxys_attack":{"species":386,"gen":3,"size":32,"shiny":true},
 "deoxys_defense":{"species":386,"gen":3,"size":32,"shiny":true},
-"turtwig":{"species":387,"gen":4,"size":32,"shiny":false},
+"turtwig":{"species":387,"gen":4,"size":32,"shiny":true},
 "grotle":{"species":388,"gen":4,"size":32,"shiny":true},
 "torterra":{"species":389,"gen":4,"size":32,"shiny":true},
 "chimchar":{"species":390,"gen":4,"size":32,"shiny":true},

@@ -86,7 +86,14 @@ export function activate(context: vscode.ExtensionContext): GameHost {
     }),
     // 🏠 (게임 중 제목줄) — 자동저장 후 일반 모드로
     vscode.commands.registerCommand('vscode-pokemon.normal-mode', () => game.exitGame()),
+    // 개발 창 (F5) 에서만 보이는 빨리 감기 — 15분 스테이지를 시험하려고 (사용자 설치본에는 안 보임)
+    vscode.commands.registerCommand('vscode-pokemon.game-speed', async () => {
+      if (!debug) return; // 사용자 설치본에서는 단축키로 묶어도 아무것도 안 함
+      const pick = await vscode.window.showQuickPick(['1', '10', '30', '60'], { placeHolder: '게임 시간 배속 (개발용)' });
+      if (pick && !game.setSpeed(Number(pick))) void vscode.window.showInformationMessage('게임 중에만 바꿀 수 있어요');
+    }),
   );
+  void vscode.commands.executeCommand('setContext', 'vscode-pokemon.gameDev', debug);
   // 게임 빌드가 있을 때만 🎮 를 보임 (install.py 가 빌드하지 못하면 일반 모드만)
   void vscode.commands.executeCommand('setContext', 'vscode-pokemon.gameAvailable', hasWebviewBuild);
   void vscode.commands.executeCommand('setContext', 'vscode-pokemon.gameMode', false);

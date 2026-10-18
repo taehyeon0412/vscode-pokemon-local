@@ -3,7 +3,8 @@
  */
 import { Component, type ComponentChildren } from 'preact';
 import type { GameState } from '../core/engine';
-import { StagePlaceholder } from '../features/stage/components/StagePlaceholder';
+import type { GameInput } from '../core/engine';
+import { StageScreen } from '../features/stage/components/StageScreen';
 import { TitleScreen } from '../features/title/components/TitleScreen';
 import type { TitleInfo } from '../shared/messages';
 import type { Layout } from '../ui/layout';
@@ -18,6 +19,8 @@ export interface ViewState {
   /** 화면에 보일 게임 상태 — 계산은 매 프레임이지만 화면은 1초에 한 번만 바꿈 */
   state: GameState | null;
   layout: Layout;
+  /** 패널 너비 (스테이지에서 길 위의 것들을 그릴 자리) */
+  widthPx: number;
   /** 버튼을 눌러 확장의 답을 기다리는 중 */
   pending: boolean;
 }
@@ -26,6 +29,8 @@ export interface AppActions {
   newGame(): void;
   continueGame(): void;
   exit(): void;
+  /** 게임 입력 (Space · 부탁 고르기 등) */
+  input(input: GameInput): void;
   /** 화면을 그리다 오류 — 확장에 알림 (확장이 알림을 띄우고 계산을 넘겨받음) */
   crashed(error: unknown): void;
 }
@@ -48,7 +53,7 @@ function Screens({ v, media, actions }: { v: ViewState; media: string; actions: 
     return <TitleScreen info={v.title} media={media} pending={v.pending} onNew={actions.newGame} onContinue={actions.continueGame} />;
   }
   if (v.screen === 'game' && v.state) {
-    return <StagePlaceholder state={v.state} layout={v.layout} media={media} />;
+    return <StageScreen state={v.state} layout={v.layout} widthPx={v.widthPx} media={media} onInput={actions.input} />;
   }
   return null;
 }

@@ -786,3 +786,41 @@ describe('단계 3 검토에서 고친 것 (bugs #59 ~)', () => {
     expect(snap().running).toBe(true);
   });
 });
+
+describe('단계 4 검토에서 고친 것 — 스테이지 (확장 쪽)', () => {
+  /** 숲 1-1 을 막 시작한 자동 전투 세이브 (시드 42 — 첫 부탁은 87% 쯤) */
+  const stageSave = (progress = 0) =>
+    sampleSave({ settings: { notifications: true, autoBattle: true }, stages: { 'forest-1': { seed: 42, progress, cleared: false, defeatedTrainers: [], facilities: [] } } });
+
+  it('안 볼 때 (자동 전투) 걷다가 부탁에서 멈추면 계산 · 저장을 멈춤 — 깨어나 저장만 되풀이하지 않게 (테스터)', async () => {
+    await enterAndStart(stageSave(0.8784));
+    session.onVisibilityChanged(false);
+    expect(snap().running).toBe(true);
+    runHost(2000);
+    expect(snap().state?.runtime.stage?.phase).toBe('request');
+    expect(snap().running).toBe(false);
+    const steps = session.stats.headlessSteps;
+    runHost(5000);
+    expect(session.stats.headlessSteps).toBe(steps);
+  });
+
+  it('안 볼 때 계산 중 전투 (임시) 가 끝나면 바로 저장', async () => {
+    await enterAndStart(stageSave(0.0483));
+    session.onVisibilityChanged(false);
+    const writes = storage.writes;
+    runHost(TIMING.appearMs + TIMING.battlePlaceholderMs + 1000);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(storage.writes).toBeGreaterThan(writes);
+    expect(stored()?.pendingEncounter).toBeNull();
+  });
+
+  it('배속은 확장 쪽 값이 기준 — 웹뷰가 보낸 speed 는 무시 (코드 리뷰어)', async () => {
+    const start = await enterAndStart(stageSave());
+    session.handleMessage(msg({ type: 'state', epoch: start.epoch, state: { ...start.state, runtime: { ...start.state.runtime, speed: 60 } } }));
+    expect(snap().state?.runtime.speed).toBe(1);
+    expect(session.setSpeed(10)).toBe(true);
+    const again = view.last('start')!;
+    session.handleMessage(msg({ type: 'state', epoch: again.epoch, state: { ...again.state, runtime: { ...again.state.runtime, speed: 1 } } }));
+    expect(snap().state?.runtime.speed).toBe(10);
+  });
+});

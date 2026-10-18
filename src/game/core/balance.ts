@@ -25,6 +25,53 @@ export const BALANCE = {
   /** 스타팅 처음 기술: 후보 수 · 고르는 수 (mvp-spec 3.6 · S04) */
   starterMoveCandidates: 4,
   starterMoves: 2,
+
+  // ---- 스테이지 (mvp-spec 3.2 · 4장 "스테이지 · 조우")
+  /** 스테이지 걷는 시간 (전투 · 부탁 빼고) — 2026-10-18 태현 님 */
+  stageWalkMs: 15 * 60_000,
+  /** 스테이지마다 나오는 수 [최소, 최대] — gdd 4.5 · 4.6 */
+  stageWild: [12, 18],
+  stageItems: [4, 6],
+  stageRequests: [1, 2],
+  stageHospitals: [1, 2],
+  stageShops: [1, 2],
+  stageScenery: [10, 16],
+  /** 만나는 것들이 놓이는 구간 (시작하자마자 · 끝에서 바로 만나지 않게) [제안] */
+  stageSpotRange: [0.04, 0.97],
+  /** 병원 · 상점 = "중간쯤 랜덤 자리" [제안] */
+  stageFacilityRange: [0.3, 0.75],
+  /** 숲 레벨대 [낮은 끝, 높은 끝] — 진행 % 에 따라 올라감 */
+  stageLevels: { 'forest-1': [3, 6], 'forest-2': [6, 10], 'forest-3': [10, 13] },
+  /** 센 포켓몬 흔적: 확률 · 레벨대 위끝 + */
+  strongTraceChance: 0.15,
+  strongLevelBonus: 2,
+  /** 독 · 드래곤 · 페어리를 섞는 확률 */
+  rareTypeChance: 0.1,
+  /** 종족값 합이 이보다 큰 1단계 포켓몬은 1-3 에만 [제안] */
+  bigBaseTotal: 450,
+  /** 이로치 — 2026-10-18 태현 님 (이로치 그림이 있는 종만) */
+  shinyChance: 0.02,
+  /** 친밀도 진화 레벨 — 4장 */
+  friendshipLevel: 20,
+  /** 기습 확률: 상대 스피드가 내 몇 배 이상이면 [배, 확률] (큰 것부터) */
+  ambush: [
+    [2, 0.2],
+    [1.5, 0.1],
+  ],
+  /** 선제공격 타이밍 창 — 튀어나온 뒤 이 시간 안에 Space */
+  preemptiveWindowMs: 600,
+  /** 잡은 · 야생 포켓몬 기술 수: [이 레벨 이상, 개수] (큰 것부터) */
+  wildMoveCounts: [
+    [26, 4],
+    [11, 3],
+    [1, 2],
+  ],
+  /** 떨어진 아이템: 몬스터볼 · 상처약 · 돈 · 진화의 돌 비율 (합 1) · 돈 = 레벨대 위끝 × 이 값 [제안] */
+  pickupTable: { 'poke-ball': 0.4, potion: 0.3, money: 0.25, stone: 0.05 },
+  pickupMoneyPerLevel: 10,
+  /** 길 위의 부탁 성공 확률: 맞는 타입 기술이 있으면 · 없으면 [임시값] */
+  requestChanceMatch: 0.85,
+  requestChanceOther: 0.3,
 } as const;
 
 /** 시간 박자 — 저장 · 그리기 · 계산 (mvp-spec 3.1 · 9장) */
@@ -45,4 +92,14 @@ export const TIMING = {
   exitWaitMs: 500,
   /** 타이틀에서 다른 창이 게임 중일 때, 그 창이 끝났는지 보는 간격 */
   titleBusyPollMs: 2000,
+  /** 야생이 튀어나와 "나타났다!" 를 보여 주는 시간 → 전투로 */
+  appearMs: 1600,
+  /** 전투 자리 (단계 5 전까지 임시) — 이만큼 뒤에 이긴 것으로 */
+  battlePlaceholderMs: 3000,
+  /** 아이템을 주웠다 · 부탁 결과 같은 짧은 알림 */
+  toastMs: 2500,
+  /** 부탁 결과를 보여 주는 시간 → 다시 걸음 */
+  requestResultMs: 2500,
+  /** [지나간다] 뒤 다시 걷기까지 */
+  requestPassMs: 600,
 } as const;

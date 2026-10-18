@@ -1,0 +1,136 @@
+/**
+ * 스테이지 길 (mvp-spec 3.2 · gdd 4.5 · 4.6) — 스테이지 시드 하나로 무엇이 어디에 있는지 정한다.
+ * 같은 시드면 늘 같은 길 → 저장은 시드 · 진행 % · 병원 · 상점 자리만 (나머지는 다시 계산), 확장 쪽 · 웹뷰가 같은 길을 걸음.
+ * 병원 · 상점 자리는 처음 들어갈 때 세이브에 적고, 그 뒤로는 세이브 쪽이 기준 (단계 8 에 들어가는 곳 · 마지막 병원과 그려진 곳이 같게).
+ * 주의: BALANCE 의 스테이지 숫자 (나오는 수 · 구간) 를 바꾸면 같은 시드라도 길이 바뀜 → 하던 스테이지의 진행 % 가 다른 곳을 가리킴 (mvp-spec 9장).
+ *
+ * 자리 (0 = 처음 · 1 = 끝):
+ *   야생 12 ~ 18 · 떨어진 아이템 4 ~ 6 · 길 위의 부탁 1 ~ 2 → 고르게 나눈 칸에 섞어 놓음 (서로 붙지 않게)
+ *   병원 · 상점 1 ~ 2 곳씩 → "중간쯤" 랜덤 (지나가기만 — 들어가기는 단계 8)
+ *   배경 속 포켓몬 10 ~ 16 → 보기만 (부딪히지 않음)
+ */
+import { BALANCE } from '../balance';
+import { Rng } from '../engine/rng';
+import type { FacilitySpot, StageId } from '../save';
+
+export type SpotKind = 'wild' | 'item' | 'request';
+
+export interface Spot {
+  kind: SpotKind;
+  /** 0 ~ 1 */
+  at: number;
+  /** 스테이지 안 번호 — 그 자리의 시드 (spotSeed) 를 만들 때 */
+  index: number;
+}
+
+export interface StageLayout {
+  /** at 순서 */
+  spots: readonly Spot[];
+  facilities: readonly FacilitySpot[];
+  /** 배경 속 포켓몬 자리 — 무엇이 있는지는 encounter.ts 의 sceneryAt */
+  scenery: readonly { at: number; index: number }[];
+}
+
+/** 두 수를 섞은 32비트 시드 (자리마다 다른 랜덤) */
+export function mixSeed(a: number, b: number): number {
+  let h = (a ^ 0x9e3779b9) >>> 0;
+  h = Math.imul(h ^ (b + 0x7f4a7c15), 0x85ebca6b) >>> 0;
+  h ^= h >>> 13;
+  h = Math.imul(h, 0xc2b2ae35) >>> 0;
+  h ^= h >>> 16;
+  return h >>> 0;
+}
+
+/** 그 자리 전용 랜덤 (야생 포켓몬 · 아이템 · 부탁을 시간과 상관없이 늘 같게) */
+export function spotRng(stageSeed: number, index: number, salt = 0): Rng {
+  return new Rng(mixSeed(mixSeed(stageSeed, index), salt));
+}
+
+const between = (rng: Rng, [lo, hi]: readonly [number, number]) => rng.int(lo, hi);
+
+function shuffle<T>(rng: Rng, list: T[]): T[] {
+  for (let i = list.length - 1; i > 0; i--) {
+    const j = rng.int(0, i);
+    [list[i], list[j]] = [list[j]!, list[i]!];
+  }
+  return list;
+}
+
+/** 시설과 이만큼은 떨어지게 (시설 앞에서 바로 조우하지 않게) */
+const FACILITY_GAP = 0.012;
+
+function buildLayout(seed: number, saved: readonly FacilitySpot[]): StageLayout {
+  const rng = new Rng(mixSeed(seed, 0x51a6e));
+  // 병원 · 상점 — 중간쯤, 서로 붙지 않게 (세이브에 적힌 자리가 있어도 랜덤은 똑같이 뽑아서 아래 자리들이 같게)
+  let facilities: FacilitySpot[] = [];
+  const [fLo, fHi] = BALANCE.stageFacilityRange;
+  const place = (kind: FacilitySpot['kind']) => {
+    for (let tries = 0; tries < 20; tries++) {
+      const at = fLo + rng.next() * (fHi - fLo);
+      if (facilities.every((f) => Math.abs(f.at - at) > 0.05)) {
+        facilities.push({ kind, at: Math.round(at * 10000) / 10000 });
+        return;
+      }
+    }
+  };
+  for (let i = between(rng, BALANCE.stageHospitals); i > 0; i--) place('hospital');
+  for (let i = between(rng, BALANCE.stageShops); i > 0; i--) place('shop');
+  facilities.sort((a, b) => a.at - b.at);
+  if (saved.length > 0) facilities = [...saved].sort((a, b) => a.at - b.at);
+
+  // 만나는 것 — 고르게 나눈 칸마다 하나 (칸 안에서 조금 흔들어 놓음), 종류는 섞음
+  const kinds: SpotKind[] = shuffle(rng, [
+    ...Array<SpotKind>(between(rng, BALANCE.stageWild)).fill('wild'),
+    ...Array<SpotKind>(between(rng, BALANCE.stageItems)).fill('item'),
+    ...Array<SpotKind>(between(rng, BALANCE.stageRequests)).fill('request'),
+  ]);
+  const [sLo, sHi] = BALANCE.stageSpotRange;
+  const cell = (sHi - sLo) / kinds.length;
+  const spots: Spot[] = kinds.map((kind, i) => {
+    let at = sLo + cell * (i + 0.5) + (rng.next() - 0.5) * cell * 0.6;
+    const near = facilities.find((f) => Math.abs(f.at - at) < FACILITY_GAP);
+    if (near) at = near.at + (at >= near.at ? FACILITY_GAP : -FACILITY_GAP);
+    return { kind, at: Math.round(at * 100000) / 100000, index: i };
+  });
+  spots.sort((a, b) => a.at - b.at);
+
+  const sceneryCount = between(rng, BALANCE.stageScenery);
+  const scenery = Array.from({ length: sceneryCount }, (_, i) => ({
+    at: Math.round((0.01 + (0.98 * (i + rng.next())) / sceneryCount) * 100000) / 100000,
+    index: 1000 + i,
+  }));
+  return { spots, facilities, scenery };
+}
+
+const cache = new Map<string, StageLayout>();
+
+/** 스테이지 길 (같은 시드면 같은 길 — 자주 부르니 기억해 둠). saved = 세이브에 적힌 병원 · 상점 자리 (없으면 시드로) */
+export function stageLayout(stageId: StageId, seed: number, saved: readonly FacilitySpot[] = []): StageLayout {
+  const key = `${stageId}:${seed >>> 0}:${saved.map((f) => `${f.kind}@${f.at}`).join(',')}`;
+  let layout = cache.get(key);
+  if (!layout) {
+    layout = buildLayout(seed >>> 0, saved);
+    if (cache.size > 16) cache.clear();
+    cache.set(key, layout);
+  }
+  return layout;
+}
+
+/** 이번 걸음에 지나친 첫 자리 (from < at ≤ to) — 없으면 null */
+export function spotBetween(layout: StageLayout, from: number, to: number): Spot | null {
+  for (const s of layout.spots) {
+    if (s.at > to) return null;
+    if (s.at > from) return s;
+  }
+  return null;
+}
+
+/** 걸음 하나만큼 나아가는 진행 % */
+export function walkDelta(stepMs: number): number {
+  return stepMs / BALANCE.stageWalkMs;
+}
+
+/** 스테이지 레벨대 */
+export function stageLevelBand(stageId: StageId): readonly [number, number] {
+  return BALANCE.stageLevels[stageId];
+}

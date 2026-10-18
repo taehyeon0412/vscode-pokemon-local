@@ -10,10 +10,16 @@ import type { LoadResult, SaveStore } from './save-store';
 
 export interface GameTestApi {
   ready: Promise<LoadResult>;
-  debug(): { mode: string; owner: string; epoch: number; load: string; running: boolean; playTimeMs: number | null; money: number | null; stats: SessionStats };
+  debug(): {
+    mode: string; owner: string; epoch: number; load: string; running: boolean; playTimeMs: number | null; money: number | null; stats: SessionStats;
+    /** 스테이지 진행 % (스테이지에 있을 때) · 만난 종 수 · 가방 몬스터볼 수 */
+    progress: number | null; seen: number; balls: number;
+  };
   enterGame(): Promise<EnterResult>;
   exitGame(): Promise<void>;
   startNewSave(save: Save): Promise<'done' | 'busy' | 'failed'>;
+  /** 시간 배속 (게임 중에만) */
+  setSpeed(speed: number): boolean;
   /** 웹뷰가 보낸 것처럼 (타이틀 버튼 누르기 등 — 웹뷰 화면은 확장 쪽 테스트에서 누를 수 없어서) */
   fromWebview(message: unknown): void;
   /** 게임 상태의 세이브를 바꾸고 저장은 기다리게만 둠 — VS Code 를 끌 때(deactivate) 저장되는지 보려고 (게임 모드에서) */
@@ -40,14 +46,19 @@ export function createTestApi(
     ready,
     debug() {
       const s = session.snapshot;
+      const loc = s.state?.save.location;
       return {
         mode: s.mode, owner: s.owner, epoch: s.epoch, load: s.load, running: s.running,
         playTimeMs: s.state?.save.playTimeMs ?? null, money: s.state?.save.money ?? null, stats: { ...session.stats },
+        progress: loc?.screen === 'stage' ? (s.state?.save.stages[loc.stageId]?.progress ?? null) : null,
+        seen: s.state?.save.dex.seen.length ?? 0,
+        balls: s.state?.save.bag['poke-ball'] ?? 0,
       };
     },
     enterGame: () => session.enterGame(),
     exitGame: () => session.exitGame(),
     startNewSave: (save) => session.startNewSave(save),
+    setSpeed: (speed) => session.setSpeed(speed),
     fromWebview: (message) => session.handleMessage(message),
     queueUnsaved: (patch) => session.changeSave((s) => ({ ...s, ...patch })),
     flush: () => store.flush(),

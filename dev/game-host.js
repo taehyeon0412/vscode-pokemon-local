@@ -1,5 +1,6 @@
 // 게임 모드 미리보기의 가짜 확장 쪽 — dev/game.html 에서 씀 (사진은 dev/game-shots.py)
 //   ?screen=title|game  save=none|ok|broken|newer  busy=1  notice=글  size=nano|small|medium|large  theme=dark|light  click=new|continue|exit
+//   progress=0~1 (숲 1-1 진행, 스테이지 시드 42 — 그 자리 바로 앞에서 시작해 흔적 · 조우 · 부탁을 찍음)
 // 확장이 하는 일 중 화면에 보이는 것만 흉내: ready → title · start, title-new · title-continue → start, exit → stop
 (function () {
     const q = new URLSearchParams(location.search);
@@ -30,7 +31,8 @@
         monsters: { m1: { uid: 'm1', species: 1, form: 'bulbasaur', level: 5, exp: 125, ivs: { hp: 1, attack: 1, defense: 1, speed: 1, ultimate: 1 },
             points: { hp: 0, attack: 0, defense: 0, speed: 0, ultimate: 0 }, unspentPoints: 0, moves: [{ moveId: 33, pp: 35 }], hp: 20, status: null, shiny: false, caughtAt: 'starter' } },
         party: ['m1'], box: [], nextMonsterUid: 2, bag: { 'poke-ball': 3 }, money: 1000, badges: [],
-        stages: {}, location: { screen: 'stage', stageId: 'forest-1' }, lastHospital: null, dex: { seen: [1], caught: [1] },
+        stages: { 'forest-1': { seed: 42, progress: Number(q.get('progress') || 0), cleared: false, defeatedTrainers: [], facilities: [] } },
+        location: { screen: 'stage', stageId: 'forest-1' }, lastHospital: null, dex: { seen: [1], caught: [1] },
         pendingEncounter: null, settings: { notifications: true, autoBattle: false },
     };
     const info = {
@@ -56,6 +58,12 @@
         },
     };
     window.pokemonGameConfig = { media: '../extension/media', size, script: '../extension/media/game/game.js' };
+
+    // 머리 없는 브라우저 사진에서는 requestAnimationFrame 이 거의 안 돌아서 (가상 시간) 타이머로 대신 — dev/game-shots.py 가 shim=1
+    if (q.get('shim') === '1') {
+        window.requestAnimationFrame = (cb) => setTimeout(() => cb(performance.now()), 16);
+        window.cancelAnimationFrame = (id) => clearTimeout(id);
+    }
 
     const s = document.createElement('script');
     s.src = '../extension/media/game/game.js';

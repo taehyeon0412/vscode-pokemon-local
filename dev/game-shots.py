@@ -42,6 +42,17 @@ SHOTS = [
     ("title-ok-narrow-320", "320x68", {"screen": "title", "save": "ok"}),
     ("title-ok-light", "720x92", {"screen": "title", "save": "ok", "theme": "light"}),
     ("stage-68", "720x68", {"screen": "game"}),
+    ("stage-trace-116", "720x116", {"screen": "game", "progress": "0.0364", "size": "medium"}),
+    ("stage-appear-92", "720x92", {"screen": "game", "progress": "0.0463"}),
+    ("stage-battle-temp-92", "720x92", {"screen": "game", "progress": "0.0483"}),
+    ("stage-item-92", "720x92", {"screen": "game", "progress": "0.3092"}),
+    ("stage-request-68", "720x68", {"screen": "game", "progress": "0.8784"}),
+    ("stage-request-140", "720x140", {"screen": "game", "progress": "0.8784", "size": "large"}),
+    ("stage-end-92", "720x92", {"screen": "game", "progress": "0.99999"}),
+    ("stage-request-240", "240x92", {"screen": "game", "progress": "0.8784"}),
+    ("stage-end-240", "240x92", {"screen": "game", "progress": "0.99999"}),
+    ("stage-item-116", "720x116", {"screen": "game", "progress": "0.3097", "size": "medium"}),
+    ("stage-light-116", "720x116", {"screen": "game", "progress": "0.0364", "theme": "light", "size": "medium"}),
     ("stage-116-medium", "720x116", {"screen": "game", "size": "medium"}),
     ("stage-140-large", "720x140", {"screen": "game", "size": "large"}),
     ("stage-narrow-320", "320x68", {"screen": "game"}),
@@ -90,7 +101,7 @@ def png_size(path):
 def shoot(url, win, path):
     with tempfile.TemporaryDirectory() as prof:
         cmd = [browser(), "--headless=new", "--disable-gpu", "--no-first-run", "--no-default-browser-check", "--hide-scrollbars", "--mute-audio",
-               "--force-device-scale-factor=1", f"--user-data-dir={prof}", f"--window-size={win.replace('x', ',')}", "--virtual-time-budget=3000",
+               "--force-device-scale-factor=1", f"--user-data-dir={prof}", f"--window-size={win.replace('x', ',')}", "--virtual-time-budget=3500",
                f"--screenshot={path}", url]
         subprocess.run(cmd, capture_output=True, timeout=60)
 
@@ -113,7 +124,7 @@ def main():
                 os.remove(path)
             # 머리 없는 브라우저는 찍는 순간에야 창 크기가 맞음 → 처음부터 정확한 크기인 iframe 에 띄움 (dev/frame.html), 창 = iframe 크기
             w, h = win.split("x")
-            frame = f"http://127.0.0.1:{port}/dev/frame.html?" + urllib.parse.urlencode({"w": w, "h": h, "page": "game.html", "q": urllib.parse.urlencode(params)})
+            frame = f"http://127.0.0.1:{port}/dev/frame.html?" + urllib.parse.urlencode({"w": w, "h": h, "page": "game.html", "q": urllib.parse.urlencode({**params, "shim": "1"})})
             shoot(frame, win, path)
             if os.path.exists(path):
                 w, h = png_size(path)

@@ -95,8 +95,25 @@ describe('게임 상태 앞으로 가기', () => {
   });
 
   it('다른 쪽에서 온 진행 중 상태가 이상하면 새 시드 · 0 으로', () => {
-    expect(readRuntime({ rngState: 12, stepAccMs: 30 }, 1)).toEqual({ rngState: 12, stepAccMs: 30 });
-    expect(readRuntime({ rngState: -1, stepAccMs: 900 }, 7)).toEqual({ rngState: 7, stepAccMs: 0 });
-    expect(readRuntime('x', 8)).toEqual({ rngState: 8, stepAccMs: 0 });
+    const base = { speed: 1, stage: null, stageId: null, toast: null };
+    expect(readRuntime({ rngState: 12, stepAccMs: 30 }, 1)).toEqual({ rngState: 12, stepAccMs: 30, ...base });
+    expect(readRuntime({ rngState: -1, stepAccMs: 900 }, 7)).toEqual({ rngState: 7, stepAccMs: 0, ...base });
+    expect(readRuntime('x', 8)).toEqual({ rngState: 8, stepAccMs: 0, ...base });
+  });
+
+  it('스테이지 진행 중 상태 · 배속 · 알림도 모양을 검사 (이상하면 버리고 다음 걸음에 세이브를 보고 다시 정함)', () => {
+    expect(readRuntime({ speed: 10, stage: { phase: 'appear', ms: 100, space: true, ambush: false, isNew: true }, toast: { text: 'a', ms: 5 } }, 1)).toMatchObject({
+      speed: 10,
+      stage: { phase: 'appear', ms: 100, space: true, ambush: false, isNew: true },
+      toast: { text: 'a', ms: 5 },
+    });
+    expect(readRuntime({ stageId: 'forest-2', stage: { phase: 'request', at: 0.5, number: 0, result: { ok: true, text: '고마워', reward: '상처약 2개' }, ms: 0 } }, 1)).toMatchObject({
+      stageId: 'forest-2',
+      stage: { phase: 'request', at: 0.5, number: 0, result: { ok: true, text: '고마워', reward: '상처약 2개' }, ms: 0 },
+    });
+    expect(readRuntime({ stageId: 'volcano-9' }, 1).stageId).toBeNull();
+    expect(readRuntime({ speed: 9999, stage: { phase: 'fly' }, toast: 'x' }, 1)).toMatchObject({ speed: 1, stage: null, toast: null });
+    expect(readRuntime({ stage: { phase: 'appear', ms: -1, space: true, ambush: false, isNew: true } }, 1).stage).toBeNull();
+    expect(readRuntime({ stage: { phase: 'request', at: 2, number: 0, result: null, ms: 0 } }, 1).stage).toBeNull();
   });
 });
