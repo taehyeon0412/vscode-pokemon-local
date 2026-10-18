@@ -241,14 +241,21 @@ describe('맞받아치기 · 힘대결 (mvp-spec 3.3 · S10)', () => {
     expect(done.msg).toContain('힘대결');
   });
 
-  it('내 게이지가 절반 아래거나 쏘는 기술이 없으면 버튼이 안 뜸 → 그냥 맞음', () => {
-    const low = foeShoots(0.3);
-    expect(low.b.anim?.counter).toBe(false);
-    expect(battleInput(low.b, low.save, { kind: 'space' }, new SeededRng(1))).toBe(low.b);
+  it('내 게이지가 낮아도 쏘는 기술이 있으면 버튼이 뜸 — 누르면 게이지를 다 씀 (2026-10-18 태현 님)', () => {
+    const low = foeShoots(0.1);
+    expect(low.b.anim?.counter).toBe(true);
+    expect(counterOpen(low.b)).toBe(true);
+    const c = battleInput(low.b, low.save, { kind: 'space' }, new SeededRng(1));
+    expect(c.phase).toBe('clash');
+    expect(c.me.gauge).toBe(0);
+  });
+
+  it('쏘는 기술이 없으면 버튼이 안 뜸 → 그냥 맞음', () => {
     const noShot = foeShoots(0.9, [{ moveId: TACKLE, pp: 9 }]);
     expect(noShot.b.anim?.counter).toBe(false);
-    const hit = run(low.b, low.save, TIMING.moveAnimMs, fixedRng(0.5));
-    expect(hit.me.hp).toBeLessThan(low.b.me.hp);
+    expect(battleInput(noShot.b, noShot.save, { kind: 'space' }, new SeededRng(1))).toBe(noShot.b);
+    const hit = run(noShot.b, noShot.save, TIMING.moveAnimMs, fixedRng(0.5));
+    expect(hit.me.hp).toBeLessThan(noShot.b.me.hp);
   });
 
   it('누르지 않으면 1.5초 동안 날아온 뒤 맞음', () => {

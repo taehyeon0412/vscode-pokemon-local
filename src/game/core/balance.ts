@@ -97,8 +97,6 @@ export const BALANCE = {
   /** 필살 스탯이 같은 레벨의 필살 종족값 40 ~ 120 포켓몬 사이 어디쯤인지 → 게이지가 차는 빠르기 × 0.8 ~ 1.2 [제안] */
   ultGainStatRange: [40, 120],
   ultGainFactorRange: [0.8, 1.2],
-  /** 맞받아치기: 내 행동 게이지가 이만큼 이상 · 버튼이 떠 있는 시간은 TIMING.counterWindowMs */
-  counterMinGauge: 0.5,
   /** 힘대결: 센 쪽 50 ~ 80% (차이가 50% 이상이면 80) · 연타 1번 +1%p · 최대 +20%p · 합쳐서 최대 95% */
   clashMin: 0.5,
   clashMax: 0.8,

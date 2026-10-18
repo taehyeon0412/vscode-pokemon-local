@@ -229,8 +229,8 @@ function startAction(b0: BattleState, side: Side, action0: BattleAction, rng: Rn
       const mv = moveOf(id);
       b.msg = `${label(actor, side)}의 ${moveName(id)}!`;
       dur = TIMING.moveAnimMs;
-      // 상대가 쏘는 기술 → 내 게이지가 절반 이상이고 나도 쏘는 기술이 있으면 맞받아치기 창
-      if (side === 'foe' && isShooting(mv) && b.me.gauge >= BALANCE.counterMinGauge && mv && counterMove(b.me, mv)) {
+      // 상대가 쏘는 기술 → 나도 쏘는 기술이 있으면 늘 맞받아치기 창 (누르면 지금 행동 게이지를 다 씀 — 2026-10-18 태현 님)
+      if (side === 'foe' && b.me.hp > 0 && isShooting(mv) && mv && counterMove(b.me, mv)) {
         counter = true;
         dur = Math.max(dur, TIMING.counterWindowMs);
       }
@@ -563,7 +563,7 @@ export function canUlt(b: BattleState): boolean {
 
 /** 맞받아치기 버튼이 떠 있는지 */
 export function counterOpen(b: BattleState): boolean {
-  return b.phase === 'anim' && !!b.anim?.counter && b.anim.side === 'foe' && b.me.gauge >= BALANCE.counterMinGauge;
+  return b.phase === 'anim' && !!b.anim?.counter && b.anim.side === 'foe' && b.me.hp > 0;
 }
 
 /** 상대 필살기에 내 필살기로 맞받아칠 수 있는지 */
