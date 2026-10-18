@@ -150,5 +150,5 @@
   "dragonair": {"moves": [["파괴광선", "beam", {"c": "hyper", "width": 1.4, "sparkle": "hyper"}]], "ult": [["용성군", "ultskyfall", {"shape": "meteor", "n": 10, "c": "dragon"}], ["용의파동", "ultorb", {"style": "energy", "c": "dragon", "size": 1.2}]]},
   "dragonite": {"moves": [["파괴광선", "beam", {"c": "hyper", "width": 1.4, "sparkle": "hyper"}]], "ult": [["파괴광선", "ultbeam", {"c": "hyper", "width": 1.3, "sparkle": "hyper"}], ["역린", "ultrush", {"c": "dragon", "fast": 1, "tc": "dragon"}]]},
   "mewtwo": {"ult": [["사이코브레이크", "ultorb", {"c": "psychic", "mewtwo": 1, "tc": "hypno"}], ["사이코키네시스", "ultpsy", {"c": "psychic", "mewtwo": 1, "tc": "hypno"}]]},
-  "mew": {"ult": [["오리진즈슈퍼노바", "ultorb", {"sky": 1, "c": "psychic", "size": 1.5}], ["사이코키네시스", "ultpsy", {"c": "fairy", "tc": "fairy"}]]}
+  "mew": {"ult": [["오리진즈슈퍼노바", "ultorb", {"c": "psychic", "mew": 1, "tc": "fairy"}], ["메트로놈", "ultpsy", {"c": "fairy", "mew": 1, "tc": "fairy"}]]}
 }
