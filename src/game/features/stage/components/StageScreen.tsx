@@ -194,11 +194,13 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen }: 
         )}
         <StageObjects objects={objects} media={media} scale={layout.scale} ground={ground} />
         <span class="pg-obj pg-hero-wrap" style={{ left: `${heroLeft}px`, bottom: `${ground}px` }}>
-          <Hero px={heroPx} walking={phase === 'walk'} />
+          <Hero px={heroPx} walking={phase === 'walk'} gender={save.player?.gender} />
         </span>
         {/* 전투 중 상대 트레이너 · 관장 = 오른쪽 끝 (남은 볼) · 대기실의 관장 */}
         {((battle && foeTrainer) || (gym && !battle)) && (
           <span class="pg-obj pg-foe-trainer" style={{ left: `${foeTrainerX(widthPx, layout.scale)}px`, bottom: `${ground}px` }} title={foeTrainer?.name ?? GYM_LEADER.name}>
+            {/* 머리 위 이름표 (decisions 2026-10-17) */}
+            <span class="pg-nametag">{foeTrainer?.name ?? GYM_LEADER.name}</span>
             {foeTrainer && (
               <span class="pg-foe-balls">
                 {Array.from({ length: foeTrainer.balls }, (_, i) => (

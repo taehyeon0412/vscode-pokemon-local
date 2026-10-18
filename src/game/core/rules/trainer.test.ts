@@ -34,6 +34,12 @@ describe('트레이너 (mvp-spec S08 · 4장)', () => {
     }
     expect(trainerTeam('forest-1', 7, 0, 3)).toEqual(trainerTeam('forest-1', 7, 0, 3));
   });
+
+  it('옷은 주인공의 짙은 파랑 옷 (#2f6fd0, Hero.tsx) 과 다름 — 모자만으로 구별하지 않게 (플레이 리뷰 단계 10)', () => {
+    for (const id of STAGE_IDS) {
+      for (let i = 0; i < trainerCount(id); i++) expect(trainerInfo(id, i).shirt.toLowerCase()).not.toBe('#2f6fd0');
+    }
+  });
 });
 
 describe('숲 관장 (mvp-spec 3.9)', () => {

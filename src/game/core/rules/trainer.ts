@@ -23,13 +23,14 @@ export interface TrainerInfo {
   shirt: string;
 }
 
-/** 숲의 트레이너 (이름 · 옷은 예시 — 원작 그림 · 이름 아님) */
+/** 숲의 트레이너 (이름은 예시 — 원작 그림 · 이름 아님). 사람 그림은 주인공과 같은 모양에 파란색 (decisions 2026-10-17: 주인공 빨강 · 트레이너 파랑 · 관장 금색) — 밝은 파랑 모자 · 하늘색 옷 (주인공의 짙은 파랑 옷과 구별) */
+const TRAINER_SHIRT = '#8cc4ff';
 const CLASSES = [
-  { title: '곤충채집 소년', hat: '#e0b02e', shirt: '#4f9a3a' },
-  { title: '피크닉 소녀', hat: '#e05a8a', shirt: '#f0e070' },
-  { title: '숲 탐험가', hat: '#7a5230', shirt: '#3a6a8a' },
-  { title: '꽃집 아이', hat: '#d84a4a', shirt: '#f2a0c0' },
-  { title: '등산가', hat: '#3a3a3a', shirt: '#c06a2e' },
+  { title: '곤충채집 소년', hat: '#2f6ff0', shirt: TRAINER_SHIRT },
+  { title: '피크닉 소녀', hat: '#4a8af0', shirt: TRAINER_SHIRT },
+  { title: '숲 탐험가', hat: '#3a7ae0', shirt: TRAINER_SHIRT },
+  { title: '꽃집 아이', hat: '#6aa0ff', shirt: TRAINER_SHIRT },
+  { title: '등산가', hat: '#2a62d8', shirt: TRAINER_SHIRT },
 ] as const;
 const NAMES = ['민수', '지호', '서연', '하은', '도윤', '유나', '현우', '소율', '태오', '다인'] as const;
 
@@ -70,8 +71,8 @@ export function trainerTeam(stageId: StageId, stageSeed: number, n: number, aliv
   return out;
 }
 
-/** 숲 관장 (이름 · 옷은 예시, 코드로 그린 사람 — 초록 모자 · 잎색 옷) */
-export const GYM_LEADER = { name: '관장 나래', title: '숲 체육관 관장', hat: '#2e8b3e', shirt: '#7ac74f' } as const;
+/** 숲 관장 (이름은 예시, 코드로 그린 사람 — 금색, decisions 2026-10-17) */
+export const GYM_LEADER = { name: '관장 나래', title: '숲 체육관 관장', hat: '#9a6f12', shirt: '#e3b341' } as const;
 /** 관장 포켓몬 개체값 — 늘 같게 (★4 쯤) */
 const LEADER_IVS: Stats = { hp: 20, attack: 20, defense: 20, speed: 20, ultimate: 20 };
 

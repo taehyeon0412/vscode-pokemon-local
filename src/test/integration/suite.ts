@@ -77,6 +77,10 @@ export async function run(): Promise<void> {
       const when = (c: string) => menus.find((m) => m.command === c)?.when ?? '';
       assert.equal(when(GAME_COMMAND_ID), 'view == pokemonView && vscode-pokemon.gameAvailable && !vscode-pokemon.gameMode');
       assert.equal(when(NORMAL_COMMAND_ID), 'view == pokemonView && vscode-pokemon.gameMode');
+      // 📦 내 포켓몬 꺼내기 · 넣기 (단계 10) — 🎮 옆, 게임 중에는 숨김
+      assert.ok(all.includes('vscode-pokemon.team-out') && all.includes('vscode-pokemon.team-in'));
+      assert.ok(when('vscode-pokemon.team-out').includes('!vscode-pokemon.teamOut') && when('vscode-pokemon.team-out').includes('!vscode-pokemon.gameMode'));
+      assert.ok(when('vscode-pokemon.team-in').includes('vscode-pokemon.teamOut'));
       for (const c of ['vscode-pokemon.spawn-pokemon', 'vscode-pokemon.spawn-random-pokemon', 'vscode-pokemon.delete-pokemon']) {
         assert.ok(when(c).includes('!vscode-pokemon.gameMode'), `${c} 는 게임 중에 숨겨야 함`);
       }

@@ -12,6 +12,7 @@ import { SettingsPanel } from '../features/menu/components/SettingsPanel';
 import { ShopPanel } from '../features/menu/components/ShopPanel';
 import { TeamPanel } from '../features/menu/components/TeamPanel';
 import type { Overlay } from '../features/menu/model';
+import type { NewGameChoice } from '../features/starter/model';
 import { StageScreen } from '../features/stage/components/StageScreen';
 import { TitleScreen } from '../features/title/components/TitleScreen';
 import type { TitleInfo } from '../shared/messages';
@@ -36,7 +37,8 @@ export interface ViewState {
 }
 
 export interface AppActions {
-  newGame(): void;
+  /** S03 · S04 에서 고른 것으로 새로 하기 */
+  newGame(choice: NewGameChoice): void;
   continueGame(): void;
   exit(): void;
   /** 게임 입력 (Space · 부탁 고르기 등) */
@@ -84,7 +86,7 @@ export function App({ store, media, actions }: { store: Store<ViewState>; media:
 function Screens({ v, media, actions }: { v: ViewState; media: string; actions: AppActions }) {
   if (v.layout.tooSmall) return <TooSmall layout={v.layout} />;
   if (v.screen === 'title' && v.title) {
-    return <TitleScreen info={v.title} media={media} pending={v.pending} onNew={actions.newGame} onContinue={actions.continueGame} />;
+    return <TitleScreen info={v.title} media={media} pending={v.pending} onNew={actions.newGame} onContinue={actions.continueGame} heroPx={Math.max(2, Math.round(2 * v.layout.scale))} />;
   }
   if (v.screen === 'game' && v.state) {
     return (

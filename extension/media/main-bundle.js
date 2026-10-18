@@ -5716,6 +5716,119 @@ function calculateFloor(size, theme) {
     }
     return 0;
 }
+/* GAME-PATCH: S01 ② 📦 내 포켓몬 꺼내기 — 게임 팀이 일반 모드 포켓몬과 같이 걸어 다님 (src/game/host/team-out.ts · src/game/shared/team-out.ts)
+ * 확장이 { command: 'game-team', team } 를 보냄 — 늘 "이 목록으로 맞춤" (넣기 = 빈 목록).
+ * 꺼낸 포켓몬은 element.game 표시: 웹뷰 저장 (saveState) · list-pokemon (확장의 저장 목록 · 설정 동기화) · 이름으로 지우기에서 빠짐.
+ * 머리 위에 레벨, 클릭 · 자동 기술 = 게임에서 배운 기술 (연출이 없는 기술은 그 타입 기본 연출에 진짜 이름), 꾹 누르기 필살기 = 종 필살기 그대로 */
+const GAME_MOVE_ALIAS = { 화염바퀴: '화염자동차' };
+const GAME_TYPE_MOVE = { normal: '몸통박치기', fire: '불꽃세례', water: '물대포', electric: '전기쇼크', grass: '잎날가르기', ice: '얼음뭉치', fighting: '태권당수', poison: '독침', ground: '진흙뿌리기', flying: '바람일으키기', psychic: '염동력', bug: '바늘미사일', rock: '돌떨구기', ghost: '나이트헤드', dragon: '용의분노', dark: '물기', steel: '아이언테일', fairy: '천사의키스' };
+function gameMoveEntry(label, m) {
+    const name = GAME_MOVE_ALIAS[m.name] || m.name;
+    const own = (POKEMON_MOVESET[label] || []).map((i) => MOVE_LIB[i]).find((v) => v && v[0] === name);
+    const found = own || MOVE_LIB.find((v) => v[0] === name);
+    if (found) {
+        return found;
+    }
+    const base = MOVE_LIB.find((v) => v[0] === (GAME_TYPE_MOVE[m.type] || '몸통박치기')) || MOVE_LIB[0];
+    return [m.name, base[1], base[2]];
+}
+// Lv 표를 그림처럼 0.15초 미끄러지게 — base-pokemon-type 모듈의 glideSprite 와 같은 동작 (그 함수는 이 모듈에서 안 보임)
+function gameGlide(el, dx, dy) {
+    if ((!dx && !dy) || Math.abs(dx) > 40 || Math.abs(dy) > 40) {
+        return; // 안 움직였거나 순간이동
+    }
+    const prev = el.gameGlideAnim;
+    if (prev && prev.playState === 'running') {
+        const progress = prev.effect.getComputedTiming().progress ?? 1;
+        dx += prev.gameDx * (1 - progress);
+        dy += prev.gameDy * (1 - progress);
+        prev.cancel();
+    }
+    const anim = el.animate([{ translate: `${dx}px ${dy}px` }, { translate: '0px 0px' }], { duration: 150, easing: 'linear' });
+    anim.startTime = document.timeline.currentTime;
+    anim.gameDx = dx;
+    anim.gameDy = dy;
+    el.gameGlideAnim = anim;
+}
+function gameTeamTag(element, level, index) {
+    const p = element.pokemon;
+    const tag = document.createElement('div');
+    tag.className = 'game-team-level';
+    tag.textContent = `Lv${level}`;
+    // 웹뷰 보안 규칙 (CSP) 때문에 style 속성 대신 하나씩
+    Object.assign(tag.style, { position: 'absolute', pointerEvents: 'none', fontFamily: 'silkscreen, monospace', fontSize: '8px', lineHeight: '9px', color: '#ffffff', textShadow: '0 0 2px #000000, 0 0 2px #000000', whiteSpace: 'nowrap', transform: 'translateX(-50%)', zIndex: '5' });
+    document.getElementById('pokemonContainer').appendChild(tag);
+    // 그림 가운데 위 — 그림처럼 0.15초 미끄러지게 (glideSprite) 해서 덜 떨림
+    const place = () => {
+        // 박자 (nextFrame) 안에서 불림 — 던지면 모든 포켓몬이 멈추니 잡음
+        try {
+            const w = p.calculateSpriteWidth(p._size, p._originalSpriteSize);
+            const l = p.left + w / 2;
+            const b = p.bottom + w + (index % 2) * 9;
+            if (tag.gameL !== undefined) {
+                gameGlide(tag, tag.gameL - l, b - tag.gameB);
+            }
+            tag.gameL = l;
+            tag.gameB = b;
+            tag.style.left = `${l}px`;
+            tag.style.bottom = `${b}px`;
+        }
+        catch (e) {
+            console.warn('[pokemon-game] Lv 표 자리 실패', e);
+        }
+    };
+    const base = p.repositionAccompanyingElements.bind(p);
+    p.repositionAccompanyingElements = () => {
+        base();
+        place();
+    };
+    place();
+    element.gameTag = tag;
+}
+function gameTeamRemove(element) {
+    const list = exports.allPokemon.pokemonCollection;
+    const i = list.indexOf(element);
+    if (i >= 0) {
+        list.splice(i, 1);
+    }
+    const p = element.pokemon;
+    p.gone = true; // 0.1초 박자 (startAnimations) 에서 빠짐
+    list.forEach((o) => {
+        if (o.pokemon.friend === p) {
+            o.pokemon._friend = undefined;
+        }
+    });
+    element.collision.remove();
+    element.speech.remove();
+    element.gameTag?.remove();
+    element.el.classList.add('fade-out');
+    element.el.addEventListener('animationend', () => element.el.remove(), { once: true });
+    setTimeout(() => element.el.remove(), 1500);
+}
+function gameTeamMessage(message, ctx) {
+    const want = Array.isArray(message.team) ? message.team.slice(0, 5) : [];
+    exports.allPokemon.pokemonCollection.filter((e) => e.game).forEach(gameTeamRemove);
+    want.forEach((t, index) => {
+        let element;
+        try {
+            const color = t.color === 'shiny' && (0, pokemon_collection_1.availableColors)(t.form).includes('shiny') ? 'shiny' : 'default';
+            element = addPokemonToPanel(t.form, ctx.basePokemonUri, t.gen, t.size, color, ctx.pokemonSize, randomStartPosition(), ctx.floor, ctx.floor, t.name, ctx.stateApi, false);
+            element.game = { uid: t.uid, level: t.level };
+            const moves = Array.isArray(t.moves) && t.moves.length ? t.moves : [{ name: '공격', type: 'normal' }];
+            element.pokemon.gameMoves = moves.map((m) => gameMoveEntry(t.form, m));
+            gameTeamTag(element, Number.isFinite(t.level) ? t.level : '?', index); // 레벨이 없는 메시지면 Lv?
+            exports.allPokemon.push(element);
+        }
+        catch (e) {
+            console.warn('[pokemon-game] 내 포켓몬 꺼내기 실패', t && t.form, e);
+            // 그림은 나왔는데 그 뒤에서 실패 — 목록 밖에서 계속 걷지 않게 치움
+            if (element) {
+                gameTeamRemove(element);
+            }
+        }
+    });
+}
+/* /GAME-PATCH */
 /* POKEMON-MOVES-PATCH */
 const POKEMON_MOVES = {"bulbasaur":["grass",0.26,26,21],"ivysaur":["grass",0.46,23,22],"venusaur":["grass",0.72,25,20],"venusaur_female":["grass",0.72,25,20],"charmander":["fire",0.24,26,21],"charmeleon":["fire",0.46,24,20],"charizard":["fire",0.74,28,16],"squirtle":["water",0.25,21,20],"wartortle":["water",0.46,22,20],"blastoise":["water",0.73,26,16],"pikachu":["electric",0.27,7,14,24,31],"pikachu_female":["electric",0.27,7,14,24,31],"raichu":["electric",0.63,3,12,26,31],"vulpix":["fire",0.22,26,22],"ninetales":["fire",0.68,27,21],"oddish":["grass",0.27,23,21],"gloom":["grass",0.43,26,21],"vileplume":["grass",0.64,25,19],"paras":["grass",0.19,24,23],"parasect":["grass",0.46,26,19],"psyduck":["water",0.27,24,21],"golduck":["water",0.67,24,20],"growlithe":["fire",0.33,24,19],"arcanine":["fire",0.79,28,18],"poliwag":["water",0.22,22,22],"poliwhirl":["water",0.41,23,20],"poliwrath":["water",0.69,23,19],"bellsprout":["grass",0.22,23,20],"weepinbell":["grass",0.42,23,22],"victreebel":["grass",0.64,24,14],"tentacool":["water",0.3,23,18],"tentacruel":["water",0.7,26,18],"ponyta":["fire",0.47,24,20],"rapidash":["fire",0.67,27,19],"slowpoke":["water",0.26,27,23],"slowbro":["water",0.64,25,19],"magnemite":["electric",0.28,9,17,20,30],"magneton":["electric",0.59,7,7,22,30],"seel":["water",0.28,25,20],"dewgong":["water",0.61,26,18],"shellder":["water",0.23,21,17],"cloyster":["water",0.72,24,15],"krabby":["water",0.28,26,23],"kingler":["water",0.61,30,16],"voltorb":["electric",0.29,9,16,24,31],"electrode":["electric",0.64,5,10,27,31],"exeggcute":["grass",0.28,28,18],"exeggutor":["grass",0.73,28,10],"tangela":["grass",0.52,23,20],"horsea":["water",0.21,22,20],"seadra":["water",0.53,21,16],"goldeen":["water",0.27,21,20],"seaking":["water",0.56,26,18],"staryu":["water",0.31,20,20],"starmie":["water",0.71,22,18],"electabuzz":["electric",0.64,1,9,22,31],"magmar":["fire",0.66,22,18],"magikarp":["water",0,25,18],"gyarados":["water",0.76,27,14],"lapras":["water",0.74,23,16],"vaporeon":["water",0.72,27,20],"jolteon":["electric",0.72,1,13,25,31],"flareon":["fire",0.72,25,18],"omanyte":["water",0.34,21,22],"omastar":["water",0.66,23,18],"kabuto":["water",0.34,24,21],"kabutops":["water",0.66,26,19],"zapdos":["electric",0.84,1,7,25,31],"moltres":["fire",0.84,26,14],"chikorita":["grass",0.26,21,20],"bayleef":["grass",0.46,25,13],"meganium":["grass",0.72,25,12],"meganium_female":["grass",0.72,25,12],"cyndaquil":["fire",0.24,24,22],"quilava":["fire",0.46,25,19],"typhlosion":["fire",0.74,25,16],"totodile":["water",0.25,24,21],"croconaw":["water",0.46,23,17],"feraligatr":["water",0.73,27,14],"chinchou":["water",0.29,24,20],"lanturn":["water",0.58,27,18],"pichu":["electric",0.01,8,16,23,31],"pichu_spiky_eared":["electric",0.01,8,14,23,31],"mareep":["electric",0.18,6,13,26,31],"flaaffy":["electric",0.37,3,11,24,31],"ampharos":["electric",0.69,2,8,25,32],"bellossom":["grass",0.64,20,19],"marill":["water",0.11,22,22],"azumarill":["water",0.49,22,18],"politoed":["water",0.67,23,19],"hoppip":["grass",0.11,20,15],"skiploom":["grass",0.31,21,18],"jumpluff":["grass",0.58,21,16],"sunkern":["grass",0,20,22],"sunflora":["grass",0.5,21,18],"wooper":["water",0.02,22,22],"quagsire":["water",0.51,23,17],"slowking":["water",0.64,22,18],"qwilfish":["water",0.53,25,18],"slugma":["fire",0.11,24,20],"magcargo":["fire",0.51,25,19],"corsola":["water",0.47,25,21],"remoraid":["water",0.22,24,20],"octillery":["water",0.62,25,18],"mantine":["water",0.63,28,15],"houndour":["fire",0.29,24,20],"houndoom":["fire",0.67,25,18],"kingdra":["water",0.76,25,20],"elekid":["electric",0.36,10,13,23,31],"magby":["fire",0.37,21,18],"raikou":["electric",0.84,1,7,28,31],"entei":["fire",0.84,26,17],"suicune":["water",0.84,28,20],"hooh":["fire",1,50,39],"celebi":["grass",0.89,22,20],"treecko":["grass",0.24,24,22],"grovyle":["grass",0.46,22,20],"sceptile":["grass",0.73,26,14],"torchic":["fire",0.24,22,21],"combusken":["fire",0.46,22,20],"blaziken":["fire",0.73,25,16],"mudkip":["water",0.24,21,22],"marshtomp":["water",0.46,22,20],"swampert":["water",0.74,27,18],"lotad":["water",0.04,24,20],"lombre":["water",0.31,24,16],"ludicolo":["water",0.62,26,13],"seedot":["grass",0.04,21,21],"nuzleaf":["grass",0.31,22,20],"shiftry":["grass",0.62,24,19],"wingull":["water",0.16,24,21],"pelipper":["water",0.53,24,16],"surskit":["water",0.15,23,22],"shroomish":["grass",0.21,23,22],"breloom":["grass",0.58,25,15],"electrike":["electric",0.21,2,18,25,31],"manectric":["electric",0.61,2,8,26,31],"plusle":["electric",0.46,9,15,23,31],"minun":["electric",0.46,9,15,23,31],"roselia":["grass",0.44,21,20],"carvanha":["water",0.23,25,20],"sharpedo":["water",0.58,27,19],"wailmer":["water",0.44,24,20],"wailord":["water",0.67,52,48],"numel":["fire",0.23,26,20],"camerupt":["fire",0.58,29,20],"torkoal":["fire",0.6,27,20],"cacnea":["grass",0.3,22,22],"cacturne":["grass",0.61,24,18],"barboach":["water",0.2,23,18],"whiscash":["water",0.6,26,21],"corphish":["water",0.24,23,18],"crawdaunt":["water",0.6,23,17],"lileep":["grass",0.34,24,18],"cradily":["grass",0.66,25,16],"feebas":["water",0,22,23],"milotic":["water",0.76,26,18],"tropius":["grass",0.58,29,16],"spheal":["water",0.2,23,22],"sealeo":["water",0.47,26,18],"walrein":["water",0.73,29,12],"clamperl":["water",0.32,20,24],"huntail":["water",0.63,26,18],"gorebyss":["water",0.63,25,19],"relicanth":["water",0.63,24,22],"luvdisc":["water",0.29,23,22],"kyogre":["water",1,50,47],"turtwig":["grass",0.26,24,21],"grotle":["grass",0.46,23,21],"torterra":["grass",0.72,25,19],"chimchar":["fire",0.24,22,20],"monferno":["fire",0.46,25,18],"infernape":["fire",0.74,26,16],"piplup":["water",0.25,22,21],"prinplup":["water",0.46,23,18],"empoleon":["water",0.73,24,16],"bibarel":["water",0.47,30,22],"shinx":["electric",0.14,6,17,26,31],"luxio":["electric",0.36,2,12,26,31],"luxray":["electric",0.72,1,9,26,31],"budew":["grass",0.18,21,23],"roserade":["grass",0.7,23,14],"wormadam_plant":["grass",0.5,22,18],"wormadam_sandy":["grass",0.5,22,18],"wormadam_trash":["grass",0.5,22,18],"pachirisu":["electric",0.46,7,15,25,30],"buizel":["water",0.29,26,22],"floatzel":["water",0.66,24,14],"cherubi":["grass",0.17,20,19],"cherrim":["grass",0.56,21,21],"shellos_west":["water",0.28,23,18],"shellos_east":["water",0.28,22,21],"gastrodon_west":["water",0.61,23,16],"gastrodon_east":["water",0.61,24,16],"carnivine":["grass",0.56,24,15],"finneon":["water",0.29,23,22],"lumineon":["water",0.58,24,20],"mantyke":["water",0.32,25,19],"snover":["grass",0.3,23,20],"abomasnow":["grass",0.65,26,17],"magnezone":["electric",0.74,3,9,27,32],"tangrowth":["grass",0.74,24,16],"electivire":["electric",0.76,4,7,29,31],"magmortar":["fire",0.76,25,15],"leafeon":["grass",0.72,26,20],"rotom":["electric",0.53,5,11,23,31],"rotom_heat":["electric",0.53,2,11,25,30],"rotom_wash":["electric",0.53,2,8,26,31],"rotom_frost":["electric",0.53,3,8,24,30],"rotom_fan":["electric",0.53,3,7,28,31],"rotom_mow":["electric",0.53,1,11,26,31],"palkia":["water",1,53,36],"heatran":["fire",0.89,29,18],"phione":["water",0.62,22,22],"manaphy":["water",0.89,22,20],"shaymin":["grass",0.89,23,22],"shaymin_sky":["grass",0.89,22,18],"victini":["fire",0.89,21,20],"snivy":["grass",0.24,27,20],"servine":["grass",0.47,26,11],"serperior":["grass",0.73,45,41],"tepig":["fire",0.24,26,22],"pignite":["fire",0.48,23,18],"emboar":["fire",0.73,41,50],"oshawott":["water",0.24,22,18],"dewott":["water",0.47,20,14],"samurott":["water",0.73,51,37],"pansage":["grass",0.26,21,20],"pansear":["fire",0.26,21,19],"panpour":["water",0.26,21,18],"zebstrika":["electric",0.66,2,5,31,30],"tympole":["water",0.21,23,22],"leavanny":["grass",0.67,21,15],"cottonee":["grass",0.18,22,18],"petilil":["grass",0.18,22,18],"basculin_red_striped":["water",0.58,22,20],"basculin_blue_striped":["water",0.58,22,20],"maractus":["grass",0.58,20,14],"tirtouga":["water",0.34,26,18],"ducklett":["water",0.23,22,18],"deerling_spring":["grass",0.3,25,18],"deerling_summer":["grass",0.3,25,18],"deerling_autumn":["grass",0.3,25,18],"deerling_winter":["grass",0.3,25,18],"emolga":["electric",0.51,7,10,24,25],"alomomola":["water",0.6,21,15],"galvantula":["electric",0.6,4,13,28,28],"litwick":["fire",0.17,21,18],"stunfisk":["electric",0.6,7,15,25,28],"heatmor":["fire",0.63,28,14],"virizion":["grass",0.84,28,12],"keldeo":["water",0.84,25,15],"froakie":["water",0.25,21,21],"frogadier":["water",0.46,46,48],"greninja":["water",0.73,25,14],"chespin":["grass",0.25,21,18],"quilladin":["grass",0.46,25,18],"chesnaught":["grass",0.73,43,42],"fennekin":["fire",0.24,26,20],"braixen":["fire",0.46,23,14],"delphox":["fire",0.74,23,12]};
 const POKEMON_ACTS = {"charizard":"fly","butterfree":"fly","pidgey":"fly","pidgeotto":"fly","pidgeot":"fly","spearow":"fly","fearow":"fly","zubat":"fly","golbat":"fly","poliwag":"jump","poliwhirl":"jump","poliwrath":"jump","farfetchd":"fly","hitmonlee":"jump","hitmonchan":"jump","scyther":"jump","aerodactyl":"fly","articuno":"fly","zapdos":"fly","moltres":"fly","dragonite":"fly","hoothoot":"fly","noctowl":"fly","ledyba":"fly","ledian":"fly","crobat":"fly","togetic":"fly","natu":"fly","xatu":"fly","politoed":"jump","yanma":"fly","murkrow":"fly","gligar":"fly","sneasel":"jump","delibird":"fly","skarmory":"fly","lugia":"fly","hooh":"fly","beautifly":"fly","taillow":"fly","swellow":"fly","wingull":"fly","pelipper":"fly","masquerain":"fly","ninjask":"fly","spoink":"jump","grumpig":"jump","swablu":"fly","altaria":"fly","tropius":"fly","salamence":"fly","starly":"fly","staravia":"fly","staraptor":"fly","mothim":"fly","combee_male":"fly","combee_female":"fly","vespiquen":"fly","buneary":"jump","lopunny":"jump","honchkrow":"fly","chatot":"fly","riolu":"jump","lucario":"jump","croagunk":"jump","toxicroak":"jump","weavile":"jump","togekiss":"fly","yanmega":"fly","gliscor":"fly","pidove":"fly","woobat":"fly","tympole":"jump","sigilyph":"fly","ducklett":"fly","emolga":"fly","mienfoo":"jump","braviary":"fly","mandibuzz":"fly","froakie":"jump","frogadier":"jump","greninja":"jump"};
@@ -7876,7 +7989,8 @@ function useSignature(pokemon, sig, left) {
 // faceLeft 를 주면 그쪽을 보고 씀 (클릭 — 화면 가운데 쪽)
 function useMove(pokemon, faceLeft) {
     const move = POKEMON_MOVES[pokemon.label];
-    const sig = POKEMON_SHAPE[pokemon.label] && sigEntry(pokemon.label);
+    // GAME-PATCH: 📦 게임에서 꺼낸 포켓몬은 게임에서 배운 기술 중 하나 (main-bundle.js gameMoveEntry)
+    const sig = POKEMON_SHAPE[pokemon.label] && (pokemon.gameMoves?.length ? movePick(pokemon.gameMoves) : sigEntry(pokemon.label));
     const current = pokemon.currentState;
     if ((!move && !sig) || !pokemon.canSwipe || current instanceof MoveState || current instanceof JumpState || current instanceof TumbleState || current instanceof DashState || current instanceof SplashState) {
         return;
@@ -29813,18 +29927,22 @@ let lastSavedAt = 0;
 // 패널이 안 보이면 그리기도 멈춰서 그동안은 안 돌고 CPU 도 안 씀
 const tickCallbacks = [];
 let tickLast = 0;
+let tickRunning = false;
 function everyTick(fn) {
     tickCallbacks.push(fn);
-    if (tickCallbacks.length > 1) {
+    if (tickRunning) {
         return;
     }
+    tickRunning = true;
     const loop = (now) => {
         if (now - tickLast >= 100) {
             // 늦게 와도 한 번만 (몰아서 여러 번 안 돌림), 0.1초 박자는 유지
             tickLast = now - ((now - tickLast) % 100);
             // GAME-PATCH: 게임 모드 화면이 덮고 있는 동안은 일반 모드 포켓몬을 멈춤 (src/game/webview/main.ts)
             if (!document.body.classList.contains('pokemon-game-on')) {
-                tickCallbacks.forEach((f) => f());
+                // GAME-PATCH: false 를 돌려준 콜백 (📦 넣은 게임 포켓몬) 은 빼냄 — 꺼내기 · 넣기마다 쌓이지 않게
+                const dead = tickCallbacks.filter((f) => f() === false);
+                dead.forEach((f) => tickCallbacks.splice(tickCallbacks.indexOf(f), 1));
             }
         }
         requestAnimationFrame(loop);
@@ -29837,6 +29955,9 @@ function startAnimations(collision, pokemon, stateApi) {
     }
     collision.addEventListener('mouseover', handleMouseOver); /* POKEMON-MOVES-PATCH */ collision.addEventListener('click', handleMoveClick); collision.addEventListener('pointerdown', handleDragStart); collision.addEventListener('pointerdown', handleUltPress); startMoveAuto(); /* /POKEMON-MOVES-PATCH */
     everyTick(() => {
+        if (pokemon.gone) {
+            return false; // GAME-PATCH: 📦 넣은 게임 포켓몬은 박자에서 빠짐 (everyTick 이 빼냄)
+        }
         var updates = exports.allPokemon.seekNewFriends();
         updates.forEach((message) => {
             stateApi?.postMessage({
@@ -29969,7 +30090,7 @@ function removePokemonFromPanel(message, stateApi) {
         stateApi = acquireVsCodeApi();
     }
     // Remove elements
-    var pokemon = exports.allPokemon.locate(message.name);
+    var pokemon = exports.allPokemon.pokemonCollection.find((e) => !e.game && e.pokemon.name === message.name); // GAME-PATCH: 📦 게임 포켓몬은 이름이 같아도 안 지움
     if (!pokemon) {
         stateApi?.postMessage({
             command: 'error',
@@ -29981,7 +30102,7 @@ function removePokemonFromPanel(message, stateApi) {
     console.log('Removing pokemon ', message.name);
     console.log('pokemon:', pokemon);
     // Remove from collection immediately so rapid deletes of Pokemon don't interfere with each other
-    exports.allPokemon.removeFromCollection(message.name);
+    exports.allPokemon.pokemonCollection.splice(exports.allPokemon.pokemonCollection.indexOf(pokemon), 1); // GAME-PATCH: 찾은 그 포켓몬을 (이름이 같은 게임 포켓몬 말고)
     pokemon.collision.remove();
     pokemon.speech.remove();
     pokemonCounter = normalizePokemonCounter(pokemonCounter - 1);
@@ -30019,7 +30140,7 @@ function saveState(stateApi) {
     }
     var state = new states_1.PokemonPanelState();
     state.pokemonStates = [];
-    exports.allPokemon.pokemonCollection.forEach((pokemonItem) => {
+    exports.allPokemon.pokemonCollection.filter((e) => !e.game) /* GAME-PATCH: 📦 게임 포켓몬은 저장 안 함 */.forEach((pokemonItem) => {
         state.pokemonStates?.push({
             pokemonName: pokemonItem.pokemon.name,
             pokemonColor: pokemonItem.color,
@@ -30164,6 +30285,7 @@ function pokemonPanelApp(basePokemonUri, theme, themeKind, pokemonColor, pokemon
                 stateApi?.postMessage({
                     command: 'list-pokemon',
                     text: pokemonCollection
+                        .filter((e) => !e.game) // GAME-PATCH: 📦 게임 포켓몬은 확장의 저장 목록 · 동기화에 안 섞임
                         .map((pokemon) => `${pokemon.type},${pokemon.pokemon.name},${pokemon.color}`)
                         .join('\n'),
                 });
@@ -30183,16 +30305,20 @@ function pokemonPanelApp(basePokemonUri, theme, themeKind, pokemonColor, pokemon
                 removePokemonFromPanel(message, stateApi);
                 break;
             case 'reset-pokemon':
-                var pokemonToRemove = [...exports.allPokemon.pokemonCollection];
+                var pokemonToRemove = exports.allPokemon.pokemonCollection.filter((e) => !e.game); // GAME-PATCH: 🗑 모두 지우기는 일반 모드 포켓몬만 (게임 팀은 📦 로 넣음)
                 pokemonToRemove.forEach((pokemon) => {
                     removePokemonFromPanel({ name: pokemon.pokemon.name }, stateApi);
                 });
                 // Wait for animations to complete before resetting
                 setTimeout(() => {
-                    exports.allPokemon.reset();
+                    exports.allPokemon.pokemonCollection.filter((e) => !e.game).forEach((e) => e.remove()); // GAME-PATCH: 게임 팀은 남김
+                    exports.allPokemon._pokemonCollection = exports.allPokemon.pokemonCollection.filter((e) => e.game);
                     pokemonCounter = 0;
                     saveState(stateApi);
                 }, 500);
+                break;
+            case 'game-team': // GAME-PATCH: 📦 내 포켓몬 꺼내기 · 넣기 (src/game/shared/team-out.ts)
+                gameTeamMessage(message, { basePokemonUri, pokemonSize, floor, stateApi });
                 break;
             case 'pause-pokemon':
                 pokemonCounter = 1;

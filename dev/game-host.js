@@ -93,7 +93,7 @@
     }
 
     // 단계 8 · 9 장면 — place=facility|hospital|shop|trainer|trainer-battle|defeat|clear|lobby|gym-battle|badge
-    //   시드 42 숲 1-1: 병원 0.4724 · 상점 0.6132 · 트레이너 t0 0.40344 (등산가 민수, ◓ 3) · 부탁 0.75728
+    //   시드 42 숲 1-1: 병원 0.4724 · 상점 0.6132 · 트레이너 t0 0.30551 · t1 0.7019 (자리는 스테이지마다 정해짐) · 부탁 0.88669
     const place = q.get('place');
     if (place) {
         const st = save.stages['forest-1'];
@@ -123,7 +123,7 @@
         if (place === 'facility' || place === 'hospital') { st.progress = 0.4724 - 1e-7; stage = { phase: 'facility', kind: 'hospital', at: 0.4724, ms: 1500, inside: place === 'hospital' }; }
         if (place === 'shop') { st.progress = 0.6132; stage = { phase: 'facility', kind: 'shop', at: 0.6132, ms: 0, inside: true }; }
         if (place === 'trainer' || place === 'trainer-battle') {
-            st.progress = 0.40344;
+            st.progress = 0.30551;
             save.pendingEncounter = { kind: 'trainer', trainerId: 'forest-1:t0', stageId: 'forest-1' };
             stage = place === 'trainer' ? { phase: 'trainer', n: 0, ms: 1200 } : { phase: 'battle', battle: battle('trainer', '등산가 민수', foeMon('foe0', 11, 'metapod', 6), [foeMon('foe1', 14, 'kakuna', 6)]) };
         }
@@ -185,7 +185,7 @@
             const d = document.createElement('pre');
             d.style.cssText = 'position:fixed;left:0;bottom:0;z-index:99999;margin:0;color:#8f8;background:#000;font-size:10px;white-space:pre-wrap';
             if (!el) d.textContent = 'no element';
-            else { const cs = getComputedStyle(el); d.textContent = ['background-color', 'opacity', 'z-index', 'position', 'width', 'height', 'display'].map((k) => k + '=' + cs.getPropertyValue(k)).join(' · '); }
+            else { const cs = getComputedStyle(el); d.textContent = ['background-color', 'opacity', 'z-index', 'position', 'width', 'height', 'display', 'transform', 'filter', 'visibility'].map((k) => k + '=' + cs.getPropertyValue(k)).join(' · ') + (el.tagName === 'IMG' ? ' · src=' + el.getAttribute('src') + ' · nat=' + el.naturalWidth : ''); }
             document.body.appendChild(d);
         }, 900);
     }
@@ -205,6 +205,15 @@
             if (click === 'profile') {
                 const f = document.querySelector('#pokemon-game .pg-fighter-foe');
                 if (f) return f.click();
+                if (left > 0) setTimeout(() => tryClick(left - 1), 100);
+                return;
+            }
+            // hero = 새로 하기 → S03 · starter = S03 에서 남 → S04 (pick=N 이면 → 를 N 번 — 예: 12 = 개구마르 계열)
+            if (click === 'hero' || click === 'starter') {
+                const nb = [...document.querySelectorAll('#pokemon-game button')].find((x) => x.textContent.includes('새로 하기'));
+                const pick = Number(q.get('pick') || 0);
+                const right = () => { for (let i = 0; i < pick; i++) window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' })); };
+                if (nb) { nb.click(); if (click === 'starter') setTimeout(() => { document.querySelector('#pokemon-game .pg-hero-choice')?.click(); setTimeout(right, 200); }, 200); return; }
                 if (left > 0) setTimeout(() => tryClick(left - 1), 100);
                 return;
             }

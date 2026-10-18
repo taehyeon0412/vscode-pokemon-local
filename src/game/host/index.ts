@@ -15,6 +15,7 @@ import { GameSession } from './game-session';
 import { FileSaveArchive } from './save-archive';
 import { FileSaveStorage } from './save-file';
 import { SaveStore, type LoadResult } from './save-store';
+import { TeamOut } from './team-out';
 import { createTestApi, type GameTestApi } from './test-api';
 import { connectWebviewView } from './view-port';
 import { FileLeaseFile, WindowLease } from './window-lease';
@@ -53,6 +54,27 @@ export function activate(context: vscode.ExtensionContext): GameHost {
     onLost: () => store.lock('다른 VS Code 창이 게임 모드를 가져감'),
     onError: (e) => log(`창 잠금 파일 오류: ${String(e)}`),
   });
+  // S01 ② 📦 내 포켓몬 꺼내기 — 상태는 이 PC 에만 (setKeysForSync 안 함 — 일반 모드 목록처럼 동기화로 퍼지지 않게)
+  //   game 보다 먼저 만듦 (game 의 알림이 teamOut 을 부름) — readSave 는 꺼낼 때만 불려 그때는 game 이 있음
+  const TEAM_OUT_KEY = 'vscode-pokemon.game.teamOut';
+  const teamOut = new TeamOut({
+    post: (m) => {
+      try {
+        view?.webview.postMessage(m).then(undefined, (e: unknown) => log(`꺼내기 보내기 실패: ${String(e)}`));
+      } catch (e) {
+        // 보기가 이미 닫힘 (사용자가 숨김) — 다음에 열릴 때 boot 에서 다시 보냄
+        log(`꺼내기 보내기 실패: ${String(e)}`);
+      }
+    },
+    readSave: () => game.readSaveForTeam(),
+    load: () => context.globalState.get<boolean>(TEAM_OUT_KEY, false) === true,
+    store: (on) => void context.globalState.update(TEAM_OUT_KEY, on),
+    setContext: (on) => void vscode.commands.executeCommand('setContext', 'vscode-pokemon.teamOut', on),
+    info: (m) => void vscode.window.showInformationMessage(m),
+  });
+
+  /** 일반 모드로 돌아올 때 팀을 다시 보내야 함 (게임을 했음 · 게임 중에 웹뷰가 새로 떠서 팀이 없어짐) */
+  let teamStale = false;
   const game = new GameSession({
     store,
     lease,
@@ -62,7 +84,20 @@ export function activate(context: vscode.ExtensionContext): GameHost {
     now: () => Date.now(),
     newSeed: () => Math.floor(Math.random() * 0x100000000),
     // 제목줄: 게임 중에는 🎮 대신 🏠, ＋ 🔀 🗑 는 숨김 (게임 화면이 덮고 있어 눌러도 안 보임) — package.json menus 의 when
-    onModeChanged: (mode) => void vscode.commands.executeCommand('setContext', 'vscode-pokemon.gameMode', mode !== 'normal'),
+    onModeChanged: (mode) => {
+      void vscode.commands.executeCommand('setContext', 'vscode-pokemon.gameMode', mode !== 'normal');
+      // 게임에서 돌아오면 꺼낸 팀을 지금 레벨 · 진화 · 기술로 (타이틀만 보고 오면 그대로 — 볼 연출 · 자리를 다시 안 함)
+      if (mode === 'game') teamStale = true;
+      if (mode === 'normal' && teamStale) {
+        teamStale = false;
+        void teamOut.refresh();
+      }
+    },
+    // 웹뷰가 새로 뜸 — 일반 모드일 때만 (게임 중 · 타이틀이면 일반 모드 화면이 숨어 있어 볼 연출이 쌓임. 돌아올 때 onModeChanged 가 보냄)
+    onWebviewBoot: () => {
+      if (game.currentMode === 'normal') void teamOut.refresh();
+      else teamStale = true;
+    },
   });
 
   const ready: Promise<LoadResult> = game.init({ readOnly: true }).then((r) => {
@@ -87,6 +122,12 @@ export function activate(context: vscode.ExtensionContext): GameHost {
     }),
     // 🏠 (게임 중 제목줄) — 자동저장 후 일반 모드로
     vscode.commands.registerCommand('vscode-pokemon.normal-mode', () => game.exitGame()),
+    // 📦 (S01 ②) — 게임 팀을 일반 모드 포켓몬과 같이 · 다시 누르면 넣음
+    vscode.commands.registerCommand('vscode-pokemon.team-out', async () => {
+      await vscode.commands.executeCommand('pokemonView.focus');
+      await teamOut.takeOut();
+    }),
+    vscode.commands.registerCommand('vscode-pokemon.team-in', () => teamOut.putIn()),
     // 개발 창 (F5) 에서만 보이는 빨리 감기 — 15분 스테이지를 시험하려고 (사용자 설치본에는 안 보임)
     vscode.commands.registerCommand('vscode-pokemon.game-speed', async () => {
       if (!debug) return; // 사용자 설치본에서는 단축키로 묶어도 아무것도 안 함
@@ -107,6 +148,10 @@ export function activate(context: vscode.ExtensionContext): GameHost {
       viewConnection?.dispose();
       view = v;
       viewConnection = connectWebviewView(v, game, log);
+      // 보기가 아주 닫히면 비움 (닫힌 보기에 보내면 던짐 — 📦 넣기 · 일반 모드로 등)
+      v.onDidDispose(() => {
+        if (view === v) view = undefined;
+      });
     },
     webviewHtml(webview, nonce) {
       if (!hasWebviewBuild || webview !== view?.webview) return '';

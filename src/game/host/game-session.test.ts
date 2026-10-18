@@ -911,3 +911,23 @@ describe('단계 5 · 6 — 전투 · 안 볼 때 알림 (확장 쪽, U9)', () =
     expect(view.last('start')?.state.runtime.headless).toBe(false);
   });
 });
+
+describe('📦 꺼내기 연결 (단계 10)', () => {
+  it('웹뷰가 새로 뜨면 (boot) 알림 · 일반 모드에서는 세이브를 파일에서 다시 읽어 줌', async () => {
+    let boots = 0;
+    const storage = new MemorySaveStorage(sampleSave());
+    const store = new SaveStore(storage, new MemorySaveArchive(), { log: () => {} });
+    const s = new GameSession({ store, now: () => 1, newSeed: () => 1, log: () => {}, onWebviewBoot: () => boots++ });
+    await s.init();
+    s.handleMessage({ command: 'game', type: 'boot' });
+    expect(boots).toBe(1);
+    storage.write({ ...sampleSave(), money: 777 });
+    const read = await s.readSaveForTeam();
+    expect(read.kind === 'ok' && read.save.money).toBe(777);
+    // 읽기만 — 세션이 들고 있는 상태는 그대로 (코드 리뷰어 단계 10: 이름은 읽기인데 상태를 덮던 것)
+    expect(s.snapshot.state?.save.money).toBe(sampleSave().money);
+    storage.write('{broken');
+    expect(await s.readSaveForTeam()).toEqual({ kind: 'broken' });
+    expect(store.lockedReason).toBeNull();
+  });
+});

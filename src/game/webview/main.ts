@@ -94,10 +94,10 @@ if (!port) {
   store.subscribe(() => document.body.classList.toggle(GAME_ON_CLASS, store.get().screen !== 'none'));
 
   const actions: AppActions = {
-    newGame: () => {
+    newGame: (choice) => {
       try {
         const seed = crypto.getRandomValues(new Uint32Array(1))[0] ?? Date.now();
-        const save = createStartSave(Date.now(), seed);
+        const save = createStartSave(Date.now(), seed, choice.dex, { gender: choice.gender, moves: choice.moves });
         setPending(true);
         session.newGame(save);
       } catch (e) {

@@ -1706,3 +1706,110 @@ body.pokemon-game-on {
 .pg-icon-btn .pg-sprite {
   vertical-align: middle;
 }
+/* 사람 머리 위 이름표 (트레이너 · 관장 — decisions 2026-10-17) */
+.pg-nametag {
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  transform: translateX(-50%);
+  margin-bottom: 1px;
+  padding: 0 3px;
+  border-radius: 2px;
+  font-size: calc(9px * var(--pg-ui, 1));
+  line-height: 1.2;
+  white-space: nowrap;
+  color: var(--vscode-foreground);
+  background: rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+/* 대기실 · 전투에서 오른쪽 끝 사람 — 이름표가 패널 밖으로 나가지 않게 오른쪽으로 붙임 */
+.pg-foe-trainer .pg-nametag {
+  left: auto;
+  right: -4px;
+  transform: none;
+}
+
+/* S03 주인공 · S04 스타팅 (단계 10, 임시 디자인) */
+.pg-pick-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  overflow: hidden;
+}
+.pg-pick-starter {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0;
+  overflow-y: auto;
+  padding: 0 8px;
+}
+.pg-hero-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 14px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font: inherit;
+  color: inherit;
+  background: rgba(128, 128, 128, 0.15);
+  cursor: pointer;
+}
+.pg-hero-choice:hover {
+  border-color: var(--vscode-focusBorder);
+}
+.pg-starter-chip {
+  padding: 0 2px;
+  max-width: none;
+}
+/* 큰 그림 (원본 64px) 은 발끝을 맞춤 — 가운데 맞춤이면 그림 아래 빈칸 때문에 처져 보임 */
+.pg-chain {
+  flex: none;
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 4px;
+  margin-right: 8px;
+}
+.pg-chain-step {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+}
+/* 아주 낮은 패널 — 진화 단계 이름 · 타입을 숨겨 같은 줄의 기술 4개가 보이게 (이름은 그림에 마우스를 올리면) */
+@media (max-height: 80px) {
+  .pg-pick-starter .pg-chain-name {
+    display: none;
+  }
+}
+/* 높이가 넉넉하면 진화 단계는 한 줄을 다 쓰고 기술은 그 아래 줄 (큰 그림 옆에 기술이 끼어 밀리지 않게) */
+@media (min-height: 100px) {
+  .pg-pick-starter .pg-chain {
+    flex-basis: 100%;
+  }
+}
+/* 아주 낮은 패널 — 이름표는 위로 잘려서 숨김 (만날 때 말풍선에 이름이 나옴) */
+@media (max-height: 90px) {
+  .pg-nametag {
+    display: none;
+  }
+}
+/* pokemon.css 의 button { width: 100% } 를 덮음 (칩 · 주인공 고르기) */
+.pg-chip,
+.pg-hero-choice {
+  width: auto;
+}
+/* S03 — 고른 쪽 표시 (.pg-hero-choice 가 뒤에 있어 덮던 것) · 어두운 배경에서 사람 윤곽이 보이게 */
+.pg-hero-choice.pg-chip-on {
+  border-color: var(--vscode-focusBorder);
+  background: rgba(88, 166, 255, 0.22);
+}
+.pg-hero-choice .pg-hero {
+  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.7));
+}
+/* S04 자기 타입 기술 ★ */
+.pg-own {
+  margin-left: 2px;
+  color: #e3b341;
+}

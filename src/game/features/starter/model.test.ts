@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { validateSave } from '../../core/save';
 import { moveOf, speciesOf } from '../../data';
-import { createStartSave, defaultStarterMoves, starterMoveCandidates } from './model';
+import { chosenStarterMoves, createStartSave, defaultStarterMoves, evolutionChain, starterList, starterMoveCandidates } from './model';
 
 const STARTERS = [1, 152, 252, 387, 495, 650, 4, 155, 255, 390, 498, 653, 7, 158, 258, 393, 501, 656];
 
@@ -47,5 +47,33 @@ describe('새로 하기 세이브', () => {
 
   it('스타팅 18종 모두 만들 수 있음 (단계 10 S04 에서 고름)', () => {
     for (const dex of STARTERS) expect(validateSave(createStartSave(0, dex, dex)).ok, String(dex)).toBe(true);
+  });
+});
+
+describe('S03 · S04 고르기 (단계 10)', () => {
+  it('스타팅 줄 18마리 · 진화 단계는 1 → 2 → 3 (그림이 있는 것만)', () => {
+    expect(starterList().map((s) => s.dex)).toEqual(STARTERS);
+    for (const dex of STARTERS) {
+      const chain = evolutionChain(dex);
+      expect(chain[0]!.dex).toBe(dex);
+      expect(chain.length).toBeGreaterThanOrEqual(2);
+      expect(chain.length).toBeLessThanOrEqual(3);
+    }
+    expect(evolutionChain(1).map((c) => c.dex)).toEqual([1, 2, 3]);
+  });
+
+  it('고른 처음 기술 2개 · 주인공 남 · 여가 세이브에 — 후보 밖 · 1개 · 같은 것 두 번이면 기본 2개', () => {
+    const cands = starterMoveCandidates(4).map((m) => m.id);
+    const pick = [cands[2]!, cands[3]!];
+    const save = createStartSave(0, 5, 4, { gender: 'female', moves: pick });
+    expect(save.monsters.m1!.moves.map((m) => m.moveId)).toEqual(pick);
+    expect(save.player).toEqual({ gender: 'female' });
+    expect(validateSave(JSON.parse(JSON.stringify(save))).ok).toBe(true);
+    const defaults = defaultStarterMoves(4).map((m) => m.id);
+    expect(chosenStarterMoves(4, [9999, cands[0]!]).map((m) => m.id)).toEqual(defaults);
+    expect(chosenStarterMoves(4, [cands[0]!]).map((m) => m.id)).toEqual(defaults);
+    expect(chosenStarterMoves(4, [cands[0]!, cands[0]!]).map((m) => m.id)).toEqual(defaults);
+    // 스타팅이 아닌 종은 고를 수 없음 (손으로 만든 메시지) → 이상해씨
+    expect(createStartSave(0, 5, 150).monsters.m1!.species).toBe(1);
   });
 });

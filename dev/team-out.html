@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="../extension/media/reset.css" rel="stylesheet">
+    <link href="../extension/media/pokemon.css" rel="stylesheet">
+    <title>📦 꺼내기 미리보기</title>
+    <style>body { background-color: #1e1e1e; } #out { position: fixed; left: 0; top: 0; z-index: 99999; margin: 0; color: #8f8; font: 10px monospace; white-space: pre-wrap; }</style>
+</head>
+<body>
+    <!-- S01 ② 📦 내 포켓몬 꺼내기 — 일반 모드 미리보기 (dev/panel.html) 위에 확장이 보내는 { command: 'game-team' } 를 흉내 -->
+    <!-- ?step=out (꺼냄) | in (꺼냈다 넣음) | click (꺼내고 첫 포켓몬 클릭 → 배운 기술) -->
+    <pre id="out"></pre>
+    <canvas id="pokemonCanvas"></canvas>
+    <div id="pokemonContainer"></div>
+    <div id="foreground"></div>
+    <script src="panel.js"></script>
+    <script src="team-out.js"></script>
+</body>
+</html>

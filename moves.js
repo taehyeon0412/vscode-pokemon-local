@@ -2150,7 +2150,8 @@ function useSignature(pokemon, sig, left) {
 // faceLeft 를 주면 그쪽을 보고 씀 (클릭 — 화면 가운데 쪽)
 function useMove(pokemon, faceLeft) {
     const move = POKEMON_MOVES[pokemon.label];
-    const sig = POKEMON_SHAPE[pokemon.label] && sigEntry(pokemon.label);
+    // GAME-PATCH: 📦 게임에서 꺼낸 포켓몬은 게임에서 배운 기술 중 하나 (main-bundle.js gameMoveEntry)
+    const sig = POKEMON_SHAPE[pokemon.label] && (pokemon.gameMoves?.length ? movePick(pokemon.gameMoves) : sigEntry(pokemon.label));
     const current = pokemon.currentState;
     if ((!move && !sig) || !pokemon.canSwipe || current instanceof MoveState || current instanceof JumpState || current instanceof TumbleState || current instanceof DashState || current instanceof SplashState) {
         return;

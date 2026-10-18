@@ -1,6 +1,6 @@
 /**
  * 주인공 (S06 ③) — 코드로 그린 픽셀 사람 (원작 그림 아님). 오른쪽을 보고 제자리걸음, 다리 두 장이 번갈아 (game.css .pg-hero).
- * 남 · 여 머리 모양은 단계 10 (S03) — 지금은 모자 쓴 기본 모양. 트레이너 · 관장도 같은 모양에 모자 · 옷 색만 바꿔 씀 (왼쪽을 봄).
+ * 남 · 여는 머리 모양만 다름 (S03 — 여자는 모자 밑으로 긴 머리). 트레이너 · 관장도 같은 모양에 모자 · 옷 색만 바꿔 씀 (왼쪽을 봄).
  */
 import { memo } from 'preact/compat';
 
@@ -15,6 +15,19 @@ const ROWS_TOP = [
   '.sttttttts',
   '.s.tttt..s',
   '...tttt...',
+];
+/** 여자 주인공 — 모자 밑 뒤쪽으로 긴 머리 (머리 모양만 다름, gdd S03) */
+const ROWS_TOP_FEMALE = [
+  '...rrrr...',
+  '.hrrrrrr..',
+  'hhrrrrrrrr',
+  'hhhssss...',
+  'hhhsses...',
+  '.hhssss...',
+  '.hhtttttt.',
+  '.hstttttts',
+  '.hs.tttt.s',
+  '..h.tttt..',
 ];
 const LEGS_A = ['...pppp...', '...p..p...', '...p..p...', '..kk..kk..'];
 const LEGS_B = ['...pppp...', '....pp....', '....pp....', '...kkkk...'];
@@ -50,16 +63,19 @@ export interface HeroProps {
   shirt?: string;
   faceLeft?: boolean;
   label?: string;
+  /** 주인공 남 · 여 (S03) — 없으면 남 */
+  gender?: 'male' | 'female';
 }
 
 /** 값이 같으면 다시 안 그림 (초당 30번 화면 갱신) */
-export const Hero = memo(function Hero({ px, walking, hat, shirt, faceLeft, label }: HeroProps) {
+export const Hero = memo(function Hero({ px, walking, hat, shirt, faceLeft, label, gender }: HeroProps) {
+  const top = gender === 'female' ? ROWS_TOP_FEMALE : ROWS_TOP;
   const h = (ROWS_TOP.length + LEGS_A.length) * px;
   const colors = hat || shirt ? { ...COLORS, ...(hat ? { r: hat } : {}), ...(shirt ? { t: shirt } : {}) } : COLORS;
   const cls = ['pg-hero', walking ? 'pg-walking' : '', faceLeft ? 'pg-face-left' : ''].filter(Boolean).join(' ');
   return (
     <svg class={cls} width={10 * px} height={h} viewBox={`0 0 10 ${ROWS_TOP.length + LEGS_A.length}`} shape-rendering="crispEdges" aria-label={label ?? '주인공'}>
-      {rects(ROWS_TOP, 0, colors)}
+      {rects(top, 0, colors)}
       <g class="pg-legs-a">{rects(LEGS_A, ROWS_TOP.length, colors)}</g>
       <g class="pg-legs-b">{rects(LEGS_B, ROWS_TOP.length, colors)}</g>
     </svg>

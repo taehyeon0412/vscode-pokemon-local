@@ -53,7 +53,7 @@ export function StageObjects({ objects, media, scale, ground }: ObjectsProps) {
           case 'trainer':
             return (
               <span key={o.key} class={o.alert ? 'pg-obj pg-trainer pg-trainer-alert' : 'pg-obj pg-trainer'} style={style} title={o.info.name}>
-                {o.alert && <span class="pg-trainer-mark">!</span>}
+                {o.alert ? <span class="pg-trainer-mark">!</span> : <span class="pg-nametag">{o.info.name}</span>}
                 <Hero px={2 * scale} walking={false} hat={o.info.hat} shirt={o.info.shirt} faceLeft label={o.info.name} />
               </span>
             );

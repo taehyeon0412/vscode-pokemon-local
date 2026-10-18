@@ -16,6 +16,7 @@ import { validateSave, type Save } from '../core/save';
 import { GAME_COMMAND, isWebviewToHost, type HostToWebview, type TitleInfo, type TitleNotice } from '../shared/messages';
 import { HeadlessRunner, type HeadlessRunnerOptions } from './headless-runner';
 import type { LoadResult, SaveStore } from './save-store';
+import type { TeamSave } from './team-out';
 import type { WindowLease } from './window-lease';
 
 /** 웹뷰 쪽 문 — VS Code 의 WebviewView 를 감싼 것 (view-port.ts) */
@@ -44,6 +45,8 @@ export interface SessionDeps {
   runner?: HeadlessRunnerOptions;
   /** 모드가 바뀜 — 제목줄 버튼 (🎮 ↔ 🏠 · ＋ 🔀 🗑 숨기기) */
   onModeChanged?(mode: Mode): void;
+  /** 웹뷰가 새로 뜸 (boot) — 📦 꺼낸 팀을 다시 보냄 */
+  onWebviewBoot?(): void;
 }
 
 /** 세는 것 — 기록 · 테스트용 */
@@ -124,6 +127,11 @@ export class GameSession {
         this.stats.boots++;
         this.webviewReady = false; // 웹뷰가 새로 뜸 — game.js 는 아직
         if (this.mode !== 'normal') this.post({ type: 'load' });
+        try {
+          this.deps.onWebviewBoot?.();
+        } catch (e) {
+          this.deps.log(`boot 알림 실패: ${String(e)}`);
+        }
         return;
       case 'ready':
         this.webviewReady = true;
@@ -276,6 +284,16 @@ export class GameSession {
     if (this.owner === 'webview') this.handToWebview();
     else this.updateRunner();
     return true;
+  }
+
+  /** S01 ② 📦 꺼내기 — 세이브를 읽기만 (다른 창이 바꿨을 수 있어 파일에서 다시) · 게임 중이면 지금 상태. 줄에 섬 (들어가기 · 나가기와 겹치지 않게) */
+  readSaveForTeam(): Promise<TeamSave> {
+    return this.serial(async () => {
+      if (this.mode === 'game') return this.state ? { kind: 'ok', save: this.state.save } : { kind: 'none' };
+      // 읽기만 — 세션 상태 · 저장소를 건드리지 않음 (줄을 서는 건 게임에서 나올 때 마지막 저장이 끝난 뒤에 읽으려고)
+      const r = this.deps.store.peek();
+      return r.kind === 'ok' ? { kind: 'ok', save: r.save } : { kind: r.kind };
+    });
   }
 
   /** 저장소가 잠김 (다른 창이 씀 · 창 잠금을 잃음 등) — 게임 중이면 멈추고 일반 모드로 (잠겨 있어 쓰지 않음) */

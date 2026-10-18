@@ -89,6 +89,16 @@ export class SaveStore {
     return result;
   }
 
+  /** 읽기만 (📦 꺼내기) — 기다리던 쓰기 · 잠금 · 표를 건드리지 않고 보관도 안 함. 던지지 않음 */
+  peek(): LoadResult {
+    try {
+      const raw = this.storage.read();
+      return raw === undefined ? { kind: 'none' } : readSave(raw);
+    } catch (e) {
+      return { kind: 'broken', reason: `세이브 파일을 읽지 못함 (${String(e)})` };
+    }
+  }
+
   /** 쓰지 않는 까닭 (없으면 null) */
   get lockedReason(): string | null {
     return this.lockReason;
