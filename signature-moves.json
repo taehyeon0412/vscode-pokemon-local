@@ -8,7 +8,7 @@
   "charizard": ["화염방사", "breath", {"c": "fire", "smoke": 1, "ember": 1, "grow": 1.5, "speed": 1.2, "rate": 1.4}],
   "squirtle": ["거품", "bubbles", {"c": "water"}],
   "wartortle": ["물대포", "water", {}],
-  "blastoise": ["하이드로캐논", "beam", {"c": "water", "width": 1.6, "sparkle": "water"}],
+  "blastoise": ["하이드로펌프", "water", {}],
   "caterpie": ["실뿜기", "beam", {"c": "silk", "width": 0.3, "wave": 1, "len": 4}],
   "metapod": ["단단해지기", "shield", {"c": "steel"}],
   "butterfree": ["수면가루", "powder", {"c": "sleep"}],

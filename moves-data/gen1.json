@@ -8,7 +8,7 @@
   "charizard": {"ult": [["플레어드라이브", "ultdive", {"c": "fire", "flare": 1, "tc": "fire"}], ["블래스트번", "ultpillar", {"kind": "fire", "c": "fire", "blast": 1, "tc": "aura"}]]},
   "squirtle": {"ult": [["로케트박치기", "ultrush", {"c": "water", "water": 1}], ["거품광선", "ultswarm", {"shape": "ball", "c": "water", "n": 45}]]},
   "wartortle": {"ult": [["하이드로보텍스", "ultvortex", {"c": "water"}], ["아쿠아테일", "ultrush", {"c": "water", "water": 1, "fast": 1}]]},
-  "blastoise": {"ult": [["하이드로캐논", "ultbeam", {"c": "water", "double": 1, "width": 1.3, "sparkle": "water"}], ["거다이포격", "ultstorm", {"kind": "rain", "c": "water", "tc": "water"}]]},
+  "blastoise": {"ult": [["하이드로캐논", "ultbeam", {"c": "water", "turtle": 1, "tc": "water"}], ["메가런처", "ultorb", {"c": "water", "turtle": 1, "tc": "water"}]]},
   "caterpie": {"ult": [["절대포식회전참", "ultbarrage", {"kind": "slash", "spin": 1, "c": "bug"}], ["실뿜기", "ultshadow", {"c": "silk"}]]},
   "metapod": {"ult": [["단단해지기", "ultrush", {"c": "steel"}], ["몸통박치기", "ultdive", {"c": "bug", "heavy": 1}]]},
   "butterfree": {"moves": [["환상빔", "beam", {"c": "psychic", "wave": 1}]], "ult": [["거다이린분", "ultstorm", {"kind": "wind", "c": "sleep"}], ["환상빔", "ultbeam", {"c": "psychic", "rainbow": 1, "wave": 1, "sparkle": "petal", "tc": "psychic"}]]},
