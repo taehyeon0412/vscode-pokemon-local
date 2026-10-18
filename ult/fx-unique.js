@@ -3507,6 +3507,596 @@
         } });
     }
 
+    // 모래 바람 — 화면을 가로지르는 모래 알갱이 · 옅은 갈색 물듦 (a 0~1)
+    function sandWind(ctx, px, s, W, G, life, a, dirn, cols) {
+        if (a <= 0.01) {
+            return;
+        }
+        ctx.globalAlpha = 0.16 * a;
+        ctx.fillStyle = cols[2];
+        ctx.fillRect(0, 0, W, G);
+        const m = Math.round(70 * clamp(W / 480, 0.6, 2));
+        const paths = [new Path2D(), new Path2D()];
+        for (let j = 0; j < m; j++) {
+            const y = hash(j, 711) * G;
+            const sp = 0.6 + 0.8 * hash(j, 712);
+            const x = ((hash(j, 713) * W + life * W * sp * dirn) % W + W) % W;
+            paths[j % 3 ? 0 : 1].rect(px(x), px(y + Math.sin(life * 3 + j) * s * 2), s * (j % 4 ? 2 : 3), s);
+        }
+        K.fillPaths(ctx, paths, [cols[1], cols[0]], 0.8 * a);
+    }
+    const SANDC = ['#fff0c8', '#e8c890', '#b8925a', '#7a5a34'];
+
+    // ═════ 한카리아스 — 드래곤다이브 (ultdive) ═════
+    // 몸 둘레로 모래 회오리가 일어 화면이 모래바람에 휩싸임 → 땅을 파고 들어가 사라짐(흙먼지) → 하늘 높은 곳에서 푸른 용의 기운이 번쩍
+    // → 거대한 용 머리 모양 혜성(송곳니 · 붉은 눈)이 되어 과녁으로 내리꽂힘 → 임팩트 프레임 · 모래 폭발 · 용빛 반구 → 땅에서 튀어나와 제자리로 (약 7.2초)
+    const DRAGC = ['#ffffff', '#b8c8ff', '#6a5cff', '#2a1a8a'];
+    UNIQ.garchomp = { fx: 'ultdive', ms: (P) => 7200 + 200 * P, run: runDragonRush };
+    function runDragonRush(u, o, ms, pokemon) {
+        const P = strength(u);
+        const sec = ms / 1000;
+        const { W, H, S: s, dir } = u;
+        const G = u.ground;
+        const hit = makeHit();
+        const me = monBox(pokemon);
+        const TDIG = 1.2; // 파고 들어감
+        const TSKY = 2.2; // 하늘에서 번쩍
+        const TDIVE = 2.6;
+        const TI = TDIVE + 0.5;
+        const TOUT = TI + 2.2; // 땅에서 튀어나옴
+        const q = nearest(u);
+        const tx = clamp(q ? q.x : me.x + dir * W * 0.45, W * 0.1, W * 0.9);
+        const sx0 = clamp(tx - dir * W * 0.3, W * 0.08, W * 0.92);
+        const sy0 = Math.max(20, H * 0.12);
+        const headAt = (t) => {
+            const k = easeIn(clamp((t - TDIVE) / (TI - TDIVE), 0, 1));
+            return [lerp(sx0, tx, k), lerp(sy0, G - me.h * 0.5, k)];
+        };
+        const sc = scene(u, sec + 0.4, 'uniq garchomp');
+        ultDark(0.4, ms - 200);
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            sandWind(ctx, px, s, W, G, life, clamp((life - 0.2) / 0.6, 0, 1) * clamp((sec - 0.4 - life) / 0.6, 0, 1), dir, SANDC);
+        } });
+        // 몸 둘레 모래 회오리
+        sc.add({ max: TDIG + 0.3, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            const k = clamp((life - 0.2) / 0.4, 0, 1) * (1 - clamp((life - TDIG) / 0.3, 0, 1));
+            for (let j = 0; j < 40; j++) {
+                const f = j / 40;
+                const an = life * 8 + j * 0.9;
+                const r = me.w * (0.4 + 0.6 * f);
+                ctx.globalAlpha = (Math.sin(an) > 0 ? 0.9 : 0.4) * k;
+                ctx.fillStyle = j % 3 ? SANDC[1] : SANDC[2];
+                ctx.fillRect(px(me.x + Math.cos(an) * r), px(me.b - f * me.h * 1.3), s * 2, s);
+            }
+        } });
+        // 한카리아스 (꼭두각시) — 파고 들어감 · 튀어나옴
+        const img = pokemon.el;
+        const edge = Math.max(1, Math.round(u.s * 0.75));
+        const left = dir < 0;
+        hideMon(pokemon, true);
+        hideUntil(pokemon, (sec - 0.1) * 1000 + 100);
+        sc.at(sec - 0.12, () => hideMon(pokemon, false));
+        sc.add({ max: sec - 0.1, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life >= sec - 0.12) {
+                return;
+            }
+            let b = me.b;
+            let a = 1;
+            let x = me.x;
+            if (life > TDIG - 0.3 && life < TDIG + 0.2) {
+                const k = (life - (TDIG - 0.3)) / 0.5;
+                b = me.b + me.h * easeIn(k);
+                a = 1 - k;
+            } else if (life >= TDIG + 0.2 && life < TOUT) {
+                return;
+            } else if (life >= TOUT) {
+                const k = clamp((life - TOUT) / 0.35, 0, 1);
+                b = me.b - Math.sin(k * Math.PI) * me.h * 0.8;
+                x = me.x;
+            }
+            drawLitMon(ctx, img, x, b, me.w, left, DRAGC[2], edge, a);
+        } });
+        sc.at(TDIG - 0.2, () => {
+            debris(me.x, G - s, s, [...SANDC, '#8a7252'], 30, H * 0.6, { ground: G });
+            ring(sc, me.x, G - s, me.w * 0.4, me.w * 2.5, 0.25, 0.4, [SANDC[0], SANDC[2]], 2);
+            ultShake(4, 300);
+        });
+        // 하늘에서 번쩍 · 용 머리 혜성
+        sc.at(TSKY, () => {
+            ring(sc, sx0, sy0, me.w * 0.3, me.w * 2.4, 1, 0.4, ['#ffffff', DRAGC[1], DRAGC[2]], 2);
+            sparkles(sx0, sy0, s, DRAGC, 14, me.w, H * 0.1);
+            ultShake(2, 200);
+        });
+        sc.add({ max: TI + 0.02, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life < TSKY) {
+                return;
+            }
+            if (life < TDIVE) {
+                const k = (life - TSKY) / (TDIVE - TSKY);
+                fireOrb(ctx, px, s, sx0, sy0, Math.max(5 * s, me.w * 0.5) * easeOut(k), DRAGC, life, 1, G, 1, 0, [1, 0.8, 0.6, 0.38], 0.5);
+                return;
+            }
+            const [x, y] = headAt(life);
+            const dx = tx - sx0;
+            const dy = G - me.h * 0.5 - sy0;
+            const L = Math.hypot(dx, dy) || 1;
+            const ux = dx / L;
+            const uy = dy / L;
+            const R = Math.max(6 * s, me.w * 0.7);
+            K.fireTail(ctx, px, s, x, y, ux, uy, Math.max(H * 0.55, R * 5), R * 1.6, DRAGC, life, 1);
+            fireOrb(ctx, px, s, x, y, R * 0.8, DRAGC, life, 1, G, 1, 0, [1, 0.8, 0.6, 0.38], 0.4);
+            // 송곳니 — 머리 앞 위아래로 하얀 이빨
+            const nx = -uy;
+            const ny = ux;
+            for (const sd of [-1, 1]) {
+                for (let i = 0; i < 4; i++) {
+                    const bx = x + ux * R * 0.7 + nx * sd * R * (0.25 + i * 0.12);
+                    const by = y + uy * R * 0.7 + ny * sd * R * (0.25 + i * 0.12);
+                    for (let d = 0; d < R * 0.45; d += s) {
+                        ctx.globalAlpha = 1;
+                        ctx.fillStyle = d > R * 0.3 ? DRAGC[1] : '#ffffff';
+                        ctx.fillRect(px(bx + ux * d - nx * sd * d * 0.3), px(by + uy * d - ny * sd * d * 0.3), s, s);
+                    }
+                }
+                // 붉은 눈
+                ctx.fillStyle = '#ff3a3a';
+                ctx.fillRect(px(x - ux * R * 0.2 + nx * sd * R * 0.5), px(y - uy * R * 0.2 + ny * sd * R * 0.5), s * 2, s * 2);
+            }
+            // 뿔 — 뒤로 뻗은 두 줄
+            for (const sd of [-1, 1]) {
+                drawBolt(ctx, px, s, [[x + nx * sd * R * 0.4, y + ny * sd * R * 0.4], [x - ux * R * 1.6 + nx * sd * R * 1.1, y - uy * R * 1.6 + ny * sd * R * 1.1]], 1, DRAGC[1], DRAGC[3], 0.9);
+            }
+        } });
+        sc.at(TI, () => {
+            impactFrames(sc, W, H, 0.8, 0.5);
+            blastDome(sc, tx, G, clamp(Math.max(H * 0.5, me.w * 3), 30, Math.min(G * 0.92, W * 0.48)), 1.9, DRAGC);
+            debris(tx, G - s, s, [...SANDC, '#8a7252'], 50, H * 1.1, { ground: G, size: [1, 2, 3] });
+            ring(sc, tx, G - s, me.w, W * 0.8, 0.22, 0.8, ['#ffffff', DRAGC[1], DRAGC[2]], 3);
+            ultShake(10 + 3 * P, 1300);
+            for (const r of u.others()) {
+                sc.at(TI + 0.12, () => hit(where(u, r), away(u, tx), Math.abs(r.x - tx) < W * 0.2 ? 'tumble' : 'lift', 0.3));
+            }
+        });
+        emberRise(sc, TI + 0.4, sec, DRAGC);
+        sc.at(TOUT, () => {
+            debris(me.x, G - s, s, [...SANDC, '#8a7252'], 20, H * 0.6, { ground: G });
+            ring(sc, me.x, G - s, me.w * 0.4, me.w * 2.2, 0.25, 0.4, [SANDC[0], DRAGC[2]], 2);
+            ultShake(3, 200);
+        });
+    }
+
+    // ═════ 마기라스 — 스톤에지 (ultpillar) ═════
+    // 포효 · 거센 모래바람 · 검은 기운 → 몸 둘레로 날카로운 바위 조각이 하나씩 떠올라 빙글빙글 돎
+    // → 바위가 하나씩 과녁 쪽 땅에 비스듬히 날아가 꽂히며 거대한 바위 가시로 솟음(닿은 애 떠오름) → 가시가 한꺼번에 깨지며 바위 조각 · 흙빛 빛의 반구 (약 7.2초)
+    const STONE = ['#f0e0c0', '#c0a078', '#806448', '#4a3828'];
+    UNIQ.tyranitar = { fx: 'ultpillar', ms: (P) => 7200 + 200 * P, run: runStoneEdge };
+    function runStoneEdge(u, o, ms, pokemon) {
+        const P = strength(u);
+        const sec = ms / 1000;
+        const { W, H, S: s, dir } = u;
+        const G = u.ground;
+        const hit = makeHit();
+        const me = monBox(pokemon);
+        const N = 6;
+        const TA = 0.9; // 바위 떠오름
+        const TT = 2.4; // 던지기 시작
+        const GAP = 0.2;
+        const FLY = 0.3;
+        const far = dir > 0 ? W - me.x : me.x;
+        const stones = [];
+        for (let i = 0; i < N; i++) {
+            const d = me.w * 0.9 + (far - me.w * 0.9) * ((i + 0.6) / N);
+            stones.push({ i, t0: TA + i * 0.12, tt: TT + i * GAP, tx: clamp(me.x + dir * d, s * 4, W - s * 4), h: Math.min(G * 0.8, H * (0.3 + 0.3 * ((i + 1) / N))), w: Math.max(8 * s, Math.min(H * 0.15, ((far - me.w) / N) * 0.85)), z: Math.max(3 * s, me.w * 0.2) });
+        }
+        const TB = TT + N * GAP + FLY + 0.5; // 깨짐
+        const orbit = (st, t) => {
+            const an = t * 2.4 * dir + (st.i * TAU) / N;
+            return [me.x + Math.cos(an) * me.w * 0.95, me.b - me.h * 0.55 + Math.sin(an) * me.h * 0.35];
+        };
+        const sc = scene(u, sec + 0.4, 'uniq tyranitar');
+        ultDark(0.4, ms - 200);
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            sandWind(ctx, px, s, W, G, life, clamp((life - 0.2) / 0.5, 0, 1) * clamp((sec - 0.4 - life) / 0.6, 0, 1), dir, SANDC);
+        } });
+        // 검은 기운 (마기라스 뒤)
+        sc.add({ max: TB, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            const k = clamp((life - 0.3) / 0.4, 0, 1) * (1 - clamp((life - TB + 0.3) / 0.3, 0, 1));
+            if (k > 0.02) {
+                K.flameTongue(ctx, px, s, me.x, me.b + s * 2, me.w * 1.2, me.h * 1.4, ['#c8b8a0', '#6a5a4a', '#3a2e26', '#1a1410'], life, k);
+            }
+        } });
+        puppet(sc, pokemon, u, () => me.b, STONE[2], sec - 0.1, { glow: (t) => (t > 0.4 && t < 0.52 ? 0.6 : 0), glowColor: STONE[0] });
+        sc.at(0.4, () => {
+            ring(sc, me.x, me.b - me.h * 0.6, me.w * 0.4, me.w * 2.4, 0.9, 0.45, ['#ffffff', STONE[1]], 2);
+            ultShake(4, 400);
+        });
+        // 날카로운 바위 조각
+        const shard = (ctx, px, x, y, z, ang) => {
+            const pts = [[1.2, 0], [0.2, 0.45], [-0.8, 0.25], [-0.6, -0.3], [0.3, -0.4]];
+            const ca = Math.cos(ang);
+            const sa = Math.sin(ang);
+            for (let gy = -z; gy <= z; gy += s) {
+                for (let gx = -z * 1.2; gx <= z * 1.2; gx += s) {
+                    const lx = (gx * ca + gy * sa) / z;
+                    const ly = (-gx * sa + gy * ca) / z;
+                    // 간단한 볼록 다각형 안쪽 판정
+                    let inside = true;
+                    for (let i = 0; i < pts.length; i++) {
+                        const [ax, ay] = pts[i];
+                        const [bx, by] = pts[(i + 1) % pts.length];
+                        if ((bx - ax) * (ly - ay) - (by - ay) * (lx - ax) < 0) {
+                            inside = false;
+                            break;
+                        }
+                    }
+                    if (inside) {
+                        ctx.fillStyle = ly < -0.1 ? STONE[1] : ly > 0.2 ? STONE[3] : STONE[2];
+                        ctx.fillRect(px(x + gx), px(y + gy), s, s);
+                    }
+                }
+            }
+        };
+        sc.add({ max: TB, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            ctx.globalAlpha = 1;
+            for (const st of stones) {
+                if (life < st.t0 || life > st.tt + FLY) {
+                    continue;
+                }
+                let x;
+                let y;
+                let ang;
+                if (life < st.tt) {
+                    const up = easeOut((life - st.t0) / 0.4);
+                    [x, y] = orbit(st, life);
+                    y = lerp(G, y, up);
+                    ang = life * 3 + st.i;
+                } else {
+                    const k = (life - st.tt) / FLY;
+                    const [ox, oy] = orbit(st, st.tt);
+                    x = lerp(ox, st.tx, k);
+                    y = lerp(oy, G - st.z, k * k);
+                    ang = Math.atan2(G - oy, st.tx - ox);
+                }
+                shard(ctx, px, x, y, st.z, ang);
+            }
+        } });
+        // 바위 가시 — 꽂힌 자리에 솟음
+        const spike = (ctx, px, st, k, crack) => {
+            const hh = st.h * k;
+            for (let y = 0; y < hh; y += s) {
+                const f = y / Math.max(1, st.h);
+                const half = (st.w / 2) * (1 - f) ** 0.7 * (1 + 0.12 * Math.sin(y * 0.3 + st.i));
+                if (half < s * 0.5) {
+                    continue;
+                }
+                const cx = st.tx + dir * 0.1 * y;
+                const yy = px(G - y - s);
+                ctx.globalAlpha = 1;
+                ctx.fillStyle = STONE[2];
+                ctx.fillRect(px(cx - half), yy, Math.max(s, px(2 * half)), s);
+                ctx.fillStyle = STONE[1];
+                ctx.fillRect(px(cx - half), yy, Math.max(s, px(half * 0.6)), s);
+                ctx.fillStyle = STONE[3];
+                ctx.fillRect(px(cx + half * 0.5), yy, Math.max(s, px(half * 0.5)), s);
+                if (crack > 0 && Math.round(y / s) % 5 === 0) {
+                    ctx.fillStyle = '#fff3c0';
+                    ctx.fillRect(px(cx - half * 0.3), yy, Math.max(s, px(half * 0.6 * crack)), s);
+                }
+            }
+        };
+        sc.add({ max: TB + 0.05, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            const crack = clamp((life - TB + 0.35) / 0.35, 0, 1);
+            for (const st of stones) {
+                const tl = st.tt + FLY;
+                if (life >= tl) {
+                    spike(ctx, px, st, easeOut((life - tl) / 0.15), crack);
+                }
+            }
+        } });
+        stones.forEach((st) => sc.at(st.tt + FLY, () => {
+            ring(sc, st.tx, G - s, st.w * 0.4, st.w * 3, 0.25, 0.4, [STONE[0], STONE[2]], 2);
+            debris(st.tx, G - s, s, [...STONE, '#8a7252'], 12, H * 0.7, { ground: G });
+            ultShake(4, 200);
+            for (const r of u.others()) {
+                if (Math.abs(r.x - st.tx) < st.w + r.w * 0.4) {
+                    hit(where(u, r), away(u, me.x), 'lift', 0.6);
+                }
+            }
+        }));
+        sc.at(TB, () => {
+            impactFrames(sc, W, H, 0.7, 0.45);
+            for (const st of stones) {
+                K.shards(st.tx, G - st.h * 0.5, s, Math.max(s, Math.round(st.w / (6 * s)) * s), STONE, 6, H * 0.8, G);
+            }
+            const last = stones[N - 1];
+            blastDome(sc, clamp(last.tx, W * 0.08, W * 0.92), G, clamp(Math.max(H * 0.48, W * 0.22), 30, Math.min(G * 0.92, W * 0.45)), 1.8, STONE);
+            ultShake(9 + 3 * P, 1100);
+            for (const r of u.others()) {
+                sc.at(TB + 0.1, () => hit(where(u, r), away(u, me.x), 'tumble', 0.3));
+            }
+        });
+        emberRise(sc, TB + 0.4, sec, STONE);
+    }
+
+    // ═════ 메타그로스 — 코멧펀치 (ultdive) ═════
+    // 떠오르며 몸의 X 무늬가 푸르게 빛나고 자기장 고리가 돎 → 과녁에 조준경(네모 틀 · 십자선 · 눈금)이 겹치며 잠금 "LOCK" 깜빡
+    // → 하늘로 솟구쳐 사라짐 → 강철 혜성이 되어 조준한 자리로 내리꽂힘 → 임팩트 프레임 · 강철 조각 · 은빛 빛의 반구 → 제자리로 내려옴 (약 7.2초)
+    const STEELC = ['#ffffff', '#dceaff', '#8ab0e0', '#3a5a9a'];
+    UNIQ.metagross = { fx: 'ultdive', ms: (P) => 7200 + 200 * P, run: runMeteorMash };
+    function runMeteorMash(u, o, ms, pokemon) {
+        const P = strength(u);
+        const sec = ms / 1000;
+        const { W, H, S: s, dir } = u;
+        const G = u.ground;
+        const hit = makeHit();
+        const me = monBox(pokemon);
+        const lift = me.h * 0.3;
+        const TLOCK = 1.1;
+        const TUP = 2.2;
+        const TGONE = TUP + 0.35;
+        const TDIVE = TGONE + 0.4;
+        const TI = TDIVE + 0.45;
+        const THOME = sec - 0.6;
+        const q = nearest(u);
+        const tx = clamp(q ? q.x : me.x + dir * W * 0.45, W * 0.1, W * 0.9);
+        const tyB = q ? q.bottom : G;
+        const tH = q ? q.h : me.h;
+        const footAt = (t) => {
+            if (t < TUP) {
+                return me.b - lift * easeOut(clamp((t - 0.2) / 0.6, 0, 1)) + Math.sin(t * 3) * s;
+            }
+            if (t < TGONE) {
+                return lerp(me.b - lift, -me.h, easeIn((t - TUP) / (TGONE - TUP)));
+            }
+            if (t < THOME) {
+                return -me.h * 2;
+            }
+            return lerp(-me.h, me.b, easeOut(clamp((t - THOME) / 0.5, 0, 1)));
+        };
+        const cometAt = (t) => {
+            const k = easeIn(clamp((t - TDIVE) / (TI - TDIVE), 0, 1));
+            return [lerp(tx - dir * W * 0.15, tx, k), lerp(-me.h, G - me.h * 0.4, k)];
+        };
+        const sc = scene(u, sec + 0.4, 'uniq metagross');
+        ultDark(0.4, ms - 200);
+        // 자기장 고리 (메타그로스 둘레)
+        sc.add({ max: TUP + 0.2, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            const k = clamp((life - 0.3) / 0.4, 0, 1);
+            const cy = footAt(life) - me.h * 0.5;
+            for (let j = 0; j < 3; j++) {
+                K.ringDots(ctx, px, s, me.x, cy, me.w * (0.7 + j * 0.2) * (1 + 0.05 * Math.sin(life * 6 + j)), 0.3 + j * 0.15, [STEELC[1], STEELC[2]], 0.7 * k, 1);
+            }
+        } });
+        puppet(sc, pokemon, u, footAt, STEELC[2], THOME + 0.55, { glow: (t) => clamp((t - 0.3) / 0.6, 0, 1) * (t < TUP ? 0.18 * (1 + Math.sin(t * 9)) : 0), glowColor: STEELC[1] });
+        // 조준경 — 과녁 둘레 네모 틀 · 십자선 · 눈금, 잠기면 붉게 깜빡
+        sc.add({ max: TI, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life < TLOCK - 0.4) {
+                return;
+            }
+            const k = easeOut(clamp((life - (TLOCK - 0.4)) / 0.4, 0, 1));
+            const locked = life > TLOCK;
+            const blink = locked && Math.floor(life * 8) % 2 === 0;
+            const col = locked ? (blink ? '#ff4a4a' : '#ffffff') : STEELC[1];
+            const cy = tyB - tH * 0.5;
+            const half = Math.max(tH, me.w) * (1.6 - 0.8 * k);
+            const L = half * 0.4;
+            ctx.globalAlpha = 0.95;
+            ctx.fillStyle = col;
+            for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+                ctx.fillRect(px(tx + sx * half - (sx > 0 ? s : 0)), px(cy + sy * half - (sy > 0 ? s : 0)), px(-sx * L) || s, s);
+                ctx.fillRect(px(tx + sx * half - (sx > 0 ? s : 0)), px(cy + sy * half - (sy > 0 ? s : 0)), s, px(-sy * L) || s);
+            }
+            for (let d = half * 0.3; d < half * 1.2; d += s * 2) {
+                ctx.fillRect(px(tx + d), px(cy), s, s);
+                ctx.fillRect(px(tx - d), px(cy), s, s);
+                ctx.fillRect(px(tx), px(cy + d), s, s);
+                ctx.fillRect(px(tx), px(cy - d), s, s);
+            }
+            if (locked) {
+                // LOCK 글자 대신 네 칸 점 막대
+                for (let i = 0; i < 4; i++) {
+                    ctx.fillRect(px(tx - half + i * s * 3), px(cy - half - s * 4), s * 2, s * 2);
+                }
+            }
+        } });
+        sc.at(TLOCK, () => {
+            ring(sc, tx, tyB - tH * 0.5, s * 2, tH * 1.6, 1, 0.3, ['#ff4a4a', '#ffffff'], 2);
+            ultShake(1.5, 120);
+        });
+        sc.at(TUP, () => {
+            ring(sc, me.x, G - s, me.w * 0.4, me.w * 2.6, 0.25, 0.4, ['#ffffff', STEELC[2]], 2);
+            ultShake(4, 300);
+        });
+        // 강철 혜성
+        sc.add({ max: TI + 0.02, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life < TDIVE) {
+                return;
+            }
+            const [x, y] = cometAt(life);
+            const dx = W * 0.15 * dir;
+            const dy = G - me.h * 0.4 + me.h;
+            const L = Math.hypot(dx, dy) || 1;
+            K.fireTail(ctx, px, s, x, y, dx / L, dy / L, Math.max(H * 0.6, me.w * 4), Math.max(me.w * 1.2, 8 * s), STEELC, life, 1);
+            drawLitMon(ctx, pokemon.el, x, y + me.h * 0.5, me.w, dir < 0, STEELC[1], Math.max(1, Math.round(u.s * 0.75)), 1);
+        } });
+        sc.at(TI, () => {
+            impactFrames(sc, W, H, 0.8, 0.5);
+            blastDome(sc, tx, G, clamp(Math.max(H * 0.5, me.w * 3), 30, Math.min(G * 0.92, W * 0.48)), 1.9, STEELC);
+            K.shards(tx, G - me.h * 0.4, s, Math.max(s, Math.round(me.w / (10 * s)) * s), STEELC, 14, H * 0.9, G);
+            ring(sc, tx, G - s, me.w, W * 0.8, 0.22, 0.8, ['#ffffff', STEELC[1], STEELC[2]], 3);
+            groundArcs(sc, tx, G - s, W * 0.5, 1.0, STEELC[1], 5, 2, G - s);
+            ultShake(10 + 3 * P, 1300);
+            for (const r of u.others()) {
+                sc.at(TI + 0.1, () => hit(where(u, r), away(u, tx), Math.abs(r.x - tx) < W * 0.2 ? 'tumble' : 'lift', 0.3));
+            }
+        });
+        emberRise(sc, TI + 0.4, sec, STEELC);
+    }
+
+    // ═════ 보만다 — 용성군 (ultskyfall) ═════
+    // 날개가 붉게 빛나며 하늘로 솟구쳐 붉은 꼬리로 하늘에 고리를 그림 → 고리 가운데로 커다란 주황 구를 쏘아 올림
+    // → 구가 터지며 용성(바위 덩이에 푸른 · 주황 불꽃)이 비스듬히 줄지어 쏟아짐(떨어진 자리마다 폭발) → 마지막 거대한 용성 · 주황빛 빛의 반구 → 내려앉음 (약 7.4초)
+    const DRACO = ['#ffffff', '#ffd8a0', '#ff7a3a', '#5a3ad8'];
+    UNIQ.salamence = { fx: 'ultskyfall', ms: (P) => 7400 + 200 * P, run: runDracoMeteor };
+    function runDracoMeteor(u, o, ms, pokemon) {
+        const P = strength(u);
+        const sec = ms / 1000;
+        const { W, H, S: s, dir } = u;
+        const G = u.ground;
+        const hit = makeHit();
+        const me = monBox(pokemon);
+        const TUP = 0.6;
+        const TLOOP = 1.0; // 고리
+        const LOOP = 1.0;
+        const TSHOT = TLOOP + LOOP + 0.1; // 주황 구
+        const TBURST = TSHOT + 0.5;
+        const NM = clamp(Math.round(W / 50), 7, 14);
+        const TBIG = TBURST + 1.5; // 거대 용성
+        const TDOWN = sec - 0.7;
+        const cx0 = clamp(me.x + dir * W * 0.3, W * 0.2, W * 0.8);
+        const cy0 = Math.max(H * 0.22, 30);
+        const rl = Math.min(W * 0.15, H * 0.15);
+        const posAt = (t) => {
+            if (t < TUP) {
+                return [me.x, me.b];
+            }
+            if (t < TLOOP) {
+                const k = easeOut((t - TUP) / (TLOOP - TUP));
+                return [lerp(me.x, cx0 - rl, k), lerp(me.b, cy0 + me.h * 0.5, k)];
+            }
+            if (t < TLOOP + LOOP) {
+                const an = Math.PI + ((t - TLOOP) / LOOP) * TAU * dir;
+                return [cx0 + Math.cos(an) * rl, cy0 + me.h * 0.5 + Math.sin(an) * rl * 0.6];
+            }
+            if (t < TDOWN) {
+                return [cx0 - rl, cy0 + me.h * 0.5 + Math.sin(t * 3) * s * 2];
+            }
+            const k = easeOut(clamp((t - TDOWN) / 0.55, 0, 1));
+            return [lerp(cx0 - rl, me.x, k), lerp(cy0 + me.h * 0.5, me.b, k)];
+        };
+        const meteors = [];
+        for (let i = 0; i < NM; i++) {
+            meteors.push({ x: W * (0.05 + 0.9 * ((i + 0.5) / NM)) + (hash(i, 721) - 0.5) * W * 0.05, t0: TBURST + i * 0.1, T: 0.55, r: Math.max(3 * s, W * (0.012 + 0.008 * hash(i, 722))) });
+        }
+        const q = nearest(u);
+        const bigX = clamp(q ? q.x : me.x + dir * W * 0.45, W * 0.1, W * 0.9);
+        const sc = scene(u, sec + 0.4, 'uniq salamence');
+        ultDark(0.45, ms - 200);
+        skyBand(sc, '#1e0806', Math.max(40, H * 0.4), 0.6, sec);
+        // 붉은 고리 꼬리
+        sc.add({ max: TBIG, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life < TLOOP) {
+                return;
+            }
+            const end = Math.min(life, TLOOP + LOOP);
+            const fade = 1 - clamp((life - TLOOP - LOOP) / 1.2, 0, 1);
+            for (let tt = TLOOP; tt < end; tt += 0.012) {
+                const [x, y] = posAt(tt);
+                const age = end - tt;
+                ctx.globalAlpha = 0.9 * fade * clamp(1 - age / 1.2, 0.3, 1);
+                ctx.fillStyle = age < 0.15 ? '#ffffff' : DRACO[2];
+                ctx.fillRect(px(x), px(y - me.h * 0.5), s * 2, s * 2);
+            }
+        } });
+        // 보만다 (꼭두각시)
+        const img = pokemon.el;
+        const edge = Math.max(1, Math.round(u.s * 0.75));
+        hideMon(pokemon, true);
+        hideUntil(pokemon, (sec - 0.1) * 1000 + 100);
+        sc.at(sec - 0.12, () => hideMon(pokemon, false));
+        sc.add({ max: sec - 0.1, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life >= sec - 0.12) {
+                return;
+            }
+            const [x, b] = posAt(life);
+            const [x2] = posAt(life + 0.02);
+            const lf = Math.abs(x2 - x) > 0.5 ? x2 < x : dir < 0;
+            drawLitMon(ctx, img, x, b, me.w, lf, DRACO[2], edge, 1);
+            const glow = clamp((life - 0.2) / 0.4, 0, 1) * (life < TBURST ? 0.15 * (1 + Math.sin(life * 12)) : 0);
+            if (glow > 0.01) {
+                drawMon(ctx, img, x, b, me.w, lf, glow, DRACO[1]);
+            }
+        } });
+        sc.at(TUP, () => {
+            ring(sc, me.x, G - s, me.w * 0.4, me.w * 2.6, 0.25, 0.4, ['#ffffff', DRACO[2]], 2);
+            ultShake(3, 250);
+        });
+        // 주황 구 — 고리 가운데로 쏘아 올림
+        sc.add({ max: TBURST + 0.05, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life < TSHOT) {
+                return;
+            }
+            const [x0, y0] = posAt(TSHOT);
+            const k = easeOut((life - TSHOT) / (TBURST - TSHOT));
+            fireOrb(ctx, px, s, lerp(x0, cx0, k), lerp(y0 - me.h * 0.5, cy0 * 0.6, k), Math.max(5 * s, me.w * 0.4), DRACO, life, 1, G, 1, 0, [1, 0.8, 0.6, 0.38], 0.5);
+        } });
+        sc.at(TBURST, () => {
+            impactFrames(sc, W, H, 0.5, 0.3);
+            ring(sc, cx0, cy0 * 0.6, me.w * 0.3, W * 0.5, 1, 0.5, ['#ffffff', DRACO[1], DRACO[2]], 2);
+            ultShake(4, 300);
+        });
+        // 용성 — 비스듬히 줄지어
+        const fall = (m, big) => {
+            const sx = m.x - dir * W * 0.25;
+            sc.add({ max: sec, draw: (ctx, it, t, px) => {
+                const life = sc.t;
+                const k = (life - m.t0) / m.T;
+                if (k < 0 || k > 1) {
+                    return;
+                }
+                const x = lerp(sx, m.x, k);
+                const y = lerp(cy0 * 0.6, G - m.r, easeIn(k));
+                const dx = m.x - sx;
+                const dy = G - cy0 * 0.6;
+                const L = Math.hypot(dx, dy) || 1;
+                K.fireTail(ctx, px, s, x, y, dx / L, dy / L, m.r * 7, m.r * 2.6, DRACO, life + m.x, 1);
+                ctx.globalAlpha = 1;
+                ctx.fillStyle = '#5a4a40';
+                ctx.fillRect(px(x - m.r * 0.6), px(y - m.r * 0.6), px(m.r * 1.2), px(m.r * 1.2));
+                ctx.fillStyle = '#8a7a6a';
+                ctx.fillRect(px(x - m.r * 0.6), px(y - m.r * 0.6), px(m.r * 0.6), px(m.r * 0.4));
+            } });
+            sc.at(m.t0 + m.T, () => {
+                if (big) {
+                    impactFrames(sc, W, H, 0.8, 0.5);
+                    blastDome(sc, m.x, G, clamp(Math.max(H * 0.5, W * 0.24), 30, Math.min(G * 0.92, W * 0.48)), 1.9, DRACO);
+                    ultShake(10 + 3 * P, 1300);
+                    for (const r of u.others()) {
+                        sc.at(m.t0 + m.T + 0.1, () => hit(where(u, r), away(u, m.x), 'lift', 0.3));
+                    }
+                    return;
+                }
+                sc.add({ max: 0.5, draw: (ctx, q2, tt, px) => {
+                    fireOrb(ctx, px, s, m.x, G, m.r * 3, DRACO, q2.life + m.x, easeOut(Math.min(1, tt / 0.3)), G + s, tt > 0.7 ? (1 - tt) / 0.3 : 1, clamp((tt - 0.3) / 0.6, 0, 1));
+                } });
+                debris(m.x, G - s, s, ['#5a4a40', '#8a7a6a', DRACO[2]], 8, H * 0.5, { ground: G });
+                ultShake(2.5, 120);
+                for (const r of u.others()) {
+                    if (Math.abs(r.x - m.x) < m.r * 4 + r.w * 0.4) {
+                        hit(where(u, r), away(u, m.x), 'tumble', 0.8);
+                    }
+                }
+            });
+        };
+        meteors.forEach((m) => fall(m, false));
+        fall({ x: bigX, t0: TBIG - 0.6, T: 0.6, r: Math.max(8 * s, W * 0.04) }, true);
+        emberRise(sc, TBIG + 0.4, sec, DRACO);
+    }
+
     // ── 틀에 끼워 넣기 — uniq 가 이 파일에 있는 이름이면 그 연출, 아니면 원래 틀 그대로 ──
     for (const fx of new Set(Object.values(UNIQ).map((d) => d.fx))) {
         const base = ULT_FX[fx];
