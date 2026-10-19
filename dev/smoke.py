@@ -76,6 +76,9 @@ def main():
     ap.add_argument("--bundle")
     ap.add_argument("--fx")
     ap.add_argument("--pokemon")
+    ap.add_argument("--pressedge", help="첫 포켓몬을 끝에 세우고 진짜 꾹 누르기 (대결도 섞임) — 끝난 뒤 자리 튐 점검")
+    ap.add_argument("--reps", default="6")
+    ap.add_argument("--edge", help="포켓몬들을 패널 양 끝에 세우고 필살기 — 끝난 뒤 자리 튐 · 숨김 · 꾸밈 남음 점검")
     ap.add_argument("--lib", help="데이터의 필살기(틀+옵션 중복 없이) 몇 번째부터 몇 번째까지, 예 0-80")
     ap.add_argument("--duellib", help="데이터의 필살기를 대결로 (특수 빼고 틀+옵션 중복 없이) 몇 번째부터 몇 번째까지, 예 0-60")
     ap.add_argument("--shot")
@@ -87,9 +90,10 @@ def main():
     ap.add_argument("--ua", help='--shot clash 에서 쓰는 애 필살기 JSON, 예 \'["파괴광선","ultbeam",{"c":"hyper"}]\'')
     ap.add_argument("--ub", help="--shot clash 에서 받아칠 애 필살기 JSON")
     ap.add_argument("--winner", help="--shot clash 승패: a | b | draw")
-    ap.add_argument("--x", help="--shot sig 에서 세울 곳 (패널 너비 비율, 예 0.15)")
+    ap.add_argument("--x", help="--shot 에서 세울 곳 (패널 너비 비율, 예 0.15 · 0 이면 왼쪽 끝)")
     ap.add_argument("--p")
     ap.add_argument("--size", default="nano")
+    ap.add_argument("--slow", help="그리기 간격 ms (예 80 — 느린 PC 흉내)")
     ap.add_argument("--theme", default="forest")
     ap.add_argument("--win", default="480x300")
     ap.add_argument("--out", default=os.path.join(HERE, "dev", "shots"))
@@ -101,6 +105,8 @@ def main():
         params["bundle"] = "/" + os.path.relpath(os.path.abspath(a.bundle), HERE).replace(os.sep, "/")
     if a.p:
         params["p"] = a.p
+    if a.slow:
+        params["slow"] = a.slow
     win = a.win.replace("x", ",")
     try:
         if a.shot:
@@ -128,7 +134,16 @@ def main():
                     Image.open(path).crop((0, 0, w, h)).save(path)
                 print(path if os.path.exists(path) else f"✗ 못 찍음 {path}")
             return
-        if a.pokemon:
+        if a.pressedge:
+            params["p"] = a.pressedge
+            params["smoke"] = "pressedge"
+            params["reps"] = a.reps
+            budget = 4000 + int(a.reps) * 16000
+        elif a.edge:
+            params["p"] = a.edge
+            params["smoke"] = "edge"
+            budget = 4000 + len(a.edge.split(",")) * 2 * 2 * 12000  # 포켓몬마다 필살기 둘 × 양 끝
+        elif a.pokemon:
             params["p"] = a.pokemon
             params["smoke"] = "pokemon"
             n = len(a.pokemon.split(","))

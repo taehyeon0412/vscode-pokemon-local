@@ -6281,7 +6281,15 @@ function drawParticle(ctx, p) {
 }
 
 function moveTick(now) {
-    const dt = moveLast ? Math.min(0.05, (now - moveLast) / 1000) : 0;
+    // 한 장 사이 시간 — 0.25초까지는 실제 시간대로 (2026-10-19: 0.05초로 막았더니 VS Code 가 초당 20장 아래로 느려지면
+    // 필살기 장면이 실제 시간보다 몇 초씩 늦어져, 타이머로 먼저 다시 보인 진짜 그림과 아직 그려지는 그림이 둘로 보이고 순간이동처럼 보였음)
+    const gap = moveLast ? (now - moveLast) / 1000 : 0;
+    // 패널이 가려져 그리기가 멈춰 있다 돌아옴 — 그사이 필살기가 끝났으면 남은 효과는 버림 (진짜 그림과 겹쳐 보이지 않게)
+    if (gap > 1.5 && !ultActive) {
+        moveParticles.length = 0;
+        moveEmitters.length = 0;
+    }
+    const dt = Math.min(0.25, gap);
     moveLast = now;
     moveCanvasReady();
     const ctx = moveCtx;

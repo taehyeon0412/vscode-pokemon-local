@@ -18,8 +18,10 @@ let frozen = false;
 window.__freeze = () => {
     frozen = true;
 };
+// &slow=80 — 그리기가 80ms 마다 (느린 PC · 무거운 VS Code 처럼 초당 12장)
 if (q.get('shim')) {
-    window.requestAnimationFrame = (cb) => setTimeout(() => !frozen && cb(performance.now()), 16);
+    const gap = Number(q.get('slow') || 16);
+    window.requestAnimationFrame = (cb) => setTimeout(() => !frozen && cb(performance.now()), gap);
     window.cancelAnimationFrame = (id) => clearTimeout(id);
 }
 
@@ -129,7 +131,7 @@ async function idle() {
     await wait(250);
 }
 
-async function runOne(label, actor, spec) {
+async function runOne(label, actor, spec, edge = false) {
     const before = __ult.errors.length + window.__log.length;
     let max = 0;
     const t0 = performance.now();
@@ -140,12 +142,17 @@ async function runOne(label, actor, spec) {
         window.__log.push(`${label}: ${e.stack || e}`);
     }
     const end = t0 + (total || 0) + 300;
+    let endLeft;
     while (performance.now() < end) {
         max = Math.max(max, __ult.count());
+        if (edge && endLeft === undefined && !__ult.active()) {
+            await wait(150); // 끝난 직후 — 원래 움직임으로 돌아간 첫 한두 칸
+            endLeft = __ult.pick(actor).left;
+        }
         await wait(40);
     }
     const errs = [...__ult.errors, ...window.__log].slice(before);
-    return { label, ms: Math.round(total || 0), maxParticles: max, errors: errs.slice(0, 5) };
+    return { label, ms: Math.round(total || 0), maxParticles: max, errors: errs.slice(0, 5), endLeft };
 }
 
 async function smoke(what) {
@@ -160,6 +167,86 @@ async function smoke(what) {
                 out.push({ pokemon: p.label, ult: ult[0], fx: ult[1], ...(await runOne(`${p.label}:${ult[0]}`, i, ult)) });
                 await idle();
             }
+        }
+    } else if (what === 'edge') {
+        // 패널 양 끝에 세우고 필살기 — 끝난 순간 자리가 튀지 않는지(순간이동) · 숨김 · 투명 · 그림 꾸밈이 남지 않는지
+        for (let i = 0; i < n; i++) {
+            const p = __ult.pick(i);
+            for (const ult of __ult.of(p.label)) {
+                for (const side of ['left', 'right']) {
+                    await idle();
+                    window.__spread();
+                    __ult.place(i, side === 'left' ? 0 : window.innerWidth);
+                    await wait(400);
+                    const x0 = p.left;
+                    const r = await runOne(`${p.label}:${ult[0]}:${side}`, i, ult, true);
+                    const x1 = r.endLeft ?? p.left;
+                    const el = p.el;
+                    const issues = [];
+                    if (Math.abs(x1 - x0) > 24) {
+                        issues.push(`자리 튐 ${Math.round(x0)} → ${Math.round(x1)}`);
+                    }
+                    if (el.style.visibility === 'hidden') {
+                        issues.push('숨김 남음');
+                    }
+                    if (el.style.opacity === '0') {
+                        issues.push('투명 남음');
+                    }
+                    if (el.style.filter && el.style.filter !== 'none') {
+                        issues.push(`꾸밈 남음 ${el.style.filter.slice(0, 40)}`);
+                    }
+                    out.push({ ...r, errors: [...r.errors, ...issues] });
+                }
+            }
+        }
+    } else if (what === 'pressedge') {
+        // 진짜 꾹 누르기로 (대결도 섞임) — 왼쪽 끝에 세우고 reps 번, 끝난 뒤 자리 · 꾸밈을 봄
+        const reps = Number(q.get('reps') || 6);
+        for (let r = 0; r < reps; r++) {
+            await idle();
+            window.__spread();
+            __ult.place(0, r % 2 ? window.innerWidth : 0);
+            await wait(500);
+            const p = __ult.pick(0);
+            const x0 = p.left;
+            const before = __ult.errors.length + window.__log.length;
+            __ult.press(0);
+            await wait(1400);
+            const kind = !__ult.active() ? 'none' : performance.now() < (p.clashUntil ?? 0) ? 'clash' : 'ult';
+            let t = 0;
+            let lo = p.left;
+            let hi = p.left;
+            const states = new Set();
+            const trace = [];
+            let last = '';
+            while (__ult.active() && t < 400) {
+                await wait(50);
+                t += 1;
+                lo = Math.min(lo, p.left);
+                hi = Math.max(hi, p.left);
+                states.add(p.currentState?.constructor?.name);
+                const now = `${Math.round(p.left)}:${p.currentState?.constructor?.name}`;
+                if (now !== last) {
+                    trace.push(`${t * 50}ms ${now}`);
+                    last = now;
+                }
+            }
+            states.add(trace.join(' | '));
+            await wait(150);
+            const x1 = p.left;
+            await wait(1500);
+            const x2 = p.left;
+            const issues = [];
+            if (hi - lo > 24) {
+                issues.push(`쓰는 동안 진짜 자리가 움직임 ${Math.round(lo)} ~ ${Math.round(hi)} (${[...states].join(',')})`);
+            }
+            if (Math.abs(x1 - x0) > 24) {
+                issues.push(`끝난 직후 자리 튐 ${Math.round(x0)} → ${Math.round(x1)}`);
+            }
+            if (Math.abs(x2 - x1) > 60) {
+                issues.push(`1.5초 뒤 자리 튐 ${Math.round(x1)} → ${Math.round(x2)}`);
+            }
+            out.push({ label: `${p.label} #${r} ${r % 2 ? 'right' : 'left'} ${kind} x ${Math.round(x0)}→${Math.round(x1)}→${Math.round(x2)} · ${trace.slice(0, 6).join(' | ')}`, ms: t * 50, maxParticles: 0, errors: [...[...__ult.errors, ...window.__log].slice(before), ...issues] });
         }
     } else if (what === 'duellib') {
         // 데이터에 있는 필살기 모두를 대결로 — 틀 + 옵션이 같은 건 한 번만, 상대는 종류별 대표를 돌아가며, 승패도 돌아가며 (이긴 쪽 모양까지 보려고)
@@ -261,15 +348,17 @@ async function shot() {
     const actor = Number(q.get('actor') ?? 0);
     const at = Number(q.get('at') ?? 1500);
     const o = JSON.parse(q.get('opts') || '{}');
+    // &x=0.15 면 패널 그 위치에 세움 (x=0 이면 왼쪽 끝)
+    if (q.get('x')) {
+        __ult.place(actor, window.innerWidth * Number(q.get('x')));
+        await wait(200);
+    }
     if (fx === 'own') {
         __ult.fire(actor);
     } else if (fx === 'clash') {
         __ult.clash(actor, Number(q.get('vs') ?? __ult.list().length - 1), q.get('ua') ? JSON.parse(q.get('ua')) : undefined, q.get('ub') ? JSON.parse(q.get('ub')) : undefined, q.get('win') || undefined); // 필살기 대결 (win=a|b|draw 로 승패를 정함)
     } else if (fx === 'sig') {
-        // 클릭 기술 하나 (opts = [이름, 틀, 옵션]) — &x=0.15 면 패널 그 위치에 세우고 오른쪽을 보고
-        if (q.get('x')) {
-            __ult.place(actor, window.innerWidth * Number(q.get('x')));
-        }
+        // 클릭 기술 하나 (opts = [이름, 틀, 옵션])
         __ult.sig(actor, o, false);
     } else if (fx === 'beamclash') {
         __ult.beamclash(actor, Number(q.get('vs') ?? __ult.list().length - 1)); // 광선 힘겨루기
