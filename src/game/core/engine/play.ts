@@ -38,6 +38,8 @@ export type GameInput =
   | { kind: 'battle'; input: BattleInput }
   /** S09 ⑫ 자동 전투 스위치 — 세이브 설정에 (다음 전투에도 그대로) */
   | { kind: 'auto-battle'; on: boolean }
+  /** 빨리 걷기 켜기 · 끄기 (S06 정보줄 · S20, 2026-10-19) */
+  | { kind: 'fast-walk'; on: boolean }
   /** S12 계속 (Space · Enter · 클릭) */
   | { kind: 'result-continue' }
   /** S23 — 바꿀 칸 (null = 배우지 않기) */
@@ -154,6 +156,25 @@ const beaten = (prog: StageProgress, id: StageId, s: Spot) =>
   (s.kind === 'trainer' && prog.defeatedTrainers.includes(trainerId(id, s.trainer ?? 0))) || ((s.kind === 'item' || s.kind === 'request' || s.kind === 'rival') && s.at <= prog.run.reach);
 
 /** 이번 걸음에 지나친 첫 자리 · 병원 · 상점 (from < at ≤ to) — 다시 안 나오는 자리는 건너뜀 */
+/**
+ * 걷는 빠르기 배 — 빨리 걷기 (설정, 2026-10-19 태현 님 "걷는 시간이 길어 루즈해") 가 켜져 있으면 ×3, 단 앞으로 4초 (보통 걸음) 안에
+ * 흔적 · 트레이너 · 병원 · 상점 · 아이템 · 부탁이 있으면 보통 빠르기 (다가오는 걸 보고 선제공격 · 고르기를 할 수 있게). 지나가면 다시 ×3
+ */
+function walkSpeed(save: Save, layout: StageLayout, prog: StageProgress, id: StageId): number {
+  if (save.settings.fastWalk !== true) return 1;
+  const from = prog.progress;
+  return nextEvent(layout, prog, id, from, Math.min(1, from + walkDelta(BALANCE.fastWalkLookMs))) ? 1 : BALANCE.fastWalkSpeed;
+}
+
+/** 화면용 — 지금 빨리 걷는 중인지 (배경 흐름 · 걷기 그림을 같이 빠르게 · 정보줄 표시) */
+export function isWalkingFast(state: GameState): boolean {
+  const loc = state.save.location;
+  if (loc.screen !== 'stage' || state.runtime.stage?.phase !== 'walk' || state.save.settings.fastWalk !== true) return false;
+  const prog = state.save.stages[loc.stageId];
+  if (!prog) return false;
+  return walkSpeed(state.save, stageLayout(loc.stageId, prog.seed, prog.facilities), prog, loc.stageId) > 1;
+}
+
 function nextEvent(layout: StageLayout, prog: StageProgress, id: StageId, from: number, to: number): { spot: Spot } | { facility: FacilitySpot } | null {
   let spot: Spot | null = null;
   let f = from;
@@ -256,7 +277,7 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
   switch (stage.phase) {
     case 'walk': {
       const from = prog.progress;
-      const to = Math.min(1, from + walkDelta(stepMs));
+      const to = Math.min(1, from + walkDelta(stepMs * walkSpeed(save, layout, prog, id)));
       const ev = nextEvent(layout, prog, id, from, to);
       if (!ev) {
         save = withProgress(save, id, to);
@@ -693,6 +714,9 @@ export function applyInput(state: GameState, input: GameInput): GameState {
     case 'auto-battle':
       if (save.settings.autoBattle === input.on) return state;
       return { ...state, save: { ...save, settings: { ...save.settings, autoBattle: input.on } } };
+    case 'fast-walk':
+      if ((save.settings.fastWalk === true) === input.on) return state;
+      return { ...state, save: { ...save, settings: { ...save.settings, fastWalk: input.on } } };
     case 'notifications':
       if (save.settings.notifications === input.on) return state;
       return { ...state, save: { ...save, settings: { ...save.settings, notifications: input.on } } };

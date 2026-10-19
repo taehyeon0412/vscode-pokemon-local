@@ -2,6 +2,7 @@ export { Rng } from './rng';
 export { clampFrameDelta, takeSteps } from './step';
 export {
   advance,
+  isWalkingFast,
   applyInput,
   canHeal,
   canOpenMenus,

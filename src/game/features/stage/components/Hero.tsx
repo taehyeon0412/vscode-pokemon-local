@@ -60,6 +60,8 @@ export interface HeroProps {
   px: number;
   /** 걷는 중이면 다리가 움직임 */
   walking: boolean;
+  /** 빨리 걷기 중 — 걷기 그림을 더 빨리 넘김 (배경이 ×3 으로 흐르니까) */
+  fast?: boolean;
   /** 트레이너 · 관장 — 모자 · 옷 색 (없으면 주인공) */
   hat?: string;
   shirt?: string;
@@ -78,6 +80,7 @@ export interface HeroProps {
 
 /** 걷기 그림 한 장 (ms) — 걷는 속도 2배 (2026-10-19) 에 맞춰 조금 빠르게 */
 const WALK_FRAME_MS = 130;
+const WALK_FAST_FRAME_MS = 80;
 
 /** 가로로 이은 장면 그림 — 칸 하나만 보이게 자르고, 걸을 때는 장면을 한 칸씩 옮김 (steps) */
 function Sheet({ src, art, scale, run, frameMs, title }: { src: string; art: SheetArt; scale: number; run: boolean; frameMs: number; title?: string }) {
@@ -101,16 +104,17 @@ function Sheet({ src, art, scale, run, frameMs, title }: { src: string; art: She
 }
 
 /** 값이 같으면 다시 안 그림 (초당 30번 화면 갱신) */
-export const Hero = memo(function Hero({ px, walking, hat, shirt, faceLeft, label, gender, look, media, front, roomPx }: HeroProps) {
+export const Hero = memo(function Hero({ px, walking, fast, hat, shirt, faceLeft, label, gender, look, media, front, roomPx }: HeroProps) {
+  const frameMs = fast ? WALK_FAST_FRAME_MS : WALK_FRAME_MS;
   const d = look && media ? heroDraw(look, px / 2, roomPx) : null;
   if (look && d) {
     const base = `${media!.replace(/\/+$/, '')}/people/${look.dir ?? look.id}`;
     return (
       <span class={['pg-hero', 'pg-hero-art', faceLeft ? 'pg-face-left' : ''].filter(Boolean).join(' ')}>
         {front && d.front ? (
-          <Sheet src={`${base}/${d.frontFile}.png`} art={d.front} scale={d.scale} run={walking} frameMs={WALK_FRAME_MS} title={label} />
+          <Sheet src={`${base}/${d.frontFile}.png`} art={d.front} scale={d.scale} run={walking} frameMs={frameMs} title={label} />
         ) : (
-          <Sheet src={`${base}/${d.walkFile}.png`} art={d.walk} scale={d.scale} run={walking} frameMs={WALK_FRAME_MS} title={label} />
+          <Sheet src={`${base}/${d.walkFile}.png`} art={d.walk} scale={d.scale} run={walking} frameMs={frameMs} title={label} />
         )}
       </span>
     );

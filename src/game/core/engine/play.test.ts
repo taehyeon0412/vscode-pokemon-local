@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { BALANCE, TIMING } from '../balance';
 import { stageLayout, type Spot } from '../rules/stage';
-import type { Save } from '../save';
+import { validateSave, type Save } from '../save';
 import { sampleSave, viaJson } from '../../../test/fixtures/save';
 import { shinyWildSeed } from '../../../test/fixtures/stage';
 import { startBattle } from './battle';
-import { advance, applyInput, isWaitingForInput, leadSpeed, step, withSpeed } from './play';
+import { advance, applyInput, isWaitingForInput, isWalkingFast, leadSpeed, step, withSpeed } from './play';
 import { createGameState, readRuntime, type GameState } from './state';
 
 const STEP = TIMING.simStepMs;
@@ -79,6 +79,47 @@ describe('S06 자동 걷기 (mvp-spec 3.2)', () => {
     const reloaded = advance(createGameState(viaJson(s.save), 3), 1000).state;
     expect(phase(reloaded)).toBe('clear');
     expect(reloaded.save.bag['poke-ball']).toBe(balls + BALANCE.clearBalls);
+  });
+});
+
+describe('빨리 걷기 (2026-10-19 태현 님 "걷는 시간이 길어 루즈해")', () => {
+  const fast = (s: GameState, on = true): GameState => applyInput(s, { kind: 'fast-walk', on });
+
+  it('켜면 일이 멀리 있을 때 ×3 · 끄면 보통 · 화면도 isWalkingFast 로 앎', () => {
+    const s0 = start();
+    // 처음 자리 (0) 에서 4초 안에는 일이 없음
+    expect(layoutOf(s0).spots.every((x) => x.at > (BALANCE.fastWalkLookMs + 2000) / BALANCE.stageWalkMs)).toBe(true);
+    const on = advance(fast(s0), 1000).state;
+    expect(prog(on)).toBeCloseTo((1000 * BALANCE.fastWalkSpeed) / BALANCE.stageWalkMs, 8);
+    expect(isWalkingFast(on)).toBe(true);
+    const off = advance(fast(on, false), 1000).state;
+    expect(prog(off) - prog(on)).toBeCloseTo(1000 / BALANCE.stageWalkMs, 8);
+    expect(isWalkingFast(off)).toBe(false);
+  });
+
+  it('흔적 · 아이템이 4초 (보통 걸음) 안에 다가오면 보통 빠르기 — 다가오는 걸 보고 선제공격할 수 있게', () => {
+    const base = fast(start());
+    const spot = layoutOf(base).spots[0]!;
+    const near: GameState = {
+      ...base,
+      save: { ...base.save, stages: { 'forest-1': { ...base.save.stages['forest-1']!, progress: spot.at - 2000 / BALANCE.stageWalkMs } } },
+      runtime: { ...base.runtime, stage: { phase: 'walk' } },
+    };
+    expect(isWalkingFast(near)).toBe(false);
+    const s1 = step(near, STEP).state;
+    expect(prog(s1) - prog(near)).toBeCloseTo(STEP / BALANCE.stageWalkMs, 10);
+  });
+
+  it('설정은 세이브에 남음 · 옛 세이브 (fastWalk 없음) 는 고친 기록 없이 꺼짐', () => {
+    const on = fast(start());
+    expect(on.save.settings.fastWalk).toBe(true);
+    const kept = validateSave(viaJson(on.save));
+    expect(kept.ok && kept.save.settings.fastWalk).toBe(true);
+    expect(fast(on)).toBe(on); // 이미 켜져 있으면 그대로
+    const old = { ...start().save, settings: { notifications: true, autoBattle: false } } as Save;
+    const back = validateSave(viaJson(old));
+    expect(back.ok && back.save.settings.fastWalk).toBeFalsy();
+    expect(back.ok && back.problems.filter((p) => p.includes('fastWalk'))).toEqual([]);
   });
 });
 

@@ -514,6 +514,8 @@ export function validateSave(raw: unknown): ValidateResult {
     settings: {
       notifications: fx.bool(settingsRaw.notifications, 'settings.notifications', true),
       autoBattle: fx.bool(settingsRaw.autoBattle, 'settings.autoBattle', false),
+      // 빨리 걷기 — 옛 세이브엔 없음 (없으면 꺼짐, 고친 기록 안 남김)
+      ...(settingsRaw.fastWalk === undefined ? {} : { fastWalk: fx.bool(settingsRaw.fastWalk, 'settings.fastWalk', false) }),
     },
     ...(raw.rivals === undefined ? {} : { rivals: readRivals(raw.rivals, 'rivals', fx) }),
   };

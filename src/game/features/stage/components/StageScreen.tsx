@@ -8,7 +8,7 @@
  */
 import { useRef } from 'preact/hooks';
 import { BALANCE } from '../../../core/balance';
-import { canOpenMenus, itemLeft, type GameInput, type GameState } from '../../../core/engine';
+import { canOpenMenus, isWalkingFast, itemLeft, type GameInput, type GameState } from '../../../core/engine';
 import { bestHelper, requestAt } from '../../../core/rules/request';
 import { FACILITY_STAFF } from '../../../core/rules/stage';
 import { GYM_LEADER } from '../../../core/rules/trainer';
@@ -134,6 +134,9 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   const info = stageId ? STAGES[stageId] : null;
   const map = minimapOf(state);
   const phase = state.runtime.stage?.phase ?? (gym ? 'lobby' : 'walk');
+  // 빨리 걷기 (설정, 2026-10-19) — 걷는 동안 일이 멀리 있으면 엔진이 ×3 → 배경 흐름 · 걷기 그림도 같이
+  const fast = isWalkingFast(state);
+  const walkK = fast ? BALANCE.fastWalkSpeed : 1;
   const progress = map?.progress ?? 0;
   const offset = progress * stagePx(layout.scale);
   const ground = GROUND_PX[layout.size] - 2;
@@ -229,13 +232,13 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
           <div class="pg-gym-room" />
         ) : (
           <>
-            <ScrollLayer cls="pg-bg" image={art('background')} start={offset * 0.35} pxPerSec={WALK_PX_PER_SEC * layout.scale * 0.35} running={phase === 'walk' && live} />
-            <ScrollLayer cls="pg-fg" image={art('foreground')} start={offset * 0.7} pxPerSec={WALK_PX_PER_SEC * layout.scale * 0.7} running={phase === 'walk' && live} />
+            <ScrollLayer cls="pg-bg" image={art('background')} start={offset * 0.35} pxPerSec={WALK_PX_PER_SEC * layout.scale * 0.35 * walkK} running={phase === 'walk' && live} />
+            <ScrollLayer cls="pg-fg" image={art('foreground')} start={offset * 0.7} pxPerSec={WALK_PX_PER_SEC * layout.scale * 0.7 * walkK} running={phase === 'walk' && live} />
           </>
         )}
         <StageObjects objects={objects} media={media} scale={layout.scale} ground={ground} roomPx={heroRoom} />
         <span class="pg-obj pg-hero-wrap" style={{ left: `${heroLeft}px`, bottom: `${ground}px` }}>
-          <Hero px={heroPx} walking={phase === 'walk' && live} gender={look.gender} look={look} media={media} roomPx={heroRoom} />
+          <Hero px={heroPx} walking={phase === 'walk' && live} fast={fast} gender={look.gender} look={look} media={media} roomPx={heroRoom} />
         </span>
         {/* 전투 중 상대 트레이너 · 관장 = 오른쪽 끝 (남은 볼) · 대기실의 관장 */}
         {((battle && foeTrainer) || (gym && !battle) || (stageRt?.phase === 'rival' && foeTrainer)) && (
