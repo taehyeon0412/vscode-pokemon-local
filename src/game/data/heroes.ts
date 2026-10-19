@@ -91,8 +91,8 @@ export interface HeroDraw {
 /** 이 자리 (roomPx, 위아래로 쓸 수 있는 px) 에 그릴 그림 — 그림이 없으면 null (코드 그림) */
 export function heroDraw(look: HeroLook, scale: number, roomPx = Number.POSITIVE_INFINITY): HeroDraw | null {
   if (!look.walk) return null;
-  // 0.5 단위로, 포켓몬 배율을 넘지 않게
-  const fit = (h: number) => Math.min(scale, Math.floor((roomPx / h) * 2) / 2);
+  // 정수 배율만 (점 굵기가 고르게 — 0.5 단위면 92 · 140px 에서 1 · 2px 가 번갈아, 2026-10-19 태현 님 "추천대로"), 포켓몬 배율을 넘지 않게
+  const fit = (h: number) => Math.min(Math.floor(scale), Math.floor(roomPx / h));
   const shrink = (h: number) => Math.max(0.25, roomPx / h); // 1배로도 안 될 때 — 할 수 없이 줄임
   const big = fit(look.walk.h);
   if (big >= 1 || !look.small) return { walkFile: 'walk', frontFile: 'front', walk: look.walk, front: look.front, scale: big >= 1 ? big : shrink(look.walk.h) };

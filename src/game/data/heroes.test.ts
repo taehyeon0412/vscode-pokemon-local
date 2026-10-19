@@ -23,12 +23,14 @@ describe('S03 주인공 목록 (data/heroes.ts)', () => {
     expect(isHeroLookId(3)).toBe(false);
   });
 
-  it('크기 (A안): 그림은 1배부터 · 자리가 남으면 포켓몬 배율까지 0.5 단위 · 1배로 안 되면 작은 그림 · 그것도 없으면 할 수 없이 줄임', () => {
+  it('크기 (A안): 그림은 1배부터 · 자리가 남으면 포켓몬 배율까지 정수 배율만 (2026-10-19) · 1배로 안 되면 작은 그림 · 그것도 없으면 할 수 없이 줄임', () => {
     const big = { frames: 4, w: 32, h: 48 };
     const small = { frames: 4, w: 20, h: 28 };
     const look: HeroLook = { id: 'x', label: 'x', gender: 'female', walk: big, small: { walk: small } };
-    expect(heroDraw(look, 2.5, 200)).toMatchObject({ walkFile: 'walk', scale: 2.5 });
-    expect(heroDraw(look, 2.5, 76)).toMatchObject({ walkFile: 'walk', scale: 1.5 }); // 크게 · 140px
+    expect(heroDraw(look, 2.5, 200)).toMatchObject({ walkFile: 'walk', scale: 2 }); // 크게 = 포켓몬 2.5배 → 사람은 2배 (점이 고르게)
+    expect(heroDraw(look, 2.5, 76)).toMatchObject({ walkFile: 'walk', scale: 1 }); // 크게 · 140px (1.5배 자리지만 정수만)
+    expect(heroDraw(look, 2, 96)).toMatchObject({ walkFile: 'walk', scale: 2 });
+    expect(heroDraw(look, 1.5, 200)).toMatchObject({ walkFile: 'walk', scale: 1 }); // 작게 = 1.5배 → 1배
     expect(heroDraw(look, 1.5, 49)).toMatchObject({ walkFile: 'walk', scale: 1 }); // 작게 · 92px
     expect(heroDraw(look, 1, 31)).toMatchObject({ walkFile: 'walk-small', scale: 1 }); // 아주 작게 · 68px
     expect(heroDraw(look, 1, 20)!.scale).toBeCloseTo(20 / 28); // 작은 그림도 안 들어감 → 줄임
