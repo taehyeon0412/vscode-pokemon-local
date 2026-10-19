@@ -16,7 +16,7 @@ import type { Save } from '../../../core/save';
 import { moveOf, speciesOf } from '../../../data';
 import { Button } from '../../../ui/Button';
 import { Sprite } from '../../../ui/Sprite';
-import { duelKind, hpColor, moveColor, moveFx, profileOpenable, STATUS_LABEL, type BattleGeometry } from '../model';
+import { duelKind, hpColor, moveColor, moveFx, profileOpenable, sentenceText, splitPopups, STATUS_LABEL, type BattleGeometry } from '../model';
 import { battleAnimKey, holdWindow } from '../fx/hold';
 import { impactOf } from '../fx/parry';
 import { BattleMenu } from './BattleMenu';
@@ -40,7 +40,8 @@ const foePrefix = (b: BattleState) => (b.kind === 'wild' ? '야생 ' : '상대 '
 const nameOf = (f: Fighter) => speciesOf(f.species)?.name.ko ?? '???';
 /** 맞은 쪽 그림이 깜빡이는 시간 */
 const HURT_MS = 420;
-const POP_STACK_PX = 11;
+/** 머리 위 숫자 줄 사이 (글자 13 ~ 16px — 예전 11 이라 세 줄이 붙거나 겹침) · 한 줄 높이 */
+const POP_STACK_PX = 16;
 const MAX_TAPS = Math.round(BALANCE.clashTapMax / BALANCE.clashTap);
 
 /** 행동 하나마다 다른 열쇠 — 같은 CSS 움직임이 다시 처음부터 돌게 */
@@ -289,7 +290,9 @@ function emphasize(msg: string, names: readonly string[]): ComponentChildren {
 /** S10 힘대결 — 두 기술이 가운데서 밀고 밀림. 연타할수록 맞부딪히는 자리가 상대 쪽으로 (gdd S10 ⑤) · 승자가 정해지면 이긴 줄기가 끝까지 */
 /**
  * 패링 원 (2026-10-19 태현 님 A) — 상대 공격이 맞기 직전, 내 포켓몬 둘레에서 금색 원이 좁혀져 포켓몬 크기가 되는 순간 = 맞는 순간 (그때 Space · 클릭).
- * 맞는 순간은 연출 (BattleFx → fx/parry) 이 정함. 누르면 (막음 · 완벽 · 너무 일찍) 원은 사라지고 엔진이 글 (막았다!) 을 띄움
+ * 맞는 순간은 연출 (BattleFx → fx/parry) 이 정함. 누르면 (막음 · 완벽 · 너무 일찍) 원은 사라지고 엔진이 글 (막았다!) 을 띄움.
+ * 1배 자리에 얇은 과녁 원이 같이 떠서 "좁혀지는 원이 과녁에 겹칠 때" 를 눈으로 맞춤 (2026-10-20 플레이 리뷰어 — 예전엔 흰색이 될 때만 알 수 있었음).
+ * HP 줄 아래 층 (z 4 · HP 줄보다 먼저 그림) — 큰 원이 내 HP 숫자를 가로지르지 않게
  */
 function ParryRing({ b, geo, y }: { b: BattleState; geo: BattleGeometry; y: number }) {
   const w = canParry(b) ? impactOf(animKey(b)) : null;
@@ -297,12 +300,12 @@ function ParryRing({ b, geo, y }: { b: BattleState; geo: BattleGeometry; y: numb
   const size = Math.round(geo.meSpritePx * 1.1);
   // 원이 좁혀지기 시작하는 때 = 맞기 parryRingMs 전 — 지연은 맞는 순간을 적은 때 기준으로 고정 (그릴 때마다 지금으로 바꾸면 어긋남)
   const delay = Math.round(w.at - TIMING.parryRingMs - w.set);
+  const style = { left: `${geo.meX}px`, bottom: `${y}px`, width: `${size}px`, height: `${size}px`, animationDuration: `${TIMING.parryRingMs + TIMING.parryLateMs}ms`, animationDelay: `${delay}ms` };
   return (
-    <span
-      key={animKey(b)}
-      class="pg-parry-ring"
-      style={{ left: `${geo.meX}px`, bottom: `${y}px`, width: `${size}px`, height: `${size}px`, animationDuration: `${TIMING.parryRingMs + TIMING.parryLateMs}ms`, animationDelay: `${delay}ms` }}
-    />
+    <>
+      <span key={`${animKey(b)}t`} class="pg-parry-target" style={style} />
+      <span key={animKey(b)} class="pg-parry-ring" style={style} />
+    </>
   );
 }
 
@@ -366,10 +369,23 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
   const profile = onProfile && profileOpenable(b) ? onProfile : undefined;
   const midMe = ground + Math.round(geo.meSpritePx * 0.45);
   const midFoe = ground + Math.round(geo.foeSpritePx * 0.45);
-  const popups = (side: Side) => b.popups.filter((p) => p.side === side);
+  // 머리 위 = 숫자만 (상성 = 크기 · 급소 = "!"), 문장은 위 한 줄 말에 붙임 (2026-10-20 플레이 리뷰어 — 원작처럼)
+  const { numbers, sentences } = splitPopups(b.popups);
   const popBase = (side: Side) => (side === 'me' ? geo.meHpBottom : geo.foeHpBottom) + geo.hpBlockPx + 2;
-  // 필살기 컷인이 같은 말을 하는 동안 · 둘 곳이 없는 좁은 패널에서는 위 한 줄을 숨김
-  const showMsg = b.msg && !geo.msgHidden && b.phase !== 'clash' && b.anim?.action.kind !== 'ult';
+  // 위 말 칸 위로는 안 올라감 — 자리가 없으면 (낮은 패널) 포켓몬 몸 위에
+  const popTop = geo.bodyPx - geo.msgTop - POP_STACK_PX;
+  const popAt = (side: Side, i: number) => {
+    const y = popBase(side) + i * POP_STACK_PX;
+    return y <= popTop ? y : (side === 'me' ? midMe : midFoe) + i * POP_STACK_PX;
+  };
+  const sideName = (s: Side) => nameOf(s === 'me' ? b.me : b.foe);
+  // 기술 연출 중 (말 = "파이리의 불꽃세례!") 이면 뒤에, 그다음 단계 (쓰러짐 · 고르기 · 끝 — 맞는 순간 엔진이 말을 바꿈) 면 앞에 —
+  //   "효과가 굉장했다! 급소에 맞았다! 이상해씨가 쓰러졌다!" (원작 순서 · 좁은 패널에서 잘려도 문장이 앞에 남음)
+  const said = sentences.map((p) => sentenceText(p, sideName));
+  const msgText = (b.phase === 'anim' ? [b.msg, ...said] : [...said, b.msg]).filter(Boolean).join(' ');
+  // 필살기 컷인이 같은 말을 하는 동안 · 둘 곳이 없는 좁은 패널에서는 위 한 줄을 숨김 — 그때 문장은 머리 위 한 줄로
+  const showMsg = msgText !== '' && !geo.msgHidden && b.phase !== 'clash' && b.anim?.action.kind !== 'ult';
+  const lastSentence = showMsg ? undefined : sentences[sentences.length - 1];
   // 나갈 포켓몬이 없는 채로 시작한 전투 (이상한 세이브) — 내 자리는 비움
   const hasMe = b.me.uid !== 'none';
   return (
@@ -379,21 +395,32 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
       {b.phase !== 'catch' && !(b.phase === 'over' && b.result === 'catch') && (
         <FighterBody key={`foe${b.foeDown.length}`} b={b} side="foe" x={geo.foeX} target={geo.meX} px={geo.foeSpritePx} media={media} ground={ground} onProfile={profile} />
       )}
+      {/* 패링 원은 HP 줄보다 먼저 (같은 층에서 HP 숫자가 위) */}
+      <ParryRing b={b} geo={geo} y={midMe} />
       {hasMe && <HpBlock f={b.me} side="me" x={geo.meHpX} bottom={geo.meHpBottom} wide={geo.meHpWide} prefix="" noName={geo.menuSide !== null} />}
       {b.phase !== 'send' && <HpBlock f={b.foe} side="foe" x={geo.foeHpX} bottom={geo.foeHpBottom} wide={geo.foeHpWide} prefix={foePrefix(b)} />}
       {b.phase === 'clash' ? <Clash b={b} geo={geo} y={Math.round((midMe + midFoe) / 2)} native={native} /> : <Effects b={b} geo={geo} ground={ground} midMe={midMe} midFoe={midFoe} native={native} />}
-      <ParryRing b={b} geo={geo} y={midMe} />
       <Catch b={b} geo={geo} ground={ground} />
-      {(['me', 'foe'] as const).map((side) =>
-        popups(side).map((p, i) => (
-          <span key={p.id} class={`pg-pop pg-pop-${p.kind}`} style={{ left: `${side === 'me' ? geo.meHpX : geo.foeHpX}px`, bottom: `${popBase(side) + i * POP_STACK_PX}px` }}>
-            {p.text}
-          </span>
-        )),
-      )}
+      {(['me', 'foe'] as const).map((side) => {
+        const nums = numbers.filter((n) => n.side === side).slice(-3);
+        const x = side === 'me' ? geo.meHpX : geo.foeHpX;
+        return [
+          ...nums.map((n, i) => (
+            <span key={n.id} class={`pg-pop pg-pop-${n.kind} pg-pop-num-${n.size}${n.crit ? ' pg-pop-num-crit' : ''}`} style={{ left: `${x}px`, bottom: `${popAt(side, i)}px` }}>
+              {n.text}
+            </span>
+          )),
+          // 말 칸이 없을 때만 문장 한 줄 (가장 최근 것)
+          lastSentence?.side === side && (
+            <span key={`s${lastSentence.id}`} class={`pg-pop pg-pop-say pg-pop-${lastSentence.kind}`} style={{ left: `${x}px`, bottom: `${popAt(side, nums.length)}px` }}>
+              {sentenceText(lastSentence, sideName)}
+            </span>
+          ),
+        ];
+      })}
       {showMsg && (
-        <div key={b.msg} class={['pg-bmsg', b.phase === 'over' ? 'pg-bmsg-over' : '', geo.msgLines === 2 ? 'pg-bmsg-2' : ''].filter(Boolean).join(' ')} style={msgStyle(geo)} title={b.msg}>
-          {emphasize(b.msg, [nameOf(b.me), nameOf(b.foe)])}
+        <div key={b.msg} class={['pg-bmsg', b.phase === 'over' ? 'pg-bmsg-over' : '', geo.msgLines === 2 ? 'pg-bmsg-2' : ''].filter(Boolean).join(' ')} style={msgStyle(geo)} title={msgText}>
+          {emphasize(msgText, [nameOf(b.me), nameOf(b.foe)])}
         </div>
       )}
       {!geo.autoInMenu && (

@@ -6,7 +6,7 @@ import { Rng } from '../../core/engine/rng';
 import { counterMove, isShooting } from '../../core/rules/battle';
 import { hasMapRow, MAP_ROW_PX, topGapPx } from '../../ui/layout';
 import { allForms, allMoves, formOf, moveOf } from '../../data';
-import { battleGeometry, battleSpritePx, battleViewKey, duelKind, hpColor, menuItems, placeOnStage, type DuelKind } from './model';
+import { battleGeometry, battleSpritePx, battleViewKey, duelKind, hpColor, menuItems, placeOnStage, sentenceText, splitPopups, type DuelKind } from './model';
 
 const wild = sampleMonster({ uid: 'wild', species: 4, form: 'charmander', level: 5, moves: [{ moveId: 52, pp: 25 }], hp: 999 });
 const save = sampleSave();
@@ -315,5 +315,26 @@ describe('지도 줄 아래 · 긴 한 줄 말 (2026-10-19 태현 님)', () => {
     expect(narrow.msgTop).toBeLessThan(8);
     // 자리가 넉넉하면 띄움 그대로 (지도 줄 아래 8)
     expect(real(315, 560, true, 64).msgTop).toBe(8 + MAP_ROW_PX + 8);
+  });
+});
+
+describe('머리 위 글 — 숫자만 머리 위, 문장은 말 칸 (2026-10-20 플레이 리뷰어)', () => {
+  const pop = (id: number, side: 'me' | 'foe', kind: Parameters<typeof splitPopups>[0][number]['kind'], text: string) => ({ id, side, kind, text, ms: 0 });
+
+  it('-N → 상성 → 급소 = 숫자 하나 (굉장 = 크게 · 급소 = "!") · 문장 둘은 말 칸으로', () => {
+    const { numbers, sentences } = splitPopups([pop(1, 'foe', 'damage', '-15'), pop(2, 'foe', 'super', '효과가 굉장했다!'), pop(3, 'foe', 'crit', '급소에 맞았다!')]);
+    expect(numbers).toEqual([{ id: 1, side: 'foe', kind: 'damage', text: '-15!', size: 'big', crit: true }]);
+    expect(sentences.map((s) => s.text)).toEqual(['효과가 굉장했다!', '급소에 맞았다!']);
+  });
+
+  it('별로 = 작게 · 다른 쪽 · 다음 숫자의 상성은 안 섞임 (연속기 · 흡수)', () => {
+    const { numbers } = splitPopups([pop(1, 'foe', 'damage', '-3'), pop(2, 'foe', 'weak', '효과가 별로인 듯하다…'), pop(3, 'me', 'heal', '+2'), pop(4, 'foe', 'damage', '-3')]);
+    expect(numbers.map((n) => [n.text, n.size])).toEqual([['-3', 'small'], ['+2', 'normal'], ['-3', 'normal']]);
+  });
+
+  it('상태 문장은 누가 걸렸는지 붙임 · 나머지는 그대로', () => {
+    const name = (s: 'me' | 'foe') => (s === 'me' ? '이상해씨' : '파이리');
+    expect(sentenceText(pop(5, 'me', 'status', '독에 걸렸다!'), name)).toBe('이상해씨는 독에 걸렸다!');
+    expect(sentenceText(pop(6, 'foe', 'miss', '빗나갔다!'), name)).toBe('빗나갔다!');
   });
 });

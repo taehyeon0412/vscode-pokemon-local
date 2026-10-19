@@ -34,24 +34,41 @@ body.pokemon-game-on #pokemonFxCanvas {
   to { width: 0; }
 }
 /* 패링 원 (2026-10-19) — 상대 공격이 맞기 직전 내 포켓몬 둘레에서 좁혀짐, 포켓몬 크기가 되는 순간 (85%) = 맞는 순간 → Space · 클릭 (BattleLayer ParryRing) */
-.pg-parry-ring {
+/* 패링 원 — 1.7배에서 좁혀져 85% (= 맞는 순간) 에 1배 · 흰색. 연출 층 (z 3) 위 · HP 줄 (z 4, 뒤에 그림) 아래 — 큰 원이 HP 숫자를 가로지르지 않게 (2026-10-20 플레이 리뷰어: 예전 2.2배 · z 6) */
+.pg-parry-ring,
+.pg-parry-target {
   position: absolute;
-  z-index: 6;
+  z-index: 4;
   box-sizing: border-box;
-  border: 2px solid #ffd76a;
   border-radius: 50%;
   pointer-events: none;
   opacity: 0;
-  transform: translate(-50%, 50%) scale(2.2);
-  animation-name: pg-parry-ring;
+  transform: translate(-50%, 50%) scale(1.7);
   animation-timing-function: linear;
   animation-fill-mode: both;
 }
+.pg-parry-ring {
+  border: 2px solid #ffd76a;
+  animation-name: pg-parry-ring;
+}
 @keyframes pg-parry-ring {
-  0% { transform: translate(-50%, 50%) scale(2.2); opacity: 0; }
+  0% { transform: translate(-50%, 50%) scale(1.7); opacity: 0; }
   15% { opacity: 1; }
   85% { transform: translate(-50%, 50%) scale(1); opacity: 1; border-color: #ffffff; }
   100% { transform: translate(-50%, 50%) scale(0.9); opacity: 0; }
+}
+/* 과녁 원 — 1배 자리에 가만히 (1px 흐린 금색), 맞는 순간에 흰색 — 좁혀지는 원이 여기에 겹칠 때 누름 */
+.pg-parry-target {
+  border: 1px solid rgba(255, 215, 106, 0.55);
+  transform: translate(-50%, 50%) scale(1);
+  animation-name: pg-parry-target;
+}
+@keyframes pg-parry-target {
+  0% { opacity: 0; }
+  15% { opacity: 1; }
+  84% { opacity: 1; border-color: rgba(255, 215, 106, 0.55); }
+  85% { opacity: 1; border-color: #ffffff; }
+  100% { opacity: 0; border-color: #ffffff; }
 }
 /* 프로필 판 (S21) 위에는 안 그림 — 연출 캔버스가 맨 위라 (#330) */
 body.pokemon-game-on:has(.pg-profile-wrap) #pokemonFxCanvas {
@@ -3340,4 +3357,22 @@ body.vscode-high-contrast-light .pg-title-body {
 }
 .pg-keys .pg-menu-key {
   color: var(--pg-sos-ink);
+}
+
+/* 머리 위 숫자 (2026-10-20 플레이 리뷰어 "머리 위엔 숫자 하나 — 상성 = 숫자 크기, 급소 = !") — 굉장 16px · 보통 13 · 별로 11 (흐리게) · 급소는 "-15!" + 금색 테두리 한 칸.
+   문장 (효과가 굉장했다 · 급소 · 막았다 …) 은 위 한 줄 말에 붙음 — 말 칸이 없을 때 (필살기 컷인 · 좁은 패널) 만 머리 위 한 줄 (.pg-pop-say) */
+.pg-pop.pg-pop-num-big {
+  font-size: 16px;
+}
+.pg-pop.pg-pop-num-small {
+  font-size: 11px;
+  opacity: 0.85;
+}
+.pg-pop.pg-pop-num-crit {
+  text-shadow: 1px 0 0 var(--pg-sos-gold), -1px 0 0 var(--pg-sos-gold), 0 1px 0 var(--pg-sos-gold), 0 -1px 0 var(--pg-sos-gold);
+  color: var(--pg-sos-red);
+}
+.pg-pop.pg-pop-say {
+  color: var(--pg-sos-gold);
+  font-size: 12px;
 }

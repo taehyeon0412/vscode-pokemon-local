@@ -1,13 +1,13 @@
 /**
  * S09 전투 화면 — 화면을 모르는 부분: 메뉴에 무엇이 있고 무엇이 흐린지 · 단축키 · 연출 모양 고르기.
  */
-import type { BattleAction, BattleState } from '../../core/engine';
+import type { BattleAction, BattlePopup, BattleState, Side } from '../../core/engine';
 import { canAct, counterOpen, faintedTeam, itemLeft, switchable, ultCounterOpen } from '../../core/engine';
 import { isShooting } from '../../core/rules/battle';
 import { BALLS, isBall } from '../../core/rules/catch';
 import { BATTLE_ITEMS, itemName } from '../../core/rules/items';
 import type { Save } from '../../core/save';
-import { typeNameKo } from '../../core/text';
+import { typeNameKo, withJosa } from '../../core/text';
 import { formOf, moveOf, speciesOf, type TypeName } from '../../data';
 
 export type MenuPage = 'main' | 'skills' | 'items' | 'switch' | 'revive';
@@ -276,6 +276,8 @@ export interface BattleGeometry {
   msgLines: 1 | 2;
   /** 위 한 줄 자리가 HP 묶음 · 메뉴로 붐빔 — 한 줄 말은 상대 오른쪽으로 (StageScreen 은 전투 동안 지도 줄을 정보줄 안으로) */
   topBusy: boolean;
+  /** 길 칸 높이 (정보줄 뺀) — 머리 위 숫자가 위 말 칸 위로 올라가지 않게 */
+  bodyPx: number;
   /** 한 줄 말 · 힘대결 안내 위 끝 (길 칸 위에서 px) — 지도 줄 아래 띄움, 자리가 모자라면 띄움을 줄임 (최소 3) */
   msgTop: number;
 }
@@ -381,7 +383,7 @@ export function battleGeometry(g: GeometryInput): BattleGeometry {
   const msgSide = !menuSide && topBusy && sideRoom >= MSG_SIDE_MIN_PX ? { left: sideLeft, maxWidth: sideRoom } : null;
   // 둘 곳이 없으면 (좁고 낮은 패널) 한 줄은 숨김 — HP 바가 더 중요, 내 차례는 메뉴 테두리로 보임
   const msgHidden = menuSide ? !msgRight : topBusy && !msgSide;
-  return { trainerX, meX, foeX: Math.round(g.foeX), meSpritePx: g.meSpritePx, foeSpritePx: g.foeSpritePx, meHpWide, foeHpWide, meHpX, foeHpX, msgHidden, meHpBottom, foeHpBottom, hpBlockPx, menuInBar, menuBottom, menuLeft, autoInMenu, autoBottom, autoLeft: AUTO_LEFT_PX, compact, msgSide, menuSide, msgRight, msgLines, topBusy, msgTop: top + msgGap };
+  return { trainerX, meX, foeX: Math.round(g.foeX), meSpritePx: g.meSpritePx, foeSpritePx: g.foeSpritePx, meHpWide, foeHpWide, meHpX, foeHpX, msgHidden, meHpBottom, foeHpBottom, hpBlockPx, menuInBar, menuBottom, menuLeft, autoInMenu, autoBottom, autoLeft: AUTO_LEFT_PX, compact, msgSide, menuSide, msgRight, msgLines, topBusy, msgTop: top + msgGap, bodyPx: g.bodyPx };
 }
 
 /**
@@ -431,4 +433,41 @@ export function battleViewKey(b: BattleState, auto: boolean): string {
     b.popups.length ? b.popups.map((p) => `${p.text}${b.t - p.ms}`).join(',') : '',
     b.me.moves.map((s) => s.pp).join(','),
   ].join('|');
+}
+
+/**
+ * 머리 위 글 나누기 (2026-10-20 플레이 리뷰어 "머리 위엔 숫자 하나, 문장은 위 말 칸 — 원작처럼"):
+ * 숫자 (피해 · 회복) 만 머리 위에 — 상성은 숫자 크기 (굉장 = 크게 · 별로 = 작게), 급소는 숫자 뒤 "!".
+ * 문장 (상성 · 급소 · 빗나감 · 막음 · 상태 · 그 밖) 은 위 한 줄 말에 붙임. 엔진 순서 = 같은 쪽에 -N → 상성 → 급소 (9df2458)
+ */
+export interface PopNumber {
+  id: number;
+  side: Side;
+  text: string;
+  kind: 'damage' | 'heal';
+  size: 'big' | 'normal' | 'small';
+  crit: boolean;
+}
+
+export function splitPopups(popups: readonly BattlePopup[]): { numbers: PopNumber[]; sentences: BattlePopup[] } {
+  const numbers: PopNumber[] = [];
+  for (const p of popups) {
+    if (p.kind !== 'damage' && p.kind !== 'heal') continue;
+    // 바로 뒤 두 개 안에서 같은 쪽 상성 · 급소 (다음 숫자를 만나면 거기까지)
+    const after: BattlePopup[] = [];
+    for (const q of popups) {
+      if (q.side !== p.side || q.id <= p.id || q.id > p.id + 2) continue;
+      if (q.kind === 'damage' || q.kind === 'heal') break;
+      after.push(q);
+    }
+    const has = (k: BattlePopup['kind']) => after.some((q) => q.kind === k);
+    const crit = has('crit');
+    numbers.push({ id: p.id, side: p.side, kind: p.kind, text: crit ? `${p.text}!` : p.text, size: has('super') ? 'big' : has('weak') ? 'small' : 'normal', crit });
+  }
+  return { numbers, sentences: popups.filter((p) => p.kind !== 'damage' && p.kind !== 'heal') };
+}
+
+/** 말 칸에 붙일 문장 — 상태는 누가 걸렸는지 ("이상해씨는 독에 걸렸다!"), 나머지는 그대로 */
+export function sentenceText(p: BattlePopup, nameOfSide: (s: Side) => string): string {
+  return p.kind === 'status' ? `${withJosa(nameOfSide(p.side), '은/는')} ${p.text}` : p.text;
 }
