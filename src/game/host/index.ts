@@ -16,6 +16,7 @@ import { FileSaveArchive } from './save-archive';
 import { FileSaveStorage } from './save-file';
 import { SaveStore, type LoadResult } from './save-store';
 import { TeamOut } from './team-out';
+import { GAME_TOGGLE_COMMAND, withSkipShell } from './terminal-keys';
 import { createTestApi, type GameTestApi } from './test-api';
 import { connectWebviewView } from './view-port';
 import { FileLeaseFile, WindowLease } from './window-lease';
@@ -29,6 +30,9 @@ export interface GameHost {
   /** activate 의 반환값 — Test 모드에서만 { game } */
   exports: { game: GameTestApi } | undefined;
 }
+
+/** commandsToSkipShell 에 F3 게임 전환 명령을 한 번 넣었음 (globalState) */
+const TERMINAL_KEY_DONE = 'vscode-pokemon.game.terminalF3';
 
 export function activate(context: vscode.ExtensionContext): GameHost {
   // 기록은 개발 창 · 테스트에서만 ("출력" 패널의 "포켓몬 게임")
@@ -135,6 +139,16 @@ export function activate(context: vscode.ExtensionContext): GameHost {
       if (pick && !game.setSpeed(Number(pick))) void vscode.window.showInformationMessage('게임 중에만 바꿀 수 있어요');
     }),
   );
+  // F3 (package.json keybindings) 가 터미널을 클릭해 둔 동안에도 먹게 — 처음 한 번만 사용자 설정에 넣음 (빼면 다시 안 넣음, terminal-keys.ts)
+  if (!testMode && !context.globalState.get<boolean>(TERMINAL_KEY_DONE, false)) {
+    const terminal = vscode.workspace.getConfiguration('terminal.integrated');
+    const next = withSkipShell(terminal.inspect<unknown>('commandsToSkipShell')?.globalValue, GAME_TOGGLE_COMMAND);
+    const write = next ? terminal.update('commandsToSkipShell', next, vscode.ConfigurationTarget.Global) : Promise.resolve();
+    void Promise.resolve(write).then(
+      () => context.globalState.update(TERMINAL_KEY_DONE, true),
+      (e: unknown) => log(`터미널 F3 설정을 못 씀: ${String(e)}`),
+    );
+  }
   void vscode.commands.executeCommand('setContext', 'vscode-pokemon.gameDev', debug);
   // 게임 빌드가 있을 때만 🎮 를 보임 (install.py 가 빌드하지 못하면 일반 모드만)
   void vscode.commands.executeCommand('setContext', 'vscode-pokemon.gameAvailable', hasWebviewBuild);

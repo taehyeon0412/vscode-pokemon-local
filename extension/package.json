@@ -244,7 +244,7 @@
 				"command": "vscode-pokemon.game-mode",
 				"key": "f3",
 				"mac": "f3",
-				"when": "vscode-pokemon.gameAvailable && vscode-pokemon.position == 'explorer' && !findWidgetVisible && !terminalFindVisible && !webviewFindWidgetVisible"
+				"when": "vscode-pokemon.gameAvailable && vscode-pokemon.position == 'explorer'"
 			},
 			{
 				"command": "vscode-pokemon.spawn-pokemon",

@@ -20,8 +20,9 @@ describe('F3 = 게임 모드 ↔ 일반 모드 (gdd 4.7)', () => {
     expect(f3[0]).toMatchObject({ command: 'vscode-pokemon.game-mode', mac: 'f3' });
   });
 
-  it('찾기 창 (편집기 · 터미널 · 웹뷰) 이 열려 있으면 F3 는 원래대로 "다음 찾기" · 게임 빌드가 없으면 안 먹음', () => {
+  it('찾기 창이 열려 있어도 F3 = 게임 전환 ("다음 찾기" 는 안 씀 — 태현 님) · 게임 빌드가 없을 때만 안 먹음', () => {
     const when = f3[0]?.when ?? '';
-    for (const c of ['vscode-pokemon.gameAvailable', '!findWidgetVisible', '!terminalFindVisible', '!webviewFindWidgetVisible']) expect(when).toContain(c);
+    expect(when).toContain('vscode-pokemon.gameAvailable');
+    expect(when).not.toMatch(/findWidgetVisible|terminalFindVisible|webviewFindWidgetVisible/);
   });
 });
