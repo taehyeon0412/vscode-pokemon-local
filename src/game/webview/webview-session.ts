@@ -91,6 +91,8 @@ export class WebviewSession {
         this.lastSentAt = this.deps.now();
         this.titleInfo = null;
         this.screenNow = 'game';
+        // 접힌 상태 (140px 아래) 에서 맡겨지면 계산하지 않고 바로 돌려줌 — 안 그리는 웹뷰가 맡아 게임이 조용히 멈추지 않게
+        if (this.collapsed) this.hide();
         this.changed();
         return;
       case 'title':

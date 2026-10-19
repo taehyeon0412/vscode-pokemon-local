@@ -218,7 +218,8 @@ if (!port) {
     if (document.hidden) {
       session.hide();
       sync();
-    } else {
+    } else if (!store.get().layout.tooSmall) {
+      // 접힌 채 다시 보이면 상태를 달라고 하지 않음 (받자마자 돌려주는 왕복) — 140px 이상이 되면 setCollapsed 가 달라고 함
       session.show();
     }
   });

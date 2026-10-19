@@ -80,6 +80,18 @@ describe('웹뷰 세션', () => {
     expect(t.sent).toEqual([]);
   });
 
+  it('접힌 채로 start 를 받으면 계산하지 않고 바로 hidden 으로 돌려줌 (코드 리뷰어)', () => {
+    const { s, sent, frames } = make();
+    s.setCollapsed(true, true);
+    expect(sent).toEqual([]); // 맡은 게임이 없으면 넘길 것도 없음
+    s.handleMessage(start(7));
+    expect(sent.at(-1)).toMatchObject({ type: 'hidden', epoch: 7 });
+    expect(s.running).toBe(false);
+    expect(s.screen).toBe('game');
+    frames(2000);
+    expect(sent).toHaveLength(1);
+  });
+
   it('suspend (VS Code 밖 · 자동 전투 꺼짐) 이면 hidden 으로 마지막 상태를 넘기고 멈춤', () => {
     const { s, sent, frames } = make();
     s.handleMessage(start(5));
