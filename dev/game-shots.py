@@ -284,7 +284,22 @@ SHOTS = [
     ("fx-ember-170", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "move", "side": "foe", "mv": "52", "dur": "20000", "fx": "1", "budget": "700"}),
     ("fx-razor-170", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "move", "side": "me", "mv": "75", "dur": "20000", "fx": "1", "budget": "500"}),
     ("fx-tackle-170", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "attack", "dur": "900", "fx": "1", "budget": "850"}),
-    ("fx-scratch-170", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "move", "side": "foe", "mv": "10", "dur": "900", "fx": "1", "budget": "850"}),
+    ("fx-scratch-170", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "move", "side": "foe", "mv": "10", "dur": "900", "fx": "1", "budget": "780"}),
+    # 필살기 = 일반 모드 필살기 (번쩍 · 어두워짐 · 컷인 · 큰 글씨 · 전용 연출). 엔진 dur 2.2초지만 연출이 끝날 때까지 붙잡음 (fx/hold)
+    ("fx-ult-bulba-500", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "ult-beam", "side": "me", "dur": "2200", "fx": "1", "budget": "500"}),
+    ("fx-ult-bulba-1300", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "ult-beam", "side": "me", "dur": "2200", "fx": "1", "budget": "1300"}),
+    ("fx-ult-bulba-2600", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "ult-beam", "side": "me", "dur": "2200", "fx": "1", "budget": "2600"}),
+    ("fx-ult-bulba-4200", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "ult-beam", "side": "me", "dur": "2200", "fx": "1", "budget": "4200"}),
+    ("fx-ult-bulba-6500", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "ult-beam", "side": "me", "dur": "2200", "fx": "1", "budget": "6500"}),
+    ("fx-ult-charm-500", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "ult-beam", "side": "foe", "dur": "2200", "fx": "1", "budget": "500"}),
+    ("fx-ult-charm-1300", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "ult-beam", "side": "foe", "dur": "2200", "fx": "1", "budget": "1300"}),
+    ("fx-ult-charm-2600", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "ult-beam", "side": "foe", "dur": "2200", "fx": "1", "budget": "2600"}),
+    ("fx-ult-charm-4200", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "ult-beam", "side": "foe", "dur": "2200", "fx": "1", "budget": "4200"}),
+    ("fx-ult-charm-6500", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "ult-beam", "side": "foe", "dur": "2200", "fx": "1", "budget": "6500"}),
+    # 필살기가 0.5초에 끊김 (맞받아치기 힘대결로) — 1.5 · 3초에 필살기 본편 · 어둠 · 숨긴 그림이 안 남아야 함
+    ("fx-ult-stop-450", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "ult-beam", "side": "foe", "dur": "20000", "fx": "1", "stopult": "500", "budget": "450"}),
+    ("fx-ult-stop-1500", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "ult-beam", "side": "foe", "dur": "20000", "fx": "1", "stopult": "500", "budget": "1500"}),
+    ("fx-ult-stop-3000", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "ult-beam", "side": "foe", "dur": "20000", "fx": "1", "stopult": "500", "budget": "3000"}),
     # 파이어레드 원작 그림 (레드 = boy)
     ("p12-red-walk-68", "720x68", {"screen": "game", "look": "boy", "gender": "male"}),
     ("p12-red-walk-116", "720x116", {"screen": "game", "look": "boy", "gender": "male", "size": "medium"}),

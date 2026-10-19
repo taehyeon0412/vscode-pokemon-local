@@ -53,8 +53,8 @@ export type BattleAction =
   | { kind: 'switch'; uid: string }
   | { kind: 'flee' }
   | { kind: 'ult' }
-  /** 잠듦 · 마비로 못 움직임 */
-  | { kind: 'skip' };
+  /** 잠듦 · 마비로 못 움직임 — why = 잠 · 이번에 깸 · 마비 (연출용, 예전 저장엔 없음) */
+  | { kind: 'skip'; why?: 'sleep' | 'wake' | 'paralysis' };
 
 export interface BattleAnim {
   side: Side;
@@ -265,10 +265,10 @@ function startAction(b0: BattleState, side: Side, action0: BattleAction, rng: Rn
     if (st?.kind === 'sleep') {
       const left = st.turnsLeft - 1;
       actor.status = left > 0 ? { kind: 'sleep', turnsLeft: left } : null;
-      action = { kind: 'skip' };
+      action = { kind: 'skip', why: left > 0 ? 'sleep' : 'wake' };
       b.msg = left > 0 ? `${withJosa(label(b, side), '은/는')} 쿨쿨 잠들어 있다` : `${withJosa(label(b, side), '이/가')} 눈을 떴다!`;
     } else if (st?.kind === 'paralysis' && rng.chance(BALANCE.paralysisSkip)) {
-      action = { kind: 'skip' };
+      action = { kind: 'skip', why: 'paralysis' };
       b.msg = `${withJosa(label(b, side), '은/는')} 몸이 저려 움직일 수 없다!`;
     }
   }

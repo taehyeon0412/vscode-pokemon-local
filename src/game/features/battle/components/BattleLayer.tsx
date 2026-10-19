@@ -129,7 +129,7 @@ function FighterBody(props: { b: BattleState; side: Side; x: number; target: num
 function Effects({ b, geo, ground, midMe, midFoe, native }: { b: BattleState; geo: BattleGeometry; ground: number; midMe: number; midFoe: number; native: boolean }) {
   const anim = b.anim;
   if (!anim) return null;
-  if (native && anim.action.kind !== 'ult' && anim.action.kind !== 'flee') return null;
+  if (native && anim.action.kind !== 'flee') return null;
   const from = anim.side === 'me' ? geo.meX : geo.foeX;
   const to = anim.side === 'me' ? geo.foeX : geo.meX;
   const y = anim.side === 'me' ? midMe : midFoe;
@@ -161,7 +161,7 @@ function Effects({ b, geo, ground, midMe, midFoe, native }: { b: BattleState; ge
   } else if (a.kind === 'flee') {
     out.push(<span key={`${key}f`} class="pg-fx pg-fx-pulse" style={{ left: `${from}px`, bottom: `${ground}px`, animationDuration: dur }}>💨</span>);
   } else if (a.kind === 'skip') {
-    out.push(<span key={`${key}z`} class="pg-fx pg-fx-pulse" style={{ left: `${from}px`, bottom: `${y}px`, animationDuration: dur }}>{b[anim.side].status?.kind === 'sleep' ? '💤' : '⚡'}</span>);
+    out.push(<span key={`${key}z`} class="pg-fx pg-fx-pulse" style={{ left: `${from}px`, bottom: `${y}px`, animationDuration: dur }}>{a.why === 'paralysis' ? '⚡' : a.why === 'wake' ? '❗' : a.why === 'sleep' || b[anim.side].status?.kind === 'sleep' ? '💤' : '⚡'}</span>);
   } else if (a.kind === 'ult') {
     const f = b[anim.side];
     const color = moveColor(null, f.types[0] ?? null);

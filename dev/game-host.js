@@ -74,7 +74,11 @@
         if (battleKind === 'choose' || battleKind === 'skills') Object.assign(b, { phase: 'choose', me: { ...me, gauge: 1 }, msg: '이상해씨는 무엇을 할까?' });
         if (battleKind === 'counter') Object.assign(b, { phase: 'anim', anim: { side: 'foe', action: { kind: 'move', moveId: 52 }, ms: 0, dur, counter: true }, msg: '야생 파이리의 불꽃세례!' });
         if (battleKind === 'clash') Object.assign(b, { phase: 'clash', clash: { kind: 'move', me: 75, foe: 52, base: 0.42, taps: 9, ms: 0, winner: null }, msg: '맞받아쳤다! 힘대결!' });
-        if (battleKind === 'ult-cut' || battleKind === 'ult-beam') Object.assign(b, { phase: 'anim', me: { ...me, ult: 0 }, anim: { side: 'me', action: { kind: 'ult' }, ms: 0, dur, counter: false }, msg: '이상해씨의 필살기!', ultAt: { me: 5000, foe: null } });
+        // side=foe — 상대가 쓰는 필살기 (연출 시험, fx=1 과 같이)
+        if (battleKind === 'ult-cut' || battleKind === 'ult-beam') {
+            const side = q.get('side') || 'me';
+            Object.assign(b, { phase: 'anim', [side]: { ...(side === 'me' ? me : foe), ult: 0 }, anim: { side, action: { kind: 'ult' }, ms: 0, dur, counter: false }, msg: side === 'me' ? '이상해씨의 필살기!' : '야생 파이리의 필살기!', ultAt: { me: side === 'me' ? 5000 : null, foe: side === 'foe' ? 5000 : null } });
+        }
         // battle=move&side=me|foe&mv=<기술 id> — 그 기술을 쓰는 중 (연출 시험, fx=1 과 같이)
         if (battleKind === 'move') { const side = q.get('side') || 'me'; Object.assign(b, { phase: 'anim', anim: { side, action: { kind: 'move', moveId: Number(q.get('mv') || 75) }, ms: 0, dur, counter: false }, msg: side === 'me' ? '이상해씨의 기술!' : '야생 파이리의 기술!' }); }
         if (battleKind === 'attack') Object.assign(b, { phase: 'anim', anim: { side: 'me', action: { kind: 'attack' }, ms: 0, dur, counter: false }, msg: '이상해씨의 공격!' });
@@ -202,8 +206,11 @@
 
     // 머리 없는 브라우저 사진에서는 requestAnimationFrame 이 거의 안 돌아서 (가상 시간) 타이머로 대신 — dev/game-shots.py 가 shim=1
     if (q.get('shim') === '1') {
-        window.requestAnimationFrame = (cb) => setTimeout(() => cb(performance.now()), 16);
-        window.cancelAnimationFrame = (id) => clearTimeout(id);
+        // 원래 setTimeout 을 잡아 둠 — 전투 연출 다리 (ult/bridge.js) 가 필살기 동안 setTimeout 에 번호를 붙여서, 그리기 반복까지 같이 멈추지 않게
+        const st = window.setTimeout.bind(window);
+        const ct = window.clearTimeout.bind(window);
+        window.requestAnimationFrame = (cb) => st(() => cb(performance.now()), 16);
+        window.cancelAnimationFrame = (id) => ct(id);
     }
 
     // 디버그: probe=선택자 → 계산된 스타일 몇 개를 페이지 아래에
@@ -231,7 +238,22 @@
             } catch (e) {
                 console.error('일반 모드 번들 시작 실패', e);
             }
+            // fxdbg=1 — 다리 부르기를 콘솔에 남김 (연출 시험)
+            const f = window.pokemonFx;
+            if (q.get('fxdbg') && f) {
+                for (const k of ['ult', 'stopUlt', 'clear', 'move']) {
+                    const fn = f[k];
+                    f[k] = (...a) => {
+                        const r = fn.apply(f, a);
+                        console.log('fxdbg', k, Math.round(performance.now()), r);
+                        return r;
+                    };
+                }
+            }
+            if (q.get('fxdbg')) setInterval(() => console.log('fxdbg msg', Math.round(performance.now()), (document.getElementById('pokemon-game')?.innerText || '').replace(/\s+/g, ' ').slice(-70)), 250);
             document.body.appendChild(s);
+            // stopult=<ms> — 그때 필살기를 멈춤 (맞받아치기로 끊긴 것처럼 — 남은 연출 · 숨긴 그림이 안 남는지 시험)
+            if (q.get('stopult')) setTimeout(() => window.pokemonFx?.stopUlt?.(), Number(q.get('stopult')));
         };
         document.body.appendChild(nb);
     } else {

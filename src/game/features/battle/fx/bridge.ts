@@ -28,10 +28,13 @@ export interface FxPlan {
 export interface PokemonFx {
   version: number;
   plan(form: string, m: FxMove): FxPlan | null;
-  /** reach = 입에서 상대까지 px (뿜기 기술이 상대까지 닿게) */
-  move(src: FxActor, m: FxMove, reach?: number): number;
+  /** reach = 입에서 상대까지 px (뿜기 기술이 상대까지 닿게) · form = 기술 모양을 고를 포켓몬 (없으면 src — 닿는 기술 자국은 쓰는 쪽 모양) */
+  move(src: FxActor, m: FxMove, reach?: number, form?: string): number;
   cast(src: FxActor, fx: string, o?: Record<string, unknown>): number;
   impact(dst: FxActor, type: string, big?: boolean): void;
+  /** 필살기 (version 2) — 걸리는 시간 (ms), 못 쓰면 0 */
+  ult?(src: FxActor, dst: FxActor): number;
+  stopUlt?(): void;
   clear(): void;
 }
 

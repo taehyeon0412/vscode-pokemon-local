@@ -684,6 +684,10 @@ function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1) {
 // ── 연출 틀이 쓰는 도구 (SPEC.md) ──
 // 맞을 수 있는 다른 포켓몬
 function ultOthers(pokemon) {
+    // 게임 모드 전투 (ult/bridge.js) — 맞을 상대 = 게임 상대 (일반 모드 포켓몬은 숨어 있음)
+    if (typeof fxGameTargets === 'function' && fxGameTargets()) {
+        return fxGameTargets();
+    }
     return exports.allPokemon.pokemonCollection.map((el) => el.pokemon)
         .filter((q) => q !== pokemon && q !== ultActive?.pokemon && !(q.currentState instanceof DragState))
         .map((q) => {
@@ -706,6 +710,10 @@ function ultShake(amp = 3, ms = 600) {
     exports.allPokemon.pokemonCollection.forEach((el) => el.pokemon !== ultActive?.pokemon && shake(el.el));
     shake(document.getElementById('foreground'), amp / 2); // 앞쪽 풀은 반만 — 화면 끝이 덜 비게
     shake(moveCanvas);
+    // 게임 모드 전투 — 게임 화면 (길 · 포켓몬) 도 반만 흔듦 (ult/bridge.js)
+    if (typeof fxGameTargets === 'function' && fxGameTargets()) {
+        shake(document.querySelector('#pokemon-game .pg-field'), amp / 2);
+    }
 }
 
 function ultFreeze(p, ms) {

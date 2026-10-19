@@ -124,15 +124,15 @@ export class WebviewSession {
     if (this.epoch === null || !this.state) return;
     if (this.paused) {
       // 멈춘 동안에도 판에서 바꾼 것 (산 물건 · 팀 순서) 은 보냄 — 껐다 켜도 남게
-      if (this.dirty && this.deps.now() - this.lastSentAt >= TIMING.snapshotIntervalMs) {
-        this.deps.post({ command: GAME_COMMAND, type: 'state', epoch: this.epoch, state: this.state });
-        this.markSent();
-      }
+      this.sendIfDue();
       return;
     }
     const dt = clampFrameDelta(dtMs);
-    // 일반 모드 연출이 아직 — 피해가 들어가는 걸음을 미룸 (features/battle/fx/hold, 웹뷰에서만)
-    if (this.deps.hold?.(this.state, dt)) return;
+    // 일반 모드 연출이 아직 — 피해가 들어가는 걸음을 미룸 (features/battle/fx/hold, 웹뷰에서만). 그동안에도 상태는 보냄 (필살기는 12초까지)
+    if (this.deps.hold?.(this.state, dt)) {
+      this.sendIfDue();
+      return;
+    }
     const r = advance(this.state, dt);
     this.state = r.state;
     if (r.steps > 0) this.dirty = true;
@@ -142,6 +142,12 @@ export class WebviewSession {
       this.saveNow(reason);
       return;
     }
+    this.sendIfDue();
+  }
+
+  /** 바뀐 게 있고 1초가 지났으면 확장에 보냄 */
+  private sendIfDue(): void {
+    if (this.epoch === null || !this.state) return;
     if (this.dirty && this.deps.now() - this.lastSentAt >= TIMING.snapshotIntervalMs) {
       this.deps.post({ command: GAME_COMMAND, type: 'state', epoch: this.epoch, state: this.state });
       this.markSent();
