@@ -215,7 +215,7 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
             const dst = actor(b, other(side));
             if (!dst) return;
             fx.move(dst, move.m, 0, form);
-            fx.impact(dst, move.hitType, move.big);
+            fx.impact(dst, move.hitType, move.big, move.m.name);
           });
         } else if (plan) {
           const mv = act.kind === 'move' ? moveOf(act.moveId) : undefined;
@@ -236,7 +236,7 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
           if (mv && mv.power > 0) {
             at(castAt + Math.round(plan.ms * SHOT_HIT_AT), () => {
               const dst = actor(b, other(side));
-              if (dst) fx.impact(dst, move.hitType, move.big);
+              if (dst) fx.impact(dst, move.hitType, move.big, move.m.name);
             });
           }
         }

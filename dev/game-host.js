@@ -266,6 +266,16 @@
             if (q.get('fxdbg')) setInterval(() => { const cv = document.getElementById('pokemonFxCanvas'); console.log('fxdbg css', cv ? getComputedStyle(cv).clipPath : 'no canvas', document.body.style.getPropertyValue('--pg-fx-top'), document.querySelector('#pokemon-game .pg-infobar')?.getBoundingClientRect().bottom, (() => { const f = document.querySelector('#pokemon-game .pg-clash-time .pg-bar-fill'); return f ? Math.round(f.getBoundingClientRect().width) + '/' + Math.round(f.parentElement.getBoundingClientRect().width) + ' ' + f.className : '-'; })()); }, 500);
             if (q.get('fxdbg')) setInterval(() => console.log('fxdbg msg', Math.round(performance.now()), (document.getElementById('pokemon-game')?.innerText || '').replace(/\s+/g, ' ').slice(-70)), 250);
             document.body.appendChild(s);
+            // impacts=1 — 18 타입 기술 임팩트를 격자로 한 번에 (ult/fx-hit.js 보기, big=1 이면 센 기술, pick=0 ~ 2 = 짜임)
+            if (q.get('impacts') && window.pokemonFx?.testImpact) {
+                setTimeout(() => {
+                    const types = ['normal', 'fire', 'water', 'electric', 'grass', 'ice', 'fighting', 'poison', 'ground', 'flying', 'psychic', 'bug', 'rock', 'ghost', 'dragon', 'dark', 'steel', 'fairy'];
+                    const cols = 6;
+                    const W = window.innerWidth / cols;
+                    const H = (window.innerHeight - 20) / 3;
+                    types.forEach((t, i) => window.pokemonFx.testImpact(W * (i % cols) + W / 2, 20 + H * Math.floor(i / cols) + H / 2, 2, t, q.get('big') === '1', Number(q.get('w')) || 48, Number(q.get('pick')) || 0));
+                }, Number(q.get('impacts')) || 300);
+            }
             // stopult=<ms> — 그때 필살기를 멈춤 (맞받아치기로 끊긴 것처럼 — 남은 연출 · 숨긴 그림이 안 남는지 시험)
             if (q.get('stopult')) setTimeout(() => window.pokemonFx?.stopUlt?.(), Number(q.get('stopult')));
         };

@@ -461,15 +461,17 @@ window.pokemonFx = {
         });
         return ok ? ms : 0;
     },
-    /** 맞는 곳에 번쩍 — dst = 맞는 포켓몬 spec, type = 기술 타입 (게임), big = 세게 */
-    impact(dst, type, big) {
+    /** 맞는 곳에 타입별 도트 임팩트 (ult/fx-hit.js — 불꽃 = 감아 올라가는 불길 회오리 · 물 = 물보라 왕관 · 얼음 = 결정 조각 …) — dst = 맞는 포켓몬 spec, type = 기술 타입 (게임), big = 세게 */
+    impact(dst, type, big, name) {
         const r = (dst.box || dst.el).getBoundingClientRect();
-        if (!r.width) {
+        if (r.width < 1) {
             return;
         }
         const s = r.width / (dst.size || 32);
         const P = (POKEMON_SHAPE[dst.form] || [0.5])[0];
-        safeFx({}, () => sigImpact(r.left + r.width / 2, r.top + r.height * 0.55, s, sigPal(FX_TYPE_PAL[type] || 'normal'), P, !!big));
+        // 맞는 방향 — 상대 (왼쪽을 봄) 가 맞으면 내 쪽 (왼쪽) 에서 날아옴 → 오른쪽으로 튐
+        // name = 기술 이름 → 같은 타입이라도 기술마다 다른 짜임 (회오리 · 폭발 · 기둥 …)
+        safeFx({}, () => typeImpact(r.left + r.width / 2, r.top + r.height * 0.55, s, type, P, !!big, dst.left ? 1 : -1, r.width, hitHash(name)));
     },
     /** 필살기 — 일반 모드처럼 번쩍 · 어두워짐 · 컷인 · 큰 글씨 · 그 포켓몬의 필살기 (전용 연출 포함). 상대 = dst. 걸리는 시간 (ms), 못 쓰면 0.
      *  onHit = 상대를 처음 맞힌 순간 (게임은 그때 피해를 넣고, 남은 연출은 흘러가게 둠) · avoid = 피할 필살기 이름 (그 포켓몬이 배운 기술) */
@@ -596,6 +598,10 @@ window.pokemonFx = {
             moveEmitters.length = 0;
             moveParticles.length = 0;
         }
+    },
+    /** 개발 미리보기 — 타입 임팩트 하나를 그 자리에 (dev/game-host.js impacts=1) */
+    testImpact(x, y, s, type, big, w, pick = 0) {
+        safeFx({}, () => typeImpact(x, y, s, type, 0.6, !!big, 1, w, pick));
     },
     /** 연출 캔버스를 둘 곳 (version 4) — el = 게임 전투 판의 연출 층 (포켓몬 위 · HP · 말 · 메뉴 · 피해 숫자 아래), null 이면 맨 위 (body) */
     mount(el) {
