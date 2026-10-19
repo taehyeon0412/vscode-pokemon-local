@@ -534,6 +534,17 @@ function ultDimLayer(alphaAt, sec, who = () => ultActive?.pokemon, update) {
         }
         const W = window.innerWidth;
         const H = window.innerHeight;
+        ctx.save();
+        // 게임 모드 — HP 묶음 자리는 어둡게 안 칠함 (HP 가 주는 순간이 보이게, ult/bridge.js fxHudRects)
+        const huds = typeof fxHudRects === 'function' ? fxHudRects() : [];
+        if (huds.length) {
+            ctx.beginPath();
+            ctx.rect(0, 0, W, H);
+            for (const h of huds) {
+                ctx.rect(h.left - 2, h.top - 2, h.width + 4, h.height + 4);
+            }
+            ctx.clip('evenodd');
+        }
         ctx.globalCompositeOperation = 'destination-over';
         ctx.globalAlpha = Math.min(0.95, a);
         ctx.fillStyle = '#05080f';
@@ -544,13 +555,14 @@ function ultDimLayer(alphaAt, sec, who = () => ultActive?.pokemon, update) {
                 continue;
             }
             const r = u.collision.getBoundingClientRect();
-            const R = Math.max(r.width, r.height) * 0.8 + 6;
+            const R = typeof fxInGame === 'function' && fxInGame() ? Math.max(r.width, r.height) * 0.6 + 4 : Math.max(r.width, r.height) * 0.8 + 6;
             const x = r.left + r.width / 2;
             const y = r.top + r.height / 2;
             ctx.moveTo(x + R, y);
             ctx.arc(x, y, R, 0, Math.PI * 2);
         }
         ctx.fill('evenodd');
+        ctx.restore();
         ctx.globalCompositeOperation = 'source-over';
     } });
 }
@@ -589,7 +601,8 @@ function ultCutIn(pokemon, left, cols, sec, yc = 0.36, hf = 0.3) {
         }
         // 큰 그림 — 띠보다 살짝 크게, 천천히 앞으로
         if (open > 0.6 && img.naturalWidth) {
-            const dh = Math.round(bh * 1.25);
+            const nh = img.naturalHeight;
+            const dh = typeof fxInGame === 'function' && fxInGame() ? nh * Math.max(1, Math.round((bh * 1.25) / nh)) : Math.round(bh * 1.25);
             const dw = Math.round(dh * (img.naturalWidth / img.naturalHeight));
             const slide = ultClamp((t - 0.1) / 0.25, 0, 1);
             const ease = 1 - (1 - slide) ** 3;
@@ -611,6 +624,8 @@ function ultCutIn(pokemon, left, cols, sec, yc = 0.36, hf = 0.3) {
 }
 
 // 큰 글씨 — 크게 쾅 박혔다가 자리 잡음, 반짝 지나감. cols 를 주면 그 색으로 (기본 금색), yc = 높이(패널 비율), k = 크기 배수
+// 필살기 글자 글꼴 — 게임 모드는 게임 글꼴 (Pretendard, 가변 굵기라 900 그대로), 일반 모드는 그대로
+const ultFont = () => (typeof fxInGame === 'function' && fxInGame() ? "'Pretendard', sans-serif" : 'sans-serif');
 function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1) {
     const C = cols || ['#fffbe0', '#ffe680', '#f5c400', '#b88a00'];
     sigParticle({ x: 0, y: 0, s: 2, max: sec, draw: (ctx, p) => {
@@ -623,15 +638,19 @@ function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1) {
         const scale = t < inT ? 2.4 - 1.4 * back : 1;
         const alpha = Math.min(1, t / 0.06) * (t > p.max - 0.3 ? Math.max(0, (p.max - t) / 0.3) : 1);
         let size = Math.round(ultClamp(W / 9, 18, 40) * k0);
+        const font = ultFont();
         ctx.save();
-        ctx.font = `900 ${size}px sans-serif`;
+        ctx.font = `900 ${size}px ${font}`;
         const tw = ctx.measureText(text).width;
         if (tw > W * 0.9) {
             size = Math.max(12, Math.floor((size * W * 0.9) / tw));
-            ctx.font = `900 ${size}px sans-serif`;
+            ctx.font = `900 ${size}px ${font}`;
         }
         const jx = t < 0.35 ? moveRand(-1, 1) * 2 : 0;
-        ctx.translate(Math.round(W / 2 + jx), Math.round(H * yc));
+        // 게임 모드 — 부제까지 정보줄 아래에 (연출 캔버스 위쪽은 정보줄 아래 끝에서 잘림)
+        const top = typeof fxTop === 'function' ? fxTop() : 0;
+        const yMin = top ? top + (sub ? size * 0.85 + Math.max(10, Math.round(size * 0.4)) / 2 : size / 2) + 4 : 0;
+        ctx.translate(Math.round(W / 2 + jx), Math.round(Math.max(H * yc, yMin)));
         ctx.scale(scale, scale);
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -670,7 +689,7 @@ function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1) {
         }
         if (sub) {
             const ss = Math.max(10, Math.round(size * 0.4));
-            ctx.font = `bold ${ss}px sans-serif`;
+            ctx.font = `bold ${ss}px ${font}`;
             ctx.lineWidth = 3;
             ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)';
             ctx.strokeText(sub, 0, -size * 0.85);
@@ -709,10 +728,11 @@ function ultShake(amp = 3, ms = 600) {
     };
     exports.allPokemon.pokemonCollection.forEach((el) => el.pokemon !== ultActive?.pokemon && shake(el.el));
     shake(document.getElementById('foreground'), amp / 2); // 앞쪽 풀은 반만 — 화면 끝이 덜 비게
-    shake(moveCanvas);
-    // 게임 모드 전투 — 게임 화면 (길 · 포켓몬) 도 반만 흔듦 (ult/bridge.js)
-    if (typeof fxGameTargets === 'function' && fxGameTargets()) {
-        shake(document.querySelector('#pokemon-game .pg-field'), amp / 2);
+    // 게임 모드 — 배경 · 포켓몬 · 트레이너만 부드럽게 (HP · 메뉴 글자는 안 떨게 · 캔버스도 안 흔듦, ult/bridge.js)
+    if (typeof fxInGame === 'function' && fxInGame()) {
+        fxGameShake(amp / 2);
+    } else {
+        shake(moveCanvas);
     }
 }
 

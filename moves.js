@@ -1683,21 +1683,27 @@ const SIG_FX = {
             const P = g.P;
             // 작은 크기에서도 구름 · 번개가 크게 보이게 최소 크기
             const W = Math.max(g.w, 40) * (1.1 + 0.6 * P);
-            const ch = Math.max(0.3 * g.h, 12) + 3 * g.s;
-            const cloudY = Math.max(ch, Math.min(g.body.top - 1.2 * g.h, 0.12 * g.h + ch));
+            // cloudH = 구름 두께 배 (게임 모드: 얇게 — 정보줄 · HP 를 덮지 않게)
+            const ch = (Math.max(0.3 * g.h, 12) + 3 * g.s) * (o.cloudH ?? 1);
+            // skyTop = 구름이 내려올 위 끝 (게임 모드: 정보줄 아래, ult/bridge.js)
+            // 구름 몸통은 cloudY 위로 2 × ch — skyTop 을 주면 구름 윗끝이 그 아래로
+            const cloudY = o.skyTop !== undefined ? Math.max(o.skyTop + 2 * ch, Math.min(g.body.top - 1.2 * g.h, 0.12 * g.h + ch)) : Math.max(ch, Math.min(g.body.top - 1.2 * g.h, 0.12 * g.h + ch));
             const ground = g.body.bottom;
             // 친 순간들 (초) — 0: 라이츄, 나머지: 둘레 땅
             const side = 3 + Math.round(2 * P);
             const strikes = [{ at: 0.35, main: true }];
             for (let i = 0; i < side; i++) {
                 const dir = i % 2 ? -1 : 1;
-                strikes.push({ at: 0.5 + i * 0.13, x: g.body.cx + dir * moveRand(0.6, 1.3) * W });
+                // spread · xmin · xmax = 둘레 줄기 범위 (게임 모드: 상대 둘레 좁게 · 트레이너 · 패널 끝을 피함)
+                const sx = g.body.cx + dir * moveRand(0.6, 1.3) * W * (o.spread ?? 1);
+                strikes.push({ at: 0.5 + i * 0.13, x: Math.min(o.xmax ?? Infinity, Math.max(o.xmin ?? -Infinity, sx)) });
             }
             strikes.push({ at: 0.5 + side * 0.13 + 0.12, main: true });
             // 먹구름 — 덩어리 셋, 칠 때마다 속이 번쩍
             const lumps = [[-0.75, 0.35, 0.55, 0.65], [0, 0, 0.85, 1], [0.75, 0.3, 0.6, 0.7]];
             sigParticle({ x: g.body.cx, y: cloudY, s: g.s, max: ms / 1000, draw: (ctx, p, t, px) => {
-                const lit = strikes.some((k) => p.life >= k.at && p.life - k.at < 0.08);
+                // calm = 둘레 줄기는 구름 · 화면 번쩍 없이 (게임 모드 — 1초에 번쩍 3번까지)
+                const lit = strikes.some((k) => (k.main || !o.calm) && p.life >= k.at && p.life - k.at < 0.08);
                 ctx.globalAlpha = fadeInOut(t, 0.15, 0.25) * 0.9;
                 for (const [ox, oy, rw, rh] of lumps) {
                     const cx = p.x + ox * W;
@@ -1716,7 +1722,9 @@ const SIG_FX = {
                 setTimeout(() => {
                     const x = k.main ? g.body.cx : k.x;
                     const y1 = k.main ? g.body.cy : ground;
-                    screenFlash(g.s, k.main ? 0.4 : 0.2);
+                    if (k.main || !o.calm) {
+                        screenFlash(g.s, k.main ? 0.4 : 0.2);
+                    }
                     // 지직거리는 굵은 번개 + 가지 둘
                     sigParticle({ x, y: cloudY, s: g.s, max: k.main ? 0.4 : 0.3, y1, w: k.main ? 3 : 2,
                         update: (p) => {

@@ -12,6 +12,8 @@ body.pokemon-game-on #foreground {
 /* 일반 모드 연출 캔버스 (moves.js · ult/bridge.js) — 게임 중엔 전투 연출을 게임 화면 위에 그림 (일반 모드가 z-index 를 4 · 6 으로 바꿔 써도 이김) */
 body.pokemon-game-on #pokemonFxCanvas {
   z-index: 10001 !important;
+  /* 위쪽은 정보줄 아래 끝에서 자름 (BattleFx 가 --pg-fx-top 을 잼) — 번개 구름 · 필살기 글자 · 어둠이 정보줄을 덮지 않게 (아트 디렉터) */
+  clip-path: inset(var(--pg-fx-top, 0px) 0 0 0);
 }
 /* 프로필 판 (S21) 위에는 안 그림 — 연출 캔버스가 맨 위라 (#330) */
 body.pokemon-game-on:has(.pg-profile-wrap) #pokemonFxCanvas {
@@ -769,10 +771,11 @@ body.pokemon-game-on {
   animation-timing-function: ease-in-out;
 }
 /* 맞는 순간 = 연출 끝쪽 (피해 숫자 · HP 가 그때 바뀜) */
+/* 끝에서 제자리로 돌아옴 — 예전엔 100% 가 0.6 칸이라 행동이 끝나는 순간 제자리로 뚝 순간이동 (플레이 리뷰어) */
 @keyframes pg-lunge {
   0%, 35% { transform: translateX(0); }
-  82%, 94% { transform: translateX(var(--pg-dx, 0)); }
-  100% { transform: translateX(calc(var(--pg-dx, 0px) * 0.6)); }
+  82%, 88% { transform: translateX(var(--pg-dx, 0)); }
+  100% { transform: translateX(0); }
 }
 .pg-recall {
   animation-name: pg-recall;
@@ -781,39 +784,43 @@ body.pokemon-game-on {
   0% { transform: scale(1); opacity: 1; }
   100% { transform: scale(0.1); opacity: 0; filter: brightness(3); }
 }
+/* 방어 — 그림 1칸 (2px) 단단한 테두리 (흐린 그림자는 픽셀 그림과 안 맞음, 아트 디렉터) */
 .pg-guarded {
-  filter: drop-shadow(0 0 3px #58a6ff);
+  filter: drop-shadow(2px 0 0 #7fb8ff) drop-shadow(-2px 0 0 #7fb8ff) drop-shadow(0 2px 0 #7fb8ff) drop-shadow(0 -2px 0 #7fb8ff);
 }
 .pg-charging {
   animation-name: pg-charge;
 }
+/* 필살기 모으기 — 금색 2px 테두리가 두 번 깜빡 (흐린 빛 · 반 픽셀 배율 빼고, 아트 디렉터) */
+.pg-charging {
+  animation-timing-function: steps(2, end);
+}
 @keyframes pg-charge {
-  0% { filter: none; }
-  30%, 60% { filter: drop-shadow(0 0 6px #ffd33d) brightness(1.4); transform: scale(1.08); }
-  100% { filter: none; transform: scale(1); }
+  0%, 100% { filter: none; }
+  30%, 60% { filter: drop-shadow(2px 0 0 #ffd76a) drop-shadow(-2px 0 0 #ffd76a) drop-shadow(0 2px 0 #ffd76a) drop-shadow(0 -2px 0 #ffd76a); }
 }
 /* 쏘는 기술 — 몸을 뒤로 젖혔다가 앞으로 내밀며 쏨 (--pg-back = 뒤쪽 방향 -1 · 1) */
+/* 그림 1칸 (2px) 단위로만 움직임 — 늘이기 (scale) 는 픽셀 줄을 고르지 않게 해서 뺌 (아트 디렉터) */
 .pg-cast {
   animation-name: pg-cast;
-  animation-timing-function: ease-out;
+  animation-timing-function: steps(4, end);
 }
 @keyframes pg-cast {
   0% { transform: translateX(0); }
-  25% { transform: translateX(calc(var(--pg-back, -1) * 5px)) scale(1.04, 0.96); }
-  45% { transform: translateX(calc(var(--pg-back, -1) * -7px)) scale(0.97, 1.03); }
+  25% { transform: translateX(calc(var(--pg-back, -1) * 4px)); }
+  45% { transform: translateX(calc(var(--pg-back, -1) * -6px)); }
   70%, 100% { transform: translateX(0); }
 }
 /* 맞으면 상대 반대쪽으로 튕겨 밀렸다 돌아오고 하얗게 번쩍 (전엔 제자리 3px 떨림 — 2026-10-19) */
 .pg-hurt {
   animation: pg-hurt 0.42s cubic-bezier(0.2, 0.7, 0.3, 1) both !important;
 }
+/* 기울이기 (rotate) 는 픽셀 그림을 계단처럼 깨뜨려 뺌 · 깜빡임은 한 번만 (아트 디렉터) */
 @keyframes pg-hurt {
   0% { transform: translateX(0); filter: brightness(3) saturate(0); }
-  18% { transform: translateX(calc(var(--pg-back, -1) * 12px)) rotate(calc(var(--pg-back, -1) * 4deg)); filter: brightness(2.2) saturate(0.3); }
-  40% { filter: none; opacity: 0.5; }
-  55% { opacity: 1; }
-  70% { opacity: 0.6; }
-  100% { transform: translateX(0) rotate(0); filter: none; opacity: 1; }
+  18% { transform: translateX(calc(var(--pg-back, -1) * 12px)); filter: brightness(2.2) saturate(0.3); }
+  45% { filter: none; opacity: 0.6; }
+  60%, 100% { transform: translateX(0); filter: none; opacity: 1; }
 }
 .pg-fainted {
   opacity: 0;

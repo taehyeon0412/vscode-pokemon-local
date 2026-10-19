@@ -7522,21 +7522,27 @@ const SIG_FX = {
             const P = g.P;
             // 작은 크기에서도 구름 · 번개가 크게 보이게 최소 크기
             const W = Math.max(g.w, 40) * (1.1 + 0.6 * P);
-            const ch = Math.max(0.3 * g.h, 12) + 3 * g.s;
-            const cloudY = Math.max(ch, Math.min(g.body.top - 1.2 * g.h, 0.12 * g.h + ch));
+            // cloudH = 구름 두께 배 (게임 모드: 얇게 — 정보줄 · HP 를 덮지 않게)
+            const ch = (Math.max(0.3 * g.h, 12) + 3 * g.s) * (o.cloudH ?? 1);
+            // skyTop = 구름이 내려올 위 끝 (게임 모드: 정보줄 아래, ult/bridge.js)
+            // 구름 몸통은 cloudY 위로 2 × ch — skyTop 을 주면 구름 윗끝이 그 아래로
+            const cloudY = o.skyTop !== undefined ? Math.max(o.skyTop + 2 * ch, Math.min(g.body.top - 1.2 * g.h, 0.12 * g.h + ch)) : Math.max(ch, Math.min(g.body.top - 1.2 * g.h, 0.12 * g.h + ch));
             const ground = g.body.bottom;
             // 친 순간들 (초) — 0: 라이츄, 나머지: 둘레 땅
             const side = 3 + Math.round(2 * P);
             const strikes = [{ at: 0.35, main: true }];
             for (let i = 0; i < side; i++) {
                 const dir = i % 2 ? -1 : 1;
-                strikes.push({ at: 0.5 + i * 0.13, x: g.body.cx + dir * moveRand(0.6, 1.3) * W });
+                // spread · xmin · xmax = 둘레 줄기 범위 (게임 모드: 상대 둘레 좁게 · 트레이너 · 패널 끝을 피함)
+                const sx = g.body.cx + dir * moveRand(0.6, 1.3) * W * (o.spread ?? 1);
+                strikes.push({ at: 0.5 + i * 0.13, x: Math.min(o.xmax ?? Infinity, Math.max(o.xmin ?? -Infinity, sx)) });
             }
             strikes.push({ at: 0.5 + side * 0.13 + 0.12, main: true });
             // 먹구름 — 덩어리 셋, 칠 때마다 속이 번쩍
             const lumps = [[-0.75, 0.35, 0.55, 0.65], [0, 0, 0.85, 1], [0.75, 0.3, 0.6, 0.7]];
             sigParticle({ x: g.body.cx, y: cloudY, s: g.s, max: ms / 1000, draw: (ctx, p, t, px) => {
-                const lit = strikes.some((k) => p.life >= k.at && p.life - k.at < 0.08);
+                // calm = 둘레 줄기는 구름 · 화면 번쩍 없이 (게임 모드 — 1초에 번쩍 3번까지)
+                const lit = strikes.some((k) => (k.main || !o.calm) && p.life >= k.at && p.life - k.at < 0.08);
                 ctx.globalAlpha = fadeInOut(t, 0.15, 0.25) * 0.9;
                 for (const [ox, oy, rw, rh] of lumps) {
                     const cx = p.x + ox * W;
@@ -7555,7 +7561,9 @@ const SIG_FX = {
                 setTimeout(() => {
                     const x = k.main ? g.body.cx : k.x;
                     const y1 = k.main ? g.body.cy : ground;
-                    screenFlash(g.s, k.main ? 0.4 : 0.2);
+                    if (k.main || !o.calm) {
+                        screenFlash(g.s, k.main ? 0.4 : 0.2);
+                    }
                     // 지직거리는 굵은 번개 + 가지 둘
                     sigParticle({ x, y: cloudY, s: g.s, max: k.main ? 0.4 : 0.3, y1, w: k.main ? 3 : 2,
                         update: (p) => {
@@ -8720,6 +8728,17 @@ function ultDimLayer(alphaAt, sec, who = () => ultActive?.pokemon, update) {
         }
         const W = window.innerWidth;
         const H = window.innerHeight;
+        ctx.save();
+        // 게임 모드 — HP 묶음 자리는 어둡게 안 칠함 (HP 가 주는 순간이 보이게, ult/bridge.js fxHudRects)
+        const huds = typeof fxHudRects === 'function' ? fxHudRects() : [];
+        if (huds.length) {
+            ctx.beginPath();
+            ctx.rect(0, 0, W, H);
+            for (const h of huds) {
+                ctx.rect(h.left - 2, h.top - 2, h.width + 4, h.height + 4);
+            }
+            ctx.clip('evenodd');
+        }
         ctx.globalCompositeOperation = 'destination-over';
         ctx.globalAlpha = Math.min(0.95, a);
         ctx.fillStyle = '#05080f';
@@ -8730,13 +8749,14 @@ function ultDimLayer(alphaAt, sec, who = () => ultActive?.pokemon, update) {
                 continue;
             }
             const r = u.collision.getBoundingClientRect();
-            const R = Math.max(r.width, r.height) * 0.8 + 6;
+            const R = typeof fxInGame === 'function' && fxInGame() ? Math.max(r.width, r.height) * 0.6 + 4 : Math.max(r.width, r.height) * 0.8 + 6;
             const x = r.left + r.width / 2;
             const y = r.top + r.height / 2;
             ctx.moveTo(x + R, y);
             ctx.arc(x, y, R, 0, Math.PI * 2);
         }
         ctx.fill('evenodd');
+        ctx.restore();
         ctx.globalCompositeOperation = 'source-over';
     } });
 }
@@ -8775,7 +8795,8 @@ function ultCutIn(pokemon, left, cols, sec, yc = 0.36, hf = 0.3) {
         }
         // 큰 그림 — 띠보다 살짝 크게, 천천히 앞으로
         if (open > 0.6 && img.naturalWidth) {
-            const dh = Math.round(bh * 1.25);
+            const nh = img.naturalHeight;
+            const dh = typeof fxInGame === 'function' && fxInGame() ? nh * Math.max(1, Math.round((bh * 1.25) / nh)) : Math.round(bh * 1.25);
             const dw = Math.round(dh * (img.naturalWidth / img.naturalHeight));
             const slide = ultClamp((t - 0.1) / 0.25, 0, 1);
             const ease = 1 - (1 - slide) ** 3;
@@ -8797,6 +8818,8 @@ function ultCutIn(pokemon, left, cols, sec, yc = 0.36, hf = 0.3) {
 }
 
 // 큰 글씨 — 크게 쾅 박혔다가 자리 잡음, 반짝 지나감. cols 를 주면 그 색으로 (기본 금색), yc = 높이(패널 비율), k = 크기 배수
+// 필살기 글자 글꼴 — 게임 모드는 게임 글꼴 (Pretendard, 가변 굵기라 900 그대로), 일반 모드는 그대로
+const ultFont = () => (typeof fxInGame === 'function' && fxInGame() ? "'Pretendard', sans-serif" : 'sans-serif');
 function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1) {
     const C = cols || ['#fffbe0', '#ffe680', '#f5c400', '#b88a00'];
     sigParticle({ x: 0, y: 0, s: 2, max: sec, draw: (ctx, p) => {
@@ -8809,15 +8832,19 @@ function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1) {
         const scale = t < inT ? 2.4 - 1.4 * back : 1;
         const alpha = Math.min(1, t / 0.06) * (t > p.max - 0.3 ? Math.max(0, (p.max - t) / 0.3) : 1);
         let size = Math.round(ultClamp(W / 9, 18, 40) * k0);
+        const font = ultFont();
         ctx.save();
-        ctx.font = `900 ${size}px sans-serif`;
+        ctx.font = `900 ${size}px ${font}`;
         const tw = ctx.measureText(text).width;
         if (tw > W * 0.9) {
             size = Math.max(12, Math.floor((size * W * 0.9) / tw));
-            ctx.font = `900 ${size}px sans-serif`;
+            ctx.font = `900 ${size}px ${font}`;
         }
         const jx = t < 0.35 ? moveRand(-1, 1) * 2 : 0;
-        ctx.translate(Math.round(W / 2 + jx), Math.round(H * yc));
+        // 게임 모드 — 부제까지 정보줄 아래에 (연출 캔버스 위쪽은 정보줄 아래 끝에서 잘림)
+        const top = typeof fxTop === 'function' ? fxTop() : 0;
+        const yMin = top ? top + (sub ? size * 0.85 + Math.max(10, Math.round(size * 0.4)) / 2 : size / 2) + 4 : 0;
+        ctx.translate(Math.round(W / 2 + jx), Math.round(Math.max(H * yc, yMin)));
         ctx.scale(scale, scale);
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -8856,7 +8883,7 @@ function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1) {
         }
         if (sub) {
             const ss = Math.max(10, Math.round(size * 0.4));
-            ctx.font = `bold ${ss}px sans-serif`;
+            ctx.font = `bold ${ss}px ${font}`;
             ctx.lineWidth = 3;
             ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)';
             ctx.strokeText(sub, 0, -size * 0.85);
@@ -8895,10 +8922,11 @@ function ultShake(amp = 3, ms = 600) {
     };
     exports.allPokemon.pokemonCollection.forEach((el) => el.pokemon !== ultActive?.pokemon && shake(el.el));
     shake(document.getElementById('foreground'), amp / 2); // 앞쪽 풀은 반만 — 화면 끝이 덜 비게
-    shake(moveCanvas);
-    // 게임 모드 전투 — 게임 화면 (길 · 포켓몬) 도 반만 흔듦 (ult/bridge.js)
-    if (typeof fxGameTargets === 'function' && fxGameTargets()) {
-        shake(document.querySelector('#pokemon-game .pg-field'), amp / 2);
+    // 게임 모드 — 배경 · 포켓몬 · 트레이너만 부드럽게 (HP · 메뉴 글자는 안 떨게 · 캔버스도 안 흔듦, ult/bridge.js)
+    if (typeof fxInGame === 'function' && fxInGame()) {
+        fxGameShake(amp / 2);
+    } else {
+        shake(moveCanvas);
     }
 }
 
@@ -13924,7 +13952,7 @@ window.__ult = {
                     list.splice(i, 1);
                     continue;
                 }
-                ctx.globalAlpha = Math.min(1, a);
+                ctx.globalAlpha = Math.min(typeof fxFlashCap === 'function' ? fxFlashCap() : 1, a); // 게임 모드 번쩍 상한 (ult/bridge.js)
                 ctx.fillStyle = f.color;
                 ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
             }
@@ -47618,6 +47646,59 @@ function fxActor(spec) {
     };
 }
 
+// ── 게임 화면 안에서만 (2026-10-19 아트 디렉터 · 플레이 리뷰어 — 정보줄 · HP 를 덮지 않게, 번쩍 · 흔들기는 순하게) ──
+function fxInGame() {
+    return !!document.body && document.body.classList.contains('pokemon-game-on');
+}
+// 연출이 넘지 않는 위 끝 = 게임 정보줄 아래 끝 (px) — 게임 밖이면 0 (game.css 가 캔버스를 여기서 자름)
+function fxTop() {
+    const bar = fxInGame() && document.querySelector('#pokemon-game .pg-infobar');
+    return bar ? Math.round(bar.getBoundingClientRect().bottom) : 0;
+}
+// 필살기 어둠에서 밝게 남길 HP 묶음 자리 — 게임 밖이면 없음
+function fxHudRects() {
+    return fxInGame() ? [...document.querySelectorAll('#pokemon-game .pg-hpblock')].map((el) => el.getBoundingClientRect()).filter((r) => r.width > 0) : [];
+}
+// 게임 중 흔들기 — 배경 · 포켓몬 · 트레이너만 (HP · 메뉴 글자는 안 떨게), 2 ~ 3px 정수 · 80ms 왕복 4번 (design-system 8장)
+function fxGameShake(amp) {
+    const a = Math.max(2, Math.min(3, Math.round(amp)));
+    document.querySelectorAll('#pokemon-game .pg-bg, #pokemon-game .pg-fg, #pokemon-game .pg-fighter, #pokemon-game .pg-hero-wrap, #pokemon-game .pg-foe-trainer').forEach((el) => {
+        el.fxShake?.cancel();
+        el.fxShake = el.animate([{ translate: `-${a}px 0` }, { translate: `${a}px 0` }], { duration: 80, iterations: 4, direction: 'alternate', composite: 'add' });
+    });
+}
+// 화면 번쩍 상한 — 게임 중엔 0.3 (넓은 패널 전체가 하얗게 번쩍이지 않게)
+const fxFlashCap = () => (fxInGame() ? 0.3 : 1);
+// 게임 중 화면 번쩍 — 0.34초에 한 번 · 진하기 0.3 까지 (1초 3번 규칙). 일반 모드는 그대로
+let fxLastFlash = 0;
+const fxScreenFlash = screenFlash;
+screenFlash = function (s, alpha, color, max) {
+    if (!fxInGame()) {
+        return fxScreenFlash(s, alpha, color, max);
+    }
+    const now = performance.now();
+    if (now - fxLastFlash < 340) {
+        return undefined;
+    }
+    fxLastFlash = now;
+    return fxScreenFlash(s, Math.min(fxFlashCap(), alpha), color, max);
+};
+// 필살기가 상대를 처음 맞힌 순간 — 게임은 그때 피해를 넣음 (연출이 다 끝날 때까지 기다리지 않게)
+const fxUltHit = ultHit;
+ultHit = function (q, ...rest) {
+    const out = fxUltHit(q, ...rest);
+    const g = fxGame;
+    if (g && g.onHit && !g.hit && (q?.pokemon ?? q) === g.B) {
+        g.hit = true;
+        try {
+            g.onHit();
+        } catch (err) {
+            ultError('game hit', err);
+        }
+    }
+    return out;
+};
+
 // 그림 폭 (px) — 0 이면 연출을 안 씀 (moves.js 의 몇몇 반복문이 배율 0 이면 안 끝남 — 패널이 접히는 중 · 떨어져 나간 그림)
 const fxWidth = (spec) => (spec && (spec.box || spec.el) ? (spec.box || spec.el).getBoundingClientRect().width : 0);
 
@@ -47709,7 +47790,9 @@ function fxGameStop(kill) {
 function fxTarget(g, dst) {
     const r = (dst.box || dst.el).getBoundingClientRect();
     const cx = r.left + r.width / 2;
-    return { cx, w: r.width, far: g.dir > 0 ? r.right : r.left, dist: Math.abs(cx - g.mouth.x) };
+    // 그 둘레 HP 묶음 아래 끝 (회오리처럼 높은 연출이 HP 를 덮지 않게)
+    const hud = fxHudRects().filter((h) => h.right > r.left - r.width && h.left < r.right + r.width);
+    return { cx, w: r.width, far: g.dir > 0 ? r.right : r.left, dist: Math.abs(cx - g.mouth.x), ground: r.bottom, hudBottom: hud.length ? Math.max(...hud.map((h) => h.bottom)) : 0 };
 }
 // 연출 자리를 옆으로 dx 만큼 (크기 · 방향은 쓰는 쪽 그대로)
 const fxShift = (g, dx) => ({ ...g, mouth: { ...g.mouth, x: g.mouth.x + dx }, body: { ...g.body, cx: g.body.cx + dx, front: g.body.front + dx } });
@@ -47723,7 +47806,7 @@ const FX_TRAVEL = {
     notes: (g) => fxFly(22 * g.s, 0, 1.1),
 };
 // run 하는 동안 · 그 뒤 발사기가 만드는 입자의 옆 빠르기를 k 배 — 예전 틀 (물대포: fx 없는 발사기) 은 fx 발사기로 바꿔 감쌈
-function fxScaled(k, run, cap) {
+function fxScaled(k, run, cap, rateK = 1) {
     const p0 = moveParticles.length;
     const e0 = moveEmitters.length;
     run();
@@ -47745,6 +47828,10 @@ function fxScaled(k, run, cap) {
             e.rate = moveRate(e.move, e.power);
             e.fx = () => spawnParticle(base);
         }
+        // 멀리 퍼지는 만큼 더 많이 (빽빽하게, PC 부담 때문에 4배까지)
+        if (rateK > 1 && typeof e.rate === 'number') {
+            e.rate *= rateK;
+        }
         const fx = e.fx;
         e.fx = (...a) => {
             const n = moveParticles.length;
@@ -47754,36 +47841,59 @@ function fxScaled(k, run, cap) {
         };
     }
 }
-// 틀마다 상대까지 — { g, o, k, cap, after } (k = 빠르기 배, cap = 입자마다 고칠 것, after = 더 할 것)
+// 틀마다 상대까지 — { g, o, k, cap, rateK, after } (k = 빠르기 배, cap = 입자마다 고칠 것, rateK = 입자 수 배, after = 더 할 것)
 function fxAim(fx, g, o, t) {
     const clampK = (v) => Math.min(25, Math.max(0.6, v));
+    const dense = (k) => Math.min(4, Math.max(1, k));
+    // 상대 몸 뒤 (0.3 폭) 를 지나면 사라짐 — 큰 포켓몬의 뿜기가 상대 뒤로 멀리 나가지 않게
+    const lim = t.far + g.dir * 0.3 * t.w;
+    const stopPast = (p) => {
+        const prev = p.update;
+        p.update = (q, dt) => {
+            prev?.(q, dt);
+            if ((q.x - lim) * g.dir > 0) {
+                q.life = q.max;
+            }
+        };
+    };
     switch (fx) {
-        case 'breath':
-            return { g, o: { ...o, speed: (o.speed ?? 1) * clampK(t.dist / FX_TRAVEL.breath(g)) } };
+        case 'breath': {
+            const k = clampK(t.dist / FX_TRAVEL.breath(g));
+            return { g, o: { ...o, speed: (o.speed ?? 1) * k, rate: (o.rate ?? 1) * dense(k) }, k: 1, cap: stopPast };
+        }
         case 'water':
         case 'bubbles':
         case 'notes':
         case 'rings': {
             const d = FX_TRAVEL[fx](g, o);
-            return d > 0 ? { g, o, k: clampK(t.dist / d) } : { g, o };
+            const k = d > 0 ? clampK(t.dist / d) : 1;
+            return d > 0 ? { g, o, k, rateK: dense(k), cap: stopPast } : { g, o };
         }
         case 'beam':
-            // 덩굴채찍 · 핥기 (len) = 상대 가운데까지 · 광선 = 상대 몸 뒤까지 (화면 끝까지 뚫고 가지 않게)
-            return { g, o: { ...o, len: (o.len ? t.dist : Math.abs(t.far - g.mouth.x) + 0.15 * t.w) / Math.max(1, g.w) } };
-        case 'vortex':
-            return { g: fxShift(g, t.cx - (g.body.front + g.dir * ((0.55 + 0.3 * g.P) * g.w + 0.2 * g.w))), o };
+            // 덩굴채찍 · 핥기 (len) = 상대 가운데까지 · 광선 = 상대 몸 뒤 윤곽까지 (화면 끝까지 뚫고 가지 않게)
+            return { g, o: { ...o, len: (o.len ? t.dist : t.dist + 0.3 * t.w) / Math.max(1, g.w) } };
+        case 'vortex': {
+            // 높이는 HP 묶음 아래까지 (불 기둥이 HP 를 덮지 않게)
+            const full = (1.7 + 0.6 * g.P) * g.h;
+            const height = t.hudBottom ? Math.min(o.height ?? 1, Math.max(0.4, (t.ground - t.hudBottom - 2) / full)) : o.height;
+            return { g: fxShift(g, t.cx - (g.body.front + g.dir * ((0.55 + 0.3 * g.P) * g.w + 0.2 * g.w))), o: { ...o, height } };
+        }
         case 'rockfall':
             return { g: fxShift(g, t.cx - (g.body.front + g.dir * 1.4 * g.w)), o };
-        case 'thunder':
-            return { g: fxShift(g, t.cx - g.body.cx), o };
+        case 'thunder': {
+            // 상대 위에 · 구름은 정보줄 아래 · 둘레 줄기는 좁게 (트레이너 · 패널 끝을 피함) · 둘레 줄기는 번쩍 없이
+            const W = Math.max(g.w, 40) * (1.1 + 0.6 * g.P);
+            const hero = document.querySelector('#pokemon-game .pg-hero-wrap');
+            const heroRight = hero ? hero.getBoundingClientRect().right : 0;
+            // 구름 두께 반 = 8px (위아래 16px — 아트 디렉터)
+            const cloudH = Math.min(1, 8 / (Math.max(0.3 * g.h, 12) + 3 * g.s));
+            return { g: fxShift(g, t.cx - g.body.cx), o: { ...o, skyTop: fxTop(), cloudH, spread: 0.6, calm: true, xmin: heroRight + 0.8 * W + 8, xmax: window.innerWidth - 0.8 * W - 8 } };
+        }
         case 'powder':
             return o.around ? { g, o } : { g: fxShift(g, t.cx - (g.mouth.x + g.dir * 1.5 * g.w)), o };
         case 'quake':
             // 흙먼지는 상대 발밑 · 흔들기는 게임 화면 (일반 모드는 숨은 포켓몬 · 앞쪽 풀을 흔듦)
-            return { g: fxShift(g, t.cx - g.body.cx), o, after: () => {
-                const amp = 2 + 3 * g.P;
-                document.querySelector('#pokemon-game .pg-field')?.animate([{ translate: `-${amp}px 0` }, { translate: `${amp}px 0` }], { duration: 60, iterations: 12, direction: 'alternate', composite: 'add' });
-            } };
+            return { g: fxShift(g, t.cx - g.body.cx), o, after: () => fxGameShake(2 + g.P) };
         case 'projectile':
             // 똑바로 나는 것은 상대를 지나면 사라짐 (화면 끝까지 안 감) — 부메랑 · 포물선은 그대로
             return o.boomerang || o.arc ? { g, o } : { g, o, k: 1, cap: (p) => {
@@ -47881,7 +47991,7 @@ window.pokemonFx = {
             }
             const go = () => p.T.run(aim.g, aim.o, p.ms, A);
             if (aim.k !== undefined || aim.cap) {
-                fxScaled(aim.k ?? 1, go, aim.cap);
+                fxScaled(aim.k ?? 1, go, aim.cap, aim.rateK);
             } else {
                 go();
             }
@@ -47914,8 +48024,9 @@ window.pokemonFx = {
         const P = (POKEMON_SHAPE[dst.form] || [0.5])[0];
         safeFx({}, () => sigImpact(r.left + r.width / 2, r.top + r.height * 0.55, s, sigPal(FX_TYPE_PAL[type] || 'normal'), P, !!big));
     },
-    /** 필살기 — 일반 모드처럼 번쩍 · 어두워짐 · 컷인 · 큰 글씨 · 그 포켓몬의 필살기 (전용 연출 포함). 상대 = dst. 걸리는 시간 (ms), 못 쓰면 0 */
-    ult(src, dst) {
+    /** 필살기 — 일반 모드처럼 번쩍 · 어두워짐 · 컷인 · 큰 글씨 · 그 포켓몬의 필살기 (전용 연출 포함). 상대 = dst. 걸리는 시간 (ms), 못 쓰면 0.
+     *  onHit = 상대를 처음 맞힌 순간 (게임은 그때 피해를 넣고, 남은 연출은 흘러가게 둠) */
+    ult(src, dst, onHit) {
         fxGameStop(true);
         if (!POKEMON_SHAPE[src.form] || ultActive || fxWidth(src) < 1 || fxWidth(dst) < 1) {
             return 0;
@@ -47931,7 +48042,7 @@ window.pokemonFx = {
         const A = fxActor(src);
         const B = fxActor(dst);
         const gen = ++fxGen;
-        fxGame = { A, B, gen, tick: setInterval(fxGameTick, 100) };
+        fxGame = { A, B, gen, tick: setInterval(fxGameTick, 100), onHit, hit: false };
         let total = 0;
         try {
             total = fxWithTimers(gen, () => useUltimate(A, entry)) || 0;

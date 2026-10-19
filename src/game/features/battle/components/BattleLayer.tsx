@@ -18,7 +18,7 @@ import { Sprite } from '../../../ui/Sprite';
 import { duelKind, hpColor, moveColor, moveFx, profileOpenable, STATUS_LABEL, type BattleGeometry } from '../model';
 import { battleAnimKey } from '../fx/hold';
 import { BattleMenu } from './BattleMenu';
-import { fxContact, useBattleFx } from './BattleFx';
+import { fxCastAt, fxContact, useBattleFx } from './BattleFx';
 
 export interface BattleLayerProps {
   battle: BattleState;
@@ -91,6 +91,9 @@ function HpBlock({ f, side, x, bottom, wide, prefix, noName }: { f: Fighter; sid
   );
 }
 
+/** 젖혔다 내밀기 (pg-cast) 길이 — 쏘는 때에 맞춰 늦게 시작할 수 있게 행동 길이와 따로 */
+const CAST_BODY_MS = 600;
+
 /** 포켓몬 그림 + 지금 하는 행동의 몸 움직임 (달려들기 · 들어가기 · 쓰러짐 · 맞음) */
 function FighterBody(props: { b: BattleState; side: Side; x: number; target: number; px: number; media: string; ground: number; onProfile?(side: Side): void }) {
   const { b, side, x, target, px, media, ground, onProfile } = props;
@@ -103,6 +106,9 @@ function FighterBody(props: { b: BattleState; side: Side; x: number; target: num
   const lunge = act?.kind === 'attack' || (act?.kind === 'move' && mv !== undefined && mv.power > 0 && (contact ?? !isShooting(mv)));
   // 쏘는 기술 (불꽃 · 물대포 · 광선 …) — 달려들지 않고 몸을 젖혔다 내밂 (일반 모드처럼, 2026-10-19 태현 님 "자연스럽고 멋지게")
   const cast = act?.kind === 'move' && mv !== undefined && !lunge;
+  // 내미는 순간 (pg-cast 45%) = 입에서 쏘는 때 — 짧은 기술은 늦게 쏘니 몸짓도 늦춤 (CAST_BODY_MS 길이로)
+  const castAt = cast && anim ? fxCastAt(b) : null;
+  const bodyTiming = castAt !== null ? { animationDuration: `${CAST_BODY_MS}ms`, animationDelay: `${Math.max(0, Math.round(castAt - CAST_BODY_MS * 0.45))}ms` } : { animationDuration: anim ? `${anim.dur}ms` : undefined };
   const hurt = b.popups.some((p) => p.side === side && p.kind === 'damage' && p.ms < HURT_MS);
   const cls = [
     'pg-fx-body',
@@ -118,7 +124,7 @@ function FighterBody(props: { b: BattleState; side: Side; x: number; target: num
   return (
     <span class={`pg-obj pg-fighter pg-fighter-${side}${side === 'me' ? ' pg-sendout' : ''}`} style={{ left: `${x}px`, bottom: `${ground}px` }} title={`${side === 'foe' ? foePrefix(b) : ''}${nameOf(f)} Lv${f.level}${onProfile ? ' — 누르면 프로필' : ''}`} onClick={onProfile ? () => onProfile(side) : undefined}>
       {/* --pg-back = 맞으면 밀려나는 쪽 (상대 반대쪽) */}
-      <span key={animKey(b)} class={cls} style={{ '--pg-dx': `${Math.round((target - x) * 0.75)}px`, '--pg-back': side === 'me' ? '-1' : '1', animationDuration: anim ? `${anim.dur}ms` : undefined }}>
+      <span key={animKey(b)} class={cls} style={{ '--pg-dx': `${Math.round((target - x) * 0.75)}px`, '--pg-back': side === 'me' ? '-1' : '1', ...bodyTiming }}>
         {/* 걷기 그림 (옆모습) 으로 서로 마주 봄 — 서기 그림은 정면이라 가만히 앞만 보는 것처럼 보였음 (2026-10-19 태현 님). 걷기 그림은 오른쪽을 봄 → 상대는 뒤집음 */}
         <Sprite media={media} form={f.form} shiny={f.shiny} scale={1} px={px} action="walk" faceLeft={side === 'foe'} />
       </span>

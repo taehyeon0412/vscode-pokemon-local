@@ -93,7 +93,7 @@
                     list.splice(i, 1);
                     continue;
                 }
-                ctx.globalAlpha = Math.min(1, a);
+                ctx.globalAlpha = Math.min(typeof fxFlashCap === 'function' ? fxFlashCap() : 1, a); // 게임 모드 번쩍 상한 (ult/bridge.js)
                 ctx.fillStyle = f.color;
                 ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
             }

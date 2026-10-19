@@ -6,6 +6,7 @@
  * 방어 = 방패 · 회복 = 반짝 · 잠 = Z · 마비 = 찌릿. 일반 모드 번들이 없거나 못 그린 행동은 BattleLayer 가 이모지로.
  */
 import { useEffect, useRef, useState } from 'preact/hooks';
+import { TIMING } from '../../../core/balance';
 import type { BattleState, Side } from '../../../core/engine';
 import { clashWithTaps } from '../../../core/rules/battle';
 import { formOf, moveOf, speciesOf } from '../../../data';
@@ -43,20 +44,30 @@ function settleMs(): number {
 }
 
 /** 지금 행동이 몸으로 닿는 기술인지 (일반 모드 연출 틀 기준 — 몸짓 달려들기 / 젖혔다 내밀기를 연출과 맞춤, #328). 연출이 없으면 null (예전 기준) */
-let contactCache: { key: string; v: boolean | null } = { key: '', v: null };
-export function fxContact(b: BattleState): boolean | null {
+let planCache: { key: string; contact: boolean | null; castAt: number | null } = { key: '', contact: null, castAt: null };
+function planOf(b: BattleState): typeof planCache {
   const key = battleAnimKey(b);
-  if (contactCache.key === key) return contactCache.v;
+  if (planCache.key === key) return planCache;
   const fx = pokemonFx();
   const move = fx && b.anim ? fxMove(b) : null;
-  let v: boolean | null = null;
+  let contact: boolean | null = null;
+  let castAt: number | null = null;
   try {
-    v = fx && move && b.anim ? (fx.plan(b[b.anim.side].form, move.m)?.contact ?? null) : null;
+    const plan = fx && move && b.anim ? fx.plan(b[b.anim.side].form, move.m) : null;
+    contact = plan?.contact ?? null;
+    if (plan && !plan.contact && b.anim) castAt = Math.max(CAST_DELAY_MS, b.anim.dur - Math.round(plan.ms * SHOT_HIT_AT));
   } catch {
-    v = null;
+    contact = null;
   }
-  contactCache = { key, v };
-  return v;
+  planCache = { key, contact, castAt };
+  return planCache;
+}
+export function fxContact(b: BattleState): boolean | null {
+  return planOf(b).contact;
+}
+/** 쏘는 기술이 입에서 나가는 때 (ms, 행동 시작 기준) — 몸을 내미는 순간을 여기에 맞춤 (#짧은 기술 "재채기하고 쏨", 플레이 리뷰어). 연출이 없으면 null */
+export function fxCastAt(b: BattleState): number | null {
+  return planOf(b).castAt;
 }
 
 /** 쓰는 포켓몬 가운데에서 상대 몸 앞쪽까지 (px) — 뿜는 기술이 상대까지 닿게 */
@@ -152,6 +163,7 @@ export function useBattleFx(b: BattleState): boolean {
     // 아직 안 온 순간 — 행동이 끊기면 (관장 끼어들기 · 맞받아치기) 남은 연출을 지움 (#330)
     const pending = new Set<number>();
     let ultOn = false;
+    let ultHitDone = false;
     const fail = (err: unknown) => {
       // 일반 모드 연출 오류가 게임을 멈추지 않게 (Guard 로 가면 화면 오류) — 이 행동만 이모지로
       console.warn('[pokemon-game] 전투 연출 오류', err);
@@ -203,17 +215,24 @@ export function useBattleFx(b: BattleState): boolean {
           }
         }
       } else if (act.kind === 'ult') {
-        // 필살기 — 일반 모드 필살기 그대로, 끝날 때까지 엔진을 붙잡음. 앞 행동의 남은 연출은 지우고 시작
+        // 필살기 — 일반 모드 필살기 그대로. 앞 행동의 남은 연출은 지우고 시작
         fx.clear();
-        // 그림이 아직 0 크기 (나와라! 커지는 중) 면 0.05초씩 기다림 — 0.3초까지 못 쓰면 이모지로
+        // 상대 필살기를 내 필살기로 맞받아칠 수 있으면 창 (1초) 이 지난 뒤 컷인 — 컷인 띠가 맞받아치기 안내를 덮지 않게 (플레이 리뷰어)
+        const startAt = side === 'foe' && b.me.ult >= 1 && b.me.hp > 0 ? TIMING.ultCounterWindowMs : 0;
+        // 그림이 아직 0 크기 (나와라! 커지는 중) 면 0.05초씩 기다림 — 0.6초까지 못 쓰면 이모지로
         const tryUlt = (waited: number) => {
           const src = actor(b, side);
           const dst = actor(b, other(side));
-          const total = fx.ult && src && dst ? fx.ult(src, dst) : 0;
+          // 상대를 처음 맞힌 순간 피해를 넣음 — 붙잡기를 풀고 남은 연출은 흘러가게 둠 (연출이 다 끝난 뒤 숫자가 늦게 뜨지 않게)
+          const onHit = () => {
+            ultHitDone = true;
+            releaseFx();
+          };
+          const total = fx.ult && src && dst ? fx.ult(src, dst, onHit) : 0;
           if (total > 0) {
             holdFx(key, total, performance.now(), FX_HOLD_ULT_MAX_MS);
             ultOn = true;
-          } else if (fx.ult && a.ms + waited + ULT_RETRY_MS <= ULT_LATE_MS) {
+          } else if (fx.ult && waited + ULT_RETRY_MS <= ULT_LATE_MS) {
             timers.push(
               window.setTimeout(() => {
                 try {
@@ -227,9 +246,10 @@ export function useBattleFx(b: BattleState): boolean {
             setMissed(key);
           }
         };
-        const wait = settleMs();
-        if (wait > 0) at(a.ms + wait, () => tryUlt(wait));
-        else tryUlt(0);
+        const t0 = startAt + settleMs();
+        if (t0 < a.ms - LATE_OK_MS) setMissed(key);
+        else if (t0 <= a.ms) tryUlt(0);
+        else at(t0, () => tryUlt(0));
       } else if (act.kind === 'guard' || act.kind === 'item' || act.kind === 'skip') {
         const src = actor(b, side);
         if (src && a.ms <= LATE_OK_MS * 4) {
@@ -246,11 +266,18 @@ export function useBattleFx(b: BattleState): boolean {
       timers.forEach((t) => window.clearTimeout(t));
       // 끊긴 기술 — 날아가던 연출 · 늦은 타이머를 지움 (다 끝난 행동은 남은 불씨가 자연스럽게 사라지게 둠)
       if (pending.size > 0 && !ultOn) fx.clear();
-      // 필살기가 다른 행동 (맞받아치기 힘대결 · 전투 끝) 으로 바뀌면 멈춤 — 끝까지 갔으면 이미 끝나 있음
-      if (ultOn) fx.stopUlt?.();
+      // 필살기가 맞히기 전에 다른 행동 (맞받아치기 힘대결) 으로 바뀌면 멈춤 — 맞힌 뒤면 남은 연출은 끝까지 (전투 화면이 사라지면 clear)
+      if (ultOn && !ultHitDone) fx.stopUlt?.();
     };
     // 행동이 바뀔 때만 (같은 행동 동안 다시 그려져도 한 번)
   }, [key]);
+  // 연출 캔버스 위 끝 = 정보줄 아래 끝 (game.css 가 여기서 자름 — 연출이 정보줄을 덮지 않게, 아트 디렉터).
+  // 그릴 때마다 잼 — 처음 그릴 땐 game.css 를 받기 전이라 화면이 숨어 0 이 나오고, 패널 크기도 바뀜 (값이 같으면 안 씀)
+  useEffect(() => {
+    const bar = document.querySelector<HTMLElement>('#pokemon-game .pg-infobar');
+    const top = `${bar ? Math.round(bar.getBoundingClientRect().bottom) : 0}px`;
+    if (document.body.style.getPropertyValue('--pg-fx-top') !== top) document.body.style.setProperty('--pg-fx-top', top);
+  });
   // 힘대결 승자 — 엔진이 정하는 순간 이긴 쪽이 뚫고 나감
   const winner = b.phase === 'clash' ? (b.clash?.winner ?? null) : null;
   useEffect(() => {
@@ -261,6 +288,7 @@ export function useBattleFx(b: BattleState): boolean {
     () => () => {
       releaseFx();
       pokemonFx()?.clear();
+      document.body.style.removeProperty('--pg-fx-top');
     },
     [],
   );

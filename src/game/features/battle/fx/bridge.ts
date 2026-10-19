@@ -40,7 +40,8 @@ export interface PokemonFx {
   cast(src: FxActor, fx: string, o?: Record<string, unknown>): number;
   impact(dst: FxActor, type: string, big?: boolean): void;
   /** 필살기 (version 2) — 걸리는 시간 (ms), 못 쓰면 0 */
-  ult?(src: FxActor, dst: FxActor): number;
+  /** onHit = 상대를 처음 맞힌 순간 (그때 피해를 넣음) */
+  ult?(src: FxActor, dst: FxActor, onHit?: () => void): number;
   stopUlt?(): void;
   /** 힘대결 (version 3) — a = 나, b = 상대 · live() = 내가 이길 확률 · { meetMs } 또는 null */
   duel?(a: FxActor, b: FxActor, spec: FxDuel, live: () => number): { meetMs: number } | null;

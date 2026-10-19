@@ -79,6 +79,59 @@ function fxActor(spec) {
     };
 }
 
+// ── 게임 화면 안에서만 (2026-10-19 아트 디렉터 · 플레이 리뷰어 — 정보줄 · HP 를 덮지 않게, 번쩍 · 흔들기는 순하게) ──
+function fxInGame() {
+    return !!document.body && document.body.classList.contains('pokemon-game-on');
+}
+// 연출이 넘지 않는 위 끝 = 게임 정보줄 아래 끝 (px) — 게임 밖이면 0 (game.css 가 캔버스를 여기서 자름)
+function fxTop() {
+    const bar = fxInGame() && document.querySelector('#pokemon-game .pg-infobar');
+    return bar ? Math.round(bar.getBoundingClientRect().bottom) : 0;
+}
+// 필살기 어둠에서 밝게 남길 HP 묶음 자리 — 게임 밖이면 없음
+function fxHudRects() {
+    return fxInGame() ? [...document.querySelectorAll('#pokemon-game .pg-hpblock')].map((el) => el.getBoundingClientRect()).filter((r) => r.width > 0) : [];
+}
+// 게임 중 흔들기 — 배경 · 포켓몬 · 트레이너만 (HP · 메뉴 글자는 안 떨게), 2 ~ 3px 정수 · 80ms 왕복 4번 (design-system 8장)
+function fxGameShake(amp) {
+    const a = Math.max(2, Math.min(3, Math.round(amp)));
+    document.querySelectorAll('#pokemon-game .pg-bg, #pokemon-game .pg-fg, #pokemon-game .pg-fighter, #pokemon-game .pg-hero-wrap, #pokemon-game .pg-foe-trainer').forEach((el) => {
+        el.fxShake?.cancel();
+        el.fxShake = el.animate([{ translate: `-${a}px 0` }, { translate: `${a}px 0` }], { duration: 80, iterations: 4, direction: 'alternate', composite: 'add' });
+    });
+}
+// 화면 번쩍 상한 — 게임 중엔 0.3 (넓은 패널 전체가 하얗게 번쩍이지 않게)
+const fxFlashCap = () => (fxInGame() ? 0.3 : 1);
+// 게임 중 화면 번쩍 — 0.34초에 한 번 · 진하기 0.3 까지 (1초 3번 규칙). 일반 모드는 그대로
+let fxLastFlash = 0;
+const fxScreenFlash = screenFlash;
+screenFlash = function (s, alpha, color, max) {
+    if (!fxInGame()) {
+        return fxScreenFlash(s, alpha, color, max);
+    }
+    const now = performance.now();
+    if (now - fxLastFlash < 340) {
+        return undefined;
+    }
+    fxLastFlash = now;
+    return fxScreenFlash(s, Math.min(fxFlashCap(), alpha), color, max);
+};
+// 필살기가 상대를 처음 맞힌 순간 — 게임은 그때 피해를 넣음 (연출이 다 끝날 때까지 기다리지 않게)
+const fxUltHit = ultHit;
+ultHit = function (q, ...rest) {
+    const out = fxUltHit(q, ...rest);
+    const g = fxGame;
+    if (g && g.onHit && !g.hit && (q?.pokemon ?? q) === g.B) {
+        g.hit = true;
+        try {
+            g.onHit();
+        } catch (err) {
+            ultError('game hit', err);
+        }
+    }
+    return out;
+};
+
 // 그림 폭 (px) — 0 이면 연출을 안 씀 (moves.js 의 몇몇 반복문이 배율 0 이면 안 끝남 — 패널이 접히는 중 · 떨어져 나간 그림)
 const fxWidth = (spec) => (spec && (spec.box || spec.el) ? (spec.box || spec.el).getBoundingClientRect().width : 0);
 
@@ -170,7 +223,9 @@ function fxGameStop(kill) {
 function fxTarget(g, dst) {
     const r = (dst.box || dst.el).getBoundingClientRect();
     const cx = r.left + r.width / 2;
-    return { cx, w: r.width, far: g.dir > 0 ? r.right : r.left, dist: Math.abs(cx - g.mouth.x) };
+    // 그 둘레 HP 묶음 아래 끝 (회오리처럼 높은 연출이 HP 를 덮지 않게)
+    const hud = fxHudRects().filter((h) => h.right > r.left - r.width && h.left < r.right + r.width);
+    return { cx, w: r.width, far: g.dir > 0 ? r.right : r.left, dist: Math.abs(cx - g.mouth.x), ground: r.bottom, hudBottom: hud.length ? Math.max(...hud.map((h) => h.bottom)) : 0 };
 }
 // 연출 자리를 옆으로 dx 만큼 (크기 · 방향은 쓰는 쪽 그대로)
 const fxShift = (g, dx) => ({ ...g, mouth: { ...g.mouth, x: g.mouth.x + dx }, body: { ...g.body, cx: g.body.cx + dx, front: g.body.front + dx } });
@@ -184,7 +239,7 @@ const FX_TRAVEL = {
     notes: (g) => fxFly(22 * g.s, 0, 1.1),
 };
 // run 하는 동안 · 그 뒤 발사기가 만드는 입자의 옆 빠르기를 k 배 — 예전 틀 (물대포: fx 없는 발사기) 은 fx 발사기로 바꿔 감쌈
-function fxScaled(k, run, cap) {
+function fxScaled(k, run, cap, rateK = 1) {
     const p0 = moveParticles.length;
     const e0 = moveEmitters.length;
     run();
@@ -206,6 +261,10 @@ function fxScaled(k, run, cap) {
             e.rate = moveRate(e.move, e.power);
             e.fx = () => spawnParticle(base);
         }
+        // 멀리 퍼지는 만큼 더 많이 (빽빽하게, PC 부담 때문에 4배까지)
+        if (rateK > 1 && typeof e.rate === 'number') {
+            e.rate *= rateK;
+        }
         const fx = e.fx;
         e.fx = (...a) => {
             const n = moveParticles.length;
@@ -215,36 +274,59 @@ function fxScaled(k, run, cap) {
         };
     }
 }
-// 틀마다 상대까지 — { g, o, k, cap, after } (k = 빠르기 배, cap = 입자마다 고칠 것, after = 더 할 것)
+// 틀마다 상대까지 — { g, o, k, cap, rateK, after } (k = 빠르기 배, cap = 입자마다 고칠 것, rateK = 입자 수 배, after = 더 할 것)
 function fxAim(fx, g, o, t) {
     const clampK = (v) => Math.min(25, Math.max(0.6, v));
+    const dense = (k) => Math.min(4, Math.max(1, k));
+    // 상대 몸 뒤 (0.3 폭) 를 지나면 사라짐 — 큰 포켓몬의 뿜기가 상대 뒤로 멀리 나가지 않게
+    const lim = t.far + g.dir * 0.3 * t.w;
+    const stopPast = (p) => {
+        const prev = p.update;
+        p.update = (q, dt) => {
+            prev?.(q, dt);
+            if ((q.x - lim) * g.dir > 0) {
+                q.life = q.max;
+            }
+        };
+    };
     switch (fx) {
-        case 'breath':
-            return { g, o: { ...o, speed: (o.speed ?? 1) * clampK(t.dist / FX_TRAVEL.breath(g)) } };
+        case 'breath': {
+            const k = clampK(t.dist / FX_TRAVEL.breath(g));
+            return { g, o: { ...o, speed: (o.speed ?? 1) * k, rate: (o.rate ?? 1) * dense(k) }, k: 1, cap: stopPast };
+        }
         case 'water':
         case 'bubbles':
         case 'notes':
         case 'rings': {
             const d = FX_TRAVEL[fx](g, o);
-            return d > 0 ? { g, o, k: clampK(t.dist / d) } : { g, o };
+            const k = d > 0 ? clampK(t.dist / d) : 1;
+            return d > 0 ? { g, o, k, rateK: dense(k), cap: stopPast } : { g, o };
         }
         case 'beam':
-            // 덩굴채찍 · 핥기 (len) = 상대 가운데까지 · 광선 = 상대 몸 뒤까지 (화면 끝까지 뚫고 가지 않게)
-            return { g, o: { ...o, len: (o.len ? t.dist : Math.abs(t.far - g.mouth.x) + 0.15 * t.w) / Math.max(1, g.w) } };
-        case 'vortex':
-            return { g: fxShift(g, t.cx - (g.body.front + g.dir * ((0.55 + 0.3 * g.P) * g.w + 0.2 * g.w))), o };
+            // 덩굴채찍 · 핥기 (len) = 상대 가운데까지 · 광선 = 상대 몸 뒤 윤곽까지 (화면 끝까지 뚫고 가지 않게)
+            return { g, o: { ...o, len: (o.len ? t.dist : t.dist + 0.3 * t.w) / Math.max(1, g.w) } };
+        case 'vortex': {
+            // 높이는 HP 묶음 아래까지 (불 기둥이 HP 를 덮지 않게)
+            const full = (1.7 + 0.6 * g.P) * g.h;
+            const height = t.hudBottom ? Math.min(o.height ?? 1, Math.max(0.4, (t.ground - t.hudBottom - 2) / full)) : o.height;
+            return { g: fxShift(g, t.cx - (g.body.front + g.dir * ((0.55 + 0.3 * g.P) * g.w + 0.2 * g.w))), o: { ...o, height } };
+        }
         case 'rockfall':
             return { g: fxShift(g, t.cx - (g.body.front + g.dir * 1.4 * g.w)), o };
-        case 'thunder':
-            return { g: fxShift(g, t.cx - g.body.cx), o };
+        case 'thunder': {
+            // 상대 위에 · 구름은 정보줄 아래 · 둘레 줄기는 좁게 (트레이너 · 패널 끝을 피함) · 둘레 줄기는 번쩍 없이
+            const W = Math.max(g.w, 40) * (1.1 + 0.6 * g.P);
+            const hero = document.querySelector('#pokemon-game .pg-hero-wrap');
+            const heroRight = hero ? hero.getBoundingClientRect().right : 0;
+            // 구름 두께 반 = 8px (위아래 16px — 아트 디렉터)
+            const cloudH = Math.min(1, 8 / (Math.max(0.3 * g.h, 12) + 3 * g.s));
+            return { g: fxShift(g, t.cx - g.body.cx), o: { ...o, skyTop: fxTop(), cloudH, spread: 0.6, calm: true, xmin: heroRight + 0.8 * W + 8, xmax: window.innerWidth - 0.8 * W - 8 } };
+        }
         case 'powder':
             return o.around ? { g, o } : { g: fxShift(g, t.cx - (g.mouth.x + g.dir * 1.5 * g.w)), o };
         case 'quake':
             // 흙먼지는 상대 발밑 · 흔들기는 게임 화면 (일반 모드는 숨은 포켓몬 · 앞쪽 풀을 흔듦)
-            return { g: fxShift(g, t.cx - g.body.cx), o, after: () => {
-                const amp = 2 + 3 * g.P;
-                document.querySelector('#pokemon-game .pg-field')?.animate([{ translate: `-${amp}px 0` }, { translate: `${amp}px 0` }], { duration: 60, iterations: 12, direction: 'alternate', composite: 'add' });
-            } };
+            return { g: fxShift(g, t.cx - g.body.cx), o, after: () => fxGameShake(2 + g.P) };
         case 'projectile':
             // 똑바로 나는 것은 상대를 지나면 사라짐 (화면 끝까지 안 감) — 부메랑 · 포물선은 그대로
             return o.boomerang || o.arc ? { g, o } : { g, o, k: 1, cap: (p) => {
@@ -342,7 +424,7 @@ window.pokemonFx = {
             }
             const go = () => p.T.run(aim.g, aim.o, p.ms, A);
             if (aim.k !== undefined || aim.cap) {
-                fxScaled(aim.k ?? 1, go, aim.cap);
+                fxScaled(aim.k ?? 1, go, aim.cap, aim.rateK);
             } else {
                 go();
             }
@@ -375,8 +457,9 @@ window.pokemonFx = {
         const P = (POKEMON_SHAPE[dst.form] || [0.5])[0];
         safeFx({}, () => sigImpact(r.left + r.width / 2, r.top + r.height * 0.55, s, sigPal(FX_TYPE_PAL[type] || 'normal'), P, !!big));
     },
-    /** 필살기 — 일반 모드처럼 번쩍 · 어두워짐 · 컷인 · 큰 글씨 · 그 포켓몬의 필살기 (전용 연출 포함). 상대 = dst. 걸리는 시간 (ms), 못 쓰면 0 */
-    ult(src, dst) {
+    /** 필살기 — 일반 모드처럼 번쩍 · 어두워짐 · 컷인 · 큰 글씨 · 그 포켓몬의 필살기 (전용 연출 포함). 상대 = dst. 걸리는 시간 (ms), 못 쓰면 0.
+     *  onHit = 상대를 처음 맞힌 순간 (게임은 그때 피해를 넣고, 남은 연출은 흘러가게 둠) */
+    ult(src, dst, onHit) {
         fxGameStop(true);
         if (!POKEMON_SHAPE[src.form] || ultActive || fxWidth(src) < 1 || fxWidth(dst) < 1) {
             return 0;
@@ -392,7 +475,7 @@ window.pokemonFx = {
         const A = fxActor(src);
         const B = fxActor(dst);
         const gen = ++fxGen;
-        fxGame = { A, B, gen, tick: setInterval(fxGameTick, 100) };
+        fxGame = { A, B, gen, tick: setInterval(fxGameTick, 100), onHit, hit: false };
         let total = 0;
         try {
             total = fxWithTimers(gen, () => useUltimate(A, entry)) || 0;
