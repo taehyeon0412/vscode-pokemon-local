@@ -339,6 +339,20 @@ function fxAim(fx, g, o, t) {
     }
 }
 
+// 게임에서는 그 포켓몬이 배운 기술과 이름이 같은 필살기를 피함 (이상해씨 "덩굴채찍" = 3 스킬의 덩굴채찍 — 필살기가 기술보다 약해 보임, 플레이 리뷰어 · ideas #102).
+// 일반 모드 주머니 순서 그대로 꺼내고, 이름이 겹칠 때만 겹치지 않는 것 중에서 — 다 겹치면 그대로
+const fxName = (s) => String(s || '').replace(/\s+/g, '');
+function fxUltPick(form, avoid) {
+    const e = ultEntry(form);
+    const bad = new Set((avoid || []).map(fxName));
+    if (!e || !bad.size || !bad.has(fxName(e[0]))) {
+        return e;
+    }
+    const list = (POKEMON_ULT[form] || []).map((i) => ULT_LIB[i]).filter((v) => v && !bad.has(fxName(v[0])));
+    const plain = list.filter((v) => !ULT_SPECIALS.includes(v[1]));
+    return plain.length ? movePick(plain) : list.length ? movePick(list) : e;
+}
+
 function fxPlan(form, m) {
     if (!POKEMON_SHAPE[form] || !m || !m.name) {
         return null;
@@ -367,10 +381,10 @@ const FX_DUEL_FX = {
 };
 // 대결 입자의 수명 표시 (멈출 때 찾아서 줄임) — 승자가 정해질 때까지 밀기가 이어지게 아주 길게
 const FX_DUEL_LONG = 59.75;
-function fxDuelEntry(kind, form, m) {
+function fxDuelEntry(kind, form, m, avoid) {
     if (kind === 'ult') {
-        // 필살기 대결 — 그 포켓몬 필살기 (일반 모드 주머니 순서), 특수 필살기 (튀어오르기 · 변신 · 손가락흔들기) 면 다른 것
-        const e = ultEntry(form);
+        // 필살기 대결 — 그 포켓몬 필살기 (일반 모드 주머니 순서, 배운 기술과 이름이 같으면 다른 것), 특수 필살기 (튀어오르기 · 변신 · 손가락흔들기) 면 다른 것
+        const e = fxUltPick(form, avoid);
         if (e && !ULT_SPECIALS.includes(e[1])) {
             return e;
         }
@@ -458,13 +472,13 @@ window.pokemonFx = {
         safeFx({}, () => sigImpact(r.left + r.width / 2, r.top + r.height * 0.55, s, sigPal(FX_TYPE_PAL[type] || 'normal'), P, !!big));
     },
     /** 필살기 — 일반 모드처럼 번쩍 · 어두워짐 · 컷인 · 큰 글씨 · 그 포켓몬의 필살기 (전용 연출 포함). 상대 = dst. 걸리는 시간 (ms), 못 쓰면 0.
-     *  onHit = 상대를 처음 맞힌 순간 (게임은 그때 피해를 넣고, 남은 연출은 흘러가게 둠) */
-    ult(src, dst, onHit) {
+     *  onHit = 상대를 처음 맞힌 순간 (게임은 그때 피해를 넣고, 남은 연출은 흘러가게 둠) · avoid = 피할 필살기 이름 (그 포켓몬이 배운 기술) */
+    ult(src, dst, onHit, avoid) {
         fxGameStop(true);
         if (!POKEMON_SHAPE[src.form] || ultActive || fxWidth(src) < 1 || fxWidth(dst) < 1) {
             return 0;
         }
-        let entry = ultEntry(src.form);
+        let entry = fxUltPick(src.form, avoid);
         if (!entry) {
             return 0;
         }
@@ -502,8 +516,8 @@ window.pokemonFx = {
         fxGame = { A, B, gen, tick: setInterval(fxGameTick, 100) };
         let meetMs = 0;
         const ok = safeFx({}, () => fxWithTimers(gen, () => {
-            const ultA = fxDuelEntry(spec.kind, a.form, spec.a);
-            const ultB = fxDuelEntry(spec.kind, b.form, spec.b);
+            const ultA = fxDuelEntry(spec.kind, a.form, spec.a, spec.aAvoid);
+            const ultB = fxDuelEntry(spec.kind, b.form, spec.b, spec.bAvoid);
             const leftA = !!a.left;
             const leftB = !!b.left;
             // 승패는 게임 엔진이 4초 끝에 정함 — 처음엔 가운데 (무승부 모양) 로 짜고, 밀기는 승자가 올 때까지 (duelWin)

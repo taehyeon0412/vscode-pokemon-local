@@ -86,6 +86,12 @@ function actor(b: BattleState, side: Side): FxActor | null {
   return { el, box, form: f.form, size: formOf(f.form)?.size ?? 32, left: side === 'foe', name: speciesOf(f.species)?.name.ko ?? '' };
 }
 
+/** 그 포켓몬이 쓰는 기술 이름 (1 공격 = 몸통박치기 모양 포함) — 같은 이름 필살기는 피함 (ideas #102) */
+function learnedNames(b: BattleState, side: Side): string[] {
+  const names = b[side].moves.map((m) => moveOf(m.moveId)?.name.ko).filter((n): n is string => !!n);
+  return [...names, '몸통박치기'];
+}
+
 /** 행동 → 일반 모드에 넘길 기술 (공격 = 몸통박치기, 색은 그 포켓몬 첫 타입) */
 function fxMove(b: BattleState): { m: FxMove; hitType: string; big: boolean } | null {
   const a = b.anim;
@@ -139,7 +145,7 @@ export function useBattleFx(b: BattleState): boolean {
             const cur = now.current.clash;
             return cur ? clashWithTaps(cur.base, cur.taps) : 0.5;
           };
-          plan = me && foe && fx.duel ? fx.duel(me, foe, { kind: c.kind, a: mv(c.me), b: mv(c.foe) }, live) : null;
+          plan = me && foe && fx.duel ? fx.duel(me, foe, { kind: c.kind, a: mv(c.me), b: mv(c.foe), aAvoid: learnedNames(b, 'me'), bAvoid: learnedNames(b, 'foe') }, live) : null;
         } catch (err) {
           console.warn('[pokemon-game] 힘대결 연출 오류', err);
         }
@@ -228,7 +234,7 @@ export function useBattleFx(b: BattleState): boolean {
             ultHitDone = true;
             releaseFx();
           };
-          const total = fx.ult && src && dst ? fx.ult(src, dst, onHit) : 0;
+          const total = fx.ult && src && dst ? fx.ult(src, dst, onHit, learnedNames(b, side)) : 0;
           if (total > 0) {
             holdFx(key, total, performance.now(), FX_HOLD_ULT_MAX_MS);
             ultOn = true;

@@ -30,6 +30,9 @@ export interface FxDuel {
   kind: 'ult' | 'move';
   a: FxMove | null;
   b: FxMove | null;
+  /** 필살기 대결 — 피할 필살기 이름 (그 포켓몬이 배운 기술) */
+  aAvoid?: string[];
+  bAvoid?: string[];
 }
 
 export interface PokemonFx {
@@ -41,7 +44,7 @@ export interface PokemonFx {
   impact(dst: FxActor, type: string, big?: boolean): void;
   /** 필살기 (version 2) — 걸리는 시간 (ms), 못 쓰면 0 */
   /** onHit = 상대를 처음 맞힌 순간 (그때 피해를 넣음) */
-  ult?(src: FxActor, dst: FxActor, onHit?: () => void): number;
+  ult?(src: FxActor, dst: FxActor, onHit?: () => void, avoid?: string[]): number;
   stopUlt?(): void;
   /** 힘대결 (version 3) — a = 나, b = 상대 · live() = 내가 이길 확률 · { meetMs } 또는 null */
   duel?(a: FxActor, b: FxActor, spec: FxDuel, live: () => number): { meetMs: number } | null;
