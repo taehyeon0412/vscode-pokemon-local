@@ -161,6 +161,30 @@ describe('1:1 토너먼트 · 상대 AI 필살기 (gdd S08 ③ · 4.7)', () => {
     expect(s.foe.ult).toBeGreaterThanOrEqual(BALANCE.gymAceUlt);
   });
 
+  it('관장은 나와 있는 포켓몬 HP 가 절반 아래면 상처약 1번 (내 가방은 그대로) — 트레이너는 안 씀 (2026-10-20)', () => {
+    const gym = startTrainerBattle(save, [{ ...weak('a'), hp: 999 }], 'gym', '관장 웅이');
+    expect(gym.foePotions).toBe(BALANCE.gymPotions);
+    const low = { ...gym, phase: 'run' as const, foe: { ...gym.foe, hp: Math.floor(gym.foe.maxHp * 0.4), gauge: 1, ult: 0 }, me: { ...gym.me, gauge: 0 } };
+    const used = battleStep(low, save, STEP, new Rng(1), { auto: true });
+    expect(used.anim?.action).toEqual({ kind: 'item', item: 'potion' });
+    expect(used.msg).toBe('관장 웅이는 상처약을 썼다!');
+    expect(used.foePotions).toBe(0);
+    // 상처약 연출이 끝난 직후 — HP 가 상처약만큼 · 내 가방에서는 안 빠짐
+    let h = used;
+    const rng = new Rng(1);
+    for (let t = 0; t < 3000 && h.anim?.action.kind === 'item'; t += STEP) h = battleStep(h, save, STEP, rng, { auto: false });
+    expect(h.foe.hp).toBe(Math.min(h.foe.maxHp, low.foe.hp + BALANCE.potionHeal));
+    expect(h.bagUsed.potion ?? 0).toBe(0);
+    // 다 쓰면 다시 안 씀
+    const again = battleStep({ ...low, foePotions: 0 }, save, STEP, new Rng(1), { auto: true });
+    expect(again.anim?.action.kind).not.toBe('item');
+    // 트레이너는 안 씀
+    const tr = startTrainerBattle(save, [{ ...weak('a'), hp: 999 }], 'trainer', 't');
+    expect(tr.foePotions).toBeUndefined();
+    const trLow = battleStep({ ...tr, phase: 'run' as const, foe: { ...tr.foe, hp: 1, gauge: 1, ult: 0 }, me: { ...tr.me, gauge: 0 } }, save, STEP, new Rng(1), { auto: true });
+    expect(trLow.anim?.action.kind).not.toBe('item');
+  });
+
   it('트레이너 필살기: 게이지가 차면 0.5 ~ 3초 기다렸다가 · 관장: 내 기술 연출에 끼어듦 (내 기술은 취소)', () => {
     const tb = startTrainerBattle(save, [{ ...weak('a'), hp: 999 }], 'trainer', 't');
     const full = { ...tb, foe: { ...tb.foe, ult: 1 }, me: { ...tb.me, stats: { ...tb.me.stats, speed: 1 } } };

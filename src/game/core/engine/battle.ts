@@ -119,6 +119,8 @@ export interface BattleState {
   foeUltWait: number | null;
   /** 상대 트레이너 이름 ("곤충채집 소년 민수") — 야생은 null */
   foeName: string | null;
+  /** 관장이 남긴 상처약 (2026-10-20) — 관장전만, 옛 상태에는 없음 (= 0) */
+  foePotions?: number;
   /** send — 다음 포켓몬을 내보내는 데 지난 시간 */
   sendMs: number;
   /** 이 전투에서 바뀐 내 포켓몬 (교체로 나온 포켓몬의 HP · PP · 상태) — 끝나면 세이브에 */
@@ -219,6 +221,7 @@ export function startTrainerBattle(save: Save, team: readonly Monster[], kind: '
     kind,
     foeQueue: rest.map((m) => ({ ...m })),
     foeName,
+    ...(kind === 'gym' ? { foePotions: BALANCE.gymPotions } : {}),
     msg: lead ? `${withJosa(foeName, '이/가')} ${withJosa(nameOf(b.foe), '을/를')} 내보냈다! 가랏, ${nameOf(b.me)}!` : b.msg,
   };
 }
@@ -325,7 +328,8 @@ function startAction(b0: BattleState, side: Side, action0: BattleAction, rng: Rn
       dur = TIMING.guardAnimMs;
       break;
     case 'item':
-      b.msg = `${withJosa(itemName(action.item), '을/를')} 썼다!`;
+      // 상대 (관장) 가 쓰면 "관장 웅이는 상처약을 썼다!"
+      b.msg = side === 'foe' ? `${withJosa(b.foeName ?? '상대', '은/는')} ${withJosa(itemName(action.item), '을/를')} 썼다!` : `${withJosa(itemName(action.item), '을/를')} 썼다!`;
       dur = TIMING.itemAnimMs;
       break;
     case 'switch':
@@ -452,7 +456,8 @@ function finishAnim(b0: BattleState, save: Save, rng: Rng): BattleState {
     }
     case 'item': {
       const item = anim.action.item;
-      b.bagUsed = { ...b.bagUsed, [item]: (b.bagUsed[item] ?? 0) + 1 };
+      // 내 가방에서 쓴 것만 셈 (관장 상처약은 관장 것)
+      if (side === 'me') b.bagUsed = { ...b.bagUsed, [item]: (b.bagUsed[item] ?? 0) + 1 };
       if (item === 'potion' || item === 'super-potion') {
         const heal = Math.min(actor.maxHp - actor.hp, item === 'potion' ? BALANCE.potionHeal : BALANCE.superPotionHeal);
         actor.hp += heal;
@@ -579,7 +584,13 @@ export function battleStep(b0: BattleState, save: Save, stepMs: number, rng: Rng
         const pick = aiPick(b.me, b.foe, 'smart', rng);
         return startAction(b, 'me', pick, rng);
       }
-      if (foeReady) return startAction(b, 'foe', aiPick(b.foe, b.me, foeStyle(b), rng), rng);
+      if (foeReady) {
+        // 관장 — 나와 있는 포켓몬 HP 가 절반 아래면 상처약 (한 판에 BALANCE.gymPotions 번)
+        if (b.kind === 'gym' && (b.foePotions ?? 0) > 0 && b.foe.hp > 0 && b.foe.hp <= b.foe.maxHp * BALANCE.gymPotionAt) {
+          return startAction({ ...b, foePotions: (b.foePotions ?? 0) - 1 }, 'foe', { kind: 'item', item: 'potion' }, rng);
+        }
+        return startAction(b, 'foe', aiPick(b.foe, b.me, foeStyle(b), rng), rng);
+      }
       return b;
     }
     case 'choose':
@@ -973,6 +984,7 @@ export function readBattle(raw: unknown): BattleState | null {
   if (!Array.isArray(raw.foeQueue) || raw.foeQueue.length > 6 || !raw.foeQueue.every(okFoeMonster)) return null;
   if (!Array.isArray(raw.foeDown) || raw.foeDown.length > 6 || !raw.foeDown.every((d) => isObj(d) && fin(d.species, 1, 2000) && fin(d.level, 1, 100))) return null;
   if (!(raw.foeUltWait === null || fin(raw.foeUltWait, -1e6, 1e6)) || !(raw.foeName === null || (typeof raw.foeName === 'string' && raw.foeName.length <= 40)) || !fin(raw.sendMs, 0)) return null;
+  if (!(raw.foePotions === undefined || fin(raw.foePotions, 0, 10))) return null;
   if (raw.kind !== 'wild' && typeof raw.foeName !== 'string') return null;
   if (!PHASES.includes(raw.phase as string) || !okBench(raw.bench) || !okBag(raw.bagUsed)) return null;
   if (!Array.isArray(raw.popups) || !raw.popups.every((p) => isObj(p) && fin(p.id, 0) && SIDES.includes(p.side as string) && typeof p.text === 'string' && fin(p.ms, 0) && POPUP_KINDS.includes(p.kind as string))) return null;
