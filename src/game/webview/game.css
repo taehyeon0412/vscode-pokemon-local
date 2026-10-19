@@ -767,13 +767,28 @@ body.pokemon-game-on {
   30%, 60% { filter: drop-shadow(0 0 6px #ffd33d) brightness(1.4); transform: scale(1.08); }
   100% { filter: none; transform: scale(1); }
 }
+/* 쏘는 기술 — 몸을 뒤로 젖혔다가 앞으로 내밀며 쏨 (--pg-back = 뒤쪽 방향 -1 · 1) */
+.pg-cast {
+  animation-name: pg-cast;
+  animation-timing-function: ease-out;
+}
+@keyframes pg-cast {
+  0% { transform: translateX(0); }
+  25% { transform: translateX(calc(var(--pg-back, -1) * 5px)) scale(1.04, 0.96); }
+  45% { transform: translateX(calc(var(--pg-back, -1) * -7px)) scale(0.97, 1.03); }
+  70%, 100% { transform: translateX(0); }
+}
+/* 맞으면 상대 반대쪽으로 튕겨 밀렸다 돌아오고 하얗게 번쩍 (전엔 제자리 3px 떨림 — 2026-10-19) */
 .pg-hurt {
-  animation: pg-hurt 0.3s steps(2) both !important;
+  animation: pg-hurt 0.42s cubic-bezier(0.2, 0.7, 0.3, 1) both !important;
 }
 @keyframes pg-hurt {
-  0% { opacity: 0.2; transform: translateX(-3px); }
-  50% { opacity: 1; transform: translateX(3px); }
-  100% { opacity: 1; transform: translateX(0); }
+  0% { transform: translateX(0); filter: brightness(3) saturate(0); }
+  18% { transform: translateX(calc(var(--pg-back, -1) * 12px)) rotate(calc(var(--pg-back, -1) * 4deg)); filter: brightness(2.2) saturate(0.3); }
+  40% { filter: none; opacity: 0.5; }
+  55% { opacity: 1; }
+  70% { opacity: 0.6; }
+  100% { transform: translateX(0) rotate(0); filter: none; opacity: 1; }
 }
 .pg-fainted {
   opacity: 0;

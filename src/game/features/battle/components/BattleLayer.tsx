@@ -35,7 +35,7 @@ const foePrefix = (b: BattleState) => (b.kind === 'wild' ? '야생 ' : '상대 '
 
 const nameOf = (f: Fighter) => speciesOf(f.species)?.name.ko ?? '???';
 /** 맞은 쪽 그림이 깜빡이는 시간 */
-const HURT_MS = 300;
+const HURT_MS = 420;
 const POP_STACK_PX = 11;
 const MAX_TAPS = Math.round(BALANCE.clashTapMax / BALANCE.clashTap);
 
@@ -98,10 +98,13 @@ function FighterBody(props: { b: BattleState; side: Side; x: number; target: num
   const act = anim?.action;
   const mv = act?.kind === 'move' ? moveOf(act.moveId) : undefined;
   const lunge = act?.kind === 'attack' || (act?.kind === 'move' && mv && mv.power > 0 && !isShooting(mv));
+  // 쏘는 기술 (불꽃 · 물대포 · 광선 …) — 달려들지 않고 몸을 젖혔다 내밂 (일반 모드처럼, 2026-10-19 태현 님 "자연스럽고 멋지게")
+  const cast = act?.kind === 'move' && mv !== undefined && (isShooting(mv) || mv.power <= 0);
   const hurt = b.popups.some((p) => p.side === side && p.kind === 'damage' && p.ms < HURT_MS);
   const cls = [
     'pg-fx-body',
     lunge ? 'pg-lunge' : '',
+    cast ? 'pg-cast' : '',
     act?.kind === 'switch' ? 'pg-recall' : '',
     act?.kind === 'ult' ? 'pg-charging' : '',
     hurt ? 'pg-hurt' : '',
@@ -111,8 +114,10 @@ function FighterBody(props: { b: BattleState; side: Side; x: number; target: num
   ].join(' ');
   return (
     <span class={`pg-obj pg-fighter pg-fighter-${side}${side === 'me' ? ' pg-sendout' : ''}`} style={{ left: `${x}px`, bottom: `${ground}px` }} title={`${side === 'foe' ? foePrefix(b) : ''}${nameOf(f)} Lv${f.level}${onProfile ? ' — 누르면 프로필' : ''}`} onClick={onProfile ? () => onProfile(side) : undefined}>
-      <span key={animKey(b)} class={cls} style={{ '--pg-dx': `${Math.round((target - x) * 0.75)}px`, animationDuration: anim ? `${anim.dur}ms` : undefined }}>
-        <Sprite media={media} form={f.form} shiny={f.shiny} scale={1} px={px} faceLeft={side === 'foe'} />
+      {/* --pg-back = 맞으면 밀려나는 쪽 (상대 반대쪽) */}
+      <span key={animKey(b)} class={cls} style={{ '--pg-dx': `${Math.round((target - x) * 0.75)}px`, '--pg-back': side === 'me' ? '-1' : '1', animationDuration: anim ? `${anim.dur}ms` : undefined }}>
+        {/* 걷기 그림 (옆모습) 으로 서로 마주 봄 — 서기 그림은 정면이라 가만히 앞만 보는 것처럼 보였음 (2026-10-19 태현 님). 걷기 그림은 오른쪽을 봄 → 상대는 뒤집음 */}
+        <Sprite media={media} form={f.form} shiny={f.shiny} scale={1} px={px} action="walk" faceLeft={side === 'foe'} />
       </span>
     </span>
   );
