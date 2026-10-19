@@ -4,6 +4,7 @@ import { TIMING } from '../../core/balance';
 import { battleStep, startBattle, type BattleState } from '../../core/engine/battle';
 import { Rng } from '../../core/engine/rng';
 import { counterMove, isShooting } from '../../core/rules/battle';
+import { hasMapRow, MAP_ROW_PX, topGapPx } from '../../ui/layout';
 import { allForms, allMoves, formOf, moveOf } from '../../data';
 import { battleGeometry, battleSpritePx, battleViewKey, duelKind, hpColor, menuItems, placeOnStage, type DuelKind } from './model';
 
@@ -215,11 +216,12 @@ describe('좁은 패널 자리 (테스터)', () => {
       expect(s.top + 13 + 13 * 5 + 6).toBeLessThanOrEqual(body - 2);
       expect(s.top + s.maxHeight).toBe(body - 2);
       expect(s.top + 13).toBe(Math.max(14, Math.min(body - (g.meHpBottom + g.hpBlockPx), body - 2 - 71)));
-      // 한 줄 말은 늘 오른쪽 위 · 옆 메뉴 오른쪽 끝보다 오른쪽
+      // 한 줄 말은 늘 오른쪽 위 · 옆 메뉴와 안 겹침 — 메뉴가 말 (msgLines 줄, 위 3px + 23 + 15) 아래에서 시작하거나, 말이 메뉴 오른쪽 끝 (어림 170px) 보다 오른쪽
       expect(g.msgHidden).toBe(false);
       expect(g.msgSide).toBeNull();
       expect(g.msgRight).not.toBeNull();
-      expect(720 - g.msgRight!.right - g.msgRight!.maxWidth).toBeGreaterThanOrEqual(s.left + s.maxWidth);
+      const msgLeft = 720 - g.msgRight!.right - g.msgRight!.maxWidth;
+      expect(s.top >= g.msgTop + 23 + (g.msgLines - 1) * 15 + 2 || msgLeft >= s.left + Math.min(s.maxWidth, 170)).toBe(true);
     }
     // 좁은 패널 · 상대가 바로 옆이면 예전 가로 한 줄
     expect(battleGeometry({ widthPx: 400, bodyPx: 150 - 26, scale: 2, uiScale: 1.3, ground: 23, foeX: 300, meSpritePx: 64, foeSpritePx: 64, heroPx: 40, heroWidthPx: 32 }).menuSide).toBeNull();
@@ -258,5 +260,60 @@ describe('넓은 패널 전투 무대 (placeOnStage, 2026-10-19)', () => {
     expect(g.foeX - g.meX).toBe(inStage.foeX - inStage.meX);
     expect(g.foeX - g.meX).toBeLessThan(260);
     expect(g.meX - g.trainerX).toBeLessThan(200);
+  });
+});
+
+describe('지도 줄 아래 · 긴 한 줄 말 (2026-10-19 태현 님)', () => {
+  // 실제 화면처럼: 패널 h → 길 칸 h − 26, 지도 줄이 있으면 (180px 이상) 위 띄움 + 18 을 비움 (StageScreen 과 같은 값)
+  const real = (h: number, foeX: number, foeTrainer = false, heroPx = 40) =>
+    battleGeometry({ widthPx: 720, bodyPx: h - 26, scale: 2, uiScale: 1.3, ground: 23, foeX, meSpritePx: 64, foeSpritePx: 64, heroPx, heroWidthPx: 32, topPx: hasMapRow(h) ? topGapPx(h) + MAP_ROW_PX : 0, gapPx: topGapPx(h), foeTrainer });
+
+  it('HP 묶음 · 옆 메뉴가 지도 줄에 안 겹침 (180 ~ 330px · 야생 · 트레이너 자리)', () => {
+    for (let h = 180; h <= 330; h += 10) {
+      for (const foeX of [404, 560]) {
+        const g = real(h, foeX);
+        const body = h - 26;
+        const top = topGapPx(h) + MAP_ROW_PX;
+        expect(body - (g.meHpBottom + g.hpBlockPx)).toBeGreaterThanOrEqual(top + 4);
+        expect(body - (g.foeHpBottom + g.hpBlockPx + 4)).toBeGreaterThanOrEqual(top + 4);
+        if (g.menuSide) expect(g.menuSide.top).toBeGreaterThanOrEqual(top);
+      }
+    }
+  });
+
+  it('트레이너전 (상대가 오른쪽 끝) 이라도 긴 말은 무대 왼쪽 끝까지 · 자리가 있으면 두 줄 — "상대 도토링이 쓰러졌다! 곤충채…" 로 잘리던 것', () => {
+    const g = real(315, 560, true, 64);
+    expect(g.topBusy).toBe(false);
+    expect(g.msgRight).not.toBeNull();
+    expect(g.msgRight!.maxWidth).toBeGreaterThanOrEqual(600);
+    expect(g.msgLines).toBe(2);
+  });
+
+  it('두 줄은 둘째 줄 아래가 빌 때만 — 위가 붐벼 상대 오른쪽에 둘 때도 · 트레이너전은 오른쪽 끝 이름표 (땅 + 키 + 16) 위까지', () => {
+    // 150px 야생: 위가 붐벼 상대 오른쪽 — 그 아래가 비어 두 줄
+    expect(real(150, 412).topBusy).toBe(true);
+    expect(real(150, 412).msgLines).toBe(2);
+    // 트레이너전 (사람 키 64): 150px 은 이름표에 걸려 한 줄
+    expect(real(150, 480, true, 64).msgLines).toBe(1);
+    // 옆 메뉴가 말 높이에 걸치면 말은 메뉴 오른쪽부터
+    for (const foeX of [412, 480]) {
+      const g = real(150, foeX);
+      if (g.msgRight && g.menuSide && g.menuSide.top < g.msgTop + 23 + 15 + 2) expect(720 - g.msgRight.right - g.msgRight.maxWidth).toBeGreaterThanOrEqual(g.menuSide.left + Math.min(g.menuSide.maxWidth, 170));
+    }
+  });
+
+  it('전투 동안 지도 줄 — 190px 은 위가 붐벼 (StageScreen 이 지도를 정보줄 안으로), 210 · 315px 은 지도 줄 그대로 둘 자리가 있음', () => {
+    expect(real(190, 404).topBusy).toBe(true);
+    expect(real(210, 404).topBusy).toBe(false);
+    expect(real(315, 560, true, 64).topBusy).toBe(false);
+  });
+
+  it('한 줄 말 위 띄움은 자리가 모자라면 줄임 (최소 3) — 480 × 190 가로 메뉴: 띄움 8 이면 1px 모자라 말이 숨던 것', () => {
+    const narrow = battleGeometry({ widthPx: 480, bodyPx: 190 - 26, scale: 2, uiScale: 1.3, ground: 23, foeX: 330, meSpritePx: 64, foeSpritePx: 64, heroPx: 40, heroWidthPx: 32, gapPx: 8 });
+    expect(narrow.msgHidden).toBe(false);
+    expect(narrow.msgTop).toBeGreaterThanOrEqual(3);
+    expect(narrow.msgTop).toBeLessThan(8);
+    // 자리가 넉넉하면 띄움 그대로 (지도 줄 아래 8)
+    expect(real(315, 560, true, 64).msgTop).toBe(8 + MAP_ROW_PX + 8);
   });
 });

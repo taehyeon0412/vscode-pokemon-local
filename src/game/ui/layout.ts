@@ -14,6 +14,28 @@ export const SIZE_SCALE: Record<SizeName, number> = { nano: 1, small: 1.5, mediu
 export const BASE_SPRITE_PX = 32;
 /** 위 정보줄 높이 (uiScale 1 일 때) */
 export const INFO_BAR_PX = 20;
+/** 지도 줄 (S06 ②, 2026-10-19 태현 님 "맵을 정보바 밑에 길게 — 병원 · 상점이 딱 붙어 보여 별로") — 이 높이부터 지도를 정보줄 아래 둘째 줄로 (낮으면 예전처럼 정보줄 가운데) */
+export const MAP_ROW_MIN_HEIGHT_PX = 180;
+/** 지도 줄 높이 (아이콘 16 + 위아래 1) */
+export const MAP_ROW_PX = 18;
+
+/**
+ * 정보줄 (지도 줄이 있으면 지도 줄) 아래 띄움 — game.css 의 --pg-gap (main.ts).
+ * 2026-10-19 태현 님 "조우 때 상자 · 알림이 위 정보바와 너무 붙어 있는 느낌" (예전 3px). 낮은 패널은 그림 · HP 칸 자리가 빠듯해 작게
+ */
+export function topGapPx(heightPx: number): number {
+  return heightPx >= 186 ? 8 : heightPx >= 166 ? 6 : 4;
+}
+
+export function hasMapRow(heightPx: number): boolean {
+  return heightPx >= MAP_ROW_MIN_HEIGHT_PX;
+}
+
+/** 길 칸 위 끝에서 길 위 상자 · 전투 한 줄 · 메뉴 판이 시작하는 곳 (game.css 의 --pg-field-top) — 지도 줄이 있으면 그 아래 */
+export function fieldTopPx(heightPx: number): number {
+  const gap = topGapPx(heightPx);
+  return hasMapRow(heightPx) ? gap + MAP_ROW_PX + gap : gap;
+}
 /** 게임 모드 최소 높이 (150px) — 확장 쪽 알림 문구도 써서 shared 에 둠 */
 export { GAME_MIN_HEIGHT_PX };
 /** 글자 · 버튼 크기 단계 — [패널 높이 이상, 배율] (큰 것부터) */

@@ -21,6 +21,28 @@ export type Overlay = { kind: 'map' } | { kind: 'team'; back?: 'map' } | { kind:
 /** 팀에 남은 포인트가 있는 포켓몬이 있는지 (◓ 버튼에 점) */
 export const hasUnspent = (save: Save) => save.party.some((uid) => (save.monsters[uid]?.unspentPoints ?? 0) > 0);
 
+/**
+ * 정보줄 메뉴 단축키 (2026-10-19 태현 님 "아이콘만 있어 무슨 메뉴인지 모름 — 단축키 + 아이콘 + 설명") — F 빨리 걷기 · M 지도 · P 내 포켓몬 · B 가방 · S 설정.
+ * 버튼에 쓰인 글자 그대로. 한글 입력 상태에서도 되게 자판 자리 (KeyboardEvent.code 'KeyM') 로 들음 (main.ts) — 전투 숫자 · Z · Enter · Esc · 방향키와 안 겹침
+ */
+export type MenuShortcut = 'fast' | 'map' | 'team' | 'bag' | 'settings';
+export const MENU_KEYS: Record<MenuShortcut, string> = { fast: 'F', map: 'M', team: 'P', bag: 'B', settings: 'S' };
+export function menuShortcutOf(code: string): MenuShortcut | null {
+  return (Object.keys(MENU_KEYS) as MenuShortcut[]).find((k) => code === `Key${MENU_KEYS[k]}`) ?? null;
+}
+/** 정보줄 메뉴로 여는 판 — 하나가 떠 있을 때 다른 메뉴 단축키를 누르면 그 판으로 바꿈 */
+export const MENU_PANELS: readonly Overlay['kind'][] = ['map', 'team', 'bag', 'settings'];
+
+/**
+ * 정보줄 메뉴 모양 — full = 단축키 + 아이콘 + 이름 · text = 아이콘 + 이름 · icon = 아이콘만 (이름은 올리면 나옴).
+ * 지도 줄이 따로 있으면 (패널 180px 이상) 첫 줄에 볼 · 메뉴만 있어 자리가 넉넉, 없으면 가운데 지도와 나눠 씀 (버튼 다섯: 이름까지 ≈ 440px · 단축키 빼면 ≈ 350px)
+ */
+export type MenuLabels = 'full' | 'text' | 'icon';
+export function menuLabels(widthPx: number, mapRow: boolean): MenuLabels {
+  const [full, text] = mapRow ? [560, 470] : [1100, 920];
+  return widthPx >= full ? 'full' : widthPx >= text ? 'text' : 'icon';
+}
+
 export const nameOfMonster = (m: Monster) => speciesOf(m.species)?.name.ko ?? m.form;
 export const stars = (n: number) => {
   const k = Math.max(0, Math.min(5, Math.round(Number.isFinite(n) ? n : 0)));

@@ -252,11 +252,12 @@ function Catch({ b, geo, ground }: { b: BattleState; geo: BattleGeometry; ground
   );
 }
 
-/** 위 가운데 · (옆 메뉴) 오른쪽 위 · (낮은 패널) 상대 오른쪽 */
+/** 위 가운데 · (옆 메뉴) 오른쪽 위 · (낮은 패널) 상대 오른쪽 — 위 끝은 지도 줄 · 정보줄 아래 띄움 (geo.msgTop) */
 function msgStyle(geo: BattleGeometry) {
-  if (geo.msgSide) return { left: `${geo.msgSide.left}px`, right: 'auto', margin: 0, maxWidth: `${geo.msgSide.maxWidth}px`, transform: 'none' };
-  if (geo.msgRight) return { left: 'auto', right: `${geo.msgRight.right}px`, margin: 0, maxWidth: `${geo.msgRight.maxWidth}px`, transform: 'none' };
-  return undefined;
+  const top = `${geo.msgTop}px`;
+  if (geo.msgSide) return { top, left: `${geo.msgSide.left}px`, right: 'auto', margin: 0, maxWidth: `${geo.msgSide.maxWidth}px`, transform: 'none' };
+  if (geo.msgRight) return { top, left: 'auto', right: `${geo.msgRight.right}px`, margin: 0, maxWidth: `${geo.msgRight.maxWidth}px`, transform: 'none' };
+  return { top };
 }
 
 /** 지금 한 줄에서 포켓몬 이름만 빨갛게 (Sea of Stars — 중요한 낱말만 색) */
@@ -370,7 +371,7 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
         )),
       )}
       {showMsg && (
-        <div key={b.msg} class={b.phase === 'over' ? 'pg-bmsg pg-bmsg-over' : 'pg-bmsg'} style={msgStyle(geo)} title={b.msg}>
+        <div key={b.msg} class={['pg-bmsg', b.phase === 'over' ? 'pg-bmsg-over' : '', geo.msgLines === 2 ? 'pg-bmsg-2' : ''].filter(Boolean).join(' ')} style={msgStyle(geo)} title={b.msg}>
           {emphasize(b.msg, [nameOf(b.me), nameOf(b.foe)])}
         </div>
       )}

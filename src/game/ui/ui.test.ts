@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { formatMoney, formatPlayTime } from './format';
-import { fitLayout, gameSize, minHeightOf } from './layout';
+import { fieldTopPx, fitLayout, gameSize, hasMapRow, MAP_ROW_PX, minHeightOf, topGapPx } from './layout';
 import { spritePx, spriteSrc } from './sprite-path';
 import { Store } from './store';
 
@@ -62,6 +62,19 @@ describe('화면 틀 (mvp-spec 1장)', () => {
     expect(fitLayout('large', 146)).toMatchObject({ size: 'large', uiScale: 1.3 });
     // 작게 (최소 92) 를 92px 에: 남는 0 → 1
     expect(fitLayout('small', 92)).toMatchObject({ size: 'small', uiScale: 1 });
+  });
+});
+
+describe('정보줄 아래 띄움 · 지도 줄 (2026-10-19 태현 님)', () => {
+  it('띄움 = 낮은 패널 4 · 중간 6 · 186px 부터 8 (예전 3px — "위 정보바와 너무 붙어 있는 느낌")', () => {
+    expect([150, 165, 166, 185, 186, 315].map(topGapPx)).toEqual([4, 4, 6, 6, 8, 8]);
+  });
+
+  it('지도 줄은 180px 부터 — 상자 · 판은 그 아래 (띄움 + 18 + 띄움), 낮으면 띄움만', () => {
+    expect([150, 179, 180, 315].map(hasMapRow)).toEqual([false, false, true, true]);
+    expect(fieldTopPx(150)).toBe(4);
+    expect(fieldTopPx(180)).toBe(6 + MAP_ROW_PX + 6);
+    expect(fieldTopPx(315)).toBe(8 + MAP_ROW_PX + 8);
   });
 });
 

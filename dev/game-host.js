@@ -183,6 +183,8 @@
 
     // toast=<글> — 머리 위 알림이 뜬 화면 (사진용)
     if (q.get('toast')) runtime.toast = { text: q.get('toast'), ms: 600000 };
+    // msg=<글> — 전투 한 줄 말을 바꿈 (긴 말이 잘리는지 보기, 2026-10-19)
+    if (q.get('msg') && runtime.stage && runtime.stage.phase === 'battle') runtime.stage.battle.msg = q.get('msg');
     let epoch = 0;
     const toWebview = (m) => setTimeout(() => window.postMessage({ command: 'game', ...m }, '*'), 0);
     const start = (s) => toWebview({ type: 'start', epoch: ++epoch, state: { save: s, runtime } });

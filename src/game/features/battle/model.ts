@@ -207,6 +207,14 @@ const AUTO_LEFT_PX = 4;
 const AUTO_EST_PX = 78;
 /** 지금 한 줄 · 힘대결 안내 높이 */
 const MSG_PX = 18;
+/** 한 줄 말 둘째 줄 (game.css .pg-bmsg line-height) — 긴 말은 자리가 있으면 두 줄 */
+const MSG_LINE_PX = 15;
+/** 한 줄 말 위 띄움 최소 (예전 값) — 자리가 모자라면 정보줄 띄움 (4 ~ 8) 을 여기까지 줄임 */
+const MSG_MIN_GAP_PX = 3;
+/** 옆 메뉴 실제 폭 어림 (max-content — 기술 목록 "1 하이드로펌프 5/5" 까지) · 한 줄 말과 같은 높이에 걸칠 때만 씀 */
+const SIDE_EST_W_PX = 170;
+/** 상대 트레이너 머리 위 이름표 (9px 글자 + 여백 + 머리와 띄움) — 두 줄 말이 걸치지 않게 */
+const NAMETAG_PX = 16;
 /** 메뉴 줄 대략 너비 (버튼 6개 + 필살기 게이지) — 오른쪽으로 넘치지 않게 왼쪽 끝을 당김 */
 const MENU_EST_PX = 380;
 /** 이보다 좁은 패널은 메뉴를 짧게 (번호 + 그림 글자) · 패널 왼쪽 끝부터 */
@@ -264,6 +272,12 @@ export interface BattleGeometry {
   menuSide: { left: number; top: number; maxWidth: number; maxHeight: number } | null;
   /** 옆 메뉴일 때 지금 한 줄은 오른쪽 위 (Sea of Stars) — 오른쪽 끝에서 right px */
   msgRight: { right: number; maxWidth: number } | null;
+  /** 지금 한 줄이 넘치면 두 줄까지 (아래 두 줄 자리가 비었을 때 — 2026-10-19 태현 님 "길면 생략되어 버리네") */
+  msgLines: 1 | 2;
+  /** 위 한 줄 자리가 HP 묶음 · 메뉴로 붐빔 — 한 줄 말은 상대 오른쪽으로 (StageScreen 은 전투 동안 지도 줄을 정보줄 안으로) */
+  topBusy: boolean;
+  /** 한 줄 말 · 힘대결 안내 위 끝 (길 칸 위에서 px) — 지도 줄 아래 띄움, 자리가 모자라면 띄움을 줄임 (최소 3) */
+  msgTop: number;
 }
 
 export interface GeometryInput {
@@ -281,10 +295,20 @@ export interface GeometryInput {
   heroPx: number;
   /** 주인공 너비 (없으면 코드 그림 20 × 배율) */
   heroWidthPx?: number;
+  /** 길 칸 위에서 비워 둘 높이 — 지도 줄 (S06 ②, 패널 180px 이상) 의 아래 끝 (없으면 0) · HP 묶음 · 메뉴가 그 위로 안 올라감 */
+  topPx?: number;
+  /** 정보줄 · 지도 줄 아래 띄움 (ui/layout topGapPx) — 한 줄 말 · 힘대결 안내가 이만큼 아래에서 시작 (없으면 예전 3px) */
+  gapPx?: number;
+  /** 상대 트레이너가 오른쪽 끝에 서 있음 (트레이너 · 관장 · 라이벌전) — 두 줄 말이 그 이름표에 걸치지 않게 */
+  foeTrainer?: boolean;
 }
 
 export function battleGeometry(g: GeometryInput): BattleGeometry {
   const u = g.uiScale;
+  // 지도 줄 아래로 쓸 수 있는 높이 · 한 줄 말 자리 (위 띄움 + 한 줄 + 1)
+  const top = g.topPx ?? 0;
+  const room = g.bodyPx - top;
+  const msgH = Math.round(MSG_PX * u);
   const heroHalf = (g.heroWidthPx ?? 20 * g.scale) / 2; // 주인공 너비의 반 (그림 사람은 그림 너비)
   const trainerX = Math.round(8 + heroHalf);
   const trainerEnd = trainerX + heroHalf + 4;
@@ -301,9 +325,9 @@ export function battleGeometry(g: GeometryInput): BattleGeometry {
   const meHpX = inside(meX, meHpWide);
   const foeHpX = inside(g.foeX, foeHpWide);
   const foeExtra = FOE_ULT_PX;
-  // 그림 바로 위 — 패널이 낮으면 그림 위에 겹쳐서라도 화면 안에 (정보줄과 4px 띄움)
-  const meHpBottom = Math.max(0, Math.min(g.ground + g.meSpritePx + 1, g.bodyPx - hpBlockPx - HP_TOP_GAP_PX));
-  const foeHpBottom = Math.max(0, Math.min(g.ground + g.foeSpritePx + 1, g.bodyPx - hpBlockPx - foeExtra - HP_TOP_GAP_PX));
+  // 그림 바로 위 — 패널이 낮으면 그림 위에 겹쳐서라도 화면 안에 (정보줄 · 지도 줄과 4px 띄움)
+  const meHpBottom = Math.max(0, Math.min(g.ground + g.meSpritePx + 1, room - hpBlockPx - HP_TOP_GAP_PX));
+  const foeHpBottom = Math.max(0, Math.min(g.ground + g.foeSpritePx + 1, room - hpBlockPx - foeExtra - HP_TOP_GAP_PX));
   const menuBottom = meHpBottom + hpBlockPx;
   const menuPx = Math.round(MENU_PX * u);
   const compact = g.widthPx < COMPACT_WIDTH_PX;
@@ -314,39 +338,50 @@ export function battleGeometry(g: GeometryInput): BattleGeometry {
   // 판 위 끝 = 내 HP 묶음 이름 줄 위 끝 (메뉴가 천장에 매달리지 않고 포켓몬 곁에) — 길 칸 아래로 넘치면 올리고, 탭 줄 자리는 남김.
   // 세로로는 길 칸 안에만 들어가면 됨 (포켓몬 옆이라 땅 띠에 걸쳐도 가리는 것이 없음)
   const myHpTop = g.bodyPx - (meHpBottom + hpBlockPx);
-  const panelTop = Math.max(SIDE_TAB_PX + 1, Math.min(myHpTop, g.bodyPx - 2 - sidePanelH));
+  const panelTop = Math.max(top + SIDE_TAB_PX + 1, Math.min(myHpTop, g.bodyPx - 2 - sidePanelH));
   const menuSide =
-    !compact && sideRight0 - sideLeft0 >= SIDE_MIN_W_PX && SIDE_TAB_PX + 1 + sidePanelH + 2 <= g.bodyPx
+    !compact && sideRight0 - sideLeft0 >= SIDE_MIN_W_PX && top + SIDE_TAB_PX + 1 + sidePanelH + 2 <= g.bodyPx
       ? { left: sideLeft0, top: panelTop - SIDE_TAB_PX, maxWidth: sideRight0 - sideLeft0, maxHeight: g.bodyPx - (panelTop - SIDE_TAB_PX) - 2 }
       : null;
-  const menuInBar = !menuSide && menuBottom + menuPx > g.bodyPx;
+  const menuInBar = !menuSide && menuBottom + menuPx > room;
   // 내 HP 바 왼쪽 끝 (또는 그림 왼쪽 끝) 부터 — 오른쪽으로 넘치지 않게 당김
   const menuLeft = compact ? 6 : Math.round(Math.max(6, Math.min(meX - g.meSpritePx / 2, meHpX - meHpWide / 2, g.widthPx - MENU_EST_PX * u - 6)));
   const autoBottom = g.ground + g.heroPx + 2;
   // 트레이너 머리 위에 자리가 없거나, 내 HP 묶음과 겹치면 (좁은 패널) 메뉴 줄 맨 앞으로
   const autoTop = autoBottom + Math.round(AUTO_PX * u);
   const hitsMyHp = meHpX - meHpWide / 2 < AUTO_LEFT_PX + AUTO_EST_PX * u && autoBottom < meHpBottom + hpBlockPx && autoTop > meHpBottom;
-  const autoInMenu = autoTop > g.bodyPx || hitsMyHp;
+  const autoInMenu = autoTop > room || hitsMyHp;
   // 위 가운데 한 줄이 HP 바 · 메뉴 줄과 겹치는지 — 겹치면 상대 오른쪽 빈 곳에 (자리가 있으면)
   // 옆 메뉴는 위 가운데를 차지하지 않음 (내 포켓몬 오른쪽 세로 목록)
   const highest = Math.max(meHpBottom + hpBlockPx, foeHpBottom + hpBlockPx + foeExtra, menuInBar || menuSide ? 0 : menuBottom + menuPx);
+  // 한 줄 말 위 띄움 — 자리가 모자라면 줄임 (최소 예전 3px · 띄움 8px 때문에 480 × 190 에서 말이 숨던 것) · 말 자리 = 띄움 + 한 줄 + 1
+  const msgGap = Math.max(MSG_MIN_GAP_PX, Math.min(g.gapPx ?? MSG_MIN_GAP_PX, room - highest - msgH - 1));
+  const msgRoom = msgH + msgGap + 1;
   // 메뉴 줄이 위 한 줄 자리까지 올라와 있으면 (정보줄 바로 밑) 옆자리는 메뉴 오른쪽 끝 뒤부터 — 160px 에서 게이지 · 💥Z 위에 겹치던 것 (2026-10-19)
-  const menuAtTop = !menuSide && !menuInBar && g.bodyPx - (menuBottom + menuPx) < Math.round(MSG_PX * u) + 4;
-  const menuRight = menuSide ? menuSide.left + menuSide.maxWidth : menuLeft + Math.round(MENU_EST_PX * u);
+  const menuAtTop = !menuSide && !menuInBar && room - (menuBottom + menuPx) < msgRoom;
+  const menuRight = menuSide ? menuSide.left + Math.min(menuSide.maxWidth, SIDE_EST_W_PX) : menuLeft + Math.round(MENU_EST_PX * u);
   const sideLeft = Math.round(Math.max(g.foeX + Math.max(g.foeSpritePx, foeHpWide) / 2 + 6, menuAtTop || menuSide ? menuRight + 8 : 0));
   const sideRoom = g.widthPx - sideLeft - 8;
-  const topBusy = g.bodyPx - highest < Math.round(MSG_PX * u) + 4;
+  const topBusy = room - highest < msgRoom;
+  // 옆 메뉴가 한 줄 말 (lines 줄) 아래에서 시작하면 말은 왼쪽으로 무대 끝까지 늘어나도 됨 — 예전엔 옆 메뉴 자리 (상대 왼쪽까지) 를 늘 피해서
+  //   트레이너전 (상대가 오른쪽 끝) 에서 "상대 도토링이 쓰러졌다! 곤충채…" 처럼 잘림 (2026-10-19 태현 님)
+  const menuBelow = (lines: number) => !menuSide || menuSide.top >= top + msgRoom + (lines - 1) * MSG_LINE_PX + 1;
+  // 그래도 넘치면 두 줄까지 — 둘째 줄 아래가 땅 (트레이너전은 오른쪽 끝 트레이너 이름표) 위이고,
+  //   위가 비었으면 HP 묶음 · 메뉴 줄 · 옆 메뉴도 두 줄 자리 아래일 때 / 위가 붐벼 상대 오른쪽에 둘 때는 그 아래가 비어 있음
+  const floorPx = g.foeTrainer ? g.ground + g.heroPx + NAMETAG_PX : g.ground;
+  const twoFits = g.bodyPx - (top + msgRoom + MSG_LINE_PX) >= floorPx;
+  const msgLines: 1 | 2 = twoFits && (topBusy || (room - highest >= msgRoom + MSG_LINE_PX && menuBelow(2))) ? 2 : 1;
   // 옆 메뉴일 때 한 줄은 늘 오른쪽 위 (Sea of Stars, 아트 디렉터) — 넓은 패널에서는 상대 오른쪽 가까이까지만 (싸우는 곳에서 멀어지지 않게).
   // 위가 붐비면 (상대 HP 묶음이 위 끝까지) 상대 HP 묶음 오른쪽 끝에서 16px 띄워 "파이리 Lv5 이상해씨는…" 처럼 이어 읽히지 않게
   const foeRight = g.foeX + Math.max(g.foeSpritePx, foeHpWide) / 2;
   const msgRightPx = Math.round(Math.max(8, g.widthPx - (foeRight + MSG_NEAR_FOE_PX)));
-  const msgLeftLimit = topBusy ? foeRight + 16 : menuRight + 8;
+  const msgLeftLimit = topBusy ? foeRight + 16 : menuBelow(msgLines) ? 8 : menuRight + 8;
   const msgRightRoom = Math.round(g.widthPx - msgRightPx - msgLeftLimit);
   const msgRight = menuSide && msgRightRoom >= MSG_SIDE_MIN_PX ? { right: msgRightPx, maxWidth: msgRightRoom } : null;
   const msgSide = !menuSide && topBusy && sideRoom >= MSG_SIDE_MIN_PX ? { left: sideLeft, maxWidth: sideRoom } : null;
   // 둘 곳이 없으면 (좁고 낮은 패널) 한 줄은 숨김 — HP 바가 더 중요, 내 차례는 메뉴 테두리로 보임
   const msgHidden = menuSide ? !msgRight : topBusy && !msgSide;
-  return { trainerX, meX, foeX: Math.round(g.foeX), meSpritePx: g.meSpritePx, foeSpritePx: g.foeSpritePx, meHpWide, foeHpWide, meHpX, foeHpX, msgHidden, meHpBottom, foeHpBottom, hpBlockPx, menuInBar, menuBottom, menuLeft, autoInMenu, autoBottom, autoLeft: AUTO_LEFT_PX, compact, msgSide, menuSide, msgRight };
+  return { trainerX, meX, foeX: Math.round(g.foeX), meSpritePx: g.meSpritePx, foeSpritePx: g.foeSpritePx, meHpWide, foeHpWide, meHpX, foeHpX, msgHidden, meHpBottom, foeHpBottom, hpBlockPx, menuInBar, menuBottom, menuLeft, autoInMenu, autoBottom, autoLeft: AUTO_LEFT_PX, compact, msgSide, menuSide, msgRight, msgLines, topBusy, msgTop: top + msgGap };
 }
 
 /**

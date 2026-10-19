@@ -3,12 +3,14 @@
  * 메시지 · 보임/안 보임 · 그리기 박자를 세션에 잇고, 화면(Preact)을 #pokemon-game 에 그린다.
  */
 import { h, render } from 'preact';
+import { canOpenMenus } from '../core/engine';
 import { STAGE_IDS } from '../core/save';
+import { MENU_PANELS, menuShortcutOf } from '../features/menu/model';
 import { stageViewKey } from '../features/stage/model';
 import { createStartSave } from '../features/starter/model';
 import { GAME_COMMAND, isHostToWebview } from '../shared/messages';
 import { shouldHoldBattle } from '../features/battle/fx/hold';
-import { fitLayout, gameSize } from '../ui/layout';
+import { fieldTopPx, fitLayout, gameSize, topGapPx } from '../ui/layout';
 import { Store } from '../ui/store';
 import { App, OVERLAY_INPUTS, overlayAllowed, type AppActions, type ViewState } from './app';
 import { FrameLoop } from './frame-loop';
@@ -154,7 +156,17 @@ if (!port) {
   root.hidden = true;
   document.body.appendChild(root);
   // 글자 · 버튼 · 정보줄 배율 (패널 높이에 맞춰, game.css 의 --pg-ui) — style 속성 대신 CSSOM 으로 (웹뷰 보안 규칙)
-  const applyUiScale = () => root.style.setProperty('--pg-ui', String(store.get().layout.uiScale));
+  //   + 정보줄 아래 띄움 --pg-gap · 상자 · 판이 시작하는 곳 --pg-field-top (지도 줄이 있으면 그 아래 — ui/layout). 바뀔 때만 씀
+  let appliedFor = '';
+  const applyUiScale = () => {
+    const { uiScale, heightPx } = store.get().layout;
+    const key = `${uiScale}:${heightPx}`;
+    if (key === appliedFor) return;
+    appliedFor = key;
+    root.style.setProperty('--pg-ui', String(uiScale));
+    root.style.setProperty('--pg-gap', `${topGapPx(heightPx)}px`);
+    root.style.setProperty('--pg-field-top', `${fieldTopPx(heightPx)}px`);
+  };
   applyUiScale();
   store.subscribe(applyUiScale);
   const css = document.createElement('link');
@@ -177,6 +189,25 @@ if (!port) {
   window.addEventListener('keydown', (e) => {
     if (store.get().screen !== 'game' || e.repeat) return;
     const overlay = store.get().overlay;
+    // 정보줄 메뉴 단축키 (2026-10-19 태현 님 "단축키 + 아이콘 + 설명") — F 빨리 걷기 · M 지도 · P 내 포켓몬 · B 가방 · S 설정.
+    //   버튼이 보일 때 (걷는 중 · 대기실) 만 열고, 판이 떠 있으면 같은 키 = 닫기 · 다른 메뉴 키 = 그 판으로. 한글 입력 상태에서도 되게 자판 자리 (e.code)
+    const shortcut = e.ctrlKey || e.metaKey || e.altKey ? null : menuShortcutOf(e.code);
+    if (shortcut) {
+      const cur = session.current;
+      if (overlay) {
+        if (overlay.kind === shortcut) actions.close();
+        else if (shortcut !== 'fast' && MENU_PANELS.includes(overlay.kind)) actions.open({ kind: shortcut });
+        else return;
+        e.preventDefault();
+        return;
+      }
+      if (cur && canOpenMenus(cur)) {
+        e.preventDefault();
+        if (shortcut !== 'fast') actions.open({ kind: shortcut });
+        else if (cur.save.location.screen === 'stage') actions.input({ kind: 'fast-walk', on: cur.save.settings.fastWalk !== true });
+        return;
+      }
+    }
     if (overlay) {
       // 판 (지도 · 내 포켓몬 …) 의 Esc 는 판이 들음 · S21 프로필은 여기서
       if (overlay.kind === 'profile' && e.key === 'Escape') {

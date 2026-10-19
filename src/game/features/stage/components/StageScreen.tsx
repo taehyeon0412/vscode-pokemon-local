@@ -1,6 +1,7 @@
 /**
  * S06 스테이지 (gdd S06 · mvp-spec 3.2) — 자동으로 걷는 화면 · S16 체육관 (대기실 · 관장전) 도 같은 틀.
- *   정보줄: ① 볼 개수 · ② 미니맵 (체육관은 이름) · ⑦ ~ ⑩ 오른쪽 위 버튼 (걷는 중에만)
+ *   정보줄: ① 볼 개수 · ② 미니맵 (체육관은 이름) · ⑦ ~ ⑩ 메뉴 버튼 (걷는 중에만, 단축키 + 아이콘 + 이름)
+ *   패널 180px 이상이면 ② 는 정보줄 아래 지도 줄로 길게 (2026-10-19 태현 님) — 정보줄은 볼 (왼쪽 끝) · 메뉴 (오른쪽 끝), 상자 · 판은 지도 줄 아래부터
  *   길: 숲 배경 2겹이 흐르고 (확장에 있는 숲 그림) ③ 주인공은 제자리걸음, ④ 흔적 · ⑤ 트레이너 · ⑭ 아이템 · ⑯ 부탁 · ⑥ 병원 · 상점 · ⑮ 배경 포켓몬
  *   체육관: 코드로 그린 방 · 오른쪽에 관장 (임시 디자인)
  * 전투 (S09 · S10) 는 같은 길 위에서 — features/battle 의 BattleLayer (주인공은 왼쪽 끝 트레이너 자리로, 야생은 튀어나온 자리 그대로 · 트레이너는 오른쪽 끝).
@@ -21,12 +22,12 @@ import { Icon } from '../../../ui/Icon';
 import { themeKind } from '../../../ui/theme';
 import { typeNameKo } from '../../../ui/format';
 import { InfoBar } from '../../../ui/InfoBar';
-import { INFO_BAR_PX, type Layout } from '../../../ui/layout';
+import { fieldTopPx, hasMapRow, INFO_BAR_PX, MAP_ROW_PX, topGapPx, type Layout } from '../../../ui/layout';
 import { BattleLayer, BattleMenuBar } from '../../battle/components/BattleLayer';
 import { battleGeometry, battleSpritePx, foeTrainerX, placeOnStage, trainerBattleFoeX } from '../../battle/model';
 import { MenuButtons } from '../../menu/components/MenuButtons';
 import { ShopPanel } from '../../menu/components/ShopPanel';
-import { hasUnspent, type Overlay } from '../../menu/model';
+import { hasUnspent, menuLabels, type Overlay } from '../../menu/model';
 import { ChoiceBox } from '../../result/components/ChoiceBox';
 import { ResultBox } from '../../result/components/ResultBox';
 import { choiceView } from '../../result/model';
@@ -144,12 +145,17 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   const heroPx = 2 * layout.scale;
   const look = heroLookOf(save.player?.look, save.player?.gender);
   const bodyPx = layout.heightPx - Math.round(INFO_BAR_PX * layout.uiScale);
+  // 지도 줄 (S06 ②, 2026-10-19 태현 님 "맵을 정보바 밑에 길게") — 패널 180px 이상이면 정보줄 아래 둘째 줄 (전투 중에도 — 볼 · 지도 자리가 안 움직이게, 아래 geo 참고)
+  const gap = topGapPx(layout.heightPx);
+  const mapRowFits = hasMapRow(layout.heightPx);
+  // 길 위 상자 · 메뉴 판이 시작하는 곳 (game.css --pg-field-top 과 같은 값 — main.ts) · 전투가 아닐 때 씀
+  const fieldTop = fieldTopPx(layout.heightPx);
   // 주인공이 쓸 수 있는 높이 — 큰 그림이 안 들어가면 작은 그림 (data/heroes.ts heroDraw)
   const heroRoom = bodyPx - ground - 2;
   const heroH = heroHeightPx(look, layout.scale, heroRoom);
   const heroW = heroWidthPx(look, layout.scale, heroRoom);
-  // 머리 위 알림 — 패널이 낮으면 머리 위 자리가 알림 한 줄보다 좁음 → 칸 안으로 (16px = 글자 11 + 위아래 여백, 글자 배율만큼)
-  const toastBottom = Math.max(0, Math.min(ground + heroH + 4, bodyPx - Math.ceil(16 * layout.uiScale) - 1));
+  // 머리 위 알림 — 패널이 낮으면 머리 위 자리가 알림 한 줄보다 좁음 → 칸 안으로, 위는 상자 자리 (16px = 글자 11 + 위아래 여백, 글자 배율만큼)
+  const toastBottom = Math.max(0, Math.min(ground + heroH + 4, bodyPx - Math.ceil(16 * layout.uiScale) - fieldTop));
   const objects = gym ? [] : visibleObjects(state, widthPx, layout.scale);
   const stageRt = state.runtime.stage;
   const battle = stageRt?.phase === 'battle' ? stageRt.battle : null;
@@ -157,28 +163,37 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   const foeTrainer = foeTrainerView(state);
   // 전투 · 관장 · 라이벌은 무대 안에서 (넓은 패널은 720px 무대 — battleStage), 자리는 무대 안에서 재고 패널 자리로 옮김
   const stage = battleStage(widthPx);
-  const geo = battle
-    ? placeOnStage(
-        battleGeometry({
-          widthPx: stage.width,
-          bodyPx: layout.heightPx - Math.round(INFO_BAR_PX * layout.uiScale),
-          scale: layout.scale,
-          uiScale: layout.uiScale,
-          ground,
-          foeX: battle.kind === 'wild' ? contactX(stage.width, layout.scale) : trainerBattleFoeX(stage.width, layout.scale, battleSpritePx(battle.foe.form, layout.scale, layout.heightPx)),
-          meSpritePx: battleSpritePx(battle.me.form, layout.scale, layout.heightPx),
-          foeSpritePx: battleSpritePx(battle.foe.form, layout.scale, layout.heightPx),
-          heroPx: heroH,
-          heroWidthPx: heroW,
-        }),
-        stage,
-        widthPx,
-      )
-    : null;
+  const geoAt = (topPx: number) =>
+    battle
+      ? placeOnStage(
+          battleGeometry({
+            widthPx: stage.width,
+            bodyPx: layout.heightPx - Math.round(INFO_BAR_PX * layout.uiScale),
+            scale: layout.scale,
+            uiScale: layout.uiScale,
+            ground,
+            foeX: battle.kind === 'wild' ? contactX(stage.width, layout.scale) : trainerBattleFoeX(stage.width, layout.scale, battleSpritePx(battle.foe.form, layout.scale, layout.heightPx)),
+            meSpritePx: battleSpritePx(battle.me.form, layout.scale, layout.heightPx),
+            foeSpritePx: battleSpritePx(battle.foe.form, layout.scale, layout.heightPx),
+            heroPx: heroH,
+            heroWidthPx: heroW,
+            topPx,
+            gapPx: gap,
+            foeTrainer: battle.kind !== 'wild',
+          }),
+          stage,
+          widthPx,
+        )
+      : null;
+  const geoWithRow = geoAt(mapRowFits ? gap + MAP_ROW_PX : 0);
+  // 전투 중 지도 줄 때문에 위 한 줄 자리가 붐비면 (낮은 패널 · 큰 포켓몬) 그 전투 동안만 지도를 정보줄 안으로 — 한 줄 말 · 메뉴가 먼저
+  //   (지도 줄이 있으면 190px 에서 상대 HP 묶음이 말 자리에 닿아 말이 상대 오른쪽 좁은 칸으로 · 480px 폭은 말이 숨었음)
+  const mapRow = mapRowFits && !geoWithRow?.topBusy;
+  const geo = mapRowFits && !mapRow ? geoAt(0) : geoWithRow;
   const art = (layer: 'background' | 'foreground') => (media && !gym ? `url("${media}/backgrounds/forest/${layer}-${themeKind()}-${layout.size}.png")` : 'none');
   // 체육관: 주인공은 무대 왼쪽 (대기실) · 관장은 무대 오른쪽 끝
   const heroLeft = geo ? geo.trainerX : gym ? stage.left + Math.round(stage.width * 0.18) : hero;
-  // 큰 주인공이 위쪽 띠 (트레이너 · 만남 · 병원 상자, 위 3px + 한 줄) 자리까지 올라오면 띠를 주인공 오른쪽 옆으로 — 옆자리가 넉넉할 때만
+  // 큰 주인공이 위쪽 띠 (트레이너 · 만남 · 병원 상자, 상자 자리 fieldTop + 한 줄) 자리까지 올라오면 띠를 주인공 오른쪽 옆으로 — 옆자리가 넉넉할 때만
   //   병원 · 상점 앞 · 안이면 간호순 · 점원 오른쪽 옆으로 ("간호순:" 이 말하는데 띠에 가려지지 않게 — 아트 디렉터)
   const facility = objects.find((o): o is Extract<StageObject, { kind: 'facility' }> => o.kind === 'facility' && o.active);
   const staffLook = facility ? personLook(FACILITY_STAFF[facility.facility.kind].look) : undefined;
@@ -192,9 +207,21 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   const leaderX = stage.left + foeTrainerX(stage.width, layout.scale);
   const tagLeft = leaderX + leaderW / 2 + 4 - (GYM_LEADER.name.length * 9 + 6) * layout.uiScale;
   const bannerRight = gym ? Math.min(leaderX - leaderW / 2, tagLeft) - 8 : widthPx - 8;
-  const heroTall = !battle && bodyPx - ground - heroH < 3 + Math.round(BANNER_PX * layout.uiScale) && bannerRight - bannerLeft >= BANNER_SIDE_MIN_PX;
+  const heroTall = !battle && bodyPx - ground - heroH < fieldTop + Math.round(BANNER_PX * layout.uiScale) && bannerRight - bannerLeft >= BANNER_SIDE_MIN_PX;
   const showToast = state.runtime.toast && (phase === 'walk' || phase === 'clear' || phase === 'lobby' || phase === 'facility');
   const shopInside = stageRt?.phase === 'facility' && stageRt.inside && stageRt.kind === 'shop';
+  // ② 어디인지 — 스테이지는 미니맵, 체육관은 이름 (지도 줄이 있으면 둘째 줄, 없으면 정보줄 가운데)
+  const where = gym ? (
+    <span class="pg-stage-name">
+      <Icon name="gym" /> 숲 체육관 {save.badges.includes('forest') && <Icon name="badge" title="숲 배지" />}
+    </span>
+  ) : info && map ? (
+    <Minimap stage={info} progress={map.progress} facilities={map.facilities} gym={map.gym} />
+  ) : (
+    <span>
+      <Icon name="tree" /> 숲
+    </span>
+  );
 
   return (
     <div class={`pg-screen pg-stage pg-size-${layout.size}${gym ? ' pg-gym' : ''}`}>
@@ -202,20 +229,9 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         <BattleMenuBar battle={battle} save={save} onInput={onInput} withAuto={geo.autoInMenu} compact={geo.compact} />
       ) : (
         <InfoBar
+          split={mapRow}
           left={<BallCount count={battle ? itemLeft(battle, save, 'poke-ball') : (save.bag['poke-ball'] ?? 0)} />}
-          center={
-            gym ? (
-              <span class="pg-stage-name">
-                <Icon name="gym" /> 숲 체육관 {save.badges.includes('forest') && <Icon name="badge" title="숲 배지" />}
-              </span>
-            ) : info && map ? (
-              <Minimap stage={info} progress={map.progress} facilities={map.facilities} gym={map.gym} />
-            ) : (
-              <span>
-                <Icon name="tree" /> 숲
-              </span>
-            )
-          }
+          center={mapRow ? undefined : where}
           right={
             canOpenMenus(state) ? (
               <MenuButtons
@@ -224,6 +240,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
                 media={media}
                 lead={leadOf(save)}
                 fast={gym ? undefined : { on: save.settings.fastWalk === true, active: isWalkingFast(state), onToggle: () => onInput({ kind: 'fast-walk', on: save.settings.fastWalk !== true }) }}
+                labels={menuLabels(widthPx, mapRow)}
               />
             ) : null
           }
@@ -246,6 +263,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
             <ScrollLayer cls="pg-fg" image={art('foreground')} start={offset * 0.7} pxPerSec={WALK_PX_PER_SEC * layout.scale * 0.7 * walkK} running={phase === 'walk' && live} />
           </>
         )}
+        {/* ② 지도 줄 — 정보줄 아래 길게 (가운데 720px 칸, 정보줄 볼 · 메뉴와 같은 양 끝) */}
+        {mapRow && <div class="pg-maprow">{where}</div>}
         <StageObjects objects={objects} media={media} scale={layout.scale} ground={ground} roomPx={heroRoom} />
         <span class="pg-obj pg-hero-wrap" style={{ left: `${heroLeft}px`, bottom: `${ground}px` }}>
           <Hero px={heroPx} walking={phase === 'walk' && live} fast={fast} gender={look.gender} look={look} media={media} roomPx={heroRoom} />
