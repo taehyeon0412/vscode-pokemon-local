@@ -158,7 +158,9 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
         }
         started = true;
         // 승자를 정하는 걸음을 밀고 밀리기가 3.6초 될 때까지 붙잡음 (그동안 연타는 계속 셈)
-        holdFx(key, plan.meetMs + DUEL_PUSH_MS - (now.current.clash?.ms ?? c.ms), performance.now(), FX_HOLD_DUEL_MAX_MS);
+        const t = performance.now();
+        const elapsed = now.current.clash?.ms ?? c.ms;
+        holdFx(key, plan.meetMs + DUEL_PUSH_MS - elapsed, t, FX_HOLD_DUEL_MAX_MS, t - elapsed);
       };
       begin(0);
       // 힘대결이 끝나면 (피해가 들어가고 전투가 이어짐) 터지는 여운까지 그리고 정리
@@ -214,7 +216,12 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
           at(castAt, () => {
             const src = actor(b, side);
             const dst = actor(b, other(side));
-            if (src) fx.move(src, move.m, dst ? reachPx(src, dst) : 0, undefined, dst ?? undefined);
+            const drawn = src ? fx.move(src, move.m, dst ? reachPx(src, dst) : 0, undefined, dst ?? undefined) : 0;
+            // 못 그렸으면 (일반 모드 틀 오류 · 그림 폭 0) 그림 없이 4초 멈추지 않게 붙잡기를 풀고 이모지로 (테스터)
+            if (!drawn) {
+              releaseFx();
+              setMissed(key);
+            }
           });
           if (mv && mv.power > 0) {
             at(castAt + Math.round(plan.ms * SHOT_HIT_AT), () => {

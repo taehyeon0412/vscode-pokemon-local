@@ -17,7 +17,7 @@ import { moveOf, speciesOf } from '../../../data';
 import { Button } from '../../../ui/Button';
 import { Sprite } from '../../../ui/Sprite';
 import { duelKind, hpColor, moveColor, moveFx, profileOpenable, STATUS_LABEL, type BattleGeometry } from '../model';
-import { battleAnimKey } from '../fx/hold';
+import { battleAnimKey, holdWindow } from '../fx/hold';
 import { BattleMenu } from './BattleMenu';
 import { fxCastAt, fxContact, useBattleFx } from './BattleFx';
 
@@ -296,6 +296,7 @@ function Clash({ b, geo, y, native }: { b: BattleState; geo: BattleGeometry; y: 
   const meKind = c.kind === 'ult' ? 'beam' : duelKind(c.me);
   const foeKind = c.kind === 'ult' ? 'beam' : duelKind(c.foe);
   const left = Math.max(0, TIMING.clashMs - c.ms);
+  const drain = native && c.winner === null ? holdWindow(animKey(b), performance.now()) : null;
   const big = c.kind === 'ult' ? ' pg-clash-ult' : '';
   const done = c.winner !== null ? ' pg-clash-done' : '';
   // 포커스가 없으면 Space 는 편집기로 감 → 클릭 안내 (선제공격과 같은 규칙)
@@ -322,7 +323,12 @@ function Clash({ b, geo, y, native }: { b: BattleState; geo: BattleGeometry; y: 
             <span class="pg-clash-tap">{tapHint}</span>
             <span class="pg-dim">{c.taps >= MAX_TAPS ? '연타 MAX' : `연타 ${c.taps}/${MAX_TAPS}`}</span>
             <span class="pg-clash-time">
-              <span class="pg-bar-fill" style={{ width: `${Math.round((left / TIMING.clashMs) * 100)}%` }} />
+              {drain ? (
+                // 일반 모드 대결을 붙잡는 동안 — 엔진 시간이 멈춰서 붙잡기 끝까지 CSS 로 줄어듦 (테스터: 1% 에서 멈춰 "시간 끝" 처럼 보였음)
+                <span key={drain.from} class="pg-bar-fill pg-bar-drain" style={{ animationDuration: `${Math.max(1, Math.round(drain.until - drain.from))}ms`, animationDelay: `${-Math.round(drain.at - drain.from)}ms` }} />
+              ) : (
+                <span class="pg-bar-fill" style={{ width: `${Math.round((left / TIMING.clashMs) * 100)}%` }} />
+              )}
             </span>
           </>
         )}

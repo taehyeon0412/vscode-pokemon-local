@@ -34,6 +34,8 @@ export interface ViewState {
   pending: boolean;
   /** 게임 위에 뜬 판 (null = 없음) */
   overlay: Overlay | null;
+  /** 이 웹뷰가 지금 계산을 맡음 — 아니면 (VS Code 밖 · 확장이 계산) 화면은 멈춘 그림 (배경 흐름 · 걷기도 멈춤, 테스터) */
+  live: boolean;
 }
 
 export interface AppActions {
@@ -101,7 +103,7 @@ function Screens({ v, media, actions }: { v: ViewState; media: string; actions: 
   if (v.screen === 'game' && v.state) {
     return (
       <>
-        <StageScreen state={v.state} layout={v.layout} widthPx={v.widthPx} media={media} onInput={actions.input} onOpen={actions.open} />
+        <StageScreen state={v.state} layout={v.layout} widthPx={v.widthPx} media={media} onInput={actions.input} onOpen={actions.open} live={v.live && !v.overlay} />
         {v.overlay && <OverlayView o={v.overlay} state={v.state} media={media} actions={actions} />}
       </>
     );

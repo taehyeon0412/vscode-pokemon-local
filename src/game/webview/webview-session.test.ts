@@ -124,6 +124,22 @@ describe('웹뷰 세션', () => {
     expect(s.running).toBe(false);
   });
 
+  it('계산을 넘기면 (hidden) 화면에도 알림 — 멈춘 그림이 걷는 척 (배경 흐름 · 제자리걸음) 하지 않게 (테스터)', () => {
+    const { s, frames } = make();
+    s.handleMessage(start(5));
+    frames(100);
+    let changes = 0;
+    let running: boolean | null = null;
+    s.subscribe(() => {
+      changes++;
+      running = s.running;
+    });
+    s.handleMessage({ command: 'game', type: 'suspend' });
+    expect(changes).toBe(1);
+    expect(running).toBe(false);
+    expect(s.current).not.toBeNull(); // 마지막 그림은 그대로 보임
+  });
+
   it('다시 보이면 · 이미 불러온 game.js 에 load 가 오면 ready 로 상태를 달라고 함', () => {
     const { s, sent } = make();
     s.show();

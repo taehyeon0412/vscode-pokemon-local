@@ -44,6 +44,8 @@ export interface StageScreenProps {
   onInput(input: GameInput): void;
   /** 판 열기 (지도 · 내 포켓몬 · 가방 · 설정 · 상점 · 프로필) */
   onOpen(o: Overlay): void;
+  /** 이 화면이 지금 계산 중 (판이 안 떠 있고 웹뷰가 맡음) — 아니면 배경 흐름 · 걷기를 멈춤 (멈춘 그림이 걷는 척하지 않게 · PC 부담). 안 주면 true */
+  live?: boolean;
 }
 
 /** 숲 그림 크기별 높이 (원본 300 · 400 · 500 · 800px) 에서 땅 윗면 — 길 위의 것들이 서는 높이 */
@@ -125,7 +127,7 @@ function leadOf(save: GameState['save']): { form: string; shiny: boolean } | nul
   return m ? { form: m.form, shiny: m.shiny } : null;
 }
 
-export function StageScreen({ state, layout, widthPx, media, onInput, onOpen }: StageScreenProps) {
+export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, live = true }: StageScreenProps) {
   const save = state.save;
   const gym = save.location.screen === 'gym';
   const stageId = save.location.screen === 'stage' ? save.location.stageId : null;
@@ -227,13 +229,13 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen }: 
           <div class="pg-gym-room" />
         ) : (
           <>
-            <ScrollLayer cls="pg-bg" image={art('background')} start={offset * 0.35} pxPerSec={WALK_PX_PER_SEC * layout.scale * 0.35} running={phase === 'walk'} />
-            <ScrollLayer cls="pg-fg" image={art('foreground')} start={offset * 0.7} pxPerSec={WALK_PX_PER_SEC * layout.scale * 0.7} running={phase === 'walk'} />
+            <ScrollLayer cls="pg-bg" image={art('background')} start={offset * 0.35} pxPerSec={WALK_PX_PER_SEC * layout.scale * 0.35} running={phase === 'walk' && live} />
+            <ScrollLayer cls="pg-fg" image={art('foreground')} start={offset * 0.7} pxPerSec={WALK_PX_PER_SEC * layout.scale * 0.7} running={phase === 'walk' && live} />
           </>
         )}
         <StageObjects objects={objects} media={media} scale={layout.scale} ground={ground} roomPx={heroRoom} />
         <span class="pg-obj pg-hero-wrap" style={{ left: `${heroLeft}px`, bottom: `${ground}px` }}>
-          <Hero px={heroPx} walking={phase === 'walk'} gender={look.gender} look={look} media={media} roomPx={heroRoom} />
+          <Hero px={heroPx} walking={phase === 'walk' && live} gender={look.gender} look={look} media={media} roomPx={heroRoom} />
         </span>
         {/* 전투 중 상대 트레이너 · 관장 = 오른쪽 끝 (남은 볼) · 대기실의 관장 */}
         {((battle && foeTrainer) || (gym && !battle) || (stageRt?.phase === 'rival' && foeTrainer)) && (

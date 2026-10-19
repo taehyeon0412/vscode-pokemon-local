@@ -177,6 +177,8 @@ export class WebviewSession {
     this.deps.post({ command: GAME_COMMAND, type: 'hidden', epoch: this.epoch, state: this.state, ...(this.collapsed ? { collapsed: true } : {}) });
     this.epoch = null;
     this.dirty = false;
+    // 화면에도 알림 — 계산을 넘긴 뒤엔 멈춘 그림 (배경 흐름 · 걷기도 멈춤)
+    this.changed();
   }
 
   /** 다시 보임 (웹뷰가 버려지지 않은 경우) — 확장의 최신 상태를 달라고 함 */

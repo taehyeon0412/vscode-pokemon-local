@@ -22,6 +22,17 @@ body.pokemon-game-on #pokemonFxCanvas {
   z-index: 3;
   pointer-events: none;
 }
+/* 힘대결 시간 막대 — 일반 모드 대결을 붙잡는 동안은 엔진 시간이 멈춰서 CSS 로 줄어듦 (BattleLayer Clash · fx/hold holdWindow) */
+.pg-clash-time .pg-bar-drain {
+  width: 100%;
+  animation-name: pg-bar-drain;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+@keyframes pg-bar-drain {
+  from { width: 100%; }
+  to { width: 0; }
+}
 /* 프로필 판 (S21) 위에는 안 그림 — 연출 캔버스가 맨 위라 (#330) */
 body.pokemon-game-on:has(.pg-profile-wrap) #pokemonFxCanvas {
   visibility: hidden;
@@ -2623,3 +2634,36 @@ body.pokemon-game-on {
   color: var(--pg-sos-gold);
   text-shadow: 1px 0 0 var(--pg-sos-tab-ink), -1px 0 0 var(--pg-sos-tab-ink), 0 1px 0 var(--pg-sos-tab-ink), 0 -1px 0 var(--pg-sos-tab-ink);
 }
+
+/* 상태 이상 칩 (HP 묶음 이름 줄) — 이름표처럼 밝은 바탕 + 짙은 글씨 · 11px (글자 단계 최소 — 예전 10px 흰 글씨 · 웹 색) */
+.pg-status {
+  padding: 0 3px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 12px;
+  color: var(--pg-sos-tab-ink);
+}
+.pg-status-poison { background: #b48ce0; }
+.pg-status-burn { background: var(--pg-sos-red); }
+.pg-status-paralysis { background: var(--pg-sos-mid); }
+.pg-status-sleep { background: var(--pg-sos-dim); }
+
+/* 볼 던지기 타이밍 원 (S11) — 판 팔레트로 (예전 웹 색): 완벽 금색 · 좋음 HP 초록 · 빗나감 흐림 */
+.pg-catch-target {
+  border-color: var(--pg-sos-gold);
+}
+.pg-catch-ring,
+.pg-catch-ring.pg-ring-perfect {
+  border-color: var(--pg-sos-gold);
+  box-shadow: 0 0 6px var(--pg-sos-gold);
+}
+.pg-catch-ring.pg-ring-good {
+  border-color: var(--pg-sos-hp);
+  box-shadow: 0 0 6px var(--pg-sos-hp);
+}
+.pg-catch-ring.pg-ring-none {
+  border-color: var(--pg-sos-dim);
+}
+.pg-ring-text.pg-ring-perfect { color: var(--pg-sos-gold); }
+.pg-ring-text.pg-ring-good { color: var(--pg-sos-hp); }
+.pg-ring-text.pg-ring-none { color: var(--pg-sos-dim); }

@@ -256,7 +256,7 @@
                     };
                 }
             }
-            if (q.get('fxdbg')) setInterval(() => { const cv = document.getElementById('pokemonFxCanvas'); console.log('fxdbg css', cv ? getComputedStyle(cv).clipPath : 'no canvas', document.body.style.getPropertyValue('--pg-fx-top'), document.querySelector('#pokemon-game .pg-infobar')?.getBoundingClientRect().bottom); }, 500);
+            if (q.get('fxdbg')) setInterval(() => { const cv = document.getElementById('pokemonFxCanvas'); console.log('fxdbg css', cv ? getComputedStyle(cv).clipPath : 'no canvas', document.body.style.getPropertyValue('--pg-fx-top'), document.querySelector('#pokemon-game .pg-infobar')?.getBoundingClientRect().bottom, (() => { const f = document.querySelector('#pokemon-game .pg-clash-time .pg-bar-fill'); return f ? Math.round(f.getBoundingClientRect().width) + '/' + Math.round(f.parentElement.getBoundingClientRect().width) + ' ' + f.className : '-'; })()); }, 500);
             if (q.get('fxdbg')) setInterval(() => console.log('fxdbg msg', Math.round(performance.now()), (document.getElementById('pokemon-game')?.innerText || '').replace(/\s+/g, ' ').slice(-70)), 250);
             document.body.appendChild(s);
             // stopult=<ms> — 그때 필살기를 멈춤 (맞받아치기로 끊긴 것처럼 — 남은 연출 · 숨긴 그림이 안 남는지 시험)
