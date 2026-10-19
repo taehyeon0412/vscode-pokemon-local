@@ -70,9 +70,11 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
         return;
       }
       if (c.b.phase === 'last') {
-        const ball = c.balls[Number(e.key) - 1];
-        if (/^[1-9]$/.test(e.key) && ball) c.onInput({ kind: 'battle', input: { kind: 'ball', ball } });
-        else if (e.key === 'Escape') c.onInput({ kind: 'battle', input: { kind: 'no-ball' } });
+        // 숫자 = 볼 (1 ~) · 그다음 숫자 = 안 던짐 (2026-10-19 태현 님 — 숫자 패드로도) · Esc = 안 던짐
+        const n = /^[1-9]$/.test(e.key) ? Number(e.key) : 0;
+        const ball = c.balls[n - 1];
+        if (ball) c.onInput({ kind: 'battle', input: { kind: 'ball', ball } });
+        else if (n === c.balls.length + 1 || e.key === 'Escape') c.onInput({ kind: 'battle', input: { kind: 'no-ball' } });
         return;
       }
       if (c.b.phase === 'pick' && /^[1-9]$/.test(e.key)) {
@@ -149,8 +151,8 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
             <span class="pg-sub">×{itemLeft(b, save, ball)}</span>
           </Button>
         ))}
-        <Button secondary onClick={() => onInput({ kind: 'battle', input: { kind: 'no-ball' } })} title="Esc">
-          안 던짐
+        <Button secondary onClick={() => onInput({ kind: 'battle', input: { kind: 'no-ball' } })} title={`${balls.length + 1} · Esc`}>
+          {`${balls.length + 1} 안 던짐`}
         </Button>
         {/* 남은 초 — 필살기 게이지와 헷갈리지 않게 막대 대신 숫자 */}
         <span class="pg-last-sec" title="안 고르면 그냥 지나가요">
