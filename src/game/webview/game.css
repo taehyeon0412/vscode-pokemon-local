@@ -140,12 +140,11 @@ body.pokemon-game-on {
 }
 
 /* 패널이 너무 낮음 */
-/* 140px 아래 안내 (접힌 상태 · 올려 주세요) — 좁은 패널에선 줄을 바꿔 다 보이게 (한 줄이면 양쪽이 잘림 — 320 폭에서 찾음) */
+/* 140px 아래 안내 (접힌 상태 · 올려 주세요) — 좁은 패널에선 줄을 바꿔 다 보이게 (한 줄이면 양쪽이 잘림 — 320 폭에서 찾음).
+   가운데 맞춤은 글의 margin: auto — 넘치면 위 · 왼쪽부터 보임 (justify-content: center 는 양쪽이 잘림, safe center 는 VS Code 1.73 에서 안 됨) */
 .pg-too-small {
   flex: 1;
   display: flex;
-  align-items: center;
-  justify-content: center;
   padding: 0 8px;
   font-size: 11px;
   line-height: 1.3;
@@ -153,6 +152,9 @@ body.pokemon-game-on {
   white-space: normal;
   overflow: hidden;
   color: var(--vscode-editorWarning-foreground, #cca700);
+}
+.pg-too-small > span {
+  margin: auto;
 }
 
 /* S02 타이틀 */

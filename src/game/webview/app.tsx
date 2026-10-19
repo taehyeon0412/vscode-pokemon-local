@@ -137,7 +137,7 @@ class Guard extends Component<{ onError(e: unknown): void; children: ComponentCh
   }
 
   override render() {
-    if (this.state.failed) return <div class="pg-too-small">⚠ 게임 화면에 오류가 났어요 — 제목줄 🏠 로 일반 모드로 나갈 수 있어요 (진행은 저장돼요)</div>;
+    if (this.state.failed) return <div class="pg-too-small"><span>⚠ 게임 화면에 오류가 났어요 — 제목줄 🏠 로 일반 모드로 나갈 수 있어요 (진행은 저장돼요)</span></div>;
     return this.props.children;
   }
 }

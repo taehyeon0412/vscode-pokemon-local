@@ -7,9 +7,11 @@ import type { Layout } from './layout';
 export function TooSmall({ layout, playing }: { layout: Layout; playing: boolean }) {
   return (
     <div class="pg-too-small" role="status">
-      {playing
-        ? `접어 둔 상태 · 자동 전투면 계속 걸어요 · ${layout.needPx}px 이상으로 올리면 보여요 (지금 ${layout.heightPx}px)`
-        : `패널을 위로 올려 주세요 (지금 ${layout.heightPx}px · 필요 ${layout.needPx}px)`}
+      <span>
+        {playing
+          ? `접어 둔 상태 · 자동 전투면 계속 걸어요 · ${layout.needPx}px 이상으로 올리면 보여요 (지금 ${layout.heightPx}px)`
+          : `패널을 위로 올려 주세요 (지금 ${layout.heightPx}px · 필요 ${layout.needPx}px)`}
+      </span>
     </div>
   );
 }
