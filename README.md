@@ -61,6 +61,7 @@ curl -fsSL https://raw.githubusercontent.com/taehyeon0412/vscode-pokemon-local/m
 | ➕ | 패널&nbsp;위&nbsp;**＋** | 포켓몬 부르기 — 한글 이름으로 검색돼요 |
 | 🗑️ | 패널&nbsp;위&nbsp;**휴지통** | 한 마리씩 · 모두 지우기 — 알림의 **[되돌리기]** 로 다시 불러와요 |
 | ⚙️ | 패널&nbsp;위&nbsp;**⚙** | 기본 포켓몬 · 크기 · 배경 · 이름 언어를 한 번에 |
+| 🎮 | 패널&nbsp;위&nbsp;**🎮** · **F3** | 게임 모드 ↔ 일반 모드 — F3 는 VS Code 어디서나 (찾기 창이 열려 있으면 원래대로 "다음 찾기") |
 
 <br>
 
@@ -608,7 +609,7 @@ docs/                 README 그림 · 영상
 | `LOCAL-PATCH` | `out/common/pokemon-data.js` · `media/main-bundle.js` | 모부기 이로치 (그림은 있는데 색 목록에 빠져 있었음) |
 | `GAME-PATCH` | `out/extension/extension.js` · `out/extension/game-loader.js` | 게임 모드 연결 (`src/game` 빌드를 불러옴 · 웹뷰 API 를 일반 모드와 같이 씀 · 끌 때 저장). 게임 빌드가 없거나 오류가 나도 일반 모드는 그대로 |
 | `GAME-PATCH` | `media/main-bundle.js` · `moves.js` | 게임 화면이 덮고 있는 동안 (`body.pokemon-game-on`) 일반 모드 포켓몬 움직임 · 자동 기술을 멈춤 |
-| — | `package.json` · `media/icon/*-game.svg` | 포켓몬 보기 제목줄 🎮 버튼 (`vscode-pokemon.game-mode`) |
+| — | `package.json` · `media/icon/*-game.svg` | 포켓몬 보기 제목줄 🎮 버튼 (`vscode-pokemon.game-mode`) · 단축키 F3 (찾기 창이 열려 있을 땐 빠짐) |
 | — | `package.json` | publisher `local`, 이름 "VS Code Pokemon (내 PC)", 명령 · 패널 · 설정 이름 한국어, `pokemonLanguage` 기본 `ko` |
 | — | `out/common/localize.js` | 확장 ID 를 `local.vscode-pokemon` 으로 |
 | — | `l10n/pokemon/ko/` | 한글 이름 (PokeAPI) |

@@ -241,6 +241,12 @@
 		],
 		"keybindings": [
 			{
+				"command": "vscode-pokemon.game-mode",
+				"key": "f3",
+				"mac": "f3",
+				"when": "vscode-pokemon.gameAvailable && vscode-pokemon.position == 'explorer' && !findWidgetVisible && !terminalFindVisible && !webviewFindWidgetVisible"
+			},
+			{
 				"command": "vscode-pokemon.spawn-pokemon",
 				"key": "alt+shift+w",
 				"mac": "alt+shift+w"
