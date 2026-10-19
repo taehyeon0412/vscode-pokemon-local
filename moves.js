@@ -1014,6 +1014,29 @@ class DashState {
     }
 }
 
+// 마비 — 몸 가장자리 세 곳에 작은 노란 지직이 0.28초마다 하나씩 (전기 공격처럼 사방으로 튀지 않고 · 1초 3번 아래) + 떨어지는 작은 불똥
+function sigNumb(g) {
+    const cols = sigPal('paralyze');
+    for (let i = 0; i < 3; i++) {
+        const a = -Math.PI / 2 + (i - 1) * 1.1 + moveRand(-0.2, 0.2);
+        const x = g.body.cx + Math.cos(a) * g.body.rx * 0.95;
+        const y = g.body.cy + Math.sin(a) * g.body.ry * 0.95;
+        sigParticle({ x, y, s: g.s, max: 0.28 * i + 0.2, d: 0.28 * i, a, cols, path: null, draw: (ctx, p, t, px) => {
+            if (p.life < p.d) {
+                return;
+            }
+            if (!p.path) {
+                p.path = zigzag(p.x, p.y, p.x + Math.cos(p.a) * 6 * p.s, p.y + Math.sin(p.a) * 6 * p.s, p.s, 1.5, 2);
+                for (let k = 0; k < 3; k++) {
+                    sigParticle({ x: p.x, y: p.y, s: p.s, vx: moveRand(-20, 20) * p.s, vy: -moveRand(10, 30) * p.s, g: 120 * p.s, max: 0.3, color: p.cols[movePick([1, 2])], draw: DRAW.dot });
+                }
+            }
+            ctx.globalAlpha = 1;
+            zapLine(ctx, px, p.s, p.path, 1, p.cols[3], p.cols[1]);
+        } });
+    }
+}
+
 // 땅 금 — 발밑에서 양옆으로 지그재그 금이 0.2초에 쫙 (진한 금 + 위 밝은 테두리), 천천히 흐려짐 (지진 · 땅고르기)
 function sigQuakeCrack(x, y, s, reach, cols) {
     const paths = [1, -1].map((side) => {
@@ -1269,7 +1292,8 @@ const SIG_FX = {
                     ctx.globalAlpha = alpha;
                     for (let k = 0; k < L; k += p.s) {
                         const x = p.x + p.dir * k;
-                        const yo = o.wave ? Math.sin(k / (5 * p.s) - p.life * 25) * p.s * 1.5 : 0;
+                        const curl = o.c === 'tongue' && k > L - 3 * p.s ? Math.round((k - (L - 3 * p.s)) / p.s) * p.s : 0;
+                        const yo = (o.wave ? Math.sin(k / (5 * p.s) - p.life * 25) * p.s * 1.5 : 0) + curl;
                         const layers = o.rainbow
                             ? [[p.W + 2, `hsl(${(k / p.s) * 12 + p.life * 60}, 100%, 70%)`], [Math.max(1, p.W - 1), '#ffffff']]
                             : [[p.W + 2, p.cols[3]], [p.W, p.cols[2]], [Math.max(1, p.W - 2), p.cols[0]]];
@@ -1676,8 +1700,14 @@ const SIG_FX = {
     },
     // 몸 둘레 스파크 (예전 전기 기술 그대로) — 10만볼트 · 전기쇼크
     spark: {
-        ms: (P) => 550 + 650 * P,
-        run: (g, o, ms) => sigEmitter({ move: 'electric', power: g.P, dir: g.dir, s: g.s, until: performance.now() + ms, cx: g.body.cx, cy: g.body.cy, rx: g.body.rx, ry: g.body.ry, nextFlash: g.P > 0.4 ? performance.now() : 0 }),
+        ms: (P, o) => (o.c === 'paralyze' ? 900 : 550 + 650 * P),
+        run: (g, o, ms) => {
+            if (o.c === 'paralyze') {
+                sigNumb(g);
+                return;
+            }
+            sigEmitter({ move: 'electric', power: g.P, dir: g.dir, s: g.s, until: performance.now() + ms, cx: g.body.cx, cy: g.body.cy, rx: g.body.rx, ry: g.body.ry, nextFlash: g.P > 0.4 ? performance.now() : 0 });
+        },
     },
     // 반짝이며 올라감 — 문라이트 · 알낳기 · 순간이동 · 변신
     glow: {
@@ -1688,6 +1718,27 @@ const SIG_FX = {
                 x: g.body.cx + moveRand(-1, 1) * g.body.rx, y: g.body.bottom - moveRand(0, 2) * g.body.ry, s: g.s,
                 vy: -moveRand(15, 35) * g.s, max: moveRand(0.6, 1.0), cols, draw: DRAW.sparkle,
             }) });
+            // 빛 기둥 — 발밑에서 1칸 점이 줄지어 솟음 + 회복이면 + 표 셋이 차례로 떠오름 (2026-10-20 "밋밋해")
+            sigEmitter({ until: performance.now() + ms * 0.8, rate: 30 + 20 * g.P, fx: () => sigParticle({
+                x: g.body.cx + Math.round(moveRand(-1, 1) * (g.body.rx / g.s)) * g.s, y: g.body.bottom, s: g.s, vy: -moveRand(50, 80) * g.s, max: moveRand(0.35, 0.55), color: movePick(cols.slice(1, 3)), len: Math.round(moveRand(2, 4)),
+                draw: (ctx, p, t, px) => {
+                    ctx.globalAlpha = Math.ceil(fadeInOut(t, 0.1, 0.4) * 4) / 4;
+                    dotAt(ctx, px, p.s, p.x, p.y, p.color, 1, p.len);
+                },
+            }) });
+            if (o.c === 'heal') {
+                for (let i = 0; i < 3; i++) {
+                    sigParticle({ x: g.body.cx + (i - 1) * g.body.rx * 0.7, y: g.body.cy, s: g.s, vy: -18 * g.s, max: 0.7, d: i * 0.15, cols, draw: (ctx, p, t, px) => {
+                        if (p.life < p.d) {
+                            return;
+                        }
+                        ctx.globalAlpha = Math.ceil(fadeInOut(t, 0.15, 0.35) * 4) / 4;
+                        dotAt(ctx, px, p.s, p.x - p.s, p.y, p.cols[3], 3, 1);
+                        dotAt(ctx, px, p.s, p.x, p.y - p.s, p.cols[3], 1, 3);
+                        dotAt(ctx, px, p.s, p.x, p.y, '#ffffff');
+                    } });
+                }
+            }
         },
     },
     // 보호막 — 단단해지기 · 배리어

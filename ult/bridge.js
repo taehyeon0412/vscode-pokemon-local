@@ -225,7 +225,29 @@ function fxTarget(g, dst) {
     const cx = r.left + r.width / 2;
     // 그 둘레 HP 묶음 아래 끝 (회오리처럼 높은 연출이 HP 를 덮지 않게)
     const hud = fxHudRects().filter((h) => h.right > r.left - r.width && h.left < r.right + r.width);
-    return { cx, w: r.width, far: g.dir > 0 ? r.right : r.left, dist: Math.abs(cx - g.mouth.x), ground: r.bottom, hudBottom: hud.length ? Math.max(...hud.map((h) => h.bottom)) : 0 };
+    return { cx, cy: r.top + r.height * 0.55, w: r.width, far: g.dir > 0 ? r.right : r.left, dist: Math.abs(cx - g.mouth.x), ground: r.bottom, hudBottom: hud.length ? Math.max(...hud.map((h) => h.bottom)) : 0 };
+}
+// 쓰는 쪽 몸 앞 → 상대 가운데 번개 줄기 — 연출 55% 부터 0.35초, 모양만 0.12초마다 새로 (밝기 그대로 — 1초 3번 규칙)
+function fxSparkArc(g, t) {
+    const ms = SIG_FX.spark.ms(g.P, {});
+    const cols = HIT_COLS.electric;
+    setTimeout(() => {
+        sigParticle({ x: g.body.front, y: g.mouth.y, s: g.s, max: 0.35, drawn: -1, cols, update: (p) => {
+            if (p.drawn >= 0 && p.life - p.drawn < 0.12) {
+                return;
+            }
+            p.drawn = p.life;
+            p.path = zigzag(p.x, p.y, t.cx, t.cy, p.s, 3, 5);
+            p.branch = zapBranch(p.path, 6 * p.s, Math.atan2(t.cy - p.y, t.cx - p.x), p.s);
+        }, draw: (ctx, p, tt, px) => {
+            if (!p.path) {
+                return;
+            }
+            ctx.globalAlpha = tt > 0.7 ? 0.5 : 1;
+            zapLine(ctx, px, p.s, p.path, 1, p.cols[2], p.cols[0]);
+            zapLine(ctx, px, p.s, p.branch, 1, p.cols[2], p.cols[1]);
+        } });
+    }, Math.round(ms * 0.55));
 }
 // 연출 자리를 옆으로 dx 만큼 (크기 · 방향은 쓰는 쪽 그대로)
 const fxShift = (g, dx) => ({ ...g, mouth: { ...g.mouth, x: g.mouth.x + dx }, body: { ...g.body, cx: g.body.cx + dx, front: g.body.front + dx } });
@@ -325,6 +347,9 @@ function fxAim(fx, g, o, t) {
         }
         case 'powder':
             return o.around ? { g, o } : { g: fxShift(g, t.cx - (g.mouth.x + g.dir * 1.5 * g.w)), o };
+        case 'spark':
+            // 전기쇼크 · 10만볼트 — 몸에서 지직거리다 끝무렵 상대까지 번개 줄기가 이어짐 (몸 둘레에서만 지직거려 상대까지 안 닿던 것, 플레이 리뷰어)
+            return { g, o, after: () => fxSparkArc(g, t) };
         case 'quake':
             // 흙먼지는 상대 발밑 · 흔들기는 게임 화면 (일반 모드는 숨은 포켓몬 · 앞쪽 풀을 흔듦)
             return { g: fxShift(g, t.cx - g.body.cx), o, after: () => fxGameShake(2 + g.P) };
