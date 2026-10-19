@@ -22,12 +22,14 @@ export interface BattleMenuProps {
   lead?: ComponentChildren;
   /** 좁은 패널 — 짧은 이름 */
   compact?: boolean;
+  /** 옆 메뉴 (세로 목록, Sea of Stars) — 머리 줄 이름표에 쓸 내 포켓몬 이름. 없으면 예전 가로 한 줄 */
+  vertical?: string;
 }
 
 /** ← · Esc — 기력의조각에서 고르던 포켓몬 목록은 아이템으로, 나머지는 처음 메뉴로 */
 const backOf = (page: MenuPage): MenuPage => (page === 'revive' ? 'items' : 'main');
 
-export function BattleMenu({ battle: b, save, onInput, lead, compact = false }: BattleMenuProps) {
+export function BattleMenu({ battle: b, save, onInput, lead, compact = false, vertical }: BattleMenuProps) {
   const [page, setPage] = useState<MenuPage>('main');
   // 차례가 끝나면 처음 메뉴로
   useEffect(() => {
@@ -101,7 +103,7 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false }: 
     list.map((i) => (
       <Button key={i.key} onClick={() => choose(i)} disabled={!i.enabled} secondary={'back' in i.go} title={i.title}>
         {i.label}
-        {i.sub && <span class="pg-sub">{i.sub}</span>}
+        {(vertical ? (i.subShort ?? i.sub) : i.sub) && <span class="pg-sub">{vertical ? (i.subShort ?? i.sub) : i.sub}</span>}
       </Button>
     ));
   // 포커스가 없으면 Space 는 편집기로 감 → 클릭 안내 (선제공격과 같은 규칙)
@@ -169,22 +171,47 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false }: 
     row = renderItems(items);
   }
 
+  const stack = (
+    <span class="pg-bmenu-items pg-stack">
+      <span class={onMain ? 'pg-layer' : 'pg-layer pg-hidden'} aria-hidden={!onMain}>
+        {renderItems(page === 'main' ? items : menuItems(b, save, 'main', compact))}
+      </span>
+      {row && <span class={counter || ultCounter ? 'pg-layer pg-counter' : 'pg-layer'}>{row}</span>}
+    </span>
+  );
+  const ultBar = (
+    <span class={ultReady ? 'pg-bar pg-bar-myult pg-full' : 'pg-bar pg-bar-myult'} title="필살기 게이지 — 때리면 · 맞으면 참 (Z)">
+      <span class="pg-bar-fill" style={{ width: `${Math.round(b.me.ult * 100)}%` }} />
+    </span>
+  );
+  const ult = (label: string, extraClass?: string) => (
+    <Button extraClass={extraClass} onClick={() => onInput({ kind: 'battle', input: { kind: 'ult' } })} disabled={!ultReady} title="필살기 (Z) — 게이지가 차 있으면 아무 때나 · 상대 기술에 끼어들기">
+      {label}
+    </Button>
+  );
+
+  // 옆 메뉴 (Sea of Stars): 머리 줄 = 금색 이름표 + 필살기 게이지 · Z, 그 아래 세로 목록 (5줄 넘으면 옆 칸으로)
+  if (vertical) {
+    return (
+      <div class={`pg-vmenu${b.phase === 'choose' ? ' pg-my-turn' : ''}`}>
+        <div class="pg-vmenu-head">
+          <span class="pg-vmenu-name">{vertical}</span>
+          {ultBar}
+          {ult('Z', 'pg-vmenu-z')}
+        </div>
+        {lead && <div class="pg-vmenu-lead">{lead}</div>}
+        {stack}
+      </div>
+    );
+  }
+
   return (
     <span class={`pg-bmenu${b.phase === 'choose' ? ' pg-my-turn' : ''}${compact ? ' pg-compact' : ''}`}>
       {/* 좁은 패널에서 기술 · 아이템을 고르는 동안은 앞 버튼 (자동 전투) 을 빼서 이름 자리를 넓힘 */}
       {compact && page !== 'main' ? null : lead}
-      <span class="pg-bmenu-items pg-stack">
-        <span class={onMain ? 'pg-layer' : 'pg-layer pg-hidden'} aria-hidden={!onMain}>
-          {renderItems(page === 'main' ? items : menuItems(b, save, 'main', compact))}
-        </span>
-        {row && <span class={counter || ultCounter ? 'pg-layer pg-counter' : 'pg-layer'}>{row}</span>}
-      </span>
-      <span class={ultReady ? 'pg-bar pg-bar-myult pg-full' : 'pg-bar pg-bar-myult'} title="필살기 게이지 — 때리면 · 맞으면 참 (Z)">
-        <span class="pg-bar-fill" style={{ width: `${Math.round(b.me.ult * 100)}%` }} />
-      </span>
-      <Button onClick={() => onInput({ kind: 'battle', input: { kind: 'ult' } })} disabled={!ultReady} title="필살기 (Z) — 게이지가 차 있으면 아무 때나 · 상대 기술에 끼어들기">
-        {compact ? '💥' : '💥 Z'}
-      </Button>
+      {stack}
+      {ultBar}
+      {ult(compact ? '💥' : '💥 Z')}
     </span>
   );
 }

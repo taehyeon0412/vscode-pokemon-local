@@ -752,31 +752,57 @@ body.pokemon-game-on {
   transition: opacity 0.6s, transform 0.6s;
 }
 
-/* ⑥ HP · 레벨 + ⑩ 행동 게이지 (상대는 위에 ⑧ 필살기 게이지) — 포켓몬 바로 위 */
+/*
+ * 전투 디자인 (2026-10-19 태현 님 — 레퍼런스 Sea of Stars, 체력바만 포켓몬 머리 위): 짙은 남색 반투명 판 · 얇은 금색 테두리 · 금색 이름표 ·
+ * 크림 글씨 · 고른 것은 금색 · 중요한 낱말 (포켓몬 이름) 만 빨강. 값의 기준은 docs/game-design/design-system.md
+ */
+#pokemon-game {
+  --pg-sos-panel: rgba(12, 16, 30, 0.88);
+  --pg-sos-line: #d9c79a;
+  --pg-sos-line-soft: rgba(217, 199, 154, 0.5);
+  --pg-sos-ink: #e8e2cf;
+  --pg-sos-dim: #a9a38f;
+  --pg-sos-gold: #ffd76a;
+  --pg-sos-red: #ff6b5a;
+  --pg-sos-hp: #8fe388;
+  --pg-sos-mid: #f0c862;
+  --pg-sos-gauge: #7fb8ff;
+  --pg-sos-ult: #ff9f5a;
+  --pg-sos-track: rgba(255, 255, 255, 0.18);
+  --pg-sos-tab-ink: #1a1406;
+}
+
+/* ⑥ 이름 · Lv 줄 (내 것은 HP 숫자) → 얇은 HP 바 → ⑩ 행동 게이지 (상대는 맨 위에 ⑧ 필살기 게이지) — 포켓몬 머리 위, 판 없이 글자 그림자로 */
 .pg-hpblock {
   position: absolute;
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: calc(1px * var(--pg-ui, 1));
   z-index: 4;
   line-height: 1;
   font-size: calc(9px * var(--pg-ui, 1));
-  text-shadow: 0 0 2px var(--vscode-editor-background), 0 0 2px var(--vscode-editor-background);
+  font-weight: 600;
+  color: var(--pg-sos-ink);
+  text-shadow: 0 1px 2px #000, 0 0 1px #000;
 }
 .pg-hprow {
   display: flex;
   align-items: center;
-  gap: 3px;
-  height: calc(11px * var(--pg-ui, 1));
+  gap: calc(3px * var(--pg-ui, 1));
+  height: calc(10px * var(--pg-ui, 1));
   white-space: nowrap;
 }
 .pg-lv,
 .pg-hpnum {
   flex: none;
 }
+/* Lv · 상태 · 숫자는 오른쪽 끝으로 */
+.pg-hprow .pg-lv {
+  margin-left: auto;
+}
 .pg-hpnum {
-  opacity: 0.8;
+  font-weight: 500;
 }
 .pg-bar {
   position: relative;
@@ -784,42 +810,44 @@ body.pokemon-game-on {
   flex: 1;
   min-width: 0;
   height: calc(4px * var(--pg-ui, 1));
-  border-radius: 2px;
   overflow: hidden;
-  background: rgba(128, 128, 128, 0.35);
+  background: var(--pg-sos-track);
 }
 .pg-bar-fill {
   position: absolute;
   left: 0;
   top: 0;
   bottom: 0;
-  border-radius: 2px;
-  background: #58a6ff;
+  background: var(--pg-sos-gauge);
   transition: width 0.25s ease-out;
 }
+.pg-bar-hp {
+  flex: none;
+  height: calc(3px * var(--pg-ui, 1));
+}
 .pg-hp-ok .pg-bar-fill {
-  background: #3fb950;
+  background: var(--pg-sos-hp);
 }
 .pg-hp-mid .pg-bar-fill {
-  background: #d29922;
+  background: var(--pg-sos-mid);
 }
 .pg-hp-low .pg-bar-fill {
-  background: #f85149;
+  background: var(--pg-sos-red);
 }
 .pg-bar-act,
 .pg-bar-ult {
   flex: none;
-  height: calc(3px * var(--pg-ui, 1));
+  height: calc(2px * var(--pg-ui, 1));
 }
 .pg-bar-act .pg-bar-fill {
   transition: none;
 }
 .pg-bar-act.pg-full .pg-bar-fill {
-  background: #ffd33d;
+  background: var(--pg-sos-gold);
 }
 .pg-bar-ult .pg-bar-fill,
 .pg-bar-myult .pg-bar-fill {
-  background: #ff8c3a;
+  background: var(--pg-sos-ult);
 }
 /* 꽉 차면 몇 번만 반짝이고 그대로 (기다리는 동안 계속 깜빡이지 않게 — 곁눈에 거슬리고 매 프레임 다시 그림) */
 .pg-bar-ult.pg-full,
@@ -895,6 +923,161 @@ body.pokemon-game-on {
   justify-content: center;
   padding: 0 6px;
 }
+/* 가로 한 줄 메뉴 (좁은 패널 · 정보줄 자리) 도 같은 판 색 */
+.pg-bmenu .pg-button {
+  color: var(--pg-sos-ink);
+  background: var(--pg-sos-panel);
+  border: 1px solid var(--pg-sos-line-soft);
+  border-radius: 0;
+}
+.pg-bmenu .pg-button:hover:not(:disabled) {
+  color: var(--pg-sos-gold);
+  background: var(--pg-sos-panel);
+}
+.pg-bmenu .pg-button.pg-secondary {
+  color: var(--pg-sos-dim);
+  background: var(--pg-sos-panel);
+}
+.pg-my-turn .pg-bmenu-items .pg-button:not(:disabled):not(.pg-secondary) {
+  box-shadow: none;
+  border-color: var(--pg-sos-gold);
+}
+
+/* ⑦ 옆 메뉴 (Sea of Stars) — 내 포켓몬 오른쪽 작은 세로 목록: 머리 줄 (금색 이름표 · ⑧ 필살기 게이지 · Z) + 5줄 (넘치면 옆 칸) */
+/* 높이는 battle/model.ts SIDE_HEAD_PX · SIDE_ROW_PX · SIDE_PAD_PX 와 같게 */
+.pg-vmenu-wrap {
+  z-index: 5;
+  overflow: hidden;
+}
+.pg-vmenu {
+  display: flex;
+  flex-direction: column;
+  width: max-content;
+  max-width: 100%;
+  padding-bottom: calc(2px * var(--pg-ui, 1));
+  font-size: calc(9px * var(--pg-ui, 1));
+  font-weight: 500;
+  line-height: 1;
+  color: var(--pg-sos-ink);
+  background: var(--pg-sos-panel);
+  border: 1px solid var(--pg-sos-line);
+}
+.pg-vmenu.pg-my-turn {
+  border-color: var(--pg-sos-gold);
+  box-shadow: 0 0 0 1px rgba(255, 215, 106, 0.3);
+}
+.pg-vmenu-head {
+  display: flex;
+  align-items: center;
+  gap: calc(4px * var(--pg-ui, 1));
+  height: calc(12px * var(--pg-ui, 1));
+  padding-right: calc(3px * var(--pg-ui, 1));
+  margin-bottom: calc(1px * var(--pg-ui, 1));
+}
+.pg-vmenu-name {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  max-width: 7em;
+  padding: 0 calc(6px * var(--pg-ui, 1));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+  color: var(--pg-sos-tab-ink);
+  background: var(--pg-sos-line);
+}
+.pg-vmenu .pg-bar-myult {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: calc(14px * var(--pg-ui, 1));
+  height: calc(3px * var(--pg-ui, 1));
+}
+.pg-vmenu .pg-vmenu-z {
+  flex: none;
+  height: calc(10px * var(--pg-ui, 1));
+  padding: 0 calc(4px * var(--pg-ui, 1));
+  font-size: calc(8px * var(--pg-ui, 1));
+  line-height: calc(8px * var(--pg-ui, 1));
+  font-weight: 700;
+  color: var(--pg-sos-dim);
+  background: transparent;
+  border: 1px solid var(--pg-sos-line-soft);
+  border-radius: 0;
+}
+.pg-vmenu .pg-vmenu-z:not(:disabled) {
+  color: var(--pg-sos-tab-ink);
+  background: var(--pg-sos-gold);
+  border-color: var(--pg-sos-gold);
+  opacity: 1;
+}
+.pg-vmenu-lead {
+  padding: 0 calc(4px * var(--pg-ui, 1)) calc(1px * var(--pg-ui, 1));
+}
+.pg-vmenu .pg-bmenu-items {
+  display: grid;
+  overflow: hidden;
+}
+.pg-vmenu .pg-layer {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(5, auto);
+  justify-content: start;
+  align-content: start;
+  gap: 0 calc(6px * var(--pg-ui, 1));
+}
+.pg-vmenu .pg-layer .pg-button {
+  position: relative;
+  display: block;
+  height: calc(11px * var(--pg-ui, 1));
+  padding: 0 calc(6px * var(--pg-ui, 1)) 0 calc(10px * var(--pg-ui, 1));
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: inherit;
+  line-height: calc(11px * var(--pg-ui, 1));
+  color: var(--pg-sos-ink);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.pg-vmenu .pg-layer .pg-button:hover:not(:disabled),
+.pg-vmenu .pg-layer .pg-button:focus-visible {
+  color: var(--pg-sos-gold);
+  background: transparent;
+  outline: none;
+}
+.pg-vmenu .pg-layer .pg-button:hover:not(:disabled)::before,
+.pg-vmenu .pg-layer .pg-button:focus-visible::before {
+  content: "▸";
+  position: absolute;
+  left: calc(2px * var(--pg-ui, 1));
+}
+.pg-vmenu .pg-layer .pg-button:disabled {
+  color: var(--pg-sos-dim);
+  opacity: 0.6;
+}
+.pg-vmenu .pg-layer .pg-button.pg-secondary {
+  color: var(--pg-sos-dim);
+}
+.pg-vmenu .pg-sub {
+  color: var(--pg-sos-dim);
+  opacity: 1;
+}
+.pg-vmenu .pg-counter .pg-button {
+  font-weight: 700;
+  color: var(--pg-sos-tab-ink);
+  background: var(--pg-sos-gold);
+}
+.pg-vmenu .pg-layer .pg-dim,
+.pg-vmenu .pg-layer .pg-last-tag,
+.pg-vmenu .pg-layer .pg-last-sec {
+  padding: 0 calc(6px * var(--pg-ui, 1)) 0 calc(10px * var(--pg-ui, 1));
+  line-height: calc(11px * var(--pg-ui, 1));
+}
+
 /* ⑫ 자동 전투 스위치 — 트레이너 머리 위 (트레이너가 왼쪽 끝이라 패널 왼쪽에 맞춤, 잘리지 않게) */
 .pg-auto {
   position: absolute;
@@ -902,33 +1085,52 @@ body.pokemon-game-on {
   z-index: 5;
 }
 .pg-auto .pg-button {
-  height: calc(16px * var(--pg-ui, 1));
-  line-height: calc(16px * var(--pg-ui, 1));
+  height: calc(14px * var(--pg-ui, 1));
+  line-height: calc(12px * var(--pg-ui, 1));
   padding: 0 calc(5px * var(--pg-ui, 1));
-  font-size: calc(10px * var(--pg-ui, 1));
+  font-size: calc(9px * var(--pg-ui, 1));
+  font-weight: 500;
+  color: var(--pg-sos-ink);
+  background: var(--pg-sos-panel);
+  border: 1px solid var(--pg-sos-line);
+  border-radius: 0;
+}
+.pg-auto .pg-button.pg-secondary {
+  color: var(--pg-sos-dim);
+  background: var(--pg-sos-panel);
+  border-color: var(--pg-sos-line-soft);
+}
+.pg-auto .pg-button:hover:not(:disabled) {
+  color: var(--pg-sos-gold);
+  background: var(--pg-sos-panel);
 }
 
-/* 지금 한 줄 ("이상해씨의 덩굴채찍!") */
+/* 지금 한 줄 ("이상해씨의 덩굴채찍!") — 판 + 얇은 금색 테두리, 포켓몬 이름만 빨강 */
 .pg-bmsg {
   position: absolute;
   left: 50%;
   top: 3px;
   transform: translateX(-50%);
   max-width: calc(100% - 16px);
-  padding: 1px calc(10px * var(--pg-ui, 1));
-  border-radius: 4px;
+  padding: calc(2px * var(--pg-ui, 1)) calc(9px * var(--pg-ui, 1));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: calc(11px * var(--pg-ui, 1));
-  background: var(--vscode-editorWidget-background, #252526);
-  border: 1px solid var(--vscode-editorWidget-border, #555);
+  font-size: calc(10px * var(--pg-ui, 1));
+  font-weight: 500;
+  color: var(--pg-sos-ink);
+  background: var(--pg-sos-panel);
+  border: 1px solid var(--pg-sos-line);
   z-index: 5;
   pointer-events: none;
 }
 .pg-bmsg-over {
-  font-weight: bold;
-  border-color: #d29922;
+  font-weight: 700;
+  border-color: var(--pg-sos-gold);
+}
+.pg-em {
+  color: var(--pg-sos-red);
+  font-weight: 700;
 }
 
 /* 피해 숫자 · 효과가 굉장했다! · 급소 — 머리 위로 떠오름 */
@@ -1127,14 +1329,17 @@ body.pokemon-game-on {
   border-radius: 4px;
   overflow: hidden;
   white-space: nowrap;
-  font-size: calc(11px * var(--pg-ui, 1));
-  background: var(--vscode-editorWidget-background, #252526);
-  border: 1px solid #d29922;
+  font-size: calc(10px * var(--pg-ui, 1));
+  font-weight: 500;
+  color: var(--pg-sos-ink);
+  background: var(--pg-sos-panel);
+  border: 1px solid var(--pg-sos-gold);
+  border-radius: 0;
   z-index: 8;
 }
 .pg-clash-tap {
   font-weight: bold;
-  color: var(--vscode-editorWarning-foreground, #cca700);
+  color: var(--pg-sos-gold);
 }
 .pg-clash-time {
   position: relative;
@@ -1162,12 +1367,6 @@ body.pokemon-game-on {
   padding: 0 calc(4px * var(--pg-ui, 1));
 }
 
-@supports (background: color-mix(in srgb, red 50%, blue)) {
-  .pg-bmsg,
-  .pg-clash-info {
-    background: color-mix(in srgb, var(--vscode-editor-background) 82%, transparent);
-  }
-}
 
 /* 움직임 줄이기를 켠 사람 — 계속 흔들리는 것은 멈춤 */
 @media (prefers-reduced-motion: reduce) {

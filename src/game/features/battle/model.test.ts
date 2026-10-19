@@ -192,12 +192,37 @@ describe('좁은 패널 자리 (테스터)', () => {
     expect(at(720, 200, 2, 1.3).msgHidden).toBe(false);
   });
 
-  it('메뉴 줄이 정보줄 바로 밑까지 오면 (720 × 160 보통) 한 줄은 메뉴 오른쪽 끝 뒤에 · 자리가 없으면 숨김 — 게이지 · 💥Z 위에 안 겹침 (2026-10-19)', () => {
-    const g = battleGeometry({ widthPx: 720, bodyPx: 160 - 26, scale: 2, uiScale: 1.3, ground: 23, foeX: 412, meSpritePx: 64, foeSpritePx: 64, heroPx: 40, heroWidthPx: 32 });
+  it('가로 메뉴 줄이 정보줄 바로 밑까지 오면 한 줄은 메뉴 오른쪽 끝 뒤에 · 자리가 없으면 숨김 — 게이지 · 💥Z 위에 안 겹침 (2026-10-19, bugs #289)', () => {
+    // 상대가 가까워 옆 메뉴가 안 들어가는 720 × 161 → 예전 가로 한 줄이 정보줄 바로 밑 (HP 묶음이 1px 커져 160 은 정보줄 자리로 감)
+    const g = battleGeometry({ widthPx: 720, bodyPx: 161 - 26, scale: 2, uiScale: 1.3, ground: 23, foeX: 380, meSpritePx: 64, foeSpritePx: 64, heroPx: 40, heroWidthPx: 32 });
+    expect(g.menuSide).toBeNull();
     expect(g.menuInBar).toBe(false);
     if (g.msgSide) expect(g.msgSide.left).toBeGreaterThanOrEqual(g.menuLeft + 380 * 1.3);
     else expect(g.msgHidden).toBe(true);
-    // 넓은 패널 (190) 은 위 한 줄 자리가 있어 그대로 가운데
+  });
+
+  it('옆 메뉴 (Sea of Stars, 2026-10-19 태현 님): 내 포켓몬 · HP 묶음 오른쪽 ~ 상대 왼쪽 사이 · 위 정보줄은 그대로 · 한 줄은 메뉴와 상대 HP 를 피함', () => {
+    for (const [h, foeX] of [[150, 412], [150, 480], [190, 460]] as const) {
+      const g = battleGeometry({ widthPx: 720, bodyPx: h - 26, scale: 2, uiScale: 1.3, ground: 23, foeX, meSpritePx: 64, foeSpritePx: 64, heroPx: 40, heroWidthPx: 32 });
+      expect(g.menuSide).not.toBeNull();
+      const s = g.menuSide!;
+      expect(g.menuInBar).toBe(false);
+      expect(s.left).toBeGreaterThanOrEqual(g.meHpX + g.meHpWide / 2);
+      expect(s.left + s.maxWidth).toBeLessThanOrEqual(g.foeHpX - g.foeHpWide / 2);
+      expect(s.left + s.maxWidth).toBeLessThanOrEqual(g.foeX - 32);
+      // 머리 줄 + 5줄 + 여백 (game.css .pg-vmenu) 이 길 칸 안에 들어감
+      expect(s.top + Math.round((12 + 11 * 5 + 3) * 1.3)).toBeLessThanOrEqual(h - 26 - 2);
+      expect(s.maxHeight).toBe(h - 26 - 4 - 2);
+      expect(g.msgHidden).toBe(false);
+      if (g.msgSide) expect(g.msgSide.left).toBeGreaterThanOrEqual(g.foeHpX + g.foeHpWide / 2);
+      else expect(g.msgRight).not.toBeNull();
+    }
+    // 좁은 패널 · 상대가 바로 옆이면 예전 가로 한 줄
+    expect(battleGeometry({ widthPx: 400, bodyPx: 150 - 26, scale: 2, uiScale: 1.3, ground: 23, foeX: 300, meSpritePx: 64, foeSpritePx: 64, heroPx: 40, heroWidthPx: 32 }).menuSide).toBeNull();
+    expect(battleGeometry({ widthPx: 720, bodyPx: 150 - 26, scale: 2, uiScale: 1.3, ground: 23, foeX: 300, meSpritePx: 64, foeSpritePx: 64, heroPx: 40, heroWidthPx: 32 }).menuSide).toBeNull();
+  });
+
+  it('넓은 패널 (190) 은 위 한 줄 자리가 있어 그대로 (가운데 · 또는 옆 메뉴면 오른쪽 위)', () => {
     const tall = battleGeometry({ widthPx: 720, bodyPx: 190 - 26, scale: 1.5, uiScale: 1.3, ground: 18, foeX: 400, meSpritePx: 48, foeSpritePx: 48, heroPx: 20, heroWidthPx: 16 });
     expect(tall.msgSide === null && !tall.msgHidden).toBe(true);
   });

@@ -61,7 +61,7 @@ export function AutoButton({ save, onInput, short }: { save: Save; onInput(i: Ga
       onClick={() => onInput({ kind: 'auto-battle', on: !auto })}
       title={auto ? '자동 전투 켜짐 — 누르면 끔' : '자동 전투 꺼짐 — 켜면 내 행동도 알아서 (필살기 · 연타는 직접도 됨)'}
     >
-      {short ? (auto ? '🔁✓' : '🔁') : auto ? '🔁 자동 ON' : '🔁 자동 OFF'}
+      {short ? (auto ? '🔁✓' : '🔁') : auto ? '자동 ON' : '자동 OFF'}
     </Button>
   );
 }
@@ -72,13 +72,18 @@ function HpBlock({ f, side, x, bottom, wide, prefix }: { f: Fighter; side: Side;
   return (
     <div class={`pg-hpblock pg-hpblock-${side}`} style={{ left: `${x}px`, bottom: `${bottom}px`, width: `${wide}px` }} title={title}>
       {side === 'foe' && <Bar value={f.ult} cls={f.ult >= 1 ? 'pg-bar-ult pg-full' : 'pg-bar-ult'} />}
+      {/* 이름 · Lv 줄 (내 것은 오른쪽에 HP 숫자) → 얇은 HP 바 → 행동 게이지 (Sea of Stars, 포켓몬 머리 위) */}
       <span class="pg-hprow">
         <span class="pg-hpname">{nameOf(f)}</span>
         <span class="pg-lv">Lv{f.level}</span>
-        <Bar value={f.hp / f.maxHp} cls={`pg-bar-hp pg-hp-${hpColor(f.hp, f.maxHp)}`} />
         {status && <span class={`pg-status pg-status-${f.status!.kind}`}>{status}</span>}
-        {side === 'me' && <span class="pg-hpnum">{f.hp}</span>}
+        {side === 'me' && (
+          <span class="pg-hpnum">
+            {f.hp}/{f.maxHp}
+          </span>
+        )}
       </span>
+      <Bar value={f.hp / f.maxHp} cls={`pg-bar-hp pg-hp-${hpColor(f.hp, f.maxHp)}`} />
       <Bar value={f.gauge} cls={f.gauge >= 1 ? 'pg-bar-act pg-full' : 'pg-bar-act'} />
     </div>
   );
@@ -229,9 +234,36 @@ function Catch({ b, geo, ground }: { b: BattleState; geo: BattleGeometry; ground
   );
 }
 
-/** 위 가운데 · 또는 (낮은 패널) 상대 오른쪽 */
+/** 위 가운데 · (옆 메뉴) 오른쪽 위 · (낮은 패널) 상대 오른쪽 */
 function msgStyle(geo: BattleGeometry) {
-  return geo.msgSide ? { left: `${geo.msgSide.left}px`, maxWidth: `${geo.msgSide.maxWidth}px`, transform: 'none' } : undefined;
+  if (geo.msgSide) return { left: `${geo.msgSide.left}px`, maxWidth: `${geo.msgSide.maxWidth}px`, transform: 'none' };
+  if (geo.msgRight) return { left: 'auto', right: `${geo.msgRight.right}px`, maxWidth: `${geo.msgRight.maxWidth}px`, transform: 'none' };
+  return undefined;
+}
+
+/** 지금 한 줄에서 포켓몬 이름만 빨갛게 (Sea of Stars — 중요한 낱말만 색) */
+function emphasize(msg: string, names: readonly string[]): ComponentChildren {
+  const list = names.filter((n) => n && n !== '???').sort((a, c) => c.length - a.length);
+  if (!list.length) return msg;
+  const parts: ComponentChildren[] = [];
+  let rest = msg;
+  for (let guard = 0; rest && guard < 8; guard++) {
+    let at = -1;
+    let hit = '';
+    for (const n of list) {
+      const i = rest.indexOf(n);
+      if (i >= 0 && (at < 0 || i < at)) {
+        at = i;
+        hit = n;
+      }
+    }
+    if (at < 0) break;
+    if (at > 0) parts.push(rest.slice(0, at));
+    parts.push(<b class="pg-em">{hit}</b>);
+    rest = rest.slice(at + hit.length);
+  }
+  if (rest) parts.push(rest);
+  return parts;
 }
 
 /** S10 힘대결 — 두 기술이 가운데서 밀고 밀림. 연타할수록 맞부딪히는 자리가 상대 쪽으로 (gdd S10 ⑤) · 승자가 정해지면 이긴 줄기가 끝까지 */
@@ -306,7 +338,7 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
       )}
       {showMsg && (
         <div key={b.msg} class={b.phase === 'over' ? 'pg-bmsg pg-bmsg-over' : 'pg-bmsg'} style={msgStyle(geo)} title={b.msg}>
-          {b.msg}
+          {emphasize(b.msg, [nameOf(b.me), nameOf(b.foe)])}
         </div>
       )}
       {!geo.autoInMenu && (
@@ -314,10 +346,17 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
           <AutoButton save={save} onInput={onInput} short={false} />
         </span>
       )}
-      {!geo.menuInBar && (
-        <div class="pg-bmenu-wrap" style={{ left: `${geo.menuLeft}px`, bottom: `${geo.menuBottom}px`, maxWidth: `calc(100% - ${geo.menuLeft + 6}px)` }}>
-          <BattleMenu battle={b} save={save} onInput={onInput} lead={geo.autoInMenu ? <AutoButton save={save} onInput={onInput} short={geo.compact} /> : null} compact={geo.compact} />
+      {geo.menuSide ? (
+        // 옆 메뉴 (Sea of Stars) — 내 포켓몬 오른쪽 세로 목록
+        <div class="pg-bmenu-wrap pg-vmenu-wrap" style={{ left: `${geo.menuSide.left}px`, top: `${geo.menuSide.top}px`, maxWidth: `${geo.menuSide.maxWidth}px`, maxHeight: `${geo.menuSide.maxHeight}px` }}>
+          <BattleMenu battle={b} save={save} onInput={onInput} vertical={hasMe ? nameOf(b.me) : '—'} lead={geo.autoInMenu ? <AutoButton save={save} onInput={onInput} short={false} /> : null} />
         </div>
+      ) : (
+        !geo.menuInBar && (
+          <div class="pg-bmenu-wrap" style={{ left: `${geo.menuLeft}px`, bottom: `${geo.menuBottom}px`, maxWidth: `calc(100% - ${geo.menuLeft + 6}px)` }}>
+            <BattleMenu battle={b} save={save} onInput={onInput} lead={geo.autoInMenu ? <AutoButton save={save} onInput={onInput} short={geo.compact} /> : null} compact={geo.compact} />
+          </div>
+        )
       )}
     </>
   );
