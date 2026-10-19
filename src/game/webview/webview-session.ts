@@ -29,6 +29,8 @@ export class WebviewSession {
   private paused = false;
   /** 패널이 게임 모드 최소 높이 (150px) 보다 낮음 — 접힌 상태 (setCollapsed) */
   private collapsed = false;
+  /** VS Code 창에 포커스가 없음 (확장이 focus 로 알림) — 엔진이 이로치 흔적 앞에서 멈춤 (2026-10-19) */
+  private away = false;
   private readonly listeners = new Set<() => void>();
 
   constructor(private readonly deps: WebviewSessionDeps) {}
@@ -105,8 +107,11 @@ export class WebviewSession {
         this.changed();
         return;
       case 'suspend':
-        // VS Code 밖 · 자동 전투 꺼짐 — 마지막 상태를 넘기고 멈춤
+        // 일반 모드로 나가며 마지막 상태를 달라고 함 — 넘기고 멈춤
         this.hide();
+        return;
+      case 'focus':
+        this.away = !message.focused;
         return;
       case 'stop':
         this.epoch = null;
@@ -127,6 +132,8 @@ export class WebviewSession {
       this.sendIfDue();
       return;
     }
+    // VS Code 에 포커스가 없으면 엔진이 이로치 흔적 앞에서 멈춤 (state.runtime.away)
+    if ((this.state.runtime.away === true) !== this.away) this.state = { ...this.state, runtime: { ...this.state.runtime, away: this.away } };
     const dt = clampFrameDelta(dtMs);
     // 일반 모드 연출이 아직 — 피해가 들어가는 걸음을 미룸 (features/battle/fx/hold, 웹뷰에서만). 그동안에도 상태는 보냄 (필살기는 12초까지)
     if (this.deps.hold?.(this.state, dt)) {
@@ -136,6 +143,8 @@ export class WebviewSession {
     const r = advance(this.state, dt);
     this.state = r.state;
     if (r.steps > 0) this.dirty = true;
+    // 엔진 알림 (포커스가 없을 때 이로치 흔적) — 확장이 VS Code 알림으로
+    for (const notice of r.notices) this.deps.post({ command: GAME_COMMAND, type: 'notice', epoch: this.epoch, notice });
     // 전투 끝 · 잡기 · 스테이지 클리어 — 1초를 기다리지 않고 바로 저장해 달라고 함 (mvp-spec 3.1)
     const reason = r.saves[0];
     if (reason) {

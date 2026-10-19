@@ -70,6 +70,8 @@ export class GameSession {
   private epoch = 0;
   private state: GameState | null = null;
   private view: ViewPort | null = null;
+  /** VS Code 창 포커스 — 웹뷰에 알려서 포커스가 없을 때 이로치 흔적 앞에서 멈추게 (2026-10-19) */
+  private windowFocused = true;
   /** 웹뷰에 game.js 가 떠 있어 맡길 수 있는지 (ready 에서 켜고, 새로 뜸 · 못 불러옴 · 닫힘에서 끔) */
   private webviewReady = false;
   /** 웹뷰가 "패널이 너무 낮아서" 넘김 (접힌 상태) — 다시 높아지면 ready 가 옴. 그동안 포커스가 돌아와도 맡기지 않음 (#297) · 알림은 "올리면" (#299) */
@@ -150,6 +152,10 @@ export class GameSession {
       case 'state':
         this.accept(message.epoch, message.state);
         return;
+      case 'notice':
+        // 웹뷰가 계산하다 생긴 알림 (VS Code 에 포커스가 없을 때 이로치 흔적) — 패널은 보이니 "돌아오면" 문구로
+        if (this.owner === 'webview' && message.epoch === this.epoch) this.notify(message.notice, true);
+        return;
       case 'save-now':
         if (this.accept(message.epoch, message.state) && this.state) void this.deps.store.saveNow(this.state.save);
         return;
@@ -217,6 +223,8 @@ export class GameSession {
 
   /** VS Code 창 포커스 — 포커스만으로는 넘겨받지 않음 (보이면 웹뷰가 계속, 2026-10-19). 확장이 들고 있는데 보이는 웹뷰가 있으면 돌아올 때 다시 맡김 */
   onWindowFocusChanged(focused: boolean): void {
+    this.windowFocused = focused;
+    if (this.mode === 'game' && this.owner === 'webview') this.post({ type: 'focus', focused });
     // 접힌 상태 (패널이 너무 낮음) 면 맡기지 않음 — 맡겨도 웹뷰가 바로 돌려줌 (#297, 다시 높아지면 웹뷰가 ready)
     if (focused && this.mode === 'game' && this.owner === 'host' && this.webviewReady && !this.webviewCollapsed && this.view?.visible) this.handToWebview();
   }
@@ -552,6 +560,7 @@ export class GameSession {
     this.handoverEpoch = null;
     this.markHeadless(false);
     this.post({ type: 'start', epoch: this.epoch, state: this.state });
+    if (!this.windowFocused) this.post({ type: 'focus', focused: false });
     this.deps.log(`웹뷰가 계산을 맡음 (epoch ${this.epoch})`);
   }
 
@@ -581,9 +590,9 @@ export class GameSession {
     if (this.state && this.state.runtime.headless !== on) this.state = { ...this.state, runtime: { ...this.state.runtime, headless: on } };
   }
 
-  private notify(notice: GameNotice): void {
+  private notify(notice: GameNotice, away = false): void {
     if (!this.state?.save.settings.notifications) return;
-    const text = noticeText(notice, this.webviewCollapsed);
+    const text = noticeText(notice, this.webviewCollapsed, away);
     this.deps.log(`알림: ${text}`);
     try {
       this.deps.notify?.(text);
@@ -656,7 +665,9 @@ export class GameSession {
 }
 
 /** U9 알림 문구 — 패널이 접혀 있으면 (보이지만 너무 낮음) "열면" 대신 "150px 이상으로 올리면" (#299 — 패널은 이미 열려 있어서 헷갈림) */
-export function noticeText(notice: GameNotice, collapsed: boolean): string {
+export function noticeText(notice: GameNotice, collapsed: boolean, away = false): string {
+  // away = 패널은 보이는데 VS Code 에 포커스가 없음 (웹뷰가 알림) — "열면" 대신 "돌아오면"
+  if (away && notice === 'shiny') return '✨ 반짝이는 흔적을 찾았어요! VS Code 로 돌아오면 이어서 걸어요.';
   const open = collapsed ? `포켓몬 패널을 ${GAME_MIN_HEIGHT_PX}px 이상으로 올려` : '포켓몬 패널을 열어';
   const TEXT: Record<GameNotice, string> = {
     shiny: `✨ 반짝이는 흔적을 찾았어요! ${collapsed ? `포켓몬 패널을 ${GAME_MIN_HEIGHT_PX}px 이상으로 올리면` : '포켓몬 패널을 열면'} 이어서 걸어요.`,

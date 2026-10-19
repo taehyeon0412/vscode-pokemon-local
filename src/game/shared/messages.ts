@@ -15,7 +15,7 @@
  * epoch: 상태를 맡는 쪽이 바뀔 때마다 1씩 늘어남. 지난 epoch 의 메시지는 버린다 (늦게 온 옛 상태가 덮어쓰지 않게).
  *   단, 확장이 넘겨받기 바로 전 epoch 의 메시지는 받아 줌 (패널을 접는 순간의 잡기 · 마지막 상태를 잃지 않게).
  */
-import type { GameState } from '../core/engine';
+import type { GameNotice, GameState } from '../core/engine';
 import type { Save } from '../core/save';
 
 export const GAME_COMMAND = 'game';
@@ -48,14 +48,21 @@ export type WebviewToHost =
   | { command: typeof GAME_COMMAND; type: 'title-new'; save: Save }
   | { command: typeof GAME_COMMAND; type: 'title-continue' }
   /** 일반 모드로 — 게임 중이면 마지막 상태도 (epoch 는 맡은 것, 없으면 null) */
-  | { command: typeof GAME_COMMAND; type: 'exit'; epoch: number | null; state: GameState | null };
+  | { command: typeof GAME_COMMAND; type: 'exit'; epoch: number | null; state: GameState | null }
+  /** 웹뷰가 계산하다 생긴 알림 (VS Code 에 포커스가 없을 때 이로치 흔적 — 2026-10-19) → 확장이 VS Code 알림으로 */
+  | { command: typeof GAME_COMMAND; type: 'notice'; epoch: number; notice: GameNotice };
 
 export type HostToWebview =
   | { command: typeof GAME_COMMAND; type: 'load' }
   | { command: typeof GAME_COMMAND; type: 'start'; epoch: number; state: GameState }
   | { command: typeof GAME_COMMAND; type: 'suspend' }
+  /** VS Code 창 포커스 — 없으면 (패널은 보임) 웹뷰가 이로치 흔적 앞에서 멈추고 알림 (2026-10-19) */
+  | { command: typeof GAME_COMMAND; type: 'focus'; focused: boolean }
   | { command: typeof GAME_COMMAND; type: 'title'; info: TitleInfo }
   | { command: typeof GAME_COMMAND; type: 'stop' };
+
+/** 엔진 알림 종류 (core/engine GameNotice 와 같게) */
+const GAME_NOTICES: readonly GameNotice[] = ['shiny', 'request', 'choice', 'gym', 'clear', 'defeat'];
 
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -82,6 +89,8 @@ export function isWebviewToHost(v: unknown): v is WebviewToHost {
       return true;
     case 'exit':
       return (v.epoch === null || typeof v.epoch === 'number') && (v.state === null || (isObj(v.state) && isObj(v.state.save)));
+    case 'notice':
+      return typeof v.epoch === 'number' && (GAME_NOTICES as readonly unknown[]).includes(v.notice);
     default:
       return false;
   }
@@ -94,6 +103,8 @@ export function isHostToWebview(v: unknown): v is HostToWebview {
     case 'suspend':
     case 'stop':
       return true;
+    case 'focus':
+      return typeof v.focused === 'boolean';
     case 'start':
       return hasState(v);
     case 'title':

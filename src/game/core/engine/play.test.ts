@@ -353,6 +353,22 @@ describe('전투 (단계 5 · 6) — 스테이지 쪽', () => {
     expect(met.save.pendingEncounter).toMatchObject({ kind: 'wild', monster: { shiny: true } });
   });
 
+  it('VS Code 에 포커스가 없을 때 (패널은 보이고 웹뷰가 계산, away) 도 이로치 흔적 앞에서 멈추고 알림 → 돌아오면 이어 감 (2026-10-19)', () => {
+    const { seed, spot } = shinyWildSeed();
+    const base = start(seed);
+    const near: GameState = {
+      ...base,
+      save: { ...base.save, stages: { 'forest-1': { ...base.save.stages['forest-1']!, progress: spot.at - 0.0005 } } },
+      runtime: { ...base.runtime, stage: { phase: 'walk' }, headless: false, away: true },
+    };
+    const r = advance(near, 3000);
+    expect(phase(r.state)).toBe('hold');
+    expect(r.notices).toEqual(['shiny']);
+    const back = { ...r.state, runtime: { ...r.state.runtime, away: false } };
+    const met = until(back, (x) => phase(x) === 'appear', 5000);
+    expect(met.save.pendingEncounter).toMatchObject({ kind: 'wild', monster: { shiny: true } });
+  });
+
   it('보일 때는 이로치 흔적에서 멈추지 않고 바로 만남 · 부탁 알림은 안 볼 때만', () => {
     const { seed, spot } = shinyWildSeed();
     const base = start(seed);

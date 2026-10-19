@@ -124,6 +124,20 @@ describe('웹뷰 세션', () => {
     expect(s.running).toBe(false);
   });
 
+  it('focus 로 VS Code 포커스를 받으면 다음 걸음부터 엔진에 away 로 넘김 (포커스가 없을 때 이로치 흔적 앞에서 멈추게 — 2026-10-19)', () => {
+    const { s, frames } = make();
+    s.handleMessage(start(5));
+    frames(50);
+    expect(s.current?.runtime.away).toBeFalsy();
+    s.handleMessage({ command: 'game', type: 'focus', focused: false });
+    frames(50);
+    expect(s.current?.runtime.away).toBe(true);
+    expect(s.running).toBe(true); // 계산은 그대로 웹뷰가
+    s.handleMessage({ command: 'game', type: 'focus', focused: true });
+    frames(50);
+    expect(s.current?.runtime.away).toBe(false);
+  });
+
   it('계산을 넘기면 (hidden) 화면에도 알림 — 멈춘 그림이 걷는 척 (배경 흐름 · 제자리걸음) 하지 않게 (테스터)', () => {
     const { s, frames } = make();
     s.handleMessage(start(5));

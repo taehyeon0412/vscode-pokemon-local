@@ -329,6 +329,18 @@ describe('VS Code 밖 (창 포커스) — 보이면 계속 (2026-10-19 태현 �
     expect(snap().owner).toBe('webview');
   });
 
+  it('포커스가 바뀌면 웹뷰에 focus 로 알림 (포커스 없이 맡기면 start 다음에) · 웹뷰가 보낸 이로치 알림은 "VS Code 로 돌아오면" 문구로 (2026-10-19)', async () => {
+    const start = await enterAndStart(sampleSave({ settings: { notifications: true, autoBattle: false } }));
+    session.onWindowFocusChanged(false);
+    expect(view.last('focus')).toMatchObject({ focused: false });
+    session.handleMessage(msg({ type: 'notice', epoch: start.epoch, notice: 'shiny' }));
+    expect(notices.at(-1)).toContain('VS Code 로 돌아오면');
+    session.handleMessage(msg({ type: 'notice', epoch: start.epoch + 99, notice: 'shiny' })); // 다른 epoch 은 무시
+    expect(notices).toHaveLength(1);
+    session.onWindowFocusChanged(true);
+    expect(view.last('focus')).toMatchObject({ focused: true });
+  });
+
   it('VS Code 밖에서 웹뷰가 보낸 상태로 자동 전투가 꺼져도 그 까닭만으로는 멈추지 않음 (내 차례 · 부탁이면 화면이 기다림)', async () => {
     const start = await enterAndStart(autoSave());
     session.onWindowFocusChanged(false);

@@ -235,7 +235,8 @@ function defaultStage(save: Save, id: StageId, prog: StageProgress): StageRuntim
 
 /** 안 볼 때 (확장이 계산) 눈앞에 이로치가 나와 있으면 (튀어나옴 · 전투 중에 사람이 떠남) — 자동 전투로 쓰러뜨리지 않고 다시 볼 때까지 기다림 (U9) */
 function shinyWhileAway(save: Save, rt: RuntimeState, stage: StageRuntime | null): boolean {
-  if (!rt.headless || !stage) return false;
+  // 안 볼 때 (확장이 계산) · VS Code 에 포커스가 없을 때 (패널은 보임, 2026-10-19)
+  if (!(rt.headless || rt.away) || !stage) return false;
   if (stage.phase === 'battle') return stage.battle.kind === 'wild' && stage.battle.foe.shiny;
   return stage.phase === 'appear' && save.pendingEncounter?.kind === 'wild' && save.pendingEncounter.monster.shiny;
 }
@@ -302,8 +303,8 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
         save = withProgress(save, id, spot.at);
         const what = p.item ? itemName(p.item) : `${p.money ?? 0}원`;
         rt = { ...rt, toast: { text: `✨ ${withJosa(what, '을/를')} 주웠다!`, ms: TIMING.toastMs } };
-      } else if (spot.kind === 'wild' && rt.headless && planWild(id, prog.seed, spot, prog.run.retries).shiny) {
-        // 안 볼 때 이로치 흔적 — 바로 앞에서 멈추고 알림 (U9), 다시 보이면 이어 감
+      } else if (spot.kind === 'wild' && (rt.headless || rt.away) && planWild(id, prog.seed, spot, prog.run.retries).shiny) {
+        // 안 볼 때 · VS Code 에 포커스가 없을 때 이로치 흔적 — 바로 앞에서 멈추고 알림 (U9), 다시 보이면 · 돌아오면 이어 감
         save = withProgress(save, id, Math.max(from, spot.at - BEFORE_SPOT));
         stage = { phase: 'hold', why: 'shiny' };
         notice = 'shiny';
@@ -343,7 +344,7 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
       break;
     }
     case 'hold':
-      if (!rt.headless) stage = { phase: 'walk' }; // 보이면 그 흔적으로 걸어감
+      if (!rt.headless && !rt.away) stage = { phase: 'walk' }; // 보이고 VS Code 로 돌아오면 그 흔적으로 걸어감
       break;
     case 'facility': {
       if (stage.inside) break; // 병원 · 상점 안 — [나가기] 를 기다림

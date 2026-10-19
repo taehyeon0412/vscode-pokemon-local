@@ -73,6 +73,8 @@ export interface RuntimeState {
   toast: Toast | null;
   /** 확장이 안 볼 때 계산 중 (웹뷰가 맡으면 false) — 이로치 흔적 앞에서 멈추고 알림 (U9) */
   headless: boolean;
+  /** VS Code 창에 포커스가 없음 (패널은 보이고 웹뷰가 계산) — 이로치 흔적 앞에서도 멈추고 알림 (2026-10-19, 다른 화면을 보는 사이 놓치지 않게). 세이브 · 넘기기에는 안 남음 */
+  away?: boolean;
 }
 
 export interface GameState {
