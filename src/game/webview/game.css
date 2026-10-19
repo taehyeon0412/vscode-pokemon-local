@@ -2667,3 +2667,25 @@ body.pokemon-game-on {
 .pg-ring-text.pg-ring-perfect { color: var(--pg-sos-gold); }
 .pg-ring-text.pg-ring-good { color: var(--pg-sos-hp); }
 .pg-ring-text.pg-ring-none { color: var(--pg-sos-dim); }
+
+/* 밝은 테마 — 숲 그림의 빈칸 (나무 사이) 은 편집기 바탕이 비쳐 밝은 낮 숲 (일반 모드와 같은 그림 · 같은 규칙) · 판 · 띠는 그대로 남색 */
+body.vscode-light .pg-field,
+body.vscode-light .pg-title-body,
+body.vscode-high-contrast-light .pg-field,
+body.vscode-high-contrast-light .pg-title-body {
+  background-color: var(--vscode-editor-background);
+}
+
+/* HP 묶음 글자 = 네 방향 1px 테두리 (예전 한쪽 그림자) — 밝은 테마의 흰 숲 빈칸 · 어두운 나무 위 어디서나 읽히게 */
+.pg-hpblock {
+  text-shadow: 1px 0 0 var(--pg-sos-bar), -1px 0 0 var(--pg-sos-bar), 0 1px 0 var(--pg-sos-bar), 0 -1px 0 var(--pg-sos-bar), 1px 1px 0 var(--pg-sos-bar);
+}
+
+/* 내 포켓몬 칩의 "선두" 표 — 8px 은 안 읽혀서 글자 단계 최소 11px, 칩 위에 띄우면 줄이 잘라서 칩 안 그림 옆 작은 이름표로 */
+.pg-lead {
+  position: static;
+  flex: none;
+  font-size: 11px;
+  line-height: 14px;
+  padding: 0 3px;
+}

@@ -28,6 +28,8 @@
         },
     };
     for (const [k, v] of Object.entries(THEMES[theme] || THEMES.dark)) document.documentElement.style.setProperty(k, v);
+    // VS Code 처럼 body 에 테마 class (밝은 숲 그림 고르기 — StageScreen · TitleScreen 의 themeKind)
+    document.body.classList.add(theme === 'light' ? 'vscode-light' : 'vscode-dark');
 
     const save = {
         version: 1, createdAt: 0, updatedAt: 0, playTimeMs: 754000, player: null,
