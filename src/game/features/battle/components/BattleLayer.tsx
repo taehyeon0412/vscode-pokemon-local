@@ -366,7 +366,7 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
         </div>
       )}
       {!geo.autoInMenu && (
-        <span class="pg-auto" style={{ bottom: `${geo.autoBottom}px` }}>
+        <span class="pg-auto" style={{ left: `${geo.autoLeft}px`, bottom: `${geo.autoBottom}px` }}>
           <AutoButton save={save} onInput={onInput} short={false} />
         </span>
       )}

@@ -21,14 +21,14 @@ import { typeNameKo } from '../../../ui/format';
 import { InfoBar } from '../../../ui/InfoBar';
 import { INFO_BAR_PX, type Layout } from '../../../ui/layout';
 import { BattleLayer, BattleMenuBar } from '../../battle/components/BattleLayer';
-import { battleGeometry, battleSpritePx, foeTrainerX, trainerBattleFoeX } from '../../battle/model';
+import { battleGeometry, battleSpritePx, foeTrainerX, placeOnStage, trainerBattleFoeX } from '../../battle/model';
 import { MenuButtons } from '../../menu/components/MenuButtons';
 import { ShopPanel } from '../../menu/components/ShopPanel';
 import { hasUnspent, type Overlay } from '../../menu/model';
 import { ChoiceBox } from '../../result/components/ChoiceBox';
 import { ResultBox } from '../../result/components/ResultBox';
 import { choiceView } from '../../result/model';
-import { contactX, foeTrainerView, heroX, minimapOf, staffLeftPx, STAGES, stagePx, visibleObjects, WALK_PX_PER_SEC, type StageObject } from '../model';
+import { battleStage, contactX, foeTrainerView, heroX, minimapOf, staffLeftPx, STAGES, stagePx, visibleObjects, WALK_PX_PER_SEC, type StageObject } from '../model';
 import { BadgeCard, ClearCard, DefeatBox, FacilityBox, LobbyBox, TrainerBanner } from './FieldBoxes';
 import { Hero } from './Hero';
 import { Minimap } from './Minimap';
@@ -150,23 +150,29 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen }: 
   const battle = stageRt?.phase === 'battle' ? stageRt.battle : null;
   const choice = choiceView(state);
   const foeTrainer = foeTrainerView(state);
+  // 전투 · 관장 · 라이벌은 무대 안에서 (넓은 패널은 720px 무대 — battleStage), 자리는 무대 안에서 재고 패널 자리로 옮김
+  const stage = battleStage(widthPx);
   const geo = battle
-    ? battleGeometry({
+    ? placeOnStage(
+        battleGeometry({
+          widthPx: stage.width,
+          bodyPx: layout.heightPx - Math.round(INFO_BAR_PX * layout.uiScale),
+          scale: layout.scale,
+          uiScale: layout.uiScale,
+          ground,
+          foeX: battle.kind === 'wild' ? contactX(stage.width, layout.scale) : trainerBattleFoeX(stage.width, layout.scale, battleSpritePx(battle.foe.form, layout.scale, layout.heightPx)),
+          meSpritePx: battleSpritePx(battle.me.form, layout.scale, layout.heightPx),
+          foeSpritePx: battleSpritePx(battle.foe.form, layout.scale, layout.heightPx),
+          heroPx: heroH,
+          heroWidthPx: heroW,
+        }),
+        stage,
         widthPx,
-        bodyPx: layout.heightPx - Math.round(INFO_BAR_PX * layout.uiScale),
-        scale: layout.scale,
-        uiScale: layout.uiScale,
-        ground,
-        foeX: battle.kind === 'wild' ? contactX(widthPx, layout.scale) : trainerBattleFoeX(widthPx, layout.scale, battleSpritePx(battle.foe.form, layout.scale, layout.heightPx)),
-        meSpritePx: battleSpritePx(battle.me.form, layout.scale, layout.heightPx),
-        foeSpritePx: battleSpritePx(battle.foe.form, layout.scale, layout.heightPx),
-        heroPx: heroH,
-        heroWidthPx: heroW,
-      })
+      )
     : null;
   const art = (layer: 'background' | 'foreground') => (media && !gym ? `url("${media}/backgrounds/forest/${layer}-${themeKind()}-${layout.size}.png")` : 'none');
-  // 체육관: 주인공은 왼쪽 (대기실) · 관장은 오른쪽 끝
-  const heroLeft = geo ? geo.trainerX : gym ? Math.round(widthPx * 0.18) : hero;
+  // 체육관: 주인공은 무대 왼쪽 (대기실) · 관장은 무대 오른쪽 끝
+  const heroLeft = geo ? geo.trainerX : gym ? stage.left + Math.round(stage.width * 0.18) : hero;
   // 큰 주인공이 위쪽 띠 (트레이너 · 만남 · 병원 상자, 위 3px + 한 줄) 자리까지 올라오면 띠를 주인공 오른쪽 옆으로 — 옆자리가 넉넉할 때만
   //   병원 · 상점 앞 · 안이면 간호순 · 점원 오른쪽 옆으로 ("간호순:" 이 말하는데 띠에 가려지지 않게 — 아트 디렉터)
   const facility = objects.find((o): o is Extract<StageObject, { kind: 'facility' }> => o.kind === 'facility' && o.active);
@@ -177,7 +183,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen }: 
   const leader = personLook(GYM_LEADER.look);
   const leaderW = leader ? heroWidthPx(leader, layout.scale, heroRoom) : 20 * layout.scale;
   // 이름표 (9px 글자, 관장 그림 오른쪽 끝 + 4px 에 붙음 — game.css .pg-foe-trainer .pg-nametag) 의 왼쪽 끝 어림
-  const leaderX = foeTrainerX(widthPx, layout.scale);
+  // 상대 트레이너 · 관장 · 라이벌 = 무대 오른쪽 끝
+  const leaderX = stage.left + foeTrainerX(stage.width, layout.scale);
   const tagLeft = leaderX + leaderW / 2 + 4 - (GYM_LEADER.name.length * 9 + 6) * layout.uiScale;
   const bannerRight = gym ? Math.min(leaderX - leaderW / 2, tagLeft) - 8 : widthPx - 8;
   const heroTall = !battle && bodyPx - ground - heroH < 3 + Math.round(BANNER_PX * layout.uiScale) && bannerRight - bannerLeft >= BANNER_SIDE_MIN_PX;
@@ -226,7 +233,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen }: 
         </span>
         {/* 전투 중 상대 트레이너 · 관장 = 오른쪽 끝 (남은 볼) · 대기실의 관장 */}
         {((battle && foeTrainer) || (gym && !battle) || (stageRt?.phase === 'rival' && foeTrainer)) && (
-          <span class="pg-obj pg-foe-trainer" style={{ left: `${foeTrainerX(widthPx, layout.scale)}px`, bottom: `${ground}px` }} title={foeTrainer?.name ?? GYM_LEADER.name}>
+          <span class="pg-obj pg-foe-trainer" style={{ left: `${leaderX}px`, bottom: `${ground}px` }} title={foeTrainer?.name ?? GYM_LEADER.name}>
             {/* 머리 위 이름표 (decisions 2026-10-17) · 라이벌이 막 나타난 때는 "!" (gdd 4.12) */}
             {stageRt?.phase === 'rival' && !foeTrainer?.talking ? <span class="pg-trainer-mark">!</span> : <span class="pg-nametag">{foeTrainer?.name ?? GYM_LEADER.name}</span>}
             {foeTrainer && stageRt?.phase !== 'rival' && (

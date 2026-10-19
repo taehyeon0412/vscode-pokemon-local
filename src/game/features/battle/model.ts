@@ -201,6 +201,8 @@ const MENU_PX = 19;
 /** HP 묶음 최소 너비 (이름 4 ~ 5글자 + Lv + 바) */
 const HP_WIDE_MIN_PX = 80;
 const AUTO_PX = 16;
+/** 자동 전투 스위치 왼쪽 끝 (무대 왼쪽 끝에서) */
+const AUTO_LEFT_PX = 4;
 /** 자동 전투 스위치 대략 너비 (🔁 자동 OFF) */
 const AUTO_EST_PX = 78;
 /** 지금 한 줄 · 힘대결 안내 높이 */
@@ -253,6 +255,7 @@ export interface BattleGeometry {
   /** 자동 전투 스위치 — 트레이너 머리 위에 안 들어가면 메뉴 줄 맨 앞 */
   autoInMenu: boolean;
   autoBottom: number;
+  autoLeft: number;
   /** 좁은 패널 — 메뉴를 짧게 */
   compact: boolean;
   /** 지금 한 줄 · 힘대결 안내: 위 가운데가 HP 바와 겹치면 상대 오른쪽 (null = 위 가운데) */
@@ -322,7 +325,7 @@ export function battleGeometry(g: GeometryInput): BattleGeometry {
   const autoBottom = g.ground + g.heroPx + 2;
   // 트레이너 머리 위에 자리가 없거나, 내 HP 묶음과 겹치면 (좁은 패널) 메뉴 줄 맨 앞으로
   const autoTop = autoBottom + Math.round(AUTO_PX * u);
-  const hitsMyHp = meHpX - meHpWide / 2 < 4 + AUTO_EST_PX * u && autoBottom < meHpBottom + hpBlockPx && autoTop > meHpBottom;
+  const hitsMyHp = meHpX - meHpWide / 2 < AUTO_LEFT_PX + AUTO_EST_PX * u && autoBottom < meHpBottom + hpBlockPx && autoTop > meHpBottom;
   const autoInMenu = autoTop > g.bodyPx || hitsMyHp;
   // 위 가운데 한 줄이 HP 바 · 메뉴 줄과 겹치는지 — 겹치면 상대 오른쪽 빈 곳에 (자리가 있으면)
   // 옆 메뉴는 위 가운데를 차지하지 않음 (내 포켓몬 오른쪽 세로 목록)
@@ -343,7 +346,30 @@ export function battleGeometry(g: GeometryInput): BattleGeometry {
   const msgSide = !menuSide && topBusy && sideRoom >= MSG_SIDE_MIN_PX ? { left: sideLeft, maxWidth: sideRoom } : null;
   // 둘 곳이 없으면 (좁고 낮은 패널) 한 줄은 숨김 — HP 바가 더 중요, 내 차례는 메뉴 테두리로 보임
   const msgHidden = menuSide ? !msgRight : topBusy && !msgSide;
-  return { trainerX, meX, foeX: Math.round(g.foeX), meSpritePx: g.meSpritePx, foeSpritePx: g.foeSpritePx, meHpWide, foeHpWide, meHpX, foeHpX, msgHidden, meHpBottom, foeHpBottom, hpBlockPx, menuInBar, menuBottom, menuLeft, autoInMenu, autoBottom, compact, msgSide, menuSide, msgRight };
+  return { trainerX, meX, foeX: Math.round(g.foeX), meSpritePx: g.meSpritePx, foeSpritePx: g.foeSpritePx, meHpWide, foeHpWide, meHpX, foeHpX, msgHidden, meHpBottom, foeHpBottom, hpBlockPx, menuInBar, menuBottom, menuLeft, autoInMenu, autoBottom, autoLeft: AUTO_LEFT_PX, compact, msgSide, menuSide, msgRight };
+}
+
+/**
+ * 무대 (stage/model.ts battleStage) 안에서 잰 자리를 패널 자리로 — x 만 무대 왼쪽 끝만큼 옮김.
+ * 오른쪽 끝에서 잰 한 줄 말 (msgRight) 은 무대 오른쪽 밖 너비만큼 더함. 높이 · 너비는 그대로
+ */
+export function placeOnStage(geo: BattleGeometry, stage: { left: number; width: number }, widthPx: number): BattleGeometry {
+  const dx = stage.left;
+  const rightGap = widthPx - stage.left - stage.width;
+  if (dx === 0 && rightGap === 0) return geo;
+  return {
+    ...geo,
+    trainerX: geo.trainerX + dx,
+    meX: geo.meX + dx,
+    foeX: geo.foeX + dx,
+    meHpX: geo.meHpX + dx,
+    foeHpX: geo.foeHpX + dx,
+    menuLeft: geo.menuLeft + dx,
+    autoLeft: geo.autoLeft + dx,
+    msgSide: geo.msgSide && { ...geo.msgSide, left: geo.msgSide.left + dx },
+    menuSide: geo.menuSide && { ...geo.menuSide, left: geo.menuSide.left + dx },
+    msgRight: geo.msgRight && { ...geo.msgRight, right: geo.msgRight.right + rightGap },
+  };
 }
 
 /** 화면 다시 그릴지 보는 열쇠 — 게이지는 1% 단위, 연출 · 힘대결은 진행 중이면 매번 (고르는 중 · 결과에서는 안 바뀜) */

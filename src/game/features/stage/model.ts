@@ -209,6 +209,21 @@ export function contactX(widthPx: number, scale: number): number {
   return heroX(widthPx) + CONTACT_PX * scale;
 }
 
+/**
+ * 넓은 패널의 전투 무대 너비 — 패널이 이보다 넓으면 이 너비 안에서 싸움 (2026-10-19 리드 · 태현 님 "세세한 부분은 알아서 조정":
+ * 1858px 패널에서 두 포켓몬이 565px · 트레이너끼리 1800px 떨어져 연출 · 눈이 화면을 가로지르던 것. 720 = 디자인 기준 화면 너비)
+ */
+export const BATTLE_STAGE_MAX_PX = 720;
+
+/**
+ * 전투 무대 (패널 안 왼쪽 끝 · 너비) — 무대 안 주인공 자리 비율이 걷던 자리 (heroX) 와 같게 놓음
+ * → 야생은 튀어나온 자리 그대로 (contactX), 트레이너 · 상대 트레이너 · 관장은 무대 양 끝 (gdd S09 "양 끝" = 무대 기준). 좁은 패널은 패널 전체
+ */
+export function battleStage(widthPx: number): { left: number; width: number } {
+  const width = Math.min(widthPx, BATTLE_STAGE_MAX_PX);
+  return { left: heroX(widthPx) - heroX(width), width };
+}
+
 /** 미니맵 (S06 ②): 진행 % · 병원 · 상점 · 체육관 자리 */
 export function minimapOf(state: GameState): { progress: number; facilities: readonly FacilitySpot[]; gym: boolean } | null {
   const save = state.save;

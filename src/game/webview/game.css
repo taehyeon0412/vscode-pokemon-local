@@ -1195,8 +1195,8 @@ body.pokemon-game-on {
 
 /* ⑫ 자동 전투 스위치 — 트레이너 머리 위 (트레이너가 왼쪽 끝이라 패널 왼쪽에 맞춤, 잘리지 않게) */
 .pg-auto {
+  /* 왼쪽 끝은 battleGeometry autoLeft (무대 왼쪽 끝 + 4px — 넓은 패널은 무대가 가운데쯤) */
   position: absolute;
-  left: 4px;
   z-index: 5;
 }
 .pg-auto .pg-button {

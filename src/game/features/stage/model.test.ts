@@ -5,7 +5,7 @@ import { createGameState, type GameState } from '../../core/engine';
 import { stageLayout } from '../../core/rules/stage';
 import { STAGE_IDS } from '../../core/save';
 import { summaryLines } from '../result/model';
-import { CONTACT_PX, foeTrainerView, heroX, minimapOf, rivalTag, STAGES, stageLabel, stagePx, visibleObjects, WALK_PX_PER_SEC } from './model';
+import { BATTLE_STAGE_MAX_PX, battleStage, CONTACT_PX, contactX, foeTrainerView, heroX, minimapOf, rivalTag, STAGES, stageLabel, stagePx, visibleObjects, WALK_PX_PER_SEC } from './model';
 
 function at(progress: number, stage: GameState['runtime']['stage'] = { phase: 'walk' }): GameState {
   const s = createGameState(sampleSave({ stages: { 'forest-1': { seed: 42, progress, cleared: false, defeatedTrainers: [], facilities: [], run: { startMs: 0, caught: 0, trainers: 0, seen: [], reach: 0, retries: 0 } } } }), 1);
@@ -114,5 +114,27 @@ describe('라이벌 (gdd 4.12) — 띠 · 결과 보이기', () => {
     const lines = summaryLines({ title: '라이벌 레드와의 승부에서 이겼다!', exp: [{ uid: 'm1', name: '이상해씨', gain: 64, from: 5, to: 6 }], money: 180, item: '불꽃의돌', caught: null, learned: [], choices: 0, badge: null, quote: '레드: 다음엔 꼭 이길 거야! (전적 1승 0패)', rival: true });
     expect(lines.head).toEqual(['라이벌 레드와의 승부에서 이겼다!', '💰 +180원', '🎁 불꽃의돌']);
     expect(lines.body).toEqual(['⬆ 이상해씨 Lv 5 → 6 (+64 EXP)', '💬 레드: 다음엔 꼭 이길 거야! (전적 1승 0패)']);
+  });
+});
+
+describe('전투 무대 (battleStage, 2026-10-19)', () => {
+  it('무대보다 좁거나 같은 패널은 패널 전체', () => {
+    expect(battleStage(360)).toEqual({ left: 0, width: 360 });
+    expect(battleStage(BATTLE_STAGE_MAX_PX)).toEqual({ left: 0, width: BATTLE_STAGE_MAX_PX });
+  });
+
+  it('넓은 패널은 720 무대 — 무대 안 주인공 자리가 걷던 자리와 같은 비율 (1858 → 512 ~ 1232)', () => {
+    const s = battleStage(1858);
+    expect(s).toEqual({ left: heroX(1858) - heroX(720), width: 720 });
+    expect(s.left).toBe(512);
+  });
+
+  it('야생은 튀어나온 자리 그대로 싸움 (무대 안 만난 자리 + 무대 왼쪽 끝 = 패널의 만난 자리)', () => {
+    for (const w of [800, 1200, 1858]) {
+      for (const scale of [1, 2, 2.5]) {
+        const s = battleStage(w);
+        expect(s.left + contactX(s.width, scale)).toBe(contactX(w, scale));
+      }
+    }
   });
 });

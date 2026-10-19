@@ -5,7 +5,7 @@ import { battleStep, startBattle, type BattleState } from '../../core/engine/bat
 import { Rng } from '../../core/engine/rng';
 import { counterMove, isShooting } from '../../core/rules/battle';
 import { allForms, allMoves, formOf, moveOf } from '../../data';
-import { battleGeometry, battleSpritePx, battleViewKey, duelKind, hpColor, menuItems, type DuelKind } from './model';
+import { battleGeometry, battleSpritePx, battleViewKey, duelKind, hpColor, menuItems, placeOnStage, type DuelKind } from './model';
 
 const wild = sampleMonster({ uid: 'wild', species: 4, form: 'charmander', level: 5, moves: [{ moveId: 52, pp: 25 }], hp: 999 });
 const save = sampleSave();
@@ -234,5 +234,29 @@ describe('좁은 패널 자리 (테스터)', () => {
   it('자동 스위치가 내 HP 묶음을 가리면 메뉴 줄 앞으로', () => {
     expect(at(240, 200, 2, 1.3).autoInMenu).toBe(true);
     expect(at(720, 200, 2, 1.3).autoInMenu).toBe(false);
+  });
+});
+
+describe('넓은 패널 전투 무대 (placeOnStage, 2026-10-19)', () => {
+  // 720 무대에서 잰 자리 (야생 = 무대 안 만난 자리 324 + 80)
+  const inStage = battleGeometry({ widthPx: 720, bodyPx: 212 - 26, scale: 2, uiScale: 1.3, ground: 23, foeX: 404, meSpritePx: 64, foeSpritePx: 64, heroPx: 40, heroWidthPx: 32 });
+
+  it('무대 = 패널 (좁은 패널) 이면 그대로', () => {
+    expect(placeOnStage(inStage, { left: 0, width: 720 }, 720)).toBe(inStage);
+  });
+
+  it('넓은 패널은 x 만 무대 왼쪽 끝만큼 옮기고, 오른쪽에서 잰 한 줄 말은 무대 오른쪽 밖만큼 더함', () => {
+    const g = placeOnStage(inStage, { left: 512, width: 720 }, 1858);
+    expect([g.trainerX, g.meX, g.foeX, g.meHpX, g.foeHpX, g.autoLeft]).toEqual([inStage.trainerX, inStage.meX, inStage.foeX, inStage.meHpX, inStage.foeHpX, inStage.autoLeft].map((x) => x + 512));
+    expect(g.menuSide?.left).toBe((inStage.menuSide?.left ?? 0) + 512);
+    expect(g.msgRight?.right).toBe((inStage.msgRight?.right ?? 0) + (1858 - 512 - 720));
+    expect([g.meHpBottom, g.foeHpBottom, g.menuSide?.top]).toEqual([inStage.meHpBottom, inStage.foeHpBottom, inStage.menuSide?.top]);
+  });
+
+  it('두 포켓몬 사이 · 트레이너와 내 포켓몬 사이가 720 화면과 같음 (1858 패널에서 565px 떨어지던 것)', () => {
+    const g = placeOnStage(inStage, { left: 512, width: 720 }, 1858);
+    expect(g.foeX - g.meX).toBe(inStage.foeX - inStage.meX);
+    expect(g.foeX - g.meX).toBeLessThan(260);
+    expect(g.meX - g.trainerX).toBeLessThan(200);
   });
 });
