@@ -11315,6 +11315,755 @@
         });
     }
 
+    // 가리비 칼 (수댕이 · 쌍검자비) — (x, y) 가운데, 반지름 r, spin 으로 납작해지며 돎 (크림색 · 골)
+    const ST_SHELLC = ['#ffffff', '#fff2c8', '#e0c27a', '#8a6a34'];
+    function stScalchop(ctx, px, s, x, y, r, spin, alpha = 1) {
+        const sq = Math.max(0.25, Math.abs(Math.cos(spin)));
+        ellipse(ctx, px, s, x, y, r * sq + s, r * 0.85 + s, ST_SHELLC[3], alpha);
+        ellipse(ctx, px, s, x, y, r * sq, r * 0.85, ST_SHELLC[2], alpha);
+        ellipse(ctx, px, s, x, y - r * 0.1, r * sq * 0.7, r * 0.6, ST_SHELLC[1], alpha);
+        const path = new Path2D();
+        for (let j = -2; j <= 2; j++) {
+            for (let d = 0; d < r * 0.75; d += s) {
+                path.rect(px(x + j * r * 0.18 * sq * (d / (r * 0.75))), px(y + r * 0.6 - d), s, s);
+            }
+        }
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = ST_SHELLC[3];
+        ctx.fill(path);
+    }
+
+    // ═════ 주리비얀 — 그래스믹서 (ultvortex) ═════
+    // 꼬리를 휘휘 돌리자 상대 발밑에 낮고 넓은 잎 회오리(겹겹이 도는 잎 고리)가 생겨 점점 조여 들며 빙글 → 잎이 하늘로 풀려 올라가
+    // 긴 잎 리본 여러 줄로 너울너울 · 주리비얀은 새침하게 고개를 홱 돌리며 반짝 (약 4.6초)
+    UNIQ.snivy = { fx: 'ultvortex', ms: (P) => 4600 + 200 * P, run: runSnivyMixer };
+    function runSnivyMixer(u, o, ms, pokemon) {
+        const P = strength(u);
+        const sec = ms / 1000;
+        const { W, H, S: s, dir } = u;
+        const G = u.ground;
+        const hit = makeHit();
+        const me = monBox(pokemon);
+        const VC = K.pal.VINE;
+        const TW = 0.4;
+        const TTIGHT = 1.8;
+        const TREL = 2.6;
+        const TSASS = TREL + 0.3;
+        const q = nearest(u);
+        const tx = clamp(q ? q.x : me.x + dir * Math.min(W * 0.4, me.w * 5 + 40), W * 0.12, W * 0.88);
+        const R0 = Math.max(me.w * 1.8, W * 0.14);
+        const NLF = 36;
+        const lf = [];
+        for (let i = 0; i < NLF; i++) {
+            lf.push({ ring: i % 4, ph: hash(i, 161) * TAU, t0: TW + hash(i, 162) * 0.6 });
+        }
+        const sc = scene(u, sec + 0.3, 'uniq snivy');
+        ultDark(0.3, ms - 200);
+        // 잎 회오리 — 땅 가까이 납작한 고리 넷, 조여 들고 마지막에 위로 풀림
+        const drawRing = (front) => (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life < TW || life > TREL + 0.6) {
+                return;
+            }
+            const tight = 1 - 0.45 * easeIn(clamp((life - TTIGHT + 0.6) / 0.6, 0, 1));
+            const rel = clamp((life - TREL) / 0.6, 0, 1);
+            const list = [];
+            for (const l of lf) {
+                const k = clamp((life - l.t0) / 0.3, 0, 1);
+                if (k <= 0) {
+                    continue;
+                }
+                const a = l.ph + life * (5 + l.ring) * dir;
+                if ((Math.sin(a) > 0) !== front) {
+                    continue;
+                }
+                const R = R0 * (0.45 + 0.18 * l.ring) * tight * (1 + rel * 0.5);
+                const y = G - s * 2 - l.ring * me.h * 0.28 - rel * H * 0.5 * (0.5 + l.ring * 0.2);
+                list.push({ x: tx + Math.cos(a) * R * k, y: y + Math.sin(a) * R * 0.18, len: Math.max(4 * s, me.w * 0.3), ang: a + Math.PI / 2 * dir });
+            }
+            stLeaves(ctx, px, s, list, VC, (front ? 1 : 0.6) * (1 - rel));
+        };
+        sc.add({ max: sec, draw: drawRing(false) });
+        // 바람 줄 — 회오리를 감는 하얀 선
+        sc.add({ max: TREL + 0.3, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            const k = clamp((life - TW) / 0.4, 0, 1) * clamp(1 - (life - TREL) / 0.3, 0, 1);
+            if (k <= 0.01) {
+                return;
+            }
+            const tight = 1 - 0.45 * easeIn(clamp((life - TTIGHT + 0.6) / 0.6, 0, 1));
+            for (let j = 0; j < 3; j++) {
+                K.swirlRing(ctx, px, s, tx, G - s * 2 - j * me.h * 0.35, R0 * (0.5 + j * 0.2) * tight, 0.18, life * (1.5 + j * 0.3), dir, ['#ffffff', VC[0]], 0.5 * k);
+            }
+        } });
+        // 주리비얀 — 꼬리 휘휘, 끝에 새침하게 고개를 홱
+        puppet(sc, pokemon, u, () => me.b, VC[2], sec - 0.1, {
+            rot: (t) => (t < TREL ? Math.sin(t * 10) * 0.08 : 0),
+            scale: (t) => (t > TSASS ? 0.001 : 1),
+            glow: () => 0.06,
+            glowColor: '#ffffff',
+        });
+        sc.add({ max: sec, draw: drawRing(true) });
+        // 고개를 홱 — 원래 보던 쪽 반대로 (그림을 뒤집어 한 번 더 그림)
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life < TSASS || life > sec - 0.12) {
+                return;
+            }
+            drawLitMon(ctx, pokemon.el, me.x, me.b, me.w, dir > 0, VC[2], Math.max(1, Math.round(u.s * 0.75)), 1, -dir * 0.12);
+            const k = (life - TSASS) / 0.4;
+            if (k < 1) {
+                glint(ctx, px, s, me.x - dir * me.w * 0.25, me.b - me.h * 0.8, me.w * 0.5 * Math.sin(k * Math.PI), 1);
+            }
+        } });
+        // 잎 리본 — 풀려 올라간 잎이 긴 리본 다섯 줄로 너울너울
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            const k = (life - TREL) / (sec - TREL);
+            if (k <= 0) {
+                return;
+            }
+            const a = clamp(k * 4, 0, 1) * clamp((sec - 0.1 - life) / 0.5, 0, 1);
+            for (let j = 0; j < 5; j++) {
+                const list = [];
+                const x0 = tx + (j - 2) * R0 * 0.35;
+                const top = G - H * (0.25 + 0.5 * easeOut(clamp(k * 1.6, 0, 1))) * (0.8 + 0.2 * hash(j, 171));
+                for (let i = 0; i < 10; i++) {
+                    const f = i / 9;
+                    const y = lerp(G - me.h * 0.6, top, f);
+                    const x = x0 + Math.sin(f * 5 + life * 4 + j) * R0 * 0.18 * f;
+                    list.push({ x, y, len: Math.max(4 * s, me.w * 0.3), ang: -Math.PI / 2 + Math.cos(f * 5 + life * 4 + j) * 0.8 });
+                }
+                stLeaves(ctx, px, s, list, VC, a * (j % 2 ? 0.85 : 1));
+            }
+        } });
+        sc.at(TW, () => {
+            ring(sc, tx, G - s, me.w * 0.3, R0, 0.2, 0.4, ['#ffffff', VC[1]], 2);
+            if (q) {
+                hit(where(u, q), dir, 'spin', 0);
+            }
+        });
+        sc.at(TTIGHT, () => {
+            ultShake(3 + P, 300);
+            for (const r of u.others()) {
+                if (Math.abs(r.x - tx) < R0) {
+                    hit(r, Math.sign(r.x - tx) || dir, 'spin');
+                }
+            }
+        });
+        sc.at(TREL, () => {
+            impactFrames(sc, W, H, 0.4, 0.25);
+            ring(sc, tx, G - me.h, R0 * 0.3, R0 * 1.6, 0.5, 0.45, ['#ffffff', VC[0], VC[1]], 2);
+            ultShake(3, 250);
+            if (q) {
+                hit(where(u, q), dir, 'tumble', 0);
+            }
+        });
+        sc.at(TSASS, () => sparkles(me.x, me.b - me.h * 0.8, s, ['#ffffff', VC[0]], 8, me.w * 0.4, 12));
+    }
+
+    // ═════ 샤비 — 리프블레이드 (ultbarrage) ═════
+    // 몸을 둥글게 말자 둘레에 잎 칼날이 돋아 둥근 톱날로 윙윙 → 땅을 긁으며 화면을 가로질러 상대를 베고 지나감(지나간 자리에 밝은 초록 줄)
+    // → 화면 끝에서 멈춰 펼침 · 초록 줄이 번쩍 빛나며 천천히 사라짐(줄 위의 애 벌러덩) → 폴짝폴짝 제자리 (약 5.6초)
+    UNIQ.servine = { fx: 'ultbarrage', ms: (P) => 5600 + 200 * P, run: runServineSaw };
+    function runServineSaw(u, o, ms, pokemon) {
+        const P = strength(u);
+        const sec = ms / 1000;
+        const { W, H, S: s, dir } = u;
+        const G = u.ground;
+        const hit = makeHit();
+        const me = monBox(pokemon);
+        const VC = K.pal.VINE;
+        const q = nearest(u);
+        const dd = q ? Math.sign(q.x - me.x) || dir : dir;
+        const end = clamp(me.x + dd * W, me.w * 0.6, W - me.w * 0.6);
+        const R = Math.max(me.w * 0.55, 7 * s);
+        const TCURL = 0.3;
+        const TGO = 1.3;
+        const TSTOP = TGO + 0.75;
+        const TFLASH = TSTOP + 0.35;
+        const TBACK = TFLASH + 1.0;
+        const THOME = TBACK + 0.8;
+        const xAt = (t) => (t < TGO ? me.x : t < TSTOP ? lerp(me.x, end, easeIn((t - TGO) / (TSTOP - TGO))) : t < TBACK ? end : lerp(end, me.x, clamp((t - TBACK) / (THOME - TBACK), 0, 1)));
+        const footAt = (t) => (t > TBACK && t < THOME ? me.b - Math.abs(Math.sin(((t - TBACK) / (THOME - TBACK)) * Math.PI * 2)) * me.h * 0.5 : me.b);
+        const saw = (t) => t > TCURL + 0.15 && t < TSTOP + 0.1;
+        let spin = 0;
+        let lastT = 0;
+        const sc = scene(u, sec + 0.3, 'uniq servine');
+        ultDark(0.36, ms - 200);
+        sc.tick((t) => {
+            spin += (t - lastT) * (saw(t) ? 26 : 0) * dd;
+            lastT = t;
+        });
+        // 땅에 남는 초록 줄 — 지나가며 그어지고, 멈추면 번쩍 · 천천히 사라짐
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life < TGO) {
+                return;
+            }
+            const x = xAt(Math.min(life, TSTOP));
+            const flash = life > TFLASH ? Math.max(0, 1 - (life - TFLASH) / 0.25) : 0;
+            const a = life > TFLASH ? clamp(1 - (life - TFLASH) / 1.6, 0, 1) : 1;
+            const th = (2 + Math.round(flash * 4)) * s;
+            const y = G - R * 0.9;
+            ctx.globalAlpha = a;
+            ctx.fillStyle = VC[3];
+            ctx.fillRect(px(Math.min(me.x, x)), px(y - th / 2 - s), Math.abs(x - me.x), th + 2 * s);
+            ctx.fillStyle = flash > 0 ? '#ffffff' : VC[1];
+            ctx.fillRect(px(Math.min(me.x, x)), px(y - th / 2), Math.abs(x - me.x), th);
+            ctx.fillStyle = VC[0];
+            ctx.fillRect(px(Math.min(me.x, x)), px(y - s * 0.5), Math.abs(x - me.x), s);
+        } });
+        // 둥근 톱날 — 잎 칼날 여덟이 둘레에서 돎
+        sc.add({ max: TSTOP + 0.15, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (!saw(life)) {
+                return;
+            }
+            const k = clamp((life - TCURL - 0.15) / 0.25, 0, 1);
+            const x = xAt(life);
+            const y = G - R;
+            const list = [];
+            for (let i = 0; i < 8; i++) {
+                const a = spin + (i * TAU) / 8;
+                list.push({ x: x + Math.cos(a) * R * 1.15 * k, y: y + Math.sin(a) * R * 1.15 * k, len: R * 0.9, ang: a + Math.PI / 2 * dd });
+            }
+            stLeaves(ctx, px, s, list, VC, k);
+            K.ringDots(ctx, px, s, x, y, R * 0.95, 1, ['#ffffff', VC[1]], 0.6 * k, 1);
+        } });
+        puppet(sc, pokemon, u, (t) => (saw(t) ? G - R + me.h * 0.3 : footAt(t)), VC[2], sec - 0.1, {
+            x: xAt,
+            rot: (t) => (saw(t) ? spin : 0),
+            scale: (t) => (saw(t) ? 0.7 : 1),
+            glow: (t) => (saw(t) ? 0.25 : t > TFLASH && t < TFLASH + 0.3 ? 0.4 : 0.05),
+            glowColor: VC[0],
+        });
+        // 긁히는 땅 불티 · 잎
+        let grind = 0;
+        sc.tick((t, dt) => {
+            if (t < TGO || t > TSTOP) {
+                return;
+            }
+            grind += dt * 50;
+            while (grind >= 1 && room(1)) {
+                grind -= 1;
+                const x = xAt(t);
+                fireBits(x - dd * R * 0.5, G - s * 2, s, ['#ffffff', VC[0], VC[1]], 1, { angle: dd > 0 ? -Math.PI * 0.85 : -Math.PI * 0.15, spread: 0.6, speed: H * 0.5, g: H, life: 0.4 });
+            }
+            for (const r of u.others()) {
+                if (Math.abs(r.x - xAt(t)) < R * 1.2) {
+                    hit(r, dd, 'shake');
+                }
+            }
+        });
+        sc.at(TCURL, () => {
+            ring(sc, me.x, G - R, s * 2, me.w * 1.4, 0.8, 0.3, ['#ffffff', VC[1]], 2);
+            sparkles(me.x, G - R, s, ['#ffffff', VC[0]], 6, me.w * 0.4, 10);
+        });
+        sc.at(TGO, () => {
+            K.puff(me.x - dd * me.w * 0.4, G - s, s, '#8a7252', s * 2, me.w * 0.6, 0.4, -dd * 30, -10, 0.45);
+            ultShake(2, 150);
+        });
+        sc.at(TFLASH, () => {
+            impactFrames(sc, W, H, 0.5, 0.35);
+            ultShake(5 + 2 * P, 450);
+            for (const r of u.others()) {
+                if (Math.sign(r.x - me.x) === dd && Math.abs(r.x - me.x) <= Math.abs(end - me.x) + R) {
+                    hit(r, dd, 'tumble', 0);
+                    fireBits(r.x, G - R, s, [VC[0], VC[1], '#ffffff'], 10, { speed: H * 0.5, life: 0.5 });
+                }
+            }
+        });
+        let leafy = 0;
+        sc.tick((t, dt) => {
+            if (t < TFLASH || t > TFLASH + 1.2) {
+                return;
+            }
+            leafy += dt * 20;
+            while (leafy >= 1 && room(1)) {
+                leafy -= 1;
+                const x = lerp(me.x, end, Math.random());
+                sparkles(x, G - R, s, ['#ffffff', VC[0], VC[1]], 1, s * 2, 25);
+            }
+        });
+    }
+
+    // ═════ 뚜꾸리 — 회오리불꽃 (ultvortex) ═════
+    // 콧구멍에서 연기를 푹푹 → 입김처럼 불을 뿜자 불길이 상대 둘레를 빙빙 감아 불의 고리 소용돌이에 가둠(고리가 겹겹이 돎)
+    // → 고리가 꽉 조여 들며 번쩍 — 펑 하고 커다란 잿빛 연기 구름이 피어오르고 상대가 콜록이며 벌러덩 (약 4.6초)
+    UNIQ.tepig = { fx: 'ultvortex', ms: (P) => 4600 + 200 * P, run: runTepigSpin };
+    function runTepigSpin(u, o, ms, pokemon) {
+        const P = strength(u);
+        const sec = ms / 1000;
+        const { W, H, S: s, dir } = u;
+        const G = u.ground;
+        const hit = makeHit();
+        const me = monBox(pokemon);
+        const F = ST_FIRE;
+        const mx = u.mouth.x;
+        const my = u.mouth.y;
+        const TSN = [0.25, 0.55, 0.85];
+        const TBR = 1.1;
+        const TWRAP = TBR + 0.5;
+        const TTIGHT = TWRAP + 1.2;
+        const TPOOF = TTIGHT + 0.35;
+        const q = nearest(u);
+        const tx = clamp(q ? q.x : me.x + dir * Math.min(W * 0.35, me.w * 5 + 30), W * 0.1, W * 0.9);
+        const ty = q ? q.y : G - me.h * 0.5;
+        const RR = Math.max(me.w * 1.1, 14 * s);
+        const sc = scene(u, sec + 0.3, 'uniq tepig');
+        ultDark(0.33, ms - 200);
+        // 불의 고리 소용돌이 — 뒤쪽 반 / 앞쪽 반
+        const rings = (front) => (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life < TWRAP - 0.2 || life > TPOOF + 0.05) {
+                return;
+            }
+            const grow = easeOut(clamp((life - TWRAP + 0.2) / 0.4, 0, 1));
+            const tight = 1 - 0.55 * easeIn(clamp((life - TTIGHT + 0.5) / 0.5, 0, 1));
+            for (let j = 0; j < 4; j++) {
+                const yy = ty + (j - 1.5) * me.h * 0.35;
+                const R = RR * (1 - Math.abs(j - 1.5) * 0.12) * tight * grow;
+                const n = 12;
+                for (let i = 0; i < n; i++) {
+                    const a = (i / n) * TAU + life * (7 + j) * (j % 2 ? -dir : dir);
+                    if ((Math.sin(a) > 0) !== front) {
+                        continue;
+                    }
+                    const x = tx + Math.cos(a) * R;
+                    const y = yy + Math.sin(a) * R * 0.28;
+                    const ux = -Math.sin(a) * (j % 2 ? -dir : dir);
+                    K.fireTail(ctx, px, s, x, y, ux, 0, R * 0.7, Math.max(2 * s, R * 0.22), F, life + i + j, front ? 1 : 0.7);
+                }
+            }
+        };
+        sc.add({ max: sec, draw: rings(false) });
+        puppet(sc, pokemon, u, (t) => me.b - (TSN.some((ts) => t > ts - 0.05 && t < ts + 0.05) ? s : 0), F[2], sec - 0.1, { glow: (t) => (t > TBR && t < TWRAP + 0.3 ? 0.3 : 0.06), glowColor: F[1] });
+        sc.add({ max: sec, draw: rings(true) });
+        // 입에서 뿜는 불길 — 상대에게 닿아 감기기 시작
+        sc.add({ max: TWRAP + 0.4, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            const k = (life - TBR) / (TWRAP + 0.3 - TBR);
+            if (k <= 0 || k >= 1) {
+                return;
+            }
+            const reach = easeOut(Math.min(1, k * 1.8));
+            const cut = Math.max(0, (k - 0.6) / 0.4);
+            const L = Math.abs(tx - mx) * reach;
+            const ux = Math.sign(tx - mx) || dir;
+            const uy = (ty - my) / Math.max(1, Math.abs(tx - mx));
+            const n = Math.hypot(1, uy);
+            K.fireTail(ctx, px, s, mx + ux * L, my + uy * L, ux / n, uy / n, L * (1 - cut), Math.max(me.h * 0.5, 6 * s), F, life, 1 - cut);
+        } });
+        TSN.forEach((ts) => sc.at(ts, () => {
+            K.puff(mx, my, s, '#6e6470', s, me.w * 0.3, 0.6, dir * 25, -15, 0.55);
+            K.puff(mx, my + s * 2, s, '#6e6470', s, me.w * 0.25, 0.5, dir * 15, -25, 0.45);
+            fireBits(mx, my, s, F, 3, { angle: dir > 0 ? 0 : Math.PI, spread: 0.6, speed: H * 0.2, life: 0.3 });
+        }));
+        sc.at(TBR, () => {
+            ring(sc, mx, my, s * 2, me.w, 0.9, 0.25, ['#ffffff', F[1]], 2);
+            ultShake(2, 150);
+        });
+        sc.at(TWRAP, () => {
+            if (q) {
+                hit(where(u, q), dir, 'shake', 0);
+            }
+            ultShake(2, 300);
+        });
+        sc.at(TTIGHT, () => {
+            ring(sc, tx, ty, RR * 0.3, RR * 1.6, 0.6, 0.3, ['#ffffff', F[1], F[2]], 2);
+            ultShake(3, 200);
+        });
+        // 펑 — 잿빛 연기 구름
+        sc.at(TPOOF, () => {
+            impactFrames(sc, W, H, 0.4, 0.3);
+            ultShake(5 + 2 * P, 450);
+            for (let i = 0; i < 9; i++) {
+                const a = (i / 9) * TAU;
+                K.puff(tx + Math.cos(a) * RR * 0.4, ty + Math.sin(a) * RR * 0.3, s, i % 2 ? '#7a7078' : '#a69ca4', RR * 0.3, RR * (0.8 + 0.3 * hash(i, 181)), 1.6, Math.cos(a) * 25, Math.sin(a) * 15 - 20, 0.75);
+            }
+            K.puff(tx, ty, s, '#c8bfc6', RR * 0.4, RR * 1.3, 1.4, 0, -30, 0.7);
+            fireBits(tx, ty, s, F, 16, { speed: H * 0.6, life: 0.5 });
+            if (q) {
+                hit(where(u, q), dir, 'tumble', 0);
+            }
+            for (const r of u.others()) {
+                if ((!q || r.pokemon !== q.pokemon) && Math.abs(r.x - tx) < RR * 1.5) {
+                    hit(r, Math.sign(r.x - tx) || dir, 'shake');
+                }
+            }
+        });
+        // 콜록 — 작은 연기 방울 셋이 퐁퐁
+        [0.5, 0.8, 1.1].forEach((d, i) => sc.at(TPOOF + d, () => {
+            const x = q ? where(u, q).x : tx;
+            K.puff(x + (i - 1) * s * 4, G - me.h * 0.8, s, '#8a8088', s, me.w * 0.25, 0.6, 0, -30, 0.6);
+        }));
+    }
+
+    // ═════ 차오꿀 — 불꽃펀치 (ultbarrage) ═════
+    // 두 주먹에 불이 붙어 활활 → 상대 앞으로 쿵쿵 달려가 불꽃 잽 셋(좌 · 우 · 좌, 맞을 때마다 불꽃 펑)
+    // → 몸을 낮췄다 불꽃 어퍼컷! 상대가 불기둥과 함께 하늘 높이 솟구치고 차오꿀은 주먹을 치켜든 채 불꽃 고리 (약 5.6초)
+    UNIQ.pignite = { fx: 'ultbarrage', ms: (P) => 5600 + 200 * P, run: runPigniteFist };
+    function runPigniteFist(u, o, ms, pokemon) {
+        const P = strength(u);
+        const sec = ms / 1000;
+        const { W, H, S: s, dir } = u;
+        const G = u.ground;
+        const hit = makeHit();
+        const me = monBox(pokemon);
+        const F = ST_FIRE;
+        const q = nearest(u);
+        const tx = clamp(q ? q.x : me.x + dir * Math.min(W * 0.4, me.w * 5 + 40), W * 0.12, W * 0.88);
+        const dd = Math.sign(tx - me.x) || dir;
+        const ax = clamp(tx - dd * me.w * 0.8, me.w * 0.5, W - me.w * 0.5);
+        const TLIT = 0.25;
+        const TRUN = 0.9;
+        const TJ = [TRUN + 0.55, TRUN + 0.8, TRUN + 1.05];
+        const TCROUCH = TJ[2] + 0.3;
+        const TUP = TCROUCH + 0.25;
+        const xAt = (t) => (t < TRUN ? me.x : t < TJ[0] - 0.1 ? lerp(me.x, ax, (t - TRUN) / (TJ[0] - 0.1 - TRUN)) : ax);
+        const footAt = (t) => {
+            if (t > TRUN && t < TJ[0] - 0.1) {
+                return me.b - Math.abs(Math.sin((t - TRUN) * 14)) * me.h * 0.12;
+            }
+            if (t > TUP && t < TUP + 0.5) {
+                return me.b - Math.sin(((t - TUP) / 0.5) * Math.PI) * me.h * 0.9;
+            }
+            return me.b;
+        };
+        const fist = (t, side) => [xAt(t) + dd * me.w * (0.45 + (TJ.some((tj) => t > tj - 0.06 && t < tj + 0.06) ? 0.25 : 0)), footAt(t) - me.h * (side ? 0.45 : 0.6)];
+        const sc = scene(u, sec + 0.3, 'uniq pignite');
+        ultDark(0.35, ms - 200);
+        puppet(sc, pokemon, u, footAt, F[2], sec - 0.1, {
+            x: xAt,
+            scale: (t) => (t > TCROUCH && t < TUP ? 0.9 : 1),
+            rot: (t) => (TJ.some((tj, i) => t > tj - 0.08 && t < tj + 0.06) ? dd * 0.15 : t > TUP && t < TUP + 0.5 ? -dd * 0.25 : 0),
+            glow: (t) => (t > TLIT ? 0.12 + 0.1 * Math.sin(t * 14) : 0),
+            glowColor: F[1],
+        });
+        // 주먹 불꽃 둘
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            const k = clamp((life - TLIT) / 0.3, 0, 1) * clamp((sec - 0.2 - life) / 0.4, 0, 1);
+            if (k <= 0.02) {
+                return;
+            }
+            for (const side of [0, 1]) {
+                const [x, y] = fist(life, side);
+                const big = life > TUP && life < TUP + 0.8 && side === 0 ? 1.8 : 1;
+                K.flameTongue(ctx, px, s, x, y + me.h * 0.15, me.w * 0.35 * big, me.h * 0.6 * big, F, life + side, k);
+            }
+        } });
+        TJ.forEach((tj, i) => sc.at(tj, () => {
+            const [x, y] = fist(tj, i % 2);
+            ring(sc, x + dd * me.w * 0.2, y, s * 2, me.w * 1.1, 0.85, 0.25, ['#ffffff', F[1], F[2]], 2);
+            fireBits(x + dd * me.w * 0.2, y, s, F, 12, { angle: dd > 0 ? 0 : Math.PI, spread: 1.4, speed: H * 0.5, life: 0.45 });
+            ultShake(2 + i, 120);
+            if (q) {
+                hit(where(u, q), dd, 'shake', 0);
+            }
+        }));
+        // 어퍼컷 — 불기둥과 함께 하늘로
+        sc.at(TUP, () => {
+            impactFrames(sc, W, H, 0.6, 0.4);
+            ultShake(7 + 2 * P, 550);
+            if (q) {
+                hit(where(u, q), dd, 'spin', 0);
+            }
+            for (const r of u.others()) {
+                if ((!q || r.pokemon !== q.pokemon) && Math.abs(r.x - tx) < me.w * 1.5) {
+                    hit(r, Math.sign(r.x - tx) || dd, 'lift');
+                }
+            }
+        });
+        // 어퍼컷 불꽃 — 상대를 따라 세 갈래 불꽃이 꼬이며 솟구침
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            const k = (life - TUP) / 1.0;
+            if (k <= 0 || k >= 1) {
+                return;
+            }
+            const top = G - Math.min(G * 0.9, H * 0.75) * easeOut(Math.min(1, k * 1.6));
+            const a = 1 - clamp((k - 0.6) / 0.4, 0, 1);
+            for (let j = 0; j < 3; j++) {
+                const L = G - top;
+                const x = tx + Math.sin(life * 12 + (j * TAU) / 3) * me.w * 0.45;
+                K.fireTail(ctx, px, s, x, top + j * me.h * 0.3, Math.cos(life * 12 + (j * TAU) / 3) * 0.3, -1, L * 0.85, Math.max(3 * s, me.w * 0.45), F, life + j, a);
+            }
+        } });
+        sc.at(TUP + 0.5, () => {
+            ring(sc, ax, me.b - me.h * 0.5, me.w * 0.4, me.w * 2.6, 0.85, 0.5, ['#ffffff', F[1], F[2]], 3);
+            fireBits(ax, me.b - me.h, s, F, 18, { angle: -Math.PI / 2, spread: 1.2, speed: H * 0.6, g: H * 0.6, life: 0.7 });
+        });
+        emberRise(sc, TUP, sec, F);
+    }
+
+    // ═════ 수댕이 — 껍질검 (ultbarrage) ═════
+    // 배의 가리비를 쏙 떼어 들고 반짝 → 휙 던지면 가리비가 물방울 꼬리를 끌며 빙글빙글 부메랑처럼 날아가 상대를 베고(물 베기 자국)
+    // → 크게 돌아 되돌아옴 → 수댕이가 탁 받아 들고 한 바퀴 돌며 반짝 포즈 (약 4.6초)
+    UNIQ.oshawott = { fx: 'ultbarrage', ms: (P) => 4600 + 200 * P, run: runOshawottShell };
+    function runOshawottShell(u, o, ms, pokemon) {
+        const P = strength(u);
+        const sec = ms / 1000;
+        const { W, H, S: s, dir } = u;
+        const G = u.ground;
+        const hit = makeHit();
+        const me = monBox(pokemon);
+        const TIDE = K.pal.TIDE;
+        const TTAKE = 0.3;
+        const TTHROW = 0.9;
+        const TFLY = 1.7;
+        const TCATCH = TTHROW + TFLY;
+        const q = nearest(u);
+        const tx = clamp(q ? q.x : me.x + dir * Math.min(W * 0.4, me.w * 5 + 40), W * 0.1, W * 0.9);
+        const ty = q ? q.y : G - me.h * 0.5;
+        const D = tx - me.x;
+        const hold = [me.x + dir * me.w * 0.35, me.b - me.h * 0.55];
+        const r = Math.max(me.w * 0.24, 3.5 * s);
+        const hh = Math.max(me.h * 1.4, H * 0.18);
+        const shellAt = (t) => {
+            if (t < TTHROW) {
+                return hold;
+            }
+            if (t < TCATCH) {
+                const th = ((t - TTHROW) / TFLY) * TAU;
+                return [me.x + (D / 2) * (1 - Math.cos(th)) + dir * me.w * 0.35 * Math.cos(th), Math.min(G - r, hold[1] - Math.sin(th) * hh * (th < Math.PI ? 1 : -0.25))];
+            }
+            return hold;
+        };
+        let spin = 0;
+        let lastT = 0;
+        const sc = scene(u, sec + 0.3, 'uniq oshawott');
+        ultDark(0.3, ms - 200);
+        sc.tick((t) => {
+            spin += (t - lastT) * (t > TTHROW && t < TCATCH ? 22 : 0);
+            lastT = t;
+        });
+        puppet(sc, pokemon, u, () => me.b, TIDE[2], sec - 0.1, {
+            rot: (t) => (t > TTHROW - 0.12 && t < TTHROW + 0.05 ? dir * 0.3 : t > TCATCH && t < TCATCH + 0.5 ? dir * TAU * easeOut((t - TCATCH) / 0.5) : 0),
+            glow: (t) => (t > TCATCH + 0.5 && t < TCATCH + 0.8 ? 0.5 : 0),
+            glowColor: '#ffffff',
+        });
+        // 물방울 꼬리
+        sc.add({ max: TCATCH + 0.1, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life < TTHROW || life > TCATCH) {
+                return;
+            }
+            for (let j = 1; j <= 8; j++) {
+                const tt = life - j * 0.03;
+                if (tt < TTHROW) {
+                    break;
+                }
+                const [x, y] = shellAt(tt);
+                ctx.globalAlpha = 0.7 * (1 - j / 9);
+                ctx.fillStyle = j % 2 ? TIDE[1] : TIDE[2];
+                const z = Math.max(s, Math.round((r * (1 - j / 10)) / s) * s);
+                ctx.fillRect(px(x - z / 2), px(y - z / 2), z, z);
+            }
+        } });
+        // 가리비
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life < TTAKE || life > sec - 0.15) {
+                return;
+            }
+            const [x, y] = shellAt(life);
+            stScalchop(ctx, px, s, x, y, r, spin, clamp((life - TTAKE) / 0.15, 0, 1));
+            if (life > TTHROW && life < TCATCH) {
+                K.ringDots(ctx, px, s, x, y, r * 1.5, 0.9, [TIDE[0], TIDE[1]], 0.5, 1);
+            }
+        } });
+        // 물 베기 자국 — 상대를 지날 때
+        const TCUT = TTHROW + TFLY * 0.5;
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const k = (sc.t - TCUT + 0.05) / 0.35;
+            if (k <= 0 || k >= 1) {
+                return;
+            }
+            const R = Math.max(me.w, me.h) * 0.9;
+            for (let i = 0; i <= 16; i++) {
+                const f = i / 16;
+                if (f > Math.min(1, k * 3)) {
+                    break;
+                }
+                const an = (dir > 0 ? Math.PI : 0) - 1.1 + 2.2 * f;
+                const th = Math.sin(f * Math.PI) * Math.max(2 * s, R * 0.14);
+                for (let d = R - th; d < R; d += s) {
+                    ctx.globalAlpha = 1 - k;
+                    ctx.fillStyle = d > R - s * 1.2 ? '#ffffff' : TIDE[1];
+                    ctx.fillRect(px(tx + Math.cos(an) * d), px(ty + Math.sin(an) * d), s, s);
+                }
+            }
+        } });
+        sc.at(TTAKE, () => {
+            sparkles(hold[0], hold[1], s, ['#ffffff', ST_SHELLC[1]], 6, r, 10);
+            ring(sc, hold[0], hold[1], s, me.w * 0.8, 0.9, 0.25, ['#ffffff', TIDE[1]], 1);
+        });
+        sc.at(TTHROW, () => ultShake(1.5, 100));
+        sc.at(TCUT, () => {
+            ultShake(3 + P, 200);
+            K.splash(tx, ty, s, TIDE, 16, H * 0.5, { spread: TAU });
+            if (q) {
+                hit(where(u, q), Math.sign(q.x - me.x) || dir, 'tumble', 0);
+            }
+            for (const r2 of u.others()) {
+                if ((!q || r2.pokemon !== q.pokemon) && Math.abs(r2.x - tx) < me.w * 1.2) {
+                    hit(r2, Math.sign(r2.x - tx) || dir, 'shake');
+                }
+            }
+        });
+        // 탁 받기 · 반짝 포즈
+        sc.at(TCATCH, () => {
+            ring(sc, hold[0], hold[1], s, me.w * 1.2, 0.9, 0.3, ['#ffffff', TIDE[1]], 2);
+            K.splash(hold[0], hold[1], s, TIDE, 8, H * 0.25, { spread: TAU, life: 0.4 });
+            ultShake(1.5, 100);
+        });
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const k = (sc.t - TCATCH - 0.5) / 0.45;
+            if (k > 0 && k < 1) {
+                glint(ctx, px, s, hold[0], hold[1] - r, me.w * 0.6 * Math.sin(k * Math.PI), 1);
+            }
+        } });
+        sc.at(TCATCH + 0.5, () => sparkles(me.x, me.b - me.h * 0.6, s, ['#ffffff', TIDE[1], ST_SHELLC[1]], 12, me.w * 0.7, 20));
+    }
+
+    // ═════ 쌍검자비 — 연속자르기 (ultbarrage) ═════
+    // 두 가리비 칼을 뽑아 들고 상대 앞으로 → 좌 · 우로 번갈아 베기, 벨 때마다 점점 빨라짐(물 베기 자국이 겹겹)
+    // → 마지막에 한 바퀴 돌며 둥근 물 칼날 → 베인 자리에 하얀 물안개가 퍼지며 반짝반짝 → 폴짝 제자리 (약 5.6초)
+    UNIQ.dewott = { fx: 'ultbarrage', ms: (P) => 5600 + 200 * P, run: runDewottFury };
+    function runDewottFury(u, o, ms, pokemon) {
+        const P = strength(u);
+        const sec = ms / 1000;
+        const { W, H, S: s, dir } = u;
+        const G = u.ground;
+        const hit = makeHit();
+        const me = monBox(pokemon);
+        const TIDE = K.pal.TIDE;
+        const q = nearest(u);
+        const tx = clamp(q ? q.x : me.x + dir * Math.min(W * 0.4, me.w * 5 + 40), W * 0.12, W * 0.88);
+        const dd = Math.sign(tx - me.x) || dir;
+        const ty = q ? q.y : G - me.h * 0.5;
+        const ax = clamp(tx - dd * me.w * 0.85, me.w * 0.5, W - me.w * 0.5);
+        const TDRAW = 0.3;
+        const TGO = 0.8;
+        const T0 = TGO + 0.4;
+        const cuts = [];
+        let tc = T0;
+        for (let i = 0; i < 9; i++) {
+            cuts.push(tc);
+            tc += Math.max(0.07, 0.3 * Math.pow(0.78, i));
+        }
+        const TSPIN = tc + 0.05;
+        const TMIST = TSPIN + 0.35;
+        const TBACK = TMIST + 0.9;
+        const xAt = (t) => (t < TGO ? me.x : t < T0 ? lerp(me.x, ax, easeOut((t - TGO) / (T0 - TGO))) : t < TBACK ? ax : lerp(ax, me.x, clamp((t - TBACK) / 0.5, 0, 1)));
+        const footAt = (t) => (t > TBACK && t < TBACK + 0.5 ? me.b - Math.sin(((t - TBACK) / 0.5) * Math.PI) * me.h : me.b);
+        const sc = scene(u, sec + 0.3, 'uniq dewott');
+        ultDark(0.34, ms - 200);
+        puppet(sc, pokemon, u, footAt, TIDE[2], sec - 0.1, {
+            x: xAt,
+            rot: (t) => {
+                if (t > TSPIN && t < TSPIN + 0.3) {
+                    return dd * TAU * ((t - TSPIN) / 0.3);
+                }
+                const i = cuts.findIndex((c) => t > c - 0.04 && t < c + 0.04);
+                return i >= 0 ? (i % 2 ? -0.2 : 0.2) * dd : 0;
+            },
+            glow: (t) => (t > T0 && t < TMIST ? 0.12 + 0.12 * ((t - T0) / (TMIST - T0)) : 0),
+            glowColor: TIDE[1],
+        });
+        // 양손 가리비 칼
+        sc.add({ max: TBACK, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life < TDRAW) {
+                return;
+            }
+            const x = xAt(life);
+            const fb = footAt(life);
+            const r = Math.max(me.w * 0.2, 3 * s);
+            const i = cuts.findIndex((c) => life > c - 0.05 && life < c + 0.05);
+            for (const side of [-1, 1]) {
+                const swing = i >= 0 && (i % 2 ? side > 0 : side < 0) ? dd * me.w * 0.35 : 0;
+                stScalchop(ctx, px, s, x + dd * me.w * 0.3 + swing + side * me.w * 0.15, fb - me.h * (0.5 + side * 0.1), r, life * 3 + side, clamp((life - TDRAW) / 0.15, 0, 1));
+            }
+        } });
+        // 물 베기 자국 — 겹겹이
+        const slashAt = (ctx, px, R, ang, k, alpha) => {
+            for (let i = 0; i <= 16; i++) {
+                const f = i / 16;
+                if (f > k) {
+                    break;
+                }
+                const an = ang - 1 + 2 * f;
+                const th = Math.sin(f * Math.PI) * Math.max(2 * s, R * 0.15);
+                for (let d = R - th; d < R; d += s) {
+                    ctx.globalAlpha = alpha;
+                    ctx.fillStyle = d > R - s * 1.2 ? '#ffffff' : d > R - th * 0.5 ? TIDE[1] : TIDE[2];
+                    ctx.fillRect(px(tx + Math.cos(an) * d), px(ty + Math.sin(an) * d), s, s);
+                }
+            }
+        };
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            cuts.forEach((c, i) => {
+                const k = (life - c) / 0.3;
+                if (k > 0 && k < 1) {
+                    slashAt(ctx, px, Math.max(me.w, me.h) * (0.75 + 0.03 * i), (dd > 0 ? Math.PI : 0) + (i % 2 ? 0.7 : -0.7), Math.min(1, k * 4), 1 - k);
+                }
+            });
+            // 둥근 물 칼날
+            const k = (life - TSPIN) / 0.45;
+            if (k > 0 && k < 1) {
+                K.ringDots(ctx, px, s, ax, me.b - me.h * 0.5, me.w * (0.8 + 2.2 * easeOut(k)), 0.5, ['#ffffff', TIDE[1]], 1 - k, 3);
+            }
+        } });
+        cuts.forEach((c, i) => sc.at(c, () => {
+            ultShake(1 + i * 0.3, 70);
+            K.splash(tx, ty, s, TIDE, 4 + i, H * 0.35, { spread: TAU, life: 0.4 });
+            if (q) {
+                hit(where(u, q), dd, 'shake', 0);
+            }
+        }));
+        sc.at(TSPIN + 0.15, () => {
+            impactFrames(sc, W, H, 0.5, 0.35);
+            ultShake(5 + 2 * P, 400);
+            if (q) {
+                hit(where(u, q), dd, 'tumble', 0);
+            }
+            for (const r of u.others()) {
+                if ((!q || r.pokemon !== q.pokemon) && Math.abs(r.x - ax) < me.w * 3) {
+                    hit(r, Math.sign(r.x - ax) || dd, 'lift');
+                }
+            }
+        });
+        // 하얀 물안개 — 땅을 따라 퍼지며 반짝
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            const k = (life - TMIST) / (sec - TMIST);
+            if (k <= 0) {
+                return;
+            }
+            const a = clamp(k * 5, 0, 1) * clamp((sec - 0.1 - life) / 0.6, 0, 1);
+            const spread = W * 0.15 + W * 0.25 * easeOut(k);
+            for (let j = 0; j < 4; j++) {
+                const yy = G - me.h * (0.2 + j * 0.35);
+                ellipse(ctx, px, s, tx + Math.sin(life + j) * s * 6, yy, spread * (1 - j * 0.15), me.h * 0.35, j % 2 ? TIDE[0] : TIDE[1], 0.16 * a);
+            }
+        } });
+        let glit = 0;
+        sc.tick((t, dt) => {
+            if (t < TMIST || t > sec - 0.3) {
+                return;
+            }
+            glit += dt * 14;
+            while (glit >= 1 && room(1)) {
+                glit -= 1;
+                sparkles(tx + rnd(-1, 1) * W * 0.3, G - rnd(0.1, 1.4) * me.h, s, ['#ffffff', TIDE[1]], 1, s * 2, 8);
+            }
+        });
+    }
+
     // ── 틀에 끼워 넣기 — uniq 가 이 파일에 있는 이름이면 그 연출, 아니면 원래 틀 그대로 ──
     for (const fx of new Set(Object.values(UNIQ).map((d) => d.fx))) {
         const base = ULT_FX[fx];
