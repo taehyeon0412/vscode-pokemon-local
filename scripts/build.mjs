@@ -50,6 +50,8 @@ const targets = [
     target: 'chrome102',
     jsx: 'automatic',
     jsxImportSource: 'preact',
+    // game.css 의 글꼴 url(../fonts/…) 은 묶지 않고 그대로 — 글꼴은 extension/media/fonts/ 에 (scripts/fetch-fonts.mjs)
+    external: ['*.woff2'],
   },
 ];
 

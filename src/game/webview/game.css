@@ -18,6 +18,17 @@ body.pokemon-game-on {
   background-image: none !important;
 }
 
+/* 게임 모드 글꼴 (2026-10-19 태현 님 "맥 글씨처럼 동글동글") — Pretendard 가변 하나로 굵기 45 ~ 920, SIL OFL 1.1 (scripts/fetch-fonts.mjs).
+   주소는 묶은 game.css (extension/media/game/) 기준 — build.mjs 가 *.woff2 를 묶지 않고 그대로 둠.
+   block: 같은 PC 의 파일이라 금방 오는데, 그 사이 맑은 고딕이 보였다가 바뀌며 번쩍이지 않게 */
+@font-face {
+  font-family: 'Pretendard';
+  src: url('../fonts/PretendardVariable.woff2') format('woff2-variations');
+  font-weight: 45 920;
+  font-style: normal;
+  font-display: block;
+}
+
 #pokemon-game {
   position: fixed;
   inset: 0;
@@ -29,7 +40,7 @@ body.pokemon-game-on {
   overflow: hidden;
   background: var(--vscode-editor-background);
   color: var(--vscode-foreground);
-  font-family: var(--vscode-font-family);
+  font-family: 'Pretendard', var(--vscode-font-family), sans-serif;
   font-size: calc(12px * var(--pg-ui, 1));
   line-height: 1.3;
 }
@@ -39,6 +50,10 @@ body.pokemon-game-on {
 }
 #pokemon-game * {
   box-sizing: border-box;
+}
+/* 버튼 · 칩은 브라우저 기본 글꼴을 쓰므로 게임 글꼴을 물려받게 */
+#pokemon-game button {
+  font-family: inherit;
 }
 
 .pg-screen {
@@ -56,7 +71,8 @@ body.pokemon-game-on {
   /* 양쪽 칸은 내용만큼은 꼭 (버튼이 잘리지 않게), 남는 자리는 똑같이 나눠 가운데가 가운데에 · 좁으면 가운데 이름이 말줄임 */
   grid-template-columns: minmax(max-content, 1fr) minmax(0, auto) minmax(max-content, 1fr);
   align-items: center;
-  gap: 8px;
+  /* 볼 · 지도 · 버튼 사이 (2026-10-19 태현 님: 넓은 패널에서 양 끝으로 멀어지지 않게 가운데로 모으고 간격만 조금) — 좁으면 8px */
+  column-gap: clamp(8px, 2.5vw, 20px);
   /* 패널 가장자리에 딱 붙지 않게 */
   padding: 0 14px;
   white-space: nowrap;
@@ -85,12 +101,12 @@ body.pokemon-game-on {
   min-width: 0;
   overflow: hidden;
 }
-/* 왼쪽 칸 (S06 ① 볼 개수) 은 칸의 가운데 — 패널 끝과 가운데 이름 사이 (넓은 패널에서 끝에 붙어 안 보이지 않게, 좁으면 칸이 줄어 왼쪽으로) */
+/* 왼쪽 칸 (S06 ① 볼 개수) · 오른쪽 칸 (버튼) 은 가운데 지도 쪽으로 붙임 — 셋이 한 덩어리로 가운데 (넓은 패널에서 눈이 양 끝까지 안 가게) */
 .pg-infobar-left {
-  justify-content: center;
+  justify-content: flex-end;
 }
 .pg-infobar-right {
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 .pg-infobar-center {
   min-width: 0;
@@ -698,6 +714,7 @@ body.pokemon-game-on {
 .pg-mappct {
   font-size: calc(11px * var(--pg-ui, 1));
   opacity: 0.8;
+  font-variant-numeric: tabular-nums;
 }
 @media (max-width: 420px) {
   .pg-mapbar {
@@ -856,6 +873,8 @@ body.pokemon-game-on {
 }
 .pg-hpnum {
   font-weight: 500;
+  /* 숫자 폭을 같게 — 맞아서 줄어들 때 글자가 좌우로 떨리지 않게 */
+  font-variant-numeric: tabular-nums;
 }
 .pg-bar {
   position: relative;

@@ -4,6 +4,7 @@
 //
 // - PMD SpriteCollab 그림 (CC BY-NC 4.0): pokemon.json 의 포켓몬마다 작가 이름 (sprite/<번호>/credits.txt + credit_names.txt)
 // - PokeAPI 데이터 (BSD 3-Clause): 고정된 커밋의 LICENSE.md 전문 (src/game/data/generated/meta.json 의 ref)
+// - 게임 모드 글꼴 Pretendard (SIL OFL 1.1): extension/media/fonts/Pretendard-LICENSE.txt 전문 (scripts/fetch-fonts.mjs)
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -64,6 +65,7 @@ async function main() {
     sprites.push(await credit(`${num}/${f.form}`, `#${num}/${f.form} ${key} (${f.ko ?? f.name})`));
   }
 
+  const fontLicense = readFileSync(join(ROOT, 'extension', 'media', 'fonts', 'Pretendard-LICENSE.txt'), 'utf8');
   const pokeapiLicense = await get(`https://raw.githubusercontent.com/PokeAPI/pokeapi/${meta.ref}/LICENSE.md`, `pokeapi-license-${meta.ref.slice(0, 12)}.md`);
 
   const text = `VS Code 포켓몬 (한국어판 수정본) — 함께 들어 있는 다른 사람의 작품
@@ -90,6 +92,12 @@ ${sprites.join('\n')}
    종족값 · 기술표 · 기술 · 진화 · 포획률 · 한글 이름을 커밋 ${meta.ref} 에서 받아 JSON 으로 바꿨어요 (scripts/fetch-pokeapi.mjs).
 
 ${pokeapiLicense.trim()}
+
+------------------------------------------------------------
+4. 게임 모드 글꼴 — Pretendard (https://github.com/orioncactus/pretendard), SIL Open Font License 1.1
+   media/fonts/PretendardVariable.woff2 — 버전 1.3.9 의 가변 글꼴을 바꾸지 않고 그대로 넣음 (scripts/fetch-fonts.mjs).
+
+${fontLicense.trim()}
 `;
   writeFileSync(OUT, text, 'utf8');
   console.log(`THIRD-PARTY-NOTICES.txt — 그림 ${sprites.length}종`);

@@ -159,9 +159,14 @@ if (!port) {
   const css = document.createElement('link');
   css.rel = 'stylesheet';
   css.href = config.script.replace(/game\.js(?=$|[?#])/, 'game.css');
-  css.onload = css.onerror = () => {
+  const show = () => {
     root.hidden = false;
   };
+  // 글꼴 (Pretendard — game.css @font-face) 까지 받은 뒤에 보임: 글자 없는 버튼이 잠깐 보였다가 글자가 나타나지 않게. 늦어도 0.5초면 보임
+  css.onload = () => {
+    void Promise.race([document.fonts.load('600 12px Pretendard'), new Promise((r) => setTimeout(r, 500))]).then(show, show);
+  };
+  css.onerror = show;
   document.head.appendChild(css);
   render(h(App, { store, media: config.media, actions }), root);
 

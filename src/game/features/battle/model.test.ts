@@ -96,7 +96,7 @@ describe('S09 화면 자리 (gdd S09)', () => {
     expect(g.menuLeft).toBe(6);
     expect(geo(200, 720).compact).toBe(false);
     const b = myTurn(startBattle(save, wild, 'normal'));
-    expect(menuItems(b, save, 'main', true).map((i) => i.label)).toEqual(['1 공격', '2 방어', '3 스킬', '4 가방', '5 교체']);
+    expect(menuItems(b, save, 'main', true).map((i) => i.label)).toEqual(['1 공격', '2 방어', '3 스킬', '4 아이템', '5 교체']);
     expect(menuItems(b, save, 'main', true)[0]!.title).toContain('공격');
   });
 
