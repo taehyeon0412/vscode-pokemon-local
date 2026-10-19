@@ -35,8 +35,9 @@ describe('S03 주인공 목록 (data/heroes.ts)', () => {
     expect(heroDraw({ ...look, small: undefined }, 1, 31)!.scale).toBeCloseTo(31 / 48);
     expect(heroHeightPx(look, 1.5, 49)).toBe(48);
     expect(heroWidthPx(look, 1, 31)).toBe(20);
-    // 코드 그림은 28 × 배율
-    expect(heroDraw(heroLookOf('boy'), 2)).toBeNull();
-    expect(heroHeightPx(heroLookOf('boy'), 1.5)).toBe(CODE_HERO_ROWS * 1.5);
+    // 그림이 없으면 코드 그림 — 28 × 배율
+    const plain: HeroLook = { id: 'y', label: 'y', gender: 'male' };
+    expect(heroDraw(plain, 2)).toBeNull();
+    expect(heroHeightPx(plain, 1.5)).toBe(CODE_HERO_ROWS * 1.5);
   });
 });

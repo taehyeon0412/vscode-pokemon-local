@@ -34,10 +34,11 @@ export interface HeroLook {
  * 성별마다 첫 줄 (boy · girl) = look 이 없는 옛 세이브의 모습 — 그 앞에 끼우지 말 것.
  */
 export const HERO_LOOKS: readonly HeroLook[] = [
-  { id: 'boy', label: '남 1', gender: 'male' },
-  { id: 'girl', label: '여 1', gender: 'female' },
+  // 파이어레드 · 리프그린 원작 필드 그림 (scripts/people/fetch-frlg.py) — id 는 옛 세이브 때문에 boy · girl 그대로
+  { id: 'boy', label: '레드', gender: 'male', walk: { frames: 4, w: 15, h: 19 }, front: { frames: 1, w: 15, h: 19 } },
+  { id: 'girl', label: '리프', gender: 'female', walk: { frames: 4, w: 15, h: 19 }, front: { frames: 1, w: 15, h: 19 } },
   // 2026-10-19 태현 님이 준 걷기 4장 (20 × 28칸, 넓게 · 모음 · 넓게 · 모음) 을 그대로
-  { id: 'cap-girl', label: '여 2', gender: 'female', walk: { frames: 4, w: 20, h: 28 } },
+  { id: 'cap-girl', label: '모자 소녀', gender: 'female', walk: { frames: 4, w: 20, h: 28 } },
 ];
 
 export function isHeroLookId(id: unknown): id is string {

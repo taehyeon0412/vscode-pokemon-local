@@ -164,6 +164,12 @@ SHOTS = [
     ("p12-toast-68", "720x68", {"screen": "game", "look": "cap-girl", "toast": "✨ 상처약을 주웠다!"}),
     ("p12-toast-92", "720x92", {"screen": "game", "look": "cap-girl", "toast": "✨ 상처약을 주웠다!", "size": "small"}),
     ("p12-toast-140", "720x140", {"screen": "game", "look": "cap-girl", "toast": "✨ 상처약을 주웠다!", "size": "large"}),
+    # 파이어레드 원작 그림 (레드 = boy)
+    ("p12-red-walk-68", "720x68", {"screen": "game", "look": "boy", "gender": "male"}),
+    ("p12-red-walk-116", "720x116", {"screen": "game", "look": "boy", "gender": "male", "size": "medium"}),
+    ("p12-red-trainer-92", "720x92", {"screen": "game", "look": "boy", "gender": "male", "place": "trainer", "budget": "600"}),
+    ("p12-red-battle-140", "720x140", {"screen": "game", "look": "boy", "gender": "male", "battle": "choose", "size": "large"}),
+    ("p12-red-gym-116", "720x116", {"screen": "game", "look": "boy", "gender": "male", "place": "lobby", "size": "medium"}),
 ]
 
 
