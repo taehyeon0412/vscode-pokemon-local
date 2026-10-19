@@ -1117,7 +1117,35 @@ const SIG_FX = {
     // 물대포 (예전 물 기술 그대로) · 파도타기는 바닥을 따라
     water: {
         ms: (P) => 550 + 650 * P,
-        run: (g, o, ms) => sigEmitter({ move: 'water', power: g.P, dir: g.dir, s: g.s, until: performance.now() + ms, x: o.surf ? g.body.front : g.mouth.x, y: o.surf ? g.body.bottom - 3 * g.s : g.mouth.y }),
+        run: (g, o, ms) => {
+            sigEmitter({ move: 'water', power: g.P, dir: g.dir, s: g.s, until: performance.now() + ms, x: o.surf ? g.body.front : g.mouth.x, y: o.surf ? g.body.bottom - 3 * g.s : g.mouth.y });
+            if (o.surf) {
+                return;
+            }
+            // 물줄기 심 (2026-10-19 "밋밋해") — 3칸 굵기 물 덩이가 이어 나가며 물결침 (위 흰 빛 · 아래 진한 파랑), 입 앞엔 물방울 고리
+            const cols = sigPal('water');
+            const thick = g.P > 0.6 ? 4 : 3;
+            sigEmitter({ until: performance.now() + ms * 0.9, rate: 55 + 40 * g.P, fx: () => sigParticle({
+                x: g.mouth.x, y: g.mouth.y, s: g.s, dir: g.dir, ph: performance.now() / 90,
+                vx: g.dir * moveRand(66, 74) * (1 + 0.6 * g.P) * g.s, vy: 0, g: 18 * g.s, drag: 0.4, max: 0.6 * (1 + 0.4 * g.P), len: Math.round(moveRand(3, 5)), thick, cols,
+                draw: (ctx, p, t, px) => {
+                    ctx.globalAlpha = t < 0.8 ? 1 : (1 - t) / 0.2;
+                    const wob = Math.round(Math.sin(p.ph + p.life * 18)) * p.s;
+                    const x = p.dir > 0 ? p.x - p.len * p.s : p.x;
+                    for (let j = 0; j < p.thick; j++) {
+                        dotAt(ctx, px, p.s, x, p.y + wob + (j - 1) * p.s, j === 0 ? '#ffffff' : j === p.thick - 1 ? p.cols[3] : p.cols[1 + (j % 2)], p.len, 1);
+                    }
+                },
+            }) });
+            sigParticle({ x: g.mouth.x, y: g.mouth.y, s: g.s, max: ms / 1000, cols, draw: (ctx, p, t, px) => {
+                ctx.globalAlpha = 0.9 * fadeInOut(t, 0.05, 0.2);
+                const r = (3 + Math.sin(p.life * 25)) * p.s;
+                for (let k = 0; k < 10; k++) {
+                    const a = (k / 10) * Math.PI * 2 + p.life * 8;
+                    dotAt(ctx, px, p.s, p.x + Math.cos(a) * r, p.y + Math.sin(a) * r, k % 2 ? '#ffffff' : p.cols[1]);
+                }
+            } });
+        },
     },
     // 거품
     bubbles: {
@@ -1367,6 +1395,14 @@ const SIG_FX = {
             const n = o.n ?? 1 + Math.round(2 * g.P);
             sigEmitter({ until: performance.now() + (n - 1) * (o.every ?? 150) + 50, shots: n, every: o.every ?? 150, nextShot: performance.now(), fx: (e, i) => {
                 const speed = (100 + 60 * g.P) * g.s * (o.speed ?? 1);
+                // 쏠 때 입 앞 번쩍 (작은 십자)
+                sigParticle({ x: g.mouth.x, y: g.mouth.y, s: g.s, max: 0.12, cols: o.tri ? sigPal(['fire', 'ice', 'electric'][i % 3]) : sigPal(o.c), draw: (ctx, p, t, px) => {
+                    ctx.globalAlpha = 1 - t;
+                    dotAt(ctx, px, p.s, p.x - p.s, p.y - p.s, '#ffffff', 3, 3);
+                    for (const [dx, dy] of [[2, 0], [-2, 0], [0, 2], [0, -2]]) {
+                        dotAt(ctx, px, p.s, p.x + dx * p.s, p.y + dy * p.s, p.cols[1]);
+                    }
+                } });
                 sigParticle({
                     x: g.mouth.x, y: g.mouth.y + moveRand(-1, 1) * g.s, s: g.s, dir: g.dir,
                     vx: g.dir * speed, v0: g.dir * speed, vy: moveRand(-6, 6) * g.s - (o.arc ? o.arc * 0.45 * g.s : 0), g: (o.arc ?? 0) * g.s,
@@ -1383,8 +1419,9 @@ const SIG_FX = {
                         if (p.x < -30 || p.x > window.innerWidth + 30) {
                             p.life = p.max;
                         }
-                        if ((o.shape === 'ball' || o.shape === 'star') && Math.random() < 0.4) {
-                            sigParticle({ x: p.x - p.dir * 2 * p.s, y: p.y + moveRand(-1, 1) * p.s, s: p.s, max: 0.2, color: p.cols[1], draw: DRAW.dot });
+                        // 잔상 꼬리 — 공 · 별은 많이, 잎 · 바늘 · 하트도 조금 (2026-10-19 "밋밋해")
+                        if (Math.random() < (o.shape === 'ball' || o.shape === 'star' ? 0.7 : 0.45)) {
+                            sigParticle({ x: p.x - p.dir * moveRand(2, 4) * p.s, y: p.y + moveRand(-1, 1) * p.s, s: p.s, vy: moveRand(-4, 4) * p.s, max: moveRand(0.15, 0.3), color: p.cols[movePick([0, 1, 2])], draw: DRAW.dot });
                         }
                     },
                     draw: (ctx, p, t, px) => {
@@ -1430,23 +1467,44 @@ const SIG_FX = {
             sigEmitter({ until: performance.now() + n * 140, shots: n, every: 140, nextShot: performance.now(), fx: (e, i) => sigParticle({
                 x: o.forward ? g.mouth.x : g.body.cx, y: o.forward ? g.mouth.y : g.body.cy, s: g.s, dir: g.dir, i,
                 vx: o.forward ? g.dir * (90 + 40 * g.P) * g.s : 0, max: o.forward ? 0.7 : 0.55, cols,
-                r0: o.forward ? 2 : 0.4 * Math.max(g.body.rx, g.body.ry) / g.s, r1: o.forward ? 9 + 4 * g.P : (1.5 + 0.4 * g.P) * Math.max(g.body.rx, g.body.ry) / g.s,
+                r0: o.forward ? 3 : 0.4 * Math.max(g.body.rx, g.body.ry) / g.s, r1: o.forward ? 12 + 5 * g.P : (1.6 + 0.4 * g.P) * Math.max(g.body.rx, g.body.ry) / g.s,
+                update: o.forward ? (p) => {
+                    // 앞으로 가는 물결 — 지나간 자리에 반짝이 (2026-10-19 "밋밋해")
+                    if (Math.random() < 0.5) {
+                        const r = (p.r0 + (p.r1 - p.r0) * (p.life / p.max)) * p.s;
+                        const a = moveRand(-0.9, 0.9);
+                        sigParticle({ x: p.x + p.dir * Math.cos(a) * r, y: p.y + Math.sin(a) * r, s: p.s, vx: -p.dir * 15 * p.s, drag: 2, max: 0.3, color: p.cols[movePick([0, 1])], draw: DRAW.dot });
+                    }
+                } : undefined,
                 draw: (ctx, p, t, px) => {
                     const r = (p.r0 + (p.r1 - p.r0) * t) * p.s;
-                    ctx.globalAlpha = 1 - t;
+                    ctx.globalAlpha = 1 - t * t;
                     if (o.forward) {
-                        for (let a = -0.95; a <= 0.95; a += 0.12) {
-                            dotAt(ctx, px, p.s, p.x + p.dir * Math.cos(a) * r, p.y + Math.sin(a) * r, p.cols[(p.i % 2) + 1]);
+                        // 바깥 진한 2칸 · 안쪽 흰 줄 (끝은 가늘게)
+                        for (let a = -1.1; a <= 1.1; a += 0.09) {
+                            const edge = Math.abs(a) > 0.8;
+                            const x = p.x + p.dir * Math.cos(a) * r;
+                            const y = p.y + Math.sin(a) * r;
+                            dotAt(ctx, px, p.s, x, y, p.cols[edge ? 1 : 2 + (p.i % 2)], edge ? 1 : 2, edge ? 1 : 2);
+                            if (!edge) {
+                                dotAt(ctx, px, p.s, x - p.dir * p.s, y, '#ffffff');
+                            }
                         }
                         return;
                     }
-                    const dots = Math.max(16, Math.round(r / p.s) * 3);
+                    const dots = Math.max(20, Math.round(r / p.s) * 4);
                     for (let k = 0; k < dots; k++) {
                         if (o.spiral && (k + Math.floor(p.life * 30)) % 4 > 1) {
                             continue;
                         }
                         const a = (k / dots) * Math.PI * 2 + (o.spiral ? p.life * 6 : 0);
-                        dotAt(ctx, px, p.s, p.x + Math.cos(a) * r, p.y + Math.sin(a) * r * 0.75, p.cols[(k + p.i) % 2 ? 1 : 2]);
+                        const x = p.x + Math.cos(a) * r;
+                        const y = p.y + Math.sin(a) * r * 0.75;
+                        // 굵은 고리 (2칸) + 안쪽 흰 점 줄
+                        dotAt(ctx, px, p.s, x, y, p.cols[(k + p.i) % 2 ? 1 : 2], t < 0.5 ? 2 : 1, 1);
+                        if (k % 3 === 0 && t < 0.6) {
+                            dotAt(ctx, px, p.s, p.x + Math.cos(a) * (r - 2 * p.s), p.y + Math.sin(a) * (r - 2 * p.s) * 0.75, '#ffffff');
+                        }
                     }
                 },
             }) });
@@ -1685,14 +1743,21 @@ const SIG_FX = {
         ms: () => 1600,
         run: (g, o) => {
             const cols = sigPal(o.c);
-            sigEmitter({ until: performance.now() + 1400, shots: 5, every: 280, nextShot: performance.now(), fx: () => sigParticle({
-                x: g.mouth.x, y: g.mouth.y - 3 * g.s, s: g.s, phase: moveRand(0, 6), color: movePick(cols.slice(1)),
-                vx: g.dir * moveRand(15, 30) * g.s, vy: -moveRand(10, 20) * g.s, max: 1.1,
+            // 음표 7개 — 하나씩 다른 색 (기술 색 + 무지개) · 크게 물결치며 · 지나간 자리에 반짝이 (2026-10-19 "밋밋해")
+            const tints = [cols[2], '#ff7ab8', '#ffd23f', cols[1], '#6fd6ff', '#9bf06a', cols[3]];
+            sigEmitter({ until: performance.now() + 1400, shots: 7, every: 190, nextShot: performance.now(), fx: (e, i) => sigParticle({
+                x: g.mouth.x, y: g.mouth.y - 3 * g.s, s: g.s, phase: moveRand(0, 6), color: tints[i % tints.length],
+                vx: g.dir * moveRand(18, 34) * g.s, vy: -moveRand(8, 18) * g.s, max: 1.2,
                 update: (p) => {
-                    p.x += Math.sin(p.phase + p.life * 7) * 0.4 * p.s;
+                    p.x += Math.sin(p.phase + p.life * 7) * 0.7 * p.s;
+                    if (Math.random() < 0.35) {
+                        sigParticle({ x: p.x + moveRand(0, 3) * p.s, y: p.y + 5 * p.s, s: p.s, vy: 6 * p.s, max: 0.35, color: Math.random() < 0.5 ? '#ffffff' : p.color, draw: DRAW.dot });
+                    }
                 },
                 draw: (ctx, p, t, px) => {
-                    ctx.globalAlpha = fadeInOut(t, 0.15, 0.3);
+                    ctx.globalAlpha = fadeInOut(t, 0.12, 0.3);
+                    // 1칸 진한 그림자 + 음표 (단단한 픽셀 그림자 — 배경에서 안 묻히게)
+                    drawGlyph(ctx, px, p.s, p.x + p.s, p.y + p.s, GLYPHS.note, 'rgba(20, 16, 40, 0.55)');
                     drawGlyph(ctx, px, p.s, p.x, p.y, GLYPHS.note, p.color);
                 },
             }) });
