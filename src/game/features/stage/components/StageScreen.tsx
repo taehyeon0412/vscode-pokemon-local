@@ -10,7 +10,7 @@ import { BALANCE } from '../../../core/balance';
 import { canOpenMenus, itemLeft, type GameInput, type GameState } from '../../../core/engine';
 import { bestHelper, requestAt } from '../../../core/rules/request';
 import { GYM_LEADER } from '../../../core/rules/trainer';
-import { withJosa } from '../../../core/text';
+import { josaOf, withJosa } from '../../../core/text';
 import { speciesOf } from '../../../data';
 import { heroHeightPx, heroLookOf, heroWidthPx, personLook } from '../../../data/heroes';
 import { BallCount } from '../../../ui/BallCount';
@@ -219,11 +219,11 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen }: 
           <Hero px={heroPx} walking={phase === 'walk'} gender={look.gender} look={look} media={media} roomPx={heroRoom} />
         </span>
         {/* 전투 중 상대 트레이너 · 관장 = 오른쪽 끝 (남은 볼) · 대기실의 관장 */}
-        {((battle && foeTrainer) || (gym && !battle)) && (
+        {((battle && foeTrainer) || (gym && !battle) || (stageRt?.phase === 'rival' && foeTrainer)) && (
           <span class="pg-obj pg-foe-trainer" style={{ left: `${foeTrainerX(widthPx, layout.scale)}px`, bottom: `${ground}px` }} title={foeTrainer?.name ?? GYM_LEADER.name}>
-            {/* 머리 위 이름표 (decisions 2026-10-17) */}
-            <span class="pg-nametag">{foeTrainer?.name ?? GYM_LEADER.name}</span>
-            {foeTrainer && (
+            {/* 머리 위 이름표 (decisions 2026-10-17) · 라이벌이 막 나타난 때는 "!" (gdd 4.12) */}
+            {stageRt?.phase === 'rival' && !foeTrainer?.talking ? <span class="pg-trainer-mark">!</span> : <span class="pg-nametag">{foeTrainer?.name ?? GYM_LEADER.name}</span>}
+            {foeTrainer && stageRt?.phase !== 'rival' && (
               <span class="pg-foe-balls">
                 {Array.from({ length: foeTrainer.balls }, (_, i) => (
                   <span key={i} class={i < foeTrainer.left ? 'pg-ball' : 'pg-ball pg-ball-down'} />
@@ -236,6 +236,9 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen }: 
         {battle && geo && <BattleLayer battle={battle} save={save} media={media} ground={ground} geo={geo} onInput={onInput} onProfile={(side) => onOpen({ kind: 'profile', side })} />}
         <EncounterBox state={state} />
         {stageRt?.phase === 'trainer' && foeTrainer?.talking && <TrainerBanner name={foeTrainer.name} balls={foeTrainer.balls} />}
+        {stageRt?.phase === 'rival' && foeTrainer?.talking && (
+          <TrainerBanner name={foeTrainer.name} balls={foeTrainer.balls} text={`${josaOf(foeTrainer.name, '이/가')} 승부를 걸어왔다!`} tag={foeTrainer.record ?? ''} />
+        )}
         <RequestBox state={state} onInput={onInput} />
         <FacilityBox state={state} media={media} onInput={onInput} onBox={() => onOpen({ kind: 'team' })} />
         {shopInside && <ShopPanel save={save} note={state.runtime.toast?.text} onInput={onInput} onClose={() => onInput({ kind: 'facility-leave' })} />}

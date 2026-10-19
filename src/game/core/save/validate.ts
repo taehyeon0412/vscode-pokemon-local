@@ -24,7 +24,7 @@ const MAX_SLEEP_TURNS = 3;
 /** SaveV1 의 칸 이름 — 모르는 칸은 고칠 때 뺌 */
 const KNOWN_KEYS: readonly (keyof Save)[] = [
   'version', 'createdAt', 'updatedAt', 'playTimeMs', 'player', 'monsters', 'party', 'box', 'nextMonsterUid',
-  'bag', 'money', 'badges', 'stages', 'location', 'lastHospital', 'dex', 'pendingEncounter', 'pendingChoices', 'settings',
+  'bag', 'money', 'badges', 'stages', 'location', 'lastHospital', 'dex', 'pendingEncounter', 'pendingChoices', 'settings', 'rivals',
 ];
 
 /** 클리어 카드에 보일 새로 만난 포켓몬 수 */
@@ -277,10 +277,29 @@ function readEncounter(v: unknown, path: string, fx: Fixer): Encounter | null {
       }
     } else if (v.kind === 'gym-leader') {
       return { kind: 'gym-leader' };
+    } else if (v.kind === 'rival') {
+      if (isHeroLookId(v.rival) && isStageId(v.stageId)) return { kind: 'rival', rival: v.rival, stageId: v.stageId };
     }
   }
   fx.note(path, '하던 전투를 읽지 못함 → 전투 없이 이어 함');
   return null;
+}
+
+/** 라이벌 전적 — 모르는 라이벌 · 이상한 수는 뺌 (칸이 없으면 부르지 않음) */
+function readRivals(v: unknown, path: string, fx: Fixer): NonNullable<Save['rivals']> {
+  if (!isObj(v)) {
+    fx.note(path, '객체가 아님 → 비움');
+    return {};
+  }
+  const out: NonNullable<Save['rivals']> = {};
+  for (const [id, r] of Object.entries(v)) {
+    if (!isHeroLookId(id) || !isObj(r)) {
+      fx.note(`${path}.${id}`, '모르는 라이벌 → 뺌');
+      continue;
+    }
+    out[id] = { wins: fx.int(r.wins, `${path}.${id}.wins`, 0, 1_000_000, 0), losses: fx.int(r.losses, `${path}.${id}.losses`, 0, 1_000_000, 0) };
+  }
+  return out;
 }
 
 /** 전투 끝에 남은 고르기 — 없는 포켓몬 · 모르는 기술 · 이상한 칸은 빼고 (빠져도 다음 레벨업 · 진화 때 다시 나옴). 옛 세이브에 칸이 없으면 빈 목록 */
@@ -489,6 +508,7 @@ export function validateSave(raw: unknown): ValidateResult {
       notifications: fx.bool(settingsRaw.notifications, 'settings.notifications', true),
       autoBattle: fx.bool(settingsRaw.autoBattle, 'settings.autoBattle', false),
     },
+    ...(raw.rivals === undefined ? {} : { rivals: readRivals(raw.rivals, 'rivals', fx) }),
   };
   return { ok: true, save, problems: fx.problems };
 }

@@ -16,11 +16,12 @@ import { itemName, requestAt, resolveRequest } from '../rules/request';
 import { spotBetween, spotRng, stageCode, stageLayout, trainerId, walkDelta, type Spot, type StageLayout } from '../rules/stage';
 import { statsOf } from '../rules/stats';
 import { aliveCount, GYM_LEADER, leaderTeam, trainerInfo, trainerNumber, trainerTeam } from '../rules/trainer';
+import { pickRival, rivalLine, rivalLoseMsg, rivalName, rivalRecord, rivalTeam, withRivalResult } from '../rules/rival';
 import { RUN_SEEN_MAX, STAGE_IDS, type FacilitySpot, type ItemId, type Save, type StageId, type StageProgress, type StageRun, type StatKey } from '../save';
 import { withJosa } from '../text';
 import { moveOf, speciesOf } from '../../data';
 import { applyBattleResult, battleDone, battleInput, battleStep, battleWaiting, firstAlive, startBattle, startTrainerBattle, switchable, type BattleInput, type BattleState } from './battle';
-import { battleRewards, clearBonusExp, clearStage, defeatPenalty, FOREST_BADGE, resolveEvolve, resolveLearn } from './rewards';
+import { battleRewards, clearBonusExp, clearStage, defeatPenalty, FOREST_BADGE, resolveEvolve, resolveLearn, rivalWinRewards } from './rewards';
 import { Rng } from './rng';
 import { MAX_SPEED, type GameState, type RuntimeState, type StageRuntime } from './state';
 import { takeSteps } from './step';
@@ -122,9 +123,26 @@ function withStage(save: Save, id: StageId, change: (p: StageProgress) => StageP
 const withProgress = (save: Save, id: StageId, progress: number) => withStage(save, id, (p) => ({ ...p, progress }));
 const withRun = (save: Save, id: StageId, change: (r: StageRun) => StageRun) => withStage(save, id, (p) => ({ ...p, run: change(p.run) }));
 
+/** 세이브의 만남 → 전투 종류 (라이벌 = 트레이너 전투) */
+function battleKindOf(p: Save['pendingEncounter']): BattleState['kind'] | undefined {
+  if (p?.kind === 'rival') return 'trainer';
+  return p?.kind === 'wild' || p?.kind === 'trainer' ? p.kind : undefined;
+}
+
+/** 세이브의 만남 → 트레이너 전투의 상대 이름 (trainerBattle · rivalBattle 과 같게) */
+function foeNameOf(p: Save['pendingEncounter']): string | undefined {
+  if (p?.kind === 'trainer') return trainerInfo(p.stageId, trainerNumber(p.trainerId)).name;
+  return p?.kind === 'rival' ? rivalName(p.rival) : undefined;
+}
+
 /** 트레이너 전투 — 데리고 나오는 포켓몬은 판 시드 · 번호 · 내 살아 있는 포켓몬 수로 (껐다 켜면 같은 상대와 처음부터) */
 function trainerBattle(save: Save, id: StageId, prog: StageProgress, n: number): BattleState {
   return startTrainerBattle(save, trainerTeam(id, prog.seed, n, aliveCount(save)), 'trainer', trainerInfo(id, n).name);
+}
+
+/** 라이벌 전투 (gdd 4.12) — 1:1 토너먼트 (전투 종류는 트레이너와 같음 — 도망 없음), 팀은 판 시드 · 만난 수로 */
+function rivalBattle(save: Save, id: StageId, prog: StageProgress, rival: string): BattleState {
+  return startTrainerBattle(save, rivalTeam(save, rival, id, prog.seed), 'trainer', rivalName(rival));
 }
 
 function leaderBattle(save: Save): BattleState {
@@ -133,7 +151,7 @@ function leaderBattle(save: Save): BattleState {
 
 /** 다시 안 나오는 자리 — 이긴 트레이너 · 졌다 다시 걸을 때 이미 지나간 떨어진 아이템 · 부탁 (주웠고 · 골랐음) */
 const beaten = (prog: StageProgress, id: StageId, s: Spot) =>
-  (s.kind === 'trainer' && prog.defeatedTrainers.includes(trainerId(id, s.trainer ?? 0))) || ((s.kind === 'item' || s.kind === 'request') && s.at <= prog.run.reach);
+  (s.kind === 'trainer' && prog.defeatedTrainers.includes(trainerId(id, s.trainer ?? 0))) || ((s.kind === 'item' || s.kind === 'request' || s.kind === 'rival') && s.at <= prog.run.reach);
 
 /** 이번 걸음에 지나친 첫 자리 · 병원 · 상점 (from < at ≤ to) — 다시 안 나오는 자리는 건너뜀 */
 function nextEvent(layout: StageLayout, prog: StageProgress, id: StageId, from: number, to: number): { spot: Spot } | { facility: FacilitySpot } | null {
@@ -160,7 +178,10 @@ function checkedStage(rt: RuntimeState, save: Save, id: StageId, layout: StageLa
   const pending = save.pendingEncounter;
   if (st.phase === 'appear' && pending?.kind !== 'wild') return null;
   if (st.phase === 'trainer' && (pending?.kind !== 'trainer' || trainerNumber(pending.trainerId) !== st.n)) return null;
-  if (st.phase === 'battle' && (st.battle.kind === 'gym' || pending?.kind !== st.battle.kind)) return null;
+  if (st.phase === 'rival' && (pending?.kind !== 'rival' || pending.rival !== st.rival)) return null;
+  // 라이벌 전투는 트레이너 전투와 같은 종류 (도망 없음) — 그래서 상대 이름으로도 가림 (바뀌어 들어오면 보상 · 전적이 엉뚱하게, 코드 리뷰어)
+  if (st.phase === 'battle' && (st.battle.kind === 'gym' || battleKindOf(pending) !== st.battle.kind)) return null;
+  if (st.phase === 'battle' && st.battle.kind === 'trainer' && st.battle.foeName !== foeNameOf(pending)) return null;
   // 고를 것 (S23 · S22) 이 남았는데 걷기 · 전투 상태가 오면 버림 → 고르기부터 (고르기를 둔 채 걷지 않게)
   if (save.pendingChoices.length > 0 && st.phase !== 'result' && st.phase !== 'choice') return null;
   switch (st.phase) {
@@ -187,6 +208,7 @@ function defaultStage(save: Save, id: StageId, prog: StageProgress): StageRuntim
   if (save.pendingChoices.length > 0) return { phase: 'choice', ms: 0 };
   if (p?.kind === 'wild') return { phase: 'battle', battle: startBattle(save, p.monster, p.start) };
   if (p?.kind === 'trainer' && p.stageId === id) return { phase: 'battle', battle: trainerBattle(save, id, prog, trainerNumber(p.trainerId)) };
+  if (p?.kind === 'rival' && p.stageId === id) return { phase: 'battle', battle: rivalBattle(save, id, prog, p.rival) };
   return prog.progress >= 1 ? { phase: 'clear' } : { phase: 'walk' };
 }
 
@@ -282,6 +304,15 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
         const n = spot.trainer ?? 0;
         save = { ...withProgress(save, id, spot.at), pendingEncounter: { kind: 'trainer', trainerId: trainerId(id, n), stageId: id } };
         stage = { phase: 'trainer', n, ms: 0 };
+      } else if (spot.kind === 'rival') {
+        // 라이벌 깜짝 등장 (gdd 4.12) — 가장 덜 만난 라이벌, 트레이너처럼 멈추고 "!" → 띠 → 전투 (자동 전투여도)
+        // 살아 있는 포켓몬이 없으면 (이상한 세이브) 싸우지 않고 지나감 — 전적도 안 셈 (테스터)
+        const rival = aliveCount(save) > 0 ? pickRival(save) : null;
+        save = withProgress(save, id, spot.at);
+        if (rival) {
+          save = { ...save, pendingEncounter: { kind: 'rival', rival, stageId: id } };
+          stage = { phase: 'rival', rival, ms: 0 };
+        }
       } else {
         const number = layout.spots.filter((s) => s.kind === 'request' && s.at < spot.at).length;
         save = withProgress(save, id, Math.max(from, spot.at - BEFORE_SPOT));
@@ -328,9 +359,22 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
       stage = p?.kind === 'trainer' ? { phase: 'battle', battle: trainerBattle(save, id, prog, trainerNumber(p.trainerId)) } : { phase: 'walk' };
       break;
     }
+    case 'rival': {
+      const ms = stage.ms + stepMs;
+      if (ms < TIMING.rivalMeetMs) {
+        stage = { ...stage, ms };
+        break;
+      }
+      const p = save.pendingEncounter;
+      stage = p?.kind === 'rival' ? { phase: 'battle', battle: rivalBattle(save, id, prog, p.rival) } : { phase: 'walk' };
+      break;
+    }
     case 'battle': {
       const rng = new Rng(rt.rngState);
-      const battle = battleStep(stage.battle, save, stepMs, rng, { auto: save.settings.autoBattle, away: rt.headless });
+      let battle = battleStep(stage.battle, save, stepMs, rng, { auto: save.settings.autoBattle, away: rt.headless });
+      // 라이벌에게 짐 — 끝 문구를 "연습 경기" 로 (원작의 "눈앞이 깜깜해졌다" = 돈 · 병원인데 여기선 잃는 게 없어서, gdd 4.12)
+      const rivalNow = save.pendingEncounter?.kind === 'rival' ? save.pendingEncounter.rival : null;
+      if (rivalNow && battle.phase === 'over' && stage.battle.phase !== 'over' && battle.result !== 'win') battle = { ...battle, msg: rivalLoseMsg(rivalNow) };
       rt = { ...rt, rngState: rng.state };
       if (!battleDone(battle)) {
         stage = { phase: 'battle', battle };
@@ -339,6 +383,15 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
       // 이겼어도 (반동 · 독으로) 내 팀이 다 쓰러졌으면 진 것과 같이
       const wiped = battle.me.hp <= 0 && switchable(battle, save).length === 0;
       const before = save;
+      const rivalP = before.pendingEncounter?.kind === 'rival' ? before.pendingEncounter : null;
+      if (rivalP && (battle.result !== 'win' || wiped)) {
+        // 라이벌에게 짐 (gdd 4.12) — 연습 경기: 세이브를 싸우기 전 그대로 (HP · PP · 상태 · 가방) + 전적 1패 · 돈 · 병원 없음 · 계속 걸음
+        save = withRivalResult({ ...before, pendingEncounter: null }, rivalP.rival, false);
+        rt = { ...rt, rngState: rng.state, toast: { text: rivalLine(rivalP.rival, false, rivalRecord(save, rivalP.rival)), ms: TIMING.toastMs * 2 } };
+        signal = 'battle-end';
+        stage = { phase: 'walk' };
+        break;
+      }
       save = applyBattleResult(save, battle);
       signal = battle.result === 'catch' ? 'catch' : 'battle-end';
       if ((battle.result === 'win' || battle.result === 'catch') && !wiped) {
@@ -348,6 +401,12 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
         save = r.save;
         if (battle.result === 'catch') save = withRun(save, id, (run) => ({ ...run, caught: run.caught + 1 }));
         const p = before.pendingEncounter;
+        if (p?.kind === 'rival') {
+          // 라이벌에게 이김 — 돈 1.5배 + 아이템 (처음 = 진화의 돌) · 전적 1승 · 한마디
+          const w = rivalWinRewards(save, r.summary, p.rival, rng);
+          save = withRivalResult(w.save, p.rival, true);
+          r.summary = { ...w.summary, quote: rivalLine(p.rival, true, rivalRecord(save, p.rival)), rival: true };
+        }
         if (battle.kind === 'trainer' && p?.kind === 'trainer') {
           // 이긴 트레이너는 다시 안 나옴 (다시 걸어도 — 2026-10-18 태현 님)
           save = withStage(save, id, (s) => ({ ...s, defeatedTrainers: s.defeatedTrainers.includes(p.trainerId) ? s.defeatedTrainers : [...s.defeatedTrainers, p.trainerId], run: { ...s.run, trainers: s.run.trainers + 1 } }));
@@ -575,7 +634,7 @@ export function canShop(state: GameState): boolean {
 /** 전투 중 (튀어나옴 · 트레이너와 마주침 포함) — 팀 순서 · 포인트를 못 바꿈 */
 export function inBattle(state: GameState): boolean {
   const p = phaseOf(state);
-  return p === 'battle' || p === 'appear' || p === 'trainer';
+  return p === 'battle' || p === 'appear' || p === 'trainer' || p === 'rival';
 }
 /** S06 ⑦ ~ ⑩ 오른쪽 위 버튼 · S19 가방 — 걷는 중 (그동안 화면은 걸음을 멈춤) · 체육관 대기실 (관장에게 받은 리프의 돌을 바로) */
 export function canOpenMenus(state: GameState): boolean {

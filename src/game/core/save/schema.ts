@@ -110,6 +110,8 @@ export const LOCATION_SCREENS = ['title', 'stage', 'gym', 'world-map'] as const;
 export type Encounter =
   | { kind: 'wild'; monster: Monster; start: EncounterStart }
   | { kind: 'trainer'; trainerId: string; stageId: StageId }
+  /** 라이벌 (gdd 4.12) — rival = 주인공 id (data/heroes.ts) */
+  | { kind: 'rival'; rival: string; stageId: StageId }
   | { kind: 'gym-leader' };
 export const ENCOUNTER_STARTS = ['normal', 'preemptive', 'ambush'] as const;
 export type EncounterStart = (typeof ENCOUNTER_STARTS)[number];
@@ -162,6 +164,8 @@ export interface SaveV1 {
   /** 전투 끝에 남은 고르기 (S23 · S22) — 앞에서부터 */
   pendingChoices: PendingChoice[];
   settings: { notifications: boolean; autoBattle: boolean };
+  /** 라이벌 전적 (gdd 4.12) — 주인공 id → 내가 이긴 수 · 진 수. 처음 만나기 전 (옛 세이브 포함) 엔 칸이 없음 — 없는 칸을 만들면 옛 세이브가 "고친 세이브" 로 다시 써짐 */
+  rivals?: Record<string, { wins: number; losses: number }>;
 }
 
 /** 지금 버전의 세이브 */

@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { sampleSave } from '../../../test/fixtures/save';
-import { BALANCE } from '../../core/balance';
+import { BALANCE, TIMING } from '../../core/balance';
 import { createGameState, type GameState } from '../../core/engine';
 import { stageLayout } from '../../core/rules/stage';
 import { STAGE_IDS } from '../../core/save';
-import { CONTACT_PX, heroX, minimapOf, STAGES, stageLabel, stagePx, visibleObjects, WALK_PX_PER_SEC } from './model';
+import { summaryLines } from '../result/model';
+import { CONTACT_PX, foeTrainerView, heroX, minimapOf, rivalTag, STAGES, stageLabel, stagePx, visibleObjects, WALK_PX_PER_SEC } from './model';
 
 function at(progress: number, stage: GameState['runtime']['stage'] = { phase: 'walk' }): GameState {
   const s = createGameState(sampleSave({ stages: { 'forest-1': { seed: 42, progress, cleared: false, defeatedTrainers: [], facilities: [], run: { startMs: 0, caught: 0, trainers: 0, seen: [], reach: 0, retries: 0 } } } }), 1);
@@ -83,5 +84,35 @@ describe('S08 · S09 상대 볼 개수 (단계 9 테스터)', () => {
     expect(view(b0)).toMatchObject({ balls: 2, left: 2 });
     const down = { ...b0, phase: 'send' as const, foe: { ...b0.foe, hp: 0 }, foeDown: [{ species: 10, level: 3 }] };
     expect(view(down)).toMatchObject({ balls: 2, left: 1 });
+  });
+});
+
+describe('라이벌 (gdd 4.12) — 띠 · 결과 보이기', () => {
+  it('띠의 전적 칩 — 처음이면 "첫 만남!", 그 뒤 "전적 W승 L패" · 이름 · 볼 수 · "!" 뒤 띠', () => {
+    expect(rivalTag(sampleSave(), 'boy')).toBe('첫 만남!');
+    expect(rivalTag(sampleSave({ rivals: { boy: { wins: 0, losses: 1 } } }), 'boy')).toBe('전적 0승 1패');
+    const meet = (ms: number): GameState => {
+      const s = at(0.4, { phase: 'rival', rival: 'may', ms });
+      return { ...s, save: { ...s.save, rivals: { may: { wins: 2, losses: 1 } }, pendingEncounter: { kind: 'rival', rival: 'may', stageId: 'forest-1' } } };
+    };
+    expect(foeTrainerView(meet(0))).toMatchObject({ name: '라이벌 지민', record: '전적 2승 1패', balls: 3, talking: false }); // 3마리 = min(3, 만난 수 + 1, 살아 있는 2 + 1)
+    expect(foeTrainerView(meet(TIMING.trainerAlertMs))?.talking).toBe(true);
+  });
+
+  it('길 위에 미리 안 보임 (깜짝 등장)', () => {
+    for (let seed = 1; seed < 200; seed++) {
+      const rival = stageLayout('forest-1', seed).spots.find((x) => x.kind === 'rival');
+      if (!rival) continue;
+      const s = createGameState(sampleSave({ stages: { 'forest-1': { seed, progress: rival.at - 0.002, cleared: false, defeatedTrainers: [], facilities: [], run: { startMs: 0, caught: 0, trainers: 0, seen: [], reach: 0, retries: 0 } } } }), 1);
+      expect(visibleObjects({ ...s, runtime: { ...s.runtime, stage: { phase: 'walk' } } }, 720, 1).some((o) => o.key.endsWith(String(rival.index)))).toBe(false);
+      return;
+    }
+    throw new Error('라이벌 자리가 있는 시드가 없음');
+  });
+
+  it('이긴 결과 — 한마디는 둘째 줄 맨 끝 (좁은 패널에서 레벨업이 먼저)', () => {
+    const lines = summaryLines({ title: '라이벌 레드와의 승부에서 이겼다!', exp: [{ uid: 'm1', name: '이상해씨', gain: 64, from: 5, to: 6 }], money: 180, item: '불꽃의돌', caught: null, learned: [], choices: 0, badge: null, quote: '레드: 다음엔 꼭 이길 거야! (전적 1승 0패)', rival: true });
+    expect(lines.head).toEqual(['라이벌 레드와의 승부에서 이겼다!', '💰 +180원', '🎁 불꽃의돌']);
+    expect(lines.body).toEqual(['⬆ 이상해씨 Lv 5 → 6 (+64 EXP)', '💬 레드: 다음엔 꼭 이길 거야! (전적 1승 0패)']);
   });
 });

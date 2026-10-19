@@ -34,6 +34,11 @@ export function withJosa(word: string, josa: Josa): string {
   return `${word}${s.batchim ? a : b}`;
 }
 
+/** 조사만 ("라이벌 지민" + "이/가" → "이") — 이름은 굵게 따로 쓸 때 */
+export function josaOf(word: string, josa: Josa): string {
+  return withJosa(word, josa).slice(word.length);
+}
+
 /** 타입 한글 이름 (원작 한국판) */
 const TYPE_KO: Record<string, string> = {
   normal: '노말', fire: '불꽃', water: '물', electric: '전기', grass: '풀', ice: '얼음', fighting: '격투', poison: '독', ground: '땅',

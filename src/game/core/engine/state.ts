@@ -3,6 +3,7 @@
  * 이 상태 하나가 웹뷰와 확장 사이를 오가고, 누가 계산하든 같은 함수(advance)로 앞으로 간다 (play.ts).
  */
 import { TIMING } from '../balance';
+import { isHeroLookId } from '../../data/heroes';
 import { STAGE_IDS, type FacilitySpot, type Save, type StageId } from '../save';
 import { readBattle, type BattleState } from './battle';
 import type { BattleSummary } from './rewards';
@@ -30,6 +31,8 @@ export type StageRuntime =
   | { phase: 'walk' }
   | { phase: 'appear'; ms: number; space: boolean; ambush: boolean; isNew: boolean }
   | { phase: 'trainer'; n: number; ms: number }
+  /** 라이벌 깜짝 등장 (gdd 4.12) — rival = 주인공 id, "!" → 띠 → 전투 */
+  | { phase: 'rival'; rival: string; ms: number }
   | { phase: 'battle'; battle: BattleState }
   | { phase: 'hold'; why: 'shiny' }
   | { phase: 'request'; at: number; number: number; result: RequestResult | null; ms: number }
@@ -41,7 +44,7 @@ export type StageRuntime =
   | { phase: 'lobby' }
   | { phase: 'badge' };
 
-export const STAGE_PHASES = ['walk', 'appear', 'trainer', 'battle', 'request', 'hold', 'facility', 'result', 'choice', 'defeat', 'clear', 'lobby', 'badge'] as const;
+export const STAGE_PHASES = ['walk', 'appear', 'trainer', 'rival', 'battle', 'request', 'hold', 'facility', 'result', 'choice', 'defeat', 'clear', 'lobby', 'badge'] as const;
 
 /** 부탁 결과 — 글 · 받은 것 (따로 둬서 좁은 패널에서도 받은 것이 안 잘리게) */
 export interface RequestResult {
@@ -103,7 +106,20 @@ function readSummary(raw: unknown): BattleSummary | null {
     .map((l) => ({ name: text(l.name, 30) ?? '', move: text(l.move, 30) ?? '' }));
   const c = raw.caught;
   const caught = isObj(c) && text(c.name, 30) !== null && typeof c.toBox === 'boolean' ? { name: text(c.name, 30) as string, toBox: c.toBox } : null;
-  return { title: text(raw.title) as string, exp, money: num(raw.money, 0, 1e9) ?? 0, item: text(raw.item, 30), caught, learned, choices: num(raw.choices, 0, 1000) ?? 0, badge: text(raw.badge, 30) };
+  const quote = text(raw.quote, 120);
+  return {
+    title: text(raw.title) as string,
+    exp,
+    money: num(raw.money, 0, 1e9) ?? 0,
+    item: text(raw.item, 30),
+    caught,
+    learned,
+    choices: num(raw.choices, 0, 1000) ?? 0,
+    badge: text(raw.badge, 30),
+    // 라이벌 (gdd 4.12) — 웹뷰와 주고받아도 한마디 · 희귀 표시가 남게
+    ...(quote !== null ? { quote } : {}),
+    ...(raw.rival === true ? { rival: true } : {}),
+  };
 }
 
 const okThen = (v: unknown) => v === undefined || v === 'badge';
@@ -122,6 +138,8 @@ function readStage(raw: unknown): StageRuntime | null {
       const n = num(raw.n, 0, 10);
       return ms !== null && n !== null && Number.isInteger(n) ? { phase: 'trainer', n, ms } : null;
     }
+    case 'rival':
+      return ms !== null && isHeroLookId(raw.rival) ? { phase: 'rival', rival: raw.rival, ms } : null;
     case 'facility': {
       const at = num(raw.at, 0, 1);
       if (ms === null || at === null || (raw.kind !== 'hospital' && raw.kind !== 'shop') || typeof raw.inside !== 'boolean') return null;

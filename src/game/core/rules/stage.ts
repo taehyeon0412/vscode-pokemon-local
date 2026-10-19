@@ -15,7 +15,8 @@ import { BALANCE } from '../balance';
 import { Rng } from '../engine/rng';
 import { STAGE_IDS, type FacilitySpot, type StageId } from '../save';
 
-export type SpotKind = 'wild' | 'item' | 'request' | 'trainer';
+/** rival = 라이벌 깜짝 등장 (gdd 4.12 — 길 위에 미리 안 보임) */
+export type SpotKind = 'wild' | 'item' | 'request' | 'trainer' | 'rival';
 
 export interface Spot {
   kind: SpotKind;
@@ -130,6 +131,9 @@ function buildLayout(stageId: StageId, seed: number, saved: readonly FacilitySpo
     return { kind, at: Math.round(at * 100000) / 100000, index: i };
   });
   trainers.forEach((at, n) => spots.push({ kind: 'trainer', at, index: 900 + n, trainer: n }));
+  // 라이벌 (gdd 4.12) — 판마다 rivalChance 로 한 자리. 다른 자리는 그대로 두려고 따로 뽑음 (같은 시드의 다른 랜덤)
+  const rival = rivalSpotAt(seed, spots, facilities);
+  if (rival !== null) spots.push({ kind: 'rival', at: rival, index: 950 });
   spots.sort((a, b) => a.at - b.at);
 
   const sceneryCount = between(rng, BALANCE.stageScenery);
@@ -138,6 +142,19 @@ function buildLayout(stageId: StageId, seed: number, saved: readonly FacilitySpo
     index: 1000 + i,
   }));
   return { spots, facilities, scenery };
+}
+
+/** 라이벌 자리 — 없으면 null. 범위 안에서 다른 자리 · 병원 · 상점과 rivalGap, 트레이너와 TRAINER_GAP 떨어진 곳 (16번 뽑아도 없으면 이 판엔 없음 — 자리가 0.04 쯤마다 있어 거의 다 찾음) */
+function rivalSpotAt(seed: number, spots: readonly Spot[], facilities: readonly FacilitySpot[]): number | null {
+  const rng = new Rng(mixSeed(seed, 0x51a1));
+  if (!rng.chance(BALANCE.rivalChance)) return null;
+  const [lo, hi] = BALANCE.rivalSpotRange;
+  const taken = [...spots.map((s) => ({ at: s.at, gap: s.kind === 'trainer' ? TRAINER_GAP : BALANCE.rivalGap })), ...facilities.map((f) => ({ at: f.at, gap: BALANCE.rivalGap }))];
+  for (let i = 0; i < 16; i++) {
+    const at = Math.round((lo + rng.next() * (hi - lo)) * 100000) / 100000;
+    if (taken.every((t) => Math.abs(t.at - at) >= t.gap)) return at;
+  }
+  return null;
 }
 
 const cache = new Map<string, StageLayout>();

@@ -4,11 +4,12 @@
  * 스테이지 클리어 (S24) · 패배 (S17) 의 세이브 변화도 여기.
  */
 import { BALANCE } from '../balance';
-import { healTeam } from '../rules/bag';
+import { BAG_MAX, healTeam } from '../rules/bag';
 import { addExp, evolve, expGain, learnMove, levelUpChoices } from '../rules/growth';
 import { itemName } from '../rules/items';
 import { stageLevelBand } from '../rules/stage';
 import { GYM_LEADER } from '../rules/trainer';
+import { rivalItem } from '../rules/rival';
 import type { ItemId, Monster, PendingChoice, Save, StageId } from '../save';
 import { withJosa } from '../text';
 import { moveOf, speciesOf } from '../../data';
@@ -31,6 +32,10 @@ export interface BattleSummary {
   choices: number;
   /** 관장을 처음 이겨 받은 배지 (🏅 숲 배지) */
   badge: string | null;
+  /** 라이벌 한마디 (gdd 4.12) */
+  quote?: string;
+  /** 라이벌에게 이김 — 돈 · 아이템을 "트레이너보다 좋게" 표시 (돈 ×1.5 · 희귀 아이템) */
+  rival?: boolean;
 }
 
 const nameOf = (dex: number) => speciesOf(dex)?.name.ko ?? '???';
@@ -144,6 +149,16 @@ export function battleRewards(save0: Save, b: BattleState, wild: Monster | null,
   save = { ...save, money: Math.min(999_999_999, save.money + summary.money) };
   summary.choices = save.pendingChoices.length;
   return { save, summary };
+}
+
+/** 라이벌에게 이김 (gdd 4.12) — battleRewards (트레이너 돈) 다음에: 돈을 rivalMoneyScale 배로 + 아이템 1개 (처음 이기면 진화의 돌) */
+export function rivalWinRewards(save: Save, summary: BattleSummary, rival: string, rng: Rng): { save: Save; summary: BattleSummary } {
+  const extra = Math.round(summary.money * (BALANCE.rivalMoneyScale - 1));
+  const item = rivalItem(save, rival, rng);
+  return {
+    save: { ...save, money: Math.min(999_999_999, save.money + extra), bag: { ...save.bag, [item]: Math.min(BAG_MAX, (save.bag[item] ?? 0) + 1) } },
+    summary: { ...summary, money: summary.money + extra, item: itemName(item) },
+  };
 }
 
 /** S23 — 맨 앞 고르기가 새 기술이면: replace 번째 칸과 바꿈 (null = 배우지 않기) */

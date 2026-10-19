@@ -1,7 +1,8 @@
 // 게임 모드 미리보기의 가짜 확장 쪽 — dev/game.html 에서 씀 (사진은 dev/game-shots.py)
 //   ?screen=title|game  save=none|ok|broken|newer  busy=1  notice=글  size=nano|small|medium|large  theme=dark|light  click=new|continue|exit
 //   progress=0~1 (숲 1-1 진행, 스테이지 시드 42 — 그 자리 바로 앞에서 시작해 흔적 · 조우 · 부탁을 찍음)
-//   place=facility|hospital|shop|trainer|trainer-battle|defeat|clear|lobby|gym-battle|badge (단계 8 · 9)  click=map|team|bag|settings|profile|item
+//   place=facility|hospital|shop|trainer|trainer-battle|defeat|clear|lobby|gym-battle|badge (단계 8 · 9)
+//   place=rival|rival-talk|rival-battle|rival-over|rival-result|rival-lose  rival=<주인공 id, 기본 may>  record=<이김-짐, 기본 2-1> (라이벌 gdd 4.12)  click=map|team|bag|settings|profile|item
 //   scene=result|learn|evolve|evolve-pick  battle=choose|skills|items|catch|last|counter|clash|ult-cut|ult-beam|attack|pick|over|auto  dur=연출 ms (전투 장면을 바로 — 아래 battleKind)  animAt=초 (CSS 움직임을 그 시점에 멈춤)
 // 확장이 하는 일 중 화면에 보이는 것만 흉내: ready → title · start, title-new · title-continue → start, exit → stop
 (function () {
@@ -128,6 +129,26 @@
             st.progress = 0.30551;
             save.pendingEncounter = { kind: 'trainer', trainerId: 'forest-1:t0', stageId: 'forest-1' };
             stage = place === 'trainer' ? { phase: 'trainer', n: 0, ms: 1200 } : { phase: 'battle', battle: battle('trainer', '등산가 민수', foeMon('foe0', 11, 'metapod', 6), [foeMon('foe1', 14, 'kakuna', 6)]) };
+        }
+        if (place && place.startsWith('rival')) {
+            // 라이벌 — 시드 42 숲 1-1 의 빈 곳 (0.4) 에서 깜짝 등장 (사진용, 실제 자리는 시드마다)
+            const rival = q.get('rival') || 'may';
+            const [w, l] = (q.get('record') || '2-1').split('-').map(Number);
+            save.rivals = { [rival]: { wins: w, losses: l } };
+            st.progress = 0.4;
+            save.pendingEncounter = { kind: 'rival', rival, stageId: 'forest-1' };
+            const label = { boy: '레드', blue: '그린', brendan: '휘웅', wally: '민진', girl: '리프', may: '지민', 'may-rs': '봄이', 'leaf-em': '리즈' }[rival];
+            if (place === 'rival' || place === 'rival-talk') stage = { phase: 'rival', rival, ms: place === 'rival' ? 0 : 1200 };
+            if (place === 'rival-battle') stage = { phase: 'battle', battle: battle('trainer', `라이벌 ${label}`, foeMon('foe0', 10, 'caterpie', 4), [foeMon('foe1', 16, 'pidgey', 4), foeMon('foe2', 255, 'torchic', 6)]) };
+            if (place === 'rival-over') {
+                const b = battle('trainer', `라이벌 ${label}`, foeMon('foe2', 255, 'torchic', 6), []);
+                stage = { phase: 'battle', battle: { ...b, phase: 'over', result: 'lose', overMs: 0, me: { ...b.me, hp: 0 }, msg: `라이벌 ${label}에게 졌다… 연습 경기라 잃은 것은 없다!` } };
+            }
+            if (place === 'rival-lose') save.pendingEncounter = null;
+            if (place === 'rival-result') {
+                save.pendingEncounter = null;
+                stage = { phase: 'result', ms: 0, summary: { title: `라이벌 ${label}${(label.charCodeAt(label.length - 1) - 0xac00) % 28 ? '과' : '와'}의 승부에서 이겼다!`, exp: [{ uid: 'm1', name: '이상해씨', gain: 64, from: 5, to: 6 }], money: 180, item: w === 0 ? '불꽃의돌' : '하이퍼볼', caught: null, learned: [], choices: 0, badge: null, quote: `${label}: 다음엔 꼭 이길 거야! (전적 ${w + 1}승 ${l}패)`, rival: true } };
+            }
         }
         if (place === 'defeat') { st.progress = 0.4724 - 1e-7; st.run.reach = 0.61; st.run.retries = Number(q.get('retries') || 0); save.lastHospital = { stageId: 'forest-1', at: 0.4724 }; stage = { phase: 'defeat', gym: false, lost: 100 }; }
         if (place === 'clear') { st.progress = 1; st.cleared = true; save.playTimeMs = 2280000; stage = { phase: 'clear' }; }

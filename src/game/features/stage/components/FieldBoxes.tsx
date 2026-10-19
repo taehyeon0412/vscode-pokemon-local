@@ -63,12 +63,15 @@ export function FacilityBox({ state, onInput, onBox }: BoxProps & { onBox(): voi
 }
 
 /** S08 — 눈이 마주침 → "승부다!" + 상대 몬스터볼 개수 (어떤 포켓몬인지는 안 보임) */
-export function TrainerBanner({ name, balls }: { name: string; balls: number }) {
+/** text = 이름 뒤 한 줄 (없으면 ': "승부다!"') · tag = 라이벌 전적 칩 ("전적 2승 1패" · "첫 만남!") — 있으면 라이벌 띠 (색이 다름, gdd 4.12) */
+export function TrainerBanner({ name, balls, text, tag }: { name: string; balls: number; text?: string; tag?: string }) {
   return (
-    <div class="pg-banner pg-trainer-box">
+    <div class={tag ? 'pg-banner pg-trainer-box pg-rival-box' : 'pg-banner pg-trainer-box'}>
       <span class="pg-ellipsis">
-        <b>{name}</b>: "승부다!"
+        <b>{name}</b>
+        {text ?? ': "승부다!"'}
       </span>
+      {tag && <span class="pg-rival-rec">{tag}</span>}
       <span class="pg-foe-balls" title={`상대 포켓몬 ${balls}마리`}>
         {Array.from({ length: balls }, (_, i) => (
           <span key={i} class="pg-ball" />

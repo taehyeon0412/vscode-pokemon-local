@@ -8,6 +8,8 @@ import { planWild, sceneryAt, type Scenery, type WildPlan } from '../../core/rul
 import { requestAt, type RequestTemplate } from '../../core/rules/request';
 import { stageLayout, trainerId } from '../../core/rules/stage';
 import { aliveCount, GYM_LEADER, trainerInfo, trainerNumber, trainerTeamSize, type TrainerInfo } from '../../core/rules/trainer';
+import { recordText, rivalName, rivalRecord, rivalTeamSize } from '../../core/rules/rival';
+import { heroLookOf } from '../../data/heroes';
 import type { FacilitySpot, Save, StageId } from '../../core/save';
 import { battleViewKey } from '../battle/model';
 import { resultViewKey } from '../result/model';
@@ -114,6 +116,8 @@ export function visibleObjects(state: GameState, widthPx: number, scale: number)
     } else if (s.kind === 'item') {
       // 졌다 다시 걸을 때 이미 주운 아이템 (reach 앞) 은 안 보임
       if (!reached && s.at > prog.run.reach) out.push({ key: `i${s.index}`, kind: 'item', x });
+    } else if (s.kind === 'rival') {
+      continue; // 라이벌은 길 위에 미리 안 보임 — 만날 때 오른쪽 끝에서 나타남 (gdd 4.12)
     } else if (s.kind === 'trainer') {
       // 이긴 트레이너는 다시 안 보임 · 만나는 동안 (전투 중에는 오른쪽 끝 트레이너 자리에) 만 그 자리에
       const n = s.trainer ?? 0;
@@ -139,13 +143,29 @@ function foeBalls(b: BattleState): { balls: number; left: number } {
  * S08 트레이너와 마주침 — "!" (잠깐) → 말풍선 "승부다!" + 상대 몬스터볼 개수 ◓ (어떤 포켓몬인지는 안 보임) · 전투 중 오른쪽 끝 트레이너 (남은 볼)
  * 트레이너 · 관장이 아니면 null
  */
-export function foeTrainerView(state: GameState): { name: string; hat: string; shirt: string; look?: string; balls: number; left: number; talking: boolean } | null {
+/** 라이벌 띠의 전적 칩 — 처음이면 "첫 만남!" (0승 0패는 뜻이 없어서 — 플레이 리뷰어) */
+export function rivalTag(save: GameState['save'], id: string): string {
+  const r = rivalRecord(save, id);
+  return r.wins + r.losses === 0 ? '첫 만남!' : recordText(r);
+}
+
+export function foeTrainerView(state: GameState): { name: string; hat: string; shirt: string; look?: string; balls: number; left: number; talking: boolean; record?: string } | null {
   const save = state.save;
   const st = state.runtime.stage;
   const p = save.pendingEncounter;
   if (p?.kind === 'gym-leader' && st?.phase === 'battle' && st.battle.kind === 'gym') {
     const b = st.battle;
     return { name: GYM_LEADER.name, hat: GYM_LEADER.hat, shirt: GYM_LEADER.shirt, look: GYM_LEADER.look, ...foeBalls(b), talking: false };
+  }
+  // 라이벌 (gdd 4.12) — 주인공 그림 · "라이벌 휘웅" · 전적
+  if (p?.kind === 'rival' && save.location.screen === 'stage') {
+    const who = { name: rivalName(p.rival), hat: '#d8382e', shirt: '#2f6fd0', look: heroLookOf(p.rival).dir, record: rivalTag(save, p.rival) };
+    if (st?.phase === 'rival') {
+      const balls = rivalTeamSize(save, p.rival);
+      return { ...who, balls, left: balls, talking: st.ms >= TIMING.trainerAlertMs };
+    }
+    if (st?.phase === 'battle' && st.battle.kind === 'trainer') return { ...who, ...foeBalls(st.battle), talking: false };
+    return null;
   }
   if (p?.kind !== 'trainer' || save.location.screen !== 'stage') return null;
   const id = save.location.stageId;
@@ -198,6 +218,7 @@ export function stageViewKey(state: GameState): string {
     // 병원 · 상점 앞: 남은 초 · 들어감 / 트레이너: "!" → "승부다!" / 패배 · 클리어 · 대기실 · 배지는 그대로
     st?.phase === 'facility' ? `${st.inside}:${Math.ceil((TIMING.facilityPromptMs - st.ms) / 1000)}` : '',
     st?.phase === 'trainer' ? `${st.n}:${st.ms >= TIMING.trainerAlertMs}` : '',
+    st?.phase === 'rival' ? `${st.rival}:${st.ms >= TIMING.trainerAlertMs}` : '',
     state.runtime.toast?.text ?? '',
     saveViewKey(state.save),
     pending?.kind === 'wild' ? pending.start : '',

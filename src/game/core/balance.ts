@@ -39,6 +39,14 @@ export const BALANCE = {
   /** 트레이너 — 스테이지마다 2 ~ 3명 (스테이지마다 정해진 수 · 자리는 판마다) · 상대 마릿수 1 ~ 3, 내 살아 있는 포켓몬 + 1 까지 (2026-10-18 태현 님) */
   stageTrainers: [2, 3],
   trainerTeamSize: [1, 3],
+  /** 라이벌 (gdd 4.12 · mvp-spec 3.10, 2026-10-19 태현 님) — 한 판에 나올 확률 · 자리 범위 · 다른 자리와 떨어지는 거리 · 에이스 말고는 레벨 − · 트레이너 돈의 몇 배 [임시값] */
+  rivalChance: 0.5,
+  rivalSpotRange: [0.25, 0.85],
+  rivalGap: 0.012,
+  rivalLevelGap: 2,
+  rivalMoneyScale: 1.5,
+  /** 라이벌을 두 번째부터 이기면 받는 아이템 비율 (처음 이기면 진화의 돌 — 트레이너는 돈만) [임시값] */
+  rivalItems: { 'great-ball': 0.3, 'ultra-ball': 0.2, 'super-potion': 0.2, revive: 0.15, 'full-heal': 0.1, stone: 0.05 },
   /** 만나는 것들이 놓이는 구간 (시작하자마자 · 끝에서 바로 만나지 않게) [제안] */
   stageSpotRange: [0.04, 0.97],
   /** 병원 · 상점 = "중간쯤 랜덤 자리" [제안] */
@@ -257,6 +265,8 @@ export const TIMING = {
   /** 트레이너와 눈이 마주침: "!" → "승부다!" + ◓ 개수 → 전투 */
   trainerAlertMs: 700,
   trainerMeetMs: 2200,
+  /** 라이벌은 띠 (전적) 를 읽을 시간을 더 (플레이 리뷰어 — 2026-10-19) */
+  rivalMeetMs: 3200,
   /** 상대 트레이너가 다음 포켓몬을 내보내는 시간 */
   foeSendMs: 1300,
 } as const;

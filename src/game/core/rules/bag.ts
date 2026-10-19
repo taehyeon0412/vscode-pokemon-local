@@ -127,7 +127,8 @@ export function spendPoint(save: Save, uid: string, stat: StatKey): Save | null 
 
 /** 전투 밖에서 쓰는 아이템 (볼은 전투에서만) */
 export const FIELD_ITEMS: readonly ItemId[] = ['potion', 'super-potion', 'full-heal', 'revive', 'fire-stone', 'water-stone', 'thunder-stone', 'leaf-stone', 'moon-stone', 'linking-cord'];
-const STONES: readonly ItemId[] = ['fire-stone', 'water-stone', 'thunder-stone', 'leaf-stone', 'moon-stone'];
+/** 진화의 돌 5종 (라이벌 보상도 여기서 — rules/rival.ts) */
+export const STONES: readonly ItemId[] = ['fire-stone', 'water-stone', 'thunder-stone', 'leaf-stone', 'moon-stone'];
 export const isEvolutionItem = (item: ItemId) => STONES.includes(item) || item === 'linking-cord';
 
 /** 그 아이템으로 하는 진화 (돌 = 그 돌 · 연결의끈 = 교환 진화) — 그림이 있는 종만, 없으면 null */

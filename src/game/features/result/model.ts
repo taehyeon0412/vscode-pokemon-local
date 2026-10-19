@@ -37,6 +37,8 @@ export function summaryLines(s: BattleSummary): { head: string[]; body: string[]
   const rest = s.exp.filter((e) => e.to <= e.from).map((e) => `${e.name} +${e.gain} EXP`);
   const body = [...up, ...rest];
   for (const l of s.learned) body.push(`✨ ${withJosa(l.name, '이/가')} ${withJosa(l.move, '을/를')} 배웠다`);
+  // 라이벌 한마디 (gdd 4.12) — 둘째 줄 맨 끝 (좁은 패널에서 레벨업이 잘리지 않게)
+  if (s.quote) body.push(`💬 ${s.quote}`);
   return { head, body };
 }
 

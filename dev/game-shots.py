@@ -173,6 +173,17 @@ SHOTS = [
     ("p12-gym-92", "720x92", {"screen": "game", "look": "brendan", "gender": "male", "place": "lobby", "size": "small"}),
     ("p12-hero8-140", "720x140", {"screen": "title", "save": "none", "click": "hero", "size": "large"}),
     ("p12-mix-116", "720x116", {"screen": "game", "look": "brendan", "gender": "male", "place": "trainer", "size": "medium", "budget": "600"}),
+    # 라이벌 (gdd 4.12 — 2026-10-19) — 깜짝 등장 "!" · 띠 (전적) · 전투 · 이긴 결과 · 진 알림
+    ("p12-rival-116", "720x116", {"screen": "game", "look": "brendan", "gender": "male", "place": "rival", "size": "medium", "budget": "250"}),
+    ("p12-rival-talk-116", "720x116", {"screen": "game", "look": "brendan", "gender": "male", "place": "rival-talk", "size": "medium", "budget": "600"}),
+    ("p12-rival-talk-68", "720x68", {"screen": "game", "look": "brendan", "gender": "male", "place": "rival-talk", "budget": "600"}),
+    ("p12-rival-talk-360", "360x92", {"screen": "game", "look": "girl", "place": "rival-talk", "rival": "may-rs", "record": "0-0", "size": "small", "budget": "600"}),
+    ("p12-rival-talk-140", "720x140", {"screen": "game", "look": "may", "place": "rival-talk", "rival": "blue", "record": "3-4", "size": "large", "budget": "600"}),
+    ("p12-rival-battle-116", "720x116", {"screen": "game", "look": "brendan", "gender": "male", "place": "rival-battle", "size": "medium"}),
+    ("p12-rival-result-116", "720x116", {"screen": "game", "look": "brendan", "gender": "male", "place": "rival-result", "size": "medium"}),
+    ("p12-rival-over-200", "720x200", {"screen": "game", "look": "brendan", "gender": "male", "place": "rival-over", "size": "medium", "budget": "300"}),
+    ("p12-rival-lose-92", "720x92", {"screen": "game", "look": "brendan", "gender": "male", "place": "rival-lose", "record": "2-2", "toast": "라이벌 지민: 역시 내가 한 수 위지! (전적 2승 2패)", "size": "small"}),
+    ("p12-rival-result-360", "360x116", {"screen": "game", "look": "brendan", "gender": "male", "place": "rival-result", "record": "0-0", "size": "medium"}),
     # 파이어레드 원작 그림 (레드 = boy)
     ("p12-red-walk-68", "720x68", {"screen": "game", "look": "boy", "gender": "male"}),
     ("p12-red-walk-116", "720x116", {"screen": "game", "look": "boy", "gender": "male", "size": "medium"}),
