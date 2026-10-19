@@ -105,9 +105,11 @@ function fxMove(b: BattleState): { m: FxMove; hitType: string; big: boolean } | 
 }
 
 /** 행동마다 연출을 한 번 — 일반 모드가 그리면 true (BattleLayer 는 그때 이모지를 안 그림). 못 그린 행동 (필살기를 못 씀 · 오류) 은 false */
-export function useBattleFx(b: BattleState): boolean {
+export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | null }): boolean {
   const fx = pokemonFx();
   const key = battleAnimKey(b);
+  // 연출 층 (#350) — 기술 · 힘대결은 HUD 아래 층에, 필살기 시작 (컷인 · 큰 글씨) 만 맨 위 → 상대를 맞히는 순간 내림
+  const down = () => fx?.mount?.(layer?.current ?? null);
   // 일반 모드가 못 그린 행동의 열쇠 — 그 행동만 이모지로
   const [missed, setMissed] = useState('');
   // 힘대결 연타를 실시간으로 (효과는 시작할 때 한 번만 도니, 지금 상태는 여기서 읽음)
@@ -116,6 +118,7 @@ export function useBattleFx(b: BattleState): boolean {
   useEffect(() => {
     if (!fx) return undefined;
     const a = b.anim;
+    if (a?.action.kind !== 'ult') down();
     if (!a) {
       if (b.phase !== 'clash' || !b.clash) return undefined;
       // 힘대결 — 앞 행동의 뿜기 · 늦은 타이머를 지우고, 일반 모드 대결로 (모으기 → 가운데서 밀고 밀리기 → 이긴 쪽이 뚫고 나감)
@@ -233,7 +236,9 @@ export function useBattleFx(b: BattleState): boolean {
           const onHit = () => {
             ultHitDone = true;
             releaseFx();
+            down();
           };
+          fx.mount?.(null);
           const total = fx.ult && src && dst ? fx.ult(src, dst, onHit, learnedNames(b, side)) : 0;
           if (total > 0) {
             holdFx(key, total, performance.now(), FX_HOLD_ULT_MAX_MS);
@@ -294,6 +299,7 @@ export function useBattleFx(b: BattleState): boolean {
     () => () => {
       releaseFx();
       pokemonFx()?.clear();
+      pokemonFx()?.mount?.(null);
       document.body.style.removeProperty('--pg-fx-top');
     },
     [],

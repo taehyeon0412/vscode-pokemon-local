@@ -15,6 +15,13 @@ body.pokemon-game-on #pokemonFxCanvas {
   /* 위쪽은 정보줄 아래 끝에서 자름 (BattleFx 가 --pg-fx-top 을 잼) — 번개 구름 · 필살기 글자 · 어둠이 정보줄을 덮지 않게 (아트 디렉터) */
   clip-path: inset(var(--pg-fx-top, 0px) 0 0 0);
 }
+/* 전투 연출 층 (#350) — 포켓몬 (z 3) 위 · HP 묶음 4 · 한 줄 말 5 · 메뉴 6 · 피해 숫자 7 · 힘대결 안내 8 아래. 캔버스는 fixed 라 화면 좌표 그대로 (조상에 transform 이 없어야 함) */
+.pg-fxlayer {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
 /* 프로필 판 (S21) 위에는 안 그림 — 연출 캔버스가 맨 위라 (#330) */
 body.pokemon-game-on:has(.pg-profile-wrap) #pokemonFxCanvas {
   visibility: hidden;

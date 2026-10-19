@@ -242,6 +242,10 @@ function moveCanvasReady() {
         document.body.appendChild(moveCanvas);
         moveCtx = moveCanvas.getContext('2d');
     }
+    // 게임 모드 전투는 캔버스를 전투 판의 연출 층 (HUD 아래) 으로 옮겨 씀 (ult/bridge.js mount) — 게임이 아니거나 떨어져 나갔으면 body 로 되돌림 (일반 모드 연출이 안 보이는 일 없게)
+    if (moveCanvas.parentNode !== document.body && (!moveCanvas.isConnected || !document.body.classList.contains('pokemon-game-on'))) {
+        document.body.appendChild(moveCanvas);
+    }
     const dpr = window.devicePixelRatio || 1;
     const w = Math.round(window.innerWidth * dpr);
     const h = Math.round(window.innerHeight * dpr);

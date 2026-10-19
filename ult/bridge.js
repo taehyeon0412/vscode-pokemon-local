@@ -409,7 +409,7 @@ function fxDuelSoftStop() {
 }
 
 window.pokemonFx = {
-    version: 3,
+    version: 4,
     /** 그 기술의 연출 — { fx: 틀 이름, ms: 걸리는 시간, contact: 몸으로 닿는지 } · 없으면 null (게임은 그 기술을 예전 모양으로) */
     plan(form, m) {
         const p = fxPlan(form, m);
@@ -595,6 +595,14 @@ window.pokemonFx = {
         if (was) {
             moveEmitters.length = 0;
             moveParticles.length = 0;
+        }
+    },
+    /** 연출 캔버스를 둘 곳 (version 4) — el = 게임 전투 판의 연출 층 (포켓몬 위 · HP · 말 · 메뉴 · 피해 숫자 아래), null 이면 맨 위 (body) */
+    mount(el) {
+        moveCanvasReady();
+        const home = el && el.isConnected && fxInGame() ? el : document.body;
+        if (moveCanvas.parentNode !== home) {
+            home.appendChild(moveCanvas);
         }
     },
     /** 남은 연출을 지움 — 전투가 갑자기 끝나거나 화면이 바뀔 때 */

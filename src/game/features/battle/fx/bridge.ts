@@ -51,6 +51,8 @@ export interface PokemonFx {
   duelWin?(who: 'a' | 'b'): void;
   /** soft = 터지는 여운까지 그리고 정리 */
   stopDuel?(soft?: boolean): void;
+  /** 연출 캔버스를 둘 곳 (version 4) — 전투 판의 연출 층, null 이면 맨 위 */
+  mount?(el: HTMLElement | null): void;
   clear(): void;
 }
 

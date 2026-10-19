@@ -7,6 +7,7 @@
  * 연출은 CSS 로 간단히 (임시 디자인 — 원래 확장 필살기 연출에 잇는 건 단계 12).
  */
 import type { ComponentChildren } from 'preact';
+import { useRef } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
 import type { BattleState, GameInput, Side } from '../../../core/engine';
 import { clashWithTaps, isShooting, type Fighter } from '../../../core/rules/battle';
@@ -332,7 +333,9 @@ function Clash({ b, geo, y, native }: { b: BattleState; geo: BattleGeometry; y: 
 
 export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onProfile }: BattleLayerProps) {
   // 일반 모드 기술 · 방어 · 회복 연출 (2026-10-19 태현 님) — 번들이 없으면 false (이모지 그대로)
-  const native = useBattleFx(b);
+  // 연출 층 (포켓몬 위 · HUD 아래, #350) — 일반 모드 연출 캔버스를 전투 중 이 안으로 옮김
+  const fxLayer = useRef<HTMLDivElement>(null);
+  const native = useBattleFx(b, fxLayer);
   const profile = onProfile && profileOpenable(b) ? onProfile : undefined;
   const midMe = ground + Math.round(geo.meSpritePx * 0.45);
   const midFoe = ground + Math.round(geo.foeSpritePx * 0.45);
@@ -382,6 +385,8 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
           </div>
         )
       )}
+      {/* 연출 층 — 비어 있는 상자 (Preact 는 안을 안 건드림), BattleFx 가 연출 캔버스를 넣음 */}
+      <div class="pg-fxlayer" ref={fxLayer} />
     </>
   );
 }
