@@ -1,5 +1,6 @@
 /**
- * 픽셀 아이콘 (단계 12) — 그림은 data/icons.ts (8 × 8 칸), 여기서 2배 (16px) SVG 로 그림
+ * 픽셀 아이콘 · 길 위 그림 (단계 12) — 그림은 data/icons.ts (글자 칸), 여기서 SVG 로 그림.
+ * 점 크기 px: 아이콘 = 2 (8 × 8 → 16px, 글자 줄 · 버튼), 길 위 그림 = 포켓몬 그림 배율 (layout.scale)
  */
 import { ICONS, PAL, type IconName } from '../data/icons';
 
@@ -25,10 +26,13 @@ function pathsOf(name: IconName): { fill: string; d: string }[] {
   return paths;
 }
 
-/** 글자 줄 · 버튼 안 픽셀 아이콘 (16px) — title 이 없으면 꾸밈 (옆 글자가 뜻을 말함) */
-export function Icon({ name, title }: { name: IconName; title?: string }) {
+/** title 이 없으면 꾸밈 (옆 글자가 뜻을 말함) · px = 점 크기 */
+export function Icon({ name, title, px = 2 }: { name: IconName; title?: string; px?: number }) {
+  const rows = ICONS[name];
+  const w = rows[0]?.length ?? 8;
+  const h = rows.length;
   return (
-    <svg class="pg-icon" viewBox="0 0 8 8" width="16" height="16" shape-rendering="crispEdges" role={title ? 'img' : undefined} aria-hidden={title ? undefined : 'true'}>
+    <svg class="pg-icon" viewBox={`0 0 ${w} ${h}`} width={w * px} height={h * px} shape-rendering="crispEdges" role={title ? 'img' : undefined} aria-hidden={title ? undefined : 'true'}>
       {title && <title>{title}</title>}
       {pathsOf(name).map((p) => (
         <path key={p.fill} fill={p.fill} d={p.d} />

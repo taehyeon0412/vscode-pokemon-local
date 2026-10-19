@@ -2508,12 +2508,10 @@ body.pokemon-game-on {
   background: var(--pg-sos-gauge);
 }
 
-/* 픽셀 아이콘 (ui/Icon — 8 × 8 칸을 2배, 이모지 대신) — 글자 줄 가운데에 맞춤 */
+/* 픽셀 아이콘 (ui/Icon — 8 × 8 칸을 2배 = 16px, 이모지 대신) — 글자 줄 가운데에 맞춤 · 크기는 SVG 의 width · height */
 .pg-icon {
   flex: none;
   display: inline-block;
-  width: 16px;
-  height: 16px;
   vertical-align: -4px;
 }
 /* 레벨업 ▲ · 새 기술 ★ */
@@ -2588,4 +2586,40 @@ body.pokemon-game-on {
 }
 .pg-pick-heroes .pg-hero-choice b {
   font-size: 12px;
+}
+
+/* 길 위 그림 (흔적 · 떨어진 아이템 · 이모지 대신 픽셀) — 글자 줄 높이 없이 그림 크기 그대로, 아래 끝이 땅 */
+.pg-trace,
+.pg-item,
+.pg-facility {
+  font-size: 0;
+  line-height: 0;
+}
+.pg-trace > .pg-icon,
+.pg-item > .pg-icon,
+.pg-facility > .pg-icon {
+  display: block;
+}
+.pg-trace-dots {
+  font-size: calc(11px * var(--pg-scale, 1));
+  line-height: 1;
+  color: var(--pg-sos-ink);
+  text-shadow: 1px 1px 0 var(--pg-sos-tab-ink);
+}
+/* 센 흔적 = 빨간 !! (예전 💢) */
+.pg-trace-big {
+  font-weight: 900;
+  color: var(--pg-sos-red);
+}
+.pg-sparkle {
+  line-height: 0;
+}
+.pg-trace-shiny {
+  filter: drop-shadow(0 0 3px var(--pg-sos-gold));
+}
+/* 길 위의 부탁 = 금색 ? (예전 ❓) — 테두리는 글자 그림자 네 방향 */
+.pg-npc-mark {
+  font-weight: 900;
+  color: var(--pg-sos-gold);
+  text-shadow: 1px 0 0 var(--pg-sos-tab-ink), -1px 0 0 var(--pg-sos-tab-ink), 0 1px 0 var(--pg-sos-tab-ink), 0 -1px 0 var(--pg-sos-tab-ink);
 }

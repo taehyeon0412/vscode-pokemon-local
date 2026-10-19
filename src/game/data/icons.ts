@@ -1,6 +1,7 @@
 /**
  * 픽셀 아이콘 그림 (단계 12, 2026-10-19 — 이모지 대신, design-system.md 7장). 그리는 곳 = ui/Icon.tsx.
- * 8 × 8 칸, 화면에서는 2배 (16px) — 포켓몬 그림 (보통 ×2) 과 같은 점 크기. 원작 UI 그림 대신 리드가 직접 그림 (태현 님 "추천대로").
+ * 아이콘은 8 × 8 칸, 화면에서는 2배 (16px) — 포켓몬 그림 (보통 ×2) 과 같은 점 크기. 길 위 그림 (흔적 · 아이템) 은 크기가 제각각이고 그림 배율로.
+ * 원작 UI 그림 대신 리드가 직접 그림 (태현 님 "추천대로").
  * 칸 글자: . = 빈칸, 나머지는 PAL 색 (Y/y = 금 · W/w = 크림 · R/r = 빨강 · G/g = 초록 · B/b = 파랑 · N/n = 갈색 — 대문자 밝음 · 소문자 그늘).
  * 어두운 테두리는 없음 — 남색 판 위에서 묻혀 모양이 흐려져서 (색면으로만)
  */
@@ -17,6 +18,8 @@ export const PAL: Record<string, string> = {
   b: '#3c64a8',
   N: '#b07a48',
   n: '#7a4e2a',
+  /** 그림자 (반투명 검정) */
+  k: 'rgba(0, 0, 0, 0.45)',
 };
 
 export const ICONS = {
@@ -48,6 +51,21 @@ export const ICONS = {
   badge: ['...yy...', '..yYGy..', '.yYGGGy.', 'yYGWGGgy', 'yYGGGggy', '.yGGggy.', '..yggy..', '...yy...'],
   /** 잠김 */
   lock: ['..WWWW..', '.WW..WW.', '.W....W.', 'YYYYYYYY', 'YYYyyYYY', 'YYYyyYYY', 'YYYYYYYy', 'yyyyyyyy'],
+  // ── 길 위 그림 (S06 ④ 야생 흔적 · ⑭ 떨어진 아이템) — 크기는 제각각, 화면 점 크기 = 포켓몬 그림 배율 ──
+  /** 풀숲 흔들림 */
+  tuft: ['.....G......', '..G..G...G..', '..GG.Gg.GG..', '.G.GgGgGg.G.', '.GG.GgGgGGg.', 'GgGGgGgGgGGg', 'gGgGgggGgGgg', '.gggggggggg.'],
+  /** 나무 흔들림 (잎 덤불) */
+  bush: ['....GGGG....', '..GGGGGGgg..', '.GGGGGGGGgg.', '.GGGgGGGGgg.', 'GGGGGGGGgggg', 'GgGGGgGGgggg', '.gggggggggg.', '...nn..nn...'],
+  /** 물결 */
+  ripple: ['...BBBBBB...', '.BB......BB.', 'B...bbbb...B', '.BB......BB.', '...BBBBBB...'],
+  /** 돌 부스러기 */
+  pebbles: ['.......www..', '..www.wWWWw.', '.wWWWwwWwww.', '.wWwww.www..', '..www.......'],
+  /** 날리는 나뭇잎 (위에 무언가) */
+  leaf: ['.....gG.', '....gGG.', '...gGGG.', '..gGGGg.', '.gGGgg..', '.Ggg....', 'g.......'],
+  /** 어른거리는 그림자 */
+  shadow: ['...kkkkkk...', '.kkkkkkkkkk.', '.kkkkkkkkkk.', '...kkkkkk...'],
+  /** 반짝 (떨어진 아이템 · 이로치 힌트) */
+  sparkle: ['...W...', '...Y...', '..YWY..', 'WYWWWYW', '..YWY..', '...Y...', '...W...'],
 } satisfies Record<string, readonly string[]>;
 
 export type IconName = keyof typeof ICONS;

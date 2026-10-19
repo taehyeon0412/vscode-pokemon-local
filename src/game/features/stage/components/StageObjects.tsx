@@ -1,21 +1,23 @@
 /**
- * 길 위의 것들 (S06 ④ ⑤ ⑥ ⑭ ⑮ ⑯) — 위치는 model.ts 의 visibleObjects, 여기는 모양만. 트레이너 · 부탁하는 사람 · 병원 간호순 · 상점 점원은 원작 사람 그림 (data/people.ts), 병원 · 상점은 원작 건물 그림 (media/buildings), 흔적 · 아이템은 이모지 (임시).
+ * 길 위의 것들 (S06 ④ ⑤ ⑥ ⑭ ⑮ ⑯) — 위치는 model.ts 의 visibleObjects, 여기는 모양만. 트레이너 · 부탁하는 사람 · 병원 간호순 · 상점 점원은 원작 사람 그림 (data/people.ts), 병원 · 상점은 원작 건물 그림 (media/buildings),
+ * 흔적 · 아이템은 리드가 그린 픽셀 그림 (data/icons.ts — 포켓몬 그림과 같은 점 크기, 단계 12).
  */
 import { Fragment } from 'preact';
 import type { TraceKind } from '../../../core/rules/encounter';
 import { FACILITY_STAFF } from '../../../core/rules/stage';
 import { personLook } from '../../../data/heroes';
+import { Icon, type IconName } from '../../../ui/Icon';
 import { Sprite } from '../../../ui/Sprite';
 import { BUILDINGS, buildingDraw, staffLeftPx, type StageObject } from '../model';
 import { Hero } from './Hero';
 
-const TRACE_ICON: Record<TraceKind, string> = {
-  grass: '🌿',
-  tree: '🌳',
-  water: '〰️',
-  ground: '🪨',
-  sky: '🍃',
-  shadow: '🌑',
+const TRACE_ICON: Record<TraceKind, IconName> = {
+  grass: 'tuft',
+  tree: 'bush',
+  water: 'ripple',
+  ground: 'pebbles',
+  sky: 'leaf',
+  shadow: 'shadow',
 };
 
 const TRACE_TITLE: Record<TraceKind, string> = {
@@ -66,7 +68,7 @@ export function StageObjects({ objects, media, scale, ground, roomPx }: ObjectsP
                   </span>
                 ) : (
                   <span class="pg-obj pg-facility" style={style} title={title}>
-                    {kind === 'hospital' ? '🏥' : '🏪'}
+                    <Icon name={kind === 'hospital' ? 'hospital' : 'shop'} px={2 * scale} />
                   </span>
                 )}
                 {look && (
@@ -87,13 +89,13 @@ export function StageObjects({ objects, media, scale, ground, roomPx }: ObjectsP
           case 'item':
             return (
               <span key={o.key} class="pg-obj pg-item" style={style} title="반짝이는 것이 떨어져 있다">
-                ✨
+                <Icon name="sparkle" px={scale} />
               </span>
             );
           case 'request':
             return (
               <span key={o.key} class={o.active ? 'pg-obj pg-npc pg-npc-active' : 'pg-obj pg-npc'} style={style} title={`${o.template.who.name}`}>
-                <span class="pg-npc-mark">❓</span>
+                <span class="pg-npc-mark">?</span>
                 {personLook(o.template.who.look) ? (
                   <Hero px={2 * scale} walking={false} faceLeft label={o.template.who.name} look={personLook(o.template.who.look)} media={media} roomPx={roomPx} />
                 ) : (
@@ -113,9 +115,13 @@ export function StageObjects({ objects, media, scale, ground, roomPx }: ObjectsP
             return (
               <span key={o.key} class={cls} style={style} title={TRACE_TITLE[o.plan.trace] + (o.plan.strong ? ' (크게!)' : '')}>
                 {/* 모든 흔적에 같은 신호 — 배경 나무 · 풀과 헷갈리지 않게 */}
-                <span class="pg-trace-dots">{o.plan.strong ? '💢' : '…'}</span>
-                {TRACE_ICON[o.plan.trace]}
-                {o.plan.shiny && <span class="pg-sparkle">✨</span>}
+                <span class={o.plan.strong ? 'pg-trace-dots pg-trace-big' : 'pg-trace-dots'}>{o.plan.strong ? '!!' : '…'}</span>
+                <Icon name={TRACE_ICON[o.plan.trace]} px={o.plan.strong ? scale * 1.5 : scale} />
+                {o.plan.shiny && (
+                  <span class="pg-sparkle">
+                    <Icon name="sparkle" px={scale} />
+                  </span>
+                )}
               </span>
             );
           }
