@@ -130,10 +130,20 @@ describe('전투 무대 (battleStage, 2026-10-19)', () => {
     expect(battleStage(BATTLE_STAGE_MAX_PX)).toEqual({ left: 0, width: BATTLE_STAGE_MAX_PX });
   });
 
-  it('넓은 패널은 720 무대 — 무대 안 주인공 자리가 걷던 자리와 같은 비율 (1858 → 512 ~ 1232)', () => {
+  it('넓은 패널은 720 무대를 패널 가운데에 — 무대 안 주인공 자리 = 걷던 자리 (1858 → 569 ~ 1289, 태현 님 "왼쪽으로 치우쳐 보여")', () => {
     const s = battleStage(1858);
     expect(s).toEqual({ left: heroX(1858) - heroX(720), width: 720 });
-    expect(s.left).toBe(512);
+    expect(s.left).toBe(569);
+    for (const w of [721, 900, 1200, 1858, 2400]) {
+      const st = battleStage(w);
+      expect(Math.abs(st.left * 2 + st.width - w)).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('걷는 주인공 자리는 720 에서 이어짐 (좁은 패널 45% 그대로)', () => {
+    expect(heroX(720)).toBe(324);
+    expect(heroX(721)).toBe(325);
+    expect(heroX(360)).toBe(162);
   });
 
   it('야생은 튀어나온 자리 그대로 싸움 (무대 안 만난 자리 + 무대 왼쪽 끝 = 패널의 만난 자리)', () => {

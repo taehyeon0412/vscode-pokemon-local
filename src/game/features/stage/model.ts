@@ -54,8 +54,19 @@ export function stagePx(scale: number): number {
   return (BALANCE.stageWalkMs / 1000) * WALK_PX_PER_SEC * scale;
 }
 
-/** 주인공이 서는 자리 — "화면 가운데쯤" (gdd S06 ③ [확정]), 앞에서 다가오는 것이 조금 더 보이게 가운데보다 살짝 왼쪽 (45%) */
+/**
+ * 넓은 패널의 전투 무대 너비 — 패널이 이보다 넓으면 이 너비 안에서 싸움 (2026-10-19 리드 · 태현 님 "세세한 부분은 알아서 조정":
+ * 1858px 패널에서 두 포켓몬이 565px · 트레이너끼리 1800px 떨어져 연출 · 눈이 화면을 가로지르던 것. 720 = 디자인 기준 화면 너비)
+ */
+export const BATTLE_STAGE_MAX_PX = 720;
+
+/**
+ * 주인공이 서는 자리 — "화면 가운데쯤" (gdd S06 ③ [확정]), 앞에서 다가오는 것이 조금 더 보이게 가운데보다 살짝 왼쪽 (45%).
+ * 넓은 패널은 가운데 720px 무대 안의 45% (1858 → 48%) — 전투 무대가 패널 가운데에 오고, 야생은 튀어나온 자리 그대로 싸움
+ * (2026-10-19 태현 님 "전투 화면이 애매하게 왼쪽으로 치우쳐 보여" — 예전엔 패널의 45% 라 무대가 57px 왼쪽)
+ */
 export function heroX(widthPx: number): number {
+  if (widthPx > BATTLE_STAGE_MAX_PX) return Math.round((widthPx - BATTLE_STAGE_MAX_PX) / 2 + BATTLE_STAGE_MAX_PX * 0.45);
   return Math.max(48, Math.round(widthPx * 0.45));
 }
 
@@ -212,13 +223,7 @@ export function contactX(widthPx: number, scale: number): number {
 }
 
 /**
- * 넓은 패널의 전투 무대 너비 — 패널이 이보다 넓으면 이 너비 안에서 싸움 (2026-10-19 리드 · 태현 님 "세세한 부분은 알아서 조정":
- * 1858px 패널에서 두 포켓몬이 565px · 트레이너끼리 1800px 떨어져 연출 · 눈이 화면을 가로지르던 것. 720 = 디자인 기준 화면 너비)
- */
-export const BATTLE_STAGE_MAX_PX = 720;
-
-/**
- * 전투 무대 (패널 안 왼쪽 끝 · 너비) — 무대 안 주인공 자리 비율이 걷던 자리 (heroX) 와 같게 놓음
+ * 전투 무대 (패널 안 왼쪽 끝 · 너비) — 무대 안 주인공 자리가 걷던 자리 (heroX) 와 같게 놓음 = 넓은 패널은 패널 가운데
  * → 야생은 튀어나온 자리 그대로 (contactX), 트레이너 · 상대 트레이너 · 관장은 무대 양 끝 (gdd S09 "양 끝" = 무대 기준). 좁은 패널은 패널 전체
  */
 export function battleStage(widthPx: number): { left: number; width: number } {
