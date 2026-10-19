@@ -2,7 +2,7 @@
  * 전투 계산 (mvp-spec 3.3 · 4장 "전투") — 화면도 시간 흐름도 모르는 순수 계산. 흐름은 core/engine/battle.ts.
  * 피해 = ((2 × 레벨 / 5 + 2) × 위력 × 공격 / 방어 / 50 + 2) × 상성 × 자속 1.5 × 급소 1.5 × 무작위 0.85 ~ 1
  */
-import { BALANCE } from '../balance';
+import { BALANCE, TIMING } from '../balance';
 import type { Rng } from '../engine/rng';
 import type { Monster, MoveSlot, StatusCondition, Stats } from '../save';
 import { moveOf, speciesOf, type ReadonlyMove, type TypeName } from '../../data';
@@ -149,6 +149,17 @@ const NOT_SHOOTING = new Set([
 ]);
 
 /** 쏘는 기술 (광선 · 불꽃 · 물 · 구체 등) — 몸이 닿지 않는 피해 기술 중 위 목록 빼고 */
+/** 패링 등급 — perfect = 완벽 (피해 0) · good = 막음 (피해 절반) · early = 너무 일찍 (이번 공격은 못 막음) · late = 늦음 */
+export type ParryGrade = 'perfect' | 'good' | 'early' | 'late';
+
+/** 맞기까지 남은 ms (음수 = 맞은 뒤) 로 등급 (2026-10-19 태현 님 "날아오는 타이밍에 Space — 패링처럼") */
+export function parryGrade(msBeforeHit: number): ParryGrade {
+  if (msBeforeHit > TIMING.parryEarlyMs) return 'early';
+  if (msBeforeHit < -TIMING.parryLateMs) return 'late';
+  if (msBeforeHit <= TIMING.parryPerfectEarlyMs && msBeforeHit >= -TIMING.parryPerfectLateMs) return 'perfect';
+  return 'good';
+}
+
 export function isShooting(move: ReadonlyMove | undefined): boolean {
   return !!move && move.class !== 'status' && move.power > 0 && !move.contact && !NOT_SHOOTING.has(move.key);
 }

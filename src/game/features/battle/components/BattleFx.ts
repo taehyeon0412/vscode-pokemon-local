@@ -12,6 +12,7 @@ import { clashWithTaps } from '../../../core/rules/battle';
 import { formOf, moveOf, speciesOf } from '../../../data';
 import { pokemonFx, type FxActor, type FxMove } from '../fx/bridge';
 import { battleAnimKey, FX_HOLD_DUEL_MAX_MS, FX_HOLD_ULT_MAX_MS, holdFx, releaseFx } from '../fx/hold';
+import { clearImpact, impactOf, setImpact } from '../fx/parry';
 
 /** 쏘는 기술을 쓰기 시작하는 때 — 몸을 젖혔다 내미는 동안 (일반 모드 useSignature 의 120ms) */
 const CAST_DELAY_MS = 120;
@@ -200,7 +201,15 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
       if (move) {
         const form = b[side].form;
         const plan = fx.plan(form, move.m);
+        // 상대 공격이 맞는 순간 — 패링 (Space · 클릭) 판정 · 좁혀지는 원이 이 때에 맞춤 (fx/parry, 2026-10-19)
+        const impactAt = (ms: number) => {
+          if (side !== 'foe') return;
+          const t = performance.now();
+          setImpact(key, t + Math.max(0, ms - a.ms), t);
+        };
+        if (!plan) impactAt(a.dur);
         if (plan?.contact) {
+          impactAt(Math.round(a.dur * CONTACT_AT));
           // 자국 · 주먹은 맞는 쪽 몸 앞 (서로 마주 보니 친 쪽을 향한 면) 에 — 쓰는 쪽 기술 모양 그대로 (form)
           at(Math.round(a.dur * CONTACT_AT), () => {
             const dst = actor(b, other(side));
@@ -213,6 +222,7 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
           // 짧은 연출은 늦게 시작해 맞는 순간이 피해 숫자 (엔진 dur) 와 같게 (#329) · 등장 중이면 끝난 뒤에
           const castAt = Math.max(CAST_DELAY_MS, a.dur - Math.round(plan.ms * SHOT_HIT_AT)) + settleMs();
           holdFx(key, castAt + plan.ms - a.ms, performance.now());
+          impactAt(castAt + Math.round(plan.ms * SHOT_HIT_AT));
           at(castAt, () => {
             const src = actor(b, side);
             const dst = actor(b, other(side));
@@ -289,6 +299,20 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
     };
     // 행동이 바뀔 때만 (같은 행동 동안 다시 그려져도 한 번)
   }, [key]);
+  // 패링 — 막으면 맞는 순간에 맞춰 내 포켓몬에 방패 (완벽 = 금색)
+  const parried = b.anim?.side === 'foe' ? b.anim.parry : undefined;
+  useEffect(() => {
+    if (!fx || (parried !== 'good' && parried !== 'perfect')) return undefined;
+    const w = impactOf(key);
+    const t = window.setTimeout(
+      () => {
+        const me = actor(b, 'me');
+        if (me) fx.cast(me, 'shield', { c: parried === 'perfect' ? 'gold' : 'aura' });
+      },
+      w ? Math.max(0, Math.round(w.at - performance.now())) : 0,
+    );
+    return () => window.clearTimeout(t);
+  }, [key, parried]);
   // 연출 캔버스 위 끝 = 정보줄 아래 끝 (game.css 가 여기서 자름 — 연출이 정보줄을 덮지 않게, 아트 디렉터).
   // 그릴 때마다 잼 — 처음 그릴 땐 game.css 를 받기 전이라 화면이 숨어 0 이 나오고, 패널 크기도 바뀜 (값이 같으면 안 씀)
   useEffect(() => {
@@ -305,6 +329,7 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
   useEffect(
     () => () => {
       releaseFx();
+      clearImpact();
       pokemonFx()?.clear();
       pokemonFx()?.mount?.(null);
       document.body.style.removeProperty('--pg-fx-top');

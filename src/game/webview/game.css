@@ -33,6 +33,26 @@ body.pokemon-game-on #pokemonFxCanvas {
   from { width: 100%; }
   to { width: 0; }
 }
+/* 패링 원 (2026-10-19) — 상대 공격이 맞기 직전 내 포켓몬 둘레에서 좁혀짐, 포켓몬 크기가 되는 순간 (85%) = 맞는 순간 → Space · 클릭 (BattleLayer ParryRing) */
+.pg-parry-ring {
+  position: absolute;
+  z-index: 6;
+  box-sizing: border-box;
+  border: 2px solid #ffd76a;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, 50%) scale(2.2);
+  animation-name: pg-parry-ring;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+@keyframes pg-parry-ring {
+  0% { transform: translate(-50%, 50%) scale(2.2); opacity: 0; }
+  15% { opacity: 1; }
+  85% { transform: translate(-50%, 50%) scale(1); opacity: 1; border-color: #ffffff; }
+  100% { transform: translate(-50%, 50%) scale(0.9); opacity: 0; }
+}
 /* 프로필 판 (S21) 위에는 안 그림 — 연출 캔버스가 맨 위라 (#330) */
 body.pokemon-game-on:has(.pg-profile-wrap) #pokemonFxCanvas {
   visibility: hidden;

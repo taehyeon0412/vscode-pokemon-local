@@ -9,7 +9,7 @@
 import type { ComponentChildren } from 'preact';
 import { useRef } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
-import type { BattleState, GameInput, Side } from '../../../core/engine';
+import { canParry, type BattleState, type GameInput, type Side } from '../../../core/engine';
 import { clashWithTaps, isShooting, type Fighter } from '../../../core/rules/battle';
 import { catchTiming } from '../../../core/rules/catch';
 import type { Save } from '../../../core/save';
@@ -18,6 +18,7 @@ import { Button } from '../../../ui/Button';
 import { Sprite } from '../../../ui/Sprite';
 import { duelKind, hpColor, moveColor, moveFx, profileOpenable, STATUS_LABEL, type BattleGeometry } from '../model';
 import { battleAnimKey, holdWindow } from '../fx/hold';
+import { impactOf } from '../fx/parry';
 import { BattleMenu } from './BattleMenu';
 import { fxCastAt, fxContact, useBattleFx } from './BattleFx';
 
@@ -286,6 +287,25 @@ function emphasize(msg: string, names: readonly string[]): ComponentChildren {
 }
 
 /** S10 힘대결 — 두 기술이 가운데서 밀고 밀림. 연타할수록 맞부딪히는 자리가 상대 쪽으로 (gdd S10 ⑤) · 승자가 정해지면 이긴 줄기가 끝까지 */
+/**
+ * 패링 원 (2026-10-19 태현 님 A) — 상대 공격이 맞기 직전, 내 포켓몬 둘레에서 금색 원이 좁혀져 포켓몬 크기가 되는 순간 = 맞는 순간 (그때 Space · 클릭).
+ * 맞는 순간은 연출 (BattleFx → fx/parry) 이 정함. 누르면 (막음 · 완벽 · 너무 일찍) 원은 사라지고 엔진이 글 (막았다!) 을 띄움
+ */
+function ParryRing({ b, geo, y }: { b: BattleState; geo: BattleGeometry; y: number }) {
+  const w = canParry(b) ? impactOf(animKey(b)) : null;
+  if (!w) return null;
+  const size = Math.round(geo.meSpritePx * 1.1);
+  // 원이 좁혀지기 시작하는 때 = 맞기 parryRingMs 전 — 지연은 맞는 순간을 적은 때 기준으로 고정 (그릴 때마다 지금으로 바꾸면 어긋남)
+  const delay = Math.round(w.at - TIMING.parryRingMs - w.set);
+  return (
+    <span
+      key={animKey(b)}
+      class="pg-parry-ring"
+      style={{ left: `${geo.meX}px`, bottom: `${y}px`, width: `${size}px`, height: `${size}px`, animationDuration: `${TIMING.parryRingMs + TIMING.parryLateMs}ms`, animationDelay: `${delay}ms` }}
+    />
+  );
+}
+
 /** native = 일반 모드 대결이 그림 (BattleFx) — 그때는 줄기 · 💥 를 안 그리고 안내만 */
 function Clash({ b, geo, y, native }: { b: BattleState; geo: BattleGeometry; y: number; native: boolean }) {
   const c = b.clash;
@@ -362,6 +382,7 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
       {hasMe && <HpBlock f={b.me} side="me" x={geo.meHpX} bottom={geo.meHpBottom} wide={geo.meHpWide} prefix="" noName={geo.menuSide !== null} />}
       {b.phase !== 'send' && <HpBlock f={b.foe} side="foe" x={geo.foeHpX} bottom={geo.foeHpBottom} wide={geo.foeHpWide} prefix={foePrefix(b)} />}
       {b.phase === 'clash' ? <Clash b={b} geo={geo} y={Math.round((midMe + midFoe) / 2)} native={native} /> : <Effects b={b} geo={geo} ground={ground} midMe={midMe} midFoe={midFoe} native={native} />}
+      <ParryRing b={b} geo={geo} y={midMe} />
       <Catch b={b} geo={geo} ground={ground} />
       {(['me', 'foe'] as const).map((side) =>
         popups(side).map((p, i) => (

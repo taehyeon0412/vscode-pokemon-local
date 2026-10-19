@@ -28,6 +28,8 @@ import {
   gaugeRate,
   guardFactor,
   isShooting,
+  parryGrade,
+  type ParryGrade,
   streakMultiplier,
   ultGain,
   type Fighter,
@@ -61,8 +63,10 @@ export interface BattleAnim {
   action: BattleAction;
   ms: number;
   dur: number;
-  /** 상대가 쏘는 기술 — 내 맞받아치기 버튼이 떠 있음 */
+  /** 상대가 쏘는 기술 — 막으면 (패링) 힘대결로 이어질 수 있음 (나에게 쏘는 기술이 있을 때) */
   counter: boolean;
+  /** 패링 (상대 공격일 때, 한 번만) — 처음 누른 등급. good · perfect 면 피해가 줄어듦 (2026-10-19) */
+  parry?: ParryGrade;
 }
 
 export interface BattleClash {
@@ -341,6 +345,13 @@ function hit(b: BattleState, attackerSide: Side, power: number, type: ReadonlyMo
   const guarded = d.guard < 1;
   const r = computeDamage({ attacker: a, defender: d, power, type, useUlt: opts.useUlt, rng });
   let dmg = r.damage;
+  // 패링 (상대 공격을 막음) — 피해 ×0.5 · 완벽 ×0 + 내 행동 게이지 (2026-10-19)
+  const parried = attackerSide === 'foe' && !opts.useUlt ? b.anim?.parry : undefined;
+  if (parried === 'good' || parried === 'perfect') {
+    dmg = Math.floor(dmg * (parried === 'perfect' ? BALANCE.parryPerfectFactor : BALANCE.parryGoodFactor));
+    popup(b, 'me', parried === 'perfect' ? '완벽하게 막았다!' : '막았다!', 'info');
+    if (parried === 'perfect') d.gauge = Math.min(1, d.gauge + BALANCE.parryPerfectGauge);
+  }
   if (opts.move?.effect === 'leave-1hp') dmg = Math.min(dmg, Math.max(0, d.hp - 1));
   // 실제로 깎인 HP — 남은 HP 보다 큰 피해는 넘치는 만큼 버림 (흡수 · 반동 · 숫자도 이 값으로, 원작처럼)
   const before = d.hp;
@@ -401,6 +412,7 @@ function resolveMove(b: BattleState, side: Side, mv: ReadonlyMove | undefined, r
   }
   if (mv.class !== 'status' && mv.power > 0) hit(b, side, Math.round(mv.power * powerScale), mv.type, rng, { move: mv });
   if (!mv.ailment) return;
+  if (side === 'foe' && b.anim?.parry === 'perfect') return; // 완벽하게 막으면 상태 이상도 안 걸림
   // 효과가 없는 상대 (상성 0 · 타입 면역) 에게는 상태 이상도 안 걸림
   if (!canInflict(mv.ailment, mv.type, b[target].types)) {
     if (mv.class === 'status') popup(b, target, '효과가 없는 것 같다…', 'info');
@@ -702,6 +714,8 @@ export type BattleInput =
   | { kind: 'ult' }
   /** Space · 클릭 — 힘대결 연타 · 맞받아치기 · 필살기 맞받아치기 · 타이밍 원 (extraMs = 걸음이 되지 못한 시간) */
   | { kind: 'space'; extraMs?: number }
+  /** 패링 — ms = 맞기까지 남은 시간 (화면이 연출의 맞는 순간으로 잼, 음수 = 맞은 뒤) */
+  | { kind: 'parry'; ms: number }
   | { kind: 'pick'; uid: string }
   /** 이긴 뒤 마지막 기회: 볼 던지기 · 그냥 지나가기 */
   | { kind: 'ball'; ball: BallId }
@@ -741,6 +755,35 @@ export function canUlt(b: BattleState): boolean {
   if (b.phase === 'run' || b.phase === 'choose') return true;
   // 상대 기술 연출 중에는 끼어들기 (상대 필살기에는 맞받아치기만 — ultCounterOpen)
   return b.phase === 'anim' && b.anim?.side === 'foe' && b.anim.action.kind !== 'ult';
+}
+
+/** 지금 패링할 수 있는지 — 상대가 피해를 주는 공격 (1 공격 · 위력 있는 기술) 을 하는 중 · 아직 안 누름 · 내가 서 있음 */
+export function canParry(b: BattleState): boolean {
+  const a = b.anim;
+  if (b.phase !== 'anim' || !a || a.side !== 'foe' || a.parry !== undefined || b.me.hp <= 0) return false;
+  if (a.action.kind === 'attack') return true;
+  if (a.action.kind !== 'move') return false;
+  const mv = moveOf(a.action.moveId);
+  return !!mv && mv.class !== 'status' && mv.power > 0;
+}
+
+/**
+ * 패링 (2026-10-19 태현 님 A) — 처음 누른 것만 셈 (너무 일찍 누르면 이번 공격은 못 막음 — 연타 막기).
+ * 막음 · 완벽이면: 쏘는 기술끼리 (나에게 쏘는 기술이 있음) 는 그대로 맞받아치기 힘대결 (게이지를 다 씀), 아니면 맞을 때 피해 ×0.5 · ×0 (hit)
+ */
+function parry(b: BattleState, msBeforeHit: number): BattleState {
+  const a = b.anim!;
+  const grade = parryGrade(msBeforeHit);
+  if ((grade === 'good' || grade === 'perfect') && a.counter && a.action.kind === 'move') {
+    const incoming = moveOf(a.action.moveId);
+    const mine = incoming ? counterMove(b.me, incoming) : null;
+    if (incoming && mine) {
+      // 맞받아치기도 내 행동 — 게이지를 다 쓰고 방어 · 연달아는 풀림
+      const me = { ...b.me, gauge: 0, guard: 1, guardStreak: 0, streakMove: null, streakCount: 0, moves: b.me.moves.map((s) => (s.moveId === mine.id ? { ...s, pp: Math.max(0, s.pp - 1) } : s)) };
+      return startClash({ ...b, me }, 'move', mine, incoming);
+    }
+  }
+  return { ...b, anim: { ...a, parry: grade } };
 }
 
 /** 맞받아치기 버튼이 떠 있는지 */
@@ -806,15 +849,13 @@ export function battleInput(b: BattleState, save: Save, input: BattleInput, rng:
         return { ...b, clash: { ...b.clash, taps } };
       }
       if (ultCounterOpen(b)) return startClash({ ...b, me: { ...b.me, ult: 0 } }, 'ult', null, null);
-      if (counterOpen(b) && b.anim?.action.kind === 'move') {
-        const incoming = moveOf(b.anim.action.moveId);
-        const mine = incoming ? counterMove(b.me, incoming) : null;
-        if (!incoming || !mine) return b;
-        // 맞받아치기도 내 행동 — 게이지를 다 쓰고 방어 · 연달아는 풀림
-        const me = { ...b.me, gauge: 0, guard: 1, guardStreak: 0, streakMove: null, streakCount: 0, moves: b.me.moves.map((s) => (s.moveId === mine.id ? { ...s, pp: Math.max(0, s.pp - 1) } : s)) };
-        return startClash({ ...b, me }, 'move', mine, incoming);
-      }
+      // 상대 공격 중 Space — 화면이 맞는 순간을 모르면 (연출 없음) 엔진 시간으로 어림한 패링
+      if (canParry(b)) return parry(b, b.anim!.dur - b.anim!.ms - Math.min(TIMING.simStepMs, Math.max(0, input.extraMs ?? 0)));
       return b;
+    }
+    case 'parry': {
+      if (!canParry(b) || !Number.isFinite(input.ms)) return b;
+      return parry(b, input.ms);
     }
     case 'pick':
       if (b.phase !== 'pick') return b;
@@ -845,6 +886,7 @@ const SIDES = ['me', 'foe'];
 const PHASES = ['run', 'choose', 'anim', 'clash', 'pick', 'catch', 'last', 'send', 'over'];
 const KINDS = ['wild', 'trainer', 'gym'];
 const ACTIONS = ['attack', 'move', 'guard', 'item', 'switch', 'flee', 'ult', 'skip'];
+const PARRY_GRADES = ['perfect', 'good', 'early', 'late'];
 const STATUS = ['poison', 'burn', 'paralysis', 'sleep'];
 const POPUP_KINDS = ['damage', 'heal', 'info'];
 const STARTS = ['preemptive', 'normal', 'ambush'];
@@ -920,7 +962,7 @@ export function readBattle(raw: unknown): BattleState | null {
   if (!PHASES.includes(raw.phase as string) || !okBench(raw.bench) || !okBag(raw.bagUsed)) return null;
   if (!Array.isArray(raw.popups) || !raw.popups.every((p) => isObj(p) && fin(p.id, 0) && SIDES.includes(p.side as string) && typeof p.text === 'string' && fin(p.ms, 0) && POPUP_KINDS.includes(p.kind as string))) return null;
   const anim = raw.anim;
-  if (anim !== null && !(isObj(anim) && SIDES.includes(anim.side as string) && okAction(anim.action) && fin(anim.ms, 0) && fin(anim.dur, 0, 60_000) && typeof anim.counter === 'boolean')) return null;
+  if (anim !== null && !(isObj(anim) && SIDES.includes(anim.side as string) && okAction(anim.action) && fin(anim.ms, 0) && fin(anim.dur, 0, 60_000) && typeof anim.counter === 'boolean' && (anim.parry === undefined || PARRY_GRADES.includes(anim.parry as string)))) return null;
   const clash = raw.clash;
   if (clash !== null && !(isObj(clash) && (clash.kind === 'move' || clash.kind === 'ult') && (clash.me === null || fin(clash.me, 1, 100000)) && (clash.foe === null || fin(clash.foe, 1, 100000)) && fin(clash.base, 0, 1) && fin(clash.taps, 0, 1000) && fin(clash.ms, 0) && (clash.winner === null || SIDES.includes(clash.winner as string)))) return null;
   if (raw.phase === 'anim' && anim === null) return null;

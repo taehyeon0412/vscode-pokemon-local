@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { fixedRng } from '../../../test/fixtures/rng';
 import { sampleMonster, sampleSave, viaJson } from '../../../test/fixtures/save';
 import { BALANCE, TIMING } from '../balance';
-import { canInflict, clashChance, fighterOf } from '../rules/battle';
+import { canInflict, clashChance, fighterOf, parryGrade } from '../rules/battle';
 import type { EncounterStart, Monster, Save } from '../save';
 import {
   applyBattleResult,
@@ -12,6 +12,7 @@ import {
   battleWaiting,
   canAct,
   canUlt,
+  canParry,
   counterOpen,
   itemLeft,
   readBattle,
@@ -201,7 +202,7 @@ describe('방어 (mvp-spec 4장)', () => {
   });
 });
 
-describe('맞받아치기 · 힘대결 (mvp-spec 3.3 · S10)', () => {
+describe('맞받아치기 · 힘대결 (mvp-spec 3.3 · S10) — 2026-10-19 부터 패링 (맞기 직전 Space) 으로', () => {
   /** 상대가 불꽃세례를 쏘는 순간 (내 게이지 · 내 기술은 정함) */
   function foeShoots(myGauge: number, myMoves = [{ moveId: WATER_GUN, pp: 25 }]) {
     const { b, save } = setup();
@@ -209,11 +210,11 @@ describe('맞받아치기 · 힘대결 (mvp-spec 3.3 · S10)', () => {
     return { b: battleStep(ready, save, STEP, fixedRng(0.5), { auto: false }), save };
   }
 
-  it('상대 쏘는 기술 + 내 게이지 절반 이상 + 내 쏘는 기술 → 1.5초 버튼 → Space = 힘대결 (게이지를 다 씀 · 내 PP 1)', () => {
+  it('상대 쏘는 기술 + 내 쏘는 기술 → 1.5초 날아오는 동안 맞기 직전에 막으면 (패링) 힘대결 (게이지를 다 씀 · 내 PP 1)', () => {
     const { b, save } = foeShoots(0.6);
     expect(b.anim).toMatchObject({ side: 'foe', action: { kind: 'move', moveId: EMBER }, counter: true, dur: TIMING.counterWindowMs });
     expect(counterOpen(b)).toBe(true);
-    const c = battleInput(b, save, { kind: 'space' }, new SeededRng(1));
+    const c = battleInput(b, save, { kind: 'parry', ms: 80 }, new SeededRng(1));
     expect(c.phase).toBe('clash');
     expect(c.clash).toMatchObject({ kind: 'move', me: WATER_GUN, foe: EMBER, taps: 0 });
     expect(c.clash!.base).toBeCloseTo(clashChance(c.me.stats.attack * 40, c.foe.stats.attack * 40), 9);
@@ -223,7 +224,7 @@ describe('맞받아치기 · 힘대결 (mvp-spec 3.3 · S10)', () => {
 
   it('연타: Space 1번 = +1%p, 최대 20번 · 4초 뒤 확률로 승패 → 진 쪽 HP 가 깎임', () => {
     const { b, save } = foeShoots(0.6);
-    let c = battleInput(b, save, { kind: 'space' }, new SeededRng(1));
+    let c = battleInput(b, save, { kind: 'parry', ms: 80 }, new SeededRng(1));
     for (let i = 0; i < 30; i++) c = battleInput(c, save, { kind: 'space' }, new SeededRng(1));
     expect(c.clash!.taps).toBe(20);
     // 0.5 < 확률이면 내가 이김 (연타로 +20%p 라 기본이 30% 를 넘으면 이김)
@@ -241,19 +242,21 @@ describe('맞받아치기 · 힘대결 (mvp-spec 3.3 · S10)', () => {
     expect(done.msg).toContain('힘대결');
   });
 
-  it('내 게이지가 낮아도 쏘는 기술이 있으면 버튼이 뜸 — 누르면 게이지를 다 씀 (2026-10-18 태현 님)', () => {
+  it('내 게이지가 낮아도 쏘는 기술이 있으면 맞받아칠 수 있음 — 막으면 게이지를 다 씀 (2026-10-18 태현 님)', () => {
     const low = foeShoots(0.1);
     expect(low.b.anim?.counter).toBe(true);
     expect(counterOpen(low.b)).toBe(true);
-    const c = battleInput(low.b, low.save, { kind: 'space' }, new SeededRng(1));
+    const c = battleInput(low.b, low.save, { kind: 'parry', ms: 150 }, new SeededRng(1));
     expect(c.phase).toBe('clash');
     expect(c.me.gauge).toBe(0);
   });
 
-  it('쏘는 기술이 없으면 버튼이 안 뜸 → 그냥 맞음', () => {
+  it('쏘는 기술이 없으면 힘대결은 없음 — 막으면 (패링) 피해만 줄어듦, 안 막으면 그냥 맞음', () => {
     const noShot = foeShoots(0.9, [{ moveId: TACKLE, pp: 9 }]);
     expect(noShot.b.anim?.counter).toBe(false);
-    expect(battleInput(noShot.b, noShot.save, { kind: 'space' }, new SeededRng(1))).toBe(noShot.b);
+    const blocked = battleInput(noShot.b, noShot.save, { kind: 'parry', ms: 200 }, new SeededRng(1));
+    expect(blocked.phase).toBe('anim');
+    expect(blocked.anim?.parry).toBe('good');
     const hit = run(noShot.b, noShot.save, TIMING.moveAnimMs, fixedRng(0.5));
     expect(hit.me.hp).toBeLessThan(noShot.b.me.hp);
   });
@@ -263,6 +266,58 @@ describe('맞받아치기 · 힘대결 (mvp-spec 3.3 · S10)', () => {
     const before = b.me.hp;
     expect(run(b, save, TIMING.counterWindowMs - STEP * 2, fixedRng(0.5)).me.hp).toBe(before);
     expect(run(b, save, TIMING.counterWindowMs, fixedRng(0.5)).me.hp).toBeLessThan(before);
+  });
+});
+
+describe('패링 — 상대 공격이 맞기 직전 Space · 클릭 (2026-10-19 태현 님 A)', () => {
+  /** 상대가 1 공격 (몸통박치기 모양) 을 하는 중 */
+  function foeAttacks() {
+    const { b, save } = setup({ wild: wildMon({ moves: [{ moveId: TACKLE, pp: 35 }] }) });
+    const anim: BattleState = { ...b, phase: 'anim', me: { ...b.me, gauge: 0.1 }, anim: { side: 'foe', action: { kind: 'attack' }, ms: 0, dur: TIMING.attackAnimMs, counter: false } };
+    return { b: anim, save };
+  }
+  const damageOf = (b: BattleState, save: Save) => b.me.hp - run(b, save, TIMING.attackAnimMs + STEP, fixedRng(0.5)).me.hp;
+
+  it('등급: 맞기 0.3초 전 ~ 0.12초 뒤 = 막음, 0.1초 전 ~ 0.05초 뒤 = 완벽, 더 일찍 = 일찍 (이번 공격은 못 막음), 더 늦게 = 늦음', () => {
+    expect(parryGrade(TIMING.parryEarlyMs + 1)).toBe('early');
+    expect(parryGrade(TIMING.parryEarlyMs)).toBe('good');
+    expect(parryGrade(TIMING.parryPerfectEarlyMs)).toBe('perfect');
+    expect(parryGrade(0)).toBe('perfect');
+    expect(parryGrade(-TIMING.parryPerfectLateMs)).toBe('perfect');
+    expect(parryGrade(-TIMING.parryPerfectLateMs - 1)).toBe('good');
+    expect(parryGrade(-TIMING.parryLateMs)).toBe('good');
+    expect(parryGrade(-TIMING.parryLateMs - 1)).toBe('late');
+  });
+
+  it('막음 = 피해 절반 · 완벽 = 피해 0 + 내 행동 게이지 +20% · 글이 뜸', () => {
+    const { b, save } = foeAttacks();
+    const plain = damageOf(b, save);
+    expect(plain).toBeGreaterThan(1);
+    const good = battleInput(b, save, { kind: 'parry', ms: 250 }, new SeededRng(1));
+    expect(damageOf(good, save)).toBe(Math.floor(plain * BALANCE.parryGoodFactor));
+    const perfect = battleInput(b, save, { kind: 'parry', ms: 30 }, new SeededRng(1));
+    const after = run(perfect, save, TIMING.attackAnimMs + STEP, fixedRng(0.5));
+    expect(after.me.hp).toBe(b.me.hp);
+    expect(after.me.gauge).toBeGreaterThanOrEqual(b.me.gauge + BALANCE.parryPerfectGauge - 1e-9);
+    expect(after.popups.some((p) => p.text === '완벽하게 막았다!')).toBe(true);
+  });
+
+  it('처음 누른 것만 셈 — 너무 일찍 누르면 이번 공격은 못 막음 (연타 막기)', () => {
+    const { b, save } = foeAttacks();
+    const early = battleInput(b, save, { kind: 'parry', ms: 600 }, new SeededRng(1));
+    expect(early.anim?.parry).toBe('early');
+    expect(battleInput(early, save, { kind: 'parry', ms: 30 }, new SeededRng(1))).toBe(early);
+    expect(damageOf(early, save)).toBe(damageOf(b, save));
+  });
+
+  it('내 공격 · 변화 기술 · 쓰러진 뒤에는 못 막음 · 화면이 맞는 순간을 모르면 Space 는 엔진 시간으로 어림', () => {
+    const { b, save } = foeAttacks();
+    expect(canParry(b)).toBe(true);
+    expect(canParry({ ...b, anim: { ...b.anim!, side: 'me' } })).toBe(false);
+    expect(canParry({ ...b, me: { ...b.me, hp: 0 } })).toBe(false);
+    // 맞기 0.15초 전에 Space (엔진 시간) → 막음
+    const near = { ...b, anim: { ...b.anim!, ms: TIMING.attackAnimMs - 150 } };
+    expect(battleInput(near, save, { kind: 'space' }, new SeededRng(1)).anim?.parry).toBe('good');
   });
 });
 
@@ -460,7 +515,7 @@ describe('단계 5 · 6 검토에서 고친 것 (bugs #104 ~)', () => {
     const { b, save } = setup();
     const ready = { ...b, me: { ...b.me, gauge: 0.8, guard: 0.5, guardStreak: 1, moves: [{ moveId: WATER_GUN, pp: 25 }] }, foe: { ...b.foe, gauge: 1 } };
     const foeShot = battleStep(ready, save, STEP, fixedRng(0.5), { auto: false });
-    const c = battleInput(foeShot, save, { kind: 'space' }, new SeededRng(1));
+    const c = battleInput(foeShot, save, { kind: 'parry', ms: 80 }, new SeededRng(1)); // 맞받아치기 = 맞기 직전 패링 (2026-10-19)
     expect(c.phase).toBe('clash');
     expect([c.me.guard, c.me.guardStreak]).toEqual([1, 0]);
   });

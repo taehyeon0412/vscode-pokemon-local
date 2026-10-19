@@ -145,9 +145,10 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
       </Button>
     );
   } else if (counter) {
+    // 막기 (패링, 2026-10-19 태현 님) — 아무 때나 누르면 너무 일러 못 막음 → "기다렸다가" 를 글로. 누르면 그 순간 Space 와 같음 (엔진이 시간으로 판정)
     row = (
-      <Button onClick={() => onInput({ kind: 'space' })} title="Space">
-        {`맞받아치기! ${key}`}
+      <Button onClick={() => onInput({ kind: 'space' })} title="날아오는 공격에 원이 좁혀질 때 Space · 클릭 — 막으면 피해 절반, 딱 맞으면 0">
+        {`막기 — 원이 좁혀질 때 ${document.hasFocus() ? 'Space' : '클릭'}`}
       </Button>
     );
   } else if (picking) {

@@ -23,6 +23,7 @@ export {
   battleDone,
   battleWaiting,
   canAct,
+  canParry,
   canUlt,
   counterOpen,
   faintedTeam,

@@ -10,6 +10,7 @@ import { stageViewKey } from '../features/stage/model';
 import { createStartSave } from '../features/starter/model';
 import { GAME_COMMAND, isHostToWebview } from '../shared/messages';
 import { shouldHoldBattle } from '../features/battle/fx/hold';
+import { spaceInput } from '../features/battle/fx/parry';
 import { fieldTopPx, fitLayout, gameSize, topGapPx } from '../ui/layout';
 import { Store } from '../ui/store';
 import { App, OVERLAY_INPUTS, overlayAllowed, type AppActions, type ViewState } from './app';
@@ -225,7 +226,8 @@ if (!port) {
       e.preventDefault(); // 화면이 스크롤되지 않게
       // 전투 중에는 방금 누른 메뉴 버튼에 포커스가 남아 있어도 Space 는 게임으로 (버튼이 또 눌리지 않게 포커스를 뺌)
       if (onButton) e.target.blur();
-      actions.input({ kind: 'space' });
+      // 상대 공격 중이면 패링 (맞기까지 남은 ms — fx/parry, 2026-10-19), 아니면 그냥 Space
+      actions.input(spaceInput(session.current, performance.now()));
     } else if (phase === 'request' && ((e.key === 'Enter' && !onButton) || e.key === 'Escape')) {
       e.preventDefault();
       actions.input({ kind: 'request', help: e.key === 'Enter' });

@@ -9,7 +9,8 @@
  */
 import { useRef } from 'preact/hooks';
 import { BALANCE } from '../../../core/balance';
-import { canOpenMenus, isWalkingFast, itemLeft, type GameInput, type GameState } from '../../../core/engine';
+import { canOpenMenus, canParry, isWalkingFast, itemLeft, type GameInput, type GameState } from '../../../core/engine';
+import { spaceInput } from '../../battle/fx/parry';
 import { bestHelper, requestAt } from '../../../core/rules/request';
 import { FACILITY_STAFF } from '../../../core/rules/stage';
 import { GYM_LEADER } from '../../../core/rules/trainer';
@@ -253,6 +254,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
           // 튀어나온 순간 길을 클릭해도 선제공격 [제안] · 힘대결 중 클릭 = 연타 (gdd S10 ⑤)
           // 볼을 던졌을 때 클릭 = 타이밍 원 Space (S11)
           if (phase === 'appear' || battle?.phase === 'clash' || battle?.phase === 'catch') onInput({ kind: 'space' });
+          // 상대 공격 중 판 클릭 = 패링 (Space 와 같음, 2026-10-19)
+          else if (battle && canParry(battle)) onInput(spaceInput(state, performance.now()));
         }}
       >
         {gym ? (
