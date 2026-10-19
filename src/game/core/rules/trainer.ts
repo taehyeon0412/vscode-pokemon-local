@@ -1,7 +1,7 @@
 /**
  * 트레이너 · 관장 (mvp-spec S08 · 3.9 · 4장) — 누가 어떤 포켓몬을 데리고 나오는지. 시드로 정해서 언제 누가 계산해도 같음.
  *
- * 트레이너: 스테이지마다 2 ~ 3명 (stage.ts trainerCount) · 사람 (이름 · 옷 색) 은 스테이지 · 번호로 늘 같음, 데리고 나오는 포켓몬은 판마다.
+ * 트레이너: 스테이지마다 2 ~ 3명 (stage.ts trainerCount) · 사람 (칭호 · 이름 · 원작 그림) 은 스테이지 · 번호로 늘 같음 — 숲 9자리가 다 다름, 데리고 나오는 포켓몬은 판마다.
  *   상대 마릿수 1 ~ 3 · 내 살아 있는 포켓몬 수 + 1 까지 (스타팅 1마리일 때 3마리 연속을 막음) · 레벨 = 스테이지 레벨대 가운데 (반올림 — 1-1 Lv 3 · 1-2 Lv 8 · 1-3 Lv 12, 위끝 → 가운데: 2026-10-19 태현 님) · 포켓몬은 숲 보통 목록 (풀 · 벌레만, 노말 · 비행은 안 섞음)
  * 관장: 파라스 Lv 13 · 냄새꼬 Lv 14 · 에이스 버터플 Lv 15 (필살기 게이지 절반 찬 채로 나옴) — 늘 같은 3마리 (다시 도전할 때 공략이 쌓임, gdd 4.7)
  */
@@ -11,33 +11,48 @@ import { STAGE_IDS, type Monster, type Save, type StageId, type Stats } from '..
 import { formsOfSpecies, learnsetOf, moveOf, type ReadonlyMove } from '../../data';
 import { evolveForLevel, forestPool } from './encounter';
 import { createMonster, wildMoves } from './monster';
-import { mixSeed, spotRng, stageLevelBand } from './stage';
+import { spotRng, stageLevelBand, trainerCount } from './stage';
 
 export interface TrainerInfo {
   /** 이긴 트레이너 기록 이름 ("forest-1:t0") */
   id: string;
   /** "곤충채집 소년 민수" */
   name: string;
-  /** 코드로 그린 사람 색 — 모자 · 옷 */
+  /** 코드로 그린 사람 색 — 모자 · 옷 (그림이 없을 때) */
   hat: string;
   shirt: string;
+  /** 사람 그림 (data/people.ts id) */
+  look?: string;
 }
 
-/** 숲의 트레이너 (이름은 예시 — 원작 그림 · 이름 아님). 사람 그림은 주인공과 같은 모양에 파란색 (decisions 2026-10-17: 주인공 빨강 · 트레이너 파랑 · 관장 금색) — 밝은 파랑 모자 · 하늘색 옷 (주인공의 짙은 파랑 옷과 구별) */
+/** 그림이 없을 때 코드로 그린 사람 색 (decisions 2026-10-17: 트레이너 파랑) */
+const TRAINER_HAT = '#2f6ff0';
 const TRAINER_SHIRT = '#8cc4ff';
-const CLASSES = [
-  { title: '곤충채집 소년', hat: '#2f6ff0', shirt: TRAINER_SHIRT },
-  { title: '피크닉 소녀', hat: '#4a8af0', shirt: TRAINER_SHIRT },
-  { title: '숲 탐험가', hat: '#3a7ae0', shirt: TRAINER_SHIRT },
-  { title: '꽃집 아이', hat: '#6aa0ff', shirt: TRAINER_SHIRT },
-  { title: '등산가', hat: '#2a62d8', shirt: TRAINER_SHIRT },
+/**
+ * 숲 트레이너 자리 — 스테이지 3개 × 최대 3명 = 9자리, 칭호 · 원작 그림 (data/people.ts) · 이름이 다 다름 (2026-10-19 태현 님: 원작 그림 · 한글 이름 · 겹치지 않게).
+ * 자리 = 앞 스테이지들의 트레이너 수 합 + 트레이너 번호 (1-1 2명 · 1-2 3명 · 1-3 3명 = 8자리, 빈 자리 없이). 이름은 예시.
+ */
+export const FOREST_TRAINERS = [
+  { title: '반바지 꼬마', name: '민수', look: 'frlg-youngster' },
+  { title: '곤충채집 소년', name: '지호', look: 'frlg-bug-catcher' },
+  { title: '짧은치마', name: '서연', look: 'frlg-lass' },
+  { title: '피크닉 소녀', name: '하은', look: 'frlg-picnicker' },
+  { title: '쌍둥이', name: '유나', look: 'em-twin' },
+  { title: '학원생', name: '도윤', look: 'em-school-kid' },
+  { title: '등산가', name: '현우', look: 'frlg-hiker' },
+  { title: '엘리트 트레이너', name: '소율', look: 'frlg-cooltrainer-f' },
+  { title: '포켓몬 애호가', name: '다인', look: 'em-pokefan-f' },
 ] as const;
-const NAMES = ['민수', '지호', '서연', '하은', '도윤', '유나', '현우', '소율', '태오', '다인'] as const;
+/** 그 스테이지 첫 트레이너의 자리 */
+export function trainerSlot(stageId: StageId, n: number): number {
+  const before = STAGE_IDS.slice(0, Math.max(0, STAGE_IDS.indexOf(stageId)));
+  return before.reduce((sum, id) => sum + trainerCount(id), 0) + n;
+}
 
 export function trainerInfo(stageId: StageId, n: number): TrainerInfo {
-  const rng = new Rng(mixSeed(0x7e41, (STAGE_IDS.indexOf(stageId) + 1) * 16 + n));
-  const c = CLASSES[rng.int(0, CLASSES.length - 1)]!;
-  return { id: `${stageId}:t${n}`, name: `${c.title} ${NAMES[rng.int(0, NAMES.length - 1)]}`, hat: c.hat, shirt: c.shirt };
+  const slot = trainerSlot(stageId, n);
+  const t = FOREST_TRAINERS[slot % FOREST_TRAINERS.length]!;
+  return { id: `${stageId}:t${n}`, name: `${t.title} ${t.name}`, hat: TRAINER_HAT, shirt: TRAINER_SHIRT, look: t.look };
 }
 
 /** 트레이너 번호 ("forest-1:t2" → 2) */
@@ -72,8 +87,8 @@ export function trainerTeam(stageId: StageId, stageSeed: number, n: number, aliv
   return out;
 }
 
-/** 숲 관장 (이름은 예시, 코드로 그린 사람 — 금색, decisions 2026-10-17) */
-export const GYM_LEADER = { name: '관장 나래', title: '숲 체육관 관장', hat: '#9a6f12', shirt: '#e3b341' } as const;
+/** 숲 관장 (이름은 예시) — 그림은 원작 풀 타입 관장 민화 (2026-10-19), 그림이 없으면 코드로 그린 사람 (금색, decisions 2026-10-17) */
+export const GYM_LEADER = { name: '관장 나래', title: '숲 체육관 관장', hat: '#9a6f12', shirt: '#e3b341', look: 'frlg-erika' } as const;
 /** 관장 포켓몬 개체값 — 늘 같게 (★4 쯤) */
 const LEADER_IVS: Stats = { hp: 20, attack: 20, defense: 20, speed: 20, ultimate: 20 };
 

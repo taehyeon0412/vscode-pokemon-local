@@ -1,6 +1,6 @@
 /**
  * S03 주인공 선택 (gdd S03 — 2026-10-19 태현 님 A안) — 남 · 여 여러 명 (data/heroes.ts) 을 한 줄에.
- * 칸마다 정면 그림, 고른 (포커스 · 마우스를 올린) 칸만 옆으로 걸음. 처음 한 번만 (새로 하기 때) → S04.
+ * 칸마다 정면 그림, 고른 (포커스 · 마우스를 올린) 칸만 정면으로 제자리걸음 (2026-10-19 태현 님). 처음 한 번만 (새로 하기 때) → S04.
  * 클릭 또는 ← → + Enter · Esc = 타이틀로.
  */
 import { useEffect, useRef, useState } from 'preact/hooks';
@@ -62,7 +62,7 @@ export function HeroPick({ px, media, bodyPx, initial, onBack, onPick }: { px: n
           const on = i === focus;
           return (
             <button key={look.id} type="button" class={on ? 'pg-hero-choice pg-chip-on' : 'pg-hero-choice'} onClick={() => onPick(look)} onMouseEnter={() => setFocus(i)} onFocus={() => setFocus(i)} title={`${look.label} (Enter)`}>
-              <Hero px={px} walking={on} front={!on} look={look} media={media} gender={look.gender} roomPx={room} />
+              <Hero px={px} walking={on} front look={look} media={media} gender={look.gender} roomPx={room} />
               <b>{look.label}</b>
             </button>
           );

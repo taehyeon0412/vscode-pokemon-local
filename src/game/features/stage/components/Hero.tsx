@@ -1,6 +1,6 @@
 /**
- * 주인공 (S06 ③) — 고른 캐릭터 (data/heroes.ts) 의 그림이 있으면 그 그림 (옆 걷기 장면을 가로로 이은 것 · 정면),
- * 없으면 코드로 그린 픽셀 사람. 오른쪽을 보고 제자리걸음 (game.css .pg-hero · .pg-sheet).
+ * 사람 (S06 ③ 주인공 · 트레이너 · 관장 · 부탁하는 사람) — 사람 그림 (data/people.ts · heroes.ts) 이 있으면 그 그림
+ * (옆 걷기 · 정면 장면을 가로로 이은 것, 자리에 맞춰 큰 그림 / 작은 그림), 없으면 코드로 그린 픽셀 사람. 오른쪽을 보고 제자리걸음 (game.css .pg-hero · .pg-sheet).
  * 코드 그림: 남 · 여는 머리 모양만 다름 (여자는 모자 밑으로 긴 머리). 트레이너 · 관장도 같은 모양에 모자 · 옷 색만 바꿔 씀 (왼쪽을 봄).
  */
 import { memo } from 'preact/compat';
@@ -70,15 +70,14 @@ export interface HeroProps {
   /** 고른 캐릭터 — 그림 (walk) 이 있고 media 가 있으면 그림으로 */
   look?: HeroLook;
   media?: string;
-  /** 정면 (S03 칸) — 정면 그림이 없으면 걷기 첫 장 */
+  /** 정면 (S03 칸) — walking 이면 정면으로 제자리걸음, 정면 그림이 없으면 옆모습 */
   front?: boolean;
   /** 위아래로 쓸 수 있는 px — 큰 그림이 안 들어가면 작은 그림 (data/heroes.ts heroDraw) */
   roomPx?: number;
 }
 
-/** 한 장면 시간 (ms) — 걷기 · 정면 숨쉬기 (천천히) */
+/** 걷기 한 장면 시간 (ms) */
 const WALK_FRAME_MS = 160;
-const BREATH_FRAME_MS = 600;
 
 /** 가로로 이은 장면 그림 — 칸 하나만 보이게 자르고, 걸을 때는 장면을 한 칸씩 옮김 (steps) */
 function Sheet({ src, art, scale, run, frameMs, title }: { src: string; art: SheetArt; scale: number; run: boolean; frameMs: number; title?: string }) {
@@ -105,13 +104,13 @@ function Sheet({ src, art, scale, run, frameMs, title }: { src: string; art: She
 export const Hero = memo(function Hero({ px, walking, hat, shirt, faceLeft, label, gender, look, media, front, roomPx }: HeroProps) {
   const d = look && media ? heroDraw(look, px / 2, roomPx) : null;
   if (look && d) {
-    const base = `${media!.replace(/\/+$/, '')}/people/${look.id}`;
+    const base = `${media!.replace(/\/+$/, '')}/people/${look.dir ?? look.id}`;
     return (
       <span class={['pg-hero', 'pg-hero-art', faceLeft ? 'pg-face-left' : ''].filter(Boolean).join(' ')}>
         {front && d.front ? (
-          <Sheet src={`${base}/${d.frontFile}.png`} art={d.front} scale={d.scale} run frameMs={BREATH_FRAME_MS} title={label} />
+          <Sheet src={`${base}/${d.frontFile}.png`} art={d.front} scale={d.scale} run={walking} frameMs={WALK_FRAME_MS} title={label} />
         ) : (
-          <Sheet src={`${base}/${d.walkFile}.png`} art={d.walk} scale={d.scale} run={walking && !front} frameMs={WALK_FRAME_MS} title={label} />
+          <Sheet src={`${base}/${d.walkFile}.png`} art={d.walk} scale={d.scale} run={walking} frameMs={WALK_FRAME_MS} title={label} />
         )}
       </span>
     );

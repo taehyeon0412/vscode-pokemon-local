@@ -11,7 +11,7 @@ import {
   type MoveSlot, type PendingChoice, type Save, type StageId, type StageProgress, type StageRun, type Stats, type StatusCondition,
 } from './schema';
 import { evolutionsOf, moveOf, speciesOf } from '../../data';
-import { heroLookOf, isHeroLookId } from '../../data/heroes';
+import { heroLookOf, isHeroLookId, LEGACY_LOOKS } from '../../data/heroes';
 
 export type ValidateResult =
   | { ok: true; save: Save; problems: string[] }
@@ -420,12 +420,14 @@ export function validateSave(raw: unknown): ValidateResult {
     if (isObj(raw.player) && (raw.player.gender === 'male' || raw.player.gender === 'female')) {
       player = { gender: raw.player.gender };
       // 고른 캐릭터 — 모르는 이름이면 버림 (성별의 첫 캐릭터로 보임)
-      if (isHeroLookId(raw.player.look)) {
-        player.look = raw.player.look;
+      // 옛 캐릭터 이름은 지금 이름으로 (고친 것으로 치지 않음 — 보관본을 만들지 않게)
+      const look = typeof raw.player.look === 'string' ? (LEGACY_LOOKS[raw.player.look] ?? raw.player.look) : raw.player.look;
+      if (isHeroLookId(look)) {
+        player.look = look;
         // 고른 캐릭터와 성별이 다르면 (손으로 고친 세이브) 캐릭터 쪽으로 — 고른 모습을 지키려고
-        const lookGender = heroLookOf(raw.player.look).gender;
+        const lookGender = heroLookOf(look).gender;
         if (lookGender !== player.gender) {
-          fx.note('player.gender', `캐릭터 ${raw.player.look} 와 성별이 다름 → ${lookGender}`);
+          fx.note('player.gender', `캐릭터 ${look} 와 성별이 다름 → ${lookGender}`);
           player.gender = lookGender;
         }
       } else if (raw.player.look !== undefined) fx.note('player.look', `모르는 캐릭터 ${String(raw.player.look)} → 성별의 첫 캐릭터`);

@@ -1,0 +1,2434 @@
+[
+ {
+  "id": "frlg-red",
+  "name": "레드",
+  "group": "hero",
+  "source": "pret/pokefirered red_normal",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  }
+ },
+ {
+  "id": "frlg-leaf",
+  "name": "리프",
+  "group": "hero",
+  "source": "pret/pokefirered green_normal",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  }
+ },
+ {
+  "id": "frlg-blue",
+  "name": "그린",
+  "group": "hero",
+  "source": "pret/pokefirered blue",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-brendan",
+  "name": "휘웅",
+  "group": "hero",
+  "source": "pret/pokeemerald brendan/walking",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 21
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 21
+  }
+ },
+ {
+  "id": "em-may",
+  "name": "지민",
+  "group": "hero",
+  "source": "pret/pokeemerald may/walking",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-brendan-rs",
+  "name": "휘웅 2",
+  "group": "hero",
+  "source": "pret/pokeemerald ruby_sapphire_brendan/walking",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 21
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 21
+  }
+ },
+ {
+  "id": "em-may-rs",
+  "name": "봄이",
+  "group": "hero",
+  "source": "pret/pokeemerald ruby_sapphire_may/walking",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-red",
+  "name": "레드 2",
+  "group": "hero",
+  "source": "pret/pokeemerald red",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  }
+ },
+ {
+  "id": "em-leaf",
+  "name": "리즈",
+  "group": "hero",
+  "source": "pret/pokeemerald leaf",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-wally",
+  "name": "민진",
+  "group": "hero",
+  "source": "pret/pokeemerald wally",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  }
+ },
+ {
+  "id": "frlg-brock",
+  "name": "웅",
+  "group": "leader",
+  "source": "pret/pokefirered brock",
+  "walk": {
+   "frames": 1,
+   "w": 14,
+   "h": 20
+  },
+  "front": {
+   "frames": 1,
+   "w": 14,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-misty",
+  "name": "이슬",
+  "group": "leader",
+  "source": "pret/pokefirered misty",
+  "walk": {
+   "frames": 1,
+   "w": 16,
+   "h": 19
+  },
+  "front": {
+   "frames": 1,
+   "w": 16,
+   "h": 19
+  }
+ },
+ {
+  "id": "frlg-lt-surge",
+  "name": "마티스",
+  "group": "leader",
+  "source": "pret/pokefirered lt_surge",
+  "walk": {
+   "frames": 1,
+   "w": 14,
+   "h": 20
+  },
+  "front": {
+   "frames": 1,
+   "w": 14,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-erika",
+  "name": "민화",
+  "group": "leader",
+  "source": "pret/pokefirered erika",
+  "walk": {
+   "frames": 1,
+   "w": 12,
+   "h": 19
+  },
+  "front": {
+   "frames": 1,
+   "w": 12,
+   "h": 19
+  }
+ },
+ {
+  "id": "frlg-koga",
+  "name": "독수",
+  "group": "leader",
+  "source": "pret/pokefirered koga",
+  "walk": {
+   "frames": 1,
+   "w": 14,
+   "h": 20
+  },
+  "front": {
+   "frames": 1,
+   "w": 14,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-sabrina",
+  "name": "초련",
+  "group": "leader",
+  "source": "pret/pokefirered sabrina",
+  "walk": {
+   "frames": 1,
+   "w": 14,
+   "h": 19
+  },
+  "front": {
+   "frames": 1,
+   "w": 14,
+   "h": 19
+  }
+ },
+ {
+  "id": "frlg-blaine",
+  "name": "강연",
+  "group": "leader",
+  "source": "pret/pokefirered blaine",
+  "walk": {
+   "frames": 1,
+   "w": 14,
+   "h": 20
+  },
+  "front": {
+   "frames": 1,
+   "w": 14,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-giovanni",
+  "name": "비주기",
+  "group": "leader",
+  "source": "pret/pokefirered giovanni",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-roxanne",
+  "name": "원규",
+  "group": "leader",
+  "source": "pret/pokeemerald gym_leaders/roxanne",
+  "walk": {
+   "frames": 1,
+   "w": 16,
+   "h": 19
+  },
+  "front": {
+   "frames": 1,
+   "w": 16,
+   "h": 19
+  }
+ },
+ {
+  "id": "em-brawly",
+  "name": "철구",
+  "group": "leader",
+  "source": "pret/pokeemerald gym_leaders/brawly",
+  "walk": {
+   "frames": 1,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 1,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-wattson",
+  "name": "암페어",
+  "group": "leader",
+  "source": "pret/pokeemerald gym_leaders/wattson",
+  "walk": {
+   "frames": 1,
+   "w": 16,
+   "h": 21
+  },
+  "front": {
+   "frames": 1,
+   "w": 16,
+   "h": 21
+  }
+ },
+ {
+  "id": "em-flannery",
+  "name": "민지",
+  "group": "leader",
+  "source": "pret/pokeemerald gym_leaders/flannery",
+  "walk": {
+   "frames": 1,
+   "w": 16,
+   "h": 21
+  },
+  "front": {
+   "frames": 1,
+   "w": 16,
+   "h": 21
+  }
+ },
+ {
+  "id": "em-norman",
+  "name": "종길",
+  "group": "leader",
+  "source": "pret/pokeemerald gym_leaders/norman",
+  "walk": {
+   "frames": 4,
+   "w": 14,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 14,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-winona",
+  "name": "은송",
+  "group": "leader",
+  "source": "pret/pokeemerald gym_leaders/winona",
+  "walk": {
+   "frames": 1,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 1,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-tate",
+  "name": "풍",
+  "group": "leader",
+  "source": "pret/pokeemerald gym_leaders/tate",
+  "walk": {
+   "frames": 1,
+   "w": 14,
+   "h": 20
+  },
+  "front": {
+   "frames": 1,
+   "w": 14,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-liza",
+  "name": "란",
+  "group": "leader",
+  "source": "pret/pokeemerald gym_leaders/liza",
+  "walk": {
+   "frames": 1,
+   "w": 14,
+   "h": 20
+  },
+  "front": {
+   "frames": 1,
+   "w": 14,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-juan",
+  "name": "아단",
+  "group": "leader",
+  "source": "pret/pokeemerald gym_leaders/juan",
+  "walk": {
+   "frames": 4,
+   "w": 14,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 14,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-wallace",
+  "name": "윤진",
+  "group": "leader",
+  "source": "pret/pokeemerald wallace",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 21
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 21
+  }
+ },
+ {
+  "id": "frlg-lorelei",
+  "name": "칸나",
+  "group": "elite",
+  "source": "pret/pokefirered lorelei",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-bruno",
+  "name": "시바",
+  "group": "elite",
+  "source": "pret/pokefirered bruno",
+  "walk": {
+   "frames": 1,
+   "w": 14,
+   "h": 20
+  },
+  "front": {
+   "frames": 1,
+   "w": 14,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-agatha",
+  "name": "국화",
+  "group": "elite",
+  "source": "pret/pokefirered agatha",
+  "walk": {
+   "frames": 1,
+   "w": 14,
+   "h": 19
+  },
+  "front": {
+   "frames": 1,
+   "w": 14,
+   "h": 19
+  }
+ },
+ {
+  "id": "frlg-lance",
+  "name": "목호",
+  "group": "elite",
+  "source": "pret/pokefirered lance",
+  "walk": {
+   "frames": 1,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 1,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-sidney",
+  "name": "혁진",
+  "group": "elite",
+  "source": "pret/pokeemerald elite_four/sidney",
+  "walk": {
+   "frames": 1,
+   "w": 16,
+   "h": 21
+  },
+  "front": {
+   "frames": 1,
+   "w": 16,
+   "h": 21
+  }
+ },
+ {
+  "id": "em-phoebe",
+  "name": "회연",
+  "group": "elite",
+  "source": "pret/pokeemerald elite_four/phoebe",
+  "walk": {
+   "frames": 1,
+   "w": 16,
+   "h": 19
+  },
+  "front": {
+   "frames": 1,
+   "w": 16,
+   "h": 19
+  }
+ },
+ {
+  "id": "em-glacia",
+  "name": "미혜",
+  "group": "elite",
+  "source": "pret/pokeemerald elite_four/glacia",
+  "walk": {
+   "frames": 1,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 1,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-drake",
+  "name": "권수",
+  "group": "elite",
+  "source": "pret/pokeemerald elite_four/drake",
+  "walk": {
+   "frames": 1,
+   "w": 16,
+   "h": 21
+  },
+  "front": {
+   "frames": 1,
+   "w": 16,
+   "h": 21
+  }
+ },
+ {
+  "id": "em-steven",
+  "name": "성호",
+  "group": "elite",
+  "source": "pret/pokeemerald steven",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 21
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 21
+  }
+ },
+ {
+  "id": "em-anabel",
+  "name": "아나벨",
+  "group": "elite",
+  "source": "pret/pokeemerald frontier_brains/anabel",
+  "walk": {
+   "frames": 4,
+   "w": 14,
+   "h": 19
+  },
+  "front": {
+   "frames": 4,
+   "w": 14,
+   "h": 19
+  }
+ },
+ {
+  "id": "em-brandon",
+  "name": "브랜든",
+  "group": "elite",
+  "source": "pret/pokeemerald frontier_brains/brandon",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-greta",
+  "name": "그레타",
+  "group": "elite",
+  "source": "pret/pokeemerald frontier_brains/greta",
+  "walk": {
+   "frames": 4,
+   "w": 14,
+   "h": 19
+  },
+  "front": {
+   "frames": 4,
+   "w": 14,
+   "h": 19
+  }
+ },
+ {
+  "id": "em-lucy",
+  "name": "루시",
+  "group": "elite",
+  "source": "pret/pokeemerald frontier_brains/lucy",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-noland",
+  "name": "놀랜드",
+  "group": "elite",
+  "source": "pret/pokeemerald frontier_brains/noland",
+  "walk": {
+   "frames": 4,
+   "w": 14,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 14,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-spenser",
+  "name": "스펜서",
+  "group": "elite",
+  "source": "pret/pokeemerald frontier_brains/spenser",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  }
+ },
+ {
+  "id": "em-tucker",
+  "name": "터커",
+  "group": "elite",
+  "source": "pret/pokeemerald frontier_brains/tucker",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-rocket-m",
+  "name": "로켓단 단원 ♂",
+  "group": "villain",
+  "source": "pret/pokefirered rocket_m",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-rocket-f",
+  "name": "로켓단 단원 ♀",
+  "group": "villain",
+  "source": "pret/pokefirered rocket_f",
+  "walk": {
+   "frames": 4,
+   "w": 14,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 14,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-aqua-m",
+  "name": "아쿠아단 단원 ♂",
+  "group": "villain",
+  "source": "pret/pokeemerald team_aqua/aqua_member_m",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-aqua-f",
+  "name": "아쿠아단 단원 ♀",
+  "group": "villain",
+  "source": "pret/pokeemerald team_aqua/aqua_member_f",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-archie",
+  "name": "아강",
+  "group": "villain",
+  "source": "pret/pokeemerald team_aqua/archie",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-magma-m",
+  "name": "마그마단 단원 ♂",
+  "group": "villain",
+  "source": "pret/pokeemerald team_magma/magma_member_m",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-magma-f",
+  "name": "마그마단 단원 ♀",
+  "group": "villain",
+  "source": "pret/pokeemerald team_magma/magma_member_f",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-maxie",
+  "name": "마적",
+  "group": "villain",
+  "source": "pret/pokeemerald team_magma/maxie",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-bug-catcher",
+  "name": "곤충채집 소년",
+  "group": "trainer",
+  "source": "pret/pokefirered bug_catcher",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  }
+ },
+ {
+  "id": "em-bug-catcher",
+  "name": "곤충채집 소년 2",
+  "group": "trainer",
+  "source": "pret/pokeemerald bug_catcher",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-camper",
+  "name": "캠프보이",
+  "group": "trainer",
+  "source": "pret/pokefirered camper",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  }
+ },
+ {
+  "id": "em-camper",
+  "name": "캠프보이 2",
+  "group": "trainer",
+  "source": "pret/pokeemerald camper",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-picnicker",
+  "name": "피크닉 소녀",
+  "group": "trainer",
+  "source": "pret/pokefirered picnicker",
+  "walk": {
+   "frames": 4,
+   "w": 14,
+   "h": 19
+  },
+  "front": {
+   "frames": 4,
+   "w": 14,
+   "h": 19
+  }
+ },
+ {
+  "id": "em-picnicker",
+  "name": "피크닉 소녀 2",
+  "group": "trainer",
+  "source": "pret/pokeemerald picnicker",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-lass",
+  "name": "짧은치마",
+  "group": "trainer",
+  "source": "pret/pokefirered lass",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  }
+ },
+ {
+  "id": "em-lass",
+  "name": "짧은치마 2",
+  "group": "trainer",
+  "source": "pret/pokeemerald lass",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-youngster",
+  "name": "반바지 꼬마",
+  "group": "trainer",
+  "source": "pret/pokefirered youngster",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  }
+ },
+ {
+  "id": "em-youngster",
+  "name": "반바지 꼬마 2",
+  "group": "trainer",
+  "source": "pret/pokeemerald youngster",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  }
+ },
+ {
+  "id": "frlg-hiker",
+  "name": "등산가",
+  "group": "trainer",
+  "source": "pret/pokefirered hiker",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-hiker",
+  "name": "등산가 2",
+  "group": "trainer",
+  "source": "pret/pokeemerald hiker",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 21
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 21
+  }
+ },
+ {
+  "id": "frlg-beauty",
+  "name": "아가씨",
+  "group": "trainer",
+  "source": "pret/pokefirered beauty",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-beauty",
+  "name": "아가씨 2",
+  "group": "trainer",
+  "source": "pret/pokeemerald beauty",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-black-belt",
+  "name": "태권왕",
+  "group": "trainer",
+  "source": "pret/pokefirered black_belt",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-black-belt",
+  "name": "태권왕 2",
+  "group": "trainer",
+  "source": "pret/pokeemerald black_belt",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-biker",
+  "name": "폭주족",
+  "group": "trainer",
+  "source": "pret/pokefirered biker",
+  "walk": {
+   "frames": 4,
+   "w": 22,
+   "h": 23
+  },
+  "front": {
+   "frames": 4,
+   "w": 22,
+   "h": 23
+  }
+ },
+ {
+  "id": "frlg-channeler",
+  "name": "기도사",
+  "group": "trainer",
+  "source": "pret/pokefirered channeler",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-cooltrainer-m",
+  "name": "엘리트 트레이너 ♂",
+  "group": "trainer",
+  "source": "pret/pokefirered cooltrainer_m",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-cooltrainer-f",
+  "name": "엘리트 트레이너 ♀",
+  "group": "trainer",
+  "source": "pret/pokefirered cooltrainer_f",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-crush-girl",
+  "name": "배틀걸",
+  "group": "trainer",
+  "source": "pret/pokefirered crush_girl",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-fisher",
+  "name": "낚시꾼",
+  "group": "trainer",
+  "source": "pret/pokefirered fisher",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-fisherman",
+  "name": "낚시꾼 2",
+  "group": "trainer",
+  "source": "pret/pokeemerald fisherman",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-gentleman",
+  "name": "신사",
+  "group": "trainer",
+  "source": "pret/pokefirered gentleman",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-gentleman",
+  "name": "신사 2",
+  "group": "trainer",
+  "source": "pret/pokeemerald gentleman",
+  "walk": {
+   "frames": 4,
+   "w": 14,
+   "h": 21
+  },
+  "front": {
+   "frames": 4,
+   "w": 14,
+   "h": 21
+  }
+ },
+ {
+  "id": "frlg-rocker",
+  "name": "로커",
+  "group": "trainer",
+  "source": "pret/pokefirered rocker",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-sailor",
+  "name": "뱃사람",
+  "group": "trainer",
+  "source": "pret/pokefirered sailor",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-sailor",
+  "name": "뱃사람 2",
+  "group": "trainer",
+  "source": "pret/pokeemerald sailor",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-scientist",
+  "name": "과학자",
+  "group": "trainer",
+  "source": "pret/pokefirered scientist",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-scientist",
+  "name": "과학자 2",
+  "group": "trainer",
+  "source": "pret/pokeemerald scientist_1",
+  "walk": {
+   "frames": 4,
+   "w": 14,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 14,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-poke-maniac",
+  "name": "포켓몬 마니아",
+  "group": "trainer",
+  "source": "pret/pokefirered poke_maniac",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-maniac",
+  "name": "마니아",
+  "group": "trainer",
+  "source": "pret/pokeemerald maniac",
+  "walk": {
+   "frames": 4,
+   "w": 14,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 14,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-rich-boy",
+  "name": "도련님",
+  "group": "trainer",
+  "source": "pret/pokefirered rich_boy",
+  "walk": {
+   "frames": 4,
+   "w": 14,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 14,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-rich-boy",
+  "name": "도련님 2",
+  "group": "trainer",
+  "source": "pret/pokeemerald rich_boy",
+  "walk": {
+   "frames": 4,
+   "w": 14,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 14,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-swimmer-m",
+  "name": "수영팬티 소년",
+  "group": "trainer",
+  "source": "pret/pokefirered swimmer_m_land",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-swimmer-f",
+  "name": "비키니 아가씨",
+  "group": "trainer",
+  "source": "pret/pokefirered swimmer_f_land",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  }
+ },
+ {
+  "id": "frlg-tuber-m",
+  "name": "튜브 꼬마 ♂",
+  "group": "trainer",
+  "source": "pret/pokefirered tuber_m_land",
+  "walk": {
+   "frames": 4,
+   "w": 14,
+   "h": 15
+  },
+  "front": {
+   "frames": 4,
+   "w": 14,
+   "h": 15
+  }
+ },
+ {
+  "id": "frlg-tuber-f",
+  "name": "튜브 꼬마 ♀",
+  "group": "trainer",
+  "source": "pret/pokefirered tuber_f",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 15
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 15
+  }
+ },
+ {
+  "id": "em-tuber-m",
+  "name": "튜브 꼬마 ♂ 2",
+  "group": "trainer",
+  "source": "pret/pokeemerald tuber_m",
+  "walk": {
+   "frames": 4,
+   "w": 14,
+   "h": 14
+  },
+  "front": {
+   "frames": 4,
+   "w": 14,
+   "h": 14
+  }
+ },
+ {
+  "id": "em-tuber-f",
+  "name": "튜브 꼬마 ♀ 2",
+  "group": "trainer",
+  "source": "pret/pokeemerald tuber_f",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 15
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 15
+  }
+ },
+ {
+  "id": "em-expert-m",
+  "name": "고수 ♂",
+  "group": "trainer",
+  "source": "pret/pokeemerald expert_m",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  }
+ },
+ {
+  "id": "em-expert-f",
+  "name": "고수 ♀",
+  "group": "trainer",
+  "source": "pret/pokeemerald expert_f",
+  "walk": {
+   "frames": 4,
+   "w": 14,
+   "h": 18
+  },
+  "front": {
+   "frames": 4,
+   "w": 14,
+   "h": 18
+  }
+ },
+ {
+  "id": "em-hex-maniac",
+  "name": "오컬트 마니아",
+  "group": "trainer",
+  "source": "pret/pokeemerald hex_maniac",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-ninja-boy",
+  "name": "닌자 소년",
+  "group": "trainer",
+  "source": "pret/pokeemerald ninja_boy",
+  "walk": {
+   "frames": 4,
+   "w": 12,
+   "h": 14
+  },
+  "front": {
+   "frames": 4,
+   "w": 12,
+   "h": 14
+  }
+ },
+ {
+  "id": "em-psychic-m",
+  "name": "초능력자",
+  "group": "trainer",
+  "source": "pret/pokeemerald psychic_m",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  }
+ },
+ {
+  "id": "em-school-kid",
+  "name": "학원생",
+  "group": "trainer",
+  "source": "pret/pokeemerald school_kid_m",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  }
+ },
+ {
+  "id": "em-twin",
+  "name": "쌍둥이",
+  "group": "trainer",
+  "source": "pret/pokeemerald twin",
+  "walk": {
+   "frames": 4,
+   "w": 12,
+   "h": 17
+  },
+  "front": {
+   "frames": 4,
+   "w": 12,
+   "h": 17
+  }
+ },
+ {
+  "id": "em-pokefan-m",
+  "name": "포켓몬 애호가 ♂",
+  "group": "trainer",
+  "source": "pret/pokeemerald pokefan_m",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-pokefan-f",
+  "name": "포켓몬 애호가 ♀",
+  "group": "trainer",
+  "source": "pret/pokeemerald pokefan_f",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-triathlete-m",
+  "name": "트라이애슬론 ♂",
+  "group": "trainer",
+  "source": "pret/pokeemerald running_triathlete_m",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-triathlete-f",
+  "name": "트라이애슬론 ♀",
+  "group": "trainer",
+  "source": "pret/pokeemerald running_triathlete_f",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-artist",
+  "name": "화가",
+  "group": "trainer",
+  "source": "pret/pokeemerald artist",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 21
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 21
+  }
+ },
+ {
+  "id": "em-reporter-m",
+  "name": "기자 ♂",
+  "group": "trainer",
+  "source": "pret/pokeemerald reporter_m",
+  "walk": {
+   "frames": 4,
+   "w": 14,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 14,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-reporter-f",
+  "name": "기자 ♀",
+  "group": "trainer",
+  "source": "pret/pokeemerald reporter_f",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-prof-oak",
+  "name": "오박사",
+  "group": "people",
+  "source": "pret/pokefirered prof_oak",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-prof-birch",
+  "name": "털보박사",
+  "group": "people",
+  "source": "pret/pokeemerald prof_birch",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-bill",
+  "name": "이수재",
+  "group": "people",
+  "source": "pret/pokefirered bill",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-mr-fuji",
+  "name": "후지 노인",
+  "group": "people",
+  "source": "pret/pokefirered mr_fuji",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 18
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 18
+  }
+ },
+ {
+  "id": "frlg-nurse",
+  "name": "간호순",
+  "group": "people",
+  "source": "pret/pokefirered nurse",
+  "walk": {
+   "frames": 1,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 1,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-mom",
+  "name": "엄마",
+  "group": "people",
+  "source": "pret/pokefirered mom",
+  "walk": {
+   "frames": 1,
+   "w": 16,
+   "h": 19
+  },
+  "front": {
+   "frames": 1,
+   "w": 16,
+   "h": 19
+  }
+ },
+ {
+  "id": "frlg-daisy",
+  "name": "그린의 누나",
+  "group": "people",
+  "source": "pret/pokefirered daisy",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  }
+ },
+ {
+  "id": "frlg-captain",
+  "name": "선장",
+  "group": "people",
+  "source": "pret/pokefirered captain",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-policeman",
+  "name": "경찰관",
+  "group": "people",
+  "source": "pret/pokefirered policeman",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-chef",
+  "name": "요리사",
+  "group": "people",
+  "source": "pret/pokefirered chef",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-cook",
+  "name": "요리사 2",
+  "group": "people",
+  "source": "pret/pokeemerald cook",
+  "walk": {
+   "frames": 1,
+   "w": 16,
+   "h": 21
+  },
+  "front": {
+   "frames": 1,
+   "w": 16,
+   "h": 21
+  }
+ },
+ {
+  "id": "em-scott",
+  "name": "스캇",
+  "group": "people",
+  "source": "pret/pokeemerald scott",
+  "walk": {
+   "frames": 4,
+   "w": 14,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 14,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-balding-man",
+  "name": "대머리 아저씨",
+  "group": "people",
+  "source": "pret/pokefirered balding_man",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  }
+ },
+ {
+  "id": "frlg-fat-man",
+  "name": "뚱보 아저씨",
+  "group": "people",
+  "source": "pret/pokefirered fat_man",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-boy",
+  "name": "소년",
+  "group": "people",
+  "source": "pret/pokefirered boy",
+  "walk": {
+   "frames": 4,
+   "w": 14,
+   "h": 19
+  },
+  "front": {
+   "frames": 4,
+   "w": 14,
+   "h": 19
+  }
+ },
+ {
+  "id": "frlg-little-boy",
+  "name": "꼬마",
+  "group": "people",
+  "source": "pret/pokefirered little_boy",
+  "walk": {
+   "frames": 4,
+   "w": 12,
+   "h": 15
+  },
+  "front": {
+   "frames": 4,
+   "w": 12,
+   "h": 15
+  }
+ },
+ {
+  "id": "frlg-little-girl",
+  "name": "여자아이",
+  "group": "people",
+  "source": "pret/pokefirered little_girl",
+  "walk": {
+   "frames": 4,
+   "w": 14,
+   "h": 15
+  },
+  "front": {
+   "frames": 4,
+   "w": 14,
+   "h": 15
+  }
+ },
+ {
+  "id": "frlg-man",
+  "name": "아저씨",
+  "group": "people",
+  "source": "pret/pokefirered man",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-old-man-1",
+  "name": "할아버지",
+  "group": "people",
+  "source": "pret/pokefirered old_man_1",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 18
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 18
+  }
+ },
+ {
+  "id": "frlg-old-man-2",
+  "name": "할아버지 2",
+  "group": "people",
+  "source": "pret/pokefirered old_man_2",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 18
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 18
+  }
+ },
+ {
+  "id": "frlg-old-woman",
+  "name": "할머니",
+  "group": "people",
+  "source": "pret/pokefirered old_woman",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  }
+ },
+ {
+  "id": "frlg-woman-1",
+  "name": "아주머니",
+  "group": "people",
+  "source": "pret/pokefirered woman_1",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  }
+ },
+ {
+  "id": "frlg-woman-2",
+  "name": "아주머니 2",
+  "group": "people",
+  "source": "pret/pokefirered woman_2",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-woman-3",
+  "name": "아주머니 3",
+  "group": "people",
+  "source": "pret/pokefirered woman_3",
+  "walk": {
+   "frames": 4,
+   "w": 14,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 14,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-worker-m",
+  "name": "작업원 ♂",
+  "group": "people",
+  "source": "pret/pokefirered worker_m",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "frlg-worker-f",
+  "name": "작업원 ♀",
+  "group": "people",
+  "source": "pret/pokefirered worker_f",
+  "walk": {
+   "frames": 4,
+   "w": 14,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 14,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-boy-1",
+  "name": "소년 2",
+  "group": "people",
+  "source": "pret/pokeemerald boy_1",
+  "walk": {
+   "frames": 4,
+   "w": 14,
+   "h": 19
+  },
+  "front": {
+   "frames": 4,
+   "w": 14,
+   "h": 19
+  }
+ },
+ {
+  "id": "em-boy-2",
+  "name": "소년 3",
+  "group": "people",
+  "source": "pret/pokeemerald boy_2",
+  "walk": {
+   "frames": 4,
+   "w": 14,
+   "h": 19
+  },
+  "front": {
+   "frames": 4,
+   "w": 14,
+   "h": 19
+  }
+ },
+ {
+  "id": "em-boy-3",
+  "name": "소년 4",
+  "group": "people",
+  "source": "pret/pokeemerald boy_3",
+  "walk": {
+   "frames": 4,
+   "w": 14,
+   "h": 19
+  },
+  "front": {
+   "frames": 4,
+   "w": 14,
+   "h": 19
+  }
+ },
+ {
+  "id": "em-girl-1",
+  "name": "소녀",
+  "group": "people",
+  "source": "pret/pokeemerald girl_1",
+  "walk": {
+   "frames": 4,
+   "w": 14,
+   "h": 19
+  },
+  "front": {
+   "frames": 4,
+   "w": 14,
+   "h": 19
+  }
+ },
+ {
+  "id": "em-girl-2",
+  "name": "소녀 2",
+  "group": "people",
+  "source": "pret/pokeemerald girl_2",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 19
+  }
+ },
+ {
+  "id": "em-girl-3",
+  "name": "소녀 3",
+  "group": "people",
+  "source": "pret/pokeemerald girl_3",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-little-boy",
+  "name": "꼬마 2",
+  "group": "people",
+  "source": "pret/pokeemerald little_boy",
+  "walk": {
+   "frames": 4,
+   "w": 12,
+   "h": 14
+  },
+  "front": {
+   "frames": 4,
+   "w": 12,
+   "h": 14
+  }
+ },
+ {
+  "id": "em-little-girl",
+  "name": "여자아이 2",
+  "group": "people",
+  "source": "pret/pokeemerald little_girl",
+  "walk": {
+   "frames": 4,
+   "w": 14,
+   "h": 14
+  },
+  "front": {
+   "frames": 4,
+   "w": 14,
+   "h": 14
+  }
+ },
+ {
+  "id": "em-man-1",
+  "name": "아저씨 2",
+  "group": "people",
+  "source": "pret/pokeemerald man_1",
+  "walk": {
+   "frames": 4,
+   "w": 14,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 14,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-man-2",
+  "name": "아저씨 3",
+  "group": "people",
+  "source": "pret/pokeemerald man_2",
+  "walk": {
+   "frames": 4,
+   "w": 14,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 14,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-man-3",
+  "name": "아저씨 4",
+  "group": "people",
+  "source": "pret/pokeemerald man_3",
+  "walk": {
+   "frames": 4,
+   "w": 14,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 14,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-man-4",
+  "name": "아저씨 5",
+  "group": "people",
+  "source": "pret/pokeemerald man_4",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-man-5",
+  "name": "아저씨 6",
+  "group": "people",
+  "source": "pret/pokeemerald man_5",
+  "walk": {
+   "frames": 4,
+   "w": 14,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 14,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-old-man",
+  "name": "할아버지 3",
+  "group": "people",
+  "source": "pret/pokeemerald old_man",
+  "walk": {
+   "frames": 1,
+   "w": 16,
+   "h": 19
+  },
+  "front": {
+   "frames": 1,
+   "w": 16,
+   "h": 19
+  }
+ },
+ {
+  "id": "em-old-woman",
+  "name": "할머니 2",
+  "group": "people",
+  "source": "pret/pokeemerald old_woman",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 18
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 18
+  }
+ },
+ {
+  "id": "em-woman-1",
+  "name": "아주머니 4",
+  "group": "people",
+  "source": "pret/pokeemerald woman_1",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-woman-2",
+  "name": "아주머니 5",
+  "group": "people",
+  "source": "pret/pokeemerald woman_2",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-woman-3",
+  "name": "아주머니 6",
+  "group": "people",
+  "source": "pret/pokeemerald woman_3",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-woman-4",
+  "name": "아주머니 7",
+  "group": "people",
+  "source": "pret/pokeemerald woman_4",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
+  "id": "em-woman-5",
+  "name": "아주머니 8",
+  "group": "people",
+  "source": "pret/pokeemerald woman_5",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ }
+]

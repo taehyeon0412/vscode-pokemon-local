@@ -139,13 +139,13 @@ function foeBalls(b: BattleState): { balls: number; left: number } {
  * S08 트레이너와 마주침 — "!" (잠깐) → 말풍선 "승부다!" + 상대 몬스터볼 개수 ◓ (어떤 포켓몬인지는 안 보임) · 전투 중 오른쪽 끝 트레이너 (남은 볼)
  * 트레이너 · 관장이 아니면 null
  */
-export function foeTrainerView(state: GameState): { name: string; hat: string; shirt: string; balls: number; left: number; talking: boolean } | null {
+export function foeTrainerView(state: GameState): { name: string; hat: string; shirt: string; look?: string; balls: number; left: number; talking: boolean } | null {
   const save = state.save;
   const st = state.runtime.stage;
   const p = save.pendingEncounter;
   if (p?.kind === 'gym-leader' && st?.phase === 'battle' && st.battle.kind === 'gym') {
     const b = st.battle;
-    return { name: GYM_LEADER.name, hat: GYM_LEADER.hat, shirt: GYM_LEADER.shirt, ...foeBalls(b), talking: false };
+    return { name: GYM_LEADER.name, hat: GYM_LEADER.hat, shirt: GYM_LEADER.shirt, look: GYM_LEADER.look, ...foeBalls(b), talking: false };
   }
   if (p?.kind !== 'trainer' || save.location.screen !== 'stage') return null;
   const id = save.location.stageId;
@@ -155,11 +155,11 @@ export function foeTrainerView(state: GameState): { name: string; hat: string; s
   const info = trainerInfo(id, n);
   if (st?.phase === 'trainer') {
     const balls = trainerTeamSize(prog.seed, n, aliveCount(save));
-    return { name: info.name, hat: info.hat, shirt: info.shirt, balls, left: balls, talking: st.ms >= TIMING.trainerAlertMs };
+    return { name: info.name, hat: info.hat, shirt: info.shirt, look: info.look, balls, left: balls, talking: st.ms >= TIMING.trainerAlertMs };
   }
   if (st?.phase === 'battle' && st.battle.kind === 'trainer') {
     const b = st.battle;
-    return { name: info.name, hat: info.hat, shirt: info.shirt, ...foeBalls(b), talking: false };
+    return { name: info.name, hat: info.hat, shirt: info.shirt, look: info.look, ...foeBalls(b), talking: false };
   }
   return null;
 }

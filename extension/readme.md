@@ -174,6 +174,7 @@ Extracting and creating .gif files involves quite a bit of tedious manual work, 
 - Original sprite artwork belongs to the respective copyright holders
 - Some sprites (Froakie line, the Gen 5 · Gen 6 starters, Mega Charizard X and Mega Mewtwo Y used in their ultimates): [PMD SpriteCollab](https://github.com/PMDCollab/SpriteCollab), CC BY-NC 4.0, converted to GIF — artists are listed in `THIRD-PARTY-NOTICES.txt`
 - Game mode data (stats, learnsets, moves, evolutions): [PokeAPI](https://github.com/PokeAPI/pokeapi), BSD 3-Clause — full license in `THIRD-PARTY-NOTICES.txt`
+- Game mode people (heroes, trainers, gym leader, townspeople): overworld sprites from Pokémon FireRed · LeafGreen and Emerald, taken from the [pret/pokefirered](https://github.com/pret/pokefirered) and [pret/pokeemerald](https://github.com/pret/pokeemerald) decompilation projects (`scripts/people/fetch-pret.py`) — © The Pokémon Company / Nintendo / Game Freak
 
 ### Acknowledgments
 - All sprites are property of their original creators

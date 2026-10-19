@@ -18,7 +18,7 @@ describe('S03 사람 그림 파일 (extension/media/people)', () => {
       for (const [file, art] of sets) {
         if (!art) continue;
         expect(art.frames, `${look.id} ${file}`).toBeGreaterThanOrEqual(1);
-        expect(pngSize(join(PEOPLE, look.id, `${file}.png`)), `${look.id} ${file}.png`).toEqual({ w: art.w * art.frames, h: art.h });
+        expect(pngSize(join(PEOPLE, look.dir ?? look.id, `${file}.png`)), `${look.id} ${file}.png`).toEqual({ w: art.w * art.frames, h: art.h });
       }
       if (look.walk) expect(look.walk.frames, look.id).toBeGreaterThanOrEqual(2);
       // 정면도 같은 키 — 고르기 칸 높이가 튀지 않게

@@ -1,7 +1,8 @@
 /**
- * 길 위의 것들 (S06 ④ ⑤ ⑥ ⑭ ⑮ ⑯) — 위치는 model.ts 의 visibleObjects, 여기는 모양만 (임시 디자인: 이모지 · 코드로 그린 사람 · CSS 움직임 — 단계 12 에서 다시).
+ * 길 위의 것들 (S06 ④ ⑤ ⑥ ⑭ ⑮ ⑯) — 위치는 model.ts 의 visibleObjects, 여기는 모양만. 트레이너 · 부탁하는 사람은 원작 사람 그림 (data/people.ts), 흔적 · 시설 · 아이템은 이모지 (임시).
  */
 import type { TraceKind } from '../../../core/rules/encounter';
+import { personLook } from '../../../data/heroes';
 import { Sprite } from '../../../ui/Sprite';
 import type { StageObject } from '../model';
 import { Hero } from './Hero';
@@ -30,9 +31,11 @@ export interface ObjectsProps {
   scale: number;
   /** 바닥 높이 (px) — 길 위의 것들이 서는 곳 */
   ground: number;
+  /** 사람이 쓸 수 있는 높이 (px) — 큰 그림이 안 들어가면 작게 (data/heroes.ts heroDraw) */
+  roomPx?: number;
 }
 
-export function StageObjects({ objects, media, scale, ground }: ObjectsProps) {
+export function StageObjects({ objects, media, scale, ground, roomPx }: ObjectsProps) {
   return (
     <>
       {objects.map((o) => {
@@ -54,7 +57,7 @@ export function StageObjects({ objects, media, scale, ground }: ObjectsProps) {
             return (
               <span key={o.key} class={o.alert ? 'pg-obj pg-trainer pg-trainer-alert' : 'pg-obj pg-trainer'} style={style} title={o.info.name}>
                 {o.alert ? <span class="pg-trainer-mark">!</span> : <span class="pg-nametag">{o.info.name}</span>}
-                <Hero px={2 * scale} walking={false} hat={o.info.hat} shirt={o.info.shirt} faceLeft label={o.info.name} />
+                <Hero px={2 * scale} walking={false} hat={o.info.hat} shirt={o.info.shirt} faceLeft label={o.info.name} look={personLook(o.info.look)} media={media} roomPx={roomPx} />
               </span>
             );
           case 'item':
@@ -67,7 +70,11 @@ export function StageObjects({ objects, media, scale, ground }: ObjectsProps) {
             return (
               <span key={o.key} class={o.active ? 'pg-obj pg-npc pg-npc-active' : 'pg-obj pg-npc'} style={style} title={`${o.template.who.name}`}>
                 <span class="pg-npc-mark">❓</span>
-                {o.template.who.icon}
+                {personLook(o.template.who.look) ? (
+                  <Hero px={2 * scale} walking={false} faceLeft label={o.template.who.name} look={personLook(o.template.who.look)} media={media} roomPx={roomPx} />
+                ) : (
+                  o.template.who.icon
+                )}
               </span>
             );
           case 'wild': {

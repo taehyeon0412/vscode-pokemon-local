@@ -12,7 +12,7 @@ import { bestHelper, requestAt } from '../../../core/rules/request';
 import { GYM_LEADER } from '../../../core/rules/trainer';
 import { withJosa } from '../../../core/text';
 import { speciesOf } from '../../../data';
-import { heroHeightPx, heroLookOf, heroWidthPx } from '../../../data/heroes';
+import { heroHeightPx, heroLookOf, heroWidthPx, personLook } from '../../../data/heroes';
 import { BallCount } from '../../../ui/BallCount';
 import { Button } from '../../../ui/Button';
 import { typeNameKo } from '../../../ui/format';
@@ -96,7 +96,8 @@ function RequestBox({ state, onInput }: { state: GameState; onInput(i: GameInput
   return (
     <div class="pg-banner pg-request pg-two" title={`${t.who.name}: ${t.text}`}>
       <span class="pg-ellipsis pg-line">
-        {t.who.icon} <b>{t.who.name}</b>: {t.text}
+        {t.who.look ? null : `${t.who.icon} `}
+        <b>{t.who.name}</b>: {t.text}
       </span>
       <span class="pg-line pg-request-act">
         {helper && (
@@ -166,8 +167,13 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen }: 
   const heroLeft = geo ? geo.trainerX : gym ? Math.round(widthPx * 0.18) : hero;
   // 큰 주인공이 위쪽 띠 (트레이너 · 만남 · 병원 상자, 위 3px + 한 줄) 자리까지 올라오면 띠를 주인공 오른쪽 옆으로 — 옆자리가 넉넉할 때만
   const bannerLeft = Math.round(heroLeft + heroW / 2 + 8);
-  // 오른쪽 끝 — 체육관 대기실은 관장 (코드 그림 너비 20 × 배율) 앞까지
-  const bannerRight = gym ? foeTrainerX(widthPx, layout.scale) - 10 * layout.scale - 8 : widthPx - 8;
+  // 오른쪽 끝 — 체육관 대기실은 관장 앞까지
+  const leader = personLook(GYM_LEADER.look);
+  const leaderW = leader ? heroWidthPx(leader, layout.scale, heroRoom) : 20 * layout.scale;
+  // 이름표 (9px 글자, 관장 그림 오른쪽 끝 + 4px 에 붙음 — game.css .pg-foe-trainer .pg-nametag) 의 왼쪽 끝 어림
+  const leaderX = foeTrainerX(widthPx, layout.scale);
+  const tagLeft = leaderX + leaderW / 2 + 4 - (GYM_LEADER.name.length * 9 + 6) * layout.uiScale;
+  const bannerRight = gym ? Math.min(leaderX - leaderW / 2, tagLeft) - 8 : widthPx - 8;
   const heroTall = !battle && bodyPx - ground - heroH < 3 + Math.round(BANNER_PX * layout.uiScale) && bannerRight - bannerLeft >= BANNER_SIDE_MIN_PX;
   const showToast = state.runtime.toast && (phase === 'walk' || phase === 'clear' || phase === 'lobby' || phase === 'facility');
   const shopInside = stageRt?.phase === 'facility' && stageRt.inside && stageRt.kind === 'shop';
@@ -208,7 +214,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen }: 
             <div class="pg-fg" style={{ backgroundImage: art('foreground'), backgroundPositionX: `${-Math.round(offset * 0.7)}px` }} />
           </>
         )}
-        <StageObjects objects={objects} media={media} scale={layout.scale} ground={ground} />
+        <StageObjects objects={objects} media={media} scale={layout.scale} ground={ground} roomPx={heroRoom} />
         <span class="pg-obj pg-hero-wrap" style={{ left: `${heroLeft}px`, bottom: `${ground}px` }}>
           <Hero px={heroPx} walking={phase === 'walk'} gender={look.gender} look={look} media={media} roomPx={heroRoom} />
         </span>
@@ -224,7 +230,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen }: 
                 ))}
               </span>
             )}
-            <Hero px={heroPx} walking={false} hat={foeTrainer?.hat ?? GYM_LEADER.hat} shirt={foeTrainer?.shirt ?? GYM_LEADER.shirt} faceLeft label={foeTrainer?.name ?? GYM_LEADER.name} />
+            <Hero px={heroPx} walking={false} hat={foeTrainer?.hat ?? GYM_LEADER.hat} shirt={foeTrainer?.shirt ?? GYM_LEADER.shirt} faceLeft label={foeTrainer?.name ?? GYM_LEADER.name} look={personLook(foeTrainer ? foeTrainer.look : GYM_LEADER.look)} media={media} roomPx={heroRoom} />
           </span>
         )}
         {battle && geo && <BattleLayer battle={battle} save={save} media={media} ground={ground} geo={geo} onInput={onInput} onProfile={(side) => onOpen({ kind: 'profile', side })} />}

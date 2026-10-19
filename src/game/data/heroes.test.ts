@@ -11,14 +11,14 @@ describe('S03 주인공 목록 (data/heroes.ts)', () => {
   });
 
   it('세이브 → 캐릭터: 아는 이름 · 모르면 성별의 첫 캐릭터 · 그것도 없으면 첫 캐릭터', () => {
-    expect(heroLookOf('cap-girl', 'male').id).toBe('cap-girl');
+    expect(heroLookOf('may', 'male').id).toBe('may');
     expect(heroLookOf(undefined, 'female').gender).toBe('female');
     expect(heroLookOf('nobody', 'male').gender).toBe('male');
     expect(heroLookOf(undefined).id).toBe(HERO_LOOKS[0]!.id);
     // 옛 세이브 (look 없음) 의 모습 — 목록 앞에 끼우면 몰래 바뀜
     expect(heroLookOf(undefined, 'male').id).toBe('boy');
     expect(heroLookOf(undefined, 'female').id).toBe('girl');
-    expect(isHeroLookId('cap-girl')).toBe(true);
+    expect(isHeroLookId('may')).toBe(true);
     expect(isHeroLookId('nobody')).toBe(false);
     expect(isHeroLookId(3)).toBe(false);
   });

@@ -2,8 +2,9 @@
 다리만 장면마다 바꿈 + 순서 (다리 넓게 → 좁게 → 넓게 → 좁게) + 다리가 모인 장면은 윗몸 1칸 위로.
 실행: python scripts/people/rewalk.py <장면 png 폴더> <이름> <윗몸 장면 번호> <순서 예: 2,3,4,3> [1 = 들썩] [키 칸 수 — 예: 28 이면 미리 줄임]
 → <이름>_sheet.png (게임용 — extension/media/people/<id>/walk.png 로) · <이름>_rewalk.gif · _x4.gif · _rewalk_strip.png (모두 장면 폴더에)
-주의: 윗몸 / 다리를 나누는 줄은 다리 위쪽 옷 색으로 찾음 (is_short — 지금은 cap-girl 의 파랑 반바지). 다른 캐릭터는 그 색으로 바꿔서.
-게임은 사람 키 28칸까지 그대로 그림 (data/heroes.ts HERO_MAX_ROWS) — 더 크면 마지막 인자로 미리 줄여 넣기 (가까운 점으로, 테두리가 덜 깨짐)
+주의: 윗몸 / 다리를 나누는 줄은 다리 위쪽 옷 색으로 찾음 (is_short — 처음 만든 캐릭터의 파랑 반바지). 다른 캐릭터는 그 색으로 바꿔서.
+게임은 그림을 줄이지 않고 1배부터 그림 (data/heroes.ts heroDraw) — 마지막 인자는 낮은 패널용 작은 그림을 만들 때만.
+지금 게임의 사람 그림은 원작 필드 그림 (fetch-pret.py) — 이 도구는 AI 그림을 다시 넣을 때 쓰는 것
 """
 import sys
 

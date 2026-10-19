@@ -458,6 +458,10 @@ body.pokemon-game-on {
 .pg-npc {
   z-index: 2;
 }
+/* 그림 사람은 글자 줄 위가 아니라 땅에 (이모지 대신일 때) */
+.pg-npc .pg-hero-art {
+  display: block;
+}
 .pg-npc-mark {
   position: absolute;
   left: 50%;
@@ -1818,6 +1822,7 @@ body.pokemon-game-on {
    (가운데 맞춤은 양 끝 margin auto — justify-content: safe center 는 1.73 (Chromium 102) 에 없음) */
 .pg-pick-heroes {
   justify-content: flex-start;
+  align-items: flex-end; /* 키가 달라도 칸 아래 (이름 줄) 가 맞게 */
   scroll-padding-inline: 8px; /* ← → 로 끝 칸에 가도 가장자리에 붙지 않게 */
   gap: 8px;
   overflow-x: auto;

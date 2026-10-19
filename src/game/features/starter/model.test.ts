@@ -78,8 +78,8 @@ describe('S03 · S04 고르기 (단계 10)', () => {
   });
 
   it('S03 고른 캐릭터 (2026-10-19 A안) 가 세이브에 — 모르는 이름은 버리고 성별만', () => {
-    const save = createStartSave(0, 5, 4, { gender: 'female', look: 'cap-girl' });
-    expect(save.player).toEqual({ gender: 'female', look: 'cap-girl' });
+    const save = createStartSave(0, 5, 4, { gender: 'female', look: 'may' });
+    expect(save.player).toEqual({ gender: 'female', look: 'may' });
     expect(validateSave(JSON.parse(JSON.stringify(save)))).toMatchObject({ ok: true, problems: [] });
     expect(createStartSave(0, 5, 4, { gender: 'male', look: 'nobody' }).player).toEqual({ gender: 'male' });
   });

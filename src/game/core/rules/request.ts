@@ -20,8 +20,8 @@ export interface RequestReward {
 
 export interface RequestTemplate {
   id: string;
-  /** 부탁하는 사람 (이모지 · 이름) */
-  who: { icon: string; name: string };
+  /** 부탁하는 사람 (이모지 · 이름 · 사람 그림 data/people.ts — 트레이너와 안 겹치게) */
+  who: { icon: string; name: string; look?: string };
   /** 부탁 한 줄 */
   text: string;
   /** 이 타입 기술이 있으면 잘 해결함 */
@@ -35,7 +35,7 @@ export interface RequestTemplate {
 export const FOREST_REQUESTS: readonly RequestTemplate[] = [
   {
     id: 'hat-in-tree',
-    who: { icon: '👴', name: '할아버지' },
+    who: { icon: '👴', name: '할아버지', look: 'frlg-old-man-1' },
     text: '모자가 나무에 걸렸어… 꺼내 줄 수 있겠니?',
     types: ['grass', 'flying', 'bug'],
     done: '{move}! 모자를 꺼냈다!',
@@ -43,7 +43,7 @@ export const FOREST_REQUESTS: readonly RequestTemplate[] = [
   },
   {
     id: 'lost-caterpie',
-    who: { icon: '👦', name: '꼬마' },
+    who: { icon: '👦', name: '꼬마', look: 'frlg-little-boy' },
     text: '내 캐터피가 없어졌어! 같이 찾아 줘!',
     types: ['bug', 'psychic', 'normal'],
     done: '{move}! 수풀 속 캐터피를 찾았다!',
@@ -51,7 +51,7 @@ export const FOREST_REQUESTS: readonly RequestTemplate[] = [
   },
   {
     id: 'fallen-tree',
-    who: { icon: '👷', name: '아저씨' },
+    who: { icon: '👷', name: '아저씨', look: 'frlg-worker-m' },
     text: '쓰러진 나무가 길을 막았어. 치울 힘이 없구나…',
     types: ['fighting', 'rock', 'ground', 'steel'],
     done: '{move}! 나무를 밀어냈다!',
@@ -59,7 +59,7 @@ export const FOREST_REQUESTS: readonly RequestTemplate[] = [
   },
   {
     id: 'campfire',
-    who: { icon: '🧑‍🌾', name: '캠퍼' },
+    who: { icon: '🧑‍🌾', name: '캠퍼', look: 'frlg-camper' },
     text: '모닥불이 번진다! 어서 꺼 줘!',
     types: ['water', 'ice', 'ground'],
     done: '{move}! 불을 껐다!',
@@ -67,7 +67,7 @@ export const FOREST_REQUESTS: readonly RequestTemplate[] = [
   },
   {
     id: 'withered-flowers',
-    who: { icon: '👩', name: '꽃집 누나' },
+    who: { icon: '👩', name: '꽃집 누나', look: 'em-woman-2' },
     text: '꽃밭이 시들었어… 살릴 방법이 없을까?',
     types: ['grass', 'water', 'fairy'],
     done: '{move}! 꽃이 다시 피었다!',
