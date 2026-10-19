@@ -4,6 +4,7 @@
  *   S16 대기실 · MVP 끝 카드 (관장을 처음 이김)
  * 단축키 Enter · Esc 는 main.ts (부탁과 같은 규칙).
  */
+import { useRef } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
 import { canHeal, type GameInput, type GameState } from '../../../core/engine';
 import { teamHealthy } from '../../../core/rules/bag';
@@ -264,6 +265,38 @@ export function BadgeCard({ state, onInput, onMap }: BoxProps & { onMap(): void 
         </Button>
       </span>
       </span>
+    </div>
+  );
+}
+
+/**
+ * VS 컷인 (2026-10-20 태현 님 B안) — 트레이너 · 라이벌을 만나 "승부다!" 끝 0.8초: 숲을 남색으로 덮고 위 띠 (나 · 내 팀 볼) 는 왼쪽에서,
+ * 아래 띠 (상대 · 볼) 는 오른쪽에서 밀려 들어오고 가운데 금색 VS 가 찍힘 (번쩍임 없음). at = 시작한 뒤 지난 ms —
+ * 처음 그릴 때 값만 씀 (다시 그릴 때마다 지연을 바꾸면 애니메이션이 두 배로 빨리 끝남, 라이벌 만남에서 안 보이던 것)
+ */
+export function VsCutIn({ me, myBalls, foe, foeBalls, at }: { me: string; myBalls: boolean[]; foe: string; foeBalls: number; at: number }) {
+  const at0 = useRef(at).current;
+  return (
+    <div class="pg-vs" style={{ '--pg-vs-at': `${-at0}ms` }}>
+      <div class="pg-vs-band pg-vs-me">
+        <b>{me}</b>
+        <span class="pg-foe-balls">
+          {myBalls.map((alive, i) => (
+            <span key={i} class={alive ? 'pg-ball-slot' : 'pg-ball-slot pg-ball-down'}>
+              <Icon name="ball" />
+            </span>
+          ))}
+        </span>
+      </div>
+      <div class="pg-vs-word">VS</div>
+      <div class="pg-vs-band pg-vs-foe">
+        <span class="pg-foe-balls">
+          {Array.from({ length: foeBalls }, (_, i) => (
+            <Icon key={i} name="ball" />
+          ))}
+        </span>
+        <b>{foe}</b>
+      </div>
     </div>
   );
 }

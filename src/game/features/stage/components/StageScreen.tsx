@@ -32,8 +32,8 @@ import { hasUnspent, menuLabels, type Overlay } from '../../menu/model';
 import { ChoiceBox } from '../../result/components/ChoiceBox';
 import { ResultBox } from '../../result/components/ResultBox';
 import { choiceView } from '../../result/model';
-import { battleStage, BUILDINGS, buildingDraw, contactX, foeTrainerView, heroX, minimapOf, staffLeftPx, STAGES, stagePx, visibleObjects, WALK_PX_PER_SEC, type StageObject } from '../model';
-import { BadgeCard, ClearCard, DefeatBox, FacilityBox, LobbyBox, TrainerBanner } from './FieldBoxes';
+import { battleStage, buildingDraw, BUILDINGS, contactX, foeTrainerView, heroX, minimapOf, staffLeftPx, type StageObject, stagePx, STAGES, visibleObjects, vsStartMs, WALK_PX_PER_SEC } from '../model';
+import { BadgeCard, ClearCard, DefeatBox, FacilityBox, LobbyBox, TrainerBanner, VsCutIn } from './FieldBoxes';
 import { Hero } from './Hero';
 import { Minimap } from './Minimap';
 import { StageObjects } from './StageObjects';
@@ -298,10 +298,16 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
             <Hero px={heroPx} walking={false} hat={foeTrainer?.hat ?? GYM_LEADER.hat} shirt={foeTrainer?.shirt ?? GYM_LEADER.shirt} faceLeft label={foeTrainer?.name ?? GYM_LEADER.name} look={personLook(foeTrainer ? foeTrainer.look : GYM_LEADER.look)} media={media} roomPx={heroRoom} />
           </span>
         )}
-        {battle && geo && <BattleLayer battle={battle} save={save} media={media} ground={ground} geo={geo} onInput={onInput} onProfile={(side) => onOpen({ kind: 'profile', side })} />}
+        {battle && geo && (
+          <BattleLayer battle={battle} save={save} media={media} ground={ground} geo={geo} onInput={onInput} onProfile={(side) => onOpen({ kind: 'profile', side })} foeTrainerLeft={foeTrainer || gym ? leaderX : undefined} />
+        )}
         <EncounterBox state={state} />
-        {stageRt?.phase === 'trainer' && foeTrainer?.talking && <TrainerBanner name={foeTrainer.name} balls={foeTrainer.balls} />}
-        {stageRt?.phase === 'rival' && foeTrainer?.talking && (
+        {stageRt?.phase === 'trainer' && foeTrainer?.talking && stageRt.ms < vsStartMs('trainer') && <TrainerBanner name={foeTrainer.name} balls={foeTrainer.balls} />}
+        {/* VS 컷인 — 만남 단계 끝 0.8초 (트레이너 · 라이벌) */}
+        {(stageRt?.phase === 'trainer' || stageRt?.phase === 'rival') && foeTrainer && stageRt.ms >= vsStartMs(stageRt.phase) && (
+          <VsCutIn me={look.label} myBalls={save.party.map((uid) => (save.monsters[uid]?.hp ?? 0) > 0)} foe={foeTrainer.name} foeBalls={foeTrainer.balls} at={stageRt.ms - vsStartMs(stageRt.phase)} />
+        )}
+        {stageRt?.phase === 'rival' && foeTrainer?.talking && stageRt.ms < vsStartMs('rival') && (
           <TrainerBanner name={foeTrainer.name} balls={foeTrainer.balls} text={`${josaOf(foeTrainer.name, '이/가')} 승부를 걸어왔다!`} tag={foeTrainer.record ?? ''} />
         )}
         <RequestBox state={state} onInput={onInput} />

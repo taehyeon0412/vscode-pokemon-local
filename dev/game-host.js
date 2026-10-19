@@ -185,6 +185,8 @@
     if (q.get('toast')) runtime.toast = { text: q.get('toast'), ms: 600000 };
     // msg=<글> — 전투 한 줄 말을 바꿈 (긴 말이 잘리는지 보기, 2026-10-19)
     if (q.get('msg') && runtime.stage && runtime.stage.phase === 'battle') runtime.stage.battle.msg = q.get('msg');
+    // bt=<ms> — 전투 시간 (0 이면 막 시작 — 볼 던지기 · 화면 닦기 사진, 2026-10-20)
+    if (q.get('bt') && runtime.stage && runtime.stage.phase === 'battle') runtime.stage.battle.t = Number(q.get('bt'));
     let epoch = 0;
     const toWebview = (m) => setTimeout(() => window.postMessage({ command: 'game', ...m }, '*'), 0);
     const start = (s) => toWebview({ type: 'start', epoch: ++epoch, state: { save: s, runtime } });
@@ -232,9 +234,9 @@
             const d = document.createElement('pre');
             d.style.cssText = 'position:fixed;left:0;bottom:0;z-index:99999;margin:0;color:#8f8;background:#000;font-size:10px;white-space:pre-wrap';
             if (!el) d.textContent = 'no element';
-            else { const cs = getComputedStyle(el); d.textContent = ['background-color', 'opacity', 'z-index', 'position', 'width', 'height', 'display', 'transform', 'filter', 'visibility'].map((k) => k + '=' + cs.getPropertyValue(k)).join(' · ') + (el.tagName === 'IMG' ? ' · src=' + el.getAttribute('src') + ' · nat=' + el.naturalWidth : ''); }
+            else { const cs = getComputedStyle(el); d.textContent = ['background-color', 'opacity', 'z-index', 'position', 'width', 'height', 'display', 'transform', 'filter', 'visibility', 'animation-name', 'animation-delay', '--pg-vs-at'].map((k) => k + '=' + cs.getPropertyValue(k)).join(' · ') + (el.tagName === 'IMG' ? ' · src=' + el.getAttribute('src') + ' · nat=' + el.naturalWidth : ''); }
             document.body.appendChild(d);
-        }, 900);
+        }, Number(q.get('probeAt') || 900));
     }
 
     const s = document.createElement('script');

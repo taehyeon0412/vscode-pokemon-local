@@ -15,8 +15,9 @@ import { catchTiming } from '../../../core/rules/catch';
 import type { Save } from '../../../core/save';
 import { moveOf, speciesOf } from '../../../data';
 import { Button } from '../../../ui/Button';
+import { Icon } from '../../../ui/Icon';
 import { Sprite } from '../../../ui/Sprite';
-import { duelKind, hpColor, moveColor, moveFx, profileOpenable, sentenceText, splitPopups, STATUS_LABEL, type BattleGeometry } from '../model';
+import { duelKind, hpColor, introView, moveColor, moveFx, profileOpenable, SEND_FLY_MS, sentenceText, splitPopups, STATUS_LABEL, type BattleGeometry } from '../model';
 import { battleAnimKey, holdWindow } from '../fx/hold';
 import { impactOf } from '../fx/parry';
 import { BattleMenu } from './BattleMenu';
@@ -31,6 +32,8 @@ export interface BattleLayerProps {
   onInput(input: GameInput): void;
   /** S21 — 포켓몬을 누름 (열 수 있을 때만 넘김) */
   onProfile?(side: Side): void;
+  /** 상대 트레이너 · 관장이 선 x (패널 px) — 볼을 던지는 손 자리 (없으면 볼 연출 없음) */
+  foeTrainerLeft?: number;
 }
 
 /** 상대 이름 앞 — 야생 · 상대 (트레이너 · 관장) */
@@ -98,8 +101,10 @@ function HpBlock({ f, side, x, bottom, wide, prefix, noName }: { f: Fighter; sid
 const CAST_BODY_MS = 600;
 
 /** 포켓몬 그림 + 지금 하는 행동의 몸 움직임 (달려들기 · 들어가기 · 쓰러짐 · 맞음) */
-function FighterBody(props: { b: BattleState; side: Side; x: number; target: number; px: number; media: string; ground: number; onProfile?(side: Side): void }) {
-  const { b, side, x, target, px, media, ground, onProfile } = props;
+function FighterBody(props: { b: BattleState; side: Side; x: number; target: number; px: number; media: string; ground: number; onProfile?(side: Side): void; sendAt?: number | null }) {
+  const { b, side, x, target, px, media, ground, onProfile, sendAt } = props;
+  // 볼이 닿을 때 나오는 지연 — 처음 그릴 때 값만 (프레임마다 바꾸면 두 배로 빨라짐)
+  const sendAt0 = useRef(sendAt ?? null).current;
   const f = b[side];
   const anim = b.anim?.side === side ? b.anim : null;
   const act = anim?.action;
@@ -125,7 +130,10 @@ function FighterBody(props: { b: BattleState; side: Side; x: number; target: num
     f.guard < 1 ? 'pg-guarded' : '',
   ].join(' ');
   return (
-    <span class={`pg-obj pg-fighter pg-fighter-${side}${side === 'me' ? ' pg-sendout' : ''}`} style={{ left: `${x}px`, bottom: `${ground}px` }} title={`${side === 'foe' ? foePrefix(b) : ''}${nameOf(f)} Lv${f.level}${onProfile ? ' — 누르면 프로필' : ''}`} onClick={onProfile ? () => onProfile(side) : undefined}>
+    // 볼 던지기 중이면 볼이 닿을 때 나옴 (그 전에는 안 보임 — pg-sendout 의 첫 장면), 아니면 내 포켓몬만 예전처럼 바로 나옴
+    <span
+      class={`pg-obj pg-fighter pg-fighter-${side}${side === 'me' || (sendAt ?? null) !== null ? ' pg-sendout' : ''}`}
+      style={{ left: `${x}px`, bottom: `${ground}px`, ...(sendAt0 !== null ? { animationDelay: `${SEND_FLY_MS - sendAt0}ms` } : {}) }} title={`${side === 'foe' ? foePrefix(b) : ''}${nameOf(f)} Lv${f.level}${onProfile ? ' — 누르면 프로필' : ''}`} onClick={onProfile ? () => onProfile(side) : undefined}>
       {/* --pg-back = 맞으면 밀려나는 쪽 (상대 반대쪽) */}
       <span key={animKey(b)} class={cls} style={{ '--pg-dx': `${Math.round((target - x) * 0.75)}px`, '--pg-back': side === 'me' ? '-1' : '1', ...bodyTiming }}>
         {/* 걷기 그림 (옆모습) 으로 서로 마주 봄 — 서기 그림은 정면이라 가만히 앞만 보는 것처럼 보였음 (2026-10-19 태현 님). 걷기 그림은 오른쪽을 봄 → 상대는 뒤집음 */}
@@ -133,6 +141,31 @@ function FighterBody(props: { b: BattleState; side: Side; x: number; target: num
       </span>
     </span>
   );
+}
+
+/**
+ * 볼 던지기 (2026-10-20 태현 님 C안) — 트레이너 손에서 픽셀 볼이 포물선으로 날아가 (0.45초) 포켓몬 자리에서 터짐 (금색 → 흰 고리 0.25초).
+ * at = 던진 뒤 지난 ms — 애니메이션을 그만큼 앞당겨 시작, 처음 그릴 때 값만 씀 (다시 그릴 때마다 바꾸면 두 배로 빨라짐)
+ */
+function SendBall({ from, to, at: atNow }: { from: [number, number]; to: [number, number]; at: number }) {
+  const at = useRef(atNow).current;
+  return (
+    <>
+      <span
+        class="pg-send-ball"
+        style={{ left: `${from[0]}px`, bottom: `${from[1]}px`, '--pg-dx': `${Math.round(to[0] - from[0])}px`, '--pg-dy': `${Math.round(from[1] - to[1])}px`, animationDelay: `${-at}ms` }}
+      >
+        <Icon name="ball" />
+      </span>
+      <span class="pg-send-burst" style={{ left: `${to[0]}px`, bottom: `${to[1]}px`, animationDelay: `${SEND_FLY_MS - at}ms` }} />
+    </>
+  );
+}
+
+/** 야생 전투 시작 화면 닦기 (2026-10-20 태현 님 A안) — 처음 그릴 때의 지난 시간만 씀 */
+function Wipe({ at }: { at: number }) {
+  const at0 = useRef(at).current;
+  return <span class="pg-wipe" style={{ animationDelay: `${-at0}ms` }} />;
 }
 
 /** 날아가는 기술 · 터지는 자리 · 방어 · 아이템 · 필살기 빛줄기 (맞는 순간 = 연출 끝쪽, 피해 숫자와 같이) */
@@ -292,7 +325,8 @@ function emphasize(msg: string, names: readonly string[]): ComponentChildren {
  * 패링 원 (2026-10-19 태현 님 A) — 상대 공격이 맞기 직전, 내 포켓몬 둘레에서 금색 원이 좁혀져 포켓몬 크기가 되는 순간 = 맞는 순간 (그때 Space · 클릭).
  * 맞는 순간은 연출 (BattleFx → fx/parry) 이 정함. 누르면 (막음 · 완벽 · 너무 일찍) 원은 사라지고 엔진이 글 (막았다!) 을 띄움.
  * 1배 자리에 얇은 과녁 원이 같이 떠서 "좁혀지는 원이 과녁에 겹칠 때" 를 눈으로 맞춤 (2026-10-20 플레이 리뷰어 — 예전엔 흰색이 될 때만 알 수 있었음).
- * HP 줄 아래 층 (z 4 · HP 줄보다 먼저 그림) — 큰 원이 내 HP 숫자를 가로지르지 않게
+ * HP 줄 아래 층 (z 4 · HP 줄보다 먼저 그림) — 큰 원이 내 HP 숫자를 가로지르지 않게.
+ * 원 오른쪽에 작은 자판 칸 "Space 막기" (포커스가 없으면 "클릭 막기") — 무슨 키인지 모르던 것 (2026-10-20 태현 님)
  */
 function ParryRing({ b, geo, y }: { b: BattleState; geo: BattleGeometry; y: number }) {
   const w = canParry(b) ? impactOf(animKey(b)) : null;
@@ -305,6 +339,9 @@ function ParryRing({ b, geo, y }: { b: BattleState; geo: BattleGeometry; y: numb
     <>
       <span key={`${animKey(b)}t`} class="pg-parry-target" style={style} />
       <span key={animKey(b)} class="pg-parry-ring" style={style} />
+      <span key={`${animKey(b)}k`} class="pg-parry-key" style={{ left: `${geo.meX + Math.round(size * 0.55) + 4}px`, bottom: `${y}px`, animationDuration: style.animationDuration, animationDelay: style.animationDelay }}>
+        <span class="pg-menu-key">{document.hasFocus() ? 'Space' : '클릭'}</span> 막기
+      </span>
     </>
   );
 }
@@ -361,7 +398,7 @@ function Clash({ b, geo, y, native }: { b: BattleState; geo: BattleGeometry; y: 
   );
 }
 
-export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onProfile }: BattleLayerProps) {
+export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onProfile, foeTrainerLeft }: BattleLayerProps) {
   // 일반 모드 기술 · 방어 · 회복 연출 (2026-10-19 태현 님) — 번들이 없으면 false (이모지 그대로)
   // 연출 층 (포켓몬 위 · HUD 아래, #350) — 일반 모드 연출 캔버스를 전투 중 이 안으로 옮김
   const fxLayer = useRef<HTMLDivElement>(null);
@@ -388,12 +425,17 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
   const lastSentence = showMsg ? undefined : sentences[sentences.length - 1];
   // 나갈 포켓몬이 없는 채로 시작한 전투 (이상한 세이브) — 내 자리는 비움
   const hasMe = b.me.uid !== 'none';
+  // 전투 시작 연출 — 트레이너전 = 볼 던지기 (손 = 사람 키의 55%), 야생 = 화면 닦기
+  const intro = introView(b);
+  const handY = ground + Math.round((geo.autoBottom - ground) * 0.55);
+  const throwFoe = intro.foe !== null && foeTrainerLeft !== undefined ? intro.foe : null;
+  const throwMe = intro.me !== null && hasMe ? intro.me : null;
   return (
     <>
-      {hasMe && <FighterBody key={`me${b.me.uid}`} b={b} side="me" x={geo.meX} target={geo.foeX} px={geo.meSpritePx} media={media} ground={ground} onProfile={profile} />}
+      {hasMe && <FighterBody key={`me${b.me.uid}`} b={b} side="me" x={geo.meX} target={geo.foeX} px={geo.meSpritePx} media={media} ground={ground} onProfile={profile} sendAt={throwMe} />}
       {/* 볼에 들어가 있는 동안 (던짐 · 흔들림 · 잡힘) 상대 그림은 숨김 */}
       {b.phase !== 'catch' && !(b.phase === 'over' && b.result === 'catch') && (
-        <FighterBody key={`foe${b.foeDown.length}`} b={b} side="foe" x={geo.foeX} target={geo.meX} px={geo.foeSpritePx} media={media} ground={ground} onProfile={profile} />
+        <FighterBody key={`foe${b.foeDown.length}`} b={b} side="foe" x={geo.foeX} target={geo.meX} px={geo.foeSpritePx} media={media} ground={ground} onProfile={profile} sendAt={throwFoe} />
       )}
       {/* 패링 원은 HP 줄보다 먼저 (같은 층에서 HP 숫자가 위) */}
       <ParryRing b={b} geo={geo} y={midMe} />
@@ -401,6 +443,9 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
       {b.phase !== 'send' && <HpBlock f={b.foe} side="foe" x={geo.foeHpX} bottom={geo.foeHpBottom} wide={geo.foeHpWide} prefix={foePrefix(b)} />}
       {b.phase === 'clash' ? <Clash b={b} geo={geo} y={Math.round((midMe + midFoe) / 2)} native={native} /> : <Effects b={b} geo={geo} ground={ground} midMe={midMe} midFoe={midFoe} native={native} />}
       <Catch b={b} geo={geo} ground={ground} />
+      {throwMe !== null && <SendBall key={`sm${b.me.uid}`} from={[geo.trainerX, handY]} to={[geo.meX, midMe]} at={throwMe} />}
+      {throwFoe !== null && foeTrainerLeft !== undefined && <SendBall key={`sf${b.foeDown.length}`} from={[foeTrainerLeft, handY]} to={[geo.foeX, midFoe]} at={throwFoe} />}
+      {intro.wipe !== null && <Wipe at={intro.wipe} />}
       {(['me', 'foe'] as const).map((side) => {
         const nums = numbers.filter((n) => n.side === side).slice(-3);
         const x = side === 'me' ? geo.meHpX : geo.foeHpX;

@@ -259,12 +259,18 @@ export function stageViewKey(state: GameState): string {
     st?.phase === 'request' ? `${st.result?.text ?? ''}` : '',
     // 병원 · 상점 앞: 남은 초 · 들어감 / 트레이너: "!" → "승부다!" / 패배 · 클리어 · 대기실 · 배지는 그대로
     st?.phase === 'facility' ? `${st.inside}:${Math.ceil((TIMING.facilityPromptMs - st.ms) / 1000)}` : '',
-    st?.phase === 'trainer' ? `${st.n}:${st.ms >= TIMING.trainerAlertMs}` : '',
-    st?.phase === 'rival' ? `${st.rival}:${st.ms >= TIMING.trainerAlertMs}` : '',
+    st?.phase === 'trainer' ? `${st.n}:${st.ms >= TIMING.trainerAlertMs}:${st.ms >= vsStartMs('trainer')}` : '',
+    st?.phase === 'rival' ? `${st.rival}:${st.ms >= TIMING.trainerAlertMs}:${st.ms >= vsStartMs('rival')}` : '',
     state.runtime.toast?.text ?? '',
     saveViewKey(state.save),
     pending?.kind === 'wild' ? pending.start : '',
     st?.phase === 'battle' ? battleViewKey(st.battle, state.save.settings.autoBattle) : '',
     resultViewKey(state),
   ].join('|');
+}
+
+/** VS 컷인 길이 · 시작 (만남 단계 끝 0.8초 — 엔진 시간은 그대로, "승부다!" 띠 다음, 2026-10-20 태현 님 B안) */
+export const VS_MS = 800;
+export function vsStartMs(phase: 'trainer' | 'rival'): number {
+  return (phase === 'rival' ? TIMING.rivalMeetMs : TIMING.trainerMeetMs) - VS_MS;
 }

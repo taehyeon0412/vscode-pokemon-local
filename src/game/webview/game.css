@@ -3401,3 +3401,156 @@ body.vscode-high-contrast-light .pg-title-body {
   color: var(--pg-sos-gold);
   font-size: 12px;
 }
+
+/* ---- 전투 시작 연출 (2026-10-20 태현 님 "트레이너와 만나 전투에 들어갈 때 밋밋해" → B + C · 야생 A) ---- */
+/* C 볼 던지기 — 픽셀 볼이 포물선 (0.45초, 9 걸음) · 닿으면 금색 → 흰 고리가 퍼지며 사라짐 (0.25초) · 포켓몬은 그 순간 pg-sendout */
+.pg-send-ball {
+  position: absolute;
+  z-index: 6;
+  line-height: 0;
+  pointer-events: none;
+  opacity: 0;
+  animation: pg-send-fly 450ms steps(9) both;
+}
+@keyframes pg-send-fly {
+  0% { transform: translate(-50%, 50%); opacity: 1; }
+  25% { transform: translate(calc(-50% + var(--pg-dx) * 0.25), calc(50% + var(--pg-dy) * 0.25 - 21px)); opacity: 1; }
+  50% { transform: translate(calc(-50% + var(--pg-dx) * 0.5), calc(50% + var(--pg-dy) * 0.5 - 28px)); opacity: 1; }
+  75% { transform: translate(calc(-50% + var(--pg-dx) * 0.75), calc(50% + var(--pg-dy) * 0.75 - 21px)); opacity: 1; }
+  99% { transform: translate(calc(-50% + var(--pg-dx)), calc(50% + var(--pg-dy))); opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--pg-dx)), calc(50% + var(--pg-dy))); opacity: 0; }
+}
+.pg-send-burst {
+  position: absolute;
+  z-index: 6;
+  width: 28px;
+  height: 28px;
+  box-sizing: border-box;
+  border: 2px solid var(--pg-sos-gold);
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  animation: pg-send-burst 250ms steps(5) both;
+}
+@keyframes pg-send-burst {
+  0% { transform: translate(-50%, 50%) scale(0.4); opacity: 0; }
+  1% { transform: translate(-50%, 50%) scale(0.4); opacity: 1; }
+  60% { border-color: #ffffff; opacity: 1; }
+  100% { transform: translate(-50%, 50%) scale(1.8); border-color: #ffffff; opacity: 0; }
+}
+/* A 화면 닦기 (야생) — 남색 띠가 왼쪽에서 오른쪽으로 한 번 (0.35초, 7 걸음) */
+.pg-wipe {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -45%;
+  width: 45%;
+  z-index: 8;
+  pointer-events: none;
+  background: var(--pg-sos-bar);
+  box-shadow: 2px 0 0 var(--pg-sos-line);
+  animation: pg-wipe 350ms steps(7) both;
+}
+@keyframes pg-wipe {
+  0% { left: -45%; }
+  100% { left: 100%; }
+}
+/* B VS 컷인 — 남색으로 덮고 (0.1초) 위 띠 (나) 는 왼쪽에서 · 아래 띠 (상대) 는 오른쪽에서 (0.2초, 4 걸음) · 금색 VS 가 찍힘 (0.2 ~ 0.3초) · 끝 0.1초 사라짐.
+   띠 = 판 (남색 + 금색 선) · 가운데 720px 칸 · VS 는 28px 단단한 금색 + 짙은 테두리 (필살기 큰 글씨처럼 크기 예외) */
+.pg-vs {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  pointer-events: none;
+  background: rgba(12, 16, 30, 0.6);
+  overflow: hidden;
+  animation: pg-vs-cover 800ms linear both;
+  animation-delay: var(--pg-vs-at, 0ms);
+}
+@keyframes pg-vs-cover {
+  0% { opacity: 0; }
+  12% { opacity: 1; }
+  88% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.pg-vs-band {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(720px, calc(100% - 16px));
+  height: 26px;
+  margin: 0 auto;
+  padding: 0 12px;
+  box-sizing: border-box;
+  background: var(--pg-sos-bar);
+  border-top: 1px solid var(--pg-sos-line);
+  border-bottom: 1px solid var(--pg-sos-line);
+  color: var(--pg-sos-ink);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  animation-duration: 200ms;
+  animation-timing-function: steps(4);
+  animation-fill-mode: both;
+  animation-delay: var(--pg-vs-at, 0ms);
+}
+.pg-vs-me {
+  justify-content: flex-start;
+  animation-name: pg-vs-from-left;
+}
+.pg-vs-foe {
+  justify-content: flex-end;
+  animation-name: pg-vs-from-right;
+}
+@keyframes pg-vs-from-left {
+  0% { transform: translateX(-110vw); }
+  100% { transform: none; }
+}
+@keyframes pg-vs-from-right {
+  0% { transform: translateX(110vw); }
+  100% { transform: none; }
+}
+.pg-vs-word {
+  align-self: center;
+  font-size: 28px;
+  font-weight: 900;
+  line-height: 30px;
+  color: var(--pg-sos-gold);
+  text-shadow: 2px 0 0 #0c101e, -2px 0 0 #0c101e, 0 2px 0 #0c101e, 0 -2px 0 #0c101e, 3px 3px 0 #0c101e;
+  animation: pg-vs-stamp 120ms steps(3) both;
+  animation-delay: calc(var(--pg-vs-at, 0ms) + 200ms);
+}
+@keyframes pg-vs-stamp {
+  0% { transform: scale(1.8); opacity: 0; }
+  1% { transform: scale(1.8); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+/* 패링 키 안내 — 패링 원 오른쪽 작은 자판 칸 "Space 막기" (2026-10-20 태현 님 "패링 키를 모르니 작게 표시"), 원과 같은 시간만 보임 */
+.pg-parry-key {
+  position: absolute;
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  transform: translateY(50%);
+  white-space: nowrap;
+  pointer-events: none;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--pg-sos-ink);
+  text-shadow: 1px 0 0 #0c101e, -1px 0 0 #0c101e, 0 1px 0 #0c101e, 0 -1px 0 #0c101e;
+  opacity: 0;
+  animation-name: pg-parry-target;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+.pg-parry-key .pg-menu-key {
+  color: var(--pg-sos-gold);
+  border-color: var(--pg-sos-gold);
+  background: var(--pg-sos-bar);
+  text-shadow: none;
+}

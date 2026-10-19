@@ -6,7 +6,7 @@ import { Rng } from '../../core/engine/rng';
 import { counterMove, isShooting } from '../../core/rules/battle';
 import { hasMapRow, MAP_ROW_PX, topGapPx } from '../../ui/layout';
 import { allForms, allMoves, formOf, moveOf } from '../../data';
-import { battleGeometry, battleSpritePx, battleViewKey, duelKind, hpColor, menuItems, placeOnStage, sentenceText, splitPopups, type DuelKind } from './model';
+import { battleGeometry, battleSpritePx, battleViewKey, duelKind, hpColor, menuItems, placeOnStage, sentenceText, splitPopups, introView, SEND_FLY_MS, SEND_BURST_MS, WIPE_MS, type DuelKind } from './model';
 
 const wild = sampleMonster({ uid: 'wild', species: 4, form: 'charmander', level: 5, moves: [{ moveId: 52, pp: 25 }], hp: 999 });
 const save = sampleSave();
@@ -336,5 +336,19 @@ describe('머리 위 글 — 숫자만 머리 위, 문장은 말 칸 (2026-10-20
     const name = (s: 'me' | 'foe') => (s === 'me' ? '이상해씨' : '파이리');
     expect(sentenceText(pop(5, 'me', 'status', '독에 걸렸다!'), name)).toBe('이상해씨는 독에 걸렸다!');
     expect(sentenceText(pop(6, 'foe', 'miss', '빗나갔다!'), name)).toBe('빗나갔다!');
+  });
+});
+
+describe('전투 시작 연출 (2026-10-20 태현 님 B + C · 야생 A)', () => {
+  const base = startBattle(save, wild, 'normal');
+  it('야생 = 짧은 화면 닦기만 (볼 없음) · 끝나면 없음', () => {
+    expect(introView({ ...base, t: 0 })).toEqual({ me: null, foe: null, wipe: 0 });
+    expect(introView({ ...base, t: WIPE_MS }).wipe).toBeNull();
+  });
+  it('트레이너전 시작 = 양쪽 볼 (전투 시간 기준) · 상대가 다음 포켓몬을 낼 때 = 상대만 (내보내는 시간 기준)', () => {
+    const tb = { ...base, kind: 'trainer' as const };
+    expect(introView({ ...tb, t: 100 })).toEqual({ me: 100, foe: 100, wipe: null });
+    expect(introView({ ...tb, t: SEND_FLY_MS + SEND_BURST_MS })).toEqual({ me: null, foe: null, wipe: null });
+    expect(introView({ ...tb, t: 9000, phase: 'send', sendMs: 200 })).toEqual({ me: null, foe: 200, wipe: null });
   });
 });

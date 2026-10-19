@@ -471,3 +471,18 @@ export function splitPopups(popups: readonly BattlePopup[]): { numbers: PopNumbe
 export function sentenceText(p: BattlePopup, nameOfSide: (s: Side) => string): string {
   return p.kind === 'status' ? `${withJosa(nameOfSide(p.side), '은/는')} ${p.text}` : p.text;
 }
+
+/**
+ * 전투 시작 연출 (2026-10-20 태현 님 "트레이너와 만나 전투에 들어갈 때 밋밋해" → 추천 B + C · 야생 A):
+ * 트레이너 · 관장 · 라이벌전 시작 = 양쪽 트레이너가 볼을 던져 포켓몬이 나옴 (C) · 상대가 다음 포켓몬을 낼 때도 같은 볼 · 야생 = 짧은 화면 닦기 (A).
+ * 값 = 연출이 시작된 뒤 지난 ms (전투 시간 b.t · 내보내는 시간 b.sendMs — 화면을 다시 열어도 어긋나지 않게), 끝났으면 null
+ */
+export const SEND_FLY_MS = 450;
+export const SEND_BURST_MS = 250;
+export const WIPE_MS = 350;
+export function introView(b: BattleState): { me: number | null; foe: number | null; wipe: number | null } {
+  const sending = (at: number) => (at >= 0 && at < SEND_FLY_MS + SEND_BURST_MS ? at : null);
+  if (b.kind === 'wild') return { me: null, foe: null, wipe: b.t >= 0 && b.t < WIPE_MS ? b.t : null };
+  if (b.phase === 'send') return { me: null, foe: sending(b.sendMs), wipe: null };
+  return { me: sending(b.t), foe: sending(b.t), wipe: null };
+}
