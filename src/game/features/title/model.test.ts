@@ -22,8 +22,11 @@ describe('S02 타이틀 보기', () => {
     expect(v.summary).toEqual({ lead: { form: 'bulbasaur', name: '이상해씨', level: 5 }, badges: 1, money: 1000, playTimeMs: 754_000 });
   });
 
-  it('팀이 비었어도 요약은 보임', () => {
-    expect(titleView({ save: 'ok', busy: false, summary: { ...summary!, lead: null } }).summary?.lead).toBeNull();
+  it('팀이 비었어도 요약은 보임 · 포켓몬이 하나도 없으면 이어 하기 못 함 (새로 하기만, #351)', () => {
+    const v = titleView({ save: 'ok', busy: false, summary: { ...summary!, lead: null } });
+    expect(v.summary?.lead).toBeNull();
+    expect(v.canContinue).toBe(false);
+    expect(v.continueHint).toContain('새로 하기');
   });
 
   it('망가진 세이브: 이어 하기 못 함 (까닭은 "없어요" 가 아님) · 새로 하기는 확인 · 백업 안내', () => {

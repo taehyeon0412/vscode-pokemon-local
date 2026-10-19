@@ -51,10 +51,12 @@ export function titleView(info: TitleInfo): TitleView {
     const text = NOTICE_TEXT[info.notice];
     if (!warnings.includes(text)) warnings.unshift(text);
   }
-  const continueHint = info.save === 'ok' ? null : info.save === 'none' ? '이어 할 세이브가 없어요' : info.save === 'broken' ? BROKEN : NEWER;
+  // 포켓몬이 하나도 없는 세이브 (고친 세이브 — 위치가 타이틀) 는 이어 할 곳이 없음 → 새로 하기만 (#351)
+  const empty = info.save === 'ok' && !!s && !s.lead;
+  const continueHint = empty ? '포켓몬이 없어요 — 새로 하기로 시작해요' : info.save === 'ok' ? null : info.save === 'none' ? '이어 할 세이브가 없어요' : info.save === 'broken' ? BROKEN : NEWER;
   return {
     canStart: !info.busy,
-    canContinue: info.save === 'ok',
+    canContinue: info.save === 'ok' && !empty,
     continueHint,
     confirmNew: info.save !== 'none',
     summary: s

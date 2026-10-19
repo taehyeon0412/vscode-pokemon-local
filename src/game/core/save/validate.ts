@@ -484,6 +484,13 @@ export function validateSave(raw: unknown): ValidateResult {
     fx.note('location', '포켓몬이 하나도 없음 → 타이틀 (스타팅부터)');
     location = { screen: 'title' };
   }
+  // 포켓몬이 있는데 타이틀 · 지도 (알 수 없는 곳을 고친 세이브 · 옛 세이브) — 엔진은 스테이지 · 체육관만 돌려서 이어 하면 아무 일도 안 일어남 (명세 검사관, bugs #351)
+  //  → 아직 안 깬 첫 스테이지, 다 깼으면 체육관 대기실
+  if ((location.screen === 'title' || location.screen === 'world-map') && party.length > 0) {
+    const next = STAGE_IDS.find((id) => stages[id]?.cleared !== true);
+    fx.note('location', `${location.screen} 에서는 이어 할 수 없음 → ${next ?? '체육관'}`);
+    location = next ? { screen: 'stage', stageId: next } : { screen: 'gym' };
+  }
 
   const save: Save = {
     version: SAVE_VERSION,

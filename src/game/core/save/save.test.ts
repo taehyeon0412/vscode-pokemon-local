@@ -147,9 +147,20 @@ describe('망가진 세이브 — 고쳐서 읽음 (포켓몬을 잃지 않게)'
       stages: { 'forest-1': { seed: 1, progress: 3, cleared: 'yes', defeatedTrainers: ['t1', 't1'], facilities: [{ kind: 'casino', at: 1 }] }, 'moon-1': {} },
       pendingEncounter: { kind: 'wild', monster: { species: 'x' }, start: 'normal' },
     });
-    expect(save.location).toEqual({ screen: 'title' });
+    // 팀이 있으면 타이틀이 아니라 안 깬 첫 스테이지 (타이틀로 두면 이어 해도 아무 일도 안 일어남 — #351)
+    expect(save.location).toEqual({ screen: 'stage', stageId: 'forest-1' });
     expect(save.stages).toEqual({ 'forest-1': { seed: 1, progress: 1, cleared: false, defeatedTrainers: ['t1'], facilities: [], run: { startMs: save.playTimeMs, caught: 0, trainers: 0, seen: [], reach: 0, retries: 0 } } });
     expect(save.pendingEncounter).toBeNull();
+  });
+
+  it('포켓몬이 있는데 타이틀 · 지도면 이어 할 곳으로 — 안 깬 첫 스테이지, 다 깼으면 체육관 (#351)', () => {
+    const run = { startMs: 0, caught: 0, trainers: 0, seen: [], reach: 0, retries: 0 };
+    const st = (cleared: boolean) => ({ seed: 1, progress: cleared ? 1 : 0.3, cleared, defeatedTrainers: [], facilities: [], run });
+    expect(fix({ ...sampleSave(), location: { screen: 'title' } }).save.location).toEqual({ screen: 'stage', stageId: 'forest-1' });
+    expect(fix({ ...sampleSave(), location: { screen: 'world-map' }, stages: { 'forest-1': st(true) } }).save.location).toEqual({ screen: 'stage', stageId: 'forest-2' });
+    expect(fix({ ...sampleSave(), location: { screen: 'title' }, stages: { 'forest-1': st(true), 'forest-2': st(true), 'forest-3': st(true) } }).save.location).toEqual({ screen: 'gym' });
+    // 포켓몬이 하나도 없으면 그대로 타이틀 (스타팅부터)
+    expect(fix({ ...sampleSave(), monsters: {}, party: [], box: [], location: { screen: 'world-map' } }).save.location).toEqual({ screen: 'title' });
   });
 
   it('잠듦 남은 번수는 1~3', () => {
