@@ -731,7 +731,8 @@ const DRAW = {
     stream: (ctx, p, t, px) => {
         const size = p.s * Math.round(1 + t * p.grow);
         const n = p.cols.length;
-        if (t < 0.85 || !p.smoke) {
+        const hot = t < 0.85 || !p.smoke;
+        if (hot) {
             ctx.globalAlpha = t < 0.85 ? 1 : (1 - t) / 0.15;
             ctx.fillStyle = p.cols[Math.min(n - 1, Math.floor((t / 0.85) * n))];
         } else {
@@ -739,6 +740,20 @@ const DRAW = {
             ctx.fillStyle = '#7a7a7a';
         }
         ctx.fillRect(px(p.x - size / 2), px(p.y - size / 2), size, size);
+        // 불꽃 혀처럼 (2026-10-20 "밋밋해") — 지나온 쪽으로 반만 한 꼬리 · 막 나온 동안 밝은 심 (뜨거운 가운데)
+        const speed = Math.hypot(p.vx, p.vy);
+        if (hot && t < 0.7 && size >= 2 * p.s && speed > 5 * p.s) {
+            // 꼬리는 움직이는 반대쪽 (뿜기 = 옆 · 대결 불길 = 아래)
+            const tail = Math.max(p.s, p.s * Math.round(size / p.s / 2));
+            const d = size / 2 + tail / 2;
+            ctx.globalAlpha *= 0.7;
+            ctx.fillRect(px(p.x - (p.vx / speed) * d - tail / 2), px(p.y - (p.vy / speed) * d - tail / 2), tail, tail);
+            if (t < 0.4) {
+                ctx.globalAlpha = 1;
+                ctx.fillStyle = p.cols[0];
+                ctx.fillRect(px(p.x - p.s / 2), px(p.y - p.s / 2), p.s, p.s);
+            }
+        }
     },
     dot: (ctx, p, t, px) => {
         ctx.globalAlpha = fadeInOut(t, 0.1, 0.35);
