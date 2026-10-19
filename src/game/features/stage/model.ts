@@ -45,7 +45,7 @@ export function stageLabel(id: StageId): string {
 }
 
 /** 걷는 빠르기 (화면, 크기 배율 1 일 때 px/초) — 길 위의 것들 사이가 넓은 패널에서도 한두 개씩 보이게 [제안] */
-export const WALK_PX_PER_SEC = 24;
+export const WALK_PX_PER_SEC = 48;
 
 /** 스테이지 전체 길이 (px) */
 export function stagePx(scale: number): number {

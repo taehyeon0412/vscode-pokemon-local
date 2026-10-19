@@ -76,8 +76,8 @@ export interface HeroProps {
   roomPx?: number;
 }
 
-/** 걷기 한 장면 시간 (ms) */
-const WALK_FRAME_MS = 160;
+/** 걷기 그림 한 장 (ms) — 걷는 속도 2배 (2026-10-19) 에 맞춰 조금 빠르게 */
+const WALK_FRAME_MS = 130;
 
 /** 가로로 이은 장면 그림 — 칸 하나만 보이게 자르고, 걸을 때는 장면을 한 칸씩 옮김 (steps) */
 function Sheet({ src, art, scale, run, frameMs, title }: { src: string; art: SheetArt; scale: number; run: boolean; frameMs: number; title?: string }) {

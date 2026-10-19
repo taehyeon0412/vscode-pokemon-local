@@ -291,17 +291,30 @@ body.pokemon-game-on {
   background-position-y: bottom;
   pointer-events: none;
 }
+/* 걷는 동안 흐름 (StageScreen ScrollLayer — 빠르기 · 시작점 · 멈춤은 style) */
+.pg-scroll {
+  animation-name: pg-scroll;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: background-position;
+}
+@keyframes pg-scroll {
+  from { background-position-x: 0; }
+  to { background-position-x: -1000000px; }
+}
 .pg-fg {
   opacity: 0.9;
 }
 
-/* 길 위의 것 하나 — 가운데가 x 에, 바닥이 땅에 */
+/* 길 위의 것 하나 — 가운데가 x 에, 바닥이 땅에.
+   자리는 게임 계산 (0.05초) 마다 몇 px 씩 옮겨져서 짧게 이어 줌 — 걷는 동안 끊겨 보이지 않게 (2026-10-19, 주인공 · 전투 자리는 따로) */
 .pg-obj {
   position: absolute;
   transform: translateX(-50%);
   line-height: 1;
   white-space: nowrap;
   font-size: calc(18px * var(--pg-scale, 1));
+  transition: left 0.1s linear;
 }
 .pg-size-nano {
   --pg-scale: 1;
@@ -516,6 +529,7 @@ body.pokemon-game-on {
   line-height: 0;
   opacity: 0.75;
   z-index: 1;
+  transition: left 0.1s linear;
 }
 .pg-scenery-tree {
   bottom: 45%;
@@ -2102,13 +2116,7 @@ body.pokemon-game-on {
   from { transform: translateX(0); }
   to { transform: translateX(-100%); }
 }
-@media (prefers-reduced-motion: reduce) {
-  .pg-sheet-run,
-  .pg-hero.pg-walking .pg-legs-a,
-  .pg-hero.pg-walking .pg-legs-b {
-    animation: none;
-  }
-}
+/* 걷기 그림 넘기기 · 배경 흐름은 "동작 줄이기" 에서도 그대로 — 끄면 맥 (손쉬운 사용 → 동작 줄이기) 에서 주인공이 정지된 채 미끄러짐 (2026-10-19 태현 님). 일반 모드 GIF 도 늘 움직임 */
 /* S04 자기 타입 기술 ★ */
 .pg-own {
   margin-left: 2px;

@@ -6,6 +6,7 @@
  * 전투 (S09 · S10) 는 같은 길 위에서 — features/battle 의 BattleLayer (주인공은 왼쪽 끝 트레이너 자리로, 야생은 튀어나온 자리 그대로 · 트레이너는 오른쪽 끝).
  * 선제공격은 Space 또는 길 클릭 [제안] — 코딩 중에는 편집기에 포커스가 있어 Space 가 코드에 들어가므로, 클릭하면 패널에 포커스도 옴.
  */
+import { useRef } from 'preact/hooks';
 import { BALANCE } from '../../../core/balance';
 import { canOpenMenus, itemLeft, type GameInput, type GameState } from '../../../core/engine';
 import { bestHelper, requestAt } from '../../../core/rules/request';
@@ -27,7 +28,7 @@ import { hasUnspent, type Overlay } from '../../menu/model';
 import { ChoiceBox } from '../../result/components/ChoiceBox';
 import { ResultBox } from '../../result/components/ResultBox';
 import { choiceView } from '../../result/model';
-import { contactX, foeTrainerView, heroX, minimapOf, staffLeftPx, STAGES, stagePx, visibleObjects, type StageObject } from '../model';
+import { contactX, foeTrainerView, heroX, minimapOf, staffLeftPx, STAGES, stagePx, visibleObjects, WALK_PX_PER_SEC, type StageObject } from '../model';
 import { BadgeCard, ClearCard, DefeatBox, FacilityBox, LobbyBox, TrainerBanner } from './FieldBoxes';
 import { Hero } from './Hero';
 import { Minimap } from './Minimap';
@@ -215,8 +216,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen }: 
           <div class="pg-gym-room" />
         ) : (
           <>
-            <div class="pg-bg" style={{ backgroundImage: art('background'), backgroundPositionX: `${-Math.round(offset * 0.35)}px` }} />
-            <div class="pg-fg" style={{ backgroundImage: art('foreground'), backgroundPositionX: `${-Math.round(offset * 0.7)}px` }} />
+            <ScrollLayer cls="pg-bg" image={art('background')} start={offset * 0.35} pxPerSec={WALK_PX_PER_SEC * layout.scale * 0.35} running={phase === 'walk'} />
+            <ScrollLayer cls="pg-fg" image={art('foreground')} start={offset * 0.7} pxPerSec={WALK_PX_PER_SEC * layout.scale * 0.7} running={phase === 'walk'} />
           </>
         )}
         <StageObjects objects={objects} media={media} scale={layout.scale} ground={ground} roomPx={heroRoom} />
@@ -261,5 +262,30 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen }: 
         )}
       </div>
     </div>
+  );
+}
+
+/** 배경이 흐르는 거리 (아주 멀리 — 반복 그림이라 그림 폭을 몰라도 됨, 초당 17 ~ 70px 이면 몇 시간) */
+const SCROLL_DISTANCE_PX = 1_000_000;
+
+/**
+ * 배경 · 앞 수풀 — 걷는 동안 CSS 애니메이션으로 일정하게 흐름 (화면 새로 고침마다 매끈하게 · 2026-10-19 태현 님 "뚝뚝 끊겨 눈이 아파").
+ * 처음 위치는 지금 진행 위치에서 (음수 지연), 멈추면 (만남 · 전투 · 병원 앞 …) 같이 멈춤. 크기가 바뀌면 다시 맞춤. 길 위의 것과 딱 맞을 필요는 없는 겹 (패럴랙스)
+ */
+function ScrollLayer({ cls, image, start, pxPerSec, running }: { cls: string; image: string; start: number; pxPerSec: number; running: boolean }) {
+  // 애니메이션 시작점은 처음 그릴 때 (또는 빠르기가 바뀔 때) 한 번만 — 매번 바꾸면 그때마다 튐
+  const at = useRef<{ start: number; v: number } | null>(null);
+  if (!at.current || at.current.v !== pxPerSec) at.current = { start, v: pxPerSec };
+  const { start: s0, v } = at.current;
+  return (
+    <div
+      class={`${cls} pg-scroll`}
+      style={{
+        backgroundImage: image,
+        animationDuration: `${v > 0 ? SCROLL_DISTANCE_PX / v : 1}s`,
+        animationDelay: `${v > 0 ? -s0 / v : 0}s`,
+        animationPlayState: running && v > 0 ? 'running' : 'paused',
+      }}
+    />
   );
 }
