@@ -425,7 +425,12 @@ window.pokemonFx = {
             return 0;
         }
         if (p.sig[1] === 'dash') {
-            return p.ms; // 몸통박치기 — 몸이 달려드는 것이 연출 (게임 pg-lunge), 닿을 때 impact
+            // 몸통박치기 — 몸이 달려드는 것이 연출 (게임 pg-lunge), 닿을 때 (src = 맞는 쪽) 몸을 꿰뚫는 바람줄 + impact
+            safeFx({}, () => {
+                const g = sigGeometry(fxActor(src), !!src.left);
+                hitRush(g.body.front, g.body.cy, g.s, g.dir, g.body.ry, sigPal(p.o.c));
+            });
+            return p.ms;
         }
         const A = fxActor(src);
         const ok = safeFx({}, () => fxWithTimers(fxMoveGen, () => {

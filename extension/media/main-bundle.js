@@ -6819,6 +6819,80 @@ class DashState {
     }
 }
 
+// 칼자국 하나 — 굽은 대각선이 0.08초에 쫙 그어지고 (가운데 굵게 · 흰 심 · 끝은 가늘게), 끝에서 불똥이 튐 · 천천히 흐려짐
+function sigSlashMark(x, y, s, dir, flip, L, cols) {
+    const half = (L * s) / 2;
+    // 시작 (앞 위) → 끝 (뒤 아래), 가운데가 바깥으로 살짝 굽음
+    const x0 = x + dir * half * 0.75;
+    const y0 = y - flip * half;
+    const x1 = x - dir * half * 0.75;
+    const y1 = y + flip * half;
+    const bx = (x0 + x1) / 2 + dir * half * 0.35;
+    const by = (y0 + y1) / 2 - flip * half * 0.1;
+    const at = (u) => [(1 - u) * (1 - u) * x0 + 2 * u * (1 - u) * bx + u * u * x1, (1 - u) * (1 - u) * y0 + 2 * u * (1 - u) * by + u * u * y1];
+    sigParticle({ x, y, s, max: 0.5, cols, L, draw: (ctx, p, t, px) => {
+        const shown = Math.min(1, p.life / 0.08);
+        ctx.globalAlpha = t > 0.5 ? (1 - t) / 0.5 : 1;
+        const steps = p.L * 2;
+        for (let k = 0; k <= steps * shown; k++) {
+            const u = k / steps;
+            const [cx, cy] = at(u);
+            const w = Math.max(1, Math.round(Math.sin(Math.PI * u) * (t < 0.25 ? 3 : 2)));
+            dotAt(ctx, px, p.s, cx - p.s, cy - (w - 1) * p.s * 0.5 + p.s, p.cols[3], 1, w);
+            dotAt(ctx, px, p.s, cx, cy - (w - 1) * p.s * 0.5, w > 1 ? p.cols[1] : p.cols[2], 1, w);
+            if (w > 1 && t < 0.35) {
+                dotAt(ctx, px, p.s, cx, cy, '#ffffff');
+            }
+        }
+        // 막 그어지는 끝 — 하얀 번쩍
+        if (shown < 1) {
+            const [hx, hy] = at(shown);
+            dotAt(ctx, px, p.s, hx - p.s, hy - p.s, '#ffffff', 3, 3);
+        }
+    } });
+    // 다 그어진 끝에서 불똥 — 긋는 방향으로
+    setTimeout(() => {
+        const [ex, ey] = at(1);
+        for (let k = 0; k < 6; k++) {
+            const a = Math.atan2(y1 - by, x1 - bx) + moveRand(-0.6, 0.6);
+            const v = moveRand(50, 110) * s;
+            sigParticle({ x: ex, y: ey, s, vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: 120 * s, drag: 2, max: moveRand(0.25, 0.4), color: movePick(cols.slice(0, 3)), draw: DRAW.dot });
+        }
+    }, 80);
+}
+
+// 퍽 — 만화식 뾰족 폭발 (가시 10개 · 흰 심 · 진한 테두리) 이 확 커졌다 줄고, 충격 고리 + 불똥. sigImpact (8줄 별) 보다 크고 단단함
+function sigPow(x, y, s, cols0, P, big) {
+    // 노말 (흰 · 회색) 은 흰 덩이로만 보여서 만화식 노란 퍽으로
+    const cols = cols0 === SIG_PALETTE.normal ? SIG_PALETTE.star : cols0;
+    const rOut = (big ? 11 : 8) + 3 * P;
+    const spikes = 10;
+    const tilt = moveRand(0, Math.PI);
+    sigParticle({ x, y, s, max: big ? 0.42 : 0.34, cols, rOut, tilt, draw: (ctx, p, t, px) => {
+        // 0.06초에 확 → 그대로 → 줄며 사라짐
+        const grow = t < 0.15 ? t / 0.15 : t > 0.6 ? 1 - (t - 0.6) / 0.4 : 1;
+        const R = p.rOut * (0.35 + 0.65 * grow);
+        const rr = Math.ceil(R);
+        ctx.globalAlpha = 1;
+        for (let j = -rr; j <= rr; j++) {
+            for (let k = -rr; k <= rr; k++) {
+                const d = Math.hypot(k, j);
+                const a = Math.atan2(j, k) + p.tilt;
+                // 가시 — 각도마다 반지름이 길었다 짧았다 (삼각파)
+                const w = Math.abs(((a / (Math.PI * 2)) * spikes) % 1 - 0.5) * 2;
+                const lim = R * (0.55 + 0.45 * (1 - w));
+                if (d > lim) {
+                    continue;
+                }
+                const c = d > lim - 1 ? p.cols[3] : d < lim * 0.4 ? '#ffffff' : d < lim * 0.7 ? p.cols[0] : p.cols[1];
+                dotAt(ctx, px, p.s, p.x + k * p.s, p.y + j * p.s, c);
+            }
+        }
+    } });
+    sigRing(x, y, s, rOut * s * 0.6, rOut * s * 2, 0.85, 0.3, [cols[0], cols[2]]);
+    sigBurst(x, y, s, cols.slice(0, 3), big ? 9 : 6, big ? 70 : 55);
+}
+
 // 쿵 — 가운데 번쩍 + 바깥으로 뻗는 선 8개
 function sigImpact(x, y, s, cols, P, big) {
     sigParticle({ x, y, s, max: 0.3, cols, reach: (big ? 8 : 5) + 3 * P, draw: (ctx, p, t, px) => {
@@ -7402,37 +7476,34 @@ const SIG_FX = {
             pokemon.currentState = new DashState(pokemon, g, o);
         },
     },
-    // 할퀴기 자국 — 할퀴기 · 베어가르기 · 마구할퀴기 · 시저크로스(x)
+    // 할퀴기 자국 — 할퀴기 · 베어가르기 · 마구할퀴기 · 시저크로스(x) (2026-10-19 태현 님 "기술이 밋밋해" → 몸 크기만 한 굽은 칼자국 + 흰 심 + 튀는 불똥)
     slash: {
-        ms: (P, o) => (o.n ?? 3) * 80 + 450,
+        ms: (P, o) => (o.n ?? 3) * 80 + 500,
         run: (g, o) => {
             const cols = sigPal(o.c);
             const n = o.n ?? 3;
-            sigEmitter({ until: performance.now() + n * 80, shots: n, every: 80, nextShot: performance.now(), fx: (e, i) => sigParticle({
-                x: g.body.front + g.dir * (4 + (i % 2) * 3) * g.s, y: g.mouth.y + (i - (n - 1) / 2) * 3 * g.s, s: g.s, dir: g.dir, max: 0.45, cols,
-                L: Math.round(7 + 4 * g.P),
-                draw: (ctx, p, t, px) => {
-                    const shown = Math.ceil(Math.min(1, p.life / 0.08) * p.L);
-                    ctx.globalAlpha = t > 0.55 ? (1 - t) / 0.45 : 1;
-                    for (const flip of o.x ? [1, -1] : [1]) {
-                        for (let k = 0; k < shown; k++) {
-                            const x = p.x + p.dir * (k - p.L / 2) * p.s;
-                            const y = p.y + flip * (k - p.L / 2) * p.s;
-                            dotAt(ctx, px, p.s, x, y + p.s, p.cols[2]);
-                            dotAt(ctx, px, p.s, x, y, p.cols[0]);
-                        }
-                    }
-                },
-            }) });
+            // 자국 길이 = 몸 높이쯤 (작은 포켓몬도 12칸 이상)
+            const L = Math.max(12, Math.round(((g.body.bottom - g.body.top) * 1.05) / g.s + 3 * g.P));
+            const cx = g.body.front - g.dir * 0.15 * g.body.rx * 2;
+            const cy = g.body.cy;
+            sigEmitter({ until: performance.now() + n * 80, shots: n, every: 80, nextShot: performance.now(), fx: (e, i) => {
+                const off = (i - (n - 1) / 2) * 4 * g.s;
+                for (const flip of o.x ? [1, -1] : [1]) {
+                    sigSlashMark(cx + g.dir * off * 0.6, cy + off, g.s, g.dir, flip, L, cols);
+                }
+            } });
         },
     },
-    // 주먹 · 부리 — 쪼기 · 연속펀치 · 불꽃/냉동/번개펀치 · 찝게햄머(big)
+    // 주먹 · 부리 — 쪼기 · 연속펀치 · 불꽃/냉동/번개펀치 · 찝게햄머(big) (만화식 뾰족 폭발 + 충격 고리 + 불똥)
     punch: {
-        ms: (P, o) => (o.n ?? 1) * 150 + 350,
+        ms: (P, o) => (o.n ?? 1) * 150 + 400,
         run: (g, o) => {
             const cols = sigPal(o.c);
             const n = o.n ?? 1;
-            sigEmitter({ until: performance.now() + n * 150, shots: n, every: 150, nextShot: performance.now(), fx: () => sigImpact(g.body.front + g.dir * moveRand(3, 6) * g.s, g.mouth.y + moveRand(-3, 3) * g.s, g.s, cols, g.P, o.big) });
+            sigEmitter({ until: performance.now() + n * 150, shots: n, every: 150, nextShot: performance.now(), fx: () => {
+                const spread = n > 1 ? 1 : 0;
+                sigPow(g.body.front + g.dir * moveRand(1, 4) * g.s, g.mouth.y + spread * moveRand(-0.5, 0.5) * g.body.ry, g.s, cols, g.P, o.big);
+            } });
         },
     },
     // Z — 잠자기 · 하품
@@ -16361,6 +16432,20 @@ function hitWisps(x, y, s, R, cols, n, sec) {
             }
         } });
     }
+}
+
+// 몸으로 부딪힘 (몸통박치기 · 전광석화 · 날개치기 — 게임 전투) — 맞는 곳에서 몸을 꿰뚫고 뒤로 지나가는 바람줄 + 발밑 먼지 (x = 맞는 쪽 몸 앞, dir = 맞는 쪽이 보는 쪽 = 친 쪽)
+function hitRush(x, y, s, dir, ry, cols) {
+    for (let i = 0; i < 9; i++) {
+        const oy = y + moveRand(-1, 1) * ry * 0.9;
+        sigParticle({ x: x + dir * moveRand(0, 6) * s, y: oy, s, vx: -dir * moveRand(160, 260) * s, drag: 3, max: moveRand(0.22, 0.34), len: Math.round(moveRand(6, 12)), dir, color: cols[i % 3], draw: (ctx, p, t, px) => {
+            ctx.globalAlpha = 1 - t;
+            const len = Math.max(2, Math.round(p.len * (1 - t * 0.6)));
+            // 줄은 지나간 쪽 (친 쪽) 으로 꼬리
+            dotAt(ctx, px, p.s, p.dir > 0 ? p.x : p.x - len * p.s, p.y, p.color, len, 1);
+        } });
+    }
+    hitDust(x - dir * ry * 0.5, y + ry, s, ry, cols, 6);
 }
 
 const HIT_TYPE_PAL = {
@@ -48516,7 +48601,12 @@ window.pokemonFx = {
             return 0;
         }
         if (p.sig[1] === 'dash') {
-            return p.ms; // 몸통박치기 — 몸이 달려드는 것이 연출 (게임 pg-lunge), 닿을 때 impact
+            // 몸통박치기 — 몸이 달려드는 것이 연출 (게임 pg-lunge), 닿을 때 (src = 맞는 쪽) 몸을 꿰뚫는 바람줄 + impact
+            safeFx({}, () => {
+                const g = sigGeometry(fxActor(src), !!src.left);
+                hitRush(g.body.front, g.body.cy, g.s, g.dir, g.body.ry, sigPal(p.o.c));
+            });
+            return p.ms;
         }
         const A = fxActor(src);
         const ok = safeFx({}, () => fxWithTimers(fxMoveGen, () => {

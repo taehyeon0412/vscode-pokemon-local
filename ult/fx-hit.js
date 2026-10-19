@@ -398,6 +398,20 @@ function hitWisps(x, y, s, R, cols, n, sec) {
     }
 }
 
+// 몸으로 부딪힘 (몸통박치기 · 전광석화 · 날개치기 — 게임 전투) — 맞는 곳에서 몸을 꿰뚫고 뒤로 지나가는 바람줄 + 발밑 먼지 (x = 맞는 쪽 몸 앞, dir = 맞는 쪽이 보는 쪽 = 친 쪽)
+function hitRush(x, y, s, dir, ry, cols) {
+    for (let i = 0; i < 9; i++) {
+        const oy = y + moveRand(-1, 1) * ry * 0.9;
+        sigParticle({ x: x + dir * moveRand(0, 6) * s, y: oy, s, vx: -dir * moveRand(160, 260) * s, drag: 3, max: moveRand(0.22, 0.34), len: Math.round(moveRand(6, 12)), dir, color: cols[i % 3], draw: (ctx, p, t, px) => {
+            ctx.globalAlpha = 1 - t;
+            const len = Math.max(2, Math.round(p.len * (1 - t * 0.6)));
+            // 줄은 지나간 쪽 (친 쪽) 으로 꼬리
+            dotAt(ctx, px, p.s, p.dir > 0 ? p.x : p.x - len * p.s, p.y, p.color, len, 1);
+        } });
+    }
+    hitDust(x - dir * ry * 0.5, y + ry, s, ry, cols, 6);
+}
+
 const HIT_TYPE_PAL = {
     normal: 'normal', fire: 'fire', water: 'water', electric: 'electric', grass: 'grass', ice: 'ice', fighting: 'fight', poison: 'poison', ground: 'ground',
     flying: 'wind', psychic: 'psychic', bug: 'bug', rock: 'rock', ghost: 'ghost', dragon: 'dragon', dark: 'dark', steel: 'steel', fairy: 'fairy',

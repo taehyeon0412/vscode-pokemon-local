@@ -18,6 +18,8 @@ import { clearImpact, impactOf, setImpact } from '../fx/parry';
 const CAST_DELAY_MS = 120;
 /** 닿는 기술이 상대에 닿는 때 = 달려들기 (pg-lunge) 의 82% */
 const CONTACT_AT = 0.8;
+/** 닿는 기술의 타입 임팩트는 자국 · 주먹보다 이만큼 늦게 (같이 터지면 서로 가림, 2026-10-19) */
+const CONTACT_IMPACT_LAG_MS = 90;
 /** 쏘는 기술이 상대에 닿는 때 (연출 길이의 몇 %) */
 const SHOT_HIT_AT = 0.85;
 /** 필살기 시작을 이만큼 넘겨서 붙었으면 (접었다 펴기 등) 처음부터 못 보여 줘서 이모지로 — 나와라! 등장 (0.45초) 을 기다리는 것 포함 */
@@ -213,9 +215,12 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
           // 자국 · 주먹은 맞는 쪽 몸 앞 (서로 마주 보니 친 쪽을 향한 면) 에 — 쓰는 쪽 기술 모양 그대로 (form)
           at(Math.round(a.dur * CONTACT_AT), () => {
             const dst = actor(b, other(side));
-            if (!dst) return;
-            fx.move(dst, move.m, 0, form);
-            fx.impact(dst, move.hitType, move.big, move.m.name);
+            if (dst) fx.move(dst, move.m, 0, form);
+          });
+          // 타입 임팩트는 자국 · 주먹이 먼저 보이게 조금 뒤에 (같이 터지면 서로 가림)
+          at(Math.round(a.dur * CONTACT_AT) + CONTACT_IMPACT_LAG_MS, () => {
+            const dst = actor(b, other(side));
+            if (dst) fx.impact(dst, move.hitType, move.big, move.m.name);
           });
         } else if (plan) {
           const mv = act.kind === 'move' ? moveOf(act.moveId) : undefined;
