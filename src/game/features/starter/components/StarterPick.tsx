@@ -45,9 +45,12 @@ export function StarterPick({ media, scale, pending, onBack, onDone }: StarterPi
   const now = useRef({ list, cands, ready, sel, picked, toggle, onBack, onDone });
   now.current = { list, cands, ready, sel, picked, toggle, onBack, onDone };
   const stripRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+      // 접힌 상태 (150px 아래 — app.tsx 가 고르던 화면을 hidden 으로 둠) 에서는 키를 받지 않음: 안 보이는 채 Enter 로 새 게임이 시작되던 것 (테스터)
+      if (rootRef.current?.offsetParent === null) return;
       const c = now.current;
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         e.preventDefault();
@@ -73,7 +76,7 @@ export function StarterPick({ media, scale, pending, onBack, onDone }: StarterPi
   }, [index]);
 
   return (
-    <div class="pg-screen pg-title pg-pick">
+    <div class="pg-screen pg-title pg-pick" ref={rootRef}>
       <InfoBar
         center={<span class="pg-title-text">첫 포켓몬을 골라요</span>}
         right={

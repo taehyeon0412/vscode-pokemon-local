@@ -21,9 +21,12 @@ export function HeroPick({ px, media, bodyPx, initial, onBack, onPick }: { px: n
   const [focus, setFocus] = useState(() => Math.max(0, HERO_LOOKS.findIndex((l) => l.id === initial)));
   const now = useRef({ focus, onBack, onPick });
   now.current = { focus, onBack, onPick };
+  const rootRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.repeat) return;
+      // 접힌 상태 (150px 아래 — app.tsx 가 고르던 화면을 hidden 으로 둠) 에서는 키를 받지 않음: 안 보이는 채 Enter 로 새 게임이 시작되던 것 (테스터)
+      if (rootRef.current?.offsetParent === null) return;
       const c = now.current;
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         e.preventDefault();
@@ -48,7 +51,7 @@ export function HeroPick({ px, media, bodyPx, initial, onBack, onPick }: { px: n
     if (btn && document.activeElement instanceof HTMLButtonElement && document.activeElement !== btn) btn.focus({ preventScroll: true });
   }, [focus]);
   return (
-    <div class="pg-screen pg-title pg-pick">
+    <div class="pg-screen pg-title pg-pick" ref={rootRef}>
       <InfoBar
         center={<span class="pg-title-text">주인공을 골라요</span>}
         right={
