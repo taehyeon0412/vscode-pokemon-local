@@ -42,6 +42,8 @@
     };
     // look=<캐릭터 id> (S03, 2026-10-19) — 그 캐릭터로 숲 · 전투
     if (q.get('look')) save.player = { gender: q.get('gender') || 'female', look: q.get('look') };
+    // fast=1 — 빨리 걷기 켬 (2026-10-19)
+    if (q.get('fast') === '1') save.settings = { ...save.settings, fastWalk: true };
     const info = {
         save: saveKind,
         busy: q.get('busy') === '1',
@@ -92,7 +94,7 @@
         if (battleKind === 'attack') Object.assign(b, { phase: 'anim', anim: { side: 'me', action: { kind: 'attack' }, ms: 0, dur, counter: false }, msg: '이상해씨의 공격!' });
         if (battleKind === 'pick') Object.assign(b, { phase: 'pick', me: { ...me, hp: 0, gauge: 0 }, bench: { m1: { hp: 0, moves: me.moves, status: null } }, msg: '이상해씨가 쓰러졌다! 다음 포켓몬을 골라요 (숫자 키)' });
         if (battleKind === 'over') Object.assign(b, { phase: 'over', foe: { ...foe, hp: 0 }, result: 'win', msg: '야생 파이리가 쓰러졌다!' });
-        if (battleKind === 'items') { save.bag = { 'poke-ball': 3, 'great-ball': 1, potion: 2 }; Object.assign(b, { phase: 'choose', me: { ...me, gauge: 1 }, msg: '이상해씨는 무엇을 할까? (1 ~ 5)' }); }
+        if (battleKind === 'items') { save.bag = { 'poke-ball': 3, 'great-ball': 1, potion: 2 }; Object.assign(b, { phase: 'choose', me: { ...me, gauge: 1 }, msg: '이상해씨는 무엇을 할까?' }); }
         if (battleKind === 'catch') Object.assign(b, { phase: 'catch', catch: { ball: 'poke-ball', ms: 0, pressMs: null, last: false, caught: null }, msg: '가랏, 몬스터볼! 원이 작아질 때 Space' });
         if (battleKind === 'last') { save.bag = { 'poke-ball': 3, 'great-ball': 1 }; Object.assign(b, { phase: 'last', foe: { ...foe, hp: 0 }, msg: '야생 파이리가 쓰러졌다! 마지막 기회 — 볼을 던질까?' }); }
         runtime = { rngState: 1, stepAccMs: 0, speed: 1, stage: { phase: 'battle', battle: b }, stageId: 'forest-1', toast: null };
@@ -134,7 +136,7 @@
             foe: fighter(foe, ['bug'], { hp: 25, attack: 12, defense: 10, speed: 12, ultimate: 11 }, 18, { gauge: 0.4 }),
             foeQueue: queue, foeDown: [], foeUltWait: null, foeName, sendMs: 0,
             bench: {}, bagUsed: {}, phase: 'choose', anim: null, clash: null, result: null, overMs: 0, fleeTries: 0,
-            msg: '이상해씨는 무엇을 할까? (1 ~ 5)', popups: [], popupSeq: 0, t: 5000, catch: null, lastMs: 0, fought: ['m1'], ultAt: { me: null, foe: null }, start: 'normal',
+            msg: '이상해씨는 무엇을 할까?', popups: [], popupSeq: 0, t: 5000, catch: null, lastMs: 0, fought: ['m1'], ultAt: { me: null, foe: null }, start: 'normal',
         });
         let stage = { phase: 'walk' };
         if (place === 'facility' || place === 'hospital') { st.progress = 0.4724 - 1e-7; stage = { phase: 'facility', kind: 'hospital', at: 0.4724, ms: 0, inside: place === 'hospital' }; }

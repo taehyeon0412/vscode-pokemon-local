@@ -148,7 +148,8 @@ const label = (b: BattleState, side: Side) => (side === 'foe' ? `${b.kind === 'w
 const foeStyle = (b: BattleState) => (b.kind === 'wild' ? 'wild' : 'smart');
 const other = (s: Side): Side => (s === 'me' ? 'foe' : 'me');
 /** 내 차례 한 줄 — 곁눈으로 봐도 "기다리는 중" 인 걸 알게 */
-const chooseMsg = (b: BattleState) => `${withJosa(nameOf(b.me), '은/는')} 무엇을 할까? (1 ~ 5)`;
+// 메뉴에 숫자가 이미 있어서 "(1 ~ 5)" 는 뺌 (아트 디렉터 2차, 2026-10-19)
+const chooseMsg = (b: BattleState) => `${withJosa(nameOf(b.me), '은/는')} 무엇을 할까?`;
 
 /** 나갈 포켓몬 = 쓰러지지 않은 첫 포켓몬 (mvp-spec 3.3) */
 export function firstAlive(save: Save): Monster | null {

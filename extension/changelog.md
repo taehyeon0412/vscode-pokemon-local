@@ -2,6 +2,12 @@
 
 All notable changes to the "vscode-pokemon" extension will be documented in this file.
 
+## [5.1.0]
+
+- feat: 게임 모드 (MVP) — 🎮 · F3 로 전환, 숲 1-1 · 1-2 · 1-3 → 체육관 관장까지 (걷기 · 야생 · 트레이너 · 라이벌 · 잡기 · 성장 · 진화 · 병원 · 상점 · 저절로 저장)
+- feat: 전투 연출 = 일반 모드 기술 · 필살기 · 필살기 대결 연출 · 빨리 걷기 · 자동 전투
+- feat: 📦 게임에서 잡은 포켓몬을 일반 모드 패널에 같이 내보내기
+
 ## [5.0.2]
 
 - fix: Galvantual assets

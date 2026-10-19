@@ -323,6 +323,9 @@ SHOTS = [
     ("fx-ult-stop-450", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "ult-beam", "side": "foe", "dur": "20000", "fx": "1", "stopult": "500", "budget": "450"}),
     ("fx-ult-stop-1500", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "ult-beam", "side": "foe", "dur": "20000", "fx": "1", "stopult": "500", "budget": "1500"}),
     ("fx-ult-stop-3000", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "ult-beam", "side": "foe", "dur": "20000", "fx": "1", "stopult": "500", "budget": "3000"}),
+    # 빨리 걷기 (2026-10-19) — 켬 · 끔 (▶▶ 버튼 모양 · 길 위 자리 비교)
+    ("walk-fast-on-170", "720x170", {"screen": "game", "look": "may", "fast": "1", "budget": "3000"}),
+    ("walk-fast-off-170", "720x170", {"screen": "game", "look": "may", "budget": "3000"}),
     # 파이어레드 원작 그림 (레드 = boy)
     ("p12-red-walk-68", "720x68", {"screen": "game", "look": "boy", "gender": "male"}),
     ("p12-red-walk-116", "720x116", {"screen": "game", "look": "boy", "gender": "male", "size": "medium"}),
