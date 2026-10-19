@@ -5116,7 +5116,7 @@
         }));
         sc.at(TB, () => {
             impactFrames(sc, W, H, 0.8, 0.5);
-            blastDome(sc, me.x, G, clamp(Math.max(H * 0.55, ringR * 0.8), 30, Math.min(G * 0.92, W * 0.5)), 1.9, FIRE);
+            stMergePillar(sc, me.x, G, clamp(me.w * 0.9, 8 * s, W * 0.16), ringR * 0.6, 1.9, FIRE);
             ultShake(10 + 3 * P, 1300);
             for (const r of u.others()) {
                 sc.at(TB + 0.1, () => hit(where(u, r), away(u, me.x), 'tumble', 0.3));
@@ -5229,7 +5229,10 @@
             impactFrames(sc, W, H, 0.6, 0.4);
             K.crownSplash(sc, tx, G, Rg * 1.2, 1.0, TIDE);
             K.geyser(sc, tx, G, Math.max(4 * s, Rg * 0.25), G * 0.7, 1.1, TIDE);
-            blastDome(sc, tx, G, clamp(Math.max(H * 0.48, Rg * 2.2), 30, Math.min(G * 0.92, W * 0.48)), 1.8, TIDE);
+            for (const sd of [-1, 1]) {
+                const gx = clamp(tx + sd * Math.max(Rg * 1.6, W * 0.12), W * 0.05, W * 0.95);
+                sc.at(TB + 0.18, () => K.geyser(sc, gx, G, Math.max(3 * s, Rg * 0.2), G * 0.55, 1.0, TIDE));
+            }
             ultShake(9 + 3 * P, 1100);
             for (const r of u.others()) {
                 sc.at(TB + 0.1, () => hit(where(u, r), away(u, tx), 'lift', 0.3));
@@ -5419,7 +5422,7 @@
         sc.at(TI, () => {
             impactFrames(sc, W, H, 0.8, 0.5);
             K.firePillar(sc, tx, G, clamp(me.w * 0.9, 8 * s, W * 0.18), 1.3, FIRE);
-            blastDome(sc, tx, G, clamp(Math.max(H * 0.48, me.w * 3), 30, Math.min(G * 0.92, W * 0.48)), 1.8, FIRE);
+            stGroundBlaze(sc, tx, G, W * 0.4, me.h * 0.9, sec - TI, FIRE);
             ultShake(10 + 3 * P, 1200);
             for (const r of u.others()) {
                 sc.at(TI + 0.08, () => hit(where(u, r), away(u, tx), Math.abs(r.x - tx) < W * 0.2 ? 'tumble' : 'lift', 0.3));
@@ -5487,7 +5490,16 @@
         });
         sc.at(TB, () => {
             impactFrames(sc, W, H, 0.6, 0.4);
-            blastDome(sc, clamp(me.x + dir * far * 0.7, W * 0.08, W * 0.92), G, clamp(Math.max(H * 0.48, W * 0.22), 30, Math.min(G * 0.92, W * 0.48)), 1.8, MUD);
+            const mx0 = clamp(me.x + dir * far * 0.7, W * 0.08, W * 0.92);
+            groundArcs(sc, mx0, G - s, W * 0.45, sec - TB, MUD[MUD.length - 1], 8, 2, G - s);
+            ring(sc, mx0, G - s, me.w * 0.5, W * 0.4, 0.2, 0.7, [MUD[0], MUD[1]], 3);
+            for (let i = 0; i < 4; i++) {
+                sc.at(TB + 0.3 + i * 0.35, () => {
+                    for (let j = 0; j < 12; j++) {
+                        debris(rnd(0, W), -s * 4, s, MUD, 1, H * 0.2, { angle: Math.PI / 2, spread: 0.4, ground: G, life: 1.4 });
+                    }
+                });
+            }
             ultShake(9 + 3 * P, 1100);
             for (let i = 0; i < 30; i++) {
                 debris(rnd(0, W), -s * 4, s, MUD, 1, H * 0.2, { angle: Math.PI / 2, spread: 0.4, ground: G, life: 1.4 });
@@ -5634,7 +5646,7 @@
             ultShake(5, 300);
         });
         sc.at(TB, () => {
-            blastDome(sc, tx, G, clamp(Math.max(H * 0.45, me.w * 2.8), 30, Math.min(G * 0.92, W * 0.45)), 1.8, VINEC);
+            ring(sc, tx, G - me.h * 0.5, me.w * 0.4, W * 0.35, 0.6, 0.6, ['#ffffff', VINEC[0], VINEC[1]], 3);
             ultShake(9 + 3 * P, 1100);
             for (const r of u.others()) {
                 sc.at(TB + 0.08, () => hit(where(u, r), away(u, tx), Math.abs(r.x - tx) < W * 0.2 ? 'tumble' : 'lift', 0.3));
@@ -5751,7 +5763,8 @@
         }
         sc.at(TB, () => {
             impactFrames(sc, W, H, 0.75, 0.5);
-            blastDome(sc, me.x, G, clamp(Math.max(H * 0.52, W * 0.25), 30, Math.min(G * 0.92, W * 0.5)), 1.9, FIRE);
+            stLineBlasts(sc, me.x, G, Math.max(me.w * 1.1, W * 0.1), 5, TB + 0.05, FIRE, Math.max(me.w * 0.5, 8 * s));
+            stFlameCrown(sc, me.x, me.b - me.h * 1.05, Math.max(me.w * 0.6, 8 * s), sec - TB, FIRE);
             ultShake(10 + 3 * P, 1200);
         });
         emberRise(sc, TB + 0.3, sec, FIRE);
@@ -5872,8 +5885,8 @@
         });
         sc.at(TB, () => {
             impactFrames(sc, W, H, 0.6, 0.4);
-            blastDome(sc, clamp(bx, W * 0.08, W * 0.92), G, clamp(Math.max(H * 0.45, bw * 4), 30, Math.min(G * 0.92, W * 0.45)), 1.8, TIDE);
             K.crownSplash(sc, clamp(bx, W * 0.08, W * 0.92), G, Math.max(bw * 2, H * 0.15), 0.9, TIDE);
+            K.geyser(sc, clamp(bx, W * 0.08, W * 0.92), G, Math.max(4 * s, bw * 0.6), G * 0.75, 1.2, TIDE);
             ultShake(8 + 2 * P, 1000);
         });
         K.waterRain(sc, TB + 0.5, sec - 0.2, TIDE);
@@ -5970,7 +5983,7 @@
         sc.at(TB, () => {
             impactFrames(sc, W, H, 0.6, 0.4);
             const last = trees[NT - 1];
-            blastDome(sc, clamp(last.x, W * 0.08, W * 0.92), G, clamp(Math.max(H * 0.45, W * 0.22), 30, Math.min(G * 0.92, W * 0.45)), 1.8, VINEC);
+            ring(sc, clamp(last.x, W * 0.08, W * 0.92), G - s, me.w * 0.5, W * 0.35, 0.22, 0.6, ['#ffffff', VINEC[0], VINEC[1]], 3);
             ultShake(8 + 2 * P, 1000);
         });
         // 잎비
@@ -6808,7 +6821,7 @@
         // 내리찍음 — 용암 고리 · 둥글게 솟는 불기둥
         sc.at(TI, () => {
             impactFrames(sc, W, H, 0.8, 0.5);
-            blastDome(sc, tx, G, clamp(Math.max(H * 0.5, me.w * 3), 30, Math.min(G * 0.92, W * 0.48)), 1.9, FIRE);
+            stLavaRing(sc, tx, G, Math.max(me.w * 2.4, W * 0.24), sec - TI);
             ultShake(11 + 3 * P, 1400);
             for (let i = 0; i < 6; i++) {
                 const x = tx + (i - 2.5) * Math.max(me.w * 0.9, W * 0.09);
@@ -6945,7 +6958,7 @@
                 hit(where(u, c.r), dir, 'tumble', 0);
             }
             const bx = cuts.length ? cuts[0].x : clamp(me.x + dir * W * 0.5, W * 0.1, W * 0.9);
-            blastDome(sc, bx, G, clamp(Math.max(H * 0.45, W * 0.22), 30, Math.min(G * 0.92, W * 0.45)), 1.8, TIDE);
+            K.geyser(sc, bx, G, Math.max(5 * s, me.w * 0.5), G * 0.8, 1.2, TIDE);
             ultShake(9 + 3 * P, 1100);
         });
         K.waterRain(sc, TB + 0.5, sec - 0.2, TIDE);
@@ -7053,8 +7066,9 @@
                     } });
                 }
             }
-            const last = vines[NV - 1];
-            blastDome(sc, clamp(last.x, W * 0.08, W * 0.92), G, clamp(Math.max(H * 0.45, W * 0.22), 30, Math.min(G * 0.92, W * 0.45)), 1.8, VINEC);
+            const mid = clamp(vines[Math.floor(NV / 2)].x, W * 0.12, W * 0.88);
+            stSpikeBurst(sc, mid, G, Math.max(me.h * 0.8, 10 * s), 15);
+            ring(sc, mid, G - s, me.w * 0.5, W * 0.3, 0.22, 0.5, ['#ffffff', VINEC[0], VINEC[1]], 3);
             ultShake(8 + 2 * P, 1000);
         });
     }
@@ -7199,7 +7213,7 @@
         }
         sc.at(TB, () => {
             impactFrames(sc, W, H, 0.7, 0.45);
-            blastDome(sc, tx, G, clamp(Math.max(H * 0.48, W * 0.22), 30, Math.min(G * 0.92, W * 0.48)), 1.9, FIRE);
+            stMagicRise(sc, tx, G, Math.max(me.w * 1.6, W * 0.13), sec - TB, FIRE);
             ultShake(9 + 3 * P, 1100);
             for (const r of u.others()) {
                 sc.at(TB + 0.1, () => hit(where(u, r), away(u, tx), 'tumble', 0.3));
@@ -12827,6 +12841,164 @@
                 }
             }
         });
+    }
+
+    // ═════ 스타팅 최종 진화 마무리 (공통 빛의 반구 대신 저마다 — 2026-10-19 태현 님) ═════
+    // 불기둥이 모여 하나로 — 양옆 불기둥이 가운데로 기울며 다가와 합쳐지고 가운데 거대한 불기둥이 화면 위까지
+    function stMergePillar(sc, x, G, w, d0, dur, cols) {
+        const { S: s, H } = sc.u;
+        sc.add({ max: dur, draw: (ctx, it, t, px) => {
+            const k = it.life;
+            const m = easeIn(clamp(k / 0.45, 0, 1));
+            const fade = clamp((dur - k) / 0.5, 0, 1);
+            if (m < 1) {
+                for (const sd of [-1, 1]) {
+                    const d = d0 * (1 - m);
+                    K.flameTongue(ctx, px, s, x + sd * d, G + s, w * 0.8, H * (0.55 + 0.25 * m), cols, k + sd, 1 - m * 0.5, -sd * 0.5 * (1 - m), fade);
+                }
+            }
+            const grow = easeOut(clamp((k - 0.3) / 0.35, 0, 1));
+            K.flameTongue(ctx, px, s, x, G + s, w * (1 + 1.4 * grow), H * 1.25 * grow, cols, k * 1.2, grow, 0, fade);
+            K.flameTongue(ctx, px, s, x, G + s, w * (0.5 + 0.7 * grow), H * 0.9 * grow, cols, k * 1.7 + 3, grow, 0, fade);
+        } });
+    }
+    // 땅 불길 띠 — x 에서 양옆으로 번지다 사그라듦
+    function stGroundBlaze(sc, x, G, spread, h, dur, cols) {
+        const { S: s, W } = sc.u;
+        sc.add({ max: dur, draw: (ctx, it, t, px) => {
+            const k = it.life;
+            const r = spread * easeOut(clamp(k / 0.6, 0, 1));
+            K.groundFlames(ctx, px, s, Math.max(0, x - r), Math.min(W, x + r), G, h, k, cols, clamp((dur - k) / 0.6, 0, 1));
+        } });
+    }
+    // 줄줄이 폭발 — x 에서 양옆으로 땅을 따라 차례로 펑펑 (n 개씩)
+    function stLineBlasts(sc, x, G, gap, n, t0, cols, R) {
+        const { S: s, W, H } = sc.u;
+        for (let i = 0; i < n; i++) {
+            for (const sd of [-1, 1]) {
+                const bx = x + sd * (i + 1) * gap;
+                if (bx < s * 4 || bx > W - s * 4) {
+                    continue;
+                }
+                sc.at(t0 + i * 0.12, () => {
+                    sc.add({ max: 0.5, draw: (ctx, it, t, px) => fireOrb(ctx, px, s, bx, G - R * 0.6, R * (0.5 + 0.8 * easeOut(Math.min(1, it.life * 4))), cols, it.life, 1, G, 1 - t, t, [1, 0.8, 0.6, 0.38], 0.6) });
+                    fireBits(bx, G - R, s, cols, 8, { angle: -Math.PI / 2, spread: 1.8, speed: H * 0.5, g: H, life: 0.6 });
+                    ultShake(2 + i * 0.4, 120);
+                });
+            }
+        }
+    }
+    // 불꽃 왕관 — (x, y) 둘레로 불꽃 혀 일곱이 왕관처럼 솟아 이글
+    function stFlameCrown(sc, x, y, R, dur, cols) {
+        const { S: s } = sc.u;
+        sc.add({ max: dur, draw: (ctx, it, t, px) => {
+            const k = easeOut(clamp(it.life / 0.4, 0, 1));
+            const fade = clamp((dur - it.life) / 0.5, 0, 1);
+            for (let i = 0; i < 7; i++) {
+                const f = i / 6;
+                const cx = x + (f - 0.5) * 2 * R;
+                const tall = R * (0.9 + 0.6 * Math.sin(f * Math.PI)) * (i % 2 ? 0.8 : 1);
+                K.flameTongue(ctx, px, s, cx, y + Math.abs(f - 0.5) * R * 0.5, R * 0.45, tall, cols, it.life + i, k, (f - 0.5) * 0.6, fade);
+            }
+            K.ringDots(ctx, px, s, x, y + R * 0.2, R * 1.05, 0.25, [cols[1], cols[2]], k * fade, 2);
+        } });
+    }
+    // 용암 고리 — 땅에 둥근 용암 띠가 번져 이글이글 · 거품이 톡톡
+    function stLavaRing(sc, x, G, R, dur) {
+        const { S: s } = sc.u;
+        const LAVA = ['#fff3a0', '#ff9a2a', '#d0301a', '#5a1a10'];
+        sc.add({ max: dur, draw: (ctx, it, t, px) => {
+            const k = easeOut(clamp(it.life / 0.5, 0, 1));
+            const fade = clamp((dur - it.life) / 0.6, 0, 1);
+            const paths = [new Path2D(), new Path2D(), new Path2D(), new Path2D()];
+            const n = Math.round(R * 2 * Math.PI / (s * 2));
+            for (let i = 0; i < n; i++) {
+                const a = (i / n) * TAU;
+                const rr = R * k * (1 + 0.04 * Math.sin(a * 5 + it.life * 3));
+                const cx = x + Math.cos(a) * rr;
+                const cy = G + Math.sin(a) * rr * 0.2;
+                const w = 3 + Math.round(2 * Math.sin(a * 3 + it.life * 4));
+                for (let j = 0; j < w; j++) {
+                    paths[j === 0 || j === w - 1 ? 3 : j === 1 ? 2 : (i + Math.floor(it.life * 8)) % 5 === 0 ? 0 : 1].rect(px(cx), px(cy - (j - w / 2) * s), 2 * s, s);
+                }
+            }
+            K.fillPaths(ctx, paths, [LAVA[0], LAVA[1], LAVA[2], LAVA[3]], fade);
+            for (let j = 0; j < 8; j++) {
+                const cyc = (it.life * (0.9 + hash(j, 241) * 0.5) + hash(j, 242)) % 1;
+                const a = hash(j, 243) * TAU;
+                K.ringDots(ctx, px, s, x + Math.cos(a) * R * k, G + Math.sin(a) * R * k * 0.2 - s * 2 - cyc * s * 4, s * (1 + 2 * cyc), 1, [LAVA[0], LAVA[1]], fade * (1 - cyc), 1);
+            }
+        } });
+    }
+    // 가시 폭발 — x 땅에서 굵은 가시가 부채꼴로 솟구쳐 튀었다 떨어짐
+    function stSpikeBurst(sc, x, G, len, n) {
+        const { S: s, H } = sc.u;
+        const sp = [];
+        for (let i = 0; i < n; i++) {
+            const a = -Math.PI / 2 + (i / (n - 1) - 0.5) * 2.6;
+            sp.push({ a, v: H * (0.9 + 0.5 * hash(i, 251)), len: len * (0.7 + 0.5 * hash(i, 252)) });
+        }
+        sc.add({ max: 1.6, draw: (ctx, it, t, px) => {
+            const k = it.life;
+            const list = [];
+            for (const p of sp) {
+                const vx = Math.cos(p.a) * p.v;
+                const vy = Math.sin(p.a) * p.v;
+                const xx = x + vx * k;
+                const yy = G - s * 2 + vy * k + H * 1.4 * k * k;
+                if (yy > G + s * 4) {
+                    continue;
+                }
+                const ang = Math.atan2(vy + H * 2.8 * k, vx);
+                list.push({ x: xx, y: yy, len: p.len, ang });
+            }
+            // 굵은 가시 — 테두리 · 몸(두 칸) · 하얀 끝
+            const a = clamp((1.6 - k) / 0.4, 0, 1);
+            const paths = [new Path2D(), new Path2D(), new Path2D()];
+            for (const n of list) {
+                const pts = [[n.x, n.y], [n.x - Math.cos(n.ang) * n.len, n.y - Math.sin(n.ang) * n.len]];
+                K.addLine(paths[0], px, s, pts, 4);
+                K.addLine(paths[1], px, s, pts, 2);
+                K.addLine(paths[2], px, s, [pts[0], [n.x - Math.cos(n.ang) * s * 3, n.y - Math.sin(n.ang) * s * 3]], 2);
+            }
+            K.fillPaths(ctx, paths, [ST_NEEDLE[3], ST_NEEDLE[1], '#ffffff'], a);
+        } });
+    }
+    // 떠오르는 마법진 → 불비 — 땅의 불꽃 마법진(동그라미 둘 · 별)이 돌며 하늘로 올라가 터지고 불씨 비가 내림
+    function stMagicRise(sc, x, G, R, dur, cols) {
+        const { S: s, W, H } = sc.u;
+        const TOP = Math.max(R * 0.6, H * 0.18);
+        const T1 = 0.9;
+        sc.add({ max: T1 + 0.1, draw: (ctx, it, t, px) => {
+            const k = it.life / T1;
+            const y = lerp(G - s * 2, TOP, easeIn(k));
+            const flat = lerp(0.25, 0.4, k);
+            const a = 1 - clamp((k - 0.85) / 0.15, 0, 1);
+            K.ringDots(ctx, px, s, x, y, R, flat, [cols[0], cols[2]], a, 2);
+            K.ringDots(ctx, px, s, x, y, R * 0.72, flat, [cols[1], cols[2]], a, 1);
+            starOutline(ctx, px, s, x, y, R * 0.68, it.life * 3, 1, cols, flat);
+        } });
+        sc.at(T1, () => {
+            ring(sc, x, TOP, R * 0.4, R * 2.2, 0.5, 0.45, ['#ffffff', cols[1], cols[2]], 3);
+            fireBits(x, TOP, s, cols, 26, { speed: H * 0.6, life: 0.7 });
+            ultShake(5, 400);
+        });
+        const NF = Math.round(26 * clamp(W / 480, 0.7, 2));
+        const drops = [];
+        for (let i = 0; i < NF; i++) {
+            drops.push({ x: clamp(x + (hash(i, 261) - 0.5) * W * 0.9, s * 2, W - s * 2), t0: T1 + 0.1 + hash(i, 262) * (dur - T1 - 0.9), fall: 0.55 + 0.2 * hash(i, 263) });
+        }
+        sc.add({ max: dur, draw: (ctx, it, t, px) => {
+            for (const d of drops) {
+                const k = (it.life - d.t0) / d.fall;
+                if (k < 0 || k >= 1) {
+                    continue;
+                }
+                const y = lerp(TOP * 0.5, G - s, k * k);
+                K.fireTail(ctx, px, s, d.x, y, 0.15, 1, s * 7, s * 3, cols, it.life + d.x, 1);
+            }
+        } });
+        drops.forEach((d) => sc.at(d.t0 + d.fall, () => fireBits(d.x, G - s * 2, s, cols, 3, { angle: -Math.PI / 2, spread: 1.4, speed: H * 0.25, life: 0.4 })));
     }
 
     // ── 틀에 끼워 넣기 — uniq 가 이 파일에 있는 이름이면 그 연출, 아니면 원래 틀 그대로 ──
