@@ -12,6 +12,7 @@ import { itemName } from '../../../core/rules/items';
 import type { Save } from '../../../core/save';
 import { speciesOf } from '../../../data';
 import { Button } from '../../../ui/Button';
+import { Icon } from '../../../ui/Icon';
 import { menuItems, type MenuItem, type MenuPage } from '../model';
 
 export interface BattleMenuProps {
@@ -179,15 +180,34 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
       {row && <span class={counter || ultCounter ? 'pg-layer pg-counter' : 'pg-layer'}>{row}</span>}
     </span>
   );
-  const ultBar = (
-    <span class={ultReady ? 'pg-bar pg-bar-myult pg-full' : 'pg-bar pg-bar-myult'} title="필살기 게이지 — 때리면 · 맞으면 참 (Z)">
-      <span class="pg-bar-fill" style={{ width: `${Math.round(b.me.ult * 100)}%` }} />
-    </span>
-  );
-  const ult = (label: string, extraClass?: string) => (
-    <Button extraClass={extraClass} onClick={() => onInput({ kind: 'battle', input: { kind: 'ult' } })} disabled={!ultReady} title="필살기 (Z) — 게이지가 차 있으면 아무 때나 · 상대 기술에 끼어들기">
-      {label}
-    </Button>
+  // 필살기 Z 배지 (2026-10-19 태현 님 "Z 가 잘 안 보여 · 눈에 확 보였으면 · 다 차면 반짝반짝") — 18px 키 모양 칸 안이 게이지만큼 주황으로 차오름,
+  // 다 차면 금색 채움 + 한 번 톡 커짐 + 빛 줄기 + 반짝 별 셋 (game.css .pg-ultz). 게이지 막대 대신 이 칸 하나
+  const ultPct = Math.round(b.me.ult * 100);
+  const ultBadge = (
+    <button
+      type="button"
+      class={ultReady ? 'pg-ultz pg-ultz-ready' : 'pg-ultz'}
+      disabled={!ultReady}
+      onClick={() => onInput({ kind: 'battle', input: { kind: 'ult' } })}
+      title={ultReady ? '필살기 (Z) — 지금 쓸 수 있어요 · 아무 때나 · 상대 기술에 끼어들기' : `필살기 게이지 ${ultPct}% — 때리면 · 맞으면 참 (Z)`}
+    >
+      <span class="pg-ultz-fill" style={{ height: `${ultReady ? 100 : ultPct}%` }} />
+      <span class="pg-ultz-key">Z</span>
+      {ultReady && (
+        <>
+          <span class="pg-ultz-shine" />
+          <span class="pg-ultz-spark pg-ultz-s1">
+            <Icon name="twinkle" />
+          </span>
+          <span class="pg-ultz-spark pg-ultz-s2">
+            <Icon name="twinkle" />
+          </span>
+          <span class="pg-ultz-spark pg-ultz-s3">
+            <Icon name="twinkle" />
+          </span>
+        </>
+      )}
+    </button>
   );
 
   // 옆 메뉴 (Sea of Stars): 판 위로 튀어나온 탭 줄 = 금색 이름표 (왼쪽) · 필살기 게이지 + Z (오른쪽), 그 아래 판에 세로 목록 (5줄 넘으면 옆 칸).
@@ -198,10 +218,7 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
       <div class={`pg-vmenu${b.phase === 'choose' ? ' pg-my-turn' : ''}`}>
         <div class="pg-vmenu-tabs">
           <span class="pg-vmenu-name">{vertical}</span>
-          <span class="pg-vmenu-ult">
-            {ultBar}
-            {ult('Z', 'pg-vmenu-z')}
-          </span>
+          <span class="pg-vmenu-ult">{ultBadge}</span>
         </div>
         {(open || lead) && (
           <div class="pg-vmenu-box">
@@ -218,8 +235,7 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
       {/* 좁은 패널에서 기술 · 아이템을 고르는 동안은 앞 버튼 (자동 전투) 을 빼서 이름 자리를 넓힘 */}
       {compact && page !== 'main' ? null : lead}
       {stack}
-      {ultBar}
-      {ult('Z')}
+      {ultBadge}
     </span>
   );
 }

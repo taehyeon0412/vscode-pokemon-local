@@ -1025,7 +1025,8 @@ body.pokemon-game-on {
  */
 .pg-vmenu-wrap {
   z-index: 5;
-  overflow: hidden;
+  /* 넘친 것을 자르지 않음 — 필살기 Z 배지 · 반짝 별이 메뉴 둘레 밖에 걸침 (목록은 5줄 넘으면 옆 칸이라 아래로 넘치지 않음) */
+  overflow: visible;
 }
 .pg-vmenu {
   display: flex;
@@ -1064,45 +1065,23 @@ body.pokemon-game-on {
 .pg-vmenu.pg-my-turn .pg-vmenu-name {
   background: var(--pg-sos-gold);
 }
+/* 탭 줄 오른쪽 = 필살기 Z 배지 (18px) 자리 — 배지는 탭 줄 위아래로 살짝 걸침 (판 모서리에 단 메달처럼, .pg-ultz) */
 .pg-vmenu-ult {
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  gap: 3px;
+  position: relative;
+  flex: none;
+  width: 18px;
   height: 13px;
-  padding-left: 4px;
-  background: var(--pg-sos-bar);
-  border: 1px solid var(--pg-sos-line);
-  border-bottom: 0;
+}
+.pg-vmenu-ult > .pg-ultz {
+  position: absolute;
+  right: 0;
+  top: -3px;
 }
 /* 판을 접었을 때 (고를 수 없는 동안) 는 탭 줄만 — 오른쪽 탭도 아래를 닫음 */
 .pg-vmenu-tabs:last-child {
   margin-bottom: 0;
 }
-.pg-vmenu-tabs:last-child .pg-vmenu-ult {
-  border-bottom: 1px solid var(--pg-sos-line);
-}
-.pg-vmenu .pg-bar-myult {
-  width: 18px;
-  height: 3px;
-}
-.pg-vmenu .pg-vmenu-z {
-  height: 12px;
-  padding: 0 4px;
-  font-size: 10px;
-  line-height: 12px;
-  font-weight: 700;
-  color: var(--pg-sos-dim);
-  background: transparent;
-  border: 0;
-  border-left: 1px solid var(--pg-sos-line-soft);
-  border-radius: 0;
-}
-.pg-vmenu .pg-vmenu-z:not(:disabled) {
-  color: var(--pg-sos-tab-ink);
-  background: var(--pg-sos-gold);
-  opacity: 1;
-}
+
 .pg-vmenu-box {
   padding: 2px 0;
   background: var(--pg-sos-panel);
@@ -2973,5 +2952,119 @@ body.vscode-high-contrast-light .pg-title-body {
   }
   .pg-infobar .pg-button.pg-icon-btn {
     width: 24px;
+  }
+}
+
+/* 필살기 Z 배지 (2026-10-19 태현 님 "Z 가 잘 안 보여 · 눈에 확 · 다 차면 반짝반짝") — 18px 키 모양 · 안이 게이지만큼 주황으로 차오름.
+   다 차면 금색 채움 + 한 번 톡 커짐 + 테두리가 주황 ↔ 크림으로 바뀜 (0.8초 두 걸음) + 1.2초마다 빛 줄기 + 반짝 별 셋 (엇갈려 1초에 1번 남짓).
+   계속 도는 움직임은 게이지가 다 찬 동안 · 패널이 보이는 동안만 (작은 칸이라 부담 작음 — 태현 님이 바란 반짝임) */
+.pg-ultz {
+  position: relative;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--pg-sos-line);
+  border-radius: 0;
+  font: inherit;
+  background: var(--pg-sos-bar);
+  overflow: visible;
+  cursor: default;
+}
+.pg-ultz-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--pg-sos-ult);
+}
+.pg-ultz-key {
+  position: relative;
+  display: block;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 16px;
+  text-align: center;
+  color: var(--pg-sos-ink);
+  text-shadow: 1px 0 0 var(--pg-sos-tab-ink), -1px 0 0 var(--pg-sos-tab-ink), 0 1px 0 var(--pg-sos-tab-ink), 0 -1px 0 var(--pg-sos-tab-ink);
+}
+.pg-ultz-ready {
+  border-color: var(--pg-sos-gold);
+  background: var(--pg-sos-gold);
+  cursor: pointer;
+  animation: pg-ultz-pop 0.45s steps(3) 1, pg-ultz-glow 0.8s steps(2) 0.45s infinite;
+}
+.pg-ultz-ready .pg-ultz-fill {
+  background: var(--pg-sos-gold);
+}
+.pg-ultz-ready .pg-ultz-key {
+  color: var(--pg-sos-tab-ink);
+  text-shadow: none;
+}
+.pg-ultz-ready:hover,
+.pg-ultz-ready:focus-visible {
+  background: var(--pg-sos-ult);
+}
+@keyframes pg-ultz-pop {
+  0% { transform: scale(1.7); }
+  66% { transform: scale(0.9); }
+  100% { transform: none; }
+}
+@keyframes pg-ultz-glow {
+  0% { box-shadow: 0 0 0 2px var(--pg-sos-ult); }
+  100% { box-shadow: 0 0 0 2px var(--pg-sos-ink); }
+}
+/* 빛 줄기 — 비스듬한 흰 띠가 왼쪽에서 오른쪽으로 (픽셀 박자) */
+.pg-ultz-shine {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.pg-ultz-shine::before {
+  content: "";
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  left: -8px;
+  width: 4px;
+  background: rgba(255, 255, 255, 0.85);
+  transform: skewX(-20deg);
+  animation: pg-ultz-sweep 1.2s steps(8) infinite;
+}
+@keyframes pg-ultz-sweep {
+  0% { left: -8px; }
+  50%, 100% { left: 22px; }
+}
+/* 반짝 별 셋 — 배지 둘레, 엇갈려 깜빡 */
+.pg-ultz-spark {
+  position: absolute;
+  line-height: 0;
+  pointer-events: none;
+  animation: pg-ultz-twinkle 0.9s steps(2) infinite;
+}
+.pg-ultz-s1 {
+  top: -9px;
+  left: -8px;
+}
+.pg-ultz-s2 {
+  top: -10px;
+  right: -9px;
+  animation-delay: 0.3s;
+}
+.pg-ultz-s3 {
+  bottom: -7px;
+  right: -11px;
+  animation-delay: 0.6s;
+}
+@keyframes pg-ultz-twinkle {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pg-ultz-ready,
+  .pg-ultz-shine::before,
+  .pg-ultz-spark {
+    animation: none;
   }
 }

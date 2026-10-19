@@ -68,7 +68,7 @@
             uid: m.uid, species: m.species, form: m.form, level: m.level, shiny: false, types, stats, maxHp: stats.hp, hp,
             moves: m.moves.map((x) => ({ ...x })), status: null, gauge: 0, ult: 0, guard: 1, guardStreak: 0, streakMove: null, streakCount: 0, ...extra,
         });
-        const me = fighter(save.monsters.m1, ['grass', 'poison'], { hp: 21, attack: 11, defense: 11, speed: 10, ultimate: 12 }, 15, { gauge: 0.7, ult: 0.45 });
+        const me = fighter(save.monsters.m1, ['grass', 'poison'], { hp: 21, attack: 11, defense: 11, speed: 10, ultimate: 12 }, 15, { gauge: 0.7, ult: q.get('myult') !== null ? Number(q.get('myult')) : 0.45 }); // myult=1 — 필살기 꽉 참 (Z 반짝 사진)
         const foe = fighter(wild, ['fire'], { hp: 20, attack: 12, defense: 10, speed: 12, ultimate: 11 }, 13, { gauge: 0.6, ult: 0.3 });
         const dur = Number(q.get('dur') || 20000);
         const b = {

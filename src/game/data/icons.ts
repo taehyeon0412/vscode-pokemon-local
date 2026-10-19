@@ -69,6 +69,8 @@ export const ICONS = {
   leaf: ['....DDD.', '...DGGD.', '..DGGGD.', '.DGGGgD.', 'DGGggD..', 'DgDDD...', 'D.......'],
   /** 어른거리는 그림자 */
   shadow: ['...kkkkkk...', '.kkkkkkkkkk.', '.kkkkkkkkkk.', '...kkkkkk...'],
+  /** 작은 반짝 (필살기 Z 가 다 찼을 때 둘레 별) */
+  twinkle: ['..W..', '..Y..', 'WYWYW', '..Y..', '..W..'],
   /** 반짝 (떨어진 아이템 · 이로치 힌트) */
   sparkle: ['...W...', '...Y...', '..YWY..', 'WYWWWYW', '..YWY..', '...Y...', '...W...'],
 } satisfies Record<string, readonly string[]>;
