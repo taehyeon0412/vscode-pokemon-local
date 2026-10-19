@@ -712,6 +712,24 @@ window.pokemonFx = {
             }
         });
     },
+    /** 상태 이상이 걸린 순간 (독 · 화상 · 마비 · 잠 · 나음 = cure) — ult/fx-hit.js hitStatus (2026-10-20) */
+    status(dst, kind) {
+        safeFx({}, () => {
+            if (!POKEMON_SHAPE[dst.form] || fxWidth(dst) < 1) {
+                return;
+            }
+            fxWithTimers(fxMoveGen, () => hitStatus(sigGeometry(fxActor(dst), !!dst.left), kind));
+        });
+    },
+    /** 쓰러뜨린 한 방 — 금색 별빛 살 · 별 조각 · 발밑 충격파 (ult/fx-hit.js hitKO) */
+    ko(dst) {
+        safeFx({}, () => {
+            if (!POKEMON_SHAPE[dst.form] || fxWidth(dst) < 1) {
+                return;
+            }
+            fxWithTimers(fxMoveGen, () => hitKO(sigGeometry(fxActor(dst), !!dst.left)));
+        });
+    },
     /** 개발 미리보기 — 타입 임팩트 하나를 그 자리에 (dev/game-host.js impacts=1) */
     testImpact(x, y, s, type, big, w, pick = 0) {
         safeFx({}, () => typeImpact(x, y, s, type, 0.6, !!big, 1, w, { pick }));

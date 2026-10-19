@@ -345,14 +345,23 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
     );
     return () => window.clearTimeout(t);
   }, [key, parried]);
-  // 히트스톱 — 새로 뜬 글이 급소 · 마지막 한 방 (100ms) · 효과 굉장 (70ms) 이면 연출 · 몸짓이 잠깐 멈춤 (번쩍 없이 손맛, 2026-10-20)
+  // 새로 뜬 글로 — 히트스톱 (급소 · 마지막 한 방 100ms · 효과 굉장 70ms, 번쩍 없이 손맛) · 쓰러뜨린 한 방 금색 별빛 · 상태 이상이 걸린 순간 연출 (2026-10-20)
   const seenPop = useRef(b.popupSeq);
   useEffect(() => {
     const fresh = b.popups.filter((p) => p.id > seenPop.current);
     seenPop.current = b.popupSeq;
-    if (!fx?.hitStop || !fresh.length) return;
-    const big = fresh.some((p) => p.kind === 'crit' || (p.kind === 'damage' && b[p.side].hp <= 0));
-    if (big || fresh.some((p) => p.kind === 'super')) fx.hitStop(big ? 100 : 70);
+    if (!fx || !fresh.length) return;
+    const ko = fresh.find((p) => p.kind === 'damage' && b[p.side].hp <= 0);
+    const big = !!ko || fresh.some((p) => p.kind === 'crit');
+    if (big || fresh.some((p) => p.kind === 'super')) fx.hitStop?.(big ? 100 : 70);
+    const koActor = ko ? actor(b, ko.side) : null;
+    if (koActor) fx.ko?.(koActor);
+    for (const p of fresh) {
+      if (p.kind !== 'status') continue;
+      const kind = p.text === '몸이 개운해졌다!' ? 'cure' : b[p.side].status?.kind;
+      const who = kind ? actor(b, p.side) : null;
+      if (who && kind) fx.status?.(who, kind);
+    }
   }, [b.popupSeq]);
   // 연출 캔버스 위 끝 = 정보줄 아래 끝 (game.css 가 여기서 자름 — 연출이 정보줄을 덮지 않게, 아트 디렉터).
   // 그릴 때마다 잼 — 처음 그릴 땐 game.css 를 받기 전이라 화면이 숨어 0 이 나오고, 패널 크기도 바뀜 (값이 같으면 안 씀)

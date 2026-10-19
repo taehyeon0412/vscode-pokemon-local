@@ -56,6 +56,10 @@ export interface PokemonFx {
   dodge?(dst: FxActor): void;
   /** 히트스톱 — 연출 입자 · 전투 그림 몸짓이 ms 동안 멈춤 */
   hitStop?(ms?: number): void;
+  /** 상태 이상이 걸린 순간 (독 · 화상 · 마비 · 잠 · 나음) */
+  status?(dst: FxActor, kind: 'poison' | 'burn' | 'paralysis' | 'sleep' | 'cure'): void;
+  /** 쓰러뜨린 한 방 — 금색 별빛 */
+  ko?(dst: FxActor): void;
   /** 패링 되튀기 — 막은 쪽 (dst) 에서 친 쪽 (src) 으로 불똥 · 완벽 = 금색 초승달 + 히트스톱 */
   deflect?(dst: FxActor, src: FxActor, perfect: boolean): void;
   /** 필살기 (version 2) — 걸리는 시간 (ms), 못 쓰면 0 */

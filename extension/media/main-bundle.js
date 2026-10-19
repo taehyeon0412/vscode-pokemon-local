@@ -16794,6 +16794,71 @@ function hitRush(x, y, s, dir, ry, cols) {
     hitDust(x - dir * ry * 0.5, y + ry, s, ry, cols, 6);
 }
 
+// 상태 이상이 걸리는 순간 (2026-10-20 ideas #110 — 가루 · 노래하기 결과가 글로만 나오던 것): g = 걸린 포켓몬 모양 (sigGeometry)
+//   독 = 보라 방울이 몸에서 떠올라 톡 터짐 · 화상 = 몸 위 작은 불꽃 혀 셋이 일렁 + 연기 · 마비 = 작은 지직 (moves.js sigNumb) · 잠 = Z (SIG_FX.zzz) · 나음 = 반짝 (SIG_FX.glow)
+function hitStatus(g, kind) {
+    const s = g.s;
+    if (kind === 'poison') {
+        const cols = sigPal('poison');
+        for (let i = 0; i < 6; i++) {
+            sigParticle({ x: g.body.cx + moveRand(-0.8, 0.8) * g.body.rx, y: g.body.cy + moveRand(-0.2, 0.6) * g.body.ry, s, vy: -moveRand(18, 32) * s, max: moveRand(0.5, 0.8), d: i * 0.07, cols, big: i % 2 === 0, draw: (ctx, p, t, px) => {
+                if (p.life < p.d) {
+                    return;
+                }
+                ctx.globalAlpha = 1;
+                if (t > 0.85) {
+                    // 톡 — 네 귀퉁이 점
+                    for (const [dx, dy] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) {
+                        dotAt(ctx, px, p.s, p.x + dx * 2 * p.s, p.y + dy * 2 * p.s, p.cols[1]);
+                    }
+                    return;
+                }
+                hitBit(ctx, px, p.s, p.x, p.y, 'bubble', p.cols, t, p.big);
+            } });
+        }
+        return;
+    }
+    if (kind === 'burn') {
+        const cols = sigPal('fire');
+        for (let i = 0; i < 3; i++) {
+            sigParticle({ x: g.body.cx + (i - 1) * g.body.rx * 0.6, y: g.body.top + g.body.ry * 0.6, s, max: 0.8, d: i * 0.1, cols, draw: (ctx, p, t, px) => {
+                if (p.life < p.d) {
+                    return;
+                }
+                ctx.globalAlpha = hitFade(t, 0.1, 0.35);
+                hitBit(ctx, px, p.s, p.x, p.y, 'flame', p.cols, (p.life * 3) % 1, true);
+            } });
+        }
+        for (let i = 0; i < 4; i++) {
+            sigParticle({ x: g.body.cx + moveRand(-0.6, 0.6) * g.body.rx, y: g.body.top, s, vy: -moveRand(10, 20) * s, max: moveRand(0.6, 0.9), r: 1, cols: ['#c8c0b8', '#a09890', '#7a7068', '#5a524a'], draw: (ctx, p, t, px) => {
+                ctx.globalAlpha = hitStep((1 - t) * 0.6);
+                sigDisc(ctx, px, p.s, p.x, p.y, (1 + t) * p.s, p.cols[1]);
+            } });
+        }
+        return;
+    }
+    if (kind === 'paralysis') {
+        sigNumb(g);
+        return;
+    }
+    if (kind === 'sleep') {
+        SIG_FX.zzz.run(g, {}, SIG_FX.zzz.ms(g.P, {}));
+        return;
+    }
+    if (kind === 'cure') {
+        SIG_FX.glow.run(g, { c: 'heal' }, 600);
+    }
+}
+
+// 쓰러뜨린 한 방 (2026-10-20 ideas #109) — 금색 별빛 살 8줄이 크게 뻗고 + 큰 조각 별 + 발밑 충격파 (히트스톱 0.1초와 같이 — BattleFx)
+function hitKO(g) {
+    const R = Math.max(14 * g.s, g.w * 0.6);
+    const cols = HIT_GOLD;
+    hitLines(g.body.cx, g.body.cy, g.s, R, cols, 8, 0.45);
+    hitBloom(g.body.cx, g.body.cy, g.s, R * 0.8, cols, 'star', 0.6, true, { g: 40 });
+    hitRing(g.body.cx, g.body.bottom, g.s, R * 0.3, R * 1.8, 0.3, 0.55, cols);
+}
+
 // 타입마다 짜임 3가지 — (x, y, s, R, cols, big, dir, ground, n, h) → 그림. n(m) = 크기만큼 수, h(m) = 솟는 높이 (정보줄 · HP 아래까지)
 // 회오리는 불꽃 · 물 · 비행 · 땅만 (10타입에 있으면 모양이 다 같아 보여서, 아트 디렉터 · 플레이 리뷰어)
 const HIT_STYLES = {
@@ -49248,6 +49313,24 @@ window.pokemonFx = {
                 } });
                 window.pokemonFx.hitStop(90);
             }
+        });
+    },
+    /** 상태 이상이 걸린 순간 (독 · 화상 · 마비 · 잠 · 나음 = cure) — ult/fx-hit.js hitStatus (2026-10-20) */
+    status(dst, kind) {
+        safeFx({}, () => {
+            if (!POKEMON_SHAPE[dst.form] || fxWidth(dst) < 1) {
+                return;
+            }
+            fxWithTimers(fxMoveGen, () => hitStatus(sigGeometry(fxActor(dst), !!dst.left), kind));
+        });
+    },
+    /** 쓰러뜨린 한 방 — 금색 별빛 살 · 별 조각 · 발밑 충격파 (ult/fx-hit.js hitKO) */
+    ko(dst) {
+        safeFx({}, () => {
+            if (!POKEMON_SHAPE[dst.form] || fxWidth(dst) < 1) {
+                return;
+            }
+            fxWithTimers(fxMoveGen, () => hitKO(sigGeometry(fxActor(dst), !!dst.left)));
         });
     },
     /** 개발 미리보기 — 타입 임팩트 하나를 그 자리에 (dev/game-host.js impacts=1) */
