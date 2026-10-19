@@ -192,6 +192,16 @@ describe('좁은 패널 자리 (테스터)', () => {
     expect(at(720, 200, 2, 1.3).msgHidden).toBe(false);
   });
 
+  it('메뉴 줄이 정보줄 바로 밑까지 오면 (720 × 160 보통) 한 줄은 메뉴 오른쪽 끝 뒤에 · 자리가 없으면 숨김 — 게이지 · 💥Z 위에 안 겹침 (2026-10-19)', () => {
+    const g = battleGeometry({ widthPx: 720, bodyPx: 160 - 26, scale: 2, uiScale: 1.3, ground: 23, foeX: 412, meSpritePx: 64, foeSpritePx: 64, heroPx: 40, heroWidthPx: 32 });
+    expect(g.menuInBar).toBe(false);
+    if (g.msgSide) expect(g.msgSide.left).toBeGreaterThanOrEqual(g.menuLeft + 380 * 1.3);
+    else expect(g.msgHidden).toBe(true);
+    // 넓은 패널 (190) 은 위 한 줄 자리가 있어 그대로 가운데
+    const tall = battleGeometry({ widthPx: 720, bodyPx: 190 - 26, scale: 1.5, uiScale: 1.3, ground: 18, foeX: 400, meSpritePx: 48, foeSpritePx: 48, heroPx: 20, heroWidthPx: 16 });
+    expect(tall.msgSide === null && !tall.msgHidden).toBe(true);
+  });
+
   it('자동 스위치가 내 HP 묶음을 가리면 메뉴 줄 앞으로', () => {
     expect(at(240, 200, 2, 1.3).autoInMenu).toBe(true);
     expect(at(720, 200, 2, 1.3).autoInMenu).toBe(false);

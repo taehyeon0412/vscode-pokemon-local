@@ -285,7 +285,10 @@ export function battleGeometry(g: GeometryInput): BattleGeometry {
   const autoInMenu = autoTop > g.bodyPx || hitsMyHp;
   // 위 가운데 한 줄이 HP 바 · 메뉴 줄과 겹치는지 — 겹치면 상대 오른쪽 빈 곳에 (자리가 있으면)
   const highest = Math.max(meHpBottom + hpBlockPx, foeHpBottom + hpBlockPx + foeExtra, menuInBar ? 0 : menuBottom + menuPx);
-  const sideLeft = Math.round(g.foeX + Math.max(g.foeSpritePx, foeHpWide) / 2 + 6);
+  // 메뉴 줄이 위 한 줄 자리까지 올라와 있으면 (정보줄 바로 밑) 옆자리는 메뉴 오른쪽 끝 뒤부터 — 160px 에서 게이지 · 💥Z 위에 겹치던 것 (2026-10-19)
+  const menuAtTop = !menuInBar && g.bodyPx - (menuBottom + menuPx) < Math.round(MSG_PX * u) + 4;
+  const menuRight = menuLeft + Math.round(MENU_EST_PX * u);
+  const sideLeft = Math.round(Math.max(g.foeX + Math.max(g.foeSpritePx, foeHpWide) / 2 + 6, menuAtTop ? menuRight + 8 : 0));
   const sideRoom = g.widthPx - sideLeft - 8;
   const topBusy = g.bodyPx - highest < Math.round(MSG_PX * u) + 4;
   const msgSide = topBusy && sideRoom >= MSG_SIDE_MIN_PX ? { left: sideLeft, maxWidth: sideRoom } : null;

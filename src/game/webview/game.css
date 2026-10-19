@@ -140,6 +140,7 @@ body.pokemon-game-on {
 }
 
 /* 패널이 너무 낮음 */
+/* 140px 아래 안내 (접힌 상태 · 올려 주세요) — 좁은 패널에선 줄을 바꿔 다 보이게 (한 줄이면 양쪽이 잘림 — 320 폭에서 찾음) */
 .pg-too-small {
   flex: 1;
   display: flex;
@@ -147,7 +148,9 @@ body.pokemon-game-on {
   justify-content: center;
   padding: 0 8px;
   font-size: 11px;
-  white-space: nowrap;
+  line-height: 1.3;
+  text-align: center;
+  white-space: normal;
   overflow: hidden;
   color: var(--vscode-editorWarning-foreground, #cca700);
 }
