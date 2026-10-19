@@ -2,8 +2,10 @@
  * S03 주인공 목록 (gdd S03 — 2026-10-19 태현 님 A안: 남 · 여 여러 명을 한 줄에, 칸마다 정면 그림 · 고른 캐릭터만 옆으로 걸음).
  * 그림: extension/media/people/<id>/walk.png — 옆모습 걷기 장면을 가로로 이어 붙인 것 (오른쪽을 봄, 장면마다 w × h 칸)
  *       extension/media/people/<id>/front.png — 정면 (장면을 가로로, 없으면 걷기 첫 장)
+ *       walk-small.png · front-small.png — 작은 그림 (낮은 패널용, 있으면)
  * 그림이 없는 캐릭터 (walk 없음) 는 코드로 그린 사람 (Hero.tsx) [임시]. 새 캐릭터 = 그림 폴더 + 여기 한 줄.
- * 포켓몬 그림과 같은 픽셀 크기 (그림 1칸 = 크기 배율만큼의 화면 px).
+ * 크기 (2026-10-19 태현 님 A안): 그림은 줄이지 않고 1배 (그림 1칸 = 화면 1px) 부터 — 자리가 남으면 포켓몬 배율까지 0.5 단위로 키움,
+ * 1배로도 안 들어가면 작은 그림으로 (줄이면 점이 합쳐져 뭉개짐). 작은 그림도 없으면 할 수 없이 줄임.
  */
 export type HeroGender = 'male' | 'female';
 
@@ -20,8 +22,11 @@ export interface HeroLook {
   /** 칸 아래 이름 */
   label: string;
   gender: HeroGender;
+  /** 큰 그림 (원본 크기) */
   walk?: SheetArt;
   front?: SheetArt;
+  /** 작은 그림 — 큰 그림이 1배로도 안 들어가는 낮은 패널용 (walk-small.png · front-small.png) */
+  small?: { walk: SheetArt; front?: SheetArt };
 }
 
 /**
@@ -44,24 +49,39 @@ export function heroLookOf(id: string | undefined, gender?: HeroGender): HeroLoo
   return HERO_LOOKS.find((l) => l.id === id) ?? HERO_LOOKS.find((l) => l.gender === gender) ?? HERO_LOOKS[0]!;
 }
 
-/** 화면에 그리는 사람 키 상한 (그림 칸) — 코드 그림 사람 (14칸 × 2) 과 같게. 알림 · 띠 · 전투 자리가 이 키에 맞춰져 있음.
- *  그림이 더 크면 줄여서 그림 (1배보다 작게 줄이면 점이 빠짐) — 새 그림은 키 28칸 이하로 받거나 미리 28칸으로 줄여 넣기 */
-export const HERO_MAX_ROWS = 28;
-/** 코드 그림 사람 너비 (10칸 × 2) */
+/** 코드 그림 사람 키 · 너비 (그림 칸 — 14 × 2 · 10 × 2) */
+export const CODE_HERO_ROWS = 28;
 const CODE_HERO_COLS = 20;
 
-/** 그림 1칸 = 화면 몇 px — 원래는 크기 배율, 그림 키가 상한보다 크면 줄임 (정면 그림도 같은 상한 — 칸 키가 같게) */
-export function heroArtScale(look: HeroLook, scale: number, art: SheetArt | undefined = look.walk): number {
-  const h = art?.h ?? HERO_MAX_ROWS;
-  return h > HERO_MAX_ROWS ? (scale * HERO_MAX_ROWS) / h : scale;
+/** 실제로 그릴 그림 — 파일 · 장면 크기 · 그림 1칸 = 화면 몇 px */
+export interface HeroDraw {
+  walkFile: 'walk' | 'walk-small';
+  frontFile: 'front' | 'front-small';
+  walk: SheetArt;
+  front?: SheetArt;
+  scale: number;
 }
 
-/** 서 있는 키 (화면 px) — 그림이 있으면 그림 키 × 그림 배율, 없으면 코드 그림 28 × 배율 */
-export function heroHeightPx(look: HeroLook, scale: number): number {
-  return look.walk ? Math.round(look.walk.h * heroArtScale(look, scale)) : HERO_MAX_ROWS * scale;
+/** 이 자리 (roomPx, 위아래로 쓸 수 있는 px) 에 그릴 그림 — 그림이 없으면 null (코드 그림) */
+export function heroDraw(look: HeroLook, scale: number, roomPx = Number.POSITIVE_INFINITY): HeroDraw | null {
+  if (!look.walk) return null;
+  // 0.5 단위로, 포켓몬 배율을 넘지 않게
+  const fit = (h: number) => Math.min(scale, Math.floor((roomPx / h) * 2) / 2);
+  const shrink = (h: number) => Math.max(0.25, roomPx / h); // 1배로도 안 될 때 — 할 수 없이 줄임
+  const big = fit(look.walk.h);
+  if (big >= 1 || !look.small) return { walkFile: 'walk', frontFile: 'front', walk: look.walk, front: look.front, scale: big >= 1 ? big : shrink(look.walk.h) };
+  const small = fit(look.small.walk.h);
+  return { walkFile: 'walk-small', frontFile: 'front-small', walk: look.small.walk, front: look.small.front, scale: small >= 1 ? small : shrink(look.small.walk.h) };
 }
 
-/** 서 있는 너비 (화면 px) — 전투 때 왼쪽 끝 자리 */
-export function heroWidthPx(look: HeroLook, scale: number): number {
-  return look.walk ? Math.round(look.walk.w * heroArtScale(look, scale)) : CODE_HERO_COLS * scale;
+/** 서 있는 키 (화면 px) — 그림 사람은 이 자리에 그리는 그림, 코드 그림은 28 × 배율 */
+export function heroHeightPx(look: HeroLook, scale: number, roomPx?: number): number {
+  const d = heroDraw(look, scale, roomPx);
+  return d ? Math.round(d.walk.h * d.scale) : CODE_HERO_ROWS * scale;
+}
+
+/** 서 있는 너비 (화면 px) — 전투 때 왼쪽 끝 자리 · 띠를 옆으로 옮길 때 */
+export function heroWidthPx(look: HeroLook, scale: number, roomPx?: number): number {
+  const d = heroDraw(look, scale, roomPx);
+  return d ? Math.round(d.walk.w * d.scale) : CODE_HERO_COLS * scale;
 }

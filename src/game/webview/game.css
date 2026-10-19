@@ -515,6 +515,12 @@ body.pokemon-game-on {
   row-gap: 2px;
   z-index: 5;
 }
+/* 큰 주인공이 띠 자리까지 올라오면 띠를 주인공 오른쪽 옆으로 (StageScreen 의 heroTall) */
+.pg-hero-tall .pg-banner {
+  left: var(--pg-banner-left);
+  transform: none;
+  max-width: var(--pg-banner-max);
+}
 .pg-line {
   display: inline-flex;
   align-items: center;

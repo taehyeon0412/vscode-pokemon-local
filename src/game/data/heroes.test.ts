@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { HERO_LOOKS, HERO_MAX_ROWS, heroArtScale, heroHeightPx, heroLookOf, heroWidthPx, isHeroLookId } from './heroes';
+import { CODE_HERO_ROWS, HERO_LOOKS, heroDraw, heroHeightPx, heroLookOf, heroWidthPx, isHeroLookId, type HeroLook } from './heroes';
 
 describe('S03 주인공 목록 (data/heroes.ts)', () => {
   it('이름은 겹치지 않고 영문 소문자 · 숫자 · - · 남 · 여가 다 있음', () => {
@@ -23,13 +23,20 @@ describe('S03 주인공 목록 (data/heroes.ts)', () => {
     expect(isHeroLookId(3)).toBe(false);
   });
 
-  it('키: 코드 그림 28 × 배율 · 그림 사람은 키 28칸을 넘으면 줄여서 (알림 · 띠 · 전투 자리가 28 에 맞춰져 있음)', () => {
-    expect(heroHeightPx(heroLookOf('boy'), 1.5)).toBe(42);
-    for (const scale of [1, 1.5, 2, 2.5]) {
-      for (const look of HERO_LOOKS) expect(heroHeightPx(look, scale), `${look.id} ×${scale}`).toBeLessThanOrEqual(HERO_MAX_ROWS * scale);
-    }
-    expect(heroArtScale({ id: 'x', label: 'x', gender: 'male', walk: { frames: 4, w: 16, h: 24 } }, 2)).toBe(2);
-    expect(heroArtScale({ id: 'x', label: 'x', gender: 'male', walk: { frames: 4, w: 30, h: 42 } }, 3)).toBe(2);
-    expect(heroWidthPx(heroLookOf('cap-girl'), 2)).toBe(40);
+  it('크기 (A안): 그림은 1배부터 · 자리가 남으면 포켓몬 배율까지 0.5 단위 · 1배로 안 되면 작은 그림 · 그것도 없으면 할 수 없이 줄임', () => {
+    const big = { frames: 4, w: 32, h: 48 };
+    const small = { frames: 4, w: 20, h: 28 };
+    const look: HeroLook = { id: 'x', label: 'x', gender: 'female', walk: big, small: { walk: small } };
+    expect(heroDraw(look, 2.5, 200)).toMatchObject({ walkFile: 'walk', scale: 2.5 });
+    expect(heroDraw(look, 2.5, 76)).toMatchObject({ walkFile: 'walk', scale: 1.5 }); // 크게 · 140px
+    expect(heroDraw(look, 1.5, 49)).toMatchObject({ walkFile: 'walk', scale: 1 }); // 작게 · 92px
+    expect(heroDraw(look, 1, 31)).toMatchObject({ walkFile: 'walk-small', scale: 1 }); // 아주 작게 · 68px
+    expect(heroDraw(look, 1, 20)!.scale).toBeCloseTo(20 / 28); // 작은 그림도 안 들어감 → 줄임
+    expect(heroDraw({ ...look, small: undefined }, 1, 31)!.scale).toBeCloseTo(31 / 48);
+    expect(heroHeightPx(look, 1.5, 49)).toBe(48);
+    expect(heroWidthPx(look, 1, 31)).toBe(20);
+    // 코드 그림은 28 × 배율
+    expect(heroDraw(heroLookOf('boy'), 2)).toBeNull();
+    expect(heroHeightPx(heroLookOf('boy'), 1.5)).toBe(CODE_HERO_ROWS * 1.5);
   });
 });

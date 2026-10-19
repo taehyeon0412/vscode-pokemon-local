@@ -16,7 +16,7 @@ import type { NewGameChoice } from '../features/starter/model';
 import { StageScreen } from '../features/stage/components/StageScreen';
 import { TitleScreen } from '../features/title/components/TitleScreen';
 import type { TitleInfo } from '../shared/messages';
-import type { Layout } from '../ui/layout';
+import { INFO_BAR_PX, type Layout } from '../ui/layout';
 import type { Store } from '../ui/store';
 import { TooSmall } from '../ui/TooSmall';
 import { useStore } from '../ui/use-store';
@@ -86,7 +86,7 @@ export function App({ store, media, actions }: { store: Store<ViewState>; media:
 function Screens({ v, media, actions }: { v: ViewState; media: string; actions: AppActions }) {
   if (v.layout.tooSmall) return <TooSmall layout={v.layout} />;
   if (v.screen === 'title' && v.title) {
-    return <TitleScreen info={v.title} media={media} pending={v.pending} onNew={actions.newGame} onContinue={actions.continueGame} heroPx={Math.max(2, Math.round(2 * v.layout.scale))} />;
+    return <TitleScreen info={v.title} media={media} pending={v.pending} onNew={actions.newGame} onContinue={actions.continueGame} heroPx={Math.max(2, Math.round(2 * v.layout.scale))} bodyPx={v.layout.heightPx - Math.round(INFO_BAR_PX * v.layout.uiScale)} />;
   }
   if (v.screen === 'game' && v.state) {
     return (

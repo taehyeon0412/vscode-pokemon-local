@@ -50,6 +50,9 @@ function themeKind(): 'light' | 'dark' {
 
 /** 숲 그림 크기별 높이 (원본 300 · 400 · 500 · 800px) 에서 땅 윗면 — 길 위의 것들이 서는 높이 */
 const GROUND_PX: Record<Layout['size'], number> = { nano: 15, small: 20, medium: 25, large: 40 };
+/** 위쪽 띠 한 줄 높이 (글자 배율 1) · 띠를 주인공 옆으로 옮길 때 남아야 할 폭 */
+const BANNER_PX = 22;
+const BANNER_SIDE_MIN_PX = 180;
 function EncounterBox({ state }: { state: GameState }) {
   const stage = state.runtime.stage;
   const pending = state.save.pendingEncounter;
@@ -132,9 +135,13 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen }: 
   const hero = heroX(widthPx);
   const heroPx = 2 * layout.scale;
   const look = heroLookOf(save.player?.look, save.player?.gender);
-  const heroH = heroHeightPx(look, layout.scale);
+  const bodyPx = layout.heightPx - Math.round(INFO_BAR_PX * layout.uiScale);
+  // 주인공이 쓸 수 있는 높이 — 큰 그림이 안 들어가면 작은 그림 (data/heroes.ts heroDraw)
+  const heroRoom = bodyPx - ground - 2;
+  const heroH = heroHeightPx(look, layout.scale, heroRoom);
+  const heroW = heroWidthPx(look, layout.scale, heroRoom);
   // 머리 위 알림 — 패널이 낮으면 머리 위 자리가 알림 한 줄보다 좁음 → 칸 안으로 (16px = 글자 11 + 위아래 여백, 글자 배율만큼)
-  const toastBottom = Math.max(0, Math.min(ground + heroH + 4, layout.heightPx - Math.round(INFO_BAR_PX * layout.uiScale) - Math.ceil(16 * layout.uiScale) - 1));
+  const toastBottom = Math.max(0, Math.min(ground + heroH + 4, bodyPx - Math.ceil(16 * layout.uiScale) - 1));
   const objects = gym ? [] : visibleObjects(state, widthPx, layout.scale);
   const stageRt = state.runtime.stage;
   const battle = stageRt?.phase === 'battle' ? stageRt.battle : null;
@@ -151,12 +158,17 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen }: 
         meSpritePx: battleSpritePx(battle.me.form, layout.scale, layout.heightPx),
         foeSpritePx: battleSpritePx(battle.foe.form, layout.scale, layout.heightPx),
         heroPx: heroH,
-        heroWidthPx: heroWidthPx(look, layout.scale),
+        heroWidthPx: heroW,
       })
     : null;
   const art = (layer: 'background' | 'foreground') => (media && !gym ? `url("${media}/backgrounds/forest/${layer}-${themeKind()}-${layout.size}.png")` : 'none');
   // 체육관: 주인공은 왼쪽 (대기실) · 관장은 오른쪽 끝
   const heroLeft = geo ? geo.trainerX : gym ? Math.round(widthPx * 0.18) : hero;
+  // 큰 주인공이 위쪽 띠 (트레이너 · 만남 · 병원 상자, 위 3px + 한 줄) 자리까지 올라오면 띠를 주인공 오른쪽 옆으로 — 옆자리가 넉넉할 때만
+  const bannerLeft = Math.round(heroLeft + heroW / 2 + 8);
+  // 오른쪽 끝 — 체육관 대기실은 관장 (코드 그림 너비 20 × 배율) 앞까지
+  const bannerRight = gym ? foeTrainerX(widthPx, layout.scale) - 10 * layout.scale - 8 : widthPx - 8;
+  const heroTall = !battle && bodyPx - ground - heroH < 3 + Math.round(BANNER_PX * layout.uiScale) && bannerRight - bannerLeft >= BANNER_SIDE_MIN_PX;
   const showToast = state.runtime.toast && (phase === 'walk' || phase === 'clear' || phase === 'lobby' || phase === 'facility');
   const shopInside = stageRt?.phase === 'facility' && stageRt.inside && stageRt.kind === 'shop';
 
@@ -180,7 +192,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen }: 
         />
       )}
       <div
-        class={battle ? 'pg-body pg-field pg-in-battle' : 'pg-body pg-field'}
+        class={['pg-body', 'pg-field', battle ? 'pg-in-battle' : '', heroTall ? 'pg-hero-tall' : ''].filter(Boolean).join(' ')}
+        style={heroTall ? { '--pg-banner-left': `${bannerLeft}px`, '--pg-banner-max': `${Math.round(bannerRight - bannerLeft)}px` } : undefined}
         onPointerDown={() => {
           // 튀어나온 순간 길을 클릭해도 선제공격 [제안] · 힘대결 중 클릭 = 연타 (gdd S10 ⑤)
           // 볼을 던졌을 때 클릭 = 타이밍 원 Space (S11)
@@ -197,7 +210,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen }: 
         )}
         <StageObjects objects={objects} media={media} scale={layout.scale} ground={ground} />
         <span class="pg-obj pg-hero-wrap" style={{ left: `${heroLeft}px`, bottom: `${ground}px` }}>
-          <Hero px={heroPx} walking={phase === 'walk'} gender={look.gender} look={look} media={media} />
+          <Hero px={heroPx} walking={phase === 'walk'} gender={look.gender} look={look} media={media} roomPx={heroRoom} />
         </span>
         {/* 전투 중 상대 트레이너 · 관장 = 오른쪽 끝 (남은 볼) · 대기실의 관장 */}
         {((battle && foeTrainer) || (gym && !battle)) && (

@@ -4,7 +4,7 @@
  * 코드 그림: 남 · 여는 머리 모양만 다름 (여자는 모자 밑으로 긴 머리). 트레이너 · 관장도 같은 모양에 모자 · 옷 색만 바꿔 씀 (왼쪽을 봄).
  */
 import { memo } from 'preact/compat';
-import { heroArtScale, type HeroLook, type SheetArt } from '../../../data/heroes';
+import { heroDraw, type HeroLook, type SheetArt } from '../../../data/heroes';
 
 const ROWS_TOP = [
   '...rrrr...',
@@ -72,6 +72,8 @@ export interface HeroProps {
   media?: string;
   /** 정면 (S03 칸) — 정면 그림이 없으면 걷기 첫 장 */
   front?: boolean;
+  /** 위아래로 쓸 수 있는 px — 큰 그림이 안 들어가면 작은 그림 (data/heroes.ts heroDraw) */
+  roomPx?: number;
 }
 
 /** 한 장면 시간 (ms) — 걷기 · 정면 숨쉬기 (천천히) */
@@ -100,16 +102,16 @@ function Sheet({ src, art, scale, run, frameMs, title }: { src: string; art: She
 }
 
 /** 값이 같으면 다시 안 그림 (초당 30번 화면 갱신) */
-export const Hero = memo(function Hero({ px, walking, hat, shirt, faceLeft, label, gender, look, media, front }: HeroProps) {
-  if (look?.walk && media) {
-    const base = `${media.replace(/\/+$/, '')}/people/${look.id}`;
-    const useFront = front && look.front;
+export const Hero = memo(function Hero({ px, walking, hat, shirt, faceLeft, label, gender, look, media, front, roomPx }: HeroProps) {
+  const d = look && media ? heroDraw(look, px / 2, roomPx) : null;
+  if (look && d) {
+    const base = `${media!.replace(/\/+$/, '')}/people/${look.id}`;
     return (
       <span class={['pg-hero', 'pg-hero-art', faceLeft ? 'pg-face-left' : ''].filter(Boolean).join(' ')}>
-        {useFront ? (
-          <Sheet src={`${base}/front.png`} art={look.front!} scale={heroArtScale(look, px / 2, look.front)} run frameMs={BREATH_FRAME_MS} title={label} />
+        {front && d.front ? (
+          <Sheet src={`${base}/${d.frontFile}.png`} art={d.front} scale={d.scale} run frameMs={BREATH_FRAME_MS} title={label} />
         ) : (
-          <Sheet src={`${base}/walk.png`} art={look.walk} scale={heroArtScale(look, px / 2)} run={walking && !front} frameMs={WALK_FRAME_MS} title={label} />
+          <Sheet src={`${base}/${d.walkFile}.png`} art={d.walk} scale={d.scale} run={walking && !front} frameMs={WALK_FRAME_MS} title={label} />
         )}
       </span>
     );

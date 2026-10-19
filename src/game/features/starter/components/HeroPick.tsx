@@ -9,7 +9,14 @@ import { Button } from '../../../ui/Button';
 import { InfoBar } from '../../../ui/InfoBar';
 import { Hero } from '../../stage/components/Hero';
 
-export function HeroPick({ px, media, initial, onBack, onPick }: { px: number; media: string; initial?: string; onBack(): void; onPick(look: HeroLook): void }) {
+/** 칸 이름 줄 · 칸 테두리와 안쪽 여백 (game.css .pg-pick-heroes) · 이보다 낮은 칸은 이름을 숨김 (game.css @media max-height 80px 와 같이) */
+const LABEL_PX = 13;
+const CARD_EDGE_PX = 8;
+const LABEL_MIN_BODY = 60;
+
+export function HeroPick({ px, media, bodyPx, initial, onBack, onPick }: { px: number; media: string; bodyPx?: number; initial?: string; onBack(): void; onPick(look: HeroLook): void }) {
+  // 칸 그림이 쓸 수 있는 높이 — 큰 그림이 안 들어가면 작은 그림 (data/heroes.ts heroDraw)
+  const room = bodyPx === undefined ? undefined : bodyPx - (bodyPx < LABEL_MIN_BODY ? 0 : LABEL_PX) - CARD_EDGE_PX;
   // S04 에서 ← 뒤로 오면 고른 칸 그대로
   const [focus, setFocus] = useState(() => Math.max(0, HERO_LOOKS.findIndex((l) => l.id === initial)));
   const now = useRef({ focus, onBack, onPick });
@@ -55,7 +62,7 @@ export function HeroPick({ px, media, initial, onBack, onPick }: { px: number; m
           const on = i === focus;
           return (
             <button key={look.id} type="button" class={on ? 'pg-hero-choice pg-chip-on' : 'pg-hero-choice'} onClick={() => onPick(look)} onMouseEnter={() => setFocus(i)} onFocus={() => setFocus(i)} title={`${look.label} (Enter)`}>
-              <Hero px={px} walking={on} front={!on} look={look} media={media} gender={look.gender} />
+              <Hero px={px} walking={on} front={!on} look={look} media={media} gender={look.gender} roomPx={room} />
               <b>{look.label}</b>
             </button>
           );

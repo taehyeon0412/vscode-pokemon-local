@@ -28,6 +28,8 @@ export interface TitleScreenProps {
   onContinue(): void;
   /** 주인공 그림 픽셀 크기 (S03) */
   heroPx: number;
+  /** 정보줄 뺀 높이 — S03 칸에 큰 그림이 들어가는지 */
+  bodyPx?: number;
 }
 
 /** 요약 그림은 패널 크기와 상관없이 원본 크기 (버튼 · 글자 옆에서 혼자 커지지 않게) */
@@ -53,7 +55,7 @@ function Summary({ summary, media }: { summary: TitleSummary; media: string }) {
   );
 }
 
-export function TitleScreen({ info, media, pending, onNew, onContinue, heroPx }: TitleScreenProps) {
+export function TitleScreen({ info, media, pending, onNew, onContinue, heroPx, bodyPx }: TitleScreenProps) {
   const view = titleView(info);
   const [confirming, setConfirming] = useState(false);
   // 새로 하기 다음 단계 — S03 주인공 · S04 스타팅 (고르는 동안은 화면에만, 결정하면 확장에 새 세이브)
@@ -83,6 +85,7 @@ export function TitleScreen({ info, media, pending, onNew, onContinue, heroPx }:
       <HeroPick
         px={heroPx}
         media={media}
+        bodyPx={bodyPx}
         initial={look.id}
         onBack={() => setStep('title')}
         onPick={(l) => {
