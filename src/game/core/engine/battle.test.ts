@@ -300,6 +300,8 @@ describe('패링 — 상대 공격이 맞기 직전 Space · 클릭 (2026-10-19 
     expect(after.me.hp).toBe(b.me.hp);
     expect(after.me.gauge).toBeGreaterThanOrEqual(b.me.gauge + BALANCE.parryPerfectGauge - 1e-9);
     expect(after.popups.some((p) => p.text === '완벽하게 막았다!')).toBe(true);
+    // 피해 0 이면 "-0" · 상성 글은 안 띄움 (2026-10-20)
+    expect(after.popups.some((p) => p.text === '-0')).toBe(false);
   });
 
   it('처음 누른 것만 셈 — 너무 일찍 누르면 이번 공격은 못 막음 (연타 막기)', () => {

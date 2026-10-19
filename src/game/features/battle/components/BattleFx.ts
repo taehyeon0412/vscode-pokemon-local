@@ -9,8 +9,9 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { TIMING } from '../../../core/balance';
 import type { BattleState, Side } from '../../../core/engine';
 import { clashWithTaps } from '../../../core/rules/battle';
+import { effectiveness } from '../../../core/rules/types';
 import { formOf, moveOf, speciesOf } from '../../../data';
-import { pokemonFx, type FxActor, type FxMove } from '../fx/bridge';
+import { pokemonFx, type FxActor, type FxImpact, type FxMove } from '../fx/bridge';
 import { battleAnimKey, FX_HOLD_DUEL_MAX_MS, FX_HOLD_ULT_MAX_MS, holdFx, releaseFx } from '../fx/hold';
 import { clearImpact, impactOf, setImpact } from '../fx/parry';
 
@@ -95,16 +96,30 @@ function learnedNames(b: BattleState, side: Side): string[] {
   return [...names, '몸통박치기'];
 }
 
-/** 행동 → 일반 모드에 넘길 기술 (공격 = 몸통박치기, 색은 그 포켓몬 첫 타입) */
-function fxMove(b: BattleState): { m: FxMove; hitType: string; big: boolean } | null {
+/** 행동 → 일반 모드에 넘길 기술 (공격 = 몸통박치기, 색은 그 포켓몬 첫 타입) · hit = 맞는 순간 타입 임팩트 옵션 (ult/fx-hit.js) */
+function fxMove(b: BattleState): { m: FxMove; hitType: string; big: boolean; hit: FxImpact } | null {
   const a = b.anim;
   if (!a) return null;
-  if (a.action.kind === 'attack') return { m: { name: '몸통박치기', type: 'normal' }, hitType: b[a.side].types[0] ?? 'normal', big: false };
+  // 1 공격 = 노말 별을 작게 · 색만 타입 (기술 · 필살기보다 수수하게 — 플레이 리뷰어)
+  if (a.action.kind === 'attack') return { m: { name: '몸통박치기', type: 'normal' }, hitType: b[a.side].types[0] ?? 'normal', big: false, hit: { basic: true } };
   if (a.action.kind === 'move') {
     const mv = moveOf(a.action.moveId);
-    return mv ? { m: { name: mv.name.ko, type: mv.type }, hitType: mv.type, big: mv.power >= 80 } : null;
+    if (!mv) return null;
+    // 상성이 연출 크기로 — 굉장 ×1.35 · 별로 ×0.6 · 없음 = 연기만 (글을 안 읽어도 알게, 플레이 리뷰어) · 짜임 = 기술 칸 순서 (한 포켓몬 기술끼리 겹치지 않게)
+    const mult = effectiveness(mv.type, b[other(a.side)].types);
+    const slot = b[a.side].moves.findIndex((s) => s.moveId === mv.id);
+    const hit: FxImpact = { scale: mult > 1 ? 1.35 : mult < 1 ? 0.6 : 1, none: mult === 0, ...(slot >= 0 ? { pick: slot } : {}) };
+    return { m: { name: mv.name.ko, type: mv.type }, hitType: mv.type, big: mv.power >= 80, hit };
   }
   return null;
+}
+
+/** 패링으로 막았으면 임팩트를 줄이거나 (막음 ×0.5) 빼기 (완벽 — 방패만) — 맞는 순간의 최신 상태로 */
+function parriedHit(now: BattleState, key: string, hit: FxImpact): FxImpact | null {
+  const p = battleAnimKey(now) === key && now.anim?.side === 'foe' ? now.anim.parry : undefined;
+  if (p === 'perfect') return null;
+  if (p === 'good') return { ...hit, scale: (hit.scale ?? 1) * 0.5 };
+  return hit;
 }
 
 /** 행동마다 연출을 한 번 — 일반 모드가 그리면 true (BattleLayer 는 그때 이모지를 안 그림). 못 그린 행동 (필살기를 못 씀 · 오류) 은 false */
@@ -220,7 +235,8 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
           // 타입 임팩트는 자국 · 주먹이 먼저 보이게 조금 뒤에 (같이 터지면 서로 가림)
           at(Math.round(a.dur * CONTACT_AT) + CONTACT_IMPACT_LAG_MS, () => {
             const dst = actor(b, other(side));
-            if (dst) fx.impact(dst, move.hitType, move.big, move.m.name);
+            const hit = parriedHit(now.current, key, { ...move.hit, light: true });
+            if (dst && hit) fx.impact(dst, move.hitType, move.big, move.m.name, hit);
           });
         } else if (plan) {
           const mv = act.kind === 'move' ? moveOf(act.moveId) : undefined;
@@ -241,7 +257,8 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
           if (mv && mv.power > 0) {
             at(castAt + Math.round(plan.ms * SHOT_HIT_AT), () => {
               const dst = actor(b, other(side));
-              if (dst) fx.impact(dst, move.hitType, move.big, move.m.name);
+              const hit = parriedHit(now.current, key, move.hit);
+              if (dst && hit) fx.impact(dst, move.hitType, move.big, move.m.name, hit);
             });
           }
         }

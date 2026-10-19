@@ -357,9 +357,11 @@ function hit(b: BattleState, attackerSide: Side, power: number, type: ReadonlyMo
   const before = d.hp;
   d.hp = Math.max(0, d.hp - dmg);
   dmg = before - d.hp;
-  popup(b, other(attackerSide), `-${dmg}`, 'damage');
+  // 완벽하게 막아 피해가 0 이면 "-0" · 상성 글은 안 띄움 (막았는지 맞았는지 헷갈려서 — 플레이 리뷰어, 2026-10-20)
+  const blocked = parried === 'perfect' && dmg === 0;
+  if (!blocked) popup(b, other(attackerSide), `-${dmg}`, 'damage');
   const eff = effectivenessText(r.effect);
-  if (eff) popup(b, other(attackerSide), eff, 'info');
+  if (eff && !blocked) popup(b, other(attackerSide), eff, 'info');
   if (r.crit && dmg > 0) popup(b, other(attackerSide), '급소에 맞았다!', 'info');
   if (dmg > 0) {
     // × 0.5 는 야생 포켓몬만 (트레이너 · 관장 포켓몬은 그대로 — 테스터)

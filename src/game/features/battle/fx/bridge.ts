@@ -19,6 +19,15 @@ export interface FxMove {
   type: string;
 }
 
+/** 맞는 순간 타입 임팩트 옵션 (ult/fx-hit.js typeImpact) — pick = 짜임 (기술 칸 순서) · scale = 크기 배 (상성 · 막음) · light = 닿는 기술 (작게) · basic = 1 공격 · none = 효과 없음 (연기만) */
+export interface FxImpact {
+  pick?: number;
+  scale?: number;
+  light?: boolean;
+  basic?: boolean;
+  none?: boolean;
+}
+
 export interface FxPlan {
   fx: string;
   ms: number;
@@ -41,8 +50,8 @@ export interface PokemonFx {
   /** reach = 입에서 상대까지 px (dst 가 없을 때 뿜기만) · form = 기술 모양을 고를 포켓몬 (없으면 src — 닿는 기술 자국은 쓰는 쪽 모양) · dst = 맞는 포켓몬 (틀마다 상대까지 닿게) */
   move(src: FxActor, m: FxMove, reach?: number, form?: string, dst?: FxActor): number;
   cast(src: FxActor, fx: string, o?: Record<string, unknown>): number;
-  /** name = 기술 이름 — 같은 타입이라도 기술마다 다른 짜임 (ult/fx-hit.js, 2026-10-19) */
-  impact(dst: FxActor, type: string, big?: boolean, name?: string): void;
+  /** name = 기술 이름 — 같은 타입이라도 기술마다 다른 짜임 (ult/fx-hit.js, 2026-10-19) · o = 크기 · 짜임 (FxImpact) */
+  impact(dst: FxActor, type: string, big?: boolean, name?: string, o?: FxImpact): void;
   /** 필살기 (version 2) — 걸리는 시간 (ms), 못 쓰면 0 */
   /** onHit = 상대를 처음 맞힌 순간 (그때 피해를 넣음) */
   ult?(src: FxActor, dst: FxActor, onHit?: () => void, avoid?: string[]): number;

@@ -698,6 +698,7 @@ const GLYPHS = {
     z4: ['####', '..#.', '.#..', '####'],
     z5: ['#####', '...#.', '..#..', '.#...', '#####'],
     note: ['..##', '..#.', '..#.', '###.', '##..'],
+    note8: ['..##..', '..#.#.', '..#..#', '..#...', '.##...', '###...', '###...', '.#....'],
     heart: ['.#.#.', '#####', '#####', '.###.', '..#..'],
 };
 function drawGlyph(ctx, px, s, x, y, rows, color) {
@@ -760,7 +761,7 @@ const DRAW = {
         dotAt(ctx, px, p.s, p.x, p.y, p.color, p.size || 1, p.size || 1);
     },
     sparkle: (ctx, p, t, px) => {
-        ctx.globalAlpha = fadeInOut(t, 0.2, 0.4) * (0.6 + 0.4 * Math.abs(Math.sin(p.life * 20)));
+        ctx.globalAlpha = fadeInOut(t, 0.2, 0.4) * (0.6 + 0.4 * Math.abs(Math.sin(p.life * 8)));
         dotAt(ctx, px, p.s, p.x, p.y, p.cols[0]);
         for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
             dotAt(ctx, px, p.s, p.x + dx * p.s, p.y + dy * p.s, p.cols[2]);
@@ -815,10 +816,14 @@ const SHAPES = {
         dotAt(ctx, px, p.s, p.x - p.s, p.y - p.s, p.cols[0]);
     },
     rock: (ctx, p, px) => {
-        const n = p.big ? 4 : 3;
+        const n = p.big ? 5 : 4;
         for (let dy = 0; dy < n; dy++) {
             for (let dx = 0; dx < n; dx++) {
-                dotAt(ctx, px, p.s, p.x + dx * p.s, p.y + dy * p.s, dx + dy === 0 ? p.cols[0] : dx + dy >= 2 * n - 3 ? p.cols[3] : p.cols[2]);
+                if ((dx === 0 || dx === n - 1) && (dy === 0 || dy === n - 1)) {
+                    continue;
+                }
+                const edge = dx === 0 || dy === 0 || dx === n - 1 || dy === n - 1;
+                dotAt(ctx, px, p.s, p.x + dx * p.s, p.y + dy * p.s, edge ? '#3a2e20' : dx === 1 && dy === 1 ? p.cols[0] : p.cols[2 + ((dx + dy) % 2)]);
             }
         }
     },
@@ -1039,7 +1044,19 @@ function sigSlashMark(x, y, s, dir, flip, L, cols) {
     const bx = (x0 + x1) / 2 + dir * half * 0.35;
     const by = (y0 + y1) / 2 - flip * half * 0.1;
     const at = (u) => [(1 - u) * (1 - u) * x0 + 2 * u * (1 - u) * bx + u * u * x1, (1 - u) * (1 - u) * y0 + 2 * u * (1 - u) * by + u * u * y1];
-    sigParticle({ x, y, s, max: 0.5, cols, L, draw: (ctx, p, t, px) => {
+    sigParticle({ x, y, s, max: 0.5, cols, L, update: (p) => {
+        // 다 그어진 끝에서 불똥 — 긋는 방향으로 (타이머 없이 — 전투 정리 뒤 다음 화면에 안 남게)
+        if (p.sparked || p.life < 0.08) {
+            return;
+        }
+        p.sparked = true;
+        const [ex, ey] = at(1);
+        for (let k = 0; k < 6; k++) {
+            const a = Math.atan2(y1 - by, x1 - bx) + moveRand(-0.6, 0.6);
+            const v = moveRand(50, 110) * s;
+            sigParticle({ x: ex, y: ey, s, vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: 120 * s, drag: 2, max: moveRand(0.25, 0.4), color: movePick(cols.slice(0, 3)), draw: DRAW.dot });
+        }
+    }, draw: (ctx, p, t, px) => {
         const shown = Math.min(1, p.life / 0.08);
         ctx.globalAlpha = t > 0.5 ? (1 - t) / 0.5 : 1;
         const steps = p.L * 2;
@@ -1059,22 +1076,15 @@ function sigSlashMark(x, y, s, dir, flip, L, cols) {
             dotAt(ctx, px, p.s, hx - p.s, hy - p.s, '#ffffff', 3, 3);
         }
     } });
-    // 다 그어진 끝에서 불똥 — 긋는 방향으로
-    setTimeout(() => {
-        const [ex, ey] = at(1);
-        for (let k = 0; k < 6; k++) {
-            const a = Math.atan2(y1 - by, x1 - bx) + moveRand(-0.6, 0.6);
-            const v = moveRand(50, 110) * s;
-            sigParticle({ x: ex, y: ey, s, vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: 120 * s, drag: 2, max: moveRand(0.25, 0.4), color: movePick(cols.slice(0, 3)), draw: DRAW.dot });
-        }
-    }, 80);
 }
 
-// 퍽 — 만화식 뾰족 폭발 (가시 10개 · 흰 심 · 진한 테두리) 이 확 커졌다 줄고, 충격 고리 + 불똥. sigImpact (8줄 별) 보다 크고 단단함
-function sigPow(x, y, s, cols0, P, big) {
+// 퍽 — 만화식 뾰족 폭발 (가시 10개 · 작은 흰 심 · 2칸 진한 테두리) 이 확 커졌다 줄고 + 불똥. sigImpact (8줄 별) 보다 크고 단단함
+// opt.size = 작은 퍽 반지름 (연타 — 불똥 없이) · opt.white = false 면 흰 심 없이 (연타 둘째부터 — 번쩍 1초 3번)
+function sigPow(x, y, s, cols0, P, big, opt = {}) {
     // 노말 (흰 · 회색) 은 흰 덩이로만 보여서 만화식 노란 퍽으로
     const cols = cols0 === SIG_PALETTE.normal ? SIG_PALETTE.star : cols0;
-    const rOut = (big ? 11 : 8) + 3 * P;
+    const rOut = opt.size ?? (big ? 10 : 7) + 3 * P;
+    const white = opt.white ?? true;
     const spikes = 10;
     const tilt = moveRand(0, Math.PI);
     sigParticle({ x, y, s, max: big ? 0.42 : 0.34, cols, rOut, tilt, draw: (ctx, p, t, px) => {
@@ -1088,18 +1098,21 @@ function sigPow(x, y, s, cols0, P, big) {
                 const d = Math.hypot(k, j);
                 const a = Math.atan2(j, k) + p.tilt;
                 // 가시 — 각도마다 반지름이 길었다 짧았다 (삼각파)
-                const w = Math.abs(((a / (Math.PI * 2)) * spikes) % 1 - 0.5) * 2;
+                // 음수 각도도 0 ~ 1 로 (JS % 는 음수를 돌려줘서 그 구역 가시가 사라짐)
+                const f = ((((a / (Math.PI * 2)) * spikes) % 1) + 1) % 1;
+                const w = Math.abs(f - 0.5) * 2;
                 const lim = R * (0.55 + 0.45 * (1 - w));
                 if (d > lim) {
                     continue;
                 }
-                const c = d > lim - 1 ? p.cols[3] : d < lim * 0.4 ? '#ffffff' : d < lim * 0.7 ? p.cols[0] : p.cols[1];
+                const c = d > lim - 2 ? p.cols[3] : white && d < lim * 0.2 ? '#ffffff' : d < lim * 0.5 ? p.cols[0] : p.cols[1];
                 dotAt(ctx, px, p.s, p.x + k * p.s, p.y + j * p.s, c);
             }
         }
     } });
-    sigRing(x, y, s, rOut * s * 0.6, rOut * s * 2, 0.85, 0.3, [cols[0], cols[2]]);
-    sigBurst(x, y, s, cols.slice(0, 3), big ? 9 : 6, big ? 70 : 55);
+    if (!opt.size) {
+        sigBurst(x, y, s, cols.slice(0, 3), big ? 9 : 6, big ? 70 : 55);
+    }
 }
 
 // 쿵 — 가운데 번쩍 + 바깥으로 뻗는 선 8개
@@ -1236,13 +1249,13 @@ const SIG_FX = {
                 },
                 draw: (ctx, p, t, px) => {
                     const L = Math.min(p.reach, p.life * 1600);
-                    const alpha = (t > 0.8 ? (1 - t) / 0.2 : 1) * (0.85 + 0.15 * Math.random());
+                    const alpha = (t > 0.8 ? (1 - t) / 0.2 : 1) * (0.92 + 0.08 * (Math.floor(p.life * 6) % 2));
                     ctx.globalAlpha = alpha;
                     for (let k = 0; k < L; k += p.s) {
                         const x = p.x + p.dir * k;
                         const yo = o.wave ? Math.sin(k / (5 * p.s) - p.life * 25) * p.s * 1.5 : 0;
                         const layers = o.rainbow
-                            ? [[p.W + 2, `hsl(${(k / p.s) * 12 + p.life * 900}, 100%, 70%)`], [Math.max(1, p.W - 1), '#ffffff']]
+                            ? [[p.W + 2, `hsl(${(k / p.s) * 12 + p.life * 60}, 100%, 70%)`], [Math.max(1, p.W - 1), '#ffffff']]
                             : [[p.W + 2, p.cols[3]], [p.W, p.cols[2]], [Math.max(1, p.W - 2), p.cols[0]]];
                         for (const [th, color] of layers) {
                             ctx.fillStyle = color;
@@ -1252,8 +1265,8 @@ const SIG_FX = {
                     // 입 앞 작은 빛 구 — 쏘는 순간 크게 터졌다 줄어듦
                     const r = Math.max(1.5 * p.s, (p.W + 2) * p.s * 0.75) * (1 + 0.6 * Math.max(0, 1 - p.life / 0.12)) * (1 + 0.08 * Math.sin(p.life * 40));
                     muzzleGlow(ctx, px, p.s, p.x, p.y, r, o.rainbow ? ['#ffffff', '#fff3b0', '#ffb3e6', '#9ec5ff'] : p.cols, p.life, alpha);
-                    // 닿는 끝 빛 (길이가 정해진 광선 = 게임 전투 · 덩굴채찍) — 닿은 동안 끝에서 빛 구가 일렁임
-                    if (o.len && L >= p.reach - p.s) {
+                    // 닿는 끝 빛 (게임 전투의 진짜 광선 — fxAim 이 hitGlow 를 줌, 채찍 · 혀 · 실은 없이) — 닿은 동안 끝에서 빛 구가 일렁임
+                    if (o.hitGlow && L >= p.reach - p.s) {
                         const yo = o.wave ? Math.sin(L / (5 * p.s) - p.life * 25) * p.s * 1.5 : 0;
                         muzzleGlow(ctx, px, p.s, p.x + p.dir * L, p.y + yo, r * 0.9, o.rainbow ? ['#ffffff', '#fff3b0', '#ffb3e6', '#9ec5ff'] : p.cols, p.life + 1, alpha);
                     }
@@ -1457,8 +1470,8 @@ const SIG_FX = {
             const n = o.n ?? 1 + Math.round(2 * g.P);
             sigEmitter({ until: performance.now() + (n - 1) * (o.every ?? 150) + 50, shots: n, every: o.every ?? 150, nextShot: performance.now(), fx: (e, i) => {
                 const speed = (100 + 60 * g.P) * g.s * (o.speed ?? 1);
-                // 쏠 때 입 앞 번쩍 (작은 십자)
-                sigParticle({ x: g.mouth.x, y: g.mouth.y, s: g.s, max: 0.12, cols: o.tri ? sigPal(['fire', 'ice', 'electric'][i % 3]) : sigPal(o.c), draw: (ctx, p, t, px) => {
+                // 쏠 때 입 앞 번쩍 (작은 십자 — 첫 발만, 1초 3번 규칙)
+                if (i === 0) sigParticle({ x: g.mouth.x, y: g.mouth.y, s: g.s, max: 0.12, cols: o.tri ? sigPal(['fire', 'ice', 'electric'][i % 3]) : sigPal(o.c), draw: (ctx, p, t, px) => {
                     ctx.globalAlpha = 1 - t;
                     dotAt(ctx, px, p.s, p.x - p.s, p.y - p.s, '#ffffff', 3, 3);
                     for (const [dx, dy] of [[2, 0], [-2, 0], [0, 2], [0, -2]]) {
@@ -1503,6 +1516,11 @@ const SIG_FX = {
                 const a = moveRand(0, Math.PI * 2);
                 const x = o.around ? g.body.cx + Math.cos(a) * g.body.rx * 1.3 : g.mouth.x + g.dir * moveRand(0, 3) * g.w;
                 const y = o.around ? g.body.cy + Math.sin(a) * g.body.ry * 1.3 : moveRand(g.body.top - 0.3 * g.h, g.mouth.y);
+                // 가루 사이사이 반짝 (2026-10-20 "밋밋해") — 십자 반짝이가 천천히 내려앉음
+                if (!o.petal && Math.random() < 0.22) {
+                    sigParticle({ x, y, s: g.s, vx: g.dir * moveRand(2, 10) * g.s * (o.drift ? 4 : 1), vy: moveRand(3, 9) * g.s, drag: 0.5, max: moveRand(0.6, 1), cols: [cols[0], cols[1], cols[2]], draw: DRAW.sparkle });
+                    return;
+                }
                 sigParticle({
                     x, y, s: g.s, phase: moveRand(0, 6), petal: o.petal, color: movePick(cols.slice(1)), size: Math.random() < 0.2 ? 2 : 1,
                     vx: g.dir * moveRand(4, 16) * g.s * (o.drift ? 4 : 1) + (o.around ? Math.cos(a) * 15 * g.s : 0), vy: moveRand(4, 12) * g.s, g: 2 * g.s, drag: 0.5, max: moveRand(0.8, 1.3),
@@ -1717,9 +1735,9 @@ const SIG_FX = {
         ms: () => 900,
         run: (g, o) => {
             const cols = sigPal(o.c ?? 'ground');
-            const amp = 2 + 3 * g.P;
+            const amp = Math.round(2 + g.P);
             // 포켓몬 · 앞쪽 풀을 하나씩 흔듦 — 포켓몬 상자를 통째로 움직이면 위치 기준이 바뀌어 포켓몬이 화면 밖으로 튐
-            const shake = (el) => el?.animate([{ translate: `-${amp}px 0` }, { translate: `${amp}px 0` }], { duration: 60, iterations: 12, direction: 'alternate', composite: 'add' });
+            const shake = (el) => el?.animate([{ translate: `-${amp}px 0` }, { translate: `${amp}px 0` }], { duration: 80, iterations: 6, direction: 'alternate', composite: 'add' });
             exports.allPokemon.pokemonCollection.forEach((element) => shake(element.el));
             shake(document.getElementById('foreground'));
             for (let i = 0; i < 18 + 18 * g.P; i++) {
@@ -1794,7 +1812,7 @@ const SIG_FX = {
             const n = o.n ?? 3;
             // 자국 길이 = 몸 높이쯤 (작은 포켓몬도 12칸 이상)
             const L = Math.max(12, Math.round(((g.body.bottom - g.body.top) * 1.05) / g.s + 3 * g.P));
-            const cx = g.body.front - g.dir * 0.15 * g.body.rx * 2;
+            const cx = o.onTarget ? g.body.front - g.dir * 0.15 * g.body.rx * 2 : g.body.front + g.dir * L * g.s * 0.4;
             const cy = g.body.cy;
             sigEmitter({ until: performance.now() + n * 80, shots: n, every: 80, nextShot: performance.now(), fx: (e, i) => {
                 const off = (i - (n - 1) / 2) * 4 * g.s;
@@ -1848,8 +1866,8 @@ const SIG_FX = {
                 draw: (ctx, p, t, px) => {
                     ctx.globalAlpha = fadeInOut(t, 0.12, 0.3);
                     // 1칸 진한 그림자 + 음표 (단단한 픽셀 그림자 — 배경에서 안 묻히게)
-                    drawGlyph(ctx, px, p.s, p.x + p.s, p.y + p.s, GLYPHS.note, 'rgba(20, 16, 40, 0.55)');
-                    drawGlyph(ctx, px, p.s, p.x, p.y, GLYPHS.note, p.color);
+                    drawGlyph(ctx, px, p.s, p.x + p.s, p.y + p.s, GLYPHS.note8, '#141028');
+                    drawGlyph(ctx, px, p.s, p.x, p.y, GLYPHS.note8, p.color);
                 },
             }) });
         },

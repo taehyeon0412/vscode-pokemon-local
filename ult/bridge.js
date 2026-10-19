@@ -304,7 +304,8 @@ function fxAim(fx, g, o, t) {
         }
         case 'beam':
             // 덩굴채찍 · 핥기 (len) = 상대 가운데까지 · 광선 = 상대 몸 뒤 윤곽까지 (화면 끝까지 뚫고 가지 않게)
-            return { g, o: { ...o, len: (o.len ? t.dist : t.dist + 0.3 * t.w) / Math.max(1, g.w) } };
+            // 진짜 광선만 닿는 끝 빛 (채찍 · 혀 · 실 = 원래 len 이 있는 것은 없이)
+            return { g, o: { ...o, len: (o.len ? t.dist : t.dist + 0.3 * t.w) / Math.max(1, g.w), hitGlow: !o.len } };
         case 'vortex': {
             // 높이는 HP 묶음 아래까지 (불 기둥이 HP 를 덮지 않게)
             const full = (1.7 + 0.6 * g.P) * g.h;
@@ -428,14 +429,16 @@ window.pokemonFx = {
             // 몸통박치기 — 몸이 달려드는 것이 연출 (게임 pg-lunge), 닿을 때 (src = 맞는 쪽) 몸을 꿰뚫는 바람줄 + impact
             safeFx({}, () => {
                 const g = sigGeometry(fxActor(src), !!src.left);
-                hitRush(g.body.front, g.body.cy, g.s, g.dir, g.body.ry, sigPal(p.o.c));
+                // 노말은 임팩트 색 (흰 덩이 먼지가 되지 않게 — ult/fx-hit.js HIT_COLS)
+                hitRush(g.body.front, g.body.cy, g.s, g.dir, g.body.ry, p.o.c === 'normal' || !p.o.c ? HIT_COLS.normal : sigPal(p.o.c));
             });
             return p.ms;
         }
         const A = fxActor(src);
         const ok = safeFx({}, () => fxWithTimers(fxMoveGen, () => {
             const g0 = sigGeometry(A, !!src.left);
-            let aim = { g: g0, o: p.o };
+            // 닿는 기술 (할퀴기 · 주먹) 은 게임에서 늘 맞는 쪽에 그림 → 자국을 몸 위에 (일반 모드는 쓰는 쪽 몸 앞)
+            let aim = { g: g0, o: FX_CONTACT.has(p.sig[1]) ? { ...p.o, onTarget: true } : p.o };
             if (dst && fxWidth(dst) >= 1) {
                 aim = fxAim(p.sig[1], g0, p.o, fxTarget(g0, dst));
             } else if (p.sig[1] === 'breath' && reach > 0) {
@@ -467,17 +470,20 @@ window.pokemonFx = {
         return ok ? ms : 0;
     },
     /** 맞는 곳에 타입별 도트 임팩트 (ult/fx-hit.js — 불꽃 = 감아 올라가는 불길 회오리 · 물 = 물보라 왕관 · 얼음 = 결정 조각 …) — dst = 맞는 포켓몬 spec, type = 기술 타입 (게임), big = 세게 */
-    impact(dst, type, big, name) {
+    impact(dst, type, big, name, o) {
         const r = (dst.box || dst.el).getBoundingClientRect();
         if (r.width < 1) {
             return;
         }
         const s = r.width / (dst.size || 32);
         const P = (POKEMON_SHAPE[dst.form] || [0.5])[0];
+        // 발밑 = 그림 속 몸 아래 끝 (상자 아래는 빈칸이 있음)
+        const bottom = POKEMON_SHAPE[dst.form] ? sigGeometry(fxActor(dst), !!dst.left).body.bottom : r.bottom;
         // 맞는 방향 — 상대 (왼쪽을 봄) 가 맞으면 내 쪽 (왼쪽) 에서 날아옴 → 오른쪽으로 튐
-        // name = 기술 이름 → 같은 타입이라도 기술마다 다른 짜임 (회오리 · 폭발 · 기둥 …)
-        // 늦게 터지는 고리 · 연타 별 (setTimeout) 도 기술 연출과 같이 멈추게 (전투가 끝나면 다음 화면에 안 남음)
-        safeFx({}, () => fxWithTimers(fxMoveGen, () => typeImpact(r.left + r.width / 2, r.top + r.height * 0.55, s, type, P, !!big, dst.left ? 1 : -1, r.width, hitHash(name))));
+        // o.pick = 짜임 (게임 = 그 포켓몬 기술 칸 순서, 없으면 기술 이름) · scale · light · basic · none (ult/fx-hit.js)
+        // 늦게 터지는 고리 · 연타 (setTimeout) 도 기술 연출과 같이 멈추게 (전투가 끝나면 다음 화면에 안 남음)
+        const opts = { ...(o || {}), pick: o?.pick ?? hitHash(name), bottom };
+        safeFx({}, () => fxWithTimers(fxMoveGen, () => typeImpact(r.left + r.width / 2, r.top + r.height * 0.55, s, type, P, !!big, dst.left ? 1 : -1, r.width, opts)));
     },
     /** 필살기 — 일반 모드처럼 번쩍 · 어두워짐 · 컷인 · 큰 글씨 · 그 포켓몬의 필살기 (전용 연출 포함). 상대 = dst. 걸리는 시간 (ms), 못 쓰면 0.
      *  onHit = 상대를 처음 맞힌 순간 (게임은 그때 피해를 넣고, 남은 연출은 흘러가게 둠) · avoid = 피할 필살기 이름 (그 포켓몬이 배운 기술) */
@@ -607,7 +613,7 @@ window.pokemonFx = {
     },
     /** 개발 미리보기 — 타입 임팩트 하나를 그 자리에 (dev/game-host.js impacts=1) */
     testImpact(x, y, s, type, big, w, pick = 0) {
-        safeFx({}, () => typeImpact(x, y, s, type, 0.6, !!big, 1, w, pick));
+        safeFx({}, () => typeImpact(x, y, s, type, 0.6, !!big, 1, w, { pick }));
     },
     /** 연출 캔버스를 둘 곳 (version 4) — el = 게임 전투 판의 연출 층 (포켓몬 위 · HP · 말 · 메뉴 · 피해 숫자 아래), null 이면 맨 위 (body) */
     mount(el) {
