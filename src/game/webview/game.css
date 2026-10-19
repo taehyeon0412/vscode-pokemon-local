@@ -3173,3 +3173,9 @@ body.vscode-high-contrast-light .pg-title-body {
   color: var(--pg-sos-tab-ink);
   background: var(--pg-sos-line);
 }
+
+/* 정보줄 빨리 걷기 ▶▶ — 켜짐 = 눌린 모양 (금색 테두리 + 밝은 남색), 지금 ×3 이면 아이콘 금색 (data/icons fastOn) */
+.pg-infobar .pg-button.pg-icon-btn.pg-fast.pg-on {
+  border-color: var(--pg-sos-gold);
+  background: var(--pg-sos-hi);
+}

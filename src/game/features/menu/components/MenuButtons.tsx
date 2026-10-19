@@ -1,5 +1,5 @@
 /**
- * S06 ⑦ ~ ⑩ 정보줄 버튼 — 지도 · 내 포켓몬 (선두 그림) · 가방 · 설정 (2026-10-18 태현 님, 픽셀 아이콘 = 단계 12).
+ * S06 ⑦ ~ ⑩ 정보줄 버튼 — 빨리 걷기 ▶▶ (2026-10-19) · 지도 · 내 포켓몬 (선두 그림) · 가방 · 설정 (2026-10-18 태현 님, 픽셀 아이콘 = 단계 12).
  * 걷는 중에만 보임 (판이 떠 있는 동안 걸음이 멈춤).
  */
 import { Button } from '../../../ui/Button';
@@ -14,9 +14,27 @@ const BUTTONS: { kind: Overlay['kind'] & ('map' | 'team' | 'bag' | 'settings'); 
   { kind: 'settings', icon: 'gear', title: '⑩ 설정 (알림 · 일반 모드로)' },
 ];
 
-export function MenuButtons({ onOpen, dot, media, lead }: { onOpen(o: Overlay): void; /** 내 포켓몬에 남은 포인트가 있음 */ dot: boolean; media: string; /** 선두 포켓몬 그림 (◓ 대신) */ lead: { form: string; shiny: boolean } | null }) {
+/** 빨리 걷기 (2026-10-19 태현 님 "걷는 시간이 너무 길어 루즈해") — on = 켜짐 (세이브에 남음) · active = 지금 실제로 ×3 (흔적 · 트레이너 · 병원이 4초 안에 다가오면 보통 빠르기) */
+export interface FastWalk {
+  on: boolean;
+  active: boolean;
+  onToggle(): void;
+}
+
+export function MenuButtons({ onOpen, dot, media, lead, fast }: { onOpen(o: Overlay): void; /** 내 포켓몬에 남은 포인트가 있음 */ dot: boolean; media: string; /** 선두 포켓몬 그림 (◓ 대신) */ lead: { form: string; shiny: boolean } | null; fast?: FastWalk }) {
   return (
     <span class="pg-menu-buttons">
+      {/* 켜짐 = 눌린 모양 (금색 테두리 + 밝은 남색) · 지금 ×3 이면 ▶▶ 가 금색 */}
+      {fast && (
+        <Button
+          secondary
+          extraClass={fast.on ? 'pg-icon-btn pg-fast pg-on' : 'pg-icon-btn pg-fast'}
+          onClick={fast.onToggle}
+          title={`빨리 걷기 ×3 ${fast.on ? '켜짐' : '꺼짐'} — 흔적 · 트레이너 · 병원이 다가오면 보통 빠르기로`}
+        >
+          <Icon name={fast.active ? 'fastOn' : 'fast'} />
+        </Button>
+      )}
       {BUTTONS.map((b) => (
         <Button key={b.kind} secondary extraClass="pg-icon-btn" onClick={() => onOpen({ kind: b.kind })} title={b.title}>
           {b.icon ? <Icon name={b.icon} /> : lead ? <Sprite media={media} form={lead.form} shiny={lead.shiny} scale={1} crop={20} /> : <Icon name="ball" />}

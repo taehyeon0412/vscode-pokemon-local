@@ -28,8 +28,8 @@ export function ShopPanel({ save, note, onInput, onClose }: { save: Save; /** �
     >
       <Row wrap>
         {shopView(save).map((r) => (
-          <Button key={r.item} secondary disabled={!r.affordable} onClick={() => onInput({ kind: 'buy', item: r.item })} title={r.affordable ? `${r.name} 하나 사기` : '돈이 모자라요'}>
-            {r.name} <b>{formatMoney(r.price)}</b> <span class="pg-sub">{r.effect} · ×{r.have}</span>
+          <Button key={r.item} secondary disabled={!r.affordable} onClick={() => onInput({ kind: 'buy', item: r.item })} title={`${r.name} — ${r.detail}${r.affordable ? ' (눌러서 하나 사기)' : ' · 돈이 모자라요'}`}>
+            {r.name} <b>{formatMoney(r.price)}</b> <span class="pg-sub">{r.effect} · 가진 {r.have}</span>
           </Button>
         ))}
       </Row>

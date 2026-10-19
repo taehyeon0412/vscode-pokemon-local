@@ -115,24 +115,37 @@ export interface ShopRow {
   name: string;
   /** 무엇을 하는지 짧게 ("HP 20" · "잘 잡힘 ×1.5") */
   effect: string;
+  /** 긴 설명 (마우스를 올리면) */
+  detail: string;
   price: number;
   have: number;
   affordable: boolean;
 }
 
+/** 상점 물건 한 줄 설명 (2026-10-19 태현 님 "볼 설명이 부실해" — 예전엔 "×1.5 · ×0" 처럼 잡기 배율과 가진 개수가 같은 × 라 헷갈림) */
 const SHOP_EFFECT: Record<ShopItem, string> = {
-  'poke-ball': '×1',
-  'great-ball': '×1.5',
-  'ultra-ball': '×2',
-  potion: `HP ${BALANCE.potionHeal}`,
-  'super-potion': `HP ${BALANCE.superPotionHeal}`,
-  'full-heal': '상태 이상',
-  revive: '쓰러짐 → 절반',
+  'poke-ball': '잡기 보통',
+  'great-ball': `잘 잡힘 ×${BALANCE.ballScale['great-ball']}`,
+  'ultra-ball': `아주 잘 잡힘 ×${BALANCE.ballScale['ultra-ball']}`,
+  potion: `HP ${BALANCE.potionHeal} 회복`,
+  'super-potion': `HP ${BALANCE.superPotionHeal} 회복`,
+  'full-heal': '독 · 화상 · 마비 · 잠 낫게',
+  revive: '쓰러진 포켓몬 → HP 절반',
+};
+/** 마우스를 올리면 보이는 긴 설명 */
+const SHOP_DETAIL: Record<ShopItem, string> = {
+  'poke-ball': '야생 포켓몬을 잡는 기본 볼 — 상대 HP 가 낮을수록 잘 잡혀요',
+  'great-ball': `몬스터볼보다 ${BALANCE.ballScale['great-ball']}배 잘 잡혀요`,
+  'ultra-ball': `몬스터볼보다 ${BALANCE.ballScale['ultra-ball']}배 잘 잡혀요`,
+  potion: `포켓몬 하나의 HP 를 ${BALANCE.potionHeal} 회복해요`,
+  'super-potion': `포켓몬 하나의 HP 를 ${BALANCE.superPotionHeal} 회복해요`,
+  'full-heal': '독 · 화상 · 마비 · 잠듦을 낫게 해요',
+  revive: '쓰러진 포켓몬을 HP 절반으로 깨워요',
 };
 
 /** S14 ① 물건 · ③ 내 돈 */
 export function shopView(save: Save): ShopRow[] {
-  return SHOP_ITEMS.map((item) => ({ item, name: itemName(item), effect: SHOP_EFFECT[item], price: priceOf(item), have: save.bag[item] ?? 0, affordable: save.money >= priceOf(item) }));
+  return SHOP_ITEMS.map((item) => ({ item, name: itemName(item), effect: SHOP_EFFECT[item], detail: SHOP_DETAIL[item], price: priceOf(item), have: save.bag[item] ?? 0, affordable: save.money >= priceOf(item) }));
 }
 
 export type MapStageState = 'cleared' | 'current' | 'open' | 'locked';

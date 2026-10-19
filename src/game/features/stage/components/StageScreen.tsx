@@ -216,7 +216,17 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
               </span>
             )
           }
-          right={canOpenMenus(state) ? <MenuButtons onOpen={onOpen} dot={hasUnspent(save)} media={media} lead={leadOf(save)} /> : null}
+          right={
+            canOpenMenus(state) ? (
+              <MenuButtons
+                onOpen={onOpen}
+                dot={hasUnspent(save)}
+                media={media}
+                lead={leadOf(save)}
+                fast={gym ? undefined : { on: save.settings.fastWalk === true, active: isWalkingFast(state), onToggle: () => onInput({ kind: 'fast-walk', on: save.settings.fastWalk !== true }) }}
+              />
+            ) : null
+          }
         />
       )}
       <div

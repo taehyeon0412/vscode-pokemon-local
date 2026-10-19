@@ -56,6 +56,10 @@ export const ICONS = {
   badge: ['...yy...', '..yYGy..', '.yYGGGy.', 'yYGWGGgy', 'yYGGGggy', '.yGGggy.', '..yggy..', '...yy...'],
   /** 큰 배지 (MVP 끝 카드 — 16 × 16 칸, 점 크기는 다른 아이콘과 같은 2) */
   badgeBig: ['.......yy.......', '......yYYy......', '.....yYGGYy.....', '....yYGGGGYy....', '...yYGGWGGGYy...', '..yYGGWWGGGGYy..', '.yYGGGWGGGGgGYy.', 'yYGGGGGGGGggGGYy', 'yYGGGGGGGgggGGYy', '.yYGGGGGgggGGYy.', '..yYGGggggGGYy..', '...yYGgggGGYy...', '....yYGGGGYy....', '.....yYGGYy.....', '......yYYy......', '.......yy.......'],
+  /** 빨리 걷기 ▶▶ (꺼짐 · 켜졌지만 지금은 보통 빠르기) */
+  fast: ['........', 'W...W...', 'WW..WW..', 'WWW.WWW.', 'WWW.WWW.', 'WW..WW..', 'W...W...', '........'],
+  /** 빨리 걷기 ▶▶ — 지금 ×3 으로 걷는 중 */
+  fastOn: ['........', 'Y...Y...', 'YY..YY..', 'YYy.YYy.', 'YYy.YYy.', 'YY..YY..', 'Y...Y...', '........'],
   /** 잠김 */
   lock: ['..WWWW..', '.WW..WW.', '.W....W.', 'YYYYYYYY', 'YYYyyYYY', 'YYYyyYYY', 'YYYYYYYy', 'yyyyyyyy'],
   // ── 길 위 그림 (S06 ④ 야생 흔적 · ⑭ 떨어진 아이템) — 크기는 제각각, 화면 점 크기 = 포켓몬 그림 배율 ──

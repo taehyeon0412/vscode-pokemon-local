@@ -19,6 +19,12 @@ export function SettingsPanel({ save, onInput, onExit, onClose }: { save: Save; 
         </Button>
         <span class="pg-dim pg-ellipsis">안 볼 때 알려 줘요</span>
       </Row>
+      <Row label="걷기">
+        <Button secondary extraClass={save.settings.fastWalk === true ? 'pg-picked' : undefined} onClick={() => onInput({ kind: 'fast-walk', on: save.settings.fastWalk !== true })} title="빨리 걷기 ×3 — 흔적 · 트레이너 · 병원 · 아이템 · 부탁이 다가오면 보통 빠르기로 (정보줄 ▶▶ 와 같음)">
+          {save.settings.fastWalk === true ? '✓ 빨리 걷기 ×3' : '빨리 걷기 ×3'}
+        </Button>
+        <span class="pg-dim pg-ellipsis">무언가 다가오면 보통 빠르기로</span>
+      </Row>
       <Row label="나가기">
         <Button secondary onClick={onExit} title="자동저장하고 일반 모드로 (패널 제목줄 🏠 와 같음)">
           일반 모드로
