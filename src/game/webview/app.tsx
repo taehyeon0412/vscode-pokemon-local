@@ -84,7 +84,7 @@ export function App({ store, media, actions }: { store: Store<ViewState>; media:
 }
 
 function Screens({ v, media, actions }: { v: ViewState; media: string; actions: AppActions }) {
-  if (v.layout.tooSmall) return <TooSmall layout={v.layout} />;
+  if (v.layout.tooSmall) return <TooSmall layout={v.layout} playing={v.screen === 'game'} />;
   if (v.screen === 'title' && v.title) {
     return <TitleScreen info={v.title} media={media} pending={v.pending} onNew={actions.newGame} onContinue={actions.continueGame} heroPx={Math.max(2, Math.round(2 * v.layout.scale))} bodyPx={v.layout.heightPx - Math.round(INFO_BAR_PX * v.layout.uiScale)} />;
   }

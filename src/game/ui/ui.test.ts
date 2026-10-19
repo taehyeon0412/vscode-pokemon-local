@@ -11,7 +11,7 @@ describe('화면 틀 (mvp-spec 1장)', () => {
 
   it('높이가 넉넉하면 설정한 크기 그대로', () => {
     expect(fitLayout('large', 300)).toMatchObject({ size: 'large', scale: 2.5, petPx: 80, tooSmall: false });
-    expect(fitLayout('medium', 116)).toMatchObject({ size: 'medium', tooSmall: false });
+    expect(fitLayout('medium', 140)).toMatchObject({ size: 'medium', tooSmall: false });
   });
 
   it('모자라면 맞을 때까지 한 단계씩 낮춤 (패널을 키우면 원래대로)', () => {
@@ -21,10 +21,18 @@ describe('화면 틀 (mvp-spec 1장)', () => {
     expect(fitLayout('large', 140).size).toBe('large');
   });
 
-  it('아주 작게로도 안 맞으면 멈춤 안내 (지금 · 필요 px)', () => {
-    expect(fitLayout('small', 67)).toMatchObject({ size: 'nano', tooSmall: true, heightPx: 67, needPx: 68 });
+  it('게임 모드는 크기 설정과 상관없이 140px 아래면 접힌 상태 (지금 · 필요 px) — 2026-10-19 태현 님', () => {
+    expect(fitLayout('nano', 139)).toMatchObject({ tooSmall: true, heightPx: 139, needPx: 140 });
+    expect(fitLayout('nano', 140)).toMatchObject({ size: 'nano', tooSmall: false });
+    expect(fitLayout('large', 140)).toMatchObject({ size: 'large', tooSmall: false });
+    expect(fitLayout('small', 67)).toMatchObject({ size: 'nano', tooSmall: true, heightPx: 67, needPx: 140 });
     expect(fitLayout('nano', 0).tooSmall).toBe(true);
     expect(fitLayout('nano', Number.NaN)).toMatchObject({ tooSmall: true, heightPx: 0 });
+  });
+
+  it('실제 VS Code 테스트만 최소 높이를 바꿀 수 있음 (탐색기 칸이 140px 보다 낮아서)', () => {
+    expect(fitLayout('nano', 100, 68)).toMatchObject({ tooSmall: false, needPx: 68 });
+    expect(fitLayout('nano', 67, 68).tooSmall).toBe(true);
   });
 
   it('모르는 크기 설정은 아주 작게로', () => {

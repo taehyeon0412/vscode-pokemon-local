@@ -32,7 +32,7 @@ if (!port) {
     screen: 'none',
     title: null,
     state: null,
-    layout: fitLayout(config.size, window.innerHeight),
+    layout: fitLayout(config.size, window.innerHeight, config.minHeight),
     widthPx: window.innerWidth,
     pending: false,
     overlay: null,
@@ -50,7 +50,7 @@ if (!port) {
   // 프레임 오류로 멈추면 마지막 상태를 확장에 넘김 (자동 전투면 확장이 이어 감)
   const loop = new FrameLoop(
     (dt) => {
-      // 패널이 너무 낮으면 게임을 멈춤 (mvp-spec 1장) — 그동안의 시간은 흘려보냄
+      // 접힌 상태 (140px 아래) 면 그리지 않음 — 게임은 확장이 맡음 (sync)
       if (store.get().layout.tooSmall) return;
       session.frame(dt);
       // 판이 떠 있는 동안은 게임이 멈춤 — 판에서 누른 것은 input 이 바로 그림 (초당 30번 열쇠 계산을 쉼)
@@ -70,10 +70,12 @@ if (!port) {
     () => session.hide(),
   );
 
-  /** 맡고 있고 보이고 패널 높이가 될 때만 돎. 안 보이는데 맡겨졌으면 바로 돌려줌 (확장이 이어 받음) */
+  /** 맡고 있고 보이고 패널 높이가 될 때만 돎. 안 보이거나 접힌 상태 (140px 아래) 인데 맡겨졌으면 바로 돌려줌 (확장이 안 볼 때 규칙으로 이어 감) */
   const sync = () => {
-    if (session.running && document.hidden) session.hide();
-    if (session.running && !store.get().layout.tooSmall) loop.start();
+    const low = store.get().layout.tooSmall;
+    session.setCollapsed(low, !document.hidden);
+    if (session.running && (document.hidden || low)) session.hide();
+    if (session.running && !low) loop.start();
     else loop.stop();
   };
 
@@ -202,7 +204,7 @@ if (!port) {
   });
 
   window.addEventListener('resize', () => {
-    store.set({ layout: fitLayout(config.size, window.innerHeight), widthPx: window.innerWidth });
+    store.set({ layout: fitLayout(config.size, window.innerHeight, config.minHeight), widthPx: window.innerWidth });
     sync(); // 너무 낮아졌으면 멈추고, 다시 키우면 이어 감
   });
 

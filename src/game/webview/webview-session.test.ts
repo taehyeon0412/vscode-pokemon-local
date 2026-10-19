@@ -52,6 +52,34 @@ describe('웹뷰 세션', () => {
     expect(sent.at(-1)).toBe(hidden);
   });
 
+  it('패널이 140px 아래로 접히면 hidden 으로 넘기고, 다시 높아지면 ready 로 최신 상태를 달라고 함 (바뀔 때만)', () => {
+    const { s, sent, frames } = make();
+    s.handleMessage(start(3));
+    frames(300);
+    s.setCollapsed(true, true);
+    expect(sent.at(-1)).toMatchObject({ type: 'hidden', epoch: 3 });
+    expect(s.running).toBe(false);
+    s.setCollapsed(true, true); // 창 크기를 바꾸는 동안 또 불려도 그대로
+    expect(sent).toHaveLength(1);
+    s.setCollapsed(false, true);
+    expect(sent.at(-1)).toMatchObject({ type: 'ready' });
+    s.setCollapsed(false, true);
+    expect(sent).toHaveLength(2);
+  });
+
+  it('접힌 채로 안 보이게 됐다가 높아지면 ready 를 보내지 않음 (보일 때 visibilitychange 가 보냄) · 타이틀은 넘길 게 없음', () => {
+    const { s, sent } = make();
+    s.handleMessage(start(6));
+    s.setCollapsed(true, true);
+    s.setCollapsed(false, false);
+    expect(sent.map((m) => m.type)).toEqual(['hidden']);
+    const t = make();
+    t.s.handleMessage({ command: 'game', type: 'title', info: { save: 'ok', busy: false, summary: null } });
+    t.s.setCollapsed(true, true);
+    t.s.setCollapsed(false, true);
+    expect(t.sent).toEqual([]);
+  });
+
   it('suspend (VS Code 밖 · 자동 전투 꺼짐) 이면 hidden 으로 마지막 상태를 넘기고 멈춤', () => {
     const { s, sent, frames } = make();
     s.handleMessage(start(5));

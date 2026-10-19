@@ -25,6 +25,8 @@ export class WebviewSession {
   private screenNow: Screen = 'none';
   /** 판 (지도 · 내 포켓몬 · 프로필 …) 이 떠 있음 — 계산을 쉼 (바뀐 상태는 그대로 보냄) */
   private paused = false;
+  /** 패널이 게임 모드 최소 높이 (140px) 보다 낮음 — 접힌 상태 (setCollapsed) */
+  private collapsed = false;
   private readonly listeners = new Set<() => void>();
 
   constructor(private readonly deps: WebviewSessionDeps) {}
@@ -167,6 +169,17 @@ export class WebviewSession {
   /** 다시 보임 (웹뷰가 버려지지 않은 경우) — 확장의 최신 상태를 달라고 함 */
   show(): void {
     this.deps.post({ command: GAME_COMMAND, type: 'ready' });
+  }
+
+  /**
+   * 패널이 140px 보다 낮아짐 · 다시 높아짐 (2026-10-19 태현 님) — 낮아지면 안 보일 때처럼 마지막 상태를 넘기고 (확장이 이어 감),
+   * 게임 중에 다시 높아지면 확장의 최신 상태를 달라고 함. 바뀔 때만 움직임 (창 크기를 바꾸는 동안 여러 번 불려도 한 번)
+   */
+  setCollapsed(collapsed: boolean, visible: boolean): void {
+    if (collapsed === this.collapsed) return;
+    this.collapsed = collapsed;
+    if (collapsed) this.hide();
+    else if (visible && this.screenNow === 'game') this.show();
   }
 
   private markSent(): void {
