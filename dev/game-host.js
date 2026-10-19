@@ -165,6 +165,8 @@
         runtime = { rngState: 1, stepAccMs: 0, speed: 1, stage, stageId, toast: null };
     }
 
+    // bld=a|b|c — 병원 · 상점 건물 크기 안 (디자인 고르기, features/stage/model.ts buildingMode)
+    if (q.get('bld')) globalThis.__pgBuilding = q.get('bld');
     // toast=<글> — 머리 위 알림이 뜬 화면 (사진용)
     if (q.get('toast')) runtime.toast = { text: q.get('toast'), ms: 600000 };
     let epoch = 0;

@@ -1,12 +1,12 @@
 /**
- * 길 위의 것들 (S06 ④ ⑤ ⑥ ⑭ ⑮ ⑯) — 위치는 model.ts 의 visibleObjects, 여기는 모양만. 트레이너 · 부탁하는 사람 · 병원 간호순 · 상점 점원은 원작 사람 그림 (data/people.ts), 흔적 · 시설 · 아이템은 이모지 (임시).
+ * 길 위의 것들 (S06 ④ ⑤ ⑥ ⑭ ⑮ ⑯) — 위치는 model.ts 의 visibleObjects, 여기는 모양만. 트레이너 · 부탁하는 사람 · 병원 간호순 · 상점 점원은 원작 사람 그림 (data/people.ts), 병원 · 상점은 원작 건물 그림 (media/buildings), 흔적 · 아이템은 이모지 (임시).
  */
 import { Fragment } from 'preact';
 import type { TraceKind } from '../../../core/rules/encounter';
 import { FACILITY_STAFF } from '../../../core/rules/stage';
 import { personLook } from '../../../data/heroes';
 import { Sprite } from '../../../ui/Sprite';
-import { STAFF_OFFSET_PX, type StageObject } from '../model';
+import { BUILDINGS, buildingDraw, buildingMode, staffLeftPx, type StageObject } from '../model';
 import { Hero } from './Hero';
 
 const TRACE_ICON: Record<TraceKind, string> = {
@@ -50,16 +50,27 @@ export function StageObjects({ objects, media, scale, ground, roomPx }: ObjectsP
               </span>
             );
           case 'facility': {
-            // 건물 오른쪽 옆에 간호순 · 점원 (건물이 통통 튀어도 사람은 가만히 — 따로 둠)
-            const staff = FACILITY_STAFF[o.facility.kind];
+            // 원작 건물 그림 — 주인공 뒤, 문 가운데가 o.x · 문 오른쪽 건물 앞에 간호순 · 점원
+            const kind = o.facility.kind;
+            const b = BUILDINGS[kind];
+            const room = roomPx ?? Number.POSITIVE_INFINITY;
+            const d = buildingDraw(kind, scale, room);
+            const staff = FACILITY_STAFF[kind];
             const look = personLook(staff.look);
+            const title = kind === 'hospital' ? '병원 — 회복 · 보관함' : '상점';
             return (
               <Fragment key={o.key}>
-                <span class={o.active ? 'pg-obj pg-facility pg-facility-active' : 'pg-obj pg-facility'} style={style} title={o.facility.kind === 'hospital' ? '병원 — 회복 · 보관함' : '상점'}>
-                  {o.facility.kind === 'hospital' ? '🏥' : '🏪'}
-                </span>
+                {media && buildingMode() !== 'c' ? (
+                  <span class="pg-obj pg-building" style={{ left: `${Math.round(o.x - b.door * d.k)}px`, bottom: `${ground}px`, width: `${b.w * d.k}px`, height: `${d.visible}px` }} title={title}>
+                    <img src={`${media.replace(/\/+$/, '')}/buildings/${b.file}.png`} alt="" width={b.w * d.k} height={b.h * d.k} draggable={false} />
+                  </span>
+                ) : (
+                  <span class="pg-obj pg-facility" style={style} title={title}>
+                    {kind === 'hospital' ? '🏥' : '🏪'}
+                  </span>
+                )}
                 {look && (
-                  <span class="pg-obj pg-facility-staff" style={{ left: `${Math.round(o.x + STAFF_OFFSET_PX * scale)}px`, bottom: `${ground}px` }} title={staff.name}>
+                  <span class="pg-obj pg-facility-staff" style={{ left: `${staffLeftPx(kind, o.x, scale, room)}px`, bottom: `${ground}px` }} title={staff.name}>
                     <Hero px={2 * scale} walking={false} faceLeft label={staff.name} look={look} media={media} roomPx={roomPx} />
                   </span>
                 )}

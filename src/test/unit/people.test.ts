@@ -7,6 +7,7 @@ import { FACILITY_STAFF, trainerCount } from '../../game/core/rules/stage';
 import { FOREST_TRAINERS, GYM_LEADER, trainerInfo } from '../../game/core/rules/trainer';
 import { HERO_LOOKS } from '../../game/data/heroes';
 import { PEOPLE, personOf } from '../../game/data/people';
+import { BUILDINGS, buildingDraw, staffLeftPx } from '../../game/features/stage/model';
 
 /** PNG 머리 (IHDR) 의 가로 · 세로 */
 function pngSize(file: string): { w: number; h: number } {
@@ -59,5 +60,25 @@ describe('사람 그림 목록 (data/people.ts · scripts/people/fetch-pret.py)'
     expect(shown.length).toBeLessThanOrEqual(FOREST_TRAINERS.length);
     expect(new Set(shown.map((t) => t.look)).size).toBe(shown.length);
     expect(new Set(shown.map((t) => t.name)).size).toBe(shown.length);
+  });
+});
+
+describe('병원 · 상점 건물 그림 (scripts/buildings/fetch-pret-buildings.py — 원작 파이어레드)', () => {
+  const BDIR = join(__dirname, '..', '..', '..', 'extension', 'media', 'buildings');
+
+  it('그림 파일 크기 = BUILDINGS 의 칸 수 · 문은 건물 안', () => {
+    for (const [kind, b] of Object.entries(BUILDINGS)) {
+      expect(pngSize(join(BDIR, `${b.file}.png`)), kind).toEqual({ w: b.w, h: b.h });
+      expect(b.door, kind).toBeGreaterThan(0);
+      expect(b.door, kind).toBeLessThan(b.w);
+    }
+  });
+
+  it('크기: a = 1배 · b = 사람과 같은 정수 배율 (자리가 모자라면 위가 잘림) · 간호순 · 점원은 문 오른쪽', () => {
+    expect(buildingDraw('hospital', 2.5, 200, 'a')).toEqual({ k: 1, visible: 70 });
+    expect(buildingDraw('hospital', 2.5, 200, 'b')).toEqual({ k: 2, visible: 140 });
+    expect(buildingDraw('hospital', 2, 68, 'b')).toEqual({ k: 2, visible: 68 });
+    expect(buildingDraw('shop', 1.5, 45, 'b')).toEqual({ k: 1, visible: 45 });
+    expect(staffLeftPx('hospital', 100, 2, 68)).toBeGreaterThan(100);
   });
 });

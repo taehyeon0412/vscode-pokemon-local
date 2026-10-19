@@ -481,6 +481,19 @@ body.pokemon-game-on {
   font-size: calc(22px * var(--pg-scale, 1));
   z-index: 1;
 }
+/* 원작 건물 그림 — 주인공 (3) · 사람 (1) 뒤, 그림의 아래 끝이 땅 · 자리가 모자라면 위가 잘림 (overflow) */
+.pg-building {
+  transform: none;
+  line-height: 0;
+  overflow: hidden;
+  z-index: 0;
+}
+.pg-building img {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  image-rendering: pixelated;
+}
 /* 병원 간호순 · 상점 점원 — 건물 오른쪽 옆 (왼쪽 끝 = 건물 가운데 + 12px × 배율), 땅에 섬 */
 .pg-facility-staff {
   transform: none;
@@ -1171,6 +1184,7 @@ body.pokemon-game-on {
   display: none;
 }
 .pg-in-battle .pg-facility,
+.pg-in-battle .pg-building,
 .pg-in-battle .pg-scenery {
   opacity: 0.3;
 }
