@@ -310,40 +310,34 @@ describe('패널이 안 보일 때 (mvp-spec 3.3 U2)', () => {
   });
 });
 
-describe('VS Code 밖 (창 포커스) — mvp-spec 3.3', () => {
-  it('자동 전투가 꺼져 있으면 웹뷰를 멈춤(suspend) → hidden 으로 받고 멈춰 둠 → 돌아오면 다시 맡김', async () => {
-    const start = await enterAndStart(sampleSave({ playTimeMs: 0 }));
+describe('VS Code 밖 (창 포커스) — 보이면 계속 (2026-10-19 태현 님: 웹페이지를 보는 동안 게임이 멈춰 보임)', () => {
+  it('VS Code 창이 포커스를 잃어도 패널이 보이면 웹뷰가 계속 계산 · 그리기 — 넘겨받지 않음 (자동 전투 꺼짐)', async () => {
+    await enterAndStart(sampleSave({ playTimeMs: 0 }));
     session.onWindowFocusChanged(false);
-    expect(view.last('suspend')).toBeDefined();
-    session.handleMessage(msg({ type: 'hidden', epoch: start.epoch, state: withPlay(start.state, 300) }));
-    expect(snap().owner).toBe('host');
-    expect(snap().running).toBe(false);
-    session.onWindowFocusChanged(true);
+    expect(view.count('suspend')).toBe(0);
     expect(snap().owner).toBe('webview');
-    expect(view.last('start')!.state.save.playTimeMs).toBe(300);
-  });
-
-  it('hidden 이 오기 전에 포커스가 돌아와도 멈춘 채로 남지 않음', async () => {
-    const start = await enterAndStart(sampleSave());
-    session.onWindowFocusChanged(false);
     session.onWindowFocusChanged(true);
-    session.handleMessage(msg({ type: 'hidden', epoch: start.epoch, state: start.state }));
     expect(snap().owner).toBe('webview');
   });
 
-  it('자동 전투가 켜져 있어도 VS Code 밖이면 웹뷰를 멈추고 확장이 넘겨받아 계속 계산 (그림 없이 — mvp-spec 3.3, 단계 5 · 6 검토)', async () => {
+  it('VS Code 창이 포커스를 잃어도 패널이 보이면 웹뷰가 계속 계산 · 그리기 — 넘겨받지 않음 (자동 전투 켜짐)', async () => {
+    await enterAndStart(autoSave());
+    session.onWindowFocusChanged(false);
+    expect(view.count('suspend')).toBe(0);
+    expect(snap().owner).toBe('webview');
+    session.onWindowFocusChanged(true);
+    expect(snap().owner).toBe('webview');
+  });
+
+  it('VS Code 밖에서 웹뷰가 보낸 상태로 자동 전투가 꺼져도 그 까닭만으로는 멈추지 않음 (내 차례 · 부탁이면 화면이 기다림)', async () => {
     const start = await enterAndStart(autoSave());
     session.onWindowFocusChanged(false);
-    expect(view.count('suspend')).toBe(1);
-    session.handleMessage(msg({ type: 'hidden', epoch: start.epoch, state: start.state }));
-    expect(snap().owner).toBe('host');
-    expect(snap().running).toBe(true);
-    expect(snap().state?.runtime.headless).toBe(true);
-    session.onWindowFocusChanged(true);
+    session.handleMessage(msg({ type: 'state', epoch: start.epoch, state: withAuto(start.state, false) }));
+    expect(view.count('suspend')).toBe(0);
     expect(snap().owner).toBe('webview');
   });
 
-  it('VS Code 밖 (자동 전투) 에서 이로치 흔적을 만나면 멈추고 알림 (U9 — 명세 검사관 · 코드 리뷰어)', async () => {
+  it('안 보일 때 (자동 전투 · 확장이 계산) 이로치 흔적을 만나면 멈추고 알림 (U9 — 명세 검사관 · 코드 리뷰어)', async () => {
     const { seed, spot } = shinyWildSeed();
     const save = sampleSave({ settings: { notifications: true, autoBattle: true }, stages: { 'forest-1': { seed, progress: spot.at - 0.0005, cleared: false, defeatedTrainers: [], facilities: [], run: { startMs: 0, caught: 0, trainers: 0, seen: [], reach: 0, retries: 0 } } } });
     const start = await enterAndStart(save);
@@ -354,14 +348,7 @@ describe('VS Code 밖 (창 포커스) — mvp-spec 3.3', () => {
     expect(notices).toHaveLength(1);
   });
 
-  it('VS Code 밖에서 웹뷰가 보낸 상태로 자동 전투가 꺼졌으면 그때 멈춤', async () => {
-    const start = await enterAndStart(autoSave());
-    session.onWindowFocusChanged(false);
-    session.handleMessage(msg({ type: 'state', epoch: start.epoch, state: withAuto(start.state, false) }));
-    expect(view.count('suspend')).toBe(1);
-  });
-
-  it('suspend 로 멈췄으면 늦게 온 상태가 자동 전투여도 확장이 들고 계산 · 포커스가 돌아오면 웹뷰에 다시 맡김', async () => {
+  it('안 보여 넘겨받은 마지막 상태가 자동 전투면 확장이 들고 계산 · 포커스가 돌아오면 (보이는 웹뷰) 다시 맡김', async () => {
     const start = await enterAndStart(sampleSave());
     session.onWindowFocusChanged(false);
     session.handleMessage(msg({ type: 'hidden', epoch: start.epoch, state: withAuto(start.state, true) }));

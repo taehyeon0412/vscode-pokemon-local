@@ -4,7 +4,8 @@
  * - 패널이 보이면 웹뷰가 계산 · 그리기를 맡고, 1초마다(바뀌었을 때) 상태를 보내 줌 → 여기서 저장
  * - 패널이 안 보이면 (접음 · 다른 탭) 웹뷰는 버려질 수 있어서 여기가 넘겨받음.
  *   자동 전투가 켜져 있으면 같은 계산을 그림 없이 이어 돌리고, 꺼져 있으면 멈춰 둠
- * - VS Code 밖 (창이 포커스를 잃음) + 자동 전투 꺼짐 → 웹뷰를 멈추고(suspend) 여기가 넘겨받아 멈춰 둠
+ * - VS Code 밖 (창이 포커스를 잃음) 이어도 패널이 보이면 웹뷰가 그대로 계산 · 그리기 (2026-10-19 태현 님: 웹페이지를 보는 동안 게임이 멈춰 보임 —
+ *   예전엔 포커스를 잃으면 "안 봄" 으로 쳐서 넘겨받았음). 정말 안 보일 때 (접음 · 다른 탭 · 창을 내림) 만 위처럼 넘겨받음
  * - 다시 보이면 웹뷰가 새로 떠서 상태를 달라고 함 → 여기 상태를 넘겨줌
  * - 게임 모드는 창 잠금을 쥔 창 하나만, 세이브도 그 창만 씀
  *
@@ -69,9 +70,6 @@ export class GameSession {
   private epoch = 0;
   private state: GameState | null = null;
   private view: ViewPort | null = null;
-  private windowFocused = true;
-  /** suspend 를 보내고 웹뷰의 hidden 을 기다리는 중 */
-  private suspendRequested = false;
   /** 웹뷰에 game.js 가 떠 있어 맡길 수 있는지 (ready 에서 켜고, 새로 뜸 · 못 불러옴 · 닫힘에서 끔) */
   private webviewReady = false;
   /** 웹뷰가 "패널이 너무 낮아서" 넘김 (접힌 상태) — 다시 높아지면 ready 가 옴. 그동안 포커스가 돌아와도 맡기지 않음 (#297) · 알림은 "올리면" (#299) */
@@ -168,17 +166,11 @@ export class GameSession {
           this.stats.stale++;
           return;
         }
-        const suspended = this.suspendRequested;
-        this.suspendRequested = false;
         this.webviewCollapsed = message.collapsed === true;
         this.accept(message.epoch, message.state);
         this.takeOver('웹뷰가 멈춤');
         this.handoverEpoch = null; // hidden 이 마지막 — 같은 epoch 의 메시지는 더 받지 않음
-        // suspend 로 멈췄는데 그 사이 포커스가 돌아왔으면 보이는 웹뷰에 다시 맡김.
-        // 다른 까닭의 hidden 은 웹뷰가 다시 보일 때 ready 로 옴
-        if (suspended && !this.webviewCollapsed && this.webviewReady && this.mode === 'game' && this.state && this.view?.visible && this.windowFocused) {
-          this.handToWebview();
-        }
+        // 웹뷰는 다시 보일 때 ready 로 상태를 달라고 함
         return;
       }
       case 'load-failed':
@@ -223,12 +215,10 @@ export class GameSession {
     return this.mode;
   }
 
-  /** VS Code 창 포커스 (mvp-spec 3.3 "VS Code 밖") — 밖에 있는 동안은 확장이 맡음 (자동 전투면 계산 · 아니면 멈춤) */
+  /** VS Code 창 포커스 — 포커스만으로는 넘겨받지 않음 (보이면 웹뷰가 계속, 2026-10-19). 확장이 들고 있는데 보이는 웹뷰가 있으면 돌아올 때 다시 맡김 */
   onWindowFocusChanged(focused: boolean): void {
-    this.windowFocused = focused;
     // 접힌 상태 (패널이 너무 낮음) 면 맡기지 않음 — 맡겨도 웹뷰가 바로 돌려줌 (#297, 다시 높아지면 웹뷰가 ready)
     if (focused && this.mode === 'game' && this.owner === 'host' && this.webviewReady && !this.webviewCollapsed && this.view?.visible) this.handToWebview();
-    else this.maybeSuspend();
   }
 
   /** 🎮 — 일반 모드면 타이틀(S02)을 열고, 타이틀 · 게임 중이면 일반 모드로 */
@@ -523,7 +513,6 @@ export class GameSession {
     this.owner = 'none';
     this.epoch++;
     this.handoverEpoch = null;
-    this.suspendRequested = false;
     this.post({ type: 'stop' });
     this.deps.log('일반 모드로');
     if (this.state) await this.finalSave(this.state.save, lockedBefore);
@@ -561,21 +550,9 @@ export class GameSession {
     this.epoch++;
     this.owner = 'webview';
     this.handoverEpoch = null;
-    this.suspendRequested = false;
     this.markHeadless(false);
     this.post({ type: 'start', epoch: this.epoch, state: this.state });
     this.deps.log(`웹뷰가 계산을 맡음 (epoch ${this.epoch})`);
-    this.maybeSuspend();
-  }
-
-  /**
-   * VS Code 밖 (창 포커스 없음) 이면 웹뷰를 멈추고 확장이 넘겨받음 — mvp-spec 3.3: "VS Code 밖" 도 안 볼 때라 그림 없이 계산만
-   * (자동 전투면 확장이 이어 계산하고 이로치 흔적 · 부탁 앞에서 멈춤 + 알림 U9, 꺼져 있으면 멈춤)
-   */
-  private maybeSuspend(): void {
-    if (this.mode !== 'game' || this.owner !== 'webview' || this.windowFocused || this.suspendRequested || !this.state) return;
-    this.suspendRequested = true;
-    this.post({ type: 'suspend' });
   }
 
   /** 웹뷰가 맡던 것을 넘겨받음 */
@@ -633,7 +610,6 @@ export class GameSession {
     }
     const ok = this.applyFromWebview(state);
     if (ok && late) this.updateRunner();
-    if (ok && current) this.maybeSuspend(); // VS Code 밖인데 웹뷰가 맡고 있으면 넘겨받음
     return ok;
   }
 
