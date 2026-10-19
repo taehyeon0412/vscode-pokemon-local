@@ -7583,29 +7583,27 @@ const SIG_FX = {
             }
         },
     },
-    // 보호막 — 단단해지기 · 배리어
+    // 보호막 — 단단해지기 · 배리어 · 막기 (게임 패링) — 둥근 방울 방패: 끊김 없는 픽셀 테두리 · 옅은 안쪽 · 위쪽 반짝 호가 천천히 돎 (2026-10-20 — 점선 네모는 고른 칸처럼 보여서)
     shield: {
         ms: () => 1000,
         run: (g, o) => {
             const cols = sigPal(o.c);
-            const pad = 3 * g.s;
-            sigParticle({ x: g.body.cx, y: g.body.cy, s: g.s, max: 1.0, cols, hw: g.body.rx + pad, hh: g.body.ry + pad, draw: (ctx, p, t, px) => {
-                const pulse = 0.45 + 0.55 * Math.abs(Math.sin(p.life * 9));
-                ctx.globalAlpha = fadeInOut(t, 0.1, 0.25) * 0.18;
-                ctx.fillStyle = p.cols[1];
-                ctx.fillRect(px(p.x - p.hw), px(p.y - p.hh), 2 * p.hw, 2 * p.hh);
-                ctx.globalAlpha = fadeInOut(t, 0.1, 0.25) * pulse;
-                for (let k = -p.hw; k <= p.hw; k += 2 * p.s) {
-                    dotAt(ctx, px, p.s, p.x + k, p.y - p.hh, p.cols[2]);
-                    dotAt(ctx, px, p.s, p.x + k, p.y + p.hh, p.cols[2]);
+            const R = Math.max(g.body.rx, g.body.ry) + 3 * g.s;
+            sigParticle({ x: g.body.cx, y: g.body.cy, s: g.s, max: 1.0, cols, R, draw: (ctx, p, t, px) => {
+                const fade = Math.ceil(fadeInOut(t, 0.1, 0.25) * 4) / 4;
+                const r = p.R * (t < 0.1 ? 0.7 + 3 * t : 1);
+                ctx.globalAlpha = fade * 0.18;
+                sigDisc(ctx, px, p.s, p.x, p.y, r, p.cols[1]);
+                ctx.globalAlpha = fade;
+                const dots = Math.ceil((2 * Math.PI * r) / p.s);
+                for (let j = 0; j < dots; j++) {
+                    const a = (j / dots) * Math.PI * 2;
+                    dotAt(ctx, px, p.s, p.x + Math.cos(a) * r, p.y + Math.sin(a) * r * 0.9, p.cols[2]);
                 }
-                for (let k = -p.hh; k <= p.hh; k += 2 * p.s) {
-                    dotAt(ctx, px, p.s, p.x - p.hw, p.y + k, p.cols[2]);
-                    dotAt(ctx, px, p.s, p.x + p.hw, p.y + k, p.cols[2]);
-                }
-                const shine = -p.hw + ((p.life * 2) % 1) * 2 * p.hw;
-                for (let k = 0; k < p.hh * 2; k += p.s) {
-                    dotAt(ctx, px, p.s, p.x + shine - k * 0.5, p.y - p.hh + k, p.cols[0]);
+                // 위쪽 반짝 호 (흰빛) — 1초에 반 바퀴
+                for (let j = 0; j < 6; j++) {
+                    const a = -Math.PI * 0.8 + j * 0.12 + p.life * Math.PI * 0.5;
+                    dotAt(ctx, px, p.s, p.x + Math.cos(a) * (r - p.s), p.y + Math.sin(a) * (r - p.s) * 0.9, p.cols[0]);
                 }
             } });
         },
@@ -9041,7 +9039,7 @@ function ultIntro(pokemon, left, name, sub, o, fx, until, introMs = ULT_INTRO_MS
     } });
     // 입자는 나중 것부터 그려서 — 글씨를 먼저 만들어야 띠 위에 보임
     // 다시 보는 필살기는 컷인 띠 없이 이름만 짧게
-    ultTitle(name, sub, o.tc ? sigPal(o.tc) : null, introMs / 1000 + (quick ? 0.6 : 0.9));
+    ultTitle(name, sub, o.tc ? sigPal(o.tc) : null, introMs / 1000 + (quick ? 0.5 : 0.9), 0.36, quick ? 0.6 : 1);
     if (!quick) {
         ultCutIn(pokemon, left, cols, ULT_INTRO_MS / 1000);
     }

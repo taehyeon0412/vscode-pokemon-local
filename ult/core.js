@@ -528,7 +528,7 @@ function ultIntro(pokemon, left, name, sub, o, fx, until, introMs = ULT_INTRO_MS
     } });
     // 입자는 나중 것부터 그려서 — 글씨를 먼저 만들어야 띠 위에 보임
     // 다시 보는 필살기는 컷인 띠 없이 이름만 짧게
-    ultTitle(name, sub, o.tc ? sigPal(o.tc) : null, introMs / 1000 + (quick ? 0.6 : 0.9));
+    ultTitle(name, sub, o.tc ? sigPal(o.tc) : null, introMs / 1000 + (quick ? 0.5 : 0.9), 0.36, quick ? 0.6 : 1);
     if (!quick) {
         ultCutIn(pokemon, left, cols, ULT_INTRO_MS / 1000);
     }

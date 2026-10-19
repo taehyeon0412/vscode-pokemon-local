@@ -3,7 +3,7 @@ import { sampleMonster, sampleSave } from '../../../../test/fixtures/save';
 import { startBattle, type BattleAction, type BattleState } from '../../../core/engine/battle';
 import { createGameState, type GameState } from '../../../core/engine';
 import { battleAnimKey } from './hold';
-import { clearImpact, setImpact, setUltSkip, spaceInput } from './parry';
+import { clearImpact, setImpact, setUltSkip, spaceInput, ultSkippable } from './parry';
 
 /** 전투 중 행동 하나 (side · 행동) 가 도는 상태 */
 function inAction(side: 'me' | 'foe', action: BattleAction): { state: GameState; b: BattleState } {
@@ -37,7 +37,15 @@ describe('Space — 패링 · 필살기 건너뛰기 (fx/parry)', () => {
     expect(spaceInput(move.state, 0)).toEqual({ kind: 'space' });
     expect(n).toBe(0);
     const ult = inAction('me', { kind: 'ult' });
+    // 화면 "Space 넘기기" 칸 — 다시 보는 필살기 (quick) 이고 그 행동일 때만
+    expect(ultSkippable(ult.b)).toBe(false);
+    setUltSkip(() => {
+      n += 1;
+    }, battleAnimKey(ult.b), true);
+    expect(ultSkippable(ult.b)).toBe(true);
+    expect(ultSkippable(move.b)).toBe(false);
     expect(spaceInput(ult.state, 0)).toEqual({ kind: 'space' });
+    expect(ultSkippable(ult.b)).toBe(false);
     expect(spaceInput(ult.state, 0)).toEqual({ kind: 'space' });
     expect(n).toBe(1);
   });

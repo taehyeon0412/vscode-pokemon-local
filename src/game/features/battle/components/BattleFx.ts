@@ -296,11 +296,15 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
             holdFx(key, total, performance.now(), FX_HOLD_ULT_MAX_MS);
             ultOn = true;
             // Space = 남은 연출 건너뛰기 (아직 안 맞혔으면 맞힌 것으로 — 피해는 엔진이 그대로)
-            setUltSkip(() => {
-              fx.stopUlt?.();
-              if (!ultHitDone) onHit();
-              else releaseFx();
-            });
+            setUltSkip(
+              () => {
+                fx.stopUlt?.();
+                if (!ultHitDone) onHit();
+                else releaseFx();
+              },
+              key,
+              quick,
+            );
           } else if (fx.ult && waited + ULT_RETRY_MS <= ULT_LATE_MS) {
             timers.push(
               window.setTimeout(() => {

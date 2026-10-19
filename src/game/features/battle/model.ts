@@ -2,8 +2,9 @@
  * S09 전투 화면 — 화면을 모르는 부분: 메뉴에 무엇이 있고 무엇이 흐린지 · 단축키 · 연출 모양 고르기.
  */
 import type { BattleAction, BattlePopup, BattleState, Side } from '../../core/engine';
-import { canAct, counterOpen, faintedTeam, itemLeft, switchable, ultCounterOpen } from '../../core/engine';
+import { canAct, canParry, counterOpen, faintedTeam, itemLeft, switchable, ultCounterOpen } from '../../core/engine';
 import { isShooting } from '../../core/rules/battle';
+import { maxHpOf } from '../../core/rules/bag';
 import { BALLS, isBall } from '../../core/rules/catch';
 import { BATTLE_ITEMS, itemName } from '../../core/rules/items';
 import type { Save } from '../../core/save';
@@ -31,11 +32,11 @@ export interface MenuItem {
 }
 
 /** 좁은 패널의 짧은 이름 (번호 + 낱말 하나, 전체 이름은 title) — 이모지는 쓰지 않음 (아트 디렉터 2026-10-19). 넓은 메뉴와 같은 낱말 (4 아이템 — 크기마다 '가방' · '아이템' 으로 다르던 것) */
-const COMPACT_LABEL: Record<string, string> = { attack: '1 공격', guard: '2 방어', skills: '3 스킬', items: '4 아이템', switch: '5 교체', flee: '5 도망' };
+const COMPACT_LABEL: Record<string, string> = { attack: '1 공격', guard: '2 방어', skills: '3 스킬', items: '4 아이템', switch: '5 교체', flee: '5 도망', more: '5 교체·도망' };
 
 /** 메뉴 한 줄 (mvp-spec S09 ⑦: 1 공격 · 2 방어 · 3 스킬 · 4 아이템 · 5 교체 · 도망, 숫자 키 1 ~ 5) — compact = 좁은 패널 */
 export function menuItems(b: BattleState, save: Save, page: MenuPage, compact = false): MenuItem[] {
-  const back: MenuItem = { key: 'back', num: 0, label: '←', go: { back: true }, enabled: true, title: '뒤로 (← · Esc)' };
+  const back: MenuItem = { key: 'back', num: 0, label: '← 뒤로', go: { back: true }, enabled: true, title: '뒤로 (← · Esc)' };
   switch (page) {
     case 'main': {
       const skillsOk = b.me.moves.some((s) => s.pp > 0);
@@ -53,7 +54,8 @@ export function menuItems(b: BattleState, save: Save, page: MenuPage, compact = 
         { key: 'more', num: 5, label: switchOk ? (fleeOk ? '5 교체·도망' : '5 교체') : fleeOk ? '5 도망' : '5 교체', go: switchOk ? { page: 'switch' } : { action: { kind: 'flee' } }, enabled: b.phase === 'choose' && (switchOk || fleeOk), title: moreTitle },
       ];
       if (!compact) return items;
-      return items.map((i) => ({ ...i, label: COMPACT_LABEL[i.key === 'more' ? (switchOk || !fleeOk ? 'switch' : 'flee') : i.key] ?? i.label }));
+      // 야생 (도망 됨) 에서 바꿀 포켓몬도 있으면 좁아도 "5 교체·도망" — "5 교체" 만이면 도망칠 수 있는지 모름 (플레이 리뷰어)
+      return items.map((i) => ({ ...i, label: COMPACT_LABEL[i.key === 'more' ? (switchOk && fleeOk ? 'more' : switchOk || !fleeOk ? 'switch' : 'flee') : i.key] ?? i.label }));
     }
     case 'skills':
       return [
@@ -64,7 +66,8 @@ export function menuItems(b: BattleState, save: Save, page: MenuPage, compact = 
             num: i + 1,
             label: `${i + 1} ${mv?.name.ko ?? '?'}`,
             sub: `${s.pp}/${mv?.pp ?? '?'}`,
-            subShort: `${s.pp}`,
+            // 옆 메뉴 = "PP 35" (숫자만이면 다른 화면의 위력 "노말 40" 과 헷갈림 — 플레이 리뷰어)
+            subShort: `PP ${s.pp}`,
             go: { action: { kind: 'move', moveId: s.moveId } },
             enabled: canAct(b, save, { kind: 'move', moveId: s.moveId }),
             title: mv ? `${mv.name.ko} · PP ${s.pp}/${mv.pp} · ${mv.power > 0 ? `위력 ${mv.power}` : '변화'} · ${typeNameKo(mv.type)}${isShooting(mv) ? ' · 쏘는 기술' : ''}${mv.streak ? ' · 연달아 쓰면 +10%' : ''}` : undefined,
@@ -95,8 +98,9 @@ export function menuItems(b: BattleState, save: Save, page: MenuPage, compact = 
           key: m.uid,
           num: i + 1,
           label: `${i + 1} ${speciesOf(m.species)?.name.ko ?? m.form}`,
-          sub: `Lv${m.level}`,
-          title: `HP ${m.hp}`,
+          // 바꿀 때 가장 필요한 것 = HP (예전 Lv — 플레이 리뷰어), Lv 는 title
+          sub: `HP ${m.hp}/${maxHpOf(m)}`,
+          title: `Lv ${m.level}`,
           go: { action: { kind: 'switch', uid: m.uid } },
           enabled: canAct(b, save, { kind: 'switch', uid: m.uid }),
         })),
@@ -124,6 +128,7 @@ export function menuItems(b: BattleState, save: Save, page: MenuPage, compact = 
 /** S21 을 열 수 있는 때 — 힘대결 · 잡기 원 · 끝 · 다음 포켓몬 고르기 (숫자 키) 에는 안 열림 (멈춤으로 타이밍을 피하지 않게 [제안]) */
 export function profileOpenable(b: BattleState): boolean {
   if (counterOpen(b) || ultCounterOpen(b)) return false; // 맞받아치기 창 (1.5초 · 1초) 도 타이밍
+  if (canParry(b)) return false; // 상대 공격 중 = 패링 타이밍 (원을 보고 내 포켓몬을 누르면 막기만 — 2026-10-20 플레이 리뷰어)
   return b.phase === 'run' || b.phase === 'choose' || b.phase === 'anim' || b.phase === 'last' || b.phase === 'send';
 }
 

@@ -425,6 +425,13 @@ function resolveMove(b: BattleState, side: Side, mv: ReadonlyMove | undefined, r
   if (!mv) return;
   // 명중은 행동 시작 때 정한 것 (옛 세이브에 없으면 지금)
   if (miss ?? (mv.accuracy !== null && !rng.chance(mv.accuracy / 100))) {
+    // 빗나갈 상대 공격을 막았으면 (패링) "피했다!" — 완벽 보상 (게이지) 은 그대로 (잘 눌렀는데 보상이 사라지지 않게, 2026-10-20 플레이 리뷰어)
+    const parried = side === 'foe' ? b.anim?.parry : undefined;
+    if (parried === 'good' || parried === 'perfect') {
+      popup(b, 'me', parried === 'perfect' ? '완벽하게 피했다!' : '피했다!', 'parry');
+      if (parried === 'perfect') b.me.gauge = Math.min(1, b.me.gauge + BALANCE.parryPerfectGauge);
+      return;
+    }
     popup(b, target, '빗나갔다!', 'miss');
     return;
   }
@@ -585,8 +592,8 @@ export function battleStep(b0: BattleState, save: Save, stepMs: number, rng: Rng
         return startAction(b, 'me', pick, rng);
       }
       if (foeReady) {
-        // 관장 — 나와 있는 포켓몬 HP 가 절반 아래면 상처약 (한 판에 BALANCE.gymPotions 번)
-        if (b.kind === 'gym' && (b.foePotions ?? 0) > 0 && b.foe.hp > 0 && b.foe.hp <= b.foe.maxHp * BALANCE.gymPotionAt) {
+        // 관장 — 에이스 (마지막 포켓몬) HP 가 절반 아래면 상처약 (한 판에 BALANCE.gymPotions 번) — 첫 포켓몬에게 쓰면 긴장이 첫 판에서 끝나서 (플레이 리뷰어)
+        if (b.kind === 'gym' && b.foeQueue.length === 0 && (b.foePotions ?? 0) > 0 && b.foe.hp > 0 && b.foe.hp <= b.foe.maxHp * BALANCE.gymPotionAt) {
           return startAction({ ...b, foePotions: (b.foePotions ?? 0) - 1 }, 'foe', { kind: 'item', item: 'potion' }, rng);
         }
         return startAction(b, 'foe', aiPick(b.foe, b.me, foeStyle(b), rng), rng);
@@ -799,7 +806,8 @@ export function canParry(b: BattleState): boolean {
 function parry(b: BattleState, msBeforeHit: number): BattleState {
   const a = b.anim!;
   const grade = parryGrade(msBeforeHit);
-  if ((grade === 'good' || grade === 'perfect') && a.counter && a.action.kind === 'move') {
+  // 빗나갈 공격 (anim.miss) 은 힘대결로 가지 않고 막기만 — 원래 빗나갈 공격에 힘대결로 지지 않게 (맞는 순간 "피했다!", 명세 검사관 2026-10-20)
+  if ((grade === 'good' || grade === 'perfect') && a.counter && a.action.kind === 'move' && !a.miss) {
     const incoming = moveOf(a.action.moveId);
     const mine = incoming ? counterMove(b.me, incoming) : null;
     if (incoming && mine) {

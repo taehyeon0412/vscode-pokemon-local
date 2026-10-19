@@ -161,7 +161,11 @@ describe('1:1 토너먼트 · 상대 AI 필살기 (gdd S08 ③ · 4.7)', () => {
     expect(s.foe.ult).toBeGreaterThanOrEqual(BALANCE.gymAceUlt);
   });
 
-  it('관장은 나와 있는 포켓몬 HP 가 절반 아래면 상처약 1번 (내 가방은 그대로) — 트레이너는 안 씀 (2026-10-20)', () => {
+  it('관장은 에이스 HP 가 절반 아래면 상처약 1번 (내 가방은 그대로) — 앞 포켓몬 · 트레이너는 안 씀 (2026-10-20)', () => {
+    // 앞 포켓몬 (뒤에 더 있음) 에게는 안 씀
+    const front = startTrainerBattle(save, [{ ...weak('a'), hp: 999 }, weak('b')], 'gym', '관장 웅이');
+    const frontLow = battleStep({ ...front, phase: 'run' as const, foe: { ...front.foe, hp: 1, gauge: 1, ult: 0 }, me: { ...front.me, gauge: 0 } }, save, STEP, new Rng(1), { auto: true });
+    expect(frontLow.anim?.action.kind).not.toBe('item');
     const gym = startTrainerBattle(save, [{ ...weak('a'), hp: 999 }], 'gym', '관장 웅이');
     expect(gym.foePotions).toBe(BALANCE.gymPotions);
     const low = { ...gym, phase: 'run' as const, foe: { ...gym.foe, hp: Math.floor(gym.foe.maxHp * 0.4), gauge: 1, ult: 0 }, me: { ...gym.me, gauge: 0 } };

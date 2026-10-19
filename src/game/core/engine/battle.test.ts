@@ -329,6 +329,18 @@ describe('패링 — 상대 공격이 맞기 직전 Space · 클릭 (2026-10-19 
     expect(run(hitting, save, TIMING.moveAnimMs + STEP, fixedRng(0.99)).foe.hp).toBeLessThan(b.foe.hp);
   });
 
+  it('빗나갈 상대 기술을 막으면 "피했다!" · 완벽은 게이지 보상 그대로 (2026-10-20)', () => {
+    const { b, save } = setup();
+    const shot: BattleState = { ...b, phase: 'anim', me: { ...b.me, gauge: 0.1 }, anim: { side: 'foe', action: { kind: 'move', moveId: EMBER }, ms: 0, dur: TIMING.moveAnimMs, counter: false, miss: true } };
+    const perfect = run(battleInput(shot, save, { kind: 'parry', ms: 30 }, new SeededRng(1)), save, TIMING.moveAnimMs + STEP, fixedRng(0.5));
+    expect(perfect.popups.find((p) => p.text === '완벽하게 피했다!')?.kind).toBe('parry');
+    expect(perfect.popups.some((p) => p.text === '빗나갔다!')).toBe(false);
+    expect(perfect.me.gauge).toBeGreaterThanOrEqual(0.1 + BALANCE.parryPerfectGauge - 1e-9);
+    expect(perfect.me.hp).toBe(b.me.hp);
+    const plain = run(shot, save, TIMING.moveAnimMs + STEP, fixedRng(0.5));
+    expect(plain.popups.find((p) => p.text === '빗나갔다!')?.kind).toBe('miss');
+  });
+
   it('처음 누른 것만 셈 — 너무 일찍 누르면 이번 공격은 못 막음 (연타 막기)', () => {
     const { b, save } = foeAttacks();
     const early = battleInput(b, save, { kind: 'parry', ms: 600 }, new SeededRng(1));
