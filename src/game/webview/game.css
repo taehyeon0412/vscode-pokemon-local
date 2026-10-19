@@ -13,6 +13,10 @@ body.pokemon-game-on #foreground {
 body.pokemon-game-on #pokemonFxCanvas {
   z-index: 10001 !important;
 }
+/* 프로필 판 (S21) 위에는 안 그림 — 연출 캔버스가 맨 위라 (#330) */
+body.pokemon-game-on:has(.pg-profile-wrap) #pokemonFxCanvas {
+  visibility: hidden;
+}
 body.pokemon-game-on {
   /* 일반 모드가 배경 그림을 style 로 넣어서 !important */
   background-image: none !important;

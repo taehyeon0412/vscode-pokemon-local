@@ -17,13 +17,44 @@ const CAST_DELAY_MS = 120;
 const CONTACT_AT = 0.8;
 /** 쏘는 기술이 상대에 닿는 때 (연출 길이의 몇 %) */
 const SHOT_HIT_AT = 0.85;
-/** 필살기 시작을 이만큼 넘겨서 붙었으면 (접었다 펴기 등) 처음부터 못 보여 줘서 이모지로 */
-const ULT_LATE_MS = 300;
+/** 필살기 시작을 이만큼 넘겨서 붙었으면 (접었다 펴기 등) 처음부터 못 보여 줘서 이모지로 — 나와라! 등장 (0.45초) 을 기다리는 것 포함 */
+const ULT_LATE_MS = 600;
 const ULT_RETRY_MS = 50;
 /** 이미 지난 순간은 이만큼까지만 늦게라도 그림 (화면이 다시 붙는 사이) */
 const LATE_OK_MS = 50;
 
 const other = (s: Side): Side => (s === 'me' ? 'foe' : 'me');
+
+/** 나와라! 등장 몸짓 (pg-sendout, 크기 0.2 → 1) 이 남은 시간 (ms) — 등장 중에 재면 연출이 작고 자리가 틀림 (#331) */
+function settleMs(): number {
+  let ms = 0;
+  for (const side of ['me', 'foe'] as const) {
+    const box = document.querySelector<HTMLElement>(`.pg-fighter-${side}`);
+    for (const an of box?.getAnimations?.() ?? []) {
+      if ((an as CSSAnimation).animationName !== 'pg-sendout') continue;
+      const t = an.effect?.getComputedTiming();
+      if (t && typeof t.endTime === 'number' && typeof t.localTime === 'number') ms = Math.max(ms, t.endTime - t.localTime);
+    }
+  }
+  return Math.min(600, Math.max(0, Math.round(ms)));
+}
+
+/** 지금 행동이 몸으로 닿는 기술인지 (일반 모드 연출 틀 기준 — 몸짓 달려들기 / 젖혔다 내밀기를 연출과 맞춤, #328). 연출이 없으면 null (예전 기준) */
+let contactCache: { key: string; v: boolean | null } = { key: '', v: null };
+export function fxContact(b: BattleState): boolean | null {
+  const key = battleAnimKey(b);
+  if (contactCache.key === key) return contactCache.v;
+  const fx = pokemonFx();
+  const move = fx && b.anim ? fxMove(b) : null;
+  let v: boolean | null = null;
+  try {
+    v = fx && move && b.anim ? (fx.plan(b[b.anim.side].form, move.m)?.contact ?? null) : null;
+  } catch {
+    v = null;
+  }
+  contactCache = { key, v };
+  return v;
+}
 
 /** 쓰는 포켓몬 가운데에서 상대 몸 앞쪽까지 (px) — 뿜는 기술이 상대까지 닿게 */
 function reachPx(src: FxActor, dst: FxActor): number {
@@ -69,6 +100,8 @@ export function useBattleFx(b: BattleState): boolean {
     }
     const side = a.side;
     const timers: number[] = [];
+    // 아직 안 온 순간 — 행동이 끊기면 (관장 끼어들기 · 맞받아치기) 남은 연출을 지움 (#330)
+    const pending = new Set<number>();
     let ultOn = false;
     const fail = (err: unknown) => {
       // 일반 모드 연출 오류가 게임을 멈추지 않게 (Guard 로 가면 화면 오류) — 이 행동만 이모지로
@@ -78,15 +111,16 @@ export function useBattleFx(b: BattleState): boolean {
     // 행동 시작에서 ms 뒤 — 화면이 행동 도중에 붙었으면 (접었다 펴기) 지난 만큼 당기고, 많이 지났으면 건너뜀
     const at = (ms: number, fn: () => void) => {
       if (ms < a.ms - LATE_OK_MS) return;
-      timers.push(
-        window.setTimeout(() => {
-          try {
-            fn();
-          } catch (err) {
-            fail(err);
-          }
-        }, Math.max(0, ms - a.ms)),
-      );
+      const id = window.setTimeout(() => {
+        pending.delete(id);
+        try {
+          fn();
+        } catch (err) {
+          fail(err);
+        }
+      }, Math.max(0, ms - a.ms));
+      timers.push(id);
+      pending.add(id);
     };
     try {
       const act = a.action;
@@ -104,14 +138,16 @@ export function useBattleFx(b: BattleState): boolean {
           });
         } else if (plan) {
           const mv = act.kind === 'move' ? moveOf(act.moveId) : undefined;
-          holdFx(key, CAST_DELAY_MS + plan.ms - a.ms, performance.now());
-          at(CAST_DELAY_MS, () => {
+          // 짧은 연출은 늦게 시작해 맞는 순간이 피해 숫자 (엔진 dur) 와 같게 (#329) · 등장 중이면 끝난 뒤에
+          const castAt = Math.max(CAST_DELAY_MS, a.dur - Math.round(plan.ms * SHOT_HIT_AT)) + settleMs();
+          holdFx(key, castAt + plan.ms - a.ms, performance.now());
+          at(castAt, () => {
             const src = actor(b, side);
             const dst = actor(b, other(side));
-            if (src) fx.move(src, move.m, dst ? reachPx(src, dst) : 0);
+            if (src) fx.move(src, move.m, dst ? reachPx(src, dst) : 0, undefined, dst ?? undefined);
           });
           if (mv && mv.power > 0) {
-            at(CAST_DELAY_MS + Math.round(plan.ms * SHOT_HIT_AT), () => {
+            at(castAt + Math.round(plan.ms * SHOT_HIT_AT), () => {
               const dst = actor(b, other(side));
               if (dst) fx.impact(dst, move.hitType, move.big);
             });
@@ -142,7 +178,9 @@ export function useBattleFx(b: BattleState): boolean {
             setMissed(key);
           }
         };
-        tryUlt(0);
+        const wait = settleMs();
+        if (wait > 0) at(a.ms + wait, () => tryUlt(wait));
+        else tryUlt(0);
       } else if (act.kind === 'guard' || act.kind === 'item' || act.kind === 'skip') {
         const src = actor(b, side);
         if (src && a.ms <= LATE_OK_MS * 4) {
@@ -157,6 +195,8 @@ export function useBattleFx(b: BattleState): boolean {
     }
     return () => {
       timers.forEach((t) => window.clearTimeout(t));
+      // 끊긴 기술 — 날아가던 연출 · 늦은 타이머를 지움 (다 끝난 행동은 남은 불씨가 자연스럽게 사라지게 둠)
+      if (pending.size > 0 && !ultOn) fx.clear();
       // 필살기가 다른 행동 (맞받아치기 힘대결 · 전투 끝) 으로 바뀌면 멈춤 — 끝까지 갔으면 이미 끝나 있음
       if (ultOn) fx.stopUlt?.();
     };

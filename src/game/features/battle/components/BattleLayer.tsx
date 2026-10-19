@@ -18,7 +18,7 @@ import { Sprite } from '../../../ui/Sprite';
 import { duelKind, hpColor, moveColor, moveFx, profileOpenable, STATUS_LABEL, type BattleGeometry } from '../model';
 import { battleAnimKey } from '../fx/hold';
 import { BattleMenu } from './BattleMenu';
-import { useBattleFx } from './BattleFx';
+import { fxContact, useBattleFx } from './BattleFx';
 
 export interface BattleLayerProps {
   battle: BattleState;
@@ -98,9 +98,11 @@ function FighterBody(props: { b: BattleState; side: Side; x: number; target: num
   const anim = b.anim?.side === side ? b.anim : null;
   const act = anim?.action;
   const mv = act?.kind === 'move' ? moveOf(act.moveId) : undefined;
-  const lunge = act?.kind === 'attack' || (act?.kind === 'move' && mv && mv.power > 0 && !isShooting(mv));
+  // 몸으로 닿는지 = 일반 모드 연출 틀 기준 (덩굴채찍 · 지진은 쏘고 · 에어슬래시는 달려듦 — 연출과 몸짓이 맞게, #328). 연출이 없으면 예전 기준
+  const contact = anim ? fxContact(b) : null;
+  const lunge = act?.kind === 'attack' || (act?.kind === 'move' && mv !== undefined && mv.power > 0 && (contact ?? !isShooting(mv)));
   // 쏘는 기술 (불꽃 · 물대포 · 광선 …) — 달려들지 않고 몸을 젖혔다 내밂 (일반 모드처럼, 2026-10-19 태현 님 "자연스럽고 멋지게")
-  const cast = act?.kind === 'move' && mv !== undefined && (isShooting(mv) || mv.power <= 0);
+  const cast = act?.kind === 'move' && mv !== undefined && !lunge;
   const hurt = b.popups.some((p) => p.side === side && p.kind === 'damage' && p.ms < HURT_MS);
   const cls = [
     'pg-fx-body',

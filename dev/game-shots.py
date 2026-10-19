@@ -285,6 +285,18 @@ SHOTS = [
     ("fx-razor-170", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "move", "side": "me", "mv": "75", "dur": "20000", "fx": "1", "budget": "500"}),
     ("fx-tackle-170", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "attack", "dur": "900", "fx": "1", "budget": "850"}),
     ("fx-scratch-170", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "move", "side": "foe", "mv": "10", "dur": "900", "fx": "1", "budget": "780"}),
+    # 틀마다 상대까지 닿는지 (#327) — 상대 (foe) 가 이상해씨에게 씀
+    ("fx-aim-thunder", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "move", "side": "foe", "foe": "pikachu:25", "mv": "87", "dur": "900", "fx": "1", "budget": "900"}),
+    ("fx-aim-rockfall", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "move", "side": "foe", "foe": "geodude:74", "mv": "88", "dur": "900", "fx": "1", "budget": "700"}),
+    ("fx-aim-water", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "move", "side": "foe", "foe": "squirtle:7", "mv": "55", "dur": "900", "fx": "1", "budget": "700"}),
+    ("fx-aim-bubbles", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "move", "side": "foe", "foe": "squirtle:7", "mv": "145", "dur": "900", "fx": "1", "budget": "900"}),
+    ("fx-aim-notes", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "move", "side": "foe", "foe": "clefairy:35", "mv": "47", "dur": "900", "fx": "1", "budget": "1100"}),
+    ("fx-aim-rings", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "move", "side": "foe", "foe": "squirtle:7", "mv": "352", "dur": "900", "fx": "1", "budget": "600"}),
+    ("fx-aim-quake", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "move", "side": "foe", "foe": "sandshrew:27", "mv": "89", "dur": "900", "fx": "1", "budget": "500"}),
+    ("fx-aim-icebeam", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "move", "side": "foe", "foe": "seel:86", "mv": "58", "dur": "900", "fx": "1", "budget": "600"}),
+    ("fx-aim-vortex", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "move", "side": "foe", "foe": "charmander:4", "mv": "83", "dur": "900", "fx": "1", "budget": "900"}),
+    ("fx-aim-wide-flame", "1600x190", {"screen": "game", "look": "may", "size": "medium", "battle": "move", "side": "foe", "mv": "53", "dur": "900", "fx": "1", "budget": "900"}),
+    ("fx-aim-vine", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "move", "side": "me", "mv": "22", "dur": "900", "fx": "1", "budget": "780"}),
     # 필살기 = 일반 모드 필살기 (번쩍 · 어두워짐 · 컷인 · 큰 글씨 · 전용 연출). 엔진 dur 2.2초지만 연출이 끝날 때까지 붙잡음 (fx/hold)
     ("fx-ult-bulba-500", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "ult-beam", "side": "me", "dur": "2200", "fx": "1", "budget": "500"}),
     ("fx-ult-bulba-1300", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "ult-beam", "side": "me", "dur": "2200", "fx": "1", "budget": "1300"}),

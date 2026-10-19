@@ -165,6 +165,98 @@ function fxGameStop(kill) {
     g.B.fxReset();
 }
 
+// ── 상대까지 닿게 (2026-10-19 테스터 #327: 번개는 제자리 · 회오리 · 돌떨구기는 가운데 · 물대포 · 거품 · 노래는 입 앞에서 끝 · 광선은 화면 끝까지) ──
+// 일반 모드 틀은 "쓰는 쪽 앞 몇 칸" 기준이라 — 자리형은 상대 자리로 옮기고, 날아가는 것은 빠르기를 거리에 맞추고, 광선은 상대 몸 뒤에서 멈춤
+function fxTarget(g, dst) {
+    const r = (dst.box || dst.el).getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    return { cx, w: r.width, far: g.dir > 0 ? r.right : r.left, dist: Math.abs(cx - g.mouth.x) };
+}
+// 연출 자리를 옆으로 dx 만큼 (크기 · 방향은 쓰는 쪽 그대로)
+const fxShift = (g, dx) => ({ ...g, mouth: { ...g.mouth, x: g.mouth.x + dx }, body: { ...g.body, cx: g.body.cx + dx, front: g.body.front + dx } });
+// 입에서 날아가는 거리 (px) — 틀의 빠르기 · 끌림 · 수명으로 셈 (v / 끌림 × (1 − e^−끌림×수명), 끌림 없으면 v × 수명)
+const fxFly = (v, drag, life) => (drag > 0 ? (v / drag) * (1 - Math.exp(-drag * life)) : v * life);
+const FX_TRAVEL = {
+    breath: (g) => 12 * g.s * (1 + 0.8 * g.P), // 사진으로 잼 (끌림 2.6 − 세기)
+    water: (g) => fxFly(66 * (1 + 0.6 * g.P) * g.s, 0.4, 0.65 * (1 + 0.4 * g.P)),
+    bubbles: (g, o) => fxFly(35 * g.s * (o.many ? 1.5 : 1), 0.9, 1.05),
+    rings: (g, o) => (o.forward ? fxFly((90 + 40 * g.P) * g.s, 0, 0.7) : 0),
+    notes: (g) => fxFly(22 * g.s, 0, 1.1),
+};
+// run 하는 동안 · 그 뒤 발사기가 만드는 입자의 옆 빠르기를 k 배 — 예전 틀 (물대포: fx 없는 발사기) 은 fx 발사기로 바꿔 감쌈
+function fxScaled(k, run, cap) {
+    const p0 = moveParticles.length;
+    const e0 = moveEmitters.length;
+    run();
+    const fix = (from) => {
+        for (let j = from; j < moveParticles.length; j++) {
+            const p = moveParticles[j];
+            p.vx *= k;
+            if (p.v0 !== undefined) {
+                p.v0 *= k;
+            }
+            cap?.(p);
+        }
+    };
+    fix(p0);
+    for (let i = e0; i < moveEmitters.length; i++) {
+        const e = moveEmitters[i];
+        if (!e.fx) {
+            const base = { ...e };
+            e.rate = moveRate(e.move, e.power);
+            e.fx = () => spawnParticle(base);
+        }
+        const fx = e.fx;
+        e.fx = (...a) => {
+            const n = moveParticles.length;
+            const out = fx(...a);
+            fix(n);
+            return out;
+        };
+    }
+}
+// 틀마다 상대까지 — { g, o, k, cap, after } (k = 빠르기 배, cap = 입자마다 고칠 것, after = 더 할 것)
+function fxAim(fx, g, o, t) {
+    const clampK = (v) => Math.min(25, Math.max(0.6, v));
+    switch (fx) {
+        case 'breath':
+            return { g, o: { ...o, speed: (o.speed ?? 1) * clampK(t.dist / FX_TRAVEL.breath(g)) } };
+        case 'water':
+        case 'bubbles':
+        case 'notes':
+        case 'rings': {
+            const d = FX_TRAVEL[fx](g, o);
+            return d > 0 ? { g, o, k: clampK(t.dist / d) } : { g, o };
+        }
+        case 'beam':
+            // 덩굴채찍 · 핥기 (len) = 상대 가운데까지 · 광선 = 상대 몸 뒤까지 (화면 끝까지 뚫고 가지 않게)
+            return { g, o: { ...o, len: (o.len ? t.dist : Math.abs(t.far - g.mouth.x) + 0.15 * t.w) / Math.max(1, g.w) } };
+        case 'vortex':
+            return { g: fxShift(g, t.cx - (g.body.front + g.dir * ((0.55 + 0.3 * g.P) * g.w + 0.2 * g.w))), o };
+        case 'rockfall':
+            return { g: fxShift(g, t.cx - (g.body.front + g.dir * 1.4 * g.w)), o };
+        case 'thunder':
+            return { g: fxShift(g, t.cx - g.body.cx), o };
+        case 'powder':
+            return o.around ? { g, o } : { g: fxShift(g, t.cx - (g.mouth.x + g.dir * 1.5 * g.w)), o };
+        case 'quake':
+            // 흙먼지는 상대 발밑 · 흔들기는 게임 화면 (일반 모드는 숨은 포켓몬 · 앞쪽 풀을 흔듦)
+            return { g: fxShift(g, t.cx - g.body.cx), o, after: () => {
+                const amp = 2 + 3 * g.P;
+                document.querySelector('#pokemon-game .pg-field')?.animate([{ translate: `-${amp}px 0` }, { translate: `${amp}px 0` }], { duration: 60, iterations: 12, direction: 'alternate', composite: 'add' });
+            } };
+        case 'projectile':
+            // 똑바로 나는 것은 상대를 지나면 사라짐 (화면 끝까지 안 감) — 부메랑 · 포물선은 그대로
+            return o.boomerang || o.arc ? { g, o } : { g, o, k: 1, cap: (p) => {
+                if (p.vx && p.max > 0.3) {
+                    p.max = Math.min(p.max, (t.dist + 0.3 * t.w) / Math.abs(p.vx));
+                }
+            } };
+        default:
+            return { g, o };
+    }
+}
+
 function fxPlan(form, m) {
     if (!POKEMON_SHAPE[form] || !m || !m.name) {
         return null;
@@ -193,8 +285,9 @@ window.pokemonFx = {
     },
     /** 기술을 지금 씀 — 쏘는 기술은 입에서 · 닿는 기술은 몸 앞에서 (box 를 달려든 몸으로 주면 상대 바로 앞). 그린 시간 (ms), 못 그리면 0.
      *  reach = 입에서 상대까지 px — 뿜기 (breath: 불꽃세례 · 화염방사 · 독가스 …) 는 일반 모드에선 입 앞에서만 피어서, 전투에선 상대까지 닿게 빠르기를 키움
-     *  form = 기술 모양을 고를 포켓몬 (닿는 기술 자국을 맞는 쪽에 그릴 때 쓰는 쪽 모양 그대로 — 없으면 src) */
-    move(src, m, reach, form) {
+     *  form = 기술 모양을 고를 포켓몬 (닿는 기술 자국을 맞는 쪽에 그릴 때 쓰는 쪽 모양 그대로 — 없으면 src)
+     *  dst = 맞는 포켓몬 — 주면 틀마다 상대까지 닿게 (fxAim: 자리 옮김 · 빠르기 · 광선 길이), 안 주면 reach 로 뿜기만 */
+    move(src, m, reach, form, dst) {
         const p = fxPlan(form || src.form, m);
         if (!p || fxWidth(src) < 1) {
             return 0;
@@ -204,14 +297,20 @@ window.pokemonFx = {
         }
         const A = fxActor(src);
         const ok = safeFx({}, () => fxWithTimers(fxMoveGen, () => {
-            const g = sigGeometry(A, !!src.left);
-            let o = p.o;
-            if (p.sig[1] === 'breath' && reach > 0) {
-                // 입자 한 알이 가는 거리 ≈ 12 × 배율 × (1 + 0.8 × 세기) px (끌림 때문에 생각보다 짧음, 사진으로 잼) — 상대까지 닿게 (1 ~ 8배)
-                const k = Math.min(8, Math.max(1, reach / (12 * g.s * (1 + 0.8 * g.P))));
-                o = { ...o, speed: (o.speed ?? 1) * k };
+            const g0 = sigGeometry(A, !!src.left);
+            let aim = { g: g0, o: p.o };
+            if (dst && fxWidth(dst) >= 1) {
+                aim = fxAim(p.sig[1], g0, p.o, fxTarget(g0, dst));
+            } else if (p.sig[1] === 'breath' && reach > 0) {
+                aim = { g: g0, o: { ...p.o, speed: (p.o.speed ?? 1) * Math.min(25, Math.max(1, reach / FX_TRAVEL.breath(g0))) } };
             }
-            p.T.run(g, o, p.ms, A);
+            const go = () => p.T.run(aim.g, aim.o, p.ms, A);
+            if (aim.k !== undefined || aim.cap) {
+                fxScaled(aim.k ?? 1, go, aim.cap);
+            } else {
+                go();
+            }
+            aim.after?.();
         }));
         return ok ? p.ms : 0;
     },

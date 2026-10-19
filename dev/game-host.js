@@ -57,7 +57,9 @@
         save.party = ['m1', 'm2'];
         save.nextMonsterUid = 3;
         save.settings.autoBattle = battleKind === 'auto';
-        const wild = { ...save.monsters.m1, uid: 'wild', species: 4, form: 'charmander', level: 5, moves: [{ moveId: 52, pp: 25 }], hp: 20, caughtAt: 'forest-1' };
+        // foe=<모습>:<도감 번호> — 상대 포켓몬을 바꿈 (연출 시험: foe=pikachu:25&battle=move&side=foe&mv=87)
+        const [foeForm, foeSp] = (q.get('foe') || 'charmander:4').split(':');
+        const wild = { ...save.monsters.m1, uid: 'wild', species: Number(foeSp) || 4, form: foeForm, level: 5, moves: [{ moveId: 52, pp: 25 }], hp: 20, caughtAt: 'forest-1' };
         save.pendingEncounter = { kind: 'wild', monster: wild, start: 'normal' };
         save.dex.seen = [1, 4, 10];
         const fighter = (m, types, stats, hp, extra) => ({
