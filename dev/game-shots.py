@@ -184,6 +184,15 @@ SHOTS = [
     ("p12-rival-over-200", "720x200", {"screen": "game", "look": "brendan", "gender": "male", "place": "rival-over", "size": "medium", "budget": "300"}),
     ("p12-rival-lose-92", "720x92", {"screen": "game", "look": "brendan", "gender": "male", "place": "rival-lose", "record": "2-2", "toast": "라이벌 지민: 역시 내가 한 수 위지! (전적 2승 2패)", "size": "small"}),
     ("p12-rival-result-360", "360x116", {"screen": "game", "look": "brendan", "gender": "male", "place": "rival-result", "record": "0-0", "size": "medium"}),
+    # 병원 간호순 · 상점 점원 (원작 파이어레드 그림, 2026-10-19)
+    ("p12-staff-hospital-116", "720x116", {"screen": "game", "look": "may", "place": "facility", "size": "medium"}),
+    ("p12-staff-hospital-68", "720x68", {"screen": "game", "look": "may", "place": "hospital"}),
+    ("p12-staff-hospital-140", "720x140", {"screen": "game", "look": "brendan", "gender": "male", "place": "hospital", "size": "large"}),
+    ("p12-staff-hospital-320", "320x92", {"screen": "game", "look": "may", "place": "hospital"}),
+    ("p12-staff-shop-116", "720x116", {"screen": "game", "look": "brendan", "gender": "male", "place": "shop-front", "size": "medium"}),
+    ("p12-staff-shop-92", "720x92", {"screen": "game", "look": "may", "place": "shop-front", "size": "small"}),
+    ("p12-staff-shop-68", "720x68", {"screen": "game", "look": "may", "place": "shop-front"}),
+    ("p12-staff-battle-68", "720x68", {"screen": "game", "look": "may", "progress": "0.6252", "battle": "choose"}),
     # 파이어레드 원작 그림 (레드 = boy)
     ("p12-red-walk-68", "720x68", {"screen": "game", "look": "boy", "gender": "male"}),
     ("p12-red-walk-116", "720x116", {"screen": "game", "look": "boy", "gender": "male", "size": "medium"}),

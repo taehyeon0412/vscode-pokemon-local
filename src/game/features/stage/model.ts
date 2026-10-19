@@ -77,6 +77,9 @@ export type StageObject =
  * 지금 화면에 보이는 것 (왼쪽 → 오른쪽). 지나간 아이템 · 야생은 안 보임 (주웠고 · 쓰러뜨림),
  * 부탁하던 사람 · 시설 · 배경은 지나간 뒤에도 화면 밖으로 나갈 때까지 보임
  */
+/** 병원 간호순 · 상점 점원의 왼쪽 끝 = 건물 가운데 + 이만큼 × 배율 (건물 반폭 11 ~ 13 + 틈 3 ~ 5 — 아트 디렉터: 주인공 ↔ 건물 틈과 맞춤) */
+export const STAFF_OFFSET_PX = 16;
+
 export function visibleObjects(state: GameState, widthPx: number, scale: number): StageObject[] {
   const save = state.save;
   if (save.location.screen !== 'stage') return [];

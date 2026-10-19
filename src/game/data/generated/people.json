@@ -1776,6 +1776,22 @@
   }
  },
  {
+  "id": "frlg-clerk",
+  "name": "점원",
+  "group": "people",
+  "source": "pret/pokefirered clerk",
+  "walk": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  },
+  "front": {
+   "frames": 4,
+   "w": 16,
+   "h": 20
+  }
+ },
+ {
   "id": "frlg-mom",
   "name": "엄마",
   "group": "people",

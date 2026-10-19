@@ -9,6 +9,7 @@
 import { BALANCE } from '../../../core/balance';
 import { canOpenMenus, itemLeft, type GameInput, type GameState } from '../../../core/engine';
 import { bestHelper, requestAt } from '../../../core/rules/request';
+import { FACILITY_STAFF } from '../../../core/rules/stage';
 import { GYM_LEADER } from '../../../core/rules/trainer';
 import { josaOf, withJosa } from '../../../core/text';
 import { speciesOf } from '../../../data';
@@ -26,7 +27,7 @@ import { hasUnspent, type Overlay } from '../../menu/model';
 import { ChoiceBox } from '../../result/components/ChoiceBox';
 import { ResultBox } from '../../result/components/ResultBox';
 import { choiceView } from '../../result/model';
-import { contactX, foeTrainerView, heroX, minimapOf, STAGES, stagePx, visibleObjects } from '../model';
+import { contactX, foeTrainerView, heroX, minimapOf, STAFF_OFFSET_PX, STAGES, stagePx, visibleObjects, type StageObject } from '../model';
 import { BadgeCard, ClearCard, DefeatBox, FacilityBox, LobbyBox, TrainerBanner } from './FieldBoxes';
 import { Hero } from './Hero';
 import { Minimap } from './Minimap';
@@ -166,7 +167,11 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen }: 
   // 체육관: 주인공은 왼쪽 (대기실) · 관장은 오른쪽 끝
   const heroLeft = geo ? geo.trainerX : gym ? Math.round(widthPx * 0.18) : hero;
   // 큰 주인공이 위쪽 띠 (트레이너 · 만남 · 병원 상자, 위 3px + 한 줄) 자리까지 올라오면 띠를 주인공 오른쪽 옆으로 — 옆자리가 넉넉할 때만
-  const bannerLeft = Math.round(heroLeft + heroW / 2 + 8);
+  //   병원 · 상점 앞 · 안이면 간호순 · 점원 오른쪽 옆으로 ("간호순:" 이 말하는데 띠에 가려지지 않게 — 아트 디렉터)
+  const facility = objects.find((o): o is Extract<StageObject, { kind: 'facility' }> => o.kind === 'facility' && o.active);
+  const staffLook = facility ? personLook(FACILITY_STAFF[facility.facility.kind].look) : undefined;
+  const sideFrom = facility && staffLook ? facility.x + STAFF_OFFSET_PX * layout.scale + heroWidthPx(staffLook, layout.scale, heroRoom) : heroLeft + heroW / 2;
+  const bannerLeft = Math.round(sideFrom + 8);
   // 오른쪽 끝 — 체육관 대기실은 관장 앞까지
   const leader = personLook(GYM_LEADER.look);
   const leaderW = leader ? heroWidthPx(leader, layout.scale, heroRoom) : 20 * layout.scale;

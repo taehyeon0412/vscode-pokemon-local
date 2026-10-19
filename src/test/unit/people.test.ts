@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { FOREST_REQUESTS } from '../../game/core/rules/request';
 import { STAGE_IDS } from '../../game/core/save';
-import { trainerCount } from '../../game/core/rules/stage';
+import { FACILITY_STAFF, trainerCount } from '../../game/core/rules/stage';
 import { FOREST_TRAINERS, GYM_LEADER, trainerInfo } from '../../game/core/rules/trainer';
 import { HERO_LOOKS } from '../../game/data/heroes';
 import { PEOPLE, personOf } from '../../game/data/people';
@@ -17,8 +17,8 @@ function pngSize(file: string): { w: number; h: number } {
 const DIR = join(__dirname, '..', '..', '..', 'extension', 'media', 'people');
 
 describe('사람 그림 목록 (data/people.ts · scripts/people/fetch-pret.py)', () => {
-  it('152명 · id 가 겹치지 않음 · 이름은 모두 한글 (2026-10-19 태현 님)', () => {
-    expect(PEOPLE.length).toBe(152);
+  it('153명 · id 가 겹치지 않음 · 이름은 모두 한글 (2026-10-19 태현 님)', () => {
+    expect(PEOPLE.length).toBe(153);
     expect(new Set(PEOPLE.map((p) => p.id)).size).toBe(PEOPLE.length);
     for (const p of PEOPLE) {
       expect(p.id, p.id).toMatch(/^[a-z0-9-]+$/);
@@ -37,11 +37,12 @@ describe('사람 그림 목록 (data/people.ts · scripts/people/fetch-pret.py)'
     }
   });
 
-  it('배치: 주인공 8명 · 숲 트레이너 9자리 · 관장 · 부탁하는 사람 5명 — 모두 목록에 있고 서로 안 겹침', () => {
+  it('배치: 주인공 8명 · 숲 트레이너 9자리 · 관장 · 부탁하는 사람 5명 · 병원 간호순 · 상점 점원 — 모두 목록에 있고 서로 안 겹침', () => {
     const heroDirs = HERO_LOOKS.map((l) => l.dir);
     const trainers = FOREST_TRAINERS.map((t) => t.look);
     const requesters = FOREST_REQUESTS.map((r) => r.who.look);
-    const all = [...heroDirs, ...trainers, GYM_LEADER.look, ...requesters];
+    const staff = Object.values(FACILITY_STAFF).map((s) => s.look);
+    const all = [...heroDirs, ...trainers, GYM_LEADER.look, ...requesters, ...staff];
     for (const id of all) expect(personOf(id), String(id)).toBeDefined();
     expect(new Set(all).size).toBe(all.length);
     expect(HERO_LOOKS.length).toBe(8);

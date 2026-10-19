@@ -1,10 +1,12 @@
 /**
- * 길 위의 것들 (S06 ④ ⑤ ⑥ ⑭ ⑮ ⑯) — 위치는 model.ts 의 visibleObjects, 여기는 모양만. 트레이너 · 부탁하는 사람은 원작 사람 그림 (data/people.ts), 흔적 · 시설 · 아이템은 이모지 (임시).
+ * 길 위의 것들 (S06 ④ ⑤ ⑥ ⑭ ⑮ ⑯) — 위치는 model.ts 의 visibleObjects, 여기는 모양만. 트레이너 · 부탁하는 사람 · 병원 간호순 · 상점 점원은 원작 사람 그림 (data/people.ts), 흔적 · 시설 · 아이템은 이모지 (임시).
  */
+import { Fragment } from 'preact';
 import type { TraceKind } from '../../../core/rules/encounter';
+import { FACILITY_STAFF } from '../../../core/rules/stage';
 import { personLook } from '../../../data/heroes';
 import { Sprite } from '../../../ui/Sprite';
-import type { StageObject } from '../model';
+import { STAFF_OFFSET_PX, type StageObject } from '../model';
 import { Hero } from './Hero';
 
 const TRACE_ICON: Record<TraceKind, string> = {
@@ -47,12 +49,23 @@ export function StageObjects({ objects, media, scale, ground, roomPx }: ObjectsP
                 <Sprite media={media} form={o.scenery.form} scale={scale} action={o.scenery.place === 'sky' ? 'walk' : 'idle'} />
               </span>
             );
-          case 'facility':
+          case 'facility': {
+            // 건물 오른쪽 옆에 간호순 · 점원 (건물이 통통 튀어도 사람은 가만히 — 따로 둠)
+            const staff = FACILITY_STAFF[o.facility.kind];
+            const look = personLook(staff.look);
             return (
-              <span key={o.key} class={o.active ? 'pg-obj pg-facility pg-facility-active' : 'pg-obj pg-facility'} style={style} title={o.facility.kind === 'hospital' ? '병원 — 회복 · 보관함' : '상점'}>
-                {o.facility.kind === 'hospital' ? '🏥' : '🏪'}
-              </span>
+              <Fragment key={o.key}>
+                <span class={o.active ? 'pg-obj pg-facility pg-facility-active' : 'pg-obj pg-facility'} style={style} title={o.facility.kind === 'hospital' ? '병원 — 회복 · 보관함' : '상점'}>
+                  {o.facility.kind === 'hospital' ? '🏥' : '🏪'}
+                </span>
+                {look && (
+                  <span class="pg-obj pg-facility-staff" style={{ left: `${Math.round(o.x + STAFF_OFFSET_PX * scale)}px`, bottom: `${ground}px` }} title={staff.name}>
+                    <Hero px={2 * scale} walking={false} faceLeft label={staff.name} look={look} media={media} roomPx={roomPx} />
+                  </span>
+                )}
+              </Fragment>
             );
+          }
           case 'trainer':
             return (
               <span key={o.key} class={o.alert ? 'pg-obj pg-trainer pg-trainer-alert' : 'pg-obj pg-trainer'} style={style} title={o.info.name}>

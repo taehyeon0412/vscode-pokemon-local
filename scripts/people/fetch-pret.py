@@ -142,6 +142,7 @@ P = [
     ("frlg", "bill", "frlg-bill", "이수재", "people"),
     ("frlg", "mr_fuji", "frlg-mr-fuji", "후지 노인", "people"),
     ("frlg", "nurse", "frlg-nurse", "간호순", "people"),
+    ("frlg", "clerk", "frlg-clerk", "점원", "people"),
     ("frlg", "mom", "frlg-mom", "엄마", "people"),
     ("frlg", "daisy", "frlg-daisy", "그린의 누나", "people"),
     ("frlg", "captain", "frlg-captain", "선장", "people"),

@@ -7,6 +7,7 @@
 import { BALANCE, TIMING } from '../../../core/balance';
 import { canHeal, type GameInput, type GameState } from '../../../core/engine';
 import { teamHealthy } from '../../../core/rules/bag';
+import { FACILITY_STAFF } from '../../../core/rules/stage';
 import { GYM_LEADER } from '../../../core/rules/trainer';
 import type { StageId } from '../../../core/save';
 import { Button } from '../../../ui/Button';
@@ -45,19 +46,23 @@ export function FacilityBox({ state, onInput, onBox }: BoxProps & { onBox(): voi
   if (!hospital) return null; // 상점 안 = ShopPanel (StageScreen)
   const healthy = teamHealthy(state.save);
   return (
-    <div class="pg-banner pg-facility-box pg-wrap">
-      <span class="pg-ellipsis">
-        🏥 👩‍⚕️ <b>병원</b> — 팀을 무료로 다 회복해 드려요
+    <div class="pg-banner pg-facility-box">
+      {/* 말하는 사람 = 길 위 간호순 그림 (건물 옆) — 좁은 패널에선 이 줄을 숨기고 버튼 한 줄만 (game.css) */}
+      <span class="pg-ellipsis pg-facility-say">
+        <b>{FACILITY_STAFF.hospital.name}</b>: "무료로 회복해 드려요"
       </span>
-      <Button onClick={() => onInput({ kind: 'heal' })} disabled={!canHeal(state) || healthy} title={healthy ? '이미 다 건강해요 (PP 까지)' : 'HP · PP · 상태 이상'}>
-        {healthy ? '✓ 다 나았어요' : '🏥 회복'}
-      </Button>
-      <Button secondary onClick={onBox} title="보관함과 팀 바꾸기 (여기서는 바꿀 수 있어요)">
-        📦<span class="pg-long"> 보관함</span>
-      </Button>
-      <Button secondary onClick={() => onInput({ kind: 'facility-leave' })} title="Esc">
-        나가기
-      </Button>
+      {/* 버튼 셋은 한 묶음 — 줄이 바뀌면 글과 버튼 사이에서만 (크기마다 모양이 같게) */}
+      <span class="pg-facility-btns">
+        <Button onClick={() => onInput({ kind: 'heal' })} disabled={!canHeal(state) || healthy} title={healthy ? '이미 다 건강해요 (PP 까지)' : 'HP · PP · 상태 이상'}>
+          {healthy ? '✓ 다 나았어요' : '회복'}
+        </Button>
+        <Button secondary onClick={onBox} title="보관함과 팀 바꾸기 (여기서는 바꿀 수 있어요)">
+          📦<span class="pg-long"> 보관함</span>
+        </Button>
+        <Button secondary onClick={() => onInput({ kind: 'facility-leave' })} title="Esc">
+          나가기
+        </Button>
+      </span>
     </div>
   );
 }

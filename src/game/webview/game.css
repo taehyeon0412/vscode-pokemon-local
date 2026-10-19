@@ -479,8 +479,16 @@ body.pokemon-game-on {
 }
 .pg-facility {
   font-size: calc(22px * var(--pg-scale, 1));
-  opacity: 0.95;
   z-index: 1;
+}
+/* 병원 간호순 · 상점 점원 — 건물 오른쪽 옆 (왼쪽 끝 = 건물 가운데 + 12px × 배율), 땅에 섬 */
+.pg-facility-staff {
+  transform: none;
+  line-height: 0;
+  z-index: 1;
+}
+.pg-facility-staff .pg-hero-art {
+  display: block;
 }
 
 /* ⑮ 배경 속 포켓몬 — 보기만 (조금 흐리게, 멀리 있는 느낌) */
@@ -1158,6 +1166,10 @@ body.pokemon-game-on {
 .pg-in-battle .pg-trace,
 .pg-in-battle .pg-item,
 .pg-in-battle .pg-npc,
+/* 전투 중엔 간호순 · 점원을 숨김 — 시설 바로 뒤 야생이면 흐린 사람이 주인공 · 내 포켓몬 뒤에 겹쳐서 (테스터) */
+.pg-in-battle .pg-facility-staff {
+  display: none;
+}
 .pg-in-battle .pg-facility,
 .pg-in-battle .pg-scenery {
   opacity: 0.3;
@@ -1603,9 +1615,7 @@ body.pokemon-game-on {
 }
 
 /* S06 ⑥ 병원 · 상점 앞에 멈춤 */
-.pg-facility-active {
-  animation: pg-bob 1s ease-in-out infinite;
-}
+/* 병원 · 상점 앞에 멈춤 — 건물은 가만히 (옆 사람은 서 있는데 건물만 출렁이면 어색 · 띠가 이미 신호, 아트 디렉터) */
 
 /* S06 ⑤ · S08 트레이너 — 코드로 그린 사람 (왼쪽을 봄) · 눈이 마주치면 "!" */
 .pg-trainer,
@@ -1908,4 +1918,17 @@ body.pokemon-game-on {
 .pg-result .pg-line > b.pg-ellipsis {
   flex-shrink: 100000;
   min-width: 5em;
+}
+
+/* S13 병원 안 띠 — 버튼 셋은 한 묶음 (줄바꿈은 글과 버튼 사이에서만) · 좁으면 대사 줄을 숨겨 한 줄로 (장면을 덮지 않게, 아트 디렉터) */
+.pg-facility-btns {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: calc(4px * var(--pg-ui, 1));
+}
+@media (max-width: 480px) {
+  .pg-facility-say {
+    display: none;
+  }
 }

@@ -28,6 +28,12 @@ export interface Spot {
   trainer?: number;
 }
 
+/** 병원 · 상점 사람 — 건물 옆에 서서 다가오는 주인공 쪽을 봄 (원작 파이어레드 그림, 2026-10-19) */
+export const FACILITY_STAFF: Readonly<Record<FacilitySpot['kind'], { name: string; look: string }>> = {
+  hospital: { name: '간호순', look: 'frlg-nurse' },
+  shop: { name: '점원', look: 'frlg-clerk' },
+};
+
 export interface StageLayout {
   /** at 순서 */
   spots: readonly Spot[];
