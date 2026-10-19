@@ -792,8 +792,9 @@ body.pokemon-game-on {
 /* 끝에서 제자리로 돌아옴 — 예전엔 100% 가 0.6 칸이라 행동이 끝나는 순간 제자리로 뚝 순간이동 (플레이 리뷰어) */
 @keyframes pg-lunge {
   0%, 35% { transform: translateX(0); }
-  82%, 88% { transform: translateX(var(--pg-dx, 0)); }
-  100% { transform: translateX(0); }
+  82%, 86% { transform: translateX(var(--pg-dx, 0)); }
+  /* 96% 에 다 돌아옴 — 몸짓이 엔진보다 한두 프레임 늦게 시작해서, 100% 에 맞추면 돌아오는 도중에 행동이 끝나 뚝 튐 (fxdbg 기록) */
+  96%, 100% { transform: translateX(0); }
 }
 .pg-recall {
   animation-name: pg-recall;

@@ -258,6 +258,7 @@
                     };
                 }
             }
+            if (q.get('fxdbg')) setInterval(() => { const fb = document.querySelector('#pokemon-game .pg-fighter-me .pg-fx-body'); if (fb) { const cs = getComputedStyle(fb); console.log('fxdbg body', Math.round(performance.now()), fb.className, cs.animationName, cs.animationDuration, cs.transform, fb.style.getPropertyValue('--pg-dx')); } }, 100);
             if (q.get('fxdbg')) setInterval(() => { const cv = document.getElementById('pokemonFxCanvas'); console.log('fxdbg css', cv ? getComputedStyle(cv).clipPath : 'no canvas', document.body.style.getPropertyValue('--pg-fx-top'), document.querySelector('#pokemon-game .pg-infobar')?.getBoundingClientRect().bottom, (() => { const f = document.querySelector('#pokemon-game .pg-clash-time .pg-bar-fill'); return f ? Math.round(f.getBoundingClientRect().width) + '/' + Math.round(f.parentElement.getBoundingClientRect().width) + ' ' + f.className : '-'; })()); }, 500);
             if (q.get('fxdbg')) setInterval(() => console.log('fxdbg msg', Math.round(performance.now()), (document.getElementById('pokemon-game')?.innerText || '').replace(/\s+/g, ' ').slice(-70)), 250);
             document.body.appendChild(s);
