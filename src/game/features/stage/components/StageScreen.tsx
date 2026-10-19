@@ -353,17 +353,27 @@ const SCROLL_DISTANCE_PX = 1_000_000;
  * 처음 위치는 지금 진행 위치에서 (음수 지연), 멈추면 (만남 · 전투 · 병원 앞 …) 같이 멈춤. 크기가 바뀌면 다시 맞춤. 길 위의 것과 딱 맞을 필요는 없는 겹 (패럴랙스)
  */
 function ScrollLayer({ cls, image, start, pxPerSec, running }: { cls: string; image: string; start: number; pxPerSec: number; running: boolean }) {
-  // 애니메이션 시작점은 처음 그릴 때 (또는 빠르기가 바뀔 때) 한 번만 — 매번 바꾸면 그때마다 튐
-  const at = useRef<{ start: number; v: number } | null>(null);
-  if (!at.current || at.current.v !== pxPerSec) at.current = { start, v: pxPerSec };
-  const { start: s0, v } = at.current;
+  // 애니메이션 시작점은 처음 그릴 때 (또는 빠르기가 바뀔 때) 한 번만 — 매번 바꾸면 그때마다 튐.
+  // 빠르기가 바뀌면 (빨리 걷기 켜고 끔 · 일이 다가와 보통 빠르기로) 엔진 진행 자리 (start) 로 다시 맞추지 않고 지금 보이는 자리에서 새 빠르기로 이어 감 —
+  // 엔진 자리로 맞추면 CSS 흐름과 조금 달라 배경이 뚝 끊겨 보였음 (2026-10-20 태현 님). 보이는 자리 = 이 흐름의 시작 자리 + 빠르기 × 흐른 시간 (멈춘 동안은 안 셈)
+  const at = useRef<{ base: number; v: number; gen: number; pos: number; since: number | null } | null>(null);
+  const now = performance.now();
+  const c = at.current;
+  const seen = c ? c.pos + (c.since === null ? 0 : (c.v * (now - c.since)) / 1000) : start;
+  if (!c) at.current = { base: start, v: pxPerSec, gen: 0, pos: start, since: running ? now : null };
+  // 새 빠르기 = 새 흐름 (key 로 다시 붙여 처음부터 · 지연은 보이던 자리)
+  else if (c.v !== pxPerSec) at.current = { base: seen, v: pxPerSec, gen: c.gen + 1, pos: seen, since: running ? now : null };
+  // 멈춤 · 다시 감 — CSS 가 제자리에서 멈췄다 이어 가니 흐름은 그대로, 보이는 자리 셈만
+  else if ((c.since !== null) !== running) at.current = { ...c, pos: seen, since: running ? now : null };
+  const { base, v, gen } = at.current as { base: number; v: number; gen: number };
   return (
     <div
+      key={gen}
       class={`${cls} pg-scroll`}
       style={{
         backgroundImage: image,
         animationDuration: `${v > 0 ? SCROLL_DISTANCE_PX / v : 1}s`,
-        animationDelay: `${v > 0 ? -s0 / v : 0}s`,
+        animationDelay: `${v > 0 ? -base / v : 0}s`,
         animationPlayState: running && v > 0 ? 'running' : 'paused',
       }}
     />
