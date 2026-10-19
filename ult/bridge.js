@@ -93,7 +93,19 @@ function fxHudRects() {
     return fxInGame() ? [...document.querySelectorAll('#pokemon-game .pg-hpblock')].map((el) => el.getBoundingClientRect()).filter((r) => r.width > 0) : [];
 }
 // 게임 중 흔들기 — 배경 · 포켓몬 · 트레이너만 (HP · 메뉴 글자는 안 떨게), 2 ~ 3px 정수 · 80ms 왕복 4번 (design-system 8장)
+// 안 볼 때 (VS Code 창에 포커스가 없음 — 게임은 계속 감) 는 연출을 차분하게: 흔들기 · 히트스톱 없음 · 번쩍 반 · 기술 임팩트 작게 (2026-10-20 ideas #113 — 코딩하며 곁눈으로 보는 게임)
+// 확장이 보내는 { command: 'game', type: 'focus', focused } 를 다리도 직접 들음 (게임 화면 코드와 따로)
+let fxAway = false;
+window.addEventListener('message', (e) => {
+    const m = e.data;
+    if (m && m.command === 'game' && m.type === 'focus') {
+        fxAway = m.focused === false;
+    }
+});
 function fxGameShake(amp) {
+    if (fxAway) {
+        return;
+    }
     const a = Math.max(2, Math.min(3, Math.round(amp)));
     document.querySelectorAll('#pokemon-game .pg-bg, #pokemon-game .pg-fg, #pokemon-game .pg-fighter, #pokemon-game .pg-hero-wrap, #pokemon-game .pg-foe-trainer').forEach((el) => {
         el.fxShake?.cancel();
@@ -101,7 +113,7 @@ function fxGameShake(amp) {
     });
 }
 // 화면 번쩍 상한 — 게임 중엔 0.3 (넓은 패널 전체가 하얗게 번쩍이지 않게)
-const fxFlashCap = () => (fxInGame() ? 0.3 : 1);
+const fxFlashCap = () => (fxInGame() ? (fxAway ? 0.15 : 0.3) : 1);
 // 게임 중 화면 번쩍 — 0.34초에 한 번 · 진하기 0.3 까지 (1초 3번 규칙). 일반 모드는 그대로
 let fxLastFlash = 0;
 const fxScreenFlash = screenFlash;
@@ -508,7 +520,8 @@ window.pokemonFx = {
         // 맞는 방향 — 상대 (왼쪽을 봄) 가 맞으면 내 쪽 (왼쪽) 에서 날아옴 → 오른쪽으로 튐
         // o.pick = 짜임 (게임 = 그 포켓몬 기술 칸 순서, 없으면 기술 이름) · scale · light · basic · none (ult/fx-hit.js)
         // 늦게 터지는 고리 · 연타 (setTimeout) 도 기술 연출과 같이 멈추게 (전투가 끝나면 다음 화면에 안 남음)
-        const opts = { ...(o || {}), pick: o?.pick ?? hitHash(name), bottom };
+        // 안 볼 때는 닿는 기술처럼 작게 · 가운데 번쩍 · 고리 · 흔들기 없이
+        const opts = { ...(o || {}), pick: o?.pick ?? hitHash(name), bottom, ...(fxAway ? { light: true } : {}) };
         safeFx({}, () => fxWithTimers(fxMoveGen, () => typeImpact(r.left + r.width / 2, r.top + r.height * 0.55, s, type, P, !!big, dst.left ? 1 : -1, r.width, opts)));
     },
     /** 필살기 — 일반 모드처럼 번쩍 · 어두워짐 · 컷인 · 큰 글씨 · 그 포켓몬의 필살기 (전용 연출 포함). 상대 = dst. 걸리는 시간 (ms), 못 쓰면 0.
@@ -664,6 +677,9 @@ window.pokemonFx = {
     },
     /** 히트스톱 — 굉장 · 급소 · 마지막 한 방에서 연출 입자와 전투 그림 (포켓몬 · 트레이너 몸짓) 이 ms 동안 멈춤 (번쩍 없이 손맛, 2026-10-20) */
     hitStop(ms = 80) {
+        if (fxAway) {
+            return;
+        }
         moveFreezeUntil = performance.now() + ms;
         const anims = fxInGame() ? [...document.querySelectorAll('#pokemon-game .pg-fighter')].flatMap((el) => el.getAnimations({ subtree: true })) : [];
         anims.forEach((a) => a.playState === 'running' && a.pause());
