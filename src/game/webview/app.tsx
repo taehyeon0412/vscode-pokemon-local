@@ -103,7 +103,7 @@ function Screens({ v, media, actions }: { v: ViewState; media: string; actions: 
   if (v.screen === 'game' && v.state) {
     return (
       <>
-        <StageScreen state={v.state} layout={v.layout} widthPx={v.widthPx} media={media} onInput={actions.input} onOpen={actions.open} live={v.live && !v.overlay} />
+        <StageScreen state={v.state} layout={v.layout} widthPx={v.widthPx} media={media} onInput={actions.input} onOpen={actions.open} live={v.live && !v.overlay} covered={v.overlay !== null} />
         {v.overlay && <OverlayView o={v.overlay} state={v.state} media={media} actions={actions} />}
       </>
     );

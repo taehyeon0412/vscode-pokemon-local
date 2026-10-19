@@ -32,7 +32,7 @@ import { hasUnspent, menuLabels, type Overlay } from '../../menu/model';
 import { ChoiceBox } from '../../result/components/ChoiceBox';
 import { ResultBox } from '../../result/components/ResultBox';
 import { choiceView } from '../../result/model';
-import { battleStage, contactX, foeTrainerView, heroX, minimapOf, staffLeftPx, STAGES, stagePx, visibleObjects, WALK_PX_PER_SEC, type StageObject } from '../model';
+import { battleStage, BUILDINGS, buildingDraw, contactX, foeTrainerView, heroX, minimapOf, staffLeftPx, STAGES, stagePx, visibleObjects, WALK_PX_PER_SEC, type StageObject } from '../model';
 import { BadgeCard, ClearCard, DefeatBox, FacilityBox, LobbyBox, TrainerBanner } from './FieldBoxes';
 import { Hero } from './Hero';
 import { Minimap } from './Minimap';
@@ -48,6 +48,8 @@ export interface StageScreenProps {
   onOpen(o: Overlay): void;
   /** 이 화면이 지금 계산 중 (판이 안 떠 있고 웹뷰가 맡음) — 아니면 배경 흐름 · 걷기를 멈춤 (멈춘 그림이 걷는 척하지 않게 · PC 부담). 안 주면 true */
   live?: boolean;
+  /** 판 (지도 · 내 포켓몬 · 가방 · 설정 · 상점 · 프로필) 이 위에 떠 있음 — 길 위 상자 · 전투 한 줄 · 머리 위 알림을 숨김 (반투명 판 뒤로 비치지 않게) */
+  covered?: boolean;
 }
 
 /** 숲 그림 크기별 높이 (원본 300 · 400 · 500 · 800px) 에서 땅 윗면 — 길 위의 것들이 서는 높이 */
@@ -55,6 +57,8 @@ const GROUND_PX: Record<Layout['size'], number> = { nano: 15, small: 20, medium:
 /** 위쪽 띠 한 줄 높이 (글자 배율 1) · 띠를 주인공 옆으로 옮길 때 남아야 할 폭 */
 const BANNER_PX = 22;
 const BANNER_SIDE_MIN_PX = 180;
+/** 건물 때문에 옆으로 옮길 때 남아야 할 폭 — 병원 · 상점 상자 한 줄 ("🏥 병원 회복 · 보관함 [들어가기] [지나가기 2초]" ≈ 320 · 병원 안 ≈ 340), 모자라면 가운데 그대로 (두 줄로 꺾이지 않게) */
+const FACILITY_SIDE_MIN_PX = 340;
 function EncounterBox({ state }: { state: GameState }) {
   const stage = state.runtime.stage;
   const pending = state.save.pendingEncounter;
@@ -129,7 +133,7 @@ function leadOf(save: GameState['save']): { form: string; shiny: boolean } | nul
   return m ? { form: m.form, shiny: m.shiny } : null;
 }
 
-export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, live = true }: StageScreenProps) {
+export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, live = true, covered = false }: StageScreenProps) {
   const save = state.save;
   const gym = save.location.screen === 'gym';
   const stageId = save.location.screen === 'stage' ? save.location.stageId : null;
@@ -198,7 +202,9 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   //   병원 · 상점 앞 · 안이면 간호순 · 점원 오른쪽 옆으로 ("간호순:" 이 말하는데 띠에 가려지지 않게 — 아트 디렉터)
   const facility = objects.find((o): o is Extract<StageObject, { kind: 'facility' }> => o.kind === 'facility' && o.active);
   const staffLook = facility ? personLook(FACILITY_STAFF[facility.facility.kind].look) : undefined;
-  const sideFrom = facility && staffLook ? staffLeftPx(facility.facility.kind, facility.x, layout.scale, heroRoom) + heroWidthPx(staffLook, layout.scale, heroRoom) : heroLeft + heroW / 2;
+  // 병원 · 상점이면 간호순 · 점원과 건물 오른쪽 끝 중 더 오른쪽 (건물이 간호순보다 26px 더 나옴 — 건물 때문에 옮길 때 지붕에 걸치지 않게)
+  const buildingRight = facility ? facility.x + (BUILDINGS[facility.facility.kind].w - BUILDINGS[facility.facility.kind].door) * buildingDraw(facility.facility.kind, layout.scale, heroRoom).k : 0;
+  const sideFrom = facility && staffLook ? Math.max(staffLeftPx(facility.facility.kind, facility.x, layout.scale, heroRoom) + heroWidthPx(staffLook, layout.scale, heroRoom), buildingRight) : heroLeft + heroW / 2;
   const bannerLeft = Math.round(sideFrom + 8);
   // 오른쪽 끝 — 체육관 대기실은 관장 앞까지
   const leader = personLook(GYM_LEADER.look);
@@ -208,7 +214,10 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   const leaderX = stage.left + foeTrainerX(stage.width, layout.scale);
   const tagLeft = leaderX + leaderW / 2 + 4 - (GYM_LEADER.name.length * 9 + 6) * layout.uiScale;
   const bannerRight = gym ? Math.min(leaderX - leaderW / 2, tagLeft) - 8 : widthPx - 8;
-  const heroTall = !battle && bodyPx - ground - heroH < fieldTop + Math.round(BANNER_PX * layout.uiScale) && bannerRight - bannerLeft >= BANNER_SIDE_MIN_PX;
+  // 병원 · 상점 건물 (사람보다 큼) 도 같이 — 낮은 패널에서 상자가 지붕 위에 얹히던 것 (2026-10-19 전체 점검, 210px)
+  const bannerBottom = fieldTop + Math.round(BANNER_PX * layout.uiScale);
+  const buildingTall = facility !== undefined && bodyPx - ground - buildingDraw(facility.facility.kind, layout.scale, heroRoom).visible < bannerBottom;
+  const heroTall = !battle && (bodyPx - ground - heroH < bannerBottom || buildingTall) && bannerRight - bannerLeft >= (buildingTall ? FACILITY_SIDE_MIN_PX : BANNER_SIDE_MIN_PX);
   const showToast = state.runtime.toast && (phase === 'walk' || phase === 'clear' || phase === 'lobby' || phase === 'facility');
   const shopInside = stageRt?.phase === 'facility' && stageRt.inside && stageRt.kind === 'shop';
   // ② 어디인지 — 스테이지는 미니맵, 체육관은 이름 (지도 줄이 있으면 둘째 줄, 없으면 정보줄 가운데)
@@ -225,7 +234,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   );
 
   return (
-    <div class={`pg-screen pg-stage pg-size-${layout.size}${gym ? ' pg-gym' : ''}`}>
+    <div class={`pg-screen pg-stage pg-size-${layout.size}${gym ? ' pg-gym' : ''}${covered ? ' pg-covered' : ''}`}>
       {battle && geo?.menuInBar ? (
         <BattleMenuBar battle={battle} save={save} onInput={onInput} withAuto={geo.autoInMenu} compact={geo.compact} />
       ) : (

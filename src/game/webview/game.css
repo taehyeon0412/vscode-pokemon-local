@@ -3300,3 +3300,44 @@ body.vscode-high-contrast-light .pg-title-body {
   word-break: keep-all;
   overflow-wrap: anywhere;
 }
+
+/* ---- 전체 점검 (2026-10-19 태현 님 "유저 편의성 다시 한번 생각하면서 점검") ---- */
+/* 전투 메뉴 줄 (옆 메뉴 · 가로 한 줄 · 정보줄 자리) 의 작은 글 (기술 PP · 볼 개수 · 다음 포켓몬 Lv) = 흐린 크림.
+   주 버튼 (금색 채움) 위 작은 글을 짙게 하는 규칙이 남색 메뉴 줄에도 걸려 숫자가 바탕에 묻혀 안 보이던 것 */
+.pg-bmenu-wrap .pg-button:not(.pg-secondary):not(:disabled) .pg-sub,
+.pg-infobar-battle .pg-button:not(.pg-secondary):not(:disabled) .pg-sub {
+  color: var(--pg-sos-dim);
+  opacity: 1;
+}
+/* 마지막 기회 남은 초 = 제목 옆 "3초" (따로 한 줄 "3" 은 "3 안 던짐" 과 헷갈림) */
+.pg-last-tag > .pg-last-sec,
+.pg-vmenu .pg-layer .pg-last-tag > .pg-last-sec {
+  display: inline;
+  min-width: 0;
+  padding: 0;
+}
+/* 판이 떠 있는 동안 길 위 상자 · 전투 한 줄 · 머리 위 알림은 숨김 — 반투명 판 뒤로 글이 비쳐 읽기 어렵던 것 (대기실 가방 · 전투 프로필) */
+.pg-covered .pg-field > .pg-banner,
+.pg-covered .pg-bmsg,
+.pg-covered .pg-clash-info,
+.pg-covered .pg-toast {
+  visibility: hidden;
+}
+/* S21 프로필 카드 = 띠 남색 (불투명) — 낮은 패널에서 옆 메뉴 · HP 줄 위에 겹칠 때 뒤 글이 비치지 않게 */
+.pg-banner.pg-profile {
+  background: var(--pg-sos-bar);
+}
+/* S04 진화 단계 줄 (한 줄을 다 씀) 도 가운데 — 칸 줄 · 기술 줄과 같은 가운데 축 (왼쪽으로 튀어나와 보이던 것) */
+.pg-pick-starter .pg-chain {
+  justify-content: center;
+}
+/* S20 단축키 줄 — 정보줄 메뉴와 같은 자판 칸 */
+.pg-keys {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--pg-sos-dim);
+}
+.pg-keys .pg-menu-key {
+  color: var(--pg-sos-ink);
+}

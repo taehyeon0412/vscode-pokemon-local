@@ -39,7 +39,7 @@ export function FacilityBox({ state, onInput, onBox }: BoxProps & { onBox(): voi
           들어가기
         </Button>
         <Button secondary onClick={() => onInput({ kind: 'facility', enter: false })} title={`Esc · ${left}초 뒤 지나감`}>
-          지나가기 <span class="pg-sub">{left}</span>
+          지나가기 <span class="pg-sub">{left}초</span>
         </Button>
       </div>
     );
@@ -162,6 +162,7 @@ export function ClearCard({ state, media, onInput, onMap, onTeam }: BoxProps & {
         <span class="pg-reward">
           <Icon name="ball" /> +{v.balls}
         </span>
+        {v.seen.length > 0 && <span class="pg-clear-new pg-dim">처음 만남</span>}
         {v.seen.slice(0, 4).map((s) => (
           <span key={s.dex} class="pg-clear-new" title="이번에 처음 만난 포켓몬">
             <Sprite media={media} form={s.form} scale={1} crop={24} />

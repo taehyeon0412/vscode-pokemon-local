@@ -80,7 +80,7 @@ export function StarterPick({ media, pending, onBack, onDone }: StarterPickProps
         right={
           <>
             <Button secondary onClick={onBack} title="Esc">
-              ←
+              ← 뒤로
             </Button>
             {/* 결정은 늘 보이는 정보줄에 (좁은 패널 · 낮은 패널에서 아래 줄이 넘쳐도) */}
             <Button extraClass="pg-pin" onClick={() => onDone(sel.dex, picked)} disabled={!ready} title="Enter — 숲 1-1 로">

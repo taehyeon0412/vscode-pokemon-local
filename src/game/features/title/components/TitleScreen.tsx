@@ -10,7 +10,6 @@ import type { ComponentChildren } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { TitleInfo } from '../../../shared/messages';
 import { Button } from '../../../ui/Button';
-import { Icon } from '../../../ui/Icon';
 import { formatMoney, formatPlayTime } from '../../../ui/format';
 import type { Layout } from '../../../ui/layout';
 import { themeKind } from '../../../ui/theme';
@@ -77,10 +76,7 @@ function Summary({ summary }: { summary: TitleSummary }) {
           {summary.lead.name} Lv {summary.lead.level}
         </span>
       )}
-      <span class="pg-sum-badges" title="배지">
-        <Icon name="badge" />
-        {summary.badges}
-      </span>
+      <span class="pg-sum-badges">배지 {summary.badges}</span>
       <span class="pg-sum-money">{formatMoney(summary.money)}</span>
       <span class="pg-sum-time pg-dim" title="플레이 시간">
         {formatPlayTime(summary.playTimeMs)}

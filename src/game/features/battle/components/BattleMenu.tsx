@@ -167,20 +167,22 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
     // S11 마지막 기회 — 볼 고르기 (가진 것만) · 안 던짐 · 남은 시간
     row = (
       <>
-        <span class="pg-last-tag">마지막 기회!</span>
+        {/* 남은 초 = 제목 옆 "3초" (따로 한 줄에 "3" 만 있으면 "3 안 던짐" 과 헷갈림 — 2026-10-19 전체 점검) */}
+        <span class="pg-last-tag">
+          마지막 기회!{' '}
+          <span class="pg-last-sec" title="안 고르면 그냥 지나가요">
+            {Math.max(0, Math.ceil((TIMING.lastChanceMs - b.lastMs) / 1000))}초
+          </span>
+        </span>
         {balls.map((ball, i) => (
           <Button key={ball} onClick={() => onInput({ kind: 'battle', input: { kind: 'ball', ball } })} title="쓰러진 포켓몬 — 잡을 확률 × 0.5">
             {`${i + 1} ${itemName(ball)}`}
             <span class="pg-sub">×{itemLeft(b, save, ball)}</span>
           </Button>
         ))}
-        <Button secondary onClick={() => onInput({ kind: 'battle', input: { kind: 'no-ball' } })} title={`${balls.length + 1} · Esc`}>
+        <Button onClick={() => onInput({ kind: 'battle', input: { kind: 'no-ball' } })} title={`${balls.length + 1} · Esc`}>
           {`${balls.length + 1} 안 던짐`}
         </Button>
-        {/* 남은 초 — 필살기 게이지와 헷갈리지 않게 막대 대신 숫자 */}
-        <span class="pg-last-sec" title="안 고르면 그냥 지나가요">
-          {Math.max(0, Math.ceil((TIMING.lastChanceMs - b.lastMs) / 1000))}
-        </span>
       </>
     );
   } else if (b.phase === 'catch' && b.catch) {

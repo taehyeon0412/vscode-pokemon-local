@@ -25,6 +25,13 @@ export function SettingsPanel({ save, onInput, onExit, onClose }: { save: Save; 
         </Button>
         <span class="pg-dim pg-ellipsis">무언가 다가오면 보통 빠르기로</span>
       </Row>
+      {/* 단축키 (2026-10-19 전체 점검 — 키보드로 하는 사람이 찾지 않게, 정보줄 메뉴 글자와 같은 자판 칸) */}
+      <Row label="단축키">
+        <span class="pg-keys pg-ellipsis">
+          <span class="pg-menu-key">Space</span> 선제공격 · 막기 <span class="pg-menu-key">Z</span> 필살기 <span class="pg-menu-key">1</span> ~ <span class="pg-menu-key">5</span> 고르기{' '}
+          <span class="pg-menu-key">Esc</span> 닫기 · 지나가기
+        </span>
+      </Row>
       <Row label="나가기">
         <Button secondary onClick={onExit} title="자동저장하고 일반 모드로 (패널 제목줄 🏠 와 같음)">
           일반 모드로
