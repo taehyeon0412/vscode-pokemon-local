@@ -6,7 +6,7 @@ import type { TraceKind } from '../../../core/rules/encounter';
 import { FACILITY_STAFF } from '../../../core/rules/stage';
 import { personLook } from '../../../data/heroes';
 import { Sprite } from '../../../ui/Sprite';
-import { BUILDINGS, buildingDraw, buildingMode, staffLeftPx, type StageObject } from '../model';
+import { BUILDINGS, buildingDraw, staffLeftPx, type StageObject } from '../model';
 import { Hero } from './Hero';
 
 const TRACE_ICON: Record<TraceKind, string> = {
@@ -60,7 +60,7 @@ export function StageObjects({ objects, media, scale, ground, roomPx }: ObjectsP
             const title = kind === 'hospital' ? '병원 — 회복 · 보관함' : '상점';
             return (
               <Fragment key={o.key}>
-                {media && buildingMode() !== 'c' ? (
+                {media ? (
                   <span class="pg-obj pg-building" style={{ left: `${Math.round(o.x - b.door * d.k)}px`, bottom: `${ground}px`, width: `${b.w * d.k}px`, height: `${d.visible}px` }} title={title}>
                     <img src={`${media.replace(/\/+$/, '')}/buildings/${b.file}.png`} alt="" width={b.w * d.k} height={b.h * d.k} draggable={false} />
                   </span>

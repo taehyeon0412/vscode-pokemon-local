@@ -74,11 +74,11 @@ describe('병원 · 상점 건물 그림 (scripts/buildings/fetch-pret-buildings
     }
   });
 
-  it('크기: a = 1배 · b = 사람과 같은 정수 배율 (자리가 모자라면 위가 잘림) · 간호순 · 점원은 문 오른쪽', () => {
-    expect(buildingDraw('hospital', 2.5, 200, 'a')).toEqual({ k: 1, visible: 70 });
-    expect(buildingDraw('hospital', 2.5, 200, 'b')).toEqual({ k: 2, visible: 140 });
-    expect(buildingDraw('hospital', 2, 68, 'b')).toEqual({ k: 2, visible: 68 });
-    expect(buildingDraw('shop', 1.5, 45, 'b')).toEqual({ k: 1, visible: 45 });
+  it('크기 = 사람과 같은 정수 배율 (B안, 자리가 모자라면 지붕 위가 잘림) · 간호순 · 점원은 문 오른쪽', () => {
+    expect(buildingDraw('hospital', 2.5, 200)).toEqual({ k: 2, visible: 140 });
+    expect(buildingDraw('hospital', 2, 68)).toEqual({ k: 2, visible: 68 });
+    expect(buildingDraw('shop', 1.5, 45)).toEqual({ k: 1, visible: 45 });
+    expect(buildingDraw('shop', 1, 100)).toEqual({ k: 1, visible: 62 });
     expect(staffLeftPx('hospital', 100, 2, 68)).toBeGreaterThan(100);
   });
 });

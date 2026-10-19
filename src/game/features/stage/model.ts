@@ -85,17 +85,10 @@ export const BUILDINGS: Readonly<Record<FacilitySpot['kind'], { file: string; w:
 /** 간호순 · 점원의 왼쪽 끝 = 문 가운데 + 이만큼 칸 (문 반폭 8 + 틈 3 — 건물 앞, 문 오른쪽에 섬) */
 const STAFF_FROM_DOOR = 11;
 
-/** [디자인 고르기 중 — 2026-10-19] a = 원작 크기 1배 · b = 사람과 같은 배율 (자리가 모자라면 위가 잘림, 추천 · 기본) · c = 이모지 (전과 같음). 개발 미리보기만 globalThis.__pgBuilding 으로 바꿈 */
-export type BuildingMode = 'a' | 'b' | 'c';
-export function buildingMode(): BuildingMode {
-  const m = (globalThis as { __pgBuilding?: unknown }).__pgBuilding;
-  return m === 'a' || m === 'c' ? m : 'b';
-}
-
-/** 건물을 그릴 크기 — k = 그림 1칸 = 화면 몇 px (정수, b = 사람과 같은 배율 heroDraw) · visible = 보이는 높이 (px, 자리보다 크면 위가 잘림) */
-export function buildingDraw(kind: FacilitySpot['kind'], scale: number, roomPx: number, mode: BuildingMode = buildingMode()): { k: number; visible: number } {
+/** 건물을 그릴 크기 — k = 그림 1칸 = 화면 몇 px (사람과 같은 정수 배율 — heroDraw, 2026-10-19 태현 님 B안) · visible = 보이는 높이 (px, 자리보다 크면 지붕 위가 잘림) */
+export function buildingDraw(kind: FacilitySpot['kind'], scale: number, roomPx: number): { k: number; visible: number } {
   const b = BUILDINGS[kind];
-  const k = mode === 'a' ? 1 : Math.max(1, Math.floor(scale));
+  const k = Math.max(1, Math.floor(scale));
   return { k, visible: Math.min(b.h * k, Math.max(0, Math.floor(roomPx))) };
 }
 
