@@ -2921,3 +2921,28 @@ body.vscode-high-contrast-light .pg-title-body {
   color: var(--pg-sos-tab-ink);
   opacity: 0.7;
 }
+
+/* 고르는 화면은 넓은 패널에서 가운데 (2026-10-19 태현 님 "패널 가로가 엄청 길어서 중앙 정렬로 보는 게 편할 듯") —
+   넘치면 왼쪽 · 위부터 보이게 자동 여백으로 (justify-content: safe center 는 VS Code 1.73 에 없음) */
+.pg-pick-starter > .pg-panel-row {
+  width: -webkit-max-content;
+  width: max-content;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+.pg-pick-starter > .pg-panel-wrap {
+  justify-content: center;
+}
+.pg-pick-starter > :first-child {
+  margin-top: auto;
+}
+.pg-pick-starter > :last-child {
+  margin-bottom: auto;
+}
+/* 메뉴 판 (내 포켓몬 · 가방 · 상점 · 지도 · 설정) — 넓은 패널에서는 720px 판을 가운데 */
+.pg-panel {
+  max-width: 720px;
+  margin-left: auto;
+  margin-right: auto;
+}
