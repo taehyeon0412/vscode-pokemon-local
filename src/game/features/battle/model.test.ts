@@ -16,7 +16,7 @@ describe('S09 ⑦ 메뉴 한 줄', () => {
     const b = startBattle(save, wild, 'normal');
     const main = menuItems(b, save, 'main');
     expect(main.map((i) => i.num)).toEqual([1, 2, 3, 4, 5]);
-    expect(main.map((i) => i.label)).toEqual(['1 공격', '2 방어', '3 스킬', '4 아이템', '5 교체 · 도망']);
+    expect(main.map((i) => i.label)).toEqual(['1 공격', '2 방어', '3 스킬', '4 아이템', '5 교체·도망']);
     expect(main.every((i) => !i.enabled)).toBe(true);
     const turn = menuItems(myTurn(b), save, 'main');
     expect(turn.find((i) => i.key === 'attack')?.enabled).toBe(true);
@@ -96,7 +96,7 @@ describe('S09 화면 자리 (gdd S09)', () => {
     expect(g.menuLeft).toBe(6);
     expect(geo(200, 720).compact).toBe(false);
     const b = myTurn(startBattle(save, wild, 'normal'));
-    expect(menuItems(b, save, 'main', true).map((i) => i.label)).toEqual(['1⚔️', '2🛡️', '3✨', '4🎒', '5🔄']);
+    expect(menuItems(b, save, 'main', true).map((i) => i.label)).toEqual(['1 공격', '2 방어', '3 스킬', '4 가방', '5 교체']);
     expect(menuItems(b, save, 'main', true)[0]!.title).toContain('공격');
   });
 
@@ -193,8 +193,8 @@ describe('좁은 패널 자리 (테스터)', () => {
   });
 
   it('가로 메뉴 줄이 정보줄 바로 밑까지 오면 한 줄은 메뉴 오른쪽 끝 뒤에 · 자리가 없으면 숨김 — 게이지 · 💥Z 위에 안 겹침 (2026-10-19, bugs #289)', () => {
-    // 상대가 가까워 옆 메뉴가 안 들어가는 720 × 161 → 예전 가로 한 줄이 정보줄 바로 밑 (HP 묶음이 1px 커져 160 은 정보줄 자리로 감)
-    const g = battleGeometry({ widthPx: 720, bodyPx: 161 - 26, scale: 2, uiScale: 1.3, ground: 23, foeX: 380, meSpritePx: 64, foeSpritePx: 64, heroPx: 40, heroWidthPx: 32 });
+    // 상대가 가까워 (330) 옆 메뉴가 안 들어가는 720 × 161 → 예전 가로 한 줄이 정보줄 바로 밑 (HP 묶음이 1px 커져 160 은 정보줄 자리로 감)
+    const g = battleGeometry({ widthPx: 720, bodyPx: 161 - 26, scale: 2, uiScale: 1.3, ground: 23, foeX: 330, meSpritePx: 64, foeSpritePx: 64, heroPx: 40, heroWidthPx: 32 });
     expect(g.menuSide).toBeNull();
     expect(g.menuInBar).toBe(false);
     if (g.msgSide) expect(g.msgSide.left).toBeGreaterThanOrEqual(g.menuLeft + 380 * 1.3);
@@ -210,12 +210,16 @@ describe('좁은 패널 자리 (테스터)', () => {
       expect(s.left).toBeGreaterThanOrEqual(g.meHpX + g.meHpWide / 2);
       expect(s.left + s.maxWidth).toBeLessThanOrEqual(g.foeHpX - g.foeHpWide / 2);
       expect(s.left + s.maxWidth).toBeLessThanOrEqual(g.foeX - 32);
-      // 머리 줄 + 5줄 + 여백 (game.css .pg-vmenu) 이 길 칸 안에 들어감
-      expect(s.top + Math.round((12 + 11 * 5 + 3) * 1.3)).toBeLessThanOrEqual(h - 26 - 2);
-      expect(s.maxHeight).toBe(h - 26 - 4 - 2);
+      // 탭 줄 13 + 판 (5줄 × 13 + 6) 이 길 칸 안 · 판 위 끝은 내 HP 묶음 위 끝에 맞춤 (넘치면 올림, 탭 자리는 남김)
+      const body = h - 26;
+      expect(s.top + 13 + 13 * 5 + 6).toBeLessThanOrEqual(body - 2);
+      expect(s.top + s.maxHeight).toBe(body - 2);
+      expect(s.top + 13).toBe(Math.max(14, Math.min(body - (g.meHpBottom + g.hpBlockPx), body - 2 - 71)));
+      // 한 줄 말은 늘 오른쪽 위 · 옆 메뉴 오른쪽 끝보다 오른쪽
       expect(g.msgHidden).toBe(false);
-      if (g.msgSide) expect(g.msgSide.left).toBeGreaterThanOrEqual(g.foeHpX + g.foeHpWide / 2);
-      else expect(g.msgRight).not.toBeNull();
+      expect(g.msgSide).toBeNull();
+      expect(g.msgRight).not.toBeNull();
+      expect(720 - g.msgRight!.right - g.msgRight!.maxWidth).toBeGreaterThanOrEqual(s.left + s.maxWidth);
     }
     // 좁은 패널 · 상대가 바로 옆이면 예전 가로 한 줄
     expect(battleGeometry({ widthPx: 400, bodyPx: 150 - 26, scale: 2, uiScale: 1.3, ground: 23, foeX: 300, meSpritePx: 64, foeSpritePx: 64, heroPx: 40, heroWidthPx: 32 }).menuSide).toBeNull();

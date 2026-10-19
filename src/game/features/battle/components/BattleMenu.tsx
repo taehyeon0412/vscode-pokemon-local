@@ -116,13 +116,13 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
   if (ultCounter) {
     row = (
       <Button onClick={() => onInput({ kind: 'space' })} title="Space · Z">
-        {compact ? `💥 맞받아치기! ${key}` : `💥 필살기로 맞받아치기! ${key}`}
+        {compact || vertical ? `맞받아치기! ${key}` : `필살기로 맞받아치기! ${key}`}
       </Button>
     );
   } else if (counter) {
     row = (
       <Button onClick={() => onInput({ kind: 'space' })} title="Space">
-        {`⚡ 맞받아치기! ${key}`}
+        {`맞받아치기! ${key}`}
       </Button>
     );
   } else if (picking) {
@@ -141,7 +141,7 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
     // S11 마지막 기회 — 볼 고르기 (가진 것만) · 안 던짐 · 남은 시간
     row = (
       <>
-        <span class="pg-last-tag">◓ 마지막 기회!</span>
+        <span class="pg-last-tag">마지막 기회!</span>
         {balls.map((ball, i) => (
           <Button key={ball} onClick={() => onInput({ kind: 'battle', input: { kind: 'ball', ball } })} title="쓰러진 포켓몬 — 잡을 확률 × 0.5">
             {`${i + 1} ${itemName(ball)}`}
@@ -162,7 +162,7 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
     row =
       b.catch.caught === null && b.catch.pressMs === null ? (
         <Button onClick={() => onInput({ kind: 'space' })} title="원이 안쪽 원에 딱 맞을 때">
-          {`⭕ 원이 딱 맞을 때 ${key}`}
+          {`원이 딱 맞을 때 ${key}`}
         </Button>
       ) : (
         <span class="pg-dim">{b.catch.caught === null ? '던졌다!' : '흔들… 흔들…'}</span>
@@ -190,17 +190,25 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
     </Button>
   );
 
-  // 옆 메뉴 (Sea of Stars): 머리 줄 = 금색 이름표 + 필살기 게이지 · Z, 그 아래 세로 목록 (5줄 넘으면 옆 칸으로)
+  // 옆 메뉴 (Sea of Stars): 판 위로 튀어나온 탭 줄 = 금색 이름표 (왼쪽) · 필살기 게이지 + Z (오른쪽), 그 아래 판에 세로 목록 (5줄 넘으면 옆 칸).
+  // 고를 수 없는 동안 (상대 차례 · 연출 · 힘대결 · 끝) 은 판을 접고 탭 줄만 — 싸우는 그림을 가리지 않게 (아트 디렉터)
   if (vertical) {
+    const open = b.phase === 'choose' || row !== null;
     return (
       <div class={`pg-vmenu${b.phase === 'choose' ? ' pg-my-turn' : ''}`}>
-        <div class="pg-vmenu-head">
+        <div class="pg-vmenu-tabs">
           <span class="pg-vmenu-name">{vertical}</span>
-          {ultBar}
-          {ult('Z', 'pg-vmenu-z')}
+          <span class="pg-vmenu-ult">
+            {ultBar}
+            {ult('Z', 'pg-vmenu-z')}
+          </span>
         </div>
-        {lead && <div class="pg-vmenu-lead">{lead}</div>}
-        {stack}
+        {(open || lead) && (
+          <div class="pg-vmenu-box">
+            {lead && <div class="pg-vmenu-lead">{lead}</div>}
+            {open && stack}
+          </div>
+        )}
       </div>
     );
   }
@@ -211,7 +219,7 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
       {compact && page !== 'main' ? null : lead}
       {stack}
       {ultBar}
-      {ult(compact ? '💥' : '💥 Z')}
+      {ult('Z')}
     </span>
   );
 }

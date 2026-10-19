@@ -56,6 +56,22 @@ body.pokemon-game-on {
   /* 패널 가장자리에 딱 붙지 않게 */
   padding: 0 14px;
   white-space: nowrap;
+  /* 전투 판과 같은 띠 (2026-10-19 아트 디렉터 — Sea of Stars): 남색 바탕 · 아래 흐린 금색 선 · 크림 12px 글자 */
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--pg-sos-ink);
+  background: var(--pg-sos-bar);
+  box-shadow: inset 0 -1px 0 var(--pg-sos-line-soft);
+}
+.pg-infobar .pg-button {
+  color: var(--pg-sos-ink);
+  background: transparent;
+  border: 1px solid var(--pg-sos-line-soft);
+  border-radius: 0;
+}
+.pg-infobar .pg-button:hover:not(:disabled) {
+  color: var(--pg-sos-gold);
+  background: transparent;
 }
 .pg-infobar-left,
 .pg-infobar-right {
@@ -233,9 +249,9 @@ body.pokemon-game-on {
 .pg-balls {
   display: inline-flex;
   align-items: center;
-  gap: calc(3px * var(--pg-ui, 1));
-  font-size: calc(12px * var(--pg-ui, 1));
-  font-weight: bold;
+  gap: 3px;
+  font-size: 12px;
+  font-weight: 600;
 }
 .pg-count {
   display: inline-block;
@@ -274,8 +290,9 @@ body.pokemon-game-on {
 }
 /* 번호는 작게 (mvp-spec S06 ②) */
 .pg-stage-code {
-  font-size: calc(10px * var(--pg-ui, 1));
+  font-size: 11px;
   font-weight: normal;
+  color: var(--pg-sos-dim);
 }
 
 /* ---- S06 스테이지 (단계 4, 임시 디자인 — 단계 12 에서 다시) ---- */
@@ -647,17 +664,15 @@ body.pokemon-game-on {
   position: relative;
   flex: none;
   width: clamp(60px, 18vw, 240px);
-  height: calc(6px * var(--pg-ui, 1));
-  border-radius: 3px;
-  background: rgba(128, 128, 128, 0.3);
+  height: 4px;
+  background: var(--pg-sos-track);
 }
 .pg-mapfill {
   position: absolute;
   left: 0;
   top: 0;
   bottom: 0;
-  border-radius: 3px;
-  background: rgba(46, 160, 67, 0.7);
+  background: var(--pg-sos-hp);
 }
 .pg-mapicon {
   position: absolute;
@@ -782,38 +797,43 @@ body.pokemon-game-on {
   --pg-sos-mid: #f0c862;
   --pg-sos-gauge: #7fb8ff;
   --pg-sos-ult: #ff9f5a;
-  --pg-sos-track: rgba(255, 255, 255, 0.18);
+  --pg-sos-track: #283044;
+  --pg-sos-bar: #0c101e;
   --pg-sos-tab-ink: #1a1406;
 }
 
 /* ⑥ 이름 · Lv 줄 (내 것은 HP 숫자) → 얇은 HP 바 → ⑩ 행동 게이지 (상대는 맨 위에 ⑧ 필살기 게이지) — 포켓몬 머리 위, 판 없이 글자 그림자로 */
+/* 크기는 정수 px (게임 모드는 늘 150px 이상 · 배율 1.3 이라 곱하지 않음) — battle/model.ts HP_ROW_PX · HP_BAR_PX · GAUGE_PX 와 같게: 12 + 1 + 4 + 1 + 2 = 20 */
 .pg-hpblock {
   position: absolute;
-  transform: translateX(-50%);
   display: flex;
   flex-direction: column;
-  gap: calc(1px * var(--pg-ui, 1));
+  gap: 1px;
   z-index: 4;
   line-height: 1;
-  font-size: calc(9px * var(--pg-ui, 1));
+  font-size: 12px;
   font-weight: 600;
   color: var(--pg-sos-ink);
-  text-shadow: 0 1px 2px #000, 0 0 1px #000;
+  text-shadow: 1px 1px 0 #000;
 }
 .pg-hprow {
   display: flex;
   align-items: center;
-  gap: calc(3px * var(--pg-ui, 1));
-  height: calc(10px * var(--pg-ui, 1));
+  gap: 6px;
+  height: 12px;
   white-space: nowrap;
 }
 .pg-lv,
 .pg-hpnum {
   flex: none;
+  font-size: 11px;
 }
-/* Lv · 상태 · 숫자는 오른쪽 끝으로 */
-.pg-hprow .pg-lv {
+/* Lv · 상태 · 숫자는 이름 뒤 오른쪽 끝으로 (이름이 없으면 — 옆 메뉴의 이름표가 맡음 — 왼쪽부터) */
+.pg-hpname + .pg-lv {
   margin-left: auto;
+}
+.pg-lv {
+  color: var(--pg-sos-dim);
 }
 .pg-hpnum {
   font-weight: 500;
@@ -823,7 +843,7 @@ body.pokemon-game-on {
   display: block;
   flex: 1;
   min-width: 0;
-  height: calc(4px * var(--pg-ui, 1));
+  height: 4px;
   overflow: hidden;
   background: var(--pg-sos-track);
 }
@@ -837,7 +857,7 @@ body.pokemon-game-on {
 }
 .pg-bar-hp {
   flex: none;
-  height: calc(3px * var(--pg-ui, 1));
+  height: 4px;
 }
 .pg-hp-ok .pg-bar-fill {
   background: var(--pg-sos-hp);
@@ -851,33 +871,37 @@ body.pokemon-game-on {
 .pg-bar-act,
 .pg-bar-ult {
   flex: none;
-  height: calc(2px * var(--pg-ui, 1));
+  height: 2px;
 }
 .pg-bar-act .pg-bar-fill {
   transition: none;
 }
+/* 행동 게이지 꽉 참은 파랑 계열 그대로 밝게 (HP 노랑과 붙어 헷갈리지 않게 — 아트 디렉터) */
 .pg-bar-act.pg-full .pg-bar-fill {
-  background: var(--pg-sos-gold);
+  background: #cfe6ff;
 }
 .pg-bar-ult .pg-bar-fill,
 .pg-bar-myult .pg-bar-fill {
   background: var(--pg-sos-ult);
 }
-/* 꽉 차면 몇 번만 반짝이고 그대로 (기다리는 동안 계속 깜빡이지 않게 — 곁눈에 거슬리고 매 프레임 다시 그림) */
+/* 필살기 꽉 참 = 금색 채움 + 단단한 1px 금색 테두리, 세 번만 깜빡 (흐린 그림자 · 그림자 크기 움직임 없이 — 아트 디렉터) */
 .pg-bar-ult.pg-full,
 .pg-bar-myult.pg-full {
-  animation: pg-glow 0.6s ease-in-out 6 alternate;
-  box-shadow: 0 0 3px 1px rgba(255, 140, 58, 0.7);
+  box-shadow: 0 0 0 1px var(--pg-sos-gold);
+  animation: pg-ult-ready 0.5s steps(2, jump-none) 3;
 }
-@keyframes pg-glow {
-  0% { box-shadow: 0 0 0 0 rgba(255, 140, 58, 0); }
-  100% { box-shadow: 0 0 4px 1px rgba(255, 140, 58, 0.9); }
+.pg-bar-ult.pg-full .pg-bar-fill,
+.pg-bar-myult.pg-full .pg-bar-fill {
+  background: var(--pg-sos-gold);
+}
+@keyframes pg-ult-ready {
+  0% { box-shadow: 0 0 0 1px var(--pg-sos-gold); }
+  100% { box-shadow: 0 0 0 1px transparent; }
 }
 .pg-status {
   flex: none;
   padding: 0 2px;
-  border-radius: 2px;
-  font-size: calc(8px * var(--pg-ui, 1));
+  font-size: 10px;
   color: #fff;
   background: #6e7681;
   text-shadow: none;
@@ -912,7 +936,7 @@ body.pokemon-game-on {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  padding: 0 calc(6px * var(--pg-ui, 1));
+  padding: 0 6px;
 }
 .pg-bmenu > .pg-button {
   flex: none;
@@ -922,14 +946,14 @@ body.pokemon-game-on {
 }
 .pg-counter .pg-button {
   font-weight: bold;
-  color: #000;
-  background: #ffd33d;
+  color: var(--pg-sos-tab-ink);
+  background: var(--pg-sos-gold);
   animation: pg-twinkle 0.4s ease-in-out infinite;
 }
 .pg-bar-myult {
   flex: none;
-  width: calc(40px * var(--pg-ui, 1));
-  height: calc(6px * var(--pg-ui, 1));
+  width: 40px;
+  height: 4px;
 }
 .pg-infobar.pg-infobar-battle {
   display: flex;
@@ -937,28 +961,35 @@ body.pokemon-game-on {
   justify-content: center;
   padding: 0 6px;
 }
-/* 가로 한 줄 메뉴 (좁은 패널 · 정보줄 자리) 도 같은 판 색 */
+/* 가로 한 줄 메뉴 (좁은 패널 · 정보줄 자리) 도 같은 판 색 · 정수 px (옆 메뉴와 같은 12px 글자) */
 .pg-bmenu .pg-button {
+  height: 18px;
+  line-height: 16px;
+  font-size: 12px;
+  font-weight: 500;
   color: var(--pg-sos-ink);
-  background: var(--pg-sos-panel);
+  background: var(--pg-sos-bar);
   border: 1px solid var(--pg-sos-line-soft);
   border-radius: 0;
 }
 .pg-bmenu .pg-button:hover:not(:disabled) {
   color: var(--pg-sos-gold);
-  background: var(--pg-sos-panel);
+  background: var(--pg-sos-bar);
 }
 .pg-bmenu .pg-button.pg-secondary {
   color: var(--pg-sos-dim);
-  background: var(--pg-sos-panel);
+  background: var(--pg-sos-bar);
 }
 .pg-my-turn .pg-bmenu-items .pg-button:not(:disabled):not(.pg-secondary) {
   box-shadow: none;
   border-color: var(--pg-sos-gold);
 }
 
-/* ⑦ 옆 메뉴 (Sea of Stars) — 내 포켓몬 오른쪽 작은 세로 목록: 머리 줄 (금색 이름표 · ⑧ 필살기 게이지 · Z) + 5줄 (넘치면 옆 칸) */
-/* 높이는 battle/model.ts SIDE_HEAD_PX · SIDE_ROW_PX · SIDE_PAD_PX 와 같게 */
+/*
+ * ⑦ 옆 메뉴 (Sea of Stars) — 판 위로 튀어나온 탭 줄 (왼쪽 금색 이름표 · 오른쪽 ⑧ 필살기 게이지 + Z) + 판 (5줄, 넘치면 옆 칸) · 정수 px.
+ * 높이는 battle/model.ts SIDE_TAB_PX 13 · SIDE_ROW_PX 13 · SIDE_PAD_PX 6 (테두리 1 · 1 + 여백 2 · 2) 과 같게.
+ * 금색은 두 가지만: 선 · 이름표 = --pg-sos-line, 고른 것 (마우스 올린 줄 · Z 준비됨 · 내 차례 이름표) = --pg-sos-gold
+ */
 .pg-vmenu-wrap {
   z-index: 5;
   overflow: hidden;
@@ -968,65 +999,84 @@ body.pokemon-game-on {
   flex-direction: column;
   width: max-content;
   max-width: 100%;
-  padding-bottom: calc(2px * var(--pg-ui, 1));
-  font-size: calc(9px * var(--pg-ui, 1));
+  font-size: 12px;
   font-weight: 500;
-  line-height: 1;
+  line-height: 13px;
   color: var(--pg-sos-ink);
-  background: var(--pg-sos-panel);
-  border: 1px solid var(--pg-sos-line);
 }
-.pg-vmenu.pg-my-turn {
-  border-color: var(--pg-sos-gold);
-  box-shadow: 0 0 0 1px rgba(255, 215, 106, 0.3);
-}
-.pg-vmenu-head {
+.pg-vmenu-tabs {
+  position: relative;
+  z-index: 1;
   display: flex;
-  align-items: center;
-  gap: calc(4px * var(--pg-ui, 1));
-  height: calc(12px * var(--pg-ui, 1));
-  padding-right: calc(3px * var(--pg-ui, 1));
-  margin-bottom: calc(1px * var(--pg-ui, 1));
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+  height: 13px;
+  /* 탭이 판 위 테두리에 걸침 */
+  margin-bottom: -1px;
 }
 .pg-vmenu-name {
-  align-self: stretch;
-  display: flex;
-  align-items: center;
+  height: 13px;
   max-width: 7em;
-  padding: 0 calc(6px * var(--pg-ui, 1));
+  padding: 0 6px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 11px;
   font-weight: 700;
+  line-height: 13px;
   color: var(--pg-sos-tab-ink);
   background: var(--pg-sos-line);
 }
+.pg-vmenu.pg-my-turn .pg-vmenu-name {
+  background: var(--pg-sos-gold);
+}
+.pg-vmenu-ult {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 13px;
+  padding-left: 4px;
+  background: var(--pg-sos-bar);
+  border: 1px solid var(--pg-sos-line);
+  border-bottom: 0;
+}
+/* 판을 접었을 때 (고를 수 없는 동안) 는 탭 줄만 — 오른쪽 탭도 아래를 닫음 */
+.pg-vmenu-tabs:last-child {
+  margin-bottom: 0;
+}
+.pg-vmenu-tabs:last-child .pg-vmenu-ult {
+  border-bottom: 1px solid var(--pg-sos-line);
+}
 .pg-vmenu .pg-bar-myult {
-  flex: 1 1 auto;
-  width: auto;
-  min-width: calc(14px * var(--pg-ui, 1));
-  height: calc(3px * var(--pg-ui, 1));
+  width: 18px;
+  height: 3px;
 }
 .pg-vmenu .pg-vmenu-z {
-  flex: none;
-  height: calc(10px * var(--pg-ui, 1));
-  padding: 0 calc(4px * var(--pg-ui, 1));
-  font-size: calc(8px * var(--pg-ui, 1));
-  line-height: calc(8px * var(--pg-ui, 1));
+  height: 12px;
+  padding: 0 4px;
+  font-size: 10px;
+  line-height: 12px;
   font-weight: 700;
   color: var(--pg-sos-dim);
   background: transparent;
-  border: 1px solid var(--pg-sos-line-soft);
+  border: 0;
+  border-left: 1px solid var(--pg-sos-line-soft);
   border-radius: 0;
 }
 .pg-vmenu .pg-vmenu-z:not(:disabled) {
   color: var(--pg-sos-tab-ink);
   background: var(--pg-sos-gold);
-  border-color: var(--pg-sos-gold);
   opacity: 1;
 }
+.pg-vmenu-box {
+  padding: 2px 0;
+  background: var(--pg-sos-panel);
+  border: 1px solid var(--pg-sos-line);
+}
 .pg-vmenu-lead {
-  padding: 0 calc(4px * var(--pg-ui, 1)) calc(1px * var(--pg-ui, 1));
+  padding: 0 4px 2px;
 }
 .pg-vmenu .pg-bmenu-items {
   display: grid;
@@ -1038,36 +1088,37 @@ body.pokemon-game-on {
   grid-template-rows: repeat(5, auto);
   justify-content: start;
   align-content: start;
-  gap: 0 calc(6px * var(--pg-ui, 1));
+  gap: 0 6px;
 }
 .pg-vmenu .pg-layer .pg-button {
   position: relative;
   display: block;
-  height: calc(11px * var(--pg-ui, 1));
-  padding: 0 calc(6px * var(--pg-ui, 1)) 0 calc(10px * var(--pg-ui, 1));
+  height: 13px;
+  padding: 0 6px 0 10px;
   overflow: hidden;
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
   font: inherit;
-  line-height: calc(11px * var(--pg-ui, 1));
+  line-height: 13px;
   color: var(--pg-sos-ink);
   background: transparent;
   border: 0;
   border-radius: 0;
   box-shadow: none;
 }
+/* 고른 줄 = 줄 전체 바탕 칸 + 금색 글자 + ▸ (Sea of Stars) */
 .pg-vmenu .pg-layer .pg-button:hover:not(:disabled),
 .pg-vmenu .pg-layer .pg-button:focus-visible {
   color: var(--pg-sos-gold);
-  background: transparent;
+  background: #1f2a44;
   outline: none;
 }
 .pg-vmenu .pg-layer .pg-button:hover:not(:disabled)::before,
 .pg-vmenu .pg-layer .pg-button:focus-visible::before {
   content: "▸";
   position: absolute;
-  left: calc(2px * var(--pg-ui, 1));
+  left: 2px;
 }
 .pg-vmenu .pg-layer .pg-button:disabled {
   color: var(--pg-sos-dim);
@@ -1077,6 +1128,7 @@ body.pokemon-game-on {
   color: var(--pg-sos-dim);
 }
 .pg-vmenu .pg-sub {
+  font-size: 11px;
   color: var(--pg-sos-dim);
   opacity: 1;
 }
@@ -1088,8 +1140,8 @@ body.pokemon-game-on {
 .pg-vmenu .pg-layer .pg-dim,
 .pg-vmenu .pg-layer .pg-last-tag,
 .pg-vmenu .pg-layer .pg-last-sec {
-  padding: 0 calc(6px * var(--pg-ui, 1)) 0 calc(10px * var(--pg-ui, 1));
-  line-height: calc(11px * var(--pg-ui, 1));
+  padding: 0 6px 0 10px;
+  line-height: 13px;
 }
 
 /* ⑫ 자동 전투 스위치 — 트레이너 머리 위 (트레이너가 왼쪽 끝이라 패널 왼쪽에 맞춤, 잘리지 않게) */
@@ -1099,38 +1151,39 @@ body.pokemon-game-on {
   z-index: 5;
 }
 .pg-auto .pg-button {
-  height: calc(14px * var(--pg-ui, 1));
-  line-height: calc(12px * var(--pg-ui, 1));
-  padding: 0 calc(5px * var(--pg-ui, 1));
-  font-size: calc(9px * var(--pg-ui, 1));
+  height: 16px;
+  line-height: 14px;
+  padding: 0 5px;
+  font-size: 11px;
   font-weight: 500;
   color: var(--pg-sos-ink);
-  background: var(--pg-sos-panel);
+  background: var(--pg-sos-bar);
   border: 1px solid var(--pg-sos-line);
   border-radius: 0;
 }
 .pg-auto .pg-button.pg-secondary {
   color: var(--pg-sos-dim);
-  background: var(--pg-sos-panel);
+  background: var(--pg-sos-bar);
   border-color: var(--pg-sos-line-soft);
 }
 .pg-auto .pg-button:hover:not(:disabled) {
   color: var(--pg-sos-gold);
-  background: var(--pg-sos-panel);
+  background: var(--pg-sos-bar);
 }
 
-/* 지금 한 줄 ("이상해씨의 덩굴채찍!") — 판 + 얇은 금색 테두리, 포켓몬 이름만 빨강 */
+/* 지금 한 줄 ("이상해씨의 덩굴채찍!") — 판 + 얇은 금색 테두리, 포켓몬 이름만 빨강 · 13px */
 .pg-bmsg {
   position: absolute;
   left: 50%;
   top: 3px;
   transform: translateX(-50%);
   max-width: calc(100% - 16px);
-  padding: calc(2px * var(--pg-ui, 1)) calc(9px * var(--pg-ui, 1));
+  padding: 3px 9px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: calc(10px * var(--pg-ui, 1));
+  font-size: 13px;
+  line-height: 15px;
   font-weight: 500;
   color: var(--pg-sos-ink);
   background: var(--pg-sos-panel);
@@ -1155,15 +1208,15 @@ body.pokemon-game-on {
   white-space: nowrap;
   pointer-events: none;
   font-weight: bold;
-  font-size: calc(11px * var(--pg-ui, 1));
-  text-shadow: 0 0 2px #000, 0 0 2px #000;
+  font-size: 13px;
+  text-shadow: 1px 1px 0 #000, -1px 0 0 #000, 0 -1px 0 #000;
   animation: pg-pop-rise 1.2s ease-out both;
 }
-.pg-pop-damage { color: #ff7b72; }
-.pg-pop-heal { color: #56d364; }
+.pg-pop-damage { color: var(--pg-sos-red); }
+.pg-pop-heal { color: var(--pg-sos-hp); }
 .pg-pop-info {
-  color: #ffd33d;
-  font-size: calc(10px * var(--pg-ui, 1));
+  color: var(--pg-sos-gold);
+  font-size: 12px;
 }
 @keyframes pg-pop-rise {
   0% { transform: translateX(-50%) translateY(4px) scale(0.8); opacity: 0; }
@@ -1343,7 +1396,7 @@ body.pokemon-game-on {
   border-radius: 4px;
   overflow: hidden;
   white-space: nowrap;
-  font-size: calc(10px * var(--pg-ui, 1));
+  font-size: 13px;
   font-weight: 500;
   color: var(--pg-sos-ink);
   background: var(--pg-sos-panel);

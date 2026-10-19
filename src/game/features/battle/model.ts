@@ -30,8 +30,8 @@ export interface MenuItem {
   title?: string;
 }
 
-/** 좁은 패널의 짧은 이름 (번호 + 그림 글자, 전체 이름은 title) */
-const COMPACT_LABEL: Record<string, string> = { attack: '1⚔️', guard: '2🛡️', skills: '3✨', items: '4🎒', switch: '5🔄', flee: '5🏃' };
+/** 좁은 패널의 짧은 이름 (번호 + 두 글자, 전체 이름은 title) — 이모지는 쓰지 않음 (아트 디렉터 2026-10-19) */
+const COMPACT_LABEL: Record<string, string> = { attack: '1 공격', guard: '2 방어', skills: '3 스킬', items: '4 가방', switch: '5 교체', flee: '5 도망' };
 
 /** 메뉴 한 줄 (mvp-spec S09 ⑦: 1 공격 · 2 방어 · 3 스킬 · 4 아이템 · 5 교체 · 도망, 숫자 키 1 ~ 5) — compact = 좁은 패널 */
 export function menuItems(b: BattleState, save: Save, page: MenuPage, compact = false): MenuItem[] {
@@ -50,7 +50,7 @@ export function menuItems(b: BattleState, save: Save, page: MenuPage, compact = 
         { key: 'guard', num: 2, label: '2 방어', go: { action: { kind: 'guard' } }, enabled: canAct(b, save, { kind: 'guard' }), title: '2 방어 — 다음 내 행동까지 받는 피해 절반 (연달아 쓰면 줄어듦)' },
         { key: 'skills', num: 3, label: '3 스킬', go: { page: 'skills' }, enabled: b.phase === 'choose' && skillsOk, title: skillsOk ? '3 스킬' : '쓸 수 있는 기술이 없어요 (1 공격만)' },
         { key: 'items', num: 4, label: '4 아이템', go: { page: 'items' }, enabled: b.phase === 'choose' && itemsOk, title: itemsOk ? '4 아이템 (볼 · 상처약 …)' : anyItem ? '지금 쓸 수 있는 아이템이 없어요 (HP 가득 · 상태 이상 없음 · 쓰러진 포켓몬 없음)' : '가방에 쓸 아이템이 없어요' },
-        { key: 'more', num: 5, label: switchOk ? (fleeOk ? '5 교체 · 도망' : '5 교체') : fleeOk ? '5 도망' : '5 교체', go: switchOk ? { page: 'switch' } : { action: { kind: 'flee' } }, enabled: b.phase === 'choose' && (switchOk || fleeOk), title: moreTitle },
+        { key: 'more', num: 5, label: switchOk ? (fleeOk ? '5 교체·도망' : '5 교체') : fleeOk ? '5 도망' : '5 교체', go: switchOk ? { page: 'switch' } : { action: { kind: 'flee' } }, enabled: b.phase === 'choose' && (switchOk || fleeOk), title: moreTitle },
       ];
       if (!compact) return items;
       return items.map((i) => ({ ...i, label: COMPACT_LABEL[i.key === 'more' ? (switchOk || !fleeOk ? 'switch' : 'flee') : i.key] ?? i.label }));
@@ -174,23 +174,29 @@ export function battleSpritePx(form: string, scale: number, panelPx: number): nu
   return Math.max(normal, Math.round(Math.min(normal * 1.3, panelPx - 4 - 20 - 12)));
 }
 
-/** 높이 (uiScale 1 일 때 px) — HP 묶음 (이름 · Lv 줄 + HP 바 + 행동 게이지, 줄 사이 1px) · 상대 필살기 게이지 · 메뉴 줄 · 자동 스위치 */
-const HP_ROW_PX = 10;
-const HP_BAR_PX = 3;
+/**
+ * HP 묶음 (2026-10-19 Sea of Stars — 정수 px, 배율을 곱하지 않음 · game.css .pg-hpblock 과 같은 값):
+ * 이름 · Lv 줄 12 + 1 + HP 바 4 + 1 + 행동 게이지 2 = 20. 상대는 맨 위에 필살기 게이지 2 + 1 (여유 1)
+ */
+const HP_ROW_PX = 12;
+const HP_BAR_PX = 4;
 const GAUGE_PX = 2;
 const HP_GAPS_PX = 2;
 const FOE_ULT_PX = 4;
+/** HP 묶음 위 여유 — 정보줄에 붙지 않게 */
+const HP_TOP_GAP_PX = 4;
+/** 두 HP 묶음 사이 최소 (글이 한 줄로 이어 읽히지 않게) */
+const HP_PAIR_GAP_PX = 16;
 /**
- * 옆 메뉴 (2026-10-19 태현 님 — Sea of Stars: 내 포켓몬 오른쪽 작은 세로 목록) — 머리 줄 (이름표 · 필살기) + 5줄 + 위아래 여백.
- * game.css .pg-vmenu 와 같은 값. 이 너비 · 높이가 안 되면 예전처럼 가로 한 줄
+ * 옆 메뉴 (2026-10-19 태현 님 — Sea of Stars: 내 포켓몬 오른쪽 작은 세로 목록, 정수 px · game.css .pg-vmenu 와 같은 값):
+ * 판 위로 튀어나온 탭 줄 (이름표 · 필살기 Z) 13 + 판 (5줄 × 13 + 위아래 여백 2 · 2 + 테두리 2).
+ * 판 위 끝은 내 HP 묶음 이름 줄 위 끝에 맞춤. 이 너비 · 높이가 안 되면 예전처럼 가로 한 줄
  */
-const SIDE_HEAD_PX = 12;
-const SIDE_ROW_PX = 11;
+const SIDE_TAB_PX = 13;
+const SIDE_ROW_PX = 13;
 const SIDE_ROWS = 5;
-const SIDE_PAD_PX = 3;
-const SIDE_MIN_W_PX = 86;
-/** 옆 메뉴 위쪽 여백 (길 칸 위 끝에서) */
-const SIDE_TOP_PX = 4;
+const SIDE_PAD_PX = 6;
+const SIDE_MIN_W_PX = 92;
 const MENU_PX = 19;
 /** HP 묶음 최소 너비 (이름 4 ~ 5글자 + Lv + 바) */
 const HP_WIDE_MIN_PX = 80;
@@ -281,9 +287,9 @@ export function battleGeometry(g: GeometryInput): BattleGeometry {
   const trainerEnd = trainerX + heroHalf + 4;
   const free = Math.max(0, g.foeX - g.foeSpritePx / 2 - g.meSpritePx - trainerEnd);
   const meX = Math.round(trainerEnd + g.meSpritePx / 2 + free * 0.35);
-  const hpBlockPx = Math.round((HP_ROW_PX + HP_BAR_PX + GAUGE_PX + HP_GAPS_PX) * u);
-  // HP 묶음 너비 — 두 묶음이 겹치지 않게 (좁은 패널) · 가운데 자리는 화면 안으로
-  const gap = Math.max(40, Math.round(g.foeX) - meX - 4);
+  const hpBlockPx = HP_ROW_PX + HP_BAR_PX + GAUGE_PX + HP_GAPS_PX;
+  // HP 묶음 너비 — 두 묶음이 겹치지 않고 사이가 16px 이상 (좁은 패널) · 가운데 자리는 화면 안으로
+  const gap = Math.max(40, Math.round(g.foeX) - meX - HP_PAIR_GAP_PX);
   // 판 없는 얇은 HP 줄 (Sea of Stars) 이라 그림 키 × 1.1 이면 충분 — 크게 (80px) 에서도 옆 메뉴 자리가 남게 (2026-10-19)
   const hpWide = (px: number) => Math.min(gap, Math.round(Math.max(HP_WIDE_MIN_PX, px * 1.1) * Math.max(1, Math.min(1.3, u))));
   const meHpWide = hpWide(g.meSpritePx);
@@ -291,22 +297,24 @@ export function battleGeometry(g: GeometryInput): BattleGeometry {
   const inside = (x: number, w: number) => Math.round(Math.min(Math.max(x, w / 2 + 2), g.widthPx - w / 2 - 2));
   const meHpX = inside(meX, meHpWide);
   const foeHpX = inside(g.foeX, foeHpWide);
-  const foeExtra = Math.round(FOE_ULT_PX * u);
-  // 그림 바로 위 — 패널이 낮으면 그림 위에 겹쳐서라도 화면 안에
-  const meHpBottom = Math.max(0, Math.min(g.ground + g.meSpritePx + 1, g.bodyPx - hpBlockPx));
-  const foeHpBottom = Math.max(0, Math.min(g.ground + g.foeSpritePx + 1, g.bodyPx - hpBlockPx - foeExtra));
+  const foeExtra = FOE_ULT_PX;
+  // 그림 바로 위 — 패널이 낮으면 그림 위에 겹쳐서라도 화면 안에 (정보줄과 4px 띄움)
+  const meHpBottom = Math.max(0, Math.min(g.ground + g.meSpritePx + 1, g.bodyPx - hpBlockPx - HP_TOP_GAP_PX));
+  const foeHpBottom = Math.max(0, Math.min(g.ground + g.foeSpritePx + 1, g.bodyPx - hpBlockPx - foeExtra - HP_TOP_GAP_PX));
   const menuBottom = meHpBottom + hpBlockPx;
   const menuPx = Math.round(MENU_PX * u);
   const compact = g.widthPx < COMPACT_WIDTH_PX;
   // 옆 메뉴: 내 포켓몬 · 내 HP 묶음 오른쪽 ~ 상대 그림 · 상대 HP 묶음 왼쪽 사이에 세로 목록이 들어가면 그쪽 (위 정보줄은 그대로 보임)
   const sideLeft0 = Math.round(Math.max(meX + g.meSpritePx / 2, meHpX + meHpWide / 2) + 6);
   const sideRight0 = Math.round(Math.min(g.foeX - g.foeSpritePx / 2, foeHpX - foeHpWide / 2) - 6);
-  const sideH = Math.round((SIDE_HEAD_PX + SIDE_ROW_PX * SIDE_ROWS + SIDE_PAD_PX) * u);
-  // 세로로는 길 칸 안에만 들어가면 됨 (포켓몬 옆이라 땅 띠에 걸쳐도 가리는 것이 없음 — 크게 는 땅이 높아 2px 모자랐음)
-  const sideRoomH = g.bodyPx - SIDE_TOP_PX - 2;
+  const sidePanelH = SIDE_ROW_PX * SIDE_ROWS + SIDE_PAD_PX;
+  // 판 위 끝 = 내 HP 묶음 이름 줄 위 끝 (메뉴가 천장에 매달리지 않고 포켓몬 곁에) — 길 칸 아래로 넘치면 올리고, 탭 줄 자리는 남김.
+  // 세로로는 길 칸 안에만 들어가면 됨 (포켓몬 옆이라 땅 띠에 걸쳐도 가리는 것이 없음)
+  const myHpTop = g.bodyPx - (meHpBottom + hpBlockPx);
+  const panelTop = Math.max(SIDE_TAB_PX + 1, Math.min(myHpTop, g.bodyPx - 2 - sidePanelH));
   const menuSide =
-    !compact && sideRight0 - sideLeft0 >= Math.round(SIDE_MIN_W_PX * u) && sideH <= sideRoomH
-      ? { left: sideLeft0, top: SIDE_TOP_PX, maxWidth: sideRight0 - sideLeft0, maxHeight: sideRoomH }
+    !compact && sideRight0 - sideLeft0 >= SIDE_MIN_W_PX && SIDE_TAB_PX + 1 + sidePanelH + 2 <= g.bodyPx
+      ? { left: sideLeft0, top: panelTop - SIDE_TAB_PX, maxWidth: sideRight0 - sideLeft0, maxHeight: g.bodyPx - (panelTop - SIDE_TAB_PX) - 2 }
       : null;
   const menuInBar = !menuSide && menuBottom + menuPx > g.bodyPx;
   // 내 HP 바 왼쪽 끝 (또는 그림 왼쪽 끝) 부터 — 오른쪽으로 넘치지 않게 당김
@@ -325,13 +333,16 @@ export function battleGeometry(g: GeometryInput): BattleGeometry {
   const sideLeft = Math.round(Math.max(g.foeX + Math.max(g.foeSpritePx, foeHpWide) / 2 + 6, menuAtTop || menuSide ? menuRight + 8 : 0));
   const sideRoom = g.widthPx - sideLeft - 8;
   const topBusy = g.bodyPx - highest < Math.round(MSG_PX * u) + 4;
-  const msgSide = topBusy && sideRoom >= MSG_SIDE_MIN_PX ? { left: sideLeft, maxWidth: sideRoom } : null;
-  // 둘 곳이 없으면 (좁고 낮은 패널) 한 줄은 숨김 — HP 바가 더 중요, 내 차례는 메뉴 테두리로 보임
-  const msgHidden = topBusy && !msgSide;
-  // 옆 메뉴이고 위가 비어 있으면 한 줄은 오른쪽 위 (가운데 위는 옆 메뉴와 겹침) — 넓은 패널에서는 상대 오른쪽 가까이까지만 (싸우는 곳에서 멀어지지 않게)
+  // 옆 메뉴일 때 한 줄은 늘 오른쪽 위 (Sea of Stars, 아트 디렉터) — 넓은 패널에서는 상대 오른쪽 가까이까지만 (싸우는 곳에서 멀어지지 않게).
+  // 위가 붐비면 (상대 HP 묶음이 위 끝까지) 상대 HP 묶음 오른쪽 끝에서 16px 띄워 "파이리 Lv5 이상해씨는…" 처럼 이어 읽히지 않게
   const foeRight = g.foeX + Math.max(g.foeSpritePx, foeHpWide) / 2;
   const msgRightPx = Math.round(Math.max(8, g.widthPx - (foeRight + MSG_NEAR_FOE_PX)));
-  const msgRight = menuSide && !topBusy ? { right: msgRightPx, maxWidth: Math.max(MSG_SIDE_MIN_PX, g.widthPx - msgRightPx - menuRight - 8) } : null;
+  const msgLeftLimit = topBusy ? foeRight + 16 : menuRight + 8;
+  const msgRightRoom = Math.round(g.widthPx - msgRightPx - msgLeftLimit);
+  const msgRight = menuSide && msgRightRoom >= MSG_SIDE_MIN_PX ? { right: msgRightPx, maxWidth: msgRightRoom } : null;
+  const msgSide = !menuSide && topBusy && sideRoom >= MSG_SIDE_MIN_PX ? { left: sideLeft, maxWidth: sideRoom } : null;
+  // 둘 곳이 없으면 (좁고 낮은 패널) 한 줄은 숨김 — HP 바가 더 중요, 내 차례는 메뉴 테두리로 보임
+  const msgHidden = menuSide ? !msgRight : topBusy && !msgSide;
   return { trainerX, meX, foeX: Math.round(g.foeX), meSpritePx: g.meSpritePx, foeSpritePx: g.foeSpritePx, meHpWide, foeHpWide, meHpX, foeHpX, msgHidden, meHpBottom, foeHpBottom, hpBlockPx, menuInBar, menuBottom, menuLeft, autoInMenu, autoBottom, compact, msgSide, menuSide, msgRight };
 }
 

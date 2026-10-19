@@ -61,20 +61,21 @@ export function AutoButton({ save, onInput, short }: { save: Save; onInput(i: Ga
       onClick={() => onInput({ kind: 'auto-battle', on: !auto })}
       title={auto ? '자동 전투 켜짐 — 누르면 끔' : '자동 전투 꺼짐 — 켜면 내 행동도 알아서 (필살기 · 연타는 직접도 됨)'}
     >
-      {short ? (auto ? '🔁✓' : '🔁') : auto ? '자동 ON' : '자동 OFF'}
+      {short ? (auto ? '자동✓' : '자동') : auto ? '자동 ON' : '자동 OFF'}
     </Button>
   );
 }
 
-function HpBlock({ f, side, x, bottom, wide, prefix }: { f: Fighter; side: Side; x: number; bottom: number; wide: number; prefix: string }) {
+function HpBlock({ f, side, x, bottom, wide, prefix, noName }: { f: Fighter; side: Side; x: number; bottom: number; wide: number; prefix: string; noName?: boolean }) {
   const status = f.status ? STATUS_LABEL[f.status.kind] : null;
   const title = `${side === 'foe' ? prefix : ''}${nameOf(f)} Lv${f.level} · HP ${f.hp}/${f.maxHp}${status ? ` · ${status}` : ''}`;
+  // 가운데 x 에 정수 px 로 (translateX(-50%) 는 홀수 폭이면 반 픽셀로 흐려짐 — 아트 디렉터)
   return (
-    <div class={`pg-hpblock pg-hpblock-${side}`} style={{ left: `${x}px`, bottom: `${bottom}px`, width: `${wide}px` }} title={title}>
+    <div class={`pg-hpblock pg-hpblock-${side}`} style={{ left: `${x - Math.floor(wide / 2)}px`, bottom: `${bottom}px`, width: `${wide}px` }} title={title}>
       {side === 'foe' && <Bar value={f.ult} cls={f.ult >= 1 ? 'pg-bar-ult pg-full' : 'pg-bar-ult'} />}
-      {/* 이름 · Lv 줄 (내 것은 오른쪽에 HP 숫자) → 얇은 HP 바 → 행동 게이지 (Sea of Stars, 포켓몬 머리 위) */}
+      {/* 이름 · Lv 줄 (내 것은 오른쪽에 HP 숫자) → 얇은 HP 바 → 행동 게이지 (Sea of Stars, 포켓몬 머리 위). 옆 메뉴가 있으면 내 이름은 이름표가 맡음 */}
       <span class="pg-hprow">
-        <span class="pg-hpname">{nameOf(f)}</span>
+        {!noName && <span class="pg-hpname">{nameOf(f)}</span>}
         <span class="pg-lv">Lv{f.level}</span>
         {status && <span class={`pg-status pg-status-${f.status!.kind}`}>{status}</span>}
         {side === 'me' && (
@@ -280,7 +281,7 @@ function Clash({ b, geo, y }: { b: BattleState; geo: BattleGeometry; y: number }
   const big = c.kind === 'ult' ? ' pg-clash-ult' : '';
   const done = c.winner !== null ? ' pg-clash-done' : '';
   // 포커스가 없으면 Space 는 편집기로 감 → 클릭 안내 (선제공격과 같은 규칙)
-  const tapHint = geo.compact ? '👆 연타!' : document.hasFocus() ? '👆 연타! (Space · 클릭)' : '👆 클릭 연타!';
+  const tapHint = geo.compact ? '연타!' : document.hasFocus() ? '연타! (Space · 클릭)' : '클릭 연타!';
   return (
     <>
       <span class={`pg-clash-beam pg-duel-${meKind}${big}${done}`} style={{ left: `${geo.meX}px`, width: `${Math.max(0, point - geo.meX)}px`, bottom: `${y}px`, backgroundColor: meColor }} />
@@ -290,7 +291,7 @@ function Clash({ b, geo, y }: { b: BattleState; geo: BattleGeometry; y: number }
       </span>
       <div class="pg-clash-info" style={msgStyle(geo)}>
         {c.winner !== null ? (
-          <b>{c.winner === 'me' ? '🎉 힘대결에서 이겼다!' : '💦 힘대결에서 졌다…'}</b>
+          <b>{c.winner === 'me' ? '힘대결에서 이겼다!' : '힘대결에서 졌다…'}</b>
         ) : (
           <>
             <span>
@@ -325,7 +326,7 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
       {b.phase !== 'catch' && !(b.phase === 'over' && b.result === 'catch') && (
         <FighterBody key={`foe${b.foeDown.length}`} b={b} side="foe" x={geo.foeX} target={geo.meX} px={geo.foeSpritePx} media={media} ground={ground} onProfile={profile} />
       )}
-      {hasMe && <HpBlock f={b.me} side="me" x={geo.meHpX} bottom={geo.meHpBottom} wide={geo.meHpWide} prefix="" />}
+      {hasMe && <HpBlock f={b.me} side="me" x={geo.meHpX} bottom={geo.meHpBottom} wide={geo.meHpWide} prefix="" noName={geo.menuSide !== null} />}
       {b.phase !== 'send' && <HpBlock f={b.foe} side="foe" x={geo.foeHpX} bottom={geo.foeHpBottom} wide={geo.foeHpWide} prefix={foePrefix(b)} />}
       {b.phase === 'clash' ? <Clash b={b} geo={geo} y={Math.round((midMe + midFoe) / 2)} /> : <Effects b={b} geo={geo} ground={ground} midMe={midMe} midFoe={midFoe} />}
       <Catch b={b} geo={geo} ground={ground} />
