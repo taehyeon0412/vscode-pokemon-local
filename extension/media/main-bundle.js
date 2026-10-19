@@ -6819,6 +6819,39 @@ class DashState {
     }
 }
 
+// 땅 금 — 발밑에서 양옆으로 지그재그 금이 0.2초에 쫙 (진한 금 + 위 밝은 테두리), 천천히 흐려짐 (지진 · 땅고르기)
+function sigQuakeCrack(x, y, s, reach, cols) {
+    const paths = [1, -1].map((side) => {
+        const pts = [[x, y]];
+        let cx = x;
+        let cy = y;
+        while (Math.abs(cx - x) < reach) {
+            cx += side * moveRand(3, 6) * s;
+            cy = y + Math.round(moveRand(-1.4, 1.4)) * s;
+            pts.push([cx, cy]);
+        }
+        return pts;
+    });
+    sigParticle({ x, y, s, max: 0.9, paths, cols, draw: (ctx, p, t, px) => {
+        const grow = Math.min(1, p.life / 0.2);
+        ctx.globalAlpha = t > 0.6 ? (1 - t) / 0.4 : 1;
+        for (const pts of p.paths) {
+            const upto = Math.max(1, Math.round((pts.length - 1) * grow));
+            for (let k = 1; k <= upto; k++) {
+                const [x0, y0] = pts[k - 1];
+                const [x1, y1] = pts[k];
+                const m = Math.max(1, Math.round(Math.hypot(x1 - x0, y1 - y0) / p.s));
+                for (let j = 0; j <= m; j++) {
+                    const qx = x0 + ((x1 - x0) * j) / m;
+                    const qy = y0 + ((y1 - y0) * j) / m;
+                    dotAt(ctx, px, p.s, qx, qy - p.s, p.cols[0]);
+                    dotAt(ctx, px, p.s, qx, qy, '#2a1d10', 1, k < upto * 0.5 ? 2 : 1);
+                }
+            }
+        }
+    } });
+}
+
 // 칼자국 하나 — 굽은 대각선이 0.08초에 쫙 그어지고 (가운데 굵게 · 흰 심 · 끝은 가늘게), 끝에서 불똥이 튐 · 천천히 흐려짐
 function sigSlashMark(x, y, s, dir, flip, L, cols) {
     const half = (L * s) / 2;
@@ -7503,6 +7536,24 @@ const SIG_FX = {
                 const side = Math.random() < 0.5 ? -1 : 1;
                 sigParticle({ x: g.body.cx + side * moveRand(0, 0.8) * g.w, y: g.body.bottom, s: g.s, vx: side * moveRand(20, 60) * g.s, vy: -moveRand(10, 45) * g.s, g: 140 * g.s, drag: 0.5, max: moveRand(0.4, 0.8), color: movePick(cols.slice(1)), size: Math.random() < 0.3 ? 2 : 1, draw: DRAW.dot });
             }
+            // 땅이 갈라짐 (2026-10-19 "밋밋해") — 발밑에서 양옆으로 지그재그 금이 쫙 + 흙먼지 물결 두 번 + 튀는 돌
+            sigQuakeCrack(g.body.cx, g.body.bottom, g.s, (1.3 + 0.6 * g.P) * g.w, cols);
+            sigRing(g.body.cx, g.body.bottom, g.s, 0.3 * g.w, (1.4 + 0.5 * g.P) * g.w, 0.22, 0.6, [cols[1], cols[2], cols[0]]);
+            setTimeout(() => sigRing(g.body.cx, g.body.bottom, g.s, 0.2 * g.w, (1.1 + 0.4 * g.P) * g.w, 0.22, 0.5, [cols[2], cols[1]]), 220);
+            for (let i = 0; i < 5 + 4 * g.P; i++) {
+                const side = i % 2 ? -1 : 1;
+                sigParticle({ x: g.body.cx + side * moveRand(0.2, 1) * g.w, y: g.body.bottom, s: g.s, vx: side * moveRand(10, 30) * g.s, vy: -moveRand(60, 100) * g.s, g: 260 * g.s, max: moveRand(0.5, 0.8), big: Math.random() < 0.4, cols, ground: g.body.bottom,
+                    update: (q) => {
+                        if (q.vy > 0 && q.y >= q.ground) {
+                            q.life = q.max;
+                            sigBurst(q.x, q.ground, q.s, q.cols, 4, 25);
+                        }
+                    },
+                    draw: (ctx, q, t, px) => {
+                        ctx.globalAlpha = 1;
+                        SHAPES.rock(ctx, q, px);
+                    } });
+            }
         },
     },
     // 바위 떨어뜨리기 — 돌떨구기 · 스톤샤워 · 원시의힘
@@ -7513,14 +7564,25 @@ const SIG_FX = {
             const n = o.n ?? 3;
             sigEmitter({ until: performance.now() + n * 150, shots: n, every: 150, nextShot: performance.now(), fx: () => sigParticle({
                 x: g.body.front + g.dir * moveRand(0.3, 2.5) * g.w, y: -10, s: g.s, vy: moveRand(30, 60) * g.s, g: 500 * g.s, max: 2,
-                big: g.P > 0.5, cols, ground: g.body.bottom,
+                big: g.P > 0.5 || Math.random() < 0.4, cols, ground: g.body.bottom, top: -10,
                 update: (p) => {
+                    // 떨어지는 동안 위로 흙 꼬리 (2026-10-19 "밋밋해")
+                    if (Math.random() < 0.6) {
+                        sigParticle({ x: p.x + moveRand(0, 3) * p.s, y: p.y - p.s, s: p.s, vy: -20 * p.s, drag: 3, max: 0.2, color: p.cols[2], draw: DRAW.dot });
+                    }
                     if (p.y >= p.ground - (p.big ? 4 : 3) * p.s) {
-                        sigBurst(p.x, p.ground, p.s, p.cols, 7, 40);
+                        sigBurst(p.x, p.ground, p.s, p.cols, 10, 50);
+                        // 쿵 — 바닥 먼지 고리 + 돌 조각
+                        sigRing(p.x + 1.5 * p.s, p.ground, p.s, 2 * p.s, (p.big ? 18 : 13) * p.s, 0.25, 0.4, [p.cols[1], p.cols[2]]);
                         p.life = p.max;
                     }
                 },
                 draw: (ctx, p, t, px) => {
+                    // 바닥 그림자 — 가까워질수록 커지고 진해짐
+                    const k = Math.min(1, Math.max(0, (p.y - p.top) / Math.max(1, p.ground - p.top)));
+                    const half = Math.round((p.big ? 3 : 2) * (0.5 + 0.8 * k));
+                    ctx.globalAlpha = 0.25 + 0.4 * k;
+                    dotAt(ctx, px, p.s, p.x + 1.5 * p.s - half * p.s, p.ground, 'rgba(20, 14, 8, 0.9)', 2 * half + 1, 1);
                     ctx.globalAlpha = 1;
                     SHAPES.rock(ctx, p, px);
                 },
