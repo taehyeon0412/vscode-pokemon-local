@@ -25,6 +25,13 @@ export interface FxPlan {
   contact: boolean;
 }
 
+/** 힘대결 — 필살기끼리 (그 포켓몬 필살기) · 기술끼리 (그 기술 틀 · 타입 색) */
+export interface FxDuel {
+  kind: 'ult' | 'move';
+  a: FxMove | null;
+  b: FxMove | null;
+}
+
 export interface PokemonFx {
   version: number;
   plan(form: string, m: FxMove): FxPlan | null;
@@ -35,6 +42,11 @@ export interface PokemonFx {
   /** 필살기 (version 2) — 걸리는 시간 (ms), 못 쓰면 0 */
   ult?(src: FxActor, dst: FxActor): number;
   stopUlt?(): void;
+  /** 힘대결 (version 3) — a = 나, b = 상대 · live() = 내가 이길 확률 · { meetMs } 또는 null */
+  duel?(a: FxActor, b: FxActor, spec: FxDuel, live: () => number): { meetMs: number } | null;
+  duelWin?(who: 'a' | 'b'): void;
+  /** soft = 터지는 여운까지 그리고 정리 */
+  stopDuel?(soft?: boolean): void;
   clear(): void;
 }
 

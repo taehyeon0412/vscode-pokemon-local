@@ -75,7 +75,11 @@
         };
         if (battleKind === 'choose' || battleKind === 'skills') Object.assign(b, { phase: 'choose', me: { ...me, gauge: 1 }, msg: '이상해씨는 무엇을 할까?' });
         if (battleKind === 'counter') Object.assign(b, { phase: 'anim', anim: { side: 'foe', action: { kind: 'move', moveId: 52 }, ms: 0, dur, counter: true }, msg: '야생 파이리의 불꽃세례!' });
-        if (battleKind === 'clash') Object.assign(b, { phase: 'clash', clash: { kind: 'move', me: 75, foe: 52, base: 0.42, taps: 9, ms: 0, winner: null }, msg: '맞받아쳤다! 힘대결!' });
+        // ckind=ult — 필살기 힘대결 (연출 시험)
+        if (battleKind === 'clash') {
+            const ult = q.get('ckind') === 'ult';
+            Object.assign(b, { phase: 'clash', clash: { kind: ult ? 'ult' : 'move', me: ult ? null : 75, foe: ult ? null : 52, base: 0.42, taps: 9, ms: 0, winner: null }, msg: ult ? '필살기 힘대결!' : '맞받아쳤다! 힘대결!' });
+        }
         // side=foe — 상대가 쓰는 필살기 (연출 시험, fx=1 과 같이)
         if (battleKind === 'ult-cut' || battleKind === 'ult-beam') {
             const side = q.get('side') || 'me';
@@ -243,7 +247,7 @@
             // fxdbg=1 — 다리 부르기를 콘솔에 남김 (연출 시험)
             const f = window.pokemonFx;
             if (q.get('fxdbg') && f) {
-                for (const k of ['ult', 'stopUlt', 'clear', 'move']) {
+                for (const k of ['ult', 'stopUlt', 'clear', 'move', 'duel', 'duelWin', 'stopDuel']) {
                     const fn = f[k];
                     f[k] = (...a) => {
                         const r = fn.apply(f, a);

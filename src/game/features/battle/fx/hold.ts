@@ -9,13 +9,17 @@ import { MAX_SPEED, takeSteps, type BattleState, type GameState } from '../../..
 /** 한 행동을 붙잡는 상한 (ms) — 기술 · 필살기 (일반 모드 필살기는 0.9 + 3.6 ~ 10 + 0.5초) */
 export const FX_HOLD_MAX_MS = 4000;
 export const FX_HOLD_ULT_MAX_MS = 12_000;
+/** 힘대결 — VS (1.5) + 만남 (~1) + 밀기 3.6초까지 */
+export const FX_HOLD_DUEL_MAX_MS = 7_000;
 
 let holdUntil = 0;
 let holdKey = '';
 
 /** 연출 하나 = 이 열쇠 (BattleLayer 가 연출을 다시 시작하는 기준과 같음) */
 export function battleAnimKey(b: BattleState): string {
-  return b.anim ? `${b.anim.side}${b.anim.action.kind}${b.t - b.anim.ms}` : '';
+  if (b.anim) return `${b.anim.side}${b.anim.action.kind}${b.t - b.anim.ms}`;
+  // 힘대결 하나 = 시작 시각 (승자가 정해져도 같은 열쇠)
+  return b.phase === 'clash' && b.clash ? `clash${b.t - b.clash.ms}` : '';
 }
 
 /** 이 행동의 연출이 now + ms 까지 걸림 */
@@ -35,9 +39,13 @@ export function shouldHoldBattle(state: GameState, dtMs: number, now: number): b
   if (now >= holdUntil) return false;
   const st = state.runtime.stage;
   const b = st?.phase === 'battle' ? st.battle : null;
-  const a = b?.anim;
-  if (!b || !a || b.phase !== 'anim' || battleAnimKey(b) !== holdKey) return false;
+  if (!b || battleAnimKey(b) !== holdKey) return false;
   const speed = Math.min(MAX_SPEED, Math.max(1, state.runtime.speed || 1));
   const { steps } = takeSteps(state.runtime.stepAccMs, dtMs * speed, TIMING.simStepMs);
-  return steps > 0 && a.ms + steps * TIMING.simStepMs >= a.dur;
+  if (steps === 0) return false;
+  const a = b.anim;
+  if (b.phase === 'anim' && a) return a.ms + steps * TIMING.simStepMs >= a.dur;
+  // 힘대결 — 승자를 정하는 걸음 (연타는 그동안 계속 셈)
+  const c = b.phase === 'clash' ? b.clash : null;
+  return !!c && c.winner === null && c.ms + steps * TIMING.simStepMs >= TIMING.clashMs;
 }

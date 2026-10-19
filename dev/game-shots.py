@@ -297,6 +297,17 @@ SHOTS = [
     ("fx-aim-vortex", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "move", "side": "foe", "foe": "charmander:4", "mv": "83", "dur": "900", "fx": "1", "budget": "900"}),
     ("fx-aim-wide-flame", "1600x190", {"screen": "game", "look": "may", "size": "medium", "battle": "move", "side": "foe", "mv": "53", "dur": "900", "fx": "1", "budget": "900"}),
     ("fx-aim-vine", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "move", "side": "me", "mv": "22", "dur": "900", "fx": "1", "budget": "780"}),
+    # 힘대결 = 일반 모드 대결 (모으기 → 밀고 밀리기 (연타) → 이긴 쪽이 뚫고 나감) — 기술 · 필살기
+    ("fx-clash-move-1500", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "clash", "fx": "1", "budget": "1500"}),
+    ("fx-clash-move-2600", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "clash", "fx": "1", "budget": "2600"}),
+    ("fx-clash-move-4000", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "clash", "fx": "1", "budget": "4000"}),
+    ("fx-clash-move-5100", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "clash", "fx": "1", "budget": "5100"}),
+    ("fx-clash-move-6000", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "clash", "fx": "1", "budget": "6000"}),
+    ("fx-clash-ult-1500", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "clash", "ckind": "ult", "fx": "1", "budget": "1500"}),
+    ("fx-clash-ult-3000", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "clash", "ckind": "ult", "fx": "1", "budget": "3000"}),
+    ("fx-clash-ult-5000", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "clash", "ckind": "ult", "fx": "1", "budget": "5000"}),
+    ("fx-clash-ult-7200", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "clash", "ckind": "ult", "fx": "1", "budget": "7200"}),
+    ("fx-clash-ult-8000", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "clash", "ckind": "ult", "fx": "1", "budget": "8000"}),
     # 필살기 = 일반 모드 필살기 (번쩍 · 어두워짐 · 컷인 · 큰 글씨 · 전용 연출). 엔진 dur 2.2초지만 연출이 끝날 때까지 붙잡음 (fx/hold)
     ("fx-ult-bulba-500", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "ult-beam", "side": "me", "dur": "2200", "fx": "1", "budget": "500"}),
     ("fx-ult-bulba-1300", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "ult-beam", "side": "me", "dur": "2200", "fx": "1", "budget": "1300"}),

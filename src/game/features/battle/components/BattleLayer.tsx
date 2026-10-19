@@ -278,7 +278,8 @@ function emphasize(msg: string, names: readonly string[]): ComponentChildren {
 }
 
 /** S10 힘대결 — 두 기술이 가운데서 밀고 밀림. 연타할수록 맞부딪히는 자리가 상대 쪽으로 (gdd S10 ⑤) · 승자가 정해지면 이긴 줄기가 끝까지 */
-function Clash({ b, geo, y }: { b: BattleState; geo: BattleGeometry; y: number }) {
+/** native = 일반 모드 대결이 그림 (BattleFx) — 그때는 줄기 · 💥 를 안 그리고 안내만 */
+function Clash({ b, geo, y, native }: { b: BattleState; geo: BattleGeometry; y: number; native: boolean }) {
   const c = b.clash;
   if (!c) return null;
   const p = clashWithTaps(c.base, c.taps);
@@ -294,11 +295,15 @@ function Clash({ b, geo, y }: { b: BattleState; geo: BattleGeometry; y: number }
   const tapHint = geo.compact ? '연타!' : document.hasFocus() ? '연타! (Space · 클릭)' : '클릭 연타!';
   return (
     <>
-      <span class={`pg-clash-beam pg-duel-${meKind}${big}${done}`} style={{ left: `${geo.meX}px`, width: `${Math.max(0, point - geo.meX)}px`, bottom: `${y}px`, backgroundColor: meColor }} />
-      <span class={`pg-clash-beam pg-duel-${foeKind}${big}${done}`} style={{ left: `${point}px`, width: `${Math.max(0, geo.foeX - point)}px`, bottom: `${y}px`, backgroundColor: foeColor }} />
-      <span class={`pg-fx pg-clash-point${done}`} style={{ left: `${point}px`, bottom: `${y}px` }}>
-        💥
-      </span>
+      {!native && (
+        <>
+          <span class={`pg-clash-beam pg-duel-${meKind}${big}${done}`} style={{ left: `${geo.meX}px`, width: `${Math.max(0, point - geo.meX)}px`, bottom: `${y}px`, backgroundColor: meColor }} />
+          <span class={`pg-clash-beam pg-duel-${foeKind}${big}${done}`} style={{ left: `${point}px`, width: `${Math.max(0, geo.foeX - point)}px`, bottom: `${y}px`, backgroundColor: foeColor }} />
+          <span class={`pg-fx pg-clash-point${done}`} style={{ left: `${point}px`, bottom: `${y}px` }}>
+            💥
+          </span>
+        </>
+      )}
       <div class="pg-clash-info" style={msgStyle(geo)}>
         {c.winner !== null ? (
           <b>{c.winner === 'me' ? '힘대결에서 이겼다!' : '힘대결에서 졌다…'}</b>
@@ -340,7 +345,7 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
       )}
       {hasMe && <HpBlock f={b.me} side="me" x={geo.meHpX} bottom={geo.meHpBottom} wide={geo.meHpWide} prefix="" noName={geo.menuSide !== null} />}
       {b.phase !== 'send' && <HpBlock f={b.foe} side="foe" x={geo.foeHpX} bottom={geo.foeHpBottom} wide={geo.foeHpWide} prefix={foePrefix(b)} />}
-      {b.phase === 'clash' ? <Clash b={b} geo={geo} y={Math.round((midMe + midFoe) / 2)} /> : <Effects b={b} geo={geo} ground={ground} midMe={midMe} midFoe={midFoe} native={native} />}
+      {b.phase === 'clash' ? <Clash b={b} geo={geo} y={Math.round((midMe + midFoe) / 2)} native={native} /> : <Effects b={b} geo={geo} ground={ground} midMe={midMe} midFoe={midFoe} native={native} />}
       <Catch b={b} geo={geo} ground={ground} />
       {(['me', 'foe'] as const).map((side) =>
         popups(side).map((p, i) => (

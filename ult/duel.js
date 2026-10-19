@@ -82,7 +82,9 @@ function duelSeg(D, t) {
 function duelShift(D, t) {
     if (t < D.tO) {
         const { f, from, to } = duelSeg(D, t);
-        return from + (to - from) * duelSmooth(f) + 0.02 * Math.sin(t * 5);
+        const s = from + (to - from) * duelSmooth(f) + 0.02 * Math.sin(t * 5);
+        // 게임 모드 힘대결 — 연타로 기운 만큼 더함 (ult/bridge.js duel)
+        return D.live ? D.live(t, s) : s;
     }
     return D.pushes[D.n - 1];
 }
@@ -361,7 +363,9 @@ function duelStart(D) {
                         const lo = Math.min(A.x0, B.x0);
                         const hi = Math.max(A.x0, B.x0);
                         ultOthers(A.p).forEach((o) => o.pokemon !== B.p && o.x > lo && o.x < hi && ultHit(o, Wn.dir, 'tumble'));
-                        setTimeout(() => ultTitle('효과는 굉장했다!', `${Wn.p.name}의 ${Wn.name}!`, null, 1.8), 150);
+                        // 게임 모드 힘대결은 결과 말을 게임 것으로 (D.winTitle — 타입 상성이 있어 "효과는 굉장했다" 가 틀릴 수 있음)
+                        const [wt, ws, wsec] = D.winTitle ? D.winTitle(Wn) : ['효과는 굉장했다!', `${Wn.p.name}의 ${Wn.name}!`, 1.8];
+                        setTimeout(() => ultTitle(wt, ws, null, wsec), 150);
                     }
                     if (st.won) {
                         Wn.fade = Math.max(0, 1 - (t - D.tO - DUEL_THROUGH - 0.5) / 0.6);

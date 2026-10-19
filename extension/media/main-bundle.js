@@ -37434,7 +37434,9 @@ function duelSeg(D, t) {
 function duelShift(D, t) {
     if (t < D.tO) {
         const { f, from, to } = duelSeg(D, t);
-        return from + (to - from) * duelSmooth(f) + 0.02 * Math.sin(t * 5);
+        const s = from + (to - from) * duelSmooth(f) + 0.02 * Math.sin(t * 5);
+        // 게임 모드 힘대결 — 연타로 기운 만큼 더함 (ult/bridge.js duel)
+        return D.live ? D.live(t, s) : s;
     }
     return D.pushes[D.n - 1];
 }
@@ -37713,7 +37715,9 @@ function duelStart(D) {
                         const lo = Math.min(A.x0, B.x0);
                         const hi = Math.max(A.x0, B.x0);
                         ultOthers(A.p).forEach((o) => o.pokemon !== B.p && o.x > lo && o.x < hi && ultHit(o, Wn.dir, 'tumble'));
-                        setTimeout(() => ultTitle('효과는 굉장했다!', `${Wn.p.name}의 ${Wn.name}!`, null, 1.8), 150);
+                        // 게임 모드 힘대결은 결과 말을 게임 것으로 (D.winTitle — 타입 상성이 있어 "효과는 굉장했다" 가 틀릴 수 있음)
+                        const [wt, ws, wsec] = D.winTitle ? D.winTitle(Wn) : ['효과는 굉장했다!', `${Wn.p.name}의 ${Wn.name}!`, 1.8];
+                        setTimeout(() => ultTitle(wt, ws, null, wsec), 150);
                     }
                     if (st.won) {
                         Wn.fade = Math.max(0, 1 - (t - D.tO - DUEL_THROUGH - 0.5) / 0.6);
@@ -47811,8 +47815,44 @@ function fxPlan(form, m) {
     }
 }
 
+// ── 힘대결 = 일반 모드 필살기 대결 (ult/duel.js) — 모으기 → 앞으로 → 가운데서 밀고 밀리기 (연타로 기울어짐) → 이긴 쪽이 뚫고 나가 터짐 ──
+// 기술 맞받아치기는 그 기술 틀을 대결 모양으로 (광선 · 번개 · 구슬 · 회오리 · 운석 · 땅 · 돌진 · 물결), 색은 기술 타입
+const FX_DUEL_FX = {
+    breath: 'ultbeam', water: 'ultbeam', beam: 'ultbeam', solarbeam: 'ultbeam', bubbles: 'ultorb', projectile: 'ultorb', bolt: 'ultvolt', thunder: 'ultvolt',
+    megavolt: 'ultvolt', spark: 'ultvolt', powder: 'ultswarm', notes: 'ultpsy', rings: 'ultpsy', vortex: 'ultvortex', rockfall: 'ultskyfall', quake: 'ultquake',
+    dash: 'ultrush', slash: 'ultrush', punch: 'ultrush',
+};
+// 대결 입자의 수명 표시 (멈출 때 찾아서 줄임) — 승자가 정해질 때까지 밀기가 이어지게 아주 길게
+const FX_DUEL_LONG = 59.75;
+function fxDuelEntry(kind, form, m) {
+    if (kind === 'ult') {
+        // 필살기 대결 — 그 포켓몬 필살기 (일반 모드 주머니 순서), 특수 필살기 (튀어오르기 · 변신 · 손가락흔들기) 면 다른 것
+        const e = ultEntry(form);
+        if (e && !ULT_SPECIALS.includes(e[1])) {
+            return e;
+        }
+        const list = (POKEMON_ULT[form] || []).map((i) => ULT_LIB[i]).filter((v) => v && !ULT_SPECIALS.includes(v[1]));
+        return list.length ? movePick(list) : ['필살기', 'ultbeam', {}];
+    }
+    const p = m && fxPlan(form, m);
+    return [m ? m.name : '기술', FX_DUEL_FX[p && p.sig[1]] || 'ultbeam', { c: FX_TYPE_PAL[m && m.type] || 'normal' }];
+}
+// 부드럽게 멈춤 — 이긴 쪽이 뚫고 나가 터지는 여운 (1.7초) 까지 그린 뒤 정리
+function fxDuelSoftStop() {
+    const g = fxGame;
+    if (!g || !g.duel) {
+        return;
+    }
+    const dp = g.duel.dp;
+    if (dp) {
+        dp.max = Math.min(dp.max, dp.life + 1.7);
+    }
+    clearTimeout(g.done);
+    g.done = setTimeout(() => fxGame === g && fxGameStop(false), 1800);
+}
+
 window.pokemonFx = {
-    version: 2,
+    version: 3,
     /** 그 기술의 연출 — { fx: 틀 이름, ms: 걸리는 시간, contact: 몸으로 닿는지 } · 없으면 null (게임은 그 기술을 예전 모양으로) */
     plan(form, m) {
         const p = fxPlan(form, m);
@@ -47904,6 +47944,91 @@ window.pokemonFx = {
         }
         fxGame.done = setTimeout(fxGameStop, total + 200);
         return total;
+    },
+    /** 힘대결 시작 — a = 내 포켓몬 (왼쪽), b = 상대. spec = { kind: 'ult' | 'move', a: 기술 | null, b: 기술 | null }, live() = 내가 이길 확률 (연타 반영, 0 ~ 1).
+     *  필살기 대결은 VS 연출 (1.5초) 뒤에. { meetMs: 시작에서 가운데서 만나는 때 } · 못 하면 null */
+    duel(a, b, spec, live) {
+        fxGameStop(true);
+        if (!POKEMON_SHAPE[a.form] || !POKEMON_SHAPE[b.form] || ultActive || fxWidth(a) < 1 || fxWidth(b) < 1) {
+            return null;
+        }
+        const A = fxActor(a);
+        const B = fxActor(b);
+        const gen = ++fxGen;
+        fxGame = { A, B, gen, tick: setInterval(fxGameTick, 100) };
+        let meetMs = 0;
+        const ok = safeFx({}, () => fxWithTimers(gen, () => {
+            const ultA = fxDuelEntry(spec.kind, a.form, spec.a);
+            const ultB = fxDuelEntry(spec.kind, b.form, spec.b);
+            const leftA = !!a.left;
+            const leftB = !!b.left;
+            // 승패는 게임 엔진이 4초 끝에 정함 — 처음엔 가운데 (무승부 모양) 로 짜고, 밀기는 승자가 올 때까지 (duelWin)
+            const D = duelPlan(A, ultA, leftA, B, ultB, leftB, 'draw');
+            D.draw = false;
+            D.winner = null;
+            D.loser = null;
+            D.tO = Infinity;
+            D.total = FX_DUEL_LONG;
+            D.winTitle = (Wn) => [Wn === D.A ? '힘대결에서 이겼다!' : '힘대결에서 졌다…', `${Wn.p.name}의 ${Wn.name}!`, 1.3];
+            D.live = (t, s) => {
+                let p = 0.5;
+                try {
+                    p = Math.min(1, Math.max(0, Number(live()) || 0.5));
+                } catch (err) {
+                    ultError('duel live', err);
+                }
+                // 연타로 기운 만큼 + 일반 모드 밀고 밀리기 리듬 (반만)
+                return Math.min(0.85, Math.max(-0.85, (p - 0.5) * 1.4 + 0.5 * s));
+            };
+            const vs = spec.kind === 'ult' ? ULT_VS_MS : 0;
+            meetMs = vs + D.tm * 1000;
+            const now = performance.now();
+            ultActive = { pokemon: A, rival: B, until: now + FX_DUEL_LONG * 1000, name: ultA[0], fx: 'clash' };
+            const start = () => {
+                duelStart(D);
+                fxGame && fxGame.gen === gen && (fxGame.duel.dp = moveParticles.find((q) => q.max === FX_DUEL_LONG && q.z === -1));
+            };
+            fxGame.duel = { D, dp: null };
+            if (vs) {
+                // 필살기 대결 — 번쩍 · 어두워짐 · 위아래 컷인 · VS (일반 모드 그대로). 길이는 어림 (밀기 3.6초 + 끝 1.9초)
+                ultVsIntro(A, ultA, leftA, B, ultB, leftB, vs / 1000 + D.tm + DUEL_SEC + DUEL_THROUGH + DUEL_AFTER);
+                setTimeout(start, vs);
+            } else {
+                screenFlash(2, 0.4, '#ffffff', 0.2);
+                start();
+            }
+        }));
+        if (!ok) {
+            fxGameStop(true);
+            return null;
+        }
+        return { meetMs: Math.round(meetMs) };
+    },
+    /** 힘대결 승자 — 'a' (나) | 'b' (상대). 이긴 쪽이 뚫고 나가 진 쪽에서 터짐 (0.4초) */
+    duelWin(who) {
+        const D = fxGame && fxGame.duel && fxGame.duel.D;
+        if (!D || D.winner) {
+            return;
+        }
+        D.winner = who === 'a' ? D.A : D.B;
+        D.loser = who === 'a' ? D.B : D.A;
+        D.pushes[D.n - 1] = who === 'a' ? 0.55 : -0.55;
+        D.live = undefined;
+        // 지금부터 결과 — 밀기가 아직 안 시작했으면 (VS · 모으기 중) 만나는 때부터
+        D.tO = Math.max(D.t || 0, D.tm);
+    },
+    /** 힘대결이 끝남 — soft = 터지는 여운까지 그리고 정리 (전투가 이어질 때), 아니면 바로 */
+    stopDuel(soft) {
+        if (soft && fxGame && fxGame.duel && fxGame.duel.D.winner) {
+            fxDuelSoftStop();
+            return;
+        }
+        const was = !!fxGame;
+        fxGameStop(true);
+        if (was) {
+            moveEmitters.length = 0;
+            moveParticles.length = 0;
+        }
     },
     /** 쓰는 중인 필살기를 멈춤 (맞받아치기 · 전투 끝) — 몸 자리 · 그림 · 어둠을 되돌림 */
     stopUlt() {

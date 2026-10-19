@@ -5,11 +5,12 @@
  * 필살기 = 일반 모드 필살기 그대로 (번쩍 · 어두워짐 · 컷인 · 큰 글씨 · 전용 연출) · 끝날 때까지 붙잡음 · 맞받아치기로 끊기면 멈춤.
  * 방어 = 방패 · 회복 = 반짝 · 잠 = Z · 마비 = 찌릿. 일반 모드 번들이 없거나 못 그린 행동은 BattleLayer 가 이모지로.
  */
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import type { BattleState, Side } from '../../../core/engine';
+import { clashWithTaps } from '../../../core/rules/battle';
 import { formOf, moveOf, speciesOf } from '../../../data';
 import { pokemonFx, type FxActor, type FxMove } from '../fx/bridge';
-import { battleAnimKey, FX_HOLD_ULT_MAX_MS, holdFx, releaseFx } from '../fx/hold';
+import { battleAnimKey, FX_HOLD_DUEL_MAX_MS, FX_HOLD_ULT_MAX_MS, holdFx, releaseFx } from '../fx/hold';
 
 /** 쏘는 기술을 쓰기 시작하는 때 — 몸을 젖혔다 내미는 동안 (일반 모드 useSignature 의 120ms) */
 const CAST_DELAY_MS = 120;
@@ -20,6 +21,8 @@ const SHOT_HIT_AT = 0.85;
 /** 필살기 시작을 이만큼 넘겨서 붙었으면 (접었다 펴기 등) 처음부터 못 보여 줘서 이모지로 — 나와라! 등장 (0.45초) 을 기다리는 것 포함 */
 const ULT_LATE_MS = 600;
 const ULT_RETRY_MS = 50;
+/** 힘대결 밀고 밀리기 — 일반 모드 대결과 같은 3.6초 (가운데서 만난 뒤부터, 연타는 그동안 계속) */
+const DUEL_PUSH_MS = 3600;
 /** 이미 지난 순간은 이만큼까지만 늦게라도 그림 (화면이 다시 붙는 사이) */
 const LATE_OK_MS = 50;
 
@@ -90,13 +93,59 @@ export function useBattleFx(b: BattleState): boolean {
   const key = battleAnimKey(b);
   // 일반 모드가 못 그린 행동의 열쇠 — 그 행동만 이모지로
   const [missed, setMissed] = useState('');
+  // 힘대결 연타를 실시간으로 (효과는 시작할 때 한 번만 도니, 지금 상태는 여기서 읽음)
+  const now = useRef(b);
+  now.current = b;
   useEffect(() => {
     if (!fx) return undefined;
     const a = b.anim;
     if (!a) {
-      // 힘대결 — 앞 행동의 뿜기 · 늦은 타이머가 힘대결 그림 위에 남지 않게
-      if (b.phase === 'clash') fx.clear();
-      return undefined;
+      if (b.phase !== 'clash' || !b.clash) return undefined;
+      // 힘대결 — 앞 행동의 뿜기 · 늦은 타이머를 지우고, 일반 모드 대결로 (모으기 → 가운데서 밀고 밀리기 → 이긴 쪽이 뚫고 나감)
+      fx.clear();
+      const c = b.clash;
+      const mv = (id: number | null): FxMove | null => {
+        const m = id === null ? undefined : moveOf(id);
+        return m ? { name: m.name.ko, type: m.type } : null;
+      };
+      if (!fx.duel || c.ms > ULT_LATE_MS) {
+        setMissed(key);
+        return undefined;
+      }
+      let started = false;
+      let timer = 0;
+      // 그림이 아직 0 크기 (막 그려져 그림을 못 받음 · 나와라! 커지는 중) 면 0.05초씩 기다림 — 0.6초까지 못 하면 예전 그림으로
+      const begin = (waited: number) => {
+        let plan: { meetMs: number } | null = null;
+        const me = actor(b, 'me');
+        const foe = actor(b, 'foe');
+        if ((!me || !foe || settleMs() > 0) && waited < ULT_LATE_MS) {
+          timer = window.setTimeout(() => begin(waited + ULT_RETRY_MS), ULT_RETRY_MS);
+          return;
+        }
+        try {
+          const live = () => {
+            const cur = now.current.clash;
+            return cur ? clashWithTaps(cur.base, cur.taps) : 0.5;
+          };
+          plan = me && foe && fx.duel ? fx.duel(me, foe, { kind: c.kind, a: mv(c.me), b: mv(c.foe) }, live) : null;
+        } catch (err) {
+          console.warn('[pokemon-game] 힘대결 연출 오류', err);
+        }
+        if (!plan) {
+          setMissed(key);
+          return;
+        }
+        started = true;
+        // 승자를 정하는 걸음을 밀고 밀리기가 3.6초 될 때까지 붙잡음 (그동안 연타는 계속 셈)
+        holdFx(key, plan.meetMs + DUEL_PUSH_MS - (now.current.clash?.ms ?? c.ms), performance.now(), FX_HOLD_DUEL_MAX_MS);
+      };
+      begin(0);
+      // 힘대결이 끝나면 (피해가 들어가고 전투가 이어짐) 터지는 여운까지 그리고 정리
+      return () => {
+        window.clearTimeout(timer);
+        if (started) fx.stopDuel?.(true);
+      };
     }
     const side = a.side;
     const timers: number[] = [];
@@ -202,6 +251,11 @@ export function useBattleFx(b: BattleState): boolean {
     };
     // 행동이 바뀔 때만 (같은 행동 동안 다시 그려져도 한 번)
   }, [key]);
+  // 힘대결 승자 — 엔진이 정하는 순간 이긴 쪽이 뚫고 나감
+  const winner = b.phase === 'clash' ? (b.clash?.winner ?? null) : null;
+  useEffect(() => {
+    if (fx && winner && missed !== key) fx.duelWin?.(winner === 'me' ? 'a' : 'b');
+  }, [key, winner]);
   // 전투 화면이 사라지면 남은 연출 · 붙잡기를 지움
   useEffect(
     () => () => {

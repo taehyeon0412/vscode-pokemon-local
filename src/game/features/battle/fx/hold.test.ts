@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { sampleMonster, sampleSave } from '../../../../test/fixtures/save';
 import { startBattle, type BattleState } from '../../../core/engine/battle';
 import { advance, createGameState, type GameState } from '../../../core/engine';
-import { battleAnimKey, FX_HOLD_MAX_MS, holdFx, releaseFx, shouldHoldBattle } from './hold';
+import { battleAnimKey, FX_HOLD_DUEL_MAX_MS, FX_HOLD_MAX_MS, holdFx, releaseFx, shouldHoldBattle } from './hold';
 
 /** 내 포켓몬이 기술을 쓰는 중인 전투 상태 (ms 까지 지남) */
 function inMove(ms: number, dur = 900): { state: GameState; b: BattleState } {
@@ -58,6 +58,22 @@ describe('일반 모드 연출이 끝날 때까지 전투 걸음을 붙잡음 (f
     // 연출 2초가 끝난 다음 프레임쯤에 끝남 (엔진 0.9초가 아니라)
     expect(endedAt).toBeGreaterThanOrEqual(2000);
     expect(endedAt).toBeLessThan(2100);
+  });
+
+  it('힘대결 — 승자를 정하는 걸음만 붙잡음 (밀고 밀리기 3.6초까지, 연타는 그동안 계속) · 승자가 정해진 뒤엔 안 붙잡음', () => {
+    const { state: s0, b: b0 } = inMove(0);
+    const clash = (ms: number, winner: 'me' | 'foe' | null): { state: GameState; b: BattleState } => {
+      // 시각 t 는 힘대결 시간과 같이 늚 (같은 힘대결 = 같은 시작 시각)
+      const b: BattleState = { ...b0, t: 5000 + ms, phase: 'clash', anim: null, clash: { kind: 'move', me: 75, foe: 52, base: 0.5, taps: 0, ms, winner } };
+      return { b, state: { ...s0, runtime: { ...s0.runtime, stage: { phase: 'battle', battle: b } } } };
+    };
+    const c = clash(3950, null);
+    holdFx(battleAnimKey(c.b), 6000, 0, FX_HOLD_DUEL_MAX_MS);
+    expect(battleAnimKey(c.b)).toBe(battleAnimKey(clash(100, null).b)); // 힘대결 하나 = 한 열쇠
+    expect(shouldHoldBattle(c.state, 50, 100)).toBe(true); // 3950 + 50 = 4000 → 승자를 정할 걸음
+    expect(shouldHoldBattle(clash(3000, null).state, 50, 100)).toBe(false); // 아직 연타 중
+    expect(shouldHoldBattle(clash(4750, 'me').state, 50, 100)).toBe(false); // 승자가 정해진 뒤 (결과 0.8초) 는 그대로
+    expect(shouldHoldBattle(c.state, 50, 6000)).toBe(false); // 연출이 끝남
   });
 
   it('상한이 있음 · 지우면 안 붙잡음 · 전투가 아니면 안 붙잡음', () => {
