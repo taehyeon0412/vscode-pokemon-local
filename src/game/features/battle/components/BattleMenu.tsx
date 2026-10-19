@@ -38,6 +38,11 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
   }, [b.phase]);
 
   const items = menuItems(b, save, page, compact);
+  // 커서 (Sea of Stars 1f — 고를 줄이 늘 보임: ▸ + 밝은 줄, 아트 디렉터) · ↑ ↓ 로 옮기고 Enter 로 고름 · 페이지 · 차례가 바뀌면 첫 줄로
+  const [cursor, setCursor] = useState(0);
+  useEffect(() => setCursor(0), [page, b.phase]);
+  const enabledIdx = items.map((it, k) => (it.enabled ? k : -1)).filter((k) => k >= 0);
+  const onIdx = enabledIdx.includes(cursor) ? cursor : (enabledIdx[0] ?? -1);
   const ultReady = canUlt(b) || ultCounterOpen(b);
   const ultCounter = ultCounterOpen(b);
   const counter = counterOpen(b);
@@ -57,8 +62,8 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
 
   // 단축키: 숫자 = 메뉴 · 다음 포켓몬 · Z = 필살기 · ← / Esc / Backspace = 뒤로 (Space 는 main.ts — 맞받아치기 · 연타)
   // 듣는 건 한 번만 달고, 지금 값은 ref 로 (초당 30번 다시 그려도 다시 달지 않게)
-  const now = useRef({ b, items, page, team, choose, pick, onInput, balls: [] as readonly BallId[] });
-  now.current = { b, items, page, team, choose, pick, onInput, balls: BALLS.filter((ball) => itemLeft(b, save, ball) > 0) };
+  const now = useRef({ b, items, page, team, choose, pick, onInput, balls: [] as readonly BallId[], onIdx, enabledIdx });
+  now.current = { b, items, page, team, choose, pick, onInput, balls: BALLS.filter((ball) => itemLeft(b, save, ball) > 0), onIdx, enabledIdx };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -90,6 +95,23 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
         }
         return;
       }
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        const list = c.enabledIdx;
+        if (list.length === 0) return;
+        e.preventDefault();
+        const at = Math.max(0, list.indexOf(c.onIdx));
+        setCursor(list[(at + (e.key === 'ArrowDown' ? 1 : list.length - 1)) % list.length]!);
+        return;
+      }
+      // 버튼에 포커스가 있으면 Enter 는 그 버튼이 받음 (두 번 고르지 않게)
+      if (e.key === 'Enter' && !(e.target instanceof HTMLButtonElement)) {
+        const it = c.items[c.onIdx];
+        if (it) {
+          e.preventDefault();
+          c.choose(it);
+        }
+        return;
+      }
       if (/^[1-9]$/.test(e.key)) {
         const it = c.items.find((x) => x.num === Number(e.key));
         if (it) {
@@ -103,8 +125,8 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
   }, []);
 
   const renderItems = (list: MenuItem[]) =>
-    list.map((i) => (
-      <Button key={i.key} onClick={() => choose(i)} disabled={!i.enabled} secondary={'back' in i.go} title={i.title}>
+    list.map((i, k) => (
+      <Button key={i.key} extraClass={b.phase === 'choose' && list === items && k === onIdx ? 'pg-on' : undefined} onClick={() => choose(i)} disabled={!i.enabled} secondary={'back' in i.go} title={i.title}>
         {i.label}
         {(vertical ? (i.subShort ?? i.sub) : i.sub) && <span class="pg-sub">{vertical ? (i.subShort ?? i.sub) : i.sub}</span>}
       </Button>

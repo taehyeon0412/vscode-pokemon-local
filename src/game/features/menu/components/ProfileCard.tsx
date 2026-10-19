@@ -9,6 +9,7 @@ import type { Save } from '../../../core/save';
 import { typeNameKo } from '../../../core/text';
 import { speciesOf } from '../../../data';
 import { Button } from '../../../ui/Button';
+import { Icon } from '../../../ui/Icon';
 import { moveView } from '../../result/model';
 import { monsterView, stars, STAT_LABEL } from '../model';
 
@@ -36,7 +37,7 @@ export function ProfileCard({ battle: b, save, side, onClose }: { battle: Battle
             </span>
           ))}
           <Button secondary extraClass="pg-pin" onClick={onClose} title="Esc · 바깥 클릭">
-            ✕
+            ✕ 닫기
           </Button>
         </span>
         <span class="pg-line">
@@ -57,10 +58,12 @@ export function ProfileCard({ battle: b, save, side, onClose }: { battle: Battle
           ) : (
             <>
               <span>{f.types.map(typeNameKo).join(' · ')}</span>
-              <span class={caught ? 'pg-reward' : 'pg-dim'}>{caught ? '◓ 잡은 적 있음' : '◓ 아직 안 잡음'}</span>
+              <span class={caught ? 'pg-reward' : 'pg-dim'}>
+                <Icon name="ball" /> {caught ? '잡은 적 있음' : '아직 안 잡음'}
+              </span>
             </>
           )}
-          <span class="pg-paused">⏸ 전투 멈춤</span>
+          <span class="pg-paused">‖ 전투 멈춤</span>
         </span>
       </div>
     </div>

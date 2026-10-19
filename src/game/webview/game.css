@@ -719,11 +719,6 @@ body.pokemon-game-on {
   opacity: 0.8;
   font-variant-numeric: tabular-nums;
 }
-@media (max-width: 420px) {
-  .pg-mapbar {
-    display: none;
-  }
-}
 
 /* ---- S09 전투 · S10 힘대결 (단계 5 · 6, 임시 디자인 — 단계 12 에서 다시) ---- */
 /* 주인공이 전투 때 왼쪽 끝 트레이너 자리로 물러남 · 끝나면 다시 가운데로 */
@@ -831,6 +826,8 @@ body.pokemon-game-on {
   --pg-sos-tab-ink: #1a1406;
   /* 고른 줄 · 주 버튼 바탕 (판보다 한 단계 밝은 남색) */
   --pg-sos-hi: #1f2a44;
+  /* 밝은 테마의 숲 빈칸 = 낮 하늘 */
+  --pg-sos-sky-day: #dde6ea;
 }
 
 /* ⑥ 이름 · Lv 줄 (내 것은 HP 숫자) → 얇은 HP 바 → ⑩ 행동 게이지 (상대는 맨 위에 ⑧ 필살기 게이지) — 포켓몬 머리 위, 판 없이 글자 그림자로 */
@@ -2356,9 +2353,13 @@ body.pokemon-game-on {
 .pg-space-done,
 .pg-start,
 .pg-last-sec,
-.pg-paused,
+.pg-last-tag,
 .pg-warning {
   color: var(--pg-sos-gold);
+}
+/* 프로필이 띄운 동안 "‖ 전투 멈춤" = 흐린 글 (금색 = 고른 것) */
+.pg-paused {
+  color: var(--pg-sos-dim);
 }
 .pg-ask {
   color: var(--pg-sos-ink);
@@ -2615,11 +2616,11 @@ body.pokemon-game-on {
 .pg-catch-ring,
 .pg-catch-ring.pg-ring-perfect {
   border-color: var(--pg-sos-gold);
-  box-shadow: 0 0 6px var(--pg-sos-gold);
+  box-shadow: none;
 }
 .pg-catch-ring.pg-ring-good {
   border-color: var(--pg-sos-hp);
-  box-shadow: 0 0 6px var(--pg-sos-hp);
+  box-shadow: none;
 }
 .pg-catch-ring.pg-ring-none {
   border-color: var(--pg-sos-dim);
@@ -2633,7 +2634,8 @@ body.vscode-light .pg-field,
 body.vscode-light .pg-title-body,
 body.vscode-high-contrast-light .pg-field,
 body.vscode-high-contrast-light .pg-title-body {
-  background-color: var(--vscode-editor-background);
+  /* 편집기 흰색 대신 고정 낮 하늘 (흰색은 줄기와 대비가 너무 세서 배경이 그림보다 시끄러움 — 아트 디렉터) */
+  background-color: var(--pg-sos-sky-day);
 }
 
 /* HP 묶음 글자 = 네 방향 1px 테두리 (예전 한쪽 그림자) — 밝은 테마의 흰 숲 빈칸 · 어두운 나무 위 어디서나 읽히게 */
@@ -3067,4 +3069,107 @@ body.vscode-high-contrast-light .pg-title-body {
   .pg-ultz-spark {
     animation: none;
   }
+}
+
+/* ---- 아트 디렉터 단계 12 2바퀴 (16/25) 반영 ---- */
+/* 전투 옆 메뉴 커서 — 고를 줄에 늘 ▸ + 밝은 줄 (Sea of Stars 1f) · 마우스를 다른 줄에 올리면 그 줄이 대신 */
+.pg-vmenu .pg-layer .pg-button.pg-on:not(:disabled) {
+  color: var(--pg-sos-gold);
+  background: var(--pg-sos-hi);
+}
+.pg-vmenu .pg-layer .pg-button.pg-on:not(:disabled)::before {
+  content: "▸";
+  position: absolute;
+  left: 2px;
+}
+.pg-vmenu .pg-layer:hover .pg-button.pg-on:not(:hover) {
+  color: var(--pg-sos-ink);
+  background: transparent;
+}
+.pg-vmenu .pg-layer:hover .pg-button.pg-on:not(:hover)::before {
+  content: none;
+}
+.pg-bmenu .pg-bmenu-items .pg-button.pg-on:not(:disabled) {
+  color: var(--pg-sos-gold);
+  border-color: var(--pg-sos-gold);
+}
+/* 던지는 볼 = 정보줄과 같은 픽셀 볼 (코드로 그린 그라데이션 동그라미 · 돌리기 대신) — 흔들기는 좌우 2px 두 걸음, 잡힘은 1px 금색 단단한 테두리 */
+.pg-thrown-ball {
+  width: calc(8px * var(--pg-scale, 1));
+  height: calc(8px * var(--pg-scale, 1));
+  border: 0;
+  border-radius: 0;
+  background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'><rect x='2' y='0' width='4' height='1' fill='%23ff6b5a'/><rect x='1' y='1' width='1' height='1' fill='%23ff6b5a'/><rect x='2' y='1' width='1' height='1' fill='%23e8e2cf'/><rect x='3' y='1' width='4' height='1' fill='%23ff6b5a'/><rect x='0' y='2' width='2' height='1' fill='%23ff6b5a'/><rect x='2' y='2' width='1' height='1' fill='%23e8e2cf'/><rect x='3' y='2' width='4' height='1' fill='%23ff6b5a'/><rect x='7' y='2' width='1' height='1' fill='%23b8443a'/><rect x='0' y='3' width='3' height='1' fill='%231a1406'/><rect x='3' y='3' width='2' height='1' fill='%23e8e2cf'/><rect x='5' y='3' width='3' height='1' fill='%231a1406'/><rect x='0' y='4' width='3' height='1' fill='%231a1406'/><rect x='3' y='4' width='2' height='1' fill='%23e8e2cf'/><rect x='5' y='4' width='3' height='1' fill='%231a1406'/><rect x='0' y='5' width='7' height='1' fill='%23e8e2cf'/><rect x='7' y='5' width='1' height='1' fill='%23a9a38f'/><rect x='1' y='6' width='5' height='1' fill='%23e8e2cf'/><rect x='6' y='6' width='1' height='1' fill='%23a9a38f'/><rect x='2' y='7' width='4' height='1' fill='%23a9a38f'/></svg>") center / 100% 100% no-repeat;
+  image-rendering: pixelated;
+}
+@keyframes pg-thrown-throw {
+  0% { transform: translateX(calc(-50% + var(--pg-dx, 0px))) translateY(-60%); }
+  60% { transform: translateX(calc(-50% + var(--pg-dx, 0px) * 0.3)) translateY(-160%); }
+  100% { transform: translateX(-50%) translateY(0); }
+}
+.pg-thrown-shake {
+  animation: pg-thrown-shake 0.55s steps(1, end) 2 both;
+}
+@keyframes pg-thrown-shake {
+  0% { transform: translateX(calc(-50% - 2px)); }
+  25% { transform: translateX(calc(-50% + 2px)); }
+  50% { transform: translateX(calc(-50% - 2px)); }
+  75% { transform: translateX(calc(-50% + 2px)); }
+  100% { transform: translateX(-50%); }
+}
+.pg-thrown-caught {
+  filter: drop-shadow(1px 0 0 var(--pg-sos-gold)) drop-shadow(-1px 0 0 var(--pg-sos-gold)) drop-shadow(0 1px 0 var(--pg-sos-gold)) drop-shadow(0 -1px 0 var(--pg-sos-gold));
+}
+.pg-catch-ring {
+  box-shadow: none;
+}
+/* 진행 막대 — 좁으면 짧게 (48px 까지), 300 아래에서만 숨김 (예전엔 420 아래에서 숨겨 360 에서 막대가 없었음) */
+.pg-mapbar {
+  width: clamp(48px, 18vw, 240px);
+}
+@media (max-width: 300px) {
+  .pg-mapbar {
+    display: none;
+  }
+}
+/* 상점 판이 길 위 칸 (이미 정보줄 아래) 안에서는 위 3px 부터 (정보줄 높이만큼 한 번 더 내려가던 것) */
+.pg-field > .pg-panel {
+  top: 3px;
+  max-height: calc(100% - 6px);
+}
+/* 한 줄 말 가운데 맞춤 = 반 픽셀 없이 (옆 · 오른쪽 자리는 BattleLayer msgStyle 이 left · right · 여백을 줌) */
+.pg-bmsg {
+  left: 8px;
+  right: 8px;
+  width: -webkit-fit-content;
+  width: fit-content;
+  margin: 0 auto;
+  transform: none;
+}
+/* 작은 값 정리 — 정수 px */
+.pg-expbar {
+  width: 48px;
+}
+.pg-facility-btns {
+  gap: 4px;
+}
+/* 주인공 고르기 그림 윤곽 = 흐린 빛 대신 네 방향 1px 흐린 크림 (어두운 그림이 남색에 묻히지 않게) */
+.pg-hero-choice .pg-hero {
+  filter: drop-shadow(1px 0 0 var(--pg-sos-dim)) drop-shadow(-1px 0 0 var(--pg-sos-dim)) drop-shadow(0 1px 0 var(--pg-sos-dim)) drop-shadow(0 -1px 0 var(--pg-sos-dim));
+}
+/* 접힌 상태 한 줄 = 흐린 크림 (금색 = 고른 것) */
+.pg-too-small {
+  color: var(--pg-sos-dim);
+}
+/* 말하는 사람 이름표 (간호순 · 트레이너 · 부탁하는 사람) — 상자 안 첫 줄 맨 앞, 옆 메뉴 이름표와 같은 칠 (Sea of Stars 2f · 더하는 높이 0) */
+.pg-speaker {
+  display: inline-block;
+  margin-right: 4px;
+  padding: 0 5px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 15px;
+  vertical-align: 1px;
+  color: var(--pg-sos-tab-ink);
+  background: var(--pg-sos-line);
 }

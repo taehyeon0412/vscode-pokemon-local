@@ -54,6 +54,8 @@ export const ICONS = {
   gear: ['W..WW..W', '.WWWWWW.', '.WW..Ww.', 'WW....ww', 'WW....ww', '.Ww..ww.', '.wwwwww.', 'w..ww..w'],
   /** 배지 */
   badge: ['...yy...', '..yYGy..', '.yYGGGy.', 'yYGWGGgy', 'yYGGGggy', '.yGGggy.', '..yggy..', '...yy...'],
+  /** 큰 배지 (MVP 끝 카드 — 16 × 16 칸, 점 크기는 다른 아이콘과 같은 2) */
+  badgeBig: ['.......yy.......', '......yYYy......', '.....yYGGYy.....', '....yYGGGGYy....', '...yYGGWGGGYy...', '..yYGGWWGGGGYy..', '.yYGGGWGGGGgGYy.', 'yYGGGGGGGGggGGYy', 'yYGGGGGGGgggGGYy', '.yYGGGGGgggGGYy.', '..yYGGggggGGYy..', '...yYGgggGGYy...', '....yYGGGGYy....', '.....yYGGYy.....', '......yYYy......', '.......yy.......'],
   /** 잠김 */
   lock: ['..WWWW..', '.WW..WW.', '.W....W.', 'YYYYYYYY', 'YYYyyYYY', 'YYYyyYYY', 'YYYYYYYy', 'yyyyyyyy'],
   // ── 길 위 그림 (S06 ④ 야생 흔적 · ⑭ 떨어진 아이템) — 크기는 제각각, 화면 점 크기 = 포켓몬 그림 배율 ──

@@ -38,7 +38,7 @@ export function MapPanel({ state, swap, midStage, onInput, onTeam, onClose }: Ma
       title="세계 지도"
       extra={
         <>
-          숲 {v.badge && <Icon name="badge" title="숲 배지" />} · {midStage ? '다른 스테이지로 가면 지금 스테이지는 처음부터 다시예요' : '깬 스테이지에서 키울 수 있어요'}
+          숲 {v.badge && <Icon name="badge" title="숲 배지" />}
         </>
       }
       onClose={onClose}

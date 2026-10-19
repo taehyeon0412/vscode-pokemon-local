@@ -101,12 +101,12 @@ function RequestBox({ state, onInput }: { state: GameState; onInput(i: GameInput
     <div class="pg-banner pg-request pg-two" title={`${t.who.name}: ${t.text}`}>
       <span class="pg-ellipsis">
         {t.who.look ? null : `${t.who.icon} `}
-        <b>{t.who.name}</b>: {t.text}
+        <span class="pg-speaker">{t.who.name}</span> {t.text}
       </span>
       <span class="pg-line pg-request-act">
         {helper && (
           <span class="pg-helper pg-ellipsis" title={helper.moveName ? undefined : `${types} 기술이 있으면 성공 ${Math.round(BALANCE.requestChanceMatch * 100)}%`}>
-            {helper.moveName ? `${helper.name}의 ${helper.moveName}` : `${helper.name} (맞는 기술 없음 — ${types} 기술이면 ${Math.round(BALANCE.requestChanceMatch * 100)}%)`} · 성공{' '}
+            {helper.moveName ? `${helper.name}의 ${helper.moveName}` : helper.name} · 성공{' '}
             {Math.round(helper.chance * 100)}%
           </span>
         )}

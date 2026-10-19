@@ -254,8 +254,8 @@ function Catch({ b, geo, ground }: { b: BattleState; geo: BattleGeometry; ground
 
 /** 위 가운데 · (옆 메뉴) 오른쪽 위 · (낮은 패널) 상대 오른쪽 */
 function msgStyle(geo: BattleGeometry) {
-  if (geo.msgSide) return { left: `${geo.msgSide.left}px`, maxWidth: `${geo.msgSide.maxWidth}px`, transform: 'none' };
-  if (geo.msgRight) return { left: 'auto', right: `${geo.msgRight.right}px`, maxWidth: `${geo.msgRight.maxWidth}px`, transform: 'none' };
+  if (geo.msgSide) return { left: `${geo.msgSide.left}px`, right: 'auto', margin: 0, maxWidth: `${geo.msgSide.maxWidth}px`, transform: 'none' };
+  if (geo.msgRight) return { left: 'auto', right: `${geo.msgRight.right}px`, margin: 0, maxWidth: `${geo.msgRight.maxWidth}px`, transform: 'none' };
   return undefined;
 }
 

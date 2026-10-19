@@ -116,7 +116,7 @@ export function StageObjects({ objects, media, scale, ground, roomPx }: ObjectsP
               <span key={o.key} class={cls} style={style} title={TRACE_TITLE[o.plan.trace] + (o.plan.strong ? ' (크게!)' : '')}>
                 {/* 모든 흔적에 같은 신호 — 배경 나무 · 풀과 헷갈리지 않게 */}
                 <span class={o.plan.strong ? 'pg-trace-dots pg-trace-big' : 'pg-trace-dots'}>{o.plan.strong ? '!!' : '…'}</span>
-                <Icon name={TRACE_ICON[o.plan.trace]} px={o.plan.strong ? scale * 1.5 : scale} />
+                <Icon name={TRACE_ICON[o.plan.trace]} px={scale} />
                 {o.plan.shiny && (
                   <span class="pg-sparkle">
                     <Icon name="sparkle" px={scale} />

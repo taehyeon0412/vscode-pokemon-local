@@ -98,7 +98,7 @@ export function TeamPanel({ save, media, swap, onInput, onClose }: TeamPanelProp
     <Panel
       icon="ball"
       title="내 포켓몬"
-      extra={`팀 ${party.length}/${BALANCE.partySize} · 보관함 ${box.length} · ${swap ? '보관함과 바꿀 수 있어요' : '보관함 교체는 병원 · 체육관 대기실 · 스테이지 시작 전에'}`}
+      extra={`팀 ${party.length}/${BALANCE.partySize} · 보관함 ${box.length}`}
       onClose={onClose}
     >
       <Row label="팀">
@@ -164,8 +164,7 @@ export function TeamPanel({ save, media, swap, onInput, onClose }: TeamPanelProp
               </span>
             ))}
             {selected.status && <span class="pg-status">{selected.status}</span>}
-          </Row>
-          <Row label="기술">
+            <span class="pg-panel-sep">·</span>
             {selected.moves.length === 0 ? (
               <span class="pg-dim">기술 없음 (1 공격만)</span>
             ) : (

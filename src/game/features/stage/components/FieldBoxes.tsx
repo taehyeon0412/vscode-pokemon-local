@@ -50,7 +50,7 @@ export function FacilityBox({ state, onInput, onBox }: BoxProps & { onBox(): voi
     <div class="pg-banner pg-facility-box">
       {/* 말하는 사람 = 길 위 간호순 그림 (건물 옆) — 좁은 패널에선 이 줄을 숨기고 버튼 한 줄만 (game.css) */}
       <span class="pg-ellipsis pg-facility-say">
-        <b>{FACILITY_STAFF.hospital.name}</b>: "무료로 회복해 드려요"
+        <span class="pg-speaker">{FACILITY_STAFF.hospital.name}</span> 무료로 회복해 드려요
       </span>
       {/* 버튼 셋은 한 묶음 — 줄이 바뀌면 글과 버튼 사이에서만 (크기마다 모양이 같게) */}
       <span class="pg-facility-btns">
@@ -75,8 +75,16 @@ export function TrainerBanner({ name, balls, text, tag }: { name: string; balls:
   return (
     <div class={tag ? 'pg-banner pg-trainer-box pg-rival-box' : 'pg-banner pg-trainer-box'}>
       <span class="pg-ellipsis">
-        <b>{name}</b>
-        {text ?? ': "승부다!"'}
+        {text ? (
+          <>
+            <b>{name}</b>
+            {text}
+          </>
+        ) : (
+          <>
+            <span class="pg-speaker">{name}</span> 승부다!
+          </>
+        )}
       </span>
       {tag && <span class="pg-rival-rec">{tag}</span>}
       <span class="pg-foe-balls" title={`상대 포켓몬 ${balls}마리`}>
@@ -228,7 +236,7 @@ export function BadgeCard({ state, onInput, onMap }: BoxProps & { onMap(): void 
   return (
     <div class="pg-banner pg-badge-card">
       <span class="pg-badge-glow">
-        <Icon name="badge" px={4} title="숲 배지" />
+        <Icon name="badgeBig" title="숲 배지" />
       </span>
       <span class="pg-badge-lines">
       <span class="pg-line pg-ellipsis">

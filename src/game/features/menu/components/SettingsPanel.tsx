@@ -14,10 +14,10 @@ export function SettingsPanel({ save, onInput, onExit, onClose }: { save: Save; 
       icon="gear"
       title="설정" onClose={onClose}>
       <Row label="알림">
-        <Button secondary={!on} onClick={() => onInput({ kind: 'notifications', on: !on })} title="패널이 안 보일 때 직접 해야 하는 순간을 VS Code 알림으로">
+        <Button secondary extraClass={on ? 'pg-picked' : undefined} onClick={() => onInput({ kind: 'notifications', on: !on })} title="패널이 안 보일 때 직접 해야 하는 순간을 VS Code 알림으로 — 이로치 흔적 · 길 위의 부탁 · 진화 · 새 기술 · 체육관 도착 · 클리어 · 패배">
           {on ? '✓ 알림 켜짐' : '알림 꺼짐'}
         </Button>
-        <span class="pg-dim pg-ellipsis">안 볼 때 이로치 흔적 · 길 위의 부탁 · 진화 · 새 기술 · 체육관 도착 · 클리어 · 패배를 알려 줘요</span>
+        <span class="pg-dim pg-ellipsis">안 볼 때 알려 줘요</span>
       </Row>
       <Row label="나가기">
         <Button secondary onClick={onExit} title="자동저장하고 일반 모드로 (패널 제목줄 🏠 와 같음)">
