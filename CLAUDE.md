@@ -8,9 +8,15 @@
 
 ## 게임 개발팀 (2026-10-17 태현 님)
 
-기획이 끝나 MVP를 만드는 단계. 개발할 때는 기획 파트너 규칙에 더해 아래 팀 규칙을 따른다 (리드 = Claude, 직원 = `.claude/agents/`의 서브 에이전트 5명).
+기획이 끝나 MVP를 만드는 단계. 개발할 때는 기획 파트너 규칙에 더해 아래 팀 규칙을 따른다 (리드 = Claude, 직원 = `.claude/agents/`의 서브 에이전트 6명).
 
 @docs/game-dev-team.md
+
+## 아트 디렉터 (2026-10-19 태현 님)
+
+화면 모양 (색 · 글자 · 판 · 버튼 · 아이콘 · 배치 · 연출) 을 만들거나 고칠 때는 팀 규칙에 더해 아래 규칙을 따른다. 값의 기준은 `docs/game-design/design-system.md`.
+
+@docs/game-art-director.md
 
 ## 커밋 규칙 (2026-10-17 태현 님)
 
@@ -26,5 +32,5 @@
 - **언제**: 하나의 주제가 끝나면 자동으로 커밋하고 푸시한다 (main). 태현 님이 "커밋해줘"라고 하면 커밋 · 푸시까지 한 번에 하고 GitHub에 올라갔는지 확인한다.
 - **무엇을**: 그 주제에서 바뀐 파일만 올린다. 내가 만들지 않은 파일(예: urls.txt)은 묻기 전에는 올리지 않는다.
 - **기획 문서는 올리지 않는다**: `docs/game-design/` · `docs/game-design-partner.md`는 .gitignore에 있어 내 PC에만 있다 (2026-10-17 태현 님). 기획 주제만 끝났고 올릴 게 없으면 커밋하지 않고 "기획 문서는 PC에만 저장됨"이라고만 알린다.
-- **개발팀 파일도 올리지 않는다**: `docs/game-dev-team.md` · `.claude/agents/` · 개발 기록 (`docs/game-design/dev/`)도 PC에만 (2026-10-17 태현 님).
+- **개발팀 파일도 올리지 않는다**: `docs/game-dev-team.md` · `.claude/agents/` · 개발 기록 (`docs/game-design/dev/`)도 PC에만 (2026-10-17 태현 님). 아트 디렉터 규칙 `docs/game-art-director.md` · 디자인 레퍼런스 사진 (`docs/game-design/design/refs/`) 도 PC에만 (2026-10-19).
 - 이 저장소는 GitHub 공개(PUBLIC)라 올린 파일은 누구나 볼 수 있다.
