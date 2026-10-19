@@ -75,7 +75,7 @@ export type GameInput =
  * 안 볼 때 직접 해야 하는 순간 — 확장이 VS Code 알림 (U9, 설정에서 끔).
  * 이로치 · 부탁 · 고르기 · 체육관 도착 (mvp-spec 3.3) + 클리어 카드 · 패배 (멈춰서 기다리는 곳이라 [제안] — 돌아와서 "이미 멈춰 있었네" 가 안 되게)
  */
-export type GameNotice = 'shiny' | 'request' | 'choice' | 'gym' | 'clear' | 'defeat';
+export type GameNotice = 'shiny' | 'rival' | 'request' | 'choice' | 'gym' | 'clear' | 'defeat';
 
 /** 부탁 · 병원 앞에 멈춰 있을 때 진행 % 를 자리 바로 앞에 둠 — 고르기 전에 꺼도 다시 켜면 그 자리부터 */
 const BEFORE_SPOT = 1e-7;
@@ -326,6 +326,11 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
         const n = spot.trainer ?? 0;
         save = { ...withProgress(save, id, spot.at), pendingEncounter: { kind: 'trainer', trainerId: trainerId(id, n), stageId: id } };
         stage = { phase: 'trainer', n, ms: 0 };
+      } else if (spot.kind === 'rival' && (rt.headless || rt.away) && aliveCount(save) > 0) {
+        // 안 볼 때 · VS Code 에 포커스가 없을 때 라이벌 — 이로치처럼 바로 앞에서 멈추고 알림 (드문 일을 자동 전투로 놓치지 않게, 2026-10-20 ideas #87), 다시 보면 걸어가 만남
+        save = withProgress(save, id, Math.max(from, spot.at - BEFORE_SPOT));
+        stage = { phase: 'hold', why: 'rival' };
+        notice = 'rival';
       } else if (spot.kind === 'rival') {
         // 라이벌 깜짝 등장 (gdd 4.12) — 가장 덜 만난 라이벌, 트레이너처럼 멈추고 "!" → 띠 → 전투 (자동 전투여도)
         // 살아 있는 포켓몬이 없으면 (이상한 세이브) 싸우지 않고 지나감 — 전적도 안 셈 (테스터)

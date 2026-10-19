@@ -51,6 +51,22 @@ function meet(s0: GameState): GameState {
 }
 
 describe('라이벌 깜짝 등장 (gdd 4.12)', () => {
+  it('안 볼 때 · VS Code 에 포커스가 없을 때는 라이벌 바로 앞에서 멈추고 알림 → 다시 보면 걸어가 만남 (2026-10-20 ideas #87)', () => {
+    for (const away of [{ headless: true }, { away: true }]) {
+      const s0 = auto(game());
+      const r = advance({ ...s0, runtime: { ...s0.runtime, ...away } }, 3000);
+      expect(phase(r.state)).toBe('hold');
+      expect(r.state.runtime.stage).toEqual({ phase: 'hold', why: 'rival' });
+      expect(r.notices).toEqual(['rival']);
+      expect(r.state.save.pendingEncounter).toBeFalsy();
+      expect(isWaitingForInput(r.state)).toBe(true);
+      // 저장 · 다시 읽기에도 그대로
+      expect(readRuntime(viaJson(r.state.runtime), 1).stage).toEqual({ phase: 'hold', why: 'rival' });
+      const back = { ...r.state, runtime: { ...r.state.runtime, headless: false, away: false } };
+      expect(phase(until(back, (x) => phase(x) === 'rival', 5000))).toBe('rival');
+    }
+  });
+
   it('그 자리에서 멈춤 → 라이벌 단계 (가장 덜 만난 라이벌) → 자동 전투여도 1:1 토너먼트 · 이름 "라이벌 레드" · 도망 없음 (트레이너 전투)', () => {
     const s = until(auto(game()), (x) => phase(x) === 'rival', 5000);
     expect(s.runtime.stage).toEqual({ phase: 'rival', rival: 'boy', ms: expect.any(Number) });

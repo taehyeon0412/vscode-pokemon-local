@@ -668,9 +668,11 @@ export class GameSession {
 export function noticeText(notice: GameNotice, collapsed: boolean, away = false): string {
   // away = 패널은 보이는데 VS Code 에 포커스가 없음 (웹뷰가 알림) — "열면" 대신 "돌아오면"
   if (away && notice === 'shiny') return '✨ 반짝이는 흔적을 찾았어요! VS Code 로 돌아오면 이어서 걸어요.';
+  if (away && notice === 'rival') return '⚔ 라이벌이 길에서 기다려요! VS Code 로 돌아오면 이어서 걸어요.';
   const open = collapsed ? `포켓몬 패널을 ${GAME_MIN_HEIGHT_PX}px 이상으로 올려` : '포켓몬 패널을 열어';
   const TEXT: Record<GameNotice, string> = {
     shiny: `✨ 반짝이는 흔적을 찾았어요! ${collapsed ? `포켓몬 패널을 ${GAME_MIN_HEIGHT_PX}px 이상으로 올리면` : '포켓몬 패널을 열면'} 이어서 걸어요.`,
+    rival: `⚔ 라이벌이 길에서 기다려요! ${collapsed ? `포켓몬 패널을 ${GAME_MIN_HEIGHT_PX}px 이상으로 올리면` : '포켓몬 패널을 열면'} 이어서 걸어요.`,
     request: `❓ 길에서 부탁하는 사람이 기다려요. ${open} 골라 주세요.`,
     choice: `🧬 진화 · 새 기술을 고를 차례예요. ${open} 골라 주세요.`,
     gym: `🏟 체육관 대기실에 도착했어요! ${open} 관장에게 도전해 보세요.`,

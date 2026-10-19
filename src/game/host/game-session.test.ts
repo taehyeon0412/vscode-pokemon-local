@@ -389,6 +389,8 @@ describe('접힌 상태 (패널이 150px 보다 낮음) — bugs #297 · #299', 
   it('알림 문구: 접혀 있으면 "열면" 대신 "150px 이상으로 올리면" (패널은 이미 열려 있어서)', () => {
     expect(noticeText('shiny', false)).toContain('포켓몬 패널을 열면');
     expect(noticeText('shiny', true)).toContain('150px 이상으로 올리면');
+    expect(noticeText('rival', false)).toContain('포켓몬 패널을 열면');
+    expect(noticeText('rival', true, true)).toContain('VS Code 로 돌아오면');
     for (const n of ['request', 'choice', 'gym', 'clear', 'defeat'] as const) {
       expect(noticeText(n, false)).toContain('포켓몬 패널을 열어');
       expect(noticeText(n, true)).toContain('150px 이상으로 올려');

@@ -34,7 +34,8 @@ export type StageRuntime =
   /** 라이벌 깜짝 등장 (gdd 4.12) — rival = 주인공 id, "!" → 띠 → 전투 */
   | { phase: 'rival'; rival: string; ms: number }
   | { phase: 'battle'; battle: BattleState }
-  | { phase: 'hold'; why: 'shiny' }
+  /** 안 볼 때 드문 일 바로 앞에서 멈춤 — 이로치 흔적 (U9) · 라이벌 (2026-10-20 ideas #87). 다시 보면 걸어가 만남 */
+  | { phase: 'hold'; why: 'shiny' | 'rival' }
   | { phase: 'request'; at: number; number: number; result: RequestResult | null; ms: number }
   | { phase: 'facility'; kind: FacilityKind; at: number; ms: number; inside: boolean }
   | { phase: 'result'; summary: BattleSummary; ms: number; then?: 'badge' }
@@ -159,7 +160,7 @@ function readStage(raw: unknown): StageRuntime | null {
       return battle ? { phase: 'battle', battle } : null;
     }
     case 'hold':
-      return raw.why === 'shiny' ? { phase: 'hold', why: 'shiny' } : null;
+      return raw.why === 'shiny' || raw.why === 'rival' ? { phase: 'hold', why: raw.why } : null;
     case 'request': {
       const at = num(raw.at, 0, 1);
       const n = num(raw.number, 0, 100);

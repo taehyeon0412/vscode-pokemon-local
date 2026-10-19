@@ -62,7 +62,7 @@ export type HostToWebview =
   | { command: typeof GAME_COMMAND; type: 'stop' };
 
 /** 엔진 알림 종류 (core/engine GameNotice 와 같게) */
-const GAME_NOTICES: readonly GameNotice[] = ['shiny', 'request', 'choice', 'gym', 'clear', 'defeat'];
+const GAME_NOTICES: readonly GameNotice[] = ['shiny', 'rival', 'request', 'choice', 'gym', 'clear', 'defeat'];
 
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
