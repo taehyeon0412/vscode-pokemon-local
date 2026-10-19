@@ -52,6 +52,12 @@ export interface PokemonFx {
   cast(src: FxActor, fx: string, o?: Record<string, unknown>): number;
   /** name = 기술 이름 — 같은 타입이라도 기술마다 다른 짜임 (ult/fx-hit.js, 2026-10-19) · o = 크기 · 짜임 (FxImpact) */
   impact(dst: FxActor, type: string, big?: boolean, name?: string, o?: FxImpact): void;
+  /** 빗나감 — 맞을 쪽이 등 뒤로 휙 피함 (2026-10-20) */
+  dodge?(dst: FxActor): void;
+  /** 히트스톱 — 연출 입자 · 전투 그림 몸짓이 ms 동안 멈춤 */
+  hitStop?(ms?: number): void;
+  /** 패링 되튀기 — 막은 쪽 (dst) 에서 친 쪽 (src) 으로 불똥 · 완벽 = 금색 초승달 + 히트스톱 */
+  deflect?(dst: FxActor, src: FxActor, perfect: boolean): void;
   /** 필살기 (version 2) — 걸리는 시간 (ms), 못 쓰면 0 */
   /** onHit = 상대를 처음 맞힌 순간 (그때 피해를 넣음) */
   ult?(src: FxActor, dst: FxActor, onHit?: () => void, avoid?: string[]): number;

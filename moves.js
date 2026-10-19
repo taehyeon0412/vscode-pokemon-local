@@ -14,6 +14,8 @@ const MOVE_SPECIAL = {
 };
 
 const moveEmitters = [];
+// 히트스톱 — 이 시각 (performance.now) 까지 입자가 멈춤 (ult/bridge.js hitStop)
+let moveFreezeUntil = 0;
 const moveParticles = [];
 let moveCanvas;
 let moveCtx;
@@ -456,7 +458,8 @@ function moveTick(now) {
         moveParticles.length = 0;
         moveEmitters.length = 0;
     }
-    const dt = Math.min(0.25, gap);
+    // 히트스톱 (게임 전투 — ult/bridge.js hitStop) 동안은 움직이지 않고 그리기만
+    const dt = now < moveFreezeUntil ? 0 : Math.min(0.25, gap);
     moveLast = now;
     moveCanvasReady();
     const ctx = moveCtx;

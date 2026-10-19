@@ -230,12 +230,15 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
           // 자국 · 주먹은 맞는 쪽 몸 앞 (서로 마주 보니 친 쪽을 향한 면) 에 — 쓰는 쪽 기술 모양 그대로 (form)
           at(Math.round(a.dur * CONTACT_AT), () => {
             const dst = actor(b, other(side));
-            if (dst) fx.move(dst, move.m, 0, form);
+            if (!dst) return;
+            // 빗나감 (엔진이 행동 시작 때 정함) — 자국 · 임팩트 대신 맞을 쪽이 휙 피함
+            if (a.miss) fx.dodge?.(dst);
+            else fx.move(dst, move.m, 0, form);
           });
           // 타입 임팩트는 자국 · 주먹이 먼저 보이게 조금 뒤에 (같이 터지면 서로 가림)
           at(Math.round(a.dur * CONTACT_AT) + CONTACT_IMPACT_LAG_MS, () => {
             const dst = actor(b, other(side));
-            const hit = parriedHit(now.current, key, { ...move.hit, light: true });
+            const hit = a.miss ? null : parriedHit(now.current, key, { ...move.hit, light: true });
             if (dst && hit) fx.impact(dst, move.hitType, move.big, move.m.name, hit);
           });
         } else if (plan) {
@@ -257,6 +260,10 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
           if (mv && mv.power > 0) {
             at(castAt + Math.round(plan.ms * SHOT_HIT_AT), () => {
               const dst = actor(b, other(side));
+              if (a.miss) {
+                if (dst) fx.dodge?.(dst);
+                return;
+              }
               const hit = parriedHit(now.current, key, move.hit);
               if (dst && hit) fx.impact(dst, move.hitType, move.big, move.m.name, hit);
             });
@@ -330,11 +337,23 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
       () => {
         const me = actor(b, 'me');
         if (me) fx.cast(me, 'shield', { c: parried === 'perfect' ? 'gold' : 'aura' });
+        // 되튀기 — 막은 몸 앞에서 친 쪽으로 불똥 · 완벽은 금색 초승달 + 히트스톱
+        const foe = actor(b, 'foe');
+        if (me && foe) fx.deflect?.(me, foe, parried === 'perfect');
       },
       w ? Math.max(0, Math.round(w.at - performance.now())) : 0,
     );
     return () => window.clearTimeout(t);
   }, [key, parried]);
+  // 히트스톱 — 새로 뜬 글이 급소 · 마지막 한 방 (100ms) · 효과 굉장 (70ms) 이면 연출 · 몸짓이 잠깐 멈춤 (번쩍 없이 손맛, 2026-10-20)
+  const seenPop = useRef(b.popupSeq);
+  useEffect(() => {
+    const fresh = b.popups.filter((p) => p.id > seenPop.current);
+    seenPop.current = b.popupSeq;
+    if (!fx?.hitStop || !fresh.length) return;
+    const big = fresh.some((p) => p.kind === 'crit' || (p.kind === 'damage' && b[p.side].hp <= 0));
+    if (big || fresh.some((p) => p.kind === 'super')) fx.hitStop(big ? 100 : 70);
+  }, [b.popupSeq]);
   // 연출 캔버스 위 끝 = 정보줄 아래 끝 (game.css 가 여기서 자름 — 연출이 정보줄을 덮지 않게, 아트 디렉터).
   // 그릴 때마다 잼 — 처음 그릴 땐 game.css 를 받기 전이라 화면이 숨어 0 이 나오고, 패널 크기도 바뀜 (값이 같으면 안 씀)
   useEffect(() => {

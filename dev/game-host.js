@@ -89,8 +89,8 @@
             const side = q.get('side') || 'me';
             Object.assign(b, { phase: 'anim', [side]: { ...(side === 'me' ? me : foe), ult: 0 }, anim: { side, action: { kind: 'ult' }, ms: 0, dur, counter: false }, msg: side === 'me' ? '이상해씨의 필살기!' : '야생 파이리의 필살기!', ultAt: { me: side === 'me' ? 5000 : null, foe: side === 'foe' ? 5000 : null } });
         }
-        // battle=move&side=me|foe&mv=<기술 id> — 그 기술을 쓰는 중 (연출 시험, fx=1 과 같이)
-        if (battleKind === 'move') { const side = q.get('side') || 'me'; Object.assign(b, { phase: 'anim', anim: { side, action: { kind: 'move', moveId: Number(q.get('mv') || 75) }, ms: 0, dur, counter: false }, msg: side === 'me' ? '이상해씨의 기술!' : '야생 파이리의 기술!' }); }
+        // battle=move&side=me|foe&mv=<기술 id> — 그 기술을 쓰는 중 (연출 시험, fx=1 과 같이) · miss=1 이면 빗나가는 기술 (피함 연출) · parry=good|perfect 면 막은 기술 (되튀기)
+        if (battleKind === 'move') { const side = q.get('side') || 'me'; Object.assign(b, { phase: 'anim', anim: { side, action: { kind: 'move', moveId: Number(q.get('mv') || 75) }, ms: 0, dur, counter: false, miss: q.get('miss') === '1', ...(q.get('parry') ? { parry: q.get('parry') } : {}) }, msg: side === 'me' ? '이상해씨의 기술!' : '야생 파이리의 기술!' }); }
         if (battleKind === 'attack') Object.assign(b, { phase: 'anim', anim: { side: 'me', action: { kind: 'attack' }, ms: 0, dur, counter: false }, msg: '이상해씨의 공격!' });
         if (battleKind === 'pick') Object.assign(b, { phase: 'pick', me: { ...me, hp: 0, gauge: 0 }, bench: { m1: { hp: 0, moves: me.moves, status: null } }, msg: '이상해씨가 쓰러졌다! 다음 포켓몬을 골라요 (숫자 키)' });
         if (battleKind === 'over') Object.assign(b, { phase: 'over', foe: { ...foe, hp: 0 }, result: 'win', msg: '야생 파이리가 쓰러졌다!' });

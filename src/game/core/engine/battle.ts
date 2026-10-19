@@ -67,6 +67,8 @@ export interface BattleAnim {
   counter: boolean;
   /** 패링 (상대 공격일 때, 한 번만) — 처음 누른 등급. good · perfect 면 피해가 줄어듦 (2026-10-19) */
   parry?: ParryGrade;
+  /** 기술이 빗나감 — 행동 시작 때 정함 (연출이 미리 알고 피하는 모양을 그리게, 2026-10-20). 기술 행동에만 있고, 옛 세이브에 없으면 맞는 순간 정함 */
+  miss?: boolean;
 }
 
 export interface BattleClash {
@@ -296,6 +298,7 @@ function startAction(b0: BattleState, side: Side, action0: BattleAction, rng: Rn
   }
   let dur: number = TIMING.attackAnimMs;
   let counter = false;
+  let miss: boolean | undefined;
   switch (action.kind) {
     case 'attack':
       b.msg = `${label(b, side)}의 공격!`;
@@ -306,6 +309,8 @@ function startAction(b0: BattleState, side: Side, action0: BattleAction, rng: Rn
       const mv = moveOf(id);
       b.msg = `${label(b, side)}의 ${moveName(id)}!`;
       dur = TIMING.moveAnimMs;
+      // 명중은 지금 정함 (맞는 순간에 정하면 연출이 모르고 임팩트를 터뜨림 — 빗나가면 피하는 모양)
+      miss = !!mv && mv.accuracy !== null && !rng.chance(mv.accuracy / 100);
       // 상대가 쏘는 기술 → 나도 쏘는 기술이 있으면 늘 맞받아치기 창 (누르면 지금 행동 게이지를 다 씀 — 2026-10-18 태현 님)
       if (side === 'foe' && b.me.hp > 0 && isShooting(mv) && mv && counterMove(b.me, mv)) {
         counter = true;
@@ -341,7 +346,7 @@ function startAction(b0: BattleState, side: Side, action0: BattleAction, rng: Rn
       dur = TIMING.guardAnimMs;
       break;
   }
-  return { ...b, phase: 'anim', anim: { side, action, ms: 0, dur, counter } };
+  return { ...b, phase: 'anim', anim: { side, action, ms: 0, dur, counter, ...(miss === undefined ? {} : { miss }) } };
 }
 
 /** 피해를 주고 필살기 게이지 · 글을 남김 */
@@ -411,10 +416,11 @@ function afterAction(b: BattleState, side: Side): void {
 }
 
 /** 기술 하나 끝 — 명중 · 피해 · 상태 이상 */
-function resolveMove(b: BattleState, side: Side, mv: ReadonlyMove | undefined, rng: Rng, powerScale = 1): void {
+function resolveMove(b: BattleState, side: Side, mv: ReadonlyMove | undefined, rng: Rng, powerScale = 1, miss?: boolean): void {
   const target = other(side);
   if (!mv) return;
-  if (mv.accuracy !== null && !rng.chance(mv.accuracy / 100)) {
+  // 명중은 행동 시작 때 정한 것 (옛 세이브에 없으면 지금)
+  if (miss ?? (mv.accuracy !== null && !rng.chance(mv.accuracy / 100))) {
     popup(b, target, '빗나갔다!', 'miss');
     return;
   }
@@ -441,7 +447,7 @@ function finishAnim(b0: BattleState, save: Save, rng: Rng): BattleState {
     case 'move': {
       const mv = moveOf(anim.action.moveId);
       // 연달아 세지는 기술: 이번이 n 번째 연달아면 × (1 + 0.1 × (n − 1))
-      resolveMove(b, side, mv, rng, mv?.streak ? streakMultiplier(actor.streakCount) : 1);
+      resolveMove(b, side, mv, rng, mv?.streak ? streakMultiplier(actor.streakCount) : 1, anim.miss);
       break;
     }
     case 'item': {
@@ -971,7 +977,7 @@ export function readBattle(raw: unknown): BattleState | null {
   if (!PHASES.includes(raw.phase as string) || !okBench(raw.bench) || !okBag(raw.bagUsed)) return null;
   if (!Array.isArray(raw.popups) || !raw.popups.every((p) => isObj(p) && fin(p.id, 0) && SIDES.includes(p.side as string) && typeof p.text === 'string' && fin(p.ms, 0) && POPUP_KINDS.includes(p.kind as string))) return null;
   const anim = raw.anim;
-  if (anim !== null && !(isObj(anim) && SIDES.includes(anim.side as string) && okAction(anim.action) && fin(anim.ms, 0) && fin(anim.dur, 0, 60_000) && typeof anim.counter === 'boolean' && (anim.parry === undefined || PARRY_GRADES.includes(anim.parry as string)))) return null;
+  if (anim !== null && !(isObj(anim) && SIDES.includes(anim.side as string) && okAction(anim.action) && fin(anim.ms, 0) && fin(anim.dur, 0, 60_000) && typeof anim.counter === 'boolean' && (anim.parry === undefined || PARRY_GRADES.includes(anim.parry as string)) && (anim.miss === undefined || typeof anim.miss === 'boolean'))) return null;
   const clash = raw.clash;
   if (clash !== null && !(isObj(clash) && (clash.kind === 'move' || clash.kind === 'ult') && (clash.me === null || fin(clash.me, 1, 100000)) && (clash.foe === null || fin(clash.foe, 1, 100000)) && fin(clash.base, 0, 1) && fin(clash.taps, 0, 1000) && fin(clash.ms, 0) && (clash.winner === null || SIDES.includes(clash.winner as string)))) return null;
   if (raw.phase === 'anim' && anim === null) return null;

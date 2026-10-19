@@ -315,6 +315,20 @@ describe('패링 — 상대 공격이 맞기 직전 Space · 클릭 (2026-10-19 
     expect(after.popups.find((p) => p.text.startsWith('-'))?.kind).toBe('damage');
   });
 
+  it('명중은 행동 시작 때 정함 — 빗나갈 기술은 anim.miss (연출이 미리 피하는 모양), 맞는 순간 그대로 빗나감 (2026-10-20)', () => {
+    const { b, save } = setup();
+    const mine = myTurn({ ...b, me: { ...b.me, moves: [{ moveId: 25, pp: 5 }] } }); // 메가톤킥 — 명중 75
+    const missed = battleInput(mine, save, { kind: 'act', action: { kind: 'move', moveId: 25 } }, fixedRng(0.99));
+    expect(missed.anim?.miss).toBe(true);
+    const after = run(missed, save, TIMING.moveAnimMs + STEP, fixedRng(0.01));
+    expect(after.popups.find((p) => p.text === '빗나갔다!')?.kind).toBe('miss');
+    expect(after.foe.hp).toBe(b.foe.hp);
+    const hitting = battleInput(mine, save, { kind: 'act', action: { kind: 'move', moveId: 25 } }, fixedRng(0.01));
+    expect(hitting.anim?.miss).toBe(false);
+    // 맞는 순간 무작위가 빗나감 쪽이어도 시작 때 정한 대로 맞음
+    expect(run(hitting, save, TIMING.moveAnimMs + STEP, fixedRng(0.99)).foe.hp).toBeLessThan(b.foe.hp);
+  });
+
   it('처음 누른 것만 셈 — 너무 일찍 누르면 이번 공격은 못 막음 (연타 막기)', () => {
     const { b, save } = foeAttacks();
     const early = battleInput(b, save, { kind: 'parry', ms: 600 }, new SeededRng(1));

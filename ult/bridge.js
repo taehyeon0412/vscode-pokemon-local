@@ -637,6 +637,81 @@ window.pokemonFx = {
             moveParticles.length = 0;
         }
     },
+    /** 빗나감 — 맞을 쪽이 등 뒤로 반 칸 휙 피했다 돌아옴 (픽셀 박자) + 떠난 자리에 바람줄 · 발밑 먼지 (2026-10-20 플레이 리뷰어 "빗나갔다인데 터짐") */
+    dodge(dst) {
+        const el = dst.box || dst.el;
+        const r = el.getBoundingClientRect();
+        if (r.width < 1) {
+            return;
+        }
+        // 등 뒤 = 보는 쪽 반대 (상대는 왼쪽을 봄 → 오른쪽으로)
+        const back = dst.left ? 1 : -1;
+        const dx = back * Math.max(6, Math.round(r.width * 0.35));
+        el.animate([{ translate: '0 0' }, { translate: `${dx}px 0`, offset: 0.3 }, { translate: `${dx}px 0`, offset: 0.7 }, { translate: '0 0' }], { duration: 380, easing: 'steps(8, end)', composite: 'add' });
+        safeFx({}, () => {
+            const s = r.width / (dst.size || 32);
+            const g = POKEMON_SHAPE[dst.form] ? sigGeometry(fxActor(dst), !!dst.left) : null;
+            const cy = g ? g.body.cy : r.top + r.height * 0.55;
+            const ry = g ? g.body.ry : r.height * 0.3;
+            for (let i = 0; i < 4; i++) {
+                sigParticle({ x: r.left + r.width / 2, y: cy + (i - 1.5) * ry * 0.5, s, vx: back * moveRand(120, 200) * s, drag: 4, max: 0.25, len: Math.round(moveRand(4, 8)), back, color: HIT_COLS.flying[i % 3], draw: (ctx, p, t, px) => {
+                    ctx.globalAlpha = hitStep(1 - t);
+                    dotAt(ctx, px, p.s, p.back > 0 ? p.x - p.len * p.s : p.x, p.y, p.color, p.len, 1);
+                } });
+            }
+            hitDust(r.left + r.width / 2, g ? g.body.bottom : r.bottom, s, Math.max(10 * s, r.width * 0.3), sigPal('ground'), 4);
+        });
+    },
+    /** 히트스톱 — 굉장 · 급소 · 마지막 한 방에서 연출 입자와 전투 그림 (포켓몬 · 트레이너 몸짓) 이 ms 동안 멈춤 (번쩍 없이 손맛, 2026-10-20) */
+    hitStop(ms = 80) {
+        moveFreezeUntil = performance.now() + ms;
+        const anims = fxInGame() ? [...document.querySelectorAll('#pokemon-game .pg-fighter')].flatMap((el) => el.getAnimations({ subtree: true })) : [];
+        anims.forEach((a) => a.playState === 'running' && a.pause());
+        setTimeout(() => anims.forEach((a) => {
+            try {
+                if (a.playState === 'paused') {
+                    a.play();
+                }
+            } catch (err) {
+                // 그새 지워진 움직임은 그대로 둠
+            }
+        }), ms);
+    },
+    /** 패링 되튀기 — 막은 쪽 (dst) 몸 앞에서 불똥이 친 쪽 (src) 으로 튐 · 완벽 = 금색 초승달 "팅" + 히트스톱 (2026-10-20 플레이 리뷰어) */
+    deflect(dst, src, perfect) {
+        safeFx({}, () => {
+            if (!POKEMON_SHAPE[dst.form] || fxWidth(dst) < 1) {
+                return;
+            }
+            const g = sigGeometry(fxActor(dst), !!dst.left);
+            const cols = perfect ? HIT_GOLD : HIT_COLS.steel;
+            const x = g.body.front + g.dir * 2 * g.s;
+            for (let i = 0; i < (perfect ? 12 : 8); i++) {
+                const a = moveRand(-0.7, 0.5);
+                const v = moveRand(90, 170) * g.s;
+                sigParticle({ x, y: g.body.cy + moveRand(-0.5, 0.5) * g.body.ry, s: g.s, vx: g.dir * Math.cos(a) * v, vy: Math.sin(a) * v, g: 160 * g.s, drag: 1.5, max: moveRand(0.25, 0.45), color: cols[i % 3], draw: DRAW.dot });
+            }
+            if (perfect) {
+                // 몸 앞 금색 초승달 — 0.25초에 바깥으로 (2칸 → 1칸)
+                const R = g.body.ry * 1.2;
+                sigParticle({ x: g.body.cx, y: g.body.cy, s: g.s, max: 0.3, R, dir: g.dir, cols, draw: (ctx, p, t, px) => {
+                    ctx.globalAlpha = hitStep(1 - t);
+                    const r = p.R * (1 + 0.5 * t);
+                    const dots = Math.ceil((Math.PI * r) / p.s);
+                    for (let j = 0; j <= dots; j++) {
+                        const a = -Math.PI / 2 + (j / dots) * Math.PI;
+                        const cx = p.x + p.dir * Math.cos(a) * r;
+                        const cy = p.y + Math.sin(a) * r;
+                        dotAt(ctx, px, p.s, cx, cy, p.cols[1], t < 0.5 ? 2 : 1, t < 0.5 ? 2 : 1);
+                        if (t < 0.4 && Math.abs(Math.sin(a)) < 0.5) {
+                            dotAt(ctx, px, p.s, cx, cy, p.cols[0]);
+                        }
+                    }
+                } });
+                window.pokemonFx.hitStop(90);
+            }
+        });
+    },
     /** 개발 미리보기 — 타입 임팩트 하나를 그 자리에 (dev/game-host.js impacts=1) */
     testImpact(x, y, s, type, big, w, pick = 0) {
         safeFx({}, () => typeImpact(x, y, s, type, 0.6, !!big, 1, w, { pick }));
