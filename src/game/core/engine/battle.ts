@@ -101,7 +101,8 @@ export interface BattlePopup {
   side: Side;
   text: string;
   ms: number;
-  kind: 'damage' | 'heal' | 'info';
+  /** 글 종류 — 화면이 숫자 크기 · 말 칸으로 나눠 씀 (2026-10-20 디자인 세션): 상성 super · weak · immune, 급소 crit, 빗나감 miss, 막음 parry, 상태 status, 나머지 info */
+  kind: 'damage' | 'heal' | 'info' | 'super' | 'weak' | 'immune' | 'crit' | 'miss' | 'parry' | 'status';
 }
 
 export interface BattleState {
@@ -246,6 +247,11 @@ export function faintedTeam(b: BattleState, save: Save): Monster[] {
   return benchTeam(b, save).filter((m) => m.hp <= 0);
 }
 
+/** 상성 배수 → 글 종류 (effectivenessText 와 같은 경계) */
+function effectKind(mult: number): BattlePopup['kind'] {
+  return mult === 0 ? 'immune' : mult > 1 ? 'super' : 'weak';
+}
+
 function popup(b: BattleState, side: Side, text: string, kind: BattlePopup['kind']): void {
   b.popupSeq += 1;
   b.popups = [...b.popups.slice(-5), { id: b.popupSeq, side, text, ms: 0, kind }];
@@ -349,7 +355,7 @@ function hit(b: BattleState, attackerSide: Side, power: number, type: ReadonlyMo
   const parried = attackerSide === 'foe' && !opts.useUlt ? b.anim?.parry : undefined;
   if (parried === 'good' || parried === 'perfect') {
     dmg = Math.floor(dmg * (parried === 'perfect' ? BALANCE.parryPerfectFactor : BALANCE.parryGoodFactor));
-    popup(b, 'me', parried === 'perfect' ? '완벽하게 막았다!' : '막았다!', 'info');
+    popup(b, 'me', parried === 'perfect' ? '완벽하게 막았다!' : '막았다!', 'parry');
     if (parried === 'perfect') d.gauge = Math.min(1, d.gauge + BALANCE.parryPerfectGauge);
   }
   if (opts.move?.effect === 'leave-1hp') dmg = Math.min(dmg, Math.max(0, d.hp - 1));
@@ -361,8 +367,8 @@ function hit(b: BattleState, attackerSide: Side, power: number, type: ReadonlyMo
   const blocked = parried === 'perfect' && dmg === 0;
   if (!blocked) popup(b, other(attackerSide), `-${dmg}`, 'damage');
   const eff = effectivenessText(r.effect);
-  if (eff && !blocked) popup(b, other(attackerSide), eff, 'info');
-  if (r.crit && dmg > 0) popup(b, other(attackerSide), '급소에 맞았다!', 'info');
+  if (eff && !blocked) popup(b, other(attackerSide), eff, effectKind(r.effect));
+  if (r.crit && dmg > 0) popup(b, other(attackerSide), '급소에 맞았다!', 'crit');
   if (dmg > 0) {
     // × 0.5 는 야생 포켓몬만 (트레이너 · 관장 포켓몬은 그대로 — 테스터)
     const wild = b.kind === 'wild';
@@ -390,7 +396,7 @@ function inflict(b: BattleState, side: Side, ailment: NonNullable<ReadonlyMove['
   const [lo, hi] = BALANCE.sleepTurns;
   f.status = ailment === 'sleep' ? { kind: 'sleep', turnsLeft: rng.int(lo, hi) } : { kind: ailment };
   const text = { poison: '독에 걸렸다!', burn: '화상을 입었다!', paralysis: '마비되었다!', sleep: '잠들었다!' }[ailment];
-  popup(b, side, text, 'info');
+  popup(b, side, text, 'status');
 }
 
 /** 행동이 끝날 때 독 · 화상 피해 */
@@ -409,7 +415,7 @@ function resolveMove(b: BattleState, side: Side, mv: ReadonlyMove | undefined, r
   const target = other(side);
   if (!mv) return;
   if (mv.accuracy !== null && !rng.chance(mv.accuracy / 100)) {
-    popup(b, target, '빗나갔다!', 'info');
+    popup(b, target, '빗나갔다!', 'miss');
     return;
   }
   if (mv.class !== 'status' && mv.power > 0) hit(b, side, Math.round(mv.power * powerScale), mv.type, rng, { move: mv });
@@ -417,7 +423,7 @@ function resolveMove(b: BattleState, side: Side, mv: ReadonlyMove | undefined, r
   if (side === 'foe' && b.anim?.parry === 'perfect') return; // 완벽하게 막으면 상태 이상도 안 걸림
   // 효과가 없는 상대 (상성 0 · 타입 면역) 에게는 상태 이상도 안 걸림
   if (!canInflict(mv.ailment, mv.type, b[target].types)) {
-    if (mv.class === 'status') popup(b, target, '효과가 없는 것 같다…', 'info');
+    if (mv.class === 'status') popup(b, target, '효과가 없는 것 같다…', 'immune');
     return;
   }
   if (rng.chance(mv.ailmentChance / 100)) inflict(b, target, mv.ailment, rng);
@@ -447,7 +453,7 @@ function finishAnim(b0: BattleState, save: Save, rng: Rng): BattleState {
         popup(b, side, `+${heal}`, 'heal');
       } else if (item === 'full-heal') {
         actor.status = null;
-        popup(b, side, '몸이 개운해졌다!', 'info');
+        popup(b, side, '몸이 개운해졌다!', 'status');
       } else if (item === 'revive' && anim.action.uid) {
         // 쓰러진 팀 포켓몬을 HP 절반으로 (나와 있는 포켓몬이 아니라 교체로 낼 포켓몬)
         const m = faintedTeam(b, save).find((x) => x.uid === (anim.action as { uid?: string }).uid);
@@ -890,7 +896,8 @@ const KINDS = ['wild', 'trainer', 'gym'];
 const ACTIONS = ['attack', 'move', 'guard', 'item', 'switch', 'flee', 'ult', 'skip'];
 const PARRY_GRADES = ['perfect', 'good', 'early', 'late'];
 const STATUS = ['poison', 'burn', 'paralysis', 'sleep'];
-const POPUP_KINDS = ['damage', 'heal', 'info'];
+// 옛 세이브의 'info' 는 그대로 통과 — 새 종류는 2026-10-20 (화면이 숫자 크기 · 말 칸으로 나눔)
+const POPUP_KINDS = ['damage', 'heal', 'info', 'super', 'weak', 'immune', 'crit', 'miss', 'parry', 'status'];
 const STARTS = ['preemptive', 'normal', 'ambush'];
 
 function okStatus(st: unknown): boolean {

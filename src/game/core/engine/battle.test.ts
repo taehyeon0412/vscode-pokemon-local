@@ -304,6 +304,17 @@ describe('패링 — 상대 공격이 맞기 직전 Space · 클릭 (2026-10-19 
     expect(after.popups.some((p) => p.text === '-0')).toBe(false);
   });
 
+  it('글 종류 — 막음 parry · 상성 super (화면이 말 칸 · 숫자 크기로 나눠 씀, 2026-10-20)', () => {
+    const { b, save } = setup();
+    // 야생 파이리 불꽃세례 → 이상해씨 (풀) = 효과 굉장
+    const shot: BattleState = { ...b, phase: 'anim', anim: { side: 'foe', action: { kind: 'move', moveId: EMBER }, ms: 0, dur: TIMING.moveAnimMs, counter: false } };
+    const good = battleInput(shot, save, { kind: 'parry', ms: 200 }, new SeededRng(1));
+    const after = run(good, save, TIMING.moveAnimMs + STEP, fixedRng(0.5));
+    expect(after.popups.find((p) => p.text === '막았다!')?.kind).toBe('parry');
+    expect(after.popups.find((p) => p.text === '효과가 굉장했다!')?.kind).toBe('super');
+    expect(after.popups.find((p) => p.text.startsWith('-'))?.kind).toBe('damage');
+  });
+
   it('처음 누른 것만 셈 — 너무 일찍 누르면 이번 공격은 못 막음 (연타 막기)', () => {
     const { b, save } = foeAttacks();
     const early = battleInput(b, save, { kind: 'parry', ms: 600 }, new SeededRng(1));
