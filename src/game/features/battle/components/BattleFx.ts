@@ -13,7 +13,7 @@ import { effectiveness } from '../../../core/rules/types';
 import { formOf, moveOf, speciesOf } from '../../../data';
 import { pokemonFx, type FxActor, type FxImpact, type FxMove } from '../fx/bridge';
 import { battleAnimKey, FX_HOLD_DUEL_MAX_MS, FX_HOLD_ULT_MAX_MS, holdFx, releaseFx } from '../fx/hold';
-import { clearImpact, impactOf, setImpact } from '../fx/parry';
+import { clearImpact, impactOf, setImpact, setUltSkip } from '../fx/parry';
 
 /** 쏘는 기술을 쓰기 시작하는 때 — 몸을 젖혔다 내미는 동안 (일반 모드 useSignature 의 120ms) */
 const CAST_DELAY_MS = 120;
@@ -132,6 +132,8 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
   const [missed, setMissed] = useState('');
   // 힘대결 연타를 실시간으로 (효과는 시작할 때 한 번만 도니, 지금 상태는 여기서 읽음)
   const now = useRef(b);
+  // 이 전투에서 이미 본 필살기 (쪽 · 포켓몬) — 두 번째부터 컷인 없이 짧게 (전투 화면이 새로 뜨면 비움)
+  const seenUlts = useRef(new Set<string>());
   now.current = b;
   useEffect(() => {
     if (!fx) return undefined;
@@ -285,10 +287,20 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
             down();
           };
           fx.mount?.(null);
-          const total = fx.ult && src && dst ? fx.ult(src, dst, onHit, learnedNames(b, side)) : 0;
+          // 같은 전투에서 이 포켓몬 필살기를 이미 봤으면 컷인 없이 짧게
+          const seenKey = `${side}:${b[side].uid}:${b[side].form}`;
+          const quick = seenUlts.current.has(seenKey);
+          const total = fx.ult && src && dst ? fx.ult(src, dst, onHit, learnedNames(b, side), { quick }) : 0;
           if (total > 0) {
+            seenUlts.current.add(seenKey);
             holdFx(key, total, performance.now(), FX_HOLD_ULT_MAX_MS);
             ultOn = true;
+            // Space = 남은 연출 건너뛰기 (아직 안 맞혔으면 맞힌 것으로 — 피해는 엔진이 그대로)
+            setUltSkip(() => {
+              fx.stopUlt?.();
+              if (!ultHitDone) onHit();
+              else releaseFx();
+            });
           } else if (fx.ult && waited + ULT_RETRY_MS <= ULT_LATE_MS) {
             timers.push(
               window.setTimeout(() => {
@@ -321,6 +333,7 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
     }
     return () => {
       timers.forEach((t) => window.clearTimeout(t));
+      setUltSkip(null);
       // 끊긴 기술 — 날아가던 연출 · 늦은 타이머를 지움 (다 끝난 행동은 남은 불씨가 자연스럽게 사라지게 둠)
       if (pending.size > 0 && !ultOn) fx.clear();
       // 필살기가 맞히기 전에 다른 행동 (맞받아치기 힘대결) 으로 바뀌면 멈춤 — 맞힌 뒤면 남은 연출은 끝까지 (전투 화면이 사라지면 clear)

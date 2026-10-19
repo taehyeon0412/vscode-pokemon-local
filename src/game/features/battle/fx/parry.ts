@@ -23,10 +23,23 @@ export function clearImpact(): void {
   impact = { key: '', at: 0, set: 0 };
 }
 
+/** 필살기 건너뛰기 (2026-10-20 ideas #101 — 관장 3:1 에서 4 ~ 6초 필살기를 여러 번 봄) — 필살기 연출이 도는 동안 BattleFx 가 걸어 둠, Space 가 부름 */
+let ultSkip: (() => void) | null = null;
+export function setUltSkip(fn: (() => void) | null): void {
+  ultSkip = fn;
+}
+
 /** Space · 판 클릭 → 상대 공격 중이고 맞는 순간을 알면 패링 (맞기까지 남은 ms), 아니면 그냥 Space */
 export function spaceInput(state: GameState | null, now: number): GameInput {
   const st = state?.runtime.stage;
   const b = st?.phase === 'battle' ? st.battle : null;
+  // 필살기 연출 중 Space = 남은 연출을 건너뜀 (피해는 그대로 — 맞는 순간으로 바로)
+  if (b?.phase === 'anim' && b.anim?.action.kind === 'ult' && ultSkip) {
+    const skip = ultSkip;
+    ultSkip = null;
+    skip();
+    return { kind: 'space' };
+  }
   if (b && canParry(b)) {
     const w = impactOf(battleAnimKey(b));
     if (w) return { kind: 'battle', input: { kind: 'parry', ms: Math.round(w.at - now) } };

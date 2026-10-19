@@ -64,7 +64,8 @@ export interface PokemonFx {
   deflect?(dst: FxActor, src: FxActor, perfect: boolean): void;
   /** 필살기 (version 2) — 걸리는 시간 (ms), 못 쓰면 0 */
   /** onHit = 상대를 처음 맞힌 순간 (그때 피해를 넣음) */
-  ult?(src: FxActor, dst: FxActor, onHit?: () => void, avoid?: string[]): number;
+  /** o.quick = 같은 전투에서 다시 보는 필살기 — 컷인 없이 짧게 (2026-10-20) */
+  ult?(src: FxActor, dst: FxActor, onHit?: () => void, avoid?: string[], o?: { quick?: boolean }): number;
   stopUlt?(): void;
   /** 힘대결 (version 3) — a = 나, b = 상대 · live() = 내가 이길 확률 · { meetMs } 또는 null */
   duel?(a: FxActor, b: FxActor, spec: FxDuel, live: () => number): { meetMs: number } | null;

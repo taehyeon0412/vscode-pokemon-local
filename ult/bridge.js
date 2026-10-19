@@ -526,7 +526,7 @@ window.pokemonFx = {
     },
     /** 필살기 — 일반 모드처럼 번쩍 · 어두워짐 · 컷인 · 큰 글씨 · 그 포켓몬의 필살기 (전용 연출 포함). 상대 = dst. 걸리는 시간 (ms), 못 쓰면 0.
      *  onHit = 상대를 처음 맞힌 순간 (게임은 그때 피해를 넣고, 남은 연출은 흘러가게 둠) · avoid = 피할 필살기 이름 (그 포켓몬이 배운 기술) */
-    ult(src, dst, onHit, avoid) {
+    ult(src, dst, onHit, avoid, o) {
         fxGameStop(true);
         if (!POKEMON_SHAPE[src.form] || ultActive || fxWidth(src) < 1 || fxWidth(dst) < 1) {
             return 0;
@@ -545,7 +545,8 @@ window.pokemonFx = {
         fxGame = { A, B, gen, tick: setInterval(fxGameTick, 100), onHit, hit: false };
         let total = 0;
         try {
-            total = fxWithTimers(gen, () => useUltimate(A, entry)) || 0;
+            // o.quick = 같은 전투에서 다시 보는 필살기 — 컷인 없이 짧게 (ult/core.js ULT_QUICK_INTRO_MS)
+            total = fxWithTimers(gen, () => useUltimate(A, entry, { quick: !!o?.quick })) || 0;
         } catch (err) {
             ultError('game ult', err);
         }

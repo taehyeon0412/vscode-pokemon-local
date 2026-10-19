@@ -5,6 +5,8 @@
 const ULT_HOLD_MS = 1000; // 이만큼 누르면 필살기
 const ULT_CHARGE_FROM = 200; // 이때부터 기 모으기가 보임
 const ULT_INTRO_MS = 900; // 어두워짐 · 컷인 · 큰 글씨
+// 다시 보는 필살기 (게임 전투에서 같은 전투 · 같은 포켓몬 두 번째부터 — opt.quick) 는 컷인 · 번쩍 없이 이름만 짧게 (2026-10-20 ideas #101)
+const ULT_QUICK_INTRO_MS = 300;
 const ULT_OUTRO_MS = 500; // 다시 밝아짐
 const ULT_DIM = 0.55; // 화면 어둡기
 const ULT_CLASH_CHANCE = 0.5; // 꾹 눌러 필살기를 쓰면 이 확률로 멀리 있는 포켓몬이 자기 필살기로 받아침 (필살기 대결)
@@ -327,7 +329,8 @@ function useUltimate(pokemon, ult, opt = {}) {
         ultError(`${fx}.ms`, err);
     }
     const now = performance.now();
-    const until = now + ULT_INTRO_MS + ms + ULT_OUTRO_MS;
+    const introMs = opt.quick ? ULT_QUICK_INTRO_MS : ULT_INTRO_MS;
+    const until = now + introMs + ms + ULT_OUTRO_MS;
     const current = pokemon.currentState;
     if (current instanceof FlyState) {
         // 공중에서 쓰고 계속 날기
@@ -349,7 +352,7 @@ function useUltimate(pokemon, ult, opt = {}) {
     }
     try {
         pre?.start?.();
-        ultIntro(pokemon, left, name, sub, o, fx, until);
+        ultIntro(pokemon, left, name, sub, o, fx, until, introMs);
     } catch (err) {
         ultError('intro', err);
     }
@@ -359,7 +362,7 @@ function useUltimate(pokemon, ult, opt = {}) {
         } catch (err) {
             ultError(`${fx}.run`, err);
         }
-    }, ULT_INTRO_MS);
+    }, introMs);
     setTimeout(() => ultEnd(pokemon), until - now);
     return until - now;
 }
@@ -499,21 +502,24 @@ function ultGeometry(pokemon, left) {
 }
 
 // ── 시작 연출 — 번쩍 · 어두워짐(쓰는 애만 동그랗게 밝음) · 컷인 · 큰 글씨 ──
-function ultIntro(pokemon, left, name, sub, o, fx, until) {
+function ultIntro(pokemon, left, name, sub, o, fx, until, introMs = ULT_INTRO_MS) {
     const cols = ultCols(o, fx);
     const total = (until - performance.now()) / 1000;
     const r = pokemon.collision.getBoundingClientRect();
     const S = Math.max(2, Math.round(r.width / (pokemon._originalSpriteSize || 32)));
     const cx = r.left + r.width / 2;
     const cy = r.top + r.height / 2;
-    screenFlash(S, 0.7, '#ffffff', 0.25);
+    const quick = introMs < ULT_INTRO_MS;
+    if (!quick) {
+        screenFlash(S, 0.7, '#ffffff', 0.25);
+    }
     sigRing(cx, cy, S, 4, Math.max(r.width, 30) * 2.2, 1, 0.4, [cols[0], '#ffffff', cols[1]]);
     sigBurst(cx, cy, S, [...cols, '#ffffff'], 26, 120);
     // 어둠 — 끝 0.5초 동안 다시 밝아짐
     const outro = ULT_OUTRO_MS / 1000;
     ultDimLayer((life) => ULT_DIM * Math.min(1, life / 0.25) * (life > total - outro ? Math.max(0, (total - life) / outro) : 1), total);
     // 몸에서 피어오르는 기운 (시작 연출 동안)
-    sigEmitter({ until: performance.now() + ULT_INTRO_MS + 300, rate: 50, fx: () => {
+    sigEmitter({ until: performance.now() + introMs + 300, rate: 50, fx: () => {
         const b = pokemon.collision.getBoundingClientRect();
         sigParticle({ x: b.left + moveRand(0, b.width), y: b.bottom - moveRand(0, 0.3) * b.height, s: S, vy: -moveRand(40, 90) * S / 2, vx: moveRand(-6, 6), max: moveRand(0.4, 0.7), color: movePick(cols), size: movePick([1, 1, 2]), draw: (ctx, p, t, px) => {
             ctx.globalAlpha = fadeInOut(t, 0.1, 0.5);
@@ -521,8 +527,11 @@ function ultIntro(pokemon, left, name, sub, o, fx, until) {
         } });
     } });
     // 입자는 나중 것부터 그려서 — 글씨를 먼저 만들어야 띠 위에 보임
-    ultTitle(name, sub, o.tc ? sigPal(o.tc) : null, ULT_INTRO_MS / 1000 + 0.9);
-    ultCutIn(pokemon, left, cols, ULT_INTRO_MS / 1000);
+    // 다시 보는 필살기는 컷인 띠 없이 이름만 짧게
+    ultTitle(name, sub, o.tc ? sigPal(o.tc) : null, introMs / 1000 + (quick ? 0.6 : 0.9));
+    if (!quick) {
+        ultCutIn(pokemon, left, cols, ULT_INTRO_MS / 1000);
+    }
 }
 
 // 어둠 한 겹 — alphaAt(life) 로 진하기, 쓰는 애 둘레만 동그랗게 비움. 먼저 그린 효과 밑으로 깔림
