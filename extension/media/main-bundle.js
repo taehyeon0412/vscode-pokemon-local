@@ -6569,10 +6569,30 @@ function showMoveName(g, text) {
 const DRAW = {
     // 불길 — 시간에 따라 색이 바뀌며 커짐, 끝은 연기
     stream: (ctx, p, t, px) => {
-        const size = p.s * Math.round(1 + t * p.grow);
         const n = p.cols.length;
-        const hot = t < 0.85 || !p.smoke;
-        if (hot) {
+        if (p.tongue) {
+            // 불꽃 혀 (2026-10-20 아트 디렉터 2바퀴 — 네모 알갱이 · 네모 꼬리가 줄지어 남던 것): 최대 3칸 · 2칸부터 모서리 깎기 · 끝무렵은 1칸 폭 3칸 높이 혀
+            ctx.globalAlpha = t < 0.85 ? 1 : Math.ceil(((1 - t) / 0.15) * 4) / 4;
+            const c = p.cols[Math.min(n - 1, Math.floor((t / 0.85) * n))];
+            if (t > 0.6) {
+                for (let j = 0; j < 3; j++) {
+                    dotAt(ctx, px, p.s, p.x, p.y - j * p.s, p.cols[Math.min(n - 1, Math.floor((t / 0.85) * n) + (j > 0 ? 1 : 0))]);
+                }
+                return;
+            }
+            const k = Math.min(3, Math.round(1 + t * p.grow));
+            for (let dy = 0; dy < k; dy++) {
+                for (let dx = 0; dx < k; dx++) {
+                    if (k >= 2 && (dx === 0 || dx === k - 1) && (dy === 0 || dy === k - 1) && k > 2) {
+                        continue;
+                    }
+                    dotAt(ctx, px, p.s, p.x + (dx - (k - 1) / 2) * p.s, p.y + (dy - (k - 1) / 2) * p.s, dx === (k - 1) / 2 && dy === (k - 1) / 2 && t < 0.3 ? p.cols[0] : c);
+                }
+            }
+            return;
+        }
+        const size = p.s * Math.round(1 + t * p.grow);
+        if (t < 0.85 || !p.smoke) {
             ctx.globalAlpha = t < 0.85 ? 1 : (1 - t) / 0.15;
             ctx.fillStyle = p.cols[Math.min(n - 1, Math.floor((t / 0.85) * n))];
         } else {
@@ -6580,20 +6600,6 @@ const DRAW = {
             ctx.fillStyle = '#7a7a7a';
         }
         ctx.fillRect(px(p.x - size / 2), px(p.y - size / 2), size, size);
-        // 불꽃 혀처럼 (2026-10-20 "밋밋해") — 지나온 쪽으로 반만 한 꼬리 · 막 나온 동안 밝은 심 (뜨거운 가운데)
-        const speed = Math.hypot(p.vx, p.vy);
-        if (hot && t < 0.7 && size >= 2 * p.s && speed > 5 * p.s) {
-            // 꼬리는 움직이는 반대쪽 (뿜기 = 옆 · 대결 불길 = 아래)
-            const tail = Math.max(p.s, p.s * Math.round(size / p.s / 2));
-            const d = size / 2 + tail / 2;
-            ctx.globalAlpha *= 0.7;
-            ctx.fillRect(px(p.x - (p.vx / speed) * d - tail / 2), px(p.y - (p.vy / speed) * d - tail / 2), tail, tail);
-            if (t < 0.4) {
-                ctx.globalAlpha = 1;
-                ctx.fillStyle = p.cols[0];
-                ctx.fillRect(px(p.x - p.s / 2), px(p.y - p.s / 2), p.s, p.s);
-            }
-        }
     },
     dot: (ctx, p, t, px) => {
         ctx.globalAlpha = fadeInOut(t, 0.1, 0.35);
@@ -6716,11 +6722,11 @@ function sigBurst(x, y, s, cols, n = 6, speed = 40) {
 }
 
 // 지그재그 번개 길 (시작점은 그대로, 나머지는 옆으로 jit 칸씩 흔들림)
-function zigzag(x0, y0, x1, y1, s, jit = 2.5) {
+function zigzag(x0, y0, x1, y1, s, jit = 2.5, seg = 3) {
     const len = Math.hypot(x1 - x0, y1 - y0);
     const nx = -(y1 - y0) / (len || 1);
     const ny = (x1 - x0) / (len || 1);
-    const steps = Math.max(4, Math.round(len / (3 * s)));
+    const steps = Math.max(4, Math.round(len / (seg * s)));
     const path = [];
     for (let k = 0; k <= steps; k++) {
         const off = k === 0 || k === steps ? 0 : moveRand(-jit, jit) * s;
@@ -6729,7 +6735,7 @@ function zigzag(x0, y0, x1, y1, s, jit = 2.5) {
     return path;
 }
 // 번개 줄 — 하얀 심 + 둘레 색
-function zapLine(ctx, px, s, pts, w, tint) {
+function zapLine(ctx, px, s, pts, w, tint, core = '#ffffff') {
     for (let k = 1; k < pts.length; k++) {
         const [x0, y0] = pts[k - 1];
         const [x1, y1] = pts[k];
@@ -6738,7 +6744,7 @@ function zapLine(ctx, px, s, pts, w, tint) {
             const x = x0 + ((x1 - x0) * j) / m;
             const y = y0 + ((y1 - y0) * j) / m;
             dotAt(ctx, px, s, x - s, y - s, tint, w + 2, w + 2);
-            dotAt(ctx, px, s, x - (w > 1 ? s / 2 : 0), y - (w > 1 ? s / 2 : 0), '#ffffff', w, w);
+            dotAt(ctx, px, s, x - (w > 1 ? s / 2 : 0), y - (w > 1 ? s / 2 : 0), core, w, w);
         }
     }
 }
@@ -6905,7 +6911,7 @@ function sigSlashMark(x, y, s, dir, flip, L, cols) {
         }
     }, draw: (ctx, p, t, px) => {
         const shown = Math.min(1, p.life / 0.08);
-        ctx.globalAlpha = t > 0.5 ? (1 - t) / 0.5 : 1;
+        ctx.globalAlpha = t > 0.5 ? Math.ceil(((1 - t) / 0.5) * 4) / 4 : 1;
         const steps = p.L * 2;
         for (let k = 0; k <= steps * shown; k++) {
             const u = k / steps;
@@ -6952,7 +6958,8 @@ function sigPow(x, y, s, cols0, P, big, opt = {}) {
                 if (d > lim) {
                     continue;
                 }
-                const c = d > lim - 2 ? p.cols[3] : white && d < lim * 0.2 ? '#ffffff' : d < lim * 0.5 ? p.cols[0] : p.cols[1];
+                // 순백은 처음 0.25 동안 가운데만 · 나머지는 cols[1] → cols[2] (반이 흰 덩이가 되지 않게) · 작은 퍽 (rOut < 6) 은 테두리 1칸
+                const c = d > lim - (p.rOut < 6 ? 1 : 2) ? p.cols[3] : white && t < 0.25 && d < lim * 0.2 ? '#ffffff' : d < lim * 0.45 ? p.cols[1] : p.cols[2];
                 dotAt(ctx, px, p.s, p.x + k * p.s, p.y + j * p.s, c);
             }
         }
@@ -7017,7 +7024,7 @@ const SIG_FX = {
                     vy: moveRand(-10, 6) * (1 + 0.6 * g.P) * g.s * (o.spread ?? 1),
                     g: -14 * g.s * (o.rise ?? 1), drag: 2.6 - g.P,
                     max: moveRand(0.35, 0.6) * (1 + 0.7 * g.P) * (o.life ?? 1),
-                    grow: (2 + 2.5 * g.P) * (o.grow ?? 1), draw: DRAW.stream,
+                    grow: (2 + 2.5 * g.P) * (o.grow ?? 1), tongue: o.c === 'fire' || o.c === 'dragon', draw: DRAW.stream,
                 });
             } });
         },
@@ -16250,12 +16257,18 @@ const HIT_COLS = {
     electric: ['#fffbe0', '#ffe53b', '#f2b600', '#a87a00'],
     fighting: ['#fff0e0', '#ffc98f', '#ff8a3d', '#b8401f'],
     dragon: ['#fff0c0', '#ffb84d', '#7a5cff', '#3a1f99'],
-    dark: ['#ffd6d0', '#ff6b5a', '#4f3a85', '#1a1030'],
-    ghost: ['#e8dcff', '#a87ee6', '#4a2a80', '#140c24'],
+    // 악 · 고스트 가장 짙은 색은 밤 숲보다 어두우면 테두리가 묻혀서 한 단계 밝게 (아트 디렉터 2바퀴)
+    dark: ['#ffd6d0', '#ff6b5a', '#4f3a85', '#33245e'],
+    ghost: ['#e8dcff', '#a87ee6', '#4a2a80', '#2e1d52'],
 };
 // 쇠 갈리는 불똥 (강철)
 const HIT_GOLD = ['#fff6c2', '#ffd76a', '#f2b600', '#a87a00'];
 const hitCols = (type) => HIT_COLS[type] || sigPal(FX_TYPE_PAL[type] || 'normal');
+// 연출 팔레트 이름 (SIG_PALETTE: fight · wind …) → 그 타입 임팩트 색 (없으면 그대로) — 게임 전투의 할퀴기 · 주먹이 임팩트와 같은 흰색을 쓰게
+const hitColsOfPal = (pal) => {
+    const type = Object.keys(FX_TYPE_PAL).find((t) => FX_TYPE_PAL[t] === pal && HIT_COLS[t]);
+    return type ? HIT_COLS[type] : pal;
+};
 
 // ── 조각 하나 그리기 — 타입마다 다른 도트 모양 (cols = 4색, k = 진행 0 ~ 1, big = 크게)
 function hitBit(ctx, px, s, x, y, shape, cols, k, big, dir = 1) {
@@ -16342,40 +16355,45 @@ function hitBit(ctx, px, s, x, y, shape, cols, k, big, dir = 1) {
     }
 }
 
-// 끊김 없는 픽셀 호 — 둘레를 칸마다 채우고 (점선 원 = 웹 로딩 표시 같아서) 6조각 (40° 칠 · 20° 빔), 처음엔 2칸 두께 (바깥 cols[2] · 안 cols[0])
+// 발밑 충격파 — 두꺼운 초승달 호 3조각 (100° 칠 · 20° 빔): 앞 (아래) 반은 2칸 cols[1], 뒤 (위) 반은 1칸 cols[3]. 몸 둘레 원은 패링 원과 헷갈려서 발밑에만 (아트 디렉터 2바퀴)
 function hitRing(x, y, s, r0, r1, flat, max, cols) {
     if (hitQuiet) {
         return;
     }
-    const a0 = moveRand(0, Math.PI / 3);
+    const a0 = moveRand(0, (Math.PI * 2) / 3);
+    const fl = Math.min(flat, 0.35);
     sigParticle({ x, y, s, max, cols, draw: (ctx, p, t, px) => {
         const r = r0 + (r1 - r0) * t;
         ctx.globalAlpha = hitStep(1 - t);
         const dots = Math.ceil((2 * Math.PI * r) / p.s);
         for (let j = 0; j < dots; j++) {
-            const a = (j / dots) * Math.PI * 2;
-            if (((a / (Math.PI / 3)) % 1) > 2 / 3) {
+            const a = (j / dots) * Math.PI * 2 + a0;
+            if ((((j / dots) * 3) % 1) > 5 / 6) {
                 continue;
             }
-            const cx = p.x + Math.cos(a + a0) * r;
-            const cy = p.y + Math.sin(a + a0) * r * flat;
-            dotAt(ctx, px, p.s, cx, cy, p.cols[2]);
-            if (t < 0.35) {
-                dotAt(ctx, px, p.s, cx - Math.cos(a + a0) * p.s, cy - Math.sin(a + a0) * p.s * flat, p.cols[0]);
-            }
+            const cx = p.x + Math.cos(a) * r;
+            const cy = p.y + Math.sin(a) * r * fl;
+            const front = Math.sin(a) > 0;
+            dotAt(ctx, px, p.s, cx, cy, front ? p.cols[1] : p.cols[3], 1, front && t < 0.6 ? 2 : 1);
         }
     } });
 }
 
-// 바닥 빛 웅덩이 — 맞는 포켓몬 발밑에 납작한 꽉 찬 타원 (모닥불 바닥 빛처럼 · 반짝임 없음)
+// 바닥 빛 웅덩이 — 맞는 포켓몬 발밑을 넓고 연하게 물들임 (모닥불 바닥 빛처럼 · 가운데 줄이 넓고 위아래 줄은 반쯤 · 양끝 25% 바둑판)
 function hitPuddle(x, ground, s, R, cols, sec) {
     sigParticle({ x, y: ground, s, max: sec, R, cols, draw: (ctx, p, t, px) => {
-        ctx.globalAlpha = 0.5 * hitFade(t, 0.15, 0.4);
-        const rx = p.R * (0.6 + 0.4 * Math.min(1, t / 0.15));
-        for (let j = -1; j <= 1; j++) {
-            const half = rx * Math.sqrt(1 - (j / 2) * (j / 2));
-            dotAt(ctx, px, p.s, p.x - half, p.y + j * p.s, p.cols[3], Math.max(1, Math.round((2 * half) / p.s)), 1);
-        }
+        ctx.globalAlpha = hitStep(0.35 * hitFade(t, 0.15, 0.4)) || 0.25;
+        const rx = p.R * 1.2 * (0.6 + 0.4 * Math.min(1, t / 0.15));
+        [0.55, 1, 0.55].forEach((k, j) => {
+            const half = Math.round((rx * k) / p.s);
+            for (let i = -half; i <= half; i++) {
+                const edge = Math.abs(i) > half * 0.75;
+                if (edge && (i + j) % 2) {
+                    continue;
+                }
+                dotAt(ctx, px, p.s, p.x + i * p.s, p.y + (j - 1) * p.s, p.cols[2]);
+            }
+        });
     } });
 }
 
@@ -16439,20 +16457,31 @@ function hitHelix(x, ground, s, R, H, cols, shape, sec, spin, big) {
     } });
 }
 
-// ── 짜임: 폭발 — 가운데에서 조각이 사방으로 터지며 퍼짐 (계속 뿜어 빽빽) · 고리는 opt.ring 일 때만 하나
+// ── 짜임: 폭발 — 처음 0.15초에 큰 조각 6개 (주인공 모양 — 얼음 = 바깥을 향한 1×3 결정, 그 밖 = 그 타입 큰 조각) + 작은 조각을 조금만 (점 구름이 되지 않게, 아트 디렉터 2바퀴)
 function hitBloom(x, y, s, R, cols, shape, sec, big, opt = {}) {
+    for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2 + moveRand(-0.2, 0.2);
+        sigParticle({ x, y, s, a, vx: Math.cos(a) * R * 5, vy: Math.sin(a) * R * 5 * (opt.flat ?? 0.85), drag: 7, max: 0.5 * (sec / 0.7) + 0.1, cols, shape, draw: (ctx, p, t, px) => {
+            ctx.globalAlpha = hitFade(t, 0.05, 0.35);
+            if (p.shape === 'shard') {
+                // 바깥을 향한 결정 1 × 3 (심 밝게 → 끝 진하게)
+                for (let k = 0; k < 3; k++) {
+                    dotAt(ctx, px, p.s, p.x + Math.cos(p.a) * k * p.s, p.y + Math.sin(p.a) * k * p.s, p.cols[k]);
+                }
+                return;
+            }
+            hitBit(ctx, px, p.s, p.x, p.y, p.shape, p.cols, t, true);
+        } });
+    }
     const until = performance.now() + Math.min(300, sec * 400);
-    sigEmitter({ until, rate: big ? 300 : 220, fx: () => {
+    sigEmitter({ until, rate: big ? 130 : 90, fx: () => {
         const a = moveRand(0, Math.PI * 2);
         const v = moveRand(1, 1.8) * R * 3.2;
-        sigParticle({ x, y, s, vx: Math.cos(a) * v, vy: Math.sin(a) * v * (opt.flat ?? 0.85), g: (opt.g ?? 30) * s, drag: opt.drag ?? 3.2, max: moveRand(0.45, 0.75) * (sec / 0.7), cols, shape, big: Math.random() < (big ? 0.6 : 0.35), draw: (ctx, p, t, px) => {
+        sigParticle({ x, y, s, vx: Math.cos(a) * v, vy: Math.sin(a) * v * (opt.flat ?? 0.85), g: (opt.g ?? 30) * s, drag: opt.drag ?? 3.2, max: moveRand(0.45, 0.75) * (sec / 0.7), cols, shape, big: Math.random() < 0.7, draw: (ctx, p, t, px) => {
             ctx.globalAlpha = hitFade(t, 0.05, 0.4);
             hitBit(ctx, px, p.s, p.x, p.y, p.shape, p.cols, t, p.big);
         } });
     } });
-    if (opt.ring) {
-        hitRing(x, y, s, R * 0.4, R * 1.4, opt.ringFlat ?? 0.8, 0.45, cols);
-    }
 }
 
 // ── 짜임: 기둥 — 발밑에서 위로 솟구치는 기둥 (불기둥 · 독 기둥 · 비늘 기둥)
@@ -16535,13 +16564,22 @@ function hitSpikes(x, ground, s, R, cols, n, sec) {
     hitDust(x, ground, s, R, cols, 10);
 }
 
-// 흙먼지 덩이 — 바닥을 따라 양옆으로
+// 흙먼지 — 작은 반원 덩이가 바닥에서 위로 피어 흩어짐 (꽉 찬 공이 겹쳐 뭉게 쿠션이 되지 않게 — 위 반원 · 가운데 1칸 빔 · 빛보다 어두운 색, 아트 디렉터 2바퀴)
 function hitDust(x, ground, s, R, cols, n) {
     for (let i = 0; i < n; i++) {
         const side = i % 2 ? -1 : 1;
-        sigParticle({ x: x + side * moveRand(0, 0.5) * R, y: ground, s, vx: side * moveRand(1, 2.2) * R, vy: -moveRand(0.1, 0.6) * R, g: R * 0.8, drag: 2.4, max: moveRand(0.45, 0.75), cols, r: movePick([1, 2, 2, 3]), draw: (ctx, p, t, px) => {
-            ctx.globalAlpha = hitStep((1 - t) * 0.85);
-            sigDisc(ctx, px, p.s, p.x, p.y, (p.r + t * 2) * p.s, t < 0.4 ? p.cols[1] : p.cols[2]);
+        sigParticle({ x: x + side * moveRand(0, 0.5) * R, y: ground, s, vx: side * moveRand(1, 2.2) * R, vy: -moveRand(0.6, 1) * R, g: R * 1.2, drag: 2.4, max: moveRand(0.3, 0.45), cols, r: movePick([1, 1, 2]), draw: (ctx, p, t, px) => {
+            ctx.globalAlpha = hitStep((1 - t) * 0.6);
+            const r = Math.round(p.r + t);
+            for (let dy = -r; dy <= 0; dy++) {
+                const half = Math.round(Math.sqrt(Math.max(0, r * r - dy * dy)));
+                for (let dx = -half; dx <= half; dx++) {
+                    if (dx === 0 && dy === 0 && r > 1) {
+                        continue;
+                    }
+                    dotAt(ctx, px, p.s, p.x + dx * p.s, p.y + dy * p.s, dy === -r ? p.cols[2] : p.cols[3]);
+                }
+            }
         } });
     }
 }
@@ -16559,7 +16597,7 @@ function hitOrbit(x, y, s, R, cols, shape, n, sec, big, inward = false) {
     }
 }
 
-// ── 짜임: 갈래 번개 — 가운데에서 바깥으로 지직. 모양은 0.12초마다 새로 (밝기 그대로 — 꺼졌다 켜지지 않음, 1초 3번 규칙)
+// ── 짜임: 갈래 번개 — 가는 선 (1칸 심 + 둘레) · 곧은 5칸 마디 · 날카로운 꺾임 · 줄마다 끝 갈래 하나 (벽에 난 번개 금처럼). 모양은 0.12초마다 새로 (밝기 그대로)
 function hitBolts(x, y, s, R, cols, n, sec) {
     sigParticle({ x, y, s, max: sec, R, n, cols, drawn: -1, update: (p) => {
         if (p.drawn >= 0 && p.life - p.drawn < 0.12) {
@@ -16569,18 +16607,16 @@ function hitBolts(x, y, s, R, cols, n, sec) {
         p.paths = [];
         for (let i = 0; i < p.n; i++) {
             const a = (i / p.n) * Math.PI * 2 + moveRand(-0.35, 0.35);
-            const L = p.R * moveRand(1.2, 2);
-            p.paths.push(zigzag(p.x, p.y, p.x + Math.cos(a) * L, p.y + Math.sin(a) * L, p.s, 2.5));
+            const L = p.R * moveRand(1.4, 2.4);
+            const path = zigzag(p.x, p.y, p.x + Math.cos(a) * L, p.y + Math.sin(a) * L, p.s, 3, 5);
+            p.paths.push(path, zapBranch(path, L * 0.4, a, p.s));
         }
     }, draw: (ctx, p, t, px) => {
         if (!p.paths) {
             return;
         }
         ctx.globalAlpha = t > 0.7 ? 0.5 : 1;
-        p.paths.forEach((path) => {
-            zapLine(ctx, px, p.s, path, 2, p.cols[3]);
-            zapLine(ctx, px, p.s, path, 1, p.cols[1]);
-        });
+        p.paths.forEach((path) => zapLine(ctx, px, p.s, path, 1, p.cols[2], p.cols[0]));
     } });
 }
 
@@ -16646,14 +16682,29 @@ function hitClaws(x, y, s, R, cols, n, cross) {
     }
 }
 
-// 겹 고리 — 늦게 시작하는 호 (에스퍼 · 고스트 · 페어리)
-function hitPulses(x, y, s, R, cols, n) {
+// 겹 충격파 — 발밑에서 늦게 시작하는 초승달 호 (에스퍼 · 고스트 · 격투 · 노말)
+function hitPulses(x, ground, s, R, cols, n) {
     // 닿는 기술 · 1 공격이면 고리 없이 (타이머가 나중에 그려서 부를 때 확인)
     if (hitQuiet) {
         return;
     }
     for (let i = 0; i < n; i++) {
-        setTimeout(() => hitRing(x, y, s, R * 0.3, R * (1.3 + 0.25 * i), 0.8, 0.5, cols), i * 100);
+        setTimeout(() => hitRing(x, ground, s, R * 0.3, R * (1.4 + 0.3 * i), 0.3, 0.5, cols), i * 100);
+    }
+}
+
+// 염동 물결 — 몸을 가로지르는 1칸 가로 물결 띠 3 ~ 4줄 (±1칸 sin, 위아래로 퍼짐)
+function hitWaves(x, y, s, R, cols, n, sec) {
+    for (let i = 0; i < n; i++) {
+        sigParticle({ x, y: y + (i - (n - 1) / 2) * R * 0.45, s, max: sec, R, cols, i, draw: (ctx, p, t, px) => {
+            ctx.globalAlpha = hitFade(t, 0.1, 0.35);
+            const half = Math.round((p.R * (0.8 + 0.6 * t)) / p.s);
+            const spread = (p.i - (n - 1) / 2) * t * p.R * 0.4;
+            for (let k = -half; k <= half; k++) {
+                const yo = Math.round(Math.sin(k * 0.6 + p.life * 14 + p.i)) * p.s;
+                dotAt(ctx, px, p.s, p.x + k * p.s, p.y + spread + yo, Math.abs(k) < half * 0.4 ? p.cols[0] : p.cols[1 + (p.i % 2)]);
+            }
+        } });
     }
 }
 
@@ -16703,7 +16754,7 @@ const HIT_STYLES = {
         (x, y, s, R, c, big) => hitBloom(x, y, s, R, c, 'bubble', 0.8, big, { g: -30, drag: 3.6 }), // 거품 터짐
     ],
     electric: [
-        (x, y, s, R, c, big, dir, g, n) => { hitBolts(x, y, s, R, c, n(6), 0.5); hitBloom(x, y, s, R * 0.7, c, 'dot', 0.45, big, { g: 0, drag: 4 }); }, // 갈래 번개
+        (x, y, s, R, c, big, dir, g, n) => hitBolts(x, y, s, R, c, n(4), 0.5), // 갈래 번개 (벽 금처럼 가늘게)
         (x, y, s, R, c) => hitThunder(x, y, s, R, c, 0.55), // 낙뢰
         (x, y, s, R, c, big, dir, g, n) => { hitOrbit(x, y, s, R * 1.1, c, 'sparkle', n(12), 0.6, big); hitBolts(x, y, s, R * 0.8, c, 4, 0.45); }, // 몸에 감기는 전기
     ],
@@ -16720,7 +16771,7 @@ const HIT_STYLES = {
     fighting: [
         (x, y, s, R, c, big, dir, g) => { sigPow(x, y, s, c, 0.5, big); hitDust(x, g, s, R, c, 8); }, // 퍽 + 먼지
         (x, y, s, R, c, big, dir, g, n) => hitFlurry(x, y, s, R, c, n(4)), // 연타
-        (x, y, s, R, c, big, dir, g) => { hitPulses(x, y, s, R, c, 2); hitDust(x, g, s, R, c, 8); }, // 충격파 + 먼지
+        (x, y, s, R, c, big, dir, g) => { hitPulses(x, g, s, R, c, 2); hitLines(x, y, s, R, c, 4, 0.3); }, // 발밑 충격파 + 충격선
     ],
     poison: [
         (x, y, s, R, c, big, dir) => hitFountain(x, y, s, R, c, 'bubble', 0.75, big, dir), // 독방울 튐
@@ -16739,11 +16790,11 @@ const HIT_STYLES = {
     ],
     flying: [
         (x, y, s, R, c, big, dir, g, n, h) => hitHelix(x, g, s, R, h(3), c, 'feather', 0.75, dir * 12, big), // 회오리바람
-        (x, y, s, R, c, big, dir, g, n) => { hitOrbit(x, y, s, R * 1.1, c, 'feather', n(20), 0.7, big); hitRing(x, y, s, R * 0.4, R * 1.4, 0.6, 0.4, c); }, // 깃털 흩날림 + 바람 호
+        (x, y, s, R, c, big, dir, g, n) => { hitOrbit(x, y, s, R * 1.1, c, 'feather', n(20), 0.7, big); hitRing(x, g, s, R * 0.4, R * 1.4, 0.3, 0.4, c); }, // 깃털 흩날림 + 발밑 바람 호
         (x, y, s, R, c, big) => hitBloom(x, y, s, R, c, 'feather', 0.7, big, { g: 20, drag: 3 }), // 바람 터짐
     ],
     psychic: [
-        (x, y, s, R, c, big, dir, g, n) => { hitPulses(x, y, s, R, c, big ? 3 : 2); hitOrbit(x, y, s, R, c, 'sparkle', n(6), 0.65, big); }, // 겹 고리 + 반짝이
+        (x, y, s, R, c, big, dir, g, n) => { hitWaves(x, y, s, R, c, big ? 4 : 3, 0.6); hitOrbit(x, y, s, R, c, 'sparkle', n(6), 0.65, big); }, // 염동 물결 + 반짝이
         (x, y, s, R, c, big) => hitBloom(x, y, s, R, c, 'sparkle', 0.7, big, { g: 0, drag: 4 }), // 염동 폭발
         (x, y, s, R, c, big, dir, g, n) => hitOrbit(x, y, s, R, c, 'sparkle', n(18), 0.7, big, true), // 안으로 빨려 드는 빛
     ],
@@ -16753,13 +16804,13 @@ const HIT_STYLES = {
         (x, y, s, R, c) => hitClaws(x, y, s, R, c, 2, true), // 집게 X 베기
     ],
     ghost: [
-        (x, y, s, R, c, big, dir, g, n) => { hitWisps(x, y, s, R, c, n(8), 0.85); hitPulses(x, y, s, R, c, 1); }, // 혼 + 그림자 호
+        (x, y, s, R, c, big, dir, g, n) => { hitWisps(x, y, s, R, c, n(8), 0.85); hitPulses(x, g, s, R, c, 1); }, // 혼 + 발밑 그림자 호
         (x, y, s, R, c, big, dir, g, n) => { hitWisps(x, y, s, R, c, n(12), 0.85); hitRain(x, y, s, R, c, 'flame', 0.6, big); }, // 혼 + 떨어지는 도깨비불
         (x, y, s, R, c, big, dir, g, n) => hitSpikes(x, g, s, R, [c[0], c[0], c[1], c[2]], n(5), 0.8), // 그림자 가시 (짙은 두 색은 숲 밤 배경에 묻혀서 한 단계 밝게)
     ],
     dragon: [
         (x, y, s, R, c) => hitClaws(x, y, s, R, c, 3), // 용 발톱 세 줄
-        (x, y, s, R, c, big) => hitBloom(x, y, s, R, c, 'shard', 0.75, big, { g: 0, drag: 3.6, ring: true }), // 비늘 폭발
+        (x, y, s, R, c, big) => hitBloom(x, y, s, R, c, 'shard', 0.75, big, { g: 0, drag: 3.6 }), // 비늘 폭발
         (x, y, s, R, c, big, dir, g, n, h) => hitPillar(x, g, s, R, h(3.6), c, 'shard', 0.8, big), // 비늘 기둥
     ],
     dark: [
@@ -16773,14 +16824,14 @@ const HIT_STYLES = {
         (x, y, s, R, c, big, dir, g, n) => { hitSpikes(x, g, s, R, c, n(4), 0.75); hitFountain(x, y, s, R * 0.6, HIT_GOLD, 'dot', 0.5, false, dir); }, // 쇠 가시 + 불똥
     ],
     fairy: [
-        (x, y, s, R, c, big, dir, g, n) => { hitOrbit(x, y, s, R * 1.1, c, 'heart', n(8), 0.75, big); hitPulses(x, y, s, R, c, 1); }, // 하트 · 호
+        (x, y, s, R, c, big, dir, g, n) => hitOrbit(x, y, s, R * 1.1, c, 'heart', n(10), 0.75, big), // 감도는 하트
         (x, y, s, R, c, big) => hitBloom(x, y, s, R, c, 'sparkle', 0.8, big, { g: -10, drag: 3 }), // 반짝 폭발
         (x, y, s, R, c, big) => hitRain(x, y, s, R, c, 'heart', 0.7, big), // 하트 쏟아짐
     ],
     normal: [
         (x, y, s, R, c, big, dir, g, n) => { hitLines(x, y, s, R, c, n(8), 0.34); hitBloom(x, y, s, R * 0.8, c, 'star', 0.5, big, { g: 60 }); }, // 별 터짐
         (x, y, s, R, c, big, dir, g, n) => hitFlurry(x, y, s, R, c, n(3)), // 연타 퍽
-        (x, y, s, R, c, big, dir, g) => { hitPulses(x, y, s, R, c, 2); hitDust(x, g, s, R, c, 8); }, // 쿵 충격파
+        (x, y, s, R, c, big, dir, g) => { hitPulses(x, g, s, R, c, 2); hitLines(x, y, s, R, c, 4, 0.3); }, // 쿵 발밑 충격파 + 충격선
     ],
 };
 
@@ -48871,7 +48922,8 @@ window.pokemonFx = {
         const ok = safeFx({}, () => fxWithTimers(fxMoveGen, () => {
             const g0 = sigGeometry(A, !!src.left);
             // 닿는 기술 (할퀴기 · 주먹) 은 게임에서 늘 맞는 쪽에 그림 → 자국을 몸 위에 (일반 모드는 쓰는 쪽 몸 앞)
-            let aim = { g: g0, o: FX_CONTACT.has(p.sig[1]) ? { ...p.o, onTarget: true } : p.o };
+            // 색도 타입 임팩트 색 (순백 대신 색이 든 흰색 — 뒤따르는 임팩트와 같은 흰색, 아트 디렉터 2바퀴)
+            let aim = { g: g0, o: FX_CONTACT.has(p.sig[1]) ? { ...p.o, onTarget: true, c: hitColsOfPal(p.o.c ?? 'normal') } : p.o };
             if (dst && fxWidth(dst) >= 1) {
                 aim = fxAim(p.sig[1], g0, p.o, fxTarget(g0, dst));
             } else if (p.sig[1] === 'breath' && reach > 0) {

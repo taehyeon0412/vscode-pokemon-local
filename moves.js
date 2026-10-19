@@ -730,10 +730,30 @@ function showMoveName(g, text) {
 const DRAW = {
     // 불길 — 시간에 따라 색이 바뀌며 커짐, 끝은 연기
     stream: (ctx, p, t, px) => {
-        const size = p.s * Math.round(1 + t * p.grow);
         const n = p.cols.length;
-        const hot = t < 0.85 || !p.smoke;
-        if (hot) {
+        if (p.tongue) {
+            // 불꽃 혀 (2026-10-20 아트 디렉터 2바퀴 — 네모 알갱이 · 네모 꼬리가 줄지어 남던 것): 최대 3칸 · 2칸부터 모서리 깎기 · 끝무렵은 1칸 폭 3칸 높이 혀
+            ctx.globalAlpha = t < 0.85 ? 1 : Math.ceil(((1 - t) / 0.15) * 4) / 4;
+            const c = p.cols[Math.min(n - 1, Math.floor((t / 0.85) * n))];
+            if (t > 0.6) {
+                for (let j = 0; j < 3; j++) {
+                    dotAt(ctx, px, p.s, p.x, p.y - j * p.s, p.cols[Math.min(n - 1, Math.floor((t / 0.85) * n) + (j > 0 ? 1 : 0))]);
+                }
+                return;
+            }
+            const k = Math.min(3, Math.round(1 + t * p.grow));
+            for (let dy = 0; dy < k; dy++) {
+                for (let dx = 0; dx < k; dx++) {
+                    if (k >= 2 && (dx === 0 || dx === k - 1) && (dy === 0 || dy === k - 1) && k > 2) {
+                        continue;
+                    }
+                    dotAt(ctx, px, p.s, p.x + (dx - (k - 1) / 2) * p.s, p.y + (dy - (k - 1) / 2) * p.s, dx === (k - 1) / 2 && dy === (k - 1) / 2 && t < 0.3 ? p.cols[0] : c);
+                }
+            }
+            return;
+        }
+        const size = p.s * Math.round(1 + t * p.grow);
+        if (t < 0.85 || !p.smoke) {
             ctx.globalAlpha = t < 0.85 ? 1 : (1 - t) / 0.15;
             ctx.fillStyle = p.cols[Math.min(n - 1, Math.floor((t / 0.85) * n))];
         } else {
@@ -741,20 +761,6 @@ const DRAW = {
             ctx.fillStyle = '#7a7a7a';
         }
         ctx.fillRect(px(p.x - size / 2), px(p.y - size / 2), size, size);
-        // 불꽃 혀처럼 (2026-10-20 "밋밋해") — 지나온 쪽으로 반만 한 꼬리 · 막 나온 동안 밝은 심 (뜨거운 가운데)
-        const speed = Math.hypot(p.vx, p.vy);
-        if (hot && t < 0.7 && size >= 2 * p.s && speed > 5 * p.s) {
-            // 꼬리는 움직이는 반대쪽 (뿜기 = 옆 · 대결 불길 = 아래)
-            const tail = Math.max(p.s, p.s * Math.round(size / p.s / 2));
-            const d = size / 2 + tail / 2;
-            ctx.globalAlpha *= 0.7;
-            ctx.fillRect(px(p.x - (p.vx / speed) * d - tail / 2), px(p.y - (p.vy / speed) * d - tail / 2), tail, tail);
-            if (t < 0.4) {
-                ctx.globalAlpha = 1;
-                ctx.fillStyle = p.cols[0];
-                ctx.fillRect(px(p.x - p.s / 2), px(p.y - p.s / 2), p.s, p.s);
-            }
-        }
     },
     dot: (ctx, p, t, px) => {
         ctx.globalAlpha = fadeInOut(t, 0.1, 0.35);
@@ -877,11 +883,11 @@ function sigBurst(x, y, s, cols, n = 6, speed = 40) {
 }
 
 // 지그재그 번개 길 (시작점은 그대로, 나머지는 옆으로 jit 칸씩 흔들림)
-function zigzag(x0, y0, x1, y1, s, jit = 2.5) {
+function zigzag(x0, y0, x1, y1, s, jit = 2.5, seg = 3) {
     const len = Math.hypot(x1 - x0, y1 - y0);
     const nx = -(y1 - y0) / (len || 1);
     const ny = (x1 - x0) / (len || 1);
-    const steps = Math.max(4, Math.round(len / (3 * s)));
+    const steps = Math.max(4, Math.round(len / (seg * s)));
     const path = [];
     for (let k = 0; k <= steps; k++) {
         const off = k === 0 || k === steps ? 0 : moveRand(-jit, jit) * s;
@@ -890,7 +896,7 @@ function zigzag(x0, y0, x1, y1, s, jit = 2.5) {
     return path;
 }
 // 번개 줄 — 하얀 심 + 둘레 색
-function zapLine(ctx, px, s, pts, w, tint) {
+function zapLine(ctx, px, s, pts, w, tint, core = '#ffffff') {
     for (let k = 1; k < pts.length; k++) {
         const [x0, y0] = pts[k - 1];
         const [x1, y1] = pts[k];
@@ -899,7 +905,7 @@ function zapLine(ctx, px, s, pts, w, tint) {
             const x = x0 + ((x1 - x0) * j) / m;
             const y = y0 + ((y1 - y0) * j) / m;
             dotAt(ctx, px, s, x - s, y - s, tint, w + 2, w + 2);
-            dotAt(ctx, px, s, x - (w > 1 ? s / 2 : 0), y - (w > 1 ? s / 2 : 0), '#ffffff', w, w);
+            dotAt(ctx, px, s, x - (w > 1 ? s / 2 : 0), y - (w > 1 ? s / 2 : 0), core, w, w);
         }
     }
 }
@@ -1066,7 +1072,7 @@ function sigSlashMark(x, y, s, dir, flip, L, cols) {
         }
     }, draw: (ctx, p, t, px) => {
         const shown = Math.min(1, p.life / 0.08);
-        ctx.globalAlpha = t > 0.5 ? (1 - t) / 0.5 : 1;
+        ctx.globalAlpha = t > 0.5 ? Math.ceil(((1 - t) / 0.5) * 4) / 4 : 1;
         const steps = p.L * 2;
         for (let k = 0; k <= steps * shown; k++) {
             const u = k / steps;
@@ -1113,7 +1119,8 @@ function sigPow(x, y, s, cols0, P, big, opt = {}) {
                 if (d > lim) {
                     continue;
                 }
-                const c = d > lim - 2 ? p.cols[3] : white && d < lim * 0.2 ? '#ffffff' : d < lim * 0.5 ? p.cols[0] : p.cols[1];
+                // 순백은 처음 0.25 동안 가운데만 · 나머지는 cols[1] → cols[2] (반이 흰 덩이가 되지 않게) · 작은 퍽 (rOut < 6) 은 테두리 1칸
+                const c = d > lim - (p.rOut < 6 ? 1 : 2) ? p.cols[3] : white && t < 0.25 && d < lim * 0.2 ? '#ffffff' : d < lim * 0.45 ? p.cols[1] : p.cols[2];
                 dotAt(ctx, px, p.s, p.x + k * p.s, p.y + j * p.s, c);
             }
         }
@@ -1178,7 +1185,7 @@ const SIG_FX = {
                     vy: moveRand(-10, 6) * (1 + 0.6 * g.P) * g.s * (o.spread ?? 1),
                     g: -14 * g.s * (o.rise ?? 1), drag: 2.6 - g.P,
                     max: moveRand(0.35, 0.6) * (1 + 0.7 * g.P) * (o.life ?? 1),
-                    grow: (2 + 2.5 * g.P) * (o.grow ?? 1), draw: DRAW.stream,
+                    grow: (2 + 2.5 * g.P) * (o.grow ?? 1), tongue: o.c === 'fire' || o.c === 'dragon', draw: DRAW.stream,
                 });
             } });
         },

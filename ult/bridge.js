@@ -438,7 +438,8 @@ window.pokemonFx = {
         const ok = safeFx({}, () => fxWithTimers(fxMoveGen, () => {
             const g0 = sigGeometry(A, !!src.left);
             // 닿는 기술 (할퀴기 · 주먹) 은 게임에서 늘 맞는 쪽에 그림 → 자국을 몸 위에 (일반 모드는 쓰는 쪽 몸 앞)
-            let aim = { g: g0, o: FX_CONTACT.has(p.sig[1]) ? { ...p.o, onTarget: true } : p.o };
+            // 색도 타입 임팩트 색 (순백 대신 색이 든 흰색 — 뒤따르는 임팩트와 같은 흰색, 아트 디렉터 2바퀴)
+            let aim = { g: g0, o: FX_CONTACT.has(p.sig[1]) ? { ...p.o, onTarget: true, c: hitColsOfPal(p.o.c ?? 'normal') } : p.o };
             if (dst && fxWidth(dst) >= 1) {
                 aim = fxAim(p.sig[1], g0, p.o, fxTarget(g0, dst));
             } else if (p.sig[1] === 'breath' && reach > 0) {
