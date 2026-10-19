@@ -37,6 +37,8 @@
         location: { screen: 'stage', stageId: 'forest-1' }, lastHospital: null, dex: { seen: [1], caught: [1] },
         pendingEncounter: null, pendingChoices: [], settings: { notifications: true, autoBattle: false },
     };
+    // look=<캐릭터 id> (S03, 2026-10-19) — 그 캐릭터로 숲 · 전투
+    if (q.get('look')) save.player = { gender: q.get('gender') || 'female', look: q.get('look') };
     const info = {
         save: saveKind,
         busy: q.get('busy') === '1',
@@ -141,6 +143,8 @@
         runtime = { rngState: 1, stepAccMs: 0, speed: 1, stage, stageId, toast: null };
     }
 
+    // toast=<글> — 머리 위 알림이 뜬 화면 (사진용)
+    if (q.get('toast')) runtime.toast = { text: q.get('toast'), ms: 600000 };
     let epoch = 0;
     const toWebview = (m) => setTimeout(() => window.postMessage({ command: 'game', ...m }, '*'), 0);
     const start = (s) => toWebview({ type: 'start', epoch: ++epoch, state: { save: s, runtime } });
@@ -208,12 +212,12 @@
                 if (left > 0) setTimeout(() => tryClick(left - 1), 100);
                 return;
             }
-            // hero = 새로 하기 → S03 · starter = S03 에서 남 → S04 (pick=N 이면 → 를 N 번 — 예: 12 = 개구마르 계열)
+            // hero = 새로 하기 → S03 (pick=N 이면 → 를 N 번 — 고른 칸 옮기기) · starter = S03 에서 첫 칸 → S04 (pick=N 이면 → 를 N 번 — 예: 12 = 개구마르 계열)
             if (click === 'hero' || click === 'starter') {
                 const nb = [...document.querySelectorAll('#pokemon-game button')].find((x) => x.textContent.includes('새로 하기'));
                 const pick = Number(q.get('pick') || 0);
                 const right = () => { for (let i = 0; i < pick; i++) window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' })); };
-                if (nb) { nb.click(); if (click === 'starter') setTimeout(() => { document.querySelector('#pokemon-game .pg-hero-choice')?.click(); setTimeout(right, 200); }, 200); return; }
+                if (nb) { nb.click(); if (click === 'starter') setTimeout(() => { document.querySelector('#pokemon-game .pg-hero-choice')?.click(); setTimeout(right, 200); }, 200); else setTimeout(right, 200); return; }
                 if (left > 0) setTimeout(() => tryClick(left - 1), 100);
                 return;
             }

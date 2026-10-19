@@ -1808,6 +1808,68 @@ body.pokemon-game-on {
 .pg-hero-choice .pg-hero {
   filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.7));
 }
+/* S03 한 줄 여러 명 (2026-10-19 A안) — 좁은 패널은 옆으로 밀어서 봄 · 그림 칸은 발끝을 맞춤
+   (가운데 맞춤은 양 끝 margin auto — justify-content: safe center 는 1.73 (Chromium 102) 에 없음) */
+.pg-pick-heroes {
+  justify-content: flex-start;
+  scroll-padding-inline: 8px; /* ← → 로 끝 칸에 가도 가장자리에 붙지 않게 */
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0 8px;
+}
+.pg-pick-heroes > .pg-hero-choice:first-child {
+  margin-left: auto;
+}
+.pg-pick-heroes > .pg-hero-choice:last-child {
+  margin-right: auto;
+}
+/* 아주 낮은 패널 — 칸 이름을 숨김 (마우스를 올리면 나옴) */
+@media (max-height: 80px) {
+  .pg-pick-heroes .pg-hero-choice b {
+    display: none;
+  }
+}
+.pg-pick-heroes .pg-hero-choice {
+  flex: none;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 1px;
+  padding: 2px 8px;
+  line-height: 1;
+}
+
+/* 그림 사람 — 가로로 이은 장면 그림에서 한 칸만 보이게, 걸을 때는 한 칸씩 옮김 (steps 는 Hero.tsx 가 장면 수로) */
+.pg-hero-art {
+  display: inline-block;
+  line-height: 0;
+}
+.pg-sheet {
+  display: inline-block;
+  overflow: hidden;
+  line-height: 0;
+}
+.pg-sheet-img {
+  display: block;
+  max-width: none;
+  height: 100%; /* reset.css 의 img { height: auto } 를 덮음 — 발끝이 1px 뜨지 않게 */
+  image-rendering: pixelated;
+}
+.pg-sheet-run {
+  animation-name: pg-sheet-run;
+  animation-iteration-count: infinite;
+}
+@keyframes pg-sheet-run {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pg-sheet-run,
+  .pg-hero.pg-walking .pg-legs-a,
+  .pg-hero.pg-walking .pg-legs-b {
+    animation: none;
+  }
+}
 /* S04 자기 타입 기술 ★ */
 .pg-own {
   margin-left: 2px;

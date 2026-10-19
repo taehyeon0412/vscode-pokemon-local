@@ -138,8 +138,8 @@ export interface SaveV1 {
   createdAt: number;
   updatedAt: number;
   playTimeMs: number;
-  /** S03 에서 고르기 전에는 null */
-  player: { gender: 'male' | 'female' } | null;
+  /** S03 에서 고르기 전에는 null · look = 고른 캐릭터 (data/heroes.ts, 없으면 성별의 첫 캐릭터 — 옛 세이브) */
+  player: { gender: 'male' | 'female'; look?: string } | null;
   /** 팀 · 보관함의 포켓몬 전부 (uid → 포켓몬) */
   monsters: Record<string, Monster>;
   /** 팀 순서, 맨 앞 = 선두 (최대 BALANCE.partySize) */

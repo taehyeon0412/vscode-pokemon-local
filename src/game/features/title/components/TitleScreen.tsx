@@ -14,7 +14,8 @@ import { InfoBar } from '../../../ui/InfoBar';
 import { Sprite } from '../../../ui/Sprite';
 import { HeroPick } from '../../starter/components/HeroPick';
 import { StarterPick } from '../../starter/components/StarterPick';
-import type { Gender, NewGameChoice } from '../../starter/model';
+import { HERO_LOOKS, type HeroLook } from '../../../data/heroes';
+import type { NewGameChoice } from '../../starter/model';
 import { titleView, type TitleSummary } from '../model';
 
 export interface TitleScreenProps {
@@ -57,7 +58,7 @@ export function TitleScreen({ info, media, pending, onNew, onContinue, heroPx }:
   const [confirming, setConfirming] = useState(false);
   // 새로 하기 다음 단계 — S03 주인공 · S04 스타팅 (고르는 동안은 화면에만, 결정하면 확장에 새 세이브)
   const [step, setStep] = useState<'title' | 'hero' | 'starter'>('title');
-  const [gender, setGender] = useState<Gender>('male');
+  const [look, setLook] = useState<HeroLook>(HERO_LOOKS[0]!);
   // 확장이 새 요약을 보내면 (안 됐다는 안내 등) 확인을 닫고 타이틀로
   useEffect(() => {
     setConfirming(false);
@@ -81,16 +82,18 @@ export function TitleScreen({ info, media, pending, onNew, onContinue, heroPx }:
     return (
       <HeroPick
         px={heroPx}
+        media={media}
+        initial={look.id}
         onBack={() => setStep('title')}
-        onPick={(g) => {
-          setGender(g);
+        onPick={(l) => {
+          setLook(l);
           setStep('starter');
         }}
       />
     );
   }
   if (step === 'starter') {
-    return <StarterPick media={media} scale={heroPx / 2} pending={pending} onBack={() => setStep('hero')} onDone={(dex, moves) => onNew({ gender, dex, moves })} />;
+    return <StarterPick media={media} scale={heroPx / 2} pending={pending} onBack={() => setStep('hero')} onDone={(dex, moves) => onNew({ gender: look.gender, look: look.id, dex, moves })} />;
   }
 
   return (

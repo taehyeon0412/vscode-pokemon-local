@@ -248,11 +248,13 @@ export interface GeometryInput {
   foeSpritePx: number;
   /** 주인공 키 */
   heroPx: number;
+  /** 주인공 너비 (없으면 코드 그림 20 × 배율) */
+  heroWidthPx?: number;
 }
 
 export function battleGeometry(g: GeometryInput): BattleGeometry {
   const u = g.uiScale;
-  const heroHalf = 10 * g.scale; // 주인공 너비 20 × 배율의 반
+  const heroHalf = (g.heroWidthPx ?? 20 * g.scale) / 2; // 주인공 너비의 반 (그림 사람은 그림 너비)
   const trainerX = Math.round(8 + heroHalf);
   const trainerEnd = trainerX + heroHalf + 4;
   const free = Math.max(0, g.foeX - g.foeSpritePx / 2 - g.meSpritePx - trainerEnd);

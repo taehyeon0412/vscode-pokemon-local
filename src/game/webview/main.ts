@@ -97,7 +97,7 @@ if (!port) {
     newGame: (choice) => {
       try {
         const seed = crypto.getRandomValues(new Uint32Array(1))[0] ?? Date.now();
-        const save = createStartSave(Date.now(), seed, choice.dex, { gender: choice.gender, moves: choice.moves });
+        const save = createStartSave(Date.now(), seed, choice.dex, { gender: choice.gender, look: choice.look, moves: choice.moves });
         setPending(true);
         session.newGame(save);
       } catch (e) {

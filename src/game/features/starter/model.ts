@@ -1,6 +1,6 @@
 /**
  * S03 주인공 · S04 스타팅 · 새로 하기 — 화면을 모르는 규칙 부분 (gdd S03 · S04 · 4.2).
- * 새로 하기 → S03 남 · 여 → S04 스타팅 18종 · 진화 단계 보기 · 처음 기술 4개 중 2개 → 숲 1-1 (S05 는 MVP 에 없음)
+ * 새로 하기 → S03 주인공 (남 · 여 여러 명, data/heroes.ts) → S04 스타팅 18종 · 진화 단계 보기 · 처음 기술 4개 중 2개 → 숲 1-1 (S05 는 MVP 에 없음)
  */
 import { BALANCE } from '../../core/balance';
 import { Rng } from '../../core/engine';
@@ -8,6 +8,7 @@ import { STARTER_SPECIES } from '../../core/rules/encounter';
 import { createMonster } from '../../core/rules/monster';
 import { createNewSave, type Save } from '../../core/save';
 import { evolutionsOf, formsOfSpecies, learnsetOf, moveOf, speciesOf, type ReadonlyMove } from '../../data';
+import { isHeroLookId } from '../../data/heroes';
 
 export { createMonster } from '../../core/rules/monster';
 export { STARTER_SPECIES } from '../../core/rules/encounter';
@@ -20,6 +21,8 @@ export type Gender = 'male' | 'female';
 /** S03 · S04 에서 고른 것 */
 export interface NewGameChoice {
   gender: Gender;
+  /** S03 에서 고른 캐릭터 id (data/heroes.ts) */
+  look?: string;
   dex: number;
   /** 처음 기술 2개 (후보 안에서) — 틀리면 기본 2개 */
   moves: number[];
@@ -81,7 +84,7 @@ export function starterList(): { dex: number; form: string; name: string }[] {
 }
 
 /** 새로 하기 (S02 ①) — S03 · S04 에서 고른 주인공 · 스타팅 한 마리와 함께 숲 1-1 에서 시작하는 세이브 */
-export function createStartSave(now: number, seed: number, dex: number = TEMPORARY_STARTER, choice: Partial<Pick<NewGameChoice, 'gender' | 'moves'>> = {}): Save {
+export function createStartSave(now: number, seed: number, dex: number = TEMPORARY_STARTER, choice: Partial<Pick<NewGameChoice, 'gender' | 'look' | 'moves'>> = {}): Save {
   const rng = new Rng(seed);
   const starterDex = STARTER_SPECIES.includes(dex) ? dex : TEMPORARY_STARTER;
   const moves = choice.moves ? chosenStarterMoves(starterDex, choice.moves) : defaultStarterMoves(starterDex);
@@ -89,7 +92,7 @@ export function createStartSave(now: number, seed: number, dex: number = TEMPORA
   const save = createNewSave(now);
   return {
     ...save,
-    player: choice.gender ? { gender: choice.gender } : save.player,
+    player: choice.gender ? { gender: choice.gender, ...(isHeroLookId(choice.look) ? { look: choice.look } : {}) } : save.player,
     monsters: { m1: starter },
     party: ['m1'],
     nextMonsterUid: 2,

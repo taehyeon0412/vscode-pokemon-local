@@ -12,6 +12,7 @@ import { bestHelper, requestAt } from '../../../core/rules/request';
 import { GYM_LEADER } from '../../../core/rules/trainer';
 import { withJosa } from '../../../core/text';
 import { speciesOf } from '../../../data';
+import { heroHeightPx, heroLookOf, heroWidthPx } from '../../../data/heroes';
 import { BallCount } from '../../../ui/BallCount';
 import { Button } from '../../../ui/Button';
 import { typeNameKo } from '../../../ui/format';
@@ -49,9 +50,6 @@ function themeKind(): 'light' | 'dark' {
 
 /** 숲 그림 크기별 높이 (원본 300 · 400 · 500 · 800px) 에서 땅 윗면 — 길 위의 것들이 서는 높이 */
 const GROUND_PX: Record<Layout['size'], number> = { nano: 15, small: 20, medium: 25, large: 40 };
-/** 주인공 키 (픽셀 14줄 × 픽셀 크기) */
-const HERO_ROWS = 14;
-
 function EncounterBox({ state }: { state: GameState }) {
   const stage = state.runtime.stage;
   const pending = state.save.pendingEncounter;
@@ -133,6 +131,10 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen }: 
   const ground = GROUND_PX[layout.size] - 2;
   const hero = heroX(widthPx);
   const heroPx = 2 * layout.scale;
+  const look = heroLookOf(save.player?.look, save.player?.gender);
+  const heroH = heroHeightPx(look, layout.scale);
+  // 머리 위 알림 — 패널이 낮으면 머리 위 자리가 알림 한 줄보다 좁음 → 칸 안으로 (16px = 글자 11 + 위아래 여백, 글자 배율만큼)
+  const toastBottom = Math.max(0, Math.min(ground + heroH + 4, layout.heightPx - Math.round(INFO_BAR_PX * layout.uiScale) - Math.ceil(16 * layout.uiScale) - 1));
   const objects = gym ? [] : visibleObjects(state, widthPx, layout.scale);
   const stageRt = state.runtime.stage;
   const battle = stageRt?.phase === 'battle' ? stageRt.battle : null;
@@ -148,7 +150,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen }: 
         foeX: battle.kind === 'wild' ? contactX(widthPx, layout.scale) : trainerBattleFoeX(widthPx, layout.scale, battleSpritePx(battle.foe.form, layout.scale, layout.heightPx)),
         meSpritePx: battleSpritePx(battle.me.form, layout.scale, layout.heightPx),
         foeSpritePx: battleSpritePx(battle.foe.form, layout.scale, layout.heightPx),
-        heroPx: HERO_ROWS * heroPx,
+        heroPx: heroH,
+        heroWidthPx: heroWidthPx(look, layout.scale),
       })
     : null;
   const art = (layer: 'background' | 'foreground') => (media && !gym ? `url("${media}/backgrounds/forest/${layer}-${themeKind()}-${layout.size}.png")` : 'none');
@@ -194,7 +197,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen }: 
         )}
         <StageObjects objects={objects} media={media} scale={layout.scale} ground={ground} />
         <span class="pg-obj pg-hero-wrap" style={{ left: `${heroLeft}px`, bottom: `${ground}px` }}>
-          <Hero px={heroPx} walking={phase === 'walk'} gender={save.player?.gender} />
+          <Hero px={heroPx} walking={phase === 'walk'} gender={look.gender} look={look} media={media} />
         </span>
         {/* 전투 중 상대 트레이너 · 관장 = 오른쪽 끝 (남은 볼) · 대기실의 관장 */}
         {((battle && foeTrainer) || (gym && !battle)) && (
@@ -225,7 +228,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen }: 
         <BadgeCard state={state} media={media} onInput={onInput} onMap={() => onOpen({ kind: 'map' })} />
         {showToast && state.runtime.toast && (
           // 주인공 머리 위 — 주운 자리에서 바로 보이게
-          <div key={state.runtime.toast.text} class="pg-toast" style={{ left: `${Math.max(80, heroLeft)}px`, bottom: `${ground + HERO_ROWS * heroPx + 4}px` }}>
+          <div key={state.runtime.toast.text} class="pg-toast" style={{ left: `${Math.max(80, heroLeft)}px`, bottom: `${toastBottom}px` }}>
             {state.runtime.toast.text}
           </div>
         )}

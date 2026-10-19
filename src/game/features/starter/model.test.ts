@@ -76,4 +76,11 @@ describe('S03 · S04 고르기 (단계 10)', () => {
     // 스타팅이 아닌 종은 고를 수 없음 (손으로 만든 메시지) → 이상해씨
     expect(createStartSave(0, 5, 150).monsters.m1!.species).toBe(1);
   });
+
+  it('S03 고른 캐릭터 (2026-10-19 A안) 가 세이브에 — 모르는 이름은 버리고 성별만', () => {
+    const save = createStartSave(0, 5, 4, { gender: 'female', look: 'cap-girl' });
+    expect(save.player).toEqual({ gender: 'female', look: 'cap-girl' });
+    expect(validateSave(JSON.parse(JSON.stringify(save)))).toMatchObject({ ok: true, problems: [] });
+    expect(createStartSave(0, 5, 4, { gender: 'male', look: 'nobody' }).player).toEqual({ gender: 'male' });
+  });
 });

@@ -1,8 +1,10 @@
 /**
- * 주인공 (S06 ③) — 코드로 그린 픽셀 사람 (원작 그림 아님). 오른쪽을 보고 제자리걸음, 다리 두 장이 번갈아 (game.css .pg-hero).
- * 남 · 여는 머리 모양만 다름 (S03 — 여자는 모자 밑으로 긴 머리). 트레이너 · 관장도 같은 모양에 모자 · 옷 색만 바꿔 씀 (왼쪽을 봄).
+ * 주인공 (S06 ③) — 고른 캐릭터 (data/heroes.ts) 의 그림이 있으면 그 그림 (옆 걷기 장면을 가로로 이은 것 · 정면),
+ * 없으면 코드로 그린 픽셀 사람. 오른쪽을 보고 제자리걸음 (game.css .pg-hero · .pg-sheet).
+ * 코드 그림: 남 · 여는 머리 모양만 다름 (여자는 모자 밑으로 긴 머리). 트레이너 · 관장도 같은 모양에 모자 · 옷 색만 바꿔 씀 (왼쪽을 봄).
  */
 import { memo } from 'preact/compat';
+import { heroArtScale, type HeroLook, type SheetArt } from '../../../data/heroes';
 
 const ROWS_TOP = [
   '...rrrr...',
@@ -65,10 +67,53 @@ export interface HeroProps {
   label?: string;
   /** 주인공 남 · 여 (S03) — 없으면 남 */
   gender?: 'male' | 'female';
+  /** 고른 캐릭터 — 그림 (walk) 이 있고 media 가 있으면 그림으로 */
+  look?: HeroLook;
+  media?: string;
+  /** 정면 (S03 칸) — 정면 그림이 없으면 걷기 첫 장 */
+  front?: boolean;
+}
+
+/** 한 장면 시간 (ms) — 걷기 · 정면 숨쉬기 (천천히) */
+const WALK_FRAME_MS = 160;
+const BREATH_FRAME_MS = 600;
+
+/** 가로로 이은 장면 그림 — 칸 하나만 보이게 자르고, 걸을 때는 장면을 한 칸씩 옮김 (steps) */
+function Sheet({ src, art, scale, run, frameMs, title }: { src: string; art: SheetArt; scale: number; run: boolean; frameMs: number; title?: string }) {
+  // 한 장면 폭을 정수 px 로 — 한 칸씩 옮길 때 옆 장면이 비치지 않게
+  const w = Math.max(1, Math.round(art.w * scale));
+  const h = Math.max(1, Math.round(art.h * scale));
+  const moving = run && art.frames > 1;
+  return (
+    <span class="pg-sheet" style={{ width: `${w}px`, height: `${h}px` }} title={title}>
+      <img
+        class={moving ? 'pg-sheet-img pg-sheet-run' : 'pg-sheet-img'}
+        src={src}
+        width={w * art.frames}
+        height={h}
+        alt={title ?? ''}
+        draggable={false}
+        style={moving ? { animationDuration: `${art.frames * frameMs}ms`, animationTimingFunction: `steps(${art.frames})` } : undefined}
+      />
+    </span>
+  );
 }
 
 /** 값이 같으면 다시 안 그림 (초당 30번 화면 갱신) */
-export const Hero = memo(function Hero({ px, walking, hat, shirt, faceLeft, label, gender }: HeroProps) {
+export const Hero = memo(function Hero({ px, walking, hat, shirt, faceLeft, label, gender, look, media, front }: HeroProps) {
+  if (look?.walk && media) {
+    const base = `${media.replace(/\/+$/, '')}/people/${look.id}`;
+    const useFront = front && look.front;
+    return (
+      <span class={['pg-hero', 'pg-hero-art', faceLeft ? 'pg-face-left' : ''].filter(Boolean).join(' ')}>
+        {useFront ? (
+          <Sheet src={`${base}/front.png`} art={look.front!} scale={heroArtScale(look, px / 2, look.front)} run frameMs={BREATH_FRAME_MS} title={label} />
+        ) : (
+          <Sheet src={`${base}/walk.png`} art={look.walk} scale={heroArtScale(look, px / 2)} run={walking && !front} frameMs={WALK_FRAME_MS} title={label} />
+        )}
+      </span>
+    );
+  }
   const top = gender === 'female' ? ROWS_TOP_FEMALE : ROWS_TOP;
   const h = (ROWS_TOP.length + LEGS_A.length) * px;
   const colors = hat || shirt ? { ...COLORS, ...(hat ? { r: hat } : {}), ...(shirt ? { t: shirt } : {}) } : COLORS;

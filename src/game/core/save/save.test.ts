@@ -56,6 +56,19 @@ describe('망가진 세이브 — 살릴 수 없음', () => {
 });
 
 describe('망가진 세이브 — 고쳐서 읽음 (포켓몬을 잃지 않게)', () => {
+  it('주인공 캐릭터 (S03 look): 아는 이름은 그대로 · 모르는 이름은 빼고 성별만 · 옛 세이브 (look 없음) 는 그대로', () => {
+    const base = viaJson(sampleSave());
+    expect(fix({ ...base, player: { gender: 'female', look: 'cap-girl' } }).save.player).toEqual({ gender: 'female', look: 'cap-girl' });
+    const odd = fix({ ...base, player: { gender: 'male', look: 'nobody' } });
+    expect(odd.save.player).toEqual({ gender: 'male' });
+    expect(odd.problems.join(' ')).toContain('player.look');
+    expect(fix({ ...base, player: { gender: 'male' } })).toMatchObject({ save: { player: { gender: 'male' } }, problems: [] });
+    // 캐릭터와 성별이 다르면 캐릭터 쪽으로
+    const mixed = fix({ ...base, player: { gender: 'male', look: 'cap-girl' } });
+    expect(mixed.save.player).toEqual({ gender: 'female', look: 'cap-girl' });
+    expect(mixed.problems.join(' ')).toContain('player.gender');
+  });
+
   it('팀이 없는 포켓몬 · 겹친 칸을 가리키면 뺌', () => {
     const { save, problems } = fix({ ...sampleSave(), party: ['m1', 'm1', 'ghost', 7, 'm2'] });
     expect(save.party).toEqual(['m1', 'm2']);

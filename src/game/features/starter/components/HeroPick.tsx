@@ -1,20 +1,17 @@
 /**
- * S03 주인공 선택 (gdd S03) — ① 남 · ② 여. 코드로 그린 픽셀 사람, 머리 모양만 다름. 처음 한 번만 (새로 하기 때) → S04.
- * 클릭 또는 ← → + Enter · Esc = 타이틀로. 임시 디자인 — 단계 12 에서 다시.
+ * S03 주인공 선택 (gdd S03 — 2026-10-19 태현 님 A안) — 남 · 여 여러 명 (data/heroes.ts) 을 한 줄에.
+ * 칸마다 정면 그림, 고른 (포커스 · 마우스를 올린) 칸만 옆으로 걸음. 처음 한 번만 (새로 하기 때) → S04.
+ * 클릭 또는 ← → + Enter · Esc = 타이틀로.
  */
 import { useEffect, useRef, useState } from 'preact/hooks';
+import { HERO_LOOKS, type HeroLook } from '../../../data/heroes';
 import { Button } from '../../../ui/Button';
 import { InfoBar } from '../../../ui/InfoBar';
 import { Hero } from '../../stage/components/Hero';
-import type { Gender } from '../model';
 
-const CHOICES: { gender: Gender; label: string }[] = [
-  { gender: 'male', label: '남' },
-  { gender: 'female', label: '여' },
-];
-
-export function HeroPick({ px, onBack, onPick }: { px: number; onBack(): void; onPick(g: Gender): void }) {
-  const [focus, setFocus] = useState(0);
+export function HeroPick({ px, media, initial, onBack, onPick }: { px: number; media: string; initial?: string; onBack(): void; onPick(look: HeroLook): void }) {
+  // S04 에서 ← 뒤로 오면 고른 칸 그대로
+  const [focus, setFocus] = useState(() => Math.max(0, HERO_LOOKS.findIndex((l) => l.id === initial)));
   const now = useRef({ focus, onBack, onPick });
   now.current = { focus, onBack, onPick };
   useEffect(() => {
@@ -23,10 +20,10 @@ export function HeroPick({ px, onBack, onPick }: { px: number; onBack(): void; o
       const c = now.current;
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         e.preventDefault();
-        setFocus((f) => (f + (e.key === 'ArrowLeft' ? -1 : 1) + CHOICES.length) % CHOICES.length);
+        setFocus((f) => (f + (e.key === 'ArrowLeft' ? -1 : 1) + HERO_LOOKS.length) % HERO_LOOKS.length);
       } else if (e.key === 'Enter' && !(e.target instanceof HTMLButtonElement)) {
         e.preventDefault();
-        c.onPick(CHOICES[c.focus]!.gender);
+        c.onPick(HERO_LOOKS[c.focus]!);
       } else if (e.key === 'Escape') {
         e.preventDefault();
         c.onBack();
@@ -35,6 +32,14 @@ export function HeroPick({ px, onBack, onPick }: { px: number; onBack(): void; o
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+  // 키보드로 옮긴 칸이 좁은 패널 밖이면 보이게
+  const bodyRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const btn = bodyRef.current?.querySelectorAll<HTMLElement>('.pg-hero-choice')[focus];
+    btn?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    // 키보드로 쓰는 중 (버튼에 포커스가 있음) 이면 포커스도 같이 — Enter 가 표시된 칸을 누르게 (Tab 으로 다른 버튼에 있어도)
+    if (btn && document.activeElement instanceof HTMLButtonElement && document.activeElement !== btn) btn.focus({ preventScroll: true });
+  }, [focus]);
   return (
     <div class="pg-screen pg-title pg-pick">
       <InfoBar
@@ -45,13 +50,16 @@ export function HeroPick({ px, onBack, onPick }: { px: number; onBack(): void; o
           </Button>
         }
       />
-      <div class="pg-body pg-pick-body">
-        {CHOICES.map((c, i) => (
-          <button key={c.gender} type="button" class={i === focus ? 'pg-hero-choice pg-chip-on' : 'pg-hero-choice'} onClick={() => onPick(c.gender)} onMouseEnter={() => setFocus(i)} title={`${c.label} 주인공 (Enter)`}>
-            <Hero px={px} walking={i === focus} gender={c.gender} label={`${c.label} 주인공`} />
-            <b>{c.label}</b>
-          </button>
-        ))}
+      <div class="pg-body pg-pick-body pg-pick-heroes" ref={bodyRef}>
+        {HERO_LOOKS.map((look, i) => {
+          const on = i === focus;
+          return (
+            <button key={look.id} type="button" class={on ? 'pg-hero-choice pg-chip-on' : 'pg-hero-choice'} onClick={() => onPick(look)} onMouseEnter={() => setFocus(i)} onFocus={() => setFocus(i)} title={`${look.label} (Enter)`}>
+              <Hero px={px} walking={on} front={!on} look={look} media={media} gender={look.gender} />
+              <b>{look.label}</b>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

@@ -11,6 +11,7 @@ import {
   type MoveSlot, type PendingChoice, type Save, type StageId, type StageProgress, type StageRun, type Stats, type StatusCondition,
 } from './schema';
 import { evolutionsOf, moveOf, speciesOf } from '../../data';
+import { heroLookOf, isHeroLookId } from '../../data/heroes';
 
 export type ValidateResult =
   | { ok: true; save: Save; problems: string[] }
@@ -416,8 +417,19 @@ export function validateSave(raw: unknown): ValidateResult {
 
   let player: Save['player'] = null;
   if (raw.player !== null) {
-    if (isObj(raw.player) && (raw.player.gender === 'male' || raw.player.gender === 'female')) player = { gender: raw.player.gender };
-    else fx.note('player', '주인공을 읽지 못함 → 고르기 전');
+    if (isObj(raw.player) && (raw.player.gender === 'male' || raw.player.gender === 'female')) {
+      player = { gender: raw.player.gender };
+      // 고른 캐릭터 — 모르는 이름이면 버림 (성별의 첫 캐릭터로 보임)
+      if (isHeroLookId(raw.player.look)) {
+        player.look = raw.player.look;
+        // 고른 캐릭터와 성별이 다르면 (손으로 고친 세이브) 캐릭터 쪽으로 — 고른 모습을 지키려고
+        const lookGender = heroLookOf(raw.player.look).gender;
+        if (lookGender !== player.gender) {
+          fx.note('player.gender', `캐릭터 ${raw.player.look} 와 성별이 다름 → ${lookGender}`);
+          player.gender = lookGender;
+        }
+      } else if (raw.player.look !== undefined) fx.note('player.look', `모르는 캐릭터 ${String(raw.player.look)} → 성별의 첫 캐릭터`);
+    } else fx.note('player', '주인공을 읽지 못함 → 고르기 전');
   }
 
   const playTimeMs = fx.int(raw.playTimeMs, 'playTimeMs', 0, Number.MAX_SAFE_INTEGER, 0);

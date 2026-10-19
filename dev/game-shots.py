@@ -147,6 +147,23 @@ SHOTS = [
     ("p10-trainer-140", "720x140", {"screen": "game", "place": "trainer", "size": "large", "budget": "600"}),
     ("p10-lobby-140", "720x140", {"screen": "game", "place": "lobby", "size": "large"}),
     ("p89-light-lobby-116", "720x116", {"screen": "game", "place": "lobby", "size": "medium", "theme": "light"}),
+    # 단계 12 — S03 한 줄 여러 명 (2026-10-19 A안) · 그림 사람 (cap-girl)
+    ("p12-hero-68", "720x68", {"screen": "title", "save": "none", "click": "hero", "pick": "2"}),
+    ("p12-hero-92", "720x92", {"screen": "title", "save": "none", "click": "hero", "size": "small", "pick": "2"}),
+    ("p12-hero-140", "720x140", {"screen": "title", "save": "none", "click": "hero", "size": "large", "pick": "2"}),
+    ("p12-hero-240", "240x92", {"screen": "title", "save": "none", "click": "hero", "pick": "2"}),
+    ("p12-hero-light-116", "720x116", {"screen": "title", "save": "none", "click": "hero", "size": "medium", "theme": "light"}),
+    ("p12-walk-68", "720x68", {"screen": "game", "look": "cap-girl"}),
+    ("p12-walk-116", "720x116", {"screen": "game", "look": "cap-girl", "size": "medium"}),
+    ("p12-walk-140", "720x140", {"screen": "game", "look": "cap-girl", "size": "large"}),
+    ("p12-trainer-92", "720x92", {"screen": "game", "look": "cap-girl", "place": "trainer", "budget": "600"}),
+    ("p12-battle-92", "720x92", {"screen": "game", "look": "cap-girl", "battle": "choose"}),
+    ("p12-battle-140", "720x140", {"screen": "game", "look": "cap-girl", "battle": "choose", "size": "large"}),
+    ("p12-battle-360", "360x116", {"screen": "game", "look": "cap-girl", "battle": "choose", "size": "medium"}),
+    ("p12-gym-116", "720x116", {"screen": "game", "look": "cap-girl", "place": "lobby", "size": "medium"}),
+    ("p12-toast-68", "720x68", {"screen": "game", "look": "cap-girl", "toast": "✨ 상처약을 주웠다!"}),
+    ("p12-toast-92", "720x92", {"screen": "game", "look": "cap-girl", "toast": "✨ 상처약을 주웠다!", "size": "small"}),
+    ("p12-toast-140", "720x140", {"screen": "game", "look": "cap-girl", "toast": "✨ 상처약을 주웠다!", "size": "large"}),
 ]
 
 
