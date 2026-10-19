@@ -1201,13 +1201,22 @@ const SIG_FX = {
         ms: (P, o) => (o.len ? 450 : 600 + 400 * P),
         run: (g, o, ms) => {
             const cols = sigPal(o.c);
-            const W = Math.max(1, Math.round((2 + 2 * g.P) * (o.width ?? 1)));
+            // 가는 광선 (덩굴채찍 · 실뿜기 · 핥기) 도 2칸은 되게 — 1칸은 배경에 묻힘 (2026-10-19 "밋밋해")
+            const W = Math.max(2, Math.round((2 + 2 * g.P) * (o.width ?? 1)));
             const reach = o.len ? o.len * g.w : g.dir > 0 ? window.innerWidth - g.mouth.x : g.mouth.x;
+            // 반짝이 — 옵션이 없으면 광선 제 색으로 조금
+            const sparkle = sigPal(o.sparkle ?? o.c);
+            const sparkleRate = o.sparkle ? 0.6 : 0.3;
             sigParticle({ x: g.mouth.x, y: g.mouth.y, s: g.s, max: ms / 1000, dir: g.dir, cols, W, reach,
                 update: (p) => {
-                    if (o.sparkle && Math.random() < 0.6) {
+                    if (Math.random() < sparkleRate) {
                         const k = Math.min(p.reach, p.life * 1600) * Math.random();
-                        sigParticle({ x: p.x + p.dir * k, y: p.y + moveRand(-1, 1) * p.W * p.s, s: p.s, vy: moveRand(-20, 20) * p.s, max: 0.3, cols: sigPal(o.sparkle), draw: DRAW.sparkle });
+                        sigParticle({ x: p.x + p.dir * k, y: p.y + moveRand(-1, 1) * p.W * p.s, s: p.s, vy: moveRand(-20, 20) * p.s, max: 0.3, cols: sparkle, draw: DRAW.sparkle });
+                    }
+                    // 덩굴 · 풀 광선 — 잎이 떨어짐
+                    if (o.c === 'grass' && Math.random() < 0.25) {
+                        const k = Math.min(p.reach, p.life * 1600) * Math.random();
+                        sigParticle({ x: p.x + p.dir * k, y: p.y, s: p.s, vx: moveRand(-10, 10) * p.s, vy: moveRand(5, 20) * p.s, g: 20 * p.s, max: 0.5, color: movePick(p.cols.slice(1)), draw: DRAW.dot });
                     }
                 },
                 draw: (ctx, p, t, px) => {
@@ -1228,6 +1237,11 @@ const SIG_FX = {
                     // 입 앞 작은 빛 구 — 쏘는 순간 크게 터졌다 줄어듦
                     const r = Math.max(1.5 * p.s, (p.W + 2) * p.s * 0.75) * (1 + 0.6 * Math.max(0, 1 - p.life / 0.12)) * (1 + 0.08 * Math.sin(p.life * 40));
                     muzzleGlow(ctx, px, p.s, p.x, p.y, r, o.rainbow ? ['#ffffff', '#fff3b0', '#ffb3e6', '#9ec5ff'] : p.cols, p.life, alpha);
+                    // 닿는 끝 빛 (길이가 정해진 광선 = 게임 전투 · 덩굴채찍) — 닿은 동안 끝에서 빛 구가 일렁임
+                    if (o.len && L >= p.reach - p.s) {
+                        const yo = o.wave ? Math.sin(L / (5 * p.s) - p.life * 25) * p.s * 1.5 : 0;
+                        muzzleGlow(ctx, px, p.s, p.x + p.dir * L, p.y + yo, r * 0.9, o.rainbow ? ['#ffffff', '#fff3b0', '#ffb3e6', '#9ec5ff'] : p.cols, p.life + 1, alpha);
+                    }
                 },
             });
         },
