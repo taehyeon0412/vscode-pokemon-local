@@ -6615,12 +6615,20 @@ const DRAW = {
             }
             return;
         }
-        const dots = Math.max(6, r * 8);
+        // 안쪽 물빛 (옅게) + 끊김 없는 테두리 + 왼쪽 위 반짝 2칸 — 점 줄이 아니라 방울로 보이게 (2026-10-20 플레이 리뷰어)
+        const alpha = ctx.globalAlpha;
+        ctx.globalAlpha = alpha * 0.35;
+        sigDisc(ctx, px, p.s, p.x, p.y, (r - 0.5) * p.s, p.cols[1]);
+        ctx.globalAlpha = alpha;
+        const dots = Math.max(8, Math.ceil(2 * Math.PI * r) * 2);
         for (let i = 0; i < dots; i++) {
             const a = (i / dots) * Math.PI * 2;
             dotAt(ctx, px, p.s, p.x + Math.cos(a) * r * p.s, p.y + Math.sin(a) * r * p.s, p.cols[2]);
         }
-        dotAt(ctx, px, p.s, p.x - (r / 2) * p.s, p.y - (r / 2) * p.s, p.cols[0]);
+        dotAt(ctx, px, p.s, p.x - Math.ceil(r / 2) * p.s, p.y - Math.ceil(r / 2) * p.s, p.cols[0]);
+        if (r >= 3) {
+            dotAt(ctx, px, p.s, p.x - Math.ceil(r / 2) * p.s + p.s, p.y - Math.ceil(r / 2) * p.s, p.cols[0]);
+        }
     },
 };
 
@@ -7055,7 +7063,8 @@ const SIG_FX = {
             sigEmitter({ until: performance.now() + ms, rate: (14 + 18 * g.P) * (o.many ? 2 : 1), fx: () => sigParticle({
                 x: g.mouth.x, y: g.mouth.y, s: g.s, cols, phase: moveRand(0, 6),
                 vx: g.dir * moveRand(25, 45) * g.s * (o.many ? 1.5 : 1), vy: moveRand(-10, -2) * g.s, g: -6 * g.s, drag: 0.9, max: moveRand(0.8, 1.3),
-                r: Math.random() < 0.3 + 0.4 * g.P ? (g.P > 0.7 && Math.random() < 0.3 ? 3 : 2) : 1,
+                // 방울 반지름 2 ~ 4칸 (1칸은 점 줄로만 보여서)
+                r: Math.random() < 0.3 + 0.4 * g.P ? (g.P > 0.7 && Math.random() < 0.3 ? 4 : 3) : 2,
                 update: (p, dt) => {
                     p.y += Math.sin(p.phase + p.life * 10) * 0.3 * p.s;
                 },
