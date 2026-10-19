@@ -53,8 +53,17 @@
 	"main": "./out/extension/extension.js",
 	"browser": "./dist/web/extension-web.js",
 	"contributes": {
+		"viewsContainers": {
+			"panel": [
+				{
+					"id": "pokemon",
+					"title": "포켓몬",
+					"icon": "media/icon/dark-add.svg"
+				}
+			]
+		},
 		"views": {
-			"explorer": [
+			"pokemon": [
 				{
 					"type": "webview",
 					"id": "pokemonView",

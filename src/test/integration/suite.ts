@@ -160,7 +160,8 @@ export async function run(): Promise<void> {
     }],
 
     ['패널을 숨기면 확장이 넘겨받아 계속 계산 (자동 전투)', async () => {
-      await vscode.commands.executeCommand('workbench.action.toggleSidebarVisibility');
+      // 포켓몬 보기는 아래 패널의 "포켓몬" 상자에 있음 (2026-10-20 태현 님 — 설치하면 바로 아래 패널) → 패널을 닫아 숨김
+      await vscode.commands.executeCommand('workbench.action.closePanel');
       await waitFor('확장이 넘겨받음', () => d().owner === 'host');
       assert.equal(d().running, true, '자동 전투라 확장이 계산해야 함');
       const t0 = d().playTimeMs ?? 0;
