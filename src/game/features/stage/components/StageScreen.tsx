@@ -268,7 +268,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         }}
       >
         {gym ? (
-          <div class="pg-gym-room" />
+          <GymRoom media={media} k={buildingDraw('hospital', layout.scale, heroRoom).k} floorPx={Math.max(ground + GYM_FLOOR_ABOVE_GROUND_PX, Math.round(bodyPx * GYM_FLOOR_SHARE))} dark={themeKind() === 'dark'} />
         ) : (
           <>
             <ScrollLayer cls="pg-bg" image={art('background')} start={offset * 0.35} pxPerSec={WALK_PX_PER_SEC * layout.scale * 0.35 * walkK} running={phase === 'walk' && live} />
@@ -320,6 +320,27 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/** 체육관 바닥 = 사람이 서는 땅 위로 적어도 이만큼 · 높은 패널은 길 칸의 42% 까지 (위에서 비스듬히 보는 방 — 뒷벽 위가 텅 비지 않게) */
+const GYM_FLOOR_ABOVE_GROUND_PX = 20;
+const GYM_FLOOR_SHARE = 0.42;
+
+/**
+ * S16 체육관 방 (2026-10-20 태현 님 A안 "추천으로") — 원작 파이어레드 무지개시티 체육관 (풀 타입) 그림 (scripts/buildings/fetch-pret-gym.py):
+ * 아래부터 풀 바닥 · 뒷벽 창문 줄 (주황 몰딩 + 벽 밑 그늘) · 벽 앞 나무 (띄엄띄엄 — 창문이 보이게), 그 위는 원작 벽 색 · 맨 위 천장 몰딩.
+ * 사람 · 건물과 같은 정수 배율 k (예전엔 코드로 그린 초록 줄무늬 + 갈색 바닥)
+ */
+function GymRoom({ media, k, floorPx, dark }: { media: string; k: number; floorPx: number; dark: boolean }) {
+  const url = (f: string) => (media ? `url("${media.replace(/\/+$/, '')}/buildings/${f}.png")` : 'none');
+  return (
+    <div class={dark ? 'pg-gym-room pg-gym-dark' : 'pg-gym-room'}>
+      <div class="pg-gym-floor" style={{ height: `${floorPx}px`, backgroundImage: url('gym-floor'), backgroundSize: `${48 * k}px ${32 * k}px` }} />
+      <div class="pg-gym-wall" style={{ bottom: `${floorPx}px`, height: `${31 * k}px`, backgroundImage: url('gym-wall'), backgroundSize: `${96 * k}px ${31 * k}px` }} />
+      <div class="pg-gym-trees" style={{ bottom: `${floorPx - 6 * k}px`, height: `${24 * k}px`, backgroundImage: url('gym-trees'), backgroundSize: `${64 * k}px ${24 * k}px` }} />
+      <div class="pg-gym-top" style={{ height: `${9 * k}px`, backgroundImage: url('gym-top'), backgroundSize: `${96 * k}px ${9 * k}px` }} />
     </div>
   );
 }

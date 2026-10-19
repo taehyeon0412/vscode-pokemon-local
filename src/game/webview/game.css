@@ -2009,13 +2009,38 @@ body.pokemon-game-on {
 }
 
 /* S16 체육관 — 코드로 그린 방 (바닥 판자 · 벽) */
+/* S16 체육관 방 = 원작 무지개시티 체육관 그림 (2026-10-20 태현 님 A안) — 풀 바닥 · 창문 벽 줄 · 나무 줄 (StageScreen GymRoom), 위는 원작 벽 색.
+   어두운 테마는 숲 밤 그림처럼 어둡게 (밝은 연보라 벽이 남색 판 사이에서 튀지 않게) */
 .pg-gym-room {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background:
-    linear-gradient(transparent 0 72%, rgba(120, 82, 48, 0.55) 72% 100%),
-    repeating-linear-gradient(90deg, rgba(46, 139, 62, 0.12) 0 18px, rgba(46, 139, 62, 0.05) 18px 36px);
+  background-color: #eeeeff;
+}
+/* 어두운 테마 = 남색 막 (숲 밤 그림처럼 — 밝기만 낮추면 탁한 회색) */
+.pg-gym-room.pg-gym-dark::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(14, 20, 40, 0.5);
+}
+.pg-gym-floor,
+.pg-gym-wall,
+.pg-gym-trees,
+.pg-gym-top {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background-repeat: repeat-x;
+  image-rendering: pixelated;
+}
+.pg-gym-top {
+  top: 0;
+}
+.pg-gym-floor {
+  bottom: 0;
+  background-repeat: repeat;
+  background-position: left bottom;
 }
 
 /* 좁은 패널 — 버튼 · 안내의 긴 글은 숨기고 그림 글자만 (전체 이름은 title) */
