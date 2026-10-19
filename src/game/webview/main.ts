@@ -22,6 +22,9 @@ const PENDING_TIMEOUT_MS = 5000;
 /** 화면에 보이는 게임 상태를 바꾸는 간격 (계산은 매 프레임) — 스테이지는 배경이 흐르니 초당 30번 */
 const VIEW_REFRESH_MS = 1000 / 30;
 
+/** 접힌 상태에서 다시 높아진 뒤 상태를 달라고 하기까지 기다리는 시간 (ms) */
+const EXPAND_WAIT_MS = 150;
+
 const port = getGamePort();
 if (!port) {
   console.error('[pokemon-game] VS Code API 가 없어요 — extension.js 의 GAME-PATCH 를 확인하세요');
@@ -71,9 +74,13 @@ if (!port) {
   );
 
   /** 맡고 있고 보이고 패널 높이가 될 때만 돎. 안 보이거나 접힌 상태 (150px 아래) 인데 맡겨졌으면 바로 돌려줌 (확장이 안 볼 때 규칙으로 이어 감) */
+  // 접힌 상태에서 다시 높아지면 잠깐 기다렸다가 상태를 달라고 함 — 창 크기를 끌며 150px 경계를 오르내리는 동안 확장과 왕복하지 않게 (#297)
+  let expandTimer = 0;
   const sync = () => {
     const low = store.get().layout.tooSmall;
-    session.setCollapsed(low, !document.hidden);
+    window.clearTimeout(expandTimer);
+    if (!low && session.isCollapsed) expandTimer = window.setTimeout(() => session.setCollapsed(store.get().layout.tooSmall, !document.hidden), EXPAND_WAIT_MS);
+    else session.setCollapsed(low, !document.hidden);
     if (session.running && (document.hidden || low)) session.hide();
     if (session.running && !low) loop.start();
     else loop.stop();
@@ -82,8 +89,10 @@ if (!port) {
   session.subscribe(() => {
     viewRefreshedAt = performance.now();
     setPending(false);
-    // 새로 맡김 (다른 쪽에서 계산한 상태) · 타이틀 · 일반 모드 — 떠 있던 판은 닫음
-    store.set({ screen: session.screen, title: session.title, state: session.current, overlay: null });
+    // 새로 맡김 (다른 쪽에서 계산한 상태) — 같은 게임을 이어 받으면 (접었다 펴기 · 다른 탭) 떠 있던 판 (지도 · 가방 …) 은 그대로 두고
+    // 지금 상태에서 못 띄우는 판만 아래에서 닫음 (#298). 타이틀 · 일반 모드로 바뀌면 닫음
+    const keep = session.screen === 'game' && store.get().screen === 'game';
+    store.set({ screen: session.screen, title: session.title, state: session.current, overlay: keep ? store.get().overlay : null });
   });
 
   // 판이 떠 있는 동안 게임을 멈춤 · 지금 상태에서 띄울 수 없는 판은 닫음

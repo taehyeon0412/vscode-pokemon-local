@@ -14,6 +14,7 @@ import { TIMING } from '../core/balance';
 import { advance, createGameState, isWaitingForInput, readRuntime, shouldRunWhenHidden, withSpeed, type GameNotice, type GameState } from '../core/engine';
 import { validateSave, type Save } from '../core/save';
 import { GAME_COMMAND, isWebviewToHost, type HostToWebview, type TitleInfo, type TitleNotice } from '../shared/messages';
+import { GAME_MIN_HEIGHT_PX } from '../shared/screen';
 import { HeadlessRunner, type HeadlessRunnerOptions } from './headless-runner';
 import type { LoadResult, SaveStore } from './save-store';
 import type { TeamSave } from './team-out';
@@ -73,6 +74,8 @@ export class GameSession {
   private suspendRequested = false;
   /** 웹뷰에 game.js 가 떠 있어 맡길 수 있는지 (ready 에서 켜고, 새로 뜸 · 못 불러옴 · 닫힘에서 끔) */
   private webviewReady = false;
+  /** 웹뷰가 "패널이 너무 낮아서" 넘김 (접힌 상태) — 다시 높아지면 ready 가 옴. 그동안 포커스가 돌아와도 맡기지 않음 (#297) · 알림은 "올리면" (#299) */
+  private webviewCollapsed = false;
   private loadResult: LoadResult = { kind: 'none' };
   /** 확장이 넘겨받기 바로 전 epoch — 그 epoch 의 늦은 메시지는 다시 맡기기 전까지 받아 줌 */
   private handoverEpoch: number | null = null;
@@ -126,6 +129,7 @@ export class GameSession {
       case 'boot':
         this.stats.boots++;
         this.webviewReady = false; // 웹뷰가 새로 뜸 — game.js 는 아직
+        this.webviewCollapsed = false;
         if (this.mode !== 'normal') this.post({ type: 'load' });
         try {
           this.deps.onWebviewBoot?.();
@@ -135,6 +139,7 @@ export class GameSession {
         return;
       case 'ready':
         this.webviewReady = true;
+        this.webviewCollapsed = false; // 접혔던 웹뷰가 다시 높아짐 (또는 다시 보임)
         if (this.mode === 'title') {
           void this.sendTitle();
           return;
@@ -165,12 +170,13 @@ export class GameSession {
         }
         const suspended = this.suspendRequested;
         this.suspendRequested = false;
+        this.webviewCollapsed = message.collapsed === true;
         this.accept(message.epoch, message.state);
         this.takeOver('웹뷰가 멈춤');
         this.handoverEpoch = null; // hidden 이 마지막 — 같은 epoch 의 메시지는 더 받지 않음
         // suspend 로 멈췄는데 그 사이 포커스가 돌아왔으면 보이는 웹뷰에 다시 맡김.
         // 다른 까닭의 hidden 은 웹뷰가 다시 보일 때 ready 로 옴
-        if (suspended && this.webviewReady && this.mode === 'game' && this.state && this.view?.visible && this.windowFocused) {
+        if (suspended && !this.webviewCollapsed && this.webviewReady && this.mode === 'game' && this.state && this.view?.visible && this.windowFocused) {
           this.handToWebview();
         }
         return;
@@ -220,7 +226,8 @@ export class GameSession {
   /** VS Code 창 포커스 (mvp-spec 3.3 "VS Code 밖") — 밖에 있는 동안은 확장이 맡음 (자동 전투면 계산 · 아니면 멈춤) */
   onWindowFocusChanged(focused: boolean): void {
     this.windowFocused = focused;
-    if (focused && this.mode === 'game' && this.owner === 'host' && this.webviewReady && this.view?.visible) this.handToWebview();
+    // 접힌 상태 (패널이 너무 낮음) 면 맡기지 않음 — 맡겨도 웹뷰가 바로 돌려줌 (#297, 다시 높아지면 웹뷰가 ready)
+    if (focused && this.mode === 'game' && this.owner === 'host' && this.webviewReady && !this.webviewCollapsed && this.view?.visible) this.handToWebview();
     else this.maybeSuspend();
   }
 
@@ -599,15 +606,7 @@ export class GameSession {
 
   private notify(notice: GameNotice): void {
     if (!this.state?.save.settings.notifications) return;
-    const TEXT: Record<GameNotice, string> = {
-      shiny: '✨ 반짝이는 흔적을 찾았어요! 포켓몬 패널을 열면 이어서 걸어요.',
-      request: '❓ 길에서 부탁하는 사람이 기다려요. 포켓몬 패널을 열어 골라 주세요.',
-      choice: '🧬 진화 · 새 기술을 고를 차례예요. 포켓몬 패널을 열어 골라 주세요.',
-      gym: '🏟 체육관 대기실에 도착했어요! 포켓몬 패널을 열어 관장에게 도전해 보세요.',
-      clear: '🎉 스테이지를 깼어요! 포켓몬 패널을 열어 다음 스테이지를 골라 주세요.',
-      defeat: '😵 포켓몬들이 쓰러졌어요… 포켓몬 패널을 열어 다시 시작해 주세요.',
-    };
-    const text = TEXT[notice];
+    const text = noticeText(notice, this.webviewCollapsed);
     this.deps.log(`알림: ${text}`);
     try {
       this.deps.notify?.(text);
@@ -678,4 +677,18 @@ export class GameSession {
     for (const n of r.notices) this.notify(n);
     if (isWaitingForInput(this.state)) this.runner.stop();
   }
+}
+
+/** U9 알림 문구 — 패널이 접혀 있으면 (보이지만 너무 낮음) "열면" 대신 "150px 이상으로 올리면" (#299 — 패널은 이미 열려 있어서 헷갈림) */
+export function noticeText(notice: GameNotice, collapsed: boolean): string {
+  const open = collapsed ? `포켓몬 패널을 ${GAME_MIN_HEIGHT_PX}px 이상으로 올려` : '포켓몬 패널을 열어';
+  const TEXT: Record<GameNotice, string> = {
+    shiny: `✨ 반짝이는 흔적을 찾았어요! ${collapsed ? `포켓몬 패널을 ${GAME_MIN_HEIGHT_PX}px 이상으로 올리면` : '포켓몬 패널을 열면'} 이어서 걸어요.`,
+    request: `❓ 길에서 부탁하는 사람이 기다려요. ${open} 골라 주세요.`,
+    choice: `🧬 진화 · 새 기술을 고를 차례예요. ${open} 골라 주세요.`,
+    gym: `🏟 체육관 대기실에 도착했어요! ${open} 관장에게 도전해 보세요.`,
+    clear: `🎉 스테이지를 깼어요! ${open} 다음 스테이지를 골라 주세요.`,
+    defeat: `😵 포켓몬들이 쓰러졌어요… ${open} 다시 시작해 주세요.`,
+  };
+  return TEXT[notice];
 }

@@ -42,7 +42,8 @@ export type WebviewToHost =
   | { command: typeof GAME_COMMAND; type: 'ready' }
   | { command: typeof GAME_COMMAND; type: 'state'; epoch: number; state: GameState }
   | { command: typeof GAME_COMMAND; type: 'save-now'; epoch: number; reason: SaveReason; state: GameState }
-  | { command: typeof GAME_COMMAND; type: 'hidden'; epoch: number; state: GameState }
+  /** collapsed = 패널이 게임 모드 최소 높이보다 낮아서 넘김 (보이기는 함) — 확장은 접힌 동안 다시 맡기지 않고 알림 문구를 "올리면" 으로 (#297 · #299) */
+  | { command: typeof GAME_COMMAND; type: 'hidden'; epoch: number; state: GameState; collapsed?: boolean }
   | { command: typeof GAME_COMMAND; type: 'load-failed'; message: string }
   | { command: typeof GAME_COMMAND; type: 'title-new'; save: Save }
   | { command: typeof GAME_COMMAND; type: 'title-continue' }

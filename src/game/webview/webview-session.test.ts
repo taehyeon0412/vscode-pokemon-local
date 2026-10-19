@@ -57,7 +57,9 @@ describe('웹뷰 세션', () => {
     s.handleMessage(start(3));
     frames(300);
     s.setCollapsed(true, true);
-    expect(sent.at(-1)).toMatchObject({ type: 'hidden', epoch: 3 });
+    // 접혀서 넘길 때는 collapsed 표시 — 확장이 접힌 동안 다시 맡기지 않고 알림을 "올리면" 으로 (#297 · #299)
+    expect(sent.at(-1)).toMatchObject({ type: 'hidden', epoch: 3, collapsed: true });
+    expect(s.isCollapsed).toBe(true);
     expect(s.running).toBe(false);
     s.setCollapsed(true, true); // 창 크기를 바꾸는 동안 또 불려도 그대로
     expect(sent).toHaveLength(1);
@@ -65,6 +67,14 @@ describe('웹뷰 세션', () => {
     expect(sent.at(-1)).toMatchObject({ type: 'ready' });
     s.setCollapsed(false, true);
     expect(sent).toHaveLength(2);
+  });
+
+  it('그냥 안 보이게 될 때 (접힘이 아님) 의 hidden 에는 collapsed 가 없음', () => {
+    const { s, sent } = make();
+    s.handleMessage(start(4));
+    s.hide();
+    expect(sent.at(-1)).toMatchObject({ type: 'hidden', epoch: 4 });
+    expect(sent.at(-1)).not.toHaveProperty('collapsed');
   });
 
   it('접힌 채로 안 보이게 됐다가 높아지면 ready 를 보내지 않음 (보일 때 visibilitychange 가 보냄) · 타이틀은 넘길 게 없음', () => {

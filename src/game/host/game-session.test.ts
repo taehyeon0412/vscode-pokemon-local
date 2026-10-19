@@ -7,7 +7,7 @@ import { TIMING } from '../core/balance';
 import { createStartSave } from '../features/starter/model';
 import { shinyWildSeed } from '../../test/fixtures/stage';
 import { stageLayout } from '../core/rules/stage';
-import { GameSession, type Mode, type ViewPort } from './game-session';
+import { GameSession, noticeText, type Mode, type ViewPort } from './game-session';
 import { SaveStore } from './save-store';
 import { WindowLease } from './window-lease';
 
@@ -369,6 +369,31 @@ describe('VS Code 밖 (창 포커스) — mvp-spec 3.3', () => {
     expect(snap().running).toBe(true);
     session.onWindowFocusChanged(true);
     expect(snap().owner).toBe('webview');
+  });
+});
+
+describe('접힌 상태 (패널이 150px 보다 낮음) — bugs #297 · #299', () => {
+  it('접혀서 넘겨받으면 VS Code 포커스가 돌아와도 다시 맡기지 않음 (웹뷰가 바로 돌려주는 왕복) · 다시 높아져 ready 가 오면 맡김', async () => {
+    const start = await enterAndStart(autoSave());
+    session.handleMessage(msg({ type: 'hidden', epoch: start.epoch, state: start.state, collapsed: true }));
+    expect(snap().owner).toBe('host');
+    const starts = view.count('start');
+    session.onWindowFocusChanged(false);
+    session.onWindowFocusChanged(true);
+    expect(view.count('start')).toBe(starts);
+    expect(snap().owner).toBe('host');
+    session.handleMessage(msg({ type: 'ready' }));
+    expect(view.count('start')).toBe(starts + 1);
+    expect(snap().owner).toBe('webview');
+  });
+
+  it('알림 문구: 접혀 있으면 "열면" 대신 "150px 이상으로 올리면" (패널은 이미 열려 있어서)', () => {
+    expect(noticeText('shiny', false)).toContain('포켓몬 패널을 열면');
+    expect(noticeText('shiny', true)).toContain('150px 이상으로 올리면');
+    for (const n of ['request', 'choice', 'gym', 'clear', 'defeat'] as const) {
+      expect(noticeText(n, false)).toContain('포켓몬 패널을 열어');
+      expect(noticeText(n, true)).toContain('150px 이상으로 올려');
+    }
   });
 });
 

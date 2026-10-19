@@ -84,10 +84,20 @@ export function App({ store, media, actions }: { store: Store<ViewState>; media:
 }
 
 function Screens({ v, media, actions }: { v: ViewState; media: string; actions: AppActions }) {
-  if (v.layout.tooSmall) return <TooSmall layout={v.layout} playing={v.screen === 'game'} />;
   if (v.screen === 'title' && v.title) {
-    return <TitleScreen info={v.title} media={media} pending={v.pending} onNew={actions.newGame} onContinue={actions.continueGame} heroPx={Math.max(2, Math.round(2 * v.layout.scale))} bodyPx={v.layout.heightPx - Math.round(INFO_BAR_PX * v.layout.uiScale)} />;
+    const title = <TitleScreen info={v.title} media={media} pending={v.pending} onNew={actions.newGame} onContinue={actions.continueGame} heroPx={Math.max(2, Math.round(2 * v.layout.scale))} bodyPx={v.layout.heightPx - Math.round(INFO_BAR_PX * v.layout.uiScale)} />;
+    // 주인공 · 스타팅을 고르다 패널이 낮아져도 고르던 것이 그대로 — 타이틀은 숨겨 둔 채로 둠 (#298)
+    if (v.layout.tooSmall) {
+      return (
+        <>
+          <TooSmall layout={v.layout} playing={false} />
+          <div hidden>{title}</div>
+        </>
+      );
+    }
+    return title;
   }
+  if (v.layout.tooSmall) return <TooSmall layout={v.layout} playing={v.screen === 'game'} />;
   if (v.screen === 'game' && v.state) {
     return (
       <>

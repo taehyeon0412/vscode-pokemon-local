@@ -163,7 +163,7 @@ export class WebviewSession {
   /** 패널이 안 보이게 됨 — 마지막 상태를 넘기고 계산을 멈춤 (확장이 이어 받음) */
   hide(): void {
     if (this.epoch === null || !this.state) return;
-    this.deps.post({ command: GAME_COMMAND, type: 'hidden', epoch: this.epoch, state: this.state });
+    this.deps.post({ command: GAME_COMMAND, type: 'hidden', epoch: this.epoch, state: this.state, ...(this.collapsed ? { collapsed: true } : {}) });
     this.epoch = null;
     this.dirty = false;
   }
@@ -177,6 +177,11 @@ export class WebviewSession {
    * 패널이 150px 보다 낮아짐 · 다시 높아짐 (2026-10-19 태현 님) — 낮아지면 안 보일 때처럼 마지막 상태를 넘기고 (확장이 이어 감),
    * 게임 중에 다시 높아지면 확장의 최신 상태를 달라고 함. 바뀔 때만 움직임 (창 크기를 바꾸는 동안 여러 번 불려도 한 번)
    */
+  /** 지금 접힌 상태인지 (main.ts 가 다시 높아질 때 잠깐 기다릴지 정함) */
+  get isCollapsed(): boolean {
+    return this.collapsed;
+  }
+
   setCollapsed(collapsed: boolean, visible: boolean): void {
     if (collapsed === this.collapsed) return;
     this.collapsed = collapsed;
