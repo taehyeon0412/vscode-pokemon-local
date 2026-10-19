@@ -30,6 +30,6 @@ describe('S03 주인공 목록 (data/heroes.ts)', () => {
     }
     expect(heroArtScale({ id: 'x', label: 'x', gender: 'male', walk: { frames: 4, w: 16, h: 24 } }, 2)).toBe(2);
     expect(heroArtScale({ id: 'x', label: 'x', gender: 'male', walk: { frames: 4, w: 30, h: 42 } }, 3)).toBe(2);
-    expect(heroWidthPx(heroLookOf('cap-girl'), 2)).toBe(48);
+    expect(heroWidthPx(heroLookOf('cap-girl'), 2)).toBe(40);
   });
 });

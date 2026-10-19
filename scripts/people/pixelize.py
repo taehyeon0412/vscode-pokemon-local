@@ -1,5 +1,5 @@
 """S03 사람 그림 1단계 — 다른 AI 가 만든 '픽셀 그림' (확대 · 흐림 · 칸 간격이 조금씩 다름) → 진짜 픽셀 장면 PNG.
-실행: python scripts/people/pixelize.py <AI 그림 (옆 걷기 장면이 한 줄, 투명 배경)> <출력 폴더> <이름>
+실행: python scripts/people/pixelize.py <AI 그림 (옆 걷기 장면이 한 줄, 투명 배경)> <출력 폴더> <이름> [점 크기 최소 px] [최대 px]
 → <이름>_1.png … (장면마다) · <이름>_walk.gif · _<이름>_preview.png. 다음은 rewalk.py (순서 · 윗몸 고정 · 시트)
 1) 칸 경계 찾기 — 색이 바뀌는 세기를 줄로 모아, 간격 10 ~ 17px 안에서 경계를 고름 (동적 계획)
 2) 칸마다 가장 많은 색 → 색 수 줄이기
@@ -13,6 +13,9 @@ from collections import Counter
 from PIL import Image, ImageChops, ImageStat
 
 src, out, name = sys.argv[1:4]
+# 점 하나의 화면 크기 범위 (px) — 검은 테두리 굵기로 어림 (기본 10 ~ 17, 큰 그림은 예: 17 27)
+GAP_LO = int(sys.argv[4]) if len(sys.argv) > 4 else 10
+GAP_HI = int(sys.argv[5]) if len(sys.argv) > 5 else 17
 os.makedirs(out, exist_ok=True)
 src_im = Image.open(src).convert("RGBA")
 W, H = src_im.size
@@ -53,8 +56,8 @@ diff_x = ImageChops.difference(im.crop((1, 0, W, H)), im.crop((0, 0, W - 1, H)))
 diff_y = ImageChops.difference(im.crop((0, 1, W, H)), im.crop((0, 0, W, H - 1))).convert("L")
 prof_x = [0.0] + list(diff_x.resize((W - 1, 1), Image.BOX).get_flattened_data())
 prof_y = [0.0] + list(diff_y.resize((1, H - 1), Image.BOX).get_flattened_data())
-xs = bounds(prof_x)
-ys = bounds(prof_y)
+xs = bounds(prof_x, GAP_LO, GAP_HI)
+ys = bounds(prof_y, GAP_LO, GAP_HI)
 gaps = [b - a for a, b in zip(xs, xs[1:])]
 print("cells", len(xs) - 1, "x", len(ys) - 1, "gap avg", round(sum(gaps) / len(gaps), 2))
 

@@ -31,8 +31,8 @@ export interface HeroLook {
 export const HERO_LOOKS: readonly HeroLook[] = [
   { id: 'boy', label: '남 1', gender: 'male' },
   { id: 'girl', label: '여 1', gender: 'female' },
-  // 2026-10-19 태현 님이 다른 AI 로 만든 걷기 4장 → 리드가 진짜 픽셀로 정리 · 키 28칸으로 (scripts/people/)
-  { id: 'cap-girl', label: '여 2', gender: 'female', walk: { frames: 4, w: 24, h: 28 } },
+  // 2026-10-19 태현 님이 준 걷기 4장 (20 × 28칸, 넓게 · 모음 · 넓게 · 모음) 을 그대로
+  { id: 'cap-girl', label: '여 2', gender: 'female', walk: { frames: 4, w: 20, h: 28 } },
 ];
 
 export function isHeroLookId(id: unknown): id is string {
