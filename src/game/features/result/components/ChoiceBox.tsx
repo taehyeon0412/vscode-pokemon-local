@@ -81,14 +81,14 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
         {/* 한 줄은 글 하나로 (줄 칸 사이 간격이 글 사이에 끼지 않게) */}
         <span class="pg-line">
           <span class="pg-ellipsis">
-            ✨ {withJosa(view.name, '이/가')} <b title={view.move.detail}>{view.move.name}</b>
+            <span class="pg-up">★</span> {withJosa(view.name, '이/가')} <b title={view.move.detail}>{view.move.name}</b>
             <span class="pg-sub">{view.move.short}</span>
             {josa(view.move.name, '을/를')} 배울 수 있어요! 기술이 4개 — 바꿀 기술을 골라요 (Esc 배우지 않기)
           </span>
         </span>
         <span class="pg-line pg-choice-row">
           {view.current.map((m, i) => (
-            <Button key={m.id} onClick={() => onInput({ kind: 'learn', replace: i, uid: view.monster.uid, moveId: view.move.id })} title={`${m.detail} → ${view.move.name}`}>
+            <Button key={m.id} secondary onClick={() => onInput({ kind: 'learn', replace: i, uid: view.monster.uid, moveId: view.move.id })} title={`${m.detail} → ${view.move.name}`}>
               {`${i + 1} ${m.name}`}
               <span class="pg-sub">{m.short}</span>
             </Button>
@@ -137,12 +137,12 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
           <Sprite media={media} form={view.toForm} shiny={view.monster.shiny} scale={1} />
         </span>
         <span class="pg-ellipsis">
-          🎉 {withJosa(view.name, '은/는')} <b>{view.toName}</b>
+          {withJosa(view.name, '은/는')} <b>{view.toName}</b>
           {josa(view.toName, '으로/로')} 진화했다!
         </span>
         {view.fresh.map((m) => (
           <span key={m.id} class="pg-reward" title={m.detail}>
-            ✨ {m.name} <span class="pg-sub">{m.short}</span>
+            ★ {m.name} <span class="pg-sub">{m.short}</span>
           </span>
         ))}
       </span>

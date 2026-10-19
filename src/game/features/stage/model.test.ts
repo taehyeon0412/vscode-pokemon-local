@@ -19,7 +19,7 @@ describe('스테이지 이름표', () => {
   });
 
   it('미니맵 모양: "🌲 새싹 오솔길 (1-1)" (gdd S06 ②)', () => {
-    expect(stageLabel('forest-1')).toBe('🌲 새싹 오솔길 (1-1)');
+    expect(stageLabel('forest-1')).toBe('새싹 오솔길 (1-1)');
   });
 });
 
@@ -112,8 +112,15 @@ describe('라이벌 (gdd 4.12) — 띠 · 결과 보이기', () => {
 
   it('이긴 결과 — 한마디는 둘째 줄 맨 끝 (좁은 패널에서 레벨업이 먼저)', () => {
     const lines = summaryLines({ title: '라이벌 레드와의 승부에서 이겼다!', exp: [{ uid: 'm1', name: '이상해씨', gain: 64, from: 5, to: 6 }], money: 180, item: '불꽃의돌', caught: null, learned: [], choices: 0, badge: null, quote: '레드: 다음엔 꼭 이길 거야! (전적 1승 0패)', rival: true });
-    expect(lines.head).toEqual(['라이벌 레드와의 승부에서 이겼다!', '💰 +180원', '🎁 불꽃의돌']);
-    expect(lines.body).toEqual(['⬆ 이상해씨 Lv 5 → 6 (+64 EXP)', '💬 레드: 다음엔 꼭 이길 거야! (전적 1승 0패)']);
+    expect(lines.title).toBe('라이벌 레드와의 승부에서 이겼다!');
+    expect(lines.head).toEqual([
+      { kind: 'money', text: '+180원' },
+      { kind: 'item', text: '불꽃의돌' },
+    ]);
+    expect(lines.body).toEqual([
+      { kind: 'up', text: '이상해씨 Lv 5 → 6 (+64 EXP)' },
+      { kind: 'quote', text: '레드: 다음엔 꼭 이길 거야! (전적 1승 0패)' },
+    ]);
   });
 });
 

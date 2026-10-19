@@ -11,6 +11,7 @@ import { aliveCount, GYM_LEADER, trainerInfo, trainerNumber, trainerTeamSize, ty
 import { recordText, rivalName, rivalRecord, rivalTeamSize } from '../../core/rules/rival';
 import { heroLookOf } from '../../data/heroes';
 import type { FacilitySpot, Save, StageId } from '../../core/save';
+import type { IconName } from '../../data/icons';
 import { battleViewKey } from '../battle/model';
 import { resultViewKey } from '../result/model';
 
@@ -29,19 +30,20 @@ export interface StageInfo {
   name: string;
   /** 번호 — 화면에는 작게 (mvp-spec S06 ②) */
   code: string;
-  icon: string;
+  /** 픽셀 아이콘 (ui/Icon) */
+  icon: IconName;
 }
 
 export const STAGES: Readonly<Record<StageId, StageInfo>> = {
-  'forest-1': { id: 'forest-1', name: '새싹 오솔길', code: '1-1', icon: '🌲' },
-  'forest-2': { id: 'forest-2', name: '버섯 그늘길', code: '1-2', icon: '🍄' },
-  'forest-3': { id: 'forest-3', name: '깊은 숲', code: '1-3', icon: '🌳' },
+  'forest-1': { id: 'forest-1', name: '새싹 오솔길', code: '1-1', icon: 'tree' },
+  'forest-2': { id: 'forest-2', name: '버섯 그늘길', code: '1-2', icon: 'mushroom' },
+  'forest-3': { id: 'forest-3', name: '깊은 숲', code: '1-3', icon: 'oak' },
 };
 
 /** "🌲 새싹 오솔길 (1-1)" — 글로만 쓸 때 (클리어 카드 문구 등). 화면 이름표는 STAGES 로 번호를 따로 작게 */
 export function stageLabel(id: StageId): string {
   const s = STAGES[id];
-  return `${s.icon} ${s.name} (${s.code})`;
+  return `${s.name} (${s.code})`;
 }
 
 /** 걷는 빠르기 (화면, 크기 배율 1 일 때 px/초) — 길 위의 것들 사이가 넓은 패널에서도 한두 개씩 보이게 [제안] */

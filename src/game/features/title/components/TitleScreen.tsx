@@ -1,5 +1,5 @@
 /**
- * S02 타이틀 (gdd S02):
+ * S02 타이틀 (gdd S02) — 단계 12 디자인: 숲 그림 위 어두운 한 겹 · 금색 제목 (필살기 큰 글씨 A 와 같은 모양) · 판 모양 메뉴 한 줄
  *                      포켓몬 게임 모드
  *               [①새로 하기]      [②이어 하기]
  * ③ 일반 모드는 화면 안에 두지 않음 — 패널 제목줄 🏠 와 겹쳐서 (2026-10-18 태현 님)
@@ -9,9 +9,11 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { TitleInfo } from '../../../shared/messages';
 import { Button } from '../../../ui/Button';
+import { Icon } from '../../../ui/Icon';
 import { formatMoney, formatPlayTime } from '../../../ui/format';
-import { InfoBar } from '../../../ui/InfoBar';
+import type { Layout } from '../../../ui/layout';
 import { Sprite } from '../../../ui/Sprite';
+import { themeKind } from '../../../ui/theme';
 import { HeroPick } from '../../starter/components/HeroPick';
 import { StarterPick } from '../../starter/components/StarterPick';
 import { HERO_LOOKS, type HeroLook } from '../../../data/heroes';
@@ -30,6 +32,31 @@ export interface TitleScreenProps {
   heroPx: number;
   /** 정보줄 뺀 높이 — S03 칸에 큰 그림이 들어가는지 */
   bodyPx?: number;
+  /** 숲 그림 크기 (스테이지와 같은 그림) */
+  size?: Layout['size'];
+}
+
+/** 제목 — 필살기 큰 글씨 A (금색 그라데이션 + 두꺼운 갈색 테두리 + 금색 안쪽 선, 2026-10-19 태현 님) 와 같은 모양을 SVG 글자로 */
+function Logo() {
+  const text = '포켓몬 게임 모드';
+  return (
+    <svg class="pg-logo" viewBox="0 0 260 44" role="img" aria-label={text}>
+      <defs>
+        <linearGradient id="pg-logo-gold" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#ffffff" />
+          <stop offset="0.3" stop-color="#fffbe0" />
+          <stop offset="0.62" stop-color="#ffe680" />
+          <stop offset="1" stop-color="#f5c400" />
+        </linearGradient>
+      </defs>
+      <text x="130" y="23" text-anchor="middle" dominant-baseline="central" fill="none" stroke="rgba(10, 5, 0, 0.9)" stroke-width="8" stroke-linejoin="round">
+        {text}
+      </text>
+      <text x="130" y="23" text-anchor="middle" dominant-baseline="central" fill="url(#pg-logo-gold)" stroke="#b88a00" stroke-width="3" stroke-linejoin="round" paint-order="stroke">
+        {text}
+      </text>
+    </svg>
+  );
 }
 
 /** 요약 그림은 패널 크기와 상관없이 원본 크기 (버튼 · 글자 옆에서 혼자 커지지 않게) */
@@ -45,7 +72,8 @@ function Summary({ summary, media }: { summary: TitleSummary; media: string }) {
         </span>
       )}
       <span class="pg-sum-badges" title="배지">
-        🏅{summary.badges}
+        <Icon name="badge" />
+        {summary.badges}
       </span>
       <span class="pg-sum-money">{formatMoney(summary.money)}</span>
       <span class="pg-sum-time pg-dim" title="플레이 시간">
@@ -55,7 +83,7 @@ function Summary({ summary, media }: { summary: TitleSummary; media: string }) {
   );
 }
 
-export function TitleScreen({ info, media, pending, onNew, onContinue, heroPx, bodyPx }: TitleScreenProps) {
+export function TitleScreen({ info, media, pending, onNew, onContinue, heroPx, bodyPx, size = 'medium' }: TitleScreenProps) {
   const view = titleView(info);
   const [confirming, setConfirming] = useState(false);
   // 새로 하기 다음 단계 — S03 주인공 · S04 스타팅 (고르는 동안은 화면에만, 결정하면 확장에 새 세이브)
@@ -107,9 +135,9 @@ export function TitleScreen({ info, media, pending, onNew, onContinue, heroPx, b
         if (confirming && e.key === 'Escape') setConfirming(false);
       }}
     >
-      <InfoBar center={<span class="pg-title-text">포켓몬 게임 모드</span>} />
-      <div class="pg-body pg-title-body">
-        <div class="pg-row">
+      <div class="pg-body pg-title-body" style={{ backgroundImage: media ? `url("${media}/backgrounds/forest/foreground-${themeKind()}-${size}.png"), url("${media}/backgrounds/forest/background-${themeKind()}-${size}.png")` : 'none' }}>
+        <Logo />
+        <div class="pg-row pg-title-menu">
           {confirming ? (
             <>
               <span class="pg-ask">
@@ -138,7 +166,7 @@ export function TitleScreen({ info, media, pending, onNew, onContinue, heroPx, b
         </div>
         {view.warnings.length > 0 && (
           <div class="pg-warning" title={view.warnings.join('\n')}>
-            ⚠ {view.warnings[0]}
+            <b>!</b> {view.warnings[0]}
             {view.warnings.length > 1 ? ` (+${view.warnings.length - 1})` : ''}
           </div>
         )}

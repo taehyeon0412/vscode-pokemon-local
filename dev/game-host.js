@@ -291,12 +291,13 @@
                 return;
             }
             if (click === 'item') {
-                const bag = [...document.querySelectorAll('#pokemon-game button')].find((x) => x.textContent.includes('🎒'));
+                // 정보줄 버튼은 픽셀 아이콘 (단계 12) 이라 글자 대신 title 로 찾음
+                const bag = [...document.querySelectorAll('#pokemon-game button')].find((x) => (x.title || '').includes('가방'));
                 if (bag) { bag.click(); setTimeout(() => [...document.querySelectorAll('#pokemon-game .pg-chip')].find((x) => x.textContent.includes('상처약'))?.click(), 200); return; }
                 if (left > 0) setTimeout(() => tryClick(left - 1), 100);
                 return;
             }
-            const byTitle = { team: '내 포켓몬' }[click];
+            const byTitle = { team: '내 포켓몬', map: '세계 지도', bag: '가방', settings: '설정' }[click];
             const b = [...document.querySelectorAll('#pokemon-game button')].find((x) => (byTitle && (x.title || '').includes(byTitle)) || x.textContent.includes(label) || (alt && x.textContent.includes(alt)));
             if (b && !document.getElementById('pokemon-game').hidden) b.click();
             else if (left > 0) setTimeout(() => tryClick(left - 1), 100);

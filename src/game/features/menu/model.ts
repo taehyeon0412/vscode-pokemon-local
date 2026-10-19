@@ -10,6 +10,7 @@ import { STAGE_IDS, STAT_KEYS, type ItemId, type Monster, type Save, type StageI
 import { typeNameKo } from '../../core/text';
 import { formsOfSpecies, speciesOf } from '../../data';
 import { moveView, type MoveView } from '../result/model';
+import type { IconName } from '../../data/icons';
 import { STAGES, stageLabel } from '../stage/model';
 
 export const STAT_LABEL: Record<StatKey, string> = { hp: 'HP', attack: '공격', defense: '방어', speed: '스피드', ultimate: '필살' };
@@ -140,7 +141,7 @@ export interface MapStage {
   id: StageId;
   label: string;
   code: string;
-  icon: string;
+  icon: IconName;
   state: MapStageState;
   gym: boolean;
 }
@@ -163,7 +164,7 @@ export function clearView(save: Save, id: StageId): { title: string; bonus: numb
   const run = p?.run ?? { startMs: save.playTimeMs, caught: 0, trainers: 0, seen: [] };
   const i = STAGE_IDS.indexOf(id);
   return {
-    title: `🎉 ${stageLabel(id)} 클리어!`,
+    title: `${stageLabel(id)} 클리어!`,
     bonus: clearBonusExp(id),
     balls: BALANCE.clearBalls,
     caught: run.caught,

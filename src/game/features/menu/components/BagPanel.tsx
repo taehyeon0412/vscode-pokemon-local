@@ -6,6 +6,7 @@ import { useState } from 'preact/hooks';
 import type { GameInput } from '../../../core/engine';
 import type { ItemId, Save } from '../../../core/save';
 import { Button } from '../../../ui/Button';
+import { Icon } from '../../../ui/Icon';
 import { Sprite } from '../../../ui/Sprite';
 import { bagTargets, bagView } from '../model';
 import { Panel, Row } from './Panel';
@@ -23,7 +24,12 @@ export function BagPanel({ save, media, onInput, onClose }: BagPanelProps) {
   const item = rows.find((r) => r.item === sel) ?? null;
   const targets = item?.field ? bagTargets(save, item.item) : [];
   return (
-    <Panel title="🎒 가방" extra={rows.length === 0 ? '아무것도 없어요' : '쓸 아이템을 골라요'} onClose={onClose}>
+    <Panel
+      title={
+        <>
+          <Icon name="bag" /> 가방
+        </>
+      } extra={rows.length === 0 ? '아무것도 없어요' : '쓸 아이템을 골라요'} onClose={onClose}>
       <Row>
         {rows.map((r) => (
           <button
@@ -45,7 +51,7 @@ export function BagPanel({ save, media, onInput, onClose }: BagPanelProps) {
       {item?.field && (
         <Row label={`${item.name} →`}>
           {targets.map(({ view, block }) => (
-            <Button key={view.uid} secondary={!!block} disabled={!!block} onClick={() => onInput({ kind: 'use-item', item: item.item, uid: view.uid })} title={block ?? `${view.name}에게 쓰기`}>
+            <Button key={view.uid} secondary disabled={!!block} onClick={() => onInput({ kind: 'use-item', item: item.item, uid: view.uid })} title={block ?? `${view.name}에게 쓰기`}>
               <Sprite media={media} form={view.form} shiny={view.shiny} scale={0.5} />
               {view.name} <span class="pg-sub">{block ?? `HP ${view.hp}/${view.maxHp}`}</span>
             </Button>

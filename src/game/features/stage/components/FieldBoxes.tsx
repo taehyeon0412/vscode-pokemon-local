@@ -1,5 +1,5 @@
 /**
- * 길 · 체육관 위에 뜨는 상자 (임시 디자인 — 단계 12 에서 다시):
+ * 길 · 체육관 위에 뜨는 상자 (단계 12 디자인 — 전투와 같은 판 · 픽셀 아이콘, game.css 공통 판 · 버튼):
  *   S06 ⑥ 병원 · 상점 앞 [들어가기] [지나가기] (5초 뒤 지나감) · S13 병원 안 · S08 "승부다!" + ◓ · S17 패배 · S24 클리어 카드
  *   S16 대기실 · MVP 끝 카드 (관장을 처음 이김)
  * 단축키 Enter · Esc 는 main.ts (부탁과 같은 규칙).
@@ -11,9 +11,11 @@ import { FACILITY_STAFF } from '../../../core/rules/stage';
 import { GYM_LEADER } from '../../../core/rules/trainer';
 import type { StageId } from '../../../core/save';
 import { Button } from '../../../ui/Button';
+import { Icon } from '../../../ui/Icon';
 import { formatMoney } from '../../../ui/format';
 import { Sprite } from '../../../ui/Sprite';
 import { clearView, lobbyView } from '../../menu/model';
+import { STAGES } from '../model';
 
 export interface BoxProps {
   state: GameState;
@@ -26,13 +28,12 @@ export function FacilityBox({ state, onInput, onBox }: BoxProps & { onBox(): voi
   const st = state.runtime.stage;
   if (st?.phase !== 'facility') return null;
   const hospital = st.kind === 'hospital';
-  const label = hospital ? '🏥 병원' : '🏪 상점';
   if (!st.inside) {
     const left = Math.max(1, Math.ceil((TIMING.facilityPromptMs - st.ms) / 1000));
     return (
       <div class="pg-banner pg-facility-box">
         <span class="pg-ellipsis">
-          <b>{label}</b> {hospital ? '— 회복 · 보관함' : '— 볼 · 상처약'}
+          <Icon name={hospital ? 'hospital' : 'shop'} /> <b>{hospital ? '병원' : '상점'}</b> <span class="pg-dim">{hospital ? '회복 · 보관함' : '볼 · 상처약'}</span>
         </span>
         <Button onClick={() => onInput({ kind: 'facility', enter: true })} title="Enter">
           들어가기
@@ -57,7 +58,8 @@ export function FacilityBox({ state, onInput, onBox }: BoxProps & { onBox(): voi
           {healthy ? '✓ 다 나았어요' : '회복'}
         </Button>
         <Button secondary onClick={onBox} title="보관함과 팀 바꾸기 (여기서는 바꿀 수 있어요)">
-          📦<span class="pg-long"> 보관함</span>
+          <Icon name="box" />
+          <span class="pg-long"> 보관함</span>
         </Button>
         <Button secondary onClick={() => onInput({ kind: 'facility-leave' })} title="Esc">
           나가기
@@ -101,13 +103,19 @@ export function DefeatBox({ state, onInput }: BoxProps) {
   return (
     <div class="pg-banner pg-defeat pg-two">
       <span class="pg-line pg-ellipsis">
-        😵 <b>{st.gym ? '관장에게 졌다…' : '졌다… 눈앞이 깜깜해졌다'}</b>
-        {st.lost > 0 ? <span class="pg-reward pg-loss">💰 −{formatMoney(st.lost)}</span> : <span class="pg-dim">돈은 그대로</span>}
+        <b>{st.gym ? '관장에게 졌다…' : '졌다… 눈앞이 깜깜해졌다'}</b>
+        {st.lost > 0 ? (
+          <span class="pg-reward pg-loss">
+            <Icon name="coin" /> −{formatMoney(st.lost)}
+          </span>
+        ) : (
+          <span class="pg-dim">돈은 그대로</span>
+        )}
       </span>
       <span class="pg-line">
         <span class="pg-dim pg-ellipsis">
           {stuck ? (
-            '자꾸 지면 🗺 지도로 깬 스테이지에서 키우거나, 약해진 야생에게 볼을 던져 팀을 늘려 보세요'
+            '자꾸 지면 지도에서 깬 스테이지로 가서 키우거나, 약해진 야생에게 볼을 던져 팀을 늘려 보세요'
           ) : (
             <>
               잡은 포켓몬 · 경험치는 그대로 · 팀은 다 회복했어요
@@ -116,7 +124,7 @@ export function DefeatBox({ state, onInput }: BoxProps) {
           )}
         </span>
         <Button onClick={() => onInput({ kind: 'defeat-continue' })} title="Enter">
-          {st.gym ? '대기실로' : atHospital ? `다시 시작 (🏥 병원 앞 ${from}%)` : '다시 시작 (처음 0%)'}
+          {st.gym ? '대기실로' : atHospital ? `다시 시작 (병원 앞 ${from}%)` : '다시 시작 (처음 0%)'}
         </Button>
       </span>
     </div>
@@ -132,11 +140,14 @@ export function ClearCard({ state, media, onInput, onMap, onTeam }: BoxProps & {
   return (
     <div class="pg-banner pg-clear pg-two">
       <span class="pg-line">
+        <Icon name={STAGES[loc.stageId].icon} />
         <b class="pg-ellipsis">{v.title}</b>
         <span class="pg-reward">
           <span class="pg-long">보너스 </span>경험치 +{v.bonus}
         </span>
-        <span class="pg-reward">◓ +{v.balls}</span>
+        <span class="pg-reward">
+          <span class="pg-ball" aria-hidden="true" /> +{v.balls}
+        </span>
         {v.seen.slice(0, 4).map((s) => (
           <span key={s.dex} class="pg-clear-new" title="이번에 처음 만난 포켓몬">
             <Sprite media={media} form={s.form} scale={0.75} />
@@ -148,14 +159,16 @@ export function ClearCard({ state, media, onInput, onMap, onTeam }: BoxProps & {
           잡은 포켓몬 {v.caught} · 이긴 트레이너 {v.trainers} · {v.minutes}분
         </span>
         <Button onClick={() => onInput({ kind: 'travel', to: next })} title="Enter">
-          {next === 'gym' ? '🏟' : '▶'}
+          {next === 'gym' ? <Icon name="gym" /> : '▶'}
           <span class="pg-long">{next === 'gym' ? ' 체육관으로' : ' 다음 스테이지'}</span>
         </Button>
         <Button secondary onClick={onMap} title="③ 지도">
-          🗺<span class="pg-long"> 지도</span>
+          <Icon name="map" />
+          <span class="pg-long"> 지도</span>
         </Button>
         <Button secondary onClick={onTeam} title="④ 포켓몬 교체 — 보관함과 팀을 바로 바꿔요">
-          📦<span class="pg-long"> 포켓몬 교체</span>
+          <Icon name="box" />
+          <span class="pg-long"> 포켓몬 교체</span>
         </Button>
       </span>
     </div>
@@ -170,27 +183,32 @@ export function LobbyBox({ state, onInput, onBox, onShop, onMap }: BoxProps & { 
   return (
     <div class="pg-banner pg-lobby pg-two">
       <span class="pg-line">
-        <b class="pg-ellipsis">🏟 숲 체육관 — {GYM_LEADER.name}</b>
+        <Icon name="gym" />
+        <b class="pg-ellipsis">숲 체육관 — {GYM_LEADER.name}</b>
         <span class={v.short ? 'pg-lv-short' : 'pg-dim'} title="추천 레벨 · 내 팀 평균 레벨">
           추천 Lv {v.recommended} · <span class="pg-long">센 3마리 </span>평균 Lv {v.average}
         </span>
-        {state.save.badges.includes('forest') && <span class="pg-reward">🏅</span>}
+        {state.save.badges.includes('forest') && <Icon name="badge" title="숲 배지" />}
       </span>
       <span class="pg-line">
         <Button secondary onClick={() => onInput({ kind: 'heal' })} disabled={healthy} title={healthy ? '이미 다 건강해요' : '⑤ 병원 — 무료로 다 회복'}>
-          🏥<span class="pg-long"> 회복</span>
+          <Icon name="hospital" />
+          <span class="pg-long"> 회복</span>
         </Button>
         <Button secondary onClick={onBox} title="⑥ 보관함과 팀 바꾸기">
-          📦<span class="pg-long"> 보관함</span>
+          <Icon name="box" />
+          <span class="pg-long"> 보관함</span>
         </Button>
         <Button secondary onClick={onShop} title="⑦ 상점">
-          🏪<span class="pg-long"> 상점</span>
+          <Icon name="shop" />
+          <span class="pg-long"> 상점</span>
         </Button>
         <Button onClick={() => onInput({ kind: 'challenge' })} title="② 관장 3마리와 1:1 토너먼트 (도망 불가)">
-          ⚔ 도전!
+          도전!
         </Button>
         <Button secondary onClick={onMap} title="③ 깬 스테이지로 가서 키우기">
-          🗺<span class="pg-long"> 세계 지도</span>
+          <Icon name="map" />
+          <span class="pg-long"> 세계 지도</span>
         </Button>
       </span>
     </div>
@@ -203,11 +221,18 @@ export function BadgeCard({ state, onInput, onMap }: BoxProps & { onMap(): void 
   return (
     <div class="pg-banner pg-badge-card pg-two">
       <span class="pg-line pg-ellipsis">
-        <span class="pg-badge-glow">🏅</span> <b>숲 배지를 받았다!</b> 🎉 숲 클리어! 다음 지역은 준비 중이에요
+        <span class="pg-badge-glow">
+          <Icon name="badge" />
+        </span>{' '}
+        <b>숲 배지를 받았다!</b> 숲 클리어! 다음 지역은 준비 중이에요
       </span>
       <span class="pg-line">
-        <span class="pg-reward">💰 +{formatMoney(BALANCE.gymFirstMoney)}</span>
-        <span class="pg-reward" title="가방에서 써요 (냄새꼬 → 라플레시아 등)">🍃 리프의돌</span>
+        <span class="pg-reward">
+          <Icon name="coin" /> +{formatMoney(BALANCE.gymFirstMoney)}
+        </span>
+        <span class="pg-reward" title="가방에서 써요 (냄새꼬 → 라플레시아 등)">
+          <Icon name="gift" /> 리프의돌
+        </span>
         <span class="pg-dim pg-ellipsis">숲에서 계속 키우거나 관장에게 다시 도전할 수 있어요</span>
         <Button
           onClick={() => {
@@ -216,7 +241,7 @@ export function BadgeCard({ state, onInput, onMap }: BoxProps & { onMap(): void 
           }}
           title="Enter"
         >
-          🗺 세계 지도
+          <Icon name="map" /> 세계 지도
         </Button>
         <Button secondary onClick={() => onInput({ kind: 'badge-continue' })}>
           대기실로

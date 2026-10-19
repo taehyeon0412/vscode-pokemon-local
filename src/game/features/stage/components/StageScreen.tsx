@@ -17,6 +17,8 @@ import { speciesOf } from '../../../data';
 import { heroHeightPx, heroLookOf, heroWidthPx, personLook } from '../../../data/heroes';
 import { BallCount } from '../../../ui/BallCount';
 import { Button } from '../../../ui/Button';
+import { Icon } from '../../../ui/Icon';
+import { themeKind } from '../../../ui/theme';
 import { typeNameKo } from '../../../ui/format';
 import { InfoBar } from '../../../ui/InfoBar';
 import { INFO_BAR_PX, type Layout } from '../../../ui/layout';
@@ -44,12 +46,6 @@ export interface StageScreenProps {
   onOpen(o: Overlay): void;
 }
 
-/** VS Code 테마 — 밝은 테마면 밝은 숲 그림 (일반 모드와 같은 그림 · 같은 규칙) */
-function themeKind(): 'light' | 'dark' {
-  const c = document.body.classList;
-  return c.contains('vscode-light') || c.contains('vscode-high-contrast-light') ? 'light' : 'dark';
-}
-
 /** 숲 그림 크기별 높이 (원본 300 · 400 · 500 · 800px) 에서 땅 윗면 — 길 위의 것들이 서는 높이 */
 const GROUND_PX: Record<Layout['size'], number> = { nano: 15, small: 20, medium: 25, large: 40 };
 /** 위쪽 띠 한 줄 높이 (글자 배율 1) · 띠를 주인공 옆으로 옮길 때 남아야 할 폭 */
@@ -70,7 +66,7 @@ function EncounterBox({ state }: { state: GameState }) {
       </span>
       {stage.isNew && <span class="pg-new">NEW!</span>}
       {stage.space ? (
-        <span class="pg-space-done">{blocked ? '🛡 막아냈다!' : '⚡ 선제공격!'}</span>
+        <span class="pg-space-done">{blocked ? '막아냈다!' : '선제공격!'}</span>
       ) : (
         stage.ms <= BALANCE.preemptiveWindowMs && <span class="pg-space-hint">{hint}</span>
       )}
@@ -89,7 +85,11 @@ function RequestBox({ state, onInput }: { state: GameState; onInput(i: GameInput
     return (
       <div class={stage.result.ok ? 'pg-banner pg-request pg-ok' : 'pg-banner pg-request'} title={stage.result.text}>
         <span class="pg-ellipsis">{stage.result.text}</span>
-        {stage.result.reward && <span class="pg-reward">🎁 {stage.result.reward}</span>}
+        {stage.result.reward && (
+          <span class="pg-reward">
+            <Icon name="gift" /> {stage.result.reward}
+          </span>
+        )}
       </div>
     );
   }
@@ -200,11 +200,15 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen }: 
           left={<BallCount count={battle ? itemLeft(battle, save, 'poke-ball') : (save.bag['poke-ball'] ?? 0)} />}
           center={
             gym ? (
-              <span class="pg-stage-name">🏟 숲 체육관 {save.badges.includes('forest') && '🏅'}</span>
+              <span class="pg-stage-name">
+                <Icon name="gym" /> 숲 체육관 {save.badges.includes('forest') && <Icon name="badge" title="숲 배지" />}
+              </span>
             ) : info && map ? (
               <Minimap stage={info} progress={map.progress} facilities={map.facilities} gym={map.gym} />
             ) : (
-              <span>🌲 숲</span>
+              <span>
+                <Icon name="tree" /> 숲
+              </span>
             )
           }
           right={canOpenMenus(state) ? <MenuButtons onOpen={onOpen} dot={hasUnspent(save)} media={media} lead={leadOf(save)} /> : null}

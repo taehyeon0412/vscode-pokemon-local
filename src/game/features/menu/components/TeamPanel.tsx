@@ -8,6 +8,7 @@ import { BALANCE } from '../../../core/balance';
 import type { GameInput } from '../../../core/engine';
 import { STAT_KEYS, type Save } from '../../../core/save';
 import { Button } from '../../../ui/Button';
+import { Icon } from '../../../ui/Icon';
 import { Sprite } from '../../../ui/Sprite';
 import { stars, STAT_LABEL, teamView, type MonsterView } from '../model';
 import { Panel, Row } from './Panel';
@@ -95,7 +96,11 @@ export function TeamPanel({ save, media, swap, onInput, onClose }: TeamPanelProp
 
   return (
     <Panel
-      title={`◓ 내 포켓몬 · 팀 ${party.length}/${BALANCE.partySize} · 보관함 ${box.length}`}
+      title={
+        <>
+          <span class="pg-ball" aria-hidden="true" /> 내 포켓몬 · 팀 {party.length}/{BALANCE.partySize} · 보관함 {box.length}
+        </>
+      }
       extra={swap ? '보관함과 바꿀 수 있어요' : '보관함 교체는 병원 · 체육관 대기실 · 스테이지 시작 전에'}
       onClose={onClose}
     >
@@ -103,7 +108,9 @@ export function TeamPanel({ save, media, swap, onInput, onClose }: TeamPanelProp
         {party.map((m, i) => (
           <Chip key={m.uid} m={m} media={media} selected={selected?.uid === m.uid} lead={i === 0} onClick={() => setSel(m.uid)} drag={drag} />
         ))}
-        <span class="pg-panel-sep">📦</span>
+        <span class="pg-panel-sep">
+          <Icon name="box" title="보관함" />
+        </span>
         {box.length === 0 ? <span class="pg-dim">보관함이 비었어요</span> : box.map((m) => <Chip key={m.uid} m={m} media={media} selected={selected?.uid === m.uid} lead={false} onClick={() => setSel(m.uid)} />)}
       </Row>
       {selected && (
@@ -119,7 +126,7 @@ export function TeamPanel({ save, media, swap, onInput, onClose }: TeamPanelProp
                 </Button>
                 {swap && (
                   <Button secondary onClick={() => onInput({ kind: 'team-to-box', uid: selected.uid })} disabled={party.length <= 1} title="보관함으로 (팀에 하나는 남겨요)">
-                    📦 보관함으로
+                    <Icon name="box" /> 보관함으로
                   </Button>
                 )}
               </>
