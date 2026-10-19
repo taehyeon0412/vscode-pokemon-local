@@ -41,6 +41,15 @@ export function isSizeName(v: unknown): v is SizeName {
   return typeof v === 'string' && (SIZES as readonly string[]).includes(v);
 }
 
+/**
+ * 게임 모드에서 쓸 크기 — 아주 작게 · 작게면 보통 (포켓몬 ×2 · 사람 2배, 2026-10-19 태현 님 A안).
+ * 작게 (×1.5) 는 정수 배가 아니라 점 굵기가 고르지 않고 사람 (정수 배만) 이 1배라 포켓몬보다 훨씬 작아 보임 · 150px 이면 보통이 늘 들어감. 일반 모드는 설정 그대로
+ */
+export function gameSize(wanted: unknown): SizeName {
+  const size: SizeName = isSizeName(wanted) ? wanted : 'nano';
+  return size === 'nano' || size === 'small' ? 'medium' : size;
+}
+
 export function minHeightOf(size: SizeName): number {
   return BASE_SPRITE_PX * SIZE_SCALE[size] * 1.5 + INFO_BAR_PX;
 }

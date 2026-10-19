@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { formatMoney, formatPlayTime } from './format';
-import { fitLayout, minHeightOf } from './layout';
+import { fitLayout, gameSize, minHeightOf } from './layout';
 import { spritePx, spriteSrc } from './sprite-path';
 import { Store } from './store';
 
@@ -34,6 +34,12 @@ describe('화면 틀 (mvp-spec 1장)', () => {
   it('실제 VS Code 테스트만 최소 높이를 바꿀 수 있음 (탐색기 칸이 150px 보다 낮아서)', () => {
     expect(fitLayout('nano', 100, 68)).toMatchObject({ tooSmall: false, needPx: 68 });
     expect(fitLayout('nano', 67, 68).tooSmall).toBe(true);
+  });
+
+  it('게임 모드 크기: 아주 작게 · 작게는 보통으로 (포켓몬 ×2 · 사람 2배 — 2026-10-19 태현 님 A안) · 보통 · 크게는 그대로', () => {
+    expect([gameSize('nano'), gameSize('small'), gameSize('medium'), gameSize('large'), gameSize('huge')]).toEqual(['medium', 'medium', 'medium', 'large', 'medium']);
+    // 150px 이면 보통이 늘 들어감
+    expect(fitLayout(gameSize('small'), 150)).toMatchObject({ size: 'medium', scale: 2, tooSmall: false });
   });
 
   it('모르는 크기 설정은 아주 작게로', () => {

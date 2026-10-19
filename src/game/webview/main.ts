@@ -7,7 +7,7 @@ import { STAGE_IDS } from '../core/save';
 import { stageViewKey } from '../features/stage/model';
 import { createStartSave } from '../features/starter/model';
 import { GAME_COMMAND, isHostToWebview } from '../shared/messages';
-import { fitLayout } from '../ui/layout';
+import { fitLayout, gameSize } from '../ui/layout';
 import { Store } from '../ui/store';
 import { App, OVERLAY_INPUTS, overlayAllowed, type AppActions, type ViewState } from './app';
 import { FrameLoop } from './frame-loop';
@@ -32,7 +32,7 @@ if (!port) {
     screen: 'none',
     title: null,
     state: null,
-    layout: fitLayout(config.size, window.innerHeight, config.minHeight),
+    layout: fitLayout(gameSize(config.size), window.innerHeight, config.minHeight),
     widthPx: window.innerWidth,
     pending: false,
     overlay: null,
@@ -204,7 +204,7 @@ if (!port) {
   });
 
   window.addEventListener('resize', () => {
-    store.set({ layout: fitLayout(config.size, window.innerHeight, config.minHeight), widthPx: window.innerWidth });
+    store.set({ layout: fitLayout(gameSize(config.size), window.innerHeight, config.minHeight), widthPx: window.innerWidth });
     sync(); // 너무 낮아졌으면 멈추고, 다시 키우면 이어 감
   });
 
