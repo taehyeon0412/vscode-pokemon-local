@@ -280,6 +280,11 @@ SHOTS = [
     ("p150-fold-battle-149", "720x149", {"screen": "game", "look": "may", "battle": "choose"}),
     ("p150-fold-title-92", "720x92", {"screen": "title", "save": "ok"}),
     ("p150-fold-narrow-68", "320x68", {"screen": "game", "look": "may"}),
+    # 전투 연출 = 일반 모드 연출 (fx=1 — 일반 모드 번들을 같이 띄움, 2026-10-19). 연출은 장면이 뜬 뒤 0.12초부터라 찍는 때 (budget) 가 중요
+    ("fx-ember-170", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "move", "side": "foe", "mv": "52", "dur": "20000", "fx": "1", "budget": "700"}),
+    ("fx-razor-170", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "move", "side": "me", "mv": "75", "dur": "20000", "fx": "1", "budget": "500"}),
+    ("fx-tackle-170", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "attack", "dur": "900", "fx": "1", "budget": "850"}),
+    ("fx-scratch-170", "720x170", {"screen": "game", "look": "may", "size": "medium", "battle": "move", "side": "foe", "mv": "10", "dur": "900", "fx": "1", "budget": "850"}),
     # 파이어레드 원작 그림 (레드 = boy)
     ("p12-red-walk-68", "720x68", {"screen": "game", "look": "boy", "gender": "male"}),
     ("p12-red-walk-116", "720x116", {"screen": "game", "look": "boy", "gender": "male", "size": "medium"}),

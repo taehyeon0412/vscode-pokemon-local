@@ -13,6 +13,8 @@ export type Screen = 'none' | 'title' | 'game';
 export interface WebviewSessionDeps {
   post(message: WebviewToHost): void;
   now(): number;
+  /** 이번 걸음을 미룰지 (연출이 끝날 때까지 — 없으면 안 미룸) */
+  hold?: (state: GameState, dtMs: number) => boolean;
 }
 
 export class WebviewSession {
@@ -128,7 +130,10 @@ export class WebviewSession {
       }
       return;
     }
-    const r = advance(this.state, clampFrameDelta(dtMs));
+    const dt = clampFrameDelta(dtMs);
+    // 일반 모드 연출이 아직 — 피해가 들어가는 걸음을 미룸 (features/battle/fx/hold, 웹뷰에서만)
+    if (this.deps.hold?.(this.state, dt)) return;
+    const r = advance(this.state, dt);
     this.state = r.state;
     if (r.steps > 0) this.dirty = true;
     // 전투 끝 · 잡기 · 스테이지 클리어 — 1초를 기다리지 않고 바로 저장해 달라고 함 (mvp-spec 3.1)

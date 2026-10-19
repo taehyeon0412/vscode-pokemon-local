@@ -295,10 +295,10 @@ def write_bundle(table, acts, lib, movesets, shape, ult_lib, ults, out):
     if src.count(CODE_ANCHOR) != 1 or src.count(HOOK_ANCHOR) != 1:
         sys.exit("main-bundle.js: 넣을 자리를 못 찾음")
     code = open(os.path.join(HERE, "moves.js"), encoding="utf-8").read()
-    # 필살기 — 본체(core) → 연출 틀(fx-*) → 대결 본체(duel) → 대결 모양(duel-*)
+    # 필살기 — 본체(core) → 연출 틀(fx-*) → 대결 본체(duel) → 대결 모양(duel-*) → 게임 모드 전투 다리 (bridge — window.pokemonFx)
     fx = sorted(f for f in os.listdir(ULT_DIR) if f.startswith("fx-") and f.endswith(".js"))
     duel = sorted(f for f in os.listdir(ULT_DIR) if f.startswith("duel-") and f.endswith(".js"))
-    for name in ["core.js", *fx, "duel.js", *duel]:
+    for name in ["core.js", *fx, "duel.js", *duel, "bridge.js"]:
         code += f"\n// ===== ult/{name} =====\n" + open(os.path.join(ULT_DIR, name), encoding="utf-8").read()
     moves = "const POKEMON_MOVES = " + json.dumps(table, separators=(",", ":")) + ";\n"
     moves += "const POKEMON_ACTS = " + json.dumps(acts, separators=(",", ":")) + ";\n"

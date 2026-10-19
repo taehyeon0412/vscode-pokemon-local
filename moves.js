@@ -228,6 +228,8 @@ function startAct(pokemon, act) {
 function moveCanvasReady() {
     if (!moveCanvas) {
         moveCanvas = document.createElement('canvas');
+        // 게임 모드 전투도 이 캔버스에 그림 (ult/bridge.js) — game.css 가 게임 중엔 이 id 로 게임 화면 위로 올림
+        moveCanvas.id = 'pokemonFxCanvas';
         // 포켓몬(2) · 공(3) 위, 앞쪽 풀(5) 아래 — CSP 때문에 style 은 속성 하나씩
         moveCanvas.style.position = 'fixed';
         moveCanvas.style.left = '0';

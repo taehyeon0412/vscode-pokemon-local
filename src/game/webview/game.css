@@ -9,6 +9,10 @@ body.pokemon-game-on #pokemonContainer,
 body.pokemon-game-on #foreground {
   display: none;
 }
+/* 일반 모드 연출 캔버스 (moves.js · ult/bridge.js) — 게임 중엔 전투 연출을 게임 화면 위에 그림 (일반 모드가 z-index 를 4 · 6 으로 바꿔 써도 이김) */
+body.pokemon-game-on #pokemonFxCanvas {
+  z-index: 10001 !important;
+}
 body.pokemon-game-on {
   /* 일반 모드가 배경 그림을 style 로 넣어서 !important */
   background-image: none !important;

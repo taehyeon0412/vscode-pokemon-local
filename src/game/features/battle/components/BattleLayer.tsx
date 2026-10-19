@@ -16,7 +16,9 @@ import { moveOf, speciesOf } from '../../../data';
 import { Button } from '../../../ui/Button';
 import { Sprite } from '../../../ui/Sprite';
 import { duelKind, hpColor, moveColor, moveFx, profileOpenable, STATUS_LABEL, type BattleGeometry } from '../model';
+import { battleAnimKey } from '../fx/hold';
 import { BattleMenu } from './BattleMenu';
+import { useBattleFx } from './BattleFx';
 
 export interface BattleLayerProps {
   battle: BattleState;
@@ -40,9 +42,8 @@ const POP_STACK_PX = 11;
 const MAX_TAPS = Math.round(BALANCE.clashTapMax / BALANCE.clashTap);
 
 /** 행동 하나마다 다른 열쇠 — 같은 CSS 움직임이 다시 처음부터 돌게 */
-function animKey(b: BattleState): string {
-  return b.anim ? `${b.anim.side}${b.anim.action.kind}${b.t - b.anim.ms}` : '';
-}
+/** 연출 하나의 열쇠 — 일반 모드 연출 다리 (fx/hold) 와 같은 기준 */
+const animKey = battleAnimKey;
 
 function Bar({ value, cls }: { value: number; cls: string }) {
   return (
@@ -124,9 +125,11 @@ function FighterBody(props: { b: BattleState; side: Side; x: number; target: num
 }
 
 /** 날아가는 기술 · 터지는 자리 · 방어 · 아이템 · 필살기 빛줄기 (맞는 순간 = 연출 끝쪽, 피해 숫자와 같이) */
-function Effects({ b, geo, ground, midMe, midFoe }: { b: BattleState; geo: BattleGeometry; ground: number; midMe: number; midFoe: number }) {
+/** native = 일반 모드 연출이 그림 (BattleFx) — 그때는 기술 · 공격 · 방어 · 아이템 · 상태 이모지를 안 그림 */
+function Effects({ b, geo, ground, midMe, midFoe, native }: { b: BattleState; geo: BattleGeometry; ground: number; midMe: number; midFoe: number; native: boolean }) {
   const anim = b.anim;
   if (!anim) return null;
+  if (native && anim.action.kind !== 'ult' && anim.action.kind !== 'flee') return null;
   const from = anim.side === 'me' ? geo.meX : geo.foeX;
   const to = anim.side === 'me' ? geo.foeX : geo.meX;
   const y = anim.side === 'me' ? midMe : midFoe;
@@ -315,6 +318,8 @@ function Clash({ b, geo, y }: { b: BattleState; geo: BattleGeometry; y: number }
 }
 
 export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onProfile }: BattleLayerProps) {
+  // 일반 모드 기술 · 방어 · 회복 연출 (2026-10-19 태현 님) — 번들이 없으면 false (이모지 그대로)
+  const native = useBattleFx(b);
   const profile = onProfile && profileOpenable(b) ? onProfile : undefined;
   const midMe = ground + Math.round(geo.meSpritePx * 0.45);
   const midFoe = ground + Math.round(geo.foeSpritePx * 0.45);
@@ -333,7 +338,7 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
       )}
       {hasMe && <HpBlock f={b.me} side="me" x={geo.meHpX} bottom={geo.meHpBottom} wide={geo.meHpWide} prefix="" noName={geo.menuSide !== null} />}
       {b.phase !== 'send' && <HpBlock f={b.foe} side="foe" x={geo.foeHpX} bottom={geo.foeHpBottom} wide={geo.foeHpWide} prefix={foePrefix(b)} />}
-      {b.phase === 'clash' ? <Clash b={b} geo={geo} y={Math.round((midMe + midFoe) / 2)} /> : <Effects b={b} geo={geo} ground={ground} midMe={midMe} midFoe={midFoe} />}
+      {b.phase === 'clash' ? <Clash b={b} geo={geo} y={Math.round((midMe + midFoe) / 2)} /> : <Effects b={b} geo={geo} ground={ground} midMe={midMe} midFoe={midFoe} native={native} />}
       <Catch b={b} geo={geo} ground={ground} />
       {(['me', 'foe'] as const).map((side) =>
         popups(side).map((p, i) => (

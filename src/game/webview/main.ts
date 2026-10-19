@@ -7,6 +7,7 @@ import { STAGE_IDS } from '../core/save';
 import { stageViewKey } from '../features/stage/model';
 import { createStartSave } from '../features/starter/model';
 import { GAME_COMMAND, isHostToWebview } from '../shared/messages';
+import { shouldHoldBattle } from '../features/battle/fx/hold';
 import { fitLayout, gameSize } from '../ui/layout';
 import { Store } from '../ui/store';
 import { App, OVERLAY_INPUTS, overlayAllowed, type AppActions, type ViewState } from './app';
@@ -30,7 +31,7 @@ if (!port) {
   console.error('[pokemon-game] VS Code API 가 없어요 — extension.js 의 GAME-PATCH 를 확인하세요');
 } else {
   const config = getGameConfig();
-  const session = new WebviewSession({ post: (m) => port.postMessage(m), now: () => performance.now() });
+  const session = new WebviewSession({ post: (m) => port.postMessage(m), now: () => performance.now(), hold: (state, dt) => shouldHoldBattle(state, dt, performance.now()) });
   const store = new Store<ViewState>({
     screen: 'none',
     title: null,

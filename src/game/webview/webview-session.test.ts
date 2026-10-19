@@ -69,6 +69,19 @@ describe('웹뷰 세션', () => {
     expect(sent).toHaveLength(2);
   });
 
+  it('연출이 아직이면 (deps.hold) 그 걸음을 미룸 — 계산 · 보내기를 안 함 (2026-10-19)', () => {
+    let holding = true;
+    const sent: unknown[] = [];
+    const s = new WebviewSession({ post: (m) => sent.push(m), now: () => 0, hold: () => holding });
+    s.handleMessage(start(9));
+    const before = s.current;
+    s.frame(100);
+    expect(s.current).toBe(before);
+    holding = false;
+    s.frame(100);
+    expect(s.current).not.toBe(before);
+  });
+
   it('그냥 안 보이게 될 때 (접힘이 아님) 의 hidden 에는 collapsed 가 없음', () => {
     const { s, sent } = make();
     s.handleMessage(start(4));

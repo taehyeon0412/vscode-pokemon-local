@@ -75,6 +75,8 @@
         if (battleKind === 'counter') Object.assign(b, { phase: 'anim', anim: { side: 'foe', action: { kind: 'move', moveId: 52 }, ms: 0, dur, counter: true }, msg: '야생 파이리의 불꽃세례!' });
         if (battleKind === 'clash') Object.assign(b, { phase: 'clash', clash: { kind: 'move', me: 75, foe: 52, base: 0.42, taps: 9, ms: 0, winner: null }, msg: '맞받아쳤다! 힘대결!' });
         if (battleKind === 'ult-cut' || battleKind === 'ult-beam') Object.assign(b, { phase: 'anim', me: { ...me, ult: 0 }, anim: { side: 'me', action: { kind: 'ult' }, ms: 0, dur, counter: false }, msg: '이상해씨의 필살기!', ultAt: { me: 5000, foe: null } });
+        // battle=move&side=me|foe&mv=<기술 id> — 그 기술을 쓰는 중 (연출 시험, fx=1 과 같이)
+        if (battleKind === 'move') { const side = q.get('side') || 'me'; Object.assign(b, { phase: 'anim', anim: { side, action: { kind: 'move', moveId: Number(q.get('mv') || 75) }, ms: 0, dur, counter: false }, msg: side === 'me' ? '이상해씨의 기술!' : '야생 파이리의 기술!' }); }
         if (battleKind === 'attack') Object.assign(b, { phase: 'anim', anim: { side: 'me', action: { kind: 'attack' }, ms: 0, dur, counter: false }, msg: '이상해씨의 공격!' });
         if (battleKind === 'pick') Object.assign(b, { phase: 'pick', me: { ...me, hp: 0, gauge: 0 }, bench: { m1: { hp: 0, moves: me.moves, status: null } }, msg: '이상해씨가 쓰러졌다! 다음 포켓몬을 골라요 (숫자 키)' });
         if (battleKind === 'over') Object.assign(b, { phase: 'over', foe: { ...foe, hp: 0 }, result: 'win', msg: '야생 파이리가 쓰러졌다!' });
@@ -218,7 +220,23 @@
 
     const s = document.createElement('script');
     s.src = '../extension/media/game/game.js';
-    document.body.appendChild(s);
+    // fx=1 — 일반 모드 번들을 먼저 띄워 전투 연출 다리 (window.pokemonFx) 를 씀 (VS Code 와 같게)
+    if (q.get('fx') === '1') {
+        window.acquireVsCodeApi = () => ({ getState: () => undefined, setState: () => {}, postMessage: () => {} });
+        const nb = document.createElement('script');
+        nb.src = '../extension/media/main-bundle.js';
+        nb.onload = () => {
+            try {
+                pokemonApp.pokemonPanelApp('../extension/media', 'none', 2, 'default', 'nano', 'pikachu', 'false', 'gen1', '32', window.acquireVsCodeApi());
+            } catch (e) {
+                console.error('일반 모드 번들 시작 실패', e);
+            }
+            document.body.appendChild(s);
+        };
+        document.body.appendChild(nb);
+    } else {
+        document.body.appendChild(s);
+    }
 
     // 버튼 누르기 (사진용)
     const click = q.get('click');
