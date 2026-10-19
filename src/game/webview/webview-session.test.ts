@@ -52,7 +52,7 @@ describe('웹뷰 세션', () => {
     expect(sent.at(-1)).toBe(hidden);
   });
 
-  it('패널이 140px 아래로 접히면 hidden 으로 넘기고, 다시 높아지면 ready 로 최신 상태를 달라고 함 (바뀔 때만)', () => {
+  it('패널이 150px 아래로 접히면 hidden 으로 넘기고, 다시 높아지면 ready 로 최신 상태를 달라고 함 (바뀔 때만)', () => {
     const { s, sent, frames } = make();
     s.handleMessage(start(3));
     frames(300);

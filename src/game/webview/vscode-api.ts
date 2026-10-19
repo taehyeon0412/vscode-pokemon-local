@@ -17,7 +17,7 @@ export interface GameConfig {
   size: string;
   /** game.js 주소 (game.css 를 옆에서 찾음) */
   script: string;
-  /** 게임 모드 최소 높이를 바꿈 — 실제 VS Code 테스트에서만 (탐색기 칸이 140px 보다 낮아서). 보통은 없음 = 140px */
+  /** 게임 모드 최소 높이를 바꿈 — 실제 VS Code 테스트에서만 (탐색기 칸이 150px 보다 낮아서). 보통은 없음 = 150px */
   minHeight?: number;
 }
 

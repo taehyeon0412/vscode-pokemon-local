@@ -50,7 +50,7 @@ if (!port) {
   // 프레임 오류로 멈추면 마지막 상태를 확장에 넘김 (자동 전투면 확장이 이어 감)
   const loop = new FrameLoop(
     (dt) => {
-      // 접힌 상태 (140px 아래) 면 그리지 않음 — 게임은 확장이 맡음 (sync)
+      // 접힌 상태 (150px 아래) 면 그리지 않음 — 게임은 확장이 맡음 (sync)
       if (store.get().layout.tooSmall) return;
       session.frame(dt);
       // 판이 떠 있는 동안은 게임이 멈춤 — 판에서 누른 것은 input 이 바로 그림 (초당 30번 열쇠 계산을 쉼)
@@ -70,7 +70,7 @@ if (!port) {
     () => session.hide(),
   );
 
-  /** 맡고 있고 보이고 패널 높이가 될 때만 돎. 안 보이거나 접힌 상태 (140px 아래) 인데 맡겨졌으면 바로 돌려줌 (확장이 안 볼 때 규칙으로 이어 감) */
+  /** 맡고 있고 보이고 패널 높이가 될 때만 돎. 안 보이거나 접힌 상태 (150px 아래) 인데 맡겨졌으면 바로 돌려줌 (확장이 안 볼 때 규칙으로 이어 감) */
   const sync = () => {
     const low = store.get().layout.tooSmall;
     session.setCollapsed(low, !document.hidden);
@@ -219,7 +219,7 @@ if (!port) {
       session.hide();
       sync();
     } else if (!store.get().layout.tooSmall) {
-      // 접힌 채 다시 보이면 상태를 달라고 하지 않음 (받자마자 돌려주는 왕복) — 140px 이상이 되면 setCollapsed 가 달라고 함
+      // 접힌 채 다시 보이면 상태를 달라고 하지 않음 (받자마자 돌려주는 왕복) — 150px 이상이 되면 setCollapsed 가 달라고 함
       session.show();
     }
   });

@@ -1,7 +1,7 @@
 import type { Layout } from './layout';
 
 /**
- * 패널이 게임 모드 최소 높이 (140px) 보다 낮을 때 (mvp-spec 1장)
+ * 패널이 게임 모드 최소 높이 (150px) 보다 낮을 때 (mvp-spec 1장)
  * 게임 중 = 접힌 상태 — 패널을 접어 둔 것과 같은 규칙으로 확장이 이어 감 · 타이틀 = 올려 달라는 안내만
  */
 export function TooSmall({ layout, playing }: { layout: Layout; playing: boolean }) {

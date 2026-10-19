@@ -161,7 +161,7 @@ export function activate(context: vscode.ExtensionContext): GameHost {
       // 포켓몬 크기 설정 (nano · small · medium · large) — 바뀌면 원래 확장이 HTML 을 다시 만들어 여기로 다시 옴
       const size = vscode.workspace.getConfiguration('vscode-pokemon').get<string>('pokemonSize', 'nano');
       const attr = (v: string) => v.replace(/[&"<>]/g, (c) => `&#${c.charCodeAt(0)};`);
-      // 실제 VS Code 테스트는 포켓몬 보기를 탐색기 칸 (140px 보다 낮음) 에 열어서 최소 높이를 예전 아주 작게 값으로 — 맡기 · 넘기기 검사가 접힌 상태에 막히지 않게
+      // 실제 VS Code 테스트는 포켓몬 보기를 탐색기 칸 (150px 보다 낮음) 에 열어서 최소 높이를 예전 아주 작게 값으로 — 맡기 · 넘기기 검사가 접힌 상태에 막히지 않게
       const testHeight = testMode ? ' data-min-height="68"' : '';
       return `<script nonce="${nonce}" src="${attr(boot.toString())}" data-game-src="${attr(src.toString())}" data-media="${attr(media.toString())}" data-size="${attr(size)}"${testHeight}></script>`;
     },
