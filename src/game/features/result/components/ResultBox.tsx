@@ -13,7 +13,7 @@ import { partText, summaryLines, type SummaryPart } from '../model';
 function Reward({ p, rare }: { p: SummaryPart; rare: boolean }) {
   return (
     <span class={rare && p.kind !== 'caught' ? 'pg-reward pg-reward-rare' : 'pg-reward'}>
-      {p.kind === 'caught' ? <span class="pg-ball" aria-hidden="true" /> : <Icon name={p.kind === 'money' ? 'coin' : 'gift'} />} {p.text}
+      <Icon name={p.kind === 'caught' ? 'ball' : p.kind === 'money' ? 'coin' : 'gift'} /> {p.text}
     </span>
   );
 }

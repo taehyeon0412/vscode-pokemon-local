@@ -6,13 +6,13 @@
  * 이어 하기 옆 요약 줄 (🌱 이상해씨 Lv 5 · 🏅0 · 1,000원 · 12분) 은 리드 [제안] — 좁은 패널에서는 시간 → 돈 → 배지 순으로 숨김 (game.css)
  * ① 새로 하기 → S03 주인공 (남 · 여) → S04 스타팅 → 확장에 새 세이브 (features/starter)
  */
+import type { ComponentChildren } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { TitleInfo } from '../../../shared/messages';
 import { Button } from '../../../ui/Button';
 import { Icon } from '../../../ui/Icon';
 import { formatMoney, formatPlayTime } from '../../../ui/format';
 import type { Layout } from '../../../ui/layout';
-import { Sprite } from '../../../ui/Sprite';
 import { themeKind } from '../../../ui/theme';
 import { HeroPick } from '../../starter/components/HeroPick';
 import { StarterPick } from '../../starter/components/StarterPick';
@@ -59,13 +59,19 @@ function Logo() {
   );
 }
 
-/** 요약 그림은 패널 크기와 상관없이 원본 크기 (버튼 · 글자 옆에서 혼자 커지지 않게) */
-const SUMMARY_SPRITE_SCALE = 1;
+/** 메뉴 한 줄 (Sea of Stars 세로 메뉴와 같은 줄 — 올리면 줄 전체 바탕 + 금색 + ▸, 주로 누를 줄은 ▸ 가 늘 붙음) */
+function MenuRow({ on, onClick, disabled, title, children }: { on: boolean; onClick(): void; disabled?: boolean; title?: string; children: ComponentChildren }) {
+  return (
+    <button type="button" class={on ? 'pg-title-item pg-on' : 'pg-title-item'} onClick={onClick} disabled={disabled} title={title}>
+      {children}
+    </button>
+  );
+}
 
-function Summary({ summary, media }: { summary: TitleSummary; media: string }) {
+/** 이어 하기 줄 옆 흐린 요약 — 그림 없이 글자만 (×1 그림 옆 ×2 아이콘이 섞이지 않게, 아트 디렉터) */
+function Summary({ summary }: { summary: TitleSummary }) {
   return (
     <span class="pg-summary">
-      {summary.lead && <Sprite media={media} form={summary.lead.form} scale={SUMMARY_SPRITE_SCALE} title={summary.lead.name} />}
       {summary.lead && (
         <span class="pg-sum-lead">
           {summary.lead.name} Lv {summary.lead.level}
@@ -124,7 +130,7 @@ export function TitleScreen({ info, media, pending, onNew, onContinue, heroPx, b
     );
   }
   if (step === 'starter') {
-    return <StarterPick media={media} scale={heroPx / 2} pending={pending} onBack={() => setStep('hero')} onDone={(dex, moves) => onNew({ gender: look.gender, look: look.id, dex, moves })} />;
+    return <StarterPick media={media} pending={pending} onBack={() => setStep('hero')} onDone={(dex, moves) => onNew({ gender: look.gender, look: look.id, dex, moves })} />;
   }
 
   return (
@@ -137,30 +143,39 @@ export function TitleScreen({ info, media, pending, onNew, onContinue, heroPx, b
     >
       <div class="pg-body pg-title-body" style={{ backgroundImage: media ? `url("${media}/backgrounds/forest/foreground-${themeKind()}-${size}.png"), url("${media}/backgrounds/forest/background-${themeKind()}-${size}.png")` : 'none' }}>
         <Logo />
-        <div class="pg-row pg-title-menu">
+        <div class="pg-title-menu">
           {confirming ? (
-            <>
+            // 지우는 쪽 (새로 하기) 은 빨간 보조 버튼, 주 버튼은 취소 — 경고 문장은 크림, 지워지는 말만 빨강 (금색 = 고른 것)
+            <div class="pg-row">
               <span class="pg-ask">
                 {lead && <span class="pg-ask-what">{`${lead.name} Lv ${lead.level} · ${formatPlayTime(view.summary?.playTimeMs ?? 0)} `}</span>}
-                지금 저장이 지워져요. 새로 할까요?
+                <b class="pg-danger-text">지금 저장이 지워져요.</b> 새로 할까요?
               </span>
-              <Button onClick={startNew} disabled={locked} key="confirm-new">
+              <Button secondary extraClass="pg-danger" onClick={startNew} disabled={locked} key="confirm-new">
                 새로 하기
               </Button>
-              <Button secondary onClick={() => setConfirming(false)} disabled={pending} name="cancel" key="confirm-cancel">
+              <Button onClick={() => setConfirming(false)} disabled={pending} name="cancel" key="confirm-cancel">
                 취소
               </Button>
+            </div>
+          ) : view.canContinue ? (
+            // 세이브가 있으면 주로 누를 것은 이어 하기 (위 · ▸) — 새로 하기는 아래
+            <>
+              <MenuRow on onClick={onContinue} disabled={locked} title={view.continueHint ?? undefined}>
+                이어 하기 {view.summary && <Summary summary={view.summary} />}
+              </MenuRow>
+              <MenuRow on={false} onClick={clickNew} disabled={locked}>
+                새로 하기
+              </MenuRow>
             </>
           ) : (
             <>
-              {/* 세이브가 있으면 주로 누를 것은 이어 하기 — 새로 하기는 덜 눈에 띄게 */}
-              <Button onClick={clickNew} disabled={locked} secondary={view.canContinue}>
+              <MenuRow on onClick={clickNew} disabled={locked}>
                 새로 하기
-              </Button>
-              <Button onClick={onContinue} disabled={locked || !view.canContinue} title={view.continueHint ?? undefined}>
+              </MenuRow>
+              <MenuRow on={false} onClick={onContinue} disabled title={view.continueHint ?? undefined}>
                 이어 하기
-              </Button>
-              {view.summary && <Summary summary={view.summary} media={media} />}
+              </MenuRow>
             </>
           )}
         </div>

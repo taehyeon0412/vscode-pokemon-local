@@ -83,7 +83,7 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
           <span class="pg-ellipsis">
             <span class="pg-up">★</span> {withJosa(view.name, '이/가')} <b title={view.move.detail}>{view.move.name}</b>
             <span class="pg-sub">{view.move.short}</span>
-            {josa(view.move.name, '을/를')} 배울 수 있어요! 기술이 4개 — 바꿀 기술을 골라요 (Esc 배우지 않기)
+            {josa(view.move.name, '을/를')} 배울 수 있어요! 기술이 4개 — 바꿀 기술을 골라요
           </span>
         </span>
         <span class="pg-line pg-choice-row">
@@ -153,7 +153,7 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
           </span>
         )}
         {view.current.map((m, i) => (
-          <Button key={m.id} secondary={choosing && !keep.includes(m.id)} onClick={() => choosing && toggle(m.id)} title={m.detail}>
+          <Button key={m.id} secondary extraClass={!choosing || keep.includes(m.id) ? 'pg-picked' : undefined} onClick={() => choosing && toggle(m.id)} title={m.detail}>
             {`${choosing ? (keep.includes(m.id) ? '✓' : '') : ''}${i + 1} ${m.name}`}
             <span class="pg-sub">{m.short}</span>
           </Button>

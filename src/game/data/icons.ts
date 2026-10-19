@@ -18,11 +18,16 @@ export const PAL: Record<string, string> = {
   b: '#3c64a8',
   N: '#b07a48',
   n: '#7a4e2a',
+  /** 볼 가운데 띠 · 길 위 그림 테두리 (어두운 색 — 길 위 그림은 원작 그림처럼 테두리가 있음) */
+  K: '#1a1406',
+  D: '#14201a',
   /** 그림자 (반투명 검정) */
   k: 'rgba(0, 0, 0, 0.45)',
 };
 
 export const ICONS = {
+  /** 몬스터볼 (볼 개수 · 상대 볼 · 잡음) */
+  ball: ['..RRRR..', '.RWRRRR.', 'RRWRRRRr', 'KKKWWKKK', 'KKKWWKKK', 'WWWWWWWw', '.WWWWWw.', '..wwww..'],
   /** 돈 */
   coin: ['..yyyy..', '.yYYYYy.', 'yYWYYYYy', 'yYWYYYYy', 'yYYYYYYy', 'yYYYYYyy', '.yyyyyy.', '..yyyy..'],
   /** 받은 아이템 */
@@ -30,7 +35,7 @@ export const ICONS = {
   /** 병원 · 회복 */
   hospital: ['WWWRRWWW', 'WWWRRWWW', 'WWWRRWWW', 'RRRRRRRR', 'RRRRRRRR', 'WWWRRWWw', 'WWWRRWWw', 'wwwRRwww'],
   /** 상점 (차양 친 가게) */
-  shop: ['BWBWBWBW', 'BWBWBWBW', 'bwbwbwbw', '.WWWWWW.', '.WWbbWW.', '.WWbbWW.', '.WWbbWW.', '.wwbbww.'],
+  shop: ['BBWWBBWW', 'BBWWBBWW', 'bbwwbbww', '.WWWWWW.', '.WWbbWW.', '.WWbbWW.', '.WWbbWW.', '.wwbbww.'],
   /** 체육관 (기둥 건물) */
   gym: ['...YY...', '..YYYY..', '.YYYYYY.', 'yyyyyyyy', '.WW..WW.', '.WW..WW.', '.ww..ww.', 'wwwwwwww'],
   /** 버섯 그늘길 (1-2) */
@@ -40,7 +45,7 @@ export const ICONS = {
   /** 숲 (스테이지 이름 · 1-1) */
   tree: ['...GG...', '..GGgG..', '.GGGGgg.', '..GGgg..', '.GGGGgg.', 'GGGGGggg', '...nn...', '...nn...'],
   /** 지도 */
-  map: ['WWWWWWWW', 'WBBGGBBW', 'WBGGGGBW', 'WBGRGGBW', 'WBGGGgBW', 'WBBGgBBW', 'WBBBBBBW', 'wwwwwwww'],
+  map: ['WWwWWwWW', 'WGGwGBwW', 'WGRwGBwW', 'WGGwBBwW', 'WBBwBGwW', 'WBBwGGwW', 'WWwWWwWW', 'wwwwwwww'],
   /** 보관함 · 포켓몬 교체 */
   box: ['NNNNNNNN', 'NNNWWNNN', 'nnnnnnnn', 'NNNNNNNn', 'NNWWWWNn', 'NNNNNNNn', 'NNNNNNNn', 'nnnnnnnn'],
   /** 가방 */
@@ -53,15 +58,15 @@ export const ICONS = {
   lock: ['..WWWW..', '.WW..WW.', '.W....W.', 'YYYYYYYY', 'YYYyyYYY', 'YYYyyYYY', 'YYYYYYYy', 'yyyyyyyy'],
   // ── 길 위 그림 (S06 ④ 야생 흔적 · ⑭ 떨어진 아이템) — 크기는 제각각, 화면 점 크기 = 포켓몬 그림 배율 ──
   /** 풀숲 흔들림 */
-  tuft: ['.....G......', '..G..G...G..', '..GG.Gg.GG..', '.G.GgGgGg.G.', '.GG.GgGgGGg.', 'GgGGgGgGgGGg', 'gGgGgggGgGgg', '.gggggggggg.'],
+  tuft: ['.....D......', '..D.DGD..D..', '.DGDDGgDDGD.', '.DGGDGgDGgD.', 'DGDGgGgGgDGD', 'DGGgGgGgGGgD', 'DgGgggGgGggD', '.DDDDDDDDDD.'],
   /** 나무 흔들림 (잎 덤불) */
-  bush: ['....GGGG....', '..GGGGGGgg..', '.GGGGGGGGgg.', '.GGGgGGGGgg.', 'GGGGGGGGgggg', 'GgGGGgGGgggg', '.gggggggggg.', '...nn..nn...'],
+  bush: ['...DDDDDD...', '..DGGGGGgD..', '.DGGGGGGGgD.', 'DGGGgGGGGggD', 'DGGGGGGGgggD', 'DgGGGgGGgggD', '.DggggggggD.', '..DDnDDnDD..'],
   /** 물결 */
-  ripple: ['...BBBBBB...', '.BB......BB.', 'B...bbbb...B', '.BB......BB.', '...BBBBBB...'],
+  ripple: ['...DDDDDD...', '.DDBBBBBBDD.', 'DBB.DDDD.BBD', 'DbbDBBBBDbbD', '.DDbbbbbbDD.', '...DDDDDD...'],
   /** 돌 부스러기 */
-  pebbles: ['.......www..', '..www.wWWWw.', '.wWWWwwWwww.', '.wWwww.www..', '..www.......'],
+  pebbles: ['.......DDD..', '..DDD.DWWwD.', '.DWWwDDWwwD.', '.DWwwD.DDD..', '..DDD.......'],
   /** 날리는 나뭇잎 (위에 무언가) */
-  leaf: ['.....gG.', '....gGG.', '...gGGG.', '..gGGGg.', '.gGGgg..', '.Ggg....', 'g.......'],
+  leaf: ['....DDD.', '...DGGD.', '..DGGGD.', '.DGGGgD.', 'DGGggD..', 'DgDDD...', 'D.......'],
   /** 어른거리는 그림자 */
   shadow: ['...kkkkkk...', '.kkkkkkkkkk.', '.kkkkkkkkkk.', '...kkkkkk...'],
   /** 반짝 (떨어진 아이템 · 이로치 힌트) */

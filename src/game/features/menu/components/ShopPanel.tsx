@@ -13,11 +13,8 @@ import { Panel, Row } from './Panel';
 export function ShopPanel({ save, note, onInput, onClose }: { save: Save; /** 방금 산 것 ("몬스터볼을 샀다!") — 알림 줄은 판 밑에 깔려서 판 안에 */ note?: string; onInput(i: GameInput): void; onClose(): void }) {
   return (
     <Panel
-      title={
-        <>
-          <Icon name="shop" /> 상점
-        </>
-      }
+      icon="shop"
+      title="상점"
       extra={
         <>
           <span class="pg-money">

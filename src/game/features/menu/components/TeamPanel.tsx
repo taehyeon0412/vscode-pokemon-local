@@ -48,7 +48,7 @@ function Chip({ m, media, selected, lead, onClick, drag }: { m: MonsterView; med
           : undefined
       }
     >
-      <Sprite media={media} form={m.form} shiny={m.shiny} scale={0.5} />
+      <Sprite media={media} form={m.form} shiny={m.shiny} scale={1} crop={22} />
       {lead && <span class="pg-lead">선두</span>}
       <span class="pg-ellipsis">{m.name}</span>
       <span class="pg-dim">Lv{m.level}</span>
@@ -96,12 +96,9 @@ export function TeamPanel({ save, media, swap, onInput, onClose }: TeamPanelProp
 
   return (
     <Panel
-      title={
-        <>
-          <span class="pg-ball" aria-hidden="true" /> 내 포켓몬 · 팀 {party.length}/{BALANCE.partySize} · 보관함 {box.length}
-        </>
-      }
-      extra={swap ? '보관함과 바꿀 수 있어요' : '보관함 교체는 병원 · 체육관 대기실 · 스테이지 시작 전에'}
+      icon="ball"
+      title="내 포켓몬"
+      extra={`팀 ${party.length}/${BALANCE.partySize} · 보관함 ${box.length} · ${swap ? '보관함과 바꿀 수 있어요' : '보관함 교체는 병원 · 체육관 대기실 · 스테이지 시작 전에'}`}
       onClose={onClose}
     >
       <Row label="팀">

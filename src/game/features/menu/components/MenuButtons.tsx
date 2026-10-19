@@ -19,7 +19,7 @@ export function MenuButtons({ onOpen, dot, media, lead }: { onOpen(o: Overlay): 
     <span class="pg-menu-buttons">
       {BUTTONS.map((b) => (
         <Button key={b.kind} secondary extraClass="pg-icon-btn" onClick={() => onOpen({ kind: b.kind })} title={b.title}>
-          {b.icon ? <Icon name={b.icon} /> : lead ? <Sprite media={media} form={lead.form} shiny={lead.shiny} scale={0.5} /> : <span class="pg-ball" aria-hidden="true" />}
+          {b.icon ? <Icon name={b.icon} /> : lead ? <Sprite media={media} form={lead.form} shiny={lead.shiny} scale={1} crop={20} /> : <Icon name="ball" />}
           {b.kind === 'team' && dot && <span class="pg-dot" />}
         </Button>
       ))}

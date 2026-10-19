@@ -8,7 +8,10 @@ export function Minimap({ stage, progress, facilities, gym }: { stage: StageInfo
   return (
     <span class="pg-minimap">
       <span class="pg-stage-name">
-        <Icon name={stage.icon} /> {stage.name} <span class="pg-stage-code pg-dim">({stage.code})</span>
+        <Icon name={stage.icon} />
+        <span class="pg-stage-label">
+          {stage.name} <span class="pg-stage-code pg-dim">({stage.code})</span>
+        </span>
       </span>
       <span class="pg-mapbar" title={`진행 ${pct}%`}>
         <span class="pg-mapfill" style={{ width: `${progress * 100}%` }} />

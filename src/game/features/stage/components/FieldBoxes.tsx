@@ -81,7 +81,7 @@ export function TrainerBanner({ name, balls, text, tag }: { name: string; balls:
       {tag && <span class="pg-rival-rec">{tag}</span>}
       <span class="pg-foe-balls" title={`상대 포켓몬 ${balls}마리`}>
         {Array.from({ length: balls }, (_, i) => (
-          <span key={i} class="pg-ball" />
+          <Icon key={i} name="ball" />
         ))}
       </span>
     </div>
@@ -118,13 +118,19 @@ export function DefeatBox({ state, onInput }: BoxProps) {
             '자꾸 지면 지도에서 깬 스테이지로 가서 키우거나, 약해진 야생에게 볼을 던져 팀을 늘려 보세요'
           ) : (
             <>
-              잡은 포켓몬 · 경험치는 그대로 · 팀은 다 회복했어요
-              {!st.gym && reach > from && <span class="pg-long"> · {reach}% 까지 갔었어요</span>}
+              잡은 포켓몬 · 경험치는 그대로
+              {!st.gym && (atHospital || reach > 0) && (
+                <span class="pg-long">
+                  {' '}
+                  · {reach > from ? `${reach}% → ` : ''}
+                  {atHospital ? `병원 앞 ${from}%` : '처음 0%'}
+                </span>
+              )}
             </>
           )}
         </span>
         <Button onClick={() => onInput({ kind: 'defeat-continue' })} title="Enter">
-          {st.gym ? '대기실로' : atHospital ? `다시 시작 (병원 앞 ${from}%)` : '다시 시작 (처음 0%)'}
+          {st.gym ? '대기실로 ▶' : '다시 시작 ▶'}
         </Button>
       </span>
     </div>
@@ -146,11 +152,11 @@ export function ClearCard({ state, media, onInput, onMap, onTeam }: BoxProps & {
           <span class="pg-long">보너스 </span>경험치 +{v.bonus}
         </span>
         <span class="pg-reward">
-          <span class="pg-ball" aria-hidden="true" /> +{v.balls}
+          <Icon name="ball" /> +{v.balls}
         </span>
         {v.seen.slice(0, 4).map((s) => (
           <span key={s.dex} class="pg-clear-new" title="이번에 처음 만난 포켓몬">
-            <Sprite media={media} form={s.form} scale={0.75} />
+            <Sprite media={media} form={s.form} scale={1} crop={24} />
           </span>
         ))}
       </span>
@@ -185,8 +191,9 @@ export function LobbyBox({ state, onInput, onBox, onShop, onMap }: BoxProps & { 
       <span class="pg-line">
         <Icon name="gym" />
         <b class="pg-ellipsis">숲 체육관 — {GYM_LEADER.name}</b>
-        <span class={v.short ? 'pg-lv-short' : 'pg-dim'} title="추천 레벨 · 내 팀 평균 레벨">
-          추천 Lv {v.recommended} · <span class="pg-long">센 3마리 </span>평균 Lv {v.average}
+        <span class={v.short ? 'pg-lv-short' : 'pg-dim'} title={`추천 레벨 · 내 팀 센 3마리 평균 Lv ${v.average}`}>
+          추천 Lv {v.recommended}
+          {v.short && ' ▼'}
         </span>
         {state.save.badges.includes('forest') && <Icon name="badge" title="숲 배지" />}
       </span>
@@ -203,12 +210,12 @@ export function LobbyBox({ state, onInput, onBox, onShop, onMap }: BoxProps & { 
           <Icon name="shop" />
           <span class="pg-long"> 상점</span>
         </Button>
-        <Button onClick={() => onInput({ kind: 'challenge' })} title="② 관장 3마리와 1:1 토너먼트 (도망 불가)">
-          도전!
-        </Button>
         <Button secondary onClick={onMap} title="③ 깬 스테이지로 가서 키우기">
           <Icon name="map" />
           <span class="pg-long"> 세계 지도</span>
+        </Button>
+        <Button extraClass="pg-go" onClick={() => onInput({ kind: 'challenge' })} title="② 관장 3마리와 1:1 토너먼트 (도망 불가)">
+          도전 ▶
         </Button>
       </span>
     </div>
@@ -219,11 +226,12 @@ export function LobbyBox({ state, onInput, onBox, onShop, onMap }: BoxProps & { 
 export function BadgeCard({ state, onInput, onMap }: BoxProps & { onMap(): void }) {
   if (state.runtime.stage?.phase !== 'badge') return null;
   return (
-    <div class="pg-banner pg-badge-card pg-two">
+    <div class="pg-banner pg-badge-card">
+      <span class="pg-badge-glow">
+        <Icon name="badge" px={4} title="숲 배지" />
+      </span>
+      <span class="pg-badge-lines">
       <span class="pg-line pg-ellipsis">
-        <span class="pg-badge-glow">
-          <Icon name="badge" />
-        </span>{' '}
         <b>숲 배지를 받았다!</b> 숲 클리어! 다음 지역은 준비 중이에요
       </span>
       <span class="pg-line">
@@ -233,7 +241,6 @@ export function BadgeCard({ state, onInput, onMap }: BoxProps & { onMap(): void 
         <span class="pg-reward" title="가방에서 써요 (냄새꼬 → 라플레시아 등)">
           <Icon name="gift" /> 리프의돌
         </span>
-        <span class="pg-dim pg-ellipsis">숲에서 계속 키우거나 관장에게 다시 도전할 수 있어요</span>
         <Button
           onClick={() => {
             onInput({ kind: 'badge-continue' });
@@ -246,6 +253,7 @@ export function BadgeCard({ state, onInput, onMap }: BoxProps & { onMap(): void 
         <Button secondary onClick={() => onInput({ kind: 'badge-continue' })}>
           대기실로
         </Button>
+      </span>
       </span>
     </div>
   );

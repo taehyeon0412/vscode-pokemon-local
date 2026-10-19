@@ -5,18 +5,14 @@
 import type { GameInput } from '../../../core/engine';
 import type { Save } from '../../../core/save';
 import { Button } from '../../../ui/Button';
-import { Icon } from '../../../ui/Icon';
 import { Panel, Row } from './Panel';
 
 export function SettingsPanel({ save, onInput, onExit, onClose }: { save: Save; onInput(i: GameInput): void; onExit(): void; onClose(): void }) {
   const on = save.settings.notifications;
   return (
     <Panel
-      title={
-        <>
-          <Icon name="gear" /> 설정
-        </>
-      } onClose={onClose}>
+      icon="gear"
+      title="설정" onClose={onClose}>
       <Row label="알림">
         <Button secondary={!on} onClick={() => onInput({ kind: 'notifications', on: !on })} title="패널이 안 보일 때 직접 해야 하는 순간을 VS Code 알림으로">
           {on ? '✓ 알림 켜짐' : '알림 꺼짐'}

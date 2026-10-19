@@ -64,7 +64,7 @@ function EncounterBox({ state }: { state: GameState }) {
   return (
     <div class="pg-banner pg-appear">
       <span class="pg-ellipsis">
-        야생 <b>{withJosa(name, '이/가')}</b> 나타났다! <span class="pg-dim">Lv{pending.monster.level}</span>
+        야생 <b class="pg-em">{withJosa(name, '이/가')}</b> 나타났다! <span class="pg-dim">Lv{pending.monster.level}</span>
       </span>
       {stage.isNew && <span class="pg-new">NEW!</span>}
       {stage.space ? (
@@ -99,7 +99,7 @@ function RequestBox({ state, onInput }: { state: GameState; onInput(i: GameInput
   const types = t.types.map(typeNameKo).join(' · ');
   return (
     <div class="pg-banner pg-request pg-two" title={`${t.who.name}: ${t.text}`}>
-      <span class="pg-ellipsis pg-line">
+      <span class="pg-ellipsis">
         {t.who.look ? null : `${t.who.icon} `}
         <b>{t.who.name}</b>: {t.text}
       </span>
@@ -245,7 +245,9 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
             {foeTrainer && stageRt?.phase !== 'rival' && (
               <span class="pg-foe-balls">
                 {Array.from({ length: foeTrainer.balls }, (_, i) => (
-                  <span key={i} class={i < foeTrainer.left ? 'pg-ball' : 'pg-ball pg-ball-down'} />
+                  <span key={i} class={i < foeTrainer.left ? 'pg-ball-slot' : 'pg-ball-slot pg-ball-down'}>
+                    <Icon name="ball" />
+                  </span>
                 ))}
               </span>
             )}

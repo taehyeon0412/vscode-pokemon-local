@@ -15,16 +15,14 @@ import { defaultStarterMoves, evolutionChain, starterList, starterMoveCandidates
 
 export interface StarterPickProps {
   media: string;
-  /** 크기 배율 (높은 패널이면 진화 단계 그림을 크게) */
-  scale: number;
   pending: boolean;
   onBack(): void;
   onDone(dex: number, moves: number[]): void;
 }
 
-export function StarterPick({ media, scale, pending, onBack, onDone }: StarterPickProps) {
-  // 진화 단계 그림은 원본 크기를 따라감 (개구마르 계열처럼 32 · 64 가 섞임 — mvp-spec 1장) · 높은 패널이면 조금 크게 (32 → 24 · 64 → 48)
-  const chainPx = (form: string) => Math.round(spritePx(form, 1) * (scale >= 2 ? 0.75 : 0.625));
+export function StarterPick({ media, pending, onBack, onDone }: StarterPickProps) {
+  // 진화 단계 그림은 원본 ×1 (개구마르 계열처럼 32 · 64 가 섞임 — mvp-spec 1장 · 줄이면 점이 빠져 뭉개짐, 아트 디렉터 2026-10-19)
+  const chainPx = (form: string) => spritePx(form, 1);
   const list = starterList();
   const [index, setIndex] = useState(0);
   const sel = list[index] ?? list[0]!;
@@ -95,7 +93,7 @@ export function StarterPick({ media, scale, pending, onBack, onDone }: StarterPi
         <div class="pg-panel-row" ref={stripRef}>
           {list.map((s, i) => (
             <button key={s.dex} type="button" class={i === index ? 'pg-chip pg-starter-chip pg-chip-on' : 'pg-chip pg-starter-chip'} onClick={() => setIndex(i)} title={`${s.name} (← →)`}>
-              <Sprite media={media} form={s.form} scale={1} px={20} />
+              <Sprite media={media} form={s.form} scale={1} crop={22} />
             </button>
           ))}
         </div>
@@ -115,7 +113,7 @@ export function StarterPick({ media, scale, pending, onBack, onDone }: StarterPi
             기술 {picked.length}/{BALANCE.starterMoves}
           </span>
           {cands.map((m, i) => (
-            <Button key={m.id} secondary={!picked.includes(m.id)} onClick={() => toggle(m.id)} title={`${m.detail} (${i + 1})${m.own ? ' · 자기 타입 (위력 × 1.5)' : ''}`}>
+            <Button key={m.id} secondary extraClass={picked.includes(m.id) ? 'pg-picked' : undefined} onClick={() => toggle(m.id)} title={`${m.detail} (${i + 1})${m.own ? ' · 자기 타입 (위력 × 1.5)' : ''}`}>
               {picked.includes(m.id) ? '✓' : ''}
               {i + 1} {m.name}
               {m.own && <span class="pg-own">★</span>}

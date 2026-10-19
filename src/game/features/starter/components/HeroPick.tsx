@@ -61,6 +61,7 @@ export function HeroPick({ px, media, bodyPx, initial, onBack, onPick }: { px: n
         }
       />
       <div class="pg-body pg-pick-body pg-pick-heroes" ref={bodyRef}>
+        <div class="pg-hero-row">
         {HERO_LOOKS.map((look, i) => {
           const on = i === focus;
           return (
@@ -70,6 +71,7 @@ export function HeroPick({ px, media, bodyPx, initial, onBack, onPick }: { px: n
             </button>
           );
         })}
+        </div>
       </div>
     </div>
   );
