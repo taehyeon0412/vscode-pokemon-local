@@ -9,7 +9,7 @@
 import type { ComponentChildren } from 'preact';
 import { useRef } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
-import { canParry, type BattleState, type GameInput, type Side } from '../../../core/engine';
+import { canParry, canRiposte, type BattleState, type GameInput, type Side } from '../../../core/engine';
 import { clashWithTaps, isShooting, type Fighter } from '../../../core/rules/battle';
 import { catchTiming } from '../../../core/rules/catch';
 import type { Save } from '../../../core/save';
@@ -329,31 +329,58 @@ function emphasize(msg: string, names: readonly string[]): ComponentChildren {
  * HP 줄 아래 층 (z 4 · HP 줄보다 먼저 그림) — 큰 원이 내 HP 숫자를 가로지르지 않게.
  * 원 오른쪽에 작은 자판 칸 "Space 막기" (포커스가 없으면 "클릭 막기") — 무슨 키인지 모르던 것 (2026-10-20 태현 님)
  */
-function ParryRing({ b, geo, y, auto }: { b: BattleState; geo: BattleGeometry; y: number; auto: boolean }) {
-  const w = canParry(b) ? impactOf(animKey(b)) : null;
-  if (!w) return null;
-  const size = Math.round(geo.meSpritePx * 1.1);
-  // 원이 좁혀지기 시작하는 때 = 맞기 parryRingMs 전 — 지연은 맞는 순간을 적은 때 기준으로 고정 (그릴 때마다 지금으로 바꾸면 어긋남)
-  const delay = Math.round(w.at - TIMING.parryRingMs - w.set);
-  const style = { left: `${geo.meX}px`, bottom: `${y}px`, width: `${size}px`, height: `${size}px`, animationDuration: `${TIMING.parryRingMs + TIMING.parryLateMs}ms`, animationDelay: `${delay}ms` };
+/**
+ * 좁혀지는 원 + 과녁 원 + 키 칸 — 맞는 때까지 ringMs 동안 1.7배 → 1배, 그 뒤 lateMs 동안 흐려짐.
+ * CSS 두 단계 (pg-ring-shrink → pg-ring-late) 라 시간 비율이 달라도 1배 = 맞는 때 (2026-10-20 패링 다시 기획: 패링 0.9 + 0.2초 · 반격 1.2 + 0.2초).
+ * delay = 그린 때부터 좁혀지기 시작까지 (음수면 이미 지난 만큼) — 처음 그린 때 기준으로 고정 (그릴 때마다 바꾸면 어긋남)
+ */
+function TimingRing({ id, x, y, size, ringMs, lateMs, delay, auto, label }: { id: string; x: number; y: number; size: number; ringMs: number; lateMs: number; delay: number; auto: boolean; label: string }) {
+  const timing = { animationDuration: `${ringMs}ms, ${lateMs}ms`, animationDelay: `${delay}ms, ${delay + ringMs}ms` };
+  const style = { left: `${x}px`, bottom: `${y}px`, width: `${size}px`, height: `${size}px`, ...timing };
   return (
     <>
-      <span key={`${animKey(b)}t`} class={auto ? 'pg-parry-target pg-parry-auto' : 'pg-parry-target'} style={style} />
-      <span key={animKey(b)} class={auto ? 'pg-parry-ring pg-parry-auto' : 'pg-parry-ring'} style={style} />
-      {/* 키 칸 = 원 왼쪽 (내 포켓몬 뒤 — 오른쪽은 상대 공격이 날아오는 길, 플레이 리뷰어) · 원과 6px 넘게 띄움 (아트 디렉터 4차) · 자동 전투면 숨김 (맡겨 둔 사람을 부르지 않게) */}
+      <span key={`${id}t`} class={auto ? 'pg-parry-target pg-parry-auto' : 'pg-parry-target'} style={style} />
+      <span key={id} class={auto ? 'pg-parry-ring pg-parry-auto' : 'pg-parry-ring'} style={style} />
+      {/* 키 칸 = 원 왼쪽 · 원과 6px 넘게 띄움 (아트 디렉터 4차) · 자동 전투면 숨김 (맡겨 둔 사람을 부르지 않게) */}
       {!auto && (
-        <span key={`${animKey(b)}k`} class="pg-parry-key" style={{ left: `${geo.meX - Math.round(size * 0.55) - 8}px`, bottom: `${y}px`, animationDuration: style.animationDuration, animationDelay: style.animationDelay }}>
+        <span key={`${id}k`} class="pg-parry-key" style={{ left: `${x - Math.round(size * 0.55) - 8}px`, bottom: `${y}px`, ...timing }}>
           {document.hasFocus() ? (
             <>
-              <span class="pg-menu-key">Space</span> 막기
+              <span class="pg-menu-key">Space</span> {label}
             </>
           ) : (
-            '클릭해 막기'
+            `클릭해 ${label}`
           )}
         </span>
       )}
     </>
   );
+}
+
+function ParryRing({ b, geo, y, auto }: { b: BattleState; geo: BattleGeometry; y: number; auto: boolean }) {
+  const w = canParry(b) ? impactOf(animKey(b)) : null;
+  if (!w) return null;
+  // 원이 좁혀지기 시작하는 때 = 맞기 parryRingMs 전 — 지연은 맞는 순간을 적은 때 기준으로 고정
+  return <TimingRing id={animKey(b)} x={geo.meX} y={y} size={Math.round(geo.meSpritePx * 1.1)} ringMs={TIMING.parryRingMs} lateMs={TIMING.parryLateMs} delay={Math.round(w.at - TIMING.parryRingMs - w.set)} auto={auto} label="막기" />;
+}
+
+/**
+ * 반격 기회 (2026-10-20 패링 다시 기획 — 완벽 패링 뒤 phase 'riposte') — 상대 포켓몬 둘레에 두 번째 원, 1배가 되는 때 (riposte.ms === dur) 에 Space · 클릭.
+ * 등급은 엔진이 riposte.ms 로 매김 (Space = {kind:'space'}). 지연은 처음 그린 때의 ms 로 고정, 기회마다 key 를 새로 (원이 처음부터 다시)
+ */
+function RiposteRing({ b, geo, y, auto }: { b: BattleState; geo: BattleGeometry; y: number; auto: boolean }) {
+  const first = useRef<{ n: number; ms: number } | null>(null);
+  const count = useRef(0);
+  const r = canRiposte(b) ? b.riposte : null;
+  if (!r) {
+    first.current = null;
+    return null;
+  }
+  if (!first.current) {
+    count.current += 1;
+    first.current = { n: count.current, ms: r.ms };
+  }
+  return <TimingRing id={`rip${first.current.n}`} x={geo.foeX} y={y} size={Math.round(geo.foeSpritePx * 1.1)} ringMs={r.dur} lateMs={TIMING.parryLateMs} delay={-first.current.ms} auto={auto} label="반격" />;
 }
 
 /** native = 일반 모드 대결이 그림 (BattleFx) — 그때는 줄기 · 💥 를 안 그리고 안내만 */
@@ -452,6 +479,7 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
       )}
       {/* 패링 원은 HP 줄보다 먼저 (같은 층에서 HP 숫자가 위) */}
       <ParryRing b={b} geo={geo} y={midMe} auto={save.settings.autoBattle} />
+      <RiposteRing b={b} geo={geo} y={midFoe} auto={save.settings.autoBattle} />
       {hasMe && <HpBlock f={b.me} side="me" x={geo.meHpX} bottom={geo.meHpBottom} wide={geo.meHpWide} prefix="" noName={geo.menuSide !== null} />}
       {b.phase !== 'send' && <HpBlock f={b.foe} side="foe" x={geo.foeHpX} bottom={geo.foeHpBottom} wide={geo.foeHpWide} prefix={foePrefix(b)} />}
       {b.phase === 'clash' ? <Clash b={b} geo={geo} y={Math.round((midMe + midFoe) / 2)} native={native} /> : <Effects b={b} geo={geo} ground={ground} midMe={midMe} midFoe={midFoe} native={native} />}

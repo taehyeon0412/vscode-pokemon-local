@@ -9,7 +9,7 @@
  */
 import { useRef } from 'preact/hooks';
 import { BALANCE } from '../../../core/balance';
-import { canOpenMenus, canParry, isWalkingFast, itemLeft, type GameInput, type GameState } from '../../../core/engine';
+import { canOpenMenus, canParry, canRiposte, isWalkingFast, itemLeft, type GameInput, type GameState } from '../../../core/engine';
 import { spaceInput, ultSkippable } from '../../battle/fx/parry';
 import { bestHelper, requestAt } from '../../../core/rules/request';
 import { FACILITY_STAFF } from '../../../core/rules/stage';
@@ -270,7 +270,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
           // 볼을 던졌을 때 클릭 = 타이밍 원 Space (S11)
           if (phase === 'appear' || battle?.phase === 'clash' || battle?.phase === 'catch') onInput({ kind: 'space' });
           // 상대 공격 중 판 클릭 = 패링 (Space 와 같음, 2026-10-19)
-          else if (battle && (canParry(battle) || ultSkippable(battle))) onInput(spaceInput(state, performance.now()));
+          else if (battle && (canParry(battle) || canRiposte(battle) || ultSkippable(battle))) onInput(spaceInput(state, performance.now()));
         }}
       >
         {gym ? (

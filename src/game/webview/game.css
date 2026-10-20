@@ -3816,3 +3816,34 @@ body.vscode-high-contrast-light .pg-title-body {
   image-rendering: pixelated;
 }
 
+/* ---- 패링 다시 기획 (2026-10-20) — 패링 원 · 반격 원 = 두 단계: 좁혀짐 (ringMs, 1.7배 → 1배 = 맞는 때) → 늦게 (lateMs, 흐려짐).
+   시간 비율 (패링 0.9 + 0.2초 · 반격 1.2 + 0.2초) 이 달라도 1배 = 맞는 때 — 예전 한 단계 85% 는 0.7 + 0.12초에만 맞았음 (BattleLayer TimingRing) ---- */
+.pg-parry-ring {
+  animation-name: pg-ring-shrink, pg-ring-late;
+  animation-fill-mode: both, forwards;
+}
+.pg-parry-target,
+.pg-parry-key {
+  animation-name: pg-target-on, pg-target-late;
+  animation-fill-mode: both, forwards;
+}
+@keyframes pg-ring-shrink {
+  0% { transform: translate(-50%, 50%) scale(1.7); opacity: 0; }
+  18% { opacity: 1; }
+  100% { transform: translate(-50%, 50%) scale(1); opacity: 1; border-color: #ffffff; }
+}
+@keyframes pg-ring-late {
+  0% { transform: translate(-50%, 50%) scale(1); opacity: 1; border-color: #ffffff; }
+  100% { transform: translate(-50%, 50%) scale(0.9); opacity: 0; border-color: #ffffff; }
+}
+@keyframes pg-target-on {
+  0% { opacity: 0; }
+  18% { opacity: 1; }
+  99% { opacity: 1; border-color: rgba(255, 215, 106, 0.55); }
+  100% { opacity: 1; border-color: #ffffff; }
+}
+@keyframes pg-target-late {
+  0% { opacity: 1; border-color: #ffffff; }
+  100% { opacity: 0; border-color: #ffffff; }
+}
+
