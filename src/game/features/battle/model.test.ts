@@ -392,6 +392,14 @@ describe('S11 잡기 장면 (2026-10-20 태현 님 다시 기획) — 엔진 시
     expect(catchView(at(drop + 2 * TIMING.catchShakeMs))?.stage).toBe('end');
     expect(battleViewKey(at(drop - 1), false)).not.toBe(battleViewKey(at(drop), false));
   });
+  it('볼 칸 — 처음엔 개수만, 한 번 놓친 뒤 남은 기회 · 마지막 한 번이면 "마지막!" (플레이 리뷰어)', () => {
+    const withBall = { ...save, bag: { ...save.bag, 'poke-ball': 5 } };
+    const b = myTurn(startBattle(withBall, wild, 'normal'));
+    const sub = (used: number) => menuItems({ ...b, bagUsed: { 'poke-ball': used } }, withBall, 'items').find((i) => i.key === 'poke-ball')?.sub;
+    expect(sub(0)).toBe('5개');
+    expect(sub(1)).toBe('4개 · 기회 2');
+    expect(sub(2)).toBe('3개 · 마지막!');
+  });
   it('남은 기회 = 이번 볼 포함 (3/3 · 2/3 · 1/3) · 상대 그림 class (빨려 들어감 · 숨김 · 튀어나옴)', () => {
     expect([1, 2, 3].map((u) => catchView(at(0, {}, u))?.left)).toEqual([3, 2, 1]);
     const drop = TIMING.catchFlyMs + TIMING.catchSuckMs;

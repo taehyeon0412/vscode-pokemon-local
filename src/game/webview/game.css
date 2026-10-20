@@ -1665,14 +1665,13 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   animation-timing-function: steps(1, end);
   animation-fill-mode: both;
 }
+/* 한 번 = 왼 · 오 두 걸음 (한 걸음 약 0.13초) 뒤 멈춤 — 네 걸음 0.26초는 빠른 떨림이었음 (아트 디렉터 8차) */
 @keyframes pg-catch-shake {
   0% { translate: -2px 0; }
-  12% { translate: 2px 0; }
-  24% { translate: -2px 0; }
-  36% { translate: 2px 0; }
+  24% { translate: 2px 0; }
   48%, 100% { translate: 0 0; }
 }
-/* 딸깍 — 한 칸 눌렸다 돌아옴 · 터짐 — 하얗게 커지며 사라짐 */
+/* 딸깍 — 한 칸 눌렸다 돌아옴 · 터짐 — 하얀 한 걸음 뒤 사라짐 (크기를 바꾸지 않음 — 소수 배율은 점이 무너짐, 터지는 고리는 pg-send-burst) */
 .pg-catch-click {
   animation: pg-catch-click 240ms steps(1, end) both;
 }
@@ -1681,36 +1680,45 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   40%, 100% { translate: 0 0; }
 }
 .pg-catch-break {
-  animation: pg-catch-break 300ms steps(4) both;
+  animation: pg-catch-break 300ms steps(1, end) both;
 }
 @keyframes pg-catch-break {
-  0% { filter: none; scale: 1; opacity: 1; }
-  25% { filter: brightness(0) invert(1); scale: 1.25; opacity: 1; }
-  100% { filter: brightness(0) invert(1); scale: 1.75; opacity: 0; }
+  0% { filter: none; opacity: 1; }
+  34% { filter: brightness(0) invert(1); opacity: 1; }
+  67%, 100% { filter: brightness(0) invert(1); opacity: 0; }
 }
-/* 상대 — 빛이 되어 빨려 들어감 (하양 → 붉은 빛 → 볼 자리로 작아짐) · 볼 속 = 숨김 · 빠져나옴 = 하얗게 커졌다 돌아옴 */
+/* 상대 — 하얀 빛이 되어 볼 자리로 작아짐 (1 → 0.5 → 0, 키프레임마다 한 걸음 — steps(8) 이면 사이 필터가 흙색으로 끼고 점 크기가 소수였음, 아트 디렉터 8차)
+   · 볼 속 = 숨김 · 빠져나옴 = 하얗게 0.5 → 1 (위로 2px 톡) → 원래 */
 .pg-catch-suck > .pg-fx-body {
   transform-origin: 50% 55%;
-  animation: pg-catch-suck 400ms steps(8) both;
+  animation: pg-catch-suck 400ms steps(1, end) both;
 }
 @keyframes pg-catch-suck {
-  0% { filter: none; scale: 1; opacity: 1; }
-  20% { filter: brightness(0) invert(1); scale: 1; opacity: 1; }
-  40% { filter: brightness(0) invert(1) sepia(1) saturate(4) hue-rotate(-50deg); scale: 0.8; opacity: 1; }
-  100% { filter: brightness(0) invert(1) sepia(1) saturate(4) hue-rotate(-50deg); scale: 0; opacity: 0.5; }
+  0% { filter: brightness(0) invert(1); scale: 1; opacity: 1; }
+  50% { filter: brightness(0) invert(1); scale: 0.5; opacity: 1; }
+  80%, 100% { filter: brightness(0) invert(1); scale: 0; opacity: 0; }
 }
 .pg-catch-gone {
   visibility: hidden;
 }
+/* 볼을 세 번 다 놓쳐 도망 — 뒤돌아 (오른쪽을 봄) 길 밖으로 뛰어나감 (0.6초, 2026-10-20 플레이 리뷰어) */
+.pg-catch-run > .pg-fx-body {
+  animation: pg-catch-run 600ms steps(6) forwards;
+}
+@keyframes pg-catch-run {
+  0% { scale: 1 1; translate: 0 0; opacity: 1; }
+  17% { scale: -1 1; translate: 0 0; opacity: 1; }
+  80% { opacity: 1; }
+  100% { scale: -1 1; translate: 160px 0; opacity: 0; }
+}
 .pg-catch-pop > .pg-fx-body {
   transform-origin: 50% 100%;
-  animation: pg-catch-pop 360ms steps(6) both;
+  animation: pg-catch-pop 360ms steps(1, end) both;
 }
 @keyframes pg-catch-pop {
-  0% { filter: brightness(0) invert(1); scale: 0; }
-  50% { filter: brightness(0) invert(1); scale: 1.1; }
-  75% { filter: brightness(0) invert(1); scale: 1; }
-  100% { filter: none; scale: 1; }
+  0% { filter: brightness(0) invert(1); scale: 0.5; translate: 0 0; }
+  34% { filter: brightness(0) invert(1); scale: 1; translate: 0 -2px; }
+  67%, 100% { filter: none; scale: 1; translate: 0 0; }
 }
 /* 던지는 동안 주인공이 반 걸음 나섬 (주인공은 길 위 화면이 그림 — 표시만 두고 :has 로) */
 .pg-catch-throwing {
@@ -1805,9 +1813,7 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 }
 @keyframes pg-catch-shake-big {
   0% { translate: -6px 0; }
-  12% { translate: 6px 0; }
-  24% { translate: -6px 0; }
-  36% { translate: 6px 0; }
+  24% { translate: 6px 0; }
   48%, 100% { translate: 0 0; }
 }
 .pg-catch-left {
@@ -1929,7 +1935,8 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
     animation: pg-evolve-show 0.01s linear 3.2s 1 forwards;
   }
   .pg-evolve-stage,
-  .pg-catch-shake {
+  .pg-catch-shake,
+  .pg-catch-win .pg-catch-shake {
     animation: none;
   }
 }

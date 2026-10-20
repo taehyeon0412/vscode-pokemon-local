@@ -134,6 +134,8 @@ export interface BattleState {
   foePotions?: number;
   /** 반격 기회 (phase riposte 일 때만) */
   riposte?: BattleRiposte | null;
+  /** 볼을 세 번 다 놓쳐 상대가 도망침 (result flee 와 같이 — 화면이 뛰어나가는 상대를 그림, 2026-10-20) */
+  escaped?: boolean;
   /** send — 다음 포켓몬을 내보내는 데 지난 시간 */
   sendMs: number;
   /** 이 전투에서 바뀐 내 포켓몬 (교체로 나온 포켓몬의 HP · PP · 상태) — 끝나면 세이브에 */
@@ -251,7 +253,7 @@ export function catchTimeline(c: BattleCatch): { thrown: number; open: number; d
   const drop = open + TIMING.catchSuckMs;
   const shake = drop + TIMING.catchDropMs;
   const end = shake + (c.shakes ?? 0) * TIMING.catchShakeMs;
-  return { thrown: c.throwMs, open, drop, shake, end, done: end + TIMING.catchEndMs };
+  return { thrown: c.throwMs, open, drop, shake, end, done: end + TIMING.catchEndMs + (c.caught ? 0 : TIMING.catchFailPauseMs) };
 }
 
 /** 지금 가방에 남은 그 아이템 수 (전투 중 쓴 것 빼고) */
@@ -559,8 +561,12 @@ function finishAnim(b0: BattleState, save: Save, rng: Rng): BattleState {
 
 /** 반격 기회에 누름 — 두 번째 원도 완벽이면 반격기, 아니면 그냥 이어 감 (한 번만) */
 function riposteInput(b: BattleState, msBeforeHit: number, rng: Rng): BattleState {
-  const done: BattleState = { ...b, phase: 'run', riposte: null };
-  if (parryGrade(msBeforeHit) !== 'perfect') return done;
+  const done: BattleState = { ...b, phase: 'run', riposte: null, popups: [...b.popups] };
+  if (parryGrade(msBeforeHit) !== 'perfect') {
+    // 완벽이 아니면 반격 없이 이어 감 — 왜 안 나갔는지 은색 한 줄 (말 없이 원만 사라지던 것, 2026-10-20 플레이 리뷰어)
+    popup(done, 'me', msBeforeHit > 0 ? '반격 — 조금 빨랐다' : '반격 — 조금 늦었다', 'parry');
+    return done;
+  }
   return startAction(done, 'me', { kind: 'riposte' }, rng);
 }
 
@@ -780,13 +786,17 @@ function catchStep(b: BattleState, save: Save, stepMs: number, rng: Rng): Battle
   const c = { ...b.catch!, ms: b.catch!.ms + stepMs };
   // 안 누르면 원이 다 줄어든 뒤 (늦게 누를 틈까지) 저절로 던짐
   const tl = catchTimeline(c);
-  if (!tl) return c.ms < TIMING.catchRingMs + BALANCE.catchGoodMs ? { ...b, catch: c } : throwNow(b, c, TIMING.catchRingMs + BALANCE.catchGoodMs, false, rng);
+  if (!tl) {
+    // 옛 세이브 (2026-10-20 전) 에서 눌렀지만 결과가 아직이면 — 누른 때로 던짐 (얻은 타이밍 보너스를 잃지 않게, 코드 리뷰어)
+    if (c.pressMs !== null) return throwNow(b, c, c.pressMs, true, rng);
+    return c.ms < TIMING.catchRingMs + BALANCE.catchGoodMs ? { ...b, catch: c } : throwNow(b, c, TIMING.catchRingMs + BALANCE.catchGoodMs, false, rng);
+  }
   if (c.ms < tl.done) return { ...b, catch: c, msg: b.catch!.ms < tl.shake && c.ms >= tl.shake ? '흔들… 흔들…' : b.msg };
   const name = label(b, 'foe');
   if (c.caught) return { ...b, catch: c, phase: 'over', result: 'catch', overMs: 0, msg: `신난다! ${withJosa(name, '을/를')} 잡았다!` };
   if (c.last) return { ...b, catch: null, phase: 'over', result: 'win', overMs: 0, msg: `아깝다! ${withJosa(name, '이/가')} 빠져나왔다…` };
   // 세 번 다 놓침 — 상대가 도망 (경험치 없음, 2026-10-20 태현 님)
-  if (catchTriesUsed(b) >= BALANCE.catchTries) return { ...b, catch: null, phase: 'over', result: 'flee', anim: null, overMs: 0, msg: `아깝다! ${withJosa(name, '은/는')} 도망쳐 버렸다…` };
+  if (catchTriesUsed(b) >= BALANCE.catchTries) return { ...b, catch: null, phase: 'over', result: 'flee', escaped: true, anim: null, overMs: 0, msg: `아깝다! ${withJosa(name, '은/는')} 도망쳐 버렸다…` };
   // 놓침 — 상대가 HP 를 조금 되찾고 (최대 HP 의 10%) 먼저 덤빔 (상대 게이지 가득, 2026-10-20 태현 님)
   const heal = Math.min(b.foe.maxHp - b.foe.hp, Math.max(1, Math.round(b.foe.maxHp * BALANCE.catchFailHeal)));
   const nb0: BattleState = { ...b, catch: null, me: { ...b.me }, foe: { ...b.foe, hp: b.foe.hp + heal, gauge: 1 }, popups: [...b.popups] };
@@ -794,7 +804,7 @@ function catchStep(b: BattleState, save: Save, stepMs: number, rng: Rng): Battle
   // 볼을 던진 것도 내 행동 하나 — 독 · 화상 피해 (다른 아이템처럼)
   afterAction(nb0, 'me');
   const nb = afterHits(nb0, save);
-  return { ...nb, msg: nb.phase === 'choose' || nb.phase === 'pick' || nb.phase === 'over' ? nb.msg : `아깝다! ${withJosa(name, '이/가')} 빠져나왔다!` };
+  return { ...nb, msg: nb.phase === 'choose' || nb.phase === 'pick' || nb.phase === 'over' ? nb.msg : `아깝다! ${withJosa(name, '이/가')} 빠져나와 덤벼든다!` };
 }
 
 function pickNext(b: BattleState, save: Save, uid: string): BattleState {
@@ -807,7 +817,7 @@ function pickNext(b: BattleState, save: Save, uid: string): BattleState {
 
 /** 전투 결과를 보여 주는 시간이 다 지났는지 */
 export function battleDone(b: BattleState): boolean {
-  return b.phase === 'over' && b.overMs >= TIMING.battleOverMs;
+  return b.phase === 'over' && b.overMs >= (b.result === 'catch' ? TIMING.catchOverMs : TIMING.battleOverMs);
 }
 
 /** 내가 골라야 앞으로 가는지 (자동 전투가 꺼져 있을 때) */
@@ -1062,8 +1072,9 @@ export function readBattle(raw: unknown): BattleState | null {
   if (!Array.isArray(raw.foeDown) || raw.foeDown.length > 6 || !raw.foeDown.every((d) => isObj(d) && fin(d.species, 1, 2000) && fin(d.level, 1, 100))) return null;
   if (!(raw.foeUltWait === null || fin(raw.foeUltWait, -1e6, 1e6)) || !(raw.foeName === null || (typeof raw.foeName === 'string' && raw.foeName.length <= 40)) || !fin(raw.sendMs, 0)) return null;
   if (!(raw.foePotions === undefined || fin(raw.foePotions, 0, 10))) return null;
+  if (!(raw.escaped === undefined || typeof raw.escaped === 'boolean')) return null;
   const rp = raw.riposte;
-  if (!(rp === undefined || rp === null || (isObj(rp) && fin(rp.ms, -TIMING.parryShowMs) && fin(rp.dur, 1, 60_000)))) return null;
+  if (!(rp === undefined || rp === null || (isObj(rp) && fin(rp.ms, -60_000) && fin(rp.dur, 1, 60_000)))) return null;
   if (raw.phase === 'riposte' && !isObj(rp)) return null;
   if (raw.kind !== 'wild' && typeof raw.foeName !== 'string') return null;
   if (!PHASES.includes(raw.phase as string) || !okBench(raw.bench) || !okBag(raw.bagUsed)) return null;

@@ -406,7 +406,7 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
   useEffect(() => {
     if (!fx || ripostingAt < 0) return;
     const foe = actor(now.current, 'foe');
-    if (foe) fx.riposteFocus?.(foe, TIMING.riposteRingMs + TIMING.parryLateMs);
+    if (foe) fx.riposteFocus?.(foe, Math.max(100, (b.riposte?.dur ?? TIMING.riposteRingMs) + TIMING.parryLateMs - (b.riposte?.ms ?? 0)));
   }, [ripostingAt]);
   // 연출 캔버스 위 끝 = 정보줄 아래 끝 (game.css 가 여기서 자름 — 연출이 정보줄을 덮지 않게, 아트 디렉터).
   // 그릴 때마다 잼 — 처음 그릴 땐 game.css 를 받기 전이라 화면이 숨어 0 이 나오고, 패널 크기도 바뀜 (값이 같으면 안 씀)

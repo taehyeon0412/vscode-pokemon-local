@@ -240,6 +240,12 @@ function CatchBall({ cls, x, y, since, px, style }: { cls: string; x?: number; y
   );
 }
 
+/** 잡기 원 — TimingRing (패링 · 반격과 같은 모양 · 키 칸) 에 처음 그린 때의 지난 시간을 고정해 넘김 */
+function CatchRing({ id, x, y, size, ms }: { id: string; x: number; y: number; size: number; ms: number }) {
+  const ms0 = useRef(ms).current;
+  return <TimingRing id={id} x={x} y={y} size={size} ringMs={TIMING.catchRingMs} lateMs={BALANCE.catchGoodMs} delay={-ms0} auto={false} label="던지기" />;
+}
+
 /** 딸깍 — 볼 둘레로 튀는 금색 별 (2px 점 + 십자, 4 걸음) — 창 안 볼 (48px) 기준 px */
 const CATCH_STARS: [number, number][] = [[-28, -20], [28, -20], [-36, 8], [36, 8], [-16, -36], [16, -36]];
 /** 흔들기 창 안 볼 — 점 6배 (48px 고정, 2026-10-20 태현 님 B 집중 창) */
@@ -266,24 +272,20 @@ function Catch({ b, geo, ground, mid, handY }: { b: BattleState; geo: BattleGeom
   const ring = { left: `${geo.foeX}px`, bottom: `${mid}px`, width: `${size}px`, height: `${size}px` };
   // ⑤ 흔들기 창 (2026-10-20 태현 님 B 집중 창) — 무대 가운데 (자리 · 모양은 game.css), 땅에 떨어진 볼이 0.15초에 창 가운데로 날아 들어감:
   //   시작 = 땅의 볼 자리 (창 가운데에서 dx · dy, 크기 = 길 위 볼 / 창 볼)
-  const win = v.stage === 'shake' || v.stage === 'end';
+  const win = v.stage === 'shake' || v.stage === 'end' || v.stage === 'held';
   const flyIn = {
     '--pg-fx': `${Math.round(geo.foeX - geo.widthPx / 2)}px`,
     '--pg-fy': `${Math.round(geo.bodyPx / 2 - ground - 4 * px)}px`,
     '--pg-fs': String(Math.round((px / CATCH_WIN_BALL_PX) * 100) / 100),
   };
-  const title = v.stage === 'end' ? (v.caught ? '잡았다!' : '아깝다!') : '야생 포켓몬을 잡는 중…';
+  const title = v.stage === 'end' || v.stage === 'held' ? (v.caught ? '잡았다!' : '아깝다!') : '야생 포켓몬을 잡는 중…';
   const shakeStyle = { animationDuration: `${TIMING.catchShakeMs}ms`, animationIterationCount: String(Math.max(1, v.shakes)) };
   const endCls = v.caught ? 'pg-catch-click' : 'pg-catch-break';
   return (
     <>
-      {v.stage === 'ring' && (
-        <>
-          <span key={`${key}t`} class="pg-catch-target" style={ring} />
-          {/* 원은 실제 시간으로 줄어듦 — 패널을 다시 열어 다시 그려져도 이어서 (지난 시간만큼 앞당겨 시작) */}
-          <span key={`${key}r`} class="pg-catch-ring" style={{ ...ring, animationDuration: `${TIMING.catchRingMs}ms`, animationDelay: `-${c.ms}ms` }} />
-        </>
-      )}
+      {/* ④ 원 — 패링 · 반격 원과 같은 부품 (키 칸 "Space 던지기"). 지연은 처음 그린 때 값으로 고정: 다시 그릴 때마다 -c.ms 를 새로 넣으면
+          돌던 원이 지난 시간만큼 앞으로 튀어 끊기고 엔진보다 일찍 다 줄어들었음 (2026-10-20 태현 님 "던질 때 렉 · 타이밍을 놓침", 코드 리뷰어) */}
+      {v.stage === 'ring' && <CatchRing key={`${key}r`} id={`${key}r`} x={geo.foeX} y={mid} size={size} ms={c.ms} />}
       {v.stage === 'fly' && c.pressMs !== null && <span key={`${key}p`} class={`pg-catch-ring pg-ring-${timing}`} style={{ ...ring, transform: `translate(-50%, 50%) scale(${pressedScale})` }} />}
       {feedback && (v.stage === 'fly' || v.stage === 'suck') && (
         // 원 아래 (위는 상대 HP 칸 — 이름과 겹침)
@@ -303,14 +305,13 @@ function Catch({ b, geo, ground, mid, handY }: { b: BattleState; geo: BattleGeom
         </>
       )}
       {v.stage === 'drop' && <CatchBall key={`${key}drop`} cls="pg-catch-drop" x={geo.foeX} y={ground} since={v.since} px={px} style={{ '--pg-dy': `${mid - ground}px`, animationDuration: `${TIMING.catchDropMs}ms` }} />}
-      {/* 흔들기 · 끝 장면의 볼은 창 안에만 (땅의 볼은 창으로 날아 들어감) · 잡힌 뒤 (전투 끝) 는 땅에 */}
-      {v.stage === 'held' && <CatchBall key={`${key}held`} cls="" x={geo.foeX} y={ground} since={0} px={px} />}
+      {/* 흔들기 · 끝 · 잡힌 뒤 (전투 끝) 의 볼은 창 안에만 (땅의 볼은 창으로 날아 들어감 · 잡히면 창이 소개 카드까지 그대로 — 플레이 리뷰어) */}
       {v.stage === 'end' && !v.caught && <span key={`${key}bb`} class="pg-send-burst" style={{ left: `${geo.foeX}px`, bottom: `${ground + 4 * px}px` }} />}
       {win && (
         <div key={`${key}w`} class="pg-catch-win">
           <span class="pg-catch-title">{title}</span>
           <span class="pg-catch-win-ball" style={flyIn}>
-            <CatchBall key={`${key}w${v.stage}`} cls={v.stage === 'shake' ? 'pg-catch-shake' : endCls} since={v.since} px={CATCH_WIN_BALL_PX} style={v.stage === 'shake' ? shakeStyle : undefined} />
+            <CatchBall key={`${key}w${v.stage}`} cls={v.stage === 'shake' ? 'pg-catch-shake' : v.stage === 'held' ? '' : endCls} since={v.since} px={CATCH_WIN_BALL_PX} style={v.stage === 'shake' ? shakeStyle : undefined} />
             {v.stage === 'end' && v.caught && CATCH_STARS.map(([dx, dy], i) => <span key={`s${i}`} class="pg-catch-star" style={{ '--pg-sx': `${dx}px`, '--pg-sy': `${dy}px` }} />)}
           </span>
           {/* 남은 볼 기회 (이번 볼 포함) — 남은 것은 밝게, 쓴 것은 흐리게 (예전 "3/3" 글) */}
@@ -499,7 +500,9 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
   const changed = b.phase === 'pick' || b.phase === 'over' || b.phase === 'send' || b.phase === 'last' || b.phase === 'choose';
   const msgText = (changed ? [...said, b.msg] : [b.msg, ...said]).filter(Boolean).join(' ');
   // 필살기 컷인이 같은 말을 하는 동안 · 둘 곳이 없는 좁은 패널에서는 위 한 줄을 숨김 — 그때 문장은 머리 위 한 줄로
-  const showMsg = msgText !== '' && !geo.msgHidden && b.phase !== 'clash' && b.anim?.action.kind !== 'ult';
+  // 잡기 흔들기 창 (가운데) 이 떠 있는 동안도 숨김 — 창 이름표와 같은 말을 두 번 함 (아트 디렉터 8차)
+  const catchShown = catchView(b)?.stage;
+  const showMsg = msgText !== '' && !geo.msgHidden && b.phase !== 'clash' && b.anim?.action.kind !== 'ult' && catchShown !== 'shake' && catchShown !== 'end' && catchShown !== 'held';
   const lastSentence = showMsg ? undefined : sentences[sentences.length - 1];
   // 나갈 포켓몬이 없는 채로 시작한 전투 (이상한 세이브) — 내 자리는 비움
   const hasMe = b.me.uid !== 'none';
@@ -516,7 +519,7 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
     <>
       {hasMe && <FighterBody key={`me${b.me.uid}`} b={b} side="me" x={geo.meX} target={geo.foeX} px={geo.meSpritePx} media={media} ground={ground} onProfile={profile} sendAt={throwMe} />}
       {/* 잡기 중 상대 — 원이 줄어드는 동안은 서 있고, 빨려 들어감 · 볼 속 (숨김) · 빠져나와 튀어나옴 (catchFoeClass) */}
-      <FighterBody key={`foe${b.foe.uid}`} b={b} side="foe" x={geo.foeX} target={geo.meX} px={geo.foeSpritePx} media={media} ground={ground} onProfile={profile} sendAt={throwFoe} extra={catchFoeClass(b)} />
+      <FighterBody key={`foe${b.foe.uid}`} b={b} side="foe" x={geo.foeX} target={geo.meX} px={geo.foeSpritePx} media={media} ground={ground} onProfile={profile} sendAt={throwFoe} extra={b.escaped && b.phase === 'over' ? 'pg-catch-run' : catchFoeClass(b)} />
       {/* 패링 원은 HP 줄보다 먼저 (같은 층에서 HP 숫자가 위) */}
       <ParryRing b={b} geo={geo} y={midMe} auto={save.settings.autoBattle} />
       <RiposteRing b={b} geo={geo} y={midFoe} auto={save.settings.autoBattle} />

@@ -271,6 +271,9 @@ describe('쏘는 기술끼리 힘대결은 없음 — 패링은 등급만 · 완
     const { save, after } = riposteChance();
     const good = battleInput(after, save, { kind: 'parry', ms: 450 }, new SeededRng(1));
     expect([good.phase, good.riposte]).toEqual(['run', null]);
+    // 왜 안 나갔는지 은색 한 줄 (일찍 · 늦게)
+    expect(good.popups.some((p) => p.kind === 'parry' && p.text.includes('조금 빨랐다'))).toBe(true);
+    expect(battleInput(after, save, { kind: 'parry', ms: -150 }, new SeededRng(1)).popups.some((p) => p.text.includes('조금 늦었다'))).toBe(true);
     const idle = run(after, save, TIMING.riposteRingMs + TIMING.parryLateMs + STEP * 2, fixedRng(0.5));
     expect(idle.phase).not.toBe('riposte');
     // Space (엔진 시간) — 원이 맞는 때 근처면 반격기

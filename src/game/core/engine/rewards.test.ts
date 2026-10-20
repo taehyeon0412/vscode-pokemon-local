@@ -5,7 +5,7 @@ import { BALANCE, TIMING } from '../balance';
 import { expGain, levelUpChoices } from '../rules/growth';
 import { expForLevel } from '../rules/stats';
 import type { Monster, Save } from '../save';
-import { battleInput, battleStep, catchTimeline, catchTriesUsed, readBattle, startBattle, type BattleState } from './battle';
+import { battleDone, battleInput, battleStep, catchTimeline, catchTriesUsed, readBattle, startBattle, type BattleState } from './battle';
 import { battleRewards, resolveEvolve, resolveLearn } from './rewards';
 import { Rng } from './rng';
 
@@ -54,6 +54,9 @@ describe('S11 잡기 — 전투 흐름', () => {
     const done = untilOut(thrown, save);
     expect([done.phase, done.result]).toEqual(['over', 'catch']);
     expect(done.catch?.ms).toBeGreaterThanOrEqual(tl.done);
+    // 잡힌 뒤 끝은 다른 끝보다 짧게 ("잡았다!" 창 → 소개 카드)
+    expect(battleDone(run(done, save, TIMING.catchOverMs))).toBe(true);
+    expect(TIMING.catchOverMs).toBeLessThan(TIMING.battleOverMs);
   });
 
   it('안 누르면 원이 끝날 때 (늦게 누를 틈까지) 저절로 던짐 — 기본 확률 · 그 뒤 누름은 안 셈', () => {
@@ -77,7 +80,11 @@ describe('S11 잡기 — 전투 흐름', () => {
     const out = untilOut(once, save, fixedRng(0.99));
     expect(out.phase).toBe('run');
     expect(out.catch).toBeNull();
-    expect(out.msg).toContain('빠져나왔다');
+    expect(out.msg).toContain('빠져나와 덤벼든다');
+    // 놓치면 창이 닫힌 뒤 숨 고르기 (catchFailPauseMs) 뒤에 이어 감 · 잡히면 바로
+    const tl = catchTimeline(once.catch!)!;
+    expect(tl.done - tl.end).toBe(TIMING.catchEndMs + TIMING.catchFailPauseMs);
+    expect(catchTimeline({ ...once.catch!, caught: true, shakes: 3 })!.done - catchTimeline({ ...once.catch!, caught: true, shakes: 3 })!.end).toBe(TIMING.catchEndMs);
     const heal = Math.max(1, Math.round(b0.foe.maxHp * BALANCE.catchFailHeal));
     expect(out.foe.hp).toBe(Math.min(b0.foe.maxHp, hp + heal));
     expect(out.foe.gauge).toBe(1);
@@ -96,8 +103,10 @@ describe('S11 잡기 — 전투 흐름', () => {
     const ready = battleInput({ ...b, bagUsed: { 'poke-ball': 2 } }, save, { kind: 'act', action: { kind: 'item', item: 'poke-ball' } }, new Rng(1));
     expect(ready.phase).toBe('catch');
     const out = untilOut(battleInput(run(ready, save, 600), save, { kind: 'space' }, fixedRng(0.99)), save, fixedRng(0.99));
-    expect([out.phase, out.result]).toEqual(['over', 'flee']);
+    expect([out.phase, out.result, out.escaped]).toEqual(['over', 'flee', true]);
     expect(out.msg).toContain('도망쳐 버렸다');
+    expect(readBattle(viaJson(out))?.escaped).toBe(true);
+    expect(readBattle({ ...viaJson(out), escaped: 'yes' })).toBeNull();
     const used3 = { ...b, bagUsed: { 'poke-ball': 3 } };
     expect(catchTriesUsed(used3)).toBe(3);
     expect(battleInput(used3, save, { kind: 'act', action: { kind: 'item', item: 'poke-ball' } }, new Rng(1))).toBe(used3);

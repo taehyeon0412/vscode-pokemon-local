@@ -262,26 +262,13 @@ function swatTail(p, n, gold) {
         sigParticle({ x: p.x + moveRand(-2, 2) * p.s, y: p.y + moveRand(-2, 2) * p.s, s: p.s, max: moveRand(0.25, 0.5), color: c, size: movePick([1, 2]), draw: DRAW.dot });
     }
 }
-function swatRing(x, y, s, R0, R1, cols, max) {
-    sigParticle({ x, y, s, max, R0, R1, cols, draw: (ctx, p, t, px) => {
-        ctx.globalAlpha = hitStep(1 - t);
-        const r = p.R0 + (p.R1 - p.R0) * (1 - (1 - t) * (1 - t));
-        const n = Math.max(12, Math.ceil((2 * Math.PI * r) / (p.s * 1.6)));
-        const w = t < 0.5 ? 2 : 1;
-        for (let j = 0; j < n; j++) {
-            const a = (j / n) * Math.PI * 2;
-            dotAt(ctx, px, p.s, p.x + Math.cos(a) * r, p.y + Math.sin(a) * r, j % 2 ? p.cols[0] : p.cols[1], w, w);
-        }
-    } });
-}
 function swatBoom(x, y, s, cols, k) {
-    sigPow(x, y, s, HIT_GOLD, 0.5, false, { size: Math.round(5 * k), white: true });
+    // 맞을 때마다 보는 퍽 (sigPow) · 몸 둘레 원과 헷갈리는 고리는 빼고 — 불똥 · 반짝이만 (아트 디렉터 8차)
     sigBurst(x, y, s, [...cols.slice(0, 3), '#ffffff', HIT_GOLD[1]], Math.round(14 * k), 95 * k);
     for (let i = 0; i < 6; i++) {
         const a = (i / 6) * Math.PI * 2 + moveRand(-0.3, 0.3);
         sigParticle({ x, y, s, vx: Math.cos(a) * 70 * k * s, vy: Math.sin(a) * 70 * k * s - 20 * s, g: 60 * s, drag: 2, max: moveRand(0.45, 0.65), cols: HIT_GOLD, draw: DRAW.sparkle });
     }
-    swatRing(x, y, s, 3 * s, 22 * k * s, HIT_GOLD, 0.4);
 }
 // 쳐올리기 — 금색 반달 휘두르기 → 구슬이 높은 포물선으로 날아올라 꼭대기 (또는 위 끝) 에서 불꽃놀이처럼 터짐
 function swatUp(g, x0, y0, cols) {
@@ -300,21 +287,29 @@ function swatUp(g, x0, y0, cols) {
         }
     } });
     const v = 240 * s;
-    const top = fxTop() + 8 * s;
-    sigParticle({ x: x0, y: y0, s, vx: g.dir * Math.cos(1.0) * v, vy: -Math.sin(1.0) * v, g: 330 * s, max: 1.2, cols, spin: 0, R: 5, update: (p, dt) => {
-        if (p.popped) {
+    // 거의 위로 (1.3 rad — 57° 는 "완벽 패링!" 글 위를 지나감) · 꼭대기는 정보줄 24칸 아래 (위로 퍼지는 불꽃이 정보줄에서 잘리지 않게, 아트 디렉터 8차)
+    const top = fxTop() + 24 * s;
+    sigParticle({ x: x0, y: y0, s, vx: g.dir * Math.cos(1.3) * v, vy: -Math.sin(1.3) * v, g: 330 * s, max: 1.2, cols, spin: 0, R: 5, tailAcc: 0, update: (p, dt) => {
+        if (p.popped || dt <= 0) {
             return;
         }
-        p.spin += dt * 14;
-        swatTail(p, 2, true);
+        p.spin += dt * 6;
+        // 꼬리 — 1/60초마다 두 덩이 (화면 빠르기와 상관없이)
+        for (p.tailAcc += dt; p.tailAcc >= 1 / 60; p.tailAcc -= 1 / 60) {
+            swatTail(p, 2, true);
+        }
         if ((p.vy || 0) >= 0 || p.y < top || p.x < 6 * p.s || p.x > window.innerWidth - 6 * p.s) {
             p.popped = true;
             p.life = p.max;
-            swatBoom(p.x, p.y, p.s, p.cols, 1.45);
+            // 꼭대기 — 구슬이 한 걸음 커졌다 (5 → 7, 0.06초) 8 살로 갈라짐 (닿는 거리 약 47px — 150px 무대 안)
+            const bx = p.x;
+            const by = p.y;
+            sigParticle({ x: bx, y: by, s: p.s, max: 0.06, R: 7, spin: p.spin, cols: p.cols, draw: swatOrbDraw });
+            swatBoom(bx, by, p.s, p.cols, 1.0);
             // 불꽃놀이 살 — 8 줄기
             for (let i = 0; i < 8; i++) {
                 const a = (i / 8) * Math.PI * 2;
-                sigParticle({ x: p.x, y: p.y, s: p.s, vx: Math.cos(a) * 150 * p.s, vy: Math.sin(a) * 150 * p.s, g: 90 * p.s, drag: 3, max: 0.5, color: i % 2 ? HIT_GOLD[0] : p.cols[0], len: 3, draw: (ctx, q, t, px) => {
+                sigParticle({ x: bx, y: by, s: p.s, vx: Math.cos(a) * 90 * p.s, vy: Math.sin(a) * 90 * p.s, g: 90 * p.s, drag: 3, max: 0.5, color: i % 2 ? HIT_GOLD[0] : p.cols[0], len: 3, draw: (ctx, q, t, px) => {
                     ctx.globalAlpha = hitStep(1 - t);
                     const m = Math.hypot(q.vx, q.vy) || 1;
                     for (let j = 0; j < q.len; j++) {
@@ -402,6 +397,9 @@ function fxAim(fx, g, o, t) {
     const lim = t.far + g.dir * 0.3 * t.w;
     const stopPast = (p) => {
         const prev = p.update;
+        // 쳐내기 (swat) 가 튕길 때 원래 update 로 되돌림 — 방향이 바뀌면 "상대 뒤를 지나면 사라짐" 이 필요 없음
+        p.aimPrev = prev;
+        p.aimStop = true;
         p.update = (q, dt) => {
             prev?.(q, dt);
             if ((q.x - lim) * g.dir > 0) {
@@ -788,7 +786,7 @@ window.pokemonFx = {
         }, Math.max(0, until - performance.now()));
     },
     /** 패링 되튀기 — 막은 쪽 (dst) 몸 앞에서 불똥이 친 쪽 (src) 으로 튐 · 완벽 = 금색 초승달 "팅" + 히트스톱 (2026-10-20 플레이 리뷰어) */
-    deflect(dst, src, perfect) {
+    deflect(dst, src, perfect, noMoon) {
         safeFx({}, () => {
             if (!POKEMON_SHAPE[dst.form] || fxWidth(dst) < 1) {
                 return;
@@ -801,7 +799,10 @@ window.pokemonFx = {
                 const v = moveRand(90, 170) * g.s;
                 sigParticle({ x, y: g.body.cy + moveRand(-0.5, 0.5) * g.body.ry, s: g.s, vx: g.dir * Math.cos(a) * v, vy: Math.sin(a) * v, g: 160 * g.s, drag: 1.5, max: moveRand(0.25, 0.45), color: cols[i % 3], draw: DRAW.dot });
             }
-            if (perfect) {
+            if (perfect && noMoon) {
+                // 쳐올리기 — 반달은 휘두르기 하나만 (같은 0.3초에 둘이면 "((" 로 겹침, 아트 디렉터 8차)
+                window.pokemonFx.hitStop(90);
+            } else if (perfect) {
                 // 몸 앞 금색 초승달 — 0.25초에 바깥으로 (2칸 → 1칸)
                 const R = g.body.ry * 1.2;
                 sigParticle({ x: g.body.cx, y: g.body.cy, s: g.s, max: 0.3, R, dir: g.dir, cols, draw: (ctx, p, t, px) => {
@@ -868,7 +869,11 @@ window.pokemonFx = {
                 if (!((p.vx || 0) * dir < 0 && Math.abs(p.x - x0) < g.w * 3) || p.life >= p.max) {
                     continue;
                 }
-                if (Math.abs(p.x - x0) < g.w * 1.5 && !p.update) {
+                if (Math.abs(p.x - x0) < g.w * 1.5 && (!p.update || p.aimStop)) {
+                    if (p.aimStop) {
+                        p.update = p.aimPrev;
+                        p.aimStop = false;
+                    }
                     const sp = Math.max(60 * s, Math.hypot(p.vx || 0, p.vy || 0) * 0.4);
                     const a = moveRand(0.55, 1.25);
                     p.vx = dir * Math.cos(a) * sp;
@@ -910,7 +915,7 @@ window.pokemonFx = {
             }
             // 쳐내는 순간 — 금색 퍽 · 초승달 · 불똥 + 0.15초 멈춤 (튕기기 전 막은 순간이 보이게 — 되튀기 완벽의 0.09초보다 길게)
             sigPow(x0, y0, s, HIT_GOLD, 0.5, false, { size: 6 });
-            window.pokemonFx.deflect(dst, src, true);
+            window.pokemonFx.deflect(dst, src, true, true);
             window.pokemonFx.hitStop(150);
         });
     },
@@ -931,7 +936,8 @@ window.pokemonFx = {
             const toward = r.left + r.width / 2 < window.innerWidth / 2 ? 1 : -1;
             const x = r.left + r.width / 2 + toward * r.width * 1.6;
             const y = r.top + r.height * 0.2;
-            ultTitle(text, null, cols, big ? 1.0 : 0.7, 0.36, (big ? 0.55 : 0.38) * grow, { x, y });
+            // 필살기 이름 글씨보다 얌전하게 — 1.4배에서 시작 · 떨림 없음 (패링은 자주 나와서, 아트 디렉터 8차)
+            ultTitle(text, null, cols, big ? 1.0 : 0.7, 0.36, (big ? 0.55 : 0.38) * grow, { x, y, s0: 1.4, still: true });
             if (big) {
                 for (let i = 0; i < 8; i++) {
                     const a = (i / 8) * Math.PI * 2;

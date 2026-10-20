@@ -645,7 +645,9 @@ function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1, at = null) {
         const inT = 0.16;
         const k = Math.min(1, t / inT);
         const back = 1 + 2.7 * (k - 1) ** 3 + 1.7 * (k - 1) ** 2; // 살짝 넘쳤다 돌아옴
-        const scale = t < inT ? 2.4 - 1.4 * back : 1;
+        // at.s0 = 시작 배율 (패링 글은 1.4) · 없으면 필살기 이름처럼 2.4
+        const s0 = at && at.s0 ? at.s0 : 2.4;
+        const scale = t < inT ? s0 - (s0 - 1) * back : 1;
         const alpha = Math.min(1, t / 0.06) * (t > p.max - 0.3 ? Math.max(0, (p.max - t) / 0.3) : 1);
         let size = Math.round(ultClamp(W / 9, 18, 40) * k0);
         const font = ultFont();
@@ -656,7 +658,7 @@ function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1, at = null) {
             size = Math.max(12, Math.floor((size * W * 0.9) / tw));
             ctx.font = `900 ${size}px ${font}`;
         }
-        const jx = t < 0.35 ? moveRand(-1, 1) * 2 : 0;
+        const jx = t < 0.35 && !(at && at.still) ? moveRand(-1, 1) * 2 : 0;
         // 게임 모드 — 부제까지 정보줄 아래에 (연출 캔버스 위쪽은 정보줄 아래 끝에서 잘림)
         const top = typeof fxTop === 'function' ? fxTop() : 0;
         const yMin = top ? top + (sub ? size * 0.85 + Math.max(10, Math.round(size * 0.4)) / 2 : size / 2) + 4 : 0;

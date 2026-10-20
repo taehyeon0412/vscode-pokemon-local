@@ -87,7 +87,8 @@ export function menuItems(b: BattleState, save: Save, page: MenuPage, compact: b
           num: i + 1,
           label: `${i + 1} ${itemName(item)}`,
           // 개수 = "3개" (× 는 잡기 배율 "×1.5" 와 헷갈림 — 2026-10-19 태현 님 · 아트 디렉터 5차)
-          sub: `${itemLeft(b, save, item)}개`,
+          // 야생에 볼 — 한 번 놓친 뒤부터 남은 기회 · 마지막이면 "마지막!" (2026-10-20 플레이 리뷰어)
+          sub: `${itemLeft(b, save, item)}개${isBall(item) && b.kind === 'wild' ? ballTriesSub(b) : ''}`,
           // 기력의조각 → 살릴 포켓몬 고르기
           go: item === 'revive' ? { page: 'revive' } : { action: { kind: 'item', item } },
           enabled: canAct(b, save, { kind: 'item', item }),
@@ -562,4 +563,10 @@ export function catchFoeClass(b: BattleState): string {
   if (v.stage === 'suck') return 'pg-catch-suck';
   if (v.stage === 'drop' || v.stage === 'shake' || v.stage === 'held' || (v.stage === 'end' && v.caught)) return 'pg-catch-gone';
   return v.stage === 'end' ? 'pg-catch-pop' : '';
+}
+
+/** 볼 칸 뒤 — 남은 볼 기회 (처음엔 없음) · 마지막 한 번이면 "마지막!" */
+function ballTriesSub(b: BattleState): string {
+  const left = BALANCE.catchTries - catchTriesUsed(b);
+  return left <= 0 || left >= BALANCE.catchTries ? '' : left === 1 ? ' · 마지막!' : ` · 기회 ${left}`;
 }
