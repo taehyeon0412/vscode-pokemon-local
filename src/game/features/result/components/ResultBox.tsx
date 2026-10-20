@@ -28,9 +28,13 @@ function CaughtIntro({ c, media, at, onSkip }: { c: CaughtView; media: string; a
       {/* --pg-open = 잡기 창 폭 104 에서 넓어질 때 양쪽에서 여는 만큼 · 볼이 옮겨 오는 거리 */}
       <div class="pg-caught-intro" style={{ left: `${at.left}px`, top: `${at.top}px`, ...(at.width !== undefined ? { width: `${at.width}px` } : {}), '--pg-open': `${Math.round(((at.width ?? 248) - 104) / 2)}px` }}>
         <span class="pg-caught-title">잡았다!</span>
-        {/* 큰 볼 — 잡기 창 볼 자리 (가운데 · 위 18) 에서 창이 넓어지는 동안 그림 칸으로 옮겨 가 0.3초에 열림 (금색 고리) → 포켓몬 */}
+        {/* 큰 볼 — 잡기 창 볼 자리 (가운데 · 위 18) 에서 창이 넓어지는 동안 그림 칸으로 옮겨 감 → 두 번 덜컹 → 1.2초 뚜껑이 들린 열린 볼 (빛살) 0.8초 → 2초에 금색 고리와 포켓몬
+            (2026-10-20 태현 님 "볼이 열리는 연출이 너무 짧아 인지가 안 돼 — 좀 느리게 해도 돼") */}
         <span class="pg-caught-ball">
           <Icon name="ballBig" px={2} />
+        </span>
+        <span class="pg-caught-ball pg-caught-ball-open">
+          <Icon name="ballBigOpen" px={2} />
         </span>
         <span class="pg-caught-art">
           <span class="pg-caught-mon">

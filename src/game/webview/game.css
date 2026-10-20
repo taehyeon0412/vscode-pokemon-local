@@ -4503,8 +4503,8 @@ body.vscode-light .pg-field-balls {
   0% { transform: translateY(0); }
   50% { transform: translateY(2px); }
 }
-/* 잡은 포켓몬 소개 카드 (결과 상자 전 3초 — 2026-10-20 태현 님 안 2 "잡았다는 기쁨" → B "잡았다 창이 너무 빨리 꺼져") — 잡기 흔들기 창이 꺼지지 않고 이어짐:
-   같은 덮개 · 같은 가운데 · 같은 높이 108 에서 가로로 104 → 248 넓어짐 (0.2초 네 걸음) → 그림 칸의 큰 볼이 0.3초에 금색 고리와 함께 열리며 포켓몬 (칸 64 를 채우는 정수 배) ·
+/* 잡은 포켓몬 소개 카드 (결과 상자 전 5초 — 2026-10-20 태현 님 안 2 "잡았다는 기쁨" → B "잡았다 창이 너무 빨리 꺼져") — 잡기 흔들기 창이 꺼지지 않고 이어짐:
+   같은 덮개 · 같은 가운데 · 같은 높이 108 에서 가로로 104 → 248 넓어짐 (0.3초 여섯 걸음) → 큰 볼이 그림 칸에서 두 번 덜컹 → 1.2초 열린 볼 (빛살) 0.8초 → 2초 금색 고리와 포켓몬 (칸 64 를 채우는 정수 배) · 읽기 3초 ·
    오른쪽 "NEW! 처음 잡았다" (금색 칠 — 도감 화면이 생기면 "도감 등록") · 이름 13/700 + Lv 흐림 · 타입 표 · 팀 / 보관함 11 흐림 → 반짝 별. 어디를 눌러도 넘김 */
 .pg-caught-dim {
   position: absolute;
@@ -4526,7 +4526,7 @@ body.vscode-light .pg-field-balls {
   border: 2px solid var(--pg-sos-gold);
   box-shadow: 0 0 0 1px var(--pg-sos-tab-ink);
   white-space: nowrap;
-  animation: pg-caught-open 0.2s steps(4) both;
+  animation: pg-caught-open 0.3s steps(6) both;
 }
 /* 넓어짐 — 잡기 창 폭 104 에서 (양쪽 72 씩 가렸다 엶) · 위 −12 는 이름표 자리 */
 @keyframes pg-caught-open {
@@ -4557,18 +4557,36 @@ body.vscode-light .pg-field-balls {
   line-height: 0;
   background: var(--pg-sos-hi);
   box-shadow: inset 0 0 0 1px var(--pg-sos-line-soft);
-  /* 창이 다 넓어진 뒤 (0.2초) 에 칸이 보임 — 좁은 창 왼쪽 끝에 칸 조각이 비치던 것 */
-  animation: pg-caught-show 1ms 0.2s both;
+  /* 창이 다 넓어진 뒤 (0.3초) 에 칸이 보임 — 좁은 창 왼쪽 끝에 칸 조각이 비치던 것 */
+  animation: pg-caught-show 1ms 0.3s both;
 }
 /* 큰 볼 (잡기 창 볼과 같은 48px) — 그림 칸 안 자리 (테두리 안 26 · 28) 에 두고, 시작은 잡기 창 볼 자리 (테두리 안 가운데 98 · 위 16 = +72 · −12) 에서
-   창이 넓어지는 0.2초 동안 네 걸음에 옮겨 옴 (가로 = --pg-open = (폭 − 104) ÷ 2) → 0.3초에 사라지고 포켓몬 · 글이 나옴 (픽셀 박자 — 한 번에) */
+   창이 넓어지는 0.3초 동안 여섯 걸음에 옮겨 옴 (가로 = --pg-open = (폭 − 104) ÷ 2) → 1.2초에 열린 볼로 바뀌고 2초에 포켓몬 · 글이 나옴 (픽셀 박자 — 한 번에) */
 .pg-caught-ball {
   position: absolute;
   left: 26px;
   top: 28px;
   z-index: 1;
   line-height: 0;
-  animation: pg-caught-ball-move 0.2s steps(4) both, pg-caught-hide 1ms 0.3s both;
+  animation: pg-caught-ball-move 0.3s steps(6) both, pg-caught-wobble 0.6s steps(1, end) 0.45s both, pg-caught-hide 1ms 1.2s both;
+}
+/* 열리기 전 두 번 덜컹 — 좌우 4px 두 걸음씩 (흔들기 창과 같은 박자) */
+@keyframes pg-caught-wobble {
+  0% { translate: -4px 0; }
+  15% { translate: 4px 0; }
+  30% { translate: 0 0; }
+  50% { translate: -4px 0; }
+  65% { translate: 4px 0; }
+  80%, 100% { translate: 0 0; }
+}
+/* 열린 볼 (ballBigOpen — 뚜껑이 들리고 금색 빛살) — 1.2 ~ 2초에만 보임 (닫힌 볼과 같은 자리) */
+.pg-caught-ball.pg-caught-ball-open {
+  animation: pg-caught-open-ball 2s steps(1, end) both;
+}
+@keyframes pg-caught-open-ball {
+  0% { visibility: hidden; }
+  60% { visibility: visible; }
+  100% { visibility: hidden; }
 }
 @keyframes pg-caught-ball-move {
   0% { transform: translate(var(--pg-open, 72px), -12px); }
@@ -4576,7 +4594,7 @@ body.vscode-light .pg-field-balls {
 }
 .pg-caught-mon,
 .pg-caught-info {
-  animation: pg-caught-show 1ms 0.3s both;
+  animation: pg-caught-show 1ms 2s both;
 }
 @keyframes pg-caught-hide {
   from { visibility: visible; }
@@ -4586,7 +4604,7 @@ body.vscode-light .pg-field-balls {
   from { visibility: hidden; }
   to { visibility: visible; }
 }
-/* 볼이 열리는 금색 고리 — 칸 가운데에서 퍼지며 흰색으로 꺼짐 (0.25초 다섯 걸음, 볼을 내보낼 때 고리와 같은 모양) */
+/* 볼이 열리는 금색 고리 — 칸 가운데에서 천천히 퍼지며 흰색으로 꺼짐 (0.4초 여섯 걸음, 볼을 내보낼 때 고리와 같은 모양) */
 .pg-caught-burst {
   position: absolute;
   left: 50%;
@@ -4598,7 +4616,7 @@ body.vscode-light .pg-field-balls {
   border-radius: 50%;
   opacity: 0;
   pointer-events: none;
-  animation: pg-caught-burst 250ms steps(5) 0.3s both;
+  animation: pg-caught-burst 400ms steps(6) 1.95s both;
 }
 @keyframes pg-caught-burst {
   0% { transform: translate(-50%, -50%) scale(0.4); opacity: 1; }
@@ -4606,10 +4624,10 @@ body.vscode-light .pg-field-balls {
   100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
 }
 .pg-caught-art .pg-lvup-spark-1 {
-  animation-delay: 0.45s;
+  animation-delay: 2.2s;
 }
 .pg-caught-art .pg-lvup-spark-2 {
-  animation-delay: 0.7s;
+  animation-delay: 2.45s;
 }
 .pg-caught-info {
   display: flex;
@@ -4646,8 +4664,11 @@ body.vscode-light .pg-field-balls {
   .pg-caught-burst {
     animation: none;
   }
-  /* 볼이 열려 포켓몬이 나오는 순간은 남김 (무엇을 잡았나 — 태현 님 맥 "볼이 열리는 연출도 없어") — 넓어지기 · 볼 옮기기 · 금색 고리만 빼고 0.3초에 바뀜 */
+  /* 볼이 열려 포켓몬이 나오는 순간은 남김 (무엇을 잡았나 — 태현 님 맥 "볼이 열리는 연출도 없어") — 넓어지기 · 볼 옮기기 · 덜컹 · 금색 고리만 빼고 닫힌 볼 → 1.2초 열린 볼 → 2초 포켓몬 */
   .pg-caught-ball {
-    animation: pg-caught-hide 1ms 0.3s both;
+    animation: pg-caught-hide 1ms 1.2s both;
+  }
+  .pg-caught-ball.pg-caught-ball-open {
+    animation: pg-caught-open-ball 2s steps(1, end) both;
   }
 }
