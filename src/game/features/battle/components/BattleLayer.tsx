@@ -326,11 +326,13 @@ function Catch({ b, geo, ground, mid, handY }: { b: BattleState; geo: BattleGeom
             <CatchBall key={`${key}w${v.stage}`} cls={v.stage === 'shake' ? 'pg-catch-shake' : v.stage === 'held' ? '' : 'pg-catch-click'} since={v.since} px={2} icon={v.stage === 'end' && !v.caught ? 'ballBigOpen' : 'ballBig'} style={v.stage === 'shake' ? shakeStyle : undefined} />
             {v.stage === 'end' && v.caught && CATCH_STARS.map(([dx, dy], i) => <span key={`s${i}`} class="pg-catch-star" style={{ '--pg-sx': `${dx}px`, '--pg-sy': `${dy}px` }} />)}
           </span>
-          {/* 남은 볼 기회 (이번 볼 포함) = 점 ●●○ — 볼 그림은 가진 볼 개수로 읽혀서 (플레이 리뷰어) · 지금 던진 칸 = pg-catch-now (모양은 game.css) */}
+          {/* 남은 볼 기회 (이번 볼 포함) = 점 ○●● — 볼 그림은 가진 볼 개수로 읽혀서 (플레이 리뷰어) · 왼쪽부터 꺼짐 (2026-10-20 태현 님) ·
+              지금 던진 칸 = 남은 것 중 맨 왼쪽 pg-catch-now (모양은 game.css) */}
           <span class="pg-catch-left" title={`남은 볼 기회 ${v.left}/${BALANCE.catchTries} (이번 볼 포함)`}>
-            {Array.from({ length: BALANCE.catchTries }, (_, i) => (
-              <span key={`b${i}`} class={`${i < v.left ? 'pg-catch-ok' : 'pg-catch-used'}${i === v.left - 1 ? ' pg-catch-now' : ''}`} />
-            ))}
+            {Array.from({ length: BALANCE.catchTries }, (_, i) => {
+              const used = BALANCE.catchTries - v.left;
+              return <span key={`b${i}`} class={`${i < used ? 'pg-catch-used' : 'pg-catch-ok'}${i === used ? ' pg-catch-now' : ''}`} />;
+            })}
           </span>
         </div>
       )}
