@@ -212,7 +212,8 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
     row =
       b.catch.caught === null && b.catch.pressMs === null ? (
         <Button onClick={() => onInput({ kind: 'space' })} title="원이 안쪽 원에 딱 맞을 때">
-          {`원이 딱 맞을 때 ${key}`}
+          {/* 옆 메뉴는 칸이 좁아 짧게 (×3 패널에서 "원이 딱 맞을 때 (…" 로 잘리던 것) */}
+          {vertical ? `딱 맞을 때 ${document.hasFocus() ? 'Space' : '클릭'}` : `원이 딱 맞을 때 ${key}`}
         </Button>
       ) : (
         <span class="pg-dim">{b.catch.caught === null ? '던졌다!' : '흔들… 흔들…'}</span>
@@ -221,8 +222,8 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
     row = renderItems(items);
   }
 
-  // 옆 메뉴에서 다음 포켓몬 · 마지막 기회는 처음 메뉴 층을 아예 빼서 판이 줄 수만큼 (5줄 높이에 한 줄이 떠 있던 것 — 아트 디렉터 4차)
-  const gone = vertical !== undefined && (picking || b.phase === 'last');
+  // 옆 메뉴에서 다음 포켓몬 · 마지막 기회 · 잡기 원은 처음 메뉴 층을 아예 빼서 판이 줄 수 · 글 길이만큼 (5줄 높이에 한 줄이 떠 있고 "원이 딱 맞을 때 (…" 로 잘리던 것)
+  const gone = vertical !== undefined && (picking || b.phase === 'last' || b.phase === 'catch');
   const stack = (
     <span class="pg-bmenu-items pg-stack">
       <span class={onMain ? 'pg-layer' : gone ? 'pg-layer pg-hidden pg-gone' : 'pg-layer pg-hidden'} aria-hidden={!onMain}>

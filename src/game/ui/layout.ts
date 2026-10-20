@@ -10,6 +10,9 @@ export const SIZES = ['nano', 'small', 'medium', 'large'] as const;
 export type SizeName = (typeof SIZES)[number];
 
 export const SIZE_SCALE: Record<SizeName, number> = { nano: 1, small: 1.5, medium: 2, large: 2.5 };
+/** 게임 모드: 이 패널 높이부터 크게 — 포켓몬 · 사람 ×3 (정수 배 — 설정의 크게 ×2.5 는 점 굵기가 고르지 않아 안 씀) · 큰 숲 배경 (2026-10-20 태현 님 "높은 패널이면 반응형으로 넓게") */
+export const LARGE_MIN_HEIGHT_PX = 300;
+export const LARGE_GAME_SCALE = 3;
 /** 보통 포켓몬 원본 키 (원본이 64px 인 큰 포켓몬은 따로) */
 export const BASE_SPRITE_PX = 32;
 /** 위 정보줄 높이 (uiScale 1 일 때) */
@@ -66,12 +69,18 @@ export function isSizeName(v: unknown): v is SizeName {
 }
 
 /**
- * 게임 모드에서 쓸 크기 — 설정과 상관없이 늘 보통 (포켓몬 ×2 · 사람 2배).
- * 작게 (×1.5) · 크게 (×2.5) 는 정수 배가 아니라 점 굵기가 고르지 않음 (아주 작게 · 작게 = 2026-10-19 태현 님 A안, 크게 = 2026-10-20 태현 님 "추천으로").
- * 150px 이면 보통이 늘 들어감. 일반 모드는 설정 그대로
+ * 게임 모드에서 쓸 크기 설정 — 설정과 상관없이 보통 (작게 ×1.5 · 크게 ×2.5 는 정수 배가 아니라 점 굵기가 고르지 않음 — 2026-10-19 · 10-20 태현 님).
+ * 높은 패널의 크게 (×3) 는 fitGameLayout 이 패널 높이로 정함. 일반 모드는 설정 그대로
  */
 export function gameSize(_wanted: unknown): SizeName {
   return 'medium';
+}
+
+/** 게임 모드 화면 틀 — 보통 (×2) 이고, 패널이 300px 이상이면 크게 (포켓몬 · 사람 ×3 · 큰 숲 배경 — 위 빈 공간을 씀, 2026-10-20 태현 님 "추천대로") */
+export function fitGameLayout(heightPx: number, minHeightPx = GAME_MIN_HEIGHT_PX): Layout {
+  const base = fitLayout('medium', heightPx, minHeightPx);
+  if (base.heightPx < LARGE_MIN_HEIGHT_PX) return base;
+  return { ...base, size: 'large', scale: LARGE_GAME_SCALE, petPx: BASE_SPRITE_PX * LARGE_GAME_SCALE };
 }
 
 export function minHeightOf(size: SizeName): number {
