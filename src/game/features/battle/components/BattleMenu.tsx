@@ -63,8 +63,8 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
 
   // 단축키: 숫자 = 메뉴 · 다음 포켓몬 · Z = 필살기 · ← / Esc / Backspace = 뒤로 (Space 는 main.ts — 맞받아치기 · 연타)
   // 듣는 건 한 번만 달고, 지금 값은 ref 로 (초당 30번 다시 그려도 다시 달지 않게)
-  const now = useRef({ b, items, page, team, choose, pick, onInput, balls: [] as readonly BallId[], onIdx, enabledIdx });
-  now.current = { b, items, page, team, choose, pick, onInput, balls: BALLS.filter((ball) => itemLeft(b, save, ball) > 0), onIdx, enabledIdx };
+  const now = useRef({ b, items, page, team, choose, pick, onInput, balls: [] as readonly BallId[], onIdx, enabledIdx, cursor });
+  now.current = { b, items, page, team, choose, pick, onInput, balls: BALLS.filter((ball) => itemLeft(b, save, ball) > 0), onIdx, enabledIdx, cursor };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -83,9 +83,22 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
         else if (n === c.balls.length + 1 || e.key === 'Escape') c.onInput({ kind: 'battle', input: { kind: 'no-ball' } });
         return;
       }
-      if (c.b.phase === 'pick' && /^[1-9]$/.test(e.key)) {
-        const m = c.team[Number(e.key) - 1];
-        if (m) c.pick(m.uid);
+      if (c.b.phase === 'pick') {
+        // 다음 포켓몬 — 숫자 · ↑ ↓ + Enter (다른 메뉴와 같은 커서, 아트 디렉터 4차)
+        const n = c.team.length;
+        if (/^[1-9]$/.test(e.key)) {
+          const m = c.team[Number(e.key) - 1];
+          if (m) c.pick(m.uid);
+        } else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && n > 0) {
+          e.preventDefault();
+          setCursor((Math.min(c.cursor, n - 1) + (e.key === 'ArrowDown' ? 1 : n - 1)) % n);
+        } else if (e.key === 'Enter' && !(e.target instanceof HTMLButtonElement)) {
+          const m = c.team[Math.min(c.cursor, n - 1)];
+          if (m) {
+            e.preventDefault();
+            c.pick(m.uid);
+          }
+        }
         return;
       }
       if (c.b.phase !== 'choose') return;
@@ -156,7 +169,7 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
     row = (
       <>
         {team.slice(0, 5).map((m, i) => (
-          <Button key={m.uid} onClick={() => pick(m.uid)} title={`HP ${m.hp}`}>
+          <Button key={m.uid} extraClass={i === Math.min(cursor, team.length - 1) ? 'pg-on' : undefined} onClick={() => pick(m.uid)} title={`HP ${m.hp}`}>
             {`${i + 1} ${speciesOf(m.species)?.name.ko ?? m.form}`}
             <span class="pg-sub">HP {m.hp}/{maxHpOf(m)}</span>
           </Button>
@@ -199,9 +212,11 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
     row = renderItems(items);
   }
 
+  // 옆 메뉴에서 다음 포켓몬 · 마지막 기회는 처음 메뉴 층을 아예 빼서 판이 줄 수만큼 (5줄 높이에 한 줄이 떠 있던 것 — 아트 디렉터 4차)
+  const gone = vertical !== undefined && (picking || b.phase === 'last');
   const stack = (
     <span class="pg-bmenu-items pg-stack">
-      <span class={onMain ? 'pg-layer' : 'pg-layer pg-hidden'} aria-hidden={!onMain}>
+      <span class={onMain ? 'pg-layer' : gone ? 'pg-layer pg-hidden pg-gone' : 'pg-layer pg-hidden'} aria-hidden={!onMain}>
         {renderItems(page === 'main' ? items : menuItems(b, save, 'main', compact))}
       </span>
       {row && <span class={counter || ultCounter ? 'pg-layer pg-counter' : 'pg-layer'}>{row}</span>}
@@ -244,7 +259,8 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
     return (
       <div class={`pg-vmenu${b.phase === 'choose' ? ' pg-my-turn' : ''}`}>
         <div class="pg-vmenu-tabs">
-          <span class="pg-vmenu-name">{vertical}</span>
+          {/* 고르는 동안 이름표 = "교체" (쓰러진 포켓몬 이름이 남아 있던 것) */}
+          <span class="pg-vmenu-name">{picking ? '교체' : vertical}</span>
           <span class="pg-vmenu-ult">{ultBadge}</span>
         </div>
         {(open || lead) && (

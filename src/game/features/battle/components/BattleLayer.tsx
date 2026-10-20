@@ -59,7 +59,7 @@ function Bar({ value, cls }: { value: number; cls: string }) {
   );
 }
 
-/** ⑫ 자동 전투 스위치 — 꺼져 있으면 OFF 를 분명히 */
+/** ⑫ 자동 전투 스위치 — "자동 OFF · ON" (9자 "자동 전투 OFF" 가 트레이너 이름표처럼 읽히던 것 — 아트 디렉터 4차), 상태는 모양으로: 꺼짐 = 흐린 글 · 흐린 선 · 켜짐 = 금색 선 + 크림 */
 export function AutoButton({ save, onInput, short }: { save: Save; onInput(i: GameInput): void; short: boolean }) {
   const auto = save.settings.autoBattle;
   return (
@@ -68,7 +68,7 @@ export function AutoButton({ save, onInput, short }: { save: Save; onInput(i: Ga
       onClick={() => onInput({ kind: 'auto-battle', on: !auto })}
       title={auto ? '자동 전투 켜짐 — 누르면 끔' : '자동 전투 꺼짐 — 켜면 내 행동도 알아서 (필살기 · 연타는 직접도 됨)'}
     >
-      {short ? (auto ? '자동✓' : '자동') : auto ? '자동 전투 ON' : '자동 전투 OFF'}
+      {short ? (auto ? '자동✓' : '자동') : auto ? '자동 ON' : '자동 OFF'}
     </Button>
   );
 }
@@ -340,9 +340,9 @@ function ParryRing({ b, geo, y, auto }: { b: BattleState; geo: BattleGeometry; y
     <>
       <span key={`${animKey(b)}t`} class={auto ? 'pg-parry-target pg-parry-auto' : 'pg-parry-target'} style={style} />
       <span key={animKey(b)} class={auto ? 'pg-parry-ring pg-parry-auto' : 'pg-parry-ring'} style={style} />
-      {/* 키 칸 = 원 왼쪽 (내 포켓몬 뒤 — 오른쪽은 상대 공격이 날아오는 길, 플레이 리뷰어) · 자동 전투면 숨김 (맡겨 둔 사람을 부르지 않게) */}
+      {/* 키 칸 = 원 왼쪽 (내 포켓몬 뒤 — 오른쪽은 상대 공격이 날아오는 길, 플레이 리뷰어) · 원과 6px 넘게 띄움 (아트 디렉터 4차) · 자동 전투면 숨김 (맡겨 둔 사람을 부르지 않게) */}
       {!auto && (
-        <span key={`${animKey(b)}k`} class="pg-parry-key" style={{ left: `${geo.meX - Math.round(size * 0.55) - 4}px`, bottom: `${y}px`, animationDuration: style.animationDuration, animationDelay: style.animationDelay }}>
+        <span key={`${animKey(b)}k`} class="pg-parry-key" style={{ left: `${geo.meX - Math.round(size * 0.55) - 8}px`, bottom: `${y}px`, animationDuration: style.animationDuration, animationDelay: style.animationDelay }}>
           {document.hasFocus() ? (
             <>
               <span class="pg-menu-key">Space</span> 막기

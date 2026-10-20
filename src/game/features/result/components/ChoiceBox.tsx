@@ -130,12 +130,12 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
   const choosing = view.keep < view.current.length;
   const ready = !choosing || keep.length === view.keep;
   return (
-    <div class="pg-banner pg-choice pg-two">
+    <div class="pg-banner pg-choice pg-two pg-choice-art">
+      {/* gdd S22 ① — 진화한 모습 = 두 줄 높이 왼쪽 칸 48 × 48, 길 위와 같은 크기 (첫 줄 글 앞 작은 그림이라 진화하는 순간 가장 작은 그림이던 것 · 두 줄 글 왼쪽을 한 선에 — 아트 디렉터 4차) */}
+      <span class="pg-choice-sprite">
+        <Sprite media={media} form={view.toForm} shiny={view.monster.shiny} scale={1} crop={48} fieldSize />
+      </span>
       <span class="pg-line">
-        {/* gdd S22 ① — 진화한 모습 */}
-        <span class="pg-choice-sprite">
-          <Sprite media={media} form={view.toForm} shiny={view.monster.shiny} scale={1} />
-        </span>
         <span class="pg-ellipsis">
           {withJosa(view.name, '은/는')} <b>{view.toName}</b>
           {josa(view.toName, '으로/로')} 진화했다!

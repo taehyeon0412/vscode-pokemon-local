@@ -3,7 +3,8 @@
  * 메시지 · 보임/안 보임 · 그리기 박자를 세션에 잇고, 화면(Preact)을 #pokemon-game 에 그린다.
  */
 import { h, render } from 'preact';
-import { canOpenMenus } from '../core/engine';
+import { canHeal, canOpenMenus } from '../core/engine';
+import { teamHealthy } from '../core/rules/bag';
 import { STAGE_IDS } from '../core/save';
 import { MENU_PANELS, menuShortcutOf } from '../features/menu/model';
 import { stageViewKey } from '../features/stage/model';
@@ -236,11 +237,17 @@ if (!port) {
       e.preventDefault();
       actions.input({ kind: 'result-continue' });
     } else if (stage?.phase === 'facility' && ((e.key === 'Enter' && !onButton) || e.key === 'Escape')) {
-      // 병원 · 상점 앞: Enter = 들어가기 · Esc = 지나가기 / 병원 안: Esc = 나가기
+      // 병원 · 상점 앞: Enter = 들어가기 · Esc = 지나가기 / 병원 안: Enter = 회복 (주 버튼 Enter 칸 — 아트 디렉터 4차, 다 나았으면 그대로) · Esc = 나가기
       e.preventDefault();
+      const cur = session.current;
       if (stage.inside) {
         if (e.key === 'Escape') actions.input({ kind: 'facility-leave' });
+        else if (cur && canHeal(cur) && !teamHealthy(cur.save)) actions.input({ kind: 'heal' });
       } else actions.input({ kind: 'facility', enter: e.key === 'Enter' });
+    } else if (phase === 'lobby' && e.key === 'Enter' && !onButton) {
+      // S16 대기실 Enter = 도전 (주 버튼 — 꾹 누름 반복은 위에서 거름)
+      e.preventDefault();
+      actions.input({ kind: 'challenge' });
     } else if (e.key === 'Enter' && !onButton && (phase === 'defeat' || phase === 'clear' || phase === 'badge')) {
       // S17 다시 시작 · S24 다음 스테이지 · MVP 끝 카드 → 세계 지도
       e.preventDefault();

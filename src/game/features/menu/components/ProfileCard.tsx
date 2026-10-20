@@ -37,8 +37,12 @@ export function ProfileCard({ battle: b, save, media, side, onClose }: { battle:
         <span class="pg-line">
           {view ? (
             <>
-              <span class="pg-expbar" title={`다음 레벨까지 경험치 ${view.expToNext}`}>
-                <span class="pg-bar-fill" style={{ width: `${Math.round(view.expRatio * 100)}%` }} />
+              {/* 경험치 = 이름 + 가는 막대 (HP 막대와 같은 모양 · 이름 없음이라 0 이면 HP 0 처럼 보이던 것 — 아트 디렉터 4차) */}
+              <span class="pg-exp" title={`다음 레벨까지 경험치 ${view.expToNext}`}>
+                경험치
+                <span class="pg-expbar">
+                  <span class="pg-bar-fill" style={{ width: `${Math.round(view.expRatio * 100)}%` }} />
+                </span>
               </span>
               {f.moves.map((s) => {
                 const mv = moveView(s.moveId, s.pp);

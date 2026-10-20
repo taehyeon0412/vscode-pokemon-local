@@ -34,7 +34,8 @@ export function ShopPanel({ save, note, onInput, onClose }: { save: Save; /** �
               <Icon name={ITEM_ICON[r.item]} /> {r.name} <b>{formatMoney(r.price)}</b>
             </span>
             <span class="pg-sub pg-shop-sub">
-              {r.effect} · 가진 {r.have}
+              {/* 가진 수는 있을 때만 ("가진 0" 이 일곱 칸에 되풀이되던 것 — 아트 디렉터 4차) */}
+              {r.have > 0 ? `${r.effect} · 가진 ${r.have}` : r.effect}
             </span>
           </Button>
         ))}

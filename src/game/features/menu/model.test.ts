@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { sampleMonster, sampleSave } from '../../../test/fixtures/save';
 import { BALANCE } from '../../core/balance';
-import { lobbyView, MENU_KEYS, menuLabels, menuShortcutOf } from './model';
+import { ICONS } from '../../data/icons';
+import { ITEM_ICON, lobbyView, MENU_KEYS, menuLabels, menuShortcutOf, shopView } from './model';
 
 describe('S16 ④ 추천 레벨 (mvp-spec S16)', () => {
   it('내 팀에서 가장 센 3마리 평균과 비교 — 관장이 3마리라 약한 2마리 때문에 빨간색이 되지 않게 (단계 11 플레이 리뷰)', () => {
@@ -28,5 +29,17 @@ describe('S06 ⑦ ~ ⑩ 정보줄 메뉴 — 단축키 + 아이콘 + 이름 (202
   it('폭에 따라 줄임 — 지도 줄이 있으면 560 부터 단축키까지 · 470 부터 이름, 없으면 (지도와 나눠 씀) 1100 · 920', () => {
     expect([1860, 560, 559, 470, 469, 240].map((w) => menuLabels(w, true))).toEqual(['full', 'full', 'text', 'text', 'icon', 'icon']);
     expect([1860, 1100, 1000, 920, 720].map((w) => menuLabels(w, false))).toEqual(['full', 'full', 'text', 'text', 'icon']);
+  });
+});
+
+describe('S14 상점 칸 (아트 디렉터 4차)', () => {
+  it('설명은 3칸에서 안 잘리게 짧게 (10자 이하 — "아주 잘 잡힘 ×2") · 가진 수는 칸에 따로 — 긴 설명은 마우스를 올리면', () => {
+    for (const r of shopView(sampleSave({ money: 5000 }))) {
+      expect(r.effect.length, r.name).toBeLessThanOrEqual(10);
+      expect(r.detail.length).toBeGreaterThan(r.effect.length);
+    }
+  });
+  it('물건마다 픽셀 아이콘이 있음 (상점 · 가방)', () => {
+    for (const icon of Object.values(ITEM_ICON)) expect(ICONS[icon], icon).toBeDefined();
   });
 });

@@ -161,9 +161,9 @@ SHOTS = [
     ("p12-battle-140", "720x140", {"screen": "game", "look": "may", "battle": "choose", "size": "large"}),
     ("p12-battle-360", "360x116", {"screen": "game", "look": "may", "battle": "choose", "size": "medium"}),
     ("p12-gym-116", "720x116", {"screen": "game", "look": "may", "place": "lobby", "size": "medium"}),
-    ("p12-toast-68", "720x68", {"screen": "game", "look": "may", "toast": "✨ 상처약을 주웠다!"}),
-    ("p12-toast-92", "720x92", {"screen": "game", "look": "may", "toast": "✨ 상처약을 주웠다!", "size": "small"}),
-    ("p12-toast-140", "720x140", {"screen": "game", "look": "may", "toast": "✨ 상처약을 주웠다!", "size": "large"}),
+    ("p12-toast-68", "720x68", {"screen": "game", "look": "may", "toast": "상처약을 주웠다!"}),
+    ("p12-toast-92", "720x92", {"screen": "game", "look": "may", "toast": "상처약을 주웠다!", "size": "small"}),
+    ("p12-toast-140", "720x140", {"screen": "game", "look": "may", "toast": "상처약을 주웠다!", "size": "large"}),
     # 원작 사람 그림 배치 (2026-10-19) — 주인공 8명 · 트레이너 · 부탁 · 관장
     ("p12-hero8-116", "720x116", {"screen": "title", "save": "none", "click": "hero", "size": "medium"}),
     ("p12-hero8-68", "720x68", {"screen": "title", "save": "none", "click": "hero", "pick": "5"}),

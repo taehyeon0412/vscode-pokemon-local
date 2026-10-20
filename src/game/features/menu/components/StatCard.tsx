@@ -1,6 +1,6 @@
 /**
  * 포켓몬 카드 한 줄 (S18 내 포켓몬 · S21 프로필 같은 부품 — 2026-10-20 아트 디렉터 3차 "라벨: 값 양식 → 카드"):
- * 그림 (crop 24) · 이름 12/600 · Lv 11 흐리게 · ★ · HP 막대 48 × 4 + "19/19" · 스탯 4칸 (숫자 12/600 크림 + 이름 11 흐리게)
+ * 그림 (crop 32 = 원본 그대로) · 이름 12/600 · Lv 11 흐리게 · ★ · HP 막대 48 × 4 + "19/19" · 스탯 4칸 (숫자 12/600 크림 + 이름 11 흐리게)
  */
 import type { StatKey } from '../../../core/save';
 import { Sprite } from '../../../ui/Sprite';
@@ -27,7 +27,8 @@ export function StatCard({ d, media, prefix = '' }: { d: StatCardData; media: st
   const ratio = d.maxHp > 0 ? Math.max(0, Math.min(1, d.hp / d.maxHp)) : 0;
   return (
     <span class="pg-statcard">
-      <Sprite media={media} form={d.form} shiny={d.shiny} scale={1} crop={24} />
+      {/* 원본 32 칸 그대로 (24 창이면 그림 양옆이 잘려서 — 아트 디렉터 4차) */}
+      <Sprite media={media} form={d.form} shiny={d.shiny} scale={1} crop={32} />
       <b class="pg-statcard-name">
         {prefix}
         {d.name}

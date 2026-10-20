@@ -3564,15 +3564,13 @@ body.vscode-high-contrast-light .pg-title-body {
   color: var(--pg-sos-tab-ink);
   border-color: rgba(12, 16, 30, 0.45);
 }
-/* 정보줄 포켓몬 "+2" (남은 포인트) — 빨간 점 대신 숫자 */
+/* 정보줄 포켓몬 "+2" (남은 포인트) — 빨간 점 대신 숫자 · 금색 글자만 (빨강 채움 + 흰 글씨는 웹앱 알림 배지 · 흰색은 팔레트 밖 — 아트 디렉터 4차) */
 .pg-points {
   margin-left: 2px;
-  padding: 0 3px;
   font-size: 11px;
   font-weight: 700;
   line-height: 12px;
-  color: #ffffff;
-  background: var(--pg-sos-red);
+  color: var(--pg-sos-gold);
 }
 /* 패링 키 칸 = 원 왼쪽 (끝을 원 왼쪽에 맞춤) · 자동 전투면 원은 흐리게 */
 .pg-parry-key {
@@ -3750,4 +3748,54 @@ body.vscode-high-contrast-light .pg-title-body {
 }
 .pg-profile .pg-line:first-child {
   flex-wrap: wrap;
+}
+
+/* ---- 아트 디렉터 4차 (17/25) 반영 ---- */
+/* 전투 옆 메뉴 — 다음 포켓몬 · 마지막 기회는 처음 메뉴 층을 빼서 판이 줄 수만큼 (BattleMenu gone) */
+.pg-layer.pg-gone {
+  display: none;
+}
+/* 프로필 카드가 떠 있는 동안 옆 메뉴 판은 탭 줄만 (카드 밑으로 "2 방어 ~ 5" 가 삐져나와 층이 꼬인 것처럼 보이던 것 — 전투는 멈춰 있음) */
+.pg-covered .pg-vmenu-box {
+  visibility: hidden;
+}
+/* 자동 전투 스위치 — 켜짐 = 금색 선 + 크림 · 꺼짐 = 흐린 글 · 흐린 선 (.pg-secondary, 상태를 모양으로) */
+.pg-auto .pg-button:not(.pg-secondary) {
+  border-color: var(--pg-sos-gold);
+}
+/* 경험치 = 11px 흐린 이름 + 가는 막대 32 × 2 (HP 막대 48 × 4 와 다른 모양) */
+.pg-exp {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--pg-sos-dim);
+}
+.pg-exp .pg-expbar {
+  width: 32px;
+  height: 2px;
+}
+/* 진화 상자 — 그림 = 두 줄 높이 왼쪽 칸 (40 × 40, 세로 가운데) · 두 줄 글 왼쪽이 한 선 */
+.pg-banner.pg-two.pg-choice-art {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 8px;
+}
+.pg-choice-art > .pg-choice-sprite {
+  grid-row: 1 / span 2;
+}
+/* 대기실 추천 레벨 — 추천은 크림 (모자라는 내 팀만 빨강 + ▼) */
+.pg-lv {
+  flex: none;
+  color: var(--pg-sos-ink);
+}
+/* 가방 — 지금 못 쓰는 칩 (볼은 전투에서만) = 흐림 + 점선 테두리 (못 누르는 버튼과 같은 모양, 원칙 7) */
+.pg-chip.pg-chip-dim {
+  border-style: dashed;
+}
+/* 지도 줄 % — 숲 줄기 위에서 흐린 글자가 묻혀서 크림 (테두리는 지도 줄 전체 4방향 1px #0c101e) */
+.pg-maprow .pg-mappct {
+  color: var(--pg-sos-ink);
 }

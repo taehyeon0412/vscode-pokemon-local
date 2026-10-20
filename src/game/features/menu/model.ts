@@ -163,15 +163,15 @@ export interface ShopRow {
   affordable: boolean;
 }
 
-/** 상점 물건 한 줄 설명 (2026-10-19 태현 님 "볼 설명이 부실해" — 예전엔 "×1.5 · ×0" 처럼 잡기 배율과 가진 개수가 같은 × 라 헷갈림) */
+/** 상점 물건 한 줄 설명 (2026-10-19 태현 님 "볼 설명이 부실해" — 예전엔 "×1.5 · ×0" 처럼 잡기 배율과 가진 개수가 같은 × 라 헷갈림) · 3칸에서 안 잘리게 짧게 (아트 디렉터 4차, 긴 설명은 SHOP_DETAIL) */
 const SHOP_EFFECT: Record<ShopItem, string> = {
   'poke-ball': '잡기 보통',
   'great-ball': `잘 잡힘 ×${BALANCE.ballScale['great-ball']}`,
   'ultra-ball': `아주 잘 잡힘 ×${BALANCE.ballScale['ultra-ball']}`,
   potion: `HP ${BALANCE.potionHeal} 회복`,
   'super-potion': `HP ${BALANCE.superPotionHeal} 회복`,
-  'full-heal': '독 · 화상 · 마비 · 잠 낫게',
-  revive: '쓰러진 포켓몬 → HP 절반',
+  'full-heal': '상태 회복',
+  revive: '되살림 HP ½',
 };
 /** 마우스를 올리면 보이는 긴 설명 */
 const SHOP_DETAIL: Record<ShopItem, string> = {

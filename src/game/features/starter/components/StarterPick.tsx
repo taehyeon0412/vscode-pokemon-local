@@ -7,6 +7,7 @@ import { BALANCE } from '../../../core/balance';
 import { typeNameKo } from '../../../core/text';
 import { speciesOf } from '../../../data';
 import { Button } from '../../../ui/Button';
+import { KeyCap } from '../../../ui/KeyCap';
 import { InfoBar } from '../../../ui/InfoBar';
 import { Sprite } from '../../../ui/Sprite';
 import { spritePx } from '../../../ui/sprite-path';
@@ -85,7 +86,7 @@ export function StarterPick({ media, pending, onBack, onDone }: StarterPickProps
             </Button>
             {/* 결정은 늘 보이는 정보줄에 (좁은 패널 · 낮은 패널에서 아래 줄이 넘쳐도) */}
             <Button extraClass="pg-pin" onClick={() => onDone(sel.dex, picked)} disabled={!ready} title="Enter — 숲 1-1 로">
-              결정 ▶
+              <KeyCap k="Enter" /> 결정 ▶
             </Button>
           </>
         }

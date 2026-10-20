@@ -56,8 +56,14 @@ export function FacilityBox({ state, onInput, onBox }: BoxProps & { onBox(): voi
       </span>
       {/* 버튼 셋은 한 묶음 — 줄이 바뀌면 글과 버튼 사이에서만 (크기마다 모양이 같게) */}
       <span class="pg-facility-btns">
-        <Button onClick={() => onInput({ kind: 'heal' })} disabled={!canHeal(state) || healthy} title={healthy ? '이미 다 건강해요 (PP 까지)' : 'HP · PP · 상태 이상'}>
-          {healthy ? '✓ 다 나았어요' : '회복'}
+        <Button onClick={() => onInput({ kind: 'heal' })} disabled={!canHeal(state) || healthy} title={healthy ? '이미 다 건강해요 (PP 까지)' : 'HP · PP · 상태 이상 (Enter)'}>
+          {healthy ? (
+            '✓ 다 나았어요'
+          ) : (
+            <>
+              <KeyCap k="Enter" /> 회복
+            </>
+          )}
         </Button>
         <Button secondary onClick={onBox} title="보관함과 팀 바꾸기 (여기서는 바꿀 수 있어요)">
           <Icon name="box" />
@@ -176,8 +182,8 @@ export function ClearCard({ state, media, onInput, onMap, onTeam }: BoxProps & {
           잡은 포켓몬 {v.caught} · 이긴 트레이너 {v.trainers} · {v.minutes}분 걸림
         </span>
         <Button onClick={() => onInput({ kind: 'travel', to: next })} title="Enter">
-          <KeyCap k="Enter" /> {next === 'gym' ? <Icon name="gym" /> : '▶'}
-          <span class="pg-long">{next === 'gym' ? ' 체육관으로' : ' 다음 스테이지'}</span>
+          {/* ▶ 는 글 뒤 (계속 ▶ · 도전 ▶ 와 같게) · 주 버튼 안에는 아이콘 없이 (아트 디렉터 4차) */}
+          <KeyCap k="Enter" /> <span class="pg-long">{next === 'gym' ? '체육관으로 ' : '다음 스테이지 '}</span>▶
         </Button>
         <Button secondary onClick={onMap} title="③ 지도">
           <Icon name="map" />
@@ -203,8 +209,9 @@ export function LobbyBox({ state, onInput, onBox, onShop, onMap }: BoxProps & { 
         <Icon name="gym" />
         <b class="pg-ellipsis">숲 체육관 — {GYM_LEADER.name}</b>
         {/* 추천 · 내 팀을 나란히 (▼ 만이면 무엇과 비교했는지 모름 — 플레이 리뷰어), 모자라면 빨강 */}
-        <span class={v.short ? 'pg-lv-short' : 'pg-dim'} title="내 팀 = 센 3마리 평균 Lv">
-          추천 Lv {v.recommended} · 내 팀 Lv {v.average}
+        {/* 추천은 크림 · 모자라는 내 팀만 빨강 + ▼ (구절 전체가 빨갛던 것 — 아트 디렉터 4차) */}
+        <span class="pg-lv" title="내 팀 = 센 3마리 평균 Lv">
+          추천 Lv {v.recommended} · <span class={v.short ? 'pg-lv-short' : 'pg-dim'}>내 팀 Lv {v.average}{v.short ? ' ▼' : ''}</span>
         </span>
         {state.save.badges.includes('forest') && <Icon name="badge" title="숲 배지" />}
       </span>
@@ -225,8 +232,8 @@ export function LobbyBox({ state, onInput, onBox, onShop, onMap }: BoxProps & { 
           <Icon name="map" />
           <span class="pg-long"> 세계 지도</span>
         </Button>
-        <Button extraClass="pg-go" onClick={() => onInput({ kind: 'challenge' })} title="② 관장 3마리와 1:1 토너먼트 (도망 불가)">
-          도전 ▶
+        <Button extraClass="pg-go" onClick={() => onInput({ kind: 'challenge' })} title="② 관장 3마리와 1:1 토너먼트 (도망 불가) — Enter">
+          <KeyCap k="Enter" /> 도전 ▶
         </Button>
       </span>
     </div>
@@ -259,7 +266,7 @@ export function BadgeCard({ state, onInput, onMap }: BoxProps & { onMap(): void 
           }}
           title="Enter"
         >
-          <KeyCap k="Enter" /> <Icon name="map" /> 세계 지도
+          <KeyCap k="Enter" /> 세계 지도
         </Button>
         <Button secondary onClick={() => onInput({ kind: 'badge-continue' })}>
           대기실로

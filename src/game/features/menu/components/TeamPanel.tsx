@@ -161,8 +161,12 @@ export function TeamPanel({ save, media, swap, onInput, onClose }: TeamPanelProp
           {/* 좁으면 다음 줄로 (480px 에서 기술 이름이 스탯 위에 겹치던 것) */}
           <Row wrap>
             <StatCard d={cardOf(selected)} media={media} />
-            <span class="pg-expbar" title={`다음 레벨까지 경험치 ${selected.expToNext}`}>
-              <span class="pg-bar-fill" style={{ width: `${Math.round(selected.expRatio * 100)}%` }} />
+            {/* 경험치 = 이름 + 가는 막대 (HP 막대와 같은 모양 · 이름 없음이라 0 이면 HP 0 처럼 보이던 것 — 아트 디렉터 4차) */}
+            <span class="pg-exp" title={`다음 레벨까지 경험치 ${selected.expToNext}`}>
+              경험치
+              <span class="pg-expbar">
+                <span class="pg-bar-fill" style={{ width: `${Math.round(selected.expRatio * 100)}%` }} />
+              </span>
             </span>
             {selected.status && <span class="pg-status">{selected.status}</span>}
             <span class="pg-panel-sep">·</span>
