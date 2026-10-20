@@ -211,8 +211,11 @@ export function LobbyBox({ state, media, onInput, onBox, onShop, onMap }: BoxPro
       <span class="pg-line">
         {/* 관장 얼굴 + 이름 ("숲 체육관" 은 지도 줄 이름표에 이미 — 두 번 나오던 것, 아트 디렉터 5차) */}
         <Face media={media} id={GYM_LEADER.look} />
-        {/* 좁은 패널 (330px 아래) 은 이름을 빼고 얼굴만 — "관…" 으로 줄던 것 (U4 줄임표 금지 · 바닥 관장 이름표가 같은 이름, 2026-10-21) */}
-        <b class="pg-ellipsis pg-lobby-name">{GYM_LEADER.name}</b>
+        {/* 좁은 패널 (330px 아래) 은 얼굴 · "관장" 을 빼고 "나래" 만 — "관…" 으로 줄던 것 (U4 줄임표 금지). 바닥 이름표는 낮은 패널에서 상자에 깔려서 이름은 여기 남김 (UX 리뷰어 2026-10-21) */}
+        <b class="pg-ellipsis">
+          <span class="pg-lobby-pre">{GYM_LEADER.name.split(' ')[0]} </span>
+          {GYM_LEADER.name.split(' ').slice(1).join(' ')}
+        </b>
         {/* 추천 · 내 팀을 나란히 (▼ 만이면 무엇과 비교했는지 모름 — 플레이 리뷰어), 모자라면 빨강 */}
         {/* 추천은 크림 · 모자라는 내 팀만 빨강 + ▼ (구절 전체가 빨갛던 것 — 아트 디렉터 4차) · 레벨은 정수 (내림 — 15.7 이 "15" 여도 모자라지 않음, 14.6 은 "14 ▼") */}
         <span class="pg-lobby-lv" title="내 팀 = 센 3마리 평균 Lv">

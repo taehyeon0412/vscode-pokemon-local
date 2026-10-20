@@ -769,6 +769,8 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   font-size: calc(11px * var(--pg-ui, 1));
   /* 상자 (병원 · 클리어 카드 · 대기실) 위에 — 회복 · 레벨업 알림이 상자에 깔리지 않게 */
   z-index: 6;
+  /* 버튼 위에 걸쳐도 누르는 것을 막지 않게 */
+  pointer-events: none;
   /* 자리가 모자라면 낱말 단위로 줄 바꿈 (줄임표 금지 — ux-rules U4, 2026-10-21) · 폭은 글 길이만큼 (left 자리와 상관없이) */
   width: max-content;
   max-width: calc(100% - 16px);
@@ -4080,9 +4082,10 @@ body.vscode-high-contrast-light .pg-title-body {
   flex: none;
   color: var(--pg-sos-ink);
 }
-/* 좁은 대기실 (330px 아래) — 머리 줄 관장 이름 빼기 (얼굴 + 바닥 이름표) · 도전 버튼 Enter 키 칸 숨김: 이름이 "관…" · 도전 버튼이 패널 밖으로 잘리던 것 (UX 리뷰어 · 픽셀 검사원 2026-10-21) */
+/* 좁은 대기실 (330px 아래) — 머리 줄 얼굴 · "관장" 빼고 "나래" 만 · 도전 버튼 Enter 키 칸 숨김: 이름이 "관…" · 도전 버튼이 패널 밖으로 잘리던 것 (UX 리뷰어 · 픽셀 검사원 2026-10-21) */
 @media (max-width: 330px) {
-  .pg-lobby .pg-lobby-name,
+  .pg-lobby .pg-line > .pg-face,
+  .pg-lobby .pg-lobby-pre,
   .pg-lobby .pg-go .pg-menu-key {
     display: none;
   }
