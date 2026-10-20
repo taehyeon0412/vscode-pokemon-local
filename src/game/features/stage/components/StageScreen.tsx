@@ -39,6 +39,7 @@ import { CAUGHT_INTRO_H, CAUGHT_INTRO_W, caughtView, choiceView, levelUps, needs
 import { battleStage, buildingDraw, BUILDINGS, contactX, foeTrainerView, gymEnterView, gymFrontX, gymRestX, heroX, minimapOf, staffLeftPx, type StageObject, stagePx, STAGES, visibleObjects, vsStartMs, WALK_PX_PER_SEC } from '../model';
 import { BadgeCard, ClearCard, DefeatBox, FacilityBox, LobbyBox, TrainerBanner, VsCutIn, type VsArt } from './FieldBoxes';
 import { GymFront } from './GymFront';
+import { StageToast } from './StageToast';
 import { Hero } from './Hero';
 import { Minimap } from './Minimap';
 import { StageObjects } from './StageObjects';
@@ -375,12 +376,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         <ClearCard state={state} media={media} onInput={onInput} onMap={() => onOpen({ kind: 'map' })} onTeam={() => onOpen({ kind: 'team' })} />
         <LobbyBox state={state} media={media} onInput={onInput} onBox={() => onOpen({ kind: 'team' })} onShop={() => onOpen({ kind: 'shop' })} onMap={() => onOpen({ kind: 'map' })} />
         <BadgeCard state={state} media={media} onInput={onInput} onMap={() => onOpen({ kind: 'map' })} />
-        {showToast && state.runtime.toast && (
-          // 주인공 머리 위 — 주운 자리에서 바로 보이게
-          <div key={state.runtime.toast.text} class="pg-toast" style={{ left: `${Math.max(80, heroLeft)}px`, bottom: `${toastBottom}px` }}>
-            {state.runtime.toast.text}
-          </div>
-        )}
+        {/* 주인공 머리 위 — 주운 자리에서 바로 보이게 (긴 알림은 패널 끝 안쪽으로 당김) */}
+        {showToast && state.runtime.toast && <StageToast key={state.runtime.toast.text} text={state.runtime.toast.text} center={heroLeft + heroW / 2} bottom={toastBottom} />}
       </div>
     </div>
   );
