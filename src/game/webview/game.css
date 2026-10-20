@@ -1671,21 +1671,13 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   24% { translate: 2px 0; }
   48%, 100% { translate: 0 0; }
 }
-/* 딸깍 — 한 칸 눌렸다 돌아옴 · 터짐 — 하얀 한 걸음 뒤 사라짐 (크기를 바꾸지 않음 — 소수 배율은 점이 무너짐, 터지는 고리는 pg-send-burst) */
+/* 딸깍 — 한 칸 눌렸다 돌아옴 (크기를 바꾸지 않음 — 소수 배율은 점이 무너짐) · 놓침 (아깝다!) = 창 안 볼이 열린 볼 (ballBigOpen) + 터지는 고리 pg-send-burst */
 .pg-catch-click {
   animation: pg-catch-click 240ms steps(1, end) both;
 }
 @keyframes pg-catch-click {
   0% { translate: 0 2px; }
   40%, 100% { translate: 0 0; }
-}
-.pg-catch-break {
-  animation: pg-catch-break 300ms steps(1, end) both;
-}
-@keyframes pg-catch-break {
-  0% { filter: none; opacity: 1; }
-  34% { filter: brightness(0) invert(1); opacity: 1; }
-  67%, 100% { filter: brightness(0) invert(1); opacity: 0; }
 }
 /* 상대 — 하얀 빛이 되어 볼 자리로 작아짐 (1 → 0.5 → 0, 키프레임마다 한 걸음 — steps(8) 이면 사이 필터가 흙색으로 끼고 점 크기가 소수였음, 아트 디렉터 8차)
    · 볼 속 = 숨김 · 빠져나옴 = 하얗게 0.5 → 1 (위로 2px 톡) → 원래 */
