@@ -3977,7 +3977,8 @@ body.vscode-high-contrast-light .pg-title-body {
    그림 줄 높이 = 이 진화 줄의 가장 큰 그림 (StarterPick style) → 위 · 아래 보이는 간격이 같음. 좁으면 뒤 단계 이름 → 타입 순서로 숨김 (그림 title) */
 .pg-chain-grid {
   display: inline-grid;
-  column-gap: 6px;
+  /* 옆 간격 = 패널 폭에 따라 (태현 님 "옆 간격을 좀 더 넓게 이쁘게") — 넓은 패널 16px · 720 폭 약 14 · 좁으면 6 */
+  column-gap: clamp(6px, 2vw, 16px);
   row-gap: 4px;
   justify-items: center;
 }
@@ -4007,6 +4008,8 @@ body.vscode-high-contrast-light .pg-title-body {
 }
 .pg-chain-types {
   justify-self: start;
+  /* 타입은 이름과 다른 정보 — 한 칸 더 띄움 */
+  margin-left: clamp(0px, 1vw, 8px);
 }
 @media (max-width: 420px) {
   .pg-starter-chain .pg-chain-label.pg-dim {
