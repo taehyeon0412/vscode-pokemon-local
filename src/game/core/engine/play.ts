@@ -503,11 +503,13 @@ function finishStage(save0: Save, rt0: RuntimeState, id: StageId): { save: Save;
   const r = clearStage(save0, id, rng);
   let save = r.save;
   let rt: RuntimeState = { ...rt0, rngState: rng.state };
-  const lv = r.levelUps.length > 0 ? ` · ${r.levelUps.join(' · ')}` : '';
+  const lv = r.levelUps.join(' · ');
   if (id === 'forest-3') {
     save = { ...save, location: { screen: 'gym' } };
-    rt = { ...rt, toast: { text: `${stageCode(id)} 클리어! 보너스 경험치 +${clearBonusExp(id)} · ◓+${BALANCE.clearBalls}${lv}`, ms: TIMING.toastMs * 2 } };
-  } else if (lv) rt = { ...rt, toast: { text: r.levelUps.join(' · '), ms: TIMING.toastMs * 2 } };
+    // 클리어 → 레벨업을 두 알림으로 차례로 (각 2.5초 · 합 5초) — 한 줄이면 6마리 레벨업에 약 660px (2026-10-21 UX 리뷰어)
+    const head = `${stageCode(id)} 클리어! 경험치 +${clearBonusExp(id)} · 볼 +${BALANCE.clearBalls}`;
+    rt = { ...rt, toast: lv ? { text: head, ms: TIMING.toastMs, then: lv } : { text: head, ms: TIMING.toastMs * 2 } };
+  } else if (lv) rt = { ...rt, toast: { text: lv, ms: TIMING.toastMs * 2 } };
   const stage = afterResult(save);
   const notice: GameNotice | null = !rt.headless ? null : stage.phase === 'choice' ? 'choice' : id === 'forest-3' ? 'gym' : 'clear';
   return { save, rt: { ...rt, stage, stageId: id === 'forest-3' ? null : id }, signal: 'stage-clear', notice };
@@ -591,7 +593,7 @@ function gymStep(save0: Save, rt0: RuntimeState, stepMs: number): { save: Save; 
 export function step(state: GameState, stepMs: number): StepOut {
   let save: Save = { ...state.save, playTimeMs: state.save.playTimeMs + stepMs };
   let rt: RuntimeState = state.runtime;
-  if (rt.toast) rt = { ...rt, toast: rt.toast.ms > stepMs ? { ...rt.toast, ms: rt.toast.ms - stepMs } : null };
+  if (rt.toast) rt = { ...rt, toast: rt.toast.ms > stepMs ? { ...rt.toast, ms: rt.toast.ms - stepMs } : rt.toast.then ? { text: rt.toast.then, ms: TIMING.toastMs } : null };
   let signal: SaveSignal | null = null;
   let notice: GameNotice | null = null;
   const loc = save.location;

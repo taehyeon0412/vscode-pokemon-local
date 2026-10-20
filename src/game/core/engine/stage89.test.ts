@@ -320,6 +320,18 @@ describe('S24 · S07 · 깬 스테이지 (mvp-spec S07 · S24 · #62)', () => {
     expect(isWaitingForInput(lobby)).toBe(true);
     expect(canSwapBox(lobby) && canHeal(lobby) && canShop(lobby)).toBe(true);
   });
+
+  it('1-3 클리어 알림은 둘로 차례로 — 클리어 · 경험치 · 볼 2.5초 → 레벨업 2.5초 (한 줄이면 패널 밖으로 길어짐, 2026-10-21)', () => {
+    const s0 = game({ location: { screen: 'stage', stageId: 'forest-3' }, party: ['m1'], stages: { 'forest-1': stageAt(0, { cleared: true }), 'forest-2': stageAt(0, { cleared: true }), 'forest-3': stageAt(0.99999) } });
+    const s = until(s0, (x) => x.save.location.screen === 'gym', 5000);
+    expect(s.runtime.toast).toMatchObject({ text: '1-3 클리어! 경험치 +130 · 볼 +1', then: '이상해씨 Lv 6!' });
+    expect(s.runtime.toast!.ms).toBeLessThanOrEqual(TIMING.toastMs);
+    const second = until(s, (x) => x.runtime.toast?.text !== s.runtime.toast!.text, TIMING.toastMs + 500);
+    expect(second.runtime.toast).toEqual({ text: '이상해씨 Lv 6!', ms: expect.any(Number) });
+    expect(until(second, (x) => !x.runtime.toast, TIMING.toastMs + 500).runtime.toast).toBeNull();
+    // 웹뷰 ↔ 확장으로 넘겨도 다음 글이 남음
+    expect(readRuntime(viaJson(s.runtime), 1).toast).toEqual(s.runtime.toast);
+  });
 });
 
 describe('S16 체육관 · 관장 (mvp-spec 3.9)', () => {

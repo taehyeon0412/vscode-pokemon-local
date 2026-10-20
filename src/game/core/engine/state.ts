@@ -60,6 +60,8 @@ export interface RequestResult {
 export interface Toast {
   text: string;
   ms: number;
+  /** 이 알림이 끝나면 이어서 띄울 글 (TIMING.toastMs) — 긴 알림을 둘로 나눠 차례로 (2026-10-21 1-3 클리어) */
+  then?: string;
 }
 
 export interface RuntimeState {
@@ -197,7 +199,10 @@ export function readRuntime(raw: unknown, fallbackSeed: number, stepMs: number =
   const r = isObj(raw) ? raw : {};
   const rng = r.rngState;
   const acc = r.stepAccMs;
-  const toast = isObj(r.toast) && typeof r.toast.text === 'string' && num(r.toast.ms, 0, 60_000) !== null ? { text: r.toast.text.slice(0, 300), ms: r.toast.ms as number } : null;
+  const toast =
+    isObj(r.toast) && typeof r.toast.text === 'string' && num(r.toast.ms, 0, 60_000) !== null
+      ? { text: r.toast.text.slice(0, 300), ms: r.toast.ms as number, ...(typeof r.toast.then === 'string' ? { then: r.toast.then.slice(0, 300) } : {}) }
+      : null;
   return {
     rngState: typeof rng === 'number' && Number.isInteger(rng) && rng >= 0 && rng <= 0xffffffff ? rng : fallbackSeed >>> 0,
     stepAccMs: typeof acc === 'number' && Number.isFinite(acc) && acc >= 0 && acc < stepMs ? acc : 0,
