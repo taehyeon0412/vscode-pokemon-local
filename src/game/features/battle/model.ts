@@ -1,6 +1,7 @@
 /**
  * S09 전투 화면 — 화면을 모르는 부분: 메뉴에 무엇이 있고 무엇이 흐린지 · 단축키 · 연출 모양 고르기.
  */
+import { TIMING } from '../../core/balance';
 import type { BattleAction, BattlePopup, BattleState, Side } from '../../core/engine';
 import { canAct, canParry, counterOpen, faintedTeam, itemLeft, switchable, ultCounterOpen } from '../../core/engine';
 import { isShooting } from '../../core/rules/battle';
@@ -214,6 +215,8 @@ const AUTO_EST_PX = 78;
 const MSG_PX = 18;
 /** 한 줄 말 둘째 줄 (game.css .pg-bmsg line-height) — 긴 말은 자리가 있으면 두 줄 */
 const MSG_LINE_PX = 15;
+/** 옆 메뉴일 때 한 줄 말 = 옆 메뉴 탭 · 상대 HP 묶음 위 끝에서 이만큼 위 (싸우는 곳 가까이 — 아트 디렉터 3차) */
+const MSG_NEAR_GAP_PX = 8;
 /** 한 줄 말 위 띄움 최소 (예전 값) — 자리가 모자라면 정보줄 띄움 (4 ~ 8) 을 여기까지 줄임 */
 const MSG_MIN_GAP_PX = 3;
 /** 옆 메뉴 실제 폭 어림 (max-content — 기술 목록 "1 하이드로펌프 5/5" 까지) · 한 줄 말과 같은 높이에 걸칠 때만 씀 */
@@ -388,7 +391,7 @@ export function battleGeometry(g: GeometryInput): BattleGeometry {
   const msgSide = !menuSide && topBusy && sideRoom >= MSG_SIDE_MIN_PX ? { left: sideLeft, maxWidth: sideRoom } : null;
   // 둘 곳이 없으면 (좁고 낮은 패널) 한 줄은 숨김 — HP 바가 더 중요, 내 차례는 메뉴 테두리로 보임
   const msgHidden = menuSide ? !msgRight : topBusy && !msgSide;
-  return { trainerX, meX, foeX: Math.round(g.foeX), meSpritePx: g.meSpritePx, foeSpritePx: g.foeSpritePx, meHpWide, foeHpWide, meHpX, foeHpX, msgHidden, meHpBottom, foeHpBottom, hpBlockPx, menuInBar, menuBottom, menuLeft, autoInMenu, autoBottom, autoLeft: AUTO_LEFT_PX, compact, msgSide, menuSide, msgRight, msgLines, topBusy, msgTop: top + msgGap, bodyPx: g.bodyPx };
+  return { trainerX, meX, foeX: Math.round(g.foeX), meSpritePx: g.meSpritePx, foeSpritePx: g.foeSpritePx, meHpWide, foeHpWide, meHpX, foeHpX, msgHidden, meHpBottom, foeHpBottom, hpBlockPx, menuInBar, menuBottom, menuLeft, autoInMenu, autoBottom, autoLeft: AUTO_LEFT_PX, compact, msgSide, menuSide, msgRight, msgLines, topBusy, msgTop: Math.max(top + msgGap, menuSide && !topBusy ? Math.min(menuSide.top, g.bodyPx - (foeHpBottom + hpBlockPx + foeExtra)) - MSG_NEAR_GAP_PX - msgH - (msgLines - 1) * MSG_LINE_PX : 0), bodyPx: g.bodyPx };
 }
 
 /**
@@ -485,9 +488,10 @@ export function sentenceText(p: BattlePopup, nameOfSide: (s: Side) => string): s
 export const SEND_FLY_MS = 450;
 export const SEND_BURST_MS = 250;
 export const WIPE_MS = 350;
-export function introView(b: BattleState): { me: number | null; foe: number | null; wipe: number | null } {
+export function introView(b: BattleState): { me: number | null; foe: number | null; wipe: number | null; sendBall?: number | null } {
   const sending = (at: number) => (at >= 0 && at < SEND_FLY_MS + SEND_BURST_MS ? at : null);
   if (b.kind === 'wild') return { me: null, foe: null, wipe: b.t >= 0 && b.t < WIPE_MS ? b.t : null };
-  if (b.phase === 'send') return { me: null, foe: sending(b.sendMs), wipe: null };
+  // 다음 포켓몬 = 내보내는 시간 끝 무렵에 볼 (닿고 터진 뒤 새 포켓몬이 붙으며 나옴 — 그동안 쓰러진 포켓몬은 그대로)
+  if (b.phase === 'send') return { me: null, foe: null, wipe: null, sendBall: sending(b.sendMs - (TIMING.foeSendMs - SEND_FLY_MS - SEND_BURST_MS)) };
   return { me: sending(b.t), foe: sending(b.t), wipe: null };
 }

@@ -317,7 +317,11 @@ describe('지도 줄 아래 · 긴 한 줄 말 (2026-10-19 태현 님)', () => {
     expect(narrow.msgTop).toBeGreaterThanOrEqual(3);
     expect(narrow.msgTop).toBeLessThan(8);
     // 자리가 넉넉하면 띄움 그대로 (지도 줄 아래 8)
-    expect(real(315, 560, true, 64).msgTop).toBe(8 + MAP_ROW_PX + 8);
+    // 자리가 넉넉하면 지도 줄 아래 띄움보다 아래 — 옆 메뉴 탭 · 상대 HP 묶음 위 8px (싸우는 곳 가까이, 아트 디렉터 3차)
+    const tall = real(315, 560, true, 64);
+    expect(tall.msgTop).toBeGreaterThan(8 + MAP_ROW_PX + 8);
+    expect(tall.msgTop + 23 + (tall.msgLines - 1) * 15 + 8).toBeLessThanOrEqual(tall.menuSide!.top);
+    expect(tall.msgTop + 23 + (tall.msgLines - 1) * 15 + 8).toBeLessThanOrEqual(315 - 26 - (tall.foeHpBottom + tall.hpBlockPx + 4));
   });
 });
 
@@ -352,6 +356,8 @@ describe('전투 시작 연출 (2026-10-20 태현 님 B + C · 야생 A)', () =>
     const tb = { ...base, kind: 'trainer' as const };
     expect(introView({ ...tb, t: 100 })).toEqual({ me: 100, foe: 100, wipe: null });
     expect(introView({ ...tb, t: SEND_FLY_MS + SEND_BURST_MS })).toEqual({ me: null, foe: null, wipe: null });
-    expect(introView({ ...tb, t: 9000, phase: 'send', sendMs: 200 })).toEqual({ me: null, foe: 200, wipe: null });
+    // 다음 포켓몬 = 내보내는 시간 끝 무렵 볼만 (쓰러진 포켓몬은 그대로, 새 포켓몬은 붙을 때 나옴)
+    expect(introView({ ...tb, t: 9000, phase: 'send', sendMs: 200 })).toEqual({ me: null, foe: null, wipe: null, sendBall: null });
+    expect(introView({ ...tb, t: 9000, phase: 'send', sendMs: TIMING.foeSendMs - SEND_FLY_MS - SEND_BURST_MS + 100 }).sendBall).toBe(100);
   });
 });

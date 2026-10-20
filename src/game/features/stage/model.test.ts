@@ -118,7 +118,7 @@ describe('라이벌 (gdd 4.12) — 띠 · 결과 보이기', () => {
       { kind: 'item', text: '불꽃의돌' },
     ]);
     expect(lines.body).toEqual([
-      { kind: 'up', text: '이상해씨 Lv 5 → 6 (+64 EXP)' },
+      { kind: 'up', text: '이상해씨 Lv 5 → 6 (경험치 +64)' },
       { kind: 'quote', text: '레드: 다음엔 꼭 이길 거야! (전적 1승 0패)' },
     ]);
   });

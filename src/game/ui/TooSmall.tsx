@@ -9,7 +9,7 @@ export function TooSmall({ layout, playing, status }: { layout: Layout; playing:
     <div class="pg-too-small" role="status">
       <span>
         {playing
-          ? `${status ?? '접어 둔 상태 · 자동 전투면 계속 걸어요'} · ▲ ${layout.needPx}px 이상으로 올리면 보여요`
+          ? `${status ?? '접어 둔 상태 · 자동 전투면 계속 걸어요'} · 패널을 ▲ 올리면 보여요`
           : `패널을 ▲ ${layout.needPx}px 이상으로 올려 주세요`}
       </span>
     </div>

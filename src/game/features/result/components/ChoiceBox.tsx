@@ -83,7 +83,7 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
           <span class="pg-ellipsis">
             <span class="pg-up">★</span> {withJosa(view.name, '이/가')} <b title={view.move.detail}>{view.move.name}</b>
             <span class="pg-sub">{view.move.short}</span>
-            {josa(view.move.name, '을/를')} 배울 수 있어요! 기술이 4개 — 바꿀 기술을 골라요
+            {josa(view.move.name, '을/를')} 배울 수 있어요 — 바꿀 기술을 골라요
           </span>
         </span>
         <span class="pg-line pg-choice-row">

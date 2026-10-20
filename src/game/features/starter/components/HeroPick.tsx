@@ -53,7 +53,8 @@ export function HeroPick({ px, media, bodyPx, initial, onBack, onPick }: { px: n
   return (
     <div class="pg-screen pg-title pg-pick" ref={rootRef}>
       <InfoBar
-        center={<span class="pg-title-text">주인공을 골라요</span>}
+        split
+        left={<span class="pg-pick-tag">주인공을 골라요</span>}
         right={
           <Button secondary onClick={onBack} title="Esc">
             ← 뒤로

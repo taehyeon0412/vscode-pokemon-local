@@ -275,7 +275,7 @@ export function BadgeCard({ state, onInput, onMap }: BoxProps & { onMap(): void 
  * 아래 띠 (상대 · 볼) 는 오른쪽에서 밀려 들어오고 가운데 금색 VS 가 찍힘 (번쩍임 없음). at = 시작한 뒤 지난 ms —
  * 처음 그릴 때 값만 씀 (다시 그릴 때마다 지연을 바꾸면 애니메이션이 두 배로 빨리 끝남, 라이벌 만남에서 안 보이던 것)
  */
-export function VsCutIn({ me, myBalls, foe, foeBalls, at }: { me: string; myBalls: boolean[]; foe: string; foeBalls: number; at: number }) {
+export function VsCutIn({ me, myBalls, foe, foeBalls, tag, at }: { me: string; myBalls: boolean[]; foe: string; foeBalls: number; /** 라이벌 전적 ("전적 2승 1패") — 전적 띠가 VS 에 가려지는 동안에도 보이게 */ tag?: string; at: number }) {
   const at0 = useRef(at).current;
   return (
     <div class="pg-vs" style={{ '--pg-vs-at': `${-at0}ms` }}>
@@ -297,6 +297,7 @@ export function VsCutIn({ me, myBalls, foe, foeBalls, at }: { me: string; myBall
           ))}
         </span>
         <b>{foe}</b>
+        {tag && <span class="pg-rival-rec">{tag}</span>}
       </div>
     </div>
   );

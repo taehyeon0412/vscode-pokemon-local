@@ -8,7 +8,7 @@ import { Button } from '../../../ui/Button';
 import { Icon } from '../../../ui/Icon';
 import { formatMoney } from '../../../ui/format';
 import { shopView } from '../model';
-import { Panel, Row } from './Panel';
+import { Panel } from './Panel';
 
 export function ShopPanel({ save, note, onInput, onClose }: { save: Save; /** 방금 산 것 ("몬스터볼을 샀다!") — 알림 줄은 판 밑에 깔려서 판 안에 */ note?: string; onInput(i: GameInput): void; onClose(): void }) {
   return (
@@ -26,13 +26,19 @@ export function ShopPanel({ save, note, onInput, onClose }: { save: Save; /** �
       onClose={onClose}
       closeLabel="나가기"
     >
-      <Row wrap>
+      {/* 3칸 바둑판 — 이름 · 값 왼쪽, 설명 · 가진 수는 오른쪽 끝 흐리게 (넘치면 설명만 줄임, 긴 설명은 title) — 아트 디렉터 3차 */}
+      <div class="pg-shop-grid">
         {shopView(save).map((r) => (
-          <Button key={r.item} secondary disabled={!r.affordable} onClick={() => onInput({ kind: 'buy', item: r.item })} title={`${r.name} — ${r.detail}${r.affordable ? ' (눌러서 하나 사기)' : ' · 돈이 모자라요'}`}>
-            {r.name} <b>{formatMoney(r.price)}</b> <span class="pg-sub">{r.effect} · 가진 {r.have}</span>
+          <Button key={r.item} secondary disabled={!r.affordable} extraClass="pg-shop-item" onClick={() => onInput({ kind: 'buy', item: r.item })} title={`${r.name} — ${r.detail}${r.affordable ? ' (눌러서 하나 사기)' : ' · 돈이 모자라요'}`}>
+            <span class="pg-shop-name">
+              {r.name} <b>{formatMoney(r.price)}</b>
+            </span>
+            <span class="pg-sub pg-shop-sub">
+              {r.effect} · 가진 {r.have}
+            </span>
           </Button>
         ))}
-      </Row>
+      </div>
     </Panel>
   );
 }

@@ -19,7 +19,7 @@ import { Icon } from '../../../ui/Icon';
 import { Sprite } from '../../../ui/Sprite';
 import { duelKind, hpColor, introView, moveColor, moveFx, profileOpenable, SEND_FLY_MS, sentenceText, splitPopups, STATUS_LABEL, type BattleGeometry } from '../model';
 import { battleAnimKey, holdWindow } from '../fx/hold';
-import { impactOf } from '../fx/parry';
+import { impactOf, ultSkippable } from '../fx/parry';
 import { BattleMenu } from './BattleMenu';
 import { fxCastAt, fxContact, useBattleFx } from './BattleFx';
 
@@ -132,7 +132,8 @@ function FighterBody(props: { b: BattleState; side: Side; x: number; target: num
   return (
     // 볼 던지기 중이면 볼이 닿을 때 나옴 (그 전에는 안 보임 — pg-sendout 의 첫 장면), 아니면 내 포켓몬만 예전처럼 바로 나옴
     <span
-      class={`pg-obj pg-fighter pg-fighter-${side}${side === 'me' || (sendAt ?? null) !== null ? ' pg-sendout' : ''}`}
+      // 트레이너 · 관장 · 라이벌 포켓몬은 붙을 때마다 나오는 움직임 (다음 포켓몬 = 내보내는 시간 끝에 볼이 터진 뒤), 야생은 이미 튀어나와 있어서 없음
+      class={`pg-obj pg-fighter pg-fighter-${side}${side === 'me' || b.kind !== 'wild' ? ' pg-sendout' : ''}`}
       style={{ left: `${x}px`, bottom: `${ground}px`, ...(sendAt0 !== null ? { animationDelay: `${SEND_FLY_MS - sendAt0}ms` } : {}) }} title={`${side === 'foe' ? foePrefix(b) : ''}${nameOf(f)} Lv${f.level}${onProfile ? ' — 누르면 프로필' : ''}`} onClick={onProfile ? () => onProfile(side) : undefined}>
       {/* --pg-back = 맞으면 밀려나는 쪽 (상대 반대쪽) */}
       <span key={animKey(b)} class={cls} style={{ '--pg-dx': `${Math.round((target - x) * 0.75)}px`, '--pg-back': side === 'me' ? '-1' : '1', ...bodyTiming }}>
@@ -342,7 +343,13 @@ function ParryRing({ b, geo, y, auto }: { b: BattleState; geo: BattleGeometry; y
       {/* 키 칸 = 원 왼쪽 (내 포켓몬 뒤 — 오른쪽은 상대 공격이 날아오는 길, 플레이 리뷰어) · 자동 전투면 숨김 (맡겨 둔 사람을 부르지 않게) */}
       {!auto && (
         <span key={`${animKey(b)}k`} class="pg-parry-key" style={{ left: `${geo.meX - Math.round(size * 0.55) - 4}px`, bottom: `${y}px`, animationDuration: style.animationDuration, animationDelay: style.animationDelay }}>
-          <span class="pg-menu-key">{document.hasFocus() ? 'Space' : '클릭'}</span> 막기
+          {document.hasFocus() ? (
+            <>
+              <span class="pg-menu-key">Space</span> 막기
+            </>
+          ) : (
+            '클릭해 막기'
+          )}
         </span>
       )}
     </>
@@ -432,15 +439,16 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
   const hasMe = b.me.uid !== 'none';
   // 전투 시작 연출 — 트레이너전 = 볼 던지기 (손 = 사람 키의 55%), 야생 = 화면 닦기
   const intro = introView(b);
-  const handY = ground + Math.round((geo.autoBottom - ground) * 0.55);
+  const handY = ground + Math.round((geo.autoBottom - ground) * 0.4);
   const throwFoe = intro.foe !== null && foeTrainerLeft !== undefined ? intro.foe : null;
+  const sendBall = intro.sendBall !== undefined && intro.sendBall !== null && foeTrainerLeft !== undefined ? intro.sendBall : null;
   const throwMe = intro.me !== null && hasMe ? intro.me : null;
   return (
     <>
       {hasMe && <FighterBody key={`me${b.me.uid}`} b={b} side="me" x={geo.meX} target={geo.foeX} px={geo.meSpritePx} media={media} ground={ground} onProfile={profile} sendAt={throwMe} />}
       {/* 볼에 들어가 있는 동안 (던짐 · 흔들림 · 잡힘) 상대 그림은 숨김 */}
       {b.phase !== 'catch' && !(b.phase === 'over' && b.result === 'catch') && (
-        <FighterBody key={`foe${b.foeDown.length}`} b={b} side="foe" x={geo.foeX} target={geo.meX} px={geo.foeSpritePx} media={media} ground={ground} onProfile={profile} sendAt={throwFoe} />
+        <FighterBody key={`foe${b.foe.uid}`} b={b} side="foe" x={geo.foeX} target={geo.meX} px={geo.foeSpritePx} media={media} ground={ground} onProfile={profile} sendAt={throwFoe} />
       )}
       {/* 패링 원은 HP 줄보다 먼저 (같은 층에서 HP 숫자가 위) */}
       <ParryRing b={b} geo={geo} y={midMe} auto={save.settings.autoBattle} />
@@ -449,7 +457,8 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
       {b.phase === 'clash' ? <Clash b={b} geo={geo} y={Math.round((midMe + midFoe) / 2)} native={native} /> : <Effects b={b} geo={geo} ground={ground} midMe={midMe} midFoe={midFoe} native={native} />}
       <Catch b={b} geo={geo} ground={ground} />
       {throwMe !== null && <SendBall key={`sm${b.me.uid}`} from={[geo.trainerX, handY]} to={[geo.meX, midMe]} at={throwMe} />}
-      {throwFoe !== null && foeTrainerLeft !== undefined && <SendBall key={`sf${b.foeDown.length}`} from={[foeTrainerLeft, handY]} to={[geo.foeX, midFoe]} at={throwFoe} />}
+      {throwFoe !== null && foeTrainerLeft !== undefined && <SendBall key={`sf${b.foe.uid}`} from={[foeTrainerLeft, handY]} to={[geo.foeX, midFoe]} at={throwFoe} />}
+      {sendBall !== null && foeTrainerLeft !== undefined && <SendBall key={`ss${b.foeDown.length}`} from={[foeTrainerLeft, handY]} to={[geo.foeX, midFoe]} at={sendBall} />}
       {intro.wipe !== null && <Wipe at={intro.wipe} />}
       {(['me', 'foe'] as const).map((side) => {
         const nums = numbers.filter((n) => n.side === side).slice(-3);
@@ -468,6 +477,18 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
           ),
         ];
       })}
+      {/* 다시 보는 필살기 = Space 로 남은 연출 건너뛰기 — 아무도 몰라서 말 자리에 작은 키 칸 (다른 세션 플레이 리뷰어) */}
+      {ultSkippable(b) && (
+        <span class="pg-skip-key" style={msgStyle(geo)}>
+          {document.hasFocus() ? (
+            <>
+              <span class="pg-menu-key">Space</span> 넘기기
+            </>
+          ) : (
+            '클릭해 넘기기'
+          )}
+        </span>
+      )}
       {showMsg && (
         <div key={b.msg} class={['pg-bmsg', b.phase === 'over' ? 'pg-bmsg-over' : '', geo.msgLines === 2 ? 'pg-bmsg-2' : ''].filter(Boolean).join(' ')} style={msgStyle(geo)} title={msgText}>
           {emphasize(msgText, [nameOf(b.me), nameOf(b.foe)])}

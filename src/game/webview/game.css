@@ -943,9 +943,9 @@ body.pokemon-game-on {
 .pg-bar-act .pg-bar-fill {
   transition: none;
 }
-/* 행동 게이지 꽉 참은 파랑 계열 그대로 밝게 (HP 노랑과 붙어 헷갈리지 않게 — 아트 디렉터) */
+/* 행동 게이지 꽉 참은 파랑 계열 그대로 밝게 (HP 노랑과 붙어 헷갈리지 않게 — 아트 디렉터) · 값은 토큰 */
 .pg-bar-act.pg-full .pg-bar-fill {
-  background: #cfe6ff;
+  background: var(--pg-sos-gauge-full, #cfe6ff);
 }
 .pg-bar-ult .pg-bar-fill,
 .pg-bar-myult .pg-bar-fill {
@@ -2017,12 +2017,12 @@ body.pokemon-game-on {
   pointer-events: none;
   background-color: #eeeeff;
 }
-/* 어두운 테마 = 남색 막 (숲 밤 그림처럼 — 밝기만 낮추면 탁한 회색) */
+/* 어두운 테마 = 남색 막 (숲 밤 그림처럼 — 밝기만 낮추면 탁한 회색, 3차 .5 → .62 벽이 판과 따로 놀던 것) */
 .pg-gym-room.pg-gym-dark::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: rgba(14, 20, 40, 0.5);
+  background: rgba(14, 20, 40, 0.62);
 }
 .pg-gym-floor,
 .pg-gym-wall,
@@ -3585,4 +3585,103 @@ body.vscode-high-contrast-light .pg-title-body {
 /* 상점 — 돈이 모자란 물건은 값이 빨강 */
 .pg-panel .pg-button:disabled b {
   color: var(--pg-sos-red);
+}
+
+/* ---- 아트 디렉터 3차 (16/25) 반영 ---- */
+#pokemon-game {
+  --pg-sos-gauge-full: #cfe6ff;
+}
+/* 체육관 지도 줄 이름 = 띠 남색 칸 위 (밝은 벽 위 크림 글씨가 1.1 : 1 로 안 읽히던 것) */
+.pg-gym .pg-maprow .pg-stage-name {
+  height: 18px;
+  padding: 0 6px;
+  background: var(--pg-sos-bar);
+  text-shadow: none;
+}
+/* 패배 상자 = 불투명 (병원 지붕 위에 얹힐 때 빨강이 비침) */
+.pg-banner.pg-defeat {
+  background: var(--pg-sos-bar);
+}
+/* 정보줄 메뉴 오른쪽 끝을 지도 줄 % 끝과 맞춤 (버튼 안쪽 여백 6px) */
+.pg-infobar-split .pg-infobar-right {
+  margin-right: -6px;
+}
+/* 상점 3칸 바둑판 */
+.pg-shop-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 2px 0;
+}
+.pg-button.pg-shop-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: none;
+}
+.pg-shop-name {
+  flex: none;
+  white-space: nowrap;
+}
+.pg-shop-name b {
+  font-variant-numeric: tabular-nums;
+}
+.pg-shop-sub {
+  min-width: 0;
+  margin-left: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 720px) {
+  .pg-shop-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 420px) {
+  .pg-shop-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+/* 고르는 화면 머리 = 금색 이름표 (판 제목 이름표와 같은 칠) */
+.pg-pick-tag {
+  display: inline-block;
+  height: 18px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 18px;
+  color: var(--pg-sos-tab-ink);
+  background: var(--pg-sos-line);
+}
+/* 주인공 칸 이름 = 띠 남색 칸 (발을 가려 보이던 것) */
+.pg-hero-row > .pg-hero-choice b {
+  position: relative;
+  padding: 0 3px;
+  background: var(--pg-sos-bar);
+}
+/* 다시 보는 필살기 "Space 넘기기" — 말 자리에 작은 키 칸 */
+.pg-skip-key {
+  position: absolute;
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+  color: var(--pg-sos-ink);
+  background: var(--pg-sos-panel);
+  border: 1px solid var(--pg-sos-line-soft);
+}
+.pg-skip-key .pg-menu-key {
+  color: var(--pg-sos-gold);
+  border-color: var(--pg-sos-gold);
+}
+/* VS 띠의 라이벌 전적 칩 */
+.pg-vs-band .pg-rival-rec {
+  font-size: 11px;
 }

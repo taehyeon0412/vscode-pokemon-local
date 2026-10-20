@@ -40,8 +40,8 @@ export function summaryLines(s: BattleSummary): { title: string; head: SummaryPa
   if (s.item) head.push({ kind: 'item', text: s.item });
   // 레벨이 오른 포켓몬을 앞에 (묻히지 않게) · 나머지는 뒤에
   const body: SummaryPart[] = [
-    ...s.exp.filter((e) => e.to > e.from).map((e): SummaryPart => ({ kind: 'up', text: `${e.name} Lv ${e.from} → ${e.to} (+${e.gain} EXP)` })),
-    ...s.exp.filter((e) => e.to <= e.from).map((e): SummaryPart => ({ kind: 'exp', text: `${e.name} +${e.gain} EXP` })),
+    ...s.exp.filter((e) => e.to > e.from).map((e): SummaryPart => ({ kind: 'up', text: `${e.name} Lv ${e.from} → ${e.to} (경험치 +${e.gain})` })),
+    ...s.exp.filter((e) => e.to <= e.from).map((e): SummaryPart => ({ kind: 'exp', text: `${e.name} 경험치 +${e.gain}` })),
   ];
   for (const l of s.learned) body.push({ kind: 'learned', text: `${withJosa(l.name, '이/가')} ${withJosa(l.move, '을/를')} 배웠다` });
   // 라이벌 한마디 (gdd 4.12) — 둘째 줄 맨 끝 (좁은 패널에서 레벨업이 잘리지 않게)

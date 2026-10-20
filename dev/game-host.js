@@ -234,7 +234,7 @@
             const d = document.createElement('pre');
             d.style.cssText = 'position:fixed;left:0;bottom:0;z-index:99999;margin:0;color:#8f8;background:#000;font-size:10px;white-space:pre-wrap';
             if (!el) d.textContent = 'no element';
-            else { const cs = getComputedStyle(el); d.textContent = ['background-color', 'opacity', 'z-index', 'position', 'width', 'height', 'display', 'transform', 'filter', 'visibility', 'animation-name', 'animation-delay', '--pg-vs-at'].map((k) => k + '=' + cs.getPropertyValue(k)).join(' · ') + (el.tagName === 'IMG' ? ' · src=' + el.getAttribute('src') + ' · nat=' + el.naturalWidth : ''); }
+            else { const cs = getComputedStyle(el); d.textContent = ['background-color', 'opacity', 'z-index', 'position', 'width', 'height', 'display', 'transform', 'filter', 'visibility', 'animation-name', 'animation-delay', '--pg-vs-at', 'top', 'right'].map((k) => k + '=' + cs.getPropertyValue(k)).join(' · ') + (el.tagName === 'IMG' ? ' · src=' + el.getAttribute('src') + ' · nat=' + el.naturalWidth : ''); }
             document.body.appendChild(d);
         }, Number(q.get('probeAt') || 900));
     }

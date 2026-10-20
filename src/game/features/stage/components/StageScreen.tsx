@@ -10,7 +10,7 @@
 import { useRef } from 'preact/hooks';
 import { BALANCE } from '../../../core/balance';
 import { canOpenMenus, canParry, isWalkingFast, itemLeft, type GameInput, type GameState } from '../../../core/engine';
-import { spaceInput } from '../../battle/fx/parry';
+import { spaceInput, ultSkippable } from '../../battle/fx/parry';
 import { bestHelper, requestAt } from '../../../core/rules/request';
 import { FACILITY_STAFF } from '../../../core/rules/stage';
 import { GYM_LEADER } from '../../../core/rules/trainer';
@@ -221,6 +221,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   const heroTall = !battle && (bodyPx - ground - heroH < bannerBottom || buildingTall) && bannerRight - bannerLeft >= (buildingTall ? FACILITY_SIDE_MIN_PX : BANNER_SIDE_MIN_PX);
   const showToast = state.runtime.toast && (phase === 'walk' || phase === 'clear' || phase === 'lobby' || phase === 'facility');
   const shopInside = stageRt?.phase === 'facility' && stageRt.inside && stageRt.kind === 'shop';
+  // 전투 화면 단추의 Space (막기 · 맞받아치기 · 잡기 원) = 키 · 판 클릭과 같은 시계 — 엔진 시간으로만 재면 연출을 기다리는 동안 아무 때나 '완벽'
+  const battleInput = (i: GameInput) => onInput(i.kind === 'space' ? spaceInput(state, performance.now()) : i);
   // ② 어디인지 — 스테이지는 미니맵, 체육관은 이름 (지도 줄이 있으면 둘째 줄, 없으면 정보줄 가운데)
   const where = gym ? (
     <span class="pg-stage-name">
@@ -237,7 +239,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   return (
     <div class={`pg-screen pg-stage pg-size-${layout.size}${gym ? ' pg-gym' : ''}${covered ? ' pg-covered' : ''}`}>
       {battle && geo?.menuInBar ? (
-        <BattleMenuBar battle={battle} save={save} onInput={onInput} withAuto={geo.autoInMenu} compact={geo.compact} />
+        <BattleMenuBar battle={battle} save={save} onInput={battleInput} withAuto={geo.autoInMenu} compact={geo.compact} />
       ) : (
         <InfoBar
           split={mapRow}
@@ -260,12 +262,14 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
       <div
         class={['pg-body', 'pg-field', battle ? 'pg-in-battle' : '', heroTall ? 'pg-hero-tall' : ''].filter(Boolean).join(' ')}
         style={heroTall ? { '--pg-banner-left': `${bannerLeft}px`, '--pg-banner-max': `${Math.round(bannerRight - bannerLeft)}px` } : undefined}
-        onPointerDown={() => {
+        onPointerDown={(e) => {
+          // 버튼 (필살기 Z · 막기 · 메뉴) 에서 올라온 누름은 버튼 몫 — 판이 먼저 패링 · 연타로 받으면 필살기가 무시됨 (2026-10-20 테스터 [큼])
+          if (e.target instanceof Element && e.target.closest('button')) return;
           // 튀어나온 순간 길을 클릭해도 선제공격 [제안] · 힘대결 중 클릭 = 연타 (gdd S10 ⑤)
           // 볼을 던졌을 때 클릭 = 타이밍 원 Space (S11)
           if (phase === 'appear' || battle?.phase === 'clash' || battle?.phase === 'catch') onInput({ kind: 'space' });
           // 상대 공격 중 판 클릭 = 패링 (Space 와 같음, 2026-10-19)
-          else if (battle && canParry(battle)) onInput(spaceInput(state, performance.now()));
+          else if (battle && (canParry(battle) || ultSkippable(battle))) onInput(spaceInput(state, performance.now()));
         }}
       >
         {gym ? (
@@ -300,13 +304,13 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
           </span>
         )}
         {battle && geo && (
-          <BattleLayer battle={battle} save={save} media={media} ground={ground} geo={geo} onInput={onInput} onProfile={(side) => onOpen({ kind: 'profile', side })} foeTrainerLeft={foeTrainer || gym ? leaderX : undefined} />
+          <BattleLayer battle={battle} save={save} media={media} ground={ground} geo={geo} onInput={battleInput} onProfile={(side) => onOpen({ kind: 'profile', side })} foeTrainerLeft={foeTrainer || gym ? leaderX : undefined} />
         )}
         <EncounterBox state={state} />
         {stageRt?.phase === 'trainer' && foeTrainer?.talking && stageRt.ms < vsStartMs('trainer') && <TrainerBanner name={foeTrainer.name} balls={foeTrainer.balls} />}
         {/* VS 컷인 — 만남 단계 끝 0.8초 (트레이너 · 라이벌) */}
         {(stageRt?.phase === 'trainer' || stageRt?.phase === 'rival') && foeTrainer && stageRt.ms >= vsStartMs(stageRt.phase) && (
-          <VsCutIn me={look.label} myBalls={save.party.map((uid) => (save.monsters[uid]?.hp ?? 0) > 0)} foe={foeTrainer.name} foeBalls={foeTrainer.balls} at={stageRt.ms - vsStartMs(stageRt.phase)} />
+          <VsCutIn me={look.label} myBalls={save.party.map((uid) => (save.monsters[uid]?.hp ?? 0) > 0)} foe={foeTrainer.name} foeBalls={foeTrainer.balls} tag={foeTrainer.record} at={stageRt.ms - vsStartMs(stageRt.phase)} />
         )}
         {stageRt?.phase === 'rival' && foeTrainer?.talking && stageRt.ms < vsStartMs('rival') && (
           <TrainerBanner name={foeTrainer.name} balls={foeTrainer.balls} text={`${josaOf(foeTrainer.name, '이/가')} 승부를 걸어왔다!`} tag={foeTrainer.record ?? ''} />

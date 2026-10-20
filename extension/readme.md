@@ -176,6 +176,7 @@ Extracting and creating .gif files involves quite a bit of tedious manual work, 
 - Game mode data (stats, learnsets, moves, evolutions): [PokeAPI](https://github.com/PokeAPI/pokeapi), BSD 3-Clause — full license in `THIRD-PARTY-NOTICES.txt`
 - Game mode people (heroes, trainers, gym leader, townspeople): overworld sprites from Pokémon FireRed · LeafGreen and Emerald, taken from the [pret/pokefirered](https://github.com/pret/pokefirered) and [pret/pokeemerald](https://github.com/pret/pokeemerald) decompilation projects (`scripts/people/fetch-pret.py`) — © The Pokémon Company / Nintendo / Game Freak
 - Game mode Pokémon Center · Poké Mart buildings: redrawn from the FireRed Viridian City map tiles of [pret/pokefirered](https://github.com/pret/pokefirered) (`scripts/buildings/fetch-pret-buildings.py`) — © The Pokémon Company / Nintendo / Game Freak
+- Game mode gym room (wall · trees · floor): redrawn from the FireRed Celadon City Gym map tiles of [pret/pokefirered](https://github.com/pret/pokefirered) (`scripts/buildings/fetch-pret-gym.py`) — © The Pokémon Company / Nintendo / Game Freak
 
 ### Acknowledgments
 - All sprites are property of their original creators

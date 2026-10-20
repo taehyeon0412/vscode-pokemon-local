@@ -76,7 +76,8 @@ export function StarterPick({ media, pending, onBack, onDone }: StarterPickProps
   return (
     <div class="pg-screen pg-title pg-pick" ref={rootRef}>
       <InfoBar
-        center={<span class="pg-title-text">첫 포켓몬을 골라요</span>}
+        split
+        left={<span class="pg-pick-tag">첫 포켓몬을 골라요</span>}
         right={
           <>
             <Button secondary onClick={onBack} title="Esc">

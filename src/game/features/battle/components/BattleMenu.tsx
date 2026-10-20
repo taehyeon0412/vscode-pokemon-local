@@ -155,7 +155,6 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
   } else if (picking) {
     row = (
       <>
-        <span class="pg-dim">다음:</span>
         {team.slice(0, 5).map((m, i) => (
           <Button key={m.uid} onClick={() => pick(m.uid)} title={`HP ${m.hp}`}>
             {`${i + 1} ${speciesOf(m.species)?.name.ko ?? m.form}`}
