@@ -36,9 +36,9 @@ import { menuLabels, type Overlay, unspentPoints } from '../../menu/model';
 import { ChoiceBox } from '../../result/components/ChoiceBox';
 import { ResultBox } from '../../result/components/ResultBox';
 import { CAUGHT_INTRO_H, CAUGHT_INTRO_W, caughtView, choiceView, levelUps, needsStatHint } from '../../result/model';
-import { battleStage, buildingDraw, BUILDINGS, contactX, foeTrainerView, gymEnterView, gymFrontX, heroX, minimapOf, staffLeftPx, type StageObject, stagePx, STAGES, visibleObjects, vsStartMs, WALK_PX_PER_SEC } from '../model';
+import { battleStage, buildingDraw, BUILDINGS, contactX, foeTrainerView, gymEnterView, gymFrontX, gymRestX, heroX, minimapOf, staffLeftPx, type StageObject, stagePx, STAGES, visibleObjects, vsStartMs, WALK_PX_PER_SEC } from '../model';
 import { BadgeCard, ClearCard, DefeatBox, FacilityBox, LobbyBox, TrainerBanner, VsCutIn, type VsArt } from './FieldBoxes';
-import { GymFront, gymLook } from './GymFront';
+import { GymFront } from './GymFront';
 import { Hero } from './Hero';
 import { Minimap } from './Minimap';
 import { StageObjects } from './StageObjects';
@@ -225,7 +225,6 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   const gymX = gymFrontX(state, widthPx, layout.scale);
   const gymK = Math.max(1, Math.floor(layout.scale));
   const gymEnter = stageRt?.phase === 'gym-enter' ? gymEnterView(stageRt.ms) : null;
-  const gLook = gymLook();
   // 문 옆 = 주인공 오른쪽 끝이 문틀 (문 가운데 − 8칸) 왼쪽 네 칸 (팔이 문을 가리지 않게) · 문 가운데 = 주인공 가운데가 문 가운데
   const gymBeside = gymX !== null ? gymX - 12 * gymK - heroW : heroStand;
   const gymInto = gymX !== null ? gymX - Math.round(heroW / 2) : heroStand;
@@ -330,7 +329,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         {/* 걷는 동안만 — 상자 (결과 · 병원 · 트레이너) 가 같은 왼쪽 위 자리를 덮어 아이콘 조각만 삐져나오던 것 */}
         {ballsInField && phase === 'walk' && <div class="pg-field-balls">{balls}</div>}
         <StageObjects objects={objects} media={media} scale={layout.scale} ground={ground} roomPx={heroRoom} />
-        {gymX !== null && media && <GymFront x={gymX} k={gymK} ground={ground} roomPx={heroRoom} media={media} door={gymEnter?.door ?? 0} look={gLook} />}
+        {gymX !== null && media && <GymFront x={gymX} restX={gymRestX(widthPx, layout.scale)} k={gymK} ground={ground} roomPx={heroRoom} media={media} door={gymEnter?.door ?? 0} />}
         <span class="pg-obj pg-hero-wrap" style={{ left: `${heroLeft}px`, bottom: `${ground}px`, ...(gymEnter ? { opacity: String(gymEnter.fade), transform: `translateY(${-gymEnter.rise * gymK}px)` } : {}) }}>
           <Hero px={heroPx} walking={(phase === 'walk' || gymEnter?.walking === true) && live} fast={fast} gender={look.gender} look={look} media={media} roomPx={heroRoom} />
         </span>
@@ -354,9 +353,9 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         {battle && geo && (
           <BattleLayer battle={battle} save={save} media={media} ground={ground} geo={geo} onInput={battleInput} onProfile={(side) => onOpen({ kind: 'profile', side })} foeTrainerLeft={foeTrainer || gym ? leaderX : undefined} />
         )}
-        {/* 체육관으로 — 화면 닦기 (a 왼 → 오 · b 문으로 모이는 원 · c 위 → 아래) */}
+        {/* 체육관으로 — 화면 닦기 (위 → 아래) */}
         {gymEnter && gymEnter.wipe > 0 && (
-          <div class={`pg-gym-wipe pg-gym-wipe-${gLook}`} style={{ '--pg-wipe': String(gymEnter.wipe), '--pg-wx': `${gymX ?? Math.round(widthPx / 2)}px`, '--pg-wy': `${bodyPx - ground - 8 * gymK}px` }} />
+          <div class="pg-gym-wipe" style={{ '--pg-wipe': String(gymEnter.wipe) }} />
         )}
         <EncounterBox state={state} />
         {stageRt?.phase === 'trainer' && foeTrainer?.talking && stageRt.ms < vsStartMs('trainer') && <TrainerBanner name={foeTrainer.name} balls={foeTrainer.balls} media={media} look={foeTrainer.look} />}

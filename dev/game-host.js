@@ -4,7 +4,7 @@
 //   place=facility|hospital|shop|shop-front|trainer|trainer-battle|defeat|clear|lobby|gym-battle|badge (단계 8 · 9)
 //   balls=<몬스터-슈퍼-하이퍼 개수, 예 3-0-2>  pts=<선두 남은 포인트>
 //   scene=result 와 같이: ups=2 (둘이 레벨업) · ups=0 (레벨업 없음) · spent=1 (스탯을 찍어 본 세이브) · click=lvup|lvup2 (얼굴 카드 누르기)
-//   st=3 (숲 1-3 · 길 끝 체육관) · gms=<ms> (체육관 들어가기 장면) · gl=a|b|c (시안)
+//   st=3 (숲 1-3 · 길 끝 체육관) · gms=<ms> (체육관 들어가기 장면)
 //   ms=<만난 뒤 ms> — place=trainer · rival 의 시작 시각 (VS 컷인 사진: trainer 3000 · rival 3800)
 //   place=rival|rival-talk|rival-battle|rival-over|rival-result|rival-lose  rival=<주인공 id, 기본 may>  record=<이김-짐, 기본 2-1> (라이벌 gdd 4.12)  click=map|team|bag|settings|profile|item
 //   style=<CSS> (시안 비교 — 임시 CSS 를 얹음)
@@ -83,8 +83,7 @@
     // 전투 장면 (S09 · S10) — battle=choose|skills|counter|clash|ult-cut|ult-beam|attack|pick|over|auto, dur=연출 ms (사진 찍는 순간에 보이게 늘림)
     const battleKind = q.get('battle');
     let runtime = { rngState: 1, stepAccMs: 0 };
-    // st=3 — 숲 1-3 (길 끝 체육관, 2026-10-20 태현 님 A안) · progress= 는 1-3 진행 (0.9 쯤이면 체육관이 다가옴) · gms=<ms> 이면 체육관 들어가기 장면 (진행 1) · gl=a|b|c 시안
-    globalThis.__pgGymLook = q.get('gl') || undefined;
+    // st=3 — 숲 1-3 (길 끝 체육관, 2026-10-20 태현 님 A안) · progress= 는 1-3 진행 (0.9 쯤이면 체육관이 다가옴) · gms=<ms> 이면 체육관 들어가기 장면 (진행 1)
     if (q.get('st') === '3') {
         save.stages = { 'forest-3': { ...save.stages['forest-1'] } };
         save.location = { screen: 'stage', stageId: 'forest-3' };
