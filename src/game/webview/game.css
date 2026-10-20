@@ -3975,4 +3975,13 @@ body.vscode-high-contrast-light .pg-title-body {
   flex: 1;
   min-width: 0;
 }
+/* 스타팅 고르기 줄 간격 = 패널 높이에 따라 (2026-10-20 태현 님 "패널이 높으면 위아래 간격을 더 — 다닥다닥 붙어 있음"):
+   150px 4px → 높아질수록 넓게 → 약 300px 부터 16px. 칩 줄 ↔ 진화 줄 ↔ 기술 줄 모두 같은 간격 */
+.pg-pick-starter {
+  --pg-pick-gap: clamp(4px, calc(4px + (100vh - 150px) * 0.08), 16px);
+  gap: var(--pg-pick-gap);
+}
+.pg-starter-card > .pg-panel-wrap {
+  row-gap: var(--pg-pick-gap);
+}
 
