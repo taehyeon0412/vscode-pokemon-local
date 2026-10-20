@@ -332,6 +332,14 @@ describe('S24 · S07 · 깬 스테이지 (mvp-spec S07 · S24 · #62)', () => {
     // 웹뷰 ↔ 확장으로 넘겨도 다음 글이 남음
     expect(readRuntime(viaJson(s.runtime), 1).toast).toEqual(s.runtime.toast);
   });
+
+  it('레벨업 알림은 두 마리까지 이름 · 나머지는 "외 N마리" (240×150 에서 2줄 안)', () => {
+    const team = ['m1', 'm2', 'm3', 'm4'];
+    const monsters = Object.fromEntries(team.map((uid) => [uid, sampleMonster({ uid })]));
+    const s0 = game({ location: { screen: 'stage', stageId: 'forest-3' }, monsters, party: team, stages: { 'forest-1': stageAt(0, { cleared: true }), 'forest-2': stageAt(0, { cleared: true }), 'forest-3': stageAt(0.99999) } });
+    const s = until(s0, (x) => x.save.location.screen === 'gym', 5000);
+    expect(s.runtime.toast?.then).toBe('이상해씨 Lv 6! · 이상해씨 Lv 6! 외 2마리');
+  });
 });
 
 describe('S16 체육관 · 관장 (mvp-spec 3.9)', () => {

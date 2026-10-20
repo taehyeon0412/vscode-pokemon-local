@@ -503,7 +503,8 @@ function finishStage(save0: Save, rt0: RuntimeState, id: StageId): { save: Save;
   const r = clearStage(save0, id, rng);
   let save = r.save;
   let rt: RuntimeState = { ...rt0, rngState: rng.state };
-  const lv = r.levelUps.join(' · ');
+  // 두 마리까지 이름 · 나머지는 "외 N마리" (5 ~ 6마리면 240×150 에서 3줄로 자라 대기실 버튼을 가림 — 2026-10-21 UX 리뷰어)
+  const lv = r.levelUps.length > 2 ? `${r.levelUps.slice(0, 2).join(' · ')} 외 ${r.levelUps.length - 2}마리` : r.levelUps.join(' · ');
   if (id === 'forest-3') {
     save = { ...save, location: { screen: 'gym' } };
     // 클리어 → 레벨업을 두 알림으로 차례로 (각 2.5초 · 합 5초) — 한 줄이면 6마리 레벨업에 약 660px (2026-10-21 UX 리뷰어)
