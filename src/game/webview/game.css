@@ -1777,7 +1777,8 @@ body.pokemon-game-on {
 /* S12 첫 줄 — 좁으면 받은 것 칸이 먼저 줄어들고 계속 버튼은 그대로 */
 .pg-result .pg-reward {
   flex: 0 1 auto;
-  min-width: 0;
+  /* 좁아도 아이콘 하나는 다 보이게 (0 이면 동전 · 선물이 반쪽 조각으로 남던 것) */
+  min-width: 16px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1843,8 +1844,7 @@ body.pokemon-game-on {
 }
 .pg-panel-extra {
   flex: 1;
-  /* 좁아도 아이콘 하나는 다 보이게 (0 이면 동전 · 선물이 반쪽 조각으로 남던 것) */
-  min-width: 16px;
+  min-width: 0;
   opacity: 0.75;
   font-size: calc(11px * var(--pg-ui, 1));
 }

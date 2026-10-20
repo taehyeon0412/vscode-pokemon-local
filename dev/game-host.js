@@ -129,11 +129,6 @@
         save.monsters.m1 = { ...save.monsters.m1, level: scene === 'result' ? 6 : 16, moves: [{ moveId: 33, pp: 30 }, { moveId: 22, pp: 20 }, { moveId: 52, pp: 25 }, { moveId: 84, pp: 30 }] };
         let stage = { phase: 'choice', ms: scene === 'evolve-pick' ? 4000 : 0 };
         if (scene === 'result') stage = { phase: 'result', ms: 0, summary: { title: '야생 피죤을 쓰러뜨렸다!', exp: [{ uid: 'm1', name: '이상해씨', gain: 28, from: 5, to: 6 }], money: 20, item: '몬스터볼', caught: null, learned: [{ name: '이상해씨', move: '덩굴채찍' }], choices: 1 } };
-        if (scene === 'learn') save.pendingChoices = [{ kind: 'learn', uid: 'm1', moveId: 75 }];
-        if (scene === 'evolve' || scene === 'evolve-pick') save.pendingChoices = [{ kind: 'evolve', uid: 'm1', to: 2, newMoves: [75, 76], level: 16, item: null }];
-        runtime = { rngState: 1, stepAccMs: 0, speed: 1, stage, stageId: 'forest-1', toast: null };
-    }
-
         // ups=2 — 둘이 같이 레벨업 (팀 경험치) · ups=0 — 레벨업 없음 (경험치만)
         if (scene === 'result' && q.get('ups') === '2') {
             save.monsters.m2 = { ...save.monsters.m1, uid: 'm2', species: 4, form: 'charmander', level: 7, unspentPoints: 2, caughtAt: 'forest-1' };
@@ -141,6 +136,11 @@
             stage.summary.exp.push({ uid: 'm2', name: '파이리', gain: 14, from: 6, to: 7 });
         }
         if (scene === 'result' && q.get('ups') === '0') stage.summary = { ...stage.summary, exp: [{ uid: 'm1', name: '이상해씨', gain: 28, from: 5, to: 5 }], learned: [] };
+        if (scene === 'learn') save.pendingChoices = [{ kind: 'learn', uid: 'm1', moveId: 75 }];
+        if (scene === 'evolve' || scene === 'evolve-pick') save.pendingChoices = [{ kind: 'evolve', uid: 'm1', to: 2, newMoves: [75, 76], level: 16, item: null }];
+        runtime = { rngState: 1, stepAccMs: 0, speed: 1, stage, stageId: 'forest-1', toast: null };
+    }
+
     // 단계 8 · 9 장면 — place=facility|hospital|shop|trainer|trainer-battle|defeat|clear|lobby|gym-battle|badge
     //   시드 42 숲 1-1: 병원 0.4724 · 상점 0.6132 · 트레이너 t0 0.30551 · t1 0.7019 (자리는 스테이지마다 정해짐) · 부탁 0.88669
     const place = q.get('place');
@@ -346,11 +346,6 @@
                 if (left > 0) setTimeout(() => tryClick(left - 1), 100);
                 return;
             }
-            const byTitle = { team: '내 포켓몬', map: '세계 지도', bag: '가방', settings: '설정' }[click];
-            const b = [...document.querySelectorAll('#pokemon-game button')].find((x) => (byTitle && (x.title || '').includes(byTitle)) || x.textContent.includes(label) || (alt && x.textContent.includes(alt)));
-            if (b && !document.getElementById('pokemon-game').hidden) b.click();
-            else if (left > 0) setTimeout(() => tryClick(left - 1), 100);
-        };
             // lvup = S12 결과의 얼굴 카드 (첫째) · lvup2 = 둘째 (ups=2) → 내 포켓몬 판이 그 포켓몬으로
             if (click === 'lvup' || click === 'lvup2') {
                 const all = [...document.querySelectorAll('#pokemon-game button')].filter((x) => (x.title || '').includes('스탯 찍기'));
@@ -359,6 +354,11 @@
                 if (left > 0) setTimeout(() => tryClick(left - 1), 100);
                 return;
             }
+            const byTitle = { team: '내 포켓몬', map: '세계 지도', bag: '가방', settings: '설정' }[click];
+            const b = [...document.querySelectorAll('#pokemon-game button')].find((x) => (byTitle && (x.title || '').includes(byTitle)) || x.textContent.includes(label) || (alt && x.textContent.includes(alt)));
+            if (b && !document.getElementById('pokemon-game').hidden) b.click();
+            else if (left > 0) setTimeout(() => tryClick(left - 1), 100);
+        };
         tryClick(30);
     }
 })();
