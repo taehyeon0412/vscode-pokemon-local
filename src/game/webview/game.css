@@ -3973,23 +3973,48 @@ body.vscode-high-contrast-light .pg-title-body {
 .pg-pick-starter > .pg-panel-row.pg-panel-wrap {
   padding: 0;
 }
-/* 진화 줄 — 높이 66 고정 (StarterPick style · starter/model CHAIN_ROW_PX — 모든 단계 ×2, 실제 그림을 칸 한가운데) → 칩 줄 ↔ 진화 줄 ↔ 기술 줄 보이는 간격이 같음.
-   좁으면 뒤 단계 이름 → 타입 순서로 숨김 (그림 · → 는 남김, 이름은 title) */
-.pg-starter-chain .pg-chain,
-.pg-starter-chain .pg-chain-step {
-  align-items: center;
+/* 진화 줄 (태현 님 그림 A안) — 한 격자 두 줄: 위 = 그림 (발끝을 줄 아래 끝에 · 화살표는 그림 줄 가운데) · 아래 = 이름 (그림마다 바로 밑) · 끝 열 = 타입.
+   그림 줄 높이 = 이 진화 줄의 가장 큰 그림 (StarterPick style) → 위 · 아래 보이는 간격이 같음. 좁으면 뒤 단계 이름 → 타입 순서로 숨김 (그림 title) */
+.pg-chain-grid {
+  display: inline-grid;
+  column-gap: 6px;
+  row-gap: 4px;
+  justify-items: center;
 }
-.pg-starter-chain .pg-chain {
-  flex-basis: auto;
-  margin-right: 0;
+.pg-chain-pics,
+.pg-chain-names {
+  display: contents;
+}
+.pg-chain-pic {
+  grid-row: 1;
+  align-self: end;
+  line-height: 0;
+}
+.pg-chain-arrow {
+  grid-row: 1;
+  align-self: center;
+}
+.pg-chain-label,
+.pg-chain-types {
+  grid-row: 2;
+  align-self: start;
+  font-size: 12px;
+  line-height: 14px;
+  white-space: nowrap;
+}
+.pg-chain-label:not(.pg-dim) {
+  font-weight: 600;
+}
+.pg-chain-types {
+  justify-self: start;
 }
 @media (max-width: 420px) {
-  .pg-starter-chain .pg-chain-name.pg-dim {
-    display: none;
+  .pg-starter-chain .pg-chain-label.pg-dim {
+    visibility: hidden;
   }
 }
 @media (max-width: 300px) {
-  .pg-starter-chain .pg-chain-name.pg-sub {
+  .pg-starter-chain .pg-chain-types {
     display: none;
   }
 }

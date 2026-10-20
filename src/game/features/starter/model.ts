@@ -80,16 +80,23 @@ export function evolutionChain(dex: number): { dex: number; form: string; name: 
 }
 
 /**
- * S04 ② 진화 줄 그림 — 모든 단계를 같은 점 크기 ×2 (길 위 · 전투와 같음) 로: 원작 그림 크기 그대로라 진화할수록 커 보임
- * (2026-10-20 태현 님 "진화 줄 크기가 제각각 — 모두 같거나 진화할수록 커지게", 예전엔 고른 첫 단계만 ×2).
- * 줄 높이 = 18종 진화 단계 중 가장 큰 그림 (33칸) × 2 = 66 고정 — 어떤 포켓몬을 골라도 줄이 들썩이지 않고 위 · 아래 간격이 같음 (model.test)
+ * S04 ② 진화 줄 그림 — 모든 단계를 같은 점 크기로 (원작 그림 크기 그대로라 진화할수록 커 보임 — 2026-10-20 태현 님 "크기가 제각각").
+ * 위 칸 = 그림 (발끝을 한 줄에 — 태현 님 "바닥으로 정렬") · 아래 칸 = 이름 (그림마다 바로 밑) — 태현 님 그림 A안.
+ * 배율 = 패널 180px 이상 ×2 (길 위 · 전투와 같음) · 그 아래 ×1 (×2 에 이름 줄까지면 150px 에 안 들어감).
+ * 그림 칸 높이 = 이 진화 줄에서 가장 큰 그림 × 배율 — 바닥을 맞춰도 위 · 아래 보이는 간격이 같게 (줄마다 높이가 다름)
  */
-export const CHAIN_ZOOM = 2;
-export const CHAIN_ROW_PX = 66;
-/** 진화 줄 그림 칸 폭 = 실제 그림 폭 × 2 + 양옆 2px (원본 칸 전체를 쓰면 빈칸이 넓어 줄이 길어짐) */
-export function chainArtWidth(form: string): number {
+/** 18종 진화 단계 중 가장 큰 그림 키 (칸) — 150px 에서도 들어가는지 계산하는 기준 (model.test) */
+export const CHAIN_MAX_ART = 33;
+export const chainZoom = (tall: boolean): number => (tall ? 2 : 1);
+/** 그림 칸 높이 = 이 진화 줄의 가장 큰 실제 그림 × 배율 */
+export function chainRowPx(forms: readonly string[], zoom: number): number {
+  const hs = forms.map((f) => spriteBoxOf(f)).map((b) => (b ? b[3] - b[1] : 32));
+  return Math.max(1, ...hs) * zoom;
+}
+/** 그림 칸 폭 = 실제 그림 폭 × 배율 + 양옆 2px (원본 칸 전체를 쓰면 빈칸이 넓어 줄이 길어짐) */
+export function chainArtWidth(form: string, zoom: number): number {
   const box = spriteBoxOf(form);
-  return box ? (box[2] - box[0]) * CHAIN_ZOOM + 4 : 32 * CHAIN_ZOOM;
+  return box ? (box[2] - box[0]) * zoom + 4 : 32 * zoom;
 }
 
 /** S04 ① 스타팅 줄 — 18종 (풀 · 불꽃 · 물 순서, 세대 상관없음) */

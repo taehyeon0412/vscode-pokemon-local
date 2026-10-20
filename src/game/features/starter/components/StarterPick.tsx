@@ -11,7 +11,8 @@ import { KeyCap } from '../../../ui/KeyCap';
 import { InfoBar } from '../../../ui/InfoBar';
 import { Sprite } from '../../../ui/Sprite';
 import { moveView } from '../../result/model';
-import { CHAIN_ROW_PX, CHAIN_ZOOM, chainArtWidth, defaultStarterMoves, evolutionChain, starterList, starterMoveCandidates } from '../model';
+import { chainArtWidth, chainRowPx, chainZoom, defaultStarterMoves, evolutionChain, starterList, starterMoveCandidates } from '../model';
+import { MAP_ROW_MIN_HEIGHT_PX } from '../../../ui/layout';
 
 export interface StarterPickProps {
   media: string;
@@ -33,6 +34,9 @@ export function StarterPick({ media, pending, onBack, onDone }: StarterPickProps
   const cands = starterMoveCandidates(sel.dex).map((m) => ({ ...moveView(m.id), own: ownTypes.includes(m.type) }));
   const chain = evolutionChain(sel.dex);
   const types = (speciesOf(sel.dex)?.types ?? []).map(typeNameKo).join(' · ');
+  // 진화 줄 배율 · 그림 칸 높이 (패널 180px 이상 ×2 — 이름 줄까지 150px 에 들어가게 낮으면 ×1)
+  const zoom = chainZoom(window.innerHeight >= MAP_ROW_MIN_HEIGHT_PX);
+  const rowPx = chainRowPx(chain.map((c) => c.form), zoom);
   const ready = picked.length === BALANCE.starterMoves && !pending;
 
   const toggle = (id: number) =>
@@ -98,18 +102,33 @@ export function StarterPick({ media, pending, onBack, onDone }: StarterPickProps
           ))}
         </div>
         {/* 세 줄 (칩 · 진화 · 기술) 을 따로 — 줄 사이 = 패널 높이에 따라 (2026-10-20 태현 님 "빨간 네모 각각의 위아래 간격").
-            ② 진화 단계 = 모든 단계 같은 점 크기 ×2 (진화할수록 커 보임 — 태현 님 "크기가 제각각"), 줄 높이 66 고정 · 실제 그림을 칸 한가운데 (center) */}
-        <div class="pg-panel-row pg-starter-chain" style={{ height: `${CHAIN_ROW_PX}px` }}>
-          <span class="pg-chain" title={`${sel.name} · ${types}`}>
-            {chain.map((c, i) => (
-              <span key={c.dex} class="pg-chain-step">
-                {i > 0 && <span class="pg-dim">→</span>}
-                <Sprite media={media} form={c.form} scale={1} crop={CHAIN_ROW_PX} cropWidth={chainArtWidth(c.form)} zoom={CHAIN_ZOOM} center />
-                <span class={i === 0 ? 'pg-chain-name' : 'pg-chain-name pg-dim'}>{c.name}</span>
+            ② 진화 단계 = 위 칸 그림 (같은 점 크기 · 발끝을 한 줄에) + 아래 칸 이름 (그림마다 바로 밑, 끝에 타입) — 태현 님 그림 A안.
+            한 격자에 두 줄이라 이름이 그림 바로 밑에 맞음 (열 = 단계 · 화살표 · 단계 … · 타입) */}
+        <div class="pg-panel-row pg-starter-chain" title={`${sel.name} · ${types}`}>
+          <div class="pg-chain-grid" style={{ gridTemplateRows: `${rowPx}px auto` }}>
+            <div class="pg-chain-pics">
+              {chain.map((c, i) => [
+                i > 0 && (
+                  <span key={`a${c.dex}`} class="pg-chain-arrow pg-dim" style={{ gridColumn: 2 * i }}>
+                    →
+                  </span>
+                ),
+                <span key={c.dex} class="pg-chain-pic" style={{ gridColumn: 2 * i + 1 }}>
+                  <Sprite media={media} form={c.form} scale={1} crop={rowPx} cropWidth={chainArtWidth(c.form, zoom)} zoom={zoom} bottom title={c.name} />
+                </span>,
+              ])}
+            </div>
+            <div class="pg-chain-names">
+              {chain.map((c, i) => (
+                <span key={c.dex} class={i === 0 ? 'pg-chain-label' : 'pg-chain-label pg-dim'} style={{ gridColumn: 2 * i + 1 }}>
+                  {c.name}
+                </span>
+              ))}
+              <span class="pg-sub pg-chain-types" style={{ gridColumn: 2 * chain.length }}>
+                {types}
               </span>
-            ))}
-            <span class="pg-sub pg-chain-name">{types}</span>
-          </span>
+            </div>
+          </div>
         </div>
         {/* ④ 처음 기술 — 좁으면 다음 줄로 */}
         <div class="pg-panel-row pg-panel-wrap">
