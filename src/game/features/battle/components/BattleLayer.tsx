@@ -231,11 +231,11 @@ function Effects({ b, geo, ground, midMe, midFoe, native }: { b: BattleState; ge
 }
 
 /** 잡기 볼 하나 (픽셀 볼, 점 = 길 위 그림 배율) — 장면마다 새로 그림 (key), 처음 그릴 때 지난 시간만큼 앞당겨 시작 (다시 그릴 때마다 바꾸면 두 배로 빨라짐) */
-function CatchBall({ cls, x, y, since, px, style }: { cls: string; x?: number; y?: number; since: number; px: number; style?: Record<string, string> }) {
+function CatchBall({ cls, x, y, since, px, style, icon = 'ball' }: { cls: string; x?: number; y?: number; since: number; px: number; style?: Record<string, string>; icon?: 'ball' | 'ballBig' }) {
   const since0 = useRef(since).current;
   return (
     <span class={`pg-catch-ball ${cls}`} style={{ ...(x !== undefined ? { left: `${x}px`, bottom: `${y ?? 0}px` } : {}), animationDelay: `${-since0}ms`, ...style }}>
-      <Icon name="ball" px={px} />
+      <Icon name={icon} px={px} />
     </span>
   );
 }
@@ -248,8 +248,11 @@ function CatchRing({ id, x, y, size, ms }: { id: string; x: number; y: number; s
 
 /** 딸깍 — 볼 둘레로 튀는 금색 별 (2px 점 + 십자, 4 걸음) — 창 안 볼 (48px) 기준 px */
 const CATCH_STARS: [number, number][] = [[-28, -20], [28, -20], [-36, 8], [36, 8], [-16, -36], [16, -36]];
-/** 흔들기 창 안 볼 — 점 6배 (48px 고정, 2026-10-20 태현 님 B 집중 창) */
-const CATCH_WIN_BALL_PX = 6;
+/** 흔들기 창 (2026-10-20 태현 님 B 집중 창 · 아트 디렉터 8차) — 104 × 108 고정 · 안 볼 = 24 × 24 ballBig 점 2 (48px, 창이 UI 라 ×3 패널에서도 그대로) ·
+ *  볼 가운데 = 창 위에서 42px (위 여백 18 + 볼 반) — 땅의 볼이 날아 들어오는 거리 계산에 씀 */
+const CATCH_WIN_W = 104;
+const CATCH_WIN_H = 108;
+const CATCH_WIN_BALL_Y = 42;
 
 /**
  * S11 볼 던지기 (gdd S11 · 2026-10-20 태현 님 다시 기획) — ④ 서 있는 상대 둘레에서 원이 줄어듦 (딱 맞을 때 Space = 그때 던짐, 안 누르면 저절로)
@@ -273,12 +276,15 @@ function Catch({ b, geo, ground, mid, handY }: { b: BattleState; geo: BattleGeom
   // ⑤ 흔들기 창 (2026-10-20 태현 님 B 집중 창) — 무대 가운데 (자리 · 모양은 game.css), 땅에 떨어진 볼이 0.15초에 창 가운데로 날아 들어감:
   //   시작 = 땅의 볼 자리 (창 가운데에서 dx · dy, 크기 = 길 위 볼 / 창 볼)
   const win = v.stage === 'shake' || v.stage === 'end' || v.stage === 'held';
+  // 자리는 정수 px (top 50% · translate 는 무대 높이가 홀수면 0.5px 에 걸려 테두리 · 볼이 흐려짐, 아트 디렉터 8차)
+  const winLeft = Math.round((geo.widthPx - CATCH_WIN_W) / 2);
+  const winTop = Math.round((geo.bodyPx - CATCH_WIN_H) / 2);
   const flyIn = {
-    '--pg-fx': `${Math.round(geo.foeX - geo.widthPx / 2)}px`,
-    '--pg-fy': `${Math.round(geo.bodyPx / 2 - ground - 4 * px)}px`,
-    '--pg-fs': String(Math.round((px / CATCH_WIN_BALL_PX) * 100) / 100),
+    '--pg-fx': `${Math.round(geo.foeX - (winLeft + CATCH_WIN_W / 2))}px`,
+    '--pg-fy': `${Math.round(geo.bodyPx - ground - 4 * px - (winTop + CATCH_WIN_BALL_Y))}px`,
+    '--pg-fs': String(Math.round(((8 * px) / 48) * 100) / 100),
   };
-  const title = v.stage === 'end' || v.stage === 'held' ? (v.caught ? '잡았다!' : '아깝다!') : '야생 포켓몬을 잡는 중…';
+  const title = v.stage === 'end' || v.stage === 'held' ? (v.caught ? '잡았다!' : '아깝다!') : '잡는 중…';
   const shakeStyle = { animationDuration: `${TIMING.catchShakeMs}ms`, animationIterationCount: String(Math.max(1, v.shakes)) };
   const endCls = v.caught ? 'pg-catch-click' : 'pg-catch-break';
   return (
@@ -308,18 +314,16 @@ function Catch({ b, geo, ground, mid, handY }: { b: BattleState; geo: BattleGeom
       {/* 흔들기 · 끝 · 잡힌 뒤 (전투 끝) 의 볼은 창 안에만 (땅의 볼은 창으로 날아 들어감 · 잡히면 창이 소개 카드까지 그대로 — 플레이 리뷰어) */}
       {v.stage === 'end' && !v.caught && <span key={`${key}bb`} class="pg-send-burst" style={{ left: `${geo.foeX}px`, bottom: `${ground + 4 * px}px` }} />}
       {win && (
-        <div key={`${key}w`} class="pg-catch-win">
+        <div key={`${key}w`} class="pg-catch-win" style={{ left: `${winLeft}px`, top: `${winTop}px` }}>
           <span class="pg-catch-title">{title}</span>
           <span class="pg-catch-win-ball" style={flyIn}>
-            <CatchBall key={`${key}w${v.stage}`} cls={v.stage === 'shake' ? 'pg-catch-shake' : v.stage === 'held' ? '' : endCls} since={v.since} px={CATCH_WIN_BALL_PX} style={v.stage === 'shake' ? shakeStyle : undefined} />
+            <CatchBall key={`${key}w${v.stage}`} cls={v.stage === 'shake' ? 'pg-catch-shake' : v.stage === 'held' ? '' : endCls} since={v.since} px={2} icon="ballBig" style={v.stage === 'shake' ? shakeStyle : undefined} />
             {v.stage === 'end' && v.caught && CATCH_STARS.map(([dx, dy], i) => <span key={`s${i}`} class="pg-catch-star" style={{ '--pg-sx': `${dx}px`, '--pg-sy': `${dy}px` }} />)}
           </span>
-          {/* 남은 볼 기회 (이번 볼 포함) — 남은 것은 밝게, 쓴 것은 흐리게 (예전 "3/3" 글) */}
+          {/* 남은 볼 기회 (이번 볼 포함) = 점 ●●○ — 볼 그림은 가진 볼 개수로 읽혀서 (플레이 리뷰어) · 지금 던진 칸 = pg-catch-now (모양은 game.css) */}
           <span class="pg-catch-left" title={`남은 볼 기회 ${v.left}/${BALANCE.catchTries} (이번 볼 포함)`}>
             {Array.from({ length: BALANCE.catchTries }, (_, i) => (
-              <span key={`b${i}`} class={i < v.left ? 'pg-catch-ok' : 'pg-catch-used'}>
-                <Icon name="ball" px={2} />
-              </span>
+              <span key={`b${i}`} class={`${i < v.left ? 'pg-catch-ok' : 'pg-catch-used'}${i === v.left - 1 ? ' pg-catch-now' : ''}`} />
             ))}
           </span>
         </div>
