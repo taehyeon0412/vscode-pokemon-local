@@ -5,6 +5,7 @@
 //   balls=<몬스터-슈퍼-하이퍼 개수, 예 3-0-2>  pts=<선두 남은 포인트>
 //   scene=result 와 같이: ups=2 (둘이 레벨업) · ups=0 (레벨업 없음) · spent=1 (스탯을 찍어 본 세이브) · click=lvup|lvup2 (얼굴 카드 누르기)
 //   st=3 (숲 1-3 · 길 끝 체육관) · gms=<ms> (체육관 들어가기 장면)
+//   motion=reduce (게임 설정 동작 줄이기 켬)
 //   ms=<만난 뒤 ms> — place=trainer · rival 의 시작 시각 (VS 컷인 사진: trainer 3000 · rival 3800)
 //   place=rival|rival-talk|rival-battle|rival-over|rival-result|rival-lose  rival=<주인공 id, 기본 may>  record=<이김-짐, 기본 2-1> (라이벌 gdd 4.12)  click=map|team|bag|settings|profile|item
 //   style=<CSS> (시안 비교 — 임시 CSS 를 얹음)
@@ -60,6 +61,8 @@
     if (q.get('look')) save.player = { gender: q.get('gender') || 'female', look: q.get('look') };
     // fast=1 — 빨리 걷기 켬 (2026-10-19)
     if (q.get('fast') === '1') save.settings = { ...save.settings, fastWalk: true };
+    // motion=reduce — 게임 설정 "동작 줄이기" 켬 (ux-rules U1 점검, 2026-10-21)
+    if (q.get('motion') === 'reduce') save.settings = { ...save.settings, reduceMotion: true };
     // balls=3-2-1 — 몬스터볼 · 슈퍼볼 · 하이퍼볼 개수 (정보줄 볼 칸, 2026-10-20) · pts=4 — 선두 남은 포인트 (정보줄 "포켓몬 +4")
     if (q.get('balls')) { const [p, g, u] = q.get('balls').split('-').map(Number); save.bag = { 'poke-ball': p || 0, ...(g ? { 'great-ball': g } : {}), ...(u ? { 'ultra-ball': u } : {}) }; }
     if (q.get('pts')) save.monsters.m1 = { ...save.monsters.m1, unspentPoints: Number(q.get('pts')) };
