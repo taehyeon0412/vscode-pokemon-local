@@ -433,6 +433,17 @@ describe('S12 결과 · S23 · S22 — 스테이지 쪽 (단계 7)', () => {
     expect(applyInput(skipped, { kind: 'evolve-cancel' })).toBe(skipped);
   });
 
+  it('잡았으면 결과 상자 전에 소개 카드 1.5초 — 결과는 그만큼 더 길고, Space · Enter 는 먼저 소개만 넘김 (2026-10-20 태현 님 안 2)', () => {
+    const base = start();
+    const summary = { title: '야생 구구를 잡았다!', exp: [], money: 0, item: null, caught: { name: '구구', toBox: false, uid: 'm1', isNew: true }, learned: [], choices: 0, badge: null };
+    const result: GameState = { ...base, runtime: { ...base.runtime, stageId: 'forest-1', stage: { phase: 'result', summary, ms: 0 } } };
+    expect(phase(advance(result, TIMING.resultMs + 100).state)).toBe('result');
+    expect(phase(advance(result, TIMING.resultMs + TIMING.caughtIntroMs + 100).state)).toBe('walk');
+    const skipped = applyInput(result, { kind: 'space' });
+    expect(skipped.runtime.stage).toMatchObject({ phase: 'result', ms: TIMING.caughtIntroMs });
+    expect(phase(applyInput(skipped, { kind: 'result-continue' }))).toBe('walk');
+  });
+
   it('고르다 껐다 켜면 그 고르기부터 (세이브에 남아 있음)', () => {
     const s = choiceSave(start());
     const reloaded = step(createGameState(viaJson(s.save), 5), STEP).state;

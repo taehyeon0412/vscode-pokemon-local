@@ -35,7 +35,7 @@ import { ShopPanel } from '../../menu/components/ShopPanel';
 import { menuLabels, type Overlay, unspentPoints } from '../../menu/model';
 import { ChoiceBox } from '../../result/components/ChoiceBox';
 import { ResultBox } from '../../result/components/ResultBox';
-import { choiceView, levelUps, needsStatHint } from '../../result/model';
+import { caughtView, choiceView, levelUps, needsStatHint } from '../../result/model';
 import { battleStage, buildingDraw, BUILDINGS, contactX, foeTrainerView, heroX, minimapOf, staffLeftPx, type StageObject, stagePx, STAGES, visibleObjects, vsStartMs, WALK_PX_PER_SEC } from '../model';
 import { BadgeCard, ClearCard, DefeatBox, FacilityBox, LobbyBox, TrainerBanner, VsCutIn, type VsArt } from './FieldBoxes';
 import { Hero } from './Hero';
@@ -348,7 +348,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         <RequestBox state={state} media={media} onInput={onInput} />
         <FacilityBox state={state} media={media} onInput={onInput} onBox={() => onOpen({ kind: 'team' })} />
         {shopInside && <ShopPanel save={save} note={state.runtime.toast?.text} onInput={onInput} onClose={() => onInput({ kind: 'facility-leave' })} />}
-        {stageRt?.phase === 'result' && <ResultBox summary={stageRt.summary} next={save.pendingChoices[0]?.kind ?? null} ups={levelUps(stageRt.summary, save)} hint={needsStatHint(save, levelUps(stageRt.summary, save))} media={media} onInput={onInput} onStats={(uid) => onOpen({ kind: 'team', uid })} />}
+        {stageRt?.phase === 'result' && <ResultBox summary={stageRt.summary} next={save.pendingChoices[0]?.kind ?? null} ups={levelUps(stageRt.summary, save)} hint={needsStatHint(save, levelUps(stageRt.summary, save))} caught={caughtView(stageRt.summary, save)} ms={stageRt.ms} media={media} onInput={onInput} onStats={(uid) => onOpen({ kind: 'team', uid })} />}
         {choice && <ChoiceBox view={choice} media={media} scale={layout.scale} onInput={onInput} />}
         <DefeatBox state={state} media={media} onInput={onInput} />
         <ClearCard state={state} media={media} onInput={onInput} onMap={() => onOpen({ kind: 'map' })} onTeam={() => onOpen({ kind: 'team' })} />

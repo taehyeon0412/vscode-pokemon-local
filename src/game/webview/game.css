@@ -4301,12 +4301,80 @@ body.vscode-high-contrast-light .pg-title-body {
   0% { transform: translateY(0); }
   50% { transform: translateY(2px); }
 }
+/* 잡은 포켓몬 소개 카드 (결과 상자 전 1.5초 — 2026-10-20 태현 님 안 2 "잡았다는 기쁨") — 잡기 창 B 와 같은 집중 모양: 둘레 남색 55% · 2px 금색 · 금색 칠 이름표 "잡았다!" ·
+   왼쪽 그림 칸 64 (밝은 남색 + 흐린 금색 1px · 그림은 칸을 채우는 정수 배) · 오른쪽 NEW 도감 등록 (금색 칠) · 이름 13/700 + Lv 흐림 · 타입 표 · 팀 / 보관함 11 흐림. 나타날 때 0.15초 세 걸음 · 누르면 넘김 */
+.pg-caught-intro {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 9;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px 12px 12px;
+  transform: translate(-50%, -50%);
+  background: var(--pg-sos-bar);
+  border: 2px solid var(--pg-sos-gold);
+  box-shadow: 0 0 0 1px var(--pg-sos-tab-ink), 0 0 0 100vmax rgba(12, 16, 30, 0.55);
+  white-space: nowrap;
+  cursor: pointer;
+  animation: pg-caught-in 0.15s steps(3) both;
+}
+@keyframes pg-caught-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+.pg-caught-title {
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  height: 16px;
+  padding: 0 8px;
+  transform: translateX(-50%);
+  background: var(--pg-sos-gold);
+  color: var(--pg-sos-tab-ink);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+  white-space: nowrap;
+}
+.pg-caught-art {
+  position: relative;
+  line-height: 0;
+  background: var(--pg-sos-hi);
+  box-shadow: inset 0 0 0 1px var(--pg-sos-line-soft);
+}
+.pg-caught-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.pg-caught-new {
+  padding: 0 4px;
+  background: var(--pg-sos-gold);
+  color: var(--pg-sos-tab-ink);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 14px;
+}
+.pg-caught-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--pg-sos-ink);
+}
+.pg-caught-where {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--pg-sos-dim);
+}
 @media (prefers-reduced-motion: reduce) {
   .pg-lvup-spark {
     display: none;
   }
   .pg-lvup-card,
-  .pg-lvup-hint {
+  .pg-lvup-hint,
+  .pg-caught-intro {
     animation: none;
   }
 }

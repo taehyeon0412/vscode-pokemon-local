@@ -498,11 +498,12 @@ function finishStage(save0: Save, rt0: RuntimeState, id: StageId): { save: Save;
   return { save, rt: { ...rt, stage, stageId: id === 'forest-3' ? null : id }, signal: 'stage-clear', notice };
 }
 
-/** S12 결과 (5초 · 계속) · S23 · S22 고르기 (고를 때까지, ms = 진화 연출) — 스테이지 · 체육관이 같이 씀 */
+/** S12 결과 (5초 — 잡았으면 앞에 소개 카드 1.5초 · 계속) · S23 · S22 고르기 (고를 때까지, ms = 진화 연출) — 스테이지 · 체육관이 같이 씀 */
 function resultOrChoiceStep(stage: Extract<StageRuntime, { phase: 'result' | 'choice' }>, save: Save, stepMs: number): StageRuntime {
   if (stage.phase === 'result') {
     const ms = stage.ms + stepMs;
-    return ms < TIMING.resultMs ? { ...stage, ms } : afterResult(save, stage.then);
+    // 잡았으면 소개 카드 시간만큼 더 (결과 상자는 늘 5초)
+    return ms < TIMING.resultMs + (stage.summary.caught ? TIMING.caughtIntroMs : 0) ? { ...stage, ms } : afterResult(save, stage.then);
   }
   // 고를 것이 없으면 다음으로 · 있으면 고를 때까지 (ms = 진화 연출, 다 차면 그대로)
   if (save.pendingChoices.length === 0) return afterResult(save, stage.then);
@@ -733,6 +734,8 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       return { ...state, save: { ...save, settings: { ...save.settings, notifications: input.on } } };
     case 'result-continue':
       if (stage?.phase !== 'result') return state;
+      // 잡은 포켓몬 소개 카드가 떠 있으면 먼저 소개만 넘김 (결과 상자로)
+      if (stage.summary.caught && stage.ms < TIMING.caughtIntroMs) return { ...state, runtime: { ...state.runtime, stage: { ...stage, ms: TIMING.caughtIntroMs } } };
       return { ...state, runtime: { ...state.runtime, stage: afterResult(save, stage.then) } };
     case 'learn': {
       const c = save.pendingChoices[0];

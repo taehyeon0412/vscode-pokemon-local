@@ -135,6 +135,13 @@
             save.party = ['m1', 'm2'];
             stage.summary.exp.push({ uid: 'm2', name: '파이리', gain: 14, from: 6, to: 7 });
         }
+        // got=1 — 야생 파이리를 잡은 결과 (new=0 이면 도감에 이미 있음 · 소개 카드 1.5초 뒤 결과 상자) · rms=결과 지난 ms (rms=1600 = 소개 카드 지나 결과 상자)
+        if (scene === 'result' && q.get('got') === '1') {
+            save.monsters.m3 = { ...save.monsters.m1, uid: 'm3', species: 4, form: 'charmander', level: 5, unspentPoints: 0, caughtAt: 'forest-1' };
+            save.party = [...save.party, 'm3'];
+            stage.summary = { ...stage.summary, title: '야생 파이리를 잡았다!', caught: { name: '파이리', toBox: false, uid: 'm3', isNew: q.get('new') !== '0' } };
+        }
+        if (scene === 'result' && q.get('rms')) stage.ms = Number(q.get('rms'));
         if (scene === 'result' && q.get('ups') === '0') stage.summary = { ...stage.summary, exp: [{ uid: 'm1', name: '이상해씨', gain: 28, from: 5, to: 5 }], learned: [] };
         if (scene === 'learn') save.pendingChoices = [{ kind: 'learn', uid: 'm1', moveId: 75 }];
         if (scene === 'evolve' || scene === 'evolve-pick') save.pendingChoices = [{ kind: 'evolve', uid: 'm1', to: 2, newMoves: [75, 76], level: 16, item: null }];

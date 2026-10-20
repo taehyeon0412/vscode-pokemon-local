@@ -69,6 +69,24 @@ export function levelUps(s: BattleSummary, save: Save): LevelUpView[] {
   });
 }
 
+/** S12 잡은 포켓몬 소개 카드 (결과 상자 전 1.5초 — 2026-10-20 태현 님 안 2) — 그림 · 이름 · Lv · 타입 · NEW 도감 등록 · 팀 / 보관함 */
+export interface CaughtView {
+  uid: string;
+  name: string;
+  form: string;
+  shiny: boolean;
+  level: number;
+  species: number;
+  toBox: boolean;
+  isNew: boolean;
+}
+
+export function caughtView(s: BattleSummary, save: Save): CaughtView | null {
+  const m = s.caught ? save.monsters[s.caught.uid] : undefined;
+  if (!s.caught || !m) return null;
+  return { uid: s.caught.uid, name: s.caught.name, form: m.form, shiny: m.shiny, level: m.level, species: m.species, toBox: s.caught.toBox, isNew: s.caught.isNew };
+}
+
 /**
  * 고른 포인트를 한 번이라도 나눠 봤는지 — 레벨마다 자동 A 개가 points 에 · 고르는 F 개가 unspentPoints 에 쌓이므로
  * 오른 레벨 수 L = (points 합 + 남은) ÷ (A + F) · 직접 나눈 수 = points 합 − A × L. 세이브에 따로 적지 않고 알아냄

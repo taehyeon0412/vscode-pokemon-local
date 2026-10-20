@@ -25,7 +25,8 @@ export interface BattleSummary {
   exp: { uid: string; name: string; gain: number; from: number; to: number }[];
   money: number;
   item: string | null;
-  caught: { name: string; toBox: boolean } | null;
+  /** 잡은 포켓몬 — uid · isNew = 도감 (잡음) 에 처음 (S12 소개 카드 "NEW 도감 등록", 2026-10-20 태현 님 안 2) */
+  caught: { name: string; toBox: boolean; uid: string; isNew: boolean } | null;
   /** 빈칸이라 바로 배운 기술 */
   learned: { name: string; move: string }[];
   /** 이어서 고를 것 (S23 · S22) 수 */
@@ -84,6 +85,7 @@ export function battleRewards(save0: Save, b: BattleState, wild: Monster | null,
       caughtAt: where,
     };
     const toBox = save.party.length >= BALANCE.partySize;
+    const isNew = !save.dex.caught.includes(caught.species);
     save = {
       ...save,
       monsters: { ...save.monsters, [uid]: caught },
@@ -92,7 +94,7 @@ export function battleRewards(save0: Save, b: BattleState, wild: Monster | null,
       nextMonsterUid: save.nextMonsterUid + 1,
       dex: { seen: addDex(save.dex.seen, caught.species), caught: addDex(save.dex.caught, caught.species) },
     };
-    summary.caught = { name: nameOf(caught.species), toBox };
+    summary.caught = { name: nameOf(caught.species), toBox, uid, isNew };
   }
 
   // 경험치 — 싸운 포켓몬은 다, 팀 나머지는 절반, 쓰러진 포켓몬은 없음 (방금 잡은 포켓몬도 없음) · 트레이너 · 관장 × 1.5

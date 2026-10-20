@@ -108,7 +108,8 @@ function readSummary(raw: unknown): BattleSummary | null {
     .filter(isObj)
     .map((l) => ({ name: text(l.name, 30) ?? '', move: text(l.move, 30) ?? '' }));
   const c = raw.caught;
-  const caught = isObj(c) && text(c.name, 30) !== null && typeof c.toBox === 'boolean' ? { name: text(c.name, 30) as string, toBox: c.toBox } : null;
+  // uid · isNew (S12 소개 카드, 2026-10-20) — 옛 상태에는 없음 → 빈 uid (소개 카드 없이 결과 상자) · NEW 없음
+  const caught = isObj(c) && text(c.name, 30) !== null && typeof c.toBox === 'boolean' ? { name: text(c.name, 30) as string, toBox: c.toBox, uid: text(c.uid, 20) ?? '', isNew: c.isNew === true } : null;
   const quote = text(raw.quote, 120);
   return {
     title: text(raw.title) as string,

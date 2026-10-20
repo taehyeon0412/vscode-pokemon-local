@@ -280,6 +280,8 @@ export const TIMING = {
   lastChanceMs: 6000,
   /** S12 결과를 보여 주는 시간 (계속 · Space · Enter 로 넘김) — 2026-10-20 태현 님 3500 → 5000 ("전투가 끝나고 5초 정도 두고 레벨업 표시") */
   resultMs: 5000,
+  /** S12 잡았을 때 결과 상자 전에 가운데 소개 카드 (그림 · 이름 · 타입 · NEW 도감 등록) — 결과 시간에 더함, 클릭 · Space · Enter 로 넘김 (2026-10-20 태현 님 안 2 "잡았다는 기쁨") */
+  caughtIntroMs: 1500,
   /** S22 진화 연출 (Space = 빨리 넘기기) · 시작하고 이 시간 동안은 Space · Esc 를 안 받음 (결과에서 Space 를 두 번 눌러 연출을 통째로 놓치지 않게) */
   evolveAnimMs: 4000,
   evolveGuardMs: 800,

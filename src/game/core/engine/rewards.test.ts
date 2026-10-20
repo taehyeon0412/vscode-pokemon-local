@@ -123,7 +123,9 @@ describe('S12 전투 결과 (mvp-spec 3.4 · 3.5 · 3.7)', () => {
     expect(r.save.monsters[uid]).toMatchObject({ species: 16, hp: 3, caughtAt: 'forest-1' });
     expect(r.save.dex.caught).toContain(16);
     expect(r.save.nextMonsterUid).toBe(save.nextMonsterUid + 1);
-    expect(r.summary.caught).toEqual({ name: '구구', toBox: false });
+    expect(r.summary.caught).toEqual({ name: '구구', toBox: false, uid, isNew: !save.dex.caught.includes(16) });
+    // 도감에 이미 있으면 isNew false (S12 소개 카드 NEW — 2026-10-20)
+    expect(battleRewards({ ...save, dex: { ...save.dex, caught: [...save.dex.caught, 16] } }, foeHp, wild(), 'forest-1', fixedRng(0.001)).summary.caught?.isNew).toBe(false);
     expect(r.summary.money).toBe(4 * BALANCE.wildMoneyPerLevel + BALANCE.jackpotMoney);
     expect(r.summary.item).toBeNull();
     const fullTeam: Save = { ...save, party: ['m1', 'm2', 'm3', 'm4', 'm5'], monsters: { ...save.monsters, m3: sampleMonster({ uid: 'm3' }), m4: sampleMonster({ uid: 'm4' }), m5: sampleMonster({ uid: 'm5' }) }, nextMonsterUid: 6 };
