@@ -4698,3 +4698,145 @@ body.vscode-light .pg-field-balls {
   animation: pg-caught-open-ball 2s steps(1, end) both;
 }
 
+
+/* ---- 1-3 길 끝 체육관 · 들어가기 (2026-10-20 태현 님 A안) — 원작 상록시티 체육관 외관 · 왼쪽 GYM 기둥 · 우리 간판 "숲 체육관 · 관장 나래" ·
+   gym-enter 2.4초: 문 옆까지 걸음 → 원작 두짝 미닫이문 열림 3장 → 문 안으로 들어가며 사라짐 → 화면 닦기. 시안 a 원작 그대로 · b 숲 체육관답게 · c 간판 강조 (고르면 하나만 남김) ---- */
+.pg-gymfront {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  line-height: 0;
+}
+.pg-gymfront img {
+  image-rendering: pixelated;
+}
+/* 건물 = 문 가운데가 x · 자리가 모자라면 지붕 위가 잘림 (병원 · 상점과 같음) */
+.pg-gymfront-body {
+  position: relative;
+  display: block;
+  overflow: hidden;
+}
+.pg-gymfront-body > img:first-child {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+}
+.pg-gymfront-door {
+  position: absolute;
+}
+/* GYM 기둥 — 건물 왼쪽에 붙음 (원작 자리) */
+.pg-gymfront-post {
+  position: absolute;
+  right: 100%;
+  bottom: 0;
+}
+/* a · b 이름표 — 기둥 위 남색 판 + 1px 금색 선 · 금색 11/700 (판 제목과 같은 이름표) */
+.pg-gymfront-sign {
+  position: absolute;
+  bottom: calc(var(--pg-gk) * 26);
+  right: calc(100% - var(--pg-gk) * 4);
+  padding: 0 6px;
+  border: 1px solid var(--pg-sos-line);
+  background: var(--pg-sos-bar);
+  color: var(--pg-sos-gold);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+  white-space: nowrap;
+}
+/* b 둥근 나무 — 건물 양옆 (체육관 방 나무 그림) */
+.pg-gymfront-trees {
+  position: absolute;
+  bottom: 0;
+}
+.pg-gymfront-trees-l {
+  right: calc(100% + var(--pg-gk) * 14);
+}
+.pg-gymfront-trees-r {
+  left: calc(100% - var(--pg-gk) * 2);
+}
+/* b 덤불 — 건물 밑동 양옆 (길 위 덤불 그림, 점 2배) · 기둥 앞 */
+.pg-gymfront-bush {
+  position: absolute;
+  bottom: calc(var(--pg-gk) * -1);
+  z-index: 1;
+}
+.pg-gymfront-bush-l {
+  right: calc(100% + var(--pg-gk) * 14);
+}
+.pg-gymfront-bush-r {
+  left: calc(100% - var(--pg-gk) * 6);
+}
+/* b 금빛 · c 흰 빛 — 열린 문 사이 (문 칸 유리 높이 12칸) */
+.pg-gymfront-light {
+  position: absolute;
+  bottom: 0;
+  height: calc(var(--pg-gk) * 12);
+  background: rgba(255, 215, 106, 0.85);
+}
+.pg-gymfront-c .pg-gymfront-light {
+  background: var(--pg-sos-ink);
+}
+/* c 큰 간판 — 기둥 왼쪽 땅 위에 다리 둘로 섬 (건물 위는 패널 높이에 따라 잘려서 땅에) · 남색 판 + 2px 금색 · "숲 체육관" 13/700 금색 + 관장 11 크림 */
+.pg-gymfront-banner {
+  position: absolute;
+  right: calc(100% + var(--pg-gk) * 24);
+  bottom: calc(var(--pg-gk) * 8);
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 10px 3px;
+  border: 2px solid var(--pg-sos-gold);
+  background: var(--pg-sos-bar);
+  box-shadow: 0 0 0 1px var(--pg-sos-tab-ink);
+  white-space: nowrap;
+  line-height: 14px;
+}
+/* 다리 둘 — 2칸 폭 · 간판 아래 끝에서 땅까지 */
+.pg-gymfront-banner::before,
+.pg-gymfront-banner::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  width: calc(var(--pg-gk) * 2);
+  height: calc(var(--pg-gk) * 8 + 2px);
+  background: var(--pg-sos-line);
+  box-shadow: 0 0 0 1px var(--pg-sos-tab-ink);
+}
+.pg-gymfront-banner::before {
+  left: 12%;
+}
+.pg-gymfront-banner::after {
+  right: 12%;
+}
+.pg-gymfront-banner > b {
+  color: var(--pg-sos-gold);
+  font-size: 13px;
+  font-weight: 700;
+}
+.pg-gymfront-banner > span {
+  color: var(--pg-sos-ink);
+  font-size: 11px;
+}
+/* 화면 닦기 (2.0 ~ 2.4초, 여섯 걸음) — 남색 단단한 판 */
+.pg-gym-wipe {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  pointer-events: none;
+  background: var(--pg-sos-bar);
+}
+.pg-gym-wipe-a {
+  right: auto;
+  width: calc(var(--pg-wipe) * 100%);
+}
+.pg-gym-wipe-b {
+  /* 문 가운데로 모이는 원 — 반지름 900 → 0px (여섯 걸음) */
+  background: radial-gradient(circle at var(--pg-wx) var(--pg-wy), transparent calc((1 - var(--pg-wipe)) * 900px), var(--pg-sos-bar) calc((1 - var(--pg-wipe)) * 900px + 1px));
+}
+.pg-gym-wipe-c {
+  bottom: auto;
+  height: calc(var(--pg-wipe) * 100%);
+}

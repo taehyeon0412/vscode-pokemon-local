@@ -5,7 +5,7 @@ import { createGameState, type GameState } from '../../core/engine';
 import { stageLayout } from '../../core/rules/stage';
 import { STAGE_IDS } from '../../core/save';
 import { summaryLines } from '../result/model';
-import { BATTLE_STAGE_MAX_PX, battleStage, CONTACT_PX, contactX, foeTrainerView, heroX, minimapOf, rivalTag, STAGES, stageLabel, stagePx, visibleObjects, WALK_PX_PER_SEC } from './model';
+import { BATTLE_STAGE_MAX_PX, battleStage, CONTACT_PX, contactX, foeTrainerView, gymEnterView, gymFrontX, heroX, minimapOf, rivalTag, STAGES, stageLabel, stagePx, visibleObjects, WALK_PX_PER_SEC } from './model';
 
 function at(progress: number, stage: GameState['runtime']['stage'] = { phase: 'walk' }): GameState {
   const s = createGameState(sampleSave({ stages: { 'forest-1': { seed: 42, progress, cleared: false, defeatedTrainers: [], facilities: [], run: { startMs: 0, caught: 0, trainers: 0, seen: [], reach: 0, retries: 0 } } } }), 1);
@@ -153,5 +153,29 @@ describe('전투 무대 (battleStage, 2026-10-19)', () => {
         expect(s.left + contactX(s.width, scale)).toBe(contactX(w, scale));
       }
     }
+  });
+});
+
+describe('1-3 끝 체육관 들어가기 (2026-10-20 태현 님 A안)', () => {
+  it('장면 시간표 — 문 옆까지 걸음 0.6초 · 문 열림 3장 0.6 ~ 1.4 · 문 안으로 세 걸음 흐려짐 · 2초부터 닦기 · 엔진 시간 (gymEnterMs) 안에 끝남', () => {
+    expect(gymEnterView(0)).toMatchObject({ walk: 0, enter: 0, door: 0, fade: 1, wipe: 0, walking: true });
+    expect(gymEnterView(600)).toMatchObject({ walk: 1, door: 1, walking: false });
+    expect(gymEnterView(1000).door).toBe(2);
+    expect(gymEnterView(1300)).toMatchObject({ door: 3, enter: 0, fade: 1 });
+    expect(gymEnterView(1500)).toMatchObject({ enter: 1 / 3, walking: true });
+    expect(gymEnterView(1900)).toMatchObject({ enter: 1, fade: 0, wipe: 0 });
+    expect(gymEnterView(2200).wipe).toBeGreaterThan(0);
+    expect(gymEnterView(TIMING.gymEnterMs).wipe).toBe(1);
+  });
+
+  it('체육관 건물은 1-3 에서만 · 길 끝에 가까울 때만 보임 (멀면 null)', () => {
+    const s3 = (progress: number): GameState => {
+      const base = at(0);
+      return { ...base, save: { ...base.save, location: { screen: 'stage', stageId: 'forest-3' }, stages: { 'forest-3': { ...base.save.stages['forest-1']!, progress } } } };
+    };
+    expect(gymFrontX(at(1), 1860, 2)).toBeNull();
+    expect(gymFrontX(s3(0.5), 1860, 2)).toBeNull();
+    const end = gymFrontX(s3(1), 1860, 2);
+    expect(end).toBe(heroX(1860) + 40 * 2);
   });
 });

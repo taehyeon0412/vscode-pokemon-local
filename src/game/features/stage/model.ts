@@ -110,6 +110,35 @@ export function staffLeftPx(kind: FacilitySpot['kind'], x: number, scale: number
   return Math.round(x + STAFF_FROM_DOOR * buildingDraw(kind, scale, roomPx).k);
 }
 
+/** 1-3 길 끝 체육관 (2026-10-20 태현 님 A안 "1-3 끝 → 체육관 들어가기") — 원작 상록시티 체육관 외관 96 × 80 (scripts/buildings/fetch-pret-gym-front.py) ·
+ *  문 칸 = (48, 64) 16 × 16 (열림 3장 gym-door-1 ~ 3) · 왼쪽 GYM 간판 기둥 16 × 24 */
+export const GYM_FRONT = { file: 'gym-front', w: 96, h: 80, doorX: 48, doorY: 64, doorW: 16, post: { file: 'gym-post', w: 16, h: 24 } } as const;
+/** 진행 1 (멈춘 곳) 에서 문 가운데 = 주인공 왼쪽 끝 + 이만큼 칸 앞 — gym-enter 첫 0.6초에 주인공이 문 앞까지 걸어감 */
+const GYM_DOOR_AHEAD = 40;
+
+/** 길 끝 체육관 문 가운데 x (화면 px) — 1-3 에서 보일 때만 (멀면 null) */
+export function gymFrontX(state: GameState, widthPx: number, scale: number): number | null {
+  const save = state.save;
+  if (save.location.screen !== 'stage' || save.location.stageId !== 'forest-3') return null;
+  const prog = save.stages['forest-3'];
+  if (!prog) return null;
+  const x = heroX(widthPx) + GYM_DOOR_AHEAD * scale + (1 - prog.progress) * stagePx(scale);
+  return x < widthPx + GYM_FRONT.w * scale ? x : null;
+}
+
+/** gym-enter 장면 (엔진은 TIMING.gymEnterMs 만 지킴) — 0 ~ 0.6초 문 옆까지 걸음 (여섯 걸음 · 문을 가리지 않게) · 0.6 ~ 1.4 문이 열림 (3장) ·
+ *  1.4 ~ 1.85 문 안으로 세 걸음 (한 칸씩 위로 · 흐려짐) · 2.0 ~ 2.4 화면 닦기 (여섯 걸음).
+ *  walk = 문 옆까지 · enter = 문 옆 → 문 가운데 · wipe = 0 ~ 1, door = 0 (닫힘) ~ 3 (다 열림), rise = 위로 몇 칸, fade = 불투명도 */
+export function gymEnterView(ms: number): { walk: number; enter: number; walking: boolean; door: 0 | 1 | 2 | 3; rise: number; fade: number; wipe: number } {
+  const step = (t: number, n: number) => Math.min(1, Math.floor(Math.max(0, t) * n) / n);
+  const walk = step(ms / 600, 6);
+  const door = ms < 600 ? 0 : ms < 867 ? 1 : ms < 1133 ? 2 : 3;
+  const into = ms < 1400 ? 0 : Math.min(3, Math.floor((ms - 1400) / 150) + 1);
+  const fade = into <= 1 ? 1 : into === 2 ? 0.66 : ms < 1850 ? 0.33 : 0;
+  const wipe = ms < 2000 ? 0 : step((ms - 2000) / 400, 6);
+  return { walk, enter: into / 3, walking: ms < 600 || (ms >= 1400 && ms < 1850), door, rise: Math.max(0, into - 1), fade, wipe };
+}
+
 export function visibleObjects(state: GameState, widthPx: number, scale: number): StageObject[] {
   const save = state.save;
   if (save.location.screen !== 'stage') return [];
