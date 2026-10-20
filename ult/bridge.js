@@ -843,15 +843,18 @@ window.pokemonFx = {
             const gold = tone === 'gold';
             const cols = gold ? ['#fffbe0', '#ffe680', '#f5c400', '#b88a00'] : ['#ffffff', '#eef2f6', '#c4ced8', '#5f6f82'];
             const big = gold;
+            // 포켓몬 배율 — 보통 ×2 그대로, 높은 패널 ×3 이면 글씨 · 반짝이도 1.5배 (2026-10-20 높은 패널 크게)
+            const s = Math.max(1, Math.round(r.width / (dst.size || 32)));
+            const grow = Math.max(1, s / 2);
             // 머리 위는 HP 묶음 자리라 — 그 포켓몬 옆 (화면 가운데 쪽) 위에
             const toward = r.left + r.width / 2 < window.innerWidth / 2 ? 1 : -1;
             const x = r.left + r.width / 2 + toward * r.width * 1.6;
             const y = r.top + r.height * 0.2;
-            ultTitle(text, null, cols, big ? 1.0 : 0.7, 0.36, big ? 0.55 : 0.38, { x, y });
+            ultTitle(text, null, cols, big ? 1.0 : 0.7, 0.36, (big ? 0.55 : 0.38) * grow, { x, y });
             if (big) {
                 for (let i = 0; i < 8; i++) {
                     const a = (i / 8) * Math.PI * 2;
-                    sigParticle({ x: x + Math.cos(a) * 30, y: y + Math.sin(a) * 10, s: 2, vx: Math.cos(a) * 30, vy: Math.sin(a) * 15 - 10, drag: 2, max: 0.6, cols, draw: DRAW.sparkle });
+                    sigParticle({ x: x + Math.cos(a) * 30 * grow, y: y + Math.sin(a) * 10 * grow, s, vx: Math.cos(a) * 30 * grow, vy: (Math.sin(a) * 15 - 10) * grow, drag: 2, max: 0.6, cols, draw: DRAW.sparkle });
                 }
             }
         });
@@ -866,16 +869,18 @@ window.pokemonFx = {
             const cx = r.left + r.width / 2;
             const cy = r.top + r.height * 0.55;
             const R = Math.max(r.width, r.height) * 0.95;
-            sigParticle({ x: 0, y: 0, s: 2, max: ms / 1000, z: -1, draw: (ctx, p, t) => {
+            // 구멍 줄 = 포켓몬 픽셀 한 칸 (보통 2px · 높은 패널 ×3 이면 3px — 픽셀 격자 하나)
+            const s = Math.max(1, Math.round(r.width / (dst.size || 32)));
+            sigParticle({ x: 0, y: 0, s, max: ms / 1000, z: -1, draw: (ctx, p, t) => {
                 const a = 0.34 * (t < 0.12 ? t / 0.12 : t > 0.85 ? (1 - t) / 0.15 : 1);
                 const W = window.innerWidth;
                 const H = window.innerHeight;
                 ctx.save();
                 ctx.beginPath();
                 ctx.rect(0, 0, W, H);
-                for (let dy = -R; dy <= R; dy += 2) {
-                    const half = Math.round(Math.sqrt(Math.max(0, R * R - dy * dy)) / 2) * 2;
-                    ctx.rect(Math.round(cx - half), Math.round(cy + dy), half * 2, 2);
+                for (let dy = -R; dy <= R; dy += s) {
+                    const half = Math.round(Math.sqrt(Math.max(0, R * R - dy * dy)) / s) * s;
+                    ctx.rect(Math.round(cx - half), Math.round(cy + dy), half * 2, s);
                 }
                 ctx.clip('evenodd');
                 ctx.globalAlpha = Math.ceil(a * 8) / 8;
