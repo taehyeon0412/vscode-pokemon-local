@@ -116,8 +116,10 @@ export const GYM_FRONT = { file: 'gym-front', w: 96, h: 80, doorX: 48, doorY: 64
 /** 진행 1 (멈춘 곳) 에서 문 가운데 = 주인공 왼쪽 끝 + 이만큼 칸 앞 — gym-enter 첫 0.6초에 주인공이 문 앞까지 걸어감 */
 const GYM_DOOR_AHEAD = 40;
 
-/** 1-3 끝에 닿았을 때 (진행 1) 체육관 문 가운데 x — 간판 자리 (좁은 패널) 를 이 자리로 정해 다가오는 동안 바뀌지 않게 */
-export const gymRestX = (widthPx: number, scale: number): number => heroX(widthPx) + GYM_DOOR_AHEAD * scale;
+/** 1-3 끝에 닿았을 때 (진행 1) 체육관 문 가운데 x — 간판 자리 (좁은 패널) 를 이 자리로 정해 다가오는 동안 바뀌지 않게.
+ *  좁고 높은 패널 (240 × 315 — 배율이 커서) 은 문이 오른쪽 밖으로 나가지 않게 문 오른쪽 끝 + 8px 안으로 당김 (UX 리뷰어 2026-10-21) */
+export const gymRestX = (widthPx: number, scale: number): number =>
+  Math.min(heroX(widthPx) + GYM_DOOR_AHEAD * scale, widthPx - (GYM_FRONT.doorW / 2) * Math.max(1, Math.floor(scale)) - 8);
 
 /** 길 끝 체육관 문 가운데 x (화면 px) — 1-3 에서 보일 때만 (멀면 null) */
 export function gymFrontX(state: GameState, widthPx: number, scale: number): number | null {

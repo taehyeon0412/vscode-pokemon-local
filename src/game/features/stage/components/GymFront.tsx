@@ -9,8 +9,9 @@ import { GYM_FRONT } from '../model';
 
 /** 문 열림 장마다 빛 폭 (칸) — 가운데에서 벌어짐 */
 const LIGHT_W = [0, 4, 8, 10] as const;
-/** 큰 간판 폭 어림 (px, 그림자 1px 포함 — 실제 74 쯤) · 화면 왼쪽 끝 여백 */
-const BANNER_W = 78;
+/** 큰 간판 폭 (px, 바깥 1px 테두리 포함 — 픽셀 검사원 잰 값 74) · 좁은 패널 간판 (좌우 여백 10 → 6) · 화면 왼쪽 끝 여백 */
+const BANNER_W = 74;
+const BANNER_W_NARROW = 66;
 const EDGE = 4;
 
 export function GymFront({ x, restX, k, ground, roomPx, media, door }: { x: number; restX: number; k: number; ground: number; roomPx: number; media: string; door: 0 | 1 | 2 | 3 }) {
@@ -22,7 +23,7 @@ export function GymFront({ x, restX, k, ground, roomPx, media, door }: { x: numb
   const visible = Math.min(g.h * k, Math.max(0, Math.floor(roomPx)));
   // 간판 오른쪽 끝이 건물 왼쪽에서 얼마나 (px) — 보통 기둥 왼쪽 8칸 (24칸) · 좁으면 기둥 자리 (2칸, 모자라면 왼쪽 끝 4px 까지 당김)
   const narrow = rest - 24 * k - BANNER_W < EDGE;
-  const bannerGap = narrow ? rest - Math.max(rest - 2 * k, EDGE + BANNER_W) : 24 * k;
+  const bannerGap = narrow ? rest - Math.max(rest - 2 * k, EDGE + BANNER_W_NARROW) : 24 * k;
   return (
     <span class="pg-gymfront" style={{ left: `${left}px`, bottom: `${ground}px`, '--pg-gk': `${k}px` }} title={`숲 체육관 · ${GYM_LEADER.name}`}>
       {!narrow && <img class="pg-gymfront-post" src={`${base}/${g.post.file}.png`} alt="" width={g.post.w * k} height={g.post.h * k} draggable={false} />}
@@ -43,7 +44,7 @@ export function GymFront({ x, restX, k, ground, roomPx, media, door }: { x: numb
         {door > 0 && <span class="pg-gymfront-light" style={{ left: `${(g.doorX + (g.doorW - LIGHT_W[door]) / 2) * k}px`, width: `${LIGHT_W[door] * k}px` }} />}
       </span>
       {/* 큰 간판 — 땅 위에 다리 둘로 섬 (건물 위는 패널 높이에 따라 잘려서 땅에) */}
-      <span class="pg-gymfront-banner" style={{ right: `calc(100% + ${bannerGap}px)` }}>
+      <span class={`pg-gymfront-banner${narrow ? ' pg-gymfront-banner-narrow' : ''}`} style={{ right: `calc(100% + ${bannerGap}px)` }}>
         <b>숲 체육관</b>
         <span>{GYM_LEADER.name}</span>
       </span>

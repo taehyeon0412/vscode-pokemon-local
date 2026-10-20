@@ -226,9 +226,9 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   const gymX = gymFrontX(state, widthPx, layout.scale);
   const gymK = Math.max(1, Math.floor(layout.scale));
   const gymEnter = stageRt?.phase === 'gym-enter' ? gymEnterView(stageRt.ms) : null;
-  // 문 옆 = 주인공 오른쪽 끝이 문틀 (문 가운데 − 8칸) 왼쪽 네 칸 (팔이 문을 가리지 않게) · 문 가운데 = 주인공 가운데가 문 가운데
-  const gymBeside = gymX !== null ? gymX - 12 * gymK - heroW : heroStand;
-  const gymInto = gymX !== null ? gymX - Math.round(heroW / 2) : heroStand;
+  // heroLeft 는 주인공 가운데 (.pg-obj translateX(-50%)) — 문 옆 = 주인공 오른쪽 끝이 문틀 (문 가운데 − 8칸) 왼쪽 네 칸 (팔이 문을 가리지 않게) · 문 가운데 = 주인공 가운데가 문 가운데
+  const gymBeside = gymX !== null ? gymX - 12 * gymK - Math.round(heroW / 2) : heroStand;
+  const gymInto = gymX ?? heroStand;
   const heroLeft = gymEnter && gymX !== null ? Math.round(heroStand + (gymBeside - heroStand) * gymEnter.walk + (gymInto - gymBeside) * gymEnter.enter) : heroStand;
   // 큰 주인공이 위쪽 띠 (트레이너 · 만남 · 병원 상자, 상자 자리 fieldTop + 한 줄) 자리까지 올라오면 띠를 주인공 오른쪽 옆으로 — 옆자리가 넉넉할 때만
   //   병원 · 상점 앞 · 안이면 간호순 · 점원 오른쪽 옆으로 ("간호순:" 이 말하는데 띠에 가려지지 않게 — 아트 디렉터)
@@ -331,7 +331,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         {ballsInField && phase === 'walk' && <div class="pg-field-balls">{balls}</div>}
         <StageObjects objects={objects} media={media} scale={layout.scale} ground={ground} roomPx={heroRoom} />
         {gymX !== null && media && <GymFront x={gymX} restX={gymRestX(widthPx, layout.scale)} k={gymK} ground={ground} roomPx={heroRoom} media={media} door={gymEnter?.door ?? 0} />}
-        <span class="pg-obj pg-hero-wrap" style={{ left: `${heroLeft}px`, bottom: `${ground}px`, ...(gymEnter ? { opacity: String(gymEnter.fade), transform: `translateY(${-gymEnter.rise * gymK}px)` } : {}) }}>
+        {/* 체육관 장면 · 대기실 = 자리 옮김 0.45초 없이 (걸음이 픽셀 박자로 · 대기실에 들어오며 미끄러지지 않게 — UX 리뷰어 2026-10-21) · 가운데 맞춤 translateX 는 그대로 */}
+        <span class={`pg-obj pg-hero-wrap${gymEnter || phase === 'lobby' ? ' pg-hero-still' : ''}`} style={{ left: `${heroLeft}px`, bottom: `${ground}px`, ...(gymEnter ? { opacity: String(gymEnter.fade), transform: `translateX(-50%) translateY(${-gymEnter.rise * gymK}px)` } : {}) }}>
           <Hero px={heroPx} walking={(phase === 'walk' || gymEnter?.walking === true) && live} fast={fast} gender={look.gender} look={look} media={media} roomPx={heroRoom} />
         </span>
         {/* 전투 중 상대 트레이너 · 관장 = 오른쪽 끝 (남은 볼) · 대기실의 관장 */}
@@ -376,8 +377,13 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         <ClearCard state={state} media={media} onInput={onInput} onMap={() => onOpen({ kind: 'map' })} onTeam={() => onOpen({ kind: 'team' })} />
         <LobbyBox state={state} media={media} onInput={onInput} onBox={() => onOpen({ kind: 'team' })} onShop={() => onOpen({ kind: 'shop' })} onMap={() => onOpen({ kind: 'map' })} />
         <BadgeCard state={state} media={media} onInput={onInput} onMap={() => onOpen({ kind: 'map' })} />
-        {/* 주인공 머리 위 — 주운 자리에서 바로 보이게 (긴 알림은 패널 끝 안쪽으로 당김) */}
-        {showToast && state.runtime.toast && <StageToast key={state.runtime.toast.text} text={state.runtime.toast.text} center={heroLeft + heroW / 2} bottom={toastBottom} />}
+        {/* 주인공 머리 위 — 주운 자리에서 바로 보이게 (긴 알림은 패널 끝 안쪽으로 당김 · 줄 바꿈).
+            대기실 = 상자가 머리 위를 차지해서 바닥 줄 주인공 ~ 관장 사이 (버튼을 가리던 것 — 2026-10-21 orders #3) */}
+        {showToast && state.runtime.toast && (phase === 'lobby' ? (
+          <StageToast key={state.runtime.toast.text} text={state.runtime.toast.text} center={(heroLeft + heroW / 2 + 8 + bannerRight) / 2} bottom={ground + 2} room={bannerRight - (heroLeft + heroW / 2 + 8)} />
+        ) : (
+          <StageToast key={state.runtime.toast.text} text={state.runtime.toast.text} center={heroLeft} bottom={toastBottom} />
+        ))}
       </div>
     </div>
   );

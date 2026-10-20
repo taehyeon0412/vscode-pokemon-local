@@ -1,26 +1,43 @@
 /**
- * 길 위 알림 (주운 것 · 회복 · 클리어 보너스) — 주인공 머리 위 가운데. 긴 알림이 패널 왼쪽 · 오른쪽 끝 밖으로 나가지 않게 실제 폭을 재서 8px 안쪽으로 당김
- * (2026-10-20 — 체육관 대기실 "1-3 클리어! 보너스 경험치 +130 · ◓+1 · …" 이 480px 까지 왼쪽이 잘리던 것, 예전엔 주인공 왼쪽 끝 · 최소 80px 가 가운데라 넘침).
+ * 길 위 알림 (주운 것 · 회복 · 클리어 보너스) — 주인공 머리 위 가운데. 긴 알림이 패널 왼쪽 · 오른쪽 끝 밖으로 나가지 않게 실제 폭을 재서 8px 안쪽으로 당김.
+ * 자리 (room — 대기실 바닥 줄 주인공 ~ 관장 사이) 에 한 줄로 들어가면 그 자리 · 아니면 패널 폭 안 한 줄 · 그래도 길면 줄 바꿈 (줄임표 금지 — ux-rules U4).
+ * 자리는 정수 px (폭 올림 · 왼쪽 반올림, translateX 없음) — 1px 테두리가 반 픽셀에 걸려 흐리던 것 (픽셀 검사원 2026-10-21).
+ * (2026-10-20 — 체육관 대기실 "1-3 클리어! 보너스 경험치 +130 · ◓+1 · …" 이 480px 까지 왼쪽이 잘리던 것, 예전엔 가운데가 최소 80px 라 넘침).
  */
-import { useLayoutEffect, useRef } from 'preact/hooks';
+import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 
 const EDGE = 8;
 
-export function StageToast({ text, center, bottom }: { text: string; center: number; bottom: number }) {
+export function StageToast({ text, center, bottom, room }: { text: string; center: number; bottom: number; room?: number }) {
   const ref = useRef<HTMLDivElement>(null);
-  // 그린 뒤 폭을 재서 가운데를 당김 (.pg-toast 는 translateX(-50%) — left 가 가운데 · 끝 = 무대 폭)
+  const [, setRetry] = useState(0);
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el?.parentElement) return;
     const widthPx = el.parentElement.clientWidth;
-    const half = el.offsetWidth / 2;
-    const min = EDGE + half;
-    const max = widthPx - EDGE - half;
-    el.style.left = `${Math.round(max < min ? widthPx / 2 : Math.min(max, Math.max(min, center)))}px`;
+    // 아직 무대 폭이 안 잡혔으면 (글꼴을 기다리며 #pokemon-game 이 숨은 동안) 다음 장면에 다시 잼 — 가운데가 0 이 되어 왼쪽 반이 잘리던 것
+    if (!widthPx) {
+      const id = requestAnimationFrame(() => setRetry((n) => n + 1));
+      return () => cancelAnimationFrame(id);
+    }
+    // 한 줄 폭을 잼 → 들어갈 폭을 정함 → 그 폭으로 다시 잼 (줄 바꿈이면 더 좁아짐)
+    const full = widthPx - 2 * EDGE;
+    el.style.width = 'max-content';
+    el.style.maxWidth = 'none';
+    el.style.whiteSpace = 'nowrap';
+    const oneLine = el.getBoundingClientRect().width;
+    el.style.whiteSpace = '';
+    el.style.maxWidth = `${room !== undefined && oneLine <= room ? Math.floor(room) : full}px`;
+    const w = Math.ceil(el.getBoundingClientRect().width);
+    el.style.width = `${w}px`;
+    el.style.left = `${Math.round(Math.min(widthPx - EDGE - w, Math.max(EDGE, center - w / 2)))}px`;
+    el.style.transform = 'none';
+    return undefined;
   });
   return (
     <div ref={ref} class="pg-toast" style={{ left: `${Math.round(center)}px`, bottom: `${bottom}px` }}>
-      {text}
+      {/* "Lv 6!" 이 줄 끝에서 "Lv / 6!" 로 갈라지지 않게 */}
+      {text.replace(/Lv (\d)/g, 'Lv $1')}
     </div>
   );
 }

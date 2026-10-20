@@ -177,6 +177,9 @@ describe('1-3 끝 체육관 들어가기 (2026-10-20 태현 님 A안)', () => {
     expect(gymFrontX(s3(0.5), 1860, 2)).toBeNull();
     const end = gymFrontX(s3(1), 1860, 2);
     expect(end).toBe(heroX(1860) + 40 * 2);
+    // 좁고 높은 패널 (240, 배율 3) — 문 오른쪽 끝이 패널 안 (8px 여백)
+    const narrow = gymFrontX(s3(1), 240, 3)!;
+    expect(narrow + 8 * 3).toBeLessThanOrEqual(240 - 8);
   });
 
   it('장면이 한 걸음 바뀔 때마다 다시 그림 (stageViewKey) — 빠지면 장면 내내 서 있다가 대기실로 바뀜', () => {

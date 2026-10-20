@@ -766,13 +766,15 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   padding: 1px 8px;
   border-radius: 3px;
   background: var(--vscode-editorWidget-background, #252526);
-  white-space: nowrap;
   font-size: calc(11px * var(--pg-ui, 1));
   /* 상자 (병원 · 클리어 카드 · 대기실) 위에 — 회복 · 레벨업 알림이 상자에 깔리지 않게 */
   z-index: 6;
+  /* 자리가 모자라면 낱말 단위로 줄 바꿈 (줄임표 금지 — ux-rules U4, 2026-10-21) · 폭은 글 길이만큼 (left 자리와 상관없이) */
+  width: max-content;
   max-width: calc(100% - 16px);
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  word-break: keep-all;
+  text-align: center;
 }
 
 /* ② 미니맵 — 이름 + 막대 (내 위치 · 병원 · 상점 · 체육관) + % */
@@ -823,6 +825,10 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 /* 주인공이 전투 때 왼쪽 끝 트레이너 자리로 물러남 · 끝나면 다시 가운데로 */
 .pg-hero-wrap {
   transition: left 0.45s ease-out;
+}
+/* 체육관 들어가기 · 대기실 — 자리 옮김 없이 (걸음 박자 · 대기실 첫 장면 미끄러짐 없음) */
+.pg-hero-wrap.pg-hero-still {
+  transition: none;
 }
 .pg-fighter {
   line-height: 0;
@@ -4074,6 +4080,20 @@ body.vscode-high-contrast-light .pg-title-body {
   flex: none;
   color: var(--pg-sos-ink);
 }
+/* 좁은 대기실 (330px 아래) — 머리 줄 관장 이름 빼기 (얼굴 + 바닥 이름표) · 도전 버튼 Enter 키 칸 숨김: 이름이 "관…" · 도전 버튼이 패널 밖으로 잘리던 것 (UX 리뷰어 · 픽셀 검사원 2026-10-21) */
+@media (max-width: 330px) {
+  .pg-lobby .pg-lobby-name,
+  .pg-lobby .pg-go .pg-menu-key {
+    display: none;
+  }
+  /* 버튼 다섯 (아이콘 넷 + 도전) 이 240 판 안에 들어가게 — 간격 8 → 4 · 좌우 여백 10 → 6 */
+  .pg-lobby > .pg-line {
+    gap: 4px;
+  }
+  .pg-lobby .pg-button {
+    padding: 0 6px;
+  }
+}
 /* 가방 — 지금 못 쓰는 칩 (볼은 전투에서만) = 흐림 + 점선 테두리 (못 누르는 버튼과 같은 모양, 원칙 7) */
 .pg-chip.pg-chip-dim {
   border-style: dashed;
@@ -4753,16 +4773,20 @@ body.vscode-light .pg-field-balls {
   white-space: nowrap;
   line-height: 14px;
 }
-/* 다리 둘 — 2칸 폭 · 간판 아래 끝에서 땅까지 */
+/* 좁은 패널 — 좌우 여백 10 → 6 (240 에서 건물 왼쪽에 들어가게, 폭 66) */
+.pg-gymfront-banner.pg-gymfront-banner-narrow {
+  padding: 4px 6px 3px;
+}
+/* 다리 둘 — 2칸 폭 · 간판 금색 테두리 바깥 아래끝에서 땅까지 (테두리를 끊지 않게 · 테두리는 양옆만 — 픽셀 검사원 2026-10-21) */
 .pg-gymfront-banner::before,
 .pg-gymfront-banner::after {
   content: "";
   position: absolute;
-  top: 100%;
+  top: calc(100% + 2px);
   width: calc(var(--pg-gk) * 2);
-  height: calc(var(--pg-gk) * 8 + 2px);
+  height: calc(var(--pg-gk) * 8);
   background: var(--pg-sos-line);
-  box-shadow: 0 0 0 1px var(--pg-sos-tab-ink);
+  box-shadow: -1px 0 0 var(--pg-sos-tab-ink), 1px 0 0 var(--pg-sos-tab-ink);
 }
 .pg-gymfront-banner::before {
   left: 12%;
