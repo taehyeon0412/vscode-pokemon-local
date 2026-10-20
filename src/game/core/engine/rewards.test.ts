@@ -84,6 +84,8 @@ describe('S11 잡기 — 전투 흐름', () => {
     // 놓치면 창이 닫힌 뒤 숨 고르기 (catchFailPauseMs) 뒤에 이어 감 · 잡히면 바로
     const tl = catchTimeline(once.catch!)!;
     expect(tl.done - tl.end).toBe(TIMING.catchEndMs + TIMING.catchFailPauseMs);
+    // "아깝다!" 는 중요한 순간 — 창이 닫히고 상대가 덤벼들기까지 1초 넘게 (ux-rules U1, 연속 캡처로 잰 창 ≈ 이 길이 − 0.1초)
+    expect(tl.done - tl.end).toBeGreaterThanOrEqual(1100);
     expect(catchTimeline({ ...once.catch!, caught: true, shakes: 3 })!.done - catchTimeline({ ...once.catch!, caught: true, shakes: 3 })!.end).toBe(TIMING.catchEndMs);
     const heal = Math.max(1, Math.round(b0.foe.maxHp * BALANCE.catchFailHeal));
     expect(out.foe.hp).toBe(Math.min(b0.foe.maxHp, hp + heal));
