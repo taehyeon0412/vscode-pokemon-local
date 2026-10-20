@@ -1724,33 +1724,44 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   35% { translate: 6px 0; }
   100% { translate: 0 0; }
 }
-/* ⑤ 흔들기 창 (2026-10-20 태현 님 B 집중 창 — 모양은 디자인 세션이 덧입힘) — 무대 가운데 · 이름표 · 큰 볼 (48px) · 남은 볼 아이콘 */
+/* ⑤ 흔들기 창 = B 집중 창 (2026-10-20 태현 님 "못생겼어 — 화면 가운데 예쁜 네모 · 던진 볼이 가운데" → 시안 셋 중 B) — 무대 가운데 · 둘레 남색 55% 덮개 (VS 컷인처럼 —
+   흔드는 1 ~ 2초 동안 볼 하나에만 눈이 가게) · 2px 금색 · 위 테두리에 걸친 금색 칠 이름표 (잡는 중… / 잡았다! / 아깝다!) · 볼 48px · 안쪽 바닥 선 + 그림자 · 남은 볼 아이콘.
+   나타날 때 0.15초 세 걸음 (늘이기는 픽셀 줄을 흐리게 해서 투명도만) · 잡은 뒤 소개 카드 (.pg-caught-intro) 와 같은 모양 */
 .pg-catch-win {
   position: absolute;
   left: 50%;
   top: 50%;
-  z-index: 8;
+  z-index: 9;
   transform: translate(-50%, -50%);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 6px 12px 5px;
-  background: var(--pg-sos-panel);
-  border: 1px solid var(--pg-sos-line);
+  gap: 12px;
+  min-width: 108px;
+  padding: 18px 20px 10px;
+  background: var(--pg-sos-bar);
+  border: 2px solid var(--pg-sos-gold);
   border-radius: 0;
+  box-shadow: 0 0 0 1px var(--pg-sos-tab-ink), 0 0 0 100vmax rgba(12, 16, 30, 0.55);
   pointer-events: none;
   animation: pg-catch-win-in 150ms steps(3) both;
 }
 @keyframes pg-catch-win-in {
-  0% { scale: 0.5; opacity: 0; }
-  100% { scale: 1; opacity: 1; }
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 .pg-catch-title {
-  color: var(--pg-sos-gold);
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  height: 16px;
+  padding: 0 8px;
+  transform: translateX(-50%);
+  background: var(--pg-sos-gold);
+  color: var(--pg-sos-tab-ink);
   font-size: 11px;
   font-weight: 700;
-  line-height: 12px;
+  line-height: 16px;
   white-space: nowrap;
 }
 /* 땅에 떨어진 볼이 창 가운데로 0.15초에 날아 들어감 (--pg-fx · --pg-fy = 땅의 볼 자리, --pg-fs = 길 위 볼 / 창 볼) */
@@ -1758,6 +1769,27 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   position: relative;
   line-height: 0;
   animation: pg-catch-flyin 150ms steps(3) both;
+}
+/* 창 안 바닥 — 흐린 금색 1px 선 (볼이 놓인 땅) + 볼 아래 픽셀 그림자 (가운데가 넓은 납작 육각) */
+.pg-catch-win-ball::before {
+  content: "";
+  position: absolute;
+  left: -20px;
+  right: -20px;
+  bottom: -6px;
+  height: 1px;
+  background: var(--pg-sos-line-soft);
+}
+.pg-catch-win-ball::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  width: 32px;
+  height: 4px;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.5);
+  clip-path: polygon(4px 0, calc(100% - 4px) 0, 100% 50%, calc(100% - 4px) 100%, 4px 100%, 0 50%);
 }
 @keyframes pg-catch-flyin {
   0% { translate: var(--pg-fx, 0) var(--pg-fy, 0); scale: var(--pg-fs, 1); }
@@ -1780,7 +1812,7 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 }
 .pg-catch-left {
   display: flex;
-  gap: 2px;
+  gap: 4px;
   line-height: 0;
 }
 .pg-catch-used {
