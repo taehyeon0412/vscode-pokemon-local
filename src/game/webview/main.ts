@@ -172,6 +172,8 @@ if (!port) {
   };
   applyUiScale();
   store.subscribe(applyUiScale);
+  // 게임 설정 "동작 줄이기" (2026-10-20 태현 님 1안 — OS 설정 prefers-reduced-motion 은 안 봄) → pg-reduce-motion (game.css 가 꾸밈 움직임을 멈춤)
+  store.subscribe(() => root.classList.toggle('pg-reduce-motion', store.get().state?.save.settings.reduceMotion === true));
   const css = document.createElement('link');
   css.rel = 'stylesheet';
   css.href = config.script.replace(/game\.js(?=$|[?#])/, 'game.css');

@@ -1545,13 +1545,13 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 
 /* 움직임 줄이기를 켠 사람 — 계속 흔들리는 것은 멈춤 (힘대결 대체 그림 · 맞받아치기 버튼). 필살기 꽉 참 깜빡 (세 번 · 1초 2번) 은 "필살기를 쓸 수 있음" 이라는 게임 정보라 남김
    (2026-10-20 태현 님 맥 "다 채워지면 반짝반짝 되서 인지하게") */
-@media (prefers-reduced-motion: reduce) {
-  .pg-clash-beam,
-  .pg-clash-point,
-  .pg-counter .pg-button {
-    animation: none;
-  }
+/* 동작 줄이기 = 게임 설정 (.pg-reduce-motion, 2026-10-20 태현 님 1안 — OS 설정은 안 봄) */
+.pg-reduce-motion .pg-clash-beam,
+.pg-reduce-motion .pg-clash-point,
+.pg-reduce-motion .pg-counter .pg-button {
+  animation: none;
 }
+
 
 /* 전투 중에는 길 위의 다른 것 (다음 흔적 · 아이템 · 부탁 · 시설 · 배경 포켓몬) 을 흐리게 — 누구랑 싸우는지 헷갈리지 않게 */
 .pg-in-battle .pg-trace,
@@ -1956,19 +1956,19 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 .pg-evolve-msg {
   top: var(--pg-field-top, 3px);
 }
-@media (prefers-reduced-motion: reduce) {
-  /* 번갈아 보이기 없이 — 3.2초에 새 모습으로 바뀌기만 (새 모습이 안 나오지 않게) */
-  .pg-evolve-old {
-    animation: pg-evolve-hide 0.01s linear 3.2s 1 forwards;
-  }
-  .pg-evolve-new {
-    animation: pg-evolve-show 0.01s linear 3.2s 1 forwards;
-  }
-  /* 잡기 흔들기는 남김 — 몇 번 흔들렸나가 게임 정보 (픽셀 박자 두 걸음 · 좌우 2 ~ 6px, 2026-10-20 태현 님 맥 "안 흔들려") */
-  .pg-evolve-stage {
-    animation: none;
-  }
+/* 동작 줄이기 = 게임 설정 (.pg-reduce-motion, 2026-10-20 태현 님 1안 — OS 설정은 안 봄) */
+/* 번갈아 보이기 없이 — 3.2초에 새 모습으로 바뀌기만 (새 모습이 안 나오지 않게) */
+.pg-reduce-motion .pg-evolve-old {
+  animation: pg-evolve-hide 0.01s linear 3.2s 1 forwards;
 }
+.pg-reduce-motion .pg-evolve-new {
+  animation: pg-evolve-show 0.01s linear 3.2s 1 forwards;
+}
+/* 잡기 흔들기는 남김 — 몇 번 흔들렸나가 게임 정보 (픽셀 박자 두 걸음 · 좌우 2 ~ 6px, 2026-10-20 태현 님 맥 "안 흔들려") */
+.pg-reduce-motion .pg-evolve-stage {
+  animation: none;
+}
+
 
 /* S23 · S22 버튼 줄 — 좁으면 기술 이름이 먼저 줄어들고 (말줄임) 배우지 않기 · 결정은 그대로 */
 .pg-banner .pg-choice-row .pg-button {
@@ -2349,12 +2349,12 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   50% { transform: translateY(0) scale(1.25); opacity: 1; filter: drop-shadow(0 0 6px #e3b341); }
   100% { transform: none; filter: drop-shadow(0 0 2px #e3b341); }
 }
-@media (prefers-reduced-motion: reduce) {
-  .pg-badge-glow {
-    animation: none;
-    filter: drop-shadow(0 0 2px #e3b341);
-  }
+/* 동작 줄이기 = 게임 설정 (.pg-reduce-motion, 2026-10-20 태현 님 1안 — OS 설정은 안 봄) */
+.pg-reduce-motion .pg-badge-glow {
+  animation: none;
+  filter: drop-shadow(0 0 2px #e3b341);
 }
+
 /* 오른쪽 위 ◓ 버튼의 선두 포켓몬 그림 */
 .pg-icon-btn .pg-sprite {
   vertical-align: middle;
@@ -3130,12 +3130,12 @@ body.vscode-high-contrast-light .pg-title-body {
   66% { transform: scale(1.25); }
   100% { transform: none; }
 }
-@media (prefers-reduced-motion: reduce) {
-  .pg-badge-glow {
-    animation: none;
-    filter: none;
-  }
+/* 동작 줄이기 = 게임 설정 (.pg-reduce-motion, 2026-10-20 태현 님 1안 — OS 설정은 안 봄) */
+.pg-reduce-motion .pg-badge-glow {
+  animation: none;
+  filter: none;
 }
+
 /* S03 주인공 칸 — 칸 높이를 가장 큰 그림에 맞춰 같게 (윗선이 들쭉날쭉하던 것) · 줄은 세로 가운데 */
 .pg-pick-heroes {
   align-items: center;
@@ -3402,9 +3402,9 @@ body.vscode-high-contrast-light .pg-title-body {
   0% { opacity: 1; }
   100% { opacity: 0; }
 }
-@media (prefers-reduced-motion: reduce) {
-  /* Z 배지 반짝임 (테두리 0.8초 두 걸음 · 빛 줄기 · 반짝 별) 은 남김 — 필살기를 쓸 수 있다는 게임 정보 (2026-10-20 태현 님 맥 동작 줄이기 "다 채워지면 반짝반짝", 1초 3번 아래) */
-}
+/* 동작 줄이기 = 게임 설정 (.pg-reduce-motion, 2026-10-20 태현 님 1안 — OS 설정은 안 봄) */
+/* Z 배지 반짝임 (테두리 0.8초 두 걸음 · 빛 줄기 · 반짝 별) 은 남김 — 필살기를 쓸 수 있다는 게임 정보 (2026-10-20 태현 님 맥 동작 줄이기 "다 채워지면 반짝반짝", 1초 3번 아래) */
+
 
 /* ---- 아트 디렉터 단계 12 2바퀴 (16/25) 반영 ---- */
 /* 전투 옆 메뉴 커서 — 고를 줄에 늘 ▸ + 밝은 줄 (Sea of Stars 1f) · 마우스를 다른 줄에 올리면 그 줄이 대신 */
@@ -3619,7 +3619,7 @@ body.vscode-high-contrast-light .pg-title-body {
 .pg-pick-starter .pg-chain {
   justify-content: center;
 }
-/* S20 단축키 줄 — 정보줄 메뉴와 같은 자판 칸 */
+/* S20 단축키 줄 — 정보줄 메뉴와 같은 자판 칸 (칸은 줄어들지 않음 — 좁은 패널에서 "Space" 가 칸 밖으로 나와 옆 글과 겹치던 것) */
 .pg-keys {
   display: inline-flex;
   align-items: center;
@@ -3627,6 +3627,7 @@ body.vscode-high-contrast-light .pg-title-body {
   color: var(--pg-sos-dim);
 }
 .pg-keys .pg-menu-key {
+  flex: none;
   color: var(--pg-sos-ink);
 }
 
@@ -3829,9 +3830,9 @@ body.vscode-high-contrast-light .pg-title-body {
   0% { background: transparent; color: var(--pg-sos-gold); }
   50% { background: var(--pg-sos-gold); color: var(--pg-sos-tab-ink); }
 }
-@media (prefers-reduced-motion: reduce) {
-  .pg-points { animation: none; }
-}
+/* 동작 줄이기 = 게임 설정 (.pg-reduce-motion, 2026-10-20 태현 님 1안 — OS 설정은 안 봄) */
+.pg-reduce-motion .pg-points { animation: none; }
+
 /* 패링 키 칸 = 원 왼쪽 (끝을 원 왼쪽에 맞춤) · 자동 전투면 원은 흐리게 */
 .pg-parry-key {
   transform: translate(-100%, 50%);
@@ -4657,21 +4658,21 @@ body.vscode-light .pg-field-balls {
   font-weight: 500;
   color: var(--pg-sos-dim);
 }
-@media (prefers-reduced-motion: reduce) {
-  .pg-lvup-spark {
-    display: none;
-  }
-  .pg-lvup-card,
-  .pg-lvup-hint,
-  .pg-caught-intro,
-  .pg-caught-burst {
-    animation: none;
-  }
-  /* 볼이 열려 포켓몬이 나오는 순간은 남김 (무엇을 잡았나 — 태현 님 맥 "볼이 열리는 연출도 없어") — 넓어지기 · 볼 옮기기 · 덜컹 · 금색 고리만 빼고 닫힌 볼 → 1.2초 열린 볼 → 2초 포켓몬 */
-  .pg-caught-ball {
-    animation: pg-caught-hide 1ms 1.2s both;
-  }
-  .pg-caught-ball.pg-caught-ball-open {
-    animation: pg-caught-open-ball 2s steps(1, end) both;
-  }
+/* 동작 줄이기 = 게임 설정 (.pg-reduce-motion, 2026-10-20 태현 님 1안 — OS 설정은 안 봄) */
+.pg-reduce-motion .pg-lvup-spark {
+  display: none;
 }
+.pg-reduce-motion .pg-lvup-card,
+.pg-reduce-motion .pg-lvup-hint,
+.pg-reduce-motion .pg-caught-intro,
+.pg-reduce-motion .pg-caught-burst {
+  animation: none;
+}
+/* 볼이 열려 포켓몬이 나오는 순간은 남김 (무엇을 잡았나 — 태현 님 맥 "볼이 열리는 연출도 없어") — 넓어지기 · 볼 옮기기 · 덜컹 · 금색 고리만 빼고 닫힌 볼 → 1.2초 열린 볼 → 2초 포켓몬 */
+.pg-reduce-motion .pg-caught-ball {
+  animation: pg-caught-hide 1ms 1.2s both;
+}
+.pg-reduce-motion .pg-caught-ball.pg-caught-ball-open {
+  animation: pg-caught-open-ball 2s steps(1, end) both;
+}
+
