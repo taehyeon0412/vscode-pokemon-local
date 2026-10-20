@@ -18,7 +18,7 @@ import { KeyCap } from '../../../ui/KeyCap';
 import { formatMoney } from '../../../ui/format';
 import { Sprite } from '../../../ui/Sprite';
 import { clearView, ITEM_ICON, lobbyView } from '../../menu/model';
-import { STAGES } from '../model';
+import { STAGES, VS_MS } from '../model';
 
 export interface BoxProps {
   state: GameState;
@@ -282,7 +282,7 @@ export function BadgeCard({ state, onInput, onMap }: BoxProps & { onMap(): void 
 }
 
 /**
- * VS 컷인 (2026-10-20 태현 님 B안) — 트레이너 · 라이벌을 만나 "승부다!" 끝 0.8초: 숲을 남색으로 덮고 위 띠 (나 · 내 팀 볼) 는 왼쪽에서,
+ * VS 컷인 (2026-10-20 태현 님 B안) — 트레이너 · 라이벌을 만나 "승부다!" 끝 2초 (VS_MS): 숲을 남색으로 덮고 위 띠 (나 · 내 팀 볼) 는 왼쪽에서,
  * 아래 띠 (상대 · 볼) 는 오른쪽에서 밀려 들어오고 가운데 금색 VS 가 찍힘 (번쩍임 없음). at = 시작한 뒤 지난 ms —
  * 처음 그릴 때 값만 씀 (다시 그릴 때마다 지연을 바꾸면 애니메이션이 두 배로 빨리 끝남, 라이벌 만남에서 안 보이던 것)
  */
@@ -305,7 +305,7 @@ const VS_ART_SCALE = 2;
 export function VsCutIn({ me, myBalls, foe, foeBalls, tag, at, meArt, foeArt }: { me: string; myBalls: boolean[]; foe: string; foeBalls: number; /** 라이벌 전적 ("전적 2승 1패") — 전적 띠가 VS 에 가려지는 동안에도 보이게 */ tag?: string; at: number; /** 원작 대결 그림 (없으면 이름 · 볼만) */ meArt?: VsArt | null; foeArt?: VsArt | null }) {
   const at0 = useRef(at).current;
   return (
-    <div class="pg-vs" style={{ '--pg-vs-at': `${-at0}ms` }}>
+    <div class="pg-vs" style={{ '--pg-vs-at': `${-at0}ms`, '--pg-vs-dur': `${VS_MS}ms` }}>
       {meArt && <VsArtBox art={meArt} side="me" />}
       {foeArt && <VsArtBox art={foeArt} side="foe" />}
       <div class={meArt ? 'pg-vs-band pg-vs-me pg-has-art' : 'pg-vs-band pg-vs-me'}>
@@ -328,6 +328,8 @@ export function VsCutIn({ me, myBalls, foe, foeBalls, tag, at, meArt, foeArt }: 
         <b>{foe}</b>
         {tag && <span class="pg-rival-rec">{tag}</span>}
       </div>
+      {/* 넘기기 안내 — 2초를 다 기다리지 않아도 (2026-10-20 태현 님 "클릭하면 바로 넘어가게") · 포커스가 없으면 키 대신 클릭 */}
+      <span class="pg-vs-skip">{document.hasFocus() ? (<><KeyCap k="Space" /> 넘기기</>) : '클릭해 넘기기'}</span>
     </div>
   );
 }

@@ -232,6 +232,10 @@ if (!port) {
     } else if (phase === 'request' && ((e.key === 'Enter' && !onButton) || e.key === 'Escape')) {
       e.preventDefault();
       actions.input({ kind: 'request', help: e.key === 'Enter' });
+    } else if ((phase === 'trainer' || phase === 'rival') && e.key === 'Enter' && !onButton) {
+      // 트레이너 · 라이벌 만남 Enter = 바로 전투 (Space · 클릭과 같음, 2026-10-20 태현 님)
+      e.preventDefault();
+      actions.input({ kind: 'space' });
     } else if (phase === 'result' && e.key === 'Enter' && !onButton) {
       // S12 계속 (S23 · S22 의 숫자 · Enter · Esc 는 ChoiceBox 가 들음)
       e.preventDefault();

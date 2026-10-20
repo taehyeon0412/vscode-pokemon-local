@@ -175,6 +175,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   const battle = stageRt?.phase === 'battle' ? stageRt.battle : null;
   const choice = choiceView(state);
   const foeTrainer = foeTrainerView(state);
+  // VS 컷인 중 — 길 위 상대 이름표는 숨김 (컷인 띠에 같은 이름이 있고, 반투명 덮개 너머로 대결 그림과 겹쳐 보임)
+  const vsOn = (stageRt?.phase === 'trainer' || stageRt?.phase === 'rival') && stageRt.ms >= vsStartMs(stageRt.phase);
   // 전투 · 관장 · 라이벌은 무대 안에서 (넓은 패널은 720px 무대 — battleStage), 자리는 무대 안에서 재고 패널 자리로 옮김
   const stage = battleStage(widthPx);
   const geoAt = (topPx: number) =>
@@ -275,7 +277,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
           if (e.target instanceof Element && e.target.closest('button')) return;
           // 튀어나온 순간 길을 클릭해도 선제공격 [제안] · 힘대결 중 클릭 = 연타 (gdd S10 ⑤)
           // 볼을 던졌을 때 클릭 = 타이밍 원 Space (S11)
-          if (phase === 'appear' || battle?.phase === 'clash' || battle?.phase === 'catch') onInput({ kind: 'space' });
+          // 트레이너 · 라이벌 만남 ("승부다!" · VS) 클릭 = 바로 전투 (2026-10-20 태현 님)
+          if (phase === 'appear' || phase === 'trainer' || phase === 'rival' || battle?.phase === 'clash' || battle?.phase === 'catch') onInput({ kind: 'space' });
           // 상대 공격 중 판 클릭 = 패링 (Space 와 같음, 2026-10-19)
           else if (battle && (canParry(battle) || canRiposte(battle) || ultSkippable(battle))) onInput(spaceInput(state, performance.now()));
         }}
@@ -298,7 +301,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         {((battle && foeTrainer) || (gym && !battle) || (stageRt?.phase === 'rival' && foeTrainer)) && (
           <span class="pg-obj pg-foe-trainer" style={{ left: `${leaderX}px`, bottom: `${ground}px` }} title={foeTrainer?.name ?? GYM_LEADER.name}>
             {/* 머리 위 이름표 (decisions 2026-10-17) · 라이벌이 막 나타난 때는 "!" (gdd 4.12) */}
-            {stageRt?.phase === 'rival' && !foeTrainer?.talking ? <span class="pg-trainer-mark">!</span> : <span class="pg-nametag">{foeTrainer?.name ?? GYM_LEADER.name}</span>}
+            {stageRt?.phase === 'rival' && !foeTrainer?.talking ? <span class="pg-trainer-mark">!</span> : !vsOn && <span class="pg-nametag">{foeTrainer?.name ?? GYM_LEADER.name}</span>}
             {foeTrainer && stageRt?.phase !== 'rival' && (
               <span class="pg-foe-balls">
                 {Array.from({ length: foeTrainer.balls }, (_, i) => (
@@ -316,8 +319,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         )}
         <EncounterBox state={state} />
         {stageRt?.phase === 'trainer' && foeTrainer?.talking && stageRt.ms < vsStartMs('trainer') && <TrainerBanner name={foeTrainer.name} balls={foeTrainer.balls} media={media} look={foeTrainer.look} />}
-        {/* VS 컷인 — 만남 단계 끝 0.8초 (트레이너 · 라이벌) */}
-        {(stageRt?.phase === 'trainer' || stageRt?.phase === 'rival') && foeTrainer && stageRt.ms >= vsStartMs(stageRt.phase) && (
+        {/* VS 컷인 — 만남 단계 끝 2초 (트레이너 · 라이벌, VS_MS) */}
+        {vsOn && foeTrainer && (
           <VsCutIn me={look.label} myBalls={save.party.map((uid) => (save.monsters[uid]?.hp ?? 0) > 0)} foe={foeTrainer.name} foeBalls={foeTrainer.balls} tag={foeTrainer.record} at={stageRt.ms - vsStartMs(stageRt.phase)} meArt={vsArt(media, look.dir ?? look.id)} foeArt={vsArt(media, foeTrainer.look)} />
         )}
         {stageRt?.phase === 'rival' && foeTrainer?.talking && stageRt.ms < vsStartMs('rival') && (

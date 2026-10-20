@@ -108,6 +108,16 @@ describe('트레이너 (S08 · 2026-10-18 태현 님)', () => {
     expect(again.save.pendingEncounter).toBeNull();
   });
 
+  it('트레이너 만남 — "!" 뒤 Space · 클릭이면 VS 를 다 기다리지 않고 바로 전투 ("!" 동안은 안 넘김, 2026-10-20 태현 님)', () => {
+    const spot = trainerSpot();
+    const met = until(game({ stages: { 'forest-1': stageAt(spot.at - 0.00001) } }), (x) => phase(x) === 'trainer', 5000);
+    expect(applyInput(met, { kind: 'space' })).toBe(met); // "!" 0.8초 동안은 그대로 (누구인지 보이게)
+    const talking = advance(met, TIMING.trainerAlertMs + 50).state;
+    expect(phase(talking)).toBe('trainer');
+    const skipped = step(applyInput(talking, { kind: 'space' }), STEP).state;
+    expect(phase(skipped)).toBe('battle');
+  });
+
   it('트레이너 전투 중에 껐다 켜면 같은 상대와 처음부터', () => {
     const spot = trainerSpot();
     const s = advance(until(game({ stages: { 'forest-1': stageAt(spot.at - 0.00001) } }), (x) => phase(x) === 'trainer', 5000), TIMING.trainerMeetMs + 100).state;

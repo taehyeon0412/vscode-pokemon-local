@@ -269,8 +269,8 @@ export function stageViewKey(state: GameState): string {
   ].join('|');
 }
 
-/** VS 컷인 길이 · 시작 (만남 단계 끝 0.8초 — 엔진 시간은 그대로, "승부다!" 띠 다음, 2026-10-20 태현 님 B안) */
-export const VS_MS = 800;
+/** VS 컷인 길이 · 시작 — 만남 단계 끝 2초 ("승부다!" 띠 다음, 2026-10-20 태현 님 B안 · "휙 지나가 읽지도 못해" 0.8 → 2초) · 클릭 · Space · Enter 로 바로 넘김 */
+export const VS_MS = 2000;
 export function vsStartMs(phase: 'trainer' | 'rival'): number {
   return (phase === 'rival' ? TIMING.rivalMeetMs : TIMING.trainerMeetMs) - VS_MS;
 }

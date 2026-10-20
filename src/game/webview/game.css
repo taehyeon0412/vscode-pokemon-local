@@ -3471,7 +3471,8 @@ body.vscode-high-contrast-light .pg-title-body {
   pointer-events: none;
   background: rgba(12, 16, 30, 0.6);
   overflow: hidden;
-  animation: pg-vs-cover 800ms linear both;
+  /* 길이 = stage/model VS_MS (2초 — 태현 님 "휙 지나가 읽지도 못해") · 클릭 · Space 로 바로 넘김 */
+  animation: pg-vs-cover var(--pg-vs-dur, 2000ms) linear both;
   animation-delay: var(--pg-vs-at, 0ms);
 }
 @keyframes pg-vs-cover {
@@ -4075,5 +4076,19 @@ body.vscode-high-contrast-light .pg-title-body {
 #pokemon-game img {
   max-width: none;
   max-height: none;
+}
+/* VS 넘기기 안내 — 아래 가운데 작게 (두 대결 그림 사이 — 오른쪽 끝이면 150px · 좁은 패널에서 상대 그림 다리에 겹침) */
+.pg-vs-skip {
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  transform: translateX(-50%);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--pg-sos-dim);
 }
 

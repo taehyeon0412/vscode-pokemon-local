@@ -2,6 +2,7 @@
 //   ?screen=title|game  save=none|ok|broken|newer  busy=1  notice=글  size=nano|small|medium|large  theme=dark|light  click=new|continue|exit
 //   progress=0~1 (숲 1-1 진행, 스테이지 시드 42 — 그 자리 바로 앞에서 시작해 흔적 · 조우 · 부탁을 찍음)
 //   place=facility|hospital|shop|shop-front|trainer|trainer-battle|defeat|clear|lobby|gym-battle|badge (단계 8 · 9)
+//   ms=<만난 뒤 ms> — place=trainer · rival 의 시작 시각 (VS 컷인 사진: trainer 3000 · rival 3800)
 //   place=rival|rival-talk|rival-battle|rival-over|rival-result|rival-lose  rival=<주인공 id, 기본 may>  record=<이김-짐, 기본 2-1> (라이벌 gdd 4.12)  click=map|team|bag|settings|profile|item
 //   style=<CSS> (시안 비교 — 임시 CSS 를 얹음)
 //   scene=result|learn|evolve|evolve-pick  battle=choose|skills|items|catch|last|counter|clash|ult-cut|ult-beam|attack|pick|over|auto  dur=연출 ms (전투 장면을 바로 — 아래 battleKind)  animAt=초 (CSS 움직임을 그 시점에 멈춤)
@@ -160,7 +161,7 @@
         if (place === 'trainer' || place === 'trainer-battle') {
             st.progress = 0.30551;
             save.pendingEncounter = { kind: 'trainer', trainerId: 'forest-1:t0', stageId: 'forest-1' };
-            stage = place === 'trainer' ? { phase: 'trainer', n: 0, ms: 1200 } : { phase: 'battle', battle: battle('trainer', '등산가 민수', foeMon('foe0', 11, 'metapod', 6), [foeMon('foe1', 14, 'kakuna', 6)]) };
+            stage = place === 'trainer' ? { phase: 'trainer', n: 0, ms: Number(q.get('ms') || 1200) } : { phase: 'battle', battle: battle('trainer', '등산가 민수', foeMon('foe0', 11, 'metapod', 6), [foeMon('foe1', 14, 'kakuna', 6)]) };
         }
         if (place && place.startsWith('rival')) {
             // 라이벌 — 시드 42 숲 1-1 의 빈 곳 (0.4) 에서 깜짝 등장 (사진용, 실제 자리는 시드마다)
@@ -170,7 +171,7 @@
             st.progress = 0.4;
             save.pendingEncounter = { kind: 'rival', rival, stageId: 'forest-1' };
             const label = { boy: '레드', blue: '그린', brendan: '휘웅', wally: '민진', girl: '리프', may: '지민', 'may-rs': '봄이', 'leaf-em': '리즈' }[rival];
-            if (place === 'rival' || place === 'rival-talk') stage = { phase: 'rival', rival, ms: place === 'rival' ? 0 : 1200 };
+            if (place === 'rival' || place === 'rival-talk') stage = { phase: 'rival', rival, ms: q.get('ms') ? Number(q.get('ms')) : place === 'rival' ? 0 : 1200 };
             if (place === 'rival-battle') stage = { phase: 'battle', battle: battle('trainer', `라이벌 ${label}`, foeMon('foe0', 10, 'caterpie', 4), [foeMon('foe1', 16, 'pidgey', 4), foeMon('foe2', 255, 'torchic', 6)]) };
             if (place === 'rival-over') {
                 const b = battle('trainer', `라이벌 ${label}`, foeMon('foe2', 255, 'torchic', 6), []);
