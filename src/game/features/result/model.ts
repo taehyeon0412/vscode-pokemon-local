@@ -1,10 +1,10 @@
 /**
  * S12 전투 결과 · S23 기술 배우기 · S22 진화 — 화면을 모르는 부분: 무엇을 어떤 글로 보여 줄지.
  */
-import { TIMING } from '../../core/balance';
+import { BALANCE, TIMING } from '../../core/balance';
 import type { BattleSummary, GameState } from '../../core/engine';
 import { evolvedForm, keepCount } from '../../core/rules/growth';
-import type { Monster, PendingChoice } from '../../core/save';
+import type { Monster, PendingChoice, Save } from '../../core/save';
 import { typeNameKo, withJosa } from '../../core/text';
 import { moveOf, speciesOf } from '../../data';
 
@@ -47,6 +47,41 @@ export function summaryLines(s: BattleSummary): { title: string; head: SummaryPa
   // 라이벌 한마디 (gdd 4.12) — 둘째 줄 맨 끝 (좁은 패널에서 레벨업이 잘리지 않게)
   if (s.quote) body.push({ kind: 'quote', text: s.quote });
   return { title: s.title, head, body };
+}
+
+/** S12 레벨업한 포켓몬 — 그림 · 남은 포인트 (누르면 내 포켓몬 판에서 스탯 찍기, 2026-10-20 태현 님) */
+export interface LevelUpView {
+  uid: string;
+  name: string;
+  from: number;
+  to: number;
+  form: string;
+  shiny: boolean;
+  /** 지금 남은 포인트 (이번 레벨업 + 전에 안 쓴 것) */
+  points: number;
+}
+
+/** 레벨이 오른 팀 포켓몬 (결과 순서대로) — 팀에서 빠졌거나 없는 포켓몬은 뺌 */
+export function levelUps(s: BattleSummary, save: Save): LevelUpView[] {
+  return s.exp.flatMap((e) => {
+    const m = save.monsters[e.uid];
+    return e.to > e.from && m ? [{ uid: e.uid, name: e.name, from: e.from, to: e.to, form: m.form, shiny: m.shiny, points: m.unspentPoints }] : [];
+  });
+}
+
+/**
+ * 고른 포인트를 한 번이라도 나눠 봤는지 — 레벨마다 자동 A 개가 points 에 · 고르는 F 개가 unspentPoints 에 쌓이므로
+ * 오른 레벨 수 L = (points 합 + 남은) ÷ (A + F) · 직접 나눈 수 = points 합 − A × L. 세이브에 따로 적지 않고 알아냄
+ */
+export function monsterSpentPoints(m: Monster): number {
+  const sum = Object.values(m.points).reduce((n, v) => n + v, 0);
+  const levels = (sum + m.unspentPoints) / (BALANCE.pointsAutoPerLevel + BALANCE.pointsFreePerLevel);
+  return Math.round(sum - BALANCE.pointsAutoPerLevel * levels);
+}
+
+/** S12 얼굴 카드 안내 말풍선 "눌러서 스탯 찍기" — 스탯을 한 번도 안 찍어 본 동안만 (찍어 보면 안 나옴, 2026-10-20 태현 님 "설명이 없으면 누를까?") */
+export function needsStatHint(save: Save, ups: LevelUpView[]): boolean {
+  return ups.some((u) => u.points > 0) && !Object.values(save.monsters).some((m) => monsterSpentPoints(m) > 0);
 }
 
 /** 결과 한 칸을 글자 한 줄로 (마우스를 올렸을 때) */

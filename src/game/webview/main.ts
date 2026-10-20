@@ -7,6 +7,7 @@ import { canHeal, canOpenMenus } from '../core/engine';
 import { teamHealthy } from '../core/rules/bag';
 import { STAGE_IDS } from '../core/save';
 import { MENU_PANELS, menuShortcutOf } from '../features/menu/model';
+import { levelUps } from '../features/result/model';
 import { stageViewKey } from '../features/stage/model';
 import { createStartSave } from '../features/starter/model';
 import { GAME_COMMAND, isHostToWebview } from '../shared/messages';
@@ -202,6 +203,17 @@ if (!port) {
         else return;
         e.preventDefault();
         return;
+      }
+      // 전투 결과에서 P = 레벨업한 포켓몬의 스탯 찍기 (결과 상자의 레벨업 표시와 같음, 2026-10-20 태현 님)
+      const rs = cur?.runtime.stage;
+      if (shortcut === 'team' && cur && rs?.phase === 'result') {
+        const ups = levelUps(rs.summary, cur.save);
+        const t = ups.find((u) => u.points > 0) ?? ups[0];
+        if (t) {
+          e.preventDefault();
+          actions.open({ kind: 'team', uid: t.uid });
+          return;
+        }
       }
       if (cur && canOpenMenus(cur)) {
         e.preventDefault();

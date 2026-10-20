@@ -1843,7 +1843,8 @@ body.pokemon-game-on {
 }
 .pg-panel-extra {
   flex: 1;
-  min-width: 0;
+  /* 좁아도 아이콘 하나는 다 보이게 (0 이면 동전 · 선물이 반쪽 조각으로 남던 것) */
+  min-width: 16px;
   opacity: 0.75;
   font-size: calc(11px * var(--pg-ui, 1));
 }
@@ -4133,3 +4134,165 @@ body.vscode-high-contrast-light .pg-title-body {
   color: var(--pg-sos-dim);
 }
 
+
+/* ---- S12 레벨업 = 왼쪽 얼굴 카드 + 안내 말풍선 (2026-10-20 태현 님 "금색으로 이쁘게 · 누르면 스탯" → 시안 셋 중 B + 말풍선) ---- */
+/* 좁은 패널 — 레벨업 상자의 버튼 키 칸을 뺌 (카드 자리만큼 줄이 짧아 [계속] 이 패널 밖으로 밀리던 것) */
+@media (max-width: 480px) {
+  .pg-lvup .pg-button .pg-menu-key {
+    display: none;
+  }
+}
+/* 아주 좁은 패널 — 제목은 3글자까지 줄고, 레벨업 상자는 돈 · 아이템 칸을 뺌 (마우스를 올리면 전체 · 버튼이 패널 밖으로 밀리지 않게) */
+@media (max-width: 300px) {
+  .pg-result .pg-line > b.pg-ellipsis {
+    min-width: 3em;
+  }
+  .pg-lvup .pg-reward {
+    display: none;
+  }
+}
+/* 왼쪽 얼굴 카드 44 × 44 (포켓몬 = 길 위와 같은 크기 40 칸 창 · 왼쪽 아래 ▲ Lv 칩 · 2px 금색 테두리 · 오른쪽 위 +포인트 칩) = 버튼. 처음 한 번 2px 톡 · 반짝 별 둘이 네 번 깜박이고 꺼짐 */
+.pg-banner.pg-two.pg-lvup {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+.pg-lvup > .pg-result-lines {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.pg-lvup > .pg-result-lines > .pg-line > .pg-button:first-of-type {
+  margin-left: auto;
+}
+.pg-lvup-cards {
+  display: inline-flex;
+  flex: none;
+  gap: 6px;
+}
+.pg-lvup-card {
+  position: relative;
+  display: block;
+  width: 44px;
+  height: 44px;
+  padding: 2px;
+  border: 0;
+  background: var(--pg-sos-hi);
+  box-shadow: inset 0 0 0 2px var(--pg-sos-gold), 0 0 0 1px var(--pg-sos-tab-ink);
+  cursor: pointer;
+  animation: pg-lvup-pop 0.3s steps(3) both;
+}
+.pg-lvup-card:hover,
+.pg-lvup-card:focus-visible {
+  background: var(--pg-sos-track);
+}
+@keyframes pg-lvup-pop {
+  0% { transform: translateY(0); }
+  33% { transform: translateY(-2px); }
+  100% { transform: translateY(0); }
+}
+.pg-lvup-card-lv {
+  position: absolute;
+  left: 2px;
+  bottom: 2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 3px 1px 2px;
+  background: var(--pg-sos-bar);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 11px;
+  color: var(--pg-sos-gold);
+}
+.pg-lvup-card-lv > .pg-icon {
+  vertical-align: 0;
+}
+.pg-lvup-card-pts {
+  position: absolute;
+  top: -5px;
+  right: -6px;
+  padding: 0 2px;
+  background: var(--pg-sos-gold);
+  color: var(--pg-sos-tab-ink);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 12px;
+  box-shadow: 0 0 0 1px var(--pg-sos-tab-ink);
+}
+.pg-lvup-spark {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: var(--pg-sos-gold);
+  box-shadow: 2px 0 var(--pg-sos-gold), -2px 0 var(--pg-sos-gold), 0 2px var(--pg-sos-gold), 0 -2px var(--pg-sos-gold);
+  animation: pg-lvup-twinkle 0.5s steps(1) 4 both;
+}
+.pg-lvup-spark-1 {
+  top: 5px;
+  left: 5px;
+}
+.pg-lvup-spark-2 {
+  right: 6px;
+  bottom: 18px;
+  animation-delay: 0.25s;
+}
+@keyframes pg-lvup-twinkle {
+  0% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+/* 안내 말풍선 (스탯을 한 번도 안 찍어 본 동안만 — result/model needsStatHint) — 카드 바로 아래에서 위로 카드를 가리킴 (남색 판 + 1px 금색 선 + 금색 11/700 · 꼭지 = 금색 · 남색 두 겹 삼각형). 2px 위아래로 세 번 까딱이고 멈춤 */
+.pg-lvup-hint {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: -2px;
+  padding: 2px 6px;
+  border: 1px solid var(--pg-sos-gold);
+  background: var(--pg-sos-bar);
+  color: var(--pg-sos-gold);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 14px;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: pg-lvup-nod 0.6s steps(2) 0.4s 3 both;
+}
+.pg-lvup-hint::before,
+.pg-lvup-hint::after {
+  content: "";
+  position: absolute;
+  left: 18px;
+  border: solid transparent;
+}
+.pg-lvup-hint::before {
+  bottom: 100%;
+  border-width: 0 6px 6px;
+  border-bottom-color: var(--pg-sos-gold);
+}
+.pg-lvup-hint::after {
+  bottom: calc(100% - 1px);
+  left: 19px;
+  border-width: 0 5px 5px;
+  border-bottom-color: var(--pg-sos-bar);
+}
+/* 아주 좁은 패널 — "스탯 찍기" 만 (주인공 머리를 덮지 않게) */
+@media (max-width: 300px) {
+  .pg-lvup-hint-verb {
+    display: none;
+  }
+}
+@keyframes pg-lvup-nod {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(2px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pg-lvup-spark {
+    display: none;
+  }
+  .pg-lvup-card,
+  .pg-lvup-hint {
+    animation: none;
+  }
+}

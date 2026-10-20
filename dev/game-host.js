@@ -3,6 +3,7 @@
 //   progress=0~1 (숲 1-1 진행, 스테이지 시드 42 — 그 자리 바로 앞에서 시작해 흔적 · 조우 · 부탁을 찍음)
 //   place=facility|hospital|shop|shop-front|trainer|trainer-battle|defeat|clear|lobby|gym-battle|badge (단계 8 · 9)
 //   balls=<몬스터-슈퍼-하이퍼 개수, 예 3-0-2>  pts=<선두 남은 포인트>
+//   scene=result 와 같이: ups=2 (둘이 레벨업) · ups=0 (레벨업 없음) · spent=1 (스탯을 찍어 본 세이브 — 안내 말풍선 없음) · click=lvup|lvup2 (얼굴 카드 누르기)
 //   ms=<만난 뒤 ms> — place=trainer · rival 의 시작 시각 (VS 컷인 사진: trainer 3000 · rival 3800)
 //   place=rival|rival-talk|rival-battle|rival-over|rival-result|rival-lose  rival=<주인공 id, 기본 may>  record=<이김-짐, 기본 2-1> (라이벌 gdd 4.12)  click=map|team|bag|settings|profile|item
 //   style=<CSS> (시안 비교 — 임시 CSS 를 얹음)
@@ -61,6 +62,8 @@
     // balls=3-2-1 — 몬스터볼 · 슈퍼볼 · 하이퍼볼 개수 (정보줄 볼 칸, 2026-10-20) · pts=4 — 선두 남은 포인트 (정보줄 "포켓몬 +4")
     if (q.get('balls')) { const [p, g, u] = q.get('balls').split('-').map(Number); save.bag = { 'poke-ball': p || 0, ...(g ? { 'great-ball': g } : {}), ...(u ? { 'ultra-ball': u } : {}) }; }
     if (q.get('pts')) save.monsters.m1 = { ...save.monsters.m1, unspentPoints: Number(q.get('pts')) };
+    // spent=1 — 스탯을 이미 찍어 본 세이브 (S12 얼굴 카드 안내 말풍선이 안 나옴)
+    if (q.get('spent') === '1') save.monsters.m1 = { ...save.monsters.m1, points: { ...save.monsters.m1.points, attack: 10 } };
     const info = {
         save: saveKind,
         busy: q.get('busy') === '1',
@@ -131,6 +134,13 @@
         runtime = { rngState: 1, stepAccMs: 0, speed: 1, stage, stageId: 'forest-1', toast: null };
     }
 
+        // ups=2 — 둘이 같이 레벨업 (팀 경험치) · ups=0 — 레벨업 없음 (경험치만)
+        if (scene === 'result' && q.get('ups') === '2') {
+            save.monsters.m2 = { ...save.monsters.m1, uid: 'm2', species: 4, form: 'charmander', level: 7, unspentPoints: 2, caughtAt: 'forest-1' };
+            save.party = ['m1', 'm2'];
+            stage.summary.exp.push({ uid: 'm2', name: '파이리', gain: 14, from: 6, to: 7 });
+        }
+        if (scene === 'result' && q.get('ups') === '0') stage.summary = { ...stage.summary, exp: [{ uid: 'm1', name: '이상해씨', gain: 28, from: 5, to: 5 }], learned: [] };
     // 단계 8 · 9 장면 — place=facility|hospital|shop|trainer|trainer-battle|defeat|clear|lobby|gym-battle|badge
     //   시드 42 숲 1-1: 병원 0.4724 · 상점 0.6132 · 트레이너 t0 0.30551 · t1 0.7019 (자리는 스테이지마다 정해짐) · 부탁 0.88669
     const place = q.get('place');
@@ -341,6 +351,14 @@
             if (b && !document.getElementById('pokemon-game').hidden) b.click();
             else if (left > 0) setTimeout(() => tryClick(left - 1), 100);
         };
+            // lvup = S12 결과의 얼굴 카드 (첫째) · lvup2 = 둘째 (ups=2) → 내 포켓몬 판이 그 포켓몬으로
+            if (click === 'lvup' || click === 'lvup2') {
+                const all = [...document.querySelectorAll('#pokemon-game button')].filter((x) => (x.title || '').includes('스탯 찍기'));
+                const t = all[click === 'lvup2' ? 1 : 0];
+                if (t) return t.click();
+                if (left > 0) setTimeout(() => tryClick(left - 1), 100);
+                return;
+            }
         tryClick(30);
     }
 })();
