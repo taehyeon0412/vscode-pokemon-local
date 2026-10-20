@@ -113,7 +113,7 @@ export function StarterPick({ media, pending, onBack, onDone }: StarterPickProps
             ② 진화 단계 = 위 칸 그림 (같은 점 크기 · 발끝을 한 줄에) + 아래 칸 이름 (그림마다 바로 밑, 끝에 타입) — 태현 님 그림 A안.
             한 격자에 두 줄이라 이름이 그림 바로 밑에 맞음 (열 = 단계 · 화살표 · 단계 … · 타입) */}
         <div class="pg-panel-row pg-starter-chain" title={`${sel.name} · ${types}`}>
-          <div class="pg-chain-grid" style={{ gridTemplateRows: `${rowPx}px auto` }}>
+          <div class="pg-chain-grid" style={{ gridTemplateRows: `${rowPx}px 20px` }}>
             <div class="pg-chain-pics">
               {chain.map((c, i) => [
                 i > 0 && (
@@ -132,7 +132,8 @@ export function StarterPick({ media, pending, onBack, onDone }: StarterPickProps
                   {c.name}
                 </span>
               ))}
-              <span class="pg-chain-types" style={{ gridColumn: 2 * chain.length }}>
+              {/* 타입은 격자 밖 오른쪽 옆 (포켓몬 셋 · 이름만으로 화면 가운데 — 태현 님 "전체를 가운데면 포켓몬이 왼쪽으로 보여 거슬려") */}
+              <span class="pg-chain-types">
                 <TypeTags types={selTypes} />
               </span>
             </div>

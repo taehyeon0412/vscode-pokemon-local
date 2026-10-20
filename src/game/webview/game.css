@@ -4003,10 +4003,9 @@ body.vscode-high-contrast-light .pg-title-body {
   grid-row: 1;
   align-self: center;
 }
-.pg-chain-label,
-.pg-chain-types {
+.pg-chain-label {
   grid-row: 2;
-  /* 이름 · 타입 표 (높이 20) 가운데를 맞춤 */
+  /* 이름 줄 높이 20 (StarterPick gridTemplateRows) — 옆 타입 표와 가운데를 맞춤 */
   align-self: center;
   font-size: 12px;
   line-height: 14px;
@@ -4015,10 +4014,20 @@ body.vscode-high-contrast-light .pg-title-body {
 .pg-chain-label:not(.pg-dim) {
   font-weight: 600;
 }
+/* 타입 = 격자 밖 오른쪽 옆 · 이름 줄 높이 (포켓몬 셋과 이름이 화면 가운데에 오게 — 태현 님) */
+.pg-chain-grid {
+  position: relative;
+}
 .pg-chain-types {
-  justify-self: start;
-  /* 타입은 이름과 다른 정보 — 한 칸 더 띄움 */
-  margin-left: clamp(0px, 1vw, 8px);
+  position: absolute;
+  left: calc(100% + clamp(8px, 2vw, 20px));
+  bottom: 4px;
+  display: flex;
+  align-items: center;
+  height: 20px;
+}
+.pg-starter-chain {
+  overflow: visible;
 }
 @media (max-width: 420px) {
   .pg-starter-chain .pg-chain-label.pg-dim {
