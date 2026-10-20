@@ -20,7 +20,7 @@ export function ShopPanel({ save, note, onInput, onClose }: { save: Save; /** �
           <span class="pg-money">
             <Icon name="coin" /> {formatMoney(save.money)}
           </span>
-          {note && <span class="pg-shop-note"> · {note}</span>}
+          {note ? <span class="pg-shop-note"> · {note}</span> : <span class="pg-dim"> · 눌러서 1개</span>}
         </>
       }
       onClose={onClose}

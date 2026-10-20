@@ -68,7 +68,7 @@ export function AutoButton({ save, onInput, short }: { save: Save; onInput(i: Ga
       onClick={() => onInput({ kind: 'auto-battle', on: !auto })}
       title={auto ? '자동 전투 켜짐 — 누르면 끔' : '자동 전투 꺼짐 — 켜면 내 행동도 알아서 (필살기 · 연타는 직접도 됨)'}
     >
-      {short ? (auto ? '자동✓' : '자동') : auto ? '자동 ON' : '자동 OFF'}
+      {short ? (auto ? '자동✓' : '자동') : auto ? '자동 전투 ON' : '자동 전투 OFF'}
     </Button>
   );
 }
@@ -328,7 +328,7 @@ function emphasize(msg: string, names: readonly string[]): ComponentChildren {
  * HP 줄 아래 층 (z 4 · HP 줄보다 먼저 그림) — 큰 원이 내 HP 숫자를 가로지르지 않게.
  * 원 오른쪽에 작은 자판 칸 "Space 막기" (포커스가 없으면 "클릭 막기") — 무슨 키인지 모르던 것 (2026-10-20 태현 님)
  */
-function ParryRing({ b, geo, y }: { b: BattleState; geo: BattleGeometry; y: number }) {
+function ParryRing({ b, geo, y, auto }: { b: BattleState; geo: BattleGeometry; y: number; auto: boolean }) {
   const w = canParry(b) ? impactOf(animKey(b)) : null;
   if (!w) return null;
   const size = Math.round(geo.meSpritePx * 1.1);
@@ -337,11 +337,14 @@ function ParryRing({ b, geo, y }: { b: BattleState; geo: BattleGeometry; y: numb
   const style = { left: `${geo.meX}px`, bottom: `${y}px`, width: `${size}px`, height: `${size}px`, animationDuration: `${TIMING.parryRingMs + TIMING.parryLateMs}ms`, animationDelay: `${delay}ms` };
   return (
     <>
-      <span key={`${animKey(b)}t`} class="pg-parry-target" style={style} />
-      <span key={animKey(b)} class="pg-parry-ring" style={style} />
-      <span key={`${animKey(b)}k`} class="pg-parry-key" style={{ left: `${geo.meX + Math.round(size * 0.55) + 4}px`, bottom: `${y}px`, animationDuration: style.animationDuration, animationDelay: style.animationDelay }}>
-        <span class="pg-menu-key">{document.hasFocus() ? 'Space' : '클릭'}</span> 막기
-      </span>
+      <span key={`${animKey(b)}t`} class={auto ? 'pg-parry-target pg-parry-auto' : 'pg-parry-target'} style={style} />
+      <span key={animKey(b)} class={auto ? 'pg-parry-ring pg-parry-auto' : 'pg-parry-ring'} style={style} />
+      {/* 키 칸 = 원 왼쪽 (내 포켓몬 뒤 — 오른쪽은 상대 공격이 날아오는 길, 플레이 리뷰어) · 자동 전투면 숨김 (맡겨 둔 사람을 부르지 않게) */}
+      {!auto && (
+        <span key={`${animKey(b)}k`} class="pg-parry-key" style={{ left: `${geo.meX - Math.round(size * 0.55) - 4}px`, bottom: `${y}px`, animationDuration: style.animationDuration, animationDelay: style.animationDelay }}>
+          <span class="pg-menu-key">{document.hasFocus() ? 'Space' : '클릭'}</span> 막기
+        </span>
+      )}
     </>
   );
 }
@@ -419,7 +422,9 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
   // 기술 연출 중 (말 = "파이리의 불꽃세례!") 이면 뒤에, 그다음 단계 (쓰러짐 · 고르기 · 끝 — 맞는 순간 엔진이 말을 바꿈) 면 앞에 —
   //   "효과가 굉장했다! 급소에 맞았다! 이상해씨가 쓰러졌다!" (원작 순서 · 좁은 패널에서 잘려도 문장이 앞에 남음)
   const said = sentences.map((p) => sentenceText(p, sideName));
-  const msgText = (b.phase === 'anim' ? [b.msg, ...said] : [...said, b.msg]).filter(Boolean).join(' ');
+  //   앞에 붙이는 건 엔진이 말을 바꾼 단계 (쓰러짐 · 고르기 · 끝 · 다음 포켓몬 · 마지막 기회) 만 — 연출이 끝나 run 이어도 말은 아직 그 행동 (다른 세션 플레이 리뷰어)
+  const changed = b.phase === 'pick' || b.phase === 'over' || b.phase === 'send' || b.phase === 'last' || b.phase === 'choose';
+  const msgText = (changed ? [...said, b.msg] : [b.msg, ...said]).filter(Boolean).join(' ');
   // 필살기 컷인이 같은 말을 하는 동안 · 둘 곳이 없는 좁은 패널에서는 위 한 줄을 숨김 — 그때 문장은 머리 위 한 줄로
   const showMsg = msgText !== '' && !geo.msgHidden && b.phase !== 'clash' && b.anim?.action.kind !== 'ult';
   const lastSentence = showMsg ? undefined : sentences[sentences.length - 1];
@@ -438,7 +443,7 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
         <FighterBody key={`foe${b.foeDown.length}`} b={b} side="foe" x={geo.foeX} target={geo.meX} px={geo.foeSpritePx} media={media} ground={ground} onProfile={profile} sendAt={throwFoe} />
       )}
       {/* 패링 원은 HP 줄보다 먼저 (같은 층에서 HP 숫자가 위) */}
-      <ParryRing b={b} geo={geo} y={midMe} />
+      <ParryRing b={b} geo={geo} y={midMe} auto={save.settings.autoBattle} />
       {hasMe && <HpBlock f={b.me} side="me" x={geo.meHpX} bottom={geo.meHpBottom} wide={geo.meHpWide} prefix="" noName={geo.menuSide !== null} />}
       {b.phase !== 'send' && <HpBlock f={b.foe} side="foe" x={geo.foeHpX} bottom={geo.foeHpBottom} wide={geo.foeHpWide} prefix={foePrefix(b)} />}
       {b.phase === 'clash' ? <Clash b={b} geo={geo} y={Math.round((midMe + midFoe) / 2)} native={native} /> : <Effects b={b} geo={geo} ground={ground} midMe={midMe} midFoe={midFoe} native={native} />}

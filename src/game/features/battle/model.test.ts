@@ -27,7 +27,9 @@ describe('S09 ⑦ 메뉴 한 줄', () => {
   it('3 스킬 → 같은 줄이 기술 목록 (PP 표시) + ← 뒤로', () => {
     const b = myTurn(startBattle(save, wild, 'normal'));
     const skills = menuItems(b, save, 'skills');
-    expect(skills.map((i) => i.label)).toEqual(['1 몸통박치기', '2 덩굴채찍', '←']);
+    expect(skills.map((i) => i.label)).toEqual(['1 몸통박치기', '2 덩굴채찍', '← 뒤로']);
+    // 옆 메뉴 = "PP 35" (숫자만이면 위력과 헷갈림 — 2026-10-20 플레이 리뷰어)
+    expect(skills.map((i) => i.subShort)).toEqual(['PP 35', 'PP 25', undefined]);
     expect(skills.map((i) => i.sub)).toEqual(['35/35', '25/25', undefined]);
     expect(skills.at(-1)?.go).toEqual({ back: true });
   });
@@ -97,7 +99,8 @@ describe('S09 화면 자리 (gdd S09)', () => {
     expect(g.menuLeft).toBe(6);
     expect(geo(200, 720).compact).toBe(false);
     const b = myTurn(startBattle(save, wild, 'normal'));
-    expect(menuItems(b, save, 'main', true).map((i) => i.label)).toEqual(['1 공격', '2 방어', '3 스킬', '4 아이템', '5 교체']);
+    // 야생 · 바꿀 포켓몬 있음 = 좁아도 "5 교체·도망" (2026-10-20 플레이 리뷰어 — "5 교체" 만이면 도망칠 수 있는지 모름)
+    expect(menuItems(b, save, 'main', true).map((i) => i.label)).toEqual(['1 공격', '2 방어', '3 스킬', '4 아이템', '5 교체·도망']);
     expect(menuItems(b, save, 'main', true)[0]!.title).toContain('공격');
   });
 

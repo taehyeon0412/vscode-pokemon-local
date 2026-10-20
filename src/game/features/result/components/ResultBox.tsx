@@ -6,6 +6,7 @@
 import { BALANCE } from '../../../core/balance';
 import type { BattleSummary, GameInput } from '../../../core/engine';
 import { Button } from '../../../ui/Button';
+import { KeyCap } from '../../../ui/KeyCap';
 import { Icon } from '../../../ui/Icon';
 import { partText, summaryLines, type SummaryPart } from '../model';
 
@@ -42,7 +43,7 @@ export function ResultBox({ summary, next, onInput }: { summary: BattleSummary; 
           <Reward key={p.kind} p={p} rare={!!summary.rival} />
         ))}
         <Button onClick={() => onInput({ kind: 'result-continue' })} title="Space · Enter">
-          {next === 'evolve' ? '▶ 어…?' : next === 'learn' ? '▶ 새 기술' : '계속 ▶'}
+          <KeyCap k="Enter" /> {next === 'evolve' ? '▶ 어…?' : next === 'learn' ? '▶ 새 기술' : '계속 ▶'}
         </Button>
       </span>
       {body.length > 0 && (

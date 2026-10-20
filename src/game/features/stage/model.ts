@@ -274,3 +274,13 @@ export const VS_MS = 800;
 export function vsStartMs(phase: 'trainer' | 'rival'): number {
   return (phase === 'rival' ? TIMING.rivalMeetMs : TIMING.trainerMeetMs) - VS_MS;
 }
+
+/**
+ * 접힌 줄 (150px 아래) 의 지금 상태 (2026-10-20 플레이 리뷰어 "접어 두고 코딩할 때 자동 전투가 켜졌는지 몰라 첫 전투에서 멈춤") —
+ * "새싹 오솔길 47% · 자동 전투 꺼짐 — 전투가 나오면 멈춰요"
+ */
+export function foldStatus(state: GameState): string {
+  const loc = state.save.location;
+  const where = loc.screen === 'stage' ? `${STAGES[loc.stageId].name} ${Math.min(100, Math.floor((state.save.stages[loc.stageId]?.progress ?? 0) * 100))}%` : loc.screen === 'gym' ? '숲 체육관' : '세계 지도';
+  return `${where} · ${state.save.settings.autoBattle ? '자동 전투 켜짐 — 전투도 저절로' : '자동 전투 꺼짐 — 전투가 나오면 멈춰요'}`;
+}

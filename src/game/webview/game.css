@@ -3554,3 +3554,35 @@ body.vscode-high-contrast-light .pg-title-body {
   background: var(--pg-sos-bar);
   text-shadow: none;
 }
+
+/* ---- 3차 편의성 (2026-10-20 플레이 리뷰어) ---- */
+/* 길 위 상자 버튼의 키 칸 (Enter · Esc) — 정보줄 메뉴 키 칸과 같은 모양, 금색 주 버튼 위에서는 짙게 */
+.pg-button .pg-menu-key {
+  margin-right: 2px;
+}
+.pg-button:not(.pg-secondary):not(:disabled) .pg-menu-key {
+  color: var(--pg-sos-tab-ink);
+  border-color: rgba(12, 16, 30, 0.45);
+}
+/* 정보줄 포켓몬 "+2" (남은 포인트) — 빨간 점 대신 숫자 */
+.pg-points {
+  margin-left: 2px;
+  padding: 0 3px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 12px;
+  color: #ffffff;
+  background: var(--pg-sos-red);
+}
+/* 패링 키 칸 = 원 왼쪽 (끝을 원 왼쪽에 맞춤) · 자동 전투면 원은 흐리게 */
+.pg-parry-key {
+  transform: translate(-100%, 50%);
+}
+.pg-parry-ring.pg-parry-auto,
+.pg-parry-target.pg-parry-auto {
+  filter: opacity(0.4);
+}
+/* 상점 — 돈이 모자란 물건은 값이 빨강 */
+.pg-panel .pg-button:disabled b {
+  color: var(--pg-sos-red);
+}

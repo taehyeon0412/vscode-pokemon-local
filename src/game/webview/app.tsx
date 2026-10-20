@@ -18,6 +18,7 @@ import { TitleScreen } from '../features/title/components/TitleScreen';
 import type { TitleInfo } from '../shared/messages';
 import { INFO_BAR_PX, type Layout } from '../ui/layout';
 import type { Store } from '../ui/store';
+import { foldStatus } from '../features/stage/model';
 import { TooSmall } from '../ui/TooSmall';
 import { useStore } from '../ui/use-store';
 import type { Screen } from './webview-session';
@@ -71,7 +72,7 @@ export function overlayAllowed(o: Overlay, state: GameState): boolean {
 }
 
 /** 판이 떠 있는 동안 받는 입력 (판에서 누른 것) — 나머지 (전투 숫자 키 · Space 등) 는 안 받음 */
-export const OVERLAY_INPUTS: readonly GameInput['kind'][] = ['team-move', 'team-swap', 'team-to-box', 'points', 'use-item', 'notifications', 'buy', 'travel'];
+export const OVERLAY_INPUTS: readonly GameInput['kind'][] = ['team-move', 'team-swap', 'team-to-box', 'points', 'use-item', 'notifications', 'fast-walk', 'auto-battle', 'buy', 'travel'];
 
 export function App({ store, media, actions }: { store: Store<ViewState>; media: string; actions: AppActions }) {
   const v = useStore(store);
@@ -99,7 +100,7 @@ function Screens({ v, media, actions }: { v: ViewState; media: string; actions: 
     }
     return title;
   }
-  if (v.layout.tooSmall) return <TooSmall layout={v.layout} playing={v.screen === 'game'} />;
+  if (v.layout.tooSmall) return <TooSmall layout={v.layout} playing={v.screen === 'game'} status={v.state ? foldStatus(v.state) : undefined} />;
   if (v.screen === 'game' && v.state) {
     return (
       <>

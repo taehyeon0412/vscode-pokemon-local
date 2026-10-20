@@ -23,12 +23,13 @@ import { Icon } from '../../../ui/Icon';
 import { themeKind } from '../../../ui/theme';
 import { typeNameKo } from '../../../ui/format';
 import { InfoBar } from '../../../ui/InfoBar';
+import { KeyCap } from '../../../ui/KeyCap';
 import { fieldTopPx, hasMapRow, INFO_BAR_PX, MAP_ROW_PX, topGapPx, type Layout } from '../../../ui/layout';
 import { BattleLayer, BattleMenuBar } from '../../battle/components/BattleLayer';
 import { battleGeometry, battleSpritePx, foeTrainerX, placeOnStage, trainerBattleFoeX } from '../../battle/model';
 import { MenuButtons } from '../../menu/components/MenuButtons';
 import { ShopPanel } from '../../menu/components/ShopPanel';
-import { hasUnspent, menuLabels, type Overlay } from '../../menu/model';
+import { menuLabels, type Overlay, unspentPoints } from '../../menu/model';
 import { ChoiceBox } from '../../result/components/ChoiceBox';
 import { ResultBox } from '../../result/components/ResultBox';
 import { choiceView } from '../../result/model';
@@ -117,10 +118,10 @@ function RequestBox({ state, onInput }: { state: GameState; onInput(i: GameInput
           </span>
         )}
         <Button onClick={() => onInput({ kind: 'request', help: true })} disabled={!helper} title="Enter">
-          도와준다
+          <KeyCap k="Enter" /> 도와준다
         </Button>
         <Button secondary onClick={() => onInput({ kind: 'request', help: false })} title="Esc">
-          지나간다
+          <KeyCap k="Esc" /> 지나간다
         </Button>
       </span>
     </div>
@@ -246,7 +247,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
             canOpenMenus(state) ? (
               <MenuButtons
                 onOpen={onOpen}
-                dot={hasUnspent(save)}
+                points={unspentPoints(save)}
                 media={media}
                 lead={leadOf(save)}
                 fast={gym ? undefined : { on: save.settings.fastWalk === true, active: isWalkingFast(state), onToggle: () => onInput({ kind: 'fast-walk', on: save.settings.fastWalk !== true }) }}

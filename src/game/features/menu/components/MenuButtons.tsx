@@ -36,15 +36,15 @@ function Face({ labels, shortcut, icon, label }: { labels: MenuLabels; shortcut:
 
 export function MenuButtons({
   onOpen,
-  dot,
+  points,
   media,
   lead,
   fast,
   labels = 'icon',
 }: {
   onOpen(o: Overlay): void;
-  /** 내 포켓몬에 남은 포인트가 있음 */
-  dot: boolean;
+  /** 내 포켓몬에 남은 포인트 합 (0 이면 안 보임) */
+  points: number;
   media: string;
   /** 선두 포켓몬 그림 (◓ 대신) */
   lead: { form: string; shiny: boolean } | null;
@@ -74,7 +74,11 @@ export function MenuButtons({
             icon={b.icon ? <Icon name={b.icon} /> : lead ? <Sprite media={media} form={lead.form} shiny={lead.shiny} scale={1} crop={20} /> : <Icon name="ball" />}
             label={b.label}
           />
-          {b.kind === 'team' && dot && <span class="pg-dot" />}
+          {b.kind === 'team' && points > 0 && (
+            <span class="pg-points" title={`남은 포인트 ${points} — 내 포켓몬에서 스탯에 나눠 주기`}>
+              +{points}
+            </span>
+          )}
         </Button>
       ))}
     </span>

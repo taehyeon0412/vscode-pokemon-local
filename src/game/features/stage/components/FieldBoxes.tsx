@@ -13,6 +13,7 @@ import { GYM_LEADER } from '../../../core/rules/trainer';
 import type { StageId } from '../../../core/save';
 import { Button } from '../../../ui/Button';
 import { Icon } from '../../../ui/Icon';
+import { KeyCap } from '../../../ui/KeyCap';
 import { formatMoney } from '../../../ui/format';
 import { Sprite } from '../../../ui/Sprite';
 import { clearView, lobbyView } from '../../menu/model';
@@ -37,10 +38,10 @@ export function FacilityBox({ state, onInput, onBox }: BoxProps & { onBox(): voi
           <Icon name={hospital ? 'hospital' : 'shop'} /> <b>{hospital ? '병원' : '상점'}</b> <span class="pg-dim">{hospital ? '회복 · 보관함' : '볼 · 상처약'}</span>
         </span>
         <Button onClick={() => onInput({ kind: 'facility', enter: true })} title="Enter">
-          들어가기
+          <KeyCap k="Enter" /> 들어가기
         </Button>
         <Button secondary onClick={() => onInput({ kind: 'facility', enter: false })} title={`Esc · ${left}초 뒤 지나감`}>
-          지나가기 <span class="pg-sub">{left}초</span>
+          <KeyCap k="Esc" /> 지나가기 <span class="pg-sub">{left}초</span>
         </Button>
       </div>
     );
@@ -63,7 +64,7 @@ export function FacilityBox({ state, onInput, onBox }: BoxProps & { onBox(): voi
           <span class="pg-long"> 보관함</span>
         </Button>
         <Button secondary onClick={() => onInput({ kind: 'facility-leave' })} title="Esc">
-          나가기
+          <KeyCap k="Esc" /> 나가기
         </Button>
       </span>
     </div>
@@ -139,7 +140,7 @@ export function DefeatBox({ state, onInput }: BoxProps) {
           )}
         </span>
         <Button onClick={() => onInput({ kind: 'defeat-continue' })} title="Enter">
-          {st.gym ? '대기실로 ▶' : '다시 시작 ▶'}
+          <KeyCap k="Enter" /> {st.gym ? '대기실로 ▶' : '다시 시작 ▶'}
         </Button>
       </span>
     </div>
@@ -172,10 +173,10 @@ export function ClearCard({ state, media, onInput, onMap, onTeam }: BoxProps & {
       </span>
       <span class="pg-line">
         <span class="pg-dim pg-ellipsis">
-          잡은 포켓몬 {v.caught} · 이긴 트레이너 {v.trainers} · {v.minutes}분
+          잡은 포켓몬 {v.caught} · 이긴 트레이너 {v.trainers} · {v.minutes}분 걸림
         </span>
         <Button onClick={() => onInput({ kind: 'travel', to: next })} title="Enter">
-          {next === 'gym' ? <Icon name="gym" /> : '▶'}
+          <KeyCap k="Enter" /> {next === 'gym' ? <Icon name="gym" /> : '▶'}
           <span class="pg-long">{next === 'gym' ? ' 체육관으로' : ' 다음 스테이지'}</span>
         </Button>
         <Button secondary onClick={onMap} title="③ 지도">
@@ -201,9 +202,9 @@ export function LobbyBox({ state, onInput, onBox, onShop, onMap }: BoxProps & { 
       <span class="pg-line">
         <Icon name="gym" />
         <b class="pg-ellipsis">숲 체육관 — {GYM_LEADER.name}</b>
-        <span class={v.short ? 'pg-lv-short' : 'pg-dim'} title={`추천 레벨 · 내 팀 센 3마리 평균 Lv ${v.average}`}>
-          추천 Lv {v.recommended}
-          {v.short && ' ▼'}
+        {/* 추천 · 내 팀을 나란히 (▼ 만이면 무엇과 비교했는지 모름 — 플레이 리뷰어), 모자라면 빨강 */}
+        <span class={v.short ? 'pg-lv-short' : 'pg-dim'} title="내 팀 = 센 3마리 평균 Lv">
+          추천 Lv {v.recommended} · 내 팀 Lv {v.average}
         </span>
         {state.save.badges.includes('forest') && <Icon name="badge" title="숲 배지" />}
       </span>
@@ -258,7 +259,7 @@ export function BadgeCard({ state, onInput, onMap }: BoxProps & { onMap(): void 
           }}
           title="Enter"
         >
-          <Icon name="map" /> 세계 지도
+          <KeyCap k="Enter" /> <Icon name="map" /> 세계 지도
         </Button>
         <Button secondary onClick={() => onInput({ kind: 'badge-continue' })}>
           대기실로

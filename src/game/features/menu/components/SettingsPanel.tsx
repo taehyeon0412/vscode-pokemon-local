@@ -19,6 +19,13 @@ export function SettingsPanel({ save, onInput, onExit, onClose }: { save: Save; 
         </Button>
         <span class="pg-dim pg-ellipsis">안 볼 때 알려 줘요</span>
       </Row>
+      {/* 자동 전투 (2026-10-20 플레이 리뷰어 "자리 비울 준비를 걷는 중에 할 수 없음" — 예전엔 전투 안 스위치뿐) */}
+      <Row label="전투">
+        <Button secondary extraClass={save.settings.autoBattle ? 'pg-picked' : undefined} onClick={() => onInput({ kind: 'auto-battle', on: !save.settings.autoBattle })} title="자동 전투 — 메뉴 · 필살기를 알아서 (전투 중 왼쪽 아래 스위치와 같음)">
+          {save.settings.autoBattle ? '✓ 자동 전투' : '자동 전투'}
+        </Button>
+        <span class="pg-dim pg-ellipsis">자리를 비워도 전투가 저절로</span>
+      </Row>
       <Row label="걷기">
         <Button secondary extraClass={save.settings.fastWalk === true ? 'pg-picked' : undefined} onClick={() => onInput({ kind: 'fast-walk', on: save.settings.fastWalk !== true })} title="빨리 걷기 ×3 — 흔적 · 트레이너 · 병원 · 아이템 · 부탁이 다가오면 보통 빠르기로 (정보줄 ▶▶ 와 같음)">
           {save.settings.fastWalk === true ? '✓ 빨리 걷기 ×3' : '빨리 걷기 ×3'}

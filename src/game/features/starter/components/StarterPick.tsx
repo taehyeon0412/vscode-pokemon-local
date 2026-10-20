@@ -29,7 +29,7 @@ export function StarterPick({ media, pending, onBack, onDone }: StarterPickProps
   const [picked, setPicked] = useState<number[]>(() => defaultStarterMoves(sel.dex).map((m) => m.id));
   // 다른 스타팅을 고르면 기본 2개로
   useEffect(() => setPicked(defaultStarterMoves(sel.dex).map((m) => m.id)), [sel.dex]);
-  // 자기 타입 기술은 ★ (같은 타입 1.5배 — 처음 하는 사람이 위력 숫자만 보고 고르지 않게)
+  // 자기 타입 기술은 "×1.5" (같은 타입 1.5배 — 처음 하는 사람이 위력 숫자만 보고 고르지 않게, ★ 은 다른 화면에서 새 기술 · 등급이라 바꿈 2026-10-20)
   const ownTypes = speciesOf(sel.dex)?.types ?? [];
   const cands = starterMoveCandidates(sel.dex).map((m) => ({ ...moveView(m.id), own: ownTypes.includes(m.type) }));
   const chain = evolutionChain(sel.dex);
@@ -116,7 +116,7 @@ export function StarterPick({ media, pending, onBack, onDone }: StarterPickProps
             <Button key={m.id} secondary extraClass={picked.includes(m.id) ? 'pg-picked' : undefined} onClick={() => toggle(m.id)} title={`${m.detail} (${i + 1})${m.own ? ' · 자기 타입 (위력 × 1.5)' : ''}`}>
               {picked.includes(m.id) ? '✓' : ''}
               {i + 1} {m.name}
-              {m.own && <span class="pg-own">★</span>}
+              {m.own && <span class="pg-own">×1.5</span>}
               <span class="pg-sub">{m.short}</span>
             </Button>
           ))}

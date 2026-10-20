@@ -78,8 +78,8 @@ function Summary({ summary }: { summary: TitleSummary }) {
       )}
       <span class="pg-sum-badges">배지 {summary.badges}</span>
       <span class="pg-sum-money">{formatMoney(summary.money)}</span>
-      <span class="pg-sum-time pg-dim" title="플레이 시간">
-        {formatPlayTime(summary.playTimeMs)}
+      <span class="pg-sum-time pg-dim">
+        플레이 {formatPlayTime(summary.playTimeMs)}
       </span>
     </span>
   );

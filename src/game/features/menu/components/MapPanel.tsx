@@ -48,14 +48,14 @@ export function MapPanel({ state, swap, midStage, onInput, onTeam, onClose }: Ma
           <Button key={s.id} secondary={s.state !== 'current'} disabled={s.state === 'locked'} onClick={() => go(s.id)} title={s.state === 'locked' ? '앞 스테이지를 깨면 열려요' : s.state === 'current' ? '지금 스테이지 (이어서 걷기)' : '새 길로 걷기 (아이템 · 부탁 · 야생이 새로)'}>
             <Icon name={s.state === 'locked' ? 'lock' : s.icon} /> {s.label} <span class="pg-sub">{s.code}</span>
             {s.state === 'cleared' && ' ✓'}
-            {s.state === 'current' && ' ●'}
+            {s.state === 'current' && ' ● 지금'}
           </Button>
         ))}
         <Button secondary disabled={!v.gym} onClick={() => go('gym')} title={v.gym ? '체육관 대기실로' : '깊은 숲 (1-3) 을 깨면 열려요'}>
           <Icon name={v.gym ? 'gym' : 'lock'} /> 체육관
         </Button>
         <Button secondary disabled={!swap} onClick={onTeam} title={swap ? '보관함과 팀 바꾸기' : '스테이지를 시작하기 전에만 (걷는 중에는 병원에서)'}>
-          <Icon name="box" /> 팀 바꾸기
+          <Icon name="box" /> 팀 바꾸기{!swap && <span class="pg-sub"> 병원에서</span>}
         </Button>
       </Row>
       {confirm && (

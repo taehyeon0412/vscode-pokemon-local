@@ -140,6 +140,8 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
           {withJosa(view.name, '은/는')} <b>{view.toName}</b>
           {josa(view.toName, '으로/로')} 진화했다!
         </span>
+        {/* 새 기술은 저절로 배움 — ★ 만으로는 고르는 화면처럼 읽힘 (플레이 리뷰어) */}
+        {view.fresh.length > 0 && <span class="pg-dim">새로 배움</span>}
         {view.fresh.map((m) => (
           <span key={m.id} class="pg-reward" title={m.detail}>
             ★ {m.name} <span class="pg-sub">{m.short}</span>
@@ -149,7 +151,7 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
       <span class="pg-line pg-choice-row">
         {choosing && (
           <span class="pg-dim pg-keep">
-            남길 기술 {keep.length}/{view.keep}
+            지금 기술 중 {view.keep}개 남기기 ({keep.length}/{view.keep})
           </span>
         )}
         {view.current.map((m, i) => (
@@ -159,7 +161,7 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
           </Button>
         ))}
         <Button extraClass="pg-pin" onClick={decide} disabled={!ready} title="Enter">
-          결정
+          {ready ? '결정' : `${view.keep - keep.length}개 더 고르기`}
         </Button>
       </span>
     </div>

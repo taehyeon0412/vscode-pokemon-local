@@ -20,6 +20,8 @@ export type Overlay = { kind: 'map' } | { kind: 'team'; back?: 'map' } | { kind:
 
 /** 팀에 남은 포인트가 있는 포켓몬이 있는지 (◓ 버튼에 점) */
 export const hasUnspent = (save: Save) => save.party.some((uid) => (save.monsters[uid]?.unspentPoints ?? 0) > 0);
+/** 팀에 남은 포인트 합 — 정보줄 "포켓몬 +2" (빨간 점만이면 뜻을 모름, 2026-10-20 플레이 리뷰어) */
+export const unspentPoints = (save: Save) => save.party.reduce((n, uid) => n + (save.monsters[uid]?.unspentPoints ?? 0), 0);
 
 /**
  * 정보줄 메뉴 단축키 (2026-10-19 태현 님 "아이콘만 있어 무슨 메뉴인지 모름 — 단축키 + 아이콘 + 설명") — F 빨리 걷기 · M 지도 · P 내 포켓몬 · B 가방 · S 설정.

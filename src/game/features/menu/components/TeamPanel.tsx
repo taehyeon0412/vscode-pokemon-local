@@ -115,11 +115,11 @@ export function TeamPanel({ save, media, swap, onInput, onClose }: TeamPanelProp
           <Row label="순서">
             {inParty && (
               <>
-                <Button secondary onClick={() => onInput({ kind: 'team-move', uid: selected.uid, dir: -1 })} disabled={idx <= 0} title="← 앞으로 (맨 앞 = 선두)">
-                  ← 앞으로
+                <Button secondary onClick={() => onInput({ kind: 'team-move', uid: selected.uid, dir: -1 })} disabled={idx <= 0} title="한 칸 앞으로 (맨 앞 = 선두)">
+                  ← 한 칸 앞
                 </Button>
-                <Button secondary onClick={() => onInput({ kind: 'team-move', uid: selected.uid, dir: 1 })} disabled={idx >= party.length - 1} title="뒤로 →">
-                  뒤로 →
+                <Button secondary onClick={() => onInput({ kind: 'team-move', uid: selected.uid, dir: 1 })} disabled={idx >= party.length - 1} title="한 칸 뒤로">
+                  한 칸 뒤 →
                 </Button>
                 {swap && (
                   <Button secondary onClick={() => onInput({ kind: 'team-to-box', uid: selected.uid })} disabled={party.length <= 1} title="보관함으로 (팀에 하나는 남겨요)">

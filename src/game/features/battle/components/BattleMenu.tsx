@@ -6,6 +6,7 @@
 import type { ComponentChildren } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { TIMING } from '../../../core/balance';
+import { maxHpOf } from '../../../core/rules/bag';
 import { canUlt, counterOpen, itemLeft, switchable, ultCounterOpen, type BattleState, type GameInput } from '../../../core/engine';
 import { BALLS, type BallId } from '../../../core/rules/catch';
 import { itemName } from '../../../core/rules/items';
@@ -158,7 +159,7 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
         {team.slice(0, 5).map((m, i) => (
           <Button key={m.uid} onClick={() => pick(m.uid)} title={`HP ${m.hp}`}>
             {`${i + 1} ${speciesOf(m.species)?.name.ko ?? m.form}`}
-            <span class="pg-sub">Lv{m.level}</span>
+            <span class="pg-sub">HP {m.hp}/{maxHpOf(m)}</span>
           </Button>
         ))}
       </>
