@@ -66,6 +66,8 @@ export interface PokemonFx {
   word?(dst: FxActor, text: string, tone: 'gold' | 'silver'): void;
   /** 반격 기회 — 상대만 밝고 둘레가 살짝 어두워짐 (ms 동안) */
   riposteFocus?(dst: FxActor, ms: number): void;
+  /** 닿는 기술을 패링 — 쳐내는 몸짓으로 상대를 튕겨 냄 (dst = 막은 쪽 · src = 친 쪽, perfect = 금색 · 크게) */
+  contactParry?(dst: FxActor, src: FxActor | null, perfect: boolean): void;
   /** 필살기 게이지가 다 참 — 몸 둘레 금색 반짝임 세 번 */
   ultReady?(dst: FxActor): void;
   /** S22 진화 — stage 안 옛 · 새 그림을 숨기고 캔버스로 메가진화처럼 (ms 동안) */

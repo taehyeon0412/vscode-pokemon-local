@@ -262,6 +262,8 @@
         },
     };
     window.pokemonGameConfig = { media: '../extension/media', size, script: '../extension/media/game/game.js' };
+    // cparry=a|b|c — 닿는 기술 패링 쳐내기 시안 (2026-10-20, 태현 님이 고를 때까지 · ult/bridge.js contactParry)
+    if (q.get('cparry')) window.pokemonFxContactStyle = q.get('cparry');
 
     // 연출 한 장면 멈춰 찍기 (머리 없는 브라우저는 CSS 움직임이 거의 안 흘러서) — animAt=초: 모든 움직임을 그 시점에 멈춤
     if (q.get('animAt')) {

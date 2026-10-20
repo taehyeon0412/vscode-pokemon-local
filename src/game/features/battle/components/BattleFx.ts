@@ -21,8 +21,13 @@ const CAST_DELAY_MS = 120;
 const CONTACT_AT = 0.8;
 /** 닿는 기술의 타입 임팩트는 자국 · 주먹보다 이만큼 늦게 (같이 터지면 서로 가림, 2026-10-19) */
 const CONTACT_IMPACT_LAG_MS = 90;
-/** 쏘는 기술이 상대에 닿는 때 (연출 길이의 몇 %) */
-const SHOT_HIT_AT = 0.85;
+/** 쏘는 기술이 상대에 닿는 때 (연출 길이의 몇 %) — 틀마다 잼 (2026-10-20 태현 님 "이미 맞았는데 패링 원이 남아 있음": 하나로 0.85 를 쓰니
+ *  광선은 0.5초 먼저 · 솔라빔은 0.3초 늦게 닿았음). 원이 1배가 되는 때 · 쳐내기 · 맞는 연출 · 엔진 피해가 다 이 때 */
+const SHOT_HIT_AT: Record<string, number> = { beam: 0.25, spark: 0.6, rings: 0.7, water: 0.8, bubbles: 0.82, glow: 0.86, breath: 0.87, solarbeam: 1 };
+const SHOT_HIT_DEFAULT = 0.85;
+const shotHitAt = (fx: string) => SHOT_HIT_AT[fx] ?? SHOT_HIT_DEFAULT;
+/** 맞는 때 뒤 이만큼까지 엔진을 붙잡음 (피해 숫자가 맞는 때에 뜨게 — 남은 연출은 흘러감) */
+const SHOT_HOLD_AFTER_MS = 60;
 /** 필살기 시작을 이만큼 넘겨서 붙었으면 (접었다 펴기 등) 처음부터 못 보여 줘서 이모지로 — 나와라! 등장 (0.45초) 을 기다리는 것 포함 */
 const ULT_LATE_MS = 600;
 const ULT_RETRY_MS = 50;
@@ -59,7 +64,7 @@ function planOf(b: BattleState): typeof planCache {
   try {
     const plan = fx && move && b.anim ? fx.plan(b[b.anim.side].form, move.m) : null;
     contact = plan?.contact ?? null;
-    if (plan && !plan.contact && b.anim) castAt = Math.max(CAST_DELAY_MS, b.anim.dur - Math.round(plan.ms * SHOT_HIT_AT));
+    if (plan && !plan.contact && b.anim) castAt = Math.max(CAST_DELAY_MS, b.anim.dur - Math.round(plan.ms * shotHitAt(plan.fx)));
   } catch {
     contact = null;
   }
@@ -238,8 +243,11 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
           at(Math.round(a.dur * CONTACT_AT), () => {
             const dst = actor(b, other(side));
             if (!dst) return;
-            // 빗나감 (엔진이 행동 시작 때 정함) · 완벽 패링 — 자국 · 임팩트 대신 맞을 쪽이 휙 피함
-            if (a.miss || parryOf(now.current, key) === 'perfect') fx.dodge?.(dst);
+            // 빗나감 (엔진이 행동 시작 때 정함) — 맞을 쪽이 휙 피함 · 패링 (보통 · 완벽) — 늘 쳐내는 몸짓으로 상대를 튕겨 냄 (가만히 서 있던 것, 2026-10-20 태현 님)
+            const p = parryOf(now.current, key);
+            if (a.miss) fx.dodge?.(dst);
+            else if ((p === 'perfect' || p === 'good') && fx.contactParry) fx.contactParry(dst, actor(b, side), p === 'perfect');
+            else if (p === 'perfect') fx.dodge?.(dst);
             else fx.move(dst, move.m, 0, form);
           });
           // 타입 임팩트는 자국 · 주먹이 먼저 보이게 조금 뒤에 (같이 터지면 서로 가림)
@@ -250,10 +258,13 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
           });
         } else if (plan) {
           const mv = act.kind === 'move' ? moveOf(act.moveId) : undefined;
-          // 짧은 연출은 늦게 시작해 맞는 순간이 피해 숫자 (엔진 dur) 와 같게 (#329) · 등장 중이면 끝난 뒤에
-          const castAt = Math.max(CAST_DELAY_MS, a.dur - Math.round(plan.ms * SHOT_HIT_AT)) + settleMs();
-          holdFx(key, castAt + plan.ms - a.ms, performance.now());
-          impactAt(castAt + Math.round(plan.ms * SHOT_HIT_AT));
+          // 짧은 연출은 늦게 시작해 맞는 순간이 피해 숫자 (엔진 dur) 와 같게 (#329) · 등장 중이면 끝난 뒤에.
+          // 맞는 순간 = 틀마다 잰 실제로 닿는 때 (shotHitAt) — 패링 원 1배 · 쳐내기 · 맞는 연출 · 피해 숫자가 같이 (2026-10-20 태현 님)
+          const hitMs = Math.round(plan.ms * shotHitAt(plan.fx));
+          const castAt = Math.max(CAST_DELAY_MS, a.dur - hitMs) + settleMs();
+          // 엔진은 맞는 때 바로 뒤까지만 붙잡음 (예전엔 연출이 다 끝날 때까지 — 광선 꼬리 동안 피해 숫자가 늦게 떴음) · 남은 연출은 흘러감
+          holdFx(key, castAt + hitMs + SHOT_HOLD_AFTER_MS - a.ms, performance.now());
+          impactAt(castAt + hitMs);
           at(castAt, () => {
             const src = actor(b, side);
             const dst = actor(b, other(side));
@@ -265,7 +276,7 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
             }
           });
           if (mv && mv.power > 0) {
-            at(castAt + Math.round(plan.ms * SHOT_HIT_AT), () => {
+            at(castAt + hitMs, () => {
               const dst = actor(b, other(side));
               if (a.miss) {
                 if (dst) fx.dodge?.(dst);
@@ -365,7 +376,8 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
   // 완벽은 맞는 순간 쳐내기 · 피하기 (위) — 여기는 보통 패링 (스치듯) 의 은색 방패 · 불똥만 (2026-10-20)
   const parriedMiss = !!b.anim?.miss;
   useEffect(() => {
-    if (!fx || parried !== 'good' || parriedMiss) return undefined;
+    // 닿는 기술은 쳐내기 (contactParry) 가 맡음 — 방패 · 불똥을 또 그리지 않게
+    if (!fx || parried !== 'good' || parriedMiss || (fxContact(b) === true && fx.contactParry)) return undefined;
     const w = impactOf(key);
     const t = window.setTimeout(
       () => {
