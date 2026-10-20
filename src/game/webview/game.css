@@ -376,6 +376,11 @@ body.pokemon-game-on {
   flex: none;
   margin-right: 12px;
 }
+/* 볼 칸이 지도 줄에 들어오면 (좁은 패널) 지도 앞 🌲 · 이름은 뺌 — 볼 칸에 밀려 아이콘 조각만 남던 것 (막대 · % 는 그대로) */
+.pg-maprow > .pg-balls + .pg-minimap .pg-stage-name,
+body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name {
+  display: none;
+}
 .pg-field-balls .pg-icon {
   filter: drop-shadow(1px 0 0 var(--pg-sos-bar)) drop-shadow(-1px 0 0 var(--pg-sos-bar)) drop-shadow(0 1px 0 var(--pg-sos-bar)) drop-shadow(0 -1px 0 var(--pg-sos-bar));
 }
@@ -3621,23 +3626,24 @@ body.vscode-high-contrast-light .pg-title-body {
 }
 /* 정보줄 포켓몬 "+2" (남은 포인트) — 빨간 점 대신 숫자 · 금색 (빨강 채움 + 흰 글씨는 웹앱 알림 배지 · 흰색은 팔레트 밖 — 아트 디렉터 4차).
    깜박임 (2026-10-20 태현 님 "스탯을 어디서 찍는지 모르겠어 — +4 가 깜박깜박"): 금색 칠 ↔ 금색 글자, 1초에 한 번 (3번 넘게 번쩍이지 않음 · 금색 버튼 글자색이라 흰 번쩍임 없음).
-   포인트가 있을 때 · 걷는 중 (메뉴가 보일 때) 만 돌고, 패널이 안 보이면 웹뷰가 멈춤 */
+   → 4번 깜박인 뒤 금색 칠로 멈춤 (끝없이 돌면 코딩하다 곁눈으로 볼 때 너무 튐 — 아트 디렉터 7차 제안 · 태현 님). 메뉴가 다시 보이거나 포인트 수가 바뀌면 (MenuButtons key) 다시 4번 */
 .pg-points {
   margin-left: 2px;
   padding: 0 2px;
   font-size: 11px;
   font-weight: 700;
   line-height: 12px;
-  color: var(--pg-sos-gold);
+  background: var(--pg-sos-gold);
+  color: var(--pg-sos-tab-ink);
   box-shadow: inset 0 0 0 1px var(--pg-sos-gold);
-  animation: pg-points-blink 1s steps(1) infinite;
+  animation: pg-points-blink 1s steps(1, end) 4;
 }
 @keyframes pg-points-blink {
-  0% { background: var(--pg-sos-gold); color: var(--pg-sos-tab-ink); }
-  50% { background: transparent; color: var(--pg-sos-gold); }
+  0% { background: transparent; color: var(--pg-sos-gold); }
+  50% { background: var(--pg-sos-gold); color: var(--pg-sos-tab-ink); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .pg-points { animation: none; background: var(--pg-sos-gold); color: var(--pg-sos-tab-ink); }
+  .pg-points { animation: none; }
 }
 /* 패링 키 칸 = 원 왼쪽 (끝을 원 왼쪽에 맞춤) · 자동 전투면 원은 흐리게 */
 .pg-parry-key {
@@ -3865,6 +3871,18 @@ body.vscode-high-contrast-light .pg-title-body {
 /* 지도 줄 % — 숲 줄기 위에서 흐린 글자가 묻혀서 크림 (테두리는 지도 줄 전체 4방향 1px #0c101e) */
 .pg-maprow .pg-mappct {
   color: var(--pg-sos-ink);
+}
+/* 밝은 테마 — 판 없이 숲 위에 놓인 글자 (지도 줄 이름 · % · 볼 칸, 숲 위 볼 칸) 뒤에 작은 남색 판 (낮 하늘 #dde6ea 위에서 크림 글자 · 흰 볼 반쪽이 녹던 것 — 아트 디렉터 7차 제안 · 2026-10-20 태현 님).
+   체육관 지도 줄 이름과 같은 칠 · 높이 18 · 좌우 4 */
+body.vscode-light .pg-stage:not(.pg-gym) .pg-maprow .pg-stage-name,
+body.vscode-light .pg-stage:not(.pg-gym) .pg-maprow .pg-mappct,
+body.vscode-light .pg-maprow > .pg-balls,
+body.vscode-light .pg-field-balls {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 4px;
+  background: var(--pg-sos-panel);
 }
 /* 대화 상자 얼굴 칸 (ui/Face — Sea of Stars 대화 상자 왼쪽 얼굴): 원작 정면 그림 머리 쪽 12칸 × 2 · 글 줄 가운데 · 이름표 앞 4px */
 .pg-face {
@@ -4302,7 +4320,7 @@ body.vscode-high-contrast-light .pg-title-body {
   50% { transform: translateY(2px); }
 }
 /* 잡은 포켓몬 소개 카드 (결과 상자 전 1.5초 — 2026-10-20 태현 님 안 2 "잡았다는 기쁨") — 잡기 창 B 와 같은 집중 모양: 둘레 남색 55% · 2px 금색 · 금색 칠 이름표 "잡았다!" ·
-   왼쪽 그림 칸 64 (밝은 남색 + 흐린 금색 1px · 그림은 칸을 채우는 정수 배) · 오른쪽 NEW 도감 등록 (금색 칠) · 이름 13/700 + Lv 흐림 · 타입 표 · 팀 / 보관함 11 흐림. 나타날 때 0.15초 세 걸음 · 누르면 넘김 */
+   왼쪽 그림 칸 64 (밝은 남색 + 흐린 금색 1px · 그림은 칸을 채우는 정수 배) · 오른쪽 "NEW! 처음 잡았다" (금색 칠 — 도감 화면이 생기면 "도감 등록") · 이름 13/700 + Lv 흐림 · 타입 표 · 팀 / 보관함 11 흐림. 나타날 때 0.15초 세 걸음 · 누르면 넘김 */
 .pg-caught-intro {
   position: absolute;
   left: 50%;

@@ -69,7 +69,7 @@ export function levelUps(s: BattleSummary, save: Save): LevelUpView[] {
   });
 }
 
-/** S12 잡은 포켓몬 소개 카드 (결과 상자 전 1.5초 — 2026-10-20 태현 님 안 2) — 그림 · 이름 · Lv · 타입 · NEW 도감 등록 · 팀 / 보관함 */
+/** S12 잡은 포켓몬 소개 카드 (결과 상자 전 1.5초 — 2026-10-20 태현 님 안 2) — 그림 · 이름 · Lv · 타입 · NEW! 처음 잡았다 · 팀 / 보관함 */
 export interface CaughtView {
   uid: string;
   name: string;

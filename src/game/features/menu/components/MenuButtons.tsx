@@ -75,7 +75,8 @@ export function MenuButtons({
             label={b.label}
           />
           {b.kind === 'team' && points > 0 && (
-            <span class="pg-points" title={`남은 포인트 ${points} — 내 포켓몬에서 스탯에 나눠 주기`}>
+            // key = 포인트 수 — 바뀌면 새로 그려져 4번 다시 깜박임 (그 뒤 금색 칠로 멈춤)
+            <span key={points} class="pg-points" title={`남은 포인트 ${points} — 내 포켓몬에서 스탯에 나눠 주기`}>
               +{points}
             </span>
           )}

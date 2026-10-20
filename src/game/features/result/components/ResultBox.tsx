@@ -16,7 +16,7 @@ import { spriteBoxOf } from '../../../data/sprite-boxes';
 import { TypeTags } from '../../battle/components/TypeTag';
 import { partText, summaryLines, type CaughtView, type LevelUpView, type SummaryPart } from '../model';
 
-/** 잡은 포켓몬 소개 카드 — 결과 상자 전 1.5초 (TIMING.caughtIntroMs), 잡기 창과 같은 집중 모양 (둘레 어둡게 · 2px 금색 · 이름표 "잡았다!") · 그림 크게 · NEW 도감 등록 · 이름 Lv · 타입 · 팀 / 보관함. 누르면 넘김 (2026-10-20 태현 님 안 2) */
+/** 잡은 포켓몬 소개 카드 — 결과 상자 전 1.5초 (TIMING.caughtIntroMs), 잡기 창과 같은 집중 모양 (둘레 어둡게 · 2px 금색 · 이름표 "잡았다!") · 그림 크게 · "NEW! 처음 잡았다" (도감 화면은 다음 버전) · 이름 Lv · 타입 · 팀 / 보관함. 누르면 넘김 (2026-10-20 태현 님 안 2) */
 function CaughtIntro({ c, media, onSkip }: { c: CaughtView; media: string; onSkip(): void }) {
   const types = speciesOf(c.species)?.types ?? [];
   // 그림 칸 64 — 실제 그림 (sprite-boxes) 이 칸을 채우는 가장 큰 정수 배 (위아래 1칸 여유, 1 ~ 3배)
@@ -31,7 +31,7 @@ function CaughtIntro({ c, media, onSkip }: { c: CaughtView; media: string; onSki
         <i class="pg-lvup-spark pg-lvup-spark-2" aria-hidden="true" />
       </span>
       <span class="pg-caught-info">
-        {c.isNew && <span class="pg-caught-new">NEW 도감 등록</span>}
+        {c.isNew && <span class="pg-caught-new">NEW! 처음 잡았다</span>}
         <b class="pg-caught-name">
           {c.name} <span class="pg-dim">Lv{c.level}</span>
         </b>
@@ -63,7 +63,7 @@ function Line({ p }: { p: SummaryPart }) {
   return <>{p.kind === 'quote' ? `“${p.text}”` : p.text}</>;
 }
 
-/** 얼굴 카드 (최대 셋) — 포켓몬 그림 (길 위 크기) · 왼쪽 아래 ▲ Lv · 오른쪽 위 +남은 포인트 · 2px 금색 테두리 = 버튼. hint = 첫 포인트 카드 아래 말풍선 */
+/** 얼굴 카드 (최대 셋) — 포켓몬 그림 (길 위 크기) · 왼쪽 아래 Lv · 오른쪽 위 +남은 포인트 · 2px 금색 테두리 = 버튼. hint = 첫 포인트 카드 아래 말풍선 */
 function FaceCards({ ups, media, hint, onStats }: { ups: LevelUpView[]; media: string; hint: boolean; onStats(uid: string): void }) {
   const shown = ups.slice(0, 3);
   const hintAt = shown.find((u) => u.points > 0)?.uid;
@@ -72,8 +72,8 @@ function FaceCards({ ups, media, hint, onStats }: { ups: LevelUpView[]; media: s
       {shown.map((u) => (
         <button key={u.uid} type="button" class="pg-lvup-card" onClick={() => onStats(u.uid)} title={`${u.name} Lv ${u.from} → ${u.to} — 스탯 찍기 (P)`}>
           <Sprite media={media} form={u.form} shiny={u.shiny} scale={1} crop={40} fieldSize center />
-          {/* ▲ = 둘째 줄 · 다른 화면의 레벨업 글자와 같은 기호 (1배 아이콘은 픽셀 격자가 깨져 뺌 — 아트 디렉터 7차) */}
-          <span class="pg-lvup-card-lv">▲{u.to}</span>
+          {/* "Lv7" — ▲7 은 +7 로도 읽혀서 (아트 디렉터 7차 제안 · 2026-10-20 태현 님) */}
+          <span class="pg-lvup-card-lv">Lv{u.to}</span>
           {u.points > 0 && <span class="pg-lvup-card-pts">+{u.points}</span>}
           <i class="pg-lvup-spark pg-lvup-spark-1" aria-hidden="true" />
           <i class="pg-lvup-spark pg-lvup-spark-2" aria-hidden="true" />
