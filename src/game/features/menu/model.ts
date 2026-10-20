@@ -18,6 +18,23 @@ export const STAT_LABEL: Record<StatKey, string> = { hp: 'HP', attack: '공격',
 /** 화면 위에 뜨는 판 — 떠 있는 동안 게임이 멈춤 (웹뷰가 계산을 쉼) */
 export type Overlay = { kind: 'map' } | { kind: 'team'; back?: 'map' } | { kind: 'bag' } | { kind: 'settings' } | { kind: 'shop' } | { kind: 'profile'; side: 'me' | 'foe' };
 
+/** 물건 그림 (상점 · 가방 — 2026-10-20 아트 디렉터 3차) · 진화의 돌은 같은 돌 그림 */
+export const ITEM_ICON: Record<ItemId, IconName> = {
+  'poke-ball': 'ball',
+  'great-ball': 'greatBall',
+  'ultra-ball': 'ultraBall',
+  potion: 'potion',
+  'super-potion': 'superPotion',
+  'full-heal': 'fullHeal',
+  revive: 'revive',
+  'fire-stone': 'stone',
+  'water-stone': 'stone',
+  'thunder-stone': 'stone',
+  'leaf-stone': 'stone',
+  'moon-stone': 'stone',
+  'linking-cord': 'cord',
+};
+
 /** 팀에 남은 포인트가 있는 포켓몬이 있는지 (◓ 버튼에 점) */
 export const hasUnspent = (save: Save) => save.party.some((uid) => (save.monsters[uid]?.unspentPoints ?? 0) > 0);
 /** 팀에 남은 포인트 합 — 정보줄 "포켓몬 +2" (빨간 점만이면 뜻을 모름, 2026-10-20 플레이 리뷰어) */

@@ -23,11 +23,24 @@ export const PAL: Record<string, string> = {
   D: '#14201a',
   /** 그림자 (반투명 검정) */
   k: 'rgba(0, 0, 0, 0.45)',
+  /** 상처약 보라 (2026-10-20 물건 아이콘) · 하이퍼볼 검정 위 */
+  P: '#c48cff',
+  p: '#7d4fc4',
+  L: '#4a4a52',
 };
 
 export const ICONS = {
   /** 몬스터볼 (볼 개수 · 상대 볼 · 잡음) */
   ball: ['..RRRR..', '.RWRRRR.', 'RRWRRRRr', 'KKKWWKKK', 'KKKWWKKK', 'WWWWWWWw', '.WWWWWw.', '..wwww..'],
+  /** 물건 (상점 · 가방, 2026-10-20 아트 디렉터 3차 "물건 아이콘이 없음") — 슈퍼볼 · 하이퍼볼 · 상처약 · 좋은상처약 · 상태 회복약 · 기력의조각 · 진화의 돌 · 연결의끈 */
+  greatBall: ['..BBBB..', '.BRBBRB.', 'BRWBBRBb', 'KKKWWKKK', 'KKKWWKKK', 'WWWWWWWw', '.WWWWWw.', '..wwww..'],
+  ultraBall: ['..LLLL..', '.YLLLLY.', 'YYWLLYYy', 'KKKWWKKK', 'KKKWWKKK', 'WWWWWWWw', '.WWWWWw.', '..wwww..'],
+  potion: ['...ww...', '...WW...', '..wWWw..', '.PPPPPP.', '.PWPPPp.', '.PWPPPp.', '.PPPPPp.', '..pppp..'],
+  superPotion: ['...ww...', '...WW...', '..wWWw..', '.RRRRRR.', '.RWRRRr.', '.RWRRRr.', '.RRRRRr.', '..rrrr..'],
+  fullHeal: ['...gg...', '...GG...', '..wWWw..', '.YYYYYY.', '.YWYYYy.', '.YWYYYy.', '.YYYYYy.', '..yyyy..'],
+  revive: ['...YY...', '..YWYy..', '.YWYYyy.', 'YWYYYYyy', 'yYYYYYyy', '.yYYYyy.', '..yyyy..', '...yy...'],
+  stone: ['..wwww..', '.wWWWWw.', 'wWWWwWWw', 'wWWwwWww', 'wWWWWwww', '.wWWwww.', '..wwww..', '........'],
+  cord: ['.YY..BB.', 'Y..YB..B', 'Y..YB..B', '.YYYBBB.', '..YB.B..', '..Y..B..', '.YY..BB.', '........'],
   /** 돈 */
   coin: ['..yyyy..', '.yYYYYy.', 'yYWYYYYy', 'yYWYYYYy', 'yYYYYYYy', 'yYYYYYyy', '.yyyyyy.', '..yyyy..'],
   /** 받은 아이템 */

@@ -6,8 +6,9 @@ import { useState } from 'preact/hooks';
 import type { GameInput } from '../../../core/engine';
 import type { ItemId, Save } from '../../../core/save';
 import { Button } from '../../../ui/Button';
+import { Icon } from '../../../ui/Icon';
 import { Sprite } from '../../../ui/Sprite';
-import { bagTargets, bagView } from '../model';
+import { bagTargets, bagView, ITEM_ICON } from '../model';
 import { Panel, Row } from './Panel';
 
 export interface BagPanelProps {
@@ -35,7 +36,7 @@ export function BagPanel({ save, media, onInput, onClose }: BagPanelProps) {
             onClick={() => setSel(r.item)}
             title={r.field ? (r.evolution ? '진화의 돌 — 진화하는 포켓몬에게' : '전투 밖에서 써요') : '볼은 전투에서만 써요'}
           >
-            {r.name} <b>×{r.count}</b>
+            <Icon name={ITEM_ICON[r.item]} /> {r.name} <b>×{r.count}</b>
           </button>
         ))}
       </Row>

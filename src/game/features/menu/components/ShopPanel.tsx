@@ -7,7 +7,7 @@ import type { Save } from '../../../core/save';
 import { Button } from '../../../ui/Button';
 import { Icon } from '../../../ui/Icon';
 import { formatMoney } from '../../../ui/format';
-import { shopView } from '../model';
+import { ITEM_ICON, shopView } from '../model';
 import { Panel } from './Panel';
 
 export function ShopPanel({ save, note, onInput, onClose }: { save: Save; /** 방금 산 것 ("몬스터볼을 샀다!") — 알림 줄은 판 밑에 깔려서 판 안에 */ note?: string; onInput(i: GameInput): void; onClose(): void }) {
@@ -31,7 +31,7 @@ export function ShopPanel({ save, note, onInput, onClose }: { save: Save; /** �
         {shopView(save).map((r) => (
           <Button key={r.item} secondary disabled={!r.affordable} extraClass="pg-shop-item" onClick={() => onInput({ kind: 'buy', item: r.item })} title={`${r.name} — ${r.detail}${r.affordable ? ' (눌러서 하나 사기)' : ' · 돈이 모자라요'}`}>
             <span class="pg-shop-name">
-              {r.name} <b>{formatMoney(r.price)}</b>
+              <Icon name={ITEM_ICON[r.item]} /> {r.name} <b>{formatMoney(r.price)}</b>
             </span>
             <span class="pg-sub pg-shop-sub">
               {r.effect} · 가진 {r.have}
