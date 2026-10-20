@@ -1965,9 +1965,8 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   .pg-evolve-new {
     animation: pg-evolve-show 0.01s linear 3.2s 1 forwards;
   }
-  .pg-evolve-stage,
-  .pg-catch-shake,
-  .pg-catch-win .pg-catch-shake {
+  /* 잡기 흔들기는 남김 — 몇 번 흔들렸나가 게임 정보 (픽셀 박자 두 걸음 · 좌우 2 ~ 6px, 2026-10-20 태현 님 맥 "안 흔들려") */
+  .pg-evolve-stage {
     animation: none;
   }
 }
@@ -4655,13 +4654,8 @@ body.vscode-light .pg-field-balls {
   .pg-caught-burst {
     animation: none;
   }
+  /* 볼이 열려 포켓몬이 나오는 순간은 남김 (무엇을 잡았나 — 태현 님 맥 "볼이 열리는 연출도 없어") — 넓어지기 · 볼 옮기기 · 금색 고리만 빼고 0.3초에 바뀜 */
   .pg-caught-ball {
-    animation: none;
-    visibility: hidden;
-  }
-  .pg-caught-mon,
-  .pg-caught-info,
-  .pg-caught-art {
-    animation: none;
+    animation: pg-caught-hide 1ms 0.3s both;
   }
 }
