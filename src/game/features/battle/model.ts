@@ -165,6 +165,16 @@ export const TYPE_COLOR: Record<TypeName, string> = {
   flying: '#a8c0ff', psychic: '#ff5aa0', bug: '#a8c830', rock: '#b8a058', ghost: '#7a62b8', dragon: '#7a5aff', dark: '#5a4a40', steel: '#b8c0d0', fairy: '#ffa8d8',
 };
 
+/** 남색 판 위 글자 색 — 어두운 타입 색 (밝기 0.4 아래: 악 · 고스트 · 드래곤) 은 크림 (#e8e2cf) 쪽으로 45% 섞어 읽히게, 나머지는 그대로 */
+export function typeInk(color: string): string {
+  const n = parseInt(color.slice(1), 16);
+  const rgb = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  const lum = (0.2126 * rgb[0]! + 0.7152 * rgb[1]! + 0.0722 * rgb[2]!) / 255;
+  if (lum >= 0.4) return color;
+  const cream = [0xe8, 0xe2, 0xcf];
+  return `#${rgb.map((c, i) => Math.round(c + (cream[i]! - c) * 0.45).toString(16).padStart(2, '0')).join('')}`;
+}
+
 export function moveColor(moveId: number | null, fallback: TypeName | null): string {
   const mv = moveId !== null ? moveOf(moveId) : undefined;
   const t = mv?.type ?? fallback;

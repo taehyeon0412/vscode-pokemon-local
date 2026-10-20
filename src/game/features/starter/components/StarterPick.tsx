@@ -9,6 +9,7 @@ import { speciesOf } from '../../../data';
 import { Button } from '../../../ui/Button';
 import { KeyCap } from '../../../ui/KeyCap';
 import { InfoBar } from '../../../ui/InfoBar';
+import { TypeTags } from '../../battle/components/TypeTag';
 import { Sprite } from '../../../ui/Sprite';
 import { moveView } from '../../result/model';
 import { chainArtWidth, chainRowPx, chainZoom, defaultStarterMoves, evolutionChain, starterList, starterMoveCandidates } from '../model';
@@ -33,7 +34,8 @@ export function StarterPick({ media, pending, onBack, onDone }: StarterPickProps
   const ownTypes = speciesOf(sel.dex)?.types ?? [];
   const cands = starterMoveCandidates(sel.dex).map((m) => ({ ...moveView(m.id), own: ownTypes.includes(m.type) }));
   const chain = evolutionChain(sel.dex);
-  const types = (speciesOf(sel.dex)?.types ?? []).map(typeNameKo).join(' · ');
+  const selTypes = speciesOf(sel.dex)?.types ?? [];
+  const types = selTypes.map(typeNameKo).join(' · ');
   // 진화 줄 배율 · 그림 칸 높이 (패널 180px 이상 ×2 — 이름 줄까지 150px 에 들어가게 낮으면 ×1)
   const zoom = chainZoom(window.innerHeight >= MAP_ROW_MIN_HEIGHT_PX);
   const rowPx = chainRowPx(chain.map((c) => c.form), zoom);
@@ -124,8 +126,8 @@ export function StarterPick({ media, pending, onBack, onDone }: StarterPickProps
                   {c.name}
                 </span>
               ))}
-              <span class="pg-sub pg-chain-types" style={{ gridColumn: 2 * chain.length }}>
-                {types}
+              <span class="pg-chain-types" style={{ gridColumn: 2 * chain.length }}>
+                <TypeTags types={selTypes} />
               </span>
             </div>
           </div>

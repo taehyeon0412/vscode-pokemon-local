@@ -6,10 +6,10 @@
  */
 import type { BattleState, Side } from '../../../core/engine';
 import type { Save } from '../../../core/save';
-import { typeNameKo } from '../../../core/text';
 import { speciesOf } from '../../../data';
 import { Button } from '../../../ui/Button';
 import { Icon } from '../../../ui/Icon';
+import { TypeTags } from '../../battle/components/TypeTag';
 import { moveView } from '../../result/model';
 import { monsterView } from '../model';
 import { CardArt, StatCard } from './StatCard';
@@ -57,7 +57,7 @@ export function ProfileCard({ battle: b, save, media, side, onClose }: { battle:
             </>
           ) : (
             <>
-              <span>{f.types.map(typeNameKo).join(' · ')}</span>
+              <TypeTags types={f.types} />
               <span class={caught ? 'pg-reward' : 'pg-dim'}>
                 <Icon name="ball" /> {caught ? '잡은 적 있음' : '아직 안 잡음'}
               </span>
