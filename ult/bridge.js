@@ -1019,13 +1019,12 @@ window.pokemonFx = {
         });
     },
     /** 닿는 기술 (할퀴기 · 몸통박치기 …) 을 패링 — 늘 쳐내는 몸짓으로 상대를 튕겨 냄 (가만히 서 있던 것, 2026-10-20 태현 님).
-     *  시안 셋 (고를 때까지 dev 미리보기 cparry=a|b|c, 기본 a): a 받아쳐 밀어내기 · b 방패로 튕겨내기 · c 회전 쳐내기. perfect = 금색 · 크게 · 짧은 멈춤, 보통 = 은색 · 작게 */
+     *  받아쳐 밀어내기 (태현 님 시안 셋 중 A — 방패 · 회전은 버림): 반 걸음 받아치며 반달 휘두르기 · 친 쪽이 닿은 자리에서 뒤로 밀렸다 돌아옴. perfect = 금색 · 크게 · 짧은 멈춤, 보통 = 은색 · 작게 */
     contactParry(dst, src, perfect) {
         safeFx({}, () => {
             if (!POKEMON_SHAPE[dst.form] || fxWidth(dst) < 1) {
                 return;
             }
-            const style = window.pokemonFxContactStyle || 'a';
             const g = sigGeometry(fxActor(dst), !!dst.left);
             const s = g.s;
             const dir = g.dir; // 막은 쪽이 보는 쪽 = 친 쪽
@@ -1055,68 +1054,22 @@ window.pokemonFx = {
                 box.animate([{ translate: `${tx}px 0` }, { translate: `${kick}px ${-Math.round(hop)}px`, offset: 0.22 }, { translate: `${over}px 0`, offset: 0.6 }, { translate: '0 0' }], { duration: ms, easing: step(10) });
             };
             const me = dst.box || dst.el;
-            if (style === 'b') {
-                // B 방패로 튕겨내기 — 몸 앞에 픽셀 방패 (둥근 육각) 가 두 걸음에 서고 부딪힌 순간 테두리가 하얗게 · 금 간 불똥
-                const H = g.body.ry * 2.2 * (perfect ? 1 : 0.85);
-                sigParticle({ x: x0, y: y0, s, max: 0.5, H, dir, cols, draw: (ctx, p, t, px) => {
-                    ctx.globalAlpha = t > 0.7 ? hitStep((1 - t) / 0.3) : 1;
-                    const grow = t < 0.08 ? 0.6 : 1;
-                    const h = Math.round((p.H * grow) / p.s);
-                    const w = Math.max(5, Math.round(h * 0.7));
-                    for (let j = 0; j < h; j++) {
-                        const fy = j / (h - 1) - 0.5; // -0.5 ~ 0.5
-                        const half = Math.round(w * (1 - Math.max(0, Math.abs(fy) - 0.25) * 1.6) / 2);
-                        for (let i = -half; i <= half; i++) {
-                            const edge = Math.abs(i) === half || j === 0 || j === h - 1;
-                            const c = edge ? (t < 0.18 ? '#ffffff' : p.cols[2]) : i === -half + 1 || j === 1 ? p.cols[0] : p.cols[1];
-                            dotAt(ctx, px, p.s, p.x + p.dir * (i + half * 0.5) * p.s, p.y + fy * p.H * grow, c, 1, 1);
-                        }
-                    }
-                } });
-                sigBurst(x0, y0, s, [...cols.slice(0, 3), '#ffffff'], Math.round(12 * k), 90 * k);
-                knock(g.w * 0.55 * k, g.body.ry * 0.35 * k, 520);
-                me.animate([{ translate: '0 0' }, { translate: `${-dir * 2 * s}px 0`, offset: 0.3 }, { translate: '0 0' }], { duration: 260, easing: step(4), composite: 'add' });
-            } else if (style === 'c') {
-                // C 회전 쳐내기 — 휙 돌며 (좌우 뒤집기 두 번) 둘레로 금색 원을 벰 · 친 쪽이 위로 붕 날아갔다 떨어짐
-                // 바깥 상자는 translateX(-50%) 라 보이는 몸 가운데 = 상자 왼쪽 끝 — 그 축으로 뒤집음 (가운데 축이면 몸 폭만큼 옆으로 튐)
-                const origin = me.style.transformOrigin;
-                me.style.transformOrigin = '0 50%';
-                me.animate([{ scale: '1 1' }, { scale: '-1 1', offset: 0.33 }, { scale: '1 1', offset: 0.66 }, { scale: '1 1' }], { duration: 300, easing: step(3) }).finished.then(() => {
-                    me.style.transformOrigin = origin;
-                }, () => {
-                    me.style.transformOrigin = origin;
-                });
-                const R = Math.max(g.body.rx, g.body.ry) * 1.6;
-                sigParticle({ x: g.body.cx, y: g.body.cy, s, max: 0.45, R, cols, dir, draw: (ctx, p, t, px) => {
-                    ctx.globalAlpha = hitStep(1 - Math.max(0, t - 0.45) / 0.55);
-                    const sweep = Math.min(1, t / 0.3) * Math.PI * 2;
-                    const n = Math.max(24, Math.ceil((p.R * sweep) / (p.s * 1.5)));
-                    for (let j = 0; j <= n; j++) {
-                        const a = -Math.PI / 2 + p.dir * (j / n) * sweep;
-                        const head = j > n - 4;
-                        dotAt(ctx, px, p.s, p.x + Math.cos(a) * p.R, p.y + Math.sin(a) * p.R * 0.85, head ? '#ffffff' : p.cols[j % 2], head ? 2 : 1, head ? 2 : 1);
-                    }
-                } });
-                sigBurst(x0, y0, s, [...cols.slice(0, 3), '#ffffff'], Math.round(10 * k), 110 * k);
-                knock(g.w * 0.7 * k, g.body.ry * 1.1 * k, 600);
-            } else {
-                // A 받아쳐 밀어내기 — 반 걸음 받아치며 금색 반달 휘두르기 · 친 쪽이 튕겨 뒤로 밀렸다 돌아옴
-                me.animate([{ translate: '0 0' }, { translate: `${Math.round(dir * g.w * 0.22)}px 0`, offset: 0.35 }, { translate: '0 0' }], { duration: 280, easing: step(5), composite: 'add' });
-                const R = g.body.ry * 1.7;
-                sigParticle({ x: g.body.cx + dir * g.w * 0.15, y: g.body.cy, s, max: 0.32, R, dir, cols, draw: (ctx, p, t, px) => {
-                    ctx.globalAlpha = hitStep(1 - Math.max(0, t - 0.3) / 0.7);
-                    const end = 1.2 - 2.55 * Math.min(1, t / 0.3);
-                    for (let a = 1.2; a >= end; a -= 0.07) {
-                        const w = a - end < 0.5 ? 3 : 2;
-                        const cx = p.x + p.dir * Math.cos(a) * p.R;
-                        const cy = p.y + Math.sin(a) * p.R;
-                        dotAt(ctx, px, p.s, cx, cy, p.cols[2], w, w);
-                        dotAt(ctx, px, p.s, cx, cy, a - end < 0.5 ? '#ffffff' : p.cols[0], w - 1, w - 1);
-                    }
-                } });
-                sigBurst(x0, y0, s, [...cols.slice(0, 3), '#ffffff'], Math.round(12 * k), 100 * k);
-                knock(g.w * 0.6 * k, g.body.ry * 0.3 * k, 520);
-            }
+            // 받아쳐 밀어내기 — 반 걸음 받아치며 금색 반달 휘두르기 · 친 쪽이 튕겨 뒤로 밀렸다 돌아옴
+            me.animate([{ translate: '0 0' }, { translate: `${Math.round(dir * g.w * 0.22)}px 0`, offset: 0.35 }, { translate: '0 0' }], { duration: 280, easing: step(5), composite: 'add' });
+            const R = g.body.ry * 1.7;
+            sigParticle({ x: g.body.cx + dir * g.w * 0.15, y: g.body.cy, s, max: 0.32, R, dir, cols, draw: (ctx, p, t, px) => {
+                ctx.globalAlpha = hitStep(1 - Math.max(0, t - 0.3) / 0.7);
+                const end = 1.2 - 2.55 * Math.min(1, t / 0.3);
+                for (let a = 1.2; a >= end; a -= 0.07) {
+                    const w = a - end < 0.5 ? 3 : 2;
+                    const cx = p.x + p.dir * Math.cos(a) * p.R;
+                    const cy = p.y + Math.sin(a) * p.R;
+                    dotAt(ctx, px, p.s, cx, cy, p.cols[2], w, w);
+                    dotAt(ctx, px, p.s, cx, cy, a - end < 0.5 ? '#ffffff' : p.cols[0], w - 1, w - 1);
+                }
+            } });
+            sigBurst(x0, y0, s, [...cols.slice(0, 3), '#ffffff'], Math.round(12 * k), 100 * k);
+            knock(g.w * 0.6 * k, g.body.ry * 0.3 * k, 520);
             sigPow(x0, y0, s, cols, 0.4, false, { size: Math.round(5 * k), white: perfect });
             if (perfect) {
                 window.pokemonFx.hitStop(120);

@@ -93,7 +93,8 @@ w, h = win.split("x")
 q = {"screen": "game", "look": "may", "size": "medium", "dur": "900", "fx": "1", "shim": "1", **extra}
 url = f"http://127.0.0.1:{port}/dev/frame.html?" + urllib.parse.urlencode({"w": w, "h": h, "page": "game.html", "q": urllib.parse.urlencode(q)})
 dbg = 9300 + os.getpid() % 500
-with tempfile.TemporaryDirectory() as prof:
+# 브라우저를 끈 뒤에도 잠깐 파일을 잡고 있어 지우기가 실패할 수 있음 — 무시 (임시 폴더)
+with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as prof:
     p = subprocess.Popen([gs.browser(), "--headless=new", "--disable-gpu", f"--remote-debugging-port={dbg}", f"--user-data-dir={prof}", f"--window-size={w},{h}", "--hide-scrollbars", "about:blank"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
         ws_url = None
