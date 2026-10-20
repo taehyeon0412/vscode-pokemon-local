@@ -3,6 +3,7 @@
 //   progress=0~1 (숲 1-1 진행, 스테이지 시드 42 — 그 자리 바로 앞에서 시작해 흔적 · 조우 · 부탁을 찍음)
 //   place=facility|hospital|shop|shop-front|trainer|trainer-battle|defeat|clear|lobby|gym-battle|badge (단계 8 · 9)
 //   place=rival|rival-talk|rival-battle|rival-over|rival-result|rival-lose  rival=<주인공 id, 기본 may>  record=<이김-짐, 기본 2-1> (라이벌 gdd 4.12)  click=map|team|bag|settings|profile|item
+//   style=<CSS> (시안 비교 — 임시 CSS 를 얹음)
 //   scene=result|learn|evolve|evolve-pick  battle=choose|skills|items|catch|last|counter|clash|ult-cut|ult-beam|attack|pick|over|auto  dur=연출 ms (전투 장면을 바로 — 아래 battleKind)  animAt=초 (CSS 움직임을 그 시점에 멈춤)
 // 확장이 하는 일 중 화면에 보이는 것만 흉내: ready → title · start, title-new · title-continue → start, exit → stop
 (function () {
@@ -28,6 +29,17 @@
         },
     };
     for (const [k, v] of Object.entries(THEMES[theme] || THEMES.dark)) document.documentElement.style.setProperty(k, v);
+    // style=<CSS> — 시안 비교용 임시 CSS (body 끝 <style> 이라 game.css 보다 뒤 — 같은 우선순위면 이김). 사진은 myshots 의 style=@파일
+    const extraCss = q.get('style');
+    if (extraCss) {
+        const add = () => {
+            const el = document.createElement('style');
+            el.textContent = extraCss;
+            document.body.appendChild(el);
+        };
+        if (document.body) add();
+        else document.addEventListener('DOMContentLoaded', add);
+    }
     // VS Code 처럼 body 에 테마 class (밝은 숲 그림 고르기 — StageScreen · TitleScreen 의 themeKind)
     document.body.classList.add(theme === 'light' ? 'vscode-light' : 'vscode-dark');
 

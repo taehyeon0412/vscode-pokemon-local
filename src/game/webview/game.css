@@ -3786,8 +3786,8 @@ body.vscode-high-contrast-light .pg-title-body {
 .pg-choice-art > .pg-choice-sprite {
   grid-row: 1 / span 2;
 }
-/* 대기실 추천 레벨 — 추천은 크림 (모자라는 내 팀만 빨강 + ▼) */
-.pg-lv {
+/* 대기실 추천 레벨 — 추천은 크림 (모자라는 내 팀만 빨강 + ▼) · 전투 HP 줄 .pg-lv 와 다른 이름 */
+.pg-lobby-lv {
   flex: none;
   color: var(--pg-sos-ink);
 }

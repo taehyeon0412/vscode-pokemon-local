@@ -213,7 +213,7 @@ export function LobbyBox({ state, onInput, onBox, onShop, onMap }: BoxProps & { 
         <b class="pg-ellipsis">숲 체육관 — {GYM_LEADER.name}</b>
         {/* 추천 · 내 팀을 나란히 (▼ 만이면 무엇과 비교했는지 모름 — 플레이 리뷰어), 모자라면 빨강 */}
         {/* 추천은 크림 · 모자라는 내 팀만 빨강 + ▼ (구절 전체가 빨갛던 것 — 아트 디렉터 4차) */}
-        <span class="pg-lv" title="내 팀 = 센 3마리 평균 Lv">
+        <span class="pg-lobby-lv" title="내 팀 = 센 3마리 평균 Lv">
           추천 Lv {v.recommended} · <span class={v.short ? 'pg-lv-short' : 'pg-dim'}>내 팀 Lv {v.average}{v.short ? ' ▼' : ''}</span>
         </span>
         {state.save.badges.includes('forest') && <Icon name="badge" title="숲 배지" />}
