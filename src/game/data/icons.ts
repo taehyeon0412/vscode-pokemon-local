@@ -73,8 +73,6 @@ export const ICONS = {
   fast: ['........', 'W...W...', 'WW..WW..', 'WWW.WWW.', 'WWW.WWW.', 'WW..WW..', 'W...W...', '........'],
   /** 빨리 걷기 ▶▶ — 지금 ×3 으로 걷는 중 */
   fastOn: ['........', 'Y...Y...', 'YY..YY..', 'YYy.YYy.', 'YYy.YYy.', 'YY..YY..', 'Y...Y...', '........'],
-  /** 레벨업 ▲ (결과 S12 얼굴 카드 — 남색 위 금색, 2026-10-20) */
-  up: ['...YY...', '..YYYy..', '.YYYYyy.', 'YYYYYyyy', '..YYyy..', '..YYyy..', '..YYyy..', '..yyyy..'],
   /** 잠김 */
   lock: ['..WWWW..', '.WW..WW.', '.W....W.', 'YYYYYYYY', 'YYYyyYYY', 'YYYyyYYY', 'YYYYYYYy', 'yyyyyyyy'],
   // ── 길 위 그림 (S06 ④ 야생 흔적 · ⑭ 떨어진 아이템) — 크기는 제각각, 화면 점 크기 = 포켓몬 그림 배율 ──

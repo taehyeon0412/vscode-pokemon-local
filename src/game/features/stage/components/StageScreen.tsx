@@ -242,7 +242,9 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   // ① 볼 칸 — 몬스터볼 · 슈퍼볼 · 하이퍼볼 (전투 중이면 이 전투에서 쓴 만큼 뺌)
   const ballCounts = BALLS.map((id) => ({ id, n: battle ? itemLeft(battle, save, id) : (save.bag[id] ?? 0) }));
   const balls = <BallCount counts={ballCounts} compact={widthPx < BALLS_COMPACT_PX} />;
-  const ballsInField = widthPx < ballsFieldPx(ballCounts.filter((c) => c.id === 'poke-ball' || c.n > 0).length);
+  // 좁으면 볼 칸을 정보줄 밖으로 — 지도 줄이 있으면 그 줄 맨 앞 (숲 위로 내리면 지도 줄 이름과 겹침 — 아트 디렉터 7차), 없으면 숲 왼쪽 위
+  const ballsOut = widthPx < ballsFieldPx(ballCounts.filter((c) => c.id === 'poke-ball' || c.n > 0).length);
+  const ballsInField = ballsOut && !mapRow;
   const where = gym ? (
     <span class="pg-stage-name">
       <Icon name="gym" /> 숲 체육관 {save.badges.includes('forest') && <Icon name="badge" title="숲 배지" />}
@@ -262,7 +264,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
       ) : (
         <InfoBar
           split={mapRow}
-          left={ballsInField ? undefined : balls}
+          left={ballsOut ? undefined : balls}
           center={mapRow ? undefined : where}
           right={
             canOpenMenus(state) ? (
@@ -301,9 +303,15 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
           </>
         )}
         {/* ② 지도 줄 — 정보줄 아래 길게 (가운데 720px 칸, 정보줄 볼 · 메뉴와 같은 양 끝) */}
-        {mapRow && <div class="pg-maprow">{where}</div>}
+        {mapRow && (
+          <div class="pg-maprow">
+            {ballsOut && balls}
+            {where}
+          </div>
+        )}
         {/* 아주 좁은 패널 — 볼 칸은 숲 왼쪽 위 (정보줄은 지도 · 메뉴) */}
-        {ballsInField && !battle && <div class="pg-field-balls">{balls}</div>}
+        {/* 걷는 동안만 — 상자 (결과 · 병원 · 트레이너) 가 같은 왼쪽 위 자리를 덮어 아이콘 조각만 삐져나오던 것 */}
+        {ballsInField && phase === 'walk' && <div class="pg-field-balls">{balls}</div>}
         <StageObjects objects={objects} media={media} scale={layout.scale} ground={ground} roomPx={heroRoom} />
         <span class="pg-obj pg-hero-wrap" style={{ left: `${heroLeft}px`, bottom: `${ground}px` }}>
           <Hero px={heroPx} walking={phase === 'walk' && live} fast={fast} gender={look.gender} look={look} media={media} roomPx={heroRoom} />

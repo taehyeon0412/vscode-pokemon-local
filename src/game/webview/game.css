@@ -355,14 +355,35 @@ body.pokemon-game-on {
     gap: 4px;
   }
 }
-/* 좁은 패널 (볼 종류에 따라 400 ~ 520px 아래, StageScreen ballsFieldPx) — 볼 칸을 숲 왼쪽 위에 (정보줄에 볼 세 종류 + 메뉴 다섯이 안 들어감). 글자는 1px 짙은 그림자로 숲 위에서 읽힘 */
+/* 좁은 패널 (볼 종류에 따라 400 ~ 520px 아래, StageScreen ballsFieldPx) — 지도 줄이 없으면 볼 칸을 숲 왼쪽 위에 (정보줄에 볼 세 종류 + 메뉴 다섯이 안 들어감) · 걷는 동안만 */
 .pg-field-balls {
   position: absolute;
-  top: 4px;
+  top: var(--pg-gap, 4px);
   left: 8px;
   z-index: 3;
   pointer-events: none;
-  text-shadow: 1px 1px 0 var(--pg-sos-bar);
+  /* 판 없이 숲 위 — 지도 줄 · HP 묶음처럼 네 방향 1px 짙은 테두리 (밝은 테마 낮 하늘에서도 읽히게, 아트 디렉터 7차) · 아이콘은 SVG 라 움직이지 않는 drop-shadow */
+  text-shadow: 1px 0 0 var(--pg-sos-bar), -1px 0 0 var(--pg-sos-bar), 0 1px 0 var(--pg-sos-bar), 0 -1px 0 var(--pg-sos-bar);
+}
+.pg-field-balls .pg-balls {
+  gap: 6px;
+}
+.pg-field-balls .pg-ball-one {
+  gap: 2px;
+}
+/* 지도 줄 맨 앞 볼 칸 (좁은 패널 · 지도 줄이 있을 때) — 지도와 12px */
+.pg-maprow > .pg-balls {
+  flex: none;
+  margin-right: 12px;
+}
+.pg-field-balls .pg-icon {
+  filter: drop-shadow(1px 0 0 var(--pg-sos-bar)) drop-shadow(-1px 0 0 var(--pg-sos-bar)) drop-shadow(0 1px 0 var(--pg-sos-bar)) drop-shadow(0 -1px 0 var(--pg-sos-bar));
+}
+/* 좁은 정보줄 — 볼 칸이 정보줄에 있으면 지도 이름은 통째로 숨김 (한 글자 + … 로 남던 것) · 🌲 + 막대 + % */
+@media (max-width: 640px) {
+  .pg-infobar .pg-stage-label {
+    display: none;
+  }
 }
 .pg-count {
   display: inline-block;
@@ -4170,7 +4191,7 @@ body.vscode-high-contrast-light .pg-title-body {
 .pg-lvup-cards {
   display: inline-flex;
   flex: none;
-  gap: 6px;
+  gap: 8px;
 }
 .pg-lvup-card {
   position: relative;
@@ -4180,13 +4201,18 @@ body.vscode-high-contrast-light .pg-title-body {
   padding: 2px;
   border: 0;
   background: var(--pg-sos-hi);
-  box-shadow: inset 0 0 0 2px var(--pg-sos-gold), 0 0 0 1px var(--pg-sos-tab-ink);
+  box-shadow: inset 0 0 0 2px var(--pg-sos-gold);
   cursor: pointer;
   animation: pg-lvup-pop 0.3s steps(3) both;
 }
+/* 올림 = 금색 3px (안 2 + 바깥 1) + 밝은 남색 · 누름 = 1px 아래 (바탕만 바뀌면 올린 줄 모름 — 아트 디렉터 7차) */
 .pg-lvup-card:hover,
 .pg-lvup-card:focus-visible {
   background: var(--pg-sos-track);
+  box-shadow: inset 0 0 0 2px var(--pg-sos-gold), 0 0 0 1px var(--pg-sos-gold);
+}
+.pg-lvup-card:active {
+  transform: translateY(1px);
 }
 @keyframes pg-lvup-pop {
   0% { transform: translateY(0); }
@@ -4197,30 +4223,25 @@ body.vscode-high-contrast-light .pg-title-body {
   position: absolute;
   left: 2px;
   bottom: 2px;
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 1px 3px 1px 2px;
+  padding: 1px 3px;
   background: var(--pg-sos-bar);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 11px;
   color: var(--pg-sos-gold);
 }
-.pg-lvup-card-lv > .pg-icon {
-  vertical-align: 0;
-}
+/* +남은 포인트 = 정보줄 "포켓몬 +4" 칠한 모양과 같음 (금색 칠 · 짙은 글씨 · 11/700) + 1px 남색 선 — 오른쪽 위 모서리에 걸침 (옆 카드 · 제목과 6px 띄움) */
 .pg-lvup-card-pts {
   position: absolute;
   top: -5px;
-  right: -6px;
+  right: -2px;
   padding: 0 2px;
   background: var(--pg-sos-gold);
   color: var(--pg-sos-tab-ink);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 12px;
-  box-shadow: 0 0 0 1px var(--pg-sos-tab-ink);
+  box-shadow: 0 0 0 1px var(--pg-sos-bar);
 }
 .pg-lvup-spark {
   position: absolute;
@@ -4246,7 +4267,7 @@ body.vscode-high-contrast-light .pg-title-body {
 /* 안내 말풍선 (스탯을 한 번도 안 찍어 본 동안만 — result/model needsStatHint) — 카드 바로 아래에서 위로 카드를 가리킴 (남색 판 + 1px 금색 선 + 금색 11/700 · 꼭지 = 금색 · 남색 두 겹 삼각형). 2px 위아래로 세 번 까딱이고 멈춤 */
 .pg-lvup-hint {
   position: absolute;
-  top: calc(100% + 10px);
+  top: calc(100% + 12px);
   left: -2px;
   padding: 2px 6px;
   border: 1px solid var(--pg-sos-gold);
@@ -4259,26 +4280,19 @@ body.vscode-high-contrast-light .pg-title-body {
   pointer-events: none;
   animation: pg-lvup-nod 0.6s steps(2) 0.4s 3 both;
 }
-.pg-lvup-hint::before,
-.pg-lvup-hint::after {
+/* 꼭지 = 2px 계단 픽셀 셰브런 (폭 2 · 6 · 10px, 각 2px — Sea of Stars 대화 상자 ▼ 문법, CSS 빗변 삼각형은 흐려서 뺌 — 아트 디렉터 7차) · 끝과 상자 선 사이 2px */
+.pg-lvup-hint::before {
   content: "";
   position: absolute;
-  left: 18px;
-  border: solid transparent;
-}
-.pg-lvup-hint::before {
   bottom: 100%;
-  border-width: 0 6px 6px;
-  border-bottom-color: var(--pg-sos-gold);
+  left: 14px;
+  width: 10px;
+  height: 6px;
+  background: var(--pg-sos-gold);
+  clip-path: polygon(4px 0, 6px 0, 6px 2px, 8px 2px, 8px 4px, 10px 4px, 10px 6px, 0 6px, 0 4px, 2px 4px, 2px 2px, 4px 2px);
 }
-.pg-lvup-hint::after {
-  bottom: calc(100% - 1px);
-  left: 19px;
-  border-width: 0 5px 5px;
-  border-bottom-color: var(--pg-sos-bar);
-}
-/* 아주 좁은 패널 — "스탯 찍기" 만 (주인공 머리를 덮지 않게) */
-@media (max-width: 300px) {
+/* 좁은 패널 — "스탯 찍기" 만 (주인공 머리를 덮지 않게 — 301 ~ 360px 에서 긴 말이 닿음, 아트 디렉터 7차) */
+@media (max-width: 360px) {
   .pg-lvup-hint-verb {
     display: none;
   }

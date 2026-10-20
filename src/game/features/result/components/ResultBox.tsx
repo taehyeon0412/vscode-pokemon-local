@@ -42,10 +42,8 @@ function FaceCards({ ups, media, hint, onStats }: { ups: LevelUpView[]; media: s
       {shown.map((u) => (
         <button key={u.uid} type="button" class="pg-lvup-card" onClick={() => onStats(u.uid)} title={`${u.name} Lv ${u.from} → ${u.to} — 스탯 찍기 (P)`}>
           <Sprite media={media} form={u.form} shiny={u.shiny} scale={1} crop={40} fieldSize center />
-          <span class="pg-lvup-card-lv">
-            <Icon name="up" px={1} />
-            {u.to}
-          </span>
+          {/* ▲ = 둘째 줄 · 다른 화면의 레벨업 글자와 같은 기호 (1배 아이콘은 픽셀 격자가 깨져 뺌 — 아트 디렉터 7차) */}
+          <span class="pg-lvup-card-lv">▲{u.to}</span>
           {u.points > 0 && <span class="pg-lvup-card-pts">+{u.points}</span>}
           <i class="pg-lvup-spark pg-lvup-spark-1" aria-hidden="true" />
           <i class="pg-lvup-spark pg-lvup-spark-2" aria-hidden="true" />
@@ -65,6 +63,8 @@ function FaceCards({ ups, media, hint, onStats }: { ups: LevelUpView[]; media: s
 export function ResultBox({ summary, next, ups, hint = false, media, onInput, onStats }: { summary: BattleSummary; next: 'learn' | 'evolve' | null; ups: LevelUpView[]; /** 얼굴 카드 안내 말풍선 (needsStatHint) */ hint?: boolean; media: string; onInput(i: GameInput): void; onStats(uid: string): void }) {
   const { title, head, body } = summaryLines(summary);
   const all = [title, ...head.map(partText), ...body.map(partText)].join(' · ') + (summary.rival ? ` · 라이벌 보상 (돈 ×${BALANCE.rivalMoneyScale} · 아이템)` : '');
+  // 카드가 레벨업을 보여 주면 둘째 줄의 "▲ 이상해씨 Lv 5 → 6 (경험치 +28)" 은 빼고 새 기술 (★) 을 앞에 — 같은 말 두 번 · 좁으면 ★ 가 잘리던 것 (아트 디렉터 7차, 전체는 마우스를 올리면)
+  const rest = ups.length === 0 ? body : [...body.filter((p) => p.kind === 'learned'), ...body.filter((p) => p.kind !== 'up' && p.kind !== 'learned')];
   const lines = (
     <>
       <span class="pg-line">
@@ -76,9 +76,9 @@ export function ResultBox({ summary, next, ups, hint = false, media, onInput, on
           <KeyCap k="Enter" /> {next === 'evolve' ? '▶ 어…?' : next === 'learn' ? '▶ 새 기술' : '계속 ▶'}
         </Button>
       </span>
-      {body.length > 0 && (
+      {rest.length > 0 && (
         <span class="pg-line pg-ellipsis pg-result-body">
-          {body.map((p, i) => (
+          {rest.map((p, i) => (
             <span key={i}>
               {i > 0 && ' · '}
               <Line p={p} />
