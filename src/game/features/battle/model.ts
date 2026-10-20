@@ -175,6 +175,16 @@ export function typeInk(color: string): string {
   return `#${rgb.map((c, i) => Math.round(c + (cream[i]! - c) * 0.45).toString(16).padStart(2, '0')).join('')}`;
 }
 
+/** 타입 동그라미 안 아이콘 색 — 보통은 타입 색을 남색 쪽으로 78% (짙게), 어두운 타입 (밝기 0.35 아래: 악) 은 크림 (짙은 원 위에서 안 보여서) */
+export function typeGlyph(color: string): string {
+  const n = parseInt(color.slice(1), 16);
+  const rgb = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  const lum = (0.2126 * rgb[0]! + 0.7152 * rgb[1]! + 0.0722 * rgb[2]!) / 255;
+  if (lum < 0.35) return '#e8e2cf';
+  const navy = [12, 16, 30];
+  return `#${rgb.map((c, i) => Math.round(c + (navy[i]! - c) * 0.78).toString(16).padStart(2, '0')).join('')}`;
+}
+
 export function moveColor(moveId: number | null, fallback: TypeName | null): string {
   const mv = moveId !== null ? moveOf(moveId) : undefined;
   const t = mv?.type ?? fallback;
