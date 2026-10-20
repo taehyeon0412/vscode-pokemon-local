@@ -5,7 +5,7 @@ import { BALANCE, TIMING } from '../balance';
 import { expGain, levelUpChoices } from '../rules/growth';
 import { expForLevel } from '../rules/stats';
 import type { Monster, Save } from '../save';
-import { battleInput, battleStep, readBattle, startBattle, type BattleState } from './battle';
+import { battleInput, battleStep, catchTimeline, catchTriesUsed, readBattle, startBattle, type BattleState } from './battle';
 import { battleRewards, resolveEvolve, resolveLearn } from './rewards';
 import { Rng } from './rng';
 
@@ -20,34 +20,90 @@ function run(b0: BattleState, save: Save, ms: number, rng: Rng = new Rng(1)): Ba
   return b;
 }
 const myTurn = (b: BattleState): BattleState => ({ ...b, phase: 'choose', me: { ...b.me, gauge: 1 } });
+/** 정해진 차례로 값을 내는 랜덤 (다 쓰면 0.5) */
+const seqRng = (vs: number[]): Rng => {
+  const q = [...vs];
+  return { next: () => q.shift() ?? 0.5, int: (lo: number) => lo, chance: (p: number) => (q.shift() ?? 0.5) < p, state: 1 } as unknown as Rng;
+};
+/** 던진 뒤 결과까지 (날아감 · 빨려 들어감 · 떨어짐) */
+const AFTER_THROW = TIMING.catchFlyMs + TIMING.catchSuckMs + TIMING.catchDropMs;
+/** 잡기가 끝날 때까지 걸음 */
+function untilOut(b0: BattleState, save: Save, rng: Rng = new Rng(1)): BattleState {
+  let b = b0;
+  for (let i = 0; i < 200 && b.phase === 'catch'; i++) b = battleStep(b, save, STEP, rng, { auto: false });
+  return b;
+}
 
 describe('S11 잡기 — 전투 흐름', () => {
-  it('4 아이템 → 볼: 타이밍 원 → 흔들흔들 → 잡힘 (볼 1개 씀) · 원이 다 줄어든 순간에 누르면 완벽', () => {
+  it('4 아이템 → 볼: 서 있는 상대 둘레 원 → Space = 그때 던짐 (완벽) → 날아감 · 빨려 들어감 · 떨어짐 · 흔들 3번 → 잡힘 (볼 1개 씀, 2026-10-20 태현 님 A안)', () => {
     const save = withBalls(sampleSave());
     const b = myTurn(startBattle(save, wild(), 'normal'));
-    const thrown = battleInput(b, save, { kind: 'act', action: { kind: 'item', item: 'poke-ball' } }, new Rng(1));
-    expect(thrown.phase).toBe('catch');
-    expect(thrown.bagUsed['poke-ball']).toBe(1);
-    expect(thrown.me.gauge).toBe(0);
-    const pressed = battleInput(run(thrown, save, TIMING.catchRingMs), save, { kind: 'space' }, new Rng(1));
-    expect(pressed.catch?.pressMs).toBe(TIMING.catchRingMs);
+    const ready = battleInput(b, save, { kind: 'act', action: { kind: 'item', item: 'poke-ball' } }, new Rng(1));
+    expect(ready.phase).toBe('catch');
+    expect(ready.bagUsed['poke-ball']).toBe(1);
+    expect(ready.me.gauge).toBe(0);
+    expect(catchTimeline(ready.catch!)).toBeNull(); // 아직 원이 줄어드는 중
+    const thrown = battleInput(run(ready, save, TIMING.catchRingMs), save, { kind: 'space' }, fixedRng(0.01));
+    expect(thrown.catch).toMatchObject({ pressMs: TIMING.catchRingMs, throwMs: TIMING.catchRingMs, caught: true, shakes: 3 });
+    expect(thrown.msg).toContain('완벽');
     // 두 번째 누름은 안 셈
-    expect(battleInput(pressed, save, { kind: 'space' }, new Rng(1))).toBe(pressed);
-    const decided = run(pressed, save, BALANCE.catchGoodMs + STEP, fixedRng(0.01));
-    expect(decided.catch?.caught).toBe(true);
-    expect(decided.msg).toContain('완벽');
-    const done = run(decided, save, TIMING.catchShakeMs, fixedRng(0.01));
+    expect(battleInput(thrown, save, { kind: 'space' }, fixedRng(0.99))).toBe(thrown);
+    const tl = catchTimeline(thrown.catch!)!;
+    expect(tl.done - tl.thrown).toBe(AFTER_THROW + 3 * TIMING.catchShakeMs + TIMING.catchEndMs);
+    expect(run(thrown, save, AFTER_THROW + STEP).msg).toContain('흔들');
+    const done = untilOut(thrown, save);
     expect([done.phase, done.result]).toEqual(['over', 'catch']);
+    expect(done.catch?.ms).toBeGreaterThanOrEqual(tl.done);
   });
 
-  it('빠져나오면 전투 계속 (내 행동은 쓴 것)', () => {
+  it('안 누르면 원이 끝날 때 (늦게 누를 틈까지) 저절로 던짐 — 기본 확률 · 그 뒤 누름은 안 셈', () => {
     const save = withBalls(sampleSave());
+    const ready = battleInput(myTurn(startBattle(save, wild(), 'normal')), save, { kind: 'act', action: { kind: 'item', item: 'poke-ball' } }, new Rng(1));
+    const auto = run(ready, save, TIMING.catchRingMs + BALANCE.catchGoodMs + STEP, fixedRng(0.99));
+    expect(auto.catch).toMatchObject({ pressMs: null, throwMs: TIMING.catchRingMs + BALANCE.catchGoodMs, caught: false });
+    expect(battleInput(auto, save, { kind: 'space' }, fixedRng(0.01))).toBe(auto);
+  });
+
+  it('놓치면 상대 HP + 최대 HP 의 10% · 상대 게이지 가득 (먼저 공격) · 전투 계속 · 흔들 횟수 1 ~ 3 (잡힐 뻔할수록 많이)', () => {
+    const save = withBalls(sampleSave());
+    const b0 = startBattle(save, wild(), 'normal');
+    const hp = Math.round(b0.foe.maxHp * 0.3);
+    const ready = battleInput(myTurn({ ...b0, foe: { ...b0.foe, hp } }), save, { kind: 'act', action: { kind: 'item', item: 'poke-ball' } }, new Rng(1));
+    const at = run(ready, save, 600);
+    const once = battleInput(at, save, { kind: 'space' }, fixedRng(0.99));
+    expect(once.catch).toMatchObject({ caught: false, shakes: 1 });
+    expect(battleInput(at, save, { kind: 'space' }, seqRng([0.99, 0, 0])).catch?.shakes).toBe(3);
+    expect(battleInput(at, save, { kind: 'space' }, seqRng([0.99, 0, 0.999])).catch?.shakes).toBe(2);
+    const out = untilOut(once, save, fixedRng(0.99));
+    expect(out.phase).toBe('run');
+    expect(out.catch).toBeNull();
+    expect(out.msg).toContain('빠져나왔다');
+    const heal = Math.max(1, Math.round(b0.foe.maxHp * BALANCE.catchFailHeal));
+    expect(out.foe.hp).toBe(Math.min(b0.foe.maxHp, hp + heal));
+    expect(out.foe.gauge).toBe(1);
+    expect(out.popups.some((p) => p.side === 'foe' && p.kind === 'heal' && p.text === `+${heal}`)).toBe(true);
+    // 다음 걸음에 상대가 먼저 덤빔 (내 게이지는 0 부터)
+    const next = battleStep(out, save, STEP, fixedRng(0.5), { auto: false });
+    expect(next.anim?.side).toBe('foe');
+    // HP 가 가득하면 더 오르지 않음
+    const full = untilOut(battleInput(run(battleInput(myTurn(b0), save, { kind: 'act', action: { kind: 'item', item: 'poke-ball' } }, new Rng(1)), save, 600), save, { kind: 'space' }, fixedRng(0.99)), save, fixedRng(0.99));
+    expect(full.foe.hp).toBe(b0.foe.maxHp);
+  });
+
+  it('세 번 다 놓치면 상대가 도망 (경험치 없음) · 볼 기회를 다 쓰면 볼 메뉴 · 마지막 기회 없음 (2026-10-20 태현 님)', () => {
+    const save = withBalls(sampleSave(), 5);
     const b = myTurn(startBattle(save, wild(), 'normal'));
-    const thrown = battleInput(b, save, { kind: 'act', action: { kind: 'item', item: 'poke-ball' } }, new Rng(1));
-    const broke = run(thrown, save, TIMING.catchRingMs + BALANCE.catchGoodMs + TIMING.catchShakeMs + STEP, fixedRng(0.99));
-    expect(broke.phase).toBe('run');
-    expect(broke.catch).toBeNull();
-    expect(broke.msg).toContain('빠져나왔다');
+    const ready = battleInput({ ...b, bagUsed: { 'poke-ball': 2 } }, save, { kind: 'act', action: { kind: 'item', item: 'poke-ball' } }, new Rng(1));
+    expect(ready.phase).toBe('catch');
+    const out = untilOut(battleInput(run(ready, save, 600), save, { kind: 'space' }, fixedRng(0.99)), save, fixedRng(0.99));
+    expect([out.phase, out.result]).toEqual(['over', 'flee']);
+    expect(out.msg).toContain('도망쳐 버렸다');
+    const used3 = { ...b, bagUsed: { 'poke-ball': 3 } };
+    expect(catchTriesUsed(used3)).toBe(3);
+    expect(battleInput(used3, save, { kind: 'act', action: { kind: 'item', item: 'poke-ball' } }, new Rng(1))).toBe(used3);
+    const lastHit = { ...used3, foe: { ...used3.foe, hp: 1 } };
+    const won = run(battleInput(lastHit, save, { kind: 'act', action: { kind: 'attack' } }, fixedRng(0.5)), save, TIMING.attackAnimMs, fixedRng(0.5));
+    expect([won.phase, won.result]).toEqual(['over', 'win']);
   });
 
   it('볼이 없거나 0개면 못 던짐', () => {
@@ -69,8 +125,12 @@ describe('S11 잡기 — 전투 흐름', () => {
     expect([away.phase, away.result]).toEqual(['over', 'win']);
     const thrown = battleInput(won, save, { kind: 'ball', ball: 'poke-ball' }, new Rng(1));
     expect(thrown.catch).toMatchObject({ last: true });
-    const fail = run(thrown, save, TIMING.catchRingMs + BALANCE.catchGoodMs + TIMING.catchShakeMs + STEP, fixedRng(0.99));
+    const fail = untilOut(thrown, save, fixedRng(0.99));
     expect([fail.phase, fail.result]).toEqual(['over', 'win']);
+    expect(fail.foe.hp).toBe(0); // 마지막 기회는 놓쳐도 되살아나지 않음
+    // 세 번째 기회를 마지막 기회로 써도 도망이 아니라 이김
+    const third = untilOut(battleInput({ ...won, bagUsed: { 'poke-ball': 2 } }, save, { kind: 'ball', ball: 'poke-ball' }, new Rng(1)), save, fixedRng(0.99));
+    expect([third.phase, third.result]).toEqual(['over', 'win']);
     // 볼이 없으면 마지막 기회 없이 바로 이김
     const none = { ...save, bag: {} };
     const noBall = run(battleInput({ ...lastHit }, none, { kind: 'act', action: { kind: 'attack' } }, fixedRng(0.5)), none, TIMING.attackAnimMs, fixedRng(0.5));
@@ -85,6 +145,16 @@ describe('S11 잡기 — 전투 흐름', () => {
     const t2 = battleInput(b, save, { kind: 'act', action: { kind: 'item', item: 'poke-ball' } }, new Rng(1));
     expect(readBattle(viaJson(t2))).toEqual(t2);
     expect(readBattle({ ...viaJson(t2), catch: { ...viaJson(t2).catch, ball: 'master-ball' } })).toBeNull();
+    // 던진 뒤 (흔드는 중) 도 그대로
+    const shaking = battleInput(run(t2, save, 600), save, { kind: 'space' }, fixedRng(0.99));
+    expect(readBattle(viaJson(shaking))).toEqual(shaking);
+    expect(readBattle({ ...viaJson(shaking), catch: { ...viaJson(shaking).catch, throwMs: null } })).toBeNull(); // 안 던졌는데 결과가 있음
+    expect(readBattle({ ...viaJson(shaking), catch: { ...viaJson(shaking).catch, shakes: 9 } })).toBeNull();
+    // 옛 상태 (던진 때 · 흔들 횟수 없음) — 원이 줄어드는 중 · 흔드는 중으로 이어 감
+    const { throwMs: _t, shakes: _s, ...oldRing } = viaJson(t2).catch!;
+    expect(readBattle({ ...viaJson(t2), catch: oldRing })?.catch).toMatchObject({ throwMs: null, shakes: 0 });
+    const oldShake = { ...oldRing, ms: 1500, caught: true };
+    expect(readBattle({ ...viaJson(t2), catch: oldShake })?.catch).toMatchObject({ throwMs: 1500 - AFTER_THROW, shakes: 3 });
   });
 });
 
@@ -206,7 +276,7 @@ describe('단계 7 검토에서 고친 것 (bugs #136 ~)', () => {
     const b0 = startBattle(save, wild(), 'normal');
     const sick = myTurn({ ...b0, me: { ...b0.me, status: { kind: 'poison' as const } } });
     const thrown = battleInput(sick, save, { kind: 'act', action: { kind: 'item', item: 'poke-ball' } }, new Rng(1));
-    const broke = run(thrown, save, TIMING.catchRingMs + BALANCE.catchGoodMs + TIMING.catchShakeMs + STEP, fixedRng(0.99));
+    const broke = untilOut(thrown, save, fixedRng(0.99));
     expect(broke.me.hp).toBe(sick.me.hp - Math.max(1, Math.floor(sick.me.maxHp * BALANCE.poisonDamage)));
   });
 

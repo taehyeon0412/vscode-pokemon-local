@@ -14,7 +14,7 @@ import type { Save } from '../../../core/save';
 import { speciesOf } from '../../../data';
 import { Button } from '../../../ui/Button';
 import { Icon } from '../../../ui/Icon';
-import { menuItems, type MenuItem, type MenuPage } from '../model';
+import { catchView, menuItems, type MenuItem, type MenuPage } from '../model';
 
 export interface BattleMenuProps {
   battle: BattleState;
@@ -209,14 +209,16 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
     );
   } else if (b.phase === 'catch' && b.catch) {
     // S11 타이밍 원 — 원이 딱 맞을 때 Space (클릭도 됨)
+    // 던진 뒤 = 지금 장면 한 줄 (2026-10-20 — 누른 때 = 던짐)
+    const stage = catchView(b)?.stage;
     row =
-      b.catch.caught === null && b.catch.pressMs === null ? (
+      stage === 'ring' ? (
         <Button onClick={() => onInput({ kind: 'space' })} title="원이 안쪽 원에 딱 맞을 때">
           {/* 옆 메뉴는 칸이 좁아 짧게 (×3 패널에서 "원이 딱 맞을 때 (…" 로 잘리던 것) */}
           {vertical ? `딱 맞을 때 ${document.hasFocus() ? 'Space' : '클릭'}` : `원이 딱 맞을 때 ${key}`}
         </Button>
       ) : (
-        <span class="pg-dim">{b.catch.caught === null ? '던졌다!' : '흔들… 흔들…'}</span>
+        <span class="pg-dim">{stage === 'shake' ? '흔들… 흔들…' : stage === 'end' ? (b.catch.caught ? '딸깍!' : '앗!') : '던졌다!'}</span>
       );
   } else if (page !== 'main' && b.phase !== 'clash' && b.phase !== 'over') {
     row = renderItems(items);

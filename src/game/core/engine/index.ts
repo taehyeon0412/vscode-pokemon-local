@@ -33,6 +33,8 @@ export {
   ultCounterOpen,
   type BattleAction,
   type BattleCatch,
+  catchTimeline,
+  catchTriesUsed,
   type BattleInput,
   type BattleKind,
   type BattlePopup,

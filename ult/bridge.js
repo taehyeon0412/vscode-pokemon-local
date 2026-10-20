@@ -242,6 +242,89 @@ function fxTarget(g, dst) {
     const hud = fxHudRects().filter((h) => h.right > r.left - r.width && h.left < r.right + r.width);
     return { cx, cy: r.top + r.height * 0.55, w: r.width, far: g.dir > 0 ? r.right : r.left, dist: Math.abs(cx - g.mouth.x), ground: r.bottom, hudBottom: hud.length ? Math.max(...hud.map((h) => h.bottom)) : 0 };
 }
+// ── 완벽 패링 쳐내기 = 쳐올리기 (2026-10-20 태현 님 시안 B) ──
+// 기술 색 구슬 (도는 살 넷) · 꼬리 · 금색 별 폭발 · 픽셀 고리
+function swatOrbDraw(ctx, p, t, px) {
+    ctx.globalAlpha = 1;
+    const r = p.R || 5;
+    sigDisc(ctx, px, p.s, p.x, p.y, r * p.s, p.cols[2]);
+    sigDisc(ctx, px, p.s, p.x, p.y, (r - 1) * p.s, p.cols[1]);
+    sigDisc(ctx, px, p.s, p.x, p.y, Math.max(1, r - 3) * p.s, p.cols[0]);
+    dotAt(ctx, px, p.s, p.x - 2 * p.s, p.y - 2 * p.s, '#ffffff', 2, 2);
+    for (let k = 0; k < 4; k++) {
+        const a = (p.spin || 0) + (k * Math.PI) / 2;
+        dotAt(ctx, px, p.s, p.x + Math.cos(a) * (r + 1) * p.s, p.y + Math.sin(a) * (r + 1) * p.s, p.cols[0], 2, 2);
+    }
+}
+function swatTail(p, n, gold) {
+    for (let k = 0; k < n; k++) {
+        const c = gold && k === 0 ? HIT_GOLD[movePick([0, 1])] : p.cols[movePick([0, 1, 2])];
+        sigParticle({ x: p.x + moveRand(-2, 2) * p.s, y: p.y + moveRand(-2, 2) * p.s, s: p.s, max: moveRand(0.25, 0.5), color: c, size: movePick([1, 2]), draw: DRAW.dot });
+    }
+}
+function swatRing(x, y, s, R0, R1, cols, max) {
+    sigParticle({ x, y, s, max, R0, R1, cols, draw: (ctx, p, t, px) => {
+        ctx.globalAlpha = hitStep(1 - t);
+        const r = p.R0 + (p.R1 - p.R0) * (1 - (1 - t) * (1 - t));
+        const n = Math.max(12, Math.ceil((2 * Math.PI * r) / (p.s * 1.6)));
+        const w = t < 0.5 ? 2 : 1;
+        for (let j = 0; j < n; j++) {
+            const a = (j / n) * Math.PI * 2;
+            dotAt(ctx, px, p.s, p.x + Math.cos(a) * r, p.y + Math.sin(a) * r, j % 2 ? p.cols[0] : p.cols[1], w, w);
+        }
+    } });
+}
+function swatBoom(x, y, s, cols, k) {
+    sigPow(x, y, s, HIT_GOLD, 0.5, false, { size: Math.round(5 * k), white: true });
+    sigBurst(x, y, s, [...cols.slice(0, 3), '#ffffff', HIT_GOLD[1]], Math.round(14 * k), 95 * k);
+    for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2 + moveRand(-0.3, 0.3);
+        sigParticle({ x, y, s, vx: Math.cos(a) * 70 * k * s, vy: Math.sin(a) * 70 * k * s - 20 * s, g: 60 * s, drag: 2, max: moveRand(0.45, 0.65), cols: HIT_GOLD, draw: DRAW.sparkle });
+    }
+    swatRing(x, y, s, 3 * s, 22 * k * s, HIT_GOLD, 0.4);
+}
+// 쳐올리기 — 금색 반달 휘두르기 → 구슬이 높은 포물선으로 날아올라 꼭대기 (또는 위 끝) 에서 불꽃놀이처럼 터짐
+function swatUp(g, x0, y0, cols) {
+    const s = g.s;
+    const R = g.body.ry * 1.7;
+    sigParticle({ x: g.body.cx, y: g.body.cy, s, max: 0.32, R, dir: g.dir, draw: (ctx, p, t, px) => {
+        // 아래 앞 (1.2) → 위 (-1.35) 로 0.1초에 쓸고 남은 자국이 흐려짐
+        ctx.globalAlpha = hitStep(1 - Math.max(0, t - 0.3) / 0.7);
+        const end = 1.2 - 2.55 * Math.min(1, t / 0.3);
+        for (let a = 1.2; a >= end; a -= 0.07) {
+            const w = a - end < 0.5 ? 3 : 2;
+            const cx = p.x + p.dir * Math.cos(a) * p.R;
+            const cy = p.y + Math.sin(a) * p.R;
+            dotAt(ctx, px, p.s, cx, cy, HIT_GOLD[2], w, w);
+            dotAt(ctx, px, p.s, cx, cy, a - end < 0.5 ? '#ffffff' : HIT_GOLD[0], w - 1, w - 1);
+        }
+    } });
+    const v = 240 * s;
+    const top = fxTop() + 8 * s;
+    sigParticle({ x: x0, y: y0, s, vx: g.dir * Math.cos(1.0) * v, vy: -Math.sin(1.0) * v, g: 330 * s, max: 1.2, cols, spin: 0, R: 5, update: (p, dt) => {
+        if (p.popped) {
+            return;
+        }
+        p.spin += dt * 14;
+        swatTail(p, 2, true);
+        if ((p.vy || 0) >= 0 || p.y < top || p.x < 6 * p.s || p.x > window.innerWidth - 6 * p.s) {
+            p.popped = true;
+            p.life = p.max;
+            swatBoom(p.x, p.y, p.s, p.cols, 1.45);
+            // 불꽃놀이 살 — 8 줄기
+            for (let i = 0; i < 8; i++) {
+                const a = (i / 8) * Math.PI * 2;
+                sigParticle({ x: p.x, y: p.y, s: p.s, vx: Math.cos(a) * 150 * p.s, vy: Math.sin(a) * 150 * p.s, g: 90 * p.s, drag: 3, max: 0.5, color: i % 2 ? HIT_GOLD[0] : p.cols[0], len: 3, draw: (ctx, q, t, px) => {
+                    ctx.globalAlpha = hitStep(1 - t);
+                    const m = Math.hypot(q.vx, q.vy) || 1;
+                    for (let j = 0; j < q.len; j++) {
+                        dotAt(ctx, px, q.s, q.x - (q.vx / m) * j * 2 * q.s, q.y - (q.vy / m) * j * 2 * q.s, j === 0 ? '#ffffff' : q.color);
+                    }
+                } });
+            }
+        }
+    }, draw: swatOrbDraw });
+}
 // 쓰는 쪽 몸 앞 → 상대 가운데 번개 줄기 — 연출 55% 부터 0.35초, 모양만 0.12초마다 새로 (밝기 그대로 — 1초 3번 규칙)
 function fxSparkArc(g, t) {
     const ms = SIG_FX.spark.ms(g.P, {});
@@ -774,12 +857,27 @@ window.pokemonFx = {
             const dir = g.dir; // 막은 쪽이 보는 쪽 = 친 쪽
             const x0 = g.body.front + dir * 2 * s;
             const y0 = g.body.cy;
-            // 날아오던 것 지우기 — 막은 쪽으로 오는 입자 (몸 앞 3폭 안) · 막은 쪽을 향한 광선
+            // 날아오던 것 — 한꺼번에 지우면 "누르니 사라졌다" 로 보임 (2026-10-20 태현 님 #433): 몸 앞 1.5폭 안은 위 · 친 쪽으로 튕겨 흩어지고 (0.45초),
+            // 그 뒤에 오던 것 · 막은 쪽을 향한 광선 · 줄기는 0.2초에 걸쳐 사라짐 (광선은 아래에서 위로 꺾인 줄기가 새로 뻗음)
             for (const p of moveParticles) {
-                const toward = (p.vx || 0) * dir < 0 && Math.abs(p.x - x0) < g.w * 3;
                 const beam = p.reach !== undefined && p.W !== undefined && p.dir !== undefined && p.dir * dir < 0;
-                if (toward || beam) {
-                    p.life = p.max;
+                if (beam) {
+                    p.max = Math.min(p.max, p.life + 0.2);
+                    continue;
+                }
+                if (!((p.vx || 0) * dir < 0 && Math.abs(p.x - x0) < g.w * 3) || p.life >= p.max) {
+                    continue;
+                }
+                if (Math.abs(p.x - x0) < g.w * 1.5 && !p.update) {
+                    const sp = Math.max(60 * s, Math.hypot(p.vx || 0, p.vy || 0) * 0.4);
+                    const a = moveRand(0.55, 1.25);
+                    p.vx = dir * Math.cos(a) * sp;
+                    p.vy = -Math.sin(a) * sp;
+                    p.g = 140 * s;
+                    p.drag = 1.2;
+                    p.max = Math.min(p.max, p.life + moveRand(0.35, 0.5));
+                } else {
+                    p.max = Math.min(p.max, p.life + 0.2);
                 }
             }
             // 뿜기 · 물대포처럼 계속 뿜던 것도 멈춤 (쳐낸 뒤에도 날아오지 않게)
@@ -791,9 +889,9 @@ window.pokemonFx = {
             if (kind === 'beam' || kind === 'solarbeam') {
                 // 광선 — 막은 자리에서 위로 꺾인 굵은 줄기가 0.4초 동안 뻗었다 흩어짐 (줄기를 따라 반짝이)
                 const L = g.w * 3.5;
-                sigParticle({ x: x0, y: y0, s, max: 0.4, cols, draw: (ctx, p, t, px) => {
+                sigParticle({ x: x0, y: y0, s, max: 0.65, cols, draw: (ctx, p, t, px) => {
                     ctx.globalAlpha = t > 0.6 ? Math.ceil(((1 - t) / 0.4) * 4) / 4 : 1;
-                    const len = L * Math.min(1, t / 0.12);
+                    const len = L * Math.min(1, t / 0.2);
                     for (let d = 0; d < len; d += p.s) {
                         const w = Math.max(1, Math.round(3 * (1 - d / L) * (t < 0.5 ? 1 : 1 - (t - 0.5) * 1.6)));
                         const cx = p.x + ax * d;
@@ -807,30 +905,13 @@ window.pokemonFx = {
                     sigParticle({ x: x0 + ax * d, y: y0 + ay * d, s, vx: moveRand(-30, 30) * s, vy: moveRand(-30, 10) * s, max: moveRand(0.3, 0.5), cols, draw: DRAW.sparkle });
                 }
             } else {
-                // 날아오는 것 — 기술 색 구슬이 회전하며 위쪽 대각선으로 튕겨 나감 + 꼬리
-                const v = 300 * s;
-                sigParticle({ x: x0, y: y0, s, vx: ax * v, vy: ay * v, g: 60 * s, max: 0.9, cols, spin: 0, update: (p, dt) => {
-                    p.spin += dt * 18;
-                    // 꼬리 — 2칸 덩이가 길게 남음
-                    for (let k = 0; k < 2; k++) {
-                        sigParticle({ x: p.x + moveRand(-2, 2) * p.s, y: p.y + moveRand(-2, 2) * p.s, s: p.s, max: moveRand(0.25, 0.45), color: p.cols[movePick([0, 1, 2])], size: movePick([1, 2]), draw: DRAW.dot });
-                    }
-                }, draw: (ctx, p, t, px) => {
-                    ctx.globalAlpha = 1;
-                    sigDisc(ctx, px, p.s, p.x, p.y, 5 * p.s, p.cols[2]);
-                    sigDisc(ctx, px, p.s, p.x, p.y, 4 * p.s, p.cols[1]);
-                    sigDisc(ctx, px, p.s, p.x, p.y, 2 * p.s, p.cols[0]);
-                    dotAt(ctx, px, p.s, p.x - 2 * p.s, p.y - 2 * p.s, '#ffffff', 2, 2);
-                    // 도는 살 네 개
-                    for (let k = 0; k < 4; k++) {
-                        const a = p.spin + (k * Math.PI) / 2;
-                        dotAt(ctx, px, p.s, p.x + Math.cos(a) * 6 * p.s, p.y + Math.sin(a) * 6 * p.s, p.cols[0], 2, 2);
-                    }
-                } });
+                // 날아오는 것 — 쳐올리기 (2026-10-20 태현 님 시안 셋 중 B "쳐올리기가 가장 좋은 것 같아" — 되돌려 보냄 · 산산조각은 버림)
+                swatUp(g, x0, y0, cols);
             }
-            // 쳐내는 순간 — 금색 퍽 · 초승달 · 불똥 · 짧은 멈춤 (되튀기 완벽과 같은 결)
+            // 쳐내는 순간 — 금색 퍽 · 초승달 · 불똥 + 0.15초 멈춤 (튕기기 전 막은 순간이 보이게 — 되튀기 완벽의 0.09초보다 길게)
             sigPow(x0, y0, s, HIT_GOLD, 0.5, false, { size: 6 });
             window.pokemonFx.deflect(dst, src, true);
+            window.pokemonFx.hitStop(150);
         });
     },
     /** 패링 글 (2026-10-20 태현 님) — 완벽 = 금색 "완벽 패링!" (크게 · 반짝) · 보통 = 은색 "패링!" (작게) · 반격 = 금색 "반격!" — 필살기 이름 글씨처럼, 그 포켓몬 머리 위 */
@@ -871,6 +952,7 @@ window.pokemonFx = {
             const R = Math.max(r.width, r.height) * 0.95;
             // 구멍 줄 = 포켓몬 픽셀 한 칸 (보통 2px · 높은 패널 ×3 이면 3px — 픽셀 격자 하나)
             const s = Math.max(1, Math.round(r.width / (dst.size || 32)));
+            // 쳐내기 연출이 다 끝난 뒤 원과 같이 뜸 (엔진 parryShowMs — 2026-10-20 태현 님 #434 "패링 연출이 끝난 뒤에 반격")
             sigParticle({ x: 0, y: 0, s, max: ms / 1000, z: -1, draw: (ctx, p, t) => {
                 const a = 0.34 * (t < 0.12 ? t / 0.12 : t > 0.85 ? (1 - t) / 0.15 : 1);
                 const W = window.innerWidth;

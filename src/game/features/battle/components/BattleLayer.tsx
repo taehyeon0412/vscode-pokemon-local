@@ -17,7 +17,7 @@ import { moveOf, speciesOf } from '../../../data';
 import { Button } from '../../../ui/Button';
 import { Icon } from '../../../ui/Icon';
 import { Sprite } from '../../../ui/Sprite';
-import { duelKind, hpColor, introView, moveColor, moveFx, profileOpenable, SEND_FLY_MS, sentenceText, splitPopups, STATUS_LABEL, type BattleGeometry } from '../model';
+import { catchFoeClass, catchView, duelKind, hpColor, introView, moveColor, moveFx, profileOpenable, SEND_FLY_MS, sentenceText, splitPopups, STATUS_LABEL, type BattleGeometry } from '../model';
 import { battleAnimKey, holdWindow } from '../fx/hold';
 import { impactOf, ultSkippable } from '../fx/parry';
 import { BattleMenu } from './BattleMenu';
@@ -101,8 +101,8 @@ function HpBlock({ f, side, x, bottom, wide, prefix, noName }: { f: Fighter; sid
 const CAST_BODY_MS = 600;
 
 /** 포켓몬 그림 + 지금 하는 행동의 몸 움직임 (달려들기 · 들어가기 · 쓰러짐 · 맞음) */
-function FighterBody(props: { b: BattleState; side: Side; x: number; target: number; px: number; media: string; ground: number; onProfile?(side: Side): void; sendAt?: number | null }) {
-  const { b, side, x, target, px, media, ground, onProfile, sendAt } = props;
+function FighterBody(props: { b: BattleState; side: Side; x: number; target: number; px: number; media: string; ground: number; onProfile?(side: Side): void; sendAt?: number | null; extra?: string }) {
+  const { b, side, x, target, px, media, ground, onProfile, sendAt, extra } = props;
   // 볼이 닿을 때 나오는 지연 — 처음 그릴 때 값만 (프레임마다 바꾸면 두 배로 빨라짐)
   const sendAt0 = useRef(sendAt ?? null).current;
   const f = b[side];
@@ -126,14 +126,14 @@ function FighterBody(props: { b: BattleState; side: Side; x: number; target: num
     act?.kind === 'ult' ? 'pg-charging' : '',
     hurt ? 'pg-hurt' : '',
     // 마지막 기회 동안은 쓰러진 상대를 흐리게 남김 (어디에 던지는지 보이게)
-    f.hp <= 0 ? (b.phase === 'last' && side === 'foe' ? 'pg-down' : 'pg-fainted') : '',
+    f.hp <= 0 ? ((b.phase === 'last' || b.phase === 'catch') && side === 'foe' ? 'pg-down' : 'pg-fainted') : '',
     f.guard < 1 ? 'pg-guarded' : '',
   ].join(' ');
   return (
     // 볼 던지기 중이면 볼이 닿을 때 나옴 (그 전에는 안 보임 — pg-sendout 의 첫 장면), 아니면 내 포켓몬만 예전처럼 바로 나옴
     <span
       // 트레이너 · 관장 · 라이벌 포켓몬은 붙을 때마다 나오는 움직임 (다음 포켓몬 = 내보내는 시간 끝에 볼이 터진 뒤), 야생은 이미 튀어나와 있어서 없음
-      class={`pg-obj pg-fighter pg-fighter-${side}${side === 'me' || b.kind !== 'wild' ? ' pg-sendout' : ''}`}
+      class={`pg-obj pg-fighter pg-fighter-${side}${side === 'me' || b.kind !== 'wild' ? ' pg-sendout' : ''}${extra ? ` ${extra}` : ''}`}
       style={{ left: `${x}px`, bottom: `${ground}px`, ...(sendAt0 !== null ? { animationDelay: `${SEND_FLY_MS - sendAt0}ms` } : {}) }} title={`${side === 'foe' ? foePrefix(b) : ''}${nameOf(f)} Lv${f.level}${onProfile ? ' — 누르면 프로필' : ''}`} onClick={onProfile ? () => onProfile(side) : undefined}>
       {/* --pg-back = 맞으면 밀려나는 쪽 (상대 반대쪽) */}
       <span key={animKey(b)} class={cls} style={{ '--pg-dx': `${Math.round((target - x) * 0.75)}px`, '--pg-back': side === 'me' ? '-1' : '1', ...bodyTiming }}>
@@ -230,59 +230,98 @@ function Effects({ b, geo, ground, midMe, midFoe, native }: { b: BattleState; ge
   return <>{out}</>;
 }
 
+/** 잡기 볼 하나 (픽셀 볼, 점 = 길 위 그림 배율) — 장면마다 새로 그림 (key), 처음 그릴 때 지난 시간만큼 앞당겨 시작 (다시 그릴 때마다 바꾸면 두 배로 빨라짐) */
+function CatchBall({ cls, x, y, since, px, style }: { cls: string; x?: number; y?: number; since: number; px: number; style?: Record<string, string> }) {
+  const since0 = useRef(since).current;
+  return (
+    <span class={`pg-catch-ball ${cls}`} style={{ ...(x !== undefined ? { left: `${x}px`, bottom: `${y ?? 0}px` } : {}), animationDelay: `${-since0}ms`, ...style }}>
+      <Icon name="ball" px={px} />
+    </span>
+  );
+}
+
+/** 딸깍 — 볼 둘레로 튀는 금색 별 (2px 점 + 십자, 4 걸음) — 창 안 볼 (48px) 기준 px */
+const CATCH_STARS: [number, number][] = [[-28, -20], [28, -20], [-36, 8], [36, 8], [-16, -36], [16, -36]];
+/** 흔들기 창 안 볼 — 점 6배 (48px 고정, 2026-10-20 태현 님 B 집중 창) */
+const CATCH_WIN_BALL_PX = 6;
+
 /**
- * S11 볼 던지기 (gdd S11) — 트레이너에게서 볼이 날아가 상대를 담고, ④ 타이밍 원이 줄어듦 (다 줄어든 순간 = 안쪽 원과 딱 맞음 → Space) → 흔들흔들
- * 원이 줄어드는 시간 = TIMING.catchRingMs (엔진의 판정과 같음)
+ * S11 볼 던지기 (gdd S11 · 2026-10-20 태현 님 다시 기획) — ④ 서 있는 상대 둘레에서 원이 줄어듦 (딱 맞을 때 Space = 그때 던짐, 안 누르면 저절로)
+ * → 주인공이 반 걸음 나서며 볼이 포물선으로 날아감 → 열리며 상대가 빛이 되어 빨려 들어감 → 떨어져 통통 → ⑤ 가운데 창에서 흔들흔들 (남은 기회 3/3) → 딸깍 · 터짐.
+ * 장면 · 시간은 엔진 시간표 그대로 (model catchView ← engine catchTimeline)
  */
-function Catch({ b, geo, ground }: { b: BattleState; geo: BattleGeometry; ground: number }) {
+function Catch({ b, geo, ground, mid, handY }: { b: BattleState; geo: BattleGeometry; ground: number; mid: number; handY: number }) {
   const c = b.catch;
-  if (!c) return null;
+  const v = catchView(b);
+  if (!c || !v) return null;
   // 던진 때로 열쇠 — 다시 그려져도 (팝업이 사라짐 등) 볼 · 원이 처음부터 다시 돌지 않게
   const key = `c${c.startT}`;
   const size = Math.round(geo.foeSpritePx * 1.1);
-  const mid = ground + Math.round(geo.foeSpritePx * 0.45);
-  const shaking = c.caught !== null;
+  const px = geo.scale;
   // 누른 순간 원을 그 크기로 멈추고 색으로 알려 줌 (완벽 금색 · 좋음 초록 · 빗나감 회색 + 빨랐다 / 늦었다)
   const timing = c.pressMs !== null ? catchTiming(c.pressMs, TIMING.catchRingMs) : null;
   const pressedScale = c.pressMs !== null ? Math.max(1, 2.8 - 1.8 * Math.min(1, c.pressMs / TIMING.catchRingMs)) : 1;
   const feedback =
     timing === 'perfect' ? '완벽!' : timing === 'good' ? '좋아!' : timing === 'none' && c.pressMs !== null ? (c.pressMs < TIMING.catchRingMs ? '조금 빨랐다' : '조금 늦었다') : null;
+  const ring = { left: `${geo.foeX}px`, bottom: `${mid}px`, width: `${size}px`, height: `${size}px` };
+  // ⑤ 흔들기 창 (2026-10-20 태현 님 B 집중 창) — 무대 가운데 (자리 · 모양은 game.css), 땅에 떨어진 볼이 0.15초에 창 가운데로 날아 들어감:
+  //   시작 = 땅의 볼 자리 (창 가운데에서 dx · dy, 크기 = 길 위 볼 / 창 볼)
+  const win = v.stage === 'shake' || v.stage === 'end';
+  const flyIn = {
+    '--pg-fx': `${Math.round(geo.foeX - geo.widthPx / 2)}px`,
+    '--pg-fy': `${Math.round(geo.bodyPx / 2 - ground - 4 * px)}px`,
+    '--pg-fs': String(Math.round((px / CATCH_WIN_BALL_PX) * 100) / 100),
+  };
+  const title = v.stage === 'end' ? (v.caught ? '잡았다!' : '아깝다!') : '야생 포켓몬을 잡는 중…';
+  const shakeStyle = { animationDuration: `${TIMING.catchShakeMs}ms`, animationIterationCount: String(Math.max(1, v.shakes)) };
+  const endCls = v.caught ? 'pg-catch-click' : 'pg-catch-break';
   return (
     <>
-      <span
-        key={`${key}b`}
-        class={`pg-thrown-ball ${shaking ? (b.phase === 'over' ? 'pg-thrown-caught' : 'pg-thrown-shake') : 'pg-thrown-throw'}`}
-        style={{ left: `${geo.foeX}px`, bottom: `${ground}px`, '--pg-dx': `${geo.trainerX - geo.foeX}px` }}
-        title={c.ball}
-      />
-      {!shaking && (
+      {v.stage === 'ring' && (
         <>
-          <span key={`${key}t`} class="pg-catch-target" style={{ left: `${geo.foeX}px`, bottom: `${mid}px`, width: `${size}px`, height: `${size}px` }} />
-          {c.pressMs === null ? (
-            // 원은 실제 시간으로 줄어듦 — 패널을 다시 열어 다시 그려져도 이어서 (지난 시간만큼 앞당겨 시작)
-            <span
-              key={`${key}r`}
-              class="pg-catch-ring"
-              style={{ left: `${geo.foeX}px`, bottom: `${mid}px`, width: `${size}px`, height: `${size}px`, animationDuration: `${TIMING.catchRingMs}ms`, animationDelay: `-${c.ms}ms` }}
-            />
-          ) : (
-            <span
-              key={`${key}p`}
-              class={`pg-catch-ring pg-ring-${timing}`}
-              style={{ left: `${geo.foeX}px`, bottom: `${mid}px`, width: `${size}px`, height: `${size}px`, transform: `translate(-50%, 50%) scale(${pressedScale})` }}
-            />
-          )}
+          <span key={`${key}t`} class="pg-catch-target" style={ring} />
+          {/* 원은 실제 시간으로 줄어듦 — 패널을 다시 열어 다시 그려져도 이어서 (지난 시간만큼 앞당겨 시작) */}
+          <span key={`${key}r`} class="pg-catch-ring" style={{ ...ring, animationDuration: `${TIMING.catchRingMs}ms`, animationDelay: `-${c.ms}ms` }} />
         </>
       )}
-      {feedback && (
-        <span key={`${key}f`} class={`pg-pop pg-ring-text pg-ring-${timing}`} style={{ left: `${geo.foeX}px`, bottom: `${mid + size / 2 + 4}px` }}>
+      {v.stage === 'fly' && c.pressMs !== null && <span key={`${key}p`} class={`pg-catch-ring pg-ring-${timing}`} style={{ ...ring, transform: `translate(-50%, 50%) scale(${pressedScale})` }} />}
+      {feedback && (v.stage === 'fly' || v.stage === 'suck') && (
+        // 원 아래 (위는 상대 HP 칸 — 이름과 겹침)
+        <span key={`${key}f`} class={`pg-pop pg-ring-text pg-ring-${timing}`} style={{ left: `${geo.foeX}px`, bottom: `${Math.max(2, ground - 16)}px` }}>
           {feedback}
         </span>
       )}
-      {b.phase === 'over' && b.result === 'catch' && (
-        <span key={`${key}s`} class="pg-fx pg-fx-pulse" style={{ left: `${geo.foeX}px`, bottom: `${ground + 8}px`, animationDuration: '900ms' }}>
-          ✨
-        </span>
+      {/* ③ 던지는 동안 주인공이 반 걸음 나섬 (game.css :has — 주인공은 StageScreen 이 그림) */}
+      {v.stage === 'fly' && <span key={`${key}h`} class="pg-catch-throwing" />}
+      {v.stage === 'fly' && (
+        <CatchBall key={`${key}fly`} cls="pg-catch-fly" x={geo.trainerX} y={handY} since={v.since} px={px} style={{ '--pg-dx': `${geo.foeX - geo.trainerX}px`, '--pg-dy': `${handY - mid}px`, animationDuration: `${TIMING.catchFlyMs}ms` }} />
+      )}
+      {v.stage === 'suck' && (
+        <>
+          <CatchBall key={`${key}open`} cls="pg-catch-open" x={geo.foeX} y={mid} since={v.since} px={px} />
+          <span key={`${key}ob`} class="pg-send-burst" style={{ left: `${geo.foeX}px`, bottom: `${mid}px` }} />
+        </>
+      )}
+      {v.stage === 'drop' && <CatchBall key={`${key}drop`} cls="pg-catch-drop" x={geo.foeX} y={ground} since={v.since} px={px} style={{ '--pg-dy': `${mid - ground}px`, animationDuration: `${TIMING.catchDropMs}ms` }} />}
+      {/* 흔들기 · 끝 장면의 볼은 창 안에만 (땅의 볼은 창으로 날아 들어감) · 잡힌 뒤 (전투 끝) 는 땅에 */}
+      {v.stage === 'held' && <CatchBall key={`${key}held`} cls="" x={geo.foeX} y={ground} since={0} px={px} />}
+      {v.stage === 'end' && !v.caught && <span key={`${key}bb`} class="pg-send-burst" style={{ left: `${geo.foeX}px`, bottom: `${ground + 4 * px}px` }} />}
+      {win && (
+        <div key={`${key}w`} class="pg-catch-win">
+          <span class="pg-catch-title">{title}</span>
+          <span class="pg-catch-win-ball" style={flyIn}>
+            <CatchBall key={`${key}w${v.stage}`} cls={v.stage === 'shake' ? 'pg-catch-shake' : endCls} since={v.since} px={CATCH_WIN_BALL_PX} style={v.stage === 'shake' ? shakeStyle : undefined} />
+            {v.stage === 'end' && v.caught && CATCH_STARS.map(([dx, dy], i) => <span key={`s${i}`} class="pg-catch-star" style={{ '--pg-sx': `${dx}px`, '--pg-sy': `${dy}px` }} />)}
+          </span>
+          {/* 남은 볼 기회 (이번 볼 포함) — 남은 것은 밝게, 쓴 것은 흐리게 (예전 "3/3" 글) */}
+          <span class="pg-catch-left" title={`남은 볼 기회 ${v.left}/${BALANCE.catchTries} (이번 볼 포함)`}>
+            {Array.from({ length: BALANCE.catchTries }, (_, i) => (
+              <span key={`b${i}`} class={i < v.left ? 'pg-catch-ok' : 'pg-catch-used'}>
+                <Icon name="ball" px={2} />
+              </span>
+            ))}
+          </span>
+        </div>
       )}
     </>
   );
@@ -470,20 +509,21 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
   const throwFoe = intro.foe !== null && foeTrainerLeft !== undefined ? intro.foe : null;
   const sendBall = intro.sendBall !== undefined && intro.sendBall !== null && foeTrainerLeft !== undefined ? intro.sendBall : null;
   const throwMe = intro.me !== null && hasMe ? intro.me : null;
+  // 잡기 흔들기 창 (가운데) 이 떠 있는 동안 — 메뉴 판을 숨김 (좁은 패널에서 겹침)
+  const catchStage = catchView(b)?.stage;
+  const catchWin = catchStage === 'shake' || catchStage === 'end';
   return (
     <>
       {hasMe && <FighterBody key={`me${b.me.uid}`} b={b} side="me" x={geo.meX} target={geo.foeX} px={geo.meSpritePx} media={media} ground={ground} onProfile={profile} sendAt={throwMe} />}
-      {/* 볼에 들어가 있는 동안 (던짐 · 흔들림 · 잡힘) 상대 그림은 숨김 */}
-      {b.phase !== 'catch' && !(b.phase === 'over' && b.result === 'catch') && (
-        <FighterBody key={`foe${b.foe.uid}`} b={b} side="foe" x={geo.foeX} target={geo.meX} px={geo.foeSpritePx} media={media} ground={ground} onProfile={profile} sendAt={throwFoe} />
-      )}
+      {/* 잡기 중 상대 — 원이 줄어드는 동안은 서 있고, 빨려 들어감 · 볼 속 (숨김) · 빠져나와 튀어나옴 (catchFoeClass) */}
+      <FighterBody key={`foe${b.foe.uid}`} b={b} side="foe" x={geo.foeX} target={geo.meX} px={geo.foeSpritePx} media={media} ground={ground} onProfile={profile} sendAt={throwFoe} extra={catchFoeClass(b)} />
       {/* 패링 원은 HP 줄보다 먼저 (같은 층에서 HP 숫자가 위) */}
       <ParryRing b={b} geo={geo} y={midMe} auto={save.settings.autoBattle} />
       <RiposteRing b={b} geo={geo} y={midFoe} auto={save.settings.autoBattle} />
       {hasMe && <HpBlock f={b.me} side="me" x={geo.meHpX} bottom={geo.meHpBottom} wide={geo.meHpWide} prefix="" noName={geo.menuSide !== null || geo.tiny} />}
       {b.phase !== 'send' && <HpBlock f={b.foe} side="foe" x={geo.foeHpX} bottom={geo.foeHpBottom} wide={geo.foeHpWide} prefix={foePrefix(b)} />}
       {b.phase === 'clash' ? <Clash b={b} geo={geo} y={Math.round((midMe + midFoe) / 2)} native={native} /> : <Effects b={b} geo={geo} ground={ground} midMe={midMe} midFoe={midFoe} native={native} />}
-      <Catch b={b} geo={geo} ground={ground} />
+      <Catch b={b} geo={geo} ground={ground} mid={midFoe} handY={handY} />
       {throwMe !== null && <SendBall key={`sm${b.me.uid}`} from={[geo.trainerX, handY]} to={[geo.meX, midMe]} at={throwMe} />}
       {throwFoe !== null && foeTrainerLeft !== undefined && <SendBall key={`sf${b.foe.uid}`} from={[foeTrainerLeft, handY]} to={[geo.foeX, midFoe]} at={throwFoe} />}
       {sendBall !== null && foeTrainerLeft !== undefined && <SendBall key={`ss${b.foeDown.length}`} from={[foeTrainerLeft, handY]} to={[geo.foeX, midFoe]} at={sendBall} />}
@@ -527,7 +567,7 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
           <AutoButton save={save} onInput={onInput} short={false} />
         </span>
       )}
-      {geo.menuSide ? (
+      {catchWin ? null : geo.menuSide ? (
         // 옆 메뉴 (Sea of Stars) — 내 포켓몬 오른쪽 세로 목록
         <div class="pg-bmenu-wrap pg-vmenu-wrap" style={{ left: `${geo.menuSide.left}px`, top: `${geo.menuSide.top}px`, maxWidth: `${geo.menuSide.maxWidth}px`, maxHeight: `${geo.menuSide.maxHeight}px` }}>
           <BattleMenu battle={b} save={save} onInput={onInput} vertical={hasMe ? nameOf(b.me) : '—'} lead={geo.autoInMenu ? <AutoButton save={save} onInput={onInput} short={false} /> : null} />

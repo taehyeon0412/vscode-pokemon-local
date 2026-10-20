@@ -210,12 +210,26 @@ describe('쏘는 기술끼리 힘대결은 없음 — 패링은 등급만 · 완
     const ready = { ...b, me: { ...b.me, gauge: myGauge, moves: myMoves }, foe: { ...b.foe, gauge: 1 } };
     return { b: battleStep(ready, save, STEP, fixedRng(0.5), { auto: false }), save };
   }
-  /** 완벽하게 막고 맞는 순간이 지난 뒤 (반격 기회) */
+  /** 완벽하게 막고 맞는 순간이 지난 뒤 — pre = 쳐내기 보여 주기 중 · after = 반격 기회 원이 뜸 */
   function riposteChance() {
     const { b, save } = foeShoots(0.6);
     const parried = battleInput(b, save, { kind: 'parry', ms: 80 }, new SeededRng(1));
-    return { b, save, after: run(parried, save, TIMING.moveAnimMs + STEP, fixedRng(0.5)) };
+    const pre = run(parried, save, TIMING.moveAnimMs + STEP, fixedRng(0.5));
+    return { b, save, pre, after: run(pre, save, -pre.riposte!.ms, fixedRng(0.5)) };
   }
+
+  it('완벽 패링 뒤 쳐내기 연출을 다 보여 준 뒤 반격 기회 (parryShowMs) — 그동안 원 · Space 없음 · 시간 멈춤 (2026-10-20 태현 님)', () => {
+    const { save, pre, after } = riposteChance();
+    expect(pre.phase).toBe('riposte');
+    expect(pre.riposte!.ms).toBeLessThan(0);
+    expect(pre.riposte!.ms).toBeGreaterThanOrEqual(-TIMING.parryShowMs);
+    expect(canRiposte(pre)).toBe(false);
+    expect(battleInput(pre, save, { kind: 'space' }, new SeededRng(1)).anim).toBeNull();
+    expect([after.me.gauge, after.foe.gauge]).toEqual([pre.me.gauge, pre.foe.gauge]);
+    expect(canRiposte(after)).toBe(true);
+    expect(after.riposte!.ms).toBeLessThan(TIMING.simStepMs);
+    expect(readBattle(viaJson(pre))?.riposte).toEqual(pre.riposte);
+  });
 
   it('상대 쏘는 기술 + 내 쏘는 기술이어도 맞받아치기 창 · 힘대결 없음 — 막으면 등급만 (내 게이지 · PP 그대로)', () => {
     const { b, save } = foeShoots(0.6);

@@ -25,7 +25,7 @@ export interface BattleSummary {
   exp: { uid: string; name: string; gain: number; from: number; to: number }[];
   money: number;
   item: string | null;
-  /** 잡은 포켓몬 — uid · isNew = 도감 (잡음) 에 처음 (S12 소개 카드 "NEW 도감 등록", 2026-10-20 태현 님 안 2) */
+  /** 잡은 포켓몬 — uid · isNew = 도감 (잡음) 에 처음 (S12 소개 카드 "NEW! 처음 잡았다", 2026-10-20 태현 님 안 2 — 도감 화면이 생기면 "도감 등록") */
   caught: { name: string; toBox: boolean; uid: string; isNew: boolean } | null;
   /** 빈칸이라 바로 배운 기술 */
   learned: { name: string; move: string }[];

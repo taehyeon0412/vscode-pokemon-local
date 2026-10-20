@@ -443,7 +443,8 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
         break;
       }
       if (battle.result === 'flee' && !wiped) {
-        rt = { ...rt, toast: { text: '무사히 도망쳤다!', ms: TIMING.toastMs } };
+        // 내가 도망 = "무사히 도망쳤다!" · 볼 3번을 다 놓쳐 상대가 도망 = "… 도망쳐 버렸다…" (2026-10-20)
+        rt = { ...rt, toast: { text: battle.msg || '무사히 도망쳤다!', ms: TIMING.toastMs } };
         stage = { phase: 'walk' };
         break;
       }

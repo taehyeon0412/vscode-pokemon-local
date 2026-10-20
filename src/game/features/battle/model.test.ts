@@ -6,7 +6,7 @@ import { Rng } from '../../core/engine/rng';
 import { counterMove, isShooting } from '../../core/rules/battle';
 import { hasMapRow, MAP_ROW_PX, topGapPx } from '../../ui/layout';
 import { allForms, allMoves, formOf, moveOf } from '../../data';
-import { battleGeometry, battleSpritePx, battleViewKey, duelKind, hpColor, menuItems, placeOnStage, sentenceText, splitPopups, introView, SEND_FLY_MS, SEND_BURST_MS, WIPE_MS, type DuelKind } from './model';
+import { battleGeometry, battleSpritePx, battleViewKey, catchFoeClass, catchView, duelKind, hpColor, menuItems, placeOnStage, sentenceText, splitPopups, introView, SEND_FLY_MS, SEND_BURST_MS, WIPE_MS, type DuelKind } from './model';
 
 const wild = sampleMonster({ uid: 'wild', species: 4, form: 'charmander', level: 5, moves: [{ moveId: 52, pp: 25 }], hp: 999 });
 const save = sampleSave();
@@ -372,5 +372,34 @@ describe('전투 시작 연출 (2026-10-20 태현 님 B + C · 야생 A)', () =>
     // 다음 포켓몬 = 내보내는 시간 끝 무렵 볼만 (쓰러진 포켓몬은 그대로, 새 포켓몬은 붙을 때 나옴)
     expect(introView({ ...tb, t: 9000, phase: 'send', sendMs: 200 })).toEqual({ me: null, foe: null, wipe: null, sendBall: null });
     expect(introView({ ...tb, t: 9000, phase: 'send', sendMs: TIMING.foeSendMs - SEND_FLY_MS - SEND_BURST_MS + 100 }).sendBall).toBe(100);
+  });
+});
+
+describe('S11 잡기 장면 (2026-10-20 태현 님 다시 기획) — 엔진 시간표대로', () => {
+  const at = (ms: number, o: Partial<NonNullable<BattleState['catch']>> = {}, used = 1): BattleState => {
+    const b = startBattle(save, wild, 'normal');
+    return { ...b, phase: 'catch', bagUsed: { 'poke-ball': used }, catch: { ball: 'poke-ball', ms, pressMs: null, throwMs: 0, shakes: 2, last: false, caught: false, startT: 0, ...o } };
+  };
+  it('원 → 날아감 → 빨려 들어감 → 떨어짐 → 흔들 × 횟수 → 딸깍 · 터짐, 장면마다 다시 그림 (열쇠)', () => {
+    expect(catchView(at(300, { throwMs: null, caught: null, shakes: 0 }))?.stage).toBe('ring');
+    const fly = TIMING.catchFlyMs;
+    const suck = fly + TIMING.catchSuckMs;
+    const drop = suck + TIMING.catchDropMs;
+    expect(catchView(at(fly - 1))).toMatchObject({ stage: 'fly', since: fly - 1 });
+    expect(catchView(at(fly + 10))).toMatchObject({ stage: 'suck', since: 10 });
+    expect(catchView(at(suck))?.stage).toBe('drop');
+    expect(catchView(at(drop + 5))).toMatchObject({ stage: 'shake', since: 5, shakes: 2 });
+    expect(catchView(at(drop + 2 * TIMING.catchShakeMs))?.stage).toBe('end');
+    expect(battleViewKey(at(drop - 1), false)).not.toBe(battleViewKey(at(drop), false));
+  });
+  it('남은 기회 = 이번 볼 포함 (3/3 · 2/3 · 1/3) · 상대 그림 class (빨려 들어감 · 숨김 · 튀어나옴)', () => {
+    expect([1, 2, 3].map((u) => catchView(at(0, {}, u))?.left)).toEqual([3, 2, 1]);
+    const drop = TIMING.catchFlyMs + TIMING.catchSuckMs;
+    expect(catchFoeClass(at(TIMING.catchFlyMs))).toBe('pg-catch-suck');
+    expect(catchFoeClass(at(drop + 5))).toBe('pg-catch-gone');
+    const end = drop + TIMING.catchDropMs + 2 * TIMING.catchShakeMs;
+    expect(catchFoeClass(at(end))).toBe('pg-catch-pop');
+    expect(catchFoeClass(at(end, { caught: true }))).toBe('pg-catch-gone');
+    expect(catchFoeClass(at(10, { throwMs: null, caught: null }))).toBe('');
   });
 });

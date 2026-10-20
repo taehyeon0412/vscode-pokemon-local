@@ -90,11 +90,16 @@ export interface BattleClash {
   winner: Side | null;
 }
 
-/** S11 볼 던지기 — 타이밍 원이 줄어드는 동안 Space (pressMs) → 흔들흔들 (그때 잡힘 · 빠져나옴이 정해짐) → 결과 */
+/** S11 볼 던지기 (2026-10-20 태현 님 다시 기획) — 서 있는 상대 둘레에서 원이 줄어드는 동안 Space = 그때 던짐 (pressMs · throwMs, 안 누르면 원이 끝날 때 저절로)
+ *  → 던진 순간 잡힘 · 흔들 횟수가 정해짐 → 날아감 · 빨려 들어감 · 떨어짐 · 흔들 × shakes (가운데 창) → 결과 (catchTimeline) */
 export interface BattleCatch {
   ball: BallId;
   ms: number;
   pressMs: number | null;
+  /** 던진 때 (ms 기준) — null = 아직 원이 줄어드는 중. 옛 상태에는 없음 (readBattle 이 채움) */
+  throwMs?: number | null;
+  /** 흔들 횟수 — 잡히면 3 · 놓치면 1 ~ 3 (던질 때 정함) */
+  shakes?: number;
   /** 이긴 뒤 마지막 기회 (쓰러진 포켓몬에게 한 번 — 확률 × 0.5) */
   last: boolean;
   caught: boolean | null;
@@ -232,6 +237,21 @@ export function startTrainerBattle(save: Save, team: readonly Monster[], kind: '
     ...(kind === 'gym' ? { foePotions: BALANCE.gymPotions } : {}),
     msg: lead ? `${withJosa(foeName, '이/가')} ${withJosa(nameOf(b.foe), '을/를')} 내보냈다! 가랏, ${nameOf(b.me)}!` : b.msg,
   };
+}
+
+/** 이 전투에서 던진 볼 수 (던지는 중인 볼 포함) — 한 마리에 BALANCE.catchTries 번까지 (2026-10-20 태현 님) */
+export function catchTriesUsed(b: BattleState): number {
+  return BALLS.reduce((n, ball) => n + (b.bagUsed[ball] ?? 0), 0);
+}
+
+/** 잡기 시간표 (catch.ms 기준) — 던짐 · 볼이 열림 (빨려 들어감) · 떨어짐 · 흔들기 시작 · 딸깍 · 터짐 · 끝. 아직 안 던졌으면 null */
+export function catchTimeline(c: BattleCatch): { thrown: number; open: number; drop: number; shake: number; end: number; done: number } | null {
+  if (c.throwMs === null || c.throwMs === undefined) return null;
+  const open = c.throwMs + TIMING.catchFlyMs;
+  const drop = open + TIMING.catchSuckMs;
+  const shake = drop + TIMING.catchDropMs;
+  const end = shake + (c.shakes ?? 0) * TIMING.catchShakeMs;
+  return { thrown: c.throwMs, open, drop, shake, end, done: end + TIMING.catchEndMs };
 }
 
 /** 지금 가방에 남은 그 아이템 수 (전투 중 쓴 것 빼고) */
@@ -531,7 +551,8 @@ function finishAnim(b0: BattleState, save: Save, rng: Rng): BattleState {
   const after = afterHits({ ...b, anim: null }, save);
   // 완벽 패링 뒤 둘 다 서 있으면 반격 기회 — 상대 둘레에 두 번째 원 (2026-10-20 태현 님)
   if (side === 'foe' && anim.parry === 'perfect' && (after.phase === 'run' || after.phase === 'choose') && after.me.hp > 0 && after.foe.hp > 0) {
-    return { ...after, phase: 'riposte', riposte: { ms: 0, dur: TIMING.riposteRingMs } };
+    // ms 가 0 이 될 때까지 (parryShowMs) 는 쳐내기 연출만 — 원 · Space 는 그 뒤 (2026-10-20 태현 님)
+    return { ...after, phase: 'riposte', riposte: { ms: -TIMING.parryShowMs, dur: TIMING.riposteRingMs } };
   }
   return after;
 }
@@ -545,7 +566,7 @@ function riposteInput(b: BattleState, msBeforeHit: number, rng: Rng): BattleStat
 
 /** 지금 반격 기회인지 (화면이 상대 둘레 두 번째 원 · 판 클릭을 Space 로) */
 export function canRiposte(b: BattleState): boolean {
-  return b.phase === 'riposte' && !!b.riposte && b.me.hp > 0 && b.foe.hp > 0;
+  return b.phase === 'riposte' && !!b.riposte && b.riposte.ms >= 0 && b.me.hp > 0 && b.foe.hp > 0;
 }
 
 /** 쓰러졌는지 보고 다음 단계로 */
@@ -563,7 +584,8 @@ function afterHits(b0: BattleState, save: Save): BattleState {
       if (nb.foeQueue.length > 0) return { ...nb, phase: 'send', sendMs: 0, foeUltWait: null, msg: `${down} ${withJosa(who, '은/는')} 다음 포켓몬을 꺼낸다…` };
       return { ...nb, phase: 'over', result: 'win', overMs: 0, msg: `${down} ${withJosa(who, '과/와')}의 승부에서 이겼다!` };
     }
-    const hasBall = BALLS.some((ball) => itemLeft(b, save, ball) > 0);
+    // 볼 기회가 남았을 때만 (3번 다 던졌으면 없음 — 2026-10-20 태현 님)
+    const hasBall = BALLS.some((ball) => itemLeft(b, save, ball) > 0) && catchTriesUsed(b) < BALANCE.catchTries;
     if (b.kind === 'wild' && hasBall && !wiped) return { ...b, phase: 'last', lastMs: 0, msg: down };
     return { ...b, phase: 'over', result: 'win', overMs: 0, msg: b.kind === 'wild' && !hasBall && !wiped ? `${down} (볼이 없어 잡을 수 없어요)` : down };
   }
@@ -731,30 +753,45 @@ function throwBall(b: BattleState, ball: BallId, last: boolean): BattleState {
     me,
     phase: 'catch',
     anim: null,
-    catch: { ball, ms: 0, pressMs: null, last, caught: null, startT: b.t },
+    catch: { ball, ms: 0, pressMs: null, throwMs: null, shakes: 0, last, caught: null, startT: b.t },
     bagUsed: { ...b.bagUsed, [ball]: (b.bagUsed[ball] ?? 0) + 1 },
-    msg: `가랏, ${itemName(ball)}!`,
+    msg: `${withJosa(itemName(ball), '을/를')} 꺼냈다!`,
   };
+}
+
+/** 던짐 — 그 순간 잡힘 · 흔들 횟수를 정함. pressed = Space 로 던짐 (at = 누른 때, 타이밍 보너스) · 아니면 원이 끝나 저절로 */
+function throwNow(b: BattleState, c: BattleCatch, at: number, pressed: boolean, rng: Rng): BattleState {
+  const pressMs = pressed ? at : null;
+  const timing = catchTiming(pressMs, TIMING.catchRingMs);
+  const p = catchChance({ captureRate: speciesOf(b.foe.species)?.captureRate ?? 45, hp: b.foe.hp, maxHp: b.foe.maxHp, ball: c.ball, timing, lastChance: c.last });
+  const caught = rng.next() < p;
+  // 흔들 횟수 (원작처럼) — 잡히면 3번, 놓치면 1번 + 한 번 더 흔들 확률 = 잡을 확률의 세제곱근 (잡힐 뻔할수록 많이 흔들다 터짐)
+  let shakes = 3;
+  if (!caught) {
+    const q = Math.cbrt(p);
+    shakes = 1;
+    while (shakes < 3 && rng.next() < q) shakes += 1;
+  }
+  const nice = timing === 'perfect' ? ' 완벽한 타이밍!' : timing === 'good' ? ' 좋은 타이밍!' : '';
+  return { ...b, catch: { ...c, pressMs, throwMs: at, caught, shakes }, msg: `가랏, ${itemName(c.ball)}!${nice}` };
 }
 
 function catchStep(b: BattleState, save: Save, stepMs: number, rng: Rng): BattleState {
   const c = { ...b.catch!, ms: b.catch!.ms + stepMs };
-  const decideAt = TIMING.catchRingMs + BALANCE.catchGoodMs;
-  if (c.caught === null) {
-    if (c.ms < decideAt) return { ...b, catch: c };
-    // 원이 다 줄어든 뒤 (늦게 누를 틈까지) — 확률로 정하고 흔들흔들
-    const timing = catchTiming(c.pressMs, TIMING.catchRingMs);
-    const p = catchChance({ captureRate: speciesOf(b.foe.species)?.captureRate ?? 45, hp: b.foe.hp, maxHp: b.foe.maxHp, ball: c.ball, timing, lastChance: c.last });
-    const caught = rng.next() < p;
-    const nice = timing === 'perfect' ? ' 완벽한 타이밍!' : timing === 'good' ? ' 좋은 타이밍!' : '';
-    return { ...b, catch: { ...c, caught }, msg: `흔들… 흔들…${nice}` };
-  }
-  if (c.ms < decideAt + TIMING.catchShakeMs) return { ...b, catch: c };
+  // 안 누르면 원이 다 줄어든 뒤 (늦게 누를 틈까지) 저절로 던짐
+  const tl = catchTimeline(c);
+  if (!tl) return c.ms < TIMING.catchRingMs + BALANCE.catchGoodMs ? { ...b, catch: c } : throwNow(b, c, TIMING.catchRingMs + BALANCE.catchGoodMs, false, rng);
+  if (c.ms < tl.done) return { ...b, catch: c, msg: b.catch!.ms < tl.shake && c.ms >= tl.shake ? '흔들… 흔들…' : b.msg };
   const name = label(b, 'foe');
   if (c.caught) return { ...b, catch: c, phase: 'over', result: 'catch', overMs: 0, msg: `신난다! ${withJosa(name, '을/를')} 잡았다!` };
   if (c.last) return { ...b, catch: null, phase: 'over', result: 'win', overMs: 0, msg: `아깝다! ${withJosa(name, '이/가')} 빠져나왔다…` };
+  // 세 번 다 놓침 — 상대가 도망 (경험치 없음, 2026-10-20 태현 님)
+  if (catchTriesUsed(b) >= BALANCE.catchTries) return { ...b, catch: null, phase: 'over', result: 'flee', anim: null, overMs: 0, msg: `아깝다! ${withJosa(name, '은/는')} 도망쳐 버렸다…` };
+  // 놓침 — 상대가 HP 를 조금 되찾고 (최대 HP 의 10%) 먼저 덤빔 (상대 게이지 가득, 2026-10-20 태현 님)
+  const heal = Math.min(b.foe.maxHp - b.foe.hp, Math.max(1, Math.round(b.foe.maxHp * BALANCE.catchFailHeal)));
+  const nb0: BattleState = { ...b, catch: null, me: { ...b.me }, foe: { ...b.foe, hp: b.foe.hp + heal, gauge: 1 }, popups: [...b.popups] };
+  if (heal > 0) popup(nb0, 'foe', `+${heal}`, 'heal');
   // 볼을 던진 것도 내 행동 하나 — 독 · 화상 피해 (다른 아이템처럼)
-  const nb0: BattleState = { ...b, catch: null, me: { ...b.me }, popups: [...b.popups] };
   afterAction(nb0, 'me');
   const nb = afterHits(nb0, save);
   return { ...nb, msg: nb.phase === 'choose' || nb.phase === 'pick' || nb.phase === 'over' ? nb.msg : `아깝다! ${withJosa(name, '이/가')} 빠져나왔다!` };
@@ -807,8 +844,8 @@ export function canAct(b: BattleState, save: Save, action: BattleAction): boolea
         const fainted = faintedTeam(b, save);
         return action.uid === undefined ? fainted.length > 0 : fainted.some((m) => m.uid === action.uid);
       }
-      // 볼은 야생에게만 (원작 규칙 [제안])
-      return isBall(action.item) && b.kind === 'wild';
+      // 볼은 야생에게만 (원작 규칙 [제안]) · 한 마리에 3번까지 (2026-10-20 태현 님)
+      return isBall(action.item) && b.kind === 'wild' && catchTriesUsed(b) < BALANCE.catchTries;
     case 'switch':
       return switchable(b, save).some((m) => m.uid === action.uid);
     case 'flee':
@@ -897,12 +934,12 @@ export function battleInput(b: BattleState, save: Save, input: BattleInput, rng:
       return nb;
     }
     case 'space': {
-      // 타이밍 원 — 처음 누른 때만 (다 줄어든 뒤 조금 늦게까지)
+      // 타이밍 원 — 누른 때 = 던짐 (처음 한 번만, 다 줄어든 뒤 조금 늦게까지)
       if (b.phase === 'catch' && b.catch) {
         // extraMs = 아직 걸음이 되지 못한 시간 (화면의 원은 실제 시간으로 줄어듦 — 판정을 그 시간에 맞춤)
         const at = b.catch.ms + Math.min(TIMING.simStepMs, Math.max(0, input.extraMs ?? 0));
-        if (b.catch.caught !== null || b.catch.pressMs !== null || at > TIMING.catchRingMs + BALANCE.catchGoodMs) return b;
-        return { ...b, catch: { ...b.catch, pressMs: at } };
+        if (catchTimeline(b.catch) || at > TIMING.catchRingMs + BALANCE.catchGoodMs) return b;
+        return throwNow(b, b.catch, at, true, rng);
       }
       if (b.phase === 'clash' && b.clash) {
         if (b.clash.winner !== null) return b; // 승자가 정해진 뒤 연타는 안 셈
@@ -1026,7 +1063,7 @@ export function readBattle(raw: unknown): BattleState | null {
   if (!(raw.foeUltWait === null || fin(raw.foeUltWait, -1e6, 1e6)) || !(raw.foeName === null || (typeof raw.foeName === 'string' && raw.foeName.length <= 40)) || !fin(raw.sendMs, 0)) return null;
   if (!(raw.foePotions === undefined || fin(raw.foePotions, 0, 10))) return null;
   const rp = raw.riposte;
-  if (!(rp === undefined || rp === null || (isObj(rp) && fin(rp.ms, 0) && fin(rp.dur, 1, 60_000)))) return null;
+  if (!(rp === undefined || rp === null || (isObj(rp) && fin(rp.ms, -TIMING.parryShowMs) && fin(rp.dur, 1, 60_000)))) return null;
   if (raw.phase === 'riposte' && !isObj(rp)) return null;
   if (raw.kind !== 'wild' && typeof raw.foeName !== 'string') return null;
   if (!PHASES.includes(raw.phase as string) || !okBench(raw.bench) || !okBag(raw.bagUsed)) return null;
@@ -1039,6 +1076,13 @@ export function readBattle(raw: unknown): BattleState | null {
   if (raw.phase === 'clash' && clash === null) return null;
   const ct = raw.catch;
   if (ct !== null && !(isObj(ct) && (BALLS as readonly string[]).includes(ct.ball as string) && fin(ct.ms, 0) && (ct.pressMs === null || fin(ct.pressMs, 0)) && typeof ct.last === 'boolean' && (ct.caught === null || typeof ct.caught === 'boolean') && fin(ct.startT, 0))) return null;
+  if (isObj(ct) && !((ct.throwMs === undefined || ct.throwMs === null || fin(ct.throwMs, 0)) && (ct.shakes === undefined || fin(ct.shakes, 0, 3)))) return null;
+  // 옛 상태 (2026-10-20 전 — 원이 끝나면 정하고 흔듦): 정해졌으면 흔드는 중으로, 아니면 원이 줄어드는 중으로 (받은 객체는 안 바꿈)
+  const oldCatch = isObj(ct) && ct.throwMs === undefined;
+  const catchNow = oldCatch
+    ? { ...ct, throwMs: ct.caught === null ? null : Math.max(0, (ct.ms as number) - TIMING.catchFlyMs - TIMING.catchSuckMs - TIMING.catchDropMs), shakes: ct.caught === null ? 0 : ct.caught ? 3 : 1 }
+    : ct;
+  if (isObj(catchNow) && catchNow.throwMs === null && catchNow.caught !== null) return null; // 안 던졌는데 결과가 있으면 못 읽음
   if (raw.phase === 'catch' && ct === null) return null;
   if (!fin(raw.lastMs, 0) || !Array.isArray(raw.fought) || !raw.fought.every((u) => typeof u === 'string')) return null;
   if (!(raw.result === null || raw.result === 'win' || raw.result === 'lose' || raw.result === 'flee' || raw.result === 'catch')) return null;
@@ -1046,5 +1090,5 @@ export function readBattle(raw: unknown): BattleState | null {
   if ((raw.phase === 'over') !== (raw.result !== null)) return null;
   if (!fin(raw.overMs, 0) || !fin(raw.fleeTries, 0, 1000) || typeof raw.msg !== 'string' || !fin(raw.t, 0) || !fin(raw.popupSeq, 0)) return null;
   if (!isObj(raw.ultAt) || !STARTS.includes(raw.start as string)) return null;
-  return raw as unknown as BattleState;
+  return (oldCatch ? { ...raw, catch: catchNow } : raw) as unknown as BattleState;
 }

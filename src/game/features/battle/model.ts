@@ -1,9 +1,9 @@
 /**
  * S09 전투 화면 — 화면을 모르는 부분: 메뉴에 무엇이 있고 무엇이 흐린지 · 단축키 · 연출 모양 고르기.
  */
-import { TIMING } from '../../core/balance';
+import { BALANCE, TIMING } from '../../core/balance';
 import type { BattleAction, BattlePopup, BattleState, Side } from '../../core/engine';
-import { canAct, canParry, counterOpen, faintedTeam, itemLeft, switchable, ultCounterOpen } from '../../core/engine';
+import { canAct, canParry, catchTimeline, catchTriesUsed, counterOpen, faintedTeam, itemLeft, switchable, ultCounterOpen } from '../../core/engine';
 import { isShooting } from '../../core/rules/battle';
 import { maxHpOf } from '../../core/rules/bag';
 import { BALLS, isBall } from '../../core/rules/catch';
@@ -91,7 +91,7 @@ export function menuItems(b: BattleState, save: Save, page: MenuPage, compact: b
           // 기력의조각 → 살릴 포켓몬 고르기
           go: item === 'revive' ? { page: 'revive' } : { action: { kind: 'item', item } },
           enabled: canAct(b, save, { kind: 'item', item }),
-          title: item === 'revive' ? '쓰러진 팀 포켓몬을 HP 절반으로 (교체로 낼 수 있게)' : isBall(item) ? '볼 던지기 — 원이 작아질 때 Space (HP 가 낮을수록 잘 잡힘)' : undefined,
+          title: item === 'revive' ? '쓰러진 팀 포켓몬을 HP 절반으로 (교체로 낼 수 있게)' : isBall(item) ? (b.kind === 'wild' && catchTriesUsed(b) >= BALANCE.catchTries ? `이 포켓몬에게는 볼을 ${BALANCE.catchTries}번까지만 던질 수 있어요` : `볼 던지기 — 원이 딱 맞을 때 Space 로 던짐 (HP 가 낮을수록 잘 잡힘 · 기회 ${BALANCE.catchTries}번)`) : undefined,
         })),
         back,
       ];
@@ -314,6 +314,10 @@ export interface BattleGeometry {
   topBusy: boolean;
   /** 길 칸 높이 (정보줄 뺀) — 머리 위 숫자가 위 말 칸 위로 올라가지 않게 */
   bodyPx: number;
+  /** 길 위 그림 배율 (포켓몬 · 사람 · 볼 픽셀 한 칸 = scale px) — 잡기 볼 · 흔들기 창이 같은 픽셀 격자로 (2026-10-20) */
+  scale: number;
+  /** 길 칸 너비 (px) — 잡기 흔들기 창 (무대 가운데) 으로 땅의 볼이 날아 들어가는 거리 */
+  widthPx: number;
   /** 한 줄 말 · 힘대결 안내 위 끝 (길 칸 위에서 px) — 지도 줄 아래 띄움, 자리가 모자라면 띄움을 줄임 (최소 3) */
   msgTop: number;
 }
@@ -420,7 +424,7 @@ export function battleGeometry(g: GeometryInput): BattleGeometry {
   const msgSide = !menuSide && topBusy && sideRoom >= MSG_SIDE_MIN_PX ? { left: sideLeft, maxWidth: sideRoom } : null;
   // 둘 곳이 없으면 (좁고 낮은 패널) 한 줄은 숨김 — HP 바가 더 중요, 내 차례는 메뉴 테두리로 보임
   const msgHidden = menuSide ? !msgRight : topBusy && !msgSide;
-  return { trainerX, meX, foeX: Math.round(g.foeX), meSpritePx: g.meSpritePx, foeSpritePx: g.foeSpritePx, meHpWide, foeHpWide, meHpX, foeHpX, msgHidden, meHpBottom, foeHpBottom, hpBlockPx, menuInBar, menuBottom, menuLeft, autoInMenu, autoBottom, autoLeft: AUTO_LEFT_PX, compact, tiny, msgSide, menuSide, msgRight, msgLines, topBusy, msgTop: Math.max(top + msgGap, menuSide && !topBusy ? Math.min(menuSide.top, g.bodyPx - (foeHpBottom + hpBlockPx + foeExtra)) - MSG_NEAR_GAP_PX - msgH - (msgLines - 1) * MSG_LINE_PX : 0), bodyPx: g.bodyPx };
+  return { trainerX, meX, foeX: Math.round(g.foeX), meSpritePx: g.meSpritePx, foeSpritePx: g.foeSpritePx, meHpWide, foeHpWide, meHpX, foeHpX, msgHidden, meHpBottom, foeHpBottom, hpBlockPx, menuInBar, menuBottom, menuLeft, autoInMenu, autoBottom, autoLeft: AUTO_LEFT_PX, compact, tiny, msgSide, menuSide, msgRight, msgLines, topBusy, msgTop: Math.max(top + msgGap, menuSide && !topBusy ? Math.min(menuSide.top, g.bodyPx - (foeHpBottom + hpBlockPx + foeExtra)) - MSG_NEAR_GAP_PX - msgH - (msgLines - 1) * MSG_LINE_PX : 0), bodyPx: g.bodyPx, scale: g.scale, widthPx: g.widthPx };
 }
 
 /**
@@ -465,8 +469,10 @@ export function battleViewKey(b: BattleState, auto: boolean): string {
     b.anim ? `${b.anim.side}${b.anim.action.kind}${Math.floor(b.anim.ms / 100)}` : '',
     b.clash ? `${b.clash.taps}:${Math.floor(b.clash.ms / 100)}` : '',
     // 볼: 누른 때 · 정해진 결과 · 흔들림이 끝나는 때 (원은 CSS 로 줄어듦) · 마지막 기회 남은 시간 (막대)
-    b.catch ? `${b.catch.ball}:${b.catch.pressMs ?? ''}:${b.catch.caught ?? ''}` : '',
+    b.catch ? `${b.catch.ball}:${b.catch.pressMs ?? ''}:${b.catch.caught ?? ''}:${catchView(b)?.stage ?? ''}` : '',
     b.phase === 'last' ? Math.floor(b.lastMs / 250) : '',
+    // 반격 기회 — 쳐내기 보여 주기 (pre) → 원 (ring) 으로 바뀌는 때 (2026-10-20)
+    b.phase === 'riposte' && b.riposte ? (b.riposte.ms >= 0 ? 'ring' : 'pre') : '',
     b.popups.length ? b.popups.map((p) => `${p.text}${b.t - p.ms}`).join(',') : '',
     b.me.moves.map((s) => s.pp).join(','),
   ].join('|');
@@ -523,4 +529,37 @@ export function introView(b: BattleState): { me: number | null; foe: number | nu
   // 다음 포켓몬 = 내보내는 시간 끝 무렵에 볼 (닿고 터진 뒤 새 포켓몬이 붙으며 나옴 — 그동안 쓰러진 포켓몬은 그대로)
   if (b.phase === 'send') return { me: null, foe: null, wipe: null, sendBall: sending(b.sendMs - (TIMING.foeSendMs - SEND_FLY_MS - SEND_BURST_MS)) };
   return { me: sending(b.t), foe: sending(b.t), wipe: null };
+}
+
+export type CatchStage = 'ring' | 'fly' | 'suck' | 'drop' | 'shake' | 'end' | 'held';
+
+/** S11 잡기 장면 (2026-10-20 태현 님 다시 기획) — 엔진 시간표 (catchTimeline) 대로:
+ *  ring 서 있는 상대 둘레 원 → fly 볼이 날아감 → suck 열려 빨려 들어감 → drop 떨어져 통통 → shake 가운데 창에서 흔들 × shakes → end 딸깍 · 터짐 → held 잡힘 (전투 끝).
+ *  since = 그 장면이 시작하고 지난 ms · left = 남은 기회 (이번 볼 포함, 3/3 · 2/3 · 1/3) */
+export function catchView(b: BattleState): { stage: CatchStage; since: number; left: number; shakes: number; caught: boolean | null } | null {
+  const c = b.catch;
+  if (!c) return null;
+  const base = { left: Math.max(1, BALANCE.catchTries - catchTriesUsed(b) + 1), shakes: c.shakes ?? 0, caught: c.caught };
+  if (b.phase === 'over') return { ...base, stage: 'held', since: 0 };
+  const tl = catchTimeline(c);
+  if (!tl) return { ...base, stage: 'ring', since: c.ms };
+  const cuts: [CatchStage, number][] = [['fly', tl.thrown], ['suck', tl.open], ['drop', tl.drop], ['shake', tl.shake], ['end', tl.end]];
+  let stage: CatchStage = 'fly';
+  let from = tl.thrown;
+  for (const [st, at] of cuts) {
+    if (c.ms >= at) {
+      stage = st;
+      from = at;
+    }
+  }
+  return { ...base, stage, since: c.ms - from };
+}
+
+/** 잡기 중 상대 그림 — 빨려 들어감 · 볼 속 (안 보임) · 빠져나와 튀어나옴 (CSS class) */
+export function catchFoeClass(b: BattleState): string {
+  const v = catchView(b);
+  if (!v) return '';
+  if (v.stage === 'suck') return 'pg-catch-suck';
+  if (v.stage === 'drop' || v.stage === 'shake' || v.stage === 'held' || (v.stage === 'end' && v.caught)) return 'pg-catch-gone';
+  return v.stage === 'end' ? 'pg-catch-pop' : '';
 }

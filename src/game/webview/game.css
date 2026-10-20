@@ -1600,37 +1600,6 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 }
 
 /* ---- S11 잡기 · S12 결과 · S23 기술 · S22 진화 (단계 7, 임시 디자인 — 단계 12 에서 다시) ---- */
-/* 몬스터볼 — 코드로 그린 동그라미 (위 빨강 · 아래 하양 · 가운데 띠) */
-.pg-thrown-ball {
-  position: absolute;
-  z-index: 6;
-  width: calc(12px * var(--pg-scale, 1));
-  height: calc(12px * var(--pg-scale, 1));
-  border-radius: 50%;
-  border: 1px solid #222;
-  background: linear-gradient(#e0362c 0 45%, #222 45% 55%, #f4f4f4 55% 100%);
-  transform: translateX(-50%);
-  pointer-events: none;
-}
-.pg-thrown-throw {
-  animation: pg-thrown-throw 0.35s ease-out both;
-}
-@keyframes pg-thrown-throw {
-  0% { transform: translateX(calc(-50% + var(--pg-dx, 0px))) translateY(-60%) rotate(0deg); }
-  60% { transform: translateX(calc(-50% + var(--pg-dx, 0px) * 0.3)) translateY(-160%) rotate(300deg); }
-  100% { transform: translateX(-50%) translateY(0) rotate(720deg); }
-}
-.pg-thrown-shake {
-  animation: pg-thrown-shake 0.55s ease-in-out 2 both;
-}
-@keyframes pg-thrown-shake {
-  0%, 100% { transform: translateX(-50%) rotate(0deg); }
-  25% { transform: translateX(-50%) rotate(-25deg); }
-  75% { transform: translateX(-50%) rotate(25deg); }
-}
-.pg-thrown-caught {
-  filter: drop-shadow(0 0 4px #ffd33d);
-}
 /* ④ 타이밍 원 — 바깥 원이 줄어들어 안쪽 원과 딱 맞는 순간 Space */
 .pg-catch-target,
 .pg-catch-ring {
@@ -1653,6 +1622,187 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 @keyframes pg-catch-ring {
   0% { transform: translate(-50%, 50%) scale(2.8); opacity: 0.4; }
   100% { transform: translate(-50%, 50%) scale(1); opacity: 1; }
+}
+/* S11 잡기 (2026-10-20 태현 님 다시 기획) — 픽셀 볼 (아이콘 ball, 점 = 길 위 배율) · 장면 · 시간은 엔진 시간표 (catchTimeline) · 움직임은 steps
+   서 있는 상대 둘레 원 → Space = 던짐 (주인공 반 걸음) → 포물선 → 열려 빨려 들어감 → 떨어져 통통 → 가운데 창에서 흔들 (좌우 두 걸음 — 기울이지 않음, 픽셀 격자 하나) → 딸깍 · 터짐 */
+.pg-catch-ball {
+  position: absolute;
+  z-index: 6;
+  line-height: 0;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+.pg-catch-fly {
+  opacity: 0;
+  animation-name: pg-send-fly;
+  animation-timing-function: steps(8);
+  animation-fill-mode: both;
+}
+.pg-catch-open {
+  transform: translate(-50%, 50%);
+  animation: pg-catch-open 400ms steps(1, end) both;
+}
+@keyframes pg-catch-open {
+  0%, 50%, 100% { translate: 0 0; }
+  25%, 75% { translate: 0 -2px; }
+}
+.pg-catch-drop {
+  animation-name: pg-catch-drop;
+  animation-timing-function: steps(6);
+  animation-fill-mode: both;
+}
+@keyframes pg-catch-drop {
+  0% { transform: translate(-50%, calc(var(--pg-dy) * -1)); }
+  45% { transform: translate(-50%, 0); }
+  65% { transform: translate(-50%, calc(var(--pg-dy) * -0.3)); }
+  80% { transform: translate(-50%, 0); }
+  90% { transform: translate(-50%, calc(var(--pg-dy) * -0.1)); }
+  100% { transform: translate(-50%, 0); }
+}
+/* 흔들 한 번 = 좌우 두 걸음 뒤 멈춤 (반복 = 흔들 횟수, 인라인) */
+.pg-catch-shake {
+  animation-name: pg-catch-shake;
+  animation-timing-function: steps(1, end);
+  animation-fill-mode: both;
+}
+@keyframes pg-catch-shake {
+  0% { translate: -2px 0; }
+  12% { translate: 2px 0; }
+  24% { translate: -2px 0; }
+  36% { translate: 2px 0; }
+  48%, 100% { translate: 0 0; }
+}
+/* 딸깍 — 한 칸 눌렸다 돌아옴 · 터짐 — 하얗게 커지며 사라짐 */
+.pg-catch-click {
+  animation: pg-catch-click 240ms steps(1, end) both;
+}
+@keyframes pg-catch-click {
+  0% { translate: 0 2px; }
+  40%, 100% { translate: 0 0; }
+}
+.pg-catch-break {
+  animation: pg-catch-break 300ms steps(4) both;
+}
+@keyframes pg-catch-break {
+  0% { filter: none; scale: 1; opacity: 1; }
+  25% { filter: brightness(0) invert(1); scale: 1.25; opacity: 1; }
+  100% { filter: brightness(0) invert(1); scale: 1.75; opacity: 0; }
+}
+/* 상대 — 빛이 되어 빨려 들어감 (하양 → 붉은 빛 → 볼 자리로 작아짐) · 볼 속 = 숨김 · 빠져나옴 = 하얗게 커졌다 돌아옴 */
+.pg-catch-suck > .pg-fx-body {
+  transform-origin: 50% 55%;
+  animation: pg-catch-suck 400ms steps(8) both;
+}
+@keyframes pg-catch-suck {
+  0% { filter: none; scale: 1; opacity: 1; }
+  20% { filter: brightness(0) invert(1); scale: 1; opacity: 1; }
+  40% { filter: brightness(0) invert(1) sepia(1) saturate(4) hue-rotate(-50deg); scale: 0.8; opacity: 1; }
+  100% { filter: brightness(0) invert(1) sepia(1) saturate(4) hue-rotate(-50deg); scale: 0; opacity: 0.5; }
+}
+.pg-catch-gone {
+  visibility: hidden;
+}
+.pg-catch-pop > .pg-fx-body {
+  transform-origin: 50% 100%;
+  animation: pg-catch-pop 360ms steps(6) both;
+}
+@keyframes pg-catch-pop {
+  0% { filter: brightness(0) invert(1); scale: 0; }
+  50% { filter: brightness(0) invert(1); scale: 1.1; }
+  75% { filter: brightness(0) invert(1); scale: 1; }
+  100% { filter: none; scale: 1; }
+}
+/* 던지는 동안 주인공이 반 걸음 나섬 (주인공은 길 위 화면이 그림 — 표시만 두고 :has 로) */
+.pg-catch-throwing {
+  display: none;
+}
+.pg-in-battle:has(.pg-catch-throwing) .pg-hero-wrap {
+  animation: pg-catch-step 320ms steps(4) both;
+}
+@keyframes pg-catch-step {
+  0% { translate: 0 0; }
+  35% { translate: 6px 0; }
+  100% { translate: 0 0; }
+}
+/* ⑤ 흔들기 창 (2026-10-20 태현 님 B 집중 창 — 모양은 디자인 세션이 덧입힘) — 무대 가운데 · 이름표 · 큰 볼 (48px) · 남은 볼 아이콘 */
+.pg-catch-win {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 8;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px 5px;
+  background: var(--pg-sos-panel);
+  border: 1px solid var(--pg-sos-line);
+  border-radius: 0;
+  pointer-events: none;
+  animation: pg-catch-win-in 150ms steps(3) both;
+}
+@keyframes pg-catch-win-in {
+  0% { scale: 0.5; opacity: 0; }
+  100% { scale: 1; opacity: 1; }
+}
+.pg-catch-title {
+  color: var(--pg-sos-gold);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 12px;
+  white-space: nowrap;
+}
+/* 땅에 떨어진 볼이 창 가운데로 0.15초에 날아 들어감 (--pg-fx · --pg-fy = 땅의 볼 자리, --pg-fs = 길 위 볼 / 창 볼) */
+.pg-catch-win-ball {
+  position: relative;
+  line-height: 0;
+  animation: pg-catch-flyin 150ms steps(3) both;
+}
+@keyframes pg-catch-flyin {
+  0% { translate: var(--pg-fx, 0) var(--pg-fy, 0); scale: var(--pg-fs, 1); }
+  100% { translate: 0 0; scale: 1; }
+}
+.pg-catch-win .pg-catch-ball {
+  position: static;
+  display: inline-block;
+  transform: none;
+}
+.pg-catch-win .pg-catch-shake {
+  animation-name: pg-catch-shake-big;
+}
+@keyframes pg-catch-shake-big {
+  0% { translate: -6px 0; }
+  12% { translate: 6px 0; }
+  24% { translate: -6px 0; }
+  36% { translate: 6px 0; }
+  48%, 100% { translate: 0 0; }
+}
+.pg-catch-left {
+  display: flex;
+  gap: 2px;
+  line-height: 0;
+}
+.pg-catch-used {
+  opacity: 0.3;
+  filter: grayscale(1);
+}
+/* 딸깍 별 — 2px 점 + 십자 (단단한 그림자), 4 걸음에 퍼졌다 꺼짐 */
+.pg-catch-star {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2px;
+  height: 2px;
+  background: var(--pg-sos-gold);
+  box-shadow: 2px 0 var(--pg-sos-gold), -2px 0 var(--pg-sos-gold), 0 2px var(--pg-sos-gold), 0 -2px var(--pg-sos-gold);
+  pointer-events: none;
+  animation: pg-catch-star 480ms steps(4) both;
+}
+@keyframes pg-catch-star {
+  0% { translate: 0 0; opacity: 1; }
+  75% { translate: var(--pg-sx) var(--pg-sy); opacity: 1; }
+  100% { translate: var(--pg-sx) var(--pg-sy); opacity: 0; }
 }
 .pg-last-tag {
   flex: none;
@@ -1747,7 +1897,7 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
     animation: pg-evolve-show 0.01s linear 3.2s 1 forwards;
   }
   .pg-evolve-stage,
-  .pg-thrown-shake {
+  .pg-catch-shake {
     animation: none;
   }
 }
@@ -3213,33 +3363,6 @@ body.vscode-high-contrast-light .pg-title-body {
 .pg-bmenu .pg-bmenu-items .pg-button.pg-on:not(:disabled) {
   color: var(--pg-sos-gold);
   border-color: var(--pg-sos-gold);
-}
-/* 던지는 볼 = 정보줄과 같은 픽셀 볼 (코드로 그린 그라데이션 동그라미 · 돌리기 대신) — 흔들기는 좌우 2px 두 걸음, 잡힘은 1px 금색 단단한 테두리 */
-.pg-thrown-ball {
-  width: calc(8px * var(--pg-scale, 1));
-  height: calc(8px * var(--pg-scale, 1));
-  border: 0;
-  border-radius: 0;
-  background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'><rect x='2' y='0' width='4' height='1' fill='%23ff6b5a'/><rect x='1' y='1' width='1' height='1' fill='%23ff6b5a'/><rect x='2' y='1' width='1' height='1' fill='%23e8e2cf'/><rect x='3' y='1' width='4' height='1' fill='%23ff6b5a'/><rect x='0' y='2' width='2' height='1' fill='%23ff6b5a'/><rect x='2' y='2' width='1' height='1' fill='%23e8e2cf'/><rect x='3' y='2' width='4' height='1' fill='%23ff6b5a'/><rect x='7' y='2' width='1' height='1' fill='%23b8443a'/><rect x='0' y='3' width='3' height='1' fill='%231a1406'/><rect x='3' y='3' width='2' height='1' fill='%23e8e2cf'/><rect x='5' y='3' width='3' height='1' fill='%231a1406'/><rect x='0' y='4' width='3' height='1' fill='%231a1406'/><rect x='3' y='4' width='2' height='1' fill='%23e8e2cf'/><rect x='5' y='4' width='3' height='1' fill='%231a1406'/><rect x='0' y='5' width='7' height='1' fill='%23e8e2cf'/><rect x='7' y='5' width='1' height='1' fill='%23a9a38f'/><rect x='1' y='6' width='5' height='1' fill='%23e8e2cf'/><rect x='6' y='6' width='1' height='1' fill='%23a9a38f'/><rect x='2' y='7' width='4' height='1' fill='%23a9a38f'/></svg>") center / 100% 100% no-repeat;
-  image-rendering: pixelated;
-}
-@keyframes pg-thrown-throw {
-  0% { transform: translateX(calc(-50% + var(--pg-dx, 0px))) translateY(-60%); }
-  60% { transform: translateX(calc(-50% + var(--pg-dx, 0px) * 0.3)) translateY(-160%); }
-  100% { transform: translateX(-50%) translateY(0); }
-}
-.pg-thrown-shake {
-  animation: pg-thrown-shake 0.55s steps(1, end) 2 both;
-}
-@keyframes pg-thrown-shake {
-  0% { transform: translateX(calc(-50% - 2px)); }
-  25% { transform: translateX(calc(-50% + 2px)); }
-  50% { transform: translateX(calc(-50% - 2px)); }
-  75% { transform: translateX(calc(-50% + 2px)); }
-  100% { transform: translateX(-50%); }
-}
-.pg-thrown-caught {
-  filter: drop-shadow(1px 0 0 var(--pg-sos-gold)) drop-shadow(-1px 0 0 var(--pg-sos-gold)) drop-shadow(0 1px 0 var(--pg-sos-gold)) drop-shadow(0 -1px 0 var(--pg-sos-gold));
 }
 .pg-catch-ring {
   box-shadow: none;

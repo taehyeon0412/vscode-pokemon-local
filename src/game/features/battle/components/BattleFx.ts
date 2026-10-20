@@ -401,8 +401,8 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
       if (who && kind) fx.status?.(who, kind);
     }
   }, [b.popupSeq]);
-  // 반격 기회 — 상대만 밝고 둘레가 살짝 어두워짐 (두 번째 원은 화면이 그림)
-  const ripostingAt = b.phase === 'riposte' ? b.t - (b.riposte?.ms ?? 0) : -1;
+  // 반격 기회 — 상대만 밝고 둘레가 살짝 어두워짐 (두 번째 원은 화면이 그림) · 쳐내기 보여 주기 (ms < 0) 가 끝나 원이 뜰 때부터
+  const ripostingAt = b.phase === 'riposte' && (b.riposte?.ms ?? -1) >= 0 ? b.t - (b.riposte?.ms ?? 0) : -1;
   useEffect(() => {
     if (!fx || ripostingAt < 0) return;
     const foe = actor(now.current, 'foe');

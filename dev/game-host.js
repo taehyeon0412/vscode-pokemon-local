@@ -118,7 +118,12 @@
         if (battleKind === 'pick') Object.assign(b, { phase: 'pick', me: { ...me, hp: 0, gauge: 0 }, bench: { m1: { hp: 0, moves: me.moves, status: null } }, msg: '이상해씨가 쓰러졌다! 다음 포켓몬을 골라요' });
         if (battleKind === 'over') Object.assign(b, { phase: 'over', foe: { ...foe, hp: 0 }, result: 'win', msg: '야생 파이리가 쓰러졌다!' });
         if (battleKind === 'items') { save.bag = { 'poke-ball': 3, 'great-ball': 1, potion: 2 }; Object.assign(b, { phase: 'choose', me: { ...me, gauge: 1 }, msg: '이상해씨는 무엇을 할까?' }); }
-        if (battleKind === 'catch') Object.assign(b, { phase: 'catch', catch: { ball: 'poke-ball', ms: 0, pressMs: null, last: false, caught: null }, msg: '가랏, 몬스터볼! 원이 작아질 때 Space' });
+        // battle=catch — 잡기 (2026-10-20 다시 기획): cms=잡기 시작 ms · throw=던진 ms (없으면 원이 줄어드는 중) · caught=1|0 · shakes=1~3 · tries=이미 던진 볼 수 (창의 3/3 · 2/3 · 1/3)
+        if (battleKind === 'catch') {
+            const thrown = q.get('throw');
+            const at = thrown === null ? null : Number(thrown);
+            Object.assign(b, { phase: 'catch', bagUsed: { 'poke-ball': Number(q.get('tries') || 0) + 1 }, catch: { ball: 'poke-ball', ms: Number(q.get('cms') || 0), pressMs: at, throwMs: at, shakes: at === null ? 0 : Number(q.get('shakes') || 3), last: false, caught: at === null ? null : q.get('caught') !== '0', startT: 5000 }, msg: at === null ? '몬스터볼을 꺼냈다!' : '가랏, 몬스터볼!' });
+        }
         if (battleKind === 'last') { save.bag = { 'poke-ball': 3, 'great-ball': 1 }; Object.assign(b, { phase: 'last', foe: { ...foe, hp: 0 }, msg: '야생 파이리가 쓰러졌다! 마지막 기회 — 볼을 던질까?' }); }
         runtime = { rngState: 1, stepAccMs: 0, speed: 1, stage: { phase: 'battle', battle: b }, stageId: 'forest-1', toast: null };
     }
