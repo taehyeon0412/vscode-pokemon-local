@@ -36,8 +36,8 @@ export function StageToast({ text, center, bottom, room }: { text: string; cente
   });
   return (
     <div ref={ref} class="pg-toast" style={{ left: `${Math.round(center)}px`, bottom: `${bottom}px` }}>
-      {/* "리자몽 Lv 36!" 이 줄 끝에서 "리자몽 / Lv 36!" 로 갈라지지 않게 (이름 · Lv · 숫자 한 덩어리) */}
-      {text.replace(/(\S+) Lv (\d)/g, '$1\u00a0Lv\u00a0$2')}
+      {/* "리자몽 Lv 36!" · "외 4마리" 가 줄 끝에서 "리자몽 / Lv 36!" · "외 / 4마리" 로 갈라지지 않게 (한 덩어리) */}
+      {text.replace(/(\S+) Lv (\d)/g, '$1\u00a0Lv\u00a0$2').replace(/외 (\d)/g, '외\u00a0$1')}
     </div>
   );
 }
