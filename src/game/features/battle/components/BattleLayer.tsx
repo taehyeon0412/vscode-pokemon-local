@@ -236,7 +236,7 @@ function Effects({ b, geo, ground, midMe, midFoe, native }: { b: BattleState; ge
 }
 
 /** 잡기 볼 하나 (픽셀 볼, 점 = 길 위 그림 배율) — 장면마다 새로 그림 (key), 처음 그릴 때 지난 시간만큼 앞당겨 시작 (다시 그릴 때마다 바꾸면 두 배로 빨라짐) */
-function CatchBall({ cls, x, y, since, px, style, icon = 'ball' }: { cls: string; x?: number; y?: number; since: number; px: number; style?: Record<string, string>; icon?: 'ball' | 'ballBig' }) {
+function CatchBall({ cls, x, y, since, px, style, icon = 'ball' }: { cls: string; x?: number; y?: number; since: number; px: number; style?: Record<string, string>; icon?: 'ball' | 'ballBig' | 'ballBigOpen' }) {
   const since0 = useRef(since).current;
   return (
     <span class={`pg-catch-ball ${cls}`} style={{ ...(x !== undefined ? { left: `${x}px`, bottom: `${y ?? 0}px` } : {}), animationDelay: `${-since0}ms`, ...style }}>
@@ -292,7 +292,6 @@ function Catch({ b, geo, ground, mid, handY }: { b: BattleState; geo: BattleGeom
   };
   const title = v.stage === 'end' || v.stage === 'held' ? (v.caught ? '잡았다!' : '아깝다!') : '잡는 중…';
   const shakeStyle = { animationDuration: `${TIMING.catchShakeMs}ms`, animationIterationCount: String(Math.max(1, v.shakes)) };
-  const endCls = v.caught ? 'pg-catch-click' : 'pg-catch-break';
   return (
     <>
       {/* ④ 원 — 패링 · 반격 원과 같은 부품 (키 칸 "Space 던지기"). 지연은 처음 그린 때 값으로 고정: 다시 그릴 때마다 -c.ms 를 새로 넣으면
@@ -323,7 +322,8 @@ function Catch({ b, geo, ground, mid, handY }: { b: BattleState; geo: BattleGeom
         <div key={`${key}w`} class="pg-catch-win" style={{ left: `${winLeft}px`, top: `${winTop}px` }}>
           <span class="pg-catch-title">{title}</span>
           <span class="pg-catch-win-ball" style={flyIn}>
-            <CatchBall key={`${key}w${v.stage}`} cls={v.stage === 'shake' ? 'pg-catch-shake' : v.stage === 'held' ? '' : endCls} since={v.since} px={2} icon="ballBig" style={v.stage === 'shake' ? shakeStyle : undefined} />
+            {/* "아깝다!" = 열린 볼 (뚜껑이 들리고 빛살, 2026-10-20 태현 님) · 잡힘 = 닫힌 볼이 딸깍 */}
+            <CatchBall key={`${key}w${v.stage}`} cls={v.stage === 'shake' ? 'pg-catch-shake' : v.stage === 'held' ? '' : 'pg-catch-click'} since={v.since} px={2} icon={v.stage === 'end' && !v.caught ? 'ballBigOpen' : 'ballBig'} style={v.stage === 'shake' ? shakeStyle : undefined} />
             {v.stage === 'end' && v.caught && CATCH_STARS.map(([dx, dy], i) => <span key={`s${i}`} class="pg-catch-star" style={{ '--pg-sx': `${dx}px`, '--pg-sy': `${dy}px` }} />)}
           </span>
           {/* 남은 볼 기회 (이번 볼 포함) = 점 ●●○ — 볼 그림은 가진 볼 개수로 읽혀서 (플레이 리뷰어) · 지금 던진 칸 = pg-catch-now (모양은 game.css) */}

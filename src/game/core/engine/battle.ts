@@ -794,6 +794,8 @@ function catchStep(b: BattleState, save: Save, stepMs: number, rng: Rng): Battle
   if (c.ms < tl.done) return { ...b, catch: c, msg: b.catch!.ms < tl.shake && c.ms >= tl.shake ? '흔들… 흔들…' : b.msg };
   const name = label(b, 'foe');
   if (c.caught) return { ...b, catch: c, phase: 'over', result: 'catch', overMs: 0, msg: `신난다! ${withJosa(name, '을/를')} 잡았다!` };
+  // 이긴 뒤 마지막 기회가 세 번째 볼이었으면 — 도망이 아니라 이김으로 끝 (쓰러뜨린 보상을 잃지 않게, 2026-10-20 태현 님 "추천으로")
+  if (c.last && catchTriesUsed(b) >= BALANCE.catchTries) return { ...b, catch: null, phase: 'over', result: 'win', overMs: 0, msg: `아깝다! ${withJosa(name, '이/가')} 빠져나왔다…` };
   // 세 번 다 놓침 — 상대가 도망 (경험치 없음, 2026-10-20 태현 님)
   if (catchTriesUsed(b) >= BALANCE.catchTries) return { ...b, catch: null, phase: 'over', result: 'flee', escaped: true, anim: null, overMs: 0, msg: `아깝다! ${withJosa(name, '은/는')} 도망쳐 버렸다…` };
   // 놓침 — 상대가 HP 를 조금 되찾고 (최대 HP 의 10%) 먼저 덤빔 (상대 게이지 가득, 2026-10-20 태현 님).

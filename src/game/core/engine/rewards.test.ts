@@ -142,9 +142,11 @@ describe('S11 잡기 — 전투 흐름', () => {
     expect([fail.foe.gauge, fail.me.gauge]).toEqual([1, 0]);
     expect(fail.foeDown).toHaveLength(won.foeDown.length - 1);
     expect(fail.msg).toContain('다시 일어났다');
-    // 세 번째 기회를 마지막 기회로 써서 놓치면 보통처럼 도망 (경험치 없음)
+    // 세 번째 기회를 마지막 기회로 써서 놓치면 도망이 아니라 이김 (쓰러뜨린 보상 그대로 — 2026-10-20 태현 님 "추천으로")
     const third = untilOut(battleInput({ ...won, bagUsed: { 'poke-ball': 2 } }, save, { kind: 'ball', ball: 'poke-ball' }, new Rng(1)), save, fixedRng(0.99));
-    expect([third.phase, third.result, third.escaped]).toEqual(['over', 'flee', true]);
+    expect([third.phase, third.result, third.escaped]).toEqual(['over', 'win', undefined]);
+    expect(third.foe.hp).toBe(0);
+    expect(third.foeDown).toHaveLength(won.foeDown.length);
     // 볼이 없으면 마지막 기회 없이 바로 이김
     const none = { ...save, bag: {} };
     const noBall = run(battleInput({ ...lastHit }, none, { kind: 'act', action: { kind: 'attack' } }, fixedRng(0.5)), none, TIMING.attackAnimMs, fixedRng(0.5));
