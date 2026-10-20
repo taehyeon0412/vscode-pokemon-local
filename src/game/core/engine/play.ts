@@ -302,7 +302,7 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
         if (p.money) save = { ...save, money: save.money + p.money };
         save = withProgress(save, id, spot.at);
         const what = p.item ? itemName(p.item) : `${p.money ?? 0}원`;
-        rt = { ...rt, toast: { text: `✨ ${withJosa(what, '을/를')} 주웠다!`, ms: TIMING.toastMs } };
+        rt = { ...rt, toast: { text: `${withJosa(what, '을/를')} 주웠다!`, ms: TIMING.toastMs } };
       } else if (spot.kind === 'wild' && (rt.headless || rt.away) && planWild(id, prog.seed, spot, prog.run.retries).shiny) {
         // 안 볼 때 · VS Code 에 포커스가 없을 때 이로치 흔적 — 바로 앞에서 멈추고 알림 (U9), 다시 보이면 · 돌아오면 이어 감
         save = withProgress(save, id, Math.max(from, spot.at - BEFORE_SPOT));
@@ -491,8 +491,8 @@ function finishStage(save0: Save, rt0: RuntimeState, id: StageId): { save: Save;
   const lv = r.levelUps.length > 0 ? ` · ${r.levelUps.join(' · ')}` : '';
   if (id === 'forest-3') {
     save = { ...save, location: { screen: 'gym' } };
-    rt = { ...rt, toast: { text: `🎉 ${stageCode(id)} 클리어! 보너스 경험치 +${clearBonusExp(id)} · ◓+${BALANCE.clearBalls}${lv}`, ms: TIMING.toastMs * 2 } };
-  } else if (lv) rt = { ...rt, toast: { text: `🎉${lv}`, ms: TIMING.toastMs * 2 } };
+    rt = { ...rt, toast: { text: `${stageCode(id)} 클리어! 보너스 경험치 +${clearBonusExp(id)} · ◓+${BALANCE.clearBalls}${lv}`, ms: TIMING.toastMs * 2 } };
+  } else if (lv) rt = { ...rt, toast: { text: r.levelUps.join(' · '), ms: TIMING.toastMs * 2 } };
   const stage = afterResult(save);
   const notice: GameNotice | null = !rt.headless ? null : stage.phase === 'choice' ? 'choice' : id === 'forest-3' ? 'gym' : 'clear';
   return { save, rt: { ...rt, stage, stageId: id === 'forest-3' ? null : id }, signal: 'stage-clear', notice };

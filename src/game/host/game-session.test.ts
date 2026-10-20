@@ -368,6 +368,8 @@ describe('VS Code 밖 (창 포커스) — 보이면 계속 (2026-10-19 태현 �
     expect(snap().running).toBe(true);
     session.onWindowFocusChanged(true);
     expect(snap().owner).toBe('webview');
+    // 다시 맡길 때 포커스가 돌아왔다는 것도 (웹뷰 away 가 남아 이로치 · 라이벌 앞에서 멈춰 있지 않게 — 2026-10-20)
+    expect(view.last('focus')).toMatchObject({ focused: true });
   });
 });
 

@@ -30,7 +30,7 @@ export interface BattleSummary {
   learned: { name: string; move: string }[];
   /** 이어서 고를 것 (S23 · S22) 수 */
   choices: number;
-  /** 관장을 처음 이겨 받은 배지 (🏅 숲 배지) */
+  /** 관장을 처음 이겨 받은 배지 ("숲 배지") */
   badge: string | null;
   /** 라이벌 한마디 (gdd 4.12) */
   quote?: string;
@@ -131,7 +131,7 @@ export function battleRewards(save0: Save, b: BattleState, wild: Monster | null,
     summary.title = `${withJosa(GYM_LEADER.name, '을/를')} 이겼다!`;
     if (first) {
       save = { ...save, badges: [...save.badges, FOREST_BADGE], bag: { ...save.bag, 'leaf-stone': (save.bag['leaf-stone'] ?? 0) + 1 } };
-      summary.badge = '🏅 숲 배지';
+      summary.badge = '숲 배지';
       summary.item = itemName('leaf-stone');
       const bonus = giveTeamExp(save, stageLevelBand('forest-3')[1] * BALANCE.clearExpPerLevel * BALANCE.gymClearExpScale, rng);
       save = bonus.save;

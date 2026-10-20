@@ -311,7 +311,7 @@ describe('S16 체육관 · 관장 (mvp-spec 3.9)', () => {
     expect(s.save.badges).toContain('forest');
     expect(s.save.bag['leaf-stone']).toBe(1);
     expect(s.save.money - money).toBe(BALANCE.gymFirstMoney);
-    expect(s.runtime.stage).toMatchObject({ phase: 'result', then: 'badge', summary: { badge: '🏅 숲 배지' } });
+    expect(s.runtime.stage).toMatchObject({ phase: 'result', then: 'badge', summary: { badge: '숲 배지' } });
     s = until(s, (x) => phase(x) !== 'result' && phase(x) !== 'choice', 60_000);
     expect(phase(s)).toBe('badge');
     expect(isWaitingForInput(s)).toBe(true);

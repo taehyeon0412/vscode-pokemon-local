@@ -96,6 +96,9 @@ function fxHudRects() {
 // 안 볼 때 (VS Code 창에 포커스가 없음 — 게임은 계속 감) 는 연출을 차분하게: 흔들기 · 히트스톱 없음 · 번쩍 반 · 기술 임팩트 작게 (2026-10-20 ideas #113 — 코딩하며 곁눈으로 보는 게임)
 // 확장이 보내는 { command: 'game', type: 'focus', focused } 를 다리도 직접 들음 (게임 화면 코드와 따로)
 let fxAway = false;
+// 히트스톱으로 멈춘 움직임 · 다시 켤 타이머 (겹쳐 불러도 하나로)
+const fxStopped = [];
+let fxStopTimer = 0;
 window.addEventListener('message', (e) => {
     const m = e.data;
     if (m && m.command === 'game' && m.type === 'focus') {
@@ -681,18 +684,25 @@ window.pokemonFx = {
         if (fxAway) {
             return;
         }
-        moveFreezeUntil = performance.now() + ms;
-        const anims = fxInGame() ? [...document.querySelectorAll('#pokemon-game .pg-fighter')].flatMap((el) => el.getAnimations({ subtree: true })) : [];
-        anims.forEach((a) => a.playState === 'running' && a.pause());
-        setTimeout(() => anims.forEach((a) => {
-            try {
-                if (a.playState === 'paused') {
-                    a.play();
+        const until = Math.max(moveFreezeUntil, performance.now() + ms);
+        moveFreezeUntil = until;
+        // 이번에 멈춘 것만 (다른 곳에서 멈춘 움직임은 건드리지 않음) — 겹쳐 부르면 모아서 늦은 끝에 한 번에 다시 켬
+        const anims = fxInGame() ? [...document.querySelectorAll('#pokemon-game .pg-fighter')].flatMap((el) => el.getAnimations({ subtree: true })).filter((a) => a.playState === 'running') : [];
+        anims.forEach((a) => a.pause());
+        fxStopped.push(...anims);
+        clearTimeout(fxStopTimer);
+        fxStopTimer = setTimeout(() => {
+            const list = fxStopped.splice(0);
+            list.forEach((a) => {
+                try {
+                    if (a.playState === 'paused') {
+                        a.play();
+                    }
+                } catch (err) {
+                    // 그새 지워진 움직임은 그대로 둠
                 }
-            } catch (err) {
-                // 그새 지워진 움직임은 그대로 둠
-            }
-        }), ms);
+            });
+        }, Math.max(0, until - performance.now()));
     },
     /** 패링 되튀기 — 막은 쪽 (dst) 몸 앞에서 불똥이 친 쪽 (src) 으로 튐 · 완벽 = 금색 초승달 "팅" + 히트스톱 (2026-10-20 플레이 리뷰어) */
     deflect(dst, src, perfect) {

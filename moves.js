@@ -735,7 +735,7 @@ const DRAW = {
     stream: (ctx, p, t, px) => {
         const n = p.cols.length;
         if (p.tongue) {
-            // 불꽃 혀 (2026-10-20 아트 디렉터 2바퀴 — 네모 알갱이 · 네모 꼬리가 줄지어 남던 것): 최대 3칸 · 2칸부터 모서리 깎기 · 끝무렵은 1칸 폭 3칸 높이 혀
+            // 불꽃 혀 (2026-10-20 아트 디렉터 2바퀴 — 네모 알갱이 · 네모 꼬리가 줄지어 남던 것): 최대 3칸 · 3칸은 모서리 깎기 · 끝무렵은 1칸 폭 3칸 높이 혀
             ctx.globalAlpha = t < 0.85 ? 1 : Math.ceil(((1 - t) / 0.15) * 4) / 4;
             const c = p.cols[Math.min(n - 1, Math.floor((t / 0.85) * n))];
             if (t > 0.6) {
@@ -747,7 +747,8 @@ const DRAW = {
             const k = Math.min(3, Math.round(1 + t * p.grow));
             for (let dy = 0; dy < k; dy++) {
                 for (let dx = 0; dx < k; dx++) {
-                    if (k >= 2 && (dx === 0 || dx === k - 1) && (dy === 0 || dy === k - 1) && k > 2) {
+                    // 3칸이면 모서리를 깎아 십자 (2칸은 깎으면 남는 게 없어 그대로)
+                    if (k === 3 && (dx === 0 || dx === k - 1) && (dy === 0 || dy === k - 1)) {
                         continue;
                     }
                     dotAt(ctx, px, p.s, p.x + (dx - (k - 1) / 2) * p.s, p.y + (dy - (k - 1) / 2) * p.s, dx === (k - 1) / 2 && dy === (k - 1) / 2 && t < 0.3 ? p.cols[0] : c);
@@ -790,7 +791,7 @@ const DRAW = {
         ctx.globalAlpha = alpha * 0.35;
         sigDisc(ctx, px, p.s, p.x, p.y, (r - 0.5) * p.s, p.cols[1]);
         ctx.globalAlpha = alpha;
-        const dots = Math.max(8, Math.ceil(2 * Math.PI * r) * 2);
+        const dots = Math.max(8, Math.ceil(2 * Math.PI * r));
         for (let i = 0; i < dots; i++) {
             const a = (i / dots) * Math.PI * 2;
             dotAt(ctx, px, p.s, p.x + Math.cos(a) * r * p.s, p.y + Math.sin(a) * r * p.s, p.cols[2]);

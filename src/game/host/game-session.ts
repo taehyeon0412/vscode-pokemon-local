@@ -560,7 +560,8 @@ export class GameSession {
     this.handoverEpoch = null;
     this.markHeadless(false);
     this.post({ type: 'start', epoch: this.epoch, state: this.state });
-    if (!this.windowFocused) this.post({ type: 'focus', focused: false });
+    // 포커스 상태를 늘 같이 (돌아온 뒤 다시 맡길 때 focused: true 를 안 보내 웹뷰가 "포커스 없음" 으로 남아 이로치 · 라이벌 앞에서 멈춰 있던 것 — 테스터 2026-10-20)
+    this.post({ type: 'focus', focused: this.windowFocused });
     this.deps.log(`웹뷰가 계산을 맡음 (epoch ${this.epoch})`);
   }
 

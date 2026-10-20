@@ -196,7 +196,7 @@ export function startBattle(save: Save, wild: Monster, start: EncounterStart): B
     fought: lead ? [lead.uid] : [],
     overMs: 0,
     fleeTries: 0,
-    msg: !lead ? '싸울 수 있는 포켓몬이 없다…' : start === 'preemptive' ? '⚡ 선제공격!' : start === 'ambush' ? '💢 기습당했다!' : `가랏, ${nameOf(me)}!`,
+    msg: !lead ? '싸울 수 있는 포켓몬이 없다…' : start === 'preemptive' ? '선제공격!' : start === 'ambush' ? '기습당했다!' : `가랏, ${nameOf(me)}!`,
     popups: [],
     popupSeq: 0,
     t: 0,
@@ -372,8 +372,8 @@ function hit(b: BattleState, attackerSide: Side, power: number, type: ReadonlyMo
   const before = d.hp;
   d.hp = Math.max(0, d.hp - dmg);
   dmg = before - d.hp;
-  // 완벽하게 막아 피해가 0 이면 "-0" · 상성 글은 안 띄움 (막았는지 맞았는지 헷갈려서 — 플레이 리뷰어, 2026-10-20)
-  const blocked = parried === 'perfect' && dmg === 0;
+  // 막아서 피해가 0 이면 (완벽 · 또는 막음인데 피해 1 → 0) "-0" · 상성 글은 안 띄움 (막았는지 맞았는지 헷갈려서 — 플레이 리뷰어 · 테스터, 2026-10-20)
+  const blocked = (parried === 'good' || parried === 'perfect') && dmg === 0;
   if (!blocked) popup(b, other(attackerSide), `-${dmg}`, 'damage');
   const eff = effectivenessText(r.effect);
   if (eff && !blocked) popup(b, other(attackerSide), eff, effectKind(r.effect));
@@ -534,7 +534,7 @@ function afterHits(b0: BattleState, save: Save): BattleState {
       return { ...nb, phase: 'over', result: 'win', overMs: 0, msg: `${down} ${withJosa(who, '과/와')}의 승부에서 이겼다!` };
     }
     const hasBall = BALLS.some((ball) => itemLeft(b, save, ball) > 0);
-    if (b.kind === 'wild' && hasBall && !wiped) return { ...b, phase: 'last', lastMs: 0, msg: `${down} 마지막 기회 — 볼을 던질까?` };
+    if (b.kind === 'wild' && hasBall && !wiped) return { ...b, phase: 'last', lastMs: 0, msg: down };
     return { ...b, phase: 'over', result: 'win', overMs: 0, msg: b.kind === 'wild' && !hasBall && !wiped ? `${down} (볼이 없어 잡을 수 없어요)` : down };
   }
   const b = b0;
@@ -542,7 +542,7 @@ function afterHits(b0: BattleState, save: Save): BattleState {
     const bench = { ...b.bench, [b.me.uid]: { hp: 0, moves: b.me.moves, status: b.me.status } };
     const nb = { ...b, bench };
     if (switchable(nb, save).length === 0) return { ...nb, phase: 'over', result: 'lose', overMs: 0, msg: `${withJosa(nameOf(b.me), '이/가')} 쓰러졌다… 눈앞이 깜깜해졌다` };
-    return { ...nb, phase: 'pick', msg: `${withJosa(nameOf(b.me), '이/가')} 쓰러졌다! 다음 포켓몬을 골라요 (숫자 키)` };
+    return { ...nb, phase: 'pick', msg: `${withJosa(nameOf(b.me), '이/가')} 쓰러졌다! 다음 포켓몬을 골라요` };
   }
   return b.me.gauge >= 1 ? { ...b, phase: 'choose', msg: chooseMsg(b) } : { ...b, phase: 'run' };
 }
@@ -656,7 +656,7 @@ export function battleStep(b0: BattleState, save: Save, stepMs: number, rng: Rng
       // 내 포켓몬도 같이 쓰러졌으면 (반동 · 독) 다음 포켓몬 고르기
       if (nb.me.hp <= 0) {
         if (switchable(nb, save).length === 0) return { ...nb, phase: 'over', result: 'lose', overMs: 0, msg: '눈앞이 깜깜해졌다…' };
-        return { ...nb, phase: 'pick', msg: `${nb.msg} 다음 포켓몬을 골라요 (숫자 키)` };
+        return { ...nb, phase: 'pick', msg: `${nb.msg} 다음 포켓몬을 골라요` };
       }
       return nb.me.gauge >= 1 ? { ...nb, phase: 'choose', msg: chooseMsg(nb) } : { ...nb, phase: 'run' };
     }
@@ -786,7 +786,8 @@ export function canUlt(b: BattleState): boolean {
   if (b.me.ult < 1 || b.me.hp <= 0) return false;
   if (b.phase === 'run' || b.phase === 'choose') return true;
   // 상대 기술 연출 중에는 끼어들기 (상대 필살기에는 맞받아치기만 — ultCounterOpen)
-  return b.phase === 'anim' && b.anim?.side === 'foe' && b.anim.action.kind !== 'ult';
+  // 상대 아이템 (관장 상처약) 은 못 끊음 — 끊으면 상처약만 사라지고 회복은 안 되던 것 (테스터 2026-10-20)
+  return b.phase === 'anim' && b.anim?.side === 'foe' && b.anim.action.kind !== 'ult' && b.anim.action.kind !== 'item';
 }
 
 /** 지금 패링할 수 있는지 — 상대가 피해를 주는 공격 (1 공격 · 위력 있는 기술) 을 하는 중 · 아직 안 누름 · 내가 서 있음 */

@@ -298,6 +298,10 @@
 							"explorer"
 						],
 						"default": "explorer",
+						"enumDescriptions": [
+							"편집기 탭으로 엶",
+							"아래 패널 \"포켓몬\" 탭 (게임 모드도 여기)"
+						],
 						"description": "포켓몬 패널 위치"
 					},
 					"vscode-pokemon.theme": {

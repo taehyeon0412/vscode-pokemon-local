@@ -287,7 +287,7 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
             down();
           };
           fx.mount?.(null);
-          // 같은 전투에서 이 포켓몬 필살기를 이미 봤으면 컷인 없이 짧게
+          // 같은 전투에서 이 포켓몬이 필살기를 이미 썼으면 (두 번째부터 — 필살기가 여럿이면 다른 것이어도) 컷인 없이 짧게. 컷인 띠는 포켓몬 얼굴이라 포켓몬 기준
           const seenKey = `${side}:${b[side].uid}:${b[side].form}`;
           const quick = seenUlts.current.has(seenKey);
           const total = fx.ult && src && dst ? fx.ult(src, dst, onHit, learnedNames(b, side), { quick }) : 0;
@@ -347,8 +347,10 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
   }, [key]);
   // 패링 — 막으면 맞는 순간에 맞춰 내 포켓몬에 방패 (완벽 = 금색)
   const parried = b.anim?.side === 'foe' ? b.anim.parry : undefined;
+  // 빗나갈 공격을 막았으면 ("피했다!") 피하는 몸짓만 — 방패 · 되튀기는 안 그림 (한꺼번에 나와 헷갈리던 것, 코드 리뷰어)
+  const parriedMiss = !!b.anim?.miss;
   useEffect(() => {
-    if (!fx || (parried !== 'good' && parried !== 'perfect')) return undefined;
+    if (!fx || (parried !== 'good' && parried !== 'perfect') || parriedMiss) return undefined;
     const w = impactOf(key);
     const t = window.setTimeout(
       () => {
@@ -373,9 +375,9 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
     if (big || fresh.some((p) => p.kind === 'super')) fx.hitStop?.(big ? 100 : 70);
     const koActor = ko ? actor(b, ko.side) : null;
     if (koActor) fx.ko?.(koActor);
+    // 상태 이상이 걸림 = status 글 + 지금 그 상태 (나음은 아이템 반짝이가 이미 있어서 따로 안 그림)
     for (const p of fresh) {
-      if (p.kind !== 'status') continue;
-      const kind = p.text === '몸이 개운해졌다!' ? 'cure' : b[p.side].status?.kind;
+      const kind = p.kind === 'status' ? b[p.side].status?.kind : undefined;
       const who = kind ? actor(b, p.side) : null;
       if (who && kind) fx.status?.(who, kind);
     }
