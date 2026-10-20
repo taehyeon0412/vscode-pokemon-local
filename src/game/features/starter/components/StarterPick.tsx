@@ -99,29 +99,35 @@ export function StarterPick({ media, pending, onBack, onDone }: StarterPickProps
             </button>
           ))}
         </div>
-        {/* ② 진화 단계 + ④ 처음 기술 — 한 줄 (낮은 패널에서도 기술이 보이게), 모자라면 다음 줄로 */}
-        <div class="pg-panel-row pg-panel-wrap">
-          <span class="pg-chain" title={`${sel.name} · ${types}`}>
-            {chain.map((c, i) => (
-              <span key={c.dex} class="pg-chain-step">
-                {i > 0 && <span class="pg-dim">→</span>}
-                <Sprite media={media} form={c.form} scale={1} px={chainPx(c.form)} />
-                <span class={i === 0 ? 'pg-chain-name' : 'pg-chain-name pg-dim'}>{c.name}</span>
-              </span>
+        {/* 고른 포켓몬 = 왼쪽 큰 칸 (길 위 크기 ×2 — 줄의 다른 포켓몬은 ×1, "같은 화면 같은 배율" 의 예외: 2026-10-20 태현 님 "추천대로") ·
+            ② 진화 단계 + ④ 처음 기술 — 한 줄 (낮은 패널에서도 기술이 보이게), 모자라면 다음 줄로 */}
+        <div class="pg-starter-card">
+          <span class="pg-card-art">
+            <Sprite media={media} form={sel.form} scale={1} crop={48} fieldSize />
+          </span>
+          <div class="pg-panel-row pg-panel-wrap">
+            <span class="pg-chain" title={`${sel.name} · ${types}`}>
+              {chain.map((c, i) => (
+                <span key={c.dex} class="pg-chain-step">
+                  {i > 0 && <span class="pg-dim">→</span>}
+                  <Sprite media={media} form={c.form} scale={1} px={chainPx(c.form)} />
+                  <span class={i === 0 ? 'pg-chain-name' : 'pg-chain-name pg-dim'}>{c.name}</span>
+                </span>
+              ))}
+              <span class="pg-sub pg-chain-name">{types}</span>
+            </span>
+            <span class="pg-panel-sep pg-dim">
+              기술 {picked.length}/{BALANCE.starterMoves}
+            </span>
+            {cands.map((m, i) => (
+              <Button key={m.id} secondary extraClass={picked.includes(m.id) ? 'pg-picked' : undefined} onClick={() => toggle(m.id)} title={`${m.detail} (${i + 1})${m.own ? ' · 자기 타입 (위력 × 1.5)' : ''}`}>
+                {picked.includes(m.id) ? '✓' : ''}
+                {i + 1} {m.name}
+                {m.own && <span class="pg-own">×1.5</span>}
+                <span class="pg-sub">{m.short}</span>
+              </Button>
             ))}
-            <span class="pg-sub pg-chain-name">{types}</span>
-          </span>
-          <span class="pg-panel-sep pg-dim">
-            기술 {picked.length}/{BALANCE.starterMoves}
-          </span>
-          {cands.map((m, i) => (
-            <Button key={m.id} secondary extraClass={picked.includes(m.id) ? 'pg-picked' : undefined} onClick={() => toggle(m.id)} title={`${m.detail} (${i + 1})${m.own ? ' · 자기 타입 (위력 × 1.5)' : ''}`}>
-              {picked.includes(m.id) ? '✓' : ''}
-              {i + 1} {m.name}
-              {m.own && <span class="pg-own">×1.5</span>}
-              <span class="pg-sub">{m.short}</span>
-            </Button>
-          ))}
+          </div>
         </div>
       </div>
     </div>

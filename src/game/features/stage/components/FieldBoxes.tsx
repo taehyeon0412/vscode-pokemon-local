@@ -286,11 +286,29 @@ export function BadgeCard({ state, onInput, onMap }: BoxProps & { onMap(): void 
  * 아래 띠 (상대 · 볼) 는 오른쪽에서 밀려 들어오고 가운데 금색 VS 가 찍힘 (번쩍임 없음). at = 시작한 뒤 지난 ms —
  * 처음 그릴 때 값만 씀 (다시 그릴 때마다 지연을 바꾸면 애니메이션이 두 배로 빨리 끝남, 라이벌 만남에서 안 보이던 것)
  */
-export function VsCutIn({ me, myBalls, foe, foeBalls, tag, at }: { me: string; myBalls: boolean[]; foe: string; foeBalls: number; /** 라이벌 전적 ("전적 2승 1패") — 전적 띠가 VS 에 가려지는 동안에도 보이게 */ tag?: string; at: number }) {
+/** VS 컷인 대결 그림 — src = battle.png · top = 그림이 시작하는 줄 (data/people-battle.ts) */
+export interface VsArt {
+  src: string;
+  top: number;
+}
+
+/** 대결 그림 칸 — 원작 64 × 64 를 길 위와 같은 ×2 그대로 (줄이지 않음). 높이가 모자라면 아래 · 폭이 모자라면 양옆을 잘라 머리부터 보임 (2026-10-20 태현 님 "작은 화면도") */
+function VsArtBox({ art, side }: { art: VsArt; side: 'me' | 'foe' }) {
+  return (
+    <span class={`pg-vs-art pg-vs-art-${side}`} style={{ height: `${(64 - art.top + 2) * VS_ART_SCALE}px`, '--pg-vs-art-top': `${-(art.top - 2) * VS_ART_SCALE}px` }} aria-hidden="true">
+      <img src={art.src} width={64 * VS_ART_SCALE} height={64 * VS_ART_SCALE} alt="" draggable={false} />
+    </span>
+  );
+}
+const VS_ART_SCALE = 2;
+
+export function VsCutIn({ me, myBalls, foe, foeBalls, tag, at, meArt, foeArt }: { me: string; myBalls: boolean[]; foe: string; foeBalls: number; /** 라이벌 전적 ("전적 2승 1패") — 전적 띠가 VS 에 가려지는 동안에도 보이게 */ tag?: string; at: number; /** 원작 대결 그림 (없으면 이름 · 볼만) */ meArt?: VsArt | null; foeArt?: VsArt | null }) {
   const at0 = useRef(at).current;
   return (
     <div class="pg-vs" style={{ '--pg-vs-at': `${-at0}ms` }}>
-      <div class="pg-vs-band pg-vs-me">
+      {meArt && <VsArtBox art={meArt} side="me" />}
+      {foeArt && <VsArtBox art={foeArt} side="foe" />}
+      <div class={meArt ? 'pg-vs-band pg-vs-me pg-has-art' : 'pg-vs-band pg-vs-me'}>
         <b>{me}</b>
         <span class="pg-foe-balls">
           {myBalls.map((alive, i) => (
@@ -301,7 +319,7 @@ export function VsCutIn({ me, myBalls, foe, foeBalls, tag, at }: { me: string; m
         </span>
       </div>
       <div class="pg-vs-word">VS</div>
-      <div class="pg-vs-band pg-vs-foe">
+      <div class={foeArt ? 'pg-vs-band pg-vs-foe pg-has-art' : 'pg-vs-band pg-vs-foe'}>
         <span class="pg-foe-balls">
           {Array.from({ length: foeBalls }, (_, i) => (
             <Icon key={i} name="ball" />

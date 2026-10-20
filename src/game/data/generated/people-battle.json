@@ -1,0 +1,110 @@
+{
+ "frlg-red": {
+  "source": "pret/pokefirered graphics/trainers/front_pics/red_front_pic.png",
+  "w": 64,
+  "h": 64,
+  "top": 8
+ },
+ "frlg-blue": {
+  "source": "pret/pokefirered graphics/trainers/front_pics/rival_early_front_pic.png",
+  "w": 64,
+  "h": 64,
+  "top": 6
+ },
+ "em-brendan": {
+  "source": "pret/pokeemerald graphics/trainers/front_pics/brendan.png",
+  "w": 64,
+  "h": 64,
+  "top": 8
+ },
+ "em-wally": {
+  "source": "pret/pokeemerald graphics/trainers/front_pics/wally.png",
+  "w": 64,
+  "h": 64,
+  "top": 7
+ },
+ "frlg-leaf": {
+  "source": "pret/pokefirered graphics/trainers/front_pics/leaf_front_pic.png",
+  "w": 64,
+  "h": 64,
+  "top": 8
+ },
+ "em-may": {
+  "source": "pret/pokeemerald graphics/trainers/front_pics/may.png",
+  "w": 64,
+  "h": 64,
+  "top": 8
+ },
+ "em-may-rs": {
+  "source": "pret/pokeemerald graphics/trainers/front_pics/may_rs.png",
+  "w": 64,
+  "h": 64,
+  "top": 8
+ },
+ "em-leaf": {
+  "source": "pret/pokeemerald graphics/trainers/front_pics/leaf.png",
+  "w": 64,
+  "h": 64,
+  "top": 8
+ },
+ "frlg-youngster": {
+  "source": "pret/pokefirered graphics/trainers/front_pics/youngster_front_pic.png",
+  "w": 64,
+  "h": 64,
+  "top": 15
+ },
+ "frlg-bug-catcher": {
+  "source": "pret/pokefirered graphics/trainers/front_pics/bug_catcher_front_pic.png",
+  "w": 64,
+  "h": 64,
+  "top": 14
+ },
+ "frlg-lass": {
+  "source": "pret/pokefirered graphics/trainers/front_pics/lass_front_pic.png",
+  "w": 64,
+  "h": 64,
+  "top": 8
+ },
+ "frlg-picnicker": {
+  "source": "pret/pokefirered graphics/trainers/front_pics/picnicker_front_pic.png",
+  "w": 64,
+  "h": 64,
+  "top": 10
+ },
+ "em-twin": {
+  "source": "pret/pokeemerald graphics/trainers/front_pics/twins.png",
+  "w": 64,
+  "h": 64,
+  "top": 17
+ },
+ "em-school-kid": {
+  "source": "pret/pokeemerald graphics/trainers/front_pics/school_kid_m.png",
+  "w": 64,
+  "h": 64,
+  "top": 14
+ },
+ "frlg-hiker": {
+  "source": "pret/pokefirered graphics/trainers/front_pics/hiker_front_pic.png",
+  "w": 64,
+  "h": 64,
+  "top": 1
+ },
+ "frlg-cooltrainer-f": {
+  "source": "pret/pokefirered graphics/trainers/front_pics/cool_trainer_f_front_pic.png",
+  "w": 64,
+  "h": 64,
+  "top": 3
+ },
+ "em-pokefan-f": {
+  "source": "pret/pokeemerald graphics/trainers/front_pics/pokefan_f.png",
+  "w": 64,
+  "h": 64,
+  "top": 6
+ },
+ "frlg-erika": {
+  "source": "pret/pokefirered graphics/trainers/front_pics/leader_erika_front_pic.png",
+  "w": 64,
+  "h": 64,
+  "top": 6
+ }
+}

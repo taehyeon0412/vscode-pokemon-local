@@ -17,6 +17,7 @@ import { GYM_LEADER } from '../../../core/rules/trainer';
 import { josaOf, withJosa } from '../../../core/text';
 import { speciesOf } from '../../../data';
 import { heroHeightPx, heroLookOf, heroWidthPx, personLook } from '../../../data/heroes';
+import { battleArtOf } from '../../../data/people-battle';
 import { BallCount } from '../../../ui/BallCount';
 import { Button } from '../../../ui/Button';
 import { Icon } from '../../../ui/Icon';
@@ -35,7 +36,7 @@ import { ChoiceBox } from '../../result/components/ChoiceBox';
 import { ResultBox } from '../../result/components/ResultBox';
 import { choiceView } from '../../result/model';
 import { battleStage, buildingDraw, BUILDINGS, contactX, foeTrainerView, heroX, minimapOf, staffLeftPx, type StageObject, stagePx, STAGES, visibleObjects, vsStartMs, WALK_PX_PER_SEC } from '../model';
-import { BadgeCard, ClearCard, DefeatBox, FacilityBox, LobbyBox, TrainerBanner, VsCutIn } from './FieldBoxes';
+import { BadgeCard, ClearCard, DefeatBox, FacilityBox, LobbyBox, TrainerBanner, VsCutIn, type VsArt } from './FieldBoxes';
 import { Hero } from './Hero';
 import { Minimap } from './Minimap';
 import { StageObjects } from './StageObjects';
@@ -130,6 +131,12 @@ function RequestBox({ state, media, onInput }: { state: GameState; media: string
 }
 
 /** 팀 맨 앞 포켓몬 그림 (오른쪽 위 ◓ 버튼) */
+/** VS 컷인 대결 그림 (사람 그림 id → battle.png) — 원작 그림이 없는 사람은 null (이름 · 볼만) */
+function vsArt(media: string, id: string | undefined): VsArt | null {
+  const a = battleArtOf(id);
+  return a && media && id ? { src: `${media.replace(/\/+$/, '')}/people/${id}/battle.png`, top: a.top } : null;
+}
+
 function leadOf(save: GameState['save']): { form: string; shiny: boolean } | null {
   const m = save.party[0] ? save.monsters[save.party[0]] : undefined;
   return m ? { form: m.form, shiny: m.shiny } : null;
@@ -311,7 +318,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         {stageRt?.phase === 'trainer' && foeTrainer?.talking && stageRt.ms < vsStartMs('trainer') && <TrainerBanner name={foeTrainer.name} balls={foeTrainer.balls} media={media} look={foeTrainer.look} />}
         {/* VS 컷인 — 만남 단계 끝 0.8초 (트레이너 · 라이벌) */}
         {(stageRt?.phase === 'trainer' || stageRt?.phase === 'rival') && foeTrainer && stageRt.ms >= vsStartMs(stageRt.phase) && (
-          <VsCutIn me={look.label} myBalls={save.party.map((uid) => (save.monsters[uid]?.hp ?? 0) > 0)} foe={foeTrainer.name} foeBalls={foeTrainer.balls} tag={foeTrainer.record} at={stageRt.ms - vsStartMs(stageRt.phase)} />
+          <VsCutIn me={look.label} myBalls={save.party.map((uid) => (save.monsters[uid]?.hp ?? 0) > 0)} foe={foeTrainer.name} foeBalls={foeTrainer.balls} tag={foeTrainer.record} at={stageRt.ms - vsStartMs(stageRt.phase)} meArt={vsArt(media, look.dir ?? look.id)} foeArt={vsArt(media, foeTrainer.look)} />
         )}
         {stageRt?.phase === 'rival' && foeTrainer?.talking && stageRt.ms < vsStartMs('rival') && (
           <TrainerBanner name={foeTrainer.name} balls={foeTrainer.balls} text={`${josaOf(foeTrainer.name, '이/가')} 승부를 걸어왔다!`} tag={foeTrainer.record ?? ''} media={media} look={foeTrainer.look} />
