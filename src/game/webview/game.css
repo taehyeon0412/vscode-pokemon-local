@@ -3959,10 +3959,10 @@ body.vscode-high-contrast-light .pg-title-body {
   inset: 0;
   background: rgba(12, 16, 30, 0.2);
 }
-/* 스타팅 고르기 세 줄 (칩 · 진화 · 기술) 사이 = 패널 높이에 따라 (2026-10-20 태현 님 "패널이 높으면 빨간 네모 각각의 위아래 간격을 더 — 다닥다닥"):
-   150px 4px → 187px 약 13px → 230px 부터 24px. 남는 높이는 위아래로 (가운데) */
+/* 스타팅 고르기 세 줄 (칩 · 진화 · 기술) 사이 = 남는 높이 ÷ 4 (위 여백 · 줄 사이 둘 · 아래 여백이 같게, 4 ~ 24px) — 패널이 높으면 넓게 · 낮으면 좁게, 넘치지 않게
+   (2026-10-20 태현 님 "빨간 네모 각각의 위아래 간격 · 세세하게 반응형"). --pg-pick-content = 정보줄 + 줄 높이 합 (StarterPick) */
 .pg-pick-starter {
-  gap: clamp(4px, calc(4px + (100vh - 150px) * 0.25), 24px);
+  gap: clamp(4px, calc((100vh - var(--pg-pick-content, 150px)) / 4), 24px);
 }
 /* 세 줄 상자 = 내용 높이 그대로 (칩 24 · 기술 22 가 28 줄 안에 떠서 위아래 빈칸이 2 ~ 3px 씩 달라지던 것) — 보이는 간격 = 줄 간격.
    넘치면 줄이 눌려 잘리지 않고 판 안에서 스크롤 (flex-shrink 0 — 240 에서 칩이 위아래로 잘리던 것) */
@@ -3977,6 +3977,8 @@ body.vscode-high-contrast-light .pg-title-body {
    그림 줄 높이 = 이 진화 줄의 가장 큰 그림 (StarterPick style) → 위 · 아래 보이는 간격이 같음. 좁으면 뒤 단계 이름 → 타입 순서로 숨김 (그림 title) */
 .pg-chain-grid {
   display: inline-grid;
+  /* 이름 줄 밑 4px = 그림 칸 위 여유 2px + 대기 동작 흔들림 — 진화 묶음 위 · 아래 보이는 간격이 같게 (starter/model PICK_ROWS_PX 에 포함) */
+  padding-bottom: 4px;
   /* 옆 간격 = 패널 폭에 따라 (태현 님 "옆 간격을 좀 더 넓게 이쁘게") — 넓은 패널 16px · 720 폭 약 14 · 좁으면 6 */
   column-gap: clamp(6px, 2vw, 16px);
   row-gap: 4px;

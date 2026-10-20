@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { validateSave } from '../../core/save';
 import { moveOf, speciesOf } from '../../data';
 import { spriteBoxOf } from '../../data/sprite-boxes';
-import { CHAIN_MAX_ART, chainRowPx, chainZoom, chosenStarterMoves, createStartSave, defaultStarterMoves, evolutionChain, starterList, starterMoveCandidates } from './model';
+import { CHAIN_MAX_ART, chainRowPx, chainZoomFor, chosenStarterMoves, PICK_ROWS_PX, createStartSave, defaultStarterMoves, evolutionChain, starterList, starterMoveCandidates } from './model';
 
 const STARTERS = [1, 152, 252, 387, 495, 650, 4, 155, 255, 390, 498, 653, 7, 158, 258, 393, 501, 656];
 
@@ -87,7 +87,7 @@ describe('S03 · S04 고르기 (단계 10)', () => {
 });
 
 describe('S04 ② 진화 줄 그림 (2026-10-20 태현 님 "크기가 제각각 · 바닥 정렬 · 이름은 밑에")', () => {
-  it('18종 모든 진화 단계의 실제 그림이 CHAIN_MAX_ART 안 — 패널 180px 에서 ×2 그림 + 이름 + 칩 · 기술 줄이 들어감', () => {
+  it('18종 모든 진화 단계의 실제 그림이 CHAIN_MAX_ART 안 · ×2 는 들어갈 때만 (187px 은 ×2 · 150px 은 ×1)', () => {
     for (const s of starterList()) {
       for (const c of evolutionChain(s.dex)) {
         const box = spriteBoxOf(c.form);
@@ -95,17 +95,19 @@ describe('S04 ② 진화 줄 그림 (2026-10-20 태현 님 "크기가 제각각 
         expect(box![3] - box![1], c.form).toBeLessThanOrEqual(CHAIN_MAX_ART);
       }
     }
-    // 180px: 정보줄 27 + 칩 24 + 간격 + 그림 66 + 4 + 이름 14 + 간격 + 기술 22 ≤ 180 (간격 = 4 + 30 × 0.25)
-    const gap = 4 + (180 - 150) * 0.25;
-    expect(27 + 24 + gap + CHAIN_MAX_ART * chainZoom(true) + 4 + 14 + gap + 22).toBeLessThanOrEqual(180);
-    // 150px (×1): 정보줄 27 + 칩 24 + 4 + 그림 33 + 4 + 이름 14 + 4 + 기술 22 ≤ 150
-    expect(27 + 24 + 4 + CHAIN_MAX_ART * chainZoom(false) + 4 + 14 + 4 + 22).toBeLessThanOrEqual(150);
+    // 정보줄 27 을 뺀 높이: 187px (태현 님 패널) 은 가장 큰 진화 줄도 ×2 · 150px 은 ×1 이고 그때 넘치지 않음
+    const big = evolutionChain(650).map((c) => c.form); // 도치마론 → 브리가론 (가장 큰 그림)
+    expect(chainZoomFor(187 - 27, big)).toBe(2);
+    expect(chainZoomFor(187 - 27, evolutionChain(1).map((c) => c.form))).toBe(2);
+    expect(chainZoomFor(150 - 27, big)).toBe(1);
+    expect(PICK_ROWS_PX + chainRowPx(big, 1) + 2 * 4).toBeLessThanOrEqual(150 - 27);
   });
   it('같은 점 크기라 원작 그림대로 진화할수록 커짐 (이상해씨 < 이상해풀 < 이상해꽃) · 그림 칸 높이 = 가장 큰 그림', () => {
     const forms = evolutionChain(1).map((c) => c.form);
     const h = forms.map((f) => spriteBoxOf(f)!).map((b) => b[3] - b[1]);
     expect(h[0]!).toBeLessThan(h[1]!);
     expect(h[1]!).toBeLessThan(h[2]!);
-    expect(chainRowPx(forms, 2)).toBe(h[2]! * 2);
+    // 위아래 한 칸씩 여유 (화면 배율에서 발끝이 잘리지 않게 — 2026-10-20 태현 님 "잘려 보이네")
+    expect(chainRowPx(forms, 2)).toBe((h[2]! + 2) * 2);
   });
 });

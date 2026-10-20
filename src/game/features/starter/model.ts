@@ -87,11 +87,18 @@ export function evolutionChain(dex: number): { dex: number; form: string; name: 
  */
 /** 18종 진화 단계 중 가장 큰 그림 키 (칸) — 150px 에서도 들어가는지 계산하는 기준 (model.test) */
 export const CHAIN_MAX_ART = 33;
-export const chainZoom = (tall: boolean): number => (tall ? 2 : 1);
-/** 그림 칸 높이 = 이 진화 줄의 가장 큰 실제 그림 × 배율 */
+/** 스타팅 화면에서 진화 그림 칸을 뺀 줄 높이 — 칩 24 + 그림 ↔ 이름 4 + 이름 · 타입 표 20 + 이름 밑 4 (game.css .pg-chain-grid) + 기술 22 (정보줄은 화면이 뺌) */
+export const PICK_ROWS_PX = 24 + 4 + 20 + 4 + 22;
+/** 줄 사이 가장 좁은 간격 */
+export const PICK_MIN_GAP_PX = 4;
+/** 진화 줄 배율 — ×2 (길 위 · 전투와 같음) 가 줄 사이 4px 씩 남기고 들어가면 ×2, 아니면 ×1 (패널 높이 · 진화 줄 크기로 계산 — 넘쳐서 스크롤되지 않게) */
+export function chainZoomFor(availPx: number, forms: readonly string[]): number {
+  return availPx >= PICK_ROWS_PX + chainRowPx(forms, 2) + 2 * PICK_MIN_GAP_PX ? 2 : 1;
+}
+/** 그림 칸 높이 = 이 진화 줄의 가장 큰 실제 그림 × 배율 + 위아래 한 칸씩 여유 (화면 배율 125 · 150% 에서 끝 줄이 잘리지 않게 — Sprite bottom) */
 export function chainRowPx(forms: readonly string[], zoom: number): number {
   const hs = forms.map((f) => spriteBoxOf(f)).map((b) => (b ? b[3] - b[1] : 32));
-  return Math.max(1, ...hs) * zoom;
+  return (Math.max(1, ...hs) + 2) * zoom;
 }
 /** 그림 칸 폭 = 실제 그림 폭 × 배율 + 양옆 2px (원본 칸 전체를 쓰면 빈칸이 넓어 줄이 길어짐) */
 export function chainArtWidth(form: string, zoom: number): number {

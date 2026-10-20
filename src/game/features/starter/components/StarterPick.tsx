@@ -12,8 +12,8 @@ import { InfoBar } from '../../../ui/InfoBar';
 import { TypeTags } from '../../battle/components/TypeTag';
 import { Sprite } from '../../../ui/Sprite';
 import { moveView } from '../../result/model';
-import { chainArtWidth, chainRowPx, chainZoom, defaultStarterMoves, evolutionChain, starterList, starterMoveCandidates } from '../model';
-import { MAP_ROW_MIN_HEIGHT_PX } from '../../../ui/layout';
+import { chainArtWidth, chainRowPx, chainZoomFor, defaultStarterMoves, evolutionChain, PICK_ROWS_PX, starterList, starterMoveCandidates } from '../model';
+import { INFO_BAR_PX } from '../../../ui/layout';
 
 export interface StarterPickProps {
   media: string;
@@ -36,9 +36,14 @@ export function StarterPick({ media, pending, onBack, onDone }: StarterPickProps
   const chain = evolutionChain(sel.dex);
   const selTypes = speciesOf(sel.dex)?.types ?? [];
   const types = selTypes.map(typeNameKo).join(' · ');
-  // 진화 줄 배율 · 그림 칸 높이 (패널 180px 이상 ×2 — 이름 줄까지 150px 에 들어가게 낮으면 ×1)
-  const zoom = chainZoom(window.innerHeight >= MAP_ROW_MIN_HEIGHT_PX);
+  // 진화 줄 배율 (×2 가 들어가면 ×2) · 그림 칸 높이 · 내용 높이 — 줄 간격 = (패널 − 내용) ÷ 4 로 위 · 줄 사이 · 아래가 같게 (game.css --pg-pick-content)
+  // 정보줄 높이 = 20 × 글자 배율 (--pg-ui, main.ts) + 아래 선 1
+  const ui = parseFloat(document.getElementById('pokemon-game')?.style.getPropertyValue('--pg-ui') ?? '') || 1;
+  const barPx = Math.round(INFO_BAR_PX * ui) + 1;
+  const avail = window.innerHeight - barPx;
+  const zoom = chainZoomFor(avail, chain.map((c) => c.form));
   const rowPx = chainRowPx(chain.map((c) => c.form), zoom);
+  const contentPx = barPx + PICK_ROWS_PX + rowPx;
   const ready = picked.length === BALANCE.starterMoves && !pending;
 
   const toggle = (id: number) =>
@@ -95,7 +100,7 @@ export function StarterPick({ media, pending, onBack, onDone }: StarterPickProps
           </>
         }
       />
-      <div class="pg-body pg-pick-body pg-pick-starter">
+      <div class="pg-body pg-pick-body pg-pick-starter" style={{ '--pg-pick-content': `${contentPx}px` }}>
         <div class="pg-panel-row" ref={stripRef}>
           {list.map((s, i) => (
             <button key={s.dex} type="button" class={i === index ? 'pg-chip pg-starter-chip pg-chip-on' : 'pg-chip pg-starter-chip'} onClick={() => setIndex(i)} title={`${s.name} (← →)`}>
