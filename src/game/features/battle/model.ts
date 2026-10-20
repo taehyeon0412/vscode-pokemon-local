@@ -317,8 +317,10 @@ export interface BattleGeometry {
   bodyPx: number;
   /** 길 위 그림 배율 (포켓몬 · 사람 · 볼 픽셀 한 칸 = scale px) — 잡기 볼 · 흔들기 창이 같은 픽셀 격자로 (2026-10-20) */
   scale: number;
-  /** 길 칸 너비 (px) — 잡기 흔들기 창 (무대 가운데) 으로 땅의 볼이 날아 들어가는 거리 */
+  /** 무대 너비 (px) — 잡기 흔들기 창 (무대 가운데) 으로 땅의 볼이 날아 들어가는 거리 */
   widthPx: number;
+  /** 무대 왼쪽 끝 (길 칸 기준 px) — 넓은 패널은 무대를 가운데에 둠 (placeOnStage). 잡기 창처럼 길 칸 기준으로 놓는 것에 더함 (2026-10-20 디자인 세션) */
+  stageLeft: number;
   /** 한 줄 말 · 힘대결 안내 위 끝 (길 칸 위에서 px) — 지도 줄 아래 띄움, 자리가 모자라면 띄움을 줄임 (최소 3) */
   msgTop: number;
 }
@@ -425,7 +427,7 @@ export function battleGeometry(g: GeometryInput): BattleGeometry {
   const msgSide = !menuSide && topBusy && sideRoom >= MSG_SIDE_MIN_PX ? { left: sideLeft, maxWidth: sideRoom } : null;
   // 둘 곳이 없으면 (좁고 낮은 패널) 한 줄은 숨김 — HP 바가 더 중요, 내 차례는 메뉴 테두리로 보임
   const msgHidden = menuSide ? !msgRight : topBusy && !msgSide;
-  return { trainerX, meX, foeX: Math.round(g.foeX), meSpritePx: g.meSpritePx, foeSpritePx: g.foeSpritePx, meHpWide, foeHpWide, meHpX, foeHpX, msgHidden, meHpBottom, foeHpBottom, hpBlockPx, menuInBar, menuBottom, menuLeft, autoInMenu, autoBottom, autoLeft: AUTO_LEFT_PX, compact, tiny, msgSide, menuSide, msgRight, msgLines, topBusy, msgTop: Math.max(top + msgGap, menuSide && !topBusy ? Math.min(menuSide.top, g.bodyPx - (foeHpBottom + hpBlockPx + foeExtra)) - MSG_NEAR_GAP_PX - msgH - (msgLines - 1) * MSG_LINE_PX : 0), bodyPx: g.bodyPx, scale: g.scale, widthPx: g.widthPx };
+  return { trainerX, meX, foeX: Math.round(g.foeX), meSpritePx: g.meSpritePx, foeSpritePx: g.foeSpritePx, meHpWide, foeHpWide, meHpX, foeHpX, msgHidden, meHpBottom, foeHpBottom, hpBlockPx, menuInBar, menuBottom, menuLeft, autoInMenu, autoBottom, autoLeft: AUTO_LEFT_PX, compact, tiny, msgSide, menuSide, msgRight, msgLines, topBusy, msgTop: Math.max(top + msgGap, menuSide && !topBusy ? Math.min(menuSide.top, g.bodyPx - (foeHpBottom + hpBlockPx + foeExtra)) - MSG_NEAR_GAP_PX - msgH - (msgLines - 1) * MSG_LINE_PX : 0), bodyPx: g.bodyPx, scale: g.scale, widthPx: g.widthPx, stageLeft: 0 };
 }
 
 /**
@@ -438,6 +440,7 @@ export function placeOnStage(geo: BattleGeometry, stage: { left: number; width: 
   if (dx === 0 && rightGap === 0) return geo;
   return {
     ...geo,
+    stageLeft: geo.stageLeft + dx,
     trainerX: geo.trainerX + dx,
     meX: geo.meX + dx,
     foeX: geo.foeX + dx,
@@ -562,7 +565,8 @@ export function catchFoeClass(b: BattleState): string {
   if (!v) return '';
   if (v.stage === 'suck') return 'pg-catch-suck';
   if (v.stage === 'drop' || v.stage === 'shake' || v.stage === 'held' || (v.stage === 'end' && v.caught)) return 'pg-catch-gone';
-  return v.stage === 'end' ? 'pg-catch-pop' : '';
+  // 마지막 기회 (쓰러진 상대) 에서 놓침 — 하얀 빛 뒤 쓰러진 모습 그대로 (일어선 모습으로 튀어나와 "다시 찬" 것처럼 보이던 것, 2026-10-20 태현 님)
+  return v.stage === 'end' ? (b.catch?.last ? 'pg-catch-popdown' : 'pg-catch-pop') : '';
 }
 
 /** 볼 칸 뒤 — 남은 볼 기회 (처음엔 없음) · 마지막 한 번이면 "마지막!" */

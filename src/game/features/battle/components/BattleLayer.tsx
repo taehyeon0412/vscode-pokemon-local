@@ -277,7 +277,8 @@ function Catch({ b, geo, ground, mid, handY }: { b: BattleState; geo: BattleGeom
   //   시작 = 땅의 볼 자리 (창 가운데에서 dx · dy, 크기 = 길 위 볼 / 창 볼)
   const win = v.stage === 'shake' || v.stage === 'end' || v.stage === 'held';
   // 자리는 정수 px (top 50% · translate 는 무대 높이가 홀수면 0.5px 에 걸려 테두리 · 볼이 흐려짐, 아트 디렉터 8차)
-  const winLeft = Math.round((geo.widthPx - CATCH_WIN_W) / 2);
+  // 무대 가운데 — 넓은 패널은 무대가 길 칸 가운데라 무대 왼쪽 끝을 더함 (창은 길 칸 기준으로 놓임, 디자인 세션)
+  const winLeft = geo.stageLeft + Math.round((geo.widthPx - CATCH_WIN_W) / 2);
   const winTop = Math.round((geo.bodyPx - CATCH_WIN_H) / 2);
   const flyIn = {
     '--pg-fx': `${Math.round(geo.foeX - (winLeft + CATCH_WIN_W / 2))}px`,

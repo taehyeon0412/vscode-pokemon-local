@@ -408,6 +408,8 @@ describe('S11 잡기 장면 (2026-10-20 태현 님 다시 기획) — 엔진 시
     const end = drop + TIMING.catchDropMs + 2 * TIMING.catchShakeMs;
     expect(catchFoeClass(at(end))).toBe('pg-catch-pop');
     expect(catchFoeClass(at(end, { caught: true }))).toBe('pg-catch-gone');
+    // 마지막 기회 (쓰러진 상대) 에서 놓침 — 일어서지 않고 쓰러진 모습으로
+    expect(catchFoeClass(at(end, { last: true }))).toBe('pg-catch-popdown');
     expect(catchFoeClass(at(10, { throwMs: null, caught: null }))).toBe('');
   });
 });
