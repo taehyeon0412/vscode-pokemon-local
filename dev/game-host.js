@@ -3,7 +3,7 @@
 //   progress=0~1 (숲 1-1 진행, 스테이지 시드 42 — 그 자리 바로 앞에서 시작해 흔적 · 조우 · 부탁을 찍음)
 //   place=facility|hospital|shop|shop-front|trainer|trainer-battle|defeat|clear|lobby|gym-battle|badge (단계 8 · 9)
 //   balls=<몬스터-슈퍼-하이퍼 개수, 예 3-0-2>  pts=<선두 남은 포인트>
-//   scene=result 와 같이: ups=2 (둘이 레벨업) · ups=0 (레벨업 없음) · spent=1 (스탯을 찍어 본 세이브 — 안내 말풍선 없음) · click=lvup|lvup2 (얼굴 카드 누르기)
+//   scene=result 와 같이: ups=2 (둘이 레벨업) · ups=0 (레벨업 없음) · spent=1 (스탯을 찍어 본 세이브) · click=lvup|lvup2 (얼굴 카드 누르기)
 //   ms=<만난 뒤 ms> — place=trainer · rival 의 시작 시각 (VS 컷인 사진: trainer 3000 · rival 3800)
 //   place=rival|rival-talk|rival-battle|rival-over|rival-result|rival-lose  rival=<주인공 id, 기본 may>  record=<이김-짐, 기본 2-1> (라이벌 gdd 4.12)  click=map|team|bag|settings|profile|item
 //   style=<CSS> (시안 비교 — 임시 CSS 를 얹음)
@@ -70,7 +70,7 @@
         save.box = ['m6'];
         save.nextMonsterUid = 7;
     }
-    // spent=1 — 스탯을 이미 찍어 본 세이브 (S12 얼굴 카드 안내 말풍선이 안 나옴)
+    // spent=1 — 스탯을 이미 찍어 본 세이브 (말풍선은 이제 레벨업마다 나와서 차이 없음 — 2026-10-20)
     if (q.get('spent') === '1') save.monsters.m1 = { ...save.monsters.m1, points: { ...save.monsters.m1.points, attack: 10 } };
     const info = {
         save: saveKind,
