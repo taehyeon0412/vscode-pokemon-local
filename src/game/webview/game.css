@@ -3799,3 +3799,20 @@ body.vscode-high-contrast-light .pg-title-body {
 .pg-maprow .pg-mappct {
   color: var(--pg-sos-ink);
 }
+/* 대화 상자 얼굴 칸 (ui/Face — Sea of Stars 대화 상자 왼쪽 얼굴): 원작 정면 그림 머리 쪽 12칸 × 2 · 글 줄 가운데 · 이름표 앞 4px */
+.pg-face {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  margin-right: 4px;
+  overflow: hidden;
+  vertical-align: middle;
+}
+.pg-face > img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  max-width: none;
+  image-rendering: pixelated;
+}
+

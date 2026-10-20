@@ -23,6 +23,7 @@ import { Icon } from '../../../ui/Icon';
 import { themeKind } from '../../../ui/theme';
 import { typeNameKo } from '../../../ui/format';
 import { InfoBar } from '../../../ui/InfoBar';
+import { Face } from '../../../ui/Face';
 import { KeyCap } from '../../../ui/KeyCap';
 import { fieldTopPx, hasMapRow, INFO_BAR_PX, MAP_ROW_PX, topGapPx, type Layout } from '../../../ui/layout';
 import { BattleLayer, BattleMenuBar } from '../../battle/components/BattleLayer';
@@ -83,7 +84,7 @@ function EncounterBox({ state }: { state: GameState }) {
   );
 }
 
-function RequestBox({ state, onInput }: { state: GameState; onInput(i: GameInput): void }) {
+function RequestBox({ state, media, onInput }: { state: GameState; media: string; onInput(i: GameInput): void }) {
   const stage = state.runtime.stage;
   const save = state.save;
   if (stage?.phase !== 'request' || save.location.screen !== 'stage') return null;
@@ -107,7 +108,7 @@ function RequestBox({ state, onInput }: { state: GameState; onInput(i: GameInput
   return (
     <div class="pg-banner pg-request pg-two" title={`${t.who.name}: ${t.text}`}>
       <span class="pg-ellipsis">
-        {t.who.look ? null : `${t.who.icon} `}
+        {t.who.look ? <Face media={media} id={t.who.look} /> : `${t.who.icon} `}
         <span class="pg-speaker">{t.who.name}</span> {t.text}
       </span>
       <span class="pg-line pg-request-act">
@@ -307,15 +308,15 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
           <BattleLayer battle={battle} save={save} media={media} ground={ground} geo={geo} onInput={battleInput} onProfile={(side) => onOpen({ kind: 'profile', side })} foeTrainerLeft={foeTrainer || gym ? leaderX : undefined} />
         )}
         <EncounterBox state={state} />
-        {stageRt?.phase === 'trainer' && foeTrainer?.talking && stageRt.ms < vsStartMs('trainer') && <TrainerBanner name={foeTrainer.name} balls={foeTrainer.balls} />}
+        {stageRt?.phase === 'trainer' && foeTrainer?.talking && stageRt.ms < vsStartMs('trainer') && <TrainerBanner name={foeTrainer.name} balls={foeTrainer.balls} media={media} look={foeTrainer.look} />}
         {/* VS 컷인 — 만남 단계 끝 0.8초 (트레이너 · 라이벌) */}
         {(stageRt?.phase === 'trainer' || stageRt?.phase === 'rival') && foeTrainer && stageRt.ms >= vsStartMs(stageRt.phase) && (
           <VsCutIn me={look.label} myBalls={save.party.map((uid) => (save.monsters[uid]?.hp ?? 0) > 0)} foe={foeTrainer.name} foeBalls={foeTrainer.balls} tag={foeTrainer.record} at={stageRt.ms - vsStartMs(stageRt.phase)} />
         )}
         {stageRt?.phase === 'rival' && foeTrainer?.talking && stageRt.ms < vsStartMs('rival') && (
-          <TrainerBanner name={foeTrainer.name} balls={foeTrainer.balls} text={`${josaOf(foeTrainer.name, '이/가')} 승부를 걸어왔다!`} tag={foeTrainer.record ?? ''} />
+          <TrainerBanner name={foeTrainer.name} balls={foeTrainer.balls} text={`${josaOf(foeTrainer.name, '이/가')} 승부를 걸어왔다!`} tag={foeTrainer.record ?? ''} media={media} look={foeTrainer.look} />
         )}
-        <RequestBox state={state} onInput={onInput} />
+        <RequestBox state={state} media={media} onInput={onInput} />
         <FacilityBox state={state} media={media} onInput={onInput} onBox={() => onOpen({ kind: 'team' })} />
         {shopInside && <ShopPanel save={save} note={state.runtime.toast?.text} onInput={onInput} onClose={() => onInput({ kind: 'facility-leave' })} />}
         {stageRt?.phase === 'result' && <ResultBox summary={stageRt.summary} next={save.pendingChoices[0]?.kind ?? null} onInput={onInput} />}

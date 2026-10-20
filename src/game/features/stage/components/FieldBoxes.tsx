@@ -12,6 +12,7 @@ import { FACILITY_STAFF } from '../../../core/rules/stage';
 import { GYM_LEADER } from '../../../core/rules/trainer';
 import type { StageId } from '../../../core/save';
 import { Button } from '../../../ui/Button';
+import { Face } from '../../../ui/Face';
 import { Icon } from '../../../ui/Icon';
 import { KeyCap } from '../../../ui/KeyCap';
 import { formatMoney } from '../../../ui/format';
@@ -26,7 +27,7 @@ export interface BoxProps {
 }
 
 /** S06 ⑥ 앞에서 멈춤 · S13 병원 안 (상점 안은 ShopPanel) */
-export function FacilityBox({ state, onInput, onBox }: BoxProps & { onBox(): void }) {
+export function FacilityBox({ state, media, onInput, onBox }: BoxProps & { onBox(): void }) {
   const st = state.runtime.stage;
   if (st?.phase !== 'facility') return null;
   const hospital = st.kind === 'hospital';
@@ -52,6 +53,7 @@ export function FacilityBox({ state, onInput, onBox }: BoxProps & { onBox(): voi
     <div class="pg-banner pg-facility-box">
       {/* 말하는 사람 = 길 위 간호순 그림 (건물 옆) — 좁은 패널에선 이 줄을 숨기고 버튼 한 줄만 (game.css) */}
       <span class="pg-ellipsis pg-facility-say">
+        <Face media={media} id={FACILITY_STAFF.hospital.look} />
         <span class="pg-speaker">{FACILITY_STAFF.hospital.name}</span> 무료로 회복해 드려요
       </span>
       {/* 버튼 셋은 한 묶음 — 줄이 바뀌면 글과 버튼 사이에서만 (크기마다 모양이 같게) */}
@@ -78,10 +80,11 @@ export function FacilityBox({ state, onInput, onBox }: BoxProps & { onBox(): voi
 }
 
 /** S08 — 눈이 마주침 → "승부다!" + 상대 몬스터볼 개수 (어떤 포켓몬인지는 안 보임) */
-/** text = 이름 뒤 한 줄 (없으면 ': "승부다!"') · tag = 라이벌 전적 칩 ("전적 2승 1패" · "첫 만남!") — 있으면 라이벌 띠 (색이 다름, gdd 4.12) */
-export function TrainerBanner({ name, balls, text, tag }: { name: string; balls: number; text?: string; tag?: string }) {
+/** text = 이름 뒤 한 줄 (없으면 ': "승부다!"') · tag = 라이벌 전적 칩 ("전적 2승 1패" · "첫 만남!") — 있으면 라이벌 띠 (색이 다름, gdd 4.12) · look = 얼굴 칸 (사람 그림 id) */
+export function TrainerBanner({ name, balls, text, tag, media, look }: { name: string; balls: number; text?: string; tag?: string; media: string; look?: string }) {
   return (
     <div class={tag ? 'pg-banner pg-trainer-box pg-rival-box' : 'pg-banner pg-trainer-box'}>
+      <Face media={media} id={look} />
       <span class="pg-ellipsis">
         {text ? (
           <>
