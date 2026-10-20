@@ -34,9 +34,11 @@ export interface MenuItem {
 
 /** 좁은 패널의 짧은 이름 (번호 + 낱말 하나, 전체 이름은 title) — 이모지는 쓰지 않음 (아트 디렉터 2026-10-19). 넓은 메뉴와 같은 낱말 (4 아이템 — 크기마다 '가방' · '아이템' 으로 다르던 것) */
 const COMPACT_LABEL: Record<string, string> = { attack: '1 공격', guard: '2 방어', skills: '3 스킬', items: '4 아이템', switch: '5 교체', flee: '5 도망', more: '5 교체·도망' };
+/** 아주 좁은 패널 (300px 아래) — 번호 없이 두 글자 (240 에서 "1 …" 로 잘려 못 읽던 것 — 아트 디렉터 5차). 숫자 키는 그대로, 번호는 title */
+const TINY_LABEL: Record<string, string> = { attack: '공격', guard: '방어', skills: '스킬', items: '가방', switch: '교체', flee: '도망', more: '교체' };
 
-/** 메뉴 한 줄 (mvp-spec S09 ⑦: 1 공격 · 2 방어 · 3 스킬 · 4 아이템 · 5 교체 · 도망, 숫자 키 1 ~ 5) — compact = 좁은 패널 */
-export function menuItems(b: BattleState, save: Save, page: MenuPage, compact = false): MenuItem[] {
+/** 메뉴 한 줄 (mvp-spec S09 ⑦: 1 공격 · 2 방어 · 3 스킬 · 4 아이템 · 5 교체 · 도망, 숫자 키 1 ~ 5) — compact = 좁은 패널 · 'tiny' = 300px 아래 (번호 없이 두 글자) */
+export function menuItems(b: BattleState, save: Save, page: MenuPage, compact: boolean | 'tiny' = false): MenuItem[] {
   const back: MenuItem = { key: 'back', num: 0, label: '← 뒤로', go: { back: true }, enabled: true, title: '뒤로 (← · Esc)' };
   switch (page) {
     case 'main': {
@@ -55,8 +57,9 @@ export function menuItems(b: BattleState, save: Save, page: MenuPage, compact = 
         { key: 'more', num: 5, label: switchOk ? (fleeOk ? '5 교체·도망' : '5 교체') : fleeOk ? '5 도망' : '5 교체', go: switchOk ? { page: 'switch' } : { action: { kind: 'flee' } }, enabled: b.phase === 'choose' && (switchOk || fleeOk), title: moreTitle },
       ];
       if (!compact) return items;
-      // 야생 (도망 됨) 에서 바꿀 포켓몬도 있으면 좁아도 "5 교체·도망" — "5 교체" 만이면 도망칠 수 있는지 모름 (플레이 리뷰어)
-      return items.map((i) => ({ ...i, label: COMPACT_LABEL[i.key === 'more' ? (switchOk && fleeOk ? 'more' : switchOk || !fleeOk ? 'switch' : 'flee') : i.key] ?? i.label }));
+      // 야생 (도망 됨) 에서 바꿀 포켓몬도 있으면 좁아도 "5 교체·도망" — "5 교체" 만이면 도망칠 수 있는지 모름 (플레이 리뷰어). 아주 좁으면 "교체" (도망은 title · 교체 판 안)
+      const labels = compact === 'tiny' ? TINY_LABEL : COMPACT_LABEL;
+      return items.map((i) => ({ ...i, label: labels[i.key === 'more' ? (switchOk && fleeOk ? 'more' : switchOk || !fleeOk ? 'switch' : 'flee') : i.key] ?? i.label }));
     }
     case 'skills':
       return [
@@ -83,7 +86,8 @@ export function menuItems(b: BattleState, save: Save, page: MenuPage, compact = 
           key: item,
           num: i + 1,
           label: `${i + 1} ${itemName(item)}`,
-          sub: `×${itemLeft(b, save, item)}`,
+          // 개수 = "3개" (× 는 잡기 배율 "×1.5" 와 헷갈림 — 2026-10-19 태현 님 · 아트 디렉터 5차)
+          sub: `${itemLeft(b, save, item)}개`,
           // 기력의조각 → 살릴 포켓몬 고르기
           go: item === 'revive' ? { page: 'revive' } : { action: { kind: 'item', item } },
           enabled: canAct(b, save, { kind: 'item', item }),
@@ -227,6 +231,8 @@ const NAMETAG_PX = 16;
 const MENU_EST_PX = 380;
 /** 이보다 좁은 패널은 메뉴를 짧게 (번호 + 그림 글자) · 패널 왼쪽 끝부터 */
 export const COMPACT_WIDTH_PX = 560;
+/** 이 폭 아래면 메뉴를 두 글자로 (아트 디렉터 5차 — 240) */
+export const TINY_WIDTH_PX = 300;
 /** 한 줄을 상대 오른쪽에 둘 때 필요한 최소 너비 */
 const MSG_SIDE_MIN_PX = 100;
 /** 옆 메뉴일 때 오른쪽 위 한 줄의 오른쪽 끝 — 상대 오른쪽 끝에서 이만큼까지 (넓은 패널) */
@@ -274,6 +280,8 @@ export interface BattleGeometry {
   autoLeft: number;
   /** 좁은 패널 — 메뉴를 짧게 */
   compact: boolean;
+  /** 아주 좁은 패널 (300px 아래) — 메뉴 = 번호 없는 두 글자 · 내 HP 줄 이름 빼기 */
+  tiny: boolean;
   /** 지금 한 줄 · 힘대결 안내: 위 가운데가 HP 바와 겹치면 상대 오른쪽 (null = 위 가운데) */
   msgSide: { left: number; maxWidth: number } | null;
   /** 옆 메뉴 자리 (null = 예전 가로 한 줄) — 위 끝에서 top px, 너비 · 높이는 이 안에서 (2026-10-19 Sea of Stars) */
@@ -341,6 +349,7 @@ export function battleGeometry(g: GeometryInput): BattleGeometry {
   const menuBottom = meHpBottom + hpBlockPx;
   const menuPx = Math.round(MENU_PX * u);
   const compact = g.widthPx < COMPACT_WIDTH_PX;
+  const tiny = g.widthPx < TINY_WIDTH_PX;
   // 옆 메뉴: 내 포켓몬 · 내 HP 묶음 오른쪽 ~ 상대 그림 · 상대 HP 묶음 왼쪽 사이에 세로 목록이 들어가면 그쪽 (위 정보줄은 그대로 보임)
   const sideLeft0 = Math.round(Math.max(meX + g.meSpritePx / 2, meHpX + meHpWide / 2) + 6);
   const sideRight0 = Math.round(Math.min(g.foeX - g.foeSpritePx / 2, foeHpX - foeHpWide / 2) - 6);
@@ -391,7 +400,7 @@ export function battleGeometry(g: GeometryInput): BattleGeometry {
   const msgSide = !menuSide && topBusy && sideRoom >= MSG_SIDE_MIN_PX ? { left: sideLeft, maxWidth: sideRoom } : null;
   // 둘 곳이 없으면 (좁고 낮은 패널) 한 줄은 숨김 — HP 바가 더 중요, 내 차례는 메뉴 테두리로 보임
   const msgHidden = menuSide ? !msgRight : topBusy && !msgSide;
-  return { trainerX, meX, foeX: Math.round(g.foeX), meSpritePx: g.meSpritePx, foeSpritePx: g.foeSpritePx, meHpWide, foeHpWide, meHpX, foeHpX, msgHidden, meHpBottom, foeHpBottom, hpBlockPx, menuInBar, menuBottom, menuLeft, autoInMenu, autoBottom, autoLeft: AUTO_LEFT_PX, compact, msgSide, menuSide, msgRight, msgLines, topBusy, msgTop: Math.max(top + msgGap, menuSide && !topBusy ? Math.min(menuSide.top, g.bodyPx - (foeHpBottom + hpBlockPx + foeExtra)) - MSG_NEAR_GAP_PX - msgH - (msgLines - 1) * MSG_LINE_PX : 0), bodyPx: g.bodyPx };
+  return { trainerX, meX, foeX: Math.round(g.foeX), meSpritePx: g.meSpritePx, foeSpritePx: g.foeSpritePx, meHpWide, foeHpWide, meHpX, foeHpX, msgHidden, meHpBottom, foeHpBottom, hpBlockPx, menuInBar, menuBottom, menuLeft, autoInMenu, autoBottom, autoLeft: AUTO_LEFT_PX, compact, tiny, msgSide, menuSide, msgRight, msgLines, topBusy, msgTop: Math.max(top + msgGap, menuSide && !topBusy ? Math.min(menuSide.top, g.bodyPx - (foeHpBottom + hpBlockPx + foeExtra)) - MSG_NEAR_GAP_PX - msgH - (msgLines - 1) * MSG_LINE_PX : 0), bodyPx: g.bodyPx };
 }
 
 /**

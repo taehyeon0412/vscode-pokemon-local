@@ -59,7 +59,7 @@ function Bar({ value, cls }: { value: number; cls: string }) {
   );
 }
 
-/** ⑫ 자동 전투 스위치 — "자동 OFF · ON" (9자 "자동 전투 OFF" 가 트레이너 이름표처럼 읽히던 것 — 아트 디렉터 4차), 상태는 모양으로: 꺼짐 = 흐린 글 · 흐린 선 · 켜짐 = 금색 선 + 크림 */
+/** ⑫ 자동 전투 스위치 — "자동 꺼짐 · 켜짐" (9자 "자동 전투 OFF" 가 트레이너 이름표처럼 읽히던 것 — 4차, 설정 · 접힌 줄과 같은 한국어 — 5차), 상태는 모양으로: 꺼짐 = 흐린 글 · 흐린 선 · 켜짐 = 금색 선 + 크림 */
 export function AutoButton({ save, onInput, short }: { save: Save; onInput(i: GameInput): void; short: boolean }) {
   const auto = save.settings.autoBattle;
   return (
@@ -68,7 +68,7 @@ export function AutoButton({ save, onInput, short }: { save: Save; onInput(i: Ga
       onClick={() => onInput({ kind: 'auto-battle', on: !auto })}
       title={auto ? '자동 전투 켜짐 — 누르면 끔' : '자동 전투 꺼짐 — 켜면 내 행동도 알아서 (필살기 · 연타는 직접도 됨)'}
     >
-      {short ? (auto ? '자동✓' : '자동') : auto ? '자동 ON' : '자동 OFF'}
+      {short ? (auto ? '자동✓' : '자동') : auto ? '자동 켜짐' : '자동 꺼짐'}
     </Button>
   );
 }
@@ -480,7 +480,7 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
       {/* 패링 원은 HP 줄보다 먼저 (같은 층에서 HP 숫자가 위) */}
       <ParryRing b={b} geo={geo} y={midMe} auto={save.settings.autoBattle} />
       <RiposteRing b={b} geo={geo} y={midFoe} auto={save.settings.autoBattle} />
-      {hasMe && <HpBlock f={b.me} side="me" x={geo.meHpX} bottom={geo.meHpBottom} wide={geo.meHpWide} prefix="" noName={geo.menuSide !== null} />}
+      {hasMe && <HpBlock f={b.me} side="me" x={geo.meHpX} bottom={geo.meHpBottom} wide={geo.meHpWide} prefix="" noName={geo.menuSide !== null || geo.tiny} />}
       {b.phase !== 'send' && <HpBlock f={b.foe} side="foe" x={geo.foeHpX} bottom={geo.foeHpBottom} wide={geo.foeHpWide} prefix={foePrefix(b)} />}
       {b.phase === 'clash' ? <Clash b={b} geo={geo} y={Math.round((midMe + midFoe) / 2)} native={native} /> : <Effects b={b} geo={geo} ground={ground} midMe={midMe} midFoe={midFoe} native={native} />}
       <Catch b={b} geo={geo} ground={ground} />
@@ -535,7 +535,7 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
       ) : (
         !geo.menuInBar && (
           <div class="pg-bmenu-wrap" style={{ left: `${geo.menuLeft}px`, bottom: `${geo.menuBottom}px`, maxWidth: `calc(100% - ${geo.menuLeft + 6}px)` }}>
-            <BattleMenu battle={b} save={save} onInput={onInput} lead={geo.autoInMenu ? <AutoButton save={save} onInput={onInput} short={geo.compact} /> : null} compact={geo.compact} />
+            <BattleMenu battle={b} save={save} onInput={onInput} lead={geo.autoInMenu ? <AutoButton save={save} onInput={onInput} short={geo.compact} /> : null} compact={geo.tiny ? 'tiny' : geo.compact} />
           </div>
         )
       )}
@@ -546,10 +546,10 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
 }
 
 /** 패널이 낮을 때 — 위 정보줄 자리에 메뉴 줄 (gdd S09 [확정]) */
-export function BattleMenuBar({ battle, save, onInput, withAuto, compact }: { battle: BattleState; save: Save; onInput(i: GameInput): void; withAuto: boolean; compact: boolean }) {
+export function BattleMenuBar({ battle, save, onInput, withAuto, compact }: { battle: BattleState; save: Save; onInput(i: GameInput): void; withAuto: boolean; compact: boolean | 'tiny' }) {
   return (
     <div class="pg-infobar pg-infobar-battle">
-      <BattleMenu battle={battle} save={save} onInput={onInput} compact={compact} lead={withAuto ? <AutoButton save={save} onInput={onInput} short={compact} /> : null} />
+      <BattleMenu battle={battle} save={save} onInput={onInput} compact={compact} lead={withAuto ? <AutoButton save={save} onInput={onInput} short={compact !== false} /> : null} />
     </div>
   );
 }

@@ -104,6 +104,17 @@ describe('S09 화면 자리 (gdd S09)', () => {
     expect(menuItems(b, save, 'main', true)[0]!.title).toContain('공격');
   });
 
+  it('아주 좁은 패널 (300px 아래): 번호 없는 두 글자 — 240 에서 "1 …" 로 잘리던 것 (아트 디렉터 5차), 숫자 키 · title 은 그대로', () => {
+    expect(geo(190, 240).tiny).toBe(true);
+    expect(geo(190, 320).tiny).toBe(false);
+    const b = myTurn(startBattle(save, wild, 'normal'));
+    const tiny = menuItems(b, save, 'main', 'tiny');
+    expect(tiny.map((i) => i.label)).toEqual(['공격', '방어', '스킬', '가방', '교체']);
+    expect(tiny.map((i) => i.num)).toEqual([1, 2, 3, 4, 5]);
+    expect(tiny[4]!.title).toContain('도망');
+    expect(Math.max(...tiny.map((i) => i.label.length))).toBeLessThanOrEqual(2);
+  });
+
   it('낮은 패널: 지금 한 줄이 HP 바를 가리지 않게 상대 오른쪽으로 (자리가 없으면 위 가운데)', () => {
     const g = geo(68);
     expect(g.msgSide).not.toBeNull();
@@ -158,6 +169,8 @@ describe('단계 5 · 6 검토에서 고친 것 — 화면 (bugs #104 ~)', () =>
     const revive = menuItems(b, s, 'items').find((i) => i.key === 'revive')!;
     expect(revive.enabled).toBe(true);
     expect(revive.go).toEqual({ page: 'revive' });
+    // 개수 = "1개" (× 는 잡기 배율과 헷갈림 — 2026-10-19 태현 님 · 아트 디렉터 5차)
+    expect(revive.sub).toBe('1개');
     const page = menuItems(b, s, 'revive');
     expect(page[0]?.go).toEqual({ action: { kind: 'item', item: 'revive', uid: 'm2' } });
   });

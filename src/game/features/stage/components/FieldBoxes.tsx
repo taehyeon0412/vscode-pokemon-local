@@ -17,7 +17,7 @@ import { Icon } from '../../../ui/Icon';
 import { KeyCap } from '../../../ui/KeyCap';
 import { formatMoney } from '../../../ui/format';
 import { Sprite } from '../../../ui/Sprite';
-import { clearView, lobbyView } from '../../menu/model';
+import { clearView, ITEM_ICON, lobbyView } from '../../menu/model';
 import { STAGES } from '../model';
 
 export interface BoxProps {
@@ -202,19 +202,20 @@ export function ClearCard({ state, media, onInput, onMap, onTeam }: BoxProps & {
 }
 
 /** S16 체육관 대기실 — ④ 추천 레벨 · ⑤ 병원 (회복) · ⑥ 보관함 · ⑦ 상점 · ② 도전 · ③ 세계 지도 */
-export function LobbyBox({ state, onInput, onBox, onShop, onMap }: BoxProps & { onBox(): void; onShop(): void; onMap(): void }) {
+export function LobbyBox({ state, media, onInput, onBox, onShop, onMap }: BoxProps & { onBox(): void; onShop(): void; onMap(): void }) {
   if (state.runtime.stage?.phase !== 'lobby') return null;
   const v = lobbyView(state.save);
   const healthy = teamHealthy(state.save);
   return (
     <div class="pg-banner pg-lobby pg-two">
       <span class="pg-line">
-        <Icon name="gym" />
-        <b class="pg-ellipsis">숲 체육관 — {GYM_LEADER.name}</b>
+        {/* 관장 얼굴 + 이름 ("숲 체육관" 은 지도 줄 이름표에 이미 — 두 번 나오던 것, 아트 디렉터 5차) */}
+        <Face media={media} id={GYM_LEADER.look} />
+        <b class="pg-ellipsis">{GYM_LEADER.name}</b>
         {/* 추천 · 내 팀을 나란히 (▼ 만이면 무엇과 비교했는지 모름 — 플레이 리뷰어), 모자라면 빨강 */}
-        {/* 추천은 크림 · 모자라는 내 팀만 빨강 + ▼ (구절 전체가 빨갛던 것 — 아트 디렉터 4차) */}
+        {/* 추천은 크림 · 모자라는 내 팀만 빨강 + ▼ (구절 전체가 빨갛던 것 — 아트 디렉터 4차) · 레벨은 정수 (내림 — 15.7 이 "15" 여도 모자라지 않음, 14.6 은 "14 ▼") */}
         <span class="pg-lobby-lv" title="내 팀 = 센 3마리 평균 Lv">
-          추천 Lv {v.recommended} · <span class={v.short ? 'pg-lv-short' : 'pg-dim'}>내 팀 Lv {v.average}{v.short ? ' ▼' : ''}</span>
+          추천 Lv {v.recommended} · <span class={v.short ? 'pg-lv-short' : 'pg-dim'}>내 팀 Lv {Math.floor(v.average)}{v.short ? ' ▼' : ''}</span>
         </span>
         {state.save.badges.includes('forest') && <Icon name="badge" title="숲 배지" />}
       </span>
@@ -260,7 +261,7 @@ export function BadgeCard({ state, onInput, onMap }: BoxProps & { onMap(): void 
           <Icon name="coin" /> +{formatMoney(BALANCE.gymFirstMoney)}
         </span>
         <span class="pg-reward" title="가방에서 써요 (냄새꼬 → 라플레시아 등)">
-          <Icon name="gift" /> 리프의돌
+          <Icon name={ITEM_ICON['leaf-stone']} /> 리프의돌
         </span>
         <Button
           onClick={() => {

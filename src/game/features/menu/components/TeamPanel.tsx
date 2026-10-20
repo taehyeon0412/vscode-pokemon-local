@@ -12,7 +12,8 @@ import { Icon } from '../../../ui/Icon';
 import { Sprite } from '../../../ui/Sprite';
 import { STAT_LABEL, teamView, type MonsterView } from '../model';
 import { Panel, Row } from './Panel';
-import { StatCard, type StatCardData } from './StatCard';
+import { MAP_ROW_MIN_HEIGHT_PX } from '../../../ui/layout';
+import { CardArt, StatCard, type StatCardData } from './StatCard';
 
 export interface TeamPanelProps {
   save: Save;
@@ -55,6 +56,30 @@ function Chip({ m, media, selected, lead, onClick, drag }: { m: MonsterView; med
       <span class="pg-dim">Lv{m.level}</span>
       {m.unspent > 0 && <span class="pg-dot" title={`남은 포인트 ${m.unspent}`} />}
     </button>
+  );
+}
+
+/** 카드 뒤 — 경험치 (이름 + 가는 막대, 아트 디렉터 4차) · 상태 · 기술 (막대 뒤 "·" 는 없앰 — 경험치 없음처럼 읽혀서, 5차) */
+function CardMore({ v }: { v: MonsterView }) {
+  return (
+    <>
+      <span class="pg-exp" title={`다음 레벨까지 경험치 ${v.expToNext}`}>
+        경험치
+        <span class="pg-expbar">
+          <span class="pg-bar-fill" style={{ width: `${Math.round(v.expRatio * 100)}%` }} />
+        </span>
+      </span>
+      {v.status && <span class="pg-status">{v.status}</span>}
+      {v.moves.length === 0 ? (
+        <span class="pg-dim">기술 없음 (1 공격만)</span>
+      ) : (
+        v.moves.map((mv) => (
+          <span key={mv.id} class="pg-move" title={mv.detail}>
+            {mv.name} <span class="pg-sub">{mv.short}</span>
+          </span>
+        ))
+      )}
+    </>
   );
 }
 
@@ -158,28 +183,23 @@ export function TeamPanel({ save, media, swap, onInput, onClose }: TeamPanelProp
               </>
             )}
           </Row>
-          {/* 좁으면 다음 줄로 (480px 에서 기술 이름이 스탯 위에 겹치던 것) */}
-          <Row wrap>
-            <StatCard d={cardOf(selected)} media={media} />
-            {/* 경험치 = 이름 + 가는 막대 (HP 막대와 같은 모양 · 이름 없음이라 0 이면 HP 0 처럼 보이던 것 — 아트 디렉터 4차) */}
-            <span class="pg-exp" title={`다음 레벨까지 경험치 ${selected.expToNext}`}>
-              경험치
-              <span class="pg-expbar">
-                <span class="pg-bar-fill" style={{ width: `${Math.round(selected.expRatio * 100)}%` }} />
-              </span>
-            </span>
-            {selected.status && <span class="pg-status">{selected.status}</span>}
-            <span class="pg-panel-sep">·</span>
-            {selected.moves.length === 0 ? (
-              <span class="pg-dim">기술 없음 (1 공격만)</span>
-            ) : (
-              selected.moves.map((mv) => (
-                <span key={mv.id} class="pg-move" title={mv.detail}>
-                  {mv.name} <span class="pg-sub">{mv.short}</span>
-                </span>
-              ))
-            )}
-          </Row>
+          {/* 180px 이상 = 두 줄 카드 (왼쪽 48 그림 · 1줄 이름 · HP · 스탯 / 2줄 경험치 · 기술 — 아트 디렉터 5차), 낮으면 한 줄 (판 안 스크롤) · 좁으면 다음 줄로 */}
+          {window.innerHeight >= MAP_ROW_MIN_HEIGHT_PX ? (
+            <div class="pg-card2 pg-team-card">
+              <CardArt media={media} form={selected.form} shiny={selected.shiny} />
+              <Row wrap>
+                <StatCard d={cardOf(selected)} media={media} art={false} />
+              </Row>
+              <Row wrap>
+                <CardMore v={selected} />
+              </Row>
+            </div>
+          ) : (
+            <Row wrap>
+              <StatCard d={cardOf(selected)} media={media} />
+              <CardMore v={selected} />
+            </Row>
+          )}
         </>
       )}
     </Panel>

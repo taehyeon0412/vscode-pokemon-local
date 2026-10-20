@@ -12,7 +12,7 @@ import { Button } from '../../../ui/Button';
 import { Icon } from '../../../ui/Icon';
 import { moveView } from '../../result/model';
 import { monsterView } from '../model';
-import { StatCard } from './StatCard';
+import { CardArt, StatCard } from './StatCard';
 
 export function ProfileCard({ battle: b, save, media, side, onClose }: { battle: BattleState; save: Save; media: string; side: Side; onClose(): void }) {
   const f = b[side];
@@ -23,9 +23,11 @@ export function ProfileCard({ battle: b, save, media, side, onClose }: { battle:
   const caught = save.dex.caught.includes(f.species);
   return (
     <div class="pg-profile-wrap" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div class="pg-banner pg-profile pg-two" role="dialog">
+      <div class="pg-banner pg-profile pg-two pg-card2" role="dialog">
+        <CardArt media={media} form={f.form} shiny={f.shiny} />
         <span class="pg-line">
           <StatCard
+            art={false}
             media={media}
             prefix={side === 'foe' ? (b.kind === 'wild' ? '야생 ' : '상대 ') : ''}
             d={{ name, form: f.form, shiny: f.shiny, level: f.level, hp: f.hp, maxHp: f.maxHp, star, attack: f.stats.attack, defense: f.stats.defense, speed: f.stats.speed, ultimate: f.stats.ultimate }}

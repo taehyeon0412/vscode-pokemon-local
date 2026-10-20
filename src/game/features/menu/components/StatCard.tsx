@@ -23,12 +23,22 @@ export interface StatCardData {
 
 const SHOWN: readonly Exclude<StatKey, 'hp'>[] = ['attack', 'defense', 'speed', 'ultimate'];
 
-export function StatCard({ d, media, prefix = '' }: { d: StatCardData; media: string; prefix?: string }) {
+/** 두 줄 카드의 왼쪽 그림 칸 — 48 × 48 · 길 위와 같은 크기 (진화 상자와 같은 부품, 아트 디렉터 5차 "카드 안 포켓몬이 가장 작음") */
+export function CardArt({ form, shiny, media }: { form: string; shiny: boolean; media: string }) {
+  return (
+    <span class="pg-card-art">
+      <Sprite media={media} form={form} shiny={shiny} scale={1} crop={48} fieldSize />
+    </span>
+  );
+}
+
+/** art = 줄 안 작은 그림 (crop 32) 을 그릴지 — 두 줄 카드 (CardArt 가 왼쪽 칸) 면 false */
+export function StatCard({ d, media, prefix = '', art = true }: { d: StatCardData; media: string; prefix?: string; art?: boolean }) {
   const ratio = d.maxHp > 0 ? Math.max(0, Math.min(1, d.hp / d.maxHp)) : 0;
   return (
     <span class="pg-statcard">
       {/* 원본 32 칸 그대로 (24 창이면 그림 양옆이 잘려서 — 아트 디렉터 4차) */}
-      <Sprite media={media} form={d.form} shiny={d.shiny} scale={1} crop={32} />
+      {art && <Sprite media={media} form={d.form} shiny={d.shiny} scale={1} crop={32} />}
       <b class="pg-statcard-name">
         {prefix}
         {d.name}

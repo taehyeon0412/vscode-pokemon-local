@@ -67,7 +67,7 @@ export function MenuButtons({
         </Button>
       )}
       {BUTTONS.map((b) => (
-        <Button key={b.kind} secondary extraClass={cls} onClick={() => onOpen({ kind: b.kind })} title={`${b.title} (${MENU_KEYS[b.kind]})`}>
+        <Button key={b.kind} secondary extraClass={b.kind === 'team' && points > 0 ? `${cls} pg-has-points` : cls} onClick={() => onOpen({ kind: b.kind })} title={`${b.title} (${MENU_KEYS[b.kind]})`}>
           <Face
             labels={labels}
             shortcut={b.kind}

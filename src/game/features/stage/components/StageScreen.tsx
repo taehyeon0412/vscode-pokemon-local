@@ -240,7 +240,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   return (
     <div class={`pg-screen pg-stage pg-size-${layout.size}${gym ? ' pg-gym' : ''}${covered ? ' pg-covered' : ''}`}>
       {battle && geo?.menuInBar ? (
-        <BattleMenuBar battle={battle} save={save} onInput={battleInput} withAuto={geo.autoInMenu} compact={geo.compact} />
+        <BattleMenuBar battle={battle} save={save} onInput={battleInput} withAuto={geo.autoInMenu} compact={geo.tiny ? 'tiny' : geo.compact} />
       ) : (
         <InfoBar
           split={mapRow}

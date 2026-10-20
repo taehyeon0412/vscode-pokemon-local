@@ -36,7 +36,7 @@ export function BagPanel({ save, media, onInput, onClose }: BagPanelProps) {
             onClick={() => setSel(r.item)}
             title={r.field ? (r.evolution ? '진화의 돌 — 진화하는 포켓몬에게' : '전투 밖에서 써요') : '볼은 전투에서만 써요'}
           >
-            <Icon name={ITEM_ICON[r.item]} /> {r.name} <b>×{r.count}</b>
+            <Icon name={ITEM_ICON[r.item]} /> {r.name} <b>{r.count}개</b>
           </button>
         ))}
       </Row>

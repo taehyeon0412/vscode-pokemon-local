@@ -22,8 +22,8 @@ export interface BattleMenuProps {
   onInput(input: GameInput): void;
   /** 줄 맨 앞에 붙는 것 (낮은 패널에서 자동 전투 스위치) */
   lead?: ComponentChildren;
-  /** 좁은 패널 — 짧은 이름 */
-  compact?: boolean;
+  /** 좁은 패널 — 짧은 이름 · 'tiny' = 300px 아래 (번호 없는 두 글자) */
+  compact?: boolean | 'tiny';
   /** 옆 메뉴 (세로 목록, Sea of Stars) — 머리 줄 이름표에 쓸 내 포켓몬 이름. 없으면 예전 가로 한 줄 */
   vertical?: string;
 }
@@ -76,11 +76,20 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
         return;
       }
       if (c.b.phase === 'last') {
-        // 숫자 = 볼 (1 ~) · 그다음 숫자 = 안 던짐 (2026-10-19 태현 님 — 숫자 패드로도) · Esc = 안 던짐
+        // 숫자 = 볼 (1 ~) · 그다음 숫자 = 안 던짐 (2026-10-19 태현 님 — 숫자 패드로도) · Esc = 안 던짐 · ↑ ↓ + Enter = 커서 (다른 판과 같게 — 아트 디렉터 5차)
+        const rows = c.balls.length + 1;
         const n = /^[1-9]$/.test(e.key) ? Number(e.key) : 0;
         const ball = c.balls[n - 1];
         if (ball) c.onInput({ kind: 'battle', input: { kind: 'ball', ball } });
-        else if (n === c.balls.length + 1 || e.key === 'Escape') c.onInput({ kind: 'battle', input: { kind: 'no-ball' } });
+        else if (n === rows || e.key === 'Escape') c.onInput({ kind: 'battle', input: { kind: 'no-ball' } });
+        else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          setCursor((Math.min(c.cursor, rows - 1) + (e.key === 'ArrowDown' ? 1 : rows - 1)) % rows);
+        } else if (e.key === 'Enter' && !(e.target instanceof HTMLButtonElement)) {
+          e.preventDefault();
+          const at = c.balls[Math.min(c.cursor, rows - 1)];
+          c.onInput({ kind: 'battle', input: at ? { kind: 'ball', ball: at } : { kind: 'no-ball' } });
+        }
         return;
       }
       if (c.b.phase === 'pick') {
@@ -188,12 +197,12 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
           </span>
         </span>
         {balls.map((ball, i) => (
-          <Button key={ball} onClick={() => onInput({ kind: 'battle', input: { kind: 'ball', ball } })} title="쓰러진 포켓몬 — 잡을 확률 × 0.5">
+          <Button key={ball} extraClass={i === Math.min(cursor, balls.length) ? 'pg-on' : undefined} onClick={() => onInput({ kind: 'battle', input: { kind: 'ball', ball } })} title="쓰러진 포켓몬 — 잡을 확률 절반">
             {`${i + 1} ${itemName(ball)}`}
-            <span class="pg-sub">×{itemLeft(b, save, ball)}</span>
+            <span class="pg-sub">{itemLeft(b, save, ball)}개</span>
           </Button>
         ))}
-        <Button onClick={() => onInput({ kind: 'battle', input: { kind: 'no-ball' } })} title={`${balls.length + 1} · Esc`}>
+        <Button extraClass={Math.min(cursor, balls.length) === balls.length ? 'pg-on' : undefined} onClick={() => onInput({ kind: 'battle', input: { kind: 'no-ball' } })} title={`${balls.length + 1} · Esc`}>
           {`${balls.length + 1} 안 던짐`}
         </Button>
       </>
