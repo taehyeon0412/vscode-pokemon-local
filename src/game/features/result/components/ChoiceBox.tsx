@@ -4,12 +4,14 @@
  *   S22: 진화 연출 약 4초 (Space 빨리 넘기기 · Esc 멈추기 = 다음 레벨업 때 다시) → 남길 지금 기술 고르기 (숫자로 켜고 끄기) · 결정 (Enter)
  * 임시 디자인 — 단계 12 에서 다시.
  */
+import type { ComponentChildren } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { GameInput } from '../../../core/engine';
 import { withJosa } from '../../../core/text';
 import { Button } from '../../../ui/Button';
 import { Sprite } from '../../../ui/Sprite';
 import type { ChoiceView } from '../model';
+import { pokemonFx } from '../../battle/fx/bridge';
 
 /** 굵게 쓴 이름 뒤에 붙일 조사만 */
 const josa = (word: string, pair: '을/를' | '으로/로') => withJosa(word, pair).slice(word.length);
@@ -102,17 +104,18 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
   }
 
   if (view.animating) {
-    // 진화 연출 — 어두워지고 하얗게 빛나며 옛 · 새 모습이 점점 빠르게 번갈아 (CSS)
+    // 진화 연출 — 메가진화처럼 하얗게 빛나며 하얀 실루엣이 옛 ↔ 새 모습으로 점점 빠르게 · 빛줄기 · 펑 (캔버스 — EvolveStage, 2026-10-20 태현 님).
+    // 연출 번들이 없으면 예전 CSS (옛 · 새 모습이 번갈아) 그대로
     return (
       <div class="pg-evolve">
-        <span class="pg-evolve-stage">
+        <EvolveStage>
           <span class="pg-evolve-old">
             <Sprite media={media} form={view.monster.form} shiny={view.monster.shiny} scale={scale} />
           </span>
           <span class="pg-evolve-new">
             <Sprite media={media} form={view.toForm} shiny={view.monster.shiny} scale={scale} />
           </span>
-        </span>
+        </EvolveStage>
         <div class="pg-banner pg-evolve-msg">
           <span class="pg-ellipsis">어…? {view.name}의 모습이…!</span>
           {/* 마우스로도 (편집기에 포커스가 있으면 Space 가 코드에 들어감 — 선제공격과 같은 규칙) · 처음 0.8초는 엔진이 안 받음 */}
@@ -165,5 +168,23 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
         </Button>
       </span>
     </div>
+  );
+}
+
+/** 진화 무대 — 처음 그릴 때 캔버스 진화 연출을 부름 (옛 · 새 그림은 연출이 숨김 · 3.2초 = CSS 가 새 모습으로 바뀌는 때와 같음) */
+const EVOLVE_FX_MS = 3200;
+function EvolveStage({ children }: { children: ComponentChildren }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    // 그림이 다 읽힌 뒤 (첫 장면) 에 — 바로 부르면 그림 크기가 0
+    const t = window.setTimeout(() => {
+      if (ref.current) pokemonFx()?.evolve?.(ref.current, EVOLVE_FX_MS - 50);
+    }, 50);
+    return () => window.clearTimeout(t);
+  }, []);
+  return (
+    <span class="pg-evolve-stage" ref={ref}>
+      {children}
+    </span>
   );
 }

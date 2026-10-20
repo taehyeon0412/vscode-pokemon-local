@@ -242,6 +242,44 @@ function fxTarget(g, dst) {
     const hud = fxHudRects().filter((h) => h.right > r.left - r.width && h.left < r.right + r.width);
     return { cx, cy: r.top + r.height * 0.55, w: r.width, far: g.dir > 0 ? r.right : r.left, dist: Math.abs(cx - g.mouth.x), ground: r.bottom, hudBottom: hud.length ? Math.max(...hud.map((h) => h.bottom)) : 0 };
 }
+// ── 진화 연출 도우미 — 그림 그대로 / 한 색 실루엣 (0.1초마다 새로 — 움직이는 그림) ──
+const evoSilCache = new Map();
+function evoSil(img, w, h, color) {
+    const key = `${img.src}|${color}|${w}|${h}`;
+    let c = evoSilCache.get(key);
+    if (!c) {
+        if (evoSilCache.size > 8) {
+            evoSilCache.clear();
+        }
+        c = { cv: document.createElement('canvas'), t: -1e9 };
+        evoSilCache.set(key, c);
+    }
+    const now = performance.now();
+    if (now - c.t > 100) {
+        c.t = now;
+        c.cv.width = w;
+        c.cv.height = h;
+        const x = c.cv.getContext('2d');
+        x.imageSmoothingEnabled = false;
+        x.drawImage(img, 0, 0, w, h);
+        x.globalCompositeOperation = 'source-in';
+        x.fillStyle = color;
+        x.fillRect(0, 0, w, h);
+    }
+    return c.cv;
+}
+function evoDraw(ctx, img, box, swell, color, alpha) {
+    if (!img.naturalWidth || box.w < 2 || alpha <= 0) {
+        return;
+    }
+    const w = Math.max(1, Math.round(box.w));
+    const h = Math.max(1, Math.round(box.h));
+    const dw = Math.round(w * swell);
+    const dh = Math.round(h * swell);
+    ctx.globalAlpha = Math.min(1, alpha);
+    ctx.drawImage(color ? evoSil(img, w, h, color) : img, Math.round(box.x - dw / 2), Math.round(box.b - h / 2 - dh / 2), dw, dh);
+}
+
 // ── 완벽 패링 쳐내기 = 쳐올리기 (2026-10-20 태현 님 시안 B) ──
 // 기술 색 구슬 (도는 살 넷) · 꼬리 · 금색 별 폭발 · 픽셀 고리
 function swatOrbDraw(ctx, p, t, px) {
@@ -630,7 +668,9 @@ window.pokemonFx = {
         let total = 0;
         try {
             // o.quick = 같은 전투에서 다시 보는 필살기 — 컷인 없이 짧게 (ult/core.js ULT_QUICK_INTRO_MS)
-            total = fxWithTimers(gen, () => useUltimate(A, entry, { quick: !!o?.quick, ...(o?.sub ? { sub: o.sub } : {}) })) || 0;
+            // 쓰기 전 기 모으기 (일반 모드 꾹 누르기와 같은 연출, 2026-10-20 태현 님) — 첫 필살기 0.8초 · 다시 보는 필살기 0.4초 · 반격기 (sub) 는 바로
+            const charge = o?.sub ? 0 : o?.quick ? 400 : 800;
+            total = fxWithTimers(gen, () => useUltimate(A, entry, { quick: !!o?.quick, charge, ...(o?.sub ? { sub: o.sub } : {}) })) || 0;
         } catch (err) {
             ultError('game ult', err);
         }
@@ -974,6 +1014,140 @@ window.pokemonFx = {
                 ctx.globalAlpha = Math.ceil(a * 8) / 8;
                 ctx.fillStyle = '#0a0c1e';
                 ctx.fillRect(0, 0, W, H);
+                ctx.restore();
+            } });
+        });
+    },
+    /** 필살기 게이지가 다 참 — 몸 둘레 금색 반짝임 세 번 (1.2초마다, 2026-10-20 태현 님 "다 채워지면 반짝반짝 · 인지하게") */
+    ultReady(dst) {
+        safeFx({}, () => {
+            if (!POKEMON_SHAPE[dst.form] || fxWidth(dst) < 1) {
+                return;
+            }
+            const burst = () => {
+                if (fxWidth(dst) < 1) {
+                    return;
+                }
+                const g = sigGeometry(fxActor(dst), !!dst.left);
+                const s = g.s;
+                for (let i = 0; i < 9; i++) {
+                    const a = (i / 9) * Math.PI * 2 + moveRand(-0.3, 0.3);
+                    const r = moveRand(0.7, 1.15);
+                    sigParticle({ x: g.body.cx + Math.cos(a) * g.body.rx * r, y: g.body.cy + Math.sin(a) * g.body.ry * r, s, vy: -moveRand(8, 22) * s, max: moveRand(0.45, 0.7), cols: HIT_GOLD, draw: DRAW.sparkle });
+                }
+                // 발밑에서 솟는 금빛 알갱이
+                for (let i = 0; i < 6; i++) {
+                    sigParticle({ x: g.body.cx + moveRand(-1, 1) * g.body.rx, y: g.body.bottom, s, vy: -moveRand(40, 80) * s, max: moveRand(0.35, 0.55), color: HIT_GOLD[i % 2], size: 1, draw: DRAW.dot });
+                }
+            };
+            fxWithTimers(fxMoveGen, () => {
+                burst();
+                setTimeout(burst, 1200);
+                setTimeout(burst, 2400);
+            });
+        });
+    },
+    /** 진화 (S22) — 메가진화처럼: 하얗게 빛남 → 하얀 실루엣이 옛 ↔ 새 모습으로 점점 빠르게 바뀌며 둘레로 빛줄기가 돎 → 하얗게 펑 → 새 모습 (2026-10-20 태현 님).
+     *  stage = .pg-evolve-stage (안의 .pg-evolve-old img · .pg-evolve-new img 는 연출 동안 숨김 — CSS 는 ms 에 새 모습으로 바뀜) · 캔버스라 "동작 줄이기" 와 상관없이 */
+    evolve(stage, ms = 3200) {
+        safeFx({}, () => {
+            const oldImg = stage && stage.querySelector('.pg-evolve-old img');
+            const newImg = stage && stage.querySelector('.pg-evolve-new img');
+            if (!oldImg || !newImg) {
+                return;
+            }
+            const hide = (el, on) => (on ? el.style.setProperty('opacity', '0', 'important') : el.style.removeProperty('opacity'));
+            hide(oldImg, true);
+            hide(newImg, true);
+            // 예전 CSS 번쩍임 (pg-evolve-flash) 은 끔 — 캔버스가 펑을 그려서 두 번 번쩍이지 않게
+            stage.style.setProperty('animation', 'none');
+            const restore = () => {
+                hide(oldImg, false);
+                hide(newImg, false);
+            };
+            setTimeout(restore, ms + 50);
+            const sec = ms / 1000;
+            const T0 = 0.4;
+            const T1 = sec * 0.78;
+            const T2 = T1 + 0.25;
+            const box = (img) => {
+                const r = img.getBoundingClientRect();
+                return { x: r.left + r.width / 2, b: r.bottom, w: r.width, h: r.height };
+            };
+            let burst = false;
+            sigParticle({ x: 0, y: 0, s: 2, max: sec, z: 1, acc: 0, update: (p, dt) => {
+                if (!stage.isConnected) {
+                    p.life = p.max;
+                    return;
+                }
+                const L = p.life;
+                const a = box(oldImg);
+                const s = Math.max(1, Math.round(a.w / (oldImg.naturalWidth || 32)));
+                p.s = s;
+                // 둘레에서 솟는 빛 알갱이 — 바뀌는 동안
+                if (L > T0 && L < T2 && dt > 0) {
+                    for (p.acc += dt * 30; p.acc >= 1; p.acc -= 1) {
+                        sigParticle({ x: a.x + moveRand(-0.7, 0.7) * a.w, y: a.b - moveRand(0, 0.3) * a.h, s, vy: -moveRand(30, 70) * s, max: moveRand(0.3, 0.55), color: movePick(['#ffffff', '#ffe9a0', HIT_GOLD[1]]), size: 1, draw: DRAW.dot });
+                    }
+                }
+                // 펑 — 새 모습이 하얗게 부풀며 금빛 · 흰 알갱이가 튐 (한 번)
+                if (!burst && L >= T1) {
+                    burst = true;
+                    const n = box(newImg);
+                    sigBurst(n.x, n.b - n.h * 0.5, s, ['#ffffff', '#ffe9a0', HIT_GOLD[1]], 24, 110);
+                    for (let i = 0; i < 8; i++) {
+                        const an = (i / 8) * Math.PI * 2;
+                        sigParticle({ x: n.x + Math.cos(an) * n.w * 0.4, y: n.b - n.h * 0.5 + Math.sin(an) * n.h * 0.4, s, vx: Math.cos(an) * 60 * s, vy: Math.sin(an) * 60 * s - 10 * s, drag: 2, max: 0.6, cols: HIT_GOLD, draw: DRAW.sparkle });
+                    }
+                }
+            }, draw: (ctx, p, t, px) => {
+                const L = p.life;
+                const s = p.s;
+                const a = box(oldImg);
+                const n = box(newImg);
+                ctx.save();
+                ctx.imageSmoothingEnabled = false;
+                if (L < T0) {
+                    // 하얗게 빛나기 시작 — 옛 모습 위로 흰빛이 차오름
+                    evoDraw(ctx, oldImg, a, 1, null, 1);
+                    evoDraw(ctx, oldImg, a, 1, '#ffffff', Math.ceil((L / T0) * 4) / 4);
+                } else if (L < T1) {
+                    const k = (L - T0) / (T1 - T0);
+                    // 빛줄기 12 줄 — 몸 가운데에서 돌며 뻗음 (하양 · 금)
+                    const cx = a.x;
+                    const cy = a.b - a.h * 0.5;
+                    const R = Math.max(a.w, n.w) * (0.55 + 0.25 * k);
+                    ctx.globalAlpha = 0.75 * Math.min(1, k / 0.15);
+                    for (let i = 0; i < 12; i++) {
+                        const an = (i / 12) * Math.PI * 2 + L * 0.9;
+                        const len = R * (1 + 0.6 * k) * (0.75 + 0.25 * Math.sin(L * 7 + i * 1.7));
+                        for (let d = R * 0.55; d < len; d += s * 2) {
+                            dotAt(ctx, px, s, cx + Math.cos(an) * d, cy + Math.sin(an) * d, i % 2 ? '#ffe9a0' : '#ffffff', 1, 1);
+                        }
+                    }
+                    // 점선 빛 고리 — 두근두근
+                    const ring = R * 0.55 * (1 + 0.08 * Math.sin(L * 14));
+                    const dots = Math.max(16, Math.ceil((2 * Math.PI * ring) / (s * 2)));
+                    ctx.globalAlpha = 0.8;
+                    for (let j = 0; j < dots; j += 1) {
+                        const an = (j / dots) * Math.PI * 2;
+                        dotAt(ctx, px, s, cx + Math.cos(an) * ring, cy + Math.sin(an) * ring, j % 2 ? '#dfe9ff' : '#ffffff', 1, 1);
+                    }
+                    // 하얀 실루엣이 옛 ↔ 새 로 점점 빠르게 (초당 2 → 12번, 끝 10% 는 새 모습) · 바뀔 때마다 부풀었다 줄어듦
+                    const flips = (L - T0) * (2 + 5 * k);
+                    const showNew = k > 0.9 || Math.floor(flips) % 2 === 1;
+                    const swell = 1 + 0.12 * Math.sin((flips % 1) * Math.PI);
+                    evoDraw(ctx, showNew ? newImg : oldImg, showNew ? n : a, swell, '#ffffff', 1);
+                } else if (L < T2) {
+                    // 펑 — 새 모습 하얀 실루엣이 크게
+                    const k = (L - T1) / (T2 - T1);
+                    evoDraw(ctx, newImg, n, 1.25 - 0.25 * k, '#ffffff', 1);
+                } else {
+                    // 새 모습 — 하얀빛이 빠짐 (4 걸음)
+                    const k = (L - T2) / Math.max(0.01, sec - T2);
+                    evoDraw(ctx, newImg, n, 1, null, 1);
+                    evoDraw(ctx, newImg, n, 1, '#ffffff', Math.ceil((1 - k) * 4) / 4);
+                }
                 ctx.restore();
             } });
         });

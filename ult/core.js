@@ -331,7 +331,12 @@ function useUltimate(pokemon, ult, opt = {}) {
     }
     const now = performance.now();
     const introMs = opt.quick ? ULT_QUICK_INTRO_MS : ULT_INTRO_MS;
-    const until = now + introMs + ms + ULT_OUTRO_MS;
+    // opt.charge = 쓰기 전 기 모으기 ms (게임 전투 — 일반 모드에서 꾹 누를 때와 같은 연출, 2026-10-20 태현 님). 그만큼 도입이 늦게 시작
+    const charge = Math.max(0, opt.charge || 0);
+    if (charge) {
+        ultChargeFor(pokemon, charge);
+    }
+    const until = now + charge + introMs + ms + ULT_OUTRO_MS;
     const current = pokemon.currentState;
     if (current instanceof FlyState) {
         // 공중에서 쓰고 계속 날기
@@ -351,21 +356,46 @@ function useUltimate(pokemon, ult, opt = {}) {
     if (o.tint) {
         pokemon.el.style.filter = o.tint;
     }
-    try {
-        pre?.start?.();
-        ultIntro(pokemon, left, name, sub, o, fx, until, introMs);
-    } catch (err) {
-        ultError('intro', err);
-    }
-    setTimeout(() => {
+    const begin = () => {
         try {
-            T.run(ultGeometry(pokemon, left), o, ms, pokemon);
+            pre?.start?.();
+            ultIntro(pokemon, left, name, sub, o, fx, until, introMs);
         } catch (err) {
-            ultError(`${fx}.run`, err);
+            ultError('intro', err);
         }
-    }, introMs);
+        setTimeout(() => {
+            try {
+                T.run(ultGeometry(pokemon, left), o, ms, pokemon);
+            } catch (err) {
+                ultError(`${fx}.run`, err);
+            }
+        }, introMs);
+    };
+    if (charge) {
+        setTimeout(begin, charge);
+    } else {
+        begin();
+    }
     setTimeout(() => ultEnd(pokemon), until - now);
     return until - now;
+}
+
+// 게임 전투 필살기 앞 기 모으기 — 꾹 누르기 연출 (ultChargeStart) 을 ms 동안 (짧으면 고리가 반쯤 찬 데서 시작) · 끝나면 멈춤
+function ultChargeFor(pokemon, ms) {
+    const span = ULT_HOLD_MS - ULT_CHARGE_FROM;
+    const press = { pokemon, t0: performance.now() - ULT_CHARGE_FROM - Math.max(0, span - ms), anims: [], cancelled: false };
+    ultChargeStart(press);
+    pokemon.chargePress = press;
+    setTimeout(() => ultChargeStop(pokemon), ms);
+}
+function ultChargeStop(pokemon) {
+    const press = pokemon.chargePress;
+    if (!press) {
+        return;
+    }
+    pokemon.chargePress = undefined;
+    press.cancelled = true;
+    press.anims.forEach((a) => a.cancel());
 }
 
 // ── 필살기 대결 ──
@@ -475,6 +505,7 @@ function ultVsIntro(a, ultA, leftA, b, ultB, leftB, total) {
 }
 
 function ultEnd(pokemon) {
+    ultChargeStop(pokemon);
     try {
         ultActive?.pre?.end?.();
     } catch (err) {

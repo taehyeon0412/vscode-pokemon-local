@@ -401,6 +401,13 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
       if (who && kind) fx.status?.(who, kind);
     }
   }, [b.popupSeq]);
+  // 내 필살기 게이지가 다 찬 순간 — 몸 둘레 금색 반짝임 세 번 (2026-10-20 태현 님 "다 채워지면 반짝반짝 · 인지하게", Z 칸 반짝임과 같이)
+  const ultFull = b.me.ult >= 1 && b.me.hp > 0 && b.phase !== 'over';
+  useEffect(() => {
+    if (!fx || !ultFull) return;
+    const me = actor(now.current, 'me');
+    if (me) fx.ultReady?.(me);
+  }, [ultFull]);
   // 반격 기회 — 상대만 밝고 둘레가 살짝 어두워짐 (두 번째 원은 화면이 그림) · 쳐내기 보여 주기 (ms < 0) 가 끝나 원이 뜰 때부터
   const ripostingAt = b.phase === 'riposte' && (b.riposte?.ms ?? -1) >= 0 ? b.t - (b.riposte?.ms ?? 0) : -1;
   useEffect(() => {
