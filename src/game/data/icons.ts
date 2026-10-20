@@ -31,9 +31,11 @@ export const PAL: Record<string, string> = {
 
 export const ICONS = {
   /** 몬스터볼 (볼 개수 · 상대 볼 · 잡음) */
-  ball: ['..RRRR..', '.RWRRRR.', 'RRWRRRRr', 'KKKWWKKK', 'KKKWWKKK', 'WWWWWWWw', '.WWWWWw.', '..wwww..'],
+  ball: ['..RRRR..', '.RWRRRR.', 'RRWRRRRr', 'LLLWWLLL', 'LLLWWLLL', 'WWWWWWWw', '.WWWWWw.', '..wwww..'],
+  /** 잡기 창 큰 몬스터볼 24 × 24 (점 = 길 위 배율 — ×2 면 48px) — 8 × 8 을 6배로 키우면 띠가 창 바탕에 묻혀 버섯처럼 보여서 (아트 디렉터 8차): 바깥 1칸 L · 위 R (오른쪽 아래 r 그늘 · 왼쪽 위 W 빛) · 띠 L K L · 단추 6 × 6 (L 둘레 · W) · 아래 W (오른쪽 아래 w) */
+  ballBig: ['........LLLLLLLL........', '......LLRRRRRRRRLL......', '....LLRRRRRRRRRRRRLL....', '...LRWWWRRRRRRRRRRRRL...', '..LRRWWWRRRRRRRRRRRRRL..', '..LRRRRRRRRRRRRRRRRRRL..', '.LRRRRRRRRRRRRRRRRRRRrL.', '.LRRRRRRRRRRRRRRRRRRrrL.', 'LRRRRRRRRRRRRRRRRRRrrrrL', 'LRRRRRRRRLLLLLLRRrrrrrrL', 'LRRRRRRRRLWWWWLRRrrrrrrL', 'LLLLLLLLLLWWWWLLLLLLLLLL', 'LKKKKKKKKLWWWWLKKKKKKKKL', 'LLLLLLLLLLWWWWLLLLLLLLLL', 'LWWWWWWWWLLLLLLWWWWwwwwL', 'LWWWWWWWWWWWWWWWWWwwwwwL', '.LWWWWWWWWWWWWWWWwwwwwL.', '.LWWWWWWWWWWWWWWwwwwwwL.', '..LWWWWWWWWWWWWwwwwwwL..', '..LWWWWWWWWWWWwwwwwwwL..', '...LWWWWWWWWWwwwwwwwL...', '....LLwwwwwwwwwwwwLL....', '......LLwwwwwwwwLL......', '........LLLLLLLL........'],
   /** 물건 (상점 · 가방, 2026-10-20 아트 디렉터 3차 "물건 아이콘이 없음") — 슈퍼볼 · 하이퍼볼 · 상처약 · 좋은상처약 · 상태 회복약 · 기력의조각 · 진화의 돌 · 연결의끈 */
-  greatBall: ['..BBBB..', '.BRBBRB.', 'BRWBBRBb', 'KKKWWKKK', 'KKKWWKKK', 'WWWWWWWw', '.WWWWWw.', '..wwww..'],
+  greatBall: ['..BBBB..', '.BRBBRB.', 'BRWBBRBb', 'LLLWWLLL', 'LLLWWLLL', 'WWWWWWWw', '.WWWWWw.', '..wwww..'],
   ultraBall: ['..LLLL..', '.YLLLLY.', 'YYWLLYYy', 'KKKWWKKK', 'KKKWWKKK', 'WWWWWWWw', '.WWWWWw.', '..wwww..'],
   potion: ['...ww...', '...WW...', '..wWWw..', '.PPPPPP.', '.PWPPPp.', '.PWPPPp.', '.PPPPPp.', '..pppp..'],
   superPotion: ['...ww...', '...WW...', '..wWWw..', '.RRRRRR.', '.RWRRRr.', '.RWRRRr.', '.RRRRRr.', '..rrrr..'],
