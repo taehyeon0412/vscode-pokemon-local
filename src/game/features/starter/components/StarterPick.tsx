@@ -12,7 +12,7 @@ import { InfoBar } from '../../../ui/InfoBar';
 import { TypeTags } from '../../battle/components/TypeTag';
 import { Sprite } from '../../../ui/Sprite';
 import { moveView } from '../../result/model';
-import { chainArtWidth, chainRowPx, chainZoomFor, defaultStarterMoves, evolutionChain, PICK_ROWS_PX, starterList, starterMoveCandidates } from '../model';
+import { chainArtWidth, chipPx, defaultStarterMoves, evolutionChain, PICK_COLUMN_PX, pickLayout, starterList, starterMoveCandidates } from '../model';
 import { INFO_BAR_PX } from '../../../ui/layout';
 
 export interface StarterPickProps {
@@ -36,14 +36,14 @@ export function StarterPick({ media, pending, onBack, onDone }: StarterPickProps
   const chain = evolutionChain(sel.dex);
   const selTypes = speciesOf(sel.dex)?.types ?? [];
   const types = selTypes.map(typeNameKo).join(' · ');
-  // 진화 줄 배율 (×2 가 들어가면 ×2) · 그림 칸 높이 · 내용 높이 — 줄 간격 = (패널 − 내용) ÷ 4 로 위 · 줄 사이 · 아래가 같게 (game.css --pg-pick-content)
-  // 정보줄 높이 = 20 × 글자 배율 (--pg-ui, main.ts) + 아래 선 1
+  // 크기 단계 (칩 · 진화 배율 — 들어가는 가장 큰 것) · 칩 줄 위 · 줄 사이 (태현 님 "높으면 위 빈 공간을 써서 목록 · 진화를 크게") — starter/model pickLayout
+  // 정보줄 높이 = 20 × 글자 배율 (--pg-ui, main.ts) + 아래 선 1 · 폭 = 패널 − 좌우 8, 넓어도 가운데 720 칸 (정보줄 · 진화 줄과 같은 칸)
   const ui = parseFloat(document.getElementById('pokemon-game')?.style.getPropertyValue('--pg-ui') ?? '') || 1;
   const barPx = Math.round(INFO_BAR_PX * ui) + 1;
-  const avail = window.innerHeight - barPx;
-  const zoom = chainZoomFor(avail, chain.map((c) => c.form));
-  const rowPx = chainRowPx(chain.map((c) => c.form), zoom);
-  const contentPx = barPx + PICK_ROWS_PX + rowPx;
+  const lay = pickLayout(window.innerHeight - barPx, Math.min(window.innerWidth - 16, PICK_COLUMN_PX), list.length, chain.map((c) => c.form));
+  const zoom = lay.chainZoom;
+  const rowPx = lay.rowPx;
+  const chipCrop = 22 * lay.chipZoom;
   const ready = picked.length === BALANCE.starterMoves && !pending;
 
   const toggle = (id: number) =>
@@ -100,11 +100,12 @@ export function StarterPick({ media, pending, onBack, onDone }: StarterPickProps
           </>
         }
       />
-      <div class="pg-body pg-pick-body pg-pick-starter" style={{ '--pg-pick-content': `${contentPx}px` }}>
-        <div class="pg-panel-row" ref={stripRef}>
+      <div class="pg-body pg-pick-body pg-pick-starter" style={{ paddingTop: `${lay.topPx}px`, gap: `${lay.gapPx}px` }}>
+        {/* 칩 줄 — 배율이 크면 (×2 · ×3) 폭에 맞춰 여러 줄로 감음 · 그림은 실제 그림을 칸 한가운데 */}
+        <div class={lay.chipZoom > 1 ? 'pg-panel-row pg-panel-wrap pg-starter-strip' : 'pg-panel-row pg-starter-strip'} ref={stripRef}>
           {list.map((s, i) => (
-            <button key={s.dex} type="button" class={i === index ? 'pg-chip pg-starter-chip pg-chip-on' : 'pg-chip pg-starter-chip'} onClick={() => setIndex(i)} title={`${s.name} (← →)`}>
-              <Sprite media={media} form={s.form} scale={1} crop={22} />
+            <button key={s.dex} type="button" class={i === index ? 'pg-chip pg-starter-chip pg-chip-on' : 'pg-chip pg-starter-chip'} style={{ height: `${chipPx(lay.chipZoom)}px` }} onClick={() => setIndex(i)} title={`${s.name} (← →)`}>
+              <Sprite media={media} form={s.form} scale={1} crop={chipCrop} zoom={lay.chipZoom} center />
             </button>
           ))}
         </div>

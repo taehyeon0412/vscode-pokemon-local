@@ -3959,10 +3959,16 @@ body.vscode-high-contrast-light .pg-title-body {
   inset: 0;
   background: rgba(12, 16, 30, 0.2);
 }
-/* 스타팅 고르기 세 줄 (칩 · 진화 · 기술) 사이 = 남는 높이 ÷ 4 (위 여백 · 줄 사이 둘 · 아래 여백이 같게, 4 ~ 24px) — 패널이 높으면 넓게 · 낮으면 좁게, 넘치지 않게
-   (2026-10-20 태현 님 "빨간 네모 각각의 위아래 간격 · 세세하게 반응형"). --pg-pick-content = 정보줄 + 줄 높이 합 (StarterPick) */
-.pg-pick-starter {
-  gap: clamp(4px, calc((100vh - var(--pg-pick-content, 150px)) / 4), 24px);
+/* 스타팅 고르기 크기 단계 (2026-10-20 태현 님 "패널이 높으면 위 빈 공간을 써서 목록을 키우고 진화도 넓게") — 칩 줄 위 · 줄 사이는 StarterPick 이 정함 (starter/model pickLayout):
+   칩 줄 위 4 ~ 8 · 줄 사이 4 ~ 32 · 나머지는 아래로 (가운데 맞춤 대신 칩 줄을 위에 붙임) */
+.pg-pick-starter > .pg-starter-strip {
+  margin-top: 0;
+}
+.pg-starter-strip.pg-panel-wrap {
+  row-gap: 6px;
+  column-gap: 6px;
+  /* 큰 칩은 가운데 720 칸 안에서 감음 (starter/model PICK_COLUMN_PX) */
+  max-width: min(100%, 720px);
 }
 /* 세 줄 상자 = 내용 높이 그대로 (칩 24 · 기술 22 가 28 줄 안에 떠서 위아래 빈칸이 2 ~ 3px 씩 달라지던 것) — 보이는 간격 = 줄 간격.
    넘치면 줄이 눌려 잘리지 않고 판 안에서 스크롤 (flex-shrink 0 — 240 에서 칩이 위아래로 잘리던 것) */

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { validateSave } from '../../core/save';
 import { moveOf, speciesOf } from '../../data';
 import { spriteBoxOf } from '../../data/sprite-boxes';
-import { CHAIN_MAX_ART, chainRowPx, chainZoomFor, chosenStarterMoves, PICK_ROWS_PX, createStartSave, defaultStarterMoves, evolutionChain, starterList, starterMoveCandidates } from './model';
+import { CHAIN_MAX_ART, chainRowPx, chosenStarterMoves, pickLayout, createStartSave, defaultStarterMoves, evolutionChain, starterList, starterMoveCandidates } from './model';
 
 const STARTERS = [1, 152, 252, 387, 495, 650, 4, 155, 255, 390, 498, 653, 7, 158, 258, 393, 501, 656];
 
@@ -95,12 +95,30 @@ describe('S04 ② 진화 줄 그림 (2026-10-20 태현 님 "크기가 제각각 
         expect(box![3] - box![1], c.form).toBeLessThanOrEqual(CHAIN_MAX_ART);
       }
     }
-    // 정보줄 27 을 뺀 높이: 187px (태현 님 패널) 은 가장 큰 진화 줄도 ×2 · 150px 은 ×1 이고 그때 넘치지 않음
+    // 크기 단계 (정보줄 27 을 뺀 높이 · 폭 − 16): 150 · 720 = ×1 · ×1, 187 · 1860 = ×1 · ×2, 443 · 860 (맥 높은 패널) = 큰 단계 — 모두 넘치지 않음
     const big = evolutionChain(650).map((c) => c.form); // 도치마론 → 브리가론 (가장 큰 그림)
-    expect(chainZoomFor(187 - 27, big)).toBe(2);
-    expect(chainZoomFor(187 - 27, evolutionChain(1).map((c) => c.form))).toBe(2);
-    expect(chainZoomFor(150 - 27, big)).toBe(1);
-    expect(PICK_ROWS_PX + chainRowPx(big, 1) + 2 * 4).toBeLessThanOrEqual(150 - 27);
+    const n = starterList().length;
+    const fits = (h: number, w: number, forms: string[]) => {
+      const l = pickLayout(h - 27, Math.min(w - 16, 720), n, forms);
+      return { l, used: l.topPx + l.contentPx + 2 * l.gapPx };
+    };
+    const s150 = fits(150, 720, big);
+    expect([s150.l.chipZoom, s150.l.chainZoom]).toEqual([1, 1]);
+    expect(s150.used).toBeLessThanOrEqual(150 - 27);
+    const s187 = fits(187, 1860, big);
+    expect([s187.l.chipZoom, s187.l.chainZoom]).toEqual([1, 2]);
+    expect(s187.used).toBeLessThanOrEqual(187 - 27);
+    const tall = fits(443, 860, big);
+    expect(tall.l.chainZoom).toBeGreaterThanOrEqual(3);
+    expect(tall.l.chainZoom).toBeGreaterThanOrEqual(tall.l.chipZoom);
+    expect(tall.l.stripRows).toBeGreaterThanOrEqual(2); // 큰 칩은 860 폭에 한 줄로 안 들어가 감음
+    expect(tall.used).toBeLessThanOrEqual(443 - 27);
+    expect(tall.l.topPx).toBeLessThanOrEqual(8); // 칩 줄 위는 작게 (태현 님)
+    // 고른 포켓몬이 바뀌어도 크기 단계는 같음 (목록이 들썩이지 않게)
+    for (const [h, w] of [[187, 1860], [210, 1860], [260, 1860], [315, 1860], [443, 860], [300, 480]] as const) {
+      const tiers = new Set(starterList().map((st) => { const l = pickLayout(h - 27, Math.min(w - 16, 720), n, evolutionChain(st.dex).map((c) => c.form)); return `${l.chipZoom}x${l.chainZoom}`; }));
+      expect(tiers.size, `${h}x${w}`).toBe(1);
+    }
   });
   it('같은 점 크기라 원작 그림대로 진화할수록 커짐 (이상해씨 < 이상해풀 < 이상해꽃) · 그림 칸 높이 = 가장 큰 그림', () => {
     const forms = evolutionChain(1).map((c) => c.form);

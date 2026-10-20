@@ -82,19 +82,73 @@ export function evolutionChain(dex: number): { dex: number; form: string; name: 
 /**
  * S04 ② 진화 줄 그림 — 모든 단계를 같은 점 크기로 (원작 그림 크기 그대로라 진화할수록 커 보임 — 2026-10-20 태현 님 "크기가 제각각").
  * 위 칸 = 그림 (발끝을 한 줄에 — 태현 님 "바닥으로 정렬") · 아래 칸 = 이름 (그림마다 바로 밑) — 태현 님 그림 A안.
- * 배율 = 패널 180px 이상 ×2 (길 위 · 전투와 같음) · 그 아래 ×1 (×2 에 이름 줄까지면 150px 에 안 들어감).
+ * 배율 = 패널 크기에 따라 ×1 ~ ×4 (pickLayout — 들어가는 가장 큰 단계).
  * 그림 칸 높이 = 이 진화 줄에서 가장 큰 그림 × 배율 — 바닥을 맞춰도 위 · 아래 보이는 간격이 같게 (줄마다 높이가 다름)
  */
 /** 18종 진화 단계 중 가장 큰 그림 키 (칸) — 150px 에서도 들어가는지 계산하는 기준 (model.test) */
 export const CHAIN_MAX_ART = 33;
-/** 스타팅 화면에서 진화 그림 칸을 뺀 줄 높이 — 칩 24 + 그림 ↔ 이름 4 + 이름 · 타입 표 20 + 이름 밑 4 (game.css .pg-chain-grid) + 기술 22 (정보줄은 화면이 뺌) */
-export const PICK_ROWS_PX = 24 + 4 + 20 + 4 + 22;
-/** 줄 사이 가장 좁은 간격 */
-export const PICK_MIN_GAP_PX = 4;
-/** 진화 줄 배율 — ×2 (길 위 · 전투와 같음) 가 줄 사이 4px 씩 남기고 들어가면 ×2, 아니면 ×1 (패널 높이 · 진화 줄 크기로 계산 — 넘쳐서 스크롤되지 않게) */
-export function chainZoomFor(availPx: number, forms: readonly string[]): number {
-  return availPx >= PICK_ROWS_PX + chainRowPx(forms, 2) + 2 * PICK_MIN_GAP_PX ? 2 : 1;
+/** 진화 묶음 아래쪽 (그림 ↔ 이름 4 + 이름 · 타입 표 20 + 이름 밑 4 — game.css .pg-chain-grid) · 기술 줄 22 */
+export const CHAIN_NAMES_PX = 4 + 20 + 4;
+export const MOVES_PX = 22;
+/** 고르는 화면 가운데 칸 폭 — 정보줄 · 진화 줄 · 기술 줄과 같은 720 (넓은 패널에서 칩 줄만 튀어나오지 않게) */
+export const PICK_COLUMN_PX = 720;
+/** 칩 = 그림 창 (22 × 배율) + 위아래 테두리 · 칩 사이 6px (줄 · 칸 모두) */
+export const chipPx = (zoom: number): number => 22 * zoom + 2;
+const CHIP_PITCH_EXTRA = 4 + 6;
+const CHIP_GAP = 6;
+
+/** 칩 줄 높이 — ×1 은 한 줄 (넘치면 옆으로 넘김), ×2 이상은 폭이 모자라면 여러 줄로 감음 (높은 패널의 세로 공간을 씀) */
+export function stripLayout(zoom: number, widthPx: number, count: number): { rows: number; heightPx: number } {
+  if (zoom === 1) return { rows: 1, heightPx: chipPx(1) };
+  const pitch = chipPx(zoom) + CHIP_PITCH_EXTRA;
+  const perRow = Math.max(1, Math.floor((widthPx + CHIP_GAP) / pitch));
+  const rows = Math.ceil(count / perRow);
+  return { rows, heightPx: rows * chipPx(zoom) + (rows - 1) * CHIP_GAP };
 }
+
+/**
+ * 스타팅 화면 크기 단계 (2026-10-20 태현 님 "패널이 높으면 위 빈 공간을 써서 목록을 키우고 진화 포켓몬도 더 넓게") —
+ * [칩 배율, 진화 배율] 큰 단계부터 들어가는 것: ×3 · ×4 → ×2 · ×3 → ×2 · ×2 → ×1 · ×2 → ×1 · ×1. 진화는 칩과 같거나 한 단계 크게 (고른 것이 주인공).
+ * 들어감 = 칩 줄 + 진화 묶음 + 기술 줄 + 사이 (×1 단계는 4px · 위 4, 큰 단계는 8px · 위 8)
+ */
+const PICK_TIERS: readonly (readonly [number, number])[] = [
+  [3, 4],
+  [2, 3],
+  [2, 2],
+  [1, 2],
+  [1, 1],
+];
+export interface PickLayout {
+  chipZoom: number;
+  chainZoom: number;
+  stripRows: number;
+  stripPx: number;
+  rowPx: number;
+  /** 칩 줄 + 진화 묶음 + 기술 줄 (사이 간격 빼고) */
+  contentPx: number;
+  /** 칩 줄 위 · 줄 사이 (나머지는 아래로) */
+  topPx: number;
+  gapPx: number;
+}
+export function pickLayout(availH: number, widthPx: number, count: number, forms: readonly string[]): PickLayout {
+  let best: PickLayout | null = null;
+  for (const [cz, ez] of PICK_TIERS) {
+    const strip = stripLayout(cz, widthPx, count);
+    const rowPx = chainRowPx(forms, ez);
+    const contentPx = strip.heightPx + rowPx + CHAIN_NAMES_PX + MOVES_PX;
+    const min = cz === 1 ? 4 : 8;
+    // 단계는 가장 큰 진화 줄 (CHAIN_MAX_ART) 로 정함 — 고른 포켓몬을 넘길 때마다 목록 크기가 바뀌지 않게. 간격은 지금 진화 줄로
+    const worst = strip.heightPx + (CHAIN_MAX_ART + 2) * ez + CHAIN_NAMES_PX + MOVES_PX;
+    const left = availH - contentPx;
+    // 칩 줄 위는 작게 (최대 8 — 태현 님 "위와 간격을 조금만"), 줄 사이는 남는 높이를 셋으로 (4 ~ 32), 나머지는 아래
+    const topPx = Math.max(4, Math.min(8, Math.floor(left / 4)));
+    const gapPx = Math.max(4, Math.min(32, Math.floor((left - topPx) / 3)));
+    best = { chipZoom: cz, chainZoom: ez, stripRows: strip.rows, stripPx: strip.heightPx, rowPx, contentPx, topPx, gapPx };
+    if (availH - worst >= min + 2 * min) return best;
+  }
+  return best!;
+}
+
 /** 그림 칸 높이 = 이 진화 줄의 가장 큰 실제 그림 × 배율 + 위아래 한 칸씩 여유 (화면 배율 125 · 150% 에서 끝 줄이 잘리지 않게 — Sprite bottom) */
 export function chainRowPx(forms: readonly string[], zoom: number): number {
   const hs = forms.map((f) => spriteBoxOf(f)).map((b) => (b ? b[3] - b[1] : 32));
