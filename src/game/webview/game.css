@@ -4069,3 +4069,11 @@ body.vscode-high-contrast-light .pg-title-body {
   image-rendering: pixelated;
 }
 
+/* VS Code 가 모든 웹뷰에 먼저 넣는 기본 CSS (img · video { max-width: 100%; max-height: 100% }) 를 게임 안에서는 풂 — 게임 그림은 모두 width · height 를 정해 둠.
+   max-height 가 남아 있어서 칸보다 큰 그림 (칩 · 진화 줄 · 카드 · 64칸 포켓몬) 이 칸 높이로 줄고 자리는 원래 크기 기준이라 작게 · 위로 그려지거나 사라졌음
+   (2026-10-20 태현 님 "포켓몬이 네모 가운데가 아니고 위쪽 · 브리가론 · 염무왕이 안 보임" — dev/game.html 에도 같은 기본 CSS 를 넣어 찍기에서 잡히게) */
+#pokemon-game img {
+  max-width: none;
+  max-height: none;
+}
+

@@ -12,7 +12,7 @@ import { InfoBar } from '../../../ui/InfoBar';
 import { TypeTags } from '../../battle/components/TypeTag';
 import { Sprite } from '../../../ui/Sprite';
 import { moveView } from '../../result/model';
-import { chainArtWidth, chipPx, defaultStarterMoves, evolutionChain, PICK_COLUMN_PX, pickLayout, starterList, starterMoveCandidates } from '../model';
+import { chainArtWidth, chainGroundPad, chipPx, defaultStarterMoves, evolutionChain, PICK_COLUMN_PX, pickLayout, starterList, starterMoveCandidates } from '../model';
 import { INFO_BAR_PX } from '../../../ui/layout';
 
 export interface StarterPickProps {
@@ -43,6 +43,8 @@ export function StarterPick({ media, pending, onBack, onDone }: StarterPickProps
   const lay = pickLayout(window.innerHeight - barPx, Math.min(window.innerWidth - 16, PICK_COLUMN_PX), list.length, chain.map((c) => c.form));
   const zoom = lay.chainZoom;
   const rowPx = lay.rowPx;
+  // 바닥 (가장 오래 보이는 장면의 발끝) 을 한 줄로 — 그 아래 여유 (브리가론처럼 바닥보다 내려가는 장면)
+  const groundPad = chainGroundPad(chain.map((c) => c.form), zoom);
   const chipCrop = 22 * lay.chipZoom;
   const ready = picked.length === BALANCE.starterMoves && !pending;
 
@@ -122,7 +124,7 @@ export function StarterPick({ media, pending, onBack, onDone }: StarterPickProps
                   </span>
                 ),
                 <span key={c.dex} class="pg-chain-pic" style={{ gridColumn: 2 * i + 1 }}>
-                  <Sprite media={media} form={c.form} scale={1} crop={rowPx} cropWidth={chainArtWidth(c.form, zoom)} zoom={zoom} bottom title={c.name} />
+                  <Sprite media={media} form={c.form} scale={1} crop={rowPx} cropWidth={chainArtWidth(c.form, zoom)} zoom={zoom} bottom bottomPad={groundPad} title={c.name} />
                 </span>,
               ])}
             </div>

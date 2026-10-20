@@ -149,10 +149,19 @@ export function pickLayout(availH: number, widthPx: number, count: number, forms
   return best!;
 }
 
-/** 그림 칸 높이 = 이 진화 줄의 가장 큰 실제 그림 × 배율 + 위아래 한 칸씩 여유 (화면 배율 125 · 150% 에서 끝 줄이 잘리지 않게 — Sprite bottom) */
+/** 진화 줄 그림 칸 — 바닥 (가장 오래 보이는 장면의 발끝) 위로 가장 큰 키 · 바닥 아래로 가장 많이 내려가는 장면 (브리가론 3칸 등) */
+function chainExtent(forms: readonly string[]): { up: number; down: number } {
+  const bs = forms.map((f) => spriteBoxOf(f));
+  return { up: Math.max(1, ...bs.map((b) => (b ? b[4] - b[1] : 32))), down: Math.max(0, ...bs.map((b) => (b ? b[3] - b[4] : 0))) };
+}
+/** 그림 칸 높이 = (바닥 위 가장 큰 키 + 바닥 아래 내려가는 만큼 + 위아래 한 칸씩 여유) × 배율 — 바닥을 한 줄로 맞추고, 화면 배율 125 · 150% 에서도 끝 줄이 안 잘리게 */
 export function chainRowPx(forms: readonly string[], zoom: number): number {
-  const hs = forms.map((f) => spriteBoxOf(f)).map((b) => (b ? b[3] - b[1] : 32));
-  return (Math.max(1, ...hs) + 2) * zoom;
+  const { up, down } = chainExtent(forms);
+  return (up + down + 2) * zoom;
+}
+/** 바닥 아래 여유 px (Sprite bottomPad) — 내려가는 장면 + 한 칸 */
+export function chainGroundPad(forms: readonly string[], zoom: number): number {
+  return (chainExtent(forms).down + 1) * zoom;
 }
 /** 그림 칸 폭 = 실제 그림 폭 × 배율 + 양옆 2px (원본 칸 전체를 쓰면 빈칸이 넓어 줄이 길어짐) */
 export function chainArtWidth(form: string, zoom: number): number {

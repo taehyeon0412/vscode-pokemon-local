@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- 게임 모드 미리보기 — 확장 없이 브라우저에서 game.js 를 띄움 (확장 쪽은 game-host.js 가 흉내). npm run build 뒤에 -->
+    <!-- VS Code 가 모든 웹뷰에 먼저 넣는 기본 CSS (webview pre/index.html _defaultStyles) — 실제 VS Code 와 같게 찍으려고 (2026-10-20: img max-height 100% 때문에
+         칸 안 그림이 작게 · 위로 그려지던 것을 이게 없어서 못 봤음) -->
+    <style id="_defaultStyles">
+        body { overscroll-behavior-x: none; background-color: transparent; margin: 0; padding: 0 20px; }
+        img, video { max-width: 100%; max-height: 100%; }
+    </style>
     <link href="../extension/media/reset.css" rel="stylesheet">
     <link href="../extension/media/pokemon.css" rel="stylesheet">
     <title>게임 모드 미리보기</title>

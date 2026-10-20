@@ -32,7 +32,8 @@ export function HeroPick({ px, media, bodyPx, initial, onBack, onPick }: { px: n
   const room = bodyPx === undefined ? undefined : bodyPx - (bodyPx < LABEL_MIN_BODY ? 0 : LABEL_PX) - CARD_EDGE_PX;
   // 패널이 크면 그림을 크게 (2026-10-20 태현 님 "높으면 빈 공간을 써서 크게") — 위아래 12 · 한 줄에 다 들어가는 가장 큰 정수 배율 (×1 ~ ×4, 가운데 720 칸)
   // 폭 = 패널 좌우 24 씩 남기고 · 넓어도 가운데 720 칸
-  const zoom = heroPickZoom(bodyPx, Math.min(window.innerWidth - 48, 720));
+  // 들어가는 가장 큰 배율의 60% (태현 님 "너무 커 — 40% 줄여줘") — 정수 배로 반올림 (×4 · ×3 → ×2, ×2 → ×1)
+  const zoom = Math.max(1, Math.round(heroPickZoom(bodyPx, Math.min(window.innerWidth - 48, 720)) * 0.6));
   const drawPx = Math.max(px, zoom * 2);
   // S04 에서 ← 뒤로 오면 고른 칸 그대로
   const [focus, setFocus] = useState(() => Math.max(0, HERO_LOOKS.findIndex((l) => l.id === initial)));

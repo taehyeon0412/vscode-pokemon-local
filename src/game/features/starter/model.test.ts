@@ -125,7 +125,19 @@ describe('S04 ② 진화 줄 그림 (2026-10-20 태현 님 "크기가 제각각 
     const h = forms.map((f) => spriteBoxOf(f)!).map((b) => b[3] - b[1]);
     expect(h[0]!).toBeLessThan(h[1]!);
     expect(h[1]!).toBeLessThan(h[2]!);
-    // 위아래 한 칸씩 여유 (화면 배율에서 발끝이 잘리지 않게 — 2026-10-20 태현 님 "잘려 보이네")
-    expect(chainRowPx(forms, 2)).toBe((h[2]! + 2) * 2);
+    // 바닥 위 가장 큰 키 + 바닥 아래 내려가는 만큼 + 위아래 한 칸씩 (화면 배율에서 발끝이 잘리지 않게 — 2026-10-20 태현 님 "잘려 보이네")
+    const bs = forms.map((f) => spriteBoxOf(f)!);
+    const up = Math.max(...bs.map((b) => b[4] - b[1]));
+    const down = Math.max(...bs.map((b) => b[3] - b[4]));
+    expect(chainRowPx(forms, 2)).toBe((up + down + 2) * 2);
+  });
+  it('바닥 = 가장 오래 보이는 장면의 발끝 — 브리가론은 첫 장면 (0.67초) 발끝 60 · 다른 장면 63 이라 "가장 아래" 로 맞추면 떠 보였음 (태현 님)', () => {
+    expect(spriteBoxOf('chesnaught')![4]).toBe(60);
+    expect(spriteBoxOf('chesnaught')![3]).toBe(63);
+    // 18종 진화 줄 모두 (바닥 위 키 + 아래로 내려가는 만큼) 이 CHAIN_MAX_ART 안 — 크기 단계 계산이 맞게
+    for (const st of starterList()) {
+      const bs = evolutionChain(st.dex).map((c) => spriteBoxOf(c.form)!);
+      expect(Math.max(...bs.map((b) => b[4] - b[1])) + Math.max(...bs.map((b) => b[3] - b[4])), st.name).toBeLessThanOrEqual(CHAIN_MAX_ART);
+    }
   });
 });

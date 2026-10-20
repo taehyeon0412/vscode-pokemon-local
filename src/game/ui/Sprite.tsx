@@ -22,9 +22,10 @@ export interface SpriteProps {
   fieldSize?: boolean;
   /** crop 창 안에서 실제 그림 범위 (data/sprite-boxes) 를 한가운데에 — 포켓몬마다 빈칸이 달라도 위 · 아래가 같게 (없으면 발 쪽 맞춤) */
   center?: boolean;
-  /** crop 창 안에서 실제 그림의 발끝을 창 아래 끝에서 그림 한 칸 (배율 px) 위에 (가로는 그림 가운데) — 나란한 그림의 바닥을 한 줄로 (스타팅 진화 줄).
-   *  한 칸 띄우는 까닭: 끝에 딱 붙이면 Windows 화면 배율 125 · 150% 에서 칸 경계가 반 픽셀 반올림되며 발끝 한 줄이 잘림 (2026-10-20 태현 님 "잘려 보이네") */
+  /** crop 창 안에서 그림의 바닥 (가장 오래 보이는 장면의 발끝 — data/sprite-boxes) 을 창 아래 끝에서 bottomPad px 위에 (가로는 그림 가운데) — 나란한 그림의 바닥을 한 줄로 (스타팅 진화 줄) */
   bottom?: boolean;
+  /** bottom 일 때 바닥 아래 여유 px (기본 그림 한 칸) — 바닥보다 내려가는 장면 + 한 칸 (끝에 딱 붙이면 화면 배율 125 · 150% 에서 반올림으로 발끝이 잘림 — 태현 님 "잘려 보이네") */
+  bottomPad?: number;
   /** crop 창 폭 (없으면 crop — 정사각형) */
   cropWidth?: number;
   /** crop 창 안 그림 배율 (정수) — 원본 크기 (32 · 64) 와 상관없이 같은 점 크기 (스타팅 진화 줄 ×2 — 진화할수록 커 보이게) */
@@ -35,7 +36,7 @@ export interface SpriteProps {
 const FIELD_SPRITE_PX = BASE_SPRITE_PX * 2;
 
 /** 포켓몬 그림 하나 — 픽셀이 뭉개지지 않게, 키는 원본 × 배율 */
-export function Sprite({ media, form, scale, shiny, action, faceLeft, title, px: fixedPx, crop, fieldSize, center, bottom, cropWidth, zoom }: SpriteProps) {
+export function Sprite({ media, form, scale, shiny, action, faceLeft, title, px: fixedPx, crop, fieldSize, center, bottom, bottomPad, cropWidth, zoom }: SpriteProps) {
   const src = spriteSrc(media, form, { shiny, action });
   const px = fixedPx ?? spritePx(form, scale);
   const cw = cropWidth ?? crop;
@@ -47,7 +48,7 @@ export function Sprite({ media, form, scale, shiny, action, faceLeft, title, px:
     const k = s / natural;
     // center = 실제 그림 범위가 창 한가운데 · 아니면 가로 가운데 · 세로는 발 쪽 (그림 위쪽은 대개 빈칸). 자리는 정수 px (점이 흐려지지 않게)
     const left = box ? Math.round(cw / 2 - ((box[0] + box[2]) / 2) * k) : Math.round((cw - s) / 2);
-    const top = box ? (bottom ? crop - box[3] * k - k : Math.round(crop / 2 - ((box[1] + box[3]) / 2) * k)) : Math.round((crop - s) * 0.8);
+    const top = box ? (bottom ? crop - box[4] * k - (bottomPad ?? k) : Math.round(crop / 2 - ((box[1] + box[3]) / 2) * k)) : Math.round((crop - s) * 0.8);
     return (
       <span class="pg-sprite-crop" style={{ width: `${cw}px`, height: `${crop}px` }} title={title}>
         <img class={faceLeft ? 'pg-sprite pg-face-left' : 'pg-sprite'} src={src} width={s} height={s} alt={title ?? ''} draggable={false} style={{ left: `${left}px`, top: `${top}px` }} />
