@@ -114,7 +114,12 @@ function fxMove(b: BattleState): { m: FxMove; hitType: string; big: boolean; hit
   return null;
 }
 
-/** 패링으로 막았으면 임팩트를 줄이거나 (막음 ×0.5) 빼기 (완벽 — 방패만) — 맞는 순간의 최신 상태로 */
+/** 이 행동 (key) 의 패링 등급 — 맞는 순간의 최신 상태로 */
+function parryOf(now: BattleState, key: string) {
+  return battleAnimKey(now) === key && now.anim?.side === 'foe' ? now.anim.parry : undefined;
+}
+
+/** 패링으로 막았으면 임팩트를 줄이거나 (막음 ×0.5) 빼기 (완벽 — 쳐내기 · 피하기만) — 맞는 순간의 최신 상태로 */
 function parriedHit(now: BattleState, key: string, hit: FxImpact): FxImpact | null {
   const p = battleAnimKey(now) === key && now.anim?.side === 'foe' ? now.anim.parry : undefined;
   if (p === 'perfect') return null;
@@ -233,8 +238,8 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
           at(Math.round(a.dur * CONTACT_AT), () => {
             const dst = actor(b, other(side));
             if (!dst) return;
-            // 빗나감 (엔진이 행동 시작 때 정함) — 자국 · 임팩트 대신 맞을 쪽이 휙 피함
-            if (a.miss) fx.dodge?.(dst);
+            // 빗나감 (엔진이 행동 시작 때 정함) · 완벽 패링 — 자국 · 임팩트 대신 맞을 쪽이 휙 피함
+            if (a.miss || parryOf(now.current, key) === 'perfect') fx.dodge?.(dst);
             else fx.move(dst, move.m, 0, form);
           });
           // 타입 임팩트는 자국 · 주먹이 먼저 보이게 조금 뒤에 (같이 터지면 서로 가림)
@@ -266,16 +271,23 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
                 if (dst) fx.dodge?.(dst);
                 return;
               }
+              // 완벽 패링 — 날아온 것을 위쪽 대각선으로 쳐냄 (빔은 꺾여 흩어짐, 하늘 · 땅 기술은 피함)
+              if (parryOf(now.current, key) === 'perfect') {
+                if (dst) fx.swat?.(dst, actor(b, side), move.hitType, plan.fx);
+                return;
+              }
               const hit = parriedHit(now.current, key, move.hit);
               if (dst && hit) fx.impact(dst, move.hitType, move.big, move.m.name, hit);
             });
           }
         }
-      } else if (act.kind === 'ult') {
+      } else if (act.kind === 'ult' || act.kind === 'riposte') {
         // 필살기 — 일반 모드 필살기 그대로. 앞 행동의 남은 연출은 지우고 시작
+        // 반격기 (완벽 패링 두 번) — 그 포켓몬 필살기를 늘 짧게 (컷인 없이 — 컷인은 진짜 필살기만, 2026-10-20 태현 님) + 금색 "반격!"
+        const riposte = act.kind === 'riposte';
         fx.clear();
         // 상대 필살기를 내 필살기로 맞받아칠 수 있으면 창 (1초) 이 지난 뒤 컷인 — 컷인 띠가 맞받아치기 안내를 덮지 않게 (플레이 리뷰어)
-        const startAt = side === 'foe' && b.me.ult >= 1 && b.me.hp > 0 ? TIMING.ultCounterWindowMs : 0;
+        const startAt = !riposte && side === 'foe' && b.me.ult >= 1 && b.me.hp > 0 ? TIMING.ultCounterWindowMs : 0;
         // 그림이 아직 0 크기 (나와라! 커지는 중) 면 0.05초씩 기다림 — 0.6초까지 못 쓰면 이모지로
         const tryUlt = (waited: number) => {
           const src = actor(b, side);
@@ -289,10 +301,12 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
           fx.mount?.(null);
           // 같은 전투에서 이 포켓몬이 필살기를 이미 썼으면 (두 번째부터 — 필살기가 여럿이면 다른 것이어도) 컷인 없이 짧게. 컷인 띠는 포켓몬 얼굴이라 포켓몬 기준
           const seenKey = `${side}:${b[side].uid}:${b[side].form}`;
-          const quick = seenUlts.current.has(seenKey);
-          const total = fx.ult && src && dst ? fx.ult(src, dst, onHit, learnedNames(b, side), { quick }) : 0;
+          const quick = riposte || seenUlts.current.has(seenKey);
+          const total = fx.ult && src && dst ? fx.ult(src, dst, onHit, learnedNames(b, side), { quick, ...(riposte ? { sub: `${src?.name ?? ''}의 반격!` } : {}) }) : 0;
           if (total > 0) {
-            seenUlts.current.add(seenKey);
+            // 반격기로 본 것은 "본 필살기" 로 안 셈 (진짜 필살기는 처음엔 컷인까지) · 반격기는 금색 "반격!" (그림이 준비된 뒤라 여기서)
+            if (!riposte) seenUlts.current.add(seenKey);
+            else if (dst) fx.word?.(dst, '반격!', 'gold');
             holdFx(key, total, performance.now(), FX_HOLD_ULT_MAX_MS);
             ultOn = true;
             // Space = 남은 연출 건너뛰기 (아직 안 맞혔으면 맞힌 것으로 — 피해는 엔진이 그대로)
@@ -347,18 +361,19 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
   }, [key]);
   // 패링 — 막으면 맞는 순간에 맞춰 내 포켓몬에 방패 (완벽 = 금색)
   const parried = b.anim?.side === 'foe' ? b.anim.parry : undefined;
-  // 빗나갈 공격을 막았으면 ("피했다!") 피하는 몸짓만 — 방패 · 되튀기는 안 그림 (한꺼번에 나와 헷갈리던 것, 코드 리뷰어)
+  // 빗나갈 공격을 막았으면 피하는 몸짓만 — 방패 · 되튀기는 안 그림 (한꺼번에 나와 헷갈리던 것, 코드 리뷰어)
+  // 완벽은 맞는 순간 쳐내기 · 피하기 (위) — 여기는 보통 패링 (스치듯) 의 은색 방패 · 불똥만 (2026-10-20)
   const parriedMiss = !!b.anim?.miss;
   useEffect(() => {
-    if (!fx || (parried !== 'good' && parried !== 'perfect') || parriedMiss) return undefined;
+    if (!fx || parried !== 'good' || parriedMiss) return undefined;
     const w = impactOf(key);
     const t = window.setTimeout(
       () => {
         const me = actor(b, 'me');
-        if (me) fx.cast(me, 'shield', { c: parried === 'perfect' ? 'gold' : 'aura' });
+        if (me) fx.cast(me, 'shield', { c: 'silver' });
         // 되튀기 — 막은 몸 앞에서 친 쪽으로 불똥 · 완벽은 금색 초승달 + 히트스톱
         const foe = actor(b, 'foe');
-        if (me && foe) fx.deflect?.(me, foe, parried === 'perfect');
+        if (me && foe) fx.deflect?.(me, foe, false);
       },
       w ? Math.max(0, Math.round(w.at - performance.now())) : 0,
     );
@@ -375,6 +390,10 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
     if (big || fresh.some((p) => p.kind === 'super')) fx.hitStop?.(big ? 100 : 70);
     const koActor = ko ? actor(b, ko.side) : null;
     if (koActor) fx.ko?.(koActor);
+    // 패링 글 — 완벽 = 금색 "완벽 패링!" · 보통 = 은색 "패링!" (내 포켓몬 머리 위)
+    const parryPop = fresh.find((p) => p.kind === 'parry');
+    const me = parryPop ? actor(b, 'me') : null;
+    if (parryPop && me) fx.word?.(me, parryPop.text, parryPop.text === '완벽 패링!' ? 'gold' : 'silver');
     // 상태 이상이 걸림 = status 글 + 지금 그 상태 (나음은 아이템 반짝이가 이미 있어서 따로 안 그림)
     for (const p of fresh) {
       const kind = p.kind === 'status' ? b[p.side].status?.kind : undefined;
@@ -382,6 +401,13 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
       if (who && kind) fx.status?.(who, kind);
     }
   }, [b.popupSeq]);
+  // 반격 기회 — 상대만 밝고 둘레가 살짝 어두워짐 (두 번째 원은 화면이 그림)
+  const ripostingAt = b.phase === 'riposte' ? b.t - (b.riposte?.ms ?? 0) : -1;
+  useEffect(() => {
+    if (!fx || ripostingAt < 0) return;
+    const foe = actor(now.current, 'foe');
+    if (foe) fx.riposteFocus?.(foe, TIMING.riposteRingMs + TIMING.parryLateMs);
+  }, [ripostingAt]);
   // 연출 캔버스 위 끝 = 정보줄 아래 끝 (game.css 가 여기서 자름 — 연출이 정보줄을 덮지 않게, 아트 디렉터).
   // 그릴 때마다 잼 — 처음 그릴 땐 game.css 를 받기 전이라 화면이 숨어 0 이 나오고, 패널 크기도 바뀜 (값이 같으면 안 씀)
   useEffect(() => {

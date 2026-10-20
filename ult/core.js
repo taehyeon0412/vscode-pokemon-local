@@ -309,7 +309,8 @@ function useUltimate(pokemon, ult, opt = {}) {
         }
     }
     let [name, fx, o = {}] = ult;
-    let sub = `${pokemon.name}의 필살기!`;
+    // opt.sub = 큰 이름 위 작은 글 (게임 반격기 — "○○의 반격!")
+    let sub = opt.sub ?? `${pokemon.name}의 필살기!`;
     let pre;
     if (ULT_PRE[fx]) {
         pre = ULT_PRE[fx](pokemon, name, o);
@@ -635,7 +636,7 @@ function ultCutIn(pokemon, left, cols, sec, yc = 0.36, hf = 0.3) {
 // 큰 글씨 — 크게 쾅 박혔다가 자리 잡음, 반짝 지나감. cols 를 주면 그 색으로 (기본 금색), yc = 높이(패널 비율), k = 크기 배수
 // 필살기 글자 글꼴 — 게임 모드는 게임 글꼴 (Pretendard, 가변 굵기라 900 그대로), 일반 모드는 그대로
 const ultFont = () => (typeof fxInGame === 'function' && fxInGame() ? "'Pretendard', sans-serif" : 'sans-serif');
-function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1) {
+function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1, at = null) {
     const C = cols || ['#fffbe0', '#ffe680', '#f5c400', '#b88a00'];
     sigParticle({ x: 0, y: 0, s: 2, max: sec, draw: (ctx, p) => {
         const W = window.innerWidth;
@@ -659,7 +660,9 @@ function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1) {
         // 게임 모드 — 부제까지 정보줄 아래에 (연출 캔버스 위쪽은 정보줄 아래 끝에서 잘림)
         const top = typeof fxTop === 'function' ? fxTop() : 0;
         const yMin = top ? top + (sub ? size * 0.85 + Math.max(10, Math.round(size * 0.4)) / 2 : size / 2) + 4 : 0;
-        ctx.translate(Math.round(W / 2 + jx), Math.round(Math.max(H * yc, yMin)));
+        // at = 그 자리 가운데 (화면 밖으로 안 나가게 안쪽으로) — 없으면 화면 가운데
+        const cx = at ? Math.min(W - tw / 2 - 4, Math.max(tw / 2 + 4, at.x)) : W / 2;
+        ctx.translate(Math.round(cx + jx), Math.round(Math.max(at ? at.y : H * yc, yMin)));
         ctx.scale(scale, scale);
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';

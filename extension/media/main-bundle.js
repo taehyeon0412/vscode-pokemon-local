@@ -8821,7 +8821,8 @@ function useUltimate(pokemon, ult, opt = {}) {
         }
     }
     let [name, fx, o = {}] = ult;
-    let sub = `${pokemon.name}의 필살기!`;
+    // opt.sub = 큰 이름 위 작은 글 (게임 반격기 — "○○의 반격!")
+    let sub = opt.sub ?? `${pokemon.name}의 필살기!`;
     let pre;
     if (ULT_PRE[fx]) {
         pre = ULT_PRE[fx](pokemon, name, o);
@@ -9147,7 +9148,7 @@ function ultCutIn(pokemon, left, cols, sec, yc = 0.36, hf = 0.3) {
 // 큰 글씨 — 크게 쾅 박혔다가 자리 잡음, 반짝 지나감. cols 를 주면 그 색으로 (기본 금색), yc = 높이(패널 비율), k = 크기 배수
 // 필살기 글자 글꼴 — 게임 모드는 게임 글꼴 (Pretendard, 가변 굵기라 900 그대로), 일반 모드는 그대로
 const ultFont = () => (typeof fxInGame === 'function' && fxInGame() ? "'Pretendard', sans-serif" : 'sans-serif');
-function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1) {
+function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1, at = null) {
     const C = cols || ['#fffbe0', '#ffe680', '#f5c400', '#b88a00'];
     sigParticle({ x: 0, y: 0, s: 2, max: sec, draw: (ctx, p) => {
         const W = window.innerWidth;
@@ -9171,7 +9172,9 @@ function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1) {
         // 게임 모드 — 부제까지 정보줄 아래에 (연출 캔버스 위쪽은 정보줄 아래 끝에서 잘림)
         const top = typeof fxTop === 'function' ? fxTop() : 0;
         const yMin = top ? top + (sub ? size * 0.85 + Math.max(10, Math.round(size * 0.4)) / 2 : size / 2) + 4 : 0;
-        ctx.translate(Math.round(W / 2 + jx), Math.round(Math.max(H * yc, yMin)));
+        // at = 그 자리 가운데 (화면 밖으로 안 나가게 안쪽으로) — 없으면 화면 가운데
+        const cx = at ? Math.min(W - tw / 2 - 4, Math.max(tw / 2 + 4, at.x)) : W / 2;
+        ctx.translate(Math.round(cx + jx), Math.round(Math.max(at ? at.y : H * yc, yMin)));
         ctx.scale(scale, scale);
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -49160,7 +49163,7 @@ window.pokemonFx = {
         let total = 0;
         try {
             // o.quick = 같은 전투에서 다시 보는 필살기 — 컷인 없이 짧게 (ult/core.js ULT_QUICK_INTRO_MS)
-            total = fxWithTimers(gen, () => useUltimate(A, entry, { quick: !!o?.quick })) || 0;
+            total = fxWithTimers(gen, () => useUltimate(A, entry, { quick: !!o?.quick, ...(o?.sub ? { sub: o.sub } : {}) })) || 0;
         } catch (err) {
             ultError('game ult', err);
         }
@@ -49366,6 +49369,134 @@ window.pokemonFx = {
                 return;
             }
             fxWithTimers(fxMoveGen, () => hitKO(sigGeometry(fxActor(dst), !!dst.left)));
+        });
+    },
+    /** 완벽 패링 — 쳐내기 (2026-10-20 태현 님 그림 docs: 날아온 줄이 내 포켓몬 앞에서 위쪽 대각선으로 튕겨 나감).
+     *  dst = 막은 쪽 (내 포켓몬) · src = 친 쪽 · type = 기술 타입 · kind = 연출 틀 (fx.plan().fx) — 광선은 위로 꺾여 흩어지고, 날아오는 것은 회전하며 튕겨 나감, 하늘 · 땅 · 둘레 기술은 휙 피함 */
+    swat(dst, src, type, kind) {
+        const SHOT = ['projectile', 'water', 'bubbles', 'rings', 'notes', 'breath', 'spark', 'beam', 'solarbeam'];
+        if (!SHOT.includes(kind)) {
+            window.pokemonFx.dodge(dst);
+            return;
+        }
+        safeFx({}, () => {
+            if (!POKEMON_SHAPE[dst.form] || fxWidth(dst) < 1) {
+                return;
+            }
+            const g = sigGeometry(fxActor(dst), !!dst.left);
+            const s = g.s;
+            const dir = g.dir; // 막은 쪽이 보는 쪽 = 친 쪽
+            const x0 = g.body.front + dir * 2 * s;
+            const y0 = g.body.cy;
+            // 날아오던 것 지우기 — 막은 쪽으로 오는 입자 (몸 앞 3폭 안) · 막은 쪽을 향한 광선
+            for (const p of moveParticles) {
+                const toward = (p.vx || 0) * dir < 0 && Math.abs(p.x - x0) < g.w * 3;
+                const beam = p.reach !== undefined && p.W !== undefined && p.dir !== undefined && p.dir * dir < 0;
+                if (toward || beam) {
+                    p.life = p.max;
+                }
+            }
+            // 뿜기 · 물대포처럼 계속 뿜던 것도 멈춤 (쳐낸 뒤에도 날아오지 않게)
+            moveEmitters.length = 0;
+            const cols = hitCols(type);
+            // 쳐내는 쪽 = 위 · 친 쪽으로 비스듬히 (약 55°)
+            const ax = dir * Math.cos(0.95);
+            const ay = -Math.sin(0.95);
+            if (kind === 'beam' || kind === 'solarbeam') {
+                // 광선 — 막은 자리에서 위로 꺾인 굵은 줄기가 0.4초 동안 뻗었다 흩어짐 (줄기를 따라 반짝이)
+                const L = g.w * 3.5;
+                sigParticle({ x: x0, y: y0, s, max: 0.4, cols, draw: (ctx, p, t, px) => {
+                    ctx.globalAlpha = t > 0.6 ? Math.ceil(((1 - t) / 0.4) * 4) / 4 : 1;
+                    const len = L * Math.min(1, t / 0.12);
+                    for (let d = 0; d < len; d += p.s) {
+                        const w = Math.max(1, Math.round(3 * (1 - d / L) * (t < 0.5 ? 1 : 1 - (t - 0.5) * 1.6)));
+                        const cx = p.x + ax * d;
+                        const cy = p.y + ay * d;
+                        dotAt(ctx, px, p.s, cx - p.s, cy - p.s, p.cols[2], w + 1, w + 1);
+                        dotAt(ctx, px, p.s, cx, cy, d < len * 0.6 ? '#ffffff' : p.cols[0], Math.max(1, w - 1), Math.max(1, w - 1));
+                    }
+                } });
+                for (let i = 0; i < 10; i++) {
+                    const d = moveRand(0.2, 1) * L;
+                    sigParticle({ x: x0 + ax * d, y: y0 + ay * d, s, vx: moveRand(-30, 30) * s, vy: moveRand(-30, 10) * s, max: moveRand(0.3, 0.5), cols, draw: DRAW.sparkle });
+                }
+            } else {
+                // 날아오는 것 — 기술 색 구슬이 회전하며 위쪽 대각선으로 튕겨 나감 + 꼬리
+                const v = 300 * s;
+                sigParticle({ x: x0, y: y0, s, vx: ax * v, vy: ay * v, g: 60 * s, max: 0.9, cols, spin: 0, update: (p, dt) => {
+                    p.spin += dt * 18;
+                    // 꼬리 — 2칸 덩이가 길게 남음
+                    for (let k = 0; k < 2; k++) {
+                        sigParticle({ x: p.x + moveRand(-2, 2) * p.s, y: p.y + moveRand(-2, 2) * p.s, s: p.s, max: moveRand(0.25, 0.45), color: p.cols[movePick([0, 1, 2])], size: movePick([1, 2]), draw: DRAW.dot });
+                    }
+                }, draw: (ctx, p, t, px) => {
+                    ctx.globalAlpha = 1;
+                    sigDisc(ctx, px, p.s, p.x, p.y, 5 * p.s, p.cols[2]);
+                    sigDisc(ctx, px, p.s, p.x, p.y, 4 * p.s, p.cols[1]);
+                    sigDisc(ctx, px, p.s, p.x, p.y, 2 * p.s, p.cols[0]);
+                    dotAt(ctx, px, p.s, p.x - 2 * p.s, p.y - 2 * p.s, '#ffffff', 2, 2);
+                    // 도는 살 네 개
+                    for (let k = 0; k < 4; k++) {
+                        const a = p.spin + (k * Math.PI) / 2;
+                        dotAt(ctx, px, p.s, p.x + Math.cos(a) * 6 * p.s, p.y + Math.sin(a) * 6 * p.s, p.cols[0], 2, 2);
+                    }
+                } });
+            }
+            // 쳐내는 순간 — 금색 퍽 · 초승달 · 불똥 · 짧은 멈춤 (되튀기 완벽과 같은 결)
+            sigPow(x0, y0, s, HIT_GOLD, 0.5, false, { size: 6 });
+            window.pokemonFx.deflect(dst, src, true);
+        });
+    },
+    /** 패링 글 (2026-10-20 태현 님) — 완벽 = 금색 "완벽 패링!" (크게 · 반짝) · 보통 = 은색 "패링!" (작게) · 반격 = 금색 "반격!" — 필살기 이름 글씨처럼, 그 포켓몬 머리 위 */
+    word(dst, text, tone) {
+        safeFx({}, () => {
+            const r = (dst.box || dst.el).getBoundingClientRect();
+            if (r.width < 1) {
+                return;
+            }
+            const gold = tone === 'gold';
+            const cols = gold ? ['#fffbe0', '#ffe680', '#f5c400', '#b88a00'] : ['#ffffff', '#eef2f6', '#c4ced8', '#5f6f82'];
+            const big = gold;
+            // 머리 위는 HP 묶음 자리라 — 그 포켓몬 옆 (화면 가운데 쪽) 위에
+            const toward = r.left + r.width / 2 < window.innerWidth / 2 ? 1 : -1;
+            const x = r.left + r.width / 2 + toward * r.width * 1.6;
+            const y = r.top + r.height * 0.2;
+            ultTitle(text, null, cols, big ? 1.0 : 0.7, 0.36, big ? 0.55 : 0.38, { x, y });
+            if (big) {
+                for (let i = 0; i < 8; i++) {
+                    const a = (i / 8) * Math.PI * 2;
+                    sigParticle({ x: x + Math.cos(a) * 30, y: y + Math.sin(a) * 10, s: 2, vx: Math.cos(a) * 30, vy: Math.sin(a) * 15 - 10, drag: 2, max: 0.6, cols, draw: DRAW.sparkle });
+                }
+            }
+        });
+    },
+    /** 반격 기회 — 상대 (dst) 만 밝고 둘레는 살짝 어두워짐 (화면이 느려진 느낌, ms 동안) · 구멍은 픽셀 줄로 */
+    riposteFocus(dst, ms) {
+        safeFx({}, () => {
+            const r = (dst.box || dst.el).getBoundingClientRect();
+            if (r.width < 1) {
+                return;
+            }
+            const cx = r.left + r.width / 2;
+            const cy = r.top + r.height * 0.55;
+            const R = Math.max(r.width, r.height) * 0.95;
+            sigParticle({ x: 0, y: 0, s: 2, max: ms / 1000, z: -1, draw: (ctx, p, t) => {
+                const a = 0.34 * (t < 0.12 ? t / 0.12 : t > 0.85 ? (1 - t) / 0.15 : 1);
+                const W = window.innerWidth;
+                const H = window.innerHeight;
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(0, 0, W, H);
+                for (let dy = -R; dy <= R; dy += 2) {
+                    const half = Math.round(Math.sqrt(Math.max(0, R * R - dy * dy)) / 2) * 2;
+                    ctx.rect(Math.round(cx - half), Math.round(cy + dy), half * 2, 2);
+                }
+                ctx.clip('evenodd');
+                ctx.globalAlpha = Math.ceil(a * 8) / 8;
+                ctx.fillStyle = '#0a0c1e';
+                ctx.fillRect(0, 0, W, H);
+                ctx.restore();
+            } });
         });
     },
     /** 개발 미리보기 — 타입 임팩트 하나를 그 자리에 (dev/game-host.js impacts=1) */

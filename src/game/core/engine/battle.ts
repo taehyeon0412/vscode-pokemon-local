@@ -22,12 +22,10 @@ import {
   canInflict,
   clashWithTaps,
   computeDamage,
-  counterMove,
   fighterOf,
   fleeChance,
   gaugeRate,
   guardFactor,
-  isShooting,
   parryGrade,
   type ParryGrade,
   streakMultiplier,
@@ -55,6 +53,8 @@ export type BattleAction =
   | { kind: 'switch'; uid: string }
   | { kind: 'flee' }
   | { kind: 'ult' }
+  /** 반격기 (완벽 패링 → 두 번째 원도 완벽) — 그 포켓몬 필살기를 짧게, 피해는 필살기의 절반 · 게이지는 안 씀 (2026-10-20) */
+  | { kind: 'riposte' }
   /** 잠듦 · 마비로 못 움직임 — why = 잠 · 이번에 깸 · 마비 (연출용, 예전 저장엔 없음) */
   | { kind: 'skip'; why?: 'sleep' | 'wake' | 'paralysis' };
 
@@ -69,6 +69,12 @@ export interface BattleAnim {
   parry?: ParryGrade;
   /** 기술이 빗나감 — 행동 시작 때 정함 (연출이 미리 알고 피하는 모양을 그리게, 2026-10-20). 기술 행동에만 있고, 옛 세이브에 없으면 맞는 순간 정함 */
   miss?: boolean;
+}
+
+/** 반격 기회 (2026-10-20 태현 님) — 완벽 패링 뒤 상대 둘레에 두 번째 원이 좁혀짐, ms === dur 이 맞는 때 (창은 패링과 같음) */
+export interface BattleRiposte {
+  ms: number;
+  dur: number;
 }
 
 export interface BattleClash {
@@ -121,6 +127,8 @@ export interface BattleState {
   foeName: string | null;
   /** 관장이 남긴 상처약 (2026-10-20) — 관장전만, 옛 상태에는 없음 (= 0) */
   foePotions?: number;
+  /** 반격 기회 (phase riposte 일 때만) */
+  riposte?: BattleRiposte | null;
   /** send — 다음 포켓몬을 내보내는 데 지난 시간 */
   sendMs: number;
   /** 이 전투에서 바뀐 내 포켓몬 (교체로 나온 포켓몬의 HP · PP · 상태) — 끝나면 세이브에 */
@@ -128,7 +136,7 @@ export interface BattleState {
   /** 이 전투에서 쓴 아이템 (끝나면 가방에서 뺌) */
   bagUsed: Partial<Record<ItemId, number>>;
   /** catch = 볼을 던짐 (S11) · last = 이긴 뒤 마지막 기회 (볼을 고르거나 그냥 지나감) */
-  phase: 'run' | 'choose' | 'anim' | 'clash' | 'pick' | 'catch' | 'last' | 'send' | 'over';
+  phase: 'run' | 'choose' | 'anim' | 'clash' | 'pick' | 'catch' | 'last' | 'send' | 'over' | 'riposte';
   anim: BattleAnim | null;
   clash: BattleClash | null;
   catch: BattleCatch | null;
@@ -271,12 +279,14 @@ function startAction(b0: BattleState, side: Side, action0: BattleAction, rng: Rn
   const b: BattleState = { ...b0, me: { ...b0.me }, foe: { ...b0.foe } };
   const actor = b[side];
   let action = action0;
-  if (action.kind !== 'ult') actor.gauge = 0;
+  // 필살기 · 반격기는 끼어드는 것이라 행동 게이지 · 방어를 안 건드림
+  const free = action.kind === 'ult' || action.kind === 'riposte';
+  if (!free) actor.gauge = 0;
   // 방어는 다음 내 행동까지 — 내 차례가 오면 풀림
-  if (action.kind !== 'ult') actor.guard = 1;
+  if (!free) actor.guard = 1;
 
   // 잠듦 · 마비 (원작 규칙 [제안]) — 필살기는 막지 않음
-  if (action.kind !== 'ult' && action.kind !== 'switch' && action.kind !== 'item' && action.kind !== 'flee') {
+  if (!free && action.kind !== 'switch' && action.kind !== 'item' && action.kind !== 'flee') {
     const st = actor.status;
     if (st?.kind === 'sleep') {
       const left = st.turnsLeft - 1;
@@ -289,9 +299,9 @@ function startAction(b0: BattleState, side: Side, action0: BattleAction, rng: Rn
     }
   }
 
-  if (action.kind !== 'guard' && action.kind !== 'ult') actor.guardStreak = 0;
+  if (action.kind !== 'guard' && !free) actor.guardStreak = 0;
   // 연달아 세지는 기술: 같은 기술을 또 쓰면 +1, 다른 행동이면 처음부터 (필살기는 아무 때나 끼어드는 것이라 그대로)
-  if (action.kind !== 'ult') {
+  if (!free) {
     const mv = action.kind === 'move' ? moveOf(action.moveId) : undefined;
     if (mv?.streak && actor.streakMove === mv.id) actor.streakCount += 1;
     else {
@@ -300,7 +310,7 @@ function startAction(b0: BattleState, side: Side, action0: BattleAction, rng: Rn
     }
   }
   let dur: number = TIMING.attackAnimMs;
-  let counter = false;
+  const counter = false;
   let miss: boolean | undefined;
   switch (action.kind) {
     case 'attack':
@@ -314,11 +324,7 @@ function startAction(b0: BattleState, side: Side, action0: BattleAction, rng: Rn
       dur = TIMING.moveAnimMs;
       // 명중은 지금 정함 (맞는 순간에 정하면 연출이 모르고 임팩트를 터뜨림 — 빗나가면 피하는 모양)
       miss = !!mv && mv.accuracy !== null && !rng.chance(mv.accuracy / 100);
-      // 상대가 쏘는 기술 → 나도 쏘는 기술이 있으면 늘 맞받아치기 창 (누르면 지금 행동 게이지를 다 씀 — 2026-10-18 태현 님)
-      if (side === 'foe' && b.me.hp > 0 && isShooting(mv) && mv && counterMove(b.me, mv)) {
-        counter = true;
-        dur = Math.max(dur, TIMING.counterWindowMs);
-      }
+      // 쏘는 기술끼리 맞받아치기 힘대결은 없앰 (2026-10-20 태현 님 — 패링 = 피하거나 쳐냄 · 완벽 두 번이면 반격기)
       break;
     }
     case 'guard':
@@ -346,6 +352,10 @@ function startAction(b0: BattleState, side: Side, action0: BattleAction, rng: Rn
       b.msg = `${label(b, side)}의 필살기!`;
       dur = TIMING.ultAnimMs;
       break;
+    case 'riposte':
+      b.msg = `${label(b, side)}의 반격!`;
+      dur = TIMING.ultAnimMs;
+      break;
     case 'skip':
       dur = TIMING.guardAnimMs;
       break;
@@ -364,7 +374,7 @@ function hit(b: BattleState, attackerSide: Side, power: number, type: ReadonlyMo
   const parried = attackerSide === 'foe' && !opts.useUlt ? b.anim?.parry : undefined;
   if (parried === 'good' || parried === 'perfect') {
     dmg = Math.floor(dmg * (parried === 'perfect' ? BALANCE.parryPerfectFactor : BALANCE.parryGoodFactor));
-    popup(b, 'me', parried === 'perfect' ? '완벽하게 막았다!' : '막았다!', 'parry');
+    popup(b, 'me', parried === 'perfect' ? '완벽 패링!' : '패링!', 'parry');
     if (parried === 'perfect') d.gauge = Math.min(1, d.gauge + BALANCE.parryPerfectGauge);
   }
   if (opts.move?.effect === 'leave-1hp') dmg = Math.min(dmg, Math.max(0, d.hp - 1));
@@ -428,7 +438,7 @@ function resolveMove(b: BattleState, side: Side, mv: ReadonlyMove | undefined, r
     // 빗나갈 상대 공격을 막았으면 (패링) "피했다!" — 완벽 보상 (게이지) 은 그대로 (잘 눌렀는데 보상이 사라지지 않게, 2026-10-20 플레이 리뷰어)
     const parried = side === 'foe' ? b.anim?.parry : undefined;
     if (parried === 'good' || parried === 'perfect') {
-      popup(b, 'me', parried === 'perfect' ? '완벽하게 피했다!' : '피했다!', 'parry');
+      popup(b, 'me', parried === 'perfect' ? '완벽 패링!' : '패링!', 'parry');
       if (parried === 'perfect') b.me.gauge = Math.min(1, b.me.gauge + BALANCE.parryPerfectGauge);
       return;
     }
@@ -510,12 +520,32 @@ function finishAnim(b0: BattleState, save: Save, rng: Rng): BattleState {
     case 'ult':
       hit(b, side, BALANCE.ultPower, actor.types[0] ?? null, rng, { useUlt: true });
       break;
+    case 'riposte':
+      hit(b, side, Math.round(BALANCE.ultPower * BALANCE.riposteUltFactor), actor.types[0] ?? null, rng, { useUlt: true });
+      break;
     case 'guard':
     case 'skip':
       break;
   }
-  if (anim.action.kind !== 'ult' && anim.action.kind !== 'switch') afterAction(b, side);
-  return afterHits({ ...b, anim: null }, save);
+  if (anim.action.kind !== 'ult' && anim.action.kind !== 'riposte' && anim.action.kind !== 'switch') afterAction(b, side);
+  const after = afterHits({ ...b, anim: null }, save);
+  // 완벽 패링 뒤 둘 다 서 있으면 반격 기회 — 상대 둘레에 두 번째 원 (2026-10-20 태현 님)
+  if (side === 'foe' && anim.parry === 'perfect' && (after.phase === 'run' || after.phase === 'choose') && after.me.hp > 0 && after.foe.hp > 0) {
+    return { ...after, phase: 'riposte', riposte: { ms: 0, dur: TIMING.riposteRingMs } };
+  }
+  return after;
+}
+
+/** 반격 기회에 누름 — 두 번째 원도 완벽이면 반격기, 아니면 그냥 이어 감 (한 번만) */
+function riposteInput(b: BattleState, msBeforeHit: number, rng: Rng): BattleState {
+  const done: BattleState = { ...b, phase: 'run', riposte: null };
+  if (parryGrade(msBeforeHit) !== 'perfect') return done;
+  return startAction(done, 'me', { kind: 'riposte' }, rng);
+}
+
+/** 지금 반격 기회인지 (화면이 상대 둘레 두 번째 원 · 판 클릭을 Space 로) */
+export function canRiposte(b: BattleState): boolean {
+  return b.phase === 'riposte' && !!b.riposte && b.me.hp > 0 && b.foe.hp > 0;
 }
 
 /** 쓰러졌는지 보고 다음 단계로 */
@@ -574,6 +604,13 @@ export function battleStep(b0: BattleState, save: Save, stepMs: number, rng: Rng
     popups: b0.popups.filter((p) => p.ms + stepMs < POPUP_MS).map((p) => ({ ...p, ms: p.ms + stepMs })),
   };
   switch (b.phase) {
+    case 'riposte': {
+      const r = b.riposte;
+      if (!r) return { ...b, phase: 'run', riposte: null };
+      const ms = r.ms + stepMs;
+      if (ms > r.dur + TIMING.parryLateMs) return { ...b, phase: 'run', riposte: null };
+      return { ...b, riposte: { ...r, ms } };
+    }
     case 'run': {
       const me = { ...b.me, gauge: Math.min(1, b.me.gauge + gaugeRate(b.me, b.foe) * stepMs) };
       const foe = { ...b.foe, gauge: Math.min(1, b.foe.gauge + gaugeRate(b.foe, b.me) * stepMs) };
@@ -806,18 +843,8 @@ export function canParry(b: BattleState): boolean {
  */
 function parry(b: BattleState, msBeforeHit: number): BattleState {
   const a = b.anim!;
-  const grade = parryGrade(msBeforeHit);
-  // 빗나갈 공격 (anim.miss) 은 힘대결로 가지 않고 막기만 — 원래 빗나갈 공격에 힘대결로 지지 않게 (맞는 순간 "피했다!", 명세 검사관 2026-10-20)
-  if ((grade === 'good' || grade === 'perfect') && a.counter && a.action.kind === 'move' && !a.miss) {
-    const incoming = moveOf(a.action.moveId);
-    const mine = incoming ? counterMove(b.me, incoming) : null;
-    if (incoming && mine) {
-      // 맞받아치기도 내 행동 — 게이지를 다 쓰고 방어 · 연달아는 풀림
-      const me = { ...b.me, gauge: 0, guard: 1, guardStreak: 0, streakMove: null, streakCount: 0, moves: b.me.moves.map((s) => (s.moveId === mine.id ? { ...s, pp: Math.max(0, s.pp - 1) } : s)) };
-      return startClash({ ...b, me }, 'move', mine, incoming);
-    }
-  }
-  return { ...b, anim: { ...a, parry: grade } };
+  // 등급만 적음 — 피해는 맞는 순간 (hit) 에 ×0.5 · ×0, 완벽이면 그 뒤 반격 기회 (쏘는 기술끼리 힘대결은 2026-10-20 없앰)
+  return { ...b, anim: { ...a, parry: parryGrade(msBeforeHit) } };
 }
 
 /** 맞받아치기 버튼이 떠 있는지 */
@@ -883,12 +910,16 @@ export function battleInput(b: BattleState, save: Save, input: BattleInput, rng:
         return { ...b, clash: { ...b.clash, taps } };
       }
       if (ultCounterOpen(b)) return startClash({ ...b, me: { ...b.me, ult: 0 } }, 'ult', null, null);
+      // 반격 기회 — 두 번째 원이 맞는 때까지 남은 시간 (엔진 시간)
+      if (canRiposte(b)) return riposteInput(b, b.riposte!.dur - b.riposte!.ms - Math.min(TIMING.simStepMs, Math.max(0, input.extraMs ?? 0)), rng);
       // 상대 공격 중 Space — 화면이 맞는 순간을 모르면 (연출 없음) 엔진 시간으로 어림한 패링
       if (canParry(b)) return parry(b, b.anim!.dur - b.anim!.ms - Math.min(TIMING.simStepMs, Math.max(0, input.extraMs ?? 0)));
       return b;
     }
     case 'parry': {
-      if (!canParry(b) || !Number.isFinite(input.ms)) return b;
+      if (!Number.isFinite(input.ms)) return b;
+      if (canRiposte(b)) return riposteInput(b, input.ms, rng);
+      if (!canParry(b)) return b;
       return parry(b, input.ms);
     }
     case 'pick':
@@ -917,9 +948,9 @@ type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
 const fin = (v: unknown, min = -1e12, max = 1e12): v is number => typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max;
 const SIDES = ['me', 'foe'];
-const PHASES = ['run', 'choose', 'anim', 'clash', 'pick', 'catch', 'last', 'send', 'over'];
+const PHASES = ['run', 'choose', 'anim', 'clash', 'pick', 'catch', 'last', 'send', 'over', 'riposte'];
 const KINDS = ['wild', 'trainer', 'gym'];
-const ACTIONS = ['attack', 'move', 'guard', 'item', 'switch', 'flee', 'ult', 'skip'];
+const ACTIONS = ['attack', 'move', 'guard', 'item', 'switch', 'flee', 'ult', 'skip', 'riposte'];
 const PARRY_GRADES = ['perfect', 'good', 'early', 'late'];
 const STATUS = ['poison', 'burn', 'paralysis', 'sleep'];
 // 옛 세이브의 'info' 는 그대로 통과 — 새 종류는 2026-10-20 (화면이 숫자 크기 · 말 칸으로 나눔)
@@ -994,6 +1025,9 @@ export function readBattle(raw: unknown): BattleState | null {
   if (!Array.isArray(raw.foeDown) || raw.foeDown.length > 6 || !raw.foeDown.every((d) => isObj(d) && fin(d.species, 1, 2000) && fin(d.level, 1, 100))) return null;
   if (!(raw.foeUltWait === null || fin(raw.foeUltWait, -1e6, 1e6)) || !(raw.foeName === null || (typeof raw.foeName === 'string' && raw.foeName.length <= 40)) || !fin(raw.sendMs, 0)) return null;
   if (!(raw.foePotions === undefined || fin(raw.foePotions, 0, 10))) return null;
+  const rp = raw.riposte;
+  if (!(rp === undefined || rp === null || (isObj(rp) && fin(rp.ms, 0) && fin(rp.dur, 1, 60_000)))) return null;
+  if (raw.phase === 'riposte' && !isObj(rp)) return null;
   if (raw.kind !== 'wild' && typeof raw.foeName !== 'string') return null;
   if (!PHASES.includes(raw.phase as string) || !okBench(raw.bench) || !okBag(raw.bagUsed)) return null;
   if (!Array.isArray(raw.popups) || !raw.popups.every((p) => isObj(p) && fin(p.id, 0) && SIDES.includes(p.side as string) && typeof p.text === 'string' && fin(p.ms, 0) && POPUP_KINDS.includes(p.kind as string))) return null;

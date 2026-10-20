@@ -24,6 +24,7 @@ export {
   battleWaiting,
   canAct,
   canParry,
+  canRiposte,
   canUlt,
   counterOpen,
   faintedTeam,

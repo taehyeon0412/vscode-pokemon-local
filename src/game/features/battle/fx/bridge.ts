@@ -60,12 +60,18 @@ export interface PokemonFx {
   status?(dst: FxActor, kind: 'poison' | 'burn' | 'paralysis' | 'sleep' | 'cure'): void;
   /** 쓰러뜨린 한 방 — 금색 별빛 */
   ko?(dst: FxActor): void;
+  /** 완벽 패링 쳐내기 — kind = 연출 틀 (fx.plan().fx), 쏘는 것은 위로 쳐내고 나머지는 피함 (2026-10-20) */
+  swat?(dst: FxActor, src: FxActor | null, type: string, kind: string): void;
+  /** 패링 글 — tone gold (완벽 패링! · 반격!) · silver (패링!) */
+  word?(dst: FxActor, text: string, tone: 'gold' | 'silver'): void;
+  /** 반격 기회 — 상대만 밝고 둘레가 살짝 어두워짐 (ms 동안) */
+  riposteFocus?(dst: FxActor, ms: number): void;
   /** 패링 되튀기 — 막은 쪽 (dst) 에서 친 쪽 (src) 으로 불똥 · 완벽 = 금색 초승달 + 히트스톱 */
   deflect?(dst: FxActor, src: FxActor, perfect: boolean): void;
   /** 필살기 (version 2) — 걸리는 시간 (ms), 못 쓰면 0 */
   /** onHit = 상대를 처음 맞힌 순간 (그때 피해를 넣음) */
   /** o.quick = 같은 전투에서 다시 보는 필살기 — 컷인 없이 짧게 (2026-10-20) */
-  ult?(src: FxActor, dst: FxActor, onHit?: () => void, avoid?: string[], o?: { quick?: boolean }): number;
+  ult?(src: FxActor, dst: FxActor, onHit?: () => void, avoid?: string[], o?: { quick?: boolean; sub?: string }): number;
   stopUlt?(): void;
   /** 힘대결 (version 3) — a = 나, b = 상대 · live() = 내가 이길 확률 · { meetMs } 또는 null */
   duel?(a: FxActor, b: FxActor, spec: FxDuel, live: () => number): { meetMs: number } | null;

@@ -154,6 +154,8 @@ export const BALANCE = {
   parryGoodFactor: 0.5,
   parryPerfectFactor: 0,
   parryPerfectGauge: 0.2,
+  /** 반격기 피해 = 필살기 피해의 이만큼 (게이지 없이 나가는 덤 — 2026-10-20 태현 님 "추천") */
+  riposteUltFactor: 0.5,
   catchPerfectScale: 1.5,
   catchGoodScale: 1.25,
 
@@ -256,11 +258,14 @@ export const TIMING = {
   /** 상대 필살기에 내 필살기로 맞받아칠 수 있는 시간 (그 안에 Z · Space = 필살기 힘대결) */
   ultCounterWindowMs: 1000,
   /** 패링 (2026-10-19 태현 님 A — 상대 공격이 맞기 직전 Space · 클릭) — 맞기 몇 ms 전부터 · 맞은 뒤 몇 ms 까지 받는지 (막음 / 완벽) · 원이 좁혀지는 시간 [임시값] */
-  parryEarlyMs: 300,
-  parryLateMs: 120,
-  parryPerfectEarlyMs: 100,
-  parryPerfectLateMs: 50,
-  parryRingMs: 700,
+  // 패링 창 (2026-10-20 태현 님 다시 기획): 보통 = 맞기 0.6초 전 ~ 0.2초 뒤 · 완벽 = 0.3초 전 ~ 0.1초 뒤 · 첫 원은 0.9초 전부터 좁혀짐
+  parryEarlyMs: 600,
+  parryLateMs: 200,
+  parryPerfectEarlyMs: 300,
+  parryPerfectLateMs: 100,
+  parryRingMs: 900,
+  /** 반격 기회 (완벽 패링 뒤) — 상대 둘레 두 번째 원이 좁혀지는 시간 (첫 원보다 느리게 — "화면이 살짝 느려짐"), 창은 패링과 같음 */
+  riposteRingMs: 1200,
   /** 힘대결 길이 (연타하는 시간) */
   clashMs: 4000,
   /** 힘대결 승자가 정해진 뒤 이긴 줄기가 뚫고 나가는 시간 → 피해 */
