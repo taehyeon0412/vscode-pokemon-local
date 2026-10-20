@@ -565,8 +565,8 @@ export function catchFoeClass(b: BattleState): string {
   if (!v) return '';
   if (v.stage === 'suck') return 'pg-catch-suck';
   if (v.stage === 'drop' || v.stage === 'shake' || v.stage === 'held' || (v.stage === 'end' && v.caught)) return 'pg-catch-gone';
-  // 마지막 기회 (쓰러진 상대) 에서 놓침 — 하얀 빛 뒤 쓰러진 모습 그대로 (일어선 모습으로 튀어나와 "다시 찬" 것처럼 보이던 것, 2026-10-20 태현 님)
-  return v.stage === 'end' ? (b.catch?.last ? 'pg-catch-popdown' : 'pg-catch-pop') : '';
+  // 놓침 — 하얗게 튀어나옴 (마지막 기회 = 쓰러진 상대도 10% 로 다시 일어나 전투 계속, 2026-10-20 태현 님)
+  return v.stage === 'end' ? 'pg-catch-pop' : '';
 }
 
 /** 볼 칸 뒤 — 남은 볼 기회 (처음엔 없음) · 마지막 한 번이면 "마지막!" */

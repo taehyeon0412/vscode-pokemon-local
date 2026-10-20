@@ -126,7 +126,12 @@ function FighterBody(props: { b: BattleState; side: Side; x: number; target: num
     act?.kind === 'ult' ? 'pg-charging' : '',
     hurt ? 'pg-hurt' : '',
     // 마지막 기회 동안은 쓰러진 상대를 흐리게 남김 (어디에 던지는지 보이게)
-    f.hp <= 0 ? ((b.phase === 'last' || b.phase === 'catch') && side === 'foe' ? 'pg-down' : 'pg-fainted') : '',
+    // 마지막 기회 볼이 터져 다시 일어나는 끝 장면은 쓰러진 모습을 빼고 튀어나옴 (2026-10-20 태현 님 — 놓치면 10% 로 전투 계속)
+    f.hp <= 0 && !(side === 'foe' && b.phase === 'catch' && b.catch?.caught === false && catchView(b)?.stage === 'end')
+      ? (b.phase === 'last' || b.phase === 'catch') && side === 'foe'
+        ? 'pg-down'
+        : 'pg-fainted'
+      : '',
     f.guard < 1 ? 'pg-guarded' : '',
   ].join(' ');
   return (

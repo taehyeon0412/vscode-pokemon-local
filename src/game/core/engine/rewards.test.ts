@@ -134,12 +134,17 @@ describe('S11 잡기 — 전투 흐름', () => {
     expect([away.phase, away.result]).toEqual(['over', 'win']);
     const thrown = battleInput(won, save, { kind: 'ball', ball: 'poke-ball' }, new Rng(1));
     expect(thrown.catch).toMatchObject({ last: true });
+    // 마지막 기회에서 놓쳐도 보통처럼 — 10% 로 다시 일어나 전투 계속 · 먼저 덤빔 · 쓰러뜨린 기록 (경험치) 은 뺌 (2026-10-20 태현 님)
     const fail = untilOut(thrown, save, fixedRng(0.99));
-    expect([fail.phase, fail.result]).toEqual(['over', 'win']);
-    expect(fail.foe.hp).toBe(0); // 마지막 기회는 놓쳐도 되살아나지 않음
-    // 세 번째 기회를 마지막 기회로 써도 도망이 아니라 이김
+    expect(fail.phase).toBe('run');
+    expect(fail.result).toBeNull();
+    expect(fail.foe.hp).toBe(Math.max(1, Math.round(fail.foe.maxHp * BALANCE.catchFailHeal)));
+    expect([fail.foe.gauge, fail.me.gauge]).toEqual([1, 0]);
+    expect(fail.foeDown).toHaveLength(won.foeDown.length - 1);
+    expect(fail.msg).toContain('다시 일어났다');
+    // 세 번째 기회를 마지막 기회로 써서 놓치면 보통처럼 도망 (경험치 없음)
     const third = untilOut(battleInput({ ...won, bagUsed: { 'poke-ball': 2 } }, save, { kind: 'ball', ball: 'poke-ball' }, new Rng(1)), save, fixedRng(0.99));
-    expect([third.phase, third.result]).toEqual(['over', 'win']);
+    expect([third.phase, third.result, third.escaped]).toEqual(['over', 'flee', true]);
     // 볼이 없으면 마지막 기회 없이 바로 이김
     const none = { ...save, bag: {} };
     const noBall = run(battleInput({ ...lastHit }, none, { kind: 'act', action: { kind: 'attack' } }, fixedRng(0.5)), none, TIMING.attackAnimMs, fixedRng(0.5));

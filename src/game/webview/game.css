@@ -1720,14 +1720,6 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   34% { filter: brightness(0) invert(1); scale: 1; translate: 0 -2px; }
   67%, 100% { filter: none; scale: 1; translate: 0 0; }
 }
-/* 마지막 기회 (쓰러진 상대) 에서 놓침 — 하얀 빛 한 걸음 뒤 쓰러진 모습 (.pg-down 과 같은 흐림 · 회색) 으로. 일어선 모습으로 튀어나오면 되살아난 것처럼 보였음 (2026-10-20 태현 님) */
-.pg-catch-popdown > .pg-fx-body {
-  animation: pg-catch-popdown 360ms steps(1, end) both;
-}
-@keyframes pg-catch-popdown {
-  0% { filter: brightness(0) invert(1); opacity: 1; }
-  50%, 100% { filter: grayscale(0.6); opacity: 0.45; }
-}
 /* 던지는 동안 주인공이 반 걸음 나섬 (주인공은 길 위 화면이 그림 — 표시만 두고 :has 로) */
 .pg-catch-throwing {
   display: none;

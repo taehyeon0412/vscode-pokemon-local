@@ -794,17 +794,26 @@ function catchStep(b: BattleState, save: Save, stepMs: number, rng: Rng): Battle
   if (c.ms < tl.done) return { ...b, catch: c, msg: b.catch!.ms < tl.shake && c.ms >= tl.shake ? '흔들… 흔들…' : b.msg };
   const name = label(b, 'foe');
   if (c.caught) return { ...b, catch: c, phase: 'over', result: 'catch', overMs: 0, msg: `신난다! ${withJosa(name, '을/를')} 잡았다!` };
-  if (c.last) return { ...b, catch: null, phase: 'over', result: 'win', overMs: 0, msg: `아깝다! ${withJosa(name, '이/가')} 빠져나왔다…` };
   // 세 번 다 놓침 — 상대가 도망 (경험치 없음, 2026-10-20 태현 님)
   if (catchTriesUsed(b) >= BALANCE.catchTries) return { ...b, catch: null, phase: 'over', result: 'flee', escaped: true, anim: null, overMs: 0, msg: `아깝다! ${withJosa(name, '은/는')} 도망쳐 버렸다…` };
-  // 놓침 — 상대가 HP 를 조금 되찾고 (최대 HP 의 10%) 먼저 덤빔 (상대 게이지 가득, 2026-10-20 태현 님)
+  // 놓침 — 상대가 HP 를 조금 되찾고 (최대 HP 의 10%) 먼저 덤빔 (상대 게이지 가득, 2026-10-20 태현 님).
+  // 이긴 뒤 마지막 기회 (쓰러진 상대) 에서 놓쳐도 같음 — 10% 로 다시 일어나 전투 계속 (2026-10-20 태현 님, 예전 "놓쳐도 이김" 을 바꿈):
+  //   쓰러뜨린 기록 (foeDown — 경험치) 은 뺌 · 던진 것도 내 행동이라 내 게이지 0
   const heal = Math.min(b.foe.maxHp - b.foe.hp, Math.max(1, Math.round(b.foe.maxHp * BALANCE.catchFailHeal)));
-  const nb0: BattleState = { ...b, catch: null, me: { ...b.me }, foe: { ...b.foe, hp: b.foe.hp + heal, gauge: 1 }, popups: [...b.popups] };
+  const revived = c.last && b.foe.hp <= 0;
+  const nb0: BattleState = {
+    ...b,
+    catch: null,
+    me: revived ? { ...b.me, gauge: 0, guard: 1, guardStreak: 0, streakMove: null, streakCount: 0 } : { ...b.me },
+    foe: { ...b.foe, hp: b.foe.hp + heal, gauge: 1 },
+    foeDown: revived ? b.foeDown.slice(0, -1) : b.foeDown,
+    popups: [...b.popups],
+  };
   if (heal > 0) popup(nb0, 'foe', `+${heal}`, 'heal');
   // 볼을 던진 것도 내 행동 하나 — 독 · 화상 피해 (다른 아이템처럼)
   afterAction(nb0, 'me');
   const nb = afterHits(nb0, save);
-  return { ...nb, msg: nb.phase === 'choose' || nb.phase === 'pick' || nb.phase === 'over' ? nb.msg : `아깝다! ${withJosa(name, '이/가')} 빠져나와 덤벼든다!` };
+  return { ...nb, msg: nb.phase === 'choose' || nb.phase === 'pick' || nb.phase === 'over' ? nb.msg : revived ? `아깝다! ${withJosa(name, '이/가')} 빠져나와 다시 일어났다!` : `아깝다! ${withJosa(name, '이/가')} 빠져나와 덤벼든다!` };
 }
 
 function pickNext(b: BattleState, save: Save, uid: string): BattleState {
