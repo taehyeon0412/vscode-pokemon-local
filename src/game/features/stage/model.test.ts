@@ -5,7 +5,7 @@ import { createGameState, type GameState } from '../../core/engine';
 import { stageLayout } from '../../core/rules/stage';
 import { STAGE_IDS } from '../../core/save';
 import { summaryLines } from '../result/model';
-import { BATTLE_STAGE_MAX_PX, battleStage, CONTACT_PX, contactX, foeTrainerView, gymEnterView, gymFrontX, heroX, minimapOf, rivalTag, STAGES, stageLabel, stagePx, visibleObjects, WALK_PX_PER_SEC } from './model';
+import { BATTLE_STAGE_MAX_PX, battleStage, CONTACT_PX, contactX, foeTrainerView, gymEnterView, gymFrontX, heroX, minimapOf, rivalTag, STAGES, stageLabel, stagePx, stageViewKey, visibleObjects, WALK_PX_PER_SEC } from './model';
 
 function at(progress: number, stage: GameState['runtime']['stage'] = { phase: 'walk' }): GameState {
   const s = createGameState(sampleSave({ stages: { 'forest-1': { seed: 42, progress, cleared: false, defeatedTrainers: [], facilities: [], run: { startMs: 0, caught: 0, trainers: 0, seen: [], reach: 0, retries: 0 } } } }), 1);
@@ -177,5 +177,18 @@ describe('1-3 끝 체육관 들어가기 (2026-10-20 태현 님 A안)', () => {
     expect(gymFrontX(s3(0.5), 1860, 2)).toBeNull();
     const end = gymFrontX(s3(1), 1860, 2);
     expect(end).toBe(heroX(1860) + 40 * 2);
+  });
+
+  it('장면이 한 걸음 바뀔 때마다 다시 그림 (stageViewKey) — 빠지면 장면 내내 서 있다가 대기실로 바뀜', () => {
+    const base = at(0);
+    const g = (ms: number): GameState => ({
+      ...base,
+      save: { ...base.save, location: { screen: 'stage', stageId: 'forest-3' }, stages: { 'forest-3': { ...base.save.stages['forest-1']!, progress: 1 } } },
+      runtime: { ...base.runtime, stage: { phase: 'gym-enter', ms } },
+    });
+    const keys = [0, 300, 700, 1000, 1300, 1500, 1900, 2200].map((ms) => stageViewKey(g(ms)));
+    expect(new Set(keys).size).toBe(keys.length);
+    // 같은 걸음 안에서는 안 그림 (PC 부담)
+    expect(stageViewKey(g(610))).toBe(stageViewKey(g(650)));
   });
 });

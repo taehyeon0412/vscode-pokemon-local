@@ -293,6 +293,8 @@ export function stageViewKey(state: GameState): string {
     st?.phase === 'facility' ? `${st.inside}:${Math.ceil((TIMING.facilityPromptMs - st.ms) / 1000)}` : '',
     st?.phase === 'trainer' ? `${st.n}:${st.ms >= TIMING.trainerAlertMs}:${st.ms >= vsStartMs('trainer')}` : '',
     st?.phase === 'rival' ? `${st.rival}:${st.ms >= TIMING.trainerAlertMs}:${st.ms >= vsStartMs('rival')}` : '',
+    // 체육관 들어가기: 걸음 · 문 · 들어감 · 닦기가 한 걸음 바뀔 때마다 (빠지면 장면 내내 안 그려져 서 있다가 대기실로 — 2026-10-20 연속 캡처로 찾음)
+    st?.phase === 'gym-enter' ? JSON.stringify(gymEnterView(st.ms)) : '',
     state.runtime.toast?.text ?? '',
     saveViewKey(state.save),
     pending?.kind === 'wild' ? pending.start : '',
