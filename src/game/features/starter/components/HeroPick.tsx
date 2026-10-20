@@ -13,10 +13,27 @@ import { Hero } from '../../stage/components/Hero';
 const LABEL_PX = 13;
 const CARD_EDGE_PX = 8;
 const LABEL_MIN_BODY = 60;
+/** 사람 그림 원본 키 · 폭 (필드 그림 16 × 20 쯤) · 칸 좌우 여백 16 + 칸 사이 8 */
+const HERO_ART_H = 21;
+const HERO_ART_W = 16;
+const HERO_CARD_X = 16 + 8;
+
+/** 고르는 칸 배율 — 위아래 12px 씩 남기고 높이 · 한 줄 폭에 들어가는 가장 큰 것 (×4 → ×1) */
+export function heroPickZoom(bodyPx: number | undefined, widthPx: number): number {
+  if (bodyPx === undefined) return 1;
+  for (const k of [4, 3, 2]) {
+    if (HERO_ART_H * k + LABEL_PX + CARD_EDGE_PX + 24 <= bodyPx && HERO_LOOKS.length * (HERO_ART_W * k + HERO_CARD_X) <= widthPx) return k;
+  }
+  return 1;
+}
 
 export function HeroPick({ px, media, bodyPx, initial, onBack, onPick }: { px: number; media: string; bodyPx?: number; initial?: string; onBack(): void; onPick(look: HeroLook): void }) {
   // 칸 그림이 쓸 수 있는 높이 — 큰 그림이 안 들어가면 작은 그림 (data/heroes.ts heroDraw)
   const room = bodyPx === undefined ? undefined : bodyPx - (bodyPx < LABEL_MIN_BODY ? 0 : LABEL_PX) - CARD_EDGE_PX;
+  // 패널이 크면 그림을 크게 (2026-10-20 태현 님 "높으면 빈 공간을 써서 크게") — 위아래 12 · 한 줄에 다 들어가는 가장 큰 정수 배율 (×1 ~ ×4, 가운데 720 칸)
+  // 폭 = 패널 좌우 24 씩 남기고 · 넓어도 가운데 720 칸
+  const zoom = heroPickZoom(bodyPx, Math.min(window.innerWidth - 48, 720));
+  const drawPx = Math.max(px, zoom * 2);
   // S04 에서 ← 뒤로 오면 고른 칸 그대로
   const [focus, setFocus] = useState(() => Math.max(0, HERO_LOOKS.findIndex((l) => l.id === initial)));
   const now = useRef({ focus, onBack, onPick });
@@ -67,7 +84,7 @@ export function HeroPick({ px, media, bodyPx, initial, onBack, onPick }: { px: n
           const on = i === focus;
           return (
             <button key={look.id} type="button" class={on ? 'pg-hero-choice pg-chip-on' : 'pg-hero-choice'} onClick={() => onPick(look)} onMouseEnter={() => setFocus(i)} onFocus={() => setFocus(i)} title={`${look.label} (Enter)`}>
-              <Hero px={px} walking={on} front look={look} media={media} gender={look.gender} roomPx={room} />
+              <Hero px={drawPx} walking={on} front look={look} media={media} gender={look.gender} roomPx={room} />
               <b>{look.label}</b>
             </button>
           );
