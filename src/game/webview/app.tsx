@@ -119,7 +119,7 @@ function OverlayView({ o, state, media, actions }: { o: Overlay; state: GameStat
     case 'map':
       return <MapPanel state={state} swap={canSwapBox(state)} midStage={save.location.screen === 'stage' && st?.phase === 'walk'} onInput={actions.input} onTeam={() => actions.open({ kind: 'team', back: 'map' })} onClose={actions.close} />;
     case 'team':
-      return <TeamPanel save={save} media={media} swap={canSwapBox(state)} onInput={actions.input} onClose={actions.close} />;
+      return <TeamPanel save={save} media={media} swap={canSwapBox(state)} first={o.uid} onInput={actions.input} onClose={actions.close} />;
     case 'bag':
       return <BagPanel save={save} media={media} onInput={actions.input} onClose={actions.close} />;
     case 'settings':

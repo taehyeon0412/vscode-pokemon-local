@@ -97,17 +97,20 @@ describe('빨리 걷기 (2026-10-19 태현 님 "걷는 시간이 길어 루즈�
     expect(isWalkingFast(off)).toBe(false);
   });
 
-  it('흔적 · 아이템이 4초 (보통 걸음) 안에 다가오면 보통 빠르기 — 다가오는 걸 보고 선제공격할 수 있게', () => {
+  it('흔적 · 아이템이 0.5초 (보통 걸음, fastWalkLookMs — 2026-10-20 태현 님 4초 → 0.5초) 안에 다가오면 보통 빠르기 · 그보다 멀면 ×3', () => {
     const base = fast(start());
     const spot = layoutOf(base).spots[0]!;
-    const near: GameState = {
+    const at = (aheadMs: number): GameState => ({
       ...base,
-      save: { ...base.save, stages: { 'forest-1': { ...base.save.stages['forest-1']!, progress: spot.at - 2000 / BALANCE.stageWalkMs } } },
+      save: { ...base.save, stages: { 'forest-1': { ...base.save.stages['forest-1']!, progress: spot.at - aheadMs / BALANCE.stageWalkMs } } },
       runtime: { ...base.runtime, stage: { phase: 'walk' } },
-    };
+    });
+    expect(BALANCE.fastWalkLookMs).toBe(500);
+    const near = at(BALANCE.fastWalkLookMs / 2);
     expect(isWalkingFast(near)).toBe(false);
     const s1 = step(near, STEP).state;
     expect(prog(s1) - prog(near)).toBeCloseTo(STEP / BALANCE.stageWalkMs, 10);
+    expect(isWalkingFast(at(BALANCE.fastWalkLookMs * 2))).toBe(true);
   });
 
   it('설정은 세이브에 남음 · 옛 세이브 (fastWalk 없음) 는 고친 기록 없이 꺼짐', () => {

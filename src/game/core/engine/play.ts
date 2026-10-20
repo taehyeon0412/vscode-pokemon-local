@@ -3,7 +3,7 @@
  *
  * S06 스테이지 (mvp-spec 3.2): 자동으로 걷다가 길에 놓인 자리를 지나면
  *   떨어진 아이템 → 바로 줍고 계속 걸음 · 야생 → 튀어나옴 (Space · 클릭 선제공격 창) → 전투 (engine/battle.ts) · 부탁 → 고를 때까지 기다림
- *   트레이너 → 멈추고 "!" → "승부다!" → 1:1 토너먼트 · 병원 · 상점 → [들어가기] [지나가기] (5초 · 안 볼 때는 바로 지나감)
+ *   트레이너 → 멈추고 "!" → "승부다!" → 1:1 토너먼트 · 병원 · 상점 → [들어가기] [지나가기] (10초 · 안 볼 때는 바로 지나감)
  *   끝 → S24 클리어 카드 (1-3 은 S16 체육관 대기실로) · 지면 → S17 (마지막 병원 앞에서 다시)
  * S16 체육관: 대기실 → 관장과 1:1 토너먼트 → 처음 이기면 배지 · MVP 끝 카드
  * 안 볼 때 (확장이 계산) 이로치 흔적 · 부탁 앞에서는 멈추고 알림 신호 (U9)
@@ -157,7 +157,7 @@ const beaten = (prog: StageProgress, id: StageId, s: Spot) =>
 
 /** 이번 걸음에 지나친 첫 자리 · 병원 · 상점 (from < at ≤ to) — 다시 안 나오는 자리는 건너뜀 */
 /**
- * 걷는 빠르기 배 — 빨리 걷기 (설정, 2026-10-19 태현 님 "걷는 시간이 길어 루즈해") 가 켜져 있으면 ×3, 단 앞으로 4초 (보통 걸음) 안에
+ * 걷는 빠르기 배 — 빨리 걷기 (설정, 2026-10-19 태현 님 "걷는 시간이 길어 루즈해") 가 켜져 있으면 ×3, 단 앞으로 0.5초 (보통 걸음, fastWalkLookMs) 안에
  * 흔적 · 트레이너 · 병원 · 상점 · 아이템 · 부탁이 있으면 보통 빠르기 (다가오는 걸 보고 선제공격 · 고르기를 할 수 있게). 지나가면 다시 ×3
  */
 function walkSpeed(save: Save, layout: StageLayout, prog: StageProgress, id: StageId): number {
@@ -498,7 +498,7 @@ function finishStage(save0: Save, rt0: RuntimeState, id: StageId): { save: Save;
   return { save, rt: { ...rt, stage, stageId: id === 'forest-3' ? null : id }, signal: 'stage-clear', notice };
 }
 
-/** S12 결과 (3.5초 · 계속) · S23 · S22 고르기 (고를 때까지, ms = 진화 연출) — 스테이지 · 체육관이 같이 씀 */
+/** S12 결과 (5초 · 계속) · S23 · S22 고르기 (고를 때까지, ms = 진화 연출) — 스테이지 · 체육관이 같이 씀 */
 function resultOrChoiceStep(stage: Extract<StageRuntime, { phase: 'result' | 'choice' }>, save: Save, stepMs: number): StageRuntime {
   if (stage.phase === 'result') {
     const ms = stage.ms + stepMs;

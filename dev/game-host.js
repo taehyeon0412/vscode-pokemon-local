@@ -2,6 +2,7 @@
 //   ?screen=title|game  save=none|ok|broken|newer  busy=1  notice=글  size=nano|small|medium|large  theme=dark|light  click=new|continue|exit
 //   progress=0~1 (숲 1-1 진행, 스테이지 시드 42 — 그 자리 바로 앞에서 시작해 흔적 · 조우 · 부탁을 찍음)
 //   place=facility|hospital|shop|shop-front|trainer|trainer-battle|defeat|clear|lobby|gym-battle|badge (단계 8 · 9)
+//   balls=<몬스터-슈퍼-하이퍼 개수, 예 3-0-2>  pts=<선두 남은 포인트>
 //   ms=<만난 뒤 ms> — place=trainer · rival 의 시작 시각 (VS 컷인 사진: trainer 3000 · rival 3800)
 //   place=rival|rival-talk|rival-battle|rival-over|rival-result|rival-lose  rival=<주인공 id, 기본 may>  record=<이김-짐, 기본 2-1> (라이벌 gdd 4.12)  click=map|team|bag|settings|profile|item
 //   style=<CSS> (시안 비교 — 임시 CSS 를 얹음)
@@ -57,6 +58,9 @@
     if (q.get('look')) save.player = { gender: q.get('gender') || 'female', look: q.get('look') };
     // fast=1 — 빨리 걷기 켬 (2026-10-19)
     if (q.get('fast') === '1') save.settings = { ...save.settings, fastWalk: true };
+    // balls=3-2-1 — 몬스터볼 · 슈퍼볼 · 하이퍼볼 개수 (정보줄 볼 칸, 2026-10-20) · pts=4 — 선두 남은 포인트 (정보줄 "포켓몬 +4")
+    if (q.get('balls')) { const [p, g, u] = q.get('balls').split('-').map(Number); save.bag = { 'poke-ball': p || 0, ...(g ? { 'great-ball': g } : {}), ...(u ? { 'ultra-ball': u } : {}) }; }
+    if (q.get('pts')) save.monsters.m1 = { ...save.monsters.m1, unspentPoints: Number(q.get('pts')) };
     const info = {
         save: saveKind,
         busy: q.get('busy') === '1',

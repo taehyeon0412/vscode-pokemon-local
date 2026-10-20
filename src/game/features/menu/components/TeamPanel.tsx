@@ -20,6 +20,8 @@ export interface TeamPanelProps {
   media: string;
   /** 보관함과 바꿀 수 있는 곳 (병원 · 대기실 · 스테이지 시작 전) */
   swap: boolean;
+  /** 처음 고를 포켓몬 (없으면 선두) */
+  first?: string;
   onInput(i: GameInput): void;
   onClose(): void;
 }
@@ -89,9 +91,9 @@ function cardOf(v: MonsterView): StatCardData {
   return { name: v.name, form: v.form, shiny: v.shiny, level: v.level, hp: v.hp, maxHp: v.maxHp, star: v.star, attack: st('attack'), defense: st('defense'), speed: st('speed'), ultimate: st('ultimate') };
 }
 
-export function TeamPanel({ save, media, swap, onInput, onClose }: TeamPanelProps) {
+export function TeamPanel({ save, media, swap, first, onInput, onClose }: TeamPanelProps) {
   const { party, box } = teamView(save);
-  const [sel, setSel] = useState<string | null>(party[0]?.uid ?? null);
+  const [sel, setSel] = useState<string | null>(first ?? party[0]?.uid ?? null);
   const selected = [...party, ...box].find((m) => m.uid === sel) ?? party[0] ?? null;
   const inParty = selected ? party.some((m) => m.uid === selected.uid) : false;
   const idx = selected ? party.findIndex((m) => m.uid === selected.uid) : -1;

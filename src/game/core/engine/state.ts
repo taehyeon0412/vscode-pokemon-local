@@ -15,7 +15,7 @@ type FacilityKind = FacilitySpot['kind'];
  * - walk: 자동으로 걸음
  * - appear: 야생이 튀어나와 "나타났다!" (Space 선제공격 창) — 상대는 save.pendingEncounter
  * - trainer: 트레이너와 눈이 마주침 "!" → "승부다!" + ◓ 개수 → 전투 (S08, 자동 전투여도 멈추지 않음) — save.pendingEncounter = trainer
- * - facility: 병원 · 상점 앞 [들어가기] [지나가기] (5초 뒤 지나감) · inside = 들어가 있음 (S13 · S14, 나가기를 누를 때까지)
+ * - facility: 병원 · 상점 앞 [들어가기] [지나가기] (10초 뒤 지나감) · inside = 들어가 있음 (S13 · S14, 나가기를 누를 때까지)
  * - battle: 전투 1:1 (engine/battle.ts) — 상대는 save.pendingEncounter, 전투 중 상태는 여기 (세이브에는 끝나고 한 번에)
  * - hold: 안 볼 때 (확장이 계산) 직접 봐야 할 순간 (이로치 흔적) 앞에서 멈춤 — 다시 보이면 이어 감 (U9)
  * - request: 길 위의 부탁 — 고를 때까지 기다림, 고르면 결과를 잠깐 보여 줌

@@ -11,6 +11,7 @@ import { useRef } from 'preact/hooks';
 import { BALANCE } from '../../../core/balance';
 import { canOpenMenus, canParry, canRiposte, isWalkingFast, itemLeft, type GameInput, type GameState } from '../../../core/engine';
 import { spaceInput, ultSkippable } from '../../battle/fx/parry';
+import { BALLS } from '../../../core/rules/catch';
 import { bestHelper, requestAt } from '../../../core/rules/request';
 import { FACILITY_STAFF } from '../../../core/rules/stage';
 import { GYM_LEADER } from '../../../core/rules/trainer';
@@ -131,6 +132,10 @@ function RequestBox({ state, media, onInput }: { state: GameState; media: string
 }
 
 /** 팀 맨 앞 포켓몬 그림 (오른쪽 위 ◓ 버튼) */
+/** 이보다 좁은 패널은 볼 칸을 붙여 씀 (× 빼고) · 더 좁으면 볼 칸을 숲 왼쪽 위로 (볼 한 종류 400 · 둘 460 · 셋 520px — 볼 · 지도 · 메뉴 다섯이 한 줄에 안 들어가 지도가 "0'" 처럼 잘리던 것, 2026-10-20) */
+const BALLS_COMPACT_PX = 600;
+const ballsFieldPx = (kinds: number) => 340 + 60 * kinds;
+
 /** VS 컷인 대결 그림 (사람 그림 id → battle.png) — 원작 그림이 없는 사람은 null (이름 · 볼만) */
 function vsArt(media: string, id: string | undefined): VsArt | null {
   const a = battleArtOf(id);
@@ -234,6 +239,10 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   // 전투 화면 단추의 Space (막기 · 맞받아치기 · 잡기 원) = 키 · 판 클릭과 같은 시계 — 엔진 시간으로만 재면 연출을 기다리는 동안 아무 때나 '완벽'
   const battleInput = (i: GameInput) => onInput(i.kind === 'space' ? spaceInput(state, performance.now()) : i);
   // ② 어디인지 — 스테이지는 미니맵, 체육관은 이름 (지도 줄이 있으면 둘째 줄, 없으면 정보줄 가운데)
+  // ① 볼 칸 — 몬스터볼 · 슈퍼볼 · 하이퍼볼 (전투 중이면 이 전투에서 쓴 만큼 뺌)
+  const ballCounts = BALLS.map((id) => ({ id, n: battle ? itemLeft(battle, save, id) : (save.bag[id] ?? 0) }));
+  const balls = <BallCount counts={ballCounts} compact={widthPx < BALLS_COMPACT_PX} />;
+  const ballsInField = widthPx < ballsFieldPx(ballCounts.filter((c) => c.id === 'poke-ball' || c.n > 0).length);
   const where = gym ? (
     <span class="pg-stage-name">
       <Icon name="gym" /> 숲 체육관 {save.badges.includes('forest') && <Icon name="badge" title="숲 배지" />}
@@ -253,7 +262,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
       ) : (
         <InfoBar
           split={mapRow}
-          left={<BallCount count={battle ? itemLeft(battle, save, 'poke-ball') : (save.bag['poke-ball'] ?? 0)} />}
+          left={ballsInField ? undefined : balls}
           center={mapRow ? undefined : where}
           right={
             canOpenMenus(state) ? (
@@ -293,6 +302,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         )}
         {/* ② 지도 줄 — 정보줄 아래 길게 (가운데 720px 칸, 정보줄 볼 · 메뉴와 같은 양 끝) */}
         {mapRow && <div class="pg-maprow">{where}</div>}
+        {/* 아주 좁은 패널 — 볼 칸은 숲 왼쪽 위 (정보줄은 지도 · 메뉴) */}
+        {ballsInField && !battle && <div class="pg-field-balls">{balls}</div>}
         <StageObjects objects={objects} media={media} scale={layout.scale} ground={ground} roomPx={heroRoom} />
         <span class="pg-obj pg-hero-wrap" style={{ left: `${heroLeft}px`, bottom: `${ground}px` }}>
           <Hero px={heroPx} walking={phase === 'walk' && live} fast={fast} gender={look.gender} look={look} media={media} roomPx={heroRoom} />

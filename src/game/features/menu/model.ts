@@ -16,7 +16,7 @@ import { STAGES, stageLabel } from '../stage/model';
 export const STAT_LABEL: Record<StatKey, string> = { hp: 'HP', attack: '공격', defense: '방어', speed: '스피드', ultimate: '필살' };
 
 /** 화면 위에 뜨는 판 — 떠 있는 동안 게임이 멈춤 (웹뷰가 계산을 쉼) */
-export type Overlay = { kind: 'map' } | { kind: 'team'; back?: 'map' } | { kind: 'bag' } | { kind: 'settings' } | { kind: 'shop' } | { kind: 'profile'; side: 'me' | 'foe' };
+export type Overlay = { kind: 'map' } | { kind: 'team'; back?: 'map'; /** 처음 고를 포켓몬 (결과 레벨업 → 스탯 찍기) */ uid?: string } | { kind: 'bag' } | { kind: 'settings' } | { kind: 'shop' } | { kind: 'profile'; side: 'me' | 'foe' };
 
 /** 물건 그림 (상점 · 가방 — 2026-10-20 아트 디렉터 3차) · 진화의 돌은 같은 돌 그림 */
 export const ITEM_ICON: Record<ItemId, IconName> = {

@@ -16,7 +16,7 @@ const BUTTONS: { kind: Overlay['kind'] & ('map' | 'team' | 'bag' | 'settings'); 
   { kind: 'settings', icon: 'gear', label: '설정', title: '⑩ 설정 (알림 · 일반 모드로)' },
 ];
 
-/** 빨리 걷기 (2026-10-19 태현 님 "걷는 시간이 너무 길어 루즈해") — on = 켜짐 (세이브에 남음) · active = 지금 실제로 ×3 (흔적 · 트레이너 · 병원이 4초 안에 다가오면 보통 빠르기) */
+/** 빨리 걷기 (2026-10-19 태현 님 "걷는 시간이 너무 길어 루즈해") — on = 켜짐 (세이브에 남음) · active = 지금 실제로 ×3 (흔적 · 트레이너 · 병원이 0.5초 안에 다가오면 보통 빠르기) */
 export interface FastWalk {
   on: boolean;
   active: boolean;
