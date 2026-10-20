@@ -133,7 +133,7 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
     <div class="pg-banner pg-choice pg-two pg-choice-art">
       {/* gdd S22 ① — 진화한 모습 = 두 줄 높이 왼쪽 칸 48 × 48, 길 위와 같은 크기 (첫 줄 글 앞 작은 그림이라 진화하는 순간 가장 작은 그림이던 것 · 두 줄 글 왼쪽을 한 선에 — 아트 디렉터 4차) */}
       <span class="pg-choice-sprite">
-        <Sprite media={media} form={view.toForm} shiny={view.monster.shiny} scale={1} crop={48} fieldSize />
+        <Sprite media={media} form={view.toForm} shiny={view.monster.shiny} scale={1} crop={48} fieldSize center />
       </span>
       <span class="pg-line">
         <span class="pg-ellipsis">

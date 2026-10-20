@@ -5,6 +5,7 @@
 import { BALANCE } from '../../core/balance';
 import { Rng } from '../../core/engine';
 import { STARTER_SPECIES } from '../../core/rules/encounter';
+import { spriteBoxOf } from '../../data/sprite-boxes';
 import { createMonster } from '../../core/rules/monster';
 import { createNewSave, type Save } from '../../core/save';
 import { evolutionsOf, formsOfSpecies, learnsetOf, moveOf, speciesOf, type ReadonlyMove } from '../../data';
@@ -76,6 +77,19 @@ export function evolutionChain(dex: number): { dex: number; form: string; name: 
     cur = evolutionsOf(cur).find((e) => formsOfSpecies(e.to).length > 0)?.to;
   }
   return out;
+}
+
+/**
+ * S04 ② 진화 줄 그림 — 모든 단계를 같은 점 크기 ×2 (길 위 · 전투와 같음) 로: 원작 그림 크기 그대로라 진화할수록 커 보임
+ * (2026-10-20 태현 님 "진화 줄 크기가 제각각 — 모두 같거나 진화할수록 커지게", 예전엔 고른 첫 단계만 ×2).
+ * 줄 높이 = 18종 진화 단계 중 가장 큰 그림 (33칸) × 2 = 66 고정 — 어떤 포켓몬을 골라도 줄이 들썩이지 않고 위 · 아래 간격이 같음 (model.test)
+ */
+export const CHAIN_ZOOM = 2;
+export const CHAIN_ROW_PX = 66;
+/** 진화 줄 그림 칸 폭 = 실제 그림 폭 × 2 + 양옆 2px (원본 칸 전체를 쓰면 빈칸이 넓어 줄이 길어짐) */
+export function chainArtWidth(form: string): number {
+  const box = spriteBoxOf(form);
+  return box ? (box[2] - box[0]) * CHAIN_ZOOM + 4 : 32 * CHAIN_ZOOM;
 }
 
 /** S04 ① 스타팅 줄 — 18종 (풀 · 불꽃 · 물 순서, 세대 상관없음) */

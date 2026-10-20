@@ -27,7 +27,7 @@ const SHOWN: readonly Exclude<StatKey, 'hp'>[] = ['attack', 'defense', 'speed', 
 export function CardArt({ form, shiny, media }: { form: string; shiny: boolean; media: string }) {
   return (
     <span class="pg-card-art">
-      <Sprite media={media} form={form} shiny={shiny} scale={1} crop={48} fieldSize />
+      <Sprite media={media} form={form} shiny={shiny} scale={1} crop={48} fieldSize center />
     </span>
   );
 }

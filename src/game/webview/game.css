@@ -3959,29 +3959,38 @@ body.vscode-high-contrast-light .pg-title-body {
   inset: 0;
   background: rgba(12, 16, 30, 0.2);
 }
-/* 스타팅 고르기 — 고른 포켓몬 큰 칸 (48 창 · ×2) + 진화 · 기술 줄. 넓은 패널에서는 내용 폭만큼 가운데 (위 줄과 같은 규칙), 좁으면 줄이 다음 줄로 */
-.pg-starter-card {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  width: -webkit-max-content;
-  width: max-content;
-  max-width: min(100%, 720px);
-  margin-left: auto;
-  margin-right: auto;
-}
-.pg-starter-card > .pg-panel-row {
-  flex: 1;
-  min-width: 0;
-}
-/* 스타팅 고르기 줄 간격 = 패널 높이에 따라 (2026-10-20 태현 님 "패널이 높으면 위아래 간격을 더 — 다닥다닥 붙어 있음"):
-   150px 4px → 높아질수록 넓게 → 약 300px 부터 16px. 칩 줄 ↔ 진화 줄 ↔ 기술 줄 모두 같은 간격 */
+/* 스타팅 고르기 세 줄 (칩 · 진화 · 기술) 사이 = 패널 높이에 따라 (2026-10-20 태현 님 "패널이 높으면 빨간 네모 각각의 위아래 간격을 더 — 다닥다닥"):
+   150px 4px → 187px 약 13px → 230px 부터 24px. 남는 높이는 위아래로 (가운데) */
 .pg-pick-starter {
-  --pg-pick-gap: clamp(4px, calc(4px + (100vh - 150px) * 0.08), 16px);
-  gap: var(--pg-pick-gap);
+  gap: clamp(4px, calc(4px + (100vh - 150px) * 0.25), 24px);
 }
-.pg-starter-card > .pg-panel-wrap {
-  row-gap: var(--pg-pick-gap);
+/* 세 줄 상자 = 내용 높이 그대로 (칩 24 · 기술 22 가 28 줄 안에 떠서 위아래 빈칸이 2 ~ 3px 씩 달라지던 것) — 보이는 간격 = 줄 간격.
+   넘치면 줄이 눌려 잘리지 않고 판 안에서 스크롤 (flex-shrink 0 — 240 에서 칩이 위아래로 잘리던 것) */
+.pg-pick-starter > .pg-panel-row {
+  flex-shrink: 0;
+  min-height: 0;
+}
+.pg-pick-starter > .pg-panel-row.pg-panel-wrap {
+  padding: 0;
+}
+/* 진화 줄 — 높이 66 고정 (StarterPick style · starter/model CHAIN_ROW_PX — 모든 단계 ×2, 실제 그림을 칸 한가운데) → 칩 줄 ↔ 진화 줄 ↔ 기술 줄 보이는 간격이 같음.
+   좁으면 뒤 단계 이름 → 타입 순서로 숨김 (그림 · → 는 남김, 이름은 title) */
+.pg-starter-chain .pg-chain,
+.pg-starter-chain .pg-chain-step {
+  align-items: center;
+}
+.pg-starter-chain .pg-chain {
+  flex-basis: auto;
+  margin-right: 0;
+}
+@media (max-width: 420px) {
+  .pg-starter-chain .pg-chain-name.pg-dim {
+    display: none;
+  }
+}
+@media (max-width: 300px) {
+  .pg-starter-chain .pg-chain-name.pg-sub {
+    display: none;
+  }
 }
 

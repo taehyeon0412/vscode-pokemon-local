@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { validateSave } from '../../core/save';
 import { moveOf, speciesOf } from '../../data';
-import { chosenStarterMoves, createStartSave, defaultStarterMoves, evolutionChain, starterList, starterMoveCandidates } from './model';
+import { spriteBoxOf } from '../../data/sprite-boxes';
+import { CHAIN_ROW_PX, CHAIN_ZOOM, chosenStarterMoves, createStartSave, defaultStarterMoves, evolutionChain, starterList, starterMoveCandidates } from './model';
 
 const STARTERS = [1, 152, 252, 387, 495, 650, 4, 155, 255, 390, 498, 653, 7, 158, 258, 393, 501, 656];
 
@@ -82,5 +83,22 @@ describe('S03 · S04 고르기 (단계 10)', () => {
     expect(save.player).toEqual({ gender: 'female', look: 'may' });
     expect(validateSave(JSON.parse(JSON.stringify(save)))).toMatchObject({ ok: true, problems: [] });
     expect(createStartSave(0, 5, 4, { gender: 'male', look: 'nobody' }).player).toEqual({ gender: 'male' });
+  });
+});
+
+describe('S04 ② 진화 줄 그림 (2026-10-20 태현 님 "크기가 제각각 · 위아래 간격 동일하게")', () => {
+  it('18종 모든 진화 단계의 실제 그림 × 2 가 줄 높이 안에 들어감 — 줄 높이 고정이라 골라도 안 들썩이고 그림이 안 잘림', () => {
+    for (const s of starterList()) {
+      for (const c of evolutionChain(s.dex)) {
+        const box = spriteBoxOf(c.form);
+        expect(box, c.form).toBeDefined();
+        expect((box![3] - box![1]) * CHAIN_ZOOM, c.form).toBeLessThanOrEqual(CHAIN_ROW_PX);
+      }
+    }
+  });
+  it('같은 점 크기라 원작 그림대로 진화할수록 커짐 (이상해씨 < 이상해풀 < 이상해꽃)', () => {
+    const h = evolutionChain(1).map((c) => spriteBoxOf(c.form)!).map((b) => b[3] - b[1]);
+    expect(h[0]!).toBeLessThan(h[1]!);
+    expect(h[1]!).toBeLessThan(h[2]!);
   });
 });

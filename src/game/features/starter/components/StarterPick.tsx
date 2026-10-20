@@ -10,9 +10,8 @@ import { Button } from '../../../ui/Button';
 import { KeyCap } from '../../../ui/KeyCap';
 import { InfoBar } from '../../../ui/InfoBar';
 import { Sprite } from '../../../ui/Sprite';
-import { spritePx } from '../../../ui/sprite-path';
 import { moveView } from '../../result/model';
-import { defaultStarterMoves, evolutionChain, starterList, starterMoveCandidates } from '../model';
+import { CHAIN_ROW_PX, CHAIN_ZOOM, chainArtWidth, defaultStarterMoves, evolutionChain, starterList, starterMoveCandidates } from '../model';
 
 export interface StarterPickProps {
   media: string;
@@ -23,7 +22,6 @@ export interface StarterPickProps {
 
 export function StarterPick({ media, pending, onBack, onDone }: StarterPickProps) {
   // 진화 단계 그림은 원본 ×1 (개구마르 계열처럼 32 · 64 가 섞임 — mvp-spec 1장 · 줄이면 점이 빠져 뭉개짐, 아트 디렉터 2026-10-19)
-  const chainPx = (form: string) => spritePx(form, 1);
   const list = starterList();
   const [index, setIndex] = useState(0);
   const sel = list[index] ?? list[0]!;
@@ -99,35 +97,33 @@ export function StarterPick({ media, pending, onBack, onDone }: StarterPickProps
             </button>
           ))}
         </div>
-        {/* 고른 포켓몬 = 왼쪽 큰 칸 (길 위 크기 ×2 — 줄의 다른 포켓몬은 ×1, "같은 화면 같은 배율" 의 예외: 2026-10-20 태현 님 "추천대로") ·
-            ② 진화 단계 + ④ 처음 기술 — 한 줄 (낮은 패널에서도 기술이 보이게), 모자라면 다음 줄로 */}
-        <div class="pg-starter-card">
-          <span class="pg-card-art">
-            <Sprite media={media} form={sel.form} scale={1} crop={48} fieldSize />
-          </span>
-          <div class="pg-panel-row pg-panel-wrap">
-            <span class="pg-chain" title={`${sel.name} · ${types}`}>
-              {chain.map((c, i) => (
-                <span key={c.dex} class="pg-chain-step">
-                  {i > 0 && <span class="pg-dim">→</span>}
-                  <Sprite media={media} form={c.form} scale={1} px={chainPx(c.form)} />
-                  <span class={i === 0 ? 'pg-chain-name' : 'pg-chain-name pg-dim'}>{c.name}</span>
-                </span>
-              ))}
-              <span class="pg-sub pg-chain-name">{types}</span>
-            </span>
-            <span class="pg-panel-sep pg-dim">
-              기술 {picked.length}/{BALANCE.starterMoves}
-            </span>
-            {cands.map((m, i) => (
-              <Button key={m.id} secondary extraClass={picked.includes(m.id) ? 'pg-picked' : undefined} onClick={() => toggle(m.id)} title={`${m.detail} (${i + 1})${m.own ? ' · 자기 타입 (위력 × 1.5)' : ''}`}>
-                {picked.includes(m.id) ? '✓' : ''}
-                {i + 1} {m.name}
-                {m.own && <span class="pg-own">×1.5</span>}
-                <span class="pg-sub">{m.short}</span>
-              </Button>
+        {/* 세 줄 (칩 · 진화 · 기술) 을 따로 — 줄 사이 = 패널 높이에 따라 (2026-10-20 태현 님 "빨간 네모 각각의 위아래 간격").
+            ② 진화 단계 = 모든 단계 같은 점 크기 ×2 (진화할수록 커 보임 — 태현 님 "크기가 제각각"), 줄 높이 66 고정 · 실제 그림을 칸 한가운데 (center) */}
+        <div class="pg-panel-row pg-starter-chain" style={{ height: `${CHAIN_ROW_PX}px` }}>
+          <span class="pg-chain" title={`${sel.name} · ${types}`}>
+            {chain.map((c, i) => (
+              <span key={c.dex} class="pg-chain-step">
+                {i > 0 && <span class="pg-dim">→</span>}
+                <Sprite media={media} form={c.form} scale={1} crop={CHAIN_ROW_PX} cropWidth={chainArtWidth(c.form)} zoom={CHAIN_ZOOM} center />
+                <span class={i === 0 ? 'pg-chain-name' : 'pg-chain-name pg-dim'}>{c.name}</span>
+              </span>
             ))}
-          </div>
+            <span class="pg-sub pg-chain-name">{types}</span>
+          </span>
+        </div>
+        {/* ④ 처음 기술 — 좁으면 다음 줄로 */}
+        <div class="pg-panel-row pg-panel-wrap">
+          <span class="pg-panel-sep pg-dim">
+            기술 {picked.length}/{BALANCE.starterMoves}
+          </span>
+          {cands.map((m, i) => (
+            <Button key={m.id} secondary extraClass={picked.includes(m.id) ? 'pg-picked' : undefined} onClick={() => toggle(m.id)} title={`${m.detail} (${i + 1})${m.own ? ' · 자기 타입 (위력 × 1.5)' : ''}`}>
+              {picked.includes(m.id) ? '✓' : ''}
+              {i + 1} {m.name}
+              {m.own && <span class="pg-own">×1.5</span>}
+              <span class="pg-sub">{m.short}</span>
+            </Button>
+          ))}
         </div>
       </div>
     </div>
