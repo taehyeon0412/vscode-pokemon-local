@@ -163,8 +163,8 @@ export interface SaveV1 {
   pendingEncounter: Encounter | null;
   /** 전투 끝에 남은 고르기 (S23 · S22) — 앞에서부터 */
   pendingChoices: PendingChoice[];
-  /** fastWalk = 빨리 걷기 (2026-10-19 — 없으면 꺼짐, 옛 세이브엔 없음) */
-  settings: { notifications: boolean; autoBattle: boolean; fastWalk?: boolean };
+  /** fastWalk = 빨리 걷기 (2026-10-19 — 없으면 꺼짐, 옛 세이브엔 없음) · reduceMotion = 게임의 동작 줄이기 (2026-10-20 태현 님 — OS 설정 대신, 없으면 꺼짐) */
+  settings: { notifications: boolean; autoBattle: boolean; fastWalk?: boolean; reduceMotion?: boolean };
   /** 라이벌 전적 (gdd 4.12) — 주인공 id → 내가 이긴 수 · 진 수. 처음 만나기 전 (옛 세이브 포함) 엔 칸이 없음 — 없는 칸을 만들면 옛 세이브가 "고친 세이브" 로 다시 써짐 */
   rivals?: Record<string, { wins: number; losses: number }>;
 }

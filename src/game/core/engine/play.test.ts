@@ -113,6 +113,17 @@ describe('빨리 걷기 (2026-10-19 태현 님 "걷는 시간이 길어 루즈�
     expect(isWalkingFast(at(BALANCE.fastWalkLookMs * 2))).toBe(true);
   });
 
+  it('동작 줄이기 (게임 설정, 2026-10-20 태현 님) — 기본 꺼짐 · 켜고 끄기 · 세이브에 남음 · 옛 세이브는 꺼짐', () => {
+    const s0 = start();
+    expect(s0.save.settings.reduceMotion).toBeFalsy();
+    const on = applyInput(s0, { kind: 'reduce-motion', on: true });
+    expect(on.save.settings.reduceMotion).toBe(true);
+    expect(applyInput(on, { kind: 'reduce-motion', on: true })).toBe(on);
+    const kept = validateSave(viaJson(on.save));
+    expect(kept.ok && kept.save.settings.reduceMotion).toBe(true);
+    expect(applyInput(on, { kind: 'reduce-motion', on: false }).save.settings.reduceMotion).toBe(false);
+  });
+
   it('설정은 세이브에 남음 · 옛 세이브 (fastWalk 없음) 는 고친 기록 없이 꺼짐', () => {
     const on = fast(start());
     expect(on.save.settings.fastWalk).toBe(true);

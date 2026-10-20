@@ -293,6 +293,23 @@ describe('S24 · S07 · 깬 스테이지 (mvp-spec S07 · S24 · #62)', () => {
     expect(prog(moved, 'forest-2')).toBe(0); // 가는 스테이지도 새 판
   });
 
+  it('1-3 끝 → 체육관 문이 열리고 걸어 들어감 (gym-enter, Space 로 넘김) → 대기실 (2026-10-20 태현 님 A안)', () => {
+    const s0 = game({ location: { screen: 'stage', stageId: 'forest-3' }, party: ['m1'], stages: { 'forest-1': stageAt(0, { cleared: true }), 'forest-2': stageAt(0, { cleared: true }), 'forest-3': stageAt(0.99999) } });
+    const live = { ...s0, runtime: { ...s0.runtime, headless: false } };
+    const door = until(live, (x) => phase(x) === 'gym-enter', 2000);
+    expect(phase(door)).toBe('gym-enter');
+    expect(door.save.location.screen).toBe('stage');
+    expect(door.save.stages['forest-3']!.cleared).not.toBe(true);
+    // 그대로 두면 gymEnterMs 뒤 대기실
+    const inside = until(door, (x) => x.save.location.screen === 'gym', TIMING.gymEnterMs + 500);
+    expect(inside.save.stages['forest-3']!.cleared).toBe(true);
+    // Space = 바로
+    const skipped = step(applyInput(door, { kind: 'space' }), STEP).state;
+    expect(skipped.save.location.screen).toBe('gym');
+    // 다시 읽기
+    expect(readRuntime({ rngState: 1, stepAccMs: 0, stage: viaJson(door.runtime.stage) }, 1).stage).toEqual(door.runtime.stage);
+  });
+
   it('1-3 끝 → S16 체육관 대기실 (볼 +1 · 보너스 경험치 · 깬 표시)', () => {
     const s0 = game({ location: { screen: 'stage', stageId: 'forest-3' }, party: ['m1'], stages: { 'forest-1': stageAt(0, { cleared: true }), 'forest-2': stageAt(0, { cleared: true }), 'forest-3': stageAt(0.99999) } });
     const s = until(s0, (x) => x.save.location.screen === 'gym', 5000);

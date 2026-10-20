@@ -40,6 +40,8 @@ export type GameInput =
   | { kind: 'auto-battle'; on: boolean }
   /** 빨리 걷기 켜기 · 끄기 (S06 정보줄 · S20, 2026-10-19) */
   | { kind: 'fast-walk'; on: boolean }
+  /** 게임의 동작 줄이기 (설정 — 화면이 움직임을 줄임, OS 설정은 안 봄 · 2026-10-20 태현 님) */
+  | { kind: 'reduce-motion'; on: boolean }
   /** S12 계속 (Space · Enter · 클릭) */
   | { kind: 'result-continue' }
   /** S23 — 바꿀 칸 (null = 배우지 않기) */
@@ -214,6 +216,7 @@ function checkedStage(rt: RuntimeState, save: Save, id: StageId, layout: StageLa
     case 'facility':
       return layout.facilities.some((f) => f.kind === st.kind && f.at === st.at) && progress <= st.at ? st : null;
     case 'clear':
+    case 'gym-enter':
       return progress >= 1 ? st : null;
     case 'lobby':
     case 'badge':
@@ -282,6 +285,11 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
       const ev = nextEvent(layout, prog, id, from, to);
       if (!ev) {
         save = withProgress(save, id, to);
+        // 1-3 끝 — 길 끝 체육관 문이 열리고 걸어 들어간 뒤 대기실 (2026-10-20 태현 님 A안) · 안 볼 때 (확장 계산) 는 바로
+        if (to >= 1 && id === 'forest-3' && !rt.headless) {
+          stage = { phase: 'gym-enter', ms: 0 };
+          break;
+        }
         if (to >= 1) return finishStage(save, rt, id);
         break;
       }
@@ -473,6 +481,12 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
       // 끝까지 왔는데 아직 클리어 처리를 안 한 세이브 (단계 9 전에 끝에 서 있던 세이브) — 지금 처리
       if (!prog.cleared) return finishStage(save, rt, id);
       break;
+    case 'gym-enter': {
+      const ms = stage.ms + stepMs;
+      if (ms >= TIMING.gymEnterMs || rt.headless) return finishStage(save, rt, id);
+      stage = { ...stage, ms };
+      break;
+    }
     case 'defeat':
     case 'lobby':
     case 'badge':
@@ -715,6 +729,8 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       // S12 계속 · S22 진화 연출 빨리 넘기기
       if (stage?.phase === 'result') return applyInput(state, { kind: 'result-continue' });
       if (stage?.phase === 'choice') return applyInput(state, { kind: 'evolve-skip' });
+      // 체육관 들어가기 — 바로 대기실로 (다음 걸음에 클리어 처리)
+      if (stage?.phase === 'gym-enter') return stage.ms >= TIMING.gymEnterMs ? state : { ...state, runtime: { ...state.runtime, stage: { ...stage, ms: TIMING.gymEnterMs } } };
       // 트레이너 · 라이벌 만남 — "!" 가 지난 뒤 Space · 클릭 = 바로 전투 (2026-10-20 태현 님 "2초 정도 두고 클릭하면 바로 넘어가게")
       if ((stage?.phase === 'trainer' || stage?.phase === 'rival') && stage.ms >= TIMING.trainerAlertMs) {
         const end = stage.phase === 'rival' ? TIMING.rivalMeetMs : TIMING.trainerMeetMs;
@@ -730,6 +746,9 @@ export function applyInput(state: GameState, input: GameInput): GameState {
     case 'fast-walk':
       if ((save.settings.fastWalk === true) === input.on) return state;
       return { ...state, save: { ...save, settings: { ...save.settings, fastWalk: input.on } } };
+    case 'reduce-motion':
+      if ((save.settings.reduceMotion === true) === input.on) return state;
+      return { ...state, save: { ...save, settings: { ...save.settings, reduceMotion: input.on } } };
     case 'notifications':
       if (save.settings.notifications === input.on) return state;
       return { ...state, save: { ...save, settings: { ...save.settings, notifications: input.on } } };

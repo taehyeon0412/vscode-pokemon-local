@@ -42,10 +42,12 @@ export type StageRuntime =
   | { phase: 'choice'; ms: number; then?: 'badge' }
   | { phase: 'defeat'; gym: boolean; lost: number }
   | { phase: 'clear' }
+  /** 1-3 끝 — 체육관 문이 열리고 걸어 들어감 (ms 동안, 그다음 클리어 처리 · S16 대기실 — 2026-10-20 태현 님 A안) */
+  | { phase: 'gym-enter'; ms: number }
   | { phase: 'lobby' }
   | { phase: 'badge' };
 
-export const STAGE_PHASES = ['walk', 'appear', 'trainer', 'rival', 'battle', 'request', 'hold', 'facility', 'result', 'choice', 'defeat', 'clear', 'lobby', 'badge'] as const;
+export const STAGE_PHASES = ['walk', 'appear', 'trainer', 'rival', 'battle', 'request', 'hold', 'facility', 'result', 'choice', 'defeat', 'clear', 'gym-enter', 'lobby', 'badge'] as const;
 
 /** 부탁 결과 — 글 · 받은 것 (따로 둬서 좁은 패널에서도 받은 것이 안 잘리게) */
 export interface RequestResult {
@@ -144,6 +146,8 @@ function readStage(raw: unknown): StageRuntime | null {
     }
     case 'rival':
       return ms !== null && isHeroLookId(raw.rival) ? { phase: 'rival', rival: raw.rival, ms } : null;
+    case 'gym-enter':
+      return ms !== null ? { phase: 'gym-enter', ms } : null;
     case 'facility': {
       const at = num(raw.at, 0, 1);
       if (ms === null || at === null || (raw.kind !== 'hospital' && raw.kind !== 'shop') || typeof raw.inside !== 'boolean') return null;
