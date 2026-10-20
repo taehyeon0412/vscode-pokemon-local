@@ -280,6 +280,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
                 media={media}
                 lead={leadOf(save)}
                 fast={gym ? undefined : { on: save.settings.fastWalk === true, active: isWalkingFast(state), onToggle: () => onInput({ kind: 'fast-walk', on: save.settings.fastWalk !== true }) }}
+                auto={{ on: save.settings.autoBattle, onToggle: () => onInput({ kind: 'auto-battle', on: !save.settings.autoBattle }) }}
                 labels={menuLabels(widthPx, mapRow)}
               />
             ) : null

@@ -23,6 +23,12 @@ export interface FastWalk {
   onToggle(): void;
 }
 
+/** 자동 전투 스위치 (2026-10-20 태현 님 "자동 전투가 전투 안에서만 나와 — 빨리 걷기 옆이 편해") — 전투 중 자동 버튼 · 설정 판 스위치와 같은 값 */
+export interface AutoBattle {
+  on: boolean;
+  onToggle(): void;
+}
+
 /** 버튼 얼굴 — 단축키 칸 · 아이콘 · 이름 (labels 만큼) */
 function Face({ labels, shortcut, icon, label }: { labels: MenuLabels; shortcut: MenuShortcut; icon: ComponentChildren; label: string }) {
   return (
@@ -40,6 +46,7 @@ export function MenuButtons({
   media,
   lead,
   fast,
+  auto,
   labels = 'icon',
 }: {
   onOpen(o: Overlay): void;
@@ -49,6 +56,8 @@ export function MenuButtons({
   /** 선두 포켓몬 그림 (◓ 대신) */
   lead: { form: string; shiny: boolean } | null;
   fast?: FastWalk;
+  /** 자동 전투 (▶▶ 옆 · 체육관 대기실은 맨 앞) */
+  auto?: AutoBattle;
   /** 단축키 · 이름을 보일지 (패널 폭 — menuLabels) */
   labels?: MenuLabels;
 }) {
@@ -64,6 +73,17 @@ export function MenuButtons({
           title={`빨리 걷기 ×3 ${fast.on ? '켜짐' : '꺼짐'} (${MENU_KEYS.fast}) — 흔적 · 트레이너 · 병원이 다가오면 보통 빠르기로`}
         >
           <Face labels={labels} shortcut="fast" icon={<Icon name={fast.active ? 'fastOn' : 'fast'} />} label="빨리 걷기" />
+        </Button>
+      )}
+      {/* 자동 전투 — 켜짐 = 금색 테두리 + 밝은 남색 (빨리 걷기 켜짐과 같은 모양) · 꺼짐 = 흐린 글, 좁으면 "자동" 두 글자 */}
+      {auto && (
+        <Button
+          secondary
+          extraClass={auto.on ? 'pg-auto-walk pg-on' : 'pg-auto-walk'}
+          onClick={auto.onToggle}
+          title={auto.on ? '자동 전투 켜짐 — 누르면 끔 (전투 중 버튼 · 설정과 같음)' : '자동 전투 꺼짐 — 켜면 전투를 알아서 (필살기 · 연타는 직접도 됨)'}
+        >
+          <span class="pg-menu-text">{labels === 'icon' ? '자동' : auto.on ? '자동 켜짐' : '자동 꺼짐'}</span>
         </Button>
       )}
       {BUTTONS.map((b) => (
