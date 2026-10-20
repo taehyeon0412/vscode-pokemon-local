@@ -3685,3 +3685,69 @@ body.vscode-high-contrast-light .pg-title-body {
 .pg-vs-band .pg-rival-rec {
   font-size: 11px;
 }
+
+/* 포켓몬 카드 (S18 · S21 같은 부품 — 아트 디렉터 3차): 그림 · 이름 · Lv · ★ · HP 막대 + 숫자 · 스탯 4칸 (숫자 크게 + 이름 흐리게) */
+.pg-statcard {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  white-space: nowrap;
+}
+.pg-statcard-name {
+  font-size: 12px;
+  font-weight: 600;
+}
+.pg-statcard-lv {
+  font-size: 11px;
+  color: var(--pg-sos-dim);
+}
+.pg-statcard-hp {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.pg-statcard-bar {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 4px;
+  overflow: hidden;
+  background: var(--pg-sos-track);
+}
+.pg-statcard-bar .pg-bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--pg-sos-hp);
+}
+.pg-statcard-bar .pg-bar-fill.pg-mid {
+  background: var(--pg-sos-mid);
+}
+.pg-statcard-bar .pg-bar-fill.pg-low {
+  background: var(--pg-sos-red);
+}
+.pg-statcard-stats {
+  display: inline-grid;
+  grid-template-columns: repeat(4, auto);
+  column-gap: 8px;
+}
+.pg-statcard-stat {
+  font-size: 11px;
+  color: var(--pg-sos-dim);
+}
+.pg-statcard-stat b {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--pg-sos-ink);
+  font-variant-numeric: tabular-nums;
+}
+/* 카드는 좁으면 안에서도 줄바꿈 (글자끼리 겹치지 않게) */
+.pg-statcard {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+.pg-profile .pg-line:first-child {
+  flex-wrap: wrap;
+}

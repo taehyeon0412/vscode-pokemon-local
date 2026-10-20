@@ -133,7 +133,7 @@ function OverlayView({ o, state, media, actions }: { o: Overlay; state: GameStat
     case 'profile':
       return st?.phase === 'battle' ? (
         <div class="pg-overlay-field">
-          <ProfileCard battle={st.battle} save={save} side={o.side} onClose={actions.close} />
+          <ProfileCard battle={st.battle} save={save} media={media} side={o.side} onClose={actions.close} />
         </div>
       ) : null;
   }

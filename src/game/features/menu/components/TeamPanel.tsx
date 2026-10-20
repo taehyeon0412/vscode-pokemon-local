@@ -10,8 +10,9 @@ import { STAT_KEYS, type Save } from '../../../core/save';
 import { Button } from '../../../ui/Button';
 import { Icon } from '../../../ui/Icon';
 import { Sprite } from '../../../ui/Sprite';
-import { stars, STAT_LABEL, teamView, type MonsterView } from '../model';
+import { STAT_LABEL, teamView, type MonsterView } from '../model';
 import { Panel, Row } from './Panel';
+import { StatCard, type StatCardData } from './StatCard';
 
 export interface TeamPanelProps {
   save: Save;
@@ -55,6 +56,12 @@ function Chip({ m, media, selected, lead, onClick, drag }: { m: MonsterView; med
       {m.unspent > 0 && <span class="pg-dot" title={`남은 포인트 ${m.unspent}`} />}
     </button>
   );
+}
+
+/** 내 포켓몬 → 카드 (HP 는 지금 HP / 최대) */
+function cardOf(v: MonsterView): StatCardData {
+  const st = (k: string) => v.stats.find((x) => x.key === k)?.value ?? 0;
+  return { name: v.name, form: v.form, shiny: v.shiny, level: v.level, hp: v.hp, maxHp: v.maxHp, star: v.star, attack: st('attack'), defense: st('defense'), speed: st('speed'), ultimate: st('ultimate') };
 }
 
 export function TeamPanel({ save, media, swap, onInput, onClose }: TeamPanelProps) {
@@ -101,7 +108,8 @@ export function TeamPanel({ save, media, swap, onInput, onClose }: TeamPanelProp
       extra={`팀 ${party.length}/${BALANCE.partySize} · 보관함 ${box.length}`}
       onClose={onClose}
     >
-      <Row label="팀">
+      {/* 라벨 열 없음 — 칩 줄만 봐도 팀 · 보관함 (아트 디렉터 3차 "라벨: 값 양식") */}
+      <Row>
         {party.map((m, i) => (
           <Chip key={m.uid} m={m} media={media} selected={selected?.uid === m.uid} lead={i === 0} onClick={() => setSel(m.uid)} drag={drag} />
         ))}
@@ -112,7 +120,7 @@ export function TeamPanel({ save, media, swap, onInput, onClose }: TeamPanelProp
       </Row>
       {selected && (
         <>
-          <Row label="순서">
+          <Row>
             {inParty && (
               <>
                 <Button secondary onClick={() => onInput({ kind: 'team-move', uid: selected.uid, dir: -1 })} disabled={idx <= 0} title="한 칸 앞으로 (맨 앞 = 선두)">
@@ -150,19 +158,12 @@ export function TeamPanel({ save, media, swap, onInput, onClose }: TeamPanelProp
               </>
             )}
           </Row>
-          <Row label={selected.name}>
-            <span class="pg-star" title="개체값 등급">
-              {stars(selected.star)}
-            </span>
-            <span>Lv{selected.level}</span>
-            <span class="pg-expbar" title={`다음 레벨까지 ${selected.expToNext} EXP`}>
+          {/* 좁으면 다음 줄로 (480px 에서 기술 이름이 스탯 위에 겹치던 것) */}
+          <Row wrap>
+            <StatCard d={cardOf(selected)} media={media} />
+            <span class="pg-expbar" title={`다음 레벨까지 경험치 ${selected.expToNext}`}>
               <span class="pg-bar-fill" style={{ width: `${Math.round(selected.expRatio * 100)}%` }} />
             </span>
-            {selected.stats.map((s) => (
-              <span key={s.key} class="pg-stat">
-                {s.label} <b>{s.key === 'hp' ? `${selected.hp}/${s.value}` : s.value}</b>
-              </span>
-            ))}
             {selected.status && <span class="pg-status">{selected.status}</span>}
             <span class="pg-panel-sep">·</span>
             {selected.moves.length === 0 ? (

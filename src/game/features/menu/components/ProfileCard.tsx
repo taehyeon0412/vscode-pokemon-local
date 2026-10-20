@@ -11,31 +11,25 @@ import { speciesOf } from '../../../data';
 import { Button } from '../../../ui/Button';
 import { Icon } from '../../../ui/Icon';
 import { moveView } from '../../result/model';
-import { monsterView, stars, STAT_LABEL } from '../model';
+import { monsterView } from '../model';
+import { StatCard } from './StatCard';
 
-export function ProfileCard({ battle: b, save, side, onClose }: { battle: BattleState; save: Save; side: Side; onClose(): void }) {
+export function ProfileCard({ battle: b, save, media, side, onClose }: { battle: BattleState; save: Save; media: string; side: Side; onClose(): void }) {
   const f = b[side];
   const name = speciesOf(f.species)?.name.ko ?? f.form;
   const mine = side === 'me' ? save.monsters[f.uid] : undefined;
   const view = mine ? monsterView({ ...mine, hp: f.hp }) : null;
   const star = typeof f.star === 'number' ? f.star : null;
-  const stats = (['hp', 'attack', 'defense', 'speed', 'ultimate'] as const).map((k) => ({ k, v: k === 'hp' ? `${f.hp}/${f.maxHp}` : String(Math.floor(f.stats[k])) }));
   const caught = save.dex.caught.includes(f.species);
   return (
     <div class="pg-profile-wrap" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
       <div class="pg-banner pg-profile pg-two" role="dialog">
         <span class="pg-line">
-          <b>
-            {side === 'foe' ? (b.kind === 'wild' ? '야생 ' : '상대 ') : ''}
-            {name}
-          </b>
-          <span>Lv{f.level}</span>
-          {star !== null && <span class="pg-star">{stars(star)}</span>}
-          {stats.map((s) => (
-            <span key={s.k} class="pg-stat">
-              {STAT_LABEL[s.k]} <b>{s.v}</b>
-            </span>
-          ))}
+          <StatCard
+            media={media}
+            prefix={side === 'foe' ? (b.kind === 'wild' ? '야생 ' : '상대 ') : ''}
+            d={{ name, form: f.form, shiny: f.shiny, level: f.level, hp: f.hp, maxHp: f.maxHp, star, attack: f.stats.attack, defense: f.stats.defense, speed: f.stats.speed, ultimate: f.stats.ultimate }}
+          />
           <Button secondary extraClass="pg-pin" onClick={onClose} title="Esc · 바깥 클릭">
             ✕ 닫기
           </Button>
@@ -43,7 +37,7 @@ export function ProfileCard({ battle: b, save, side, onClose }: { battle: Battle
         <span class="pg-line">
           {view ? (
             <>
-              <span class="pg-expbar" title={`다음 레벨까지 ${view.expToNext} EXP`}>
+              <span class="pg-expbar" title={`다음 레벨까지 경험치 ${view.expToNext}`}>
                 <span class="pg-bar-fill" style={{ width: `${Math.round(view.expRatio * 100)}%` }} />
               </span>
               {f.moves.map((s) => {
