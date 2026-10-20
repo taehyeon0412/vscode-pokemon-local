@@ -338,8 +338,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         {/* 전투 중 상대 트레이너 · 관장 = 오른쪽 끝 (남은 볼) · 대기실의 관장 */}
         {((battle && foeTrainer) || (gym && !battle) || (stageRt?.phase === 'rival' && foeTrainer)) && (
           <span class="pg-obj pg-foe-trainer" style={{ left: `${leaderX}px`, bottom: `${ground}px` }} title={foeTrainer?.name ?? GYM_LEADER.name}>
-            {/* 머리 위 이름표 (decisions 2026-10-17) · 라이벌이 막 나타난 때는 "!" (gdd 4.12) */}
-            {stageRt?.phase === 'rival' && !foeTrainer?.talking ? <span class="pg-trainer-mark">!</span> : !vsOn && <span class="pg-nametag">{foeTrainer?.name ?? GYM_LEADER.name}</span>}
+            {/* 머리 위 이름표 (decisions 2026-10-17) · 라이벌 장면은 VS 전까지 "!" (gdd 4.12 — 트레이너와 같게, 대사 상자가 뜨면 0.8초에 이름표로 바뀌어 1초가 안 되던 것 · UX 리뷰어 2026-10-21) */}
+            {stageRt?.phase === 'rival' && !vsOn ? <span class="pg-trainer-mark">!</span> : !vsOn && <span class="pg-nametag">{foeTrainer?.name ?? GYM_LEADER.name}</span>}
             {foeTrainer && stageRt?.phase !== 'rival' && (
               <span class="pg-foe-balls">
                 {Array.from({ length: foeTrainer.balls }, (_, i) => (

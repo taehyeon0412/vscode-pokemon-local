@@ -145,7 +145,8 @@ export function choiceView(state: GameState): ChoiceView | null {
 /** 화면을 다시 그릴지 보는 열쇠 (결과 · 고르기는 멈춰 있으니 바뀔 때만) */
 export function resultViewKey(state: GameState): string {
   const st = state.runtime.stage;
-  if (st?.phase === 'result') return `result:${st.summary.title}`;
+  // 잡았으면 소개 카드 → 결과 상자로 넘어갈 때도 다시 그림 (빠지면 소개 카드가 결과 끝까지 남아 결과 상자가 안 보임 — UX 리뷰어 2026-10-21)
+  if (st?.phase === 'result') return `result:${st.summary.title}:${!!st.summary.caught && st.ms >= TIMING.caughtIntroMs}`;
   if (st?.phase !== 'choice') return '';
   const c = state.save.pendingChoices[0];
   return `choice:${state.save.pendingChoices.length}:${c ? JSON.stringify(c) : ''}:${st.ms >= TIMING.evolveAnimMs}`;

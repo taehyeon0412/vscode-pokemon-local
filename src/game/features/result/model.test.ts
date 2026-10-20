@@ -4,7 +4,9 @@ import { addExp } from '../../core/rules/growth';
 import { expForLevel } from '../../core/rules/stats';
 import { Rng } from '../../core/engine/rng';
 import type { BattleSummary } from '../../core/engine';
-import { levelUps, needsStatHint } from './model';
+import { createGameState } from '../../core/engine';
+import { TIMING } from '../../core/balance';
+import { levelUps, needsStatHint, resultViewKey } from './model';
 
 const summary = (exp: BattleSummary['exp']): BattleSummary => ({ title: '야생 피죤을 쓰러뜨렸다!', exp, money: 20, item: null, caught: null, learned: [], choices: 0, badge: null });
 
@@ -28,5 +30,17 @@ describe('S12 레벨업 표시 · 안내 말풍선 (2026-10-20 태현 님)', () 
     expect(needsStatHint(ups(learned))).toBe(true);
     const none = sampleSave({ monsters: { m1: { ...grown, unspentPoints: 0, points: { ...grown.points, hp: grown.points.hp + 4 } } }, party: ['m1'] });
     expect(needsStatHint(ups(none))).toBe(false);
+  });
+});
+
+describe('결과 다시 그리는 열쇠 (2026-10-21 UX 리뷰어)', () => {
+  it('잡았으면 소개 카드 → 결과 상자로 넘어갈 때 열쇠가 바뀜 (빠지면 결과 상자가 안 보임)', () => {
+    const base = createGameState(sampleSave(), 1);
+    const caught = { ...summary([]), caught: { name: '파이리', toBox: false, uid: 'm3', isNew: true } };
+    const at = (ms: number, s: BattleSummary) => resultViewKey({ ...base, runtime: { ...base.runtime, stage: { phase: 'result', summary: s, ms } } });
+    expect(at(0, caught)).not.toBe(at(TIMING.caughtIntroMs, caught));
+    // 소개 카드 안에서는 같음 (PC 부담) · 안 잡았으면 늘 같음
+    expect(at(100, caught)).toBe(at(TIMING.caughtIntroMs - 100, caught));
+    expect(at(0, summary([]))).toBe(at(TIMING.caughtIntroMs, summary([])));
   });
 });
