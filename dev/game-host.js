@@ -62,6 +62,14 @@
     // balls=3-2-1 — 몬스터볼 · 슈퍼볼 · 하이퍼볼 개수 (정보줄 볼 칸, 2026-10-20) · pts=4 — 선두 남은 포인트 (정보줄 "포켓몬 +4")
     if (q.get('balls')) { const [p, g, u] = q.get('balls').split('-').map(Number); save.bag = { 'poke-ball': p || 0, ...(g ? { 'great-ball': g } : {}), ...(u ? { 'ultra-ball': u } : {}) }; }
     if (q.get('pts')) save.monsters.m1 = { ...save.monsters.m1, unspentPoints: Number(q.get('pts')) };
+    // team=5 — 다섯 마리 팀 (선두 리자드 Lv19 · 이상해풀 · 어니부기 · 피죤 · 버터플, 보관함 피카츄 — S18 팀 칸 이름 잘림 확인, 2026-10-20)
+    if (q.get('team') === '5') {
+        const mk = (uid, species, form, level, unspent = 0) => ({ ...save.monsters.m1, uid, species, form, level, unspentPoints: unspent, hp: 30, caughtAt: 'forest-1' });
+        save.monsters = { m1: mk('m1', 5, 'charmeleon', 19, 2), m2: mk('m2', 2, 'ivysaur', 18), m3: mk('m3', 8, 'wartortle', 17), m4: mk('m4', 17, 'pidgeotto', 16), m5: mk('m5', 12, 'butterfree', 15), m6: mk('m6', 25, 'pikachu', 14) };
+        save.party = ['m1', 'm2', 'm3', 'm4', 'm5'];
+        save.box = ['m6'];
+        save.nextMonsterUid = 7;
+    }
     // spent=1 — 스탯을 이미 찍어 본 세이브 (S12 얼굴 카드 안내 말풍선이 안 나옴)
     if (q.get('spent') === '1') save.monsters.m1 = { ...save.monsters.m1, points: { ...save.monsters.m1.points, attack: 10 } };
     const info = {

@@ -37,7 +37,7 @@ function Chip({ m, media, selected, lead, onClick, drag }: { m: MonsterView; med
   return (
     <button
       type="button"
-      class={`pg-chip${selected ? ' pg-chip-on' : ''}${hpCls}`}
+      class={`pg-chip pg-team-chip${selected ? ' pg-chip-on' : ''}${hpCls}`}
       onClick={onClick}
       title={`${m.name} Lv${m.level} · HP ${m.hp}/${m.maxHp}${m.status ? ` · ${m.status}` : ''}${drag ? ' — 끌어다 놓아 순서 바꾸기' : ''}`}
       draggable={!!drag}

@@ -348,6 +348,14 @@ body.pokemon-game-on {
 .pg-balls-compact .pg-ball-one {
   gap: 1px;
 }
+/* S18 팀 칸 — 이름이 잘리지 않게 칩 최대 폭 (11em) 을 풂 (선두 · 그림 · 이름 · Lv · 포인트 점이 다 들어가게 — 2026-10-20 태현 님 "선두 리자… 처럼 이름이 잘려", 넓은 패널에서도) */
+.pg-chip.pg-team-chip {
+  max-width: none;
+}
+.pg-team-chip > .pg-ellipsis {
+  flex: none;
+  overflow: visible;
+}
 /* 아주 좁은 패널 — 정보줄 지도 · 메뉴 사이를 좁혀 "🌲 0%" 가 잘리지 않게 */
 @media (max-width: 300px) {
   .pg-infobar .pg-minimap,
@@ -1535,13 +1543,12 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 }
 
 
-/* 움직임 줄이기를 켠 사람 — 계속 흔들리는 것은 멈춤 */
+/* 움직임 줄이기를 켠 사람 — 계속 흔들리는 것은 멈춤 (힘대결 대체 그림 · 맞받아치기 버튼). 필살기 꽉 참 깜빡 (세 번 · 1초 2번) 은 "필살기를 쓸 수 있음" 이라는 게임 정보라 남김
+   (2026-10-20 태현 님 맥 "다 채워지면 반짝반짝 되서 인지하게") */
 @media (prefers-reduced-motion: reduce) {
   .pg-clash-beam,
   .pg-clash-point,
-  .pg-counter .pg-button,
-  .pg-bar-ult.pg-full,
-  .pg-bar-myult.pg-full {
+  .pg-counter .pg-button {
     animation: none;
   }
 }
@@ -3396,11 +3403,7 @@ body.vscode-high-contrast-light .pg-title-body {
   100% { opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .pg-ultz-ready,
-  .pg-ultz-shine::before,
-  .pg-ultz-spark {
-    animation: none;
-  }
+  /* Z 배지 반짝임 (테두리 0.8초 두 걸음 · 빛 줄기 · 반짝 별) 은 남김 — 필살기를 쓸 수 있다는 게임 정보 (2026-10-20 태현 님 맥 동작 줄이기 "다 채워지면 반짝반짝", 1초 3번 아래) */
 }
 
 /* ---- 아트 디렉터 단계 12 2바퀴 (16/25) 반영 ---- */
