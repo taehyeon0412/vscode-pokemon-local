@@ -35,7 +35,7 @@ import { ShopPanel } from '../../menu/components/ShopPanel';
 import { menuLabels, type Overlay, unspentPoints } from '../../menu/model';
 import { ChoiceBox } from '../../result/components/ChoiceBox';
 import { ResultBox } from '../../result/components/ResultBox';
-import { caughtView, choiceView, levelUps, needsStatHint } from '../../result/model';
+import { CAUGHT_INTRO_H, CAUGHT_INTRO_W, caughtView, choiceView, levelUps, needsStatHint } from '../../result/model';
 import { battleStage, buildingDraw, BUILDINGS, contactX, foeTrainerView, heroX, minimapOf, staffLeftPx, type StageObject, stagePx, STAGES, visibleObjects, vsStartMs, WALK_PX_PER_SEC } from '../model';
 import { BadgeCard, ClearCard, DefeatBox, FacilityBox, LobbyBox, TrainerBanner, VsCutIn, type VsArt } from './FieldBoxes';
 import { Hero } from './Hero';
@@ -132,6 +132,12 @@ function RequestBox({ state, media, onInput }: { state: GameState; media: string
 }
 
 /** 팀 맨 앞 포켓몬 그림 (오른쪽 위 ◓ 버튼) */
+/** 잡은 포켓몬 소개 카드 자리 · 폭 — 길 칸 가운데 정수 px (홀수 폭 · 높이에서도 흐리지 않게), 좁은 패널은 양쪽 8px 남기고 줄임 */
+function introAt(widthPx: number, bodyPx: number): { left: number; top: number; width: number } {
+  const width = Math.min(CAUGHT_INTRO_W, widthPx - 16);
+  return { left: Math.round((widthPx - width) / 2), top: Math.round((bodyPx - CAUGHT_INTRO_H) / 2), width };
+}
+
 /** 이보다 좁은 패널은 볼 칸을 붙여 씀 (× 빼고) · 더 좁으면 볼 칸을 숲 왼쪽 위로 (볼 한 종류 400 · 둘 460 · 셋 520px — 볼 · 지도 · 메뉴 다섯이 한 줄에 안 들어가 지도가 "0'" 처럼 잘리던 것, 2026-10-20) */
 const BALLS_COMPACT_PX = 600;
 const ballsFieldPx = (kinds: number) => 340 + 60 * kinds;
@@ -348,7 +354,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         <RequestBox state={state} media={media} onInput={onInput} />
         <FacilityBox state={state} media={media} onInput={onInput} onBox={() => onOpen({ kind: 'team' })} />
         {shopInside && <ShopPanel save={save} note={state.runtime.toast?.text} onInput={onInput} onClose={() => onInput({ kind: 'facility-leave' })} />}
-        {stageRt?.phase === 'result' && <ResultBox summary={stageRt.summary} next={save.pendingChoices[0]?.kind ?? null} ups={levelUps(stageRt.summary, save)} hint={needsStatHint(save, levelUps(stageRt.summary, save))} caught={caughtView(stageRt.summary, save)} ms={stageRt.ms} media={media} onInput={onInput} onStats={(uid) => onOpen({ kind: 'team', uid })} />}
+        {stageRt?.phase === 'result' && <ResultBox summary={stageRt.summary} next={save.pendingChoices[0]?.kind ?? null} ups={levelUps(stageRt.summary, save)} hint={needsStatHint(save, levelUps(stageRt.summary, save))} caught={caughtView(stageRt.summary, save)} ms={stageRt.ms} introAt={introAt(widthPx, bodyPx)} media={media} onInput={onInput} onStats={(uid) => onOpen({ kind: 'team', uid })} />}
         {choice && <ChoiceBox view={choice} media={media} scale={layout.scale} onInput={onInput} />}
         <DefeatBox state={state} media={media} onInput={onInput} />
         <ClearCard state={state} media={media} onInput={onInput} onMap={() => onOpen({ kind: 'map' })} onTeam={() => onOpen({ kind: 'team' })} />

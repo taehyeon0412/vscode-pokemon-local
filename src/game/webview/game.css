@@ -1742,19 +1742,21 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 }
 /* ⑤ 흔들기 창 = B 집중 창 (2026-10-20 태현 님 "못생겼어 — 화면 가운데 예쁜 네모 · 던진 볼이 가운데" → 시안 셋 중 B) — 무대 가운데 · 둘레 남색 55% 덮개 (VS 컷인처럼 —
    흔드는 1 ~ 2초 동안 볼 하나에만 눈이 가게) · 2px 금색 · 위 테두리에 걸친 금색 칠 이름표 (잡는 중… / 잡았다! / 아깝다!) · 볼 48px · 안쪽 바닥 선 + 그림자 · 남은 볼 아이콘.
-   나타날 때 0.15초 세 걸음 (늘이기는 픽셀 줄을 흐리게 해서 투명도만) · 잡은 뒤 소개 카드 (.pg-caught-intro) 와 같은 모양 */
+   나타날 때 0.15초 세 걸음 (늘이기는 픽셀 줄을 흐리게 해서 투명도만) · 잡은 뒤 소개 카드 (.pg-caught-intro) 와 같은 모양.
+   104 × 108 고정 (테두리 포함 — 제목 길이에 따라 폭이 바뀌던 것) · 자리는 BattleLayer 가 정수 px 로 (top 50% + translate 는 홀수 높이에서 0.5px 흐림 — 아트 디렉터 8차) ·
+   볼 위 끝 18 (테두리 2 + 16 — BattleLayer CATCH_WIN_BALL_Y 42 = 18 + 볼 반) · 볼 48 · 14 · 남은 기회 점 8 */
 .pg-catch-win {
   position: absolute;
-  left: 50%;
-  top: 50%;
   z-index: 9;
-  transform: translate(-50%, -50%);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  min-width: 108px;
-  padding: 18px 20px 10px;
+  justify-content: flex-start;
+  gap: 14px;
+  box-sizing: border-box;
+  width: 104px;
+  height: 108px;
+  padding: 16px 0 0;
   background: var(--pg-sos-bar);
   border: 2px solid var(--pg-sos-gold);
   border-radius: 0;
@@ -1769,10 +1771,12 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 .pg-catch-title {
   position: absolute;
   top: -9px;
-  left: 50%;
+  left: 0;
+  right: 0;
+  width: fit-content;
   height: 16px;
+  margin: 0 auto;
   padding: 0 8px;
-  transform: translateX(-50%);
   background: var(--pg-sos-gold);
   color: var(--pg-sos-tab-ink);
   font-size: 11px;
@@ -1826,12 +1830,39 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 }
 .pg-catch-left {
   display: flex;
-  gap: 4px;
+  gap: 8px;
   line-height: 0;
 }
+/* 남은 볼 기회 = 8 × 8 픽셀 점 (모서리 한 칸씩 깎음) — 남은 것 금색 칠 · 쓴 것 흐린 2px 테두리만 (빈 칸) · 이번 볼 = 위에 작은 금색 ▼ (볼 그림은 가진 볼 개수로 읽혀서 — 플레이 리뷰어 · 아트 디렉터 8차) */
+.pg-catch-ok,
 .pg-catch-used {
-  opacity: 0.3;
-  filter: grayscale(1);
+  position: relative;
+  width: 8px;
+  height: 8px;
+}
+.pg-catch-ok::before,
+.pg-catch-used::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(2px 0, 6px 0, 6px 2px, 8px 2px, 8px 6px, 6px 6px, 6px 8px, 2px 8px, 2px 6px, 0 6px, 0 2px, 2px 2px);
+}
+.pg-catch-ok::before {
+  background: var(--pg-sos-gold);
+}
+.pg-catch-used::before {
+  box-shadow: inset 0 0 0 2px var(--pg-sos-dim);
+}
+/* 이번 볼 ▼ — 2px 계단 (폭 6 · 2, 점 위 2px 띄움) */
+.pg-catch-now::after {
+  content: "";
+  position: absolute;
+  left: 1px;
+  bottom: calc(100% + 2px);
+  width: 6px;
+  height: 4px;
+  background: var(--pg-sos-gold);
+  clip-path: polygon(0 0, 6px 0, 6px 2px, 4px 2px, 4px 4px, 2px 4px, 2px 2px, 0 2px);
 }
 /* 딸깍 별 — 2px 점 + 십자 (단단한 그림자), 4 걸음에 퍼졌다 꺼짐 */
 .pg-catch-star {
@@ -4489,36 +4520,45 @@ body.vscode-light .pg-field-balls {
   0% { transform: translateY(0); }
   50% { transform: translateY(2px); }
 }
-/* 잡은 포켓몬 소개 카드 (결과 상자 전 1.5초 — 2026-10-20 태현 님 안 2 "잡았다는 기쁨") — 잡기 창 B 와 같은 집중 모양: 둘레 남색 55% · 2px 금색 · 금색 칠 이름표 "잡았다!" ·
-   왼쪽 그림 칸 64 (밝은 남색 + 흐린 금색 1px · 그림은 칸을 채우는 정수 배) · 오른쪽 "NEW! 처음 잡았다" (금색 칠 — 도감 화면이 생기면 "도감 등록") · 이름 13/700 + Lv 흐림 · 타입 표 · 팀 / 보관함 11 흐림. 나타날 때 0.15초 세 걸음 · 누르면 넘김 */
+/* 잡은 포켓몬 소개 카드 (결과 상자 전 3초 — 2026-10-20 태현 님 안 2 "잡았다는 기쁨" → B "잡았다 창이 너무 빨리 꺼져") — 잡기 흔들기 창이 꺼지지 않고 이어짐:
+   같은 덮개 · 같은 가운데 · 같은 높이 108 에서 가로로 104 → 248 넓어짐 (0.2초 네 걸음) → 그림 칸의 큰 볼이 0.3초에 금색 고리와 함께 열리며 포켓몬 (칸 64 를 채우는 정수 배) ·
+   오른쪽 "NEW! 처음 잡았다" (금색 칠 — 도감 화면이 생기면 "도감 등록") · 이름 13/700 + Lv 흐림 · 타입 표 · 팀 / 보관함 11 흐림 → 반짝 별. 어디를 눌러도 넘김 */
+.pg-caught-dim {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  background: rgba(12, 16, 30, 0.55);
+  cursor: pointer;
+}
 .pg-caught-intro {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  z-index: 9;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 16px 18px 12px 12px;
-  transform: translate(-50%, -50%);
+  box-sizing: border-box;
+  width: 248px;
+  height: 108px;
+  padding: 0 16px 0 18px;
   background: var(--pg-sos-bar);
   border: 2px solid var(--pg-sos-gold);
-  box-shadow: 0 0 0 1px var(--pg-sos-tab-ink), 0 0 0 100vmax rgba(12, 16, 30, 0.55);
+  box-shadow: 0 0 0 1px var(--pg-sos-tab-ink);
   white-space: nowrap;
-  cursor: pointer;
-  animation: pg-caught-in 0.15s steps(3) both;
+  animation: pg-caught-open 0.2s steps(4) both;
 }
-@keyframes pg-caught-in {
-  0% { opacity: 0; }
-  100% { opacity: 1; }
+/* 넓어짐 — 잡기 창 폭 104 에서 (양쪽 72 씩 가렸다 엶) · 위 −12 는 이름표 자리 */
+@keyframes pg-caught-open {
+  0% { clip-path: inset(-12px var(--pg-open, 72px) -2px var(--pg-open, 72px)); }
+  100% { clip-path: inset(-12px -2px -2px -2px); }
 }
 .pg-caught-title {
   position: absolute;
   top: -9px;
-  left: 50%;
+  left: 0;
+  right: 0;
+  width: fit-content;
   height: 16px;
+  margin: 0 auto;
   padding: 0 8px;
-  transform: translateX(-50%);
   background: var(--pg-sos-gold);
   color: var(--pg-sos-tab-ink);
   font-size: 11px;
@@ -4528,15 +4568,72 @@ body.vscode-light .pg-field-balls {
 }
 .pg-caught-art {
   position: relative;
+  flex: none;
+  width: 64px;
+  height: 64px;
   line-height: 0;
   background: var(--pg-sos-hi);
   box-shadow: inset 0 0 0 1px var(--pg-sos-line-soft);
+  /* 창이 다 넓어진 뒤 (0.2초) 에 칸이 보임 — 좁은 창 왼쪽 끝에 칸 조각이 비치던 것 */
+  animation: pg-caught-show 1ms 0.2s both;
+}
+/* 큰 볼 (잡기 창 볼과 같은 48px) — 그림 칸 안 자리 (테두리 안 26 · 28) 에 두고, 시작은 잡기 창 볼 자리 (테두리 안 가운데 98 · 위 16 = +72 · −12) 에서
+   창이 넓어지는 0.2초 동안 네 걸음에 옮겨 옴 (가로 = --pg-open = (폭 − 104) ÷ 2) → 0.3초에 사라지고 포켓몬 · 글이 나옴 (픽셀 박자 — 한 번에) */
+.pg-caught-ball {
+  position: absolute;
+  left: 26px;
+  top: 28px;
+  z-index: 1;
+  line-height: 0;
+  animation: pg-caught-ball-move 0.2s steps(4) both, pg-caught-hide 1ms 0.3s both;
+}
+@keyframes pg-caught-ball-move {
+  0% { transform: translate(var(--pg-open, 72px), -12px); }
+  100% { transform: none; }
+}
+.pg-caught-mon,
+.pg-caught-info {
+  animation: pg-caught-show 1ms 0.3s both;
+}
+@keyframes pg-caught-hide {
+  from { visibility: visible; }
+  to { visibility: hidden; }
+}
+@keyframes pg-caught-show {
+  from { visibility: hidden; }
+  to { visibility: visible; }
+}
+/* 볼이 열리는 금색 고리 — 칸 가운데에서 퍼지며 흰색으로 꺼짐 (0.25초 다섯 걸음, 볼을 내보낼 때 고리와 같은 모양) */
+.pg-caught-burst {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 28px;
+  height: 28px;
+  box-sizing: border-box;
+  border: 2px solid var(--pg-sos-gold);
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+  animation: pg-caught-burst 250ms steps(5) 0.3s both;
+}
+@keyframes pg-caught-burst {
+  0% { transform: translate(-50%, -50%) scale(0.4); opacity: 1; }
+  60% { border-color: var(--pg-sos-ink); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+}
+.pg-caught-art .pg-lvup-spark-1 {
+  animation-delay: 0.45s;
+}
+.pg-caught-art .pg-lvup-spark-2 {
+  animation-delay: 0.7s;
 }
 .pg-caught-info {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
+  min-width: 0;
 }
 .pg-caught-new {
   padding: 0 4px;
@@ -4562,7 +4659,17 @@ body.vscode-light .pg-field-balls {
   }
   .pg-lvup-card,
   .pg-lvup-hint,
-  .pg-caught-intro {
+  .pg-caught-intro,
+  .pg-caught-burst {
+    animation: none;
+  }
+  .pg-caught-ball {
+    animation: none;
+    visibility: hidden;
+  }
+  .pg-caught-mon,
+  .pg-caught-info,
+  .pg-caught-art {
     animation: none;
   }
 }

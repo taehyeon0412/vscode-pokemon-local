@@ -81,6 +81,10 @@ export interface CaughtView {
   isNew: boolean;
 }
 
+/** 소개 카드 크기 (테두리 포함) — 잡기 흔들기 창 (104 × 108) 과 같은 높이 · 같은 가운데에서 가로로 넓어짐. 자리는 StageScreen 이 정수 px 로 */
+export const CAUGHT_INTRO_W = 248;
+export const CAUGHT_INTRO_H = 108;
+
 export function caughtView(s: BattleSummary, save: Save): CaughtView | null {
   const m = s.caught ? save.monsters[s.caught.uid] : undefined;
   if (!s.caught || !m) return null;
