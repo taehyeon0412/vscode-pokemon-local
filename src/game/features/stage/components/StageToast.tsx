@@ -9,7 +9,7 @@ import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 
 const EDGE = 8;
 
-export function StageToast({ text, center, bottom, room }: { text: string; center: number; bottom: number; room?: number }) {
+export function StageToast({ text, center, bottom, room, avoid }: { text: string; center: number; bottom: number; room?: number; /** 덮으면 안 되는 상자 (선택자) — 줄이 늘어 그 상자에 닿으면 아래로 내림 */ avoid?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const [, setRetry] = useState(0);
   useLayoutEffect(() => {
@@ -33,6 +33,15 @@ export function StageToast({ text, center, bottom, room }: { text: string; cente
     el.style.width = `${w}px`;
     el.style.left = `${Math.round(Math.min(widthPx - EDGE - w, Math.max(EDGE, center - w / 2)))}px`;
     el.style.transform = 'none';
+    // 피할 상자 (클리어 카드 · 대기실 상자) 에 닿으면 그 아래 4px 부터 — 좁은 패널에서 세 줄 알림이 카드 버튼 줄을 덮던 것 (기획 · UX). 주인공 위에 잠깐 겹치는 쪽이 버튼을 가리는 것보다 나음
+    el.style.bottom = `${bottom}px`;
+    const box = avoid ? el.parentElement.querySelector<HTMLElement>(avoid) : null;
+    if (box) {
+      const parent = el.parentElement.getBoundingClientRect();
+      const minTop = Math.ceil(box.getBoundingClientRect().bottom - parent.top) + 4;
+      const h = Math.ceil(el.getBoundingClientRect().height);
+      if (parent.height - bottom - h < minTop) el.style.bottom = `${Math.max(0, Math.floor(parent.height - minTop - h))}px`;
+    }
     return undefined;
   });
   return (

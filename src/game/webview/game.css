@@ -1507,8 +1507,17 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 }
 /* 설정 단축키 줄 — 줄임표 대신 줄 바꿈 (240 · 300 에서 A · Esc 가 잘리던 것) */
 .pg-keys.pg-keys-wrap {
+  flex-wrap: wrap;
+  column-gap: 8px;
+  row-gap: 2px;
   white-space: normal;
   line-height: 18px;
+}
+.pg-key-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
 }
 .pg-first-tip-top {
   top: var(--pg-field-top, 3px);
@@ -4225,6 +4234,25 @@ body.vscode-high-contrast-light .pg-title-body {
   gap: 3px;
   min-width: 0;
 }
+/* 보상 · 버튼 줄 — 넘치면 버튼 묶음이 다음 줄 (주 버튼 먼저) */
+.pg-badge-row {
+  flex-wrap: wrap;
+  row-gap: 3px;
+}
+.pg-badge-btns {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+/* 좁은 배지 카드 (330 아래) — 대기실과 같게 Enter 키 칸 숨김 · 배지와 글 사이 10 → 6 (두 버튼이 한 줄에 — 네 줄 카드가 주인공 · 관장을 덮던 것) */
+@media (max-width: 330px) {
+  .pg-badge-card {
+    gap: 6px;
+  }
+  .pg-badge-card .pg-menu-key {
+    display: none;
+  }
+}
 .pg-badge-glow {
   flex: none;
   line-height: 0;
@@ -5399,9 +5427,11 @@ body.vscode-high-contrast-light .pg-title-body {
   color: var(--pg-sos-ink);
 }
 /* 밝은 테마 — 판 없이 숲 위에 놓인 글자 (지도 줄 이름 · % · 볼 칸, 숲 위 볼 칸) 뒤에 작은 남색 판 (낮 하늘 #dde6ea 위에서 크림 글자 · 흰 볼 반쪽이 녹던 것 — 아트 디렉터 7차 제안 · 2026-10-20 태현 님).
-   체육관 지도 줄 이름과 같은 칠 · 높이 18 · 좌우 4 */
+   체육관 지도 줄 이름과 같은 칠 · 높이 18 · 좌우 4 · 남은 시간 · 팀 위험도 (흐린 글 "약 9분 남음" 만 판 없이 밝은 나무 위에 묻히던 것 — 아트 디렉터 밤 점검) */
 body.vscode-light .pg-stage:not(.pg-gym) .pg-maprow .pg-stage-name,
 body.vscode-light .pg-stage:not(.pg-gym) .pg-maprow .pg-mappct,
+body.vscode-light .pg-stage:not(.pg-gym) .pg-maprow .pg-mapleft,
+body.vscode-light .pg-stage:not(.pg-gym) .pg-maprow .pg-team-hp,
 body.vscode-light .pg-maprow > .pg-balls,
 body.vscode-light .pg-field-balls {
   display: inline-flex;
@@ -6369,11 +6399,17 @@ body.vscode-light .pg-field-balls {
 .pg-banner.pg-saveio {
   top: calc(20px * var(--pg-ui, 1) + 6px);
   z-index: 60;
+  /* 묻는 상자 · 오류 상자 = 집중 창 덮개 (5장 — 뒤 설정 판 둘째 줄 버튼을 반쯤 걸쳐 덮어 글이 잘린 것처럼 보이던 것) · 결과 한 줄은 덮개 없음 */
+  box-shadow: 0 0 0 1px var(--pg-sos-tab-ink), 0 0 0 100vmax rgba(12, 16, 30, 0.55);
   /* 좁으면 줄을 바꿈 (240 에서 파일 이름 · 오류 글 · 결과 줄이 양쪽으로 잘리던 것 — U4) */
   white-space: normal;
   word-break: keep-all;
   background: var(--pg-sos-bar);
-  border-color: var(--pg-sos-gold);
+  border-color: var(--pg-sos-line);
+}
+/* 묻는 상자 · 오류 상자가 떠 있는 동안 뒤 설정 판은 숨김 — 판 위 판이 엇갈려 둘째 줄 버튼이 반쯤 잘려 보이던 것 · 테두리 금색이 둘이던 것 (아트 디렉터 밤 점검 B안) */
+#pokemon-game:has(.pg-saveio.pg-two) .pg-panel {
+  visibility: hidden;
 }
 .pg-saveio > .pg-line {
   flex-wrap: wrap;
@@ -6384,6 +6420,7 @@ body.vscode-light .pg-field-balls {
 }
 .pg-saveio-result {
   text-align: center;
+  box-shadow: 0 0 0 1px var(--pg-sos-tab-ink);
 }
 .pg-saveio-sum {
   flex-wrap: wrap;

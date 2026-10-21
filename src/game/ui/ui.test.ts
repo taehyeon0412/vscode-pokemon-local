@@ -42,6 +42,10 @@ describe('화면 틀 (mvp-spec 1장)', () => {
     expect(fitGameLayout(150)).toMatchObject({ size: 'medium', scale: 2, tooSmall: false });
     expect(fitGameLayout(299)).toMatchObject({ size: 'medium', scale: 2 });
     expect(fitGameLayout(300)).toMatchObject({ size: 'large', scale: 3, petPx: 96, tooSmall: false });
+    // 좁으면 높아도 보통 (240 × 315 에서 ×3 그림이 무대 밖으로 — 아트 디렉터 밤 점검)
+    expect(fitGameLayout(315, undefined, 240)).toMatchObject({ size: 'medium', scale: 2 });
+    expect(fitGameLayout(315, undefined, 479)).toMatchObject({ size: 'medium', scale: 2 });
+    expect(fitGameLayout(315, undefined, 480)).toMatchObject({ size: 'large', scale: 3 });
     expect(fitGameLayout(100).tooSmall).toBe(true);
   });
 

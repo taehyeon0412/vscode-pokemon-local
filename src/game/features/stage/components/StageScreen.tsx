@@ -516,7 +516,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
             대기실 = 상자가 머리 위를 차지해서 바닥 줄 주인공 ~ 관장 사이 (버튼을 가리던 것 — 2026-10-21 orders #3) */}
         {/* 클리어 카드도 바닥 줄 (카드가 머리 위를 차지 — 머리 위면 카드 아래 버튼 줄 [다음 스테이지 ▶] · 지도 · 교체 를 가리던 것, 개발 UX 리뷰어 R14) */}
         {showToast && state.runtime.toast && (phase === 'lobby' || phase === 'clear' ? (
-          <StageToast key={state.runtime.toast.text} text={state.runtime.toast.text} center={(heroLeft + heroW / 2 + 8 + bannerRight) / 2} bottom={ground + 2} room={bannerRight - (heroLeft + heroW / 2 + 8)} />
+          <StageToast key={state.runtime.toast.text} text={state.runtime.toast.text} center={(heroLeft + heroW / 2 + 8 + bannerRight) / 2} bottom={ground + 2} room={bannerRight - (heroLeft + heroW / 2 + 8)} avoid=".pg-banner.pg-clear, .pg-banner.pg-lobby" />
         ) : (
           <StageToast key={state.runtime.toast.text} text={state.runtime.toast.text} center={heroLeft} bottom={toastBottom} />
         ))}

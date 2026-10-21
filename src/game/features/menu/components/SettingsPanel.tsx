@@ -57,10 +57,23 @@ export function SettingsPanel({ save, onInput, onExit, onClose, dev = false, onS
       )}
       {/* 단축키 (2026-10-19 전체 점검 — 키보드로 하는 사람이 찾지 않게, 정보줄 메뉴 글자와 같은 자판 칸) */}
       <Row>
+        {/* 키 + 뜻 = 한 묶음 (줄은 묶음 사이에서만 — 맨글자가 하나씩 줄어드는 칸이 되어 240 에서 "막 / 기" 처럼 글자마다 줄이 바뀌던 것) */}
         <span class="pg-keys pg-keys-wrap">
-          <span class="pg-menu-key">Space</span> 막기 <span class="pg-menu-key">Z</span> 필살기 <span class="pg-menu-key">1</span> ~ <span class="pg-menu-key">5</span> 고르기{' '}
-          <span class="pg-menu-key">A</span> 자동 전투{' '}
-          <span class="pg-menu-key">Esc</span> 닫기 · 지나가기
+          <span class="pg-key-item">
+            <span class="pg-menu-key">Space</span> 막기
+          </span>
+          <span class="pg-key-item">
+            <span class="pg-menu-key">Z</span> 필살기
+          </span>
+          <span class="pg-key-item">
+            <span class="pg-menu-key">1</span> ~ <span class="pg-menu-key">5</span> 고르기
+          </span>
+          <span class="pg-key-item">
+            <span class="pg-menu-key">A</span> 자동 전투
+          </span>
+          <span class="pg-key-item">
+            <span class="pg-menu-key">Esc</span> 닫기 · 지나가기
+          </span>
         </span>
       </Row>
       <Row>

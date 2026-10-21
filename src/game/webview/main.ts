@@ -47,7 +47,7 @@ if (!port) {
     screen: 'none',
     title: null,
     state: null,
-    layout: fitGameLayout(window.innerHeight, config.minHeight),
+    layout: fitGameLayout(window.innerHeight, config.minHeight, window.innerWidth),
     widthPx: window.innerWidth,
     pending: false,
     overlay: null,
@@ -382,7 +382,7 @@ if (!port) {
   };
 
   window.addEventListener('resize', () => {
-    store.set({ layout: fitGameLayout(window.innerHeight, config.minHeight), widthPx: window.innerWidth });
+    store.set({ layout: fitGameLayout(window.innerHeight, config.minHeight, window.innerWidth), widthPx: window.innerWidth });
     sync(); // 너무 낮아졌으면 멈추고, 다시 키우면 이어 감
     reportView();
   });

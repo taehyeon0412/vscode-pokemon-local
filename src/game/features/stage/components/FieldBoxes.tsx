@@ -420,30 +420,33 @@ export function BadgeCard({ state, onInput, onMap }: BoxProps & { onMap(): void 
       <span class="pg-badge-glow">
         <Icon name="badgeBig" title="숲 배지" />
       </span>
+      {/* 좁으면 (480 아래) 첫 줄 뒷말을 빼고, 보상 · 버튼은 넘치면 버튼 묶음이 다음 줄 (240 에서 카드가 패널 밖으로 나가 [Enter 세계 지도] 가 "Ent" 로 잘리던 것 — 아트 디렉터 밤 점검) */}
       <span class="pg-badge-lines">
-      <span class="pg-line pg-ellipsis">
-        <b>숲 배지를 받았다!</b> 숲 클리어! 다음 지역은 준비 중이에요
-      </span>
-      <span class="pg-line">
-        <span class="pg-reward">
-          <Icon name="coin" /> +{formatMoney(BALANCE.gymFirstMoney)}
+        <span class="pg-line">
+          <b>숲 배지를 받았다!</b> <span class="pg-long">숲 클리어! 다음 지역은 준비 중이에요</span>
         </span>
-        <span class="pg-reward" title="가방에서 써요 (냄새꼬 → 라플레시아 등)">
-          <Icon name={ITEM_ICON['leaf-stone']} /> 리프의돌
+        <span class="pg-line pg-badge-row">
+          <span class="pg-reward">
+            <Icon name="coin" /> +{formatMoney(BALANCE.gymFirstMoney)}
+          </span>
+          <span class="pg-reward" title="가방에서 써요 (냄새꼬 → 라플레시아 등)">
+            <Icon name={ITEM_ICON['leaf-stone']} /> 리프의돌
+          </span>
+          <span class="pg-badge-btns">
+            <Button
+              onClick={() => {
+                onInput({ kind: 'badge-continue' });
+                onMap();
+              }}
+              title="Enter"
+            >
+              <KeyCap k="Enter" /> 세계 지도
+            </Button>
+            <Button secondary onClick={() => onInput({ kind: 'badge-continue' })}>
+              대기실로
+            </Button>
+          </span>
         </span>
-        <Button
-          onClick={() => {
-            onInput({ kind: 'badge-continue' });
-            onMap();
-          }}
-          title="Enter"
-        >
-          <KeyCap k="Enter" /> 세계 지도
-        </Button>
-        <Button secondary onClick={() => onInput({ kind: 'badge-continue' })}>
-          대기실로
-        </Button>
-      </span>
       </span>
     </div>
   );
