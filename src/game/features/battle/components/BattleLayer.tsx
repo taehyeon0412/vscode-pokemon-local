@@ -601,9 +601,15 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
 }
 
 /** 패널이 낮을 때 — 위 정보줄 자리에 메뉴 줄 (gdd S09 [확정]) */
-export function BattleMenuBar({ battle, save, onInput, withAuto, compact }: { battle: BattleState; save: Save; onInput(i: GameInput): void; withAuto: boolean; compact: boolean | 'tiny' }) {
+/** 말 칸이 숨는 좁고 낮은 패널에서 위 메뉴 줄에 띄울 말 — 전투 끝 · 쓰러짐 뒤 고르기 · 다음 포켓몬 (그때 메뉴 줄은 비어 있음).
+ *  첫 문장만 ("야생 파이리가 쓰러졌다!") — 뒷말 ("다음 포켓몬을 골라요") 은 고르기 칩이 이미 말함. 마지막 기회는 같은 줄에 "마지막 기회! 6초" · 볼 칸이 있어 자리가 없고, 쓰러진 모습 (회색) 과 그 칸이 뜻을 전함 */
+export const barSay = (b: BattleState, msgHidden: boolean): string | null =>
+  msgHidden && (b.phase === 'over' || b.phase === 'pick' || b.phase === 'send') && b.msg ? (b.msg.match(/^[^!?.…]*[!?.…]/)?.[0] ?? b.msg) : null;
+
+export function BattleMenuBar({ battle, save, onInput, withAuto, compact, say }: { battle: BattleState; save: Save; onInput(i: GameInput): void; withAuto: boolean; compact: boolean | 'tiny'; say?: string | null }) {
   return (
     <div class="pg-infobar pg-infobar-battle">
+      {say && <span class="pg-bar-say">{say}</span>}
       <BattleMenu battle={battle} save={save} onInput={onInput} compact={compact} lead={withAuto ? <AutoButton save={save} onInput={onInput} short={compact !== false} /> : null} />
     </div>
   );

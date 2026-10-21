@@ -28,7 +28,7 @@ import { InfoBar } from '../../../ui/InfoBar';
 import { Face } from '../../../ui/Face';
 import { KeyCap } from '../../../ui/KeyCap';
 import { fieldTopPx, hasMapRow, INFO_BAR_PX, MAP_ROW_PX, topGapPx, type Layout } from '../../../ui/layout';
-import { BattleLayer, BattleMenuBar } from '../../battle/components/BattleLayer';
+import { barSay, BattleLayer, BattleMenuBar } from '../../battle/components/BattleLayer';
 import { battleGeometry, battleSpritePx, foeTrainerX, placeOnStage, trainerBattleFoeX } from '../../battle/model';
 import { MenuButtons } from '../../menu/components/MenuButtons';
 import { ShopPanel } from '../../menu/components/ShopPanel';
@@ -276,7 +276,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   return (
     <div class={`pg-screen pg-stage pg-size-${layout.size}${gym ? ' pg-gym' : ''}${covered ? ' pg-covered' : ''}`}>
       {battle && geo?.menuInBar ? (
-        <BattleMenuBar battle={battle} save={save} onInput={battleInput} withAuto={geo.autoInMenu} compact={geo.tiny ? 'tiny' : geo.compact} />
+        <BattleMenuBar battle={battle} save={save} onInput={battleInput} withAuto={geo.autoInMenu} compact={geo.tiny ? 'tiny' : geo.compact} say={barSay(battle, geo.msgHidden)} />
       ) : (
         <InfoBar
           split={mapRow}
