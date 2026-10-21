@@ -584,6 +584,8 @@ describe('멈춤 · 알림 표 (gdd 4.13 · U6 — orders #27 R13)', () => {
     expect(tipOf(early)).not.toContain('[A] 자동 전투');
     const tipped = advance(early, 200).state;
     expect(tipOf(tipped)).toContain('자리를 비울 땐 [A] 자동 전투');
+    expect(tipped.runtime.toast?.kind).toBe('auto-tip');
+    expect(readRuntime(viaJson(tipped.runtime), 1).toast?.kind).toBe('auto-tip');
     expect(tipped.save.tips).toContain('auto-1');
     expect(advance(tipped, 30_000).state.save.tips?.filter((t) => t.startsWith('auto-'))).toEqual(['auto-1']);
     // 밖에서는 안 셈 (다시 와서 처음부터)

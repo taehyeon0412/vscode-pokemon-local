@@ -875,7 +875,7 @@ export function step(state: GameState, stepMs: number): StepOut {
     const ms = (rt.chooseMs ?? 0) + stepMs;
     if ((rt.chooseMs ?? 0) < TIMING.autoTipWaitMs && ms >= TIMING.autoTipWaitMs && autoTipLeft(save)) {
       save = useAutoTip(save);
-      rt = { ...rt, toast: { text: '자리를 비울 땐 [A] 자동 전투 — 알아서 싸워요', ms: TIMING.toastMs * 2 } };
+      rt = { ...rt, toast: { text: '자리를 비울 땐 [A] 자동 전투 — 알아서 싸워요', ms: TIMING.toastMs * 2, kind: 'auto-tip' } };
     }
     rt = { ...rt, chooseMs: ms };
   } else if (rt.chooseMs !== undefined) {
@@ -884,7 +884,7 @@ export function step(state: GameState, stepMs: number): StepOut {
   }
   if (watchingNow && rt.noticed === 'paused' && autoTipLeft(save)) {
     save = useAutoTip(save);
-    rt = { ...rt, toast: { text: '안 보는 동안 멈춰 있었어요 — [A] 자동 전투면 계속 걸어요', ms: TIMING.toastMs * 2 } };
+    rt = { ...rt, toast: { text: '안 보는 동안 멈춰 있었어요 — [A] 자동 전투면 계속 걸어요', ms: TIMING.toastMs * 2, kind: 'auto-tip' } };
   }
   // 멈춤 · 알림 (gdd 4.13 · U6) — 밖 · 숨김에서 기다리는 이유가 생겼는데 아직 안 알렸으면 한 번 (장면마다 따로 알리던 것을 한곳에서 — 이로치 전투 중에 떠남 · 밖 고르기 · 대기실로 돌아옴 등 빠진 곳 없이).
   // 보는 중이면 지움 (다시 떠나면 다시 알림) · 기다림이 풀리면 지움 (다음 기다림을 알리게)

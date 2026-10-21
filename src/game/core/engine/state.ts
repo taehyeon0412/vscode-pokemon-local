@@ -82,6 +82,8 @@ export interface Toast {
   ms: number;
   /** 이 알림이 끝나면 이어서 띄울 글 (TIMING.toastMs) — 긴 알림을 둘로 나눠 차례로 (2026-10-21 1-3 클리어) */
   then?: string;
+  /** 알림 종류 — 'auto-tip' = 자동 전투 첫 안내 (R12, 화면이 자동 스위치 옆에 둠). 없으면 머리 위 보통 알림 */
+  kind?: 'auto-tip';
 }
 
 export interface RuntimeState {
@@ -264,7 +266,7 @@ export function readRuntime(raw: unknown, fallbackSeed: number, stepMs: number =
   const acc = r.stepAccMs;
   const toast =
     isObj(r.toast) && typeof r.toast.text === 'string' && num(r.toast.ms, 0, 60_000) !== null
-      ? { text: r.toast.text.slice(0, 300), ms: r.toast.ms as number, ...(typeof r.toast.then === 'string' ? { then: r.toast.then.slice(0, 300) } : {}) }
+      ? { text: r.toast.text.slice(0, 300), ms: r.toast.ms as number, ...(typeof r.toast.then === 'string' ? { then: r.toast.then.slice(0, 300) } : {}), ...(r.toast.kind === 'auto-tip' ? { kind: 'auto-tip' as const } : {}) }
       : null;
   return {
     rngState: typeof rng === 'number' && Number.isInteger(rng) && rng >= 0 && rng <= 0xffffffff ? rng : fallbackSeed >>> 0,
