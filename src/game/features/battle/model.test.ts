@@ -6,7 +6,7 @@ import { Rng } from '../../core/engine/rng';
 import { counterMove, isShooting } from '../../core/rules/battle';
 import { hasMapRow, MAP_ROW_PX, topGapPx } from '../../ui/layout';
 import { allForms, allMoves, formOf, moveOf } from '../../data';
-import { battleGeometry, battleSpritePx, endSay, firstSentence, msgFits, battleViewKey, catchFoeClass, catchView, duelKind, hpColor, menuItems, placeOnStage, sentenceText, splitPopups, introView, SEND_FLY_MS, SEND_BURST_MS, WIPE_MS, type DuelKind } from './model';
+import { battleGeometry, battleSpritePx, endSay, firstSentence, msgFits, sayPhase, battleViewKey, catchFoeClass, catchView, duelKind, hpColor, menuItems, placeOnStage, sentenceText, splitPopups, introView, SEND_FLY_MS, SEND_BURST_MS, WIPE_MS, type DuelKind } from './model';
 
 const wild = sampleMonster({ uid: 'wild', species: 4, form: 'charmander', level: 5, moves: [{ moveId: 52, pp: 25 }], hp: 999 });
 const save = sampleSave();
@@ -341,6 +341,17 @@ describe('지도 줄 아래 · 긴 한 줄 말 (2026-10-19 태현 님)', () => {
     expect(endSay(lose, true, (s) => s.length <= 30)).toBe('내 포켓몬도 다 쓰러졌다… 눈앞이 깜깜해졌다');
     expect(endSay(lose, true, () => false)).toBe('눈앞이 깜깜해졌다');
     expect(endSay('야생 파이리가 쓰러졌다!', false, () => false)).toBe('야생 파이리가 쓰러졌다!');
+    // 감탄사 첫 문장은 건너뜀 · 라이벌에게 진 말은 "졌다" 문장
+    expect(endSay('아깝다! 아리아도스는 도망쳐 버렸다…', false, () => false)).toBe('아리아도스는 도망쳐 버렸다…');
+    expect(endSay('라이벌 지민에게 졌다… 연습 경기라 잃은 것은 없다!', true, () => false)).toBe('라이벌 지민에게 졌다…');
+  });
+
+  it('옆 메뉴 판 자리 말은 끝 · 다음 포켓몬만 — 고르기는 그 판에 목록 (단추를 덮던 것) · 정보줄 · 무대 줄은 고르기도', () => {
+    expect(sayPhase('pick', 'side')).toBe(false);
+    expect(sayPhase('over', 'side')).toBe(true);
+    expect(sayPhase('send', 'side')).toBe(true);
+    expect(sayPhase('pick', 'bar')).toBe(true);
+    expect(sayPhase('choose', 'bar')).toBe(false);
   });
 
   it('좁으면 트레이너 직함을 뺀 말 — 그래도 안 들어가면 그 말의 첫 문장 · 조사는 이름 끝 글자 그대로 (orders #20)', () => {

@@ -282,10 +282,25 @@ export function endSay(msg: string, lose: boolean, fits: (s: string) => boolean,
   if (fits(short)) return short;
   const parts = short.split(/(?<=[!?.…])\s+/).filter(Boolean);
   if (parts.length < 2) return short;
-  if (!lose) return parts[0] ?? short;
+  if (!lose) {
+    // 첫 문장이 띄어쓰기 없는 감탄사 ("아깝다!" · "신난다!") 면 다음 문장 — "아깝다!" 만 1.7초 보여 도망갔는지 빠져나왔는지 모르던 것 (UX 리뷰어 2026-10-21)
+    const first = parts[0] ?? short;
+    return !/\s/.test(first) && parts[1] ? parts[1] : first;
+  }
+  // 진 경우 — "…에게 졌다" · "깜깜" 이 든 문장부터 (라이벌 "…지민에게 졌다… 연습 경기라 잃은 것은 없다!" 에서 "졌다" 가 빠지던 것), 모자라면 그 문장만
+  const key = parts.findIndex((p) => /에게 졌다|깜깜/.test(p));
+  if (key >= 0) {
+    const two = parts.slice(-2).join(' ');
+    if (key >= parts.length - 2 && fits(two)) return two;
+    const tail = parts.slice(key).join(' ');
+    return fits(tail) ? tail : (parts[key] ?? short);
+  }
   const two = parts.slice(-2).join(' ');
   return fits(two) ? two : (parts[parts.length - 1] ?? short);
 }
+
+/** 말 칸이 숨을 때 자리 말을 띄울 단계 — 정보줄 · 무대 메뉴 줄은 끝 · 다음 포켓몬 · 고르기, 옆 메뉴 판은 끝 · 다음 포켓몬만 (고르기는 그 판에 목록이 떠서 — 단추를 덮던 것, UX 리뷰어 2026-10-21) */
+export const sayPhase = (phase: string, spot: 'bar' | 'side'): boolean => phase === 'over' || phase === 'send' || (spot === 'bar' && phase === 'pick');
 /** 옆 메뉴일 때 한 줄 말 = 옆 메뉴 탭 · 상대 HP 묶음 위 끝에서 이만큼 위 (싸우는 곳 가까이 — 아트 디렉터 3차) */
 const MSG_NEAR_GAP_PX = 8;
 /** 한 줄 말 위 띄움 최소 (예전 값) — 자리가 모자라면 정보줄 띄움 (4 ~ 8) 을 여기까지 줄임 */

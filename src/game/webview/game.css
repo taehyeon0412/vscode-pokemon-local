@@ -1950,10 +1950,27 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* 상대 이름은 줄이지 않음 — 이름 · Lv 가 HP 묶음보다 넓으면 이름 줄만 오른쪽 (패널 끝 4px 안, --pg-hp-room) 으로 넘침.
+   240 에서 "장.." · "버.." 로 잘리고 내 "19/19" 에 붙어 읽히던 것 (U4, 2026-10-21 UX 리뷰어 · 개발팀) — 오른쪽은 비어 있음 (트레이너 이름표는 그 아래 머리 위).
+   마지막 기회 (NEW · 볼 그림) 는 아래 규칙대로 왼쪽으로 넘침 (같은 우선순위 — 뒤에 있는 그 규칙이 이김) */
+.pg-hpblock-foe > .pg-hprow {
+  align-self: flex-start;
+  width: max-content;
+  min-width: 100%;
+  max-width: var(--pg-hp-room, 100%);
+}
+.pg-hpblock-foe > .pg-hprow > .pg-hpname {
+  max-width: none;
+}
 /* 아주 좁은 패널 — 내 HP 줄 이름을 빼고 레벨 · HP 만 ("이상…" 으로 잘리던 것, U4 — 내 이름은 고르기 목록 · 프로필에 있음). 상대 이름은 남김 (상대는 HP 숫자가 없어 자리가 있고, 말 칸이 숨으면 이름이 여기뿐 — UX 리뷰어 2026-10-21) */
 @media (max-width: 320px) {
   .pg-hpblock-me .pg-hpname {
     display: none;
+  }
+  /* "Lv5 15/21" 이 HP 묶음 (약 40px) 보다 넓어 오른쪽으로 넘치면 상대 이름 "장크로다일" 에 붙어 "15/21장크로다일" 로 읽힘 → 넘침은 왼쪽 (주인공 머리 위는 비어 있음) */
+  .pg-hpblock-me > .pg-hprow {
+    align-self: flex-end;
+    width: max-content;
   }
 }
 /* 메뉴 줄: 처음 메뉴를 깔고 지금 줄을 같은 칸에 얹음 — 필살기 게이지 · 💥 자리가 그대로 */
@@ -4263,11 +4280,15 @@ body.vscode-high-contrast-light .pg-title-body {
   border: 1px solid var(--pg-sos-line-soft);
   text-align: left;
 }
-/* 옆 메뉴 판 자리 (넓은 패널 · 트레이너전 끝 단계) — 이름 탭 아래 판 자리에 두 줄까지 */
+/* 말이 떠 있는 동안 아래 꺼진 메뉴는 숨김 (자리는 그대로라 튀지 않음) — 말 오른쪽으로 "이템 ┆5 교체┆ Z" 가 비치고 주황 Z 가 누르라는 것처럼 보이던 것 */
+.pg-bmenu-wrap.pg-bmenu-wrap-say > .pg-bmenu {
+  visibility: hidden;
+}
+/* 옆 메뉴 판 자리 (넓은 패널 · 트레이너전 끝 · 다음 포켓몬) — 이름 탭 아래 판 자리에 두 줄까지 (고르기는 그 판에 목록이 떠서 안 띄움) */
 .pg-vmenu-wrap > .pg-stage-say.pg-side-say {
   top: 13px;
   bottom: auto;
-  max-height: 32px;
+  max-height: 34px;
   overflow: hidden;
   white-space: normal;
   word-break: keep-all;

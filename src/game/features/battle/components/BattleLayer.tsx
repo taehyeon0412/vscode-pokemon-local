@@ -17,7 +17,7 @@ import { moveOf, speciesOf } from '../../../data';
 import { Button } from '../../../ui/Button';
 import { Icon } from '../../../ui/Icon';
 import { Sprite } from '../../../ui/Sprite';
-import { catchFoeClass, catchTone, catchView, duelKind, endSay, fitsPx, msgFits, ringHint, ringKeyFits, hpColor, introView, moveColor, moveFx, profileOpenable, SEND_FLY_MS, sentenceText, splitPopups, STATUS_LABEL, type BattleGeometry, type CatchTone } from '../model';
+import { catchFoeClass, catchTone, catchView, duelKind, endSay, fitsPx, msgFits, sayPhase, ringHint, ringKeyFits, hpColor, introView, moveColor, moveFx, profileOpenable, SEND_FLY_MS, sentenceText, splitPopups, STATUS_LABEL, type BattleGeometry, type CatchTone } from '../model';
 import { battleAnimKey, holdWindow } from '../fx/hold';
 import { impactOf, ultSkippable } from '../fx/parry';
 import { BattleMenu } from './BattleMenu';
@@ -76,12 +76,12 @@ export function AutoButton({ save, onInput, short }: { save: Save; onInput(i: Ga
   );
 }
 
-function HpBlock({ f, side, x, bottom, wide, prefix, noName, dex }: { f: Fighter; side: Side; x: number; bottom: number; wide: number; prefix: string; noName?: boolean; /** 마지막 기회 — 잡은 적 있음 (볼 그림) · 처음 (NEW) */ dex?: 'caught' | 'new' }) {
+function HpBlock({ f, side, x, bottom, wide, prefix, noName, dex, panelPx }: { f: Fighter; side: Side; x: number; bottom: number; wide: number; prefix: string; noName?: boolean; /** 마지막 기회 — 잡은 적 있음 (볼 그림) · 처음 (NEW) */ dex?: 'caught' | 'new'; /** 패널 폭 — 상대 이름 줄이 오른쪽으로 넘칠 수 있는 끝 (패널 끝 4px 안) */ panelPx?: number }) {
   const status = f.status ? STATUS_LABEL[f.status.kind] : null;
   const title = `${side === 'foe' ? prefix : ''}${nameOf(f)} Lv${f.level} · HP ${f.hp}/${f.maxHp}${status ? ` · ${status}` : ''}`;
   // 가운데 x 에 정수 px 로 (translateX(-50%) 는 홀수 폭이면 반 픽셀로 흐려짐 — 아트 디렉터)
   return (
-    <div class={`pg-hpblock pg-hpblock-${side}`} style={{ left: `${x - Math.floor(wide / 2)}px`, bottom: `${bottom}px`, width: `${wide}px` }} title={title}>
+    <div class={`pg-hpblock pg-hpblock-${side}`} style={{ left: `${x - Math.floor(wide / 2)}px`, bottom: `${bottom}px`, width: `${wide}px`, ...(panelPx ? { '--pg-hp-room': `${panelPx - (x - Math.floor(wide / 2)) - 4}px` } : {}) }} title={title}>
       {side === 'foe' && <Bar value={f.ult} cls={f.ult >= 1 ? 'pg-bar-ult pg-full' : 'pg-bar-ult'} />}
       {/* 이름 · Lv 줄 (내 것은 오른쪽에 HP 숫자) → 얇은 HP 바 → 행동 게이지 (Sea of Stars, 포켓몬 머리 위). 옆 메뉴가 있으면 내 이름은 이름표가 맡음 */}
       <span class="pg-hprow">
@@ -664,7 +664,7 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
   const lastSentence = showMsg ? undefined : headSay[headSay.length - 1];
   // 말 칸이 숨을 때 끝 · 다음 포켓몬 · 고르기 말 자리 — 무대 위쪽 메뉴 줄 (한 줄) · 옆 메뉴 판 (두 줄), 자리가 되면 전부 · 아니면 첫 문장
   const stageSay = !geo.menuSide && !geo.menuInBar ? barSay(b, geo.msgHidden, geo.widthPx - geo.menuLeft - 20, 1) : null;
-  const sideSay = geo.menuSide ? barSay(b, geo.msgHidden, geo.menuSide.maxWidth - 14, 2) : null;
+  const sideSay = geo.menuSide ? barSay(b, geo.msgHidden, geo.menuSide.maxWidth - 14, 2, 'side') : null;
   // 나갈 포켓몬이 없는 채로 시작한 전투 (이상한 세이브) — 내 자리는 비움
   const hasMe = b.me.uid !== 'none';
   // 전투 시작 연출 — 트레이너전 = 볼 던지기 (손 = 사람 키의 55%), 야생 = 화면 닦기
@@ -685,7 +685,7 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
       <ParryRing b={b} geo={geo} y={midMe} auto={save.settings.autoBattle} />
       <RiposteRing b={b} geo={geo} y={midFoe} auto={save.settings.autoBattle} />
       {hasMe && <HpBlock f={b.me} side="me" x={geo.meHpX} bottom={geo.meHpBottom} wide={geo.meHpWide} prefix="" noName={geo.menuSide !== null || geo.tiny} />}
-      {b.phase !== 'send' && <HpBlock f={b.foe} side="foe" x={geo.foeHpX} bottom={geo.foeHpBottom} wide={geo.foeHpWide} prefix={foePrefix(b)} dex={b.phase === 'last' ? (save.dex.caught.includes(b.foe.species) ? 'caught' : 'new') : undefined} />}
+      {b.phase !== 'send' && <HpBlock f={b.foe} side="foe" x={geo.foeHpX} bottom={geo.foeHpBottom} wide={geo.foeHpWide} prefix={foePrefix(b)} dex={b.phase === 'last' ? (save.dex.caught.includes(b.foe.species) ? 'caught' : 'new') : undefined} panelPx={geo.widthPx} />}
       {b.phase === 'clash' ? <Clash b={b} geo={geo} y={Math.round((midMe + midFoe) / 2)} native={native} /> : <Effects b={b} geo={geo} ground={ground} midMe={midMe} midFoe={midFoe} native={native} />}
       <Catch b={b} geo={geo} ground={ground} mid={midFoe} handY={handY} />
       {throwMe !== null && <SendBall key={`sm${b.me.uid}`} from={[geo.trainerX, handY]} to={[geo.meX, midMe]} at={throwMe} />}
@@ -738,7 +738,7 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
         </div>
       ) : (
         !geo.menuInBar && (
-          <div class={catchWin ? 'pg-bmenu-wrap pg-bmenu-away' : 'pg-bmenu-wrap'} style={{ left: `${geo.menuLeft}px`, bottom: `${geo.menuBottom}px`, maxWidth: `calc(100% - ${geo.menuLeft + 6}px)` }}>
+          <div class={['pg-bmenu-wrap', catchWin ? 'pg-bmenu-away' : '', stageSay ? 'pg-bmenu-wrap-say' : ''].filter(Boolean).join(' ')} style={{ left: `${geo.menuLeft}px`, bottom: `${geo.menuBottom}px`, maxWidth: `calc(100% - ${geo.menuLeft + 6}px)` }}>
             {/* 높이 160 ~ 180 처럼 메뉴 줄이 무대 위쪽에 있고 말 칸이 숨을 때 — 끝 · 다음 포켓몬 · 고르기 말을 그 줄 위에 겹쳐 (말이 0ms 이던 것 · 메뉴를 밀면 내 차례에 버튼이 튀던 것, UX 리뷰어 2026-10-21) */}
             {stageSay && <span class="pg-bar-say pg-stage-say" style={{ maxWidth: `${geo.widthPx - geo.menuLeft - 6}px` }}>{stageSay}</span>}
             <BattleMenu battle={b} save={save} onInput={onInput} lead={geo.autoInMenu ? <AutoButton save={save} onInput={onInput} short={geo.compact} /> : null} compact={geo.tiny ? 'tiny' : geo.compact} hint={ringHint(b, geo, save.settings.autoBattle)} />
@@ -755,8 +755,8 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
 /** 말 칸이 숨는 좁고 낮은 패널에서 위 메뉴 줄에 띄울 말 — 전투 끝 · 다음 포켓몬 · 쓰러진 뒤 고르기 (그때 메뉴 줄은 비어 있음, 2026-10-21 UX 리뷰어).
  *  고르기는 칸이 무대 위 세로 목록으로 빠져 (2초 뒤) 위 줄 자리가 비어서 "이상해씨가 쓰러졌다!" 를 다시 띄움.
  *  첫 문장만 ("야생 파이리가 쓰러졌다!") — 뒷말 ("다음 포켓몬을 골라요") 은 고르기 목록 제목이 말함. 마지막 기회는 같은 줄에 "마지막 기회! 6초" · 볼 칸이 있어 자리가 없고, 쓰러진 모습 (회색) 과 그 칸이 뜻을 전함 */
-export const barSay = (b: BattleState, msgHidden: boolean, widthPx: number, lines: number): string | null =>
-  msgHidden && (b.phase === 'over' || b.phase === 'send' || b.phase === 'pick') && b.msg ? endSay(b.msg, b.phase === 'over' && b.result === 'lose', (s) => fitsPx(s, widthPx, lines), b.foeName) : null;
+export const barSay = (b: BattleState, msgHidden: boolean, widthPx: number, lines: number, spot: 'bar' | 'side' = 'bar'): string | null =>
+  msgHidden && sayPhase(b.phase, spot) && b.msg ? endSay(b.msg, b.phase === 'over' && b.result === 'lose', (s) => fitsPx(s, widthPx, lines), b.foeName) : null;
 
 export function BattleMenuBar({ battle, save, onInput, withAuto, compact, say, hint }: { battle: BattleState; save: Save; onInput(i: GameInput): void; withAuto: boolean; compact: boolean | 'tiny'; say?: string | null; hint?: '막기' | '반격' | null }) {
   return (
