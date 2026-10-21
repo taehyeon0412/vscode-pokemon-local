@@ -401,9 +401,10 @@ function Catch({ b, geo, ground, mid, handY }: { b: BattleState; geo: BattleGeom
 /** 위 가운데 · (옆 메뉴) 오른쪽 위 · (낮은 패널) 상대 오른쪽 — 위 끝은 지도 줄 · 정보줄 아래 띄움 (geo.msgTop) */
 function msgStyle(geo: BattleGeometry) {
   const top = `${geo.msgTop}px`;
-  if (geo.msgSide) return { top, left: `${geo.msgSide.left}px`, right: 'auto', margin: 0, maxWidth: `${geo.msgSide.maxWidth}px`, transform: 'none' };
-  if (geo.msgRight) return { top, left: 'auto', right: `${geo.msgRight.right}px`, margin: 0, maxWidth: `${geo.msgRight.maxWidth}px`, transform: 'none' };
-  return { top };
+  const lines = { '--pg-msg-lines': String(geo.msgLines) };
+  if (geo.msgSide) return { top, left: `${geo.msgSide.left}px`, right: 'auto', margin: 0, maxWidth: `${geo.msgSide.maxWidth}px`, transform: 'none', ...lines };
+  if (geo.msgRight) return { top, left: 'auto', right: `${geo.msgRight.right}px`, margin: 0, maxWidth: `${geo.msgRight.maxWidth}px`, transform: 'none', ...lines };
+  return { top, ...lines };
 }
 
 /** 지금 한 줄에서 포켓몬 이름만 빨갛게 (Sea of Stars — 중요한 낱말만 색) */
@@ -701,8 +702,9 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
         </span>
       )}
       {showMsg && (
-        <div key={b.msg} class={['pg-bmsg', b.phase === 'over' ? 'pg-bmsg-over' : '', geo.msgLines === 2 ? 'pg-bmsg-2' : ''].filter(Boolean).join(' ')} style={msgStyle(geo)} title={msgText}>
-          {emphasize(msgText, [nameOf(b.me), nameOf(b.foe)])}
+        <div key={b.msg} class={['pg-bmsg', b.phase === 'over' ? 'pg-bmsg-over' : '', geo.msgLines >= 2 ? 'pg-bmsg-2' : ''].filter(Boolean).join(' ')} style={msgStyle(geo)} title={msgText}>
+          {/* 여러 줄은 안쪽 글 칸에서 자름 — 바깥 칸에서 자르면 다음 줄 윗부분이 아래 여백 3px 에 비침 (480 × 150, U4) */}
+          <span class="pg-bmsg-text">{emphasize(msgText, [nameOf(b.me), nameOf(b.foe)])}</span>
         </div>
       )}
       {!geo.autoInMenu && (

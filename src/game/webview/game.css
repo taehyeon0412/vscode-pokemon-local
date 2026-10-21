@@ -4232,12 +4232,16 @@ body.vscode-high-contrast-light .pg-title-body {
 
 /* 긴 한 줄 말은 두 줄까지 (아래 두 줄 자리가 비었을 때 — battle/model msgLines, 2026-10-19 태현 님 "길면 생략되어 버리네") — 낱말 단위로 줄바꿈 · 셋째 줄부터 … */
 .pg-bmsg.pg-bmsg-2 {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
   white-space: normal;
   word-break: keep-all;
   overflow-wrap: anywhere;
+}
+/* 줄 수 = battle/model msgLines (상대 오른쪽 좁은 칸은 넷째 줄까지) — 자르는 건 안쪽 글 칸 (바깥 칸 여백에 다음 줄이 비치던 것, 480 × 150 U4 2026-10-21) */
+.pg-bmsg.pg-bmsg-2 > .pg-bmsg-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--pg-msg-lines, 2);
+  overflow: hidden;
 }
 
 /* ---- 전체 점검 (2026-10-19 태현 님 "유저 편의성 다시 한번 생각하면서 점검") ---- */

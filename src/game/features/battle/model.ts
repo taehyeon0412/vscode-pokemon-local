@@ -245,6 +245,8 @@ const AUTO_EST_PX = 78;
 const MSG_PX = 18;
 /** 한 줄 말 둘째 줄 (game.css .pg-bmsg line-height) — 긴 말은 자리가 있으면 두 줄 */
 const MSG_LINE_PX = 15;
+/** 상대 오른쪽 좁은 말 칸의 최대 줄 수 */
+const MSG_MAX_LINES = 4;
 /** 옆 메뉴일 때 한 줄 말 = 옆 메뉴 탭 · 상대 HP 묶음 위 끝에서 이만큼 위 (싸우는 곳 가까이 — 아트 디렉터 3차) */
 const MSG_NEAR_GAP_PX = 8;
 /** 한 줄 말 위 띄움 최소 (예전 값) — 자리가 모자라면 정보줄 띄움 (4 ~ 8) 을 여기까지 줄임 */
@@ -314,8 +316,8 @@ export interface BattleGeometry {
   menuSide: { left: number; top: number; maxWidth: number; maxHeight: number } | null;
   /** 옆 메뉴일 때 지금 한 줄은 오른쪽 위 (Sea of Stars) — 오른쪽 끝에서 right px */
   msgRight: { right: number; maxWidth: number } | null;
-  /** 지금 한 줄이 넘치면 두 줄까지 (아래 두 줄 자리가 비었을 때 — 2026-10-19 태현 님 "길면 생략되어 버리네") */
-  msgLines: 1 | 2;
+  /** 지금 한 줄이 넘치면 두 줄까지 (아래 두 줄 자리가 비었을 때 — 2026-10-19 태현 님 "길면 생략되어 버리네") · 상대 오른쪽 좁은 칸 (msgSide) 은 넷째 줄까지 */
+  msgLines: number;
   /** 위 한 줄 자리가 HP 묶음 · 메뉴로 붐빔 — 한 줄 말은 상대 오른쪽으로 (StageScreen 은 전투 동안 지도 줄을 정보줄 안으로) */
   topBusy: boolean;
   /** 길 칸 높이 (정보줄 뺀) — 머리 위 숫자가 위 말 칸 위로 올라가지 않게 */
@@ -421,7 +423,10 @@ export function battleGeometry(g: GeometryInput): BattleGeometry {
   //   위가 비었으면 HP 묶음 · 메뉴 줄 · 옆 메뉴도 두 줄 자리 아래일 때 / 위가 붐벼 상대 오른쪽에 둘 때는 그 아래가 비어 있음
   const floorPx = g.foeTrainer ? g.ground + g.heroPx + NAMETAG_PX : g.ground;
   const twoFits = g.bodyPx - (top + msgRoom + MSG_LINE_PX) >= floorPx;
-  const msgLines: 1 | 2 = twoFits && (topBusy || (room - highest >= msgRoom + MSG_LINE_PX && menuBelow(2))) ? 2 : 1;
+  const msgSide = !menuSide && topBusy && sideRoom >= MSG_SIDE_MIN_PX ? { left: sideLeft, maxWidth: sideRoom } : null;
+  // 상대 오른쪽 (msgSide) 은 폭이 좁아 (480 × 150 약 110px) 두 줄로는 "야생 파이리가 쓰러졌다! (볼…" 로 잘림 — 그 아래 땅 (트레이너전은 이름표) 위까지 넷째 줄까지 (U4, 2026-10-21)
+  const sideLines = Math.max(1, Math.min(MSG_MAX_LINES, 1 + Math.floor((g.bodyPx - floorPx - (top + msgRoom)) / MSG_LINE_PX)));
+  const msgLines = msgSide ? sideLines : twoFits && (topBusy || (room - highest >= msgRoom + MSG_LINE_PX && menuBelow(2))) ? 2 : 1;
   // 옆 메뉴일 때 한 줄은 늘 오른쪽 위 (Sea of Stars, 아트 디렉터) — 넓은 패널에서는 상대 오른쪽 가까이까지만 (싸우는 곳에서 멀어지지 않게).
   // 위가 붐비면 (상대 HP 묶음이 위 끝까지) 상대 HP 묶음 오른쪽 끝에서 16px 띄워 "파이리 Lv5 이상해씨는…" 처럼 이어 읽히지 않게
   const foeRight = g.foeX + Math.max(g.foeSpritePx, foeHpWide) / 2;
@@ -429,7 +434,6 @@ export function battleGeometry(g: GeometryInput): BattleGeometry {
   const msgLeftLimit = topBusy ? foeRight + 16 : menuBelow(msgLines) ? 8 : menuRight + 8;
   const msgRightRoom = Math.round(g.widthPx - msgRightPx - msgLeftLimit);
   const msgRight = menuSide && msgRightRoom >= MSG_SIDE_MIN_PX ? { right: msgRightPx, maxWidth: msgRightRoom } : null;
-  const msgSide = !menuSide && topBusy && sideRoom >= MSG_SIDE_MIN_PX ? { left: sideLeft, maxWidth: sideRoom } : null;
   // 둘 곳이 없으면 (좁고 낮은 패널) 한 줄은 숨김 — HP 바가 더 중요, 내 차례는 메뉴 테두리로 보임
   const msgHidden = menuSide ? !msgRight : topBusy && !msgSide;
   return { trainerX, meX, foeX: Math.round(g.foeX), meSpritePx: g.meSpritePx, foeSpritePx: g.foeSpritePx, meHpWide, foeHpWide, meHpX, foeHpX, msgHidden, meHpBottom, foeHpBottom, hpBlockPx, menuInBar, menuBottom, menuLeft, autoInMenu, autoBottom, autoLeft: AUTO_LEFT_PX, compact, tiny, msgSide, menuSide, msgRight, msgLines, topBusy, msgTop: Math.max(top + msgGap, menuSide && !topBusy ? Math.min(menuSide.top, g.bodyPx - (foeHpBottom + hpBlockPx + foeExtra)) - MSG_NEAR_GAP_PX - msgH - (msgLines - 1) * MSG_LINE_PX : 0), bodyPx: g.bodyPx, scale: g.scale, widthPx: g.widthPx, stageLeft: 0 };

@@ -305,6 +305,25 @@ describe('지도 줄 아래 · 긴 한 줄 말 (2026-10-19 태현 님)', () => {
     expect(g.msgLines).toBe(2);
   });
 
+  it('좁은 패널 (480 × 150) 상대 오른쪽 칸은 넷째 줄까지 — "야생 파이리가 쓰러졌다! (볼…" 로 잘리던 것 (U4) · 마지막 줄도 땅 · 이름표 위', () => {
+    const narrow = (h: number, foeX: number, foeTrainer = false, heroPx = 32) =>
+      battleGeometry({ widthPx: 480, bodyPx: h - 26, scale: 1, uiScale: 1.3, ground: 33, foeX, meSpritePx: 48, foeSpritePx: 48, heroPx, heroWidthPx: 20, topPx: 0, gapPx: topGapPx(h), foeTrainer });
+    const g = narrow(150, 300);
+    expect(g.menuSide).toBeNull();
+    expect(g.msgSide).not.toBeNull();
+    expect(g.msgLines).toBeGreaterThanOrEqual(3);
+    expect(g.msgLines).toBeLessThanOrEqual(4);
+    for (const [foeX, trainer, hero] of [[300, false, 32], [280, true, 64], [330, false, 32]] as const) {
+      for (const h of [150, 160, 170]) {
+        const n = narrow(h, foeX, trainer, hero);
+        // 한 줄은 예전 그대로 (자리가 없어도 한 줄) — 늘어난 줄만 땅 · 이름표 위인지 봄
+        if (!n.msgSide || n.msgLines < 2) continue;
+        const floor = trainer ? 33 + hero + 16 : 33;
+        expect(n.msgTop + 23 + (n.msgLines - 1) * 15).toBeLessThanOrEqual(h - 26 - floor);
+      }
+    }
+  });
+
   it('두 줄은 둘째 줄 아래가 빌 때만 — 위가 붐벼 상대 오른쪽에 둘 때도 · 트레이너전은 오른쪽 끝 이름표 (땅 + 키 + 16) 위까지', () => {
     // 150px 야생: 위가 붐벼 상대 오른쪽 — 그 아래가 비어 두 줄
     expect(real(150, 412).topBusy).toBe(true);
