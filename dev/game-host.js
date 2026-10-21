@@ -131,6 +131,8 @@
             Object.assign(b, { phase: 'anim', [side]: { ...(side === 'me' ? me : foe), ult: 0 }, anim: { side, action: { kind: 'ult' }, ms: 0, dur, counter: false }, msg: side === 'me' ? '이상해씨의 필살기!' : '야생 파이리의 필살기!', ultAt: { me: side === 'me' ? 5000 : null, foe: side === 'foe' ? 5000 : null } });
         }
         // battle=move&side=me|foe&mv=<기술 id> — 그 기술을 쓰는 중 (연출 시험, fx=1 과 같이) · miss=1 이면 빗나가는 기술 (피함 연출) · parry=good|perfect 면 막은 기술 (되튀기)
+        // perfects=1 — 이번 완벽 패링이 이 전투 두 번째 (짧은 쳐올리기 · 글씨 — ideas #127 · UX U1 시험)
+        if (q.get('perfects')) b.perfects = Number(q.get('perfects'));
         if (battleKind === 'move') { const side = q.get('side') || 'me'; Object.assign(b, { phase: 'anim', anim: { side, action: { kind: 'move', moveId: Number(q.get('mv') || 75) }, ms: 0, dur, counter: false, miss: q.get('miss') === '1', ...(q.get('parry') ? { parry: q.get('parry') } : {}) }, msg: side === 'me' ? '이상해씨의 기술!' : '야생 파이리의 기술!' }); }
         if (battleKind === 'attack') Object.assign(b, { phase: 'anim', anim: { side: 'me', action: { kind: 'attack' }, ms: 0, dur, counter: false }, msg: '이상해씨의 공격!' });
         // battle=riposte — 반격기 (완벽 패링 두 번 뒤, 필살기 짧게) · battle=riposte-chance — 반격 기회 (상대 둘레 두 번째 원, 2026-10-20)

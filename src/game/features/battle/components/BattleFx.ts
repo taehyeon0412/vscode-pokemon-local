@@ -420,7 +420,7 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
     // 패링 글 — 완벽 = 금색 "완벽 패링!" · 보통 = 은색 "패링!" (내 포켓몬 머리 위)
     const parryPop = fresh.find((p) => p.kind === 'parry');
     const me = parryPop ? actor(b, 'me') : null;
-    // 두 번째 완벽 패링부터는 글씨도 짧게 (1.0초 — 엔진 parryShowRepeatMs 와 같게, ideas #127)
+    // 두 번째 완벽 패링부터는 글씨도 짧게 (1.3초 — 엔진 parryShowRepeatMs 와 같게, ideas #127 · 흐려지기 전 또렷한 때 1초 넘게 — U1)
     const repeatPerfect = parryPop?.text === '완벽 패링!' && (b.perfects ?? 0) >= 2;
     if (parryPop && me) fx.word?.(me, parryPop.text, parryPop.text === '완벽 패링!' ? 'gold' : 'silver', { other: actor(b, 'foe'), ...(repeatPerfect ? { sec: TIMING.parryShowRepeatMs / 1000 } : {}) });
     // 상태 이상이 걸림 = status 글 + 지금 그 상태 (나음은 아이템 반짝이가 이미 있어서 따로 안 그림)
