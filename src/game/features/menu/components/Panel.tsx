@@ -23,12 +23,17 @@ export interface PanelProps {
 }
 
 export function Panel({ icon, title, extra, onClose, closeLabel = '닫기', sub, foot, children }: PanelProps) {
-  // 몸통이 아래로 더 있으면 왼쪽 아래 "▼ 아래에 더" (개발 메뉴와 같은 말 — 150 ~ 187 에서 지도 목표 · 설정 아래 줄이 스크롤 아래에 있는지 몰랐던 것, UX 밤 점검) · 끝까지 내리면 사라짐 · 맨 아래 고정 줄 (foot) 이 있는 판은 그 줄이 맡음
+  // 몸통 아래로 한 줄 (12px) 넘게 더 있으면 몸통 밑 따로 한 줄 "▼ 아래에 더" — 누르면 한 화면 내려감 (개발 메뉴와 같은 말 — 150 ~ 187 에서 지도 목표 · 설정 아래 줄이 스크롤 아래에 있는지 몰랐던 것, UX 밤 점검) ·
+  //   몸통 위에 얹으면 마지막 줄 이름을 가리고 · 누르면 밑 버튼이 눌리던 것 (UX 리뷰어 — 상점에서 물건이 사짐) · 끝까지 내리면 사라짐 · 맨 아래 고정 줄 (foot) 이 있는 판은 그 줄이 맡음
   const body = useRef<HTMLDivElement>(null);
   const [more, setMore] = useState(false);
   const check = () => {
     const el = body.current;
-    if (el) setMore(el.scrollTop + el.clientHeight < el.scrollHeight - 2);
+    if (el) setMore(el.scrollHeight - (el.scrollTop + el.clientHeight) > 12);
+  };
+  const down = () => {
+    const el = body.current;
+    if (el) el.scrollBy({ top: Math.max(16, el.clientHeight - 16) });
   };
   useLayoutEffect(check);
   useEffect(() => {
@@ -70,9 +75,9 @@ export function Panel({ icon, title, extra, onClose, closeLabel = '닫기', sub,
       </div>
       {foot && <div class="pg-panel-foot">{foot}</div>}
       {!foot && more && (
-        <span class="pg-panel-more" aria-hidden="true">
+        <button type="button" class="pg-panel-more" onClick={down} title="아래로 (휠 · 끌기로도)">
           ▼ 아래에 더
-        </span>
+        </button>
       )}
     </div>
   );

@@ -108,7 +108,8 @@ export function MenuButtons({
           {/* A = 자동 전투 켜고 끄기 (다음 버전 1단계 #116 — 판이 없을 때) */}
           {labels === 'full' && <span class="pg-menu-key">A</span>}
           {/* 좁으면 켜짐 = "✓ 자동" (설정 스위치와 같은 ✓ — 늘 "자동" 이라 꺼짐이 이름표처럼 읽히던 것, 아트 디렉터 밤 점검) */}
-          <span class="pg-menu-text">{labels === 'icon' ? (auto.on ? '✓ 자동' : '자동') : auto.on ? '자동 켜짐' : '자동 꺼짐'}</span>
+          {/* 꺼짐 = "□ 자동" (빈 상자 — 처음엔 꺼져 있어 이름표처럼만 읽히던 것, UX 리뷰어) */}
+          <span class="pg-menu-text">{labels === 'icon' ? (auto.on ? '✓ 자동' : '□ 자동') : auto.on ? '자동 켜짐' : '자동 꺼짐'}</span>
         </Button>
         </AutoWrap>
       )}

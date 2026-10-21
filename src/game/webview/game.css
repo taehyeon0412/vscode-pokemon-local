@@ -3226,18 +3226,23 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   background: var(--vscode-editor-background);
   border-top: 1px solid var(--vscode-editorWidget-border, #555);
 }
-/* 몸통이 아래로 더 있음 — 판 왼쪽 아래 작은 흐린 줄 (개발 메뉴 "▼ 아래에 더" 와 같은 말 · 판 바탕 칠로 마지막 줄 위에 얹힘, 누를 것 아님) */
+/* 몸통 아래로 한 줄 넘게 더 있음 — 몸통 밑 따로 13px 줄 (개발 메뉴 "▼ 아래에 더" 와 같은 말 · 누르면 한 화면 아래로 — 몸통 위에 얹으면 마지막 줄을 가리고 밑 버튼이 눌리던 것, UX 리뷰어) */
 .pg-panel-more {
-  position: absolute;
-  left: 8px;
-  bottom: 1px;
-  z-index: 1;
+  flex: none;
+  align-self: flex-start;
+  height: 13px;
+  margin: 0 0 1px 8px;
   padding: 0 4px;
+  border: 0;
+  font: inherit;
   font-size: 11px;
   line-height: 13px;
   color: var(--pg-sos-dim);
-  background: var(--pg-sos-bar);
-  pointer-events: none;
+  background: none;
+  cursor: pointer;
+}
+.pg-panel-more:hover {
+  color: var(--pg-sos-ink);
 }
 .pg-panel-head {
   flex: none;
