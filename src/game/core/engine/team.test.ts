@@ -7,8 +7,8 @@ import type { Monster, Save } from '../save';
 import { applyInput, step, teamLock, teamPickOf } from './play';
 import { Rng } from './rng';
 import { createGameState, readRuntime, type GameState } from './state';
-import { applyTeamResult, isSpread, pickTeam, readTeam, startTeamBattle, TEAM_BASIC, teamClashSure, teamDone, teamInput, teamPick, teamPossible, teamScale, teamStep, teamUltLevel, teamUltOpen, type TeamBattle } from './team';
-import { moveOf } from '../../data';
+import { shotTiming, applyTeamResult, isSpread, pickTeam, readTeam, startTeamBattle, TEAM_BASIC, teamClashSure, teamDone, teamInput, teamPick, teamPossible, teamScale, teamStep, teamUltLevel, teamUltOpen, type TeamBattle } from './team';
+import { moveFxOf, moveOf } from '../../data';
 import { trainerTeam } from '../rules/trainer';
 
 const STEP = TIMING.simStepMs;
@@ -107,7 +107,8 @@ describe('필살기 — 1 · 2 · 3 · Z · 나머지 멈춤 · 끼어들기 · 
     expect(b.clash!.me).toEqual([0, 2]);
     b = teamInput(b, { kind: 'space' }, new Rng(1));
     expect(b.clash!.taps).toBe(1);
-    const end = run(b, TIMING.team.ultClashMs + STEP, fixedRng(0.01));
+    // 둘이 이김 → 합동 마무리 (합쳐 터지는 순간에 피해) 까지
+    const end = run(b, TIMING.team.ultClashMs + TIMING.team.jointMs + STEP, fixedRng(0.01));
     expect(end.phase).toBe('run');
     // 진 쪽 참가자 (상대 0번) 가 피해
     expect(end.foe[0]!.hp).toBeLessThan(b.foe[0]!.hp);
@@ -313,8 +314,8 @@ describe('명세 검사관 · 코드 리뷰어 (2026-10-21)', () => {
     const base = startTeamBattle(team3(), foes(), 'trainer', '상대');
     const clash = (me: number[], foe: number[], taps: number): TeamBattle => ({ ...base, phase: 'clash', clash: { kind: 'ult', me, foe, shots: null, ms: 0, dur: TIMING.team.ultClashMs, taps, winner: null } });
     // 0.999 = 확률로는 거의 짐 · 0 = 거의 이김 — 3:1 이면 상관없이
-    expect(run(clash([0, 1, 2], [0], 0), TIMING.team.ultClashMs + STEP, fixedRng(0.999)).foe[0]!.hp).toBeLessThan(base.foe[0]!.hp);
-    const lost = run(clash([0], [0, 1, 2], 200), TIMING.team.ultClashMs + STEP, fixedRng(0));
+    expect(run(clash([0, 1, 2], [0], 0), TIMING.team.ultClashMs + TIMING.team.jointMs + STEP, fixedRng(0.999)).foe[0]!.hp).toBeLessThan(base.foe[0]!.hp);
+    const lost = run(clash([0], [0, 1, 2], 200), TIMING.team.ultClashMs + TIMING.team.jointMs + STEP, fixedRng(0));
     expect(lost.me[0]!.hp).toBeLessThan(base.me[0]!.hp);
     expect(lost.foe.every((f, i) => f.hp === base.foe[i]!.hp)).toBe(true);
   });
@@ -323,7 +324,7 @@ describe('명세 검사관 · 코드 리뷰어 (2026-10-21)', () => {
     const base = startTeamBattle(team3(), foes(), 'trainer', '상대');
     const clash = (me: number[]): TeamBattle => ({ ...base, phase: 'clash', clash: { kind: 'ult', me, foe: [0], shots: null, ms: 0, dur: TIMING.team.ultClashMs, taps: 0, winner: null } });
     const one = run(clash([0]), TIMING.team.ultClashMs + STEP, fixedRng(0.01));
-    const two = run(clash([0, 2]), TIMING.team.ultClashMs + STEP, fixedRng(0.01));
+    const two = run(clash([0, 2]), TIMING.team.ultClashMs + TIMING.team.jointMs + STEP, fixedRng(0.01));
     expect(base.foe[0]!.hp - two.foe[0]!.hp).toBeGreaterThan(base.foe[0]!.hp - one.foe[0]!.hp);
     // 상대 필살기에 내가 끼어듦 → 찬 상대 (2번) 의 합류를 그때 정함
     const ready = { ...base, foe: base.foe.map((f, i) => (i === 0 || i === 2 ? { ...f, ult: 1 } : f)), me: base.me.map((f, i) => (i === 0 ? { ...f, ult: 1 } : f)), foeUltWait: [1, 700, null] };
@@ -542,5 +543,43 @@ describe('#17 준비 — 배율 · 잠금 · 3마리 고르기 · 필살기 예�
     expect(teamUltLevel({ ...f, ult: BALANCE.team.ultWarnAt })).toBe('near');
     expect(teamUltLevel({ ...f, ult: 1 })).toBe('full');
     expect(teamUltLevel({ ...f, ult: 1, hp: 0 })).toBe('none');
+  });
+});
+
+describe('3:3 연출 방향 (2026-10-21 태현 님 — 일반 모드 기술 그대로 · 달려가 박치기 · 합동 필살기 합쳐 터짐)', () => {
+  it('기술 박자 = 일반 모드 연출 — 쏘는 기술은 연출 길이 · 틀마다 맞는 때, 닿는 기술 (1 공격 포함) 은 달려가기 + 박치기 + 제자리', () => {
+    const ember = shotTiming(52);
+    const fx = moveFxOf(52)!;
+    const ms = Math.min(TIMING.team.shotMaxMs, Math.max(TIMING.team.shotMinMs, fx.ms));
+    expect(ember).toEqual({ dur: ms + TIMING.team.shotTailMs, hitMs: Math.max(120, Math.round(ms * fx.hitAt)), contact: false });
+    const tackle = shotTiming(33);
+    expect(tackle).toMatchObject({ contact: true, hitMs: TIMING.team.dashMs + TIMING.team.strikeHitMs });
+    expect(tackle.dur).toBeGreaterThan(TIMING.team.dashMs + TIMING.team.backMs);
+    expect(shotTiming(TEAM_BASIC).contact).toBe(true);
+    // 솔라빔은 연출 끝에 맞음 · 광선 (덩굴채찍) 은 곧
+    expect(shotTiming(76).hitMs).toBeGreaterThan(shotTiming(22).hitMs);
+    // 쏜 기술에 박자가 그대로
+    let b = startTeamBattle(team3(), foes(), 'trainer', '상대');
+    b = { ...b, me: b.me.map((f) => ({ ...f, gauge: 0.999 })), foe: b.foe.map((f) => ({ ...f, gauge: 0 })) };
+    const fire = run(b, STEP).shots.find((s) => s.moveId === 52)!;
+    expect([fire.dur, fire.hitMs, fire.contact ?? false]).toEqual([ember.dur, ember.hitMs, false]);
+  });
+
+  it('합동 마무리 — 여럿이 이기면 필살기 단계 (나머지 멈춤) · 합쳐 터지는 순간에 피해 (그 전엔 그대로) · 혼자 이기면 바로', () => {
+    const base = startTeamBattle(team3(), foes(), 'trainer', '상대');
+    const clash: TeamBattle = { ...base, phase: 'clash', clash: { kind: 'ult', me: [0, 2], foe: [0], shots: null, ms: 0, dur: TIMING.team.ultClashMs, taps: 0, winner: null } };
+    const won = run(clash, TIMING.team.ultClashMs + STEP, fixedRng(0.01));
+    expect(won.phase).toBe('ult');
+    expect(won.ult).toMatchObject({ side: 'me', from: 0, window: 0, joint: { winners: [0, 2], losers: [0], sure: false } });
+    expect(won.foe[0]!.hp).toBe(base.foe[0]!.hp);
+    expect(won.log.some((e) => e.t === 'ult' && e.joint !== undefined)).toBe(true);
+    const before = run(won, TIMING.team.jointHitMs - STEP * 3, fixedRng(0.01));
+    expect(before.foe[0]!.hp).toBe(base.foe[0]!.hp);
+    const after = run(won, TIMING.team.jointHitMs + STEP, fixedRng(0.01));
+    expect(after.foe[0]!.hp).toBeLessThan(base.foe[0]!.hp);
+    expect(readTeam(viaJson(won))).toEqual(viaJson(won));
+    const solo = run({ ...clash, clash: { ...clash.clash!, me: [0] } }, TIMING.team.ultClashMs + STEP, fixedRng(0.01));
+    expect(solo.phase).toBe('run');
+    expect(solo.foe[0]!.hp).toBeLessThan(base.foe[0]!.hp);
   });
 });

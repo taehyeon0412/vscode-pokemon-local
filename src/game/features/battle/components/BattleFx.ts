@@ -25,7 +25,7 @@ const CONTACT_IMPACT_LAG_MS = 90;
  *  광선은 0.5초 먼저 · 솔라빔은 0.3초 늦게 닿았음). 원이 1배가 되는 때 · 쳐내기 · 맞는 연출 · 엔진 피해가 다 이 때 */
 const SHOT_HIT_AT: Record<string, number> = { beam: 0.25, spark: 0.6, rings: 0.7, water: 0.8, bubbles: 0.82, glow: 0.86, breath: 0.87, solarbeam: 1 };
 const SHOT_HIT_DEFAULT = 0.85;
-const shotHitAt = (fx: string) => SHOT_HIT_AT[fx] ?? SHOT_HIT_DEFAULT;
+export const shotHitAt = (fx: string) => SHOT_HIT_AT[fx] ?? SHOT_HIT_DEFAULT;
 /** 맞는 때 뒤 이만큼까지 엔진을 붙잡음 (피해 숫자가 맞는 때에 뜨게 — 남은 연출은 흘러감) */
 const SHOT_HOLD_AFTER_MS = 60;
 /** 필살기 시작을 이만큼 넘겨서 붙었으면 (접었다 펴기 등) 처음부터 못 보여 줘서 이모지로 — 나와라! 등장 (0.45초) 을 기다리는 것 포함 */

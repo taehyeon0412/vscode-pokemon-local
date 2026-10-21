@@ -49,6 +49,15 @@ export function releaseFx(): void {
 export function shouldHoldBattle(state: GameState, dtMs: number, now: number): boolean {
   if (now >= holdUntil) return false;
   const st = state.runtime.stage;
+  // 3:3 필살기 · 합동 마무리 — 맞는 순간 걸음을 연출이 맞힐 때까지 미룸 (그동안 나머지는 원래 멈춤 · 열쇠 = 시작 시각, fx/team teamUltKey)
+  if (st?.phase === 'team') {
+    const tb = st.team;
+    const u = tb.ult;
+    if (tb.phase !== 'ult' || !u || u.hit || `teamult${tb.t - u.ms}` !== holdKey) return false;
+    const speed = Math.min(MAX_SPEED, Math.max(1, state.runtime.speed || 1));
+    const { steps } = takeSteps(state.runtime.stepAccMs, dtMs * speed, TIMING.simStepMs);
+    return steps > 0 && u.ms + steps * TIMING.simStepMs >= u.hitMs;
+  }
   const b = st?.phase === 'battle' ? st.battle : null;
   if (!b || battleAnimKey(b) !== holdKey) return false;
   const speed = Math.min(MAX_SPEED, Math.max(1, state.runtime.speed || 1));

@@ -6,7 +6,7 @@ import { Rng, readTeam, TEAM_LOG_MAX, type TeamBattle, type TeamNote } from '../
 import { startTeamBattle, teamStep } from '../../../core/engine/team';
 import type { Monster, Save } from '../../../core/save';
 import type { FxActor, PokemonFx } from './bridge';
-import { planTeamFx, TEAM_FX_LATE_MS, TEAM_KNOCK, TeamFxRunner, type TeamFxCall } from './team';
+import { planTeamFx, TEAM_FX, TEAM_FX_LATE_MS, TEAM_KNOCK, TeamFxRunner, type TeamFxCall } from './team';
 
 const mon = (uid: string, o: Partial<Monster> = {}) => sampleMonster({ uid, level: 12, ...o });
 function team3(): Save {
@@ -45,15 +45,18 @@ describe('계획', () => {
   const plan = (notes: TeamNote[], after = 0, seen = new Set<string>()) => planTeamFx(withLog(notes), after, seen);
   const one = (calls: TeamFxCall[], kind: TeamFxCall['do']) => calls.filter((c) => c.do === kind);
 
-  it('쏨 = 그 기술 연출 (번호) · 1 공격은 쏘는 것 없음 · 본 번호 뒤만', () => {
+  it('쏨 = 그 기술 연출 (번호 · 엔진이 맞히는 때) · 닿는 기술 (1 공격 포함) 은 달려가기 · 본 번호 뒤만', () => {
     const calls = plan([
-      { t: 'shoot', shot: 4, side: 'me', from: 1, targets: [0], moveId: 52 },
-      { t: 'shoot', shot: 5, side: 'foe', from: 0, targets: [2], moveId: 0 },
+      { t: 'shoot', shot: 4, side: 'me', from: 1, targets: [0], moveId: 52, hitMs: 600, contact: false },
+      { t: 'shoot', shot: 5, side: 'foe', from: 0, targets: [2], moveId: 0, hitMs: 440, contact: true },
     ]);
-    expect(calls).toEqual([{ do: 'move', tag: 4, src: { side: 'me', slot: 1 }, dst: { side: 'foe', slot: 0 }, move: { name: '불꽃세례', type: 'fire' } }]);
-    expect(plan([{ t: 'shoot', shot: 4, side: 'me', from: 1, targets: [0], moveId: 52 }], 1)).toEqual([]);
+    expect(calls).toEqual([
+      { do: 'move', tag: 4, src: { side: 'me', slot: 1 }, dst: { side: 'foe', slot: 0 }, move: { name: '불꽃세례', type: 'fire' }, hitMs: 600 },
+      { do: 'dash', tag: 5, src: { side: 'foe', slot: 0 }, dst: { side: 'me', slot: 2 }, moveId: 0 },
+    ]);
+    expect(plan([{ t: 'shoot', shot: 4, side: 'me', from: 1, targets: [0], moveId: 52, hitMs: 600, contact: false }], 1)).toEqual([]);
     // 0.6초 넘게 지난 일 (패널을 접었다 폈을 때) 은 안 그림 — 필살기는 본 것으로 셈
-    const old = withLog([{ t: 'shoot', shot: 4, side: 'me', from: 1, targets: [0], moveId: 52 }, { t: 'ult', side: 'me', from: 0 }]);
+    const old = withLog([{ t: 'shoot', shot: 4, side: 'me', from: 1, targets: [0], moveId: 52, hitMs: 600, contact: false }, { t: 'ult', side: 'me', from: 0 }]);
     const seen = new Set<string>();
     expect(planTeamFx({ ...old, t: 5000 + TEAM_FX_LATE_MS + 1 }, 0, seen)).toEqual([]);
     expect(seen.has('me:0')).toBe(true);
@@ -67,9 +70,11 @@ describe('계획', () => {
     ]);
     expect(one(calls, 'impact')).toEqual([
       { do: 'impact', dst: { side: 'foe', slot: 0 }, type: 'fire', big: true, name: '불꽃세례', o: { scale: 1.25 } },
-      { do: 'impact', dst: { side: 'me', slot: 1 }, type: 'normal', big: false, name: '몸통박치기', o: { none: true } },
+      { do: 'impact', dst: { side: 'me', slot: 1 }, type: 'normal', big: false, name: '몸통박치기', o: { none: true }, delayMs: TEAM_FX.contactImpactLagMs },
       { do: 'impact', dst: { side: 'foe', slot: 1 }, type: 'water', big: false, name: '물대포', o: { scale: 1 } },
     ]);
+    // 닿는 기술 (몸통박치기) 은 맞는 쪽 몸에 자국 (1:1 과 같음) → 임팩트는 조금 늦게
+    expect(one(calls, 'strike')).toEqual([{ do: 'strike', dst: { side: 'me', slot: 1 }, src: { side: 'foe', slot: 0 }, move: { name: '몸통박치기', type: 'normal' } }]);
     expect(one(calls, 'knock')).toEqual([
       { do: 'knock', dst: { side: 'foe', slot: 0 }, cells: TEAM_KNOCK.cells, ms: TEAM_KNOCK.ms },
       { do: 'knock', dst: { side: 'foe', slot: 1 }, cells: TEAM_KNOCK.cells, ms: TEAM_KNOCK.ms },
@@ -100,8 +105,13 @@ describe('계획', () => {
     ]);
     const seen = new Set<string>();
     const ults = plan([{ t: 'ult', side: 'me', from: 0 }, { t: 'ult', side: 'me', from: 0 }, { t: 'ult', side: 'foe', from: 2 }], 0, seen);
-    expect(ults.map((c) => c.do === 'ult' && c.quick)).toEqual([false, true, false]);
-    expect(ults[0]).toMatchObject({ dst: { side: 'foe', slot: 1 } });
+    // 필살기는 매번 일반 모드 그대로 (태현 님 — 짧게는 TEAM_FX.quickRepeat, 기획 #88 대기) · 열쇠 = 시작 시각
+    expect(ults.map((c) => c.do === 'ult' && c.quick)).toEqual([false, false, false]);
+    expect(ults[0]).toMatchObject({ dst: { side: 'foe', slot: 1 }, key: 'teamult5000' });
+    // 합동 마무리 — 이긴 참가자 · 가운데 진 참가자 · 타입
+    expect(plan([{ t: 'ult', side: 'me', from: 0, joint: { winners: [0, 2], losers: [0, 1, 2], sure: false } }])).toEqual([
+      { do: 'joint', winners: [{ side: 'me', slot: 0 }, { side: 'me', slot: 2 }], dst: { side: 'foe', slot: 1 }, types: [withLog([]).me[0]!.types[0], withLog([]).me[2]!.types[0]], sure: false, key: 'teamult5000' },
+    ]);
     const end = plan([
       { t: 'ult-clash', me: [0], foe: [1] },
       { t: 'ult-join', side: 'me', slot: 2 },
@@ -132,10 +142,10 @@ describe('실행', () => {
 
   it('처음엔 지난 기록을 안 그림 (3:3 모드 켬) · 새 기록만 · 끝나면 지우고 끔', () => {
     const { calls, runner } = fake();
-    const b = withLog([{ t: 'shoot', shot: 1, side: 'me', from: 1, targets: [0], moveId: 52 }]);
+    const b = withLog([{ t: 'shoot', shot: 1, side: 'me', from: 1, targets: [0], moveId: 52, hitMs: 600, contact: false }]);
     runner.update(b);
     expect(calls).toEqual(['team:true', 'mount:']);
-    const more: TeamBattle = { ...b, t: 5050, log: [...b.log, { t: 'shoot', shot: 2, side: 'me', from: 1, targets: [0], moveId: 52, id: 2, at: 5050 }, { t: 'clash', shots: [2, 9], me: 1, foe: 0, id: 3, at: 5050 }], logSeq: 3 };
+    const more: TeamBattle = { ...b, t: 5050, log: [...b.log, { t: 'shoot', shot: 2, side: 'me', from: 1, targets: [0], moveId: 52, hitMs: 600, contact: false, id: 2, at: 5050 }, { t: 'clash', shots: [2, 9], me: 1, foe: 0, id: 3, at: 5050 }], logSeq: 3 };
     runner.update(more);
     expect(calls.filter((c) => c !== 'team:true').slice(1)).toEqual(['move:0,2', 'stopMove:2,true', 'stopMove:9,true']);
     calls.length = 0;
@@ -147,10 +157,10 @@ describe('실행', () => {
 
   it('새 판 (시각이 줄어듦 · 상대가 바뀜) · 기록이 빠짐 (32개 넘게) 이면 그리지 않고 지금부터', () => {
     const { calls, runner } = fake();
-    const b = withLog([{ t: 'shoot', shot: 1, side: 'me', from: 1, targets: [0], moveId: 52 }]);
+    const b = withLog([{ t: 'shoot', shot: 1, side: 'me', from: 1, targets: [0], moveId: 52, hitMs: 600, contact: false }]);
     runner.update(b);
     calls.length = 0;
-    const shoot = (id: number, t: number) => ({ t: 'shoot' as const, shot: id, side: 'me' as const, from: 1, targets: [0], moveId: 52, id, at: t });
+    const shoot = (id: number, t: number) => ({ t: 'shoot' as const, shot: id, side: 'me' as const, from: 1, targets: [0], moveId: 52, hitMs: 600, contact: false, id, at: t });
     // 새 판 — 시각이 앞보다 작음 (번호는 더 큼)
     runner.update({ ...b, t: 100, log: [shoot(1, 100), shoot(2, 100)], logSeq: 2 });
     expect(calls).toEqual(['team:true', 'mount:']);

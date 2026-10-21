@@ -9,6 +9,7 @@ import formsJson from './generated/forms.json';
 import learnsetsJson from './generated/learnsets.json';
 import metaJson from './generated/meta.json';
 import movesJson from './generated/moves.json';
+import moveFxJson from './generated/move-fx.json';
 import signatureJson from './generated/signature.json';
 import speciesJson from './generated/species.json';
 
@@ -140,6 +141,19 @@ export function speciesOf(dex: number): ReadonlySpecies | undefined {
 
 export function moveOf(id: number): ReadonlyMove | undefined {
   return hasOwn(moves, String(id)) ? moves[String(id)] : undefined;
+}
+
+/** 기술의 일반 모드 연출 — ms = 길이 (가운데 값) · hitAt = 맞는 때 (길이의 몇 %) · contact = 몸으로 닿는 틀 (달려가 박치기) · fx = 틀 이름 (dev/move-fx.py 가 만듦 — 3:3 박자) */
+export interface MoveFx {
+  ms: number;
+  hitAt: number;
+  contact: boolean;
+  fx: string;
+}
+const moveFx = moveFxJson as unknown as Readonly<Record<string, readonly [number, number, number, string]>>;
+export function moveFxOf(id: number): MoveFx | null {
+  const r = hasOwn(moveFx, String(id)) ? moveFx[String(id)] : undefined;
+  return r ? { ms: r[0], hitAt: r[1] / 1000, contact: r[2] === 1, fx: r[3] } : null;
 }
 
 /** 레벨업 기술표 (레벨 순서) — 쓸 수 있는 기술이 하나도 없는 종은 빈 목록 */
