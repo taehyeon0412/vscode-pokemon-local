@@ -1996,6 +1996,15 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
     visibility: hidden;
   }
 }
+/* 내 줄이 붐비면 (상태 · Lv100) 넘침은 늘 왼쪽 — 옆 메뉴가 있는 넓은 패널에서 "Lv100 화상 345/345" 의 끝 "5" 가 옆 메뉴 테두리 뒤로 들어가던 것 (UX 리뷰어 2026-10-21 · 주인공 머리 위는 비어 있음) */
+.pg-hpblock-me > .pg-hprow.pg-hprow-crowd {
+  align-self: flex-end;
+  width: max-content;
+}
+/* 다음 포켓몬 고르기 동안 내 HP 글 줄은 숨김 — 목록이 반만 덮어 "이ㅅ" · "이상해ㅆ" 조각이 남던 것 (480 ~ 530 · 누가 쓰러졌는지는 말에 있음) */
+.pg-stage:has(.pg-pick-list:not(.pg-pick-now)) .pg-hpblock-me > .pg-hprow {
+  visibility: hidden;
+}
 /* 480 아래에서 내 줄이 붐비면 (상태 · Lv100) 이름을 뺌 — "이… Lv5 독 15/21" 로 잘리던 것 (#440 · #450 과 같은 종류, 이름은 메뉴 말에 나옴) */
 @media (max-width: 480px) {
   .pg-hpblock-me .pg-hprow-crowd > .pg-hpname {

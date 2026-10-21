@@ -98,6 +98,8 @@
     if (battleKind) {
         const caterpie = { ...save.monsters.m1, uid: 'm2', species: 10, form: 'caterpie', level: 4, moves: [{ moveId: 33, pp: 35 }], hp: 16, caughtAt: 'forest-1' };
         save.monsters.m1 = { ...save.monsters.m1, moves: [{ moveId: 33, pp: 35 }, { moveId: 22, pp: 25 }, { moveId: 75, pp: 25 }] };
+        // me=<모습>:<도감 번호> — 내 포켓몬을 바꿈 (3:3 시안용 실제 필살기 찍기: me=venusaur:3&battle=ult&side=me, 2026-10-21 디자인팀)
+        if (q.get('me')) { const [meForm, meSp] = q.get('me').split(':'); save.monsters.m1 = { ...save.monsters.m1, form: meForm, species: Number(meSp) || 1, level: 36 }; }
         save.monsters.m2 = caterpie;
         save.party = ['m1', 'm2'];
         save.nextMonsterUid = 3;
