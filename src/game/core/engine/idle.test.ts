@@ -143,6 +143,16 @@ describe('#16 자리 비운 동안 요약', () => {
     // 그리지 않는 장면 (만남 · 전투) 에서는 알림 시간이 안 줄어듦 — 둘째 장이 만남에 묻혀 0ms 이던 것 (UX 리뷰어 R14)
     const met = step({ ...later, runtime: { ...later.runtime, stage: { phase: 'appear', ms: 0, isNew: false } } }, STEP).state;
     expect(met.runtime.toast?.ms).toBe(later.runtime.toast?.ms);
+    // 떠나기 전부터 떠 있던 알림 (클리어 보상 등 — 안 볼 때 시간이 멈춤) 은 남기고 요약은 그 뒤에 · 요약이 비면 그대로 (코드 리뷰어)
+    const leaving = step(at({}, { phase: 'walk' }, true), STEP).state;
+    const withToast = step({ ...at({}, { phase: 'walk' }, true), runtime: { ...at({}, { phase: 'walk' }, true).runtime, toast: { text: '1-1 클리어!', ms: 2000 } } }, STEP).state;
+    expect(withToast.runtime.awayLog?.toastAtLeave).toBe('1-1 클리어!');
+    const backWith = step({ save: { ...withToast.save, money: withToast.save.money + 60 }, runtime: { ...withToast.runtime, headless: false } }, STEP).state;
+    expect(backWith.runtime.toast?.text).toBe('1-1 클리어!');
+    expect(sp(String(backWith.runtime.toast?.then))).toContain('그동안');
+    const emptyBack = step({ ...withToast, runtime: { ...withToast.runtime, headless: false } }, STEP).state;
+    expect(emptyBack.runtime.toast?.text).toBe('1-1 클리어!');
+    expect(leaving.runtime.awayLog?.toastAtLeave).toBeUndefined();
     // 안 보는 동안 생긴 알림은 요약이 대신 (네 장 10초 — UX 리뷰어)
     const stale = step({ ...back, runtime: { ...back.runtime, toast: { text: '1-3 클리어!', ms: 2500, then: '이상해씨 Lv 6!' } } }, STEP).state;
     expect(sp(stale.runtime.toast?.text)).toContain('그동안');
@@ -258,7 +268,13 @@ describe('세이브 새 칸 — 설정 둘 · laterChoices · tips (디자인팀
     const raw = viaJson({ ...sampleSave(), laterChoices: [learn('m2', 10), learn('ghost', 10), { kind: 'evolve', uid: 'm2', to: 11, newMoves: [], level: 7, item: null }], tips: ['walk', 'walk', 'Bad!', 7] });
     const r = validateSave(raw);
     expect(r.ok && r.save.laterChoices).toEqual([learn('m2', 10)]);
-    expect(r.ok && r.save.tips).toEqual(['walk', NOTIFY_OFF_TIP]);
+    expect(r.ok && r.save.tips).toEqual([NOTIFY_OFF_TIP, 'walk']);
+    // 옛 auto-1 ~ 은 뺌 · 옮김 표시는 자르기 전 원본으로 (20개가 넘어 잘려도 알림이 다시 꺼지지 않게 — 코드 리뷰어)
+    const many = Array.from({ length: 22 }, (_, i) => `t-${i}`);
+    const kept = validateSave(viaJson({ ...sampleSave(), settings: { notifications: true, autoBattle: false }, tips: ['auto-1', 'auto-2', ...many, NOTIFY_OFF_TIP] }));
+    expect(kept.ok && kept.save.settings.notifications).toBe(true);
+    expect(kept.ok && kept.save.tips?.[0]).toBe(NOTIFY_OFF_TIP);
+    expect(kept.ok && kept.save.tips?.some((t) => t.startsWith('auto-'))).toBe(false);
   });
 
   it('입력 — 설정 켜고 끄기 · tip-seen 은 한 번만 (이상한 id 는 안 받음)', () => {

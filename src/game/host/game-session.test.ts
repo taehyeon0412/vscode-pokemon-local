@@ -957,6 +957,30 @@ describe('멈춤 · 알림 표 — 넘겨받을 때 · 탭 배지 · 접힌 줄 
     expect(view.badges.at(-1)).toBe(1);
   });
 
+  it('숨긴 채 잠깐 다른 앱에 갔다 와도 숨김 팝업은 10초에 뜸 · 10초 안에 다시 보면 안 뜨고, 다시 숨기면 그 기다림을 다시 알림 (코드 리뷰어)', async () => {
+    await enterAndStart(sampleSave({ settings: { notifications: true, autoBattle: false } }));
+    // 패널을 숨김 (아래 패널에서 다른 탭) — 확장이 넘겨받음
+    view.visible = false;
+    session.onVisibilityChanged(false);
+    session.onWindowFocusChanged(false);
+    runHost(3000);
+    session.onWindowFocusChanged(true);
+    runHost(TIMING.noticeAfterHiddenMs);
+    expect(notices.filter((n) => n.includes('멈춰 있어요'))).toHaveLength(1);
+    // 다른 기다림 (고르기) — 10초 안에 다시 보면 취소 · 그 기다림은 "알림" 으로 안 셈
+    const save = sampleSave({ settings: { notifications: true, autoBattle: true }, pendingChoices: [{ kind: 'learn', uid: 'm1', moveId: 22 }] });
+    const s2 = await enterAndStart(save);
+    const choosing = { ...s2.state, runtime: { ...s2.state.runtime, stage: { phase: 'choice' as const, ms: 0 }, stageId: 'forest-1' as const } };
+    session.handleMessage(msg({ type: 'hidden', epoch: s2.epoch, state: choosing }));
+    runHost(2000);
+    session.handleMessage(msg({ type: 'ready' }));
+    expect(snap().state?.runtime.noticed).toBeUndefined();
+    const again = view.last('start')!;
+    session.handleMessage(msg({ type: 'hidden', epoch: again.epoch, state: again.state }));
+    runHost(TIMING.noticeAfterHiddenMs);
+    expect(notices.filter((n) => n.includes('고를 차례'))).toHaveLength(1);
+  });
+
   it('"멈춰 있어요" 팝업은 처음 3번만 (세이브에 셈)', async () => {
     const start = await enterAndStart(sampleSave({ settings: { notifications: true, autoBattle: false } }));
     let epoch = start.epoch;

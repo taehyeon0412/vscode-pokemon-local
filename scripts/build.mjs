@@ -94,7 +94,7 @@ if (tests) {
 
 // 지난 빌드의 남은 파일 (예: 개발용 .map) 이 설치본에 섞이지 않게 비우고 시작
 // --host-only: 웹뷰 묶음은 지우지도 다시 묶지도 않음
-if (hostOnly) targets.splice(1, 2);
+if (hostOnly) targets.splice(0, targets.length, ...targets.filter((t) => !t.outfile.startsWith('extension/media/game/')));
 for (const dir of [...(hostOnly ? [] : ['extension/out/game', 'extension/media/game']), ...(tests ? ['.test-out'] : [])]) {
   rmSync(dir, { recursive: true, force: true });
 }

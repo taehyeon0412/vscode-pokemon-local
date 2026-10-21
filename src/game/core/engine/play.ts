@@ -885,7 +885,7 @@ export function step(state: GameState, stepMs: number): StepOut {
   let save: Save = { ...state.save, playTimeMs: state.save.playTimeMs + stepMs };
   let rt: RuntimeState = state.runtime;
   // 알림 시간은 보는 동안 · 그 알림을 그리는 장면에서만 셈 — 밖 · 숨김에서 흘러가 돌아오면 없던 것 (디자인팀 UX #27 큼 1) · 만남 · 전투 중에 흘러가 요약 둘째 장이 0ms 이던 것 (UX 리뷰어 R14)
-  if (rt.toast && toastShown(rt)) rt = { ...rt, toast: rt.toast.ms > stepMs ? { ...rt.toast, ms: rt.toast.ms - stepMs } : nextToast(rt.toast) };
+  if (rt.toast && toastShown(rt, save)) rt = { ...rt, toast: rt.toast.ms > stepMs ? { ...rt.toast, ms: rt.toast.ms - stepMs } : nextToast(rt.toast) };
   // "다시 켜서 전투를 처음부터!" — 보는 동안 전투 · 3:3 에서만 줄어듦 · 전투가 끝나면 지움
   if (rt.resumed !== undefined) {
     const p = rt.stage?.phase;
@@ -912,7 +912,8 @@ export function step(state: GameState, stepMs: number): StepOut {
   const myTurn = rt.stage?.phase === 'battle' && rt.stage.battle.phase === 'choose' && !save.settings.autoBattle;
   if (myTurn && watchingNow) {
     const ms = (rt.chooseMs ?? 0) + stepMs;
-    if ((rt.chooseMs ?? 0) < TIMING.autoTipWaitMs && ms >= TIMING.autoTipWaitMs && autoTipLeft(save)) rt = { ...rt, toast: { text: AUTO_TIP_TURN, ms: AUTO_TIP_TURN_MS, kind: 'auto-tip' } };
+    // 다른 알림이 떠 있으면 이번 차례는 건너뜀 (붙잡혀 있던 요약 · 주운 것을 덮어 지우던 것 — 코드 리뷰어)
+    if ((rt.chooseMs ?? 0) < TIMING.autoTipWaitMs && ms >= TIMING.autoTipWaitMs && autoTipLeft(save) && !rt.toast) rt = { ...rt, toast: { text: AUTO_TIP_TURN, ms: AUTO_TIP_TURN_MS, kind: 'auto-tip' } };
     rt = { ...rt, chooseMs: ms };
   } else {
     if (rt.chooseMs !== undefined) {
@@ -920,18 +921,18 @@ export function step(state: GameState, stepMs: number): StepOut {
       rt = rest;
     }
     // ① 은 내 차례가 끝나면 (골랐거나 · 자동을 켬 · 떠남) 지움 (5초 만에 사라져 코드를 보다 돌아오면 놓치던 것 — UX 리뷰어)
-    if (rt.toast?.kind === 'auto-tip' && rt.toast.text === AUTO_TIP_TURN) rt = { ...rt, toast: null };
+    if (rt.toast?.kind === 'auto-tip' && rt.toast.text === AUTO_TIP_TURN) rt = { ...rt, toast: nextToast(rt.toast) };
   }
   // ② 는 화면이 그릴 수 있는 장면에서 (다른 알림이 끝난 뒤) — 3:3 · 만남 · 결과 · 고르기 등에서 돌아오면 그 장면까지 미룸 · 5초는 띄운 뒤부터 (디자인팀 R12 큼 2)
   if (watchingNow && rt.noticed === 'paused' && autoTipLeft(save)) rt = { ...rt, backTip: true };
-  if (rt.backTip && watchingNow && !rt.toast && canDrawAutoTip(rt.stage)) {
+  if (rt.backTip && watchingNow && !rt.toast && canDrawAutoTip(rt.stage) && !firstWalkTip(save, rt.stage)) {
     const { backTip: _b, ...rest } = rt;
     rt = { ...rest, toast: { text: AUTO_TIP_BACK, ms: TIMING.toastMs * 2, kind: 'auto-tip' } };
   }
   // 자동을 켜면 안내는 바로 지움 (미룬 것도)
   if (save.settings.autoBattle && (rt.toast?.kind === 'auto-tip' || rt.backTip)) {
     const { backTip: _b, ...rest } = rt;
-    rt = { ...rest, toast: rt.toast?.kind === 'auto-tip' ? null : rt.toast };
+    rt = { ...rest, toast: rt.toast?.kind === 'auto-tip' ? nextToast(rt.toast) : rt.toast };
   }
   rt = awayStep(state, save, rt, signal);
   // 멈춤 · 알림 (gdd 4.13 · U6) — 밖 · 숨김에서 기다리는 이유가 생겼는데 아직 안 알렸으면 한 번 (장면마다 따로 알리던 것을 한곳에서 — 이로치 전투 중에 떠남 · 밖 고르기 · 대기실로 돌아옴 등 빠진 곳 없이).
@@ -952,11 +953,18 @@ export function step(state: GameState, stepMs: number): StepOut {
 
 /** 자동 전투 첫 안내를 더 띄울 수 있는지 — 자동을 한 번도 안 켰고 (tips 'auto-on') 띄운 수 (tips 'auto-1' ~ ) 가 3 아래 (R12 A) */
 /** 머리 위 알림을 화면이 그리는 장면 (StageScreen showToast — 걷기 · 클리어 카드 · 대기실 · 시설) · 자동 전투 안내는 1:1 전투도 (AutoTip) */
-function toastShown(rt: RuntimeState): boolean {
+function toastShown(rt: RuntimeState, save: Save): boolean {
   if (rt.headless || rt.away || !rt.toast) return false;
-  if (rt.toast.kind === 'auto-tip') return canDrawAutoTip(rt.stage);
-  const p = rt.stage?.phase;
-  return p === 'walk' || p === 'clear' || p === 'lobby' || p === 'facility';
+  const st = rt.stage;
+  // 자동 전투 안내 = 스위치 옆 (숲 1-1 첫 걷기 안내 동안은 뒤로) · 보통 알림 = 상점 안에서는 안 그림 (StageScreen 과 같게 — 코드 리뷰어)
+  if (rt.toast.kind === 'auto-tip') return canDrawAutoTip(st) && !firstWalkTip(save, st);
+  if (st?.phase === 'facility' && st.inside && st.kind === 'shop') return false;
+  return st?.phase === 'walk' || st?.phase === 'clear' || st?.phase === 'lobby' || st?.phase === 'facility';
+}
+
+/** 숲 1-1 첫 걷기 안내 (FirstTip 'walk') 가 떠 있는 때 — 자동 전투 안내는 그 뒤로 (화면 walkTipOn 과 같음) */
+function firstWalkTip(save: Save, st: StageRuntime | null): boolean {
+  return save.location.screen === 'stage' && save.location.stageId === 'forest-1' && st?.phase === 'walk' && !(save.tips ?? []).includes('walk');
 }
 
 /** 다음 알림 (줄의 첫 것) — 없으면 null */
@@ -977,8 +985,8 @@ function queueToast(rt: RuntimeState, text: string): RuntimeState {
 
 /** 자동 전투 첫 안내를 화면이 그릴 수 있는 장면 — 1:1 전투 (늘 자동 스위치) · 걷기 · 클리어 카드 · 대기실 · 시설 앞 (정보줄 스위치) (디자인팀) */
 function canDrawAutoTip(st: StageRuntime | null): boolean {
-  if (!st) return false;
-  return st.phase === 'battle' || st.phase === 'walk' || st.phase === 'clear' || st.phase === 'lobby' || (st.phase === 'facility' && !st.inside);
+  // 병원 · 상점 앞 · 클리어 카드는 메뉴가 안 보여 자동 스위치가 없음 — 머리 위로 떨어뜨려 "Esc 지나가기" 줄 · 보상 줄을 덮던 것 (디자인팀 UX R12 재확인 큼)
+  return st?.phase === 'battle' || st?.phase === 'walk' || st?.phase === 'lobby';
 }
 
 const AUTO_TIP_MAX = 3;
@@ -1170,7 +1178,7 @@ function travel(state: GameState, to: StageId | 'gym'): GameState {
   const charmText = `경험 부적을 썼다! 이 스테이지 경험치 ×${BALANCE.expCharmScale}`;
   // 앞 알림 (클리어 · 레벨업) 이 떠 있으면 덮지 않고 그 뒤에 (코드 리뷰어)
   const prev = state.runtime.toast;
-  const toastNow = !charm ? prev : prev ? { ...prev, then: prev.then ? `${prev.then} · ${charmText}` : charmText } : { text: charmText, ms: TIMING.toastMs * 2 };
+  const toastNow = !charm ? prev : prev ? queueToast(state.runtime, charmText).toast : { text: charmText, ms: TIMING.toastMs * 2 };
   return { save, runtime: { ...state.runtime, rngState: rng.state, stage: null, stageId: to, toast: toastNow } };
 }
 
@@ -1257,7 +1265,12 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       return { ...state, save: { ...save, settings: { ...save.settings, skipCaughtLast: input.on } } };
     case 'tip-seen':
       // 자동 전투 첫 안내 (R12) — 화면이 그렸을 때 셈 (전투 화면이 안 그린 채 세어 세 번이 끝나던 것 — UX 리뷰어)
-      if (input.id === 'auto') return autoTipLeft(save) ? { ...state, save: useAutoTip(save) } : state;
+      // 떠 있는 안내 하나에 한 번만 — 장면이 바뀌어 다시 그리면 또 와서 두 번 세던 것 (디자인팀 UX R12 재확인)
+      if (input.id === 'auto') {
+        const t = state.runtime.toast;
+        if (t?.kind !== 'auto-tip' || t.counted || !autoTipLeft(save)) return state;
+        return { save: useAutoTip(save), runtime: { ...state.runtime, toast: { ...t, counted: true } } };
+      }
       if (!isTipId(input.id) || save.tips?.includes(input.id) || (save.tips?.length ?? 0) >= TIPS_MAX) return state;
       return { ...state, save: { ...save, tips: [...(save.tips ?? []), input.id] } };
     case 'notifications':
@@ -1521,7 +1534,7 @@ function awayStep(before: GameState, save: Save, rt: RuntimeState, signal: SaveS
       prev?.phase === 'team' && rt.stage?.phase !== 'team' && rt.stage?.phase !== 'defeat' && met?.kind === 'trainer' && !save.pendingEncounter && save.stages[met.stageId]?.defeatedTrainers.includes(met.trainerId) !== true;
     const lostNow = (rt.stage?.phase === 'defeat' && prev?.phase !== 'defeat') || teamLost;
     if (rt.awayLog && !wildEnd && !lostNow) return rt;
-    const log: AwayLog = rt.awayLog ?? awayStart(before.save);
+    const log: AwayLog = rt.awayLog ?? awayStart(before.save, before.runtime.toast?.text);
     return { ...rt, awayLog: { ...log, ...(wildEnd ? { wild: log.wild + 1 } : {}), ...(lostNow ? { lost: (log.lost ?? 0) + 1 } : {}) } };
   }
   if (!rt.awayLog || rt.away) return rt;
@@ -1532,17 +1545,24 @@ function awayStep(before: GameState, save: Save, rt: RuntimeState, signal: SaveS
   const { awayLog, ...rest } = rt;
   // 두 장 2.5초씩 (R14 A) — ① 진행 · 레벨업 · 포인트 ② 진 것 · 물건 · 돈 · 야생 (한 장만 있으면 그 장만)
   const [first, second] = awaySummary(awayLog, save);
-  return first ? { ...rest, toast: { text: first, ms: TIMING.awaySummaryMs, ...(second ? { then: second } : {}) } } : { ...rest, toast: null };
+  // 떠나기 전부터 떠 있던 알림 (클리어 보상 · 레벨업 — 안 볼 때는 시간이 멈춰 있음) 은 남기고 요약은 그 뒤에 · 안 보는 동안 생긴 알림은 요약이 대신 · 요약이 비면 그대로 (코드 리뷰어)
+  const kept = rt.toast && awayLog.toastAtLeave === rt.toast.text ? rt.toast : null;
+  if (!first) return { ...rest, toast: rt.toast };
+  if (kept) {
+    const q = queueToast({ ...rest, toast: kept }, first);
+    return second ? queueToast(q, second) : q;
+  }
+  return { ...rest, toast: { text: first, ms: TIMING.awaySummaryMs, ...(second ? { then: second } : {}) } };
 }
 
 /** 떠날 때 — 돈 · 가방 · 자리 · 레벨 · 포인트 (그동안 요약의 기준) */
-function awayStart(save: Save): AwayLog {
+function awayStart(save: Save, toastAtLeave?: string): AwayLog {
   const levels: Record<string, number> = {};
   for (const uid of save.party) {
     const m = save.monsters[uid];
     if (m) levels[uid] = m.level;
   }
-  return { money: save.money, bag: { ...save.bag }, wild: 0, lost: 0, at: placeOf(save), levels, points: pointsOf(save) };
+  return { money: save.money, bag: { ...save.bag }, wild: 0, lost: 0, at: placeOf(save), levels, points: pointsOf(save), ...(toastAtLeave ? { toastAtLeave } : {}) };
 }
 
 /** 지금 자리 — 스테이지와 진행 (0 ~ 1) · 체육관 */

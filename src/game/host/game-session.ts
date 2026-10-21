@@ -106,6 +106,9 @@ export class GameSession {
   private awayAt = 0;
   /** 10초를 기다리는 팝업 (가장 나중 것 하나) */
   private noticeTimer: ReturnType<typeof setTimeout> | null = null;
+  /** 기다리는 팝업이 밖 (포커스 없음) 것인지 · 그 이유 — 포커스가 돌아오면 밖 것만 취소, 안 보낸 숨김 것은 noticed 를 지움 (코드 리뷰어) */
+  private noticeAway = false;
+  private noticePending: GameNotice | null = null;
   private loadResult: LoadResult = { kind: 'none' };
   /** 확장이 넘겨받기 바로 전 epoch — 그 epoch 의 늦은 메시지는 다시 맡기기 전까지 받아 줌 */
   private handoverEpoch: number | null = null;
@@ -262,7 +265,8 @@ export class GameSession {
   /** VS Code 창 포커스 — 포커스만으로는 넘겨받지 않음 (보이면 웹뷰가 계속, 2026-10-19). 확장이 들고 있는데 보이는 웹뷰가 있으면 돌아올 때 다시 맡김 */
   onWindowFocusChanged(focused: boolean): void {
     if (this.windowFocused && !focused) this.awayAt = this.deps.now();
-    if (focused) this.cancelNotice();
+    // 돌아오면 밖 알림만 취소 — 숨김 (확장이 들고 있음) 알림은 패널을 다시 볼 때 (handToWebview) 취소 (잠깐 다른 앱에 갔다 오면 숨김 팝업이 영영 안 뜨던 것 — 코드 리뷰어)
+    if (focused) this.cancelNotice(true);
     this.windowFocused = focused;
     if (this.mode === 'game' && this.owner === 'webview') this.post({ type: 'focus', focused });
     // 접힌 상태 (패널이 너무 낮음) 면 맡기지 않음 — 맡겨도 웹뷰가 바로 돌려줌 (#297, 다시 높아지면 웹뷰가 ready)
@@ -762,8 +766,11 @@ export class GameSession {
       this.sendNotice(notice, away);
       return;
     }
+    this.noticeAway = away;
+    this.noticePending = notice;
     this.noticeTimer = setTimeout(() => {
       this.noticeTimer = null;
+      this.noticePending = null;
       if (this.mode !== 'game' || !this.state) return;
       // 아직 안 보고 같은 이유로 기다릴 때만 (밖 = 포커스 없음 · 숨김 = 확장이 들고 있고 그 이유가 그대로)
       const still = away ? !this.windowFocused : this.owner === 'host' && (waitReason(this.state) ?? (this.state.runtime.noticed === 'paused' ? 'paused' : null)) === notice;
@@ -771,9 +778,16 @@ export class GameSession {
     }, wait);
   }
 
-  private cancelNotice(): void {
-    if (this.noticeTimer) clearTimeout(this.noticeTimer);
+  /** 기다리는 팝업 취소 · onlyAway = 밖 것만. 안 보낸 숨김 알림은 noticed 에서도 지움 (보낸 것처럼 셈해 같은 기다림에 다시 안 뜨던 것 — 코드 리뷰어) */
+  private cancelNotice(onlyAway = false): void {
+    if (!this.noticeTimer || (onlyAway && !this.noticeAway)) return;
+    clearTimeout(this.noticeTimer);
+    if (!this.noticeAway && this.state && this.noticePending !== null && this.state.runtime.noticed === this.noticePending) {
+      const { noticed: _n, ...runtime } = this.state.runtime;
+      this.state = { ...this.state, runtime };
+    }
     this.noticeTimer = null;
+    this.noticePending = null;
   }
 
   private sendNotice(notice: GameNotice, away: boolean): void {

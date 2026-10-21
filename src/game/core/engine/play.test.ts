@@ -637,12 +637,27 @@ describe('멈춤 · 알림 표 (gdd 4.13 · U6 — orders #27 R13)', () => {
     // 밖에서는 안 띄움
     expect(tipOf(advance(away(myTurn), 20_000).state)).not.toBe(AUTO_TIP_TURN);
     // 자동 꺼짐으로 멈췄다 (확장이 'paused' 알림) 다시 보면 한 번 — 그동안 요약 (R14) 은 그 뒤에
-    const back = advance({ ...base, runtime: { ...base.runtime, noticed: 'paused', awayLog: { money: 0, bag: {}, wild: 2 } } }, 100).state;
+    // 숲 1-1 첫 걷기 안내가 떠 있는 동안은 뒤로 (그동안 요약이 먼저) — 첫 안내를 본 뒤면 바로 (화면 walkTipOn 과 같게)
+    const firstWalk = advance({ ...base, runtime: { ...base.runtime, noticed: 'paused', awayLog: { money: 0, bag: {}, wild: 2 } } }, 100).state;
+    expect(tipOf(firstWalk)).not.toBe(AUTO_TIP_BACK);
+    expect(firstWalk.runtime.backTip).toBe(true);
+    const seenWalk = { ...base, save: { ...base.save, tips: [...(base.save.tips ?? []), 'walk'] } };
+    const back = advance({ ...seenWalk, runtime: { ...seenWalk.runtime, noticed: 'paused', awayLog: { money: 0, bag: {}, wild: 2 } } }, 100).state;
     expect(tipOf(back)).toBe(AUTO_TIP_BACK);
+    // 그린 안내 하나에 한 번만 셈 — 장면이 바뀌어 다시 그려 또 와도 (디자인팀 UX R12 재확인)
+    const twice = applyInput(applyInput(back, { kind: 'tip-seen', id: 'auto' }), { kind: 'tip-seen', id: 'auto' });
+    expect(twice.save.tips?.filter((t) => t.startsWith('autotip-'))).toEqual(['autotip-1']);
+    expect(readRuntime(viaJson(twice.runtime), 1).toast?.counted).toBe(true);
+    // 병원 · 상점 앞 · 클리어 카드는 스위치가 없어 미룸 (디자인팀 UX R12 재확인 큼)
+    const done = { ...seenWalk.save.stages, 'forest-1': { ...seenWalk.save.stages['forest-1']!, progress: 1 } };
+    const atClear = advance({ save: { ...seenWalk.save, stages: done }, runtime: { ...seenWalk.runtime, noticed: 'paused', stageId: 'forest-1', stage: { phase: 'clear' } } }, 100).state;
+    expect(atClear.runtime.stage?.phase).toBe('clear');
+    expect(tipOf(atClear)).not.toBe(AUTO_TIP_BACK);
+    expect(atClear.runtime.backTip).toBe(true);
     expect(back.runtime.noticed).toBeUndefined();
     expect(back.runtime.awayLog).toBeDefined();
     // 그릴 수 없는 장면 (고르기 · 3:3 · 만남 · 결과 …) 으로 돌아오면 ② 를 미룸 → 걷기로 오면 그때 5초 (디자인팀 R12 큼 2)
-    const choosing = at(base, { phase: 'choice', ms: 0 }, { pendingChoices: [{ kind: 'learn', uid: base.save.party[0]!, moveId: 22 }] });
+    const choosing = at(seenWalk, { phase: 'choice', ms: 0 }, { pendingChoices: [{ kind: 'learn', uid: base.save.party[0]!, moveId: 22 }] });
     const held = advance({ ...choosing, runtime: { ...choosing.runtime, noticed: 'paused' } }, 100).state;
     expect(tipOf(held)).not.toBe(AUTO_TIP_BACK);
     expect(held.runtime.backTip).toBe(true);

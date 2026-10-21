@@ -420,7 +420,10 @@ export function validateSave(raw: unknown): ValidateResult {
   if (!isObj(raw.monsters)) return { ok: false, reason: '포켓몬 목록(monsters)이 없음' };
 
   const fx = new Fixer();
-  const tipsRead = raw.tips === undefined ? [] : readTips(raw.tips, 'tips', fx);
+  // 옛 'auto-1' ~ (자동 전투 안내를 안 그린 채 세던 것 — 지금은 'autotip-N') 은 뺌 · 알림 옮김 표시는 자르기 전 원본으로 봄 (20개가 넘어 잘리면 1초마다 다시 꺼지던 것 — 코드 리뷰어)
+  const tipsAll = raw.tips === undefined ? [] : readTips(raw.tips, 'tips', fx).filter((t) => !/^auto-\d$/.test(t));
+  const notifyMoved = Array.isArray(raw.tips) && raw.tips.includes(NOTIFY_OFF_TIP);
+  const tipsRead = notifyMoved && !tipsAll.includes(NOTIFY_OFF_TIP) ? [NOTIFY_OFF_TIP, ...tipsAll].slice(0, TIPS_MAX) : tipsAll;
   const known = new Set<string>(KNOWN_KEYS);
   for (const key of Object.keys(raw)) if (!known.has(key)) fx.note(key, '모르는 칸을 뺌');
 
@@ -539,7 +542,7 @@ export function validateSave(raw: unknown): ValidateResult {
     pendingChoices: readChoices(raw.pendingChoices, 'pendingChoices', fx, monsters, renamed),
     settings: {
       // 옛 세이브 (표시 없음) 는 한 번 꺼짐으로 (처음 값이 꺼짐으로 바뀜 — 태현 님 "추천안", 고친 기록 안 남김)
-      notifications: tipsRead.includes(NOTIFY_OFF_TIP) ? fx.bool(settingsRaw.notifications, 'settings.notifications', false) : false,
+      notifications: notifyMoved ? fx.bool(settingsRaw.notifications, 'settings.notifications', false) : false,
       autoBattle: fx.bool(settingsRaw.autoBattle, 'settings.autoBattle', false),
       // 빨리 걷기 — 옛 세이브엔 없음 (없으면 꺼짐, 고친 기록 안 남김)
       ...(settingsRaw.fastWalk === undefined ? {} : { fastWalk: fx.bool(settingsRaw.fastWalk, 'settings.fastWalk', false) }),
@@ -551,7 +554,7 @@ export function validateSave(raw: unknown): ValidateResult {
     ...(raw.rivals === undefined ? {} : { rivals: readRivals(raw.rivals, 'rivals', fx) }),
     // 쌓아 둔 기술 고르기 — 새 기술 (learn) 만 · 최대 수 (없는 포켓몬 · 모르는 기술은 readChoices 가 뺌)
     ...(raw.laterChoices === undefined ? {} : { laterChoices: readChoices(raw.laterChoices, 'laterChoices', fx, monsters, renamed).filter((c) => c.kind === 'learn').slice(-BALANCE.laterChoicesMax) }),
-    tips: tipsRead.includes(NOTIFY_OFF_TIP) ? tipsRead : [...tipsRead.slice(-(TIPS_MAX - 1)), NOTIFY_OFF_TIP],
+    tips: notifyMoved ? tipsRead : [NOTIFY_OFF_TIP, ...tipsRead].slice(0, TIPS_MAX),
   };
   return { ok: true, save, problems: fx.problems };
 }

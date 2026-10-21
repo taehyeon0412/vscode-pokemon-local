@@ -81,6 +81,8 @@ export interface Toast {
   then?: string | string[];
   /** 알림 종류 — 'auto-tip' = 자동 전투 첫 안내 (R12, 화면이 자동 스위치 옆에 둠). 없으면 머리 위 보통 알림 */
   kind?: 'auto-tip';
+  /** 자동 전투 안내를 이미 셈 (화면이 그렸다고 알림 — tip-seen auto 는 안내 하나에 한 번) */
+  counted?: true;
 }
 
 export interface RuntimeState {
@@ -128,6 +130,8 @@ export interface AwayLog {
   levels?: Record<string, number>;
   /** 떠날 때 남은 포인트 합 (모든 포켓몬) */
   points?: number;
+  /** 떠날 때 떠 있던 알림 글 — 돌아와서도 그 알림이면 남기고 요약을 뒤에 (안 보는 동안 생긴 알림만 요약이 대신) */
+  toastAtLeave?: string;
 }
 
 export interface GameState {
@@ -276,7 +280,7 @@ export function readRuntime(raw: unknown, fallbackSeed: number, stepMs: number =
   const acc = r.stepAccMs;
   const toast =
     isObj(r.toast) && typeof r.toast.text === 'string' && num(r.toast.ms, 0, 60_000) !== null
-      ? { text: r.toast.text.slice(0, 300), ms: r.toast.ms as number, ...readThen(r.toast.then), ...(r.toast.kind === 'auto-tip' ? { kind: 'auto-tip' as const } : {}) }
+      ? { text: r.toast.text.slice(0, 300), ms: r.toast.ms as number, ...readThen(r.toast.then), ...(r.toast.kind === 'auto-tip' ? { kind: 'auto-tip' as const, ...(r.toast.counted === true ? { counted: true as const } : {}) } : {}) }
       : null;
   return {
     rngState: typeof rng === 'number' && Number.isInteger(rng) && rng >= 0 && rng <= 0xffffffff ? rng : fallbackSeed >>> 0,
@@ -289,6 +293,8 @@ export function readRuntime(raw: unknown, fallbackSeed: number, stepMs: number =
     ...(readAwayLog(r.awayLog) ? { awayLog: readAwayLog(r.awayLog)! } : {}),
     ...((GAME_NOTICES as readonly unknown[]).includes(r.noticed) ? { noticed: r.noticed as GameNotice } : {}),
     ...(num(r.resumed, 1, 10_000) !== null ? { resumed: r.resumed as number } : {}),
+    ...(r.backTip === true ? { backTip: true as const } : {}),
+    ...(num(r.chooseMs, 0, 1e6) !== null ? { chooseMs: r.chooseMs as number } : {}),
     ...(isObj(r.view) && num(r.view.w, 0, 20_000) !== null && num(r.view.h, 0, 20_000) !== null ? { view: { w: r.view.w as number, h: r.view.h as number } } : {}),
     // 개발 모드 (임시) — 확장이 개발 모드가 아니면 다시 뗌 (game-session)
     ...(readDev(r.dev) ? { dev: readDev(r.dev)! } : {}),
@@ -320,6 +326,7 @@ function readAwayLog(v: unknown): AwayLog | null {
   const levels: Record<string, number> = {};
   if (isObj(v.levels)) for (const [uid, lv] of Object.entries(v.levels).slice(0, 6)) if (typeof uid === 'string' && uid.length <= 40 && num(lv, 1, 100) !== null) levels[uid] = Math.floor(lv as number);
   const points = num(v.points, 0, 1e6);
+  const toastAtLeave = typeof v.toastAtLeave === 'string' ? v.toastAtLeave.slice(0, 300) : null;
   return {
     money,
     bag,
@@ -328,6 +335,7 @@ function readAwayLog(v: unknown): AwayLog | null {
     ...(at ? { at } : {}),
     ...(isObj(v.levels) ? { levels } : {}),
     ...(points !== null ? { points: Math.floor(points) } : {}),
+    ...(toastAtLeave !== null ? { toastAtLeave } : {}),
   };
 }
 
