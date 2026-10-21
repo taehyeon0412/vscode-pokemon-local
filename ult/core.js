@@ -481,8 +481,10 @@ function ultClash(a, ultA, b, ultB, force) {
 function ultVsIntro(a, ultA, leftA, b, ultB, leftB, total) {
     // 낮은 패널 (게임 150 ~ 170) 은 위 이름이 정보줄 아래로 밀려 내려와 — 아래 띠 · VS 를 부제 높이만큼 내림 (상대 부제 · VS 가 아래 띠에 덮여 0.4초만 읽히던 것, 디자인 UX R31)
     const low = window.innerHeight < 170;
-    const yB = low ? 0.76 : 0.66;
-    const yVs = low ? 0.5 : 0.44;
+    // 게임 모드는 다섯 줄 (내 부제 · 이름 · VS · 상대 부제 · 이름) 을 높이에 맞춰 쌓음 (ultVsLayout) — 일반 모드는 그대로
+    const L = ultVsLayout(low ? 0.76 : 0.66, low ? 0.5 : 0.44);
+    const yB = L.yB;
+    const yVs = L.yVs;
     const ca = ultCols(ultA[2] || {}, ultA[1]);
     const cb = ultCols(ultB[2] || {}, ultB[1]);
     const sec = ULT_VS_MS / 1000;
@@ -494,20 +496,20 @@ function ultVsIntro(a, ultA, leftA, b, ultB, leftB, total) {
         sigBurst(r.left + r.width / 2, r.top + r.height / 2, 2, [...cols, '#ffffff'], 20, 110);
     }
     ultDimLayer((life) => ULT_DIM * Math.min(1, life / 0.25) * (life > total - outro ? Math.max(0, (total - life) / outro) : 1), total, () => [a, b]);
-    // 게임 모드 — 인트로 (VS 끝까지) 동안 HP 묶음 · 힘대결 상자 (DOM) 를 숨김: 컷인 이름 · 부제 · VS 가 그 밑에 깔려 0초 보이던 것 (#34 UX 리뷰어 큼 2 · 3) · 다시 나타나는 상자 = 연타 시작
-    ultHideHud(VS_AT * 1000 + VS_LEN * 1000);
+    // 게임 모드 — 인트로 (1.5초 — 밀고 밀리기 시작까지) 동안 HP 묶음 · 힘대결 상자 · Z 칸 (DOM) 을 숨김: 컷인 이름 · 부제 · VS 가 그 밑에 깔려 0초 보이던 것 (#34 UX 리뷰어 큼 2 · 3) · 다시 나타나는 상자 = 연타 시작
+    ultHideHud(ULT_VS_MS);
     // 입자는 나중 것부터 그려서 — 글씨를 띠보다 먼저 만들어야 위에 보임
-    ultTitle(ultA[0], `${a.name}의 필살기!`, ultA[2]?.tc ? sigPal(ultA[2].tc) : null, sec + 0.4, 0.22, 0.72);
+    ultTitle(ultA[0], `${a.name}의 필살기!`, ultA[2]?.tc ? sigPal(ultA[2].tc) : null, sec + 0.4, 0.22, 0.72 * L.k);
     ultCutIn(a, leftA, ca, sec, 0.22, 0.26);
     setTimeout(() => {
         screenFlash(2, 0.4, '#ffffff', 0.2);
-        ultTitle(ultB[0], `${b.name}의 필살기!`, ultB[2]?.tc ? sigPal(ultB[2].tc) : null, sec + 0.15, yB, 0.72);
+        ultTitle(ultB[0], `${b.name}의 필살기!`, ultB[2]?.tc ? sigPal(ultB[2].tc) : null, sec + 0.15, yB, 0.72 * L.k);
         ultCutIn(b, leftB, cb, sec - 0.25, yB, 0.26);
     }, 250);
     // VS = 맨 위층 (at — 나중에 만든 입자가 아래라 내 필살기 이름 밑에 깔리던 것) · 0.3초에 1.4초 (끝 0.3초 흐려짐 빼고 1초 넘게 — U1, #34 UX 리뷰어)
     setTimeout(() => {
         ultShake(4, 300);
-        ultTitle('VS', null, ['#ffffff', '#ffe0d0', '#ff5a3c', '#7a0a0a'], VS_LEN, yVs, 1.25, {});
+        ultTitle('VS', null, ['#ffffff', '#ffe0d0', '#ff5a3c', '#7a0a0a'], VS_LEN, yVs, 1.25 * L.k, {});
     }, VS_AT * 1000);
 }
 
@@ -515,12 +517,41 @@ function ultVsIntro(a, ultA, leftA, b, ultB, leftB, total) {
 const VS_AT = 0.3;
 const VS_LEN = 1.4;
 
-/** 게임 모드 — ms 동안 HP 묶음 · 힘대결 상자 (DOM) 를 숨김 (나중에 그려진 것도 50ms 마다 잡음) · 끝나면 되돌림. 게임 밖 (일반 모드) 은 아무것도 안 함 */
+/**
+ * 게임 모드 힘대결 인트로 자리 — 위에서부터 내 부제 · 이름 (정보줄 아래로 밀림) / VS / 상대 부제 · 이름 이 서로 안 덮게.
+ * 글씨는 폭 (W/9) 만 보면 480 넘는 폭 · 150 높이에서 40 이 되어 세 줄이 한 자리에 겹침 → 높이에도 맞춤 (H × 0.18) · 그래도 모자라면 상대를 아래로 · 더 작게 (#34 UX 리뷰어 2차 큼 1).
+ * k = ultTitle 크기 배율 · yB · yVs = 높이 비율. 게임 밖 (fxTop 0) 은 받은 값 그대로
+ */
+function ultVsLayout(yB0, yVs0) {
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+    const top = typeof fxTop === 'function' ? fxTop() : 0;
+    if (!top) return { k: 1, yB: yB0, yVs: yVs0 };
+    const base = ultClamp(W / 9, 18, 40);
+    const subOf = (size) => Math.max(10, Math.round(size * 0.4));
+    let k = Math.min(1, (H * 0.18) / base);
+    for (; k > 0.5; k -= 0.05) {
+        const name = Math.round(base * 0.72 * k);
+        const vs = Math.round(base * 1.25 * k);
+        // ultTitle 과 같은 자리 셈 — 부제는 이름 위 (0.85 × 크기)
+        const above = name * 0.85 + subOf(name) / 2;
+        const yA = Math.max(H * 0.22, top + above + 4);
+        const aBottom = yA + name / 2;
+        const yB = Math.min(H - 4 - name / 2, Math.max(H * yB0, aBottom + 4 + vs + 4 + above));
+        const bTop = yB - above;
+        if (bTop - aBottom >= vs + 4) {
+            return { k, yB: yB / H, yVs: (aBottom + bTop) / 2 / H };
+        }
+    }
+    return { k, yB: yB0, yVs: yVs0 };
+}
+
+/** 게임 모드 — ms 동안 HP 묶음 · 힘대결 상자 · Z 칸 (DOM) 을 숨김 (나중에 그려진 것도 50ms 마다 잡음) · 끝나면 되돌림. 게임 밖 (일반 모드) 은 아무것도 안 함 */
 function ultHideHud(ms) {
     if (typeof fxInGame !== 'function' || !fxInGame()) return;
     const hid = new Set();
     const hide = () => {
-        for (const el of document.querySelectorAll('#pokemon-game .pg-hpblock, #pokemon-game .pg-clash-info')) {
+        for (const el of document.querySelectorAll('#pokemon-game .pg-hpblock, #pokemon-game .pg-clash-info, #pokemon-game .pg-ultz-wrap')) {
             if (!hid.has(el)) {
                 hid.add(el);
                 el.style.visibility = 'hidden';
