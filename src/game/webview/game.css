@@ -1200,13 +1200,18 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
     margin-left: auto;
   }
 }
-/* 두 번째 3:3 패배 상자 (R8) — 줄마다 넘치면 한 단계 (직함 뺀 이름 · "계속") 를 재려고 줄 안에서 자름 · 둘째 줄 = 글 왼쪽 · 버튼 오른쪽 */
-.pg-defeat-keep > .pg-line {
+/* 두 번째 3:3 패배 상자 (R8 · #152) — 첫 줄은 넘치면 한 단계 (직함 뺀 이름) · 둘째 줄 = 글 왼쪽 · [계속] [병원 앞으로] 오른쪽, 넘치면 [병원 앞으로] 가 다음 줄 오른쪽으로 (주 버튼은 첫 줄에 남음) */
+.pg-defeat-keep > .pg-line:first-child {
   overflow: hidden;
 }
-.pg-defeat-keep > .pg-line:last-child {
+.pg-defeat-keep > .pg-keep-btns {
   width: 100%;
-  justify-content: space-between;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  row-gap: 3px;
+}
+.pg-defeat-keep > .pg-keep-btns > .pg-dim {
+  margin-right: auto;
 }
 /* 기다림 한 줄 (gdd 4.13 R13 ② — 밖 · 숨김에서 이로치 흔적 · 라이벌 바로 앞에 멈춤) = 길 위 상자 한 줄 · (이로치만 반짝) + 크림 굵은 글 + 흐린 "누르면 이어서" */
 .pg-banner.pg-hold {

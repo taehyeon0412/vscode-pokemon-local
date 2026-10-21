@@ -57,7 +57,11 @@ export function useFit(box: { current: HTMLElement | null }, max: number, lines?
     };
     window.addEventListener('resize', onResize);
     // 400ms · 글꼴이 오면 0 단계부터 다시 (처음 잼이 늦은 글꼴로 줄어든 채 남아 300 에서 실행마다 모양이 다르던 것 — 픽셀 검사원 #27)
-    const again = () => setStep(0);
+    // 이미 0 단계면 setStep(0) 이 다시 그리지 않아 잼이 빠지므로 바로도 잼 (새 창 첫 장면 — 처음 잼은 패널 폭 0 이라 건너뛰어 240 에서 안 줄던 것)
+    const again = () => {
+      setStep(0);
+      check();
+    };
     const t = window.setTimeout(again, 400);
     void document.fonts?.ready.then(again);
     return () => {

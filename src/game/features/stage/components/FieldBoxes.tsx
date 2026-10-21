@@ -11,7 +11,7 @@ import { canHeal, teamLock, waitReason, type GameInput, type GameState } from '.
 import { defeatWaits } from '../../../core/engine/play';
 import { maxHpOf, teamHealth, teamHealthy } from '../../../core/rules/bag';
 import { FACILITY_STAFF } from '../../../core/rules/stage';
-import { GYM_LEADER, gymHint, shortTrainerName } from '../../../core/rules/trainer';
+import { aliveCount, GYM_LEADER, gymHint, shortTrainerName } from '../../../core/rules/trainer';
 import { speciesOf } from '../../../data';
 import type { StageId } from '../../../core/save';
 import { Button } from '../../../ui/Button';
@@ -180,11 +180,13 @@ export function HoldBox({ state }: { state: GameState }) {
   );
 }
 
-/** S17 같은 판 두 번째 3:3 패배 — 멈춤 상자 (다시 시작 없음 · Enter · 클릭 = 계속 걷기, 기획 R8 A) · 넘치면 한 단계 (자르지 않음 — U4 · 맥 여유 10%): 1 = 직함 뺀 이름 + "계속" · 2 = 글 "남은 포켓몬으로" + [Enter 계속] */
-function DefeatKeep({ keep, lost, onInput }: { keep: string; lost: number; onInput(i: GameInput): void }) {
+/**
+ * S17 같은 판 두 번째 3:3 패배 — 멈춤 상자 (기획 R8 A · #152 A): 첫 줄 "<트레이너>에게 졌다" + 돈 / 둘째 줄 "남은 N마리로" + [Enter 계속 ▶] (주 버튼 — 그대로 걷기) + [Esc 병원 앞으로] (팀 회복 · 마지막 병원 앞에서 다시).
+ * 넘치면 한 단계 (첫 줄 — 직함 뺀 이름, 맥 여유 10%) · 둘째 줄은 넘치면 [병원 앞으로] 가 다음 줄로 (자르지 않음 — U4)
+ */
+function DefeatKeep({ keep, lost, left, onInput }: { keep: string; lost: number; left: number; onInput(i: GameInput): void }) {
   const box = useRef<HTMLDivElement>(null);
-  const step = useFit(box, 2);
-  const short = step >= 1;
+  const short = useFit(box, 1, ':scope > .pg-line:first-child') >= 1;
   return (
     <div class="pg-banner pg-defeat pg-defeat-keep pg-two" ref={box}>
       <span class="pg-line">
@@ -195,10 +197,13 @@ function DefeatKeep({ keep, lost, onInput }: { keep: string; lost: number; onInp
           </span>
         )}
       </span>
-      <span class="pg-line">
-        <span class="pg-dim">{step >= 2 ? '남은 포켓몬으로' : '남은 포켓몬으로 계속'}</span>
-        <Button onClick={() => onInput({ kind: 'defeat-continue' })} title="Enter — 남은 포켓몬으로 계속 걸어요">
-          <KeyCap k="Enter" /> {short ? '계속' : '계속 ▶'}
+      <span class="pg-line pg-keep-btns">
+        <span class="pg-dim">{left > 0 ? `남은 ${left}마리로` : '남은 포켓몬으로'}</span>
+        <Button onClick={() => onInput({ kind: 'defeat-continue' })} title="Enter — 남은 포켓몬으로 그대로 계속 걸어요">
+          <KeyCap k="Enter" /> 계속 ▶
+        </Button>
+        <Button secondary onClick={() => onInput({ kind: 'defeat-retreat' })} title="Esc — 팀을 다 회복하고 마지막 병원 앞에서 다시 걸어요 (돈은 더 안 빠짐)">
+          <KeyCap k="Esc" /> 병원 앞으로
         </Button>
       </span>
     </div>
@@ -209,7 +214,7 @@ function DefeatKeep({ keep, lost, onInput }: { keep: string; lost: number; onInp
 export function DefeatBox({ state, onInput }: BoxProps) {
   const st = state.runtime.stage;
   if (st?.phase !== 'defeat') return null;
-  if (st.keep !== undefined) return <DefeatKeep keep={st.keep} lost={st.lost} onInput={onInput} />;
+  if (st.keep !== undefined) return <DefeatKeep keep={st.keep} lost={st.lost} left={st.left ?? aliveCount(state.save)} onInput={onInput} />;
   const lh = state.save.lastHospital;
   const loc = state.save.location;
   const atHospital = loc.screen === 'stage' && lh?.stageId === loc.stageId;

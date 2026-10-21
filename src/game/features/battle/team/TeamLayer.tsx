@@ -5,7 +5,7 @@
  */
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'preact/hooks';
 import { TIMING } from '../../../core/balance';
-import { teamAutoUltLeft, type GameInput, type Side, type TeamBattle } from '../../../core/engine';
+import { teamAutoUltLeft, teamAutoUltNext, type GameInput, type Side, type TeamBattle } from '../../../core/engine';
 import { formOf, speciesOf } from '../../../data';
 import { koSinkPx } from '../model';
 import { Sprite } from '../../../ui/Sprite';
@@ -75,7 +75,8 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, onUlt }: { 
         {/* 다 찬 필살기 누를 틈 (기획 R2 — 볼 때 3초 뒤 저절로) = 판 오른쪽 숫자 3 · 2 · 1 (1:1 Z 모서리와 같은 칩 · 나갈 때까지 1 — 게이지를 줄이면 "필살기가 빠져나간다" 로 읽히던 것, UX 리뷰어) */}
         {/* 세는 때 (지금 쓸 수 있는 칸 — ready) 만 · "3초" 칠 없는 금 테두리 (키 칩과 다른 모양) · 판 밖 (판 안이면 HP 막대가 줄던 것) — UX 리뷰어 2차 */}
         {/* 먼저 나갈 한 칸만 · 판 왼쪽 위 탭 (판 오른쪽 바깥이면 240 에서 다음 칸 포켓몬 몸을 덮고 · 셋 다 "1초" 인데 하나만 나가던 것 — UX 리뷰어 3차) */}
-        {autoLeft !== null && st === 'ready' && (
+        {/* 바로 나가는 칸 (HP 30% 아래 — 0ms) 은 칩 없음 (1장면만 비치던 것 — UX 리뷰어 R9 ⑥) */}
+        {autoLeft !== null && autoLeft > 0 && st === 'ready' && (
           <span class="pg-team-auto" title={`${Math.max(1, Math.ceil(autoLeft / 1000))}초 뒤 저절로 필살기 — 지금 ${slot + 1} 로 바로`}>
             {Math.max(1, Math.ceil(autoLeft / 1000))}초
           </span>
@@ -144,14 +145,8 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
       if (shift) el.style.marginLeft = `${Math.round(shift)}px`;
     });
   });
-  // 저절로 나갈 칸 하나 = 남은 시간이 가장 짧은 칸 · 같으면 먼저 찬 칸 (엔진 firstWaited 와 같은 순서)
-  let autoNext: number | null = null;
-  b.me.forEach((_, i) => {
-    const l = teamAutoUltLeft(b, i);
-    if (l === null) return;
-    const best = autoNext === null ? null : teamAutoUltLeft(b, autoNext)!;
-    if (best === null || l < best || (l === best && (b.ultReadyAt.me[i] ?? 0) < (b.ultReadyAt.me[autoNext!] ?? 0))) autoNext = i;
-  });
+  // 저절로 나갈 칸 하나 = 엔진이 기다림을 세는 칸 (teamAutoUltNext — HP 30% 아래 칸 먼저, 아니면 먼저 찬 칸 · 둘째 칸 칩이 1장면만 보이던 것, 개발 4016471)
+  const autoNext = teamAutoUltNext(b);
   return (
     // 자리는 패널 기준 (시안 geo) — 이 층은 들판 (정보줄 아래) 안이라 정보줄 높이만큼 위로
     <div class={`pg-team pg-team-x${g.scale}${g.oneRow ? ' pg-team-row' : ''}`} style={{ top: `${-infoBarPx}px` }} ref={root} onClick={b.phase === 'clash' ? () => onInput({ kind: 'team-battle', input: { kind: 'space' } }) : undefined}>
