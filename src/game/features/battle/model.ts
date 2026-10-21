@@ -3,7 +3,7 @@
  */
 import { BALANCE, TIMING } from '../../core/balance';
 import type { BattleAction, BattlePopup, BattleState, Side } from '../../core/engine';
-import { canAct, canParry, catchTimeline, catchTriesUsed, counterOpen, faintedTeam, itemLeft, moveEffect, switchable, ultCounterOpen } from '../../core/engine';
+import { canAct, canParry, canRiposte, catchTimeline, catchTriesUsed, counterOpen, faintedTeam, itemLeft, moveEffect, switchable, ultCounterOpen } from '../../core/engine';
 import { isShooting } from '../../core/rules/battle';
 import { maxHpOf } from '../../core/rules/bag';
 import { BALLS, catchChance, isBall } from '../../core/rules/catch';
@@ -545,6 +545,27 @@ export type CatchStage = 'ring' | 'fly' | 'suck' | 'drop' | 'shake' | 'end' | 'h
 /** S11 잡기 장면 (2026-10-20 태현 님 다시 기획) — 엔진 시간표 (catchTimeline) 대로:
  *  ring 서 있는 상대 둘레 원 → fly 볼이 날아감 → suck 열려 빨려 들어감 → drop 떨어져 통통 → shake 가운데 창에서 흔들 × shakes → end 딸깍 · 터짐 → held 잡힘 (전투 끝).
  *  since = 그 장면이 시작하고 지난 ms · left = 남은 기회 (이번 볼 포함, 3/3 · 2/3 · 1/3) */
+/** 패링 · 반격 키 칸 "Space 막기" · "클릭해 반격" 어림 폭 (자리 따지기용) */
+const RING_KEY_EST_PX = 66;
+/**
+ * 패링 (내 포켓몬 둘레) · 반격 (상대 둘레) 원 옆 키 칸이 들어가는지 — 원 왼쪽 0.55 × size + 8 에 오른쪽 끝을 둠.
+ * 패링 = 패널 왼쪽 밖으로 나가면 안 됨 · 반격 = 내 포켓몬에 닿으면 안 됨 (240 에서 "클릭해 막기" 가 주인공 그림 위 · 왼쪽 끝 0px — UX 리뷰어 2026-10-21).
+ * 안 들어가면 키 칸을 숨기고 메뉴 줄이 "막기 — 원이 좁혀질 때 Space" 를 말함 (잡기 원과 같은 방식)
+ */
+export function ringKeyFits(geo: BattleGeometry, side: Side): boolean {
+  const sprite = side === 'me' ? geo.meSpritePx : geo.foeSpritePx;
+  const right = (side === 'me' ? geo.meX : geo.foeX) - Math.round(Math.round(sprite * 1.1) * 0.55) - 8;
+  return right - RING_KEY_EST_PX >= (side === 'me' ? 4 : geo.meX + Math.round(geo.meSpritePx * 0.4));
+}
+
+/** 메뉴 줄 원 안내 (키 칸이 숨었을 때만) — 막기 (상대 공격 중) · 반격 (완벽 패링 뒤) */
+export function ringHint(b: BattleState, geo: BattleGeometry, auto: boolean): '막기' | '반격' | null {
+  if (auto) return null;
+  if (canParry(b) && !ringKeyFits(geo, 'me')) return '막기';
+  if (canRiposte(b) && !ringKeyFits(geo, 'foe')) return '반격';
+  return null;
+}
+
 /** 잡기 쉬움 (2026-10-21 ideas #128 — 레전드 아르세우스처럼 원 색으로) = 그냥 던졌을 때 (타이밍 보너스 없이) 잡을 확률 — 반 넘으면 쉬움 · 5분의 1 넘으면 보통 · 아래는 어려움.
  *  잡기 원 (색 + 선 모양) · 메뉴 줄 안내 끝 "잡기 어려움" (글) 이 같이 씀 */
 export type CatchTone = 'easy' | 'mid' | 'hard';

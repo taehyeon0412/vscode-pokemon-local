@@ -31,7 +31,7 @@ import { FirstTip } from '../../../ui/FirstTip';
 import { KeyCap } from '../../../ui/KeyCap';
 import { fieldTopPx, hasMapRow, INFO_BAR_PX, MAP_ROW_PX, topGapPx, type Layout } from '../../../ui/layout';
 import { barSay, BattleLayer, BattleMenuBar } from '../../battle/components/BattleLayer';
-import { battleGeometry, battleSpritePx, foeTrainerX, placeOnStage, trainerBattleFoeX } from '../../battle/model';
+import { battleGeometry, battleSpritePx, foeTrainerX, placeOnStage, ringHint, trainerBattleFoeX } from '../../battle/model';
 import { MenuButtons } from '../../menu/components/MenuButtons';
 import { ShopPanel } from '../../menu/components/ShopPanel';
 import { menuLabels, type Overlay, unspentPoints } from '../../menu/model';
@@ -282,7 +282,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   return (
     <div class={`pg-screen pg-stage pg-size-${layout.size}${gym ? ' pg-gym' : ''}${covered ? ' pg-covered' : ''}`}>
       {battle && geo?.menuInBar ? (
-        <BattleMenuBar battle={battle} save={save} onInput={battleInput} withAuto={geo.autoInMenu} compact={geo.tiny ? 'tiny' : geo.compact} say={barSay(battle, geo.msgHidden)} />
+        <BattleMenuBar battle={battle} save={save} onInput={battleInput} withAuto={geo.autoInMenu} compact={geo.tiny ? 'tiny' : geo.compact} say={barSay(battle, geo.msgHidden)} hint={ringHint(battle, geo, save.settings.autoBattle)} />
       ) : (
         <InfoBar
           split={mapRow}

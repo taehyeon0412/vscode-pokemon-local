@@ -8,7 +8,7 @@ import { useRef } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
 import { canHeal, type GameInput, type GameState } from '../../../core/engine';
 import { defeatWaits } from '../../../core/engine/play';
-import { teamHealth, teamHealthy } from '../../../core/rules/bag';
+import { maxHpOf, teamHealth, teamHealthy } from '../../../core/rules/bag';
 import { FACILITY_STAFF } from '../../../core/rules/stage';
 import { GYM_LEADER, gymHint } from '../../../core/rules/trainer';
 import { speciesOf } from '../../../data';
@@ -37,14 +37,20 @@ export function FacilityBox({ state, media, onInput, onBox }: BoxProps & { onBox
     const left = Math.max(1, Math.ceil((TIMING.facilityPromptMs - st.ms) / 1000));
     // 병원 앞 = 팀 상태 (ideas #42 — 다 건강하면 엔진이 멈추지 않고 지나감) · 주 버튼 [회복하고 가기] 한 번에 (#43) · 들어가기 (보관함) 는 작게
     const team = hospital ? teamHealth(state.save) : null;
+    // HP 가 가득인데 멈춘 까닭 (PP · 상태 이상) 을 글로 — "팀 HP 100%" 인데 왜 멈추나 싶던 것 (UX 리뷰어) · 비율은 내림 (99.5% 가 100% 로 보이지 않게)
+    const party = state.save.party.map((uid) => state.save.monsters[uid]).filter((m) => m !== undefined);
+    const hpFull = party.every((m) => m.hp >= maxHpOf(m));
+    const hpPct = Math.floor((party.reduce((a, m) => a + Math.max(0, m.hp), 0) / Math.max(1, party.reduce((a, m) => a + maxHpOf(m), 0))) * 100);
+    const need = hpFull ? (party.some((m) => m.status) ? '상태 회복' : 'PP 회복') : null;
     return (
       <div class="pg-banner pg-facility-box">
         <span class="pg-ellipsis">
           {/* 상점 앞 = 내 돈 (다음 버전 1단계 #119 — 들어가기 전에 살 수 있는지) */}
-          <Icon name={hospital ? 'hospital' : 'shop'} /> <b>{hospital ? '병원' : '상점'}</b>{' '}
+          <Icon name={hospital ? 'hospital' : 'shop'} /> <b class={hospital ? 'pg-fac-word' : undefined}>{hospital ? '병원' : '상점'}</b>{' '}
           {team ? (
-            <span class={team.danger ? 'pg-team-hp' : 'pg-dim'} title="팀 HP 합 · 쓰러진 포켓몬">
-              팀 HP {team.hpPct}%{team.fainted > 0 && ` · 쓰러짐 ${team.fainted}`}
+            <span class={team.danger ? 'pg-team-hp' : 'pg-dim'} title="팀 HP 합 · 쓰러진 포켓몬 · 회복할 것">
+              {need ?? `팀 HP ${hpPct}%`}
+              {team.fainted > 0 && ` · 쓰러짐 ${team.fainted}`}
             </span>
           ) : (
             <span class="pg-money" title="내 돈">
@@ -61,7 +67,7 @@ export function FacilityBox({ state, media, onInput, onBox }: BoxProps & { onBox
             {/* 좁으면 보관함 그림만 (올리면 이름) — 병원 안 = 보관함 · 팀 바꾸기 */}
             <Button secondary onClick={() => onInput({ kind: 'facility', enter: true })} title="들어가기 — 보관함 · 팀 바꾸기">
               <Icon name="box" />
-              <span class="pg-long"> 들어가기</span>
+              <span class="pg-enter-word"> 들어가기</span>
             </Button>
           </>
         ) : (
@@ -69,8 +75,9 @@ export function FacilityBox({ state, media, onInput, onBox }: BoxProps & { onBox
             <KeyCap k="Enter" /> 들어가기
           </Button>
         )}
-        <Button secondary onClick={() => onInput({ kind: 'facility', enter: false })} title={`Esc · ${left}초 뒤 지나감`}>
-          <KeyCap k="Esc" /> 지나가기 <span class="pg-sub">{left}초</span>
+        <Button secondary extraClass="pg-pass-btn" onClick={() => onInput({ kind: 'facility', enter: false })} title={`Esc · ${left}초 뒤 지나감`}>
+          <KeyCap k="Esc" /> <span class="pg-pass-word">지나가기 </span>
+          <span class="pg-sub">{left}초</span>
         </Button>
       </div>
     );

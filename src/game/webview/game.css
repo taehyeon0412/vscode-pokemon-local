@@ -1213,10 +1213,47 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
     display: none;
   }
 }
-@media (max-width: 300px) {
-  .pg-infobar .pg-minimap:has(.pg-team-hp) :is(.pg-stage-name, .pg-mappct) {
+@media (max-width: 480px) {
+  .pg-infobar .pg-minimap:has(.pg-team-hp) :is(.pg-mapbar, .pg-mappct) {
     display: none;
   }
+}
+@media (max-width: 360px) {
+  .pg-infobar .pg-minimap:has(.pg-team-hp) .pg-stage-name {
+    display: none;
+  }
+}
+/* 지도 줄도 좁으면 — 480 아래 남은 분 · 쓰러짐 빼기 · 360 아래 "HP 38%" (240 · 300 ×187 에서 "팀 HP 17% · 쓰러짐 1" 이 패널 밖으로 잘리던 것 — 픽셀 검사원) */
+@media (max-width: 480px) {
+  .pg-maprow .pg-mapleft,
+  .pg-maprow .pg-team-down {
+    display: none;
+  }
+}
+@media (max-width: 360px) {
+  .pg-maprow .pg-team-word {
+    display: none;
+  }
+}
+/* 좁은 병원 앞 — 두 줄 (세 줄이던 상자가 주인공 · 간호사 머리를 가리던 것): 첫 줄 = 팀 상태 + [Esc 10초] ("병원" 글자는 그림이 말함), 둘째 줄 = [Enter 회복하고 가기] [보관함] */
+@media (max-width: 360px) {
+  .pg-pass-word,
+  .pg-fac-word {
+    display: none;
+  }
+  .pg-facility-box > .pg-ellipsis {
+    order: 0;
+  }
+  .pg-facility-box > .pg-button.pg-pass-btn {
+    order: 1;
+  }
+  .pg-facility-box > .pg-button:not(.pg-pass-btn) {
+    order: 2;
+  }
+}
+/* 숲 왼쪽 위 볼 칸이 있으면 (좁고 낮은 패널) 첫 안내는 그 아래로 — 볼 개수를 덮던 것 */
+.pg-stage:has(.pg-field-balls) .pg-first-tip-top {
+  top: calc(var(--pg-field-top, 3px) + 20px);
 }
 .pg-lobby-hint {
   flex: 0 1 auto;
@@ -1271,12 +1308,30 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 .pg-vmenu-repeat {
   padding: 2px 6px 0 10px;
 }
+.pg-repeat.pg-queued-line {
+  color: var(--pg-sos-gold);
+  font-weight: 700;
+}
+/* 병원 앞 보관함 버튼 — 400px 부터 "들어가기" 글자 (상자 오른쪽이 비어 있던 것 — UX 리뷰어) */
+@media (max-width: 399px) {
+  .pg-enter-word {
+    display: none;
+  }
+}
 /* 미리 누른 칸 (ideas #31) — 금색 글 + 금색 1px 안 테두리 (흐린 칸 위에서도 눌린 것이 보이게) */
 .pg-button.pg-queued,
 .pg-button.pg-queued:disabled {
   color: var(--pg-sos-gold);
   opacity: 1;
   box-shadow: inset 0 0 0 1px var(--pg-sos-gold);
+}
+/* 메뉴 줄 원 안내 (패링 · 반격 키 칸이 숨었을 때) — 크림 굵게 (키 칸 글과 같은 색) */
+.pg-ring-hint {
+  flex: none;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--pg-sos-ink);
+  white-space: nowrap;
 }
 /* S23 잊을 기술 이름 = 빨강 (결정하면 사라짐) */
 .pg-forget {
@@ -1343,6 +1398,10 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 .pg-pick-list.pg-pick-list-low {
   top: auto;
   bottom: 4px;
+}
+/* 좁은 가로 메뉴의 기술 · 아이템 · 교체 줄 (orders #16 픽셀 검사원) — 고르는 중이라 바로 */
+.pg-pick-list.pg-pick-now {
+  animation: none;
 }
 .pg-pick-title {
   color: var(--pg-sos-gold);
@@ -2112,7 +2171,7 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   content: "";
   position: absolute;
   left: 50%;
-  bottom: -6px;
+  bottom: -4px;
   width: 32px;
   height: 4px;
   transform: translateX(-50%);
@@ -2557,7 +2616,7 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
     gap: 4px;
   }
   /* 줄 가운데 맞춤 margin (첫 칸 auto) 이 그리드 칸을 줄여 첫 버튼만 왼쪽 끝이 어긋나던 것 */
-  .pg-banner .pg-choice-row.pg-learn-row > .pg-button {
+  .pg-banner.pg-two.pg-learn > .pg-choice-row.pg-learn-row > .pg-button {
     margin: 0;
   }
   .pg-learn-long {

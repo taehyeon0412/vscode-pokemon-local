@@ -29,12 +29,14 @@ export interface BattleMenuProps {
   vertical?: string;
   /** 위 정보줄 자리 (좁고 낮은 패널) — 다음 포켓몬 고르기를 무대 위 세로 목록으로 */
   bar?: boolean;
+  /** 원 옆 키 칸이 자리가 없어 숨었을 때 메뉴 줄 안내 — 막기 · 반격 (BattleLayer ringHint) */
+  hint?: '막기' | '반격' | null;
 }
 
 /** ← · Esc — 기력의조각에서 고르던 포켓몬 목록은 아이템으로, 나머지는 처음 메뉴로 */
 const backOf = (page: MenuPage): MenuPage => (page === 'revive' ? 'items' : 'main');
 
-export function BattleMenu({ battle: b, save, onInput, lead, compact = false, vertical, bar = false }: BattleMenuProps) {
+export function BattleMenu({ battle: b, save, onInput, lead, compact = false, vertical, bar = false, hint = null }: BattleMenuProps) {
   const [page, setPage] = useState<MenuPage>('main');
   // 차례가 끝나면 처음 메뉴로
   useEffect(() => {
@@ -67,7 +69,7 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
   // Enter 다시 (ideas #22) — 처음 메뉴 · 내 차례 · 커서를 안 옮김 · 지난번 공격 · 기술 · 막기를 지금 할 수 있을 때. 아주 좁은 메뉴 (두 글자) 는 자리가 없어 커서 그대로
   const last = b.lastMe;
   const lastName = !last ? null : last.kind === 'attack' ? '공격' : last.kind === 'guard' ? '방어' : last.kind === 'move' ? (moveOf(last.moveId)?.name.ko ?? null) : null;
-  const repeatOn = compact !== 'tiny' && page === 'main' && b.phase === 'choose' && !moved && lastName !== null && !!last && canAct(b, save, last);
+  const repeatOn = compact === false && page === 'main' && b.phase === 'choose' && !moved && lastName !== null && !!last && canAct(b, save, last);
   // 미리 누른 것 (ideas #31 — 게이지가 차기 0.5초 전에 누르면 차자마자) = 눌린 칸으로
   const queued = b.queued ?? null;
   const isQueued = (i: MenuItem) =>
@@ -212,20 +214,24 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
         {i.label}
         {/* 기술 상성 (ideas #24) — 효과가 굉장함 ▲ · 별로 ▼ · 없음 ✕ (색 + 모양) */}
         {i.mark && <span class={`pg-eff pg-eff-${i.mark}`}>{i.mark === 'up' ? '▲' : i.mark === 'down' ? '▼' : '✕'}</span>}
-        {(vertical ? (i.subShort ?? i.sub) : i.sub) && <span class="pg-sub">{vertical ? (i.subShort ?? i.sub) : i.sub}</span>}
+        {/* 가로 메뉴의 기술 PP 는 뺌 (올리면 나옴 · 옆 메뉴는 "PP 10") — 480 · 600 에서 "1 몸통박치기 1…" 로 잘리던 것 */}
+        {(vertical ? (i.subShort ?? i.sub) : i.mark !== undefined || i.subShort?.startsWith('PP') ? null : i.sub) && <span class="pg-sub">{vertical ? (i.subShort ?? i.sub) : i.sub}</span>}
       </Button>
     ));
-  // Enter 다시 칸 (ideas #22) — 좁은 메뉴는 "Enter 다시" 만 (무엇인지는 올리면)
+  // Enter 다시 칸 (ideas #22) — 넓은 메뉴 · 옆 메뉴만 (줄인 메뉴는 커서 그대로)
   const repeatChip = repeatOn ? (
     <span class="pg-repeat" title={`Enter — 지난번 ${lastName} 다시 · ↑ ↓ 로 다른 것 고르기`}>
-      <KeyCap k="Enter" /> 다시{compact ? null : <span class="pg-repeat-what"> · {lastName}</span>}
+      <KeyCap k="Enter" /> 다시<span class="pg-repeat-what"> · {lastName}</span>
     </span>
   ) : null;
+  // 미리 누른 것 (ideas #31) — 옆 메뉴는 게이지가 차는 동안 접혀 있어 칸이 안 보여서 머리 아래 한 줄 "방어 예약" (UX 리뷰어)
+  const queuedName = !queued ? null : queued.kind === 'attack' ? '공격' : queued.kind === 'guard' ? '방어' : queued.kind === 'move' ? (moveOf(queued.moveId)?.name.ko ?? '기술') : null;
   // 포커스가 없으면 Space 는 편집기로 감 → 클릭 안내 (선제공격과 같은 규칙)
   const key = document.hasFocus() ? '(Space)' : '(클릭!)';
 
   // 처음 메뉴는 늘 깔아 두고 (안 쓸 때는 안 보이게) 그 위에 지금 줄을 얹음 — 줄이 바뀌어도 필살기 게이지 · 💥 자리가 그대로
-  const onMain = page === 'main' && !ultCounter && !counter && !picking && b.phase !== 'clash' && b.phase !== 'over' && b.phase !== 'catch' && b.phase !== 'last';
+  // 원 안내 (hint — 좁은 패널 막기 · 반격) 가 뜨면 처음 메뉴 층은 숨김 (흐린 칸 위에 글이 겹쳐 그려지던 것)
+  const onMain = page === 'main' && !ultCounter && !counter && !picking && !hint && b.phase !== 'clash' && b.phase !== 'over' && b.phase !== 'catch' && b.phase !== 'last';
   const balls = BALLS.filter((ball) => itemLeft(b, save, ball) > 0);
   let row: ComponentChildren = null;
   if (ultCounter) {
@@ -320,6 +326,28 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
       ) : (
         <span class="pg-dim">{stage === 'shake' ? '흔들… 흔들…' : stage === 'end' ? (b.catch.caught ? '딸깍!' : '앗!') : '던졌다!'}</span>
       );
+  } else if (page !== 'main' && vertical === undefined && compact && b.phase !== 'clash' && b.phase !== 'over') {
+    // 좁은 가로 메뉴 (compact) 의 기술 · 아이템 · 교체 줄 = 무대 위 세로 목록 (다음 포켓몬 고르기 #75 와 같은 판, 바로 뜸) — 한 줄 다섯 칸이 "1 몸…" 으로 잘리던 것 (U4, 픽셀 검사원 2026-10-21)
+    row = (
+      <span class={`pg-pick-list pg-pick-now${bar ? '' : ' pg-pick-list-low'}`}>
+        <span class="pg-pick-title">{page === 'skills' ? '기술' : page === 'items' ? '아이템' : page === 'revive' ? '살릴 포켓몬' : '교체 · 도망'}</span>
+        {items.map((i, k) => (
+          <Button key={i.key} extraClass={isQueued(i) ? 'pg-queued' : k === onIdx ? 'pg-on' : undefined} onClick={() => choose(i)} disabled={!i.enabled && !isQueued(i)} secondary={'back' in i.go} title={i.title}>
+            {'back' in i.go ? <span class="pg-pick-name">{i.label}</span> : (
+              <>
+                <span class="pg-pick-n">{i.num}</span>
+                <span class="pg-pick-name">{i.label.replace(/^\d+\s/, '')}</span>
+                {i.mark && <span class={`pg-eff pg-eff-${i.mark}`}>{i.mark === 'up' ? '▲' : i.mark === 'down' ? '▼' : '✕'}</span>}
+                {i.sub && <span class="pg-sub">{i.sub}</span>}
+              </>
+            )}
+          </Button>
+        ))}
+      </span>
+    );
+  } else if (hint) {
+    // 원 옆 키 칸이 안 들어가는 좁은 패널 — 원이 뜬 동안 메뉴 줄이 키를 말함 (잡기 원 "원이 딱 맞을 때 (Space)" 와 같은 자리)
+    row = <span class="pg-ring-hint">{`${hint} — 원이 좁혀질 때 ${document.hasFocus() ? 'Space' : '클릭'}`}</span>;
   } else if (page !== 'main' && b.phase !== 'clash' && b.phase !== 'over') {
     row = renderItems(items);
   }
@@ -378,11 +406,16 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
           <span class="pg-vmenu-name">{picking ? '교체' : vertical}</span>
           <span class="pg-vmenu-ult">{ultBadge}</span>
         </div>
-        {(open || lead) && (
+        {(open || lead || (queuedName && !collapse)) && (
           <div class="pg-vmenu-box">
             {lead && <div class="pg-vmenu-lead">{lead}</div>}
             {open && stack}
             {open && repeatChip && <div class="pg-vmenu-repeat">{repeatChip}</div>}
+            {!open && queuedName && !collapse && (
+              <div class="pg-vmenu-repeat">
+                <span class="pg-repeat pg-queued-line">{queuedName} 예약 — 게이지가 차면 바로</span>
+              </div>
+            )}
           </div>
         )}
       </div>

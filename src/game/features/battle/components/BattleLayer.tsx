@@ -17,7 +17,7 @@ import { moveOf, speciesOf } from '../../../data';
 import { Button } from '../../../ui/Button';
 import { Icon } from '../../../ui/Icon';
 import { Sprite } from '../../../ui/Sprite';
-import { catchFoeClass, catchTone, catchView, duelKind, hpColor, introView, moveColor, moveFx, profileOpenable, SEND_FLY_MS, sentenceText, splitPopups, STATUS_LABEL, type BattleGeometry, type CatchTone } from '../model';
+import { catchFoeClass, catchTone, catchView, duelKind, ringHint, ringKeyFits, hpColor, introView, moveColor, moveFx, profileOpenable, SEND_FLY_MS, sentenceText, splitPopups, STATUS_LABEL, type BattleGeometry, type CatchTone } from '../model';
 import { battleAnimKey, holdWindow } from '../fx/hold';
 import { impactOf, ultSkippable } from '../fx/parry';
 import { BattleMenu } from './BattleMenu';
@@ -539,7 +539,8 @@ function ParryRing({ b, geo, y, auto }: { b: BattleState; geo: BattleGeometry; y
   const w = canParry(b) ? impactOf(animKey(b)) : null;
   if (!w) return null;
   // 원이 좁혀지기 시작하는 때 = 맞기 parryRingMs 전 — 지연은 맞는 순간을 적은 때 기준으로 고정
-  return <TimingRing id={animKey(b)} x={geo.meX} y={y} size={Math.round(geo.meSpritePx * 1.1)} ringMs={TIMING.parryRingMs} lateMs={TIMING.parryLateMs} delay={Math.round(w.at - TIMING.parryRingMs - w.set)} auto={auto} label="막기" />;
+  // 키 칸이 패널 밖으로 나가면 숨김 — 메뉴 줄이 말함 (ringHint)
+  return <TimingRing id={animKey(b)} x={geo.meX} y={y} size={Math.round(geo.meSpritePx * 1.1)} ringMs={TIMING.parryRingMs} lateMs={TIMING.parryLateMs} delay={Math.round(w.at - TIMING.parryRingMs - w.set)} auto={auto} label="막기" keyAt={ringKeyFits(geo, 'me') ? undefined : null} />;
 }
 
 /**
@@ -558,7 +559,8 @@ function RiposteRing({ b, geo, y, auto }: { b: BattleState; geo: BattleGeometry;
     count.current += 1;
     first.current = { n: count.current, ms: r.ms };
   }
-  return <TimingRing id={`rip${first.current.n}`} x={geo.foeX} y={y} size={Math.round(geo.foeSpritePx * 1.1)} ringMs={r.dur} lateMs={TIMING.parryLateMs} delay={-first.current.ms} auto={auto} label="반격" />;
+  // 키 칸이 내 포켓몬에 닿으면 숨김 — 메뉴 줄이 말함 (ringHint)
+  return <TimingRing id={`rip${first.current.n}`} x={geo.foeX} y={y} size={Math.round(geo.foeSpritePx * 1.1)} ringMs={r.dur} lateMs={TIMING.parryLateMs} delay={-first.current.ms} auto={auto} label="반격" keyAt={ringKeyFits(geo, 'foe') ? undefined : null} />;
 }
 
 /** native = 일반 모드 대결이 그림 (BattleFx) — 그때는 줄기 · 💥 를 안 그리고 안내만 */
@@ -712,12 +714,12 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
       {geo.menuSide ? (
         // 옆 메뉴 (Sea of Stars) — 내 포켓몬 오른쪽 세로 목록
         <div class={catchWin ? 'pg-bmenu-wrap pg-vmenu-wrap pg-bmenu-away' : 'pg-bmenu-wrap pg-vmenu-wrap'} style={{ left: `${geo.menuSide.left}px`, top: `${geo.menuSide.top}px`, maxWidth: `${geo.menuSide.maxWidth}px`, maxHeight: `${geo.menuSide.maxHeight}px` }}>
-          <BattleMenu battle={b} save={save} onInput={onInput} vertical={hasMe ? nameOf(b.me) : '—'} lead={geo.autoInMenu ? <AutoButton save={save} onInput={onInput} short={false} /> : null} />
+          <BattleMenu battle={b} save={save} onInput={onInput} vertical={hasMe ? nameOf(b.me) : '—'} lead={geo.autoInMenu ? <AutoButton save={save} onInput={onInput} short={false} /> : null} hint={ringHint(b, geo, save.settings.autoBattle)} />
         </div>
       ) : (
         !geo.menuInBar && (
           <div class={catchWin ? 'pg-bmenu-wrap pg-bmenu-away' : 'pg-bmenu-wrap'} style={{ left: `${geo.menuLeft}px`, bottom: `${geo.menuBottom}px`, maxWidth: `calc(100% - ${geo.menuLeft + 6}px)` }}>
-            <BattleMenu battle={b} save={save} onInput={onInput} lead={geo.autoInMenu ? <AutoButton save={save} onInput={onInput} short={geo.compact} /> : null} compact={geo.tiny ? 'tiny' : geo.compact} />
+            <BattleMenu battle={b} save={save} onInput={onInput} lead={geo.autoInMenu ? <AutoButton save={save} onInput={onInput} short={geo.compact} /> : null} compact={geo.tiny ? 'tiny' : geo.compact} hint={ringHint(b, geo, save.settings.autoBattle)} />
           </div>
         )
       )}
@@ -734,11 +736,11 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
 export const barSay = (b: BattleState, msgHidden: boolean): string | null =>
   msgHidden && (b.phase === 'over' || b.phase === 'send' || b.phase === 'pick') && b.msg ? (b.msg.match(/^[^!?.…]*[!?.…]/)?.[0] ?? b.msg) : null;
 
-export function BattleMenuBar({ battle, save, onInput, withAuto, compact, say }: { battle: BattleState; save: Save; onInput(i: GameInput): void; withAuto: boolean; compact: boolean | 'tiny'; say?: string | null }) {
+export function BattleMenuBar({ battle, save, onInput, withAuto, compact, say, hint }: { battle: BattleState; save: Save; onInput(i: GameInput): void; withAuto: boolean; compact: boolean | 'tiny'; say?: string | null; hint?: '막기' | '반격' | null }) {
   return (
     <div class="pg-infobar pg-infobar-battle">
       {say && <span class="pg-bar-say">{say}</span>}
-      <BattleMenu battle={battle} save={save} onInput={onInput} compact={compact} bar lead={withAuto ? <AutoButton save={save} onInput={onInput} short={compact !== false} /> : null} />
+      <BattleMenu battle={battle} save={save} onInput={onInput} compact={compact} bar hint={hint} lead={withAuto ? <AutoButton save={save} onInput={onInput} short={compact !== false} /> : null} />
     </div>
   );
 }
