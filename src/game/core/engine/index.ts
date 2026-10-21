@@ -15,6 +15,7 @@ export {
   isWaitingForInput,
   stageUnlocked,
   teamChoiceMeet,
+  teamMainOf,
   teamFoesOf,
   teamLock,
   teamPickOf,

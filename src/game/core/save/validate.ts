@@ -214,6 +214,17 @@ function readFacilities(v: unknown, path: string, fx: Fixer): FacilitySpot[] {
   return out;
 }
 
+/** 이번 판 3:3 으로 진 트레이너 (트레이너 id — 짧은 글자만, 최대 20) */
+function readTeamLost(v: unknown, path: string, fx: Fixer): string[] {
+  if (!Array.isArray(v)) {
+    fx.note(path, '목록이 아님 → 빈 목록');
+    return [];
+  }
+  const ok = v.filter((x): x is string => typeof x === 'string' && x.length > 0 && x.length <= 40);
+  if (ok.length !== v.length) fx.note(path, '글자가 아닌 칸을 뺌');
+  return [...new Set(ok)].slice(0, 20);
+}
+
 /** 이번 판 기록 — 옛 세이브에 칸이 없으면 빈 기록 (단계 9 에서 더함, 버전은 1 그대로) */
 function readRun(v: unknown, path: string, fx: Fixer, playTimeMs: number): StageRun {
   if (v === undefined) return { startMs: playTimeMs, caught: 0, trainers: 0, seen: [], reach: 0, retries: 0 };
@@ -227,6 +238,7 @@ function readRun(v: unknown, path: string, fx: Fixer, playTimeMs: number): Stage
     reach: r.reach === undefined ? 0 : fx.ratio(r.reach, `${path}.reach`),
     retries: r.retries === undefined ? 0 : fx.int(r.retries, `${path}.retries`, 0, 100_000, 0),
     ...(r.candy === undefined ? {} : { candy: fx.int(r.candy, `${path}.candy`, 0, 100, 0) }),
+    ...(r.teamLost === undefined ? {} : { teamLost: readTeamLost(r.teamLost, `${path}.teamLost`, fx) }),
     ...(r.boost === undefined ? {} : { boost: fx.bool(r.boost, `${path}.boost`, false) }),
   };
 }

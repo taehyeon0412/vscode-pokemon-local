@@ -31,7 +31,8 @@ export type DevAction =
   | { kind: 'ult'; uid: string; name: string | null }
   | { kind: 'foe'; slot: number; dex: number; level: number }
   | { kind: 'foe-remove'; slot: number }
-  | { kind: 'gauge-full' }
+  /** 필살기 게이지 가득 — side 없으면 나 · foe = 상대 (예고 "!" · 맞받아치기 시험, 기획 R11) */
+  | { kind: 'gauge-full'; side?: 'me' | 'foe' }
   | { kind: 'heal' }
   | { kind: 'hp1'; side: 'me' | 'foe' }
   | { kind: 'money' }
@@ -284,10 +285,12 @@ export function devApply(state: GameState, action: DevAction): DevResult {
       return { state: withDev(state, (d) => ({ ...d, foes })), say: foes.length ? `상대 ${foes.map((f) => `${nameOf(f.dex)} Lv ${f.level}`).join(' · ')}` : '상대 = 장면 원래 상대' };
     }
     case 'gauge-full': {
+      const foe = action.side === 'foe';
       const next = inBattle(state, (b) => {
-        b.me.ult = 1;
+        const f = foe ? b.foe : b.me;
+        if (f.hp > 0) f.ult = 1;
       });
-      return next ? { state: next, say: '필살기 게이지 가득' } : { state, say: '전투 중에만 돼요' };
+      return next ? { state: next, say: foe ? '상대 필살기 가득' : '필살기 게이지 가득' } : { state, say: '전투 중에만 돼요' };
     }
     case 'heal': {
       const save = state.save;

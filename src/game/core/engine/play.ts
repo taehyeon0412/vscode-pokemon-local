@@ -181,7 +181,18 @@ function rivalBattle(save: Save, id: StageId, prog: StageProgress, rival: string
  * 고른 대로 (고르지 않았으면 마지막으로 고른 방식 — 처음엔 1:1, gdd 4.7 · 명세 검사관). 관장전은 늘 3:3 (choice = true)
  */
 function useTeam(save: Save, rt: RuntimeState, choice?: boolean): boolean {
-  return teamOn(rt) && teamLockOf(save, rt) === null && (choice ?? save.settings.teamMode === true);
+  return teamOn(rt) && teamLockOf(save, rt) === null && (choice ?? teamMain(save));
+}
+
+/** 주 버튼 방식 — 마지막으로 고른 방식. 이번 판 3:3 에서 진 트레이너면 1:1 (자동 · 안 볼 때도 — 2026-10-21 기획 R8 A) */
+function teamMain(save: Save): boolean {
+  if (save.settings.teamMode !== true) return false;
+  const p = save.pendingEncounter;
+  return !(p?.kind === 'trainer' && (save.stages[p.stageId]?.run.teamLost ?? []).includes(p.trainerId));
+}
+/** 화면 — 만남의 주 버튼이 3:3 인지 (teamMode · 이번 판 3:3 에서 진 트레이너면 1:1) */
+export function teamMainOf(state: GameState): boolean {
+  return teamMain(state.save);
 }
 
 /** 3:3 을 켰는지 — 본편은 BALANCE.team.on, 개발 모드 (임시) 는 "3:3 미리 켜기" 로도 */
@@ -656,6 +667,8 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
         // 그 트레이너에게만 짐 — 트레이너는 이긴 게 아니라 지나간 자리 (졌다 다시 걸을 때 · 다음 판에 또 나옴), 회복은 병원에서
         const lost = Math.floor(save.money * BALANCE.defeatMoneyLoss);
         save = { ...save, money: save.money - lost };
+        // 이 트레이너는 이번 판에 다시 만나면 주 버튼 1:1 · 같은 판 패배로 셈 (R8 A)
+        if (p?.kind === 'trainer') save = withStage(save, id, (s) => ({ ...s, run: { ...s.run, teamLost: [...(s.run.teamLost ?? []).filter((t) => t !== p.trainerId), p.trainerId] } }));
         rt = { ...rt, toast: { text: `${team.foeName}에게 졌다… 돈 −${lost.toLocaleString('en-US')}원`, ms: TIMING.toastMs * 2 } };
         stage = afterResult(save);
         break;
@@ -1012,7 +1025,7 @@ export function applyInput(state: GameState, input: GameInput): GameState {
         // 고르는 중 = 지금 방식으로 VS · VS 중 = 바로 전투 (VS 는 1초는 보임 — 더블클릭 · 버튼 뒤 한 번 더 누름에 한 장면 만에 끝나던 것, U1 · 코드 리뷰어)
         if (stage.vsAt !== undefined && stage.ms < stage.vsAt + TIMING.vsSkipAfterMs) return state;
         // 주 버튼이 3:3 (지난번 3:3) 이고 판이 아직이면 Enter · Space 도 클릭처럼 3마리 고르기 판 (같은 버튼인데 키는 판 없이 VS 로 가던 것 — 디자인팀 UX 9차)
-        if (stage.vsAt === undefined && !stage.pick && stage.team === undefined && save.settings.teamMode === true) return applyInput(state, { kind: 'team-mode', on: true });
+        if (stage.vsAt === undefined && !stage.pick && stage.team === undefined && teamMain(save)) return applyInput(state, { kind: 'team-mode', on: true });
         const st = stage.vsAt === undefined ? { ...stage, vsAt: stage.ms } : { ...stage, ms: Math.max(stage.ms, stage.vsAt + TIMING.vsMs) };
         return { ...state, runtime: { ...state.runtime, stage: st } };
       }
@@ -1233,6 +1246,8 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       if (!inLobby(state) || !firstAlive(save)) return state;
       const next: Save = { ...save, pendingEncounter: { kind: 'gym-leader' } };
       // 3:3 이 되면 처음 누를 때 3마리 고르기 판 (상성 좋은 셋 미리 체크) — 판에서 한 번 더 = 시작 (트레이너 만남과 같은 흐름 · 저절로 시작 없음, 디자인팀). 자동 전투는 고르지 않음
+      // 판이 열린 채 패널이 좁아져 3:3 이 잠기면 Enter 는 아무 일 없음 (1:1 관장전이 바로 시작되던 것 — 판은 "넓히면 3:3", 디자인팀) · Esc 로 뒤로
+      if (stage?.phase === 'lobby' && stage.picking && teamLockOf(save, state.runtime) !== null) return state;
       if (stage?.phase === 'lobby' && !stage.picking && !save.settings.autoBattle && useTeam(next, state.runtime, true)) {
         return { ...state, runtime: { ...state.runtime, stage: { ...stage, picking: true, pick: fillPick(save, stage.pick, leaderTeam()) } } };
       }
@@ -1278,7 +1293,9 @@ function defeatStep(stage: Extract<StageRuntime, { phase: 'defeat' }>, rt: Runti
 /** 스테이지 패배를 기다릴지 — 같은 판에서 두 번째 패배부터 (run.retries ≥ 2, 관장전 패배는 돈을 안 잃어 늘 저절로). 처음 한 번만 저절로 다시 걸어 돈이 계속 빠지는 고리를 막음 (2026-10-21 코드 리뷰어) */
 export function defeatWaits(save: Save, stage: Extract<StageRuntime, { phase: 'defeat' }>): boolean {
   if (stage.gym || save.location.screen !== 'stage') return false;
-  return (save.stages[save.location.stageId]?.run.retries ?? 0) >= 2;
+  // 3:3 으로 진 것 (남은 포켓몬으로 계속 걸은 것) 도 같은 판 패배로 셈 (R8 A)
+  const run = save.stages[save.location.stageId]?.run;
+  return (run?.retries ?? 0) + (run?.teamLost?.length ?? 0) >= 2;
 }
 
 /** 3:3 보상 — 1:1 과 같은 계산 (쓰러뜨린 상대 · 싸운 셋) + 돈 ×1.5 (orders #17) */

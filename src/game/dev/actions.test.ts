@@ -85,6 +85,11 @@ describe('개발 모드 (임시) — 메뉴 동작', () => {
   it('상태 바꾸기 — 전투 중 게이지 가득 · HP 1 · 회복 · 돈 · 볼 · 진화 직전', () => {
     let s = devApply(three(start()), { kind: 'scene', scene: 'trainer-team' }).state;
     s = apply(s, { kind: 'gauge-full' }, { kind: 'hp1', side: 'foe' });
+    // 상대 필살기 가득 (기획 R11 — 예고 "!" · 맞받아치기 시험)
+    const foeFull = devApply(s, { kind: 'gauge-full', side: 'foe' });
+    expect(foeFull.say).toBe('상대 필살기 가득');
+    const fb = foeFull.state.runtime.stage;
+    expect(fb?.phase === 'battle' ? fb.battle.foe.ult : fb?.phase === 'team' ? fb.team.foe.every((f) => f.hp <= 0 || f.ult >= 1) : null).toBeTruthy();
     const st = s.runtime.stage;
     expect(st?.phase === 'team' && st.team.me.every((f) => f.ult === 1)).toBe(true);
     expect(st?.phase === 'team' && st.team.ultReadyAt.me.every((t) => t !== null)).toBe(true);

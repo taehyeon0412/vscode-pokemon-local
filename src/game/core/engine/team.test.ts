@@ -4,7 +4,7 @@ import { fixedRng } from '../../../test/fixtures/rng';
 import { sampleMonster, sampleSave, viaJson } from '../../../test/fixtures/save';
 import { BALANCE, TIMING } from '../balance';
 import type { Monster, Save } from '../save';
-import { applyInput, step, teamChoiceMeet, teamLock, teamPickOf } from './play';
+import { applyInput, defeatWaits, step, teamChoiceMeet, teamLock, teamMainOf, teamPickOf } from './play';
 import { Rng } from './rng';
 import { createGameState, readRuntime, type GameState } from './state';
 import { shotTiming, applyTeamResult, isSpread, pickTeam, readTeam, startTeamBattle, TEAM_BASIC, teamClashSure, teamDone, teamInput, teamPick, teamPossible, teamScale, teamStep, teamAutoUltLeft, teamUltLevel, teamUltOpen, type TeamBattle, teamGather, teamLayout } from './team';
@@ -253,6 +253,16 @@ describe('연결 — 트레이너 만남 · 관장전 (BALANCE.team.on 이 켜�
       expect(s.save.party.some((uid) => s.save.monsters[uid]!.hp > 0)).toBe(true);
       expect(s.save.pendingEncounter).toBeNull();
       expect(s.save.stages['forest-1']!.defeatedTrainers).not.toContain('forest-1:t0');
+      // 이번 판에 3:3 으로 진 트레이너 — 다시 만나면 주 버튼 1:1 (자동 · 안 볼 때도) · 같은 판 패배로 셈 (R8 A)
+      expect(s.save.stages['forest-1']!.run.teamLost).toEqual(['forest-1:t0']);
+      const again = { ...s.save, settings: { ...s.save.settings, teamMode: true }, monsters: Object.fromEntries(Object.entries(s.save.monsters).map(([k, m]) => [k, { ...m, hp: 999 }])) };
+      const met = meet(again);
+      expect(teamMainOf(met)).toBe(false);
+      expect(phaseAfter(meet(auto(again)))).toBe('battle');
+      expect(teamMainOf(meet({ ...again, stages: { ...again.stages, 'forest-1': { ...again.stages['forest-1']!, run: { ...again.stages['forest-1']!.run, teamLost: [] } } } }))).toBe(true);
+      expect(defeatWaits(again, { phase: 'defeat', gym: false, lost: 0 })).toBe(false);
+      const twice = { ...again, stages: { ...again.stages, 'forest-1': { ...again.stages['forest-1']!, run: { ...again.stages['forest-1']!.run, retries: 1 } } } };
+      expect(defeatWaits(twice, { phase: 'defeat', gym: false, lost: 0 })).toBe(true);
       // 셋뿐이면 전멸 → S17
       expect(lose(team3()).s.runtime.stage?.phase).toBe('defeat');
     } finally {
@@ -278,6 +288,9 @@ describe('연결 — 트레이너 만남 · 관장전 (BALANCE.team.on 이 켜�
       expect(applyInput(open, { kind: 'challenge' }).runtime.stage?.phase).toBe('team');
       // 저절로 시작 없음
       expect(step(open, 60_000).state.runtime.stage).toMatchObject({ phase: 'lobby', picking: true });
+      // 판이 열린 채 좁아져 잠기면 Enter 는 아무 일 없음 (1:1 관장전이 시작되던 것)
+      const narrow = { ...open, runtime: { ...open.runtime, view: { w: 200, h: 187 } } };
+      expect(applyInput(narrow, { kind: 'challenge' })).toBe(narrow);
       // 자동 전투 · 3마리 미만은 고르지 않고 바로
       expect(applyInput(lobby(auto(team3())), { kind: 'challenge' }).runtime.stage?.phase).toBe('team');
       expect(applyInput(lobby(sampleSave()), { kind: 'challenge' }).runtime.stage?.phase).toBe('battle');
