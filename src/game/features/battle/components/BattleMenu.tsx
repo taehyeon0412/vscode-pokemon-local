@@ -23,10 +23,12 @@ import { ballTier, catchTone, catchView, hpColor, menuItems, TIER_WORD, TONE_WOR
 const PICK_SHOW_MS = 2300;
 /** 메뉴 줄 줄이기 단계 (game.css .pg-fit-○ — 버튼이 잘리면 한 단계씩, 폭 경계를 손으로 고르면 경계 사이에 틈이 생겨 잘리던 것 — orders #23 UX 리뷰어 2차).
  *  count 개수 · name 볼 이름 · word "마지막 기회!" · one 볼마다 칸 → "5초" 옆 칸 하나 · pad 여백 · none 그 칸도 뺌 · column 옆 메뉴 한 칸으로 · list 무대 위 세로 목록 */
-type FitStep = 'count' | 'name' | 'word' | 'one' | 'pad' | 'none' | 'column' | 'list';
+type FitStep = 'count' | 'name' | 'word' | 'noword' | 'one' | 'pad' | 'none' | 'column' | 'list';
 /** 마지막 기회 — 볼 단계가 다 같으면 칸 하나로 먼저 (같은 "어려움" 셋을 남기고 "마지막 기회!" 를 먼저 빼던 것 — U1, UX 리뷰어 3차) */
-const FIT_LAST: FitStep[] = ['count', 'name', 'word', 'one', 'pad', 'none'];
-const FIT_LAST_SAME: FitStep[] = ['count', 'name', 'one', 'word', 'pad', 'none'];
+// "마지막 기회!" 는 볼마다 칸 · 여백을 줄인 뒤에도 넘칠 때만 뺌 (240 에서 먼저 빠져 "5초" 뜻이 약하던 것 — UX 밤 점검 U1 · U5)
+//   word = "마지막 기회!" → 짧은 "기회" · noword = 그것도 뺌
+const FIT_LAST: FitStep[] = ['count', 'name', 'one', 'pad', 'word', 'noword', 'none'];
+const FIT_LAST_SAME: FitStep[] = ['count', 'name', 'one', 'pad', 'word', 'noword', 'none'];
 const FIT_ROW: FitStep[] = ['count', 'name', 'list'];
 const FIT_SIDE: FitStep[] = ['count', 'name', 'column', 'list'];
 /** 무대 위 목록 한 줄 (16 + 사이 1) · 제목 줄 · 위아래 여백 — 낮은 패널에서 줄 수를 정함 */
@@ -442,6 +444,7 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
         {/* 좁은 패널 (300px 아래) 은 "마지막 기회!" 를 빼고 "6초" 만 — 볼 칸이 "1 몬스…" 로 잘리던 것 (UX 리뷰어 2026-10-21) */}
         <span class="pg-last-tag">
           <span class="pg-last-word">마지막 기회! </span>
+          <span class="pg-last-short">기회 </span>
 
           <span class="pg-last-sec" title="안 고르면 그냥 지나가요">
             {/* 자동 전투 (이로치 아님) 는 3초 — 엔진과 같은 lastChanceLimitMs (UX 리뷰어: 6초로 세다 4초에서 끝나던 것) */}

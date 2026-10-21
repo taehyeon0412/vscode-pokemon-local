@@ -3038,6 +3038,16 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 .pg-fit-name .pg-ball-word {
   display: none;
 }
+/* 마지막 기회 짧은 말 — 줄이기 word 단계에서 "마지막 기회!" 대신 "기회" · noword 에서 그것도 뺌 (240 에서 "5초" 만 남아 뜻이 약하던 것 — UX 밤 점검) */
+.pg-last-short {
+  display: none;
+}
+.pg-fit-word .pg-last-short {
+  display: inline;
+}
+.pg-fit-noword .pg-last-short {
+  display: none;
+}
 .pg-fit-word .pg-last-word {
   display: none;
 }
