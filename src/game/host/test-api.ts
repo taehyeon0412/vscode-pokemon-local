@@ -34,6 +34,8 @@ export interface GameTestApi {
   archiveCount(): Promise<number>;
   /** 일반 모드 웹뷰(main-bundle)에 포켓몬 목록을 물어봄 — 답이 오면 일반 모드가 살아 있음 */
   probeNormalWebview(): Promise<unknown>;
+  /** 다음 저장 · 열기 창 대신 이 경로 (한 번씩 — 세이브 내보내기 · 불러오기를 진짜 확장 길로, orders #49) */
+  pickFiles(p: { save?: string; open?: string }): void;
 }
 
 export function createTestApi(
@@ -43,6 +45,7 @@ export function createTestApi(
   archive: SaveArchive,
   ready: Promise<LoadResult>,
   probeNormalWebview: () => Promise<unknown>,
+  pickFiles: (p: { save?: string; open?: string }) => void,
 ): GameTestApi {
   return {
     ready,
@@ -70,5 +73,6 @@ export function createTestApi(
     reload: () => session.init({ readOnly: true }),
     archiveCount: async () => (await archive.list()).length,
     probeNormalWebview,
+    pickFiles,
   };
 }

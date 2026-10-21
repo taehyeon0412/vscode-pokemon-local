@@ -5,7 +5,9 @@
  * POKEMON_IT_PHASE=restart: 같은 사용자 폴더로 다시 켜서, 끌 때(deactivate) 쓴 그 세이브가 세이브 파일에 남아 있는지
  */
 import * as assert from 'node:assert/strict';
-import { writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import * as vscode from 'vscode';
 import { createNewSave, SAVE_VERSION } from '../../game/core/save';
 import { healed } from '../../game/core/rules/bag';
@@ -186,6 +188,54 @@ export async function run(): Promise<void> {
       const raw = game.readStoredRaw() as { version?: number; playTimeMs?: number } | undefined;
       assert.equal(raw?.version, SAVE_VERSION);
       assert.ok((raw?.playTimeMs ?? 0) > 0);
+    }],
+
+    ['세이브 내보내기 · 불러오기 (orders #33 · #49 — 진짜 확장 길, 파일 창만 정해 둔 경로): 내보낸 파일 → 고쳐서 불러오기 → 백업 · 덮어씀 · 웹뷰가 이어 감 · BOM · 너무 큰 파일 · 포켓몬 없는 세이브는 안 받음', async () => {
+      // 1배속 — 불러온 뒤 자동 전투로 돈이 바로 바뀌지 않게
+      game.setSpeed(1);
+      const dir = mkdtempSync(join(tmpdir(), 'pokemon-io-'));
+      const out = join(dir, 'export.json');
+      // 내보내기 — 게임 중 지금 상태를 파일로
+      game.pickFiles({ save: out });
+      game.fromWebview({ command: 'game', type: 'save-export' });
+      await waitFor('내보낸 파일', () => existsSync(out));
+      const exported = JSON.parse(readFileSync(out, 'utf8')) as { version: number; playTimeMs: number };
+      assert.equal(exported.version, SAVE_VERSION);
+      assert.ok(exported.playTimeMs > 0, '지금 게임 상태를 내보냄');
+      // 다른 세이브 (스타팅 있는 판 · 메모장 BOM) 를 불러오기 → 확인 — 지금 게임은 스타팅 전 판이라 그대로는 "포켓몬 없음" 으로 거절됨
+      const target = 98_765;
+      const inFile = join(dir, 'friend.json');
+      writeFileSync(inFile, '\uFEFF' + JSON.stringify({ ...createStartSave(Date.now(), 1), money: target }), 'utf8');
+      const backups = await game.archiveCount();
+      const confirmUntil = async (what: string, ok: () => boolean) => {
+        const end = Date.now() + 15_000;
+        while (Date.now() < end && !ok()) {
+          game.fromWebview({ command: 'game', type: 'save-import-confirm' });
+          await sleep(200);
+        }
+        assert.ok(ok(), what);
+      };
+      game.pickFiles({ open: inFile });
+      game.fromWebview({ command: 'game', type: 'save-import' });
+      const near = (m: number | null | undefined) => m !== null && m !== undefined && m >= target && m < target + 500;
+      await confirmUntil('불러온 세이브로 바뀜', () => near(d().money));
+      await game.flush();
+      assert.ok(near((game.readStoredRaw() as { money?: number } | undefined)?.money), '세이브 파일도 불러온 것');
+      assert.ok((await game.archiveCount()) > backups, '불러오기 전 세이브를 백업');
+      await waitFor('웹뷰가 이어 맡음', () => d().mode === 'game' && d().owner === 'webview');
+      // 너무 큰 파일 (stat 으로 거름) · 포켓몬 없는 세이브 — 확인을 보내도 안 바뀜
+      const big = join(dir, 'big.json');
+      writeFileSync(big, 'x'.repeat(5_100_000));
+      const empty = join(dir, 'empty.json');
+      writeFileSync(empty, JSON.stringify({ version: SAVE_VERSION, monsters: {} }));
+      for (const f of [big, empty]) {
+        game.pickFiles({ open: f });
+        game.fromWebview({ command: 'game', type: 'save-import' });
+        await sleep(800);
+        game.fromWebview({ command: 'game', type: 'save-import-confirm' });
+        await sleep(400);
+        assert.ok(near(d().money), `${f} 는 안 받아야 함`);
+      }
     }],
 
     ['일반 모드로 나가면 저장하고 멈춤', async () => {
