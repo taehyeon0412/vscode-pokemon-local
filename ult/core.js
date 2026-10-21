@@ -525,7 +525,7 @@ const VS_LEN = 1.4;
 function ultVsLayout(yB0, yVs0) {
     const W = window.innerWidth;
     const H = window.innerHeight;
-    const top = typeof fxTop === 'function' ? fxTop() : 0;
+    const top = ultTextTop();
     if (!top) return { k: 1, yB: yB0, yVs: yVs0 };
     const base = ultClamp(W / 9, 18, 40);
     const subOf = (size) => Math.max(10, Math.round(size * 0.4));
@@ -544,6 +544,14 @@ function ultVsLayout(yB0, yVs0) {
         }
     }
     return { k, yB: yB0, yVs: yVs0 };
+}
+
+/** 게임 모드 글씨 위 끝 (px) — 정보줄 아래 끝 · 높은 패널에서 둘째 줄로 내려온 지도 줄 아래 끝 (부제가 지도 줄 밑에 깔리던 것 — #34 UX 리뷰어 3차 · 860 × 315). 게임 밖은 0 */
+function ultTextTop() {
+    const top = typeof fxTop === 'function' ? fxTop() : 0;
+    if (!top) return 0;
+    const map = document.querySelector('#pokemon-game .pg-minimap');
+    return Math.max(top, map ? Math.round(map.getBoundingClientRect().bottom) : 0);
 }
 
 /** 게임 모드 — ms 동안 HP 묶음 · 힘대결 상자 · Z 칸 (DOM) 을 숨김 (나중에 그려진 것도 50ms 마다 잡음) · 끝나면 되돌림. 게임 밖 (일반 모드) 은 아무것도 안 함 */
@@ -757,8 +765,8 @@ function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1, at = null) {
             ctx.font = `900 ${size}px ${font}`;
         }
         const jx = t < 0.35 && !(at && at.still) ? moveRand(-1, 1) * 2 : 0;
-        // 게임 모드 — 부제까지 정보줄 아래에 (연출 캔버스 위쪽은 정보줄 아래 끝에서 잘림)
-        const top = typeof fxTop === 'function' ? fxTop() : 0;
+        // 게임 모드 — 부제까지 정보줄 (높은 패널은 둘째 줄 지도까지) 아래에 (연출 캔버스 위쪽은 정보줄 아래 끝에서 잘림)
+        const top = ultTextTop();
         const yMin = top ? top + (sub ? size * 0.85 + Math.max(10, Math.round(size * 0.4)) / 2 : size / 2) + 4 : 0;
         // at.x · at.y = 그 자리 가운데 (화면 밖으로 안 나가게 안쪽으로) — 없으면 화면 가운데
         const fixed = !!at && at.x !== undefined;
