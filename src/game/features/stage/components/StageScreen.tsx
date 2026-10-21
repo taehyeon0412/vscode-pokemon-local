@@ -29,6 +29,7 @@ import { InfoBar } from '../../../ui/InfoBar';
 import { TeamLayer } from '../../battle/team/TeamLayer';
 import { TeamChoice, teamChoiceOn, TeamMeet, teamMeetOn } from '../../battle/team/TeamChoice';
 import { Face } from '../../../ui/Face';
+import { resumeLine } from '../../../core/engine/play';
 import { SeenAfter } from '../../../ui/AutoTip';
 import { FirstTip } from '../../../ui/FirstTip';
 import { KeyCap } from '../../../ui/KeyCap';
@@ -422,6 +423,12 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         {choice && <ChoiceBox view={choice} media={media} scale={layout.scale} onInput={onInput} />}
         <DefeatBox state={state} media={media} onInput={onInput} />
         <HoldBox state={state} />
+        {/* 다시 켜기 한 줄 (기획 R15 — 전투 중에 껐다가 들어오면 2초 "다시 켜서 전투를 처음부터!", 엔진 resumeLine) — 1:1 = 아래 끝 (말 칸이 숨는 240 × 150 · 320 × 150 · 360 × 170 에서도 · 위 메뉴 · HP 밖) · 3:3 = 위 가운데 (아래는 앞줄 발밑 판) */}
+        {resumeLine(state) && (
+          <div class={`pg-banner pg-hold pg-resume${team ? ' pg-resume-top' : ' pg-hold-low'}`} role="status">
+            <b>{resumeLine(state)}</b>
+          </div>
+        )}
         <ClearCard state={state} media={media} onInput={onInput} onMap={() => onOpen({ kind: 'map' })} onTeam={() => onOpen({ kind: 'team' })} />
         <LobbyBox state={state} media={media} onInput={onInput} onBox={() => onOpen({ kind: 'team' })} onShop={() => onOpen({ kind: 'shop' })} onMap={() => onOpen({ kind: 'map' })} />
         <BadgeCard state={state} media={media} onInput={onInput} onMap={() => onOpen({ kind: 'map' })} />
@@ -462,7 +469,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         )}
         {/* 주인공 머리 위 — 주운 자리에서 바로 보이게 (긴 알림은 패널 끝 안쪽으로 당김 · 줄 바꿈).
             대기실 = 상자가 머리 위를 차지해서 바닥 줄 주인공 ~ 관장 사이 (버튼을 가리던 것 — 2026-10-21 orders #3) */}
-        {showToast && state.runtime.toast && (phase === 'lobby' ? (
+        {/* 클리어 카드도 바닥 줄 (카드가 머리 위를 차지 — 머리 위면 카드 아래 버튼 줄 [다음 스테이지 ▶] · 지도 · 교체 를 가리던 것, 개발 UX 리뷰어 R14) */}
+        {showToast && state.runtime.toast && (phase === 'lobby' || phase === 'clear' ? (
           <StageToast key={state.runtime.toast.text} text={state.runtime.toast.text} center={(heroLeft + heroW / 2 + 8 + bannerRight) / 2} bottom={ground + 2} room={bannerRight - (heroLeft + heroW / 2 + 8)} />
         ) : (
           <StageToast key={state.runtime.toast.text} text={state.runtime.toast.text} center={heroLeft} bottom={toastBottom} />

@@ -730,6 +730,10 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
   // 머리 위 한 줄에서 "완벽 패링!" · "패링!" 은 뺌 — 캔버스 큰 글씨가 늘 같은 말을 해서 240 에서 두 번 뜨던 것 (개발팀 2026-10-21). "반격 — 조금 빨랐다" 는 캔버스에 없어 남김
   const headSay = sentences.filter((p) => !(p.kind === 'parry' && !p.text.startsWith('반격')));
   const lastSentence = showMsg ? undefined : headSay[headSay.length - 1];
+  // 상성 · 급소 말이 다음 기술 연출로 말 칸에서 빠졌는데 아직 1초가 안 됐으면 남은 동안 맞은 쪽 머리 위 한 줄로 (자동 전투에서 "효과가 굉장했다!" 가 0.46초만 보이던 것 — 개발 UX 리뷰어 R14, U1)
+  const animMs = b.anim?.ms;
+  const lingering =
+    animMs === undefined ? undefined : [...b.popups].reverse().find((p) => (p.kind === 'super' || p.kind === 'weak' || p.kind === 'immune' || p.kind === 'crit') && p.ms > animMs && p.ms < TAIL_SHOW_MS);
   // 말 칸이 숨을 때 끝 · 다음 포켓몬 · 고르기 말 자리 — 무대 위쪽 메뉴 줄 (한 줄) · 옆 메뉴 판 (두 줄), 자리가 되면 전부 · 아니면 첫 문장
   const stageSay = !geo.menuSide && !geo.menuInBar ? barSay(b, geo.msgHidden, geo.widthPx - geo.menuLeft - 20, 1) : null;
   const sideSay = geo.menuSide ? barSay(b, geo.msgHidden, geo.menuSide.maxWidth - 14, 2, 'side') : null;
@@ -771,6 +775,10 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
           )),
           // 말 칸이 없을 때만 문장 한 줄 (가장 최근 것)
           lastSentence?.side === side && <PopSay key={`s${lastSentence.id}`} kind={lastSentence.kind} x={x} bottom={popAt(side, nums.length)} text={sentenceText(lastSentence, sideName)} />,
+          // 말 칸에서 빠진 상성 · 급소 말의 남은 시간 (1초까지)
+          lingering?.side === side && lingering.id !== lastSentence?.id && (
+            <PopSay key={`t${lingering.id}`} kind={lingering.kind} x={x} bottom={popAt(side, nums.length + (lastSentence?.side === side ? 1 : 0))} text={sentenceText(lingering, sideName)} />
+          ),
         ];
       })}
       {/* 다시 보는 필살기 = Space 로 남은 연출 건너뛰기 — 아무도 몰라서 말 자리에 작은 키 칸 (다른 세션 플레이 리뷰어) */}
@@ -853,6 +861,9 @@ export function BattleMenuBar({ battle, save, onInput, withAuto, compact, say, h
 
 /** 머리 위 문장 한 줄 (말 칸이 없는 좁은 패널) — 긴 문장 ("효과가 별로인 듯하다…") 이 패널 끝에서 잘리지 않게 폭을 재서 가운데를 안쪽으로 당김 (240px "듯하ㄷ" · 트레이너 이름표와 겹치던 것, 2026-10-21 UX 리뷰어) */
 const POP_EDGE = 4;
+/** 상성 · 급소 말이 보이는 최소 시간 (ux-rules U1 — 1초) */
+const TAIL_SHOW_MS = 1000;
+
 function PopSay({ kind, x, bottom, text }: { kind: string; x: number; bottom: number; text: string }) {
   const ref = useRef<HTMLSpanElement>(null);
   useLayoutEffect(() => {

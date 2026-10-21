@@ -306,6 +306,17 @@
     if (q.get('shiny') === '1' && runtime.stage && runtime.stage.phase === 'battle') runtime.stage.battle.foe.shiny = true;
     // autotip=1|2 — 자동 전투 첫 안내 (R12 · toast kind auto-tip) ① 내 차례 10초 · ② 안 보다 돌아옴 (사진용 — 10초 동안)
     if (q.get('autotip')) runtime.toast = { text: q.get('autotip') === '2' ? '안 보는 동안 멈춰 있었어요 — [A] 자동 전투면 계속 걸어요' : '자리를 비울 땐 [A] 자동 전투 — 알아서 싸워요', ms: 10000, kind: 'auto-tip' };
+    // 실제 엔진 흐름 시험 (개발 UX 리뷰어 R14 · R15 — xhost.js 에서 옮김): xsave=<json> 세이브 얕게 덮기 · xmon=<json> m1 덮기 · awaylog=<json> 그동안 기록 (요약 두 장) ·
+    //   resume=1 (runtime.stage 없음 → 엔진이 전투를 처음부터 — 다시 켜기 한 줄) · rstart=preemptive|ambush|normal · xtoast=<json> 머리 위 알림 · xauto=1 자동 전투
+    if (q.get('xsave')) Object.assign(save, JSON.parse(q.get('xsave')));
+    if (q.get('xmon')) save.monsters.m1 = { ...save.monsters.m1, ...JSON.parse(q.get('xmon')) };
+    if (q.get('awaylog')) runtime.awayLog = JSON.parse(q.get('awaylog'));
+    if (q.get('resume') === '1') {
+        runtime = { rngState: 1, stepAccMs: 0, speed: 1, stage: null, stageId: null, toast: null };
+        if (save.pendingEncounter && save.pendingEncounter.kind === 'wild') save.pendingEncounter.start = q.get('rstart') || 'normal';
+    }
+    if (q.get('xtoast')) runtime.toast = JSON.parse(q.get('xtoast'));
+    if (q.get('xauto') === '1') save.settings = { ...save.settings, autoBattle: true };
     // bt=<ms> — 전투 시간 (0 이면 막 시작 — 볼 던지기 · 화면 닦기 사진, 2026-10-20)
     if (q.get('bt') && runtime.stage && runtime.stage.phase === 'battle') runtime.stage.battle.t = Number(q.get('bt'));
     // 개발 모드 (임시) — dev=1 이면 처음부터 개발 모드 · 타이틀의 개발 모드 줄 (title-dev) 도 흉내

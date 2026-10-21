@@ -4,6 +4,7 @@
  */
 import { BALANCE, TIMING } from '../../core/balance';
 import { teamChoiceMeet, teamViewKey, waitReason, type BattleState, type GameState } from '../../core/engine';
+import { resumeLine } from '../../core/engine/play';
 import { planWild, sceneryAt, type Scenery, type WildPlan } from '../../core/rules/encounter';
 import { requestAt, type RequestTemplate } from '../../core/rules/request';
 import { stageLayout, trainerId } from '../../core/rules/stage';
@@ -308,6 +309,8 @@ export function stageViewKey(state: GameState): string {
     st?.phase === 'gym-enter' ? JSON.stringify(gymEnterView(st.ms)) : '',
     // 기다리는 이유 (밖 · 숨김 — 이로치 전투가 멈추면 걸음이 안 바뀌어 기다림 한 줄이 안 그려지던 것)
     waitReason(state) ?? '',
+    // 다시 켜기 한 줄 (R15 — 2초 뒤 사라짐)
+    resumeLine(state) ?? '',
     state.runtime.toast?.text ?? '',
     saveViewKey(state.save),
     pending?.kind === 'wild' ? pending.start : '',
