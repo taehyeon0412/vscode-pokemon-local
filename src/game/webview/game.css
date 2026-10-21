@@ -1102,6 +1102,15 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   justify-content: center;
   padding: 0 6px;
 }
+/* 아주 좁은 패널 패배 상자 — 둘째 줄 흐린 안내 ("잡은 포켓…" 으로 잘리던 것, U4) 를 빼고 다시 시작 버튼만 */
+@media (max-width: 300px) {
+  .pg-defeat > .pg-line:last-child > .pg-dim {
+    display: none;
+  }
+  .pg-defeat > .pg-line:last-child > .pg-button {
+    margin-left: auto;
+  }
+}
 /* 처음 한 번 안내 (orders #12, ui/FirstTip) — 판과 같은 남색 · 1px 금색 선 · 앞에 금색 "처음" 표 · 크림 12px, 좁으면 낱말 단위 두 줄 · 누름을 막지 않음.
    top = 길 위 상자 자리 (숲 1-1 처음 걷기) · low = 땅 위 가운데 (전투 — 마지막 기회 · 필살기 준비) */
 .pg-first-tip {
@@ -2099,6 +2108,19 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 }
 .pg-evolve-msg {
   top: var(--pg-field-top, 3px);
+}
+/* 진화 기다림 (다음 버전 1단계 #33) — 옛 모습이 그대로 서 있고 머리 위 금색 반짝 하나 (움직임 없음) */
+.pg-evolve-wait {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+}
+.pg-evolve-wait-mark {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 2px);
+  margin-left: -7px;
+  line-height: 0;
 }
 /* 동작 줄이기 = 게임 설정 (.pg-reduce-motion, 2026-10-20 태현 님 1안 — OS 설정은 안 봄) */
 /* 번갈아 보이기 없이 — 3.1초에 새 모습으로 바뀌기만 (새 모습이 안 나오지 않게) */
@@ -4011,6 +4033,16 @@ body.vscode-high-contrast-light .pg-title-body {
 /* 정보줄 포켓몬 "+2" (남은 포인트) — 빨간 점 대신 숫자 · 금색 (빨강 채움 + 흰 글씨는 웹앱 알림 배지 · 흰색은 팔레트 밖 — 아트 디렉터 4차).
    깜박임 (2026-10-20 태현 님 "스탯을 어디서 찍는지 모르겠어 — +4 가 깜박깜박"): 금색 칠 ↔ 금색 글자, 1초에 한 번 (3번 넘게 번쩍이지 않음 · 금색 버튼 글자색이라 흰 번쩍임 없음).
    → 4번 깜박인 뒤 금색 칠로 멈춤 (끝없이 돌면 코딩하다 곁눈으로 볼 때 너무 튐 — 아트 디렉터 7차 제안 · 태현 님). 메뉴가 다시 보이거나 포인트 수가 바뀌면 (MenuButtons key) 다시 4번 */
+/* 나중에 고를 새 기술 ★N — 금색 글 + 흐린 금색 1px 테두리 (포인트 +N 금색 칠과 다른 모양, 깜박이지 않음) */
+.pg-later {
+  margin-left: 2px;
+  padding: 0 2px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 12px;
+  color: var(--pg-sos-gold);
+  box-shadow: inset 0 0 0 1px var(--pg-sos-line-soft);
+}
 .pg-points {
   margin-left: 2px;
   padding: 0 2px;

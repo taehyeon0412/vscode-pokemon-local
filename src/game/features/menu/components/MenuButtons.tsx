@@ -48,6 +48,7 @@ export function MenuButtons({
   fast,
   auto,
   labels = 'icon',
+  later = 0,
 }: {
   onOpen(o: Overlay): void;
   /** 내 포켓몬에 남은 포인트 합 (0 이면 안 보임) */
@@ -60,6 +61,8 @@ export function MenuButtons({
   auto?: AutoBattle;
   /** 단축키 · 이름을 보일지 (패널 폭 — menuLabels) */
   labels?: MenuLabels;
+  /** 나중에 고를 새 기술 수 (save.laterChoices — 병원을 지날 때 · 스테이지를 깰 때 저절로 뜸) */
+  later?: number;
 }) {
   const cls = labels === 'icon' ? 'pg-icon-btn' : 'pg-icon-btn pg-menu-item';
   return (
@@ -81,8 +84,10 @@ export function MenuButtons({
           secondary
           extraClass={auto.on ? 'pg-auto-walk pg-on' : 'pg-auto-walk'}
           onClick={auto.onToggle}
-          title={auto.on ? '자동 전투 켜짐 — 누르면 끔 (전투 중 버튼 · 설정과 같음)' : '자동 전투 꺼짐 — 켜면 전투를 알아서 (필살기 · 연타는 직접도 됨)'}
+          title={auto.on ? '자동 전투 켜짐 — 누르면 끔 (A · 전투 중 버튼 · 설정과 같음)' : '자동 전투 꺼짐 — 켜면 전투를 알아서 (A · 필살기 · 연타는 직접도 됨)'}
         >
+          {/* A = 자동 전투 켜고 끄기 (다음 버전 1단계 #116 — 판이 없을 때) */}
+          {labels === 'full' && <span class="pg-menu-key">A</span>}
           <span class="pg-menu-text">{labels === 'icon' ? '자동' : auto.on ? '자동 켜짐' : '자동 꺼짐'}</span>
         </Button>
       )}
@@ -98,6 +103,12 @@ export function MenuButtons({
             // key = 포인트 수 — 바뀌면 새로 그려져 4번 다시 깜박임 (그 뒤 금색 칠로 멈춤)
             <span key={points} class="pg-points" title={`남은 포인트 ${points} — 내 포켓몬에서 스탯에 나눠 주기`}>
               +{points}
+            </span>
+          )}
+          {/* ★N = 나중에 고를 새 기술 (다음 버전 1단계 #72 — ★ 는 결과 상자 "★ 배웠다" 와 같은 표) · 누를 곳은 따로 없음 */}
+          {b.kind === 'team' && later > 0 && (
+            <span class="pg-later" title={`나중에 고를 새 기술 ${later}개 — 병원을 지날 때 · 스테이지를 깰 때 저절로 떠요`}>
+              ★{later}
             </span>
           )}
         </Button>

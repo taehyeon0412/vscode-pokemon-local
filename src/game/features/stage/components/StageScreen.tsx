@@ -8,7 +8,7 @@
  * 튀어나올 때 선제공격 · 기습은 스피드로 정함 (2026-10-21 태현 님 — Space · 클릭 선제공격을 뺌).
  */
 import { useRef } from 'preact/hooks';
-import { BALANCE } from '../../../core/balance';
+import { BALANCE, TIMING } from '../../../core/balance';
 import { canOpenMenus, canParry, canRiposte, isWalkingFast, itemLeft, type GameInput, type GameState } from '../../../core/engine';
 import { spaceInput, ultSkippable } from '../../battle/fx/parry';
 import { BALLS } from '../../../core/rules/catch';
@@ -104,6 +104,9 @@ function RequestBox({ state, media, onInput }: { state: GameState; media: string
   }
   const helper = bestHelper(save, t);
   const types = t.types.map(typeNameKo).join(' · ');
+  // 남은 초 — 0 이면 저절로 (도울 포켓몬이 있으면 도와준다 · 없으면 지나감, 2026-10-21 다음 버전 1단계 #115). 그 버튼에 붙임
+  const left = Math.max(1, Math.ceil((TIMING.requestAutoMs - stage.ms) / 1000));
+  const sec = <span class="pg-sub">{left}초</span>;
   return (
     <div class="pg-banner pg-request pg-two" title={`${t.who.name}: ${t.text}`}>
       <span class="pg-ellipsis">
@@ -118,10 +121,10 @@ function RequestBox({ state, media, onInput }: { state: GameState; media: string
           </span>
         )}
         <Button onClick={() => onInput({ kind: 'request', help: true })} disabled={!helper} title="Enter">
-          <KeyCap k="Enter" /> 도와준다
+          <KeyCap k="Enter" /> 도와준다{helper && sec}
         </Button>
         <Button secondary onClick={() => onInput({ kind: 'request', help: false })} title="Esc">
-          <KeyCap k="Esc" /> 지나간다
+          <KeyCap k="Esc" /> 지나간다{!helper && sec}
         </Button>
       </span>
     </div>
@@ -282,6 +285,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
               <MenuButtons
                 onOpen={onOpen}
                 points={unspentPoints(save)}
+                later={save.laterChoices?.length ?? 0}
                 media={media}
                 lead={leadOf(save)}
                 fast={gym ? undefined : { on: save.settings.fastWalk === true, active: isWalkingFast(state), onToggle: () => onInput({ kind: 'fast-walk', on: save.settings.fastWalk !== true }) }}

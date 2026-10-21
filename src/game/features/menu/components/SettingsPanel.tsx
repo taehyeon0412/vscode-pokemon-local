@@ -11,27 +11,41 @@ export function SettingsPanel({ save, onInput, onExit, onClose }: { save: Save; 
   const on = save.settings.notifications;
   return (
     <Panel icon="gear" title="설정" onClose={onClose}>
-      {/* 스위치 셋을 한 줄에 · 라벨 열 없이 스위치 글이 라벨 (2026-10-20 아트 디렉터 4차 — 5줄이 210px 에서 잘리고 오른쪽이 비던 것), 설명은 title.
+      {/* 스위치를 한 줄에 · 라벨 열 없이 스위치 글이 라벨 · 좁으면 (480px 아래) "켜짐 · 꺼짐" 을 빼서 줄 수를 줄임 (켜짐 = ✓ + 금색 테두리 — 2026-10-21 스위치 여섯) (2026-10-20 아트 디렉터 4차 — 5줄이 210px 에서 잘리고 오른쪽이 비던 것), 설명은 title.
           자동 전투 (플레이 리뷰어 "자리 비울 준비를 걷는 중에") · 빨리 걷기 = 정보줄 ▶▶ 와 같음 */}
       <Row wrap>
         <Button secondary extraClass={on ? 'pg-picked' : undefined} onClick={() => onInput({ kind: 'notifications', on: !on })} title="알림 — 패널이 안 보일 때 직접 해야 하는 순간을 VS Code 알림으로 (이로치 흔적 · 길 위의 부탁 · 진화 · 새 기술 · 체육관 도착 · 클리어 · 패배)">
-          {on ? '✓ 알림 켜짐' : '알림 꺼짐'}
+          {on ? '✓ 알림' : '알림'}
+          <span class="pg-long">{on ? ' 켜짐' : ' 꺼짐'}</span>
         </Button>
         <Button secondary extraClass={save.settings.autoBattle ? 'pg-picked' : undefined} onClick={() => onInput({ kind: 'auto-battle', on: !save.settings.autoBattle })} title="자동 전투 — 자리를 비워도 메뉴 · 필살기를 알아서 (전투 중 스위치와 같음)">
-          {save.settings.autoBattle ? '✓ 자동 전투 켜짐' : '자동 전투 꺼짐'}
+          {save.settings.autoBattle ? '✓ 자동 전투' : '자동 전투'}
+          <span class="pg-long">{save.settings.autoBattle ? ' 켜짐' : ' 꺼짐'}</span>
+        </Button>
+        {/* 다음 버전 1단계 (2026-10-21) — 자동 전투 상처약 (기본 켬) · 이미 잡은 종은 마지막 기회 건너뛰기 (기본 끔) */}
+        <Button secondary extraClass={save.settings.autoPotion !== false ? 'pg-picked' : undefined} onClick={() => onInput({ kind: 'auto-potion', on: save.settings.autoPotion === false })} title="자동 전투 상처약 — 자동 전투일 때 내 포켓몬 HP 가 30% 아래면 상처약을 써요">
+          {save.settings.autoPotion !== false ? '✓ 자동 상처약' : '자동 상처약'}
+          {save.settings.autoPotion === false && <span class="pg-long"> 꺼짐</span>}
+        </Button>
+        <Button secondary extraClass={save.settings.skipCaughtLast === true ? 'pg-picked' : undefined} onClick={() => onInput({ kind: 'skip-caught-last', on: save.settings.skipCaughtLast !== true })} title="잡은 포켓몬은 마지막 기회 건너뛰기 — 이미 잡은 종을 쓰러뜨리면 볼 고르기 없이 지나가요">
+          {save.settings.skipCaughtLast === true ? '✓ ' : ''}잡은 종<span class="pg-long"> 마지막 기회</span> 건너뛰기
+          {save.settings.skipCaughtLast !== true && <span class="pg-long"> 꺼짐</span>}
         </Button>
         <Button secondary extraClass={save.settings.fastWalk === true ? 'pg-picked' : undefined} onClick={() => onInput({ kind: 'fast-walk', on: save.settings.fastWalk !== true })} title="빨리 걷기 ×3 — 흔적 · 트레이너 · 병원 · 아이템 · 부탁이 다가오면 보통 빠르기로 (정보줄 ▶▶ 와 같음)">
-          {save.settings.fastWalk === true ? '✓ 빨리 걷기 ×3' : '빨리 걷기 꺼짐'}
+          {save.settings.fastWalk === true ? '✓ 빨리 걷기' : '빨리 걷기'}
+          <span class="pg-long">{save.settings.fastWalk === true ? ' ×3' : ' 꺼짐'}</span>
         </Button>
         {/* 동작 줄이기 (2026-10-20 태현 님 1안 — 기본 꺼짐 · OS 설정은 안 봄, 맥도 윈도와 같게) — 켜면 꾸밈 움직임 (배지 빛 · +N 깜박 · 레벨업 별 · 말풍선 까딱 · 넓어지기 등) 을 멈춤, 흔들기 · 필살기 꽉 참 같은 게임 정보는 그대로 */}
         <Button secondary extraClass={save.settings.reduceMotion === true ? 'pg-picked' : undefined} onClick={() => onInput({ kind: 'reduce-motion', on: save.settings.reduceMotion !== true })} title="동작 줄이기 — 꾸밈 움직임 (반짝 · 깜박 · 까딱) 을 멈춤. 잡기 흔들기 · 필살기 꽉 참 같은 알림은 그대로">
-          {save.settings.reduceMotion === true ? '✓ 동작 줄이기 켜짐' : '동작 줄이기 꺼짐'}
+          {save.settings.reduceMotion === true ? '✓ 동작 줄이기' : '동작 줄이기'}
+          <span class="pg-long">{save.settings.reduceMotion === true ? ' 켜짐' : ' 꺼짐'}</span>
         </Button>
       </Row>
       {/* 단축키 (2026-10-19 전체 점검 — 키보드로 하는 사람이 찾지 않게, 정보줄 메뉴 글자와 같은 자판 칸) */}
       <Row>
         <span class="pg-keys pg-ellipsis">
           <span class="pg-menu-key">Space</span> 막기 <span class="pg-menu-key">Z</span> 필살기 <span class="pg-menu-key">1</span> ~ <span class="pg-menu-key">5</span> 고르기{' '}
+          <span class="pg-menu-key">A</span> 자동 전투{' '}
           <span class="pg-menu-key">Esc</span> 닫기 · 지나가기
         </span>
       </Row>

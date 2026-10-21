@@ -9,6 +9,8 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import type { GameInput } from '../../../core/engine';
 import { withJosa } from '../../../core/text';
 import { Button } from '../../../ui/Button';
+import { Icon } from '../../../ui/Icon';
+import { KeyCap } from '../../../ui/KeyCap';
 import { Sprite } from '../../../ui/Sprite';
 import type { ChoiceView } from '../model';
 import { pokemonFx } from '../../battle/fx/bridge';
@@ -107,14 +109,18 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
     // 진화는 볼 때 시작 (2026-10-21 ideas #33 — 코딩 중에 4초 연출을 놓치지 않게): 옛 모습 그대로 서 있고 [보기] (Space · 클릭) 를 기다림. 모양은 디자인팀이 다듬음
     return (
       <div class="pg-evolve">
-        {/* pg-evolve-old 는 번갈아 숨는 움직임이 붙어 있어 따로 (움직임 없이 서 있음) */}
-        <span class="pg-evolve-wait" style={{ lineHeight: 0 }}>
+        {/* pg-evolve-old 는 번갈아 숨는 움직임이 붙어 있어 따로 (움직임 없이 서 있음) · 머리 위 금색 반짝 하나 = 무슨 일이 생길 것 (움직이지 않음 — 오래 기다려도 PC 부담 없이) */}
+        <span class="pg-evolve-wait">
+          <span class="pg-evolve-wait-mark" aria-hidden="true">
+            <Icon name="sparkle" />
+          </span>
           <Sprite media={media} form={view.monster.form} shiny={view.monster.shiny} scale={scale} />
         </span>
         <div class="pg-banner pg-evolve-msg">
           <span class="pg-ellipsis">어…? {view.name}의 모습이…!</span>
-          <Button onClick={() => onInput({ kind: 'evolve-watch' })} title={document.hasFocus() ? 'Space' : '클릭'}>
-            보기
+          {/* 주 버튼 = 진화 보기 (Space · 클릭) — 누를 때까지 기다림 */}
+          <Button onClick={() => onInput({ kind: 'evolve-watch' })} title={document.hasFocus() ? 'Space · 클릭' : '클릭'}>
+            <KeyCap k="Space" /> 진화 보기 ▶
           </Button>
         </div>
       </div>

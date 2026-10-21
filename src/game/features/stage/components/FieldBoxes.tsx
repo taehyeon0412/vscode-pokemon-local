@@ -149,7 +149,9 @@ export function DefeatBox({ state, onInput }: BoxProps) {
           )}
         </span>
         <Button onClick={() => onInput({ kind: 'defeat-continue' })} title="Enter">
+          {/* 남은 초 — 0 이면 저절로 다시 시작 (다음 버전 1단계 #49) */}
           <KeyCap k="Enter" /> {st.gym ? '대기실로 ▶' : '다시 시작 ▶'}
+          <span class="pg-sub">{Math.max(1, Math.ceil((TIMING.defeatAutoMs - (st.ms ?? 0)) / 1000))}초</span>
         </Button>
       </span>
     </div>
@@ -162,6 +164,9 @@ export function ClearCard({ state, media, onInput, onMap, onTeam }: BoxProps & {
   if (state.runtime.stage?.phase !== 'clear' || loc.screen !== 'stage') return null;
   const v = clearView(state.save, loc.stageId);
   const next: StageId | 'gym' = v.next ?? 'gym';
+  // 자동 전투면 남은 초 뒤 저절로 다음 스테이지 (다음 버전 1단계 #48)
+  const stage = state.runtime.stage;
+  const autoLeft = state.save.settings.autoBattle ? Math.max(1, Math.ceil((TIMING.clearAutoMs - (stage.ms ?? 0)) / 1000)) : null;
   return (
     <div class="pg-banner pg-clear pg-two">
       <span class="pg-line">
@@ -187,6 +192,7 @@ export function ClearCard({ state, media, onInput, onMap, onTeam }: BoxProps & {
         <Button onClick={() => onInput({ kind: 'travel', to: next })} title="Enter">
           {/* ▶ 는 글 뒤 (계속 ▶ · 도전 ▶ 와 같게) · 주 버튼 안에는 아이콘 없이 (아트 디렉터 4차) */}
           <KeyCap k="Enter" /> <span class="pg-long">{next === 'gym' ? '체육관으로 ' : '다음 스테이지 '}</span>▶
+          {autoLeft !== null && <span class="pg-sub">{autoLeft}초</span>}
         </Button>
         <Button secondary onClick={onMap} title="③ 지도">
           <Icon name="map" />
