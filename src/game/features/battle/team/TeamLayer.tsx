@@ -94,6 +94,9 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, onUlt }: { 
   );
 }
 
+/** 쓰러짐 말이 이만큼 보인 뒤에 좁은 패널 합동 · 끼어들기 띠 (U1 — 1초) */
+const FAINT_SAY_MS = 1000;
+
 export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldTopPx = 0, onInput }: { team: TeamBattle; media: string; widthPx: number; heightPx: number; infoBarPx: number; fieldTopPx?: number; onInput(i: GameInput): void }) {
   const g = useMemo(() => teamGeometry(widthPx, heightPx, infoBarPx), [widthPx, heightPx, infoBarPx]);
   const root = useRef<HTMLDivElement>(null);
@@ -132,6 +135,8 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   // 아래 가운데는 720 부터 (400 ~ 719 는 안내 폭 약 200 이 앞줄 발밑 판 — 끼어들 3번 판까지 — 을 덮던 것, UX 리뷰어 R9 ⑥)
   const low = widthPx >= 720;
   const promptStyle = low ? { top: 'auto', bottom: '4px' } : { top: `${infoBarPx + 4}px` };
+  // 좁은 패널 (400 아래) — 띠가 폭 전체라 머리 위 "… 쓰러졌다!" 를 덮음: 그 말이 1초 보일 때까지 합동 · 끼어들기 띠를 늦게 그림 (0.85 ~ 0.93초에 덮던 것 — UX 밤 점검 U1, 막대 1.5초라 띠도 1초 넘게) · 키는 그대로 받음
+  const faintFresh = widthPx < 400 && b.popups.some((p) => p.text.endsWith('쓰러졌다!') && p.ms < FAINT_SAY_MS);
   // 엔진 한 줄 (필살기 · 합류 · 결과) 은 판 끝 결과만 · 쓰러지는 장면이 0.9초 보인 뒤 (컷인 이름을 가리고 · 지난 필살기 줄이 남던 것 — UX 리뷰어)
   const msgOn = b.phase === 'over' && b.overMs >= 900 && !!b.msg;
   const ult = (slot: number) => onInput({ kind: 'team-battle', input: { kind: 'ult', slot } });
@@ -154,7 +159,7 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
       {/* 연출 층 — 비어 있는 상자 (Preact 는 안을 안 건드림), 연출 다리가 캔버스를 넣음 */}
       <div class="pg-fxlayer pg-team-fx" ref={layer} />
       {/* 안내 — 무대 가운데 위 */}
-      {prompt?.kind === 'join' && (
+      {prompt?.kind === 'join' && !faintFresh && (
         <div class="pg-team-prompt pg-team-prompt-join" style={promptStyle}>
           {/* 상대가 합동으로 모이는 중 = 빨강 "상대 합동!" (내 편 멘트와 같은 말이던 것 — 기획 #24-4) */}
           {prompt.foeJoint && <b class="pg-team-foe-joint">{widthPx < 400 ? '상대 합동' : '상대 합동!'}</b>}
@@ -169,7 +174,7 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
           <span class="pg-team-left" style={{ width: `${Math.round(prompt.left * 100)}%` }} />
         </div>
       )}
-      {prompt?.kind === 'gather' && (
+      {prompt?.kind === 'gather' && !faintFresh && (
         <div class="pg-team-prompt pg-team-prompt-gather" style={promptStyle}>
           <b>{widthPx < 400 ? '합동!' : '합동 필살기!'}</b>
           {prompt.who.map((w) => (
