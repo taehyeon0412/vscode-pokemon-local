@@ -181,3 +181,26 @@ describe('쓰기', () => {
     expect(stored()?.money).toBe(1000);
   });
 });
+
+describe('새로 하기 · 불러오기 (replace) — 보관하는 동안 이 창이 한 번 더 써도 잠기지 않음 (코드 리뷰어 #48 큼 2)', () => {
+  it('archive.add 를 기다리는 사이 save-now 가 끼어도 replace 가 쓰고 "다른 창" 으로 잠기지 않음', async () => {
+    make(sampleSave({ money: 1 }));
+    expect((await store.load()).kind).toBe('ok');
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const add = archive.add.bind(archive);
+    archive.add = async (...a) => {
+      await gate;
+      return add(...a);
+    };
+    const done = store.replace(sampleSave({ money: 3 }), '불러오기 전 세이브');
+    // 끼어든 저장 (전투 끝 save-now)
+    archive.add = add;
+    now += 1000;
+    expect(await store.saveNow(sampleSave({ money: 2, updatedAt: now }))).toBe(true);
+    release();
+    expect(await done).toBe(true);
+    expect(stored()?.money).toBe(3);
+    expect(locks).toEqual([]);
+  });
+});

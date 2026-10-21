@@ -118,6 +118,9 @@ export function activate(context: vscode.ExtensionContext): GameHost {
         const picked = await vscode.window.showOpenDialog({ canSelectMany: false, filters: { JSON: ['json'] }, openLabel: '세이브 불러오기' });
         const uri = picked?.[0];
         if (!uri) return null;
+        // 너무 큰 파일은 읽지 않음 (확장 메모리에 다 올라가던 것 — 코드 리뷰어 #48) · 5 MB
+        const size = (await vscode.workspace.fs.stat(uri)).size;
+        if (size > 5_000_000) return { name: basename(uri.fsPath), text: '', tooBig: size };
         const bytes = await vscode.workspace.fs.readFile(uri);
         return { name: basename(uri.fsPath), text: Buffer.from(bytes).toString('utf8') };
       },

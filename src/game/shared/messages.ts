@@ -70,7 +70,8 @@ export type HostToWebview =
   /** 접힌 동안 (150px 아래 — 확장이 계산) 지금 상태 — 접힌 줄이 그때 모습 그대로 멈춰 있지 않게 (gdd 4.13 R13, 1초에 한 번까지) */
   | { command: typeof GAME_COMMAND; type: 'peek'; state: GameState }
   /** 불러올 세이브 확인 — 한 줄 요약 (타이틀 요약과 같은 모양) · 못 읽으면 error (orders #33) */
-  | { command: typeof GAME_COMMAND; type: 'save-import-ask'; name?: string; summary?: TitleInfo['summary']; error?: string }
+  /** fixes = 읽으며 고친 곳 수 · lost = 빠진 포켓몬 수 (확인 상자에 — 코드 리뷰어 #48) */
+  | { command: typeof GAME_COMMAND; type: 'save-import-ask'; name?: string; summary?: TitleInfo['summary']; error?: string; fixes?: number; lost?: number }
   /** 내보내기 · 불러오기 결과 한 줄 (취소면 안 보냄) */
   | { command: typeof GAME_COMMAND; type: 'save-result'; ok: boolean; text: string }
   | { command: typeof GAME_COMMAND; type: 'stop' };
@@ -128,7 +129,13 @@ export function isHostToWebview(v: unknown): v is HostToWebview {
     case 'peek':
       return isObj(v.state) && isObj(v.state.save) && isObj(v.state.runtime);
     case 'save-import-ask':
-      return (v.name === undefined || typeof v.name === 'string') && (v.error === undefined || typeof v.error === 'string') && (v.summary === undefined || v.summary === null || isObj(v.summary));
+      return (
+        (v.name === undefined || typeof v.name === 'string') &&
+        (v.error === undefined || typeof v.error === 'string') &&
+        (v.summary === undefined || v.summary === null || isObj(v.summary)) &&
+        (v.fixes === undefined || typeof v.fixes === 'number') &&
+        (v.lost === undefined || typeof v.lost === 'number')
+      );
     case 'save-result':
       return typeof v.ok === 'boolean' && typeof v.text === 'string';
     case 'title':

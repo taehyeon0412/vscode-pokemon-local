@@ -37,6 +37,17 @@ describe('세이브 보관함 (파일)', () => {
     expect(kept).toEqual([2, 3, 4]);
   });
 
+  it('새로 하기 · 불러오기 전 세이브 (replaced) 는 최근 넷을 더 지킴 — 몇 번 불러와도 처음 세이브가 밀려 지워지지 않음 (코드 리뷰어 #48 큼 3)', async () => {
+    const dir = fresh();
+    let t = Date.UTC(2026, 0, 1);
+    const a = new FileSaveArchive(dir, () => (t += 1000), 3);
+    await a.add('replaced', '처음 세이브', { first: true });
+    for (let i = 0; i < 6; i++) await a.add('repaired', `#${i}`, { i });
+    const entries = await a.list();
+    expect(entries.filter((e) => e.reason === 'replaced')).toHaveLength(1);
+    expect(entries.filter((e) => e.reason === 'repaired')).toHaveLength(3);
+  });
+
   it('폴더가 없으면 빈 목록', async () => {
     expect(await new FileSaveArchive(fresh()).list()).toEqual([]);
   });

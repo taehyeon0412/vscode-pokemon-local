@@ -130,10 +130,11 @@ export class SaveStore {
   async replace(save: Save, note = '새로 하기 전 세이브'): Promise<boolean> {
     const old = this.storage.read();
     if (old !== undefined) await this.archive.add('replaced', note, old);
-    if (this.pending) await this.archive.add('replaced', '새로 하기 전 (아직 안 쓴) 세이브', this.pending);
+    if (this.pending) await this.archive.add('replaced', `${note} (아직 안 쓴 것)`, this.pending);
     this.lockReason = null;
     this.lockLogged = false;
-    this.knownStamp = stampOf(old);
+    // 보관하는 동안 (await) 이 창이 한 번 더 썼을 수 있음 (전투 끝 save-now · 5초 자동저장) → 쓰기 바로 앞의 파일 표로 (옛 표로 되돌려 "다른 창" 으로 잠기던 것 — 코드 리뷰어 #48 큼 2)
+    this.knownStamp = stampOf(this.storage.read());
     return this.saveNow(save);
   }
 

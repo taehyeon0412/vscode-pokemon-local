@@ -10,7 +10,8 @@ import { GAME_COMMAND, type HostToWebview, type SaveReason, type TitleInfo, type
 
 /** 세이브 내보내기 · 가져오기 화면 상태 (orders #33 — 모양은 디자인팀): 확인 상자 · 못 읽음 · 결과 한 줄 */
 export interface SaveIoView {
-  ask?: { name: string; summary: TitleInfo['summary'] };
+  /** fixes = 읽으며 고친 곳 수 · lost = 빠진 포켓몬 수 (있으면 — 코드 리뷰어 #48) */
+  ask?: { name: string; summary: TitleInfo['summary']; fixes?: number; lost?: number };
   error?: string;
   name?: string;
   result?: { ok: boolean; text: string };
@@ -137,7 +138,10 @@ export class WebviewSession {
         this.changed();
         return;
       case 'save-import-ask':
-        this.saveIoNow = message.error !== undefined ? { error: message.error, ...(message.name ? { name: message.name } : {}) } : { ask: { name: message.name ?? '', summary: message.summary ?? null } };
+        this.saveIoNow =
+          message.error !== undefined
+            ? { error: message.error, ...(message.name ? { name: message.name } : {}) }
+            : { ask: { name: message.name ?? '', summary: message.summary ?? null, ...(message.fixes ? { fixes: message.fixes } : {}), ...(message.lost ? { lost: message.lost } : {}) } };
         this.changed();
         return;
       case 'save-result':
@@ -147,6 +151,8 @@ export class WebviewSession {
       case 'title':
         this.epoch = null;
         this.state = null;
+        // 게임을 나가면 확인 상자 · 결과 한 줄도 지움 (다시 들어온 게임 위에 지난 상자가 떠 Enter 로 덮던 것 — 코드 리뷰어 #48 큼 1)
+        this.saveIoNow = null;
         this.titleInfo = message.info;
         this.screenNow = 'title';
         this.changed();
@@ -168,6 +174,7 @@ export class WebviewSession {
       case 'stop':
         this.epoch = null;
         this.state = null;
+        this.saveIoNow = null;
         this.dirty = false;
         this.titleInfo = null;
         this.screenNow = 'none';

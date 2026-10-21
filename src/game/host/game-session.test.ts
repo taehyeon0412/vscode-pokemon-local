@@ -49,7 +49,9 @@ let modes: Mode[];
 let notices: string[];
 /** 세이브 파일 창 흉내 (orders #33) — 저장한 파일 · 열 파일 (null = 취소) */
 let savedFiles: { name: string; text: string }[];
-let openFile: { name: string; text: string } | null;
+let openFile: { name: string; text: string; tooBig?: number } | null;
+/** 열기 창이 닫히기 전까지 기다림 (열기 창이 떠 있는 동안 게임을 나가는 경우 — 코드 리뷰어 #48) */
+let openGate: Promise<void> | null;
 
 async function setup(save?: unknown, opts: { lease?: boolean } = {}): Promise<void> {
   warns = [];
@@ -57,6 +59,7 @@ async function setup(save?: unknown, opts: { lease?: boolean } = {}): Promise<vo
   notices = [];
   savedFiles = [];
   openFile = null;
+  openGate = null;
   storage = new MemorySaveStorage(save);
   archive = new MemorySaveArchive();
   leaseFile = new MemoryLeaseFile();
@@ -79,7 +82,10 @@ async function setup(save?: unknown, opts: { lease?: boolean } = {}): Promise<vo
         savedFiles.push({ name, text });
         return name;
       },
-      open: async () => openFile,
+      open: async () => {
+        if (openGate) await openGate;
+        return openFile;
+      },
     },
   });
   await session.init();
@@ -1367,5 +1373,83 @@ describe('세이브 내보내기 · 가져오기 (orders #33 · U6 S20 ④)', ()
     session.handleMessage(msg({ type: 'save-import' }));
     await vi.advanceTimersByTimeAsync(0);
     expect(ask()?.error).toContain('개발 모드');
+  });
+});
+
+describe('세이브 불러오기 — 코드 리뷰어 #48 (지난 상자 · 이상한 파일 · 고친 곳 · 쓰기 실패)', () => {
+  const ask = () => view.last('save-import-ask');
+  const result = () => view.last('save-result');
+  const other = sampleSave({ money: 777, playTimeMs: 90_000 });
+
+  it('묻고 나서 게임을 나갔다 다시 들어와 confirm 해도 덮지 않음 · 열기 창 동안 나가면 묻지 않음', async () => {
+    await enterAndStart(sampleSave({ money: 1234 }));
+    openFile = { name: 'friend.json', text: JSON.stringify(other) };
+    session.handleMessage(msg({ type: 'save-import' }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ask()?.summary).toBeTruthy();
+    await exitNow();
+    expect(await session.enterGame()).toBe('entered');
+    session.handleMessage(msg({ type: 'ready' }));
+    session.handleMessage(msg({ type: 'save-import-confirm' }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(stored()?.money).toBe(1234);
+    expect(archive.items.some((i) => i.note === '불러오기 전 세이브')).toBe(false);
+    // 열기 창이 떠 있는 동안 나가면 — 닫힌 뒤 묻지 않음
+    let open!: () => void;
+    openGate = new Promise<void>((r) => (open = r));
+    const asks = view.count('save-import-ask');
+    session.handleMessage(msg({ type: 'save-import' }));
+    await exitNow();
+    open();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(view.count('save-import-ask')).toBe(asks);
+  });
+
+  it('메모장 BOM · 보관함 파일 ({ at, reason, note, raw }) 은 읽음 · 너무 큰 파일 · 게임 밖은 까닭', async () => {
+    await enterAndStart(sampleSave({ money: 1234 }));
+    openFile = { name: 'bom.json', text: '\uFEFF' + JSON.stringify(other) };
+    session.handleMessage(msg({ type: 'save-import' }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ask()?.summary?.money).toBe(777);
+    openFile = { name: 'backup.json', text: JSON.stringify({ at: 1, reason: 'replaced', note: '불러오기 전 세이브', raw: other }) };
+    session.handleMessage(msg({ type: 'save-import' }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ask()?.summary?.money).toBe(777);
+    openFile = { name: 'huge.json', text: '', tooBig: 12_000_000 };
+    session.handleMessage(msg({ type: 'save-import' }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ask()?.error).toContain('너무 커요');
+    await exitNow();
+    session.handleMessage(msg({ type: 'save-import' }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ask()?.error).toContain('게임 중에만');
+  });
+
+  it('읽으며 고친 곳 · 빠진 포켓몬을 확인 상자에 (말없이 빠지던 것) · 불러온 뒤 기록에도', async () => {
+    await enterAndStart(sampleSave({ money: 1234 }));
+    const ghost = { ...other.monsters.m1!, uid: 'm9', species: 99999 };
+    openFile = { name: 'newer-build.json', text: JSON.stringify({ ...other, monsters: { ...other.monsters, m9: ghost }, box: ['m9'] }) };
+    session.handleMessage(msg({ type: 'save-import' }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ask()).toMatchObject({ lost: 1 });
+    expect(ask()?.fixes).toBeGreaterThan(0);
+    session.handleMessage(msg({ type: 'save-import-confirm' }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(stored()?.money).toBe(777);
+    expect(result()).toMatchObject({ ok: true });
+  });
+
+  it('쓰기에 실패하면 불러올 세이브를 남기지 않음 — 나중에 몰래 써지지 않고 지금 진행이 써짐', async () => {
+    await enterAndStart(sampleSave({ money: 1234 }));
+    openFile = { name: 'friend.json', text: JSON.stringify(other) };
+    session.handleMessage(msg({ type: 'save-import' }));
+    await vi.advanceTimersByTimeAsync(0);
+    storage.failNext = 1;
+    session.handleMessage(msg({ type: 'save-import-confirm' }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(result()).toMatchObject({ ok: false });
+    await vi.advanceTimersByTimeAsync(6000);
+    expect(stored()?.money ?? 1234).toBe(1234);
+    expect(stored()?.money).not.toBe(777);
   });
 });

@@ -36,6 +36,14 @@ const PAUSED_NOTICE_MAX = 3;
 /** 불러올 세이브 파일 크기 상한 (글자) — 세이브는 보통 수십 KB */
 const IMPORT_MAX_CHARS = 5_000_000;
 
+/** 보관함 파일 모양 ({ at, reason, note, raw } — save-archive) */
+const isArchived = (v: unknown): v is { raw: unknown } => typeof v === 'object' && v !== null && !Array.isArray(v) && 'raw' in v && 'reason' in v && 'at' in v;
+/** 원본에 적힌 포켓몬 수 (읽으며 빠진 수를 세려고) */
+function monstersIn(raw: unknown): number {
+  const m = typeof raw === 'object' && raw !== null ? (raw as { monsters?: unknown }).monsters : undefined;
+  return typeof m === 'object' && m !== null && !Array.isArray(m) ? Object.keys(m).length : 0;
+}
+
 /** 세이브 한 줄 요약 — 타이틀 이어 하기 · 불러오기 확인 상자 (같은 모양) */
 /** today = 오늘 날짜 (있으면 오늘의 목표 수도 — 켜졌고 세이브의 목표가 오늘 것일 때만, #28 타이틀 "오늘 1/3") */
 function summaryOf(save: Save, today?: string): NonNullable<TitleInfo['summary']> {
@@ -89,7 +97,8 @@ export interface SessionDeps {
   /** 벽시계 (ms) — 오늘의 목표 날짜 (없으면 Date.now — 테스트가 바꿈) */
   wallNow?(): number;
   /** 세이브 파일 창 (orders #33) — save = 저장 창 · 쓰기 (파일 이름 · 취소면 null) · open = 열기 창 · 읽기 (취소면 null). 없으면 내보내기 · 가져오기 안 됨 */
-  files?: { save(defaultName: string, text: string): Promise<string | null>; open(): Promise<{ name: string; text: string } | null> };
+  /** 세이브 파일 창 (orders #33) — open 의 tooBig = 너무 커서 읽지 않은 파일의 크기 (바이트) */
+  files?: { save(defaultName: string, text: string): Promise<string | null>; open(): Promise<{ name: string; text: string; tooBig?: number } | null> };
 }
 
 /** 세는 것 — 기록 · 테스트용 */
@@ -129,7 +138,8 @@ export class GameSession {
   private noticeAway = false;
   private noticePending: GameNotice | null = null;
   /** 불러오기 확인을 기다리는 세이브 (orders #33) */
-  private pendingImport: { save: Save; name: string } | null = null;
+  /** 확인을 기다리는 불러올 세이브 — 모드가 바뀌면 지움 (게임을 나갔다 들어온 뒤 지난 확인 상자의 Enter 로 덮던 것 — 코드 리뷰어 #48 큼 1) */
+  private pendingImport: { save: Save; name: string; problems: string[]; migratedFrom: number | null } | null = null;
   private loadResult: LoadResult = { kind: 'none' };
   /** 확장이 넘겨받기 바로 전 epoch — 그 epoch 의 늦은 메시지는 다시 맡기기 전까지 받아 줌 */
   private handoverEpoch: number | null = null;
@@ -425,25 +435,38 @@ export class GameSession {
   private async importSave(): Promise<void> {
     if (!this.deps.files) return;
     this.pendingImport = null;
-    if (this.dev || this.mode !== 'game') return this.post({ type: 'save-import-ask', error: '개발 모드에서는 세이브를 불러오지 않아요' });
-    let file: { name: string; text: string } | null;
+    const blocked = () => (this.dev ? '개발 모드에서는 세이브를 불러오지 않아요' : this.mode !== 'game' ? '게임 중에만 불러올 수 있어요' : null);
+    const why = blocked();
+    if (why) return this.post({ type: 'save-import-ask', error: why });
+    const mode = this.mode;
+    let file: { name: string; text: string; tooBig?: number } | null;
     try {
       file = await this.deps.files.open();
     } catch (e) {
       return this.post({ type: 'save-import-ask', error: `파일을 읽지 못했어요 (${String(e)})` });
     }
     if (!file) return;
+    // 열기 창이 떠 있는 동안 게임을 나갔거나 개발 모드가 됐으면 묻지 않음 (코드 리뷰어 #48 큼 1)
+    if (this.mode !== mode || blocked()) return;
+    const tooBig = file.tooBig ?? (file.text.length > IMPORT_MAX_CHARS ? file.text.length : 0);
+    if (tooBig) return this.post({ type: 'save-import-ask', name: file.name, error: `파일이 너무 커요 (${(tooBig / 1_000_000).toFixed(1)} MB) — 포켓몬 게임 세이브가 아니에요` });
     let raw: unknown;
     try {
-      raw = file.text.length > IMPORT_MAX_CHARS ? null : JSON.parse(file.text);
+      // 메모장 "UTF-8 BOM" 으로 저장한 파일도 (맨 앞 \uFEFF)
+      raw = JSON.parse(file.text.replace(/^\uFEFF/, ''));
     } catch {
       raw = null;
     }
+    // 보관함 파일 ({ at, reason, note, raw }) 을 고르면 안의 세이브로 (되찾는 길 — 코드 리뷰어 #48 큼 3)
+    if (isArchived(raw)) raw = raw.raw;
     const r = readSave(raw);
     if (r.kind === 'newer') return this.post({ type: 'save-import-ask', name: file.name, error: `더 새 확장의 세이브 (${r.version}판) 라 불러올 수 없어요 — 확장을 업데이트해 주세요` });
     if (r.kind !== 'ok') return this.post({ type: 'save-import-ask', name: file.name, error: '포켓몬 게임 세이브가 아니거나 망가진 파일이에요' });
-    this.pendingImport = { save: r.save, name: file.name };
-    this.post({ type: 'save-import-ask', name: file.name, summary: summaryOf(r.save) });
+    // 읽으며 고친 곳 · 빠진 포켓몬 (다른 PC 의 더 새 빌드 세이브 등) 을 확인 상자에 (말없이 빠지던 것 — 코드 리뷰어 #48 큼 4)
+    const before = monstersIn(raw);
+    const lost = Math.max(0, before - Object.keys(r.save.monsters).length);
+    this.pendingImport = { save: r.save, name: file.name, problems: r.problems, migratedFrom: r.migratedFrom };
+    this.post({ type: 'save-import-ask', name: file.name, summary: summaryOf(r.save), ...(r.problems.length ? { fixes: r.problems.length } : {}), ...(lost ? { lost } : {}) });
   }
 
   /** 세이브 불러오기 2 — 확인하면 지금 세이브를 보관함에 두고 (자동 보관 [제안]) 덮어써서 그 세이브로 이어 함 */
@@ -452,20 +475,25 @@ export class GameSession {
       const p = this.pendingImport;
       this.pendingImport = null;
       if (!p || this.dev || this.mode !== 'game') return;
-      if (this.deps.lease && !this.deps.lease.held) return this.postSaveResult(false, '다른 VS Code 창이 게임 중이라 불러오지 못했어요');
+      // 창 잠금을 파일에서 다시 봄 (PC 가 잠든 사이 다른 창이 가져갔을 수 있음 — 코드 리뷰어 #48)
+      if (this.deps.lease && (!this.deps.lease.held || this.deps.lease.heldByOther())) return this.postSaveResult(false, '다른 VS Code 창이 게임 중이라 불러오지 못했어요');
       let ok = false;
       try {
         ok = await this.deps.store.replace(p.save, '불러오기 전 세이브');
       } catch (e) {
         this.deps.log(`불러오기 실패: ${String(e)}`);
       }
-      if (!ok) return this.postSaveResult(false, '세이브를 쓰지 못해 불러오지 못했어요');
+      if (!ok) {
+        // 못 썼으면 지금 진행을 다시 쓸 것으로 (불러올 세이브가 남아 5초 뒤 몰래 써지던 것 — 코드 리뷰어 #48)
+        if (this.state) this.deps.store.set(this.state.save);
+        return this.postSaveResult(false, '세이브를 쓰지 못해 불러오지 못했어요');
+      }
       this.state = createGameState(p.save, this.deps.newSeed());
-      this.loadResult = { kind: 'ok', save: p.save, problems: [], migratedFrom: null };
+      this.loadResult = { kind: 'ok', save: p.save, problems: p.problems, migratedFrom: p.migratedFrom };
       // 새 epoch 으로 — 웹뷰가 옛 진행을 보내 불러온 세이브를 덮지 않게
       if (this.owner === 'webview') this.handToWebview();
       else this.hostOwns('세이브 불러오기');
-      this.postSaveResult(true, `불러왔어요 — 지금 것은 보관함에 둠 (${p.name})`);
+      this.postSaveResult(true, `불러왔어요 — 지금 것은 백업해 둠 (${p.name})`);
     });
   }
 
@@ -621,6 +649,7 @@ export class GameSession {
   private setMode(mode: Mode): void {
     if (this.mode === mode) return;
     this.mode = mode;
+    this.pendingImport = null;
     if (mode !== 'title') this.stopBusyWatch();
     // 게임에서 나가면 탭 배지도 지움 (접힌 채 대기실 → 🏠 에 "기다려요" 가 일반 모드에 남던 것 — 코드 리뷰어)
     this.updateBadge();
