@@ -1,0 +1,207 @@
+/* S09 3:3 화면 뼈대 모양 (orders #17 3단계) — 자리만 맞춤, 모양은 디자인팀 (4안 값 · design-system). 판 · 막대 값은 시안 drawPlate 그대로 */
+#pokemon-game .pg-team {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+#pokemon-game .pg-team-mon,
+#pokemon-game .pg-team-plate,
+#pokemon-game .pg-team-prompt .pg-team-who {
+  pointer-events: auto;
+  cursor: pointer;
+}
+#pokemon-game .pg-team-mon {
+  position: absolute;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+#pokemon-game .pg-team-mon .pg-team-body {
+  display: block;
+  line-height: 0;
+}
+#pokemon-game .pg-team-down .pg-team-body {
+  filter: grayscale(1) brightness(0.7);
+}
+#pokemon-game .pg-team-foe.pg-team-down {
+  animation: pg-team-gone 0.45s steps(3, end) 1.2s forwards;
+}
+@keyframes pg-team-gone {
+  to {
+    opacity: 0;
+  }
+}
+#pokemon-game .pg-team-plate {
+  position: absolute;
+  box-sizing: border-box;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+#pokemon-game .pg-team-plate-foe.pg-plate-down {
+  animation: pg-team-gone 0.45s steps(3, end) 1.2s forwards;
+}
+#pokemon-game .pg-plate-reserved,
+#pokemon-game .pg-plate-ready,
+#pokemon-game .pg-plate-join {
+  background: var(--pg-sos-panel);
+  outline: 1px solid var(--pg-sos-line);
+  outline-offset: 2px;
+}
+#pokemon-game .pg-plate-ready,
+#pokemon-game .pg-plate-join {
+  outline: 2px solid var(--pg-sos-gold);
+}
+#pokemon-game .pg-plate-join {
+  box-shadow: 0 0 0 5px var(--pg-sos-red);
+}
+#pokemon-game .pg-plate-down {
+  background: repeating-conic-gradient(#1a2131 0 25%, #0c101e 0 50%) 0 0 / 4px 4px;
+}
+#pokemon-game .pg-team-key {
+  box-sizing: border-box;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 2px;
+  font: 700 11px / 12px Pretendard, sans-serif;
+  text-align: center;
+  color: var(--pg-sos-dim);
+  background: rgba(12, 16, 30, 0.85);
+  border: 1px solid var(--pg-sos-line-soft);
+}
+#pokemon-game .pg-plate-ready .pg-team-key,
+#pokemon-game .pg-plate-join .pg-team-key,
+#pokemon-game .pg-team-key-on {
+  color: var(--pg-sos-tab-ink);
+  background: var(--pg-sos-gold);
+  border-color: var(--pg-sos-gold);
+}
+#pokemon-game .pg-plate-down .pg-team-key {
+  border-style: dashed;
+}
+#pokemon-game .pg-team-bars {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+#pokemon-game .pg-team-bar {
+  display: block;
+  height: 4px;
+  background: var(--pg-sos-track);
+  outline: 1px solid var(--pg-sos-bar);
+}
+#pokemon-game .pg-team-x1 .pg-team-bar-hp {
+  height: 3px;
+}
+#pokemon-game .pg-team-bar-ult {
+  height: 2px;
+}
+#pokemon-game .pg-team-fill {
+  display: block;
+  height: 100%;
+  background: var(--pg-sos-ult);
+}
+#pokemon-game .pg-team-hp-ok {
+  background: var(--pg-sos-hp);
+}
+#pokemon-game .pg-team-hp-mid {
+  background: var(--pg-sos-mid);
+}
+#pokemon-game .pg-team-hp-low {
+  background: var(--pg-sos-red);
+}
+#pokemon-game .pg-team-ult-full {
+  background: #fff3b0;
+}
+#pokemon-game .pg-team-warn {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  padding: 0 3px;
+  font: 700 11px / 14px Pretendard, sans-serif;
+  color: var(--pg-sos-ult);
+  z-index: 8;
+}
+#pokemon-game .pg-team-warn-full {
+  color: #fff;
+  background: var(--pg-sos-red);
+}
+#pokemon-game .pg-team-pop {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  font: 700 13px / 1 Pretendard, sans-serif;
+  color: var(--pg-sos-red);
+  text-shadow: 0 1px 0 #0c101e, 1px 0 0 #0c101e, -1px 0 0 #0c101e, 0 -1px 0 #0c101e;
+  white-space: nowrap;
+  z-index: 7;
+}
+#pokemon-game .pg-team-pop.pg-pop-super {
+  font-size: 16px;
+}
+#pokemon-game .pg-team-pop.pg-pop-weak {
+  font-size: 11px;
+}
+#pokemon-game .pg-team-pop.pg-pop-crit {
+  color: var(--pg-sos-gold);
+}
+#pokemon-game .pg-team-pop.pg-pop-info,
+#pokemon-game .pg-team-pop.pg-pop-status,
+#pokemon-game .pg-team-pop.pg-pop-miss {
+  font-size: 11px;
+  color: var(--pg-sos-ink);
+}
+#pokemon-game .pg-team-prompt,
+#pokemon-game .pg-team-msg {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--pg-field-top, 26px) + 4px);
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px 6px;
+  font: 700 12px / 16px Pretendard, sans-serif;
+  color: var(--pg-sos-ink);
+  background: rgba(12, 16, 30, 0.94);
+  border: 1px solid var(--pg-sos-gold);
+  white-space: nowrap;
+  z-index: 9;
+}
+#pokemon-game .pg-team-msg {
+  border-color: var(--pg-sos-line-soft);
+  font-weight: 500;
+}
+#pokemon-game .pg-team-msg-over {
+  border-color: var(--pg-sos-gold);
+  color: var(--pg-sos-gold);
+  font-weight: 700;
+}
+#pokemon-game .pg-team-prompt .pg-team-left {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--pg-sos-gold);
+}
+#pokemon-game .pg-team-who {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+#pokemon-game .pg-team-sure {
+  color: var(--pg-sos-gold);
+}
+#pokemon-game .pg-team-sure-foe {
+  color: var(--pg-sos-red);
+}
+#pokemon-game .pg-team-fx {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+/* 3:3 동안 주인공 숨김 (StageScreen hidden) — .pg-obj 의 display 가 hidden 을 이기지 않게 */
+#pokemon-game .pg-hero-wrap[hidden] {
+  display: none !important;
+}

@@ -392,6 +392,34 @@
         document.body.appendChild(s);
     }
 
+    // 개발 모드 장면 바로 가기 (사진용) — devscene=개발 메뉴 버튼 글자를 | 로 이어서 차례로 (예: 3:3 트레이너전|필살기 게이지 가득) ·
+    //   key:Digit1 = 그 키 누름 · wait:500 = 쉼 · dev=1 과 같이. 하나 끝날 때마다 판이 닫혀 있으면 다시 엶
+    const devScene = q.get('devscene');
+    if (devScene) {
+        const steps = devScene.split('|');
+        const run = (i, left) => {
+            if (i >= steps.length) return;
+            const st = steps[i];
+            if (st.startsWith('wait:')) return setTimeout(() => run(i + 1, 40), Number(st.slice(5)));
+            if (st.startsWith('key:')) {
+                const code = st.slice(4);
+                if (document.querySelector('#pokemon-game .pg-panel')) window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape' }));
+                window.dispatchEvent(new KeyboardEvent('keydown', { code, key: code.replace('Digit', '').replace('Key', '').toLowerCase() === 'space' ? ' ' : code.replace('Digit', '').replace('Key', ''), bubbles: true }));
+                return setTimeout(() => run(i + 1, 40), 100);
+            }
+            const badge = document.querySelector('#pokemon-game .pg-dev-badge');
+            const btn = [...document.querySelectorAll('#pokemon-game .pg-dev-btn')].find((x) => x.textContent.trim() === st);
+            if (btn) {
+                btn.click();
+                // 장면이 아닌 것 (상태 · 속도) 은 판이 그대로 — 닫기
+                setTimeout(() => { if (document.querySelector('#pokemon-game .pg-panel')) window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape' })); }, 50);
+                return setTimeout(() => run(i + 1, 40), 300);
+            }
+            if (badge && !document.querySelector('#pokemon-game .pg-panel')) badge.click();
+            if (left > 0) setTimeout(() => run(i, left - 1), 100);
+        };
+        setTimeout(() => run(0, 40), 300);
+    }
     // 버튼 누르기 (사진용)
     const click = q.get('click');
     if (click) {

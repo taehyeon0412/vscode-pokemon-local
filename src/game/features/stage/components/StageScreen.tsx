@@ -26,6 +26,7 @@ import { Icon } from '../../../ui/Icon';
 import { themeKind } from '../../../ui/theme';
 import { typeNameKo } from '../../../ui/format';
 import { InfoBar } from '../../../ui/InfoBar';
+import { TeamLayer } from '../../battle/team/TeamLayer';
 import { Face } from '../../../ui/Face';
 import { FirstTip } from '../../../ui/FirstTip';
 import { KeyCap } from '../../../ui/KeyCap';
@@ -184,9 +185,13 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   const heroW = heroWidthPx(look, layout.scale, heroRoom);
   // 머리 위 알림 — 패널이 낮으면 머리 위 자리가 알림 한 줄보다 좁음 → 칸 안으로, 위는 상자 자리 (16px = 글자 11 + 위아래 여백, 글자 배율만큼)
   const toastBottom = Math.max(0, Math.min(ground + heroH + 4, bodyPx - Math.ceil(16 * layout.uiScale) - fieldTop));
-  const objects = gym ? [] : visibleObjects(state, widthPx, layout.scale);
+  // 3:3 동안은 길 위 물건 · 주인공을 숨김 (무대 = 여섯 마리 — 디자인 4안)
+  const teamOn = state.runtime.stage?.phase === 'team';
+  const objects = gym || teamOn ? [] : visibleObjects(state, widthPx, layout.scale);
   const stageRt = state.runtime.stage;
   const battle = stageRt?.phase === 'battle' ? stageRt.battle : null;
+  // 3:3 (orders #17 — 본편은 꺼져 있고 개발 모드에서만 켬)
+  const team = stageRt?.phase === 'team' ? stageRt.team : null;
   const choice = choiceView(state);
   const foeTrainer = foeTrainerView(state);
   // VS 컷인 중 — 길 위 상대 이름표는 숨김 (컷인 띠에 같은 이름이 있고, 반투명 덮개 너머로 대결 그림과 겹쳐 보임)
@@ -342,7 +347,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         <StageObjects objects={objects} media={media} scale={layout.scale} ground={ground} roomPx={heroRoom} />
         {gymX !== null && media && <GymFront x={gymX} restX={gymRestX(widthPx, layout.scale)} k={gymK} ground={ground} roomPx={heroRoom} media={media} door={gymEnter?.door ?? 0} />}
         {/* 체육관 장면 · 대기실 = 자리 옮김 0.45초 없이 (걸음이 픽셀 박자로 · 대기실에 들어오며 미끄러지지 않게 — UX 리뷰어 2026-10-21) · 가운데 맞춤 translateX 는 그대로 */}
-        <span class={`pg-obj pg-hero-wrap${gymEnter || phase === 'lobby' ? ' pg-hero-still' : ''}`} style={{ left: `${heroLeft}px`, bottom: `${ground}px`, ...(gymEnter ? { opacity: String(gymEnter.fade), transform: `translateX(-50%) translateY(${-gymEnter.rise * gymK}px)` } : {}) }}>
+        <span hidden={teamOn} class={`pg-obj pg-hero-wrap${gymEnter || phase === 'lobby' ? ' pg-hero-still' : ''}`} style={{ left: `${heroLeft}px`, bottom: `${ground}px`, ...(gymEnter ? { opacity: String(gymEnter.fade), transform: `translateX(-50%) translateY(${-gymEnter.rise * gymK}px)` } : {}) }}>
           <Hero px={heroPx} walking={(phase === 'walk' || gymEnter?.walking === true) && live} fast={fast} gender={look.gender} look={look} media={media} roomPx={heroRoom} />
         </span>
         {/* 전투 중 상대 트레이너 · 관장 = 오른쪽 끝 (남은 볼) · 대기실의 관장 */}
@@ -365,6 +370,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         {battle && geo && (
           <BattleLayer battle={battle} save={save} media={media} ground={ground} geo={geo} onInput={battleInput} onProfile={(side) => onOpen({ kind: 'profile', side })} foeTrainerLeft={foeTrainer || gym ? leaderX : undefined} />
         )}
+        {team && <TeamLayer team={team} media={media} widthPx={widthPx} heightPx={layout.heightPx} fieldTop={Math.round(INFO_BAR_PX * layout.uiScale)} onInput={onInput} />}
         {/* 체육관으로 — 화면 닦기 (위 → 아래) */}
         {gymEnter && gymEnter.wipe > 0 && (
           <div class="pg-gym-wipe" style={{ '--pg-wipe': String(gymEnter.wipe) }} />
