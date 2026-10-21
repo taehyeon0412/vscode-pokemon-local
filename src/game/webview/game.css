@@ -4559,6 +4559,11 @@ body.vscode-high-contrast-light .pg-title-body {
     visibility: hidden;
   }
 }
+@media (max-width: 300px) {
+  .pg-gym-word {
+    display: none;
+  }
+}
 /* 오른쪽 칸 (메뉴) 이 빈 동안 (전투 · 연출) = 볼 + 지도 묶음을 가운데로 — 빈 칸이 자리를 남겨 묶음이 왼쪽으로 35 ~ 82px 쏠리던 것 (픽셀 밤 점검, U3 가운데 축) */
 .pg-infobar:not(.pg-infobar-split):has(> .pg-infobar-right:empty) {
   display: flex;

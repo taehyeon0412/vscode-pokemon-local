@@ -306,9 +306,10 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   const hpFloor = Math.floor((partyMons.reduce((a, m) => a + Math.max(0, m.hp), 0) / Math.max(1, partyMons.reduce((a, m) => a + maxHpOf(m), 0))) * 100);
   const teamDanger = health.danger ? { ...health, hpPct: hpFloor } : null;
   const where = gym ? (
-    <span class="pg-stage-name">
-      {/* 지금 지역 체육관 (숲 · 해변 — #37) */}
-      <Icon name="gym" /> {regionHere(save.location).name} 체육관 {save.badges.includes(regionHere(save.location).badge) && <Icon name="badge" title={`${regionHere(save.location).name} 배지`} />}
+    <span class="pg-stage-name" title={`${regionHere(save.location).name} 체육관`}>
+      {/* 지금 지역 체육관 (숲 · 해변 — #37) · 300 아래는 "체육관" 낱말을 뺌 (체육관 아이콘이 말함 — 240 에서 "해변 체육관" + "+2" 가 넘쳐 "관" 이 잘리던 것, 픽셀 검사원) */}
+      <Icon name="gym" /> {regionHere(save.location).name}
+      <span class="pg-gym-word"> 체육관</span> {save.badges.includes(regionHere(save.location).badge) && <Icon name="badge" title={`${regionHere(save.location).name} 배지`} />}
     </span>
   ) : info && map ? (
     <Minimap stage={info} progress={map.progress} facilities={map.facilities} gym={map.gym} leftMs={walkLeftMs(save)} team={teamDanger} />
