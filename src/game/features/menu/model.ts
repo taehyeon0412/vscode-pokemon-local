@@ -69,7 +69,8 @@ export const MENU_PANELS: readonly Overlay['kind'][] = ['map', 'team', 'bag', 's
  */
 export type MenuLabels = 'full' | 'text' | 'icon';
 export function menuLabels(widthPx: number, mapRow: boolean): MenuLabels {
-  const [full, text] = mapRow ? [560, 470] : [1100, 920];
+  // 지도 줄이 있으면 글자 메뉴는 510 부터 (480 ~ 505 에서 칸보다 몇 px 넓어 첫 버튼 ▶▶ 가 반쯤 잘리던 것 — UX 리뷰어 2026-10-21)
+  const [full, text] = mapRow ? [560, 510] : [1100, 920];
   return widthPx >= full ? 'full' : widthPx >= text ? 'text' : 'icon';
 }
 

@@ -413,7 +413,9 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
             {open && repeatChip && <div class="pg-vmenu-repeat">{repeatChip}</div>}
             {!open && queuedName && !collapse && (
               <div class="pg-vmenu-repeat">
-                <span class="pg-repeat pg-queued-line">{queuedName} 예약 — 게이지가 차면 바로</span>
+                <span class="pg-repeat pg-queued-line" title="게이지가 차면 바로 나가요">
+                  {queuedName} 예약
+                </span>
               </div>
             )}
           </div>

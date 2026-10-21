@@ -27,8 +27,8 @@ describe('S06 ⑦ ~ ⑩ 정보줄 메뉴 — 단축키 + 아이콘 + 이름 (202
     expect(new Set(Object.values(MENU_KEYS)).size).toBe(5);
   });
 
-  it('폭에 따라 줄임 — 지도 줄이 있으면 560 부터 단축키까지 · 470 부터 이름, 없으면 (지도와 나눠 씀) 1100 · 920', () => {
-    expect([1860, 560, 559, 470, 469, 240].map((w) => menuLabels(w, true))).toEqual(['full', 'full', 'text', 'text', 'icon', 'icon']);
+  it('폭에 따라 줄임 — 지도 줄이 있으면 560 부터 단축키까지 · 510 부터 이름 (480 ~ 505 에서 첫 버튼이 잘리던 것), 없으면 (지도와 나눠 씀) 1100 · 920', () => {
+    expect([1860, 560, 559, 510, 509, 481, 240].map((w) => menuLabels(w, true))).toEqual(['full', 'full', 'text', 'text', 'icon', 'icon', 'icon']);
     expect([1860, 1100, 1000, 920, 720].map((w) => menuLabels(w, false))).toEqual(['full', 'full', 'text', 'text', 'icon']);
   });
 });

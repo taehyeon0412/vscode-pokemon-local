@@ -50,7 +50,7 @@ export function FacilityBox({ state, media, onInput, onBox }: BoxProps & { onBox
           {team ? (
             <span class={team.danger ? 'pg-team-hp' : 'pg-dim'} title="팀 HP 합 · 쓰러진 포켓몬 · 회복할 것">
               {need ?? `팀 HP ${hpPct}%`}
-              {team.fainted > 0 && ` · 쓰러짐 ${team.fainted}`}
+              {team.fainted > 0 && <span class="pg-fac-down"> · 쓰러짐 {team.fainted}</span>}
             </span>
           ) : (
             <span class="pg-money" title="내 돈">

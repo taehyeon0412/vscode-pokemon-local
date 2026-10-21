@@ -1202,7 +1202,7 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   font-weight: 700;
   color: var(--pg-sos-red);
 }
-@media (max-width: 480px) {
+@media (max-width: 520px) {
   .pg-infobar .pg-team-down {
     display: none;
   }
@@ -1213,7 +1213,8 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
     display: none;
   }
 }
-@media (max-width: 480px) {
+/* 520 아래 (481 ~ 505 에서 아직 잘리던 것 — UX 리뷰어) */
+@media (max-width: 520px) {
   .pg-infobar .pg-minimap:has(.pg-team-hp) :is(.pg-mapbar, .pg-mappct) {
     display: none;
   }
@@ -1235,9 +1236,9 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
     display: none;
   }
 }
-/* 좁은 병원 앞 — 두 줄 (세 줄이던 상자가 주인공 · 간호사 머리를 가리던 것): 첫 줄 = 팀 상태 + [Esc 10초] ("병원" 글자는 그림이 말함), 둘째 줄 = [Enter 회복하고 가기] [보관함] */
+/* 좁은 병원 앞 — 두 줄 (세 줄이던 상자가 주인공 · 간호사 머리를 가리던 것): 첫 줄 = 팀 HP + [Esc 지나가기 10초] ("병원" · "쓰러짐 N" 은 빼고 — Esc 에 동사가 없어 무엇인지 몰랐던 것, UX 리뷰어), 둘째 줄 = [Enter 회복하고 가기] [보관함] */
 @media (max-width: 360px) {
-  .pg-pass-word,
+  .pg-fac-down,
   .pg-fac-word {
     display: none;
   }

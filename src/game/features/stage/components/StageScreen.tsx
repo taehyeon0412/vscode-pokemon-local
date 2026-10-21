@@ -10,7 +10,7 @@
 import { useRef } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
 import { canOpenMenus, canParry, canRiposte, isWalkingFast, itemLeft, walkLeftMs, type GameInput, type GameState } from '../../../core/engine';
-import { teamHealth } from '../../../core/rules/bag';
+import { maxHpOf, teamHealth } from '../../../core/rules/bag';
 import { spaceInput, ultSkippable } from '../../battle/fx/parry';
 import { BALLS } from '../../../core/rules/catch';
 import { bestHelper, requestAt } from '../../../core/rules/request';
@@ -266,7 +266,10 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   const ballsInField = ballsOut && !mapRow;
   // 팀이 위험할 때만 (HP 절반 아래 · 쓰러짐) 지도 옆 빨간 칸 (#47)
   const health = teamHealth(save);
-  const teamDanger = health.danger ? health : null;
+  // 비율은 내림 (병원 앞 상자와 같은 숫자 — 반올림 17 · 내림 16 으로 달랐던 것, UX 리뷰어)
+  const partyMons = save.party.map((uid) => save.monsters[uid]).filter((m) => m !== undefined);
+  const hpFloor = Math.floor((partyMons.reduce((a, m) => a + Math.max(0, m.hp), 0) / Math.max(1, partyMons.reduce((a, m) => a + maxHpOf(m), 0))) * 100);
+  const teamDanger = health.danger ? { ...health, hpPct: hpFloor } : null;
   const where = gym ? (
     <span class="pg-stage-name">
       <Icon name="gym" /> 숲 체육관 {save.badges.includes('forest') && <Icon name="badge" title="숲 배지" />}
