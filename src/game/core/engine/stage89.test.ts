@@ -415,6 +415,12 @@ describe('S18 · S19 · S20 — 어디서 무엇을 (gdd 4.10 · mvp-spec S19 ·
     const s = game({ box: [], bag: { potion: 1, 'leaf-stone': 1 } });
     expect(applyInput(s, { kind: 'team-move', uid: 'm2', dir: -1 }).save.party).toEqual(['m2', 'm1']);
     expect(applyInput(s, { kind: 'points', uid: 'm1', stat: 'attack' }).save.monsters.m1!.points.attack).toBe(1);
+    // Shift + 클릭 = +5 (기획 R16) · 남은 포인트까지만
+    const rich = { ...s, save: { ...s.save, monsters: { ...s.save.monsters, m1: { ...s.save.monsters.m1!, unspentPoints: 7 } } } };
+    const five = applyInput(rich, { kind: 'points', uid: 'm1', stat: 'attack', n: 5 });
+    expect(five.save.monsters.m1!.points.attack - rich.save.monsters.m1!.points.attack).toBe(5);
+    expect(five.save.monsters.m1!.unspentPoints).toBe(2);
+    expect(applyInput(five, { kind: 'points', uid: 'm1', stat: 'hp', n: 5 }).save.monsters.m1!.unspentPoints).toBe(0);
     expect(applyInput(s, { kind: 'team-to-box', uid: 'm2' })).toBe(s);
     const healed = applyInput(s, { kind: 'use-item', item: 'potion', uid: 'm1' });
     expect(healed.save.bag.potion).toBe(0);

@@ -85,7 +85,8 @@ export type GameInput =
   | { kind: 'team-move'; uid: string; dir: -1 | 1 }
   | { kind: 'team-swap'; boxUid: string; partyUid: string | null }
   | { kind: 'team-to-box'; uid: string }
-  | { kind: 'points'; uid: string; stat: StatKey }
+  /** n = 한 번에 찍을 포인트 (Shift + 클릭 = 5 — 기획 R16, 남은 만큼까지) */
+  | { kind: 'points'; uid: string; stat: StatKey; n?: number }
   /** S19 — 전투 밖에서 아이템 (돌 · 연결의끈은 S22 로) */
   | { kind: 'use-item'; item: ItemId; uid: string }
   /** S20 ③ 알림 (U9) */
@@ -867,6 +868,24 @@ export function step(state: GameState, stepMs: number): StepOut {
     rt = { ...rt, stage: null, stageId: null };
   }
   rt = awayStep(state, save, rt, signal);
+  // 자동 전투 첫 안내 (R12 A — 자동을 한 번 켤 때까지 최대 3번): ① 보는 중 내 차례가 10초 넘게 입력 없이 기다린 첫 때 ② 자동 꺼짐으로 안 보는 동안 멈췄다 다시 볼 때
+  const watchingNow = !rt.headless && !rt.away;
+  const myTurn = rt.stage?.phase === 'battle' && rt.stage.battle.phase === 'choose' && !save.settings.autoBattle;
+  if (myTurn && watchingNow) {
+    const ms = (rt.chooseMs ?? 0) + stepMs;
+    if ((rt.chooseMs ?? 0) < TIMING.autoTipWaitMs && ms >= TIMING.autoTipWaitMs && autoTipLeft(save)) {
+      save = useAutoTip(save);
+      rt = { ...rt, toast: { text: '자리를 비울 땐 [A] 자동 전투 — 알아서 싸워요', ms: TIMING.toastMs * 2 } };
+    }
+    rt = { ...rt, chooseMs: ms };
+  } else if (rt.chooseMs !== undefined) {
+    const { chooseMs: _c, ...rest } = rt;
+    rt = rest;
+  }
+  if (watchingNow && rt.noticed === 'paused' && autoTipLeft(save)) {
+    save = useAutoTip(save);
+    rt = { ...rt, toast: { text: '안 보는 동안 멈춰 있었어요 — [A] 자동 전투면 계속 걸어요', ms: TIMING.toastMs * 2 } };
+  }
   // 멈춤 · 알림 (gdd 4.13 · U6) — 밖 · 숨김에서 기다리는 이유가 생겼는데 아직 안 알렸으면 한 번 (장면마다 따로 알리던 것을 한곳에서 — 이로치 전투 중에 떠남 · 밖 고르기 · 대기실로 돌아옴 등 빠진 곳 없이).
   // 보는 중이면 지움 (다시 떠나면 다시 알림) · 기다림이 풀리면 지움 (다음 기다림을 알리게)
   let told: GameNotice | null = null;
@@ -880,6 +899,17 @@ export function step(state: GameState, stepMs: number): StepOut {
     rt = rest;
   }
   return { state: { save, runtime: rt }, save: signal, notice: told };
+}
+
+/** 자동 전투 첫 안내를 더 띄울 수 있는지 — 자동을 한 번도 안 켰고 (tips 'auto-on') 띄운 수 (tips 'auto-1' ~ ) 가 3 아래 (R12 A) */
+const AUTO_TIP_MAX = 3;
+export function autoTipLeft(save: Save): boolean {
+  const t = save.tips ?? [];
+  return !save.settings.autoBattle && !t.includes('auto-on') && t.filter((x) => /^auto-\d$/.test(x)).length < AUTO_TIP_MAX && t.length < TIPS_MAX;
+}
+function useAutoTip(save: Save): Save {
+  const t = save.tips ?? [];
+  return { ...save, tips: [...t, `auto-${t.filter((x) => /^auto-\d$/.test(x)).length + 1}`] };
 }
 
 /**
@@ -1123,7 +1153,9 @@ export function applyInput(state: GameState, input: GameInput): GameState {
     }
     case 'auto-battle': {
       if (save.settings.autoBattle === input.on) return state;
-      const next = { ...save, settings: { ...save.settings, autoBattle: input.on } };
+      // 자동을 한 번 켜면 자동 전투 첫 안내는 끝 (R12 A)
+      const tips = save.tips ?? [];
+      const next = { ...save, settings: { ...save.settings, autoBattle: input.on }, ...(input.on && !tips.includes('auto-on') && tips.length < TIPS_MAX ? { tips: [...tips, 'auto-on'] } : {}) };
       return input.say ? toast(state, next, input.on ? '자동 전투 켜짐 (A)' : '자동 전투 꺼짐 (A)') : { ...state, save: next };
     }
     case 'fast-walk':
@@ -1265,7 +1297,14 @@ export function applyInput(state: GameState, input: GameInput): GameState {
     }
     case 'points': {
       if (inBattle(state)) return state;
-      const next = spendPoint(save, input.uid, input.stat);
+      // Shift + 클릭 = +5 (상점 Shift ×5 와 같은 손 — 2026-10-21 태현 님 R16 A) · 남은 포인트까지만
+      let next: Save | null = null;
+      const times = Math.max(1, Math.min(BALANCE.shopBulk, Math.floor(input.n ?? 1)));
+      for (let i = 0; i < times; i++) {
+        const r = spendPoint(next ?? save, input.uid, input.stat);
+        if (!r) break;
+        next = r;
+      }
       return next ? { ...state, save: next } : state;
     }
     case 'use-item': {

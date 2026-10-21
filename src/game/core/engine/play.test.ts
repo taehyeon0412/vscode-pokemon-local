@@ -572,4 +572,34 @@ describe('멈춤 · 알림 표 (gdd 4.13 · U6 — orders #27 R13)', () => {
     expect(waitReason(away(inside))).toBeNull();
     expect(STAGE_WAIT.facility).toBe('entered');
   });
+
+  it('자동 전투 첫 안내 (R12 A) — 내 차례 10초 · 멈췄다 다시 볼 때 · 자동을 한 번 켤 때까지 최대 3번', () => {
+    const base = start();
+    const mon = { ...base.save.monsters[base.save.party[0]!]!, uid: 'w', caughtAt: 'forest-1' as const };
+    const wild = startBattle(base.save, mon, 'normal');
+    const myTurn = at(base, { phase: 'battle', battle: { ...wild, phase: 'choose' } }, { pendingEncounter: { kind: 'wild', monster: mon, start: 'normal' } });
+    const tipOf = (s: GameState) => s.runtime.toast?.text ?? '';
+    // 9.9초는 아직 · 10초를 넘는 첫 때 한 번 (그 뒤로 계속 기다려도 다시 안 띄움)
+    const early = advance(myTurn, TIMING.autoTipWaitMs - 100).state;
+    expect(tipOf(early)).not.toContain('[A] 자동 전투');
+    const tipped = advance(early, 200).state;
+    expect(tipOf(tipped)).toContain('자리를 비울 땐 [A] 자동 전투');
+    expect(tipped.save.tips).toContain('auto-1');
+    expect(advance(tipped, 30_000).state.save.tips?.filter((t) => t.startsWith('auto-'))).toEqual(['auto-1']);
+    // 밖에서는 안 셈 (다시 와서 처음부터)
+    expect(advance(away(myTurn), 20_000).state.save.tips ?? []).not.toContain('auto-1');
+    // 자동 꺼짐으로 멈췄다 (확장이 'paused' 알림) 다시 보면 한 번
+    const back = advance({ ...base, runtime: { ...base.runtime, noticed: 'paused' } }, 100).state;
+    expect(tipOf(back)).toContain('안 보는 동안 멈춰 있었어요');
+    expect(back.runtime.noticed).toBeUndefined();
+    // 3번 띄우면 끝
+    const three = { ...base, save: { ...base.save, tips: ['auto-1', 'auto-2', 'auto-3'] }, runtime: { ...base.runtime, noticed: 'paused' as const } };
+    expect(tipOf(advance(three, 100).state)).not.toContain('[A] 자동 전투');
+    // 자동을 한 번 켜면 다시 끄더라도 끝
+    const once = applyInput(applyInput(base, { kind: 'auto-battle', on: true }), { kind: 'auto-battle', on: false });
+    expect(once.save.tips).toContain('auto-on');
+    expect(tipOf(advance({ ...once, runtime: { ...once.runtime, noticed: 'paused' } }, 100).state)).not.toContain('[A] 자동 전투');
+    // 저장했다 불러와도 남음
+    expect(validateSave(viaJson(tipped.save)).ok && (validateSave(viaJson(tipped.save)) as { save: Save }).save.tips).toContain('auto-1');
+  });
 });

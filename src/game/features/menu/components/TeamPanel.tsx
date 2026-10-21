@@ -178,7 +178,7 @@ export function TeamPanel({ save, media, swap, first, onInput, onClose }: TeamPa
               <>
                 <span class="pg-panel-sep">남은 포인트 {selected.unspent}</span>
                 {STAT_KEYS.map((k) => (
-                  <Button key={k} secondary onClick={() => onInput({ kind: 'points', uid: selected.uid, stat: k })} title={`${STAT_LABEL[k]} +1 포인트`}>
+                  <Button key={k} secondary onClick={(e?: MouseEvent) => onInput({ kind: 'points', uid: selected.uid, stat: k, n: e?.shiftKey ? BALANCE.shopBulk : 1 })} title={`${STAT_LABEL[k]} +1 포인트 (Shift + 클릭 +${BALANCE.shopBulk})`}>
                     +{STAT_LABEL[k]}
                   </Button>
                 ))}
