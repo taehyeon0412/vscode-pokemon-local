@@ -110,7 +110,9 @@ function planOne(b: TeamBattle, e: TeamLogEntry, final: boolean, seen: Set<strin
       const o: FxImpact = e.effect === 'immune' ? { none: true } : { scale: final ? 1.4 : e.effect === 'super' ? 1.25 : e.effect === 'weak' ? 0.75 : 1, ...(e.moveId === 0 ? { basic: true } : {}) };
       const contact = !e.ult && shotTiming(e.moveId).contact;
       if (contact && m) out.push({ do: 'strike', dst, src: { side: e.side, slot: e.from }, move: m });
-      out.push({ do: 'impact', dst, type, big, name: m?.name ?? '필살기', o, ...(contact && m ? { delayMs: TEAM_FX.contactImpactLagMs } : {}) });
+      // 필살기가 직접 맞힌 상대 (가운데) 는 필살기 연출이 맞은 모양을 그림 — 큰 임팩트가 두 번 겹치지 않게 (코드 리뷰어)
+      const ultDrawn = e.ult && dst.slot === ultTarget(b, e.side).slot;
+      if (!ultDrawn) out.push({ do: 'impact', dst, type, big, name: m?.name ?? '필살기', o, ...(contact && m ? { delayMs: TEAM_FX.contactImpactLagMs } : {}) });
       if (e.effect !== 'immune' && e.dmg > 0) out.push({ do: 'knock', dst, cells: final ? TEAM_KNOCK.finalCells : TEAM_KNOCK.cells, ms: final ? TEAM_KNOCK.finalMs : TEAM_KNOCK.ms });
       if (final) out.push({ do: 'final', dst });
       else if (e.ko) out.push({ do: 'ko', dst });
