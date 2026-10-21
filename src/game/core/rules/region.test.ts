@@ -10,7 +10,7 @@ import { Rng } from '../engine/rng';
 import { validateSave } from '../save';
 import { createWild, pickupAt, planWild, regionPool } from './encounter';
 import { BEACH_REQUESTS, requestAt } from './request';
-import { REGIONS, regionAceLevel, regionGymMoney, regionGymTeam, regionLevelBand, regionOf, regionOrder } from './region';
+import { gymRoomOf, REGIONS, regionAceLevel, regionGymMoney, regionGymTeam, regionLevelBand, regionOf, regionOrder, stageBackground } from './region';
 import { stageCode, stageLevelBand, trainerCount } from './stage';
 import { GYM_LEADER, gymHint, leaderTeam, trainerInfo, trainerTeam } from './trainer';
 import { rivalTeam } from './rival';
@@ -171,5 +171,28 @@ describe('라이벌 앞 포켓몬 — 강한 1단계는 야생에서만 (기획 
   it('해변 등대 곶 라이벌 팀에 라프라스 · 맘복치가 없음 · 숲 본편은 그대로 (아침 질문 #103 까지)', () => {
     const save = { ...sampleSave(), rivals: { blue: { wins: 3, losses: 3 } } };
     for (let seed = 1; seed <= 60; seed++) for (const m of rivalTeam(save, 'blue', 'beach-3', seed)) expect([131, 594]).not.toContain(m.species);
+  });
+});
+
+describe('그림 칸 (orders #57) — 스테이지마다 배경 · 지역마다 체육관 방, 비면 지금 그대로', () => {
+  it('지금은 숲 배경 · 숲 방 (gym) — 해변 미리 보기도 · 스테이지가 없으면 숲', () => {
+    for (const id of ['forest-1', 'forest-3', 'beach-1', 'beach-3'] as const) expect(stageBackground(id)).toBe('forest');
+    expect(stageBackground(null)).toBe('forest');
+    expect(gymRoomOf(REGIONS.forest)).toBe('gym');
+    expect(gymRoomOf(REGIONS.beach)).toBe('gym');
+  });
+
+  it('넣으면 스테이지 → 지역 순서로 · 체육관 방 이름', () => {
+    const beach = { ...REGIONS.beach, background: 'beach', gymRoom: 'gym-water', stages: [{ ...REGIONS.beach.stages[0], background: 'beach-day' }, REGIONS.beach.stages[1], REGIONS.beach.stages[2]] as const };
+    const regions = REGIONS as unknown as Record<string, unknown>;
+    const was = regions.beach;
+    regions.beach = beach;
+    try {
+      expect(stageBackground('beach-1')).toBe('beach-day');
+      expect(stageBackground('beach-2')).toBe('beach');
+      expect(gymRoomOf(REGIONS.beach)).toBe('gym-water');
+    } finally {
+      regions.beach = was;
+    }
   });
 });

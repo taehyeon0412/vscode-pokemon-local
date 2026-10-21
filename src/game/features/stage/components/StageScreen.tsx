@@ -15,7 +15,7 @@ import { spaceInput, ultSkippable } from '../../battle/fx/parry';
 import { BALLS } from '../../../core/rules/catch';
 import { bestHelper, requestAt } from '../../../core/rules/request';
 import { FACILITY_STAFF } from '../../../core/rules/stage';
-import { regionHere } from '../../../core/rules/region';
+import { gymRoomOf, regionHere, stageBackground } from '../../../core/rules/region';
 import { josaOf, withJosa } from '../../../core/text';
 import { speciesOf } from '../../../data';
 import { heroDraw, heroHeightPx, heroLookOf, heroWidthPx, personLook } from '../../../data/heroes';
@@ -243,7 +243,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   //   (지도 줄이 있으면 190px 에서 상대 HP 묶음이 말 자리에 닿아 말이 상대 오른쪽 좁은 칸으로 · 480px 폭은 말이 숨었음)
   const mapRow = mapRowFits && !geoWithRow?.topBusy;
   const geo = mapRowFits && !mapRow ? geoAt(0) : geoWithRow;
-  const art = (layer: 'background' | 'foreground') => (media && !gym ? `url("${media}/backgrounds/forest/${layer}-${themeKind()}-${layout.size}.png")` : 'none');
+  // 배경 = 지역 표 (스테이지 → 지역 → 숲 — orders #57, 지금은 모두 숲)
+  const art = (layer: 'background' | 'foreground') => (media && !gym ? `url("${media}/backgrounds/${stageBackground(stageId)}/${layer}-${themeKind()}-${layout.size}.png")` : 'none');
   // 체육관: 주인공은 무대 왼쪽 (대기실) · 관장은 무대 오른쪽 끝
   const heroStand = geo ? geo.trainerX : gym ? stage.left + Math.round(stage.width * 0.18) : hero;
   // 1-3 길 끝 체육관 (2026-10-20 태현 님 A안) — gym-enter 동안 주인공이 문 앞까지 걸어가 들어가며 사라지고 화면 닦기 (stage/model gymEnterView)
@@ -376,7 +377,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         }}
       >
         {gym ? (
-          <GymRoom media={media} k={buildingDraw('hospital', layout.scale, heroRoom).k} floorPx={Math.max(ground + GYM_FLOOR_ABOVE_GROUND_PX, Math.round(bodyPx * GYM_FLOOR_SHARE))} dark={themeKind() === 'dark'} />
+          <GymRoom media={media} room={gymRoomOf(regionHere(save.location))} k={buildingDraw('hospital', layout.scale, heroRoom).k} floorPx={Math.max(ground + GYM_FLOOR_ABOVE_GROUND_PX, Math.round(bodyPx * GYM_FLOOR_SHARE))} dark={themeKind() === 'dark'} />
         ) : (
           <>
             <ScrollLayer cls="pg-bg" image={art('background')} start={offset * 0.35} pxPerSec={WALK_PX_PER_SEC * layout.scale * 0.35 * walkK} running={phase === 'walk' && live} />
@@ -553,8 +554,9 @@ const GYM_FLOOR_SHARE = 0.42;
  * 아래부터 풀 바닥 · 뒷벽 창문 줄 (주황 몰딩 + 벽 밑 그늘) · 벽 앞 나무 (띄엄띄엄 — 창문이 보이게), 그 위는 원작 벽 색 · 맨 위 천장 몰딩.
  * 사람 · 건물과 같은 정수 배율 k (예전엔 코드로 그린 초록 줄무늬 + 갈색 바닥)
  */
-function GymRoom({ media, k, floorPx, dark }: { media: string; k: number; floorPx: number; dark: boolean }) {
-  const url = (f: string) => (media ? `url("${media.replace(/\/+$/, '')}/buildings/${f}.png")` : 'none');
+function GymRoom({ media, room, k, floorPx, dark }: { media: string; room: string; k: number; floorPx: number; dark: boolean }) {
+  // room = 지역 표의 체육관 방 그림 이름 앞 (gymRoomOf — 없으면 'gym' = 숲 방, orders #57)
+  const url = (f: string) => (media ? `url("${media.replace(/\/+$/, '')}/buildings/${f.replace(/^gym/, room)}.png")` : 'none');
   return (
     <div class={dark ? 'pg-gym-room pg-gym-dark' : 'pg-gym-room'}>
       <div class="pg-gym-floor" style={{ height: `${floorPx}px`, backgroundImage: url('gym-floor'), backgroundSize: `${48 * k}px ${32 * k}px` }} />

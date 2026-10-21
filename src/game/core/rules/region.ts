@@ -17,6 +17,8 @@ export interface RegionStage {
   icon: string;
   /** 트레이너 수 (없으면 스테이지 순서 시드로 2 ~ 3 — 숲은 그 결과가 2 · 3 · 3) — 지역 표대로 (해변 2 · 3 · 3, 명세 검사관 #53) */
   trainers?: number;
+  /** 배경 그림 폴더 (media/backgrounds/<이것>/background · foreground-<테마>-<크기>.png) — 없으면 지역 배경 (orders #57 — 해변 낮 → 노을 → 밤 같은 스테이지마다) */
+  background?: string;
 }
 
 export interface RegionTrainer {
@@ -66,6 +68,9 @@ export interface RegionDef {
   firstWinItem: ItemId;
   /** 관장 첫 승에 더 주는 팔 물건 (숲 = 큰금구슬 — ideas #125) */
   firstWinTreasure?: ItemId;
+  /** 배경 그림 폴더 (스테이지에 없을 때) · 체육관 방 그림 이름 앞 (media/buildings/<이것>-floor · -wall · -trees.png) — 없으면 숲 배경 · 숲 방 (orders #57 — 그림을 고르면 이름만 적음) */
+  background?: string;
+  gymRoom?: string;
   /** 떨어진 아이템에 가끔 섞이는 것 (돈 몫에서 — 해변 진주, gdd 5.3) [임시값] */
   pickupExtra?: { item: ItemId; chance: number };
   trainers: readonly RegionTrainer[];
@@ -236,4 +241,16 @@ export function regionGymTeam(region: RegionDef, k: number): readonly (readonly 
   const set = k >= 7 ? (region.leader.teams.late ?? region.leader.teams.mid ?? region.leader.teams.early) : k >= 4 ? (region.leader.teams.mid ?? region.leader.teams.early) : region.leader.teams.early;
   const g = regionAceLevel(k);
   return set.map((dex, i) => [dex, g - (set.length - 1 - i)] as const);
+}
+
+/** 스테이지 배경 그림 폴더 — 스테이지 → 지역 → 숲 (orders #57 · 지금은 모두 숲) */
+export function stageBackground(stageId: StageId | null | undefined): string {
+  if (!stageId) return 'forest';
+  const { region, index } = regionOf(stageId);
+  return region.stages[index]?.background ?? region.background ?? 'forest';
+}
+
+/** 체육관 방 그림 이름 앞 — 없으면 'gym' (숲 방 — 무지개시티 풀 체육관, 해변은 물 방을 그릴 때까지 임시로) */
+export function gymRoomOf(region: RegionDef): string {
+  return region.gymRoom ?? 'gym';
 }
