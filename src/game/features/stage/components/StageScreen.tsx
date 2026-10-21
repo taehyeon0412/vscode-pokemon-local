@@ -93,7 +93,8 @@ function RequestBox({ state, media, onInput }: { state: GameState; media: string
   if (stage?.phase !== 'request' || save.location.screen !== 'stage') return null;
   const prog = save.stages[save.location.stageId];
   if (!prog) return null;
-  const t = requestAt(prog.seed, stage.number);
+  // 지역 표의 부탁 (숲 · 해변 — orders #37)
+  const t = requestAt(prog.seed, stage.number, save.location.stageId);
   if (stage.result) {
     return (
       <div class={stage.result.ok ? 'pg-banner pg-request pg-ok' : 'pg-banner pg-request'} title={stage.result.text}>

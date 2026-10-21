@@ -5,7 +5,8 @@
  */
 import { BALANCE } from '../balance';
 import type { Rng } from '../engine/rng';
-import type { ItemId, Save } from '../save';
+import type { ItemId, RegionId, Save, StageId } from '../save';
+import { regionOf } from './region';
 import { moveOf, speciesOf, type TypeName } from '../../data';
 import { withJosa } from '../text';
 import { itemName } from './items';
@@ -79,9 +80,22 @@ export const FOREST_REQUESTS: readonly RequestTemplate[] = [
  * 스테이지에서 n 번째 부탁 (0 부터) — 한 스테이지 안에서는 같은 부탁이 겹치지 않게 시드로 정한 곳부터 차례로.
  * 지역이 늘면 지역마다 다른 부탁 목록 (MVP 이후)
  */
-export function requestAt(stageSeed: number, requestNumber: number): RequestTemplate {
-  const start = spotRng(stageSeed, 0, 5).int(0, FOREST_REQUESTS.length - 1);
-  return FOREST_REQUESTS[(start + requestNumber) % FOREST_REQUESTS.length]!;
+/** 해변 부탁 다섯 (gdd 5.3) — 성공 문구 = "{move}! …" (숲과 같은 꼴) */
+export const BEACH_REQUESTS: readonly RequestTemplate[] = [
+  { id: 'rod-in-sea', who: { icon: '👴', name: '할아버지', look: 'frlg-old-man-2' }, text: '낚싯대를 바다에 떨어뜨렸어… 건져 줄 수 있겠니?', types: ['water', 'flying', 'psychic'], done: '{move}! 낚싯대를 건졌다!', reward: { items: { 'poke-ball': 2 } } },
+  { id: 'sand-castle', who: { icon: '👧', name: '여자아이', look: 'frlg-little-girl' }, text: '모래성이 자꾸 무너져! 단단하게 만들어 줘!', types: ['ground', 'rock', 'steel'], done: '{move}! 모래성이 단단해졌다!', reward: { items: { potion: 2 } } },
+  { id: 'lighthouse', who: { icon: '🧑‍✈️', name: '선장', look: 'frlg-captain' }, text: '등대 불이 꺼졌어. 배가 길을 잃겠어!', types: ['electric', 'fire'], done: '{move}! 등대에 불이 켜졌다!', reward: { money: 800 } },
+  { id: 'too-hot', who: { icon: '👩', name: '아주머니', look: 'frlg-woman-1' }, text: '더워서 쓰러질 것 같아… 시원하게 해 줄 수 있니?', types: ['ice', 'water'], done: '{move}! 시원해졌다!', reward: { items: { 'super-potion': 1 } } },
+  { id: 'lost-tube', who: { icon: '👦', name: '소년', look: 'em-boy-1' }, text: '파도에 튜브가 떠내려갔어! 잡아 줘!', types: ['flying', 'water', 'psychic'], done: '{move}! 튜브를 잡아 왔다!', reward: { items: { pearl: 1 } } },
+];
+
+const REQUESTS_BY_REGION: Readonly<Record<RegionId, readonly RequestTemplate[]>> = { forest: FOREST_REQUESTS, beach: BEACH_REQUESTS };
+
+/** 그 스테이지 (지역) 의 n 번째 부탁 — 지역 표 (숲 · 해변) */
+export function requestAt(stageSeed: number, requestNumber: number, stageId: StageId = 'forest-1'): RequestTemplate {
+  const list = REQUESTS_BY_REGION[regionOf(stageId).region.id];
+  const start = spotRng(stageSeed, 0, 5).int(0, list.length - 1);
+  return list[(start + requestNumber) % list.length]!;
 }
 
 export interface Helper {

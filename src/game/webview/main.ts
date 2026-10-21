@@ -4,9 +4,8 @@
  */
 import { h, render } from 'preact';
 import { TIMING } from '../core/balance';
-import { canHeal, canOpenMenus, teamScale } from '../core/engine';
+import { canHeal, canOpenMenus, nextStageOf, teamScale } from '../core/engine';
 import { teamHealthy } from '../core/rules/bag';
-import { STAGE_IDS } from '../core/save';
 import { MENU_PANELS, menuShortcutOf } from '../features/menu/model';
 import { levelUps } from '../features/result/model';
 import { stageViewKey } from '../features/stage/model';
@@ -362,7 +361,7 @@ if (!port) {
       else if (phase === 'badge') {
         actions.input({ kind: 'badge-continue' });
         actions.open({ kind: 'map' });
-      } else if (loc?.screen === 'stage') actions.input({ kind: 'travel', to: STAGE_IDS[STAGE_IDS.indexOf(loc.stageId) + 1] ?? 'gym' });
+      } else if (loc?.screen === 'stage') actions.input({ kind: 'travel', to: nextStageOf(loc.stageId) });
     }
   });
 

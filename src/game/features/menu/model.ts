@@ -2,7 +2,7 @@
  * S07 지도 · S13 병원 · S14 상점 · S16 대기실 · S18 내 포켓몬 · S19 가방 · S21 프로필 · S24 클리어 — 화면을 모르는 부분: 무엇을 어떤 글로 보여 줄지.
  */
 import { BALANCE } from '../../core/balance';
-import { gymUnlocked, stageClearExp, stageUnlocked, type GameState } from '../../core/engine';
+import { gymUnlocked, nextStageOf, stageClearExp, stageUnlocked, type GameState } from '../../core/engine';
 import { canBuyCandy, FIELD_ITEMS, fieldUseBlock, isEvolutionItem, maxHpOf, priceOf, sellPrice, SHOP_ITEMS, type ShopItem } from '../../core/rules/bag';
 import { itemName, VALUABLES } from '../../core/rules/items';
 import { expForLevel, starGrade, statsOf } from '../../core/rules/stats';
@@ -267,7 +267,6 @@ export function mapView(state: GameState): { stages: MapStage[]; gym: boolean; b
 export function clearView(save: Save, id: StageId): { title: string; bonus: number; balls: number; caught: number; trainers: number; minutes: number; seen: { dex: number; form: string }[]; next: StageId | null } {
   const p = save.stages[id];
   const run = p?.run ?? { startMs: save.playTimeMs, caught: 0, trainers: 0, seen: [] };
-  const i = STAGE_IDS.indexOf(id);
   return {
     title: `${stageLabel(id)} 클리어!`,
     // 경험 부적 판이면 ×1.5 (받은 그대로 — 2026-10-21 ideas #70)
@@ -277,7 +276,7 @@ export function clearView(save: Save, id: StageId): { title: string; bonus: numb
     trainers: run.trainers,
     minutes: Math.max(0, Math.round((save.playTimeMs - run.startMs) / 60000)),
     seen: run.seen.map((dex) => ({ dex, form: formsOfSpecies(dex)[0] ?? '' })).filter((x) => x.form),
-    next: STAGE_IDS[i + 1] ?? null,
+    next: ((n) => (n === 'gym' ? null : n))(nextStageOf(id)),
   };
 }
 

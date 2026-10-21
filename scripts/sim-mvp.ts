@@ -11,9 +11,10 @@
  */
 import { BALANCE, TIMING } from '../src/game/core/balance';
 import { canParry, canRiposte, type BattleState } from '../src/game/core/engine/battle';
-import { applyInput, step } from '../src/game/core/engine/play';
+import { applyInput, nextStageOf, step } from '../src/game/core/engine/play';
 import { createGameState, type GameState } from '../src/game/core/engine/state';
 import { maxHpOf } from '../src/game/core/rules/bag';
+import { REGIONS } from '../src/game/core/rules/region';
 import { leaderTeam } from '../src/game/core/rules/trainer';
 import { STAGE_IDS, type Monster, type Save, type StageId } from '../src/game/core/save';
 import { moveOf, speciesOf } from '../src/game/data';
@@ -34,7 +35,11 @@ const LOG_DEFEATS = ONLY !== null || process.env.SIM_LOG === 'defeat';
 const TEAM = process.env.SIM_TEAM === '1';
 if (TEAM) (BALANCE.team as { on: boolean }).on = true;
 
-type Where = StageId | 'gym';
+/** 'beach-gym' = 해변 체육관 (SIM_REGION=beach — 2번째 지역) */
+type Where = StageId | 'gym' | 'beach-gym';
+/** SIM_REGION=beach — 숲 관장 뒤 해변을 2번째 지역으로 한 바퀴 (orders #37 — 관장 도전 · 진 수 · 한 바퀴 시간) */
+const BEACH = process.env.SIM_REGION === 'beach';
+const BEACH_STAGES: Where[] = ['beach-1', 'beach-2', 'beach-3', 'beach-gym'];
 interface StageStat {
   ms: number;
   /** 전투 시간 (야생 · 트레이너) */
@@ -65,6 +70,9 @@ interface RunResult {
   totalMs: number;
   stages: Record<Where, StageStat>;
   gymTries: number;
+  /** 해변 (SIM_REGION=beach) — 숲 배지를 받은 때 · 해변 관장 도전 수 */
+  forestMs: number;
+  beachGymTries: number;
   firstGymLevels: number[];
   winLevels: number[];
   moneyAtGym: number;
@@ -85,7 +93,7 @@ const hpRatio = (save: Save) => {
   return max > 0 ? t.reduce((a, m) => a + m.hp, 0) / max : 0;
 };
 const power = (id: number) => moveOf(id)?.power ?? 0;
-const where = (save: Save): Where => (save.location.screen === 'stage' ? save.location.stageId : 'gym');
+const where = (save: Save): Where => (save.location.screen === 'stage' ? save.location.stageId : save.location.screen === 'gym' && save.location.region === 'beach' ? 'beach-gym' : 'gym');
 
 function decide(s: GameState, mem: { resultMs: number; lostGymOnce: boolean; grindNext: boolean; parryKey: string; parryYes: boolean }): GameState {
   const st = s.runtime.stage;
@@ -174,17 +182,23 @@ function decide(s: GameState, mem: { resultMs: number; lostGymOnce: boolean; gri
     case 'clear': {
       const loc = save.location;
       if (loc.screen !== 'stage') return s;
-      const next = STAGE_IDS[STAGE_IDS.indexOf(loc.stageId) + 1] ?? 'gym';
-      return applyInput(s, { kind: 'travel', to: next });
+      // 지역 안 다음 스테이지 · 끝이면 그 지역 체육관 (지역 표)
+      return applyInput(s, { kind: 'travel', to: nextStageOf(loc.stageId) });
     }
-    case 'lobby':
+    case 'badge':
+      return applyInput(s, { kind: 'badge-continue' });
+    case 'lobby': {
+      const beachGym = save.location.screen === 'gym' && save.location.region === 'beach';
+      // 숲 배지를 받았으면 해변으로 (SIM_REGION=beach — 2번째 지역)
+      if (BEACH && !beachGym && save.badges.includes(REGIONS.forest.badge)) return applyInput(s, { kind: 'travel', to: 'beach-1' });
       if (mem.grindNext) {
         mem.grindNext = false;
-        return applyInput(s, { kind: 'travel', to: 'forest-3' });
+        return applyInput(s, { kind: 'travel', to: beachGym ? 'beach-3' : 'forest-3' });
       }
       // 대기실 회복 (관장전은 져도 돈을 안 잃고 회복됨 — 사람은 회복하고 도전)
       if (hpRatio(save) < 1) return applyInput(s, { kind: 'heal' });
       return applyInput(s, { kind: 'challenge' });
+    }
     default:
       return s;
   }
@@ -194,9 +208,9 @@ function runOnce(dex: number, seed: number): RunResult {
   let s = createGameState(createStartSave(0, seed, dex, { gender: 'male' }), seed);
   s = applyInput(s, { kind: 'auto-battle', on: true });
   if (TEAM) s = { ...s, save: { ...s.save, settings: { ...s.save.settings, teamMode: true } } };
-  const stages = Object.fromEntries([...STAGE_IDS, 'gym'].map((k) => [k, blank()])) as Record<Where, StageStat>;
+  const stages = Object.fromEntries([...STAGE_IDS, 'gym', ...BEACH_STAGES].map((k) => [k, blank()])) as Record<Where, StageStat>;
   const mem = { resultMs: 0, lostGymOnce: false, grindNext: false, parryKey: '', parryYes: false };
-  const r: RunResult = { starter: speciesOf(dex)?.name.ko ?? String(dex), seed, done: false, totalMs: 0, stages, gymTries: 0, firstGymLevels: [], winLevels: [], moneyAtGym: -1, firstUltMin: -1, spent: 0, potionsUsed: 0, team: 0, teamBattles: 0 };
+  const r: RunResult = { starter: speciesOf(dex)?.name.ko ?? String(dex), seed, done: false, totalMs: 0, stages, gymTries: 0, firstGymLevels: [], winLevels: [], moneyAtGym: -1, firstUltMin: -1, spent: 0, potionsUsed: 0, team: 0, teamBattles: 0, forestMs: 0, beachGymTries: 0 };
   let prevPhase: string | undefined;
   let prevBattle: string | null = null;
   let lastKind: string | null = null;
@@ -236,6 +250,7 @@ function runOnce(dex: number, seed: number): RunResult {
           }
         }
         else if (st.battle.kind === 'trainer') stages[w].trainers++;
+        else if (w === 'beach-gym') r.beachGymTries++;
         else {
           r.gymTries++;
           if (r.gymTries === 1) {
@@ -294,7 +309,10 @@ function runOnce(dex: number, seed: number): RunResult {
       }
       if (phase === 'clear' && !stages[w].firstClearMs) stages[w].firstClearMs = stages[w].ms;
       if (phase === 'choice' || phase === 'request' || phase === 'clear' || phase === 'defeat') stages[w].pauses++;
-      if (phase === 'badge') {
+      // 숲 배지 — 해변을 돌면 여기서 끝나지 않음 (해변 배지까지)
+      if (phase === 'badge' && BEACH && w !== 'beach-gym') {
+        if (!r.forestMs) r.forestMs = t;
+      } else if (phase === 'badge') {
         r.done = true;
         r.totalMs = t;
         r.winLevels = party(s.save).map((m) => m.level);
@@ -348,4 +366,13 @@ for (const sp of starters) {
   const rs = results.filter((r) => r.starter === (speciesOf(sp.dex)?.name.ko ?? ''));
   const defeats = rs.map((r) => Object.values(r.stages).reduce((a, x) => a + x.defeats, 0));
   console.log(`  ${sp.name.padEnd(5)} ${min(avg(rs.map((r) => r.totalMs)))}분 · 짐 ${avg(defeats).toFixed(1)} · 도전 ${avg(rs.map((r) => r.gymTries)).toFixed(1)}${rs.some((r) => !r.done) ? ' · 못 깸 있음' : ''}`);
+}
+
+if (BEACH) {
+  // 해변 = 2번째 지역 한 바퀴 (orders #37 — 관장 에이스 Lv 21)
+  const done = results.filter((r) => r.done);
+  const min = (ms: number) => (ms / 60000).toFixed(1);
+  const avgOf = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
+  console.log(`해변 (2번째) — 끝까지 간 판 ${done.length} / ${results.length} · 숲 끝까지 ${min(avgOf(results.filter((r) => r.forestMs).map((r) => r.forestMs)))}분 · 해변 한 바퀴 ${min(avgOf(done.map((r) => r.totalMs - r.forestMs)))}분 · 해변 관장 도전 ${avgOf(results.map((r) => r.beachGymTries)).toFixed(1)}번 · 관장 에이스 Lv ${Math.max(...leaderTeam(REGIONS.beach).map((m) => m.level))}`);
+  console.log(`  해변 진 수: ${BEACH_STAGES.map((w) => `${w} ${avgOf(results.map((r) => r.stages[w].defeats)).toFixed(1)}`).join(' · ')} · 스테이지 시간 ${BEACH_STAGES.map((w) => `${w} ${min(avgOf(results.map((r) => r.stages[w].ms)))}분`).join(' · ')}`);
 }

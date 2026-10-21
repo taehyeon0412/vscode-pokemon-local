@@ -726,6 +726,8 @@ function firstWaited(b: TeamBattle): number | null {
 export function teamAutoUltLeft(b: TeamBattle, slot: number): number | null {
   const f = b.me[slot];
   if (!f || !alive(f) || f.ult < 1) return null;
+  // 기다림은 run 에서만 셈 — 다른 필살기 · 힘겨루기 · 합동 멘트 중엔 칩도 없음 (멈춘 숫자가 1장면 보였다 사라지던 것 — 디자인 UX R9)
+  if (b.phase !== 'run') return null;
   // HP 가 30% (자동 상처약 기준) 아래면 기다리지 않음 — 3초 안에 쓰러져 필살기가 날아가던 것 (2026-10-21 태현 님 "추천대로", 기획 #26 R2 ①)
   if (f.hp < f.maxHp * BALANCE.autoPotionBelow) return 0;
   return Math.max(0, BALANCE.ultAutoWaitMs - (b.autoWait?.[slot] ?? 0));

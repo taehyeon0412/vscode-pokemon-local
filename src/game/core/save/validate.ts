@@ -6,8 +6,8 @@
  */
 import { BALANCE } from '../balance';
 import {
-  DAILY_KINDS, ENCOUNTER_STARTS, isTipId, ITEM_IDS, LOCATION_SCREENS, NOTIFY_OFF_TIP, SAVE_VERSION, STAGE_IDS, STAT_KEYS, STATUS_KINDS, TIPS_MAX,
-  type DailyGoal, type DailyKind, type Encounter, type FacilitySpot, type ItemId, type LastHospital, type Location, type Monster,
+  DAILY_KINDS, ENCOUNTER_STARTS, isTipId, REGION_IDS, REGION_STAGE_IDS, ITEM_IDS, LOCATION_SCREENS, NOTIFY_OFF_TIP, SAVE_VERSION, STAGE_IDS, STAT_KEYS, STATUS_KINDS, TIPS_MAX,
+  type DailyGoal, type DailyKind, type RegionId, type Encounter, type FacilitySpot, type ItemId, type LastHospital, type Location, type Monster,
   type MoveSlot, type PendingChoice, type Save, type StageId, type StageProgress, type StageRun, type Stats, type StatusCondition,
 } from './schema';
 import { evolutionsOf, moveOf, speciesOf } from '../../data';
@@ -43,7 +43,7 @@ const uidNumber = (key: string): number | null => {
   const m = /^m(\d{1,9})$/.exec(key);
   return m ? Number(m[1]) : null;
 };
-const isStageId = (v: unknown): v is StageId => (STAGE_IDS as readonly unknown[]).includes(v);
+const isStageId = (v: unknown): v is StageId => (REGION_STAGE_IDS as readonly unknown[]).includes(v);
 const isItemId = (v: unknown): v is ItemId => (ITEM_IDS as readonly unknown[]).includes(v);
 
 /** 값 하나씩 읽으며 고친 것을 적어 두는 도우미 */
@@ -263,8 +263,11 @@ function readLocation(v: unknown, path: string, fx: Fixer): Location {
   if (isObj(v) && (LOCATION_SCREENS as readonly unknown[]).includes(v.screen)) {
     if (v.screen === 'stage') {
       if (isStageId(v.stageId)) return { screen: 'stage', stageId: v.stageId };
+    } else if (v.screen === 'gym') {
+      // 숲이 아닌 체육관 (해변 — 개발 모드 미리 보기) 만 칸이 있음
+      return (REGION_IDS as readonly unknown[]).includes(v.region) && v.region !== 'forest' ? { screen: 'gym', region: v.region as RegionId } : { screen: 'gym' };
     } else {
-      return { screen: v.screen as 'title' | 'gym' | 'world-map' };
+      return { screen: v.screen as 'title' | 'world-map' };
     }
   }
   fx.note(path, '알 수 없는 곳 → 타이틀');

@@ -14,15 +14,16 @@ import { buy, canBuyCandy, healTeam, isShopItem, moveInTeam, sell, spendPoint, s
 import { createWild, encounterStart, pickupAt, planWild, wildKey } from '../rules/encounter';
 import { itemName, requestAt, resolveRequest } from '../rules/request';
 import { DAILY_BONUS, dailyAdd, dailyDone, dailyFor, dailyLabel } from '../rules/daily';
+import { gymLocation, isRegionLast, REGIONS, regionHere, regionOf, type RegionDef } from '../rules/region';
 import { spotBetween, spotRng, stageCode, stageLayout, trainerId, walkDelta, type Spot, type StageLayout } from '../rules/stage';
 import { statsOf } from '../rules/stats';
-import { aliveCount, GYM_LEADER, leaderTeam, trainerInfo, trainerNumber, trainerTeam } from '../rules/trainer';
+import { aliveCount, leaderTeam, trainerInfo, trainerNumber, trainerTeam } from '../rules/trainer';
 import { pickRival, rivalLine, rivalLoseMsg, rivalName, rivalRecord, rivalTeam, withRivalResult } from '../rules/rival';
-import { isTipId, ITEM_IDS, RUN_SEEN_MAX, STAGE_IDS, TIPS_MAX, type DailyGoal, type FacilitySpot, type ItemId, type Monster, type Save, type StageId, type StageProgress, type StageRun, type StatKey } from '../save';
+import { isTipId, ITEM_IDS, RUN_SEEN_MAX, TIPS_MAX, type DailyGoal, type FacilitySpot, type ItemId, type Monster, type Save, type StageId, type StageProgress, type StageRun, type StatKey } from '../save';
 import { withJosa } from '../text';
 import { moveOf, speciesOf } from '../../data';
 import { applyBattleResult, battleDone, battleInput, battleStep, battleWaiting, firstAlive, startBattle, startTrainerBattle, switchable, type BattleInput, type BattleState } from './battle';
-import { addItem, battleRewards, clearStage, defeatPenalty, FOREST_BADGE, pickTreasure, resolveEvolve, resolveLearn, rivalWinRewards, stageClearExp, takeLaterChoices, useRareCandy, type BattleSummary } from './rewards';
+import { addItem, battleRewards, clearStage, defeatPenalty, pickTreasure, resolveEvolve, resolveLearn, rivalWinRewards, stageClearExp, takeLaterChoices, useRareCandy, type BattleSummary } from './rewards';
 import { Rng } from './rng';
 // 개발 모드 (임시)
 import { devTeam, devWalk } from '../../dev/runtime';
@@ -279,11 +280,19 @@ function trainerTeamBattle(save: Save, id: StageId, prog: StageProgress, n: numb
 }
 
 function leaderTeamBattle(save: Save, pick?: readonly string[]): TeamBattle {
-  return startTeamBattle(save, leaderTeam(), 'gym', GYM_LEADER.name, fillPick(save, pick, leaderTeam()));
+  // 지금 체육관의 관장 (지역 표 — 숲 나래 · 해변 해솔)
+  const region = regionHere(save.location);
+  return startTeamBattle(save, leaderTeam(region), 'gym', region.leader.name, fillPick(save, pick, leaderTeam(region)));
 }
 
 function leaderBattle(save: Save): BattleState {
-  return startTrainerBattle(save, leaderTeam(), 'gym', GYM_LEADER.name);
+  const region = regionHere(save.location);
+  return startTrainerBattle(save, leaderTeam(region), 'gym', region.leader.name);
+}
+
+/** 화면용 — 지금 체육관 · 지역의 관장 (대기실 · 체육관 앞 그림 · 이름) */
+export function gymLeaderOf(save: Save): RegionDef['leader'] {
+  return regionHere(save.location).leader;
 }
 
 /** 다시 안 나오는 자리 — 이긴 트레이너 · 졌다 다시 걸을 때 이미 지나간 떨어진 아이템 · 부탁 (주웠고 · 골랐음) */
@@ -444,7 +453,7 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
       if (!ev) {
         save = withProgress(save, id, to);
         // 1-3 끝 — 길 끝 체육관 문이 열리고 걸어 들어간 뒤 대기실 (2026-10-20 태현 님 A안) · 안 볼 때 (확장 계산) 는 바로
-        if (to >= 1 && id === 'forest-3' && !rt.headless) {
+        if (to >= 1 && isRegionLast(id) && !rt.headless) {
           stage = { phase: 'gym-enter', ms: 0 };
           break;
         }
@@ -771,15 +780,16 @@ function finishStage(save0: Save, rt0: RuntimeState, id: StageId): { save: Save;
   let rt: RuntimeState = { ...rt0, rngState: rng.state };
   // 두 마리까지 이름 · 나머지는 "외 N마리" (5 ~ 6마리면 240×150 에서 3줄로 자라 대기실 버튼을 가림 — 2026-10-21 UX 리뷰어)
   const lv = r.levelUps.length > 2 ? `${r.levelUps.slice(0, 2).join(' · ')} 외 ${r.levelUps.length - 2}마리` : r.levelUps.join(' · ');
-  if (id === 'forest-3') {
-    save = { ...save, location: { screen: 'gym' } };
+  if (isRegionLast(id)) {
+    // 지역 끝 → 그 지역 체육관 대기실
+    save = { ...save, location: gymLocation(regionOf(id).region) };
     // 클리어 → 레벨업을 두 알림으로 차례로 (각 2.5초 · 합 5초) — 한 줄이면 6마리 레벨업에 약 660px (2026-10-21 UX 리뷰어)
     const head = `${stageCode(id)} 클리어! 경험치 +${bonus} · 볼 +${BALANCE.clearBalls}`;
     rt = { ...rt, toast: lv ? { text: head, ms: TIMING.toastMs, then: lv } : { text: head, ms: TIMING.toastMs * 2 } };
   } else if (lv) rt = { ...rt, toast: { text: lv, ms: TIMING.toastMs * 2 } };
   const stage = afterResult(save);
   // 자동 전투면 클리어 카드가 저절로 넘어가니 알림 없음 (ideas #48)
-  return { save, rt: { ...rt, stage, stageId: id === 'forest-3' ? null : id }, signal: 'stage-clear' };
+  return { save, rt: { ...rt, stage, stageId: isRegionLast(id) ? null : id }, signal: 'stage-clear' };
 }
 
 /** S12 결과 (5초 — 잡았으면 앞에 소개 카드 1.5초 · 계속) · S23 · S22 고르기 (고를 때까지, ms = 진화 연출) — 스테이지 · 체육관이 같이 씀 */
@@ -833,7 +843,7 @@ function gymStep(save0: Save, rt0: RuntimeState, stepMs: number): { save: Save; 
       save = applyBattleResult(save, battle);
       signal = 'battle-end';
       if (battle.result === 'win' && !wiped) {
-        const first = !save.badges.includes(FOREST_BADGE);
+        const first = !save.badges.includes(regionHere(save.location).badge);
         const r = battleRewards(save, battle, null, 'gym', rng);
         save = r.save;
         rt = { ...rt, rngState: rng.state };
@@ -858,7 +868,7 @@ function gymStep(save0: Save, rt0: RuntimeState, stepMs: number): { save: Save; 
       save = applyTeamResult(save, team);
       signal = 'battle-end';
       if (team.result === 'win') {
-        const first = !save.badges.includes(FOREST_BADGE);
+        const first = !save.badges.includes(regionHere(save.location).badge);
         const r = teamRewards(save, team, 'gym', rng);
         save = r.save;
         rt = { ...rt, rngState: rng.state };
@@ -1221,13 +1231,14 @@ export function canTravel(state: GameState): boolean {
   const p = phaseOf(state);
   return (state.save.location.screen === 'stage' && (p === 'walk' || p === 'clear')) || inLobby(state);
 }
-/** 그 스테이지가 열렸는지 — 1-1 은 처음부터, 그다음은 앞 스테이지를 깨야 */
+/** 그 스테이지가 열렸는지 — 지역 첫 스테이지 (숲 1-1 은 처음부터 · 다음 지역은 앞 지역 배지), 그다음은 지역 안 앞 스테이지를 깨야 */
 export function stageUnlocked(save: Save, id: StageId): boolean {
-  const i = STAGE_IDS.indexOf(id);
-  return i === 0 || save.stages[STAGE_IDS[i - 1]!]?.cleared === true;
+  const { region, index } = regionOf(id);
+  if (index > 0) return save.stages[region.stages[index - 1]!.id]?.cleared === true;
+  return region.id === 'forest' || save.badges.includes(REGIONS.forest.badge);
 }
-/** 체육관 — 1-3 을 깨면 지도에서 바로 (mvp-spec S07 ① [제안]) */
-export const gymUnlocked = (save: Save) => save.stages['forest-3']?.cleared === true;
+/** 체육관 — 지역 끝 스테이지 (숲 1-3) 를 깨면 지도에서 바로 (mvp-spec S07 ① [제안]) · 지금 지역의 체육관 */
+export const gymUnlocked = (save: Save) => save.stages[regionHere(save.location).stages[2].id]?.cleared === true;
 
 function toast(state: GameState, save: Save, text: string): GameState {
   return { save, runtime: { ...state.runtime, toast: { text, ms: TIMING.toastMs } } };
@@ -1246,7 +1257,7 @@ function travel(state: GameState, to: StageId | 'gym'): GameState {
     save = withStage(save, from, (p) => ({ ...freshRun(p, newSeed(rng), save.playTimeMs) }));
     if (save.lastHospital?.stageId === from) save = { ...save, lastHospital: null };
   }
-  if (to === 'gym') return { save: { ...save, location: { screen: 'gym' } }, runtime: { ...state.runtime, rngState: rng.state, stage: { phase: 'lobby' }, stageId: null } };
+  if (to === 'gym') return { save: { ...save, location: gymLocation(regionHere(loc)) }, runtime: { ...state.runtime, rngState: rng.state, stage: { phase: 'lobby' }, stageId: null } };
   save = { ...save, stages: { ...save.stages, [to]: freshRun(save.stages[to], newSeed(rng), save.playTimeMs) }, location: { screen: 'stage', stageId: to } };
   if (save.lastHospital?.stageId === to) save = { ...save, lastHospital: null };
   // 경험 부적 — 스테이지를 새로 시작할 때 1개를 써서 이 판 동안 경험치 ×1.5 (2026-10-21 ideas #70)
@@ -1401,7 +1412,7 @@ export function applyInput(state: GameState, input: GameInput): GameState {
         };
       }
       const rng = new Rng(state.runtime.rngState);
-      const outcome = resolveRequest(save, requestAt(prog.seed, stage.number), rng);
+      const outcome = resolveRequest(save, requestAt(prog.seed, stage.number, id), rng);
       // 팔 물건 — 부탁을 끝내면 (성공) 25% (2026-10-21 ideas #125)
       let after = outcome.save;
       let reward = outcome.reward;
@@ -1593,8 +1604,12 @@ export function walkLeftMs(save: Save): number | null {
 
 /** 클리어 카드 [다음 스테이지] — 다음 스테이지 (마지막이면 체육관) */
 function nextPlace(id: StageId): StageId | 'gym' {
-  return STAGE_IDS[STAGE_IDS.indexOf(id) + 1] ?? 'gym';
+  // 지역 안 다음 스테이지 · 끝이면 그 지역 체육관 (지역 표 — 해변 2-3 다음이 숲 1-1 이 되지 않게)
+  const { region, index } = regionOf(id);
+  return region.stages[index + 1]?.id ?? 'gym';
 }
+/** 화면용 — 클리어 카드 [다음 스테이지] · Enter 가 갈 곳 */
+export const nextStageOf = nextPlace;
 
 /**
  * 자리 비운 동안 (ideas #16) — 확장이 계산하는 동안 떠날 때의 돈 · 가방을 적고 야생 전투를 셈.
@@ -1687,7 +1702,7 @@ export function awaySummary(log: AwayLog, save: Save): string[] {
   // 물건은 두 가지까지 · 나머지는 "외 N가지" (7종이면 240 × 150 에서 4줄로 자라 메뉴 줄 밑으로 잘리던 것 — UX 리뷰어 R14, U4)
   const items = ITEM_IDS.flatMap((id) => {
     const d = (save.bag[id] ?? 0) - (log.bag[id] ?? 0);
-    return d > 0 ? [`${itemName(id)}${NB}${d}`] : [];
+    return d > 0 ? [`${itemName(id).replace(/ /g, NB)}${NB}${d}`] : [];
   });
   gain.push(...items.slice(0, 2));
   if (items.length > 2) gain.push(`외${NB}${items.length - 2}가지`);

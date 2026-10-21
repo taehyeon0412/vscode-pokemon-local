@@ -18,6 +18,8 @@ export {
   teamMainOf,
   teamMeetTipDue,
   dailyView,
+  nextStageOf,
+  gymLeaderOf,
   resumeLine,
   RESUME_BATTLE_MSG,
   TEAM_MEET_TIP,

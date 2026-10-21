@@ -27,11 +27,15 @@ describe('개발 모드 (임시) — 메뉴 동작', () => {
   });
 
   it('장면 바로 가기 — 모두 올바른 세이브 · 다음 걸음도 그 장면에서 이어짐', () => {
-    const scenes: DevScene[] = ['stage-1', 'stage-2', 'stage-3', 'wild', 'catch', 'evolve', 'rival', 'trainer-team', 'gym-team', 'gym-enter', 'lobby'];
+    const scenes: DevScene[] = ['stage-1', 'stage-2', 'stage-3', 'beach-1', 'beach-2', 'beach-3', 'beach-gym', 'wild', 'catch', 'evolve', 'rival', 'trainer-team', 'gym-team', 'gym-enter', 'lobby'];
     const want: Record<DevScene, string> = {
       'stage-1': 'walk',
       'stage-2': 'walk',
       'stage-3': 'walk',
+      'beach-1': 'walk',
+      'beach-2': 'walk',
+      'beach-3': 'walk',
+      'beach-gym': 'lobby',
       wild: 'appear',
       catch: 'battle',
       evolve: 'choice',

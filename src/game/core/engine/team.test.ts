@@ -735,7 +735,8 @@ describe('#17 준비 — 배율 · 잠금 · 3마리 고르기 · 필살기 예�
     expect(foeUlt.phase).toBe('ult');
     const during = teamStep(foeUlt, STEP, new Rng(3), { auto: false, away: false });
     expect(during.autoWait?.[1]).toBe(foeUlt.autoWait?.[1]);
-    expect(teamAutoUltLeft(during, 1)).toBe(BALANCE.ultAutoWaitMs - (foeUlt.autoWait?.[1] ?? 0));
+    // 다른 필살기 중엔 칩도 없음 (멈춘 숫자가 1장면 보였다 사라지던 것 — 디자인 UX R9) · 기다림은 그대로 남았다가 run 에서 이어 셈
+    expect(teamAutoUltLeft(during, 1)).toBeNull();
     // 안 볼 때는 기다림을 지움 (돌아오면 다시 3초 — 코드 리뷰어)
     expect(teamStep({ ...full, autoWait: [0, 2500, 0], me: full.me.map((f) => ({ ...f, ult: 0 })) }, STEP, new Rng(3), { auto: false, away: true }).autoWait).toBeUndefined();
     // HP 30% 아래면 기다리지 않음 (기획 #26 R2 ①)

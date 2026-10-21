@@ -64,9 +64,19 @@ export function regionPool(stageId: StageId): Pool {
     const s = speciesOf(dex);
     if (!s || !isWildable(s) || isStarterLine(s) || formsOfSpecies(dex).length === 0) continue;
     if (baseTotal(s) > BALANCE.bigBaseTotal && index < region.stages.length - 1) continue;
+    // 스테이지마다 정한 목록 (해변) 이면 흔함 · 드묾은 목록에서 (아래), 노말 · 비행 섞기만 타입으로
+    if (region.wild.lists) {
+      if (s.types.every((t) => t === 'normal' || t === 'flying') && canAttack(dex)) pool.mixed.push(dex);
+      continue;
+    }
     if (hasAny(s.types, region.wild.common)) pool.common.push(dex);
     else if (hasAny(s.types, region.wild.rare)) pool.rare.push(dex);
     else if (s.types.every((t) => t === 'normal' || t === 'flying') && canAttack(dex)) pool.mixed.push(dex);
+  }
+  if (region.wild.lists) {
+    const last = index === region.stages.length - 1;
+    pool.common = [...(region.wild.lists[index] ?? []), ...(last ? (region.wild.strong ?? []) : [])].filter((d) => !!speciesOf(d) && formsOfSpecies(d).length > 0);
+    pool.rare = last ? (region.wild.rareList ?? []).filter((d) => !!speciesOf(d) && formsOfSpecies(d).length > 0) : [];
   }
   pools.set(stageId, pool);
   return pool;
@@ -186,8 +196,6 @@ export interface Pickup {
   money?: number;
 }
 
-/** 진화의 돌 중 숲에서 주울 수 있는 것 */
-const FOREST_STONES: readonly ItemId[] = ['leaf-stone', 'moon-stone'];
 
 export function pickupAt(stageId: StageId, stageSeed: number, spot: Spot): Pickup {
   const rng = spotRng(stageSeed, spot.index, 3);
@@ -196,7 +204,9 @@ export function pickupAt(stageId: StageId, stageSeed: number, spot: Spot): Picku
   if (r < t['poke-ball']) return { item: 'poke-ball' };
   if (r < t['poke-ball'] + t.potion) return { item: 'potion' };
   if (r < t['poke-ball'] + t.potion + t.money) return { money: stageLevelBand(stageId)[1] * BALANCE.pickupMoneyPerLevel };
-  return { item: FOREST_STONES[rng.int(0, FOREST_STONES.length - 1)]! };
+  // 진화의 돌 — 지역 표 (숲 = 리프의 돌 · 달의 돌 · 해변 = 물의 돌)
+  const stones = regionOf(stageId).region.stones;
+  return { item: stones[rng.int(0, stones.length - 1)]! };
 }
 
 /** 배경 속 포켓몬 (보기만) — 나무 위 (숲 포켓몬) · 하늘 (날 수 있는 포켓몬) */
@@ -213,8 +223,11 @@ export function sceneryAt(stageId: StageId, stageSeed: number, index: number): S
     const s = speciesOf(d);
     return !!s && isWildable(s) && s.types.includes('flying') && formsOfSpecies(d).length > 0;
   });
-  const sky = flyers.length > 0 && rng.chance(0.4);
-  const list = sky ? flyers : regionPool(stageId).common;
+  // 지역 표에 정한 배경 포켓몬이 있으면 그것 (해변 = 하늘 갈모매 · 패리퍼 · 바다 잉어킹 · 만타인)
+  const scenery = regionOf(stageId).region.scenery;
+  const skyList = scenery?.sky ?? flyers;
+  const sky = skyList.length > 0 && rng.chance(0.4);
+  const list = sky ? skyList : (scenery?.ground ?? regionPool(stageId).common);
   const dex = list[rng.int(0, list.length - 1)] ?? 10;
   return { form: formsOfSpecies(dex)[0] ?? 'caterpie', place: sky ? 'sky' : 'tree' };
 }

@@ -13,7 +13,7 @@
  */
 import { BALANCE } from '../balance';
 import { Rng } from '../engine/rng';
-import { STAGE_IDS, type FacilitySpot, type StageId } from '../save';
+import { REGION_STAGE_IDS, type FacilitySpot, type StageId } from '../save';
 import { regionLevelBand, regionOf, regionOrder } from './region';
 
 /** rival = 라이벌 깜짝 등장 (gdd 4.12 — 길 위에 미리 안 보임) */
@@ -73,14 +73,14 @@ const FACILITY_GAP = 0.012;
 
 /** 그 스테이지의 트레이너 수 — 스테이지마다 정해짐 (시드와 상관없음) */
 export function trainerCount(stageId: StageId): number {
-  const rng = new Rng(mixSeed(0x7a1e5, STAGE_IDS.indexOf(stageId) + 1));
+  const rng = new Rng(mixSeed(0x7a1e5, REGION_STAGE_IDS.indexOf(stageId) + 1));
   return between(rng, BALANCE.stageTrainers);
 }
 
 /** 트레이너 자리 (길 순서) — 스테이지마다 정해짐: 0.12 ~ 0.92 를 고르게 나눈 칸 안에서 조금 흔들어 */
 export function trainerSpots(stageId: StageId): number[] {
   const n = trainerCount(stageId);
-  const rng = new Rng(mixSeed(0x7a1e6, STAGE_IDS.indexOf(stageId) + 1));
+  const rng = new Rng(mixSeed(0x7a1e6, REGION_STAGE_IDS.indexOf(stageId) + 1));
   const [lo, hi] = TRAINER_RANGE;
   const cell = (hi - lo) / n;
   return Array.from({ length: n }, (_, i) => Math.round((lo + cell * (i + 0.5) + (rng.next() - 0.5) * cell * 0.5) * 100000) / 100000);

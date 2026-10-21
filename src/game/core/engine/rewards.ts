@@ -8,9 +8,8 @@ import { BAG_MAX, healTeam } from '../rules/bag';
 import { addExp, evolve, expGain, learnMove, levelUpChoices } from '../rules/growth';
 import { expForLevel } from '../rules/stats';
 import { itemName } from '../rules/items';
-import { REGIONS } from '../rules/region';
+import { REGIONS, regionGymMoney, regionHere, regionOrder } from '../rules/region';
 import { stageLevelBand } from '../rules/stage';
-import { GYM_LEADER } from '../rules/trainer';
 import { rivalItem } from '../rules/rival';
 import type { ItemId, Monster, PendingChoice, Save, StageId } from '../save';
 import { withJosa } from '../text';
@@ -178,17 +177,18 @@ export function battleRewards(save0: Save, b: RewardBattle, wild: Monster | null
     if (rng.chance(BALANCE.treasureChance.trainer)) save = giveTreasure(save, summary, pickTreasure(rng));
     summary.title = `${withJosa(b.foeName ?? '트레이너', '과/와')}의 승부에서 이겼다!`;
   } else {
-    // 관장: 처음 = 배지 + 3000원 + 리프의 돌 + 보너스 경험치 (스테이지의 2배) · 다시 = 300원 (3.9)
-    const first = !save.badges.includes(FOREST_BADGE);
-    summary.money = first ? BALANCE.gymFirstMoney : BALANCE.gymRematchMoney;
-    summary.title = `${withJosa(GYM_LEADER.name, '을/를')} 이겼다!`;
+    // 관장: 처음 = 배지 + 돈 (숲 3000원 · 5.2 1,000 × (k + 2)) + 첫 승 물건 (숲 리프의 돌 · 해변 물의 돌) + 보너스 경험치 (스테이지의 2배) · 다시 = 300원 (3.9) — 지금 체육관 지역 (지역 표)
+    const region = regionHere(save.location);
+    const first = !save.badges.includes(region.badge);
+    summary.money = first ? regionGymMoney(regionOrder(region.id)) : BALANCE.gymRematchMoney;
+    summary.title = `${withJosa(region.leader.name, '을/를')} 이겼다!`;
     if (first) {
-      save = { ...save, badges: [...save.badges, FOREST_BADGE], bag: { ...save.bag, 'leaf-stone': (save.bag['leaf-stone'] ?? 0) + 1 } };
-      summary.badge = '숲 배지';
-      summary.item = itemName('leaf-stone');
-      // 관장 첫 승 = 큰금구슬 (ideas #125)
-      save = giveTreasure(save, summary, 'big-nugget');
-      const bonus = giveTeamExp(save, stageLevelBand(REGIONS.forest.stages[2].id)[1] * BALANCE.clearExpPerLevel * BALANCE.gymClearExpScale, rng);
+      save = { ...save, badges: [...save.badges, region.badge], bag: { ...save.bag, [region.firstWinItem]: (save.bag[region.firstWinItem] ?? 0) + 1 } };
+      summary.badge = region.badgeName;
+      summary.item = itemName(region.firstWinItem);
+      // 관장 첫 승 = 큰금구슬 (숲 — ideas #125)
+      if (region.firstWinTreasure) save = giveTreasure(save, summary, region.firstWinTreasure);
+      const bonus = giveTeamExp(save, stageLevelBand(region.stages[2].id)[1] * BALANCE.clearExpPerLevel * BALANCE.gymClearExpScale, rng);
       save = bonus.save;
       // 보너스까지 합친 레벨 변화 (같은 포켓몬이면 한 줄로)
       for (const e of bonus.exp) {

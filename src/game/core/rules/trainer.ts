@@ -12,7 +12,7 @@ import { formsOfSpecies, learnsetOf, moveOf, speciesOf, type ReadonlyMove } from
 import { typeNameKo, withJosa } from '../text';
 import { effectiveness } from './types';
 import { baseTotal, devolveForLevel, evolveForLevel, regionPool } from './encounter';
-import { REGIONS, regionGymTeam, regionOf, regionOrder } from './region';
+import { REGIONS, regionGymTeam, regionHere, regionOf, regionOrder, type RegionDef } from './region';
 import { createMonster, wildMoves } from './monster';
 import { spotRng, stageLevelBand, trainerCount } from './stage';
 
@@ -108,7 +108,8 @@ export const GYM_LEADER = REGIONS.forest.leader;
  * (가진 공격 기술이 관장 포켓몬 셋 중 둘 이상에게 효과가 굉장 — 팀 · 보관함 둘 다, 선두부터)
  */
 export function gymHint(save: Save): { text: string; good: string[] } {
-  const team = regionGymTeam(REGIONS.forest, regionOrder('forest')).map(([dex]) => speciesOf(dex)?.types ?? []);
+  const region = regionHere(save.location);
+  const team = regionGymTeam(region, regionOrder(region.id)).map(([dex]) => speciesOf(dex)?.types ?? []);
   const types = [...new Set(team.flat())];
   const good = [...save.party, ...save.box].filter((uid) => {
     const m = save.monsters[uid];
@@ -119,7 +120,7 @@ export function gymHint(save: Save): { text: string; good: string[] } {
     })).length;
     return hits >= 2;
   });
-  return { text: `${withJosa(GYM_LEADER.name, '은/는')} ${types.map(typeNameKo).join(' · ')} 포켓몬을 써요`, good };
+  return { text: `${withJosa(region.leader.name, '은/는')} ${types.map(typeNameKo).join(' · ')} 포켓몬을 써요`, good };
 }
 
 /** 관장 포켓몬 개체값 — 늘 같게 (★4 쯤) */
@@ -138,8 +139,8 @@ function leaderMoves(dex: number, level: number): ReadonlyMove[] {
 }
 
 /** 관장 3마리 (마지막 = 에이스) — 지역 표 셋 묶음 · 몇 번째 지역 레벨 (숲 k = 1 = 예전 gymTeam 그대로) */
-export function leaderTeam(): Monster[] {
-  return regionGymTeam(REGIONS.forest, regionOrder('forest')).map(([dex, level], i) => {
+export function leaderTeam(region: RegionDef = REGIONS.forest): Monster[] {
+  return regionGymTeam(region, regionOrder(region.id)).map(([dex, level], i) => {
     const m = createMonster({ uid: `gym${i}`, dex, level, moves: leaderMoves(dex, level), rng: new Rng(0x6e1 + i), caughtAt: 'gym', form: formsOfSpecies(dex)[0] });
     return { ...m, ivs: { ...LEADER_IVS }, hp: 99999 };
   });

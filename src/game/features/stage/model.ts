@@ -198,7 +198,7 @@ export function visibleObjects(state: GameState, widthPx: number, scale: number)
     } else {
       if (s.at <= prog.run.reach && !(stage?.phase === 'request' && stage.at === s.at)) continue; // 이미 고른 부탁
       const active = stage?.phase === 'request' && stage.at === s.at;
-      out.push({ key: `r${s.index}`, kind: 'request', x, template: requestAt(prog.seed, number), active });
+      out.push({ key: `r${s.index}`, kind: 'request', x, template: requestAt(prog.seed, number, id), active });
     }
   }
   return out.sort((a, b) => a.x - b.x);

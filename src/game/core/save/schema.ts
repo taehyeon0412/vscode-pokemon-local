@@ -69,9 +69,14 @@ export const ITEM_IDS = [
 ] as const;
 export type ItemId = (typeof ITEM_IDS)[number];
 
-/** 스테이지 (mvp-spec 3.2) — 숲 1-1 · 1-2 · 1-3 */
-export const STAGE_IDS = ['forest-1', 'forest-2', 'forest-3'] as const;
-export type StageId = (typeof STAGE_IDS)[number];
+/** 지역 (gdd 5.1 지역 표 — core/rules/region) — 숲 · 해변 (해변은 개발 모드 미리 보기만, 모두에게 여는 것은 세이브 4판 #30 과 같이) */
+export const REGION_IDS = ['forest', 'beach'] as const;
+export type RegionId = (typeof REGION_IDS)[number];
+/** 지역 표의 스테이지 전부 — 숲 1-1 · 1-2 · 1-3 + 해변 (개발 모드 미리 보기 — orders #37) */
+export const REGION_STAGE_IDS = ['forest-1', 'forest-2', 'forest-3', 'beach-1', 'beach-2', 'beach-3'] as const;
+export type StageId = (typeof REGION_STAGE_IDS)[number];
+/** 스테이지 (mvp-spec 3.2) — 진짜 게임 진행 = 숲 1-1 · 1-2 · 1-3 (세계 지도 · 이어 하기 · 다음 스테이지) */
+export const STAGE_IDS: readonly StageId[] = ['forest-1', 'forest-2', 'forest-3'];
 
 /** 본 첫 안내 id (save.tips) — 짧은 영문 · 최대 수 (디자인팀 orders #12) */
 export const TIPS_MAX = 20;
@@ -125,7 +130,7 @@ export interface StageProgress {
 export type Location =
   | { screen: 'title' } // S02 — 아직 스타팅 전
   | { screen: 'stage'; stageId: StageId } // S06
-  | { screen: 'gym' } // S16 대기실
+  | { screen: 'gym'; /** 어느 지역 체육관 — 없으면 숲 (해변은 개발 모드 미리 보기만) */ region?: RegionId } // S16 대기실
   | { screen: 'world-map' }; // S07
 export const LOCATION_SCREENS = ['title', 'stage', 'gym', 'world-map'] as const;
 

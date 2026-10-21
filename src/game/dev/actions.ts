@@ -17,9 +17,11 @@ import { expForLevel, maxHp } from '../core/rules/stats';
 import { aliveCount, GYM_LEADER, leaderTeam, trainerInfo, trainerTeam } from '../core/rules/trainer';
 import { ITEM_IDS, STAGE_IDS, type ItemId, type Monster, type Save, type StageId } from '../core/save';
 import { evolutionsOf, speciesOf } from '../data';
+import { gymLocation, REGIONS } from '../core/rules/region';
+import { stageCode, stageLevelBand } from '../core/rules/stage';
 import { DEV_BATTLES, DEV_FOES_MAX, DEV_LEVEL_MAX, DEV_WALKS, devDefault, type DevMon, type DevRuntime } from './runtime';
 
-export type DevScene = 'stage-1' | 'stage-2' | 'stage-3' | 'wild' | 'catch' | 'evolve' | 'rival' | 'trainer-team' | 'gym-team' | 'gym-enter' | 'lobby';
+export type DevScene = 'stage-1' | 'stage-2' | 'stage-3' | 'beach-1' | 'beach-2' | 'beach-3' | 'beach-gym' | 'wild' | 'catch' | 'evolve' | 'rival' | 'trainer-team' | 'gym-team' | 'gym-enter' | 'lobby';
 
 export type DevAction =
   | { kind: 'scene'; scene: DevScene }
@@ -54,7 +56,15 @@ const devOf = (rt: RuntimeState): DevRuntime => rt.dev ?? devDefault();
 const withDev = (state: GameState, change: (d: DevRuntime) => DevRuntime): GameState => ({ ...state, runtime: { ...state.runtime, dev: change(devOf(state.runtime)) } });
 const cycle = <T>(list: readonly T[], now: T): T => list[(list.indexOf(now) + 1) % list.length]!;
 const nameOf = (dex: number) => speciesOf(dex)?.name.ko ?? `#${dex}`;
-const STAGE_OF: Record<'stage-1' | 'stage-2' | 'stage-3', StageId> = { 'stage-1': 'forest-1', 'stage-2': 'forest-2', 'stage-3': 'forest-3' };
+const STAGE_OF: Record<'stage-1' | 'stage-2' | 'stage-3' | 'beach-1' | 'beach-2' | 'beach-3', StageId> = {
+  'stage-1': 'forest-1',
+  'stage-2': 'forest-2',
+  'stage-3': 'forest-3',
+  // 해변 미리 보기 (gdd 5.3 · orders #37 — 2번째 지역: 관장 에이스 Lv 21)
+  'beach-1': 'beach-1',
+  'beach-2': 'beach-2',
+  'beach-3': 'beach-3',
+};
 
 /** 지금 스테이지 (체육관 · 지도면 1-1) */
 function hereOf(save: Save): StageId {
@@ -105,7 +115,9 @@ function devWild(state: GameState, id: StageId, rng: Rng): Monster {
   if (pick) return devMonster('wild', pick, rng, id);
   const pool = forestPool(id).common;
   const dex = pool.length ? pool[rng.int(0, pool.length - 1)]! : 16;
-  const level = { 'forest-1': 4, 'forest-2': 8, 'forest-3': 12 }[id];
+  // 그 스테이지 레벨대 위끝쯤 (숲 4 · 8 · 12 — 지역 표 레벨표)
+  const [lo, hi] = stageLevelBand(id);
+  const level = id.startsWith('forest-') ? { 'forest-1': 4, 'forest-2': 8, 'forest-3': 12 }[id as 'forest-1'] : Math.round((lo + hi) / 2) + 1;
   return devMonster('wild', { dex, level }, rng, id);
 }
 
@@ -122,9 +134,17 @@ function scene(state: GameState, sc: DevScene, rng: Rng): DevResult {
   switch (sc) {
     case 'stage-1':
     case 'stage-2':
-    case 'stage-3': {
+    case 'stage-3':
+    case 'beach-1':
+    case 'beach-2':
+    case 'beach-3': {
       const id = STAGE_OF[sc];
-      return { state: withStage(state, standOn(state, id, rng), { phase: 'walk' }, id, rng), say: `${id.replace('forest-', '1-')} 처음부터` };
+      return { state: withStage(state, standOn(state, id, rng), { phase: 'walk' }, id, rng), say: `${stageCode(id)} 처음부터` };
+    }
+    case 'beach-gym': {
+      // 해변 체육관 대기실 (관장 해솔 · 2번째 지역 — 에이스 Lv 21)
+      const save: Save = { ...save0, location: gymLocation(REGIONS.beach), pendingEncounter: null, pendingChoices: [] };
+      return { state: withStage(state, save, { phase: 'lobby' }, null, rng), say: '해변 체육관 대기실' };
     }
     case 'wild':
     case 'catch': {
