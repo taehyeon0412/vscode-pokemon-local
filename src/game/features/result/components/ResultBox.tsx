@@ -71,7 +71,10 @@ function Line({ p }: { p: SummaryPart }) {
   if (p.kind === 'up' || p.kind === 'learned') {
     return (
       <>
-        <span class="pg-up">{p.kind === 'up' ? '▲' : '★'}</span> {p.text}
+        {/* ▲ · ★ 와 글을 줄 바꿈으로 떼지 않게 */}
+        <span class="pg-up">{p.kind === 'up' ? '▲' : '★'}</span>
+        {'\u00a0'}
+        {p.text}
       </>
     );
   }
@@ -163,7 +166,7 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
   );
   if (ups.length === 0) {
     return (
-      <div class="pg-banner pg-result pg-two" title={all}>
+      <div class={`pg-banner pg-result pg-two${summary.caught ? ' pg-result-caught' : ''}`} title={all}>
         {lines}
       </div>
     );

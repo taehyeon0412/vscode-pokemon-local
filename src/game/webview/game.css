@@ -4458,7 +4458,7 @@ body.vscode-light .pg-field-balls {
   display: none;
 }
 /* 좁은 패널 — 첫 줄 얻은 것 칸 (아이콘 + … 로 잘리던 것) 을 빼고 둘째 줄에서 얻은 것 2.5초 → 배운 기술 · 경험치 · 레벨업 2.5초 (2026-10-21 태현 님 A — 예전엔 레벨업 상자에서 얻은 것을 숨겨 0초).
-   폭 = 레벨업 상자 460px 아래 (얼굴 카드 자리만큼 첫 줄이 짧음) · 다른 상자 400px 아래 (맥 글꼴 10% 여유 — UX 리뷰어 361 ~ 480 에서 잘림 잼) */
+   폭 = 레벨업 · 잡은 결과 상자 460px 아래 (얼굴 카드 · "팀이 다 차서 ○○ → 보관함" 칩만큼 첫 줄이 짧음) · 다른 상자 400px 아래 (맥 글꼴 10% 여유 — UX 리뷰어 361 ~ 480 에서 잘림 잼) */
 @media (max-width: 400px) {
   .pg-result .pg-line:first-child > .pg-reward,
   .pg-result:has(.pg-result-alt) .pg-result-body {
@@ -4488,30 +4488,30 @@ body.vscode-light .pg-field-balls {
   }
 }
 @media (min-width: 401px) and (max-width: 460px) {
-  .pg-result.pg-lvup .pg-line:first-child > .pg-reward,
-  .pg-result.pg-lvup:has(.pg-result-alt) .pg-result-body {
+  :is(.pg-result.pg-lvup, .pg-result.pg-result-caught) .pg-line:first-child > .pg-reward,
+  :is(.pg-result.pg-lvup, .pg-result.pg-result-caught):has(.pg-result-alt) .pg-result-body {
     display: none;
   }
-  .pg-result.pg-lvup .pg-result-alt {
+  :is(.pg-result.pg-lvup, .pg-result.pg-result-caught) .pg-result-alt {
     display: grid;
     font-size: 12px;
     color: var(--pg-sos-dim);
   }
-  .pg-result.pg-lvup .pg-result-alt > span {
+  :is(.pg-result.pg-lvup, .pg-result.pg-result-caught) .pg-result-alt > span {
     grid-area: 1 / 1;
     min-width: 0;
     white-space: normal;
     word-break: keep-all;
   }
-  .pg-result.pg-lvup .pg-result-alt-a {
+  :is(.pg-result.pg-lvup, .pg-result.pg-result-caught) .pg-result-alt-a {
     display: flex;
     flex-wrap: wrap;
     gap: 0 8px;
   }
-  .pg-result.pg-lvup .pg-result-alt:not(.pg-result-alt-solo) > .pg-result-alt-a {
+  :is(.pg-result.pg-lvup, .pg-result.pg-result-caught) .pg-result-alt:not(.pg-result-alt-solo) > .pg-result-alt-a {
     animation: pg-alt-a 5s steps(1, end) both;
   }
-  .pg-result.pg-lvup .pg-result-alt-b {
+  :is(.pg-result.pg-lvup, .pg-result.pg-result-caught) .pg-result-alt-b {
     animation: pg-alt-b 5s steps(1, end) both;
   }
 }
