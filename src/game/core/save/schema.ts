@@ -5,8 +5,11 @@
  *   1. SAVE_VERSION 을 올리고 새 형식을 SaveV{n} 으로 더한다 (옛 형식은 지우지 않음)
  *   2. migrate.ts 의 MIGRATIONS 에 "옛 버전 → 새 버전" 함수를 더한다
  *   3. 옛 세이브 표본으로 테스트를 더한다 (migrate.test.ts)
+ * 옵션 칸을 더할 때도 판을 올린다 (2026-10-21 orders #15) — 옛 판 코드는 모르는 칸을 "고칠 때" 지우는데, 판이 더 새로우면 "더 새 버전 세이브" 로 잠그고 쓰지 않아서
+ *   (설치 뒤 다시 로드 안 한 옛 창이 새 칸을 지우지 못함 — save-store lock).
  */
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
+// 1 → 2 (2026-10-21 orders #15): 칸은 1판 + 옵션 칸 (settings.autoPotion · skipCaughtLast · laterChoices · tips · 새 물건 id · run.candy · boost) — 옛 1판 창이 이 세이브를 지우지 못하게 판만 올림
 
 /** 스탯 5개 (mvp-spec 3.5): HP · 공격 · 방어 · 스피드 · 필살 */
 export const STAT_KEYS = ['hp', 'attack', 'defense', 'speed', 'ultimate'] as const;
@@ -147,7 +150,8 @@ export interface LastHospital {
 }
 
 export interface SaveV1 {
-  version: 1;
+  /** 2 = 1판과 같은 칸 + 옵션 칸 (orders #15) */
+  version: 2;
   createdAt: number;
   updatedAt: number;
   playTimeMs: number;

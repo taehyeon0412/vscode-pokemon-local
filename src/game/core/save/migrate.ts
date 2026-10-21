@@ -8,8 +8,11 @@ type RawSave = Record<string, unknown>;
 /** 키 = 옮기기 전 버전. 결과의 version 은 키 + 1 이어야 함 */
 export type Migrations = Readonly<Record<number, (old: RawSave) => RawSave>>;
 
-/** 지금은 1판뿐이라 비어 있음. 2판을 만들면: { 1: (v1) => ({ ...v1, version: 2, 새칸: 기본값 }) } */
-export const MIGRATIONS: Migrations = {};
+/** 판마다 하나씩 (지우지 않음) */
+export const MIGRATIONS: Migrations = {
+  // 1 → 2 (2026-10-21 orders #15): 칸은 그대로 — 새 칸은 모두 옵션 (없으면 기본). 옛 1판 창이 2판 세이브를 "더 새 버전" 으로 잠그게 판만 올림
+  1: (v1) => ({ ...v1, version: 2 }),
+};
 
 export type MigrateResult =
   | { ok: true; data: RawSave; from: number }

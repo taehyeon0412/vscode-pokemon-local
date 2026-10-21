@@ -51,7 +51,8 @@ describe('망가진 세이브 — 살릴 수 없음', () => {
   });
 
   it('버전이 다르면 validate 는 거절 (옮기기는 readSave 가)', () => {
-    expect(validateSave({ ...createNewSave(0), version: 2 }).ok).toBe(false);
+    expect(validateSave({ ...createNewSave(0), version: SAVE_VERSION + 1 }).ok).toBe(false);
+    expect(validateSave({ ...createNewSave(0), version: 1 }).ok).toBe(false);
   });
 });
 
@@ -236,7 +237,8 @@ describe('고정된 1판 세이브 표본 (src/test/fixtures/save-v1.json)', () 
     // stages.*.run 은 단계 9 에 더한 칸 (S24 요약) — 없으면 빈 기록 (시작 = 지금 플레이 시간)
     const rawStages = (raw as { stages: Record<string, object>; playTimeMs: number });
     const stages = Object.fromEntries(Object.entries(rawStages.stages).map(([k, v]) => [k, { ...v, run: { startMs: rawStages.playTimeMs, caught: 0, trainers: 0, seen: [], reach: 0, retries: 0 } }]));
-    expect(viaJson(r.save)).toEqual({ ...(raw as object), stages, pendingChoices: [] });
+    // 2판 (2026-10-21 orders #15) — 칸은 그대로, 판만 올라감
+    expect(viaJson(r.save)).toEqual({ ...(raw as object), version: SAVE_VERSION, stages, pendingChoices: [] });
   });
 
   it('단계 7 의 고르기 칸이 있는 세이브도 그대로 · 없는 포켓몬 · 모르는 기술을 가리키는 고르기는 뺌', async () => {

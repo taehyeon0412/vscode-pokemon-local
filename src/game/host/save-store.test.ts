@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemorySaveArchive, MemorySaveStorage, sampleSave } from '../../test/fixtures/save';
-import { createNewSave, type Save } from '../core/save';
+import { createNewSave, SAVE_VERSION, type Save } from '../core/save';
 import { SaveStore } from './save-store';
 
 let storage: MemorySaveStorage;
@@ -81,7 +81,7 @@ describe('읽기', () => {
     expect(stored()).toEqual(newer);
     expect(logs.filter((l) => l.startsWith('저장하지 않음'))).toHaveLength(1);
     expect(await store.replace(createNewSave(5))).toBe(true);
-    expect(stored()?.version).toBe(1);
+    expect(stored()?.version).toBe(SAVE_VERSION);
     // 옛 원본은 'newer' 로 이미 있어 또 넣지 않고, 잠겨서 못 쓴 세이브는 'replaced' 로 보관
     expect(archive.items.map((i) => i.reason)).toEqual(['newer', 'replaced']);
   });
