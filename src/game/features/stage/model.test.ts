@@ -208,7 +208,7 @@ describe('접힌 줄 (gdd 4.13 R13 ② — 기다리는 장면 · 자동 전투)
   it('자동 전투 꺼짐 = 접혀 있는 동안 전부 멈춤 (예전 "전투가 나오면 멈춰요" 는 틀림 — gdd 4.13)', () => {
     const off = at(0.47);
     const s = { ...off, save: { ...off.save, settings: { ...off.save.settings, autoBattle: false } } };
-    expect(foldStatus(s)).toBe('자동 전투 꺼짐 — 접혀 있는 동안 멈춰 있어요\u00a0· 켜면 계속 걸어요\u00a0· 새싹 오솔길 47%');
+    expect(foldStatus(s)).toBe('자동 전투 꺼짐 — 접혀 있는 동안 멈춰 있어요\u00a0· ▲ 올려서 자동 전투를 켜면 계속 걸어요\u00a0· 새싹 오솔길 47%');
     const on = { ...off, save: { ...off.save, settings: { ...off.save.settings, autoBattle: true } } };
     expect(foldStatus(on)).toBe('자동 전투 켜짐 — 전투도 저절로\u00a0· ▲ 올리면 보여요\u00a0· 새싹 오솔길 47%');
   });
