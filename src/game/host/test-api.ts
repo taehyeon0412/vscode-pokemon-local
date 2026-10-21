@@ -14,6 +14,8 @@ export interface GameTestApi {
     mode: string; owner: string; epoch: number; load: string; running: boolean; playTimeMs: number | null; money: number | null; stats: SessionStats;
     /** 스테이지 진행 % (스테이지에 있을 때) · 만난 종 수 · 가방 몬스터볼 수 */
     progress: number | null; seen: number; balls: number;
+    /** 웹뷰가 알린 패널 크기 (px — 처음 · 3:3 배율이 바뀔 때) — 실제 VS Code 캡처가 높이를 맞출 때 */
+    view: { w: number; h: number } | null;
   };
   enterGame(): Promise<EnterResult>;
   exitGame(): Promise<void>;
@@ -53,6 +55,7 @@ export function createTestApi(
         progress: loc?.screen === 'stage' ? (s.state?.save.stages[loc.stageId]?.progress ?? null) : null,
         seen: s.state?.save.dex.seen.length ?? 0,
         balls: s.state?.save.bag['poke-ball'] ?? 0,
+        view: s.state?.runtime.view ?? null,
       };
     },
     enterGame: () => session.enterGame(),

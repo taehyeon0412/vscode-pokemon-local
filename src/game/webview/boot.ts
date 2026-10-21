@@ -10,11 +10,13 @@ const gameSrc = me?.dataset.gameSrc;
 const nonce = me?.nonce;
 const port = getGamePort();
 const minHeight = Number(me?.dataset.minHeight);
+const reportSize = me?.dataset.reportSize === '1';
 window.pokemonGameConfig = {
   media: me?.dataset.media ?? '',
   size: me?.dataset.size ?? 'nano',
   script: gameSrc ?? '',
   ...(minHeight > 0 ? { minHeight } : {}),
+  ...(reportSize ? { reportSize } : {}),
 };
 let requested = false;
 

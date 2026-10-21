@@ -19,6 +19,8 @@ export interface GameConfig {
   script: string;
   /** 게임 모드 최소 높이를 바꿈 — 실제 VS Code 테스트에서만 (탐색기 칸이 150px 보다 낮아서). 보통은 없음 = 150px */
   minHeight?: number;
+  /** 크기가 바뀔 때마다 확장에 알림 — 실제 VS Code 캡처 (dev/vscode-shot.py) 가 패널 크기를 px 로 맞출 때만. 보통은 없음 (3:3 배율이 바뀔 때만) */
+  reportSize?: boolean;
 }
 
 declare global {

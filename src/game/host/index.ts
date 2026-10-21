@@ -180,7 +180,9 @@ export function activate(context: vscode.ExtensionContext): GameHost {
       const size = vscode.workspace.getConfiguration('vscode-pokemon').get<string>('pokemonSize', 'nano');
       const attr = (v: string) => v.replace(/[&"<>]/g, (c) => `&#${c.charCodeAt(0)};`);
       // 실제 VS Code 테스트는 포켓몬 보기를 탐색기 칸 (150px 보다 낮음) 에 열어서 최소 높이를 예전 아주 작게 값으로 — 맡기 · 넘기기 검사가 접힌 상태에 막히지 않게
-      const testHeight = testMode ? ' data-min-height="68"' : '';
+      // 실제 VS Code 캡처 (dev/vscode-shot.py, POKEMON_SHOT) 는 사용자와 같은 150px · 크기를 늘 알림 (px 로 맞추려고)
+      const shot = testMode && !!process.env.POKEMON_SHOT;
+      const testHeight = testMode && !shot ? ' data-min-height="68"' : shot ? ' data-report-size="1"' : '';
       return `<script nonce="${nonce}" src="${attr(boot.toString())}" data-game-src="${attr(src.toString())}" data-media="${attr(media.toString())}" data-size="${attr(size)}"${testHeight}></script>`;
     },
     deactivate() {

@@ -4,6 +4,7 @@
 //   node scripts/build.mjs --release   설치 · 릴리스용 (줄임, 소스맵 없음) — install.py 가 부름
 //   node scripts/build.mjs --watch     고칠 때마다 다시 묶음 (F5 개발 창)
 //   node scripts/build.mjs --tests     + 실제 VS Code 테스트 묶음 (.test-out/)
+//   node scripts/build.mjs --release --tests --host-only   확장 쪽 (host.js) + 테스트 묶음만 — 웹뷰 묶음 (media/game) 은 그대로 (시험 창 캡처가 도는 중에도 dev/vscode-shot.py 를 돌리게)
 import * as esbuild from 'esbuild';
 import { rmSync } from 'node:fs';
 import { relative } from 'node:path';
@@ -12,6 +13,7 @@ const args = new Set(process.argv.slice(2));
 const release = args.has('--release');
 const watch = args.has('--watch');
 const tests = args.has('--tests');
+const hostOnly = args.has('--host-only');
 
 // VS Code 1.73 (package.json engines) = Electron 19 → 확장 쪽 Node 16 · 웹뷰 Chromium 102
 const common = {
@@ -72,11 +74,28 @@ if (tests) {
       target: 'node16',
       external: ['vscode'],
     },
+    // 실제 VS Code 캡처 (기획 R17 — dev/vscode-shot.py)
+    {
+      ...testCommon,
+      entryPoints: ['src/test/integration/run-shot.ts'],
+      outfile: '.test-out/run-shot.cjs',
+      target: 'node20',
+      external: ['@vscode/test-electron'],
+    },
+    {
+      ...testCommon,
+      entryPoints: ['src/test/integration/shot-suite.ts'],
+      outfile: '.test-out/shot-suite.cjs',
+      target: 'node16',
+      external: ['vscode'],
+    },
   );
 }
 
 // 지난 빌드의 남은 파일 (예: 개발용 .map) 이 설치본에 섞이지 않게 비우고 시작
-for (const dir of ['extension/out/game', 'extension/media/game', ...(tests ? ['.test-out'] : [])]) {
+// --host-only: 웹뷰 묶음은 지우지도 다시 묶지도 않음
+if (hostOnly) targets.splice(1, 2);
+for (const dir of [...(hostOnly ? [] : ['extension/out/game', 'extension/media/game']), ...(tests ? ['.test-out'] : [])]) {
   rmSync(dir, { recursive: true, force: true });
 }
 

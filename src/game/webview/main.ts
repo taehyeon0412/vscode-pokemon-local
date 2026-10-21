@@ -371,7 +371,9 @@ if (!port) {
     const cur = session.current;
     if (!cur || store.get().layout.tooSmall) return;
     const view = { w: window.innerWidth, h: window.innerHeight };
-    if ((!cur.runtime.view || teamScale(cur.runtime.view) !== teamScale(view)) && session.input({ kind: 'view', ...view })) store.set({ state: session.current });
+    // 실제 VS Code 캡처 (reportSize) 는 늘 — 크기를 px 로 맞추려고
+    const changed = !cur.runtime.view || (config.reportSize ? cur.runtime.view.w !== view.w || cur.runtime.view.h !== view.h : teamScale(cur.runtime.view) !== teamScale(view));
+    if (changed && session.input({ kind: 'view', ...view })) store.set({ state: session.current });
   };
 
   window.addEventListener('resize', () => {
