@@ -37,7 +37,7 @@ export function StageToast({ text, center, bottom, room }: { text: string; cente
   });
   return (
     <div ref={ref} class="pg-toast" style={{ left: `${Math.round(center)}px`, bottom: `${bottom}px` }}>
-      {/* "리자몽 Lv 36!" · "외 4마리" 가 줄 끝에서 "리자몽 / Lv 36!" · "외 / 4마리" 로 갈라지지 않게 (한 덩어리) · "\n" = 줄 바꿈 (그동안 요약 끝 줄 안내 ② — ideas #156) */}
+      {/* "리자몽 Lv 36!" · "외 4마리" 가 줄 끝에서 "리자몽 / Lv 36!" · "외 / 4마리" 로 갈라지지 않게 (한 덩어리) · "\n" = 줄 바꿈 (지금은 만드는 곳 없음 — #156 되돌림 d8eb3a6, 긴 알림을 나눌 때 쓰게 남김) */}
       {text.split('\n').map((line, i) => (
         <Fragment key={i}>
           {i > 0 && <br />}

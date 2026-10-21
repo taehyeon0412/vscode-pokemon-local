@@ -9,7 +9,7 @@
  */
 import { useEffect, useLayoutEffect, useRef } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
-import { canOpenMenus, canParry, canRiposte, gymLeaderOf, isWalkingFast, itemLeft, teamLock, teamMeetTipDue, TEAM_MEET_TIP, walkLeftMs, type GameInput, type GameState } from '../../../core/engine';
+import { battleAutoUltLeft, canOpenMenus, canParry, canRiposte, gymLeaderOf, isWalkingFast, itemLeft, teamAutoUltLeft, teamAutoUltNext, teamLock, teamMeetTipDue, TEAM_MEET_TIP, walkLeftMs, type GameInput, type GameState } from '../../../core/engine';
 import { maxHpOf, teamHealth } from '../../../core/rules/bag';
 import { spaceInput, ultSkippable } from '../../battle/fx/parry';
 import { BALLS } from '../../../core/rules/catch';
@@ -18,7 +18,7 @@ import { FACILITY_STAFF } from '../../../core/rules/stage';
 import { regionHere } from '../../../core/rules/region';
 import { josaOf, withJosa } from '../../../core/text';
 import { speciesOf } from '../../../data';
-import { heroHeightPx, heroLookOf, heroWidthPx, personLook } from '../../../data/heroes';
+import { heroDraw, heroHeightPx, heroLookOf, heroWidthPx, personLook } from '../../../data/heroes';
 import { battleArtOf } from '../../../data/people-battle';
 import { BallCount } from '../../../ui/BallCount';
 import { Button } from '../../../ui/Button';
@@ -41,7 +41,7 @@ import { menuLabels, type Overlay, unspentPoints } from '../../menu/model';
 import { ChoiceBox } from '../../result/components/ChoiceBox';
 import { ResultBox } from '../../result/components/ResultBox';
 import { CAUGHT_INTRO_H, CAUGHT_INTRO_W, caughtView, choiceView, levelUps, needsStatHint } from '../../result/model';
-import { battleStage, buildingDraw, BUILDINGS, contactX, foeTrainerView, gymEnterView, gymFrontX, gymRestX, heroX, minimapOf, staffLeftPx, type StageObject, stagePx, STAGES, visibleObjects, meetVsAt, vsStartMs, WALK_PX_PER_SEC } from '../model';
+import { battleStage, buildingDraw, BUILDINGS, contactX, foeTrainerView, gymEnterView, holdRivalLook, gymFrontX, gymRestX, heroX, minimapOf, staffLeftPx, type StageObject, stagePx, STAGES, visibleObjects, meetVsAt, vsStartMs, WALK_PX_PER_SEC } from '../model';
 import { BadgeCard, ClearCard, DefeatBox, FacilityBox, HoldBox, LobbyBox, TrainerBanner, VsCutIn, type VsArt } from './FieldBoxes';
 import { GymFront } from './GymFront';
 import { StageToast } from './StageToast';
@@ -160,6 +160,9 @@ function leadOf(save: GameState['save']): { form: string; shiny: boolean } | nul
   return m ? { form: m.form, shiny: m.shiny } : null;
 }
 
+/** 저절로 나가는 필살기 첫 안내 (save.tips — ideas #150) */
+const ULT_WAIT_TIP = 'ult-wait';
+
 export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, live = true, covered = false }: StageScreenProps) {
   const save = state.save;
   const gym = save.location.screen === 'gym';
@@ -195,8 +198,17 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   const battle = stageRt?.phase === 'battle' ? stageRt.battle : null;
   // 3:3 (orders #17 — 본편은 꺼져 있고 개발 모드에서만 켬)
   const team = stageRt?.phase === 'team' ? stageRt.team : null;
+  // 저절로 나갈 필살기를 기다리는 중이면 지금 누를 키 (1:1 자동 전투 = Z · 3:3 = 그 칸 번호) — "N초" 칩의 뜻 첫 안내 (ideas #150)
+  const teamNext = team?.phase === 'run' ? teamAutoUltNext(team) : null;
+  const ultWaitMs = battle ? (battle.phase !== 'clash' ? (battleAutoUltLeft(battle, save.settings.autoBattle === true) ?? 0) : 0) : team && teamNext !== null ? (teamAutoUltLeft(team, teamNext) ?? 0) : 0;
+  const ultWaitKey = ultWaitMs <= 0 ? null : battle ? 'Z' : teamNext !== null ? String(teamNext + 1) : null;
+  // 칩과 같은 남은 초 (3 · 2 · 1 — 글이 "3초" 로 멈춰 있고 칩만 줄던 것, UX 리뷰어)
+  const ultWaitSec = Math.ceil(ultWaitMs / 1000);
   const choice = choiceView(state);
   const foeTrainer = foeTrainerView(state);
+  const rivalShadow = holdRivalLook(state);
+  const shadowLook = rivalShadow ? personLook(rivalShadow) : undefined;
+  const shadowDot = shadowLook ? Math.max(1, Math.round(heroDraw(shadowLook, heroPx / 2, heroRoom)?.scale ?? 1)) : 1;
   // VS 컷인 중 — 길 위 상대 이름표는 숨김 (컷인 띠에 같은 이름이 있고, 반투명 덮개 너머로 대결 그림과 겹쳐 보임)
   // VS = 만남 끝 2초 · 3:3 을 고를 수 있는 만남은 고른 때부터 2초 (meetVsAt — 디자인팀 4안)
   const vsAt = meetVsAt(state);
@@ -403,6 +415,14 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
             <Hero px={heroPx} walking={false} hat={foeTrainer?.hat ?? gymLeader.hat} shirt={foeTrainer?.shirt ?? gymLeader.shirt} faceLeft label={foeTrainer?.name ?? gymLeader.name} look={personLook(foeTrainer ? foeTrainer.look : gymLeader.look)} media={media} roomPx={heroRoom} />
           </span>
         )}
+        {/* 라이벌 기다림 (밖에서 멈춤) — 길 오른쪽 끝 그림자 + "!" (ideas #154 · 기다림 한 줄만 있고 길에는 아무도 없어 무엇이 기다리는지 안 보이던 것) · 다시 보면 같은 자리에 그 라이벌이 나옴 */}
+        {rivalShadow && (
+          // 테두리 두께 = 그림 한 칸 (--pg-dot — 1px 이면 ×2 그림 격자의 반 칸, 원칙 4)
+          <span class="pg-obj pg-foe-trainer pg-rival-shadow" style={{ left: `${leaderX}px`, bottom: `${ground}px`, '--pg-dot': `${shadowDot}px` }} title="라이벌이 기다려요">
+            <span class="pg-trainer-mark">!</span>
+            <Hero px={heroPx} walking={false} faceLeft label="라이벌" look={personLook(rivalShadow)} media={media} roomPx={heroRoom} />
+          </span>
+        )}
         {battle && geo && (
           <BattleLayer battle={battle} save={save} media={media} ground={ground} geo={geo} onInput={battleInput} onProfile={(side) => onOpen({ kind: 'profile', side })} foeTrainerLeft={foeTrainer || gym ? leaderX : undefined} autoTip={autoTip} />
         )}
@@ -476,6 +496,20 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         {battle && (battle.phase === 'choose' || battle.phase === 'run') && !save.settings.autoBattle && battle.me.ult >= 1 && !(save.tips ?? []).includes('ult') && (
           <FirstTip key="ult" ms={3000} className="pg-first-tip-low" paused={away} onSeen={() => onInput({ kind: 'tip-seen', id: 'ult' })}>
             필살기 준비! <KeyCap k="Z" />
+          </FirstTip>
+        )}
+        {/* "N초" 칩의 뜻 (ideas #150 · orders #34) — 볼 때 저절로 나가는 필살기가 처음 다 찼을 때 한 번: 1:1 자동 전투 (Z 모서리 3 · 2 · 1) · 3:3 (발밑 판 3 · 2 · 1 — 자동 전투가 꺼져도).
+            저절로 나가면 (3초) 같이 사라짐 · 1초 넘게 보면 셈 · 1:1 = 아래 가운데 · 3:3 = 위 가운데 (아래는 발밑 판), 480 아래 3:3 은 내 쪽 왼쪽 위 (가운데면 상대 쓰러짐 말 · 피해 숫자를 0.7초 덮던 것 — UX 리뷰어) */}
+        {ultWaitKey && !(save.tips ?? []).includes(ULT_WAIT_TIP) && (
+          <FirstTip key={ULT_WAIT_TIP} ms={BALANCE.ultAutoWaitMs} className={team ? 'pg-first-tip-top pg-tip-mine' : 'pg-first-tip-low'} paused={away} onSeen={() => onInput({ kind: 'tip-seen', id: ULT_WAIT_TIP })}>
+            {/* 좁으면 (360 아래 · 480 아래 3:3) 짧은 말 — "필살기" 는 남김 (빼면 무엇이 저절로인지 빠지던 것) */}
+            <span class="pg-tip-part pg-tip-long">필살기 다 참 —&nbsp;</span>
+            <span class="pg-tip-part pg-tip-long">
+              {ultWaitSec}초 뒤 저절로 · 지금 <KeyCap k={ultWaitKey} /> 누르면 바로
+            </span>
+            <span class="pg-tip-short">
+              필살기 {ultWaitSec}초 뒤 저절로 · <KeyCap k={ultWaitKey} /> 바로
+            </span>
           </FirstTip>
         )}
         {/* 주인공 머리 위 — 주운 자리에서 바로 보이게 (긴 알림은 패널 끝 안쪽으로 당김 · 줄 바꿈).

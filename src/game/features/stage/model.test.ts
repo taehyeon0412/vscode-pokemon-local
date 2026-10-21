@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { sampleSave } from '../../../test/fixtures/save';
 import { BALANCE, TIMING } from '../../core/balance';
 import { createGameState, type GameState } from '../../core/engine';
+import { pickRival } from '../../core/rules/rival';
 import { stageLayout } from '../../core/rules/stage';
+import { heroLookOf } from '../../data/heroes';
 import { STAGE_IDS } from '../../core/save';
 import { summaryLines } from '../result/model';
-import { BATTLE_STAGE_MAX_PX, battleStage, CONTACT_PX, contactX, foldStatus, foeTrainerView, gymEnterView, gymFrontX, heroX, minimapOf, rivalTag, STAGES, stageLabel, stagePx, stageViewKey, visibleObjects, WALK_PX_PER_SEC } from './model';
+import { BATTLE_STAGE_MAX_PX, battleStage, CONTACT_PX, contactX, foldStatus, foeTrainerView, gymEnterView, gymFrontX, heroX, holdRivalLook, minimapOf, rivalTag, STAGES, stageLabel, stagePx, stageViewKey, visibleObjects, WALK_PX_PER_SEC } from './model';
 
 function at(progress: number, stage: GameState['runtime']['stage'] = { phase: 'walk' }): GameState {
   const s = createGameState(sampleSave({ stages: { 'forest-1': { seed: 42, progress, cleared: false, defeatedTrainers: [], facilities: [], run: { startMs: 0, caught: 0, trainers: 0, seen: [], reach: 0, retries: 0 } } } }), 1);
@@ -97,6 +99,15 @@ describe('라이벌 (gdd 4.12) — 띠 · 결과 보이기', () => {
     };
     expect(foeTrainerView(meet(0))).toMatchObject({ name: '라이벌 지민', record: '전적 2승 1패', balls: 3, talking: false }); // 3마리 = min(3, 만난 수 + 1, 살아 있는 2 + 1)
     expect(foeTrainerView(meet(TIMING.trainerAlertMs))?.talking).toBe(true);
+  });
+
+  it('밖에서 멈춘 라이벌 기다림 — 길 끝 그림자 = 다시 보면 나올 그 라이벌 그림 (ideas #154) · 다른 장면은 없음', () => {
+    const s = at(0.4, { phase: 'hold', why: 'rival' });
+    // sampleSave 주인공 = 남자 · 처음 만남 → 가장 덜 만난 첫 라이벌 (pickRival)
+    expect(holdRivalLook(s)).toBe(heroLookOf(pickRival(s.save) ?? undefined).dir);
+    expect(holdRivalLook(s)).not.toBeNull();
+    expect(holdRivalLook(at(0.4, { phase: 'hold', why: 'shiny' }))).toBeNull();
+    expect(holdRivalLook(at(0.4, { phase: 'rival', rival: 'may', ms: 0 }))).toBeNull();
   });
 
   it('길 위에 미리 안 보임 (깜짝 등장)', () => {

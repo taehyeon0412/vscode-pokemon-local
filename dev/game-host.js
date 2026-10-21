@@ -311,7 +311,7 @@
     if (q.get('xsave')) Object.assign(save, JSON.parse(q.get('xsave')));
     if (q.get('xmon')) save.monsters.m1 = { ...save.monsters.m1, ...JSON.parse(q.get('xmon')) };
     if (q.get('awaylog')) runtime.awayLog = JSON.parse(q.get('awaylog'));
-    // backtip=1 — 자동 꺼짐으로 멈췄다 돌아옴 (안내 ② — awaylog 와 같이 주면 요약 마지막 장 끝 줄, ideas #156)
+    // backtip=1 — 자동 꺼짐으로 멈췄다 돌아옴 (안내 ② — 그동안 요약이 끝난 뒤 자동 스위치 옆에 따로, #156 은 되돌림 d8eb3a6)
     if (q.get('backtip') === '1') runtime.backTip = true;
     if (q.get('resume') === '1') {
         runtime = { rngState: 1, stepAccMs: 0, speed: 1, stage: null, stageId: null, toast: null };
@@ -319,6 +319,8 @@
     }
     if (q.get('xtoast')) runtime.toast = JSON.parse(q.get('xtoast'));
     if (q.get('xauto') === '1') save.settings = { ...save.settings, autoBattle: true };
+    // xbag=<JSON> — 가방을 통째로 (아이템 일곱 · 150px 볼 · 회복 탭 시험, ideas #148 — 예 {"poke-ball":3,"great-ball":1,"ultra-ball":1,"potion":2,"super-potion":1,"full-heal":1,"revive":1})
+    if (q.get('xbag')) save.bag = JSON.parse(q.get('xbag'));
     // stageid=<스테이지 id> — 길 장면을 그 스테이지 이름으로 (해변 시안 — 지도 줄이 "새싹 오솔길" 이면 숲으로 보이던 것 · 판 진행은 숲 1-1 것을 그대로 옮김)
     if (q.get('stageid') && save.location.screen === 'stage') {
         const sid = q.get('stageid');

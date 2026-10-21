@@ -174,7 +174,19 @@ export function HoldBox({ state }: { state: GameState }) {
     <div class={`pg-banner pg-hold${why === 'battle' ? ' pg-hold-low' : ''}`} role="status">
       {/* 멈춤 표시 (반짝 아이콘이면 "나타났다" 로 읽혀 멈춘 줄 몰랐던 것) · 밖에서는 키가 안 먹고 클릭으로 돌아옴 — "누르면" 이 전투 메뉴를 누르라는 뜻처럼 읽히던 것 (UX 리뷰어 #27) */}
       <Icon name="pause" />
-      <b>{why === 'shiny' ? '반짝이는 흔적!' : why === 'battle' ? '반짝이는 포켓몬!' : '라이벌이 기다려요!'}</b>
+      {/* 라이벌 = 360 아래 "라이벌!" (길 끝 그림자 "!" 가 같이 말함 — 맥 글자 넓이면 240 에서 두 줄이 되어 그 "!" 를 덮던 것, 픽셀 검사원) */}
+      <b>
+        {why === 'shiny' ? (
+          '반짝이는 흔적!'
+        ) : why === 'battle' ? (
+          '반짝이는 포켓몬!'
+        ) : (
+          <>
+            <span class="pg-tip-long">라이벌이 기다려요!</span>
+            <span class="pg-tip-short">라이벌!</span>
+          </>
+        )}
+      </b>
       <span class="pg-dim">클릭하면 이어서</span>
     </div>
   );

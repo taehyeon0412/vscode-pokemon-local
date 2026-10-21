@@ -74,6 +74,11 @@ function Tier({ tier }: { tier: MenuItem['tier'] }) {
   ) : null;
 }
 
+/** 좁은 아이템 목록의 탭 (ideas #148) — 볼 · 회복 (상처약 · 상태 회복 · 기력의조각) */
+type ItemTab = 'ball' | 'heal';
+const ITEM_TABS: readonly ItemTab[] = ['ball', 'heal'];
+const tabOf = (i: MenuItem | undefined): ItemTab | null => (!i || 'back' in i.go ? null : i.ball ? 'ball' : 'heal');
+
 export function BattleMenu({ battle: b, save, onInput, lead, compact = false, vertical, bar = false, hint = null }: BattleMenuProps) {
   const [page, setPage] = useState<MenuPage>('main');
   // 차례가 끝나면 처음 메뉴로
@@ -135,6 +140,8 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
   });
   // 커서 (Sea of Stars 1f — 고를 줄이 늘 보임: ▸ + 밝은 줄, 아트 디렉터) · ↑ ↓ 로 옮기고 Enter 로 고름 · 페이지 · 차례가 바뀌면 첫 줄로
   const [cursor, setCursor] = useState(0);
+  // 아이템 탭 (좁고 낮은 목록 — ideas #148) · null = 커서가 있는 묶음을 따라감
+  const [itemTab, setItemTab] = useState<ItemTab | null>(null);
   // 목록이 스크롤되면 (좁고 낮은 패널) 커서 줄이 보이게
   useLayoutEffect(() => {
     rowLayer.current?.querySelector<HTMLElement>('.pg-pick-scroll .pg-on')?.scrollIntoView({ block: 'nearest' });
@@ -151,6 +158,7 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
     const itemsAt = items.findIndex((i) => i.key === 'items' && i.enabled);
     setCursor(missed && itemsAt >= 0 ? itemsAt : 0);
     setMoved(missed);
+    setItemTab(null);
   }, [page, b.phase]);
   const enabledIdx = items.map((it, k) => (it.enabled ? k : -1)).filter((k) => k >= 0);
   const onIdx = enabledIdx.includes(cursor) ? cursor : (enabledIdx[0] ?? -1);
@@ -286,6 +294,7 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
         else {
           const at = Math.max(0, list.indexOf(c.onIdx));
           setCursor(list[(at + (e.key === 'ArrowDown' ? 1 : list.length - 1)) % list.length]!);
+          setItemTab(null);
         }
         return;
       }
@@ -470,13 +479,38 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
     // 낮은 패널 — 줄이 안 들어가면 두 칸 (400 이상) · 좁으면 목록 안 스크롤 (150 에서 일곱이면 6 · 7 번이 패널 밖이던 것 — UX 리뷰어 #23 3차)
     const listN = items.filter((i) => !('back' in i.go)).length;
     const rowsFit = Math.max(3, Math.floor((window.innerHeight - 20 - LIST_HEAD_PX - 8) / LIST_ROW_PX));
-    const many = listN > rowsFit;
+    // 아이템이 줄보다 많으면 [볼] [회복] 탭 (ideas #148 — 150 에서 일곱이면 6 · 7 번이 스크롤 아래로 숨던 것) · 번호는 그대로 (숫자 키 · 손에 익은 번호) · ↑ ↓ 로 다른 묶음에 가면 탭도 따라감
+    const tabs = page === 'items' && listN > rowsFit && items.some((i) => tabOf(i) === 'ball') && items.some((i) => tabOf(i) === 'heal');
+    const tabOn = tabs ? (itemTab ?? tabOf(items[onIdx]) ?? 'ball') : null;
+    const shown = items.filter((i) => !('back' in i.go) && (tabOn === null || tabOf(i) === tabOn));
+    const many = shown.length > rowsFit;
+    // 탭을 누르면 그 묶음 첫 쓸 수 있는 줄로 · 쓸 줄이 없으면 (HP 가득 — 회복 넷 모두 못 누름) 뒤로 칩으로 (커서가 숨은 몬스터볼에 남아 Enter 가 볼을 던지던 것)
+    //   누른 탭의 포커스는 풂 (남으면 다음 Enter · Space 가 탭을 다시 눌러 고른 줄을 못 쓰던 것 — UX 리뷰어)
+    const pickTab = (t: ItemTab) => {
+      setItemTab(t);
+      const k = items.findIndex((i) => tabOf(i) === t && i.enabled);
+      setCursor(k >= 0 ? k : items.findIndex((i) => 'back' in i.go));
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    };
     // 줄이 안 들어가면 한 칸 스크롤 (두 칸이면 넓어져 볼 던질 상대 · 옆 메뉴 탭을 덮던 것 — UX 리뷰어 #23 5차)
-    const listCls = `pg-pick-list pg-pick-now${bar ? '' : ' pg-pick-list-low'}${fitList && !compact ? ' pg-pick-left' : ''}${many ? ' pg-pick-scroll' : ''}`;
+    const listCls = `pg-pick-list pg-pick-now${bar ? '' : ' pg-pick-list-low'}${fitList && !compact ? ' pg-pick-left' : ''}${many ? ' pg-pick-scroll' : ''}${tabOn ? ' pg-pick-tabs' : ''}`;
     row = (
       <span class={listCls}>
         <span class="pg-pick-title">
-          {page === 'skills' ? '기술' : page === 'items' ? '아이템' : page === 'revive' ? '살릴 포켓몬' : '교체 · 도망'}
+          {/* 탭이면 제목 자리에 탭 둘 (탭 이름이 무엇의 목록인지 말함 — 240 에서 제목 · 탭 · HP · 뒤로가 한 줄에 안 들어가서) */}
+          {tabOn
+            ? ITEM_TABS.map((t) => (
+                <Button key={t} secondary extraClass={`pg-pick-tab${t === tabOn ? ' pg-on' : ''}`} onClick={() => pickTab(t)} title={t === 'ball' ? '볼 — 몬스터볼 · 슈퍼볼 · 하이퍼볼' : '회복 — 상처약 · 상태 회복 · 기력의조각'}>
+                  {t === 'ball' ? '볼' : '회복'}
+                </Button>
+              ))
+            : page === 'skills'
+              ? '기술'
+              : page === 'items'
+                ? '아이템'
+                : page === 'revive'
+                  ? '살릴 포켓몬'
+                  : '교체 · 도망'}
           {/* 내 쪽 위 목록이면 내 HP 칸 대신 여기 (목록이 HP 칸을 반쯤 덮어 "15/21" 이 "5/21" 로 보이던 것 — UX 리뷰어 #23 4차) */}
           {/* 무대 위 목록이면 늘 (목록이 내 HP 칸을 덮어 상처약을 고를 때 HP 가 안 보이던 것 — 내 HP 칸은 숨김, UX 리뷰어 #23 5차) */}
           <span class="pg-pick-myhp">
@@ -491,7 +525,7 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
               </Button>
             ))}
         </span>
-        {items.filter((i) => !('back' in i.go)).map((i) => (
+        {shown.map((i) => (
           <Button key={i.key} extraClass={isQueued(i) ? 'pg-queued' : i.key === items[onIdx]?.key ? 'pg-on' : undefined} onClick={() => choose(i)} disabled={!i.enabled && !isQueued(i)} title={i.title}>
             {
               <>

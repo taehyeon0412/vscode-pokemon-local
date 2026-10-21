@@ -1277,9 +1277,30 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 .pg-tip-part {
   display: inline-block;
 }
+.pg-tip-short {
+  display: none;
+}
 @media (max-width: 360px) {
   .pg-tip-long {
     display: none;
+  }
+  .pg-tip-short {
+    display: inline;
+  }
+}
+/* 3:3 저절로 필살기 첫 안내 (ideas #150) — 480 아래는 내 쪽 왼쪽 위 · 짧은 말 (가운데면 상대 쓰러짐 말 · 피해 숫자를 덮던 것 — UX 리뷰어) */
+@media (max-width: 479px) {
+  .pg-first-tip.pg-tip-mine {
+    margin-left: 8px;
+    margin-right: auto;
+    max-width: calc(50% - 8px);
+    text-align: left;
+  }
+  .pg-tip-mine .pg-tip-long {
+    display: none;
+  }
+  .pg-tip-mine .pg-tip-short {
+    display: inline;
   }
 }
 /* 좁은 부탁 상자 (370px 아래) — 키 칸 (Enter · Esc) · 도울 포켓몬 이름을 빼고 "성공 30%" 만 (버튼이 패널 밖 · 이름이 "이상해…" 로 잘리던 것) · 클리어 카드는 300px 아래 둘째 줄 흐린 요약 · 스테이지 이름을 뺌 (UX 리뷰어 2026-10-21) */
@@ -1492,8 +1513,17 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 .pg-first-tip-top {
   top: var(--pg-field-top, 3px);
 }
+/* 아래 = 패널 끝 0 (bottom 4 면 23px 안내가 포켓몬 · 주인공 발끝 3 ~ 5줄을 덮던 것 — 기다림 한 줄과 같은 0, 픽셀 검사원) */
 .pg-first-tip-low {
-  bottom: 4px;
+  bottom: 0;
+}
+/* 안내 안 "처음" 칸 · 키 칸은 줄 위에 맞춤 — 글자 밑선에 맞추면 11px 글 · 14px 칸이 줄 상자를 16 → 17 로 키워 안내가 23px (그림자 1px 이 발끝 줄에 닿던 것) */
+.pg-first-tip::before {
+  vertical-align: top;
+}
+.pg-first-tip .pg-menu-key {
+  vertical-align: top;
+  margin-top: 1px;
 }
 /* 좁은 패널 다음 포켓몬 고르기 = 위 줄 아래 무대 위 세로 목록 (2026-10-21 태현 님 A) — 번호 금색 · 이름 · HP 막대 (판과 같은 막대 색) · HP 숫자. 한 줄 16px · 다섯 줄이 150 높이 안에 */
 .pg-pick-list {
@@ -1613,6 +1643,52 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   font-size: 11px;
   font-weight: 700;
   color: var(--pg-sos-hp);
+}
+/* 아이템 탭 [볼] [회복] (ideas #148 — 좁고 낮은 목록에서 줄이 넘칠 때만) · 뒤로 칩과 같은 높이 · 안쪽 4.
+   고른 탭 = 칩 "고른 것" (6장 — 밝은 남색 + 금색 테두리 · 글자, 금색 채움이면 주 버튼 · Z 처럼 목록에서 가장 먼저 보이던 것) · 안 고른 탭 = 테두리 없음 + 흐린 글자 ([Esc 뒤로] 와 같은 상자 셋이 줄짓던 것 — 아트 디렉터), 올리면 크림 + 흐린 테두리 */
+#pokemon-game .pg-pick-list .pg-pick-title > .pg-button.pg-pick-tab {
+  flex: none;
+  width: auto;
+  min-width: 0;
+  height: 16px;
+  padding: 0 4px;
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--pg-sos-dim);
+  background: transparent;
+  border: 1px solid transparent;
+}
+/* 옆 메뉴 자리 (620 · 640 × 150) 에서도 같은 1px 테두리 — 옆 메뉴 줄 규칙이 두께를 0 으로 만들어 탭 · 뒤로 칩이 2px 좁고 테두리가 없던 것 (픽셀 검사원 — 원칙 2) */
+#pokemon-game .pg-pick-list .pg-pick-title > .pg-button.pg-pick-back {
+  border: 1px solid var(--pg-sos-line-soft);
+}
+#pokemon-game .pg-pick-list .pg-pick-title > .pg-button.pg-pick-back.pg-on {
+  border-color: var(--pg-sos-gold);
+}
+#pokemon-game .pg-pick-list .pg-pick-title > .pg-button.pg-pick-tab:hover {
+  color: var(--pg-sos-ink);
+  border-color: var(--pg-sos-line-soft);
+}
+.pg-pick-list .pg-pick-title > .pg-button.pg-pick-tab + .pg-pick-tab {
+  margin-left: -4px;
+}
+/* 메뉴 줄 커서 규칙 (.pg-bmenu-items · .pg-vmenu .pg-layer 의 .pg-on — ▸ · 올리면 투명) 보다 세게 */
+#pokemon-game .pg-pick-list .pg-pick-title > .pg-button.pg-pick-tab.pg-on {
+  color: var(--pg-sos-gold);
+  background: var(--pg-sos-hi);
+  border-color: var(--pg-sos-gold);
+}
+#pokemon-game .pg-pick-list .pg-pick-title > .pg-button.pg-pick-tab::before {
+  content: none;
+}
+/* 탭 목록은 네 줄 높이를 최소로 — 아래 끝이 고정인 자리 (620 · 640 × 150) 에서 볼 셋 ↔ 회복 넷으로 바꾸면 탭 줄이 17px 오르내리던 것 (픽셀 검사원) */
+.pg-pick-list.pg-pick-tabs {
+  min-height: 96px;
+  box-sizing: border-box;
+}
+/* 무대 위 목록이 떠 있는 동안 자동 전투 칩은 숨김 (판이 칩을 반쯤 덮어 "자동 ㄲ" 만 보이던 것 — 목록을 고르는 동안엔 쓸 일 없음, 픽셀 검사원 · 아트 디렉터) */
+#pokemon-game:has(.pg-pick-list.pg-pick-now) .pg-auto {
+  visibility: hidden;
 }
 /* 뒤로 칩 — 커서가 오면 고른 모양 */
 .pg-pick-list .pg-pick-title > .pg-button.pg-pick-back.pg-on {
@@ -4123,6 +4199,12 @@ body.vscode-high-contrast-light .pg-title-body {
 .pg-trainer-mark {
   color: var(--pg-sos-red);
 }
+/* 라이벌 기다림 그림자 (ideas #154) — 누구인지 대신 사람 모양만 (다시 보면 같은 자리에 그 라이벌) · "!" 는 트레이너와 같은 빨강.
+   검은 칠 + 그림 한 칸 (--pg-dot) 흐린 크림 테두리 (--pg-sos-dim) — 두 테마 같은 규칙. 단단한 색 (반투명이면 유령) · 무채색 회색이면 나무줄기 밝기라 돌 · 비석으로 읽히던 것 · 테두리가 없으면 검정이 어두운 숲에 묻히던 것 (아트 디렉터) */
+.pg-rival-shadow .pg-hero {
+  filter: brightness(0) drop-shadow(var(--pg-dot, 2px) 0 0 var(--pg-sos-dim)) drop-shadow(calc(-1 * var(--pg-dot, 2px)) 0 0 var(--pg-sos-dim)) drop-shadow(0 var(--pg-dot, 2px) 0 var(--pg-sos-dim))
+    drop-shadow(0 calc(-1 * var(--pg-dot, 2px)) 0 var(--pg-sos-dim));
+}
 /* 야생 등장 상자 — 포켓몬 이름만 빨강 (전투 한 줄 말과 같은 규칙) · NEW! 는 채움 칸 대신 빨간 글자 */
 .pg-new {
   padding: 0;
@@ -4437,13 +4519,14 @@ body.vscode-high-contrast-light .pg-title-body {
   pointer-events: none;
   animation: pg-ultz-twinkle 0.9s steps(2) infinite;
 }
+/* 별은 배지 옆 (위로 9 ~ 10px 나가면 패널 위 끝에 붙은 배지에서 별 반이 잘리던 것 — 픽셀 검사원) */
 .pg-ultz-s1 {
-  top: -9px;
-  left: -8px;
+  top: -2px;
+  left: -11px;
 }
 .pg-ultz-s2 {
-  top: -10px;
-  right: -9px;
+  top: -3px;
+  right: -11px;
   animation-delay: 0.3s;
 }
 .pg-ultz-s3 {

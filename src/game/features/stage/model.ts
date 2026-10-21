@@ -10,7 +10,7 @@ import { requestAt, type RequestTemplate } from '../../core/rules/request';
 import { REGIONS, regionHere } from '../../core/rules/region';
 import { stageCode, stageLayout, trainerId } from '../../core/rules/stage';
 import { aliveCount, shortTrainerName, trainerInfo, trainerNumber, trainerTeamSize, type TrainerInfo } from '../../core/rules/trainer';
-import { recordText, rivalName, rivalRecord, rivalTeamSize } from '../../core/rules/rival';
+import { pickRival, recordText, rivalName, rivalRecord, rivalTeamSize } from '../../core/rules/rival';
 import { heroLookOf } from '../../data/heroes';
 import type { FacilitySpot, Save, StageId } from '../../core/save';
 import type { IconName } from '../../data/icons';
@@ -218,6 +218,14 @@ function foeBalls(b: BattleState): { balls: number; left: number } {
 export function rivalTag(save: GameState['save'], id: string): string {
   const r = rivalRecord(save, id);
   return r.wins + r.losses === 0 ? '첫 만남!' : recordText(r);
+}
+
+/** 라이벌 기다림 (밖에서 멈춤 — hold rival) 동안 길 오른쪽 끝에 세울 그림자 그림 — 다시 보면 같은 자리에 나올 그 라이벌 (ideas #154). 아니면 null */
+export function holdRivalLook(state: GameState): string | null {
+  const st = state.runtime.stage;
+  if (st?.phase !== 'hold' || st.why !== 'rival' || state.save.location.screen !== 'stage') return null;
+  const r = pickRival(state.save);
+  return r ? (heroLookOf(r).dir ?? null) : null;
 }
 
 export function foeTrainerView(state: GameState): { name: string; hat: string; shirt: string; look?: string; balls: number; left: number; talking: boolean; record?: string } | null {
