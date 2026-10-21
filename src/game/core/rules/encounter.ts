@@ -12,6 +12,7 @@ import type { EncounterStart, ItemId, Monster, StageId } from '../save';
 import { allSpecies, evolutionsOf, formOf, formsOfSpecies, learnsetOf, moveOf, speciesOf, type ReadonlySpecies, type TypeName } from '../../data';
 import { createMonster, wildMoves } from './monster';
 import { spotRng, stageLevelBand, type Spot } from './stage';
+import { regionOf } from './region';
 
 /** 흔적 모양 6가지 — 타입 · 지형별로 다르게 튀어나옴 (gdd 4.6) */
 export type TraceKind = 'grass' | 'water' | 'sky' | 'ground' | 'tree' | 'shadow';
@@ -47,20 +48,24 @@ interface Pool {
 }
 const pools = new Map<StageId, Pool>();
 
+/** 예전 이름 (개발 모드 · 시험이 씀) */
+export const forestPool = (stageId: StageId): Pool => regionPool(stageId);
+
 /** 레벨업으로 피해 기술을 하나라도 배우는지 (메타몽처럼 변신만 있으면 숲에 섞지 않음) */
 const canAttack = (dex: number) => learnsetOf(dex).some(([, id]) => (moveOf(id)?.class ?? 'status') !== 'status');
 
-/** 그 스테이지에 나오는 1단계 종 (도감 번호) */
-export function forestPool(stageId: StageId): Pool {
+/** 그 스테이지에 나오는 1단계 종 (도감 번호) — 지역 표의 타입으로 자동 (숲 = 풀 · 벌레 / 드묾 독 · 드래곤 · 페어리), 종족값 큰 것은 지역 마지막 스테이지에서만 */
+export function regionPool(stageId: StageId): Pool {
   let pool = pools.get(stageId);
   if (pool) return pool;
   pool = { common: [], rare: [], mixed: [] };
+  const { region, index } = regionOf(stageId);
   for (const dex of allSpecies()) {
     const s = speciesOf(dex);
     if (!s || !isWildable(s) || isStarterLine(s) || formsOfSpecies(dex).length === 0) continue;
-    if (baseTotal(s) > BALANCE.bigBaseTotal && stageId !== 'forest-3') continue;
-    if (hasAny(s.types, ['grass', 'bug'])) pool.common.push(dex);
-    else if (hasAny(s.types, ['poison', 'dragon', 'fairy'])) pool.rare.push(dex);
+    if (baseTotal(s) > BALANCE.bigBaseTotal && index < region.stages.length - 1) continue;
+    if (hasAny(s.types, region.wild.common)) pool.common.push(dex);
+    else if (hasAny(s.types, region.wild.rare)) pool.rare.push(dex);
     else if (s.types.every((t) => t === 'normal' || t === 'flying') && canAttack(dex)) pool.mixed.push(dex);
   }
   pools.set(stageId, pool);
@@ -126,7 +131,7 @@ export const wildKey = (spot: Spot, retries = 0) => spot.index + retries * 10_00
 /** 그 야생 자리에 무엇이 있는지 (만나기 전에도 흔적 모양 · 크게 흔들림 · 반짝임을 그리려고 미리 정함) */
 export function planWild(stageId: StageId, stageSeed: number, spot: Spot, retries = 0): WildPlan {
   const rng = spotRng(stageSeed, wildKey(spot, retries), 1);
-  const pool = forestPool(stageId);
+  const pool = regionPool(stageId);
   const list = pool.mixed.length > 0 && rng.chance(BALANCE.mixedTypeChance) ? pool.mixed : pool.rare.length > 0 && rng.chance(BALANCE.rareTypeChance) ? pool.rare : pool.common;
   const base = list[rng.int(0, list.length - 1)] ?? 1;
   const [lo, hi] = stageLevelBand(stageId);
@@ -209,7 +214,7 @@ export function sceneryAt(stageId: StageId, stageSeed: number, index: number): S
     return !!s && isWildable(s) && s.types.includes('flying') && formsOfSpecies(d).length > 0;
   });
   const sky = flyers.length > 0 && rng.chance(0.4);
-  const list = sky ? flyers : forestPool(stageId).common;
+  const list = sky ? flyers : regionPool(stageId).common;
   const dex = list[rng.int(0, list.length - 1)] ?? 10;
   return { form: formsOfSpecies(dex)[0] ?? 'caterpie', place: sky ? 'sky' : 'tree' };
 }

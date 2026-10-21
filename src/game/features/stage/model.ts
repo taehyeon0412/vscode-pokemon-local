@@ -7,7 +7,8 @@ import { teamChoiceMeet, teamViewKey, waitReason, type BattleState, type GameSta
 import { resumeLine } from '../../core/engine/play';
 import { planWild, sceneryAt, type Scenery, type WildPlan } from '../../core/rules/encounter';
 import { requestAt, type RequestTemplate } from '../../core/rules/request';
-import { stageLayout, trainerId } from '../../core/rules/stage';
+import { REGIONS } from '../../core/rules/region';
+import { stageCode, stageLayout, trainerId } from '../../core/rules/stage';
 import { aliveCount, GYM_LEADER, shortTrainerName, trainerInfo, trainerNumber, trainerTeamSize, type TrainerInfo } from '../../core/rules/trainer';
 import { recordText, rivalName, rivalRecord, rivalTeamSize } from '../../core/rules/rival';
 import { heroLookOf } from '../../data/heroes';
@@ -38,11 +39,10 @@ export interface StageInfo {
   icon: IconName;
 }
 
-export const STAGES: Readonly<Record<StageId, StageInfo>> = {
-  'forest-1': { id: 'forest-1', name: '새싹 오솔길', code: '1-1', icon: 'tree' },
-  'forest-2': { id: 'forest-2', name: '버섯 그늘길', code: '1-2', icon: 'mushroom' },
-  'forest-3': { id: 'forest-3', name: '깊은 숲', code: '1-3', icon: 'oak' },
-};
+/** 지역 표 (core/rules/region — orders #35) 에서 — 숲 = 새싹 오솔길 1-1 · 버섯 그늘길 1-2 · 깊은 숲 1-3 */
+export const STAGES: Readonly<Record<StageId, StageInfo>> = Object.fromEntries(
+  Object.values(REGIONS).flatMap((r) => r.stages.map((s) => [s.id, { id: s.id, name: s.name, code: stageCode(s.id), icon: s.icon as IconName }])),
+) as Record<StageId, StageInfo>;
 
 /** "🌲 새싹 오솔길 (1-1)" — 글로만 쓸 때 (클리어 카드 문구 등). 화면 이름표는 STAGES 로 번호를 따로 작게 */
 export function stageLabel(id: StageId): string {

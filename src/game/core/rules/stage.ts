@@ -14,6 +14,7 @@
 import { BALANCE } from '../balance';
 import { Rng } from '../engine/rng';
 import { STAGE_IDS, type FacilitySpot, type StageId } from '../save';
+import { regionLevelBand, regionOf, regionOrder } from './region';
 
 /** rival = 라이벌 깜짝 등장 (gdd 4.12 — 길 위에 미리 안 보임) */
 export type SpotKind = 'wild' | 'item' | 'request' | 'trainer' | 'rival';
@@ -193,10 +194,13 @@ export function walkDelta(stepMs: number): number {
 
 /** 스테이지 번호 "1-1" (지역 1 = 숲) — 글로만 쓸 때 (이름은 features/stage/model 의 STAGES) */
 export function stageCode(id: StageId): string {
-  return `1-${STAGE_IDS.indexOf(id) + 1}`;
+  // "몇 번째 지역 - 지역 안 순서" (숲 = 1번째 → 1-1 · 1-2 · 1-3)
+  const { region, index } = regionOf(id);
+  return `${regionOrder(region.id)}-${index + 1}`;
 }
 
-/** 스테이지 레벨대 */
+/** 스테이지 레벨대 — 지역 표 · 몇 번째 지역 레벨표 (gdd 5.2 — 숲 k = 1 은 BALANCE.stageLevels 그대로) */
 export function stageLevelBand(stageId: StageId): readonly [number, number] {
-  return BALANCE.stageLevels[stageId];
+  const { region, index } = regionOf(stageId);
+  return regionLevelBand(regionOrder(region.id), index, stageId);
 }

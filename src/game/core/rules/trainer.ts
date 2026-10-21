@@ -7,11 +7,12 @@
  */
 import { BALANCE } from '../balance';
 import { Rng } from '../engine/rng';
-import { STAGE_IDS, type Monster, type Save, type StageId, type Stats } from '../save';
+import type { Monster, Save, StageId, Stats } from '../save';
 import { formsOfSpecies, learnsetOf, moveOf, speciesOf, type ReadonlyMove } from '../../data';
 import { typeNameKo, withJosa } from '../text';
 import { effectiveness } from './types';
-import { baseTotal, devolveForLevel, evolveForLevel, forestPool } from './encounter';
+import { baseTotal, devolveForLevel, evolveForLevel, regionPool } from './encounter';
+import { REGIONS, regionGymTeam, regionOf, regionOrder } from './region';
 import { createMonster, wildMoves } from './monster';
 import { spotRng, stageLevelBand, trainerCount } from './stage';
 
@@ -31,29 +32,20 @@ export interface TrainerInfo {
 const TRAINER_HAT = '#2f6ff0';
 const TRAINER_SHIRT = '#8cc4ff';
 /**
- * 숲 트레이너 자리 — 스테이지 3개 × 최대 3명 = 9자리, 칭호 · 원작 그림 (data/people.ts) · 이름이 다 다름 (2026-10-19 태현 님: 원작 그림 · 한글 이름 · 겹치지 않게).
- * 자리 = 앞 스테이지들의 트레이너 수 합 + 트레이너 번호 (1-1 2명 · 1-2 3명 · 1-3 3명 = 8자리, 빈 자리 없이). 이름은 예시.
+ * 트레이너 자리 — 지역마다 스테이지 3개 × 최대 3명 = 9자리, 칭호 · 원작 그림 (data/people.ts) · 이름이 다 다름 (지역 표 — 2026-10-19 태현 님: 원작 그림 · 한글 이름 · 겹치지 않게).
+ * 자리 = 지역 안 앞 스테이지들의 트레이너 수 합 + 트레이너 번호 (숲 1-1 2명 · 1-2 3명 · 1-3 3명 = 8자리, 빈 자리 없이). 이름은 예시.
  */
-export const FOREST_TRAINERS = [
-  { title: '반바지 꼬마', name: '민수', look: 'frlg-youngster' },
-  { title: '곤충채집 소년', name: '지호', look: 'frlg-bug-catcher' },
-  { title: '짧은치마', name: '서연', look: 'frlg-lass' },
-  { title: '피크닉 소녀', name: '하은', look: 'frlg-picnicker' },
-  { title: '쌍둥이', name: '유나', look: 'em-twin' },
-  { title: '학원생', name: '도윤', look: 'em-school-kid' },
-  { title: '등산가', name: '현우', look: 'frlg-hiker' },
-  { title: '엘리트 트레이너', name: '소율', look: 'frlg-cooltrainer-f' },
-  { title: '포켓몬 애호가', name: '다인', look: 'em-pokefan-f' },
-] as const;
-/** 그 스테이지 첫 트레이너의 자리 */
+export const FOREST_TRAINERS = REGIONS.forest.trainers;
+/** 그 스테이지 첫 트레이너의 자리 (지역 안) */
 export function trainerSlot(stageId: StageId, n: number): number {
-  const before = STAGE_IDS.slice(0, Math.max(0, STAGE_IDS.indexOf(stageId)));
-  return before.reduce((sum, id) => sum + trainerCount(id), 0) + n;
+  const { region, index } = regionOf(stageId);
+  return region.stages.slice(0, index).reduce((sum, s) => sum + trainerCount(s.id), 0) + n;
 }
 
 export function trainerInfo(stageId: StageId, n: number): TrainerInfo {
   const slot = trainerSlot(stageId, n);
-  const t = FOREST_TRAINERS[slot % FOREST_TRAINERS.length]!;
+  const list = regionOf(stageId).region.trainers;
+  const t = list[slot % list.length]!;
   return { id: `${stageId}:t${n}`, name: `${t.title} ${t.name}`, hat: TRAINER_HAT, shirt: TRAINER_SHIRT, look: t.look };
 }
 
@@ -93,7 +85,7 @@ export function trainerTeamSize(stageSeed: number, n: number, alive: number): nu
 export function trainerTeam(stageId: StageId, stageSeed: number, n: number, alive: number, size?: number): Monster[] {
   // 종족값 아주 큰 포켓몬 (bigBaseTotal 넘음) 은 트레이너가 안 씀 — 야생에서만 드물게 (orders #32 B)
   const big = (dex: number) => { const s = speciesOf(dex); return !!s && baseTotal(s) > BALANCE.bigBaseTotal; };
-  const pool = forestPool(stageId).common.filter((dex) => !big(dex));
+  const pool = regionPool(stageId).common.filter((dex) => !big(dex));
   const [lo, hi] = stageLevelBand(stageId);
   const level = Math.round((lo + hi) / 2);
   const out: Monster[] = [];
@@ -109,14 +101,14 @@ export function trainerTeam(stageId: StageId, stageSeed: number, n: number, aliv
   return out;
 }
 
-/** 숲 관장 (이름은 예시) — 그림은 원작 풀 타입 관장 민화 (2026-10-19), 그림이 없으면 코드로 그린 사람 (금색, decisions 2026-10-17) */
-export const GYM_LEADER = { name: '관장 나래', title: '숲 체육관 관장', hat: '#9a6f12', shirt: '#e3b341', look: 'frlg-erika' } as const;
+/** 숲 관장 (지역 표 — 이름은 예시) — 그림은 원작 풀 타입 관장 민화 (2026-10-19), 그림이 없으면 코드로 그린 사람 (금색, decisions 2026-10-17) */
+export const GYM_LEADER = REGIONS.forest.leader;
 /**
  * S16 대기실 힌트 (2026-10-21 ideas #44) — "관장 나래는 벌레 · 풀 · 독 · 비행 포켓몬을 써요" + 상성이 좋은 내 포켓몬
  * (가진 공격 기술이 관장 포켓몬 셋 중 둘 이상에게 효과가 굉장 — 팀 · 보관함 둘 다, 선두부터)
  */
 export function gymHint(save: Save): { text: string; good: string[] } {
-  const team = BALANCE.gymTeam.map(([dex]) => speciesOf(dex)?.types ?? []);
+  const team = regionGymTeam(REGIONS.forest, regionOrder('forest')).map(([dex]) => speciesOf(dex)?.types ?? []);
   const types = [...new Set(team.flat())];
   const good = [...save.party, ...save.box].filter((uid) => {
     const m = save.monsters[uid];
@@ -145,9 +137,9 @@ function leaderMoves(dex: number, level: number): ReadonlyMove[] {
   return [...damage, ...rest].slice(0, BALANCE.moveSlots);
 }
 
-/** 숲 관장 3마리 (마지막 = 에이스) */
+/** 관장 3마리 (마지막 = 에이스) — 지역 표 셋 묶음 · 몇 번째 지역 레벨 (숲 k = 1 = 예전 gymTeam 그대로) */
 export function leaderTeam(): Monster[] {
-  return BALANCE.gymTeam.map(([dex, level], i) => {
+  return regionGymTeam(REGIONS.forest, regionOrder('forest')).map(([dex, level], i) => {
     const m = createMonster({ uid: `gym${i}`, dex, level, moves: leaderMoves(dex, level), rng: new Rng(0x6e1 + i), caughtAt: 'gym', form: formsOfSpecies(dex)[0] });
     return { ...m, ivs: { ...LEADER_IVS }, hp: 99999 };
   });

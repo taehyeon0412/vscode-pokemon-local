@@ -10,7 +10,7 @@ import type { ItemId, Monster, Save, StageId } from '../save';
 import { HERO_LOOKS, heroLookOf } from '../../data/heroes';
 import { speciesOf } from '../../data';
 import { STONES } from './bag';
-import { evolveForLevel, forestPool } from './encounter';
+import { evolveForLevel, regionPool } from './encounter';
 import { createMonster, wildMoves } from './monster';
 import { spotRng } from './stage';
 import { aliveCount } from './trainer';
@@ -103,7 +103,7 @@ export function rivalTeam(save: Save, id: string, stageId: StageId, stageSeed: n
   const top = topLevel(save);
   const low = Math.max(2, top - BALANCE.rivalLevelGap);
   const r = rivalRecord(save, id);
-  const pool = forestPool(stageId).common;
+  const pool = regionPool(stageId).common;
   const out: Monster[] = [];
   for (let i = 0; i < size; i++) {
     const rng = spotRng(stageSeed, 7000 + r.wins + r.losses, 10 + i);

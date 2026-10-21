@@ -8,6 +8,7 @@ import { BAG_MAX, healTeam } from '../rules/bag';
 import { addExp, evolve, expGain, learnMove, levelUpChoices } from '../rules/growth';
 import { expForLevel } from '../rules/stats';
 import { itemName } from '../rules/items';
+import { REGIONS } from '../rules/region';
 import { stageLevelBand } from '../rules/stage';
 import { GYM_LEADER } from '../rules/trainer';
 import { rivalItem } from '../rules/rival';
@@ -18,7 +19,7 @@ import type { BattleState } from './battle';
 import type { Rng } from './rng';
 
 /** 숲 배지 (U8 — 세계 지도 · 타이틀에 보임) */
-export const FOREST_BADGE = 'forest';
+export const FOREST_BADGE = REGIONS.forest.badge;
 
 /** S12 에 보여 줄 것 (보여 주기만 — 세이브에는 이미 들어감) */
 export interface BattleSummary {
@@ -187,7 +188,7 @@ export function battleRewards(save0: Save, b: RewardBattle, wild: Monster | null
       summary.item = itemName('leaf-stone');
       // 관장 첫 승 = 큰금구슬 (ideas #125)
       save = giveTreasure(save, summary, 'big-nugget');
-      const bonus = giveTeamExp(save, stageLevelBand('forest-3')[1] * BALANCE.clearExpPerLevel * BALANCE.gymClearExpScale, rng);
+      const bonus = giveTeamExp(save, stageLevelBand(REGIONS.forest.stages[2].id)[1] * BALANCE.clearExpPerLevel * BALANCE.gymClearExpScale, rng);
       save = bonus.save;
       // 보너스까지 합친 레벨 변화 (같은 포켓몬이면 한 줄로)
       for (const e of bonus.exp) {

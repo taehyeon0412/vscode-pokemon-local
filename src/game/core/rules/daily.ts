@@ -7,6 +7,7 @@
 import { Rng } from '../engine/rng';
 import type { Daily, DailyGoal, DailyKind, ItemId } from '../save';
 import { typeNameKo } from '../text';
+import { REGIONS } from './region';
 
 /** 내 PC 날짜 "2026-10-22" (자정에 바뀜) — 웹뷰 · 확장이 걸음마다 runtime.today 로 넣음 (엔진은 시계를 모름) */
 export function dayKey(d: Date): string {
@@ -16,7 +17,7 @@ export function dayKey(d: Date): string {
 
 export const isDayKey = (v: unknown): v is string => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
 
-/** ① 켜 두기만 해도 · ② 봐야 · ③ 지역 타입 (숲에 흔한 타입 — encounter forestPool common) */
+/** ① 켜 두기만 해도 · ② 봐야 · ③ 지역 타입 (지역 표의 흔한 타입 — 숲 = 풀 · 벌레) */
 const PASSIVE: readonly { kind: DailyKind; need: number }[] = [
   { kind: 'wild-win', need: 10 },
   { kind: 'trainer-win', need: 3 },
@@ -27,7 +28,7 @@ const WATCH: readonly { kind: DailyKind; need: number }[] = [
   { kind: 'perfect-parry', need: 3 },
   { kind: 'request', need: 1 },
 ];
-const FOREST_TYPES = ['grass', 'bug'] as const;
+const FOREST_TYPES = REGIONS.forest.wild.common;
 const TYPE_NEED = 5;
 /** 보상 — 몬스터볼 2 또는 흔한 팔 물건 1 · 셋 다 하면 금구슬 1 [임시값] */
 const COMMON_SELL: readonly ItemId[] = ['tiny-mushroom', 'pearl', 'stardust'];
