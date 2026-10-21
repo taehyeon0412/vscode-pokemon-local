@@ -927,7 +927,7 @@ export function step(state: GameState, stepMs: number): StepOut {
     rt = d.rt;
   }
   // 자동 전투 첫 안내 (R12 A — 자동을 한 번 켤 때까지 최대 3번, 화면이 그렸을 때 셈 'tip-seen' auto): ① 보는 중 내 차례가 10초 넘게 입력 없이 기다린 첫 때 — 내 차례가 끝날 때까지 남김
-  // ② 자동 꺼짐으로 안 보는 동안 멈췄다 다시 볼 때. 그동안 요약 (R14) 보다 먼저 — 요약은 이 안내가 끝난 뒤 (겹치지 않게)
+  // ② 자동 꺼짐으로 안 보는 동안 멈췄다 다시 볼 때. 그동안 요약 (R14) 이 있으면 요약이 먼저 — ② 는 요약이 끝난 뒤 (겹치지 않게)
   const watchingNow = !rt.headless && !rt.away;
   const myTurn = rt.stage?.phase === 'battle' && rt.stage.battle.phase === 'choose' && !save.settings.autoBattle;
   if (myTurn && watchingNow) {
@@ -1636,7 +1636,7 @@ function awayStep(before: GameState, save: Save, rt: RuntimeState, signal: SaveS
   if (!rt.awayLog || rt.away) return rt;
   const phase = rt.stage?.phase;
   if (!(phase === 'walk' || phase === 'clear' || phase === 'lobby')) return rt;
-  // 안 보는 동안 생긴 알림 (클리어 · 레벨업 · 주움) 은 요약이 대신 (네 장 10초 · 레벨업을 두 번 말하던 것 — UX 리뷰어) · 자동 전투 안내 (②) 는 먼저 끝까지
+  // 안 보는 동안 생긴 알림 (클리어 · 레벨업 · 주움) 은 요약이 대신 (네 장 10초 · 레벨업을 두 번 말하던 것 — UX 리뷰어) · 자동 전투 안내가 떠 있으면 그게 끝난 뒤
   if (rt.toast?.kind === 'auto-tip') return rt;
   // 숲 1-1 첫 걷기 안내 (화면 상자) 가 떠 있는 동안은 기다림 — 요약이 그 상자 밑에 깔려 3초 내내 안 보이던 것 (#34 UX 리뷰어 · 240 × 150)
   if (firstWalkTip(save, rt.stage)) return rt;
@@ -1648,7 +1648,7 @@ function awayStep(before: GameState, save: Save, rt: RuntimeState, signal: SaveS
 }
 
 /** 그동안 요약 카드 띄우기 — 떠나기 전부터 떠 있던 알림은 남기고 그 뒤에 (아래 설명) */
-function awayCards(rest: RuntimeState, rt: RuntimeState, awayLog: AwayLog, first: string | undefined, second: string | null | undefined): RuntimeState {
+function awayCards(rest: RuntimeState, rt: RuntimeState, awayLog: AwayLog, first: string | undefined, second: string | undefined): RuntimeState {
   // 떠나기 전부터 떠 있던 알림 (클리어 보상 · 레벨업 — 안 볼 때는 시간이 멈춰 있음) 은 남기고 요약은 그 뒤에 · 안 보는 동안 생긴 알림은 요약이 대신 · 요약이 비면 그대로 (코드 리뷰어)
   // 떠날 때 줄 (then) 도 그때 길이까지만 — 떠난 뒤 줄 선 것 ("상처약을 주웠다!") 은 요약이 대신 (같은 말을 두 번 하던 것 — 테스터)
   const thenOf = (t: NonNullable<RuntimeState['toast']>) => (t.then === undefined ? [] : Array.isArray(t.then) ? t.then : [t.then]);

@@ -8992,8 +8992,10 @@ function ultClash(a, ultA, b, ultB, force) {
 
 // 대결 시작 — 번쩍 · 어두워짐(둘만 밝음) · 위 띠에 쓰는 애, 아래 띠에 받아친 애 · 가운데 VS 쾅
 function ultVsIntro(a, ultA, leftA, b, ultB, leftB, total) {
+    // 게임 모드만 바꿈 — 일반 모드 힘대결은 예전 그대로 (자리 · VS 박자 · 층, 코드 리뷰어)
+    const game = typeof fxInGame === 'function' && fxInGame();
     // 낮은 패널 (게임 150 ~ 170) 은 위 이름이 정보줄 아래로 밀려 내려와 — 아래 띠 · VS 를 부제 높이만큼 내림 (상대 부제 · VS 가 아래 띠에 덮여 0.4초만 읽히던 것, 디자인 UX R31)
-    const low = window.innerHeight < 170;
+    const low = game && window.innerHeight < 170;
     // 게임 모드는 다섯 줄 (내 부제 · 이름 · VS · 상대 부제 · 이름) 을 높이에 맞춰 쌓음 (ultVsLayout) — 일반 모드는 그대로
     const L = ultVsLayout(low ? 0.76 : 0.66, low ? 0.5 : 0.44);
     const yB = L.yB;
@@ -9022,11 +9024,11 @@ function ultVsIntro(a, ultA, leftA, b, ultB, leftB, total) {
     // VS = 맨 위층 (at — 나중에 만든 입자가 아래라 내 필살기 이름 밑에 깔리던 것) · 0.3초에 1.4초 (끝 0.3초 흐려짐 빼고 1초 넘게 — U1, #34 UX 리뷰어)
     setTimeout(() => {
         ultShake(4, 300);
-        ultTitle('VS', null, ['#ffffff', '#ffe0d0', '#ff5a3c', '#7a0a0a'], VS_LEN, yVs, 1.25 * L.k, {});
-    }, VS_AT * 1000);
+        ultTitle('VS', null, ['#ffffff', '#ffe0d0', '#ff5a3c', '#7a0a0a'], game ? VS_LEN : sec - 0.35, yVs, 1.25 * L.k, game ? {} : null);
+    }, (game ? VS_AT : 0.45) * 1000);
 }
 
-// 힘대결 VS 나오는 때 · 길이 (초)
+// 게임 모드 힘대결 VS 나오는 때 · 길이 (초) — 일반 모드는 0.45초에 1.15초
 const VS_AT = 0.3;
 const VS_LEN = 1.4;
 
@@ -9067,23 +9069,43 @@ function ultTextTop() {
     return Math.max(top, map ? Math.round(map.getBoundingClientRect().bottom) : 0);
 }
 
+// 인트로 HUD 숨김 손잡이 (하나) — 겹쳐 불리거나 연출이 중간에 끊겨도 (fxGameStop · clear) 되돌림 (코드 리뷰어: 끊기면 숨긴 채 남고 50ms 타이머가 계속 돌며 다음 전투 HP 까지 숨기던 것)
+let ultHud = null;
+function ultHudRestore() {
+    if (!ultHud) return;
+    const h = ultHud;
+    ultHud = null;
+    clearInterval(h.id);
+    clearTimeout(h.timer);
+    for (const el of h.hid) el.style.visibility = '';
+}
+
 /** 게임 모드 — ms 동안 HP 묶음 · 힘대결 상자 · Z 칸 (DOM) 을 숨김 (나중에 그려진 것도 50ms 마다 잡음) · 끝나면 되돌림. 게임 밖 (일반 모드) 은 아무것도 안 함 */
 function ultHideHud(ms) {
+    ultHudRestore();
     if (typeof fxInGame !== 'function' || !fxInGame()) return;
-    const hid = new Set();
+    const end = performance.now() + ms;
+    const h = { hid: new Set(), id: 0, timer: 0 };
+    ultHud = h;
     const hide = () => {
+        // 스스로 끝 — 되돌리는 타이머가 버려져도 (멈춘 탭 등)
+        if (performance.now() >= end) {
+            if (ultHud === h) ultHudRestore();
+            return;
+        }
         for (const el of document.querySelectorAll('#pokemon-game .pg-hpblock, #pokemon-game .pg-clash-info, #pokemon-game .pg-ultz-wrap')) {
-            if (!hid.has(el)) {
-                hid.add(el);
+            if (!h.hid.has(el)) {
+                h.hid.add(el);
                 el.style.visibility = 'hidden';
             }
         }
     };
     hide();
-    const id = setInterval(hide, 50);
-    setTimeout(() => {
-        clearInterval(id);
-        for (const el of hid) el.style.visibility = '';
+    h.id = setInterval(hide, 50);
+    // 바꿔치기 안 된 setTimeout (bridge fxSetTimeout0) — 끊긴 연출의 타이머를 fxGuard 가 버려도 되돌림
+    const later = typeof fxSetTimeout0 === 'function' ? fxSetTimeout0 : window.setTimeout.bind(window);
+    h.timer = later(() => {
+        if (ultHud === h) ultHudRestore();
     }, ms);
 }
 
@@ -9256,6 +9278,7 @@ const ultFont = () => (typeof fxInGame === 'function' && fxInGame() ? "'Pretenda
 function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1, at = null) {
     const C = cols || ['#fffbe0', '#ffe680', '#f5c400', '#b88a00'];
     let hud = null; // at.hud — HP 묶음 자리 (첫 장면에 한 번 잼)
+    let textTop = null; // 글씨 위 끝 (ultTextTop — 첫 장면에 한 번 잼: 장면마다 DOM 을 재던 것, 코드 리뷰어)
     // 게임 글씨 (at — 패링 · 짧은 필살기 이름) 는 맨 위층 — 솔라빔 모으는 빛이 반격기 이름 끝 0.15초를 덮던 것 (2026-10-21 UX 리뷰어)
     sigParticle({ x: 0, y: 0, s: 2, max: sec, z: at ? 1 : 0, draw: (ctx, p) => {
         const W = window.innerWidth;
@@ -9279,7 +9302,10 @@ function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1, at = null) {
         }
         const jx = t < 0.35 && !(at && at.still) ? moveRand(-1, 1) * 2 : 0;
         // 게임 모드 — 부제까지 정보줄 (높은 패널은 둘째 줄 지도까지) 아래에 (연출 캔버스 위쪽은 정보줄 아래 끝에서 잘림)
-        const top = ultTextTop();
+        if (textTop === null) {
+            textTop = ultTextTop();
+        }
+        const top = textTop;
         const yMin = top ? top + (sub ? size * 0.85 + Math.max(10, Math.round(size * 0.4)) / 2 : size / 2) + 4 : 0;
         // at.x · at.y = 그 자리 가운데 (화면 밖으로 안 나가게 안쪽으로) — 없으면 화면 가운데
         const fixed = !!at && at.x !== undefined;
@@ -49040,6 +49066,10 @@ function fxGameTick() {
 }
 // kill = 중간에 멈춤 (남은 타이머 건너뜀) · 아니면 다 끝나서 정리만
 function fxGameStop(kill) {
+    // 힘대결 인트로에서 숨긴 HP · 힘대결 상자 되돌림 (끊겨도 — core ultHideHud)
+    if (typeof ultHudRestore === 'function') {
+        ultHudRestore();
+    }
     if (!fxGame) {
         return;
     }

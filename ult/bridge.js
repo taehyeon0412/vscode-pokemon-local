@@ -301,6 +301,10 @@ function fxGameTick() {
 }
 // kill = 중간에 멈춤 (남은 타이머 건너뜀) · 아니면 다 끝나서 정리만
 function fxGameStop(kill) {
+    // 힘대결 인트로에서 숨긴 HP · 힘대결 상자 되돌림 (끊겨도 — core ultHideHud)
+    if (typeof ultHudRestore === 'function') {
+        ultHudRestore();
+    }
     if (!fxGame) {
         return;
     }

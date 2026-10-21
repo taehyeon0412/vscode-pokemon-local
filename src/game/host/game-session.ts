@@ -42,7 +42,8 @@ function summaryOf(save: Save, today?: string): NonNullable<TitleInfo['summary']
   const leadUid = save.party[0];
   const lead = leadUid ? save.monsters[leadUid] : undefined;
   const d = save.daily;
-  const daily = BALANCE.daily.on && today !== undefined && d?.day === today ? { daily: { done: dailyDone(d), total: d.goals.length } } : {};
+  // 목표가 비면 (모르는 목표를 다 뺀 세이브) 안 보냄 — "오늘 0/0" (코드 리뷰어 · 엔진도 goals 가 있을 때만)
+  const daily = BALANCE.daily.on && today !== undefined && d?.day === today && d.goals.length > 0 ? { daily: { done: dailyDone(d), total: d.goals.length } } : {};
   return { playTimeMs: save.playTimeMs, money: save.money, badges: [...save.badges], lead: lead ? { form: lead.form, species: lead.species, level: lead.level } : null, where: whereOf(save), ...daily };
 }
 

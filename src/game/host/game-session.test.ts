@@ -571,6 +571,8 @@ describe('🎮 · S02 타이틀 (단계 3)', () => {
       expect((await openTitle(withDaily)).summary?.daily).toEqual({ done: 1, total: 3 });
       // 어제 목표면 안 보냄 (오늘 새로 뽑힐 것)
       expect((await openTitle(sampleSave({ daily: { day: '2000-01-01', goals } }))).summary?.daily).toBeUndefined();
+      // 목표가 비면 (모르는 목표를 다 뺀 세이브) 안 보냄 — "오늘 0/0" (코드 리뷰어)
+      expect((await openTitle(sampleSave({ daily: { day: today, goals: [] } }))).summary?.daily).toBeUndefined();
     } finally {
       (BALANCE.daily as { on: boolean }).on = was;
     }
