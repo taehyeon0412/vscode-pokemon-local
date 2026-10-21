@@ -565,7 +565,9 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
       if (!save.settings.autoBattle) break;
       const ms = (stage.ms ?? 0) + stepMs;
       if (rt.headless || ms >= TIMING.clearAutoMs) {
-        const t = travel({ save, runtime: { ...rt, stage, stageId: id } }, nextPlace(id));
+        // 다음 스테이지를 이미 깼으면 (깬 스테이지를 다시 돌며 키우는 중) 같은 스테이지를 새 판으로 · 아니면 다음 (2026-10-21 태현 님 A)
+        const next = nextPlace(id);
+        const t = travel({ save, runtime: { ...rt, stage, stageId: id } }, next !== 'gym' && save.stages[next]?.cleared ? id : next);
         return { save: t.save, rt: t.runtime, signal: null, notice: null };
       }
       stage = { ...stage, ms };

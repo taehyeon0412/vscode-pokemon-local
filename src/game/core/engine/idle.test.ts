@@ -94,6 +94,13 @@ describe('#48 클리어 카드 — 자동 전투면 10초 뒤 · 안 볼 때는 
     expect(manual.save.location).toEqual({ screen: 'stage', stageId: 'forest-1' });
   });
 
+  it('깬 스테이지를 다시 돌며 키우는 중 (다음 스테이지도 이미 깸) 이면 같은 스테이지를 새 판으로 (2026-10-21 태현 님 A)', () => {
+    const s = at({ settings: { notifications: true, autoBattle: true }, stages: { 'forest-1': { ...prog0, progress: 1, cleared: true, seed: 42 }, 'forest-2': { ...prog0, progress: 1, cleared: true } } }, { phase: 'clear' }, true);
+    const went = step(s, STEP).state;
+    expect(went.save.location).toEqual({ screen: 'stage', stageId: 'forest-1' });
+    expect(went.save.stages['forest-1']!.progress).toBe(0);
+  });
+
   it('다시 읽기 — 카드 시간 · 패배 상자 시간 · 진화 기다림 (−1) 이 남음', () => {
     const rt = (stage: StageRuntime) => readRuntime(viaJson({ rngState: 1, stepAccMs: 0, stage }), 1).stage;
     expect(rt({ phase: 'clear', ms: 3000 })).toEqual({ phase: 'clear', ms: 3000 });
