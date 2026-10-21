@@ -223,6 +223,8 @@ describe('쏘는 기술끼리 힘대결은 없음 — 패링은 등급만 · 완
     expect(pre.phase).toBe('riposte');
     expect(pre.riposte!.ms).toBeLessThan(0);
     expect(pre.riposte!.ms).toBeGreaterThanOrEqual(-TIMING.parryShowMs);
+    // "완벽 패링!" 글씨 1.4초가 다 보인 뒤 반격 기회 (2026-10-21 태현 님 A — 중요한 순간 1초 이상)
+    expect(TIMING.parryShowMs).toBeGreaterThanOrEqual(1400);
     expect(canRiposte(pre)).toBe(false);
     expect(battleInput(pre, save, { kind: 'space' }, new SeededRng(1)).anim).toBeNull();
     expect([after.me.gauge, after.foe.gauge]).toEqual([pre.me.gauge, pre.foe.gauge]);
@@ -243,12 +245,13 @@ describe('쏘는 기술끼리 힘대결은 없음 — 패링은 등급만 · 완
   });
 
   it('완벽 패링 → 피해 0 · 맞은 뒤 반격 기회 (게이지가 멈춤) → 두 번째 원도 완벽이면 반격기 (필살기 피해의 절반 · 필살기 게이지 · 행동 게이지 그대로)', () => {
-    const { b, save, after } = riposteChance();
+    const { b, save, pre, after } = riposteChance();
     expect(after.me.hp).toBe(b.me.hp);
     expect(after.phase).toBe('riposte');
     expect(after.riposte).toEqual({ ms: expect.any(Number), dur: TIMING.riposteRingMs });
     expect(canRiposte(after)).toBe(true);
-    expect(after.popups.some((p) => p.text === '완벽 패링!' && p.kind === 'parry')).toBe(true);
+    // "완벽 패링!" 글은 쳐내기를 보여 주는 동안 (parryShowMs 1.4초 — 반격 기회가 열릴 땐 이미 사라짐)
+    expect(pre.popups.some((p) => p.text === '완벽 패링!' && p.kind === 'parry')).toBe(true);
     const later = run(after, save, 300, fixedRng(0.5));
     expect([later.me.gauge, later.foe.gauge]).toEqual([after.me.gauge, after.foe.gauge]);
     // 반격 기회 중엔 필살기 · 프로필 · 메뉴 없음
