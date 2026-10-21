@@ -285,7 +285,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   return (
     <div class={`pg-screen pg-stage pg-size-${layout.size}${gym ? ' pg-gym' : ''}${covered ? ' pg-covered' : ''}`}>
       {battle && geo?.menuInBar ? (
-        <BattleMenuBar battle={battle} save={save} onInput={battleInput} withAuto={geo.autoInMenu} compact={geo.tiny ? 'tiny' : geo.compact} say={barSay(battle, geo.msgHidden)} hint={ringHint(battle, geo, save.settings.autoBattle)} />
+        <BattleMenuBar battle={battle} save={save} onInput={battleInput} withAuto={geo.autoInMenu} compact={geo.tiny ? 'tiny' : geo.compact} say={barSay(battle, geo.msgHidden, geo.widthPx - 48, 2)} hint={ringHint(battle, geo, save.settings.autoBattle)} />
       ) : (
         <InfoBar
           split={mapRow}

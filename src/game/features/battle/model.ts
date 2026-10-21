@@ -258,16 +258,30 @@ export function msgTextPx(text: string): number {
   return px;
 }
 
-/** 이 말이 말 상자 (폭 · 줄 수) 에 다 들어가는지 어림 — 여러 줄은 낱말 단위 줄바꿈 (keep-all) 으로 버리는 자리 15% */
+/** 글이 폭 · 줄 수에 들어가는지 어림 — 여러 줄은 낱말 단위 줄바꿈 (keep-all) 으로 버리는 자리 15% */
+export const fitsPx = (text: string, widthPx: number, lines: number): boolean => (lines <= 1 ? msgTextPx(text) <= widthPx : msgTextPx(text) * 1.15 <= widthPx * lines);
+
+/** 이 말이 말 상자 (폭 · 줄 수) 에 다 들어가는지 어림 */
 export function msgFits(text: string, geo: Pick<BattleGeometry, 'msgSide' | 'msgRight' | 'msgLines' | 'widthPx'>): boolean {
   const box = geo.msgSide?.maxWidth ?? geo.msgRight?.maxWidth ?? geo.widthPx - 16;
-  const inner = box - 2 * (geo.msgSide && geo.msgLines >= 2 ? MSG_SIDE_PAD_PX : MSG_PAD_PX) - 2;
-  const px = msgTextPx(text);
-  return geo.msgLines <= 1 ? px <= inner : px * 1.15 <= inner * geo.msgLines;
+  return fitsPx(text, box - 2 * (geo.msgSide && geo.msgLines >= 2 ? MSG_SIDE_PAD_PX : MSG_PAD_PX) - 2, geo.msgLines);
 }
 
 /** 첫 문장 ("야생 파이리가 쓰러졌다! (볼이…" → "야생 파이리가 쓰러졌다!") */
 export const firstSentence = (msg: string): string => msg.match(/^[^!?.…]*[!?.…]/)?.[0] ?? msg;
+
+/**
+ * 끝 · 다음 포켓몬 · 고르기 말을 자리에 맞춰 — 다 들어가면 전부 ("(볼이 없어 잡을 수 없어요)" 까지), 아니면 첫 문장.
+ * 진 경우는 끝 문장 ("…내 포켓몬도 다 쓰러졌다… 눈앞이 깜깜해졌다") — 첫 문장 "상대 ○○가 쓰러졌다!" 만 보여 이긴 줄 알던 것 (UX 리뷰어 2026-10-21)
+ */
+export function endSay(msg: string, lose: boolean, fits: (s: string) => boolean): string {
+  if (fits(msg)) return msg;
+  const parts = msg.split(/(?<=[!?.…])\s+/).filter(Boolean);
+  if (parts.length < 2) return msg;
+  if (!lose) return parts[0] ?? msg;
+  const two = parts.slice(-2).join(' ');
+  return fits(two) ? two : (parts[parts.length - 1] ?? msg);
+}
 /** 옆 메뉴일 때 한 줄 말 = 옆 메뉴 탭 · 상대 HP 묶음 위 끝에서 이만큼 위 (싸우는 곳 가까이 — 아트 디렉터 3차) */
 const MSG_NEAR_GAP_PX = 8;
 /** 한 줄 말 위 띄움 최소 (예전 값) — 자리가 모자라면 정보줄 띄움 (4 ~ 8) 을 여기까지 줄임 */

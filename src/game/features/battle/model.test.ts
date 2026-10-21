@@ -6,7 +6,7 @@ import { Rng } from '../../core/engine/rng';
 import { counterMove, isShooting } from '../../core/rules/battle';
 import { hasMapRow, MAP_ROW_PX, topGapPx } from '../../ui/layout';
 import { allForms, allMoves, formOf, moveOf } from '../../data';
-import { battleGeometry, battleSpritePx, firstSentence, msgFits, battleViewKey, catchFoeClass, catchView, duelKind, hpColor, menuItems, placeOnStage, sentenceText, splitPopups, introView, SEND_FLY_MS, SEND_BURST_MS, WIPE_MS, type DuelKind } from './model';
+import { battleGeometry, battleSpritePx, endSay, firstSentence, msgFits, battleViewKey, catchFoeClass, catchView, duelKind, hpColor, menuItems, placeOnStage, sentenceText, splitPopups, introView, SEND_FLY_MS, SEND_BURST_MS, WIPE_MS, type DuelKind } from './model';
 
 const wild = sampleMonster({ uid: 'wild', species: 4, form: 'charmander', level: 5, moves: [{ moveId: 52, pp: 25 }], hp: 999 });
 const save = sampleSave();
@@ -331,6 +331,16 @@ describe('지도 줄 아래 · 긴 한 줄 말 (2026-10-19 태현 님)', () => {
         expect(n.msgTop + 23 + (n.msgLines - 1) * 15).toBeLessThanOrEqual(h - 26 - floor);
       }
     }
+  });
+
+  it('끝 말은 자리에 맞춰 — 다 들어가면 전부 · 아니면 첫 문장 · 진 경우는 끝 문장 (이긴 줄 알던 것)', () => {
+    const win = '상대 아리아도스가 쓰러졌다! 엘리트 트레이너 소율과의 승부에서 이겼다!';
+    const lose = '상대 아리아도스가 쓰러졌다! 내 포켓몬도 다 쓰러졌다… 눈앞이 깜깜해졌다';
+    expect(endSay(win, false, () => true)).toBe(win);
+    expect(endSay(win, false, () => false)).toBe('상대 아리아도스가 쓰러졌다!');
+    expect(endSay(lose, true, (s) => s.length <= 30)).toBe('내 포켓몬도 다 쓰러졌다… 눈앞이 깜깜해졌다');
+    expect(endSay(lose, true, () => false)).toBe('눈앞이 깜깜해졌다');
+    expect(endSay('야생 파이리가 쓰러졌다!', false, () => false)).toBe('야생 파이리가 쓰러졌다!');
   });
 
   it('두 줄은 둘째 줄 아래가 빌 때만 — 위가 붐벼 상대 오른쪽에 둘 때도 · 트레이너전은 오른쪽 끝 이름표 (땅 + 키 + 16) 위까지', () => {

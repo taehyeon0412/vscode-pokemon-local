@@ -4248,25 +4248,47 @@ body.vscode-high-contrast-light .pg-title-body {
   padding-left: 6px;
   padding-right: 6px;
 }
-/* 무대 위쪽 메뉴 줄 자리의 말 (높이 160 ~ 180 끝 단계) — 정보줄 말과 같은 글 · 무대 위라 짙은 판 · 메뉴 (Z) 와 한 줄 (두 줄이 되면 아래 끝 기준이라 위로 자라 정보줄에 잘리던 것) */
-.pg-bmenu-wrap.pg-bmenu-wrap-say {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.pg-bmenu-wrap.pg-bmenu-wrap-say > .pg-bmenu {
-  flex: 0 1 auto;
-  min-width: 0;
-}
+/* 무대 위쪽 메뉴 줄 자리의 말 (높이 160 ~ 180 끝 단계) — 정보줄 말과 같은 글 · 무대 위라 짙은 판.
+   메뉴 위에 겹쳐 띄움 (자리를 차지하면 메뉴가 밀렸다가 내 차례에 154px 튀던 것 — 끝 단계 메뉴는 못 누름, UX 리뷰어 2026-10-21) · 폭은 battle/model fitsPx 로 잰 줄 수 */
 .pg-bmenu-wrap > .pg-stage-say {
-  flex: 0 0 auto;
-  max-width: 100%;
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  z-index: 1;
+  width: max-content;
   max-height: none;
   padding: 2px 6px;
   white-space: nowrap;
   background: var(--pg-sos-panel);
   border: 1px solid var(--pg-sos-line-soft);
   text-align: left;
+}
+/* 옆 메뉴 판 자리 (넓은 패널 · 트레이너전 끝 단계) — 이름 탭 아래 판 자리에 두 줄까지 */
+.pg-vmenu-wrap > .pg-stage-say.pg-side-say {
+  top: 13px;
+  bottom: auto;
+  max-height: 32px;
+  overflow: hidden;
+  white-space: normal;
+  word-break: keep-all;
+}
+/* 낮은 패널 정보줄 자리의 말 — 메뉴 위에 겹쳐 (자리를 차지하면 다음 포켓몬 → 내 차례에 메뉴가 104 ~ 114px 튀던 것) */
+.pg-infobar.pg-infobar-battle {
+  position: relative;
+}
+.pg-infobar-battle > .pg-bar-say {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: none;
+  max-height: none;
+  background: var(--pg-sos-bar);
 }
 
 /* ---- 전체 점검 (2026-10-19 태현 님 "유저 편의성 다시 한번 생각하면서 점검") ---- */
