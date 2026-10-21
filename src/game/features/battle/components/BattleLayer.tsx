@@ -11,7 +11,7 @@ import { useLayoutEffect, useRef } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
 import { canParry, canRiposte, type BattleState, type GameInput, type Side } from '../../../core/engine';
 import { clashWithTaps, isShooting, type Fighter } from '../../../core/rules/battle';
-import { catchTiming } from '../../../core/rules/catch';
+import { catchChance, catchTiming } from '../../../core/rules/catch';
 import type { Save } from '../../../core/save';
 import { moveOf, speciesOf } from '../../../data';
 import { Button } from '../../../ui/Button';
@@ -75,7 +75,7 @@ export function AutoButton({ save, onInput, short }: { save: Save; onInput(i: Ga
   );
 }
 
-function HpBlock({ f, side, x, bottom, wide, prefix, noName }: { f: Fighter; side: Side; x: number; bottom: number; wide: number; prefix: string; noName?: boolean }) {
+function HpBlock({ f, side, x, bottom, wide, prefix, noName, dex }: { f: Fighter; side: Side; x: number; bottom: number; wide: number; prefix: string; noName?: boolean; /** 마지막 기회 — 잡은 적 있음 (볼 그림) · 처음 (NEW) */ dex?: 'caught' | 'new' }) {
   const status = f.status ? STATUS_LABEL[f.status.kind] : null;
   const title = `${side === 'foe' ? prefix : ''}${nameOf(f)} Lv${f.level} · HP ${f.hp}/${f.maxHp}${status ? ` · ${status}` : ''}`;
   // 가운데 x 에 정수 px 로 (translateX(-50%) 는 홀수 폭이면 반 픽셀로 흐려짐 — 아트 디렉터)
@@ -85,6 +85,17 @@ function HpBlock({ f, side, x, bottom, wide, prefix, noName }: { f: Fighter; sid
       {/* 이름 · Lv 줄 (내 것은 오른쪽에 HP 숫자) → 얇은 HP 바 → 행동 게이지 (Sea of Stars, 포켓몬 머리 위). 옆 메뉴가 있으면 내 이름은 이름표가 맡음 */}
       <span class="pg-hprow">
         {!noName && <span class="pg-hpname">{nameOf(f)}</span>}
+        {/* 마지막 기회 동안 상대 이름 옆에 잡은 적 있는지 (ideas #37 — 메뉴 줄은 볼 칸이 잘려서, 만남 띠 "야생 ○○ NEW!" 와 같은 자리) */}
+        {dex === 'new' && (
+          <span class="pg-last-new" title="아직 못 잡은 포켓몬">
+            NEW
+          </span>
+        )}
+        {dex === 'caught' && (
+          <span class="pg-last-dex" title="이미 잡은 적 있는 포켓몬">
+            <Icon name="ball" />
+          </span>
+        )}
         <span class="pg-lv">Lv{f.level}</span>
         {status && <span class={`pg-status pg-status-${f.status!.kind}`}>{status}</span>}
         {side === 'me' && (
@@ -247,10 +258,26 @@ function CatchBall({ cls, x, y, since, px, style, icon = 'ball' }: { cls: string
   );
 }
 
-/** 잡기 원 — TimingRing (패링 · 반격과 같은 모양 · 키 칸) 에 처음 그린 때의 지난 시간을 고정해 넘김 */
-function CatchRing({ id, x, y, size, ms }: { id: string; x: number; y: number; size: number; ms: number }) {
+/** 잡기 쉬움 (2026-10-21 ideas #128 — 레전드 아르세우스처럼 원 색으로) = 그냥 던졌을 때 (타이밍 보너스 없이) 잡을 확률 — 반 넘으면 쉬움 · 5분의 1 넘으면 보통 · 아래는 어려움 */
+type CatchTone = 'easy' | 'mid' | 'hard';
+const TONE_WORD: Record<CatchTone, string> = { easy: '쉬움', mid: '보통', hard: '어려움' };
+function catchTone(b: BattleState): CatchTone {
+  const c = b.catch;
+  if (!c) return 'mid';
+  const p = catchChance({ captureRate: speciesOf(b.foe.species)?.captureRate ?? 45, hp: b.foe.hp, maxHp: b.foe.maxHp, ball: c.ball, timing: 'none', lastChance: c.last });
+  return p >= 0.5 ? 'easy' : p >= 0.2 ? 'mid' : 'hard';
+}
+
+/** 완벽 타이밍 꼬리 점 하나 — 볼과 같은 포물선을 n × 45ms 늦게 (뒤로 갈수록 작고 흐림) */
+function CatchTrail({ n, x, y, since, px, style }: { n: number; x: number; y: number; since: number; px: number; style: Record<string, string> }) {
+  const since0 = useRef(since).current;
+  return <span class={`pg-catch-ball pg-catch-fly pg-catch-trail pg-catch-trail-${n}`} style={{ left: `${x}px`, bottom: `${y}px`, animationDelay: `${n * 45 - since0}ms`, '--pg-tp': `${Math.max(1, 3 - n) * px}px`, '--pg-bh': `${4 * px}px`, ...style }} />;
+}
+
+/** 잡기 원 — TimingRing (패링 · 반격과 같은 모양 · 키 칸) 에 처음 그린 때의 지난 시간을 고정해 넘김 · 원 = 잡기 쉬움 (초록 실선 · 금색 끊긴 선 · 빨강 점선 + 키 칸 글) */
+function CatchRing({ id, x, y, size, ms, tone }: { id: string; x: number; y: number; size: number; ms: number; tone: CatchTone }) {
   const ms0 = useRef(ms).current;
-  return <TimingRing id={id} x={x} y={y} size={size} ringMs={TIMING.catchRingMs} lateMs={BALANCE.catchGoodMs} delay={-ms0} auto={false} label="던지기" />;
+  return <TimingRing id={id} x={x} y={y} size={size} ringMs={TIMING.catchRingMs} lateMs={BALANCE.catchGoodMs} delay={-ms0} auto={false} label={`던지기 · ${TONE_WORD[tone]}`} tone={tone} />;
 }
 
 /** 딸깍 — 볼 둘레로 튀는 금색 별 (2px 점 + 십자, 4 걸음) — 창 안 볼 (48px) 기준 px */
@@ -292,13 +319,16 @@ function Catch({ b, geo, ground, mid, handY }: { b: BattleState; geo: BattleGeom
     '--pg-fy': `${Math.round(geo.bodyPx - ground - 4 * px - (winTop + CATCH_WIN_BALL_Y))}px`,
     '--pg-fs': String(Math.round(((8 * px) / 48) * 100) / 100),
   };
-  const title = v.stage === 'end' || v.stage === 'held' ? (v.caught ? '잡았다!' : '아깝다!') : '잡는 중…';
-  const shakeStyle = { animationDuration: `${TIMING.catchShakeMs}ms`, animationIterationCount: String(Math.max(1, v.shakes)) };
+  // 창 이름표 = 포켓몬 이름 (ideas #132) · 상태 (잡는 중… / 잡았다! / 아깝다!) 는 볼 아래 한 줄 — 같은 말이 두 번 나오지 않게
+  const state = v.stage === 'end' || v.stage === 'held' ? (v.caught ? '잡았다!' : '아깝다!') : '잡는 중…';
+  // 흔들기 = 갈수록 세짐 (ideas #129 — 첫 번째 작게 → 세 번째 크게 + 짧은 멈춤) · 흔든 수만큼 한 번에 (game.css pg-catch-shake-n1 ~ 3)
+  const shakes = Math.min(3, Math.max(1, v.shakes));
+  const shakeStyle = { animationName: `pg-catch-shake-n${shakes}`, animationDuration: `${TIMING.catchShakeMs * shakes}ms`, animationIterationCount: '1' };
   return (
     <>
       {/* ④ 원 — 패링 · 반격 원과 같은 부품 (키 칸 "Space 던지기"). 지연은 처음 그린 때 값으로 고정: 다시 그릴 때마다 -c.ms 를 새로 넣으면
           돌던 원이 지난 시간만큼 앞으로 튀어 끊기고 엔진보다 일찍 다 줄어들었음 (2026-10-20 태현 님 "던질 때 렉 · 타이밍을 놓침", 코드 리뷰어) */}
-      {v.stage === 'ring' && <CatchRing key={`${key}r`} id={`${key}r`} x={geo.foeX} y={mid} size={size} ms={c.ms} />}
+      {v.stage === 'ring' && <CatchRing key={`${key}r`} id={`${key}r`} x={geo.foeX} y={mid} size={size} ms={c.ms} tone={catchTone(b)} />}
       {v.stage === 'fly' && c.pressMs !== null && <span key={`${key}p`} class={`pg-catch-ring pg-ring-${timing}`} style={{ ...ring, transform: `translate(-50%, 50%) scale(${pressedScale})` }} />}
       {feedback && (v.stage === 'fly' || v.stage === 'suck') && (
         // 원 아래 (위는 상대 HP 칸 — 이름과 겹침)
@@ -311,6 +341,12 @@ function Catch({ b, geo, ground, mid, handY }: { b: BattleState; geo: BattleGeom
       {v.stage === 'fly' && (
         <CatchBall key={`${key}fly`} cls="pg-catch-fly" x={geo.trainerX} y={handY} since={v.since} px={px} style={{ '--pg-dx': `${geo.foeX - geo.trainerX}px`, '--pg-dy': `${handY - mid}px`, animationDuration: `${TIMING.catchFlyMs}ms` }} />
       )}
+      {/* 완벽 타이밍 = 볼 뒤 금색 꼬리 (점 셋이 같은 길을 45ms 씩 늦게 따라감 — ideas #130) */}
+      {v.stage === 'fly' &&
+        timing === 'perfect' &&
+        [1, 2, 3].map((n) => (
+          <CatchTrail key={`${key}t${n}`} n={n} x={geo.trainerX} y={handY} since={v.since} px={px} style={{ '--pg-dx': `${geo.foeX - geo.trainerX}px`, '--pg-dy': `${handY - mid}px`, animationDuration: `${TIMING.catchFlyMs}ms` }} />
+        ))}
       {v.stage === 'suck' && (
         <>
           <CatchBall key={`${key}open`} cls="pg-catch-open" x={geo.foeX} y={mid} since={v.since} px={px} />
@@ -322,12 +358,13 @@ function Catch({ b, geo, ground, mid, handY }: { b: BattleState; geo: BattleGeom
       {v.stage === 'end' && !v.caught && <span key={`${key}bb`} class="pg-send-burst" style={{ left: `${geo.foeX}px`, bottom: `${ground + 4 * px}px` }} />}
       {win && (
         <div key={`${key}w`} class="pg-catch-win" style={{ left: `${winLeft}px`, top: `${winTop}px` }}>
-          <span class="pg-catch-title">{title}</span>
+          <span class="pg-catch-title">{nameOf(b.foe)}</span>
           <span class="pg-catch-win-ball" style={flyIn}>
             {/* "아깝다!" = 열린 볼 (뚜껑이 들리고 빛살, 2026-10-20 태현 님) · 잡힘 = 닫힌 볼이 딸깍 */}
             <CatchBall key={`${key}w${v.stage}`} cls={v.stage === 'shake' ? 'pg-catch-shake' : v.stage === 'held' ? '' : 'pg-catch-click'} since={v.since} px={2} icon={v.stage === 'end' && !v.caught ? 'ballBigOpen' : 'ballBig'} style={v.stage === 'shake' ? shakeStyle : undefined} />
             {v.stage === 'end' && v.caught && CATCH_STARS.map(([dx, dy], i) => <span key={`s${i}`} class="pg-catch-star" style={{ '--pg-sx': `${dx}px`, '--pg-sy': `${dy}px` }} />)}
           </span>
+          <span class={`pg-catch-state${v.stage === 'end' || v.stage === 'held' ? (v.caught ? ' pg-catch-state-ok' : ' pg-catch-state-miss') : ''}`}>{state}</span>
           {/* 남은 볼 기회 (이번 볼 포함) = 점 ○●● — 볼 그림은 가진 볼 개수로 읽혀서 (플레이 리뷰어) · 왼쪽부터 꺼짐 (2026-10-20 태현 님) ·
               지금 던진 칸 = 남은 것 중 맨 왼쪽 pg-catch-now (모양은 game.css) */}
           <span class="pg-catch-left" title={`남은 볼 기회 ${v.left}/${BALANCE.catchTries} (이번 볼 포함)`}>
@@ -388,13 +425,13 @@ function emphasize(msg: string, names: readonly string[]): ComponentChildren {
  * CSS 두 단계 (pg-ring-shrink → pg-ring-late) 라 시간 비율이 달라도 1배 = 맞는 때 (2026-10-20 패링 다시 기획: 패링 0.9 + 0.2초 · 반격 1.2 + 0.2초).
  * delay = 그린 때부터 좁혀지기 시작까지 (음수면 이미 지난 만큼) — 처음 그린 때 기준으로 고정 (그릴 때마다 바꾸면 어긋남)
  */
-function TimingRing({ id, x, y, size, ringMs, lateMs, delay, auto, label }: { id: string; x: number; y: number; size: number; ringMs: number; lateMs: number; delay: number; auto: boolean; label: string }) {
+function TimingRing({ id, x, y, size, ringMs, lateMs, delay, auto, label, tone }: { id: string; x: number; y: number; size: number; ringMs: number; lateMs: number; delay: number; auto: boolean; label: string; /** 잡기 원 = 잡기 쉬움 (색 + 선 모양) */ tone?: CatchTone }) {
   const timing = { animationDuration: `${ringMs}ms, ${lateMs}ms`, animationDelay: `${delay}ms, ${delay + ringMs}ms` };
   const style = { left: `${x}px`, bottom: `${y}px`, width: `${size}px`, height: `${size}px`, ...timing };
   return (
     <>
       <span key={`${id}t`} class={auto ? 'pg-parry-target pg-parry-auto' : 'pg-parry-target'} style={style} />
-      <span key={id} class={auto ? 'pg-parry-ring pg-parry-auto' : 'pg-parry-ring'} style={style} />
+      <span key={id} class={`${auto ? 'pg-parry-ring pg-parry-auto' : 'pg-parry-ring'}${tone ? ` pg-ring-tone-${tone}` : ''}`} style={style} />
       {/* 키 칸 = 원 왼쪽 · 원과 6px 넘게 띄움 (아트 디렉터 4차) · 자동 전투면 숨김 (맡겨 둔 사람을 부르지 않게) */}
       {!auto && (
         <span key={`${id}k`} class="pg-parry-key" style={{ left: `${x - Math.round(size * 0.55) - 8}px`, bottom: `${y}px`, ...timing }}>
@@ -542,7 +579,7 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
       <ParryRing b={b} geo={geo} y={midMe} auto={save.settings.autoBattle} />
       <RiposteRing b={b} geo={geo} y={midFoe} auto={save.settings.autoBattle} />
       {hasMe && <HpBlock f={b.me} side="me" x={geo.meHpX} bottom={geo.meHpBottom} wide={geo.meHpWide} prefix="" noName={geo.menuSide !== null || geo.tiny} />}
-      {b.phase !== 'send' && <HpBlock f={b.foe} side="foe" x={geo.foeHpX} bottom={geo.foeHpBottom} wide={geo.foeHpWide} prefix={foePrefix(b)} />}
+      {b.phase !== 'send' && <HpBlock f={b.foe} side="foe" x={geo.foeHpX} bottom={geo.foeHpBottom} wide={geo.foeHpWide} prefix={foePrefix(b)} dex={b.phase === 'last' ? (save.dex.caught.includes(b.foe.species) ? 'caught' : 'new') : undefined} />}
       {b.phase === 'clash' ? <Clash b={b} geo={geo} y={Math.round((midMe + midFoe) / 2)} native={native} /> : <Effects b={b} geo={geo} ground={ground} midMe={midMe} midFoe={midFoe} native={native} />}
       <Catch b={b} geo={geo} ground={ground} mid={midFoe} handY={handY} />
       {throwMe !== null && <SendBall key={`sm${b.me.uid}`} from={[geo.trainerX, handY]} to={[geo.meX, midMe]} at={throwMe} />}

@@ -7,7 +7,7 @@ import type { ComponentChildren } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { TIMING } from '../../../core/balance';
 import { maxHpOf } from '../../../core/rules/bag';
-import { canUlt, counterOpen, itemLeft, switchable, ultCounterOpen, type BattleState, type GameInput } from '../../../core/engine';
+import { canUlt, catchTriesUsed, counterOpen, itemLeft, switchable, ultCounterOpen, type BattleState, type GameInput } from '../../../core/engine';
 import { BALLS, type BallId } from '../../../core/rules/catch';
 import { itemName } from '../../../core/rules/items';
 import type { Save } from '../../../core/save';
@@ -44,7 +44,15 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
   const items = menuItems(b, save, page, compact);
   // 커서 (Sea of Stars 1f — 고를 줄이 늘 보임: ▸ + 밝은 줄, 아트 디렉터) · ↑ ↓ 로 옮기고 Enter 로 고름 · 페이지 · 차례가 바뀌면 첫 줄로
   const [cursor, setCursor] = useState(0);
-  useEffect(() => setCursor(0), [page, b.phase]);
+  // 볼을 놓친 뒤 다음 차례는 커서를 "4 아이템" (볼이 있는 줄) 에 — 바로 Enter 로 다시 던지게 (ideas #131, 2026-10-21). 지난 차례의 볼 수를 기억해 비교
+  const triesSeen = useRef(catchTriesUsed(b));
+  useEffect(() => {
+    const tries = catchTriesUsed(b);
+    const missed = page === 'main' && b.phase === 'choose' && tries > triesSeen.current;
+    if (b.phase === 'choose') triesSeen.current = tries;
+    const itemsAt = items.findIndex((i) => i.key === 'items' && i.enabled);
+    setCursor(missed && itemsAt >= 0 ? itemsAt : 0);
+  }, [page, b.phase]);
   const enabledIdx = items.map((it, k) => (it.enabled ? k : -1)).filter((k) => k >= 0);
   const onIdx = enabledIdx.includes(cursor) ? cursor : (enabledIdx[0] ?? -1);
   const ultReady = canUlt(b) || ultCounterOpen(b);
@@ -216,6 +224,7 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
         {/* 좁은 패널 (300px 아래) 은 "마지막 기회!" 를 빼고 "6초" 만 — 볼 칸이 "1 몬스…" 로 잘리던 것 (UX 리뷰어 2026-10-21) */}
         <span class="pg-last-tag">
           <span class="pg-last-word">마지막 기회! </span>
+
           <span class="pg-last-sec" title="안 고르면 그냥 지나가요">
             {Math.max(0, Math.ceil((TIMING.lastChanceMs - b.lastMs) / 1000))}초
           </span>

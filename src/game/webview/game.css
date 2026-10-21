@@ -1895,7 +1895,8 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  gap: 14px;
+  /* 볼 · 상태 한 줄 · 남은 기회 점 (2026-10-21 이름표 = 포켓몬 이름, 상태는 볼 아래로) */
+  gap: 6px;
   box-sizing: border-box;
   width: 104px;
   height: 108px;
@@ -1970,6 +1971,71 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   0% { translate: -6px 0; }
   24% { translate: 6px 0; }
   48%, 100% { translate: 0 0; }
+}
+/* 흔들기가 갈수록 세짐 (ideas #129, 2026-10-21) — 흔든 수 n 만큼 한 번에 (BattleLayer shakeStyle): 첫 번째 ±3px → 두 번째 ±5px → 세 번째 ±7px 를 빨리 흔들고 남은 시간 멈춤 (딸깍 · 터지기 직전 숨 고르기) */
+@keyframes pg-catch-shake-n1 {
+  0% { translate: -4px 0; }
+  24% { translate: 4px 0; }
+  48%, 100% { translate: 0 0; }
+}
+@keyframes pg-catch-shake-n2 {
+  0% { translate: -3px 0; }
+  12% { translate: 3px 0; }
+  24%, 50% { translate: 0 0; }
+  50.01% { translate: -6px 0; }
+  62% { translate: 6px 0; }
+  74%, 100% { translate: 0 0; }
+}
+@keyframes pg-catch-shake-n3 {
+  0% { translate: -3px 0; }
+  8% { translate: 3px 0; }
+  16%, 33.3% { translate: 0 0; }
+  33.34% { translate: -5px 0; }
+  41.3% { translate: 5px 0; }
+  49.3%, 66.6% { translate: 0 0; }
+  66.7% { translate: -7px 0; }
+  72% { translate: 7px 0; }
+  77.3%, 100% { translate: 0 0; }
+}
+/* 흔들기 창 상태 한 줄 — 잡는 중… 크림 흐림 · 잡았다! 금색 · 아깝다! 빨강 (이름표가 포켓몬 이름이 되어 상태를 여기로) */
+.pg-catch-state {
+  color: var(--pg-sos-dim);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 14px;
+}
+.pg-catch-state-ok {
+  color: var(--pg-sos-gold);
+}
+.pg-catch-state-miss {
+  color: var(--pg-sos-red);
+}
+/* 잡기 원 = 잡기 쉬움 (ideas #128) — 쉬움 초록 실선 · 보통 금색 끊긴 선 · 어려움 빨강 점선 (색 하나에만 맡기지 않음 — 원칙 7) · 키 칸 글에도 "쉬움 · 보통 · 어려움" */
+.pg-parry-ring.pg-ring-tone-easy {
+  border-color: var(--pg-sos-hp);
+}
+.pg-parry-ring.pg-ring-tone-mid {
+  border-color: var(--pg-sos-gold);
+  border-style: dashed;
+}
+.pg-parry-ring.pg-ring-tone-hard {
+  border-color: var(--pg-sos-red);
+  border-style: dotted;
+  border-width: 3px;
+}
+/* 완벽 타이밍 금색 꼬리 (ideas #130) — 볼과 같은 포물선을 늦게 따라가는 금색 점 셋 (뒤로 갈수록 작고 흐림) */
+.pg-catch-trail {
+  width: var(--pg-tp, 4px);
+  height: var(--pg-tp, 4px);
+  margin-left: calc(var(--pg-bh, 8px) - var(--pg-tp, 4px) / 2);
+  margin-bottom: calc(var(--pg-bh, 8px) - var(--pg-tp, 4px) / 2);
+  background: var(--pg-sos-gold);
+}
+.pg-catch-trail-2 {
+  background: rgba(255, 215, 106, 0.7);
+}
+.pg-catch-trail-3 {
+  background: rgba(255, 215, 106, 0.45);
 }
 .pg-catch-left {
   display: flex;
@@ -2181,6 +2247,24 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   .pg-last-word {
     display: none;
   }
+}
+/* 마지막 기회 상대 HP 줄 잡은 적 표시 (ideas #37) — 잡은 적 있음 = 작은 볼 그림 · 처음 = 빨간 NEW 칠 (만남 띠 NEW 와 같은 모양) · 320px 아래는 레벨 대신 (이름이 "파…" 로 잘리지 않게) */
+@media (max-width: 320px) {
+  .pg-hprow:has(.pg-last-new, .pg-last-dex) > .pg-lv {
+    display: none;
+  }
+}
+.pg-last-dex {
+  display: inline-block;
+  vertical-align: -3px;
+  line-height: 0;
+}
+.pg-last-new {
+  padding: 0 3px;
+  color: var(--pg-sos-ink);
+  background: var(--pg-sos-red);
+  font-size: 10px;
+  font-weight: 700;
 }
 /* 마지막 기회 — 쓰러진 상대를 흐리게 남김 */
 .pg-down {
