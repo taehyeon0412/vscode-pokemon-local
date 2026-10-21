@@ -66,6 +66,35 @@ export interface TeamUlt {
 
 export type TeamPopup = BattlePopup & { slot: number };
 
+/**
+ * 연출 다리 — 3:3 에서 일어난 일 (번호순, 마지막 TEAM_LOG_MAX 개). 화면 · 연출은 본 번호 뒤 것만 그림 (여러 걸음을 한 번에 그려도 안 놓침 · 다시 붙으면 옛것은 안 그림).
+ * 모양은 디자인팀 · 이 기록과 features/battle/fx/team.ts (계획 · 실행) 는 개발팀 (2026-10-21 orders #17 준비)
+ */
+export type TeamNote =
+  /** 기술을 쏨 (moveId 0 = 1 공격) — shot = TeamShot.id */
+  | { t: 'shoot'; shot: number; side: Side; from: number; targets: number[]; moveId: number }
+  /** 맞음 — 기술 · 1 공격 (moveId 0) · 필살기 (ult, moveId −1). effect = 팝업 종류 (super · weak · immune · crit · damage) · ko = 이 한 방에 쓰러짐 */
+  | { t: 'hit'; side: Side; from: number; to: number; moveId: number; ult: boolean; effect: BattlePopup['kind']; dmg: number; ko: boolean }
+  | { t: 'miss'; side: Side; from: number; to: number; moveId: number }
+  /** 쏜 포켓몬이 쓰러져 날아가던 기술이 사라짐 */
+  | { t: 'stop'; shot: number }
+  /** 기술 힘겨루기 시작 (두 기술이 멈춤) · 끝 */
+  | { t: 'clash'; shots: [number, number]; me: number; foe: number }
+  | { t: 'clash-end'; shots: [number, number]; me: number; foe: number; winner: Side }
+  | { t: 'ult'; side: Side; from: number }
+  | { t: 'ult-clash'; me: number[]; foe: number[] }
+  | { t: 'ult-join'; side: Side; slot: number }
+  /** sure = 3:1 (셋 쪽이 압도) · me · foe = 끝날 때 참가자 (여럿이면 합동 마무리) */
+  | { t: 'ult-clash-end'; winner: Side; sure: boolean; me: number[]; foe: number[] }
+  | { t: 'faint'; side: Side; slot: number }
+  | { t: 'status'; side: Side; slot: number; kind: 'poison' | 'burn' | 'paralysis' | 'sleep' }
+  /** 필살기 게이지가 다 참 */
+  | { t: 'ready'; side: Side; slot: number }
+  /** 끝 — 같은 묶음의 마지막 ko 한 방이 마무리 (크게 · 짧게 느리게) */
+  | { t: 'end'; result: 'win' | 'lose' };
+export type TeamLogEntry = TeamNote & { id: number };
+export const TEAM_LOG_MAX = 32;
+
 export interface TeamBattle {
   kind: 'trainer' | 'gym';
   foeName: string;
@@ -93,6 +122,9 @@ export interface TeamBattle {
   msg: string;
   /** 필살기 예약 (내 칸) — 게이지가 차는 중에 그 칸을 누르면 예약 · 다시 누르면 취소 → 차는 순간 씀 (끼어들기 창 · 힘겨루기 합류도 바로, 2026-10-21 태현 님 ①) */
   reserve: number[];
+  /** 연출 다리 — 일어난 일 (TeamNote) 과 마지막 번호 */
+  log: TeamLogEntry[];
+  logSeq: number;
 }
 
 export interface TeamStepOptions {
@@ -170,6 +202,8 @@ export function startTeamBattle(save: Save, foes: readonly Monster[], kind: 'tra
     t: 0,
     msg: `${withJosa(foeName, '과/와')}의 3:3 승부!`,
     reserve: [],
+    log: [],
+    logSeq: 0,
   };
 }
 
@@ -189,7 +223,14 @@ function clone(b: TeamBattle): TeamBattle {
     popups: [...b.popups],
     foeDown: [...b.foeDown],
     reserve: [...b.reserve],
+    log: [...b.log],
   };
+}
+
+/** 연출 다리에 하나 적음 (기록 하나하나는 바꾸지 않음 — 앞 상태와 같이 씀) */
+function note(b: TeamBattle, n: TeamNote): void {
+  b.logSeq += 1;
+  b.log = [...b.log.slice(-(TEAM_LOG_MAX - 1)), { ...n, id: b.logSeq }];
 }
 
 function popup(b: TeamBattle, side: Side, slot: number, text: string, kind: BattlePopup['kind']): void {
@@ -217,7 +258,10 @@ function gainUlt(b: TeamBattle, side: Side, slot: number, kind: 'hit' | 'hurt'):
   const f = b[side][slot]!;
   if (!alive(f) || f.ult >= 1) return;
   f.ult = Math.min(1, f.ult + ultGain(kind, f) * BALANCE.team.ultGainScale);
-  if (f.ult >= 1) b.ultReadyAt[side][slot] = b.t;
+  if (f.ult >= 1) {
+    b.ultReadyAt[side][slot] = b.t;
+    note(b, { t: 'ready', side, slot });
+  }
 }
 
 /** 맞을 상대 — 그 기술 상성이 가장 좋은 상대 (같으면 HP 비율이 낮은 쪽) */
@@ -285,7 +329,9 @@ function damage(b: TeamBattle, side: Side, from: number, to: number, power: numb
   const before = d.hp;
   d.hp = Math.max(0, d.hp - dmg);
   dmg = before - d.hp;
-  popup(b, other(side), to, `-${dmg}`, r.crit ? 'crit' : r.effect > 1 ? 'super' : r.effect < 1 ? (r.effect === 0 ? 'immune' : 'weak') : 'damage');
+  const effect = r.crit ? 'crit' : r.effect > 1 ? 'super' : r.effect < 1 ? (r.effect === 0 ? 'immune' : 'weak') : 'damage';
+  popup(b, other(side), to, `-${dmg}`, effect);
+  note(b, { t: 'hit', side, from, to, moveId: useUlt ? -1 : (move?.id ?? TEAM_BASIC), ult: useUlt, effect, dmg, ko: d.hp <= 0 });
   // 필살기 게이지 — 피해가 있을 때만 · 때린 쪽 (필살기 빼고) · 맞은 쪽 (필살기에 맞아도 참 — 1:1 과 같음)
   if (dmg > 0) {
     if (!useUlt) gainUlt(b, side, from, 'hit');
@@ -310,6 +356,7 @@ function faint(b: TeamBattle, side: Side, slot: number): void {
   const f = b[side][slot]!;
   f.gauge = 0;
   popup(b, side, slot, `${nameOf(f)} 쓰러졌다!`, 'info');
+  note(b, { t: 'faint', side, slot });
   if (side === 'foe') b.foeDown = [...b.foeDown, { species: f.species, level: f.level }];
   else b.reserve = b.reserve.filter((i) => i !== slot);
   b.ultReadyAt[side][slot] = null;
@@ -342,6 +389,7 @@ function land(b: TeamBattle, s: TeamShot, rng: Rng): void {
   for (const t of targets) {
     if (mv.accuracy !== null && !rng.chance(mv.accuracy / 100)) {
       popup(b, other(s.side), t, '빗나갔다!', 'miss');
+      note(b, { t: 'miss', side: s.side, from: s.from, to: t, moveId: s.moveId });
       continue;
     }
     if (mv.class !== 'status' && mv.power > 0) damage(b, s.side, s.from, t, Math.round(mv.power * (s.boost ?? 1)), mv.type, rng, false, spread, mv);
@@ -350,6 +398,7 @@ function land(b: TeamBattle, s: TeamShot, rng: Rng): void {
       const [lo, hi] = BALANCE.sleepTurns;
       d.status = mv.ailment === 'sleep' ? { kind: 'sleep', turnsLeft: rng.int(lo, hi) } : { kind: mv.ailment };
       popup(b, other(s.side), t, { poison: '독에 걸렸다!', burn: '화상을 입었다!', paralysis: '마비되었다!', sleep: '잠들었다!' }[mv.ailment], 'status');
+      note(b, { t: 'status', side: other(s.side), slot: t, kind: mv.ailment });
     }
   }
 }
@@ -381,6 +430,7 @@ function act(b: TeamBattle, side: Side, slot: number, rng: Rng): void {
   b.seq += 1;
   const dur = TIMING.team.moveMs;
   b.shots = [...b.shots, { id: b.seq, side, from: slot, targets: pick.targets, moveId: pick.moveId, ms: 0, dur, hitMs: Math.round(dur * 0.7), hit: false, shooting: isShooting(mv), clash: false, ...(mv?.streak ? { boost: streakMultiplier(f.streakCount) } : {}) }];
+  note(b, { t: 'shoot', shot: b.seq, side, from: slot, targets: [...pick.targets], moveId: pick.moveId });
   tick(b, side, slot);
 }
 
@@ -408,6 +458,7 @@ function endMoveClash(b: TeamBattle, c: TeamClash, rng: Rng): void {
   const pf = b.foe[f.from]!.stats.attack * (fm?.power ?? 1);
   const meWins = rng.chance(clashChance(pa, pf));
   c.winner = meWins ? 'me' : 'foe';
+  note(b, { t: 'clash-end', shots: [aId, fId], me: a.from, foe: f.from, winner: c.winner });
   const win = meWins ? a : f;
   const lose = meWins ? f : a;
   const wm = moveOf(win.moveId);
@@ -424,6 +475,7 @@ function startUlt(b: TeamBattle, side: Side, slot: number, rng: Rng): void {
   const chance = side === 'me' ? BALANCE.team.interruptChance[b.kind] : 0;
   const joiners = foes.map((x, i) => (alive(x) && x.ult >= 1 && rng.chance(chance) ? i : -1)).filter((i) => i >= 0);
   b.phase = 'ult';
+  note(b, { t: 'ult', side, from: slot });
   b.ult = { side, from: slot, ms: 0, dur: TIMING.ultAnimMs, hitMs: Math.round(TIMING.ultAnimMs * 0.6), hit: false, window, joinAt: joiners.length ? rng.int(200, window - 100) : null, joiners };
   b.msg = `${nameOf(f)}의 필살기!`;
 }
@@ -442,6 +494,7 @@ function startUltClash(b: TeamBattle, joinSide: Side, joiners: number[], rng: Rn
     .filter(({ f, i }) => alive(f) && f.ult >= 1 && !foe.includes(i) && rng.chance(BALANCE.team.interruptChance[b.kind]))
     .map(({ i }) => ({ slot: i, at: rng.int(200, dur - 300) }));
   b.clash = { kind: 'ult', me: [...me], foe: [...foe], shots: null, ms: 0, dur, taps: 0, winner: null, foeJoin };
+  note(b, { t: 'ult-clash', me: [...me], foe: [...foe] });
   b.ult = null;
   b.msg = me.length === foe.length ? '필살기 힘겨루기!' : `필살기 힘겨루기! ${me.length}:${foe.length}`;
 }
@@ -463,6 +516,7 @@ function endUltClash(b: TeamBattle, rng: Rng): void {
   const sum = (side: Side, list: number[]) => list.reduce((s, i) => s + b[side][i]!.stats.ultimate, 0);
   const sure = teamClashSure(c);
   const meWins = sure ? sure === 'me' : rng.chance(clashWithTaps(clashChance(sum('me', c.me), sum('foe', c.foe)), c.taps));
+  note(b, { t: 'ult-clash-end', winner: meWins ? 'me' : 'foe', sure: sure !== null, me: [...c.me], foe: [...c.foe] });
   c.winner = meWins ? 'me' : 'foe';
   const winSide: Side = meWins ? 'me' : 'foe';
   const winners = meWins ? c.me : c.foe;
@@ -493,6 +547,7 @@ function checkEnd(b: TeamBattle, timeUp = false): void {
   b.shots = [];
   b.overMs = 0;
   b.msg = b.result === 'win' ? `${withJosa(b.foeName, '과/와')}의 3:3 승부에서 이겼다!` : '내 포켓몬이 다 쓰러졌다…';
+  note(b, { t: 'end', result: b.result });
 }
 
 /** 먼저 찬 내 포켓몬 (Z) */
@@ -563,6 +618,7 @@ export function teamInput(b0: TeamBattle, input: TeamInput, rng: Rng): TeamBattl
   else if (b.clash) {
     spendUlt(b, 'me', slot);
     b.clash.me = [...b.clash.me, slot];
+    note(b, { t: 'ult-join', side: 'me', slot });
     b.msg = `합류! 필살기 힘겨루기 ${b.clash.me.length}:${b.clash.foe.length}`;
   }
   return b;
@@ -623,6 +679,7 @@ export function teamStep(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamSte
         if (alive(f) && f.ult >= 1 && !c.me.includes(i) && (auto || b.reserve.includes(i))) {
           spendUlt(b, 'me', i);
           c.me = [...c.me, i];
+          note(b, { t: 'ult-join', side: 'me', slot: i });
         }
       });
       for (const j of c.foeJoin ?? []) {
@@ -630,6 +687,7 @@ export function teamStep(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamSte
         if (f && c.ms >= j.at && alive(f) && f.ult >= 1 && !c.foe.includes(j.slot)) {
           spendUlt(b, 'foe', j.slot);
           c.foe = [...c.foe, j.slot];
+          note(b, { t: 'ult-join', side: 'foe', slot: j.slot });
           b.msg = `상대 합류! 필살기 힘겨루기 ${c.me.length}:${c.foe.length}`;
         }
       }
@@ -651,6 +709,7 @@ export function teamStep(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamSte
     if (!s.hit && s.ms >= s.hitMs) {
       s.hit = true;
       if (alive(b[s.side][s.from]!)) land(b, s, rng);
+      else note(b, { t: 'stop', shot: s.id });
     }
   }
   b.shots = b.shots.filter((s) => s.clash || s.ms < s.dur);
@@ -659,6 +718,7 @@ export function teamStep(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamSte
     pair[0].clash = true;
     pair[1].clash = true;
     b.moveClashes = [...b.moveClashes, { kind: 'move', me: [pair[0].from], foe: [pair[1].from], shots: [pair[0].id, pair[1].id], ms: 0, dur: TIMING.team.moveClashMs, taps: 0, winner: null }];
+    note(b, { t: 'clash', shots: [pair[0].id, pair[1].id], me: pair[0].from, foe: pair[1].from });
   }
   checkEnd(b);
   if ((b.phase as TeamBattle['phase']) === 'over') return b;
@@ -754,6 +814,41 @@ export function readTeam(raw: unknown): TeamBattle | null {
   if (!Array.isArray(raw.foeDown) || raw.foeDown.length > n.foe || !raw.foeDown.every((d) => isObj(d) && fin(d.species, 1, 2000) && fin(d.level, 1, 100))) return null;
   if (!Array.isArray(raw.fought) || raw.fought.length > n.me || !raw.fought.every((x) => typeof x === 'string')) return null;
   if (!Array.isArray(raw.reserve) || !slots(raw.reserve, 'me') || new Set(raw.reserve).size !== raw.reserve.length) return null;
+  const both = (e: Obj) => isSide(e.side) && slot(e.from, e.side) && slot(e.to, other(e.side));
+  const pair = (v: unknown) => Array.isArray(v) && v.length === 2 && v.every((x) => fin(x, 0));
+  const okNote = (e: unknown): boolean => {
+    if (!isObj(e) || !fin(e.id, 1)) return false;
+    switch (e.t) {
+      case 'shoot':
+        return fin(e.shot, 0) && isSide(e.side) && slot(e.from, e.side) && slots(e.targets, other(e.side), 1) && fin(e.moveId, 0, 100000);
+      case 'hit':
+        return both(e) && fin(e.moveId, -1, 100000) && typeof e.ult === 'boolean' && POPUP_KINDS.includes(e.effect as string) && fin(e.dmg, 0) && typeof e.ko === 'boolean';
+      case 'miss':
+        return both(e) && fin(e.moveId, 0, 100000);
+      case 'stop':
+        return fin(e.shot, 0);
+      case 'clash':
+      case 'clash-end':
+        return pair(e.shots) && slot(e.me, 'me') && slot(e.foe, 'foe') && (e.t === 'clash' || isSide(e.winner));
+      case 'ult':
+        return isSide(e.side) && slot(e.from, e.side);
+      case 'ult-clash':
+        return slots(e.me, 'me', 1) && slots(e.foe, 'foe', 1);
+      case 'ult-clash-end':
+        return isSide(e.winner) && typeof e.sure === 'boolean' && slots(e.me, 'me', 1) && slots(e.foe, 'foe', 1);
+      case 'ult-join':
+      case 'faint':
+      case 'ready':
+        return isSide(e.side) && slot(e.slot, e.side);
+      case 'status':
+        return isSide(e.side) && slot(e.slot, e.side) && ['poison', 'burn', 'paralysis', 'sleep'].includes(e.kind as string);
+      case 'end':
+        return e.result === 'win' || e.result === 'lose';
+      default:
+        return false;
+    }
+  };
+  if (!fin(raw.logSeq, 0) || !Array.isArray(raw.log) || raw.log.length > TEAM_LOG_MAX || !raw.log.every(okNote) || raw.log.some((e: Obj) => (e.id as number) > (raw.logSeq as number))) return null;
   if (!fin(raw.overMs, 0) || !fin(raw.t, 0) || !fin(raw.seq, 0) || !fin(raw.popupSeq, 0) || typeof raw.msg !== 'string') return null;
   if (!(raw.result === null || raw.result === 'win' || raw.result === 'lose') || (raw.phase === 'over') !== (raw.result !== null)) return null;
   return raw as unknown as TeamBattle;
@@ -762,5 +857,5 @@ export function readTeam(raw: unknown): TeamBattle | null {
 /** 다시 그리는 열쇠 — 한 걸음마다 바뀌는 것 (게이지 · HP · 날아가는 기술 · 힘겨루기 · 필살기 진행 · 팝업이 사라짐) 을 모양 단위로 */
 export function teamViewKey(b: TeamBattle): string {
   const f = (x: Fighter) => `${x.hp}:${Math.floor(x.gauge * 20)}:${Math.floor(x.ult * 20)}:${x.status?.kind ?? ''}`;
-  return [b.phase, b.me.map(f).join(','), b.foe.map(f).join(','), b.shots.map((s) => `${s.id}:${s.clash}`).join(','), b.moveClashes.map((c) => `${c.shots?.join('-')}:${Math.floor(c.ms / 100)}`).join(','), b.ult ? `${b.ult.side}${b.ult.from}:${b.ult.window > 0}:${b.ult.hit}:${Math.floor(b.ult.ms / 100)}` : '', b.clash ? `${b.clash.me.join('')}:${b.clash.foe.join('')}:${b.clash.taps}:${Math.floor(b.clash.ms / 100)}` : '', b.popups.map((p) => p.id).join(','), b.msg, b.reserve.join('')].join('|');
+  return [b.phase, b.me.map(f).join(','), b.foe.map(f).join(','), b.shots.map((s) => `${s.id}:${s.clash}`).join(','), b.moveClashes.map((c) => `${c.shots?.join('-')}:${Math.floor(c.ms / 100)}`).join(','), b.ult ? `${b.ult.side}${b.ult.from}:${b.ult.window > 0}:${b.ult.hit}:${Math.floor(b.ult.ms / 100)}` : '', b.clash ? `${b.clash.me.join('')}:${b.clash.foe.join('')}:${b.clash.taps}:${Math.floor(b.clash.ms / 100)}` : '', b.popups.map((p) => p.id).join(','), b.msg, b.reserve.join(''), b.logSeq].join('|');
 }

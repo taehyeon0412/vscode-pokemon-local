@@ -48772,8 +48772,10 @@ window.addEventListener('message', (e) => {
         fxAway = m.focused === false;
     }
 });
+// 3:3 모드 (2026-10-21 orders #17) — 6마리 기술이 겹치니 기술은 패널 번쩍 · 흔들기 · 전체 멈춤 없이 (필살기 · 대결 = fxGame 중에만, 마지막 한 방은 hitStop(ms, true))
+let fxTeam = false;
 function fxGameShake(amp) {
-    if (fxAway) {
+    if (fxAway || (fxTeam && !fxGame)) {
         return;
     }
     const a = Math.max(2, Math.min(3, Math.round(amp)));
@@ -48791,7 +48793,7 @@ screenFlash = function (s, alpha, color, max) {
     if (!fxInGame()) {
         return fxScreenFlash(s, alpha, color, max);
     }
-    if (fxGame && fxGame.noFlash) {
+    if ((fxGame && fxGame.noFlash) || (fxTeam && !fxGame)) {
         return undefined;
     }
     const now = performance.now();
@@ -48843,14 +48845,56 @@ function fxGuard(gen, fn) {
         return fxWithTimers(gen, () => fn.apply(this, args));
     };
 }
-// run 하는 동안 거는 타이머 (setTimeout) 에 번호를 붙임 — 그 타이머 안에서 또 거는 것도
+// run 하는 동안 거는 타이머 (setTimeout) 에 번호를 붙임 — 그 타이머 안에서도.
+// 3:3 기술 (fxTagged 번호) 은 그동안 만든 입자 · 발사기에도 번호 (_g) — stopMove 가 그 기술만 멈춤
+const fxTagged = new Set();
+const fxTagGen = new Map();
+// 번호 붙은 입자 · 발사기가 그 뒤에 만드는 입자에도 같은 번호 (발사기는 매 장면 입자를 만듦 — 기본 발사기는 spawnParticle, 전용기는 e.fx)
+function fxTagNew(from, gen) {
+    for (let i = from; i < moveParticles.length; i++) {
+        moveParticles[i]._g ??= gen;
+    }
+}
+function fxTagEmitter(em, gen) {
+    if (em._g !== undefined) {
+        return;
+    }
+    em._g = gen;
+    if (typeof em.fx === 'function') {
+        const f = em.fx;
+        em.fx = (...a) => {
+            const n = moveParticles.length;
+            const out = f(...a);
+            fxTagNew(n, gen);
+            return out;
+        };
+    }
+}
+const fxSpawnParticle = spawnParticle;
+spawnParticle = function (e) {
+    const n = moveParticles.length;
+    const out = fxSpawnParticle(e);
+    if (e && e._g !== undefined) {
+        fxTagNew(n, e._g);
+    }
+    return out;
+};
 function fxWithTimers(gen, run) {
     const prev = window.setTimeout;
+    const tag = fxTagged.has(gen);
+    const p0 = moveParticles.length;
+    const e0 = moveEmitters.length;
     window.setTimeout = (fn, ms, ...rest) => prev(typeof fn === 'function' ? fxGuard(gen, fn) : fn, ms, ...rest);
     try {
         return run();
     } finally {
         window.setTimeout = prev;
+        if (tag) {
+            fxTagNew(p0, gen);
+            for (let i = e0; i < moveEmitters.length; i++) {
+                fxTagEmitter(moveEmitters[i], gen);
+            }
+        }
     }
 }
 function fxGameTargets() {
@@ -49259,22 +49303,35 @@ window.pokemonFx = {
      *  reach = 입에서 상대까지 px — 뿜기 (breath: 불꽃세례 · 화염방사 · 독가스 …) 는 일반 모드에선 입 앞에서만 피어서, 전투에선 상대까지 닿게 빠르기를 키움
      *  form = 기술 모양을 고를 포켓몬 (닿는 기술 자국을 맞는 쪽에 그릴 때 쓰는 쪽 모양 그대로 — 없으면 src)
      *  dst = 맞는 포켓몬 — 주면 틀마다 상대까지 닿게 (fxAim: 자리 옮김 · 빠르기 · 광선 길이), 안 주면 reach 로 뿜기만 */
-    move(src, m, reach, form, dst) {
+    move(src, m, reach, form, dst, tag) {
         const p = fxPlan(form || src.form, m);
         if (!p || fxWidth(src) < 1) {
             return 0;
         }
+        // 3:3 — tag 가 있으면 이 기술만의 번호 (stopMove 로 이것만 멈춤 · clear 는 다 멈춤)
+        let gen = fxMoveGen;
+        if (tag !== undefined) {
+            gen = ++fxGen;
+            fxTagged.add(gen);
+            fxTagGen.set(tag, gen);
+            // 오래된 번호는 버림 (다 끝난 기술 — 판이 길어도 쌓이지 않게)
+            if (fxTagGen.size > 96) {
+                const [oldTag, oldGen] = fxTagGen.entries().next().value;
+                fxTagGen.delete(oldTag);
+                fxTagged.delete(oldGen);
+            }
+        }
         if (p.sig[1] === 'dash') {
             // 몸통박치기 — 몸이 달려드는 것이 연출 (게임 pg-lunge), 닿을 때 (src = 맞는 쪽) 몸을 꿰뚫는 바람줄 + impact
-            safeFx({}, () => {
+            safeFx({}, () => fxWithTimers(gen, () => {
                 const g = sigGeometry(fxActor(src), !!src.left);
                 // 노말은 임팩트 색 (흰 덩이 먼지가 되지 않게 — ult/fx-hit.js HIT_COLS)
                 hitRush(g.body.front, g.body.cy, g.s, g.dir, g.body.ry, p.o.c === 'normal' || !p.o.c ? HIT_COLS.normal : sigPal(p.o.c));
-            });
+            }));
             return p.ms;
         }
         const A = fxActor(src);
-        const ok = safeFx({}, () => fxWithTimers(fxMoveGen, () => {
+        const ok = safeFx({}, () => fxWithTimers(gen, () => {
             const g0 = sigGeometry(A, !!src.left);
             // 닿는 기술 (할퀴기 · 주먹) 은 게임에서 늘 맞는 쪽에 그림 → 자국을 몸 위에 (일반 모드는 쓰는 쪽 몸 앞)
             // 색도 타입 임팩트 색 (순백 대신 색이 든 흰색 — 뒤따르는 임팩트와 같은 흰색, 아트 디렉터 2바퀴)
@@ -49503,8 +49560,9 @@ window.pokemonFx = {
         });
     },
     /** 히트스톱 — 굉장 · 급소 · 마지막 한 방에서 연출 입자와 전투 그림 (포켓몬 · 트레이너 몸짓) 이 ms 동안 멈춤 (번쩍 없이 손맛, 2026-10-20) */
-    hitStop(ms = 80) {
-        if (fxAway) {
+    hitStop(ms = 80, all) {
+        // 3:3 은 6마리가 겹쳐 맞으니 전체 멈춤은 마지막 한 방 (all) 과 필살기 · 대결 중에만 — 맞은 포켓몬만 멈추는 것은 게임 쪽 (fx/team knock)
+        if (fxAway || (fxTeam && !fxGame && !all)) {
             return;
         }
         const until = Math.max(moveFreezeUntil, performance.now() + ms);
@@ -49951,10 +50009,45 @@ window.pokemonFx = {
             home.appendChild(moveCanvas);
         }
     },
+    /** 3:3 — 쏜 기술 하나만 멈춤 (기술 힘겨루기에 들어감 · 쏜 포켓몬이 쓰러짐). soft = 남은 입자는 0.12초에 사라짐, 아니면 바로 */
+    stopMove(tag, soft) {
+        const gen = fxTagGen.get(tag);
+        if (gen === undefined) {
+            return;
+        }
+        fxTagGen.delete(tag);
+        fxTagged.delete(gen);
+        fxKill(gen);
+        for (let i = moveEmitters.length - 1; i >= 0; i--) {
+            if (moveEmitters[i]._g === gen) {
+                moveEmitters.splice(i, 1);
+            }
+        }
+        for (let i = moveParticles.length - 1; i >= 0; i--) {
+            const q = moveParticles[i];
+            if (q._g !== gen) {
+                continue;
+            }
+            if (soft && typeof q.max === 'number') {
+                q.max = Math.min(q.max, q.life + 0.12);
+            } else {
+                moveParticles.splice(i, 1);
+            }
+        }
+    },
+    /** 3:3 모드 켜고 끄기 — 켜면 기술은 패널 번쩍 · 흔들기 · 전체 멈춤 없이 */
+    team(on) {
+        fxTeam = !!on;
+    },
     /** 남은 연출을 지움 — 전투가 갑자기 끝나거나 화면이 바뀔 때 */
     clear() {
         fxGameStop(true);
         fxKill(fxMoveGen);
+        for (const g of fxTagged) {
+            fxKill(g);
+        }
+        fxTagged.clear();
+        fxTagGen.clear();
         fxMoveGen = ++fxGen;
         moveEmitters.length = 0;
         moveParticles.length = 0;
