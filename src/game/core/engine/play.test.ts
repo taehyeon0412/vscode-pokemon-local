@@ -644,11 +644,22 @@ describe('멈춤 · 알림 표 (gdd 4.13 · U6 — orders #27 R13)', () => {
     expect(tipOf(merged)).toContain(AUTO_TIP_BACK);
     expect(merged.runtime.backTip).toBeUndefined();
     expect(merged.save.tips?.filter((t) => t.startsWith('autotip-'))).toEqual(['autotip-1']);
-    // 숲 1-1 첫 걷기 안내가 떠 있으면 합치지 않음 (그 상자에 끝 줄이 덮임) — ② 는 남겨 안내가 끝난 뒤 스위치 옆에
+    // 두 줄이라 더 길게 (5초 — #34 UX 리뷰어)
+    expect(merged.runtime.toast?.ms).toBeGreaterThan(TIMING.awaySummaryTipMs - 200);
+    // 좁은 패널 (340 아래) 은 합치지 않음 — 요약 (3초) 뒤 스위치 옆에 따로 (4줄 잘림 · 스위치 없음 — #34 UX 리뷰어)
+    const narrow = advance({ ...seenWalk, runtime: { ...seenWalk.runtime, view: { w: 240, h: 150 }, noticed: 'paused', awayLog: { money: 0, bag: {}, wild: 2 } } }, 100).state;
+    expect(tipOf(narrow)).toContain('그동안');
+    expect(tipOf(narrow)).not.toContain(AUTO_TIP_BACK);
+    expect(narrow.runtime.toast?.ms).toBeLessThanOrEqual(TIMING.awaySummaryMs);
+    expect(narrow.runtime.backTip).toBe(true);
+    expect(tipOf(advance(narrow, TIMING.awaySummaryMs + 200).state)).toBe(AUTO_TIP_BACK);
+    // 숲 1-1 첫 걷기 안내가 떠 있으면 요약도 기다림 (그 상자 밑에 깔림) — 안내를 본 뒤 합쳐서
     const walkFirst = advance({ ...base, runtime: { ...base.runtime, noticed: 'paused', awayLog: { money: 0, bag: {}, wild: 2 } } }, 100).state;
-    expect(tipOf(walkFirst)).toContain('그동안');
-    expect(tipOf(walkFirst)).not.toContain(AUTO_TIP_BACK);
+    expect(tipOf(walkFirst) ?? '').not.toContain('그동안');
+    expect(walkFirst.runtime.awayLog).toBeDefined();
     expect(walkFirst.runtime.backTip).toBe(true);
+    const afterWalk = advance({ ...walkFirst, save: { ...walkFirst.save, tips: [...(walkFirst.save.tips ?? []), 'walk'] } }, 100).state;
+    expect(tipOf(afterWalk)).toContain(AUTO_TIP_BACK);
     // 요약이 없으면 자동 스위치 옆 안내 — 숲 1-1 첫 걷기 안내가 떠 있는 동안은 뒤로 (화면 walkTipOn 과 같게)
     const firstWalk = advance({ ...base, runtime: { ...base.runtime, noticed: 'paused' } }, 100).state;
     expect(tipOf(firstWalk)).not.toBe(AUTO_TIP_BACK);

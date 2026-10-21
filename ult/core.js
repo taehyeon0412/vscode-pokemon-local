@@ -494,6 +494,8 @@ function ultVsIntro(a, ultA, leftA, b, ultB, leftB, total) {
         sigBurst(r.left + r.width / 2, r.top + r.height / 2, 2, [...cols, '#ffffff'], 20, 110);
     }
     ultDimLayer((life) => ULT_DIM * Math.min(1, life / 0.25) * (life > total - outro ? Math.max(0, (total - life) / outro) : 1), total, () => [a, b]);
+    // 게임 모드 — 인트로 (VS 끝까지) 동안 HP 묶음 · 힘대결 상자 (DOM) 를 숨김: 컷인 이름 · 부제 · VS 가 그 밑에 깔려 0초 보이던 것 (#34 UX 리뷰어 큼 2 · 3) · 다시 나타나는 상자 = 연타 시작
+    ultHideHud(VS_AT * 1000 + VS_LEN * 1000);
     // 입자는 나중 것부터 그려서 — 글씨를 띠보다 먼저 만들어야 위에 보임
     ultTitle(ultA[0], `${a.name}의 필살기!`, ultA[2]?.tc ? sigPal(ultA[2].tc) : null, sec + 0.4, 0.22, 0.72);
     ultCutIn(a, leftA, ca, sec, 0.22, 0.26);
@@ -502,10 +504,35 @@ function ultVsIntro(a, ultA, leftA, b, ultB, leftB, total) {
         ultTitle(ultB[0], `${b.name}의 필살기!`, ultB[2]?.tc ? sigPal(ultB[2].tc) : null, sec + 0.15, yB, 0.72);
         ultCutIn(b, leftB, cb, sec - 0.25, yB, 0.26);
     }, 250);
+    // VS = 맨 위층 (at — 나중에 만든 입자가 아래라 내 필살기 이름 밑에 깔리던 것) · 0.3초에 1.4초 (끝 0.3초 흐려짐 빼고 1초 넘게 — U1, #34 UX 리뷰어)
     setTimeout(() => {
         ultShake(4, 300);
-        ultTitle('VS', null, ['#ffffff', '#ffe0d0', '#ff5a3c', '#7a0a0a'], sec - 0.35, yVs, 1.25);
-    }, 450);
+        ultTitle('VS', null, ['#ffffff', '#ffe0d0', '#ff5a3c', '#7a0a0a'], VS_LEN, yVs, 1.25, {});
+    }, VS_AT * 1000);
+}
+
+// 힘대결 VS 나오는 때 · 길이 (초)
+const VS_AT = 0.3;
+const VS_LEN = 1.4;
+
+/** 게임 모드 — ms 동안 HP 묶음 · 힘대결 상자 (DOM) 를 숨김 (나중에 그려진 것도 50ms 마다 잡음) · 끝나면 되돌림. 게임 밖 (일반 모드) 은 아무것도 안 함 */
+function ultHideHud(ms) {
+    if (typeof fxInGame !== 'function' || !fxInGame()) return;
+    const hid = new Set();
+    const hide = () => {
+        for (const el of document.querySelectorAll('#pokemon-game .pg-hpblock, #pokemon-game .pg-clash-info')) {
+            if (!hid.has(el)) {
+                hid.add(el);
+                el.style.visibility = 'hidden';
+            }
+        }
+    };
+    hide();
+    const id = setInterval(hide, 50);
+    setTimeout(() => {
+        clearInterval(id);
+        for (const el of hid) el.style.visibility = '';
+    }, ms);
 }
 
 function ultEnd(pokemon) {

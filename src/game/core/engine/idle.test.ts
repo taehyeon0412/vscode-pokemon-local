@@ -16,6 +16,8 @@ function at(save: Partial<Save>, stage: StageRuntime | null, headless = false): 
   const s = createGameState(sampleSave(save), 7);
   return { ...s, runtime: { ...s.runtime, stage, stageId: s.save.location.screen === 'stage' ? s.save.location.stageId : null, headless } };
 }
+/** 숲 1-1 첫 걷기 안내를 본 세이브 — 안내가 떠 있으면 그동안 요약이 기다림 (#34 UX 리뷰어) */
+const SEEN_WALK: Partial<Save> = { tips: ['walk'] };
 function until(s: GameState, done: (s: GameState) => boolean, maxMs: number): GameState {
   let cur = s;
   for (let t = 0; t < maxMs && !done(cur); t += STEP) cur = step(cur, STEP).state;
@@ -117,11 +119,12 @@ const spAll = (ts: string[]) => ts.map(sp);
 
 describe('#16 자리 비운 동안 요약', () => {
   it('안 볼 때 처음 걸음에 떠날 때의 돈 · 가방 · 자리 · 레벨 · 포인트를 적고 → 다시 보면 걷는 중에 한 줄 · 지움', () => {
-    const away = step(at({}, { phase: 'walk' }, true), STEP).state;
+    const away = step(at(SEEN_WALK, { phase: 'walk' }, true), STEP).state;
     expect(away.runtime.awayLog).toMatchObject({ money: away.save.money, bag: away.save.bag, wild: 0, lost: 0, at: { place: 'forest-1' }, levels: { m1: away.save.monsters.m1!.level } });
     const log = away.runtime.awayLog!;
     const back: GameState = {
-      save: { ...away.save, money: away.save.money + 60, bag: { ...away.save.bag, potion: (away.save.bag.potion ?? 0) + 1 } },
+      // 숲 1-1 첫 걷기 안내는 본 뒤 (안내가 떠 있으면 요약이 기다림 — #34 UX 리뷰어)
+      save: { ...away.save, tips: [...(away.save.tips ?? []), 'walk'], money: away.save.money + 60, bag: { ...away.save.bag, potion: (away.save.bag.potion ?? 0) + 1 } },
       runtime: { ...away.runtime, headless: false, awayLog: { ...log, wild: 3 } },
     };
     const shown = step(back, STEP).state;
@@ -144,8 +147,8 @@ describe('#16 자리 비운 동안 요약', () => {
     const met = step({ ...later, runtime: { ...later.runtime, stage: { phase: 'appear', ms: 0, isNew: false } } }, STEP).state;
     expect(met.runtime.toast?.ms).toBe(later.runtime.toast?.ms);
     // 떠나기 전부터 떠 있던 알림 (클리어 보상 등 — 안 볼 때 시간이 멈춤) 은 남기고 요약은 그 뒤에 · 요약이 비면 그대로 (코드 리뷰어)
-    const leaving = step(at({}, { phase: 'walk' }, true), STEP).state;
-    const withToast = step({ ...at({}, { phase: 'walk' }, true), runtime: { ...at({}, { phase: 'walk' }, true).runtime, toast: { text: '1-1 클리어!', ms: 2000 } } }, STEP).state;
+    const leaving = step(at(SEEN_WALK, { phase: 'walk' }, true), STEP).state;
+    const withToast = step({ ...at(SEEN_WALK, { phase: 'walk' }, true), runtime: { ...at(SEEN_WALK, { phase: 'walk' }, true).runtime, toast: { text: '1-1 클리어!', ms: 2000 } } }, STEP).state;
     expect(withToast.runtime.awayLog?.toastAtLeave).toBe('1-1 클리어!');
     const backWith = step({ save: { ...withToast.save, money: withToast.save.money + 60 }, runtime: { ...withToast.runtime, headless: false } }, STEP).state;
     expect(backWith.runtime.toast?.text).toBe('1-1 클리어!');
@@ -154,7 +157,7 @@ describe('#16 자리 비운 동안 요약', () => {
     expect(emptyBack.runtime.toast?.text).toBe('1-1 클리어!');
     expect(leaving.runtime.awayLog?.toastAtLeave).toBeUndefined();
     // 떠날 때 줄 (then) 은 그 길이까지만 — 떠난 뒤 줄 선 "주웠다" 는 요약이 대신 (같은 말 두 번 — 테스터)
-    const queued = step({ ...at({}, { phase: 'walk' }, true), runtime: { ...at({}, { phase: 'walk' }, true).runtime, toast: { text: '1-1 클리어!', ms: 2000, then: 'Lv 6!' } } }, STEP).state;
+    const queued = step({ ...at(SEEN_WALK, { phase: 'walk' }, true), runtime: { ...at(SEEN_WALK, { phase: 'walk' }, true).runtime, toast: { text: '1-1 클리어!', ms: 2000, then: 'Lv 6!' } } }, STEP).state;
     expect(queued.runtime.awayLog?.thenAtLeave).toBe(1);
     const picked = { ...queued, save: { ...queued.save, bag: { ...queued.save.bag, potion: (queued.save.bag.potion ?? 0) + 1 } }, runtime: { ...queued.runtime, headless: false, toast: { ...queued.runtime.toast!, then: ['Lv 6!', '상처약을 주웠다!'] } } };
     const returned = step(picked, STEP).state;
