@@ -175,15 +175,16 @@ describe('라이벌 앞 포켓몬 — 강한 1단계는 야생에서만 (기획 
 });
 
 describe('그림 칸 (orders #57) — 스테이지마다 배경 · 지역마다 체육관 방, 비면 지금 그대로', () => {
-  it('지금은 숲 배경 · 숲 방 (gym) — 해변 미리 보기도 · 스테이지가 없으면 숲', () => {
-    for (const id of ['forest-1', 'forest-3', 'beach-1', 'beach-3'] as const) expect(stageBackground(id)).toBe('forest');
+  it('숲 = 숲 배경 · 숲 방 (gym) · 해변 = 낮 → 노을 → 밤 · 물 방 (#61) · 스테이지가 없으면 숲', () => {
+    for (const id of ['forest-1', 'forest-3'] as const) expect(stageBackground(id)).toBe('forest');
+    expect((['beach-1', 'beach-2', 'beach-3'] as const).map(stageBackground)).toEqual(['beach-day', 'beach-dusk', 'beach-night']);
     expect(stageBackground(null)).toBe('forest');
     expect(gymRoomOf(REGIONS.forest)).toBe('gym');
-    expect(gymRoomOf(REGIONS.beach)).toBe('gym');
+    expect(gymRoomOf(REGIONS.beach)).toBe('gym-water');
   });
 
   it('넣으면 스테이지 → 지역 순서로 · 체육관 방 이름', () => {
-    const beach = { ...REGIONS.beach, background: 'beach', gymRoom: 'gym-water', stages: [{ ...REGIONS.beach.stages[0], background: 'beach-day' }, REGIONS.beach.stages[1], REGIONS.beach.stages[2]] as const };
+    const beach = { ...REGIONS.beach, background: 'beach', gymRoom: 'gym-water', stages: [{ ...REGIONS.beach.stages[0], background: 'beach-day' }, { ...REGIONS.beach.stages[1], background: undefined }, REGIONS.beach.stages[2]] as const };
     const regions = REGIONS as unknown as Record<string, unknown>;
     const was = regions.beach;
     regions.beach = beach;

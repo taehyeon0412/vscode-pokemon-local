@@ -339,7 +339,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
     return () => window.removeEventListener('resize', on);
   }, []);
   return (
-    <div class={`pg-screen pg-stage pg-size-${layout.size}${gym ? ' pg-gym' : ''}${covered ? ' pg-covered' : ''}`} ref={screen}>
+    // pg-bg-<배경> = 배경 시간에 맞춰 건물 빛을 맞춤 (밤 · 노을 해변 — 원작 낮 그림 건물이 가장 밝은 덩어리였던 것, game.css · orders #61 아트 디렉터)
+    <div class={`pg-screen pg-stage pg-size-${layout.size}${gym ? ' pg-gym' : ` pg-bg-${stageBackground(stageId)}`}${covered ? ' pg-covered' : ''}`} ref={screen}>
       {battle && geo?.menuInBar ? (
         <BattleMenuBar battle={battle} save={save} onInput={battleInput} withAuto={geo.autoInMenu} compact={geo.tiny ? 'tiny' : geo.compact} say={barSay(battle, geo.msgHidden, geo.widthPx - 48, 2)} hint={ringHint(battle, geo, save.settings.autoBattle)} pickRight={pickRightOf(geo)} autoTip={autoTip} />
       ) : (
@@ -568,7 +569,8 @@ function GymRoom({ media, room, k, floorPx, dark }: { media: string; room: strin
   // room = 지역 표의 체육관 방 그림 이름 앞 (gymRoomOf — 없으면 'gym' = 숲 방, orders #57)
   const url = (f: string) => (media ? `url("${media.replace(/\/+$/, '')}/buildings/${f.replace(/^gym/, room)}.png")` : 'none');
   return (
-    <div class={dark ? 'pg-gym-room pg-gym-dark' : 'pg-gym-room'}>
+    // pg-room-<방> = 방마다 바탕색 (위 띠와 벽 사이 빈 줄 — 물 방은 연한 물빛, game.css)
+    <div class={`pg-gym-room pg-room-${room}${dark ? ' pg-gym-dark' : ''}`}>
       <div class="pg-gym-floor" style={{ height: `${floorPx}px`, backgroundImage: url('gym-floor'), backgroundSize: `${48 * k}px ${32 * k}px` }} />
       <div class="pg-gym-wall" style={{ bottom: `${floorPx}px`, height: `${31 * k}px`, backgroundImage: url('gym-wall'), backgroundSize: `${96 * k}px ${31 * k}px` }} />
       <div class="pg-gym-trees" style={{ bottom: `${floorPx - 6 * k}px`, height: `${24 * k}px`, backgroundImage: url('gym-trees'), backgroundSize: `${64 * k}px ${24 * k}px` }} />

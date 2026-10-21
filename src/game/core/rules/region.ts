@@ -130,9 +130,10 @@ export const REGIONS: Readonly<Record<RegionId, RegionDef>> = {
     badge: 'beach',
     stages: [
       // 아이콘 = 스테이지 아이콘 (8 × 8 — 디자인팀 icons.ts, 길 위 흔적 그림을 쓰던 것)
-      { id: 'beach-1', name: '반짝 모래길', icon: 'beachSand', trainers: 2 },
-      { id: 'beach-2', name: '갯바위 해안', icon: 'beachRock', trainers: 3 },
-      { id: 'beach-3', name: '등대 곶', icon: 'lighthouse', trainers: 3 },
+      // 배경 = 디자인팀이 그린 픽셀 해변 — 스테이지마다 하루: 낮 · 노을 · 밤 (orders #61 C안, 2026-10-22 태현 님 "추천대로")
+      { id: 'beach-1', name: '반짝 모래길', icon: 'beachSand', trainers: 2, background: 'beach-day' },
+      { id: 'beach-2', name: '갯바위 해안', icon: 'beachRock', trainers: 3, background: 'beach-dusk' },
+      { id: 'beach-3', name: '등대 곶', icon: 'lighthouse', trainers: 3, background: 'beach-night' },
     ],
     wild: {
       common: ['water'],
@@ -155,6 +156,8 @@ export const REGIONS: Readonly<Record<RegionId, RegionDef>> = {
     scenery: { sky: [278, 279], ground: [129, 226] },
     badgeName: '해변 배지',
     firstWinItem: 'water-stone',
+    // 물 체육관 방 (수족관 유리 벽 · 물길 · 산호 바위 · 연파랑 타일 — 숲 방과 같은 틀로 디자인팀이 그림, orders #61)
+    gymRoom: 'gym-water',
     trainers: [
       { title: '튜브 꼬마', name: '준호', look: 'frlg-tuber-m' },
       { title: '튜브 꼬마', name: '서윤', look: 'frlg-tuber-f' },
@@ -243,14 +246,14 @@ export function regionGymTeam(region: RegionDef, k: number): readonly (readonly 
   return set.map((dex, i) => [dex, g - (set.length - 1 - i)] as const);
 }
 
-/** 스테이지 배경 그림 폴더 — 스테이지 → 지역 → 숲 (orders #57 · 지금은 모두 숲) */
+/** 스테이지 배경 그림 폴더 — 스테이지 → 지역 → 숲 (orders #57 · 해변은 스테이지마다 beach-day · dusk · night — #61) */
 export function stageBackground(stageId: StageId | null | undefined): string {
   if (!stageId) return 'forest';
   const { region, index } = regionOf(stageId);
   return region.stages[index]?.background ?? region.background ?? 'forest';
 }
 
-/** 체육관 방 그림 이름 앞 — 없으면 'gym' (숲 방 — 무지개시티 풀 체육관, 해변은 물 방을 그릴 때까지 임시로) */
+/** 체육관 방 그림 이름 앞 — 없으면 'gym' (숲 방 — 무지개시티 풀 체육관) · 해변 = 'gym-water' (#61) */
 export function gymRoomOf(region: RegionDef): string {
   return region.gymRoom ?? 'gym';
 }
