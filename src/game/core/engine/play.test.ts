@@ -5,7 +5,7 @@ import { validateSave, type Save } from '../save';
 import { sampleSave, viaJson } from '../../../test/fixtures/save';
 import { shinyWildSeed } from '../../../test/fixtures/stage';
 import { startBattle } from './battle';
-import { advance, applyInput, AUTO_TIP_BACK, AUTO_TIP_TURN, autoTipLeft, isWaitingForInput, RESUME_BATTLE_MSG, isWalkingFast, leadSpeed, STAGE_WAIT, step, waitReason, withSpeed } from './play';
+import { advance, applyInput, AUTO_TIP_BACK, AUTO_TIP_TURN, autoTipLeft, isWaitingForInput, RESUME_BATTLE_MSG, TEAM_MEET_TIP, teamMeetTipDue, isWalkingFast, leadSpeed, STAGE_WAIT, step, waitReason, withSpeed } from './play';
 import { createGameState, readRuntime, STAGE_PHASES, type GameState } from './state';
 
 const STEP = TIMING.simStepMs;
@@ -350,6 +350,13 @@ describe('전투 (단계 5 · 6) — 스테이지 쪽', () => {
     const later = advance(fight, 10_000).state;
     expect(battleOf(later)?.phase).toBe('choose');
     expect(prog(later)).toBe(prog(fight));
+  });
+
+  it('3:3 처음 안내 — 3:3 을 고를 수 있는 만남에서만 · 본 뒤 (tip-seen team-meet) 엔 안 뜸 (2026-10-22 태현 님 "추천안")', () => {
+    const s = start();
+    expect(teamMeetTipDue(s)).toBe(false);
+    expect(TEAM_MEET_TIP).toBe('team-meet');
+    expect(teamMeetTipDue(applyInput(s, { kind: 'tip-seen', id: TEAM_MEET_TIP }))).toBe(false);
   });
 
   it('전투 중에 껐다 켜면 그 전투를 처음부터 — 첫 말 "다시 켜서 전투를 처음부터!" (기획 R15 A)', () => {

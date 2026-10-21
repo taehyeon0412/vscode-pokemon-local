@@ -351,6 +351,10 @@ if (!port) {
       // S16 대기실 Enter = 도전 (주 버튼 — 꾹 누름 반복은 위에서 거름) · 3:3 이면 처음 = 3마리 고르기 판 · 판에서 = 시작
       e.preventDefault();
       actions.input({ kind: 'challenge' });
+    } else if (phase === 'defeat' && stage.keep !== undefined && e.key === 'Escape') {
+      // 3:3 두 번째 패배 상자 Esc = [병원 앞으로] (#152 — 둘째 버튼, Enter = 계속 걷기)
+      e.preventDefault();
+      actions.input({ kind: 'defeat-retreat' });
     } else if (e.key === 'Enter' && !onButton && (phase === 'defeat' || phase === 'clear' || phase === 'badge')) {
       // S17 다시 시작 · S24 다음 스테이지 · MVP 끝 카드 → 세계 지도
       e.preventDefault();

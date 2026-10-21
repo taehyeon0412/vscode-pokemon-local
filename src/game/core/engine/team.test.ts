@@ -9,6 +9,7 @@ import { Rng } from './rng';
 import { createGameState, readRuntime, type GameState } from './state';
 import { shotTiming, applyTeamResult, isSpread, pickTeam, readTeam, startTeamBattle, TEAM_BASIC, teamClashSure, teamDone, teamInput, teamPick, teamPossible, teamScale, teamStep, teamAutoUltLeft, teamAutoUltNext, teamUltLevel, teamUltOpen, type TeamBattle, teamGather, teamLayout } from './team';
 import { moveFxOf, moveOf, ultIsSpread, ultNamesOf } from '../../data';
+import { teamHealthy } from '../rules/bag';
 import { trainerTeam } from '../rules/trainer';
 
 const STEP = TIMING.simStepMs;
@@ -297,6 +298,17 @@ describe('연결 — 트레이너 만남 · 관장전 (BALANCE.team.on 이 켜�
       expect(step(box, 60_000).state.runtime.stage?.phase).toBe('defeat');
       expect(applyInput(box, { kind: 'defeat-continue' }).runtime.stage?.phase).toBe('walk');
       expect(readRuntime(viaJson(box.runtime), 1).stage).toEqual(viaJson(box.runtime.stage));
+      // 남은 N마리 · [병원 앞으로] = 팀 회복 · 마지막 병원 앞 (없으면 처음) · 돈 · 패배 수는 그대로 (#152)
+      expect(box.runtime.stage).toMatchObject({ left: 1 });
+      const retreat = applyInput({ ...box, save: { ...box.save, lastHospital: { stageId: 'forest-1', at: 0.3 } } }, { kind: 'defeat-retreat' });
+      expect(retreat.runtime.stage?.phase).toBe('walk');
+      expect(teamHealthy(retreat.save)).toBe(true);
+      expect(retreat.save.stages['forest-1']!.progress).toBeCloseTo(0.3, 5);
+      expect(retreat.save.stages['forest-1']!.progress).toBeLessThan(0.3);
+      expect(retreat.save.money).toBe(900);
+      expect(retreat.save.stages['forest-1']!.run.retries).toBe(1);
+      expect(applyInput(box, { kind: 'defeat-retreat' }).save.stages['forest-1']!.progress).toBe(0);
+      expect(applyInput(s, { kind: 'defeat-retreat' })).toBe(s);
       // 셋뿐이면 전멸 → S17
       expect(lose(team3()).s.runtime.stage?.phase).toBe('defeat');
     } finally {

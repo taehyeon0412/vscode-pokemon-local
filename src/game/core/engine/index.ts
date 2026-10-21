@@ -16,6 +16,8 @@ export {
   stageUnlocked,
   teamChoiceMeet,
   teamMainOf,
+  teamMeetTipDue,
+  TEAM_MEET_TIP,
   waitReason,
   STAGE_WAIT,
   teamFoesOf,

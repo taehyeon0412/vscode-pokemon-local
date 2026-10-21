@@ -31,8 +31,8 @@ export interface GameHost {
   exports: { game: GameTestApi } | undefined;
 }
 
-/** 마지막이 게임 모드였음 (globalState — VS Code 를 켤 때 바로 게임, 기획 R15 A) */
-const RESUME_KEY = 'vscode-pokemon.game.resume';
+/** 예전 "마지막이 게임 모드면 바로 게임" 표시 (R15 — 되돌림, 2026-10-22 태현 님 "일 중인데 게임이 켜져버리면 곤란") — 남아 있으면 지움 */
+const OLD_RESUME_KEY = 'vscode-pokemon.game.resume';
 /** commandsToSkipShell 에 F3 게임 전환 명령을 한 번 넣었음 (globalState) */
 const TERMINAL_KEY_DONE = 'vscode-pokemon.game.terminalF3';
 
@@ -105,8 +105,6 @@ export function activate(context: vscode.ExtensionContext): GameHost {
       if (game.currentMode === 'normal') void teamOut.refresh();
       else teamStale = true;
     },
-    // 마지막이 게임 모드면 VS Code 를 켤 때 바로 게임 (기획 R15 A) — 이 PC 에만 (동기화 안 함) · 테스트 창은 늘 일반 모드로 시작
-    resume: testMode ? undefined : { get: () => context.globalState.get<boolean>(RESUME_KEY, false) === true, set: (on) => void context.globalState.update(RESUME_KEY, on) },
   });
 
   const ready: Promise<LoadResult> = game.init({ readOnly: true }).then((r) => {
@@ -154,6 +152,7 @@ export function activate(context: vscode.ExtensionContext): GameHost {
       (e: unknown) => log(`터미널 F3 설정을 못 씀: ${String(e)}`),
     );
   }
+  if (context.globalState.get(OLD_RESUME_KEY) !== undefined) void context.globalState.update(OLD_RESUME_KEY, undefined);
   void vscode.commands.executeCommand('setContext', 'vscode-pokemon.gameDev', debug);
   // 게임 빌드가 있을 때만 🎮 를 보임 (install.py 가 빌드하지 못하면 일반 모드만)
   void vscode.commands.executeCommand('setContext', 'vscode-pokemon.gameAvailable', hasWebviewBuild);

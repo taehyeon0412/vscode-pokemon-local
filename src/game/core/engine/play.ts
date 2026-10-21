@@ -93,6 +93,8 @@ export type GameInput =
   | { kind: 'notifications'; on: boolean }
   /** S17 ② 다시 시작 */
   | { kind: 'defeat-continue' }
+  /** 3:3 두 번째 패배 상자 [병원 앞으로] — 팀 회복 · 마지막으로 지나간 병원 앞 (없으면 스테이지 처음) 에서 다시 걷기, 돈은 더 안 뺌 (#152) */
+  | { kind: 'defeat-retreat' }
   /** S07 · S24 · S16 ③ — 스테이지 · 체육관으로 */
   | { kind: 'travel'; to: StageId | 'gym' }
   /** S16 ② 관장에게 도전 · MVP 끝 카드 다음 — 3:3 이 되는 대기실은 처음 누르면 3마리 고르기 판 · 판에서 누르면 시작 */
@@ -211,6 +213,12 @@ function choiceFree(save: Save, rt: RuntimeState): boolean {
 /** 엔진이 고를 때까지 기다리는 만남인지 (자동 전투 · 안 볼 때는 아님) — 화면에 고르기를 그려도 되는지는 TeamChoice 의 teamChoiceOn (자동 전투도 포함) */
 export function teamChoiceMeet(state: GameState): boolean {
   return state.runtime.stage?.phase === 'trainer' && choiceMeet(state.save, state.runtime);
+}
+
+/** 3:3 처음 안내 — 3:3 을 처음 고를 수 있는 만남에서 "승부다!" 상자 위 4초 (보는 동안만 셈 — 화면이 다 보이면 tip-seen 'team-meet', 2026-10-22 태현 님 "추천안") */
+export const TEAM_MEET_TIP = 'team-meet';
+export function teamMeetTipDue(state: GameState): boolean {
+  return teamChoiceMeet(state) && !(state.save.tips ?? []).includes(TEAM_MEET_TIP);
 }
 
 /** 3:3 을 못 하는 까닭 — few = 살아 있는 포켓몬 3마리 미만 · narrow = 패널이 좁아 6마리가 안 들어감 ("패널을 넓히면 3:3") · null = 됨 */
@@ -397,6 +405,13 @@ function stageDefeat(save0: Save, id: StageId): { save: Save; lost: number } {
     run: { ...p.run, reach: Math.max(p.run.reach, p.progress), retries: p.run.retries + 1 },
   }));
   return { save, lost: d.lost };
+}
+
+/** [병원 앞으로] (3:3 두 번째 패배 상자, #152) — 팀 회복 · 마지막으로 지나간 병원 앞 (없으면 처음) · 돈 · 패배 수는 그대로 */
+function stageRetreat(save0: Save, id: StageId): Save {
+  const save = { ...healTeam(save0), pendingEncounter: null };
+  const hospital = save.lastHospital?.stageId === id ? save.lastHospital.at : null;
+  return withStage(save, id, (p) => ({ ...p, progress: hospital !== null ? Math.max(0, hospital - BEFORE_SPOT) : 0, run: { ...p.run, reach: Math.max(p.run.reach, p.progress) } }));
 }
 
 function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number): { save: Save; rt: RuntimeState; signal: SaveSignal | null } {
@@ -667,7 +682,7 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
         const run = save.stages[id]?.run;
         if ((run?.retries ?? 0) + (run?.teamLost?.length ?? 0) >= 2) {
           // 같은 판 두 번째 패배 — 멈춤 상자 (다시 시작 없음, Enter · 클릭 = 계속 걷기) · 안 볼 때는 알림 (R8 A — 방치 손해 막기)
-          stage = { phase: 'defeat', gym: false, lost, keep: team.foeName ?? '상대' };
+          stage = { phase: 'defeat', gym: false, lost, keep: team.foeName ?? '상대', left: aliveCount(save) };
           break;
         }
         rt = { ...rt, toast: { text: `${team.foeName}에게 졌다… 돈 −${lost.toLocaleString('en-US')}원`, ms: TIMING.toastMs * 2 } };
@@ -1361,6 +1376,12 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       // 3:3 두 번째 패배 상자 = 남은 포켓몬으로 계속 (다시 시작 없음 — R8 A)
       if (stage.keep !== undefined) return { ...state, runtime: { ...state.runtime, stage: afterResult(save) } };
       return { ...state, runtime: { ...state.runtime, stage: stage.gym ? { phase: 'lobby' } : { phase: 'walk' } } };
+    case 'defeat-retreat': {
+      // 3:3 두 번째 패배 상자에서만 — 1:1 전멸처럼 병원 앞으로 (돈은 진 때 이미 뺌 · 같은 판 패배도 이미 셈, #152)
+      if (stage?.phase !== 'defeat' || stage.keep === undefined || save.location.screen !== 'stage') return state;
+      const back = stageRetreat(save, save.location.stageId);
+      return { save: back, runtime: { ...state.runtime, stage: afterResult(back) } };
+    }
     case 'travel':
       return travel(state, input.to);
     case 'challenge': {

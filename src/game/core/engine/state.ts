@@ -52,7 +52,7 @@ export type StageRuntime =
   | { phase: 'choice'; ms: number; then?: 'badge' }
   /** ms = 저절로 다시 시작까지 지난 시간 (defeatAutoMs — ideas #49, 옛 상태엔 없음) */
   /** keep = 3:3 으로 진 트레이너 이름 — 같은 판 두 번째 패배라 멈춘 상자 ("○○에게 졌다 — 남은 포켓몬으로 계속", 다시 시작 없음 — 2026-10-21 기획 R8 A) */
-  | { phase: 'defeat'; gym: boolean; lost: number; ms?: number; keep?: string }
+  | { phase: 'defeat'; gym: boolean; lost: number; ms?: number; keep?: string; /** 3:3 두 번째 패배 상자 — 남은 (싸울 수 있는) 포켓몬 수 (#152) */ left?: number }
   /** ms = 자동 전투일 때 [다음 스테이지] 까지 지난 시간 (clearAutoMs — ideas #48, 자동 전투가 아니면 없음) */
   | { phase: 'clear'; ms?: number }
   /** 1-3 끝 — 체육관 문이 열리고 걸어 들어감 (ms 동안, 그다음 클리어 처리 · S16 대기실 — 2026-10-20 태현 님 A안) */
@@ -220,7 +220,8 @@ function readStage(raw: unknown): StageRuntime | null {
     case 'defeat': {
       const lost = num(raw.lost, 0, 1e9);
       if (typeof raw.gym !== 'boolean' || lost === null) return null;
-      const keep = typeof raw.keep === 'string' && raw.keep.length <= 40 ? { keep: raw.keep } : {};
+      const left = num(raw.left, 0, 6);
+      const keep = typeof raw.keep === 'string' && raw.keep.length <= 40 ? { keep: raw.keep, ...(left !== null ? { left: Math.floor(left) } : {}) } : {};
       return ms !== null && ms > 0 ? { phase: 'defeat', gym: raw.gym, lost, ms, ...keep } : { phase: 'defeat', gym: raw.gym, lost, ...keep };
     }
     case 'appear':

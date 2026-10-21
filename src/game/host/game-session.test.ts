@@ -46,14 +46,11 @@ let view: FakeView;
 let warns: string[];
 let modes: Mode[];
 let notices: string[];
-/** 마지막이 게임 모드였는지 (globalState 대신 — R15) */
-let resumeOn: boolean;
 
 async function setup(save?: unknown, opts: { lease?: boolean } = {}): Promise<void> {
   warns = [];
   modes = [];
   notices = [];
-  resumeOn = false;
   storage = new MemorySaveStorage(save);
   archive = new MemorySaveArchive();
   leaseFile = new MemoryLeaseFile();
@@ -71,12 +68,6 @@ async function setup(save?: unknown, opts: { lease?: boolean } = {}): Promise<vo
     onModeChanged: (m) => modes.push(m),
     notify: (m) => notices.push(m),
     runner: { intervalMs: 250, maxCatchUpMs: 1000, now: () => now },
-    resume: {
-      get: () => resumeOn,
-      set: (on) => {
-        resumeOn = on;
-      },
-    },
   });
   await session.init();
   store.start();
@@ -121,50 +112,6 @@ beforeEach(() => {
 });
 afterEach(() => {
   vi.useRealTimers();
-});
-
-describe('마지막이 게임 모드면 VS Code 를 켤 때 바로 게임 (기획 R15 A)', () => {
-  it('게임에 들어가면 표시를 켜고 일반 모드로 나가면 끔 (끌 때는 그대로)', async () => {
-    await enterAndStart(autoSave());
-    expect(resumeOn).toBe(true);
-    session.dispose();
-    expect(resumeOn).toBe(true);
-    await enterAndStart(autoSave());
-    await exitNow();
-    expect(resumeOn).toBe(false);
-  });
-
-  it('표시가 켜져 있으면 보기가 처음 뜰 때 (boot) 타이틀 없이 게임으로 → 준비되면 맡김 · 다시 떠도 한 번만', async () => {
-    await setup(autoSave());
-    resumeOn = true;
-    session.handleMessage(msg({ type: 'boot' }));
-    await vi.advanceTimersByTimeAsync(0);
-    expect(snap().mode).toBe('game');
-    expect(view.last('load')).toBeDefined();
-    expect(view.count('title')).toBe(0);
-    session.handleMessage(msg({ type: 'ready' }));
-    expect(view.last('start')).toBeDefined();
-    expect(snap().owner).toBe('webview');
-    // 일반 모드로 나간 뒤 웹뷰가 다시 떠도 (크기 설정 등) 다시 들어가지 않음
-    await exitNow();
-    resumeOn = true;
-    session.handleMessage(msg({ type: 'boot' }));
-    await vi.advanceTimersByTimeAsync(0);
-    expect(snap().mode).toBe('normal');
-  });
-
-  it('표시가 꺼져 있으면 일반 모드 그대로 · 세이브가 없으면 일반 모드 + 표시 끔', async () => {
-    await setup(autoSave());
-    session.handleMessage(msg({ type: 'boot' }));
-    await vi.advanceTimersByTimeAsync(0);
-    expect(snap().mode).toBe('normal');
-    await setup();
-    resumeOn = true;
-    session.handleMessage(msg({ type: 'boot' }));
-    await vi.advanceTimersByTimeAsync(0);
-    expect(snap().mode).toBe('normal');
-    expect(resumeOn).toBe(false);
-  });
 });
 
 describe('게임 모드 들어가기', () => {
