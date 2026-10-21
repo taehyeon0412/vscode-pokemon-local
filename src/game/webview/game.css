@@ -6521,6 +6521,10 @@ body.vscode-high-contrast-light .pg-hpblock {
   font-weight: 700;
   color: var(--pg-sos-ink);
 }
+/* 줄 안 바뀜 한 덩어리 (기록 줄 항목) */
+.pg-nw {
+  white-space: nowrap;
+}
 .pg-daily-rec {
   margin-top: 4px;
   font-size: 11px;
@@ -6582,6 +6586,24 @@ body.vscode-high-contrast-light .pg-hpblock {
   flex-wrap: wrap;
   column-gap: 8px;
   font-size: 12px;
+}
+/* 빠지는 수 = 빨강 굵게 (글자 크기는 줄과 같은 12 — <b> 13 이 섞이던 것, 픽셀 검사원) */
+.pg-saveio-lost {
+  font-weight: 700;
+}
+@media (max-width: 330px) {
+  .pg-w330 {
+    display: none;
+  }
+}
+/* 설정 판 안 결과 한 줄 (판 머리 아래 고정 줄) */
+.pg-saveio-sub {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--pg-sos-gold);
+}
+.pg-saveio-sub.pg-saveio-fail {
+  color: var(--pg-sos-red);
 }
 /* 좁은 패널 묻는 상자 — 덮개가 정보줄까지 덮으니 위 끝 4px 부터 · 330 아래는 키 칸을 숨겨 두 버튼을 한 줄에 (고친 곳 · 빠진 포켓몬 줄이 더해지면 240 × 150 에서 [그만두기] 가 패널 아래로 잘리던 것) */
 @media (max-width: 480px) {

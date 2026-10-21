@@ -10,6 +10,7 @@ import { BALANCE, TIMING } from '../../../core/balance';
 import { canHeal, gymLeaderOf, teamLock, waitReason, type GameInput, type GameState } from '../../../core/engine';
 import { defeatWaits } from '../../../core/engine/play';
 import { maxHpOf, teamHealth, teamHealthy } from '../../../core/rules/bag';
+import { regionHere } from '../../../core/rules/region';
 import { FACILITY_STAFF } from '../../../core/rules/stage';
 import { aliveCount, gymHint, shortTrainerName } from '../../../core/rules/trainer';
 import { speciesOf } from '../../../data';
@@ -106,7 +107,8 @@ export function FacilityBox({ state, media, onInput, onBox }: BoxProps & { onBox
         </Button>
         <Button secondary onClick={onBox} title="보관함과 팀 바꾸기 (여기서는 바꿀 수 있어요)">
           <Icon name="box" />
-          <span class="pg-long"> 보관함</span>
+          {/* 400 부터 글자 (병원 앞 [들어가기] 와 같은 규칙 — 480 에서 자리가 있는데 아이콘만이던 것, UX 밤 점검 U5) */}
+          <span class="pg-enter-word"> 보관함</span>
         </Button>
         <Button secondary onClick={() => onInput({ kind: 'facility-leave' })} title="Esc">
           <KeyCap k="Esc" /> 나가기
@@ -393,7 +395,8 @@ export function LobbyBox({ state, media, onInput, onBox, onShop, onMap }: BoxPro
         <span class="pg-lobby-lv" title="내 팀 = 센 3마리 평균 Lv">
           추천 Lv {v.recommended} · <span class={v.short ? 'pg-lv-short' : 'pg-dim'}>내 팀 Lv {Math.floor(v.average)}{v.short ? ' ▼' : ''}</span>
         </span>
-        {state.save.badges.includes('forest') && <Icon name="badge" title="숲 배지" />}
+        {/* 이 체육관 (지금 지역) 배지 — 숲 고정이면 해변 대기실에서 숲 배지가 떠 이미 딴 것처럼 읽히던 것 (UX 새 화면 한 바퀴) */}
+        {state.save.badges.includes(regionHere(state.save.location).badge) && <Icon name="badge" title={`${regionHere(state.save.location).name} 배지`} />}
         <span class="pg-lobby-hint" title={hintTitle}>
           {hint.text.replace(/^\S+ \S+ /, '').replace(' 포켓몬을 써요', ' 타입')}
           {goodNames.length > 0 && <span class="pg-lobby-good"> · 상성 좋음 {goodNames.length > 1 ? `${goodNames[0]} 외 ${goodNames.length - 1}` : goodNames[0]}</span>}

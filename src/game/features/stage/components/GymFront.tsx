@@ -4,11 +4,13 @@
  * 좁은 패널 (끝에 닿았을 때 간판이 왼쪽 끝 밖으로 나가면) = 기둥을 숨기고 간판이 그 자리 (건물 바로 왼쪽) 에 섬 — 그래도 모자라면 왼쪽 끝 4px 에 붙음.
  * 간판 자리는 끝에 닿은 자리 (restX) 로 정함 — 건물이 다가오는 동안 간판이 튀거나 기둥이 사라지지 않게.
  */
+import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { GYM_FRONT } from '../model';
 
 /** 문 열림 장마다 빛 폭 (칸) — 가운데에서 벌어짐 */
 const LIGHT_W = [0, 4, 8, 10] as const;
-/** 큰 간판 폭 (px, 바깥 1px 테두리 포함 — 픽셀 검사원 잰 값 74) · 좁은 패널 간판 (좌우 여백 10 → 6) · 화면 왼쪽 끝 여백 */
+/** 큰 간판 폭 처음 값 (px, 바깥 1px 테두리 포함 — "숲 체육관" 잰 값 74) · 좁은 패널 간판 (좌우 여백 10 → 6) · 화면 왼쪽 끝 여백.
+ *  실제 폭은 그려 보고 다시 잼 ("해변 체육관" 은 83 · 75 — 고정값이면 240 · 350 에서 간판이 왼쪽 끝 밖으로 3 ~ 5px 나가던 것, 픽셀 검사원 새 화면 한 바퀴) */
 const BANNER_W = 74;
 const BANNER_W_NARROW = 66;
 const EDGE = 4;
@@ -21,9 +23,19 @@ export function GymFront({ x, restX, k, ground, roomPx, media, door, gymName, le
   const left = toLeft(x);
   const rest = toLeft(restX);
   const visible = Math.min(g.h * k, Math.max(0, Math.floor(roomPx)));
+  // 간판 실제 폭 (넓은 · 좁은 모양 각각, 그린 뒤 잼 — 이름 길이 · 맥 글자)
+  const banner = useRef<HTMLSpanElement>(null);
+  const [bw, setBw] = useState({ wide: BANNER_W, narrow: BANNER_W_NARROW });
   // 간판 오른쪽 끝이 건물 왼쪽에서 얼마나 (px) — 보통 기둥 왼쪽 8칸 (24칸) · 좁으면 기둥 자리 (2칸, 모자라면 왼쪽 끝 4px 까지 당김)
-  const narrow = rest - 24 * k - BANNER_W < EDGE;
-  const bannerGap = narrow ? rest - Math.max(rest - 2 * k, EDGE + BANNER_W_NARROW) : 24 * k;
+  const narrow = rest - 24 * k - bw.wide < EDGE;
+  const bannerGap = narrow ? rest - Math.max(rest - 2 * k, EDGE + bw.narrow) : 24 * k;
+  useLayoutEffect(() => {
+    const el = banner.current;
+    const w = el ? Math.ceil(el.getBoundingClientRect().width) : 0;
+    if (!w) return;
+    const key = narrow ? 'narrow' : 'wide';
+    if (w !== bw[key]) setBw((v) => ({ ...v, [key]: w }));
+  });
   return (
     <span class="pg-gymfront" style={{ left: `${left}px`, bottom: `${ground}px`, '--pg-gk': `${k}px` }} title={`${gymName} · ${leader}`}>
       {!narrow && <img class="pg-gymfront-post" src={`${base}/${g.post.file}.png`} alt="" width={g.post.w * k} height={g.post.h * k} draggable={false} />}
@@ -44,7 +56,7 @@ export function GymFront({ x, restX, k, ground, roomPx, media, door, gymName, le
         {door > 0 && <span class="pg-gymfront-light" style={{ left: `${(g.doorX + (g.doorW - LIGHT_W[door]) / 2) * k}px`, width: `${LIGHT_W[door] * k}px` }} />}
       </span>
       {/* 큰 간판 — 땅 위에 다리 둘로 섬 (건물 위는 패널 높이에 따라 잘려서 땅에) */}
-      <span class={`pg-gymfront-banner${narrow ? ' pg-gymfront-banner-narrow' : ''}`} style={{ right: `calc(100% + ${bannerGap}px)` }}>
+      <span ref={banner} class={`pg-gymfront-banner${narrow ? ' pg-gymfront-banner-narrow' : ''}`} style={{ right: `calc(100% + ${bannerGap}px)` }}>
         <b>{gymName}</b>
         <span>{leader}</span>
       </span>

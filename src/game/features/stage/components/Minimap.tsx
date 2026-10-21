@@ -12,7 +12,7 @@ export function Minimap({ stage, progress, facilities, gym, leftMs = null, team 
   const next = facilities.findIndex((f) => f.at > progress);
   return (
     <span class="pg-minimap">
-      <span class="pg-stage-name">
+      <span class="pg-stage-name" title={`${stage.name} (${stage.code})`}>
         <Icon name={stage.icon} />
         <span class="pg-stage-label">
           {stage.name} <span class="pg-stage-code pg-dim">({stage.code})</span>

@@ -8,10 +8,10 @@ import type { Save } from '../../../core/save';
 import { Button } from '../../../ui/Button';
 import { Panel, Row } from './Panel';
 
-export function SettingsPanel({ save, onInput, onExit, onClose, dev = false, onSaveIO }: { save: Save; onInput(i: GameInput): void; onExit(): void; onClose(): void; /** 개발 모드 — 세이브 내보내기 · 불러오기를 숨김 (저장 안 됨 모드) */ dev?: boolean; /** ④ 세이브 내보내기 · 불러오기 (orders #33 — 파일 창은 확장) */ onSaveIO?(kind: 'export' | 'import'): void }) {
+export function SettingsPanel({ save, onInput, onExit, onClose, dev = false, onSaveIO, saveNote = null }: { save: Save; onInput(i: GameInput): void; onExit(): void; onClose(): void; /** 개발 모드 — 세이브 내보내기 · 불러오기를 숨김 (저장 안 됨 모드) */ dev?: boolean; /** ④ 세이브 내보내기 · 불러오기 (orders #33 — 파일 창은 확장) */ onSaveIO?(kind: 'export' | 'import'): void; /** 내보내기 · 불러오기 결과 한 줄 (3초) — 판 머리 아래 고정 줄에 (판 위에 뜨면 머리 · 첫 줄을 덮던 것, 픽셀 검사원) */ saveNote?: { ok: boolean; text: string } | null }) {
   const on = save.settings.notifications;
   return (
-    <Panel icon="gear" title="설정" onClose={onClose}>
+    <Panel icon="gear" title="설정" onClose={onClose} sub={saveNote ? <span class={`pg-saveio-sub${saveNote.ok ? '' : ' pg-saveio-fail'}`} role="status">{saveNote.text}</span> : undefined}>
       {/* 스위치를 한 줄에 · 라벨 열 없이 스위치 글이 라벨 · 좁으면 (480px 아래) "켜짐 · 꺼짐" 을 빼서 줄 수를 줄임 (켜짐 = ✓ + 금색 테두리 — 2026-10-21 스위치 여섯) (2026-10-20 아트 디렉터 4차 — 5줄이 210px 에서 잘리고 오른쪽이 비던 것), 설명은 title.
           자동 전투 (플레이 리뷰어 "자리 비울 준비를 걷는 중에") · 빨리 걷기 = 정보줄 ▶▶ 와 같음 */}
       <Row wrap>

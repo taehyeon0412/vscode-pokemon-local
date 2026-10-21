@@ -24,10 +24,10 @@ const RESULT_MS = 3000;
 
 type Act = 'import-confirm' | 'import-cancel' | 'dismiss';
 
-export function SaveIoBox({ io, onAct }: { io: SaveIoState; onAct(kind: Act): void }) {
+export function SaveIoBox({ io, onAct, inPanel = false }: { io: SaveIoState; onAct(kind: Act): void; /** 설정 판이 열려 있음 — 결과 한 줄은 판이 보여 줌 (여기서는 3초 타이머만) */ inPanel?: boolean }) {
   // 묻는 상자 · 오류 상자만 키를 받음 (판 (설정) 의 Esc 닫기 · 게임 키보다 먼저 — capture): Enter · Esc = 고름, 그 밖의 키는 게임에 안 넘김 (Tab 은 버튼 사이 이동).
   //   결과 한 줄 (3초) 은 안 받음 — 내보낸 직후 Esc 가 설정 판을 안 닫고 게임 Enter 가 먹히던 것 (개발 #48)
-  const asking = !!(io.ask || io.error);
+  const asking = !!(io.ask || io.error || (io.result && !io.result.ok));
   useEffect(() => {
     if (!asking) return;
     const onKey = (e: KeyboardEvent) => {
@@ -43,11 +43,30 @@ export function SaveIoBox({ io, onAct }: { io: SaveIoState; onAct(kind: Act): vo
     return () => window.removeEventListener('keydown', onKey, true);
   }, [asking, io, onAct]);
   useEffect(() => {
-    if (!io.result) return;
+    // 실패는 저절로 안 닫힘 ([확인] 까지 — 사람이 할 일이 있는데 3초 뒤 사라져 다시 못 읽던 것, UX 새 화면 한 바퀴)
+    if (!io.result || !io.result.ok) return;
     const t = window.setTimeout(() => onAct('dismiss'), RESULT_MS);
     return () => window.clearTimeout(t);
   }, [io.result, onAct]);
+  if (io.result && !io.result.ok) {
+    // 개발자 글 (괄호 안 Error · 경로) 은 title 로 · 화면은 쉬운 말
+    const plain = io.result.text.replace(/\s*\((?:Error|[A-Z]{3,}|.*[\\/:]).*\)\s*$/, '');
+    return (
+      <div class="pg-banner pg-saveio pg-saveio-fail pg-two" role="alert" title={io.result.text}>
+        <span class="pg-line">
+          <b>{plain}</b>
+        </span>
+        <span class="pg-line pg-saveio-act">
+          <span class="pg-dim">다른 폴더 · 파일로 다시 해 보세요</span>
+          <Button secondary onClick={() => onAct('dismiss')} title="Enter · Esc">
+            확인
+          </Button>
+        </span>
+      </div>
+    );
+  }
   if (io.result) {
+    if (inPanel) return null;
     return (
       <div class={`pg-banner pg-saveio pg-saveio-result${io.result.ok ? '' : ' pg-saveio-fail'}`} role="status">
         {io.result.text}
@@ -68,10 +87,10 @@ export function SaveIoBox({ io, onAct }: { io: SaveIoState; onAct(kind: Act): vo
         {(io.ask.fixes || io.ask.lost) && (
           <span class="pg-line pg-saveio-note">
             {io.ask.fixes ? <span class="pg-dim">고친 곳 {io.ask.fixes}</span> : null}
-            {/* 문장은 크림 · 빠지는 수만 빨강 (지울 때 규칙 — 6장, 문장 전체가 빨강이던 것 · 아트 디렉터) */}
+            {/* 문장은 크림 · 빠지는 수만 빨강 (지울 때 규칙 — 6장, 문장 전체가 빨강이던 것 · 아트 디렉터) · 330 아래는 "이 버전에 없어" 를 뺌 (맥 글자면 240 에서 줄이 늘어 버튼이 잘리던 것 — 픽셀 검사원) */}
             {io.ask.lost ? (
               <span>
-                포켓몬 <b class="pg-saveio-lost">{io.ask.lost}마리</b>가 이 버전에 없어 빠져요
+                포켓몬 <span class="pg-saveio-lost">{io.ask.lost}마리</span>가 <span class="pg-w330">이 버전에 없어 </span>빠져요
               </span>
             ) : null}
           </span>

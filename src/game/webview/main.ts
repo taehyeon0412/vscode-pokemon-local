@@ -39,7 +39,7 @@ const EXPAND_WAIT_MS = 150;
 
 /** 세이브 확인 상자 (묻는 상자 · 못 읽음) 가 떠 있나 — 결과 한 줄은 아님. 떠 있는 동안 게임을 멈추고 키를 상자에 줌 (개발 #48) */
 function saveIoAsking(io: SaveIoView | null): boolean {
-  return !!(io && (io.ask || io.error));
+  return !!(io && (io.ask || io.error || (io.result && !io.result.ok)));
 }
 
 const port = getGamePort();

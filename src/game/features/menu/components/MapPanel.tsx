@@ -83,7 +83,8 @@ export function MapPanel({ state, swap, midStage, onInput, onTeam, onClose }: Ma
                   // 다 한 줄 = 받음 ✓ (다 하는 순간 줌 — "보상" 이 아직 받을 것처럼 읽히던 것, UX 리뷰어)
                   <span class="pg-daily-reward" title={`${raw.done ? '받음' : '보상'} ${g.reward.replace(/ (\d+)$/, ' ×$1')}`}>
                     <Icon name={ITEM_ICON[raw.reward]} />
-                    {raw.done ? `+${raw.rewardN} ✓` : `×${raw.rewardN}`}
+                    {/* 받을 것 = +N (× 는 정보줄 "볼 ×3" 처럼 가진 수로 읽혀서 — UX) */}
+                    {raw.done ? `+${raw.rewardN} ✓` : `+${raw.rewardN}`}
                   </span>
                 ) : (
                   <span class="pg-daily-reward">보상 {g.reward.replace(/ (\d+)$/, ' ×$1')}</span>
@@ -97,7 +98,8 @@ export function MapPanel({ state, swap, midStage, onInput, onTeam, onClose }: Ma
       {daily && rec && (
         <div class="pg-daily-rec">
           {/* 플레이 시간까지 (gdd U12 — 명세 검사관 #53) */}
-          이긴 전투 {rec.wins} · 잡은 포켓몬 {rec.catches} · 걸은 길 {(rec.walked / 10000).toFixed(1)} 스테이지 · 플레이 {formatPlayTime(state.save.playTimeMs)}
+          {/* 항목마다 줄 안 바뀜 ("걸은 길 / 987.7 스테이지" 로 갈리던 것 — UX) */}
+          <span class="pg-nw">이긴 전투 {rec.wins}</span> · <span class="pg-nw">잡은 포켓몬 {rec.catches}</span> · <span class="pg-nw">걸은 길 {(rec.walked / 10000).toFixed(1)} 스테이지</span> · <span class="pg-nw">플레이 {formatPlayTime(state.save.playTimeMs)}</span>
         </div>
       )}
       {confirm && (

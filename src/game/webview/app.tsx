@@ -120,9 +120,9 @@ function Screens({ v, media, actions }: { v: ViewState; media: string; actions: 
     return (
       <>
         <StageScreen state={v.state} layout={v.layout} widthPx={v.widthPx} media={media} onInput={actions.input} onOpen={actions.open} live={v.live && !v.overlay} covered={v.overlay !== null} />
-        {v.overlay && <OverlayView o={v.overlay} state={v.state} media={media} actions={actions} />}
-        {/* 세이브 불러오기 확인 상자 · 결과 한 줄 (orders #33) — 판 위 */}
-        {v.saveIO && <SaveIoBox io={v.saveIO} onAct={actions.saveIO} />}
+        {v.overlay && <OverlayView o={v.overlay} state={v.state} media={media} actions={actions} saveNote={v.saveIO?.result?.ok ? v.saveIO.result : null} />}
+        {/* 세이브 불러오기 확인 상자 · 결과 한 줄 (orders #33) — 판 위 · 설정 판이 열려 있으면 결과 한 줄은 판 안 고정 줄에 (상자는 3초 타이머만) */}
+        {v.saveIO && <SaveIoBox io={v.saveIO} onAct={actions.saveIO} inPanel={v.overlay?.kind === 'settings' && v.saveIO.result?.ok === true} />}
         {/* 개발 모드 (임시) — 늘 "개발 · 저장 안 됨" (누르면 개발 메뉴 · D) */}
         {v.state.runtime.dev && (
           <button type="button" class="pg-dev-badge" onClick={() => actions.open({ kind: 'dev' })} title="개발 모드 (임시) — 저장 안 됨, 나가면 사라져요 · D = 개발 메뉴">
@@ -136,7 +136,7 @@ function Screens({ v, media, actions }: { v: ViewState; media: string; actions: 
   return null;
 }
 
-function OverlayView({ o, state, media, actions }: { o: Overlay; state: GameState; media: string; actions: AppActions }) {
+function OverlayView({ o, state, media, actions, saveNote }: { o: Overlay; state: GameState; media: string; actions: AppActions; saveNote: { ok: boolean; text: string } | null }) {
   const save = state.save;
   const st = state.runtime.stage;
   switch (o.kind) {
@@ -147,7 +147,7 @@ function OverlayView({ o, state, media, actions }: { o: Overlay; state: GameStat
     case 'bag':
       return <BagPanel save={save} media={media} onInput={actions.input} onClose={actions.close} />;
     case 'settings':
-      return <SettingsPanel save={save} onInput={actions.input} onExit={actions.exit} onClose={actions.close} dev={state.runtime.dev !== undefined} onSaveIO={actions.saveIO} />;
+      return <SettingsPanel save={save} onInput={actions.input} onExit={actions.exit} onClose={actions.close} dev={state.runtime.dev !== undefined} onSaveIO={actions.saveIO} saveNote={saveNote} />;
     case 'dev':
       return <DevPanel state={state} media={media} onDev={actions.dev} onEnd={actions.devEnd} onClose={actions.close} />;
     case 'shop':

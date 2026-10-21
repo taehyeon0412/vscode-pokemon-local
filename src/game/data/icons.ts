@@ -72,8 +72,9 @@ export const ICONS = {
   oak: ['..GGGG..', '.GGGGGg.', 'GGGGGGgg', 'GGGGGggg', '.GGGggg.', '..gnng..', '...nn...', '...nn...'],
   /** 해변 스테이지 (2-1 반짝 모래길 · 2-2 갯바위 해안 · 2-3 등대 곶) — 숲 셋과 같은 8 × 8 · 테두리 없음 (길 위 흔적 그림 sparkle · pebbles · ripple 을 쓰던 것: 크기가 셋으로 섞이고 반짝은 이로치로 읽힘, 아트 디렉터 새 화면 한 바퀴) */
   beachSand: ['........', '........', '.....WW.', '....WWww', '..YYYyy.', '.YYYYYyy', 'YYYYYYyy', 'yyyyyyyy'],
-  beachRock: ['.B....B.', '..B..B..', 'B..WW..b', '..WWWw..', '.WWWWww.', 'WWWWwwww', 'bBbBbBbB', 'BbBbBbBb'],
-  lighthouse: ['...YY...', '..wWWw..', '...RR...', '...WW...', '..RRRr..', '..WWWw..', '.RRRRrr.', 'nnnnnnnn'],
+  beachRock: ['........', 'B......B', '.B.WW.B.', '..WWWw..', '.WWWWww.', 'WWWWwwww', 'bBbBbBbB', 'BbBbBbBb'],
+  // 등대 = 지붕 + 넓은 불빛 + 줄무늬 탑 (불빛이 탑보다 넓어야 등대로 — 원뿔만이면 라바콘으로 읽히던 것, UX)
+  lighthouse: ['...rr...', 'Y.YYYY.Y', '...WW...', '...RR...', '...WW...', '..RRRr..', '..WWWw..', 'nnnnnnnn'],
   /** 숲 (스테이지 이름 · 1-1) */
   tree: ['...GG...', '..GGgG..', '.GGGGgg.', '..GGgg..', '.GGGGgg.', 'GGGGGggg', '...nn...', '...nn...'],
   /** 지도 */
