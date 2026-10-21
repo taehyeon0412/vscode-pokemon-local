@@ -135,6 +135,8 @@ ONE = r"""
     const pre = samples.reduce((m, s) => (s[1] && (!m || Math.abs(s[0] - main + 150) < Math.abs(m[0] - main + 150)) ? s : m), null);
     const mine = (s) => s && Math.abs(s[1].x - cfg.meX) < Math.abs(s[1].x - cfg.foeX);
     if (near && pre && main - big[1] > 400) self = mine(near) && mine(pre) ? 1 : 0;
+    // 쏘는 필살기로 고정 — 쏘는 쪽 둘레 입자 (대포) 가 많아 가운데로는 못 가림 (거북왕 메가런처 = 물 구를 쏨, fx-sky.js — 코드 리뷰어)
+    if (['메가런처'].includes(lib[idx][0])) self = 0;
   } else if (hits.length) {
     main = Math.round(hits[0]);
   }
