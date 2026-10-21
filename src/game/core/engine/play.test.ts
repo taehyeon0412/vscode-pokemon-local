@@ -139,7 +139,9 @@ describe('빨리 걷기 (2026-10-19 태현 님 "걷는 시간이 길어 루즈�
 
 describe('떨어진 아이템 (gdd 4.6)', () => {
   it('지나가면 자동으로 줍고 알림 · 멈추지 않음', () => {
-    const { state, spot } = nearSpot(start(), 'item');
+    // 숲 1-1 첫 걷기 안내는 본 뒤 (안내 동안은 알림 시간이 안 흐름 — 디자인 UX 리뷰어)
+    const s0 = start();
+    const { state, spot } = nearSpot({ ...s0, save: { ...s0.save, tips: [...(s0.save.tips ?? []), 'walk'] } }, 'item');
     const before = state.save;
     const s = until(state, (x) => prog(x) >= spot.at);
     const gotBall = (s.save.bag['poke-ball'] ?? 0) - (before.bag['poke-ball'] ?? 0);
@@ -554,8 +556,12 @@ describe('멈춤 · 알림 표 (gdd 4.13 · U6 — orders #27 R13)', () => {
   const away = (s: GameState): GameState => ({ ...s, runtime: { ...s.runtime, away: true } });
   const at = (s: GameState, stage: NonNullable<GameState['runtime']['stage']>, save: Partial<Save> = {}): GameState => ({ ...s, save: { ...s.save, ...save }, runtime: { ...s.runtime, stageId: 'forest-1', stage } });
 
-  it('알림 시간은 보는 동안만 셈 — 밖 · 숨김에서 흘러가 돌아오면 없던 것 (디자인팀 UX #27 큼 1)', () => {
-    const base = start();
+  it('알림 시간은 보는 동안만 셈 — 밖 · 숨김에서 흘러가 돌아오면 없던 것 (디자인팀 UX #27 큼 1) · 숲 1-1 첫 걷기 안내 동안도 안 흐름', () => {
+    const s0 = start();
+    // 첫 걷기 안내 (tips 에 walk 없음) 동안은 보통 알림 시간도 안 흐름 — 안내 상자 뒤에 깔린 채 다 쓰던 것 (디자인 UX 리뷰어)
+    const underTip = advance({ ...s0, runtime: { ...s0.runtime, toast: { text: '오늘의 목표 ✓', ms: 1000 } } }, 600).state;
+    expect(underTip.runtime.toast?.ms).toBe(1000);
+    const base = { ...s0, save: { ...s0.save, tips: [...(s0.save.tips ?? []), 'walk'] } };
     const toasted: GameState = { ...base, runtime: { ...base.runtime, toast: { text: '클리어 보상!', ms: 1000 } } };
     const awayLater = advance(away(toasted), 5000).state;
     expect(awayLater.runtime.toast).toMatchObject({ text: '클리어 보상!', ms: 1000 });

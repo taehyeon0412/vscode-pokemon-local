@@ -3,7 +3,8 @@ import { sampleMonster, sampleSave } from '../../../test/fixtures/save';
 import { BALANCE } from '../../core/balance';
 import { ICONS } from '../../data/icons';
 import { clearBonusExp } from '../../core/engine';
-import { clearView, ITEM_ICON, lobbyView, MENU_KEYS, menuLabels, menuShortcutOf, shopView } from './model';
+import { clearView, ITEM_ICON, lobbyView, mapView, MENU_KEYS, menuLabels, menuShortcutOf, shopView } from './model';
+import { createGameState } from '../../core/engine';
 
 describe('S16 ④ 추천 레벨 (mvp-spec S16)', () => {
   it('내 팀에서 가장 센 3마리 평균과 비교 — 관장이 3마리라 약한 2마리 때문에 빨간색이 되지 않게 (단계 11 플레이 리뷰)', () => {
@@ -51,5 +52,20 @@ describe('S24 클리어 카드 보너스 — 경험 부적 판이면 받은 그�
     const p = { seed: 1, progress: 1, cleared: true, defeatedTrainers: [], facilities: [] };
     expect(clearView(sampleSave({ stages: { 'forest-2': { ...p, run: { ...run, boost: true } } } }), 'forest-2').bonus).toBe(Math.round(clearBonusExp('forest-2') * BALANCE.expCharmScale));
     expect(clearView(sampleSave({ stages: { 'forest-2': { ...p, run } } }), 'forest-2').bonus).toBe(clearBonusExp('forest-2'));
+  });
+});
+
+describe('세계 지도 (S07) — 지금 있는 지역 (지역 표, 디자인 UX 리뷰어)', () => {
+  it('숲이면 숲 셋 (지금 그대로) · 해변 미리 보기면 해변 셋 · 지역 이름 · 그 지역 배지', () => {
+    const forest = mapView(createGameState(sampleSave(), 1));
+    expect(forest.region).toBe('숲');
+    expect(forest.stages.map((x) => x.id)).toEqual(['forest-1', 'forest-2', 'forest-3']);
+    expect(forest.stages.map((x) => x.gym)).toEqual([false, false, true]);
+    const base = sampleSave();
+    const beach = mapView(createGameState({ ...base, badges: ['forest', 'beach'], location: { screen: 'stage', stageId: 'beach-2' }, stages: { ...base.stages, 'beach-2': base.stages['forest-1']! } }, 1));
+    expect(beach.region).toBe('해변');
+    expect(beach.stages.map((x) => x.id)).toEqual(['beach-1', 'beach-2', 'beach-3']);
+    expect(beach.stages[1]!.state).toBe('current');
+    expect(beach.badge).toBe(true);
   });
 });

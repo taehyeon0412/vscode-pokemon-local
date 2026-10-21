@@ -5,9 +5,9 @@ import { BALANCE } from '../../core/balance';
 import { gymUnlocked, nextStageOf, stageClearExp, stageUnlocked, type GameState } from '../../core/engine';
 import { canBuyCandy, FIELD_ITEMS, fieldUseBlock, isEvolutionItem, maxHpOf, priceOf, sellPrice, SHOP_ITEMS, type ShopItem } from '../../core/rules/bag';
 import { itemName, VALUABLES } from '../../core/rules/items';
-import { isRegionLast } from '../../core/rules/region';
+import { isRegionLast, regionHere } from '../../core/rules/region';
 import { expForLevel, starGrade, statsOf } from '../../core/rules/stats';
-import { ITEM_IDS, STAGE_IDS, STAT_KEYS, type ItemId, type Monster, type Save, type StageId, type StatKey } from '../../core/save';
+import { ITEM_IDS, STAT_KEYS, type ItemId, type Monster, type Save, type StageId, type StatKey } from '../../core/save';
 import { typeNameKo } from '../../core/text';
 import { formsOfSpecies, speciesOf } from '../../data';
 import { moveView, type MoveView } from '../result/model';
@@ -253,16 +253,17 @@ export interface MapStage {
   gym: boolean;
 }
 
-/** S07 ① 갈 수 있는 스테이지 · ② 잠긴 스테이지 · 체육관 (1-3 을 깨면 바로) */
-export function mapView(state: GameState): { stages: MapStage[]; gym: boolean; badge: boolean } {
+/** S07 ① 갈 수 있는 스테이지 · ② 잠긴 스테이지 · 체육관 (지역 끝을 깨면 바로) — 지금 있는 지역 (지역 표 — 해변 미리 보기면 해변 셋, 디자인 UX 리뷰어) · region = 지역 이름 ("숲") */
+export function mapView(state: GameState): { region: string; stages: MapStage[]; gym: boolean; badge: boolean } {
   const save = state.save;
   const here = save.location.screen === 'stage' ? save.location.stageId : null;
-  const stages = STAGE_IDS.map((id): MapStage => {
+  const region = regionHere(save.location);
+  const stages = region.stages.map(({ id }): MapStage => {
     const info = STAGES[id];
     const s: MapStageState = id === here ? 'current' : !stageUnlocked(save, id) ? 'locked' : save.stages[id]?.cleared ? 'cleared' : 'open';
     return { id, label: info.name, code: info.code, icon: info.icon, state: s, gym: isRegionLast(id) };
   });
-  return { stages, gym: gymUnlocked(save), badge: save.badges.includes('forest') };
+  return { region: region.name, stages, gym: gymUnlocked(save), badge: save.badges.includes(region.badge) };
 }
 
 /** S24 ① 클리어 안내 — 세이브의 이번 판 기록으로 (껐다 켜도 같은 카드) */

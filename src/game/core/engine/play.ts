@@ -1051,6 +1051,8 @@ function toastShown(rt: RuntimeState, save: Save): boolean {
   // 자동 전투 안내 = 스위치 옆 (숲 1-1 첫 걷기 안내 동안은 뒤로) · 보통 알림 = 상점 안에서는 안 그림 (StageScreen 과 같게 — 코드 리뷰어)
   if (rt.toast.kind === 'auto-tip') return canDrawAutoTip(st) && !firstWalkTip(save, st);
   if (st?.phase === 'facility' && st.inside && st.kind === 'shop') return false;
+  // 숲 1-1 첫 걷기 안내 (5초) 동안은 보통 알림도 안 셈 — 그 상자 뒤에 깔린 채 시간을 다 써 목표 알림이 한 번도 안 보이던 것 (디자인 UX 리뷰어)
+  if (firstWalkTip(save, st)) return false;
   return st?.phase === 'walk' || st?.phase === 'clear' || st?.phase === 'lobby' || st?.phase === 'facility';
 }
 
