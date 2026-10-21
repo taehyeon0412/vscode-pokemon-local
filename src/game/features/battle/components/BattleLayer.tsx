@@ -515,7 +515,9 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
   // 잡기 흔들기 창 (가운데) 이 떠 있는 동안도 숨김 — 창 이름표와 같은 말을 두 번 함 (아트 디렉터 8차)
   const catchShown = catchView(b)?.stage;
   const showMsg = msgText !== '' && !geo.msgHidden && b.phase !== 'clash' && b.anim?.action.kind !== 'ult' && catchShown !== 'shake' && catchShown !== 'end' && catchShown !== 'held';
-  const lastSentence = showMsg ? undefined : sentences[sentences.length - 1];
+  // 머리 위 한 줄에서 "완벽 패링!" · "패링!" 은 뺌 — 캔버스 큰 글씨가 늘 같은 말을 해서 240 에서 두 번 뜨던 것 (개발팀 2026-10-21). "반격 — 조금 빨랐다" 는 캔버스에 없어 남김
+  const headSay = sentences.filter((p) => !(p.kind === 'parry' && !p.text.startsWith('반격')));
+  const lastSentence = showMsg ? undefined : headSay[headSay.length - 1];
   // 나갈 포켓몬이 없는 채로 시작한 전투 (이상한 세이브) — 내 자리는 비움
   const hasMe = b.me.uid !== 'none';
   // 전투 시작 연출 — 트레이너전 = 볼 던지기 (손 = 사람 키의 55%), 야생 = 화면 닦기
