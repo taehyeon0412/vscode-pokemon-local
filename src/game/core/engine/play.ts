@@ -945,7 +945,7 @@ export function step(state: GameState, stepMs: number): StepOut {
   }
   // ② 는 화면이 그릴 수 있는 장면에서 (다른 알림이 끝난 뒤) — 3:3 · 만남 · 결과 · 고르기 등에서 돌아오면 그 장면까지 미룸 · 5초는 띄운 뒤부터 (디자인팀 R12 큼 2)
   if (watchingNow && rt.noticed === 'paused' && autoTipLeft(save)) rt = { ...rt, backTip: true };
-  // 그동안 요약을 띄울 참이면 (awayLog) ② 는 요약 끝 줄로 (요약 · 안내가 따로 두 번 뜨던 것 — ideas #156) — awayStep 이 붙이고 아래에서 셈
+  // 그동안 요약 (awayLog) 이 먼저 — ② 는 요약이 끝난 뒤 (겹치지 않게)
   if (rt.backTip && watchingNow && !rt.toast && !rt.awayLog && canDrawAutoTip(rt.stage) && !firstWalkTip(save, rt.stage)) {
     const { backTip: _b, ...rest } = rt;
     rt = { ...rest, toast: { text: AUTO_TIP_BACK, ms: TIMING.toastMs * 2, kind: 'auto-tip' } };
@@ -955,9 +955,7 @@ export function step(state: GameState, stepMs: number): StepOut {
     const { backTip: _b, ...rest } = rt;
     rt = { ...rest, toast: rt.toast?.kind === 'auto-tip' ? nextToast(rt.toast) : rt.toast };
   }
-  const backBefore = rt.backTip === true;
   rt = awayStep(state, save, rt, signal);
-  if (backBefore && !rt.backTip) save = useAutoTip(save);
   // 멈춤 · 알림 (gdd 4.13 · U6) — 밖 · 숨김에서 기다리는 이유가 생겼는데 아직 안 알렸으면 한 번 (장면마다 따로 알리던 것을 한곳에서 — 이로치 전투 중에 떠남 · 밖 고르기 · 대기실로 돌아옴 등 빠진 곳 없이).
   // 같은 기다림은 한 번 — 보고 다시 떠나도 다시 안 알림 (탭을 오갈 때마다 쌓이던 것 — 2026-10-21 태현 님 "추천안"), 기다림이 바뀌거나 풀리면 지움 (다음 기다림을 알리게).
   // paused (자동 꺼짐 멈춤 — 확장이 넘겨받을 때) 는 다시 보면 지움
@@ -1644,26 +1642,13 @@ function awayStep(before: GameState, save: Save, rt: RuntimeState, signal: SaveS
   if (firstWalkTip(save, rt.stage)) return rt;
   const { awayLog, ...rest } = rt;
   // 두 장 2.5초씩 (R14 A) — ① 진행 · 레벨업 · 포인트 ② 진 것 · 물건 · 돈 · 야생 (한 장만 있으면 그 장만)
-  const [first, second0] = awaySummary(awayLog, save);
-  // 안내 ② (자동 꺼짐으로 멈췄다 다시 봄) 를 마지막 장 끝 줄로 (ideas #156) — 셈은 step 이 (backTip 이 없어지면)
-  // 좁은 패널 (340 아래) 은 합치지 않음 — 4줄로 정보줄 밑에 잘리고 · 정보줄 자동 스위치는 안내 (따로) 동안만 보임 (#34 UX 리뷰어 U4 · U5) → 요약 뒤 스위치 옆에 따로
-  const back = rt.backTip && first && !(rt.view && rt.view.w < MERGE_TIP_MIN_W) ? AUTO_TIP_BACK : null;
-  const second = back ? (second0 ? `${second0}\n${back}` : null) : second0;
-  const firstText = back && !second0 ? `${first}\n${back}` : first;
-  if (back) {
-    const { backTip: _b, ...noBack } = rest;
-    return awayCards(noBack, rt, awayLog, firstText!, second, true);
-  }
+  // (안내 ② 를 요약 끝 줄로 합치는 것 — ideas #156 — 은 되돌림: 숨김 중 계산은 자동 켬일 때만이라 요약과 ② (자동 꺼짐 멈춤) 가 실제로 같이 나오지 않음, #34 UX 리뷰어)
+  const [first, second] = awaySummary(awayLog, save);
   return awayCards(rest, rt, awayLog, first, second);
 }
 
-/** 그동안 요약에 안내 ② 를 합치는 가장 좁은 패널 (px) — 화면이 정보줄 자동 스위치를 늘 보이는 폭 (game.css 340) */
-const MERGE_TIP_MIN_W = 340;
-
 /** 그동안 요약 카드 띄우기 — 떠나기 전부터 떠 있던 알림은 남기고 그 뒤에 (아래 설명) */
-function awayCards(rest: RuntimeState, rt: RuntimeState, awayLog: AwayLog, first: string | undefined, second: string | null | undefined, tip = false): RuntimeState {
-  // 안내 ② 를 붙인 마지막 장은 더 길게 (두 줄 — TIMING.awaySummaryTipMs)
-  const lastMs = tip ? TIMING.awaySummaryTipMs : TIMING.awaySummaryMs;
+function awayCards(rest: RuntimeState, rt: RuntimeState, awayLog: AwayLog, first: string | undefined, second: string | null | undefined): RuntimeState {
   // 떠나기 전부터 떠 있던 알림 (클리어 보상 · 레벨업 — 안 볼 때는 시간이 멈춰 있음) 은 남기고 요약은 그 뒤에 · 안 보는 동안 생긴 알림은 요약이 대신 · 요약이 비면 그대로 (코드 리뷰어)
   // 떠날 때 줄 (then) 도 그때 길이까지만 — 떠난 뒤 줄 선 것 ("상처약을 주웠다!") 은 요약이 대신 (같은 말을 두 번 하던 것 — 테스터)
   const thenOf = (t: NonNullable<RuntimeState['toast']>) => (t.then === undefined ? [] : Array.isArray(t.then) ? t.then : [t.then]);
@@ -1673,9 +1658,9 @@ function awayCards(rest: RuntimeState, rt: RuntimeState, awayLog: AwayLog, first
   if (kept) {
     const q = queueToast({ ...rest, toast: kept }, first);
     const both = second ? queueToast(q, second) : q;
-    return both.toast ? { ...both, toast: { ...both.toast, thenMs: lastMs } } : both;
+    return both.toast ? { ...both, toast: { ...both.toast, thenMs: TIMING.awaySummaryMs } } : both;
   }
-  return { ...rest, toast: { text: first, ms: second ? TIMING.awaySummaryMs : lastMs, ...(second ? { then: second, thenMs: lastMs } : {}) } };
+  return { ...rest, toast: { text: first, ms: TIMING.awaySummaryMs, ...(second ? { then: second, thenMs: TIMING.awaySummaryMs } : {}) } };
 }
 
 /** 떠날 때 — 돈 · 가방 · 자리 · 레벨 · 포인트 (그동안 요약의 기준) */
