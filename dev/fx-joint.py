@@ -1,6 +1,6 @@
 """3:3 합동 필살기 합쳐지는 마무리 찍기 (2026-10-21 — 디자인팀 시안 6판 "솔라빔 + 블라스트번")
   python dev/fx-joint.py <out_dir> [창=860x187] [초=6] [k=v ...]
-    a=venusaur:솔라빔:grass  b=charizard:블라스트번:fire  [c=<모습>:<필살기 이름>:<타입>]  foe=butterfree:12  sure=1 (3:1 압도)  list=1 (그 포켓몬 필살기 이름만 보기)
+    a=venusaur:솔라빔:grass  b=charizard:블래스트번:fire  [c=<모습>:<필살기 이름>:<타입>]  foe=butterfree:12  sure=1 (3:1 압도)  list=1 (그 포켓몬 필살기 이름만 보기)  fps=1 (찍지 않고 PC 부담만)
   전투 장면 (battle=choose) 의 내 포켓몬을 a 로 바꾸고 b · c 를 뒤에 세워 window.pokemonFx.ultJoint 를 부름 — 0.06 ~ 0.08초마다 찍음 (f_<ms>.png)
   모양 · 박자는 엔진 없이 연출만 (게임에 붙는 건 3:3 화면 단계)"""
 import base64
@@ -116,6 +116,11 @@ PROBE = r"""
   const foeBox = d.querySelector('.pg-fighter-foe');
   const foe = { el: foeBox.querySelector('.pg-sprite'), box: foeBox, form: foeForm, size: 32, left: true };
   w.__jointHit = 0;
+  // 화면 갱신 간격 (fps=1 — PC 부담)
+  w.__fd = [];
+  let last = w.performance.now();
+  const loop = (t) => { w.__fd.push(t - last); last = t; if (w.__fd.length < 2000) w.requestAnimationFrame(loop); };
+  w.requestAnimationFrame(loop);
   const t0 = performance.now();
   const ms = fx.ultJoint(actors, foe, () => { w.__jointHit = performance.now() - t0; }, { types: parts.map((p) => p.type), pick: parts.map((p) => p.pick), sure });
   return { ms };
@@ -149,7 +154,11 @@ with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as prof:
         t0 = time.time()
         r = ws.call("Runtime.evaluate", {"expression": expr, "returnByValue": True})
         print(json.dumps(r.get("result", {}).get("value") or r, ensure_ascii=False))
-        if kv.get("list") != "1":
+        if kv.get("fps") == "1":
+            time.sleep(secs)
+            st = ws.call("Runtime.evaluate", {"expression": "(() => { const d = [...document.querySelector('iframe').contentWindow.__fd].slice(1).sort((a, b) => a - b); const avg = d.reduce((s, x) => s + x, 0) / d.length; return { fps: Math.round(1000 / avg), p95: Math.round(d[Math.floor(d.length * 0.95)]), max: Math.round(d[d.length - 1]), over50: d.filter((x) => x > 50).length, peak: document.querySelector('iframe').contentWindow.__ult.count() }; })()", "returnByValue": True})
+            print("부담", json.dumps(st.get("result", {}).get("value"), ensure_ascii=False))
+        elif kv.get("list") != "1":
             n = 0
             while (time.time() - t0) < secs:
                 shot = ws.call("Page.captureScreenshot", {"format": "png"})

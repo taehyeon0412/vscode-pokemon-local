@@ -144,6 +144,10 @@ function planOne(b: TeamBattle, e: TeamLogEntry, final: boolean, seen: Set<strin
     case 'ult-join':
       out.push({ do: 'ult-join', who: { side: e.side, slot: e.slot } });
       return;
+    case 'gather':
+      // 합동 필살기 멘트 — 쓴 포켓몬 둘레 반짝 (멘트 모양은 화면 · 디자인팀, 필살기 연출은 멘트가 끝난 뒤 ult 에서)
+      out.push({ do: 'ult-join', who: { side: e.side, slot: e.from } });
+      return;
     case 'ult-clash-end':
       out.push({ do: 'ult-clash-end', winner: e.winner, joint: e[e.winner].length > 1, sure: e.sure });
       return;

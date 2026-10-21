@@ -64,8 +64,12 @@ export interface TeamUlt {
   /** 상대 AI 가 끼어들 때 (ms, null = 안 끼어듦) · 끼어들 포켓몬 */
   joinAt: number | null;
   joiners: number[];
-  /** 합동 마무리 — 힘겨루기를 여럿이 이김 (3:1 = sure): 이긴 참가자마다 자기 필살기를 진 참가자 모두에게 (합쳐 터지는 순간) */
+  /** 합동 마무리 — 힘겨루기를 여럿이 이김 (3:1 = sure) · 같은 편이 모임: 이긴 참가자마다 자기 필살기를 진 참가자 모두에게 (합쳐 터지는 순간) */
   joint?: { winners: number[]; losers: number[]; sure: boolean };
+  /** 합동 필살기 멘트 — 남은 ms (그동안 필살기는 멈추고 같은 편이 모임) · 모인 같은 편 (쓴 포켓몬 빼고) · 상대 AI 동료가 모일 때 */
+  gather?: number;
+  team?: number[];
+  allyAt?: { slot: number; at: number }[];
 }
 
 export type TeamPopup = BattlePopup & { slot: number };
@@ -88,6 +92,8 @@ export type TeamNote =
   /** joint = 합동 마무리 (이긴 참가자 · 진 참가자 · 3:1) */
   | { t: 'ult'; side: Side; from: number; joint?: { winners: number[]; losers: number[]; sure: boolean } }
   | { t: 'ult-clash'; me: number[]; foe: number[] }
+  /** 합동 필살기 멘트 시작 (같은 편이 모임 — 끝나면 ult 가 따로 · 합동으로) */
+  | { t: 'gather'; side: Side; from: number }
   | { t: 'ult-join'; side: Side; slot: number }
   /** sure = 3:1 (셋 쪽이 압도) · me · foe = 끝날 때 참가자 (여럿이면 합동 마무리) */
   | { t: 'ult-clash-end'; winner: Side; sure: boolean; me: number[]; foe: number[] }
@@ -222,7 +228,7 @@ function clone(b: TeamBattle): TeamBattle {
     foe: b.foe.map((f) => ({ ...f })),
     shots: b.shots.map((s) => ({ ...s })),
     moveClashes: b.moveClashes.map((c) => ({ ...c })),
-    ult: b.ult ? { ...b.ult, joiners: [...b.ult.joiners] } : null,
+    ult: b.ult ? { ...b.ult, joiners: [...b.ult.joiners], ...(b.ult.team ? { team: [...b.ult.team] } : {}) } : null,
     clash: b.clash ? { ...b.clash, me: [...b.clash.me], foe: [...b.clash.foe] } : null,
     foeUltWait: [...b.foeUltWait],
     ultReadyAt: { me: [...b.ultReadyAt.me], foe: [...b.ultReadyAt.foe] },
@@ -490,23 +496,70 @@ function endMoveClash(b: TeamBattle, c: TeamClash, rng: Rng): void {
 function startUlt(b: TeamBattle, side: Side, slot: number, rng: Rng): void {
   const f = b[side][slot]!;
   spendUlt(b, side, slot);
-  const window = TIMING.team.interruptMs;
+  // 같은 편에 찬 포켓몬이 있으면 합동 필살기 멘트 (모이는 동안 멈춤 — 이 시간이 끼어들기 창도 됨), 없으면 바로 (끼어들기 창 1.2초)
+  const allies = b[side].map((x, i) => (i !== slot && alive(x) && x.ult >= 1 ? i : -1)).filter((i) => i >= 0);
+  const gather = allies.length > 0 ? TIMING.team.gatherMs : 0;
+  const window = gather || TIMING.team.interruptMs;
   const foes = b[other(side)];
   // 상대 AI 끼어들기 — 내 필살기에 (트레이너 가끔 · 관장 자주)
   const chance = side === 'me' ? BALANCE.team.interruptChance[b.kind] : 0;
   const joiners = foes.map((x, i) => (alive(x) && x.ult >= 1 && rng.chance(chance) ? i : -1)).filter((i) => i >= 0);
+  // 상대 AI 동료 — 찬 동료마다 한 번 굴려 모일 때를 정함 (트레이너 가끔 · 관장 자주)
+  const allyAt = side === 'foe' && gather ? allies.filter(() => rng.chance(BALANCE.team.interruptChance[b.kind])).map((i) => ({ slot: i, at: rng.int(150, gather - 250) })) : [];
   b.phase = 'ult';
-  note(b, { t: 'ult', side, from: slot });
-  b.ult = { side, from: slot, ms: 0, dur: TIMING.ultAnimMs, hitMs: Math.round(TIMING.ultAnimMs * 0.6), hit: false, window, joinAt: joiners.length ? rng.int(200, window - 100) : null, joiners };
-  b.msg = `${nameOf(f)}의 필살기!`;
+  b.ult = {
+    side,
+    from: slot,
+    ms: 0,
+    dur: TIMING.ultAnimMs,
+    hitMs: Math.round(TIMING.ultAnimMs * 0.6),
+    hit: false,
+    window,
+    joinAt: joiners.length ? rng.int(200, window - 100) : null,
+    joiners,
+    ...(gather ? { gather, team: [], ...(allyAt.length ? { allyAt } : {}) } : {}),
+  };
+  if (gather) {
+    note(b, { t: 'gather', side, from: slot });
+    b.msg = `${nameOf(f)}의 필살기! 합동 필살기?`;
+  } else {
+    note(b, { t: 'ult', side, from: slot });
+    b.msg = `${nameOf(f)}의 필살기!`;
+  }
+}
+
+/** 합동 필살기 멘트 동안 같은 편이 모임 (필살기 게이지를 씀) */
+function joinTeam(b: TeamBattle, side: Side, slot: number): void {
+  const u = b.ult!;
+  spendUlt(b, side, slot);
+  u.team = [...(u.team ?? []), slot];
+  note(b, { t: 'ult-join', side, slot });
+  b.msg = `합동 필살기! ${u.team.length + 1}마리`;
+}
+
+/** 멘트 끝 — 모였으면 합동 (같은 때 맞아 합쳐 터지는 순간에 피해), 아니면 따로 (끼어들기 창은 멘트로 지났음) */
+function finishGather(b: TeamBattle): void {
+  const u = b.ult!;
+  const team = (u.team ?? []).filter((i) => alive(b[u.side][i]!));
+  if (team.length > 0) {
+    const joint = { winners: [u.from, ...team], losers: b[other(u.side)].map((x, i) => (alive(x) ? i : -1)).filter((i) => i >= 0), sure: false };
+    b.ult = { side: u.side, from: u.from, ms: 0, dur: TIMING.team.jointMs, hitMs: TIMING.team.jointHitMs, hit: false, window: 0, joinAt: null, joiners: [], joint };
+    note(b, { t: 'ult', side: u.side, from: u.from, joint });
+    b.msg = `합동 필살기! ${joint.winners.length}마리`;
+    return;
+  }
+  b.ult = { side: u.side, from: u.from, ms: 0, dur: u.dur, hitMs: u.hitMs, hit: false, window: 0, joinAt: null, joiners: [] };
+  note(b, { t: 'ult', side: u.side, from: u.from });
+  b.msg = `${nameOf(b[u.side][u.from]!)}의 필살기!`;
 }
 
 /** 필살기 힘겨루기 시작 — 쓴 쪽 + 끼어든 쪽 (그 뒤에도 합류) */
 function startUltClash(b: TeamBattle, joinSide: Side, joiners: number[], rng: Rng): void {
   const u = b.ult!;
   for (const i of joiners) spendUlt(b, joinSide, i);
-  const me = u.side === 'me' ? [u.from] : joiners;
-  const foe = u.side === 'foe' ? [u.from] : joiners;
+  // 쓴 쪽은 모인 같은 편과 함께 (합동 필살기 멘트 중에 받아침 — 양쪽이 모인 채 힘겨루기)
+  const me = u.side === 'me' ? [u.from, ...(u.team ?? [])] : joiners;
+  const foe = u.side === 'foe' ? [u.from, ...(u.team ?? [])] : joiners;
   b.phase = 'clash';
   const dur = TIMING.team.ultClashMs;
   // 힘겨루기 동안 상대가 합류 — 찬 포켓몬마다 한 번 굴려 합류할 때를 정함 (트레이너 가끔 · 관장 자주)
@@ -598,6 +651,18 @@ function firstReserved(b: TeamBattle): number | null {
 
 // ---------- 입력 · 걸음
 
+/**
+ * 합동 필살기 멘트 — 같은 편이 필살기를 쓰고 모이는 동안 (화면: "합동 필살기! [2] 이상해꽃" · 남은 시간 막대). 없으면 null.
+ * can = 지금 누르면 합류하는 칸 (키 = 칸 + 1) · team = 이미 모인 칸 (쓴 포켓몬 빼고)
+ */
+export function teamGather(b: TeamBattle): { side: Side; from: number; leftMs: number; totalMs: number; team: number[]; can: number[] } | null {
+  const u = b.ult;
+  if (b.phase !== 'ult' || !u || !((u.gather ?? 0) > 0)) return null;
+  const team = u.team ?? [];
+  const can = b[u.side].map((f, i) => (i !== u.from && !team.includes(i) && alive(f) && f.ult >= 1 ? i : -1)).filter((i) => i >= 0);
+  return { side: u.side, from: u.from, leftMs: u.gather!, totalMs: TIMING.team.gatherMs, team: [...team], can };
+}
+
 /** 필살기 게이지 단계 — 화면의 상대 필살기 예고 (near = ultWarnAt 넘음 · full = 다 참) · 내 발밑 판에도 씀 */
 export function teamUltLevel(f: Fighter): 'none' | 'near' | 'full' {
   return !alive(f) ? 'none' : f.ult >= 1 ? 'full' : f.ult >= BALANCE.team.ultWarnAt ? 'near' : 'none';
@@ -621,7 +686,12 @@ export function teamUltOpen(b: TeamBattle, slot: number): boolean {
   if (!f || !alive(f) || f.ult < 1) return false;
   if (b.phase === 'run') return true;
   // 맞은 뒤에는 못 끼어듦 (피해가 두 번 들어가지 않게 — 코드 리뷰어)
-  if (b.phase === 'ult') return b.ult!.side === 'foe' && b.ult!.window > 0 && !b.ult!.hit;
+  if (b.phase === 'ult') {
+    const u = b.ult!;
+    // 상대 필살기 = 끼어들기 · 내 필살기 멘트 = 같은 편 합류
+    if (u.side === 'foe') return u.window > 0 && !u.hit;
+    return (u.gather ?? 0) > 0 && slot !== u.from && !(u.team ?? []).includes(slot);
+  }
   return b.phase === 'clash' && b.clash!.kind === 'ult' && !b.clash!.me.includes(slot);
 }
 
@@ -643,6 +713,7 @@ export function teamInput(b0: TeamBattle, input: TeamInput, rng: Rng): TeamBattl
   }
   const b = clone(b0);
   if (b.phase === 'run') startUlt(b, 'me', slot, rng);
+  else if (b.phase === 'ult' && b.ult!.side === 'me') joinTeam(b, 'me', slot);
   else if (b.phase === 'ult') startUltClash(b, 'me', [slot], rng);
   else if (b.clash) {
     spendUlt(b, 'me', slot);
@@ -666,10 +737,14 @@ export function teamStep(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamSte
       return b;
     case 'ult': {
       const u = b.ult!;
-      u.ms += stepMs;
+      // 합동 필살기 멘트 동안은 필살기가 멈추고 (ms 그대로) 멘트 시간만 감
+      const gathering = (u.gather ?? 0) > 0;
+      if (gathering) u.gather = Math.max(0, u.gather! - stepMs);
+      else u.ms += stepMs;
       u.window = Math.max(0, u.window - stepMs);
+      const at = gathering ? TIMING.team.gatherMs - u.gather! : u.ms;
       // 상대 AI 가 내 필살기에 끼어듦 · 자동 전투면 내가 상대 필살기에 바로 끼어듦
-      if (u.joinAt !== null && u.ms >= u.joinAt) {
+      if (u.joinAt !== null && at >= u.joinAt) {
         const joiners = u.joiners.filter((i) => alive(b.foe[i]!) && b.foe[i]!.ult >= 1);
         if (joiners.length > 0) {
           startUltClash(b, 'foe', joiners, rng);
@@ -684,6 +759,21 @@ export function teamStep(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamSte
           startUltClash(b, 'me', mine, rng);
           return b;
         }
+      }
+      if (gathering) {
+        // 같은 편 합류 — 내 편: 예약 · 자동 전투 (안 볼 때) 면 찬 포켓몬 모두 / 상대 편: 정해 둔 때
+        if (u.side === 'me') {
+          b.me.forEach((f, i) => {
+            if (i !== u.from && !(u.team ?? []).includes(i) && alive(f) && f.ult >= 1 && (auto || b.reserve.includes(i))) joinTeam(b, 'me', i);
+          });
+        } else {
+          for (const j of u.allyAt ?? []) {
+            const f = b.foe[j.slot];
+            if (f && at >= j.at && j.slot !== u.from && !(u.team ?? []).includes(j.slot) && alive(f) && f.ult >= 1) joinTeam(b, 'foe', j.slot);
+          }
+        }
+        if (u.gather === 0) finishGather(b);
+        return b;
       }
       if (!u.hit && u.ms >= u.hitMs && u.joint) {
         u.hit = true;
@@ -843,7 +933,9 @@ export function readTeam(raw: unknown): TeamBattle | null {
   const okJoint = (j: unknown, side: Side) => isObj(j) && slots(j.winners, side, 1) && slots(j.losers, other(side), 1) && typeof j.sure === 'boolean';
   const okUlt = (x: Obj) =>
     isSide(x.side) && slot(x.from, x.side) && fin(x.ms, 0) && fin(x.dur, 1) && fin(x.hitMs, 0) && typeof x.hit === 'boolean' && fin(x.window, 0) && (x.joinAt === null || fin(x.joinAt, 0)) && slots(x.joiners, other(x.side)) &&
-    (x.joint === undefined || okJoint(x.joint, x.side));
+    (x.joint === undefined || okJoint(x.joint, x.side)) &&
+    (x.gather === undefined || fin(x.gather, 0, 60_000)) && (x.team === undefined || slots(x.team, x.side)) &&
+    (x.allyAt === undefined || (Array.isArray(x.allyAt) && x.allyAt.every((j) => isObj(j) && slot(j.slot, x.side as Side) && fin(j.at, 0))));
   if (!(u === null || (isObj(u) && okUlt(u)))) return null;
   if ((raw.phase === 'ult') !== (u !== null)) return null;
   if (!waits(raw.foeUltWait, n.foe) || !isObj(raw.ultReadyAt) || !waits(raw.ultReadyAt.me, n.me) || !waits(raw.ultReadyAt.foe, n.foe)) return null;
@@ -879,6 +971,8 @@ export function readTeam(raw: unknown): TeamBattle | null {
       case 'faint':
       case 'ready':
         return isSide(e.side) && slot(e.slot, e.side);
+      case 'gather':
+        return isSide(e.side) && slot(e.from, e.side);
       case 'status':
         return isSide(e.side) && slot(e.slot, e.side) && ['poison', 'burn', 'paralysis', 'sleep'].includes(e.kind as string);
       case 'end':
@@ -896,5 +990,5 @@ export function readTeam(raw: unknown): TeamBattle | null {
 /** 다시 그리는 열쇠 — 한 걸음마다 바뀌는 것 (게이지 · HP · 날아가는 기술 · 힘겨루기 · 필살기 진행 · 팝업이 사라짐) 을 모양 단위로 */
 export function teamViewKey(b: TeamBattle): string {
   const f = (x: Fighter) => `${x.hp}:${Math.floor(x.gauge * 20)}:${Math.floor(x.ult * 20)}:${x.status?.kind ?? ''}`;
-  return [b.phase, b.me.map(f).join(','), b.foe.map(f).join(','), b.shots.map((s) => `${s.id}:${s.clash}`).join(','), b.moveClashes.map((c) => `${c.shots?.join('-')}:${Math.floor(c.ms / 100)}`).join(','), b.ult ? `${b.ult.side}${b.ult.from}:${b.ult.window > 0}:${b.ult.hit}:${Math.floor(b.ult.ms / 100)}` : '', b.clash ? `${b.clash.me.join('')}:${b.clash.foe.join('')}:${b.clash.taps}:${Math.floor(b.clash.ms / 100)}` : '', b.popups.map((p) => p.id).join(','), b.msg, b.reserve.join(''), b.logSeq].join('|');
+  return [b.phase, b.me.map(f).join(','), b.foe.map(f).join(','), b.shots.map((s) => `${s.id}:${s.clash}`).join(','), b.moveClashes.map((c) => `${c.shots?.join('-')}:${Math.floor(c.ms / 100)}`).join(','), b.ult ? `${b.ult.side}${b.ult.from}:${b.ult.window > 0}:${b.ult.hit}:${Math.floor(b.ult.ms / 100)}:${Math.floor((b.ult.gather ?? 0) / 100)}:${(b.ult.team ?? []).join('')}` : '', b.clash ? `${b.clash.me.join('')}:${b.clash.foe.join('')}:${b.clash.taps}:${Math.floor(b.clash.ms / 100)}` : '', b.popups.map((p) => p.id).join(','), b.msg, b.reserve.join(''), b.logSeq].join('|');
 }

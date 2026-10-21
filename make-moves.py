@@ -307,6 +307,10 @@ def write_bundle(table, acts, lib, movesets, shape, ult_lib, ults, out):
     moves += "const POKEMON_SHAPE = " + json.dumps(shape, separators=(",", ":")) + ";\n"
     moves += "const ULT_LIB = " + json.dumps(ult_lib, ensure_ascii=False, separators=(",", ":")) + ";\n"
     moves += "const POKEMON_ULT = " + json.dumps(ults, separators=(",", ":")) + ";\n"
+    # 필살기마다 본편 시작에서 처음 맞는 때 · 본편 길이 (dev/ult-fx.py 가 잼 — 3:3 합동 필살기가 같은 때 맞게, 열쇠 = "이름|틀")
+    hit_path = os.path.join(ULT_DIR, "ult-hit.json")
+    ult_hit = json.load(open(hit_path, encoding="utf-8")) if os.path.exists(hit_path) else {}
+    moves += "const ULT_HIT = " + json.dumps(ult_hit, ensure_ascii=False, separators=(",", ":")) + ";\n"
     i = src.index(CODE_ANCHOR)
     src = src[:i] + BEGIN + "\n" + moves + code + END + "\n" + src[i:]
     i = src.index(HOOK_ANCHOR) + len(HOOK_ANCHOR)

@@ -7,7 +7,7 @@ import type { Monster, Save } from '../save';
 import { applyInput, step, teamLock, teamPickOf } from './play';
 import { Rng } from './rng';
 import { createGameState, readRuntime, type GameState } from './state';
-import { shotTiming, applyTeamResult, isSpread, pickTeam, readTeam, startTeamBattle, TEAM_BASIC, teamClashSure, teamDone, teamInput, teamPick, teamPossible, teamScale, teamStep, teamUltLevel, teamUltOpen, type TeamBattle } from './team';
+import { shotTiming, applyTeamResult, isSpread, pickTeam, readTeam, startTeamBattle, TEAM_BASIC, teamClashSure, teamDone, teamInput, teamPick, teamPossible, teamScale, teamStep, teamUltLevel, teamUltOpen, type TeamBattle, teamGather } from './team';
 import { moveFxOf, moveOf } from '../../data';
 import { trainerTeam } from '../rules/trainer';
 
@@ -581,5 +581,66 @@ describe('3:3 연출 방향 (2026-10-21 태현 님 — 일반 모드 기술 그�
     const solo = run({ ...clash, clash: { ...clash.clash!, me: [0] } }, TIMING.team.ultClashMs + STEP, fixedRng(0.01));
     expect(solo.phase).toBe('run');
     expect(solo.foe[0]!.hp).toBeLessThan(base.foe[0]!.hp);
+  });
+});
+
+describe('같은 편 합동 필살기 — 합동 필살기 멘트 (2026-10-21 태현 님 "멘트가 있을때 다른 포켓몬 필살기를 누르면 합동")', () => {
+  const full = (b: TeamBattle, side: 'me' | 'foe', slots: number[]): TeamBattle => ({ ...b, [side]: b[side].map((f, i) => (slots.includes(i) ? { ...f, ult: 1 } : f)) });
+  const base = () => startTeamBattle(team3(), foes(), 'trainer', '상대');
+
+  it('같은 편에 찬 포켓몬이 있으면 멘트 (멈춤 · 키 + 남은 시간) → 누르면 합동 (같은 때 합쳐 터지는 순간에 피해) · 안 누르면 따로', () => {
+    const b = full(base(), 'me', [0, 1]);
+    const g = teamInput(b, { kind: 'ult', slot: 0 }, fixedRng(0.99));
+    expect(g.phase).toBe('ult');
+    expect(teamGather(g)).toEqual({ side: 'me', from: 0, leftMs: TIMING.team.gatherMs, totalMs: TIMING.team.gatherMs, team: [], can: [1] });
+    expect(g.log.at(-1)).toMatchObject({ t: 'gather', side: 'me', from: 0 });
+    // 멘트 동안 필살기는 멈춤 · 끼어들기 창도 그만큼
+    const mid = run(g, 500, fixedRng(0.99));
+    expect(mid.ult).toMatchObject({ ms: 0, gather: TIMING.team.gatherMs - 500 });
+    expect(teamUltOpen(mid, 1)).toBe(true);
+    const joined = teamInput(mid, { kind: 'ult', slot: 1 }, fixedRng(0.99));
+    expect(joined.ult!.team).toEqual([1]);
+    expect(joined.me[1]!.ult).toBe(0);
+    const joint = run(joined, TIMING.team.gatherMs, fixedRng(0.99));
+    expect(joint.ult).toMatchObject({ joint: { winners: [0, 1], losers: [0, 1, 2], sure: false }, dur: TIMING.team.jointMs, window: 0 });
+    expect(teamGather(joint)).toBeNull();
+    const hp = joint.foe.map((f) => f.hp);
+    const hit = run(joint, TIMING.team.jointHitMs + STEP, fixedRng(0.99));
+    expect(hit.foe.every((f, i) => f.hp < hp[i]!)).toBe(true);
+    // 안 누르면 따로 — 멘트가 끝난 뒤 혼자 (끼어들기 창은 멘트로 지났음)
+    const solo = run(g, TIMING.team.gatherMs, fixedRng(0.99));
+    expect(solo.ult).toMatchObject({ side: 'me', from: 0, window: 0 });
+    expect(solo.ult!.joint).toBeUndefined();
+    expect(solo.log.at(-1)).toMatchObject({ t: 'ult', side: 'me', from: 0 });
+    expect(readTeam(viaJson(mid))).toEqual(viaJson(mid));
+  });
+
+  it('찬 동료가 없으면 멘트 없이 바로 · 예약한 동료 · 자동 전투는 저절로 합류 · 멘트 중에 받아치면 양쪽이 모인 채 힘겨루기', () => {
+    const one = teamInput(full(base(), 'me', [0]), { kind: 'ult', slot: 0 }, fixedRng(0.99));
+    expect(one.ult!.gather).toBeUndefined();
+    expect(one.ult!.window).toBe(TIMING.team.interruptMs);
+    const g = teamInput(full(base(), 'me', [0, 2]), { kind: 'ult', slot: 0 }, fixedRng(0.99));
+    expect(run({ ...g, reserve: [2] }, STEP, fixedRng(0.99)).ult!.team).toEqual([2]);
+    expect(teamStep(g, STEP, fixedRng(0.99), { auto: true, away: false }).ult!.team).toEqual([2]);
+    // 상대 AI 가 멘트 중에 받아침 (0 = 늘) — 내 쪽은 모인 동료와 함께
+    const both = full(full(base(), 'me', [0, 2]), 'foe', [1]);
+    const g2 = teamInput(both, { kind: 'ult', slot: 0 }, fixedRng(0));
+    const joined = teamInput(g2, { kind: 'ult', slot: 2 }, fixedRng(0));
+    const c = run(joined, TIMING.team.gatherMs, fixedRng(0));
+    expect(c.phase).toBe('clash');
+    expect(c.clash).toMatchObject({ me: [0, 2], foe: [1] });
+  });
+
+  it('상대 편 합동 — 찬 동료가 정해 둔 때 모임 (트레이너 가끔 · 관장 자주) · 내가 멘트 중에 받아칠 수 있음', () => {
+    const b = { ...full(base(), 'foe', [0, 2]), foeUltWait: [1, null, null] };
+    const g = run(b, STEP, fixedRng(0));
+    expect(teamGather(g)).toMatchObject({ side: 'foe', from: 0, can: [2] });
+    const done = run(g, TIMING.team.gatherMs, fixedRng(0));
+    expect(done.ult).toMatchObject({ joint: { winners: [0, 2] } });
+    const mine = full(g, 'me', [1]);
+    expect(teamUltOpen(mine, 1)).toBe(true);
+    const clash = teamInput(mine, { kind: 'ult', slot: 1 }, fixedRng(0.99));
+    expect(clash.phase).toBe('clash');
+    expect(clash.clash!.me).toEqual([1]);
   });
 });
