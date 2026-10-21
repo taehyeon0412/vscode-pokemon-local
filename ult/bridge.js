@@ -115,14 +115,17 @@ function fxGameShake(amp) {
         el.fxShake = el.animate([{ translate: `-${a}px 0` }, { translate: `${a}px 0` }], { duration: 80, iterations: 4, direction: 'alternate', composite: 'add' });
     });
 }
-// 화면 번쩍 상한 — 게임 중엔 0.3 (넓은 패널 전체가 하얗게 번쩍이지 않게)
-const fxFlashCap = () => (fxInGame() ? (fxAway ? 0.15 : 0.3) : 1);
+// 화면 번쩍 상한 — 게임 중엔 0.3 (넓은 패널 전체가 하얗게 번쩍이지 않게) · 반격기 (짧은 필살기, fxGame.noFlash) 는 0 (2026-10-21 orders #7 — 솔라빔이 860 전체를 0.2초 밝게)
+const fxFlashCap = () => (fxInGame() ? (fxGame && fxGame.noFlash ? 0 : fxAway ? 0.15 : 0.3) : 1);
 // 게임 중 화면 번쩍 — 0.34초에 한 번 · 진하기 0.3 까지 (1초 3번 규칙). 일반 모드는 그대로
 let fxLastFlash = 0;
 const fxScreenFlash = screenFlash;
 screenFlash = function (s, alpha, color, max) {
     if (!fxInGame()) {
         return fxScreenFlash(s, alpha, color, max);
+    }
+    if (fxGame && fxGame.noFlash) {
+        return undefined;
     }
     const now = performance.now();
     if (now - fxLastFlash < 340) {
@@ -664,7 +667,8 @@ window.pokemonFx = {
         const A = fxActor(src);
         const B = fxActor(dst);
         const gen = ++fxGen;
-        fxGame = { A, B, gen, tick: setInterval(fxGameTick, 100), onHit, hit: false };
+        // o.sub = 반격기 — 패널 전체 번쩍 없음 (fxFlashCap)
+        fxGame = { A, B, gen, tick: setInterval(fxGameTick, 100), onHit, hit: false, noFlash: !!o?.sub };
         let total = 0;
         try {
             // o.quick = 같은 전투에서 다시 보는 필살기 — 컷인 없이 짧게 (ult/core.js ULT_QUICK_INTRO_MS)
@@ -767,6 +771,27 @@ window.pokemonFx = {
         }
     },
     /** 쓰는 중인 필살기를 멈춤 (맞받아치기 · 전투 끝) — 몸 자리 · 그림 · 어둠을 되돌림 */
+    /** 남은 필살기 연출을 ms 동안 흐리게 한 뒤 끔 (픽셀 박자 3단) — 반격기는 맞힌 뒤 줄기가 고르기 메뉴 위로 0.66초 남던 것 (2026-10-21 orders #7) */
+    fadeUlt(ms) {
+        const g = fxGame;
+        if (!g || typeof moveCanvas === 'undefined' || !moveCanvas) {
+            return;
+        }
+        const c = moveCanvas;
+        c.style.transition = `opacity ${ms}ms steps(3, end)`;
+        c.style.opacity = '0';
+        setTimeout(() => {
+            // 그사이 새 필살기 · 대결이 시작했으면 그건 두고 캔버스만 다시 보이게
+            if (fxGame === g) {
+                window.pokemonFx.stopUlt();
+            } else if (!fxGame) {
+                moveEmitters.length = 0;
+                moveParticles.length = 0;
+            }
+            c.style.transition = '';
+            c.style.opacity = '';
+        }, ms);
+    },
     stopUlt() {
         const was = !!fxGame;
         fxGameStop(true);

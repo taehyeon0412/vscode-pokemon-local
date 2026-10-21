@@ -31,6 +31,9 @@ const SHOT_HOLD_AFTER_MS = 60;
 /** 필살기 시작을 이만큼 넘겨서 붙었으면 (접었다 펴기 등) 처음부터 못 보여 줘서 이모지로 — 나와라! 등장 (0.45초) 을 기다리는 것 포함 */
 const ULT_LATE_MS = 600;
 const ULT_RETRY_MS = 50;
+/** 반격기 — 맞힌 뒤 줄기를 보여 주는 시간 · 그다음 흐리게 끄는 시간. 그동안 엔진을 붙잡아 피해 · 고르기 메뉴는 그 뒤 (2026-10-21 orders #7 — 처음 맞힌 순간 = 줄기 시작이라 바로 끄면 줄기가 안 보임) */
+const RIPOSTE_BEAM_MS = 500;
+const RIPOSTE_FADE_MS = 200;
 /** 힘대결 밀고 밀리기 — 일반 모드 대결과 같은 3.6초 (가운데서 만난 뒤부터, 연타는 그동안 계속) */
 const DUEL_PUSH_MS = 3600;
 /** 이미 지난 순간은 이만큼까지만 늦게라도 그림 (화면이 다시 붙는 사이) */
@@ -306,7 +309,11 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
           // 상대를 처음 맞힌 순간 피해를 넣음 — 붙잡기를 풀고 남은 연출은 흘러가게 둠 (연출이 다 끝난 뒤 숫자가 늦게 뜨지 않게)
           const onHit = () => {
             ultHitDone = true;
-            releaseFx();
+            // 반격기: 줄기 0.5초 → 0.2초에 흐리게 끄고 그다음 피해 · 메뉴 (메뉴가 뜬 뒤에도 줄기가 0.66초 더 나가던 것, orders #7)
+            if (riposte && fx.fadeUlt) {
+              holdFx(key, RIPOSTE_BEAM_MS + RIPOSTE_FADE_MS, performance.now(), FX_HOLD_ULT_MAX_MS);
+              timers.push(window.setTimeout(() => fx.fadeUlt?.(RIPOSTE_FADE_MS), RIPOSTE_BEAM_MS));
+            } else releaseFx();
             down();
           };
           fx.mount?.(null);
@@ -326,7 +333,8 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
               () => {
                 fx.stopUlt?.();
                 if (!ultHitDone) onHit();
-                else releaseFx();
+                // 건너뛰면 바로 (반격기의 줄기 붙잡기도 풂)
+                releaseFx();
               },
               key,
               quick,
