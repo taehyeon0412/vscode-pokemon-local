@@ -196,7 +196,7 @@ const SHOP_EFFECT: Record<ShopItem, string> = {
   'full-heal': '상태 회복',
   revive: '되살림 HP ½',
   'rare-candy': '레벨 +1',
-  'exp-charm': `다음 판 경험치 ×${BALANCE.expCharmScale}`,
+  'exp-charm': `다음판 경험×${BALANCE.expCharmScale}`,
 };
 /** 마우스를 올리면 보이는 긴 설명 */
 const SHOP_DETAIL: Record<ShopItem, string> = {

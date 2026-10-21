@@ -28,7 +28,7 @@ export function SettingsPanel({ save, onInput, onExit, onClose }: { save: Save; 
           {save.settings.autoPotion === false && <span class="pg-long"> 꺼짐</span>}
         </Button>
         <Button secondary extraClass={save.settings.skipCaughtLast === true ? 'pg-picked' : undefined} onClick={() => onInput({ kind: 'skip-caught-last', on: save.settings.skipCaughtLast !== true })} title="잡은 포켓몬은 마지막 기회 건너뛰기 — 이미 잡은 종을 쓰러뜨리면 볼 고르기 없이 지나가요">
-          {save.settings.skipCaughtLast === true ? '✓ ' : ''}잡은 종<span class="pg-long"> 마지막 기회</span> 건너뛰기
+          {save.settings.skipCaughtLast === true ? '✓ ' : ''}잡은 종<span class="pg-long"> 마지막 기회</span> 볼 건너뛰기
           {save.settings.skipCaughtLast !== true && <span class="pg-long"> 꺼짐</span>}
         </Button>
         <Button secondary extraClass={save.settings.fastWalk === true ? 'pg-picked' : undefined} onClick={() => onInput({ kind: 'fast-walk', on: save.settings.fastWalk !== true })} title="빨리 걷기 ×3 — 흔적 · 트레이너 · 병원 · 아이템 · 부탁이 다가오면 보통 빠르기로 (정보줄 ▶▶ 와 같음)">
@@ -43,7 +43,7 @@ export function SettingsPanel({ save, onInput, onExit, onClose }: { save: Save; 
       </Row>
       {/* 단축키 (2026-10-19 전체 점검 — 키보드로 하는 사람이 찾지 않게, 정보줄 메뉴 글자와 같은 자판 칸) */}
       <Row>
-        <span class="pg-keys pg-ellipsis">
+        <span class="pg-keys pg-keys-wrap">
           <span class="pg-menu-key">Space</span> 막기 <span class="pg-menu-key">Z</span> 필살기 <span class="pg-menu-key">1</span> ~ <span class="pg-menu-key">5</span> 고르기{' '}
           <span class="pg-menu-key">A</span> 자동 전투{' '}
           <span class="pg-menu-key">Esc</span> 닫기 · 지나가기

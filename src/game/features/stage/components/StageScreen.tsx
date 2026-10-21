@@ -381,15 +381,18 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         {/* 처음 한 번 안내 (orders #12 · 세이브 tips) — 숲 1-1 처음 걷기 · 처음 마지막 기회 · 필살기 처음 꽉 참. 다 보면 tip-seen */}
         {save.location.screen === 'stage' && save.location.stageId === 'forest-1' && phase === 'walk' && !(save.tips ?? []).includes('walk') && (
           <FirstTip key="walk" ms={5000} className="pg-first-tip-top" onSeen={() => onInput({ kind: 'tip-seen', id: 'walk' })}>
-            자동으로 걸어요 — 야생 포켓몬을 만나면 전투가 시작돼요
+            {/* 줄은 "—" 뒤에서 바뀜 (좁은 패널에서 "야생 / 포켓몬" 사이로 갈리던 것) */}
+            <span class="pg-tip-part">자동으로 걸어요 —</span> <span class="pg-tip-part">야생 포켓몬을 만나면 전투가 시작돼요</span>
           </FirstTip>
         )}
         {battle?.phase === 'last' && !(save.tips ?? []).includes('last') && (
           <FirstTip key="last" ms={4000} className="pg-first-tip-low" onSeen={() => onInput({ kind: 'tip-seen', id: 'last' })}>
-            약해진 포켓몬에게 볼을 던지면 팀이 늘어요
+            {/* 360px 아래는 짧게 한 줄 — 두 줄이면 잡을 상대 · 내 포켓몬을 가림 (UX 리뷰어) */}
+            <span class="pg-tip-long">약해진 포켓몬에게 </span>볼을 던지면 팀이 늘어요
           </FirstTip>
         )}
-        {battle && battle.phase !== 'last' && battle.phase !== 'over' && battle.me.ult >= 1 && !(save.tips ?? []).includes('ult') && (
+        {/* 필살기 안내 = 고르는 때 · 게이지 차는 때만 (원 · 연출 중엔 원을 가려서) · 자동 전투면 안 띄움 (차자마자 저절로 써서 한 장면만 번쩍이던 것) */}
+        {battle && (battle.phase === 'choose' || battle.phase === 'run') && !save.settings.autoBattle && battle.me.ult >= 1 && !(save.tips ?? []).includes('ult') && (
           <FirstTip key="ult" ms={3000} className="pg-first-tip-low" onSeen={() => onInput({ kind: 'tip-seen', id: 'ult' })}>
             필살기 준비! <KeyCap k="Z" />
           </FirstTip>

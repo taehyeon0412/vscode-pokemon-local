@@ -226,7 +226,8 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
           <span class="pg-last-word">마지막 기회! </span>
 
           <span class="pg-last-sec" title="안 고르면 그냥 지나가요">
-            {Math.max(0, Math.ceil((TIMING.lastChanceMs - b.lastMs) / 1000))}초
+            {/* 자동 전투 (이로치 아님) 는 3초 — 엔진 (battle.ts last) 과 같은 규칙 (UX 리뷰어: 6초로 세다 4초에서 끝나던 것) */}
+            {Math.max(0, Math.ceil(((save.settings.autoBattle && !b.foe.shiny ? TIMING.lastChanceAutoMs : TIMING.lastChanceMs) - b.lastMs) / 1000))}초
           </span>
         </span>
         {balls.map((ball, i) => (

@@ -1142,6 +1142,37 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   font-size: 11px;
   font-weight: 700;
 }
+.pg-tip-part {
+  display: inline-block;
+}
+@media (max-width: 360px) {
+  .pg-tip-long {
+    display: none;
+  }
+}
+/* 좁은 부탁 상자 (300px 아래) — 키 칸 (Enter · Esc) 을 빼서 남은 초가 붙은 [지나간다] 가 패널 밖으로 안 나가게 · 클리어 카드는 둘째 줄 흐린 요약을 뺌 (UX 리뷰어 2026-10-21) */
+@media (max-width: 300px) {
+  .pg-request .pg-button .pg-menu-key {
+    display: none;
+  }
+  .pg-clear > .pg-line:last-child > .pg-dim {
+    display: none;
+  }
+}
+/* 남은 초는 고정폭 숫자 (10초 → 9초 에 버튼 폭이 바뀌어 옆 버튼이 튀던 것) */
+.pg-button .pg-sub {
+  font-variant-numeric: tabular-nums;
+}
+/* 전투 메뉴 안 금색이 아닌 켜짐 버튼 (자동 전투 켜짐) 의 A 키 칸 — 남색 바탕 위 짙은 글이 안 보이던 것 */
+.pg-bmenu .pg-button:not(.pg-secondary):not(:disabled) .pg-menu-key {
+  color: var(--pg-sos-gold);
+  border-color: var(--pg-sos-gold);
+}
+/* 설정 단축키 줄 — 줄임표 대신 줄 바꿈 (240 · 300 에서 A · Esc 가 잘리던 것) */
+.pg-keys.pg-keys-wrap {
+  white-space: normal;
+  line-height: 18px;
+}
 .pg-first-tip-top {
   top: var(--pg-field-top, 3px);
 }
