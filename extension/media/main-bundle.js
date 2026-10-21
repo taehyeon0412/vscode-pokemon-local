@@ -48928,7 +48928,7 @@ function fxGameTick() {
     const g = fxGame;
     // 움직이기 (UltMoveState) 가 거는 타이머도 그 필살기 번호로
     fxWithTimers(g.gen, () => {
-        for (const p of [g.A, g.B]) {
+        for (const p of [...(g.many || [g.A]), g.B]) {
             const st = p.currentState;
             try {
                 if (st && st.nextFrame && st.nextFrame() === states_1.FrameResult.stateComplete) {
@@ -48958,7 +48958,7 @@ function fxGameStop(kill) {
     if (ultActive && ultActive.pokemon === g.A) {
         ultEnd(g.A);
     }
-    g.A.fxReset();
+    (g.many || [g.A]).forEach((p) => p.fxReset());
     g.B.fxReset();
 }
 
@@ -49307,6 +49307,45 @@ function fxDuelSoftStop() {
     g.done = setTimeout(() => fxGame === g && fxGameStop(false), 1800);
 }
 
+// ── 합동 필살기 (3:3) — 참가자 줄기를 한 점에 모아 하나로 터뜨림 ──
+// 터진 뒤 여운 (그 뒤 정리)
+const FX_JOINT_BURST_MS = 1500;
+// 참가자 색을 번갈아 섞음 (겹치는 색은 한 번)
+function fxJointCols(parts) {
+    const out = [];
+    const max = Math.max(...parts.map((p) => p.cols.length));
+    for (let i = 0; i < max; i++) {
+        for (const p of parts) {
+            const c = p.cols[i];
+            if (c && !out.includes(c)) {
+                out.push(c);
+            }
+        }
+    }
+    return out;
+}
+// 한 점 폭발 — 대결 폭발 + 섞인 색 고리 두 겹 · 타입 임팩트 (참가자 타입마다 같은 점에) · 쓰러뜨림 별빛 · 뒤로 밀림 · 압도면 더 크게
+function fxJointBurst(parts, B, sure, D) {
+    const r = B.collision.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height * 0.55;
+    const S = Math.max(2, Math.round(r.width / (B._originalSpriteSize || 32)));
+    const k = sure ? 1.5 : 1;
+    const R = Math.max(r.width, 36) * 2.4 * k;
+    const cols = fxJointCols(parts);
+    // 대결의 큰 폭발 (번쩍 · 흔들림 · 고리) — 섞인 색
+    duelBoom(D, cx, cy, cols, !!sure);
+    sigRing(cx, cy, S, 6, R, 1, 0.55, [...cols, '#ffffff']);
+    setTimeout(() => sigRing(cx, cy, S, 4, R * 1.45, 0.75, 0.7, cols), 130);
+    if (sure) {
+        setTimeout(() => sigRing(cx, cy, S, 4, R * 1.9, 0.6, 0.85, ['#ffffff', ...cols]), 260);
+    }
+    // 참가자 타입마다 같은 점에 큰 임팩트 — 불꽃 회오리 + 잎 · 빛 … 이 한 점에서 겹침
+    parts.forEach((p, i) => setTimeout(() => typeImpact(cx, cy, S, p.type, POKEMON_SHAPE[p.A.label]?.[0] ?? 0.5, true, B.left > p.A.left ? 1 : -1, r.width, { scale: 1.3 * k }), i * 60));
+    hitKO(sigGeometry(B, B.left > parts[0].A.left));
+    knockBack(B, B.left > parts[0].A.left, 1, spriteSize(B) * (sure ? 1.4 : 1));
+}
+
 window.pokemonFx = {
     version: 4,
     /** 그 기술의 연출 — { fx: 틀 이름, ms: 걸리는 시간, contact: 몸으로 닿는지 } · 없으면 null (게임은 그 기술을 예전 모양으로) */
@@ -49433,6 +49472,146 @@ window.pokemonFx = {
         }
         fxGame.done = setTimeout(fxGameStop, total + 200);
         return total;
+    },
+    /**
+     * 합동 필살기 (3:3 — 2026-10-21 태현 님 "필살기가 합쳐지듯이 — 쏠라빔 + 블라스트가 나왔다면 폭발이 합쳐져서") — 컷인 한 번 (앞장) 뒤
+     * 참가자마다 자기 필살기 모양 (1:1 필살기 힘대결과 같은 줄기 — 광선 · 구슬 · 돔 · 돌진 …, 그 필살기 색) 을 상대로 쏘아 모두 같은 때 닿게 하고,
+     * 닿는 순간 상대 한 점에서 참가자 색이 섞인 큰 폭발 하나로 (대결 폭발 + 고리 + 참가자 타입 임팩트 + 별빛 + 밀림).
+     * o.types = 참가자 타입 (타입 임팩트) · o.avoid = 참가자마다 피할 필살기 이름 · o.pick = 참가자마다 고를 이름 · o.sure = 3:1 압도 (더 크고 길게) · o.sub = 큰 이름 위 작은 글.
+     * onHit = 합쳐진 폭발 순간 (게임은 그때 피해). 걸리는 시간 (ms), 못 쓰면 0
+     */
+    ultJoint(srcs, dst, onHit, o = {}) {
+        fxGameStop(true);
+        const list = (srcs || []).filter((s) => s && POKEMON_SHAPE[s.form] && fxWidth(s) >= 1);
+        if (!list.length || ultActive || fxWidth(dst) < 1) {
+            return 0;
+        }
+        const As = list.map(fxActor);
+        const B = fxActor(dst);
+        const gen = ++fxGen;
+        const parts = list.map((s, i) => {
+            // o.pick = 참가자마다 고를 필살기 이름 (개발 창 · 시안 사진 — 그 포켓몬이 가진 것만), 없으면 늘 고르는 대로
+            const want = o.pick?.[i];
+            let e = (want && (POKEMON_ULT[s.form] || []).map((k) => ULT_LIB[k]).find((v) => v && v[0] === want)) || fxUltPick(s.form, o.avoid?.[i]);
+            if (!e || ULT_SPECIALS.includes(e[1])) {
+                e = [e ? e[0] : '필살기', 'ultgeneric', {}];
+            }
+            const T = ULT_FX[e[1]] || ULT_FX.ultgeneric;
+            let ms = 3000;
+            try {
+                ms = ultClamp(T.ms(POKEMON_SHAPE[s.form][0], e[2] || {}) || 3000, 800, 15000);
+            } catch (err) {
+                ultError('joint ms', err);
+            }
+            const A = As[i];
+            return { A, e, T, ms, left: A.left + spriteSize(A) / 2 > window.innerWidth / 2, cols: ultCols(e[2] || {}, e[1]), type: o.types?.[i] || 'normal' };
+        });
+        const lead = parts[0];
+        const introMs = ULT_INTRO_MS;
+        // 참가자마다 대결 한쪽 (그 필살기 모양 — 광선 · 구슬 · 돔 · 돌진 … ult/duel-*.js) 을 상대 몸 앞까지 — 빠르기가 달라도 같은 때 닿게 늦게 떠나는 쪽을 맞춤
+        const Ds = parts.map((p) => {
+            const D = duelPlan(p.A, p.e, p.left, B, p.e, !p.left, 'a');
+            const X = D.A;
+            D.arcs = [];
+            D.pushDir = 0;
+            X.dist = Math.abs(D.B.x0 - X.x0);
+            D.xm = D.B.x0;
+            D.ym = D.y0;
+            return D;
+        });
+        const arrive = Math.max(...Ds.map((D) => DUEL_CHARGE + D.A.dist / DUEL_SPEED[D.A.kind]));
+        Ds.forEach((D) => (D.A.go = arrive - D.A.dist / DUEL_SPEED[D.A.kind]));
+        const burst = FX_JOINT_BURST_MS / 1000;
+        const now = performance.now();
+        const until = now + introMs + (arrive + burst) * 1000 + ULT_OUTRO_MS;
+        const g = { A: lead.A, B, many: As, gen, tick: setInterval(fxGameTick, 100), hit: false, joint: true };
+        fxGame = g;
+        ultActive = { pokemon: lead.A, until, name: lead.e[0], fx: lead.e[1] };
+        moveCanvasReady();
+        moveCanvas.style.zIndex = '6';
+        for (const p of parts) {
+            p.A.currentState = new UltState(p.left, until);
+            p.A.currentStateEnum = 'swipe';
+        }
+        const fxOf = (X) => DUEL_FX[X.kind] || DUEL_FX._stream;
+        const call = (X, name, ...args) => {
+            try {
+                fxOf(X)[name]?.(...args);
+            } catch (err) {
+                ultError(`joint.${X.kind}.${name}`, err);
+            }
+        };
+        let merged = false;
+        const run = () => {
+            sigParticle({ x: 0, y: 0, s: Ds[0].S, max: arrive + burst, z: -1,
+                update: (q, dt) => {
+                    const t = q.life;
+                    for (const D of Ds) {
+                        const X = D.A;
+                        D.t = t;
+                        if (t < X.go) {
+                            // 모으기 — 늦게 떠나는 쪽은 그때까지 모음
+                            D.phase = 'charge';
+                            X.front = X.x0;
+                            const k = Math.min(1, t / Math.max(0.2, X.go));
+                            if (fxOf(X).charge) {
+                                call(X, 'charge', D, X, k, dt);
+                            } else {
+                                duelGather(D, X, k, dt);
+                            }
+                            continue;
+                        }
+                        D.phase = 'go';
+                        X.front = X.x0 + X.dir * Math.min(X.dist + D.B.w * 0.4, DUEL_SPEED[X.kind] * (t - X.go));
+                        if (t >= arrive) {
+                            X.fade = Math.max(0, 1 - (t - arrive) / 0.35);
+                        }
+                        if (X.fade > 0.01) {
+                            call(X, 'tick', D, X, dt);
+                        }
+                    }
+                    if (!merged && t >= arrive) {
+                        // 다 닿음 — 한 점에서 합쳐진 큰 폭발 · 그때 피해 (게임)
+                        merged = true;
+                        try {
+                            fxJointBurst(parts, B, !!o.sure, Ds[0]);
+                        } catch (err) {
+                            ultError('joint burst', err);
+                        }
+                        try {
+                            onHit?.();
+                        } catch (err) {
+                            ultError('joint hit', err);
+                        }
+                    }
+                },
+                draw: (ctx, q, t, px) => {
+                    for (const D of Ds) {
+                        if (D.A.fade > 0.01 && D.phase !== 'charge') {
+                            call(D.A, 'draw', ctx, px, D, D.A);
+                            ctx.globalAlpha = 1;
+                            ctx.globalCompositeOperation = 'source-over';
+                        }
+                    }
+                },
+            });
+        };
+        const names = parts.map((p) => p.e[0]);
+        fxWithTimers(gen, () => {
+            try {
+                ultIntro(lead.A, lead.left, names.join(' × '), o.sub ?? (o.sure ? '압도하는 합동 필살기!' : '합동 필살기!'), lead.e[2] || {}, lead.e[1], until, introMs);
+            } catch (err) {
+                ultError('joint intro', err);
+            }
+            setTimeout(run, introMs);
+        });
+        g.done = setTimeout(() => {
+            Ds.forEach((D) => duelHide(D.A, false));
+            if (fxGame === g) {
+                fxGameStop(false);
+            }
+        }, until - now);
+        return until - now;
     },
     /** 힘대결 시작 — a = 내 포켓몬 (왼쪽), b = 상대. spec = { kind: 'ult' | 'move', a: 기술 | null, b: 기술 | null }, live() = 내가 이길 확률 (연타 반영, 0 ~ 1).
      *  필살기 대결은 VS 연출 (1.5초) 뒤에. { meetMs: 시작에서 가운데서 만나는 때 } · 못 하면 null */
