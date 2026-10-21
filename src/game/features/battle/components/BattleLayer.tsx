@@ -81,7 +81,7 @@ export function AutoButton({ save, onInput, short, tip, tipPlace = 'below' }: { 
   return tip ? (
     <span class="pg-auto-wrap">
       {button}
-      <AutoTip text={tip} place={tipPlace} />
+      <AutoTip text={tip} place={tipPlace} onSeen={() => onInput({ kind: 'tip-seen', id: 'auto' })} />
     </span>
   ) : (
     button

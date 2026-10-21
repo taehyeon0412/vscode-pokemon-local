@@ -105,6 +105,8 @@ export const ICONS = {
   shadow: ['...kkkkkk...', '.kkkkkkkkkk.', '.kkkkkkkkkk.', '...kkkkkk...'],
   /** 작은 반짝 (필살기 Z 가 다 찼을 때 둘레 별) */
   twinkle: ['..W..', '..Y..', 'WYWYW', '..Y..', '..W..'],
+  /** 멈춤 (기다림 한 줄 — 밖 · 숨김에서 멈춘 장면, gdd 4.13 R13 ②) */
+  pause: ['WW.WW', 'WW.WW', 'WW.WW', 'WW.WW', 'WW.WW'],
   /** 반짝 (떨어진 아이템 · 이로치 힌트) */
   sparkle: ['...W...', '...Y...', '..YWY..', 'WYWWWYW', '..YWY..', '...Y...', '...W...'],
 } satisfies Record<string, readonly string[]>;

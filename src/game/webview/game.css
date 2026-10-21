@@ -1212,10 +1212,10 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 .pg-banner.pg-hold {
   background: var(--pg-sos-bar);
 }
-/* 밖에서 이로치 전투가 멈춤 = 아래 가운데 (처음 안내 low 자리 — 전투 위 줄 · HP · 말 칸 밖) */
+/* 밖에서 이로치 전투가 멈춤 = 아래 가운데 (전투 위 줄 · HP · 말 칸 밖) · 패널 아래 끝 (4px 띄우면 세 그림의 발을 7px 덮던 것 — UX 리뷰어 #27) */
 .pg-banner.pg-hold.pg-hold-low {
   top: auto;
-  bottom: 4px;
+  bottom: 0;
   z-index: 7;
 }
 /* 처음 한 번 안내 (orders #12, ui/FirstTip) — 판과 같은 남색 · 1px 금색 선 · 앞에 금색 "처음" 표 · 크림 12px, 좁으면 낱말 단위 두 줄 · 누름을 막지 않음.
@@ -4536,11 +4536,20 @@ body.vscode-high-contrast-light .pg-title-body {
   border-color: var(--pg-sos-line-soft);
   color: var(--pg-sos-gold);
 }
-/* 좁은 패널 (340px 아래) — 볼 · 지도 · 메뉴 다섯 + 자동이 한 줄에 안 들어가 지도 칸 (%) 이 사라짐 → 자동은 설정 판 · 전투 중 버튼으로 (2026-10-20) */
+/* 좁은 패널 (340px 아래) — 볼 · 지도 · 메뉴 다섯 + 자동이 한 줄에 안 들어가 지도 칸 (%) 이 사라짐 → 자동은 설정 판 · 전투 중 버튼으로 (2026-10-20) ·
+   자동 전투 첫 안내가 떠 있는 동안 (5초) 만 스위치를 보임 — 안내가 가리키는 누를 곳이 없던 것 (R12 UX 리뷰어) */
 @media (max-width: 340px) {
   .pg-infobar .pg-button.pg-auto-walk {
     display: none;
   }
+  .pg-infobar .pg-auto-wrap > .pg-button.pg-auto-walk {
+    display: inline-flex;
+  }
+}
+/* 안내가 떠 있는 동안 스위치 = 금 테두리 (안내 판과 같은 금색 — 무엇을 누를지 · UX 리뷰어 아이디어) */
+.pg-auto-wrap > .pg-button,
+.pg-infobar .pg-auto-wrap > .pg-button.pg-auto-walk {
+  border-color: var(--pg-sos-gold);
 }
 
 /* ---- 정보줄 아래 띄움 · 지도 줄 · 메뉴 이름 (2026-10-19 태현 님) ----

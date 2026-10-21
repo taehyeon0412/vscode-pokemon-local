@@ -29,6 +29,7 @@ import { InfoBar } from '../../../ui/InfoBar';
 import { TeamLayer } from '../../battle/team/TeamLayer';
 import { TeamChoice, teamChoiceOn, TeamMeet, teamMeetOn } from '../../battle/team/TeamChoice';
 import { Face } from '../../../ui/Face';
+import { SeenAfter } from '../../../ui/AutoTip';
 import { FirstTip } from '../../../ui/FirstTip';
 import { KeyCap } from '../../../ui/KeyCap';
 import { fieldTopPx, hasMapRow, INFO_BAR_PX, MAP_ROW_PX, topGapPx, type Layout } from '../../../ui/layout';
@@ -261,10 +262,15 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   const heroTall = !battle && (bodyPx - ground - heroH < bannerBottom || buildingTall) && bannerRight - bannerLeft >= (buildingTall ? FACILITY_SIDE_MIN_PX : BANNER_SIDE_MIN_PX);
   // 상점 안에서는 길 위 알림을 안 그림 — 상점 판 안 알림 ("진주를 팔았다!") 과 같은 말이 판 너머로 비쳐 겹치던 것 (UX 리뷰어 2026-10-21)
   const inShop = stageRt?.phase === 'facility' && stageRt.inside && stageRt.kind === 'shop';
-  // 자동 전투 첫 안내 (기획 R12 — toast kind 'auto-tip') = 자동 스위치 옆: 전투 = 전투 스위치 · 걷기 = 정보줄 스위치 (메뉴가 보이고 341px 부터 — 아니면 스위치가 없어 머리 위 알림 그대로)
-  const tipText = state.runtime.toast?.kind === 'auto-tip' ? state.runtime.toast.text : null;
-  const autoTip = tipText && (battle || (canOpenMenus(state) && widthPx > AUTO_WALK_MIN_PX)) ? tipText : null;
-  const showToast = state.runtime.toast && !inShop && !autoTip && (phase === 'walk' || phase === 'clear' || phase === 'lobby' || phase === 'facility');
+  // 자동 전투 첫 안내 (기획 R12 — toast kind 'auto-tip') = 자동 스위치 옆: 전투 = 전투 스위치 · 걷기 = 정보줄 스위치 (메뉴가 보일 때 — 340px 아래도 안내 동안은 스위치를 보임, game.css) · 아니면 머리 위 알림.
+  // 숲 1-1 첫 걷기 안내 (5초) 가 떠 있으면 뒤로 (240 에서 가리던 것 — UX 리뷰어) · 1초 넘게 보이면 tip-seen 'auto' (엔진이 그렸을 때만 셈)
+  const walkTipOn = save.location.screen === 'stage' && save.location.stageId === 'forest-1' && phase === 'walk' && !(save.tips ?? []).includes('walk');
+  const tipText = state.runtime.toast?.kind === 'auto-tip' && !walkTipOn ? state.runtime.toast.text : null;
+  const autoTip = tipText && (battle || canOpenMenus(state)) ? tipText : null;
+  const autoSeen = () => onInput({ kind: 'tip-seen', id: 'auto' });
+  // 안 보는 동안 (밖 · 숨김) — 처음 안내는 시간을 세지 않음
+  const away = state.runtime.away === true || state.runtime.headless === true;
+  const showToast = state.runtime.toast && !inShop && !autoTip && !(state.runtime.toast.kind === 'auto-tip' && walkTipOn) && (phase === 'walk' || phase === 'clear' || phase === 'lobby' || phase === 'facility');
   const shopInside = stageRt?.phase === 'facility' && stageRt.inside && stageRt.kind === 'shop';
   // 전투 화면 단추의 Space (막기 · 맞받아치기 · 잡기 원) = 키 · 판 클릭과 같은 시계 — 엔진 시간으로만 재면 연출을 기다리는 동안 아무 때나 '완벽'
   const battleInput = (i: GameInput) => onInput(i.kind === 'space' ? spaceInput(state, performance.now()) : i);
@@ -311,7 +317,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
                 media={media}
                 lead={leadOf(save)}
                 fast={gym ? undefined : { on: save.settings.fastWalk === true, active: isWalkingFast(state), onToggle: () => onInput({ kind: 'fast-walk', on: save.settings.fastWalk !== true }) }}
-                auto={{ on: save.settings.autoBattle, onToggle: () => onInput({ kind: 'auto-battle', on: !save.settings.autoBattle }), tip: battle ? null : autoTip }}
+                auto={{ on: save.settings.autoBattle, onToggle: () => onInput({ kind: 'auto-battle', on: !save.settings.autoBattle }), tip: battle ? null : autoTip, onSeen: autoSeen }}
                 labels={menuLabels(widthPx, mapRow)}
               />
             ) : null
@@ -409,7 +415,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         <BadgeCard state={state} media={media} onInput={onInput} onMap={() => onOpen({ kind: 'map' })} />
         {/* 처음 한 번 안내 (orders #12 · 세이브 tips) — 숲 1-1 처음 걷기 · 처음 마지막 기회 · 필살기 처음 꽉 참. 다 보면 tip-seen */}
         {save.location.screen === 'stage' && save.location.stageId === 'forest-1' && phase === 'walk' && !(save.tips ?? []).includes('walk') && (
-          <FirstTip key="walk" ms={5000} className="pg-first-tip-top" onSeen={() => onInput({ kind: 'tip-seen', id: 'walk' })}>
+          <FirstTip key="walk" ms={5000} className="pg-first-tip-top" paused={away} onSeen={() => onInput({ kind: 'tip-seen', id: 'walk' })}>
             {/* 줄은 "—" 뒤에서 바뀜 (좁은 패널에서 "야생 / 포켓몬" 사이로 갈리던 것) */}
             <span class="pg-tip-part">자동으로 걸어요 —</span> <span class="pg-tip-part">야생 포켓몬을 만나면 전투가 시작돼요</span>
           </FirstTip>
@@ -422,7 +428,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         )}
         {/* 체육관 첫 알림 (gdd S16 · 기획 R9 ⑤) — 3:3 을 켠 뒤 대기실에 처음 들어갈 때 3초 · 클리어 보상 · 레벨업 알림 (대기실 첫 5초) 이 끝난 뒤 (겹쳐 가리지 않게 — U1). 그 뒤로는 도전 버튼의 "3:3" 칩만 */}
         {stageRt?.phase === 'lobby' && !stageRt.picking && !state.runtime.toast && (BALANCE.team.on || state.runtime.dev?.team === true) && !(save.tips ?? []).includes('gym-team') && (
-          <FirstTip key="gym-team" ms={3000} className="pg-first-tip-low pg-gym-tip" onSeen={() => onInput({ kind: 'tip-seen', id: 'gym-team' })}>
+          // 5초 (약 30글자 + 키 셋 — 걷기 안내와 같은 시간, 3초는 빠듯하던 것) · 밖 · 숨김이면 안 셈 (UX 리뷰어 #27)
+          <FirstTip key="gym-team" ms={5000} className="pg-first-tip-low pg-gym-tip" paused={away} onSeen={() => onInput({ kind: 'tip-seen', id: 'gym-team' })}>
             <GymTip lock={teamLock(state)} />
           </FirstTip>
         )}
@@ -439,13 +446,12 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         ) : (
           <StageToast key={state.runtime.toast.text} text={state.runtime.toast.text} center={heroLeft} bottom={toastBottom} />
         ))}
+        {/* 자동 전투 안내를 머리 위 알림으로 대신 띄웠을 때도 1초 넘게 보이면 셈 */}
+        {showToast && tipText && <SeenAfter key={tipText} onSeen={autoSeen} />}
       </div>
     </div>
   );
 }
-
-/** 정보줄 자동 스위치가 보이는 폭 (game.css — 340px 아래는 숨김) */
-const AUTO_WALK_MIN_PX = 340;
 
 /** 체육관 첫 알림 글 (gdd S16 — 문구 = 기획) · 큰 줄 + 작은 줄 (좁으면 작은 줄은 키 칸만 — 줄은 낱말 묶음 사이에서만 바뀜) · 3:3 을 못 하면 이유 + "이번엔 1:1 승부" */
 function GymTip({ lock }: { lock: 'few' | 'narrow' | null }) {

@@ -5,7 +5,7 @@
  * 단축키 Enter · Esc 는 main.ts (부탁과 같은 규칙).
  */
 import type { ComponentChildren } from 'preact';
-import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
 import { canHeal, teamLock, waitReason, type GameInput, type GameState } from '../../../core/engine';
 import { defeatWaits } from '../../../core/engine/play';
@@ -20,6 +20,7 @@ import { Icon } from '../../../ui/Icon';
 import { KeyCap } from '../../../ui/KeyCap';
 import { formatMoney } from '../../../ui/format';
 import { Sprite } from '../../../ui/Sprite';
+import { useFit } from '../../../ui/useFit';
 import { clearView, ITEM_ICON, lobbyView } from '../../menu/model';
 import { STAGES, VS_MS } from '../model';
 
@@ -171,31 +172,19 @@ export function HoldBox({ state }: { state: GameState }) {
   if (!why) return null;
   return (
     <div class={`pg-banner pg-hold${why === 'battle' ? ' pg-hold-low' : ''}`} role="status">
-      {/* 이로치 = 길 위 흔적과 같은 반짝 (twinkle 5 × 5 는 "+" 로 읽히던 것) · 라이벌은 글만 */}
-      {why !== 'rival' && <Icon name="sparkle" />}
+      {/* 멈춤 표시 (반짝 아이콘이면 "나타났다" 로 읽혀 멈춘 줄 몰랐던 것) · 밖에서는 키가 안 먹고 클릭으로 돌아옴 — "누르면" 이 전투 메뉴를 누르라는 뜻처럼 읽히던 것 (UX 리뷰어 #27) */}
+      <Icon name="pause" />
       <b>{why === 'shiny' ? '반짝이는 흔적!' : why === 'battle' ? '반짝이는 포켓몬!' : '라이벌이 기다려요!'}</b>
-      <span class="pg-dim">누르면 이어서</span>
+      <span class="pg-dim">클릭하면 이어서</span>
     </div>
   );
 }
 
-/** S17 같은 판 두 번째 3:3 패배 — 멈춤 상자 (다시 시작 없음 · Enter · 클릭 = 계속 걷기, 기획 R8 A) · 넘치면 직함을 뺀 이름 + "계속" (자르지 않음 — U4) */
+/** S17 같은 판 두 번째 3:3 패배 — 멈춤 상자 (다시 시작 없음 · Enter · 클릭 = 계속 걷기, 기획 R8 A) · 넘치면 한 단계 (자르지 않음 — U4 · 맥 여유 10%): 1 = 직함 뺀 이름 + "계속" · 2 = 글 "남은 포켓몬으로" + [Enter 계속] */
 function DefeatKeep({ keep, lost, onInput }: { keep: string; lost: number; onInput(i: GameInput): void }) {
   const box = useRef<HTMLDivElement>(null);
-  const [short, setShort] = useState(false);
-  const fit = () => {
-    const el = box.current;
-    if (el && Array.from(el.children).some((c) => c.clientWidth > 0 && c.scrollWidth > c.clientWidth)) setShort(true);
-  };
-  useLayoutEffect(() => {
-    if (!short) fit();
-  });
-  // 글꼴이 늦게 오면 (처음엔 좁은 대신 글꼴) 다시 잼 — 240 에서 "−1,2" 로 잘리던 것
-  useEffect(() => {
-    const t = setTimeout(fit, 400);
-    void document.fonts?.ready.then(fit);
-    return () => clearTimeout(t);
-  }, []);
+  const step = useFit(box, 2);
+  const short = step >= 1;
   return (
     <div class="pg-banner pg-defeat pg-defeat-keep pg-two" ref={box}>
       <span class="pg-line">
@@ -207,7 +196,7 @@ function DefeatKeep({ keep, lost, onInput }: { keep: string; lost: number; onInp
         )}
       </span>
       <span class="pg-line">
-        <span class="pg-dim">남은 포켓몬으로 계속</span>
+        <span class="pg-dim">{step >= 2 ? '남은 포켓몬으로' : '남은 포켓몬으로 계속'}</span>
         <Button onClick={() => onInput({ kind: 'defeat-continue' })} title="Enter — 남은 포켓몬으로 계속 걸어요">
           <KeyCap k="Enter" /> {short ? '계속' : '계속 ▶'}
         </Button>
@@ -345,8 +334,11 @@ export function LobbyBox({ state, media, onInput, onBox, onShop, onMap }: BoxPro
   const lock = teamOn ? teamLock(state) : null;
   const mode = !teamOn ? null : lock === null ? '3:3' : '1:1';
   const modeWhy = lock === 'few' ? '살아 있는 포켓몬이 3마리면 3:3' : lock === 'narrow' ? '패널을 넓히면 3:3' : null;
+  // 버튼 줄이 넘치면 도전의 ▶ 를 뺌 (240 에서 "3:3" 칩까지 2px 넘쳐 상자 여백을 먹던 것 — UX 리뷰어 #27, 맥 여유 10%)
+  const lobbyBox = useRef<HTMLDivElement>(null);
+  const tight = useFit(lobbyBox, 1, ':scope > .pg-line:last-child') >= 1;
   return (
-    <div class="pg-banner pg-lobby pg-two">
+    <div class="pg-banner pg-lobby pg-two" ref={lobbyBox}>
       <span class="pg-line">
         {/* 관장 얼굴 + 이름 ("숲 체육관" 은 지도 줄 이름표에 이미 — 두 번 나오던 것, 아트 디렉터 5차) */}
         <Face media={media} id={GYM_LEADER.look} />
@@ -384,7 +376,8 @@ export function LobbyBox({ state, media, onInput, onBox, onShop, onMap }: BoxPro
           <span class="pg-long"> 세계 지도</span>
         </Button>
         <Button extraClass="pg-go" onClick={() => onInput({ kind: 'challenge' })} title={mode === '3:3' ? '② 관장 3마리와 3:3 실시간 배틀 — 나갈 3마리를 고름 (Enter)' : `② 관장 3마리와 1:1 토너먼트 (도망 불가) — Enter${modeWhy ? ` · ${modeWhy}` : ''}`}>
-          <KeyCap k="Enter" /> 도전 ▶{mode && <span class={`pg-sub pg-lobby-mode${mode === '1:1' ? ' pg-dim' : ''}`}>{mode}</span>}
+          <KeyCap k="Enter" /> {tight ? '도전' : '도전 ▶'}
+          {mode && <span class={`pg-sub pg-lobby-mode${mode === '1:1' ? ' pg-dim' : ''}`}>{mode}</span>}
         </Button>
       </span>
     </div>

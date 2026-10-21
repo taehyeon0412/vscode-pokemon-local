@@ -31,6 +31,8 @@ export interface AutoBattle {
   onToggle(): void;
   /** 자동 전투 첫 안내 (기획 R12 — 스위치 아래 한 줄, 엔진 toast kind 'auto-tip') */
   tip?: string | null;
+  /** 안내가 1초 넘게 보임 (엔진 tip-seen 'auto') */
+  onSeen?(): void;
 }
 
 /** 버튼 얼굴 — 단축키 칸 · 아이콘 · 이름 (labels 만큼) */
@@ -45,11 +47,11 @@ function Face({ labels, shortcut, icon, label }: { labels: MenuLabels; shortcut:
 }
 
 /** 안내가 있을 때만 스위치를 묶음 (판 기준 자리) */
-function AutoWrap({ tip, children }: { tip?: string | null; children: ComponentChildren }) {
+function AutoWrap({ tip, onSeen, children }: { tip?: string | null; onSeen?(): void; children: ComponentChildren }) {
   return tip ? (
     <span class="pg-auto-wrap">
       {children}
-      <AutoTip text={tip} place="below" />
+      <AutoTip text={tip} place="below" onSeen={onSeen} />
     </span>
   ) : (
     <>{children}</>
@@ -96,7 +98,7 @@ export function MenuButtons({
       )}
       {/* 자동 전투 — 켜짐 = 금색 테두리 + 밝은 남색 (빨리 걷기 켜짐과 같은 모양) · 꺼짐 = 흐린 글, 좁으면 "자동" 두 글자 */}
       {auto && (
-        <AutoWrap tip={auto.tip}>
+        <AutoWrap tip={auto.tip} onSeen={auto.onSeen}>
         <Button
           secondary
           extraClass={auto.on ? 'pg-auto-walk pg-on' : 'pg-auto-walk'}

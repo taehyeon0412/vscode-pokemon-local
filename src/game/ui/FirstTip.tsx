@@ -8,10 +8,12 @@ import { useEffect, useRef } from 'preact/hooks';
 /** 이만큼 보였으면 본 것 (ux-rules U1 — 중요한 순간 1초) */
 const SEEN_MS = 1000;
 
-export function FirstTip({ ms = 4000, onSeen, className = '', children }: { ms?: number; onSeen(): void; className?: string; children: ComponentChildren }) {
+/** paused = 안 보는 동안 (밖 — 포커스 없음 · 숨김) — 시간을 세지 않음 (밖에서 체육관 첫 알림이 아무도 못 본 채 지나가 다시 안 뜨던 것 — UX 리뷰어 #27). 돌아오면 처음부터 */
+export function FirstTip({ ms = 4000, onSeen, className = '', paused = false, children }: { ms?: number; onSeen(): void; className?: string; paused?: boolean; children: ComponentChildren }) {
   const seen = useRef(onSeen);
   seen.current = onSeen;
   useEffect(() => {
+    if (paused) return;
     const from = performance.now();
     let done = false;
     const t = window.setTimeout(() => {
@@ -22,6 +24,6 @@ export function FirstTip({ ms = 4000, onSeen, className = '', children }: { ms?:
       window.clearTimeout(t);
       if (!done && performance.now() - from >= SEEN_MS) seen.current();
     };
-  }, [ms]);
+  }, [ms, paused]);
   return <div class={`pg-first-tip ${className}`}>{children}</div>;
 }
