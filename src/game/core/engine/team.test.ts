@@ -275,8 +275,8 @@ describe('명세 검사관 · 코드 리뷰어 (2026-10-21)', () => {
   const shot = (o: Partial<TeamBattle['shots'][number]>): TeamBattle['shots'][number] => ({ id: 1, side: 'me', from: 0, targets: [0], moveId: 33, ms: 600, dur: 900, hitMs: 630, hit: false, shooting: false, clash: false, ...o });
 
   it('관장 에이스 필살기 반 · 트레이너 3:3 상대는 늘 3마리 · 진흙뿌리기는 한 마리', () => {
-    expect(startTeamBattle(team3(), foes(), 'gym', '관장').foe.map((f) => f.ult)).toEqual([0, 0, BALANCE.gymAceUlt]);
-    expect(startTeamBattle(team3(), foes(), 'trainer', '상대').foe.every((f) => f.ult === 0)).toBe(true);
+    expect(startTeamBattle(team3(), foes(), 'gym', '관장').foe.map((f) => f.ult)).toEqual([BALANCE.ultStart, BALANCE.ultStart, BALANCE.gymAceUlt]);
+    expect(startTeamBattle(team3(), foes(), 'trainer', '상대').foe.every((f) => f.ult === BALANCE.ultStart)).toBe(true);
     for (let seed = 1; seed < 30; seed++) expect(trainerTeam('forest-1', seed, 0, 1, BALANCE.team.size)).toHaveLength(3);
     expect(isSpread(moveOf(341))).toBe(false);
     // 범위 = 데이터 (원작 대상) — 불사르기 · 칼바람 · 거품 · 독가스도
@@ -342,7 +342,7 @@ describe('명세 검사관 · 코드 리뷰어 (2026-10-21)', () => {
     const u: TeamBattle = { ...b, phase: 'ult', ult: { side: 'me', from: 0, ms: 0, dur: TIMING.ultAnimMs, hitMs: 10, hit: false, window: 0, joinAt: null, joiners: [] } };
     const hit = run(u, STEP * 2, fixedRng(0.99));
     expect(hit.foe.every((f) => f.ult > 0)).toBe(true);
-    expect(hit.me[0]!.ult).toBe(0);
+    expect(hit.me[0]!.ult).toBe(BALANCE.ultStart);
     // 내 필살기에 상대 1번이 끼어듦 → 그 칸 기다림이 지워짐
     const ready = { ...b, me: b.me.map((f, i) => (i === 0 ? { ...f, ult: 1 } : f)), foe: b.foe.map((f, i) => (i === 1 ? { ...f, ult: 1 } : f)), foeUltWait: [null, 400, null] };
     const c = run(teamInput(ready, { kind: 'ult', slot: 0 }, fixedRng(0)), TIMING.team.interruptMs, fixedRng(0));

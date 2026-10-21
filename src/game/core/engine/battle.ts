@@ -525,7 +525,7 @@ function finishAnim(b0: BattleState, save: Save, rng: Rng): BattleState {
         const m = faintedTeam(b, save).find((x) => x.uid === (anim.action as { uid?: string }).uid);
         if (m) {
           const hp = Math.max(1, Math.floor(fighterOf({ ...m, hp: 99999 }).maxHp * BALANCE.reviveFraction));
-          b.bench = { ...b.bench, [m.uid]: { hp, moves: m.moves, status: null, ult: b.bench[m.uid]?.ult ?? 0 } };
+          b.bench = { ...b.bench, [m.uid]: { hp, moves: m.moves, status: null, ult: b.bench[m.uid]?.ult ?? BALANCE.ultStart } };
           b.msg = `${withJosa(speciesOf(m.species)?.name.ko ?? m.form, '이/가')} 기운을 차렸다! (HP ${hp})`;
         }
       }
@@ -540,7 +540,7 @@ function finishAnim(b0: BattleState, save: Save, rng: Rng): BattleState {
         b.bench = { ...b.bench, [b.me.uid]: { hp: b.me.hp, moves: b.me.moves, status: b.me.status, ult: b.me.ult } };
         const saved = b.bench[target.uid];
         const next = fighterOf(saved ? { ...target, ...saved } : target);
-        next.ult = saved?.ult ?? 0;
+        next.ult = saved?.ult ?? BALANCE.ultStart;
         b.me = next;
         if (!b.fought.includes(next.uid)) b.fought = [...b.fought, next.uid];
         b.msg = `가랏, ${nameOf(next)}!`;
@@ -853,7 +853,7 @@ function pickNext(b: BattleState, save: Save, uid: string): BattleState {
   const m = switchable(b, save).find((x) => x.uid === uid);
   if (!m) return b;
   const next = fighterOf(m);
-  next.ult = b.bench[uid]?.ult ?? 0;
+  next.ult = b.bench[uid]?.ult ?? BALANCE.ultStart;
   return { ...b, me: next, phase: 'run', msg: `가랏, ${nameOf(next)}!`, fought: b.fought.includes(uid) ? b.fought : [...b.fought, uid] };
 }
 

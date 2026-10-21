@@ -582,11 +582,19 @@ describe('단계 5 · 6 검토에서 고친 것 (bugs #104 ~)', () => {
     expect(swapped.bench.m1?.hp).toBe(sick.me.hp - Math.max(1, Math.floor(sick.me.maxHp * BALANCE.poisonDamage)));
   });
 
+  it('필살기 게이지는 매 전투 20% 에서 시작 — 내 편 · 상대 모두 (태현 님 #22)', () => {
+    const { b } = setup();
+    expect(BALANCE.ultStart).toBe(0.2);
+    expect(b.me.ult).toBe(0.2);
+    expect(b.foe.ult).toBe(0.2);
+  });
+
   it('필살기 게이지는 포켓몬마다 — 교체로 들어갔다 나와도 이어짐 (플레이 리뷰어 · 명세 검사관)', () => {
     const { b, save } = setup();
     const charged = myTurn({ ...b, me: { ...b.me, ult: 0.6 } });
     const out = run(battleInput(charged, save, { kind: 'act', action: { kind: 'switch', uid: 'm2' } }, new SeededRng(1)), save, TIMING.switchAnimMs);
-    expect(out.me.ult).toBe(0);
+    // 처음 나온 포켓몬은 매 전투 시작 값 (#22)
+    expect(out.me.ult).toBe(BALANCE.ultStart);
     const back = run(battleInput(myTurn(out), save, { kind: 'act', action: { kind: 'switch', uid: 'm1' } }, new SeededRng(1)), save, TIMING.switchAnimMs);
     expect(back.me.uid).toBe('m1');
     expect(back.me.ult).toBe(0.6);

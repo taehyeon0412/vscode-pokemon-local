@@ -56,7 +56,8 @@ export function fighterOf(m: Monster): Fighter {
     moves: m.moves.map((x) => ({ ...x })),
     status: m.status ? { ...m.status } : null,
     gauge: 0,
-    ult: 0,
+    // 매 전투 20% 에서 시작 (#22)
+    ult: BALANCE.ultStart,
     guard: 1,
     guardStreak: 0,
     streakMove: null,

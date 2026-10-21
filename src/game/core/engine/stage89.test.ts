@@ -164,7 +164,7 @@ describe('1:1 토너먼트 · 상대 AI 필살기 (gdd S08 ③ · 4.7)', () => {
     expect(battleInput(choose, withBall, { kind: 'act', action: { kind: 'item', item: 'poke-ball' } }, new Rng(1))).toBe(choose);
     expect(startTrainerBattle(save, [weak('a')], 'gym', '관장').foe.ult).toBe(BALANCE.gymAceUlt);
     const two = startTrainerBattle(save, [weak('a'), weak('b')], 'gym', '관장');
-    expect(two.foe.ult).toBe(0);
+    expect(two.foe.ult).toBe(BALANCE.ultStart);
     let s = two;
     const rng = new Rng(5);
     for (let t = 0; t < 30_000 && s.foeQueue.length > 0; t += STEP) s = battleStep(s, save, STEP, rng, { auto: true });
@@ -513,7 +513,7 @@ describe('단계 8 · 9 테스터가 찾은 것', () => {
       const turn: BattleState = { ...b0, phase: 'choose', me: { ...b0.me, gauge: 1 } };
       let b = battleInput(turn, save, { kind: 'act', action: { kind: 'attack' } }, new Rng(4));
       for (let t = 0; t < 2000 && b.anim; t += STEP) b = battleStep(b, save, STEP, new Rng(4), { auto: false });
-      return b.foe.ult;
+      return b.foe.ult - BALANCE.ultStart;
     };
     expect(gain('trainer')).toBeGreaterThan(gain('wild') * 1.9);
   });
