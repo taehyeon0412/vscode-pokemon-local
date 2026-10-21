@@ -1102,6 +1102,72 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   justify-content: center;
   padding: 0 6px;
 }
+/* 좁은 패널 다음 포켓몬 고르기 = 위 줄 아래 무대 위 세로 목록 (2026-10-21 태현 님 A) — 번호 금색 · 이름 · HP 막대 (판과 같은 막대 색) · HP 숫자. 한 줄 16px · 다섯 줄이 150 높이 안에 */
+.pg-pick-list {
+  position: fixed;
+  top: calc(20px * var(--pg-ui, 1) + 4px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1px;
+  width: max-content;
+  min-width: 176px;
+  margin: 0 auto;
+  padding: 4px 6px 6px;
+  background: var(--pg-sos-panel);
+  border: 1px solid var(--pg-sos-line);
+  box-shadow: 0 0 0 1px var(--pg-sos-bar);
+}
+.pg-pick-list.pg-pick-list-low {
+  top: auto;
+  bottom: 4px;
+}
+.pg-pick-title {
+  color: var(--pg-sos-gold);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 14px;
+}
+/* 위 줄 칸 18px 규칙 (.pg-bmenu .pg-button) 보다 세게 — 다섯 줄이 150 높이 안에 */
+.pg-bmenu .pg-pick-list .pg-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 16px;
+  line-height: 14px;
+  padding: 0 4px;
+}
+.pg-pick-n {
+  color: var(--pg-sos-gold);
+  font-weight: 700;
+}
+.pg-pick-name {
+  flex: 1 1 auto;
+  text-align: left;
+  white-space: nowrap;
+}
+.pg-pick-hp {
+  display: inline-block;
+  flex: none;
+  width: 36px;
+  height: 4px;
+  background: var(--pg-sos-track);
+  box-shadow: 0 0 0 1px var(--pg-sos-bar);
+}
+.pg-pick-hp > i {
+  display: block;
+  height: 100%;
+  background: var(--pg-sos-hp);
+}
+.pg-pick-list .pg-sub {
+  flex: none;
+  min-width: 34px;
+  text-align: right;
+}
 /* 좁고 낮은 패널 — 말 칸이 숨는 동안 전투 끝 · 쓰러짐 · 다음 포켓몬 · 마지막 기회 말을 위 메뉴 줄에 (비어 있던 줄, 말이 0ms 이던 것 — UX 리뷰어 2026-10-21).
    두 줄까지 낱말 단위로 바꿈 · 크림 12px */
 .pg-bar-say {
@@ -1599,6 +1665,12 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   max-width: 5.5em;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+/* 아주 좁은 패널 — HP 줄 이름을 빼고 레벨 · HP 만 ("버.." · "이상…" 으로 잘리던 것, U4 — 이름은 말 · 이름표 · 고르기 목록에 있음, 2026-10-21) */
+@media (max-width: 320px) {
+  .pg-hpname {
+    display: none;
+  }
 }
 /* 메뉴 줄: 처음 메뉴를 깔고 지금 줄을 같은 칸에 얹음 — 필살기 게이지 · 💥 자리가 그대로 */
 .pg-stack {

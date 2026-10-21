@@ -27,12 +27,14 @@ export interface BattleMenuProps {
   compact?: boolean | 'tiny';
   /** 옆 메뉴 (세로 목록, Sea of Stars) — 머리 줄 이름표에 쓸 내 포켓몬 이름. 없으면 예전 가로 한 줄 */
   vertical?: string;
+  /** 위 정보줄 자리 (좁고 낮은 패널) — 다음 포켓몬 고르기를 무대 위 세로 목록으로 */
+  bar?: boolean;
 }
 
 /** ← · Esc — 기력의조각에서 고르던 포켓몬 목록은 아이템으로, 나머지는 처음 메뉴로 */
 const backOf = (page: MenuPage): MenuPage => (page === 'revive' ? 'items' : 'main');
 
-export function BattleMenu({ battle: b, save, onInput, lead, compact = false, vertical }: BattleMenuProps) {
+export function BattleMenu({ battle: b, save, onInput, lead, compact = false, vertical, bar = false }: BattleMenuProps) {
   const [page, setPage] = useState<MenuPage>('main');
   // 차례가 끝나면 처음 메뉴로
   useEffect(() => {
@@ -174,6 +176,26 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
       <Button onClick={() => onInput({ kind: 'space' })} title="날아오는 공격에 원이 좁혀질 때 Space · 클릭 — 막으면 피해 절반, 딱 맞으면 0">
         {`막기 — 원이 좁혀질 때 ${document.hasFocus() ? 'Space' : '클릭'}`}
       </Button>
+    );
+  } else if (picking && vertical === undefined) {
+    // 가로 한 줄 메뉴 (좁은 패널) — 고르는 동안만 무대 위에 세로 목록: 번호 · 이름 · HP 막대 · HP (2026-10-21 태현 님 A — 칸 다섯이 "1 캐… 2 어…" 로 잘려 누구를 낼지 모르던 것).
+    //   위 정보줄 메뉴면 위에서 · 무대 안 가로 줄이면 아래에 붙음 (위쪽 말 칸 "○○가 쓰러졌다! 다음 포켓몬을 골라요" 를 가리지 않게)
+    row = (
+      <span class={`pg-pick-list${bar ? '' : ' pg-pick-list-low'}`}>
+        <span class="pg-pick-title">다음 포켓몬 고르기</span>
+        {team.slice(0, 5).map((m, i) => (
+          <Button key={m.uid} extraClass={i === Math.min(cursor, team.length - 1) ? 'pg-on' : undefined} onClick={() => pick(m.uid)} title={`${i + 1} · HP ${m.hp}/${maxHpOf(m)}`}>
+            <span class="pg-pick-n">{i + 1}</span>
+            <span class="pg-pick-name">{speciesOf(m.species)?.name.ko ?? m.form}</span>
+            <span class="pg-pick-hp">
+              <i style={{ width: `${Math.round((m.hp / maxHpOf(m)) * 100)}%` }} />
+            </span>
+            <span class="pg-sub">
+              {m.hp}/{maxHpOf(m)}
+            </span>
+          </Button>
+        ))}
+      </span>
     );
   } else if (picking) {
     row = (

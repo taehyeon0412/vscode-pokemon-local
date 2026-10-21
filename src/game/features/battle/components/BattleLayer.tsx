@@ -610,7 +610,7 @@ export function BattleMenuBar({ battle, save, onInput, withAuto, compact, say }:
   return (
     <div class="pg-infobar pg-infobar-battle">
       {say && <span class="pg-bar-say">{say}</span>}
-      <BattleMenu battle={battle} save={save} onInput={onInput} compact={compact} lead={withAuto ? <AutoButton save={save} onInput={onInput} short={compact !== false} /> : null} />
+      <BattleMenu battle={battle} save={save} onInput={onInput} compact={compact} bar lead={withAuto ? <AutoButton save={save} onInput={onInput} short={compact !== false} /> : null} />
     </div>
   );
 }
