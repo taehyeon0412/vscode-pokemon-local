@@ -71,8 +71,9 @@ export function Panel({ icon, title, extra, onClose, closeLabel = '닫기', sub,
         {extra && <span class="pg-panel-extra pg-ellipsis">{extra}</span>}
         {/* 넓으면 (480 이상) "▼ 더" 는 머리 줄 ✕ 왼쪽 — 세로 자리를 안 씀 (187 높이 지도에서 아래 줄이 목표 줄을 반쯤 자르던 것, UX 리뷰어) */}
         {!foot && more && (
-          <button type="button" class="pg-panel-more pg-panel-more-head" onClick={down} title="아래로 (휠 · 끌기로도)">
-            ▼ 아래에 더
+          // 머리 줄은 "▼ 더" (75px 가 들어오며 상점 사용법이 481 ~ 511 에서 "Shif…" 로 잘리던 것 — UX 리뷰어) · 뜻은 title
+          <button type="button" class="pg-panel-more pg-panel-more-head" onClick={down} title="아래에 더 있어요 — 누르면 아래로 (휠 · 끌기로도)">
+            ▼ 더
           </button>
         )}
         <Button secondary extraClass="pg-pin" onClick={onClose} title="Esc">

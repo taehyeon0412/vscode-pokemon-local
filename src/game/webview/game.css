@@ -5287,9 +5287,13 @@ body.vscode-high-contrast-light .pg-title-body {
   color: var(--pg-sos-gold);
   font-weight: 700;
 }
-@media (max-width: 480px) {
+/* 560 아래 = 아래 고정 줄 (머리 줄에 "▼ 더" 까지 들어오면 481 ~ 548 (맥 글자) 에서 "Shif…" 로 잘리던 것 — UX 리뷰어) */
+@media (max-width: 560px) {
   .pg-panel-sub:has(.pg-shop-note-line) {
     display: block;
+  }
+  .pg-panel-head .pg-shop-head-note {
+    display: none;
   }
 }
 /* 팔기 — 팔 물건과 쓰는 물건 사이 한 줄 (칸 전체 폭) */

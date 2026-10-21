@@ -44,7 +44,7 @@ export function ShopPanel({ save, note, onInput, onClose }: { save: Save; /** �
             <Icon name="coin" /> {formatMoney(save.money)}
           </span>
           {/* 넓으면 머리 줄 · 480px 아래는 판 맨 위 한 줄 (머리 줄 줄임표에 묻히던 것 — UX 리뷰어) */}
-          {note ? <span class="pg-shop-note pg-long"> · {note}</span> : <span class="pg-dim pg-long"> · 눌러서 1개 · Shift 5개</span>}
+          {note ? <span class="pg-shop-note pg-long pg-shop-head-note"> · {note}</span> : <span class="pg-dim pg-long pg-shop-head-note"> · 눌러서 1개 · Shift 5개</span>}
         </>
       }
       onClose={onClose}
