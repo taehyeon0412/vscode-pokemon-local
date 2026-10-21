@@ -81,8 +81,10 @@ export function sell(save: Save, item: ItemId, count: number): { save: Save; cou
   const price = sellPrice(item);
   const n = Math.min(Math.max(1, Math.floor(count)), save.bag[item] ?? 0);
   if (price <= 0 || n <= 0) return null;
-  const money = price * n;
-  return { save: { ...save, money: Math.min(999_999_999, save.money + money), bag: { ...save.bag, [item]: (save.bag[item] ?? 0) - n } }, count: n, money };
+  // 돈 상한 — 실제로 늘어난 돈만 (하나도 못 받으면 안 팖, 테스터)
+  const money = Math.min(999_999_999, save.money + price * n) - save.money;
+  if (money <= 0) return null;
+  return { save: { ...save, money: save.money + money, bag: { ...save.bag, [item]: (save.bag[item] ?? 0) - n } }, count: n, money };
 }
 
 export function buy(save: Save, item: ShopItem): Save | null {
@@ -137,6 +139,25 @@ export function spendPoint(save: Save, uid: string, stat: StatKey): Save | null 
   const next: Monster = { ...m, points: { ...m.points, [stat]: m.points[stat] + 1 }, unspentPoints: m.unspentPoints - 1 };
   if (m.hp > 0) next.hp = Math.min(maxHpOf(next), m.hp + (maxHpOf(next) - maxHpOf(m)));
   return { ...save, monsters: { ...save.monsters, [uid]: next } };
+}
+
+/** 팀 상태 — HP 합 % · 쓰러진 수 · 다 건강 (HP · PP 가득 · 상태 이상 없음) · 위험 (HP 절반 아래 또는 쓰러짐) — 병원 앞 상자 (ideas #42) · 정보줄 작은 칸 (#47) */
+export function teamHealth(save: Save): { hpPct: number; fainted: number; healthy: boolean; danger: boolean } {
+  let hp = 0;
+  let max = 0;
+  let fainted = 0;
+  let healthy = true;
+  for (const uid of save.party) {
+    const m = save.monsters[uid];
+    if (!m) continue;
+    const mx = maxHpOf(m);
+    hp += Math.max(0, m.hp);
+    max += mx;
+    if (m.hp <= 0) fainted++;
+    if (m.hp < mx || m.status || m.moves.some((s) => s.pp < (moveOf(s.moveId)?.pp ?? s.pp))) healthy = false;
+  }
+  const ratio = max > 0 ? hp / max : 0;
+  return { hpPct: Math.round(ratio * 100), fainted, healthy, danger: fainted > 0 || ratio < BALANCE.teamDangerBelow };
 }
 
 // ---------- S19 가방 (전투 밖)

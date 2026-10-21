@@ -52,5 +52,6 @@ describe('포켓몬 GIF 장면 (2026-10-20 — scripts/gif-full-frames.py)', () 
     }
     expect(count).toBeGreaterThan(2000);
     expect(bad).toEqual([]);
-  });
+    // 그림 2000장 넘게 읽음 — 다른 일이 같이 돌면 5초를 넘겨 가끔 실패 (테스터)
+  }, 30_000);
 });

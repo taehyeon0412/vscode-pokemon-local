@@ -522,7 +522,7 @@ describe('🎮 · S02 타이틀 (단계 3)', () => {
     expect(info).toEqual({
       save: 'ok',
       busy: false,
-      summary: { playTimeMs: 60_000, money: 4321, badges: ['forest'], lead: { form: 'bulbasaur', species: 1, level: 5 } },
+      summary: { playTimeMs: 60_000, money: 4321, badges: ['forest'], lead: { form: 'bulbasaur', species: 1, level: 5 }, where: '1-1 · 40%' },
     });
     expect(session.stats.titles).toBe(1);
     expect(snap().owner).toBe('none');

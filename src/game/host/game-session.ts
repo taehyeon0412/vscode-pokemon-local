@@ -20,6 +20,19 @@ import { HeadlessRunner, type HeadlessRunnerOptions } from './headless-runner';
 import type { LoadResult, SaveStore } from './save-store';
 import type { TeamSave } from './team-out';
 import type { WindowLease } from './window-lease';
+import { stageCode } from '../core/rules/stage';
+import { speciesOf } from '../data';
+
+/** 일반 모드로 갈 때 상태줄 "저장했어요" 를 보여 주는 시간 (ms, 2026-10-21 ideas #8) */
+const SAVED_STATUS_MS = 2000;
+
+/** 이어 하기 요약 "어디서" — "1-1 · 37%" · "전투 중" · "체육관" (2026-10-21 ideas #6) */
+function whereOf(save: Save): string {
+  if (save.pendingEncounter) return '전투 중';
+  if (save.location.screen === 'gym') return '체육관';
+  if (save.location.screen === 'stage') return `${stageCode(save.location.stageId)} · ${Math.floor((save.stages[save.location.stageId]?.progress ?? 0) * 100)}%`;
+  return '';
+}
 
 /** 웹뷰 쪽 문 — VS Code 의 WebviewView 를 감싼 것 (view-port.ts) */
 export interface ViewPort {
@@ -42,6 +55,8 @@ export interface SessionDeps {
   log(message: string): void;
   /** 사용자에게 보이는 경고 (VS Code 알림) — 없으면 기록만 */
   warn?(message: string): void;
+  /** 상태줄에 잠깐 (ms) — 일반 모드로 갈 때 "포켓몬: 저장했어요 (이상해씨 Lv 5)" (ideas #8) */
+  status?(message: string, ms: number): void;
   /** 안 볼 때 직접 해야 하는 순간 알림 (U9 — VS Code 알림, 세이브 설정 notifications 가 켜져 있을 때만) */
   notify?(message: string): void;
   runner?: HeadlessRunnerOptions;
@@ -338,7 +353,7 @@ export class GameSession {
       save: r.kind,
       busy: this.otherWindowPlaying(),
       summary: save
-        ? { playTimeMs: save.playTimeMs, money: save.money, badges: [...save.badges], lead: lead ? { form: lead.form, species: lead.species, level: lead.level } : null }
+        ? { playTimeMs: save.playTimeMs, money: save.money, badges: [...save.badges], lead: lead ? { form: lead.form, species: lead.species, level: lead.level } : null, where: whereOf(save) }
         : null,
     };
     if (notice) info.notice = notice;
@@ -530,7 +545,17 @@ export class GameSession {
 
   /** 일반 모드로 갈 때 마지막 저장 — 못 쓰면 그 진행을 보관함에 남기고 알림 (다시 읽을 때 잃지 않게) */
   private async finalSave(save: Save, lockedBefore: boolean): Promise<void> {
-    if (await this.deps.store.saveNow(save)) return;
+    if (await this.deps.store.saveNow(save)) {
+      // 수동 저장이 없어 "저장됐나?" 를 덜게 — 상태줄에 2초 (2026-10-21 ideas #8)
+      const lead = save.monsters[save.party[0] ?? ''];
+      const who = lead ? ` (${speciesOf(lead.species)?.name.ko ?? lead.form} Lv ${lead.level})` : '';
+      try {
+        this.deps.status?.(`포켓몬: 저장했어요${who}`, SAVED_STATUS_MS);
+      } catch {
+        // 상태줄이 실패해도 게임 흐름은 그대로
+      }
+      return;
+    }
     const locked = this.deps.store.lockedReason;
     if (!locked && (await this.deps.store.saveNow(save))) return; // 잠김이 아닌데 못 씀 (디스크 오류 등) — 한 번 더
     const kept = await this.deps.store.keepUnsaved(locked ? `일반 모드로 갈 때 잠겨서 안 씀: ${locked}` : '일반 모드로 갈 때 쓰지 못함');

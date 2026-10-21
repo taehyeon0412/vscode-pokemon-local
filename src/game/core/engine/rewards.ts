@@ -71,11 +71,14 @@ function uniqueLearn(list: readonly PendingChoice[]): PendingChoice[] {
 export function takeLaterChoices(save: Save): Save {
   if (save.laterChoices === undefined) return save;
   const { laterChoices, ...rest } = save;
-  const ok = uniqueLearn(laterChoices).filter((c) => {
+  const valid = uniqueLearn(laterChoices).filter((c) => {
     const m = save.monsters[c.uid];
     return c.kind === 'learn' && !!m && !m.moves.some((x) => x.moveId === c.moveId);
   });
-  return { ...rest, pendingChoices: [...save.pendingChoices, ...ok] };
+  // 팀에 있는 포켓몬 것만 꺼냄 — 보관함에 간 포켓몬 것은 쌓아 둔 채로 (팀에 돌아오면 다음에, 테스터)
+  const now = valid.filter((c) => save.party.includes(c.uid));
+  const keep = valid.filter((c) => !save.party.includes(c.uid));
+  return { ...rest, pendingChoices: [...save.pendingChoices, ...now], ...(keep.length > 0 ? { laterChoices: keep } : {}) };
 }
 const addDex = (list: number[], dex: number) => (list.includes(dex) ? list : [...list, dex].sort((a, b) => a - b));
 
@@ -160,6 +163,8 @@ export function battleRewards(save0: Save, b: BattleState, wild: Monster | null,
     }
     // 팔 물건 — 잡았을 때 10% (ideas #125)
     if (b.result === 'catch' && rng.chance(BALANCE.treasureChance.catch)) save = giveTreasure(save, summary, pickTreasure(rng));
+    // 야생을 이겼을 때도 (테스터: 트레이너는 다시 안 나오고 자동 전투는 안 잡아 한 판 0.1 ~ 0.6개뿐 — gdd 목표 1 ~ 2개)
+    else if (b.result === 'win' && rng.chance(BALANCE.treasureChance.wild)) save = giveTreasure(save, summary, pickTreasure(rng));
     const foeName = `야생 ${nameOf(b.foe.species)}`;
     summary.title = b.result === 'catch' ? `${withJosa(foeName, '을/를')} 잡았다!` : `${withJosa(foeName, '을/를')} 쓰러뜨렸다!`;
   } else if (b.kind === 'trainer') {
@@ -277,7 +282,8 @@ export function useRareCandy(save: Save, uid: string, rng: Rng): Save | null {
   if (!m || have <= 0 || !save.party.includes(uid) || m.level >= BALANCE.maxLevel) return null;
   const grown = addExp(m, expForLevel(m.level + 1) - m.exp, rng);
   const r = levelUpChoices(grown, m.level, grown.level, rng);
-  return addChoices({ ...save, bag: { ...save.bag, 'rare-candy': have - 1 }, monsters: { ...save.monsters, [uid]: r.monster } }, r.choices);
+  // 일부러 쓴 것이라 고르기는 바로 (선두가 아니어도 쌓지 않음 — 테스터 U5)
+  return { ...save, bag: { ...save.bag, 'rare-candy': have - 1 }, monsters: { ...save.monsters, [uid]: r.monster }, pendingChoices: [...save.pendingChoices, ...r.choices] };
 }
 
 export function clearBonusExp(id: StageId): number {

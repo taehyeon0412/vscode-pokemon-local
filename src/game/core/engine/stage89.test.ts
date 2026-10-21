@@ -261,8 +261,10 @@ describe('S17 패배 (gdd 4.10)', () => {
     expect(phase(step({ ...s, runtime: { ...s.runtime, headless: true } }, STEP).state)).toBe('walk');
     const back = applyInput(s, { kind: 'defeat-continue' });
     expect(phase(back)).toBe('walk');
-    // 다시 걸으면 바로 그 병원 앞
-    expect(phase(until(back, (x) => phase(x) === 'facility', 3000))).toBe('facility');
+    // 다시 걸으면 바로 그 병원 앞 — 팀이 다 회복돼서 멈추지 않고 한 줄 (2026-10-21 ideas #42)
+    const passed = until(back, (x) => prog(x) >= 0.5, 3000);
+    expect(prog(passed)).toBeGreaterThanOrEqual(0.5);
+    expect(passed.runtime.toast?.text).toContain('병원 지나감');
   });
 
   it('같은 판 두 번째 패배부터는 기다림 · 안 볼 때 알림 — 지고 또 지며 돈이 빠지는 고리를 막음 (2026-10-21 코드 리뷰어)', () => {

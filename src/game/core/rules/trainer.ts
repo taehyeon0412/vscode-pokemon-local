@@ -8,7 +8,9 @@
 import { BALANCE } from '../balance';
 import { Rng } from '../engine/rng';
 import { STAGE_IDS, type Monster, type Save, type StageId, type Stats } from '../save';
-import { formsOfSpecies, learnsetOf, moveOf, type ReadonlyMove } from '../../data';
+import { formsOfSpecies, learnsetOf, moveOf, speciesOf, type ReadonlyMove } from '../../data';
+import { typeNameKo, withJosa } from '../text';
+import { effectiveness } from './types';
 import { evolveForLevel, forestPool } from './encounter';
 import { createMonster, wildMoves } from './monster';
 import { spotRng, stageLevelBand, trainerCount } from './stage';
@@ -89,6 +91,25 @@ export function trainerTeam(stageId: StageId, stageSeed: number, n: number, aliv
 
 /** 숲 관장 (이름은 예시) — 그림은 원작 풀 타입 관장 민화 (2026-10-19), 그림이 없으면 코드로 그린 사람 (금색, decisions 2026-10-17) */
 export const GYM_LEADER = { name: '관장 나래', title: '숲 체육관 관장', hat: '#9a6f12', shirt: '#e3b341', look: 'frlg-erika' } as const;
+/**
+ * S16 대기실 힌트 (2026-10-21 ideas #44) — "관장 나래는 벌레 · 풀 · 독 · 비행 포켓몬을 써요" + 상성이 좋은 내 포켓몬
+ * (가진 공격 기술이 관장 포켓몬 셋 중 둘 이상에게 효과가 굉장 — 팀 · 보관함 둘 다, 선두부터)
+ */
+export function gymHint(save: Save): { text: string; good: string[] } {
+  const team = BALANCE.gymTeam.map(([dex]) => speciesOf(dex)?.types ?? []);
+  const types = [...new Set(team.flat())];
+  const good = [...save.party, ...save.box].filter((uid) => {
+    const m = save.monsters[uid];
+    if (!m) return false;
+    const hits = team.filter((t) => m.moves.some((s) => {
+      const mv = moveOf(s.moveId);
+      return !!mv && mv.power > 0 && effectiveness(mv.type, t) >= 2;
+    })).length;
+    return hits >= 2;
+  });
+  return { text: `${withJosa(GYM_LEADER.name, '은/는')} ${types.map(typeNameKo).join(' · ')} 포켓몬을 써요`, good };
+}
+
 /** 관장 포켓몬 개체값 — 늘 같게 (★4 쯤) */
 const LEADER_IVS: Stats = { hp: 20, attack: 20, defense: 20, speed: 20, ultimate: 20 };
 

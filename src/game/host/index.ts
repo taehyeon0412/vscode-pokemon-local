@@ -85,6 +85,7 @@ export function activate(context: vscode.ExtensionContext): GameHost {
     log,
     warn: (m) => void vscode.window.showWarningMessage(m),
     notify: (m) => void vscode.window.showInformationMessage(m),
+    status: (m, ms) => vscode.window.setStatusBarMessage(m, ms),
     now: () => Date.now(),
     newSeed: () => Math.floor(Math.random() * 0x100000000),
     // 제목줄: 게임 중에는 🎮 대신 🏠, ＋ 🔀 🗑 는 숨김 (게임 화면이 덮고 있어 눌러도 안 보임) — package.json menus 의 when

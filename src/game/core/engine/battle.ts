@@ -34,7 +34,7 @@ import {
 } from '../rules/battle';
 import { BALLS, catchChance, catchTiming, isBall, type BallId } from '../rules/catch';
 import { itemName } from '../rules/items';
-import { effectivenessText } from '../rules/types';
+import { effectiveness, effectivenessText } from '../rules/types';
 import { ITEM_IDS, type EncounterStart, type ItemId, type Monster, type MoveSlot, type Save, type StatusCondition } from '../save';
 import { withJosa } from '../text';
 import { moveOf, speciesOf, type ReadonlyMove } from '../../data';
@@ -136,6 +136,12 @@ export interface BattleState {
   riposte?: BattleRiposte | null;
   /** 볼을 세 번 다 놓쳐 상대가 도망침 (result flee 와 같이 — 화면이 뛰어나가는 상대를 그림, 2026-10-20) */
   escaped?: boolean;
+  /** 이 전투의 완벽 패링 수 — 두 번째부터 쳐올리기 · 보여 주기를 짧게 (2026-10-21 ideas #127, 옛 상태엔 없음) */
+  perfects?: number;
+  /** 내가 지난번에 고른 공격 · 기술 · 막기 — Enter 로 다시 (ideas #22) */
+  lastMe?: BattleAction;
+  /** 미리 누른 행동 — 게이지가 차자마자 (ideas #31) */
+  queued?: BattleAction | null;
   /** send — 다음 포켓몬을 내보내는 데 지난 시간 */
   sendMs: number;
   /** 이 전투에서 바뀐 내 포켓몬 (교체로 나온 포켓몬의 HP · PP · 상태) — 끝나면 세이브에 */
@@ -405,6 +411,7 @@ function hit(b: BattleState, attackerSide: Side, power: number, type: ReadonlyMo
   if (parried === 'good' || parried === 'perfect') {
     dmg = Math.floor(dmg * (parried === 'perfect' ? BALANCE.parryPerfectFactor : BALANCE.parryGoodFactor));
     popup(b, 'me', parried === 'perfect' ? '완벽 패링!' : '패링!', 'parry');
+    if (parried === 'perfect') b.perfects = (b.perfects ?? 0) + 1;
     if (parried === 'perfect') d.gauge = Math.min(1, d.gauge + BALANCE.parryPerfectGauge);
   }
   if (opts.move?.effect === 'leave-1hp') dmg = Math.min(dmg, Math.max(0, d.hp - 1));
@@ -469,6 +476,7 @@ function resolveMove(b: BattleState, side: Side, mv: ReadonlyMove | undefined, r
     const parried = side === 'foe' ? b.anim?.parry : undefined;
     if (parried === 'good' || parried === 'perfect') {
       popup(b, 'me', parried === 'perfect' ? '완벽 패링!' : '패링!', 'parry');
+      if (parried === 'perfect') b.perfects = (b.perfects ?? 0) + 1;
       if (parried === 'perfect') b.me.gauge = Math.min(1, b.me.gauge + BALANCE.parryPerfectGauge);
       return;
     }
@@ -562,7 +570,9 @@ function finishAnim(b0: BattleState, save: Save, rng: Rng): BattleState {
   // 완벽 패링 뒤 둘 다 서 있으면 반격 기회 — 상대 둘레에 두 번째 원 (2026-10-20 태현 님)
   if (side === 'foe' && anim.parry === 'perfect' && (after.phase === 'run' || after.phase === 'choose') && after.me.hp > 0 && after.foe.hp > 0) {
     // ms 가 0 이 될 때까지 (parryShowMs) 는 쳐내기 연출만 — 원 · Space 는 그 뒤 (2026-10-20 태현 님)
-    return { ...after, phase: 'riposte', riposte: { ms: -TIMING.parryShowMs, dur: TIMING.riposteRingMs } };
+    // 같은 전투 두 번째 완벽 패링부터 짧게 (ideas #127)
+    const show = (after.perfects ?? 0) >= 2 ? TIMING.parryShowRepeatMs : TIMING.parryShowMs;
+    return { ...after, phase: 'riposte', riposte: { ms: -show, dur: TIMING.riposteRingMs } };
   }
   return after;
 }
@@ -663,9 +673,14 @@ export function battleStep(b0: BattleState, save: Save, stepMs: number, rng: Rng
       const meReady = b.me.gauge >= 1;
       const foeReady = b.foe.gauge >= 1;
       if (meReady && (!foeReady || b.me.stats.speed >= b.foe.stats.speed)) {
-        if (!opts.auto) return { ...b, phase: 'choose', msg: chooseMsg(b) };
-        const pick = aiPick(b.me, b.foe, 'smart', rng);
-        return startAction(b, 'me', pick, rng);
+        if (!opts.auto) {
+          const ready: BattleState = { ...b, phase: 'choose', msg: chooseMsg(b), queued: null };
+          // 미리 누른 행동 — 차자마자 (ideas #31)
+          return b.queued && canAct(ready, save, b.queued) ? startAction({ ...ready, lastMe: b.queued }, 'me', b.queued, rng) : ready;
+        }
+        // 자동 전투는 여기서 바로 고름 (choose 를 거의 안 거침) — HP 30% 아래면 상처약 (ideas #65, 테스터: choose 에만 있어 거의 안 썼음)
+        const potion = autoPotion(b, save);
+        return startAction(b, 'me', potion ? { kind: 'item', item: potion } : aiPick(b.me, b.foe, 'smart', rng), rng);
       }
       if (foeReady) {
         // 관장 — 에이스 (마지막 포켓몬) HP 가 절반 아래면 상처약 (한 판에 BALANCE.gymPotions 번) — 첫 포켓몬에게 쓰면 긴장이 첫 판에서 끝나서 (플레이 리뷰어)
@@ -862,7 +877,24 @@ export type BattleInput =
   | { kind: 'pick'; uid: string }
   /** 이긴 뒤 마지막 기회: 볼 던지기 · 그냥 지나가기 */
   | { kind: 'ball'; ball: BallId }
-  | { kind: 'no-ball' };
+  | { kind: 'no-ball' }
+  /** Enter — 지난번 공격 · 기술 · 막기를 다시 (ideas #22) */
+  | { kind: 'repeat' };
+
+/** 미리 누를 수 있는지 — 공격 · 기술 (PP 있음) · 막기, 내 게이지가 prePressMs 안에 참 (ideas #31) */
+function prePressable(b: BattleState, action: BattleAction): boolean {
+  if (b.me.hp <= 0 || b.me.gauge >= 1) return false;
+  if (action.kind === 'move' && !b.me.moves.some((s) => s.moveId === action.moveId && s.pp > 0)) return false;
+  if (action.kind !== 'attack' && action.kind !== 'move' && action.kind !== 'guard') return false;
+  const rate = gaugeRate(b.me, b.foe);
+  return rate > 0 && (1 - b.me.gauge) / rate <= BALANCE.prePressMs;
+}
+
+/** 기술 버튼 상성 (ideas #24) — 지금 상대에게 효과 배율 (변화 기술 · 모르는 기술 = null) */
+export function moveEffect(b: BattleState, moveId: number): number | null {
+  const mv = moveOf(moveId);
+  return mv && mv.power > 0 ? effectiveness(mv.type, b.foe.types) : null;
+}
 
 /** 지금 할 수 있는 행동인지 (메뉴를 흐리게) */
 export function canAct(b: BattleState, save: Save, action: BattleAction): boolean {
@@ -950,10 +982,16 @@ function startClash(b: BattleState, kind: 'move' | 'ult', myMove: ReadonlyMove |
 /** 입력 — 받을 수 없으면 그대로 돌려줌 */
 export function battleInput(b: BattleState, save: Save, input: BattleInput, rng: Rng): BattleState {
   switch (input.kind) {
-    case 'act':
+    case 'act': {
+      // 게이지가 차기 0.5초 전에 누른 공격 · 기술 · 막기는 기억했다가 차자마자 (ideas #31)
+      if (b.phase === 'run' && prePressable(b, input.action)) return { ...b, queued: input.action };
       if (!canAct(b, save, input.action)) return b;
       if (input.action.kind === 'item' && isBall(input.action.item)) return throwBall(b, input.action.item, false);
-      return startAction(b, 'me', input.action, rng);
+      const remember = input.action.kind === 'attack' || input.action.kind === 'move' || input.action.kind === 'guard';
+      return startAction(remember ? { ...b, lastMe: input.action } : b, 'me', input.action, rng);
+    }
+    case 'repeat':
+      return b.lastMe ? battleInput(b, save, { kind: 'act', action: b.lastMe }, rng) : b;
     case 'ball':
       if (b.phase !== 'last' || itemLeft(b, save, input.ball) <= 0) return b;
       return throwBall(b, input.ball, true);
@@ -1100,6 +1138,8 @@ export function readBattle(raw: unknown): BattleState | null {
   if (!(raw.foeUltWait === null || fin(raw.foeUltWait, -1e6, 1e6)) || !(raw.foeName === null || (typeof raw.foeName === 'string' && raw.foeName.length <= 40)) || !fin(raw.sendMs, 0)) return null;
   if (!(raw.foePotions === undefined || fin(raw.foePotions, 0, 10))) return null;
   if (!(raw.escaped === undefined || typeof raw.escaped === 'boolean')) return null;
+  if (!(raw.perfects === undefined || fin(raw.perfects, 0, 1000))) return null;
+  if (!(raw.lastMe === undefined || okAction(raw.lastMe)) || !(raw.queued === undefined || raw.queued === null || okAction(raw.queued))) return null;
   const rp = raw.riposte;
   if (!(rp === undefined || rp === null || (isObj(rp) && fin(rp.ms, -60_000) && fin(rp.dur, 1, 60_000)))) return null;
   if (raw.phase === 'riposte' && !isObj(rp)) return null;

@@ -289,7 +289,8 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
               }
               // 완벽 패링 — 날아온 것을 위쪽 대각선으로 쳐냄 (빔은 꺾여 흩어짐, 하늘 · 땅 기술은 피함)
               if (parryOf(now.current, key) === 'perfect') {
-                if (dst) fx.swat?.(dst, actor(b, side), move.hitType, plan.fx);
+                // 같은 전투 두 번째 완벽 패링부터 짧게 (ideas #127 — 이번 것까지 센 수는 맞는 순간 엔진이 올림, 그래서 지난 수 ≥ 1)
+                if (dst) fx.swat?.(dst, actor(b, side), move.hitType, plan.fx, (b.perfects ?? 0) >= 1);
                 return;
               }
               const hit = parriedHit(now.current, key, move.hit);
@@ -419,7 +420,9 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
     // 패링 글 — 완벽 = 금색 "완벽 패링!" · 보통 = 은색 "패링!" (내 포켓몬 머리 위)
     const parryPop = fresh.find((p) => p.kind === 'parry');
     const me = parryPop ? actor(b, 'me') : null;
-    if (parryPop && me) fx.word?.(me, parryPop.text, parryPop.text === '완벽 패링!' ? 'gold' : 'silver', { other: actor(b, 'foe') });
+    // 두 번째 완벽 패링부터는 글씨도 짧게 (1.0초 — 엔진 parryShowRepeatMs 와 같게, ideas #127)
+    const repeatPerfect = parryPop?.text === '완벽 패링!' && (b.perfects ?? 0) >= 2;
+    if (parryPop && me) fx.word?.(me, parryPop.text, parryPop.text === '완벽 패링!' ? 'gold' : 'silver', { other: actor(b, 'foe'), ...(repeatPerfect ? { sec: TIMING.parryShowRepeatMs / 1000 } : {}) });
     // 상태 이상이 걸림 = status 글 + 지금 그 상태 (나음은 아이템 반짝이가 이미 있어서 따로 안 그림)
     for (const p of fresh) {
       const kind = p.kind === 'status' ? b[p.side].status?.kind : undefined;

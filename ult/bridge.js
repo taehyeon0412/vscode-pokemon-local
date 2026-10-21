@@ -312,8 +312,18 @@ function swatBoom(x, y, s, cols, k) {
     }
 }
 // 쳐올리기 — 금색 반달 휘두르기 → 구슬이 높은 포물선으로 날아올라 꼭대기 (또는 위 끝) 에서 불꽃놀이처럼 터짐
-function swatUp(g, x0, y0, cols) {
+/** quick = 같은 전투 두 번째 완벽 패링부터 — 높이 올라가는 구슬 대신 막은 자리 바로 위에서 작은 불꽃 (약 0.4초, 2026-10-21 ideas #127) */
+function swatUp(g, x0, y0, cols, quick) {
     const s = g.s;
+    if (quick) {
+        const by = y0 - 18 * s;
+        swatBoom(x0, by, s, cols, 0.6);
+        for (let i = 0; i < 4; i++) {
+            const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+            sigParticle({ x: x0, y: by, s, vx: Math.cos(a) * 70 * s, vy: Math.sin(a) * 70 * s, g: 90 * s, drag: 3, max: 0.35, color: i % 2 ? HIT_GOLD[0] : cols[0], draw: DRAW.dot });
+        }
+        return;
+    }
     const R = g.body.ry * 1.7;
     sigParticle({ x: g.body.cx, y: g.body.cy, s, max: 0.32, R, dir: g.dir, draw: (ctx, p, t, px) => {
         // 아래 앞 (1.2) → 위 (-1.35) 로 0.1초에 쓸고 남은 자국이 흐려짐
@@ -908,7 +918,7 @@ window.pokemonFx = {
     },
     /** 완벽 패링 — 쳐내기 (2026-10-20 태현 님 그림 docs: 날아온 줄이 내 포켓몬 앞에서 위쪽 대각선으로 튕겨 나감).
      *  dst = 막은 쪽 (내 포켓몬) · src = 친 쪽 · type = 기술 타입 · kind = 연출 틀 (fx.plan().fx) — 광선은 위로 꺾여 흩어지고, 날아오는 것은 회전하며 튕겨 나감, 하늘 · 땅 · 둘레 기술은 휙 피함 */
-    swat(dst, src, type, kind) {
+    swat(dst, src, type, kind, quick) {
         const SHOT = ['projectile', 'water', 'bubbles', 'rings', 'notes', 'breath', 'spark', 'beam', 'solarbeam'];
         if (!SHOT.includes(kind)) {
             window.pokemonFx.dodge(dst);
@@ -976,7 +986,7 @@ window.pokemonFx = {
                 }
             } else {
                 // 날아오는 것 — 쳐올리기 (2026-10-20 태현 님 시안 셋 중 B "쳐올리기가 가장 좋은 것 같아" — 되돌려 보냄 · 산산조각은 버림)
-                swatUp(g, x0, y0, cols);
+                swatUp(g, x0, y0, cols, !!quick);
             }
             // 쳐내는 순간 — 금색 퍽 · 초승달 · 불똥 + 0.15초 멈춤 (튕기기 전 막은 순간이 보이게 — 되튀기 완벽의 0.09초보다 길게)
             sigPow(x0, y0, s, HIT_GOLD, 0.5, false, { size: 6 });

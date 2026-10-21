@@ -10,7 +10,7 @@
  * 상태는 늘 새 객체로 만듦 (그 자리에서 고치지 않음 — 확장 ↔ 웹뷰 · 저장소가 같은 객체를 나눠 써도 안 바뀌게).
  */
 import { BALANCE, TIMING } from '../balance';
-import { buy, healTeam, isShopItem, moveInTeam, sell, spendPoint, swapWithBox, toBox, useFieldItem, walkRegen } from '../rules/bag';
+import { buy, healTeam, isShopItem, moveInTeam, sell, spendPoint, swapWithBox, teamHealth, toBox, useFieldItem, walkRegen } from '../rules/bag';
 import { createWild, encounterStart, pickupAt, planWild, wildKey } from '../rules/encounter';
 import { itemName, requestAt, resolveRequest } from '../rules/request';
 import { spotBetween, spotRng, stageCode, stageLayout, trainerId, walkDelta, type Spot, type StageLayout } from '../rules/stage';
@@ -61,6 +61,8 @@ export type GameInput =
   /** S06 ⑥ 병원 · 상점 앞 — [들어가기] · [지나가기] · 안에서 [나가기] */
   | { kind: 'facility'; enter: boolean }
   | { kind: 'facility-leave' }
+  /** 병원 앞 [회복하고 가기] — 들어가기 · 회복 · 나가기를 한 번에 (2026-10-21 ideas #43) */
+  | { kind: 'facility-heal' }
   /** S13 ① 회복 (병원 · 체육관 대기실) · S14 사기 (상점 · 대기실) */
   | { kind: 'heal' }
   /** count = Shift + 클릭 한 번에 (ideas #50, 최대 shopBulk) */
@@ -308,7 +310,12 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
         const f = ev.facility;
         // 안 볼 때는 바로 지나감 (2026-10-18 태현 님) · 보이면 앞에서 멈추고 [들어가기] [지나가기]
         if (rt.headless) save = passFacility(save, id, f.kind, f.at);
-        else {
+        // 병원인데 팀이 다 건강하면 멈추지 않고 한 줄만 (ideas #42) — 쌓아 둔 기술 고르기는 꺼냄
+        else if (f.kind === 'hospital' && teamHealth(save).healthy) {
+          save = takeLaterChoices(passFacility(save, id, f.kind, f.at));
+          rt = { ...rt, toast: { text: '병원 지나감 — 팀이 다 건강해요', ms: TIMING.toastMs } };
+          stage = afterResult(save);
+        } else {
           save = withProgress(save, id, Math.max(from, f.at - BEFORE_SPOT));
           stage = { phase: 'facility', kind: f.kind, at: f.at, ms: 0, inside: false };
         }
@@ -887,6 +894,11 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       const next = stage.kind === 'hospital' ? takeLaterChoices(passed) : passed;
       return { save: next, runtime: { ...state.runtime, stage: afterResult(next) } };
     }
+    case 'facility-heal': {
+      if (stage?.phase !== 'facility' || stage.kind !== 'hospital' || stage.inside || save.location.screen !== 'stage') return state;
+      const healed = takeLaterChoices(healTeam(passFacility(save, save.location.stageId, stage.kind, stage.at)));
+      return { save: healed, runtime: { ...state.runtime, stage: afterResult(healed), toast: { text: '포켓몬들이 모두 기운을 되찾았다!', ms: TIMING.toastMs } } };
+    }
     case 'facility-leave': {
       if (stage?.phase !== 'facility' || !stage.inside) return state;
       const next = stage.kind === 'hospital' ? takeLaterChoices(save) : save;
@@ -999,6 +1011,13 @@ function defeatStep(stage: Extract<StageRuntime, { phase: 'defeat' }>, rt: Runti
 export function defeatWaits(save: Save, stage: Extract<StageRuntime, { phase: 'defeat' }>): boolean {
   if (stage.gym || save.location.screen !== 'stage') return false;
   return (save.stages[save.location.stageId]?.run.retries ?? 0) >= 2;
+}
+
+/** 진행 막대 끝 "약 N분 남음" — 남은 걷기 시간 (전투 · 부탁 빼고, 빨리 걷기면 그 빠르기로 어림 — 2026-10-21 ideas #118). 스테이지가 아니면 null */
+export function walkLeftMs(save: Save): number | null {
+  if (save.location.screen !== 'stage') return null;
+  const p = save.stages[save.location.stageId]?.progress ?? 0;
+  return (Math.max(0, 1 - p) * BALANCE.stageWalkMs) / (save.settings.fastWalk === true ? BALANCE.fastWalkSpeed : 1);
 }
 
 /** 클리어 카드 [다음 스테이지] — 다음 스테이지 (마지막이면 체육관) */
