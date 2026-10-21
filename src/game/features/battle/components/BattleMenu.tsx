@@ -6,7 +6,7 @@
 import type { ComponentChildren } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { maxHpOf } from '../../../core/rules/bag';
-import { canAct, canUlt, catchTriesUsed, counterOpen, itemLeft, lastChanceLimitMs, switchable, ultCounterOpen, type BattleState, type GameInput } from '../../../core/engine';
+import { battleAutoUltLeft, battleFoeUltWarn, canAct, canUlt, catchTriesUsed, counterOpen, itemLeft, lastChanceLimitMs, switchable, ultCounterOpen, type BattleState, type GameInput } from '../../../core/engine';
 import { BALLS, type BallId } from '../../../core/rules/catch';
 import { itemName } from '../../../core/rules/items';
 import type { Save } from '../../../core/save';
@@ -82,6 +82,7 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
   }, [b.phase]);
 
   const items = menuItems(b, save, page, compact);
+  const foeWarn = battleFoeUltWarn(b);
   const [win, setWin] = useState(() => `${window.innerWidth}x${window.innerHeight}`);
   useEffect(() => {
     const on = () => setWin(`${window.innerWidth}x${window.innerHeight}`);
@@ -335,6 +336,8 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
         )}
         {/* 기술 상성 (ideas #24) — 효과가 굉장함 ▲ · 별로 ▼ · 없음 ✕ (색 + 모양) */}
         {i.mark && <span class={`pg-eff pg-eff-${i.mark}`}>{i.mark === 'up' ? '▲' : i.mark === 'down' ? '▼' : '✕'}</span>}
+        {/* 방어 ▲ — 상대 필살기가 곧 · 다 참 (기획 R4 — 방어하면 피해 절반) */}
+        {i.key === 'guard' && foeWarn && <span class={`pg-guard-up${foeWarn.full ? ' pg-full' : ''}`} title="상대 필살기가 곧 — 방어하면 피해 절반">▲</span>}
         {/* 못 누르는 볼 (기회를 다 씀) 은 단계 칸을 뺌 — 밝게 남아 누르고 싶게 만들던 것 */}
         {i.enabled && <Tier tier={i.tier} />}
         {/* 가로 메뉴의 기술 PP 는 뺌 (올리면 나옴 · 옆 메뉴는 "PP 10") — 480 · 600 에서 "1 몸통박치기 1…" 로 잘리던 것 */}
@@ -529,17 +532,26 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
   // 필살기 Z 배지 (2026-10-19 태현 님 "Z 가 잘 안 보여 · 눈에 확 보였으면 · 다 차면 반짝반짝") — 18px 키 모양 칸 안이 게이지만큼 주황으로 차오름,
   // 다 차면 금색 채움 + 한 번 톡 커짐 + 빛 줄기 + 반짝 별 셋 (game.css .pg-ultz). 게이지 막대 대신 이 칸 하나
   const ultPct = Math.round(b.me.ult * 100);
+  // 다 찬 필살기 누를 틈 (기획 R2 — 자동 전투 · 볼 때 3초 [임시값] 뒤 저절로) — Z 모서리 숫자 3 · 2 · 1 = 남은 초 (엔진 battleAutoUltLeft) · 실제로 나갈 때까지 1 을 남김.
+  //   16 × 2px 막대는 알아채기 어렵고 끝난 뒤에도 안 나가 보였던 것 (UX · 픽셀) · 기다리는 동안 Z 는 다 참 모양 그대로 (연출 사이마다 다시 톡 커지던 것)
+  const autoLeft = battleAutoUltLeft(b, save.settings.autoBattle === true);
+  // 세는 때 = Z 를 쓸 수 있을 때 (엔진도 그때만 셈) · 내 행동 연출 중 = 멈춤 (점선 칩) · 마지막 기회 · 결과 같은 그 밖은 칩 · 다 참 모양 없음 (못 나가는데 "3" 이 5초 넘게 남던 것 — UX 리뷰어 2차)
+  const autoPaused = autoLeft !== null && !ultReady && b.phase === 'anim' && b.anim?.side === 'me';
+  const autoSec = autoLeft === null || (!ultReady && !autoPaused) ? null : Math.max(1, Math.ceil(autoLeft / 1000));
+  const zReady = ultReady || autoSec !== null;
+  // 숫자 칩은 Z 밖 형제 (Z 안 첫 자식이면 Z 의 칠 · 빛 줄기 · 반짝 밑에 깔리고 · Z 톡 커짐에 같이 ×1.7 로 커지던 것 — 픽셀 검사원 2차) · Z 오른쪽 옆
   const ultBadge = (
+    <span class="pg-ultz-wrap">
     <button
       type="button"
-      class={ultReady ? 'pg-ultz pg-ultz-ready' : 'pg-ultz'}
-      disabled={!ultReady}
+      class={`${zReady ? 'pg-ultz pg-ultz-ready' : 'pg-ultz'}${autoSec !== null ? ' pg-ultz-auto' : ''}`}
+      disabled={!zReady}
       onClick={() => onInput({ kind: 'battle', input: { kind: 'ult' } })}
-      title={ultReady ? '필살기 (Z) — 지금 쓸 수 있어요 · 아무 때나 · 상대 기술에 끼어들기' : `필살기 게이지 ${ultPct}% — 때리면 · 맞으면 참 (Z)`}
+      title={autoSec !== null ? `필살기 (Z) — ${autoSec}초 뒤 저절로 · 지금 Z 로 바로` : ultReady ? '필살기 (Z) — 지금 쓸 수 있어요 · 아무 때나 · 상대 기술에 끼어들기' : `필살기 게이지 ${ultPct}% — 때리면 · 맞으면 참 (Z)`}
     >
-      <span class="pg-ultz-fill" style={{ height: `${ultReady ? 100 : ultPct}%` }} />
+      <span class="pg-ultz-fill" style={{ height: `${zReady ? 100 : ultPct}%` }} />
       <span class="pg-ultz-key">Z</span>
-      {ultReady && (
+      {zReady && (
         <>
           <span class="pg-ultz-shine" />
           <span class="pg-ultz-spark pg-ultz-s1">
@@ -554,6 +566,9 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
         </>
       )}
     </button>
+      {/* "3초" — 칠 없는 금 테두리 (키 칩 [1] [2] 과 다른 모양 — 같은 금 칠 숫자면 "누를 키" 로 읽히던 것, UX 리뷰어 2차) */}
+      {autoSec !== null && <span class={`pg-ultz-count${autoPaused ? ' pg-paused' : ''}`}>{autoSec}초</span>}
+    </span>
   );
 
   // 자동 전투면 메뉴 줄을 접고 필살기 Z (+ 자동 버튼) 만 (ideas #25 — 맡겨 둔 동안 고를 칸이 줄줄이 보이지 않게) · 볼 · 마지막 기회 · 막기 같은 줄은 그대로

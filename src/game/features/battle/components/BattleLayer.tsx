@@ -9,7 +9,7 @@
 import type { ComponentChildren } from 'preact';
 import { useLayoutEffect, useRef } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
-import { canParry, canRiposte, type BattleState, type GameInput, type Side } from '../../../core/engine';
+import { battleFoeUltWarn, canParry, canRiposte, type BattleState, type GameInput, type Side } from '../../../core/engine';
 import { clashWithTaps, isShooting, type Fighter } from '../../../core/rules/battle';
 import { catchTiming } from '../../../core/rules/catch';
 import type { Save } from '../../../core/save';
@@ -76,7 +76,7 @@ export function AutoButton({ save, onInput, short }: { save: Save; onInput(i: Ga
   );
 }
 
-function HpBlock({ f, side, x, bottom, wide, prefix, noName, dex, panelPx }: { f: Fighter; side: Side; x: number; bottom: number; wide: number; prefix: string; noName?: boolean; /** 마지막 기회 — 잡은 적 있음 (볼 그림) · 처음 (NEW) */ dex?: 'caught' | 'new'; /** 패널 폭 — 상대 이름 줄이 오른쪽으로 넘칠 수 있는 끝 (패널 끝 4px 안) */ panelPx?: number }) {
+function HpBlock({ f, side, x, bottom, wide, prefix, noName, dex, panelPx, warn, short }: { f: Fighter; side: Side; x: number; bottom: number; wide: number; prefix: string; noName?: boolean; /** 마지막 기회 — 잡은 적 있음 (볼 그림) · 처음 (NEW) */ dex?: 'caught' | 'new'; /** 패널 폭 — 상대 이름 줄이 오른쪽으로 넘칠 수 있는 끝 (패널 끝 4px 안) */ panelPx?: number; /** 상대 필살기 예고 (R4 — 80% "곧" · 다 차면 "!") */ warn?: { full: boolean; pct: number } | null; /** 좁은 패널 — 예고 칩 글을 짧게 */ short?: boolean }) {
   const status = f.status ? STATUS_LABEL[f.status.kind] : null;
   const title = `${side === 'foe' ? prefix : ''}${nameOf(f)} Lv${f.level} · HP ${f.hp}/${f.maxHp}${status ? ` · ${status}` : ''}`;
   // 내 줄은 오른쪽 끝을 맞추고 왼쪽으로 넘침 — 폭을 올림 정수 px 로 (글자 폭 그대로면 왼쪽 끝이 64.4 처럼 소수 px 라 흐리던 것, 픽셀 검사원 2026-10-21)
@@ -107,7 +107,15 @@ function HpBlock({ f, side, x, bottom, wide, prefix, noName, dex, panelPx }: { f
             <Icon name="ball" />
           </span>
         )}
-        <span class="pg-lv">Lv{f.level}</span>
+        {/* 좁은 패널에서 예고 칩이 뜨면 Lv 를 뺌 — 칩이 들어가며 이름이 "파…" 로 잘리던 것 (U4 · Lv 는 title) */}
+        {!(short && warn) && <span class="pg-lv">Lv{f.level}</span>}
+        {/* 상대 필살기 예고 (기획 R4) = 이름 줄 안 칩 — 80% 부터 "필살기 곧" · 다 차면 빨강 칠 "필살기!" (좁으면 "곧" · "!") · 다 찬 뒤 쓰기까지 늘 1초 넘게 (엔진).
+            게이지 위에 띄우면 가로 메뉴 줄 · 내 Z · 정보줄 선에 깔려 160 ~ 187 높이에서 0ms 이던 것 (UX · 픽셀) */}
+        {side === 'foe' && warn && (
+          <span class={`pg-foe-warn${warn.full ? ' pg-full' : ''}`} title={warn.full ? '상대 필살기가 다 찼어요 — 방어 (2) 하면 피해 절반 · 필살기로 맞받아치기' : `상대 필살기 ${warn.pct}% — 곧 찹니다`}>
+            {short ? (warn.full ? '!' : '곧') : warn.full ? '필살기!' : '필살기 곧'}
+          </span>
+        )}
         {status && <span class={`pg-status pg-status-${f.status!.kind}`}>{status}</span>}
         {side === 'me' && (
           <span class="pg-hpnum">
@@ -733,7 +741,7 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
       <ParryRing b={b} geo={geo} y={midMe} auto={save.settings.autoBattle} />
       <RiposteRing b={b} geo={geo} y={midFoe} auto={save.settings.autoBattle} />
       {hasMe && <HpBlock f={b.me} side="me" x={geo.meHpX} bottom={geo.meHpBottom} wide={geo.meHpWide} prefix="" noName={geo.menuSide !== null || geo.tiny} />}
-      {b.phase !== 'send' && <HpBlock f={b.foe} side="foe" x={geo.foeHpX} bottom={geo.foeHpBottom} wide={geo.foeHpWide} prefix={foePrefix(b)} dex={b.phase === 'last' ? (save.dex.caught.includes(b.foe.species) ? 'caught' : 'new') : undefined} panelPx={geo.widthPx} />}
+      {b.phase !== 'send' && <HpBlock f={b.foe} side="foe" x={geo.foeHpX} bottom={geo.foeHpBottom} wide={geo.foeHpWide} prefix={foePrefix(b)} dex={b.phase === 'last' ? (save.dex.caught.includes(b.foe.species) ? 'caught' : 'new') : undefined} panelPx={geo.widthPx} warn={battleFoeUltWarn(b)} short={geo.compact} />}
       {b.phase === 'clash' ? <Clash b={b} geo={geo} y={Math.round((midMe + midFoe) / 2)} native={native} /> : <Effects b={b} geo={geo} ground={ground} midMe={midMe} midFoe={midFoe} native={native} />}
       <Catch b={b} geo={geo} ground={ground} mid={midFoe} handY={handY} />
       {throwMe !== null && <SendBall key={`sm${b.me.uid}`} from={[geo.trainerX, handY]} to={[geo.meX, midMe]} at={throwMe} />}

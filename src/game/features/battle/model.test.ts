@@ -139,6 +139,13 @@ describe('화면 다시 그릴지 보는 열쇠', () => {
     const start = TIMING.foeSendMs - SEND_FLY_MS - SEND_BURST_MS;
     expect(battleViewKey({ ...b, sendMs: start - 1 }, false)).not.toBe(battleViewKey({ ...b, sendMs: start }, false));
     expect(battleViewKey({ ...b, sendMs: start }, false)).toBe(battleViewKey({ ...b, sendMs: start + 100 }, false));
+  });  it('다 찬 필살기 누를 틈 막대 (R2) — 자동 전투면 0.25초 칸마다 바뀜 · 손 전투는 안 바뀜 · 상대 예고 곧 → ! 경계', () => {
+    const b0 = startBattle(save, wild, 'normal');
+    const b = { ...b0, me: { ...b0.me, ult: 1 } };
+    expect(battleViewKey({ ...b, ultWait: 100 }, true)).not.toBe(battleViewKey({ ...b, ultWait: 400 }, true));
+    expect(battleViewKey({ ...b, ultWait: 300 }, true)).toBe(battleViewKey({ ...b, ultWait: 320 }, true));
+    expect(battleViewKey({ ...b, ultWait: 100 }, false)).toBe(battleViewKey({ ...b, ultWait: 400 }, false));
+    expect(battleViewKey({ ...b0, foe: { ...b0.foe, ult: 0.85 } }, false)).not.toBe(battleViewKey({ ...b0, foe: { ...b0.foe, ult: 1 } }, false));
   });
 });
 

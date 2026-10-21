@@ -497,6 +497,10 @@ describe('필살기 (mvp-spec 3.3 · gdd S09 ⑧)', () => {
     for (let t = 0; t < 1000 && !(s.anim?.side === 'me' && s.anim.action.kind === 'ult'); t += STEP) s = battleStep(s, save, STEP, fixedRng(0.5), { auto: false });
     expect(s.anim).toMatchObject({ side: 'me', action: { kind: 'ult' } });
     expect(s.ultQueued).toBeUndefined();
+    // 교체 연출 중 Z 는 예약 안 함 (들어오는 포켓몬 필살기로 나가던 것 — 테스터) · 저절로 못 나가는 단계는 남은 시간 없음
+    const switching: BattleState = { ...full, phase: 'anim', anim: { side: 'me', action: { kind: 'switch', uid: 'x' }, ms: 0, dur: 700, counter: false } };
+    expect(battleInput(switching, save, { kind: 'ult' }, fixedRng(0.5)).ultQueued).toBeUndefined();
+    expect(battleAutoUltLeft({ ...full, phase: 'last' }, true)).toBeNull();
     // 예약한 Z 는 상대 필살기 맞받아치기 창이 열리면 그걸로 (코드 리뷰어)
     const foeUltNow: BattleState = { ...full, phase: 'anim', anim: { side: 'foe', action: { kind: 'ult' }, ms: 100, dur: TIMING.ultAnimMs, counter: false }, ultQueued: true };
     const countered = battleStep(foeUltNow, save, STEP, fixedRng(0.5), { auto: false });

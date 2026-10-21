@@ -4,7 +4,7 @@
 import { BALANCE, TIMING } from '../../core/balance';
 import { pickShown } from './fx/hold';
 import type { BattleAction, BattlePopup, BattleState, Side } from '../../core/engine';
-import { battleCatchOdds, canAct, canParry, canRiposte, catchTimeline, catchTriesUsed, counterOpen, faintedTeam, itemLeft, moveEffect, switchable, ultCounterOpen } from '../../core/engine';
+import { battleAutoUltLeft, battleCatchOdds, battleFoeUltWarn, canAct, canParry, canRiposte, catchTimeline, catchTriesUsed, counterOpen, faintedTeam, itemLeft, moveEffect, switchable, ultCounterOpen } from '../../core/engine';
 import { isShooting } from '../../core/rules/battle';
 import { maxHpOf } from '../../core/rules/bag';
 import { BALLS, isBall, type BallId, type CatchTier } from '../../core/rules/catch';
@@ -560,6 +560,12 @@ export function battleViewKey(b: BattleState, auto: boolean): string {
     b.phase === 'send' ? String((introView(b).sendBall ?? null) !== null) : '',
     // 고르기 목록이 보이는 때 — 한 줄 말에 "다음 포켓몬을 골라요" 가 붙는 경계 (UX 리뷰어 8차 · 다시 그리는 열쇠 규칙)
     b.phase === 'pick' ? String(pickShown(performance.now())) : '',
+    // 다 찬 필살기 누를 틈 숫자 1초 칸 (R2 — 0.25초 칸으로 재서 바뀌는 순간을 놓치지 않게) · 상대 필살기 예고 곧 / ! (R4)
+    Math.ceil((battleAutoUltLeft(b, auto) ?? -250) / 250),
+    (() => {
+      const w = battleFoeUltWarn(b);
+      return w === null ? '' : w.full ? '!' : '곧';
+    })(),
     b.popups.length ? b.popups.map((p) => `${p.text}${b.t - p.ms}`).join(',') : '',
     b.me.moves.map((s) => s.pp).join(','),
   ].join('|');

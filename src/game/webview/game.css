@@ -1749,10 +1749,16 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   width: 18px;
   height: 13px;
 }
-.pg-vmenu-ult > .pg-ultz {
+.pg-vmenu-ult > .pg-ultz-wrap {
   position: absolute;
   right: 0;
   top: -3px;
+}
+/* Z 배지 + 누를 틈 숫자 칩 (형제) 묶음 */
+.pg-ultz-wrap {
+  position: relative;
+  display: inline-flex;
+  flex: none;
 }
 /* 판을 접었을 때 (고를 수 없는 동안) 는 탭 줄만 — 오른쪽 탭도 아래를 닫음 */
 .pg-vmenu-tabs:last-child {
@@ -6060,4 +6066,58 @@ body.vscode-light .pg-field-balls {
   pointer-events: none;
   background: var(--pg-sos-bar);
   height: calc(var(--pg-wipe) * 100%);
+}
+
+/* 기획 R2 — 다 찬 필살기 누를 틈 (자동 전투 · 볼 때 3초 [임시값] 뒤 저절로): Z 배지 오른쪽 옆 숫자 칩 3 · 2 · 1 (남은 초 · 나갈 때까지 1 · 13 × 12 정수 — Z 가운데 높이) ·
+   Z 오른쪽 아래에 걸치면 150 정보줄에서 아래 1px 잘리고 정보줄 선을 덮고 · 600 × 160 에서 내 이름을 덮던 것 (픽셀 검사원 2차) · 반짝임은 다 참 반짝 그대로 (동작 줄이기에도 남김 — 10-20 태현 님) */
+.pg-ultz-count {
+  position: absolute;
+  left: 100%;
+  top: 3px;
+  margin-left: 2px;
+  box-sizing: border-box;
+  height: 12px;
+  padding: 0 2px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 10px;
+  white-space: nowrap;
+  color: var(--pg-sos-gold);
+  background: var(--pg-sos-bar);
+  border: 1px solid var(--pg-sos-gold);
+  pointer-events: none;
+}
+/* 멈춤 (내 행동 연출 중 — 엔진이 안 셈) = 점선 테두리 */
+.pg-ultz-count.pg-paused {
+  border-style: dashed;
+}
+/* 기획 R4 — 1:1 상대 필살기 예고 칩 = 상대 이름 줄 안 (Lv 뒤) · 80% 부터 금색 "필살기 곧" · 다 차면 빨강 칠 "필살기!" (좁으면 "곧" · "!") · 3:3 .pg-team-warn 과 같은 모양 */
+.pg-foe-warn {
+  flex: none;
+  box-sizing: border-box;
+  height: 12px;
+  /* 앞과 3px (줄 gap 6 − 3 — 9 이면 240 에서 5글자 이름이 "장크로다…" 로 잘리던 것, 픽셀 검사원 2차) · 높이 12 = 이름 줄 높이 (13 이면 반 픽셀) */
+  margin-left: -3px;
+  padding: 0 3px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 10px;
+  color: var(--pg-sos-ult);
+  background: var(--pg-sos-bar);
+  border: 1px solid var(--pg-sos-line-soft);
+  white-space: nowrap;
+}
+.pg-foe-warn.pg-full {
+  color: #fff;
+  background: var(--pg-sos-red);
+  border-color: var(--pg-sos-red);
+}
+/* 방어 ▲ — 상대 필살기가 곧 · 다 참 (방어하면 피해 절반) · 다 차면 빨강 */
+.pg-guard-up {
+  margin-left: 3px;
+  font-size: 11px;
+  color: var(--pg-sos-ult);
+}
+.pg-guard-up.pg-full {
+  color: var(--pg-sos-red);
 }

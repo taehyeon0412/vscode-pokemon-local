@@ -5,7 +5,7 @@
  */
 import { useEffect, useMemo, useRef } from 'preact/hooks';
 import { TIMING } from '../../../core/balance';
-import type { GameInput, Side, TeamBattle } from '../../../core/engine';
+import { teamAutoUltLeft, type GameInput, type Side, type TeamBattle } from '../../../core/engine';
 import { formOf, speciesOf } from '../../../data';
 import { koSinkPx } from '../model';
 import { Sprite } from '../../../ui/Sprite';
@@ -35,6 +35,7 @@ function Fighter({ b, g, side, slot, media, topMin, final, onUlt }: { b: TeamBat
   const warn = side === 'foe' ? foeWarn(b, slot) : null;
   const pops = b.popups.filter((p) => p.side === side && p.slot === slot);
   const name = speciesOf(f.species)?.name.ko ?? f.form;
+  const autoLeft = mine ? teamAutoUltLeft(b, slot) : null;
   // 필살기 힘겨루기 중엔 끼어들 수 있는 칸 (join) 만 합류 — 나머지는 바깥 (연타) 으로 (누를 때마다 예약이 켜졌다 꺼지던 것 — 코드 리뷰어)
   const click =
     mine && st !== 'down' && (b.phase !== 'clash' || st === 'join')
@@ -65,13 +66,17 @@ function Fighter({ b, g, side, slot, media, topMin, final, onUlt }: { b: TeamBat
           <Bar v={f.hp / Math.max(1, f.maxHp)} kind="hp" />
           {st !== 'down' && <Bar v={f.ult} kind={st === 'charge' ? 'ult' : 'ult-full'} />}
         </span>
+        {/* 상대 필살기 예고 = 상대 발밑 판 오른쪽 칩 (1:1 이 상대 HP 줄 안인 것과 같은 자리 — 머리 위에 두면 그 상대의 피해 숫자를 덮어 "−1" 이 0px 이던 것, 픽셀 검사원 2차) */}
+        {warn && (
+          <span class={`pg-team-warn${warn.full ? ' pg-team-warn-full' : ''}`} title={warn.full ? '상대 필살기가 다 찼어요' : `상대 필살기 ${warn.pct}% — 곧`}>
+            {warn.full ? '!' : '곧'}
+          </span>
+        )}
+        {/* 다 찬 필살기 누를 틈 (기획 R2 — 볼 때 3초 뒤 저절로) = 판 오른쪽 숫자 3 · 2 · 1 (1:1 Z 모서리와 같은 칩 · 나갈 때까지 1 — 게이지를 줄이면 "필살기가 빠져나간다" 로 읽히던 것, UX 리뷰어) */}
+        {/* 세는 때 (지금 쓸 수 있는 칸 — ready) 만 · "3초" 칠 없는 금 테두리 (키 칩과 다른 모양) · 판 오른쪽 바깥에 겹침 (판 안이면 HP 막대가 줄던 것) — UX 리뷰어 2차 */}
+        {autoLeft !== null && st === 'ready' && <span class="pg-team-auto">{Math.max(1, Math.ceil(autoLeft / 1000))}초</span>}
       </span>
-      {/* 상대 필살기 예고 — 머리 위 */}
-      {warn && (
-        <span class={`pg-team-warn${warn.full ? ' pg-team-warn-full' : ''}`} style={{ left: `${x}px`, top: `${Math.max(topMin, y - g.sp)}px` }}>
-          {warn.full ? '곧!' : `${warn.pct}%`}
-        </span>
-      )}
+
       {/* 피해 숫자 · 짧은 말 — 머리 위 */}
       {/* 칸마다 쌓음 (쓰러짐 말 · 피해 숫자가 같은 자리에 겹치던 것) · 지도 줄 아래로 막음 · 한 줄 배치 · ×1 (좁은 패널 — 셋이 가까움) 은 칸마다 높이를 엇갈림 — UX 리뷰어 */}
       {pops.map((p, i) => (

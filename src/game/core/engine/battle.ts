@@ -911,6 +911,8 @@ export function battleFoeUltWarn(b: BattleState): { full: boolean; pct: number }
 /** 다 찬 내 필살기가 저절로 나가기까지 남은 ms (자동 전투 · 볼 때 — Z 반짝 · 막대, R2) · 저절로 안 나가면 null */
 export function battleAutoUltLeft(b: BattleState, auto: boolean): number | null {
   if (!auto || b.me.ult < 1 || b.me.hp <= 0) return null;
+  // 저절로 나갈 수 없는 단계 (마지막 기회 · 잡기 · 다음 볼 · 반격 기회 · 고르기 · 끝) 는 없음 (테스터 — 숫자가 멈춘 채 남던 것)
+  if (b.phase !== 'run' && b.phase !== 'choose' && b.phase !== 'anim' && b.phase !== 'clash') return null;
   if (b.me.hp < b.me.maxHp * BALANCE.autoPotionBelow) return 0;
   return Math.max(0, BALANCE.ultAutoWaitMs - (b.ultWait ?? 0));
 }
@@ -1064,7 +1066,8 @@ export function battleInput(b: BattleState, save: Save, input: BattleInput, rng:
     case 'ult': {
       if (ultCounterOpen(b)) return startClash({ ...b, me: { ...b.me, ult: 0 } }, 'ult', null, null);
       // 내 행동 연출 중 (Z 를 못 누름) 이면 예약 — 누를 수 있게 되면 바로 (말없이 버려지던 것, U5)
-      if (!canUlt(b)) return b.me.ult >= 1 && b.me.hp > 0 && b.phase === 'anim' && b.anim?.side === 'me' ? { ...b, ultQueued: true } : b;
+      // 교체 연출은 빼고 (들어오는 포켓몬의 필살기로 나가던 것 — 테스터)
+      if (!canUlt(b)) return b.me.ult >= 1 && b.me.hp > 0 && b.phase === 'anim' && b.anim?.side === 'me' && b.anim.action.kind !== 'switch' ? { ...b, ultQueued: true } : b;
       return pressUlt(b, rng);
     }
     case 'space': {
