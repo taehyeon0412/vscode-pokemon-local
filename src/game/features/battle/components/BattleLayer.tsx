@@ -17,7 +17,7 @@ import { moveOf, speciesOf } from '../../../data';
 import { Button } from '../../../ui/Button';
 import { Icon } from '../../../ui/Icon';
 import { Sprite } from '../../../ui/Sprite';
-import { catchFoeClass, catchTone, catchView, duelKind, ringHint, ringKeyFits, hpColor, introView, moveColor, moveFx, profileOpenable, SEND_FLY_MS, sentenceText, splitPopups, STATUS_LABEL, type BattleGeometry, type CatchTone } from '../model';
+import { catchFoeClass, catchTone, catchView, duelKind, firstSentence, msgFits, ringHint, ringKeyFits, hpColor, introView, moveColor, moveFx, profileOpenable, SEND_FLY_MS, sentenceText, splitPopups, STATUS_LABEL, type BattleGeometry, type CatchTone } from '../model';
 import { battleAnimKey, holdWindow } from '../fx/hold';
 import { impactOf, ultSkippable } from '../fx/parry';
 import { BattleMenu } from './BattleMenu';
@@ -641,7 +641,11 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
   const said = sentences.map((p) => sentenceText(p, sideName));
   //   앞에 붙이는 건 엔진이 말을 바꾼 단계 (쓰러짐 · 고르기 · 끝 · 다음 포켓몬 · 마지막 기회) 만 — 연출이 끝나 run 이어도 말은 아직 그 행동 (다른 세션 플레이 리뷰어)
   const changed = b.phase === 'pick' || b.phase === 'over' || b.phase === 'send' || b.phase === 'last' || b.phase === 'choose';
-  const msgText = (changed ? [...said, b.msg] : [b.msg, ...said]).filter(Boolean).join(' ');
+  const msgFull = (changed ? [...said, b.msg] : [b.msg, ...said]).filter(Boolean).join(' ');
+  // 칸에 다 안 들어가면 앞에 붙은 상성 · 급소 문장을 뺌 (머리 위 숫자 크기 · "!" 가 이미 말함) — 엔진 말 ("쓰러졌다! (볼이 없어…)") 이 잘리고 1초도 못 보이던 것.
+  //   그래도 안 들어가면 끝 · 다음 포켓몬 · 고르기는 첫 문장만 (240 × 150 정보줄과 같게 — 240 × 187 "…잡…" 으로 잘리던 것) · UX 리뷰어 2026-10-21 (U4)
+  const msgEngine = changed && said.length > 0 && !msgFits(msgFull, geo) ? b.msg : msgFull;
+  const msgText = (b.phase === 'over' || b.phase === 'send' || b.phase === 'pick') && !msgFits(msgEngine, geo) ? firstSentence(b.msg) : msgEngine;
   // 필살기 컷인이 같은 말을 하는 동안 · 둘 곳이 없는 좁은 패널에서는 위 한 줄을 숨김 — 그때 문장은 머리 위 한 줄로
   // 잡기 흔들기 창 (가운데) 이 떠 있는 동안도 숨김 — 창 이름표와 같은 말을 두 번 함 (아트 디렉터 8차)
   const catchShown = catchView(b)?.stage;
@@ -702,7 +706,7 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
         </span>
       )}
       {showMsg && (
-        <div key={b.msg} class={['pg-bmsg', b.phase === 'over' ? 'pg-bmsg-over' : '', geo.msgLines >= 2 ? 'pg-bmsg-2' : ''].filter(Boolean).join(' ')} style={msgStyle(geo)} title={msgText}>
+        <div key={b.msg} class={['pg-bmsg', b.phase === 'over' ? 'pg-bmsg-over' : '', geo.msgLines >= 2 ? 'pg-bmsg-2' : '', geo.msgSide && geo.msgLines >= 2 ? 'pg-bmsg-side' : ''].filter(Boolean).join(' ')} style={msgStyle(geo)} title={msgFull}>
           {/* 여러 줄은 안쪽 글 칸에서 자름 — 바깥 칸에서 자르면 다음 줄 윗부분이 아래 여백 3px 에 비침 (480 × 150, U4) */}
           <span class="pg-bmsg-text">{emphasize(msgText, [nameOf(b.me), nameOf(b.foe)])}</span>
         </div>
@@ -720,7 +724,9 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
         </div>
       ) : (
         !geo.menuInBar && (
-          <div class={catchWin ? 'pg-bmenu-wrap pg-bmenu-away' : 'pg-bmenu-wrap'} style={{ left: `${geo.menuLeft}px`, bottom: `${geo.menuBottom}px`, maxWidth: `calc(100% - ${geo.menuLeft + 6}px)` }}>
+          <div class={['pg-bmenu-wrap', catchWin ? 'pg-bmenu-away' : '', barSay(b, geo.msgHidden) ? 'pg-bmenu-wrap-say' : ''].filter(Boolean).join(' ')} style={{ left: `${geo.menuLeft}px`, bottom: `${geo.menuBottom}px`, maxWidth: `calc(100% - ${geo.menuLeft + 6}px)` }}>
+            {/* 높이 160 ~ 180 처럼 메뉴 줄이 무대 위쪽에 있고 말 칸이 숨을 때 — 끝 · 다음 포켓몬 · 고르기 말을 그 줄에 (말이 0ms 이던 것, UX 리뷰어 2026-10-21) */}
+            {barSay(b, geo.msgHidden) && <span class="pg-bar-say pg-stage-say">{barSay(b, geo.msgHidden)}</span>}
             <BattleMenu battle={b} save={save} onInput={onInput} lead={geo.autoInMenu ? <AutoButton save={save} onInput={onInput} short={geo.compact} /> : null} compact={geo.tiny ? 'tiny' : geo.compact} hint={ringHint(b, geo, save.settings.autoBattle)} />
           </div>
         )
@@ -736,7 +742,7 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
  *  고르기는 칸이 무대 위 세로 목록으로 빠져 (2초 뒤) 위 줄 자리가 비어서 "이상해씨가 쓰러졌다!" 를 다시 띄움.
  *  첫 문장만 ("야생 파이리가 쓰러졌다!") — 뒷말 ("다음 포켓몬을 골라요") 은 고르기 목록 제목이 말함. 마지막 기회는 같은 줄에 "마지막 기회! 6초" · 볼 칸이 있어 자리가 없고, 쓰러진 모습 (회색) 과 그 칸이 뜻을 전함 */
 export const barSay = (b: BattleState, msgHidden: boolean): string | null =>
-  msgHidden && (b.phase === 'over' || b.phase === 'send' || b.phase === 'pick') && b.msg ? (b.msg.match(/^[^!?.…]*[!?.…]/)?.[0] ?? b.msg) : null;
+  msgHidden && (b.phase === 'over' || b.phase === 'send' || b.phase === 'pick') && b.msg ? firstSentence(b.msg) : null;
 
 export function BattleMenuBar({ battle, save, onInput, withAuto, compact, say, hint }: { battle: BattleState; save: Save; onInput(i: GameInput): void; withAuto: boolean; compact: boolean | 'tiny'; say?: string | null; hint?: '막기' | '반격' | null }) {
   return (

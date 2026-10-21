@@ -4243,6 +4243,31 @@ body.vscode-high-contrast-light .pg-title-body {
   -webkit-line-clamp: var(--pg-msg-lines, 2);
   overflow: hidden;
 }
+/* 상대 오른쪽 좁은 칸 여러 줄 = 좌우 여백 6 (battle/model MSG_SIDE_PAD_PX — 9 면 5글자 이름이 첫 줄에 안 들어감) */
+.pg-bmsg.pg-bmsg-side {
+  padding-left: 6px;
+  padding-right: 6px;
+}
+/* 무대 위쪽 메뉴 줄 자리의 말 (높이 160 ~ 180 끝 단계) — 정보줄 말과 같은 글 · 무대 위라 짙은 판 · 메뉴 (Z) 와 한 줄 (두 줄이 되면 아래 끝 기준이라 위로 자라 정보줄에 잘리던 것) */
+.pg-bmenu-wrap.pg-bmenu-wrap-say {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pg-bmenu-wrap.pg-bmenu-wrap-say > .pg-bmenu {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.pg-bmenu-wrap > .pg-stage-say {
+  flex: 0 0 auto;
+  max-width: 100%;
+  max-height: none;
+  padding: 2px 6px;
+  white-space: nowrap;
+  background: var(--pg-sos-panel);
+  border: 1px solid var(--pg-sos-line-soft);
+  text-align: left;
+}
 
 /* ---- 전체 점검 (2026-10-19 태현 님 "유저 편의성 다시 한번 생각하면서 점검") ---- */
 /* 전투 메뉴 줄 (옆 메뉴 · 가로 한 줄 · 정보줄 자리) 의 작은 글 (기술 PP · 볼 개수 · 다음 포켓몬 Lv) = 흐린 크림.

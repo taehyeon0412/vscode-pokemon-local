@@ -245,8 +245,29 @@ const AUTO_EST_PX = 78;
 const MSG_PX = 18;
 /** 한 줄 말 둘째 줄 (game.css .pg-bmsg line-height) — 긴 말은 자리가 있으면 두 줄 */
 const MSG_LINE_PX = 15;
-/** 상대 오른쪽 좁은 말 칸의 최대 줄 수 */
-const MSG_MAX_LINES = 4;
+/** 상대 오른쪽 좁은 말 칸의 최대 줄 수 — "야생 / 아리아도스가" 처럼 5글자 이름이 첫 줄에 안 들어가 한 줄을 버려도 다 보이게 (UX 리뷰어 2026-10-21) */
+const MSG_MAX_LINES = 5;
+/** 말 상자 좌우 안 여백 — 상대 오른쪽 좁은 칸의 여러 줄은 6 (game.css .pg-bmsg-side) */
+const MSG_PAD_PX = 9;
+const MSG_SIDE_PAD_PX = 6;
+
+/** 말 글 폭 어림 (13px — 한글 13 · 빈칸 4 · 숫자 · 영문 8 · 문장 부호 5 · "…" 13) */
+export function msgTextPx(text: string): number {
+  let px = 0;
+  for (const ch of text) px += ch === ' ' ? 4 : ch === '…' ? 13 : /[!?.,()·~-]/.test(ch) ? 5 : /[0-9A-Za-z]/.test(ch) ? 8 : 13;
+  return px;
+}
+
+/** 이 말이 말 상자 (폭 · 줄 수) 에 다 들어가는지 어림 — 여러 줄은 낱말 단위 줄바꿈 (keep-all) 으로 버리는 자리 15% */
+export function msgFits(text: string, geo: Pick<BattleGeometry, 'msgSide' | 'msgRight' | 'msgLines' | 'widthPx'>): boolean {
+  const box = geo.msgSide?.maxWidth ?? geo.msgRight?.maxWidth ?? geo.widthPx - 16;
+  const inner = box - 2 * (geo.msgSide && geo.msgLines >= 2 ? MSG_SIDE_PAD_PX : MSG_PAD_PX) - 2;
+  const px = msgTextPx(text);
+  return geo.msgLines <= 1 ? px <= inner : px * 1.15 <= inner * geo.msgLines;
+}
+
+/** 첫 문장 ("야생 파이리가 쓰러졌다! (볼이…" → "야생 파이리가 쓰러졌다!") */
+export const firstSentence = (msg: string): string => msg.match(/^[^!?.…]*[!?.…]/)?.[0] ?? msg;
 /** 옆 메뉴일 때 한 줄 말 = 옆 메뉴 탭 · 상대 HP 묶음 위 끝에서 이만큼 위 (싸우는 곳 가까이 — 아트 디렉터 3차) */
 const MSG_NEAR_GAP_PX = 8;
 /** 한 줄 말 위 띄움 최소 (예전 값) — 자리가 모자라면 정보줄 띄움 (4 ~ 8) 을 여기까지 줄임 */

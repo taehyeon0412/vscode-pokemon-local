@@ -258,6 +258,12 @@
     if (q.get('toast')) runtime.toast = { text: q.get('toast'), ms: 600000 };
     // msg=<글> — 전투 한 줄 말을 바꿈 (긴 말이 잘리는지 보기, 2026-10-19)
     if (q.get('msg') && runtime.stage && runtime.stage.phase === 'battle') runtime.stage.battle.msg = q.get('msg');
+    // pop=super,crit — 상대가 방금 맞은 숫자 + 상성 · 급소 문장 (1.2초 동안 말 앞에 붙는 흐름을 연속 캡처로 보기, 2026-10-21 UX 리뷰어)
+    if (q.get('pop') && runtime.stage && runtime.stage.phase === 'battle') {
+        const said = { super: '효과가 굉장했다!', weak: '효과가 별로인 듯하다…', crit: '급소에 맞았다!' };
+        const kinds = q.get('pop').split(',').filter((k) => said[k]);
+        runtime.stage.battle.popups = [{ id: 1, side: 'foe', text: '-12', ms: 0, kind: 'damage' }, ...kinds.map((k, i) => ({ id: 2 + i, side: 'foe', text: said[k], ms: 0, kind: k }))];
+    }
     // bt=<ms> — 전투 시간 (0 이면 막 시작 — 볼 던지기 · 화면 닦기 사진, 2026-10-20)
     if (q.get('bt') && runtime.stage && runtime.stage.phase === 'battle') runtime.stage.battle.t = Number(q.get('bt'));
     let epoch = 0;

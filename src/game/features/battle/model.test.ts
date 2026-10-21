@@ -6,7 +6,7 @@ import { Rng } from '../../core/engine/rng';
 import { counterMove, isShooting } from '../../core/rules/battle';
 import { hasMapRow, MAP_ROW_PX, topGapPx } from '../../ui/layout';
 import { allForms, allMoves, formOf, moveOf } from '../../data';
-import { battleGeometry, battleSpritePx, battleViewKey, catchFoeClass, catchView, duelKind, hpColor, menuItems, placeOnStage, sentenceText, splitPopups, introView, SEND_FLY_MS, SEND_BURST_MS, WIPE_MS, type DuelKind } from './model';
+import { battleGeometry, battleSpritePx, firstSentence, msgFits, battleViewKey, catchFoeClass, catchView, duelKind, hpColor, menuItems, placeOnStage, sentenceText, splitPopups, introView, SEND_FLY_MS, SEND_BURST_MS, WIPE_MS, type DuelKind } from './model';
 
 const wild = sampleMonster({ uid: 'wild', species: 4, form: 'charmander', level: 5, moves: [{ moveId: 52, pp: 25 }], hp: 999 });
 const save = sampleSave();
@@ -312,8 +312,17 @@ describe('지도 줄 아래 · 긴 한 줄 말 (2026-10-19 태현 님)', () => {
     expect(g.menuSide).toBeNull();
     expect(g.msgSide).not.toBeNull();
     expect(g.msgLines).toBeGreaterThanOrEqual(3);
-    expect(g.msgLines).toBeLessThanOrEqual(4);
-    for (const [foeX, trainer, hero] of [[300, false, 32], [280, true, 64], [330, false, 32]] as const) {
+    expect(g.msgLines).toBeLessThanOrEqual(5);
+    // 5글자 이름 + 볼 없음 — "야생 / 아리아도스가 / …" 로 한 줄을 버려도 들어감 · 상성 · 급소가 붙으면 안 들어감 (화면이 그 문장을 뺌)
+    expect(msgFits('야생 아리아도스가 쓰러졌다! (볼이 없어 잡을 수 없어요)', g)).toBe(true);
+    expect(msgFits('효과가 굉장했다! 급소에 맞았다! 야생 아리아도스가 쓰러졌다! (볼이 없어 잡을 수 없어요)', g)).toBe(false);
+    // 240 × 187 위 가운데 한 줄은 첫 문장만 들어감
+    const g240 = battleGeometry({ widthPx: 240, bodyPx: 161, scale: 1, uiScale: 1.3, ground: 33, foeX: 180, meSpritePx: 32, foeSpritePx: 32, heroPx: 32, heroWidthPx: 20, topPx: 0, gapPx: 8 });
+    if (!g240.msgSide && !g240.msgRight && g240.msgLines === 1) {
+      expect(msgFits('야생 파이리가 쓰러졌다! (볼이 없어 잡을 수 없어요)', g240)).toBe(false);
+      expect(msgFits(firstSentence('야생 파이리가 쓰러졌다! (볼이 없어 잡을 수 없어요)'), g240)).toBe(true);
+    }
+    for (const [foeX, trainer, hero] of [[300, false, 32], [345, true, 64], [330, false, 32]] as const) {
       for (const h of [150, 160, 170]) {
         const n = narrow(h, foeX, trainer, hero);
         // 한 줄은 예전 그대로 (자리가 없어도 한 줄) — 늘어난 줄만 땅 · 이름표 위인지 봄
