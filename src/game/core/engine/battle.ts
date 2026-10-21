@@ -32,7 +32,7 @@ import {
   ultGain,
   type Fighter,
 } from '../rules/battle';
-import { BALLS, catchChance, catchTiming, isBall, type BallId } from '../rules/catch';
+import { BALLS, catchChance, catchOdds, catchTiming, isBall, type BallId } from '../rules/catch';
 import { itemName } from '../rules/items';
 import { effectiveness, effectivenessText } from '../rules/types';
 import { ITEM_IDS, type EncounterStart, type ItemId, type Monster, type MoveSlot, type Save, type StatusCondition } from '../save';
@@ -855,6 +855,13 @@ function pickNext(b: BattleState, save: Save, uid: string): BattleState {
   const next = fighterOf(m);
   next.ult = b.bench[uid]?.ult ?? 0;
   return { ...b, me: next, phase: 'run', msg: `가랏, ${nameOf(next)}!`, fought: b.fought.includes(uid) ? b.fought : [...b.fought, uid] };
+}
+
+/** 잡기 어려움 (orders #23) — 지금 이 야생에게 볼마다 던질 때의 기본 확률 · 쉬움 / 보통 / 어려움 (마지막 기회면 × 0.5). 야생이 아니면 null */
+export function battleCatchOdds(b: BattleState): ReturnType<typeof catchOdds> | null {
+  if (b.kind !== 'wild') return null;
+  const lastChance = b.phase === 'last' || b.catch?.last === true;
+  return catchOdds({ captureRate: speciesOf(b.foe.species)?.captureRate ?? 45, hp: b.foe.hp, maxHp: b.foe.maxHp, lastChance });
 }
 
 /** 전투 결과를 보여 주는 시간이 다 지났는지 */

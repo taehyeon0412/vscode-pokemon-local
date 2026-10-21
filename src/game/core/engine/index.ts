@@ -24,6 +24,7 @@ export {
   type SaveSignal,
 } from './play';
 export {
+  battleCatchOdds,
   battleDone,
   battleWaiting,
   canAct,

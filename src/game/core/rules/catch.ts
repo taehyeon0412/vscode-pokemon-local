@@ -27,6 +27,23 @@ export function timingScale(t: CatchTiming): number {
   return t === 'perfect' ? BALANCE.catchPerfectScale : t === 'good' ? BALANCE.catchGoodScale : 1;
 }
 
+/** 잡기 어려움 (orders #23) — 쉬움 · 보통 · 어려움 (경계 BALANCE.catchTier) */
+export type CatchTier = 'easy' | 'normal' | 'hard';
+
+export function catchTier(chance: number): CatchTier {
+  return chance >= BALANCE.catchTier.easy ? 'easy' : chance >= BALANCE.catchTier.normal ? 'normal' : 'hard';
+}
+
+/** 볼마다 지금 던질 때의 기본 확률 · 어려움 (타이밍 보너스 없이, 마지막 기회 × 0.5 포함) — 볼 줄 · 마지막 기회 · 타이밍 원이 같은 값 */
+export function catchOdds(o: { captureRate: number; hp: number; maxHp: number; lastChance: boolean }): Record<BallId, { chance: number; tier: CatchTier }> {
+  const out = {} as Record<BallId, { chance: number; tier: CatchTier }>;
+  for (const ball of BALLS) {
+    const chance = catchChance({ ...o, ball, timing: 'none' });
+    out[ball] = { chance, tier: catchTier(chance) };
+  }
+  return out;
+}
+
 export function catchChance(o: { captureRate: number; hp: number; maxHp: number; ball: BallId; timing: CatchTiming; lastChance: boolean }): number {
   const ratio = o.maxHp > 0 ? Math.min(1, Math.max(0, o.hp / o.maxHp)) : 0;
   const base = (Math.min(255, Math.max(1, o.captureRate)) / 255) * (1 - ratio * BALANCE.catchHpWeight);

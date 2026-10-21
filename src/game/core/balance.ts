@@ -185,6 +185,8 @@ export const BALANCE = {
   catchHpWeight: 2 / 3,
   ballScale: { 'poke-ball': 1, 'great-ball': 1.5, 'ultra-ball': 2 },
   lastChanceScale: 0.5,
+  /** 잡기 어려움 3단계 (2026-10-21 태현 님 #117 C — 화면에 % 없이) — 그 볼로 지금 던질 때의 기본 확률 (타이밍 보너스 없이 · 마지막 기회 × 0.5 포함): 쉬움 easy 부터 · 보통 normal 부터 · 그 아래 어려움 [임시값] */
+  catchTier: { easy: 0.6, normal: 0.25 },
   /** 타이밍 원: 원이 다 줄어든 순간에서 ± 이 시간 안이면 완벽 · 좋음 */
   catchPerfectMs: 100,
   catchGoodMs: 250,
