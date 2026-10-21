@@ -2,16 +2,18 @@
  * S09 전투 화면 — 화면을 모르는 부분: 메뉴에 무엇이 있고 무엇이 흐린지 · 단축키 · 연출 모양 고르기.
  */
 import { BALANCE, TIMING } from '../../core/balance';
+import { pickShown } from './fx/hold';
 import type { BattleAction, BattlePopup, BattleState, Side } from '../../core/engine';
-import { canAct, canParry, canRiposte, catchTimeline, catchTriesUsed, counterOpen, faintedTeam, itemLeft, moveEffect, switchable, ultCounterOpen } from '../../core/engine';
+import { battleCatchOdds, canAct, canParry, canRiposte, catchTimeline, catchTriesUsed, counterOpen, faintedTeam, itemLeft, moveEffect, switchable, ultCounterOpen } from '../../core/engine';
 import { isShooting } from '../../core/rules/battle';
 import { maxHpOf } from '../../core/rules/bag';
-import { BALLS, catchChance, isBall } from '../../core/rules/catch';
+import { BALLS, isBall, type BallId, type CatchTier } from '../../core/rules/catch';
 import { BATTLE_ITEMS, itemName } from '../../core/rules/items';
 import { withShortFoe } from '../../core/rules/trainer';
 import type { Save } from '../../core/save';
 import { typeNameKo, withJosa } from '../../core/text';
 import { formOf, moveOf, speciesOf, type TypeName } from '../../data';
+import { spriteBoxOf, walkBoxOf } from '../../data/sprite-boxes';
 
 export type MenuPage = 'main' | 'skills' | 'items' | 'switch' | 'revive';
 
@@ -29,6 +31,12 @@ export interface MenuItem {
   subShort?: string;
   /** 기술 상성 (ideas #24) — 지금 상대에게 효과가 굉장함 ▲ · 별로 ▼ · 없음 ✕ (보통 · 변화 기술은 없음) */
   mark?: 'up' | 'down' | 'none';
+  /** 볼 — 지금 던지면 잡기 쉬움 · 보통 · 어려움 (orders #23, 야생만 · % 는 숨김) */
+  tier?: CatchTier;
+  /** 볼 — 그림 (좁은 옆 메뉴는 이름 대신) */
+  ball?: BallId;
+  /** 볼 남은 기회 " · 기회 2" · " · 마지막!" — 개수 (sub) 와 따로 (좁을 때 개수만 빼도 경고는 남게, UX 리뷰어 2026-10-21) */
+  warn?: string;
   /** 누르면 — 페이지를 바꾸거나 행동 */
   go: { page: MenuPage } | { action: BattleAction } | { back: true };
   enabled: boolean;
@@ -94,11 +102,19 @@ export function menuItems(b: BattleState, save: Save, page: MenuPage, compact: b
           label: `${i + 1} ${itemName(item)}`,
           // 개수 = "3개" (× 는 잡기 배율 "×1.5" 와 헷갈림 — 2026-10-19 태현 님 · 아트 디렉터 5차)
           // 야생에 볼 — 한 번 놓친 뒤부터 남은 기회 · 마지막이면 "마지막!" (2026-10-20 플레이 리뷰어)
-          sub: `${itemLeft(b, save, item)}개${isBall(item) && b.kind === 'wild' ? ballTriesSub(b) : ''}`,
+          sub: `${itemLeft(b, save, item)}개`,
+          ...(isBall(item) ? { ball: item, tier: ballTier(b, item), ...(b.kind === 'wild' && ballTriesSub(b) ? { warn: ballTriesSub(b) } : {}) } : {}),
           // 기력의조각 → 살릴 포켓몬 고르기
           go: item === 'revive' ? { page: 'revive' } : { action: { kind: 'item', item } },
           enabled: canAct(b, save, { kind: 'item', item }),
-          title: item === 'revive' ? '쓰러진 팀 포켓몬을 HP 절반으로 (교체로 낼 수 있게)' : isBall(item) ? (b.kind === 'wild' && catchTriesUsed(b) >= BALANCE.catchTries ? `이 포켓몬에게는 볼을 ${BALANCE.catchTries}번까지만 던질 수 있어요` : `볼 던지기 — 원이 딱 맞을 때 Space 로 던짐 (HP 가 낮을수록 잘 잡힘 · 기회 ${BALANCE.catchTries}번)`) : undefined,
+          title:
+            item === 'revive'
+              ? '쓰러진 팀 포켓몬을 HP 절반으로 (교체로 낼 수 있게)'
+              : isBall(item)
+                ? b.kind === 'wild' && catchTriesUsed(b) >= BALANCE.catchTries
+                  ? `${i + 1} · ${itemName(item)} — 이 포켓몬에게는 볼을 ${BALANCE.catchTries}번까지만 던질 수 있어요`
+                  : `${i + 1} · ${itemName(item)} ${itemLeft(b, save, item)}개${ballTier(b, item) ? ` · 잡기 ${TIER_WORD[ballTier(b, item)!]}` : ''}${b.kind === 'wild' ? ballTriesSub(b) : ''} — 원이 딱 맞을 때 Space 로 던짐 (HP 가 낮을수록 잘 잡힘 · 기회 ${BALANCE.catchTries}번)`
+                : undefined,
         })),
         back,
       ];
@@ -540,6 +556,10 @@ export function battleViewKey(b: BattleState, auto: boolean): string {
     b.phase === 'last' ? Math.floor(b.lastMs / 250) : '',
     // 반격 기회 — 쳐내기 보여 주기 (pre) → 원 (ring) 으로 바뀌는 때 (2026-10-20)
     b.phase === 'riposte' && b.riposte ? (b.riposte.ms >= 0 ? 'ring' : 'pre') : '',
+    // 트레이너 다음 포켓몬 볼이 날기 시작하는 때 — 열쇠에 없어 볼이 안 그려지던 것 (foeSendMs 2600 에서 그 사이 다시 그리는 일이 없어짐, UX 리뷰어 2026-10-21 · 다시 그리는 열쇠 규칙 세 번째)
+    b.phase === 'send' ? String((introView(b).sendBall ?? null) !== null) : '',
+    // 고르기 목록이 보이는 때 — 한 줄 말에 "다음 포켓몬을 골라요" 가 붙는 경계 (UX 리뷰어 8차 · 다시 그리는 열쇠 규칙)
+    b.phase === 'pick' ? String(pickShown(performance.now())) : '',
     b.popups.length ? b.popups.map((p) => `${p.text}${b.t - p.ms}`).join(',') : '',
     b.me.moves.map((s) => s.pp).join(','),
   ].join('|');
@@ -559,7 +579,7 @@ export interface PopNumber {
   crit: boolean;
 }
 
-export function splitPopups(popups: readonly BattlePopup[]): { numbers: PopNumber[]; sentences: BattlePopup[] } {
+export function splitPopups(popups: readonly BattlePopup[], phase?: BattleState['phase']): { numbers: PopNumber[]; sentences: BattlePopup[] } {
   const numbers: PopNumber[] = [];
   for (const p of popups) {
     if (p.kind !== 'damage' && p.kind !== 'heal') continue;
@@ -574,7 +594,28 @@ export function splitPopups(popups: readonly BattlePopup[]): { numbers: PopNumbe
     const crit = has('crit');
     numbers.push({ id: p.id, side: p.side, kind: p.kind, text: crit ? `${p.text}!` : p.text, size: has('super') ? 'big' : has('weak') ? 'small' : 'normal', crit });
   }
-  return { numbers, sentences: popups.filter((p) => p.kind !== 'damage' && p.kind !== 'heal') };
+  // 마지막 기회 · 볼 던지는 동안은 상성 · 급소 말을 뺌 — 필살기 꼬리를 붙잡는 동안 남은 "효과가 별로인 듯하다…" 가 "몬스터볼을 꺼냈다!" 에 붙어 볼이 안 듣는다로 읽히던 것 (UX 리뷰어 2026-10-21)
+  const late = phase === 'last' || phase === 'catch';
+  return { numbers, sentences: popups.filter((p) => p.kind !== 'damage' && p.kind !== 'heal' && !(late && (p.kind === 'super' || p.kind === 'weak' || p.kind === 'immune' || p.kind === 'crit'))) };
+}
+
+/**
+ * 벌러덩 (마지막 한 방 — 그림 칸 가운데를 축으로 90°) 때 내릴 px. 돌리면 그림 뒤쪽 끝 (원본 칸 왼쪽 — 상대는 뒤집혀 있어도 같음) 이 가장 낮은 점이 됨 →
+ * 그 점을 서 있던 발끝 높이로. 전투 그림 = 걷기 그림의 왼쪽 끝 · 발끝 (sprite-walk — 대기 그림 범위로 재면 −8 ~ +12px 어긋남, 픽셀 검사원 2026-10-21) ·
+ * 없으면 대기 그림 범위 · 그것도 없으면 키의 15% (회색 주저앉기와 같음). 정수 px (점이 흐려지지 않게)
+ */
+export function koSinkPx(form: string, px: number): number {
+  const k = px / (formOf(form)?.size ?? 32);
+  const walk = walkBoxOf(form);
+  if (walk) return Math.round((walk[1] + walk[0]) * k - px);
+  const box = spriteBoxOf(form);
+  if (!box) return Math.round(px * 0.15);
+  return Math.round((box[4] + box[0]) * k - px);
+}
+
+/** 회색 주저앉기 내릴 px — 키의 15% 를 정수 px 로 (9.6px 같은 소수 자리 — 픽셀 검사원 2026-10-21) */
+export function slumpPx(px: number): number {
+  return Math.round(px * 0.15);
 }
 
 /** 말 칸에 붙일 문장 — 상태는 누가 걸렸는지 ("이상해씨는 독에 걸렸다!"), 나머지는 그대로 */
@@ -624,15 +665,20 @@ export function ringHint(b: BattleState, geo: BattleGeometry, auto: boolean): '�
   return null;
 }
 
-/** 잡기 쉬움 (2026-10-21 ideas #128 — 레전드 아르세우스처럼 원 색으로) = 그냥 던졌을 때 (타이밍 보너스 없이) 잡을 확률 — 반 넘으면 쉬움 · 5분의 1 넘으면 보통 · 아래는 어려움.
- *  잡기 원 (색 + 선 모양) · 메뉴 줄 안내 끝 "잡기 어려움" (글) 이 같이 씀 */
+/** 잡기 어려움 3단계 (orders #23 — 태현 님 #117 C "포켓몬 GO · 레츠고처럼", 2026-10-21) = 그 볼을 지금 그냥 던졌을 때 (타이밍 보너스 없이 · 마지막 기회는 × 0.5) 잡을 확률의 단계 —
+ *  쉬움 ≥ 60% · 보통 25 ~ 60% · 어려움 < 25% [임시값 — BALANCE.catchTier, 엔진 battleCatchOdds]. % 는 보이지 않음 (원작 느낌).
+ *  볼 줄 (4 아이템) · 마지막 기회 볼 칸 · 타이밍 원 (색 + 선 모양) · 원 안내 끝 글이 같은 값을 씀 */
+export const TIER_WORD: Record<CatchTier, string> = { easy: '쉬움', normal: '보통', hard: '어려움' };
+export function ballTier(b: BattleState, ball: BallId): CatchTier | undefined {
+  return battleCatchOdds(b)?.[ball]?.tier;
+}
+/** 잡기 원 · 원 안내 글의 단계 (던진 볼) — 원 CSS 이름 (tone-easy · mid · hard) 은 예전 그대로 */
 export type CatchTone = 'easy' | 'mid' | 'hard';
 export const TONE_WORD: Record<CatchTone, string> = { easy: '쉬움', mid: '보통', hard: '어려움' };
 export function catchTone(b: BattleState): CatchTone {
   const c = b.catch;
-  if (!c) return 'mid';
-  const p = catchChance({ captureRate: speciesOf(b.foe.species)?.captureRate ?? 45, hp: b.foe.hp, maxHp: b.foe.maxHp, ball: c.ball, timing: 'none', lastChance: c.last });
-  return p >= 0.5 ? 'easy' : p >= 0.2 ? 'mid' : 'hard';
+  const tier = c ? ballTier(b, c.ball) : undefined;
+  return tier === 'easy' ? 'easy' : tier === 'hard' ? 'hard' : 'mid';
 }
 
 export function catchView(b: BattleState): { stage: CatchStage; since: number; left: number; shakes: number; caught: boolean | null } | null {

@@ -12,7 +12,7 @@ import { clashWithTaps } from '../../../core/rules/battle';
 import { effectiveness } from '../../../core/rules/types';
 import { formOf, moveOf, speciesOf } from '../../../data';
 import { pokemonFx, type FxActor, type FxImpact, type FxMove } from '../fx/bridge';
-import { battleAnimKey, FX_HOLD_DUEL_MAX_MS, FX_HOLD_ULT_MAX_MS, holdFx, releaseFx } from '../fx/hold';
+import { battleAnimKey, FX_HOLD_DUEL_MAX_MS, FX_HOLD_ULT_MAX_MS, fxTailLeft, holdFx, releaseFx, setFxCover, setFxTail } from '../fx/hold';
 import { shotHitAt } from '../fx/shot-hit';
 import { clearImpact, impactOf, setImpact, setUltSkip } from '../fx/parry';
 import { devUltOf } from '../../../dev/ult-pick';
@@ -326,21 +326,27 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
           const quick = riposte || seenUlts.current.has(seenKey);
           // 개발 모드 (임시) 에서 고른 필살기
           const pick = devUltOf(b[side].uid);
-          const total = fx.ult && src && dst ? fx.ult(src, dst, onHit, learnedNames(b, side), { quick, ...(riposte ? { sub: `${src?.name ?? ''}의 반격!` } : {}), ...(pick ? { pick } : {}) }) : 0;
+          // 덮음 끝 (cover — 상대 둘레 입자가 걷히는 때, 덮지 않는 필살기는 −1 → 큰 맞음) = 쓰러진 포켓몬이 넘어지는 때 (개발팀 61e1aa5 · 못 받으면 0 = 꼬리 끝)
+          setFxCover(0);
+          const timing = ({ main, cover }: { main: number; cover: number }) => setFxCover(performance.now() + Math.max(0, cover >= 0 ? cover : main));
+          const total = fx.ult && src && dst ? fx.ult(src, dst, onHit, learnedNames(b, side), { quick, timing, ...(riposte ? { sub: `${src?.name ?? ''}의 반격!` } : {}), ...(pick ? { pick } : {}) }) : 0;
           if (total > 0) {
             // 반격기로 본 것은 "본 필살기" 로 안 셈 (진짜 필살기는 처음엔 컷인까지) · 반격기는 금색 "반격!" (그림이 준비된 뒤라 여기서)
             if (!riposte) seenUlts.current.add(seenKey);
             // 약 0.85초만 보이던 것 → 1.4초 (2026-10-21 UX 리뷰어 U1) · 상대 바깥쪽 (가운데는 반격기 이름 — 150px 에서 겹침)
             else if (dst) fx.word?.(dst, '반격!', 'gold', { sec: 1.4, other: src, away: true });
             holdFx(key, total, performance.now(), FX_HOLD_ULT_MAX_MS);
+            setFxTail(performance.now() + Math.min(total, FX_HOLD_ULT_MAX_MS));
             ultOn = true;
             // Space = 남은 연출 건너뛰기 (아직 안 맞혔으면 맞힌 것으로 — 피해는 엔진이 그대로)
             setUltSkip(
               () => {
                 fx.stopUlt?.();
                 if (!ultHitDone) onHit();
-                // 건너뛰면 바로 (반격기의 줄기 붙잡기도 풂)
+                // 건너뛰면 바로 (반격기의 줄기 붙잡기 · 쓰러뜨린 뒤 꼬리 붙잡기도 풂)
                 releaseFx();
+                setFxTail(0);
+                setFxCover(0);
               },
               key,
               quick,
@@ -451,6 +457,13 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
     const top = `${bar ? Math.round(bar.getBoundingClientRect().bottom) : 0}px`;
     if (document.body.style.getPropertyValue('--pg-fx-top') !== top) document.body.style.setProperty('--pg-fx-top', top);
   });
+  // 필살기 꼬리 (쓰러뜨린 뒤 남은 연출) 동안 마지막 기회 볼을 고르면 연출을 멈추고 꼬리를 지움 — 잡기 원 위를 줄기 · 반짝이가 덮던 것 (UX 리뷰어 2026-10-21)
+  useEffect(() => {
+    if (b.phase === 'catch' && fxTailLeft(performance.now()) > 0) {
+      fx?.stopUlt?.();
+      setFxTail(0);
+    }
+  }, [b.phase]);
   // 힘대결 승자 — 엔진이 정하는 순간 이긴 쪽이 뚫고 나감
   const winner = b.phase === 'clash' ? (b.clash?.winner ?? null) : null;
   useEffect(() => {

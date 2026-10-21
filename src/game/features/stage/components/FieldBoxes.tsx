@@ -4,7 +4,8 @@
  *   S16 대기실 · MVP 끝 카드 (관장을 처음 이김)
  * 단축키 Enter · Esc 는 main.ts (부탁과 같은 규칙).
  */
-import { useRef } from 'preact/hooks';
+import type { ComponentChildren } from 'preact';
+import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
 import { canHeal, type GameInput, type GameState } from '../../../core/engine';
 import { defeatWaits } from '../../../core/engine/play';
@@ -115,12 +116,20 @@ export function FacilityBox({ state, media, onInput, onBox }: BoxProps & { onBox
 }
 
 /** S08 — 눈이 마주침 → "승부다!" + 상대 몬스터볼 개수 (어떤 포켓몬인지는 안 보임) */
-/** text = 이름 뒤 한 줄 (없으면 ': "승부다!"') · tag = 라이벌 전적 칩 ("전적 2승 1패" · "첫 만남!") — 있으면 라이벌 띠 (색이 다름, gdd 4.12) · look = 얼굴 칸 (사람 그림 id) */
-export function TrainerBanner({ name, balls, text, tag, media, look }: { name: string; balls: number; text?: string; tag?: string; media: string; look?: string }) {
-  return (
-    <div class={tag ? 'pg-banner pg-trainer-box pg-rival-box' : 'pg-banner pg-trainer-box'}>
+/** text = 이름 뒤 한 줄 (없으면 ': "승부다!"') · tag = 라이벌 전적 칩 ("전적 2승 1패" · "첫 만남!") — 있으면 라이벌 띠 (색이 다름, gdd 4.12) · look = 얼굴 칸 (사람 그림 id) ·
+ *  children = 둘째 줄 (3:3 을 고를 수 있는 만남의 1:1 / 3:3 버튼 — orders #17 4안, 상자 밖에 두면 VS 이름을 가리던 것) */
+export function TrainerBanner({ name, balls, text, tag, media, look, children }: { name: string; balls: number; text?: string; tag?: string; media: string; look?: string; children?: ComponentChildren }) {
+  // 이름 + "승부다!" 가 안 들어가면 "승부다!" 낱말을 뺌 (넘치면 한 단계 — 240 에서 "…" 한 점으로 줄던 것, 아트 디렉터 · 이름은 자르지 않음 U4)
+  const line = useRef<HTMLSpanElement>(null);
+  const [short, setShort] = useState(false);
+  useLayoutEffect(() => {
+    const el = line.current;
+    if (el && !short && el.scrollWidth > el.clientWidth) setShort(true);
+  });
+  const head = (
+    <>
       <Face media={media} id={look} />
-      <span class="pg-ellipsis">
+      <span class="pg-ellipsis" ref={line}>
         {text ? (
           <>
             <b>{name}</b>
@@ -128,7 +137,8 @@ export function TrainerBanner({ name, balls, text, tag, media, look }: { name: s
           </>
         ) : (
           <>
-            <span class="pg-speaker">{name}</span> 승부다!
+            <span class="pg-speaker">{name}</span>
+            {!short && ' 승부다!'}
           </>
         )}
       </span>
@@ -138,7 +148,16 @@ export function TrainerBanner({ name, balls, text, tag, media, look }: { name: s
           <Icon key={i} name="ball" />
         ))}
       </span>
+    </>
+  );
+  const cls = `pg-banner pg-trainer-box${tag ? ' pg-rival-box' : ''}`;
+  return children ? (
+    <div class={`${cls} pg-two`}>
+      <span class="pg-line">{head}</span>
+      {children}
     </div>
+  ) : (
+    <div class={cls}>{head}</div>
   );
 }
 
@@ -254,7 +273,8 @@ export function ClearCard({ state, media, onInput, onMap, onTeam }: BoxProps & {
 
 /** S16 체육관 대기실 — ④ 추천 레벨 · ⑤ 병원 (회복) · ⑥ 보관함 · ⑦ 상점 · ② 도전 · ③ 세계 지도 */
 export function LobbyBox({ state, media, onInput, onBox, onShop, onMap }: BoxProps & { onBox(): void; onShop(): void; onMap(): void }) {
-  if (state.runtime.stage?.phase !== 'lobby') return null;
+  // 3마리 고르는 동안은 고르기 판이 이 자리 (도전 → 고르기 → 도전, 개발팀 92c4e03)
+  if (state.runtime.stage?.phase !== 'lobby' || state.runtime.stage.picking) return null;
   const v = lobbyView(state.save);
   const healthy = teamHealthy(state.save);
   // 관장 힌트 (ideas #44) — 쓰는 타입 + 상성 좋은 내 포켓몬 (팀 · 보관함, 선두부터). 넓으면 첫 줄 끝, 좁으면 관장 이름에 올리면

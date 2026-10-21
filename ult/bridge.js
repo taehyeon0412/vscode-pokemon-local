@@ -57,6 +57,10 @@ function fxActor(spec) {
         fxReset() {
             tx = 0;
             ty = 0;
+            // 쓰러진 포켓몬 (게임 화면이 data-ko 를 붙임) 은 밀린 자리 그대로 — 연출 끝에 되돌리면 벌러덩이 시작하는 장면에 몸이 29 ~ 47px 순간이동 (UX 리뷰어 2026-10-21 · 칸은 곧 사라짐)
+            if (box().closest?.('[data-ko]')) {
+                return;
+            }
             apply();
             spec.el.getAnimations?.().forEach((a) => a.cancel());
             spec.el.style.visibility = '';

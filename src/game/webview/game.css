@@ -909,11 +909,100 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 .pg-fx-body.pg-fainted {
   animation: pg-faint 2.2s linear both !important;
 }
+/* 자리는 걸음마다 정수 px (밀림 6 · 12px 두 걸음 · 내려앉음 --pg-slump-y = 키의 15% 반올림 — 9.6px 같은 소수였던 것, 픽셀 검사원) · 사라짐도 3걸음 (더 내려가며 흐려지던 것은 소수 px 장면) */
 @keyframes pg-faint {
-  0% { transform: translateX(0); filter: brightness(3) saturate(0); opacity: 1; }
-  6% { transform: translateX(calc(var(--pg-back, -1) * 12px)); filter: brightness(2.2) saturate(0.3); opacity: 1; }
-  12%, 82% { transform: translateY(15%); filter: grayscale(0.7) brightness(0.8); opacity: 0.7; }
-  100% { transform: translateY(30%); filter: grayscale(0.7) brightness(0.8); opacity: 0; }
+  0% { transform: translateX(0); filter: brightness(3) saturate(0); opacity: 1; animation-timing-function: step-end; }
+  3% { transform: translateX(calc(var(--pg-back, -1) * 6px)); filter: brightness(2.6) saturate(0.15); opacity: 1; animation-timing-function: step-end; }
+  6% { transform: translateX(calc(var(--pg-back, -1) * 12px)); filter: brightness(2.2) saturate(0.3); opacity: 1; animation-timing-function: step-end; }
+  12% { transform: translateY(var(--pg-slump-y, 15%)); filter: grayscale(0.7) brightness(0.8); opacity: 0.7; animation-timing-function: step-end; }
+  82% { transform: translateY(var(--pg-slump-y, 15%)); filter: grayscale(0.7) brightness(0.8); opacity: 0.45; animation-timing-function: step-end; }
+  88% { transform: translateY(var(--pg-slump-y, 15%)); filter: grayscale(0.7) brightness(0.8); opacity: 0.2; animation-timing-function: step-end; }
+  94%, 100% { transform: translateY(var(--pg-slump-y, 15%)); filter: grayscale(0.7) brightness(0.8); opacity: 0; }
+}
+/* 마지막 한 방 — 상대의 한 방에 쓰러지면: 맞은 번쩍 · 한 칸 날아감 (0.14초) → 맞은 모습 그대로 0.62초까지 (쓰러뜨린 기술의 맞은 연출 약 0.6초가 끝나기를 기다림 — 그 밑에서 넘어가 안 보이던 것, UX 리뷰어) →
+   뒤로 벌러덩 (90° 한 걸음 — 사이 각도 없이, 90° 는 점이 그대로라 rotate 예외) → 회색으로 1.2초 누움 → 3걸음에 사라짐 (2.3초 — 다음 볼 · 결과 상자 2.6초 전에 끝남, 개발팀 715ce78).
+   (2026-10-21 태현 님 B — 3:3 · 1:1 모두). 독 · 화상 · 반동으로 쓰러지면 위 회색 주저앉기 그대로.
+   필살기로 쓰러뜨렸으면 --pg-ko-wait (남은 연출 − 0.4초) 만큼 늦게 시작 — 솔라빔 줄기 밑에서 다 지나가던 것 (UX 리뷰어), 다음 볼 · 결과는 엔진이 그 연출 끝까지 붙잡음 (fx/hold fxTailLeft). 축 = 그림 칸 가운데, --pg-ko-y = 누운 그림의 가장 낮은 점을 서 있던 발끝 높이로 (koSinkPx) */
+.pg-fx-body.pg-fainted.pg-ko {
+  animation: pg-ko 2.3s linear var(--pg-ko-wait, 0ms) both !important;
+}
+@keyframes pg-ko {
+  0% { transform: translateX(0) translateY(0) rotate(0deg); filter: brightness(3) saturate(0); opacity: 1; animation-timing-function: step-end; }
+  3% { transform: translateX(calc(var(--pg-back, -1) * var(--pg-ko-dx, 16px) / 2)) translateY(0) rotate(0deg); filter: brightness(2.3) saturate(0.25); opacity: 1; animation-timing-function: step-end; }
+  6% { transform: translateX(calc(var(--pg-back, -1) * var(--pg-ko-dx, 16px))) translateY(0) rotate(0deg); filter: brightness(1.6) saturate(0.5); opacity: 1; animation-timing-function: step-end; }
+  27% { transform: translateX(calc(var(--pg-back, -1) * var(--pg-ko-dx, 16px))) translateY(var(--pg-ko-y, 15%)) rotate(calc(var(--pg-back, -1) * 90deg)); filter: grayscale(0.7) brightness(0.8); opacity: 0.8; animation-timing-function: step-end; }
+  79% { transform: translateX(calc(var(--pg-back, -1) * var(--pg-ko-dx, 16px))) translateY(var(--pg-ko-y, 15%)) rotate(calc(var(--pg-back, -1) * 90deg)); filter: grayscale(0.7) brightness(0.8); opacity: 0.55; animation-timing-function: step-end; }
+  86% { transform: translateX(calc(var(--pg-back, -1) * var(--pg-ko-dx, 16px))) translateY(var(--pg-ko-y, 15%)) rotate(calc(var(--pg-back, -1) * 90deg)); filter: grayscale(0.7) brightness(0.8); opacity: 0.3; animation-timing-function: step-end; }
+  92%, 100% { transform: translateX(calc(var(--pg-back, -1) * var(--pg-ko-dx, 16px))) translateY(var(--pg-ko-y, 15%)) rotate(calc(var(--pg-back, -1) * 90deg)); filter: grayscale(0.7) brightness(0.8); opacity: 0; }
+}
+/* 필살기 꼬리를 기다렸다 넘어가는 판 (pg-ko-late) — 기다리는 동안 하얀 실루엣이 아니라 맞은 모습 (날아간 자리 · 옅은 번쩍) 으로 (개구마르처럼 상대를 오래 덮지 않는 연출에서 0.8초 하얗게 서 있던 것 — UX 리뷰어). 맞은 번쩍은 연출 밑에서 이미 지남 */
+.pg-fx-body.pg-fainted.pg-ko.pg-ko-late {
+  animation-name: pg-ko-late !important;
+}
+@keyframes pg-ko-late {
+  0%, 6% { transform: translateX(calc(var(--pg-back, -1) * var(--pg-ko-dx, 16px))) translateY(0) rotate(0deg); filter: brightness(1.6) saturate(0.5); opacity: 1; animation-timing-function: step-end; }
+  27% { transform: translateX(calc(var(--pg-back, -1) * var(--pg-ko-dx, 16px))) translateY(var(--pg-ko-y, 15%)) rotate(calc(var(--pg-back, -1) * 90deg)); filter: grayscale(0.7) brightness(0.8); opacity: 0.8; animation-timing-function: step-end; }
+  79% { transform: translateX(calc(var(--pg-back, -1) * var(--pg-ko-dx, 16px))) translateY(var(--pg-ko-y, 15%)) rotate(calc(var(--pg-back, -1) * 90deg)); filter: grayscale(0.7) brightness(0.8); opacity: 0.55; animation-timing-function: step-end; }
+  86% { transform: translateX(calc(var(--pg-back, -1) * var(--pg-ko-dx, 16px))) translateY(var(--pg-ko-y, 15%)) rotate(calc(var(--pg-back, -1) * 90deg)); filter: grayscale(0.7) brightness(0.8); opacity: 0.3; animation-timing-function: step-end; }
+  92%, 100% { transform: translateX(calc(var(--pg-back, -1) * var(--pg-ko-dx, 16px))) translateY(var(--pg-ko-y, 15%)) rotate(calc(var(--pg-back, -1) * 90deg)); filter: grayscale(0.7) brightness(0.8); opacity: 0; }
+}
+/* 꼬리를 기다리는 마지막 기회 판 — 기다리는 동안 하얀 실루엣이 아니라 맞은 모습 (되살아났다 쓰러지는 것처럼 보이던 것 — UX 리뷰어 4차) */
+.pg-fx-body.pg-down.pg-ko.pg-ko-late {
+  animation-name: pg-ko-down-late !important;
+}
+@keyframes pg-ko-down-late {
+  0%, 19% { transform: translateX(calc(var(--pg-back, -1) * var(--pg-ko-dx, 16px))) translateY(0) rotate(0deg); filter: brightness(1.6) saturate(0.5); opacity: 1; animation-timing-function: step-end; }
+  89%, 100% { transform: translateX(calc(var(--pg-back, -1) * var(--pg-ko-dx, 16px))) translateY(var(--pg-ko-y, 15%)) rotate(calc(var(--pg-back, -1) * 90deg)); filter: grayscale(0.6); opacity: 0.45; }
+}
+/* 동작 줄이기 + 꼬리 기다림 — 기다리는 동안 맞은 모습 (밀림 없이) 그대로, 그 뒤 회색 주저앉기 (pg-faint 첫 장 = 하얀 번쩍이 1.3초 서 있던 것) */
+@keyframes pg-faint-late {
+  0%, 12% { transform: translateX(0); filter: brightness(1.4) saturate(0.6); opacity: 1; animation-timing-function: step-end; }
+  12.01% { transform: translateY(var(--pg-slump-y, 15%)); filter: grayscale(0.7) brightness(0.8); opacity: 0.7; animation-timing-function: step-end; }
+  82% { transform: translateY(var(--pg-slump-y, 15%)); filter: grayscale(0.7) brightness(0.8); opacity: 0.45; animation-timing-function: step-end; }
+  88% { transform: translateY(var(--pg-slump-y, 15%)); filter: grayscale(0.7) brightness(0.8); opacity: 0.2; animation-timing-function: step-end; }
+  94%, 100% { transform: translateY(var(--pg-slump-y, 15%)); filter: grayscale(0.7) brightness(0.8); opacity: 0; }
+}
+/* 마지막 기회가 끝나 결과로 — 누운 (주저앉은) 채 3걸음에 사라짐 (다시 일어섰다 쓰러지던 것 — #448 같은 종류, UX 리뷰어). 모습은 .pg-down · .pg-ko-lie 그대로 */
+.pg-fx-body.pg-down.pg-gone {
+  animation: pg-gone 0.6s linear both !important;
+}
+@keyframes pg-gone {
+  0% { opacity: 0.45; animation-timing-function: step-end; }
+  33% { opacity: 0.3; animation-timing-function: step-end; }
+  66% { opacity: 0.15; animation-timing-function: step-end; }
+  100% { opacity: 0; }
+}
+/* 좁은 패널 (400px 아래) 은 날아가지 않고 제자리에서 넘어감 — 240 에서 누운 그림이 상대 트레이너 이름표 · 볼 표시와 "A 자동" 상자에 닿던 것 · 321 ~ 390 도 이름표 안으로 들어가던 것 (픽셀 검사원 2차) */
+@media (max-width: 400px) {
+  #pokemon-game {
+    --pg-ko-dx: 0px;
+  }
+}
+/* 야생 마지막 기회 — 같은 벌러덩 (맞은 모습 0.62초 뒤 넘어감) 뒤 흐리게 누운 채 남음 (어디에 던지는지 보이게). 볼을 던지는 동안 (pg-ko-lie) 은 움직임 없이 누운 모습만 — 잡기 연출이 몸을 씀 */
+.pg-fx-body.pg-down.pg-ko {
+  animation: pg-ko-down 0.7s linear var(--pg-ko-wait, 0ms) both !important;
+}
+.pg-down.pg-ko-lie {
+  transform: translateX(calc(var(--pg-back, -1) * var(--pg-ko-dx, 16px))) translateY(var(--pg-ko-y, 15%)) rotate(calc(var(--pg-back, -1) * 90deg));
+}
+@keyframes pg-ko-down {
+  0% { transform: translateX(0) translateY(0) rotate(0deg); filter: brightness(3) saturate(0); opacity: 1; animation-timing-function: step-end; }
+  10% { transform: translateX(calc(var(--pg-back, -1) * var(--pg-ko-dx, 16px) / 2)) translateY(0) rotate(0deg); filter: brightness(2.3) saturate(0.25); opacity: 1; animation-timing-function: step-end; }
+  19% { transform: translateX(calc(var(--pg-back, -1) * var(--pg-ko-dx, 16px))) translateY(0) rotate(0deg); filter: brightness(1.6) saturate(0.5); opacity: 1; animation-timing-function: step-end; }
+  89%, 100% { transform: translateX(calc(var(--pg-back, -1) * var(--pg-ko-dx, 16px))) translateY(var(--pg-ko-y, 15%)) rotate(calc(var(--pg-back, -1) * 90deg)); filter: grayscale(0.6); opacity: 0.45; }
+}
+/* 동작 줄이기 — 벌러덩 없이 회색 주저앉기 (회색으로 누운 시간은 그대로) */
+.pg-reduce-motion .pg-fx-body.pg-fainted.pg-ko {
+  animation-name: pg-faint !important;
+}
+.pg-reduce-motion .pg-fx-body.pg-fainted.pg-ko.pg-ko-late {
+  animation-name: pg-faint-late !important;
+}
+.pg-reduce-motion .pg-fx-body.pg-down.pg-ko {
+  animation: none !important;
+}
+.pg-reduce-motion .pg-down.pg-ko-lie {
+  transform: translateY(var(--pg-slump-y, 15%));
 }
 
 /*
@@ -1388,10 +1477,12 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   border: 1px solid var(--pg-sos-line);
   box-shadow: 0 0 0 1px var(--pg-sos-bar);
 }
-/* 고르기 시작 2초 뒤에 나타남 (회색 쓰러진 모습이 흐려지는 때) — 큰 기술 불꽃이 걷힌 뒤 쓰러진 모습이 1초 넘게 보이게 (바로 덮던 것, U1 · UX 리뷰어 2026-10-21 — 1.8초는 150 높이에서 딱 1.0초). 숫자키 · 클릭은 처음부터 받음 */
+/* 고르기 시작 2.3초 뒤에 나타남 (쓰러진 모습이 다 사라진 뒤 — 벌러덩 2.3초 중 2.12초에 사라짐 + 맞은 순간 멈춤 (bridge) 이 몸 움직임을 0.11 ~ 0.13초 멈춰서 — 픽셀 검사원 2차) — 쓰러진 모습이 1초 넘게 보이게 (바로 덮던 것, U1 · UX 리뷰어 2026-10-21 ·
+   2초일 땐 240 × 187 에서 흐려지는 누운 그림 아래쪽을 0.23초 덮음 — 픽셀 검사원). 숫자키 · 클릭은 처음부터 받음 */
 .pg-pick-list {
-  animation: pg-pick-in 0.01s linear 2s both;
+  animation: pg-pick-in 0.01s linear calc(2.3s + var(--pg-ko-wait, 0ms)) both;
 }
+/* 넘어짐 기다림 (--pg-ko-wait = 상대를 덮는 연출이 걷히기 0.4초 전, BattleMenu pickWait) 은 모든 폭에서 — 누운 모습이 1초 넘게 보이게 (UX 리뷰어 7차 · 4차의 4.25초는 덮음 끝 cover 로 줄어듦) */
 @keyframes pg-pick-in {
   from { visibility: hidden; }
   to { visibility: visible; }
@@ -1411,20 +1502,131 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   animation: none;
 }
 .pg-pick-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   color: var(--pg-sos-gold);
   font-size: 11px;
   font-weight: 700;
   line-height: 14px;
 }
-/* 위 줄 칸 18px 규칙 (.pg-bmenu .pg-button) 보다 세게 — 다섯 줄이 150 높이 안에 */
-.pg-bmenu .pg-pick-list .pg-button {
+/* 무대 위 목록 "Esc 뒤로" = 제목 줄 오른쪽 끝 작은 버튼 · 내용 폭만큼 (따로 한 줄이면 150 높이에서 반만 보이던 것 · 꽉 찬 흐린 칸이면 입력 칸처럼 읽히던 것 — UX 리뷰어 8차) */
+.pg-pick-list .pg-pick-title > .pg-button.pg-pick-back {
+  flex: none;
+  width: auto;
+  min-width: 0;
+  margin-left: auto;
+  height: 16px;
+  padding: 0 4px;
+  gap: 3px;
+  font-size: 11px;
+  line-height: 14px;
+}
+/* 위 줄 칸 18px 규칙 (.pg-bmenu .pg-button) 보다 세게 — 다섯 줄이 150 높이 안에 ·
+   어디에 떠도 같은 모양 = 옆 메뉴 줄 (줄 테두리 없음 · 고른 줄 = 밝은 띠 + 금색 + ▸ — 금색 테두리 줄이 줄줄이 · 커서가 글자 색뿐이던 것, 옆 메뉴 자리에선 간격이 빠져 "1몬스터볼어려움" 으로 붙던 것 — UX 리뷰어 #23 3차) */
+.pg-bmenu .pg-pick-list > .pg-button,
+.pg-vmenu .pg-layer .pg-pick-list > .pg-button,
+.pg-my-turn .pg-bmenu-items .pg-pick-list > .pg-button:not(:disabled):not(.pg-secondary) {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 6px;
   width: 100%;
   height: 16px;
   line-height: 14px;
+  padding: 0 4px 0 12px;
+  color: var(--pg-sos-ink);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.pg-bmenu .pg-pick-list > .pg-button.pg-on:not(:disabled),
+.pg-vmenu .pg-layer .pg-pick-list > .pg-button.pg-on:not(:disabled),
+.pg-bmenu .pg-pick-list > .pg-button:hover:not(:disabled),
+.pg-vmenu .pg-layer .pg-pick-list > .pg-button:hover:not(:disabled) {
+  color: var(--pg-sos-gold);
+  background: var(--pg-sos-hi);
+}
+.pg-bmenu .pg-pick-list > .pg-button.pg-on:not(:disabled)::before,
+.pg-vmenu .pg-layer .pg-pick-list > .pg-button.pg-on:not(:disabled)::before {
+  content: "▸";
+  position: absolute;
+  left: 3px;
+}
+.pg-bmenu .pg-pick-list > .pg-button:disabled,
+.pg-vmenu .pg-layer .pg-pick-list > .pg-button:disabled {
+  color: var(--pg-sos-dim);
+  opacity: 0.6;
+}
+/* 줄이 넘쳐 목록이 된 넓은 자리 (옆 메뉴 · 가로 줄) · 두 칸 목록 = 내 쪽 위 (가운데면 볼을 던질 상대 · 상대 HP 를 덮던 것 — UX 리뷰어 #23 3차 · 두 칸은 오른쪽 자리 계산 230 보다 넓어 왼쪽 밖으로 나가던 것 — 4차) */
+#pokemon-game .pg-pick-list.pg-pick-left {
+  left: 8px;
+  right: auto;
+  margin: 0;
+}
+/* 목록은 단단한 판 (비치는 판이면 뒤 HP 글 · 이름표가 비치던 것) */
+.pg-pick-list {
+  background: var(--pg-sos-bar);
+}
+/* 무대 위 목록 (기술 · 아이템 · 교체) 이 떠 있으면 내 HP 칸은 숨기고 목록 제목 줄에 "HP 15/21" (반쯤 덮여 "5/21" 로 보이던 것) */
+#pokemon-game:has(.pg-pick-list.pg-pick-now) .pg-hpblock-me {
+  visibility: hidden;
+}
+.pg-pick-myhp {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--pg-sos-hp);
+}
+/* 뒤로 칩 — 커서가 오면 고른 모양 */
+.pg-pick-list .pg-pick-title > .pg-button.pg-pick-back.pg-on {
+  color: var(--pg-sos-gold);
+  border-color: var(--pg-sos-gold);
+}
+/* 낮은 패널 — 줄이 안 들어가면 목록 안 스크롤 (두 칸이면 넓어져 상대 · 옆 메뉴 탭을 덮던 것) */
+/* 스크롤 목록 줄은 줄지 않음 (flex 가 16 → 12px 로 눌러 스크롤이 안 일어나던 것) */
+.pg-pick-list.pg-pick-scroll > * {
+  flex-shrink: 0;
+}
+/* 스크롤해도 제목 줄 (아이템 · HP · Esc 뒤로) 은 위에 (커서를 내리면 제목 위 반이 잘리던 것) */
+.pg-pick-list.pg-pick-scroll > .pg-pick-title {
+  position: sticky;
+  top: -4px;
+  z-index: 1;
+  background: var(--pg-sos-bar);
+}
+.pg-pick-list.pg-pick-scroll {
+  max-height: calc(100vh - 20px * var(--pg-ui, 1) - 12px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--pg-sos-line-soft) transparent;
+}
+/* 옆 메뉴 뒤로 "←" — 이름표 줄 작은 탭 (아이템 다섯 넘어 "← 뒤로" 줄을 뺐을 때 · 마우스로 나갈 길) */
+/* 폭 = 내용만큼 (늘어나 이름표를 12px 로 누르던 것 · font 줄임 선언이 inherit 때문에 통째로 무시되던 것 — UX 리뷰어 #23 4차) */
+.pg-vmenu-back {
+  flex: none;
+  box-sizing: border-box;
+  width: auto;
+  min-width: 0;
+  height: 13px;
+  margin: 0;
   padding: 0 4px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 11px;
+  color: var(--pg-sos-dim);
+  background: var(--pg-sos-bar);
+  border: 1px solid var(--pg-sos-line-soft);
+  cursor: pointer;
+}
+.pg-vmenu-back:hover,
+.pg-vmenu-back.pg-on {
+  color: var(--pg-sos-gold);
+  border-color: var(--pg-sos-gold);
+}
+/* 이름표는 줄지 않음 (경고 "마지막!" 이 "마" 로 눌리던 것) */
+.pg-vmenu-name {
+  flex: none;
 }
 .pg-pick-n {
   color: var(--pg-sos-gold);
@@ -1970,6 +2172,14 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 .pg-hpblock-foe > .pg-hprow > .pg-hpname {
   max-width: none;
 }
+/* 내 이름도 줄이지 않음 — 4 ~ 5글자 이름 + Lv 10 넘으면 "개…" 로 잘리던 것 (480 · 600, U4 · #440 같은 종류 — UX 리뷰어 2026-10-21). 넘침은 왼쪽 (주인공 머리 위는 비어 있음) */
+.pg-hpblock-me > .pg-hprow {
+  align-self: flex-end;
+  width: max-content;
+}
+.pg-hpblock-me > .pg-hprow > .pg-hpname {
+  max-width: none;
+}
 /* 아주 좁은 패널 — 내 HP 줄 이름을 빼고 레벨 · HP 만 ("이상…" 으로 잘리던 것, U4 — 내 이름은 고르기 목록 · 프로필에 있음). 상대 이름은 남김 (상대는 HP 숫자가 없어 자리가 있고, 말 칸이 숨으면 이름이 여기뿐 — UX 리뷰어 2026-10-21) */
 @media (max-width: 320px) {
   .pg-hpblock-me .pg-hpname {
@@ -2023,6 +2233,8 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   gap: 3px;
   min-width: 0;
   overflow: hidden;
+  /* 1px 여유 — 줄 폭을 내용 폭으로 잡을 때 반올림으로 칸이 0.02px 눌려 "…" 가 나지 않게 */
+  padding-right: 1px;
 }
 .pg-layer.pg-hidden {
   visibility: hidden;
@@ -2329,13 +2541,13 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 .pg-ring-box.pg-parry-auto {
   filter: opacity(0.4);
 }
-/* 잡기 원 = 잡기 쉬움 (ideas #128) — 쉬움 초록 실선 · 보통 금색 끊긴 선 · 어려움 빨강 점선 (색 하나에만 맡기지 않음 — 원칙 7) · 글 "잡기 쉬움 · 보통 · 어려움" 은 메뉴 줄 안내 끝.
+/* 잡기 원 = 잡기 쉬움 (ideas #128 · orders #23 3단계 — 볼 줄 칸과 같은 값) — 쉬움 초록 실선 · 보통 노랑 끊긴 선 · 어려움 빨강 점선 (색 하나에만 맡기지 않음 — 원칙 7) · 글 "잡기 쉬움 · 보통 · 어려움" 은 메뉴 줄 안내 끝.
    색은 줄어드는 동안 85% 까지 그대로, 그 뒤 맞는 때 흰색 (예전엔 처음부터 흰색으로 섞여 0.45초 뒤엔 거의 흰 원 — UX 리뷰어 2026-10-21) */
 .pg-ring-c.pg-ring-tone-easy {
   stroke: var(--pg-sos-hp);
 }
 .pg-ring-c.pg-ring-tone-mid {
-  stroke: var(--pg-sos-gold);
+  stroke: var(--pg-sos-mid);
   stroke-dasharray: 6 4;
 }
 .pg-ring-c.pg-ring-tone-hard {
@@ -2366,7 +2578,32 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   color: var(--pg-sos-hp);
 }
 .pg-catch-tone-mid {
-  color: var(--pg-sos-gold);
+  color: var(--pg-sos-mid);
+}
+/* 볼 잡기 어려움 칸 (orders #23 — 볼 줄 · 마지막 기회) — 11/700 · 높이 14 · 1px 테두리 (쉬움 실선 · 보통 끊긴 선 · 어려움 점선 — 잡기 원과 같은 선 모양, 원칙 7) ·
+   색 = 원 색 (초록 · 노랑 · 빨강 — HP 색과 같은 세 색). % 는 숨김 (원작 느낌 — 태현 님) */
+.pg-tier {
+  flex: none;
+  display: inline-block;
+  box-sizing: border-box;
+  height: 14px;
+  margin-left: 4px;
+  padding: 0 3px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 12px;
+  border: 1px solid currentColor;
+}
+.pg-tier-easy {
+  color: var(--pg-sos-hp);
+}
+.pg-tier-normal {
+  color: var(--pg-sos-mid);
+  border-style: dashed;
+}
+.pg-tier-hard {
+  color: var(--pg-sos-red);
+  border-style: dotted;
 }
 .pg-catch-tone-hard {
   color: var(--pg-sos-red);
@@ -2583,16 +2820,65 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 .pg-ring-text.pg-ring-perfect { color: #ffd33d; }
 .pg-ring-text.pg-ring-good { color: #56d364; }
 .pg-ring-text.pg-ring-none { color: #c9d1d9; }
-/* 좁은 패널 마지막 기회 — 볼 이름을 빼고 그림 + 개수 (360 아래) · "마지막 기회!" 를 빼고 "6초" (300 아래) — 칸이 "1 몬스…" 로 잘리던 것 (UX 리뷰어 2026-10-21) */
-@media (max-width: 360px) {
-  .pg-ball-word {
-    display: none;
-  }
+/* 볼 줄 줄이기 (orders #23) — 폭 경계를 손으로 고르면 경계 사이 (301 ~ 332 · 341 ~ 356 · 560 ~ 600) 에 틈이 생겨 "1 ◓…" 로 잘리던 것 (UX 리뷰어 2차) →
+   버튼이 잘리면 한 단계씩 (BattleMenu fit — pg-fit-○ 가 쌓임, 내용 실제 너비로 잼): count 개수 (정보줄 볼 칸에 있음) · name 볼 이름 (그림 · 올리면 이름) · word "마지막 기회!" ("5초" 만 — 볼 단계가 다 같으면 one 이 먼저) ·
+   one 볼마다 칸 → "5초" 옆 고른 볼 칸 하나 · pad 볼 칸 여백 3px · none 그 칸도 뺌 (던지면 원 안내 "잡기 ○○"). 기술 · 아이템 줄은 count · name 다음 list = 무대 위 세로 목록 (JS) */
+.pg-fit-count .pg-tier + .pg-sub {
+  display: none;
 }
-@media (max-width: 300px) {
-  .pg-last-word {
-    display: none;
-  }
+.pg-fit-name .pg-ball-word {
+  display: none;
+}
+.pg-fit-word .pg-last-word {
+  display: none;
+}
+/* "5초" 옆 고른 볼 칸 — 자리는 늘 "어려움" 칸 폭 (안 던짐 · 단계가 바뀌어도 볼 줄이 옆으로 튀지 않게, UX 리뷰어 2차) */
+.pg-last-tier {
+  display: none;
+  min-width: 45px;
+  text-align: left;
+}
+.pg-fit-one .pg-last-tag ~ .pg-button .pg-tier {
+  display: none;
+}
+.pg-fit-one .pg-last-tier {
+  display: inline-block;
+}
+.pg-fit-pad .pg-last-tag ~ .pg-button {
+  padding-left: 3px;
+  padding-right: 3px;
+}
+.pg-fit-none .pg-last-tier {
+  display: none;
+}
+/* 남은 기회 경고 (· 마지막!) 는 개수와 따로 늘 보임 · 빨강 (메뉴 줄 작은 글 흐린 크림 규칙에 지던 것 — UX 리뷰어 2차) */
+.pg-sub-warn,
+.pg-bmenu-wrap .pg-button .pg-sub.pg-sub-warn,
+.pg-infobar-battle .pg-button .pg-sub.pg-sub-warn,
+.pg-pick-list .pg-button .pg-sub.pg-sub-warn,
+.pg-bmenu-wrap .pg-button:not(.pg-secondary):not(:disabled) .pg-sub.pg-sub-warn,
+.pg-infobar-battle .pg-button:not(.pg-secondary):not(:disabled) .pg-sub.pg-sub-warn {
+  color: var(--pg-sos-red);
+  opacity: 1;
+}
+.pg-vmenu .pg-tier + .pg-sub,
+.pg-vmenu .pg-ball-word {
+  display: none;
+}
+/* 옆 메뉴 — 남은 볼 기회는 줄마다 대신 이름표 "마지막 볼!" 하나 (130px 칸에서 "· 마지…" 로 잘리던 것) · 이름표 빨강 칠 */
+.pg-vmenu .pg-layer > .pg-button > .pg-sub-warn {
+  display: none;
+}
+.pg-vmenu .pg-vmenu-name.pg-vmenu-name-warn,
+.pg-vmenu.pg-my-turn .pg-vmenu-name.pg-vmenu-name-warn {
+  max-width: none;
+  color: var(--pg-sos-tab-ink);
+  background: var(--pg-sos-red);
+}
+/* 옆 메뉴 아이템이 다섯 넘어 두 칸이 되면 잘림 → 한 칸으로 세움 (pg-fit-column — 패널 아래로 넘치면 무대 위 세로 목록) */
+.pg-vmenu .pg-fit-column .pg-layer {
+  grid-auto-flow: row;
+  grid-template-rows: none;
 }
 /* 마지막 기회 상대 HP 줄 잡은 적 표시 (ideas #37) — 잡은 적 있음 = 작은 볼 그림 · 처음 = 빨간 NEW 칠 (만남 띠 NEW 와 같은 모양) · 모든 폭에서 레벨 대신
    (5글자 이름 + NEW 가 "장크로…" 로 잘리던 것 — UX 리뷰어 · 픽셀 검사원 2026-10-21, 쓰러진 상대라 Lv 는 덜 중요 · 마우스를 올리면 나옴) */
@@ -2636,9 +2922,10 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   line-height: 12px;
 }
 /* 마지막 기회 — 쓰러진 상대를 흐리게 남김 */
+/* 쓰러진 상대 (마지막 기회) — 회색으로 주저앉아 흐리게. 기울이기 (8°) 는 뺌 — 점이 계단처럼 깨짐 (마지막 한 방은 위 .pg-ko 벌러덩 90°) */
 .pg-down {
   opacity: 0.45;
-  transform: translateY(15%) rotate(8deg);
+  transform: translateY(var(--pg-slump-y, 15%));
   filter: grayscale(0.6);
 }
 .pg-last-sec {
@@ -2881,6 +3168,11 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 .pg-foe-trainer {
   line-height: 0;
   z-index: 2;
+}
+/* 쓰러진 상대 몸은 상대 트레이너 (남은 볼 · 이름표, z 2) 아래로 — 필살기에 밀린 자리에 남은 몸이 볼 줄을 덮어 남은 수가 안 보이던 것 (UX 리뷰어 2026-10-21 · 쓰러진 칸은 밀린 자리 그대로라).
+   트레이너를 z 4 로 올리면 필살기 층 (z 3) 위로 튀어나와 광선 앞에 2.5초 서 있던 것 (UX 리뷰어 6차) → 몸을 내림 (연출 층 · 트레이너는 그대로) */
+.pg-fighter-foe[data-ko] {
+  z-index: 1;
 }
 .pg-trainer-mark {
   position: absolute;
@@ -4375,7 +4667,8 @@ body.vscode-high-contrast-light .pg-title-body {
 .pg-covered .pg-field > .pg-banner,
 .pg-covered .pg-bmsg,
 .pg-covered .pg-clash-info,
-.pg-covered .pg-toast {
+.pg-covered .pg-toast,
+.pg-covered .pg-first-tip {
   visibility: hidden;
 }
 /* S21 프로필 카드 = 띠 남색 (불투명) — 낮은 패널에서 옆 메뉴 · HP 줄 위에 겹칠 때 뒤 글이 비치지 않게 */
@@ -4635,6 +4928,12 @@ body.vscode-high-contrast-light .pg-title-body {
 .pg-panel-sub {
   flex: none;
   padding: 0 8px;
+}
+/* 판 맨 아래 고정 줄 (개발 메뉴 끝내기 · 알림) — 위 1px 흐린 금색 선 · 높이 24 (버튼 22 + 선) */
+.pg-panel-foot {
+  flex: none;
+  padding: 0 8px;
+  box-shadow: inset 0 1px 0 var(--pg-sos-line-soft);
 }
 /* 좁은 패널 (480px 아래) 상점 알림 줄 — 늘 높이를 잡아 둠 (칸이 안 밀리게): 평소 흐린 "눌러서 1개 · Shift 5개" · 사고팔면 금색 알림. 넓으면 머리 줄에 */
 .pg-panel-sub:has(.pg-shop-note-line) {

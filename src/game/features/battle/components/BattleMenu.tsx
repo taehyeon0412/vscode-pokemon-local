@@ -15,7 +15,35 @@ import { Button } from '../../../ui/Button';
 import { BALL_ICON } from '../../../ui/BallCount';
 import { Icon } from '../../../ui/Icon';
 import { KeyCap } from '../../../ui/KeyCap';
-import { catchTone, catchView, menuItems, TONE_WORD, type MenuItem, type MenuPage } from '../model';
+import { koWaitMs, setPickShow } from '../fx/hold';
+import { ballTier, catchTone, catchView, menuItems, TIER_WORD, TONE_WORD, type MenuItem, type MenuPage } from '../model';
+
+/** 다음 포켓몬 고르기가 보이는 때 (ms) — game.css .pg-pick-list 의 2.3s 와 같은 값 (벌러덩 2.3초 · 쓰러진 모습이 다 사라진 뒤) */
+const PICK_SHOW_MS = 2300;
+/** 메뉴 줄 줄이기 단계 (game.css .pg-fit-○ — 버튼이 잘리면 한 단계씩, 폭 경계를 손으로 고르면 경계 사이에 틈이 생겨 잘리던 것 — orders #23 UX 리뷰어 2차).
+ *  count 개수 · name 볼 이름 · word "마지막 기회!" · one 볼마다 칸 → "5초" 옆 칸 하나 · pad 여백 · none 그 칸도 뺌 · column 옆 메뉴 한 칸으로 · list 무대 위 세로 목록 */
+type FitStep = 'count' | 'name' | 'word' | 'one' | 'pad' | 'none' | 'column' | 'list';
+/** 마지막 기회 — 볼 단계가 다 같으면 칸 하나로 먼저 (같은 "어려움" 셋을 남기고 "마지막 기회!" 를 먼저 빼던 것 — U1, UX 리뷰어 3차) */
+const FIT_LAST: FitStep[] = ['count', 'name', 'word', 'one', 'pad', 'none'];
+const FIT_LAST_SAME: FitStep[] = ['count', 'name', 'one', 'word', 'pad', 'none'];
+const FIT_ROW: FitStep[] = ['count', 'name', 'list'];
+const FIT_SIDE: FitStep[] = ['count', 'name', 'column', 'list'];
+/** 무대 위 목록 한 줄 (16 + 사이 1) · 제목 줄 · 위아래 여백 — 낮은 패널에서 줄 수를 정함 */
+const LIST_ROW_PX = 17;
+const LIST_HEAD_PX = 30;
+
+/** 버튼 글이 넘치는지 — 내용의 실제 너비로 (scrollWidth 는 정수라 0.02 ~ 0.43px 넘침을 못 보는데 그래도 "…" 가 그려지던 것 — UX 리뷰어 #23 3차) */
+function textOver(x: HTMLElement): boolean {
+  // 아직 안 그려진 칸 (폭 0 — 처음 장면) 은 안 잼 (그때 넘침으로 세어 단계가 쌓여 "마지막 기회!" 가 빠지던 것 — UX 리뷰어 #23 4차)
+  if (x.clientWidth === 0) return false;
+  if (x.scrollWidth > x.clientWidth) return true;
+  const cs = getComputedStyle(x);
+  const inner = x.getBoundingClientRect().right - parseFloat(cs.paddingRight) - parseFloat(cs.borderRightWidth);
+  const r = document.createRange();
+  r.selectNodeContents(x);
+  // 0.019 — 줄임표는 0.02px 부터 그려지고 · 배치 반올림 (1/64px = 0.016) 은 넘침이 아님 (넓은 자리인데 단계가 끝까지 쌓이던 것)
+  return r.getBoundingClientRect().right > inner + 0.019;
+}
 
 export interface BattleMenuProps {
   battle: BattleState;
@@ -36,6 +64,16 @@ export interface BattleMenuProps {
 /** ← · Esc — 기력의조각에서 고르던 포켓몬 목록은 아이템으로, 나머지는 처음 메뉴로 */
 const backOf = (page: MenuPage): MenuPage => (page === 'revive' ? 'items' : 'main');
 
+/** 볼 잡기 어려움 칸 (orders #23) — 글 + 색 + 테두리 모양 (쉬움 실선 · 보통 끊긴 선 · 어려움 점선 — 잡기 원과 같은 말, 색 하나에만 맡기지 않음) */
+function Tier({ tier }: { tier: MenuItem['tier'] }) {
+  // 올리면 무엇의 단계인지 ("보통" 이 볼 등급으로 · "어려움" 이 타이밍으로 읽힐 수 있어서 — UX 리뷰어)
+  return tier ? (
+    <span class={`pg-tier pg-tier-${tier}`} title={`잡기 ${TIER_WORD[tier]} — 지금 던지면 잡기 쉬운 정도 (HP 를 더 깎거나 좋은 볼이면 쉬워져요)`}>
+      {TIER_WORD[tier]}
+    </span>
+  ) : null;
+}
+
 export function BattleMenu({ battle: b, save, onInput, lead, compact = false, vertical, bar = false, hint = null }: BattleMenuProps) {
   const [page, setPage] = useState<MenuPage>('main');
   // 차례가 끝나면 처음 메뉴로
@@ -44,8 +82,62 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
   }, [b.phase]);
 
   const items = menuItems(b, save, page, compact);
+  const [win, setWin] = useState(() => `${window.innerWidth}x${window.innerHeight}`);
+  useEffect(() => {
+    const on = () => setWin(`${window.innerWidth}x${window.innerHeight}`);
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
+  const fitKey = `${page}|${b.phase}|${vertical === undefined ? 'h' : 'v'}|${compact}|${bar}|${win}|${items.map((i) => `${i.key}${i.enabled ? 1 : 0}${i.tier ?? ''}${i.warn ?? ''}`).join(',')}`;
+  const fitRef = useRef({ key: '', n: 0 });
+  if (fitRef.current.key !== fitKey) fitRef.current = { key: fitKey, n: 0 };
+  const fit = fitRef.current.n;
+  const [, refit] = useState(0);
+  // 줄 내용이 바뀌고 0.4초 뒤 · 글꼴이 들어온 뒤 0 부터 한 번 더 — 줄이기는 늘기만 해서 불러오는 순간 잠깐 넘친 단계가 남던 것 (UX 리뷰어 #23 4차)
+  useEffect(() => {
+    const again = () => {
+      fitRef.current.n = 0;
+      refit((v) => v + 1);
+    };
+    const id = setTimeout(again, 400);
+    return () => clearTimeout(id);
+  }, [fitKey]);
+  useEffect(() => {
+    let alive = true;
+    void document.fonts?.ready.then(() => {
+      if (!alive) return;
+      fitRef.current.n = 0;
+      refit((v) => v + 1);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const rowLayer = useRef<HTMLSpanElement>(null);
+  const lastBalls = b.phase === 'last' ? BALLS.filter((ball) => itemLeft(b, save, ball) > 0) : [];
+  const sameTier = lastBalls.length > 1 && lastBalls.every((ball) => ballTier(b, ball) === ballTier(b, lastBalls[0]!));
+  const fitSteps = b.phase === 'last' ? (sameTier ? FIT_LAST_SAME : FIT_LAST) : vertical !== undefined ? FIT_SIDE : FIT_ROW;
+  const steps = fitSteps.slice(0, fit);
+  const fitList = page !== 'main' && b.phase !== 'last' && b.phase !== 'catch' && steps.includes('list');
+  useLayoutEffect(() => {
+    const el = rowLayer.current;
+    if (!el || el.clientWidth === 0 || fitRef.current.n >= fitSteps.length || fitList) return;
+    // 잘림 = 버튼 글이 넘침 (줄임표 — 내용 실제 너비로) · 줄이 판 밖으로 · 옆 메뉴가 패널 아래로
+    const over =
+      el.scrollWidth > el.clientWidth ||
+      [...el.querySelectorAll<HTMLElement>('.pg-button')].some(textOver) ||
+      (vertical !== undefined && el.getBoundingClientRect().bottom > window.innerHeight - 1);
+    if (over) {
+      fitRef.current.n += 1;
+      refit((v) => v + 1);
+    }
+  });
   // 커서 (Sea of Stars 1f — 고를 줄이 늘 보임: ▸ + 밝은 줄, 아트 디렉터) · ↑ ↓ 로 옮기고 Enter 로 고름 · 페이지 · 차례가 바뀌면 첫 줄로
   const [cursor, setCursor] = useState(0);
+  // 목록이 스크롤되면 (좁고 낮은 패널) 커서 줄이 보이게
+  useLayoutEffect(() => {
+    rowLayer.current?.querySelector<HTMLElement>('.pg-pick-scroll .pg-on')?.scrollIntoView({ block: 'nearest' });
+  }, [cursor]);
   // 볼을 놓친 뒤 다음 차례는 커서를 "4 아이템" (볼이 있는 줄) 에 — 바로 Enter 로 다시 던지게 (ideas #131, 2026-10-21). 지난 차례의 볼 수를 기억해 비교
   // 그리기 전에 옮김 (useEffect 면 "▸1 공격" 이 한 장면 보였다가 아이템으로 튐 — UX 리뷰어)
   const triesSeen = useRef(catchTriesUsed(b));
@@ -65,6 +157,26 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
   const ultCounter = ultCounterOpen(b);
   const counter = counterOpen(b);
   const picking = b.phase === 'pick';
+  // 필살기에 쓰러졌으면 고르기 목록도 남은 연출 뒤로 (벌러덩이 연출 끝에 넘어가서 — fx/hold fxTailLeft) · 고르기 처음 그릴 때 값만.
+  //   누운 그림과 겹치는 아래 목록 (bar 아님) 만 — 위 목록은 겹치지 않아 2.15초 그대로 (4.2초 동안 고를 것이 안 보이던 것, UX 리뷰어)
+  const pickWait = useRef<number | null>(null);
+  if (!picking) pickWait.current = null;
+  else if (pickWait.current === null) pickWait.current = koWaitMs(performance.now()); // 내 쪽 넘어짐 기다림과 같은 값 (BattleLayer koWait)
+  // 고르기는 목록이 보이는 때부터 (CSS .pg-pick-list 2.3초 + 넘어짐 기다림 — 같은 값) — 그 전에 숫자를 누르면 내 포켓몬이 넘어지기 전에 다음 포켓몬이 나와
+  //   쓰러짐이 0 ~ 0.24초만 보이던 것 (UX 리뷰어 6차 · 옆 메뉴는 바로 떠서 1 이 바로 먹던 것 — 옆 메뉴도 같은 때 열림) · 첫 장면부터 닫힘 (한 장면 보였다 사라지던 것, 7차)
+  const [pickReady, setPickReady] = useState(b.phase !== 'pick');
+  useLayoutEffect(() => {
+    if (!picking) {
+      setPickReady(true);
+      setPickShow(0);
+      return;
+    }
+    setPickReady(false);
+    const wait = PICK_SHOW_MS + (pickWait.current ?? 0);
+    setPickShow(performance.now() + wait);
+    const id = setTimeout(() => setPickReady(true), wait);
+    return () => clearTimeout(id);
+  }, [picking]);
   const team = picking ? switchable(b, save) : [];
   // Enter 다시 (ideas #22) — 처음 메뉴 · 내 차례 · 커서를 안 옮김 · 지난번 공격 · 기술 · 막기를 지금 할 수 있을 때. 아주 좁은 메뉴 (두 글자) 는 자리가 없어 커서 그대로
   const last = b.lastMe;
@@ -88,8 +200,8 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
 
   // 단축키: 숫자 = 메뉴 · 다음 포켓몬 · Z = 필살기 · ← / Esc / Backspace = 뒤로 (Space 는 main.ts — 맞받아치기 · 연타)
   // 듣는 건 한 번만 달고, 지금 값은 ref 로 (초당 30번 다시 그려도 다시 달지 않게)
-  const now = useRef({ b, items, page, team, choose, pick, onInput, balls: [] as readonly BallId[], onIdx, enabledIdx, cursor, repeatOn });
-  now.current = { b, items, page, team, choose, pick, onInput, balls: BALLS.filter((ball) => itemLeft(b, save, ball) > 0), onIdx, enabledIdx, cursor, repeatOn };
+  const now = useRef({ b, items, page, team, choose, pick, onInput, balls: [] as readonly BallId[], onIdx, enabledIdx, cursor, repeatOn, pickReady });
+  now.current = { b, items, page, team, choose, pick, onInput, balls: BALLS.filter((ball) => itemLeft(b, save, ball) > 0), onIdx, enabledIdx, cursor, repeatOn, pickReady };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -118,7 +230,8 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
         return;
       }
       if (c.b.phase === 'pick') {
-        // 다음 포켓몬 — 숫자 · ↑ ↓ + Enter (다른 메뉴와 같은 커서, 아트 디렉터 4차)
+        // 다음 포켓몬 — 숫자 · ↑ ↓ + Enter (다른 메뉴와 같은 커서, 아트 디렉터 4차) · 목록이 보이기 전엔 안 받음
+        if (!c.pickReady) return;
         const n = c.team.length;
         if (/^[1-9]$/.test(e.key)) {
           const m = c.team[Number(e.key) - 1];
@@ -201,21 +314,32 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const renderItems = (list: MenuItem[]) =>
-    list.map((i, k) => (
+  const renderItems = (list: MenuItem[], cur = list === items) =>
+    list.map((i) => (
       <Button
         key={i.key}
-        extraClass={isQueued(i) ? 'pg-queued' : b.phase === 'choose' && list === items && k === onIdx && !repeatOn ? 'pg-on' : undefined}
+        extraClass={isQueued(i) ? 'pg-queued' : b.phase === 'choose' && cur && i.key === items[onIdx]?.key && !repeatOn ? 'pg-on' : undefined}
         onClick={() => choose(i)}
         disabled={!i.enabled && !isQueued(i)}
         secondary={'back' in i.go}
         title={isQueued(i) ? `${i.title ?? i.label} — 미리 눌렀어요 (게이지가 차면 바로)` : i.title}
       >
-        {i.label}
+        {i.ball ? (
+          <>
+            {`${i.num} `}
+            <Icon name={BALL_ICON[i.ball]} />
+            <span class="pg-ball-word"> {i.label.replace(/^\d+\s/, '')}</span>
+          </>
+        ) : (
+          i.label
+        )}
         {/* 기술 상성 (ideas #24) — 효과가 굉장함 ▲ · 별로 ▼ · 없음 ✕ (색 + 모양) */}
         {i.mark && <span class={`pg-eff pg-eff-${i.mark}`}>{i.mark === 'up' ? '▲' : i.mark === 'down' ? '▼' : '✕'}</span>}
+        {/* 못 누르는 볼 (기회를 다 씀) 은 단계 칸을 뺌 — 밝게 남아 누르고 싶게 만들던 것 */}
+        {i.enabled && <Tier tier={i.tier} />}
         {/* 가로 메뉴의 기술 PP 는 뺌 (올리면 나옴 · 옆 메뉴는 "PP 10") — 480 · 600 에서 "1 몸통박치기 1…" 로 잘리던 것 */}
         {(vertical ? (i.subShort ?? i.sub) : i.mark !== undefined || i.subShort?.startsWith('PP') ? null : i.sub) && <span class="pg-sub">{vertical ? (i.subShort ?? i.sub) : i.sub}</span>}
+        {i.warn && <span class="pg-sub pg-sub-warn">{i.warn}</span>}
       </Button>
     ));
   // Enter 다시 칸 (ideas #22) — 넓은 메뉴 · 옆 메뉴만 (줄인 메뉴는 커서 그대로)
@@ -251,7 +375,7 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
     // 가로 한 줄 메뉴 (좁은 패널) — 고르는 동안만 무대 위에 세로 목록: 번호 · 이름 · HP 막대 · HP (2026-10-21 태현 님 A — 칸 다섯이 "1 캐… 2 어…" 로 잘려 누구를 낼지 모르던 것).
     //   위 정보줄 메뉴면 위에서 · 무대 안 가로 줄이면 아래에 붙음 (위쪽 말 칸 "○○가 쓰러졌다! 다음 포켓몬을 골라요" 를 가리지 않게)
     row = (
-      <span class={`pg-pick-list${bar ? '' : ' pg-pick-list-low'}`}>
+      <span class={`pg-pick-list${bar ? '' : ' pg-pick-list-low'}`} style={{ '--pg-ko-wait': `${pickWait.current ?? 0}ms` }}>
         <span class="pg-pick-title">다음 포켓몬 고르기</span>
         {team.slice(0, 5).map((m, i) => (
           <Button key={m.uid} extraClass={i === Math.min(cursor, team.length - 1) ? 'pg-on' : undefined} onClick={() => pick(m.uid)} title={`${i + 1} · HP ${m.hp}/${maxHpOf(m)}`}>
@@ -267,7 +391,7 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
         ))}
       </span>
     );
-  } else if (picking) {
+  } else if (picking && pickReady) {
     row = (
       <>
         {team.slice(0, 5).map((m, i) => (
@@ -291,17 +415,28 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
             {/* 자동 전투 (이로치 아님) 는 3초 — 엔진과 같은 lastChanceLimitMs (UX 리뷰어: 6초로 세다 4초에서 끝나던 것) */}
             {Math.max(0, Math.ceil((lastChanceLimitMs(b, save.settings.autoBattle) - b.lastMs) / 1000))}초
           </span>
+          {/* 300px 아래 — 볼마다의 잡기 어려움 칸은 빼고 고른 볼의 것 하나만 여기 (orders #23 · 칸 셋이 "1 ◓…" 로 잘리던 것) */}
+          {/* 자리는 늘 같은 폭 (안 던짐 · 단계가 바뀌어도 볼 줄이 옆으로 튀지 않게 — 마우스 밑 버튼이 바뀌어 다른 볼이 날아가던 것, UX 리뷰어 2차) */}
+          <span class="pg-last-tier">{cursor < balls.length && balls[cursor] && <Tier tier={ballTier(b, balls[cursor])} />}</span>
         </span>
         {balls.map((ball, i) => (
-          <Button key={ball} extraClass={i === Math.min(cursor, balls.length) ? 'pg-on' : undefined} onClick={() => onInput({ kind: 'battle', input: { kind: 'ball', ball } })} title="쓰러진 포켓몬 — 잡을 확률 절반">
+          <Button
+            key={ball}
+            extraClass={i === Math.min(cursor, balls.length) ? 'pg-on' : undefined}
+            onClick={() => onInput({ kind: 'battle', input: { kind: 'ball', ball } })}
+            // 올리면 커서도 그 볼로 — 좁은 패널은 커서 볼의 잡기 칸만 보여서 (마우스로 하는 사람이 다른 볼 단계를 못 보던 것)
+            onMouseEnter={() => setCursor(i)}
+            title={`${i + 1} · ${itemName(ball)} ${itemLeft(b, save, ball)}개${ballTier(b, ball) ? ` · 잡기 ${TIER_WORD[ballTier(b, ball)!]}` : ''} — 쓰러진 포켓몬이라 잡을 확률 절반 (단계에 이미 들어 있음)`}
+          >
             {/* 볼 그림 + 개수 — 좁은 패널 (360px 아래) 은 이름을 빼서 "1 ◓ 3개" (이름 · 개수가 잘리던 것) */}
             {`${i + 1} `}
             <Icon name={BALL_ICON[ball]} />
             <span class="pg-ball-word"> {itemName(ball)}</span>
+            <Tier tier={ballTier(b, ball)} />
             <span class="pg-sub">{itemLeft(b, save, ball)}개</span>
           </Button>
         ))}
-        <Button extraClass={Math.min(cursor, balls.length) === balls.length ? 'pg-on' : undefined} onClick={() => onInput({ kind: 'battle', input: { kind: 'no-ball' } })} title={`${balls.length + 1} · Esc`}>
+        <Button extraClass={Math.min(cursor, balls.length) === balls.length ? 'pg-on' : undefined} onClick={() => onInput({ kind: 'battle', input: { kind: 'no-ball' } })} onMouseEnter={() => setCursor(balls.length)} title={`${balls.length + 1} · Esc`}>
           {`${balls.length + 1} 안 던짐`}
         </Button>
       </>
@@ -326,21 +461,44 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
       ) : (
         <span class="pg-dim">{stage === 'shake' ? '흔들… 흔들…' : stage === 'end' ? (b.catch.caught ? '딸깍!' : '앗!') : '던졌다!'}</span>
       );
-  } else if (page !== 'main' && vertical === undefined && compact && b.phase !== 'clash' && b.phase !== 'over') {
+  } else if (page !== 'main' && ((vertical === undefined && compact) || fitList) && b.phase !== 'clash' && b.phase !== 'over') {
     // 좁은 가로 메뉴 (compact) 의 기술 · 아이템 · 교체 줄 = 무대 위 세로 목록 (다음 포켓몬 고르기 #75 와 같은 판, 바로 뜸) — 한 줄 다섯 칸이 "1 몸…" 으로 잘리던 것 (U4, 픽셀 검사원 2026-10-21)
+    // 낮은 패널 — 줄이 안 들어가면 두 칸 (400 이상) · 좁으면 목록 안 스크롤 (150 에서 일곱이면 6 · 7 번이 패널 밖이던 것 — UX 리뷰어 #23 3차)
+    const listN = items.filter((i) => !('back' in i.go)).length;
+    const rowsFit = Math.max(3, Math.floor((window.innerHeight - 20 - LIST_HEAD_PX - 8) / LIST_ROW_PX));
+    const many = listN > rowsFit;
+    // 줄이 안 들어가면 한 칸 스크롤 (두 칸이면 넓어져 볼 던질 상대 · 옆 메뉴 탭을 덮던 것 — UX 리뷰어 #23 5차)
+    const listCls = `pg-pick-list pg-pick-now${bar ? '' : ' pg-pick-list-low'}${fitList && !compact ? ' pg-pick-left' : ''}${many ? ' pg-pick-scroll' : ''}`;
     row = (
-      <span class={`pg-pick-list pg-pick-now${bar ? '' : ' pg-pick-list-low'}`}>
-        <span class="pg-pick-title">{page === 'skills' ? '기술' : page === 'items' ? '아이템' : page === 'revive' ? '살릴 포켓몬' : '교체 · 도망'}</span>
-        {items.map((i, k) => (
-          <Button key={i.key} extraClass={isQueued(i) ? 'pg-queued' : k === onIdx ? 'pg-on' : undefined} onClick={() => choose(i)} disabled={!i.enabled && !isQueued(i)} secondary={'back' in i.go} title={i.title}>
-            {'back' in i.go ? <span class="pg-pick-name">{i.label}</span> : (
+      <span class={listCls}>
+        <span class="pg-pick-title">
+          {page === 'skills' ? '기술' : page === 'items' ? '아이템' : page === 'revive' ? '살릴 포켓몬' : '교체 · 도망'}
+          {/* 내 쪽 위 목록이면 내 HP 칸 대신 여기 (목록이 HP 칸을 반쯤 덮어 "15/21" 이 "5/21" 로 보이던 것 — UX 리뷰어 #23 4차) */}
+          {/* 무대 위 목록이면 늘 (목록이 내 HP 칸을 덮어 상처약을 고를 때 HP 가 안 보이던 것 — 내 HP 칸은 숨김, UX 리뷰어 #23 5차) */}
+          <span class="pg-pick-myhp">
+            HP {b.me.hp}/{b.me.maxHp}
+          </span>
+          {items
+            .filter((i) => 'back' in i.go)
+            .map((i) => (
+              // 커서가 뒤로 칸에 오면 이 칩이 고른 모양 (↓ 로 오면 커서가 어디에도 안 보이던 것)
+              <Button key={i.key} secondary extraClass={`pg-pick-back${i.key === items[onIdx]?.key ? ' pg-on' : ''}`} onClick={() => choose(i)} title={i.title}>
+                <KeyCap k="Esc" /> 뒤로
+              </Button>
+            ))}
+        </span>
+        {items.filter((i) => !('back' in i.go)).map((i) => (
+          <Button key={i.key} extraClass={isQueued(i) ? 'pg-queued' : i.key === items[onIdx]?.key ? 'pg-on' : undefined} onClick={() => choose(i)} disabled={!i.enabled && !isQueued(i)} title={i.title}>
+            {
               <>
                 <span class="pg-pick-n">{i.num}</span>
                 <span class="pg-pick-name">{i.label.replace(/^\d+\s/, '')}</span>
                 {i.mark && <span class={`pg-eff pg-eff-${i.mark}`}>{i.mark === 'up' ? '▲' : i.mark === 'down' ? '▼' : '✕'}</span>}
+                {i.enabled && <Tier tier={i.tier} />}
                 {i.sub && <span class="pg-sub">{i.sub}</span>}
+                {i.warn && <span class="pg-sub pg-sub-warn">{i.warn}</span>}
               </>
-            )}
+            }
           </Button>
         ))}
       </span>
@@ -349,17 +507,23 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
     // 원 옆 키 칸이 안 들어가는 좁은 패널 — 원이 뜬 동안 메뉴 줄이 키를 말함 (잡기 원 "원이 딱 맞을 때 (Space)" 와 같은 자리)
     row = <span class="pg-ring-hint">{`${hint} — 원이 좁혀질 때 ${document.hasFocus() ? 'Space' : '클릭'}`}</span>;
   } else if (page !== 'main' && b.phase !== 'clash' && b.phase !== 'over') {
-    row = renderItems(items);
+    // 옆 메뉴에서 아이템이 다섯 넘으면 "← 뒤로" 줄은 뺌 (Esc · ← 그대로) — 다섯 줄 한 칸에 들어가게 (두 칸이 되며 볼 칸이 "1 ◓…" 로 잘리던 것, orders #23 UX 리뷰어)
+    row = renderItems(vertical !== undefined && page === 'items' && items.filter((i) => !('back' in i.go)).length > 5 ? items.filter((i) => !('back' in i.go)) : items, true);
   }
 
   // 옆 메뉴에서 다음 포켓몬 · 마지막 기회 · 잡기 원은 처음 메뉴 층을 아예 빼서 판이 줄 수 · 글 길이만큼 (5줄 높이에 한 줄이 떠 있고 "원이 딱 맞을 때 (…" 로 잘리던 것)
-  const gone = vertical !== undefined && (picking || b.phase === 'last' || b.phase === 'catch');
+  const gone = vertical !== undefined && (picking || b.phase === 'last' || b.phase === 'catch' || fitList);
+  const fitCls = steps.map((s) => ` pg-fit-${s}`).join('');
   const stack = (
-    <span class="pg-bmenu-items pg-stack">
+    <span class={`pg-bmenu-items pg-stack${fitCls}`}>
       <span class={onMain ? 'pg-layer' : gone ? 'pg-layer pg-hidden pg-gone' : 'pg-layer pg-hidden'} aria-hidden={!onMain}>
         {renderItems(page === 'main' ? items : menuItems(b, save, 'main', compact))}
       </span>
-      {row && <span class={counter || ultCounter ? 'pg-layer pg-counter' : 'pg-layer'}>{row}</span>}
+      {row && (
+        <span ref={rowLayer} class={counter || ultCounter ? 'pg-layer pg-counter' : 'pg-layer'}>
+          {row}
+        </span>
+      )}
     </span>
   );
   // 필살기 Z 배지 (2026-10-19 태현 님 "Z 가 잘 안 보여 · 눈에 확 보였으면 · 다 차면 반짝반짝") — 18px 키 모양 칸 안이 게이지만큼 주황으로 차오름,
@@ -398,12 +562,23 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
   // 옆 메뉴 (Sea of Stars): 판 위로 튀어나온 탭 줄 = 금색 이름표 (왼쪽) · 필살기 게이지 + Z (오른쪽), 그 아래 판에 세로 목록 (5줄 넘으면 옆 칸).
   // 고를 수 없는 동안 (상대 차례 · 연출 · 힘대결 · 끝) 은 판을 접고 탭 줄만 — 싸우는 그림을 가리지 않게 (아트 디렉터)
   if (vertical) {
-    const open = !collapse && (b.phase === 'choose' || row !== null);
+    const open = !collapse && (b.phase === 'choose' || row !== null) && !fitList;
+    // 남은 볼 기회 (야생 · 한 번 놓친 뒤) = 이름표에 한 번 "마지막 볼!" · "볼 기회 2" — 볼마다 붙으면 130px 칸에서 "· 마지…" 로 잘리던 것 (UX 리뷰어 2차)
+    const triesWarn = page === 'items' && !fitList ? items.find((i) => i.warn)?.warn : undefined;
+    //   글은 짧게 "마지막!" · "기회 2" (옆 칸이 약 100px 라 "←" 탭과 같이 서면 "마…" 로 잘리던 것 — 뜻은 title "볼 기회")
+    const tabWarn = triesWarn ? (triesWarn.includes('마지막') ? '마지막!' : triesWarn.replace(' · ', '')) : null;
     return (
       <div class={`pg-vmenu${b.phase === 'choose' ? ' pg-my-turn' : ''}`}>
         <div class="pg-vmenu-tabs">
           {/* 고르는 동안 이름표 = "쓰러졌다! 교체" (쓰러진 포켓몬 이름이 남아 있던 것 · 말 칸이 숨는 150 넓은 패널에서 쓰러졌다는 글이 0ms 이던 것, UX 리뷰어 2026-10-21) */}
-          <span class="pg-vmenu-name">{picking ? '쓰러졌다! 교체' : vertical}</span>
+          <span class={`pg-vmenu-name${tabWarn && !picking ? ' pg-vmenu-name-warn' : ''}`} title={tabWarn && !picking ? `${vertical} — 이 포켓몬에게 볼을 던질 기회${triesWarn?.includes('마지막') ? ' 마지막 한 번' : triesWarn}` : undefined}>
+            {picking ? '쓰러졌다! 교체' : (tabWarn ?? vertical)}
+          </span>
+          {page === 'items' && items.filter((i) => !('back' in i.go)).length > 5 && !fitList && (
+            <button type="button" class={`pg-vmenu-back${items[onIdx] && 'back' in items[onIdx].go ? ' pg-on' : ''}`} onClick={() => setPage(backOf(page))} title="뒤로 (Esc · ←)">
+              ←
+            </button>
+          )}
           <span class="pg-vmenu-ult">{ultBadge}</span>
         </div>
         {(open || lead || (queuedName && !collapse)) && (
@@ -420,6 +595,7 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
             )}
           </div>
         )}
+        {fitList && stack}
       </div>
     );
   }

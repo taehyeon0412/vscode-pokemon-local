@@ -2,6 +2,7 @@
  * S20 설정 (gdd S20) — MVP 는 ③ 알림 (U9: 안 볼 때 이로치 · 부탁 · 고를 것) · ⑤ 일반 모드로 · ⑥ 닫기만.
  * 소리 · 게임 속도 · 세이브 내보내기는 다음 버전 (gdd 6).
  */
+import { BALANCE } from '../../../core/balance';
 import type { GameInput } from '../../../core/engine';
 import type { Save } from '../../../core/save';
 import { Button } from '../../../ui/Button';
@@ -31,9 +32,10 @@ export function SettingsPanel({ save, onInput, onExit, onClose }: { save: Save; 
           {save.settings.skipCaughtLast === true ? '✓ ' : ''}잡은 종<span class="pg-long"> 마지막 기회</span> 볼 건너뛰기
           {save.settings.skipCaughtLast !== true && <span class="pg-long"> 꺼짐</span>}
         </Button>
-        <Button secondary extraClass={save.settings.fastWalk === true ? 'pg-picked' : undefined} onClick={() => onInput({ kind: 'fast-walk', on: save.settings.fastWalk !== true })} title="빨리 걷기 ×3 — 흔적 · 트레이너 · 병원 · 아이템 · 부탁이 다가오면 보통 빠르기로 (정보줄 ▶▶ 와 같음)">
+        <Button secondary extraClass={save.settings.fastWalk === true ? 'pg-picked' : undefined} onClick={() => onInput({ kind: 'fast-walk', on: save.settings.fastWalk !== true })} title={`빨리 걷기 ×${BALANCE.fastWalkSpeed} — 흔적 · 트레이너 · 병원 · 아이템 · 부탁이 다가오면 보통 빠르기로 (정보줄 ▶▶ 와 같음)`}>
           {save.settings.fastWalk === true ? '✓ 빨리 걷기' : '빨리 걷기'}
-          <span class="pg-long">{save.settings.fastWalk === true ? ' ×3' : ' 꺼짐'}</span>
+          {/* 배수는 실제 값 그대로 ("×3" 이라 써 두고 2.5배로 걷던 것 — 기획 검토 #25) */}
+          <span class="pg-long">{save.settings.fastWalk === true ? ` ×${BALANCE.fastWalkSpeed}` : ' 꺼짐'}</span>
         </Button>
         {/* 동작 줄이기 (2026-10-20 태현 님 1안 — 기본 꺼짐 · OS 설정은 안 봄, 맥도 윈도와 같게) — 켜면 꾸밈 움직임 (배지 빛 · +N 깜박 · 레벨업 별 · 말풍선 까딱 · 넓어지기 등) 을 멈춤, 흔들기 · 필살기 꽉 참 같은 게임 정보는 그대로 */}
         <Button secondary extraClass={save.settings.reduceMotion === true ? 'pg-picked' : undefined} onClick={() => onInput({ kind: 'reduce-motion', on: save.settings.reduceMotion !== true })} title="동작 줄이기 — 꾸밈 움직임 (반짝 · 깜박 · 까딱) 을 멈춤. 잡기 흔들기 · 필살기 꽉 참 같은 알림은 그대로">

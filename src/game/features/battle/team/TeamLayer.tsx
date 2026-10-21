@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef } from 'preact/hooks';
 import { TIMING } from '../../../core/balance';
 import type { GameInput, Side, TeamBattle } from '../../../core/engine';
 import { formOf, speciesOf } from '../../../data';
+import { koSinkPx } from '../model';
 import { Sprite } from '../../../ui/Sprite';
 import type { FxActor } from '../fx/bridge';
 import { TeamFxRunner, type TeamSlot } from '../fx/team';
@@ -25,7 +26,7 @@ function Bar({ v, kind }: { v: number; kind: 'hp' | 'ult' | 'ult-full' }) {
   );
 }
 
-function Fighter({ b, g, side, slot, media, topMin, onUlt }: { b: TeamBattle; g: TeamGeo; side: Side; slot: number; media: string; topMin: number; onUlt(slot: number): void }) {
+function Fighter({ b, g, side, slot, media, topMin, final, onUlt }: { b: TeamBattle; g: TeamGeo; side: Side; slot: number; media: string; topMin: number; final: boolean; onUlt(slot: number): void }) {
   const f = b[side][slot]!;
   const { x, y } = g.pos(side, slot);
   const st = plateState(b, side, slot);
@@ -46,13 +47,14 @@ function Fighter({ b, g, side, slot, media, topMin, onUlt }: { b: TeamBattle; g:
     <>
       {/* 포켓몬 — 발 가운데 (x, y) · 칸 = 32 × 배율 (그림 발끝이 칸 아래 3점 위) */}
       <span
-        class={`pg-team-mon pg-team-${side}${st === 'down' ? ' pg-team-down' : ''}`}
+        // 마지막 한 방 (판을 끝낸 ko) = 벌러덩 90° · 그 밖의 쓰러짐 = 회색 주저앉기 (2026-10-21 태현 님 B — 1:1 과 같은 값, game.css pg-ko)
+        class={`pg-team-mon pg-team-${side}${st === 'down' ? ' pg-team-down' : ''}${st === 'down' && final ? ' pg-team-ko' : ''}`}
         data-team={`${side}-${slot}`}
         style={{ left: `${x - g.sp / 2}px`, top: `${y - g.sp + 3 * g.scale}px`, width: `${g.sp}px`, height: `${g.sp}px` }}
         title={`${name} Lv${f.level}${mine && st !== 'down' ? ` — ${slot + 1} 필살기` : ''}`}
         onClick={click}
       >
-        <span class="pg-team-body">
+        <span class="pg-team-body" style={st === 'down' && final ? { '--pg-back': mine ? '-1' : '1', '--pg-ko-y': `${koSinkPx(f.form, g.sp)}px` } : undefined}>
           <Sprite media={media} form={f.form} shiny={f.shiny} scale={g.scale} action="walk" faceLeft={!mine} />
         </span>
       </span>
@@ -106,6 +108,13 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   }, [b]);
   useEffect(() => () => runner.current?.reset(), []);
   const prompt = teamPrompt(b);
+  // 판을 끝낸 마지막 ko (끝 바로 앞 ko 한 방 — fx/team 의 final 과 같은 규칙) · 맞은 쪽 = 친 쪽 반대
+  const finalKo = useMemo(() => {
+    if (b.phase !== 'over') return null;
+    const end = b.log.findIndex((e) => e.t === 'end');
+    const hit = [...(end >= 0 ? b.log.slice(0, end) : b.log)].reverse().find((e) => e.t === 'hit' && e.ko);
+    return hit?.t === 'hit' ? `${hit.side === 'me' ? 'foe' : 'me'}-${hit.to}` : null;
+  }, [b.phase, b.log]);
   // 숫자 · 말 · 예고의 아래 끝 (translate −100%) 이 지도 줄 아래 + 2 보다 위로 가지 않게 (글 높이 약 14)
   const topMin = infoBarPx + fieldTopPx + 2 + 14;
   // 안내 (끼어들기 · 합동 · 연타) 자리 — 넓으면 무대 아래 가운데 (위 가운데는 필살기 컷인 이름 자리), 좁으면 정보줄 + 4 (정보줄 밑에 숨던 것 — UX 리뷰어)
@@ -117,18 +126,22 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   return (
     // 자리는 패널 기준 (시안 geo) — 이 층은 들판 (정보줄 아래) 안이라 정보줄 높이만큼 위로
     <div class={`pg-team pg-team-x${g.scale}${g.oneRow ? ' pg-team-row' : ''}`} style={{ top: `${-infoBarPx}px` }} ref={root} onClick={b.phase === 'clash' ? () => onInput({ kind: 'team-battle', input: { kind: 'space' } }) : undefined}>
-      {SIDES.map((side) => b[side].map((_, slot) => <Fighter key={`${side}-${slot}`} b={b} g={g} side={side} slot={slot} media={media} topMin={topMin} onUlt={ult} />))}
+      {SIDES.map((side) => b[side].map((_, slot) => <Fighter key={`${side}-${slot}`} b={b} g={g} side={side} slot={slot} media={media} topMin={topMin} final={finalKo === `${side}-${slot}`} onUlt={ult} />))}
       {/* 연출 층 — 비어 있는 상자 (Preact 는 안을 안 건드림), 연출 다리가 캔버스를 넣음 */}
       <div class="pg-fxlayer pg-team-fx" ref={layer} />
       {/* 안내 — 무대 가운데 위 */}
       {prompt?.kind === 'join' && (
         <div class="pg-team-prompt pg-team-prompt-join" style={promptStyle}>
+          {/* 상대가 합동으로 모이는 중 = 빨강 "상대 합동!" (내 편 멘트와 같은 말이던 것 — 기획 #24-4) */}
+          {prompt.foeJoint && <b class="pg-team-foe-joint">{widthPx < 400 ? '상대 합동' : '상대 합동!'}</b>}
           {prompt.keys.map((k) => (
             <span key={k} class="pg-team-key pg-team-key-on">
               {k}
             </span>
           ))}
           끼어들기
+          {/* 머릿수 (기획 #24-3) — 받아치면 나 1 : 상대 쓴 포켓몬 + 모인 동료 · 1:3 이면 빨강 "받아치면 짐" (확정 패배) */}
+          <span class={`pg-team-odds${prompt.sure === 'foe' ? ' pg-team-sure-foe' : ''}`}>{`· ${prompt.me}:${prompt.foe}${prompt.sure === 'foe' ? ' 받아치면 짐' : ''}`}</span>
           <span class="pg-team-left" style={{ width: `${Math.round(prompt.left * 100)}%` }} />
         </div>
       )}

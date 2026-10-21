@@ -51,6 +51,11 @@
   display: none;
 }
 /* 3:3 은 오른쪽 아래가 상대 발밑 판 줄 (150 높이 한 줄 · 240) 이라 정보줄 오른쪽 위로 (480 × 150 셋째 판 30px 를 다 덮던 것 — 픽셀 검사원) */
+#pokemon-game:has(.pg-team-pick) .pg-dev-badge {
+  left: 4px;
+  right: auto;
+  bottom: 2px;
+}
 #pokemon-game:has(.pg-team-mon) .pg-dev-badge {
   top: 4px;
   bottom: auto;

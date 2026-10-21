@@ -6,7 +6,7 @@ import { Rng } from '../../core/engine/rng';
 import { counterMove, isShooting } from '../../core/rules/battle';
 import { hasMapRow, MAP_ROW_PX, topGapPx } from '../../ui/layout';
 import { allForms, allMoves, formOf, moveOf } from '../../data';
-import { battleGeometry, battleSpritePx, endSay, firstSentence, msgFits, sayPhase, battleViewKey, catchFoeClass, catchView, duelKind, hpColor, menuItems, placeOnStage, sentenceText, splitPopups, introView, SEND_FLY_MS, SEND_BURST_MS, WIPE_MS, type DuelKind } from './model';
+import { battleGeometry, battleSpritePx, endSay, firstSentence, koSinkPx, slumpPx, msgFits, sayPhase, battleViewKey, catchFoeClass, catchView, duelKind, hpColor, menuItems, placeOnStage, sentenceText, splitPopups, introView, SEND_FLY_MS, SEND_BURST_MS, WIPE_MS, type DuelKind } from './model';
 
 const wild = sampleMonster({ uid: 'wild', species: 4, form: 'charmander', level: 5, moves: [{ moveId: 52, pp: 25 }], hp: 999 });
 const save = sampleSave();
@@ -133,6 +133,12 @@ describe('화면 다시 그릴지 보는 열쇠', () => {
     const later = battleStep(battleStep(x, save, 50, rng, { auto: false }), save, 50, rng, { auto: false });
     expect(battleViewKey(later, false)).toBe(battleViewKey(x, false));
     expect(battleViewKey(b, false)).not.toBe(battleViewKey(battleStep(b, save, 100, rng, { auto: false }), false));
+  });
+  it('트레이너 다음 포켓몬 볼이 날기 시작하는 경계에서 바뀜 (볼이 안 그려지던 것 — 2026-10-21 UX 리뷰어)', () => {
+    const b = { ...startBattle(save, wild, 'normal'), kind: 'trainer' as const, phase: 'send' as const };
+    const start = TIMING.foeSendMs - SEND_FLY_MS - SEND_BURST_MS;
+    expect(battleViewKey({ ...b, sendMs: start - 1 }, false)).not.toBe(battleViewKey({ ...b, sendMs: start }, false));
+    expect(battleViewKey({ ...b, sendMs: start }, false)).toBe(battleViewKey({ ...b, sendMs: start + 100 }, false));
   });
 });
 
@@ -456,10 +462,14 @@ describe('S11 잡기 장면 (2026-10-20 태현 님 다시 기획) — 엔진 시
   it('볼 칸 — 처음엔 개수만, 한 번 놓친 뒤 남은 기회 · 마지막 한 번이면 "마지막!" (플레이 리뷰어)', () => {
     const withBall = { ...save, bag: { ...save.bag, 'poke-ball': 5 } };
     const b = myTurn(startBattle(withBall, wild, 'normal'));
-    const sub = (used: number) => menuItems({ ...b, bagUsed: { 'poke-ball': used } }, withBall, 'items').find((i) => i.key === 'poke-ball')?.sub;
+    // 개수 (sub) 와 남은 기회 (warn) 는 따로 — 좁을 때 개수만 빼도 경고는 남게 (orders #23 UX 리뷰어)
+    const row = (used: number) => menuItems({ ...b, bagUsed: { 'poke-ball': used } }, withBall, 'items').find((i) => i.key === 'poke-ball');
+    const sub = (used: number) => `${row(used)?.sub ?? ''}${row(used)?.warn ?? ''}`;
     expect(sub(0)).toBe('5개');
     expect(sub(1)).toBe('4개 · 기회 2');
     expect(sub(2)).toBe('3개 · 마지막!');
+    expect(row(2)?.warn).toBe(' · 마지막!');
+    expect(row(0)?.tier).toBeDefined();
   });
   it('남은 기회 = 이번 볼 포함 (3/3 · 2/3 · 1/3) · 상대 그림 class (빨려 들어감 · 숨김 · 튀어나옴)', () => {
     expect([1, 2, 3].map((u) => catchView(at(0, {}, u))?.left)).toEqual([3, 2, 1]);
@@ -472,5 +482,21 @@ describe('S11 잡기 장면 (2026-10-20 태현 님 다시 기획) — 엔진 시
     // 마지막 기회 (쓰러진 상대) 에서 놓쳐도 보통처럼 튀어나옴 (10% 로 다시 일어남)
     expect(catchFoeClass(at(end, { last: true }))).toBe('pg-catch-pop');
     expect(catchFoeClass(at(10, { throwMs: null, caught: null }))).toBe('');
+  });
+});
+
+describe('마지막 한 방 벌러덩 (2026-10-21 태현 님 B)', () => {
+  it('누운 그림의 가장 낮은 점 (그림 뒤쪽 끝) 이 서 있던 발끝 높이 — 정수 px', () => {
+    // 파이리 걷기 그림 [왼 8, 바닥 31] · 원본 32 → 64px (×2): 누우면 가장 낮은 점 64 − 16 = 48 → 발끝 62 까지 14 내림
+    expect(formOf('charmander')?.size ?? 32).toBe(32);
+    expect(koSinkPx('charmander', 64)).toBe(14);
+    expect(koSinkPx('charmander', 96)).toBe(21);
+    // 주리비얀 — 대기 그림 (왼 7) 이 아니라 걷기 그림 (왼 2) 으로 (+10px 뜨던 것)
+    expect(koSinkPx('snivy', 64)).toBe((31 + 2) * 2 - 64);
+    expect(slumpPx(64)).toBe(10);
+    expect(Number.isInteger(slumpPx(83))).toBe(true);
+    expect(Number.isInteger(koSinkPx('bulbasaur', 48))).toBe(true);
+    // 그림 범위를 모르면 회색 주저앉기와 같은 15%
+    expect(koSinkPx('no-such-form', 60)).toBe(9);
   });
 });

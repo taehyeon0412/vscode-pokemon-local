@@ -27,7 +27,7 @@ import { themeKind } from '../../../ui/theme';
 import { typeNameKo } from '../../../ui/format';
 import { InfoBar } from '../../../ui/InfoBar';
 import { TeamLayer } from '../../battle/team/TeamLayer';
-import { TeamChoice, teamChoiceOn } from '../../battle/team/TeamChoice';
+import { TeamChoice, teamChoiceOn, TeamMeet, teamMeetOn } from '../../battle/team/TeamChoice';
 import { Face } from '../../../ui/Face';
 import { FirstTip } from '../../../ui/FirstTip';
 import { KeyCap } from '../../../ui/KeyCap';
@@ -196,7 +196,6 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   const choice = choiceView(state);
   const foeTrainer = foeTrainerView(state);
   // VS 컷인 중 — 길 위 상대 이름표는 숨김 (컷인 띠에 같은 이름이 있고, 반투명 덮개 너머로 대결 그림과 겹쳐 보임)
-  // VS 는 만남 끝까지 — 3마리 고르기로 만남이 멈춰 있으면 (ms = 끝) 숨김 (고르기 줄 뒤에 계속 깔리던 것 — UX 리뷰어)
   // VS = 만남 끝 2초 · 3:3 을 고를 수 있는 만남은 고른 때부터 2초 (meetVsAt — 디자인팀 4안)
   const vsAt = meetVsAt(state);
   const vsOn = (stageRt?.phase === 'trainer' || stageRt?.phase === 'rival') && stageRt.ms >= vsAt;
@@ -381,7 +380,13 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
           <div class="pg-gym-wipe" style={{ '--pg-wipe': String(gymEnter.wipe) }} />
         )}
         <EncounterBox state={state} />
-        {stageRt?.phase === 'trainer' && foeTrainer?.talking && stageRt.ms < vsAt && <TrainerBanner name={foeTrainer.name} balls={foeTrainer.balls} media={media} look={foeTrainer.look} />}
+        {/* 3마리 고르는 동안은 숨김 (고르기 판 뒤로 "승부다!" 상자 끝이 비치던 것) */}
+        {stageRt?.phase === 'trainer' && foeTrainer?.talking && stageRt.ms < vsAt && !stageRt.pick && (
+          // 3:3 을 고를 수 있는 만남 = 둘째 줄 1:1 / 3:3 버튼 (orders #17 4안 — 상자 밖에 두면 VS 이름을 가리던 것)
+          <TrainerBanner name={foeTrainer.name} balls={foeTrainer.balls} media={media} look={foeTrainer.look}>
+            {teamMeetOn(state) ? <TeamMeet state={state} onInput={onInput} /> : null}
+          </TrainerBanner>
+        )}
         {/* VS 컷인 — 만남 단계 끝 2초 (트레이너 · 라이벌, VS_MS) */}
         {vsOn && foeTrainer && (
           <VsCutIn me={look.label} myBalls={save.party.map((uid) => (save.monsters[uid]?.hp ?? 0) > 0)} foe={foeTrainer.name} foeBalls={foeTrainer.balls} tag={foeTrainer.record} at={stageRt.ms - vsAt} meArt={vsArt(media, look.dir ?? look.id)} foeArt={vsArt(media, foeTrainer.look)} />

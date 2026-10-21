@@ -4,6 +4,7 @@
  * 걷는 중에만 보임 (판이 떠 있는 동안 걸음이 멈춤).
  */
 import type { ComponentChildren } from 'preact';
+import { BALANCE } from '../../../core/balance';
 import { Button } from '../../../ui/Button';
 import { Icon, type IconName } from '../../../ui/Icon';
 import { Sprite } from '../../../ui/Sprite';
@@ -16,7 +17,7 @@ const BUTTONS: { kind: Overlay['kind'] & ('map' | 'team' | 'bag' | 'settings'); 
   { kind: 'settings', icon: 'gear', label: '설정', title: '⑩ 설정 (알림 · 일반 모드로)' },
 ];
 
-/** 빨리 걷기 (2026-10-19 태현 님 "걷는 시간이 너무 길어 루즈해") — on = 켜짐 (세이브에 남음) · active = 지금 실제로 ×3 (흔적 · 트레이너 · 병원이 0.5초 안에 다가오면 보통 빠르기) */
+/** 빨리 걷기 (2026-10-19 태현 님 "걷는 시간이 너무 길어 루즈해") — on = 켜짐 (세이브에 남음) · active = 지금 실제로 빨리 (BALANCE.fastWalkSpeed — 흔적 · 트레이너 · 병원이 0.5초 안에 다가오면 보통 빠르기) */
 export interface FastWalk {
   on: boolean;
   active: boolean;
@@ -67,13 +68,13 @@ export function MenuButtons({
   const cls = labels === 'icon' ? 'pg-icon-btn' : 'pg-icon-btn pg-menu-item';
   return (
     <span class="pg-menu-buttons">
-      {/* 켜짐 = 눌린 모양 (금색 테두리 + 밝은 남색) · 지금 ×3 이면 ▶▶ 가 금색 */}
+      {/* 켜짐 = 눌린 모양 (금색 테두리 + 밝은 남색) · 지금 빨리 걷는 중이면 ▶▶ 가 금색 */}
       {fast && (
         <Button
           secondary
           extraClass={fast.on ? `${cls} pg-fast pg-on` : `${cls} pg-fast`}
           onClick={fast.onToggle}
-          title={`빨리 걷기 ×3 ${fast.on ? '켜짐' : '꺼짐'} (${MENU_KEYS.fast}) — 흔적 · 트레이너 · 병원이 다가오면 보통 빠르기로`}
+          title={`빨리 걷기 ×${BALANCE.fastWalkSpeed} ${fast.on ? '켜짐' : '꺼짐'} (${MENU_KEYS.fast}) — 흔적 · 트레이너 · 병원이 다가오면 보통 빠르기로`}
         >
           <Face labels={labels} shortcut="fast" icon={<Icon name={fast.active ? 'fastOn' : 'fast'} />} label="빨리 걷기" />
         </Button>

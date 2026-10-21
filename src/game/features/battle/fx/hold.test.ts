@@ -6,7 +6,7 @@ import { advance, createGameState, type GameState } from '../../../core/engine';
 import { TIMING } from '../../../core/balance';
 import { Rng } from '../../../core/engine/rng';
 import { startTeamBattle, teamInput, teamStep, type TeamBattle } from '../../../core/engine/team';
-import { battleAnimKey, FX_HOLD_DUEL_MAX_MS, FX_HOLD_MAX_MS, holdFx, releaseFx, shouldHoldBattle, teamUltKey } from './hold';
+import { battleAnimKey, FX_HOLD_DUEL_MAX_MS, FX_HOLD_MAX_MS, fxCoverLeft, fxTailLeft, holdFx, KO_ANIM_MS, KO_FLIP_MS, koWaitMs, pickShown, releaseFx, setFxCover, setFxTail, setPickShow, shouldHoldBattle, teamUltKey } from './hold';
 
 /** 내 포켓몬이 기술을 쓰는 중인 전투 상태 (ms 까지 지남) */
 function inMove(ms: number, dur = 900): { state: GameState; b: BattleState } {
@@ -132,5 +132,83 @@ describe('3:3 필살기 · 합동 마무리 — 연출이 맞힐 때까지 맞�
       holdFx(teamUltKey(-1), 5000, 0, 12_000);
       expect(shouldHoldBattle(at(save, tb), 50, 100)).toBe(false);
     }
+  });
+});
+
+describe('필살기로 쓰러뜨린 뒤 남은 연출 동안 붙잡음 (2026-10-21 UX 리뷰어 — 벌러덩이 연출 밑에서 지나가던 것)', () => {
+  afterEach(() => {
+    releaseFx();
+    setFxTail(0);
+  });
+  const at = (phase: BattleState['phase']) => {
+    const { state, b } = inMove(0);
+    const nb: BattleState = { ...b, phase, anim: null };
+    return { ...state, runtime: { ...state.runtime, stage: { phase: 'battle' as const, battle: nb } } };
+  };
+  it('맞힌 순간 releaseFx 로 붙잡기가 풀려도 꼬리가 남았으면 send · over · last 를 붙잡음 · 꼬리가 끝나면 풂', () => {
+    holdFx('x', 3000, 0, 12_000);
+    releaseFx(); // 맞힌 순간 (onHit)
+    setFxTail(2500);
+    for (const ph of ['over', 'last'] as const) expect(shouldHoldBattle(at(ph), 50, 1000)).toBe(true);
+    expect(shouldHoldBattle(at('run'), 50, 1000)).toBe(false);
+    expect(shouldHoldBattle(at('over'), 50, 2600)).toBe(false);
+    expect(fxTailLeft(1000)).toBe(1500);
+    setFxTail(0);
+    expect(shouldHoldBattle(at('over'), 50, 1000)).toBe(false);
+  });
+  it('덮음 끝 (cover) = 넘어짐 기다림 — 모르면 꼬리 끝 · 꼬리 끝을 넘지 않음 · 붙잡기는 꼬리 끝 그대로 (UX 리뷰어 4차)', () => {
+    setFxTail(4000);
+    setFxCover(0);
+    expect(fxCoverLeft(1000)).toBe(3000);
+    setFxCover(1800);
+    expect(fxCoverLeft(1000)).toBe(800);
+    expect(shouldHoldBattle(at('over'), 50, 2000)).toBe(true);
+    setFxCover(9000);
+    expect(fxCoverLeft(1000)).toBe(3000);
+    setFxCover(0);
+  });
+  it('넘어짐 기다림 = 덮음 끝 − 0.4초 − 넘어가는 0.62초 (UX 리뷰어 8차) · 마지막 기회는 덮음 끝까지만 붙잡음', () => {
+    setFxTail(9000);
+    setFxCover(5000);
+    expect(koWaitMs(1000)).toBe(4000 - 400 - KO_FLIP_MS);
+    expect(koWaitMs(4800)).toBe(0);
+    expect(shouldHoldBattle(at('last'), 50, 4000)).toBe(true);
+    expect(shouldHoldBattle(at('last'), 50, 5100)).toBe(false);
+    expect(shouldHoldBattle(at('over'), 50, 5100)).toBe(true);
+    setFxCover(0);
+  });
+  it('다음 볼 — 벌러덩이 시작할 때부터 (덮음 끝 − 1.02초) 내보내기 시간을 셈 = 보통 기술 박자 (8 · 9 · 10차)', () => {
+    const send = (sendMs: number) => {
+      const s = at('send');
+      const b = s.runtime.stage.phase === 'battle' ? s.runtime.stage.battle : null;
+      return { ...s, runtime: { ...s.runtime, stage: { phase: 'battle' as const, battle: { ...b!, sendMs } } } };
+    };
+    const koStart = (cover: number) => cover - 400 - KO_FLIP_MS;
+    // 덮음이 늦은 필살기 (덮음 3.0 · 꼬리 3.2초) — 벌러덩 시작 (1.98초) 까지 단계를 통째로 붙잡음 (볼 그림도 그 뒤 — 보통 시간표대로 1.9초 뒤 = 벌러덩 끝 즈음)
+    setFxTail(3200);
+    setFxCover(3000);
+    expect(shouldHoldBattle(send(0), 50, 1900)).toBe(true);
+    expect(shouldHoldBattle(send(0), 50, koStart(3000) + 10)).toBe(false);
+    // 자기 둘레 필살기 (덮음 = 큰 맞음 바로 뒤) — 바로 셈
+    setFxTail(3300);
+    setFxCover(100);
+    expect(shouldHoldBattle(send(0), 50, 1000)).toBe(false);
+    expect(KO_ANIM_MS).toBe(2300);
+    // 덮음 끝을 모르면 꼬리 끝까지
+    setFxCover(0);
+    expect(shouldHoldBattle(send(0), 50, 3100)).toBe(true);
+    expect(shouldHoldBattle(send(0), 50, 3300)).toBe(false);
+    // 필살기가 아니면 (꼬리 0) 엔진 그대로
+    setFxTail(0);
+    setFxCover(0);
+    expect(shouldHoldBattle(send(TIMING.foeSendMs - 50), 50, 1000)).toBe(false);
+  });
+  it('고르기 목록이 보이는 때 — 0 이면 고르는 중 아님', () => {
+    setPickShow(0);
+    expect(pickShown(5000)).toBe(false);
+    setPickShow(3000);
+    expect(pickShown(2999)).toBe(false);
+    expect(pickShown(3000)).toBe(true);
+    setPickShow(0);
   });
 });
