@@ -14,6 +14,9 @@ import { Sprite } from '../../../ui/Sprite';
 import { speciesOf } from '../../../data';
 import { spriteBoxOf } from '../../../data/sprite-boxes';
 import { TypeTags } from '../../battle/components/TypeTag';
+import { ITEM_ICON } from '../../menu/model';
+import { itemName } from '../../../core/rules/items';
+import { ITEM_IDS } from '../../../core/save';
 import { partText, summaryLines, type CaughtView, type LevelUpView, type SummaryPart } from '../model';
 
 /** 잡은 포켓몬 소개 카드 — 결과 상자 전 3초 (TIMING.caughtIntroMs), 잡기 흔들기 창이 꺼지지 않고 같은 가운데 · 같은 높이에서 가로로 넓어지며 볼이 열리고 포켓몬이 나옴 (2026-10-20 태현 님 "잡았다 창이 너무 빨리 꺼져" → B) · 집중 모양 (둘레 어둡게 · 2px 금색 · 이름표 "잡았다!") · 그림 크게 · "NEW! 처음 잡았다" (도감 화면은 다음 버전) · 이름 Lv · 타입 · 팀 / 보관함. 누르면 넘김 (2026-10-20 태현 님 안 2) */
@@ -57,11 +60,17 @@ function CaughtIntro({ c, media, at, onSkip }: { c: CaughtView; media: string; a
   );
 }
 
+/** 보물 이름 → 그 물건 아이콘 (없으면 선물) */
+const treasureIcon = (name: string) => {
+  const id = ITEM_IDS.find((i) => itemName(i) === name);
+  return id ? ITEM_ICON[id] : 'gift';
+};
+
 /** 첫 줄 받은 것 — 라이벌 보상 (돈 ×1.5 · 아이템) 은 ★ 금색 (gdd 4.12 — 글을 늘리면 좁은 패널에서 잘려서 표시로만) */
 function Reward({ p, rare }: { p: SummaryPart; rare: boolean }) {
   return (
     <span class={rare && p.kind !== 'caught' ? 'pg-reward pg-reward-rare' : 'pg-reward'}>
-      <Icon name={p.kind === 'caught' ? 'ball' : p.kind === 'money' ? 'coin' : 'gift'} /> {p.text}
+      <Icon name={p.kind === 'caught' ? 'ball' : p.kind === 'money' ? 'coin' : p.kind === 'treasure' ? treasureIcon(p.text) : 'gift'} /> {p.text}
     </span>
   );
 }

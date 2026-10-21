@@ -2,7 +2,8 @@ import type { ComponentChildren } from 'preact';
 
 export interface ButtonProps {
   children: ComponentChildren;
-  onClick(): void;
+  /** e = 누른 마우스 이벤트 (Shift + 클릭 등) */
+  onClick(e?: MouseEvent): void;
   disabled?: boolean;
   /** 덜 중요한 버튼 (취소 · 일반 모드 등) */
   secondary?: boolean;
@@ -24,8 +25,8 @@ export function Button({ children, onClick, disabled, secondary, title, autoFocu
       title={title}
       autoFocus={autoFocus}
       data-name={name}
-      onClick={() => {
-        if (!disabled) onClick();
+      onClick={(e) => {
+        if (!disabled) onClick(e);
       }}
     >
       {children}

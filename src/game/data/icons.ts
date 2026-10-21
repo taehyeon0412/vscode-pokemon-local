@@ -45,6 +45,17 @@ export const ICONS = {
   revive: ['...YY...', '..YWYy..', '.YWYYyy.', 'YWYYYYyy', 'yYYYYYyy', '.yYYYyy.', '..yyyy..', '...yy...'],
   stone: ['..wwww..', '.wWWWWw.', 'wWWWwWWw', 'wWWwwWww', 'wWWWWwww', '.wWWwww.', '..wwww..', '........'],
   cord: ['.YY..BB.', 'Y..YB..B', 'Y..YB..B', '.YYYBBB.', '..YB.B..', '..Y..B..', '.YY..BB.', '........'],
+  /** 다음 버전 2단계 물건 (2026-10-21) — 이상한사탕 (포장 사탕) · 경험 부적 (금 고리 + 빨간 보석) · 팔 물건 여덟: 작은버섯 · 큰버섯 · 진주 · 큰진주 · 별의모래 · 별의조각 · 금구슬 · 큰금구슬 (작은 것 = 작게, 큰 것 = 8칸 가득) */
+  rareCandy: ['........', '........', 'Ww.BB.wW', '.WBWBBW.', '.wBBBbw.', 'Ww.bb.wW', '........', '........'],
+  expCharm: ['..y..y..', '.y....y.', '.y....y.', '..yYYy..', '.YYRRYY.', '.YRWRRy.', '..YRRy..', '...yy...'],
+  tinyMushroom: ['........', '........', '...RR...', '..RWRR..', '.rrrrrr.', '...WW...', '...Ww...', '........'],
+  bigMushroom: ['.RRRRRR.', 'RRWRRWRR', 'RWRRRRRR', 'RRRRRWRr', 'rrrrrrrr', '...WWw..', '...WWw..', '..wwww..'],
+  pearl: ['........', '........', '...ww...', '..wWWw..', '..WWWw..', '..wWww..', '...ww...', '........'],
+  bigPearl: ['........', '..wwww..', '.wWWWWw.', '.wWWWww.', '.wWWwww.', '.wWwwww.', '..wwww..', '........'],
+  stardust: ['........', '.W....Y.', '...Y....', '.Y...W..', '....Y...', '..yYYYy.', '.yYWYYYy', 'yyyyyyyy'],
+  starPiece: ['...R....', '..RRR...', 'RRRWRRR.', '.RRRRr..', '..RRrr..', '.RR..r..', '.r....r.', '........'],
+  nugget: ['........', '..yyyy..', '.yYWYYy.', '.yWYYYy.', '.yYYYyy.', '.yYYyyy.', '..yyyy..', '........'],
+  bigNugget: ['..yyyy..', '.yWWYYy.', 'yWWYYYYy', 'yWYYYYYy', 'yYYYYYyy', 'yYYYYyyy', '.yyyyyy.', '..yyyy..'],
   /** 돈 */
   coin: ['..yyyy..', '.yYYYYy.', 'yYWYYYYy', 'yYWYYYYy', 'yYYYYYYy', 'yYYYYYyy', '.yyyyyy.', '..yyyy..'],
   /** 받은 아이템 */

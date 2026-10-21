@@ -7,6 +7,7 @@
 import { useRef } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
 import { canHeal, type GameInput, type GameState } from '../../../core/engine';
+import { defeatWaits } from '../../../core/engine/play';
 import { teamHealthy } from '../../../core/rules/bag';
 import { FACILITY_STAFF } from '../../../core/rules/stage';
 import { GYM_LEADER } from '../../../core/rules/trainer';
@@ -36,7 +37,15 @@ export function FacilityBox({ state, media, onInput, onBox }: BoxProps & { onBox
     return (
       <div class="pg-banner pg-facility-box">
         <span class="pg-ellipsis">
-          <Icon name={hospital ? 'hospital' : 'shop'} /> <b>{hospital ? '병원' : '상점'}</b> <span class="pg-dim">{hospital ? '회복 · 보관함' : '볼 · 상처약'}</span>
+          {/* 상점 앞 = 내 돈 (다음 버전 1단계 #119 — 들어가기 전에 살 수 있는지) */}
+          <Icon name={hospital ? 'hospital' : 'shop'} /> <b>{hospital ? '병원' : '상점'}</b>{' '}
+          {hospital ? (
+            <span class="pg-dim">회복 · 보관함</span>
+          ) : (
+            <span class="pg-money">
+              <Icon name="coin" /> {formatMoney(state.save.money)}
+            </span>
+          )}
         </span>
         <Button onClick={() => onInput({ kind: 'facility', enter: true })} title="Enter">
           <KeyCap k="Enter" /> 들어가기
@@ -149,9 +158,9 @@ export function DefeatBox({ state, onInput }: BoxProps) {
           )}
         </span>
         <Button onClick={() => onInput({ kind: 'defeat-continue' })} title="Enter">
-          {/* 남은 초 — 0 이면 저절로 다시 시작 (다음 버전 1단계 #49) */}
+          {/* 남은 초 — 0 이면 저절로 다시 시작 (다음 버전 1단계 #49). 같은 판 두 번째 패배부터는 기다림 (지고 또 지며 돈이 빠지지 않게 — defeatWaits) 이라 숨김 */}
           <KeyCap k="Enter" /> {st.gym ? '대기실로 ▶' : '다시 시작 ▶'}
-          <span class="pg-sub">{Math.max(1, Math.ceil((TIMING.defeatAutoMs - (st.ms ?? 0)) / 1000))}초</span>
+          {!defeatWaits(state.save, st) && <span class="pg-sub">{Math.max(1, Math.ceil((TIMING.defeatAutoMs - (st.ms ?? 0)) / 1000))}초</span>}
         </Button>
       </span>
     </div>

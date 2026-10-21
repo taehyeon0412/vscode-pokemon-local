@@ -4100,6 +4100,31 @@ body.vscode-high-contrast-light .pg-title-body {
   gap: 4px;
   padding: 2px 0;
 }
+/* 상점 사기 · 팔기 (2026-10-21 다음 버전 2단계) — 판 제목줄 안 작은 두 버튼 */
+.pg-shop-tabs {
+  display: inline-flex;
+  gap: 4px;
+  margin-right: 8px;
+}
+/* 좁은 패널 — 상점 판 머리 줄은 "상점" 이름표를 빼고 (아이콘이 말함) 탭 · 돈 · 나가기만 · 300px 아래 닫기 버튼은 ✕ 만 ([팔기] 가 나가기에 가려지던 것) */
+@media (max-width: 360px) {
+  .pg-panel-head:has(.pg-shop-tabs) > .pg-panel-title {
+    display: none;
+  }
+}
+@media (max-width: 300px) {
+  .pg-close-word {
+    display: none;
+  }
+  /* 돈이 "4,2…" 로 잘리지 않게 탭 좌우 여백 · 간격을 줄임 */
+  .pg-shop-tabs {
+    gap: 2px;
+    margin-right: 4px;
+  }
+  .pg-shop-tabs .pg-button {
+    padding: 0 5px;
+  }
+}
 .pg-button.pg-shop-item {
   display: flex;
   align-items: center;

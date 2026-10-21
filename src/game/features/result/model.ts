@@ -29,7 +29,7 @@ export function moveView(id: number, pp?: number): MoveView {
 /** S12 한 줄씩 — 첫 줄 (제목 · 잡은 포켓몬 · 돈 · 아이템) · 둘째 줄 (경험치 · 레벨업 · 새 기술) */
 /** S12 결과 한 칸 — 글자만 (아이콘 · 기호는 화면 ResultBox 가 kind 로 붙임: 볼 · 돈 · 선물 · ▲ · ★) */
 export interface SummaryPart {
-  kind: 'caught' | 'money' | 'item' | 'up' | 'exp' | 'learned' | 'quote';
+  kind: 'caught' | 'money' | 'item' | 'treasure' | 'up' | 'exp' | 'learned' | 'quote';
   text: string;
 }
 
@@ -38,6 +38,8 @@ export function summaryLines(s: BattleSummary): { title: string; head: SummaryPa
   if (s.caught) head.push({ kind: 'caught', text: s.caught.toBox ? `팀이 다 차서 ${s.caught.name} → 보관함` : `${s.caught.name} 팀에 들어옴` });
   if (s.money > 0) head.push({ kind: 'money', text: `+${s.money}원` });
   if (s.item) head.push({ kind: 'item', text: s.item });
+  // 보물 (팔 물건 — 다음 버전 2단계, 이름 글) = 받은 아이템처럼 한 칸 · 그림은 그 물건 아이콘 (ResultBox)
+  if (s.treasure) head.push({ kind: 'treasure', text: s.treasure });
   // 레벨이 오른 포켓몬을 앞에 (묻히지 않게) · 나머지는 뒤에
   const body: SummaryPart[] = [
     ...s.exp.filter((e) => e.to > e.from).map((e): SummaryPart => ({ kind: 'up', text: `${e.name} Lv ${e.from} → ${e.to} (경험치 +${e.gain})` })),

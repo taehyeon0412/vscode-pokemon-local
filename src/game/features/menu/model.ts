@@ -3,10 +3,10 @@
  */
 import { BALANCE } from '../../core/balance';
 import { clearBonusExp, gymUnlocked, runExpScale, stageUnlocked, type GameState } from '../../core/engine';
-import { FIELD_ITEMS, fieldUseBlock, isEvolutionItem, maxHpOf, priceOf, SHOP_ITEMS, type ShopItem } from '../../core/rules/bag';
-import { itemName } from '../../core/rules/items';
+import { FIELD_ITEMS, fieldUseBlock, isEvolutionItem, maxHpOf, priceOf, sellPrice, SHOP_ITEMS, type ShopItem } from '../../core/rules/bag';
+import { itemName, VALUABLES } from '../../core/rules/items';
 import { expForLevel, starGrade, statsOf } from '../../core/rules/stats';
-import { STAGE_IDS, STAT_KEYS, type ItemId, type Monster, type Save, type StageId, type StatKey } from '../../core/save';
+import { ITEM_IDS, STAGE_IDS, STAT_KEYS, type ItemId, type Monster, type Save, type StageId, type StatKey } from '../../core/save';
 import { typeNameKo } from '../../core/text';
 import { formsOfSpecies, speciesOf } from '../../data';
 import { moveView, type MoveView } from '../result/model';
@@ -33,17 +33,17 @@ export const ITEM_ICON: Record<ItemId, IconName> = {
   'leaf-stone': 'stone',
   'moon-stone': 'stone',
   'linking-cord': 'cord',
-  // 다음 버전 2단계 (2026-10-21) — 8 × 8 아이콘은 디자인팀이 그릴 때까지 비슷한 그림 [임시]
-  'rare-candy': 'potion',
-  'exp-charm': 'sparkle',
-  'tiny-mushroom': 'sparkle',
-  pearl: 'sparkle',
-  stardust: 'sparkle',
-  'big-mushroom': 'sparkle',
-  'big-pearl': 'sparkle',
-  nugget: 'sparkle',
-  'star-piece': 'sparkle',
-  'big-nugget': 'sparkle',
+  // 다음 버전 2단계 (2026-10-21) — 디자인팀 8 × 8 아이콘 (data/icons.ts)
+  'rare-candy': 'rareCandy',
+  'exp-charm': 'expCharm',
+  'tiny-mushroom': 'tinyMushroom',
+  pearl: 'pearl',
+  stardust: 'stardust',
+  'big-mushroom': 'bigMushroom',
+  'big-pearl': 'bigPearl',
+  nugget: 'nugget',
+  'star-piece': 'starPiece',
+  'big-nugget': 'bigNugget',
 };
 
 /** 팀에 남은 포인트가 있는 포켓몬이 있는지 (◓ 버튼에 점) */
@@ -172,6 +172,8 @@ export interface ShopRow {
   price: number;
   have: number;
   affordable: boolean;
+  /** 못 사는 까닭 (돈 말고) — 이상한사탕 "한 판에 1개" · "스테이지 상점에서만" (2026-10-21 다음 버전 2단계) */
+  blocked?: string;
 }
 
 /** 상점 물건 한 줄 설명 (2026-10-19 태현 님 "볼 설명이 부실해" — 예전엔 "×1.5 · ×0" 처럼 잡기 배율과 가진 개수가 같은 × 라 헷갈림) · 3칸에서 안 잘리게 짧게 (아트 디렉터 4차, 긴 설명은 SHOP_DETAIL) */
@@ -201,7 +203,28 @@ const SHOP_DETAIL: Record<ShopItem, string> = {
 
 /** S14 ① 물건 · ③ 내 돈 */
 export function shopView(save: Save): ShopRow[] {
-  return SHOP_ITEMS.map((item) => ({ item, name: itemName(item), effect: SHOP_EFFECT[item], detail: SHOP_DETAIL[item], price: priceOf(item), have: save.bag[item] ?? 0, affordable: save.money >= priceOf(item) }));
+  // 이상한사탕 = 스테이지 상점에서 한 판에 1개 (대기실 상점 · 이미 산 판은 흐리게 — 다음 버전 2단계)
+  const loc = save.location;
+  const candyLeft = loc.screen === 'stage' ? BALANCE.candyPerStage - (save.stages[loc.stageId]?.run.candy ?? 0) : 0;
+  const candyBlock = candyLeft > 0 ? undefined : loc.screen === 'stage' ? '한 판에 1개' : '스테이지 상점에서만';
+  return SHOP_ITEMS.map((item) => {
+    const blocked = item === 'rare-candy' ? candyBlock : undefined;
+    return { item, name: itemName(item), effect: SHOP_EFFECT[item], detail: SHOP_DETAIL[item], price: priceOf(item), have: save.bag[item] ?? 0, affordable: save.money >= priceOf(item) && !blocked, blocked };
+  });
+}
+
+export interface SellRow {
+  item: ItemId;
+  name: string;
+  /** 하나 팔면 받는 돈 (정가 × sellRate) */
+  price: number;
+  have: number;
+}
+
+/** S14 [팔기] — 가방에 있고 팔 수 있는 것 (값이 0 인 진화의 돌 · 연결의끈은 빠짐). 팔 물건 (진주 · 금구슬 …) 을 앞에, 나머지는 물건 순서대로 */
+export function sellView(save: Save): SellRow[] {
+  const order = [...VALUABLES, ...ITEM_IDS.filter((i) => !VALUABLES.includes(i))];
+  return order.filter((item) => (save.bag[item] ?? 0) > 0 && sellPrice(item) > 0).map((item) => ({ item, name: itemName(item), price: sellPrice(item), have: save.bag[item] ?? 0 }));
 }
 
 export type MapStageState = 'cleared' | 'current' | 'open' | 'locked';

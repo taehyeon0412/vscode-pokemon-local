@@ -36,7 +36,8 @@ export function Panel({ icon, title, extra, onClose, closeLabel = '닫기', chil
         <b class="pg-panel-title pg-ellipsis">{title}</b>
         {extra && <span class="pg-panel-extra pg-ellipsis">{extra}</span>}
         <Button secondary extraClass="pg-pin" onClick={onClose} title="Esc">
-          ✕ {closeLabel}
+          {/* 아주 좁은 패널 (300px 아래) 은 ✕ 만 — 판 머리 줄에 탭 · 돈이 들어가게 (2026-10-21 상점 사기 · 팔기) */}
+          ✕ <span class="pg-close-word">{closeLabel}</span>
         </Button>
       </div>
       <div class="pg-panel-body">{children}</div>
