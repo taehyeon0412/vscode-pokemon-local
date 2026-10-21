@@ -229,7 +229,7 @@ if (!port) {
       const cur = session.current;
       if (cur && (cur.save.location.screen === 'stage' || cur.save.location.screen === 'gym')) {
         e.preventDefault();
-        actions.input({ kind: 'auto-battle', on: !cur.save.settings.autoBattle });
+        actions.input({ kind: 'auto-battle', on: !cur.save.settings.autoBattle, say: true });
         return;
       }
     }

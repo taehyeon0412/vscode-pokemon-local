@@ -265,6 +265,17 @@ describe('S17 패배 (gdd 4.10)', () => {
     expect(phase(until(back, (x) => phase(x) === 'facility', 3000))).toBe('facility');
   });
 
+  it('같은 판 두 번째 패배부터는 기다림 · 안 볼 때 알림 — 지고 또 지며 돈이 빠지는 고리를 막음 (2026-10-21 코드 리뷰어)', () => {
+    const base = game({ money: 1000, lastHospital: { stageId: 'forest-1', at: 0.5 }, stages: { 'forest-1': stageAt(0.7, { run: { ...run0, retries: 1 } }) } });
+    const s = until(lostBattle(base), (x) => phase(x) === 'defeat', 10_000);
+    expect(s.save.stages['forest-1']!.run.retries).toBe(2);
+    expect(isWaitingForInput(s)).toBe(true);
+    expect(phase(until(s, () => false, TIMING.defeatAutoMs + 1000))).toBe('defeat');
+    expect(phase(step({ ...s, runtime: { ...s.runtime, headless: true } }, STEP).state)).toBe('defeat');
+    expect(advance({ ...lostBattle(base), runtime: { ...lostBattle(base).runtime, headless: true } }, 10_000).notices).toContain('defeat');
+    expect(phase(applyInput(s, { kind: 'defeat-continue' }))).toBe('walk');
+  });
+
   it('병원을 안 지났으면 (다른 스테이지 병원) 스테이지 처음부터', () => {
     const base = game({ lastHospital: { stageId: 'forest-2', at: 0.5 }, stages: { 'forest-1': stageAt(0.7) } });
     const s = until(lostBattle(base), (x) => phase(x) === 'defeat', 10_000);

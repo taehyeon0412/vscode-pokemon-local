@@ -256,7 +256,6 @@ export function catchTimeline(c: BattleCatch): { thrown: number; open: number; d
   return { thrown: c.throwMs, open, drop, shake, end, done: end + TIMING.catchEndMs + (c.caught ? 0 : TIMING.catchFailPauseMs) };
 }
 
-/** 지금 가방에 남은 그 아이템 수 (전투 중 쓴 것 빼고) */
 /** 자동 전투 상처약 — 설정이 켜져 있고 (없으면 켬) HP 가 최대의 30% 아래면 모자란 만큼에 맞는 약 (상처약 → 좋은상처약 순, 둘 다 없으면 null) */
 export function autoPotion(b: BattleState, save: Save): ItemId | null {
   if (save.settings.autoPotion === false || b.me.hp <= 0 || b.me.hp >= b.me.maxHp * BALANCE.autoPotionBelow) return null;
@@ -265,6 +264,7 @@ export function autoPotion(b: BattleState, save: Save): ItemId | null {
   return order.find((item) => itemLeft(b, save, item) > 0) ?? null;
 }
 
+/** 지금 가방에 남은 그 아이템 수 (전투 중 쓴 것 빼고) */
 export function itemLeft(b: BattleState, save: Save, item: ItemId): number {
   return Math.max(0, (save.bag[item] ?? 0) - (b.bagUsed[item] ?? 0));
 }
@@ -601,7 +601,8 @@ function afterHits(b0: BattleState, save: Save): BattleState {
     // 볼 기회가 남았을 때만 (3번 다 던졌으면 없음 — 2026-10-20 태현 님)
     const hasBall = BALLS.some((ball) => itemLeft(b, save, ball) > 0) && catchTriesUsed(b) < BALANCE.catchTries;
     // 이미 잡은 종은 마지막 기회를 건너뜀 (설정, 2026-10-21 ideas #35)
-    const skip = save.settings.skipCaughtLast === true && save.dex.caught.includes(b.foe.species);
+    // 이로치는 건너뛰지 않음 (코드 리뷰어)
+    const skip = save.settings.skipCaughtLast === true && save.dex.caught.includes(b.foe.species) && !b.foe.shiny;
     if (b.kind === 'wild' && hasBall && !wiped && !skip) return { ...b, phase: 'last', lastMs: 0, msg: down };
     return { ...b, phase: 'over', result: 'win', overMs: 0, msg: b.kind === 'wild' && !hasBall && !wiped ? `${down} (볼이 없어 잡을 수 없어요)` : down };
   }
@@ -721,7 +722,7 @@ export function battleStep(b0: BattleState, save: Save, stepMs: number, rng: Rng
       const lastMs = b.lastMs + stepMs;
       // 볼을 고르지 않으면 (자동 전투 · 안 봄 · 그냥 둠) 지나감 [제안]
       // 자동 전투면 3초 (ideas #35)
-      if (opts.away || lastMs >= (opts.auto ? TIMING.lastChanceAutoMs : TIMING.lastChanceMs)) return { ...b, lastMs, phase: 'over', result: 'win', overMs: 0, msg: `${withJosa(label(b, 'foe'), '이/가')} 쓰러졌다!` };
+      if (opts.away || lastMs >= (opts.auto && !b.foe.shiny ? TIMING.lastChanceAutoMs : TIMING.lastChanceMs)) return { ...b, lastMs, phase: 'over', result: 'win', overMs: 0, msg: `${withJosa(label(b, 'foe'), '이/가')} 쓰러졌다!` };
       return { ...b, lastMs };
     }
     case 'send': {

@@ -2,11 +2,11 @@
  * 게임 한 걸음 · 입력 — 보일 때(웹뷰) · 안 보일 때(확장) 같은 함수.
  *
  * S06 스테이지 (mvp-spec 3.2): 자동으로 걷다가 길에 놓인 자리를 지나면
- *   떨어진 아이템 → 바로 줍고 계속 걸음 · 야생 → 튀어나옴 (선제공격 · 기습은 스피드로) → 전투 (engine/battle.ts) · 부탁 → 고를 때까지 기다림
+ *   떨어진 아이템 → 바로 줍고 계속 걸음 · 야생 → 튀어나옴 (선제공격 · 기습은 스피드로) → 전투 (engine/battle.ts) · 부탁 → 10초 뒤 저절로 [도와준다] (안 볼 때 바로)
  *   트레이너 → 멈추고 "!" → "승부다!" → 1:1 토너먼트 · 병원 · 상점 → [들어가기] [지나가기] (10초 · 안 볼 때는 바로 지나감)
- *   끝 → S24 클리어 카드 (1-3 은 S16 체육관 대기실로) · 지면 → S17 (마지막 병원 앞에서 다시)
+ *   끝 → S24 클리어 카드 (1-3 은 S16 체육관 대기실로, 자동 전투면 10초 뒤 다음) · 지면 → S17 (마지막 병원 앞에서 다시 — 한 판 첫 패배만 5초 뒤 저절로)
  * S16 체육관: 대기실 → 관장과 1:1 토너먼트 → 처음 이기면 배지 · MVP 끝 카드
- * 안 볼 때 (확장이 계산) 이로치 흔적 · 부탁 앞에서는 멈추고 알림 신호 (U9)
+ * 안 볼 때 (확장이 계산) 이로치 흔적 · 라이벌 앞 · 고르기 · 같은 판 두 번째 패배에서는 멈추고 알림 신호 (U9)
  * 상태는 늘 새 객체로 만듦 (그 자리에서 고치지 않음 — 확장 ↔ 웹뷰 · 저장소가 같은 객체를 나눠 써도 안 바뀌게).
  */
 import { BALANCE, TIMING } from '../balance';
@@ -17,7 +17,7 @@ import { spotBetween, spotRng, stageCode, stageLayout, trainerId, walkDelta, typ
 import { statsOf } from '../rules/stats';
 import { aliveCount, GYM_LEADER, leaderTeam, trainerInfo, trainerNumber, trainerTeam } from '../rules/trainer';
 import { pickRival, rivalLine, rivalLoseMsg, rivalName, rivalRecord, rivalTeam, withRivalResult } from '../rules/rival';
-import { ITEM_IDS, RUN_SEEN_MAX, STAGE_IDS, type FacilitySpot, type ItemId, type Save, type StageId, type StageProgress, type StageRun, type StatKey } from '../save';
+import { isTipId, ITEM_IDS, RUN_SEEN_MAX, STAGE_IDS, TIPS_MAX, type FacilitySpot, type ItemId, type Save, type StageId, type StageProgress, type StageRun, type StatKey } from '../save';
 import { withJosa } from '../text';
 import { moveOf, speciesOf } from '../../data';
 import { applyBattleResult, battleDone, battleInput, battleStep, battleWaiting, firstAlive, startBattle, startTrainerBattle, switchable, type BattleInput, type BattleState } from './battle';
@@ -37,7 +37,8 @@ export type GameInput =
   /** 전투 메뉴 · 필살기 · 다음 포켓몬 (Space 는 위 'space' 로 — 힘대결 연타 · 맞받아치기) */
   | { kind: 'battle'; input: BattleInput }
   /** S09 ⑫ 자동 전투 스위치 — 세이브 설정에 (다음 전투에도 그대로) */
-  | { kind: 'auto-battle'; on: boolean }
+  /** say = 한 줄 알림 "자동 전투 켜짐 · 꺼짐" (A 키 — 정보줄 스위치가 안 보일 때도 알게, 2026-10-21 코드 리뷰어) */
+  | { kind: 'auto-battle'; on: boolean; say?: boolean }
   /** 빨리 걷기 켜기 · 끄기 (S06 정보줄 · S20, 2026-10-19) */
   | { kind: 'fast-walk'; on: boolean }
   /** 게임의 동작 줄이기 (설정 — 화면이 움직임을 줄임, OS 설정은 안 봄 · 2026-10-20 태현 님) */
@@ -320,7 +321,9 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
         if (p.money) save = { ...save, money: save.money + p.money };
         save = withProgress(save, id, spot.at);
         const what = p.item ? itemName(p.item) : `${p.money ?? 0}원`;
-        rt = { ...rt, toast: { text: `${withJosa(what, '을/를')} 주웠다!`, ms: TIMING.toastMs } };
+        // 앞 한 줄 ("그동안: …" 등) 이 떠 있으면 덮지 않고 그 뒤에 (1초 넘게 — U1, 코드 리뷰어)
+        const picked = `${withJosa(what, '을/를')} 주웠다!`;
+        rt = { ...rt, toast: rt.toast ? { ...rt.toast, then: picked } : { text: picked, ms: TIMING.toastMs } };
       } else if (spot.kind === 'wild' && (rt.headless || rt.away) && planWild(id, prog.seed, spot, prog.run.retries).shiny) {
         // 안 볼 때 · VS Code 에 포커스가 없을 때 이로치 흔적 — 바로 앞에서 멈추고 알림 (U9), 다시 보이면 · 돌아오면 이어 감
         save = withProgress(save, id, Math.max(from, spot.at - BEFORE_SPOT));
@@ -374,8 +377,8 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
       const ms = stage.ms + stepMs;
       if (rt.headless || ms >= TIMING.facilityPromptMs) {
         save = passFacility(save, id, stage.kind, stage.at);
-        // 병원을 지나면 쌓아 둔 새 기술 고르기를 한 번에 (ideas #72)
-        if (stage.kind === 'hospital') save = takeLaterChoices(save);
+        // 병원을 지나면 쌓아 둔 새 기술 고르기를 한 번에 (ideas #72) — 안 볼 때는 꺼내지 않음 (걷다 지나는 병원과 같게 · 스테이지 클리어 때 알림과 같이, 코드 리뷰어)
+        if (stage.kind === 'hospital' && !rt.headless) save = takeLaterChoices(save);
         stage = afterResult(save);
       } else stage = { ...stage, ms };
       break;
@@ -470,8 +473,9 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
       const d = stageDefeat(save, id);
       save = d.save;
       rt = { ...rt, rngState: rng.state };
-      // 5초 뒤 (안 볼 때는 다음 걸음에) 저절로 다시 시작 (ideas #49) — 알림 없음
+      // 5초 뒤 (안 볼 때는 다음 걸음에) 저절로 다시 시작 (ideas #49) — 같은 판 두 번째 패배부터는 기다리고 안 볼 때 알림 (지고 또 지며 돈이 빠지지 않게, 코드 리뷰어)
       stage = { phase: 'defeat', gym: false, lost: d.lost };
+      if (rt.headless && defeatWaits(save, stage)) notice = 'defeat';
       break;
     }
     case 'result':
@@ -516,7 +520,7 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
       break;
     }
     case 'defeat':
-      stage = defeatStep(stage, rt, stepMs);
+      stage = defeatStep(stage, rt, stepMs, defeatWaits(save, stage));
       break;
     case 'lobby':
     case 'badge':
@@ -619,7 +623,7 @@ function gymStep(save0: Save, rt0: RuntimeState, stepMs: number): { save: Save; 
       break;
     }
     case 'defeat':
-      stage = defeatStep(stage, rt, stepMs);
+      stage = defeatStep(stage, rt, stepMs, false);
       break;
     default:
       break;
@@ -679,13 +683,14 @@ export function isWaitingForInput(state: GameState): boolean {
       return !state.save.settings.autoBattle && battleWaiting(st.battle);
     case 'choice':
       return state.save.pendingChoices.length > 0;
+    // 부탁 = 10초 뒤 · 안 볼 때 바로 [도와준다] — 기다리지 않음 (러너가 부탁 앞에서 멈추면 아무 일도 안 일어남 — 2026-10-21 코드 리뷰어)
     case 'request':
-      return !st.result;
+      return false;
     case 'facility':
       return st.inside;
-    // 패배 상자 = 저절로 다시 시작 (ideas #49) · 클리어 카드 = 자동 전투면 저절로 다음 (ideas #48)
+    // 패배 상자 = 저절로 다시 시작 (ideas #49) — 같은 판 두 번째 패배부터는 기다림 · 클리어 카드 = 자동 전투면 저절로 다음 (ideas #48)
     case 'defeat':
-      return false;
+      return defeatWaits(state.save, st);
     case 'clear':
       return !state.save.settings.autoBattle;
     case 'hold':
@@ -788,9 +793,11 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       return state;
     case 'battle':
       return stage?.phase === 'battle' ? withBattleInput(state, input.input) : state;
-    case 'auto-battle':
+    case 'auto-battle': {
       if (save.settings.autoBattle === input.on) return state;
-      return { ...state, save: { ...save, settings: { ...save.settings, autoBattle: input.on } } };
+      const next = { ...save, settings: { ...save.settings, autoBattle: input.on } };
+      return input.say ? toast(state, next, input.on ? '자동 전투 켜짐 (A)' : '자동 전투 꺼짐 (A)') : { ...state, save: next };
+    }
     case 'fast-walk':
       if ((save.settings.fastWalk === true) === input.on) return state;
       return { ...state, save: { ...save, settings: { ...save.settings, fastWalk: input.on } } };
@@ -804,7 +811,7 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       if ((save.settings.skipCaughtLast === true) === input.on) return state;
       return { ...state, save: { ...save, settings: { ...save.settings, skipCaughtLast: input.on } } };
     case 'tip-seen':
-      if (!/^[a-z0-9-]{1,24}$/.test(input.id) || save.tips?.includes(input.id) || (save.tips?.length ?? 0) >= 20) return state;
+      if (!isTipId(input.id) || save.tips?.includes(input.id) || (save.tips?.length ?? 0) >= TIPS_MAX) return state;
       return { ...state, save: { ...save, tips: [...(save.tips ?? []), input.id] } };
     case 'notifications':
       if (save.settings.notifications === input.on) return state;
@@ -980,11 +987,18 @@ function choiceStage(save: Save, then?: 'badge'): StageRuntime {
   return then ? { phase: 'choice', ms, then } : { phase: 'choice', ms };
 }
 
-/** 패배 상자 — 5초 뒤 (안 볼 때는 바로) 저절로 다시 시작 = [다시 시작] 과 같음 (ideas #49) */
-function defeatStep(stage: Extract<StageRuntime, { phase: 'defeat' }>, rt: RuntimeState, stepMs: number): StageRuntime {
+/** 패배 상자 — 5초 뒤 (안 볼 때는 바로) 저절로 다시 시작 = [다시 시작] 과 같음 (ideas #49). wait = 기다림 (같은 판 두 번째 패배부터) */
+function defeatStep(stage: Extract<StageRuntime, { phase: 'defeat' }>, rt: RuntimeState, stepMs: number, wait: boolean): StageRuntime {
+  if (wait) return stage;
   const ms = (stage.ms ?? 0) + stepMs;
   if (rt.headless || ms >= TIMING.defeatAutoMs) return stage.gym ? { phase: 'lobby' } : { phase: 'walk' };
   return { ...stage, ms };
+}
+
+/** 스테이지 패배를 기다릴지 — 같은 판에서 두 번째 패배부터 (run.retries ≥ 2, 관장전 패배는 돈을 안 잃어 늘 저절로). 처음 한 번만 저절로 다시 걸어 돈이 계속 빠지는 고리를 막음 (2026-10-21 코드 리뷰어) */
+export function defeatWaits(save: Save, stage: Extract<StageRuntime, { phase: 'defeat' }>): boolean {
+  if (stage.gym || save.location.screen !== 'stage') return false;
+  return (save.stages[save.location.stageId]?.run.retries ?? 0) >= 2;
 }
 
 /** 클리어 카드 [다음 스테이지] — 다음 스테이지 (마지막이면 체육관) */
@@ -999,7 +1013,8 @@ function nextPlace(id: StageId): StageId | 'gym' {
 function awayStep(before: GameState, save: Save, rt: RuntimeState, signal: SaveSignal | null): RuntimeState {
   if (rt.headless) {
     const prev = before.runtime.stage;
-    const wildEnd = signal === 'battle-end' && prev?.phase === 'battle' && prev.battle.kind === 'wild';
+    // 잡은 야생도 셈 (신호가 'catch')
+    const wildEnd = (signal === 'battle-end' || signal === 'catch') && prev?.phase === 'battle' && prev.battle.kind === 'wild';
     if (rt.awayLog && !wildEnd) return rt;
     const log: AwayLog = rt.awayLog ?? { money: before.save.money, bag: { ...before.save.bag }, wild: 0 };
     return { ...rt, awayLog: wildEnd ? { ...log, wild: log.wild + 1 } : log };

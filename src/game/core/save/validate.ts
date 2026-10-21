@@ -6,7 +6,7 @@
  */
 import { BALANCE } from '../balance';
 import {
-  ENCOUNTER_STARTS, ITEM_IDS, LOCATION_SCREENS, SAVE_VERSION, STAGE_IDS, STAT_KEYS, STATUS_KINDS,
+  ENCOUNTER_STARTS, isTipId, ITEM_IDS, LOCATION_SCREENS, SAVE_VERSION, STAGE_IDS, STAT_KEYS, STATUS_KINDS, TIPS_MAX,
   type Encounter, type FacilitySpot, type ItemId, type LastHospital, type Location, type Monster,
   type MoveSlot, type PendingChoice, type Save, type StageId, type StageProgress, type StageRun, type Stats, type StatusCondition,
 } from './schema';
@@ -293,7 +293,7 @@ function readTips(v: unknown, path: string, fx: Fixer): string[] {
     fx.note(path, '배열이 아님 → 비움');
     return [];
   }
-  const out = [...new Set(v.filter((t): t is string => typeof t === 'string' && /^[a-z0-9-]{1,24}$/.test(t)))].slice(0, 20);
+  const out = [...new Set(v.filter(isTipId))].slice(0, TIPS_MAX);
   if (out.length !== v.length) fx.note(path, '이상한 안내 id → 뺌');
   return out;
 }

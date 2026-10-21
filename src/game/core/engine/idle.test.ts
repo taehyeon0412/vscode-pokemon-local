@@ -147,8 +147,11 @@ describe('#72 새 기술 고르기 모아 두기 — 선두가 아닌 포켓몬�
     expect(s.pendingChoices).toEqual([learn('m1', 10), evolve]);
     expect(s.laterChoices).toEqual([learn('m2', 10)]);
     expect(addChoices(save, [learn('m1', 10)]).laterChoices).toBeUndefined();
-    const many = addChoices(save, Array.from({ length: BALANCE.laterChoicesMax + 5 }, () => learn('m2', 10)));
+    const many = addChoices(save, Array.from({ length: BALANCE.laterChoicesMax + 5 }, (_, i) => learn('m2', 100 + i)));
     expect(many.laterChoices).toHaveLength(BALANCE.laterChoicesMax);
+    // 같은 포켓몬 · 같은 기술은 하나만 · 체육관에서는 쌓지 않고 바로 (꺼낼 병원 · 클리어가 없음 — 코드 리뷰어)
+    expect(addChoices(addChoices(save, [learn('m2', 10)]), [learn('m2', 10)]).laterChoices).toEqual([learn('m2', 10)]);
+    expect(addChoices({ ...save, location: { screen: 'gym' } }, [learn('m2', 10)])).toMatchObject({ pendingChoices: [learn('m2', 10)] });
   });
 
   it('꺼낼 때 없는 포켓몬 · 이미 아는 기술은 뺌 · 칸을 지움', () => {
@@ -170,6 +173,9 @@ describe('#72 새 기술 고르기 모아 두기 — 선두가 아닌 포켓몬�
     expect(applyInput(inside, { kind: 'facility-leave' }).save.pendingChoices).toEqual([learn('m2', 10)]);
     const timed = until(front, (x) => x.runtime.stage?.phase !== 'facility', TIMING.facilityPromptMs + 500);
     expect(timed.runtime.stage?.phase).toBe('choice');
+    // 안 볼 때 병원 앞을 시간이 지나 지나가면 꺼내지 않음 (클리어 때 고르기 · 알림)
+    const away = until({ ...front, runtime: { ...front.runtime, headless: true } }, (x) => x.runtime.stage?.phase !== 'facility', 500);
+    expect(away.save.laterChoices).toEqual([learn('m2', 10)]);
     // 상점은 그대로 쌓아 둠
     const shop = applyInput(at(later, { phase: 'facility', kind: 'shop', at: 0.5, ms: 0, inside: false }), { kind: 'facility', enter: false });
     expect(shop.save.laterChoices).toEqual([learn('m2', 10)]);

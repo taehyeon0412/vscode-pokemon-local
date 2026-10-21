@@ -47,17 +47,31 @@ const nameOf = (dex: number) => speciesOf(dex)?.name.ko ?? '???';
 /** 고를 것 더하기 — 선두가 아닌 포켓몬의 새 기술 (S23) 은 바로 멈추지 않고 laterChoices 에 쌓음 (병원 · 클리어 때 한 번에 — 2026-10-21 ideas #72). 진화 (S22) 는 바로 */
 export function addChoices(save: Save, choices: readonly PendingChoice[]): Save {
   const lead = save.party[0];
-  const later = choices.filter((c) => c.kind === 'learn' && c.uid !== lead);
+  // 체육관 (대기실) 에는 병원 지나기 · 클리어가 없어 쌓으면 꺼낼 데가 없음 → 바로 (코드 리뷰어)
+  const stage = save.location.screen === 'stage';
+  const later = choices.filter((c) => stage && c.kind === 'learn' && c.uid !== lead);
   const now = choices.filter((c) => !later.includes(c));
   const next: Save = { ...save, pendingChoices: [...save.pendingChoices, ...now] };
-  return later.length > 0 ? { ...next, laterChoices: [...(save.laterChoices ?? []), ...later].slice(-BALANCE.laterChoicesMax) } : next;
+  return later.length > 0 ? { ...next, laterChoices: uniqueLearn([...(save.laterChoices ?? []), ...later]).slice(-BALANCE.laterChoicesMax) } : next;
+}
+
+/** 같은 포켓몬 · 같은 기술은 하나만 (먼저 쌓인 것) — 두 번째 고르기에서 "…을 잊고 배웠다" 가 헛되이 뜨지 않게 (코드 리뷰어) */
+function uniqueLearn(list: readonly PendingChoice[]): PendingChoice[] {
+  const seen = new Set<string>();
+  return list.filter((c) => {
+    const k = c.kind === 'learn' ? `${c.uid}:${c.moveId}` : '';
+    if (!k) return true;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
 }
 
 /** 쌓아 둔 새 기술 고르기를 지금 고르기로 — 병원 · 클리어 때 (없는 포켓몬 · 이미 아는 기술은 뺌). 칸은 지움 */
 export function takeLaterChoices(save: Save): Save {
   if (save.laterChoices === undefined) return save;
   const { laterChoices, ...rest } = save;
-  const ok = laterChoices.filter((c) => {
+  const ok = uniqueLearn(laterChoices).filter((c) => {
     const m = save.monsters[c.uid];
     return c.kind === 'learn' && !!m && !m.moves.some((x) => x.moveId === c.moveId);
   });

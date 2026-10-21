@@ -68,6 +68,10 @@ export type ItemId = (typeof ITEM_IDS)[number];
 export const STAGE_IDS = ['forest-1', 'forest-2', 'forest-3'] as const;
 export type StageId = (typeof STAGE_IDS)[number];
 
+/** 본 첫 안내 id (save.tips) — 짧은 영문 · 최대 수 (디자인팀 orders #12) */
+export const TIPS_MAX = 20;
+export const isTipId = (id: unknown): id is string => typeof id === 'string' && /^[a-z0-9-]{1,24}$/.test(id);
+
 export interface FacilitySpot {
   kind: 'hospital' | 'shop';
   /** 스테이지 안 자리 (0 = 처음 · 1 = 끝) */

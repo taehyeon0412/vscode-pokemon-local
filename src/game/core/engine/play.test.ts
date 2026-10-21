@@ -289,10 +289,10 @@ describe('길 위의 부탁 (gdd 4.6)', () => {
     }
   });
 
-  it('기다리는 순간 (고르기 전 부탁 · 스테이지 끝) 을 알려 줌 — 안 볼 때 확장이 계산을 멈추게', () => {
+  it('부탁은 기다리지 않음 — 10초 · 안 볼 때 바로 [도와준다] (러너가 부탁 앞에서 멈추면 아무 일도 안 일어남, 2026-10-21 코드 리뷰어)', () => {
     const { state } = nearSpot(start(), 'request');
     const s = until(state, (x) => phase(x) === 'request');
-    expect(isWaitingForInput(s)).toBe(true);
+    expect(isWaitingForInput(s)).toBe(false);
     expect(isWaitingForInput(applyInput(s, { kind: 'request', help: true }))).toBe(false);
     expect(isWaitingForInput(start())).toBe(false);
   });
