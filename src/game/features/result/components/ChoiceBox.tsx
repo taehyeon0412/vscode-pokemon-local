@@ -1,6 +1,6 @@
 /**
  * S23 기술 배우기 · S22 진화 (gdd S22 · S23) — save.pendingChoices 맨 앞을 고를 때까지 기다림.
- *   S23: 바꿀 기술 하나 (숫자 1 ~ 4) · 배우지 않기 (Esc)
+ *   S23: 바꿀 기술 하나 (숫자 1 ~ 4 · 클릭 = 고르기) → 결정 (Enter — 숫자 하나로 기술이 영영 사라지지 않게, ideas #40) · 배우지 않기 (Esc)
  *   S22: 진화 연출 약 4초 (Space 빨리 넘기기 · Esc 멈추기 = 다음 레벨업 때 다시) → 남길 지금 기술 고르기 (숫자로 켜고 끄기) · 결정 (Enter)
  * 임시 디자인 — 단계 12 에서 다시.
  */
@@ -27,9 +27,15 @@ export interface ChoiceBoxProps {
 
 export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
   const [keep, setKeep] = useState<number[]>([]);
+  // S23 — 잊을 기술 (고른 칸 번호, 결정 전)
+  const [forget, setForget] = useState<number | null>(null);
   // 다른 고르기로 넘어가면 고른 것을 비움
   const id = view.kind === 'learn' ? `l${view.monster.uid}${view.move.id}` : `e${view.monster.uid}${view.toName}`;
-  useEffect(() => setKeep([]), [id]);
+  useEffect(() => {
+    setKeep([]);
+    setForget(null);
+  }, [id]);
+  const learn = (replace: number | null) => view.kind === 'learn' && onInput({ kind: 'learn', replace, uid: view.monster.uid, moveId: view.move.id });
 
   const decide = () => {
     if (view.kind !== 'evolve' || view.animating) return;
@@ -41,19 +47,24 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
   };
 
   // 단축키 (듣는 건 한 번만 — 지금 값은 ref)
-  const now = useRef({ view, keep, decide, toggle, onInput });
-  now.current = { view, keep, decide, toggle, onInput };
+  const now = useRef({ view, keep, decide, toggle, onInput, forget, learn });
+  now.current = { view, keep, decide, toggle, onInput, forget, learn };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
       const c = now.current;
       if (c.view.kind === 'learn') {
         if (/^[1-4]$/.test(e.key) && c.view.current[Number(e.key) - 1]) {
+          // 같은 숫자를 다시 누르면 고르기를 풂
           e.preventDefault();
-          c.onInput({ kind: 'learn', replace: Number(e.key) - 1, uid: c.view.monster.uid, moveId: c.view.move.id });
+          const n = Number(e.key) - 1;
+          setForget((f) => (f === n ? null : n));
+        } else if (e.key === 'Enter' && c.forget !== null && !(e.target instanceof HTMLButtonElement)) {
+          e.preventDefault();
+          c.learn(c.forget);
         } else if (e.key === 'Escape') {
           e.preventDefault();
-          c.onInput({ kind: 'learn', replace: null, uid: c.view.monster.uid, moveId: c.view.move.id });
+          c.learn(null);
         }
         return;
       }
@@ -81,23 +92,38 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
 
   if (view.kind === 'learn') {
     return (
-      <div class="pg-banner pg-choice pg-two">
-        {/* 한 줄은 글 하나로 (줄 칸 사이 간격이 글 사이에 끼지 않게) */}
+      <div class="pg-banner pg-choice pg-learn pg-two">
+        {/* 한 줄은 글 하나로 (줄 칸 사이 간격이 글 사이에 끼지 않게) · 좁으면 (600px 아래) "★ 잎날가르기 풀 55 — 잊을 기술을 골라요" 로 (이름 · "배울 수 있어요" 를 뺌 — U4 줄임표 대신) */}
         <span class="pg-line">
           <span class="pg-ellipsis">
-            <span class="pg-up">★</span> {withJosa(view.name, '이/가')} <b title={view.move.detail}>{view.move.name}</b>
+            <span class="pg-up">★</span> <span class="pg-learn-long">{withJosa(view.name, '이/가')} </span>
+            <b title={view.move.detail}>{view.move.name}</b>
             <span class="pg-sub">{view.move.short}</span>
-            {josa(view.move.name, '을/를')} 배울 수 있어요 — 바꿀 기술을 골라요
+            <span class="pg-learn-long">{josa(view.move.name, '을/를')} 배울 수 있어요</span> —{' '}
+            {forget === null ? (
+              <>
+                <span class="pg-learn-long">잊을 기술을 골라요</span>
+                <span class="pg-learn-short">잊을 기술은?</span>
+              </>
+            ) : (
+              <>
+                <b class="pg-forget">{view.current[forget]?.name}</b> 대신<span class="pg-learn-long"> 배울까요</span>?
+              </>
+            )}
           </span>
         </span>
-        <span class="pg-line pg-choice-row">
+        <span class="pg-line pg-choice-row pg-learn-row">
+          {/* 고른 칸 = 금색 테두리 (pg-picked) — 결정 전에는 아무것도 잊지 않음 */}
           {view.current.map((m, i) => (
-            <Button key={m.id} secondary onClick={() => onInput({ kind: 'learn', replace: i, uid: view.monster.uid, moveId: view.move.id })} title={`${m.detail} → ${view.move.name}`}>
+            <Button key={m.id} secondary extraClass={forget === i ? 'pg-picked' : undefined} onClick={() => setForget(forget === i ? null : i)} title={`${m.detail} — 고른 뒤 [결정] 하면 잊고 ${view.move.name} 를 배워요`}>
               {`${i + 1} ${m.name}`}
               <span class="pg-sub">{m.short}</span>
             </Button>
           ))}
-          <Button secondary extraClass="pg-pin" onClick={() => onInput({ kind: 'learn', replace: null, uid: view.monster.uid, moveId: view.move.id })} title="Esc">
+          <Button extraClass="pg-pin" onClick={() => forget !== null && learn(forget)} disabled={forget === null} title={forget === null ? '먼저 잊을 기술을 골라요 (숫자 1 ~ 4)' : 'Enter'}>
+            <KeyCap k="Enter" /> 결정
+          </Button>
+          <Button secondary extraClass="pg-pin" onClick={() => learn(null)} title="Esc">
             배우지 않기
           </Button>
         </span>

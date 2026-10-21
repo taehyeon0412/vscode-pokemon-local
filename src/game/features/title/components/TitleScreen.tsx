@@ -76,6 +76,8 @@ function Summary({ summary }: { summary: TitleSummary }) {
           {summary.lead.name} Lv {summary.lead.level}
         </span>
       )}
+      {/* 어디서 이어 하는지 (ideas #6) — 이름 다음으로 중요 (좁으면 시간 → 돈 → 배지 → 어디서 → 이름 순으로 숨김) */}
+      {summary.where && <span class="pg-sum-where">{summary.where}</span>}
       <span class="pg-sum-badges">배지 {summary.badges}</span>
       <span class="pg-sum-money">{formatMoney(summary.money)}</span>
       <span class="pg-sum-time pg-dim">

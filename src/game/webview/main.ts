@@ -264,13 +264,14 @@ if (!port) {
       e.preventDefault();
       actions.input({ kind: 'result-continue' });
     } else if (stage?.phase === 'facility' && ((e.key === 'Enter' && !onButton) || e.key === 'Escape')) {
-      // 병원 · 상점 앞: Enter = 들어가기 · Esc = 지나가기 / 병원 안: Enter = 회복 (주 버튼 Enter 칸 — 아트 디렉터 4차, 다 나았으면 그대로) · Esc = 나가기
+      // 병원 · 상점 앞: Enter = 들어가기 (병원 앞은 회복하고 가기 — ideas #43, 주 버튼) · Esc = 지나가기 / 병원 안: Enter = 회복 (주 버튼 Enter 칸 — 아트 디렉터 4차, 다 나았으면 그대로) · Esc = 나가기
       e.preventDefault();
       const cur = session.current;
       if (stage.inside) {
         if (e.key === 'Escape') actions.input({ kind: 'facility-leave' });
         else if (cur && canHeal(cur) && !teamHealthy(cur.save)) actions.input({ kind: 'heal' });
-      } else actions.input({ kind: 'facility', enter: e.key === 'Enter' });
+      } else if (e.key === 'Enter' && stage.kind === 'hospital' && cur && !teamHealthy(cur.save)) actions.input({ kind: 'facility-heal' });
+      else actions.input({ kind: 'facility', enter: e.key === 'Enter' });
     } else if (phase === 'lobby' && e.key === 'Enter' && !onButton) {
       // S16 대기실 Enter = 도전 (주 버튼 — 꾹 누름 반복은 위에서 거름)
       e.preventDefault();

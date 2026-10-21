@@ -19,7 +19,11 @@ describe('S02 타이틀 보기', () => {
   it('세이브 있음: 이어 하기 · 새로 하기 확인 · 요약 (한글 이름 · 배지 수)', () => {
     const v = titleView({ save: 'ok', busy: false, summary: { ...summary!, badges: ['forest'] } });
     expect(v).toMatchObject({ canStart: true, canContinue: true, continueHint: null, confirmNew: true, warnings: [] });
-    expect(v.summary).toEqual({ lead: { form: 'bulbasaur', name: '이상해씨', level: 5 }, badges: 1, money: 1000, playTimeMs: 754_000 });
+    expect(v.summary).toEqual({ lead: { form: 'bulbasaur', name: '이상해씨', level: 5 }, badges: 1, money: 1000, playTimeMs: 754_000, where: '' });
+  });
+
+  it('요약 "어디서" — 확장이 보낸 그대로 (ideas #6)', () => {
+    expect(titleView({ save: 'ok', busy: false, summary: { ...summary!, where: '1-1 · 37%' } }).summary?.where).toBe('1-1 · 37%');
   });
 
   it('팀이 비었어도 요약은 보임 · 포켓몬이 하나도 없으면 이어 하기 못 함 (새로 하기만, #351)', () => {

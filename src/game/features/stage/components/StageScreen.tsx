@@ -9,7 +9,8 @@
  */
 import { useRef } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
-import { canOpenMenus, canParry, canRiposte, isWalkingFast, itemLeft, type GameInput, type GameState } from '../../../core/engine';
+import { canOpenMenus, canParry, canRiposte, isWalkingFast, itemLeft, walkLeftMs, type GameInput, type GameState } from '../../../core/engine';
+import { teamHealth } from '../../../core/rules/bag';
 import { spaceInput, ultSkippable } from '../../battle/fx/parry';
 import { BALLS } from '../../../core/rules/catch';
 import { bestHelper, requestAt } from '../../../core/rules/request';
@@ -263,12 +264,15 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   // 좁으면 볼 칸을 정보줄 밖으로 — 지도 줄이 있으면 그 줄 맨 앞 (숲 위로 내리면 지도 줄 이름과 겹침 — 아트 디렉터 7차), 없으면 숲 왼쪽 위
   const ballsOut = widthPx < ballsFieldPx(ballCounts.filter((c) => c.id === 'poke-ball' || c.n > 0).length);
   const ballsInField = ballsOut && !mapRow;
+  // 팀이 위험할 때만 (HP 절반 아래 · 쓰러짐) 지도 옆 빨간 칸 (#47)
+  const health = teamHealth(save);
+  const teamDanger = health.danger ? health : null;
   const where = gym ? (
     <span class="pg-stage-name">
       <Icon name="gym" /> 숲 체육관 {save.badges.includes('forest') && <Icon name="badge" title="숲 배지" />}
     </span>
   ) : info && map ? (
-    <Minimap stage={info} progress={map.progress} facilities={map.facilities} gym={map.gym} />
+    <Minimap stage={info} progress={map.progress} facilities={map.facilities} gym={map.gym} leftMs={walkLeftMs(save)} team={teamDanger} />
   ) : (
     <span>
       <Icon name="tree" /> 숲

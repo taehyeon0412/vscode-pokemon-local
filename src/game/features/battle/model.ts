@@ -3,7 +3,7 @@
  */
 import { BALANCE, TIMING } from '../../core/balance';
 import type { BattleAction, BattlePopup, BattleState, Side } from '../../core/engine';
-import { canAct, canParry, catchTimeline, catchTriesUsed, counterOpen, faintedTeam, itemLeft, switchable, ultCounterOpen } from '../../core/engine';
+import { canAct, canParry, catchTimeline, catchTriesUsed, counterOpen, faintedTeam, itemLeft, moveEffect, switchable, ultCounterOpen } from '../../core/engine';
 import { isShooting } from '../../core/rules/battle';
 import { maxHpOf } from '../../core/rules/bag';
 import { BALLS, catchChance, isBall } from '../../core/rules/catch';
@@ -26,6 +26,8 @@ export interface MenuItem {
   sub?: string;
   /** 옆 메뉴 (좁은 세로 목록) 에서 쓰는 짧은 작은 글 — 없으면 sub (기술은 남은 PP 만, 전체는 title) */
   subShort?: string;
+  /** 기술 상성 (ideas #24) — 지금 상대에게 효과가 굉장함 ▲ · 별로 ▼ · 없음 ✕ (보통 · 변화 기술은 없음) */
+  mark?: 'up' | 'down' | 'none';
   /** 누르면 — 페이지를 바꾸거나 행동 */
   go: { page: MenuPage } | { action: BattleAction } | { back: true };
   enabled: boolean;
@@ -65,6 +67,8 @@ export function menuItems(b: BattleState, save: Save, page: MenuPage, compact: b
       return [
         ...b.me.moves.map((s, i): MenuItem => {
           const mv = moveOf(s.moveId);
+          const eff = moveEffect(b, s.moveId);
+          const mark = eff === null ? undefined : eff === 0 ? 'none' : eff >= 2 ? 'up' : eff < 1 ? 'down' : undefined;
           return {
             key: `m${s.moveId}`,
             num: i + 1,
@@ -74,7 +78,8 @@ export function menuItems(b: BattleState, save: Save, page: MenuPage, compact: b
             subShort: `PP ${s.pp}`,
             go: { action: { kind: 'move', moveId: s.moveId } },
             enabled: canAct(b, save, { kind: 'move', moveId: s.moveId }),
-            title: mv ? `${mv.name.ko} · PP ${s.pp}/${mv.pp} · ${mv.power > 0 ? `위력 ${mv.power}` : '변화'} · ${typeNameKo(mv.type)}${isShooting(mv) ? ' · 쏘는 기술' : ''}${mv.streak ? ' · 연달아 쓰면 +10%' : ''}` : undefined,
+            mark,
+            title: mv ? `${mv.name.ko} · PP ${s.pp}/${mv.pp} · ${mv.power > 0 ? `위력 ${mv.power}` : '변화'} · ${typeNameKo(mv.type)}${isShooting(mv) ? ' · 쏘는 기술' : ''}${mv.streak ? ' · 연달아 쓰면 +10%' : ''}${mark && eff !== null ? ` · ${mark === 'up' ? '효과가 굉장함' : mark === 'down' ? '효과가 별로' : '효과가 없음'} ×${eff}` : ''}` : undefined,
           };
         }),
         back,

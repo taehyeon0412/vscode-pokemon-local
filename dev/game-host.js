@@ -79,7 +79,7 @@
     const info = {
         save: saveKind,
         busy: q.get('busy') === '1',
-        summary: saveKind === 'ok' ? { playTimeMs: save.playTimeMs, money: save.money, badges: save.badges, lead: { form: 'bulbasaur', species: 1, level: 5 } } : null,
+        summary: saveKind === 'ok' ? { playTimeMs: save.playTimeMs, money: save.money, badges: save.badges, lead: { form: 'bulbasaur', species: 1, level: 5 }, where: '1-1 · 37%' } : null,
     };
     if (q.get('notice')) info.notice = q.get('notice');
 

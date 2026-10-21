@@ -11,6 +11,8 @@ export interface TitleSummary {
   badges: number;
   money: number;
   playTimeMs: number;
+  /** 어디서 — "1-1 · 37%" · "전투 중" · "체육관" (ideas #6, 옛 확장이 안 보내면 빈 글) */
+  where: string;
 }
 
 export interface TitleView {
@@ -65,6 +67,7 @@ export function titleView(info: TitleInfo): TitleView {
           badges: s.badges.length,
           money: s.money,
           playTimeMs: s.playTimeMs,
+          where: s.where ?? '',
         }
       : null,
     warnings,

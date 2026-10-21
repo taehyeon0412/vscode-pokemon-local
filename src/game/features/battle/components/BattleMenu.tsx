@@ -6,14 +6,15 @@
 import type { ComponentChildren } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { maxHpOf } from '../../../core/rules/bag';
-import { canUlt, catchTriesUsed, counterOpen, itemLeft, lastChanceLimitMs, switchable, ultCounterOpen, type BattleState, type GameInput } from '../../../core/engine';
+import { canAct, canUlt, catchTriesUsed, counterOpen, itemLeft, lastChanceLimitMs, switchable, ultCounterOpen, type BattleState, type GameInput } from '../../../core/engine';
 import { BALLS, type BallId } from '../../../core/rules/catch';
 import { itemName } from '../../../core/rules/items';
 import type { Save } from '../../../core/save';
-import { speciesOf } from '../../../data';
+import { moveOf, speciesOf } from '../../../data';
 import { Button } from '../../../ui/Button';
 import { BALL_ICON } from '../../../ui/BallCount';
 import { Icon } from '../../../ui/Icon';
+import { KeyCap } from '../../../ui/KeyCap';
 import { catchTone, catchView, menuItems, TONE_WORD, type MenuItem, type MenuPage } from '../model';
 
 export interface BattleMenuProps {
@@ -46,12 +47,15 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
   // 볼을 놓친 뒤 다음 차례는 커서를 "4 아이템" (볼이 있는 줄) 에 — 바로 Enter 로 다시 던지게 (ideas #131, 2026-10-21). 지난 차례의 볼 수를 기억해 비교
   // 그리기 전에 옮김 (useEffect 면 "▸1 공격" 이 한 장면 보였다가 아이템으로 튐 — UX 리뷰어)
   const triesSeen = useRef(catchTriesUsed(b));
+  // 커서를 ↑ ↓ 로 옮겼는지 — 안 옮겼으면 Enter = 지난번 행동 다시 (ideas #22), 옮겼으면 그 줄 (볼을 놓친 차례는 처음부터 커서)
+  const [moved, setMoved] = useState(false);
   useLayoutEffect(() => {
     const tries = catchTriesUsed(b);
     const missed = page === 'main' && b.phase === 'choose' && tries > triesSeen.current;
     if (b.phase === 'choose') triesSeen.current = tries;
     const itemsAt = items.findIndex((i) => i.key === 'items' && i.enabled);
     setCursor(missed && itemsAt >= 0 ? itemsAt : 0);
+    setMoved(missed);
   }, [page, b.phase]);
   const enabledIdx = items.map((it, k) => (it.enabled ? k : -1)).filter((k) => k >= 0);
   const onIdx = enabledIdx.includes(cursor) ? cursor : (enabledIdx[0] ?? -1);
@@ -60,6 +64,14 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
   const counter = counterOpen(b);
   const picking = b.phase === 'pick';
   const team = picking ? switchable(b, save) : [];
+  // Enter 다시 (ideas #22) — 처음 메뉴 · 내 차례 · 커서를 안 옮김 · 지난번 공격 · 기술 · 막기를 지금 할 수 있을 때. 아주 좁은 메뉴 (두 글자) 는 자리가 없어 커서 그대로
+  const last = b.lastMe;
+  const lastName = !last ? null : last.kind === 'attack' ? '공격' : last.kind === 'guard' ? '방어' : last.kind === 'move' ? (moveOf(last.moveId)?.name.ko ?? null) : null;
+  const repeatOn = compact !== 'tiny' && page === 'main' && b.phase === 'choose' && !moved && lastName !== null && !!last && canAct(b, save, last);
+  // 미리 누른 것 (ideas #31 — 게이지가 차기 0.5초 전에 누르면 차자마자) = 눌린 칸으로
+  const queued = b.queued ?? null;
+  const isQueued = (i: MenuItem) =>
+    queued !== null && (('action' in i.go && i.go.action.kind === queued.kind && (queued.kind !== 'move' || (i.go.action.kind === 'move' && i.go.action.moveId === queued.moveId))) || (i.key === 'skills' && queued.kind === 'move'));
 
   const choose = (i: MenuItem) => {
     if (!i.enabled) return;
@@ -74,8 +86,8 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
 
   // 단축키: 숫자 = 메뉴 · 다음 포켓몬 · Z = 필살기 · ← / Esc / Backspace = 뒤로 (Space 는 main.ts — 맞받아치기 · 연타)
   // 듣는 건 한 번만 달고, 지금 값은 ref 로 (초당 30번 다시 그려도 다시 달지 않게)
-  const now = useRef({ b, items, page, team, choose, pick, onInput, balls: [] as readonly BallId[], onIdx, enabledIdx, cursor });
-  now.current = { b, items, page, team, choose, pick, onInput, balls: BALLS.filter((ball) => itemLeft(b, save, ball) > 0), onIdx, enabledIdx, cursor };
+  const now = useRef({ b, items, page, team, choose, pick, onInput, balls: [] as readonly BallId[], onIdx, enabledIdx, cursor, repeatOn });
+  now.current = { b, items, page, team, choose, pick, onInput, balls: BALLS.filter((ball) => itemLeft(b, save, ball) > 0), onIdx, enabledIdx, cursor, repeatOn };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -121,6 +133,26 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
         }
         return;
       }
+      if (c.b.phase === 'run') {
+        // 미리 누르기 (ideas #31) — 게이지가 차는 동안 1 공격 · 2 방어 · 기술 숫자 · Enter (다시) 를 보냄, 엔진이 0.5초 안이면 기억했다가 차자마자 (너무 이르면 그냥 무시) · 3 = 기술 줄을 미리 엶
+        if (/^[1-9]$/.test(e.key)) {
+          const it = c.items.find((x) => x.num === Number(e.key));
+          if (it && 'action' in it.go && (it.go.action.kind === 'attack' || it.go.action.kind === 'guard' || it.go.action.kind === 'move')) {
+            e.preventDefault();
+            c.onInput({ kind: 'battle', input: { kind: 'act', action: it.go.action } });
+          } else if (it && 'page' in it.go && it.go.page === 'skills') {
+            e.preventDefault();
+            setPage('skills');
+          }
+        } else if (e.key === 'Enter' && !(e.target instanceof HTMLButtonElement) && c.page === 'main' && c.b.lastMe) {
+          e.preventDefault();
+          c.onInput({ kind: 'battle', input: { kind: 'repeat' } });
+        } else if ((e.key === 'ArrowLeft' || e.key === 'Escape' || e.key === 'Backspace') && c.page !== 'main') {
+          e.preventDefault();
+          setPage(backOf(c.page));
+        }
+        return;
+      }
       if (c.b.phase !== 'choose') return;
       if (e.key === 'ArrowLeft' || e.key === 'Escape' || e.key === 'Backspace') {
         if (c.page !== 'main') {
@@ -133,12 +165,21 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
         const list = c.enabledIdx;
         if (list.length === 0) return;
         e.preventDefault();
-        const at = Math.max(0, list.indexOf(c.onIdx));
-        setCursor(list[(at + (e.key === 'ArrowDown' ? 1 : list.length - 1)) % list.length]!);
+        // 처음 ↓ 는 커서를 보이기만 (Enter 다시 칸이 사라지고 지금 줄에 ▸)
+        if (c.repeatOn) setMoved(true);
+        else {
+          const at = Math.max(0, list.indexOf(c.onIdx));
+          setCursor(list[(at + (e.key === 'ArrowDown' ? 1 : list.length - 1)) % list.length]!);
+        }
         return;
       }
       // 버튼에 포커스가 있으면 Enter 는 그 버튼이 받음 (두 번 고르지 않게)
       if (e.key === 'Enter' && !(e.target instanceof HTMLButtonElement)) {
+        if (c.repeatOn) {
+          e.preventDefault();
+          c.onInput({ kind: 'battle', input: { kind: 'repeat' } });
+          return;
+        }
         const it = c.items[c.onIdx];
         if (it) {
           e.preventDefault();
@@ -160,11 +201,26 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
 
   const renderItems = (list: MenuItem[]) =>
     list.map((i, k) => (
-      <Button key={i.key} extraClass={b.phase === 'choose' && list === items && k === onIdx ? 'pg-on' : undefined} onClick={() => choose(i)} disabled={!i.enabled} secondary={'back' in i.go} title={i.title}>
+      <Button
+        key={i.key}
+        extraClass={isQueued(i) ? 'pg-queued' : b.phase === 'choose' && list === items && k === onIdx && !repeatOn ? 'pg-on' : undefined}
+        onClick={() => choose(i)}
+        disabled={!i.enabled && !isQueued(i)}
+        secondary={'back' in i.go}
+        title={isQueued(i) ? `${i.title ?? i.label} — 미리 눌렀어요 (게이지가 차면 바로)` : i.title}
+      >
         {i.label}
+        {/* 기술 상성 (ideas #24) — 효과가 굉장함 ▲ · 별로 ▼ · 없음 ✕ (색 + 모양) */}
+        {i.mark && <span class={`pg-eff pg-eff-${i.mark}`}>{i.mark === 'up' ? '▲' : i.mark === 'down' ? '▼' : '✕'}</span>}
         {(vertical ? (i.subShort ?? i.sub) : i.sub) && <span class="pg-sub">{vertical ? (i.subShort ?? i.sub) : i.sub}</span>}
       </Button>
     ));
+  // Enter 다시 칸 (ideas #22) — 좁은 메뉴는 "Enter 다시" 만 (무엇인지는 올리면)
+  const repeatChip = repeatOn ? (
+    <span class="pg-repeat" title={`Enter — 지난번 ${lastName} 다시 · ↑ ↓ 로 다른 것 고르기`}>
+      <KeyCap k="Enter" /> 다시{compact ? null : <span class="pg-repeat-what"> · {lastName}</span>}
+    </span>
+  ) : null;
   // 포커스가 없으면 Space 는 편집기로 감 → 클릭 안내 (선제공격과 같은 규칙)
   const key = document.hasFocus() ? '(Space)' : '(클릭!)';
 
@@ -308,10 +364,13 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
     </button>
   );
 
+  // 자동 전투면 메뉴 줄을 접고 필살기 Z (+ 자동 버튼) 만 (ideas #25 — 맡겨 둔 동안 고를 칸이 줄줄이 보이지 않게) · 볼 · 마지막 기회 · 막기 같은 줄은 그대로
+  const collapse = save.settings.autoBattle === true && onMain;
+
   // 옆 메뉴 (Sea of Stars): 판 위로 튀어나온 탭 줄 = 금색 이름표 (왼쪽) · 필살기 게이지 + Z (오른쪽), 그 아래 판에 세로 목록 (5줄 넘으면 옆 칸).
   // 고를 수 없는 동안 (상대 차례 · 연출 · 힘대결 · 끝) 은 판을 접고 탭 줄만 — 싸우는 그림을 가리지 않게 (아트 디렉터)
   if (vertical) {
-    const open = b.phase === 'choose' || row !== null;
+    const open = !collapse && (b.phase === 'choose' || row !== null);
     return (
       <div class={`pg-vmenu${b.phase === 'choose' ? ' pg-my-turn' : ''}`}>
         <div class="pg-vmenu-tabs">
@@ -323,6 +382,7 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
           <div class="pg-vmenu-box">
             {lead && <div class="pg-vmenu-lead">{lead}</div>}
             {open && stack}
+            {open && repeatChip && <div class="pg-vmenu-repeat">{repeatChip}</div>}
           </div>
         )}
       </div>
@@ -333,7 +393,8 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
     <span class={`pg-bmenu${b.phase === 'choose' ? ' pg-my-turn' : ''}${compact ? ' pg-compact' : ''}`}>
       {/* 좁은 패널에서 기술 · 아이템을 고르는 동안은 앞 버튼 (자동 전투) 을 빼서 이름 자리를 넓힘 */}
       {compact && page !== 'main' ? null : lead}
-      {stack}
+      {collapse ? null : stack}
+      {collapse ? null : repeatChip}
       {ultBadge}
     </span>
   );

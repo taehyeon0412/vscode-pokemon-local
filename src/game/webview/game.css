@@ -1180,6 +1180,108 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
     display: none;
   }
 }
+/* 편의 묶음 2 (orders #16, 2026-10-21) — 남은 분 · 위험할 때만 팀 HP · 대기실 관장 힌트 · 타이틀 "어디서" */
+.pg-mapleft,
+.pg-team-hp {
+  flex: none;
+  font-size: 11px;
+}
+/* 남은 분은 넓은 지도 줄 · 넓은 정보줄 (700px 넘게) 에서만 — 좁으면 막대에 올리면 */
+.pg-mapleft {
+  display: none;
+}
+.pg-maprow .pg-mapleft {
+  display: inline;
+}
+@media (min-width: 700px) {
+  .pg-infobar .pg-mapleft {
+    display: inline;
+  }
+}
+.pg-team-hp {
+  font-weight: 700;
+  color: var(--pg-sos-red);
+}
+@media (max-width: 480px) {
+  .pg-infobar .pg-team-down {
+    display: none;
+  }
+}
+/* 아주 좁은 정보줄 — 위험하면 🌲 · 진행 % 대신 "HP 38%" 만 (자리가 37px 뿐) */
+@media (max-width: 360px) {
+  .pg-infobar .pg-team-word {
+    display: none;
+  }
+}
+@media (max-width: 300px) {
+  .pg-infobar .pg-minimap:has(.pg-team-hp) :is(.pg-stage-name, .pg-mappct) {
+    display: none;
+  }
+}
+.pg-lobby-hint {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 11px;
+  color: var(--pg-sos-dim);
+  white-space: nowrap;
+}
+.pg-lobby-good {
+  color: var(--pg-sos-hp);
+}
+@media (max-width: 700px) {
+  .pg-lobby-hint {
+    display: none;
+  }
+}
+@media (max-width: 360px) {
+  .pg-sum-where {
+    display: none;
+  }
+}
+/* 기술 버튼 상성 (ideas #24) — 효과가 굉장함 ▲ 초록 · 별로 ▼ 흐림 · 없음 ✕ 빨강 (색 + 모양, 원칙 7) */
+.pg-eff {
+  flex: none;
+  margin-left: 3px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.pg-eff-up {
+  color: var(--pg-sos-hp);
+}
+.pg-eff-down {
+  color: var(--pg-sos-dim);
+}
+.pg-eff-none {
+  color: var(--pg-sos-red);
+}
+/* Enter 다시 (ideas #22) — 메뉴 줄 끝 흐린 칸 "[Enter] 다시 · 덩굴채찍" · 옆 메뉴는 목록 아래 한 줄 */
+.pg-repeat {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--pg-sos-dim);
+  white-space: nowrap;
+}
+.pg-repeat .pg-repeat-what {
+  color: var(--pg-sos-ink);
+}
+.pg-vmenu-repeat {
+  padding: 2px 6px 0 10px;
+}
+/* 미리 누른 칸 (ideas #31) — 금색 글 + 금색 1px 안 테두리 (흐린 칸 위에서도 눌린 것이 보이게) */
+.pg-button.pg-queued,
+.pg-button.pg-queued:disabled {
+  color: var(--pg-sos-gold);
+  opacity: 1;
+  box-shadow: inset 0 0 0 1px var(--pg-sos-gold);
+}
+/* S23 잊을 기술 이름 = 빨강 (결정하면 사라짐) */
+.pg-forget {
+  color: var(--pg-sos-red);
+}
 /* 아주 좁은 부탁 상자 (260px 아래) — "성공" 을 빼고 "30%" 만 */
 @media (max-width: 259px) {
   .pg-request .pg-helper-word {
@@ -2010,12 +2112,13 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   content: "";
   position: absolute;
   left: 50%;
-  bottom: -5px;
+  bottom: -6px;
   width: 32px;
   height: 4px;
   transform: translateX(-50%);
   background: rgba(0, 0, 0, 0.5);
-  clip-path: polygon(4px 0, calc(100% - 4px) 0, 100% 50%, calc(100% - 4px) 100%, 4px 100%, 0 50%);
+  /* 2px 계단 (위 2줄 넓게 · 아래 2줄 좁게) — 대각선 끝이 섞이고 볼 격자와 1px 어긋나던 것 (픽셀 검사원) */
+  clip-path: polygon(0 0, 100% 0, 100% 2px, calc(100% - 4px) 2px, calc(100% - 4px) 100%, 4px 100%, 4px 2px, 0 2px);
 }
 @keyframes pg-catch-flyin {
   0% { translate: var(--pg-fx1, 0) var(--pg-fy1, 0); }
@@ -2135,10 +2238,14 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 .pg-ring-c.pg-ring-none {
   stroke: var(--pg-sos-dim);
 }
-/* 메뉴 줄 잡기 원 안내 끝 "잡기 어려움" — 원과 같은 색 */
+/* 메뉴 줄 잡기 원 안내 끝 "잡기 어려움" — 원과 같은 색 · 옆 메뉴는 윗줄 버튼 글과 같은 왼쪽 여백 (판 테두리에 0px 로 붙던 것 — 픽셀 검사원) */
 .pg-catch-tone {
   flex: none;
   font-weight: 700;
+}
+.pg-vmenu .pg-catch-tone {
+  padding: 0 6px 0 10px;
+  line-height: 13px;
 }
 .pg-catch-tone-easy {
   color: var(--pg-sos-hp);
@@ -2387,10 +2494,14 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   flex: none;
   max-width: none;
 }
-/* 볼 그림 16px 가 12px 줄 위아래 막대에 1px 씩 가려지던 것 — 막대 위 층 */
+/* 볼 그림 16px — 12px 줄이면 위아래 막대를 1px 씩 덮어서 (픽셀 검사원) 표시가 있으면 줄 14px + 위 필살기 막대 (2px + 사이 1) 를 뺌 (쓰러진 상대라 필요 없음 · 묶음 높이는 1px 줄어 위 메뉴와 붙지 않음) */
+.pg-hprow:has(.pg-last-dex) {
+  height: 14px;
+}
+.pg-hpblock-foe:has(.pg-last-new, .pg-last-dex) > .pg-bar-ult {
+  display: none;
+}
 .pg-last-dex {
-  position: relative;
-  z-index: 1;
   display: inline-block;
   vertical-align: -3px;
   line-height: 0;
@@ -2433,6 +2544,27 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 @media (max-width: 420px) {
   .pg-choice-row .pg-sub {
     display: none;
+  }
+}
+.pg-learn-short {
+  display: none;
+}
+/* S23 두 단계 (ideas #40) — 좁으면 (600px 아래) 기술 넷 = 2칸 2줄 · [결정] [배우지 않기] = 그 아래 한 줄 (한 줄에 여섯 칸이면 "1 몸통…" 으로 잘리던 것 — U4) · 첫 줄은 짧은 글 */
+@media (max-width: 600px) {
+  .pg-banner .pg-choice-row.pg-learn-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+  }
+  /* 줄 가운데 맞춤 margin (첫 칸 auto) 이 그리드 칸을 줄여 첫 버튼만 왼쪽 끝이 어긋나던 것 */
+  .pg-banner .pg-choice-row.pg-learn-row > .pg-button {
+    margin: 0;
+  }
+  .pg-learn-long {
+    display: none;
+  }
+  .pg-learn-short {
+    display: inline;
   }
 }
 
@@ -3642,6 +3774,12 @@ body.vscode-high-contrast-light .pg-title-body {
   align-items: center;
   gap: 2px;
 }
+/* 위 inline-flex 가 좁은 패널 숨김 (400px 아래 배지) 을 덮어 300 에서 가장 덜 중요한 "배지 0" 만 남던 것 */
+@media (max-width: 400px) {
+  .pg-summary .pg-sum-badges {
+    display: none;
+  }
+}
 /* 칩 · 버튼 안 포켓몬 그림 = 원본 ×1 을 창으로 잘라 보임 (ui/Sprite crop) */
 .pg-sprite-crop {
   position: relative;
@@ -4445,7 +4583,8 @@ body.vscode-high-contrast-light .pg-title-body {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-@media (max-width: 420px) {
+/* 1칸 = 470px 아래 (2칸 칸 폭이 약 220px 아래면 거의 다 두 줄이 되어 421 에서 굴리는 양이 2.3배였음 — UX 리뷰어 2026-10-21) */
+@media (max-width: 470px) {
   .pg-shop-grid {
     grid-template-columns: minmax(0, 1fr);
   }

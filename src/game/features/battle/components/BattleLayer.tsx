@@ -299,8 +299,9 @@ function CatchRing({ id, x, y, size, ms, tone, meRight }: { id: string; x: numbe
   return <TimingRing id={id} x={x} y={y} size={size} ringMs={TIMING.catchRingMs} lateMs={BALANCE.catchGoodMs} delay={-ms0} auto={false} label="던지기" tone={tone} keyAt={keyAt - CATCH_KEY_EST_PX >= meRight ? keyAt : null} />;
 }
 
-/** 딸깍 — 볼 둘레로 튀는 금색 별 (2px 점 + 십자, 4 걸음) — 창 안 볼 (48px) 기준 px · 8 의 배수 (4 걸음의 한 걸음이 2px 격자에 맞게 — 28 이면 7 · 21px 홀수 자리였음, 픽셀 검사원) */
-const CATCH_STARS: [number, number][] = [[-32, -24], [32, -24], [-40, 8], [40, 8], [-16, -40], [16, -40]];
+/** 딸깍 — 볼 둘레로 튀는 금색 별 (2px 점 + 십자, 4 걸음) — 창 안 볼 (48px) 기준 px · 8 의 배수 (4 걸음의 한 걸음이 2px 격자에 맞게 — 28 이면 7 · 21px 홀수 자리였음, 픽셀 검사원) ·
+ *  위로는 −24 까지 (−40 이면 마지막 걸음에 금색 이름표 · 위 테두리 위에 놓여 별이 사라져 보였음) */
+const CATCH_STARS: [number, number][] = [[-32, -24], [32, -24], [-40, 8], [40, 8], [-16, -24], [16, -24]];
 /** 흔들기 창 (2026-10-20 태현 님 B 집중 창 · 아트 디렉터 8차) — 104 × 108 고정 · 안 볼 = 24 × 24 ballBig 점 2 (48px, 창이 UI 라 ×3 패널에서도 그대로) ·
  *  볼 가운데 = 창 위에서 42px (위 여백 18 + 볼 반) — 땅의 볼이 날아 들어오는 거리 계산에 씀 */
 const CATCH_WIN_W = 104;

@@ -190,7 +190,7 @@ export interface ShopRow {
 const SHOP_EFFECT: Record<ShopItem, string> = {
   'poke-ball': '잡기 보통',
   'great-ball': `잘 잡힘 ×${BALANCE.ballScale['great-ball']}`,
-  'ultra-ball': `아주 잘 잡힘 ×${BALANCE.ballScale['ultra-ball']}`,
+  'ultra-ball': `잘 잡힘 ×${BALANCE.ballScale['ultra-ball']}`,
   potion: `HP ${BALANCE.potionHeal} 회복`,
   'super-potion': `HP ${BALANCE.superPotionHeal} 회복`,
   'full-heal': '상태 회복',

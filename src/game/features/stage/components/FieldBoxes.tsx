@@ -8,9 +8,10 @@ import { useRef } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
 import { canHeal, type GameInput, type GameState } from '../../../core/engine';
 import { defeatWaits } from '../../../core/engine/play';
-import { teamHealthy } from '../../../core/rules/bag';
+import { teamHealth, teamHealthy } from '../../../core/rules/bag';
 import { FACILITY_STAFF } from '../../../core/rules/stage';
-import { GYM_LEADER } from '../../../core/rules/trainer';
+import { GYM_LEADER, gymHint } from '../../../core/rules/trainer';
+import { speciesOf } from '../../../data';
 import type { StageId } from '../../../core/save';
 import { Button } from '../../../ui/Button';
 import { Face } from '../../../ui/Face';
@@ -34,13 +35,17 @@ export function FacilityBox({ state, media, onInput, onBox }: BoxProps & { onBox
   const hospital = st.kind === 'hospital';
   if (!st.inside) {
     const left = Math.max(1, Math.ceil((TIMING.facilityPromptMs - st.ms) / 1000));
+    // 병원 앞 = 팀 상태 (ideas #42 — 다 건강하면 엔진이 멈추지 않고 지나감) · 주 버튼 [회복하고 가기] 한 번에 (#43) · 들어가기 (보관함) 는 작게
+    const team = hospital ? teamHealth(state.save) : null;
     return (
       <div class="pg-banner pg-facility-box">
         <span class="pg-ellipsis">
           {/* 상점 앞 = 내 돈 (다음 버전 1단계 #119 — 들어가기 전에 살 수 있는지) */}
           <Icon name={hospital ? 'hospital' : 'shop'} /> <b>{hospital ? '병원' : '상점'}</b>{' '}
-          {hospital ? (
-            <span class="pg-dim">회복 · 보관함</span>
+          {team ? (
+            <span class={team.danger ? 'pg-team-hp' : 'pg-dim'} title="팀 HP 합 · 쓰러진 포켓몬">
+              팀 HP {team.hpPct}%{team.fainted > 0 && ` · 쓰러짐 ${team.fainted}`}
+            </span>
           ) : (
             <span class="pg-money" title="내 돈">
               <span class="pg-dim">내 돈 </span>
@@ -48,9 +53,22 @@ export function FacilityBox({ state, media, onInput, onBox }: BoxProps & { onBox
             </span>
           )}
         </span>
-        <Button onClick={() => onInput({ kind: 'facility', enter: true })} title="Enter">
-          <KeyCap k="Enter" /> 들어가기
-        </Button>
+        {hospital ? (
+          <>
+            <Button onClick={() => onInput({ kind: 'facility-heal' })} title="다 회복하고 그대로 걸어가요 (Enter)">
+              <KeyCap k="Enter" /> 회복하고 가기
+            </Button>
+            {/* 좁으면 보관함 그림만 (올리면 이름) — 병원 안 = 보관함 · 팀 바꾸기 */}
+            <Button secondary onClick={() => onInput({ kind: 'facility', enter: true })} title="들어가기 — 보관함 · 팀 바꾸기">
+              <Icon name="box" />
+              <span class="pg-long"> 들어가기</span>
+            </Button>
+          </>
+        ) : (
+          <Button onClick={() => onInput({ kind: 'facility', enter: true })} title="Enter">
+            <KeyCap k="Enter" /> 들어가기
+          </Button>
+        )}
         <Button secondary onClick={() => onInput({ kind: 'facility', enter: false })} title={`Esc · ${left}초 뒤 지나감`}>
           <KeyCap k="Esc" /> 지나가기 <span class="pg-sub">{left}초</span>
         </Button>
@@ -232,13 +250,20 @@ export function LobbyBox({ state, media, onInput, onBox, onShop, onMap }: BoxPro
   if (state.runtime.stage?.phase !== 'lobby') return null;
   const v = lobbyView(state.save);
   const healthy = teamHealthy(state.save);
+  // 관장 힌트 (ideas #44) — 쓰는 타입 + 상성 좋은 내 포켓몬 (팀 · 보관함, 선두부터). 넓으면 첫 줄 끝, 좁으면 관장 이름에 올리면
+  const hint = gymHint(state.save);
+  const goodNames = hint.good.map((uid) => {
+    const m = state.save.monsters[uid];
+    return m ? (speciesOf(m.species)?.name.ko ?? m.form) : '';
+  });
+  const hintTitle = `${hint.text}${goodNames.length ? ` — 상성 좋은 내 포켓몬: ${goodNames.join(' · ')}` : ''}`;
   return (
     <div class="pg-banner pg-lobby pg-two">
       <span class="pg-line">
         {/* 관장 얼굴 + 이름 ("숲 체육관" 은 지도 줄 이름표에 이미 — 두 번 나오던 것, 아트 디렉터 5차) */}
         <Face media={media} id={GYM_LEADER.look} />
         {/* 좁은 패널 (330px 아래) 은 얼굴 · "관장" 을 빼고 "나래" 만 — "관…" 으로 줄던 것 (U4 줄임표 금지). 바닥 이름표는 낮은 패널에서 상자에 깔려서 이름은 여기 남김 (UX 리뷰어 2026-10-21) */}
-        <b class="pg-ellipsis">
+        <b class="pg-ellipsis" title={hintTitle}>
           <span class="pg-lobby-pre">{GYM_LEADER.name.split(' ')[0]} </span>
           {GYM_LEADER.name.split(' ').slice(1).join(' ')}
         </b>
@@ -248,6 +273,10 @@ export function LobbyBox({ state, media, onInput, onBox, onShop, onMap }: BoxPro
           추천 Lv {v.recommended} · <span class={v.short ? 'pg-lv-short' : 'pg-dim'}>내 팀 Lv {Math.floor(v.average)}{v.short ? ' ▼' : ''}</span>
         </span>
         {state.save.badges.includes('forest') && <Icon name="badge" title="숲 배지" />}
+        <span class="pg-lobby-hint" title={hintTitle}>
+          {hint.text.replace(/^\S+ \S+ /, '').replace(' 포켓몬을 써요', ' 타입')}
+          {goodNames.length > 0 && <span class="pg-lobby-good"> · 상성 좋음 {goodNames.length > 1 ? `${goodNames[0]} 외 ${goodNames.length - 1}` : goodNames[0]}</span>}
+        </span>
       </span>
       <span class="pg-line">
         <Button secondary onClick={() => onInput({ kind: 'heal' })} disabled={healthy} title={healthy ? '이미 다 건강해요' : '⑤ 병원 — 무료로 다 회복'}>
