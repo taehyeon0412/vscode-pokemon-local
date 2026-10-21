@@ -891,14 +891,15 @@ export function step(state: GameState, stepMs: number): StepOut {
   if (save.settings.autoBattle && rt.toast?.kind === 'auto-tip') rt = { ...rt, toast: null };
   rt = awayStep(state, save, rt, signal);
   // 멈춤 · 알림 (gdd 4.13 · U6) — 밖 · 숨김에서 기다리는 이유가 생겼는데 아직 안 알렸으면 한 번 (장면마다 따로 알리던 것을 한곳에서 — 이로치 전투 중에 떠남 · 밖 고르기 · 대기실로 돌아옴 등 빠진 곳 없이).
-  // 보는 중이면 지움 (다시 떠나면 다시 알림) · 기다림이 풀리면 지움 (다음 기다림을 알리게)
+  // 같은 기다림은 한 번 — 보고 다시 떠나도 다시 안 알림 (탭을 오갈 때마다 쌓이던 것 — 2026-10-21 태현 님 "추천안"), 기다림이 바뀌거나 풀리면 지움 (다음 기다림을 알리게).
+  // paused (자동 꺼짐 멈춤 — 확장이 넘겨받을 때) 는 다시 보면 지움
   let told: GameNotice | null = null;
   const watching = !rt.headless && !rt.away;
-  const reason = watching ? null : waitReason({ save, runtime: rt });
-  if (reason && reason !== rt.noticed) {
-    told = reason;
-    rt = { ...rt, noticed: reason };
-  } else if (!reason && rt.noticed !== undefined && (watching || rt.noticed !== 'paused')) {
+  const wait = waitReason({ save, runtime: rt });
+  if (!watching && wait && wait !== rt.noticed) {
+    told = wait;
+    rt = { ...rt, noticed: wait };
+  } else if (rt.noticed !== undefined && (rt.noticed === 'paused' ? watching || wait !== null : wait !== rt.noticed)) {
     const { noticed: _n, ...rest } = rt;
     rt = rest;
   }

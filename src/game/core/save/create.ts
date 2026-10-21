@@ -1,5 +1,5 @@
 import { BALANCE } from '../balance';
-import { SAVE_VERSION, type Save } from './schema';
+import { NOTIFY_OFF_TIP, SAVE_VERSION, type Save } from './schema';
 
 /** 새로 하기 (S02 ①) — 스타팅을 고르기 전 빈 세이브 */
 export function createNewSave(now: number): Save {
@@ -22,6 +22,8 @@ export function createNewSave(now: number): Save {
     dex: { seen: [], caught: [] },
     pendingEncounter: null,
     pendingChoices: [],
-    settings: { notifications: true, autoBattle: false },
+    // 알림 (VS Code 팝업) 은 처음 꺼짐 — 기다리면 탭 배지 · 패널 한 줄 · 그동안 요약 (gdd 4.13)
+    settings: { notifications: false, autoBattle: false },
+    tips: [NOTIFY_OFF_TIP],
   };
 }

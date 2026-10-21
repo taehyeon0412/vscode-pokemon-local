@@ -13,7 +13,7 @@
  */
 import { TIMING } from '../core/balance';
 import { advance, createGameState, isWaitingForInput, readRuntime, shouldRunWhenHidden, waitReason, withSpeed, type GameNotice, type GameState } from '../core/engine';
-import { validateSave, type Save } from '../core/save';
+import { TIPS_MAX, validateSave, type Save } from '../core/save';
 import { GAME_COMMAND, isWebviewToHost, type HostToWebview, type TitleInfo, type TitleNotice } from '../shared/messages';
 import { GAME_MIN_HEIGHT_PX } from '../shared/screen';
 import { HeadlessRunner, type HeadlessRunnerOptions } from './headless-runner';
@@ -29,6 +29,9 @@ import { DEV_MODE } from '../dev/runtime';
 const SAVED_STATUS_MS = 2000;
 
 /** 이어 하기 요약 "어디서" — "1-1 · 37%" · "전투 중" · "체육관" (2026-10-21 ideas #6) */
+/** "멈춰 있어요" 팝업은 처음 이만큼만 (태현 님 "추천안") */
+const PAUSED_NOTICE_MAX = 3;
+
 function whereOf(save: Save): string {
   if (save.pendingEncounter) return '전투 중';
   if (save.location.screen === 'gym') return '체육관';
@@ -102,6 +105,11 @@ export class GameSession {
   /** 포켓몬 탭 배지를 달았는지 · 접힌 줄에 마지막으로 상태를 보낸 때 (R13) */
   private badgeOn = false;
   private lastPeekAt = 0;
+  /** 확장이 넘겨받은 때 · VS Code 밖으로 나간 때 — 팝업은 그 뒤 10초가 지나야 (짧은 탭 전환을 거름 — 태현 님 "추천안") */
+  private hiddenAt = 0;
+  private awayAt = 0;
+  /** 10초를 기다리는 팝업 (가장 나중 것 하나) */
+  private noticeTimer: ReturnType<typeof setTimeout> | null = null;
   private loadResult: LoadResult = { kind: 'none' };
   /** 확장이 넘겨받기 바로 전 epoch — 그 epoch 의 늦은 메시지는 다시 맡기기 전까지 받아 줌 */
   private handoverEpoch: number | null = null;
@@ -258,6 +266,8 @@ export class GameSession {
 
   /** VS Code 창 포커스 — 포커스만으로는 넘겨받지 않음 (보이면 웹뷰가 계속, 2026-10-19). 확장이 들고 있는데 보이는 웹뷰가 있으면 돌아올 때 다시 맡김 */
   onWindowFocusChanged(focused: boolean): void {
+    if (this.windowFocused && !focused) this.awayAt = this.deps.now();
+    if (focused) this.cancelNotice();
     this.windowFocused = focused;
     if (this.mode === 'game' && this.owner === 'webview') this.post({ type: 'focus', focused });
     // 접힌 상태 (패널이 너무 낮음) 면 맡기지 않음 — 맡겨도 웹뷰가 바로 돌려줌 (#297, 다시 높아지면 웹뷰가 ready)
@@ -370,6 +380,7 @@ export class GameSession {
 
   /** 확장이 꺼질 때 (동기 — VS Code 가 꺼지는 중에도 끝남) — 마지막 저장을 했으면 true */
   dispose(): boolean {
+    this.cancelNotice();
     this.stopBusyWatch();
     this.finalWait?.();
     this.runner.stop();
@@ -597,6 +608,7 @@ export class GameSession {
     const lockedBefore = this.deps.store.lockedReason !== null;
     if (options.askWebview) await this.collectFinalState();
     this.runner.stop();
+    this.cancelNotice();
     this.setMode('normal');
     this.owner = 'none';
     this.epoch++;
@@ -649,6 +661,7 @@ export class GameSession {
     this.owner = 'webview';
     this.handoverEpoch = null;
     this.markHeadless(false);
+    this.cancelNotice();
     this.updateBadge();
     this.post({ type: 'start', epoch: this.epoch, state: this.state });
     // 포커스 상태를 늘 같이 (돌아온 뒤 다시 맡길 때 focused: true 를 안 보내 웹뷰가 "포커스 없음" 으로 남아 이로치 · 라이벌 앞에서 멈춰 있던 것 — 테스터 2026-10-20)
@@ -718,6 +731,7 @@ export class GameSession {
 
   /** 확장이 안 볼 때 계산 중인지 게임 상태에 적음 — 이로치 흔적 앞에서 멈추는 데 씀 (U9) */
   private markHeadless(on: boolean): void {
+    if (on && this.state?.runtime.headless !== true) this.hiddenAt = this.deps.now();
     if (this.state && this.state.runtime.headless !== on) this.state = { ...this.state, runtime: { ...this.state.runtime, headless: on } };
   }
 
@@ -768,9 +782,44 @@ export class GameSession {
     return this.dev;
   }
 
+  /**
+   * VS Code 팝업 (설정 "알림" 을 켰을 때만 — 처음 값 꺼짐, gdd 4.13) — 숨긴 (밖으로 나간) 지 10초가 지난 뒤에 (짧은 탭 전환 · alt-tab 을 거름).
+   * 그 전이면 10초가 될 때 아직 같은 이유로 기다리면 띄움 (가장 나중 것 하나) · 다시 보면 (맡김 · 포커스) 취소
+   */
   private notify(notice: GameNotice, away = false): void {
     // 개발 모드 (임시) 는 VS Code 알림을 띄우지 않음
     if (this.dev || !this.state?.save.settings.notifications) return;
+    const since = away ? this.awayAt : this.hiddenAt;
+    const wait = since + TIMING.noticeAfterHiddenMs - this.deps.now();
+    this.cancelNotice();
+    if (wait <= 0) {
+      this.sendNotice(notice, away);
+      return;
+    }
+    this.noticeTimer = setTimeout(() => {
+      this.noticeTimer = null;
+      if (this.mode !== 'game' || !this.state) return;
+      // 아직 안 보고 같은 이유로 기다릴 때만 (밖 = 포커스 없음 · 숨김 = 확장이 들고 있고 그 이유가 그대로)
+      const still = away ? !this.windowFocused : this.owner === 'host' && (waitReason(this.state) ?? (this.state.runtime.noticed === 'paused' ? 'paused' : null)) === notice;
+      if (still) this.sendNotice(notice, away);
+    }, wait);
+  }
+
+  private cancelNotice(): void {
+    if (this.noticeTimer) clearTimeout(this.noticeTimer);
+    this.noticeTimer = null;
+  }
+
+  private sendNotice(notice: GameNotice, away: boolean): void {
+    if (this.dev || !this.state?.save.settings.notifications) return;
+    // "멈춰 있어요" 는 처음 3번만 (세이브 tips 'paused-1' ~ — 태현 님 "추천안") · 그 뒤엔 배지 · 다시 볼 때 게임 안 안내만
+    if (notice === 'paused') {
+      const tips = this.state.save.tips ?? [];
+      const n = tips.filter((t) => /^paused-\d$/.test(t)).length;
+      if (n >= PAUSED_NOTICE_MAX || tips.length >= TIPS_MAX) return;
+      this.state = { ...this.state, save: { ...this.state.save, tips: [...tips, `paused-${n + 1}`] } };
+      this.persist(this.state.save);
+    }
     const text = noticeText(notice, this.webviewCollapsed, away);
     this.deps.log(`알림: ${text}`);
     try {

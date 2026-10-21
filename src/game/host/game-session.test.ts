@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryLeaseFile, MemorySaveArchive, MemorySaveStorage, sampleMonster, sampleSave } from '../../test/fixtures/save';
 import { BALANCE } from '../core/balance';
 import { createGameState, readRuntime } from '../core/engine';
-import { validateSave } from '../core/save';
+import { createNewSave, validateSave } from '../core/save';
 import type { GameState } from '../core/engine';
 import type { Save } from '../core/save';
 import type { HostToWebview } from '../shared/messages';
@@ -394,8 +394,12 @@ describe('VS Code 밖 (창 포커스) — 보이면 계속 (2026-10-19 태현 �
     session.onWindowFocusChanged(false);
     expect(view.last('focus')).toMatchObject({ focused: false });
     session.handleMessage(msg({ type: 'notice', epoch: start.epoch, notice: 'shiny' }));
+    // 팝업은 VS Code 밖으로 나간 지 10초 뒤 (alt-tab 을 거름 — 2026-10-21 태현 님 "추천안")
+    expect(notices).toHaveLength(0);
+    vi.advanceTimersByTime(TIMING.noticeAfterHiddenMs);
     expect(notices.at(-1)).toContain('VS Code 로 돌아오면');
     session.handleMessage(msg({ type: 'notice', epoch: start.epoch + 99, notice: 'shiny' })); // 다른 epoch 은 무시
+    vi.advanceTimersByTime(TIMING.noticeAfterHiddenMs);
     expect(notices).toHaveLength(1);
     session.onWindowFocusChanged(true);
     expect(view.last('focus')).toMatchObject({ focused: true });
@@ -417,6 +421,7 @@ describe('VS Code 밖 (창 포커스) — 보이면 계속 (2026-10-19 태현 �
     session.handleMessage(msg({ type: 'hidden', epoch: start.epoch, state: start.state }));
     runHost(3000);
     expect(snap().state?.runtime.stage?.phase).toBe('hold');
+    runHost(TIMING.noticeAfterHiddenMs);
     expect(notices).toHaveLength(1);
   });
 
@@ -958,8 +963,11 @@ describe('멈춤 · 알림 표 — 넘겨받을 때 · 탭 배지 · 접힌 줄 
   it('자동 꺼짐에서 숨기면 알림 한 번 ("멈춰 있어요") + 탭 배지 1 → 다시 보면 배지 지움', async () => {
     const start = await enterAndStart(sampleSave({ settings: { notifications: true, autoBattle: false } }));
     session.handleMessage(msg({ type: 'hidden', epoch: start.epoch, state: start.state }));
-    expect(notices.filter((n) => n.includes('멈춰 있어요'))).toHaveLength(1);
+    // 배지는 바로 · 팝업은 숨긴 지 10초 뒤
     expect(view.badges.at(-1)).toBe(1);
+    expect(notices).toHaveLength(0);
+    runHost(TIMING.noticeAfterHiddenMs);
+    expect(notices.filter((n) => n.includes('멈춰 있어요'))).toHaveLength(1);
     runHost(5000);
     expect(notices.filter((n) => n.includes('멈춰 있어요'))).toHaveLength(1);
     session.handleMessage(msg({ type: 'ready' }));
@@ -972,8 +980,52 @@ describe('멈춤 · 알림 표 — 넘겨받을 때 · 탭 배지 · 접힌 줄 
     const start = await enterAndStart(save);
     const choosing = { ...start.state, runtime: { ...start.state.runtime, stage: { phase: 'choice' as const, ms: 0 }, stageId: 'forest-1' as const } };
     session.handleMessage(msg({ type: 'hidden', epoch: start.epoch, state: choosing }));
+    expect(view.badges.at(-1)).toBe(1);
+    vi.advanceTimersByTime(TIMING.noticeAfterHiddenMs);
+    expect(notices.filter((n) => n.includes('고를 차례'))).toHaveLength(1);
+    // 같은 기다림은 한 번 — 보고 다시 떠나도 다시 안 알림 (태현 님 "추천안")
+    session.handleMessage(msg({ type: 'ready' }));
+    expect(snap().owner).toBe('webview');
+    const again = view.last('start')!;
+    session.handleMessage(msg({ type: 'hidden', epoch: again.epoch, state: again.state }));
+    vi.advanceTimersByTime(TIMING.noticeAfterHiddenMs * 2);
     expect(notices.filter((n) => n.includes('고를 차례'))).toHaveLength(1);
     expect(view.badges.at(-1)).toBe(1);
+  });
+
+  it('짧게 숨겼다 10초 안에 돌아오면 팝업 없음 (배지만) · 알림 처음 값은 꺼짐 — 꺼져도 배지는 뜸', async () => {
+    let start = await enterAndStart(sampleSave({ settings: { notifications: true, autoBattle: false } }));
+    session.handleMessage(msg({ type: 'hidden', epoch: start.epoch, state: start.state }));
+    runHost(TIMING.noticeAfterHiddenMs - 2000);
+    session.handleMessage(msg({ type: 'ready' }));
+    runHost(TIMING.noticeAfterHiddenMs);
+    expect(notices).toEqual([]);
+    // 새 세이브 = 알림 꺼짐 (gdd 4.13) — 팝업 없이 배지
+    const fresh = createNewSave(now);
+    expect(fresh.settings.notifications).toBe(false);
+    start = await enterAndStart({ ...sampleSave(), settings: fresh.settings, tips: fresh.tips });
+    session.handleMessage(msg({ type: 'hidden', epoch: start.epoch, state: start.state }));
+    runHost(TIMING.noticeAfterHiddenMs * 2);
+    expect(notices).toEqual([]);
+    expect(view.badges.at(-1)).toBe(1);
+  });
+
+  it('"멈춰 있어요" 팝업은 처음 3번만 (세이브에 셈)', async () => {
+    const start = await enterAndStart(sampleSave({ settings: { notifications: true, autoBattle: false } }));
+    let epoch = start.epoch;
+    let state = start.state;
+    for (let i = 0; i < 5; i++) {
+      session.handleMessage(msg({ type: 'hidden', epoch, state }));
+      runHost(TIMING.noticeAfterHiddenMs);
+      session.handleMessage(msg({ type: 'ready' }));
+      const s = view.last('start')!;
+      epoch = s.epoch;
+      // 웹뷰가 보면 paused 를 지움 (엔진 step — 다시 떠나면 다시 넘겨받음)
+      const { noticed: _n, ...runtime } = s.state.runtime;
+      state = { ...s.state, runtime };
+    }
+    expect(notices.filter((n) => n.includes('멈춰 있어요'))).toHaveLength(3);
+    expect(state.save.tips?.filter((t) => t.startsWith('paused-'))).toEqual(['paused-1', 'paused-2', 'paused-3']);
   });
 
   it('넘겨받은 뒤 늦게 온 save-now · hidden 에 같은 알림을 되풀이하지 않음 · 게임에서 나가면 배지 지움 (코드 리뷰어)', async () => {
@@ -982,6 +1034,7 @@ describe('멈춤 · 알림 표 — 넘겨받을 때 · 탭 배지 · 접힌 줄 
     session.handleMessage(msg({ type: 'save-now', epoch: start.epoch, reason: 'catch', state: withPlay(start.state, 900) }));
     await vi.advanceTimersByTimeAsync(0);
     session.handleMessage(msg({ type: 'hidden', epoch: start.epoch, state: withPlay(start.state, 950) }));
+    runHost(TIMING.noticeAfterHiddenMs);
     expect(notices.filter((n) => n.includes('멈춰 있어요'))).toHaveLength(1);
     expect(view.badges.at(-1)).toBe(1);
     await exitNow();
@@ -1076,6 +1129,7 @@ describe('단계 5 · 6 — 전투 · 안 볼 때 알림 (확장 쪽, U9)', () =
     session.onVisibilityChanged(false);
     runHost(3000);
     expect(snap().state?.runtime.stage?.phase).toBe('hold');
+    runHost(TIMING.noticeAfterHiddenMs);
     expect(notices).toHaveLength(1);
     expect(notices[0]).toContain('반짝');
     expect(snap().running).toBe(false);

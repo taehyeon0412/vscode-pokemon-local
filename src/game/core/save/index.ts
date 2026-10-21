@@ -8,6 +8,7 @@ import { validateSave } from './validate';
 
 export * from './schema';
 export { createNewSave } from './create';
+export { NOTIFY_OFF_TIP } from './schema';
 export { validateSave, MAX_SPECIES, RUN_SEEN_MAX, type ValidateResult } from './validate';
 export { migrateSave, MIGRATIONS, type Migrations, type MigrateResult } from './migrate';
 

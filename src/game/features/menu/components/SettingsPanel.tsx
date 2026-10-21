@@ -15,7 +15,7 @@ export function SettingsPanel({ save, onInput, onExit, onClose }: { save: Save; 
       {/* 스위치를 한 줄에 · 라벨 열 없이 스위치 글이 라벨 · 좁으면 (480px 아래) "켜짐 · 꺼짐" 을 빼서 줄 수를 줄임 (켜짐 = ✓ + 금색 테두리 — 2026-10-21 스위치 여섯) (2026-10-20 아트 디렉터 4차 — 5줄이 210px 에서 잘리고 오른쪽이 비던 것), 설명은 title.
           자동 전투 (플레이 리뷰어 "자리 비울 준비를 걷는 중에") · 빨리 걷기 = 정보줄 ▶▶ 와 같음 */}
       <Row wrap>
-        <Button secondary extraClass={on ? 'pg-picked' : undefined} onClick={() => onInput({ kind: 'notifications', on: !on })} title="알림 — 안 보거나 VS Code 밖에 있을 때 게임이 기다리면 VS Code 알림으로 (이로치 흔적 · 라이벌 · 진화 · 새 기술 고르기 · 체육관 · 배지 · 두 번째 패배 · 멈춘 전투 — 탭 배지는 알림을 꺼도 뜸)">
+        <Button secondary extraClass={on ? 'pg-picked' : undefined} onClick={() => onInput({ kind: 'notifications', on: !on })} title="알림 (처음 꺼짐) — 켜면 안 볼 때 기다리는 순간 VS Code 알림을 띄워요 (숨긴 지 10초 뒤 · 같은 기다림은 한 번). 꺼도 포켓몬 탭 배지는 늘 떠요">
           {on ? '✓ 알림' : '알림'}
           <span class="pg-long">{on ? ' 켜짐' : ' 꺼짐'}</span>
         </Button>

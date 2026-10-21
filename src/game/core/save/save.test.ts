@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { sampleMonster, sampleSave, viaJson } from '../../../test/fixtures/save';
 import { BALANCE } from '../balance';
-import { createNewSave, readSave, SAVE_VERSION, validateSave, type Save } from './index';
+import { createNewSave, NOTIFY_OFF_TIP, readSave, SAVE_VERSION, validateSave, type Save } from './index';
 
 /** 고친 세이브를 꺼냄 (ok 가 아니면 실패) */
 function fix(raw: unknown): { save: Save; problems: string[] } {
@@ -22,7 +22,9 @@ describe('새 세이브', () => {
     expect(s.money).toBe(1000);
     expect(s.bag['poke-ball']).toBe(3);
     expect(s.location).toEqual({ screen: 'title' });
-    expect(s.settings).toEqual({ notifications: true, autoBattle: false });
+    // 알림 (VS Code 팝업) 은 처음 꺼짐 (2026-10-21 태현 님 "추천안" — gdd 4.13) · 옮김 표시
+    expect(s.settings).toEqual({ notifications: false, autoBattle: false });
+    expect(s.tips).toEqual([NOTIFY_OFF_TIP]);
   });
 });
 
@@ -238,7 +240,12 @@ describe('고정된 1판 세이브 표본 (src/test/fixtures/save-v1.json)', () 
     const rawStages = (raw as { stages: Record<string, object>; playTimeMs: number });
     const stages = Object.fromEntries(Object.entries(rawStages.stages).map(([k, v]) => [k, { ...v, run: { startMs: rawStages.playTimeMs, caught: 0, trainers: 0, seen: [], reach: 0, retries: 0 } }]));
     // 2판 (2026-10-21 orders #15) — 칸은 그대로, 판만 올라감
-    expect(viaJson(r.save)).toEqual({ ...(raw as object), version: SAVE_VERSION, stages, pendingChoices: [] });
+    // 알림 처음 값이 꺼짐으로 바뀜 (2026-10-21) — 옛 세이브는 읽을 때 한 번 꺼짐으로 · 표시 (고친 기록 없음)
+    const settings = { ...(raw as { settings: object }).settings, notifications: false };
+    expect(viaJson(r.save)).toEqual({ ...(raw as object), version: SAVE_VERSION, stages, pendingChoices: [], settings, tips: [NOTIFY_OFF_TIP] });
+    // 옮긴 뒤 켠 것은 그대로 (다시 읽어도 꺼지지 않음)
+    const on = readSave(viaJson({ ...r.save, settings: { ...r.save.settings, notifications: true } }));
+    expect(on.kind === 'ok' && on.save.settings.notifications).toBe(true);
   });
 
   it('단계 7 의 고르기 칸이 있는 세이브도 그대로 · 없는 포켓몬 · 모르는 기술을 가리키는 고르기는 뺌', async () => {

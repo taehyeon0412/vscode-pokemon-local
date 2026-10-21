@@ -544,7 +544,7 @@ describe('멈춤 · 알림 표 (gdd 4.13 · U6 — orders #27 R13)', () => {
     expect(Object.keys(STAGE_WAIT).sort()).toEqual([...STAGE_PHASES].sort());
   });
 
-  it('밖 (VS Code 포커스 없음) 에서 기다리면 한 번 알림 · 보면 지움 · 다시 떠나면 다시', () => {
+  it('밖 (VS Code 포커스 없음) 에서 기다리면 한 번 알림 · 같은 기다림은 보고 다시 떠나도 한 번 · 기다림이 풀리면 다음 기다림을 알림', () => {
     const base = start();
     const mon = { ...base.save.monsters[base.save.party[0]!]!, uid: 'w', caughtAt: 'forest-1' as const };
     const wild = startBattle(base.save, mon, 'normal');
@@ -553,9 +553,13 @@ describe('멈춤 · 알림 표 (gdd 4.13 · U6 — orders #27 R13)', () => {
     expect(r.notices).toEqual(['battle']);
     expect(r.state.runtime.noticed).toBe('battle');
     expect(advance(r.state, 500).notices).toEqual([]);
+    // 같은 기다림 (그 내 차례) 은 보고 다시 떠나도 다시 안 알림 (탭을 오갈 때마다 쌓이던 것 — 2026-10-21 태현 님 "추천안")
     const seen = advance({ ...r.state, runtime: { ...r.state.runtime, away: false } }, 100).state;
-    expect(seen.runtime.noticed).toBeUndefined();
-    expect(advance(away(seen), 100).notices).toEqual(['battle']);
+    expect(seen.runtime.noticed).toBe('battle');
+    expect(advance(away(seen), 100).notices).toEqual([]);
+    // 고르면 (기다림이 풀림) 지움 → 다음 기다림은 다시 알림
+    const acted = advance(applyInput(seen, { kind: 'battle', input: { kind: 'act', action: { kind: 'attack' } } }), 100).state;
+    expect(acted.runtime.noticed).toBeUndefined();
     // 보는 중이면 알림 없음 · 자동 전투면 기다리지 않음
     expect(advance(myTurn, 500).notices).toEqual([]);
     expect(waitReason(away({ ...myTurn, save: { ...myTurn.save, settings: { ...myTurn.save.settings, autoBattle: true } } }))).toBeNull();

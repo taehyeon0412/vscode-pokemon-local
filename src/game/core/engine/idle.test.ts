@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { fixedRng } from '../../../test/fixtures/rng';
 import { sampleMonster, sampleSave, viaJson } from '../../../test/fixtures/save';
 import { BALANCE, TIMING } from '../balance';
-import { validateSave, type PendingChoice, type Save } from '../save';
+import { NOTIFY_OFF_TIP, validateSave, type PendingChoice, type Save } from '../save';
 import { autoPotion, battleStep, startBattle, type BattleState } from './battle';
 import { applyInput, awaySummary, step } from './play';
 import { addChoices, takeLaterChoices } from './rewards';
@@ -222,12 +222,16 @@ describe('#72 새 기술 고르기 모아 두기 — 선두가 아닌 포켓몬�
 
 describe('세이브 새 칸 — 설정 둘 · laterChoices · tips (디자인팀 orders #12)', () => {
   it('저장하고 다시 불러오기 — 그대로 · 옛 세이브엔 칸을 만들지 않음 (고친 기록 없음)', () => {
-    const save = sampleSave({ settings: { notifications: true, autoBattle: true, autoPotion: false, skipCaughtLast: true }, laterChoices: [learn('m2', 10)], tips: ['walk', 'last'] });
+    const save = sampleSave({ settings: { notifications: true, autoBattle: true, autoPotion: false, skipCaughtLast: true }, laterChoices: [learn('m2', 10)], tips: ['walk', 'last', NOTIFY_OFF_TIP] });
     const r = validateSave(viaJson(save));
     expect(r.ok && r.save).toEqual(save);
     expect(r.ok && r.problems).toEqual([]);
-    const old = validateSave(viaJson(sampleSave()));
-    expect(old.ok && ('laterChoices' in old.save || 'tips' in old.save || 'autoPotion' in old.save.settings)).toBe(false);
+    const { tips: _t, ...oldSave } = sampleSave({ settings: { notifications: true, autoBattle: false } });
+    const old = validateSave(viaJson(oldSave));
+    expect(old.ok && ('laterChoices' in old.save || 'autoPotion' in old.save.settings)).toBe(false);
+    // 옛 세이브 (옮김 표시 없음) — 알림은 한 번 꺼짐으로 · 표시만 붙음 (2026-10-21 태현 님 "추천안")
+    expect(old.ok && old.save.tips).toEqual([NOTIFY_OFF_TIP]);
+    expect(old.ok && old.save.settings.notifications).toBe(false);
     expect(old.ok && old.problems).toEqual([]);
   });
 
@@ -235,7 +239,7 @@ describe('세이브 새 칸 — 설정 둘 · laterChoices · tips (디자인팀
     const raw = viaJson({ ...sampleSave(), laterChoices: [learn('m2', 10), learn('ghost', 10), { kind: 'evolve', uid: 'm2', to: 11, newMoves: [], level: 7, item: null }], tips: ['walk', 'walk', 'Bad!', 7] });
     const r = validateSave(raw);
     expect(r.ok && r.save.laterChoices).toEqual([learn('m2', 10)]);
-    expect(r.ok && r.save.tips).toEqual(['walk']);
+    expect(r.ok && r.save.tips).toEqual(['walk', NOTIFY_OFF_TIP]);
   });
 
   it('입력 — 설정 켜고 끄기 · tip-seen 은 한 번만 (이상한 id 는 안 받음)', () => {
@@ -244,7 +248,7 @@ describe('세이브 새 칸 — 설정 둘 · laterChoices · tips (디자인팀
     expect(applyInput(s, { kind: 'auto-potion', on: false }).save.settings.autoPotion).toBe(false);
     expect(applyInput(s, { kind: 'skip-caught-last', on: true }).save.settings.skipCaughtLast).toBe(true);
     const seen = applyInput(s, { kind: 'tip-seen', id: 'walk' });
-    expect(seen.save.tips).toEqual(['walk']);
+    expect(seen.save.tips).toEqual([NOTIFY_OFF_TIP, 'walk']);
     expect(applyInput(seen, { kind: 'tip-seen', id: 'walk' })).toBe(seen);
     expect(applyInput(s, { kind: 'tip-seen', id: 'Bad id' })).toBe(s);
   });

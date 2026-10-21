@@ -76,6 +76,11 @@ export type StageId = (typeof STAGE_IDS)[number];
 /** 본 첫 안내 id (save.tips) — 짧은 영문 · 최대 수 (디자인팀 orders #12) */
 export const TIPS_MAX = 20;
 export const isTipId = (id: unknown): id is string => typeof id === 'string' && /^[a-z0-9-]{1,24}$/.test(id);
+/**
+ * 알림 (VS Code 팝업) 처음 값 = 꺼짐 (2026-10-21 태현 님 "추천안으로 해줘" — gdd 4.13). 이 표시가 tips 에 있으면 이미 옮긴 세이브 —
+ * 없으면 (옛 세이브) 읽을 때 한 번 꺼짐으로 바꾸고 표시를 붙임 (그 뒤 설정에서 켠 것은 그대로)
+ */
+export const NOTIFY_OFF_TIP = 'notify-off';
 
 export interface FacilitySpot {
   kind: 'hospital' | 'shop';
