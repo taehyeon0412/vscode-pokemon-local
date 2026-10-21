@@ -253,3 +253,27 @@ describe('웹뷰 화면 고르기 (단계 3)', () => {
     expect(changes).toBe(0);
   });
 });
+
+describe('세이브 내보내기 · 가져오기 화면 상태 (orders #33)', () => {
+  const summary = { playTimeMs: 60_000, money: 777, badges: ['forest'], lead: { form: 'bulbasaur', species: 1, level: 5 }, where: '1-1 · 40%' };
+
+  it('확장이 묻는 것 (요약) · 못 읽음 (까닭 · 파일 이름) · 결과 한 줄을 그대로 맡고 · 화면이 닫으면 지움 (바뀔 때만 알림)', () => {
+    const { s } = make();
+    let changes = 0;
+    const off = s.subscribe(() => changes++);
+    expect(s.saveIO).toBeNull();
+    s.handleMessage({ command: 'game', type: 'save-import-ask', name: 'friend.json', summary });
+    expect(s.saveIO).toEqual({ ask: { name: 'friend.json', summary } });
+    s.handleMessage({ command: 'game', type: 'save-import-ask', name: 'bad.json', error: '망가진 세이브예요' });
+    expect(s.saveIO).toEqual({ error: '망가진 세이브예요', name: 'bad.json' });
+    s.handleMessage({ command: 'game', type: 'save-result', ok: true, text: '불러왔어요' });
+    expect(s.saveIO).toEqual({ result: { ok: true, text: '불러왔어요' } });
+    const before = changes;
+    s.clearSaveIO();
+    expect(s.saveIO).toBeNull();
+    expect(changes).toBe(before + 1);
+    s.clearSaveIO();
+    expect(changes).toBe(before + 1);
+    off();
+  });
+});

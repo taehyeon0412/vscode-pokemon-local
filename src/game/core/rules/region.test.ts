@@ -7,7 +7,7 @@ import { nextStageOf, stageUnlocked } from '../engine/play';
 import { battleRewards } from '../engine/rewards';
 import { Rng } from '../engine/rng';
 import { validateSave } from '../save';
-import { regionPool } from './encounter';
+import { pickupAt, planWild, regionPool } from './encounter';
 import { BEACH_REQUESTS, requestAt } from './request';
 import { REGIONS, regionAceLevel, regionGymMoney, regionGymTeam, regionLevelBand, regionOf, regionOrder } from './region';
 import { stageCode, stageLevelBand } from './stage';
@@ -67,6 +67,26 @@ describe('해변 한 벌 (gdd 5.3 — orders #37, 개발 모드 미리 보기 ·
     expect(regionGymTeam(REGIONS.beach, 5).map(([d]) => d)).toEqual([55, 131, 130]);
     expect(regionGymTeam(REGIONS.beach, 8).map(([d, lv]) => [d, lv])).toEqual([[99, 55], [171, 56], [350, 57]]);
     expect(gymHint({ ...sampleSave(), location: { screen: 'gym', region: 'beach' } }).text).toContain('관장 해솔은');
+  });
+
+  it('해변 야생 레벨은 그 스테이지 레벨대 (센 흔적 = 위끝 + 2) · 떨어진 돌은 물의 돌만 · 돈은 레벨대 위끝 × 10 (orders #37 — 2번째 지역)', () => {
+    for (const id of ['beach-1', 'beach-2', 'beach-3'] as const) {
+      const [lo, hi] = stageLevelBand(id);
+      for (let i = 0; i < 120; i++) {
+        const p = planWild(id, 4242, { kind: 'wild', at: (i % 20) / 20, index: i });
+        if (p.strong) expect(p.level).toBe(hi + BALANCE.strongLevelBonus);
+        else expect(p.level >= lo && p.level <= hi).toBe(true);
+      }
+      const got = Array.from({ length: 400 }, (_, i) => pickupAt(id, 99, { kind: 'item', at: 0.5, index: i }));
+      expect(new Set(got.filter((g) => g.item && !['poke-ball', 'potion'].includes(g.item)).map((g) => g.item))).toEqual(new Set(['water-stone']));
+      expect(new Set(got.filter((g) => g.money).map((g) => g.money))).toEqual(new Set([hi * BALANCE.pickupMoneyPerLevel]));
+    }
+  });
+
+  it('레벨표 값 한 곳 (BALANCE.region) — 게임 숫자 그대로 (에이스 15 + 6 × (k − 1) · 해변 2번째, 시뮬만 바꿔 봄 — orders #38)', () => {
+    expect(BALANCE.region).toEqual({ aceBase: 15, aceStep: 6, aceJump2: 0, beachOrder: 2 });
+    expect([1, 2, 3, 8].map(regionAceLevel)).toEqual([15, 21, 27, 57]);
+    expect(regionOrder('beach')).toBe(2);
   });
 
   it('등대 곶 끝 → 해변 체육관 · 관장 첫 승 = 해변 배지 + 4,000원 (1,000 × (2 + 2)) + 물의 돌', () => {

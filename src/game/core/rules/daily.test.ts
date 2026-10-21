@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { sampleSave, viaJson } from '../../../test/fixtures/save';
 import { TIMING } from '../balance';
-import { startBattle } from '../engine/battle';
-import { awaySummary, step } from '../engine/play';
+import { startBattle, startTrainerBattle } from '../engine/battle';
+import { awaySummary, dailyView, step } from '../engine/play';
 import { createGameState, type GameState } from '../engine/state';
 import { validateSave } from '../save';
 import type { TypeName } from '../../data';
 import { devState } from '../../dev/demo';
 import { dailyAdd, dailyDone, dailyFor, dailyLabel, dayKey } from './daily';
+import { trainerInfo } from './trainer';
 
 const STEP = TIMING.simStepMs;
 const DAY = '2026-10-22';
@@ -97,6 +98,41 @@ describe('오늘의 목표 · 기록 — 엔진 (개발 모드에서만)', () =>
     // 다른 타입이면 타입 목표는 안 셈
     const other = walkOnce(winWild(s1, ['normal']));
     expect(other.save.daily?.goals[2]?.have).toBe(0);
+  });
+
+  it('트레이너를 이기면 트레이너 목표 (야생 · 타입 목표는 안 셈) · 기록 이긴 수', () => {
+    const s0 = walkOnce(base());
+    const goals = [
+      { kind: 'trainer-win' as const, need: 2, have: 0, reward: 'potion' as const, rewardN: 2 },
+      { kind: 'wild-win' as const, need: 1, have: 0, reward: 'poke-ball' as const, rewardN: 2 },
+      { kind: 'type-win' as const, need: 1, have: 0, type: 'grass', reward: 'stardust' as const, rewardN: 1 },
+    ];
+    const s1 = { ...s0, save: { ...s0.save, daily: { day: DAY, goals } } };
+    // 트레이너 한 마리 팀을 이긴 채 끝나는 걸음
+    const mon = { ...s1.save.monsters[s1.save.party[0]!]!, uid: 't0', caughtAt: 'forest-1' as const };
+    const tb = startTrainerBattle(s1.save, [mon], 'trainer', trainerInfo('forest-1', 0).name);
+    const over = { ...tb, phase: 'over' as const, result: 'win' as const, overMs: TIMING.battleOverMs, foe: { ...tb.foe, hp: 0 } };
+    const trainer: GameState = {
+      ...s1,
+      save: { ...s1.save, pendingEncounter: { kind: 'trainer', trainerId: 'forest-1:t0', stageId: 'forest-1' } },
+      runtime: { ...s1.runtime, stageId: 'forest-1', stage: { phase: 'battle', battle: over } },
+    };
+    const after = walkOnce(trainer);
+    expect(after.runtime.stage?.phase).toBe('result');
+    expect(after.save.daily?.goals.map((g) => g.have)).toEqual([1, 0, 0]);
+    expect(after.save.records?.wins).toBe((s1.save.records?.wins ?? 0) + 1);
+  });
+
+  it('화면용 (dailyView) — 꺼져 있거나 · 다른 날 목표면 null · 세 줄 (이름 · n/m · 보상) · 끝낸 수', () => {
+    const s0 = walkOnce(base());
+    expect(dailyView(walkOnce(base(false)))).toBeNull();
+    const v = dailyView(s0)!;
+    expect(v.day).toBe(DAY);
+    expect(v.goals).toHaveLength(3);
+    expect(v.goals.every((g) => g.label.length > 0 && g.reward.length > 0 && g.have === 0 && !g.done)).toBe(true);
+    expect(v.done).toBe(0);
+    // 날이 바뀌었는데 아직 경계 (걷기) 를 안 지나 옛 목표가 남아 있으면 안 보임
+    expect(dailyView({ ...s0, runtime: { ...s0.runtime, today: '2026-10-23' } })).toBeNull();
   });
 
   it('세이브 — 저장하고 다시 읽어도 같음 · 이상한 목표는 빼고 · 날짜가 이상하면 통째로 뺌', () => {
