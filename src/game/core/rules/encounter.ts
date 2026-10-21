@@ -144,10 +144,18 @@ export function ambushChance(enemySpeed: number, mySpeed: number): number {
   return BALANCE.ambush.find(([min]) => ratio >= min)?.[1] ?? 0;
 }
 
-/** 전투 시작 상태: Space 를 맞게 누르면 선제공격 (상대가 기습이면 막아내서 보통), 안 누르면 보통 (상대가 기습이면 기습당함) */
-export function resolveStart(ambush: boolean, space: boolean): EncounterStart {
-  if (space) return ambush ? 'normal' : 'preemptive';
-  return ambush ? 'ambush' : 'normal';
+/** 선제공격 확률 — 내가 상대보다 훨씬 빠를수록 (내 스피드가 상대 1.5배 이상 10%, 2배 이상 20% — 기습과 대칭) */
+export function preemptiveChance(enemySpeed: number, mySpeed: number): number {
+  if (!(enemySpeed > 0)) return 0;
+  const ratio = mySpeed / enemySpeed;
+  return BALANCE.preemptive.find(([min]) => ratio >= min)?.[1] ?? 0;
+}
+
+/** 전투 시작 상태 — 스피드로 정함 (2026-10-21 태현 님 "Space 선제공격은 빼자 — 보고 있지 않으면 하기 어려움"): 상대가 훨씬 빠르면 기습 · 내가 훨씬 빠르면 선제공격 · 아니면 보통 (둘 중 하나만 0 이 아님, 랜덤은 늘 한 번) */
+export function encounterStart(enemySpeed: number, mySpeed: number, rng: Rng): EncounterStart {
+  const ambush = ambushChance(enemySpeed, mySpeed);
+  if (ambush > 0) return rng.chance(ambush) ? 'ambush' : 'normal';
+  return rng.chance(preemptiveChance(enemySpeed, mySpeed)) ? 'preemptive' : 'normal';
 }
 
 /** 떨어진 아이템 하나 — 아이템이면 item, 돈이면 money */

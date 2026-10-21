@@ -13,7 +13,7 @@ type FacilityKind = FacilitySpot['kind'];
 /**
  * 지금 하는 일 — 스테이지 (S06) · 체육관 (S16) 이 같이 씀:
  * - walk: 자동으로 걸음
- * - appear: 야생이 튀어나와 "나타났다!" (Space 선제공격 창) — 상대는 save.pendingEncounter
+ * - appear: 야생이 튀어나와 "나타났다!" — 상대 · 시작 (선제공격 · 기습 — 스피드로 정함) 은 save.pendingEncounter
  * - trainer: 트레이너와 눈이 마주침 "!" → "승부다!" + ◓ 개수 → 전투 (S08, 자동 전투여도 멈추지 않음) — save.pendingEncounter = trainer
  * - facility: 병원 · 상점 앞 [들어가기] [지나가기] (10초 뒤 지나감) · inside = 들어가 있음 (S13 · S14, 나가기를 누를 때까지)
  * - battle: 전투 1:1 (engine/battle.ts) — 상대는 save.pendingEncounter, 전투 중 상태는 여기 (세이브에는 끝나고 한 번에)
@@ -29,7 +29,7 @@ type FacilityKind = FacilitySpot['kind'];
  */
 export type StageRuntime =
   | { phase: 'walk' }
-  | { phase: 'appear'; ms: number; space: boolean; ambush: boolean; isNew: boolean }
+  | { phase: 'appear'; ms: number; isNew: boolean }
   | { phase: 'trainer'; n: number; ms: number }
   /** 라이벌 깜짝 등장 (gdd 4.12) — rival = 주인공 id, "!" → 띠 → 전투 */
   | { phase: 'rival'; rival: string; ms: number }
@@ -160,8 +160,9 @@ function readStage(raw: unknown): StageRuntime | null {
       return typeof raw.gym === 'boolean' && lost !== null ? { phase: 'defeat', gym: raw.gym, lost } : null;
     }
     case 'appear':
-      if (ms === null || typeof raw.space !== 'boolean' || typeof raw.ambush !== 'boolean' || typeof raw.isNew !== 'boolean') return null;
-      return { phase: 'appear', ms, space: raw.space, ambush: raw.ambush, isNew: raw.isNew };
+      // 옛 상태의 space · ambush 칸은 버림 (시작은 pendingEncounter.start)
+      if (ms === null || typeof raw.isNew !== 'boolean') return null;
+      return { phase: 'appear', ms, isNew: raw.isNew };
     case 'battle': {
       const battle = readBattle(raw.battle);
       return battle ? { phase: 'battle', battle } : null;

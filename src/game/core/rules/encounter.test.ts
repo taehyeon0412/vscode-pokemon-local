@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../balance';
 import { Rng } from '../engine/rng';
+import { fixedRng } from '../../../test/fixtures/rng';
 import { formOf, moveOf, speciesOf } from '../../data';
-import { ambushChance, createWild, evolveForLevel, forestPool, pickupAt, planWild, resolveStart, sceneryAt, STARTER_SPECIES, traceKindOf } from './encounter';
+import { ambushChance, createWild, encounterStart, evolveForLevel, forestPool, pickupAt, planWild, preemptiveChance, sceneryAt, STARTER_SPECIES, traceKindOf } from './encounter';
 import { mixSeed, stageLayout, stageLevelBand, type Spot } from './stage';
 
 const [LO1, HI1] = stageLevelBand('forest-1');
@@ -137,11 +138,23 @@ describe('전투 시작 상태 (mvp-spec 3.2 · 4장)', () => {
     expect(ambushChance(5, 0)).toBe(0);
   });
 
-  it('Space: 기습이 아니면 선제공격 · 기습이면 막아냄 (보통) / 안 누름: 기습이면 기습당함 · 아니면 보통', () => {
-    expect(resolveStart(false, true)).toBe('preemptive');
-    expect(resolveStart(true, true)).toBe('normal');
-    expect(resolveStart(true, false)).toBe('ambush');
-    expect(resolveStart(false, false)).toBe('normal');
+  it('선제공격 확률: 내 스피드가 상대 1.5배 이상 10% · 2배 이상 20% (기습과 대칭, 2026-10-21)', () => {
+    expect(preemptiveChance(10, 20)).toBe(0.2);
+    expect(preemptiveChance(10, 15)).toBe(0.1);
+    expect(preemptiveChance(10, 14.9)).toBe(0);
+    expect(preemptiveChance(0, 5)).toBe(0);
+  });
+
+  it('시작은 스피드로 — 상대가 빠르면 기습 · 내가 빠르면 선제공격 · 비슷하면 늘 보통 (Space 없음, 2026-10-21 태현 님)', () => {
+    expect(encounterStart(20, 10, fixedRng(0))).toBe('ambush');
+    expect(encounterStart(20, 10, fixedRng(0.99))).toBe('normal');
+    expect(encounterStart(10, 20, fixedRng(0))).toBe('preemptive');
+    expect(encounterStart(10, 20, fixedRng(0.99))).toBe('normal');
+    expect(encounterStart(10, 14, fixedRng(0))).toBe('normal');
+    expect(encounterStart(14, 10, fixedRng(0))).toBe('normal');
+    // 2배 = 20% 경계
+    expect(encounterStart(10, 20, fixedRng(0.19))).toBe('preemptive');
+    expect(encounterStart(10, 20, fixedRng(0.2))).toBe('normal');
   });
 });
 

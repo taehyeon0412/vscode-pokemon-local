@@ -5,7 +5,7 @@
  *   길: 숲 배경 2겹이 흐르고 (확장에 있는 숲 그림) ③ 주인공은 제자리걸음, ④ 흔적 · ⑤ 트레이너 · ⑭ 아이템 · ⑯ 부탁 · ⑥ 병원 · 상점 · ⑮ 배경 포켓몬
  *   체육관: 코드로 그린 방 · 오른쪽에 관장 (임시 디자인)
  * 전투 (S09 · S10) 는 같은 길 위에서 — features/battle 의 BattleLayer (주인공은 왼쪽 끝 트레이너 자리로, 야생은 튀어나온 자리 그대로 · 트레이너는 오른쪽 끝).
- * 선제공격은 Space 또는 길 클릭 [제안] — 코딩 중에는 편집기에 포커스가 있어 Space 가 코드에 들어가므로, 클릭하면 패널에 포커스도 옴.
+ * 튀어나올 때 선제공격 · 기습은 스피드로 정함 (2026-10-21 태현 님 — Space · 클릭 선제공격을 뺌).
  */
 import { useRef } from 'preact/hooks';
 import { BALANCE } from '../../../core/balance';
@@ -70,20 +70,14 @@ function EncounterBox({ state }: { state: GameState }) {
   const pending = state.save.pendingEncounter;
   if (stage?.phase !== 'appear' || pending?.kind !== 'wild') return null;
   const name = speciesOf(pending.monster.species)?.name.ko ?? '???';
-  const blocked = stage.space && stage.ambush;
-  // 패널에 포커스가 없으면 Space 는 편집기로 감 → "클릭!"
-  const hint = document.hasFocus() ? 'Space!' : '클릭!';
   return (
     <div class="pg-banner pg-appear">
       <span class="pg-ellipsis">
         야생 <b class="pg-em">{withJosa(name, '이/가')}</b> 나타났다! <span class="pg-dim">Lv{pending.monster.level}</span>
       </span>
       {stage.isNew && <span class="pg-new">NEW!</span>}
-      {stage.space ? (
-        <span class="pg-space-done">{blocked ? '막아냈다!' : '선제공격!'}</span>
-      ) : (
-        stage.ms <= BALANCE.preemptiveWindowMs && <span class="pg-space-hint">{hint}</span>
-      )}
+      {/* 시작은 만날 때 스피드로 정해짐 — 띠가 보이는 내내 (전투 첫 말은 선제공격이면 바로 "무엇을 할까?" 로 덮이고 좁은 패널은 말 줄이 숨음, 2026-10-21) */}
+      {pending.start !== 'normal' && <span class={pending.start === 'ambush' ? 'pg-space-done pg-start-ambush' : 'pg-space-done'}>{pending.start === 'ambush' ? '기습당했다!' : '선제공격!'}</span>}
     </div>
   );
 }
@@ -303,10 +297,10 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         onPointerDown={(e) => {
           // 버튼 (필살기 Z · 막기 · 메뉴) 에서 올라온 누름은 버튼 몫 — 판이 먼저 패링 · 연타로 받으면 필살기가 무시됨 (2026-10-20 테스터 [큼])
           if (e.target instanceof Element && e.target.closest('button')) return;
-          // 튀어나온 순간 길을 클릭해도 선제공격 [제안] · 힘대결 중 클릭 = 연타 (gdd S10 ⑤)
+          // 힘대결 중 클릭 = 연타 (gdd S10 ⑤)
           // 볼을 던졌을 때 클릭 = 타이밍 원 Space (S11)
           // 트레이너 · 라이벌 만남 ("승부다!" · VS) 클릭 = 바로 전투 (2026-10-20 태현 님)
-          if (phase === 'appear' || phase === 'trainer' || phase === 'rival' || phase === 'gym-enter' || battle?.phase === 'clash' || battle?.phase === 'catch') onInput({ kind: 'space' });
+          if (phase === 'trainer' || phase === 'rival' || phase === 'gym-enter' || battle?.phase === 'clash' || battle?.phase === 'catch') onInput({ kind: 'space' });
           // 상대 공격 중 판 클릭 = 패링 (Space 와 같음, 2026-10-19)
           else if (battle && (canParry(battle) || canRiposte(battle) || ultSkippable(battle))) onInput(spaceInput(state, performance.now()));
         }}

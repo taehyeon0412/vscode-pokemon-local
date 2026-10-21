@@ -289,7 +289,6 @@ export function stageViewKey(state: GameState): string {
     loc.screen === 'stage' ? loc.stageId : '',
     progress,
     st?.phase ?? '',
-    st?.phase === 'appear' ? `${st.space}:${st.ms <= BALANCE.preemptiveWindowMs}` : '',
     st?.phase === 'request' ? `${st.result?.text ?? ''}` : '',
     // 병원 · 상점 앞: 남은 초 · 들어감 / 트레이너: "!" → "승부다!" / 패배 · 클리어 · 대기실 · 배지는 그대로
     st?.phase === 'facility' ? `${st.inside}:${Math.ceil((TIMING.facilityPromptMs - st.ms) / 1000)}` : '',

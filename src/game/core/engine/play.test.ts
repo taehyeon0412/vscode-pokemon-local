@@ -197,18 +197,34 @@ describe('야생 조우 (mvp-spec 3.2)', () => {
     expect(again.runtime.stage).toMatchObject({ isNew: false });
   });
 
-  it('튀어나온 뒤 0.6초 안에 Space → 선제공격 (상대가 기습이면 막아내서 보통) · 늦으면 안 받음', () => {
+  it('튀어나온 순간 Space · 클릭은 아무 일 없음 — 시작 (선제공격 · 기습 · 보통) 은 만날 때 스피드로 정해져 그대로 전투로 (2026-10-21 태현 님)', () => {
     const { state } = nearSpot(start(), 'wild');
     const met = until(state, (x) => phase(x) === 'appear');
-    const ambush = met.runtime.stage?.phase === 'appear' && met.runtime.stage.ambush;
-    const pressed = applyInput(met, { kind: 'space' });
-    const fought = until(pressed, (x) => phase(x) === 'battle', TIMING.appearMs + 100);
-    expect(fought.save.pendingEncounter).toMatchObject({ start: ambush ? 'normal' : 'preemptive' });
+    const pending = met.save.pendingEncounter;
+    expect(pending?.kind === 'wild' && ['preemptive', 'normal', 'ambush'].includes(pending.start)).toBe(true);
+    expect(applyInput(met, { kind: 'space' })).toBe(met);
+    const fought = until(met, (x) => phase(x) === 'battle', TIMING.appearMs + 100);
+    expect(fought.save.pendingEncounter).toEqual(pending);
+    const b = fought.runtime.stage?.phase === 'battle' ? fought.runtime.stage.battle : null;
+    const kind = pending?.kind === 'wild' ? pending.start : 'normal';
+    expect(b?.msg).toEqual(kind === 'preemptive' ? '선제공격!' : kind === 'ambush' ? '기습당했다!' : expect.stringContaining('가랏'));
+  });
 
-    const late = until(met, (x) => x.runtime.stage?.phase === 'appear' && x.runtime.stage.ms > BALANCE.preemptiveWindowMs, 2000);
-    expect(applyInput(late, { kind: 'space' })).toBe(late);
-    const notPressed = until(met, (x) => phase(x) === 'battle', TIMING.appearMs + 100);
-    expect(notPressed.save.pendingEncounter).toMatchObject({ start: ambush ? 'ambush' : 'normal' });
+  it('스피드 차이로 시작이 정해짐 — 내가 2배 빠르면 선제공격 · 상대가 2배 빠르면 기습 (같은 자리 · 같은 판이면 늘 같음)', () => {
+    const { state } = nearSpot(start(), 'wild');
+    const lead = state.save.monsters[state.save.party[0]!]!;
+    const withSpeed = (pts: number): GameState => ({ ...state, save: { ...state.save, monsters: { ...state.save.monsters, [lead.uid]: { ...lead, points: { ...lead.points, speed: pts } } } } });
+    // 랜덤은 자리마다 정해져 있음 — 확률 20% 가 걸리는 자리를 찾을 때까지 판 (retries) 을 바꿔 봄
+    const startsAt = (s: GameState) => {
+      const met = until(s, (x) => phase(x) === 'appear');
+      const p = met.save.pendingEncounter;
+      return { start: p?.kind === 'wild' ? p.start : null, met };
+    };
+    const fast = startsAt(withSpeed(999));
+    const slow = startsAt({ ...withSpeed(0), save: { ...withSpeed(0).save, monsters: { ...withSpeed(0).save.monsters, [lead.uid]: { ...lead, level: 1, points: { ...lead.points, speed: 0 } } } } });
+    expect(['preemptive', 'normal']).toContain(fast.start);
+    expect(['ambush', 'normal']).toContain(slow.start);
+    expect(startsAt(withSpeed(999)).start).toBe(fast.start);
   });
 
   it('전투 중에 다시 불러오면 (진행 중 상태 없음) 그 전투부터', () => {

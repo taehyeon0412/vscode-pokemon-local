@@ -206,6 +206,12 @@
         let stage = { phase: 'walk' };
         if (place === 'facility' || place === 'hospital') { st.progress = 0.4724 - 1e-7; stage = { phase: 'facility', kind: 'hospital', at: 0.4724, ms: 0, inside: place === 'hospital' }; }
         if (place === 'shop') { st.progress = 0.6132; stage = { phase: 'facility', kind: 'shop', at: 0.6132, ms: 0, inside: true }; }
+        // place=appear — 야생이 튀어나옴 "나타났다!" (ms= 지난 시간 · start=preemptive|ambush|normal → 전투 첫 말, 2026-10-21 선제공격은 스피드로)
+        if (place === 'appear') {
+            const wild = { ...save.monsters.m1, uid: 'wild', species: 4, form: 'charmander', level: 5, moves: [{ moveId: 52, pp: 25 }], hp: 20, caughtAt: 'forest-1' };
+            save.pendingEncounter = { kind: 'wild', monster: wild, start: q.get('start') || 'normal' };
+            stage = { phase: 'appear', ms: Number(q.get('ms') || 0), isNew: true };
+        }
         if (place === 'shop-front') { st.progress = 0.6132 - 1e-7; stage = { phase: 'facility', kind: 'shop', at: 0.6132, ms: 0, inside: false }; }
         if (place === 'trainer' || place === 'trainer-battle') {
             st.progress = 0.30551;

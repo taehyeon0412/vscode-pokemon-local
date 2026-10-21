@@ -2,7 +2,7 @@
  * 게임 한 걸음 · 입력 — 보일 때(웹뷰) · 안 보일 때(확장) 같은 함수.
  *
  * S06 스테이지 (mvp-spec 3.2): 자동으로 걷다가 길에 놓인 자리를 지나면
- *   떨어진 아이템 → 바로 줍고 계속 걸음 · 야생 → 튀어나옴 (Space · 클릭 선제공격 창) → 전투 (engine/battle.ts) · 부탁 → 고를 때까지 기다림
+ *   떨어진 아이템 → 바로 줍고 계속 걸음 · 야생 → 튀어나옴 (선제공격 · 기습은 스피드로) → 전투 (engine/battle.ts) · 부탁 → 고를 때까지 기다림
  *   트레이너 → 멈추고 "!" → "승부다!" → 1:1 토너먼트 · 병원 · 상점 → [들어가기] [지나가기] (10초 · 안 볼 때는 바로 지나감)
  *   끝 → S24 클리어 카드 (1-3 은 S16 체육관 대기실로) · 지면 → S17 (마지막 병원 앞에서 다시)
  * S16 체육관: 대기실 → 관장과 1:1 토너먼트 → 처음 이기면 배지 · MVP 끝 카드
@@ -11,7 +11,7 @@
  */
 import { BALANCE, TIMING } from '../balance';
 import { buy, healTeam, isShopItem, moveInTeam, spendPoint, swapWithBox, toBox, useFieldItem, walkRegen } from '../rules/bag';
-import { ambushChance, createWild, pickupAt, planWild, resolveStart, wildKey } from '../rules/encounter';
+import { createWild, encounterStart, pickupAt, planWild, wildKey } from '../rules/encounter';
 import { itemName, requestAt, resolveRequest } from '../rules/request';
 import { spotBetween, spotRng, stageCode, stageLayout, trainerId, walkDelta, type Spot, type StageLayout } from '../rules/stage';
 import { statsOf } from '../rules/stats';
@@ -31,7 +31,7 @@ export type SaveSignal = 'catch' | 'battle-end' | 'stage-clear';
 
 /** 사용자 입력 (웹뷰에서만 옴) */
 export type GameInput =
-  /** 선제공격 — Space 또는 길 (패널) 클릭 */
+  /** Space 또는 길 (패널) 클릭 — 전투 · 결과 · 트레이너 만남 · 체육관 장면 넘기기 (튀어나올 때 선제공격은 뺌, 2026-10-21) */
   | { kind: 'space' }
   | { kind: 'request'; help: boolean }
   /** 전투 메뉴 · 필살기 · 다음 포켓몬 (Space 는 위 'space' 로 — 힘대결 연타 · 맞받아치기) */
@@ -319,16 +319,16 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
       } else if (spot.kind === 'wild') {
         const wild = createWild(id, prog.seed, spot, prog.run.retries);
         const enemySpeed = statsOf(speciesOf(wild.species)!.base, wild.ivs, wild.points, wild.level).speed;
-        const ambush = spotRng(prog.seed, wildKey(spot, prog.run.retries), 6).chance(ambushChance(enemySpeed, leadSpeed(save)));
+        const start = encounterStart(enemySpeed, leadSpeed(save), spotRng(prog.seed, wildKey(spot, prog.run.retries), 6));
         const isNew = !save.dex.seen.includes(wild.species);
         save = {
           ...withProgress(save, id, spot.at),
           dex: isNew ? { ...save.dex, seen: [...save.dex.seen, wild.species] } : save.dex,
-          pendingEncounter: { kind: 'wild', monster: wild, start: ambush ? 'ambush' : 'normal' },
+          pendingEncounter: { kind: 'wild', monster: wild, start },
         };
         // S24 "새로 만난 포켓몬" — 이 판에서 처음 만난 종 몇 마리
         if (isNew) save = withRun(save, id, (r) => (r.seen.length < RUN_SEEN_MAX ? { ...r, seen: [...r.seen, wild.species] } : r));
-        stage = { phase: 'appear', ms: 0, space: false, ambush, isNew };
+        stage = { phase: 'appear', ms: 0, isNew };
       } else if (spot.kind === 'trainer') {
         // 트레이너 — 멈추고 "!" → "승부다!" (자동 전투여도 멈추지 않고 그대로 전투로)
         const n = spot.trainer ?? 0;
@@ -379,9 +379,7 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
         stage = { phase: 'walk' };
         break;
       }
-      const start = resolveStart(stage.ambush, stage.space);
-      save = { ...save, pendingEncounter: { ...pending, start } };
-      stage = { phase: 'battle', battle: startBattle(save, pending.monster, start) };
+      stage = { phase: 'battle', battle: startBattle(save, pending.monster, pending.start) };
       break;
     }
     case 'trainer': {
@@ -739,8 +737,8 @@ export function applyInput(state: GameState, input: GameInput): GameState {
         const end = stage.phase === 'rival' ? TIMING.rivalMeetMs : TIMING.trainerMeetMs;
         return stage.ms >= end ? state : { ...state, runtime: { ...state.runtime, stage: { ...stage, ms: end } } };
       }
-      if (stage?.phase !== 'appear' || stage.space || stage.ms > BALANCE.preemptiveWindowMs) return state;
-      return { ...state, runtime: { ...state.runtime, stage: { ...stage, space: true } } };
+      // 야생이 튀어나온 순간은 아무 일 없음 (선제공격은 스피드로, 2026-10-21)
+      return state;
     case 'battle':
       return stage?.phase === 'battle' ? withBattleInput(state, input.input) : state;
     case 'auto-battle':

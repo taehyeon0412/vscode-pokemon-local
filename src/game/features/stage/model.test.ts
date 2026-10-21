@@ -49,7 +49,7 @@ describe('길 위의 것들을 화면에', () => {
     const wild = layout.spots.find((s) => s.kind === 'wild')!;
     const before = visibleObjects(at(wild.at - 0.0001), 720, 1).find((o) => o.key === `w${wild.index}`);
     expect(before).toMatchObject({ kind: 'wild', met: false });
-    const meeting = visibleObjects(at(wild.at, { phase: 'appear', ms: 0, space: false, ambush: false, isNew: true }), 720, 1).find((o) => o.key === `w${wild.index}`);
+    const meeting = visibleObjects(at(wild.at, { phase: 'appear', ms: 0, isNew: true }), 720, 1).find((o) => o.key === `w${wild.index}`);
     expect(meeting).toMatchObject({ kind: 'wild', met: true });
     expect(visibleObjects(at(wild.at + 0.0001), 720, 1).find((o) => o.key === `w${wild.index}`)).toBeUndefined();
     const item = layout.spots.find((s) => s.kind === 'item')!;

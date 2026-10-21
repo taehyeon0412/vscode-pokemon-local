@@ -189,7 +189,7 @@ if (!port) {
   render(h(App, { store, media: config.media, actions }), root);
 
   // 단축키 (mvp-spec 1장: 패널을 클릭해 둔 상태에서만 — 웹뷰 안 키보드라 VS Code 전역 단축키 아님)
-  //   Space = 선제공격 (야생이 튀어나온 순간) · 전투 중 맞받아치기 · 힘대결 연타 · Enter / Esc = 부탁 [도와준다] / [지나간다]
+  //   Space = 전투 중 막기 · 힘대결 연타 · 트레이너 만남 · 결과 넘기기 · Enter / Esc = 부탁 [도와준다] / [지나간다]
   //   전투 메뉴 숫자 · Z 는 BattleMenu 가 들음
   window.addEventListener('keydown', (e) => {
     if (store.get().screen !== 'game' || e.repeat) return;
