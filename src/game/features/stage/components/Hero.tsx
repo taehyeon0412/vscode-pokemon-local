@@ -79,9 +79,9 @@ export interface HeroProps {
 }
 
 /** 걷기 그림 한 장 (ms) — 걷는 속도 2배 (2026-10-19) 에 맞춰 조금 빠르게 · 1.2배 (2026-10-21) 에 맞춰 130 → 108 (한 장에 가는 px 를 전과 같게 — 미끄러져 보이지 않게).
- *  빨리 걷기는 보이는 빠르기가 전과 같은 144px/초라 그대로 */
+ *  빨리 걷기 80 → 60: 한 장에 땅이 15.5 ~ 16px (원작 8px 의 2배) 가서 스케이트처럼 미끄러져 보였음 → 한 장 약 11px (2026-10-21 UX 리뷰어 #14 작음) */
 const WALK_FRAME_MS = 108;
-const WALK_FAST_FRAME_MS = 80;
+const WALK_FAST_FRAME_MS = 60;
 
 /** 가로로 이은 장면 그림 — 칸 하나만 보이게 자르고, 걸을 때는 장면을 한 칸씩 옮김 (steps) */
 function Sheet({ src, art, scale, run, frameMs, title }: { src: string; art: SheetArt; scale: number; run: boolean; frameMs: number; title?: string }) {
