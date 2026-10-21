@@ -137,6 +137,8 @@ export interface TeamBattle {
   msg: string;
   /** 필살기 예약 (내 칸) — 게이지가 차는 중에 그 칸을 누르면 예약 · 다시 누르면 취소 → 차는 순간 씀 (끼어들기 창 · 힘겨루기 합류도 바로, 2026-10-21 태현 님 ①) */
   reserve: number[];
+  /** 내 칸마다 다 찬 필살기를 기다린 ms (볼 때 — 쓸 수 있는 걸음에서만 셈, ultAutoWaitMs 가 되면 저절로 · R2) · 옛 상태엔 없음 */
+  autoWait?: number[];
   /** 연출 다리 — 일어난 일 (TeamNote) 과 마지막 번호 */
   log: TeamLogEntry[];
   logSeq: number;
@@ -238,6 +240,7 @@ function clone(b: TeamBattle): TeamBattle {
     popups: [...b.popups],
     foeDown: [...b.foeDown],
     reserve: [...b.reserve],
+    ...(b.autoWait ? { autoWait: [...b.autoWait] } : {}),
     log: [...b.log],
   };
 }
@@ -648,6 +651,26 @@ function firstReady(b: TeamBattle, side: Side): number | null {
   return best;
 }
 
+/** 찬 지 ultAutoWaitMs 가 지난 내 포켓몬 중 먼저 찬 것 (볼 때 저절로 — R2) */
+function firstWaited(b: TeamBattle): number | null {
+  const left = b.me.map((_, i) => teamAutoUltLeft(b, i));
+  let best: number | null = null;
+  left.forEach((l, i) => {
+    if (l !== 0) return;
+    if (best === null || (b.ultReadyAt.me[i] ?? 0) < (b.ultReadyAt.me[best] ?? 0)) best = i;
+  });
+  return best;
+}
+
+/** 그 칸 필살기가 저절로 나가기까지 남은 ms (볼 때 — 발밑 판 반짝 · 막대, R2) · 안 찼으면 null */
+export function teamAutoUltLeft(b: TeamBattle, slot: number): number | null {
+  const f = b.me[slot];
+  if (!f || !alive(f) || f.ult < 1) return null;
+  // HP 가 30% (자동 상처약 기준) 아래면 기다리지 않음 — 3초 안에 쓰러져 필살기가 날아가던 것 (2026-10-21 태현 님 "추천대로", 기획 #26 R2 ①)
+  if (f.hp < f.maxHp * BALANCE.autoPotionBelow) return 0;
+  return Math.max(0, BALANCE.ultAutoWaitMs - (b.autoWait?.[slot] ?? 0));
+}
+
 /** 예약해 둔 내 포켓몬 중 먼저 찬 것 */
 function firstReserved(b: TeamBattle): number | null {
   const ready = b.reserve.filter((i) => alive(b.me[i]!) && b.me[i]!.ult >= 1);
@@ -746,6 +769,10 @@ export function teamStep(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamSte
   b.t += stepMs;
   // 쓰러진 포켓몬의 예약은 지움 (독 · 반동 등 어디서 쓰러졌든)
   if (b.reserve.some((i) => !alive(b.me[i]!))) b.reserve = b.reserve.filter((i) => alive(b.me[i]!));
+  // 찬 때를 모르는 내 필살기 (개발 모드 게이지 가득 · 옛 상태) 는 지금부터 셈 — 저절로 쓰기 3초 (R2)
+  b.me.forEach((f, i) => {
+    if (alive(f) && f.ult >= 1 && b.ultReadyAt.me[i] === null) b.ultReadyAt.me[i] = b.t;
+  });
   b.popups = b.popups.map((p) => ({ ...p, ms: p.ms + stepMs })).filter((p) => p.ms < POPUP_MS);
   const auto = opts.auto || opts.away;
   switch (b.phase) {
@@ -883,7 +910,10 @@ export function teamStep(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamSte
       return b;
     }
   }
-  const z = auto ? firstReady(b, 'me') : firstReserved(b);
+  // 내 필살기 — 예약한 것 · 볼 때는 찬 지 ultAutoWaitMs 뒤 저절로 (발밑 판이 반짝 · 자동 전투가 꺼져도) · 안 볼 때는 바로 (R2 A). 끼어들기 · 합동 멘트는 그대로 손으로
+  // 기다림은 내 필살기를 쓸 수 있는 걸음 (여기까지 온 run) 에서만 셈 — 다른 필살기 · 힘겨루기 · 합동 멘트 중엔 멈춤 (0 에서 2.5 ~ 6초 서 있던 것, 디자인팀 #26 판정)
+  if (!opts.away) b.autoWait = b.me.map((f, i) => (alive(f) && f.ult >= 1 ? (b.autoWait?.[i] ?? 0) + stepMs : 0));
+  const z = opts.away ? firstReady(b, 'me') : (firstReserved(b) ?? firstWaited(b));
   if (z !== null) {
     startUlt(b, 'me', z, rng);
     return b;
@@ -966,6 +996,7 @@ export function readTeam(raw: unknown): TeamBattle | null {
   if (!Array.isArray(raw.foeDown) || raw.foeDown.length > n.foe || !raw.foeDown.every((d) => isObj(d) && fin(d.species, 1, 2000) && fin(d.level, 1, 100))) return null;
   if (!Array.isArray(raw.fought) || raw.fought.length > n.me || !raw.fought.every((x) => typeof x === 'string')) return null;
   if (!Array.isArray(raw.reserve) || !slots(raw.reserve, 'me') || new Set(raw.reserve).size !== raw.reserve.length) return null;
+  if (!(raw.autoWait === undefined || (Array.isArray(raw.autoWait) && raw.autoWait.length === n.me && raw.autoWait.every((x) => fin(x, 0, 1e6))))) return null;
   const both = (e: Obj) => isSide(e.side) && slot(e.from, e.side) && slot(e.to, other(e.side));
   const pair = (v: unknown) => Array.isArray(v) && v.length === 2 && v.every((x) => fin(x, 0));
   const okNote = (e: unknown): boolean => {
@@ -1011,5 +1042,7 @@ export function readTeam(raw: unknown): TeamBattle | null {
 /** 다시 그리는 열쇠 — 한 걸음마다 바뀌는 것 (게이지 · HP · 날아가는 기술 · 힘겨루기 · 필살기 진행 · 팝업이 사라짐) 을 모양 단위로 */
 export function teamViewKey(b: TeamBattle): string {
   const f = (x: Fighter) => `${x.hp}:${Math.floor(x.gauge * 20)}:${Math.floor(x.ult * 20)}:${x.status?.kind ?? ''}`;
-  return [b.phase, b.me.map(f).join(','), b.foe.map(f).join(','), b.shots.map((s) => `${s.id}:${s.clash}`).join(','), b.moveClashes.map((c) => `${c.shots?.join('-')}:${Math.floor(c.ms / 100)}`).join(','), b.ult ? `${b.ult.side}${b.ult.from}:${b.ult.window > 0}:${b.ult.hit}:${Math.floor(b.ult.ms / 100)}:${Math.floor((b.ult.gather ?? 0) / 100)}:${(b.ult.team ?? []).join('')}` : '', b.clash ? `${b.clash.me.join('')}:${b.clash.foe.join('')}:${b.clash.taps}:${Math.floor(b.clash.ms / 100)}` : '', b.popups.map((p) => p.id).join(','), b.msg, b.reserve.join(''), b.logSeq].join('|');
+  // 다 찬 필살기 저절로 쓰기까지 남은 막대 (0.25초 칸 — 발밑 판 막대, R2)
+  const auto = b.me.map((_, i) => { const l = teamAutoUltLeft(b, i); return l === null ? '' : Math.ceil(l / 250); }).join(',');
+  return [b.phase, b.me.map(f).join(','), b.foe.map(f).join(','), auto, b.shots.map((s) => `${s.id}:${s.clash}`).join(','), b.moveClashes.map((c) => `${c.shots?.join('-')}:${Math.floor(c.ms / 100)}`).join(','), b.ult ? `${b.ult.side}${b.ult.from}:${b.ult.window > 0}:${b.ult.hit}:${Math.floor(b.ult.ms / 100)}:${Math.floor((b.ult.gather ?? 0) / 100)}:${(b.ult.team ?? []).join('')}` : '', b.clash ? `${b.clash.me.join('')}:${b.clash.foe.join('')}:${b.clash.taps}:${Math.floor(b.clash.ms / 100)}` : '', b.popups.map((p) => p.id).join(','), b.msg, b.reserve.join(''), b.logSeq].join('|');
 }

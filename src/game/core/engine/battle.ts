@@ -128,6 +128,10 @@ export interface BattleState {
   foeDown: { species: number; level: number }[];
   /** 상대 필살기를 쓰기까지 남은 기다림 (트레이너 · 관장, 게이지가 찬 뒤) */
   foeUltWait: number | null;
+  /** 내 필살기가 다 찬 뒤 기다린 ms (자동 전투 · 볼 때 — ultAutoWaitMs 가 되면 저절로, R2) · Z 를 누를 수 있을 때만 셈 · 안 찼으면 없음 (옛 상태에도 없음) */
+  ultWait?: number;
+  /** Z 를 못 누르는 때 (내 행동 연출 중) 누른 필살기 — 누를 수 있게 되면 바로 씀 (말없이 버려지던 것, U5) */
+  ultQueued?: boolean;
   /** 상대 트레이너 이름 ("곤충채집 소년 민수") — 야생은 null */
   foeName: string | null;
   /** 관장이 남긴 상처약 (2026-10-20) — 관장전만, 옛 상태에는 없음 (= 0) */
@@ -425,7 +429,9 @@ function hit(b: BattleState, attackerSide: Side, power: number, type: ReadonlyMo
   const eff = effectivenessText(r.effect);
   if (eff && !blocked) popup(b, other(attackerSide), eff, effectKind(r.effect));
   if (r.crit && dmg > 0) popup(b, other(attackerSide), '급소에 맞았다!', 'crit');
-  if (dmg > 0) {
+  // 필살기 게이지는 패링 전 피해로 — 막아도 (완벽 = 피해 0) 맞은 것처럼 나 · 상대 모두 참 (패링은 HP 만 지킴, 2026-10-21 기획 검토 R1 A — 패링을 잘할수록 필살기가 줄던 것)
+  const parriedHit = (parried === 'good' || parried === 'perfect') && r.damage > 0;
+  if (dmg > 0 || parriedHit) {
     // × 0.5 는 야생 포켓몬만 (트레이너 · 관장 포켓몬은 그대로 — 테스터)
     const wild = b.kind === 'wild';
     if (!opts.useUlt) a.ult = Math.min(1, a.ult + ultGain('hit', a, { wild: wild && attackerSide === 'foe' }));
@@ -654,6 +660,15 @@ export function battleStep(b0: BattleState, save: Save, stepMs: number, rng: Rng
     t: b0.t + stepMs,
     popups: b0.popups.filter((p) => p.ms + stepMs < POPUP_MS).map((p) => ({ ...p, ms: p.ms + stepMs })),
   };
+  // 다 찬 내 필살기 — 자동 전투 · 볼 때는 ultAutoWaitMs 기다림 (Z 가 반짝 · 눌러도 됨), 안 볼 때는 바로 (R2 A).
+  // 기다림은 Z 를 누를 수 있을 때만 셈 (내 행동 연출 중엔 멈춤) · 다 되면 쓸 수 있는 첫 걸음에 (상대 연출 중이면 끼어듦 — 1 이 연출 끝까지 남던 것, 디자인팀 #26 판정)
+  if (b.me.ult >= 1 && b.me.hp > 0 && opts.auto && !opts.away) b.ultWait = (b0.ultWait ?? 0) + (canUlt(b) ? stepMs : 0);
+  else if (b.ultWait !== undefined) delete b.ultWait;
+  if (b.ultQueued && (b.me.ult < 1 || b.me.hp <= 0)) delete b.ultQueued;
+  // HP 가 자동 상처약 기준 (30%) 아래면 기다리지 않음 — 3초 안에 쓰러져 필살기가 날아가던 것 (2026-10-21 태현 님 "추천대로", 기획 #26 R2 ①)
+  const low = b.me.hp < b.me.maxHp * BALANCE.autoPotionBelow;
+  const myUltNow = (opts.auto && b.me.ult >= 1 && (opts.away === true || low || (b.ultWait ?? 0) >= BALANCE.ultAutoWaitMs)) || b.ultQueued === true;
+  if (myUltNow && b.phase !== 'run' && canUlt(b) && !ultCounterOpen(b)) return pressUlt(b, rng);
   switch (b.phase) {
     case 'riposte': {
       const r = b.riposte;
@@ -666,12 +681,12 @@ export function battleStep(b0: BattleState, save: Save, stepMs: number, rng: Rng
       const me = { ...b.me, gauge: Math.min(1, b.me.gauge + gaugeRate(b.me, b.foe) * stepMs) };
       const foe = { ...b.foe, gauge: Math.min(1, b.foe.gauge + gaugeRate(b.foe, b.me) * stepMs) };
       b = { ...b, me, foe };
-      // 필살기: 야생 = 차면 바로 (끼어들지는 않음 [제안]) · 자동 전투의 내 필살기도 차면 바로 — 같은 걸음에 둘 다 쓰면 필살기 힘대결 (4장 동시 필살기)
-      if (opts.auto && b.me.ult >= 1 && b.foe.ult >= 1) return startClash({ ...b, me: { ...b.me, ult: 0 }, foe: { ...b.foe, ult: 0 }, foeUltWait: null }, 'ult', null, null);
+      // 필살기: 상대 = 다 찬 뒤 1초 넘게 (예고 "!") · 자동 전투의 내 필살기 = 볼 때 3초 · 안 볼 때 바로 — 같은 걸음에 둘 다 쓰면 필살기 힘대결 (4장 동시 필살기)
+      if (myUltNow && b.foe.ult >= 1) return startClash({ ...b, me: { ...b.me, ult: 0 }, foe: { ...b.foe, ult: 0 }, foeUltWait: null }, 'ult', null, null);
       const tick = foeUltTick(b, stepMs, rng);
       b = tick.b;
       if (tick.fire) return startAction(b, 'foe', { kind: 'ult' }, rng);
-      if (opts.auto && b.me.ult >= 1) return myUlt(b, rng);
+      if (myUltNow) return pressUlt(b, rng);
       const meReady = b.me.gauge >= 1;
       const foeReady = b.foe.gauge >= 1;
       if (meReady && (!foeReady || b.me.stats.speed >= b.foe.stats.speed)) {
@@ -766,13 +781,20 @@ export function battleStep(b0: BattleState, save: Save, stepMs: number, rng: Rng
 /** 상대 필살기를 쓸 때인지 — 야생: 차면 바로 · 트레이너: 0.5 ~ 3초 기다렸다가 · 관장: 끼어들 틈 (내 공격 · 기술) 이 없으면 4초 뒤 */
 function foeUltTick(b: BattleState, stepMs: number, rng: Rng): { b: BattleState; fire: boolean } {
   if (b.foe.ult < 1 || b.foe.hp <= 0) return { b: b.foeUltWait === null ? b : { ...b, foeUltWait: null }, fire: false };
-  if (b.kind === 'wild') return { b, fire: true };
   if (b.foeUltWait === null) {
     const [lo, hi] = BALANCE.trainerUltWaitMs;
-    return { b: { ...b, foeUltWait: b.kind === 'gym' ? BALANCE.leaderUltWaitMs : rng.int(lo, hi) }, fire: false };
+    return { b: { ...b, foeUltWait: b.kind === 'wild' ? BALANCE.wildUltWaitMs : b.kind === 'gym' ? BALANCE.leaderUltWaitMs : rng.int(lo, hi) }, fire: false };
   }
   const left = b.foeUltWait - stepMs;
   return left <= 0 ? { b: { ...b, foeUltWait: null }, fire: true } : { b: { ...b, foeUltWait: left }, fire: false };
+}
+
+/** Z — 지금 내 필살기 (상대 기술 연출 중이면 끼어들어 상대 기술은 취소 — 상대 PP 는 깎인 채, 2026-10-18 태현 님) · 고르는 중에 쓴 필살기는 끝나면 다시 고르기 */
+function pressUlt(b0: BattleState, rng: Rng): BattleState {
+  const { ultQueued: _q, ultWait: _w, ...b } = b0;
+  const interrupted = b.phase === 'anim' && b.anim?.side === 'foe';
+  const nb = myUlt(interrupted ? { ...b, anim: null } : b, rng);
+  return interrupted && nb.phase === 'anim' ? { ...nb, msg: `끼어들었다! ${nb.msg}` } : nb;
 }
 
 /** 내 필살기 — 트레이너 · 관장의 게이지가 차 있으면 필살기로 맞받아침 (관장은 늘 · 트레이너는 반) → 필살기 힘대결 */
@@ -802,7 +824,7 @@ function throwBall(b: BattleState, ball: BallId, last: boolean): BattleState {
 function throwNow(b: BattleState, c: BattleCatch, at: number, pressed: boolean, rng: Rng): BattleState {
   const pressMs = pressed ? at : null;
   const timing = catchTiming(pressMs, TIMING.catchRingMs);
-  const p = catchChance({ captureRate: speciesOf(b.foe.species)?.captureRate ?? 45, hp: b.foe.hp, maxHp: b.foe.maxHp, ball: c.ball, timing, lastChance: c.last });
+  const p = catchChance({ captureRate: speciesOf(b.foe.species)?.captureRate ?? 45, hp: b.foe.hp, maxHp: b.foe.maxHp, ball: c.ball, timing, lastChance: c.last, status: b.foe.status?.kind });
   const caught = rng.next() < p;
   // 흔들 횟수 (원작처럼) — 잡히면 3번, 놓치면 1번 + 한 번 더 흔들 확률 = 잡을 확률의 세제곱근 (잡힐 뻔할수록 많이 흔들다 터짐)
   let shakes = 3;
@@ -863,7 +885,27 @@ function pickNext(b: BattleState, save: Save, uid: string): BattleState {
 export function battleCatchOdds(b: BattleState): ReturnType<typeof catchOdds> | null {
   if (b.kind !== 'wild') return null;
   const lastChance = b.phase === 'last' || b.catch?.last === true;
-  return catchOdds({ captureRate: speciesOf(b.foe.species)?.captureRate ?? 45, hp: b.foe.hp, maxHp: b.foe.maxHp, lastChance });
+  return catchOdds({ captureRate: speciesOf(b.foe.species)?.captureRate ?? 45, hp: b.foe.hp, maxHp: b.foe.maxHp, lastChance, status: b.foe.status?.kind });
+}
+
+/**
+ * 1:1 상대 필살기 예고 (2026-10-21 기획 검토 R4 — 3:3 과 같은 그림) — 80% 부터 { pct } · 다 차면 { full } (쓰기까지 1초 넘게 — wildUltWaitMs · trainerUltWaitMs).
+ * 상대가 쓰러졌거나 · 필살기를 쓰는 중 · 전투가 끝나 가는 때는 null. 화면이 상대 HP 칸 · 2 방어 칸 ▲ 를 그림 (디자인팀)
+ */
+export function battleFoeUltWarn(b: BattleState): { full: boolean; pct: number } | null {
+  const f = b.foe;
+  if (f.hp <= 0 || b.phase === 'over' || b.phase === 'send' || b.phase === 'last' || b.phase === 'catch') return null;
+  // 상대 필살기 기 모으기 ~ 컷인 전까지는 "!" 그대로 (쓰기 시작하면 게이지가 0 — 컷인까지 1.25초 비던 것, 디자인팀 #26 판정 U1)
+  if (b.anim?.side === 'foe' && b.anim.action.kind === 'ult') return b.anim.ms < TIMING.ultCutInMs ? { full: true, pct: 99 } : null;
+  if (f.ult < BALANCE.team.ultWarnAt) return null;
+  return { full: f.ult >= 1, pct: Math.min(99, Math.floor(f.ult * 100)) };
+}
+
+/** 다 찬 내 필살기가 저절로 나가기까지 남은 ms (자동 전투 · 볼 때 — Z 반짝 · 막대, R2) · 저절로 안 나가면 null */
+export function battleAutoUltLeft(b: BattleState, auto: boolean): number | null {
+  if (!auto || b.me.ult < 1 || b.me.hp <= 0) return null;
+  if (b.me.hp < b.me.maxHp * BALANCE.autoPotionBelow) return 0;
+  return Math.max(0, BALANCE.ultAutoWaitMs - (b.ultWait ?? 0));
 }
 
 /** 전투 결과를 보여 주는 시간이 다 지났는지 */
@@ -1014,13 +1056,9 @@ export function battleInput(b: BattleState, save: Save, input: BattleInput, rng:
       return { ...b, phase: 'over', result: 'win', overMs: 0, msg: `${withJosa(label(b, 'foe'), '이/가')} 쓰러졌다!` };
     case 'ult': {
       if (ultCounterOpen(b)) return startClash({ ...b, me: { ...b.me, ult: 0 } }, 'ult', null, null);
-      if (!canUlt(b)) return b;
-      // 상대 기술 연출 중에 끼어들면 상대 기술은 취소 (상대 PP 는 깎인 채 — 2026-10-18 태현 님)
-      const interrupted = b.phase === 'anim' && b.anim?.side === 'foe';
-      const nb = myUlt(interrupted ? { ...b, anim: null } : b, rng);
-      if (interrupted && nb.phase === 'anim') return { ...nb, msg: `끼어들었다! ${nb.msg}` };
-      // 고르는 중에 쓴 필살기 — 끝나면 다시 고르기 (내 행동 게이지는 그대로)
-      return nb;
+      // 내 행동 연출 중 (Z 를 못 누름) 이면 예약 — 누를 수 있게 되면 바로 (말없이 버려지던 것, U5)
+      if (!canUlt(b)) return b.me.ult >= 1 && b.me.hp > 0 && b.phase === 'anim' && b.anim?.side === 'me' ? { ...b, ultQueued: true } : b;
+      return pressUlt(b, rng);
     }
     case 'space': {
       // 타이밍 원 — 누른 때 = 던짐 (처음 한 번만, 다 줄어든 뒤 조금 늦게까지)
@@ -1150,7 +1188,7 @@ export function readBattle(raw: unknown): BattleState | null {
   if (!Array.isArray(raw.foeQueue) || raw.foeQueue.length > 6 || !raw.foeQueue.every(okFoeMonster)) return null;
   if (!Array.isArray(raw.foeDown) || raw.foeDown.length > 6 || !raw.foeDown.every((d) => isObj(d) && fin(d.species, 1, 2000) && fin(d.level, 1, 100))) return null;
   if (!(raw.foeUltWait === null || fin(raw.foeUltWait, -1e6, 1e6)) || !(raw.foeName === null || (typeof raw.foeName === 'string' && raw.foeName.length <= 40)) || !fin(raw.sendMs, 0)) return null;
-  if (!(raw.foePotions === undefined || fin(raw.foePotions, 0, 10))) return null;
+  if (!(raw.foePotions === undefined || fin(raw.foePotions, 0, 10)) || !(raw.ultWait === undefined || fin(raw.ultWait, 0, 1e6)) || !(raw.ultQueued === undefined || typeof raw.ultQueued === 'boolean')) return null;
   if (!(raw.escaped === undefined || typeof raw.escaped === 'boolean')) return null;
   if (!(raw.perfects === undefined || fin(raw.perfects, 0, 1000))) return null;
   if (!(raw.lastMe === undefined || okAction(raw.lastMe)) || !(raw.queued === undefined || raw.queued === null || okAction(raw.queued))) return null;

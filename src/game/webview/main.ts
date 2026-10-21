@@ -308,6 +308,10 @@ if (!port) {
       // Z = 먼저 찬 포켓몬 (1:1 습관 그대로, 예약은 없음)
       e.preventDefault();
       actions.input({ kind: 'team-battle', input: { kind: 'ult' } });
+    } else if (phase === 'trainer' && stage.vsAt === undefined && ((!stage.pick && e.code === 'Digit1') || (stage.pick && e.key === 'Escape')) && session.current && teamChoiceOn(session.current) && !(e.ctrlKey || e.metaKey || e.altKey)) {
+      // 트레이너 만남 1 = 1:1 (바로 VS — 주 버튼이 3:3 이어도 키로 고르게) · 3마리 고르기에서 Esc = 1:1 로 (디자인팀 UX 9차)
+      e.preventDefault();
+      actions.input({ kind: 'team-mode', on: false, go: true });
     } else if (phase === 'trainer' && !stage.pick && e.code === 'Digit3' && session.current && teamChoiceOn(session.current) && !(e.ctrlKey || e.metaKey || e.altKey)) {
       // 트레이너 만남 3 = 3:3 (3마리 고르기를 엶 — orders #17)
       e.preventDefault();

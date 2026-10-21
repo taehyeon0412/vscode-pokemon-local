@@ -192,7 +192,8 @@ const teamOn = (rt: RuntimeState) => BALANCE.team.on || devTeam(rt.dev);
  * 자동 전투 · 안 볼 때는 예전처럼 만남 4초 (고르지 않음 — 마지막으로 고른 방식)
  */
 function choiceMeet(save: Save, rt: RuntimeState): boolean {
-  return teamOn(rt) && !save.settings.autoBattle && !rt.headless && save.pendingEncounter?.kind === 'trainer';
+  // 3:3 이 잠기면 (2마리 · 좁음) 고를 게 1:1 하나뿐 — 예전 4초 박자 (화면은 "3마리 필요" 안내, 디자인팀 UX 9차)
+  return teamOn(rt) && !save.settings.autoBattle && !rt.headless && save.pendingEncounter?.kind === 'trainer' && teamLockOf(save, rt) === null;
 }
 /** 엔진이 고를 때까지 기다리는 만남인지 (자동 전투 · 안 볼 때는 아님) — 화면에 고르기를 그려도 되는지는 TeamChoice 의 teamChoiceOn (자동 전투도 포함) */
 export function teamChoiceMeet(state: GameState): boolean {
@@ -1005,6 +1006,8 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       if (stage?.phase === 'trainer' && stage.ms >= TIMING.trainerAlertMs && (choiceMeet(save, state.runtime) || stage.vsAt !== undefined)) {
         // 고르는 중 = 지금 방식으로 VS · VS 중 = 바로 전투 (VS 는 1초는 보임 — 더블클릭 · 버튼 뒤 한 번 더 누름에 한 장면 만에 끝나던 것, U1 · 코드 리뷰어)
         if (stage.vsAt !== undefined && stage.ms < stage.vsAt + TIMING.vsSkipAfterMs) return state;
+        // 주 버튼이 3:3 (지난번 3:3) 이고 판이 아직이면 Enter · Space 도 클릭처럼 3마리 고르기 판 (같은 버튼인데 키는 판 없이 VS 로 가던 것 — 디자인팀 UX 9차)
+        if (stage.vsAt === undefined && !stage.pick && stage.team === undefined && save.settings.teamMode === true) return applyInput(state, { kind: 'team-mode', on: true });
         const st = stage.vsAt === undefined ? { ...stage, vsAt: stage.ms } : { ...stage, ms: Math.max(stage.ms, stage.vsAt + TIMING.vsMs) };
         return { ...state, runtime: { ...state.runtime, stage: st } };
       }
@@ -1037,7 +1040,8 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       // 대기실은 3마리 고르기 판이 열렸을 때만 (teamPickOf 가 null) · 트레이너는 VS 전에만 (VS 동안 숫자로 보이지 않게 셋이 바뀌던 것 — 코드 리뷰어)
       if (stage?.phase === 'trainer' && stage.vsAt !== undefined) return state;
       if (!cur || !save.party.includes(input.uid) || (save.monsters[input.uid]?.hp ?? 0) <= 0 || (stage?.phase !== 'trainer' && stage?.phase !== 'lobby')) return state;
-      const pick = cur.includes(input.uid) ? cur.filter((u) => u !== input.uid) : [...cur, input.uid].slice(-BALANCE.team.size);
+      // 셋이 다 찼으면 넷째는 마지막에 고른 것과 바꿈 (1 · 2 번은 그대로 — 맨 처음 것이 소리 없이 빠지고 번호가 당겨지던 것, 디자인팀 UX 9차)
+      const pick = cur.includes(input.uid) ? cur.filter((u) => u !== input.uid) : cur.length >= BALANCE.team.size ? [...cur.slice(0, BALANCE.team.size - 1), input.uid] : [...cur, input.uid];
       return { ...state, runtime: { ...state.runtime, stage: { ...stage, pick } } };
     }
     case 'view': {

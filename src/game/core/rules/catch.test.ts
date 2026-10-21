@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../balance';
-import { catchChance, catchOdds, catchTier, catchTiming, isBall, timingScale } from './catch';
+import { catchChance, catchOdds, catchTier, catchTiming, isBall, statusScale, timingScale } from './catch';
 
 describe('잡기 (mvp-spec 3.4 · 4장)', () => {
   it('타이밍 원: 다 줄어든 순간 ±0.1초 완벽 × 1.5 · ±0.25초 좋음 × 1.25 · 그 밖 · 안 누름 × 1', () => {
@@ -20,6 +20,18 @@ describe('잡기 (mvp-spec 3.4 · 4장)', () => {
     expect(catchChance({ ...base, hp: 10 })).toBeCloseTo(2 / 3, 9);
     expect(catchChance({ ...base, hp: 0, lastChance: true })).toBeCloseTo(BALANCE.lastChanceScale, 9);
     expect(catchChance({ ...base, captureRate: 45 })).toBeCloseTo((45 / 255) * (1 / 3), 9);
+  });
+
+  it('상태 이상 × 잠듦 2 · 마비 · 독 · 화상 1.5 (기획 검토 R5) — 최대 1 · 쉬움 · 보통 · 어려움에도 바로', () => {
+    expect([statusScale('sleep'), statusScale('paralysis'), statusScale('poison'), statusScale('burn'), statusScale(null), statusScale(undefined)]).toEqual([2, 1.5, 1.5, 1.5, 1, 1]);
+    const base = { captureRate: 45, hp: 30, maxHp: 30, ball: 'poke-ball' as const, timing: 'none' as const, lastChance: false };
+    expect(catchChance({ ...base, status: 'sleep' })).toBeCloseTo(catchChance(base) * 2, 9);
+    expect(catchChance({ ...base, status: 'burn' })).toBeCloseTo(catchChance(base) * 1.5, 9);
+    expect(catchChance({ ...base, captureRate: 255, hp: 1, ball: 'ultra-ball', status: 'sleep' })).toBe(1);
+    // 포획률 120 · HP 절반 · 몬스터볼 약 31% (보통) → 잠듦 약 63% (쉬움)
+    const half = { captureRate: 120, hp: 15, maxHp: 30, lastChance: false };
+    expect(catchOdds(half)['poke-ball'].tier).toBe('normal');
+    expect(catchOdds({ ...half, status: 'sleep' })['poke-ball'].tier).toBe('easy');
   });
 
   it('볼만 던짐 (상처약 · 돌은 아님)', () => {

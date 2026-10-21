@@ -710,10 +710,11 @@ function fxDuelSoftStop() {
 }
 
 // ── 3:3 필살기 박자 · 자리 (2026-10-21 디자인팀 6판 · 기획) ──
-// 필살기 박자표 — "모습|이름|틀" → [큰 맞음 ms, 본편 ms, 자기 둘레 터짐 1/0, 가장 센 번쩍 ms] (dev/ult-fx.py — 본편 시작부터, 3:3 자리에서 잼).
+// 필살기 박자표 — "모습|이름|틀" → [큰 맞음 ms, 본편 ms, 자기 둘레 터짐 1/0, 가장 센 번쩍 ms, 덮음 끝 ms, (자기 둘레만) [[거리 px, 덮음 끝] …]] (dev/ult-fx.py — 본편 시작부터, 3:3 자리에서 잼).
+// 자기 둘레 터짐은 거리마다 덮음이 달라 (좁은 패널은 돔이 상대까지 덮음 — 디자인팀 UX 9차) 실제 내 · 상대 거리에서 가장 가까운 값
 // 그 모습 값이 없으면 같은 필살기 (이름|틀) 의 다른 모습 값, 그것도 없으면 null (처음 닿음 · 본편 40% 로)
 let fxUltIndex;
-function fxUltTiming(form, e) {
+function fxUltTiming(form, e, dist) {
     const t = typeof ULT_HIT !== 'undefined' ? ULT_HIT : {};
     if (!fxUltIndex) {
         fxUltIndex = {};
@@ -725,7 +726,21 @@ function fxUltTiming(form, e) {
         }
     }
     const m = t[`${form}|${e[0]}|${e[1]}`] || fxUltIndex[`${e[0]}|${e[1]}`];
-    return m && m[0] >= 0 ? { main: m[0], run: m[1], self: m[2] === 1, flash: m[3] ?? -1, cover: m[4] ?? -1 } : null;
+    if (!m || m[0] < 0) {
+        return null;
+    }
+    let cover = m[4] ?? -1;
+    if (Array.isArray(m[5]) && typeof dist === 'number' && dist > 0) {
+        const near = m[5].reduce((a, b) => (Math.abs(b[0] - dist) < Math.abs(a[0] - dist) ? b : a));
+        cover = near[1];
+    }
+    return { main: m[0], run: m[1], self: m[2] === 1, flash: m[3] ?? -1, cover };
+}
+/** 내 · 상대 가운데 사이 가로 px (박자표 덮음 끝 고르기) — 모르면 0 */
+function fxGap(a, b) {
+    const ra = (a?.box || a?.el)?.getBoundingClientRect?.();
+    const rb = (b?.box || b?.el)?.getBoundingClientRect?.();
+    return ra && rb ? Math.abs(rb.left + rb.width / 2 - (ra.left + ra.width / 2)) : 0;
 }
 // 3:3 모드 켜짐 (게임이 상태마다 다시 켬)
 const fxTeamOn = () => performance.now() < fxTeamUntil;
@@ -744,6 +759,10 @@ const FX_CORE = '#fffbe8';
 const fxNoFlashGens = new Set();
 const fxDrawParticle0 = drawParticle;
 drawParticle = function (ctx, p) {
+    // 개발 창 덮음 재기 (dev/ult-fx.py) — 화면 전체 어두워짐 · 번쩍 판은 그리지 않음 (캔버스 점 수로 상대를 덮는 연출만 셈)
+    if (window.__fxMeasure && (p._full || p._flash)) {
+        return;
+    }
     if (p._g !== undefined) {
         if (p._flash && fxNoFlashGens.has(p._g)) {
             return;
@@ -1577,6 +1596,8 @@ window.__fxDebug = {
         }
         return n;
     },
+    // 번쩍 판 (화면 전체 흰색) 이 떠 있는지 — 덮음 재기에서 그 순간은 뺌 (캔버스 점 수로 재서)
+    flashing: () => moveParticles.some((q) => q._flash),
 };
 
 window.pokemonFx = {
@@ -1703,7 +1724,8 @@ window.pokemonFx = {
         // 3:3 — 큰 맞음 (빛줄기 닿음 · 대폭발 번쩍) 에 피해 (처음 닿음이 아니라), 자기 둘레 터짐은 그때 상대 자리로 (1:1 은 그대로 처음 닿음)
         const tm = fxTeamOn() && !o?.sub ? fxUltTiming(src.form, entry) : null;
         // 박자표 — 1:1 · 3:3 모두 (반격기 빼고): 부른 쪽에 큰 맞음 · 덮음 끝을 알림 (쓰러진 포켓몬이 연출이 걷힌 뒤 넘어지게 — 디자인팀). 피해 때는 3:3 (tm) 만
-        const tmAll = !o?.sub ? (tm ?? fxUltTiming(src.form, entry)) : null;
+        // 덮음 끝은 실제 내 · 상대 거리로 (자기 둘레 터짐)
+        const tmAll = !o?.sub ? fxUltTiming(src.form, entry, fxGap(src, dst)) : null;
         if (tm) {
             fxTagged.add(gen);
         }

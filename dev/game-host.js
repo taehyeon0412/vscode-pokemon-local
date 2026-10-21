@@ -301,6 +301,8 @@
     if (q.get('bt') && runtime.stage && runtime.stage.phase === 'battle') runtime.stage.battle.t = Number(q.get('bt'));
     // 개발 모드 (임시) — dev=1 이면 처음부터 개발 모드 · 타이틀의 개발 모드 줄 (title-dev) 도 흉내
     const devRt = { team: true, walk: 1, battle: 1, pause: false, foes: [], ults: {} };
+    // devult=<필살기 이름> — 내 선두 (m1) 필살기 고르기 (dev=1 과 같이, 예: devult=블래스트번 — 박자 시험)
+    if (q.get('devult')) devRt.ults = { m1: q.get('devult') };
     if (q.get('dev') === '1') runtime.dev = devRt;
     let epoch = 0;
     const toWebview = (m) => setTimeout(() => window.postMessage({ command: 'game', ...m }, '*'), 0);

@@ -24,6 +24,18 @@ FORMS = list(json.load(open(os.path.join(ROOT, "src", "game", "data", "generated
 # 일반 모드 필살기 앞 — 기 모으기 (게임 첫 필살기) · 컷인 · 끝 밝아짐 (ult/core.js · ult/bridge.js)
 CHARGE_MS, INTRO_MS, OUTRO_MS = 800, 900, 500
 WAIT_MAX_MS = 11000
+# 덮음 = 상대 몸 칸 (그림 칸에서 발 쪽 아래 1/4 뺌) 안에 그려진 점이 그 넓이의 이만큼 이상 (흩어진 불씨 · 반짝이 빼기 — 디자인팀 UX 8차 · 바닥을 따라 퍼진 불 띠가 발만 덮는 것도 빼기 — UX 9차 블래스트번 480)
+COVER_AREA = 0.1
+# 자기 둘레 터짐 (self=1) 은 화면마다 덮음이 달라 (좁은 패널은 돔이 상대까지 덮음 — 디자인팀 UX 9차) 실제 1:1 화면 폭에서 자리를 옮기지 않고 잼 → 6번째 칸 [[내 · 상대 가운데 거리 px, 덮음 끝] …]
+# (860 화면에서 거리만 바꾸면 그림 배율이 달라 돔 크기가 다르게 보임 — 240 에서 돔이 걷히기 전에 넘어지던 것)
+SELF_WIDTHS = [240, 480, 860, 1860]
+GAP = r"""
+(() => {
+  const d = document.querySelector('iframe').contentWindow.document;
+  const c = (sel) => { const r = d.querySelector(sel).getBoundingClientRect(); return r.left + r.width / 2; };
+  return Math.round(Math.abs(c('.pg-fighter-foe') - c('.pg-fighter-me')));
+})()
+"""
 
 
 class WS:
@@ -98,16 +110,22 @@ ONE = r"""
     const r = box.getBoundingClientRect();
     box.style.marginLeft = `${Math.round(cx - (r.left + r.width / 2))}px`;
   };
-  place(meBox, cfg.meX);
-  place(foeBox, cfg.foeX);
+  // natural = 그 폭의 실제 1:1 자리 그대로 (자기 둘레 터짐 — 화면 폭마다 덮음 끝)
+  if (!cfg.natural) {
+    place(meBox, cfg.meX);
+    place(foeBox, cfg.foeX);
+  }
   const src = { el: meBox.querySelector('.pg-sprite'), box: meBox, form, size: 32, left: false, name: 'x' };
   const dst = { el: foeBox.querySelector('.pg-sprite'), box: foeBox, form: 'butterfree', size: 32, left: true };
   w.__fxTrace = [];
+  // 어두워짐 · 번쩍 판은 안 그림 (화면 전체에 깔려 상대 칸이 늘 칠해진 것으로 셈 — 2026-10-21)
+  w.__fxMeasure = true;
   const samples = [];
   const t0 = w.performance.now();
   const total = fx.ult(src, dst, () => {}, [], { entry: lib[idx] });
   if (!total) {
     w.__fxTrace = null;
+    w.__fxMeasure = false;
     return [-2, 0, 0];
   }
   const lead = cfg.charge + cfg.intro;
@@ -115,12 +133,37 @@ ONE = r"""
   // 상대 둘레 (몸 폭만큼 넓힌 칸) — 덮는 연출 재기
   const fr = foeBox.getBoundingClientRect();
   const box = [fr.left - fr.width * 0.5, fr.top - fr.height * 0.5, fr.right + fr.width * 0.5, fr.bottom + fr.height * 0.25];
+  // 상대 그림 칸 안에 실제로 그려진 연출 점 수 (캔버스 — 어두워짐 #05080f · 거의 투명한 점은 뺌). 흩어진 불씨 · 반짝이 몇 점 · 발만 덮는 바닥 불 띠는 덮음이 아님 (디자인팀 UX 8 · 9차)
+  const sr = dst.el.getBoundingClientRect();
+  const cell = [sr.left, sr.top, sr.right, sr.bottom - sr.height * 0.25];
+  const cellArea = Math.max(1, (cell[2] - cell[0]) * (cell[3] - cell[1]));
+  const painted = () => {
+    let n = 0;
+    for (const c of d.querySelectorAll('canvas')) {
+      const r = c.getBoundingClientRect();
+      const x0 = Math.max(cell[0], r.left);
+      const y0 = Math.max(cell[1], r.top);
+      const x1 = Math.min(cell[2], r.right);
+      const y1 = Math.min(cell[3], r.bottom);
+      if (x1 - x0 < 1 || y1 - y0 < 1 || !r.width || !r.height) continue;
+      const ctx = c.getContext('2d', { willReadFrequently: true });
+      if (!ctx) continue;
+      const sx = c.width / r.width;
+      const sy = c.height / r.height;
+      const px = ctx.getImageData(Math.floor((x0 - r.left) * sx), Math.floor((y0 - r.top) * sy), Math.max(1, Math.round((x1 - x0) * sx)), Math.max(1, Math.round((y1 - y0) * sy))).data;
+      let k = 0;
+      for (let i = 0; i < px.length; i += 4) if (px[i + 3] >= 96 && Math.max(px[i], px[i + 1], px[i + 2]) >= 48) k += 1;
+      n += k / (sx * sy);
+    }
+    return n;
+  };
   while (w.performance.now() - t0 < until) {
     await new Promise((r) => w.setTimeout(r, 40));
-    samples.push([w.performance.now() - t0 - lead, w.__fxDebug.centroid(), w.__fxDebug.near(...box)]);
+    samples.push([w.performance.now() - t0 - lead, w.__fxDebug.centroid(), w.__fxDebug.near(...box), painted() / cellArea, w.__fxDebug.flashing?.() === true]);
   }
   const tr = w.__fxTrace.map((x) => [x[0], x[1] - t0 - lead, x[2]]);
   w.__fxTrace = null;
+  w.__fxMeasure = false;
   fx.clear();
   const flashes = tr.filter((x) => x[0] === 'f' && x[1] > 0);
   const hits = tr.filter((x) => x[0] === 'h').map((x) => x[1]);
@@ -140,8 +183,10 @@ ONE = r"""
   } else if (hits.length) {
     main = Math.round(hits[0]);
   }
-  // 덮음 끝 = 큰 맞음 뒤 상대 둘레에 입자가 3개 이상 있던 마지막 때 (없으면 -1) — 쓰러진 포켓몬이 연출이 다 걷힌 뒤 넘어지게 (디자인팀 — 개구마르 등)
-  const covered = samples.filter((s) => s[0] >= main && s[2] >= 3);
+  // 덮음 끝 = 큰 맞음 뒤 상대 몸 칸에 그려진 점이 그 넓이의 10% 이상이던 마지막 때 (어두워짐 · 번쩍 판은 안 그리고 잼 · 없으면 -1) — 쓰러진 포켓몬이 연출이 다 걷힌 뒤 넘어지게 (디자인팀 — 개구마르 등).
+  // 넓이 문턱 = 흩어진 불씨 · 반짝이만 떠 있을 때 1.6초 넘게 서 있던 것 (플레어드라이브 7163 → 보이는 불은 약 5800, 디자인팀 UX 8차).
+  // 입자 개수는 안 봄 — 큰 돔 하나 (블래스트번, 가운데는 쓴 쪽) 는 상대 칸 안 입자가 0 이라 덮지 않는 것으로 재던 것 (240 에서 돔 밑에 넘어짐 — 디자인팀 UX 9차)
+  const covered = samples.filter((s) => s[0] >= main && s[3] >= cfg.coverArea);
   const cover = main >= 0 && covered.length ? Math.round(covered[covered.length - 1][0]) : -1;
   // [큰 맞음, 본편 길이, 자기 둘레, 가장 센 번쩍 (없으면 -1), 덮음 끝 (없으면 -1)]
   return [main, Math.round(total - lead - cfg.outro), self, big ? Math.round(big[1]) : -1, cover];
@@ -157,6 +202,7 @@ def browser_page():
     spec.loader.exec_module(gs)
     sys.argv = argv
     httpd, port = gs.serve()
+    browser_page.port = port
     url = f"http://127.0.0.1:{port}/dev/frame.html?" + urllib.parse.urlencode({"w": 860, "h": 187, "page": "game.html", "q": urllib.parse.urlencode({"screen": "game", "battle": "choose", "fx": "1", "shim": "1", "foe": "butterfree:12"})})
     dbg = 9300 + os.getpid() % 600
     prof = tempfile.mkdtemp()
@@ -180,19 +226,58 @@ def browser_page():
     return ws, p, httpd
 
 
+def open_page(ws, w, form):
+    """재는 화면 (1:1 전투) 을 그 폭으로 다시 엶"""
+    url = f"http://127.0.0.1:{browser_page.port}/dev/frame.html?" + urllib.parse.urlencode({"w": w, "h": 187, "page": "game.html", "q": urllib.parse.urlencode({"screen": "game", "battle": "choose", "fx": "1", "shim": "1", "foe": "butterfree:12"})})
+    ws.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 187, "deviceScaleFactor": 1, "mobile": False})
+    ws.call("Page.navigate", {"url": url})
+    time.sleep(1.5)
+    page_keys(ws, [form])
+
+
+def self_covers(ws, form, idx, far_cover):
+    """자기 둘레 터짐 — 실제 1:1 화면 폭마다 [[내 · 상대 거리 px, 덮음 끝 (없으면 −1)] …] (3:3 자리 430px 값도 · 끝나면 860 재는 화면으로 되돌림)"""
+    out = []
+    try:
+        for w in SELF_WIDTHS:
+            open_page(ws, w, form)
+            gap = ws.call("Runtime.evaluate", {"expression": GAP, "returnByValue": True}).get("result", {}).get("value") or 0
+            cfg = json.dumps({"charge": CHARGE_MS, "intro": INTRO_MS, "outro": OUTRO_MS, "wait": WAIT_MAX_MS, "coverArea": COVER_AREA, "natural": True})
+            r = ws.call("Runtime.evaluate", {"expression": ONE.replace("%FORM%", json.dumps(form)).replace("%IDX%", str(idx)).replace("%CFG%", cfg), "awaitPromise": True, "returnByValue": True})
+            v = r.get("result", {}).get("value") or []
+            out.append([gap, v[4] if len(v) >= 5 else -1])
+    finally:
+        open_page(ws, 860, form)
+    return sorted(out + [[645 - 215, far_cover]])
+
+
+def page_keys(ws, forms):
+    """필살기 목록 — 페이지 (게임 · 연출) 가 다 뜰 때까지 기다림 (3초 고정으로는 크롬 여섯이 같이 뜰 때 늦어 한 몫 (약 230개) 이 통째로 빠지던 것, 2026-10-21)"""
+    for _ in range(60):
+        r = ws.call("Runtime.evaluate", {"expression": KEYS.replace("%FORMS%", json.dumps(forms)), "returnByValue": True})
+        v = r.get("result", {}).get("value")
+        if isinstance(v, dict) and v:
+            return v
+        time.sleep(0.5)
+    raise RuntimeError("페이지가 안 뜸")
+
+
 def worker(k, n, out):
     ws, p, httpd = browser_page()
+    res = {}
     try:
-        keys = ws.call("Runtime.evaluate", {"expression": KEYS.replace("%FORMS%", json.dumps(FORMS)), "returnByValue": True})["result"]["value"]
+        keys = page_keys(ws, FORMS)
         mine = sorted(keys)[k::n]
-        res = {}
-        cfg = json.dumps({"charge": CHARGE_MS, "intro": INTRO_MS, "outro": OUTRO_MS, "wait": WAIT_MAX_MS, "meX": 215, "foeX": 645})
+        cfg = json.dumps({"charge": CHARGE_MS, "intro": INTRO_MS, "outro": OUTRO_MS, "wait": WAIT_MAX_MS, "coverArea": COVER_AREA, "meX": 215, "foeX": 645})
         for key in mine:
             form, idx = keys[key]
             r = ws.call("Runtime.evaluate", {"expression": ONE.replace("%FORM%", json.dumps(form)).replace("%IDX%", str(idx)).replace("%CFG%", cfg), "awaitPromise": True, "returnByValue": True})
             res[key] = r.get("result", {}).get("value") or [-3, 0, 0]
-        json.dump(res, open(out, "w", encoding="utf-8"), ensure_ascii=False)
+            if len(res[key]) >= 5 and res[key][2] == 1:
+                res[key] = res[key][:5] + [self_covers(ws, form, idx, res[key][4])]
     finally:
+        # 도중에 끊겨도 잰 데까지는 남김
+        json.dump(res, open(out, "w", encoding="utf-8"), ensure_ascii=False)
         subprocess.run(["taskkill", "/PID", str(p.pid), "/T", "/F"], capture_output=True)
         httpd.shutdown()
         # 크롬 프로필 폴더는 지움 (%TEMP% 에 쌓이지 않게 — 코드 리뷰어)
@@ -215,6 +300,15 @@ if __name__ == "__main__":
         if os.path.exists(f):
             merged.update(json.load(open(f, encoding="utf-8")))
     shutil.rmtree(tmp, ignore_errors=True)
+    # 못 잰 몫이 있으면 예전 값을 그대로 두고 알림 (표에서 통째로 빠지지 않게)
+    try:
+        prev = json.load(open(OUT, encoding="utf-8"))
+    except (OSError, ValueError):
+        prev = {}
+    lost = [key for key in prev if key not in merged]
+    if lost:
+        print(f"못 잰 줄 {len(lost)}개 — 예전 값 그대로 (다시 재 보세요)")
+        merged.update({key: prev[key] for key in lost})
     out = dict(sorted(merged.items()))
     open(OUT, "w", encoding="utf-8", newline="\n").write(json.dumps(out, ensure_ascii=False, separators=(",", ":")) + "\n")
     hits = sorted(v[0] for v in out.values() if v[0] >= 0)

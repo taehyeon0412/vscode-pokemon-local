@@ -10,6 +10,7 @@
  * - 포인트: 공격 · HP 번갈아 · 대기실: 처음엔 바로 도전, 지면 1-3 을 한 번 더 걷고 다시 도전
  */
 import { BALANCE, TIMING } from '../src/game/core/balance';
+import { canParry, canRiposte } from '../src/game/core/engine/battle';
 import { applyInput, step } from '../src/game/core/engine/play';
 import { createGameState, type GameState } from '../src/game/core/engine/state';
 import { maxHpOf } from '../src/game/core/rules/bag';
@@ -24,6 +25,8 @@ const args = process.argv.slice(2).filter((a) => a !== '--');
 const RUNS = Number(args[0] ?? 3);
 const CATCH = (args[1] ?? 'on') === 'on';
 const MASH = (args[2] ?? 'off') === 'on';
+/** 패링 — none = 안 함 · half = 상대 공격마다 반쯤 완벽 · perfect = 늘 완벽 (+ 반격) (orders #26 — 완벽 패링도 필살기 게이지 R1) */
+const PARRY = (args[3] ?? 'none') as 'none' | 'half' | 'perfect';
 
 type Where = StageId | 'gym';
 interface StageStat {
@@ -39,6 +42,10 @@ interface StageStat {
   trainerDefeats: number;
   /** 내 필살기 쓴 수 */
   ults: number;
+  /** 힘대결 (기술 · 필살기) */
+  clashes: number;
+  /** 완벽 패링 */
+  perfects: number;
   /** 사람이 눌러야 하는 멈춤 (새 기술 · 진화 고르기 · 부탁 · 클리어 · 패배 — 마지막 기회는 6초 뒤 저절로 지나가서 뺌) */
   pauses: number;
   wild: number;
@@ -62,7 +69,7 @@ interface RunResult {
   team: number;
 }
 
-const blank = (): StageStat => ({ ms: 0, battleMs: 0, newWild: 0, firstClearMs: 0, defeats: 0, trainerDefeats: 0, ults: 0, pauses: 0, wild: 0, trainers: 0, caught: 0 });
+const blank = (): StageStat => ({ ms: 0, battleMs: 0, newWild: 0, firstClearMs: 0, defeats: 0, trainerDefeats: 0, ults: 0, clashes: 0, perfects: 0, pauses: 0, wild: 0, trainers: 0, caught: 0 });
 const party = (save: Save): Monster[] => save.party.map((u) => save.monsters[u]).filter((m): m is Monster => !!m);
 const hpRatio = (save: Save) => {
   const t = party(save);
@@ -92,6 +99,15 @@ function decide(s: GameState, mem: { resultMs: number; lostGymOnce: boolean; gri
       }
       if (b.phase === 'catch' && b.catch && b.catch.pressMs === null && b.catch.ms >= TIMING.catchRingMs - STEP) return applyInput(s, { kind: 'space' });
       if (MASH && b.phase === 'clash' && b.clash && b.clash.winner === null && Math.random() < 0.4) return applyInput(s, { kind: 'space' });
+      // 패링 — 상대 공격 하나마다 한 번 정함 (반쯤 = 50%) · 완벽 (ms 0) 이면 반격 기회도 씀
+      if (PARRY !== 'none' && (canParry(b) || canRiposte(b))) {
+        const key = b.anim ? `${b.anim.side}${b.t - b.anim.ms}` : mem.parryKey;
+        if (key !== mem.parryKey) {
+          mem.parryKey = key;
+          mem.parryYes = PARRY === 'perfect' || Math.random() < 0.5;
+        }
+        if (mem.parryYes) return applyInput(s, { kind: 'battle', input: { kind: 'parry', ms: 0 } });
+      }
       return s;
     }
     case 'request':
@@ -170,12 +186,13 @@ function runOnce(dex: number, seed: number): RunResult {
   let s = createGameState(createStartSave(0, seed, dex, { gender: 'male' }), seed);
   s = applyInput(s, { kind: 'auto-battle', on: true });
   const stages = Object.fromEntries([...STAGE_IDS, 'gym'].map((k) => [k, blank()])) as Record<Where, StageStat>;
-  const mem = { resultMs: 0, lostGymOnce: false, grindNext: false };
+  const mem = { resultMs: 0, lostGymOnce: false, grindNext: false, parryKey: '', parryYes: false };
   const r: RunResult = { starter: speciesOf(dex)?.name.ko ?? String(dex), seed, done: false, totalMs: 0, stages, gymTries: 0, firstGymLevels: [], winLevels: [], moneyAtGym: -1, firstUltMin: -1, spent: 0, potionsUsed: 0, team: 0 };
   let prevPhase: string | undefined;
   let prevBattle: string | null = null;
   let lastKind: string | null = null;
   let prevAnim: unknown = null;
+  let prevPerfects = 0;
   /** 처음 길 야생 — 진 뒤 같은 자리를 다시 걸을 때 두 번 세지 않게 (스테이지 · 시드 · 자리) */
   const counted = new Set<string>();
   const reach: Record<string, number> = {};
@@ -227,8 +244,14 @@ function runOnce(dex: number, seed: number): RunResult {
         if (r.firstUltMin < 0) r.firstUltMin = t / 60000;
       }
       prevAnim = an;
+      if (st.battle.phase === 'clash' && st.battle.clash?.ms === 0) stages[w].clashes++;
+      if ((st.battle.perfects ?? 0) > prevPerfects) stages[w].perfects += (st.battle.perfects ?? 0) - prevPerfects;
+      prevPerfects = st.battle.perfects ?? 0;
       if (st.battle.result === 'catch' && st.battle.overMs === 0) stages[w].caught++;
-    } else prevBattle = null;
+    } else {
+      prevBattle = null;
+      prevPerfects = 0;
+    }
     if (phase !== prevPhase) {
       if (phase === 'defeat') {
         stages[w].defeats++;
@@ -266,12 +289,12 @@ for (const sp of starters) {
   }
 }
 const ace = Math.max(...leaderTeam().map((m) => m.level));
-console.log(`판 ${results.length} (스타팅 ${starters.length} × ${RUNS}) · 잡기 ${CATCH ? '함' : '안 함'} · 연타 ${MASH ? '함' : '안 함'} · 계산 ${((Date.now() - started) / 1000).toFixed(0)}초 · 관장 에이스 Lv ${ace}`);
+console.log(`판 ${results.length} (스타팅 ${starters.length} × ${RUNS}) · 잡기 ${CATCH ? '함' : '안 함'} · 연타 ${MASH ? '함' : '안 함'} · 패링 ${PARRY} · 계산 ${((Date.now() - started) / 1000).toFixed(0)}초 · 관장 에이스 Lv ${ace}`);
 console.log(`끝까지 간 판 ${results.filter((r) => r.done).length} / ${results.length}`);
 for (const w of [...STAGE_IDS, 'gym'] as Where[]) {
   const xs = results.map((r) => r.stages[w]);
   console.log(
-    `${w.padEnd(9)} 시간 ${min(avg(xs.map((x) => x.ms)))}분 (최대 ${min(Math.max(...xs.map((x) => x.ms)))}) · 전투 ${min(avg(xs.map((x) => x.battleMs)))}분 · 전투 한 번 ${(avg(xs.map((x) => x.battleMs)) / Math.max(1, avg(xs.map((x) => x.wild + x.trainers))) / 1000).toFixed(0)}초 · 처음 길 야생 ${avg(xs.map((x) => x.newWild)).toFixed(1)} · 짐 ${avg(xs.map((x) => x.defeats)).toFixed(1)}번 (트레이너 ${avg(xs.map((x) => x.trainerDefeats)).toFixed(1)} · 최대 ${Math.max(...xs.map((x) => x.defeats))}) · 야생 ${avg(xs.map((x) => x.wild)).toFixed(1)} · 트레이너 ${avg(xs.map((x) => x.trainers)).toFixed(1)} · 잡음 ${avg(xs.map((x) => x.caught)).toFixed(1)} · 필살기 ${avg(xs.map((x) => x.ults)).toFixed(1)} · 멈춤 ${avg(xs.map((x) => x.pauses)).toFixed(1)}`,
+    `${w.padEnd(9)} 시간 ${min(avg(xs.map((x) => x.ms)))}분 (최대 ${min(Math.max(...xs.map((x) => x.ms)))}) · 전투 ${min(avg(xs.map((x) => x.battleMs)))}분 · 전투 한 번 ${(avg(xs.map((x) => x.battleMs)) / Math.max(1, avg(xs.map((x) => x.wild + x.trainers))) / 1000).toFixed(0)}초 · 처음 길 야생 ${avg(xs.map((x) => x.newWild)).toFixed(1)} · 짐 ${avg(xs.map((x) => x.defeats)).toFixed(1)}번 (트레이너 ${avg(xs.map((x) => x.trainerDefeats)).toFixed(1)} · 최대 ${Math.max(...xs.map((x) => x.defeats))}) · 야생 ${avg(xs.map((x) => x.wild)).toFixed(1)} · 트레이너 ${avg(xs.map((x) => x.trainers)).toFixed(1)} · 잡음 ${avg(xs.map((x) => x.caught)).toFixed(1)} · 필살기 ${avg(xs.map((x) => x.ults)).toFixed(1)} · 힘대결 ${avg(xs.map((x) => x.clashes)).toFixed(1)} · 완벽 패링 ${avg(xs.map((x) => x.perfects)).toFixed(1)} · 멈춤 ${avg(xs.map((x) => x.pauses)).toFixed(1)}`,
   );
 }
 const done = results.filter((r) => r.done);

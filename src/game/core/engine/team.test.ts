@@ -4,10 +4,10 @@ import { fixedRng } from '../../../test/fixtures/rng';
 import { sampleMonster, sampleSave, viaJson } from '../../../test/fixtures/save';
 import { BALANCE, TIMING } from '../balance';
 import type { Monster, Save } from '../save';
-import { applyInput, step, teamLock, teamPickOf } from './play';
+import { applyInput, step, teamChoiceMeet, teamLock, teamPickOf } from './play';
 import { Rng } from './rng';
 import { createGameState, readRuntime, type GameState } from './state';
-import { shotTiming, applyTeamResult, isSpread, pickTeam, readTeam, startTeamBattle, TEAM_BASIC, teamClashSure, teamDone, teamInput, teamPick, teamPossible, teamScale, teamStep, teamUltLevel, teamUltOpen, type TeamBattle, teamGather, teamLayout } from './team';
+import { shotTiming, applyTeamResult, isSpread, pickTeam, readTeam, startTeamBattle, TEAM_BASIC, teamClashSure, teamDone, teamInput, teamPick, teamPossible, teamScale, teamStep, teamAutoUltLeft, teamUltLevel, teamUltOpen, type TeamBattle, teamGather, teamLayout } from './team';
 import { moveFxOf, moveOf } from '../../data';
 import { trainerTeam } from '../rules/trainer';
 
@@ -495,13 +495,13 @@ describe('#17 준비 — 배율 · 잠금 · 3마리 고르기 · 필살기 예�
       const s = applyInput(meet(five()), { kind: 'team-mode', on: true });
       const first = teamPickOf(s)!;
       expect(first).toEqual(pickTeam(s.save, trainerTeam('forest-1', s.save.stages['forest-1']!.seed, 0, 5, 3)));
-      // 하나 빼면 빈 채로 · 다른 걸 넣음 · 셋이 차 있으면 가장 먼저 고른 것이 빠짐
+      // 하나 빼면 빈 채로 · 다른 걸 넣음 · 셋이 차 있으면 셋째 (마지막 자리) 와 바꿈 (디자인팀 UX 9차)
       const out = applyInput(s, { kind: 'team-pick', uid: first[0]! });
       expect(teamPickOf(out)).toEqual(first.slice(1));
       const other = ['m1', 'm2', 'm3', 'm4', 'm5'].find((u) => !first.includes(u))!;
       const swapped = applyInput(out, { kind: 'team-pick', uid: other });
       expect(teamPickOf(swapped)).toEqual([...first.slice(1), other]);
-      expect(teamPickOf(applyInput(s, { kind: 'team-pick', uid: other }))).toEqual([...first.slice(1), other]);
+      expect(teamPickOf(applyInput(s, { kind: 'team-pick', uid: other }))).toEqual([first[0], first[1], other]);
       // 만남이 끝나도 기다림 → Enter (Space) = 바로 · 10초 = 저절로
       const held = steps(swapped, TIMING.trainerMeetMs + 1000);
       expect(held.runtime.stage?.phase).toBe('trainer');
@@ -569,6 +569,31 @@ describe('#17 준비 — 배율 · 잠금 · 3마리 고르기 · 필살기 예�
     }
   });
 
+  it('지난번 3:3 이면 Enter 도 3마리 고르기 판 · 넷째는 셋째와 바꿈 · 3:3 이 잠기면 예전 4초 (디자인팀 UX 9차)', () => {
+    setOn(true);
+    try {
+      const remembered = { ...five(), settings: { ...five().settings, teamMode: true } };
+      const opened = applyInput(meet(remembered), { kind: 'space' });
+      expect(opened.runtime.stage).toMatchObject({ phase: 'trainer', team: true });
+      expect(opened.runtime.stage?.phase === 'trainer' && opened.runtime.stage.vsAt).toBeUndefined();
+      const first = teamPickOf(opened)!;
+      expect(first).toHaveLength(3);
+      // 판에서 Enter = 시작 (VS)
+      expect(applyInput(opened, { kind: 'space' }).runtime.stage).toMatchObject({ vsAt: TIMING.trainerAlertMs });
+      // 판에서 Esc (1:1 로) = 1:1 바로 VS
+      expect(applyInput(opened, { kind: 'team-mode', on: false, go: true }).runtime.stage).toMatchObject({ team: false, vsAt: TIMING.trainerAlertMs });
+      // 넷째 = 셋째 자리와 바꿈 (1 · 2 그대로)
+      const other = ['m1', 'm2', 'm3', 'm4', 'm5'].find((u) => !first.includes(u))!;
+      expect(teamPickOf(applyInput(opened, { kind: 'team-pick', uid: other }))).toEqual([first[0], first[1], other]);
+      // 3:3 이 잠기면 (1마리) 고르기 없는 만남 — 예전 4초
+      const locked = meet(sampleSave());
+      expect(teamChoiceMeet(locked)).toBe(false);
+      expect(steps(locked, TIMING.trainerMeetMs - TIMING.trainerAlertMs + STEP).runtime.stage?.phase).toBe('battle');
+    } finally {
+      setOn(false);
+    }
+  });
+
   it('대기실 고르기 — 처음엔 상성 좋은 셋 · 바꾼 셋으로 관장 3:3', () => {
     setOn(true);
     try {
@@ -581,10 +606,45 @@ describe('#17 준비 — 배율 · 잠금 · 3마리 고르기 · 필살기 예�
       const other = ['m1', 'm2', 'm3', 'm4', 'm5'].find((u) => !first.includes(u))!;
       const changed = applyInput(lobby, { kind: 'team-pick', uid: other });
       const g = applyInput(changed, { kind: 'challenge' });
-      expect(g.runtime.stage?.phase === 'team' && g.runtime.stage.team.fought).toEqual([...first.slice(1), other]);
+      expect(g.runtime.stage?.phase === 'team' && g.runtime.stage.team.fought).toEqual([first[0], first[1], other]);
     } finally {
       setOn(false);
     }
+  });
+
+  it('저절로 쓰기 기다림은 쓸 수 있는 걸음에서만 셈 — 다른 필살기 중엔 멈춤 (디자인팀 #26 판정)', () => {
+    const b0 = startTeamBattle(team3(), foes(), 'trainer', '상대');
+    const full: TeamBattle = { ...b0, me: b0.me.map((f, i) => ({ ...f, ult: i === 1 ? 1 : 0, gauge: 0 })), foe: b0.foe.map((f, i) => ({ ...f, ult: i === 0 ? 1 : 0, gauge: 0 })), autoWait: [0, 1000, 0] };
+    // 상대 필살기 중 (ult 단계) — 내 기다림은 그대로
+    const foeUlt = teamStep({ ...full, foeUltWait: [STEP, null, null] }, STEP, new Rng(3), { auto: false, away: false });
+    expect(foeUlt.phase).toBe('ult');
+    const during = teamStep(foeUlt, STEP, new Rng(3), { auto: false, away: false });
+    expect(during.autoWait?.[1]).toBe(foeUlt.autoWait?.[1]);
+    expect(teamAutoUltLeft(during, 1)).toBe(BALANCE.ultAutoWaitMs - (foeUlt.autoWait?.[1] ?? 0));
+    // HP 30% 아래면 기다리지 않음 (기획 #26 R2 ①)
+    const low: TeamBattle = { ...full, me: full.me.map((f, i) => (i === 1 ? { ...f, hp: Math.ceil(f.maxHp * BALANCE.autoPotionBelow) - 1 } : f)) };
+    expect(teamAutoUltLeft(low, 1)).toBe(0);
+    const go = teamStep(low, STEP, new Rng(3), { auto: false, away: false });
+    expect(go.phase === 'ult' && go.ult?.side === 'me' && go.ult.from).toBe(1);
+  });
+
+  it('다 찬 필살기 — 볼 때는 3초 (발밑 판 반짝) 뒤 저절로 (자동 전투가 꺼져도) · 안 볼 때는 바로 (기획 검토 R2 A)', () => {
+    const b0 = startTeamBattle(team3(), foes(), 'trainer', '상대');
+    const full: TeamBattle = { ...b0, me: b0.me.map((f, i) => ({ ...f, ult: i === 1 ? 1 : 0, gauge: 0 })), foe: b0.foe.map((f) => ({ ...f, ult: 0, gauge: 0 })), ultReadyAt: { me: [null, b0.t, null], foe: [null, null, null] } };
+    expect(teamAutoUltLeft(full, 1)).toBe(BALANCE.ultAutoWaitMs);
+    expect(teamAutoUltLeft(full, 0)).toBeNull();
+    const away = teamStep(full, STEP, new Rng(3), { auto: false, away: true });
+    expect(away.phase === 'ult' && away.ult?.side === 'me' && away.ult.from).toBe(1);
+    let b = full;
+    let fired = -1;
+    for (let t = STEP; t <= BALANCE.ultAutoWaitMs + 1000 && fired < 0; t += STEP) {
+      // 행동 게이지는 비워 둠 (기술이 끼지 않게)
+      b = teamStep({ ...b, me: b.me.map((f) => ({ ...f, gauge: 0 })), foe: b.foe.map((f) => ({ ...f, gauge: 0 })) }, STEP, new Rng(3), { auto: false, away: false });
+      if (b.phase === 'ult' && b.ult?.side === 'me') fired = t;
+    }
+    expect(fired).toBeGreaterThanOrEqual(BALANCE.ultAutoWaitMs);
+    expect(fired).toBeLessThan(BALANCE.ultAutoWaitMs + STEP * 2);
+    expect(b.ult?.from).toBe(1);
   });
 
   it('필살기 예약 — 차는 중에 그 칸을 누르면 예약 · 다시 누르면 취소 · 차는 순간 씀 · 끼어들기 창 · 힘겨루기에도 바로 · Z 는 예약 없음', () => {

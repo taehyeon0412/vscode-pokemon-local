@@ -8,6 +8,8 @@ import {
   applyBattleResult,
   battleDone,
   battleInput,
+  battleAutoUltLeft,
+  battleFoeUltWarn,
   battleStep,
   battleWaiting,
   canAct,
@@ -296,7 +298,7 @@ describe('쏘는 기술끼리 힘대결은 없음 — 패링은 등급만 · 완
 
   it('필살기 힘대결 연타: Space 1번 = +1%p, 최대 20번 · 4초 뒤 확률로 승패 → 진 쪽 HP 가 깎임', () => {
     const { b, save } = setup();
-    const foeUlt = battleStep({ ...b, me: { ...b.me, ult: 1 }, foe: { ...b.foe, ult: 1 } }, save, STEP, fixedRng(0.5), { auto: false });
+    const foeUlt = battleStep({ ...b, me: { ...b.me, ult: 1 }, foe: { ...b.foe, ult: 1 }, foeUltWait: STEP }, save, STEP, fixedRng(0.5), { auto: false });
     let c = battleInput(foeUlt, save, { kind: 'ult' }, fixedRng(0.5));
     expect(c.phase).toBe('clash');
     for (let i = 0; i < 30; i++) c = battleInput(c, save, { kind: 'space' }, new SeededRng(1));
@@ -344,6 +346,17 @@ describe('패링 — 상대 공격이 맞기 직전 Space · 클릭 (2026-10-19 
     expect(after.popups.some((p) => p.text === '완벽 패링!')).toBe(true);
     // 피해 0 이면 "-0" · 상성 글은 안 띄움 (2026-10-20)
     expect(after.popups.some((p) => p.text === '-0')).toBe(false);
+  });
+
+  it('완벽 패링도 필살기 게이지는 맞은 것처럼 — 나 (맞는 쪽) · 상대 (치는 쪽) 모두 참, HP 만 지킴 (기획 검토 R1 A)', () => {
+    const { b, save } = foeAttacks();
+    const start = { ...b, me: { ...b.me, ult: 0 }, foe: { ...b.foe, ult: 0 } };
+    const plain = run(start, save, TIMING.attackAnimMs + STEP, fixedRng(0.5));
+    const perfect = run(battleInput(start, save, { kind: 'parry', ms: 30 }, new SeededRng(1)), save, TIMING.attackAnimMs + STEP, fixedRng(0.5));
+    expect(perfect.me.hp).toBe(b.me.hp);
+    expect(plain.me.ult).toBeGreaterThan(0);
+    expect(perfect.me.ult).toBeCloseTo(plain.me.ult, 9);
+    expect(perfect.foe.ult).toBeCloseTo(plain.foe.ult, 9);
   });
 
   it('글 종류 — 막음 parry · 상성 super (화면이 말 칸 · 숫자 크기로 나눠 씀, 2026-10-20)', () => {
@@ -430,17 +443,26 @@ describe('필살기 (mvp-spec 3.3 · gdd S09 ⑧)', () => {
     expect(canUlt({ ...turn, me: { ...turn.me, ult: 0.99 } })).toBe(false);
   });
 
-  it('야생 필살기: 게이지가 차면 바로 (달리는 중에만)', () => {
+  it('야생 필살기: 게이지가 차면 1초 뒤 (예고 "!" 가 1초 보이게 — 기획 검토 R4 · U1) · 달리는 중에만', () => {
     const { b, save } = setup();
-    const next = battleStep({ ...b, foe: { ...b.foe, ult: 1 } }, save, STEP, fixedRng(0.5), { auto: false });
+    const full = battleStep({ ...b, foe: { ...b.foe, ult: 1 } }, save, STEP, fixedRng(0.5), { auto: false });
+    expect(full.anim).toBeNull();
+    expect(full.foeUltWait).toBe(BALANCE.wildUltWaitMs);
+    expect(battleFoeUltWarn(full)).toEqual({ full: true, pct: 99 });
+    const next = battleStep({ ...full, foeUltWait: STEP }, save, STEP, fixedRng(0.5), { auto: false });
     expect(next.anim).toMatchObject({ side: 'foe', action: { kind: 'ult' } });
+    // 쓰기 시작해 컷인 전까지는 "!" 그대로 (디자인팀 #26 판정) · 80% 부터 % · 그 아래 없음 · 쓰러지면 없음
+    expect(battleFoeUltWarn(next)).toEqual({ full: true, pct: 99 });
+    expect(battleFoeUltWarn({ ...b, foe: { ...b.foe, ult: 0.85 } })).toEqual({ full: false, pct: 85 });
+    expect(battleFoeUltWarn({ ...b, foe: { ...b.foe, ult: 0.79 } })).toBeNull();
+    expect(battleFoeUltWarn({ ...b, foe: { ...b.foe, ult: 1, hp: 0 } })).toBeNull();
     const waiting = battleStep({ ...myTurn(b), foe: { ...b.foe, ult: 1 } }, save, STEP, fixedRng(0.5), { auto: false });
     expect(waiting.phase).toBe('choose');
   });
 
   it('상대 필살기에 1초 안에 Space · Z → 필살기 힘대결 (끼어들기는 안 됨)', () => {
     const { b, save } = setup();
-    const foeUlt = battleStep({ ...b, me: { ...b.me, ult: 1 }, foe: { ...b.foe, ult: 1 } }, save, STEP, fixedRng(0.5), { auto: false });
+    const foeUlt = battleStep({ ...b, me: { ...b.me, ult: 1 }, foe: { ...b.foe, ult: 1 }, foeUltWait: STEP }, save, STEP, fixedRng(0.5), { auto: false });
     expect(canUlt(foeUlt)).toBe(false);
     expect(ultCounterOpen(foeUlt)).toBe(true);
     for (const input of [{ kind: 'space' as const }, { kind: 'ult' as const }]) {
@@ -453,10 +475,60 @@ describe('필살기 (mvp-spec 3.3 · gdd S09 ⑧)', () => {
     expect(ultCounterOpen(late)).toBe(false);
   });
 
-  it('자동 전투면 내 필살기도 차면 바로', () => {
+  it('기다림은 Z 를 누를 수 있을 때만 셈 · 다 되면 상대 기술 중에도 끼어듦 · 못 누를 때 누른 Z 는 예약 · 상대 예고는 컷인까지 (디자인팀 #26 판정)', () => {
     const { b, save } = setup();
-    const next = battleStep({ ...b, me: { ...b.me, ult: 1 } }, save, STEP, fixedRng(0.5), { auto: true });
-    expect(next.anim).toMatchObject({ side: 'me', action: { kind: 'ult' } });
+    const full: BattleState = { ...b, me: { ...b.me, ult: 1 }, foe: { ...b.foe, ult: 0 } };
+    // 내 공격 연출 중 = Z 못 누름 → 안 셈
+    const mine: BattleState = { ...full, phase: 'anim', anim: { side: 'me', action: { kind: 'attack' }, ms: 0, dur: 5000, counter: false }, ultWait: 1000 };
+    expect(battleStep(mine, save, STEP, fixedRng(0.5), { auto: true }).ultWait).toBe(1000);
+    // 상대 기술 연출 중 = 누를 수 있음 → 셈 · 다 되면 끼어듦
+    const foeMove: BattleState = { ...full, phase: 'anim', anim: { side: 'foe', action: { kind: 'move', moveId: EMBER }, ms: 0, dur: 5000, counter: false }, ultWait: BALANCE.ultAutoWaitMs - STEP };
+    const cut = battleStep(foeMove, save, STEP, fixedRng(0.5), { auto: true });
+    expect(cut.anim).toMatchObject({ side: 'me', action: { kind: 'ult' } });
+    expect(cut.msg.startsWith('끼어들었다!')).toBe(true);
+    // 손 전투 — 내 연출 중 Z = 예약 → 연출이 끝나 누를 수 있으면 바로
+    const queued = battleInput({ ...mine, ultWait: undefined }, save, { kind: 'ult' }, fixedRng(0.5));
+    expect(queued.ultQueued).toBe(true);
+    const done = battleStep({ ...queued, anim: { ...queued.anim!, ms: queued.anim!.dur } }, save, STEP, fixedRng(0.5), { auto: false });
+    let s = done;
+    for (let t = 0; t < 1000 && !(s.anim?.side === 'me' && s.anim.action.kind === 'ult'); t += STEP) s = battleStep(s, save, STEP, fixedRng(0.5), { auto: false });
+    expect(s.anim).toMatchObject({ side: 'me', action: { kind: 'ult' } });
+    expect(s.ultQueued).toBeUndefined();
+    // HP 30% (자동 상처약 기준) 아래면 기다리지 않고 바로 (기획 #26 R2 ① — 3초 안에 쓰러져 날아가던 것)
+    const low: BattleState = { ...full, me: { ...full.me, hp: Math.ceil(full.me.maxHp * BALANCE.autoPotionBelow) - 1 } };
+    expect(battleAutoUltLeft(low, true)).toBe(0);
+    expect(battleStep(low, save, STEP, fixedRng(0.5), { auto: true }).anim).toMatchObject({ side: 'me', action: { kind: 'ult' } });
+    // 상대 필살기 기 모으기 ~ 컷인 전까지 예고 "!" 그대로
+    const foeUlt: BattleState = { ...b, phase: 'anim', anim: { side: 'foe', action: { kind: 'ult' }, ms: 0, dur: TIMING.ultAnimMs, counter: false } };
+    expect(battleFoeUltWarn(foeUlt)).toEqual({ full: true, pct: 99 });
+    expect(battleFoeUltWarn({ ...foeUlt, anim: { ...foeUlt.anim!, ms: TIMING.ultCutInMs } })).toBeNull();
+  });
+
+  it('자동 전투 내 필살기 — 안 볼 때는 차면 바로 · 볼 때는 3초 (Z 반짝) 뒤 저절로 · 손 전투는 Z 를 기다림 (기획 검토 R2 A)', () => {
+    const { b, save } = setup();
+    const full = { ...b, me: { ...b.me, ult: 1 }, foe: { ...b.foe, ult: 0 } };
+    const away = battleStep(full, save, STEP, fixedRng(0.5), { auto: true, away: true });
+    expect(away.anim).toMatchObject({ side: 'me', action: { kind: 'ult' } });
+    // 볼 때 — 3초 동안은 안 씀 (다른 행동은 함) · 남은 시간이 줄어듦
+    let s: BattleState = full;
+    let fired = -1;
+    for (let t = STEP; t <= BALANCE.ultAutoWaitMs + 2000 && fired < 0; t += STEP) {
+      s = battleStep(s, save, STEP, fixedRng(0.5), { auto: true });
+      if (s.anim?.side === 'me' && s.anim.action.kind === 'ult') fired = t;
+      else if (s.phase === 'anim' || s.phase === 'choose') s = { ...s, phase: 'run', anim: null, me: { ...s.me, gauge: 0 }, foe: { ...s.foe, gauge: 0 } };
+    }
+    expect(fired).toBeGreaterThanOrEqual(BALANCE.ultAutoWaitMs);
+    expect(fired).toBeLessThan(BALANCE.ultAutoWaitMs + STEP * 2);
+    expect(battleAutoUltLeft(battleStep(full, save, STEP, fixedRng(0.5), { auto: true }), true)).toBe(BALANCE.ultAutoWaitMs - STEP);
+    expect(battleAutoUltLeft(full, false)).toBeNull();
+    // 손 전투 (자동 꺼짐) 는 그대로 Z 를 기다림
+    let manual: BattleState = full;
+    for (let t = 0; t < BALANCE.ultAutoWaitMs + 1000; t += STEP) {
+      manual = battleStep(manual, save, STEP, fixedRng(0.5), { auto: false });
+      if (manual.phase !== 'run') manual = { ...manual, phase: 'run', anim: null, me: { ...manual.me, gauge: 0 }, foe: { ...manual.foe, gauge: 0 } };
+    }
+    expect(manual.me.ult).toBe(1);
+    expect(manual.ultWait).toBeUndefined();
   });
 });
 
@@ -611,7 +683,8 @@ describe('단계 5 · 6 검토에서 고친 것 (bugs #104 ~)', () => {
 
   it('자동 전투에서 양쪽 필살기가 같은 걸음에 차면 필살기 힘대결 (4장 동시 필살기 — 명세 검사관 · 코드 리뷰어)', () => {
     const { b, save } = setup();
-    const both = battleStep({ ...b, me: { ...b.me, ult: 1 }, foe: { ...b.foe, ult: 1 } }, save, STEP, fixedRng(0.5), { auto: true });
+    // 안 볼 때 (내 필살기 바로 · 볼 때는 3초 기다린 뒤 — R2)
+    const both = battleStep({ ...b, me: { ...b.me, ult: 1 }, foe: { ...b.foe, ult: 1 } }, save, STEP, fixedRng(0.5), { auto: true, away: true });
     expect(both.phase).toBe('clash');
     expect(both.clash?.kind).toBe('ult');
     expect([both.me.ult, both.foe.ult]).toEqual([0, 0]);
