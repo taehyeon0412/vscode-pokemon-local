@@ -1121,6 +1121,14 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   border: 1px solid var(--pg-sos-line);
   box-shadow: 0 0 0 1px var(--pg-sos-bar);
 }
+/* 고르기 시작 1.8초 뒤에 나타남 (= 회색 쓰러진 모습이 끝나는 때) — 맞는 불꽃 뒤 쓰러진 모습이 1초 넘게 보이게 (바로 덮던 것, U1 · UX 리뷰어 2026-10-21). 숫자키 · 클릭은 처음부터 받음 */
+.pg-pick-list {
+  animation: pg-pick-in 0.01s linear 1.8s both;
+}
+@keyframes pg-pick-in {
+  from { visibility: hidden; }
+  to { visibility: visible; }
+}
 .pg-pick-list.pg-pick-list-low {
   top: auto;
   bottom: 4px;
@@ -1666,9 +1674,9 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* 아주 좁은 패널 — HP 줄 이름을 빼고 레벨 · HP 만 ("버.." · "이상…" 으로 잘리던 것, U4 — 이름은 말 · 이름표 · 고르기 목록에 있음, 2026-10-21) */
+/* 아주 좁은 패널 — 내 HP 줄 이름을 빼고 레벨 · HP 만 ("이상…" 으로 잘리던 것, U4 — 내 이름은 고르기 목록 · 프로필에 있음). 상대 이름은 남김 (상대는 HP 숫자가 없어 자리가 있고, 말 칸이 숨으면 이름이 여기뿐 — UX 리뷰어 2026-10-21) */
 @media (max-width: 320px) {
-  .pg-hpname {
+  .pg-hpblock-me .pg-hpname {
     display: none;
   }
 }
