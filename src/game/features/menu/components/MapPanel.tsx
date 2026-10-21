@@ -46,7 +46,8 @@ export function MapPanel({ state, swap, midStage, onInput, onTeam, onClose }: Ma
       }
       onClose={onClose}
     >
-      <Row>
+      {/* 칩 줄은 넘치면 다음 줄 (옆으로 잘라 240 에서 "버섯 그늘" · 480 에서 다섯째 칩이 판 끝에서 잘리던 것 — 아트 디렉터 밤 점검) */}
+      <Row wrap>
         {v.stages.map((s) => (
           // 지금 스테이지 = 고른 칩 모양 (금색 테두리 · 밝은 남색 · 금색 글씨) — 금색 채움은 주 버튼이라 "눌러야 할 것" 으로 읽혀서, "● 지금" 글은 모양이 대신 (아트 디렉터 5차)
           <Button key={s.id} secondary extraClass={s.state === 'current' ? 'pg-picked' : undefined} disabled={s.state === 'locked'} onClick={() => go(s.id)} title={s.state === 'locked' ? '앞 스테이지를 깨면 열려요' : s.state === 'current' ? '지금 있는 스테이지 (이어서 걷기)' : '새 길로 걷기 (아이템 · 부탁 · 야생이 새로)'}>

@@ -1,7 +1,8 @@
 /**
  * 세이브 내보내기 · 가져오기 (orders #33 · gdd S20 ④ · U6) — 불러오기 확인 상자 · 망가진 파일 안내 · 결과 한 줄.
  * 확장이 파일 창을 열고 (webview-session saveIO), 화면은 고르기 · 알리기만. 판 위 가운데 상자 (길 위 상자와 같은 판).
- * 확인 = [Enter 불러오기] (지금 세이브는 보관함에 따로) · [Esc 그만두기] — 결과 한 줄은 3초 뒤 저절로 닫힘 (U1 — 1초 넘게).
+ * 확인 = [Enter 불러오기] (지금 세이브는 백업 파일로 따로) · [Esc 그만두기] — 결과 한 줄은 3초 뒤 저절로 닫힘 (U1 — 1초 넘게).
+ * 묻는 상자 · 오류 상자가 떠 있는 동안은 게임이 멈추고 (main.ts) 키는 모두 이 상자가 받음 — 결과 한 줄은 키를 안 가져감 (개발 #48).
  */
 import { useEffect } from 'preact/hooks';
 import { speciesOf } from '../../../data';
@@ -12,7 +13,8 @@ import type { TitleInfo } from '../../../shared/messages';
 
 /** 확장이 보낸 불러오기 상태 (webview-session SaveIoView 와 같은 모양 — 화면 층은 웹뷰를 안 가져옴) */
 export interface SaveIoState {
-  ask?: { name: string; summary: TitleInfo['summary'] };
+  /** fixes = 읽으며 고친 곳 수 · lost = 이 버전에 없어 빠지는 포켓몬 수 (webview-session SaveIoView — 개발 #48) */
+  ask?: { name: string; summary: TitleInfo['summary']; fixes?: number; lost?: number };
   error?: string;
   name?: string;
   result?: { ok: boolean; text: string };
@@ -23,18 +25,23 @@ const RESULT_MS = 3000;
 type Act = 'import-confirm' | 'import-cancel' | 'dismiss';
 
 export function SaveIoBox({ io, onAct }: { io: SaveIoState; onAct(kind: Act): void }) {
-  // Enter · Esc — 판 (설정) 의 Esc 닫기보다 먼저 (capture)
+  // 묻는 상자 · 오류 상자만 키를 받음 (판 (설정) 의 Esc 닫기 · 게임 키보다 먼저 — capture): Enter · Esc = 고름, 그 밖의 키는 게임에 안 넘김 (Tab 은 버튼 사이 이동).
+  //   결과 한 줄 (3초) 은 안 받음 — 내보낸 직후 Esc 가 설정 판을 안 닫고 게임 Enter 가 먹히던 것 (개발 #48)
+  const asking = !!(io.ask || io.error);
   useEffect(() => {
+    if (!asking) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.repeat || (e.key !== 'Enter' && e.key !== 'Escape')) return;
-      e.preventDefault();
+      if (e.key === 'Tab') return;
       e.stopPropagation();
+      if (e.key !== 'Enter' && e.key !== 'Escape') return;
+      e.preventDefault();
+      if (e.repeat) return;
       if (io.ask) onAct(e.key === 'Enter' ? 'import-confirm' : 'import-cancel');
       else onAct('dismiss');
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [io, onAct]);
+  }, [asking, io, onAct]);
   useEffect(() => {
     if (!io.result) return;
     const t = window.setTimeout(() => onAct('dismiss'), RESULT_MS);
@@ -55,8 +62,15 @@ export function SaveIoBox({ io, onAct }: { io: SaveIoState; onAct(kind: Act): vo
       <div class="pg-banner pg-saveio pg-two" role="dialog" aria-label="세이브 불러오기" title={`${io.ask.name}${s ? ` — ${formatMoney(s.money)} · 플레이 ${formatPlayTime(s.playTimeMs)}` : ''}`}>
         <span class="pg-line pg-saveio-q">
           <b>이 세이브로 바꿀까요?</b>
-          <span class="pg-dim">지금 것은 보관함에 둬요</span>
+          <span class="pg-dim">지금 것은 백업해 둬요</span>
         </span>
+        {/* 읽으며 고친 곳 · 이 버전에 없어 빠지는 포켓몬 (다른 PC 의 더 새 빌드 세이브 — 말없이 빠지던 것, 개발 #48) · 빠지면 빨강 */}
+        {(io.ask.fixes || io.ask.lost) && (
+          <span class="pg-line pg-saveio-note">
+            {io.ask.fixes ? <span class="pg-dim">고친 곳 {io.ask.fixes}</span> : null}
+            {io.ask.lost ? <span class="pg-saveio-lost">포켓몬 {io.ask.lost}마리가 이 버전에 없어 빠져요</span> : null}
+          </span>
+        )}
         {s && (
           <span class="pg-line pg-saveio-sum">
             {lead && <span>{lead}</span>}

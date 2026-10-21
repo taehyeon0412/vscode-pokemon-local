@@ -22,7 +22,7 @@ import './game.css';
 // 개발 모드 (임시) 모양 — 지울 때 이 줄
 import '../dev/dev.css';
 import { getGameConfig, getGamePort } from './vscode-api';
-import { WebviewSession } from './webview-session';
+import { WebviewSession, type SaveIoView } from './webview-session';
 import { devApply } from '../dev/actions';
 import { devClockFor, resetDevClock, setDevClock } from '../dev/clock';
 import { setDevUlts } from '../dev/ult-pick';
@@ -36,6 +36,11 @@ const VIEW_REFRESH_MS = 1000 / 30;
 
 /** 접힌 상태에서 다시 높아진 뒤 상태를 달라고 하기까지 기다리는 시간 (ms) */
 const EXPAND_WAIT_MS = 150;
+
+/** 세이브 확인 상자 (묻는 상자 · 못 읽음) 가 떠 있나 — 결과 한 줄은 아님. 떠 있는 동안 게임을 멈추고 키를 상자에 줌 (개발 #48) */
+function saveIoAsking(io: SaveIoView | null): boolean {
+  return !!(io && (io.ask || io.error));
+}
 
 const port = getGamePort();
 if (!port) {
@@ -114,11 +119,12 @@ if (!port) {
     store.set({ screen: session.screen, title: session.title, state: session.current, overlay: keep ? store.get().overlay : null, saveIO: session.saveIO, live: session.running });
   });
 
-  // 판이 떠 있는 동안 게임을 멈춤 · 지금 상태에서 띄울 수 없는 판은 닫음
+  // 판 · 세이브 확인 상자 (묻는 상자 · 오류 — 결과 한 줄은 아님) 가 떠 있는 동안 게임을 멈춤 · 지금 상태에서 띄울 수 없는 판은 닫음
+  //   (확인 상자 위에서 S 로 판만 닫히고 게임이 돌다가 게임 Enter 가 상자로 가 불러오기가 되던 것 — 개발 #48)
   store.subscribe(() => {
     const v = store.get();
     if (v.overlay && v.state && !overlayAllowed(v.overlay, v.state)) store.set({ overlay: null });
-    session.setPaused(store.get().overlay !== null);
+    session.setPaused(store.get().overlay !== null || saveIoAsking(store.get().saveIO));
   });
 
   store.subscribe(() => document.body.classList.toggle(GAME_ON_CLASS, store.get().screen !== 'none'));
@@ -239,6 +245,8 @@ if (!port) {
   //   전투 메뉴 숫자 · Z 는 BattleMenu 가 들음 · 3:3 의 1 · 2 · 3 · Z (필살기 · 예약) 와 트레이너 만남 3마리 고르기 1 ~ 5 는 아래 (orders #17 — 화면의 발밑 판 클릭도 같은 입력)
   window.addEventListener('keydown', (e) => {
     if (store.get().screen !== 'game' || e.repeat) return;
+    // 세이브 확인 상자가 떠 있으면 메뉴 · 게임 키를 받지 않음 (상자가 Enter · Esc 를 받음)
+    if (saveIoAsking(store.get().saveIO)) return;
     const overlay = store.get().overlay;
     // 정보줄 메뉴 단축키 (2026-10-19 태현 님 "단축키 + 아이콘 + 설명") — F 빨리 걷기 · M 지도 · P 내 포켓몬 · B 가방 · S 설정.
     //   버튼이 보일 때 (걷는 중 · 대기실) 만 열고, 판이 떠 있으면 같은 키 = 닫기 · 다른 메뉴 키 = 그 판으로. 한글 입력 상태에서도 되게 자판 자리 (e.code)

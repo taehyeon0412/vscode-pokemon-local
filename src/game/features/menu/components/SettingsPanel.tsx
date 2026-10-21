@@ -43,13 +43,13 @@ export function SettingsPanel({ save, onInput, onExit, onClose, dev = false, onS
           <span class="pg-long">{save.settings.reduceMotion === true ? ' 켜짐' : ' 꺼짐'}</span>
         </Button>
       </Row>
-      {/* ④ 세이브 (orders #33 · gdd S20 ④) — PC 옮기기 · 백업. 불러오면 확인 상자 (지금 세이브는 보관함에 따로) · 개발 모드는 숨김 */}
+      {/* ④ 세이브 (orders #33 · gdd S20 ④) — PC 옮기기 · 백업. 불러오면 확인 상자 (지금 세이브는 백업 파일로 따로 — "보관함" 은 포켓몬 보관함과 헷갈려서, 개발 #48) · 개발 모드는 숨김 */}
       {onSaveIO && !dev && (
         <Row label="세이브">
           <Button secondary onClick={() => onSaveIO('export')} title="지금 세이브를 파일로 저장해요 (PC 옮기기 · 백업)">
             내보내기
           </Button>
-          <Button secondary onClick={() => onSaveIO('import')} title="세이브 파일을 불러와 지금 세이브를 바꿔요 — 바꾸기 전에 한 번 더 물어보고, 지금 것은 보관함에 따로 둬요">
+          <Button secondary onClick={() => onSaveIO('import')} title="세이브 파일을 불러와 지금 세이브를 바꿔요 — 바꾸기 전에 한 번 더 물어보고, 지금 것은 백업해 둬요">
             불러오기
           </Button>
           <span class="pg-dim pg-long">PC 옮기기 · 백업</span>

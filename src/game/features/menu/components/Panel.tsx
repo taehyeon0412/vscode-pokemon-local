@@ -27,7 +27,8 @@ export function Panel({ icon, title, extra, onClose, closeLabel = '닫기', sub,
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || e.repeat) return;
       // 세이브 불러오기 확인 상자가 떠 있으면 Esc 는 그 상자 몫 (그만두기 — 판까지 닫히던 것)
-      if (document.querySelector('#pokemon-game .pg-saveio')) return;
+      // 세이브 묻는 상자 · 오류 상자가 Esc 를 받음 (결과 한 줄은 아님 — 내보낸 직후 Esc 로 판이 안 닫히던 것, 개발 #48)
+      if (document.querySelector('#pokemon-game .pg-saveio:not(.pg-saveio-result)')) return;
       e.preventDefault();
       e.stopPropagation();
       onClose();
