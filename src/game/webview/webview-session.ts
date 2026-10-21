@@ -132,6 +132,8 @@ export class WebviewSession {
         this.dirty = false;
         this.lastSentAt = this.deps.now();
         this.titleInfo = null;
+        // 다른 화면에서 게임으로 처음 들어올 때는 지난 결과 · 상자를 지움 (나간 뒤 온 결과가 다음 게임에 뜨던 것 — 테스터 #48) · 불러온 뒤 다시 맡길 때 (이미 game) 는 결과 한 줄을 남김
+        if (this.screenNow !== 'game') this.saveIoNow = null;
         this.screenNow = 'game';
         // 접힌 상태 (150px 아래) 에서 맡겨지면 계산하지 않고 바로 돌려줌 — 안 그리는 웹뷰가 맡아 게임이 조용히 멈추지 않게
         if (this.collapsed) this.hide();

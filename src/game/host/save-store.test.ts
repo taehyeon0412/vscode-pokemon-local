@@ -172,13 +172,19 @@ describe('쓰기', () => {
     expect(stored()?.money).toBe(77);
   });
 
-  it('새로 하기: 지금 세이브와 아직 안 쓴 세이브를 보관함에', async () => {
+  it('새로 하기: 백업은 하나 — 아직 안 쓴 진행이 있으면 그것 (디스크 것보다 새 것), 없으면 디스크 것 (둘 다 넣어 백업이 두 배로 밀리던 것 — 테스터 #48)', async () => {
     make(sampleSave({ money: 5 }));
     await store.load();
     store.set(sampleSave({ money: 6 }));
     await store.replace(createNewSave(1));
-    expect(archive.items.map((i) => (i.raw as Save).money)).toEqual([5, 6]);
+    expect(archive.items.map((i) => (i.raw as Save).money)).toEqual([6]);
+    expect(archive.items[0]!.note).toContain('아직 안 쓴 진행');
     expect(stored()?.money).toBe(1000);
+    // 안 쓴 진행이 없으면 디스크 것
+    make(sampleSave({ money: 7 }));
+    await store.load();
+    await store.replace(createNewSave(1));
+    expect(archive.items.map((i) => (i.raw as Save).money)).toEqual([7]);
   });
 });
 

@@ -48,6 +48,15 @@ describe('세이브 보관함 (파일)', () => {
     expect(entries.filter((e) => e.reason === 'repaired')).toHaveLength(3);
   });
 
+  it('불러오기만 여러 번 (replaced 만 12번) 해도 처음 세이브 (가장 오래된 백업) 와 최근 넷은 남음 (테스터 #48)', async () => {
+    const dir = fresh();
+    let t = Date.UTC(2026, 0, 1);
+    const a = new FileSaveArchive(dir, () => (t += 1000), 3);
+    for (let i = 0; i < 12; i++) await a.add('replaced', `#${i}`, { i });
+    const kept = (await a.list()).map((e) => JSON.parse(readFileSync(join(dir, e.file), 'utf8')).raw.i as number);
+    expect(kept).toEqual([0, 8, 9, 10, 11]);
+  });
+
   it('폴더가 없으면 빈 목록', async () => {
     expect(await new FileSaveArchive(fresh()).list()).toEqual([]);
   });

@@ -1453,3 +1453,34 @@ describe('세이브 불러오기 — 코드 리뷰어 #48 (지난 상자 · 이�
     expect(stored()?.money).not.toBe(777);
   });
 });
+
+describe('세이브 불러오기 — 테스터 #48 (빈 세이브 · 나간 뒤 결과 · 내보내기 크기)', () => {
+  const ask = () => view.last('save-import-ask');
+
+  it('팀에 포켓몬이 없는 세이브는 불러오지 않음 (불러온 뒤 아무 일도 안 일어나던 것)', async () => {
+    await enterAndStart(sampleSave({ money: 1234 }));
+    openFile = { name: 'empty.json', text: JSON.stringify({ version: 3, monsters: {} }) };
+    session.handleMessage(msg({ type: 'save-import' }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ask()?.error).toContain('포켓몬이 없는');
+    session.handleMessage(msg({ type: 'save-import-confirm' }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(stored()?.money ?? 1234).toBe(1234);
+  });
+
+  it('내보내기는 들여쓰기 없이 (큰 세이브도 5 MB 안에) · 저장 창 동안 나가면 결과를 다음 게임에 안 보냄', async () => {
+    await enterAndStart(sampleSave({ money: 1234 }));
+    session.handleMessage(msg({ type: 'save-export' }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(savedFiles[0]!.text).not.toContain('\n');
+    expect(JSON.parse(savedFiles[0]!.text).money).toBe(1234);
+    const results = view.count('save-result');
+    let open!: () => void;
+    openGate = new Promise<void>((r) => (open = r));
+    session.handleMessage(msg({ type: 'save-import' }));
+    await exitNow();
+    open();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(view.count('save-result')).toBe(results);
+  });
+});

@@ -47,11 +47,18 @@ const isStageId = (v: unknown): v is StageId => (REGION_STAGE_IDS as readonly un
 const isItemId = (v: unknown): v is ItemId => (ITEM_IDS as readonly unknown[]).includes(v);
 
 /** 값 하나씩 읽으며 고친 것을 적어 두는 도우미 */
+/** 고친 기록 · 글자 목록 · 고르기 목록의 상한 (손으로 만든 큰 파일에서 검사가 길어지지 않게 — 테스터 #48) */
+const NOTES_MAX = 200;
+const TEXTS_MAX = 500;
+const CHOICES_MAX = 100;
+
 class Fixer {
   readonly problems: string[] = [];
+  private more = 0;
 
   note(path: string, what: string): void {
-    this.problems.push(`${path}: ${what}`);
+    if (this.problems.length < NOTES_MAX) this.problems.push(`${path}: ${what}`);
+    else if (++this.more === 1) this.problems.push('… 고친 곳이 더 있음');
   }
 
   int(v: unknown, path: string, min: number, max: number, fallback: number): number {
@@ -102,11 +109,19 @@ class Fixer {
       this.note(path, '목록이 아님 → 빈 목록');
       return [];
     }
+    // Set 으로 겹침을 봄 · 상한 (배지 6만 개 세이브에서 검사가 목록 길이의 제곱으로 늘어 확장이 멈추던 것 — 테스터 #48 치명)
     const out: string[] = [];
+    const seen = new Set<string>();
     for (const x of v) {
-      if (typeof x !== 'string' || x.length === 0) this.note(path, `글자가 아닌 칸을 뺌 (${String(x)})`);
-      else if (out.includes(x)) this.note(path, `겹친 "${x}" 를 뺌`);
-      else out.push(x);
+      if (typeof x !== 'string' || x.length === 0) this.note(path, `글자가 아닌 칸을 뺌 (${String(x).slice(0, 40)})`);
+      else if (seen.has(x)) this.note(path, `겹친 "${x.slice(0, 40)}" 를 뺌`);
+      else if (out.length >= TEXTS_MAX) {
+        this.note(path, `${TEXTS_MAX} 개가 넘어 뒤를 뺌`);
+        break;
+      } else {
+        seen.add(x);
+        out.push(x);
+      }
     }
     return out;
   }
@@ -379,7 +394,9 @@ function readChoices(v: unknown, path: string, fx: Fixer, monsters: Record<strin
     return [];
   }
   const out: PendingChoice[] = [];
-  v.forEach((c, i) => {
+  const evolving = new Set<string>();
+  if (v.length > CHOICES_MAX) fx.note(path, `${CHOICES_MAX} 개가 넘어 뒤를 뺌`);
+  v.slice(0, CHOICES_MAX).forEach((c, i) => {
     const p = `${path}[${i}]`;
     // 열쇠 이름을 고친 포켓몬이면 새 이름으로 · 목록에 진짜로 있는 포켓몬만 (toString 같은 이름은 안 됨)
     const uid = isObj(c) && typeof c.uid === 'string' ? (renamed.get(c.uid) ?? c.uid) : null;
@@ -391,9 +408,10 @@ function readChoices(v: unknown, path: string, fx: Fixer, monsters: Record<strin
       const newMoves = Array.isArray(c.newMoves) ? c.newMoves.filter((m): m is number => Number.isInteger(m) && !!moveOf(m as number)).slice(0, 4) : null;
       // 진화는 그 종의 진짜 진화만 · 포켓몬마다 하나만 (손으로 고친 세이브에서 뮤츠로 "진화" 하지 않게)
       const realEvolution = Number.isInteger(c.to) && evolutionsOf(monsters[uid]!.species).some((e) => e.to === c.to);
-      const already = out.some((x) => x.kind === 'evolve' && x.uid === uid);
+      const already = evolving.has(uid);
       if (c.kind === 'evolve' && realEvolution && !already && speciesOf(c.to as number) && newMoves && Number.isInteger(c.level) && (c.level as number) >= 1 && (c.level as number) <= BALANCE.maxLevel && (c.item === null || isItemId(c.item))) {
         out.push({ kind: 'evolve', uid, to: c.to as number, newMoves, level: c.level as number, item: c.item as ItemId | null });
+        evolving.add(uid);
         return;
       }
     }
@@ -474,7 +492,8 @@ export function validateSave(raw: unknown): ValidateResult {
   // 포켓몬 목록 — 열쇠는 "m숫자" 만 받음 (toString · __proto__ 같은 이름이 끼지 않게).
   // 규칙에 안 맞는 열쇠는 새 번호로 바꾸고, 팀 · 보관함 칸도 따라 바꿈 (포켓몬을 잃지 않게)
   const entries = Object.entries(raw.monsters);
-  let nextFree = Math.max(0, ...entries.map(([key]) => uidNumber(key) ?? 0)) + 1;
+  // 펼치기 (Math.max(...)) 대신 반복 — 포켓몬 13만 마리 파일에서 스택이 넘쳐 아무 답이 없던 것 (테스터 #48)
+  let nextFree = entries.reduce((m, [key]) => Math.max(m, uidNumber(key) ?? 0), 0) + 1;
   const renamed = new Map<string, string>();
   const monsters: Record<string, Monster> = {};
   for (const [key, m] of entries) {
@@ -500,7 +519,7 @@ export function validateSave(raw: unknown): ValidateResult {
   }
 
   // 다음 uid 는 지금 있는 어떤 "m숫자" 보다 커야 겹치지 않음
-  const maxUid = Math.max(0, ...Object.keys(monsters).map((u) => uidNumber(u) ?? 0));
+  const maxUid = Object.keys(monsters).reduce((m, u) => Math.max(m, uidNumber(u) ?? 0), 0);
   let nextMonsterUid = fx.int(raw.nextMonsterUid, 'nextMonsterUid', 1, MAX_UID_NUMBER, maxUid + 1);
   if (nextMonsterUid <= maxUid) {
     fx.note('nextMonsterUid', `${nextMonsterUid} 가 있는 번호와 겹침 → ${maxUid + 1}`);

@@ -2,7 +2,8 @@
  * 세이브 보관함 — 읽지 못한 · 고쳐서 읽은 · 옮기기 전 · 더 새 버전 · 새로 하기 전 세이브의 원본을 지우지 않고
  * 전역 저장 폴더의 save-archive/ 에 파일로 둔다 (세이브 파일 save.json 과 따로).
  * - 같은 원본은 한 번만 (켤 때마다 같은 망가진 세이브가 쌓여 다른 보관본을 밀어내지 않게)
- * - 최근 KEEP 개까지 (오래된 것부터 지움) — 새로 하기 · 불러오기 전 세이브 (replaced) 는 최근 KEEP_REPLACED 개를 더 지키고 (몇 번 불러오면 처음 세이브가 밀려 지워지던 것 — 코드 리뷰어 #48 큼 3)
+ * - 최근 KEEP 개까지 (오래된 것부터 지움) — 새로 하기 · 불러오기 전 세이브 (replaced) 는 최근 KEEP_REPLACED 개 + 가장 오래된 하나 (처음 세이브) 를 더 지킴
+ *   (몇 번 불러오면 처음 세이브가 밀려 지워지던 것 — 코드 리뷰어 · 테스터 #48)
  */
 import { createHash } from 'crypto';
 import { promises as fs } from 'fs';
@@ -41,7 +42,8 @@ export class FileSaveArchive implements SaveArchive {
     // 새로 하기 전 세이브는 여기가 유일한 사본이 되므로 디스크에 확실히 (정전 · 블루스크린에도 남게)
     writeAtomic(join(this.dir, file), JSON.stringify({ at: this.now(), reason, note, raw }, null, 1), { durable: true });
     const all = [...names, file].sort();
-    const kept = new Set(all.filter((n) => NAME.exec(n)?.[2] === 'replaced').slice(-KEEP_REPLACED));
+    const replaced = all.filter((n) => NAME.exec(n)?.[2] === 'replaced');
+    const kept = new Set([...replaced.slice(0, 1), ...replaced.slice(-KEEP_REPLACED)]);
     for (const old of all.slice(0, Math.max(0, all.length - this.keep))) if (!kept.has(old)) await fs.rm(join(this.dir, old), { force: true });
   }
 

@@ -277,3 +277,17 @@ describe('세이브 내보내기 · 가져오기 화면 상태 (orders #33)', ()
     off();
   });
 });
+
+describe('세이브 확인 상자 — 다른 화면에서 게임으로 들어오면 지난 결과 · 상자를 지움 (테스터 #48)', () => {
+  it('타이틀 → 게임 (start) 이면 지움 · 게임 중 다시 맡김 (불러온 뒤 start) 이면 결과 한 줄을 남김', () => {
+    const { s } = make();
+    s.handleMessage(start(1));
+    s.handleMessage({ command: 'game', type: 'save-result', ok: true, text: '불러왔어요' });
+    s.handleMessage(start(2));
+    expect(s.saveIO).toEqual({ result: { ok: true, text: '불러왔어요' } });
+    s.handleMessage({ command: 'game', type: 'title', info: { save: 'ok', busy: false, summary: null } });
+    s.handleMessage({ command: 'game', type: 'save-result', ok: true, text: '세이브를 저장했어요' });
+    s.handleMessage(start(3));
+    expect(s.saveIO).toBeNull();
+  });
+});

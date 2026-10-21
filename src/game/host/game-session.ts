@@ -422,13 +422,17 @@ export class GameSession {
     const r = this.deps.store.peek();
     const save = this.mode === 'game' && this.state ? this.state.save : r.kind === 'ok' ? r.save : null;
     if (!save) return this.postSaveResult(false, '내보낼 세이브가 없어요');
+    const mode = this.mode;
     let name: string | null;
     try {
-      name = await this.deps.files.save(`pokemon-save-${dayKey(new Date(this.deps.wallNow?.() ?? Date.now()))}.json`, JSON.stringify(save, null, 2));
+      // 들여쓰기 없이 (큰 세이브도 불러오기 상한 5 MB 안에 — 테스터 #48)
+      name = await this.deps.files.save(`pokemon-save-${dayKey(new Date(this.deps.wallNow?.() ?? Date.now()))}.json`, JSON.stringify(save));
     } catch (e) {
-      return this.postSaveResult(false, `세이브를 저장하지 못했어요 (${String(e)})`);
+      if (this.mode === mode) this.postSaveResult(false, `세이브를 저장하지 못했어요 (${String(e)})`);
+      return;
     }
-    if (name) this.postSaveResult(true, `세이브를 저장했어요 — ${name}`);
+    // 저장 창 동안 게임을 나갔으면 결과를 다음 게임에 띄우지 않음 (테스터 #48)
+    if (name && this.mode === mode) this.postSaveResult(true, `세이브를 저장했어요 — ${name}`);
   }
 
   /** 세이브 불러오기 1 (orders #33) — 열기 창 · 읽기 · 검사 (옛 판은 옮김) → 웹뷰에 확인 상자 (요약) · 못 읽으면 까닭. 게임 중에만 (개발 모드는 막음) */
@@ -443,13 +447,14 @@ export class GameSession {
     try {
       file = await this.deps.files.open();
     } catch (e) {
-      return this.post({ type: 'save-import-ask', error: `파일을 읽지 못했어요 (${String(e)})` });
+      if (this.mode === mode && !blocked()) this.post({ type: 'save-import-ask', error: `파일을 읽지 못했어요 (${String(e)})` });
+      return;
     }
     if (!file) return;
     // 열기 창이 떠 있는 동안 게임을 나갔거나 개발 모드가 됐으면 묻지 않음 (코드 리뷰어 #48 큼 1)
     if (this.mode !== mode || blocked()) return;
     const tooBig = file.tooBig ?? (file.text.length > IMPORT_MAX_CHARS ? file.text.length : 0);
-    if (tooBig) return this.post({ type: 'save-import-ask', name: file.name, error: `파일이 너무 커요 (${(tooBig / 1_000_000).toFixed(1)} MB) — 포켓몬 게임 세이브가 아니에요` });
+    if (tooBig) return this.post({ type: 'save-import-ask', name: file.name, error: `파일이 너무 커요 (${(tooBig / 1_000_000).toFixed(1)} MB)` });
     let raw: unknown;
     try {
       // 메모장 "UTF-8 BOM" 으로 저장한 파일도 (맨 앞 \uFEFF)
@@ -459,9 +464,18 @@ export class GameSession {
     }
     // 보관함 파일 ({ at, reason, note, raw }) 을 고르면 안의 세이브로 (되찾는 길 — 코드 리뷰어 #48 큼 3)
     if (isArchived(raw)) raw = raw.raw;
-    const r = readSave(raw);
+    let r: ReturnType<typeof readSave>;
+    try {
+      r = readSave(raw);
+    } catch (e) {
+      // 읽다 던져도 (아주 큰 파일 등) 답은 보냄 — 아무 답이 없던 것 (테스터 #48)
+      this.deps.log(`불러오기 읽기 실패: ${String(e)}`);
+      return this.post({ type: 'save-import-ask', name: file.name, error: '포켓몬 게임 세이브가 아니거나 망가진 파일이에요' });
+    }
     if (r.kind === 'newer') return this.post({ type: 'save-import-ask', name: file.name, error: `더 새 확장의 세이브 (${r.version}판) 라 불러올 수 없어요 — 확장을 업데이트해 주세요` });
     if (r.kind !== 'ok') return this.post({ type: 'save-import-ask', name: file.name, error: '포켓몬 게임 세이브가 아니거나 망가진 파일이에요' });
+    // 포켓몬이 없으면 이어 할 수 없음 (타이틀의 #351 규칙과 같게 — 불러온 뒤 아무 일도 안 일어나던 것, 테스터 #48 큼)
+    if (r.save.party.length === 0) return this.post({ type: 'save-import-ask', name: file.name, error: '팀에 포켓몬이 없는 세이브라 불러올 수 없어요' });
     // 읽으며 고친 곳 · 빠진 포켓몬 (다른 PC 의 더 새 빌드 세이브 등) 을 확인 상자에 (말없이 빠지던 것 — 코드 리뷰어 #48 큼 4)
     const before = monstersIn(raw);
     const lost = Math.max(0, before - Object.keys(r.save.monsters).length);
@@ -476,7 +490,13 @@ export class GameSession {
       this.pendingImport = null;
       if (!p || this.dev || this.mode !== 'game') return;
       // 창 잠금을 파일에서 다시 봄 (PC 가 잠든 사이 다른 창이 가져갔을 수 있음 — 코드 리뷰어 #48)
-      if (this.deps.lease && (!this.deps.lease.held || this.deps.lease.heldByOther())) return this.postSaveResult(false, '다른 VS Code 창이 게임 중이라 불러오지 못했어요');
+      let other = false;
+      try {
+        other = !!this.deps.lease && (!this.deps.lease.held || this.deps.lease.heldByOther());
+      } catch {
+        other = true; // 잠금 파일을 못 읽으면 덮지 않음
+      }
+      if (other) return this.postSaveResult(false, '다른 VS Code 창이 게임 중이라 불러오지 못했어요');
       let ok = false;
       try {
         ok = await this.deps.store.replace(p.save, '불러오기 전 세이브');

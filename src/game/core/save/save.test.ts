@@ -318,3 +318,22 @@ describe('진화 고르기 검사 (단계 7 테스터)', () => {
     expect(r.save.pendingChoices).toEqual([evo(2)]);
   });
 });
+
+describe('손으로 만든 큰 세이브 (테스터 #48 — 불러오기)', () => {
+  it('배지 6만 개 · 고르기 4만 개 · 포켓몬 열쇠 14만 개도 빨리 읽고 (멈추지 않음) 상한에서 자름 · 고친 기록도 상한', () => {
+    const base = sampleSave();
+    const badges = Array.from({ length: 60_000 }, (_, i) => `b${i}`);
+    const choices = Array.from({ length: 40_000 }, (_, i) => ({ kind: 'learn', uid: 'm1', moveId: i % 2 ? 33 : 22 }));
+    const t0 = performance.now();
+    const r = readSave(viaJson({ ...base, badges, pendingChoices: choices }));
+    expect(performance.now() - t0).toBeLessThan(1500);
+    expect(r.kind).toBe('ok');
+    if (r.kind !== 'ok') return;
+    expect(r.save.badges.length).toBeLessThanOrEqual(500);
+    expect(r.save.pendingChoices.length).toBeLessThanOrEqual(100);
+    expect(r.problems.length).toBeLessThanOrEqual(201);
+    // 포켓몬 열쇠가 아주 많아도 스택이 넘치지 않음 (Math.max(...) 펼치기 대신 반복)
+    const junk = Object.fromEntries(Array.from({ length: 140_000 }, (_, i) => [`m${i + 2}`, 0]));
+    expect(() => readSave(viaJson({ ...base, monsters: { ...base.monsters, ...junk } }))).not.toThrow();
+  });
+});
