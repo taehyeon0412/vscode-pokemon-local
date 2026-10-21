@@ -60,3 +60,27 @@ describe('트레이너 만남 1:1 / 3:3 고르기 · 3마리 고르기 (개발 �
     expect(teamChoiceOn({ ...off, runtime: { ...off.runtime, stage: { phase: 'trainer', n: 0, ms: 1000 } } })).toBe(false);
   });
 });
+
+describe('체육관 대기실 3마리 고르기 (관장 3:3)', () => {
+  it('대기실에서 넣고 빼기 → 도전 = 고른 셋 (모자라면 상성 좋은 순으로 채움)', async () => {
+    const { createGameState, applyInput, advance, teamPickOf } = await import('../../../core/engine');
+    const { createStartSave } = await import('../../starter/model');
+    const { devState } = await import('../../../dev/demo');
+    const { devApply } = await import('../../../dev/actions');
+    const { teamChoiceOn } = await import('./TeamChoice');
+    let s = devState(createGameState({ ...createStartSave(0, 5, 4), location: { screen: 'stage', stageId: 'forest-1' } }, 5));
+    s = { ...s, runtime: { ...s.runtime, view: { w: 860, h: 187 } } };
+    s = [{ dex: 7, level: 20 }, { dex: 1, level: 20 }, { dex: 25, level: 20 }].reduce((st, m, i) => devApply(st, { kind: 'mon', slot: i + 1, ...m }).state, s);
+    s = devApply(s, { kind: 'scene', scene: 'lobby' }).state;
+    s = advance(s, 50).state;
+    expect(teamChoiceOn(s)).toBe(true);
+    // 미리 체크되지 않은 포켓몬을 넣음
+    const pika = s.save.party.find((u) => !teamPickOf(s)!.includes(u))!;
+    s = applyInput(s, { kind: 'team-pick', uid: pika });
+    s = applyInput(s, { kind: 'challenge' });
+    s = advance(s, 50).state;
+    const st = s.runtime.stage;
+    expect(st?.phase).toBe('team');
+    expect(st?.phase === 'team' && st.team.me.map((f) => f.uid)).toContain(pika);
+  });
+});

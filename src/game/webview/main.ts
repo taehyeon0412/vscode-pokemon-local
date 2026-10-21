@@ -175,6 +175,7 @@ if (!port) {
     },
     dev: (action) => {
       let say = '';
+      const stage0 = session.current?.runtime.stage;
       const changed = session.devChange((s) => {
         const r = devApply(s, action);
         say = r.say;
@@ -182,8 +183,8 @@ if (!port) {
       });
       if (!changed) return;
       setDevClock(devClockFor(session.current, true));
-      // 장면을 바꾸면 판을 닫음 (바로 그 장면을 보게)
-      const close = action.kind === 'scene';
+      // 장면을 바꾸면 판을 닫음 (바로 그 장면을 보게) — 안 바뀌었으면 (3마리가 안 됨 등) 판을 열어 둔 채 아래 줄 알림 (판만 닫히고 말이 없던 것 — UX 리뷰어 2026-10-21)
+      const close = action.kind === 'scene' && session.current?.runtime.stage !== stage0;
       store.set({ state: session.current, ...(close ? { overlay: null } : {}) });
     },
     crashed: (e) => {
@@ -311,7 +312,7 @@ if (!port) {
       // 트레이너 만남 3 = 3:3 (3마리 고르기를 엶 — orders #17)
       e.preventDefault();
       actions.input({ kind: 'team-mode', on: true });
-    } else if (phase === 'trainer' && stage.pick && /^Digit[1-5]$/.test(e.code) && !(e.ctrlKey || e.metaKey || e.altKey)) {
+    } else if (((phase === 'trainer' && stage.pick) || (phase === 'lobby' && session.current && teamChoiceOn(session.current))) && /^Digit[1-5]$/.test(e.code) && !(e.ctrlKey || e.metaKey || e.altKey)) {
       // 3마리 고르기 — 1 ~ 5 = 팀 순서대로 넣고 빼기 (Enter = 시작)
       const uid = session.current?.save.party[Number(e.code.slice(5)) - 1];
       if (uid) {

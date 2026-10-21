@@ -12,21 +12,25 @@ import { Sprite } from '../../../ui/Sprite';
 /** 3:3 을 고를 수 있는 만남인지 (본편 스위치 · 개발 모드 (임시) 3:3 미리 켜기) */
 export function teamChoiceOn(state: GameState): boolean {
   const st = state.runtime.stage;
-  return st?.phase === 'trainer' && st.ms >= TIMING.trainerAlertMs && (BALANCE.team.on || state.runtime.dev?.team === true) && state.save.pendingEncounter?.kind === 'trainer';
+  const on = BALANCE.team.on || state.runtime.dev?.team === true;
+  // 체육관 대기실 — 관장 3:3 에 나갈 셋 (도전 = 대기실 주 버튼)
+  if (st?.phase === 'lobby') return on && state.save.location.screen === 'gym' && teamPickOf(state) !== null;
+  return st?.phase === 'trainer' && st.ms >= TIMING.trainerAlertMs && on && state.save.pendingEncounter?.kind === 'trainer';
 }
 
 export function TeamChoice({ state, media, onInput }: { state: GameState; media: string; onInput(i: GameInput): void }) {
   const st = state.runtime.stage;
-  if (st?.phase !== 'trainer') return null;
+  if (st?.phase !== 'trainer' && st?.phase !== 'lobby') return null;
   const save = state.save;
   const lock = teamLock(state);
   const pick = teamPickOf(state);
-  const team = st.team ?? save.settings.teamMode === true;
-  if (st.team && pick) {
+  const lobby = st.phase === 'lobby';
+  const team = lobby || (st.team ?? save.settings.teamMode === true);
+  if ((lobby || st.team) && pick) {
     // 3마리 고르기 — 팀 순서 키 1 ~ 5 · 고른 순서 = 싸울 때 발밑 판 키
-    const left = Math.max(0, 1 - (st.pickMs ?? 0) / TIMING.teamPickAutoMs);
+    const left = st.phase === 'trainer' ? Math.max(0, 1 - (st.pickMs ?? 0) / TIMING.teamPickAutoMs) : 0;
     return (
-      <div class="pg-team-choice pg-team-pick">
+      <div class={`pg-team-choice pg-team-pick${lobby ? ' pg-team-pick-lobby' : ''}`}>
         {save.party.map((uid, i) => {
           const m = save.monsters[uid];
           if (!m) return null;
@@ -41,15 +45,21 @@ export function TeamChoice({ state, media, onInput }: { state: GameState; media:
             </button>
           );
         })}
-        <Button extraClass="pg-team-start" onClick={() => onInput({ kind: 'space' })} disabled={pick.length === 0} title="고른 셋으로 시작 (Enter)">
-          <span class="pg-menu-key">Enter</span> 시작 {`${pick.length}/${BALANCE.team.size}`}
-          <span class="pg-team-left" style={{ width: `${Math.round(left * 100)}%` }} />
-        </Button>
+        {/* 대기실은 도전 (대기실 주 버튼 · Enter) 으로 시작 — 여기엔 몇 마리 골랐는지만 */}
+        {lobby ? (
+          <span class="pg-team-count">{`관장 3:3 ${pick.length}/${BALANCE.team.size}`}</span>
+        ) : (
+          <Button extraClass="pg-team-start" onClick={() => onInput({ kind: 'space' })} disabled={pick.length === 0} title="고른 셋으로 시작 (Enter)">
+            <span class="pg-menu-key">Enter</span> 시작 {`${pick.length}/${BALANCE.team.size}`}
+            <span class="pg-team-left" style={{ width: `${Math.round(left * 100)}%` }} />
+          </Button>
+        )}
       </div>
     );
   }
   // 1:1 / 3:3 — 주 버튼 = 지난번 고른 방식 · 다른 쪽은 작은 버튼
   const why = lock === 'few' ? '살아 있는 포켓몬이 3마리 있어야 3:3' : lock === 'narrow' ? '패널을 넓히면 3:3' : null;
+  if (st.phase !== 'trainer') return null;
   const left = Math.max(0, 1 - st.ms / TIMING.trainerMeetMs);
   return (
     <div class="pg-team-choice">
