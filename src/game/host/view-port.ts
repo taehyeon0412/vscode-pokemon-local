@@ -15,6 +15,14 @@ export function connectWebviewView(view: vscode.WebviewView, session: GameSessio
     get visible() {
       return view.visible;
     },
+    badge(count, tooltip) {
+      // 포켓몬 탭 배지 (안 볼 때 기다리는 장면 — gdd 4.13 R13, 다시 보면 지움)
+      try {
+        view.badge = count > 0 ? { value: count, tooltip: tooltip ?? '' } : undefined;
+      } catch (e) {
+        log(`탭 배지를 못 바꿈: ${String(e)}`);
+      }
+    },
   });
   const subs = [
     view.webview.onDidReceiveMessage((m: unknown) => session.handleMessage(m)),

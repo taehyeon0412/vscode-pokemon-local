@@ -17,6 +17,10 @@ const nearRequest = () => stageLayout('forest-1', 42).spots.find((s) => s.kind =
 class FakeView implements ViewPort {
   visible = true;
   readonly sent: HostToWebview[] = [];
+  readonly badges: number[] = [];
+  badge(count: number): void {
+    this.badges.push(count);
+  }
   post(m: HostToWebview): void {
     this.sent.push(m);
   }
@@ -393,10 +397,14 @@ describe('접힌 상태 (패널이 150px 보다 낮음) — bugs #297 · #299', 
     expect(noticeText('shiny', true)).toContain('150px 이상으로 올리면');
     expect(noticeText('rival', false)).toContain('포켓몬 패널을 열면');
     expect(noticeText('rival', true, true)).toContain('VS Code 로 돌아오면');
-    for (const n of ['request', 'choice', 'gym', 'clear', 'defeat'] as const) {
+    for (const n of ['choice', 'gym', 'clear', 'defeat', 'badge'] as const) {
       expect(noticeText(n, false)).toContain('포켓몬 패널을 열어');
       expect(noticeText(n, true)).toContain('150px 이상으로 올려');
+      // 밖 (패널은 보이는데 VS Code 에 포커스 없음) = 돌아와 (gdd 4.13)
+      expect(noticeText(n, false, true)).toContain('VS Code 로 돌아와');
     }
+    expect(noticeText('battle', false, true)).toContain('[A] 자동 전투면 알아서 싸워요');
+    expect(noticeText('paused', false)).toContain('자동 전투가 꺼져 있어 멈춰 있어요');
   });
 });
 
@@ -887,6 +895,39 @@ describe('단계 4 검토에서 고친 것 — 스테이지 (확장 쪽)', () =>
     const again = view.last('start')!;
     session.handleMessage(msg({ type: 'state', epoch: again.epoch, state: { ...again.state, runtime: { ...again.state.runtime, speed: 1 } } }));
     expect(snap().state?.runtime.speed).toBe(10);
+  });
+});
+
+describe('멈춤 · 알림 표 — 넘겨받을 때 · 탭 배지 · 접힌 줄 (gdd 4.13 · orders #27 R13)', () => {
+  it('자동 꺼짐에서 숨기면 알림 한 번 ("멈춰 있어요") + 탭 배지 1 → 다시 보면 배지 지움', async () => {
+    const start = await enterAndStart(sampleSave({ settings: { notifications: true, autoBattle: false } }));
+    session.handleMessage(msg({ type: 'hidden', epoch: start.epoch, state: start.state }));
+    expect(notices.filter((n) => n.includes('멈춰 있어요'))).toHaveLength(1);
+    expect(view.badges.at(-1)).toBe(1);
+    runHost(5000);
+    expect(notices.filter((n) => n.includes('멈춰 있어요'))).toHaveLength(1);
+    session.handleMessage(msg({ type: 'ready' }));
+    expect(snap().owner).toBe('webview');
+    expect(view.badges.at(-1)).toBe(0);
+  });
+
+  it('이미 기다리던 장면 (고르기) 을 넘겨받으면 그 알림 — 걸음을 계산하지 않아도', async () => {
+    const save = sampleSave({ settings: { notifications: true, autoBattle: true }, pendingChoices: [{ kind: 'learn', uid: 'm1', moveId: 22 }] });
+    const start = await enterAndStart(save);
+    const choosing = { ...start.state, runtime: { ...start.state.runtime, stage: { phase: 'choice' as const, ms: 0 }, stageId: 'forest-1' as const } };
+    session.handleMessage(msg({ type: 'hidden', epoch: start.epoch, state: choosing }));
+    expect(notices.filter((n) => n.includes('고를 차례'))).toHaveLength(1);
+    expect(view.badges.at(-1)).toBe(1);
+  });
+
+  it('접힌 동안 (150px 아래) 확장이 계산하면 지금 상태를 웹뷰에 (접힌 줄 — 1초에 한 번까지)', async () => {
+    const start = await enterAndStart(autoSave());
+    session.handleMessage(msg({ type: 'hidden', epoch: start.epoch, state: start.state, collapsed: true }));
+    const first = view.count('peek');
+    expect(first).toBeGreaterThanOrEqual(1);
+    runHost(3000);
+    expect(view.count('peek')).toBeGreaterThan(first);
+    expect(view.count('peek')).toBeLessThanOrEqual(first + 4);
   });
 });
 

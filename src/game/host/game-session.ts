@@ -12,7 +12,7 @@
  * VS Code 를 모른다 (웹뷰는 ViewPort, 저장은 SaveStore, 창 잠금은 WindowLease 로만 만남) → 자동 테스트에서 그대로 돌림.
  */
 import { TIMING } from '../core/balance';
-import { advance, createGameState, isWaitingForInput, readRuntime, shouldRunWhenHidden, withSpeed, type GameNotice, type GameState } from '../core/engine';
+import { advance, createGameState, isWaitingForInput, readRuntime, shouldRunWhenHidden, waitReason, withSpeed, type GameNotice, type GameState } from '../core/engine';
 import { validateSave, type Save } from '../core/save';
 import { GAME_COMMAND, isWebviewToHost, type HostToWebview, type TitleInfo, type TitleNotice } from '../shared/messages';
 import { GAME_MIN_HEIGHT_PX } from '../shared/screen';
@@ -40,6 +40,8 @@ function whereOf(save: Save): string {
 export interface ViewPort {
   post(message: HostToWebview): void;
   readonly visible: boolean;
+  /** 포켓몬 탭 배지 — 0 이면 지움 (없으면 안 그림, 테스트) */
+  badge?(count: number, tooltip?: string): void;
 }
 
 /** normal = 일반 모드 · title = 타이틀 (S02, 게임은 아직 안 돎) · game = 게임 중 */
@@ -93,6 +95,9 @@ export class GameSession {
   private webviewReady = false;
   /** 웹뷰가 "패널이 너무 낮아서" 넘김 (접힌 상태) — 다시 높아지면 ready 가 옴. 그동안 포커스가 돌아와도 맡기지 않음 (#297) · 알림은 "올리면" (#299) */
   private webviewCollapsed = false;
+  /** 포켓몬 탭 배지를 달았는지 · 접힌 줄에 마지막으로 상태를 보낸 때 (R13) */
+  private badgeOn = false;
+  private lastPeekAt = 0;
   private loadResult: LoadResult = { kind: 'none' };
   /** 확장이 넘겨받기 바로 전 epoch — 그 epoch 의 늦은 메시지는 다시 맡기기 전까지 받아 줌 */
   private handoverEpoch: number | null = null;
@@ -608,6 +613,7 @@ export class GameSession {
     this.owner = 'webview';
     this.handoverEpoch = null;
     this.markHeadless(false);
+    this.updateBadge();
     this.post({ type: 'start', epoch: this.epoch, state: this.state });
     // 포커스 상태를 늘 같이 (돌아온 뒤 다시 맡길 때 focused: true 를 안 보내 웹뷰가 "포커스 없음" 으로 남아 이로치 · 라이벌 앞에서 멈춰 있던 것 — 테스터 2026-10-20)
     this.post({ type: 'focus', focused: this.windowFocused });
@@ -622,7 +628,41 @@ export class GameSession {
     this.owner = 'host';
     this.markHeadless(true);
     this.updateRunner();
+    this.noticeHidden();
     this.deps.log(`${why} → 확장이 넘겨받음 (epoch ${this.epoch}, ${this.runner.running ? '자동 전투라 계속 계산' : '멈춤'})`);
+  }
+
+  /**
+   * 넘겨받은 순간 (gdd 4.13 · U6) — 이미 기다리던 장면이면 그 알림 (걸음을 계산할 때만 알림이 생겨 안 뜨던 것),
+   * 자동 꺼짐이면 "멈춰 있어요" 한 번 (알림 없이 전부 멈추던 것) · 탭 배지 · 접힌 줄에 지금 상태
+   */
+  private noticeHidden(): void {
+    if (!this.state || this.mode !== 'game' || this.owner !== 'host') return;
+    const reason = waitReason(this.state) ?? (shouldRunWhenHidden(this.state) ? null : 'paused');
+    if (reason && reason !== this.state.runtime.noticed) {
+      this.state = { ...this.state, runtime: { ...this.state.runtime, noticed: reason } };
+      this.notify(reason);
+    }
+    this.updateBadge();
+    this.peek(true);
+  }
+
+  /** 포켓몬 탭 배지 — 안 볼 때 (확장이 계산) 기다리는 장면이면 1, 다시 보면 지움 (알림 끄기와 상관없이 · 개발 모드는 없음 — gdd 4.13 [제안]) */
+  private updateBadge(): void {
+    const s = this.state;
+    const on = s !== null && this.mode === 'game' && this.owner === 'host' && !this.dev && (waitReason(s) !== null || s.runtime.noticed === 'paused');
+    if (on === this.badgeOn) return;
+    this.badgeOn = on;
+    this.view?.badge?.(on ? 1 : 0, on ? '포켓몬 게임이 기다려요' : undefined);
+  }
+
+  /** 접힌 동안 (150px 아래 — 보이지만 확장이 계산) 지금 상태를 웹뷰에 (접힌 줄이 접은 순간 모습 그대로 멈춰 있던 것 — R13), 1초에 한 번까지 */
+  private peek(force = false): void {
+    if (!this.state || this.owner !== 'host' || !this.webviewCollapsed || !this.view?.visible) return;
+    const now = this.deps.now();
+    if (!force && now - this.lastPeekAt < 1000) return;
+    this.lastPeekAt = now;
+    this.post({ type: 'peek', state: this.state });
   }
 
   /** 웹뷰에 맡기지 않고 여기서 들고 있음 */
@@ -632,6 +672,7 @@ export class GameSession {
     this.handoverEpoch = null;
     this.markHeadless(true);
     this.updateRunner();
+    this.noticeHidden();
     this.deps.log(`${why} → 확장이 들고 있음 (epoch ${this.epoch})`);
   }
 
@@ -701,7 +742,7 @@ export class GameSession {
 
   /** 안 볼 때 계산은 지금 상태의 자동 전투 설정으로 정함 (늦게 온 상태로 바뀌면 다시 정함) */
   private updateRunner(): void {
-    // 사람이 골라야 하는 순간 (부탁 · 스테이지 끝) 에는 안 볼 때 계산할 게 없음 — 깨어나 저장만 되풀이하지 않게
+    // 사람을 기다리는 순간 (isWaitingForInput — 고르기 · 클리어 카드 · 대기실 · 패배 두 번째 · 이로치 앞 등, gdd 4.13) 에는 안 볼 때 계산할 게 없음 — 깨어나 저장만 되풀이하지 않게
     // 개발 모드 (임시) 멈춤이면 안 볼 때도 멈춘 채로
     const run = this.state !== null && this.mode === 'game' && this.owner === 'host' && shouldRunWhenHidden(this.state) && !isWaitingForInput(this.state) && this.state.runtime.dev?.pause !== true;
     if (run) this.runner.start();
@@ -717,7 +758,11 @@ export class GameSession {
       return false;
     }
     const ok = this.applyFromWebview(state);
-    if (ok && late) this.updateRunner();
+    if (ok && late) {
+      this.updateRunner();
+      // 넘겨받은 뒤 늦게 온 마지막 상태 — 그 장면으로 다시 봄 (같은 기다림이면 noticed 로 한 번만)
+      this.noticeHidden();
+    }
     return ok;
   }
 
@@ -761,24 +806,29 @@ export class GameSession {
       this.persist(this.state.save, r.saves.length > 0);
     }
     for (const n of r.notices) this.notify(n);
+    this.updateBadge();
+    if (r.steps > 0) this.peek();
     if (isWaitingForInput(this.state)) this.runner.stop();
   }
 }
 
-/** U9 알림 문구 — 패널이 접혀 있으면 (보이지만 너무 낮음) "열면" 대신 "150px 이상으로 올리면" (#299 — 패널은 이미 열려 있어서 헷갈림) */
+/**
+ * 알림 문구 (gdd 4.13 표 — U9 · U6) — 이어서 하는 법: 밖 (away — 패널은 보이는데 VS Code 에 포커스 없음, 웹뷰가 알림) = "VS Code 로 돌아오면" ·
+ * 접힘 (보이지만 너무 낮음) = "150px 이상으로 올리면" (#299 — 패널은 이미 열려 있어서 헷갈림) · 숨김 = "패널을 열면"
+ */
 export function noticeText(notice: GameNotice, collapsed: boolean, away = false): string {
-  // away = 패널은 보이는데 VS Code 에 포커스가 없음 (웹뷰가 알림) — "열면" 대신 "돌아오면"
-  if (away && notice === 'shiny') return '✨ 반짝이는 흔적을 찾았어요! VS Code 로 돌아오면 이어서 걸어요.';
-  if (away && notice === 'rival') return '⚔ 라이벌이 길에서 기다려요! VS Code 로 돌아오면 이어서 걸어요.';
-  const open = collapsed ? `포켓몬 패널을 ${GAME_MIN_HEIGHT_PX}px 이상으로 올려` : '포켓몬 패널을 열어';
+  const back = away ? 'VS Code 로 돌아오면' : collapsed ? `포켓몬 패널을 ${GAME_MIN_HEIGHT_PX}px 이상으로 올리면` : '포켓몬 패널을 열면';
+  const open = away ? 'VS Code 로 돌아와' : collapsed ? `포켓몬 패널을 ${GAME_MIN_HEIGHT_PX}px 이상으로 올려` : '포켓몬 패널을 열어';
   const TEXT: Record<GameNotice, string> = {
-    shiny: `✨ 반짝이는 흔적을 찾았어요! ${collapsed ? `포켓몬 패널을 ${GAME_MIN_HEIGHT_PX}px 이상으로 올리면` : '포켓몬 패널을 열면'} 이어서 걸어요.`,
-    rival: `⚔ 라이벌이 길에서 기다려요! ${collapsed ? `포켓몬 패널을 ${GAME_MIN_HEIGHT_PX}px 이상으로 올리면` : '포켓몬 패널을 열면'} 이어서 걸어요.`,
-    request: `❓ 길에서 부탁하는 사람이 기다려요. ${open} 골라 주세요.`,
+    shiny: `✨ 반짝이는 흔적을 찾았어요! ${back} 이어서 걸어요.`,
+    rival: `⚔ 라이벌이 길에서 기다려요! ${back} 이어서 걸어요.`,
+    battle: `⚔ 전투가 기다려요! ${back} 이어서 싸워요 — [A] 자동 전투면 알아서 싸워요.`,
     choice: `🧬 진화 · 새 기술을 고를 차례예요. ${open} 골라 주세요.`,
-    gym: `🏟 체육관 대기실에 도착했어요! ${open} 관장에게 도전해 보세요.`,
+    defeat: `😵 포켓몬들이 쓰러졌어요… ${open} 이어 가 주세요.`,
     clear: `🎉 스테이지를 깼어요! ${open} 다음 스테이지를 골라 주세요.`,
-    defeat: `😵 포켓몬들이 쓰러졌어요… ${open} 다시 시작해 주세요.`,
+    gym: `🏟 체육관 대기실에서 기다려요! ${open} 관장에게 도전해 보세요.`,
+    badge: `🏅 관장을 이겼어요! 배지를 받았어요 — ${open} 보세요.`,
+    paused: '⏸ 자동 전투가 꺼져 있어 멈춰 있어요. 자동 전투를 켜면 안 볼 때도 계속 걸어요.',
   };
   return TEXT[notice];
 }

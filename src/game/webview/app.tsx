@@ -38,7 +38,7 @@ export interface ViewState {
   pending: boolean;
   /** 게임 위에 뜬 판 (null = 없음) */
   overlay: Overlay | null;
-  /** 이 웹뷰가 지금 계산을 맡음 — 아니면 (VS Code 밖 · 확장이 계산) 화면은 멈춘 그림 (배경 흐름 · 걷기도 멈춤, 테스터) */
+  /** 이 웹뷰가 지금 계산을 맡음 — 아니면 (숨김 · 접힘 — 확장이 계산) 화면은 멈춘 그림 (배경 흐름 · 걷기도 멈춤, 테스터 · 접힌 줄은 확장이 보낸 지금 상태 peek). VS Code 밖 (포커스 없음) 은 웹뷰가 계속 계산 */
   live: boolean;
 }
 

@@ -15,7 +15,7 @@
  * epoch: 상태를 맡는 쪽이 바뀔 때마다 1씩 늘어남. 지난 epoch 의 메시지는 버린다 (늦게 온 옛 상태가 덮어쓰지 않게).
  *   단, 확장이 넘겨받기 바로 전 epoch 의 메시지는 받아 줌 (패널을 접는 순간의 잡기 · 마지막 상태를 잃지 않게).
  */
-import type { GameNotice, GameState } from '../core/engine';
+import { GAME_NOTICES, type GameNotice, type GameState } from '../core/engine';
 import type { Save } from '../core/save';
 
 export const GAME_COMMAND = 'game';
@@ -63,10 +63,10 @@ export type HostToWebview =
   /** VS Code 창 포커스 — 없으면 (패널은 보임) 웹뷰가 이로치 흔적 앞에서 멈추고 알림 (2026-10-19) */
   | { command: typeof GAME_COMMAND; type: 'focus'; focused: boolean }
   | { command: typeof GAME_COMMAND; type: 'title'; info: TitleInfo }
+  /** 접힌 동안 (150px 아래 — 확장이 계산) 지금 상태 — 접힌 줄이 그때 모습 그대로 멈춰 있지 않게 (gdd 4.13 R13, 1초에 한 번까지) */
+  | { command: typeof GAME_COMMAND; type: 'peek'; state: GameState }
   | { command: typeof GAME_COMMAND; type: 'stop' };
 
-/** 엔진 알림 종류 (core/engine GameNotice 와 같게) */
-const GAME_NOTICES: readonly GameNotice[] = ['shiny', 'rival', 'request', 'choice', 'gym', 'clear', 'defeat'];
 
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -113,6 +113,8 @@ export function isHostToWebview(v: unknown): v is HostToWebview {
       return typeof v.focused === 'boolean';
     case 'start':
       return hasState(v);
+    case 'peek':
+      return isObj(v.state) && isObj(v.state.save) && isObj(v.state.runtime);
     case 'title':
       return (
         isObj(v.info) &&

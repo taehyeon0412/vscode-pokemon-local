@@ -1,5 +1,5 @@
 /**
- * S20 설정 (gdd S20) — MVP 는 ③ 알림 (U9: 안 볼 때 이로치 · 부탁 · 고를 것) · ⑤ 일반 모드로 · ⑥ 닫기만.
+ * S20 설정 (gdd S20) — MVP 는 ③ 알림 (U9 · 언제 알리는지는 gdd 4.13 멈춤 · 알림 표) · ⑤ 일반 모드로 · ⑥ 닫기만.
  * 소리 · 게임 속도 · 세이브 내보내기는 다음 버전 (gdd 6).
  */
 import { BALANCE } from '../../../core/balance';
@@ -15,7 +15,7 @@ export function SettingsPanel({ save, onInput, onExit, onClose }: { save: Save; 
       {/* 스위치를 한 줄에 · 라벨 열 없이 스위치 글이 라벨 · 좁으면 (480px 아래) "켜짐 · 꺼짐" 을 빼서 줄 수를 줄임 (켜짐 = ✓ + 금색 테두리 — 2026-10-21 스위치 여섯) (2026-10-20 아트 디렉터 4차 — 5줄이 210px 에서 잘리고 오른쪽이 비던 것), 설명은 title.
           자동 전투 (플레이 리뷰어 "자리 비울 준비를 걷는 중에") · 빨리 걷기 = 정보줄 ▶▶ 와 같음 */}
       <Row wrap>
-        <Button secondary extraClass={on ? 'pg-picked' : undefined} onClick={() => onInput({ kind: 'notifications', on: !on })} title="알림 — 패널이 안 보일 때 직접 해야 하는 순간을 VS Code 알림으로 (이로치 흔적 · 길 위의 부탁 · 진화 · 새 기술 · 체육관 도착 · 클리어 · 패배)">
+        <Button secondary extraClass={on ? 'pg-picked' : undefined} onClick={() => onInput({ kind: 'notifications', on: !on })} title="알림 — 안 보거나 VS Code 밖에 있을 때 게임이 기다리면 VS Code 알림으로 (이로치 흔적 · 라이벌 · 진화 · 새 기술 고르기 · 체육관 · 배지 · 두 번째 패배 · 멈춘 전투 — 탭 배지는 알림을 꺼도 뜸)">
           {on ? '✓ 알림' : '알림'}
           <span class="pg-long">{on ? ' 켜짐' : ' 꺼짐'}</span>
         </Button>

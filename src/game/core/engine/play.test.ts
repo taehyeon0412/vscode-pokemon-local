@@ -5,8 +5,8 @@ import { validateSave, type Save } from '../save';
 import { sampleSave, viaJson } from '../../../test/fixtures/save';
 import { shinyWildSeed } from '../../../test/fixtures/stage';
 import { startBattle } from './battle';
-import { advance, applyInput, isWaitingForInput, isWalkingFast, leadSpeed, step, withSpeed } from './play';
-import { createGameState, readRuntime, type GameState } from './state';
+import { advance, applyInput, isWaitingForInput, isWalkingFast, leadSpeed, STAGE_WAIT, step, waitReason, withSpeed } from './play';
+import { createGameState, readRuntime, STAGE_PHASES, type GameState } from './state';
 
 const STEP = TIMING.simStepMs;
 
@@ -523,5 +523,53 @@ describe('고를 것이 남았는데 걷기 상태가 오면 (단계 7 테스터
     const next = step(s, STEP).state;
     expect(phase(next)).toBe('choice');
     expect(prog(next)).toBe(prog(s));
+  });
+});
+
+describe('멈춤 · 알림 표 (gdd 4.13 · U6 — orders #27 R13)', () => {
+  const away = (s: GameState): GameState => ({ ...s, runtime: { ...s.runtime, away: true } });
+  const at = (s: GameState, stage: NonNullable<GameState['runtime']['stage']>, save: Partial<Save> = {}): GameState => ({ ...s, save: { ...s.save, ...save }, runtime: { ...s.runtime, stageId: 'forest-1', stage } });
+
+  it('장면마다 표에 줄이 있음 (flow · wait · entered) — 새 장면을 만들면 STAGE_WAIT 와 gdd 4.13 에 먼저', () => {
+    for (const p of STAGE_PHASES) expect(['flow', 'wait', 'entered']).toContain(STAGE_WAIT[p]);
+    expect(Object.keys(STAGE_WAIT).sort()).toEqual([...STAGE_PHASES].sort());
+  });
+
+  it('밖 (VS Code 포커스 없음) 에서 기다리면 한 번 알림 · 보면 지움 · 다시 떠나면 다시', () => {
+    const base = start();
+    const mon = { ...base.save.monsters[base.save.party[0]!]!, uid: 'w', caughtAt: 'forest-1' as const };
+    const wild = startBattle(base.save, mon, 'normal');
+    const myTurn = at(base, { phase: 'battle', battle: { ...wild, phase: 'choose', me: { ...wild.me, gauge: 1 } } }, { pendingEncounter: { kind: 'wild', monster: mon, start: 'normal' } });
+    const r = advance(away(myTurn), 500);
+    expect(r.notices).toEqual(['battle']);
+    expect(r.state.runtime.noticed).toBe('battle');
+    expect(advance(r.state, 500).notices).toEqual([]);
+    const seen = advance({ ...r.state, runtime: { ...r.state.runtime, away: false } }, 100).state;
+    expect(seen.runtime.noticed).toBeUndefined();
+    expect(advance(away(seen), 100).notices).toEqual(['battle']);
+    // 보는 중이면 알림 없음 · 자동 전투면 기다리지 않음
+    expect(advance(myTurn, 500).notices).toEqual([]);
+    expect(waitReason(away({ ...myTurn, save: { ...myTurn.save, settings: { ...myTurn.save.settings, autoBattle: true } } }))).toBeNull();
+  });
+
+  it('기다리는 장면마다 이유 — 고르기 · 패배 두 번째 · 클리어 (자동 꺼짐) · 대기실 · 배지 · 이로치 (전투 중 떠남) · 병원 안은 알림 없음', () => {
+    const base = start();
+    const choice = at(base, { phase: 'choice', ms: 0 }, { pendingChoices: [{ kind: 'learn', uid: base.save.party[0]!, moveId: 22 }] });
+    expect(advance(away(choice), 200).notices).toEqual(['choice']);
+    const twice = { ...base.save.stages, 'forest-1': { ...base.save.stages['forest-1']!, run: { ...base.save.stages['forest-1']!.run, retries: 2 } } };
+    expect(advance(away(at(base, { phase: 'defeat', gym: false, lost: 0 }, { stages: twice })), 200).notices).toEqual(['defeat']);
+    expect(advance(away(at(base, { phase: 'defeat', gym: false, lost: 0 })), 200).notices).toEqual([]);
+    const done = { ...base.save.stages, 'forest-1': { ...base.save.stages['forest-1']!, progress: 1 } };
+    expect(advance(away(at(base, { phase: 'clear' }, { stages: done })), 200).notices).toEqual(['clear']);
+    const gym = { ...base, save: { ...base.save, location: { screen: 'gym' as const } }, runtime: { ...base.runtime, stage: { phase: 'lobby' as const }, stageId: null } };
+    expect(advance(away(gym), 200).notices).toEqual(['gym']);
+    expect(advance(away({ ...gym, runtime: { ...gym.runtime, stage: { phase: 'badge' as const } } }), 200).notices).toEqual(['badge']);
+    const sm = { ...base.save.monsters[base.save.party[0]!]!, uid: 'w', shiny: true, caughtAt: 'forest-1' as const };
+    const shiny = startBattle(base.save, sm, 'normal');
+    expect(advance(away(at(base, { phase: 'battle', battle: shiny }, { pendingEncounter: { kind: 'wild', monster: sm, start: 'normal' } })), 200).notices).toEqual(['shiny']);
+    const inside = at(base, { phase: 'facility', kind: 'hospital', at: 0.3, ms: 0, inside: true });
+    expect(isWaitingForInput(inside)).toBe(true);
+    expect(waitReason(away(inside))).toBeNull();
+    expect(STAGE_WAIT.facility).toBe('entered');
   });
 });

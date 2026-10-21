@@ -128,6 +128,13 @@ export class WebviewSession {
       case 'focus':
         this.away = !message.focused;
         return;
+      case 'peek':
+        // 접힌 동안 확장이 계산한 지금 상태 — 맡지 않은 채 그림만 (접힌 줄이 접은 순간 모습 그대로 멈춰 있던 것 — gdd 4.13 R13)
+        if (this.epoch === null && this.collapsed && this.screenNow === 'game') {
+          this.state = message.state;
+          this.changed();
+        }
+        return;
       case 'stop':
         this.epoch = null;
         this.state = null;

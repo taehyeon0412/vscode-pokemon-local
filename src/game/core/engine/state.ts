@@ -60,6 +60,13 @@ export type StageRuntime =
   | { phase: 'lobby'; pick?: string[]; picking?: true }
   | { phase: 'badge' };
 
+/**
+ * 멈춤 · 알림 (gdd 4.13 표 · U6 "멈추면 알리고, 알리지 않으면 멈추지 않는다") — 밖 (패널은 보이는데 VS Code 포커스 없음) · 숨김에서 사람을 기다리는 이유.
+ * paused = 자동 꺼짐 + 숨김 (확장이 계산을 멈춤 — 확장이 넘겨받을 때 한 번)
+ */
+export const GAME_NOTICES = ['shiny', 'rival', 'battle', 'choice', 'defeat', 'clear', 'gym', 'badge', 'paused'] as const;
+export type GameNotice = (typeof GAME_NOTICES)[number];
+
 export const STAGE_PHASES = ['walk', 'appear', 'trainer', 'rival', 'battle', 'team', 'request', 'hold', 'facility', 'result', 'choice', 'defeat', 'clear', 'gym-enter', 'lobby', 'badge'] as const;
 
 /** 부탁 결과 — 글 · 받은 것 (따로 둬서 좁은 패널에서도 받은 것이 안 잘리게) */
@@ -95,6 +102,8 @@ export interface RuntimeState {
   away?: boolean;
   /** 확장이 안 볼 때 계산하는 동안 바뀐 것 — 다시 보면 "그동안: …" 한 줄 (2026-10-21 ideas #16). 안 볼 때 처음 걸음에 생기고 한 줄을 띄우면 지움 */
   awayLog?: AwayLog;
+  /** 밖 · 숨김에서 이미 알린 기다림 (gdd 4.13 — 같은 기다림은 안 보는 동안 한 번) · 보는 중이면 지움 */
+  noticed?: GameNotice;
   /** 웹뷰 패널 크기 (px) — 3:3 배율 · 잠금 (teamScale). 3:3 배율이 바뀔 때만 웹뷰가 알림 · 모르면 없음 */
   view?: { w: number; h: number };
   /** 개발 모드 (임시, gdd 8장) — 확장이 개발 모드일 때만 붙임 (src/game/dev) */
@@ -264,6 +273,7 @@ export function readRuntime(raw: unknown, fallbackSeed: number, stepMs: number =
     toast,
     headless: false, // 웹뷰에서 온 상태는 늘 보이는 쪽 — 확장이 넘겨받을 때 다시 켬
     ...(readAwayLog(r.awayLog) ? { awayLog: readAwayLog(r.awayLog)! } : {}),
+    ...((GAME_NOTICES as readonly unknown[]).includes(r.noticed) ? { noticed: r.noticed as GameNotice } : {}),
     ...(isObj(r.view) && num(r.view.w, 0, 20_000) !== null && num(r.view.h, 0, 20_000) !== null ? { view: { w: r.view.w as number, h: r.view.h as number } } : {}),
     // 개발 모드 (임시) — 확장이 개발 모드가 아니면 다시 뗌 (game-session)
     ...(readDev(r.dev) ? { dev: readDev(r.dev)! } : {}),

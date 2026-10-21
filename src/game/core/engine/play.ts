@@ -25,7 +25,7 @@ import { addItem, battleRewards, clearStage, defeatPenalty, FOREST_BADGE, pickTr
 import { Rng } from './rng';
 // 개발 모드 (임시)
 import { devTeam, devWalk } from '../../dev/runtime';
-import { MAX_SPEED, type AwayLog, type GameState, type RuntimeState, type StageRuntime } from './state';
+import { MAX_SPEED, type AwayLog, type GameNotice, type GameState, type RuntimeState, type StageRuntime } from './state';
 import { applyTeamResult, pickTeam, startTeamBattle, teamDone, teamInput, teamPossible, teamRewardBattle, teamScale, teamStep, type TeamBattle, type TeamInput } from './team';
 import { takeSteps } from './step';
 
@@ -100,11 +100,8 @@ export type GameInput =
   | { kind: 'lobby-back' }
   | { kind: 'badge-continue' };
 
-/**
- * 안 볼 때 직접 해야 하는 순간 — 확장이 VS Code 알림 (U9, 설정에서 끔).
- * 이로치 · 부탁 · 고르기 · 체육관 도착 (mvp-spec 3.3) + 클리어 카드 · 패배 (멈춰서 기다리는 곳이라 [제안] — 돌아와서 "이미 멈춰 있었네" 가 안 되게)
- */
-export type GameNotice = 'shiny' | 'rival' | 'request' | 'choice' | 'gym' | 'clear' | 'defeat';
+/** 밖 · 숨김에서 게임이 사람을 기다리는 이유 — VS Code 알림 (U9, 설정에서 끔) · 기준은 gdd 4.13 멈춤 · 알림 표 (waitReason · STAGE_WAIT) */
+export type { GameNotice } from './state';
 
 /** 부탁 · 병원 앞에 멈춰 있을 때 진행 % 를 자리 바로 앞에 둠 — 고르기 전에 꺼도 다시 켜면 그 자리부터 */
 const BEFORE_SPOT = 1e-7;
@@ -398,17 +395,14 @@ function stageDefeat(save0: Save, id: StageId): { save: Save; lost: number } {
   return { save, lost: d.lost };
 }
 
-function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number): { save: Save; rt: RuntimeState; signal: SaveSignal | null; notice: GameNotice | null } {
+function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number): { save: Save; rt: RuntimeState; signal: SaveSignal | null } {
   const ensured = ensureStage(save0, rt0, id);
   let save = ensured.save;
   let rt = ensured.rt;
   const { prog, layout } = ensured;
   let stage: StageRuntime = checkedStage(rt, save, id, layout, prog.progress) ?? defaultStage(save, rt, id, prog);
   let signal: SaveSignal | null = null;
-  let notice: GameNotice | null = null;
-  // 안 볼 때 고를 것이 남은 세이브로 시작했으면 (껐다 켬 등) 한 번 알림 — 그 뒤로는 기다리는 중이라 확장 계산이 멈춤
-  if (rt.headless && stage.phase === 'choice' && rt.stage?.phase !== 'choice' && save.pendingChoices.length > 0) notice = 'choice';
-  if (shinyWhileAway(save, rt, stage)) return { save, rt: { ...rt, stage, stageId: id }, signal, notice };
+  if (shinyWhileAway(save, rt, stage)) return { save, rt: { ...rt, stage, stageId: id }, signal };
   const walking = stage.phase === 'walk';
 
   switch (stage.phase) {
@@ -455,7 +449,6 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
         // 안 볼 때 · VS Code 에 포커스가 없을 때 이로치 흔적 — 바로 앞에서 멈추고 알림 (U9), 다시 보이면 · 돌아오면 이어 감
         save = withProgress(save, id, Math.max(from, spot.at - BEFORE_SPOT));
         stage = { phase: 'hold', why: 'shiny' };
-        notice = 'shiny';
       } else if (spot.kind === 'wild') {
         const wild = createWild(id, prog.seed, spot, prog.run.retries);
         const enemySpeed = statsOf(speciesOf(wild.species)!.base, wild.ivs, wild.points, wild.level).speed;
@@ -478,7 +471,6 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
         // 안 볼 때 · VS Code 에 포커스가 없을 때 라이벌 — 이로치처럼 바로 앞에서 멈추고 알림 (드문 일을 자동 전투로 놓치지 않게, 2026-10-20 ideas #87), 다시 보면 걸어가 만남
         save = withProgress(save, id, Math.max(from, spot.at - BEFORE_SPOT));
         stage = { phase: 'hold', why: 'rival' };
-        notice = 'rival';
       } else if (spot.kind === 'rival') {
         // 라이벌 깜짝 등장 (gdd 4.12) — 가장 덜 만난 라이벌, 트레이너처럼 멈추고 "!" → 띠 → 전투 (자동 전투여도)
         // 살아 있는 포켓몬이 없으면 (이상한 세이브) 싸우지 않고 지나감 — 전적도 안 셈 (테스터)
@@ -634,7 +626,6 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
       rt = { ...rt, rngState: rng.state };
       // 5초 뒤 (안 볼 때는 다음 걸음에) 저절로 다시 시작 (ideas #49) — 같은 판 두 번째 패배부터는 기다리고 안 볼 때 알림 (지고 또 지며 돈이 빠지지 않게, 코드 리뷰어)
       stage = { phase: 'defeat', gym: false, lost: d.lost };
-      if (rt.headless && defeatWaits(save, stage)) notice = 'defeat';
       break;
     }
     case 'team': {
@@ -673,7 +664,6 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
         if ((run?.retries ?? 0) + (run?.teamLost?.length ?? 0) >= 2) {
           // 같은 판 두 번째 패배 — 멈춤 상자 (다시 시작 없음, Enter · 클릭 = 계속 걷기) · 안 볼 때는 알림 (R8 A — 방치 손해 막기)
           stage = { phase: 'defeat', gym: false, lost, keep: team.foeName ?? '상대' };
-          if (rt.headless) notice = 'defeat';
           break;
         }
         rt = { ...rt, toast: { text: `${team.foeName}에게 졌다… 돈 −${lost.toLocaleString('en-US')}원`, ms: TIMING.toastMs * 2 } };
@@ -683,13 +673,11 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
       const d = stageDefeat(save, id);
       save = d.save;
       stage = { phase: 'defeat', gym: false, lost: d.lost };
-      if (rt.headless && defeatWaits(save, stage)) notice = 'defeat';
       break;
     }
     case 'result':
     case 'choice': {
       const next = resultOrChoiceStep(stage, save, stepMs);
-      if (next.phase === 'choice' && stage.phase === 'result' && rt.headless) notice = 'choice';
       stage = next;
       break;
     }
@@ -702,7 +690,7 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
           break;
         }
         const helped = applyInput({ save, runtime: { ...rt, stage, stageId: id } }, { kind: 'request', help: true });
-        return { save: helped.save, rt: helped.runtime, signal: null, notice: null };
+        return { save: helped.save, rt: helped.runtime, signal: null };
       }
       const ms = stage.ms + stepMs;
       stage = ms < TIMING.requestResultMs ? { ...stage, ms } : { phase: 'walk' };
@@ -718,7 +706,7 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
         // 다음 스테이지를 이미 깼으면 (깬 스테이지를 다시 돌며 키우는 중) 같은 스테이지를 새 판으로 · 아니면 다음 (2026-10-21 태현 님 A)
         const next = nextPlace(id);
         const t = travel({ save, runtime: { ...rt, stage, stageId: id } }, next !== 'gym' && save.stages[next]?.cleared ? id : next);
-        return { save: t.save, rt: t.runtime, signal: null, notice: null };
+        return { save: t.save, rt: t.runtime, signal: null };
       }
       stage = { ...stage, ms };
       break;
@@ -738,11 +726,11 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
   }
   // 걷는 동안 회복 — 이번 걸음에 나아간 만큼 (1분에 최대 HP 10%)
   if (walking) save = walkRegen(save, prog.progress, save.stages[id]?.progress ?? prog.progress);
-  return { save, rt: { ...rt, stage, stageId: id }, signal, notice };
+  return { save, rt: { ...rt, stage, stageId: id }, signal };
 }
 
 /** 스테이지 끝 — 볼 +1 · 보너스 경험치 · 깬 표시 → S24 클리어 카드 (고를 것이 있으면 먼저) · 1-3 은 S16 체육관 대기실로 */
-function finishStage(save0: Save, rt0: RuntimeState, id: StageId): { save: Save; rt: RuntimeState; signal: SaveSignal | null; notice: GameNotice | null } {
+function finishStage(save0: Save, rt0: RuntimeState, id: StageId): { save: Save; rt: RuntimeState; signal: SaveSignal | null } {
   const rng = new Rng(rt0.rngState);
   // 클리어 보너스 — 경험 부적 판이면 ×1.5 (한 줄 알림에도 같은 수)
   const bonus = stageClearExp(save0, id);
@@ -760,8 +748,7 @@ function finishStage(save0: Save, rt0: RuntimeState, id: StageId): { save: Save;
   } else if (lv) rt = { ...rt, toast: { text: lv, ms: TIMING.toastMs * 2 } };
   const stage = afterResult(save);
   // 자동 전투면 클리어 카드가 저절로 넘어가니 알림 없음 (ideas #48)
-  const notice: GameNotice | null = !rt.headless ? null : stage.phase === 'choice' ? 'choice' : id === 'forest-3' ? 'gym' : save.settings.autoBattle ? null : 'clear';
-  return { save, rt: { ...rt, stage, stageId: id === 'forest-3' ? null : id }, signal: 'stage-clear', notice };
+  return { save, rt: { ...rt, stage, stageId: id === 'forest-3' ? null : id }, signal: 'stage-clear' };
 }
 
 /** S12 결과 (5초 — 잡았으면 앞에 소개 카드 1.5초 · 계속) · S23 · S22 고르기 (고를 때까지, ms = 진화 연출) — 스테이지 · 체육관이 같이 씀 */
@@ -778,7 +765,7 @@ function resultOrChoiceStep(stage: Extract<StageRuntime, { phase: 'result' | 'ch
 }
 
 /** S16 체육관 — 대기실 · 관장전 · 결과 · 고르기 · 패배 · MVP 끝 카드 */
-function gymStep(save0: Save, rt0: RuntimeState, stepMs: number): { save: Save; rt: RuntimeState; signal: SaveSignal | null; notice: GameNotice | null } {
+function gymStep(save0: Save, rt0: RuntimeState, stepMs: number): { save: Save; rt: RuntimeState; signal: SaveSignal | null } {
   let save = save0;
   let rt = rt0;
   const st = rt.stageId === null ? rt.stage : null;
@@ -800,8 +787,6 @@ function gymStep(save0: Save, rt0: RuntimeState, stepMs: number): { save: Save; 
           : { phase: 'battle', battle: leaderBattle(save) }
         : { phase: 'lobby' };
   let signal: SaveSignal | null = null;
-  let notice: GameNotice | null = null;
-  if (rt.headless && stage.phase === 'choice' && rt.stage?.phase !== 'choice' && save.pendingChoices.length > 0) notice = 'choice';
   switch (stage.phase) {
     case 'battle': {
       const rng = new Rng(rt.rngState);
@@ -854,7 +839,6 @@ function gymStep(save0: Save, rt0: RuntimeState, stepMs: number): { save: Save; 
     case 'result':
     case 'choice': {
       const next = resultOrChoiceStep(stage, save, stepMs);
-      if (next.phase === 'choice' && stage.phase === 'result' && rt.headless) notice = 'choice';
       stage = next;
       break;
     }
@@ -864,7 +848,7 @@ function gymStep(save0: Save, rt0: RuntimeState, stepMs: number): { save: Save; 
     default:
       break;
   }
-  return { save, rt: { ...rt, stage, stageId: null }, signal, notice };
+  return { save, rt: { ...rt, stage, stageId: null }, signal };
 }
 
 /** 걸음 하나 */
@@ -873,20 +857,81 @@ export function step(state: GameState, stepMs: number): StepOut {
   let rt: RuntimeState = state.runtime;
   if (rt.toast) rt = { ...rt, toast: rt.toast.ms > stepMs ? { ...rt.toast, ms: rt.toast.ms - stepMs } : rt.toast.then ? { text: rt.toast.then, ms: TIMING.toastMs } : null };
   let signal: SaveSignal | null = null;
-  let notice: GameNotice | null = null;
   const loc = save.location;
   if (loc.screen === 'stage' || loc.screen === 'gym') {
     const r = loc.screen === 'stage' ? stageStep(save, rt, loc.stageId, stepMs) : gymStep(save, rt, stepMs);
     save = r.save;
     rt = r.rt;
     signal = r.signal;
-    notice = r.notice;
   } else if (rt.stage) {
     rt = { ...rt, stage: null, stageId: null };
   }
   rt = awayStep(state, save, rt, signal);
-  return { state: { save, runtime: rt }, save: signal, notice };
+  // 멈춤 · 알림 (gdd 4.13 · U6) — 밖 · 숨김에서 기다리는 이유가 생겼는데 아직 안 알렸으면 한 번 (장면마다 따로 알리던 것을 한곳에서 — 이로치 전투 중에 떠남 · 밖 고르기 · 대기실로 돌아옴 등 빠진 곳 없이).
+  // 보는 중이면 지움 (다시 떠나면 다시 알림) · 기다림이 풀리면 지움 (다음 기다림을 알리게)
+  let told: GameNotice | null = null;
+  const watching = !rt.headless && !rt.away;
+  const reason = watching ? null : waitReason({ save, runtime: rt });
+  if (reason && reason !== rt.noticed) {
+    told = reason;
+    rt = { ...rt, noticed: reason };
+  } else if (!reason && rt.noticed !== undefined && (watching || rt.noticed !== 'paused')) {
+    const { noticed: _n, ...rest } = rt;
+    rt = rest;
+  }
+  return { state: { save, runtime: rt }, save: signal, notice: told };
 }
+
+/**
+ * 지금 사람을 기다리는 이유 (gdd 4.13 표의 "기다림" 줄) — 없으면 null. 병원 · 상점 안 · 판 (사람이 먼저 들어간 곳) 은 알림 없음 (null).
+ * 밖 · 숨김에서 이 값이 새로 생기면 알림 (step) · 확장이 넘겨받을 때도 (game-session) · 화면 기다림 한 줄 · 포켓몬 탭 배지
+ */
+export function waitReason(state: GameState): GameNotice | null {
+  const st = state.runtime.stage;
+  if (shinyWhileAway(state.save, state.runtime, st)) return 'shiny';
+  if (!st) return null;
+  switch (st.phase) {
+    case 'hold':
+      return st.why;
+    case 'battle':
+      return !state.save.settings.autoBattle && battleWaiting(st.battle) ? 'battle' : null;
+    case 'choice':
+      return state.save.pendingChoices.length > 0 ? 'choice' : null;
+    case 'defeat':
+      return defeatWaits(state.save, st) ? 'defeat' : null;
+    case 'clear':
+      return state.save.settings.autoBattle ? null : 'clear';
+    case 'lobby':
+      return 'gym';
+    case 'badge':
+      return 'badge';
+    default:
+      return null;
+  }
+}
+
+/**
+ * 장면마다 gdd 4.13 표의 어느 줄인지 — flow = 멈추지 않음 · wait = 기다리면 알림 (waitReason) · entered = 사람이 먼저 들어간 곳 (알림 없음).
+ * 새 장면을 만들면 여기 (와 gdd 4.13) 에 먼저 — 테스트가 장면마다 줄이 있는지 봄 (orders #27 R13)
+ */
+export const STAGE_WAIT: Readonly<Record<StageRuntime['phase'], 'flow' | 'wait' | 'entered'>> = {
+  walk: 'flow',
+  appear: 'flow',
+  trainer: 'flow',
+  rival: 'flow',
+  battle: 'wait',
+  team: 'flow',
+  request: 'flow',
+  hold: 'wait',
+  facility: 'entered',
+  result: 'flow',
+  choice: 'wait',
+  defeat: 'wait',
+  clear: 'wait',
+  'gym-enter': 'flow',
+  lobby: 'wait',
+  badge: 'wait',
+};
 
 /** 지난 시간만큼 앞으로 (배속 반영) — 바로 저장할 일이 있었으면 saves 에 */
 export function advance(
