@@ -79,7 +79,7 @@
     const info = {
         save: saveKind,
         busy: q.get('busy') === '1',
-        summary: saveKind === 'ok' ? { playTimeMs: save.playTimeMs, money: save.money, badges: save.badges, lead: { form: 'bulbasaur', species: 1, level: 5 }, where: '1-1 · 37%' } : null,
+        summary: saveKind === 'ok' ? { playTimeMs: save.playTimeMs, money: save.money, badges: save.badges, lead: { form: 'bulbasaur', species: 1, level: 5 }, where: '1-1 · 37%', ...(q.get('daily') ? { daily: { done: Number(q.get('daily').split('/')[0]), total: Number(q.get('daily').split('/')[1]) } } : {}) } : null, // daily=1/3 — 타이틀 "오늘 1/3" (#28)
     };
     if (q.get('notice')) info.notice = q.get('notice');
 
@@ -319,6 +319,13 @@
     }
     if (q.get('xtoast')) runtime.toast = JSON.parse(q.get('xtoast'));
     if (q.get('xauto') === '1') save.settings = { ...save.settings, autoBattle: true };
+    // stageid=<스테이지 id> — 길 장면을 그 스테이지 이름으로 (해변 시안 — 지도 줄이 "새싹 오솔길" 이면 숲으로 보이던 것 · 판 진행은 숲 1-1 것을 그대로 옮김)
+    if (q.get('stageid') && save.location.screen === 'stage') {
+        const sid = q.get('stageid');
+        save.stages[sid] = { ...save.stages[save.location.stageId] };
+        save.location = { screen: 'stage', stageId: sid };
+        if (runtime.stage) runtime.stageId = sid;
+    }
     // bgset=<폴더> — 길 배경 두 겹을 바꿔 끼움 (해변 시안 #36 — 폴더 안 background|foreground-<dark|light>-<nano|small|medium|large>.png, 이 페이지 기준 경로 · 예: shots/bgprev/pret-sand · ../extension/media/backgrounds/beach)
     if (q.get('bgset')) {
         const bg = q.get('bgset');

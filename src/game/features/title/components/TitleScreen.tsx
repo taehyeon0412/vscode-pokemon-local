@@ -81,6 +81,12 @@ function Summary({ summary }: { summary: TitleSummary }) {
       {/* 어디서 이어 하는지 (ideas #6) — 이름 다음으로 중요 (좁으면 시간 → 돈 → 배지 → 어디서 → 이름 순으로 숨김) */}
       {summary.where && <span class="pg-sum-where">{summary.where}</span>}
       <span class="pg-sum-badges">배지 {summary.badges}</span>
+      {/* 오늘의 목표 (#28 · gdd U13 — 켜졌고 오늘 것일 때만 확장이 보냄) · 다 하면 금색 */}
+      {summary.daily && (
+        <span class={`pg-sum-daily${summary.daily.done >= summary.daily.total ? ' pg-on' : ''}`} title="오늘의 목표 — 세계 지도에서 볼 수 있어요">
+          오늘 {summary.daily.done}/{summary.daily.total}
+        </span>
+      )}
       <span class="pg-sum-money">{formatMoney(summary.money)}</span>
       <span class="pg-sum-time pg-dim">
         플레이 {formatPlayTime(summary.playTimeMs)}

@@ -309,9 +309,13 @@ body.pokemon-game-on {
   }
 }
 @media (max-width: 480px) {
-  .pg-sum-money {
+  .pg-sum-money,
+  .pg-sum-daily {
     display: none;
   }
+}
+.pg-sum-daily.pg-on {
+  color: var(--pg-sos-gold);
 }
 @media (max-width: 400px) {
   .pg-sum-badges {
