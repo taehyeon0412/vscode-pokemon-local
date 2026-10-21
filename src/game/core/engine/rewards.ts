@@ -210,7 +210,12 @@ export function rivalWinRewards(save: Save, summary: BattleSummary, rival: strin
   const out: BattleSummary = { ...summary, money: summary.money + extra, item: itemName(item) };
   // 이 라이벌에게 처음 이김 (전적은 이 다음에 셈) = 금구슬 (ideas #125)
   const first = (save.rivals?.[rival]?.wins ?? 0) === 0;
-  return { save: first ? giveTreasure(next, out, 'nugget') : next, summary: out };
+  // 트레이너 15% 로 이미 받았으면 결과 상자에 둘 다 (코드 리뷰어)
+  const had = out.treasure;
+  if (!first) return { save: next, summary: out };
+  const got = giveTreasure(next, out, 'nugget');
+  if (had) out.treasure = `${had} · ${out.treasure}`;
+  return { save: got, summary: out };
 }
 
 /** S23 — 맨 앞 고르기가 새 기술이면: replace 번째 칸과 바꿈 (null = 배우지 않기) */
@@ -286,6 +291,12 @@ export function useRareCandy(save: Save, uid: string, rng: Rng): Save | null {
   return { ...save, bag: { ...save.bag, 'rare-candy': have - 1 }, monsters: { ...save.monsters, [uid]: r.monster }, pendingChoices: [...save.pendingChoices, ...r.choices] };
 }
 
+/** 이번 판 클리어 보너스 (경험 부적 판이면 ×1.5) — 받는 값 · 알림 · 클리어 카드가 같이 씀 */
+export function stageClearExp(save: Save, id: StageId): number {
+  return Math.round(clearBonusExp(id) * runExpScale(save, id));
+}
+
+/** S24 에 보여 줄 보너스 경험치 (팀 전원, 부적 빼고) — 그 스테이지 레벨대 위끝 × 10 */
 export function clearBonusExp(id: StageId): number {
   return stageLevelBand(id)[1] * BALANCE.clearExpPerLevel;
 }
@@ -302,7 +313,7 @@ export function clearStage(save0: Save, id: StageId, rng: Rng): { save: Save; le
     bag: { ...save0.bag, 'poke-ball': Math.min(999, (save0.bag['poke-ball'] ?? 0) + BALANCE.clearBalls) },
     stages: { ...save0.stages, [id]: { ...prog, progress: 1, cleared: true } },
   };
-  const r = giveTeamExp(save, Math.round(clearBonusExp(id) * runExpScale(save0, id)), rng);
+  const r = giveTeamExp(save, stageClearExp(save0, id), rng);
   save = r.save;
   return { save, levelUps: r.exp.filter((e) => e.to > e.from).map((e) => `${e.name} Lv ${e.to}!`) };
 }

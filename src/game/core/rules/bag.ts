@@ -79,7 +79,7 @@ export function sellPrice(item: ItemId): number {
 /** S14 [팔기] — count 개까지 (가진 만큼). 못 팔면 null */
 export function sell(save: Save, item: ItemId, count: number): { save: Save; count: number; money: number } | null {
   const price = sellPrice(item);
-  const n = Math.min(Math.max(1, Math.floor(count)), save.bag[item] ?? 0);
+  const n = Math.min(Math.max(1, Math.floor(Number.isFinite(count) ? count : 1)), save.bag[item] ?? 0);
   if (price <= 0 || n <= 0) return null;
   // 돈 상한 — 실제로 늘어난 돈만 (하나도 못 받으면 안 팖, 테스터)
   const money = Math.min(999_999_999, save.money + price * n) - save.money;
@@ -87,6 +87,12 @@ export function sell(save: Save, item: ItemId, count: number): { save: Save; cou
   return { save: { ...save, money: save.money + money, bag: { ...save.bag, [item]: (save.bag[item] ?? 0) - n } }, count: n, money };
 }
 
+/** 이상한사탕을 지금 살 수 있는지 — 스테이지 상점에서 한 판에 candyPerStage 개 (대기실 상점엔 없음 — 2026-10-21 ideas #70, 엔진 · 상점 화면이 같이 씀) */
+export function canBuyCandy(save: Save): boolean {
+  return save.location.screen === 'stage' && (save.stages[save.location.stageId]?.run.candy ?? 0) < BALANCE.candyPerStage;
+}
+
+/** S14 — 하나 사기 (돈 · 가방 한 칸 상한) */
 export function buy(save: Save, item: ShopItem): Save | null {
   const price = priceOf(item);
   const have = save.bag[item] ?? 0;

@@ -29,7 +29,7 @@ export interface TitleView {
 }
 
 const BROKEN = '세이브를 읽지 못했어요 (원본은 백업해 뒀어요) — 새로 하기만 할 수 있어요';
-const NEWER = '더 새 버전 확장에서 만든 세이브예요 — 확장을 업데이트하면 이어 할 수 있어요';
+const NEWER = '더 새 버전 확장에서 만든 세이브예요 — 창을 다시 로드하면 (Developer: Reload Window) 이어 할 수 있어요';
 export const BUSY_WARNING = '다른 VS Code 창에서 게임 중이에요 — 그 창에서 일반 모드로 바꾸면 여기서 할 수 있어요';
 
 export const NOTICE_TEXT: Record<TitleNotice, string> = {

@@ -4,7 +4,7 @@
  */
 import { TIMING } from '../core/balance';
 import { advance, applyInput, clampFrameDelta, type GameInput, type GameState } from '../core/engine';
-import type { Save } from '../core/save';
+import { SAVE_VERSION, type Save } from '../core/save';
 import { GAME_COMMAND, type HostToWebview, type SaveReason, type TitleInfo, type WebviewToHost } from '../shared/messages';
 
 /** 지금 보일 화면 — none 이면 일반 모드 (게임 화면을 숨김) */
@@ -89,6 +89,11 @@ export class WebviewSession {
         this.deps.post({ command: GAME_COMMAND, type: 'ready' });
         return;
       case 'start':
+        // 판이 다른 상태 = 설치 뒤 다시 로드 전 (확장은 옛 코드, 웹뷰만 새 game.js) — 계산하지 않고 확장에 넘김: 옛 확장이 새 칸을 지운 채 저장하지 않게 (2026-10-21 코드 리뷰어)
+        if (message.state.save.version !== SAVE_VERSION) {
+          this.deps.post({ command: GAME_COMMAND, type: 'load-failed', message: `세이브 판이 달라요 (${String(message.state.save.version)} ≠ ${SAVE_VERSION}) — 창을 다시 로드해 주세요 (Developer: Reload Window)` });
+          return;
+        }
         this.epoch = message.epoch;
         this.state = message.state;
         this.dirty = false;

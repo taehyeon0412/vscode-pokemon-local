@@ -2,8 +2,8 @@
  * S07 지도 · S13 병원 · S14 상점 · S16 대기실 · S18 내 포켓몬 · S19 가방 · S21 프로필 · S24 클리어 — 화면을 모르는 부분: 무엇을 어떤 글로 보여 줄지.
  */
 import { BALANCE } from '../../core/balance';
-import { clearBonusExp, gymUnlocked, runExpScale, stageUnlocked, type GameState } from '../../core/engine';
-import { FIELD_ITEMS, fieldUseBlock, isEvolutionItem, maxHpOf, priceOf, sellPrice, SHOP_ITEMS, type ShopItem } from '../../core/rules/bag';
+import { gymUnlocked, stageClearExp, stageUnlocked, type GameState } from '../../core/engine';
+import { canBuyCandy, FIELD_ITEMS, fieldUseBlock, isEvolutionItem, maxHpOf, priceOf, sellPrice, SHOP_ITEMS, type ShopItem } from '../../core/rules/bag';
 import { itemName, VALUABLES } from '../../core/rules/items';
 import { expForLevel, starGrade, statsOf } from '../../core/rules/stats';
 import { ITEM_IDS, STAGE_IDS, STAT_KEYS, type ItemId, type Monster, type Save, type StageId, type StatKey } from '../../core/save';
@@ -204,9 +204,8 @@ const SHOP_DETAIL: Record<ShopItem, string> = {
 /** S14 ① 물건 · ③ 내 돈 */
 export function shopView(save: Save): ShopRow[] {
   // 이상한사탕 = 스테이지 상점에서 한 판에 1개 (대기실 상점 · 이미 산 판은 흐리게 — 다음 버전 2단계)
-  const loc = save.location;
-  const candyLeft = loc.screen === 'stage' ? BALANCE.candyPerStage - (save.stages[loc.stageId]?.run.candy ?? 0) : 0;
-  const candyBlock = candyLeft > 0 ? undefined : loc.screen === 'stage' ? '한 판에 1개' : '스테이지 상점에서만';
+  // 규칙은 엔진과 같은 canBuyCandy (rules/bag)
+  const candyBlock = canBuyCandy(save) ? undefined : save.location.screen === 'stage' ? '한 판에 1개' : '스테이지 상점에서만';
   return SHOP_ITEMS.map((item) => {
     const blocked = item === 'rare-candy' ? candyBlock : undefined;
     return { item, name: itemName(item), effect: SHOP_EFFECT[item], detail: SHOP_DETAIL[item], price: priceOf(item), have: save.bag[item] ?? 0, affordable: save.money >= priceOf(item) && !blocked, blocked };
@@ -258,7 +257,7 @@ export function clearView(save: Save, id: StageId): { title: string; bonus: numb
   return {
     title: `${stageLabel(id)} 클리어!`,
     // 경험 부적 판이면 ×1.5 (받은 그대로 — 2026-10-21 ideas #70)
-    bonus: Math.round(clearBonusExp(id) * runExpScale(save, id)),
+    bonus: stageClearExp(save, id),
     balls: BALANCE.clearBalls,
     caught: run.caught,
     trainers: run.trainers,

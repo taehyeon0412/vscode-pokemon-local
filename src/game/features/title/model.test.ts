@@ -42,7 +42,7 @@ describe('S02 타이틀 보기', () => {
     const v = titleView({ save: 'newer', busy: false, summary });
     expect(v.canContinue).toBe(false);
     expect(v.summary).toBeNull();
-    expect(v.warnings[0]).toContain('업데이트');
+    expect(v.warnings[0]).toContain('다시 로드');
   });
 
   it('다른 창이 게임 중: 두 버튼 모두 흐리게 · 안내 한 줄 (같은 까닭의 notice 는 겹치지 않음)', () => {

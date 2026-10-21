@@ -10,7 +10,7 @@
  * 상태는 늘 새 객체로 만듦 (그 자리에서 고치지 않음 — 확장 ↔ 웹뷰 · 저장소가 같은 객체를 나눠 써도 안 바뀌게).
  */
 import { BALANCE, TIMING } from '../balance';
-import { buy, healTeam, isShopItem, moveInTeam, sell, spendPoint, swapWithBox, teamHealth, toBox, useFieldItem, walkRegen } from '../rules/bag';
+import { buy, canBuyCandy, healTeam, isShopItem, moveInTeam, sell, spendPoint, swapWithBox, teamHealth, toBox, useFieldItem, walkRegen } from '../rules/bag';
 import { createWild, encounterStart, pickupAt, planWild, wildKey } from '../rules/encounter';
 import { itemName, requestAt, resolveRequest } from '../rules/request';
 import { spotBetween, spotRng, stageCode, stageLayout, trainerId, walkDelta, type Spot, type StageLayout } from '../rules/stage';
@@ -21,7 +21,7 @@ import { isTipId, ITEM_IDS, RUN_SEEN_MAX, STAGE_IDS, TIPS_MAX, type FacilitySpot
 import { withJosa } from '../text';
 import { moveOf, speciesOf } from '../../data';
 import { applyBattleResult, battleDone, battleInput, battleStep, battleWaiting, firstAlive, startBattle, startTrainerBattle, switchable, type BattleInput, type BattleState } from './battle';
-import { addItem, battleRewards, clearBonusExp, clearStage, defeatPenalty, FOREST_BADGE, pickTreasure, resolveEvolve, resolveLearn, rivalWinRewards, runExpScale, takeLaterChoices, useRareCandy } from './rewards';
+import { addItem, battleRewards, clearStage, defeatPenalty, FOREST_BADGE, pickTreasure, resolveEvolve, resolveLearn, rivalWinRewards, stageClearExp, takeLaterChoices, useRareCandy } from './rewards';
 import { Rng } from './rng';
 import { MAX_SPEED, type AwayLog, type GameState, type RuntimeState, type StageRuntime } from './state';
 import { takeSteps } from './step';
@@ -542,7 +542,7 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
 function finishStage(save0: Save, rt0: RuntimeState, id: StageId): { save: Save; rt: RuntimeState; signal: SaveSignal | null; notice: GameNotice | null } {
   const rng = new Rng(rt0.rngState);
   // 클리어 보너스 — 경험 부적 판이면 ×1.5 (한 줄 알림에도 같은 수)
-  const bonus = Math.round(clearBonusExp(id) * runExpScale(save0, id));
+  const bonus = stageClearExp(save0, id);
   const r = clearStage(save0, id, rng);
   // 쌓아 둔 새 기술 고르기를 한 번에 (클리어 카드 전, ideas #72)
   let save = takeLaterChoices(r.save);
@@ -775,7 +775,10 @@ function travel(state: GameState, to: StageId | 'gym'): GameState {
   // 경험 부적 — 스테이지를 새로 시작할 때 1개를 써서 이 판 동안 경험치 ×1.5 (2026-10-21 ideas #70)
   const charm = (save.bag['exp-charm'] ?? 0) > 0;
   if (charm) save = withRun({ ...save, bag: { ...save.bag, 'exp-charm': (save.bag['exp-charm'] ?? 0) - 1 } }, to, (r) => ({ ...r, boost: true }));
-  const toastNow = charm ? { text: `경험 부적을 썼다! 이 스테이지 경험치 ×${BALANCE.expCharmScale}`, ms: TIMING.toastMs * 2 } : state.runtime.toast;
+  const charmText = `경험 부적을 썼다! 이 스테이지 경험치 ×${BALANCE.expCharmScale}`;
+  // 앞 알림 (클리어 · 레벨업) 이 떠 있으면 덮지 않고 그 뒤에 (코드 리뷰어)
+  const prev = state.runtime.toast;
+  const toastNow = !charm ? prev : prev ? { ...prev, then: prev.then ? `${prev.then} · ${charmText}` : charmText } : { text: charmText, ms: TIMING.toastMs * 2 };
   return { save, runtime: { ...state.runtime, rngState: rng.state, stage: null, stageId: to, toast: toastNow } };
 }
 
@@ -912,7 +915,7 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       // 이상한사탕 = 스테이지 상점에서 한 판에 1개 (대기실 상점엔 없음 — 2026-10-21 ideas #70)
       const candy = input.item === 'rare-candy';
       const at = save.location.screen === 'stage' ? save.location.stageId : null;
-      if (candy && (!at || (save.stages[at]?.run.candy ?? 0) >= BALANCE.candyPerStage)) return state;
+      if (candy && !canBuyCandy(save)) return state;
       // Shift + 클릭 = 5개 (ideas #50) — 돈 · 가방이 모자라면 산 만큼
       const want = candy ? 1 : Math.max(1, Math.min(BALANCE.shopBulk, Math.floor(input.count ?? 1)));
       let next = save;

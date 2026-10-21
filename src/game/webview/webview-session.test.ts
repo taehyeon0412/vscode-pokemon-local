@@ -27,6 +27,17 @@ describe('웹뷰 세션', () => {
     expect(sent).toEqual([]);
   });
 
+  it('판이 다른 세이브 (설치 뒤 다시 로드 전 — 옛 확장 + 새 웹뷰) 는 맡지 않고 load-failed 로 넘김 (2026-10-21 코드 리뷰어)', () => {
+    const { s, sent, frames } = make();
+    const old = start(5);
+    s.handleMessage({ ...old, state: { ...old.state, save: { ...old.state.save, version: 1 as unknown as 2 } } });
+    frames(2000);
+    expect(s.running).toBe(false);
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({ type: 'load-failed' });
+    expect((sent[0] as { message: string }).message).toContain('다시 로드');
+  });
+
   it('맡으면 계산하고, 바뀐 상태를 1초에 한 번 보냄', () => {
     const { s, sent, frames } = make();
     s.handleMessage(start(4));

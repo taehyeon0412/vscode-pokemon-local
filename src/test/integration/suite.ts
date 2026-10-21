@@ -7,7 +7,7 @@
 import * as assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
 import * as vscode from 'vscode';
-import { createNewSave } from '../../game/core/save';
+import { createNewSave, SAVE_VERSION } from '../../game/core/save';
 import { healed } from '../../game/core/rules/bag';
 import { expForLevel } from '../../game/core/rules/stats';
 import { createStartSave } from '../../game/features/starter/model';
@@ -184,7 +184,7 @@ export async function run(): Promise<void> {
     ['저장: 세이브 파일에 1판 세이브', async () => {
       await game.flush();
       const raw = game.readStoredRaw() as { version?: number; playTimeMs?: number } | undefined;
-      assert.equal(raw?.version, 1);
+      assert.equal(raw?.version, SAVE_VERSION);
       assert.ok((raw?.playTimeMs ?? 0) > 0);
     }],
 

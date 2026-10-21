@@ -11,8 +11,10 @@ export {
   canTravel,
   gymUnlocked,
   inBattle,
+  defeatWaits,
   isWaitingForInput,
   stageUnlocked,
+  walkLeftMs,
   step,
   withSpeed,
   type GameInput,
@@ -29,6 +31,7 @@ export {
   counterOpen,
   faintedTeam,
   itemLeft,
+  moveEffect,
   switchable,
   ultCounterOpen,
   type BattleAction,
@@ -41,7 +44,7 @@ export {
   type BattleState,
   type Side,
 } from './battle';
-export { clearBonusExp, FOREST_BADGE, runExpScale, type BattleSummary } from './rewards';
+export { clearBonusExp, FOREST_BADGE, runExpScale, stageClearExp, type BattleSummary } from './rewards';
 export {
   createGameState,
   MAX_SPEED,

@@ -21,7 +21,7 @@ export type ValidateResult =
 export const MAX_SPECIES = 1025;
 /** 잠듦 1~3번 (mvp-spec 3.3) */
 const MAX_SLEEP_TURNS = 3;
-/** SaveV1 의 칸 이름 — 모르는 칸은 고칠 때 뺌 */
+/** SaveV2 의 칸 이름 — 모르는 칸은 고칠 때 뺌 */
 const KNOWN_KEYS: readonly (keyof Save)[] = [
   'version', 'createdAt', 'updatedAt', 'playTimeMs', 'player', 'monsters', 'party', 'box', 'nextMonsterUid',
   'bag', 'money', 'badges', 'stages', 'location', 'lastHospital', 'dex', 'pendingEncounter', 'pendingChoices', 'settings', 'rivals', 'laterChoices', 'tips',

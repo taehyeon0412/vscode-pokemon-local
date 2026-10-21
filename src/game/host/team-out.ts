@@ -27,7 +27,7 @@ export interface TeamOutDeps {
 
 export const NO_SAVE_TEXT = '게임 세이브가 없어요 — 🎮 게임 모드에서 스타팅을 고르면 꺼낼 수 있어요.';
 export const BROKEN_SAVE_TEXT = '게임 세이브를 읽지 못해서 꺼낼 수 없어요 — 🎮 타이틀에서 상태를 확인해 주세요.';
-export const NEWER_SAVE_TEXT = '더 새 버전 확장에서 만든 세이브라 꺼낼 수 없어요 — 확장을 업데이트해 주세요.';
+export const NEWER_SAVE_TEXT = '더 새 버전 확장에서 만든 세이브라 꺼낼 수 없어요 — 창을 다시 로드해 주세요 (Developer: Reload Window).';
 const saveOf = (r: TeamSave): Save | null => (r.kind === 'ok' ? r.save : null);
 
 export class TeamOut {
@@ -82,6 +82,8 @@ export class TeamOut {
     const n = ++this.seq;
     const read = await this.deps.readSave();
     if (n !== this.seq || !this.on) return;
+    // 더 새 판 세이브 (이 창이 옛 코드) — 빈 팀을 보내 꺼내 둔 팀이 말없이 사라지지 않게 그대로 둠 (코드 리뷰어)
+    if (read.kind === 'newer') return;
     this.deps.post(teamOutMessage(saveOf(read)));
   }
 
