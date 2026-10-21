@@ -146,6 +146,8 @@ describe('화면 다시 그릴지 보는 열쇠', () => {
     expect(battleViewKey({ ...b, ultWait: 300 }, true)).toBe(battleViewKey({ ...b, ultWait: 320 }, true));
     expect(battleViewKey({ ...b, ultWait: 100 }, false)).toBe(battleViewKey({ ...b, ultWait: 400 }, false));
     expect(battleViewKey({ ...b0, foe: { ...b0.foe, ult: 0.85 } }, false)).not.toBe(battleViewKey({ ...b0, foe: { ...b0.foe, ult: 1 } }, false));
+    // 예약 (ultQueued) 이 켜지면 바뀜 — Z 옆 "예약" 칩
+    expect(battleViewKey({ ...b, ultQueued: true }, false)).not.toBe(battleViewKey(b, false));
   });
 });
 

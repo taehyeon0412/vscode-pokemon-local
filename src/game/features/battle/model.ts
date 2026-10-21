@@ -562,6 +562,7 @@ export function battleViewKey(b: BattleState, auto: boolean): string {
     b.phase === 'pick' ? String(pickShown(performance.now())) : '',
     // 다 찬 필살기 누를 틈 숫자 1초 칸 (R2 — 0.25초 칸으로 재서 바뀌는 순간을 놓치지 않게) · 상대 필살기 예고 곧 / ! (R4)
     Math.ceil((battleAutoUltLeft(b, auto) ?? -250) / 250),
+    b.ultQueued ? 'q' : '',
     (() => {
       const w = battleFoeUltWarn(b);
       return w === null ? '' : w.full ? '!' : '곧';

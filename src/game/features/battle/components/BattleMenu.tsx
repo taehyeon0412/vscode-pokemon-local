@@ -538,7 +538,10 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
   // 세는 때 = Z 를 쓸 수 있을 때 (엔진도 그때만 셈) · 내 행동 연출 중 = 멈춤 (점선 칩) · 마지막 기회 · 결과 같은 그 밖은 칩 · 다 참 모양 없음 (못 나가는데 "3" 이 5초 넘게 남던 것 — UX 리뷰어 2차)
   const autoPaused = autoLeft !== null && !ultReady && b.phase === 'anim' && b.anim?.side === 'me';
   const autoSec = autoLeft === null || (!ultReady && !autoPaused) ? null : Math.max(1, Math.ceil(autoLeft / 1000));
-  const zReady = ultReady || autoSec !== null;
+  // 내 행동 연출 중 + 게이지 가득 = 눌러 예약 (손 전투도 — 엔진 ultQueued · 연출이 끝나면 바로) · 교체 연출 중은 예약 안 됨 (엔진 3167086) — 버튼이 꺼져 클릭으로는 예약이 안 되던 것 (개발팀 테스터)
+  const queueable = !ultReady && b.me.ult >= 1 && b.phase === 'anim' && b.anim?.side === 'me' && b.anim.action.kind !== 'switch';
+  const ultQueued = b.ultQueued === true;
+  const zReady = ultReady || autoSec !== null || queueable || ultQueued;
   // 숫자 칩은 Z 밖 형제 (Z 안 첫 자식이면 Z 의 칠 · 빛 줄기 · 반짝 밑에 깔리고 · Z 톡 커짐에 같이 ×1.7 로 커지던 것 — 픽셀 검사원 2차) · Z 오른쪽 옆
   const ultBadge = (
     <span class="pg-ultz-wrap">
@@ -547,7 +550,17 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
       class={`${zReady ? 'pg-ultz pg-ultz-ready' : 'pg-ultz'}${autoSec !== null ? ' pg-ultz-auto' : ''}`}
       disabled={!zReady}
       onClick={() => onInput({ kind: 'battle', input: { kind: 'ult' } })}
-      title={autoSec !== null ? `필살기 (Z) — ${autoSec}초 뒤 저절로 · 지금 Z 로 바로` : ultReady ? '필살기 (Z) — 지금 쓸 수 있어요 · 아무 때나 · 상대 기술에 끼어들기' : `필살기 게이지 ${ultPct}% — 때리면 · 맞으면 참 (Z)`}
+      title={
+        ultQueued
+          ? '필살기 예약됨 — 지금 연출이 끝나면 바로 나가요'
+          : autoSec !== null
+            ? `필살기 (Z) — ${autoSec}초 뒤 저절로 · 지금 Z 로 바로`
+            : queueable
+              ? '필살기 (Z) — 누르면 예약 · 지금 연출이 끝나면 바로'
+              : ultReady
+                ? '필살기 (Z) — 지금 쓸 수 있어요 · 아무 때나 · 상대 기술에 끼어들기'
+                : `필살기 게이지 ${ultPct}% — 때리면 · 맞으면 참 (Z)`
+      }
     >
       <span class="pg-ultz-fill" style={{ height: `${zReady ? 100 : ultPct}%` }} />
       <span class="pg-ultz-key">Z</span>
@@ -567,7 +580,8 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
       )}
     </button>
       {/* "3초" — 칠 없는 금 테두리 (키 칩 [1] [2] 과 다른 모양 — 같은 금 칠 숫자면 "누를 키" 로 읽히던 것, UX 리뷰어 2차) */}
-      {autoSec !== null && <span class={`pg-ultz-count${autoPaused ? ' pg-paused' : ''}`}>{autoSec}초</span>}
+      {/* 예약됨 = 같은 자리 "예약" 칩 (남은 초보다 먼저) */}
+      {ultQueued ? <span class="pg-ultz-count">예약</span> : autoSec !== null && <span class={`pg-ultz-count${autoPaused ? ' pg-paused' : ''}`}>{autoSec}초</span>}
     </span>
   );
 
