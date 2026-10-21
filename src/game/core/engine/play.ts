@@ -513,10 +513,14 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
       break;
     }
     case 'team': {
-      // 3:3 실시간 (orders #17) — 끝나면 1:1 트레이너와 같은 길 (이기면 결과 · 돈 ×1.5 · 다시 안 나옴, 지면 S17)
+      // 3:3 실시간 (orders #17) — 이기면 1:1 트레이너와 같은 길 (결과 · 돈 ×1.5 · 다시 안 나옴).
+      // 지면 그 트레이너에게만 진 것 — 남은 포켓몬이 있으면 돈 −10% · 쓰러진 셋은 그대로 · 계속 걸음, 없을 때만 S17 (2026-10-21 태현 님 "추천안대로")
       const rng = new Rng(rt.rngState);
-      const team = teamStep(stage.team, stepMs, rng, { auto: save.settings.autoBattle, away: rt.headless });
+      let team = teamStep(stage.team, stepMs, rng, { auto: save.settings.autoBattle, away: rt.headless });
       rt = { ...rt, rngState: rng.state };
+      if (team.phase === 'over' && stage.team.phase !== 'over' && team.result === 'lose' && aliveCount(applyTeamResult(save, team)) > 0) {
+        team = { ...team, msg: `${team.foeName}에게 졌다… 남은 포켓몬으로 계속 간다` };
+      }
       if (!teamDone(team)) {
         stage = { phase: 'team', team };
         break;
@@ -532,6 +536,14 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
         }
         rt = { ...rt, rngState: rng.state };
         stage = { phase: 'result', summary: r.summary, ms: 0 };
+        break;
+      }
+      if (aliveCount(save) > 0) {
+        // 그 트레이너에게만 짐 — 트레이너는 이긴 게 아니라 지나간 자리 (졌다 다시 걸을 때 · 다음 판에 또 나옴), 회복은 병원에서
+        const lost = Math.floor(save.money * BALANCE.defeatMoneyLoss);
+        save = { ...save, money: save.money - lost };
+        rt = { ...rt, toast: { text: `${team.foeName}에게 졌다… 돈 −${lost.toLocaleString('en-US')}원`, ms: TIMING.toastMs * 2 } };
+        stage = afterResult(save);
         break;
       }
       const d = stageDefeat(save, id);

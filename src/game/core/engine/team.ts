@@ -440,12 +440,23 @@ function startUltClash(b: TeamBattle, joinSide: Side, joiners: number[], rng: Rn
   b.msg = me.length === foe.length ? '필살기 힘겨루기!' : `필살기 힘겨루기! ${me.length}:${foe.length}`;
 }
 
-/** 필살기 힘겨루기 끝 — 합류한 필살 스탯의 합 · 연타 · 진 쪽 참가자 모두 피해 = 이긴 쪽 참가자마다 자기 필살기 (합류한 위력을 다 더함 — gdd 4.7) */
+/**
+ * 3:1 필살기 힘겨루기 = 셋 쪽이 100% 이김 (2026-10-17 · 10-21 태현 님 "추천안대로") — 화면은 나 1 : 상대 3 이면 "1:3 — 질 거예요" 를 띄움.
+ * 2:1 · 3:2 처럼 덜 모인 경우는 null (필살 합 + 연타)
+ */
+export function teamClashSure(c: Pick<TeamClash, 'me' | 'foe'>): Side | null {
+  const n = BALANCE.team.size;
+  if (c.me.length >= n && c.foe.length === 1) return 'me';
+  if (c.foe.length >= n && c.me.length === 1) return 'foe';
+  return null;
+}
+
+/** 필살기 힘겨루기 끝 — 3:1 이면 셋 쪽 · 아니면 합류한 필살 스탯의 합 · 연타 · 진 쪽 참가자 모두 피해 = 이긴 쪽 참가자마다 자기 필살기 (합류한 위력을 다 더함 — gdd 4.7) */
 function endUltClash(b: TeamBattle, rng: Rng): void {
   const c = b.clash!;
   const sum = (side: Side, list: number[]) => list.reduce((s, i) => s + b[side][i]!.stats.ultimate, 0);
-  const p = clashWithTaps(clashChance(sum('me', c.me), sum('foe', c.foe)), c.taps);
-  const meWins = rng.chance(p);
+  const sure = teamClashSure(c);
+  const meWins = sure ? sure === 'me' : rng.chance(clashWithTaps(clashChance(sum('me', c.me), sum('foe', c.foe)), c.taps));
   c.winner = meWins ? 'me' : 'foe';
   const winSide: Side = meWins ? 'me' : 'foe';
   const winners = meWins ? c.me : c.foe;

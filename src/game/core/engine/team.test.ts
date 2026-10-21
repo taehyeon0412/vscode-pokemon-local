@@ -7,7 +7,7 @@ import type { Monster, Save } from '../save';
 import { applyInput, step } from './play';
 import { Rng } from './rng';
 import { createGameState, readRuntime, type GameState } from './state';
-import { applyTeamResult, isSpread, pickTeam, readTeam, startTeamBattle, TEAM_BASIC, teamDone, teamInput, teamPick, teamPossible, teamStep, teamUltOpen, type TeamBattle } from './team';
+import { applyTeamResult, isSpread, pickTeam, readTeam, startTeamBattle, TEAM_BASIC, teamClashSure, teamDone, teamInput, teamPick, teamPossible, teamStep, teamUltOpen, type TeamBattle } from './team';
 import { moveOf } from '../../data';
 import { trainerTeam } from '../rules/trainer';
 
@@ -215,6 +215,38 @@ describe('연결 — 트레이너 만남 · 관장전 (BALANCE.team.on 이 켜�
     }
   });
 
+  it('3:3 에서 지면 그 트레이너에게만 — 남은 포켓몬이 있으면 돈 −10% · 쓰러진 셋 그대로 · 계속 걸음, 없으면 S17', () => {
+    setOn(true);
+    try {
+      const lose = (save: Save) => {
+        let s = step(meet(remembered(save)), STEP).state;
+        const st = s.runtime.stage;
+        if (st?.phase !== 'team') throw new Error('3:3 아님');
+        s = { ...s, runtime: { ...s.runtime, stage: { phase: 'team', team: { ...st.team, me: st.team.me.map((f) => ({ ...f, hp: 0 })) } } } };
+        s = step(s, STEP).state;
+        const over = s.runtime.stage?.phase === 'team' ? s.runtime.stage.team : null;
+        for (let t = 0; t < 5000 && s.runtime.stage?.phase === 'team'; t += STEP) s = step(s, STEP).state;
+        return { s, over, fought: st.team.fought };
+      };
+      const four = team3();
+      const extra = mon('m4', { hp: 999 });
+      const save = { ...four, money: 1000, monsters: { ...four.monsters, m4: extra }, party: [...four.party, 'm4'] };
+      const { s, over, fought } = lose(save);
+      expect(over?.msg).toContain('남은 포켓몬으로 계속');
+      expect(s.runtime.stage?.phase).toBe('walk');
+      expect(s.save.money).toBe(900);
+      expect(s.runtime.toast?.text).toContain('돈 −100원');
+      expect(fought.every((uid) => s.save.monsters[uid]!.hp === 0)).toBe(true);
+      expect(s.save.party.some((uid) => s.save.monsters[uid]!.hp > 0)).toBe(true);
+      expect(s.save.pendingEncounter).toBeNull();
+      expect(s.save.stages['forest-1']!.defeatedTrainers).not.toContain('forest-1:t0');
+      // 셋뿐이면 전멸 → S17
+      expect(lose(team3()).s.runtime.stage?.phase).toBe('defeat');
+    } finally {
+      setOn(false);
+    }
+  });
+
   it('관장전 = 3:3 (3마리 미만이면 1:1 토너먼트)', () => {
     setOn(true);
     try {
@@ -269,6 +301,20 @@ describe('명세 검사관 · 코드 리뷰어 (2026-10-21)', () => {
     const first = run(r, STEP, new Rng(1)).shots.find((s) => s.side === 'me' && s.from === 0)!;
     const again = run({ ...r, me: r.me.map((f, i) => (i === 0 ? { ...f, streakMove: 205, streakCount: 1 } : f)) }, STEP, new Rng(1)).shots.find((s) => s.side === 'me' && s.from === 0)!;
     expect(again.boost!).toBeGreaterThan(first.boost!);
+  });
+
+  it('3:1 필살기 힘겨루기 = 셋 쪽 100% (연타 · 스탯과 상관없이) · 2:1 · 3:2 는 합 + 연타', () => {
+    expect(teamClashSure({ me: [0, 1, 2], foe: [0] })).toBe('me');
+    expect(teamClashSure({ me: [0], foe: [0, 1, 2] })).toBe('foe');
+    expect(teamClashSure({ me: [0, 1], foe: [0] })).toBeNull();
+    expect(teamClashSure({ me: [0, 1, 2], foe: [0, 1] })).toBeNull();
+    const base = startTeamBattle(team3(), foes(), 'trainer', '상대');
+    const clash = (me: number[], foe: number[], taps: number): TeamBattle => ({ ...base, phase: 'clash', clash: { kind: 'ult', me, foe, shots: null, ms: 0, dur: TIMING.team.ultClashMs, taps, winner: null } });
+    // 0.999 = 확률로는 거의 짐 · 0 = 거의 이김 — 3:1 이면 상관없이
+    expect(run(clash([0, 1, 2], [0], 0), TIMING.team.ultClashMs + STEP, fixedRng(0.999)).foe[0]!.hp).toBeLessThan(base.foe[0]!.hp);
+    const lost = run(clash([0], [0, 1, 2], 200), TIMING.team.ultClashMs + STEP, fixedRng(0));
+    expect(lost.me[0]!.hp).toBeLessThan(base.me[0]!.hp);
+    expect(lost.foe.every((f, i) => f.hp === base.foe[i]!.hp)).toBe(true);
   });
 
   it('합동 필살기 힘겨루기 이김 = 이긴 쪽 참가자마다 자기 필살기 (둘이면 혼자보다 셈) · 상대 합류는 시작할 때 한 번 정함', () => {
