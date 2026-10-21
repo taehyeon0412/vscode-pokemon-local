@@ -26,6 +26,11 @@ describe('S02 타이틀 보기', () => {
     expect(titleView({ save: 'ok', busy: false, summary: { ...summary!, where: '1-1 · 37%' } }).summary?.where).toBe('1-1 · 37%');
   });
 
+  it('요약 "오늘 1/3" — 확장이 보낼 때만 (#28 — 오늘의 목표가 켜졌을 때)', () => {
+    expect(titleView({ save: 'ok', busy: false, summary: { ...summary!, daily: { done: 1, total: 3 } } }).summary?.daily).toEqual({ done: 1, total: 3 });
+    expect(titleView({ save: 'ok', busy: false, summary: summary! }).summary?.daily).toBeUndefined();
+  });
+
   it('팀이 비었어도 요약은 보임 · 포켓몬이 하나도 없으면 이어 하기 못 함 (새로 하기만, #351)', () => {
     const v = titleView({ save: 'ok', busy: false, summary: { ...summary!, lead: null } });
     expect(v.summary?.lead).toBeNull();

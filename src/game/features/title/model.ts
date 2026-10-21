@@ -13,6 +13,8 @@ export interface TitleSummary {
   playTimeMs: number;
   /** 어디서 — "1-1 · 37%" · "전투 중" · "체육관" (ideas #6, 옛 확장이 안 보내면 빈 글) */
   where: string;
+  /** 오늘의 목표 끝낸 수 / 전체 — 켜졌고 오늘 것일 때만 (#28 "오늘 1/3") */
+  daily?: { done: number; total: number };
 }
 
 export interface TitleView {
@@ -68,6 +70,7 @@ export function titleView(info: TitleInfo): TitleView {
           money: s.money,
           playTimeMs: s.playTimeMs,
           where: s.where ?? '',
+          ...(s.daily ? { daily: { done: s.daily.done, total: s.daily.total } } : {}),
         }
       : null,
     warnings,

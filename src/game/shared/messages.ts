@@ -35,8 +35,8 @@ export interface TitleInfo {
   save: 'none' | 'ok' | 'broken' | 'newer';
   /** 다른 VS Code 창이 게임 중 (새로 하기 · 이어 하기를 막음 — 그 창이 끝나면 확장이 다시 보냄) */
   busy: boolean;
-  /** where = 어디서 ("1-1 · 37%" · "전투 중" · "체육관" — 2026-10-21 ideas #6, 옛 확장엔 없음) */
-  summary: { playTimeMs: number; money: number; badges: string[]; lead: { form: string; species: number; level: number } | null; where?: string } | null;
+  /** where = 어디서 ("1-1 · 37%" · "전투 중" · "체육관" — 2026-10-21 ideas #6, 옛 확장엔 없음) · daily = 오늘의 목표 끝낸 수 / 전체 (#28 — 켜졌고 오늘 것일 때만) */
+  summary: { playTimeMs: number; money: number; badges: string[]; lead: { form: string; species: number; level: number } | null; where?: string; daily?: { done: number; total: number } } | null;
   notice?: TitleNotice;
 }
 

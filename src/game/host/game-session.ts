@@ -11,7 +11,7 @@
  *
  * VS Code 를 모른다 (웹뷰는 ViewPort, 저장은 SaveStore, 창 잠금은 WindowLease 로만 만남) → 자동 테스트에서 그대로 돌림.
  */
-import { TIMING } from '../core/balance';
+import { BALANCE, TIMING } from '../core/balance';
 import { advance, createGameState, isWaitingForInput, readRuntime, shouldRunWhenHidden, waitReason, withSpeed, type GameNotice, type GameState } from '../core/engine';
 import { readSave, TIPS_MAX, validateSave, type Save } from '../core/save';
 import { GAME_COMMAND, isWebviewToHost, type HostToWebview, type TitleInfo, type TitleNotice } from '../shared/messages';
@@ -20,7 +20,7 @@ import { HeadlessRunner, type HeadlessRunnerOptions } from './headless-runner';
 import type { LoadResult, SaveStore } from './save-store';
 import type { TeamSave } from './team-out';
 import type { WindowLease } from './window-lease';
-import { dayKey } from '../core/rules/daily';
+import { dailyDone, dayKey } from '../core/rules/daily';
 import { stageCode } from '../core/rules/stage';
 import { speciesOf } from '../data';
 import { devDemoSave, devState } from '../dev/demo';
@@ -37,10 +37,13 @@ const PAUSED_NOTICE_MAX = 3;
 const IMPORT_MAX_CHARS = 5_000_000;
 
 /** 세이브 한 줄 요약 — 타이틀 이어 하기 · 불러오기 확인 상자 (같은 모양) */
-function summaryOf(save: Save): NonNullable<TitleInfo['summary']> {
+/** today = 오늘 날짜 (있으면 오늘의 목표 수도 — 켜졌고 세이브의 목표가 오늘 것일 때만, #28 타이틀 "오늘 1/3") */
+function summaryOf(save: Save, today?: string): NonNullable<TitleInfo['summary']> {
   const leadUid = save.party[0];
   const lead = leadUid ? save.monsters[leadUid] : undefined;
-  return { playTimeMs: save.playTimeMs, money: save.money, badges: [...save.badges], lead: lead ? { form: lead.form, species: lead.species, level: lead.level } : null, where: whereOf(save) };
+  const d = save.daily;
+  const daily = BALANCE.daily.on && today !== undefined && d?.day === today ? { daily: { done: dailyDone(d), total: d.goals.length } } : {};
+  return { playTimeMs: save.playTimeMs, money: save.money, badges: [...save.badges], lead: lead ? { form: lead.form, species: lead.species, level: lead.level } : null, where: whereOf(save), ...daily };
 }
 
 function whereOf(save: Save): string {
@@ -478,7 +481,7 @@ export class GameSession {
     const info: TitleInfo = {
       save: r.kind,
       busy: this.otherWindowPlaying(),
-      summary: save ? summaryOf(save) : null,
+      summary: save ? summaryOf(save, dayKey(new Date(this.deps.wallNow?.() ?? Date.now()))) : null,
     };
     if (notice) info.notice = notice;
     this.stats.titles++;

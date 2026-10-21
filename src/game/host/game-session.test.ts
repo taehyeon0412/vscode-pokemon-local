@@ -3,6 +3,7 @@ import { MemoryLeaseFile, MemorySaveArchive, MemorySaveStorage, sampleMonster, s
 import { BALANCE } from '../core/balance';
 import { createGameState, readRuntime } from '../core/engine';
 import { createNewSave, validateSave } from '../core/save';
+import { dailyFor, dayKey } from '../core/rules/daily';
 import type { GameState } from '../core/engine';
 import type { Save } from '../core/save';
 import type { HostToWebview } from '../shared/messages';
@@ -556,6 +557,23 @@ describe('🎮 · S02 타이틀 (단계 3)', () => {
     expect(snap().owner).toBe('none');
     expect(view.count('start')).toBe(0);
     expect(lease?.held).toBe(false);
+  });
+
+  it('타이틀 요약 "오늘 1/3" (#28) — 오늘의 목표가 켜졌고 세이브의 목표가 오늘 것일 때만', async () => {
+    const today = dayKey(new Date(Date.now()));
+    const goals = dailyFor(today).goals.map((g, i) => (i === 0 ? { ...g, have: g.need, done: true as const } : g));
+    const withDaily = sampleSave({ daily: { day: today, goals } });
+    // 꺼져 있으면 (지금 — 개발 모드에서만) 안 보냄
+    expect((await openTitle(withDaily)).summary?.daily).toBeUndefined();
+    const was = BALANCE.daily.on;
+    (BALANCE.daily as { on: boolean }).on = true;
+    try {
+      expect((await openTitle(withDaily)).summary?.daily).toEqual({ done: 1, total: 3 });
+      // 어제 목표면 안 보냄 (오늘 새로 뽑힐 것)
+      expect((await openTitle(sampleSave({ daily: { day: '2000-01-01', goals } }))).summary?.daily).toBeUndefined();
+    } finally {
+      (BALANCE.daily as { on: boolean }).on = was;
+    }
   });
 
   it('타이틀 중에 웹뷰가 새로 뜨면 (boot) 다시 불러오고 요약을 다시 보냄', async () => {
