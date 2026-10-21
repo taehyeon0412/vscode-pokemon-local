@@ -585,6 +585,14 @@ describe('#17 준비 — 배율 · 잠금 · 3마리 고르기 · 필살기 예�
       expect(go.runtime.stage?.phase === 'team' && [...go.runtime.stage.team.fought].sort()).toEqual([...first.slice(1), other].sort());
       // 10초 = 저절로 시작 → VS 2초 → 3:3 (3마리 고르기는 VS 전 — 디자인팀 4안)
       expect(steps(swapped, TIMING.teamPickAutoMs + TIMING.vsMs + STEP * 2).runtime.stage?.phase).toBe('team');
+      // 고르는 중에 넣고 빼면 10초 막대를 다시 채움 — 고르다가 저절로 시작되지 않게 (ideas #145)
+      const late = steps(s, TIMING.teamPickAutoMs - 2000);
+      expect(late.runtime.stage?.phase === 'trainer' && late.runtime.stage.vsAt).toBeUndefined();
+      const repicked = applyInput(late, { kind: 'team-pick', uid: other });
+      expect(repicked.runtime.stage?.phase === 'trainer' && repicked.runtime.stage.pickMs).toBe(0);
+      const still = steps(repicked, 3000);
+      expect(still.runtime.stage?.phase === 'trainer' && still.runtime.stage.vsAt).toBeUndefined();
+      expect(steps(repicked, TIMING.teamPickAutoMs + TIMING.vsMs + STEP * 2).runtime.stage?.phase).toBe('team');
       // 하나만 빼고 바로 시작 — 뺀 포켓몬 말고 다음 포켓몬으로 채움 (코드 리뷰어)
       const quick = steps(applyInput(out, { kind: 'space' }), TIMING.vsMs + STEP);
       expect(quick.runtime.stage?.phase === 'team' && quick.runtime.stage.team.fought.includes(first[0]!)).toBe(false);

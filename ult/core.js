@@ -479,6 +479,10 @@ function ultClash(a, ultA, b, ultB, force) {
 
 // 대결 시작 — 번쩍 · 어두워짐(둘만 밝음) · 위 띠에 쓰는 애, 아래 띠에 받아친 애 · 가운데 VS 쾅
 function ultVsIntro(a, ultA, leftA, b, ultB, leftB, total) {
+    // 낮은 패널 (게임 150 ~ 170) 은 위 이름이 정보줄 아래로 밀려 내려와 — 아래 띠 · VS 를 부제 높이만큼 내림 (상대 부제 · VS 가 아래 띠에 덮여 0.4초만 읽히던 것, 디자인 UX R31)
+    const low = window.innerHeight < 170;
+    const yB = low ? 0.76 : 0.66;
+    const yVs = low ? 0.5 : 0.44;
     const ca = ultCols(ultA[2] || {}, ultA[1]);
     const cb = ultCols(ultB[2] || {}, ultB[1]);
     const sec = ULT_VS_MS / 1000;
@@ -495,12 +499,12 @@ function ultVsIntro(a, ultA, leftA, b, ultB, leftB, total) {
     ultCutIn(a, leftA, ca, sec, 0.22, 0.26);
     setTimeout(() => {
         screenFlash(2, 0.4, '#ffffff', 0.2);
-        ultTitle(ultB[0], `${b.name}의 필살기!`, ultB[2]?.tc ? sigPal(ultB[2].tc) : null, sec + 0.15, 0.66, 0.72);
-        ultCutIn(b, leftB, cb, sec - 0.25, 0.66, 0.26);
+        ultTitle(ultB[0], `${b.name}의 필살기!`, ultB[2]?.tc ? sigPal(ultB[2].tc) : null, sec + 0.15, yB, 0.72);
+        ultCutIn(b, leftB, cb, sec - 0.25, yB, 0.26);
     }, 250);
     setTimeout(() => {
         ultShake(4, 300);
-        ultTitle('VS', null, ['#ffffff', '#ffe0d0', '#ff5a3c', '#7a0a0a'], sec - 0.35, 0.44, 1.25);
+        ultTitle('VS', null, ['#ffffff', '#ffe0d0', '#ff5a3c', '#7a0a0a'], sec - 0.35, yVs, 1.25);
     }, 450);
 }
 

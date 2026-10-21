@@ -945,7 +945,8 @@ export function step(state: GameState, stepMs: number): StepOut {
   }
   // ② 는 화면이 그릴 수 있는 장면에서 (다른 알림이 끝난 뒤) — 3:3 · 만남 · 결과 · 고르기 등에서 돌아오면 그 장면까지 미룸 · 5초는 띄운 뒤부터 (디자인팀 R12 큼 2)
   if (watchingNow && rt.noticed === 'paused' && autoTipLeft(save)) rt = { ...rt, backTip: true };
-  if (rt.backTip && watchingNow && !rt.toast && canDrawAutoTip(rt.stage) && !firstWalkTip(save, rt.stage)) {
+  // 그동안 요약을 띄울 참이면 (awayLog) ② 는 요약 끝 줄로 (요약 · 안내가 따로 두 번 뜨던 것 — ideas #156) — awayStep 이 붙이고 아래에서 셈
+  if (rt.backTip && watchingNow && !rt.toast && !rt.awayLog && canDrawAutoTip(rt.stage) && !firstWalkTip(save, rt.stage)) {
     const { backTip: _b, ...rest } = rt;
     rt = { ...rest, toast: { text: AUTO_TIP_BACK, ms: TIMING.toastMs * 2, kind: 'auto-tip' } };
   }
@@ -954,7 +955,9 @@ export function step(state: GameState, stepMs: number): StepOut {
     const { backTip: _b, ...rest } = rt;
     rt = { ...rest, toast: rt.toast?.kind === 'auto-tip' ? nextToast(rt.toast) : rt.toast };
   }
+  const backBefore = rt.backTip === true;
   rt = awayStep(state, save, rt, signal);
+  if (backBefore && !rt.backTip) save = useAutoTip(save);
   // 멈춤 · 알림 (gdd 4.13 · U6) — 밖 · 숨김에서 기다리는 이유가 생겼는데 아직 안 알렸으면 한 번 (장면마다 따로 알리던 것을 한곳에서 — 이로치 전투 중에 떠남 · 밖 고르기 · 대기실로 돌아옴 등 빠진 곳 없이).
   // 같은 기다림은 한 번 — 보고 다시 떠나도 다시 안 알림 (탭을 오갈 때마다 쌓이던 것 — 2026-10-21 태현 님 "추천안"), 기다림이 바뀌거나 풀리면 지움 (다음 기다림을 알리게).
   // paused (자동 꺼짐 멈춤 — 확장이 넘겨받을 때) 는 다시 보면 지움
@@ -1323,7 +1326,8 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       if (!cur || !save.party.includes(input.uid) || (save.monsters[input.uid]?.hp ?? 0) <= 0 || (stage?.phase !== 'trainer' && stage?.phase !== 'lobby')) return state;
       // 셋이 다 찼으면 넷째는 마지막에 고른 것과 바꿈 (1 · 2 번은 그대로 — 맨 처음 것이 소리 없이 빠지고 번호가 당겨지던 것, 디자인팀 UX 9차)
       const pick = cur.includes(input.uid) ? cur.filter((u) => u !== input.uid) : cur.length >= BALANCE.team.size ? [...cur.slice(0, BALANCE.team.size - 1), input.uid] : [...cur, input.uid];
-      return { ...state, runtime: { ...state.runtime, stage: { ...stage, pick } } };
+      // 트레이너 만남 고르기 — 넣고 빼면 시작 막대를 다시 채움 (고르는 중에 저절로 시작되지 않게 — ideas #145)
+      return { ...state, runtime: { ...state.runtime, stage: { ...stage, pick, ...(stage.phase === 'trainer' ? { pickMs: 0 } : {}) } } };
     }
     case 'view': {
       const w = Math.round(input.w);
@@ -1638,7 +1642,20 @@ function awayStep(before: GameState, save: Save, rt: RuntimeState, signal: SaveS
   if (rt.toast?.kind === 'auto-tip') return rt;
   const { awayLog, ...rest } = rt;
   // 두 장 2.5초씩 (R14 A) — ① 진행 · 레벨업 · 포인트 ② 진 것 · 물건 · 돈 · 야생 (한 장만 있으면 그 장만)
-  const [first, second] = awaySummary(awayLog, save);
+  const [first, second0] = awaySummary(awayLog, save);
+  // 안내 ② (자동 꺼짐으로 멈췄다 다시 봄) 를 마지막 장 끝 줄로 (ideas #156) — 셈은 step 이 (backTip 이 없어지면)
+  const back = rt.backTip && first ? AUTO_TIP_BACK : null;
+  const second = back ? (second0 ? `${second0}\n${back}` : null) : second0;
+  const firstText = back && !second0 ? `${first}\n${back}` : first;
+  if (back) {
+    const { backTip: _b, ...noBack } = rest;
+    return awayCards(noBack, rt, awayLog, firstText!, second);
+  }
+  return awayCards(rest, rt, awayLog, first, second);
+}
+
+/** 그동안 요약 카드 띄우기 — 떠나기 전부터 떠 있던 알림은 남기고 그 뒤에 (아래 설명) */
+function awayCards(rest: RuntimeState, rt: RuntimeState, awayLog: AwayLog, first: string | undefined, second: string | null | undefined): RuntimeState {
   // 떠나기 전부터 떠 있던 알림 (클리어 보상 · 레벨업 — 안 볼 때는 시간이 멈춰 있음) 은 남기고 요약은 그 뒤에 · 안 보는 동안 생긴 알림은 요약이 대신 · 요약이 비면 그대로 (코드 리뷰어)
   // 떠날 때 줄 (then) 도 그때 길이까지만 — 떠난 뒤 줄 선 것 ("상처약을 주웠다!") 은 요약이 대신 (같은 말을 두 번 하던 것 — 테스터)
   const thenOf = (t: NonNullable<RuntimeState['toast']>) => (t.then === undefined ? [] : Array.isArray(t.then) ? t.then : [t.then]);
