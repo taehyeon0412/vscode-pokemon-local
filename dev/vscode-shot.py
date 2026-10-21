@@ -3,13 +3,14 @@
 시험 창 (dev/game-host.js) 이 아니라 진짜 VS Code (.vscode-test 에 받아 둔 것) 를 따로 띄워 — 진짜 글꼴 · 테마 · 웹뷰 CSS · 패널 테두리 —
 세이브를 넣고 게임에 들어간 뒤 패널 너비마다 창 전체를 찍는다. 개발 PC 의 VS Code 설정 · 확장 · 세이브와 섞이지 않음 (임시 사용자 폴더).
 
-    python dev/vscode-shot.py <폴더> [h=187] [w=480,860,1860] [theme=dark|light|both] [save=<세이브.json>] [wait=3000] [version=stable] [nobuild=1]
+    python dev/vscode-shot.py <폴더> [h=187] [w=480,860,1860] [theme=dark|light|both] [save=<세이브.json>] [import=<세이브.json>] [wait=3000] [version=stable] [nobuild=1]
 
   h       웹뷰 높이 (px) — 패널을 최대화하고 창 높이로 맞춤 (웹뷰가 알린 크기로 px 까지). VS Code 창 최소 높이 때문에 약 175 아래는 못 맞춤 → 그때는 맞춘 크기를 알림
   w       웹뷰 너비 (px) 들 — 창 너비로 맞춤 (옆 칸을 닫음). 창 최소 너비 때문에 약 340 아래는 못 맞춤 → 건너뜀
           (아래 패널은 VS Code 에서 약 290 보다 좁아지지 않음 — 2026-10-22 1.143 에서 잼. 240 같은 좁은 폭은 시험 창 game-shots.py 로)
   theme   dark · light · both (Default Dark Modern / Default Light Modern)
   save    넣을 세이브 (없으면 새 스타팅) — 전투 장면은 pendingEncounter 가 있는 세이브로
+  import  이 세이브로 "불러오기" 를 눌러 확인 상자를 띄운 채 찍음 (파일 창 대신 — orders #50)
   wait    게임에 들어간 뒤 찍기 전까지 ms
 결과: <폴더>/<theme>_<w>x<h>.png — 창 전체 (패널을 최대화해서 거의 게임 화면 · 제목 줄 · 패널 탭 · 상태 줄 포함).
 
@@ -45,7 +46,7 @@ except Exception:
 
 
 def args():
-    out = {'h': '187', 'w': '480,860,1860', 'theme': 'dark', 'save': '', 'wait': '3000', 'version': 'stable', 'nobuild': ''}
+    out = {'h': '187', 'w': '480,860,1860', 'theme': 'dark', 'save': '', 'wait': '3000', 'version': 'stable', 'nobuild': '', 'import': ''}
     if len(sys.argv) < 2:
         sys.exit(__doc__)
     for a in sys.argv[2:]:
@@ -168,7 +169,7 @@ def shoot(out, theme, h, widths, o):
     # 작업 폴더 이름 = 창 제목 — 임의 글자로 (지난번에 남은 창 · 같은 이름 탐색기 창을 잡지 않게)
     name_tag = 'pokemon-shot-' + os.urandom(4).hex()
     hwnd, code_pid = None, None
-    env = dict(os.environ, SHOT_DIR=talk, SHOT_USER_DIR=user, SHOT_SAVE=os.path.abspath(o['save']) if o['save'] else '', SHOT_WAIT_MS=o['wait'], SHOT_VERSION=o['version'], SHOT_NAME=name_tag)
+    env = dict(os.environ, SHOT_DIR=talk, SHOT_USER_DIR=user, SHOT_SAVE=os.path.abspath(o['save']) if o['save'] else '', SHOT_IMPORT=os.path.abspath(o['import']) if o['import'] else '', SHOT_WAIT_MS=o['wait'], SHOT_VERSION=o['version'], SHOT_NAME=name_tag)
     env.pop('ELECTRON_RUN_AS_NODE', None)
     proc = subprocess.Popen(['node', os.path.join(ROOT, '.test-out', 'run-shot.cjs')], cwd=ROOT, env=env)
     try:

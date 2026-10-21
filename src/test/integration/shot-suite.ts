@@ -4,6 +4,7 @@
  *   SHOT_DIR      주고받는 폴더 — ready.json 을 쓰고 done 이 생길 때까지 기다림
  *   SHOT_SAVE     넣을 세이브 JSON 경로 (없으면 새 스타팅 세이브)
  *   SHOT_WAIT_MS  게임에 들어간 뒤 찍기 전까지 기다림 (기본 3000)
+ *   SHOT_IMPORT   이 세이브 파일로 "불러오기" 를 눌러 확인 상자를 띄운 채 찍음 (파일 창 대신 정해 둔 경로 — orders #49 · #50)
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -45,6 +46,12 @@ export async function run(): Promise<void> {
   if (r !== 'entered') throw new Error(`게임에 못 들어감: ${r}`);
   await waitFor('웹뷰가 게임을 맡음', () => game.debug().owner === 'webview');
   await sleep(Number(process.env.SHOT_WAIT_MS ?? 3000));
+  // 세이브 불러오기 확인 상자 (설정 ④ 불러오기를 누른 것처럼 — 파일 창 대신 SHOT_IMPORT)
+  if (process.env.SHOT_IMPORT) {
+    game.pickFiles({ open: process.env.SHOT_IMPORT });
+    game.fromWebview({ command: 'game', type: 'save-import' });
+    await sleep(1500);
+  }
   // VS Code 알림 ("확장이 잠시 꺼져 있어요" 등) 이 게임을 덮지 않게
   await vscode.commands.executeCommand('notifications.clearAll');
   await sleep(300);
