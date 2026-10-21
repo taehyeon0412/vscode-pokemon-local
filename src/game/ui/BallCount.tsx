@@ -3,7 +3,7 @@ import type { BallId } from '../core/rules/catch';
 import { itemName } from '../core/rules/items';
 import { Icon, type IconName } from './Icon';
 
-const BALL_ICON: Record<BallId, IconName> = { 'poke-ball': 'ball', 'great-ball': 'greatBall', 'ultra-ball': 'ultraBall' };
+export const BALL_ICON: Record<BallId, IconName> = { 'poke-ball': 'ball', 'great-ball': 'greatBall', 'ultra-ball': 'ultraBall' };
 
 /** 볼 하나 — 픽셀 아이콘 + ×개수. 개수가 바뀌었을 때만 숫자가 2px 톡 (처음 그릴 때 · 정보줄을 다시 그릴 때는 안 튐 — 아트 디렉터 5차) */
 function One({ id, n, compact }: { id: BallId; n: number; compact: boolean }) {

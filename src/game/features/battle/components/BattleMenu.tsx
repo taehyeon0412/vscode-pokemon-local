@@ -13,6 +13,7 @@ import { itemName } from '../../../core/rules/items';
 import type { Save } from '../../../core/save';
 import { speciesOf } from '../../../data';
 import { Button } from '../../../ui/Button';
+import { BALL_ICON } from '../../../ui/BallCount';
 import { Icon } from '../../../ui/Icon';
 import { catchView, menuItems, type MenuItem, type MenuPage } from '../model';
 
@@ -190,15 +191,19 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
     row = (
       <>
         {/* 남은 초 = 제목 옆 "3초" (따로 한 줄에 "3" 만 있으면 "3 안 던짐" 과 헷갈림 — 2026-10-19 전체 점검) */}
+        {/* 좁은 패널 (300px 아래) 은 "마지막 기회!" 를 빼고 "6초" 만 — 볼 칸이 "1 몬스…" 로 잘리던 것 (UX 리뷰어 2026-10-21) */}
         <span class="pg-last-tag">
-          마지막 기회!{' '}
+          <span class="pg-last-word">마지막 기회! </span>
           <span class="pg-last-sec" title="안 고르면 그냥 지나가요">
             {Math.max(0, Math.ceil((TIMING.lastChanceMs - b.lastMs) / 1000))}초
           </span>
         </span>
         {balls.map((ball, i) => (
           <Button key={ball} extraClass={i === Math.min(cursor, balls.length) ? 'pg-on' : undefined} onClick={() => onInput({ kind: 'battle', input: { kind: 'ball', ball } })} title="쓰러진 포켓몬 — 잡을 확률 절반">
-            {`${i + 1} ${itemName(ball)}`}
+            {/* 볼 그림 + 개수 — 좁은 패널 (360px 아래) 은 이름을 빼서 "1 ◓ 3개" (이름 · 개수가 잘리던 것) */}
+            {`${i + 1} `}
+            <Icon name={BALL_ICON[ball]} />
+            <span class="pg-ball-word"> {itemName(ball)}</span>
             <span class="pg-sub">{itemLeft(b, save, ball)}개</span>
           </Button>
         ))}

@@ -2029,6 +2029,17 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 .pg-ring-text.pg-ring-perfect { color: #ffd33d; }
 .pg-ring-text.pg-ring-good { color: #56d364; }
 .pg-ring-text.pg-ring-none { color: #c9d1d9; }
+/* 좁은 패널 마지막 기회 — 볼 이름을 빼고 그림 + 개수 (360 아래) · "마지막 기회!" 를 빼고 "6초" (300 아래) — 칸이 "1 몬스…" 로 잘리던 것 (UX 리뷰어 2026-10-21) */
+@media (max-width: 360px) {
+  .pg-ball-word {
+    display: none;
+  }
+}
+@media (max-width: 300px) {
+  .pg-last-word {
+    display: none;
+  }
+}
 /* 마지막 기회 — 쓰러진 상대를 흐리게 남김 */
 .pg-down {
   opacity: 0.45;
