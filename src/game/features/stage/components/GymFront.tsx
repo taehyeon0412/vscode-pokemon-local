@@ -4,7 +4,6 @@
  * 좁은 패널 (끝에 닿았을 때 간판이 왼쪽 끝 밖으로 나가면) = 기둥을 숨기고 간판이 그 자리 (건물 바로 왼쪽) 에 섬 — 그래도 모자라면 왼쪽 끝 4px 에 붙음.
  * 간판 자리는 끝에 닿은 자리 (restX) 로 정함 — 건물이 다가오는 동안 간판이 튀거나 기둥이 사라지지 않게.
  */
-import { GYM_LEADER } from '../../../core/rules/trainer';
 import { GYM_FRONT } from '../model';
 
 /** 문 열림 장마다 빛 폭 (칸) — 가운데에서 벌어짐 */
@@ -14,7 +13,8 @@ const BANNER_W = 74;
 const BANNER_W_NARROW = 66;
 const EDGE = 4;
 
-export function GymFront({ x, restX, k, ground, roomPx, media, door }: { x: number; restX: number; k: number; ground: number; roomPx: number; media: string; door: 0 | 1 | 2 | 3 }) {
+/** gymName = "숲 체육관" · leader = "관장 나래" (지금 지역 — 해변이면 해변 체육관 · 관장 해솔) */
+export function GymFront({ x, restX, k, ground, roomPx, media, door, gymName, leader }: { x: number; restX: number; k: number; ground: number; roomPx: number; media: string; door: 0 | 1 | 2 | 3; gymName: string; leader: string }) {
   const g = GYM_FRONT;
   const base = `${media.replace(/\/+$/, '')}/buildings`;
   const toLeft = (doorX: number) => Math.round(doorX - (g.doorX + g.doorW / 2) * k);
@@ -25,7 +25,7 @@ export function GymFront({ x, restX, k, ground, roomPx, media, door }: { x: numb
   const narrow = rest - 24 * k - BANNER_W < EDGE;
   const bannerGap = narrow ? rest - Math.max(rest - 2 * k, EDGE + BANNER_W_NARROW) : 24 * k;
   return (
-    <span class="pg-gymfront" style={{ left: `${left}px`, bottom: `${ground}px`, '--pg-gk': `${k}px` }} title={`숲 체육관 · ${GYM_LEADER.name}`}>
+    <span class="pg-gymfront" style={{ left: `${left}px`, bottom: `${ground}px`, '--pg-gk': `${k}px` }} title={`${gymName} · ${leader}`}>
       {!narrow && <img class="pg-gymfront-post" src={`${base}/${g.post.file}.png`} alt="" width={g.post.w * k} height={g.post.h * k} draggable={false} />}
       <span class="pg-gymfront-body" style={{ width: `${g.w * k}px`, height: `${visible}px` }}>
         <img src={`${base}/${g.file}.png`} alt="" width={g.w * k} height={g.h * k} draggable={false} />
@@ -45,8 +45,8 @@ export function GymFront({ x, restX, k, ground, roomPx, media, door }: { x: numb
       </span>
       {/* 큰 간판 — 땅 위에 다리 둘로 섬 (건물 위는 패널 높이에 따라 잘려서 땅에) */}
       <span class={`pg-gymfront-banner${narrow ? ' pg-gymfront-banner-narrow' : ''}`} style={{ right: `calc(100% + ${bannerGap}px)` }}>
-        <b>숲 체육관</b>
-        <span>{GYM_LEADER.name}</span>
+        <b>{gymName}</b>
+        <span>{leader}</span>
       </span>
     </span>
   );

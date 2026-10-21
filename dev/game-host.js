@@ -317,6 +317,15 @@
     }
     if (q.get('xtoast')) runtime.toast = JSON.parse(q.get('xtoast'));
     if (q.get('xauto') === '1') save.settings = { ...save.settings, autoBattle: true };
+    // bgset=<폴더> — 길 배경 두 겹을 바꿔 끼움 (해변 시안 #36 — 폴더 안 background|foreground-<dark|light>-<nano|small|medium|large>.png, 이 페이지 기준 경로 · 예: shots/bgprev/pret-sand · ../extension/media/backgrounds/beach)
+    if (q.get('bgset')) {
+        const bg = q.get('bgset');
+        const th = q.get('theme') === 'light' ? 'light' : 'dark';
+        const css = ['nano', 'small', 'medium', 'large'].map((sz) => `.pg-size-${sz} .pg-bg{background-image:url("${bg}/background-${th}-${sz}.png")!important}.pg-size-${sz} .pg-fg{background-image:url("${bg}/foreground-${th}-${sz}.png")!important;opacity:1!important}`).join('');
+        const st = document.createElement('style');
+        st.textContent = css;
+        document.head.appendChild(st);
+    }
     // bt=<ms> — 전투 시간 (0 이면 막 시작 — 볼 던지기 · 화면 닦기 사진, 2026-10-20)
     if (q.get('bt') && runtime.stage && runtime.stage.phase === 'battle') runtime.stage.battle.t = Number(q.get('bt'));
     // 개발 모드 (임시) — dev=1 이면 처음부터 개발 모드 · 타이틀의 개발 모드 줄 (title-dev) 도 흉내

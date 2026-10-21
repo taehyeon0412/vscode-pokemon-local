@@ -7,11 +7,11 @@
 import type { ComponentChildren } from 'preact';
 import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
-import { canHeal, teamLock, waitReason, type GameInput, type GameState } from '../../../core/engine';
+import { canHeal, gymLeaderOf, teamLock, waitReason, type GameInput, type GameState } from '../../../core/engine';
 import { defeatWaits } from '../../../core/engine/play';
 import { maxHpOf, teamHealth, teamHealthy } from '../../../core/rules/bag';
 import { FACILITY_STAFF } from '../../../core/rules/stage';
-import { aliveCount, GYM_LEADER, gymHint, shortTrainerName } from '../../../core/rules/trainer';
+import { aliveCount, gymHint, shortTrainerName } from '../../../core/rules/trainer';
 import { speciesOf } from '../../../data';
 import type { StageId } from '../../../core/save';
 import { Button } from '../../../ui/Button';
@@ -336,6 +336,8 @@ export function LobbyBox({ state, media, onInput, onBox, onShop, onMap }: BoxPro
   const healthy = teamHealthy(state.save);
   // 관장 힌트 (ideas #44) — 쓰는 타입 + 상성 좋은 내 포켓몬 (팀 · 보관함, 선두부터). 넓으면 첫 줄 끝, 좁으면 관장 이름에 올리면
   const hint = gymHint(state.save);
+  // 지금 지역 관장 (숲 나래 · 해변 해솔 — 엔진 gymLeaderOf, #37 해변 미리 보기에서 나래가 보이던 것)
+  const leader = gymLeaderOf(state.save);
   const goodNames = hint.good.map((uid) => {
     const m = state.save.monsters[uid];
     return m ? (speciesOf(m.species)?.name.ko ?? m.form) : '';
@@ -355,11 +357,11 @@ export function LobbyBox({ state, media, onInput, onBox, onShop, onMap }: BoxPro
     <div class="pg-banner pg-lobby pg-two" ref={lobbyBox}>
       <span class="pg-line">
         {/* 관장 얼굴 + 이름 ("숲 체육관" 은 지도 줄 이름표에 이미 — 두 번 나오던 것, 아트 디렉터 5차) */}
-        <Face media={media} id={GYM_LEADER.look} />
+        <Face media={media} id={leader.look} />
         {/* 좁은 패널 (330px 아래) 은 얼굴 · "관장" 을 빼고 "나래" 만 — "관…" 으로 줄던 것 (U4 줄임표 금지). 바닥 이름표는 낮은 패널에서 상자에 깔려서 이름은 여기 남김 (UX 리뷰어 2026-10-21) */}
         <b class="pg-ellipsis" title={hintTitle}>
-          <span class="pg-lobby-pre">{GYM_LEADER.name.split(' ')[0]} </span>
-          {GYM_LEADER.name.split(' ').slice(1).join(' ')}
+          <span class="pg-lobby-pre">{leader.name.split(' ')[0]} </span>
+          {leader.name.split(' ').slice(1).join(' ')}
         </b>
         {/* 추천 · 내 팀을 나란히 (▼ 만이면 무엇과 비교했는지 모름 — 플레이 리뷰어), 모자라면 빨강 */}
         {/* 추천은 크림 · 모자라는 내 팀만 빨강 + ▼ (구절 전체가 빨갛던 것 — 아트 디렉터 4차) · 레벨은 정수 (내림 — 15.7 이 "15" 여도 모자라지 않음, 14.6 은 "14 ▼") */}

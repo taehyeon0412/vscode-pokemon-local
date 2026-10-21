@@ -7,9 +7,9 @@ import { teamChoiceMeet, teamViewKey, waitReason, type BattleState, type GameSta
 import { resumeLine } from '../../core/engine/play';
 import { planWild, sceneryAt, type Scenery, type WildPlan } from '../../core/rules/encounter';
 import { requestAt, type RequestTemplate } from '../../core/rules/request';
-import { REGIONS } from '../../core/rules/region';
+import { REGIONS, regionHere } from '../../core/rules/region';
 import { stageCode, stageLayout, trainerId } from '../../core/rules/stage';
-import { aliveCount, GYM_LEADER, shortTrainerName, trainerInfo, trainerNumber, trainerTeamSize, type TrainerInfo } from '../../core/rules/trainer';
+import { aliveCount, shortTrainerName, trainerInfo, trainerNumber, trainerTeamSize, type TrainerInfo } from '../../core/rules/trainer';
 import { recordText, rivalName, rivalRecord, rivalTeamSize } from '../../core/rules/rival';
 import { heroLookOf } from '../../data/heroes';
 import type { FacilitySpot, Save, StageId } from '../../core/save';
@@ -226,7 +226,9 @@ export function foeTrainerView(state: GameState): { name: string; hat: string; s
   const p = save.pendingEncounter;
   if (p?.kind === 'gym-leader' && st?.phase === 'battle' && st.battle.kind === 'gym') {
     const b = st.battle;
-    return { name: GYM_LEADER.name, hat: GYM_LEADER.hat, shirt: GYM_LEADER.shirt, look: GYM_LEADER.look, ...foeBalls(b), talking: false };
+    // 지금 지역 관장 (숲 나래 · 해변 해솔 — #37)
+    const L = regionHere(save.location).leader;
+    return { name: L.name, hat: L.hat, shirt: L.shirt, look: L.look, ...foeBalls(b), talking: false };
   }
   // 라이벌 (gdd 4.12) — 주인공 그림 · "라이벌 휘웅" · 전적
   if (p?.kind === 'rival' && save.location.screen === 'stage') {
@@ -345,7 +347,7 @@ export function meetVsAt(state: GameState): number {
  */
 export function foldStatus(state: GameState): string {
   const loc = state.save.location;
-  const where = loc.screen === 'stage' ? `${STAGES[loc.stageId].name} ${Math.min(100, Math.floor((state.save.stages[loc.stageId]?.progress ?? 0) * 100))}%` : loc.screen === 'gym' ? '숲 체육관' : '세계 지도';
+  const where = loc.screen === 'stage' ? `${STAGES[loc.stageId].name} ${Math.min(100, Math.floor((state.save.stages[loc.stageId]?.progress ?? 0) * 100))}%` : loc.screen === 'gym' ? `${regionHere(loc).name} 체육관` : '세계 지도';
   // ▲ 는 뒤 낱말과 한 덩이 (줄 끝에 "▲" 혼자 남던 것 — 픽셀 검사원) · 할 일이 앞 · 어디는 끝 · 자동 꺼짐은 켜는 방법까지 (접힌 채로는 켤 곳이 없음 — gdd 4.13 · ideas #155) (한 줄 높이에서 앞부분만 보여도 할 일을 앎 — UX 리뷰어 #27) · 구분점은 앞 낱말에 붙여 줄이 "·" 로 시작하지 않게
   const sep = '\u00a0· ';
   // 어디 ("새싹 오솔길 47%") 는 한 덩이 — 240 × 30 에서 "… · 새싹" 으로 끝나고 "오솔길 47%" 가 숨던 것 (UX 리뷰어)

@@ -213,8 +213,12 @@ export function DevPanel({ state, media, onDev, onEnd, onClose }: { state: GameS
             {/* 400px 아래는 3:3 스위치가 머리 줄에 안 들어가 전투 줄 끝 (첫 칸이면 혼자 한 줄을 써서 240 에서 장면이 둘만 보이던 것) */}
             {teamSwitch('pg-dev-team-body')}
           </Row>
-          <Row wrap label="장소">
-            {SCENES.slice(6).map((sc) => btn(sc.label, { kind: 'scene', scene: sc.scene }))}
+          {/* 지역마다 한 줄 (해변 넷이 장소 줄 끝에 붙어 "아래에 더" 로 숨던 것 — #37) */}
+          <Row wrap label="숲">
+            {SCENES.slice(6, 11).map((sc) => btn(sc.label, { kind: 'scene', scene: sc.scene }))}
+          </Row>
+          <Row wrap label="해변">
+            {SCENES.slice(11).map((sc) => btn(sc.label, { kind: 'scene', scene: sc.scene }))}
           </Row>
         </>
       )}

@@ -9,13 +9,13 @@
  */
 import { useEffect, useLayoutEffect, useRef } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
-import { canOpenMenus, canParry, canRiposte, isWalkingFast, itemLeft, teamLock, teamMeetTipDue, TEAM_MEET_TIP, walkLeftMs, type GameInput, type GameState } from '../../../core/engine';
+import { canOpenMenus, canParry, canRiposte, gymLeaderOf, isWalkingFast, itemLeft, teamLock, teamMeetTipDue, TEAM_MEET_TIP, walkLeftMs, type GameInput, type GameState } from '../../../core/engine';
 import { maxHpOf, teamHealth } from '../../../core/rules/bag';
 import { spaceInput, ultSkippable } from '../../battle/fx/parry';
 import { BALLS } from '../../../core/rules/catch';
 import { bestHelper, requestAt } from '../../../core/rules/request';
 import { FACILITY_STAFF } from '../../../core/rules/stage';
-import { GYM_LEADER } from '../../../core/rules/trainer';
+import { regionHere } from '../../../core/rules/region';
 import { josaOf, withJosa } from '../../../core/text';
 import { speciesOf } from '../../../data';
 import { heroHeightPx, heroLookOf, heroWidthPx, personLook } from '../../../data/heroes';
@@ -250,12 +250,14 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   const sideFrom = facility && staffLook ? Math.max(staffLeftPx(facility.facility.kind, facility.x, layout.scale, heroRoom) + heroWidthPx(staffLook, layout.scale, heroRoom), buildingRight) : heroLeft + heroW / 2;
   const bannerLeft = Math.round(sideFrom + 8);
   // 오른쪽 끝 — 체육관 대기실은 관장 앞까지
-  const leader = personLook(GYM_LEADER.look);
+  // 지금 지역 관장 (숲 나래 · 해변 해솔 — #37)
+  const gymLeader = gymLeaderOf(save);
+  const leader = personLook(gymLeader.look);
   const leaderW = leader ? heroWidthPx(leader, layout.scale, heroRoom) : 20 * layout.scale;
   // 이름표 (9px 글자, 관장 그림 오른쪽 끝 + 4px 에 붙음 — game.css .pg-foe-trainer .pg-nametag) 의 왼쪽 끝 어림
   // 상대 트레이너 · 관장 · 라이벌 = 무대 오른쪽 끝
   const leaderX = stage.left + foeTrainerX(stage.width, layout.scale);
-  const tagLeft = leaderX + leaderW / 2 + 4 - (GYM_LEADER.name.length * 9 + 6) * layout.uiScale;
+  const tagLeft = leaderX + leaderW / 2 + 4 - (gymLeader.name.length * 9 + 6) * layout.uiScale;
   const bannerRight = gym ? Math.min(leaderX - leaderW / 2, tagLeft) - 8 : widthPx - 8;
   // 병원 · 상점 건물 (사람보다 큼) 도 같이 — 낮은 패널에서 상자가 지붕 위에 얹히던 것 (2026-10-19 전체 점검, 210px)
   const bannerBottom = fieldTop + Math.round(BANNER_PX * layout.uiScale);
@@ -291,7 +293,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   const teamDanger = health.danger ? { ...health, hpPct: hpFloor } : null;
   const where = gym ? (
     <span class="pg-stage-name">
-      <Icon name="gym" /> 숲 체육관 {save.badges.includes('forest') && <Icon name="badge" title="숲 배지" />}
+      {/* 지금 지역 체육관 (숲 · 해변 — #37) */}
+      <Icon name="gym" /> {regionHere(save.location).name} 체육관 {save.badges.includes(regionHere(save.location).badge) && <Icon name="badge" title={`${regionHere(save.location).name} 배지`} />}
     </span>
   ) : info && map ? (
     <Minimap stage={info} progress={map.progress} facilities={map.facilities} gym={map.gym} leftMs={walkLeftMs(save)} team={teamDanger} />
@@ -378,16 +381,16 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         {/* 걷는 동안만 — 상자 (결과 · 병원 · 트레이너) 가 같은 왼쪽 위 자리를 덮어 아이콘 조각만 삐져나오던 것 */}
         {ballsInField && phase === 'walk' && <div class="pg-field-balls">{balls}</div>}
         <StageObjects objects={objects} media={media} scale={layout.scale} ground={ground} roomPx={heroRoom} />
-        {gymX !== null && media && <GymFront x={gymX} restX={gymRestX(widthPx, layout.scale)} k={gymK} ground={ground} roomPx={heroRoom} media={media} door={gymEnter?.door ?? 0} />}
+        {gymX !== null && media && <GymFront x={gymX} restX={gymRestX(widthPx, layout.scale)} k={gymK} ground={ground} roomPx={heroRoom} media={media} door={gymEnter?.door ?? 0} gymName={`${regionHere(save.location).name} 체육관`} leader={gymLeader.name} />}
         {/* 체육관 장면 · 대기실 = 자리 옮김 0.45초 없이 (걸음이 픽셀 박자로 · 대기실에 들어오며 미끄러지지 않게 — UX 리뷰어 2026-10-21) · 가운데 맞춤 translateX 는 그대로 */}
         <span hidden={teamOn} class={`pg-obj pg-hero-wrap${gymEnter || phase === 'lobby' ? ' pg-hero-still' : ''}`} style={{ left: `${heroLeft}px`, bottom: `${ground}px`, ...(gymEnter ? { opacity: String(gymEnter.fade), transform: `translateX(-50%) translateY(${-gymEnter.rise * gymK}px)` } : {}) }}>
           <Hero px={heroPx} walking={(phase === 'walk' || gymEnter?.walking === true) && live} fast={fast} gender={look.gender} look={look} media={media} roomPx={heroRoom} />
         </span>
         {/* 전투 중 상대 트레이너 · 관장 = 오른쪽 끝 (남은 볼) · 대기실의 관장 */}
         {((battle && foeTrainer) || (gym && !battle) || (stageRt?.phase === 'rival' && foeTrainer)) && (
-          <span class="pg-obj pg-foe-trainer" style={{ left: `${leaderX}px`, bottom: `${ground}px` }} title={foeTrainer?.name ?? GYM_LEADER.name}>
+          <span class="pg-obj pg-foe-trainer" style={{ left: `${leaderX}px`, bottom: `${ground}px` }} title={foeTrainer?.name ?? gymLeader.name}>
             {/* 머리 위 이름표 (decisions 2026-10-17) · 라이벌 장면은 VS 전까지 "!" (gdd 4.12 — 트레이너와 같게, 대사 상자가 뜨면 0.8초에 이름표로 바뀌어 1초가 안 되던 것 · UX 리뷰어 2026-10-21) */}
-            {stageRt?.phase === 'rival' && !vsOn ? <span class="pg-trainer-mark">!</span> : !vsOn && <span class="pg-nametag">{foeTrainer?.name ?? GYM_LEADER.name}</span>}
+            {stageRt?.phase === 'rival' && !vsOn ? <span class="pg-trainer-mark">!</span> : !vsOn && <span class="pg-nametag">{foeTrainer?.name ?? gymLeader.name}</span>}
             {foeTrainer && stageRt?.phase !== 'rival' && (
               <span class="pg-foe-balls">
                 {Array.from({ length: foeTrainer.balls }, (_, i) => (
@@ -397,7 +400,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
                 ))}
               </span>
             )}
-            <Hero px={heroPx} walking={false} hat={foeTrainer?.hat ?? GYM_LEADER.hat} shirt={foeTrainer?.shirt ?? GYM_LEADER.shirt} faceLeft label={foeTrainer?.name ?? GYM_LEADER.name} look={personLook(foeTrainer ? foeTrainer.look : GYM_LEADER.look)} media={media} roomPx={heroRoom} />
+            <Hero px={heroPx} walking={false} hat={foeTrainer?.hat ?? gymLeader.hat} shirt={foeTrainer?.shirt ?? gymLeader.shirt} faceLeft label={foeTrainer?.name ?? gymLeader.name} look={personLook(foeTrainer ? foeTrainer.look : gymLeader.look)} media={media} roomPx={heroRoom} />
           </span>
         )}
         {battle && geo && (
