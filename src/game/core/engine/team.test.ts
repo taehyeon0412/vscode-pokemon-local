@@ -244,6 +244,8 @@ describe('명세 검사관 · 코드 리뷰어 (2026-10-21)', () => {
     expect(startTeamBattle(team3(), foes(), 'trainer', '상대').foe.every((f) => f.ult === 0)).toBe(true);
     for (let seed = 1; seed < 30; seed++) expect(trainerTeam('forest-1', seed, 0, 1, BALANCE.team.size)).toHaveLength(3);
     expect(isSpread(moveOf(341))).toBe(false);
+    // 범위 = 데이터 (원작 대상) — 불사르기 · 칼바람 · 거품 · 독가스도
+    for (const id of [510, 13, 145, 139]) expect(isSpread(moveOf(id))).toBe(true);
   });
 
   it('흡수 · 반동 · 칼등치기 · 마비 · 연달아 세짐 (1:1 과 같음)', () => {

@@ -106,13 +106,11 @@ export type TeamInput =
   /** Space · 클릭 — 필살기 힘겨루기 연타 */
   | { kind: 'space' };
 
-/** 원작에서 상대 모두를 치는 기술 (범위 — 상대 모두에게 0.75배) */
-const SPREAD = new Set([
-  'surf', 'earthquake', 'magnitude', 'discharge', 'rock-slide', 'bulldoze', 'icy-wind', 'heat-wave', 'petal-blizzard', 'eruption', 'water-spout',
-  'hyper-voice', 'sludge-wave', 'blizzard', 'muddy-water', 'lava-plume', 'dazzling-gleam', 'snarl', 'struggle-bug', 'electroweb', 'air-cutter',
-  'twister', 'razor-leaf', 'acid', 'powder-snow', 'swift', 'boomburst', 'parabolic-charge', 'breaking-swipe',
-]);
-export const isSpread = (mv: ReadonlyMove | undefined): boolean => !!mv && mv.power > 0 && SPREAD.has(mv.key);
+/**
+ * 범위 기술 — 원작 대상이 상대 모두 · 나 빼고 모두 (PokeAPI 데이터 spread — 손 목록 대신, 2026-10-21 기획).
+ * 피해는 상대 모두에게 0.75배 · 변화 기술 (독가스 등) 은 상대 모두에게 걸기를 굴림
+ */
+export const isSpread = (mv: ReadonlyMove | undefined): boolean => mv?.spread === true;
 
 /** 1 공격 (위력 30 · 타입 없음) — 쓸 기술이 없거나 (단데기 · 딱충이) 다 효과가 없을 때만 (shot.moveId 0) */
 export const TEAM_BASIC = 0;

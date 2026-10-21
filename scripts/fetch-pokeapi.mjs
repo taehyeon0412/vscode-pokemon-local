@@ -49,6 +49,8 @@ const MOVE_EFFECTS = { 'false-swipe': 'leave-1hp' };
 const ONE_SHOT_SCALE = 0.7;
 /** 연달아 쓸수록 세지는 기술 — 연달아 쓸 때마다 위력 +10% (2026-10-18 태현 님, 규칙은 core) */
 const STREAK_MOVES = new Set(['rollout', 'fury-cutter', 'rage', 'ice-ball', 'echoed-voice']);
+/** 3:3 범위 기술 — 원작 대상이 상대 모두 · 나 빼고 모두 (2026-10-21 기획 — 손 목록 대신 데이터로) */
+const SPREAD_TARGETS = new Set(['all-opponents', 'all-other-pokemon']);
 
 /**
  * 게임에서 쓸 기술인지.
@@ -179,9 +181,9 @@ function usumMoveValues(moves, changelog) {
     const m = out.get(r.move_id);
     if (!m) continue;
     const seen = done.get(r.move_id) ?? new Set();
-    for (const [col, key] of [['power', 'power'], ['pp', 'pp'], ['accuracy', 'accuracy'], ['type_id', 'type_id']]) {
+    for (const [col, key] of [['power', 'power'], ['pp', 'pp'], ['accuracy', 'accuracy'], ['type_id', 'type_id'], ['target_id', 'target_id']]) {
       if (r[col] === '' || seen.has(key)) continue;
-      m[key] = key === 'type_id' ? r[col] : Number(r[col]);
+      m[key] = key === 'type_id' || key === 'target_id' ? r[col] : Number(r[col]);
       seen.add(key);
     }
     done.set(r.move_id, seen);
@@ -200,12 +202,13 @@ async function main() {
   const [
     pokemon, species, stats, speciesNames, types, pokemonTypes,
     moves, moveChangelog, moveNames, moveMeta, moveFlagMap, moveFlags, ailments, categories,
-    pokemonMoves, evolution, triggers, items, growthRates,
+    pokemonMoves, evolution, triggers, items, growthRates, moveTargets,
   ] = await Promise.all([
     csv('pokemon'), csv('pokemon_species'), csv('pokemon_stats'), csv('pokemon_species_names'), csv('types'), csv('pokemon_types'),
     csv('moves'), csv('move_changelog'), csv('move_names'), csv('move_meta'), csv('move_flag_map'), csv('move_flags'), csv('move_meta_ailments'), csv('move_meta_categories'),
-    csv('pokemon_moves'), csv('pokemon_evolution'), csv('evolution_triggers'), csv('items'), csv('growth_rates'),
+    csv('pokemon_moves'), csv('pokemon_evolution'), csv('evolution_triggers'), csv('items'), csv('growth_rates'), csv('move_targets'),
   ]);
+  const targetName = new Map(moveTargets.map((t) => [t.id, t.identifier]));
 
   const typeName = new Map(types.map((t) => [t.id, t.identifier]));
   const statKey = { 1: 'hp', 2: 'attack', 3: 'defense', 4: 'spAttack', 5: 'spDefense', 6: 'speed' };
@@ -299,6 +302,7 @@ async function main() {
     if (MOVE_EFFECTS[m.identifier]) out.effect = MOVE_EFFECTS[m.identifier];
     if (v.oneShot) out.oneShot = true;
     if (STREAK_MOVES.has(m.identifier)) out.streak = true;
+    if (SPREAD_TARGETS.has(targetName.get(m.target_id))) out.spread = true;
     movesOut[moveId] = out;
     return true;
   };

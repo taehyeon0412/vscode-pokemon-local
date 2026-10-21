@@ -76,6 +76,8 @@ export interface MoveData {
   oneShot?: true;
   /** 연달아 쓸수록 세지는 기술 (구르기 · 연속자르기 · 분노 등) — 연달아 쓸 때마다 위력 +10% (core/rules/battle) */
   streak?: true;
+  /** 원작 대상이 상대 모두 · 나 빼고 모두 (지진 · 파도타기 · 독가스 등) — 3:3 에서 상대 모두에게 (2026-10-21) */
+  spread?: true;
 }
 
 /** 진화 하나 — 어떤 갈래를 어떻게 쓸지는 규칙 쪽 (단계 7, mvp-spec 3.6) */
