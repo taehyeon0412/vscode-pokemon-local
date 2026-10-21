@@ -111,6 +111,10 @@ describe('#48 클리어 카드 — 자동 전투면 10초 뒤 · 안 볼 때는 
   });
 });
 
+/** 줄이 안 갈리는 띄어쓰기 (요약 조각을 묶음) 를 보통 띄어쓰기로 — 글 비교용 */
+const sp = (t: string | undefined) => (t ?? '').replace(/\u00a0/g, ' ');
+const spAll = (ts: string[]) => ts.map(sp);
+
 describe('#16 자리 비운 동안 요약', () => {
   it('안 볼 때 처음 걸음에 떠날 때의 돈 · 가방 · 자리 · 레벨 · 포인트를 적고 → 다시 보면 걷는 중에 한 줄 · 지움', () => {
     const away = step(at({}, { phase: 'walk' }, true), STEP).state;
@@ -121,7 +125,8 @@ describe('#16 자리 비운 동안 요약', () => {
       runtime: { ...away.runtime, headless: false, awayLog: { ...log, wild: 3 } },
     };
     const shown = step(back, STEP).state;
-    expect(shown.runtime.toast).toEqual({ text: '그동안: 상처약 1 · 60원 · 야생 3마리', ms: TIMING.awaySummaryMs });
+    expect(sp(shown.runtime.toast?.text)).toBe('그동안: 상처약 1 · 60원 · 야생 3마리');
+    expect(shown.runtime.toast?.ms).toBe(TIMING.awaySummaryMs);
     // 두 장 (R14 A) — ① 진행 · 레벨업 · 포인트 → ② 진 것 · 물건 · 돈 · 야생, 2.5초씩
     const m1 = away.save.monsters.m1!;
     const grown: GameState = {
@@ -129,10 +134,18 @@ describe('#16 자리 비운 동안 요약', () => {
       runtime: { ...back.runtime, awayLog: { ...log, wild: 3, lost: 1, at: { place: 'forest-1', progress: 0.12 } } },
     };
     const two = step(grown, STEP).state;
-    expect(two.runtime.toast).toMatchObject({ text: `그동안: 1-1 12% → 63% · 이상해씨 Lv ${m1.level + 2} · 포인트 +6`, ms: TIMING.awaySummaryMs, then: '그동안: 패배 1번 · 상처약 1 · 60원 · 야생 3마리' });
+    expect(sp(two.runtime.toast?.text)).toBe(`그동안: 1-1 12% → 63% · 이상해씨 Lv ${m1.level + 2} · 포인트 +6`);
+    expect(two.runtime.toast?.ms).toBe(TIMING.awaySummaryMs);
+    expect(sp(two.runtime.toast?.then as string)).toBe('그동안: 패배 1번 · 상처약 1 · 60원 · 야생 3마리');
     let later = two;
     for (let t = 0; t < TIMING.awaySummaryMs + 100; t += STEP) later = step(later, STEP).state;
-    expect(later.runtime.toast?.text).toBe('그동안: 패배 1번 · 상처약 1 · 60원 · 야생 3마리');
+    expect(sp(later.runtime.toast?.text)).toBe('그동안: 패배 1번 · 상처약 1 · 60원 · 야생 3마리');
+    // 그리지 않는 장면 (만남 · 전투) 에서는 알림 시간이 안 줄어듦 — 둘째 장이 만남에 묻혀 0ms 이던 것 (UX 리뷰어 R14)
+    const met = step({ ...later, runtime: { ...later.runtime, stage: { phase: 'appear', ms: 0, isNew: false } } }, STEP).state;
+    expect(met.runtime.toast?.ms).toBe(later.runtime.toast?.ms);
+    // 안 보는 동안 생긴 알림은 요약이 대신 (네 장 10초 — UX 리뷰어)
+    const stale = step({ ...back, runtime: { ...back.runtime, toast: { text: '1-3 클리어!', ms: 2500, then: '이상해씨 Lv 6!' } } }, STEP).state;
+    expect(sp(stale.runtime.toast?.text)).toContain('그동안');
     expect(TIMING.awaySummaryMs).toBe(2500);
     expect(TIMING.toastMs).toBe(2500);
     expect(TIMING.awaySummaryMs).toBeGreaterThanOrEqual(1000);
@@ -154,17 +167,23 @@ describe('#16 자리 비운 동안 요약', () => {
 
   it('요약 글 — 줄어든 돈은 −, 줄어든 물건은 안 씀', () => {
     const save = sampleSave({ money: 40, bag: { 'poke-ball': 3, potion: 0 } });
-    expect(awaySummary({ money: 100, bag: { 'poke-ball': 2, potion: 2 }, wild: 0 }, save)).toEqual(['그동안: 몬스터볼 1 · −60원']);
+    expect(spAll(awaySummary({ money: 100, bag: { 'poke-ball': 2, potion: 2 }, wild: 0 }, save))).toEqual(['그동안: 몬스터볼 1 · −60원']);
+    // 물건은 두 가지까지 · 외 N가지 · 돈은 쉼표 (240 × 150 에서 4줄로 자라 잘리던 것 — UX 리뷰어 R14, U4) · 이름과 숫자 · 점은 붙여 둠
+    const rich = { ...save, money: 12_385, bag: { 'poke-ball': 15, potion: 3, 'super-potion': 2, 'great-ball': 2, antidote: 1 } };
+    const many = awaySummary({ money: 40, bag: {}, wild: 40, lost: 3 }, rich);
+    expect(sp(many[0])).toBe('그동안: 패배 3번 · 몬스터볼 15 · 슈퍼볼 2 · 외 2가지 · 12,345원 · 야생 40마리');
+    expect(many[0]).toContain('야생\u00a040마리');
+    expect(many[0]).toContain('\u00a0· ');
     expect(awaySummary({ money: 40, bag: { 'poke-ball': 3 }, wild: 0 }, save)).toEqual([]);
     // 다른 스테이지 · 체육관으로 옮겼으면 "1-1 → 1-2 40%" · "1-3 → 체육관" · 레벨업 여럿이면 마리 수
     const moved = { ...save, location: { screen: 'stage' as const, stageId: 'forest-2' as const }, stages: { ...save.stages, 'forest-2': { ...save.stages['forest-1']!, progress: 0.4 } } };
-    expect(awaySummary({ money: 40, bag: { 'poke-ball': 3 }, wild: 0, at: { place: 'forest-1', progress: 0.9 } }, moved)).toEqual(['그동안: 1-1 → 1-2 40%']);
-    expect(awaySummary({ money: 40, bag: { 'poke-ball': 3 }, wild: 0, at: { place: 'forest-3', progress: 0.9 } }, { ...save, location: { screen: 'gym' } })).toEqual(['그동안: 1-3 → 체육관']);
+    expect(spAll(awaySummary({ money: 40, bag: { 'poke-ball': 3 }, wild: 0, at: { place: 'forest-1', progress: 0.9 } }, moved))).toEqual(['그동안: 1-1 → 1-2 40%']);
+    expect(spAll(awaySummary({ money: 40, bag: { 'poke-ball': 3 }, wild: 0, at: { place: 'forest-3', progress: 0.9 } }, { ...save, location: { screen: 'gym' } }))).toEqual(['그동안: 1-3 → 체육관']);
     const extra = { ...save.monsters.m1!, uid: 'm2' };
     const pair = { ...save, monsters: { ...save.monsters, m2: extra }, party: [...save.party, 'm2'] };
     const upTwo = { ...pair, monsters: Object.fromEntries(Object.entries(pair.monsters).map(([k, m]) => [k, { ...m, level: m.level + 1 }])) };
     const levels = Object.fromEntries(Object.entries(pair.monsters).map(([k, m]) => [k, m.level]));
-    expect(awaySummary({ money: 40, bag: { 'poke-ball': 3 }, wild: 0, levels }, upTwo)).toEqual([`그동안: 레벨업 ${Object.keys(levels).length}마리`]);
+    expect(spAll(awaySummary({ money: 40, bag: { 'poke-ball': 3 }, wild: 0, levels }, upTwo))).toEqual([`그동안: 레벨업 ${Object.keys(levels).length}마리`]);
     // 넘기기 (웹뷰 ↔ 확장) 에도 남음 · 이상한 값은 버림
     const full = { money: 1, bag: {}, wild: 0, lost: 2, at: { place: 'forest-2' as const, progress: 0.5 }, levels: { m1: 5 }, points: 3 };
     expect(readRuntime(viaJson({ rngState: 1, stepAccMs: 0, awayLog: full }), 1).awayLog).toEqual(full);

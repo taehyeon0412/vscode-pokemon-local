@@ -5,7 +5,7 @@ import { validateSave, type Save } from '../save';
 import { sampleSave, viaJson } from '../../../test/fixtures/save';
 import { shinyWildSeed } from '../../../test/fixtures/stage';
 import { startBattle } from './battle';
-import { advance, applyInput, AUTO_TIP_BACK, AUTO_TIP_TURN, autoTipLeft, isWaitingForInput, RESUME_BATTLE_MSG, TEAM_MEET_TIP, teamMeetTipDue, isWalkingFast, leadSpeed, STAGE_WAIT, step, waitReason, withSpeed } from './play';
+import { advance, applyInput, AUTO_TIP_BACK, AUTO_TIP_TURN, autoTipLeft, isWaitingForInput, RESUME_BATTLE_MSG, resumeLine, TEAM_MEET_TIP, teamMeetTipDue, isWalkingFast, leadSpeed, STAGE_WAIT, step, waitReason, withSpeed } from './play';
 import { createGameState, readRuntime, STAGE_PHASES, type GameState } from './state';
 
 const STEP = TIMING.simStepMs;
@@ -364,8 +364,16 @@ describe('전투 (단계 5 · 6) — 스테이지 쪽', () => {
     const met = until(state, (x) => battleOf(x) !== null);
     const reopened = createGameState(viaJson(met.save), 9);
     const again = step(reopened, STEP).state;
-    expect(battleOf(again)?.msg).toBe(RESUME_BATTLE_MSG);
+    // 말 칸 (msg) 과 따로 — 선제 · 기습 · 관장 · 3:3 · 좁은 패널에서 0 장면이던 것 (UX 리뷰어 R15)
+    expect(resumeLine(again)).toBe(RESUME_BATTLE_MSG);
+    expect(battleOf(again)?.msg).not.toBe(RESUME_BATTLE_MSG);
     expect(battleOf(again)?.foe.species).toBe(battleOf(met)?.foe.species);
+    // 보는 동안 2초 (안 볼 때 · 포커스 없을 때는 안 줄어듦) · 넘기기에도 남음 · 이어진 전투 (넘겨받은 상태) 에는 안 생김
+    expect(advance({ ...again, runtime: { ...again.runtime, away: true } }, 5000).state.runtime.resumed).toBe(again.runtime.resumed);
+    expect(readRuntime(viaJson(again.runtime), 1).resumed).toBe(again.runtime.resumed);
+    const seen = advance(again, TIMING.resumeLineMs + 100).state;
+    expect(resumeLine(seen)).toBeNull();
+    expect(step(met, STEP).state.runtime.resumed).toBeUndefined();
   });
 
   it('메뉴 입력 → 전투가 이어짐 · 전투가 아닐 때 전투 입력은 무시', () => {

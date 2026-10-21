@@ -77,8 +77,8 @@ export interface RequestResult {
 export interface Toast {
   text: string;
   ms: number;
-  /** 이 알림이 끝나면 이어서 띄울 글 (TIMING.toastMs) — 긴 알림을 둘로 나눠 차례로 (2026-10-21 1-3 클리어) */
-  then?: string;
+  /** 이 알림이 끝나면 이어서 띄울 글 (TIMING.toastMs) — 긴 알림을 둘로 나눠 차례로 (2026-10-21 1-3 클리어) · 여럿이면 줄 (앞 것을 덮지 않음 — 주운 것이 요약 둘째 장을 덮던 것, UX 리뷰어) */
+  then?: string | string[];
   /** 알림 종류 — 'auto-tip' = 자동 전투 첫 안내 (R12, 화면이 자동 스위치 옆에 둠). 없으면 머리 위 보통 알림 */
   kind?: 'auto-tip';
 }
@@ -103,6 +103,8 @@ export interface RuntimeState {
   awayLog?: AwayLog;
   /** 밖 · 숨김에서 이미 알린 기다림 (gdd 4.13 — 같은 기다림은 안 보는 동안 한 번) · 보는 중이면 지움 */
   noticed?: GameNotice;
+  /** "다시 켜서 전투를 처음부터!" 남은 ms — 세이브의 전투를 처음부터 다시 만든 때 (껐다 켬 · 이어 하기, R15). 말 칸 (msg) 과 따로 — 선제 · 기습 · 관장 · 3:3 · 좁은 패널에서 0 장면이던 것 (UX 리뷰어). 보는 동안만 줄어듦 */
+  resumed?: number;
   /** 1:1 내 차례 (고르기) 가 입력 없이 기다린 ms — 자동 전투 첫 안내 (R12). 넘기기에는 안 남음 */
   chooseMs?: number;
   /** 자동 전투 첫 안내 ② ("안 보는 동안 멈춰 있었어요") 를 띄울 차례 — 화면이 그릴 수 있는 장면 (1:1 전투 · 걷기 · 클리어 카드 · 대기실 · 시설 앞) 까지 미룸 (디자인팀 — 3:3 · 만남 · 결과 등에서는 못 그림) */
@@ -274,7 +276,7 @@ export function readRuntime(raw: unknown, fallbackSeed: number, stepMs: number =
   const acc = r.stepAccMs;
   const toast =
     isObj(r.toast) && typeof r.toast.text === 'string' && num(r.toast.ms, 0, 60_000) !== null
-      ? { text: r.toast.text.slice(0, 300), ms: r.toast.ms as number, ...(typeof r.toast.then === 'string' ? { then: r.toast.then.slice(0, 300) } : {}), ...(r.toast.kind === 'auto-tip' ? { kind: 'auto-tip' as const } : {}) }
+      ? { text: r.toast.text.slice(0, 300), ms: r.toast.ms as number, ...readThen(r.toast.then), ...(r.toast.kind === 'auto-tip' ? { kind: 'auto-tip' as const } : {}) }
       : null;
   return {
     rngState: typeof rng === 'number' && Number.isInteger(rng) && rng >= 0 && rng <= 0xffffffff ? rng : fallbackSeed >>> 0,
@@ -286,10 +288,21 @@ export function readRuntime(raw: unknown, fallbackSeed: number, stepMs: number =
     headless: false, // 웹뷰에서 온 상태는 늘 보이는 쪽 — 확장이 넘겨받을 때 다시 켬
     ...(readAwayLog(r.awayLog) ? { awayLog: readAwayLog(r.awayLog)! } : {}),
     ...((GAME_NOTICES as readonly unknown[]).includes(r.noticed) ? { noticed: r.noticed as GameNotice } : {}),
+    ...(num(r.resumed, 1, 10_000) !== null ? { resumed: r.resumed as number } : {}),
     ...(isObj(r.view) && num(r.view.w, 0, 20_000) !== null && num(r.view.h, 0, 20_000) !== null ? { view: { w: r.view.w as number, h: r.view.h as number } } : {}),
     // 개발 모드 (임시) — 확장이 개발 모드가 아니면 다시 뗌 (game-session)
     ...(readDev(r.dev) ? { dev: readDev(r.dev)! } : {}),
   };
+}
+
+/** 이어 띄울 알림 — 글 하나 또는 줄 (최대 4) */
+function readThen(v: unknown): { then?: string | string[] } {
+  if (typeof v === 'string') return { then: v.slice(0, 300) };
+  if (Array.isArray(v)) {
+    const q = v.filter((x): x is string => typeof x === 'string').slice(0, 4).map((x) => x.slice(0, 300));
+    return q.length === 0 ? {} : { then: q.length === 1 ? q[0]! : q };
+  }
+  return {};
 }
 
 function readAwayLog(v: unknown): AwayLog | null {

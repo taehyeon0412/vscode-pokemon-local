@@ -361,20 +361,25 @@ function checkedStage(rt: RuntimeState, save: Save, id: StageId, layout: StageLa
   }
 }
 
+/** 세이브의 전투를 처음부터 다시 만든 때 (껐다 켬 · 이어 하기, 기획 R15) 한 줄 — runtime.resumed 동안 화면이 따로 띄움 (말 칸과 따로) */
 export const RESUME_BATTLE_MSG = '다시 켜서 전투를 처음부터!';
+/** 지금 띄울 "다시 켜서 전투를 처음부터!" — 없으면 null */
+export function resumeLine(state: GameState): string | null {
+  const p = state.runtime.stage?.phase;
+  return (state.runtime.resumed ?? 0) > 0 && (p === 'battle' || p === 'team') ? RESUME_BATTLE_MSG : null;
+}
 
 /** 진행 중 상태가 없을 때 세이브를 보고 정함 — 고르다 껐으면 그 고르기부터 · 전투 중에 껐다 켜면 그 전투를 처음부터 (mvp-spec 9장) */
 function defaultStage(save: Save, rt: RuntimeState, id: StageId, prog: StageProgress): StageRuntime {
   const p = save.pendingEncounter;
   if (save.pendingChoices.length > 0) return choiceStage(save);
-  // 첫 말 = "다시 켜서 전투를 처음부터!" (기획 R15 A — 껐다 켜면 그 전투를 처음부터, 왜 처음부터인지)
-  if (p?.kind === 'wild') return { phase: 'battle', battle: { ...startBattle(save, p.monster, p.start), msg: RESUME_BATTLE_MSG } };
+  if (p?.kind === 'wild') return { phase: 'battle', battle: startBattle(save, p.monster, p.start) };
   // 3:3 이었으면 3:3 으로 (마지막으로 고른 방식 — 껐다 켜도 같게, 코드 리뷰어)
   if (p?.kind === 'trainer' && p.stageId === id) {
     const n = trainerNumber(p.trainerId);
-    return useTeam(save, rt) ? { phase: 'team', team: { ...trainerTeamBattle(save, id, prog, n), msg: RESUME_BATTLE_MSG } } : { phase: 'battle', battle: { ...trainerBattle(save, id, prog, n), msg: RESUME_BATTLE_MSG } };
+    return useTeam(save, rt) ? { phase: 'team', team: trainerTeamBattle(save, id, prog, n) } : { phase: 'battle', battle: trainerBattle(save, id, prog, n) };
   }
-  if (p?.kind === 'rival' && p.stageId === id) return { phase: 'battle', battle: { ...rivalBattle(save, id, prog, p.rival), msg: RESUME_BATTLE_MSG } };
+  if (p?.kind === 'rival' && p.stageId === id) return { phase: 'battle', battle: rivalBattle(save, id, prog, p.rival) };
   return prog.progress >= 1 ? { phase: 'clear' } : { phase: 'walk' };
 }
 
@@ -419,7 +424,10 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
   let save = ensured.save;
   let rt = ensured.rt;
   const { prog, layout } = ensured;
-  let stage: StageRuntime = checkedStage(rt, save, id, layout, prog.progress) ?? defaultStage(save, rt, id, prog);
+  const kept = checkedStage(rt, save, id, layout, prog.progress);
+  let stage: StageRuntime = kept ?? defaultStage(save, rt, id, prog);
+  // 세이브의 전투를 처음부터 다시 만듦 (껐다 켬 · 이어 하기) — "다시 켜서 전투를 처음부터!" (R15)
+  if (!kept && (stage.phase === 'battle' || stage.phase === 'team') && save.pendingEncounter) rt = { ...rt, resumed: TIMING.resumeLineMs };
   let signal: SaveSignal | null = null;
   if (shinyWhileAway(save, rt, stage)) return { save, rt: { ...rt, stage, stageId: id }, signal };
   const walking = stage.phase === 'walk';
@@ -463,7 +471,7 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
         const what = p.item ? itemName(p.item) : `${p.money ?? 0}원`;
         // 앞 한 줄 ("그동안: …" 등) 이 떠 있으면 덮지 않고 그 뒤에 (1초 넘게 — U1, 코드 리뷰어)
         const picked = `${withJosa(what, '을/를')} 주웠다!`;
-        rt = { ...rt, toast: rt.toast ? { ...rt.toast, then: picked } : { text: picked, ms: TIMING.toastMs } };
+        rt = queueToast(rt, picked);
       } else if (spot.kind === 'wild' && (rt.headless || rt.away) && planWild(id, prog.seed, spot, prog.run.retries).shiny) {
         // 안 볼 때 · VS Code 에 포커스가 없을 때 이로치 흔적 — 바로 앞에서 멈추고 알림 (U9), 다시 보이면 · 돌아오면 이어 감
         save = withProgress(save, id, Math.max(from, spot.at - BEFORE_SPOT));
@@ -796,6 +804,8 @@ function gymStep(save0: Save, rt0: RuntimeState, stepMs: number): { save: Save; 
     if (save.pendingChoices.length > 0 && s.phase !== 'result' && s.phase !== 'choice') return false;
     return s.phase === 'lobby' || s.phase === 'result' || s.phase === 'choice' || s.phase === 'defeat' || s.phase === 'badge';
   };
+  // 관장전을 세이브에서 처음부터 다시 만듦 — "다시 켜서 전투를 처음부터!" (R15, 관장전엔 문구가 없던 것 — UX 리뷰어)
+  if (!okHere(st) && save.pendingChoices.length === 0 && pending?.kind === 'gym-leader') rt = { ...rt, resumed: TIMING.resumeLineMs };
   let stage: StageRuntime = okHere(st)
     ? st
     : save.pendingChoices.length > 0
@@ -874,8 +884,18 @@ function gymStep(save0: Save, rt0: RuntimeState, stepMs: number): { save: Save; 
 export function step(state: GameState, stepMs: number): StepOut {
   let save: Save = { ...state.save, playTimeMs: state.save.playTimeMs + stepMs };
   let rt: RuntimeState = state.runtime;
-  // 알림 시간은 보는 동안만 셈 — 밖 · 숨김에서 흘러가 돌아오면 없던 것 (대기실 첫 알림 368 → 3089ms — 디자인팀 UX #27 큼 1)
-  if (rt.toast && !rt.headless && !rt.away) rt = { ...rt, toast: rt.toast.ms > stepMs ? { ...rt.toast, ms: rt.toast.ms - stepMs } : rt.toast.then ? { text: rt.toast.then, ms: TIMING.toastMs } : null };
+  // 알림 시간은 보는 동안 · 그 알림을 그리는 장면에서만 셈 — 밖 · 숨김에서 흘러가 돌아오면 없던 것 (디자인팀 UX #27 큼 1) · 만남 · 전투 중에 흘러가 요약 둘째 장이 0ms 이던 것 (UX 리뷰어 R14)
+  if (rt.toast && toastShown(rt)) rt = { ...rt, toast: rt.toast.ms > stepMs ? { ...rt.toast, ms: rt.toast.ms - stepMs } : nextToast(rt.toast) };
+  // "다시 켜서 전투를 처음부터!" — 보는 동안 전투 · 3:3 에서만 줄어듦 · 전투가 끝나면 지움
+  if (rt.resumed !== undefined) {
+    const p = rt.stage?.phase;
+    const left = p === 'battle' || p === 'team' ? rt.resumed - (!rt.headless && !rt.away ? stepMs : 0) : 0;
+    if (left > 0) rt = { ...rt, resumed: left };
+    else {
+      const { resumed: _r, ...rest } = rt;
+      rt = rest;
+    }
+  }
   let signal: SaveSignal | null = null;
   const loc = save.location;
   if (loc.screen === 'stage' || loc.screen === 'gym') {
@@ -931,6 +951,30 @@ export function step(state: GameState, stepMs: number): StepOut {
 }
 
 /** 자동 전투 첫 안내를 더 띄울 수 있는지 — 자동을 한 번도 안 켰고 (tips 'auto-on') 띄운 수 (tips 'auto-1' ~ ) 가 3 아래 (R12 A) */
+/** 머리 위 알림을 화면이 그리는 장면 (StageScreen showToast — 걷기 · 클리어 카드 · 대기실 · 시설) · 자동 전투 안내는 1:1 전투도 (AutoTip) */
+function toastShown(rt: RuntimeState): boolean {
+  if (rt.headless || rt.away || !rt.toast) return false;
+  if (rt.toast.kind === 'auto-tip') return canDrawAutoTip(rt.stage);
+  const p = rt.stage?.phase;
+  return p === 'walk' || p === 'clear' || p === 'lobby' || p === 'facility';
+}
+
+/** 다음 알림 (줄의 첫 것) — 없으면 null */
+function nextToast(t: NonNullable<RuntimeState['toast']>): RuntimeState['toast'] {
+  const q = t.then === undefined ? [] : Array.isArray(t.then) ? t.then : [t.then];
+  if (q.length === 0) return null;
+  const rest = q.slice(1);
+  return { text: q[0]!, ms: TIMING.toastMs, ...(rest.length ? { then: rest.length === 1 ? rest[0]! : rest } : {}) };
+}
+
+/** 알림 줄 세우기 — 떠 있는 알림이 있으면 그 뒤에 (덮지 않음, U1 · 최대 4) */
+function queueToast(rt: RuntimeState, text: string): RuntimeState {
+  if (!rt.toast) return { ...rt, toast: { text, ms: TIMING.toastMs } };
+  const q = rt.toast.then === undefined ? [] : Array.isArray(rt.toast.then) ? rt.toast.then : [rt.toast.then];
+  const next = [...q, text].slice(-4);
+  return { ...rt, toast: { ...rt.toast, then: next.length === 1 ? next[0]! : next } };
+}
+
 /** 자동 전투 첫 안내를 화면이 그릴 수 있는 장면 — 1:1 전투 (늘 자동 스위치) · 걷기 · 클리어 카드 · 대기실 · 시설 앞 (정보줄 스위치) (디자인팀) */
 function canDrawAutoTip(st: StageRuntime | null): boolean {
   if (!st) return false;
@@ -1477,13 +1521,15 @@ function awayStep(before: GameState, save: Save, rt: RuntimeState, signal: SaveS
     const log: AwayLog = rt.awayLog ?? awayStart(before.save);
     return { ...rt, awayLog: { ...log, ...(wildEnd ? { wild: log.wild + 1 } : {}), ...(lostNow ? { lost: (log.lost ?? 0) + 1 } : {}) } };
   }
-  if (!rt.awayLog) return rt;
+  if (!rt.awayLog || rt.away) return rt;
   const phase = rt.stage?.phase;
-  if (rt.toast || !(phase === 'walk' || phase === 'clear' || phase === 'lobby')) return rt;
+  if (!(phase === 'walk' || phase === 'clear' || phase === 'lobby')) return rt;
+  // 안 보는 동안 생긴 알림 (클리어 · 레벨업 · 주움) 은 요약이 대신 (네 장 10초 · 레벨업을 두 번 말하던 것 — UX 리뷰어) · 자동 전투 안내 (②) 는 먼저 끝까지
+  if (rt.toast?.kind === 'auto-tip') return rt;
   const { awayLog, ...rest } = rt;
   // 두 장 2.5초씩 (R14 A) — ① 진행 · 레벨업 · 포인트 ② 진 것 · 물건 · 돈 · 야생 (한 장만 있으면 그 장만)
   const [first, second] = awaySummary(awayLog, save);
-  return first ? { ...rest, toast: { text: first, ms: TIMING.awaySummaryMs, ...(second ? { then: second } : {}) } } : rest;
+  return first ? { ...rest, toast: { text: first, ms: TIMING.awaySummaryMs, ...(second ? { then: second } : {}) } } : { ...rest, toast: null };
 }
 
 /** 떠날 때 — 돈 · 가방 · 자리 · 레벨 · 포인트 (그동안 요약의 기준) */
@@ -1503,6 +1549,8 @@ function placeOf(save: Save): NonNullable<AwayLog['at']> {
 }
 
 const pointsOf = (save: Save) => Object.values(save.monsters).reduce((n, m) => n + m.unspentPoints, 0);
+/** 줄이 안 갈리는 띄어쓰기 */
+const NB = '\u00a0';
 const pct = (p: number) => Math.floor(p * 100);
 
 /**
@@ -1525,17 +1573,21 @@ export function awaySummary(log: AwayLog, save: Save): string[] {
     if (up.length === 1) grow.push(`${speciesOf(up[0]!.species)?.name.ko ?? up[0]!.form} Lv ${up[0]!.level}`);
     else if (up.length > 1) grow.push(`레벨업 ${up.length}마리`);
   }
-  if (log.points !== undefined && pointsOf(save) > log.points) grow.push(`포인트 +${pointsOf(save) - log.points}`);
+  if (log.points !== undefined && pointsOf(save) > log.points) grow.push(`포인트${NB}+${pointsOf(save) - log.points}`);
   const gain: string[] = [];
-  if ((log.lost ?? 0) > 0) gain.push(`패배 ${log.lost}번`);
-  for (const id of ITEM_IDS) {
+  if ((log.lost ?? 0) > 0) gain.push(`패배${NB}${log.lost}번`);
+  // 물건은 두 가지까지 · 나머지는 "외 N가지" (7종이면 240 × 150 에서 4줄로 자라 메뉴 줄 밑으로 잘리던 것 — UX 리뷰어 R14, U4)
+  const items = ITEM_IDS.flatMap((id) => {
     const d = (save.bag[id] ?? 0) - (log.bag[id] ?? 0);
-    if (d > 0) gain.push(`${itemName(id)} ${d}`);
-  }
+    return d > 0 ? [`${itemName(id)}${NB}${d}`] : [];
+  });
+  gain.push(...items.slice(0, 2));
+  if (items.length > 2) gain.push(`외${NB}${items.length - 2}가지`);
   const dm = save.money - log.money;
-  if (dm !== 0) gain.push(dm > 0 ? `${dm}원` : `−${-dm}원`);
-  if (log.wild > 0) gain.push(`야생 ${log.wild}마리`);
-  return [grow, gain].filter((p) => p.length > 0).map((p) => `그동안: ${p.join(' · ')}`);
+  if (dm !== 0) gain.push(`${dm > 0 ? '' : '−'}${Math.abs(dm).toLocaleString('en-US')}원`);
+  if (log.wild > 0) gain.push(`야생${NB}${log.wild}마리`);
+  // 이름과 숫자 · 점과 앞 조각은 붙여 둠 (줄이 "· 금구슬 1" 로 시작하거나 "야생 / 40마리" 로 갈리던 것)
+  return [grow, gain].filter((p) => p.length > 0).map((p) => `그동안: ${p.join(`${NB}· `)}`);
 }
 
 /** 하나 고른 뒤 — 다음 고르기 (새 연출부터) 또는 다음 · 한 줄 알림 (걸을 때 주인공 머리 위) */
