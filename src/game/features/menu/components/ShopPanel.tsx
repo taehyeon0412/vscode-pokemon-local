@@ -73,7 +73,7 @@ export function ShopPanel({ save, note, onInput, onClose }: { save: Save; /** �
                 {r.blocked ?? (
                   <>
                     <span class="pg-shop-eff">{r.effect}</span>
-                    {r.have > 0 && <span class="pg-shop-have"> · 가진 {r.have}</span>}
+                    {r.have > 0 && <span class="pg-shop-have">{'\u00a0'}· 가진 {r.have}</span>}
                   </>
                 )}
               </span>

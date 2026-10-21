@@ -108,7 +108,7 @@ export function MenuButtons({
           {/* ★N = 나중에 고를 새 기술 (다음 버전 1단계 #72 — ★ 는 결과 상자 "★ 배웠다" 와 같은 표) · 누를 곳은 따로 없음.
               아이콘만 보이는 좁은 폭에서 +N 과 같이 있으면 ★ 하나만 (+4★ — 칸이 넓어져 진행 % 가 잘리던 것, UX 리뷰어 2026-10-21) */}
           {b.kind === 'team' && later > 0 && labels === 'icon' && points > 0 && (
-            <span class="pg-later" title={`나중에 고를 새 기술 ${later}개 — 병원을 지날 때 · 스테이지를 깰 때 저절로 떠요`}>
+            <span class="pg-later pg-later-with-points" title={`나중에 고를 새 기술 ${later}개 — 병원을 지날 때 · 스테이지를 깰 때 저절로 떠요`}>
               ★
             </span>
           )}

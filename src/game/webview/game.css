@@ -1167,8 +1167,27 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 .pg-mappct {
   flex: none;
 }
+/* 정보줄 미니맵 — 막대가 먼저 줄고 (24px 까지) 🌲 · % 는 그대로 · 300px 아래는 +N 이 있으면 ★ 는 뺌 (덩어리 사이 6px 는 .pg-infobar column-gap 옆) (240 에서 지도 칸이 17px 만 남아 🌲 가 없어지고 % 가 잘리던 것 — UX 리뷰어 2026-10-21) */
+.pg-infobar .pg-mapbar {
+  flex: 0 1 auto;
+  min-width: 24px;
+}
+.pg-infobar .pg-minimap .pg-stage-name {
+  min-width: 16px;
+}
+@media (max-width: 300px) {
+  .pg-later.pg-later-with-points {
+    display: none;
+  }
+}
+/* 아주 좁은 부탁 상자 (260px 아래) — "성공" 을 빼고 "30%" 만 */
+@media (max-width: 259px) {
+  .pg-request .pg-helper-word {
+    display: none;
+  }
+}
 /* 전투 자동 켜짐 (금색이 아닌 남색 칸) 의 A 키 칸 — 금색 */
-.pg-button.pg-auto-btn:not(.pg-secondary) .pg-menu-key {
+.pg-button.pg-auto-btn:not(.pg-secondary):not(:disabled) .pg-menu-key {
   color: var(--pg-sos-gold);
   border-color: var(--pg-sos-gold);
 }
@@ -3595,6 +3614,12 @@ body.vscode-high-contrast-light .pg-title-body {
    덩어리 (볼 · 지도 · 버튼) 사이는 넓을수록 더: 1858px 48 · 720px 약 29 · 좁으면 12 / 지도 안 12px / 버튼 사이 8px */
 .pg-infobar {
   column-gap: clamp(12px, 4vw, 48px);
+}
+/* 300px 아래 = 6px (240 에서 지도 칸이 34px 만 남아 🌲 0% 가 잘리던 것 — UX 리뷰어 2026-10-21) */
+@media (max-width: 300px) {
+  .pg-infobar {
+    column-gap: 6px;
+  }
 }
 .pg-minimap {
   gap: 12px;

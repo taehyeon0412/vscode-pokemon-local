@@ -117,7 +117,9 @@ function RequestBox({ state, media, onInput }: { state: GameState; media: string
         {helper && (
           <span class="pg-helper pg-ellipsis" title={helper.moveName ? `${helper.name}의 ${helper.moveName}` : `${helper.name} — ${types} 기술이 있으면 성공 ${Math.round(BALANCE.requestChanceMatch * 100)}%`}>
             {/* 370px 아래는 누가 돕는지 빼고 "성공 30%" 만 (도울 포켓몬 이름이 "이상해…" 로 잘리던 것 — UX 리뷰어 2026-10-21) */}
-            <span class="pg-helper-who">{helper.moveName ? `${helper.name}의 ${helper.moveName}` : helper.name} · </span>성공 {Math.round(helper.chance * 100)}%
+            <span class="pg-helper-who">{helper.moveName ? `${helper.name}의 ${helper.moveName}` : helper.name} · </span>
+            <span class="pg-helper-word">성공 </span>
+            {Math.round(helper.chance * 100)}%
           </span>
         )}
         <Button onClick={() => onInput({ kind: 'request', help: true })} disabled={!helper} title="Enter">
