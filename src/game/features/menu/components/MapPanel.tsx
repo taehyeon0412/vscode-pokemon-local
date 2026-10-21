@@ -9,6 +9,7 @@ import type { StageId } from '../../../core/save';
 import { Button } from '../../../ui/Button';
 import { Icon } from '../../../ui/Icon';
 import { formatPlayTime } from '../../../ui/format';
+import { josaOf } from '../../../core/text';
 import { ITEM_ICON, mapView } from '../model';
 import { Panel, Row } from './Panel';
 
@@ -36,13 +37,16 @@ export function MapPanel({ state, swap, midStage, onInput, onTeam, onClose }: Ma
     onInput({ kind: 'travel', to });
     onClose();
   };
+  // 지역 끝 스테이지 이름 — 체육관 잠김 안내 ("깊은 숲을 깨면 열려요" · "등대 곶을 …")
+  const lastName = v.stages[v.stages.length - 1]?.label ?? '지역 끝 스테이지';
   return (
     <Panel
       icon="map"
       title="세계 지도"
       extra={
         <>
-          숲 {v.badge && <Icon name="badge" title="숲 배지" />}
+          {/* 지금 지역 (숲 · 해변 — 개발 b80dfc7 mapView.region) */}
+          {v.region} {v.badge && <Icon name="badge" title={`${v.region} 배지`} />}
         </>
       }
       onClose={onClose}
@@ -56,7 +60,7 @@ export function MapPanel({ state, swap, midStage, onInput, onTeam, onClose }: Ma
             {s.state === 'cleared' && ' ✓'}
           </Button>
         ))}
-        <Button secondary disabled={!v.gym} onClick={() => go('gym')} title={v.gym ? '체육관 대기실로' : '깊은 숲 (1-3) 을 깨면 열려요'}>
+        <Button secondary disabled={!v.gym} onClick={() => go('gym')} title={v.gym ? '체육관 대기실로' : `${lastName}${josaOf(lastName, '을/를')} 깨면 열려요`}>
           <Icon name={v.gym ? 'gym' : 'lock'} /> 체육관
         </Button>
         <Button secondary disabled={!swap} onClick={onTeam} title={swap ? '보관함과 팀 바꾸기' : '스테이지를 시작하기 전에만 (걷는 중에는 병원에서)'}>

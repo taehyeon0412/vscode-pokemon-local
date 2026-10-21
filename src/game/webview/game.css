@@ -3216,6 +3216,19 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   background: var(--vscode-editor-background);
   border-top: 1px solid var(--vscode-editorWidget-border, #555);
 }
+/* 몸통이 아래로 더 있음 — 판 왼쪽 아래 작은 흐린 줄 (개발 메뉴 "▼ 아래에 더" 와 같은 말 · 판 바탕 칠로 마지막 줄 위에 얹힘, 누를 것 아님) */
+.pg-panel-more {
+  position: absolute;
+  left: 8px;
+  bottom: 1px;
+  z-index: 1;
+  padding: 0 4px;
+  font-size: 11px;
+  line-height: 13px;
+  color: var(--pg-sos-dim);
+  background: var(--pg-sos-bar);
+  pointer-events: none;
+}
 .pg-panel-head {
   flex: none;
   display: flex;
