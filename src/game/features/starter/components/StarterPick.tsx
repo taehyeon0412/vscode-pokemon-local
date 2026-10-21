@@ -89,7 +89,16 @@ export function StarterPick({ media, pending, onBack, onDone }: StarterPickProps
     <div class="pg-screen pg-title pg-pick" ref={rootRef}>
       <InfoBar
         split
-        left={<span class="pg-pick-tag">첫 포켓몬을 골라요</span>}
+        left={
+          // 첫 안내 #63 (2026-10-21) — 넓으면 제목 옆 흐린 한 줄 · 좁은 패널 (600px 아래) 은 제목이 3초 뒤 숲 안내로 한 번 바뀜 (아래 줄을 더할 자리가 없어서)
+          <>
+            <span class="pg-pick-tag pg-starter-tag" title="숲은 풀 · 벌레 포켓몬이 많아요 — 불꽃 · 비행이 유리">
+              <span class="pg-starter-tag-a">첫 포켓몬을 골라요</span>
+              <span class="pg-starter-tag-b">숲은 불꽃 · 비행이 유리</span>
+            </span>
+            <span class="pg-starter-tip">숲은 풀 · 벌레가 많아요 — 불꽃 · 비행이 유리</span>
+          </>
+        }
         right={
           <>
             <Button secondary onClick={onBack} title="Esc">

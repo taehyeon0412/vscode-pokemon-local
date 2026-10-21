@@ -175,6 +175,12 @@ export function TitleScreen({ info, media, pending, onNew, onContinue, heroPx, b
             </>
           )}
         </div>
+        {/* 세이브가 없을 때만 — 이 게임이 무엇을 저절로 하고 내가 무엇을 하는지 한 줄 (2026-10-21 첫 안내 #9 · 기획 [제안] 을 줄임). 좁으면 쉬기 안내를 뺌 */}
+        {!view.canContinue && !confirming && (
+          <p class="pg-title-tip">
+            걷기 · 만남은 저절로 — 전투는 1 ~ 5 로 고르기<span class="pg-title-tip-more"> · 쉬려면 패널 위 집 버튼</span>
+          </p>
+        )}
         {view.warnings.length > 0 && (
           <div class="pg-warning" title={view.warnings.join('\n')}>
             <b>!</b> {view.warnings[0]}

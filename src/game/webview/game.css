@@ -3288,6 +3288,23 @@ body.vscode-high-contrast-light .pg-title-body {
 .pg-title-menu > .pg-row {
   padding: 2px 10px;
 }
+/* 세이브가 없을 때 타이틀 첫 안내 (#9) — 메뉴 아래 크림 흐린 12px 한 줄 (좁으면 낱말 단위 두 줄) · 400px 아래는 쉬기 안내를 뺌 */
+.pg-title-tip {
+  margin: 0;
+  max-width: calc(100vw - 24px);
+  color: var(--pg-sos-dim);
+  font-size: 12px;
+  line-height: 15px;
+  text-align: center;
+  word-break: keep-all;
+  text-wrap: balance;
+  text-shadow: 0 1px 0 var(--pg-sos-bar);
+}
+@media (max-width: 400px) {
+  .pg-title-tip-more {
+    display: none;
+  }
+}
 .pg-title-item {
   position: relative;
   display: flex;
@@ -4464,6 +4481,34 @@ body.vscode-light .pg-field-balls {
 @media (max-width: 300px) {
   .pg-starter-chain .pg-chain-types {
     display: none;
+  }
+}
+/* 스타팅 첫 안내 (#63) — 넓으면 정보줄 제목 옆 흐린 한 줄 · 600px 아래는 정보줄 제목이 3초 뒤 안내로 한 번 바뀜 (아래 줄 자리가 없어서) */
+.pg-starter-tip {
+  margin-left: 10px;
+  color: var(--pg-sos-dim);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.pg-starter-tag-b {
+  display: none;
+}
+@media (max-width: 599px) {
+  .pg-starter-tip {
+    display: none;
+  }
+  .pg-starter-tag {
+    display: inline-grid;
+  }
+  .pg-starter-tag > span {
+    grid-area: 1 / 1;
+  }
+  .pg-starter-tag-a {
+    animation: pg-alt-a 6s steps(1, end) both;
+  }
+  .pg-starter-tag-b {
+    display: inline;
+    animation: pg-alt-b 6s steps(1, end) both;
   }
 }
 /* 타입 표 (battle/components/TypeTag — 태현 님 B안 "원 엠블럼 + 이름") — 타입 색 동그라미 22px (아래 2px 짙은 띠로 입체) 안 16px 픽셀 아이콘 · 옆 이름 11px 700 */
