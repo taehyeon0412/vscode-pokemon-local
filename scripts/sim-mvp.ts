@@ -48,6 +48,13 @@ const REGIONS_N = Math.max(2, Number(process.env.SIM_REGIONS ?? 2));
 const regionTune = BALANCE.region as { aceStep: number; aceJump2: number; beachOrder: number };
 if (process.env.SIM_ACE_STEP) regionTune.aceStep = Number(process.env.SIM_ACE_STEP);
 if (process.env.SIM_ACE_JUMP2) regionTune.aceJump2 = Number(process.env.SIM_ACE_JUMP2);
+/** SIM_ACE_TABLE = 2번째부터 에이스 레벨을 하나씩 (예: 25,33,41,48,54,59,64 — 지역마다 폭이 다른 표, orders #39) · 그 번째에 들어갈 때 aceJump2 를 맞춤 (시뮬에서만) */
+const ACE_TABLE = process.env.SIM_ACE_TABLE ? process.env.SIM_ACE_TABLE.split(',').map(Number) : null;
+const setOrder = (k: number) => {
+  regionTune.beachOrder = k;
+  const want = ACE_TABLE?.[k - 2];
+  if (want !== undefined) regionTune.aceJump2 = want - BALANCE.region.aceBase - regionTune.aceStep * (k - 1);
+};
 /** 지역 하나 (2번째부터) — 처음 관장 도전 때 센 셋 평균 − 에이스 · 도전 · 진 수 · 한 바퀴 시간 */
 interface RegionRun {
   k: number;
@@ -235,7 +242,7 @@ function runOnce(dex: number, seed: number): RunResult {
   const stages = Object.fromEntries([...STAGE_IDS, 'gym', ...BEACH_STAGES].map((k) => [k, blank()])) as Record<Where, StageStat>;
   const mem = { resultMs: 0, lostGymOnce: false, grindNext: false, parryKey: '', parryYes: false };
   const r: RunResult = { starter: speciesOf(dex)?.name.ko ?? String(dex), seed, done: false, totalMs: 0, stages, gymTries: 0, firstGymLevels: [], winLevels: [], moneyAtGym: -1, firstUltMin: -1, spent: 0, potionsUsed: 0, team: 0, teamBattles: 0, forestMs: 0, beachGymTries: 0, regions: [] };
-  regionTune.beachOrder = 2;
+  setOrder(2);
   let cur: RegionRun | null = null;
   const top3 = (save: Save) => {
     const ls = party(save).map((m) => m.level).sort((a, b) => b - a).slice(0, 3);
@@ -370,7 +377,7 @@ function runOnce(dex: number, seed: number): RunResult {
         cur.ms = t - (r.regions.reduce((a, x) => a + x.ms, 0) + r.forestMs);
         r.regions.push(cur);
         const k = cur.k + 1;
-        regionTune.beachOrder = k;
+        setOrder(k);
         cur = { k, ace: regionAceLevel(k), gap: null, third: null, tries: 0, defeats: 0, ms: 0 };
         const stagesLeft = Object.fromEntries(Object.entries(s.save.stages).filter(([id]) => !id.startsWith('beach-')));
         s = { ...s, save: { ...s.save, badges: s.save.badges.filter((b) => b !== REGIONS.beach.badge), stages: stagesLeft } };
@@ -448,12 +455,13 @@ if (BEACH) {
   // 레벨표 맞추기 (orders #38) — 번째마다 센 셋 평균 − 에이스 (목표 0 ~ +2) · 관장 도전 · 진 수 (해변 스테이지 + 체육관) · 한 바퀴
   const avgOf = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
   const { aceStep, aceJump2 } = BALANCE.region;
-  console.log(`레벨표 안 — 에이스 +${aceStep}/지역${aceJump2 ? ` · 2번째부터 +${aceJump2}` : ''} · ${TEAM ? '3:3' : '1:1'} · 판 ${results.length}`);
+  console.log(`레벨표 안 — ${ACE_TABLE ? `에이스 표 15 · ${ACE_TABLE.join(' · ')}` : `에이스 +${aceStep}/지역${aceJump2 ? ` · 2번째부터 +${aceJump2}` : ''}`} · ${TEAM ? '3:3' : '1:1'} · 판 ${results.length}`);
   for (let k = 2; k <= REGIONS_N; k++) {
     const rs = results.map((r) => r.regions.find((x) => x.k === k)).filter((x): x is RegionRun => !!x);
     const gaps = rs.map((x) => x.gap).filter((g): g is number => g !== null);
     const sorted = [...gaps].sort((a, b) => a - b);
-    const ace = regionAceLevel(k);
+    // 표 (SIM_ACE_TABLE) 면 번째마다 다름 — 그 판이 잰 에이스
+    const ace = rs[0]?.ace ?? regionAceLevel(k);
     const thirds = rs.map((x) => x.third).filter((g): g is number => g !== null);
     console.log(
       `  ${k}번째 에이스 Lv ${ace} · 끝낸 판 ${rs.length} / ${results.length} · 센 셋 − 에이스 ${avgOf(gaps).toFixed(1)} (낮은 ${sorted[0]?.toFixed(1) ?? '-'} · 높은 ${sorted[sorted.length - 1]?.toFixed(1) ?? '-'}) · 셋째 − 에이스 ${avgOf(thirds).toFixed(1)} (낮은 ${thirds.length ? Math.min(...thirds) : '-'}) · 관장 도전 ${avgOf(rs.map((x) => x.tries)).toFixed(1)} (최대 ${Math.max(0, ...rs.map((x) => x.tries))}) · 진 수 ${avgOf(rs.map((x) => x.defeats)).toFixed(1)} · 한 바퀴 ${(avgOf(rs.map((x) => x.ms)) / 60000).toFixed(1)}분`,
