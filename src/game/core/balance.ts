@@ -105,6 +105,11 @@ export const BALANCE = {
   team: {
     on: false,
     size: 3,
+    /**
+     * 3마리 기본 고르기 (pickTeam — 자동 전투 · 안 볼 때 · 고르기 시간 끝 · 대기실 기본 체크) 레벨 규칙 (orders #46 · 아침 질문 #105):
+     * 0 = 꺼짐 (지금 — 상성 점수, 같으면 레벨) · 10 = 센 셋 평균보다 10 넘게 낮은 포켓몬은 뒤로 (#44 — Lv 31 스타팅을 Lv 58 들 대신 넣어 관장에 11번 짐)
+     */
+    pickLevelGap: 0 as number,
     /** 1.2 → 1.0 (2026-10-21 태현 님 #88 "1.0으로 해줘" — 필살기가 일반 모드 연출 그대로라 장면이 길어서, 시뮬 scripts/sim-team-ult.ts) */
     ultGainScale: 1.0,
     interruptChance: { trainer: 0.3, gym: 0.7 },

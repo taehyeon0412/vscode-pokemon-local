@@ -910,3 +910,35 @@ describe('같은 편 합동 필살기 — 합동 필살기 멘트 (2026-10-21 �
     expect(clash.clash!.me).toEqual([1]);
   });
 });
+
+describe('3마리 기본 고르기 레벨 규칙 (orders #46 · #44 — 꺼 둔 스위치)', () => {
+  // #44 그대로: Lv 31 파이숭이 (격투 — 얼음에 2배라 상성 점수가 높음) · Lv 58 넷 (노말 기술) vs 해변 관장 중반 골덕 · 라프라스 · 갸라도스
+  const foes = [sampleMonster({ uid: 'f1', species: 55, form: 'golduck', level: 47 }), sampleMonster({ uid: 'f2', species: 131, form: 'lapras', level: 48 }), sampleMonster({ uid: 'f3', species: 130, form: 'gyarados', level: 49 })];
+  const mons = [
+    sampleMonster({ uid: 'm1', species: 391, form: 'monferno', level: 31, moves: [{ moveId: 183, pp: 30 }] }),
+    ...[2, 3, 4, 5].map((i) => sampleMonster({ uid: `m${i}`, level: 58 - (i % 2), moves: [{ moveId: 33, pp: 35 }] })),
+  ];
+  const save = sampleSave({ party: mons.map((m) => m.uid), monsters: Object.fromEntries(mons.map((m) => [m.uid, m])) });
+  const setGap = (gap: number) => {
+    (BALANCE.team as { pickLevelGap: number }).pickLevelGap = gap;
+  };
+
+  it('꺼짐 (0, 지금) = 상성 점수 먼저 — Lv 31 파이숭이가 들어감 · 켬 (10) = 센 셋 평균보다 10 넘게 낮으면 뒤로 — 빠짐', () => {
+    expect(BALANCE.team.pickLevelGap).toBe(0);
+    expect(pickTeam(save, foes)).toContain('m1');
+    setGap(10);
+    try {
+      const picked = pickTeam(save, foes);
+      expect(picked).toHaveLength(3);
+      expect(picked).not.toContain('m1');
+      // 살아 있는 게 셋뿐이면 낮아도 나감 (모자라면 그래도)
+      const few = { ...save, party: ['m1', 'm2', 'm3'] };
+      expect(pickTeam(few, foes).sort()).toEqual(['m1', 'm2', 'm3']);
+      // 레벨 차가 10 안이면 상성 그대로
+      const close = { ...save, monsters: { ...save.monsters, m1: { ...save.monsters.m1!, level: 50 } } };
+      expect(pickTeam(close, foes)).toContain('m1');
+    } finally {
+      setGap(0);
+    }
+  });
+});

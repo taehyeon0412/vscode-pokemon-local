@@ -188,10 +188,14 @@ export function pickTeam(save: Save, foes: readonly Monster[], n: number = BALAN
   const foeTypes = foes.map((m) => speciesOf(m.species)?.types ?? []);
   const score = (m: Monster) =>
     foeTypes.reduce((sum, t) => sum + Math.max(1, ...m.moves.map((s) => moveOf(s.moveId)).filter((mv): mv is ReadonlyMove => !!mv && mv.power > 0).map((mv) => effectiveness(mv.type, t))), 0);
-  return save.party
-    .map((uid) => save.monsters[uid])
-    .filter((m): m is Monster => !!m && m.hp > 0)
-    .sort((a, b) => score(b) - score(a) || b.level - a.level)
+  const alive = save.party.map((uid) => save.monsters[uid]).filter((m): m is Monster => !!m && m.hp > 0);
+  // 레벨 규칙 (켜져 있으면 — BALANCE.team.pickLevelGap): 센 셋 평균보다 그만큼 넘게 낮으면 뒤로 (모자라면 그래도 나감)
+  const gap = BALANCE.team.pickLevelGap;
+  const top = alive.map((m) => m.level).sort((a, b) => b - a).slice(0, n);
+  const floor = gap > 0 && top.length > 0 ? top.reduce((a, b) => a + b, 0) / top.length - gap : -Infinity;
+  const low = (m: Monster) => (m.level < floor ? 1 : 0);
+  return alive
+    .sort((a, b) => low(a) - low(b) || score(b) - score(a) || b.level - a.level)
     .slice(0, n)
     .map((m) => m.uid);
 }

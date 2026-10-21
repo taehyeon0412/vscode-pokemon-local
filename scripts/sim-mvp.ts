@@ -34,7 +34,12 @@ const ONLY = args[4] ? Number(args[4]) : null;
 const LOG_DEFEATS = ONLY !== null || process.env.SIM_LOG === 'defeat';
 /** SIM_TEAM=1 — 3:3 을 켜고 늘 3:3 으로 (트레이너 · 관장, 기획 R9 켜기 점검표 — 1:1 과 견줌) */
 const TEAM = process.env.SIM_TEAM === '1';
-if (TEAM) (BALANCE.team as { on: boolean }).on = true;
+/** SIM_TEAM=meet1 — 3:3 을 켜되 트레이너 만남에서 늘 1:1 을 고르는 사람 (관장은 3:3 — 켜면 늘 3:3, orders #47) */
+const MEET1 = process.env.SIM_TEAM === 'meet1';
+if (TEAM || MEET1) (BALANCE.team as { on: boolean }).on = true;
+/** SIM_PICK_GAP = 3마리 기본 고르기 레벨 규칙 (BALANCE.team.pickLevelGap — 0 꺼짐 · 10 켬, orders #46 · #47) */
+if (process.env.SIM_PICK_GAP) (BALANCE.team as { pickLevelGap: number }).pickLevelGap = Number(process.env.SIM_PICK_GAP);
+const modeLabel = TEAM ? '3:3' : MEET1 ? '3:3 켬 · 만남 1:1 (관장 3:3)' : '1:1';
 
 /** 'beach-gym' = 해변 체육관 (SIM_REGION=beach — 2번째 지역) */
 type Where = StageId | 'gym' | 'beach-gym';
@@ -414,7 +419,7 @@ for (const sp of starters.filter((x) => ONLY === null || x.dex === ONLY)) {
   }
 }
 const ace = Math.max(...leaderTeam().map((m) => m.level));
-console.log(`판 ${results.length} (스타팅 ${starters.length} × ${RUNS}) · ${TEAM ? `3:3 (한 판에 ${avg(results.map((r) => r.teamBattles)).toFixed(1)}번)` : '1:1'} · 잡기 ${CATCH ? '함' : '안 함'} · 연타 ${MASH ? '함' : '안 함'} · 패링 ${PARRY} · 계산 ${((Date.now() - started) / 1000).toFixed(0)}초 · 관장 에이스 Lv ${ace}`);
+console.log(`판 ${results.length} (스타팅 ${starters.length} × ${RUNS}) · ${TEAM || MEET1 ? `${modeLabel} (한 판에 3:3 ${avg(results.map((r) => r.teamBattles)).toFixed(1)}번)` : '1:1'}${BALANCE.team.pickLevelGap ? ` · 고르기 레벨 규칙 ${BALANCE.team.pickLevelGap}` : ''} · 잡기 ${CATCH ? '함' : '안 함'} · 연타 ${MASH ? '함' : '안 함'} · 패링 ${PARRY} · 계산 ${((Date.now() - started) / 1000).toFixed(0)}초 · 관장 에이스 Lv ${ace}`);
 console.log(`끝까지 간 판 ${results.filter((r) => r.done).length} / ${results.length}`);
 for (const w of [...STAGE_IDS, 'gym'] as Where[]) {
   const xs = results.map((r) => r.stages[w]);
@@ -454,7 +459,7 @@ if (BEACH) {
   // 레벨표 맞추기 (orders #38) — 번째마다 센 셋 평균 − 에이스 (목표 0 ~ +2) · 관장 도전 · 진 수 (해변 스테이지 + 체육관) · 한 바퀴
   const avgOf = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
   const { aceStep, aceJump2 } = BALANCE.region;
-  console.log(`레벨표 안 — ${ACE_TABLE ? `에이스 표 15 · ${ACE_TABLE.join(' · ')}` : `에이스 +${aceStep}/지역${aceJump2 ? ` · 2번째부터 +${aceJump2}` : ''}`} · ${TEAM ? '3:3' : '1:1'} · 판 ${results.length}`);
+  console.log(`레벨표 안 — ${ACE_TABLE ? `에이스 표 15 · ${ACE_TABLE.join(' · ')}` : `에이스 +${aceStep}/지역${aceJump2 ? ` · 2번째부터 +${aceJump2}` : ''}`} · ${modeLabel}${BALANCE.team.pickLevelGap ? ` · 고르기 레벨 규칙 ${BALANCE.team.pickLevelGap}` : ''} · 판 ${results.length}`);
   for (let k = 2; k <= REGIONS_N; k++) {
     const rs = results.map((r) => r.regions.find((x) => x.k === k)).filter((x): x is RegionRun => !!x);
     const gaps = rs.map((x) => x.gap).filter((g): g is number => g !== null);
