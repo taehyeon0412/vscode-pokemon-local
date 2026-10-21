@@ -1644,7 +1644,8 @@ function awayStep(before: GameState, save: Save, rt: RuntimeState, signal: SaveS
   // 두 장 2.5초씩 (R14 A) — ① 진행 · 레벨업 · 포인트 ② 진 것 · 물건 · 돈 · 야생 (한 장만 있으면 그 장만)
   const [first, second0] = awaySummary(awayLog, save);
   // 안내 ② (자동 꺼짐으로 멈췄다 다시 봄) 를 마지막 장 끝 줄로 (ideas #156) — 셈은 step 이 (backTip 이 없어지면)
-  const back = rt.backTip && first ? AUTO_TIP_BACK : null;
+  // 숲 1-1 첫 걷기 안내가 떠 있으면 합치지 않음 (그 상자에 끝 줄이 덮임 — 안내가 끝난 뒤 스위치 옆에 따로)
+  const back = rt.backTip && first && !firstWalkTip(save, rt.stage) ? AUTO_TIP_BACK : null;
   const second = back ? (second0 ? `${second0}\n${back}` : null) : second0;
   const firstText = back && !second0 ? `${first}\n${back}` : first;
   if (back) {

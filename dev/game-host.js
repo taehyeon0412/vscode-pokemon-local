@@ -311,6 +311,8 @@
     if (q.get('xsave')) Object.assign(save, JSON.parse(q.get('xsave')));
     if (q.get('xmon')) save.monsters.m1 = { ...save.monsters.m1, ...JSON.parse(q.get('xmon')) };
     if (q.get('awaylog')) runtime.awayLog = JSON.parse(q.get('awaylog'));
+    // backtip=1 — 자동 꺼짐으로 멈췄다 돌아옴 (안내 ② — awaylog 와 같이 주면 요약 마지막 장 끝 줄, ideas #156)
+    if (q.get('backtip') === '1') runtime.backTip = true;
     if (q.get('resume') === '1') {
         runtime = { rngState: 1, stepAccMs: 0, speed: 1, stage: null, stageId: null, toast: null };
         if (save.pendingEncounter && save.pendingEncounter.kind === 'wild') save.pendingEncounter.start = q.get('rstart') || 'normal';

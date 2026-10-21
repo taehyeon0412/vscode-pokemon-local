@@ -644,6 +644,11 @@ describe('멈춤 · 알림 표 (gdd 4.13 · U6 — orders #27 R13)', () => {
     expect(tipOf(merged)).toContain(AUTO_TIP_BACK);
     expect(merged.runtime.backTip).toBeUndefined();
     expect(merged.save.tips?.filter((t) => t.startsWith('autotip-'))).toEqual(['autotip-1']);
+    // 숲 1-1 첫 걷기 안내가 떠 있으면 합치지 않음 (그 상자에 끝 줄이 덮임) — ② 는 남겨 안내가 끝난 뒤 스위치 옆에
+    const walkFirst = advance({ ...base, runtime: { ...base.runtime, noticed: 'paused', awayLog: { money: 0, bag: {}, wild: 2 } } }, 100).state;
+    expect(tipOf(walkFirst)).toContain('그동안');
+    expect(tipOf(walkFirst)).not.toContain(AUTO_TIP_BACK);
+    expect(walkFirst.runtime.backTip).toBe(true);
     // 요약이 없으면 자동 스위치 옆 안내 — 숲 1-1 첫 걷기 안내가 떠 있는 동안은 뒤로 (화면 walkTipOn 과 같게)
     const firstWalk = advance({ ...base, runtime: { ...base.runtime, noticed: 'paused' } }, 100).state;
     expect(tipOf(firstWalk)).not.toBe(AUTO_TIP_BACK);

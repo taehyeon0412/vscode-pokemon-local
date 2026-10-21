@@ -4,6 +4,7 @@
  * 자리는 정수 px (폭 올림 · 왼쪽 반올림, translateX 없음) — 1px 테두리가 반 픽셀에 걸려 흐리던 것 (픽셀 검사원 2026-10-21).
  * (2026-10-20 — 체육관 대기실 "1-3 클리어! 보너스 경험치 +130 · ◓+1 · …" 이 480px 까지 왼쪽이 잘리던 것, 예전엔 가운데가 최소 80px 라 넘침).
  */
+import { Fragment } from 'preact';
 import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 
 const EDGE = 8;
@@ -36,8 +37,13 @@ export function StageToast({ text, center, bottom, room }: { text: string; cente
   });
   return (
     <div ref={ref} class="pg-toast" style={{ left: `${Math.round(center)}px`, bottom: `${bottom}px` }}>
-      {/* "리자몽 Lv 36!" · "외 4마리" 가 줄 끝에서 "리자몽 / Lv 36!" · "외 / 4마리" 로 갈라지지 않게 (한 덩어리) */}
-      {text.replace(/(\S+) Lv (\d)/g, '$1\u00a0Lv\u00a0$2').replace(/외 (\d)/g, '외\u00a0$1')}
+      {/* "리자몽 Lv 36!" · "외 4마리" 가 줄 끝에서 "리자몽 / Lv 36!" · "외 / 4마리" 로 갈라지지 않게 (한 덩어리) · "\n" = 줄 바꿈 (그동안 요약 끝 줄 안내 ② — ideas #156) */}
+      {text.split('\n').map((line, i) => (
+        <Fragment key={i}>
+          {i > 0 && <br />}
+          {line.replace(/(\S+) Lv (\d)/g, '$1\u00a0Lv\u00a0$2').replace(/외 (\d)/g, '외\u00a0$1')}
+        </Fragment>
+      ))}
     </div>
   );
 }
