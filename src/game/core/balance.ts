@@ -438,6 +438,6 @@ export const TIMING = {
   defeatAutoMs: 5000,
   /** 부탁 상자가 이만큼 뒤 저절로 [도와준다] — 안 볼 때는 바로 (ideas #115 — 성공률을 보여 주니 손해 없음) [제안] */
   requestAutoMs: 10000,
-  /** 자리 비운 동안 요약 한 줄 "그동안: …" (ideas #16 — 1초 넘게, U1) [제안] */
-  awaySummaryMs: 3000,
+  /** 그동안 요약 첫 장 (ideas #16 · R14 A 두 장 2.5초씩 — 다음 장은 toastMs 2.5초, 1초 넘게 U1) */
+  awaySummaryMs: 2500,
 } as const;

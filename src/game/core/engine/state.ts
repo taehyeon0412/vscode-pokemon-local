@@ -111,11 +111,19 @@ export interface RuntimeState {
   dev?: DevRuntime;
 }
 
-/** 자리 비운 동안 — 떠날 때의 돈 · 가방과 그동안 싸운 야생 수 */
+/** 자리 비운 동안 — 떠날 때의 돈 · 가방 · 자리 · 레벨 · 포인트와 그동안 싸운 야생 · 진 수 (그동안 요약 두 장 — R14) */
 export interface AwayLog {
   money: number;
   bag: Partial<Record<ItemId, number>>;
   wild: number;
+  /** 그동안 진 수 (패배 상자에 들어선 때) */
+  lost?: number;
+  /** 떠날 때 자리 — 스테이지 · 진행 (0 ~ 1) · 체육관 */
+  at?: { place: StageId | 'gym'; progress: number };
+  /** 떠날 때 팀 레벨 (uid → Lv) */
+  levels?: Record<string, number>;
+  /** 떠날 때 남은 포인트 합 (모든 포켓몬) */
+  points?: number;
 }
 
 export interface GameState {
@@ -291,7 +299,20 @@ function readAwayLog(v: unknown): AwayLog | null {
     const n = num(v.bag[id], 0, 1e6);
     if (n !== null) bag[id] = n;
   }
-  return { money, bag, wild: Math.floor(wild) };
+  const lost = num(v.lost, 0, 1e6);
+  const at = isObj(v.at) && ((STAGE_IDS as readonly unknown[]).includes(v.at.place) || v.at.place === 'gym') && num(v.at.progress, 0, 1) !== null ? { place: v.at.place as StageId | 'gym', progress: v.at.progress as number } : null;
+  const levels: Record<string, number> = {};
+  if (isObj(v.levels)) for (const [uid, lv] of Object.entries(v.levels).slice(0, 6)) if (typeof uid === 'string' && uid.length <= 40 && num(lv, 1, 100) !== null) levels[uid] = Math.floor(lv as number);
+  const points = num(v.points, 0, 1e6);
+  return {
+    money,
+    bag,
+    wild: Math.floor(wild),
+    ...(lost !== null ? { lost: Math.floor(lost) } : {}),
+    ...(at ? { at } : {}),
+    ...(isObj(v.levels) ? { levels } : {}),
+    ...(points !== null ? { points: Math.floor(points) } : {}),
+  };
 }
 
 /**

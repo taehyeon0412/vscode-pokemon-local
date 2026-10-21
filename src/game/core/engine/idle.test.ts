@@ -112,9 +112,9 @@ describe('#48 클리어 카드 — 자동 전투면 10초 뒤 · 안 볼 때는 
 });
 
 describe('#16 자리 비운 동안 요약', () => {
-  it('안 볼 때 처음 걸음에 떠날 때의 돈 · 가방을 적고 → 다시 보면 걷는 중에 3초 한 줄 · 지움', () => {
+  it('안 볼 때 처음 걸음에 떠날 때의 돈 · 가방 · 자리 · 레벨 · 포인트를 적고 → 다시 보면 걷는 중에 한 줄 · 지움', () => {
     const away = step(at({}, { phase: 'walk' }, true), STEP).state;
-    expect(away.runtime.awayLog).toEqual({ money: away.save.money, bag: away.save.bag, wild: 0 });
+    expect(away.runtime.awayLog).toMatchObject({ money: away.save.money, bag: away.save.bag, wild: 0, lost: 0, at: { place: 'forest-1' }, levels: { m1: away.save.monsters.m1!.level } });
     const log = away.runtime.awayLog!;
     const back: GameState = {
       save: { ...away.save, money: away.save.money + 60, bag: { ...away.save.bag, potion: (away.save.bag.potion ?? 0) + 1 } },
@@ -122,6 +122,19 @@ describe('#16 자리 비운 동안 요약', () => {
     };
     const shown = step(back, STEP).state;
     expect(shown.runtime.toast).toEqual({ text: '그동안: 상처약 1 · 60원 · 야생 3마리', ms: TIMING.awaySummaryMs });
+    // 두 장 (R14 A) — ① 진행 · 레벨업 · 포인트 → ② 진 것 · 물건 · 돈 · 야생, 2.5초씩
+    const m1 = away.save.monsters.m1!;
+    const grown: GameState = {
+      save: { ...back.save, monsters: { ...back.save.monsters, m1: { ...m1, level: m1.level + 2, unspentPoints: m1.unspentPoints + 6 } }, stages: { ...back.save.stages, 'forest-1': { ...back.save.stages['forest-1']!, progress: 0.63 } } },
+      runtime: { ...back.runtime, awayLog: { ...log, wild: 3, lost: 1, at: { place: 'forest-1', progress: 0.12 } } },
+    };
+    const two = step(grown, STEP).state;
+    expect(two.runtime.toast).toMatchObject({ text: `그동안: 1-1 12% → 63% · 이상해씨 Lv ${m1.level + 2} · 포인트 +6`, ms: TIMING.awaySummaryMs, then: '그동안: 패배 1번 · 상처약 1 · 60원 · 야생 3마리' });
+    let later = two;
+    for (let t = 0; t < TIMING.awaySummaryMs + 100; t += STEP) later = step(later, STEP).state;
+    expect(later.runtime.toast?.text).toBe('그동안: 패배 1번 · 상처약 1 · 60원 · 야생 3마리');
+    expect(TIMING.awaySummaryMs).toBe(2500);
+    expect(TIMING.toastMs).toBe(2500);
     expect(TIMING.awaySummaryMs).toBeGreaterThanOrEqual(1000);
     expect(shown.runtime.awayLog).toBeUndefined();
     // 바뀐 게 없으면 한 줄 없이 지움
@@ -141,8 +154,21 @@ describe('#16 자리 비운 동안 요약', () => {
 
   it('요약 글 — 줄어든 돈은 −, 줄어든 물건은 안 씀', () => {
     const save = sampleSave({ money: 40, bag: { 'poke-ball': 3, potion: 0 } });
-    expect(awaySummary({ money: 100, bag: { 'poke-ball': 2, potion: 2 }, wild: 0 }, save)).toBe('그동안: 몬스터볼 1 · −60원');
-    expect(awaySummary({ money: 40, bag: { 'poke-ball': 3 }, wild: 0 }, save)).toBe('');
+    expect(awaySummary({ money: 100, bag: { 'poke-ball': 2, potion: 2 }, wild: 0 }, save)).toEqual(['그동안: 몬스터볼 1 · −60원']);
+    expect(awaySummary({ money: 40, bag: { 'poke-ball': 3 }, wild: 0 }, save)).toEqual([]);
+    // 다른 스테이지 · 체육관으로 옮겼으면 "1-1 → 1-2 40%" · "1-3 → 체육관" · 레벨업 여럿이면 마리 수
+    const moved = { ...save, location: { screen: 'stage' as const, stageId: 'forest-2' as const }, stages: { ...save.stages, 'forest-2': { ...save.stages['forest-1']!, progress: 0.4 } } };
+    expect(awaySummary({ money: 40, bag: { 'poke-ball': 3 }, wild: 0, at: { place: 'forest-1', progress: 0.9 } }, moved)).toEqual(['그동안: 1-1 → 1-2 40%']);
+    expect(awaySummary({ money: 40, bag: { 'poke-ball': 3 }, wild: 0, at: { place: 'forest-3', progress: 0.9 } }, { ...save, location: { screen: 'gym' } })).toEqual(['그동안: 1-3 → 체육관']);
+    const extra = { ...save.monsters.m1!, uid: 'm2' };
+    const pair = { ...save, monsters: { ...save.monsters, m2: extra }, party: [...save.party, 'm2'] };
+    const upTwo = { ...pair, monsters: Object.fromEntries(Object.entries(pair.monsters).map(([k, m]) => [k, { ...m, level: m.level + 1 }])) };
+    const levels = Object.fromEntries(Object.entries(pair.monsters).map(([k, m]) => [k, m.level]));
+    expect(awaySummary({ money: 40, bag: { 'poke-ball': 3 }, wild: 0, levels }, upTwo)).toEqual([`그동안: 레벨업 ${Object.keys(levels).length}마리`]);
+    // 넘기기 (웹뷰 ↔ 확장) 에도 남음 · 이상한 값은 버림
+    const full = { money: 1, bag: {}, wild: 0, lost: 2, at: { place: 'forest-2' as const, progress: 0.5 }, levels: { m1: 5 }, points: 3 };
+    expect(readRuntime(viaJson({ rngState: 1, stepAccMs: 0, awayLog: full }), 1).awayLog).toEqual(full);
+    expect(readRuntime(viaJson({ rngState: 1, stepAccMs: 0, awayLog: { ...full, at: { place: 'moon', progress: 2 } } }), 1).awayLog?.at).toBeUndefined();
   });
 });
 

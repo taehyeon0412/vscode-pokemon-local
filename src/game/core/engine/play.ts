@@ -867,25 +867,26 @@ export function step(state: GameState, stepMs: number): StepOut {
   } else if (rt.stage) {
     rt = { ...rt, stage: null, stageId: null };
   }
-  rt = awayStep(state, save, rt, signal);
-  // 자동 전투 첫 안내 (R12 A — 자동을 한 번 켤 때까지 최대 3번): ① 보는 중 내 차례가 10초 넘게 입력 없이 기다린 첫 때 ② 자동 꺼짐으로 안 보는 동안 멈췄다 다시 볼 때
+  // 자동 전투 첫 안내 (R12 A — 자동을 한 번 켤 때까지 최대 3번, 화면이 그렸을 때 셈 'tip-seen' auto): ① 보는 중 내 차례가 10초 넘게 입력 없이 기다린 첫 때 — 내 차례가 끝날 때까지 남김
+  // ② 자동 꺼짐으로 안 보는 동안 멈췄다 다시 볼 때. 그동안 요약 (R14) 보다 먼저 — 요약은 이 안내가 끝난 뒤 (겹치지 않게)
   const watchingNow = !rt.headless && !rt.away;
   const myTurn = rt.stage?.phase === 'battle' && rt.stage.battle.phase === 'choose' && !save.settings.autoBattle;
   if (myTurn && watchingNow) {
     const ms = (rt.chooseMs ?? 0) + stepMs;
-    if ((rt.chooseMs ?? 0) < TIMING.autoTipWaitMs && ms >= TIMING.autoTipWaitMs && autoTipLeft(save)) {
-      save = useAutoTip(save);
-      rt = { ...rt, toast: { text: '자리를 비울 땐 [A] 자동 전투 — 알아서 싸워요', ms: TIMING.toastMs * 2, kind: 'auto-tip' } };
-    }
+    if ((rt.chooseMs ?? 0) < TIMING.autoTipWaitMs && ms >= TIMING.autoTipWaitMs && autoTipLeft(save)) rt = { ...rt, toast: { text: AUTO_TIP_TURN, ms: AUTO_TIP_TURN_MS, kind: 'auto-tip' } };
     rt = { ...rt, chooseMs: ms };
-  } else if (rt.chooseMs !== undefined) {
-    const { chooseMs: _c, ...rest } = rt;
-    rt = rest;
+  } else {
+    if (rt.chooseMs !== undefined) {
+      const { chooseMs: _c, ...rest } = rt;
+      rt = rest;
+    }
+    // ① 은 내 차례가 끝나면 (골랐거나 · 자동을 켬 · 떠남) 지움 (5초 만에 사라져 코드를 보다 돌아오면 놓치던 것 — UX 리뷰어)
+    if (rt.toast?.kind === 'auto-tip' && rt.toast.text === AUTO_TIP_TURN) rt = { ...rt, toast: null };
   }
-  if (watchingNow && rt.noticed === 'paused' && autoTipLeft(save)) {
-    save = useAutoTip(save);
-    rt = { ...rt, toast: { text: '안 보는 동안 멈춰 있었어요 — [A] 자동 전투면 계속 걸어요', ms: TIMING.toastMs * 2, kind: 'auto-tip' } };
-  }
+  if (watchingNow && rt.noticed === 'paused' && autoTipLeft(save)) rt = { ...rt, toast: { text: AUTO_TIP_BACK, ms: TIMING.toastMs * 2, kind: 'auto-tip' } };
+  // 자동을 켜면 안내는 바로 지움
+  if (save.settings.autoBattle && rt.toast?.kind === 'auto-tip') rt = { ...rt, toast: null };
+  rt = awayStep(state, save, rt, signal);
   // 멈춤 · 알림 (gdd 4.13 · U6) — 밖 · 숨김에서 기다리는 이유가 생겼는데 아직 안 알렸으면 한 번 (장면마다 따로 알리던 것을 한곳에서 — 이로치 전투 중에 떠남 · 밖 고르기 · 대기실로 돌아옴 등 빠진 곳 없이).
   // 보는 중이면 지움 (다시 떠나면 다시 알림) · 기다림이 풀리면 지움 (다음 기다림을 알리게)
   let told: GameNotice | null = null;
@@ -903,13 +904,19 @@ export function step(state: GameState, stepMs: number): StepOut {
 
 /** 자동 전투 첫 안내를 더 띄울 수 있는지 — 자동을 한 번도 안 켰고 (tips 'auto-on') 띄운 수 (tips 'auto-1' ~ ) 가 3 아래 (R12 A) */
 const AUTO_TIP_MAX = 3;
+/** 셈 (tips 'autotip-1' ~) — 화면이 그렸을 때만 ('tip-seen' auto). 옛 'auto-1' ~ 은 안 그린 채 세던 것이라 안 셈 (UX 리뷰어) */
+const AUTO_TIP_SEEN = /^autotip-\d$/;
+export const AUTO_TIP_TURN = '자리를 비울 땐 [A] 자동 전투 — 알아서 싸워요';
+export const AUTO_TIP_BACK = '안 보는 동안 멈춰 있었어요 — [A] 자동 전투면 계속 걸어요';
+/** ① 은 내 차례가 끝날 때까지 — 알림 길이 끝 (readRuntime 60초) 까지 */
+const AUTO_TIP_TURN_MS = 60_000;
 export function autoTipLeft(save: Save): boolean {
   const t = save.tips ?? [];
-  return !save.settings.autoBattle && !t.includes('auto-on') && t.filter((x) => /^auto-\d$/.test(x)).length < AUTO_TIP_MAX && t.length < TIPS_MAX;
+  return !save.settings.autoBattle && !t.includes('auto-on') && t.filter((x) => AUTO_TIP_SEEN.test(x)).length < AUTO_TIP_MAX && t.length < TIPS_MAX;
 }
 function useAutoTip(save: Save): Save {
   const t = save.tips ?? [];
-  return { ...save, tips: [...t, `auto-${t.filter((x) => /^auto-\d$/.test(x)).length + 1}`] };
+  return { ...save, tips: [...t, `autotip-${t.filter((x) => AUTO_TIP_SEEN.test(x)).length + 1}`] };
 }
 
 /**
@@ -1171,6 +1178,8 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       if ((save.settings.skipCaughtLast === true) === input.on) return state;
       return { ...state, save: { ...save, settings: { ...save.settings, skipCaughtLast: input.on } } };
     case 'tip-seen':
+      // 자동 전투 첫 안내 (R12) — 화면이 그렸을 때 셈 (전투 화면이 안 그린 채 세어 세 번이 끝나던 것 — UX 리뷰어)
+      if (input.id === 'auto') return autoTipLeft(save) ? { ...state, save: useAutoTip(save) } : state;
       if (!isTipId(input.id) || save.tips?.includes(input.id) || (save.tips?.length ?? 0) >= TIPS_MAX) return state;
       return { ...state, save: { ...save, tips: [...(save.tips ?? []), input.id] } };
     case 'notifications':
@@ -1422,29 +1431,71 @@ function awayStep(before: GameState, save: Save, rt: RuntimeState, signal: SaveS
     const prev = before.runtime.stage;
     // 잡은 야생도 셈 (신호가 'catch')
     const wildEnd = (signal === 'battle-end' || signal === 'catch') && prev?.phase === 'battle' && prev.battle.kind === 'wild';
-    if (rt.awayLog && !wildEnd) return rt;
-    const log: AwayLog = rt.awayLog ?? { money: before.save.money, bag: { ...before.save.bag }, wild: 0 };
-    return { ...rt, awayLog: wildEnd ? { ...log, wild: log.wild + 1 } : log };
+    // 진 것도 셈 (패배 상자에 들어선 때)
+    const lostNow = rt.stage?.phase === 'defeat' && prev?.phase !== 'defeat';
+    if (rt.awayLog && !wildEnd && !lostNow) return rt;
+    const log: AwayLog = rt.awayLog ?? awayStart(before.save);
+    return { ...rt, awayLog: { ...log, ...(wildEnd ? { wild: log.wild + 1 } : {}), ...(lostNow ? { lost: (log.lost ?? 0) + 1 } : {}) } };
   }
   if (!rt.awayLog) return rt;
   const phase = rt.stage?.phase;
   if (rt.toast || !(phase === 'walk' || phase === 'clear' || phase === 'lobby')) return rt;
   const { awayLog, ...rest } = rt;
-  const text = awaySummary(awayLog, save);
-  return text ? { ...rest, toast: { text, ms: TIMING.awaySummaryMs } } : rest;
+  // 두 장 2.5초씩 (R14 A) — ① 진행 · 레벨업 · 포인트 ② 진 것 · 물건 · 돈 · 야생 (한 장만 있으면 그 장만)
+  const [first, second] = awaySummary(awayLog, save);
+  return first ? { ...rest, toast: { text: first, ms: TIMING.awaySummaryMs, ...(second ? { then: second } : {}) } } : rest;
 }
 
-/** "그동안: 몬스터볼 1 · 상처약 1 · 60원 · 야생 3마리" — 늘어난 물건 · 돈 (줄었으면 −) · 싸운 야생. 없으면 빈 글 */
-export function awaySummary(log: AwayLog, save: Save): string {
-  const parts: string[] = [];
+/** 떠날 때 — 돈 · 가방 · 자리 · 레벨 · 포인트 (그동안 요약의 기준) */
+function awayStart(save: Save): AwayLog {
+  const levels: Record<string, number> = {};
+  for (const uid of save.party) {
+    const m = save.monsters[uid];
+    if (m) levels[uid] = m.level;
+  }
+  return { money: save.money, bag: { ...save.bag }, wild: 0, lost: 0, at: placeOf(save), levels, points: pointsOf(save) };
+}
+
+/** 지금 자리 — 스테이지와 진행 (0 ~ 1) · 체육관 */
+function placeOf(save: Save): NonNullable<AwayLog['at']> {
+  if (save.location.screen === 'stage') return { place: save.location.stageId, progress: save.stages[save.location.stageId]?.progress ?? 0 };
+  return { place: 'gym', progress: 0 };
+}
+
+const pointsOf = (save: Save) => Object.values(save.monsters).reduce((n, m) => n + m.unspentPoints, 0);
+const pct = (p: number) => Math.floor(p * 100);
+
+/**
+ * 그동안 요약 두 장 (R14 A — 2.5초씩) — 빈 장은 뺌 (둘 다 비면 []):
+ * ① "그동안: 1-2 12% → 63% · 피카츄 Lv 14 · 포인트 +6" (진행 · 레벨업 · 포인트) ② "그동안: 패배 1번 · 몬스터볼 1 · 60원 · 야생 3마리" (진 것 · 물건 · 돈 (줄었으면 −) · 싸운 야생)
+ */
+export function awaySummary(log: AwayLog, save: Save): string[] {
+  const grow: string[] = [];
+  if (log.at) {
+    const now = placeOf(save);
+    const code = (p: StageId | 'gym') => (p === 'gym' ? '체육관' : stageCode(p));
+    if (now.place !== log.at.place) grow.push(now.place === 'gym' ? `${code(log.at.place)} → 체육관` : `${code(log.at.place)} → ${code(now.place)} ${pct(now.progress)}%`);
+    else if (now.place !== 'gym' && pct(now.progress) !== pct(log.at.progress)) grow.push(`${code(now.place)} ${pct(log.at.progress)}% → ${pct(now.progress)}%`);
+  }
+  if (log.levels) {
+    const up = Object.entries(log.levels).flatMap(([uid, lv]) => {
+      const m = save.monsters[uid];
+      return m && m.level > lv ? [m] : [];
+    });
+    if (up.length === 1) grow.push(`${speciesOf(up[0]!.species)?.name.ko ?? up[0]!.form} Lv ${up[0]!.level}`);
+    else if (up.length > 1) grow.push(`레벨업 ${up.length}마리`);
+  }
+  if (log.points !== undefined && pointsOf(save) > log.points) grow.push(`포인트 +${pointsOf(save) - log.points}`);
+  const gain: string[] = [];
+  if ((log.lost ?? 0) > 0) gain.push(`패배 ${log.lost}번`);
   for (const id of ITEM_IDS) {
     const d = (save.bag[id] ?? 0) - (log.bag[id] ?? 0);
-    if (d > 0) parts.push(`${itemName(id)} ${d}`);
+    if (d > 0) gain.push(`${itemName(id)} ${d}`);
   }
   const dm = save.money - log.money;
-  if (dm !== 0) parts.push(dm > 0 ? `${dm}원` : `−${-dm}원`);
-  if (log.wild > 0) parts.push(`야생 ${log.wild}마리`);
-  return parts.length > 0 ? `그동안: ${parts.join(' · ')}` : '';
+  if (dm !== 0) gain.push(dm > 0 ? `${dm}원` : `−${-dm}원`);
+  if (log.wild > 0) gain.push(`야생 ${log.wild}마리`);
+  return [grow, gain].filter((p) => p.length > 0).map((p) => `그동안: ${p.join(' · ')}`);
 }
 
 /** 하나 고른 뒤 — 다음 고르기 (새 연출부터) 또는 다음 · 한 줄 알림 (걸을 때 주인공 머리 위) */
