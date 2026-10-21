@@ -8,6 +8,7 @@ import base64
 import importlib.util
 import json
 import os
+import shutil
 import socket
 import struct
 import subprocess
@@ -80,7 +81,8 @@ KEYS = r"""
 })(%FORMS%)
 """
 # 한 줄 재기 — 3:3 자리 (디자인팀 6판: 가운데 줄 x 215 → 645) 에 세워 필살기 끝까지 돌리며 번쩍 · 맞음 · 입자 가운데를 적음.
-# 큰 맞음 = 가장 센 번쩍 (컷인 번쩍 빼고) 뒤 처음 맞는 때 (1.5초 안에 없으면 그 번쩍) · 자기 둘레 = 그 번쩍 0.2초 뒤 입자 가운데가 쓴 쪽에 더 가까움
+# 큰 맞음 = 가장 센 번쩍 (컷인 번쩍 빼고) 뒤 처음 맞는 때 (1.5초 안에 없으면 그 번쩍)
+# 자기 둘레 = 그 번쩍 0.2초 뒤 입자 가운데가 쓴 쪽에 더 가까움 + 번쩍에서 맞기까지 0.4초 넘게 (퍼져서 닿음 — 블래스트번 약 0.9초) — 광선은 번쩍 뒤 곧 닿아서 아님 (솔라빔 약 0.27초)
 ONE = r"""
 (async (form, idx, cfg) => {
   const w = document.querySelector('iframe').contentWindow;
@@ -126,11 +128,12 @@ ONE = r"""
     const after = hits.find((h) => h >= big[1] - 50 && h <= big[1] + 1500);
     main = Math.round(after ?? big[1]);
     const near = samples.reduce((m, s) => (s[1] && (!m || Math.abs(s[0] - big[1] - 200) < Math.abs(m[0] - big[1] - 200)) ? s : m), null);
-    if (near) self = Math.abs(near[1].x - cfg.meX) < Math.abs(near[1].x - cfg.foeX) ? 1 : 0;
+    if (near && main - big[1] > 400) self = Math.abs(near[1].x - cfg.meX) < Math.abs(near[1].x - cfg.foeX) ? 1 : 0;
   } else if (hits.length) {
     main = Math.round(hits[0]);
   }
-  return [main, Math.round(total - lead - cfg.outro), self];
+  // [큰 맞음, 본편 길이, 자기 둘레, 가장 센 번쩍 (없으면 -1)]
+  return [main, Math.round(total - lead - cfg.outro), self, big ? Math.round(big[1]) : -1];
 })(%FORM%, %IDX%, %CFG%)
 """
 
@@ -146,6 +149,7 @@ def browser_page():
     url = f"http://127.0.0.1:{port}/dev/frame.html?" + urllib.parse.urlencode({"w": 860, "h": 187, "page": "game.html", "q": urllib.parse.urlencode({"screen": "game", "battle": "choose", "fx": "1", "shim": "1", "foe": "butterfree:12"})})
     dbg = 9300 + os.getpid() % 600
     prof = tempfile.mkdtemp()
+    browser_page.prof = prof
     p = subprocess.Popen([gs.browser(), "--headless=new", "--disable-gpu", f"--remote-debugging-port={dbg}", f"--user-data-dir={prof}", "--window-size=860,187", "about:blank"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     ws_url = None
     for _ in range(150):
@@ -180,6 +184,8 @@ def worker(k, n, out):
     finally:
         subprocess.run(["taskkill", "/PID", str(p.pid), "/T", "/F"], capture_output=True)
         httpd.shutdown()
+        # 크롬 프로필 폴더는 지움 (%TEMP% 에 쌓이지 않게 — 코드 리뷰어)
+        shutil.rmtree(getattr(browser_page, 'prof', ''), ignore_errors=True)
 
 
 if __name__ == "__main__":
@@ -197,6 +203,7 @@ if __name__ == "__main__":
         f = os.path.join(tmp, f"w{k}.json")
         if os.path.exists(f):
             merged.update(json.load(open(f, encoding="utf-8")))
+    shutil.rmtree(tmp, ignore_errors=True)
     out = dict(sorted(merged.items()))
     open(OUT, "w", encoding="utf-8", newline="\n").write(json.dumps(out, ensure_ascii=False, separators=(",", ":")) + "\n")
     hits = sorted(v[0] for v in out.values() if v[0] >= 0)

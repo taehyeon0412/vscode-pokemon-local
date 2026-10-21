@@ -37,7 +37,7 @@ export type TeamFxCall =
   | { do: 'status'; dst: TeamSlot; kind: 'poison' | 'burn' | 'paralysis' | 'sleep' }
   | { do: 'ready'; dst: TeamSlot }
   /** 필살기 (일반 모드 그대로 — 변신 · 전용 연출) — dst = 가운데 상대 (모두를 침) · quick = 짧게 (TEAM_FX.quickRepeat) · key = 엔진 붙잡기 열쇠 (맞는 순간까지) */
-  | { do: 'ult'; src: TeamSlot; dst: TeamSlot; quick: boolean; key: string }
+  | { do: 'ult'; src: TeamSlot; dst: TeamSlot; quick: boolean; key: string; others: TeamSlot[]; type: string }
   /** 합동 필살기 마무리 — 이긴 참가자 필살기가 같은 때 닿아 한 점에서 합쳐 터짐 (ult/bridge.js ultJoint) · sure = 3:1 압도 */
   | { do: 'joint'; winners: TeamSlot[]; dst: TeamSlot; types: string[]; sure: boolean; key: string; others: TeamSlot[] }
   /** 필살기 힘겨루기 — 앞장 (첫 참가자) 끼리 대결 · 합류는 join */
@@ -135,7 +135,10 @@ function planOne(b: TeamBattle, e: TeamLogEntry, final: boolean, seen: Set<strin
         return;
       }
       const key = `${e.side}:${e.from}`;
-      out.push({ do: 'ult', src: { side: e.side, slot: e.from }, dst: ultTarget(b, e.side), quick: TEAM_FX.quickRepeat && seen.has(key), key: teamUltKey(e.at) });
+      // 필살기 = 상대 모두 — 자기 둘레 필살기의 기운 줄기가 나머지 상대에게도 (태현 님 #92)
+      const dst = ultTarget(b, e.side);
+      const others = b[other(e.side)].map((f, i) => (f.hp > 0 && i !== dst.slot ? i : -1)).filter((i) => i >= 0).map((slot) => ({ side: other(e.side), slot }));
+      out.push({ do: 'ult', src: { side: e.side, slot: e.from }, dst, quick: TEAM_FX.quickRepeat && seen.has(key), key: teamUltKey(e.at), others, type: b[e.side][e.from]?.types[0] ?? 'normal' });
       seen.add(key);
       return;
     }
@@ -349,7 +352,8 @@ export class TeamFxRunner {
         const dst = a(c.dst);
         fx.stopDuel?.();
         // 일반 모드 필살기 그대로 — 맞는 순간까지 엔진을 붙잡아 그때 피해 (1:1 과 같음 · 안 볼 때는 엔진 박자)
-        const total = src && dst ? (fx.ult?.(src, dst, () => releaseFx(), this.learned(c.src), { quick: c.quick }) ?? 0) : 0;
+        const others = c.others.map(a).filter((x): x is FxActor => !!x);
+        const total = src && dst ? (fx.ult?.(src, dst, () => releaseFx(), this.learned(c.src), { quick: c.quick, others, type: c.type }) ?? 0) : 0;
         if (total > 0) holdFx(c.key, total, performance.now(), FX_HOLD_ULT_MAX_MS);
         return;
       }

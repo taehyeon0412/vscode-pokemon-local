@@ -688,7 +688,7 @@ function fxDuelSoftStop() {
 }
 
 // ── 3:3 필살기 박자 · 자리 (2026-10-21 디자인팀 6판 · 기획) ──
-// 필살기 박자표 — "모습|이름|틀" → [큰 맞음 ms, 본편 ms, 자기 둘레 터짐 1/0] (dev/ult-fx.py — 본편 시작부터, 3:3 자리에서 잼).
+// 필살기 박자표 — "모습|이름|틀" → [큰 맞음 ms, 본편 ms, 자기 둘레 터짐 1/0, 가장 센 번쩍 ms] (dev/ult-fx.py — 본편 시작부터, 3:3 자리에서 잼).
 // 그 모습 값이 없으면 같은 필살기 (이름|틀) 의 다른 모습 값, 그것도 없으면 null (처음 닿음 · 본편 40% 로)
 let fxUltIndex;
 function fxUltTiming(form, e) {
@@ -703,7 +703,7 @@ function fxUltTiming(form, e) {
         }
     }
     const m = t[`${form}|${e[0]}|${e[1]}`] || fxUltIndex[`${e[0]}|${e[1]}`];
-    return m && m[0] >= 0 ? { main: m[0], run: m[1], self: m[2] === 1 } : null;
+    return m && m[0] >= 0 ? { main: m[0], run: m[1], self: m[2] === 1, flash: m[3] ?? -1 } : null;
 }
 // 3:3 모드 켜짐 (게임이 상태마다 다시 켬)
 const fxTeamOn = () => performance.now() < fxTeamUntil;
@@ -744,6 +744,179 @@ function fxRelocate(gen, A, B) {
 // ── 합동 필살기 (3:3) — 참가자 줄기를 한 점에 모아 하나로 터뜨림 ──
 // 터진 뒤 여운 (그 뒤 정리)
 const FX_JOINT_BURST_MS = 1500;
+// 기운 줄기 (2026-10-21 태현 님 #92 "추천대로") — 자기 둘레에서 터진 필살기의 기운이 머리 + 10칸 꼬리 (2칸 점) 로 맞을 상대 (모두) 에게 날아감.
+// 터지고 FX_FLOW_DELAY_MS 뒤 떠나 FX_FLOW_MS 에 닿음 → 닿는 곳마다 타입 임팩트 · 닿는 순간 onArrive (게임 피해) 한 번
+const FX_FLOW_DELAY_MS = 200;
+const FX_FLOW_MS = 450;
+function fxEnergyFlow(A, targets, cols, type, onArrive) {
+    const a = A.collision.getBoundingClientRect();
+    const from = { x: a.left + a.width / 2, y: a.top + a.height * 0.5 };
+    const S = Math.max(1, Math.round(a.width / (A._originalSpriteSize || 32)));
+    const u = 2 * S;
+    const snap = (v) => Math.round(v / u) * u;
+    const pal = [cols[3] ?? cols[cols.length - 1], cols[2] ?? cols[1] ?? cols[0], cols[1] ?? cols[0]];
+    const tos = targets
+        .map((t) => (t.collision || t.box || t.el)?.getBoundingClientRect())
+        .filter((q) => q && q.width >= 1)
+        .map((q) => ({ x: q.left + q.width / 2, y: q.top + q.height * 0.5, w: q.width, left: q.left }));
+    let arrived = false;
+    const sec = FX_FLOW_MS / 1000;
+    sigParticle({ x: 0, y: 0, s: 1, max: sec + 0.2, draw: (ctx, q) => {
+        const k = Math.min(1, q.life / sec);
+        ctx.globalAlpha = q.life > sec ? Math.max(0, 1 - (q.life - sec) / 0.2) : 1;
+        for (const to of tos) {
+            const len = Math.hypot(to.x - from.x, to.y - from.y);
+            for (let i = 0; i < 10; i++) {
+                const kk = Math.max(0, k - (i * u) / Math.max(1, len));
+                const x = from.x + (to.x - from.x) * kk;
+                const y = from.y + (to.y - from.y) * kk;
+                ctx.fillStyle = pal[i < 2 ? 2 : i < 6 ? 1 : 0];
+                ctx.fillRect(snap(x), snap(y), u, u);
+                if (i < 3) {
+                    ctx.fillStyle = pal[2];
+                    ctx.fillRect(snap(x), snap(y) - u, u, u);
+                    ctx.fillStyle = pal[1];
+                    ctx.fillRect(snap(x), snap(y) + u, u, u);
+                }
+            }
+        }
+        if (!arrived && k >= 1) {
+            arrived = true;
+            tos.forEach((to) => typeImpact(to.x, to.y, S, type, 0.5, true, to.left > a.left ? 1 : -1, to.w, { scale: 1.2 }));
+            try {
+                onArrive?.();
+            } catch (err) {
+                ultError('flow hit', err);
+            }
+        }
+    } });
+}
+
+// 합동 마무리 (2026-10-21 태현 님 #89 A "폭발의 기운은 제자리에서 터트려서 솔라빔으로") — 각자 필살기가 제자리에서 다 나간 뒤
+//   ① 자기 둘레 터짐의 기운이 합류점으로 흘러감 (0.45초) ② 합류점에서 두 색이 꼬인 굵은 줄기 (쏘는 필살기가 있을 때) · 큰 구슬 (없을 때) 이 상대로 (0.3초)
+//   ③ 닿는 순간 섞인 큰 합체 폭발 (혼자보다 한 단계 큼) + 피해 (onHit). 합류점 = 쏘는 + 자기 둘레: 쏘는 줄기 위 55% · 쏘는 + 쏘는: 상대 앞 80% · 자기 둘레끼리: 둘 가운데
+const FX_JOINT_FLOW_MS = 450;
+const FX_JOINT_GO_MS = 300;
+function fxJointFinish(parts, B, sure, others, onHit) {
+    const r = B.collision.getBoundingClientRect();
+    const S = Math.max(1, Math.round(r.width / (B._originalSpriteSize || 32)));
+    const u = 2 * S;
+    const snap = (v) => Math.round(v / u) * u;
+    const tx = r.left + r.width / 2;
+    const ty = r.top + r.height * 0.5;
+    const center = (A) => {
+        const a = A.collision.getBoundingClientRect();
+        return { x: a.left + a.width / 2, y: a.top + a.height * 0.5, w: a.width, h: a.height };
+    };
+    const mouthOf = (A) => {
+        const c = center(A);
+        return { x: c.x + Math.sign(tx - c.x) * c.w * 0.4, y: c.y - c.h * 0.1 };
+    };
+    const shooters = parts.filter((p) => !p.self);
+    const selfs = parts.filter((p) => p.self);
+    const lerp = (a, b, k) => ({ x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k });
+    const T = { x: tx, y: ty };
+    let M;
+    if (shooters.length && selfs.length) {
+        M = lerp(mouthOf(shooters[0].A), T, 0.55);
+    } else if (shooters.length) {
+        M = lerp(mouthOf(shooters[0].A), T, 0.8);
+    } else {
+        const cs = selfs.map((p) => center(p.A));
+        M = { x: cs.reduce((a, c) => a + c.x, 0) / cs.length, y: cs.reduce((a, c) => a + c.y, 0) / cs.length - 2 * u };
+    }
+    const shade = (pal) => [pal[3] ?? pal[pal.length - 1], pal[2] ?? pal[1] ?? pal[0], pal[1] ?? pal[0]];
+    const pals = parts.map((p) => shade(sigPal(p.type)));
+    const flow = selfs.length ? FX_JOINT_FLOW_MS / 1000 : 0;
+    const go = FX_JOINT_GO_MS / 1000;
+    const orb = !shooters.length;
+    const cell = (ctx, x, y, col) => {
+        ctx.fillStyle = col;
+        ctx.fillRect(snap(x), snap(y), u, u);
+    };
+    let hit = false;
+    sigParticle({ x: 0, y: 0, s: 1, max: flow + go + 0.35, draw: (ctx, q) => {
+        const t = q.life;
+        ctx.globalAlpha = t > flow + go ? Math.max(0, 1 - (t - flow - go) / 0.35) : 1;
+        // ① 기운이 합류점으로 — 머리 + 10칸 꼬리 (그 필살기 색)
+        selfs.forEach((p) => {
+            const c = center(p.A);
+            const pal = shade(sigPal(p.type));
+            const k = Math.min(1, t / Math.max(0.01, flow));
+            const len = Math.hypot(M.x - c.x, M.y - c.y);
+            for (let i = 0; i < 10; i++) {
+                const kk = Math.max(0, k - (i * u) / Math.max(1, len));
+                const pt = lerp(c, M, kk);
+                cell(ctx, pt.x, pt.y, pal[i < 2 ? 2 : i < 6 ? 1 : 0]);
+                if (i < 3) {
+                    cell(ctx, pt.x, pt.y - u, pal[2]);
+                    cell(ctx, pt.x, pt.y + u, pal[1]);
+                }
+            }
+        });
+        if (t < flow) {
+            return;
+        }
+        // ② 합류점에서 상대로 — 꼬인 줄기 (두 가닥 12칸 주기 · ±2칸 · 엇갈리는 곳 짙은 틈) · 큰 구슬
+        const k = Math.min(1, (t - flow) / go);
+        const len = Math.hypot(T.x - M.x, T.y - M.y);
+        const ux = (T.x - M.x) / Math.max(1, len);
+        const uy = (T.y - M.y) / Math.max(1, len);
+        if (orb) {
+            const c = lerp(M, T, k);
+            const R = 5 + parts.length;
+            for (let j = -R; j <= R; j++) {
+                for (let i = -R; i <= R; i++) {
+                    const d2 = i * i + j * j;
+                    if (d2 > R * R) {
+                        continue;
+                    }
+                    const pal = pals[(i + j) & 1 ? 0 : 1 % pals.length];
+                    cell(ctx, c.x + i * u, c.y + j * u, d2 < (R * 0.4) ** 2 ? '#ffffff' : pal[d2 > (R - 1.5) ** 2 ? 0 : 2]);
+                }
+            }
+        } else {
+            const n = Math.floor((len * k) / u);
+            const ph = Math.floor(t * 12.5);
+            for (let i = 0; i <= n; i++) {
+                const bx = M.x + ux * i * u;
+                const by = M.y + uy * i * u;
+                const off = Math.round(Math.sin(((i + ph) / 12) * Math.PI * 2) * 2);
+                const cross = Math.abs(off) < 1;
+                // 굵기 = 흰 심 1 + 가닥 둘 (2칸씩)
+                cell(ctx, bx, by, cross ? pals[0][0] : '#ffffff');
+                [off, -off].forEach((o, si) => {
+                    const pal = pals[si % pals.length];
+                    for (let w = 0; w < 2; w++) {
+                        cell(ctx, bx - uy * (o + (o >= 0 ? w + 1 : -w - 1)) * u, by + ux * (o + (o >= 0 ? w + 1 : -w - 1)) * u, cross ? pal[0] : pal[w ? 1 : 2]);
+                    }
+                });
+            }
+        }
+        // ③ 닿음 — 합체 폭발 (혼자보다 한 단계 큼) · 피해
+        if (!hit && k >= 1) {
+            hit = true;
+            try {
+                fxMergeBurst(tx, ty, u, parts.map((p) => sigPal(p.type)), Math.max(2, parts.length) + 1);
+                screenFlash(S, 0.55, '#ffffff', 0.08);
+                others.forEach((spec, i) => setTimeout(() => {
+                    const o = (spec.box || spec.el).getBoundingClientRect();
+                    if (o.width >= 1) {
+                        typeImpact(o.left + o.width / 2, o.top + o.height * 0.55, S, parts[i % parts.length].type, 0.5, false, o.left > r.left ? 1 : -1, o.width, { scale: 0.9 });
+                    }
+                }, 150 + i * 60));
+            } catch (err) {
+                ultError('joint finish', err);
+            }
+            try {
+                onHit?.();
+            } catch (err) {
+                ultError('joint hit', err);
+            }
+        }
+    } });
+    return Math.round((flow + go) * 1000);
+}
 // 한 점 합체 폭발 — 디자인팀 6판 값 (참가자 타입 색 바둑판 · 마리 수만큼) + 패널 번쩍 한 번
 function fxJointBurst(parts, B, sure, others = []) {
     const r = B.collision.getBoundingClientRect();
@@ -960,16 +1133,21 @@ window.pokemonFx = {
             total = fxWithTimers(gen, () => useUltimate(A, entry, { quick: !!o?.quick, charge, ...(o?.sub ? { sub: o.sub } : {}) })) || 0;
             if (tm && total) {
                 const at = charge + (o?.quick ? ULT_QUICK_INTRO_MS : ULT_INTRO_MS) + tm.main;
-                setTimeout(fxGuard(gen, () => {
-                    if (tm.self) {
-                        fxRelocate(gen, A, B);
-                    }
+                // 자기 둘레 필살기 (블래스트번 등) 는 제자리에서 원래대로 터지고, 대폭발 번쩍 뒤 기운이 줄기로 맞을 상대 모두에게 → 닿을 때 피해 (태현 님 #92)
+                // 쏘는 필살기는 큰 맞음 (줄기가 상대에 닿음) 에 피해
+                const hitNow = () => {
                     try {
                         onHit?.();
                     } catch (err) {
                         ultError('game hit', err);
                     }
-                }), at);
+                };
+                if (tm.self && tm.flash >= 0) {
+                    const targets = [B, ...(o?.others || []).filter((x) => x && fxWidth(x) >= 1)];
+                    setTimeout(fxGuard(gen, () => fxEnergyFlow(A, targets, ultCols(entry[2] || {}, entry[1]), o?.type || 'normal', hitNow)), at - tm.main + tm.flash + FX_FLOW_DELAY_MS);
+                } else {
+                    setTimeout(fxGuard(gen, hitNow), at);
+                }
             }
         } catch (err) {
             ultError('game ult', err);
@@ -1018,7 +1196,9 @@ window.pokemonFx = {
             // 참가자마다 번호 — 자기 둘레 터짐을 따로 옮김 · 멈출 때 다 같이
             const pg = ++fxGen;
             fxTagged.add(pg);
-            return { A, e, T, ms, hit: tm ? tm.main : Math.round(ms * 0.4), self: !!tm?.self, gen: pg, left: A.left + spriteSize(A) / 2 > window.innerWidth / 2, cols: ultCols(e[2] || {}, e[1]), type: o.types?.[i] || 'normal' };
+            // 같은 때 맞출 순간 — 쏘는 필살기는 큰 맞음 (줄기가 상대에 닿음) · 자기 둘레 필살기는 대폭발 번쩍 (그다음 기운이 줄기로 — 태현 님 #89 A)
+            const anchor = tm ? (tm.self && tm.flash >= 0 ? tm.flash : tm.main) : Math.round(ms * 0.4);
+            return { A, e, T, ms, hit: anchor, self: !!tm?.self, gen: pg, left: A.left + spriteSize(A) / 2 > window.innerWidth / 2, cols: ultCols(e[2] || {}, e[1]), type: o.types?.[i] || 'normal' };
         });
         const As = parts.map((p) => p.A);
         const lead = parts[0];
@@ -1028,7 +1208,7 @@ window.pokemonFx = {
         const hitAt = Math.max(...parts.map((p) => p.hit));
         parts.forEach((p) => (p.start = hitAt - p.hit));
         const now = performance.now();
-        const runEnd = Math.max(...parts.map((p) => p.start + p.ms), hitAt + FX_JOINT_BURST_MS);
+        const runEnd = Math.max(...parts.map((p) => p.start + p.ms), hitAt + FX_JOINT_FLOW_MS + FX_JOINT_GO_MS + FX_JOINT_BURST_MS);
         const until = now + charge + introMs + runEnd + ULT_OUTRO_MS;
         const g = { A: lead.A, B, many: As, gen, gens: parts.map((p) => p.gen), tick: setInterval(fxGameTick, 100), hit: false, joint: true };
         fxGame = g;
@@ -1065,18 +1245,17 @@ window.pokemonFx = {
                         });
                     }, introMs + p.start);
                 });
-                // 같은 때 맞는 순간 — 자기 둘레 터짐은 상대 자리로 · 한 점 합체 폭발 · 게임 피해
+                // 같은 때 (쏘는 줄기가 닿음 · 대폭발이 터짐) — 그 뒤 기운이 줄기로 모여 상대를 침 → 합체 폭발 · 게임 피해 (fxJointFinish)
                 setTimeout(() => {
-                    parts.forEach((p) => p.self && fxRelocate(p.gen, p.A, B));
                     try {
-                        fxJointBurst(parts, B, !!o.sure, (o.others || []).filter((x) => x && fxWidth(x) >= 1));
+                        fxJointFinish(parts, B, !!o.sure, (o.others || []).filter((x) => x && fxWidth(x) >= 1), onHit);
                     } catch (err) {
-                        ultError('joint burst', err);
-                    }
-                    try {
-                        onHit?.();
-                    } catch (err) {
-                        ultError('joint hit', err);
+                        ultError('joint finish', err);
+                        try {
+                            onHit?.();
+                        } catch (e2) {
+                            ultError('joint hit', e2);
+                        }
                     }
                 }, introMs + hitAt);
             }, charge);

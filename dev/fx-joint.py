@@ -1,6 +1,6 @@
 """3:3 합동 필살기 합쳐지는 마무리 찍기 (2026-10-21 — 디자인팀 시안 6판 "솔라빔 + 블라스트번")
   python dev/fx-joint.py <out_dir> [창=860x187] [초=6] [k=v ...]
-    a=venusaur:솔라빔:grass  b=charizard:블래스트번:fire  [c=<모습>:<필살기 이름>:<타입>]  foe=butterfree:12  sure=1 (3:1 압도)  list=1 (그 포켓몬 필살기 이름만 보기)  fps=1 (찍지 않고 PC 부담만)
+    a=venusaur:솔라빔:grass  b=charizard:블래스트번:fire  [c=<모습>:<필살기 이름>:<타입>]  foe=butterfree:12  sure=1 (3:1 압도)  list=1 (그 포켓몬 필살기 이름만 보기)  fps=1 (찍지 않고 PC 부담만)  layout=team (디자인팀 6판 3:3 자리)
   전투 장면 (battle=choose) 의 내 포켓몬을 a 로 바꾸고 b · c 를 뒤에 세워 window.pokemonFx.ultJoint 를 부름 — 0.06 ~ 0.08초마다 찍음 (f_<ms>.png)
   모양 · 박자는 엔진 없이 연출만 (게임에 붙는 건 3:3 화면 단계)"""
 import base64
@@ -87,7 +87,7 @@ foe_form = kv.get("foe", "butterfree:12").split(":")[0]
 
 # 내 칸 그림을 바꾸고 · 뒤에 복제 칸을 세움 (그림 주소의 모습 이름만 바꿈)
 PROBE = r"""
-((parts, foeForm, sure, list) => {
+((parts, foeForm, sure, list, team) => {
   const w = document.querySelector('iframe').contentWindow;
   const d = w.document;
   const fx = w.pokemonFx;
@@ -115,6 +115,24 @@ PROBE = r"""
   });
   const foeBox = d.querySelector('.pg-fighter-foe');
   const foe = { el: foeBox.querySelector('.pg-sprite'), box: foeBox, form: foeForm, size: 32, left: true };
+  // layout=team — 디자인팀 6판 3:3 자리 (860 × 187: 내 편 x 155 · 215 · 275 / 상대 가운데 x 645, 발 y 112 · 138 · 164) 에 세움
+  if (team) {
+    const place = (box, cx, feet) => {
+      box.style.marginLeft = '0px';
+      box.style.marginTop = '0px';
+      box.style.marginBottom = '0px';
+      const r = box.getBoundingClientRect();
+      box.style.marginLeft = `${Math.round(cx - (r.left + r.width / 2))}px`;
+      box.style.marginTop = `${Math.round(feet - r.bottom)}px`;
+      const r2 = box.getBoundingClientRect();
+      if (Math.abs(r2.bottom - feet) > 2) {
+        box.style.marginTop = '0px';
+        box.style.marginBottom = `${Math.round(r2.bottom - feet)}px`;
+      }
+    };
+    actors.forEach((a, i) => place(a.box, [155, 215, 275][i], [112, 138, 164][i]));
+    place(foeBox, 645, 138);
+  }
   w.__jointHit = 0;
   // 화면 갱신 간격 (fps=1 — PC 부담)
   w.__fd = [];
@@ -124,7 +142,7 @@ PROBE = r"""
   const t0 = performance.now();
   const ms = fx.ultJoint(actors, foe, () => { w.__jointHit = performance.now() - t0; }, { types: parts.map((p) => p.type), pick: parts.map((p) => p.pick), sure });
   return { ms };
-})(%PARTS%, %FOE%, %SURE%, %LIST%)
+})(%PARTS%, %FOE%, %SURE%, %LIST%, %TEAM%)
 """
 
 httpd, port = gs.serve()
@@ -150,7 +168,7 @@ with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as prof:
         ws.call("Emulation.setDeviceMetricsOverride", {"width": int(w), "height": int(h), "deviceScaleFactor": 1, "mobile": False})
         ws.call("Page.navigate", {"url": url})
         time.sleep(3)
-        expr = PROBE.replace("%PARTS%", json.dumps(parts, ensure_ascii=False)).replace("%FOE%", json.dumps(foe_form)).replace("%SURE%", "true" if kv.get("sure") == "1" else "false").replace("%LIST%", "true" if kv.get("list") == "1" else "false")
+        expr = PROBE.replace("%PARTS%", json.dumps(parts, ensure_ascii=False)).replace("%FOE%", json.dumps(foe_form)).replace("%SURE%", "true" if kv.get("sure") == "1" else "false").replace("%LIST%", "true" if kv.get("list") == "1" else "false").replace("%TEAM%", "true" if kv.get("layout") == "team" else "false")
         t0 = time.time()
         r = ws.call("Runtime.evaluate", {"expression": expr, "returnByValue": True})
         print(json.dumps(r.get("result", {}).get("value") or r, ensure_ascii=False))
