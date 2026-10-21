@@ -317,7 +317,8 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
           if (total > 0) {
             // 반격기로 본 것은 "본 필살기" 로 안 셈 (진짜 필살기는 처음엔 컷인까지) · 반격기는 금색 "반격!" (그림이 준비된 뒤라 여기서)
             if (!riposte) seenUlts.current.add(seenKey);
-            else if (dst) fx.word?.(dst, '반격!', 'gold');
+            // 약 0.85초만 보이던 것 → 1.4초 (2026-10-21 UX 리뷰어 U1) · 상대 바깥쪽 (가운데는 반격기 이름 — 150px 에서 겹침)
+            else if (dst) fx.word?.(dst, '반격!', 'gold', { sec: 1.4, other: src, away: true });
             holdFx(key, total, performance.now(), FX_HOLD_ULT_MAX_MS);
             ultOn = true;
             // Space = 남은 연출 건너뛰기 (아직 안 맞혔으면 맞힌 것으로 — 피해는 엔진이 그대로)
@@ -405,7 +406,7 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
     // 패링 글 — 완벽 = 금색 "완벽 패링!" · 보통 = 은색 "패링!" (내 포켓몬 머리 위)
     const parryPop = fresh.find((p) => p.kind === 'parry');
     const me = parryPop ? actor(b, 'me') : null;
-    if (parryPop && me) fx.word?.(me, parryPop.text, parryPop.text === '완벽 패링!' ? 'gold' : 'silver');
+    if (parryPop && me) fx.word?.(me, parryPop.text, parryPop.text === '완벽 패링!' ? 'gold' : 'silver', { other: actor(b, 'foe') });
     // 상태 이상이 걸림 = status 글 + 지금 그 상태 (나음은 아이템 반짝이가 이미 있어서 따로 안 그림)
     for (const p of fresh) {
       const kind = p.kind === 'status' ? b[p.side].status?.kind : undefined;

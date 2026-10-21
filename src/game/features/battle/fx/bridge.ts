@@ -62,8 +62,8 @@ export interface PokemonFx {
   ko?(dst: FxActor): void;
   /** 완벽 패링 쳐내기 — kind = 연출 틀 (fx.plan().fx), 쏘는 것은 위로 쳐내고 나머지는 피함 (2026-10-20) */
   swat?(dst: FxActor, src: FxActor | null, type: string, kind: string): void;
-  /** 패링 글 — tone gold (완벽 패링! · 반격!) · silver (패링!) */
-  word?(dst: FxActor, text: string, tone: 'gold' | 'silver'): void;
+  /** 패링 글 — tone gold (완벽 패링! · 반격!) · silver (패링!) · opt.sec = 보이는 길이 (초) · opt.other = 맞은편 포켓몬 (글씨가 두 포켓몬 사이 dst 쪽 반 안에) · opt.away = 맞은편 반대쪽 (바깥) 에 */
+  word?(dst: FxActor, text: string, tone: 'gold' | 'silver', opt?: { sec?: number; other?: FxActor | null; away?: boolean }): void;
   /** 반격 기회 — 상대만 밝고 둘레가 살짝 어두워짐 (ms 동안) */
   riposteFocus?(dst: FxActor, ms: number): void;
   /** 닿는 기술을 패링 — 쳐내는 몸짓으로 상대를 튕겨 냄 (dst = 막은 쪽 · src = 친 쪽, perfect = 금색 · 크게) */

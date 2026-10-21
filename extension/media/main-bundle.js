@@ -9072,7 +9072,9 @@ function ultIntro(pokemon, left, name, sub, o, fx, until, introMs = ULT_INTRO_MS
     } });
     // 입자는 나중 것부터 그려서 — 글씨를 먼저 만들어야 띠 위에 보임
     // 다시 보는 필살기는 컷인 띠 없이 이름만 짧게
-    ultTitle(name, sub, o.tc ? sigPal(o.tc) : null, introMs / 1000 + (quick ? 0.5 : 0.9), 0.36, quick ? 0.6 : 1);
+    // 다시 보는 필살기 · 반격기 이름 0.8 → 1.2초 (약 0.7 ~ 0.8초만 보이던 것, 2026-10-21 UX 리뷰어 U1 — 연출 위에 겹쳐 그려 길이는 그대로)
+    // 짧은 이름은 컷인 띠가 없어 HP 묶음을 피해 위로 (컷인 띠 위 이름은 그대로)
+    ultTitle(name, sub, o.tc ? sigPal(o.tc) : null, introMs / 1000 + 0.9, 0.36, quick ? 0.6 : 1, quick ? { hud: true } : null);
     if (!quick) {
         ultCutIn(pokemon, left, cols, ULT_INTRO_MS / 1000);
     }
@@ -9181,6 +9183,7 @@ function ultCutIn(pokemon, left, cols, sec, yc = 0.36, hf = 0.3) {
 const ultFont = () => (typeof fxInGame === 'function' && fxInGame() ? "'Pretendard', sans-serif" : 'sans-serif');
 function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1, at = null) {
     const C = cols || ['#fffbe0', '#ffe680', '#f5c400', '#b88a00'];
+    let hud = null; // at.hud — HP 묶음 자리 (첫 장면에 한 번 잼)
     sigParticle({ x: 0, y: 0, s: 2, max: sec, draw: (ctx, p) => {
         const W = window.innerWidth;
         const H = window.innerHeight;
@@ -9205,9 +9208,25 @@ function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1, at = null) {
         // 게임 모드 — 부제까지 정보줄 아래에 (연출 캔버스 위쪽은 정보줄 아래 끝에서 잘림)
         const top = typeof fxTop === 'function' ? fxTop() : 0;
         const yMin = top ? top + (sub ? size * 0.85 + Math.max(10, Math.round(size * 0.4)) / 2 : size / 2) + 4 : 0;
-        // at = 그 자리 가운데 (화면 밖으로 안 나가게 안쪽으로) — 없으면 화면 가운데
-        const cx = at ? Math.min(W - tw / 2 - 4, Math.max(tw / 2 + 4, at.x)) : W / 2;
-        ctx.translate(Math.round(cx + jx), Math.round(Math.max(at ? at.y : H * yc, yMin)));
+        // at.x · at.y = 그 자리 가운데 (화면 밖으로 안 나가게 안쪽으로) — 없으면 화면 가운데
+        const fixed = !!at && at.x !== undefined;
+        const cx = fixed ? Math.min(W - tw / 2 - 4, Math.max(tw / 2 + 4, at.x)) : W / 2;
+        let y = Math.max(fixed ? at.y : H * yc, yMin);
+        // at.hud = 게임 HP 묶음에 겹치면 HP 위로 · 위에 자리가 모자라면 (150px — 정보줄 ~ HP 사이 약 12px) HP 바로 아래로 (반격기 이름이 상대 "파이리 Lv6" 위에 겹치던 것, 2026-10-21 UX 리뷰어)
+        if (at && at.hud && top) {
+            if (!hud) {
+                hud = typeof fxHudRects === 'function' ? fxHudRects() : [];
+            }
+            const up = sub ? size * 0.85 + Math.max(10, Math.round(size * 0.4)) / 2 : size / 2;
+            const down = size / 2;
+            const half = Math.min(tw, W * 0.9) / 2 + 4;
+            const hits = hud.filter((r) => r.left < cx + half && r.right > cx - half && r.top < y + down && r.bottom > y - up);
+            if (hits.length) {
+                const hTop = Math.min(...hits.map((r) => r.top));
+                y = hTop - 2 - down - up >= top + 2 ? hTop - 2 - down : Math.max(...hits.map((r) => r.bottom)) + 2 + up;
+            }
+        }
+        ctx.translate(Math.round(cx + jx), Math.round(y));
         ctx.scale(scale, scale);
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -49606,8 +49625,10 @@ window.pokemonFx = {
             window.pokemonFx.hitStop(150);
         });
     },
-    /** 패링 글 (2026-10-20 태현 님) — 완벽 = 금색 "완벽 패링!" (크게 · 반짝) · 보통 = 은색 "패링!" (작게) · 반격 = 금색 "반격!" — 필살기 이름 글씨처럼, 그 포켓몬 머리 위 */
-    word(dst, text, tone) {
+    /** 패링 글 (2026-10-20 태현 님) — 완벽 = 금색 "완벽 패링!" (크게 · 반짝) · 보통 = 은색 "패링!" (작게) · 반격 = 금색 "반격!" — 필살기 이름 글씨처럼, 그 포켓몬 머리 위.
+     *  opt.sec = 보이는 길이 (초) · opt.other = 맞은편 포켓몬 — 주면 글씨가 두 포켓몬 사이 이 포켓몬 쪽 반을 넘지 않음 (좁은 패널에서 상대 머리 위에 그려져 상대가 막은 것처럼 읽히던 것, 2026-10-21 UX 리뷰어)
+     *  · opt.away = 맞은편 반대쪽 (바깥) 에 */
+    word(dst, text, tone, opt = {}) {
         safeFx({}, () => {
             const r = (dst.box || dst.el).getBoundingClientRect();
             if (r.width < 1) {
@@ -49619,12 +49640,36 @@ window.pokemonFx = {
             // 포켓몬 배율 — 보통 ×2 그대로, 높은 패널 ×3 이면 글씨 · 반짝이도 1.5배 (2026-10-20 높은 패널 크게)
             const s = Math.max(1, Math.round(r.width / (dst.size || 32)));
             const grow = Math.max(1, s / 2);
-            // 머리 위는 HP 묶음 자리라 — 그 포켓몬 옆 (화면 가운데 쪽) 위에
-            const toward = r.left + r.width / 2 < window.innerWidth / 2 ? 1 : -1;
-            const x = r.left + r.width / 2 + toward * r.width * 1.6;
-            const y = r.top + r.height * 0.2;
+            const cx = r.left + r.width / 2;
+            const o = opt.other ? (opt.other.box || opt.other.el).getBoundingClientRect() : null;
+            const ox = o && o.width >= 1 ? o.left + o.width / 2 : null;
+            // 글씨 크기 · 폭 (ultTitle 과 같은 셈)
+            const k0 = (big ? 0.55 : 0.38) * grow;
+            const size = Math.round(ultClamp(window.innerWidth / 9, 18, 40) * k0);
+            const m = document.createElement('canvas').getContext('2d');
+            m.font = `900 ${size}px ${ultFont()}`;
+            const tw = m.measureText(text).width;
+            // 머리 위는 HP 묶음 자리라 — 그 포켓몬 옆 (상대 쪽 · 없으면 화면 가운데 쪽) 위에 · opt.away = 바깥쪽 (반격 — 가운데는 반격기 이름 자리)
+            const inward = (ox !== null ? ox > cx : cx < window.innerWidth / 2) ? 1 : -1;
+            const toward = opt.away ? -inward : inward;
+            let x = cx + toward * r.width * 1.6;
+            let y = r.top + r.height * 0.2;
+            // 상대 쪽이면 두 포켓몬 사이 이 포켓몬 쪽 반 안에 · 그래도 이 포켓몬 가운데보다 바깥으로는 안 밂 (240px 에서 주인공 · 자동 꺼짐 표 뒤로 가던 것)
+            if (ox !== null && !opt.away) {
+                const mid = (cx + ox) / 2;
+                x = toward > 0 ? Math.max(cx, Math.min(x, mid - tw / 2)) : Math.min(cx, Math.max(x, mid + tw / 2));
+            }
+            // 글씨 가운데가 이 포켓몬 위면 머리 위로 — HP 묶음 아래까지만 (480 × 187 에서 HP 숫자 위에 겹치던 것)
+            if (Math.abs(x - cx) < r.width / 2) {
+                const hb = fxHudRects()
+                    .filter((h) => h.left < x + tw / 2 && h.right > x - tw / 2 && h.bottom < r.top + r.height / 2)
+                    .reduce((b, h) => Math.max(b, h.bottom), -Infinity);
+                y = Math.min(y, Math.max(r.top - size * 0.6, hb + 2 + size / 2));
+            }
+            // 보통 패링 0.7 → 1.1초 (흐려지기 전 약 0.4초만 보이던 것, 2026-10-21 UX 리뷰어 U1) · 완벽 1.0초
+            const sec = opt.sec || (big ? 1.0 : 1.1);
             // 필살기 이름 글씨보다 얌전하게 — 1.4배에서 시작 · 떨림 없음 (패링은 자주 나와서, 아트 디렉터 8차)
-            ultTitle(text, null, cols, big ? 1.0 : 0.7, 0.36, (big ? 0.55 : 0.38) * grow, { x, y, s0: 1.4, still: true });
+            ultTitle(text, null, cols, sec, 0.36, k0, { x, y, s0: 1.4, still: true });
             if (big) {
                 for (let i = 0; i < 8; i++) {
                     const a = (i / 8) * Math.PI * 2;

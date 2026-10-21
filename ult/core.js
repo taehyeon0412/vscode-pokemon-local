@@ -560,7 +560,9 @@ function ultIntro(pokemon, left, name, sub, o, fx, until, introMs = ULT_INTRO_MS
     } });
     // 입자는 나중 것부터 그려서 — 글씨를 먼저 만들어야 띠 위에 보임
     // 다시 보는 필살기는 컷인 띠 없이 이름만 짧게
-    ultTitle(name, sub, o.tc ? sigPal(o.tc) : null, introMs / 1000 + (quick ? 0.5 : 0.9), 0.36, quick ? 0.6 : 1);
+    // 다시 보는 필살기 · 반격기 이름 0.8 → 1.2초 (약 0.7 ~ 0.8초만 보이던 것, 2026-10-21 UX 리뷰어 U1 — 연출 위에 겹쳐 그려 길이는 그대로)
+    // 짧은 이름은 컷인 띠가 없어 HP 묶음을 피해 위로 (컷인 띠 위 이름은 그대로)
+    ultTitle(name, sub, o.tc ? sigPal(o.tc) : null, introMs / 1000 + 0.9, 0.36, quick ? 0.6 : 1, quick ? { hud: true } : null);
     if (!quick) {
         ultCutIn(pokemon, left, cols, ULT_INTRO_MS / 1000);
     }
@@ -669,6 +671,7 @@ function ultCutIn(pokemon, left, cols, sec, yc = 0.36, hf = 0.3) {
 const ultFont = () => (typeof fxInGame === 'function' && fxInGame() ? "'Pretendard', sans-serif" : 'sans-serif');
 function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1, at = null) {
     const C = cols || ['#fffbe0', '#ffe680', '#f5c400', '#b88a00'];
+    let hud = null; // at.hud — HP 묶음 자리 (첫 장면에 한 번 잼)
     sigParticle({ x: 0, y: 0, s: 2, max: sec, draw: (ctx, p) => {
         const W = window.innerWidth;
         const H = window.innerHeight;
@@ -693,9 +696,25 @@ function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1, at = null) {
         // 게임 모드 — 부제까지 정보줄 아래에 (연출 캔버스 위쪽은 정보줄 아래 끝에서 잘림)
         const top = typeof fxTop === 'function' ? fxTop() : 0;
         const yMin = top ? top + (sub ? size * 0.85 + Math.max(10, Math.round(size * 0.4)) / 2 : size / 2) + 4 : 0;
-        // at = 그 자리 가운데 (화면 밖으로 안 나가게 안쪽으로) — 없으면 화면 가운데
-        const cx = at ? Math.min(W - tw / 2 - 4, Math.max(tw / 2 + 4, at.x)) : W / 2;
-        ctx.translate(Math.round(cx + jx), Math.round(Math.max(at ? at.y : H * yc, yMin)));
+        // at.x · at.y = 그 자리 가운데 (화면 밖으로 안 나가게 안쪽으로) — 없으면 화면 가운데
+        const fixed = !!at && at.x !== undefined;
+        const cx = fixed ? Math.min(W - tw / 2 - 4, Math.max(tw / 2 + 4, at.x)) : W / 2;
+        let y = Math.max(fixed ? at.y : H * yc, yMin);
+        // at.hud = 게임 HP 묶음에 겹치면 HP 위로 · 위에 자리가 모자라면 (150px — 정보줄 ~ HP 사이 약 12px) HP 바로 아래로 (반격기 이름이 상대 "파이리 Lv6" 위에 겹치던 것, 2026-10-21 UX 리뷰어)
+        if (at && at.hud && top) {
+            if (!hud) {
+                hud = typeof fxHudRects === 'function' ? fxHudRects() : [];
+            }
+            const up = sub ? size * 0.85 + Math.max(10, Math.round(size * 0.4)) / 2 : size / 2;
+            const down = size / 2;
+            const half = Math.min(tw, W * 0.9) / 2 + 4;
+            const hits = hud.filter((r) => r.left < cx + half && r.right > cx - half && r.top < y + down && r.bottom > y - up);
+            if (hits.length) {
+                const hTop = Math.min(...hits.map((r) => r.top));
+                y = hTop - 2 - down - up >= top + 2 ? hTop - 2 - down : Math.max(...hits.map((r) => r.bottom)) + 2 + up;
+            }
+        }
+        ctx.translate(Math.round(cx + jx), Math.round(y));
         ctx.scale(scale, scale);
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
