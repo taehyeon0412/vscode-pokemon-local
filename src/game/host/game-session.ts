@@ -776,8 +776,9 @@ export class GameSession {
       this.noticePending = null;
       if (this.mode !== 'game' || !this.state) return;
       // 아직 안 보고 같은 이유로 기다릴 때만 (밖 = 포커스 없음 · 숨김 = 확장이 들고 있고 그 이유가 그대로)
-      const still = away ? !this.windowFocused : this.owner === 'host' && (waitReason(this.state) ?? (this.state.runtime.noticed === 'paused' ? 'paused' : null)) === notice;
-      if (still) this.sendNotice(notice, away);
+      const still = away ? !this.windowFocused || this.owner === 'host' : this.owner === 'host' && (waitReason(this.state) ?? (this.state.runtime.noticed === 'paused' ? 'paused' : null)) === notice;
+      // 밖에서 기다리다 패널을 숨겼으면 (확장이 들고 있음) "패널을 열면" 문구로 ("VS Code 로 돌아오면" 으로 뜨던 것 — 테스터)
+      if (still) this.sendNotice(notice, away && this.owner !== 'host');
     }, wait);
   }
 

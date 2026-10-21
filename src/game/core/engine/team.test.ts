@@ -315,7 +315,8 @@ describe('연결 — 트레이너 만남 · 관장전 (BALANCE.team.on 이 켜�
       expect(retreat.save.stages['forest-1']!.progress).toBeCloseTo(0.3, 5);
       expect(retreat.save.stages['forest-1']!.progress).toBeLessThan(0.3);
       expect(retreat.save.money).toBe(900);
-      expect(retreat.save.stages['forest-1']!.run.retries).toBe(1);
+      // 다시 걷는 길의 야생은 다시 뽑음 (retries — S17 과 같이, 같은 이로치를 또 잡던 것 — 테스터)
+      expect(retreat.save.stages['forest-1']!.run.retries).toBe(2);
       expect(applyInput(box, { kind: 'defeat-retreat' }).save.stages['forest-1']!.progress).toBe(0);
       expect(applyInput(s, { kind: 'defeat-retreat' })).toBe(s);
       // 셋뿐이면 전멸 → S17

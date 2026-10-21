@@ -413,11 +413,14 @@ function stageDefeat(save0: Save, id: StageId): { save: Save; lost: number } {
   return { save, lost: d.lost };
 }
 
-/** [병원 앞으로] (3:3 두 번째 패배 상자, #152) — 팀 회복 · 마지막으로 지나간 병원 앞 (없으면 처음) · 돈 · 패배 수는 그대로 */
+/**
+ * [병원 앞으로] (3:3 두 번째 패배 상자, #152) — 팀 회복 · 마지막으로 지나간 병원 앞 (없으면 처음) · 돈은 더 안 뺌.
+ * 다시 걷는 길의 야생은 다시 뽑음 (run.retries — S17 과 같이, 같은 이로치를 또 잡던 것 — 테스터). 상자는 이미 두 번째 패배라 기다림 조건은 그대로
+ */
 function stageRetreat(save0: Save, id: StageId): Save {
   const save = { ...healTeam(save0), pendingEncounter: null };
   const hospital = save.lastHospital?.stageId === id ? save.lastHospital.at : null;
-  return withStage(save, id, (p) => ({ ...p, progress: hospital !== null ? Math.max(0, hospital - BEFORE_SPOT) : 0, run: { ...p.run, reach: Math.max(p.run.reach, p.progress) } }));
+  return withStage(save, id, (p) => ({ ...p, progress: hospital !== null ? Math.max(0, hospital - BEFORE_SPOT) : 0, run: { ...p.run, reach: Math.max(p.run.reach, p.progress), retries: p.run.retries + 1 } }));
 }
 
 function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number): { save: Save; rt: RuntimeState; signal: SaveSignal | null } {
@@ -1608,7 +1611,9 @@ function awayStep(before: GameState, save: Save, rt: RuntimeState, signal: SaveS
       prev?.phase === 'team' && rt.stage?.phase !== 'team' && rt.stage?.phase !== 'defeat' && met?.kind === 'trainer' && !save.pendingEncounter && save.stages[met.stageId]?.defeatedTrainers.includes(met.trainerId) !== true;
     const lostNow = (rt.stage?.phase === 'defeat' && prev?.phase !== 'defeat') || teamLost;
     if (rt.awayLog && !wildEnd && !lostNow) return rt;
-    const log: AwayLog = rt.awayLog ?? awayStart(before.save, before.runtime.toast?.text);
+    const leaveToast = before.runtime.toast;
+    const leaveThen = leaveToast?.then === undefined ? 0 : Array.isArray(leaveToast.then) ? leaveToast.then.length : 1;
+    const log: AwayLog = rt.awayLog ?? { ...awayStart(before.save, leaveToast?.text), ...(leaveToast ? { thenAtLeave: leaveThen } : {}) };
     return { ...rt, awayLog: { ...log, ...(wildEnd ? { wild: log.wild + 1 } : {}), ...(lostNow ? { lost: (log.lost ?? 0) + 1 } : {}) } };
   }
   if (!rt.awayLog || rt.away) return rt;
@@ -1620,7 +1625,10 @@ function awayStep(before: GameState, save: Save, rt: RuntimeState, signal: SaveS
   // 두 장 2.5초씩 (R14 A) — ① 진행 · 레벨업 · 포인트 ② 진 것 · 물건 · 돈 · 야생 (한 장만 있으면 그 장만)
   const [first, second] = awaySummary(awayLog, save);
   // 떠나기 전부터 떠 있던 알림 (클리어 보상 · 레벨업 — 안 볼 때는 시간이 멈춰 있음) 은 남기고 요약은 그 뒤에 · 안 보는 동안 생긴 알림은 요약이 대신 · 요약이 비면 그대로 (코드 리뷰어)
-  const kept = rt.toast && awayLog.toastAtLeave === rt.toast.text ? rt.toast : null;
+  // 떠날 때 줄 (then) 도 그때 길이까지만 — 떠난 뒤 줄 선 것 ("상처약을 주웠다!") 은 요약이 대신 (같은 말을 두 번 하던 것 — 테스터)
+  const thenOf = (t: NonNullable<RuntimeState['toast']>) => (t.then === undefined ? [] : Array.isArray(t.then) ? t.then : [t.then]);
+  const keptThen = rt.toast ? thenOf(rt.toast).slice(0, awayLog.thenAtLeave ?? 0) : [];
+  const kept = rt.toast && awayLog.toastAtLeave === rt.toast.text ? { ...rt.toast, then: keptThen.length === 0 ? undefined : keptThen.length === 1 ? keptThen[0]! : keptThen } : null;
   if (!first) return { ...rest, toast: rt.toast };
   if (kept) {
     const q = queueToast({ ...rest, toast: kept }, first);

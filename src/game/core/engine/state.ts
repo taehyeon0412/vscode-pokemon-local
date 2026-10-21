@@ -138,6 +138,8 @@ export interface AwayLog {
   toastAtLeave?: string;
   /** 떠날 때 끝낸 오늘의 목표 수 — 안 보는 동안 끝냈으면 요약에 한 줄 (U13) */
   dailyDone?: number;
+  /** 떠날 때 알림 뒤에 줄 서 있던 수 — 돌아와 그 알림을 남길 때 그만큼만 (떠난 뒤 줄 선 것은 요약이 대신) */
+  thenAtLeave?: number;
 }
 
 export interface GameState {
@@ -344,6 +346,7 @@ function readAwayLog(v: unknown): AwayLog | null {
     ...(points !== null ? { points: Math.floor(points) } : {}),
     ...(toastAtLeave !== null ? { toastAtLeave } : {}),
     ...(num(v.dailyDone, 0, 3) !== null ? { dailyDone: Math.floor(v.dailyDone as number) } : {}),
+    ...(num(v.thenAtLeave, 0, 4) !== null ? { thenAtLeave: Math.floor(v.thenAtLeave as number) } : {}),
   };
 }
 

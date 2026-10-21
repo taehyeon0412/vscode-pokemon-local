@@ -153,6 +153,13 @@ describe('#16 자리 비운 동안 요약', () => {
     const emptyBack = step({ ...withToast, runtime: { ...withToast.runtime, headless: false } }, STEP).state;
     expect(emptyBack.runtime.toast?.text).toBe('1-1 클리어!');
     expect(leaving.runtime.awayLog?.toastAtLeave).toBeUndefined();
+    // 떠날 때 줄 (then) 은 그 길이까지만 — 떠난 뒤 줄 선 "주웠다" 는 요약이 대신 (같은 말 두 번 — 테스터)
+    const queued = step({ ...at({}, { phase: 'walk' }, true), runtime: { ...at({}, { phase: 'walk' }, true).runtime, toast: { text: '1-1 클리어!', ms: 2000, then: 'Lv 6!' } } }, STEP).state;
+    expect(queued.runtime.awayLog?.thenAtLeave).toBe(1);
+    const picked = { ...queued, save: { ...queued.save, bag: { ...queued.save.bag, potion: (queued.save.bag.potion ?? 0) + 1 } }, runtime: { ...queued.runtime, headless: false, toast: { ...queued.runtime.toast!, then: ['Lv 6!', '상처약을 주웠다!'] } } };
+    const returned = step(picked, STEP).state;
+    expect(JSON.stringify(returned.runtime.toast?.then)).not.toContain('주웠다');
+    expect(JSON.stringify(returned.runtime.toast?.then)).toContain('Lv 6!');
     // 안 보는 동안 생긴 알림은 요약이 대신 (네 장 10초 — UX 리뷰어)
     const stale = step({ ...back, runtime: { ...back.runtime, toast: { text: '1-3 클리어!', ms: 2500, then: '이상해씨 Lv 6!' } } }, STEP).state;
     expect(sp(stale.runtime.toast?.text)).toContain('그동안');

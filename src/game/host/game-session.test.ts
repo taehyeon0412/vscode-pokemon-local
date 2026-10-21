@@ -981,6 +981,18 @@ describe('멈춤 · 알림 표 — 넘겨받을 때 · 탭 배지 · 접힌 줄 
     expect(notices.filter((n) => n.includes('고를 차례'))).toHaveLength(1);
   });
 
+  it('밖 알림을 기다리는 10초 안에 패널을 숨기면 "패널을 열면" 문구로 (테스터)', async () => {
+    const start = await enterAndStart(sampleSave({ settings: { notifications: true, autoBattle: true } }));
+    session.onWindowFocusChanged(false);
+    session.handleMessage(msg({ type: 'notice', epoch: start.epoch, notice: 'shiny' }));
+    runHost(3000);
+    view.visible = false;
+    session.onVisibilityChanged(false);
+    runHost(TIMING.noticeAfterHiddenMs);
+    expect(notices).toHaveLength(1);
+    expect(notices[0]).not.toContain('VS Code 로 돌아오면');
+  });
+
   it('"멈춰 있어요" 팝업은 처음 3번만 (세이브에 셈)', async () => {
     const start = await enterAndStart(sampleSave({ settings: { notifications: true, autoBattle: false } }));
     let epoch = start.epoch;
