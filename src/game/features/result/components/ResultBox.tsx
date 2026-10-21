@@ -80,8 +80,7 @@ function Line({ p }: { p: SummaryPart }) {
 
 /** 얼굴 카드 (최대 셋) — 포켓몬 그림 (길 위 크기) · 왼쪽 아래 Lv · 오른쪽 위 +남은 포인트 · 2px 금색 테두리 = 버튼. hint = 첫 포인트 카드 아래 말풍선 */
 function FaceCards({ ups, media, hint, onStats }: { ups: LevelUpView[]; media: string; hint: boolean; onStats(uid: string): void }) {
-  // 찍을 포인트가 있는 카드를 앞으로 — 아주 좁은 패널 (260px 아래) 은 카드 한 장만 보여서, 포인트 카드 · 말풍선이 숨지 않게 (2026-10-21)
-  const shown = [...ups].sort((a, b) => Number(b.points > 0) - Number(a.points > 0)).slice(0, 3);
+  const shown = ups.slice(0, 3);
   const hintAt = shown.find((u) => u.points > 0)?.uid;
   return (
     <>
@@ -109,6 +108,8 @@ function FaceCards({ ups, media, hint, onStats }: { ups: LevelUpView[]; media: s
 export function ResultBox({ summary, next, ups, hint = false, caught = null, ms = 0, introAt = { left: 0, top: 0 }, media, onInput, onStats }: { summary: BattleSummary; next: 'learn' | 'evolve' | null; ups: LevelUpView[]; /** 얼굴 카드 안내 말풍선 (needsStatHint) */ hint?: boolean; /** 잡은 포켓몬 — 처음 caughtIntroMs 동안 소개 카드만 */ caught?: CaughtView | null; /** 결과 단계 지난 ms */ ms?: number; /** 소개 카드 자리 (길 칸 기준 정수 px) */ introAt?: { left: number; top: number; width?: number }; media: string; onInput(i: GameInput): void; onStats(uid: string): void }) {
   if (caught && ms < TIMING.caughtIntroMs) return <CaughtIntro c={caught} media={media} at={introAt} onSkip={() => onInput({ kind: 'result-continue' })} />;
   const { title, head, body } = summaryLines(summary);
+  // 찍을 포인트가 있는 카드를 앞으로 — 아주 좁은 패널 (260px 아래) 은 카드 한 장만 보여서, 포인트 카드 · 말풍선이 숨지 않게 (2026-10-21)
+  const cards = [...ups].sort((a, b) => Number(b.points > 0) - Number(a.points > 0));
   const all = [title, ...head.map(partText), ...body.map(partText)].join(' · ') + (summary.rival ? ` · 라이벌 보상 (돈 ×${BALANCE.rivalMoneyScale} · 아이템)` : '');
   // 카드가 레벨업을 보여 주면 둘째 줄의 "▲ 이상해씨 Lv 5 → 6 (경험치 +28)" 은 빼고 새 기술 (★) 을 앞에 — 같은 말 두 번 · 좁으면 ★ 가 잘리던 것 (아트 디렉터 7차, 전체는 마우스를 올리면)
   const rest = ups.length === 0 ? body : [...body.filter((p) => p.kind === 'learned'), ...body.filter((p) => p.kind !== 'up' && p.kind !== 'learned')];
@@ -120,7 +121,18 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
       <Line p={p} />
     </span>
   ));
-  const altB = rest.length > 0 ? restLine : ups.length > 0 ? <><span class="pg-up">▲</span> {ups.map((u) => `${u.name} Lv\u00a0${u.to}`).join(' · ')}</> : null;
+  // 260px 아래 카드에서 빠진 포켓몬 레벨업 (pg-alt-ups — 그 폭에서만 보임, 카드에도 글에도 없던 것 · UX 리뷰어)
+  const hiddenUps = cards.slice(1).map((u) => `${u.name} Lv\u00a0${u.to}`).join(' · ');
+  const altB = rest.length > 0 ? (
+    <>
+      {hiddenUps && (
+        <span class="pg-alt-ups">
+          <span class="pg-up">▲</span> {hiddenUps} ·{' '}
+        </span>
+      )}
+      {restLine}
+    </>
+  ) : ups.length > 0 ? <><span class="pg-up">▲</span> {ups.map((u) => `${u.name} Lv\u00a0${u.to}`).join(' · ')}</> : null;
   const lines = (
     <>
       <span class="pg-line">
@@ -159,7 +171,7 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
   return (
     <div class="pg-banner pg-result pg-two pg-lvup" title={all}>
       <span class="pg-lvup-cards">
-        <FaceCards ups={ups} media={media} hint={hint} onStats={onStats} />
+        <FaceCards ups={cards} media={media} hint={hint} onStats={onStats} />
       </span>
       <span class="pg-result-lines">{lines}</span>
     </div>
