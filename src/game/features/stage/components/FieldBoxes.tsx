@@ -184,7 +184,7 @@ export function HoldBox({ state }: { state: GameState }) {
  * S17 같은 판 두 번째 3:3 패배 — 멈춤 상자 (기획 R8 A · #152 A): 첫 줄 "<트레이너>에게 졌다" + 돈 / 둘째 줄 "남은 N마리로" + [Enter 계속 ▶] (주 버튼 — 그대로 걷기) + [Esc 병원 앞으로] (팀 회복 · 마지막 병원 앞에서 다시).
  * 넘치면 한 단계 (첫 줄 — 직함 뺀 이름, 맥 여유 10%) · 둘째 줄은 넘치면 [병원 앞으로] 가 다음 줄로 (자르지 않음 — U4)
  */
-function DefeatKeep({ keep, lost, left, onInput }: { keep: string; lost: number; left: number; onInput(i: GameInput): void }) {
+function DefeatKeep({ keep, lost, left, hospital, onInput }: { keep: string; lost: number; left: number; /** 이 스테이지에서 병원을 지났나 — 아니면 [처음부터] (스테이지 처음 0% — 테스터 #B) */ hospital: boolean; onInput(i: GameInput): void }) {
   const box = useRef<HTMLDivElement>(null);
   const short = useFit(box, 1, ':scope > .pg-line:first-child') >= 1;
   return (
@@ -202,8 +202,9 @@ function DefeatKeep({ keep, lost, left, onInput }: { keep: string; lost: number;
         <Button onClick={() => onInput({ kind: 'defeat-continue' })} title="Enter — 남은 포켓몬으로 그대로 계속 걸어요">
           <KeyCap k="Enter" /> 계속 ▶
         </Button>
-        <Button secondary onClick={() => onInput({ kind: 'defeat-retreat' })} title="Esc — 팀을 다 회복하고 마지막 병원 앞에서 다시 걸어요 (돈은 더 안 빠짐)">
-          <KeyCap k="Esc" /> 병원 앞으로
+        {/* 무엇을 맞바꾸는지 버튼 글에 (회복 · 돌아갈 자리 — title 에만 있어 1초 안에 안 읽히던 것, UX 리뷰어 U5) */}
+        <Button secondary onClick={() => onInput({ kind: 'defeat-retreat' })} title={hospital ? 'Esc — 팀을 다 회복하고 이 스테이지 병원 앞에서 다시 걸어요 (돈은 더 안 빠짐)' : 'Esc — 팀을 다 회복하고 스테이지 처음 (0%) 부터 다시 걸어요 (돈은 더 안 빠짐)'}>
+          <KeyCap k="Esc" /> {hospital ? '병원에서 회복' : '회복하고 처음부터'}
         </Button>
       </span>
     </div>
@@ -214,7 +215,10 @@ function DefeatKeep({ keep, lost, left, onInput }: { keep: string; lost: number;
 export function DefeatBox({ state, onInput }: BoxProps) {
   const st = state.runtime.stage;
   if (st?.phase !== 'defeat') return null;
-  if (st.keep !== undefined) return <DefeatKeep keep={st.keep} lost={st.lost} left={st.left ?? aliveCount(state.save)} onInput={onInput} />;
+  if (st.keep !== undefined) {
+    const here = state.save.location.screen === 'stage' && state.save.lastHospital?.stageId === state.save.location.stageId;
+    return <DefeatKeep keep={st.keep} lost={st.lost} left={st.left ?? aliveCount(state.save)} hospital={here} onInput={onInput} />;
+  }
   const lh = state.save.lastHospital;
   const loc = state.save.location;
   const atHospital = loc.screen === 'stage' && lh?.stageId === loc.stageId;
@@ -271,15 +275,18 @@ export function ClearCard({ state, media, onInput, onMap, onTeam }: BoxProps & {
   // 자동 전투면 남은 초 뒤 저절로 다음 스테이지 (다음 버전 1단계 #48)
   const stage = state.runtime.stage;
   const autoLeft = state.save.settings.autoBattle ? Math.max(1, Math.ceil((TIMING.clearAutoMs - (stage.ms ?? 0)) / 1000)) : null;
+  // 넘치면 한 단계 (줄임표 · 300px 손 경계 대신 — 301 ~ 414 · 482 ~ 563 에서 "잡은 포켓몬 2 · 이긴 …" 로 잘리던 것, UX 리뷰어 · U4 · 맥 여유 10%):
+  //   1 = 스테이지 이름 뺌 "(1-1) 클리어!" · 2 = 요약 짧게 "잡은 2 · 트레이너 1 · 38분" · 3 = 요약 뺌
+  const clearBox = useRef<HTMLDivElement>(null);
+  const fit = useFit(clearBox, 3);
   return (
-    <div class="pg-banner pg-clear pg-two">
+    <div class="pg-banner pg-clear pg-two" ref={clearBox}>
       <span class="pg-line">
         <Icon name={STAGES[loc.stageId].icon} />
-        {/* 300px 아래는 스테이지 이름을 빼고 "(1-1) 클리어!" (제목이 잘려 "클리어!" 가 안 보이던 것 — UX 리뷰어) */}
-        <b class="pg-ellipsis">
+        <b>
           {v.title.startsWith(STAGES[loc.stageId].name) ? (
             <>
-              <span class="pg-clear-name">{STAGES[loc.stageId].name} </span>
+              {fit < 1 && <span class="pg-clear-name">{STAGES[loc.stageId].name} </span>}
               {v.title.slice(STAGES[loc.stageId].name.length + 1)}
             </>
           ) : (
@@ -300,9 +307,9 @@ export function ClearCard({ state, media, onInput, onMap, onTeam }: BoxProps & {
         ))}
       </span>
       <span class="pg-line">
-        <span class="pg-dim pg-ellipsis">
-          잡은 포켓몬 {v.caught} · 이긴 트레이너 {v.trainers} · {v.minutes}분 걸림
-        </span>
+        {fit < 3 && (
+          <span class="pg-dim">{fit < 2 ? `잡은 포켓몬 ${v.caught} · 이긴 트레이너 ${v.trainers} · ${v.minutes}분 걸림` : `잡은 ${v.caught} · 트레이너 ${v.trainers} · ${v.minutes}분`}</span>
+        )}
         <Button onClick={() => onInput({ kind: 'travel', to: next })} title="Enter">
           {/* ▶ 는 글 뒤 (계속 ▶ · 도전 ▶ 와 같게) · 주 버튼 안에는 아이콘 없이 (아트 디렉터 4차) */}
           <KeyCap k="Enter" /> <span class="pg-long">{next === 'gym' ? '체육관으로 ' : '다음 스테이지 '}</span>▶

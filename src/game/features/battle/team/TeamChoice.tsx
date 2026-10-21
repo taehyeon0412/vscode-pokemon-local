@@ -28,7 +28,8 @@ const NARROW_PX = 400;
 /** 판 줄이기 (넘치면 한 단계 — 폭 경계를 손으로 고르지 않음, ux-rules U4) — 넘친 쪽만:
  *  칸 묶음이 패널 밖 → 칸 Lv → 칸 "필살기" 글 → 칸 이름 (그림 위주 64px 칸 — 5글자 이름 · Lv 100 이면 480 × 150 에서 판이 패널 밖이던 것, 픽셀 검사원)
  *  제목 줄이 칸 묶음보다 넓음 (오른쪽 끝선이 어긋나던 것) → 상대 타입 동그라미 → 짧은 제목 → "상대" 글 → 제목 이름표 */
-const CELL_STEPS = ['tight', 'ordword', 'lv', 'name'] as const;
+// cols = 칸 폭을 열마다 (가장 넓은 칸 하나에 셋 다 맞추면 5글자 이름 하나 · Lv 100 에 400 에서 다섯 칸 이름이 다 빠지던 것 — U518)
+const CELL_STEPS = ['tight', 'cols', 'ordword', 'lv', 'name'] as const;
 const HEAD_STEPS = ['label', 'types', 'tag'] as const;
 
 /**
@@ -104,7 +105,8 @@ export function TeamChoice({ state, media, onInput }: { state: GameState; media:
     const grid = el.querySelector<HTMLElement>('.pg-team-grid');
     if (grid && !el.classList.contains('pg-team-pick-n')) {
       grid.style.removeProperty('--pg-team-cell');
-      const cw = Math.max(0, ...Array.from(grid.querySelectorAll<HTMLElement>('.pg-team-pk'), (c) => c.scrollWidth));
+      // cols 단계부터는 열마다 제 폭 (repeat(3, max-content)) — 그 전엔 가장 넓은 칸에 셋 다 맞춤
+      const cw = cut.includes('cols') ? 0 : Math.max(0, ...Array.from(grid.querySelectorAll<HTMLElement>('.pg-team-pk'), (c) => c.scrollWidth));
       if (cw > 0) grid.style.setProperty('--pg-team-cell', `${cw}px`);
     }
     el.style.width = '';
@@ -191,15 +193,19 @@ export function TeamChoice({ state, media, onInput }: { state: GameState; media:
             >
               {/* 자리 키 = 자판 칸 (Enter · 3 과 같은 부품 — 고르면 금 테두리 · 금 글) · 고른 순서 = 싸울 때 발밑 판 키 그대로 (금 칠) — 칸마다 금 칠은 하나 (전투와 모양이 거꾸로이던 것 · 칠 칩 여섯이 주 버튼보다 밝던 것, 아트 디렉터) */}
               <span class={`pg-menu-key pg-team-slot${order >= 0 ? ' pg-on' : ''}`}>{i + 1}</span>
-              <Sprite media={media} form={m.form} shiny={m.shiny} scale={1} crop={24} />
+              {/* 좁은 칸 = 싸울 때 키 (금 칠) 를 그림 발밑에 — 전투 발밑 판 키와 같은 자리 (자리 키 · 금 키 숫자 둘이 나란히 "1 · 1" 로 읽히던 것, U517 · ideas #142) */}
+              <span class="pg-team-pk-art">
+                <Sprite media={media} form={m.form} shiny={m.shiny} scale={1} crop={24} />
+                {narrow && order >= 0 && <span class="pg-team-key pg-team-key-on pg-team-pk-badge">{order + 1}</span>}
+              </span>
               {!narrow && <span class="pg-team-pk-name">{name}</span>}
-              {order >= 0 ? (
+              {narrow ? null : order >= 0 ? (
                 <span class="pg-team-ord">
-                  {!narrow && !cut.includes('ordword') && <span class="pg-team-ord-word">필살기</span>}
+                  {!cut.includes('ordword') && <span class="pg-team-ord-word">필살기</span>}
                   <span class="pg-team-key pg-team-key-on">{order + 1}</span>
                 </span>
               ) : (
-                !narrow && !cut.includes('lv') && <span class="pg-team-pk-lv">Lv {m.level}</span>
+                !cut.includes('lv') && <span class="pg-team-pk-lv">Lv {m.level}</span>
               )}
             </button>
           );

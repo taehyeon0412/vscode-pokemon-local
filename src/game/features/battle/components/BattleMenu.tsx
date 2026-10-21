@@ -16,7 +16,7 @@ import { BALL_ICON } from '../../../ui/BallCount';
 import { Icon } from '../../../ui/Icon';
 import { KeyCap } from '../../../ui/KeyCap';
 import { koWaitMs, setPickShow } from '../fx/hold';
-import { ballTier, catchTone, catchView, menuItems, TIER_WORD, TONE_WORD, type MenuItem, type MenuPage } from '../model';
+import { ballTier, catchTone, catchView, hpColor, menuItems, TIER_WORD, TONE_WORD, type MenuItem, type MenuPage } from '../model';
 
 /** 다음 포켓몬 고르기가 보이는 때 (ms) — game.css .pg-pick-list 의 2.3s 와 같은 값 (벌러덩 2.3초 · 쓰러진 모습이 다 사라진 뒤) */
 const PICK_SHOW_MS = 2300;
@@ -384,10 +384,11 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
           <Button key={m.uid} extraClass={i === Math.min(cursor, team.length - 1) ? 'pg-on' : undefined} onClick={() => pick(m.uid)} title={`${i + 1} · HP ${m.hp}/${maxHpOf(m)}`}>
             <span class="pg-pick-n">{i + 1}</span>
             <span class="pg-pick-name">{speciesOf(m.species)?.name.ko ?? m.form}</span>
-            <span class="pg-pick-hp">
+            {/* HP 막대 · 숫자 색 = 전투 HP 막대 색 (초록 · 노랑 · 빨강 — ideas #147, 막대가 늘 초록이던 것) */}
+            <span class={`pg-pick-hp pg-hp-${hpColor(m.hp, maxHpOf(m))}`}>
               <i style={{ width: `${Math.round((m.hp / maxHpOf(m)) * 100)}%` }} />
             </span>
-            <span class="pg-sub">
+            <span class={`pg-sub pg-hp-${hpColor(m.hp, maxHpOf(m))}`}>
               {m.hp}/{maxHpOf(m)}
             </span>
           </Button>
@@ -400,7 +401,7 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
         {team.slice(0, 5).map((m, i) => (
           <Button key={m.uid} extraClass={i === Math.min(cursor, team.length - 1) ? 'pg-on' : undefined} onClick={() => pick(m.uid)} title={`HP ${m.hp}`}>
             {`${i + 1} ${speciesOf(m.species)?.name.ko ?? m.form}`}
-            <span class="pg-sub">HP {m.hp}/{maxHpOf(m)}</span>
+            <span class={`pg-sub pg-hp-${hpColor(m.hp, maxHpOf(m))}`}>HP {m.hp}/{maxHpOf(m)}</span>
           </Button>
         ))}
       </>

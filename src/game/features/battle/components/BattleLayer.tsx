@@ -107,6 +107,12 @@ function HpBlock({ f, side, x, bottom, wide, prefix, noName, dex, panelPx, warn,
       {/* 이름 · Lv 줄 (내 것은 오른쪽에 HP 숫자) → 얇은 HP 바 → 행동 게이지 (Sea of Stars, 포켓몬 머리 위). 옆 메뉴가 있으면 내 이름은 이름표가 맡음 */}
       {/* 붐빔 = 내 줄에 상태 칩 · Lv100 — 좁은 패널에서 이름 · Lv 를 빼는 기준 (game.css, "이… Lv5 독 15/21" · Lv1 이 패널 밖으로 나가던 것) */}
       <span ref={rowRef} class={side === 'me' && (status || f.level >= 100) ? 'pg-hprow pg-hprow-crowd' : 'pg-hprow'}>
+        {/* 이로치 = 이름 앞 작은 반짝 (어느 쪽이 이로치인지 이름표에서 안 보이던 것 — ideas #153 · 길 위 흔적과 같은 그림 1배) */}
+        {f.shiny && (
+          <span class="pg-hp-shiny" title="반짝이는 포켓몬 (이로치)">
+            <Icon name="sparkle" px={1} />
+          </span>
+        )}
         {!noName && <span class="pg-hpname">{nameOf(f)}</span>}
         {/* 마지막 기회 동안 상대 이름 옆에 잡은 적 있는지 (ideas #37 — 메뉴 줄은 볼 칸이 잘려서, 만남 띠 "야생 ○○ NEW!" 와 같은 자리) */}
         {dex === 'new' && (
@@ -732,8 +738,10 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
   const lastSentence = showMsg ? undefined : headSay[headSay.length - 1];
   // 상성 · 급소 말이 다음 기술 연출로 말 칸에서 빠졌는데 아직 1초가 안 됐으면 남은 동안 맞은 쪽 머리 위 한 줄로 (자동 전투에서 "효과가 굉장했다!" 가 0.46초만 보이던 것 — 개발 UX 리뷰어 R14, U1)
   const animMs = b.anim?.ms;
+  //   끝 단계 (쓰러짐 · 고르기 · 끝 · 다음 포켓몬) 는 말 칸이 엔진 말만 쓰므로 그 한 방의 상성 말도 머리 위로 (쓰러뜨린 한 방의 "효과가 굉장했다!" 가 0장면이던 것 — UX 리뷰어)
+  const isTail = (p: (typeof b.popups)[number]) => p.kind === 'super' || p.kind === 'weak' || p.kind === 'immune' || p.kind === 'crit';
   const lingering =
-    animMs === undefined ? undefined : [...b.popups].reverse().find((p) => (p.kind === 'super' || p.kind === 'weak' || p.kind === 'immune' || p.kind === 'crit') && p.ms > animMs && p.ms < TAIL_SHOW_MS);
+    animMs !== undefined ? [...b.popups].reverse().find((p) => isTail(p) && p.ms > animMs && p.ms < TAIL_SHOW_MS) : ending ? [...b.popups].reverse().find((p) => isTail(p) && p.ms < TAIL_SHOW_MS) : undefined;
   // 말 칸이 숨을 때 끝 · 다음 포켓몬 · 고르기 말 자리 — 무대 위쪽 메뉴 줄 (한 줄) · 옆 메뉴 판 (두 줄), 자리가 되면 전부 · 아니면 첫 문장
   const stageSay = !geo.menuSide && !geo.menuInBar ? barSay(b, geo.msgHidden, geo.widthPx - geo.menuLeft - 20, 1) : null;
   const sideSay = geo.menuSide ? barSay(b, geo.msgHidden, geo.menuSide.maxWidth - 14, 2, 'side') : null;
@@ -861,8 +869,8 @@ export function BattleMenuBar({ battle, save, onInput, withAuto, compact, say, h
 
 /** 머리 위 문장 한 줄 (말 칸이 없는 좁은 패널) — 긴 문장 ("효과가 별로인 듯하다…") 이 패널 끝에서 잘리지 않게 폭을 재서 가운데를 안쪽으로 당김 (240px "듯하ㄷ" · 트레이너 이름표와 겹치던 것, 2026-10-21 UX 리뷰어) */
 const POP_EDGE = 4;
-/** 상성 · 급소 말이 보이는 최소 시간 (ux-rules U1 — 1초) */
-const TAIL_SHOW_MS = 1000;
+/** 상성 · 급소 말이 보이는 최소 시간 (ux-rules U1 — 1초 · 첫 그린 장면부터 1초가 되게 여유 0.2초, 240 에서 982ms 이던 것) */
+const TAIL_SHOW_MS = 1200;
 
 function PopSay({ kind, x, bottom, text }: { kind: string; x: number; bottom: number; text: string }) {
   const ref = useRef<HTMLSpanElement>(null);

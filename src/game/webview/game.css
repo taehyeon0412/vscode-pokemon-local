@@ -1218,7 +1218,11 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 .pg-banner.pg-hold {
   background: var(--pg-sos-bar);
 }
-/* 다시 켜기 한 줄 (기획 R15) = 기다림 한 줄과 같은 띠 남색 판 · 1:1 은 아래 끝 (.pg-hold-low 자리) · 3:3 은 위 가운데 (정보줄 아래 4px — 3:3 결과 줄 자리) */
+/* 다시 켜기 한 줄 (기획 R15) = 기다림 한 줄과 같은 띠 남색 판 · 1:1 은 아래 끝 (.pg-hold-low 자리) · 3:3 은 위 가운데 (정보줄 아래 4px — 3:3 결과 줄 자리) · 패링 · 잡기 원이 떠 있으면 1:1 도 위 가운데 (240 기습에서 첫 패링 원 아래를 가리던 것 — UX 리뷰어) */
+#pokemon-game:has(.pg-ring-box) .pg-banner.pg-resume.pg-hold-low {
+  top: calc(var(--pg-field-top, 3px) + 4px);
+  bottom: auto;
+}
 .pg-banner.pg-resume {
   background: var(--pg-sos-bar);
 }
@@ -1278,12 +1282,6 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 @media (max-width: 370px) {
   .pg-request .pg-button .pg-menu-key,
   .pg-request .pg-helper-who {
-    display: none;
-  }
-}
-@media (max-width: 300px) {
-  .pg-clear > .pg-line:last-child > .pg-dim,
-  .pg-clear .pg-clear-name {
     display: none;
   }
 }
@@ -6204,4 +6202,27 @@ body.vscode-light .pg-field-balls {
 /* 대기실 바닥 관장 이름표가 위 상자에 깔리면 숨김 (이름은 상자 첫 줄에 — 240 × 150 에서 글자 위가 잘리던 것, 픽셀 검사원 #27) */
 .pg-foe-trainer .pg-nametag.pg-tag-under {
   visibility: hidden;
+}
+
+/* 다음 포켓몬 고르기 목록 — HP 막대 · 숫자 색 = 전투 HP 색 (ideas #147) */
+.pg-pick-hp.pg-hp-mid > i {
+  background: var(--pg-sos-mid);
+}
+.pg-pick-hp.pg-hp-low > i {
+  background: var(--pg-sos-red);
+}
+.pg-button .pg-sub.pg-hp-ok {
+  color: var(--pg-sos-hp);
+}
+.pg-button .pg-sub.pg-hp-mid {
+  color: var(--pg-sos-mid);
+}
+.pg-button .pg-sub.pg-hp-low {
+  color: var(--pg-sos-red);
+}
+/* 이로치 이름표 반짝 (ideas #153) — 7 × 7 1배 · 이름 줄 가운데 */
+.pg-hp-shiny {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
 }

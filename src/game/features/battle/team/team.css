@@ -503,3 +503,18 @@
   border: 1px dashed var(--pg-sos-line-soft);
   white-space: nowrap;
 }
+
+/* 좁은 고르기 칸 — 싸울 때 키 (금 칠 14px) 를 그림 발밑 오른쪽에 겹침 (전투 발밑 판 키 자리 · U517) · 칸 = [자리 키] [그림 + 키] 가운데 */
+#pokemon-game .pg-team-pk-art {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+#pokemon-game .pg-team-pk-badge {
+  position: absolute;
+  right: -6px;
+  bottom: -3px;
+}
+#pokemon-game .pg-team-pick-n .pg-team-pk {
+  justify-content: center;
+}
