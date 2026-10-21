@@ -13,7 +13,7 @@ import { BALANCE, TIMING } from '../balance';
 import { buy, canBuyCandy, healTeam, isShopItem, moveInTeam, sell, spendPoint, swapWithBox, teamHealth, toBox, useFieldItem, walkRegen } from '../rules/bag';
 import { createWild, encounterStart, pickupAt, planWild, wildKey } from '../rules/encounter';
 import { itemName, requestAt, resolveRequest } from '../rules/request';
-import { DAILY_BONUS, dailyAdd, dailyDone, dailyFor, dailyLabel } from '../rules/daily';
+import { DAILY_BONUS, dailyAdd, dailyDone, dailyFor, dailyLabel, dayFarAhead } from '../rules/daily';
 import { gymLocation, isRegionLast, REGIONS, regionHere, regionOf, type RegionDef } from '../rules/region';
 import { spotBetween, spotRng, stageCode, stageLayout, trainerId, walkDelta, type Spot, type StageLayout } from '../rules/stage';
 import { statsOf } from '../rules/stats';
@@ -26,7 +26,7 @@ import { applyBattleResult, battleDone, battleInput, battleStep, battleWaiting, 
 import { addItem, battleRewards, clearStage, defeatPenalty, pickTreasure, resolveEvolve, resolveLearn, rivalWinRewards, stageClearExp, takeLaterChoices, useRareCandy, type BattleSummary } from './rewards';
 import { Rng } from './rng';
 // 개발 모드 (임시)
-import { devForestLists, devTeam, devWalk } from '../../dev/runtime';
+import { devTeam, devWalk } from '../../dev/runtime';
 import { MAX_SPEED, type AwayLog, type GameNotice, type GameState, type RuntimeState, type StageRuntime } from './state';
 import { applyTeamResult, pickTeam, startTeamBattle, teamDone, teamInput, teamPossible, teamRewardBattle, teamScale, teamStep, type TeamBattle, type TeamInput } from './team';
 import { takeSteps } from './step';
@@ -179,7 +179,7 @@ function rivalBattle(save: Save, id: StageId, prog: StageProgress, rival: string
 }
 
 /**
- * 3:3 으로 싸울지 (orders #17) — 켜져 있고 (화면이 생길 때까지 꺼 둠) · 잠기지 않음 (살아 있는 포켓몬 3마리 이상 · 패널에 6마리가 들어감) ·
+ * 3:3 으로 싸울지 (orders #17) — 켜져 있고 (모두에게 — orders #59) · 잠기지 않음 (살아 있는 포켓몬 3마리 이상 · 패널에 6마리가 들어감) ·
  * 고른 대로 (고르지 않았으면 마지막으로 고른 방식 — 처음엔 1:1, gdd 4.7 · 명세 검사관). 관장전은 늘 3:3 (choice = true)
  */
 function useTeam(save: Save, rt: RuntimeState, choice?: boolean): boolean {
@@ -220,7 +220,9 @@ export function teamChoiceMeet(state: GameState): boolean {
 /** 3:3 처음 안내 — 3:3 을 처음 고를 수 있는 만남에서 "승부다!" 상자 위 4초 (보는 동안만 셈 — 화면이 다 보이면 tip-seen 'team-meet', 2026-10-22 태현 님 "추천안") */
 export const TEAM_MEET_TIP = 'team-meet';
 export function teamMeetTipDue(state: GameState): boolean {
-  return teamChoiceMeet(state) && !(state.save.tips ?? []).includes(TEAM_MEET_TIP);
+  // "!" 가 끝나 1:1 / 3:3 버튼이 나올 때부터 ([3] 이 먹을 때 — "!" 때 떠서 3 을 눌러도 안 먹던 것, UX 리뷰어 #59 · stageViewKey 에 같은 경계)
+  const st = state.runtime.stage;
+  return teamChoiceMeet(state) && st?.phase === 'trainer' && st.ms >= TIMING.trainerAlertMs && !(state.save.tips ?? []).includes(TEAM_MEET_TIP);
 }
 
 /** 3:3 을 못 하는 까닭 — few = 살아 있는 포켓몬 3마리 미만 · narrow = 패널이 좁아 6마리가 안 들어감 ("패널을 넓히면 3:3") · null = 됨 */
@@ -253,7 +255,8 @@ function fillPick(save: Save, pick: readonly string[] | undefined, foes: readonl
 export function teamFoesOf(state: GameState): Monster[] | null {
   const { save, runtime: rt } = state;
   const st = rt.stage;
-  if (st?.phase === 'lobby' && inLobby(state)) return leaderTeam();
+  // 그 지역 관장 (해변 대기실이 숲 관장 팀을 그리고 · 미리 체크하던 것 — 코드 리뷰어 #59)
+  if (st?.phase === 'lobby' && inLobby(state)) return leaderTeam(regionHere(save.location));
   const p = save.pendingEncounter;
   if (st?.phase !== 'trainer' || p?.kind !== 'trainer') return null;
   const prog = save.stages[p.stageId];
@@ -269,7 +272,7 @@ export function teamPickOf(state: GameState): string[] | null {
   const stage = rt.stage;
   if (!teamOn(rt) || teamLockOf(save, rt) !== null) return null;
   const alive = (pick: readonly string[]) => pick.filter((uid) => save.party.includes(uid) && (save.monsters[uid]?.hp ?? 0) > 0);
-  if (stage?.phase === 'lobby' && inLobby(state)) return !stage.picking ? null : stage.pick ? alive(stage.pick) : fillPick(save, undefined, leaderTeam());
+  if (stage?.phase === 'lobby' && inLobby(state)) return !stage.picking ? null : stage.pick ? alive(stage.pick) : fillPick(save, undefined, leaderTeam(regionHere(save.location)));
   if (stage?.phase !== 'trainer' || !stage.pick || save.pendingEncounter?.kind !== 'trainer') return null;
   return alive(stage.pick);
 }
@@ -485,12 +488,12 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
         // 앞 한 줄 ("그동안: …" 등) 이 떠 있으면 덮지 않고 그 뒤에 (1초 넘게 — U1, 코드 리뷰어)
         const picked = `${withJosa(what, '을/를')} 주웠다!`;
         rt = queueToast(rt, picked);
-      } else if (spot.kind === 'wild' && (rt.headless || rt.away) && planWild(id, prog.seed, spot, prog.run.retries, devForestLists(rt.dev)).shiny) {
+      } else if (spot.kind === 'wild' && (rt.headless || rt.away) && planWild(id, prog.seed, spot, prog.run.retries).shiny) {
         // 안 볼 때 · VS Code 에 포커스가 없을 때 이로치 흔적 — 바로 앞에서 멈추고 알림 (U9), 다시 보이면 · 돌아오면 이어 감
         save = withProgress(save, id, Math.max(from, spot.at - BEFORE_SPOT));
         stage = { phase: 'hold', why: 'shiny' };
       } else if (spot.kind === 'wild') {
-        const wild = createWild(id, prog.seed, spot, prog.run.retries, devForestLists(rt.dev));
+        const wild = createWild(id, prog.seed, spot, prog.run.retries);
         const enemySpeed = statsOf(speciesOf(wild.species)!.base, wild.ivs, wild.points, wild.level).speed;
         const start = encounterStart(enemySpeed, leadSpeed(save), spotRng(prog.seed, wildKey(spot, prog.run.retries), 6));
         const isNew = !save.dex.seen.includes(wild.species);
@@ -920,7 +923,7 @@ export function step(state: GameState, stepMs: number): StepOut {
   } else if (rt.stage) {
     rt = { ...rt, stage: null, stageId: null };
   }
-  // 오늘의 목표 · 기록 (U13 · U12) — 개발 모드에서만 (3:3 을 켤 때 같이)
+  // 오늘의 목표 · 기록 (U13 · U12) — 모두에게 (3:3 과 같이 — orders #59)
   if (dailyOn(rt)) {
     const d = dailyStep(state, save, rt, signal);
     save = d.save;
@@ -972,7 +975,6 @@ export function step(state: GameState, stepMs: number): StepOut {
   return { state: { save, runtime: rt }, save: signal, notice: told };
 }
 
-/** 자동 전투 첫 안내를 더 띄울 수 있는지 — 자동을 한 번도 안 켰고 (tips 'auto-on') 띄운 수 (tips 'auto-1' ~ ) 가 3 아래 (R12 A) */
 /** 오늘의 목표 · 기록이 켜졌는지 — 모두에게 (BALANCE.daily.on, 3:3 을 켤 때 같이) · 개발 모드 (임시) 는 늘 */
 const dailyOn = (rt: RuntimeState) => BALANCE.daily.on || rt.dev !== undefined;
 
@@ -987,8 +989,9 @@ function dailyStep(before: GameState, save0: Save, rt0: RuntimeState, signal: Sa
   const prev = before.runtime.stage;
   const st = rt.stage;
   const boundary = !st || st.phase === 'walk' || st.phase === 'lobby';
-  // 새 날만 (PC 날짜를 되돌려 같은 날 목표를 다시 받지 않게 — 코드 리뷰어 #52) · 타입 목표 = 지금 지역 타입 (명세 검사관 #53)
-  if (rt.today && (!save.daily || rt.today > save.daily.day) && boundary) save = { ...save, daily: dailyFor(rt.today, regionHere(save.location).wild.common) };
+  // 새 날만 (PC 날짜를 되돌려 같은 날 목표를 다시 받지 않게 — 코드 리뷰어 #52) · 타입 목표 = 지금 지역 타입 (명세 검사관 #53) ·
+  // 목표 날이 오늘보다 2일 넘게 앞 (시계를 미래로 잘못 맞췄다 고침) 이면 그날까지 기다리지 않고 오늘 것 (코드 리뷰어 #59)
+  if (rt.today && (!save.daily || rt.today > save.daily.day || dayFarAhead(save.daily.day, rt.today)) && boundary) save = { ...save, daily: dailyFor(rt.today, regionHere(save.location).wild.common) };
   // 한 일
   const won = (prev?.phase === 'battle' || prev?.phase === 'team') && st?.phase === 'result';
   const wildWin = won && prev?.phase === 'battle' && prev.battle.kind === 'wild';
@@ -1544,7 +1547,7 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       // 판이 열린 채 패널이 좁아져 3:3 이 잠기면 Enter 는 아무 일 없음 (1:1 관장전이 바로 시작되던 것 — 판은 "넓히면 3:3", 디자인팀) · Esc 로 뒤로
       if (stage?.phase === 'lobby' && stage.picking && teamLockOf(save, state.runtime) !== null) return state;
       if (stage?.phase === 'lobby' && !stage.picking && !save.settings.autoBattle && useTeam(next, state.runtime, true)) {
-        return { ...state, runtime: { ...state.runtime, stage: { ...stage, picking: true, pick: fillPick(save, stage.pick, leaderTeam()) } } };
+        return { ...state, runtime: { ...state.runtime, stage: { ...stage, picking: true, pick: fillPick(save, stage.pick, leaderTeam(regionHere(save.location))) } } };
       }
       // 관장전 = 3:3 (못 하면 1:1 토너먼트 — orders #17)
       const pick = stage?.phase === 'lobby' ? stage.pick : undefined;

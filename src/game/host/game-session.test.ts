@@ -15,6 +15,9 @@ import { GameSession, noticeText, type Mode, type ViewPort } from './game-sessio
 import { SaveStore } from './save-store';
 import { WindowLease } from './window-lease';
 
+/** 게임 값 (모두에게 켬 — orders #59) — 켜고 끄는 테스트는 끝나면 이 값으로 되돌림 */
+const TEAM_ON = BALANCE.team.on;
+
 /** 시드 42 숲 1-1 의 첫 부탁 바로 앞 (길이 바뀌어도 — 단계 9 에서 트레이너가 들어가 자리가 바뀜) */
 const nearRequest = () => stageLayout('forest-1', 42).spots.find((s) => s.kind === 'request')!.at - 0.0005;
 
@@ -1117,7 +1120,7 @@ describe('3:3 을 켠 저장 넷 — 개발 모드 밖 (기획 R9 켜기 점검�
       expect(checked.save.settings.teamMode).toBe(true);
       expect(again.save.pendingEncounter?.kind).toBe('trainer');
     } finally {
-      setOn(false);
+      setOn(TEAM_ON);
     }
   });
 

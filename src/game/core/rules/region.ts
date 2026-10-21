@@ -56,8 +56,8 @@ export interface RegionDef {
     lists?: readonly (readonly number[])[];
     strong?: readonly number[];
     rareList?: readonly number[];
-    /** 정한 목록 초안 (숲 — gdd 5.4, 아침 질문 #103) — 개발 모드 스위치로만 켜 봄 (orders #41) · 노말 · 비행 3종 · 드문 타입 2종은 스테이지 id 로 뽑음 [제안] */
-    preview?: { lists: readonly (readonly number[])[]; strong?: readonly number[]; rareList?: readonly number[] };
+    /** 노말 · 비행 섞기를 스테이지마다 이 수만큼 (스테이지 id 시드 — 숲 3, gdd 5.4 · orders #60) · 없으면 노말 · 비행 전부 (해변) */
+    mixedPick?: number;
   };
   /** 길에서 주울 수 있는 진화의 돌 */
   stones: readonly ItemId[];
@@ -90,19 +90,19 @@ export const REGIONS: Readonly<Record<RegionId, RegionDef>> = {
     wild: {
       common: ['grass', 'bug'],
       rare: ['poison', 'dragon', 'fairy'],
-      preview: {
-        lists: [
-          // 새싹 오솔길 — 캐터피 · 뿔충이 · 개무소 · 레디바 · 귀뚤뚜기 · 통통코 · 도토링 · 체리버 (작은 벌레 · 씨앗)
-          [10, 13, 265, 165, 401, 187, 273, 420],
-          // 버섯 그늘길 — 파라스 · 버섯꼬 · 뚜벅쵸 · 모다피 · 콘팡 · 페이검 · 해너츠 · 토중몬 (버섯 · 독 · 그늘)
-          [46, 285, 43, 69, 48, 167, 191, 290],
-          // 깊은 숲 — 세꿀버리 · 도롱충이 · 피콘 · 딱정곤 · 쪼마리 · 볼비트 · 네오비트 · 왕자리 (큰 벌레)
-          [415, 412, 204, 588, 616, 313, 314, 193],
-        ],
-        // 강한 1단계 (종족값 450 넘음 — 야생에서만) 스라크 · 헤라크로스 · 드묾 덩쿠리 · 로젤리아
-        strong: [123, 214],
-        rareList: [114, 315],
-      },
+      // 스테이지마다 정한 목록 (gdd 5.4 [확정] — orders #60, 개발 모드 초안이 본편으로) · 노말 · 비행은 스테이지마다 3종
+      lists: [
+        // 새싹 오솔길 — 캐터피 · 뿔충이 · 개무소 · 레디바 · 귀뚤뚜기 · 통통코 · 도토링 · 체리버 (작은 벌레 · 씨앗)
+        [10, 13, 265, 165, 401, 187, 273, 420],
+        // 버섯 그늘길 — 파라스 · 버섯꼬 · 뚜벅쵸 · 모다피 · 콘팡 · 페이검 · 해너츠 · 토중몬 (버섯 · 독 · 그늘)
+        [46, 285, 43, 69, 48, 167, 191, 290],
+        // 깊은 숲 — 세꿀버리 · 도롱충이 · 피콘 · 딱정곤 · 쪼마리 · 볼비트 · 네오비트 · 왕자리 (큰 벌레)
+        [415, 412, 204, 588, 616, 313, 314, 193],
+      ],
+      // 강한 1단계 (종족값 450 넘음 — 야생에서만) 스라크 · 헤라크로스 · 드묾 덩쿠리 · 로젤리아
+      strong: [123, 214],
+      rareList: [114, 315],
+      mixedPick: 3,
     },
     stones: ['leaf-stone', 'moon-stone'],
     badgeName: '숲 배지',
@@ -206,7 +206,7 @@ export function regionOf(stageId: StageId): { region: RegionDef; index: number }
  * 다음 지역을 열면 세이브의 지역 순서 칸 (#30, 세이브 4판) 에서 셈
  */
 export function regionOrder(region: RegionId): number {
-  // 해변 = 늘 2번째 이후 (시작은 숲 고정 — 7-3) · 미리 보기는 2번째 (관장 에이스 Lv 21 — orders #37)
+  // 해변 = 늘 2번째 이후 (시작은 숲 고정 — 7-3) · 미리 보기는 2번째 (관장 에이스 = 레벨표 2번째 — orders #37)
   return region === 'forest' ? 1 : BALANCE.region.beachOrder;
 }
 

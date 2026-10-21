@@ -139,7 +139,7 @@ function leaderMoves(dex: number, level: number): ReadonlyMove[] {
 }
 
 /** 관장 3마리 (마지막 = 에이스) — 지역 표 셋 묶음 · 몇 번째 지역 레벨 (숲 k = 1 = 예전 gymTeam 그대로) */
-export function leaderTeam(region: RegionDef = REGIONS.forest): Monster[] {
+export function leaderTeam(region: RegionDef): Monster[] {
   return regionGymTeam(region, regionOrder(region.id)).map(([dex, level], i) => {
     const m = createMonster({ uid: `gym${i}`, dex, level, moves: leaderMoves(dex, level), rng: new Rng(0x6e1 + i), caughtAt: 'gym', form: formsOfSpecies(dex)[0] });
     return { ...m, ivs: { ...LEADER_IVS }, hp: 99999 };

@@ -40,14 +40,20 @@ const TEAM = process.env.SIM_TEAM === '1';
 /** SIM_TEAM=meet1 — 3:3 을 켜되 트레이너 만남에서 늘 1:1 을 고르는 사람 (관장은 3:3 — 켜면 늘 3:3, orders #47) */
 const MEET1 = process.env.SIM_TEAM === 'meet1';
 if (TEAM || MEET1) (BALANCE.team as { on: boolean }).on = true;
+/** SIM_TEAM=off — 3:3 을 끄고 늘 1:1 (모두에게 켜기 전 숫자와 견줌 — orders #59) */
+const OFF = process.env.SIM_TEAM === 'off';
+if (OFF) (BALANCE.team as { on: boolean }).on = false;
 /** SIM_PICK_GAP = 3마리 기본 고르기 레벨 규칙 (BALANCE.team.pickLevelGap — 0 꺼짐 · 10 켬, orders #46 · #47) */
 if (process.env.SIM_PICK_GAP) (BALANCE.team as { pickLevelGap: number }).pickLevelGap = Number(process.env.SIM_PICK_GAP);
-const modeLabel = TEAM ? '3:3' : MEET1 ? '3:3 켬 · 만남 1:1 (관장 3:3)' : '1:1';
+const modeLabel = TEAM ? '3:3' : BALANCE.team.on ? '3:3 켬 · 만남 1:1 (관장 3:3)' : '1:1';
 /**
- * SIM_FOREST_LISTS=0|1 — 숲 목록 초안 (gdd 5.4 — 개발 메뉴 스위치) 끔 · 켬을 견줌 (orders #56 · 아침 질문 #103).
- * 둘 다 개발 모드 (3:3 미리 켜기는 끔) 로 돌려 목록만 다르게 (개발 모드라 오늘의 목표 보상이 같이 들어감 — 두 벌 같음)
+ * SIM_FOREST=1 — 숲 목록 보고 (스테이지 끝 센 셋 − 에이스 · 만난 · 잡은 종 · 다 만나는 판 수 — orders #56 · #60) ·
+ * SIM_FOREST=dev — 같은 보고를 #56 과 같은 조건 (개발 모드 · 3:3 꺼짐 — BALANCE.team.on 도 끔) 으로 — 목록이 본편이 된 앞뒤 견주기.
+ * 시뮬은 runtime.today 를 안 넣어 오늘의 목표 보상 (볼 · 금구슬) 이 빠짐 — 돈 · 볼이 실제보다 조금 적음 (코드 리뷰어 #59)
  */
-const FOREST_LISTS = process.env.SIM_FOREST_LISTS === '0' || process.env.SIM_FOREST_LISTS === '1' ? process.env.SIM_FOREST_LISTS === '1' : null;
+const FOREST_REPORT = process.env.SIM_FOREST === '1' || process.env.SIM_FOREST === 'dev';
+const FOREST_DEV = process.env.SIM_FOREST === 'dev';
+if (FOREST_DEV) (BALANCE.team as { on: boolean }).on = false;
 
 /** 'beach-gym' = 해변 체육관 (SIM_REGION=beach — 2번째 지역) */
 type Where = StageId | 'gym' | 'beach-gym';
@@ -257,7 +263,7 @@ function runOnce(dex: number, seed: number): RunResult {
   let s = createGameState(createStartSave(0, seed, dex, { gender: 'male' }), seed);
   s = applyInput(s, { kind: 'auto-battle', on: true });
   if (TEAM) s = { ...s, save: { ...s.save, settings: { ...s.save.settings, teamMode: true } } };
-  if (FOREST_LISTS !== null) s = { ...s, runtime: { ...s.runtime, dev: { ...devDefault(), team: TEAM, forestLists: FOREST_LISTS } } };
+  if (FOREST_DEV) s = { ...s, runtime: { ...s.runtime, dev: { ...devDefault(), team: TEAM } } };
   const stages = Object.fromEntries([...STAGE_IDS, 'gym', ...BEACH_STAGES].map((k) => [k, blank()])) as Record<Where, StageStat>;
   const mem = { resultMs: 0, lostGymOnce: false, grindNext: false, parryKey: '', parryYes: false };
   const r: RunResult = { seenEnd: 0, caughtEnd: 0, firstCatchMs: 0, starter: speciesOf(dex)?.name.ko ?? String(dex), seed, done: false, totalMs: 0, stages, gymTries: 0, firstGymLevels: [], winLevels: [], moneyAtGym: -1, firstUltMin: -1, spent: 0, potionsUsed: 0, team: 0, teamBattles: 0, forestMs: 0, beachGymTries: 0, regions: [] };
@@ -444,7 +450,7 @@ for (const sp of starters.filter((x) => ONLY === null || x.dex === ONLY)) {
   }
 }
 const ace = Math.max(...leaderTeam().map((m) => m.level));
-console.log(`판 ${results.length} (스타팅 ${starters.length} × ${RUNS}) · ${TEAM || MEET1 ? `${modeLabel} (한 판에 3:3 ${avg(results.map((r) => r.teamBattles)).toFixed(1)}번)` : '1:1'}${BALANCE.team.pickLevelGap ? ` · 고르기 레벨 규칙 ${BALANCE.team.pickLevelGap}` : ''} · 잡기 ${CATCH ? '함' : '안 함'} · 연타 ${MASH ? '함' : '안 함'} · 패링 ${PARRY} · 계산 ${((Date.now() - started) / 1000).toFixed(0)}초 · 관장 에이스 Lv ${ace}`);
+console.log(`판 ${results.length} (스타팅 ${starters.length} × ${RUNS}) · ${BALANCE.team.on ? `${modeLabel} (한 판에 3:3 ${avg(results.map((r) => r.teamBattles)).toFixed(1)}번)` : '1:1'}${BALANCE.team.pickLevelGap ? ` · 고르기 레벨 규칙 ${BALANCE.team.pickLevelGap}` : ''} · 잡기 ${CATCH ? '함' : '안 함'} · 연타 ${MASH ? '함' : '안 함'} · 패링 ${PARRY} · 계산 ${((Date.now() - started) / 1000).toFixed(0)}초 · 관장 에이스 Lv ${ace}`);
 console.log(`끝까지 간 판 ${results.filter((r) => r.done).length} / ${results.length}`);
 for (const w of [...STAGE_IDS, 'gym'] as Where[]) {
   const xs = results.map((r) => r.stages[w]);
@@ -498,13 +504,13 @@ if (BEACH) {
   }
 }
 
-if (FOREST_LISTS !== null) {
-  // 숲 목록 초안 견주기 (orders #56) — 스테이지 끝 · 관장 첫 도전의 센 셋 − 에이스 (15) · 만난 · 잡은 종 · 다 만나는 판 수
+if (FOREST_REPORT) {
+  // 숲 목록 보고 (orders #56 · #60) — 스테이지 끝 · 관장 첫 도전의 센 셋 − 에이스 (15) · 만난 · 잡은 종 · 다 만나는 판 수
   const avgOf = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
   const ace = 15;
   const top3Of = (ls: number[]) => avgOf([...ls].sort((a, b) => b - a).slice(0, 3));
   const gaps = [...STAGE_IDS.map((w) => avgOf(results.filter((r) => r.stages[w].clearTop3).map((r) => r.stages[w].clearTop3 - ace))), avgOf(results.map((r) => top3Of(r.firstGymLevels) - ace))];
-  console.log(`숲 목록 ${FOREST_LISTS ? '초안 켬 (gdd 5.4)' : '지금 (타입 전부)'} — 센 셋 − 에이스 15: 1-1 끝 ${gaps[0]!.toFixed(1)} · 1-2 끝 ${gaps[1]!.toFixed(1)} · 1-3 끝 ${gaps[2]!.toFixed(1)} · 관장 첫 도전 ${gaps[3]!.toFixed(1)}`);
+  console.log(`숲 목록 (gdd 5.4${FOREST_DEV ? ' · 개발 모드 — #56 조건' : ''}) — 센 셋 − 에이스 15: 1-1 끝 ${gaps[0]!.toFixed(1)} · 1-2 끝 ${gaps[1]!.toFixed(1)} · 1-3 끝 ${gaps[2]!.toFixed(1)} · 관장 첫 도전 ${gaps[3]!.toFixed(1)}`);
   // 한 판 동안 만난 · 잡은 종 (세이브 도감 — 끝날 때)
   console.log(`  한 판 만난 종 ${avgOf(results.map((r) => r.seenEnd)).toFixed(1)} · 잡은 종 ${avgOf(results.map((r) => r.caughtEnd)).toFixed(1)} · 1-1 첫 잡기까지 ${(avgOf(results.filter((r) => r.firstCatchMs > 0).map((r) => r.firstCatchMs)) / 60000).toFixed(1)}분 (1-1 에서 잡은 판 ${results.filter((r) => r.firstCatchMs > 0).length}) · 1-1 잡음 ${avgOf(results.map((r) => r.stages['forest-1'].caught)).toFixed(1)}`);
   // 다 만나는 판 수 — 스테이지 걷기를 시드만 바꿔 되풀이 (야생 자리를 다 만남), 400판에서 나온 종을 다 만날 때까지 (스테이지 셋을 한 판으로)
@@ -514,7 +520,7 @@ if (FOREST_LISTS !== null) {
     const row: number[] = [];
     for (const id of STAGE_IDS) {
       const seed = 50_000 + p * 131 + STAGE_IDS.indexOf(id);
-      for (const spot of stageLayout(id, seed).spots.filter((x) => x.kind === 'wild')) row.push(planWild(id, seed, spot, 0, FOREST_LISTS).dex);
+      for (const spot of stageLayout(id, seed).spots.filter((x) => x.kind === 'wild')) row.push(planWild(id, seed, spot, 0).dex);
     }
     plays.push(row);
     for (const d of row) (kinds.get('all') ?? kinds.set('all', new Set()).get('all')!).add(d);

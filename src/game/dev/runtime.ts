@@ -4,7 +4,6 @@
  *
  * 개발 모드에서만 쓰는 진행 중 값 (state.runtime.dev — 세이브에는 안 남음, 확장이 켜짐을 정함):
  * - team = 3:3 미리 켜기 (BALANCE.team.on 과 따로) · walk = 걷기 배 · battle = 전투 시간 배 (웹뷰 시계) · pause = 멈춤
- * - forestLists = 숲 야생을 정한 목록 초안 (gdd 5.4) 으로 (아침 질문 #103 비교 — orders #41)
  * - foes = 장면 바로 가기 상대 팀 (야생 = 첫 마리 · 트레이너 · 관장 3:3 = 셋) · ults = 포켓몬마다 고른 필살기 이름
  */
 import { speciesOf } from '../data';
@@ -18,7 +17,6 @@ export interface DevMon {
 
 export interface DevRuntime {
   team: boolean;
-  forestLists: boolean;
   walk: number;
   battle: number;
   pause: boolean;
@@ -32,7 +30,7 @@ export const DEV_FOES_MAX = 3;
 export const DEV_LEVEL_MAX = 100;
 
 export function devDefault(): DevRuntime {
-  return { team: true, forestLists: false, walk: 1, battle: 1, pause: false, foes: [], ults: {} };
+  return { team: true, walk: 1, battle: 1, pause: false, foes: [], ults: {} };
 }
 
 type Obj = Record<string, unknown>;
@@ -43,7 +41,6 @@ export function readDev(raw: unknown): DevRuntime | null {
   if (!isObj(raw)) return null;
   const d = devDefault();
   if (typeof raw.team === 'boolean') d.team = raw.team;
-  if (typeof raw.forestLists === 'boolean') d.forestLists = raw.forestLists;
   if ((DEV_WALKS as readonly unknown[]).includes(raw.walk)) d.walk = raw.walk as number;
   if ((DEV_BATTLES as readonly unknown[]).includes(raw.battle)) d.battle = raw.battle as number;
   if (typeof raw.pause === 'boolean') d.pause = raw.pause;
@@ -63,7 +60,5 @@ export function readDev(raw: unknown): DevRuntime | null {
 
 /** 엔진 — 3:3 을 쓸지 (본편 BALANCE.team.on 이 꺼져 있어도 개발 모드에서 켬) */
 export const devTeam = (dev: DevRuntime | undefined): boolean => dev?.team === true;
-/** 엔진 · 화면 — 숲 야생을 정한 목록 초안 (gdd 5.4) 으로 (개발 모드에서만) */
-export const devForestLists = (dev: DevRuntime | undefined): boolean => dev?.forestLists === true;
 /** 엔진 — 걷기 배 */
 export const devWalk = (dev: DevRuntime | undefined): number => dev?.walk ?? 1;

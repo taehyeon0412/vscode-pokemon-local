@@ -211,7 +211,7 @@ export interface SaveV3 {
   laterChoices?: PendingChoice[];
   /** 본 첫 안내 id (2026-10-21 디자인팀 orders #12 — 'walk' · 'last' · 'ult' …). 처음 볼 때 생김 */
   tips?: string[];
-  /** 오늘의 목표 (gdd 4.11 U13, orders #28) — 그날 처음 쓸 때 생김 · 어제 것은 덮음. 지금은 개발 모드에서만 */
+  /** 오늘의 목표 (gdd 4.11 U13, orders #28) — 그날 처음 쓸 때 생김 · 어제 것은 덮음. 모두에게 (orders #59 — 그 전 판 창은 모르는 칸) */
   daily?: Daily;
   /** 기록 (gdd 4.11 U12) — 이긴 수 · 잡은 수 · 걸은 거리. 오늘의 목표와 같이 켜짐 (처음 쓸 때 생김) */
   records?: Records;

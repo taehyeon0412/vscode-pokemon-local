@@ -4,13 +4,17 @@ import { fixedRng } from '../../../test/fixtures/rng';
 import { sampleMonster, sampleSave, viaJson } from '../../../test/fixtures/save';
 import { BALANCE, TIMING } from '../balance';
 import type { Monster, Save } from '../save';
-import { applyInput, defeatWaits, step, TEAM_MEET_TIP, teamChoiceMeet, teamLock, teamMainOf, teamMeetTipDue, teamPickOf } from './play';
+import { applyInput, defeatWaits, step, TEAM_MEET_TIP, teamChoiceMeet, teamFoesOf, teamLock, teamMainOf, teamMeetTipDue, teamPickOf } from './play';
 import { Rng } from './rng';
 import { createGameState, readRuntime, type GameState } from './state';
 import { shotTiming, applyTeamResult, isSpread, pickTeam, readTeam, startTeamBattle, TEAM_BASIC, teamClashSure, teamDone, teamInput, teamPick, teamPossible, teamScale, teamStep, teamAutoUltLeft, teamAutoUltNext, teamUltLevel, teamUltOpen, type TeamBattle, teamGather, teamLayout } from './team';
 import { moveFxOf, moveOf, ultIsSpread, ultNamesOf } from '../../data';
 import { teamHealthy } from '../rules/bag';
-import { trainerTeam } from '../rules/trainer';
+import { leaderTeam, trainerTeam } from '../rules/trainer';
+import { REGIONS } from '../rules/region';
+
+/** 게임 값 (모두에게 켬 — orders #59) — 켜고 끄는 테스트는 끝나면 이 값으로 되돌림 */
+const TEAM_ON = BALANCE.team.on;
 
 const STEP = TIMING.simStepMs;
 const mon = (uid: string, o: Partial<Monster> = {}) => sampleMonster({ uid, level: 12, ...o });
@@ -187,7 +191,7 @@ describe('다시 읽기', () => {
   });
 });
 
-describe('연결 — 트레이너 만남 · 관장전 (BALANCE.team.on 이 켜질 때만, 화면이 생길 때까지 꺼 둠)', () => {
+describe('연결 — 트레이너 만남 · 관장전 (BALANCE.team.on 이 켜졌을 때 — 모두에게 켬 orders #59 · 꺼짐도 견줌)', () => {
   const setOn = (on: boolean) => {
     (BALANCE.team as { on: boolean }).on = on;
   };
@@ -207,10 +211,10 @@ describe('연결 — 트레이너 만남 · 관장전 (BALANCE.team.on 이 켜�
   const remembered = (save: Save): Save => ({ ...save, settings: { ...save.settings, teamMode: true } });
 
   it('꺼져 있으면 늘 1:1 · 켜면 마지막으로 고른 방식 (처음엔 자동 전투도 1:1) · 고르면 기억 · 3마리 미만이면 1:1', () => {
-    setOn(false);
-    expect(phaseAfter(meet(remembered(auto(team3()))))).toBe('battle');
-    setOn(true);
     try {
+      setOn(false);
+      expect(phaseAfter(meet(remembered(auto(team3()))))).toBe('battle');
+      setOn(true);
       expect(phaseAfter(meet(auto(team3())))).toBe('battle');
       expect(phaseAfter(meet(team3()))).toBe('battle');
       const chose = applyInput(meet(team3()), { kind: 'team-mode', on: true });
@@ -231,7 +235,7 @@ describe('연결 — 트레이너 만남 · 관장전 (BALANCE.team.on 이 켜�
       expect(phaseAfter(fresh(remembered(team3())))).toBe('team');
       expect(phaseAfter(fresh(team3()))).toBe('battle');
     } finally {
-      setOn(false);
+      setOn(TEAM_ON);
     }
   });
 
@@ -250,7 +254,7 @@ describe('연결 — 트레이너 만남 · 관장전 (BALANCE.team.on 이 켜�
       }
       expect(s.save.pendingEncounter).toBeNull();
     } finally {
-      setOn(false);
+      setOn(TEAM_ON);
     }
   });
 
@@ -322,7 +326,7 @@ describe('연결 — 트레이너 만남 · 관장전 (BALANCE.team.on 이 켜�
       // 셋뿐이면 전멸 → S17
       expect(lose(team3()).s.runtime.stage?.phase).toBe('defeat');
     } finally {
-      setOn(false);
+      setOn(TEAM_ON);
     }
   });
 
@@ -338,6 +342,11 @@ describe('연결 — 트레이너 만남 · 관장전 (BALANCE.team.on 이 켜�
       expect(open.runtime.stage).toMatchObject({ phase: 'lobby', picking: true });
       expect(open.runtime.stage?.phase === 'lobby' && open.runtime.stage.pick).toHaveLength(3);
       expect(teamPickOf(lobby(team3()))).toBeNull();
+      // 해변 대기실 = 해솔 팀 (판 그림 · 미리 체크가 숲 관장 팀 기준이던 것 — 코드 리뷰어 #59)
+      const beach = lobby({ ...team3(), location: { screen: 'gym', region: 'beach' } });
+      const beachLobby = { ...beach, save: { ...beach.save, location: { screen: 'gym' as const, region: 'beach' as const } } };
+      expect(teamFoesOf(beachLobby)?.map((m) => m.species)).toEqual(leaderTeam(REGIONS.beach).map((m) => m.species));
+      expect(teamFoesOf(lobby(team3()))?.map((m) => m.species)).toEqual(leaderTeam(REGIONS.forest).map((m) => m.species));
       const closed = applyInput(open, { kind: 'lobby-back' });
       expect(closed.runtime.stage).toEqual({ phase: 'lobby', pick: open.runtime.stage?.phase === 'lobby' ? open.runtime.stage.pick : [] });
       expect(applyInput(closed, { kind: 'team-pick', uid: 'm1' })).toBe(closed);
@@ -356,7 +365,7 @@ describe('연결 — 트레이너 만남 · 관장전 (BALANCE.team.on 이 켜�
       const back = createGameState({ ...g.save, pendingEncounter: { kind: 'gym-leader' } }, 3);
       expect(step({ ...back, runtime: { ...back.runtime, stage: null, stageId: null } }, STEP).state.runtime.stage?.phase).toBe('team');
     } finally {
-      setOn(false);
+      setOn(TEAM_ON);
     }
   });
 });
@@ -534,6 +543,18 @@ describe('#17 준비 — 배율 · 잠금 · 3마리 고르기 · 필살기 예�
     expect(teamLayout({ w: 860, h: 187 })).toBe('slant');
   });
 
+  it('모두에게 켜짐 (orders #59) — 게임 값 그대로 · 개발 모드 아님: 트레이너 만남에서 1:1 / 3:3 고르기 · 3:3 처음 안내가 뜸', () => {
+    expect(BALANCE.team.on).toBe(true);
+    const open = meet({ ...five(), settings: { ...five().settings, autoBattle: false } }, { w: 860, h: 187 });
+    expect(open.runtime.dev).toBeUndefined();
+    expect(teamChoiceMeet(open)).toBe(true);
+    expect(teamMeetTipDue(open)).toBe(true);
+    // "!" 동안 (버튼 전 — 3 이 아직 안 먹음) 엔 처음 안내도 안 뜸 (UX 리뷰어 #59)
+    expect(teamMeetTipDue({ ...open, runtime: { ...open.runtime, stage: { phase: 'trainer', n: 0, ms: TIMING.trainerAlertMs - STEP } } })).toBe(false);
+    // 만남 4초가 지나도 고르기를 기다림 (자동 전투가 꺼져 있으면 — 고르면 이어 감)
+    expect(teamChoiceMeet(steps(open, TIMING.trainerMeetMs + STEP))).toBe(true);
+  });
+
   it('잠금 — 좁으면 3:3 고르기 안 됨 · 기억한 3:3 도 1:1 · 관장도 1:1 토너먼트 · 까닭 (few · narrow) · 패널 크기는 넘겨도 남음', () => {
     setOn(true);
     try {
@@ -559,7 +580,7 @@ describe('#17 준비 — 배율 · 잠금 · 3마리 고르기 · 필살기 예�
       expect(applyInput(v, { kind: 'view', w: 860, h: 187 })).toBe(v);
       expect(readRuntime(viaJson(v.runtime), 1).view).toEqual({ w: 860, h: 187 });
     } finally {
-      setOn(false);
+      setOn(TEAM_ON);
     }
   });
 
@@ -605,7 +626,7 @@ describe('#17 준비 — 배율 · 잠금 · 3마리 고르기 · 필살기 예�
       expect(readRuntime(viaJson(swapped.runtime), 1).stage).toEqual(viaJson(swapped.runtime.stage));
       expect(applyInput(swapped, { kind: 'team-mode', on: false }).runtime.stage).toEqual({ phase: 'trainer', n: 0, ms: TIMING.trainerAlertMs, team: false });
     } finally {
-      setOn(false);
+      setOn(TEAM_ON);
     }
   });
 
@@ -647,7 +668,7 @@ describe('#17 준비 — 배율 · 잠금 · 3마리 고르기 · 필살기 예�
       expect(readRuntime({ stage: { phase: 'trainer', n: 0, ms: 3000, vsAt: 999_999_999 } }, 1).stage).toEqual({ phase: 'trainer', n: 0, ms: 3000 });
       expect(readRuntime({ stage: { phase: 'trainer', n: 0, ms: 3000, vsAt: 2000, ask: true } }, 1).stage).toEqual({ phase: 'trainer', n: 0, ms: 3000, vsAt: 2000, ask: true });
     } finally {
-      setOn(false);
+      setOn(TEAM_ON);
     }
   });
 
@@ -677,7 +698,7 @@ describe('#17 준비 — 배율 · 잠금 · 3마리 고르기 · 필살기 예�
       expect(teamChoiceMeet(locked)).toBe(false);
       expect(steps(locked, TIMING.trainerMeetMs - TIMING.trainerAlertMs + STEP).runtime.stage?.phase).toBe('battle');
     } finally {
-      setOn(false);
+      setOn(TEAM_ON);
     }
   });
 
@@ -695,7 +716,7 @@ describe('#17 준비 — 배율 · 잠금 · 3마리 고르기 · 필살기 예�
       const g = applyInput(changed, { kind: 'challenge' });
       expect(g.runtime.stage?.phase === 'team' && g.runtime.stage.team.fought).toEqual([first[0], first[1], other]);
     } finally {
-      setOn(false);
+      setOn(TEAM_ON);
     }
   });
 
@@ -886,6 +907,15 @@ describe('같은 편 합동 필살기 — 합동 필살기 멘트 (2026-10-21 �
     // 찬 동료가 다 모이고 상대 끼어들기도 없으면 멘트를 끝까지 안 기다리고 바로 합동 (코드 리뷰어)
     expect(run({ ...g, reserve: [2] }, STEP, fixedRng(0.99)).ult!.joint?.winners).toEqual([0, 2]);
     expect(teamStep(g, STEP, fixedRng(0.99), { auto: true, away: false }).ult!.joint?.winners).toEqual([0, 2]);
+    // 막 시작한 걸음에 바로 모임 — 멘트 (합동 띠) 가 한 장면만 보이지 않게 (UX 리뷰어 #59, U1): 자동 전투 · 예약
+    let autoStart = full(base(), 'me', [0, 2]);
+    for (let t = 0; t < 10_000 && autoStart.phase !== 'ult'; t += STEP) autoStart = teamStep(autoStart, STEP, fixedRng(0.99), { auto: true, away: false });
+    expect(autoStart.phase).toBe('ult');
+    expect(teamGather(autoStart)).toBeNull();
+    expect(autoStart.ult!.joint?.winners.slice().sort()).toEqual([0, 2]);
+    const reserved = teamInput({ ...full(base(), 'me', [0, 2]), reserve: [2] }, { kind: 'ult', slot: 0 }, fixedRng(0.99));
+    expect(teamGather(reserved)).toBeNull();
+    expect(reserved.ult!.joint?.winners).toEqual([0, 2]);
     // 멘트 중에 쓴 포켓몬 · 모인 포켓몬의 키를 또 눌러도 예약이 되지 않음
     expect(teamInput(g, { kind: 'ult', slot: 0 }, fixedRng(0.99))).toBe(g);
     // 상대 AI 가 멘트 중에 받아침 (0 = 늘) — 내 쪽은 모인 동료와 함께
@@ -923,11 +953,12 @@ describe('3마리 기본 고르기 레벨 규칙 (orders #46 · #44 — 꺼 둔 
     (BALANCE.team as { pickLevelGap: number }).pickLevelGap = gap;
   };
 
-  it('꺼짐 (0, 지금) = 상성 점수 먼저 — Lv 31 파이숭이가 들어감 · 켬 (10) = 센 셋 평균보다 10 넘게 낮으면 뒤로 — 빠짐', () => {
-    expect(BALANCE.team.pickLevelGap).toBe(0);
-    expect(pickTeam(save, foes)).toContain('m1');
-    setGap(10);
+  it('꺼짐 (0) = 상성 점수 먼저 — Lv 31 파이숭이가 들어감 · 켬 (10, 게임 값 — orders #59) = 센 셋 평균보다 10 넘게 낮으면 뒤로 — 빠짐', () => {
+    expect(BALANCE.team.pickLevelGap).toBe(10);
+    setGap(0);
     try {
+      expect(pickTeam(save, foes)).toContain('m1');
+      setGap(10);
       const picked = pickTeam(save, foes);
       expect(picked).toHaveLength(3);
       expect(picked).not.toContain('m1');
@@ -937,8 +968,12 @@ describe('3마리 기본 고르기 레벨 규칙 (orders #46 · #44 — 꺼 둔 
       // 레벨 차가 10 안이면 상성 그대로
       const close = { ...save, monsters: { ...save.monsters, m1: { ...save.monsters.m1!, level: 50 } } };
       expect(pickTeam(close, foes)).toContain('m1');
+      // 순위 전체 (n = Infinity — 고르기에서 빼고 채울 때) 도 센 셋 평균 기준 (모두의 평균이면 Lv 47 이 "안 낮음" 으로 앞에 오던 것 — 테스터 #59)
+      const mid = { ...save, monsters: { ...save.monsters, m1: { ...save.monsters.m1!, level: 47 } } };
+      expect(pickTeam(mid, foes)).not.toContain('m1');
+      expect(pickTeam(mid, foes, Infinity).at(-1)).toBe('m1');
     } finally {
-      setGap(0);
+      setGap(10);
     }
   });
 });

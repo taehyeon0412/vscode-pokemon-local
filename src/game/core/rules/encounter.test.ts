@@ -11,11 +11,10 @@ const [LO1, HI1] = stageLevelBand('forest-1');
 const spot = (index: number, at: number): Spot => ({ kind: 'wild', at, index });
 
 describe('숲 포켓몬 (mvp-spec 3.2)', () => {
-  it('보통 = 풀 · 벌레 1단계, 드물게 = 독 · 드래곤 · 페어리 (풀 · 벌레 아님), 전설 · 환상 · 아기 없음', () => {
+  it('보통 = 1-1 목록 풀 · 벌레 1단계 8종 (gdd 5.4 — orders #60), 드물게 = 독 · 드래곤 · 페어리 2종 (풀 · 벌레 아님), 전설 · 환상 · 아기 없음', () => {
     const pool = forestPool('forest-1');
-    // 스타팅 계열을 빼고 풀 · 벌레 1단계 (1-1 · 1-2 는 종족값 합 450 넘는 것도 뺌) — mvp-spec 9장 "충분함"
-    expect(pool.common.length).toBeGreaterThan(30);
-    expect(pool.rare.length).toBeGreaterThan(5);
+    expect(pool.common).toHaveLength(8);
+    expect(pool.rare).toHaveLength(2);
     for (const dex of pool.common) {
       const s = speciesOf(dex)!;
       expect(s.types.some((t) => t === 'grass' || t === 'bug'), String(dex)).toBe(true);
@@ -27,15 +26,14 @@ describe('숲 포켓몬 (mvp-spec 3.2)', () => {
     }
     for (const dex of pool.rare) expect(speciesOf(dex)!.types.some((t) => t === 'grass' || t === 'bug')).toBe(false);
     expect(pool.common).toContain(10); // 캐터피
-    // 노말 · 비행 (단계 11: 숲이 불꽃 스타팅에만 쉬워서 섞음, 2026-10-19 태현 님) — 풀 · 벌레 · 독 · 드래곤 · 페어리가 아닌 1단계
-    expect(pool.mixed.length).toBeGreaterThan(10);
+    // 노말 · 비행 (단계 11: 숲이 불꽃 스타팅에만 쉬워서 섞음, 2026-10-19 태현 님) — 풀 · 벌레 · 독 · 드래곤 · 페어리가 아닌 1단계, 스테이지마다 3종 (gdd 5.4)
+    expect(pool.mixed).toHaveLength(3);
     for (const dex of pool.mixed) {
       const s = speciesOf(dex)!;
       expect(s.types.every((t) => t === 'normal' || t === 'flying'), String(dex)).toBe(true);
       expect(s.legendary || s.mythical || s.baby, String(dex)).toBe(false);
       expect(s.stage, String(dex)).toBe(1);
     }
-    expect(pool.mixed).toContain(16); // 구구
     expect(pool.mixed).not.toContain(132); // 메타몽 (변신만)
     expect(pool.mixed).not.toContain(278); // 갈모매 (물 · 비행 — 숲길에 물결 흔적)
   });

@@ -7,7 +7,7 @@ import { createGameState, type GameState } from '../engine/state';
 import { validateSave } from '../save';
 import type { TypeName } from '../../data';
 import { devState } from '../../dev/demo';
-import { dailyAdd, dailyDone, dailyFor, dailyLabel, dayKey } from './daily';
+import { dailyAdd, dailyDone, dailyFor, dailyLabel, dayFarAhead, dayKey } from './daily';
 import { trainerInfo } from './trainer';
 
 const STEP = TIMING.simStepMs;
@@ -44,7 +44,7 @@ describe('오늘의 목표 규칙 (gdd 4.11 U13 · orders #28)', () => {
   });
 });
 
-describe('오늘의 목표 · 기록 — 엔진 (개발 모드에서만)', () => {
+describe('오늘의 목표 · 기록 — 엔진 (개발 모드 · 꺼짐도 견줌)', () => {
   const base = (dev = true): GameState => {
     const s = createGameState(sampleSave(), 7);
     const g = { ...s, runtime: { ...s.runtime, today: DAY } };
@@ -219,5 +219,27 @@ describe('잡기 — 오늘의 목표는 이긴 것으로 · 기록은 "잡은 �
     expect(after.runtime.stage?.phase).toBe('result');
     expect(after.save.daily?.goals[0]?.have).toBe(1);
     expect(after.save.records?.wins).toBe(before.wins);
+  });
+});
+
+describe('모두에게 켜짐 (orders #59)', () => {
+  it('개발 모드가 아니어도 오늘의 목표를 받음 (게임 값 그대로)', () => {
+    expect(BALANCE.daily.on).toBe(true);
+    const s = createGameState(sampleSave(), 7);
+    const after = step({ ...s, runtime: { ...s.runtime, today: DAY } }, STEP).state;
+    expect(after.runtime.dev).toBeUndefined();
+    expect(after.save.daily?.day).toBe(DAY);
+  });
+});
+
+describe('PC 시계를 미래로 잘못 맞췄다 고침 (코드 리뷰어 #59)', () => {
+  it('목표 날이 2일 넘게 앞이면 오늘 것으로 다시 · 하루 앞 (시간대 차이) 은 그대로', () => {
+    expect(dayFarAhead('2027-01-01', DAY)).toBe(true);
+    expect(dayFarAhead(DAY, DAY)).toBe(false);
+    expect(dayFarAhead('2026-10-23', '2026-10-22')).toBe(false);
+    expect(dayFarAhead('이상함', DAY)).toBe(false);
+    const s = createGameState(sampleSave(), 7);
+    const future = { ...s, save: { ...s.save, daily: { day: '2027-01-01', goals: dailyFor('2027-01-01').goals } }, runtime: { ...s.runtime, today: DAY } };
+    expect(step(future, STEP).state.save.daily?.day).toBe(DAY);
   });
 });

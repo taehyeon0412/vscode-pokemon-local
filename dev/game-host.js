@@ -467,7 +467,7 @@
                 return setTimeout(() => run(i + 1, 40), 100);
             }
             const badge = document.querySelector('#pokemon-game .pg-dev-badge');
-            // 스위치 (목록 초안 · 3:3 켜짐 · 걷기 ×N — pg-dev-switch) 도 누름 (개발 #50 메모)
+            // 스위치 (3:3 켜짐 · 걷기 ×N — pg-dev-switch) 도 누름 (개발 #50 메모)
             const btn = [...document.querySelectorAll('#pokemon-game .pg-dev-btn, #pokemon-game .pg-dev-switch')].find((x) => x.textContent.trim() === st);
             if (btn) {
                 btn.click();

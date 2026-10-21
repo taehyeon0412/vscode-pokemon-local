@@ -189,9 +189,10 @@ export function pickTeam(save: Save, foes: readonly Monster[], n: number = BALAN
   const score = (m: Monster) =>
     foeTypes.reduce((sum, t) => sum + Math.max(1, ...m.moves.map((s) => moveOf(s.moveId)).filter((mv): mv is ReadonlyMove => !!mv && mv.power > 0).map((mv) => effectiveness(mv.type, t))), 0);
   const alive = save.party.map((uid) => save.monsters[uid]).filter((m): m is Monster => !!m && m.hp > 0);
-  // 레벨 규칙 (켜져 있으면 — BALANCE.team.pickLevelGap): 센 셋 평균보다 그만큼 넘게 낮으면 뒤로 (모자라면 그래도 나감)
+  // 레벨 규칙 (켜져 있으면 — BALANCE.team.pickLevelGap): 센 셋 평균보다 그만큼 넘게 낮으면 뒤로 (모자라면 그래도 나감).
+  // 센 셋 = 늘 팀 크기만큼 (순위 전체 n = Infinity 로 불러도 — 모두의 평균이 되던 것, 테스터 #59)
   const gap = BALANCE.team.pickLevelGap;
-  const top = alive.map((m) => m.level).sort((a, b) => b - a).slice(0, n);
+  const top = alive.map((m) => m.level).sort((a, b) => b - a).slice(0, BALANCE.team.size);
   const floor = gap > 0 && top.length > 0 ? top.reduce((a, b) => a + b, 0) / top.length - gap : -Infinity;
   const low = (m: Monster) => (m.level < floor ? 1 : 0);
   return alive
@@ -818,8 +819,11 @@ export function teamInput(b0: TeamBattle, input: TeamInput, rng: Rng, ults?: Rea
     return b;
   }
   const b = clone(b0);
-  if (b.phase === 'run') startUlt(b, 'me', slot, rng, ults);
-  else if (b.phase === 'ult' && b.ult!.side === 'me') joinTeam(b, 'me', slot);
+  if (b.phase === 'run') {
+    startUlt(b, 'me', slot, rng, ults);
+    // 예약해 둔 찬 동료는 같은 때 모임 (합동 띠가 한 장면만 번쩍이던 것 — teamStep 과 같은 규칙, UX 리뷰어 #59)
+    if (joinsNow(b, false)) return teamStepOnce(b, 0, rng, { auto: false, away: false, ults });
+  } else if (b.phase === 'ult' && b.ult!.side === 'me') joinTeam(b, 'me', slot);
   else if (b.phase === 'ult') startUltClash(b, 'me', [slot], rng);
   else if (b.clash) {
     spendUlt(b, 'me', slot);
@@ -831,6 +835,23 @@ export function teamInput(b0: TeamBattle, input: TeamInput, rng: Rng, ults?: Rea
 }
 
 export function teamStep(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamStepOptions): TeamBattle {
+  const b = teamStepOnce(b0, stepMs, rng, opts);
+  // 필살기가 막 시작된 걸음에 자동 · 예약으로 바로 끼어들거나 모일 포켓몬이 있으면 같은 걸음에 (다음 걸음까지 끼어들기 · 합동 띠가
+  // 한 장면 (약 70ms) 만 번쩍이던 것 — UX 리뷰어 #59, U1). 0ms 한 번 더 = 다음 걸음에 할 일을 앞당김
+  if (b0.phase !== 'ult' && b.phase === 'ult' && joinsNow(b, opts.auto || opts.away)) return teamStepOnce(b, 0, rng, opts);
+  return b;
+}
+
+/** 지금 필살기에 내 포켓몬이 자동 · 예약으로 바로 끼어들거나 (상대 필살기 창) 모이는지 (내 합동 멘트) */
+function joinsNow(b: TeamBattle, auto: boolean): boolean {
+  const u = b.ult;
+  if (!u) return false;
+  const ready = (i: number) => alive(b.me[i]!) && b.me[i]!.ult >= 1 && (auto || b.reserve.includes(i));
+  if (u.side === 'foe') return u.window > 0 && !u.hit && b.me.some((_, i) => ready(i));
+  return (u.gather ?? 0) > 0 && b.me.some((_, i) => i !== u.from && !(u.team ?? []).includes(i) && ready(i));
+}
+
+function teamStepOnce(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamStepOptions): TeamBattle {
   const b = clone(b0);
   b.t += stepMs;
   // 쓰러진 포켓몬의 예약은 지움 (독 · 반동 등 어디서 쓰러졌든)

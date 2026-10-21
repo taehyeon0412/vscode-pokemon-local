@@ -184,8 +184,7 @@ export function visibleObjects(state: GameState, widthPx: number, scale: number)
     if (s.kind === 'wild') {
       // 만난 자리: 튀어나오는 동안만 그 포켓몬으로 (전투 중에는 전투 층이 같은 자리에 그림), 끝나면 사라짐
       const meeting = reached && s.at === prog.progress && stage?.phase === 'appear';
-      // 개발 모드 숲 목록 초안 (gdd 5.4 — orders #41) 이면 엔진과 같은 목록으로
-      if (!reached || meeting) out.push({ key: `w${s.index}`, kind: 'wild', x, plan: planWild(id, prog.seed, s, prog.run.retries, state.runtime.dev?.forestLists === true), met: meeting });
+      if (!reached || meeting) out.push({ key: `w${s.index}`, kind: 'wild', x, plan: planWild(id, prog.seed, s, prog.run.retries), met: meeting });
     } else if (s.kind === 'item') {
       // 졌다 다시 걸을 때 이미 주운 아이템 (reach 앞) 은 안 보임
       if (!reached && s.at > prog.run.reach) out.push({ key: `i${s.index}`, kind: 'item', x });

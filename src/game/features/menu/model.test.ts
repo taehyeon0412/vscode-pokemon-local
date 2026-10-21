@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { sampleMonster, sampleSave } from '../../../test/fixtures/save';
 import { BALANCE } from '../../core/balance';
+import { regionAceLevel } from '../../core/rules/region';
 import { ICONS } from '../../data/icons';
 import { clearBonusExp } from '../../core/engine';
 import { clearView, ITEM_ICON, lobbyView, mapView, MENU_KEYS, menuLabels, menuShortcutOf, shopView } from './model';
@@ -71,8 +72,8 @@ describe('세계 지도 (S07) — 지금 있는 지역 (지역 표, 디자인 UX
 });
 
 describe('대기실 추천 Lv — 그 지역 관장 에이스 (gdd 5.2)', () => {
-  it('숲 그대로 · 해변 체육관 (2번째) = 21', () => {
+  it('숲 그대로 · 해변 체육관 (2번째) = 2번째 에이스 (T3 23)', () => {
     expect(lobbyView(sampleSave({ location: { screen: 'gym' } })).recommended).toBe(BALANCE.gymRecommendedLevel);
-    expect(lobbyView(sampleSave({ location: { screen: 'gym', region: 'beach' } })).recommended).toBe(21);
+    expect(lobbyView(sampleSave({ location: { screen: 'gym', region: 'beach' } })).recommended).toBe(regionAceLevel(2));
   });
 });

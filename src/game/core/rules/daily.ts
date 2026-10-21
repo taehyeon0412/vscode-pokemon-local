@@ -2,7 +2,7 @@
  * 오늘의 목표 (gdd 4.11 U13 · 기획 검토 R19 A, orders #28) — 날 = 내 PC 날짜, 하루 셋:
  * ① 켜 두기만 해도 되는 것 (야생 10마리 · 트레이너 3명 · 스테이지 1개 중) ② 봐야 되는 것 (새 종 2마리 · 완벽 패링 3번 · 부탁 1개 중)
  * ③ 그 지역 타입 (숲 = 풀 · 벌레 5마리 이기기). 보상 하나마다 몬스터볼 2 또는 흔한 팔 물건 1, 셋 다 하면 금구슬 1 [임시값].
- * 어제 것은 쌓이지 않음 (밀린 숙제 없음). 지금은 개발 모드에서만 (BALANCE.daily.on — 3:3 을 켤 때 같이).
+ * 어제 것은 쌓이지 않음 (밀린 숙제 없음). 모두에게 (BALANCE.daily.on — 3:3 과 같이, orders #59).
  */
 import { Rng } from '../engine/rng';
 import type { TypeName } from '../../data';
@@ -95,3 +95,10 @@ export function dailyAdd(d: Daily, kind: DailyKind, n: number, foeTypes: readonl
 }
 
 export const dailyDone = (d: Daily | undefined): number => d?.goals.filter((g) => g.done).length ?? 0;
+
+/** 목표 날 (day) 이 오늘보다 2일 넘게 앞인지 — PC 시계를 미래로 잘못 맞췄다 고친 경우 (그날까지 목표가 사라지던 것 — 코드 리뷰어 #59). 날짜 모양이 틀리면 false */
+export function dayFarAhead(day: string, today: string): boolean {
+  const a = Date.parse(day);
+  const b = Date.parse(today);
+  return Number.isFinite(a) && Number.isFinite(b) && a - b > 2 * 86_400_000;
+}

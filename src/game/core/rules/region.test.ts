@@ -22,26 +22,33 @@ describe('지역 표 (gdd 5.1 · 5.2 — orders #35)', () => {
     for (const id of STAGE_IDS) expect(stageLevelBand(id)).toEqual(BALANCE.stageLevels[id as keyof typeof BALANCE.stageLevels]);
     expect(regionOrder('forest')).toBe(1);
     expect(regionGymTeam(REGIONS.forest, 1)).toEqual(BALANCE.gymTeam);
-    expect(leaderTeam().map((m) => [m.species, m.level])).toEqual(BALANCE.gymTeam.map(([d, l]) => [d, l]));
+    expect(leaderTeam(REGIONS.forest).map((m) => [m.species, m.level])).toEqual(BALANCE.gymTeam.map(([d, l]) => [d, l]));
     expect(GYM_LEADER.name).toBe('관장 나래');
     expect(trainerInfo('forest-1', 0).name).toBe('반바지 꼬마 민수');
     expect(trainerInfo('forest-2', 0).name).toBe('짧은치마 서연');
     expect(regionOf('forest-3')).toMatchObject({ index: 2 });
   });
 
-  it('몇 번째 지역 레벨표 — 에이스 15 + 6 × (k − 1) · 스테이지 g−8 ~ g−5 / g−5 ~ g−2 / g−3 ~ g (k = 1 은 숲 그대로)', () => {
-    expect([1, 2, 3, 8].map(regionAceLevel)).toEqual([15, 21, 27, 57]);
-    expect([0, 1, 2].map((i) => regionLevelBand(2, i))).toEqual([[13, 16], [16, 19], [18, 21]]);
-    expect(regionLevelBand(1, 0, 'forest-1')).toEqual([2, 4]);
-    // 셋 묶음 — 에이스 = g, 앞은 g−2 · g−1 (해변 2번째 = 19 · 20 · 21 — gdd 5.3)
-    expect(regionGymTeam(REGIONS.forest, 2).map(([, lv]) => lv)).toEqual([19, 20, 21]);
+  it('몇 번째 지역 레벨표 — 표가 비면 에이스 15 + 6 × (k − 1) · 스테이지 g−8 ~ g−5 / g−5 ~ g−2 / g−3 ~ g (k = 1 은 숲 그대로)', () => {
+    const tune = BALANCE.region as { aceTable: readonly number[] };
+    const before = tune.aceTable;
+    try {
+      tune.aceTable = [];
+      expect([1, 2, 3, 8].map(regionAceLevel)).toEqual([15, 21, 27, 57]);
+      expect([0, 1, 2].map((i) => regionLevelBand(2, i))).toEqual([[13, 16], [16, 19], [18, 21]]);
+      expect(regionLevelBand(1, 0, 'forest-1')).toEqual([2, 4]);
+      // 셋 묶음 — 에이스 = g, 앞은 g−2 · g−1
+      expect(regionGymTeam(REGIONS.forest, 2).map(([, lv]) => lv)).toEqual([19, 20, 21]);
+    } finally {
+      tune.aceTable = before;
+    }
   });
 });
 
 describe('해변 한 벌 (gdd 5.3 — orders #37, 개발 모드 미리 보기 · 2번째 지역)', () => {
-  it('스테이지 셋 · 2번째 지역 레벨 (13 ~ 16 / 16 ~ 19 / 18 ~ 21) · 번호 2-1 · 다음 스테이지 · 열림', () => {
+  it('스테이지 셋 · 2번째 지역 레벨 (T3 에이스 23 — 15 ~ 18 / 18 ~ 21 / 20 ~ 23) · 번호 2-1 · 다음 스테이지 · 열림', () => {
     expect(REGIONS.beach.stages.map((x) => x.name)).toEqual(['반짝 모래길', '갯바위 해안', '등대 곶']);
-    expect(['beach-1', 'beach-2', 'beach-3'].map((id) => stageLevelBand(id as 'beach-1'))).toEqual([[13, 16], [16, 19], [18, 21]]);
+    expect(['beach-1', 'beach-2', 'beach-3'].map((id) => stageLevelBand(id as 'beach-1'))).toEqual([[15, 18], [18, 21], [20, 23]]);
     expect(stageCode('beach-1')).toBe('2-1');
     expect(nextStageOf('beach-1')).toBe('beach-2');
     expect(nextStageOf('beach-3')).toBe('gym');
@@ -68,14 +75,14 @@ describe('해변 한 벌 (gdd 5.3 — orders #37, 개발 모드 미리 보기 ·
     for (let n = 0; n < 3; n++) for (const m of trainerTeam('beach-3', 77, n, 6, 3)) expect([131, 594]).not.toContain(m.species);
   });
 
-  it('트레이너 9 · 부탁 5 · 관장 해솔 셋 묶음 (2번째 = 쏘드라 19 · 별가사리 20 · 에이스 아쿠스타 21)', () => {
+  it('트레이너 9 · 부탁 5 · 관장 해솔 셋 묶음 (2번째 T3 = 쏘드라 21 · 별가사리 22 · 에이스 아쿠스타 23)', () => {
     expect(trainerInfo('beach-1', 0)).toMatchObject({ name: '튜브 꼬마 준호', look: 'frlg-tuber-m' });
     expect(REGIONS.beach.trainers).toHaveLength(9);
     expect(new Set(Array.from({ length: 5 }, (_, n) => requestAt(42, n, 'beach-2').id))).toEqual(new Set(BEACH_REQUESTS.map((r) => r.id)));
     expect(requestAt(42, 0, 'forest-1').id).toBe(requestAt(42, 0).id);
-    expect(leaderTeam(REGIONS.beach).map((m) => [m.species, m.level])).toEqual([[116, 19], [120, 20], [121, 21]]);
+    expect(leaderTeam(REGIONS.beach).map((m) => [m.species, m.level])).toEqual([[116, 21], [120, 22], [121, 23]]);
     expect(regionGymTeam(REGIONS.beach, 5).map(([d]) => d)).toEqual([55, 131, 130]);
-    expect(regionGymTeam(REGIONS.beach, 8).map(([d, lv]) => [d, lv])).toEqual([[99, 55], [171, 56], [350, 57]]);
+    expect(regionGymTeam(REGIONS.beach, 8).map(([d, lv]) => [d, lv])).toEqual([[99, 60], [171, 61], [350, 62]]);
     expect(gymHint({ ...sampleSave(), location: { screen: 'gym', region: 'beach' } }).text).toContain('관장 해솔은');
   });
 
@@ -93,32 +100,45 @@ describe('해변 한 벌 (gdd 5.3 — orders #37, 개발 모드 미리 보기 ·
     }
   });
 
-  it('숲 목록 초안 (gdd 5.4 — 개발 모드 스위치만, orders #41) — 흔함 8 · 8 · 8 + 강한 2 · 드묾 덩쿠리 · 로젤리아 · 노말 · 비행 3종 · 앞 스테이지 드문 타입 2종 · 끄면 지금 숲 그대로', () => {
-    expect(regionPool('forest-1', true).common).toEqual([10, 13, 265, 165, 401, 187, 273, 420]);
-    expect(regionPool('forest-2', true).common).toEqual([46, 285, 43, 69, 48, 167, 191, 290]);
-    expect(regionPool('forest-3', true).common).toEqual([415, 412, 204, 588, 616, 313, 314, 193, 123, 214]);
-    expect(regionPool('forest-3', true).rare).toEqual([114, 315]);
+  it('숲 목록 (gdd 5.4 [확정] — orders #60 본편) — 흔함 8 · 8 · 8 + 강한 2 · 드묾 덩쿠리 · 로젤리아 · 노말 · 비행 3종 · 앞 스테이지 드문 타입 2종', () => {
+    expect(regionPool('forest-1').common).toEqual([10, 13, 265, 165, 401, 187, 273, 420]);
+    expect(regionPool('forest-2').common).toEqual([46, 285, 43, 69, 48, 167, 191, 290]);
+    expect(regionPool('forest-3').common).toEqual([415, 412, 204, 588, 616, 313, 314, 193, 123, 214]);
+    expect(regionPool('forest-3').rare).toEqual([114, 315]);
     for (const id of ['forest-1', 'forest-2', 'forest-3'] as const) {
-      const p = regionPool(id, true);
+      const p = regionPool(id);
       expect(p.mixed).toHaveLength(3);
-      expect(regionPool(id, true).mixed).toEqual(p.mixed);
+      expect(regionPool(id).mixed).toEqual(p.mixed);
       for (const d of p.mixed) expect(speciesOf(d)!.types.every((t) => t === 'normal' || t === 'flying')).toBe(true);
       if (id !== 'forest-3') {
         expect(p.rare).toHaveLength(2);
         for (const d of p.rare) expect(speciesOf(d)!.types.some((t) => t === 'poison' || t === 'dragon' || t === 'fairy') && !speciesOf(d)!.types.some((t) => t === 'grass' || t === 'bug')).toBe(true);
       }
-      // 끄면 (일반 플레이) 지금 숲 — 타입 자동 (흔함이 목록보다 훨씬 많음)
-      expect(regionPool(id).common.length).toBeGreaterThan(20);
     }
-    // 같은 자리라도 켜면 다른 포켓몬이 나올 수 있음 (엔진 · 화면이 같은 값을 넘김)
+    // 만나는 야생 = 목록 · 노말 · 비행 3종 · 드묾 (진화형은 목록의 진화 — 1단계로 되돌려 봄)
     const spots = Array.from({ length: 40 }, (_, i) => ({ kind: 'wild' as const, at: 0.5, index: i }));
-    expect(spots.some((sp) => createWild('forest-1', 7, sp, 0, true).species !== createWild('forest-1', 7, sp).species)).toBe(true);
-    expect(spots.every((sp) => planWild('forest-1', 7, sp).dex === planWild('forest-1', 7, sp, 0, false).dex)).toBe(true);
+    const p1 = regionPool('forest-1');
+    const allowed = new Set([...p1.common, ...p1.mixed, ...p1.rare]);
+    // 진화 사슬 어딘가가 목록에 있으면 됨 (푸린 앞에는 아기 푸푸린이 있음)
+    const chain = (dex: number) => {
+      const out = [dex];
+      for (let d = dex, g = 0; g < 4 && speciesOf(d)?.evolvesFrom; g++) out.push((d = speciesOf(d)!.evolvesFrom!));
+      return out;
+    };
+    for (const sp of spots) expect(chain(createWild('forest-1', 7, sp).species).some((d) => allowed.has(d))).toBe(true);
   });
 
-  it('레벨표 값 한 곳 (BALANCE.region) — 게임 숫자 그대로 (에이스 15 + 6 × (k − 1) · 해변 2번째, 시뮬만 바꿔 봄 — orders #38)', () => {
-    expect(BALANCE.region).toEqual({ aceBase: 15, aceStep: 6, aceJump2: 0, aceTable: [], beachOrder: 2 });
-    expect([1, 2, 3, 8].map(regionAceLevel)).toEqual([15, 21, 27, 57]);
+  it('라이벌 · 트레이너 앞 포켓몬에 강한 1단계 (스라크 · 헤라크로스) 가 없음 — 숲도 (orders #60)', () => {
+    const save = { ...sampleSave(), rivals: { blue: { wins: 3, losses: 3 } } };
+    for (let seed = 1; seed <= 60; seed++) {
+      for (const m of rivalTeam(save, 'blue', 'forest-3', seed).slice(0, -1)) expect([123, 212, 214]).not.toContain(m.species);
+      for (const m of trainerTeam('forest-3', seed, seed % 3, 3)) expect([123, 212, 214]).not.toContain(m.species);
+    }
+  });
+
+  it('레벨표 값 한 곳 (BALANCE.region) — 게임 숫자 그대로 (#47 T3 표 · 해변 2번째, 시뮬만 바꿔 봄 — orders #38 · #59)', () => {
+    expect(BALANCE.region).toEqual({ aceBase: 15, aceStep: 6, aceJump2: 0, aceTable: [15, 23, 31, 39, 46, 52, 57, 62], beachOrder: 2 });
+    expect([1, 2, 3, 8, 9].map(regionAceLevel)).toEqual([15, 23, 31, 62, 68]);
     expect(regionOrder('beach')).toBe(2);
   });
 
@@ -132,13 +152,15 @@ describe('해변 한 벌 (gdd 5.3 — orders #37, 개발 모드 미리 보기 ·
       expect(leaderTeam(REGIONS.beach).map((m) => m.level)).toEqual([24, 25, 26]);
       // 숲 (1번째) 은 그대로 — stageLevels · gymTeam
       expect(stageLevelBand('forest-3')).toEqual(BALANCE.stageLevels['forest-3']);
-      expect(leaderTeam().map((m) => m.level)).toEqual(BALANCE.gymTeam.map(([, lv]) => lv));
+      expect(leaderTeam(REGIONS.forest).map((m) => m.level)).toEqual(BALANCE.gymTeam.map(([, lv]) => lv));
       tune.aceTable = [15, 24, 30, 36, 42, 48, 54, 60];
       expect(regionAceLevel(2)).toBe(24);
+      tune.aceTable = [];
+      expect(regionAceLevel(2)).toBe(21);
     } finally {
       tune.aceTable = before;
     }
-    expect(regionAceLevel(2)).toBe(21);
+    expect(regionAceLevel(2)).toBe(23);
   });
 
   it('등대 곶 끝 → 해변 체육관 · 관장 첫 승 = 해변 배지 + 4,000원 (1,000 × (2 + 2)) + 물의 돌', () => {
@@ -168,7 +190,7 @@ describe('지역 표 맞추기 (명세 검사관 #53)', () => {
 });
 
 describe('라이벌 앞 포켓몬 — 강한 1단계는 야생에서만 (기획 답 · gdd 5.3)', () => {
-  it('해변 등대 곶 라이벌 팀에 라프라스 · 맘복치가 없음 · 숲 본편은 그대로 (아침 질문 #103 까지)', () => {
+  it('해변 등대 곶 라이벌 팀에 라프라스 · 맘복치가 없음 (숲은 아래 orders #60 테스트)', () => {
     const save = { ...sampleSave(), rivals: { blue: { wins: 3, losses: 3 } } };
     for (let seed = 1; seed <= 60; seed++) for (const m of rivalTeam(save, 'blue', 'beach-3', seed)) expect([131, 594]).not.toContain(m.species);
   });

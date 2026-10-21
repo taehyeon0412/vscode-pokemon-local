@@ -19,7 +19,7 @@ import { ITEM_IDS, STAGE_IDS, type ItemId, type Monster, type Save, type StageId
 import { evolutionsOf, speciesOf } from '../data';
 import { gymLocation, REGIONS } from '../core/rules/region';
 import { stageCode, stageLevelBand } from '../core/rules/stage';
-import { DEV_BATTLES, DEV_FOES_MAX, DEV_LEVEL_MAX, DEV_WALKS, devDefault, devForestLists, type DevMon, type DevRuntime } from './runtime';
+import { DEV_BATTLES, DEV_FOES_MAX, DEV_LEVEL_MAX, DEV_WALKS, devDefault, type DevMon, type DevRuntime } from './runtime';
 
 export type DevScene = 'stage-1' | 'stage-2' | 'stage-3' | 'beach-1' | 'beach-2' | 'beach-3' | 'beach-gym' | 'wild' | 'catch' | 'evolve' | 'rival' | 'trainer-team' | 'gym-team' | 'gym-enter' | 'lobby';
 
@@ -42,8 +42,6 @@ export type DevAction =
   | { kind: 'items' }
   | { kind: 'pre-evolve' }
   | { kind: 'team'; on: boolean }
-  /** 숲 야생 = 정한 목록 초안 (gdd 5.4 — 아침 질문 #103 비교, orders #41) */
-  | { kind: 'forest-lists'; on: boolean }
   | { kind: 'walk' }
   | { kind: 'battle-speed' }
   | { kind: 'pause' };
@@ -62,7 +60,7 @@ const STAGE_OF: Record<'stage-1' | 'stage-2' | 'stage-3' | 'beach-1' | 'beach-2'
   'stage-1': 'forest-1',
   'stage-2': 'forest-2',
   'stage-3': 'forest-3',
-  // 해변 미리 보기 (gdd 5.3 · orders #37 — 2번째 지역: 관장 에이스 Lv 21)
+  // 해변 미리 보기 (gdd 5.3 · orders #37 — 2번째 지역: 관장 에이스 = 레벨표 2번째)
   'beach-1': 'beach-1',
   'beach-2': 'beach-2',
   'beach-3': 'beach-3',
@@ -115,7 +113,7 @@ function devFoes(state: GameState, rng: Rng, n: number): Monster[] | null {
 function devWild(state: GameState, id: StageId, rng: Rng): Monster {
   const pick = devOf(state.runtime).foes[0];
   if (pick) return devMonster('wild', pick, rng, id);
-  const pool = forestPool(id, devForestLists(state.runtime.dev)).common;
+  const pool = forestPool(id).common;
   const dex = pool.length ? pool[rng.int(0, pool.length - 1)]! : 16;
   // 그 스테이지 레벨대 위끝쯤 (숲 4 · 8 · 12 — 지역 표 레벨표)
   const [lo, hi] = stageLevelBand(id);
@@ -144,7 +142,7 @@ function scene(state: GameState, sc: DevScene, rng: Rng): DevResult {
       return { state: withStage(state, standOn(state, id, rng), { phase: 'walk' }, id, rng), say: `${stageCode(id)} 처음부터` };
     }
     case 'beach-gym': {
-      // 해변 체육관 대기실 (관장 해솔 · 2번째 지역 — 에이스 Lv 21)
+      // 해변 체육관 대기실 (관장 해솔 · 2번째 지역 — 에이스 = 레벨표 2번째)
       const save: Save = { ...save0, location: gymLocation(REGIONS.beach), pendingEncounter: null, pendingChoices: [] };
       return { state: withStage(state, save, { phase: 'lobby' }, null, rng), say: '해변 체육관 대기실' };
     }
@@ -188,7 +186,7 @@ function scene(state: GameState, sc: DevScene, rng: Rng): DevResult {
       const alive = save0.party.filter((u) => (save0.monsters[u]?.hp ?? 0) > 0);
       if (alive.length < BALANCE.team.size) return { state, say: `3:3 은 살아 있는 ${BALANCE.team.size}마리 — 팀 탭 더하기 · 바꾸기 탭 모두 회복` };
       if (sc === 'gym-team') {
-        const foes = devFoes(state, rng, BALANCE.team.size) ?? leaderTeam();
+        const foes = devFoes(state, rng, BALANCE.team.size) ?? leaderTeam(REGIONS.forest);
         const save: Save = { ...save0, location: { screen: 'gym' }, pendingEncounter: { kind: 'gym-leader' }, pendingChoices: [] };
         const team = startTeamBattle(save, foes, 'gym', GYM_LEADER.name, pickTeam(save, foes));
         return { state: withDev(withStage(state, save, { phase: 'team', team }, null, rng), (d) => ({ ...d, team: true })), say: '관장 3:3' };
@@ -361,11 +359,6 @@ export function devApply(state: GameState, action: DevAction): DevResult {
     }
     case 'team':
       return { state: withDev(state, (d) => ({ ...d, team: action.on })), say: action.on ? '3:3 켜짐 (개발 모드에서만)' : '3:3 꺼짐' };
-    case 'forest-lists':
-      return {
-        state: withDev(state, (d) => ({ ...d, forestLists: action.on })),
-        say: action.on ? '숲 목록 초안 켜짐 (gdd 5.4) — 아직 안 만난 야생부터 · 1-1 8종 · 1-2 8종 · 1-3 12종' : '숲 목록 초안 꺼짐 — 지금 숲 (풀 · 벌레 타입 전부)',
-      };
     case 'walk': {
       const walk = cycle(DEV_WALKS, devOf(state.runtime).walk as (typeof DEV_WALKS)[number]);
       return { state: withDev(state, (d) => ({ ...d, walk })), say: `걷기 ×${walk}` };

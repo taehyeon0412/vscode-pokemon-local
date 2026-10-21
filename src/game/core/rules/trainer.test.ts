@@ -4,6 +4,7 @@ import { STAGE_IDS } from '../save';
 import { evolutionsOf, formsOfSpecies, speciesOf } from '../../data';
 import { baseTotal, devolveForLevel } from './encounter';
 import { stageLayout, stageLevelBand, trainerCount, trainerId } from './stage';
+import { REGIONS } from './region';
 import { leaderTeam, trainerInfo, trainerTeam, trainerTeamSize, shortTrainerName, withShortFoe } from './trainer';
 
 describe('트레이너 (mvp-spec S08 · 4장)', () => {
@@ -77,13 +78,13 @@ describe('트레이너 포켓몬은 그 레벨에 맞는 모습 · 아주 센 �
 
 describe('숲 관장 (mvp-spec 3.9)', () => {
   it('파라스 Lv 13 · 냄새꼬 Lv 14 · 에이스 버터플 Lv 15 — 늘 같은 3마리 · 기술은 피해 기술 먼저', () => {
-    const team = leaderTeam();
+    const team = leaderTeam(REGIONS.forest);
     expect(team.map((m) => [m.species, m.level])).toEqual([
       [46, 13],
       [44, 14],
       [12, 15],
     ]);
-    expect(leaderTeam()).toEqual(team);
+    expect(leaderTeam(REGIONS.forest)).toEqual(team);
     for (const m of team) expect(m.moves.length).toBeGreaterThan(0);
   });
 });

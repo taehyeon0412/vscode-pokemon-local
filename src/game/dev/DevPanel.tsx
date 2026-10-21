@@ -160,7 +160,8 @@ export function DevPanel({ state, media, onDev, onEnd, onClose }: { state: GameS
   // 같은 버튼을 또 누르면 ×2 · ×3 (두 번째로 눌렸는지 알 수 없던 것 — UX 리뷰어 3차) · "Lv 20" 은 줄이 안 갈라지게
   const say = say0 && sayAt.current.tab === tab ? `${say0}${sayAt.current.n > 1 ? ` ×${sayAt.current.n}` : ''}`.replace(/Lv (\d)/g, 'Lv\u00a0$1') : '';
   const sayShown = useRef('');
-  const teamSwitch = (cls: string) => (
+  // 3:3 이 모두에게 켜져 있으면 (BALANCE.team.on — orders #59) 끌 수 없어 숨김 (꺼짐이라 써도 3:3 이 그대로이던 것 — 코드 리뷰어)
+  const teamSwitch = (cls: string) => BALANCE.team.on ? null : (
     <Button secondary extraClass={`pg-dev-switch ${cls}${dev.team ? ' pg-on' : ''}`} onClick={() => onDev({ kind: 'team', on: !dev.team })} title="3:3 미리 켜기 — 개발 모드에서만 (트레이너 만남에서 1:1 / 3:3 고르기 · 관장 3:3)">
       {dev.team ? '3:3 켜짐' : '3:3 꺼짐'}
     </Button>
@@ -216,15 +217,6 @@ export function DevPanel({ state, media, onDev, onEnd, onClose }: { state: GameS
           {/* 지역마다 한 줄 (해변 넷이 장소 줄 끝에 붙어 "아래에 더" 로 숨던 것 — #37) */}
           <Row wrap label="숲">
             {SCENES.slice(6, 11).map((sc) => btn(sc.label, { kind: 'scene', scene: sc.scene }))}
-            {/* 숲 야생 = 정한 목록 초안 (gdd 5.4 — 아침 질문 #103 비교, orders #41) · 3:3 스위치와 같은 모양 */}
-            <Button
-              secondary
-              extraClass={`pg-dev-switch pg-dev-forest${dev.forestLists ? ' pg-on' : ''}`}
-              onClick={() => onDev({ kind: 'forest-lists', on: !dev.forestLists })}
-              title="숲 야생을 정한 목록 초안 (gdd 5.4 — 1-1 8 · 1-2 8 · 1-3 12종) 으로 — 개발 모드에서만, 아직 안 만난 야생부터"
-            >
-              {dev.forestLists ? '목록 초안 켜짐' : '목록 초안 꺼짐'}
-            </Button>
           </Row>
           <Row wrap label="해변">
             {SCENES.slice(11).map((sc) => btn(sc.label, { kind: 'scene', scene: sc.scene }))}

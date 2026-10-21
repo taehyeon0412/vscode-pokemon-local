@@ -88,28 +88,28 @@ export const BALANCE = {
   autoPotionBelow: 0.3,
   /** 미리 누르기 — 게이지가 차기 이만큼 (ms) 전에 누른 공격 · 기술 · 막기는 기억했다가 차자마자 (2026-10-21 ideas #31) [제안] */
   prePressMs: 500,
-  /** 오늘의 목표 · 기록 (gdd 4.11 U13 · U12, orders #28) — on = 모두에게 켬 (3:3 을 켤 때 같이 — 2026-10-22 기획). 꺼져 있어도 개발 모드에서는 켜짐 */
-  daily: { on: false },
+  /** 오늘의 목표 · 기록 (gdd 4.11 U13 · U12, orders #28) — on = 모두에게 켬 (3:3 과 같이 — 2026-10-22 태현 님 "추천대로", orders #59). 꺼도 개발 모드에서는 켜짐 */
+  daily: { on: true },
   /**
    * 지역 레벨표 (gdd 5.2 [임시값]) — 관장 에이스 g = aceBase + aceStep × (k − 1) (+ aceJump2, 2번째부터) · k = 1 (숲) 은 stageLevels · gymTeam 그대로.
-   * aceTable = 번째마다 에이스를 하나씩 (k = 1 부터 — 비면 위 식, orders #42): 고르면 값 한 줄로 — #38 D (1:1) = [15, 24, 30, 36, 42, 48, 54, 60] · #39 T2 (3:3) = [15, 26, 34, 42, 49, 55, 60, 65]. 표보다 뒤 번째는 마지막 값 + aceStep 씩.
+   * aceTable = 번째마다 에이스를 하나씩 (k = 1 부터 — 비면 위 식, orders #42) — #47 T3 (1:1 · 3:3 섞어 하는 사람, 2026-10-22 태현 님 "추천대로" · orders #59). 다른 안: #38 D (1:1) = [15, 24, 30, 36, 42, 48, 54, 60] · #39 T2 (늘 3:3) = [15, 26, 34, 42, 49, 55, 60, 65]. 표보다 뒤 번째는 마지막 값 + aceStep 씩.
    * beachOrder = 해변이 몇 번째 (시작은 숲 고정 — 늘 2번째 이후, 지역 순서 칸 #30 전까지). 시뮬이 바꿔 봄 (orders #38 · #39 — scripts/sim-mvp.ts)
    */
-  region: { aceBase: 15, aceStep: 6, aceJump2: 0, aceTable: [] as readonly number[], beachOrder: 2 },
+  region: { aceBase: 15, aceStep: 6, aceJump2: 0, aceTable: [15, 23, 31, 39, 46, 52, 57, 62] as readonly number[], beachOrder: 2 },
   /**
    * 3:3 실시간 팀 배틀 (다음 버전 5단계 — gdd 4.7 끝, 2026-10-21 orders #17) — 숫자는 모두 [임시값] (시뮬로 한 판 1분 안팎에 맞춤).
-   * on = 게임에서 켬 (화면 · 연출이 생길 때까지 꺼 둠 — 모양은 디자인팀이 정하는 중) · size = 한쪽 마리 수 · ultGainScale = 필살기 게이지가 1:1 의 몇 배로 참 ·
+   * on = 게임에서 켬 (모두에게 — 2026-10-22 태현 님 "추천대로", orders #59 · 끄면 개발 모드에서만) · size = 한쪽 마리 수 · ultGainScale = 필살기 게이지가 1:1 의 몇 배로 참 ·
    * interruptChance = 상대 AI 가 내 필살기에 끼어드는 확률 (트레이너 가끔 · 관장 자주) · spreadScale = 범위 기술 · 필살기가 여럿을 칠 때 ·
    * statusWeight = 변화 기술 총점수 · moneyScale = 트레이너전 돈 (관장 돈은 그대로) · damageScale = 피해 배율
    */
   team: {
-    on: false,
+    on: true,
     size: 3,
     /**
      * 3마리 기본 고르기 (pickTeam — 자동 전투 · 안 볼 때 · 고르기 시간 끝 · 대기실 기본 체크) 레벨 규칙 (orders #46 · 아침 질문 #105):
-     * 0 = 꺼짐 (지금 — 상성 점수, 같으면 레벨) · 10 = 센 셋 평균보다 10 넘게 낮은 포켓몬은 뒤로 (#44 — Lv 31 스타팅을 Lv 58 들 대신 넣어 관장에 11번 짐)
+     * 0 = 꺼짐 (상성 점수, 같으면 레벨) · 10 = 센 셋 평균보다 10 넘게 낮은 포켓몬은 뒤로 (#44 — Lv 31 스타팅을 Lv 58 들 대신 넣어 관장에 11번 짐 · orders #59 켬)
      */
-    pickLevelGap: 0 as number,
+    pickLevelGap: 10 as number,
     /** 1.2 → 1.0 (2026-10-21 태현 님 #88 "1.0으로 해줘" — 필살기가 일반 모드 연출 그대로라 장면이 길어서, 시뮬 scripts/sim-team-ult.ts) */
     ultGainScale: 1.0,
     interruptChance: { trainer: 0.3, gym: 0.7 },
