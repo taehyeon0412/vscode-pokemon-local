@@ -128,7 +128,10 @@ ONE = r"""
     const after = hits.find((h) => h >= big[1] - 50 && h <= big[1] + 1500);
     main = Math.round(after ?? big[1]);
     const near = samples.reduce((m, s) => (s[1] && (!m || Math.abs(s[0] - big[1] - 200) < Math.abs(m[0] - big[1] - 200)) ? s : m), null);
-    if (near && main - big[1] > 400) self = Math.abs(near[1].x - cfg.meX) < Math.abs(near[1].x - cfg.foeX) ? 1 : 0;
+    // 자기 둘레 = 번쩍 0.2초 뒤에도 · 맞기 직전 (큰 맞음 0.15초 전) 에도 입자 가운데가 쓴 쪽 (느리게 날아가는 구 · 덩굴 (메가런처 · 하드플랜트) 은 맞기 직전엔 상대 쪽 — 코드 리뷰어)
+    const pre = samples.reduce((m, s) => (s[1] && (!m || Math.abs(s[0] - main + 150) < Math.abs(m[0] - main + 150)) ? s : m), null);
+    const mine = (s) => s && Math.abs(s[1].x - cfg.meX) < Math.abs(s[1].x - cfg.foeX);
+    if (near && pre && main - big[1] > 400) self = mine(near) && mine(pre) ? 1 : 0;
   } else if (hits.length) {
     main = Math.round(hits[0]);
   }

@@ -184,13 +184,25 @@ function fxKill(gen) {
 }
 // 기술 · 방어 · 회복 연출이 거는 타이머 번호 (솔라빔 모으기 · 번개 …) — clear() 가 멈추고 새 번호로
 let fxMoveGen = ++fxGen;
-function fxGuard(gen, fn) {
-    return function (...args) {
+function fxGuard(gen, fn, sched) {
+    const run = function (...args) {
         if (gen <= fxDeadBelow || fxKilled.has(gen)) {
             return undefined;
         }
+        // 3:3 합동 — 그 번호가 멈춰 있었으면 (쏘는 필살기 모으기 늘리기 · 빔 끝 맞추기) 그만큼 뒤로 미룸
+        if (sched !== undefined && fxFreezeLog.has(gen)) {
+            const t = performance.now();
+            const until = Math.max(t, fxFrozen.get(gen) ?? 0);
+            const lag = fxFrozenBetween(gen, sched, t) + (until - t);
+            if (lag > 1) {
+                sched = until;
+                fxSetTimeout0(() => run.apply(this, args), lag);
+                return undefined;
+            }
+        }
         return fxWithTimers(gen, () => fn.apply(this, args));
     };
+    return run;
 }
 // run 하는 동안 거는 타이머 (setTimeout) 에 번호를 붙임 — 그 타이머 안에서도.
 // 3:3 기술 (fxTagged 번호) 은 그동안 만든 입자 · 발사기에도 번호 (_g) — stopMove 가 그 기술만 멈춤
@@ -240,7 +252,7 @@ function fxWithTimers(gen, run) {
     const tag = fxTagged.has(gen);
     const p0 = moveParticles.length;
     const e0 = moveEmitters.length;
-    window.setTimeout = (fn, ms, ...rest) => prev(typeof fn === 'function' ? fxGuard(gen, fn) : fn, ms, ...rest);
+    window.setTimeout = (fn, ms, ...rest) => prev(typeof fn === 'function' ? fxGuard(gen, fn, performance.now()) : fn, ms, ...rest);
     try {
         return run();
     } finally {
@@ -306,7 +318,13 @@ function fxGameStop(kill) {
     }
     clearInterval(g.tick);
     clearTimeout(g.done);
-    (g.gens || []).forEach((x) => fxTagged.delete(x));
+    (g.gens || []).forEach((x) => {
+        fxTagged.delete(x);
+        fxFrozen.delete(x);
+        fxFreezeLog.delete(x);
+        fxBeamView.delete(x);
+        fxNoFlashGens.delete(x);
+    });
     if (ultActive && ultActive.pokemon === g.A) {
         ultEnd(g.A);
     }
@@ -713,10 +731,6 @@ const fxTeamOn = () => performance.now() < fxTeamUntil;
 //   꼬인 줄기가 상대까지 0.3초 (= 쏘는 필살기의 큰 맞음) → 섞인 큰 폭발 · 번쩍 한 번 · 피해 (타이머)
 const FX_FLOW_DELAY_MS = 200;
 const FX_FLOW_MS = 450;
-const FX_FLOW_IN_MS = 300;
-const FX_TWIST_MS = 300;
-// 합동 — 같은 때 맞춘 순간 (대폭발 번쩍) 에서 상대에 닿기까지
-const FX_JOINT_HIT_MS = FX_FLOW_DELAY_MS + FX_FLOW_IN_MS + FX_TWIST_MS;
 // 합동 — 컷인 뒤 빛줄
 const FX_LINK_MS = 300;
 // 닿은 뒤 여운 (섞인 큰 폭발 0.9초 + 정리)
@@ -729,6 +743,12 @@ const fxDrawParticle0 = drawParticle;
 drawParticle = function (ctx, p) {
     if (p._g !== undefined) {
         if (p._flash && fxNoFlashGens.has(p._g)) {
+            return;
+        }
+        // 합동 쏘는 줄기 — 따로 그려 두면 장 끝에 계단 · 앞끝까지만 (fxStairBlit)
+        const view = fxBeamView.get(p._g);
+        if (view?.ctx && ctx === moveCtx) {
+            fxDrawParticle0(view.ctx, p);
             return;
         }
         const cut = fxClipGen.get(p._g);
@@ -847,94 +867,6 @@ function fxFlameHit(x, y, cols, u) {
         }
     } });
 }
-// 꼬인 줄기 — 합류점 → 상대 (6걸음 · TWIST_MS) · 열마다 뒤 가닥 → 심 → 앞 가닥 · 심 = 흰 4칸 + 위 (쏘는 쪽 옅은) · 아래 (기운 쪽 옅은) · 가닥 2칸 굵기 · 24칸 주기 ±4칸 ·
-// 50ms 마다 2칸 흐름 · 앞끝 = 흰 원 반지름 3칸 · 닿은 뒤 150ms 3걸음 흐려짐. ca = 기운 (아래) · cb = 쏘는 (위)
-function fxTwist(M, T, ca, cb, u) {
-    const go = FX_TWIST_MS / 1000;
-    sigParticle({ x: 0, y: 0, s: 1, max: go + 0.15, draw: (ctx, q) => {
-        const t = q.life;
-        const dir = T.x >= M.x ? 1 : -1;
-        const len = Math.max(u, Math.abs(T.x - M.x));
-        const k = t < go ? Math.floor((t / go) * 6) / 6 : 1;
-        const n = Math.floor((len * k) / u);
-        const ph = Math.floor((t * 1000) / 50) * 2;
-        ctx.globalAlpha = t >= go ? 1 - Math.floor(((t - go) / 0.15) * 3) / 3 : 1;
-        const yOf = (i) => Math.round((M.y + (T.y - M.y) * ((i * u) / len)) / u) * u;
-        const off = (i, s) => s * Math.round(Math.sin(((i + ph) * Math.PI * 2) / 24) * 4) * u;
-        const front = (i, s) => s * Math.cos(((i + ph) * Math.PI * 2) / 24) > 0;
-        const strand = (i, s, cols, isFront) => {
-            const x = M.x + dir * i * u;
-            const y1 = yOf(i) + off(i, s);
-            const y0 = i > 0 ? yOf(i - 1) + off(i - 1, s) : y1;
-            const top = Math.min(y0, y1);
-            const bot = Math.max(y0, y1);
-            ctx.fillStyle = cols[isFront ? 2 : 3];
-            ctx.fillRect(Math.round(x / u) * u, top - u, u, bot - top + 2 * u);
-            if (isFront) {
-                fxDot(ctx, x, top - u, u, cols[1]);
-            }
-        };
-        for (let i = 0; i <= n; i++) {
-            const x = Math.round((M.x + dir * i * u) / u) * u;
-            const y = yOf(i);
-            const aF = front(i, -1);
-            const bF = front(i, 1);
-            ctx.save();
-            ctx.globalAlpha *= 0.5;
-            fxDot(ctx, x, y - 5 * u, u, cb[2]);
-            fxDot(ctx, x, y + 4 * u, u, ca[2]);
-            ctx.restore();
-            if (!aF) {
-                strand(i, -1, cb, false);
-            }
-            if (!bF) {
-                strand(i, 1, ca, false);
-            }
-            fxDot(ctx, x, y - 4 * u, u, cb[1]);
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(x, y - 3 * u, u, 6 * u);
-            fxDot(ctx, x, y + 3 * u, u, ca[1]);
-            if (aF) {
-                strand(i, -1, cb, true);
-            }
-            if (bF) {
-                strand(i, 1, ca, true);
-            }
-        }
-        if (t < go) {
-            const fx = M.x + dir * n * u;
-            const fy = yOf(n);
-            for (let j = -3; j <= 3; j++) {
-                for (let i = -3; i <= 3; i++) {
-                    const d2 = i * i + j * j;
-                    if (d2 <= 9) {
-                        fxDot(ctx, fx + i * u, fy + j * u, u, d2 <= 4 ? '#ffffff' : ca[1]);
-                    }
-                }
-            }
-        }
-    } });
-}
-// 큰 구슬 (쏘는 필살기가 없는 합동 — 자기 둘레끼리) 이 합류점에서 상대로
-function fxOrbGo(M, T, pals, u, n) {
-    const go = FX_TWIST_MS / 1000;
-    sigParticle({ x: 0, y: 0, s: 1, max: go, draw: (ctx, q) => {
-        const k = Math.min(1, q.life / go);
-        const c = { x: M.x + (T.x - M.x) * k, y: M.y + (T.y - M.y) * k };
-        const R = 5 + n;
-        ctx.globalAlpha = 1;
-        for (let j = -R; j <= R; j++) {
-            for (let i = -R; i <= R; i++) {
-                const d2 = i * i + j * j;
-                if (d2 > R * R) {
-                    continue;
-                }
-                const pal = pals[(i + j) & 1 ? 0 : 1 % pals.length];
-                fxDot(ctx, c.x + i * u, c.y + j * u, u, d2 < (R * 0.4) ** 2 ? '#ffffff' : pal[d2 > (R - 1.5) ** 2 ? 3 : 2]);
-            }
-        }
-    } });
-}
 // 섞인 큰 폭발 (합동) — 원 반지름 [5 9 13 16 18 19] 칸 × 참가 수 × 0.5 (6걸음 × 150ms) · 안 45% 흰 심 · 두 색 바둑판 · 4걸음째부터 해시로 흩어짐 (세로 줄무늬 없게) ·
 // 가장자리 불꽃 혀 12 · 잎 10 · 고리 둘. ca · cb = [흰 심, 옅은, 본색, 짙은]
 function fxMixBurst(x0, y0, ca, cb, u, n) {
@@ -1006,21 +938,6 @@ function fxLinkLine(a, b, u) {
             fxDot(ctx, p.x, p.y, u, lit ? '#ffffff' : '#ffd76a');
         }
         [a, b].forEach((p) => [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([i, j]) => fxDot(ctx, p.x + i * u, p.y + j * u, u, i || j ? '#ffd76a' : '#fff3b0')));
-    } });
-}
-// 합류점 빛 구슬 — 쏘는 줄기가 멈춰 기운을 기다리는 동안: 흰 심 반지름 2칸 + 옅은 둘레 · 100ms 마다 반지름 4 ↔ 5칸 (크기만 — 번쩍 아님)
-function fxGatherOrb(M, cols, u, sec) {
-    sigParticle({ x: 0, y: 0, s: 1, max: sec, draw: (ctx, q) => {
-        const R = Math.floor((q.life * 1000) / 100) % 2 ? 5 : 4;
-        ctx.globalAlpha = 1;
-        for (let j = -R; j <= R; j++) {
-            for (let i = -R; i <= R; i++) {
-                const d2 = i * i + j * j;
-                if (d2 <= R * R) {
-                    fxDot(ctx, M.x + i * u, M.y + j * u, u, d2 <= 4 ? '#ffffff' : d2 <= (R - 1) * (R - 1) ? cols[1] : cols[2]);
-                }
-            }
-        }
     } });
 }
 // 쓴 쪽 둘레의 그려진 그림 (캔버스) — 대폭발 돔의 상대 쪽 끝 · 색. 입자 자리는 큰 그림 하나의 가운데라 돔 크기를 몰라서 캔버스를 읽음
@@ -1110,6 +1027,251 @@ function fxSoloFlow(gen, A, targets, fallback) {
         fxFlow(from, { x: b.x, y: b.y }, cols, u, FX_FLOW_MS, 36);
         setTimeout(() => fxFlameHit(b.x, b.y, cols, u), FX_FLOW_MS);
     }
+}
+
+// ── 합동 나선 감기 (태현 님 #98 D — 디자인팀 8판 값, 시안 fx8.js · joint7.js) ──
+// 둘이 같이 시작 → 쏘는 쪽은 모으기를 늘림 (입 앞 빛 구슬이 400ms 마다 커짐) → 자기 둘레 대폭발 "크게" 순간에 빔 (×1.5 굵게) 이 나감 →
+// 빔 앞끝 + 기운 나선이 0.9초에 상대 가슴까지 (앞끝 너머는 안 그림) → 닿는 순간 = 쏘는 쪽 꽃 터짐 = 섞인 큰 폭발 + 번쩍 + 피해 (한 장면)
+const FX_SPIRAL_RUN_MS = 900;
+// 번호마다 멈춤 (그 때까지) — 입자 · 발사기 · 타이머 (fxGuard) 가 멈춤: 쏘는 필살기의 모으기를 늘리고 · 빔 끝 (꽃 터짐) 을 나선이 닿는 때에 맞춤
+const fxFrozen = new Map();
+let fxFrozenLast = 0;
+const fxSetTimeout0 = window.setTimeout.bind(window);
+// 번호마다 쏘는 줄기 보기 — 앞끝 (front(now)) 너머는 안 그림 · 줄이 다르면 계단 (열마다 2칸 폭으로 아래 · 위로 밀기, 기울기 = 줄 차이 / 거리)
+const fxBeamView = new Map();
+// 멈춘 때 기록 (번호 → [시작, 끝]) — 멈춘 동안 걸려 있던 타이머는 멈춘 만큼 뒤로 (fxGuard)
+const fxFreezeLog = new Map();
+function fxFreeze(gen, ms) {
+    if (ms > 0) {
+        const t = performance.now();
+        fxFrozen.set(gen, Math.max(fxFrozen.get(gen) ?? 0, t + ms));
+        const log = fxFreezeLog.get(gen) ?? [];
+        log.push([t, t + ms]);
+        fxFreezeLog.set(gen, log);
+        sigStart();
+    }
+}
+// a ~ b 사이에 그 번호가 멈춰 있던 시간 (ms)
+function fxFrozenBetween(gen, a, b) {
+    let sum = 0;
+    for (const [s, e] of fxFreezeLog.get(gen) ?? []) {
+        sum += Math.max(0, Math.min(e, b) - Math.max(s, a));
+    }
+    return sum;
+}
+// 계단 — x 에서 줄기가 밀리는 칸 (입 뒤는 0)
+function fxStairDy(v, x) {
+    const k = (x - v.x0) * v.dir;
+    return k <= 0 ? 0 : Math.round((v.slope * (x - v.x0)) / v.u) * v.u;
+}
+function fxStairCanvas(v) {
+    if (!v.cv) {
+        v.cv = document.createElement('canvas');
+        v.ctx = v.cv.getContext('2d');
+    }
+    const dpr = window.devicePixelRatio || 1;
+    const w = Math.round(window.innerWidth * dpr);
+    const h = Math.round(window.innerHeight * dpr);
+    if (v.cv.width !== w || v.cv.height !== h) {
+        v.cv.width = w;
+        v.cv.height = h;
+    }
+    v.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    v.ctx.clearRect(0, 0, w, h);
+    v.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return v.ctx;
+}
+// 따로 그린 줄기를 2칸 폭 열마다 계단 · 앞끝까지만 큰 캔버스로
+function fxStairBlit(v, now) {
+    if (!v.cv || !moveCtx) {
+        return;
+    }
+    const dpr = window.devicePixelRatio || 1;
+    const front = v.front(now);
+    const step = v.u;
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+    moveCtx.save();
+    moveCtx.imageSmoothingEnabled = false;
+    for (let x = 0; x < W; x += step) {
+        if (v.dir > 0 ? x >= front : x + step <= front) {
+            continue;
+        }
+        const dy = fxStairDy(v, x + step / 2);
+        moveCtx.drawImage(v.cv, x * dpr, 0, step * dpr, H * dpr, x, dy, step, H);
+    }
+    moveCtx.restore();
+}
+// 그리기 한 장 — 멈춘 번호는 움직이지 않고 그 자리에 · 줄기 보기 번호는 따로 그려 계단 · 앞끝으로
+const fxMoveTick0 = moveTick;
+moveTick = function (now) {
+    const dt = fxFrozenLast ? now - fxFrozenLast : 0;
+    fxFrozenLast = now;
+    for (const [g, until] of fxFrozen) {
+        if (now >= until || g <= fxDeadBelow || fxKilled.has(g)) {
+            fxFrozen.delete(g);
+        }
+    }
+    let held = null;
+    let heldE = null;
+    if (fxFrozen.size) {
+        held = [];
+        heldE = [];
+        for (let i = 0; i < moveParticles.length; ) {
+            if (fxFrozen.has(moveParticles[i]._g)) {
+                held.push(moveParticles.splice(i, 1)[0]);
+            } else {
+                i += 1;
+            }
+        }
+        for (let i = 0; i < moveEmitters.length; ) {
+            if (fxFrozen.has(moveEmitters[i]._g)) {
+                heldE.push(moveEmitters.splice(i, 1)[0]);
+            } else {
+                i += 1;
+            }
+        }
+        for (const e of heldE) {
+            if (typeof e.until === 'number') {
+                e.until += dt;
+            }
+            if (typeof e.nextShot === 'number') {
+                e.nextShot += dt;
+            }
+        }
+    }
+    for (const v of fxBeamView.values()) {
+        fxStairCanvas(v);
+    }
+    fxMoveTick0(now);
+    if (held) {
+        for (const p of held) {
+            try {
+                drawParticle(moveCtx, p);
+            } catch {
+                // 그리기 오류 — 그 입자만
+            }
+        }
+        moveParticles.push(...held);
+        moveEmitters.push(...heldE);
+        if (!moveRaf && (held.length || heldE.length)) {
+            moveRaf = requestAnimationFrame(moveTick);
+        }
+    }
+    for (const v of fxBeamView.values()) {
+        fxStairBlit(v, now);
+    }
+};
+// 커지는 빛 모으기 — 쏘는 쪽 입 앞 빛 구슬이 400ms 마다 반지름 한 칸 (2 → 7칸) · 흰 심 40% · 옅은 · 테두리 본색 (밝기는 그대로 — 번쩍 아님)
+function fxGrowOrb(M, cols, u, sec) {
+    sigParticle({ x: 0, y: 0, s: 1, max: sec, draw: (ctx, q) => {
+        const R = Math.min(7, 2 + Math.floor((q.life * 1000) / 400));
+        ctx.globalAlpha = 1;
+        for (let j = -R; j <= R; j++) {
+            for (let i = -R; i <= R; i++) {
+                const d2 = i * i + j * j;
+                if (d2 <= R * R) {
+                    fxDot(ctx, M.x + i * u, M.y + j * u, u, d2 <= (R * 0.4) ** 2 ? '#ffffff' : d2 <= (R - 1) * (R - 1) ? cols[1] : cols[2]);
+                }
+            }
+        }
+    } });
+}
+// 빔 굵게 (×1.5) — 원래 줄기 (높이 20px) 위아래에 3칸씩: 안 2칸 옅은 · 바깥 1칸 본색 · 안쪽 줄 4칸마다 흰 점이 50ms 마다 2칸 앞으로
+function fxBeamThicken(ctx, v, front, cols, t) {
+    const u = v.u;
+    const ph = Math.floor((t * 1000) / 50) * 2;
+    const from = Math.round(v.x0 / u) * u;
+    for (let x = from; v.dir > 0 ? x <= front : x >= front; x += v.dir * u) {
+        const y = v.y0 + fxStairDy(v, x);
+        const lit = ((((x - from) * v.dir) / u - ph) % 4 + 4) % 4 === 0;
+        for (const s of [-1, 1]) {
+            const yIn = s < 0 ? y - 10 - u : y + 10;
+            const yMid = s < 0 ? y - 10 - 2 * u : y + 10 + u;
+            const yOut = s < 0 ? y - 10 - 3 * u : y + 10 + 2 * u;
+            fxDot(ctx, x, yIn, u, lit ? '#ffffff' : cols[1]);
+            fxDot(ctx, x, yMid, u, cols[1]);
+            fxDot(ctx, x, yOut, u, cols[2]);
+        }
+    }
+}
+// 기운 나선 — 한 가닥이 굵은 빔을 감음 (36칸 주기 · ±9칸 · 50ms 마다 2칸 앞으로) · 앞 마디 5칸 굵기 (짙은 · 본색 · 가운데 옅은) + 4칸마다 바깥으로 혀 1 ~ 2칸 /
+// 뒤 마디 1칸 짙은 70% · 머리 뒤 60px 불씨 점 (정해진 자리 — 깜빡임 없음) · 앞끝에 불 머리 (마름모 반지름 3칸 + 빛 둘레 5칸 35%)
+function fxFireSpiral(ctx, v, from, front, cols, t) {
+    const u = v.u;
+    const ph = Math.floor((t * 1000) / 50) * 2;
+    let prev = null;
+    const x0 = Math.round(from / u) * u;
+    for (let x = x0; v.dir > 0 ? x <= front : x >= front; x += v.dir * u) {
+        const i = ((x - x0) * v.dir) / u - ph;
+        const a = (i * Math.PI * 2) / 36;
+        const sn = Math.sin(a);
+        const off = Math.round(sn * 9) * u;
+        const yc = Math.round((v.y0 + fxStairDy(v, x)) / u) * u;
+        const yy = yc + off;
+        const top = prev === null ? yy : Math.min(prev, yy);
+        const bot = prev === null ? yy : Math.max(prev, yy);
+        if (Math.cos(a) > 0) {
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = cols[3];
+            ctx.fillRect(x, top - 2 * u, u, bot - top + 5 * u);
+            ctx.fillStyle = cols[2];
+            ctx.fillRect(x, top - u, u, bot - top + 3 * u);
+            fxDot(ctx, x, yy, u, cols[1]);
+            const k = ((Math.round(i) % 4) + 4) % 4;
+            if (k === 0 && Math.abs(sn) > 0.3) {
+                const d = Math.sign(off);
+                for (let q = 1; q <= (Math.round(i / 4) % 2 ? 2 : 1); q++) {
+                    fxDot(ctx, x, yy + d * (2 + q) * u, u, cols[q === 1 ? 2 : 3]);
+                }
+            }
+        } else {
+            ctx.globalAlpha = 0.7;
+            ctx.fillStyle = cols[3];
+            ctx.fillRect(x, top, u, bot - top + u);
+        }
+        prev = yy;
+    }
+    ctx.globalAlpha = 1;
+    const fy = v.y0 + fxStairDy(v, front);
+    for (let q = 1; q <= 30; q += 3) {
+        const ex = front - v.dir * q * u;
+        const h = ((q * 73 + 29) % 11) - 5;
+        if ((ex - x0) * v.dir > 0) {
+            fxDot(ctx, ex, fy + h * u * 2, u, q < 12 ? cols[1] : cols[2]);
+        }
+    }
+    ctx.globalAlpha = 0.35;
+    for (let j = -5; j <= 5; j++) {
+        for (let i = -5; i <= 5; i++) {
+            const d2 = i * i + j * j;
+            if (d2 > 9 && d2 <= 25) {
+                fxDot(ctx, front + i * u, fy + j * u, u, cols[1]);
+            }
+        }
+    }
+    ctx.globalAlpha = 1;
+    for (let j = -3; j <= 3; j++) {
+        for (let i = -3; i <= 3; i++) {
+            const m = Math.abs(i) + Math.abs(j);
+            if (m <= 3) {
+                fxDot(ctx, front + i * u, fy + j * u, u, cols[m <= 2 ? 0 : 1]);
+            }
+        }
+    }
+}
+// 나선 그림 한 장 — 빔 (굵게 띠) 과 기운 나선이 big 부터 FX_SPIRAL_RUN_MS 동안 앞끝까지 (나선 · 띠는 주 줄기 보기 v 를 따라 계단)
+function fxSpiralRun(v, beamCols, spinCols, thicken) {
+    const sec = FX_SPIRAL_RUN_MS / 1000;
+    sigParticle({ x: 0, y: 0, s: 1, max: sec, draw: (ctx, q) => {
+        // 앞끝 — 입에서 상대 가슴까지 (늘 그 사이 — 타이머가 늦어도 끝없는 줄이 되지 않게)
+        const k = Math.max(0, Math.min(1, (performance.now() - v.bigAt) / Math.max(1, v.hitAt - v.bigAt)));
+        const front = v.x0 + (v.tx - v.x0) * k;
+        if (thicken && q.life < sec * 0.92) {
+            fxBeamThicken(ctx, v, front, beamCols, q.life);
+        }
+        fxFireSpiral(ctx, v, v.x0 + v.dir * 16, front, spinCols, q.life);
+    } });
 }
 
 // 합동 마무리 (2026-10-21 태현 님 #89 A "폭발의 기운은 제자리에서 터트려서 솔라빔으로") — 각자 필살기가 제자리에서 다 나간 뒤
@@ -1432,7 +1594,7 @@ window.pokemonFx = {
         const B = fxActor(dst);
         const gen = ++fxGen;
         const parts = list.map(({ s, i }) => {
-            // o.pick = 참가자마다 고를 필살기 이름 (개발 창 · 시안 사진 — 그 포켓몬이 가진 것만), 없으면 늘 고르는 대로 (돌아가며 — 기획 #90 A)
+            // o.pick = 참가자마다 고를 필살기 이름 (개발 창 · 개발 모드 (임시) — 그 포켓몬이 가진 것만), 없으면 늘 고르는 대로 (돌아가며 — 기획 #90 A)
             const want = o.pick?.[i];
             let e = (want && (POKEMON_ULT[s.form] || []).map((k) => ULT_LIB[k]).find((v) => v && v[0] === want)) || fxUltPick(s.form, o.avoid?.[i]);
             if (!e || ULT_SPECIALS.includes(e[1])) {
@@ -1445,26 +1607,48 @@ window.pokemonFx = {
             } catch (err) {
                 ultError('joint ms', err);
             }
-            // 큰 맞음 (빛줄기 닿음 · 대폭발 번쩍) — 잰 값, 없으면 본편 40%
             const tm = fxUltTiming(s.form, e);
             const A = fxActor(s);
-            // 참가자마다 번호 — 자기 둘레 터짐을 따로 옮김 · 멈출 때 다 같이
+            // 참가자마다 번호 — 멈춤 · 계단 · 번쩍 빼기를 따로, 멈출 때 다 같이
             const pg = ++fxGen;
             fxTagged.add(pg);
-            // 같은 때 맞출 순간 — 쏘는 필살기는 큰 맞음 (줄기가 상대에 닿음) · 자기 둘레 필살기는 대폭발 번쩍 (그다음 기운이 줄기로 — 태현 님 #89 A)
-            const anchor = tm ? (tm.self && tm.flash >= 0 ? tm.flash : tm.main) : Math.round(ms * 0.4);
-            return { A, e, T, ms, hit: anchor, self: !!tm?.self, gen: pg, left: A.left + spriteSize(A) / 2 > window.innerWidth / 2, cols: ultCols(e[2] || {}, e[1]), type: o.types?.[i] || 'normal' };
+            const self = !!tm?.self && tm.flash >= 0;
+            // 맞출 순간 = 대폭발 "크게" (자기 둘레) · 빔이 나가는 번쩍 (쏘는 — 없으면 큰 맞음 0.26초 전)
+            const anchor = tm ? (self ? tm.flash : tm.flash >= 0 && tm.flash < tm.main ? tm.flash : Math.max(0, tm.main - 260)) : Math.round(ms * 0.4);
+            // 빔이 나가서 상대에 닿기까지 (쏘는 — 꽃 터짐 = 큰 맞음)
+            const reach = tm && !self ? Math.max(0, tm.main - anchor) : 0;
+            return { A, e, T, ms, anchor, reach, self, gen: pg, left: A.left + spriteSize(A) / 2 > window.innerWidth / 2, cols: fxCols4(ultCols(e[2] || {}, e[1])), type: o.types?.[i] || 'normal', freeze: 0 };
         });
         const As = parts.map((p) => p.A);
+        // 어둠 속에서 밝게 둘 포켓몬 — 참가자 · 닿는 때부터 맞는 상대 (어두워짐 아래 흐린 그림자로 남던 것 — 디자인팀 7판)
+        const lit = [...As];
         const lead = parts[0];
         const charge = 800;
         const introMs = ULT_INTRO_MS;
-        // 같은 때 맞게 — 가장 늦게 맞는 필살기가 먼저 시작
-        const hitAt = Math.max(...parts.map((p) => p.hit));
-        parts.forEach((p) => (p.start = hitAt - p.hit));
+        const shooters = parts.filter((p) => !p.self);
+        const selfs = parts.filter((p) => p.self);
+        // 나선 감기 (#98 D) = 쏘는 줄기가 하나라도 있고 함께가 있을 때 — 쏘는 + 자기 둘레 (기운 나선) · 쏘는 + 쏘는 (두 색 나선) / 자기 둘레끼리는 기운이 모여 큰 구슬 (fxJointFinish)
+        const spiral = shooters.length > 0 && parts.length > 1;
+        const beam = spiral ? shooters[0] : null;
+        const partner = spiral ? (selfs[0] ?? shooters[1]) : null;
+        // 같은 때 맞게 — 늦은 쪽에 맞춤. 쏘는 쪽이 이르면 늦추지 않고 모으기를 늘림 (같이 시작 — 빛 구슬이 커짐), 자기 둘레가 이르면 늦게 시작
+        const big = Math.max(...parts.map((p) => p.anchor));
+        parts.forEach((p) => {
+            if (spiral && !p.self && p.anchor < big) {
+                p.start = 0;
+                p.freeze = big - p.anchor;
+            } else {
+                p.start = big - p.anchor;
+            }
+        });
+        // 빔 끝 (꽃 터짐) 을 나선이 닿는 때로 — 큰 맞음 바로 앞에서 그만큼 멈춤
+        const run = spiral ? Math.max(FX_SPIRAL_RUN_MS, ...shooters.map((p) => p.reach)) : 0;
+        shooters.forEach((p) => (p.hold = spiral ? Math.max(0, run - p.reach) : 0));
+        const finishAt = spiral ? big + run : big + FX_JOINT_FLOW_MS + FX_JOINT_GO_MS;
+        const base = charge + introMs + FX_LINK_MS;
         const now = performance.now();
-        const runEnd = Math.max(...parts.map((p) => p.start + p.ms), hitAt + FX_JOINT_FLOW_MS + FX_JOINT_GO_MS + FX_JOINT_BURST_MS);
-        const until = now + charge + introMs + runEnd + ULT_OUTRO_MS;
+        const runEnd = Math.max(...parts.map((p) => p.start + p.ms + p.freeze + (p.hold || 0)), finishAt + FX_JOINT_BURST_MS);
+        const until = now + base + runEnd + ULT_OUTRO_MS;
         const g = { A: lead.A, B, many: As, gen, gens: parts.map((p) => p.gen), tick: setInterval(fxGameTick, 100), hit: false, joint: true };
         fxGame = g;
         // 기 모으기를 먼저 (ultActive 가 걸리면 기 모으기가 바로 끝남 — useUltimate 와 같은 순서, 코드 리뷰어)
@@ -1481,47 +1665,129 @@ window.pokemonFx = {
             }
         }
         const names = parts.map((p) => p.e[0]);
+        const others = (o.others || []).filter((x) => x && fxWidth(x) >= 1);
+        const hitNow = () => {
+            try {
+                onHit?.();
+            } catch (err) {
+                ultError('joint hit', err);
+            }
+        };
         fxWithTimers(gen, () => {
-            // 기 모으기 (0.8초) → 컷인 한 번 → 각자 필살기
+            // 기 모으기 (0.8초) → 컷인 한 번 → 머리 위 빛줄 0.3초 → 각자 필살기
             setTimeout(() => {
                 try {
-                    ultIntro(lead.A, lead.left, names.join(' × '), o.sub ?? (o.sure ? '압도하는 합동 필살기!' : '합동 필살기!'), lead.e[2] || {}, lead.e[1], until, introMs, () => As);
+                    ultIntro(lead.A, lead.left, names.join(' × '), o.sub ?? (o.sure ? '압도하는 합동 필살기!' : '합동 필살기!'), lead.e[2] || {}, lead.e[1], until, introMs, () => lit);
                 } catch (err) {
                     ultError('joint intro', err);
                 }
-                parts.forEach((p) => {
-                    setTimeout(() => {
-                        fxWithTimers(p.gen, () => {
-                            try {
-                                p.T.run(ultGeometry(p.A, p.left), p.e[2] || {}, p.ms, p.A);
-                            } catch (err) {
-                                ultError(`joint ${p.e[1]}.run`, err);
-                            }
-                        });
-                    }, introMs + p.start);
+            }, charge);
+            setTimeout(() => {
+                const heads = parts.map((p) => {
+                    const r = p.A.collision.getBoundingClientRect();
+                    return { x: r.left + r.width / 2, y: r.top + r.height * 0.15 };
                 });
-                // 같은 때 (쏘는 줄기가 닿음 · 대폭발이 터짐) — 그 뒤 기운이 줄기로 모여 상대를 침 → 합체 폭발 · 게임 피해 (fxJointFinish)
+                const u0 = 2 * Math.max(1, Math.round(fxBody(lead.A).w / (lead.A._originalSpriteSize || 32)));
+                for (let i = 1; i < heads.length; i++) {
+                    fxLinkLine(heads[i - 1], heads[i], u0);
+                }
+            }, charge + introMs);
+            parts.forEach((p) => {
+                setTimeout(() => {
+                    fxWithTimers(p.gen, () => {
+                        try {
+                            p.T.run(ultGeometry(p.A, p.left), p.e[2] || {}, p.ms, p.A);
+                        } catch (err) {
+                            ultError(`joint ${p.e[1]}.run`, err);
+                        }
+                    });
+                    // 쏘는 쪽 모으기를 늘림 — 빔이 나가기 0.5초 전에서 멈춰 (빛 구슬이 커짐) 대폭발 "크게" 에 빔이 나감
+                    if (p.freeze > 0) {
+                        const at = Math.max(0, p.anchor - 500);
+                        fxSetTimeout0(() => {
+                            fxFreeze(p.gen, p.freeze);
+                            const gm = ultGeometry(p.A, p.left);
+                            fxGrowOrb(gm.mouth, p.cols, 2 * Math.max(1, Math.round(gm.s)), (p.freeze + Math.min(500, p.anchor)) / 1000);
+                        }, at);
+                    }
+                }, base + p.start);
+            });
+            if (spiral) {
+                // 빔 (첫 쏘는 쪽) 보기 — 대폭발 크게부터 앞끝이 FX_SPIRAL_RUN_MS 에 상대 가슴까지 · 앞끝 너머 안 그림 · 줄이 다르면 계단
+                const views = shooters.map((p) => {
+                    const gm = ultGeometry(p.A, p.left);
+                    const b = fxBody(B);
+                    const dir = b.x >= gm.mouth.x ? 1 : -1;
+                    const v = { x0: gm.mouth.x, y0: gm.mouth.y, dir, slope: (b.y - gm.mouth.y) / Math.max(20, Math.abs(b.x - gm.mouth.x)) * dir, u: 2 * Math.max(1, Math.round(gm.s)), tx: b.x, bigAt: now + base + big, hitAt: now + base + finishAt };
+                    v.front = (t) => (t < v.bigAt ? Infinity * v.dir : t < v.hitAt ? v.x0 + (v.tx - v.x0) * Math.min(1, (t - v.bigAt) / (v.hitAt - v.bigAt)) : t < v.hitAt + 100 ? v.tx + v.dir * 64 : Infinity * v.dir);
+                    fxBeamView.set(p.gen, v);
+                    // 꽃 터짐 뒤 화면 전체 번쩍 장은 뺌 (흰 돔이 회색으로 깜빡이던 것) — 번쩍은 닿는 순간 한 번
+                    fxNoFlashGens.add(p.gen);
+                    return v;
+                });
+                // 빔 끝 (꽃 터짐) 을 나선이 닿는 때로 — 큰 맞음 0.04초 전에서 멈춤
+                shooters.forEach((p) => {
+                    if (p.hold > 0) {
+                        fxSetTimeout0(() => fxFreeze(p.gen, p.hold), base + big + Math.max(0, p.reach - 40));
+                    }
+                });
+                setTimeout(() => {
+                    const v = views[0];
+                    const pb = fxBody(partner.A);
+                    // 기운 색 = 자기 둘레 대폭발 색 (캔버스에서 — 메가리자몽X 파란 불) · 쏘는 + 쏘는 은 둘째 줄기 색
+                    const spin = partner.self ? fxDomeScan(pb, v.dir, Math.abs(v.tx - pb.x)).cols || partner.cols : partner.cols;
+                    fxSpiralRun(v, beam.cols, spin, true);
+                    // 처음 0.3초 — 돔 끝 세 곳에서 기운 줄기 셋이 빔 뿌리로
+                    if (partner.self) {
+                        const scan = fxDomeScan(pb, v.dir, Math.abs(v.tx - pb.x));
+                        const ex = scan.edge ?? pb.x + v.dir * pb.w * 0.6;
+                        const root = { x: v.x0 + v.dir * Math.min(Math.abs(v.tx - v.x0) * 0.3, 140), y: v.y0 + fxStairDy(v, v.x0 + v.dir * 140) };
+                        [[{ x: ex - v.dir * pb.w * 0.6, y: pb.y - pb.h * 1.2 }, 0, 12], [{ x: ex, y: pb.y - pb.h * 0.7 }, 50, 8], [{ x: ex - v.dir * pb.w * 0.2, y: pb.y + pb.h * 0.2 }, 100, -10]].forEach(([from, d, lift]) => {
+                            setTimeout(() => fxFlow(from, root, spin, v.u, 300, lift), d);
+                        });
+                    }
+                    // 닿는 순간 — 불꽃 맞음 + 섞인 큰 폭발 + 번쩍 한 번 + 범위면 나머지 상대 · 맞는 상대 밝게
+                    setTimeout(() => {
+                        try {
+                            const b = fxBody(B);
+                            fxFlameHit(b.x, b.y, spin, v.u);
+                            fxMixBurst(b.x, b.y, spin, beam.cols, v.u, Math.max(2, parts.length));
+                            screenFlash(Math.max(1, v.u / 2), 0.55, '#ffffff', 0.08);
+                            lit.push(B);
+                            others.forEach((spec, i) => setTimeout(() => {
+                                const q = (spec.box || spec.el).getBoundingClientRect();
+                                if (q.width >= 1) {
+                                    typeImpact(q.left + q.width / 2, q.top + q.height * 0.55, v.u / 2, parts[i % parts.length].type, 0.5, false, q.left > b.x ? 1 : -1, q.width, { scale: 0.9 });
+                                }
+                            }, 150 + i * 60));
+                        } catch (err) {
+                            ultError('joint spiral hit', err);
+                        }
+                    }, finishAt - big);
+                }, base + big);
+                // 피해 = 빔 앞끝 + 나선이 닿는 때 (타이머 — 그리기와 따로, 한 번)
+                setTimeout(hitNow, base + finishAt);
+            } else {
+                // 자기 둘레끼리 — 대폭발 뒤 기운이 모여 큰 구슬이 상대를 침 (fxJointFinish) · 피해 = 닿는 때 (타이머)
                 let finishMs = FX_JOINT_FLOW_MS + FX_JOINT_GO_MS;
                 setTimeout(() => {
                     try {
-                        finishMs = fxJointFinish(parts, B, !!o.sure, (o.others || []).filter((x) => x && fxWidth(x) >= 1));
+                        finishMs = fxJointFinish(parts, B, !!o.sure, others);
                     } catch (err) {
                         ultError('joint finish', err);
                         finishMs = 0;
                     }
-                    // 피해 = 꼬인 줄기 · 구슬이 상대에 닿는 때 (타이머 — 그리기 장이 건너뛰어도 · 그리기 오류에도 한 번)
-                    setTimeout(() => {
-                        try {
-                            onHit?.();
-                        } catch (err) {
-                            ultError('joint hit', err);
-                        }
-                    }, finishMs);
-                }, introMs + hitAt);
-            }, charge);
+                    lit.push(B);
+                    setTimeout(hitNow, finishMs);
+                }, base + big);
+            }
         });
         g.done = setTimeout(() => {
-            parts.forEach((p) => (p.A.el.style.filter = ''));
+            parts.forEach((p) => {
+                p.A.el.style.filter = '';
+                fxBeamView.delete(p.gen);
+                fxNoFlashGens.delete(p.gen);
+            });
             if (fxGame === g) {
                 fxGameStop(false);
             }

@@ -82,7 +82,7 @@ def part(v):
     return {"form": form, "pick": name or None, "type": typ or "normal"}
 
 
-parts = [part(kv.get("a", "venusaur:솔라빔:grass")), part(kv.get("b", "charizard:블라스트번:fire"))] + ([part(kv["c"])] if kv.get("c") else [])
+parts = [part(kv.get("a", "venusaur:솔라빔:grass")), part(kv.get("b", "charizard:블래스트번:fire"))] + ([part(kv["c"])] if kv.get("c") else [])
 foe_form = kv.get("foe", "butterfree:12").split(":")[0]
 
 # 내 칸 그림을 바꾸고 · 뒤에 복제 칸을 세움 (그림 주소의 모습 이름만 바꿈)
