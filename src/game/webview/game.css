@@ -1150,14 +1150,27 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
     display: none;
   }
 }
-/* 좁은 부탁 상자 (300px 아래) — 키 칸 (Enter · Esc) 을 빼서 남은 초가 붙은 [지나간다] 가 패널 밖으로 안 나가게 · 클리어 카드는 둘째 줄 흐린 요약을 뺌 (UX 리뷰어 2026-10-21) */
+/* 좁은 부탁 상자 (370px 아래) — 키 칸 (Enter · Esc) · 도울 포켓몬 이름을 빼고 "성공 30%" 만 (버튼이 패널 밖 · 이름이 "이상해…" 로 잘리던 것) · 클리어 카드는 300px 아래 둘째 줄 흐린 요약 · 스테이지 이름을 뺌 (UX 리뷰어 2026-10-21) */
+@media (max-width: 370px) {
+  .pg-request .pg-button .pg-menu-key,
+  .pg-request .pg-helper-who {
+    display: none;
+  }
+}
 @media (max-width: 300px) {
-  .pg-request .pg-button .pg-menu-key {
+  .pg-clear > .pg-line:last-child > .pg-dim,
+  .pg-clear .pg-clear-name {
     display: none;
   }
-  .pg-clear > .pg-line:last-child > .pg-dim {
-    display: none;
-  }
+}
+/* 진행 % 는 줄지 않음 — 미니맵 막대가 먼저 줄어듦 (+N · ★N 이 칸을 넓히면 "0" 만 남던 것) */
+.pg-mappct {
+  flex: none;
+}
+/* 전투 자동 켜짐 (금색이 아닌 남색 칸) 의 A 키 칸 — 금색 */
+.pg-button.pg-auto-btn:not(.pg-secondary) .pg-menu-key {
+  color: var(--pg-sos-gold);
+  border-color: var(--pg-sos-gold);
 }
 /* 남은 초는 고정폭 숫자 (10초 → 9초 에 버튼 폭이 바뀌어 옆 버튼이 튀던 것) */
 .pg-button .pg-sub {
@@ -4192,16 +4205,30 @@ body.vscode-high-contrast-light .pg-title-body {
 .pg-panel .pg-button.pg-shop-rule:disabled b {
   color: var(--pg-sos-dim);
 }
-/* 좁은 패널 (480px 아래) 상점 알림 = 판 맨 위 한 줄 (머리 줄에선 줄임표에 묻힘) · 넓으면 머리 줄 */
-.pg-shop-note-line {
+/* 판 머리 줄 바로 아래 고정 한 줄 (Panel sub — 내용과 같이 스크롤되지 않음) */
+.pg-panel-sub {
+  flex: none;
+  padding: 0 8px;
+}
+/* 좁은 패널 (480px 아래) 상점 알림 줄 — 늘 높이를 잡아 둠 (칸이 안 밀리게): 평소 흐린 "눌러서 1개 · Shift 5개" · 사고팔면 금색 알림. 넓으면 머리 줄에 */
+.pg-panel-sub:has(.pg-shop-note-line) {
   display: none;
-  color: var(--pg-sos-gold);
+}
+.pg-shop-note-line {
+  display: block;
+  overflow: hidden;
+  color: var(--pg-sos-dim);
   font-size: 12px;
-  font-weight: 700;
   line-height: 16px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.pg-shop-note-line.pg-on {
+  color: var(--pg-sos-gold);
+  font-weight: 700;
 }
 @media (max-width: 480px) {
-  .pg-shop-note-line {
+  .pg-panel-sub:has(.pg-shop-note-line) {
     display: block;
   }
 }
@@ -4278,11 +4305,19 @@ body.vscode-high-contrast-light .pg-title-body {
   font-variant-numeric: tabular-nums;
 }
 .pg-shop-sub {
+  display: flex;
   min-width: 0;
   margin-left: auto;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
+}
+.pg-shop-eff {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pg-shop-have {
+  flex: none;
 }
 @media (max-width: 720px) {
   .pg-shop-grid {

@@ -49,8 +49,9 @@ export function ShopPanel({ save, note, onInput, onClose }: { save: Save; /** �
       }
       onClose={onClose}
       closeLabel="나가기"
+      // 좁은 패널 (480px 아래) = 머리 줄 아래 고정 한 줄 — 평소 "눌러서 1개 · Shift 5개" · 사고팔면 금색 알림 (판 안 맨 위에 끼면 칸이 밀리고 굴리면 안 보이던 것 — UX 리뷰어 2026-10-21)
+      sub={<span class={note ? 'pg-shop-note-line pg-on' : 'pg-shop-note-line'}>{note ?? '눌러서 1개 · Shift 5개'}</span>}
     >
-      {note && <div class="pg-shop-note-line">{note}</div>}
       {tab === 'buy' ? (
         /* 3칸 바둑판 — 이름 · 값 왼쪽, 설명 · 가진 수는 오른쪽 끝 흐리게 (넘치면 설명만 줄임, 긴 설명은 title) — 아트 디렉터 3차 */
         <div class="pg-shop-grid">
@@ -68,7 +69,13 @@ export function ShopPanel({ save, note, onInput, onClose }: { save: Save; /** �
               </span>
               <span class="pg-sub pg-shop-sub">
                 {/* 못 사는 까닭이 있으면 그것을 (이상한사탕 "한 판에 1개") · 가진 수는 있을 때만 */}
-                {r.blocked ?? (r.have > 0 ? `${r.effect} · 가진 ${r.have}` : r.effect)}
+                {/* 넘치면 설명이 줄고 가진 수는 늘 보임 (경험 부적 "가진…" 이 잘리던 것 — UX 리뷰어) */}
+                {r.blocked ?? (
+                  <>
+                    <span class="pg-shop-eff">{r.effect}</span>
+                    {r.have > 0 && <span class="pg-shop-have"> · 가진 {r.have}</span>}
+                  </>
+                )}
               </span>
             </Button>
           ))}

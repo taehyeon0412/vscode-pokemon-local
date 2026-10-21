@@ -181,7 +181,17 @@ export function ClearCard({ state, media, onInput, onMap, onTeam }: BoxProps & {
     <div class="pg-banner pg-clear pg-two">
       <span class="pg-line">
         <Icon name={STAGES[loc.stageId].icon} />
-        <b class="pg-ellipsis">{v.title}</b>
+        {/* 300px 아래는 스테이지 이름을 빼고 "(1-1) 클리어!" (제목이 잘려 "클리어!" 가 안 보이던 것 — UX 리뷰어) */}
+        <b class="pg-ellipsis">
+          {v.title.startsWith(STAGES[loc.stageId].name) ? (
+            <>
+              <span class="pg-clear-name">{STAGES[loc.stageId].name} </span>
+              {v.title.slice(STAGES[loc.stageId].name.length + 1)}
+            </>
+          ) : (
+            v.title
+          )}
+        </b>
         <span class="pg-reward">
           <span class="pg-long">보너스 </span>경험치 +{v.bonus}
         </span>

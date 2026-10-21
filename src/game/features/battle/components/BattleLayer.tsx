@@ -65,6 +65,7 @@ export function AutoButton({ save, onInput, short }: { save: Save; onInput(i: Ga
   return (
     <Button
       secondary={!auto}
+      extraClass="pg-auto-btn"
       onClick={() => onInput({ kind: 'auto-battle', on: !auto })}
       title={auto ? '자동 전투 켜짐 — 누르면 끔 (A)' : '자동 전투 꺼짐 — 켜면 내 행동도 알아서 (A · 필살기 · 연타는 직접도 됨)'}
     >

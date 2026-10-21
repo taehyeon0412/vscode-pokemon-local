@@ -15,10 +15,12 @@ export interface PanelProps {
   extra?: ComponentChildren;
   onClose(): void;
   closeLabel?: string;
+  /** 제목 줄 바로 아래 고정 한 줄 (내용과 같이 스크롤되지 않음 — 상점 알림 · 안내, 2026-10-21) */
+  sub?: ComponentChildren;
   children: ComponentChildren;
 }
 
-export function Panel({ icon, title, extra, onClose, closeLabel = '닫기', children }: PanelProps) {
+export function Panel({ icon, title, extra, onClose, closeLabel = '닫기', sub, children }: PanelProps) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || e.repeat) return;
@@ -40,6 +42,7 @@ export function Panel({ icon, title, extra, onClose, closeLabel = '닫기', chil
           ✕ <span class="pg-close-word">{closeLabel}</span>
         </Button>
       </div>
+      {sub && <div class="pg-panel-sub">{sub}</div>}
       <div class="pg-panel-body">{children}</div>
     </div>
   );
