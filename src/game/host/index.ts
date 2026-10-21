@@ -31,6 +31,8 @@ export interface GameHost {
   exports: { game: GameTestApi } | undefined;
 }
 
+/** 마지막이 게임 모드였음 (globalState — VS Code 를 켤 때 바로 게임, 기획 R15 A) */
+const RESUME_KEY = 'vscode-pokemon.game.resume';
 /** commandsToSkipShell 에 F3 게임 전환 명령을 한 번 넣었음 (globalState) */
 const TERMINAL_KEY_DONE = 'vscode-pokemon.game.terminalF3';
 
@@ -103,6 +105,8 @@ export function activate(context: vscode.ExtensionContext): GameHost {
       if (game.currentMode === 'normal') void teamOut.refresh();
       else teamStale = true;
     },
+    // 마지막이 게임 모드면 VS Code 를 켤 때 바로 게임 (기획 R15 A) — 이 PC 에만 (동기화 안 함) · 테스트 창은 늘 일반 모드로 시작
+    resume: testMode ? undefined : { get: () => context.globalState.get<boolean>(RESUME_KEY, false) === true, set: (on) => void context.globalState.update(RESUME_KEY, on) },
   });
 
   const ready: Promise<LoadResult> = game.init({ readOnly: true }).then((r) => {

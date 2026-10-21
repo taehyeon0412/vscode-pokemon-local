@@ -68,6 +68,8 @@ export interface SessionDeps {
   onModeChanged?(mode: Mode): void;
   /** 웹뷰가 새로 뜸 (boot) — 📦 꺼낸 팀을 다시 보냄 */
   onWebviewBoot?(): void;
+  /** 마지막이 게임 모드였는지 (이 PC 에만 — globalState) — VS Code 를 켤 때 바로 게임 (gdd 4.1 · 기획 R15 A). 없으면 늘 일반 모드로 시작 */
+  resume?: { get(): boolean; set(on: boolean): void };
 }
 
 /** 세는 것 — 기록 · 테스트용 */
@@ -91,6 +93,8 @@ export class GameSession {
   private view: ViewPort | null = null;
   /** VS Code 창 포커스 — 웹뷰에 알려서 포커스가 없을 때 이로치 흔적 앞에서 멈추게 (2026-10-19) */
   private windowFocused = true;
+  /** 이 창에서 "바로 게임" 을 이미 봤는지 (처음 boot 한 번만 — 크기 설정으로 웹뷰가 다시 떠도 다시 들어가지 않게) */
+  private resumeChecked = false;
   /** 웹뷰에 game.js 가 떠 있어 맡길 수 있는지 (ready 에서 켜고, 새로 뜸 · 못 불러옴 · 닫힘에서 끔) */
   private webviewReady = false;
   /** 웹뷰가 "패널이 너무 낮아서" 넘김 (접힌 상태) — 다시 높아지면 ready 가 옴. 그동안 포커스가 돌아와도 맡기지 않음 (#297) · 알림은 "올리면" (#299) */
@@ -155,6 +159,7 @@ export class GameSession {
         this.webviewReady = false; // 웹뷰가 새로 뜸 — game.js 는 아직
         this.webviewCollapsed = false;
         if (this.mode !== 'normal') this.post({ type: 'load' });
+        else this.resumeOnBoot();
         try {
           this.deps.onWebviewBoot?.();
         } catch (e) {
@@ -266,6 +271,28 @@ export class GameSession {
       await this.loading;
       if (this.mode === 'normal') this.beginTitle();
       else await this.leaveGame({ askWebview: true });
+    });
+  }
+
+  /**
+   * VS Code 를 켜고 포켓몬 보기가 처음 뜰 때 (boot) — 마지막이 게임 모드였으면 타이틀 없이 바로 게임 (gdd 4.1 · 기획 R15 A).
+   * 다른 창이 게임 중 (busy) · 잠김이면 일반 모드 그대로 (기록만) · 세이브가 없으면 표시도 끔
+   */
+  private resumeOnBoot(): void {
+    if (this.resumeChecked) return;
+    this.resumeChecked = true;
+    let on = false;
+    try {
+      on = this.deps.resume?.get() === true;
+    } catch (e) {
+      this.deps.log(`바로 게임 표시를 못 읽음: ${String(e)}`);
+    }
+    if (!on) return;
+    void this.serial(async () => {
+      if (this.mode !== 'normal') return;
+      const r = await this.doEnter();
+      this.deps.log(`마지막이 게임 모드 → 바로 게임: ${r}`);
+      if (r === 'no-save') this.deps.resume?.set(false);
     });
   }
 
@@ -509,6 +536,13 @@ export class GameSession {
     if (this.mode === mode) return;
     this.mode = mode;
     if (mode !== 'title') this.stopBusyWatch();
+    // 마지막이 게임 모드였는지 (R15 A) — 들어가면 켬 · 일반 모드로 나가면 끔 (VS Code 를 끌 때는 dispose 라 그대로 남음) · 개발 모드는 안 셈
+    try {
+      if (mode === 'game' && !this.dev) this.deps.resume?.set(true);
+      else if (mode === 'normal') this.deps.resume?.set(false);
+    } catch (e) {
+      this.deps.log(`바로 게임 표시를 못 씀: ${String(e)}`);
+    }
     // 게임에서 나가면 탭 배지도 지움 (접힌 채 대기실 → 🏠 에 "기다려요" 가 일반 모드에 남던 것 — 코드 리뷰어)
     this.updateBadge();
     try {

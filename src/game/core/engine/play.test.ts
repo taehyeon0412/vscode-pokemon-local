@@ -5,7 +5,7 @@ import { validateSave, type Save } from '../save';
 import { sampleSave, viaJson } from '../../../test/fixtures/save';
 import { shinyWildSeed } from '../../../test/fixtures/stage';
 import { startBattle } from './battle';
-import { advance, applyInput, AUTO_TIP_BACK, AUTO_TIP_TURN, autoTipLeft, isWaitingForInput, isWalkingFast, leadSpeed, STAGE_WAIT, step, waitReason, withSpeed } from './play';
+import { advance, applyInput, AUTO_TIP_BACK, AUTO_TIP_TURN, autoTipLeft, isWaitingForInput, RESUME_BATTLE_MSG, isWalkingFast, leadSpeed, STAGE_WAIT, step, waitReason, withSpeed } from './play';
 import { createGameState, readRuntime, STAGE_PHASES, type GameState } from './state';
 
 const STEP = TIMING.simStepMs;
@@ -350,6 +350,15 @@ describe('전투 (단계 5 · 6) — 스테이지 쪽', () => {
     const later = advance(fight, 10_000).state;
     expect(battleOf(later)?.phase).toBe('choose');
     expect(prog(later)).toBe(prog(fight));
+  });
+
+  it('전투 중에 껐다 켜면 그 전투를 처음부터 — 첫 말 "다시 켜서 전투를 처음부터!" (기획 R15 A)', () => {
+    const { state } = nearSpot(start(), 'wild');
+    const met = until(state, (x) => battleOf(x) !== null);
+    const reopened = createGameState(viaJson(met.save), 9);
+    const again = step(reopened, STEP).state;
+    expect(battleOf(again)?.msg).toBe(RESUME_BATTLE_MSG);
+    expect(battleOf(again)?.foe.species).toBe(battleOf(met)?.foe.species);
   });
 
   it('메뉴 입력 → 전투가 이어짐 · 전투가 아닐 때 전투 입력은 무시', () => {

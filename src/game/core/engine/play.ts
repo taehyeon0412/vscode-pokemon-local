@@ -353,17 +353,20 @@ function checkedStage(rt: RuntimeState, save: Save, id: StageId, layout: StageLa
   }
 }
 
+export const RESUME_BATTLE_MSG = '다시 켜서 전투를 처음부터!';
+
 /** 진행 중 상태가 없을 때 세이브를 보고 정함 — 고르다 껐으면 그 고르기부터 · 전투 중에 껐다 켜면 그 전투를 처음부터 (mvp-spec 9장) */
 function defaultStage(save: Save, rt: RuntimeState, id: StageId, prog: StageProgress): StageRuntime {
   const p = save.pendingEncounter;
   if (save.pendingChoices.length > 0) return choiceStage(save);
-  if (p?.kind === 'wild') return { phase: 'battle', battle: startBattle(save, p.monster, p.start) };
+  // 첫 말 = "다시 켜서 전투를 처음부터!" (기획 R15 A — 껐다 켜면 그 전투를 처음부터, 왜 처음부터인지)
+  if (p?.kind === 'wild') return { phase: 'battle', battle: { ...startBattle(save, p.monster, p.start), msg: RESUME_BATTLE_MSG } };
   // 3:3 이었으면 3:3 으로 (마지막으로 고른 방식 — 껐다 켜도 같게, 코드 리뷰어)
   if (p?.kind === 'trainer' && p.stageId === id) {
     const n = trainerNumber(p.trainerId);
-    return useTeam(save, rt) ? { phase: 'team', team: trainerTeamBattle(save, id, prog, n) } : { phase: 'battle', battle: trainerBattle(save, id, prog, n) };
+    return useTeam(save, rt) ? { phase: 'team', team: { ...trainerTeamBattle(save, id, prog, n), msg: RESUME_BATTLE_MSG } } : { phase: 'battle', battle: { ...trainerBattle(save, id, prog, n), msg: RESUME_BATTLE_MSG } };
   }
-  if (p?.kind === 'rival' && p.stageId === id) return { phase: 'battle', battle: rivalBattle(save, id, prog, p.rival) };
+  if (p?.kind === 'rival' && p.stageId === id) return { phase: 'battle', battle: { ...rivalBattle(save, id, prog, p.rival), msg: RESUME_BATTLE_MSG } };
   return prog.progress >= 1 ? { phase: 'clear' } : { phase: 'walk' };
 }
 
