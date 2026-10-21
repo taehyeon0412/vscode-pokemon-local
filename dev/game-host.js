@@ -467,7 +467,8 @@
                 return setTimeout(() => run(i + 1, 40), 100);
             }
             const badge = document.querySelector('#pokemon-game .pg-dev-badge');
-            const btn = [...document.querySelectorAll('#pokemon-game .pg-dev-btn')].find((x) => x.textContent.trim() === st);
+            // 스위치 (목록 초안 · 3:3 켜짐 · 걷기 ×N — pg-dev-switch) 도 누름 (개발 #50 메모)
+            const btn = [...document.querySelectorAll('#pokemon-game .pg-dev-btn, #pokemon-game .pg-dev-switch')].find((x) => x.textContent.trim() === st);
             if (btn) {
                 btn.click();
                 // 장면이 아닌 것 (상태 · 속도) 은 판이 그대로 — 닫기
