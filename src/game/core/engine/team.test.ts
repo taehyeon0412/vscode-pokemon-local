@@ -4,10 +4,10 @@ import { fixedRng } from '../../../test/fixtures/rng';
 import { sampleMonster, sampleSave, viaJson } from '../../../test/fixtures/save';
 import { BALANCE, TIMING } from '../balance';
 import type { Monster, Save } from '../save';
-import { applyInput, step } from './play';
+import { applyInput, step, teamLock, teamPickOf } from './play';
 import { Rng } from './rng';
 import { createGameState, readRuntime, type GameState } from './state';
-import { applyTeamResult, isSpread, pickTeam, readTeam, startTeamBattle, TEAM_BASIC, teamClashSure, teamDone, teamInput, teamPick, teamPossible, teamStep, teamUltOpen, type TeamBattle } from './team';
+import { applyTeamResult, isSpread, pickTeam, readTeam, startTeamBattle, TEAM_BASIC, teamClashSure, teamDone, teamInput, teamPick, teamPossible, teamScale, teamStep, teamUltLevel, teamUltOpen, type TeamBattle } from './team';
 import { moveOf } from '../../data';
 import { trainerTeam } from '../rules/trainer';
 
@@ -81,7 +81,7 @@ describe('필살기 — 1 · 2 · 3 · Z · 나머지 멈춤 · 끼어들기 · 
 
   it('찬 포켓몬만 · 쓰면 나머지 멈춤 (게이지 그대로) · 상대 모두에게 피해', () => {
     const b0 = startTeamBattle(team3(), foes(), 'trainer', '상대');
-    expect(teamInput(b0, { kind: 'ult', slot: 0 }, new Rng(1))).toBe(b0);
+    expect(teamInput(b0, { kind: 'ult' }, new Rng(1))).toBe(b0);
     const b = ready(b0, 'me', 1);
     expect(teamUltOpen(b, 1)).toBe(true);
     const u = teamInput(b, { kind: 'ult' }, fixedRng(0.99)); // Z = 먼저 찬 포켓몬 · 상대 AI 는 안 끼어듦 (0.99)
@@ -178,7 +178,9 @@ describe('연결 — 트레이너 만남 · 관장전 (BALANCE.team.on 이 켜�
       expect(phaseAfter(meet(team3()))).toBe('battle');
       const chose = applyInput(meet(team3()), { kind: 'team-mode', on: true });
       expect(chose.save.settings.teamMode).toBe(true);
-      expect(phaseAfter(chose)).toBe('team');
+      // 손으로 3:3 을 고르면 3마리 고르기 → Enter (Space) 로 시작
+      expect(phaseAfter(chose)).toBe('trainer');
+      expect(phaseAfter(applyInput(chose, { kind: 'space' }))).toBe('team');
       expect(phaseAfter(meet(auto(remembered(team3()))))).toBe('team');
       expect(phaseAfter(meet(remembered(team3())))).toBe('team');
       expect(phaseAfter(meet(remembered(team3()), false))).toBe('battle');
@@ -401,5 +403,138 @@ describe('명세 검사관 · 코드 리뷰어 (2026-10-21)', () => {
     expect(readTeam({ ...b, ultReadyAt: { me: [null], foe: [null, null] } })).toBeNull();
     expect(readTeam({ ...b, moveClashes: [{ kind: 'move', me: [0], foe: [0], shots: [98, 99], ms: 0, dur: 1500, taps: 0, winner: null }] })).toBeNull();
     expect(readTeam({ ...b, me: b.me.map((f) => ({ ...f, stats: { ...f.stats, speed: null } })) })).toBeNull();
+  });
+});
+
+describe('#17 준비 — 배율 · 잠금 · 3마리 고르기 · 필살기 예약 · 상대 필살기 예고 (2026-10-21)', () => {
+  const setOn = (on: boolean) => {
+    (BALANCE.team as { on: boolean }).on = on;
+  };
+  const five = (): Save => {
+    const base = team3();
+    const more = [mon('m4', { species: 1, form: 'bulbasaur' }), mon('m5', { species: 25, form: 'pikachu', moves: [{ moveId: 84, pp: 30 }] })];
+    return { ...base, monsters: { ...base.monsters, ...Object.fromEntries(more.map((m) => [m.uid, { ...m, hp: 999 }])) }, party: [...base.party, 'm4', 'm5'] };
+  };
+  const meet = (save: Save, view?: { w: number; h: number }): GameState => {
+    const s = createGameState({ ...save, pendingEncounter: { kind: 'trainer', trainerId: 'forest-1:t0', stageId: 'forest-1' } }, 3);
+    return { ...s, runtime: { ...s.runtime, stage: { phase: 'trainer', n: 0, ms: TIMING.trainerAlertMs }, stageId: 'forest-1', ...(view ? { view } : {}) } };
+  };
+  const steps = (s: GameState, ms: number) => {
+    let cur = s;
+    for (let t = 0; t < ms; t += STEP) cur = step(cur, STEP).state;
+    return cur;
+  };
+
+  it('배율 — 240 폭 ×1 · 높이 300 아래 ×2 · 300 부터 ×3 · ×1 로도 안 들어가면 0 (잠금) · 모르면 들어감', () => {
+    expect(teamScale(null)).toBe(2);
+    expect(teamScale({ w: 239, h: 187 })).toBe(0);
+    expect(teamScale({ w: 240, h: 187 })).toBe(1);
+    expect(teamScale({ w: 479, h: 400 })).toBe(1);
+    expect(teamScale({ w: 480, h: 187 })).toBe(2);
+    expect(teamScale({ w: 1860, h: 299 })).toBe(2);
+    expect(teamScale({ w: 720, h: 300 })).toBe(3);
+  });
+
+  it('잠금 — 좁으면 3:3 고르기 안 됨 · 기억한 3:3 도 1:1 · 관장도 1:1 토너먼트 · 까닭 (few · narrow) · 패널 크기는 넘겨도 남음', () => {
+    setOn(true);
+    try {
+      const narrow = { w: 200, h: 187 };
+      const s = meet(five(), narrow);
+      expect(teamLock(s)).toBe('narrow');
+      expect(teamLock(meet(sampleSave()))).toBe('few');
+      expect(teamLock(meet(five(), { w: 860, h: 187 }))).toBeNull();
+      expect(applyInput(s, { kind: 'team-mode', on: true })).toBe(s);
+      const remembered = meet({ ...five(), settings: { ...five().settings, teamMode: true } }, narrow);
+      expect(steps(remembered, TIMING.trainerMeetMs).runtime.stage?.phase).toBe('battle');
+      const lobby = createGameState({ ...five(), location: { screen: 'gym' } }, 3);
+      const l = { ...lobby, runtime: { ...lobby.runtime, stage: { phase: 'lobby' as const }, stageId: null, view: narrow } };
+      expect(applyInput(l, { kind: 'challenge' }).runtime.stage?.phase).toBe('battle');
+      // 패널 크기 알림 — 같으면 그대로 · 다시 읽어도 남음
+      const v = applyInput(s, { kind: 'view', w: 860.4, h: 187 });
+      expect(v.runtime.view).toEqual({ w: 860, h: 187 });
+      expect(applyInput(v, { kind: 'view', w: 860, h: 187 })).toBe(v);
+      expect(readRuntime(viaJson(v.runtime), 1).view).toEqual({ w: 860, h: 187 });
+    } finally {
+      setOn(false);
+    }
+  });
+
+  it('3마리 고르기 — 3:3 을 고르면 상성 좋은 셋이 체크 · 넣고 빼기 · Enter 까지 기다림 (늦어도 10초) · 고른 셋으로 시작 · 자동 전투면 안 기다림', () => {
+    setOn(true);
+    try {
+      const s = applyInput(meet(five()), { kind: 'team-mode', on: true });
+      const first = teamPickOf(s)!;
+      expect(first).toEqual(pickTeam(s.save, trainerTeam('forest-1', s.save.stages['forest-1']!.seed, 0, 5, 3)));
+      // 하나 빼면 빈 채로 · 다른 걸 넣음 · 셋이 차 있으면 가장 먼저 고른 것이 빠짐
+      const out = applyInput(s, { kind: 'team-pick', uid: first[0]! });
+      expect(teamPickOf(out)).toEqual(first.slice(1));
+      const other = ['m1', 'm2', 'm3', 'm4', 'm5'].find((u) => !first.includes(u))!;
+      const swapped = applyInput(out, { kind: 'team-pick', uid: other });
+      expect(teamPickOf(swapped)).toEqual([...first.slice(1), other]);
+      expect(teamPickOf(applyInput(s, { kind: 'team-pick', uid: other }))).toEqual([...first.slice(1), other]);
+      // 만남이 끝나도 기다림 → Enter (Space) = 바로 · 10초 = 저절로
+      const held = steps(swapped, TIMING.trainerMeetMs + 1000);
+      expect(held.runtime.stage?.phase).toBe('trainer');
+      const go = step(applyInput(held, { kind: 'space' }), STEP).state;
+      expect(go.runtime.stage?.phase).toBe('team');
+      expect(go.runtime.stage?.phase === 'team' && [...go.runtime.stage.team.fought].sort()).toEqual([...first.slice(1), other].sort());
+      expect(steps(swapped, TIMING.teamPickAutoMs + STEP * 2).runtime.stage?.phase).toBe('team');
+      const auto = applyInput(meet({ ...five(), settings: { ...five().settings, autoBattle: true } }), { kind: 'team-mode', on: true });
+      expect(steps(auto, TIMING.trainerMeetMs).runtime.stage?.phase).toBe('team');
+      // 다시 읽어도 고르기가 남음 · 1:1 로 바꾸면 고르기를 닫음
+      expect(readRuntime(viaJson(swapped.runtime), 1).stage).toEqual(viaJson(swapped.runtime.stage));
+      expect(applyInput(swapped, { kind: 'team-mode', on: false }).runtime.stage).toEqual({ phase: 'trainer', n: 0, ms: TIMING.trainerAlertMs, team: false });
+    } finally {
+      setOn(false);
+    }
+  });
+
+  it('대기실 고르기 — 처음엔 상성 좋은 셋 · 바꾼 셋으로 관장 3:3', () => {
+    setOn(true);
+    try {
+      const base = createGameState({ ...five(), location: { screen: 'gym' } }, 3);
+      const lobby = { ...base, runtime: { ...base.runtime, stage: { phase: 'lobby' as const }, stageId: null } };
+      const first = teamPickOf(lobby)!;
+      expect(first).toHaveLength(3);
+      const other = ['m1', 'm2', 'm3', 'm4', 'm5'].find((u) => !first.includes(u))!;
+      const changed = applyInput(lobby, { kind: 'team-pick', uid: other });
+      const g = applyInput(changed, { kind: 'challenge' });
+      expect(g.runtime.stage?.phase === 'team' && g.runtime.stage.team.fought).toEqual([...first.slice(1), other]);
+    } finally {
+      setOn(false);
+    }
+  });
+
+  it('필살기 예약 — 차는 중에 그 칸을 누르면 예약 · 다시 누르면 취소 · 차는 순간 씀 · 끼어들기 창 · 힘겨루기에도 바로 · Z 는 예약 없음', () => {
+    const b = startTeamBattle(team3(), foes(), 'trainer', '상대');
+    const r = teamInput(b, { kind: 'ult', slot: 0 }, new Rng(1));
+    expect(r.reserve).toEqual([0]);
+    expect(teamInput(r, { kind: 'ult', slot: 0 }, new Rng(1)).reserve).toEqual([]);
+    expect(teamInput(b, { kind: 'ult' }, new Rng(1))).toBe(b);
+    const full = (x: TeamBattle, i: number): TeamBattle => ({ ...x, me: x.me.map((f, j) => (j === i ? { ...f, ult: 1 } : f)) });
+    expect(run(full(r, 0), STEP, fixedRng(0.99)).ult).toMatchObject({ side: 'me', from: 0 });
+    expect(run(full(b, 0), STEP, fixedRng(0.99)).phase).toBe('run');
+    const used = run(full(r, 0), STEP, fixedRng(0.99));
+    expect(used.reserve).toEqual([]);
+    // 상대 필살기 창 — 예약한 포켓몬이 차 있으면 바로 끼어듦
+    const foeUlt: TeamBattle = { ...full({ ...b, reserve: [1] }, 1), phase: 'ult', ult: { side: 'foe', from: 0, ms: 0, dur: TIMING.ultAnimMs, hitMs: 800, hit: false, window: 1200, joinAt: null, joiners: [] } };
+    expect(run(foeUlt, STEP, fixedRng(0.99)).clash).toMatchObject({ kind: 'ult', me: [1] });
+    // 힘겨루기 — 예약한 포켓몬이 차면 합류
+    const clash: TeamBattle = { ...full({ ...b, reserve: [2] }, 2), phase: 'clash', clash: { kind: 'ult', me: [0], foe: [0], shots: null, ms: 0, dur: TIMING.team.ultClashMs, taps: 0, winner: null } };
+    expect(run(clash, STEP, fixedRng(0.99)).clash!.me).toEqual([0, 2]);
+    // 쓰러지면 예약이 빠짐 · 다시 읽기
+    const dead = run({ ...r, me: r.me.map((f, i) => (i === 0 ? { ...f, hp: 0 } : f)) }, STEP, fixedRng(0.99));
+    expect(dead.reserve).toEqual([]);
+    expect(readTeam(viaJson(r))).toEqual(viaJson(r));
+    expect(readTeam({ ...viaJson(r), reserve: [0, 0] })).toBeNull();
+    expect(readTeam({ ...viaJson(r), reserve: [5] })).toBeNull();
+  });
+
+  it('상대 필살기 예고 — 80% 넘으면 near · 다 차면 full · 쓰러지면 none', () => {
+    const f = startTeamBattle(team3(), foes(), 'trainer', '상대').foe[0]!;
+    expect(teamUltLevel({ ...f, ult: 0.5 })).toBe('none');
+    expect(teamUltLevel({ ...f, ult: BALANCE.team.ultWarnAt })).toBe('near');
+    expect(teamUltLevel({ ...f, ult: 1 })).toBe('full');
+    expect(teamUltLevel({ ...f, ult: 1, hp: 0 })).toBe('none');
   });
 });

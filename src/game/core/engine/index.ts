@@ -14,6 +14,8 @@ export {
   defeatWaits,
   isWaitingForInput,
   stageUnlocked,
+  teamLock,
+  teamPickOf,
   walkLeftMs,
   step,
   withSpeed,
@@ -46,7 +48,7 @@ export {
   type Side,
 } from './battle';
 export { clearBonusExp, FOREST_BADGE, runExpScale, stageClearExp, type BattleSummary } from './rewards';
-export { readTeam, teamUltOpen, teamViewKey, type TeamBattle, type TeamClash, type TeamInput, type TeamPopup, type TeamShot, type TeamUlt } from './team';
+export { readTeam, TEAM_BASIC, teamClashSure, teamScale, teamUltLevel, teamUltOpen, teamViewKey, type TeamBattle, type TeamClash, type TeamInput, type TeamPopup, type TeamShot, type TeamUlt } from './team';
 export {
   createGameState,
   MAX_SPEED,

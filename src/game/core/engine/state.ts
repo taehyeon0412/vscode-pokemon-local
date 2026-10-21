@@ -32,7 +32,8 @@ export type StageRuntime =
   | { phase: 'walk' }
   | { phase: 'appear'; ms: number; isNew: boolean }
   /** team = 3:3 으로 (고른 것 — 없으면 자동 전투 · 안 볼 때 3:3, 아니면 1:1 — 2026-10-21 orders #17) */
-  | { phase: 'trainer'; n: number; ms: number; team?: boolean }
+  /** team = 고른 방식 · pick = 3:3 을 손으로 고르면 3마리 고르기 (미리 체크된 셋에서 바꿈) · pickMs = 고르기가 열린 뒤 (늦어도 teamPickAutoMs 뒤 시작) */
+  | { phase: 'trainer'; n: number; ms: number; team?: boolean; pick?: string[]; pickMs?: number }
   /** 라이벌 깜짝 등장 (gdd 4.12) — rival = 주인공 id, "!" → 띠 → 전투 */
   | { phase: 'rival'; rival: string; ms: number }
   | { phase: 'battle'; battle: BattleState }
@@ -51,7 +52,8 @@ export type StageRuntime =
   | { phase: 'clear'; ms?: number }
   /** 1-3 끝 — 체육관 문이 열리고 걸어 들어감 (ms 동안, 그다음 클리어 처리 · S16 대기실 — 2026-10-20 태현 님 A안) */
   | { phase: 'gym-enter'; ms: number }
-  | { phase: 'lobby' }
+  /** pick = 관장 3:3 에 나갈 3마리 (고르지 않았으면 없음 — 상성 좋은 셋) */
+  | { phase: 'lobby'; pick?: string[] }
   | { phase: 'badge' };
 
 export const STAGE_PHASES = ['walk', 'appear', 'trainer', 'rival', 'battle', 'team', 'request', 'hold', 'facility', 'result', 'choice', 'defeat', 'clear', 'gym-enter', 'lobby', 'badge'] as const;
@@ -89,6 +91,8 @@ export interface RuntimeState {
   away?: boolean;
   /** 확장이 안 볼 때 계산하는 동안 바뀐 것 — 다시 보면 "그동안: …" 한 줄 (2026-10-21 ideas #16). 안 볼 때 처음 걸음에 생기고 한 줄을 띄우면 지움 */
   awayLog?: AwayLog;
+  /** 웹뷰 패널 크기 (px) — 3:3 배율 · 잠금 (teamScale). 3:3 배율이 바뀔 때만 웹뷰가 알림 · 모르면 없음 */
+  view?: { w: number; h: number };
 }
 
 /** 자리 비운 동안 — 떠날 때의 돈 · 가방과 그동안 싸운 야생 수 */
@@ -148,6 +152,8 @@ function readSummary(raw: unknown): BattleSummary | null {
 }
 
 const okThen = (v: unknown) => v === undefined || v === 'badge';
+/** 3마리 고르기 — uid 3개 이하 · 겹침 없음 (세이브와 맞는지는 시작할 때 다시 봄) */
+const okPick = (v: unknown): v is string[] => Array.isArray(v) && v.length <= 3 && v.every((u) => typeof u === 'string' && u.length <= 64) && new Set(v).size === v.length;
 
 /** 웹뷰에서 온 스테이지 진행 중 상태 — 모양이 이상하면 null (다음 걸음에 세이브를 보고 다시 정함) */
 function readStage(raw: unknown): StageRuntime | null {
@@ -155,15 +161,23 @@ function readStage(raw: unknown): StageRuntime | null {
   const ms = num(raw.ms, 0, 1e9);
   switch (raw.phase) {
     case 'walk':
-    case 'lobby':
     case 'badge':
       return { phase: raw.phase };
+    case 'lobby':
+      return okPick(raw.pick) ? { phase: 'lobby', pick: raw.pick } : { phase: 'lobby' };
     case 'clear':
       return ms !== null && ms > 0 ? { phase: 'clear', ms } : { phase: 'clear' };
     case 'trainer': {
       const n = num(raw.n, 0, 10);
       if (ms === null || n === null || !Number.isInteger(n)) return null;
-      return typeof raw.team === 'boolean' ? { phase: 'trainer', n, ms, team: raw.team } : { phase: 'trainer', n, ms };
+      const pickMs = num(raw.pickMs, 0, 1e9);
+      return {
+        phase: 'trainer',
+        n,
+        ms,
+        ...(typeof raw.team === 'boolean' ? { team: raw.team } : {}),
+        ...(raw.team === true && okPick(raw.pick) ? { pick: raw.pick, ...(pickMs !== null ? { pickMs } : {}) } : {}),
+      };
     }
     case 'rival':
       return ms !== null && isHeroLookId(raw.rival) ? { phase: 'rival', rival: raw.rival, ms } : null;
@@ -240,6 +254,7 @@ export function readRuntime(raw: unknown, fallbackSeed: number, stepMs: number =
     toast,
     headless: false, // 웹뷰에서 온 상태는 늘 보이는 쪽 — 확장이 넘겨받을 때 다시 켬
     ...(readAwayLog(r.awayLog) ? { awayLog: readAwayLog(r.awayLog)! } : {}),
+    ...(isObj(r.view) && num(r.view.w, 0, 20_000) !== null && num(r.view.h, 0, 20_000) !== null ? { view: { w: r.view.w as number, h: r.view.h as number } } : {}),
   };
 }
 

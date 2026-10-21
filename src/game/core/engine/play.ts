@@ -17,14 +17,14 @@ import { spotBetween, spotRng, stageCode, stageLayout, trainerId, walkDelta, typ
 import { statsOf } from '../rules/stats';
 import { aliveCount, GYM_LEADER, leaderTeam, trainerInfo, trainerNumber, trainerTeam } from '../rules/trainer';
 import { pickRival, rivalLine, rivalLoseMsg, rivalName, rivalRecord, rivalTeam, withRivalResult } from '../rules/rival';
-import { isTipId, ITEM_IDS, RUN_SEEN_MAX, STAGE_IDS, TIPS_MAX, type FacilitySpot, type ItemId, type Save, type StageId, type StageProgress, type StageRun, type StatKey } from '../save';
+import { isTipId, ITEM_IDS, RUN_SEEN_MAX, STAGE_IDS, TIPS_MAX, type FacilitySpot, type ItemId, type Monster, type Save, type StageId, type StageProgress, type StageRun, type StatKey } from '../save';
 import { withJosa } from '../text';
 import { moveOf, speciesOf } from '../../data';
 import { applyBattleResult, battleDone, battleInput, battleStep, battleWaiting, firstAlive, startBattle, startTrainerBattle, switchable, type BattleInput, type BattleState } from './battle';
 import { addItem, battleRewards, clearStage, defeatPenalty, FOREST_BADGE, pickTreasure, resolveEvolve, resolveLearn, rivalWinRewards, stageClearExp, takeLaterChoices, useRareCandy, type BattleSummary } from './rewards';
 import { Rng } from './rng';
 import { MAX_SPEED, type AwayLog, type GameState, type RuntimeState, type StageRuntime } from './state';
-import { applyTeamResult, startTeamBattle, teamDone, teamInput, teamPossible, teamRewardBattle, teamStep, type TeamBattle, type TeamInput } from './team';
+import { applyTeamResult, pickTeam, startTeamBattle, teamDone, teamInput, teamPossible, teamRewardBattle, teamScale, teamStep, type TeamBattle, type TeamInput } from './team';
 import { takeSteps } from './step';
 
 /** 바로 저장해야 하는 일 (mvp-spec 3.1) — 웹뷰는 save-now 로, 확장은 바로 씀 */
@@ -41,6 +41,10 @@ export type GameInput =
   | { kind: 'team-battle'; input: TeamInput }
   /** 트레이너를 만났을 때 1:1 / 3:3 고르기 (3마리 미만이면 1:1 만) */
   | { kind: 'team-mode'; on: boolean }
+  /** 3:3 에 나갈 포켓몬 하나를 넣고 빼기 — 트레이너 만남 (3:3 을 골랐을 때) · 대기실. 셋이 차 있으면 가장 먼저 고른 것이 빠짐 */
+  | { kind: 'team-pick'; uid: string }
+  /** 웹뷰 패널 크기 — 3:3 배율이 바뀔 때만 (teamScale) */
+  | { kind: 'view'; w: number; h: number }
   /** S09 ⑫ 자동 전투 스위치 — 세이브 설정에 (다음 전투에도 그대로) */
   /** say = 한 줄 알림 "자동 전투 켜짐 · 꺼짐" (A 키 — 정보줄 스위치가 안 보일 때도 알게, 2026-10-21 코드 리뷰어) */
   | { kind: 'auto-battle'; on: boolean; say?: boolean }
@@ -168,19 +172,54 @@ function rivalBattle(save: Save, id: StageId, prog: StageProgress, rival: string
 }
 
 /**
- * 3:3 으로 싸울지 (orders #17) — 켜져 있고 (화면이 생길 때까지 꺼 둠) · 살아 있는 포켓몬 3마리 이상 ·
+ * 3:3 으로 싸울지 (orders #17) — 켜져 있고 (화면이 생길 때까지 꺼 둠) · 잠기지 않음 (살아 있는 포켓몬 3마리 이상 · 패널에 6마리가 들어감) ·
  * 고른 대로 (고르지 않았으면 마지막으로 고른 방식 — 처음엔 1:1, gdd 4.7 · 명세 검사관). 관장전은 늘 3:3 (choice = true)
  */
-function useTeam(save: Save, choice?: boolean): boolean {
-  return BALANCE.team.on && teamPossible(save) && (choice ?? save.settings.teamMode === true);
+function useTeam(save: Save, rt: RuntimeState, choice?: boolean): boolean {
+  return BALANCE.team.on && teamLockOf(save, rt) === null && (choice ?? save.settings.teamMode === true);
 }
 
-function trainerTeamBattle(save: Save, id: StageId, prog: StageProgress, n: number): TeamBattle {
-  return startTeamBattle(save, trainerTeam(id, prog.seed, n, aliveCount(save), BALANCE.team.size), 'trainer', trainerInfo(id, n).name);
+/** 3:3 을 못 하는 까닭 — few = 살아 있는 포켓몬 3마리 미만 · narrow = 패널이 좁아 6마리가 안 들어감 ("패널을 넓히면 3:3") · null = 됨 */
+function teamLockOf(save: Save, rt: RuntimeState): 'few' | 'narrow' | null {
+  if (!teamPossible(save)) return 'few';
+  return teamScale(rt.view) === 0 ? 'narrow' : null;
+}
+export function teamLock(state: GameState): 'few' | 'narrow' | null {
+  return teamLockOf(state.save, state.runtime);
 }
 
-function leaderTeamBattle(save: Save): TeamBattle {
-  return startTeamBattle(save, leaderTeam(), 'gym', GYM_LEADER.name);
+/** 트레이너 3:3 상대 (늘 3마리) — 판 시드 · 번호로 (껐다 켜도 같음) */
+function trainerFoes(save: Save, id: StageId, prog: StageProgress, n: number): Monster[] {
+  return trainerTeam(id, prog.seed, n, aliveCount(save), BALANCE.team.size);
+}
+
+/** 나갈 3마리 — 고른 것 (살아 있는 팀 포켓몬만) + 모자라면 상성 좋은 순으로 채움 */
+function fillPick(save: Save, pick: readonly string[] | undefined, foes: readonly Monster[]): string[] {
+  const ok = (pick ?? []).filter((uid) => save.party.includes(uid) && (save.monsters[uid]?.hp ?? 0) > 0);
+  return [...ok, ...pickTeam(save, foes).filter((uid) => !ok.includes(uid))].slice(0, BALANCE.team.size);
+}
+
+/**
+ * 3마리 고르기 — 지금 체크된 포켓몬 (트레이너 만남에서 3:3 을 골랐을 때 · 대기실). 고를 수 없으면 null — 화면이 ●●●○○ 를 그림.
+ * 처음엔 상성 좋은 셋이 체크 · 빼면 빈 채로 (시작할 때 모자라면 상성 좋은 순으로 채움)
+ */
+export function teamPickOf(state: GameState): string[] | null {
+  const { save, runtime: rt } = state;
+  const stage = rt.stage;
+  if (!BALANCE.team.on || teamLockOf(save, rt) !== null) return null;
+  const alive = (pick: readonly string[]) => pick.filter((uid) => save.party.includes(uid) && (save.monsters[uid]?.hp ?? 0) > 0);
+  if (stage?.phase === 'lobby' && inLobby(state)) return stage.pick ? alive(stage.pick) : fillPick(save, undefined, leaderTeam());
+  if (stage?.phase !== 'trainer' || !stage.pick || save.pendingEncounter?.kind !== 'trainer') return null;
+  return alive(stage.pick);
+}
+
+function trainerTeamBattle(save: Save, id: StageId, prog: StageProgress, n: number, pick?: readonly string[]): TeamBattle {
+  const foes = trainerFoes(save, id, prog, n);
+  return startTeamBattle(save, foes, 'trainer', trainerInfo(id, n).name, fillPick(save, pick, foes));
+}
+
+function leaderTeamBattle(save: Save, pick?: readonly string[]): TeamBattle {
+  return startTeamBattle(save, leaderTeam(), 'gym', GYM_LEADER.name, fillPick(save, pick, leaderTeam()));
 }
 
 function leaderBattle(save: Save): BattleState {
@@ -262,14 +301,14 @@ function checkedStage(rt: RuntimeState, save: Save, id: StageId, layout: StageLa
 }
 
 /** 진행 중 상태가 없을 때 세이브를 보고 정함 — 고르다 껐으면 그 고르기부터 · 전투 중에 껐다 켜면 그 전투를 처음부터 (mvp-spec 9장) */
-function defaultStage(save: Save, id: StageId, prog: StageProgress): StageRuntime {
+function defaultStage(save: Save, rt: RuntimeState, id: StageId, prog: StageProgress): StageRuntime {
   const p = save.pendingEncounter;
   if (save.pendingChoices.length > 0) return choiceStage(save);
   if (p?.kind === 'wild') return { phase: 'battle', battle: startBattle(save, p.monster, p.start) };
   // 3:3 이었으면 3:3 으로 (마지막으로 고른 방식 — 껐다 켜도 같게, 코드 리뷰어)
   if (p?.kind === 'trainer' && p.stageId === id) {
     const n = trainerNumber(p.trainerId);
-    return useTeam(save) ? { phase: 'team', team: trainerTeamBattle(save, id, prog, n) } : { phase: 'battle', battle: trainerBattle(save, id, prog, n) };
+    return useTeam(save, rt) ? { phase: 'team', team: trainerTeamBattle(save, id, prog, n) } : { phase: 'battle', battle: trainerBattle(save, id, prog, n) };
   }
   if (p?.kind === 'rival' && p.stageId === id) return { phase: 'battle', battle: rivalBattle(save, id, prog, p.rival) };
   return prog.progress >= 1 ? { phase: 'clear' } : { phase: 'walk' };
@@ -309,7 +348,7 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
   let save = ensured.save;
   let rt = ensured.rt;
   const { prog, layout } = ensured;
-  let stage: StageRuntime = checkedStage(rt, save, id, layout, prog.progress) ?? defaultStage(save, id, prog);
+  let stage: StageRuntime = checkedStage(rt, save, id, layout, prog.progress) ?? defaultStage(save, rt, id, prog);
   let signal: SaveSignal | null = null;
   let notice: GameNotice | null = null;
   // 안 볼 때 고를 것이 남은 세이브로 시작했으면 (껐다 켬 등) 한 번 알림 — 그 뒤로는 기다리는 중이라 확장 계산이 멈춤
@@ -432,13 +471,21 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
     }
     case 'trainer': {
       const ms = stage.ms + stepMs;
-      if (ms < TIMING.trainerMeetMs) {
-        stage = { ...stage, ms };
+      // 3:3 을 손으로 골랐으면 3마리 고르기 — Enter 까지 기다림, 늦어도 teamPickAutoMs 뒤 (안 볼 때 · 자동 전투는 안 기다림 — gdd 4.7 "자동 전투면 멈추지 않고")
+      const picking = stage.pick !== undefined && stage.team === true && !rt.headless && !save.settings.autoBattle;
+      const pickMs = picking ? (stage.pickMs ?? 0) + stepMs : 0;
+      if (ms < TIMING.trainerMeetMs || (picking && pickMs < TIMING.teamPickAutoMs)) {
+        stage = { ...stage, ms: Math.min(ms, TIMING.trainerMeetMs), ...(picking ? { pickMs } : {}) };
         break;
       }
       const p = save.pendingEncounter;
       const n = p?.kind === 'trainer' ? trainerNumber(p.trainerId) : 0;
-      stage = p?.kind !== 'trainer' ? { phase: 'walk' } : useTeam(save, stage.team) ? { phase: 'team', team: trainerTeamBattle(save, id, prog, n) } : { phase: 'battle', battle: trainerBattle(save, id, prog, n) };
+      stage =
+        p?.kind !== 'trainer'
+          ? { phase: 'walk' }
+          : useTeam(save, rt, stage.team)
+            ? { phase: 'team', team: trainerTeamBattle(save, id, prog, n, stage.pick) }
+            : { phase: 'battle', battle: trainerBattle(save, id, prog, n) };
       break;
     }
     case 'rival': {
@@ -661,7 +708,7 @@ function gymStep(save0: Save, rt0: RuntimeState, stepMs: number): { save: Save; 
     : save.pendingChoices.length > 0
       ? choiceStage(save)
       : pending?.kind === 'gym-leader'
-        ? useTeam(save, true)
+        ? useTeam(save, rt, true)
           ? { phase: 'team', team: leaderTeamBattle(save) }
           : { phase: 'battle', battle: leaderBattle(save) }
         : { phase: 'lobby' };
@@ -896,6 +943,8 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       // 트레이너 · 라이벌 만남 — "!" 가 지난 뒤 Space · 클릭 = 바로 전투 (2026-10-20 태현 님 "2초 정도 두고 클릭하면 바로 넘어가게")
       if ((stage?.phase === 'trainer' || stage?.phase === 'rival') && stage.ms >= TIMING.trainerAlertMs) {
         const end = stage.phase === 'rival' ? TIMING.rivalMeetMs : TIMING.trainerMeetMs;
+        // 3마리 고르기 중이면 Enter · Space = 체크된 셋으로 바로 시작
+        if (stage.phase === 'trainer' && stage.pick) return { ...state, runtime: { ...state.runtime, stage: { ...stage, ms: end, pickMs: TIMING.teamPickAutoMs } } };
         return stage.ms >= end ? state : { ...state, runtime: { ...state.runtime, stage: { ...stage, ms: end } } };
       }
       // 야생이 튀어나온 순간은 아무 일 없음 (선제공격은 스피드로, 2026-10-21)
@@ -908,10 +957,28 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       const team = teamInput(stage.team, input.input, rng);
       return team === stage.team ? state : { ...state, runtime: { ...state.runtime, rngState: rng.state, stage: { phase: 'team', team } } };
     }
-    case 'team-mode':
-      if (stage?.phase !== 'trainer' || !BALANCE.team.on || (input.on && !teamPossible(save)) || stage.team === input.on) return state;
-      // 고른 방식을 기억 — 다음 트레이너 (자동 전투 · 안 볼 때 포함) 는 이걸로
-      return { save: { ...save, settings: { ...save.settings, teamMode: input.on } }, runtime: { ...state.runtime, stage: { ...stage, team: input.on } } };
+    case 'team-mode': {
+      if (stage?.phase !== 'trainer' || !BALANCE.team.on || (input.on && teamLock(state) !== null) || stage.team === input.on) return state;
+      // 고른 방식을 기억 — 다음 트레이너 (자동 전투 · 안 볼 때 포함) 는 이걸로. 3:3 이면 3마리 고르기를 염 (상성 좋은 셋이 미리 체크 — gdd 4.7)
+      const id = state.runtime.stageId;
+      const prog = id ? save.stages[id] : undefined;
+      const pick = input.on && id && prog ? fillPick(save, undefined, trainerFoes(save, id, prog, stage.n)) : undefined;
+      const { pick: _p, pickMs: _m, ...rest } = stage;
+      return { save: { ...save, settings: { ...save.settings, teamMode: input.on } }, runtime: { ...state.runtime, stage: { ...rest, team: input.on, ...(pick ? { pick, pickMs: 0 } : {}) } } };
+    }
+    case 'team-pick': {
+      const cur = teamPickOf(state);
+      if (!cur || !save.party.includes(input.uid) || (save.monsters[input.uid]?.hp ?? 0) <= 0 || (stage?.phase !== 'trainer' && stage?.phase !== 'lobby')) return state;
+      const pick = cur.includes(input.uid) ? cur.filter((u) => u !== input.uid) : [...cur, input.uid].slice(-BALANCE.team.size);
+      return { ...state, runtime: { ...state.runtime, stage: { ...stage, pick } } };
+    }
+    case 'view': {
+      const w = Math.round(input.w);
+      const h = Math.round(input.h);
+      if (!Number.isFinite(w) || !Number.isFinite(h) || w < 0 || h < 0 || w > 20_000 || h > 20_000) return state;
+      const v = state.runtime.view;
+      return v && v.w === w && v.h === h ? state : { ...state, runtime: { ...state.runtime, view: { w, h } } };
+    }
     case 'auto-battle': {
       if (save.settings.autoBattle === input.on) return state;
       const next = { ...save, settings: { ...save.settings, autoBattle: input.on } };
@@ -1089,7 +1156,8 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       if (!inLobby(state) || !firstAlive(save)) return state;
       const next: Save = { ...save, pendingEncounter: { kind: 'gym-leader' } };
       // 관장전 = 3:3 (못 하면 1:1 토너먼트 — orders #17)
-      const stageNow: StageRuntime = useTeam(next, true) ? { phase: 'team', team: leaderTeamBattle(next) } : { phase: 'battle', battle: leaderBattle(next) };
+      const pick = stage?.phase === 'lobby' ? stage.pick : undefined;
+      const stageNow: StageRuntime = useTeam(next, state.runtime, true) ? { phase: 'team', team: leaderTeamBattle(next, pick) } : { phase: 'battle', battle: leaderBattle(next) };
       return { save: next, runtime: { ...state.runtime, stage: stageNow } };
     }
     case 'badge-continue':

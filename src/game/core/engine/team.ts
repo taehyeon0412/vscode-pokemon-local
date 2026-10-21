@@ -91,6 +91,8 @@ export interface TeamBattle {
   seq: number;
   t: number;
   msg: string;
+  /** 필살기 예약 (내 칸) — 게이지가 차는 중에 그 칸을 누르면 예약 · 다시 누르면 취소 → 차는 순간 씀 (끼어들기 창 · 힘겨루기 합류도 바로, 2026-10-21 태현 님 ①) */
+  reserve: number[];
 }
 
 export interface TeamStepOptions {
@@ -167,6 +169,7 @@ export function startTeamBattle(save: Save, foes: readonly Monster[], kind: 'tra
     seq: 0,
     t: 0,
     msg: `${withJosa(foeName, '과/와')}의 3:3 승부!`,
+    reserve: [],
   };
 }
 
@@ -185,6 +188,7 @@ function clone(b: TeamBattle): TeamBattle {
     ultReadyAt: { me: [...b.ultReadyAt.me], foe: [...b.ultReadyAt.foe] },
     popups: [...b.popups],
     foeDown: [...b.foeDown],
+    reserve: [...b.reserve],
   };
 }
 
@@ -206,6 +210,7 @@ function spendUlt(b: TeamBattle, side: Side, slot: number): void {
   b[side][slot]!.ult = 0;
   b.ultReadyAt[side][slot] = null;
   if (side === 'foe') b.foeUltWait[slot] = null;
+  else b.reserve = b.reserve.filter((i) => i !== slot);
 }
 
 function gainUlt(b: TeamBattle, side: Side, slot: number, kind: 'hit' | 'hurt'): void {
@@ -306,6 +311,7 @@ function faint(b: TeamBattle, side: Side, slot: number): void {
   f.gauge = 0;
   popup(b, side, slot, `${nameOf(f)} 쓰러졌다!`, 'info');
   if (side === 'foe') b.foeDown = [...b.foeDown, { species: f.species, level: f.level }];
+  else b.reserve = b.reserve.filter((i) => i !== slot);
   b.ultReadyAt[side][slot] = null;
 }
 
@@ -500,7 +506,30 @@ function firstReady(b: TeamBattle, side: Side): number | null {
   return best;
 }
 
+/** 예약해 둔 내 포켓몬 중 먼저 찬 것 */
+function firstReserved(b: TeamBattle): number | null {
+  const ready = b.reserve.filter((i) => alive(b.me[i]!) && b.me[i]!.ult >= 1);
+  return ready.length ? ready.reduce((best, i) => ((b.ultReadyAt.me[i] ?? 0) < (b.ultReadyAt.me[best] ?? 0) ? i : best)) : null;
+}
+
 // ---------- 입력 · 걸음
+
+/** 필살기 게이지 단계 — 화면의 상대 필살기 예고 (near = ultWarnAt 넘음 · full = 다 참) · 내 발밑 판에도 씀 */
+export function teamUltLevel(f: Fighter): 'none' | 'near' | 'full' {
+  return !alive(f) ? 'none' : f.ult >= 1 ? 'full' : f.ult >= BALANCE.team.ultWarnAt ? 'near' : 'none';
+}
+
+/**
+ * 포켓몬 크기 배율 (화면) · 0 = 3:3 잠금 — 폭 unitW × 배율이 있어야 그 배율, ×3 은 높이 x3MinH 부터 (240 폭 ×1 · 높이 300 아래 ×2 · 300 부터 ×3).
+ * 패널 크기를 모르면 (안 볼 때 · 아직 안 알림) 들어가는 것으로
+ */
+export function teamScale(view: { w: number; h: number } | null | undefined): 0 | 1 | 2 | 3 {
+  if (!view) return 2;
+  const { unitW, x3MinH } = BALANCE.team.view;
+  if (view.w >= unitW * 3 && view.h >= x3MinH) return 3;
+  if (view.w >= unitW * 2) return 2;
+  return view.w >= unitW ? 1 : 0;
+}
 
 /** 지금 그 칸 필살기를 쓸 · 끼어들 · 합류할 수 있는지 (화면이 아이콘을 밝게) */
 export function teamUltOpen(b: TeamBattle, slot: number): boolean {
@@ -519,7 +548,15 @@ export function teamInput(b0: TeamBattle, input: TeamInput, rng: Rng): TeamBattl
     return { ...b0, clash: { ...b0.clash, taps: b0.clash.taps + 1 } };
   }
   const slot = input.slot ?? firstReady(b0, 'me');
-  if (slot === null || !teamUltOpen(b0, slot)) return b0;
+  if (slot === null) return b0;
+  if (!teamUltOpen(b0, slot)) {
+    // 예약 — 그 칸 (1 · 2 · 3 · 발밑 판) 만, Z 는 예약 없음 · 이미 힘겨루기에 든 포켓몬은 빼고
+    const f = b0.me[slot];
+    if (input.slot === undefined || !f || !alive(f) || (b0.clash?.kind === 'ult' && b0.clash.me.includes(slot))) return b0;
+    const b = clone(b0);
+    b.reserve = b.reserve.includes(slot) ? b.reserve.filter((i) => i !== slot) : [...b.reserve, slot];
+    return b;
+  }
   const b = clone(b0);
   if (b.phase === 'run') startUlt(b, 'me', slot, rng);
   else if (b.phase === 'ult') startUltClash(b, 'me', [slot], rng);
@@ -534,6 +571,8 @@ export function teamInput(b0: TeamBattle, input: TeamInput, rng: Rng): TeamBattl
 export function teamStep(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamStepOptions): TeamBattle {
   const b = clone(b0);
   b.t += stepMs;
+  // 쓰러진 포켓몬의 예약은 지움 (독 · 반동 등 어디서 쓰러졌든)
+  if (b.reserve.some((i) => !alive(b.me[i]!))) b.reserve = b.reserve.filter((i) => alive(b.me[i]!));
   b.popups = b.popups.map((p) => ({ ...p, ms: p.ms + stepMs })).filter((p) => p.ms < POPUP_MS);
   const auto = opts.auto || opts.away;
   switch (b.phase) {
@@ -553,8 +592,9 @@ export function teamStep(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamSte
         }
         u.joinAt = null;
       }
-      if (u.side === 'foe' && auto && u.window > 0 && !u.hit) {
-        const mine = b.me.map((f, i) => (alive(f) && f.ult >= 1 ? i : -1)).filter((i) => i >= 0);
+      // 예약해 둔 포켓몬도 끼어들기 창이 열리면 바로 끼어듦 (예약 = 차는 대로 쓰기 — 끼어들기도 쓰기)
+      if (u.side === 'foe' && u.window > 0 && !u.hit) {
+        const mine = b.me.map((f, i) => (alive(f) && f.ult >= 1 && (auto || b.reserve.includes(i)) ? i : -1)).filter((i) => i >= 0);
         if (mine.length) {
           startUltClash(b, 'me', mine, rng);
           return b;
@@ -579,14 +619,12 @@ export function teamStep(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamSte
       const c = b.clash!;
       c.ms += stepMs;
       // 자동 전투면 차는 대로 합류 · 상대 AI 도 가끔 (트레이너) · 자주 (관장) 합류
-      if (auto) {
-        b.me.forEach((f, i) => {
-          if (alive(f) && f.ult >= 1 && !c.me.includes(i)) {
-            spendUlt(b, 'me', i);
-            c.me = [...c.me, i];
-          }
-        });
-      }
+      b.me.forEach((f, i) => {
+        if (alive(f) && f.ult >= 1 && !c.me.includes(i) && (auto || b.reserve.includes(i))) {
+          spendUlt(b, 'me', i);
+          c.me = [...c.me, i];
+        }
+      });
       for (const j of c.foeJoin ?? []) {
         const f = b.foe[j.slot];
         if (f && c.ms >= j.at && alive(f) && f.ult >= 1 && !c.foe.includes(j.slot)) {
@@ -637,12 +675,10 @@ export function teamStep(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamSte
       return b;
     }
   }
-  if (auto) {
-    const z = firstReady(b, 'me');
-    if (z !== null) {
-      startUlt(b, 'me', z, rng);
-      return b;
-    }
+  const z = auto ? firstReady(b, 'me') : firstReserved(b);
+  if (z !== null) {
+    startUlt(b, 'me', z, rng);
+    return b;
   }
   // 행동 게이지 — 차면 바로 (겹쳐도) · 기술 힘겨루기 중인 둘은 멈춤 (그동안 다른 포켓몬만 계속 — 한 포켓몬이 힘겨루기 둘을 하지 않게)
   for (const side of ['me', 'foe'] as const) {
@@ -717,6 +753,7 @@ export function readTeam(raw: unknown): TeamBattle | null {
   // 쓰러뜨린 상대 (보상 계산 — level 이 없으면 돈 · 경험치가 NaN → 세이브 검사에서 0 이 됨)
   if (!Array.isArray(raw.foeDown) || raw.foeDown.length > n.foe || !raw.foeDown.every((d) => isObj(d) && fin(d.species, 1, 2000) && fin(d.level, 1, 100))) return null;
   if (!Array.isArray(raw.fought) || raw.fought.length > n.me || !raw.fought.every((x) => typeof x === 'string')) return null;
+  if (!Array.isArray(raw.reserve) || !slots(raw.reserve, 'me') || new Set(raw.reserve).size !== raw.reserve.length) return null;
   if (!fin(raw.overMs, 0) || !fin(raw.t, 0) || !fin(raw.seq, 0) || !fin(raw.popupSeq, 0) || typeof raw.msg !== 'string') return null;
   if (!(raw.result === null || raw.result === 'win' || raw.result === 'lose') || (raw.phase === 'over') !== (raw.result !== null)) return null;
   return raw as unknown as TeamBattle;
@@ -725,5 +762,5 @@ export function readTeam(raw: unknown): TeamBattle | null {
 /** 다시 그리는 열쇠 — 한 걸음마다 바뀌는 것 (게이지 · HP · 날아가는 기술 · 힘겨루기 · 필살기 진행 · 팝업이 사라짐) 을 모양 단위로 */
 export function teamViewKey(b: TeamBattle): string {
   const f = (x: Fighter) => `${x.hp}:${Math.floor(x.gauge * 20)}:${Math.floor(x.ult * 20)}:${x.status?.kind ?? ''}`;
-  return [b.phase, b.me.map(f).join(','), b.foe.map(f).join(','), b.shots.map((s) => `${s.id}:${s.clash}`).join(','), b.moveClashes.map((c) => `${c.shots?.join('-')}:${Math.floor(c.ms / 100)}`).join(','), b.ult ? `${b.ult.side}${b.ult.from}:${b.ult.window > 0}:${b.ult.hit}:${Math.floor(b.ult.ms / 100)}` : '', b.clash ? `${b.clash.me.join('')}:${b.clash.foe.join('')}:${b.clash.taps}:${Math.floor(b.clash.ms / 100)}` : '', b.popups.map((p) => p.id).join(','), b.msg].join('|');
+  return [b.phase, b.me.map(f).join(','), b.foe.map(f).join(','), b.shots.map((s) => `${s.id}:${s.clash}`).join(','), b.moveClashes.map((c) => `${c.shots?.join('-')}:${Math.floor(c.ms / 100)}`).join(','), b.ult ? `${b.ult.side}${b.ult.from}:${b.ult.window > 0}:${b.ult.hit}:${Math.floor(b.ult.ms / 100)}` : '', b.clash ? `${b.clash.me.join('')}:${b.clash.foe.join('')}:${b.clash.taps}:${Math.floor(b.clash.ms / 100)}` : '', b.popups.map((p) => p.id).join(','), b.msg, b.reserve.join('')].join('|');
 }

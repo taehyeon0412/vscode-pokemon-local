@@ -3,7 +3,7 @@
  * 메시지 · 보임/안 보임 · 그리기 박자를 세션에 잇고, 화면(Preact)을 #pokemon-game 에 그린다.
  */
 import { h, render } from 'preact';
-import { canHeal, canOpenMenus } from '../core/engine';
+import { canHeal, canOpenMenus, teamScale } from '../core/engine';
 import { teamHealthy } from '../core/rules/bag';
 import { STAGE_IDS } from '../core/save';
 import { MENU_PANELS, menuShortcutOf } from '../features/menu/model';
@@ -190,7 +190,7 @@ if (!port) {
 
   // 단축키 (mvp-spec 1장: 패널을 클릭해 둔 상태에서만 — 웹뷰 안 키보드라 VS Code 전역 단축키 아님)
   //   Space = 전투 중 막기 · 힘대결 연타 · 트레이너 만남 · 결과 넘기기 · Enter / Esc = 부탁 [도와준다] / [지나간다]
-  //   전투 메뉴 숫자 · Z 는 BattleMenu 가 들음
+  //   전투 메뉴 숫자 · Z 는 BattleMenu 가 들음 · 3:3 의 1 · 2 · 3 · Z (필살기 · 예약) 와 트레이너 만남 3마리 고르기 1 ~ 5 는 아래 (orders #17 — 화면의 발밑 판 클릭도 같은 입력)
   window.addEventListener('keydown', (e) => {
     if (store.get().screen !== 'game' || e.repeat) return;
     const overlay = store.get().overlay;
@@ -252,6 +252,21 @@ if (!port) {
       if (onButton) e.target.blur();
       // 상대 공격 중이면 패링 (맞기까지 남은 ms — fx/parry, 2026-10-19), 아니면 그냥 Space
       actions.input(spaceInput(session.current, performance.now()));
+    } else if (phase === 'team' && /^Digit[123]$/.test(e.code) && !(e.ctrlKey || e.metaKey || e.altKey)) {
+      // 3:3 필살기 1 · 2 · 3 — 찼으면 씀 · 끼어듦 · 합류, 차는 중이면 예약 (다시 누르면 취소) — 발밑 판 클릭과 같음
+      e.preventDefault();
+      actions.input({ kind: 'team-battle', input: { kind: 'ult', slot: Number(e.code.slice(5)) - 1 } });
+    } else if (phase === 'team' && e.code === 'KeyZ' && !(e.ctrlKey || e.metaKey || e.altKey)) {
+      // Z = 먼저 찬 포켓몬 (1:1 습관 그대로, 예약은 없음)
+      e.preventDefault();
+      actions.input({ kind: 'team-battle', input: { kind: 'ult' } });
+    } else if (phase === 'trainer' && stage.pick && /^Digit[1-5]$/.test(e.code) && !(e.ctrlKey || e.metaKey || e.altKey)) {
+      // 3마리 고르기 — 1 ~ 5 = 팀 순서대로 넣고 빼기 (Enter = 시작)
+      const uid = session.current?.save.party[Number(e.code.slice(5)) - 1];
+      if (uid) {
+        e.preventDefault();
+        actions.input({ kind: 'team-pick', uid });
+      }
     } else if (phase === 'request' && ((e.key === 'Enter' && !onButton) || e.key === 'Escape')) {
       e.preventDefault();
       actions.input({ kind: 'request', help: e.key === 'Enter' });
@@ -287,15 +302,25 @@ if (!port) {
     }
   });
 
+  // 3:3 배율 · 잠금 (teamScale) 이 바뀔 때만 패널 크기를 엔진에 알림 — 크기가 바뀔 때마다 보내면 상태가 자꾸 바뀜 · 판이 떠 있어도 (판 입력 거름 밖)
+  const reportView = () => {
+    const cur = session.current;
+    if (!cur || store.get().layout.tooSmall) return;
+    const view = { w: window.innerWidth, h: window.innerHeight };
+    if ((!cur.runtime.view || teamScale(cur.runtime.view) !== teamScale(view)) && session.input({ kind: 'view', ...view })) store.set({ state: session.current });
+  };
+
   window.addEventListener('resize', () => {
     store.set({ layout: fitGameLayout(window.innerHeight, config.minHeight), widthPx: window.innerWidth });
     sync(); // 너무 낮아졌으면 멈추고, 다시 키우면 이어 감
+    reportView();
   });
 
   window.addEventListener('message', (event: MessageEvent<unknown>) => {
     if (!isHostToWebview(event.data)) return;
     session.handleMessage(event.data);
     sync();
+    reportView();
   });
 
   document.addEventListener('visibilitychange', () => {
