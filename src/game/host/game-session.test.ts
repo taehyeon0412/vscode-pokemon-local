@@ -569,11 +569,12 @@ describe('🎮 · S02 타이틀 (단계 3)', () => {
     const today = dayKey(new Date(Date.now()));
     const goals = dailyFor(today).goals.map((g, i) => (i === 0 ? { ...g, have: g.need, done: true as const } : g));
     const withDaily = sampleSave({ daily: { day: today, goals } });
-    // 꺼져 있으면 (지금 — 개발 모드에서만) 안 보냄
-    expect((await openTitle(withDaily)).summary?.daily).toBeUndefined();
+    // 꺼져 있으면 (지금 — 개발 모드에서만) 안 보냄 · 켜짐 · 꺼짐을 테스트가 정함 (BALANCE 값과 상관없이 — 3:3 켤 때 값 한 줄, #55)
     const was = BALANCE.daily.on;
-    (BALANCE.daily as { on: boolean }).on = true;
+    (BALANCE.daily as { on: boolean }).on = false;
     try {
+      expect((await openTitle(withDaily)).summary?.daily).toBeUndefined();
+      (BALANCE.daily as { on: boolean }).on = true;
       expect((await openTitle(withDaily)).summary?.daily).toEqual({ done: 1, total: 3 });
       // 어제 목표면 안 보냄 (오늘 새로 뽑힐 것)
       expect((await openTitle(sampleSave({ daily: { day: '2000-01-01', goals } }))).summary?.daily).toBeUndefined();

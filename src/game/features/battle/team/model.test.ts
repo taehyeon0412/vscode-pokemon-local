@@ -36,7 +36,7 @@ describe('3:3 자리 (디자인팀 4안 시안 geo 그대로)', () => {
 describe('트레이너 만남 1:1 / 3:3 고르기 · 3마리 고르기 (개발 모드 3:3 미리 켜기)', () => {
   it('3 → 3마리 고르기 (상성 좋은 셋 미리 체크) → 넣고 빼기 → Enter 로 3:3 · 3:3 꺼져 있으면 고르기 칸 없음', async () => {
     const { createGameState, applyInput, advance } = await import('../../../core/engine');
-    const { TIMING } = await import('../../../core/balance');
+    const { BALANCE, TIMING } = await import('../../../core/balance');
     const { createStartSave } = await import('../../starter/model');
     const { devState } = await import('../../../dev/demo');
     const { devApply } = await import('../../../dev/actions');
@@ -58,8 +58,9 @@ describe('트레이너 만남 1:1 / 3:3 고르기 · 3마리 고르기 (개발 �
     s = applyInput(s, { kind: 'space' });
     s = advance(s, TIMING.vsMs + 100).state;
     expect(s.runtime.stage?.phase).toBe('team');
+    // 개발 3:3 을 끄면 — 본편 3:3 (BALANCE.team.on) 이 꺼져 있을 때만 고르기 칸이 없음 (켜면 늘 있음 — #55)
     const off = devApply(s, { kind: 'team', on: false }).state;
-    expect(teamChoiceOn({ ...off, runtime: { ...off.runtime, stage: { phase: 'trainer', n: 0, ms: 1000 } } })).toBe(false);
+    expect(teamChoiceOn({ ...off, runtime: { ...off.runtime, stage: { phase: 'trainer', n: 0, ms: 1000 } } })).toBe(BALANCE.team.on);
   });
 });
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { sampleSave, viaJson } from '../../../test/fixtures/save';
-import { TIMING } from '../balance';
+import { BALANCE, TIMING } from '../balance';
 import { startBattle, startTrainerBattle } from '../engine/battle';
 import { awaySummary, dailyView, step } from '../engine/play';
 import { createGameState, type GameState } from '../engine/state';
@@ -59,8 +59,19 @@ describe('오늘의 목표 · 기록 — 엔진 (개발 모드에서만)', () =>
     return { ...s, save: { ...s.save, pendingEncounter: { kind: 'wild', monster: mon, start: 'normal' } }, runtime: { ...s.runtime, stageId: 'forest-1', stage: { phase: 'battle', battle: over } } };
   };
 
+  /** 본편 오늘의 목표를 끈 채로 (BALANCE.daily.on 값과 상관없이 — 3:3 켤 때 값 한 줄, #55) */
+  const dailyOff = <T>(fn: () => T): T => {
+    const was = BALANCE.daily.on;
+    (BALANCE.daily as { on: boolean }).on = false;
+    try {
+      return fn();
+    } finally {
+      (BALANCE.daily as { on: boolean }).on = was;
+    }
+  };
+
   it('꺼져 있으면 (개발 모드 아님) 목표 · 기록 칸을 만들지 않음', () => {
-    const s = walkOnce(base(false));
+    const s = dailyOff(() => walkOnce(base(false)));
     expect(s.save.daily).toBeUndefined();
     expect(s.save.records).toBeUndefined();
   });
@@ -125,7 +136,7 @@ describe('오늘의 목표 · 기록 — 엔진 (개발 모드에서만)', () =>
 
   it('화면용 (dailyView) — 꺼져 있거나 · 다른 날 목표면 null · 세 줄 (이름 · n/m · 보상) · 끝낸 수', () => {
     const s0 = walkOnce(base());
-    expect(dailyView(walkOnce(base(false)))).toBeNull();
+    expect(dailyOff(() => dailyView(walkOnce(base(false))))).toBeNull();
     const v = dailyView(s0)!;
     expect(v.day).toBe(DAY);
     expect(v.goals).toHaveLength(3);
