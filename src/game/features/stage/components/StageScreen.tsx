@@ -26,6 +26,7 @@ import { themeKind } from '../../../ui/theme';
 import { typeNameKo } from '../../../ui/format';
 import { InfoBar } from '../../../ui/InfoBar';
 import { Face } from '../../../ui/Face';
+import { FirstTip } from '../../../ui/FirstTip';
 import { KeyCap } from '../../../ui/KeyCap';
 import { fieldTopPx, hasMapRow, INFO_BAR_PX, MAP_ROW_PX, topGapPx, type Layout } from '../../../ui/layout';
 import { barSay, BattleLayer, BattleMenuBar } from '../../battle/components/BattleLayer';
@@ -371,6 +372,22 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         <ClearCard state={state} media={media} onInput={onInput} onMap={() => onOpen({ kind: 'map' })} onTeam={() => onOpen({ kind: 'team' })} />
         <LobbyBox state={state} media={media} onInput={onInput} onBox={() => onOpen({ kind: 'team' })} onShop={() => onOpen({ kind: 'shop' })} onMap={() => onOpen({ kind: 'map' })} />
         <BadgeCard state={state} media={media} onInput={onInput} onMap={() => onOpen({ kind: 'map' })} />
+        {/* 처음 한 번 안내 (orders #12 · 세이브 tips) — 숲 1-1 처음 걷기 · 처음 마지막 기회 · 필살기 처음 꽉 참. 다 보면 tip-seen */}
+        {save.location.screen === 'stage' && save.location.stageId === 'forest-1' && phase === 'walk' && !(save.tips ?? []).includes('walk') && (
+          <FirstTip key="walk" ms={5000} className="pg-first-tip-top" onSeen={() => onInput({ kind: 'tip-seen', id: 'walk' })}>
+            자동으로 걸어요 — 야생 포켓몬을 만나면 전투가 시작돼요
+          </FirstTip>
+        )}
+        {battle?.phase === 'last' && !(save.tips ?? []).includes('last') && (
+          <FirstTip key="last" ms={4000} className="pg-first-tip-low" onSeen={() => onInput({ kind: 'tip-seen', id: 'last' })}>
+            약해진 포켓몬에게 볼을 던지면 팀이 늘어요
+          </FirstTip>
+        )}
+        {battle && battle.phase !== 'last' && battle.phase !== 'over' && battle.me.ult >= 1 && !(save.tips ?? []).includes('ult') && (
+          <FirstTip key="ult" ms={3000} className="pg-first-tip-low" onSeen={() => onInput({ kind: 'tip-seen', id: 'ult' })}>
+            필살기 준비! <KeyCap k="Z" />
+          </FirstTip>
+        )}
         {/* 주인공 머리 위 — 주운 자리에서 바로 보이게 (긴 알림은 패널 끝 안쪽으로 당김 · 줄 바꿈).
             대기실 = 상자가 머리 위를 차지해서 바닥 줄 주인공 ~ 관장 사이 (버튼을 가리던 것 — 2026-10-21 orders #3) */}
         {showToast && state.runtime.toast && (phase === 'lobby' ? (

@@ -1102,6 +1102,43 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   justify-content: center;
   padding: 0 6px;
 }
+/* 처음 한 번 안내 (orders #12, ui/FirstTip) — 판과 같은 남색 · 1px 금색 선 · 앞에 금색 "처음" 표 · 크림 12px, 좁으면 낱말 단위 두 줄 · 누름을 막지 않음.
+   top = 길 위 상자 자리 (숲 1-1 처음 걷기) · low = 땅 위 가운데 (전투 — 마지막 기회 · 필살기 준비) */
+.pg-first-tip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 7;
+  width: max-content;
+  max-width: calc(100% - 16px);
+  margin: 0 auto;
+  padding: 2px 8px;
+  color: var(--pg-sos-ink);
+  background: var(--pg-sos-panel);
+  border: 1px solid var(--pg-sos-line);
+  box-shadow: 0 0 0 1px var(--pg-sos-bar);
+  font-size: 12px;
+  line-height: 16px;
+  text-align: center;
+  word-break: keep-all;
+  text-wrap: balance;
+  pointer-events: none;
+}
+.pg-first-tip::before {
+  content: "처음";
+  margin-right: 6px;
+  padding: 0 4px;
+  color: var(--pg-sos-tab-ink);
+  background: var(--pg-sos-gold);
+  font-size: 11px;
+  font-weight: 700;
+}
+.pg-first-tip-top {
+  top: var(--pg-field-top, 3px);
+}
+.pg-first-tip-low {
+  bottom: 4px;
+}
 /* 좁은 패널 다음 포켓몬 고르기 = 위 줄 아래 무대 위 세로 목록 (2026-10-21 태현 님 A) — 번호 금색 · 이름 · HP 막대 (판과 같은 막대 색) · HP 숫자. 한 줄 16px · 다섯 줄이 150 높이 안에 */
 .pg-pick-list {
   position: fixed;
