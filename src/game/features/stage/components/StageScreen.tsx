@@ -261,7 +261,10 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   const heroTall = !battle && (bodyPx - ground - heroH < bannerBottom || buildingTall) && bannerRight - bannerLeft >= (buildingTall ? FACILITY_SIDE_MIN_PX : BANNER_SIDE_MIN_PX);
   // 상점 안에서는 길 위 알림을 안 그림 — 상점 판 안 알림 ("진주를 팔았다!") 과 같은 말이 판 너머로 비쳐 겹치던 것 (UX 리뷰어 2026-10-21)
   const inShop = stageRt?.phase === 'facility' && stageRt.inside && stageRt.kind === 'shop';
-  const showToast = state.runtime.toast && !inShop && (phase === 'walk' || phase === 'clear' || phase === 'lobby' || phase === 'facility');
+  // 자동 전투 첫 안내 (기획 R12 — toast kind 'auto-tip') = 자동 스위치 옆: 전투 = 전투 스위치 · 걷기 = 정보줄 스위치 (메뉴가 보이고 341px 부터 — 아니면 스위치가 없어 머리 위 알림 그대로)
+  const tipText = state.runtime.toast?.kind === 'auto-tip' ? state.runtime.toast.text : null;
+  const autoTip = tipText && (battle || (canOpenMenus(state) && widthPx > AUTO_WALK_MIN_PX)) ? tipText : null;
+  const showToast = state.runtime.toast && !inShop && !autoTip && (phase === 'walk' || phase === 'clear' || phase === 'lobby' || phase === 'facility');
   const shopInside = stageRt?.phase === 'facility' && stageRt.inside && stageRt.kind === 'shop';
   // 전투 화면 단추의 Space (막기 · 맞받아치기 · 잡기 원) = 키 · 판 클릭과 같은 시계 — 엔진 시간으로만 재면 연출을 기다리는 동안 아무 때나 '완벽'
   const battleInput = (i: GameInput) => onInput(i.kind === 'space' ? spaceInput(state, performance.now()) : i);
@@ -293,7 +296,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   return (
     <div class={`pg-screen pg-stage pg-size-${layout.size}${gym ? ' pg-gym' : ''}${covered ? ' pg-covered' : ''}`}>
       {battle && geo?.menuInBar ? (
-        <BattleMenuBar battle={battle} save={save} onInput={battleInput} withAuto={geo.autoInMenu} compact={geo.tiny ? 'tiny' : geo.compact} say={barSay(battle, geo.msgHidden, geo.widthPx - 48, 2)} hint={ringHint(battle, geo, save.settings.autoBattle)} pickRight={pickRightOf(geo)} />
+        <BattleMenuBar battle={battle} save={save} onInput={battleInput} withAuto={geo.autoInMenu} compact={geo.tiny ? 'tiny' : geo.compact} say={barSay(battle, geo.msgHidden, geo.widthPx - 48, 2)} hint={ringHint(battle, geo, save.settings.autoBattle)} pickRight={pickRightOf(geo)} autoTip={autoTip} />
       ) : (
         <InfoBar
           split={mapRow}
@@ -308,7 +311,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
                 media={media}
                 lead={leadOf(save)}
                 fast={gym ? undefined : { on: save.settings.fastWalk === true, active: isWalkingFast(state), onToggle: () => onInput({ kind: 'fast-walk', on: save.settings.fastWalk !== true }) }}
-                auto={{ on: save.settings.autoBattle, onToggle: () => onInput({ kind: 'auto-battle', on: !save.settings.autoBattle }) }}
+                auto={{ on: save.settings.autoBattle, onToggle: () => onInput({ kind: 'auto-battle', on: !save.settings.autoBattle }), tip: battle ? null : autoTip }}
                 labels={menuLabels(widthPx, mapRow)}
               />
             ) : null
@@ -371,7 +374,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
           </span>
         )}
         {battle && geo && (
-          <BattleLayer battle={battle} save={save} media={media} ground={ground} geo={geo} onInput={battleInput} onProfile={(side) => onOpen({ kind: 'profile', side })} foeTrainerLeft={foeTrainer || gym ? leaderX : undefined} />
+          <BattleLayer battle={battle} save={save} media={media} ground={ground} geo={geo} onInput={battleInput} onProfile={(side) => onOpen({ kind: 'profile', side })} foeTrainerLeft={foeTrainer || gym ? leaderX : undefined} autoTip={autoTip} />
         )}
         {teamChoiceOn(state) && <TeamChoice state={state} media={media} onInput={onInput} />}
         {team && <TeamLayer team={team} media={media} widthPx={widthPx} heightPx={layout.heightPx} infoBarPx={Math.round(INFO_BAR_PX * layout.uiScale)} fieldTopPx={fieldTopPx(layout.heightPx)} onInput={onInput} />}
@@ -440,6 +443,9 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
     </div>
   );
 }
+
+/** 정보줄 자동 스위치가 보이는 폭 (game.css — 340px 아래는 숨김) */
+const AUTO_WALK_MIN_PX = 340;
 
 /** 체육관 첫 알림 글 (gdd S16 — 문구 = 기획) · 큰 줄 + 작은 줄 (좁으면 작은 줄은 키 칸만 — 줄은 낱말 묶음 사이에서만 바뀜) · 3:3 을 못 하면 이유 + "이번엔 1:1 승부" */
 function GymTip({ lock }: { lock: 'few' | 'narrow' | null }) {

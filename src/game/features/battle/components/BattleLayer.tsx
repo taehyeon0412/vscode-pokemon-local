@@ -15,6 +15,7 @@ import { catchTiming } from '../../../core/rules/catch';
 import type { Save } from '../../../core/save';
 import { moveOf, speciesOf } from '../../../data';
 import { Button } from '../../../ui/Button';
+import { AutoTip, type AutoTipPlace } from '../../../ui/AutoTip';
 import { Icon } from '../../../ui/Icon';
 import { Sprite } from '../../../ui/Sprite';
 import { catchFoeClass, catchTone, catchView, duelKind, endSay, fitsPx, koSinkPx, msgFits, slumpPx, sayPhase, ringHint, ringKeyFits, hpColor, introView, moveColor, moveFx, profileOpenable, SEND_FLY_MS, sentenceText, splitPopups, STATUS_LABEL, type BattleGeometry, type CatchTone } from '../model';
@@ -34,6 +35,8 @@ export interface BattleLayerProps {
   onProfile?(side: Side): void;
   /** 상대 트레이너 · 관장이 선 x (패널 px) — 볼을 던지는 손 자리 (없으면 볼 연출 없음) */
   foeTrainerLeft?: number;
+  /** 자동 전투 첫 안내 (기획 R12 — 자동 스위치 옆, 엔진 toast kind 'auto-tip') */
+  autoTip?: string | null;
 }
 
 /** 상대 이름 앞 — 야생 · 상대 (트레이너 · 관장) */
@@ -60,9 +63,9 @@ function Bar({ value, cls }: { value: number; cls: string }) {
 }
 
 /** ⑫ 자동 전투 스위치 — "자동 꺼짐 · 켜짐" (9자 "자동 전투 OFF" 가 트레이너 이름표처럼 읽히던 것 — 4차, 설정 · 접힌 줄과 같은 한국어 — 5차), 상태는 모양으로: 꺼짐 = 흐린 글 · 흐린 선 · 켜짐 = 금색 선 + 크림 */
-export function AutoButton({ save, onInput, short }: { save: Save; onInput(i: GameInput): void; short: boolean }) {
+export function AutoButton({ save, onInput, short, tip, tipPlace = 'below' }: { save: Save; onInput(i: GameInput): void; short: boolean; /** 자동 전투 첫 안내 (기획 R12 — 스위치 옆 한 줄, 엔진 toast kind 'auto-tip') */ tip?: string | null; tipPlace?: AutoTipPlace }) {
   const auto = save.settings.autoBattle;
-  return (
+  const button = (
     <Button
       secondary={!auto}
       extraClass="pg-auto-btn"
@@ -73,6 +76,15 @@ export function AutoButton({ save, onInput, short }: { save: Save; onInput(i: Ga
       {!short && <span class="pg-menu-key">A</span>}
       {short ? (auto ? '자동✓' : '자동') : auto ? '자동 켜짐' : '자동 꺼짐'}
     </Button>
+  );
+  // 안내가 있을 때만 묶음 (스위치 기준 자리)
+  return tip ? (
+    <span class="pg-auto-wrap">
+      {button}
+      <AutoTip text={tip} place={tipPlace} />
+    </span>
+  ) : (
+    button
   );
 }
 
@@ -670,7 +682,7 @@ function Clash({ b, geo, y, native }: { b: BattleState; geo: BattleGeometry; y: 
   );
 }
 
-export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onProfile, foeTrainerLeft }: BattleLayerProps) {
+export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onProfile, foeTrainerLeft, autoTip }: BattleLayerProps) {
   // 일반 모드 기술 · 방어 · 회복 연출 (2026-10-19 태현 님) — 번들이 없으면 false (이모지 그대로)
   // 연출 층 (포켓몬 위 · HUD 아래, #350) — 일반 모드 연출 캔버스를 전투 중 이 안으로 옮김
   const fxLayer = useRef<HTMLDivElement>(null);
@@ -781,14 +793,14 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
       )}
       {!geo.autoInMenu && (
         <span class="pg-auto" style={{ left: `${geo.autoLeft}px`, bottom: `${geo.autoBottom}px` }}>
-          <AutoButton save={save} onInput={onInput} short={false} />
+          <AutoButton save={save} onInput={onInput} short={false} tip={autoTip} tipPlace="low" />
         </span>
       )}
       {/* 흔들기 창이 떠 있는 동안은 숨김 (내리지 않음 — BattleMenu 가 "볼을 놓친 차례" 를 기억해 다음 차례 커서를 아이템에 둠, #131) */}
       {geo.menuSide ? (
         // 옆 메뉴 (Sea of Stars) — 내 포켓몬 오른쪽 세로 목록
         <div class={catchWin ? 'pg-bmenu-wrap pg-vmenu-wrap pg-bmenu-away' : 'pg-bmenu-wrap pg-vmenu-wrap'} style={{ left: `${geo.menuSide.left}px`, top: `${geo.menuSide.top}px`, maxWidth: `${geo.menuSide.maxWidth}px`, maxHeight: `${geo.menuSide.maxHeight}px` }}>
-          <BattleMenu battle={b} save={save} onInput={onInput} vertical={hasMe ? nameOf(b.me) : '—'} lead={geo.autoInMenu ? <AutoButton save={save} onInput={onInput} short={false} /> : null} hint={ringHint(b, geo, save.settings.autoBattle)} />
+          <BattleMenu battle={b} save={save} onInput={onInput} vertical={hasMe ? nameOf(b.me) : '—'} lead={geo.autoInMenu ? <AutoButton save={save} onInput={onInput} short={false} tip={autoTip} tipPlace="above" /> : null} hint={ringHint(b, geo, save.settings.autoBattle)} />
           {/* 옆 메뉴인데 상대가 오른쪽 끝 (트레이너 · 관장전) 이라 말 칸이 숨을 때 — 끝 · 다음 포켓몬 · 고르기 말을 메뉴 판 자리에 (0ms 이던 것, UX 리뷰어 2026-10-21) */}
           {sideSay && <span class="pg-bar-say pg-stage-say pg-side-say" style={{ maxWidth: `${geo.menuSide.maxWidth}px` }}>{sideSay}</span>}
         </div>
@@ -797,7 +809,7 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
           <div class={['pg-bmenu-wrap', catchWin ? 'pg-bmenu-away' : '', stageSay ? 'pg-bmenu-wrap-say' : ''].filter(Boolean).join(' ')} style={{ left: `${geo.menuLeft}px`, bottom: `${geo.menuBottom}px`, maxWidth: `calc(100% - ${geo.menuLeft + 6}px)` }}>
             {/* 높이 160 ~ 180 처럼 메뉴 줄이 무대 위쪽에 있고 말 칸이 숨을 때 — 끝 · 다음 포켓몬 · 고르기 말을 그 줄 위에 겹쳐 (말이 0ms 이던 것 · 메뉴를 밀면 내 차례에 버튼이 튀던 것, UX 리뷰어 2026-10-21) */}
             {stageSay && <span class="pg-bar-say pg-stage-say" style={{ maxWidth: `${geo.widthPx - geo.menuLeft - 6}px` }}>{stageSay}</span>}
-            <BattleMenu battle={b} save={save} onInput={onInput} lead={geo.autoInMenu ? <AutoButton save={save} onInput={onInput} short={geo.compact} /> : null} compact={geo.tiny ? 'tiny' : geo.compact} hint={ringHint(b, geo, save.settings.autoBattle)} />
+            <BattleMenu battle={b} save={save} onInput={onInput} lead={geo.autoInMenu ? <AutoButton save={save} onInput={onInput} short={geo.compact} tip={autoTip} tipPlace="above" /> : null} compact={geo.tiny ? 'tiny' : geo.compact} hint={ringHint(b, geo, save.settings.autoBattle)} />
           </div>
         )
       )}
@@ -830,11 +842,11 @@ export const pickRightOf = (geo: BattleGeometry): number | null => {
   return foeLeft - 8 - 230 >= 4 ? geo.widthPx - foeLeft + 8 : null;
 };
 
-export function BattleMenuBar({ battle, save, onInput, withAuto, compact, say, hint, pickRight }: { battle: BattleState; save: Save; onInput(i: GameInput): void; withAuto: boolean; compact: boolean | 'tiny'; say?: string | null; hint?: '막기' | '반격' | null; /** 고르기 목록 오른쪽 끝 (패널 오른쪽에서) — 상대 HP 묶음을 덮지 않게, 자리가 없으면 null (가운데) */ pickRight?: number | null }) {
+export function BattleMenuBar({ battle, save, onInput, withAuto, compact, say, hint, pickRight, autoTip }: { battle: BattleState; save: Save; onInput(i: GameInput): void; withAuto: boolean; compact: boolean | 'tiny'; say?: string | null; hint?: '막기' | '반격' | null; /** 고르기 목록 오른쪽 끝 (패널 오른쪽에서) — 상대 HP 묶음을 덮지 않게, 자리가 없으면 null (가운데) */ pickRight?: number | null; /** 자동 전투 첫 안내 (R12) */ autoTip?: string | null }) {
   return (
     <div class="pg-infobar pg-infobar-battle" style={pickRight !== undefined && pickRight !== null ? { '--pg-pick-right': `${pickRight}px` } : undefined}>
       {say && <span class="pg-bar-say">{say}</span>}
-      <BattleMenu battle={battle} save={save} onInput={onInput} compact={compact} bar hint={hint} lead={withAuto ? <AutoButton save={save} onInput={onInput} short={compact !== false} /> : null} />
+      <BattleMenu battle={battle} save={save} onInput={onInput} compact={compact} bar hint={hint} lead={withAuto ? <AutoButton save={save} onInput={onInput} short={compact !== false} tip={autoTip} /> : null} />
     </div>
   );
 }

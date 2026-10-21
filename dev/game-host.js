@@ -304,6 +304,8 @@
     // (시작 알림보다 먼저 닿으면 무시돼서 — 240 에서 가끔 안 먹던 것 — 몇 번 보냄)
     if (q.get('away') === '1') { runtime.away = true; for (const ms of [30, 300, 800]) setTimeout(() => window.postMessage({ command: 'game', type: 'focus', focused: false }, '*'), ms); }
     if (q.get('shiny') === '1' && runtime.stage && runtime.stage.phase === 'battle') runtime.stage.battle.foe.shiny = true;
+    // autotip=1|2 — 자동 전투 첫 안내 (R12 · toast kind auto-tip) ① 내 차례 10초 · ② 안 보다 돌아옴 (사진용 — 10초 동안)
+    if (q.get('autotip')) runtime.toast = { text: q.get('autotip') === '2' ? '안 보는 동안 멈춰 있었어요 — [A] 자동 전투면 계속 걸어요' : '자리를 비울 땐 [A] 자동 전투 — 알아서 싸워요', ms: 10000, kind: 'auto-tip' };
     // bt=<ms> — 전투 시간 (0 이면 막 시작 — 볼 던지기 · 화면 닦기 사진, 2026-10-20)
     if (q.get('bt') && runtime.stage && runtime.stage.phase === 'battle') runtime.stage.battle.t = Number(q.get('bt'));
     // 개발 모드 (임시) — dev=1 이면 처음부터 개발 모드 · 타이틀의 개발 모드 줄 (title-dev) 도 흉내

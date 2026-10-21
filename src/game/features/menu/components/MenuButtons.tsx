@@ -5,6 +5,7 @@
  */
 import type { ComponentChildren } from 'preact';
 import { BALANCE } from '../../../core/balance';
+import { AutoTip } from '../../../ui/AutoTip';
 import { Button } from '../../../ui/Button';
 import { Icon, type IconName } from '../../../ui/Icon';
 import { Sprite } from '../../../ui/Sprite';
@@ -28,6 +29,8 @@ export interface FastWalk {
 export interface AutoBattle {
   on: boolean;
   onToggle(): void;
+  /** 자동 전투 첫 안내 (기획 R12 — 스위치 아래 한 줄, 엔진 toast kind 'auto-tip') */
+  tip?: string | null;
 }
 
 /** 버튼 얼굴 — 단축키 칸 · 아이콘 · 이름 (labels 만큼) */
@@ -38,6 +41,18 @@ function Face({ labels, shortcut, icon, label }: { labels: MenuLabels; shortcut:
       {icon}
       {labels !== 'icon' && <span class="pg-menu-text">{label}</span>}
     </>
+  );
+}
+
+/** 안내가 있을 때만 스위치를 묶음 (판 기준 자리) */
+function AutoWrap({ tip, children }: { tip?: string | null; children: ComponentChildren }) {
+  return tip ? (
+    <span class="pg-auto-wrap">
+      {children}
+      <AutoTip text={tip} place="below" />
+    </span>
+  ) : (
+    <>{children}</>
   );
 }
 
@@ -81,6 +96,7 @@ export function MenuButtons({
       )}
       {/* 자동 전투 — 켜짐 = 금색 테두리 + 밝은 남색 (빨리 걷기 켜짐과 같은 모양) · 꺼짐 = 흐린 글, 좁으면 "자동" 두 글자 */}
       {auto && (
+        <AutoWrap tip={auto.tip}>
         <Button
           secondary
           extraClass={auto.on ? 'pg-auto-walk pg-on' : 'pg-auto-walk'}
@@ -91,6 +107,7 @@ export function MenuButtons({
           {labels === 'full' && <span class="pg-menu-key">A</span>}
           <span class="pg-menu-text">{labels === 'icon' ? '자동' : auto.on ? '자동 켜짐' : '자동 꺼짐'}</span>
         </Button>
+        </AutoWrap>
       )}
       {BUTTONS.map((b) => (
         <Button key={b.kind} secondary extraClass={b.kind === 'team' && (points > 0 || later > 0) ? `${cls} pg-has-points` : cls} onClick={() => onOpen({ kind: b.kind })} title={`${b.title} (${MENU_KEYS[b.kind]})`}>

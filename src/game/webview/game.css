@@ -1868,6 +1868,31 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   position: absolute;
   z-index: 5;
 }
+/* 자동 전투 첫 안내 (기획 R12 — gdd 3단계 문구 "자동 스위치 옆에", ui/AutoTip) = 스위치 기준 한 줄 판 (처음 안내와 같은 남색 · 1px 금색 선 · 크림 12px · [A] 키 칸) ·
+   자리는 AutoTip 이 스위치를 재서 (fixed — 정보줄 오른쪽 칸에 잘리던 것): 정보줄 · 위 가로 메뉴 = 아래 · 무대 아래쪽 메뉴 줄 = 위 · 무대 위 스위치 = 패널 아래 끝 (스위치 왼쪽 끝) · 패널 양 끝 8px 안 · 좁으면 "—" 뒤에서 두 줄 */
+.pg-auto-wrap {
+  display: inline-flex;
+  flex: none;
+}
+.pg-auto-tip {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 31;
+  visibility: hidden;
+  width: max-content;
+  max-width: calc(100vw - 16px);
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  white-space: normal;
+  text-align: left;
+  color: var(--pg-sos-ink);
+  background: var(--pg-sos-panel);
+  border: 1px solid var(--pg-sos-gold);
+  pointer-events: none;
+}
 .pg-auto .pg-button {
   height: 16px;
   line-height: 14px;
