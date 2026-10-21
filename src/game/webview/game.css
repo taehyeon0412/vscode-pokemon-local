@@ -4405,7 +4405,8 @@ body.vscode-high-contrast-light .pg-title-body {
 .pg-button.pg-shop-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  /* 이름 · 값 ↔ 설명 6px (8px 이면 넓은 패널 경험 부적이 0.7px 모자라 둘째 줄로 내려가 그 줄 전체가 두 배 높이였음) */
+  column-gap: 6px;
   min-width: 0;
   max-width: none;
 }
@@ -4416,9 +4417,17 @@ body.vscode-high-contrast-light .pg-title-body {
 .pg-shop-name b {
   font-variant-numeric: tabular-nums;
 }
+/* 설명 · 가진 수가 이름 · 값 옆에 안 들어가면 줄임표 대신 둘째 줄 오른쪽으로 (240 에서 "레…" · "다음…" 으로 잘리던 것 — ux-rules U4, 기획팀 2026-10-21) — 들어가는 칸은 한 줄 그대로 */
+.pg-button.pg-shop-item {
+  flex-wrap: wrap;
+  row-gap: 0;
+  height: auto;
+  min-height: 22px;
+}
 .pg-shop-sub {
   display: flex;
-  min-width: 0;
+  flex: none;
+  max-width: 100%;
   margin-left: auto;
   overflow: hidden;
   white-space: nowrap;
