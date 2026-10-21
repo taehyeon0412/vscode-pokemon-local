@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../balance';
 import { STAGE_IDS } from '../save';
-import { formsOfSpecies } from '../../data';
+import { evolutionsOf, formsOfSpecies, speciesOf } from '../../data';
+import { baseTotal, devolveForLevel } from './encounter';
 import { stageLayout, stageLevelBand, trainerCount, trainerId } from './stage';
 import { leaderTeam, trainerInfo, trainerTeam, trainerTeamSize, shortTrainerName, withShortFoe } from './trainer';
 
@@ -40,6 +41,37 @@ describe('트레이너 (mvp-spec S08 · 4장)', () => {
     for (const id of STAGE_IDS) {
       for (let i = 0; i < trainerCount(id); i++) expect(trainerInfo(id, i).shirt.toLowerCase()).not.toBe('#2f6fd0');
     }
+  });
+});
+
+describe('트레이너 포켓몬은 그 레벨에 맞는 모습 · 아주 센 포켓몬은 안 씀 (orders #32 — 1-3 펜드라 Lv12 에게 44번 짐)', () => {
+  it('종족값 bigBaseTotal 넘는 포켓몬 없음 · 진화형이면 그 레벨로 될 수 있는 진화', () => {
+    let checked = 0;
+    for (const id of STAGE_IDS) {
+      for (let seed = 1; seed <= 60; seed++) {
+        for (let n = 0; n < trainerCount(id); n++) {
+          for (const m of trainerTeam(id, seed, n, 6, 3)) {
+            const s = speciesOf(m.species)!;
+            expect(baseTotal(s)).toBeLessThanOrEqual(BALANCE.bigBaseTotal);
+            const from = s.evolvesFrom;
+            if (from && speciesOf(from) && formsOfSpecies(from).length > 0) {
+              const e = evolutionsOf(from).find((x) => x.to === m.species);
+              expect(e?.kind === 'level' ? (e.level ?? 1) <= m.level : e?.kind === 'friendship' ? BALANCE.friendshipLevel <= m.level : false).toBe(true);
+            }
+            checked++;
+          }
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(500);
+  });
+  it('진화 전으로 — 레벨이 모자라면 앞 진화로 · 진화 전이 없으면 그대로', () => {
+    // 버터플 (트랜셀 Lv10 → 버터플) — Lv8 이면 트랜셀까지 · Lv7 이면 캐터피 아님 (트랜셀은 Lv7)
+    expect(devolveForLevel(12, 12)).toBe(12);
+    expect(devolveForLevel(12, 8)).toBe(11);
+    expect(devolveForLevel(12, 5)).toBe(10);
+    // 헤라크로스 — 진화 전 없음
+    expect(devolveForLevel(214, 3)).toBe(214);
   });
 });
 

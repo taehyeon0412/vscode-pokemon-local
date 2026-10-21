@@ -10,7 +10,7 @@
  * - 포인트: 공격 · HP 번갈아 · 대기실: 처음엔 바로 도전, 지면 1-3 을 한 번 더 걷고 다시 도전
  */
 import { BALANCE, TIMING } from '../src/game/core/balance';
-import { canParry, canRiposte } from '../src/game/core/engine/battle';
+import { canParry, canRiposte, type BattleState } from '../src/game/core/engine/battle';
 import { applyInput, step } from '../src/game/core/engine/play';
 import { createGameState, type GameState } from '../src/game/core/engine/state';
 import { maxHpOf } from '../src/game/core/rules/bag';
@@ -27,6 +27,9 @@ const CATCH = (args[1] ?? 'on') === 'on';
 const MASH = (args[2] ?? 'off') === 'on';
 /** 패링 — none = 안 함 · half = 상대 공격마다 반쯤 완벽 · perfect = 늘 완벽 (+ 반격) (orders #26 — 완벽 패링도 필살기 게이지 R1) */
 const PARRY = (args[3] ?? 'none') as 'none' | 'half' | 'perfect';
+/** 스타팅 하나만 (도감 번호) · 질 때마다 한 줄 (어디 · 상대 · 내 팀) — 벽 찾기 (기획 2026-10-21) */
+const ONLY = args[4] ? Number(args[4]) : null;
+const LOG_DEFEATS = ONLY !== null || process.env.SIM_LOG === 'defeat';
 
 type Where = StageId | 'gym';
 interface StageStat {
@@ -79,7 +82,7 @@ const hpRatio = (save: Save) => {
 const power = (id: number) => moveOf(id)?.power ?? 0;
 const where = (save: Save): Where => (save.location.screen === 'stage' ? save.location.stageId : 'gym');
 
-function decide(s: GameState, mem: { resultMs: number; lostGymOnce: boolean; grindNext: boolean }): GameState {
+function decide(s: GameState, mem: { resultMs: number; lostGymOnce: boolean; grindNext: boolean; parryKey: string; parryYes: boolean }): GameState {
   const st = s.runtime.stage;
   const save = s.save;
   if (!st) return s;
@@ -193,6 +196,7 @@ function runOnce(dex: number, seed: number): RunResult {
   let lastKind: string | null = null;
   let prevAnim: unknown = null;
   let prevPerfects = 0;
+  let lastBattle: BattleState | null = null;
   /** 처음 길 야생 — 진 뒤 같은 자리를 다시 걸을 때 두 번 세지 않게 (스테이지 · 시드 · 자리) */
   const counted = new Set<string>();
   const reach: Record<string, number> = {};
@@ -236,6 +240,7 @@ function runOnce(dex: number, seed: number): RunResult {
       }
       prevBattle = key;
       lastKind = st.battle.kind;
+      lastBattle = st.battle;
       const an = st.battle.anim;
       // 내 필살기 — 연출로 나가거나 상대도 필살기로 맞받아 바로 힘대결이 되거나
       const ultClash = st.battle.phase === 'clash' && st.battle.clash?.kind === 'ult' && st.battle.clash.ms === 0;
@@ -254,6 +259,13 @@ function runOnce(dex: number, seed: number): RunResult {
     }
     if (phase !== prevPhase) {
       if (phase === 'defeat') {
+        if (LOG_DEFEATS && lastBattle) {
+          const b = lastBattle;
+          const foes = [b.foe, ...b.foeQueue].map((m) => `${speciesOf(m.species)?.name.ko ?? m.species} Lv${m.level}`).join(' · ');
+          const mine = party(s.save).map((m) => `${speciesOf(m.species)?.name.ko ?? m.species} Lv${m.level} ${Math.round((m.hp / Math.max(1, maxHpOf(m))) * 100)}%`).join(' · ');
+          const pend = s.save.pendingEncounter;
+          console.log(`짐 ${r.starter} ${w} ${(t / 60000).toFixed(1)}분 · ${b.kind} ${b.foeName ?? ''} [${foes}] · 쓰러뜨림 ${b.foeDown.length} · 내 팀 [${mine}] · 돈 ${s.save.money}${pend ? ` · 남은 만남 ${pend.kind}` : ''}`);
+        }
         stages[w].defeats++;
         if (lastKind === 'trainer') stages[w].trainerDefeats++;
         if (st?.phase === 'defeat' && st.gym) mem.grindNext = true;
@@ -282,7 +294,7 @@ const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.le
 const results: RunResult[] = [];
 const starters = starterList();
 const started = Date.now();
-for (const sp of starters) {
+for (const sp of starters.filter((x) => ONLY === null || x.dex === ONLY)) {
   for (let i = 0; i < RUNS; i++) {
     const r = runOnce(sp.dex, 1000 + i * 7919 + sp.dex);
     results.push(r);

@@ -193,7 +193,11 @@ const teamOn = (rt: RuntimeState) => BALANCE.team.on || devTeam(rt.dev);
  */
 function choiceMeet(save: Save, rt: RuntimeState): boolean {
   // 3:3 이 잠기면 (2마리 · 좁음) 고를 게 1:1 하나뿐 — 예전 4초 박자 (화면은 "3마리 필요" 안내, 디자인팀 UX 9차)
-  return teamOn(rt) && !save.settings.autoBattle && !rt.headless && save.pendingEncounter?.kind === 'trainer' && teamLockOf(save, rt) === null;
+  return choiceFree(save, rt) && teamLockOf(save, rt) === null;
+}
+/** 고를 수 있는 만남인지 (잠금은 안 봄) — 고르는 중 (ask) 에 패널이 좁아져 잠겨도 고르기를 이어 감 (바로 VS 가 시작되던 것 — 코드 리뷰어, 넓히면 다시 3:3) */
+function choiceFree(save: Save, rt: RuntimeState): boolean {
+  return teamOn(rt) && !save.settings.autoBattle && !rt.headless && save.pendingEncounter?.kind === 'trainer';
 }
 /** 엔진이 고를 때까지 기다리는 만남인지 (자동 전투 · 안 볼 때는 아님) — 화면에 고르기를 그려도 되는지는 TeamChoice 의 teamChoiceOn (자동 전투도 포함) */
 export function teamChoiceMeet(state: GameState): boolean {
@@ -512,19 +516,20 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
     case 'trainer': {
       const ms = stage.ms + stepMs;
       const choose = choiceMeet(save, rt);
+      const free = choiceFree(save, rt);
       let st: Extract<StageRuntime, { phase: 'trainer' }> = { ...stage, ms };
       // 3:3 을 고를 수 있는 만남 — 고를 때까지 (3마리 고르기 10초 · 늦어도 teamChoiceMs) → 고른 때 VS 2초 → 전투 (디자인팀 4안). ask = 고르기를 연 만남
       if (st.vsAt === undefined) {
         const oldVs = TIMING.trainerMeetMs - TIMING.vsMs;
-        if (!choose && st.ask) {
+        if (!free && st.ask) {
           // 고르다가 자동 전투를 켜거나 안 보게 되면 그때 VS (예전 길로 가 VS 가 중간부터 나오던 것 — 코드 리뷰어)
           st = { ...st, vsAt: stage.ms };
         } else if (choose && !st.ask && stage.ms >= oldVs) {
           // 예전 길 (자동 전투) 로 VS 가 나오던 중에 끄면 그 VS 그대로 (사라졌다 처음부터 다시 나오던 것 — 코드 리뷰어)
           st = { ...st, vsAt: oldVs };
-        } else if (choose) {
+        } else if (choose || (free && st.ask)) {
           st = { ...st, ask: true };
-          if (st.pick !== undefined && st.team === true && teamLockOf(save, rt) === null) {
+          if (st.pick !== undefined && st.team === true) {
             const pickMs = (st.pickMs ?? 0) + stepMs;
             st = { ...st, pickMs, ...(pickMs >= TIMING.teamPickAutoMs ? { vsAt: ms } : {}) };
           } else if (ms >= TIMING.trainerAlertMs + TIMING.teamChoiceMs) {

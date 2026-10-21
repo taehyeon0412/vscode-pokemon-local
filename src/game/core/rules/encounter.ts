@@ -35,7 +35,7 @@ const isStarterLine = (s: ReadonlySpecies) => {
   return starterChains.has(s.chain);
 };
 
-const baseTotal = (s: ReadonlySpecies) => s.base.hp + s.base.attack + s.base.defense + s.base.spAttack + s.base.spDefense + s.base.speed;
+export const baseTotal = (s: ReadonlySpecies) => s.base.hp + s.base.attack + s.base.defense + s.base.spAttack + s.base.spDefense + s.base.speed;
 const isWildable = (s: ReadonlySpecies) => !s.legendary && !s.mythical && !s.baby && s.stage === 1;
 const hasAny = (types: readonly TypeName[], want: readonly TypeName[]) => types.some((t) => want.includes(t));
 
@@ -68,6 +68,23 @@ export function forestPool(stageId: StageId): Pool {
 }
 
 /** 레벨에 맞게 진화 — 레벨 진화 (친밀도는 Lv 20) 만, 조건 · 돌 · 교환은 안 함. 갈래는 확률 (없으면 반반) */
+/**
+ * 그 레벨로 아직 될 수 없는 진화형이면 진화 전으로 (트레이너 — 2026-10-21 orders #32 A, 1-3 펜드라 Lv12 벽).
+ * 레벨 진화는 그 레벨 · 친밀도는 friendshipLevel 이 넘었어야 함 · 돌 · 교환 같은 진화는 레벨로 못 되니 진화 전으로. 진화 전이 데이터에 없으면 그대로
+ */
+export function devolveForLevel(dex: number, level: number): number {
+  let current = dex;
+  for (let guard = 0; guard < 4; guard++) {
+    const from = speciesOf(current)?.evolvesFrom;
+    if (!from || !speciesOf(from) || formsOfSpecies(from).length === 0) return current;
+    const e = evolutionsOf(from).find((x) => x.to === current);
+    const reach = !e ? false : e.kind === 'level' ? (e.level ?? 1) <= level : e.kind === 'friendship' ? BALANCE.friendshipLevel <= level : false;
+    if (reach) return current;
+    current = from;
+  }
+  return current;
+}
+
 export function evolveForLevel(dex: number, level: number, rng: Rng): number {
   let current = dex;
   for (let guard = 0; guard < 4; guard++) {

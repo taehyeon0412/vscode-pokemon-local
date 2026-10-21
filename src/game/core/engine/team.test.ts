@@ -585,6 +585,11 @@ describe('#17 준비 — 배율 · 잠금 · 3마리 고르기 · 필살기 예�
       // 넷째 = 셋째 자리와 바꿈 (1 · 2 그대로)
       const other = ['m1', 'm2', 'm3', 'm4', 'm5'].find((u) => !first.includes(u))!;
       expect(teamPickOf(applyInput(opened, { kind: 'team-pick', uid: other }))).toEqual([first[0], first[1], other]);
+      // 고르는 중에 패널이 좁아져 잠겨도 고르기를 이어 감 (바로 VS 가 시작되던 것 — 코드 리뷰어) · 넓히면 다시 3:3
+      const narrowed = { ...opened, runtime: { ...opened.runtime, view: { w: 200, h: 187 } } };
+      const still = steps(narrowed, 1000);
+      expect(still.runtime.stage).toMatchObject({ phase: 'trainer', team: true });
+      expect(still.runtime.stage?.phase === 'trainer' && still.runtime.stage.vsAt).toBeUndefined();
       // 3:3 이 잠기면 (1마리) 고르기 없는 만남 — 예전 4초
       const locked = meet(sampleSave());
       expect(teamChoiceMeet(locked)).toBe(false);
@@ -621,6 +626,8 @@ describe('#17 준비 — 배율 · 잠금 · 3마리 고르기 · 필살기 예�
     const during = teamStep(foeUlt, STEP, new Rng(3), { auto: false, away: false });
     expect(during.autoWait?.[1]).toBe(foeUlt.autoWait?.[1]);
     expect(teamAutoUltLeft(during, 1)).toBe(BALANCE.ultAutoWaitMs - (foeUlt.autoWait?.[1] ?? 0));
+    // 안 볼 때는 기다림을 지움 (돌아오면 다시 3초 — 코드 리뷰어)
+    expect(teamStep({ ...full, autoWait: [0, 2500, 0], me: full.me.map((f) => ({ ...f, ult: 0 })) }, STEP, new Rng(3), { auto: false, away: true }).autoWait).toBeUndefined();
     // HP 30% 아래면 기다리지 않음 (기획 #26 R2 ①)
     const low: TeamBattle = { ...full, me: full.me.map((f, i) => (i === 1 ? { ...f, hp: Math.ceil(f.maxHp * BALANCE.autoPotionBelow) - 1 } : f)) };
     expect(teamAutoUltLeft(low, 1)).toBe(0);

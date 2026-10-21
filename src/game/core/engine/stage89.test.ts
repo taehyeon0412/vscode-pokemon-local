@@ -199,7 +199,7 @@ describe('1:1 토너먼트 · 상대 AI 필살기 (gdd S08 ③ · 4.7)', () => {
     expect(trLow.anim?.action.kind).not.toBe('item');
   });
 
-  it('트레이너 필살기: 게이지가 차면 0.5 ~ 3초 기다렸다가 · 관장: 내 기술 연출에 끼어듦 (내 기술은 취소)', () => {
+  it('트레이너 필살기: 게이지가 차면 1 ~ 3초 기다렸다가 · 관장: 찬 지 1초 지나면 내 기술 연출에 끼어듦 (내 기술은 취소)', () => {
     const tb = startTrainerBattle(save, [{ ...weak('a'), hp: 999 }], 'trainer', 't');
     const full = { ...tb, foe: { ...tb.foe, ult: 1 }, me: { ...tb.me, stats: { ...tb.me.stats, speed: 1 } } };
     const one = battleStep(full, save, STEP, new Rng(2), { auto: false });
@@ -210,7 +210,12 @@ describe('1:1 토너먼트 · 상대 AI 필살기 (gdd S08 ③ · 4.7)', () => {
     expect(later.foe.ult).toBeLessThan(1);
 
     const gb = startTrainerBattle(save, [{ ...weak('a'), hp: 999 }], 'gym', '관장');
-    const myTurn: BattleState = { ...gb, phase: 'choose', me: { ...gb.me, gauge: 1 }, foe: { ...gb.foe, ult: 1 } };
+    // 막 찬 관장은 아직 안 끼어듦 (예고 "!" 를 보고 방어할 틈 — 코드 리뷰어 R4)
+    const fresh: BattleState = { ...gb, phase: 'choose', me: { ...gb.me, gauge: 1 }, foe: { ...gb.foe, ult: 1 } };
+    let f = battleInput(fresh, save, { kind: 'act', action: { kind: 'move', moveId: 22 } }, new Rng(1));
+    for (let t = 0; t <= BALANCE.leaderCutMs; t += STEP) f = battleStep(f, save, STEP, new Rng(1), { auto: false });
+    expect(f.anim?.side).toBe('me');
+    const myTurn: BattleState = { ...fresh, foeUltWait: BALANCE.leaderUltWaitMs - TIMING.leaderCutAfterFullMs };
     let s = battleInput(myTurn, save, { kind: 'act', action: { kind: 'move', moveId: 22 } }, new Rng(1));
     expect(s.anim?.side).toBe('me');
     for (let t = 0; t <= BALANCE.leaderCutMs; t += STEP) s = battleStep(s, save, STEP, new Rng(1), { auto: false });

@@ -730,8 +730,9 @@ function fxUltTiming(form, e, dist) {
         return null;
     }
     let cover = m[4] ?? -1;
-    if (Array.isArray(m[5]) && typeof dist === 'number' && dist > 0) {
-        const near = m[5].reduce((a, b) => (Math.abs(b[0] - dist) < Math.abs(a[0] - dist) ? b : a));
+    // 거리별 덮음 끝은 자기 둘레 터짐만 (코드 리뷰어 — 다른 필살기에 남은 목록을 쓰던 것)
+    if (m[2] === 1 && Array.isArray(m[5]) && m[5].length > 0 && typeof dist === 'number' && dist > 0) {
+        const near = m[5].reduce((a, b) => (Math.abs(b[0] - dist) < Math.abs(a[0] - dist) ? b : a), m[5][0]);
         cover = near[1];
     }
     return { main: m[0], run: m[1], self: m[2] === 1, flash: m[3] ?? -1, cover };

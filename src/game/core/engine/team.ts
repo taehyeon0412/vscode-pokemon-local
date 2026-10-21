@@ -912,7 +912,9 @@ export function teamStep(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamSte
   }
   // 내 필살기 — 예약한 것 · 볼 때는 찬 지 ultAutoWaitMs 뒤 저절로 (발밑 판이 반짝 · 자동 전투가 꺼져도) · 안 볼 때는 바로 (R2 A). 끼어들기 · 합동 멘트는 그대로 손으로
   // 기다림은 내 필살기를 쓸 수 있는 걸음 (여기까지 온 run) 에서만 셈 — 다른 필살기 · 힘겨루기 · 합동 멘트 중엔 멈춤 (0 에서 2.5 ~ 6초 서 있던 것, 디자인팀 #26 판정)
+  // 안 볼 때는 지움 (안 보다 돌아오면 남은 3초가 짧아져 있던 것 — 코드 리뷰어)
   if (!opts.away) b.autoWait = b.me.map((f, i) => (alive(f) && f.ult >= 1 ? (b.autoWait?.[i] ?? 0) + stepMs : 0));
+  else if (b.autoWait) delete b.autoWait;
   const z = opts.away ? firstReady(b, 'me') : (firstReserved(b) ?? firstWaited(b));
   if (z !== null) {
     startUlt(b, 'me', z, rng);

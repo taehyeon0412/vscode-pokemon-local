@@ -11,7 +11,7 @@ import { STAGE_IDS, type Monster, type Save, type StageId, type Stats } from '..
 import { formsOfSpecies, learnsetOf, moveOf, speciesOf, type ReadonlyMove } from '../../data';
 import { typeNameKo, withJosa } from '../text';
 import { effectiveness } from './types';
-import { evolveForLevel, forestPool } from './encounter';
+import { baseTotal, devolveForLevel, evolveForLevel, forestPool } from './encounter';
 import { createMonster, wildMoves } from './monster';
 import { spotRng, stageLevelBand, trainerCount } from './stage';
 
@@ -91,14 +91,19 @@ export function trainerTeamSize(stageSeed: number, n: number, alive: number): nu
 /** 트레이너 포켓몬 — 숲 목록에서, 레벨 = 그 스테이지 레벨대 가운데 (위끝 → 가운데: 단계 11 시뮬, 2026-10-19 태현 님) (진화 레벨을 넘으면 진화형) */
 /** size = 마리 수를 정해서 (3:3 은 늘 3 — 2026-10-21 명세 검사관), 없으면 시드로 1 ~ 3 */
 export function trainerTeam(stageId: StageId, stageSeed: number, n: number, alive: number, size?: number): Monster[] {
-  const pool = forestPool(stageId).common;
+  // 종족값 아주 큰 포켓몬 (bigBaseTotal 넘음) 은 트레이너가 안 씀 — 야생에서만 드물게 (orders #32 B)
+  const big = (dex: number) => { const s = speciesOf(dex); return !!s && baseTotal(s) > BALANCE.bigBaseTotal; };
+  const pool = forestPool(stageId).common.filter((dex) => !big(dex));
   const [lo, hi] = stageLevelBand(stageId);
   const level = Math.round((lo + hi) / 2);
   const out: Monster[] = [];
   const count = size ?? trainerTeamSize(stageSeed, n, alive);
   for (let i = 0; i < count; i++) {
     const rng = spotRng(stageSeed, 5000 + n, 10 + i);
-    const dex = evolveForLevel(pool[rng.int(0, pool.length - 1)] ?? 10, level, rng);
+    // 그 레벨에 맞는 모습 (아직 될 수 없는 진화형은 진화 전 → 레벨이 되면 진화형, orders #32 A) · 진화해서 아주 커지면 진화 전 그대로
+    const base = devolveForLevel(pool[rng.int(0, pool.length - 1)] ?? 10, level);
+    const grown = evolveForLevel(base, level, rng);
+    const dex = big(grown) ? base : grown;
     out.push(createMonster({ uid: `foe${i}`, dex, level, moves: wildMoves(dex, level, rng), rng, caughtAt: 'trainer' }));
   }
   return out;

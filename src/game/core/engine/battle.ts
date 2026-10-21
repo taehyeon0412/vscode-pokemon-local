@@ -10,7 +10,7 @@
  *   last   야생을 쓰러뜨림 → 마지막 기회 (볼 고르기 · 안 던짐 · 6초) — 볼이 없거나 내 팀이 다 쓰러졌으면 건너뜀
  *   send   트레이너 · 관장이 다음 포켓몬을 내보냄 (1:1 토너먼트 — 내 포켓몬은 HP 그대로, gdd S08 ③)
  *   over   이김 · 짐 · 도망 · 잡음 — 잠깐 보여 주고 끝 (세이브에 돌려주는 건 play.ts)
- * 상대 필살기 (gdd 4.7): 야생 = 차면 바로 · 트레이너 = 0.5 ~ 3초 기다렸다가 (게이지가 도는 동안만 셈) · 관장 = 내 공격 · 기술 연출에 끼어듦.
+ * 상대 필살기 (gdd 4.7): 야생 = 다 찬 뒤 1초 · 트레이너 = 1 ~ 3초 기다렸다가 (게이지가 도는 동안만 셈 — 예고 "!" 가 1초는 보이게, 기획 #26 R4) · 관장 = 내 공격 · 기술 연출에 끼어듦.
  *   트레이너 · 관장은 내 필살기를 필살기로 맞받아침 (관장은 늘 · 트레이너는 반) — "상대도 마찬가지"
  * 전투 중에는 세이브를 바꾸지 않음 (껐다 켜면 그 전투를 처음부터, mvp-spec 9장) — 끝날 때 HP · PP · 상태 이상 · 쓴 아이템을 한 번에.
  */
@@ -404,7 +404,7 @@ function startAction(b0: BattleState, side: Side, action0: BattleAction, rng: Rn
 }
 
 /** 피해를 주고 필살기 게이지 · 글을 남김 */
-function hit(b: BattleState, attackerSide: Side, power: number, type: ReadonlyMove['type'] | null, rng: Rng, opts: { useUlt?: boolean; move?: ReadonlyMove } = {}): number {
+function hit(b: BattleState, attackerSide: Side, power: number, type: ReadonlyMove['type'] | null, rng: Rng, opts: { useUlt?: boolean; riposte?: boolean; move?: ReadonlyMove } = {}): number {
   const a = b[attackerSide];
   const d = b[other(attackerSide)];
   const guarded = d.guard < 1;
@@ -434,7 +434,8 @@ function hit(b: BattleState, attackerSide: Side, power: number, type: ReadonlyMo
   if (dmg > 0 || parriedHit) {
     // × 0.5 는 야생 포켓몬만 (트레이너 · 관장 포켓몬은 그대로 — 테스터)
     const wild = b.kind === 'wild';
-    if (!opts.useUlt) a.ult = Math.min(1, a.ult + ultGain('hit', a, { wild: wild && attackerSide === 'foe' }));
+    // 반격기는 필살기 위력이어도 보통 공격처럼 게이지가 참 (2026-10-21 태현 님 A — 패링을 잘할수록 필살기를 못 보던 것, 10-20 "안 채움" 을 바꿈)
+    if (!opts.useUlt || opts.riposte) a.ult = Math.min(1, a.ult + ultGain('hit', a, { wild: wild && attackerSide === 'foe' }));
     d.ult = Math.min(1, d.ult + ultGain('hurt', d, { guarded, wild: wild && attackerSide === 'me' }));
   }
   // 흡수 (+) · 반동 (−)
@@ -565,7 +566,7 @@ function finishAnim(b0: BattleState, save: Save, rng: Rng): BattleState {
       hit(b, side, BALANCE.ultPower, actor.types[0] ?? null, rng, { useUlt: true });
       break;
     case 'riposte':
-      hit(b, side, Math.round(BALANCE.ultPower * BALANCE.riposteUltFactor), actor.types[0] ?? null, rng, { useUlt: true });
+      hit(b, side, Math.round(BALANCE.ultPower * BALANCE.riposteUltFactor), actor.types[0] ?? null, rng, { useUlt: true, riposte: true });
       break;
     case 'guard':
     case 'skip':
@@ -647,7 +648,7 @@ function resolveClash(b0: BattleState, rng: Rng): BattleState {
 }
 
 export interface BattleStepOptions {
-  /** 자동 전투 — 내 행동도 AI 가 고름 (필살기는 차면 바로 [제안]) */
+  /** 자동 전투 — 내 행동도 AI 가 고름 (다 찬 필살기는 볼 때 3초 · 안 볼 때 · HP 30% 아래 바로 — 기획 #26 R2) */
   auto: boolean;
   /** 사람이 안 봄 (확장이 계산) — 마지막 기회는 바로 지나감 (볼은 사람이 던짐) */
   away?: boolean;
@@ -668,6 +669,8 @@ export function battleStep(b0: BattleState, save: Save, stepMs: number, rng: Rng
   // HP 가 자동 상처약 기준 (30%) 아래면 기다리지 않음 — 3초 안에 쓰러져 필살기가 날아가던 것 (2026-10-21 태현 님 "추천대로", 기획 #26 R2 ①)
   const low = b.me.hp < b.me.maxHp * BALANCE.autoPotionBelow;
   const myUltNow = (opts.auto && b.me.ult >= 1 && (opts.away === true || low || (b.ultWait ?? 0) >= BALANCE.ultAutoWaitMs)) || b.ultQueued === true;
+  // 예약한 Z 는 맞받아치기 창 (관장 끼어들기 · 상대 필살기) 이 열리면 그걸로 (예약을 둔 채 상대 필살기를 맞던 것 — 코드 리뷰어)
+  if (b.ultQueued && ultCounterOpen(b)) return startClash({ ...b, me: { ...b.me, ult: 0 }, ultQueued: undefined, ultWait: undefined }, 'ult', null, null);
   if (myUltNow && b.phase !== 'run' && canUlt(b) && !ultCounterOpen(b)) return pressUlt(b, rng);
   switch (b.phase) {
     case 'riposte': {
@@ -681,10 +684,12 @@ export function battleStep(b0: BattleState, save: Save, stepMs: number, rng: Rng
       const me = { ...b.me, gauge: Math.min(1, b.me.gauge + gaugeRate(b.me, b.foe) * stepMs) };
       const foe = { ...b.foe, gauge: Math.min(1, b.foe.gauge + gaugeRate(b.foe, b.me) * stepMs) };
       b = { ...b, me, foe };
-      // 필살기: 상대 = 다 찬 뒤 1초 넘게 (예고 "!") · 자동 전투의 내 필살기 = 볼 때 3초 · 안 볼 때 바로 — 같은 걸음에 둘 다 쓰면 필살기 힘대결 (4장 동시 필살기)
-      if (myUltNow && b.foe.ult >= 1) return startClash({ ...b, me: { ...b.me, ult: 0 }, foe: { ...b.foe, ult: 0 }, foeUltWait: null }, 'ult', null, null);
+      // 필살기: 상대 = 다 찬 뒤 1초 넘게 (예고 "!") · 자동 전투의 내 필살기 = 볼 때 3초 · 안 볼 때 바로 · 예약한 Z.
+      // 정말 같은 걸음에 둘 다 쓸 때만 필살기 힘대결 (4장 동시 필살기) — 그 밖엔 Z 를 누른 것과 같게 (야생은 맞받아치지 않음 · 트레이너 반 · 관장 늘, 명세 검사관:
+      // 상대가 기다리는 중이기만 해도 힘대결이 되어 야생도 맞받아치던 것)
       const tick = foeUltTick(b, stepMs, rng);
       b = tick.b;
+      if (tick.fire && myUltNow) return startClash({ ...b, me: { ...b.me, ult: 0 }, foe: { ...b.foe, ult: 0 }, foeUltWait: null, ultQueued: undefined, ultWait: undefined }, 'ult', null, null);
       if (tick.fire) return startAction(b, 'foe', { kind: 'ult' }, rng);
       if (myUltNow) return pressUlt(b, rng);
       const meReady = b.me.gauge >= 1;
@@ -719,7 +724,9 @@ export function battleStep(b0: BattleState, save: Save, stepMs: number, rng: Rng
       const anim = { ...b.anim!, ms: b.anim!.ms + stepMs };
       b = { ...b, anim };
       // 관장이 내 공격 · 기술 연출에 필살기로 끼어듦 — 내 기술은 취소 (PP 는 깎인 채, 내가 끼어들 때와 같은 규칙) · 트레이너는 끼어들지 않음 (gdd 4.7 성격)
-      if (b.kind === 'gym' && anim.side === 'me' && (anim.action.kind === 'attack' || anim.action.kind === 'move') && b.foe.hp > 0 && b.foe.ult >= 1) {
+      // 찬 지 1초가 지나야 (기다림이 leaderCutAfterFullMs 만큼 줄었을 때 — 예고 "!" 를 보고 방어할 틈)
+      const fullLong = b.foeUltWait !== null && b.foeUltWait <= BALANCE.leaderUltWaitMs - TIMING.leaderCutAfterFullMs;
+      if (b.kind === 'gym' && anim.side === 'me' && (anim.action.kind === 'attack' || anim.action.kind === 'move') && b.foe.hp > 0 && b.foe.ult >= 1 && fullLong) {
         if (anim.ms >= BALANCE.leaderCutMs && anim.ms - stepMs < BALANCE.leaderCutMs) {
           const nb = startAction({ ...b, anim: null, foeUltWait: null }, 'foe', { kind: 'ult' }, rng);
           return { ...nb, msg: `끼어들었다! ${nb.msg}` };
@@ -778,7 +785,7 @@ export function battleStep(b0: BattleState, save: Save, stepMs: number, rng: Rng
   }
 }
 
-/** 상대 필살기를 쓸 때인지 — 야생: 차면 바로 · 트레이너: 0.5 ~ 3초 기다렸다가 · 관장: 끼어들 틈 (내 공격 · 기술) 이 없으면 4초 뒤 */
+/** 상대 필살기를 쓸 때인지 — 야생: 다 찬 뒤 1초 · 트레이너: 1 ~ 3초 기다렸다가 · 관장: 끼어들 틈 (내 공격 · 기술) 이 없으면 4초 뒤 */
 function foeUltTick(b: BattleState, stepMs: number, rng: Rng): { b: BattleState; fire: boolean } {
   if (b.foe.ult < 1 || b.foe.hp <= 0) return { b: b.foeUltWait === null ? b : { ...b, foeUltWait: null }, fire: false };
   if (b.foeUltWait === null) {

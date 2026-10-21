@@ -246,7 +246,7 @@ describe('쏘는 기술끼리 힘대결은 없음 — 패링은 등급만 · 완
     expect(c.me.moves[0]!.pp).toBe(25);
   });
 
-  it('완벽 패링 → 피해 0 · 맞은 뒤 반격 기회 (게이지가 멈춤) → 두 번째 원도 완벽이면 반격기 (필살기 피해의 절반 · 필살기 게이지 · 행동 게이지 그대로)', () => {
+  it('완벽 패링 → 피해 0 · 맞은 뒤 반격 기회 (게이지가 멈춤) → 두 번째 원도 완벽이면 반격기 (필살기 피해의 절반 · 행동 게이지 그대로 · 필살기 게이지는 보통 공격처럼 참 — 2026-10-21 태현 님 A)', () => {
     const { b, save, pre, after } = riposteChance();
     expect(after.me.hp).toBe(b.me.hp);
     expect(after.phase).toBe('riposte');
@@ -266,7 +266,10 @@ describe('쏘는 기술끼리 힘대결은 없음 — 패링은 등급만 · 완
     expect(r.me.gauge).toBe(gauge0);
     const done = run(r, save, TIMING.ultAnimMs + STEP, fixedRng(0.5));
     expect(done.foe.hp).toBeLessThan(later.foe.hp);
-    expect(done.me.ult).toBe(ult0);
+    // 반격기도 보통 공격처럼 필살기 게이지 — 때린 나 (hit) · 맞은 상대 (hurt)
+    expect(ult0).toBeLessThan(1);
+    expect(done.me.ult).toBeGreaterThan(ult0);
+    expect(done.foe.ult).toBeGreaterThan(later.foe.ult);
     // 피해 = 필살기 위력 × 절반 (필살 스탯) — 같은 무작위로 필살기와 견줌
     const ultDone = run(battleInput({ ...later, phase: 'run', riposte: null, me: { ...later.me, ult: 1 } }, save, { kind: 'ult' }, new SeededRng(1)), save, TIMING.ultAnimMs + STEP, fixedRng(0.5));
     expect(later.foe.hp - done.foe.hp).toBeLessThan(later.foe.hp - ultDone.foe.hp);
@@ -494,6 +497,15 @@ describe('필살기 (mvp-spec 3.3 · gdd S09 ⑧)', () => {
     for (let t = 0; t < 1000 && !(s.anim?.side === 'me' && s.anim.action.kind === 'ult'); t += STEP) s = battleStep(s, save, STEP, fixedRng(0.5), { auto: false });
     expect(s.anim).toMatchObject({ side: 'me', action: { kind: 'ult' } });
     expect(s.ultQueued).toBeUndefined();
+    // 예약한 Z 는 상대 필살기 맞받아치기 창이 열리면 그걸로 (코드 리뷰어)
+    const foeUltNow: BattleState = { ...full, phase: 'anim', anim: { side: 'foe', action: { kind: 'ult' }, ms: 100, dur: TIMING.ultAnimMs, counter: false }, ultQueued: true };
+    const countered = battleStep(foeUltNow, save, STEP, fixedRng(0.5), { auto: false });
+    expect(countered.phase).toBe('clash');
+    expect(countered.clash?.kind).toBe('ult');
+    expect(countered.ultQueued).toBeUndefined();
+    // 예약 Z · 자동 필살기가 나갈 때 상대가 기다리는 중이기만 하면 힘대결이 아님 — 야생은 맞받아치지 않음 (명세 검사관)
+    const wildWaiting: BattleState = { ...full, foe: { ...full.foe, ult: 1 }, foeUltWait: 800, ultQueued: true };
+    expect(battleStep(wildWaiting, save, STEP, fixedRng(0.5), { auto: false }).anim).toMatchObject({ side: 'me', action: { kind: 'ult' } });
     // HP 30% (자동 상처약 기준) 아래면 기다리지 않고 바로 (기획 #26 R2 ① — 3초 안에 쓰러져 날아가던 것)
     const low: BattleState = { ...full, me: { ...full.me, hp: Math.ceil(full.me.maxHp * BALANCE.autoPotionBelow) - 1 } };
     expect(battleAutoUltLeft(low, true)).toBe(0);
@@ -683,8 +695,8 @@ describe('단계 5 · 6 검토에서 고친 것 (bugs #104 ~)', () => {
 
   it('자동 전투에서 양쪽 필살기가 같은 걸음에 차면 필살기 힘대결 (4장 동시 필살기 — 명세 검사관 · 코드 리뷰어)', () => {
     const { b, save } = setup();
-    // 안 볼 때 (내 필살기 바로 · 볼 때는 3초 기다린 뒤 — R2)
-    const both = battleStep({ ...b, me: { ...b.me, ult: 1 }, foe: { ...b.foe, ult: 1 } }, save, STEP, fixedRng(0.5), { auto: true, away: true });
+    // 안 볼 때 (내 필살기 바로 · 볼 때는 3초 기다린 뒤 — R2) · 상대도 이 걸음에 씀 (기다림 끝)
+    const both = battleStep({ ...b, me: { ...b.me, ult: 1 }, foe: { ...b.foe, ult: 1 }, foeUltWait: STEP }, save, STEP, fixedRng(0.5), { auto: true, away: true });
     expect(both.phase).toBe('clash');
     expect(both.clash?.kind).toBe('ult');
     expect([both.me.ult, both.foe.ult]).toEqual([0, 0]);
