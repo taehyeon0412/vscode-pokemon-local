@@ -1400,6 +1400,12 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   top: auto;
   bottom: 4px;
 }
+/* 정보줄 아래 목록은 상대 HP 묶음 앞에서 끝남 (480 × 150 에서 "장크로" 를 덮던 것 — battle pickRightOf, 자리가 되면) */
+.pg-infobar-battle[style*='--pg-pick-right'] .pg-pick-list:not(.pg-pick-list-low) {
+  left: auto;
+  right: var(--pg-pick-right);
+  margin: 0;
+}
 /* 좁은 가로 메뉴의 기술 · 아이템 · 교체 줄 (orders #16 픽셀 검사원) — 고르는 중이라 바로 */
 .pg-pick-list.pg-pick-now {
   animation: none;
@@ -1450,6 +1456,8 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 /* 좁고 낮은 패널 — 말 칸이 숨는 동안 전투 끝 · 쓰러짐 · 다음 포켓몬 · 마지막 기회 말을 위 메뉴 줄에 (비어 있던 줄, 말이 0ms 이던 것 — UX 리뷰어 2026-10-21).
    두 줄까지 낱말 단위로 바꿈 · 크림 12px */
 .pg-bar-say {
+  /* 두 줄이면 고르게 나눔 — "…잃은 것은 / 없다!" 처럼 둘째 줄에 낱말 하나만 남던 것 (UX 리뷰어 2026-10-21) */
+  text-wrap: balance;
   flex: 1 0 auto;
   max-width: calc(100% - 36px);
   max-height: 28px;
@@ -1971,6 +1979,27 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   .pg-hpblock-me > .pg-hprow {
     align-self: flex-end;
     width: max-content;
+  }
+  /* 상태 · Lv100 으로 붐비면 Lv 도 뺌 ("Lv100 화상 345/345" 의 "Lv1" 이 패널 밖으로 나가던 것) */
+  .pg-hpblock-me .pg-hprow-crowd > .pg-lv {
+    display: none;
+  }
+  /* 상대 이름 줄은 6px 띄움 — 300 × 187 처럼 두 HP 묶음이 2px 겹치는 배치에서 "15/21장크로다일" 로 붙던 것 */
+  .pg-hpblock-foe > .pg-hprow {
+    padding-left: 6px;
+  }
+  /* 마지막 기회 — 상대 줄 "장크로다일 NEW" 가 왼쪽으로 넘쳐 내 "15/21" 을 덮으므로 내 글 줄은 숨김 (막대는 그대로 · 잡는 동안 볼 것은 상대) */
+  .pg-hpblock-foe > .pg-hprow:has(.pg-last-new, .pg-last-dex) {
+    padding-left: 0;
+  }
+  .pg-stage:has(.pg-last-new, .pg-last-dex) .pg-hpblock-me > .pg-hprow {
+    visibility: hidden;
+  }
+}
+/* 480 아래에서 내 줄이 붐비면 (상태 · Lv100) 이름을 뺌 — "이… Lv5 독 15/21" 로 잘리던 것 (#440 · #450 과 같은 종류, 이름은 메뉴 말에 나옴) */
+@media (max-width: 480px) {
+  .pg-hpblock-me .pg-hprow-crowd > .pg-hpname {
+    display: none;
   }
 }
 /* 메뉴 줄: 처음 메뉴를 깔고 지금 줄을 같은 칸에 얹음 — 필살기 게이지 · 💥 자리가 그대로 */
@@ -2566,6 +2595,12 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   align-self: flex-end;
   width: max-content;
   min-width: 100%;
+  /* 상대 이름 줄 오른쪽 넘침 제한 (--pg-hp-room) 을 풀어야 왼쪽으로 넘침 — 240 에서 NEW 가 패널 끝에서 3px 잘리던 것 (fd2359c, UX 리뷰어) */
+  max-width: none;
+}
+/* 마지막 기회 동안은 상태 칩도 뺌 (쓰러진 상대 · Lv 처럼) — "마비" 가 패널 밖 0px 이던 것 */
+.pg-hprow:has(.pg-last-new, .pg-last-dex) > .pg-status {
+  display: none;
 }
 .pg-hprow:has(.pg-last-new, .pg-last-dex) > .pg-hpname {
   flex: none;

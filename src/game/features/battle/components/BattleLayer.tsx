@@ -84,7 +84,8 @@ function HpBlock({ f, side, x, bottom, wide, prefix, noName, dex, panelPx }: { f
     <div class={`pg-hpblock pg-hpblock-${side}`} style={{ left: `${x - Math.floor(wide / 2)}px`, bottom: `${bottom}px`, width: `${wide}px`, ...(panelPx ? { '--pg-hp-room': `${panelPx - (x - Math.floor(wide / 2)) - 4}px` } : {}) }} title={title}>
       {side === 'foe' && <Bar value={f.ult} cls={f.ult >= 1 ? 'pg-bar-ult pg-full' : 'pg-bar-ult'} />}
       {/* 이름 · Lv 줄 (내 것은 오른쪽에 HP 숫자) → 얇은 HP 바 → 행동 게이지 (Sea of Stars, 포켓몬 머리 위). 옆 메뉴가 있으면 내 이름은 이름표가 맡음 */}
-      <span class="pg-hprow">
+      {/* 붐빔 = 내 줄에 상태 칩 · Lv100 — 좁은 패널에서 이름 · Lv 를 빼는 기준 (game.css, "이… Lv5 독 15/21" · Lv1 이 패널 밖으로 나가던 것) */}
+      <span class={side === 'me' && (status || f.level >= 100) ? 'pg-hprow pg-hprow-crowd' : 'pg-hprow'}>
         {!noName && <span class="pg-hpname">{nameOf(f)}</span>}
         {/* 마지막 기회 동안 상대 이름 옆에 잡은 적 있는지 (ideas #37 — 메뉴 줄은 볼 칸이 잘려서, 만남 띠 "야생 ○○ NEW!" 와 같은 자리) */}
         {dex === 'new' && (
@@ -755,12 +756,25 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
 /** 말 칸이 숨는 좁고 낮은 패널에서 위 메뉴 줄에 띄울 말 — 전투 끝 · 다음 포켓몬 · 쓰러진 뒤 고르기 (그때 메뉴 줄은 비어 있음, 2026-10-21 UX 리뷰어).
  *  고르기는 칸이 무대 위 세로 목록으로 빠져 (2초 뒤) 위 줄 자리가 비어서 "이상해씨가 쓰러졌다!" 를 다시 띄움.
  *  첫 문장만 ("야생 파이리가 쓰러졌다!") — 뒷말 ("다음 포켓몬을 골라요") 은 고르기 목록 제목이 말함. 마지막 기회는 같은 줄에 "마지막 기회! 6초" · 볼 칸이 있어 자리가 없고, 쓰러진 모습 (회색) 과 그 칸이 뜻을 전함 */
-export const barSay = (b: BattleState, msgHidden: boolean, widthPx: number, lines: number, spot: 'bar' | 'side' = 'bar'): string | null =>
-  msgHidden && sayPhase(b.phase, spot) && b.msg ? endSay(b.msg, b.phase === 'over' && b.result === 'lose', (s) => fitsPx(s, widthPx, lines), b.foeName) : null;
+export function barSay(b: BattleState, msgHidden: boolean, widthPx: number, lines: number, spot: 'bar' | 'side' = 'bar'): string | null {
+  if (!msgHidden || !sayPhase(b.phase, spot) || !b.msg) return null;
+  const lose = b.phase === 'over' && b.result === 'lose';
+  const say = (n: number) => endSay(b.msg, lose, (s) => fitsPx(s, widthPx, n), b.foeName);
+  // 여러 줄 자리라도 문장을 다 지키는 한 줄 말 (직함 뺀 말) 이 있으면 그것 — "…연습 경기라 잃은 것은 / 없다!" 처럼 둘째 줄에 낱말 하나만 남던 것 (UX 리뷰어 2026-10-21)
+  const one = lines > 1 ? say(1) : null;
+  return one !== null && sentenceCount(one) === sentenceCount(b.msg) ? one : say(lines);
+}
+const sentenceCount = (s: string) => s.split(/(?<=[!?.…])\s+/).filter(Boolean).length;
 
-export function BattleMenuBar({ battle, save, onInput, withAuto, compact, say, hint }: { battle: BattleState; save: Save; onInput(i: GameInput): void; withAuto: boolean; compact: boolean | 'tiny'; say?: string | null; hint?: '막기' | '반격' | null }) {
+/** 고르기 목록 (가로 메뉴 패널 · 정보줄 아래) 오른쪽 끝 — 상대 HP 묶음 왼쪽 끝에서 8px 앞. 목록 (약 200px) 이 왼쪽에 다 들어갈 때만 (240 은 가운데 그대로) */
+export const pickRightOf = (geo: BattleGeometry): number | null => {
+  const foeLeft = geo.foeHpX - Math.floor(geo.foeHpWide / 2);
+  return foeLeft - 8 - 200 >= 4 ? geo.widthPx - foeLeft + 8 : null;
+};
+
+export function BattleMenuBar({ battle, save, onInput, withAuto, compact, say, hint, pickRight }: { battle: BattleState; save: Save; onInput(i: GameInput): void; withAuto: boolean; compact: boolean | 'tiny'; say?: string | null; hint?: '막기' | '반격' | null; /** 고르기 목록 오른쪽 끝 (패널 오른쪽에서) — 상대 HP 묶음을 덮지 않게, 자리가 없으면 null (가운데) */ pickRight?: number | null }) {
   return (
-    <div class="pg-infobar pg-infobar-battle">
+    <div class="pg-infobar pg-infobar-battle" style={pickRight !== undefined && pickRight !== null ? { '--pg-pick-right': `${pickRight}px` } : undefined}>
       {say && <span class="pg-bar-say">{say}</span>}
       <BattleMenu battle={battle} save={save} onInput={onInput} compact={compact} bar hint={hint} lead={withAuto ? <AutoButton save={save} onInput={onInput} short={compact !== false} /> : null} />
     </div>

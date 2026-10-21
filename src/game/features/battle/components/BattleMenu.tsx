@@ -402,8 +402,8 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
     return (
       <div class={`pg-vmenu${b.phase === 'choose' ? ' pg-my-turn' : ''}`}>
         <div class="pg-vmenu-tabs">
-          {/* 고르는 동안 이름표 = "교체" (쓰러진 포켓몬 이름이 남아 있던 것) */}
-          <span class="pg-vmenu-name">{picking ? '교체' : vertical}</span>
+          {/* 고르는 동안 이름표 = "쓰러졌다! 교체" (쓰러진 포켓몬 이름이 남아 있던 것 · 말 칸이 숨는 150 넓은 패널에서 쓰러졌다는 글이 0ms 이던 것, UX 리뷰어 2026-10-21) */}
+          <span class="pg-vmenu-name">{picking ? '쓰러졌다! 교체' : vertical}</span>
           <span class="pg-vmenu-ult">{ultBadge}</span>
         </div>
         {(open || lead || (queuedName && !collapse)) && (
