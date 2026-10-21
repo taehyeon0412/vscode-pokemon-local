@@ -1191,14 +1191,32 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   justify-content: center;
   padding: 0 6px;
 }
-/* 아주 좁은 패널 패배 상자 — 둘째 줄 흐린 안내 ("잡은 포켓…" 으로 잘리던 것, U4) 를 빼고 다시 시작 버튼만 */
+/* 아주 좁은 패널 패배 상자 — 둘째 줄 흐린 안내 ("잡은 포켓…" 으로 잘리던 것, U4) 를 빼고 다시 시작 버튼만 · 두 번째 3:3 패배 상자는 "남은 포켓몬으로 계속" 이 할 일이라 남김 */
 @media (max-width: 300px) {
-  .pg-defeat > .pg-line:last-child > .pg-dim {
+  .pg-defeat:not(.pg-defeat-keep) > .pg-line:last-child > .pg-dim {
     display: none;
   }
-  .pg-defeat > .pg-line:last-child > .pg-button {
+  .pg-defeat:not(.pg-defeat-keep) > .pg-line:last-child > .pg-button {
     margin-left: auto;
   }
+}
+/* 두 번째 3:3 패배 상자 (R8) — 줄마다 넘치면 한 단계 (직함 뺀 이름 · "계속") 를 재려고 줄 안에서 자름 · 둘째 줄 = 글 왼쪽 · 버튼 오른쪽 */
+.pg-defeat-keep > .pg-line {
+  overflow: hidden;
+}
+.pg-defeat-keep > .pg-line:last-child {
+  width: 100%;
+  justify-content: space-between;
+}
+/* 기다림 한 줄 (gdd 4.13 R13 ② — 밖 · 숨김에서 이로치 흔적 · 라이벌 바로 앞에 멈춤) = 길 위 상자 한 줄 · (이로치만 반짝) + 크림 굵은 글 + 흐린 "누르면 이어서" */
+.pg-banner.pg-hold {
+  background: var(--pg-sos-bar);
+}
+/* 밖에서 이로치 전투가 멈춤 = 아래 가운데 (처음 안내 low 자리 — 전투 위 줄 · HP · 말 칸 밖) */
+.pg-banner.pg-hold.pg-hold-low {
+  top: auto;
+  bottom: 4px;
+  z-index: 7;
 }
 /* 처음 한 번 안내 (orders #12, ui/FirstTip) — 판과 같은 남색 · 1px 금색 선 · 앞에 금색 "처음" 표 · 크림 12px, 좁으면 낱말 단위 두 줄 · 누름을 막지 않음.
    top = 길 위 상자 자리 (숲 1-1 처음 걷기) · low = 땅 위 가운데 (전투 — 마지막 기회 · 필살기 준비) */
@@ -3675,6 +3693,8 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 .pg-too-small {
   font-size: 12px;
   color: var(--pg-sos-gold);
+  /* 낱말 안에서 줄을 바꾸지 않음 (240 에서 "포켓 / 몬으로" 로 갈리던 것) */
+  word-break: keep-all;
 }
 
 /* 메뉴 판 (S07 · S14 · S18 ~ S21) = 길 위 상자와 같은 판 — 정보줄 아래 떠서 내용 높이만큼 (아래로는 멈춘 숲이 보임), 1px 금색 선 · 반투명 남색.

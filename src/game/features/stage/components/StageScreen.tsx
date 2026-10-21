@@ -9,7 +9,7 @@
  */
 import { useRef } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
-import { canOpenMenus, canParry, canRiposte, isWalkingFast, itemLeft, walkLeftMs, type GameInput, type GameState } from '../../../core/engine';
+import { canOpenMenus, canParry, canRiposte, isWalkingFast, itemLeft, teamLock, walkLeftMs, type GameInput, type GameState } from '../../../core/engine';
 import { maxHpOf, teamHealth } from '../../../core/rules/bag';
 import { spaceInput, ultSkippable } from '../../battle/fx/parry';
 import { BALLS } from '../../../core/rules/catch';
@@ -41,7 +41,7 @@ import { ChoiceBox } from '../../result/components/ChoiceBox';
 import { ResultBox } from '../../result/components/ResultBox';
 import { CAUGHT_INTRO_H, CAUGHT_INTRO_W, caughtView, choiceView, levelUps, needsStatHint } from '../../result/model';
 import { battleStage, buildingDraw, BUILDINGS, contactX, foeTrainerView, gymEnterView, gymFrontX, gymRestX, heroX, minimapOf, staffLeftPx, type StageObject, stagePx, STAGES, visibleObjects, meetVsAt, vsStartMs, WALK_PX_PER_SEC } from '../model';
-import { BadgeCard, ClearCard, DefeatBox, FacilityBox, LobbyBox, TrainerBanner, VsCutIn, type VsArt } from './FieldBoxes';
+import { BadgeCard, ClearCard, DefeatBox, FacilityBox, HoldBox, LobbyBox, TrainerBanner, VsCutIn, type VsArt } from './FieldBoxes';
 import { GymFront } from './GymFront';
 import { StageToast } from './StageToast';
 import { Hero } from './Hero';
@@ -400,6 +400,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         {stageRt?.phase === 'result' && <ResultBox summary={stageRt.summary} next={save.pendingChoices[0]?.kind ?? null} ups={levelUps(stageRt.summary, save)} hint={needsStatHint(levelUps(stageRt.summary, save))} caught={caughtView(stageRt.summary, save)} ms={stageRt.ms} introAt={introAt(widthPx, bodyPx)} media={media} onInput={onInput} onStats={(uid) => onOpen({ kind: 'team', uid })} />}
         {choice && <ChoiceBox view={choice} media={media} scale={layout.scale} onInput={onInput} />}
         <DefeatBox state={state} media={media} onInput={onInput} />
+        <HoldBox state={state} />
         <ClearCard state={state} media={media} onInput={onInput} onMap={() => onOpen({ kind: 'map' })} onTeam={() => onOpen({ kind: 'team' })} />
         <LobbyBox state={state} media={media} onInput={onInput} onBox={() => onOpen({ kind: 'team' })} onShop={() => onOpen({ kind: 'shop' })} onMap={() => onOpen({ kind: 'map' })} />
         <BadgeCard state={state} media={media} onInput={onInput} onMap={() => onOpen({ kind: 'map' })} />
@@ -414,6 +415,12 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
           <FirstTip key="last" ms={4000} className="pg-first-tip-low" onSeen={() => onInput({ kind: 'tip-seen', id: 'last' })}>
             {/* 360px 아래는 짧게 한 줄 — 두 줄이면 잡을 상대 · 내 포켓몬을 가림 (UX 리뷰어) */}
             <span class="pg-tip-long">약해진 포켓몬에게 </span>볼을 던지면 팀이 늘어요
+          </FirstTip>
+        )}
+        {/* 체육관 첫 알림 (gdd S16 · 기획 R9 ⑤) — 3:3 을 켠 뒤 대기실에 처음 들어갈 때 3초 · 클리어 보상 · 레벨업 알림 (대기실 첫 5초) 이 끝난 뒤 (겹쳐 가리지 않게 — U1). 그 뒤로는 도전 버튼의 "3:3" 칩만 */}
+        {stageRt?.phase === 'lobby' && !stageRt.picking && !state.runtime.toast && (BALANCE.team.on || state.runtime.dev?.team === true) && !(save.tips ?? []).includes('gym-team') && (
+          <FirstTip key="gym-team" ms={3000} className="pg-first-tip-low pg-gym-tip" onSeen={() => onInput({ kind: 'tip-seen', id: 'gym-team' })}>
+            <GymTip lock={teamLock(state)} />
           </FirstTip>
         )}
         {/* 필살기 안내 = 고르는 때 · 게이지 차는 때만 (원 · 연출 중엔 원을 가려서) · 자동 전투면 안 띄움 (차자마자 저절로 써서 한 장면만 번쩍이던 것) */}
@@ -431,6 +438,24 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         ))}
       </div>
     </div>
+  );
+}
+
+/** 체육관 첫 알림 글 (gdd S16 — 문구 = 기획) · 큰 줄 + 작은 줄 (좁으면 작은 줄은 키 칸만 — 줄은 낱말 묶음 사이에서만 바뀜) · 3:3 을 못 하면 이유 + "이번엔 1:1 승부" */
+function GymTip({ lock }: { lock: 'few' | 'narrow' | null }) {
+  if (lock !== null)
+    return (
+      <>
+        <span class="pg-tip-part">{lock === 'few' ? '살아 있는 포켓몬이 3마리면 3:3 —' : '패널을 넓히면 3:3 —'}</span> <span class="pg-tip-part">이번엔 1:1 승부</span>
+      </>
+    );
+  return (
+    <>
+      <b class="pg-tip-part">관장전은 3:3 실시간 배틀!</b> <span class="pg-tip-part pg-long">포켓몬 3마리가 함께 싸운다 ·</span>{' '}
+      <span class="pg-tip-part">
+        필살기는 <KeyCap k="1" /> <KeyCap k="2" /> <KeyCap k="3" />
+      </span>
+    </>
   );
 }
 

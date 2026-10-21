@@ -275,6 +275,9 @@
         }
         if (place === 'defeat') { st.progress = 0.4724 - 1e-7; st.run.reach = 0.61; st.run.retries = Number(q.get('retries') || 0); save.lastHospital = { stageId: 'forest-1', at: 0.4724 }; stage = { phase: 'defeat', gym: false, lost: 100 }; }
         if (place === 'clear') { st.progress = 1; st.cleared = true; save.playTimeMs = 2280000; stage = { phase: 'clear' }; }
+        // keep=<트레이너 이름> — 같은 판 두 번째 3:3 패배 멈춤 상자 (R8 A, 예: keep=엘리트 트레이너 소율 · lost=1234) · place=hold&why=shiny|rival — 기다림 한 줄 (gdd 4.13 R13 ②)
+        if (place === 'defeat' && q.get('keep')) stage = { phase: 'defeat', gym: false, lost: Number(q.get('lost') || 100), keep: q.get('keep') };
+        if (place === 'hold') { st.progress = 0.35; stage = { phase: 'hold', why: q.get('why') === 'rival' ? 'rival' : 'shiny' }; }
         let stageId = save.location.screen === 'stage' ? save.location.stageId : 'forest-1';
         if (place === 'lobby' || place === 'gym-battle' || place === 'badge') {
             save.location = { screen: 'gym' };
@@ -297,6 +300,10 @@
         const kinds = q.get('pop').split(',').filter((k) => said[k]);
         runtime.stage.battle.popups = [{ id: 1, side: 'foe', text: '-12', ms: 0, kind: 'damage' }, ...kinds.map((k, i) => ({ id: 2 + i, side: 'foe', text: said[k], ms: 0, kind: k }))];
     }
+    // away=1 — VS Code 포커스 없음 (밖 — 기다림 한 줄 사진, 없으면 다음 걸음에 hold → 걷기) · 확장의 focus 알림을 흉내 (시작 알림 뒤) · shiny=1 — 전투 상대가 이로치 (밖에서 이로치 전투 멈춤)
+    // (시작 알림보다 먼저 닿으면 무시돼서 — 240 에서 가끔 안 먹던 것 — 몇 번 보냄)
+    if (q.get('away') === '1') { runtime.away = true; for (const ms of [30, 300, 800]) setTimeout(() => window.postMessage({ command: 'game', type: 'focus', focused: false }, '*'), ms); }
+    if (q.get('shiny') === '1' && runtime.stage && runtime.stage.phase === 'battle') runtime.stage.battle.foe.shiny = true;
     // bt=<ms> — 전투 시간 (0 이면 막 시작 — 볼 던지기 · 화면 닦기 사진, 2026-10-20)
     if (q.get('bt') && runtime.stage && runtime.stage.phase === 'battle') runtime.stage.battle.t = Number(q.get('bt'));
     // 개발 모드 (임시) — dev=1 이면 처음부터 개발 모드 · 타이틀의 개발 모드 줄 (title-dev) 도 흉내

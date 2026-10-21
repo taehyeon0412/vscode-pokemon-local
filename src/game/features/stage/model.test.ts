@@ -5,7 +5,7 @@ import { createGameState, type GameState } from '../../core/engine';
 import { stageLayout } from '../../core/rules/stage';
 import { STAGE_IDS } from '../../core/save';
 import { summaryLines } from '../result/model';
-import { BATTLE_STAGE_MAX_PX, battleStage, CONTACT_PX, contactX, foeTrainerView, gymEnterView, gymFrontX, heroX, minimapOf, rivalTag, STAGES, stageLabel, stagePx, stageViewKey, visibleObjects, WALK_PX_PER_SEC } from './model';
+import { BATTLE_STAGE_MAX_PX, battleStage, CONTACT_PX, contactX, foldStatus, foeTrainerView, gymEnterView, gymFrontX, heroX, minimapOf, rivalTag, STAGES, stageLabel, stagePx, stageViewKey, visibleObjects, WALK_PX_PER_SEC } from './model';
 
 function at(progress: number, stage: GameState['runtime']['stage'] = { phase: 'walk' }): GameState {
   const s = createGameState(sampleSave({ stages: { 'forest-1': { seed: 42, progress, cleared: false, defeatedTrainers: [], facilities: [], run: { startMs: 0, caught: 0, trainers: 0, seen: [], reach: 0, retries: 0 } } } }), 1);
@@ -193,5 +193,22 @@ describe('1-3 끝 체육관 들어가기 (2026-10-20 태현 님 A안)', () => {
     expect(new Set(keys).size).toBe(keys.length);
     // 같은 걸음 안에서는 안 그림 (PC 부담)
     expect(stageViewKey(g(610))).toBe(stageViewKey(g(650)));
+  });
+});
+
+describe('접힌 줄 (gdd 4.13 R13 ② — 기다리는 장면 · 자동 전투)', () => {
+  it('기다리는 장면이면 그 장면 + "▲ 올리면 이어서"', () => {
+    expect(foldStatus(at(0.35, { phase: 'hold', why: 'shiny' }))).toBe('새싹 오솔길 35% · 반짝이는 흔적에서 기다려요 · ▲ 올리면 이어서');
+    expect(foldStatus(at(0.35, { phase: 'hold', why: 'rival' }))).toContain('라이벌이 길에서 기다려요');
+    // 두 번째 3:3 패배 상자 = 직함 뺀 이름 (좁은 줄 — R8 A)
+    expect(foldStatus(at(0.47, { phase: 'defeat', gym: false, lost: 100, keep: '엘리트 트레이너 소율' }))).toBe('새싹 오솔길 47% · 소율에게 졌다 — 남은 포켓몬으로 계속 · ▲ 올리면 이어서');
+  });
+
+  it('자동 전투 꺼짐 = 접혀 있는 동안 전부 멈춤 (예전 "전투가 나오면 멈춰요" 는 틀림 — gdd 4.13)', () => {
+    const off = at(0.47);
+    const s = { ...off, save: { ...off.save, settings: { ...off.save.settings, autoBattle: false } } };
+    expect(foldStatus(s)).toBe('새싹 오솔길 47% · 자동 전투 꺼짐 — 접혀 있는 동안 멈춰 있어요 · 켜면 계속 걸어요');
+    const on = { ...off, save: { ...off.save, settings: { ...off.save.settings, autoBattle: true } } };
+    expect(foldStatus(on)).toBe('새싹 오솔길 47% · 자동 전투 켜짐 — 전투도 저절로 · ▲ 올리면 보여요');
   });
 });

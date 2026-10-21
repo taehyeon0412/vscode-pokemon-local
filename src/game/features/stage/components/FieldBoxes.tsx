@@ -5,13 +5,13 @@
  * 단축키 Enter · Esc 는 main.ts (부탁과 같은 규칙).
  */
 import type { ComponentChildren } from 'preact';
-import { useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
-import { canHeal, type GameInput, type GameState } from '../../../core/engine';
+import { canHeal, teamLock, waitReason, type GameInput, type GameState } from '../../../core/engine';
 import { defeatWaits } from '../../../core/engine/play';
 import { maxHpOf, teamHealth, teamHealthy } from '../../../core/rules/bag';
 import { FACILITY_STAFF } from '../../../core/rules/stage';
-import { GYM_LEADER, gymHint } from '../../../core/rules/trainer';
+import { GYM_LEADER, gymHint, shortTrainerName } from '../../../core/rules/trainer';
 import { speciesOf } from '../../../data';
 import type { StageId } from '../../../core/save';
 import { Button } from '../../../ui/Button';
@@ -161,10 +161,66 @@ export function TrainerBanner({ name, balls, text, tag, media, look, children }:
   );
 }
 
+/**
+ * 기다림 한 줄 (gdd 4.13 R13 ② — 밖 · 숨김에서 멈춤) · 누르면 (VS Code 로 돌아오면) 이어서.
+ * 이로치 흔적 · 라이벌 바로 앞 = 길 위 상자 자리 · 밖에서 이로치 전투가 멈춤 = 아래 가운데 (전투 위 줄 · 상대 HP · 말 칸을 가리지 않게 — 멈춘 장면에 이유가 안 보이던 것)
+ */
+export function HoldBox({ state }: { state: GameState }) {
+  const st = state.runtime.stage;
+  const why = st?.phase === 'hold' ? st.why : st?.phase === 'battle' && waitReason(state) === 'shiny' ? 'battle' : null;
+  if (!why) return null;
+  return (
+    <div class={`pg-banner pg-hold${why === 'battle' ? ' pg-hold-low' : ''}`} role="status">
+      {/* 이로치 = 길 위 흔적과 같은 반짝 (twinkle 5 × 5 는 "+" 로 읽히던 것) · 라이벌은 글만 */}
+      {why !== 'rival' && <Icon name="sparkle" />}
+      <b>{why === 'shiny' ? '반짝이는 흔적!' : why === 'battle' ? '반짝이는 포켓몬!' : '라이벌이 기다려요!'}</b>
+      <span class="pg-dim">누르면 이어서</span>
+    </div>
+  );
+}
+
+/** S17 같은 판 두 번째 3:3 패배 — 멈춤 상자 (다시 시작 없음 · Enter · 클릭 = 계속 걷기, 기획 R8 A) · 넘치면 직함을 뺀 이름 + "계속" (자르지 않음 — U4) */
+function DefeatKeep({ keep, lost, onInput }: { keep: string; lost: number; onInput(i: GameInput): void }) {
+  const box = useRef<HTMLDivElement>(null);
+  const [short, setShort] = useState(false);
+  const fit = () => {
+    const el = box.current;
+    if (el && Array.from(el.children).some((c) => c.clientWidth > 0 && c.scrollWidth > c.clientWidth)) setShort(true);
+  };
+  useLayoutEffect(() => {
+    if (!short) fit();
+  });
+  // 글꼴이 늦게 오면 (처음엔 좁은 대신 글꼴) 다시 잼 — 240 에서 "−1,2" 로 잘리던 것
+  useEffect(() => {
+    const t = setTimeout(fit, 400);
+    void document.fonts?.ready.then(fit);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <div class="pg-banner pg-defeat pg-defeat-keep pg-two" ref={box}>
+      <span class="pg-line">
+        <b>{short ? shortTrainerName(keep) : keep}에게 졌다</b>
+        {lost > 0 && (
+          <span class="pg-reward pg-loss">
+            <Icon name="coin" /> −{formatMoney(lost)}
+          </span>
+        )}
+      </span>
+      <span class="pg-line">
+        <span class="pg-dim">남은 포켓몬으로 계속</span>
+        <Button onClick={() => onInput({ kind: 'defeat-continue' })} title="Enter — 남은 포켓몬으로 계속 걸어요">
+          <KeyCap k="Enter" /> {short ? '계속' : '계속 ▶'}
+        </Button>
+      </span>
+    </div>
+  );
+}
+
 /** S17 패배 — ① 안내 · ② 다시 시작 (마지막 병원 앞 · 관장전이면 대기실) */
 export function DefeatBox({ state, onInput }: BoxProps) {
   const st = state.runtime.stage;
   if (st?.phase !== 'defeat') return null;
+  if (st.keep !== undefined) return <DefeatKeep keep={st.keep} lost={st.lost} onInput={onInput} />;
   const lh = state.save.lastHospital;
   const loc = state.save.location;
   const atHospital = loc.screen === 'stage' && lh?.stageId === loc.stageId;
@@ -284,6 +340,11 @@ export function LobbyBox({ state, media, onInput, onBox, onShop, onMap }: BoxPro
     return m ? (speciesOf(m.species)?.name.ko ?? m.form) : '';
   });
   const hintTitle = `${hint.text}${goodNames.length ? ` — 상성 좋은 내 포켓몬: ${goodNames.join(' · ')}` : ''}`;
+  // 관장전 방식 (3:3 을 켰을 때 — 3마리 · 넓이가 되면 3:3, 아니면 1:1) — 도전 버튼 작은 칩 (설명은 처음 한 번 — 체육관 첫 알림, gdd S16)
+  const teamOn = BALANCE.team.on || state.runtime.dev?.team === true;
+  const lock = teamOn ? teamLock(state) : null;
+  const mode = !teamOn ? null : lock === null ? '3:3' : '1:1';
+  const modeWhy = lock === 'few' ? '살아 있는 포켓몬이 3마리면 3:3' : lock === 'narrow' ? '패널을 넓히면 3:3' : null;
   return (
     <div class="pg-banner pg-lobby pg-two">
       <span class="pg-line">
@@ -322,8 +383,8 @@ export function LobbyBox({ state, media, onInput, onBox, onShop, onMap }: BoxPro
           <Icon name="map" />
           <span class="pg-long"> 세계 지도</span>
         </Button>
-        <Button extraClass="pg-go" onClick={() => onInput({ kind: 'challenge' })} title="② 관장 3마리와 1:1 토너먼트 (도망 불가) — Enter">
-          <KeyCap k="Enter" /> 도전 ▶
+        <Button extraClass="pg-go" onClick={() => onInput({ kind: 'challenge' })} title={mode === '3:3' ? '② 관장 3마리와 3:3 실시간 배틀 — 나갈 3마리를 고름 (Enter)' : `② 관장 3마리와 1:1 토너먼트 (도망 불가) — Enter${modeWhy ? ` · ${modeWhy}` : ''}`}>
+          <KeyCap k="Enter" /> 도전 ▶{mode && <span class={`pg-sub pg-lobby-mode${mode === '1:1' ? ' pg-dim' : ''}`}>{mode}</span>}
         </Button>
       </span>
     </div>

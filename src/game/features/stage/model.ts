@@ -3,11 +3,11 @@
  * 주인공은 제자리걸음, 배경 · 길 위의 것들이 오른쪽 → 왼쪽으로 흐름 (gdd S06 ③).
  */
 import { BALANCE, TIMING } from '../../core/balance';
-import { teamChoiceMeet, teamViewKey, type BattleState, type GameState } from '../../core/engine';
+import { teamChoiceMeet, teamViewKey, waitReason, type BattleState, type GameState } from '../../core/engine';
 import { planWild, sceneryAt, type Scenery, type WildPlan } from '../../core/rules/encounter';
 import { requestAt, type RequestTemplate } from '../../core/rules/request';
 import { stageLayout, trainerId } from '../../core/rules/stage';
-import { aliveCount, GYM_LEADER, trainerInfo, trainerNumber, trainerTeamSize, type TrainerInfo } from '../../core/rules/trainer';
+import { aliveCount, GYM_LEADER, shortTrainerName, trainerInfo, trainerNumber, trainerTeamSize, type TrainerInfo } from '../../core/rules/trainer';
 import { recordText, rivalName, rivalRecord, rivalTeamSize } from '../../core/rules/rival';
 import { heroLookOf } from '../../data/heroes';
 import type { FacilitySpot, Save, StageId } from '../../core/save';
@@ -306,6 +306,8 @@ export function stageViewKey(state: GameState): string {
     st?.phase === 'lobby' ? `${st.picking ?? ''}:${(st.pick ?? []).join(',')}` : '',
     // 체육관 들어가기: 걸음 · 문 · 들어감 · 닦기가 한 걸음 바뀔 때마다 (빠지면 장면 내내 안 그려져 서 있다가 대기실로 — 2026-10-20 연속 캡처로 찾음)
     st?.phase === 'gym-enter' ? JSON.stringify(gymEnterView(st.ms)) : '',
+    // 기다리는 이유 (밖 · 숨김 — 이로치 전투가 멈추면 걸음이 안 바뀌어 기다림 한 줄이 안 그려지던 것)
+    waitReason(state) ?? '',
     state.runtime.toast?.text ?? '',
     saveViewKey(state.save),
     pending?.kind === 'wild' ? pending.start : '',
@@ -332,11 +334,38 @@ export function meetVsAt(state: GameState): number {
 }
 
 /**
- * 접힌 줄 (150px 아래) 의 지금 상태 (2026-10-20 플레이 리뷰어 "접어 두고 코딩할 때 자동 전투가 켜졌는지 몰라 첫 전투에서 멈춤") —
- * "새싹 오솔길 47% · 자동 전투 꺼짐 — 전투가 나오면 멈춰요"
+ * 접힌 줄 (150px 아래 = 숨김) 의 지금 상태 (2026-10-20 플레이 리뷰어 "접어 두고 코딩할 때 자동 전투가 켜졌는지 몰라 첫 전투에서 멈춤") ·
+ * 기다리는 장면이면 그 장면 (gdd 4.13 R13 ② — "깊은 숲 63% · 반짝이는 흔적에서 기다려요 · ▲ 올리면 이어서") · 아니면 자동 전투 켜짐 / 꺼짐 (꺼짐 = 접혀 있는 동안 전부 멈춤)
  */
 export function foldStatus(state: GameState): string {
   const loc = state.save.location;
   const where = loc.screen === 'stage' ? `${STAGES[loc.stageId].name} ${Math.min(100, Math.floor((state.save.stages[loc.stageId]?.progress ?? 0) * 100))}%` : loc.screen === 'gym' ? '숲 체육관' : '세계 지도';
-  return `${where} · ${state.save.settings.autoBattle ? '자동 전투 켜짐 — 전투도 저절로' : '자동 전투 꺼짐 — 전투가 나오면 멈춰요'}`;
+  const wait = foldWait(state);
+  if (wait) return `${where} · ${wait} · ▲ 올리면 이어서`;
+  return state.save.settings.autoBattle ? `${where} · 자동 전투 켜짐 — 전투도 저절로 · ▲ 올리면 보여요` : `${where} · 자동 전투 꺼짐 — 접혀 있는 동안 멈춰 있어요 · 켜면 계속 걸어요`;
+}
+
+/** 숨김에서도 기다리는 장면의 한 줄 · 없으면 null — 고르기는 엔진 waitReason (gdd 4.13 표와 늘 같음, 개발팀 f2002de) + 사람이 먼저 들어간 병원 · 상점 안 (알림은 없지만 멈춰 있음) */
+export function foldWait(state: GameState): string | null {
+  const st = state.runtime.stage;
+  switch (waitReason(state)) {
+    case 'shiny':
+      return st?.phase === 'hold' ? '반짝이는 흔적에서 기다려요' : '반짝이는 포켓몬 앞에서 기다려요';
+    case 'rival':
+      return '라이벌이 길에서 기다려요';
+    case 'battle':
+      return '전투가 기다려요 — 내 차례';
+    case 'choice':
+      return '진화 · 새 기술을 고를 차례예요';
+    case 'defeat':
+      return st?.phase === 'defeat' && st.keep !== undefined ? `${shortTrainerName(st.keep)}에게 졌다 — 남은 포켓몬으로 계속` : '포켓몬들이 쓰러졌어요 — 다시 시작을 기다려요';
+    case 'clear':
+      return '스테이지를 깼어요 — 다음 스테이지를 골라요';
+    case 'gym':
+      return '체육관 대기실에서 기다려요';
+    case 'badge':
+      return '관장을 이겼어요! 배지를 받았어요';
+    default:
+      return st?.phase === 'facility' && st.inside ? `${st.kind === 'hospital' ? '병원' : '상점'} 안에서 기다려요` : null;
+  }
 }

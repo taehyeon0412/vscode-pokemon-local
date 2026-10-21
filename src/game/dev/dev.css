@@ -60,6 +60,10 @@
   top: 4px;
   bottom: auto;
 }
+/* 아래 가운데 처음 안내 (체육관 첫 알림 · 마지막 기회 · 필살기 준비 — 3 ~ 4초) 동안은 숨김 — 240 에서 안내 끝 (키 칸 · "1:1 승부") 을 덮던 것 */
+#pokemon-game:has(.pg-first-tip-low) .pg-dev-badge {
+  visibility: hidden;
+}
 
 /* S02 타이틀 맨 아래 개발 줄 — 크기만 작게 (11/500 크림 — 흐린 글 · 점선은 "못 누름" 이라 안 씀, 아트 디렉터) · 위 1px 흐린 금색 실선으로 나눔 · 빨강 "저장 안 됨" (U5) */
 #pokemon-game .pg-title-item.pg-title-dev {
