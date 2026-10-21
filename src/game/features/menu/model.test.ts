@@ -69,3 +69,10 @@ describe('세계 지도 (S07) — 지금 있는 지역 (지역 표, 디자인 UX
     expect(beach.badge).toBe(true);
   });
 });
+
+describe('대기실 추천 Lv — 그 지역 관장 에이스 (gdd 5.2)', () => {
+  it('숲 그대로 · 해변 체육관 (2번째) = 21', () => {
+    expect(lobbyView(sampleSave({ location: { screen: 'gym' } })).recommended).toBe(BALANCE.gymRecommendedLevel);
+    expect(lobbyView(sampleSave({ location: { screen: 'gym', region: 'beach' } })).recommended).toBe(21);
+  });
+});

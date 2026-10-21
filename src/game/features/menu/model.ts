@@ -5,7 +5,7 @@ import { BALANCE } from '../../core/balance';
 import { gymUnlocked, nextStageOf, stageClearExp, stageUnlocked, type GameState } from '../../core/engine';
 import { canBuyCandy, FIELD_ITEMS, fieldUseBlock, isEvolutionItem, maxHpOf, priceOf, sellPrice, SHOP_ITEMS, type ShopItem } from '../../core/rules/bag';
 import { itemName, VALUABLES } from '../../core/rules/items';
-import { isRegionLast, regionHere } from '../../core/rules/region';
+import { isRegionLast, regionAceLevel, regionHere, regionOrder } from '../../core/rules/region';
 import { expForLevel, starGrade, statsOf } from '../../core/rules/stats';
 import { ITEM_IDS, STAT_KEYS, type ItemId, type Monster, type Save, type StageId, type StatKey } from '../../core/save';
 import { typeNameKo } from '../../core/text';
@@ -291,5 +291,8 @@ export function lobbyView(save: Save): { recommended: number; average: number; s
     .sort((a, b) => b - a)
     .slice(0, BALANCE.gymTeam.length);
   const average = levels.length ? Math.round((levels.reduce((a, b) => a + b, 0) / levels.length) * 10) / 10 : 0;
-  return { recommended: BALANCE.gymRecommendedLevel, average, short: average < BALANCE.gymRecommendedLevel };
+  // 추천 Lv = 그 지역 관장 에이스 (gdd 5.2) — 숲은 그대로 (해변 미리 보기에서 15 로 나오던 것 — #50 확인)
+  const region = regionHere(save.location);
+  const recommended = region.id === 'forest' ? BALANCE.gymRecommendedLevel : regionAceLevel(regionOrder(region.id));
+  return { recommended, average, short: average < recommended };
 }
