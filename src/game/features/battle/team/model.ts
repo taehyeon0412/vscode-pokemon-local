@@ -89,7 +89,9 @@ export function teamPrompt(b: TeamBattle): TeamPrompt {
       // 막대 = 실제 창 (상대 합동 멘트면 1.5초) 대로 (U2 — 1.2초로 셈하던 것, 기획 #24) · 머릿수 = 나 1 : 상대 (쓴 포켓몬 + 모인 동료)
       const foe = 1 + (b.ult.team?.length ?? 0);
       const total = b.ult.windowMs ?? TIMING.team.interruptMs;
-      return { kind: 'join', keys: keys.map((i) => i + 1), left: Math.max(0, Math.min(1, b.ult.window / total)), me: 1, foe, sure: teamClashSure({ me: [0], foe: Array.from({ length: foe }, (_, i) => i) }), foeJoint: (b.ult.gather ?? 0) > 0 };
+      // 받아치면 짐 = 끼어들 수 있는 게 하나뿐일 때만 (둘 넘게 찼으면 힘겨루기 중에 더 끼어들어 2:3 · 3:3 이 될 수 있음 — 코드 리뷰어)
+      const sure = keys.length === 1 ? teamClashSure({ me: [0], foe: Array.from({ length: foe }, (_, i) => i) }) : null;
+      return { kind: 'join', keys: keys.map((i) => i + 1), left: Math.max(0, Math.min(1, b.ult.window / total)), me: 1, foe, sure, foeJoint: (b.ult.gather ?? 0) > 0 };
     }
   }
   if (b.phase === 'clash' && b.clash?.kind === 'ult') return { kind: 'mash', sure: teamClashSure(b.clash), me: b.clash.me.length, foe: b.clash.foe.length };

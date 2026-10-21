@@ -75,6 +75,8 @@ describe('체육관 대기실 3마리 고르기 (관장 3:3)', () => {
     s = [{ dex: 7, level: 20 }, { dex: 1, level: 20 }, { dex: 25, level: 20 }].reduce((st, m, i) => devApply(st, { kind: 'mon', slot: i + 1, ...m }).state, s);
     s = devApply(s, { kind: 'scene', scene: 'lobby' }).state;
     s = advance(s, 50).state;
+    // 도전 = 3마리 고르기 판 · 판에서 도전 = 시작 (디자인팀)
+    s = applyInput(s, { kind: 'challenge' });
     expect(teamChoiceOn(s)).toBe(true);
     // 미리 체크되지 않은 포켓몬을 넣음
     const pika = s.save.party.find((u) => !teamPickOf(s)!.includes(u))!;

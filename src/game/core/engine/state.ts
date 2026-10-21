@@ -35,8 +35,8 @@ export type StageRuntime =
   | { phase: 'appear'; ms: number; isNew: boolean }
   /** team = 3:3 으로 (고른 것 — 없으면 자동 전투 · 안 볼 때 3:3, 아니면 1:1 — 2026-10-21 orders #17) */
   /** team = 고른 방식 · pick = 3:3 을 손으로 고르면 3마리 고르기 (미리 체크된 셋에서 바꿈) · pickMs = 고르기가 열린 뒤 (늦어도 teamPickAutoMs 뒤 시작) */
-  /** vsAt = VS 를 시작한 ms (3:3 을 고를 수 있는 만남 — 고른 때 · 시간 끝, 없으면 아직 고르는 중) */
-  | { phase: 'trainer'; n: number; ms: number; team?: boolean; pick?: string[]; pickMs?: number; vsAt?: number }
+  /** vsAt = VS 를 시작한 ms (3:3 을 고를 수 있는 만남 — 고른 때 · 시간 끝, 없으면 아직 고르는 중) · ask = 고르기를 연 만남 (중간에 자동 전투를 켜면 그때 VS) */
+  | { phase: 'trainer'; n: number; ms: number; team?: boolean; pick?: string[]; pickMs?: number; vsAt?: number; ask?: true }
   /** 라이벌 깜짝 등장 (gdd 4.12) — rival = 주인공 id, "!" → 띠 → 전투 */
   | { phase: 'rival'; rival: string; ms: number }
   | { phase: 'battle'; battle: BattleState }
@@ -55,8 +55,8 @@ export type StageRuntime =
   | { phase: 'clear'; ms?: number }
   /** 1-3 끝 — 체육관 문이 열리고 걸어 들어감 (ms 동안, 그다음 클리어 처리 · S16 대기실 — 2026-10-20 태현 님 A안) */
   | { phase: 'gym-enter'; ms: number }
-  /** pick = 관장 3:3 에 나갈 3마리 (고르지 않았으면 없음 — 상성 좋은 셋) */
-  | { phase: 'lobby'; pick?: string[] }
+  /** pick = 관장 3:3 에 나갈 3마리 (고르지 않았으면 없음 — 상성 좋은 셋) · picking = 도전을 눌러 3마리 고르기 판이 열림 (Enter = 시작 · Esc = 뒤로, 디자인팀 — 판이 대기실 상자를 덮던 것) */
+  | { phase: 'lobby'; pick?: string[]; picking?: true }
   | { phase: 'badge' };
 
 export const STAGE_PHASES = ['walk', 'appear', 'trainer', 'rival', 'battle', 'team', 'request', 'hold', 'facility', 'result', 'choice', 'defeat', 'clear', 'gym-enter', 'lobby', 'badge'] as const;
@@ -169,7 +169,7 @@ function readStage(raw: unknown): StageRuntime | null {
     case 'badge':
       return { phase: raw.phase };
     case 'lobby':
-      return okPick(raw.pick) ? { phase: 'lobby', pick: raw.pick } : { phase: 'lobby' };
+      return { phase: 'lobby', ...(okPick(raw.pick) ? { pick: raw.pick } : {}), ...(raw.picking === true ? { picking: true as const } : {}) };
     case 'clear':
       return ms !== null && ms > 0 ? { phase: 'clear', ms } : { phase: 'clear' };
     case 'trainer': {
@@ -182,7 +182,9 @@ function readStage(raw: unknown): StageRuntime | null {
         ms,
         ...(typeof raw.team === 'boolean' ? { team: raw.team } : {}),
         ...(raw.team === true && okPick(raw.pick) ? { pick: raw.pick, ...(pickMs !== null ? { pickMs } : {}) } : {}),
-        ...(num(raw.vsAt, 0, 1e9) !== null ? { vsAt: raw.vsAt as number } : {}),
+        // vsAt 는 지금 ms 보다 앞이어야 (먼 미래면 만남에서 멈춤 — 코드 리뷰어)
+        ...(num(raw.vsAt, 0, ms) !== null ? { vsAt: raw.vsAt as number } : {}),
+        ...(raw.ask === true ? { ask: true as const } : {}),
       };
     }
     case 'rival':

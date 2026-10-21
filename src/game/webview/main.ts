@@ -312,7 +312,7 @@ if (!port) {
       // 트레이너 만남 3 = 3:3 (3마리 고르기를 엶 — orders #17)
       e.preventDefault();
       actions.input({ kind: 'team-mode', on: true });
-    } else if (((phase === 'trainer' && stage.pick) || (phase === 'lobby' && session.current && teamChoiceOn(session.current))) && /^Digit[1-5]$/.test(e.code) && !(e.ctrlKey || e.metaKey || e.altKey)) {
+    } else if (((phase === 'trainer' && stage.pick) || (phase === 'lobby' && stage.picking)) && /^Digit[1-5]$/.test(e.code) && !(e.ctrlKey || e.metaKey || e.altKey)) {
       // 3마리 고르기 — 1 ~ 5 = 팀 순서대로 넣고 빼기 (Enter = 시작)
       const uid = session.current?.save.party[Number(e.code.slice(5)) - 1];
       if (uid) {
@@ -339,8 +339,12 @@ if (!port) {
         else if (cur && canHeal(cur) && !teamHealthy(cur.save)) actions.input({ kind: 'heal' });
       } else if (e.key === 'Enter' && stage.kind === 'hospital' && cur && !teamHealthy(cur.save)) actions.input({ kind: 'facility-heal' });
       else actions.input({ kind: 'facility', enter: e.key === 'Enter' });
+    } else if (phase === 'lobby' && stage.picking && e.key === 'Escape') {
+      // S16 3마리 고르기 판 Esc = 뒤로 (대기실 상자)
+      e.preventDefault();
+      actions.input({ kind: 'lobby-back' });
     } else if (phase === 'lobby' && e.key === 'Enter' && !onButton) {
-      // S16 대기실 Enter = 도전 (주 버튼 — 꾹 누름 반복은 위에서 거름)
+      // S16 대기실 Enter = 도전 (주 버튼 — 꾹 누름 반복은 위에서 거름) · 3:3 이면 처음 = 3마리 고르기 판 · 판에서 = 시작
       e.preventDefault();
       actions.input({ kind: 'challenge' });
     } else if (e.key === 'Enter' && !onButton && (phase === 'defeat' || phase === 'clear' || phase === 'badge')) {

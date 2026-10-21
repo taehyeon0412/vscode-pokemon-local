@@ -42,7 +42,8 @@ export type GameInput =
   /** 3:3 — 필살기 1 · 2 · 3 · Z · 연타 (orders #17) */
   | { kind: 'team-battle'; input: TeamInput }
   /** 트레이너를 만났을 때 1:1 / 3:3 고르기 (3마리 미만이면 1:1 만) */
-  | { kind: 'team-mode'; on: boolean }
+  /** go = 1:1 버튼처럼 고르고 바로 VS (team-mode + space 두 입력으로 나뉘어 하나만 먹히면 3:3 이 시작되던 것 — 코드 리뷰어) */
+  | { kind: 'team-mode'; on: boolean; go?: boolean }
   /** 3:3 에 나갈 포켓몬 하나를 넣고 빼기 — 트레이너 만남 (3:3 을 골랐을 때) · 대기실. 셋이 차 있으면 가장 먼저 고른 것이 빠짐 */
   | { kind: 'team-pick'; uid: string }
   /** 웹뷰 패널 크기 — 3:3 배율이 바뀔 때만 (teamScale) */
@@ -93,8 +94,10 @@ export type GameInput =
   | { kind: 'defeat-continue' }
   /** S07 · S24 · S16 ③ — 스테이지 · 체육관으로 */
   | { kind: 'travel'; to: StageId | 'gym' }
-  /** S16 ② 관장에게 도전 · MVP 끝 카드 다음 */
+  /** S16 ② 관장에게 도전 · MVP 끝 카드 다음 — 3:3 이 되는 대기실은 처음 누르면 3마리 고르기 판 · 판에서 누르면 시작 */
   | { kind: 'challenge' }
+  /** S16 3마리 고르기 판 닫기 (Esc — 대기실로) */
+  | { kind: 'lobby-back' }
   | { kind: 'badge-continue' };
 
 /**
@@ -191,6 +194,7 @@ const teamOn = (rt: RuntimeState) => BALANCE.team.on || devTeam(rt.dev);
 function choiceMeet(save: Save, rt: RuntimeState): boolean {
   return teamOn(rt) && !save.settings.autoBattle && !rt.headless && save.pendingEncounter?.kind === 'trainer';
 }
+/** 엔진이 고를 때까지 기다리는 만남인지 (자동 전투 · 안 볼 때는 아님) — 화면에 고르기를 그려도 되는지는 TeamChoice 의 teamChoiceOn (자동 전투도 포함) */
 export function teamChoiceMeet(state: GameState): boolean {
   return state.runtime.stage?.phase === 'trainer' && choiceMeet(state.save, state.runtime);
 }
@@ -221,10 +225,6 @@ function fillPick(save: Save, pick: readonly string[] | undefined, foes: readonl
   return [...ok, ...rest.filter((uid) => !first.includes(uid)), ...rest.filter((uid) => first.includes(uid))].slice(0, BALANCE.team.size);
 }
 
-/**
- * 3마리 고르기 — 지금 체크된 포켓몬 (트레이너 만남에서 3:3 을 골랐을 때 · 대기실). 고를 수 없으면 null — 화면이 ●●●○○ 를 그림.
- * 처음엔 상성 좋은 셋이 체크 · 빼면 빈 채로 (시작할 때 모자라면 상성 좋은 순으로 채움)
- */
 /** 3:3 상대 셋 — 트레이너 만남 = trainerFoes · 대기실 = 관장 팀 (3마리 고르기 판이 그림 · 타입을 그림 — 기획 #24). 고를 수 없으면 null */
 export function teamFoesOf(state: GameState): Monster[] | null {
   const { save, runtime: rt } = state;
@@ -236,12 +236,16 @@ export function teamFoesOf(state: GameState): Monster[] | null {
   return prog ? trainerFoes(save, p.stageId, prog, trainerNumber(p.trainerId)) : null;
 }
 
+/**
+ * 3마리 고르기 — 지금 체크된 포켓몬 (트레이너 만남에서 3:3 을 골랐을 때 · 대기실은 도전을 눌러 판이 열렸을 때). 고를 수 없으면 null — 화면이 ●●●○○ 를 그림.
+ * 처음엔 상성 좋은 셋이 체크 · 빼면 빈 채로 (시작할 때 모자라면 상성 좋은 순으로 채움)
+ */
 export function teamPickOf(state: GameState): string[] | null {
   const { save, runtime: rt } = state;
   const stage = rt.stage;
   if (!teamOn(rt) || teamLockOf(save, rt) !== null) return null;
   const alive = (pick: readonly string[]) => pick.filter((uid) => save.party.includes(uid) && (save.monsters[uid]?.hp ?? 0) > 0);
-  if (stage?.phase === 'lobby' && inLobby(state)) return stage.pick ? alive(stage.pick) : fillPick(save, undefined, leaderTeam());
+  if (stage?.phase === 'lobby' && inLobby(state)) return !stage.picking ? null : stage.pick ? alive(stage.pick) : fillPick(save, undefined, leaderTeam());
   if (stage?.phase !== 'trainer' || !stage.pick || save.pendingEncounter?.kind !== 'trainer') return null;
   return alive(stage.pick);
 }
@@ -506,10 +510,19 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
     }
     case 'trainer': {
       const ms = stage.ms + stepMs;
-      // 3:3 을 고를 수 있는 만남 — 고를 때까지 (3마리 고르기 10초 · 늦어도 teamChoiceMs) → 고른 때 VS 2초 → 전투 (디자인팀 4안)
-      if (choiceMeet(save, rt)) {
-        let st: Extract<StageRuntime, { phase: 'trainer' }> = { ...stage, ms };
-        if (st.vsAt === undefined) {
+      const choose = choiceMeet(save, rt);
+      let st: Extract<StageRuntime, { phase: 'trainer' }> = { ...stage, ms };
+      // 3:3 을 고를 수 있는 만남 — 고를 때까지 (3마리 고르기 10초 · 늦어도 teamChoiceMs) → 고른 때 VS 2초 → 전투 (디자인팀 4안). ask = 고르기를 연 만남
+      if (st.vsAt === undefined) {
+        const oldVs = TIMING.trainerMeetMs - TIMING.vsMs;
+        if (!choose && st.ask) {
+          // 고르다가 자동 전투를 켜거나 안 보게 되면 그때 VS (예전 길로 가 VS 가 중간부터 나오던 것 — 코드 리뷰어)
+          st = { ...st, vsAt: stage.ms };
+        } else if (choose && !st.ask && stage.ms >= oldVs) {
+          // 예전 길 (자동 전투) 로 VS 가 나오던 중에 끄면 그 VS 그대로 (사라졌다 처음부터 다시 나오던 것 — 코드 리뷰어)
+          st = { ...st, vsAt: oldVs };
+        } else if (choose) {
+          st = { ...st, ask: true };
           if (st.pick !== undefined && st.team === true && teamLockOf(save, rt) === null) {
             const pickMs = (st.pickMs ?? 0) + stepMs;
             st = { ...st, pickMs, ...(pickMs >= TIMING.teamPickAutoMs ? { vsAt: ms } : {}) };
@@ -520,22 +533,10 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
           stage = st;
           break;
         }
-        if (ms < st.vsAt + TIMING.vsMs) {
-          stage = st;
-          break;
-        }
-        const p = save.pendingEncounter;
-        const n = p?.kind === 'trainer' ? trainerNumber(p.trainerId) : 0;
-        stage = useTeam(save, rt, st.team) ? { phase: 'team', team: trainerTeamBattle(save, id, prog, n, st.pick) } : { phase: 'battle', battle: trainerBattle(save, id, prog, n) };
-        break;
       }
-      // 3:3 을 손으로 골랐으면 3마리 고르기 — Enter 까지 기다림, 늦어도 teamPickAutoMs 뒤 (안 볼 때 · 자동 전투는 안 기다림 — gdd 4.7 "자동 전투면 멈추지 않고")
-      // 고르는 중에 패널이 좁아져 3:3 이 잠기면 기다리지 않음 (고르기가 사라졌는데 10초를 기다린 뒤 1:1 로 시작하던 것 — 코드 리뷰어)
-      const picking = stage.pick !== undefined && stage.team === true && !rt.headless && !save.settings.autoBattle && teamLockOf(save, rt) === null;
-      // 10초는 VS 가 끝난 뒤 (고르기 줄이 보일 때) 부터 (UX 리뷰어 — VS 를 가리지 않게 고르기는 VS 뒤)
-      const pickMs = picking ? (stage.pickMs ?? 0) + (stage.ms >= TIMING.trainerMeetMs ? stepMs : 0) : 0;
-      if (ms < TIMING.trainerMeetMs || (picking && pickMs < TIMING.teamPickAutoMs)) {
-        stage = { ...stage, ms: Math.min(ms, TIMING.trainerMeetMs), ...(picking ? { pickMs } : {}) };
+      // VS 를 시작했으면 2초 뒤 전투 · 예전 길 (3:3 꺼짐 · 자동 전투 · 안 볼 때) 은 만남 4초 (고르지 않음 — 마지막으로 고른 방식)
+      if (st.vsAt !== undefined ? ms < st.vsAt + TIMING.vsMs : ms < TIMING.trainerMeetMs) {
+        stage = st;
         break;
       }
       const p = save.pendingEncounter;
@@ -1001,14 +1002,14 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       // 체육관 들어가기 — 바로 대기실로 (다음 걸음에 클리어 처리)
       if (stage?.phase === 'gym-enter') return stage.ms >= TIMING.gymEnterMs ? state : { ...state, runtime: { ...state.runtime, stage: { ...stage, ms: TIMING.gymEnterMs } } };
       // 트레이너 · 라이벌 만남 — "!" 가 지난 뒤 Space · 클릭 = 바로 전투 (2026-10-20 태현 님 "2초 정도 두고 클릭하면 바로 넘어가게")
-      if (stage?.phase === 'trainer' && stage.ms >= TIMING.trainerAlertMs && choiceMeet(save, state.runtime)) {
+      if (stage?.phase === 'trainer' && stage.ms >= TIMING.trainerAlertMs && (choiceMeet(save, state.runtime) || stage.vsAt !== undefined)) {
+        // 고르는 중 = 지금 방식으로 VS · VS 중 = 바로 전투 (VS 는 1초는 보임 — 더블클릭 · 버튼 뒤 한 번 더 누름에 한 장면 만에 끝나던 것, U1 · 코드 리뷰어)
+        if (stage.vsAt !== undefined && stage.ms < stage.vsAt + TIMING.vsSkipAfterMs) return state;
         const st = stage.vsAt === undefined ? { ...stage, vsAt: stage.ms } : { ...stage, ms: Math.max(stage.ms, stage.vsAt + TIMING.vsMs) };
         return { ...state, runtime: { ...state.runtime, stage: st } };
       }
       if ((stage?.phase === 'trainer' || stage?.phase === 'rival') && stage.ms >= TIMING.trainerAlertMs) {
         const end = stage.phase === 'rival' ? TIMING.rivalMeetMs : TIMING.trainerMeetMs;
-        // 3마리 고르기 중이면 Enter · Space = 체크된 셋으로 바로 시작
-        if (stage.phase === 'trainer' && stage.pick) return { ...state, runtime: { ...state.runtime, stage: { ...stage, ms: end, pickMs: TIMING.teamPickAutoMs } } };
         return stage.ms >= end ? state : { ...state, runtime: { ...state.runtime, stage: { ...stage, ms: end } } };
       }
       // 야생이 튀어나온 순간은 아무 일 없음 (선제공격은 스피드로, 2026-10-21)
@@ -1022,16 +1023,19 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       return team === stage.team ? state : { ...state, runtime: { ...state.runtime, rngState: rng.state, stage: { phase: 'team', team } } };
     }
     case 'team-mode': {
-      if (stage?.phase !== 'trainer' || stage.vsAt !== undefined || !teamOn(state.runtime) || (input.on && teamLock(state) !== null) || stage.team === input.on) return state;
+      const goNow = input.go === true && !input.on && stage?.phase === 'trainer' && stage.ms >= TIMING.trainerAlertMs && choiceMeet(save, state.runtime);
+      if (stage?.phase !== 'trainer' || stage.vsAt !== undefined || !teamOn(state.runtime) || (input.on && teamLock(state) !== null) || (stage.team === input.on && !goNow)) return state;
       // 고른 방식을 기억 — 다음 트레이너 (자동 전투 · 안 볼 때 포함) 는 이걸로. 3:3 이면 3마리 고르기를 염 (상성 좋은 셋이 미리 체크 — gdd 4.7)
       const id = state.runtime.stageId;
       const prog = id ? save.stages[id] : undefined;
       const pick = input.on && id && prog ? fillPick(save, undefined, trainerFoes(save, id, prog, stage.n)) : undefined;
       const { pick: _p, pickMs: _m, ...rest } = stage;
-      return { save: { ...save, settings: { ...save.settings, teamMode: input.on } }, runtime: { ...state.runtime, stage: { ...rest, team: input.on, ...(pick ? { pick, pickMs: 0 } : {}) } } };
+      return { save: { ...save, settings: { ...save.settings, teamMode: input.on } }, runtime: { ...state.runtime, stage: { ...rest, team: input.on, ...(pick ? { pick, pickMs: 0 } : {}), ...(goNow ? { vsAt: stage.ms } : {}) } } };
     }
     case 'team-pick': {
       const cur = teamPickOf(state);
+      // 대기실은 3마리 고르기 판이 열렸을 때만 (teamPickOf 가 null) · 트레이너는 VS 전에만 (VS 동안 숫자로 보이지 않게 셋이 바뀌던 것 — 코드 리뷰어)
+      if (stage?.phase === 'trainer' && stage.vsAt !== undefined) return state;
       if (!cur || !save.party.includes(input.uid) || (save.monsters[input.uid]?.hp ?? 0) <= 0 || (stage?.phase !== 'trainer' && stage?.phase !== 'lobby')) return state;
       const pick = cur.includes(input.uid) ? cur.filter((u) => u !== input.uid) : [...cur, input.uid].slice(-BALANCE.team.size);
       return { ...state, runtime: { ...state.runtime, stage: { ...stage, pick } } };
@@ -1219,10 +1223,19 @@ export function applyInput(state: GameState, input: GameInput): GameState {
     case 'challenge': {
       if (!inLobby(state) || !firstAlive(save)) return state;
       const next: Save = { ...save, pendingEncounter: { kind: 'gym-leader' } };
+      // 3:3 이 되면 처음 누를 때 3마리 고르기 판 (상성 좋은 셋 미리 체크) — 판에서 한 번 더 = 시작 (트레이너 만남과 같은 흐름 · 저절로 시작 없음, 디자인팀). 자동 전투는 고르지 않음
+      if (stage?.phase === 'lobby' && !stage.picking && !save.settings.autoBattle && useTeam(next, state.runtime, true)) {
+        return { ...state, runtime: { ...state.runtime, stage: { ...stage, picking: true, pick: fillPick(save, stage.pick, leaderTeam()) } } };
+      }
       // 관장전 = 3:3 (못 하면 1:1 토너먼트 — orders #17)
       const pick = stage?.phase === 'lobby' ? stage.pick : undefined;
       const stageNow: StageRuntime = useTeam(next, state.runtime, true) ? { phase: 'team', team: leaderTeamBattle(next, pick) } : { phase: 'battle', battle: leaderBattle(next) };
       return { save: next, runtime: { ...state.runtime, stage: stageNow } };
+    }
+    case 'lobby-back': {
+      if (stage?.phase !== 'lobby' || !stage.picking) return state;
+      const { picking: _k, ...rest } = stage;
+      return { ...state, runtime: { ...state.runtime, stage: rest } };
     }
     case 'badge-continue':
       if (stage?.phase !== 'badge') return state;

@@ -302,6 +302,8 @@ export function stageViewKey(state: GameState): string {
     // 3:3 고르기 막대 (만남 4초 · 3마리 고르기 10초) — 0.25초마다 (빠지면 막대가 꽉 찬 채 멈춰 있다 갑자기 줄었음 — 코드 리뷰어, 다시 그리는 열쇠 세 번째)
     st?.phase === 'trainer' && teamChoiceOn(state) ? `${Math.floor(st.ms / 250)}:${Math.floor((st.pickMs ?? 0) / 250)}` : '',
     st?.phase === 'rival' ? `${st.rival}:${st.ms >= TIMING.trainerAlertMs}:${st.ms >= vsStartMs('rival')}` : '',
+    // 대기실 3마리 고르기 판 · 고른 셋
+    st?.phase === 'lobby' ? `${st.picking ?? ''}:${(st.pick ?? []).join(',')}` : '',
     // 체육관 들어가기: 걸음 · 문 · 들어감 · 닦기가 한 걸음 바뀔 때마다 (빠지면 장면 내내 안 그려져 서 있다가 대기실로 — 2026-10-20 연속 캡처로 찾음)
     st?.phase === 'gym-enter' ? JSON.stringify(gymEnterView(st.ms)) : '',
     state.runtime.toast?.text ?? '',
@@ -321,8 +323,12 @@ export function vsStartMs(phase: 'trainer' | 'rival'): number {
 /** 지금 만남의 VS 시작 ms — 3:3 을 고를 수 있는 만남은 고른 때 (stage.vsAt, 아직이면 Infinity), 그 밖은 만남 끝 2초 전 */
 export function meetVsAt(state: GameState): number {
   const st = state.runtime.stage;
-  if (st?.phase === 'trainer' && teamChoiceMeet(state)) return st.vsAt ?? Infinity;
-  return vsStartMs(st?.phase === 'rival' ? 'rival' : 'trainer');
+  if (st?.phase !== 'trainer') return vsStartMs(st?.phase === 'rival' ? 'rival' : 'trainer');
+  if (st.vsAt !== undefined) return st.vsAt;
+  const old = vsStartMs('trainer');
+  // 고르는 중 (VS 아직) — 예전 길 VS 가 나오던 중에 자동 전투를 끄면 그 VS 그대로 (엔진이 다음 걸음에 vsAt = old)
+  if (st.ask || teamChoiceMeet(state)) return !st.ask && st.ms >= old ? old : Infinity;
+  return old;
 }
 
 /**

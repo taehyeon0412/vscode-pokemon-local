@@ -166,7 +166,8 @@ describe('연결 — 트레이너 만남 · 관장전 (BALANCE.team.on 이 켜�
   };
   const meet = (save: Save, team?: boolean): GameState => {
     const s = createGameState({ ...save, pendingEncounter: { kind: 'trainer', trainerId: 'forest-1:t0', stageId: 'forest-1' } }, 3);
-    return { ...s, runtime: { ...s.runtime, stage: { phase: 'trainer', n: 0, ms: TIMING.trainerMeetMs - STEP, ...(team === undefined ? {} : { team }) }, stageId: 'forest-1' } };
+    // ask = 고르기를 연 만남 (자동 전투가 아니면 — ask 없이 ms 3950 이면 자동 전투 VS 가 나오던 중에 끈 것으로 봄)
+    return { ...s, runtime: { ...s.runtime, stage: { phase: 'trainer', n: 0, ms: TIMING.trainerMeetMs - STEP, ...(save.settings.autoBattle ? {} : { ask: true as const }), ...(team === undefined ? {} : { team }) }, stageId: 'forest-1' } };
   };
   // 3:3 을 고를 수 있는 만남은 고른 때 (시간 끝 · Space) VS 2초 뒤 전투 — 그만큼 걸어 봄
   const phaseAfter = (s: GameState) => {
@@ -266,9 +267,21 @@ describe('연결 — 트레이너 만남 · 관장전 (BALANCE.team.on 이 켜�
         const s = createGameState({ ...save, location: { screen: 'gym' } }, 3);
         return { ...s, runtime: { ...s.runtime, stage: { phase: 'lobby' }, stageId: null } };
       };
-      expect(applyInput(lobby(team3()), { kind: 'challenge' }).runtime.stage?.phase).toBe('team');
+      // 도전 = 3마리 고르기 판 (picking) → 판에서 도전 = 시작 · Esc (lobby-back) = 대기실로 (디자인팀 — 판이 대기실 상자를 덮던 것)
+      const open = applyInput(lobby(team3()), { kind: 'challenge' });
+      expect(open.runtime.stage).toMatchObject({ phase: 'lobby', picking: true });
+      expect(open.runtime.stage?.phase === 'lobby' && open.runtime.stage.pick).toHaveLength(3);
+      expect(teamPickOf(lobby(team3()))).toBeNull();
+      const closed = applyInput(open, { kind: 'lobby-back' });
+      expect(closed.runtime.stage).toEqual({ phase: 'lobby', pick: open.runtime.stage?.phase === 'lobby' ? open.runtime.stage.pick : [] });
+      expect(applyInput(closed, { kind: 'team-pick', uid: 'm1' })).toBe(closed);
+      expect(applyInput(open, { kind: 'challenge' }).runtime.stage?.phase).toBe('team');
+      // 저절로 시작 없음
+      expect(step(open, 60_000).state.runtime.stage).toMatchObject({ phase: 'lobby', picking: true });
+      // 자동 전투 · 3마리 미만은 고르지 않고 바로
+      expect(applyInput(lobby(auto(team3())), { kind: 'challenge' }).runtime.stage?.phase).toBe('team');
       expect(applyInput(lobby(sampleSave()), { kind: 'challenge' }).runtime.stage?.phase).toBe('battle');
-      const g = applyInput(lobby(team3()), { kind: 'challenge' });
+      const g = applyInput(open, { kind: 'challenge' });
       expect(step(g, STEP).state.runtime.stage?.phase).toBe('team');
       // 껐다 켜도 관장전은 3:3
       const back = createGameState({ ...g.save, pendingEncounter: { kind: 'gym-leader' } }, 3);
@@ -514,11 +527,55 @@ describe('#17 준비 — 배율 · 잠금 · 3마리 고르기 · 필살기 예�
     }
   });
 
+  it('만남 중에 바뀌어도 VS 가 튀지 않음 · VS 뒤엔 셋을 못 바꿈 · VS 1초는 보임 · 1:1 은 한 입력 · 이상한 vsAt 무시 (코드 리뷰어 29b90b4)', () => {
+    setOn(true);
+    try {
+      const vsAtOf = (s: GameState) => (s.runtime.stage?.phase === 'trainer' ? s.runtime.stage.vsAt : -1);
+      const autoOn = (s: GameState, on: boolean) => applyInput(s, { kind: 'auto-battle', on });
+      // 고르다가 (3초) 자동 전투를 켜면 그때 VS → 2초 뒤 전투 (예전 길로 가 VS 가 중간부터 나오던 것)
+      const at3 = steps(meet(five()), 2200);
+      expect(vsAtOf(at3)).toBeUndefined();
+      const on = step(autoOn(at3, true), STEP).state;
+      expect(vsAtOf(on)).toBe(at3.runtime.stage?.phase === 'trainer' ? at3.runtime.stage.ms : -1);
+      expect(steps(on, TIMING.vsMs - STEP * 2).runtime.stage?.phase).toBe('trainer');
+      expect(steps(on, TIMING.vsMs + STEP).runtime.stage?.phase).toBe('battle');
+      // 자동 전투 (예전 길) VS 가 나오던 중 (3초) 에 끄면 그 VS 그대로 (vsAt = 2초) — 사라졌다 다시 나오지 않음
+      const autoMeet = steps(meet({ ...five(), settings: { ...five().settings, autoBattle: true } }), 2200);
+      expect(vsAtOf(autoMeet)).toBeUndefined();
+      const off = step(autoOn(autoMeet, false), STEP).state;
+      expect(vsAtOf(off)).toBe(TIMING.trainerMeetMs - TIMING.vsMs);
+      expect(steps(off, 1000).runtime.stage?.phase).toBe('battle');
+      // VS 뒤에는 1 ~ 5 로 셋을 못 바꿈
+      const held = applyInput(meet(five()), { kind: 'team-mode', on: true });
+      const vs = applyInput(held, { kind: 'space' });
+      expect(vsAtOf(vs)).toBe(TIMING.trainerAlertMs);
+      expect(applyInput(vs, { kind: 'team-pick', uid: 'm4' })).toBe(vs);
+      // VS 1초 안의 넘기기는 무시 (더블클릭) · 1초 뒤엔 바로 전투
+      expect(applyInput(vs, { kind: 'space' })).toBe(vs);
+      const later = steps(vs, TIMING.vsSkipAfterMs);
+      expect(steps(applyInput(later, { kind: 'space' }), STEP).runtime.stage?.phase).toBe('team');
+      // 1:1 버튼 = 한 입력 (team-mode go) — 지난번 3:3 이었어도 1:1 로 VS
+      const remembered = { ...five(), settings: { ...five().settings, teamMode: true } };
+      const one = applyInput(meet(remembered), { kind: 'team-mode', on: false, go: true });
+      expect(one.runtime.stage).toMatchObject({ phase: 'trainer', team: false, vsAt: TIMING.trainerAlertMs });
+      expect(steps(one, TIMING.vsMs + STEP).runtime.stage?.phase).toBe('battle');
+      const plain = applyInput(meet(five()), { kind: 'team-mode', on: false, go: true });
+      expect(vsAtOf(plain)).toBe(TIMING.trainerAlertMs);
+      // 다시 읽기 — vsAt 가 지금보다 뒤면 버림 (만남에서 멈추지 않게)
+      expect(readRuntime({ stage: { phase: 'trainer', n: 0, ms: 3000, vsAt: 999_999_999 } }, 1).stage).toEqual({ phase: 'trainer', n: 0, ms: 3000 });
+      expect(readRuntime({ stage: { phase: 'trainer', n: 0, ms: 3000, vsAt: 2000, ask: true } }, 1).stage).toEqual({ phase: 'trainer', n: 0, ms: 3000, vsAt: 2000, ask: true });
+    } finally {
+      setOn(false);
+    }
+  });
+
   it('대기실 고르기 — 처음엔 상성 좋은 셋 · 바꾼 셋으로 관장 3:3', () => {
     setOn(true);
     try {
       const base = createGameState({ ...five(), location: { screen: 'gym' } }, 3);
-      const lobby = { ...base, runtime: { ...base.runtime, stage: { phase: 'lobby' as const }, stageId: null } };
+      const closed = { ...base, runtime: { ...base.runtime, stage: { phase: 'lobby' as const }, stageId: null } };
+      // 도전 = 판이 열림 (상성 좋은 셋 미리 체크)
+      const lobby = applyInput(closed, { kind: 'challenge' });
       const first = teamPickOf(lobby)!;
       expect(first).toHaveLength(3);
       const other = ['m1', 'm2', 'm3', 'm4', 'm5'].find((u) => !first.includes(u))!;

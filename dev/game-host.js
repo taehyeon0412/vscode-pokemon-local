@@ -246,6 +246,11 @@
             if (q.get('tphase')) tb.phase = q.get('tphase');
             if (q.get('tphase') === 'over') tb.result = 'win';
             if (q.get('tphase') === 'run') Object.assign(tb, { me: { ...tb.me, gauge: 0 }, foe: { ...tb.foe, gauge: 0 } });
+            // tult=1 — 내 필살기로 상대를 쓰러뜨리는 중 (쓰러진 뒤 다음 볼까지 박자 시험, fx=1 · me=<모습>:<도감 번호> 와 같이 — 예 me=charizard:6)
+            if (q.get('tult') === '1') {
+                const [tmf, tms] = (q.get('me') || '').split(':');
+                Object.assign(tb, { phase: 'anim', me: { ...tb.me, ult: 0, ...(tmf ? { form: tmf, species: Number(tms) || tb.me.species } : {}) }, foe: { ...tb.foe, hp: 1 }, anim: { side: 'me', action: { kind: 'ult' }, ms: 0, dur: Number(q.get('dur') || 20000), counter: false }, msg: '필살기!', ultAt: { me: 5000, foe: null } });
+            }
             stage = place === 'trainer' ? { phase: 'trainer', n: 0, ms: Number(q.get('ms') || 1200) } : { phase: 'battle', battle: tb };
         }
         if (place && place.startsWith('rival')) {
