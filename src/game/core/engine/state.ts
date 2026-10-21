@@ -79,6 +79,8 @@ export interface Toast {
   ms: number;
   /** 이 알림이 끝나면 이어서 띄울 글 (TIMING.toastMs) — 긴 알림을 둘로 나눠 차례로 (2026-10-21 1-3 클리어) · 여럿이면 줄 (앞 것을 덮지 않음 — 주운 것이 요약 둘째 장을 덮던 것, UX 리뷰어) */
   then?: string | string[];
+  /** 이어 띄울 알림의 길이 (없으면 TIMING.toastMs) — 그동안 요약 둘째 장도 첫 장과 같게 (3초) */
+  thenMs?: number;
   /** 알림 종류 — 'auto-tip' = 자동 전투 첫 안내 (R12, 화면이 자동 스위치 옆에 둠). 없으면 머리 위 보통 알림 */
   kind?: 'auto-tip';
   /** 자동 전투 안내를 이미 셈 (화면이 그렸다고 알림 — tip-seen auto 는 안내 하나에 한 번) */
@@ -280,7 +282,7 @@ export function readRuntime(raw: unknown, fallbackSeed: number, stepMs: number =
   const acc = r.stepAccMs;
   const toast =
     isObj(r.toast) && typeof r.toast.text === 'string' && num(r.toast.ms, 0, 60_000) !== null
-      ? { text: r.toast.text.slice(0, 300), ms: r.toast.ms as number, ...readThen(r.toast.then), ...(r.toast.kind === 'auto-tip' ? { kind: 'auto-tip' as const, ...(r.toast.counted === true ? { counted: true as const } : {}) } : {}) }
+      ? { text: r.toast.text.slice(0, 300), ms: r.toast.ms as number, ...readThen(r.toast.then), ...(num(r.toast.thenMs, 500, 60_000) !== null ? { thenMs: r.toast.thenMs as number } : {}), ...(r.toast.kind === 'auto-tip' ? { kind: 'auto-tip' as const, ...(r.toast.counted === true ? { counted: true as const } : {}) } : {}) }
       : null;
   return {
     rngState: typeof rng === 'number' && Number.isInteger(rng) && rng >= 0 && rng <= 0xffffffff ? rng : fallbackSeed >>> 0,

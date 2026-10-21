@@ -156,7 +156,9 @@ describe('#16 자리 비운 동안 요약', () => {
     // 안 보는 동안 생긴 알림은 요약이 대신 (네 장 10초 — UX 리뷰어)
     const stale = step({ ...back, runtime: { ...back.runtime, toast: { text: '1-3 클리어!', ms: 2500, then: '이상해씨 Lv 6!' } } }, STEP).state;
     expect(sp(stale.runtime.toast?.text)).toContain('그동안');
-    expect(TIMING.awaySummaryMs).toBe(2500);
+    // 둘째 장도 3초 (2026-10-22 태현 님 "추천은 다 해주고")
+    expect(TIMING.awaySummaryMs).toBe(3000);
+    expect(later.runtime.toast?.ms).toBeGreaterThan(TIMING.awaySummaryMs - 300);
     expect(TIMING.toastMs).toBe(2500);
     expect(TIMING.awaySummaryMs).toBeGreaterThanOrEqual(1000);
     expect(shown.runtime.awayLog).toBeUndefined();

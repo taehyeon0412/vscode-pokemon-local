@@ -972,7 +972,7 @@ function nextToast(t: NonNullable<RuntimeState['toast']>): RuntimeState['toast']
   const q = t.then === undefined ? [] : Array.isArray(t.then) ? t.then : [t.then];
   if (q.length === 0) return null;
   const rest = q.slice(1);
-  return { text: q[0]!, ms: TIMING.toastMs, ...(rest.length ? { then: rest.length === 1 ? rest[0]! : rest } : {}) };
+  return { text: q[0]!, ms: t.thenMs ?? TIMING.toastMs, ...(rest.length ? { then: rest.length === 1 ? rest[0]! : rest, ...(t.thenMs ? { thenMs: t.thenMs } : {}) } : {}) };
 }
 
 /** 알림 줄 세우기 — 떠 있는 알림이 있으면 그 뒤에 (덮지 않음, U1 · 최대 4) */
@@ -1550,9 +1550,10 @@ function awayStep(before: GameState, save: Save, rt: RuntimeState, signal: SaveS
   if (!first) return { ...rest, toast: rt.toast };
   if (kept) {
     const q = queueToast({ ...rest, toast: kept }, first);
-    return second ? queueToast(q, second) : q;
+    const both = second ? queueToast(q, second) : q;
+    return both.toast ? { ...both, toast: { ...both.toast, thenMs: TIMING.awaySummaryMs } } : both;
   }
-  return { ...rest, toast: { text: first, ms: TIMING.awaySummaryMs, ...(second ? { then: second } : {}) } };
+  return { ...rest, toast: { text: first, ms: TIMING.awaySummaryMs, ...(second ? { then: second, thenMs: TIMING.awaySummaryMs } : {}) } };
 }
 
 /** 떠날 때 — 돈 · 가방 · 자리 · 레벨 · 포인트 (그동안 요약의 기준) */
