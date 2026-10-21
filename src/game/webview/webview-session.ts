@@ -4,6 +4,7 @@
  */
 import { TIMING } from '../core/balance';
 import { advance, applyInput, clampFrameDelta, type GameInput, type GameState } from '../core/engine';
+import { dayKey } from '../core/rules/daily';
 import { SAVE_VERSION, type Save } from '../core/save';
 import { GAME_COMMAND, type HostToWebview, type SaveReason, type TitleInfo, type WebviewToHost } from '../shared/messages';
 
@@ -162,6 +163,9 @@ export class WebviewSession {
       this.sendIfDue();
       return;
     }
+    // 내 PC 날짜 — 오늘의 목표 (U13, 엔진은 시계를 모름) · 걸음을 계산할 때만 (연출을 기다리는 동안은 상태를 안 바꿈)
+    const today = dayKey(new Date());
+    if (this.state.runtime.today !== today) this.state = { ...this.state, runtime: { ...this.state.runtime, today } };
     const r = advance(this.state, dt);
     this.state = r.state;
     if (r.steps > 0) this.dirty = true;

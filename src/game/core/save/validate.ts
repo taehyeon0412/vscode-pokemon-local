@@ -6,8 +6,8 @@
  */
 import { BALANCE } from '../balance';
 import {
-  ENCOUNTER_STARTS, isTipId, ITEM_IDS, LOCATION_SCREENS, NOTIFY_OFF_TIP, SAVE_VERSION, STAGE_IDS, STAT_KEYS, STATUS_KINDS, TIPS_MAX,
-  type Encounter, type FacilitySpot, type ItemId, type LastHospital, type Location, type Monster,
+  DAILY_KINDS, ENCOUNTER_STARTS, isTipId, ITEM_IDS, LOCATION_SCREENS, NOTIFY_OFF_TIP, SAVE_VERSION, STAGE_IDS, STAT_KEYS, STATUS_KINDS, TIPS_MAX,
+  type DailyGoal, type DailyKind, type Encounter, type FacilitySpot, type ItemId, type LastHospital, type Location, type Monster,
   type MoveSlot, type PendingChoice, type Save, type StageId, type StageProgress, type StageRun, type Stats, type StatusCondition,
 } from './schema';
 import { evolutionsOf, moveOf, speciesOf } from '../../data';
@@ -25,6 +25,7 @@ const MAX_SLEEP_TURNS = 3;
 const KNOWN_KEYS: readonly (keyof Save)[] = [
   'version', 'createdAt', 'updatedAt', 'playTimeMs', 'player', 'monsters', 'party', 'box', 'nextMonsterUid',
   'bag', 'money', 'badges', 'stages', 'location', 'lastHospital', 'dex', 'pendingEncounter', 'pendingChoices', 'settings', 'rivals', 'laterChoices', 'tips',
+  'daily', 'records',
 ];
 
 /** 클리어 카드에 보일 새로 만난 포켓몬 수 */
@@ -310,6 +311,46 @@ function readTips(v: unknown, path: string, fx: Fixer): string[] {
   return out;
 }
 
+/** 오늘의 목표 — 모르는 종류 · 이상한 수는 뺌 · 날짜가 이상하면 통째로 뺌 (다음에 쓸 때 새로 만듦, 칸이 없으면 부르지 않음) */
+function readDaily(v: unknown, path: string, fx: Fixer): Save['daily'] {
+  if (!isObj(v) || typeof v.day !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v.day) || !Array.isArray(v.goals)) {
+    fx.note(path, '오늘의 목표를 못 읽음 → 뺌 (다음에 새로)');
+    return undefined;
+  }
+  const goals: DailyGoal[] = [];
+  for (const g of v.goals.slice(0, 3)) {
+    if (!isObj(g) || !(DAILY_KINDS as readonly unknown[]).includes(g.kind) || !isItemId(g.reward)) {
+      fx.note(path, '모르는 목표 → 뺌');
+      continue;
+    }
+    const need = fx.int(g.need, `${path}.need`, 1, 100, 1);
+    const have = fx.int(g.have, `${path}.have`, 0, need, 0);
+    goals.push({
+      kind: g.kind as DailyKind,
+      need,
+      have,
+      ...(typeof g.type === 'string' && g.type.length <= 12 ? { type: g.type } : {}),
+      reward: g.reward,
+      rewardN: fx.int(g.rewardN, `${path}.rewardN`, 1, 10, 1),
+      ...(g.done === true ? { done: true as const } : {}),
+    });
+  }
+  return { day: v.day, goals, ...(v.bonus === true ? { bonus: true as const } : {}) };
+}
+
+function readDailyField(v: unknown, fx: Fixer): Pick<Save, 'daily'> {
+  const d = readDaily(v, 'daily', fx);
+  return d ? { daily: d } : {};
+}
+
+/** 기록 — 이상한 수는 0 (칸이 없으면 부르지 않음) */
+function readRecords(v: unknown, path: string, fx: Fixer): NonNullable<Save['records']> {
+  const r = isObj(v) ? v : {};
+  if (!isObj(v)) fx.note(path, '객체가 아님 → 0');
+  const walked = typeof r.walked === 'number' && Number.isFinite(r.walked) && r.walked >= 0 && r.walked <= 1e6 ? r.walked : 0;
+  return { wins: fx.int(r.wins, `${path}.wins`, 0, 1e9, 0), catches: fx.int(r.catches, `${path}.catches`, 0, 1e9, 0), walked };
+}
+
 /** 라이벌 전적 — 모르는 라이벌 · 이상한 수는 뺌 (칸이 없으면 부르지 않음) */
 function readRivals(v: unknown, path: string, fx: Fixer): NonNullable<Save['rivals']> {
   if (!isObj(v)) {
@@ -555,6 +596,8 @@ export function validateSave(raw: unknown): ValidateResult {
     // 쌓아 둔 기술 고르기 — 새 기술 (learn) 만 · 최대 수 (없는 포켓몬 · 모르는 기술은 readChoices 가 뺌)
     ...(raw.laterChoices === undefined ? {} : { laterChoices: readChoices(raw.laterChoices, 'laterChoices', fx, monsters, renamed).filter((c) => c.kind === 'learn').slice(-BALANCE.laterChoicesMax) }),
     tips: notifyMoved ? tipsRead : [NOTIFY_OFF_TIP, ...tipsRead].slice(0, TIPS_MAX),
+    ...(raw.daily === undefined ? {} : readDailyField(raw.daily, fx)),
+    ...(raw.records === undefined ? {} : { records: readRecords(raw.records, 'records', fx) }),
   };
   return { ok: true, save, problems: fx.problems };
 }

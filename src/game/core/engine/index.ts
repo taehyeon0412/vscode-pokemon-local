@@ -17,6 +17,7 @@ export {
   teamChoiceMeet,
   teamMainOf,
   teamMeetTipDue,
+  dailyView,
   resumeLine,
   RESUME_BATTLE_MSG,
   TEAM_MEET_TIP,

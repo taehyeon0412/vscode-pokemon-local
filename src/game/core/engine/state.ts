@@ -105,6 +105,8 @@ export interface RuntimeState {
   away?: boolean;
   /** 확장이 안 볼 때 계산하는 동안 바뀐 것 — 다시 보면 "그동안: …" 한 줄 (2026-10-21 ideas #16). 안 볼 때 처음 걸음에 생기고 한 줄을 띄우면 지움 */
   awayLog?: AwayLog;
+  /** 내 PC 날짜 "2026-10-22" — 웹뷰 · 확장이 걸음 전에 넣음 (엔진은 시계를 모름). 오늘의 목표가 날마다 바뀜 (U13) */
+  today?: string;
   /** 밖 · 숨김에서 이미 알린 기다림 (gdd 4.13 — 같은 기다림은 안 보는 동안 한 번) · 보는 중이면 지움 */
   noticed?: GameNotice;
   /** "다시 켜서 전투를 처음부터!" 남은 ms — 세이브의 전투를 처음부터 다시 만든 때 (껐다 켬 · 이어 하기, R15). 말 칸 (msg) 과 따로 — 선제 · 기습 · 관장 · 3:3 · 좁은 패널에서 0 장면이던 것 (UX 리뷰어). 보는 동안만 줄어듦 */
@@ -134,6 +136,8 @@ export interface AwayLog {
   points?: number;
   /** 떠날 때 떠 있던 알림 글 — 돌아와서도 그 알림이면 남기고 요약을 뒤에 (안 보는 동안 생긴 알림만 요약이 대신) */
   toastAtLeave?: string;
+  /** 떠날 때 끝낸 오늘의 목표 수 — 안 보는 동안 끝냈으면 요약에 한 줄 (U13) */
+  dailyDone?: number;
 }
 
 export interface GameState {
@@ -296,6 +300,7 @@ export function readRuntime(raw: unknown, fallbackSeed: number, stepMs: number =
     ...((GAME_NOTICES as readonly unknown[]).includes(r.noticed) ? { noticed: r.noticed as GameNotice } : {}),
     ...(num(r.resumed, 1, 10_000) !== null ? { resumed: r.resumed as number } : {}),
     ...(r.backTip === true ? { backTip: true as const } : {}),
+    ...(typeof r.today === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(r.today) ? { today: r.today } : {}),
     ...(num(r.chooseMs, 0, 1e6) !== null ? { chooseMs: r.chooseMs as number } : {}),
     ...(isObj(r.view) && num(r.view.w, 0, 20_000) !== null && num(r.view.h, 0, 20_000) !== null ? { view: { w: r.view.w as number, h: r.view.h as number } } : {}),
     // 개발 모드 (임시) — 확장이 개발 모드가 아니면 다시 뗌 (game-session)
@@ -338,6 +343,7 @@ function readAwayLog(v: unknown): AwayLog | null {
     ...(isObj(v.levels) ? { levels } : {}),
     ...(points !== null ? { points: Math.floor(points) } : {}),
     ...(toastAtLeave !== null ? { toastAtLeave } : {}),
+    ...(num(v.dailyDone, 0, 3) !== null ? { dailyDone: Math.floor(v.dailyDone as number) } : {}),
   };
 }
 

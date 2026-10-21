@@ -13,11 +13,12 @@ import { BALANCE, TIMING } from '../balance';
 import { buy, canBuyCandy, healTeam, isShopItem, moveInTeam, sell, spendPoint, swapWithBox, teamHealth, toBox, useFieldItem, walkRegen } from '../rules/bag';
 import { createWild, encounterStart, pickupAt, planWild, wildKey } from '../rules/encounter';
 import { itemName, requestAt, resolveRequest } from '../rules/request';
+import { DAILY_BONUS, dailyAdd, dailyDone, dailyFor, dailyLabel } from '../rules/daily';
 import { spotBetween, spotRng, stageCode, stageLayout, trainerId, walkDelta, type Spot, type StageLayout } from '../rules/stage';
 import { statsOf } from '../rules/stats';
 import { aliveCount, GYM_LEADER, leaderTeam, trainerInfo, trainerNumber, trainerTeam } from '../rules/trainer';
 import { pickRival, rivalLine, rivalLoseMsg, rivalName, rivalRecord, rivalTeam, withRivalResult } from '../rules/rival';
-import { isTipId, ITEM_IDS, RUN_SEEN_MAX, STAGE_IDS, TIPS_MAX, type FacilitySpot, type ItemId, type Monster, type Save, type StageId, type StageProgress, type StageRun, type StatKey } from '../save';
+import { isTipId, ITEM_IDS, RUN_SEEN_MAX, STAGE_IDS, TIPS_MAX, type DailyGoal, type FacilitySpot, type ItemId, type Monster, type Save, type StageId, type StageProgress, type StageRun, type StatKey } from '../save';
 import { withJosa } from '../text';
 import { moveOf, speciesOf } from '../../data';
 import { applyBattleResult, battleDone, battleInput, battleStep, battleWaiting, firstAlive, startBattle, startTrainerBattle, switchable, type BattleInput, type BattleState } from './battle';
@@ -906,6 +907,12 @@ export function step(state: GameState, stepMs: number): StepOut {
   } else if (rt.stage) {
     rt = { ...rt, stage: null, stageId: null };
   }
+  // 오늘의 목표 · 기록 (U13 · U12) — 개발 모드에서만 (3:3 을 켤 때 같이)
+  if (dailyOn(rt)) {
+    const d = dailyStep(state, save, rt, signal);
+    save = d.save;
+    rt = d.rt;
+  }
   // 자동 전투 첫 안내 (R12 A — 자동을 한 번 켤 때까지 최대 3번, 화면이 그렸을 때 셈 'tip-seen' auto): ① 보는 중 내 차례가 10초 넘게 입력 없이 기다린 첫 때 — 내 차례가 끝날 때까지 남김
   // ② 자동 꺼짐으로 안 보는 동안 멈췄다 다시 볼 때. 그동안 요약 (R14) 보다 먼저 — 요약은 이 안내가 끝난 뒤 (겹치지 않게)
   const watchingNow = !rt.headless && !rt.away;
@@ -952,6 +959,73 @@ export function step(state: GameState, stepMs: number): StepOut {
 }
 
 /** 자동 전투 첫 안내를 더 띄울 수 있는지 — 자동을 한 번도 안 켰고 (tips 'auto-on') 띄운 수 (tips 'auto-1' ~ ) 가 3 아래 (R12 A) */
+/** 오늘의 목표 · 기록이 켜졌는지 — 모두에게 (BALANCE.daily.on, 3:3 을 켤 때 같이) · 개발 모드 (임시) 는 늘 */
+const dailyOn = (rt: RuntimeState) => BALANCE.daily.on || rt.dev !== undefined;
+
+/**
+ * 오늘의 목표 · 기록 한 걸음 (U13 · U12) — 걸음 앞 (before) 과 뒤를 견줘 한 일을 셈: 야생 · 트레이너 · 관장 이김 (결과 장면으로 감) · 새 종 잡음 (도감) ·
+ * 완벽 패링 · 부탁 · 스테이지 클리어 · 걸은 거리. 날이 바뀌면 경계 (걷기 · 대기실 · 장면 없음 — 하던 전투 · 스테이지는 안 끊음) 에서 새 목표.
+ * 하나 끝나면 보상 + 알림 (줄 — 앞 알림을 덮지 않음, U1) · 셋 다면 금구슬. 안 볼 때는 멈추지 않고 그동안 요약에 한 줄
+ */
+function dailyStep(before: GameState, save0: Save, rt0: RuntimeState, signal: SaveSignal | null): { save: Save; rt: RuntimeState } {
+  let save = save0;
+  let rt = rt0;
+  const prev = before.runtime.stage;
+  const st = rt.stage;
+  const boundary = !st || st.phase === 'walk' || st.phase === 'lobby';
+  if (rt.today && save.daily?.day !== rt.today && boundary) save = { ...save, daily: dailyFor(rt.today) };
+  // 한 일
+  const won = (prev?.phase === 'battle' || prev?.phase === 'team') && st?.phase === 'result';
+  const wildWin = won && prev?.phase === 'battle' && prev.battle.kind === 'wild';
+  const foeTypes = wildWin && prev?.phase === 'battle' ? prev.battle.foe.types : [];
+  const perfects = prev?.phase === 'battle' && st?.phase === 'battle' ? Math.max(0, (st.battle.perfects ?? 0) - (prev.battle.perfects ?? 0)) : 0;
+  const newSpecies = Math.max(0, save.dex.caught.length - before.save.dex.caught.length);
+  const helped = prev?.phase === 'request' && !prev.result && st?.phase === 'request' && !!st.result ? 1 : 0;
+  const cleared = signal === 'stage-clear' ? 1 : 0;
+  const bl = before.save.location;
+  const al = save.location;
+  const walked = bl.screen === 'stage' && al.screen === 'stage' && bl.stageId === al.stageId ? Math.max(0, (save.stages[al.stageId]?.progress ?? 0) - (before.save.stages[bl.stageId]?.progress ?? 0)) : 0;
+  // 기록 (U12)
+  if (won || signal === 'catch' || walked > 0) {
+    const r = save.records ?? { wins: 0, catches: 0, walked: 0 };
+    save = { ...save, records: { wins: r.wins + (won ? 1 : 0), catches: r.catches + (signal === 'catch' ? 1 : 0), walked: r.walked + walked } };
+  }
+  if (!save.daily) return { save, rt };
+  let daily = save.daily;
+  const finished: DailyGoal[] = [];
+  for (const [kind, n, types] of [
+    ['wild-win', wildWin ? 1 : 0, foeTypes],
+    ['trainer-win', won && !wildWin ? 1 : 0, []],
+    ['perfect-parry', perfects, []],
+    ['new-catch', newSpecies, []],
+    ['request', helped, []],
+    ['stage-clear', cleared, []],
+  ] as const) {
+    const r = dailyAdd(daily, kind, n, types);
+    daily = r.daily;
+    finished.push(...r.finished);
+  }
+  if (daily === save.daily) return { save, rt };
+  save = { ...save, daily };
+  // 보상 · 알림 — 하나마다 · 셋 다면 금구슬
+  for (const g of finished) {
+    save = addItem(save, g.reward, g.rewardN);
+    rt = queueToast(rt, `오늘의 목표 ✓ ${dailyLabel(g)} — ${itemName(g.reward)} +${g.rewardN}`);
+  }
+  if (dailyDone(save.daily) === save.daily!.goals.length && save.daily!.goals.length > 0 && !save.daily!.bonus) {
+    save = addItem({ ...save, daily: { ...save.daily!, bonus: true } }, DAILY_BONUS.item, DAILY_BONUS.n);
+    rt = queueToast(rt, `오늘의 목표 다 했어요! ${itemName(DAILY_BONUS.item)} +${DAILY_BONUS.n}`);
+  }
+  return { save, rt };
+}
+
+/** 화면용 — 오늘의 목표 세 줄 (☐ / ☑ · n/m) · 끝낸 수. 꺼져 있거나 아직 없으면 null (세계 지도 판 · 타이틀 "오늘 1/3" — 디자인팀) */
+export function dailyView(state: GameState): { day: string; goals: { label: string; have: number; need: number; done: boolean; reward: string }[]; done: number } | null {
+  const d = state.save.daily;
+  if (!dailyOn(state.runtime) || !d || (state.runtime.today !== undefined && d.day !== state.runtime.today)) return null;
+  return { day: d.day, goals: d.goals.map((g) => ({ label: dailyLabel(g), have: g.have, need: g.need, done: g.done === true, reward: `${itemName(g.reward)} ${g.rewardN}` })), done: dailyDone(d) };
+}
+
 /** 머리 위 알림을 화면이 그리는 장면 (StageScreen showToast — 걷기 · 클리어 카드 · 대기실 · 시설) · 자동 전투 안내는 1:1 전투도 (AutoTip) */
 function toastShown(rt: RuntimeState, save: Save): boolean {
   if (rt.headless || rt.away || !rt.toast) return false;
@@ -1563,7 +1637,7 @@ function awayStart(save: Save, toastAtLeave?: string): AwayLog {
     const m = save.monsters[uid];
     if (m) levels[uid] = m.level;
   }
-  return { money: save.money, bag: { ...save.bag }, wild: 0, lost: 0, at: placeOf(save), levels, points: pointsOf(save), ...(toastAtLeave ? { toastAtLeave } : {}) };
+  return { money: save.money, bag: { ...save.bag }, wild: 0, lost: 0, at: placeOf(save), levels, points: pointsOf(save), ...(toastAtLeave ? { toastAtLeave } : {}), ...(save.daily ? { dailyDone: dailyDone(save.daily) } : {}) };
 }
 
 /** 지금 자리 — 스테이지와 진행 (0 ~ 1) · 체육관 */
@@ -1598,6 +1672,8 @@ export function awaySummary(log: AwayLog, save: Save): string[] {
     else if (up.length > 1) grow.push(`레벨업 ${up.length}마리`);
   }
   if (log.points !== undefined && pointsOf(save) > log.points) grow.push(`포인트${NB}+${pointsOf(save) - log.points}`);
+  // 오늘의 목표 — 안 보는 동안 끝냈으면 한 줄 (gdd 4.13 R14 "오늘의 목표가 끝났으면 한 줄 더")
+  if (save.daily && dailyDone(save.daily) > (log.dailyDone ?? 0)) grow.push(`오늘의${NB}목표${NB}${dailyDone(save.daily)}/${save.daily.goals.length}`);
   const gain: string[] = [];
   if ((log.lost ?? 0) > 0) gain.push(`패배${NB}${log.lost}번`);
   // 물건은 두 가지까지 · 나머지는 "외 N가지" (7종이면 240 × 150 에서 4줄로 자라 메뉴 줄 밑으로 잘리던 것 — UX 리뷰어 R14, U4)

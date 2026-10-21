@@ -20,6 +20,7 @@ import { HeadlessRunner, type HeadlessRunnerOptions } from './headless-runner';
 import type { LoadResult, SaveStore } from './save-store';
 import type { TeamSave } from './team-out';
 import type { WindowLease } from './window-lease';
+import { dayKey } from '../core/rules/daily';
 import { stageCode } from '../core/rules/stage';
 import { speciesOf } from '../data';
 import { devDemoSave, devState } from '../dev/demo';
@@ -71,6 +72,8 @@ export interface SessionDeps {
   onModeChanged?(mode: Mode): void;
   /** 웹뷰가 새로 뜸 (boot) — 📦 꺼낸 팀을 다시 보냄 */
   onWebviewBoot?(): void;
+  /** 벽시계 (ms) — 오늘의 목표 날짜 (없으면 Date.now — 테스트가 바꿈) */
+  wallNow?(): number;
 }
 
 /** 세는 것 — 기록 · 테스트용 */
@@ -863,6 +866,9 @@ export class GameSession {
       return;
     }
     let r: ReturnType<typeof advance>;
+    // 내 PC 날짜 — 오늘의 목표 (U13, 엔진은 시계를 모름)
+    const today = dayKey(new Date(this.deps.wallNow?.() ?? Date.now()));
+    if (this.state.runtime.today !== today) this.state = { ...this.state, runtime: { ...this.state.runtime, today } };
     try {
       r = advance(this.state, elapsedMs);
     } catch (e) {
