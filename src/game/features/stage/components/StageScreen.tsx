@@ -27,6 +27,7 @@ import { themeKind } from '../../../ui/theme';
 import { typeNameKo } from '../../../ui/format';
 import { InfoBar } from '../../../ui/InfoBar';
 import { TeamLayer } from '../../battle/team/TeamLayer';
+import { TeamChoice, teamChoiceOn } from '../../battle/team/TeamChoice';
 import { Face } from '../../../ui/Face';
 import { FirstTip } from '../../../ui/FirstTip';
 import { KeyCap } from '../../../ui/KeyCap';
@@ -370,6 +371,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         {battle && geo && (
           <BattleLayer battle={battle} save={save} media={media} ground={ground} geo={geo} onInput={battleInput} onProfile={(side) => onOpen({ kind: 'profile', side })} foeTrainerLeft={foeTrainer || gym ? leaderX : undefined} />
         )}
+        {teamChoiceOn(state) && <TeamChoice state={state} media={media} onInput={onInput} />}
         {team && <TeamLayer team={team} media={media} widthPx={widthPx} heightPx={layout.heightPx} fieldTop={Math.round(INFO_BAR_PX * layout.uiScale)} onInput={onInput} />}
         {/* 체육관으로 — 화면 닦기 (위 → 아래) */}
         {gymEnter && gymEnter.wipe > 0 && (

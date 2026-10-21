@@ -193,6 +193,11 @@
         Object.assign(save.monsters, { m2: caterpie, m3: weedle });
         save.party = ['m1', 'm2'];
         save.box = ['m3'];
+        // party3=1 — 셋 (3:3 고르기 · 3마리 고르기 사진)
+        if (q.get('party3') === '1') {
+            save.party = ['m1', 'm2', 'm3'];
+            save.box = [];
+        }
         save.nextMonsterUid = 4;
         save.bag = { 'poke-ball': 3, potion: 2, 'leaf-stone': 1 };
         const fighter = (m, types, stats, hp, extra) => ({

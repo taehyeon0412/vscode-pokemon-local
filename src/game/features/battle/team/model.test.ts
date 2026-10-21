@@ -32,3 +32,31 @@ describe('3:3 자리 (디자인팀 4안 시안 geo 그대로)', () => {
     }
   });
 });
+
+describe('트레이너 만남 1:1 / 3:3 고르기 · 3마리 고르기 (개발 모드 3:3 미리 켜기)', () => {
+  it('3 → 3마리 고르기 (상성 좋은 셋 미리 체크) → 넣고 빼기 → Enter 로 3:3 · 3:3 꺼져 있으면 고르기 칸 없음', async () => {
+    const { createGameState, applyInput, advance } = await import('../../../core/engine');
+    const { createStartSave } = await import('../../starter/model');
+    const { devState } = await import('../../../dev/demo');
+    const { devApply } = await import('../../../dev/actions');
+    const { teamChoiceOn } = await import('./TeamChoice');
+    const { trainerId } = await import('../../../core/rules/stage');
+    let s = devState(createGameState({ ...createStartSave(0, 5, 4), location: { screen: 'stage', stageId: 'forest-1' } }, 5));
+    s = { ...s, runtime: { ...s.runtime, view: { w: 860, h: 187 } } };
+    s = [{ dex: 7, level: 20 }, { dex: 1, level: 20 }].reduce((st, m, i) => devApply(st, { kind: 'mon', slot: i + 1, ...m }).state, s);
+    s = devApply(s, { kind: 'scene', scene: 'stage-1' }).state;
+    s = { ...s, save: { ...s.save, pendingEncounter: { kind: 'trainer', trainerId: trainerId('forest-1', 0), stageId: 'forest-1' } }, runtime: { ...s.runtime, stage: { phase: 'trainer', n: 0, ms: 1000 } } };
+    expect(teamChoiceOn(s)).toBe(true);
+    s = applyInput(s, { kind: 'team-mode', on: true });
+    const st = s.runtime.stage;
+    expect(st?.phase === 'trainer' && st.pick).toHaveLength(3);
+    s = applyInput(s, { kind: 'team-pick', uid: s.save.party[0]! });
+    const st2 = s.runtime.stage;
+    expect(st2?.phase === 'trainer' && st2.pick).toHaveLength(2);
+    s = applyInput(s, { kind: 'space' });
+    s = advance(s, 100).state;
+    expect(s.runtime.stage?.phase).toBe('team');
+    const off = devApply(s, { kind: 'team', on: false }).state;
+    expect(teamChoiceOn({ ...off, runtime: { ...off.runtime, stage: { phase: 'trainer', n: 0, ms: 1000 } } })).toBe(false);
+  });
+});

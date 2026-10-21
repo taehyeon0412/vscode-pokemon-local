@@ -13,6 +13,7 @@ import { stageViewKey } from '../features/stage/model';
 import { createStartSave } from '../features/starter/model';
 import { GAME_COMMAND, isHostToWebview } from '../shared/messages';
 import { shouldHoldBattle } from '../features/battle/fx/hold';
+import { teamChoiceOn } from '../features/battle/team/TeamChoice';
 import { spaceInput } from '../features/battle/fx/parry';
 import { fieldTopPx, fitGameLayout, topGapPx } from '../ui/layout';
 import { Store } from '../ui/store';
@@ -306,6 +307,10 @@ if (!port) {
       // Z = 먼저 찬 포켓몬 (1:1 습관 그대로, 예약은 없음)
       e.preventDefault();
       actions.input({ kind: 'team-battle', input: { kind: 'ult' } });
+    } else if (phase === 'trainer' && !stage.pick && e.code === 'Digit3' && session.current && teamChoiceOn(session.current) && !(e.ctrlKey || e.metaKey || e.altKey)) {
+      // 트레이너 만남 3 = 3:3 (3마리 고르기를 엶 — orders #17)
+      e.preventDefault();
+      actions.input({ kind: 'team-mode', on: true });
     } else if (phase === 'trainer' && stage.pick && /^Digit[1-5]$/.test(e.code) && !(e.ctrlKey || e.metaKey || e.altKey)) {
       // 3마리 고르기 — 1 ~ 5 = 팀 순서대로 넣고 빼기 (Enter = 시작)
       const uid = session.current?.save.party[Number(e.code.slice(5)) - 1];

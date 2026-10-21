@@ -205,3 +205,51 @@
 #pokemon-game .pg-hero-wrap[hidden] {
   display: none !important;
 }
+/* 트레이너 만남 1:1 / 3:3 · 3마리 고르기 (TeamChoice) — 뼈대 */
+#pokemon-game .pg-team-choice {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px 6px;
+  background: rgba(12, 16, 30, 0.94);
+  border: 1px solid var(--pg-sos-line);
+  z-index: 12;
+}
+#pokemon-game .pg-team-choice .pg-team-left {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--pg-sos-gold);
+}
+#pokemon-game .pg-team-pk {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 28px;
+  padding: 0 3px;
+  color: var(--pg-sos-ink);
+  background: transparent;
+  border: 1px solid var(--pg-sos-line-soft);
+  font: 700 11px / 1 Pretendard, sans-serif;
+  cursor: pointer;
+}
+#pokemon-game .pg-team-pk.pg-on {
+  color: var(--pg-sos-gold);
+  border-color: var(--pg-sos-gold);
+  background: var(--pg-sos-hi);
+}
+#pokemon-game .pg-team-pk.pg-on .pg-team-key {
+  color: var(--pg-sos-tab-ink);
+  background: var(--pg-sos-gold);
+  border-color: var(--pg-sos-gold);
+}
+#pokemon-game .pg-team-ord {
+  padding: 0 2px;
+  border: 1px solid var(--pg-sos-gold);
+  color: var(--pg-sos-gold);
+}
