@@ -521,7 +521,8 @@ function startUlt(b: TeamBattle, side: Side, slot: number, rng: Rng): void {
   };
   if (gather) {
     note(b, { t: 'gather', side, from: slot });
-    b.msg = `${nameOf(f)}의 필살기! 합동 필살기?`;
+    // 상대 편 멘트는 "합류" 가 아니라 받아칠 때 — 말을 나눔 (U5, 코드 리뷰어)
+    b.msg = side === 'me' ? `${nameOf(f)}의 필살기! 합동 필살기?` : `상대 ${nameOf(f)}의 필살기! 상대 합동 필살기?`;
   } else {
     note(b, { t: 'ult', side, from: slot });
     b.msg = `${nameOf(f)}의 필살기!`;
@@ -675,9 +676,16 @@ export function teamUltLevel(f: Fighter): 'none' | 'near' | 'full' {
 export function teamScale(view: { w: number; h: number } | null | undefined): 0 | 1 | 2 | 3 {
   if (!view) return 2;
   const { unitW, x3MinH } = BALANCE.team.view;
+  if (teamLayout(view) === 'row') return 2;
   if (view.w >= unitW * 3 && view.h >= x3MinH) return 3;
   if (view.w >= unitW * 2) return 2;
   return view.w >= unitW ? 1 : 0;
+}
+
+/** 여섯을 세우는 모양 — row = 가장 낮은 패널 (높이 150 ~ 169 · 폭 400 부터) 은 ×2 로 한 줄 (#85 A — 빛줄기는 머리 위 · 안내는 내 편 위, 디자인팀) · slant = 비스듬히 세 줄 */
+export function teamLayout(view: { w: number; h: number } | null | undefined): 'row' | 'slant' {
+  const { rowMinW, rowMaxH } = BALANCE.team.view;
+  return view && view.h < rowMaxH && view.w >= rowMinW ? 'row' : 'slant';
 }
 
 /** 지금 그 칸 필살기를 쓸 · 끼어들 · 합류할 수 있는지 (화면이 아이콘을 밝게) */
@@ -704,9 +712,10 @@ export function teamInput(b0: TeamBattle, input: TeamInput, rng: Rng): TeamBattl
   const slot = input.slot ?? firstReady(b0, 'me');
   if (slot === null) return b0;
   if (!teamUltOpen(b0, slot)) {
-    // 예약 — 그 칸 (1 · 2 · 3 · 발밑 판) 만, Z 는 예약 없음 · 이미 힘겨루기에 든 포켓몬은 빼고
+    // 예약 — 그 칸 (1 · 2 · 3 · 발밑 판) 만, Z 는 예약 없음 · 이미 힘겨루기에 든 · 합동 멘트에서 쓴 · 모인 포켓몬은 빼고 (멘트 중 연타가 예약이 되지 않게 — 코드 리뷰어)
     const f = b0.me[slot];
-    if (input.slot === undefined || !f || !alive(f) || (b0.clash?.kind === 'ult' && b0.clash.me.includes(slot))) return b0;
+    const u = b0.phase === 'ult' && b0.ult?.side === 'me' ? b0.ult : null;
+    if (input.slot === undefined || !f || !alive(f) || (b0.clash?.kind === 'ult' && b0.clash.me.includes(slot)) || (u && (slot === u.from || (u.team ?? []).includes(slot)))) return b0;
     const b = clone(b0);
     b.reserve = b.reserve.includes(slot) ? b.reserve.filter((i) => i !== slot) : [...b.reserve, slot];
     return b;
@@ -772,7 +781,10 @@ export function teamStep(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamSte
             if (f && at >= j.at && j.slot !== u.from && !(u.team ?? []).includes(j.slot) && alive(f) && f.ult >= 1) joinTeam(b, 'foe', j.slot);
           }
         }
-        if (u.gather === 0) finishGather(b);
+        // 내 멘트에 찬 동료가 다 모였고 상대 끼어들기도 안 걸려 있으면 바로 (자동 전투가 1.5초를 그냥 기다리지 않게 — 코드 리뷰어).
+        // 상대 멘트는 끝까지 — 그 시간이 내가 받아칠 창이기도 함
+        const allIn = u.side === 'me' && (u.team ?? []).length > 0 && u.joinAt === null && (teamGather(b)?.can.length ?? 0) === 0;
+        if (u.gather === 0 || allIn) finishGather(b);
         return b;
       }
       if (!u.hit && u.ms >= u.hitMs && u.joint) {

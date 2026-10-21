@@ -97,7 +97,8 @@ export const BALANCE = {
   team: {
     on: false,
     size: 3,
-    ultGainScale: 1.2,
+    /** 1.2 → 1.0 (2026-10-21 태현 님 #88 "1.0으로 해줘" — 필살기가 일반 모드 연출 그대로라 장면이 길어서, 시뮬 scripts/sim-team-ult.ts) */
+    ultGainScale: 1.0,
     interruptChance: { trainer: 0.3, gym: 0.7 },
     spreadScale: 0.75,
     statusWeight: 0.3,
@@ -108,7 +109,8 @@ export const BALANCE = {
     /** 상대 필살기 예고 — 게이지가 이만큼 넘으면 "곧" (2026-10-21 태현 님 ② 상대 필살기 예고) [임시값] */
     ultWarnAt: 0.8,
     /** 포켓몬 크기 배율 — 폭 unitW × 배율이 있어야 그 배율 (240 = ×1 · 480 = ×2 · 720 = ×3), ×3 은 높이 x3MinH 부터. ×1 로도 안 들어가면 3:3 잠금 (gdd S06 ④ · 2026-10-21 기획) [임시값] */
-    view: { unitW: 240, x3MinH: 300 },
+    /** 가장 낮은 패널 (높이 rowMaxH 아래 · 폭 rowMinW 부터) 은 ×2 로 여섯이 한 줄 (2026-10-21 태현 님 #85 A — ×2 를 비스듬히 세 줄 세우면 판끼리 겹침) [임시값] */
+    view: { unitW: 240, x3MinH: 300, rowMinW: 400, rowMaxH: 170 },
   },
   /** 팀 HP 가 이 아래 (또는 쓰러진 포켓몬) 면 "위험" — 정보줄 작은 칸 (ideas #47) [제안] */
   teamDangerBelow: 0.5,
@@ -349,7 +351,8 @@ export const TIMING = {
     strikeHitMs: 80,
     strikeMs: 320,
     backMs: 300,
-    /** 합동 필살기 마무리 (여럿이 힘겨루기를 이김 · 3:1) — 컷인 → 각자 필살기 줄기가 같은 때 닿아 합쳐 터짐 (ult/bridge.js ultJoint 약 2.2초에 닿음 · 3.8초 끝) [임시값] */
+    /** 합동 필살기 마무리 (여럿이 힘겨루기를 이김 · 같은 편이 모임) — 엔진의 최소 길이 · 맞는 때. 보는 중엔 연출 (ult/bridge.js ultJoint — 기 모으기 + 컷인 + 가장 늦은 큰 맞음) 이 맞힐 때까지 붙잡아 그때 피해,
+     *  그 뒤 엔진은 (jointMs − jointHitMs) 만에 다시 달리고 남은 연출은 흘러감. 안 볼 때는 이 값 그대로 [임시값] */
     jointMs: 3800,
     jointHitMs: 2250,
     /** 합동 필살기 멘트 — 필살기를 쓰면 같은 편에 찬 포켓몬이 있을 때 이만큼 멈추고 모임 (그 키 · 발밑 판 · 예약 = 합류, 상대가 받아치면 양쪽이 모인 채 힘겨루기).

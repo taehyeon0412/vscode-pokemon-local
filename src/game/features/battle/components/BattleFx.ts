@@ -13,6 +13,7 @@ import { effectiveness } from '../../../core/rules/types';
 import { formOf, moveOf, speciesOf } from '../../../data';
 import { pokemonFx, type FxActor, type FxImpact, type FxMove } from '../fx/bridge';
 import { battleAnimKey, FX_HOLD_DUEL_MAX_MS, FX_HOLD_ULT_MAX_MS, holdFx, releaseFx } from '../fx/hold';
+import { shotHitAt } from '../fx/shot-hit';
 import { clearImpact, impactOf, setImpact, setUltSkip } from '../fx/parry';
 
 /** 쏘는 기술을 쓰기 시작하는 때 — 몸을 젖혔다 내미는 동안 (일반 모드 useSignature 의 120ms) */
@@ -21,11 +22,7 @@ const CAST_DELAY_MS = 120;
 const CONTACT_AT = 0.8;
 /** 닿는 기술의 타입 임팩트는 자국 · 주먹보다 이만큼 늦게 (같이 터지면 서로 가림, 2026-10-19) */
 const CONTACT_IMPACT_LAG_MS = 90;
-/** 쏘는 기술이 상대에 닿는 때 (연출 길이의 몇 %) — 틀마다 잼 (2026-10-20 태현 님 "이미 맞았는데 패링 원이 남아 있음": 하나로 0.85 를 쓰니
- *  광선은 0.5초 먼저 · 솔라빔은 0.3초 늦게 닿았음). 원이 1배가 되는 때 · 쳐내기 · 맞는 연출 · 엔진 피해가 다 이 때 */
-const SHOT_HIT_AT: Record<string, number> = { beam: 0.25, spark: 0.6, rings: 0.7, water: 0.8, bubbles: 0.82, glow: 0.86, breath: 0.87, solarbeam: 1 };
-const SHOT_HIT_DEFAULT = 0.85;
-export const shotHitAt = (fx: string) => SHOT_HIT_AT[fx] ?? SHOT_HIT_DEFAULT;
+/** 쏘는 기술이 상대에 닿는 때 — 원이 1배가 되는 때 · 쳐내기 · 맞는 연출 · 엔진 피해가 다 이 때 (값은 fx/shot-hit — 3:3 · 기술 박자표와 같이 씀) */
 /** 맞는 때 뒤 이만큼까지 엔진을 붙잡음 (피해 숫자가 맞는 때에 뜨게 — 남은 연출은 흘러감) */
 const SHOT_HOLD_AFTER_MS = 60;
 /** 필살기 시작을 이만큼 넘겨서 붙었으면 (접었다 펴기 등) 처음부터 못 보여 줘서 이모지로 — 나와라! 등장 (0.45초) 을 기다리는 것 포함 */

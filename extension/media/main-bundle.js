@@ -48796,6 +48796,10 @@ const fxFlashCap = () => (fxInGame() ? (fxGame && fxGame.noFlash ? 0 : fxAway ? 
 let fxLastFlash = 0;
 const fxScreenFlash = screenFlash;
 screenFlash = function (s, alpha, color, max) {
+    // 개발 창 — 필살기 박자 재기 (dev/ult-fx.py): window.__fxTrace 가 배열이면 번쩍을 적음
+    if (Array.isArray(window.__fxTrace)) {
+        window.__fxTrace.push(['f', performance.now(), alpha]);
+    }
     if (!fxInGame()) {
         return fxScreenFlash(s, alpha, color, max);
     }
@@ -48814,6 +48818,9 @@ const fxUltHit = ultHit;
 ultHit = function (q, ...rest) {
     const out = fxUltHit(q, ...rest);
     const g = fxGame;
+    if (Array.isArray(window.__fxTrace) && g && (q?.pokemon ?? q) === g.B) {
+        window.__fxTrace.push(['h', performance.now()]);
+    }
     if (g && g.onHit && !g.hit && (q?.pokemon ?? q) === g.B) {
         g.hit = true;
         try {
@@ -49348,6 +49355,23 @@ function fxJointBurst(parts, B, sure) {
     hitKO(sigGeometry(B, B.left > parts[0].A.left));
     knockBack(B, B.left > parts[0].A.left, 1, spriteSize(B) * (sure ? 1.4 : 1));
 }
+
+// 개발 창 — 필살기 박자 · 터지는 자리 재기 (dev/ult-fx.py): 지금 입자들의 가운데 · 개수
+window.__fxDebug = {
+    centroid: () => {
+        let x = 0;
+        let y = 0;
+        let n = 0;
+        for (const q of moveParticles) {
+            if (typeof q.x === 'number' && q.x > 0 && q.x < window.innerWidth) {
+                x += q.x;
+                y += q.y;
+                n += 1;
+            }
+        }
+        return n ? { x: x / n, y: y / n, n } : null;
+    },
+};
 
 window.pokemonFx = {
     version: 4,

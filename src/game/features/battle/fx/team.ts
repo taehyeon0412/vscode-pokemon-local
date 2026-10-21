@@ -9,9 +9,9 @@ import type { Side, TeamBattle, TeamLogEntry } from '../../../core/engine';
 import { shotTiming } from '../../../core/engine/team';
 import { clashChance, clashWithTaps } from '../../../core/rules/battle';
 import { moveOf } from '../../../data';
-import { shotHitAt } from '../components/BattleFx';
 import { pokemonFx, type FxActor, type FxImpact, type FxMove, type PokemonFx } from './bridge';
-import { FX_HOLD_ULT_MAX_MS, holdFx, releaseFx } from './hold';
+import { FX_HOLD_ULT_MAX_MS, holdFx, releaseFx, teamUltKey } from './hold';
+import { shotHitAt } from './shot-hit';
 
 export interface TeamSlot {
   side: Side;
@@ -55,8 +55,6 @@ export const TEAM_KNOCK = { cells: 0.5, ms: 140, finalCells: 1, finalMs: 260 };
 export const TEAM_FX = { quickRepeat: false, contactImpactLagMs: 90 };
 const TIMING_STRIKE_HIT_MS = TIMING.team.strikeHitMs;
 const TIMING_BACK_MS = TIMING.team.backMs;
-/** 필살기 붙잡기 열쇠 — 엔진 필살기 시작 시각 (fx/hold shouldHoldBattle 이 3:3 필살기 단계에서 같은 열쇠면 맞는 순간 앞에서 붙잡음) */
-export const teamUltKey = (startT: number): string => `teamult${startT}`;
 /** 이만큼 지난 일은 그리지 않음 — 패널을 접었다 펴거나 다른 탭에서 돌아왔을 때 지난 필살기 · 쓰러짐을 한 번에 몰아 그리지 않게 (코드 리뷰어) */
 export const TEAM_FX_LATE_MS = 600;
 
@@ -65,6 +63,7 @@ const fxMoveOf = (moveId: number): FxMove | null => {
   const mv = moveOf(moveId);
   return mv ? { name: mv.name.ko, type: mv.type } : null;
 };
+
 /** 필살기를 맞을 상대 — 살아 있는 상대 가운데 (셋이면 둘째) */
 function ultTarget(b: TeamBattle, side: Side): TeamSlot {
   const foes = b[other(side)].map((f, i) => (f.hp > 0 ? i : -1)).filter((i) => i >= 0);
@@ -186,6 +185,8 @@ export class TeamFxRunner {
   /** 늦게 시작할 기술 (번호 → 타이머 — 그새 멈추면 안 씀) · 그 밖의 늦은 연출 타이머 */
   private pending = new Map<number, number>();
   private timers = new Set<number>();
+  /** 달려가는 몸짓 (기술 번호 → 몸짓 · 그 그림) — 쏜 포켓몬이 쓰러지면 (stop · ko) 멈춤 (코드 리뷰어) */
+  private dashes = new Map<number, { an: Animation; el: Element }>();
 
   constructor(
     private readonly stage: TeamFxStage,
@@ -232,6 +233,8 @@ export class TeamFxRunner {
     this.pending.clear();
     this.timers.forEach((t) => window.clearTimeout(t));
     this.timers.clear();
+    this.dashes.forEach((d) => d.an.cancel());
+    this.dashes.clear();
     releaseFx();
     if (this.seq >= 0) {
       this.fx?.clear();
@@ -271,7 +274,11 @@ export class TeamFxRunner {
       case 'dash': {
         const src = a(c.src);
         const dst = a(c.dst);
-        if (src && dst) dash(src, dst, shotTiming(c.moveId));
+        const an = src && dst ? dash(src, dst, shotTiming(c.moveId)) : null;
+        if (an && src) {
+          this.dashes.set(c.tag, { an, el: src.box ?? src.el });
+          an.finished.then(() => this.dashes.delete(c.tag)).catch(() => this.dashes.delete(c.tag));
+        }
         return;
       }
       case 'strike': {
@@ -287,6 +294,8 @@ export class TeamFxRunner {
           this.pending.delete(c.tag);
         }
         fx.stopMove?.(c.tag, true);
+        this.dashes.get(c.tag)?.an.cancel();
+        this.dashes.delete(c.tag);
         return;
       }
       case 'impact': {
@@ -310,7 +319,10 @@ export class TeamFxRunner {
       }
       case 'ko': {
         const dst = a(c.dst);
-        if (dst) fx.ko?.(dst);
+        if (dst) {
+          this.stopDash(dst);
+          fx.ko?.(dst);
+        }
         return;
       }
       case 'final': {
@@ -340,9 +352,12 @@ export class TeamFxRunner {
         return;
       }
       case 'joint': {
-        const srcs = c.winners.map(a).filter((x): x is FxActor => !!x);
+        // 힘겨루기를 이겨 합동이면 대결 입자부터 지움 (fxGameStop 은 타이머만 막아 가운데서 계속 밀던 것 — 코드 리뷰어)
+        fx.stopDuel?.();
+        // 그림이 없는 참가자는 타입 · 피할 이름과 같이 뺌 (순번이 어긋나 다른 포켓몬 것이 붙던 것)
+        const ps = c.winners.map((w, i) => ({ actor: a(w), type: c.types[i] ?? 'normal', avoid: this.learned(w) })).filter((p): p is { actor: FxActor; type: string; avoid: string[] } => !!p.actor);
         const dst = a(c.dst);
-        const total = srcs.length && dst ? (fx.ultJoint?.(srcs, dst, () => releaseFx(), { types: c.types, avoid: c.winners.map((w) => this.learned(w)), sure: c.sure }) ?? 0) : 0;
+        const total = ps.length && dst ? (fx.ultJoint?.(ps.map((p) => p.actor), dst, () => releaseFx(), { types: ps.map((p) => p.type), avoid: ps.map((p) => p.avoid), sure: c.sure }) ?? 0) : 0;
         if (total > 0) holdFx(c.key, total, performance.now(), FX_HOLD_ULT_MAX_MS);
         return;
       }
@@ -371,6 +386,17 @@ export class TeamFxRunner {
     }
   }
 
+  /** 그 그림의 달려가는 몸짓을 멈춤 (쓰러짐) */
+  private stopDash(who: FxActor): void {
+    const el = who.box ?? who.el;
+    for (const [tag, d] of this.dashes) {
+      if (d.el === el) {
+        d.an.cancel();
+        this.dashes.delete(tag);
+      }
+    }
+  }
+
   /** 지금 필살기 힘겨루기에서 내가 이길 확률 (대결 연출이 기울기에 씀) */
   private live(): number {
     const b = this.last;
@@ -393,10 +419,10 @@ export class TeamFxRunner {
  * 닿는 기술 — 몸이 상대 앞까지 달려가 (dashMs) 박치기 자리에 머물고 (strike) 제자리로 (backMs) — 엔진 박자 shotTiming 그대로.
  * 상대 몸 앞 (두 그림 폭 사이) 까지 · 정수 px · 동작 줄이기면 반만
  */
-export function dash(src: FxActor, dst: FxActor, t: { dur: number; hitMs: number }): void {
+export function dash(src: FxActor, dst: FxActor, t: { dur: number; hitMs: number }): Animation | null {
   const el = src.box ?? src.el;
   const to = dst.box ?? dst.el;
-  if (typeof el.animate !== 'function') return;
+  if (typeof el.animate !== 'function') return null;
   const a = el.getBoundingClientRect();
   const b = to.getBoundingClientRect();
   const dir = b.left + b.width / 2 >= a.left + a.width / 2 ? 1 : -1;
@@ -405,7 +431,7 @@ export function dash(src: FxActor, dst: FxActor, t: { dur: number; hitMs: number
   const dy = Math.round((b.bottom - a.bottom) * reduce);
   const atHit = Math.min(0.9, Math.max(0.05, (t.hitMs - TIMING_STRIKE_HIT_MS) / t.dur));
   const back = Math.min(0.97, Math.max(atHit + 0.05, 1 - TIMING_BACK_MS / t.dur));
-  el.animate(
+  const an = el.animate(
     [
       { translate: '0 0', easing: 'ease-in' },
       { translate: `${dx}px ${dy}px`, offset: atHit },
@@ -413,12 +439,15 @@ export function dash(src: FxActor, dst: FxActor, t: { dur: number; hitMs: number
       { translate: '0 0' },
     ],
     { duration: t.dur, composite: 'add' },
-  ).id = 'pg-team-dash';
+  );
+  an.id = DASH_ID;
+  return an;
 }
 
 /** 밀림 중인 그림 — 멈춘 몸짓 · 다시 켤 타이머 (같은 포켓몬이 연달아 맞으면 늘림 · reset 이 모두 다시 켬) */
 const knocked = new Map<Element, { paused: Animation[]; timer: number }>();
 const KNOCK_ID = 'pg-team-knock';
+const DASH_ID = 'pg-team-dash';
 
 function unknock(el: Element): void {
   const k = knocked.get(el);
@@ -442,7 +471,8 @@ export function knock(dst: FxActor, dir: 1 | -1, cells: number, ms: number): voi
   if (typeof el.animate !== 'function') return;
   const prev = knocked.get(el);
   if (prev) window.clearTimeout(prev.timer);
-  const fresh = el.getAnimations({ subtree: true }).filter((an) => an.playState === 'running' && an.id !== KNOCK_ID);
+  // 밀림 · 달려가기는 멈추지 않음 (달려가는 중에 맞아도 박자가 밀리지 않게 — 코드 리뷰어)
+  const fresh = el.getAnimations({ subtree: true }).filter((an) => an.playState === 'running' && an.id !== KNOCK_ID && an.id !== DASH_ID);
   fresh.forEach((an) => an.pause());
   const paused = [...(prev?.paused ?? []), ...fresh];
   knocked.set(el, { paused, timer: window.setTimeout(() => unknock(el), ms) });

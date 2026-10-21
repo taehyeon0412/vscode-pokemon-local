@@ -7,6 +7,7 @@ import base64
 import importlib.util
 import json
 import os
+import re
 import socket
 import struct
 import subprocess
@@ -25,9 +26,10 @@ OUT = os.path.join(ROOT, "src", "game", "data", "generated", "move-fx.json")
 MOVES = json.load(open(os.path.join(ROOT, "src", "game", "data", "generated", "moves.json"), encoding="utf-8"))
 # 몸 모양 (POKEMON_SHAPE 세기) 이 다른 여럿 — 가운데 값
 FORMS = ["bulbasaur", "charmander", "squirtle", "pikachu", "pidgey", "geodude", "gastly", "onix", "snorlax", "caterpie", "mew", "dragonite"]
-# 쏘는 기술이 상대에 닿는 때 (연출 길이의 몇 %) — features/battle/components/BattleFx.ts SHOT_HIT_AT 와 같게
-HIT_AT = {"beam": 0.25, "spark": 0.6, "rings": 0.7, "water": 0.8, "bubbles": 0.82, "glow": 0.86, "breath": 0.87, "solarbeam": 1}
-HIT_DEFAULT = 0.85
+# 쏘는 기술이 상대에 닿는 때 (연출 길이의 몇 %) — features/battle/fx/shot-hit.ts 에서 읽음 (표가 한 벌이게 — 코드 리뷰어)
+_SRC = open(os.path.join(ROOT, "src", "game", "features", "battle", "fx", "shot-hit.ts"), encoding="utf-8").read()
+HIT_AT = {k: float(v) for k, v in re.findall(r"(\w+): ([\d.]+)", re.search(r"SHOT_HIT_AT[^{]*\{([^}]*)\}", _SRC).group(1))}
+HIT_DEFAULT = float(re.search(r"SHOT_HIT_DEFAULT = ([\d.]+)", _SRC).group(1))
 
 
 class WS:

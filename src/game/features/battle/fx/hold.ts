@@ -12,6 +12,9 @@ export const FX_HOLD_ULT_MAX_MS = 12_000;
 /** 힘대결 — VS (1.5) + 만남 (~1) + 밀기 3.6초까지 */
 export const FX_HOLD_DUEL_MAX_MS = 7_000;
 
+/** 3:3 필살기 붙잡기 열쇠 — 엔진 필살기 시작 시각 (기록 at = 그때 b.t, 필살기 단계에선 b.t − ult.ms) · 실행기 (fx/team) 와 여기가 같은 함수를 씀 */
+export const teamUltKey = (startT: number): string => `teamult${startT}`;
+
 let holdUntil = 0;
 let holdKey = '';
 /** 시간 막대가 시작하는 때 (힘대결 = 힘대결이 시작된 때) · 붙잡기를 건 때 */
@@ -53,7 +56,7 @@ export function shouldHoldBattle(state: GameState, dtMs: number, now: number): b
   if (st?.phase === 'team') {
     const tb = st.team;
     const u = tb.ult;
-    if (tb.phase !== 'ult' || !u || u.hit || `teamult${tb.t - u.ms}` !== holdKey) return false;
+    if (tb.phase !== 'ult' || !u || u.hit || teamUltKey(tb.t - u.ms) !== holdKey) return false;
     const speed = Math.min(MAX_SPEED, Math.max(1, state.runtime.speed || 1));
     const { steps } = takeSteps(state.runtime.stepAccMs, dtMs * speed, TIMING.simStepMs);
     return steps > 0 && u.ms + steps * TIMING.simStepMs >= u.hitMs;

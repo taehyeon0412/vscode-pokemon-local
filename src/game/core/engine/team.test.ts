@@ -7,7 +7,7 @@ import type { Monster, Save } from '../save';
 import { applyInput, step, teamLock, teamPickOf } from './play';
 import { Rng } from './rng';
 import { createGameState, readRuntime, type GameState } from './state';
-import { shotTiming, applyTeamResult, isSpread, pickTeam, readTeam, startTeamBattle, TEAM_BASIC, teamClashSure, teamDone, teamInput, teamPick, teamPossible, teamScale, teamStep, teamUltLevel, teamUltOpen, type TeamBattle, teamGather } from './team';
+import { shotTiming, applyTeamResult, isSpread, pickTeam, readTeam, startTeamBattle, TEAM_BASIC, teamClashSure, teamDone, teamInput, teamPick, teamPossible, teamScale, teamStep, teamUltLevel, teamUltOpen, type TeamBattle, teamGather, teamLayout } from './team';
 import { moveFxOf, moveOf } from '../../data';
 import { trainerTeam } from '../rules/trainer';
 
@@ -434,6 +434,11 @@ describe('#17 준비 — 배율 · 잠금 · 3마리 고르기 · 필살기 예�
     expect(teamScale({ w: 480, h: 187 })).toBe(2);
     expect(teamScale({ w: 1860, h: 299 })).toBe(2);
     expect(teamScale({ w: 720, h: 300 })).toBe(3);
+    // 가장 낮은 패널 (높이 150 ~ 169 · 폭 400 부터) = ×2 한 줄 (#85 A) · 그 밖은 비스듬히
+    expect([teamScale({ w: 400, h: 150 }), teamLayout({ w: 400, h: 150 })]).toEqual([2, 'row']);
+    expect([teamScale({ w: 1860, h: 169 }), teamLayout({ w: 1860, h: 169 })]).toEqual([2, 'row']);
+    expect([teamScale({ w: 399, h: 150 }), teamLayout({ w: 399, h: 150 })]).toEqual([1, 'slant']);
+    expect(teamLayout({ w: 860, h: 187 })).toBe('slant');
   });
 
   it('잠금 — 좁으면 3:3 고르기 안 됨 · 기억한 3:3 도 1:1 · 관장도 1:1 토너먼트 · 까닭 (few · narrow) · 패널 크기는 넘겨도 남음', () => {
@@ -620,8 +625,11 @@ describe('같은 편 합동 필살기 — 합동 필살기 멘트 (2026-10-21 �
     expect(one.ult!.gather).toBeUndefined();
     expect(one.ult!.window).toBe(TIMING.team.interruptMs);
     const g = teamInput(full(base(), 'me', [0, 2]), { kind: 'ult', slot: 0 }, fixedRng(0.99));
-    expect(run({ ...g, reserve: [2] }, STEP, fixedRng(0.99)).ult!.team).toEqual([2]);
-    expect(teamStep(g, STEP, fixedRng(0.99), { auto: true, away: false }).ult!.team).toEqual([2]);
+    // 찬 동료가 다 모이고 상대 끼어들기도 없으면 멘트를 끝까지 안 기다리고 바로 합동 (코드 리뷰어)
+    expect(run({ ...g, reserve: [2] }, STEP, fixedRng(0.99)).ult!.joint?.winners).toEqual([0, 2]);
+    expect(teamStep(g, STEP, fixedRng(0.99), { auto: true, away: false }).ult!.joint?.winners).toEqual([0, 2]);
+    // 멘트 중에 쓴 포켓몬 · 모인 포켓몬의 키를 또 눌러도 예약이 되지 않음
+    expect(teamInput(g, { kind: 'ult', slot: 0 }, fixedRng(0.99))).toBe(g);
     // 상대 AI 가 멘트 중에 받아침 (0 = 늘) — 내 쪽은 모인 동료와 함께
     const both = full(full(base(), 'me', [0, 2]), 'foe', [1]);
     const g2 = teamInput(both, { kind: 'ult', slot: 0 }, fixedRng(0));

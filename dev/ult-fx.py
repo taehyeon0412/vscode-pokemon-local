@@ -1,8 +1,9 @@
-"""필살기마다 "시작해서 처음 맞는 때" · 연출 길이 재기 → ult/ult-hit.json (2026-10-21 — 3:3 합동 필살기 맞는 순간 맞추기 · 기획 #88 시뮬)
+"""모습 · 필살기마다 "큰 맞음" 때 · 연출 길이 · 자기 둘레에서 터지는지 재기 → ult/ult-hit.json (2026-10-21 — 3:3 합동 필살기 박자 · 터짐 옮기기 · 기획 #88 시뮬)
   python dev/ult-fx.py [창 수=6]
   개발 창 (머리 없는 크롬) 여러 개에서 필살기 모음 (ULT_LIB) 한 줄씩 window.pokemonFx.ult(…, { entry }) 로 돌려,
-  필살기 본편 (기 모으기 0.8 + 컷인 0.9초 뒤) 이 시작한 때부터 상대를 처음 맞힌 때 (onHit) 까지 · 본편 길이를 잼.
-  열쇠 = "이름|틀" (make-moves.py 가 모음 순서를 바꿔도 같음). 필살기 연출을 고치면 다시 돌림 → make-moves.py 가 묶음에 ULT_HIT 로 넣음"""
+  디자인팀 6판 3:3 자리에서 필살기 본편 (기 모으기 0.8 + 컷인 0.9초 뒤) 이 시작한 때부터 큰 맞음 (가장 센 번쩍 뒤 처음 맞음 — 빛줄기 닿음 · 대폭발) 까지 · 본편 길이 · 자기 둘레 터짐 (1/0).
+  처음 맞음으로 재면 솔라빔의 하늘 빛기둥처럼 작은 닿음이 잡혀 합동 박자가 어긋났음 (디자인팀 6판). 같은 필살기도 모습마다 박자가 달라 "모습|이름|틀" 로 잼.
+  필살기 연출을 고치면 다시 돌림 → make-moves.py 가 묶음에 ULT_HIT 로 넣음"""
 import base64
 import importlib.util
 import json
@@ -21,7 +22,7 @@ OUT = os.path.join(ROOT, "ult", "ult-hit.json")
 FORMS = list(json.load(open(os.path.join(ROOT, "src", "game", "data", "generated", "forms.json"), encoding="utf-8")).keys())
 # 일반 모드 필살기 앞 — 기 모으기 (게임 첫 필살기) · 컷인 · 끝 밝아짐 (ult/core.js · ult/bridge.js)
 CHARGE_MS, INTRO_MS, OUTRO_MS = 800, 900, 500
-WAIT_MAX_MS = 9000
+WAIT_MAX_MS = 11000
 
 
 class WS:
@@ -68,20 +69,18 @@ class WS:
                 return msg.get("result", {})
 
 
-# 모음의 필살기마다 처음 가진 모습 — 열쇠 "이름|틀"
+# 모습마다 그 모습이 가진 필살기 — 열쇠 "모습|이름|틀" (같은 필살기도 모습 · 몸 크기에 따라 박자가 다름)
 KEYS = r"""
 ((forms) => {
   const w = document.querySelector('iframe').contentWindow;
   const lib = w.__ult.lib();
   const out = {};
-  for (const f of forms) for (const e of w.__ult.of(f) || []) {
-    const key = `${e[0]}|${e[1]}`;
-    if (!(key in out)) out[key] = [f, lib.indexOf(e)];
-  }
+  for (const f of forms) for (const e of w.__ult.of(f) || []) out[`${f}|${e[0]}|${e[1]}`] = [f, lib.indexOf(e)];
   return out;
 })(%FORMS%)
 """
-# 한 줄 재기 — 맞는 때 (본편 시작부터 ms, 못 맞히면 -1) · 본편 길이
+# 한 줄 재기 — 3:3 자리 (디자인팀 6판: 가운데 줄 x 215 → 645) 에 세워 필살기 끝까지 돌리며 번쩍 · 맞음 · 입자 가운데를 적음.
+# 큰 맞음 = 가장 센 번쩍 (컷인 번쩍 빼고) 뒤 처음 맞는 때 (1.5초 안에 없으면 그 번쩍) · 자기 둘레 = 그 번쩍 0.2초 뒤 입자 가운데가 쓴 쪽에 더 가까움
 ONE = r"""
 (async (form, idx, cfg) => {
   const w = document.querySelector('iframe').contentWindow;
@@ -92,17 +91,46 @@ ONE = r"""
   await new Promise((r) => w.setTimeout(r, 120));
   const meBox = d.querySelector('.pg-fighter-me');
   const foeBox = d.querySelector('.pg-fighter-foe');
+  const place = (box, cx) => {
+    box.style.marginLeft = '0px';
+    const r = box.getBoundingClientRect();
+    box.style.marginLeft = `${Math.round(cx - (r.left + r.width / 2))}px`;
+  };
+  place(meBox, cfg.meX);
+  place(foeBox, cfg.foeX);
   const src = { el: meBox.querySelector('.pg-sprite'), box: meBox, form, size: 32, left: false, name: 'x' };
   const dst = { el: foeBox.querySelector('.pg-sprite'), box: foeBox, form: 'butterfree', size: 32, left: true };
-  let hit = -1;
+  w.__fxTrace = [];
+  const samples = [];
   const t0 = w.performance.now();
-  const total = fx.ult(src, dst, () => { if (hit < 0) hit = w.performance.now() - t0; }, [], { entry: lib[idx] });
-  if (!total) return [-2, 0];
+  const total = fx.ult(src, dst, () => {}, [], { entry: lib[idx] });
+  if (!total) {
+    w.__fxTrace = null;
+    return [-2, 0, 0];
+  }
   const lead = cfg.charge + cfg.intro;
-  const limit = Math.min(total, lead + cfg.wait);
-  while (hit < 0 && w.performance.now() - t0 < limit) await new Promise((r) => w.setTimeout(r, 40));
+  const until = Math.min(total, lead + cfg.wait);
+  while (w.performance.now() - t0 < until) {
+    await new Promise((r) => w.setTimeout(r, 40));
+    samples.push([w.performance.now() - t0 - lead, w.__fxDebug.centroid()]);
+  }
+  const tr = w.__fxTrace.map((x) => [x[0], x[1] - t0 - lead, x[2]]);
+  w.__fxTrace = null;
   fx.clear();
-  return [hit < 0 ? -1 : Math.round(hit - lead), Math.round(total - lead - cfg.outro)];
+  const flashes = tr.filter((x) => x[0] === 'f' && x[1] > 0);
+  const hits = tr.filter((x) => x[0] === 'h').map((x) => x[1]);
+  const big = flashes.reduce((m, x) => (!m || x[2] > m[2] ? x : m), null);
+  let main = -1;
+  let self = 0;
+  if (big) {
+    const after = hits.find((h) => h >= big[1] - 50 && h <= big[1] + 1500);
+    main = Math.round(after ?? big[1]);
+    const near = samples.reduce((m, s) => (s[1] && (!m || Math.abs(s[0] - big[1] - 200) < Math.abs(m[0] - big[1] - 200)) ? s : m), null);
+    if (near) self = Math.abs(near[1].x - cfg.meX) < Math.abs(near[1].x - cfg.foeX) ? 1 : 0;
+  } else if (hits.length) {
+    main = Math.round(hits[0]);
+  }
+  return [main, Math.round(total - lead - cfg.outro), self];
 })(%FORM%, %IDX%, %CFG%)
 """
 
@@ -143,11 +171,11 @@ def worker(k, n, out):
         keys = ws.call("Runtime.evaluate", {"expression": KEYS.replace("%FORMS%", json.dumps(FORMS)), "returnByValue": True})["result"]["value"]
         mine = sorted(keys)[k::n]
         res = {}
-        cfg = json.dumps({"charge": CHARGE_MS, "intro": INTRO_MS, "outro": OUTRO_MS, "wait": WAIT_MAX_MS})
+        cfg = json.dumps({"charge": CHARGE_MS, "intro": INTRO_MS, "outro": OUTRO_MS, "wait": WAIT_MAX_MS, "meX": 215, "foeX": 645})
         for key in mine:
             form, idx = keys[key]
             r = ws.call("Runtime.evaluate", {"expression": ONE.replace("%FORM%", json.dumps(form)).replace("%IDX%", str(idx)).replace("%CFG%", cfg), "awaitPromise": True, "returnByValue": True})
-            res[key] = r.get("result", {}).get("value") or [-3, 0]
+            res[key] = r.get("result", {}).get("value") or [-3, 0, 0]
         json.dump(res, open(out, "w", encoding="utf-8"), ensure_ascii=False)
     finally:
         subprocess.run(["taskkill", "/PID", str(p.pid), "/T", "/F"], capture_output=True)
@@ -173,4 +201,5 @@ if __name__ == "__main__":
     open(OUT, "w", encoding="utf-8", newline="\n").write(json.dumps(out, ensure_ascii=False, separators=(",", ":")) + "\n")
     hits = sorted(v[0] for v in out.values() if v[0] >= 0)
     miss = sum(1 for v in out.values() if v[0] < 0)
-    print(f"필살기 {len(out)} · 맞음 {len(hits)} · 못 맞힘 {miss} · 맞는 때 가운데 {hits[len(hits) // 2] if hits else '-'}ms (최소 {hits[0] if hits else '-'} · 최대 {hits[-1] if hits else '-'}) · {time.time() - t0:.0f}초 → {os.path.relpath(OUT, ROOT)}")
+    selfs = sum(1 for v in out.values() if len(v) > 2 and v[2] == 1)
+    print(f"모습 · 필살기 {len(out)} · 큰 맞음 {len(hits)} · 못 잼 {miss} · 자기 둘레 터짐 {selfs} · 큰 맞음 가운데 {hits[len(hits) // 2] if hits else '-'}ms (최소 {hits[0] if hits else '-'} · 최대 {hits[-1] if hits else '-'}) · {time.time() - t0:.0f}초 → {os.path.relpath(OUT, ROOT)}")

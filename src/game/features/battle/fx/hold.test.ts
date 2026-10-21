@@ -1,8 +1,12 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import { fixedRng } from '../../../../test/fixtures/rng';
 import { sampleMonster, sampleSave } from '../../../../test/fixtures/save';
 import { startBattle, type BattleState } from '../../../core/engine/battle';
 import { advance, createGameState, type GameState } from '../../../core/engine';
-import { battleAnimKey, FX_HOLD_DUEL_MAX_MS, FX_HOLD_MAX_MS, holdFx, releaseFx, shouldHoldBattle } from './hold';
+import { TIMING } from '../../../core/balance';
+import { Rng } from '../../../core/engine/rng';
+import { startTeamBattle, teamInput, teamStep, type TeamBattle } from '../../../core/engine/team';
+import { battleAnimKey, FX_HOLD_DUEL_MAX_MS, FX_HOLD_MAX_MS, holdFx, releaseFx, shouldHoldBattle, teamUltKey } from './hold';
 
 /** 내 포켓몬이 기술을 쓰는 중인 전투 상태 (ms 까지 지남) */
 function inMove(ms: number, dur = 900): { state: GameState; b: BattleState } {
@@ -85,5 +89,48 @@ describe('일반 모드 연출이 끝날 때까지 전투 걸음을 붙잡음 (f
     releaseFx();
     expect(shouldHoldBattle(state, 50, 100)).toBe(false);
     expect(shouldHoldBattle({ ...state, runtime: { ...state.runtime, stage: { phase: 'walk' } } }, 50, 100)).toBe(false);
+  });
+});
+
+describe('3:3 필살기 · 합동 마무리 — 연출이 맞힐 때까지 맞는 걸음을 붙잡음 (열쇠 = 시작 시각, 세 가지 시작 길)', () => {
+  afterEach(() => releaseFx());
+  const team = () => {
+    const ms = [sampleMonster({ uid: 'a' }), sampleMonster({ uid: 'b', species: 4, form: 'charmander' }), sampleMonster({ uid: 'c', species: 7, form: 'squirtle' })];
+    const save = sampleSave({ monsters: Object.fromEntries(ms.map((m) => [m.uid, { ...m, hp: 999 }])), party: ms.map((m) => m.uid) });
+    const foes = [10, 13, 16].map((dex, i) => sampleMonster({ uid: `f${i}`, species: dex, form: ['caterpie', 'weedle', 'pidgey'][i]!, moves: [{ moveId: 33, pp: 35 }] }));
+    return { save, b: startTeamBattle(save, foes, 'trainer', '상대') };
+  };
+  const at = (save: GameState['save'], tb: TeamBattle): GameState => {
+    const s = createGameState(save, 1);
+    return { ...s, runtime: { ...s.runtime, stageId: 'forest-1', stage: { phase: 'team', team: tb } } };
+  };
+  /** 필살기 단계로 들어간 기록 (ult) 의 시작 시각 열쇠 · 맞기 바로 앞까지 걸음 */
+  const keyOf = (tb: TeamBattle) => teamUltKey(tb.log.filter((e) => e.t === 'ult').at(-1)!.at);
+  const nearHit = (tb: TeamBattle): TeamBattle => {
+    let cur = tb;
+    while (cur.ult && cur.ult.ms + 50 < cur.ult.hitMs) cur = teamStep(cur, 50, new Rng(1), { auto: false, away: false });
+    return cur;
+  };
+
+  it('혼자 · 멘트 뒤 · 힘겨루기 뒤 합동 — 기록 열쇠와 붙잡는 열쇠가 같음', () => {
+    const { save, b } = team();
+    const full = (x: TeamBattle, slots: number[]) => ({ ...x, me: x.me.map((f, i) => (slots.includes(i) ? { ...f, ult: 1 } : f)) });
+    // 혼자 (찬 동료 없음)
+    const solo = nearHit(teamInput(full(b, [0]), { kind: 'ult', slot: 0 }, new Rng(9)));
+    // 멘트 뒤 합동
+    const g = teamInput(full(b, [0, 1]), { kind: 'ult', slot: 0 }, new Rng(9));
+    const joint = nearHit(teamStep(teamInput(g, { kind: 'ult', slot: 1 }, new Rng(9)), 50, new Rng(9), { auto: false, away: false }));
+    // 힘겨루기 뒤 합동 (둘이 이김)
+    const clash: TeamBattle = { ...b, phase: 'clash', clash: { kind: 'ult', me: [0, 2], foe: [0], shots: null, ms: TIMING.team.ultClashMs - 50, dur: TIMING.team.ultClashMs, taps: 0, winner: null } };
+    const won = nearHit(teamStep(clash, 50, fixedRng(0.01), { auto: false, away: false }));
+    for (const tb of [solo, joint, won]) {
+      expect(tb.phase).toBe('ult');
+      releaseFx();
+      holdFx(keyOf(tb), 5000, 0, 12_000);
+      expect(shouldHoldBattle(at(save, tb), 50, 100)).toBe(true);
+      // 다른 필살기 열쇠면 안 붙잡음
+      holdFx(teamUltKey(-1), 5000, 0, 12_000);
+      expect(shouldHoldBattle(at(save, tb), 50, 100)).toBe(false);
+    }
   });
 });
