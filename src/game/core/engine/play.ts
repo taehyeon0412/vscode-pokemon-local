@@ -193,10 +193,16 @@ function trainerFoes(save: Save, id: StageId, prog: StageProgress, n: number): M
   return trainerTeam(id, prog.seed, n, aliveCount(save), BALANCE.team.size);
 }
 
-/** 나갈 3마리 — 고른 것 (살아 있는 팀 포켓몬만) + 모자라면 상성 좋은 순으로 채움 */
+/**
+ * 나갈 3마리 — 고른 것 (살아 있는 팀 포켓몬만) + 모자라면 상성 좋은 순으로 채움.
+ * 미리 체크된 셋에서 뺀 포켓몬은 맨 뒤로 (빼고 바로 Enter 를 눌러도 뺀 것이 다시 나가지 않게 — 다른 포켓몬이 없을 때만, 코드 리뷰어)
+ */
 function fillPick(save: Save, pick: readonly string[] | undefined, foes: readonly Monster[]): string[] {
-  const ok = (pick ?? []).filter((uid) => save.party.includes(uid) && (save.monsters[uid]?.hp ?? 0) > 0);
-  return [...ok, ...pickTeam(save, foes).filter((uid) => !ok.includes(uid))].slice(0, BALANCE.team.size);
+  if (!pick) return pickTeam(save, foes);
+  const ok = pick.filter((uid) => save.party.includes(uid) && (save.monsters[uid]?.hp ?? 0) > 0);
+  const first = pickTeam(save, foes);
+  const rest = pickTeam(save, foes, Infinity).filter((uid) => !ok.includes(uid));
+  return [...ok, ...rest.filter((uid) => !first.includes(uid)), ...rest.filter((uid) => first.includes(uid))].slice(0, BALANCE.team.size);
 }
 
 /**
@@ -472,7 +478,8 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
     case 'trainer': {
       const ms = stage.ms + stepMs;
       // 3:3 을 손으로 골랐으면 3마리 고르기 — Enter 까지 기다림, 늦어도 teamPickAutoMs 뒤 (안 볼 때 · 자동 전투는 안 기다림 — gdd 4.7 "자동 전투면 멈추지 않고")
-      const picking = stage.pick !== undefined && stage.team === true && !rt.headless && !save.settings.autoBattle;
+      // 고르는 중에 패널이 좁아져 3:3 이 잠기면 기다리지 않음 (고르기가 사라졌는데 10초를 기다린 뒤 1:1 로 시작하던 것 — 코드 리뷰어)
+      const picking = stage.pick !== undefined && stage.team === true && !rt.headless && !save.settings.autoBattle && teamLockOf(save, rt) === null;
       const pickMs = picking ? (stage.pickMs ?? 0) + stepMs : 0;
       if (ms < TIMING.trainerMeetMs || (picking && pickMs < TIMING.teamPickAutoMs)) {
         stage = { ...stage, ms: Math.min(ms, TIMING.trainerMeetMs), ...(picking ? { pickMs } : {}) };

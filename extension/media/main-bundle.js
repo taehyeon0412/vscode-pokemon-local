@@ -48773,9 +48773,14 @@ window.addEventListener('message', (e) => {
     }
 });
 // 3:3 모드 (2026-10-21 orders #17) — 6마리 기술이 겹치니 기술은 패널 번쩍 · 흔들기 · 전체 멈춤 없이 (필살기 · 대결 = fxGame 중에만, 마지막 한 방은 hitStop(ms, true))
-let fxTeam = false;
+// 3:3 모드는 켠 뒤 1.5초 동안만 (게임이 상태마다 다시 켬) — 3:3 화면이 끄지 못하고 사라져도 1:1 연출이 3:3 모드로 남지 않게 (코드 리뷰어)
+let fxTeamUntil = 0;
+// 지금 연출을 부른 번호 (fxWithTimers 안) — 3:3 에서 번쩍 · 흔들기 · 전체 멈춤은 필살기 · 대결 (fxGame) 이 부른 것만.
+// 필살기 연출이 남아 있는 동안 쏜 기술 (번호 붙은 기술) · 임팩트 (fxMoveGen) 는 그대로 조용히 (코드 리뷰어)
+let fxNowGen = 0;
+const fxTeamQuiet = () => performance.now() < fxTeamUntil && (!fxGame || fxNowGen === fxMoveGen || fxTagged.has(fxNowGen));
 function fxGameShake(amp) {
-    if (fxAway || (fxTeam && !fxGame)) {
+    if (fxAway || fxTeamQuiet()) {
         return;
     }
     const a = Math.max(2, Math.min(3, Math.round(amp)));
@@ -48793,7 +48798,7 @@ screenFlash = function (s, alpha, color, max) {
     if (!fxInGame()) {
         return fxScreenFlash(s, alpha, color, max);
     }
-    if ((fxGame && fxGame.noFlash) || (fxTeam && !fxGame)) {
+    if ((fxGame && fxGame.noFlash) || fxTeamQuiet()) {
         return undefined;
     }
     const now = performance.now();
@@ -48828,6 +48833,8 @@ let fxGame;
 // 필살기 본편은 0.9초 뒤 타이머로 시작하고 전용 연출도 단계마다 타이머를 걸어서, 멈춘 뒤에 그려지지 않게 그 필살기가 거는 타이머에 번호를 붙임 (fxGuard)
 let fxGen = 0;
 const fxKilled = new Set();
+// clear() 때 그때까지의 번호는 모두 멈춤 — fxKilled 는 64개만 기억해서 3:3 처럼 기술 번호가 많으면 방금 멈춘 필살기 번호가 밀려나 남은 타이머가 다시 그리던 것 (코드 리뷰어)
+let fxDeadBelow = 0;
 function fxKill(gen) {
     fxKilled.add(gen);
     // 오래된 번호는 버림 — 걸어 둔 타이머는 길어야 15초라 최근 것만 있으면 됨
@@ -48839,7 +48846,7 @@ function fxKill(gen) {
 let fxMoveGen = ++fxGen;
 function fxGuard(gen, fn) {
     return function (...args) {
-        if (fxKilled.has(gen)) {
+        if (gen <= fxDeadBelow || fxKilled.has(gen)) {
             return undefined;
         }
         return fxWithTimers(gen, () => fn.apply(this, args));
@@ -48864,9 +48871,14 @@ function fxTagEmitter(em, gen) {
         const f = em.fx;
         em.fx = (...a) => {
             const n = moveParticles.length;
-            const out = f(...a);
-            fxTagNew(n, gen);
-            return out;
+            const prevNow = fxNowGen;
+            fxNowGen = gen;
+            try {
+                return f(...a);
+            } finally {
+                fxNowGen = prevNow;
+                fxTagNew(n, gen);
+            }
         };
     }
 }
@@ -48881,6 +48893,8 @@ spawnParticle = function (e) {
 };
 function fxWithTimers(gen, run) {
     const prev = window.setTimeout;
+    const prevNow = fxNowGen;
+    fxNowGen = gen;
     const tag = fxTagged.has(gen);
     const p0 = moveParticles.length;
     const e0 = moveEmitters.length;
@@ -48889,6 +48903,7 @@ function fxWithTimers(gen, run) {
         return run();
     } finally {
         window.setTimeout = prev;
+        fxNowGen = prevNow;
         if (tag) {
             fxTagNew(p0, gen);
             for (let i = e0; i < moveEmitters.length; i++) {
@@ -49562,7 +49577,7 @@ window.pokemonFx = {
     /** 히트스톱 — 굉장 · 급소 · 마지막 한 방에서 연출 입자와 전투 그림 (포켓몬 · 트레이너 몸짓) 이 ms 동안 멈춤 (번쩍 없이 손맛, 2026-10-20) */
     hitStop(ms = 80, all) {
         // 3:3 은 6마리가 겹쳐 맞으니 전체 멈춤은 마지막 한 방 (all) 과 필살기 · 대결 중에만 — 맞은 포켓몬만 멈추는 것은 게임 쪽 (fx/team knock)
-        if (fxAway || (fxTeam && !fxGame && !all)) {
+        if (fxAway || (fxTeamQuiet() && !all)) {
             return;
         }
         const until = Math.max(moveFreezeUntil, performance.now() + ms);
@@ -50035,17 +50050,15 @@ window.pokemonFx = {
             }
         }
     },
-    /** 3:3 모드 켜고 끄기 — 켜면 기술은 패널 번쩍 · 흔들기 · 전체 멈춤 없이 */
+    /** 3:3 모드 켜고 끄기 — 켜면 기술은 패널 번쩍 · 흔들기 · 전체 멈춤 없이 (1.5초 뒤 저절로 꺼짐 — 게임이 상태마다 다시 켬) */
     team(on) {
-        fxTeam = !!on;
+        fxTeamUntil = on ? performance.now() + 1500 : 0;
     },
     /** 남은 연출을 지움 — 전투가 갑자기 끝나거나 화면이 바뀔 때 */
     clear() {
         fxGameStop(true);
         fxKill(fxMoveGen);
-        for (const g of fxTagged) {
-            fxKill(g);
-        }
+        fxDeadBelow = fxGen;
         fxTagged.clear();
         fxTagGen.clear();
         fxMoveGen = ++fxGen;

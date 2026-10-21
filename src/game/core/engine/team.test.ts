@@ -479,6 +479,12 @@ describe('#17 준비 — 배율 · 잠금 · 3마리 고르기 · 필살기 예�
       expect(go.runtime.stage?.phase).toBe('team');
       expect(go.runtime.stage?.phase === 'team' && [...go.runtime.stage.team.fought].sort()).toEqual([...first.slice(1), other].sort());
       expect(steps(swapped, TIMING.teamPickAutoMs + STEP * 2).runtime.stage?.phase).toBe('team');
+      // 하나만 빼고 바로 시작 — 뺀 포켓몬 말고 다음 포켓몬으로 채움 (코드 리뷰어)
+      const quick = step(applyInput(out, { kind: 'space' }), STEP).state;
+      expect(quick.runtime.stage?.phase === 'team' && quick.runtime.stage.team.fought.includes(first[0]!)).toBe(false);
+      // 고르는 중에 패널이 좁아지면 기다리지 않고 1:1
+      const narrow = { ...swapped, runtime: { ...swapped.runtime, view: { w: 200, h: 187 } } };
+      expect(steps(narrow, TIMING.trainerMeetMs).runtime.stage?.phase).toBe('battle');
       const auto = applyInput(meet({ ...five(), settings: { ...five().settings, autoBattle: true } }), { kind: 'team-mode', on: true });
       expect(steps(auto, TIMING.trainerMeetMs).runtime.stage?.phase).toBe('team');
       // 다시 읽어도 고르기가 남음 · 1:1 로 바꾸면 고르기를 닫음

@@ -92,7 +92,8 @@ export type TeamNote =
   | { t: 'ready'; side: Side; slot: number }
   /** 끝 — 같은 묶음의 마지막 ko 한 방이 마무리 (크게 · 짧게 느리게) */
   | { t: 'end'; result: 'win' | 'lose' };
-export type TeamLogEntry = TeamNote & { id: number };
+/** id = 번호 · at = 판 시각 (b.t) — 화면이 다시 붙었을 때 지난 일을 몰아 그리지 않게 */
+export type TeamLogEntry = TeamNote & { id: number; at: number };
 export const TEAM_LOG_MAX = 32;
 
 export interface TeamBattle {
@@ -160,8 +161,8 @@ export function teamPossible(save: Save): boolean {
   return save.party.filter((uid) => (save.monsters[uid]?.hp ?? 0) > 0).length >= BALANCE.team.size;
 }
 
-/** 나갈 3마리 — 상대 팀에 효과가 굉장한 기술이 많은 순 (같으면 레벨 높은 쪽) · 자동 전투 · 고르지 않았을 때 */
-export function pickTeam(save: Save, foes: readonly Monster[]): string[] {
+/** 나갈 3마리 — 상대 팀에 효과가 굉장한 기술이 많은 순 (같으면 레벨 높은 쪽) · 자동 전투 · 고르지 않았을 때. n = 몇 마리까지 (순위 전체는 Infinity) */
+export function pickTeam(save: Save, foes: readonly Monster[], n: number = BALANCE.team.size): string[] {
   const foeTypes = foes.map((m) => speciesOf(m.species)?.types ?? []);
   const score = (m: Monster) =>
     foeTypes.reduce((sum, t) => sum + Math.max(1, ...m.moves.map((s) => moveOf(s.moveId)).filter((mv): mv is ReadonlyMove => !!mv && mv.power > 0).map((mv) => effectiveness(mv.type, t))), 0);
@@ -169,7 +170,7 @@ export function pickTeam(save: Save, foes: readonly Monster[]): string[] {
     .map((uid) => save.monsters[uid])
     .filter((m): m is Monster => !!m && m.hp > 0)
     .sort((a, b) => score(b) - score(a) || b.level - a.level)
-    .slice(0, BALANCE.team.size)
+    .slice(0, n)
     .map((m) => m.uid);
 }
 
@@ -230,7 +231,7 @@ function clone(b: TeamBattle): TeamBattle {
 /** 연출 다리에 하나 적음 (기록 하나하나는 바꾸지 않음 — 앞 상태와 같이 씀) */
 function note(b: TeamBattle, n: TeamNote): void {
   b.logSeq += 1;
-  b.log = [...b.log.slice(-(TEAM_LOG_MAX - 1)), { ...n, id: b.logSeq }];
+  b.log = [...b.log.slice(-(TEAM_LOG_MAX - 1)), { ...n, id: b.logSeq, at: b.t }];
 }
 
 function popup(b: TeamBattle, side: Side, slot: number, text: string, kind: BattlePopup['kind']): void {
@@ -817,7 +818,7 @@ export function readTeam(raw: unknown): TeamBattle | null {
   const both = (e: Obj) => isSide(e.side) && slot(e.from, e.side) && slot(e.to, other(e.side));
   const pair = (v: unknown) => Array.isArray(v) && v.length === 2 && v.every((x) => fin(x, 0));
   const okNote = (e: unknown): boolean => {
-    if (!isObj(e) || !fin(e.id, 1)) return false;
+    if (!isObj(e) || !fin(e.id, 1) || !fin(e.at, 0)) return false;
     switch (e.t) {
       case 'shoot':
         return fin(e.shot, 0) && isSide(e.side) && slot(e.from, e.side) && slots(e.targets, other(e.side), 1) && fin(e.moveId, 0, 100000);

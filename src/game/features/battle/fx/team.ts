@@ -42,6 +42,8 @@ export type TeamFxCall =
 
 /** 맞은 포켓몬 멈춤 + 밀림 — 보통 · 마지막 한 방 [제안] */
 export const TEAM_KNOCK = { cells: 0.5, ms: 140, finalCells: 1, finalMs: 260 };
+/** 이만큼 지난 일은 그리지 않음 — 패널을 접었다 펴거나 다른 탭에서 돌아왔을 때 지난 필살기 · 쓰러짐을 한 번에 몰아 그리지 않게 (코드 리뷰어) */
+export const TEAM_FX_LATE_MS = 600;
 
 const other = (s: Side): Side => (s === 'me' ? 'foe' : 'me');
 const fxMoveOf = (moveId: number): FxMove | null => {
@@ -56,10 +58,12 @@ function ultTarget(b: TeamBattle, side: Side): TeamSlot {
 
 /**
  * 계획 — after 번호 뒤 기록을 연출 목록으로. seen = 이 판에서 필살기를 쓴 포켓몬 (`side:slot`, 두 번째부터 짧게 — 계획이 채움).
- * 다시 붙어 기록이 앞서 있거나 (after > logSeq) 처음이면 그리지 않음 (부르는 쪽이 after = logSeq 로 시작)
+ * TEAM_FX_LATE_MS 보다 지난 일은 그리지 않음 (필살기를 본 것으로는 셈). 처음 · 새 판은 부르는 쪽이 after = logSeq 로 시작
  */
 export function planTeamFx(b: TeamBattle, after: number, seen: Set<string>): TeamFxCall[] {
-  const fresh = b.log.filter((e) => e.id > after);
+  const news = b.log.filter((e) => e.id > after);
+  for (const e of news) if (e.t === 'ult' && b.t - e.at > TEAM_FX_LATE_MS) seen.add(`${e.side}:${e.from}`);
+  const fresh = news.filter((e) => b.t - e.at <= TEAM_FX_LATE_MS);
   const out: TeamFxCall[] = [];
   // 마무리 한 방 = 같은 묶음에 끝이 있으면 그 앞 마지막 ko
   const endAt = fresh.findIndex((e) => e.t === 'end');
@@ -138,14 +142,15 @@ export interface TeamFxStage {
 }
 
 /**
- * 실행 — 상태가 바뀔 때마다 update(b). 처음 · 다시 붙으면 지난 기록은 그리지 않음.
- * 안 볼 때 (패널 접힘 · 확장 계산) 는 부르지 않음 — 다시 보이면 그때부터. VS Code 창 밖 (fxAway) 은 연출 쪽이 짧게 (ideas #113)
+ * 실행 — 상태가 바뀔 때마다 update(b), 화면이 사라질 때 (useEffect 정리 · 판 끝 · 웹뷰가 새 상태를 받음) reset().
+ * 처음 · 새 판 · 기록이 빠짐 (사이에 32개 넘게) 이면 지난 기록은 그리지 않음 · 0.6초 넘게 지난 일도 안 그림 (planTeamFx).
+ * 3:3 모드는 update 마다 다시 켬 (연출 쪽이 1.5초 뒤 저절로 끔 — reset 이 빠져도 1:1 연출이 3:3 모드로 남지 않게).
+ * 안 볼 때 (패널 접힘 · 확장 계산) 는 부르지 않음. VS Code 창 밖 (fxAway) 은 연출 쪽이 짧게 (ideas #113)
  */
 export class TeamFxRunner {
   private seq = -1;
   private seen = new Set<string>();
   private last: TeamBattle | null = null;
-  private timers: number[] = [];
 
   constructor(
     private readonly stage: TeamFxStage,
@@ -158,12 +163,18 @@ export class TeamFxRunner {
       this.reset();
       return;
     }
-    if (this.seq < 0 || b.logSeq < this.seq) {
-      // 처음 (또는 새 판) — 3:3 모드를 켜고 지금부터
+    fx?.team?.(true);
+    const prev = this.last;
+    const fresh = this.seq < 0 || b.logSeq < this.seq || (prev !== null && (b.t < prev.t || b.foeName !== prev.foeName || b.kind !== prev.kind));
+    if (fresh || (b.log[0] !== undefined && b.log[0].id > this.seq + 1)) {
+      // 처음 · 새 판 · 기록이 빠짐 — 지금부터 (새 판이면 필살기 본 것도 처음부터)
+      if (fresh) {
+        this.seen = new Set();
+        fx?.mount?.(this.stage.layer?.() ?? null);
+      }
       this.seq = b.logSeq;
-      this.seen = new Set();
-      fx?.team?.(true);
-      fx?.mount?.(this.stage.layer?.() ?? null);
+      this.last = b;
+      return;
     }
     this.last = b;
     if (b.logSeq === this.seq) return;
@@ -181,8 +192,7 @@ export class TeamFxRunner {
 
   /** 판이 끝나 화면이 사라질 때 — 남은 연출 · 타이머를 지우고 3:3 모드를 끔 */
   reset(): void {
-    this.timers.forEach((t) => window.clearTimeout(t));
-    this.timers = [];
+    releaseKnocks();
     if (this.seq >= 0) {
       this.fx?.clear();
       this.fx?.team?.(false);
@@ -289,15 +299,39 @@ export class TeamFxRunner {
   }
 }
 
-/** 맞은 포켓몬만 — 그 몸짓을 잠깐 멈추고 맞은 쪽 뒤로 밀렸다 돌아옴 (픽셀 박자 steps · 정수 px). 동작 줄이기면 밀림 없이 멈춤만 */
+/** 밀림 중인 그림 — 멈춘 몸짓 · 다시 켤 타이머 (같은 포켓몬이 연달아 맞으면 늘림 · reset 이 모두 다시 켬) */
+const knocked = new Map<Element, { paused: Animation[]; timer: number }>();
+const KNOCK_ID = 'pg-team-knock';
+
+function unknock(el: Element): void {
+  const k = knocked.get(el);
+  if (!k) return;
+  window.clearTimeout(k.timer);
+  knocked.delete(el);
+  k.paused.forEach((an) => an.playState === 'paused' && an.play());
+}
+
+/** 밀림 · 멈춤을 모두 풂 (판이 끝나 화면이 사라질 때) */
+export function releaseKnocks(): void {
+  [...knocked.keys()].forEach(unknock);
+}
+
+/**
+ * 맞은 포켓몬만 — 그 몸짓을 잠깐 멈추고 맞은 쪽 뒤로 밀렸다 돌아옴 (픽셀 박자 steps · 정수 px). 동작 줄이기면 밀림 없이 멈춤만.
+ * 같은 포켓몬이 멈춘 사이에 또 맞으면 멈춤을 그 끝까지 늘리고 밀림은 새로 (앞 밀림을 멈추지 않음 — 코드 리뷰어)
+ */
 export function knock(dst: FxActor, dir: 1 | -1, cells: number, ms: number): void {
   const el = dst.box ?? dst.el;
   if (typeof el.animate !== 'function') return;
-  const paused = el.getAnimations({ subtree: true }).filter((an) => an.playState === 'running');
-  paused.forEach((an) => an.pause());
-  window.setTimeout(() => paused.forEach((an) => an.playState === 'paused' && an.play()), ms);
+  const prev = knocked.get(el);
+  if (prev) window.clearTimeout(prev.timer);
+  const fresh = el.getAnimations({ subtree: true }).filter((an) => an.playState === 'running' && an.id !== KNOCK_ID);
+  fresh.forEach((an) => an.pause());
+  const paused = [...(prev?.paused ?? []), ...fresh];
+  knocked.set(el, { paused, timer: window.setTimeout(() => unknock(el), ms) });
   if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
   // 1칸 = 그림 폭의 1/4 (반 칸 = 1/8) — 정수 px [제안]
   const px = Math.max(1, Math.round(el.getBoundingClientRect().width * 0.25 * cells)) * dir;
-  el.animate([{ translate: '0 0' }, { translate: `${px}px 0`, offset: 0.25 }, { translate: `${px}px 0`, offset: 0.7 }, { translate: '0 0' }], { duration: ms, easing: 'steps(2, end)', composite: 'add' });
+  const an = el.animate([{ translate: '0 0' }, { translate: `${px}px 0`, offset: 0.25 }, { translate: `${px}px 0`, offset: 0.7 }, { translate: '0 0' }], { duration: ms, easing: 'steps(2, end)', composite: 'add' });
+  an.id = KNOCK_ID;
 }
