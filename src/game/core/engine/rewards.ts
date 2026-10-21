@@ -6,6 +6,7 @@
 import { BALANCE } from '../balance';
 import { BAG_MAX, healTeam } from '../rules/bag';
 import { addExp, evolve, expGain, learnMove, levelUpChoices } from '../rules/growth';
+import { expForLevel } from '../rules/stats';
 import { itemName } from '../rules/items';
 import { stageLevelBand } from '../rules/stage';
 import { GYM_LEADER } from '../rules/trainer';
@@ -25,6 +26,8 @@ export interface BattleSummary {
   exp: { uid: string; name: string; gain: number; from: number; to: number }[];
   money: number;
   item: string | null;
+  /** 받은 팔 물건 (이름 — 2026-10-21 ideas #125, 없으면 null · 옛 상태엔 칸이 없음) */
+  treasure?: string | null;
   /** 잡은 포켓몬 — uid · isNew = 도감 (잡음) 에 처음 (S12 소개 카드 "NEW! 처음 잡았다", 2026-10-20 태현 님 안 2 — 도감 화면이 생기면 "도감 등록") */
   caught: { name: string; toBox: boolean; uid: string; isNew: boolean } | null;
   /** 빈칸이라 바로 배운 기술 */
@@ -121,7 +124,8 @@ export function battleRewards(save0: Save, b: BattleState, wild: Monster | null,
   for (const uid of save0.party) {
     const m = save.monsters[uid];
     if (!m || m.hp <= 0) continue;
-    const gain = foes.reduce((sum, foe) => sum + expGain(foe, m.level, { share: !b.fought.includes(uid), trainer }), 0);
+    // 경험 부적 판이면 ×1.5 (ideas #70)
+    const gain = Math.round(foes.reduce((sum, foe) => sum + expGain(foe, m.level, { share: !b.fought.includes(uid), trainer }), 0) * runExpScale(save0));
     const grown = addExp(m, gain, rng);
     const r = levelUpChoices(grown, m.level, grown.level, rng);
     save.monsters[uid] = r.monster;
@@ -140,11 +144,15 @@ export function battleRewards(save0: Save, b: BattleState, wild: Monster | null,
       save.bag[item] = (save.bag[item] ?? 0) + 1;
       summary.item = itemName(item);
     }
+    // 팔 물건 — 잡았을 때 10% (ideas #125)
+    if (b.result === 'catch' && rng.chance(BALANCE.treasureChance.catch)) save = giveTreasure(save, summary, pickTreasure(rng));
     const foeName = `야생 ${nameOf(b.foe.species)}`;
     summary.title = b.result === 'catch' ? `${withJosa(foeName, '을/를')} 잡았다!` : `${withJosa(foeName, '을/를')} 쓰러뜨렸다!`;
   } else if (b.kind === 'trainer') {
     // 트레이너: 쓰러뜨린 마리마다 상대 레벨 × 20원 (돈만, gdd 4.3)
     summary.money = foes.reduce((sum, f) => sum + f.level * BALANCE.trainerMoneyPerLevel, 0);
+    // 팔 물건 — 15% (ideas #125, 라이벌은 rivalWinRewards 에서 첫 승에 금구슬)
+    if (rng.chance(BALANCE.treasureChance.trainer)) save = giveTreasure(save, summary, pickTreasure(rng));
     summary.title = `${withJosa(b.foeName ?? '트레이너', '과/와')}의 승부에서 이겼다!`;
   } else {
     // 관장: 처음 = 배지 + 3000원 + 리프의 돌 + 보너스 경험치 (스테이지의 2배) · 다시 = 300원 (3.9)
@@ -155,6 +163,8 @@ export function battleRewards(save0: Save, b: BattleState, wild: Monster | null,
       save = { ...save, badges: [...save.badges, FOREST_BADGE], bag: { ...save.bag, 'leaf-stone': (save.bag['leaf-stone'] ?? 0) + 1 } };
       summary.badge = '숲 배지';
       summary.item = itemName('leaf-stone');
+      // 관장 첫 승 = 큰금구슬 (ideas #125)
+      save = giveTreasure(save, summary, 'big-nugget');
       const bonus = giveTeamExp(save, stageLevelBand('forest-3')[1] * BALANCE.clearExpPerLevel * BALANCE.gymClearExpScale, rng);
       save = bonus.save;
       // 보너스까지 합친 레벨 변화 (같은 포켓몬이면 한 줄로)
@@ -177,10 +187,11 @@ export function battleRewards(save0: Save, b: BattleState, wild: Monster | null,
 export function rivalWinRewards(save: Save, summary: BattleSummary, rival: string, rng: Rng): { save: Save; summary: BattleSummary } {
   const extra = Math.round(summary.money * (BALANCE.rivalMoneyScale - 1));
   const item = rivalItem(save, rival, rng);
-  return {
-    save: { ...save, money: Math.min(999_999_999, save.money + extra), bag: { ...save.bag, [item]: Math.min(BAG_MAX, (save.bag[item] ?? 0) + 1) } },
-    summary: { ...summary, money: summary.money + extra, item: itemName(item) },
-  };
+  const next: Save = { ...save, money: Math.min(999_999_999, save.money + extra), bag: { ...save.bag, [item]: Math.min(BAG_MAX, (save.bag[item] ?? 0) + 1) } };
+  const out: BattleSummary = { ...summary, money: summary.money + extra, item: itemName(item) };
+  // 이 라이벌에게 처음 이김 (전적은 이 다음에 셈) = 금구슬 (ideas #125)
+  const first = (save.rivals?.[rival]?.wins ?? 0) === 0;
+  return { save: first ? giveTreasure(next, out, 'nugget') : next, summary: out };
 }
 
 /** S23 — 맨 앞 고르기가 새 기술이면: replace 번째 칸과 바꿈 (null = 배우지 않기) */
@@ -216,6 +227,45 @@ export function resolveEvolve(save: Save, keep: readonly number[] | null, rng: R
 }
 
 /** S24 에 보여 줄 보너스 경험치 (팀 전원) — 그 스테이지 레벨대 위끝 × 10 */
+/** 경험 부적 판이면 경험치 ×1.5 — id 가 없으면 지금 있는 스테이지 (체육관 · 타이틀 = 1, 2026-10-21 ideas #70) */
+export function runExpScale(save: Save, id?: StageId): number {
+  const at = id ?? (save.location.screen === 'stage' ? save.location.stageId : null);
+  return at && save.stages[at]?.run.boost ? BALANCE.expCharmScale : 1;
+}
+
+/** 팔 물건 하나 — 흔함 50% · 보통 35% · 드묾 15% (큰금구슬은 관장 첫 승에서만, 2026-10-21 ideas #125) */
+export function pickTreasure(rng: Rng): ItemId {
+  const r = rng.next();
+  let acc = 0;
+  for (const [p, items] of BALANCE.treasureTiers) {
+    acc += p;
+    if (r < acc) return items[rng.int(0, items.length - 1)]!;
+  }
+  const last = BALANCE.treasureTiers[BALANCE.treasureTiers.length - 1]![1];
+  return last[rng.int(0, last.length - 1)]!;
+}
+
+/** 가방에 하나 (상한 BAG_MAX) */
+export function addItem(save: Save, item: ItemId, n = 1): Save {
+  return { ...save, bag: { ...save.bag, [item]: Math.min(BAG_MAX, (save.bag[item] ?? 0) + n) } };
+}
+
+/** 팔 물건을 가방에 · 결과 상자 (summary.treasure) 에 */
+function giveTreasure(save: Save, summary: BattleSummary, item: ItemId): Save {
+  summary.treasure = itemName(item);
+  return addItem(save, item);
+}
+
+/** 이상한사탕 — 그 포켓몬 1레벨 (새 기술 · 진화 고르기도 레벨업처럼, 선두가 아니면 기술 고르기는 쌓아 둠). 못 쓰면 null (2026-10-21 ideas #70) */
+export function useRareCandy(save: Save, uid: string, rng: Rng): Save | null {
+  const m = save.monsters[uid];
+  const have = save.bag['rare-candy'] ?? 0;
+  if (!m || have <= 0 || !save.party.includes(uid) || m.level >= BALANCE.maxLevel) return null;
+  const grown = addExp(m, expForLevel(m.level + 1) - m.exp, rng);
+  const r = levelUpChoices(grown, m.level, grown.level, rng);
+  return addChoices({ ...save, bag: { ...save.bag, 'rare-candy': have - 1 }, monsters: { ...save.monsters, [uid]: r.monster } }, r.choices);
+}
+
 export function clearBonusExp(id: StageId): number {
   return stageLevelBand(id)[1] * BALANCE.clearExpPerLevel;
 }
@@ -232,7 +282,7 @@ export function clearStage(save0: Save, id: StageId, rng: Rng): { save: Save; le
     bag: { ...save0.bag, 'poke-ball': Math.min(999, (save0.bag['poke-ball'] ?? 0) + BALANCE.clearBalls) },
     stages: { ...save0.stages, [id]: { ...prog, progress: 1, cleared: true } },
   };
-  const r = giveTeamExp(save, clearBonusExp(id), rng);
+  const r = giveTeamExp(save, Math.round(clearBonusExp(id) * runExpScale(save0, id)), rng);
   save = r.save;
   return { save, levelUps: r.exp.filter((e) => e.to > e.from).map((e) => `${e.name} Lv ${e.to}!`) };
 }

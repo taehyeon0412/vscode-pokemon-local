@@ -226,6 +226,8 @@ function readRun(v: unknown, path: string, fx: Fixer, playTimeMs: number): Stage
     seen: fx.speciesList(r.seen, `${path}.seen`).slice(0, RUN_SEEN_MAX),
     reach: r.reach === undefined ? 0 : fx.ratio(r.reach, `${path}.reach`),
     retries: r.retries === undefined ? 0 : fx.int(r.retries, `${path}.retries`, 0, 100_000, 0),
+    ...(r.candy === undefined ? {} : { candy: fx.int(r.candy, `${path}.candy`, 0, 100, 0) }),
+    ...(r.boost === undefined ? {} : { boost: fx.bool(r.boost, `${path}.boost`, false) }),
   };
 }
 

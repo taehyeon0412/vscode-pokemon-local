@@ -9,6 +9,7 @@ import { BALANCE } from '../balance';
 import type { ItemId, Monster, Save, StatKey } from '../save';
 import { evolutionsOf, formsOfSpecies, moveOf, speciesOf } from '../../data';
 import { evolutionMoves } from './growth';
+import { VALUABLES } from './items';
 import { maxHp } from './stats';
 
 export type ShopItem = keyof typeof BALANCE.shopPrices;
@@ -69,6 +70,21 @@ export function teamHealthy(save: Save): boolean {
 }
 
 /** S14 — 하나 사기 (돈이 모자라거나 가방이 꽉 차면 null) */
+/** 상점 [팔기] 값 — 정가 (상점 값 · 팔 물건 값) × sellRate, 값이 없는 것 (진화의 돌 · 연결의끈) 은 0 = 못 팖 (2026-10-21 ideas #126) */
+export function sellPrice(item: ItemId): number {
+  const list: Partial<Record<ItemId, number>> = { ...BALANCE.shopPrices, ...BALANCE.valuablePrices };
+  return Math.floor((list[item] ?? 0) * BALANCE.sellRate);
+}
+
+/** S14 [팔기] — count 개까지 (가진 만큼). 못 팔면 null */
+export function sell(save: Save, item: ItemId, count: number): { save: Save; count: number; money: number } | null {
+  const price = sellPrice(item);
+  const n = Math.min(Math.max(1, Math.floor(count)), save.bag[item] ?? 0);
+  if (price <= 0 || n <= 0) return null;
+  const money = price * n;
+  return { save: { ...save, money: Math.min(999_999_999, save.money + money), bag: { ...save.bag, [item]: (save.bag[item] ?? 0) - n } }, count: n, money };
+}
+
 export function buy(save: Save, item: ShopItem): Save | null {
   const price = priceOf(item);
   const have = save.bag[item] ?? 0;
@@ -126,7 +142,7 @@ export function spendPoint(save: Save, uid: string, stat: StatKey): Save | null 
 // ---------- S19 가방 (전투 밖)
 
 /** 전투 밖에서 쓰는 아이템 (볼은 전투에서만) */
-export const FIELD_ITEMS: readonly ItemId[] = ['potion', 'super-potion', 'full-heal', 'revive', 'fire-stone', 'water-stone', 'thunder-stone', 'leaf-stone', 'moon-stone', 'linking-cord'];
+export const FIELD_ITEMS: readonly ItemId[] = ['potion', 'super-potion', 'full-heal', 'revive', 'rare-candy', 'fire-stone', 'water-stone', 'thunder-stone', 'leaf-stone', 'moon-stone', 'linking-cord'];
 /** 진화의 돌 5종 (라이벌 보상도 여기서 — rules/rival.ts) */
 export const STONES: readonly ItemId[] = ['fire-stone', 'water-stone', 'thunder-stone', 'leaf-stone', 'moon-stone'];
 export const isEvolutionItem = (item: ItemId) => STONES.includes(item) || item === 'linking-cord';
@@ -150,7 +166,12 @@ export function fieldUseBlock(m: Monster, item: ItemId): string | null {
       return m.status ? null : '상태 이상이 없어요';
     case 'revive':
       return m.hp <= 0 ? null : '쓰러진 포켓몬에게만 써요';
+    case 'rare-candy':
+      return m.level >= BALANCE.maxLevel ? '더 오를 수 없어요' : null;
+    case 'exp-charm':
+      return '스테이지를 새로 시작할 때 저절로 써요';
     default:
+      if (VALUABLES.includes(item)) return '상점에서 팔 수 있어요';
       if (isEvolutionItem(item)) return itemEvolution(m, item) !== null ? null : '이 포켓몬은 진화하지 않아요';
       return '전투에서만 써요';
   }
@@ -163,7 +184,8 @@ export function fieldUseBlock(m: Monster, item: ItemId): string | null {
 export function useFieldItem(save: Save, item: ItemId, uid: string): { save: Save; healedHp: number; evolve: boolean } | null {
   const m = save.monsters[uid];
   const have = save.bag[item] ?? 0;
-  if (!m || have <= 0 || !save.party.includes(uid) || fieldUseBlock(m, item) !== null) return null;
+  // 이상한사탕은 레벨업 (랜덤) 이라 엔진 (useRareCandy) 이 씀
+  if (!m || have <= 0 || !save.party.includes(uid) || item === 'rare-candy' || fieldUseBlock(m, item) !== null) return null;
   const bag = { ...save.bag, [item]: have - 1 };
   if (isEvolutionItem(item)) {
     const to = itemEvolution(m, item)!;

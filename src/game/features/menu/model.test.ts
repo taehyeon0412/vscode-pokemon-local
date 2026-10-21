@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { sampleMonster, sampleSave } from '../../../test/fixtures/save';
 import { BALANCE } from '../../core/balance';
 import { ICONS } from '../../data/icons';
-import { ITEM_ICON, lobbyView, MENU_KEYS, menuLabels, menuShortcutOf, shopView } from './model';
+import { clearBonusExp } from '../../core/engine';
+import { clearView, ITEM_ICON, lobbyView, MENU_KEYS, menuLabels, menuShortcutOf, shopView } from './model';
 
 describe('S16 ④ 추천 레벨 (mvp-spec S16)', () => {
   it('내 팀에서 가장 센 3마리 평균과 비교 — 관장이 3마리라 약한 2마리 때문에 빨간색이 되지 않게 (단계 11 플레이 리뷰)', () => {
@@ -41,5 +42,14 @@ describe('S14 상점 칸 (아트 디렉터 4차)', () => {
   });
   it('물건마다 픽셀 아이콘이 있음 (상점 · 가방)', () => {
     for (const icon of Object.values(ITEM_ICON)) expect(ICONS[icon], icon).toBeDefined();
+  });
+});
+
+describe('S24 클리어 카드 보너스 — 경험 부적 판이면 받은 그대로 ×1.5 (2026-10-21 ideas #70)', () => {
+  it('판 기록 boost 가 있으면 ×1.5 · 없으면 그대로', () => {
+    const run = { startMs: 0, caught: 0, trainers: 0, seen: [], reach: 1, retries: 0 };
+    const p = { seed: 1, progress: 1, cleared: true, defeatedTrainers: [], facilities: [] };
+    expect(clearView(sampleSave({ stages: { 'forest-2': { ...p, run: { ...run, boost: true } } } }), 'forest-2').bonus).toBe(Math.round(clearBonusExp('forest-2') * BALANCE.expCharmScale));
+    expect(clearView(sampleSave({ stages: { 'forest-2': { ...p, run } } }), 'forest-2').bonus).toBe(clearBonusExp('forest-2'));
   });
 });

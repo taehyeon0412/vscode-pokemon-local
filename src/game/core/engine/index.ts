@@ -41,7 +41,7 @@ export {
   type BattleState,
   type Side,
 } from './battle';
-export { clearBonusExp, FOREST_BADGE, type BattleSummary } from './rewards';
+export { clearBonusExp, FOREST_BADGE, runExpScale, type BattleSummary } from './rewards';
 export {
   createGameState,
   MAX_SPEED,

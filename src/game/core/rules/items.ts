@@ -17,7 +17,20 @@ const ITEM_NAMES: Record<ItemId, string> = {
   'leaf-stone': '리프의돌',
   'moon-stone': '달의돌',
   'linking-cord': '연결의끈',
+  'rare-candy': '이상한사탕',
+  'exp-charm': '경험 부적',
+  'tiny-mushroom': '작은버섯',
+  pearl: '진주',
+  stardust: '별의모래',
+  'big-mushroom': '큰버섯',
+  'big-pearl': '큰진주',
+  nugget: '금구슬',
+  'star-piece': '별의조각',
+  'big-nugget': '큰금구슬',
 };
+
+/** 팔 물건 (팔기만 — 2026-10-21 ideas #125) */
+export const VALUABLES: readonly ItemId[] = ['tiny-mushroom', 'pearl', 'stardust', 'big-mushroom', 'big-pearl', 'nugget', 'star-piece', 'big-nugget'];
 
 export const itemName = (id: ItemId): string => ITEM_NAMES[id] ?? id;
 

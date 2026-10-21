@@ -204,7 +204,25 @@ export const BALANCE = {
   /** 졌을 때 잃는 돈 (관장전은 안 잃음 — gdd 4.10) */
   defeatMoneyLoss: 0.1,
   /** 상점 값 (원, 4장) — 마스터볼은 안 팖 */
-  shopPrices: { 'poke-ball': 200, 'great-ball': 600, 'ultra-ball': 1200, potion: 300, 'super-potion': 700, 'full-heal': 600, revive: 1500 },
+  shopPrices: { 'poke-ball': 200, 'great-ball': 600, 'ultra-ball': 1200, potion: 300, 'super-potion': 700, 'full-heal': 600, revive: 1500, 'rare-candy': 3000, 'exp-charm': 1500 },
+  // ---- 돈 쓰는 재미 (다음 버전 2단계 — 2026-10-21 태현 님 "추천대로", gdd 7장 · 숫자는 [임시값])
+  /** 팔 물건 정가 (팔면 sellRate) — 전투 · 쓰임 없이 팔기만 (ideas #125) */
+  valuablePrices: { 'tiny-mushroom': 400, pearl: 1000, stardust: 1200, 'big-mushroom': 2500, 'big-pearl': 3000, nugget: 4000, 'star-piece': 5000, 'big-nugget': 10000 },
+  /** 상점 [팔기] — 정가의 이만큼 (팔 물건 + 볼 · 약 등 값이 있는 것, ideas #126) */
+  sellRate: 0.5,
+  /** 팔 물건을 받는 확률 — 잡았을 때 · 트레이너를 이겼을 때 · 부탁 [도와준다] 가 성공했을 때. 관장 첫 승 = 큰금구슬 · 라이벌마다 첫 승 = 금구슬 (꼭) */
+  treasureChance: { catch: 0.1, trainer: 0.15, request: 0.25 },
+  /** 무엇이 나올지 — [확률, 물건] 흔함 50% · 보통 35% · 드묾 15% (큰금구슬은 관장 첫 승에서만) */
+  treasureTiers: [
+    [0.5, ['tiny-mushroom', 'pearl']],
+    [0.35, ['stardust', 'big-mushroom', 'big-pearl']],
+    [0.15, ['nugget', 'star-piece']],
+  ],
+  /** 이상한사탕 — 스테이지 상점에서 한 판에 이만큼 (대기실 상점엔 없음) · 경험 부적 = 스테이지를 새로 시작할 때 1개 써서 그 판 경험치 ×이만큼 (ideas #70) */
+  candyPerStage: 1,
+  expCharmScale: 1.5,
+  /** Shift + 클릭 = 한 번에 이만큼 사기 · 팔기 (ideas #50) */
+  shopBulk: 5,
   /** 스테이지 클리어 보너스 경험치 = 그 스테이지 레벨대 위끝 × 10 (팀 전원) · 관장 (처음 이길 때) 은 그 2배 [제안] · 클리어 볼 +1 */
   clearExpPerLevel: 10,
   gymClearExpScale: 2,

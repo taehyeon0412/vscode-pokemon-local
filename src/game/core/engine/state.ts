@@ -132,6 +132,7 @@ function readSummary(raw: unknown): BattleSummary | null {
     exp,
     money: num(raw.money, 0, 1e9) ?? 0,
     item: text(raw.item, 30),
+    ...(text(raw.treasure, 30) !== null ? { treasure: text(raw.treasure, 30) } : {}),
     caught,
     learned,
     choices: num(raw.choices, 0, 1000) ?? 0,

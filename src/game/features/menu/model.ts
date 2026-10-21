@@ -2,7 +2,7 @@
  * S07 지도 · S13 병원 · S14 상점 · S16 대기실 · S18 내 포켓몬 · S19 가방 · S21 프로필 · S24 클리어 — 화면을 모르는 부분: 무엇을 어떤 글로 보여 줄지.
  */
 import { BALANCE } from '../../core/balance';
-import { clearBonusExp, gymUnlocked, stageUnlocked, type GameState } from '../../core/engine';
+import { clearBonusExp, gymUnlocked, runExpScale, stageUnlocked, type GameState } from '../../core/engine';
 import { FIELD_ITEMS, fieldUseBlock, isEvolutionItem, maxHpOf, priceOf, SHOP_ITEMS, type ShopItem } from '../../core/rules/bag';
 import { itemName } from '../../core/rules/items';
 import { expForLevel, starGrade, statsOf } from '../../core/rules/stats';
@@ -33,6 +33,17 @@ export const ITEM_ICON: Record<ItemId, IconName> = {
   'leaf-stone': 'stone',
   'moon-stone': 'stone',
   'linking-cord': 'cord',
+  // 다음 버전 2단계 (2026-10-21) — 8 × 8 아이콘은 디자인팀이 그릴 때까지 비슷한 그림 [임시]
+  'rare-candy': 'potion',
+  'exp-charm': 'sparkle',
+  'tiny-mushroom': 'sparkle',
+  pearl: 'sparkle',
+  stardust: 'sparkle',
+  'big-mushroom': 'sparkle',
+  'big-pearl': 'sparkle',
+  nugget: 'sparkle',
+  'star-piece': 'sparkle',
+  'big-nugget': 'sparkle',
 };
 
 /** 팀에 남은 포인트가 있는 포켓몬이 있는지 (◓ 버튼에 점) */
@@ -172,6 +183,8 @@ const SHOP_EFFECT: Record<ShopItem, string> = {
   'super-potion': `HP ${BALANCE.superPotionHeal} 회복`,
   'full-heal': '상태 회복',
   revive: '되살림 HP ½',
+  'rare-candy': '레벨 +1',
+  'exp-charm': `경험치 ×${BALANCE.expCharmScale}`,
 };
 /** 마우스를 올리면 보이는 긴 설명 */
 const SHOP_DETAIL: Record<ShopItem, string> = {
@@ -182,6 +195,8 @@ const SHOP_DETAIL: Record<ShopItem, string> = {
   'super-potion': `포켓몬 하나의 HP 를 ${BALANCE.superPotionHeal} 회복해요`,
   'full-heal': '독 · 화상 · 마비 · 잠듦을 낫게 해요',
   revive: '쓰러진 포켓몬을 HP 절반으로 깨워요',
+  'rare-candy': `포켓몬 하나의 레벨이 1 올라요 — 스테이지 상점에서 한 판에 ${BALANCE.candyPerStage}개만`,
+  'exp-charm': `다음에 스테이지를 새로 시작할 때 저절로 써서 그 스테이지 경험치가 ×${BALANCE.expCharmScale}`,
 };
 
 /** S14 ① 물건 · ③ 내 돈 */
@@ -219,7 +234,8 @@ export function clearView(save: Save, id: StageId): { title: string; bonus: numb
   const i = STAGE_IDS.indexOf(id);
   return {
     title: `${stageLabel(id)} 클리어!`,
-    bonus: clearBonusExp(id),
+    // 경험 부적 판이면 ×1.5 (받은 그대로 — 2026-10-21 ideas #70)
+    bonus: Math.round(clearBonusExp(id) * runExpScale(save, id)),
     balls: BALANCE.clearBalls,
     caught: run.caught,
     trainers: run.trainers,

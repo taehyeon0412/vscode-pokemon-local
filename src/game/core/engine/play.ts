@@ -10,7 +10,7 @@
  * 상태는 늘 새 객체로 만듦 (그 자리에서 고치지 않음 — 확장 ↔ 웹뷰 · 저장소가 같은 객체를 나눠 써도 안 바뀌게).
  */
 import { BALANCE, TIMING } from '../balance';
-import { buy, healTeam, isShopItem, moveInTeam, spendPoint, swapWithBox, toBox, useFieldItem, walkRegen } from '../rules/bag';
+import { buy, healTeam, isShopItem, moveInTeam, sell, spendPoint, swapWithBox, toBox, useFieldItem, walkRegen } from '../rules/bag';
 import { createWild, encounterStart, pickupAt, planWild, wildKey } from '../rules/encounter';
 import { itemName, requestAt, resolveRequest } from '../rules/request';
 import { spotBetween, spotRng, stageCode, stageLayout, trainerId, walkDelta, type Spot, type StageLayout } from '../rules/stage';
@@ -21,7 +21,7 @@ import { ITEM_IDS, RUN_SEEN_MAX, STAGE_IDS, type FacilitySpot, type ItemId, type
 import { withJosa } from '../text';
 import { moveOf, speciesOf } from '../../data';
 import { applyBattleResult, battleDone, battleInput, battleStep, battleWaiting, firstAlive, startBattle, startTrainerBattle, switchable, type BattleInput, type BattleState } from './battle';
-import { battleRewards, clearBonusExp, clearStage, defeatPenalty, FOREST_BADGE, resolveEvolve, resolveLearn, rivalWinRewards, takeLaterChoices } from './rewards';
+import { addItem, battleRewards, clearBonusExp, clearStage, defeatPenalty, FOREST_BADGE, pickTreasure, resolveEvolve, resolveLearn, rivalWinRewards, runExpScale, takeLaterChoices, useRareCandy } from './rewards';
 import { Rng } from './rng';
 import { MAX_SPEED, type AwayLog, type GameState, type RuntimeState, type StageRuntime } from './state';
 import { takeSteps } from './step';
@@ -62,7 +62,10 @@ export type GameInput =
   | { kind: 'facility-leave' }
   /** S13 ① 회복 (병원 · 체육관 대기실) · S14 사기 (상점 · 대기실) */
   | { kind: 'heal' }
-  | { kind: 'buy'; item: ItemId }
+  /** count = Shift + 클릭 한 번에 (ideas #50, 최대 shopBulk) */
+  | { kind: 'buy'; item: ItemId; count?: number }
+  /** S14 [팔기] — 정가의 50% (ideas #126) */
+  | { kind: 'sell'; item: ItemId; count?: number }
   /** S18 — 팀 순서 · 보관함과 바꾸기 (병원 · 대기실 · 스테이지 시작 전만) · 남은 포인트 */
   | { kind: 'team-move'; uid: string; dir: -1 | 1 }
   | { kind: 'team-swap'; boxUid: string; partyUid: string | null }
@@ -527,6 +530,8 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
 /** 스테이지 끝 — 볼 +1 · 보너스 경험치 · 깬 표시 → S24 클리어 카드 (고를 것이 있으면 먼저) · 1-3 은 S16 체육관 대기실로 */
 function finishStage(save0: Save, rt0: RuntimeState, id: StageId): { save: Save; rt: RuntimeState; signal: SaveSignal | null; notice: GameNotice | null } {
   const rng = new Rng(rt0.rngState);
+  // 클리어 보너스 — 경험 부적 판이면 ×1.5 (한 줄 알림에도 같은 수)
+  const bonus = Math.round(clearBonusExp(id) * runExpScale(save0, id));
   const r = clearStage(save0, id, rng);
   // 쌓아 둔 새 기술 고르기를 한 번에 (클리어 카드 전, ideas #72)
   let save = takeLaterChoices(r.save);
@@ -536,7 +541,7 @@ function finishStage(save0: Save, rt0: RuntimeState, id: StageId): { save: Save;
   if (id === 'forest-3') {
     save = { ...save, location: { screen: 'gym' } };
     // 클리어 → 레벨업을 두 알림으로 차례로 (각 2.5초 · 합 5초) — 한 줄이면 6마리 레벨업에 약 660px (2026-10-21 UX 리뷰어)
-    const head = `${stageCode(id)} 클리어! 경험치 +${clearBonusExp(id)} · 볼 +${BALANCE.clearBalls}`;
+    const head = `${stageCode(id)} 클리어! 경험치 +${bonus} · 볼 +${BALANCE.clearBalls}`;
     rt = { ...rt, toast: lv ? { text: head, ms: TIMING.toastMs, then: lv } : { text: head, ms: TIMING.toastMs * 2 } };
   } else if (lv) rt = { ...rt, toast: { text: lv, ms: TIMING.toastMs * 2 } };
   const stage = afterResult(save);
@@ -755,7 +760,11 @@ function travel(state: GameState, to: StageId | 'gym'): GameState {
   if (to === 'gym') return { save: { ...save, location: { screen: 'gym' } }, runtime: { ...state.runtime, rngState: rng.state, stage: { phase: 'lobby' }, stageId: null } };
   save = { ...save, stages: { ...save.stages, [to]: freshRun(save.stages[to], newSeed(rng), save.playTimeMs) }, location: { screen: 'stage', stageId: to } };
   if (save.lastHospital?.stageId === to) save = { ...save, lastHospital: null };
-  return { save, runtime: { ...state.runtime, rngState: rng.state, stage: null, stageId: to } };
+  // 경험 부적 — 스테이지를 새로 시작할 때 1개를 써서 이 판 동안 경험치 ×1.5 (2026-10-21 ideas #70)
+  const charm = (save.bag['exp-charm'] ?? 0) > 0;
+  if (charm) save = withRun({ ...save, bag: { ...save.bag, 'exp-charm': (save.bag['exp-charm'] ?? 0) - 1 } }, to, (r) => ({ ...r, boost: true }));
+  const toastNow = charm ? { text: `경험 부적을 썼다! 이 스테이지 경험치 ×${BALANCE.expCharmScale}`, ms: TIMING.toastMs * 2 } : state.runtime.toast;
+  return { save, runtime: { ...state.runtime, rngState: rng.state, stage: null, stageId: to, toast: toastNow } };
 }
 
 /** 입력 — 지금 받을 수 없는 입력이면 상태를 그대로 돌려줌 */
@@ -849,9 +858,17 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       }
       const rng = new Rng(state.runtime.rngState);
       const outcome = resolveRequest(save, requestAt(prog.seed, stage.number), rng);
+      // 팔 물건 — 부탁을 끝내면 (성공) 25% (2026-10-21 ideas #125)
+      let after = outcome.save;
+      let reward = outcome.reward;
+      if (outcome.ok && rng.chance(BALANCE.treasureChance.request)) {
+        const t = pickTreasure(rng);
+        after = addItem(after, t);
+        reward = [reward, itemName(t)].filter(Boolean).join(' · ');
+      }
       return {
-        save: withProgress(outcome.save, id, stage.at),
-        runtime: { ...state.runtime, rngState: rng.state, stage: { ...stage, result: { ok: outcome.ok, text: outcome.text, reward: outcome.reward }, ms: 0 } },
+        save: withProgress(after, id, stage.at),
+        runtime: { ...state.runtime, rngState: rng.state, stage: { ...stage, result: { ok: outcome.ok, text: outcome.text, reward }, ms: 0 } },
       };
     }
     case 'facility': {
@@ -873,8 +890,27 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       return toast(state, healTeam(save), '포켓몬들이 모두 기운을 되찾았다!');
     case 'buy': {
       if (!canShop(state) || !isShopItem(input.item)) return state;
-      const next = buy(save, input.item);
-      return next ? toast(state, next, `${withJosa(itemName(input.item), '을/를')} 샀다!`) : state;
+      // 이상한사탕 = 스테이지 상점에서 한 판에 1개 (대기실 상점엔 없음 — 2026-10-21 ideas #70)
+      const candy = input.item === 'rare-candy';
+      const at = save.location.screen === 'stage' ? save.location.stageId : null;
+      if (candy && (!at || (save.stages[at]?.run.candy ?? 0) >= BALANCE.candyPerStage)) return state;
+      // Shift + 클릭 = 5개 (ideas #50) — 돈 · 가방이 모자라면 산 만큼
+      const want = candy ? 1 : Math.max(1, Math.min(BALANCE.shopBulk, Math.floor(input.count ?? 1)));
+      let next = save;
+      let got = 0;
+      for (; got < want; got++) {
+        const b = buy(next, input.item);
+        if (!b) break;
+        next = b;
+      }
+      if (got === 0) return state;
+      if (candy && at) next = withRun(next, at, (r) => ({ ...r, candy: (r.candy ?? 0) + 1 }));
+      return toast(state, next, `${withJosa(itemName(input.item), '을/를')} ${got > 1 ? `${got}개 ` : ''}샀다!`);
+    }
+    case 'sell': {
+      if (!canShop(state)) return state;
+      const r = sell(save, input.item, Math.min(BALANCE.shopBulk, input.count ?? 1));
+      return r ? toast(state, r.save, `${withJosa(itemName(input.item), '을/를')} ${r.count > 1 ? `${r.count}개 ` : ''}팔았다! +${r.money}원`) : state;
     }
     case 'team-move': {
       if (inBattle(state)) return state;
@@ -894,6 +930,16 @@ export function applyInput(state: GameState, input: GameInput): GameState {
     }
     case 'use-item': {
       if (!canOpenMenus(state)) return state;
+      // 이상한사탕 — 1레벨 (새 기술 · 진화 고르기가 생기면 고르기로, ideas #70)
+      if (input.item === 'rare-candy') {
+        const rng = new Rng(state.runtime.rngState);
+        const next = useRareCandy(save, input.uid, rng);
+        const m = next?.monsters[input.uid];
+        if (!next || !m) return state;
+        const name = speciesOf(m.species)?.name.ko ?? m.form;
+        const stageNow = next.pendingChoices.length > save.pendingChoices.length ? choiceStage(next) : state.runtime.stage;
+        return toast({ save, runtime: { ...state.runtime, rngState: rng.state, stage: stageNow } }, next, `${withJosa(name, '은/는')} Lv ${m.level} 이 됐다!`);
+      }
       const r = useFieldItem(save, input.item, input.uid);
       if (!r) return state;
       // 진화의 돌 · 연결의끈 → S22 (연출부터)

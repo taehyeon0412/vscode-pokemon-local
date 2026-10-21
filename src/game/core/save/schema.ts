@@ -58,6 +58,9 @@ export const ITEM_IDS = [
   'poke-ball', 'great-ball', 'ultra-ball',
   'potion', 'super-potion', 'full-heal', 'revive',
   'fire-stone', 'water-stone', 'thunder-stone', 'leaf-stone', 'moon-stone', 'linking-cord',
+  // 다음 버전 2단계 (2026-10-21 ideas #70 · #125): 이상한사탕 · 경험 부적 · 팔 물건 8가지 (팔기만)
+  'rare-candy', 'exp-charm',
+  'tiny-mushroom', 'pearl', 'stardust', 'big-mushroom', 'big-pearl', 'nugget', 'star-piece', 'big-nugget',
 ] as const;
 export type ItemId = (typeof ITEM_IDS)[number];
 
@@ -83,6 +86,10 @@ export interface StageRun {
   reach: number;
   /** 이 판에서 진 횟수 — 졌다 다시 걸으면 야생을 다시 뽑음 (S17, 시드 · 길은 그대로) */
   retries: number;
+  /** 이 판에서 산 이상한사탕 수 (한 판에 1개 — 2026-10-21 ideas #70, 없으면 0) */
+  candy?: number;
+  /** 이 판을 시작할 때 경험 부적을 씀 — 이 판 동안 경험치 ×1.5 (ideas #70) */
+  boost?: boolean;
 }
 
 export interface StageProgress {
