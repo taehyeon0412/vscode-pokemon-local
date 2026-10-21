@@ -7,7 +7,7 @@
  * 연출은 CSS 로 간단히 (임시 디자인 — 원래 확장 필살기 연출에 잇는 건 단계 12).
  */
 import type { ComponentChildren } from 'preact';
-import { useRef } from 'preact/hooks';
+import { useLayoutEffect, useRef } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
 import { canParry, canRiposte, type BattleState, type GameInput, type Side } from '../../../core/engine';
 import { clashWithTaps, isShooting, type Fighter } from '../../../core/rules/battle';
@@ -500,9 +500,11 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
   const popBase = (side: Side) => (side === 'me' ? geo.meHpBottom : geo.foeHpBottom) + geo.hpBlockPx + 2;
   // 위 말 칸 위로는 안 올라감 — 자리가 없으면 (낮은 패널) 포켓몬 몸 위에
   const popTop = geo.bodyPx - geo.msgTop - POP_STACK_PX;
+  // 메뉴 줄이 HP 묶음 바로 위 (480 × 187 등) 면 숫자가 메뉴 칸 위에 겹침 → 몸 위로 (2026-10-21 UX 리뷰어 — "-2" 가 "3 스킬" 위에 0.9초)
+  const menuAbove = !geo.menuInBar && geo.menuSide === null;
   const popAt = (side: Side, i: number) => {
     const y = popBase(side) + i * POP_STACK_PX;
-    return y <= popTop ? y : (side === 'me' ? midMe : midFoe) + i * POP_STACK_PX;
+    return y <= popTop && !(menuAbove && y + POP_STACK_PX > geo.menuBottom) ? y : (side === 'me' ? midMe : midFoe) + i * POP_STACK_PX;
   };
   const sideName = (s: Side) => nameOf(s === 'me' ? b.me : b.foe);
   // 기술 연출 중 (말 = "파이리의 불꽃세례!") 이면 뒤에, 그다음 단계 (쓰러짐 · 고르기 · 끝 — 맞는 순간 엔진이 말을 바꿈) 면 앞에 —
@@ -555,11 +557,7 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
             </span>
           )),
           // 말 칸이 없을 때만 문장 한 줄 (가장 최근 것)
-          lastSentence?.side === side && (
-            <span key={`s${lastSentence.id}`} class={`pg-pop pg-pop-say pg-pop-${lastSentence.kind}`} style={{ left: `${x}px`, bottom: `${popAt(side, nums.length)}px` }}>
-              {sentenceText(lastSentence, sideName)}
-            </span>
-          ),
+          lastSentence?.side === side && <PopSay key={`s${lastSentence.id}`} kind={lastSentence.kind} x={x} bottom={popAt(side, nums.length)} text={sentenceText(lastSentence, sideName)} />,
         ];
       })}
       {/* 다시 보는 필살기 = Space 로 남은 연출 건너뛰기 — 아무도 몰라서 말 자리에 작은 키 칸 (다른 세션 플레이 리뷰어) */}
@@ -614,5 +612,24 @@ export function BattleMenuBar({ battle, save, onInput, withAuto, compact, say }:
       {say && <span class="pg-bar-say">{say}</span>}
       <BattleMenu battle={battle} save={save} onInput={onInput} compact={compact} lead={withAuto ? <AutoButton save={save} onInput={onInput} short={compact !== false} /> : null} />
     </div>
+  );
+}
+
+/** 머리 위 문장 한 줄 (말 칸이 없는 좁은 패널) — 긴 문장 ("효과가 별로인 듯하다…") 이 패널 끝에서 잘리지 않게 폭을 재서 가운데를 안쪽으로 당김 (240px "듯하ㄷ" · 트레이너 이름표와 겹치던 것, 2026-10-21 UX 리뷰어) */
+const POP_EDGE = 4;
+function PopSay({ kind, x, bottom, text }: { kind: string; x: number; bottom: number; text: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    const W = el?.parentElement?.clientWidth;
+    if (!el || !W) return;
+    // translateX(-50%) 는 그대로 — 가운데만 [끝 + 반폭, 폭 − 끝 − 반폭] 안으로 (offsetWidth = 움직임 배율과 상관없는 폭)
+    const half = Math.ceil(el.offsetWidth / 2);
+    el.style.left = `${Math.round(Math.min(W - POP_EDGE - half, Math.max(POP_EDGE + half, x)))}px`;
+  });
+  return (
+    <span ref={ref} class={`pg-pop pg-pop-say pg-pop-${kind}`} style={{ left: `${x}px`, bottom: `${bottom}px` }}>
+      {text}
+    </span>
   );
 }

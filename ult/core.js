@@ -672,7 +672,8 @@ const ultFont = () => (typeof fxInGame === 'function' && fxInGame() ? "'Pretenda
 function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1, at = null) {
     const C = cols || ['#fffbe0', '#ffe680', '#f5c400', '#b88a00'];
     let hud = null; // at.hud — HP 묶음 자리 (첫 장면에 한 번 잼)
-    sigParticle({ x: 0, y: 0, s: 2, max: sec, draw: (ctx, p) => {
+    // 게임 글씨 (at — 패링 · 짧은 필살기 이름) 는 맨 위층 — 솔라빔 모으는 빛이 반격기 이름 끝 0.15초를 덮던 것 (2026-10-21 UX 리뷰어)
+    sigParticle({ x: 0, y: 0, s: 2, max: sec, z: at ? 1 : 0, draw: (ctx, p) => {
         const W = window.innerWidth;
         const H = window.innerHeight;
         const t = p.life;

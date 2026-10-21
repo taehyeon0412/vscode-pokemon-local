@@ -9184,7 +9184,8 @@ const ultFont = () => (typeof fxInGame === 'function' && fxInGame() ? "'Pretenda
 function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1, at = null) {
     const C = cols || ['#fffbe0', '#ffe680', '#f5c400', '#b88a00'];
     let hud = null; // at.hud — HP 묶음 자리 (첫 장면에 한 번 잼)
-    sigParticle({ x: 0, y: 0, s: 2, max: sec, draw: (ctx, p) => {
+    // 게임 글씨 (at — 패링 · 짧은 필살기 이름) 는 맨 위층 — 솔라빔 모으는 빛이 반격기 이름 끝 0.15초를 덮던 것 (2026-10-21 UX 리뷰어)
+    sigParticle({ x: 0, y: 0, s: 2, max: sec, z: at ? 1 : 0, draw: (ctx, p) => {
         const W = window.innerWidth;
         const H = window.innerHeight;
         const t = p.life;
@@ -49666,8 +49667,8 @@ window.pokemonFx = {
                     .reduce((b, h) => Math.max(b, h.bottom), -Infinity);
                 y = Math.min(y, Math.max(r.top - size * 0.6, hb + 2 + size / 2));
             }
-            // 보통 패링 0.7 → 1.1초 (흐려지기 전 약 0.4초만 보이던 것, 2026-10-21 UX 리뷰어 U1) · 완벽 1.0 → 1.4초 (엔진 parryShowMs 1400 — 글씨가 다 사라진 뒤 반격 기회, 2026-10-21 태현 님 A)
-            const sec = opt.sec || (big ? 1.4 : 1.1);
+            // 보통 패링 0.7 → 1.1초 (흐려지기 전 약 0.4초만 보이던 것, 2026-10-21 UX 리뷰어 U1) · 완벽 1.0 → 1.4초 (엔진 parryShowMs 1400 — 글씨가 다 사라진 뒤 반격 기회, 2026-10-21 태현 님 A) · 은색 1.1 → 1.3초 (또렷한 시간 0.9초뿐이던 것, UX 리뷰어)
+            const sec = opt.sec || (big ? 1.4 : 1.3);
             // 필살기 이름 글씨보다 얌전하게 — 1.4배에서 시작 · 떨림 없음 (패링은 자주 나와서, 아트 디렉터 8차)
             ultTitle(text, null, cols, sec, 0.36, k0, { x, y, s0: 1.4, still: true });
             if (big) {
