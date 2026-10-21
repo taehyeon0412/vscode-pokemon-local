@@ -194,3 +194,19 @@ describe('오늘의 목표 고침 (명세 검사관 #53 · 코드 리뷰어 #52)
     expect(back.save.daily?.goals[0]?.have).toBe(1);
   });
 });
+
+describe('잡기 — 오늘의 목표는 이긴 것으로 · 기록은 "잡은 수" 만 (기획 답)', () => {
+  it('야생을 잡으면 야생 이기기 목표 +1 · 기록 catches +1 · wins 그대로', () => {
+    const s0 = step(devState({ ...createGameState(sampleSave(), 7), runtime: { ...createGameState(sampleSave(), 7).runtime, today: DAY } }), STEP).state;
+    const goals = [{ kind: 'wild-win' as const, need: 3, have: 0, reward: 'poke-ball' as const, rewardN: 2 }];
+    const s1 = { ...s0, save: { ...s0.save, daily: { day: DAY, goals } } };
+    const mon = { ...s1.save.monsters[s1.save.party[0]!]!, uid: 'w', caughtAt: 'forest-1' as const };
+    const b = startBattle(s1.save, mon, 'normal');
+    const caught = { ...b, phase: 'over' as const, result: 'catch' as const, overMs: TIMING.battleOverMs, foe: { ...b.foe, types: ['bug'] as TypeName[] } };
+    const before = s1.save.records ?? { wins: 0, catches: 0, walked: 0 };
+    const after = step({ ...s1, save: { ...s1.save, pendingEncounter: { kind: 'wild', monster: mon, start: 'normal' } }, runtime: { ...s1.runtime, stageId: 'forest-1', stage: { phase: 'battle', battle: caught } } }, STEP).state;
+    expect(after.runtime.stage?.phase).toBe('result');
+    expect(after.save.daily?.goals[0]?.have).toBe(1);
+    expect(after.save.records?.wins).toBe(before.wins);
+  });
+});

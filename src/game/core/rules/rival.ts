@@ -10,7 +10,8 @@ import type { ItemId, Monster, Save, StageId } from '../save';
 import { HERO_LOOKS, heroLookOf } from '../../data/heroes';
 import { speciesOf } from '../../data';
 import { STONES } from './bag';
-import { evolveForLevel, regionPool } from './encounter';
+import { baseTotal, evolveForLevel, regionPool } from './encounter';
+import { regionOf } from './region';
 import { createMonster, wildMoves } from './monster';
 import { spotRng } from './stage';
 import { aliveCount } from './trainer';
@@ -103,7 +104,10 @@ export function rivalTeam(save: Save, id: string, stageId: StageId, stageSeed: n
   const top = topLevel(save);
   const low = Math.max(2, top - BALANCE.rivalLevelGap);
   const r = rivalRecord(save, id);
-  const pool = regionPool(stageId).common;
+  // 강한 1단계 (종족값 450 넘음) 는 야생에서만 — 해변 (2번째 지역부터) 은 거름 (gdd 5.3 · 기획 답). 숲 본편은 아침 질문 #103 까지 그대로
+  const forest = regionOf(stageId).region.id === 'forest';
+  const big = (dex: number) => { const s = speciesOf(dex); return !!s && baseTotal(s) > BALANCE.bigBaseTotal; };
+  const pool = regionPool(stageId).common.filter((dex) => forest || !big(dex));
   const out: Monster[] = [];
   for (let i = 0; i < size; i++) {
     const rng = spotRng(stageSeed, 7000 + r.wins + r.losses, 10 + i);

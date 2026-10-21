@@ -87,7 +87,7 @@ export function regionPool(stageId: StageId, preview = false): Pool {
     // 스테이지마다 정한 목록 (해변 · 숲 초안) 이면 흔함 · 드묾은 목록에서 (아래), 노말 · 비행 섞기만 타입으로
     if (lists) {
       if (s.types.every((t) => t === 'normal' || t === 'flying') && canAttack(dex)) pool.mixed.push(dex);
-      else if (draft && !hasAny(s.types, region.wild.common) && hasAny(s.types, region.wild.rare)) rareTypes.push(dex);
+      else if (!hasAny(s.types, region.wild.common) && hasAny(s.types, region.wild.rare)) rareTypes.push(dex);
       continue;
     }
     if (hasAny(s.types, region.wild.common)) pool.common.push(dex);
@@ -97,7 +97,8 @@ export function regionPool(stageId: StageId, preview = false): Pool {
   if (lists) {
     const last = index === region.stages.length - 1;
     pool.common = [...(lists[index] ?? []), ...(last ? (strong ?? []) : [])].filter((d) => !!speciesOf(d) && formsOfSpecies(d).length > 0);
-    pool.rare = last ? (rareList ?? []).filter((d) => !!speciesOf(d) && formsOfSpecies(d).length > 0) : draft ? pickFixed(rareTypes, 2, stageId, 2) : [];
+    // 드묾 — 마지막 스테이지 = 정한 목록 · 앞 스테이지 = 드문 타입 2종 (스테이지 id 시드 — 해변 얼음 · 전기 · 바위, 숲 초안 독 · 드래곤 · 페어리, gdd 5.3 · 5.4 기획 답)
+    pool.rare = last ? (rareList ?? []).filter((d) => !!speciesOf(d) && formsOfSpecies(d).length > 0) : pickFixed(rareTypes, 2, stageId, 2);
     // 숲 초안 — 노말 · 비행도 스테이지마다 3종 (gdd 5.4)
     if (draft) pool.mixed = pickFixed(pool.mixed, 3, stageId, 1);
   }

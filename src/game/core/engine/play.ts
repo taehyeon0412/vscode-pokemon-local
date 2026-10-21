@@ -1005,7 +1005,8 @@ function dailyStep(before: GameState, save0: Save, rt0: RuntimeState, signal: Sa
   if (won || signal === 'catch' || walked > 0) {
     const r = save.records ?? { wins: 0, catches: 0, walked: 0 };
     // 걸은 거리 = 스테이지 하나 10000 (schema · 세계 지도 판과 같게 — 늘 0.0 으로 보이던 것, 명세 검사관 #53)
-    save = { ...save, records: { wins: r.wins + (won ? 1 : 0), catches: r.catches + (signal === 'catch' ? 1 : 0), walked: r.walked + walked * 10000 } };
+    // 기록은 하나만 — 쓰러뜨리면 "이긴 전투", 잡으면 "잡은 수" (오늘의 목표는 잡아도 이긴 것으로 셈 — 기획 답)
+    save = { ...save, records: { wins: r.wins + (won && signal !== 'catch' ? 1 : 0), catches: r.catches + (signal === 'catch' ? 1 : 0), walked: r.walked + walked * 10000 } };
   }
   if (!save.daily) return { save, rt };
   let daily = save.daily;

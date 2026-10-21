@@ -13,6 +13,7 @@ import { BEACH_REQUESTS, requestAt } from './request';
 import { REGIONS, regionAceLevel, regionGymMoney, regionGymTeam, regionLevelBand, regionOf, regionOrder } from './region';
 import { stageCode, stageLevelBand, trainerCount } from './stage';
 import { GYM_LEADER, gymHint, leaderTeam, trainerInfo, trainerTeam } from './trainer';
+import { rivalTeam } from './rival';
 
 describe('지역 표 (gdd 5.1 · 5.2 — orders #35)', () => {
   it('숲 줄 = 예전 값 그대로 — 스테이지 · 번호 · 레벨대 · 관장 · 트레이너 (보이는 것 · 숫자가 같음)', () => {
@@ -55,7 +56,15 @@ describe('해변 한 벌 (gdd 5.3 — orders #37, 개발 모드 미리 보기 ·
     expect(regionPool('beach-2').common).toHaveLength(8);
     expect(regionPool('beach-3').common).toEqual([170, 456, 72, 86, 366, 318, 223, 60, 131, 594]);
     expect(regionPool('beach-3').rare).toEqual([349, 140]);
-    expect(regionPool('beach-1').rare).toEqual([]);
+    // 앞 스테이지 드묾 = 얼음 · 전기 · 바위 2종 (물이 아님 — 스테이지 id 시드, 기획 답)
+    for (const id of ['beach-1', 'beach-2'] as const) {
+      const rare = regionPool(id).rare;
+      expect(rare).toHaveLength(2);
+      for (const d of rare) {
+        const t = speciesOf(d)!.types;
+        expect(t.some((x) => x === 'ice' || x === 'electric' || x === 'rock') && !t.includes('water')).toBe(true);
+      }
+    }
     for (let n = 0; n < 3; n++) for (const m of trainerTeam('beach-3', 77, n, 6, 3)) expect([131, 594]).not.toContain(m.species);
   });
 
@@ -155,5 +164,12 @@ describe('지역 표 맞추기 (명세 검사관 #53)', () => {
     // 숲 진주는 없음
     const got = Array.from({ length: 400 }, (_, i) => pickupAt('forest-1', 99, { kind: 'item', at: 0.5, index: i }));
     expect(got.some((g) => g.item === 'pearl')).toBe(false);
+  });
+});
+
+describe('라이벌 앞 포켓몬 — 강한 1단계는 야생에서만 (기획 답 · gdd 5.3)', () => {
+  it('해변 등대 곶 라이벌 팀에 라프라스 · 맘복치가 없음 · 숲 본편은 그대로 (아침 질문 #103 까지)', () => {
+    const save = { ...sampleSave(), rivals: { blue: { wins: 3, losses: 3 } } };
+    for (let seed = 1; seed <= 60; seed++) for (const m of rivalTeam(save, 'blue', 'beach-3', seed)) expect([131, 594]).not.toContain(m.species);
   });
 });
