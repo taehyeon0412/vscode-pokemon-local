@@ -201,10 +201,14 @@ export function regionGymMoney(k: number): number {
   return k <= 1 ? BALANCE.gymFirstMoney : 1000 * (k + 2);
 }
 
-/** 관장 에이스 레벨 g = 15 + 6 × (k − 1) (5.2 [임시값] — BALANCE.region) */
+/** 관장 에이스 레벨 g = 15 + 6 × (k − 1) (5.2 [임시값] — BALANCE.region) · 표 (aceTable) 가 있으면 표 · 표보다 뒤는 마지막 값 + aceStep 씩 */
 export function regionAceLevel(k: number): number {
-  const { aceBase, aceStep, aceJump2 } = BALANCE.region;
+  const { aceBase, aceStep, aceJump2, aceTable } = BALANCE.region;
   const n = Math.max(1, k);
+  if (aceTable.length > 0) {
+    const last = aceTable.length;
+    return n <= last ? aceTable[n - 1]! : aceTable[last - 1]! + aceStep * (n - last);
+  }
   return aceBase + aceStep * (n - 1) + (n >= 2 ? aceJump2 : 0);
 }
 

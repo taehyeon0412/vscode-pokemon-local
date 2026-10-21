@@ -108,9 +108,28 @@ describe('해변 한 벌 (gdd 5.3 — orders #37, 개발 모드 미리 보기 ·
   });
 
   it('레벨표 값 한 곳 (BALANCE.region) — 게임 숫자 그대로 (에이스 15 + 6 × (k − 1) · 해변 2번째, 시뮬만 바꿔 봄 — orders #38)', () => {
-    expect(BALANCE.region).toEqual({ aceBase: 15, aceStep: 6, aceJump2: 0, beachOrder: 2 });
+    expect(BALANCE.region).toEqual({ aceBase: 15, aceStep: 6, aceJump2: 0, aceTable: [], beachOrder: 2 });
     expect([1, 2, 3, 8].map(regionAceLevel)).toEqual([15, 21, 27, 57]);
     expect(regionOrder('beach')).toBe(2);
+  });
+
+  it('레벨표 표 칸 (aceTable — orders #42): 비면 식 그대로 · 넣으면 번째마다 그 값 (#38 D · #39 T2 를 값 한 줄로) · 표보다 뒤는 + 6 씩 · 해변 스테이지 · 관장 팀이 따라감', () => {
+    const tune = BALANCE.region as { aceTable: readonly number[] };
+    const before = tune.aceTable;
+    try {
+      tune.aceTable = [15, 26, 34, 42, 49, 55, 60, 65];
+      expect([1, 2, 3, 5, 8, 9].map(regionAceLevel)).toEqual([15, 26, 34, 49, 65, 71]);
+      expect(regionLevelBand(2, 2)).toEqual([23, 26]);
+      expect(leaderTeam(REGIONS.beach).map((m) => m.level)).toEqual([24, 25, 26]);
+      // 숲 (1번째) 은 그대로 — stageLevels · gymTeam
+      expect(stageLevelBand('forest-3')).toEqual(BALANCE.stageLevels['forest-3']);
+      expect(leaderTeam().map((m) => m.level)).toEqual(BALANCE.gymTeam.map(([, lv]) => lv));
+      tune.aceTable = [15, 24, 30, 36, 42, 48, 54, 60];
+      expect(regionAceLevel(2)).toBe(24);
+    } finally {
+      tune.aceTable = before;
+    }
+    expect(regionAceLevel(2)).toBe(21);
   });
 
   it('등대 곶 끝 → 해변 체육관 · 관장 첫 승 = 해변 배지 + 4,000원 (1,000 × (2 + 2)) + 물의 돌', () => {

@@ -92,9 +92,10 @@ export const BALANCE = {
   daily: { on: false },
   /**
    * 지역 레벨표 (gdd 5.2 [임시값]) — 관장 에이스 g = aceBase + aceStep × (k − 1) (+ aceJump2, 2번째부터) · k = 1 (숲) 은 stageLevels · gymTeam 그대로.
-   * beachOrder = 해변이 몇 번째 (시작은 숲 고정 — 늘 2번째 이후, 지역 순서 칸 #30 전까지). 시뮬이 바꿔 봄 (orders #38 — scripts/sim-mvp.ts)
+   * aceTable = 번째마다 에이스를 하나씩 (k = 1 부터 — 비면 위 식, orders #42): 고르면 값 한 줄로 — #38 D (1:1) = [15, 24, 30, 36, 42, 48, 54, 60] · #39 T2 (3:3) = [15, 26, 34, 42, 49, 55, 60, 65]. 표보다 뒤 번째는 마지막 값 + aceStep 씩.
+   * beachOrder = 해변이 몇 번째 (시작은 숲 고정 — 늘 2번째 이후, 지역 순서 칸 #30 전까지). 시뮬이 바꿔 봄 (orders #38 · #39 — scripts/sim-mvp.ts)
    */
-  region: { aceBase: 15, aceStep: 6, aceJump2: 0, beachOrder: 2 },
+  region: { aceBase: 15, aceStep: 6, aceJump2: 0, aceTable: [] as readonly number[], beachOrder: 2 },
   /**
    * 3:3 실시간 팀 배틀 (다음 버전 5단계 — gdd 4.7 끝, 2026-10-21 orders #17) — 숫자는 모두 [임시값] (시뮬로 한 판 1분 안팎에 맞춤).
    * on = 게임에서 켬 (화면 · 연출이 생길 때까지 꺼 둠 — 모양은 디자인팀이 정하는 중) · size = 한쪽 마리 수 · ultGainScale = 필살기 게이지가 1:1 의 몇 배로 참 ·

@@ -45,15 +45,14 @@ const BEACH = process.env.SIM_REGION === 'beach';
  * SIM_REGIONS = 해변을 2 ~ N 번째로 되풀이 (기본 2 — 해변 배지를 받으면 해변을 처음으로 되돌리고 다음 번째 레벨로)
  */
 const REGIONS_N = Math.max(2, Number(process.env.SIM_REGIONS ?? 2));
-const regionTune = BALANCE.region as { aceStep: number; aceJump2: number; beachOrder: number };
+const regionTune = BALANCE.region as { aceStep: number; aceJump2: number; aceTable: readonly number[]; beachOrder: number };
 if (process.env.SIM_ACE_STEP) regionTune.aceStep = Number(process.env.SIM_ACE_STEP);
 if (process.env.SIM_ACE_JUMP2) regionTune.aceJump2 = Number(process.env.SIM_ACE_JUMP2);
-/** SIM_ACE_TABLE = 2번째부터 에이스 레벨을 하나씩 (예: 25,33,41,48,54,59,64 — 지역마다 폭이 다른 표, orders #39) · 그 번째에 들어갈 때 aceJump2 를 맞춤 (시뮬에서만) */
+/** SIM_ACE_TABLE = 2번째부터 에이스 레벨을 하나씩 (예: 26,34,42,49,55,60,65 — 지역마다 폭이 다른 표, orders #39) → BALANCE.region.aceTable (숲 15 앞에 붙임 · 시뮬에서만) */
 const ACE_TABLE = process.env.SIM_ACE_TABLE ? process.env.SIM_ACE_TABLE.split(',').map(Number) : null;
+if (ACE_TABLE) regionTune.aceTable = [BALANCE.region.aceBase, ...ACE_TABLE];
 const setOrder = (k: number) => {
   regionTune.beachOrder = k;
-  const want = ACE_TABLE?.[k - 2];
-  if (want !== undefined) regionTune.aceJump2 = want - BALANCE.region.aceBase - regionTune.aceStep * (k - 1);
 };
 /** 지역 하나 (2번째부터) — 처음 관장 도전 때 센 셋 평균 − 에이스 · 도전 · 진 수 · 한 바퀴 시간 */
 interface RegionRun {
