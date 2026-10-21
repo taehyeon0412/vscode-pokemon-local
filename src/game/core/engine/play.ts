@@ -859,7 +859,8 @@ function gymStep(save0: Save, rt0: RuntimeState, stepMs: number): { save: Save; 
 export function step(state: GameState, stepMs: number): StepOut {
   let save: Save = { ...state.save, playTimeMs: state.save.playTimeMs + stepMs };
   let rt: RuntimeState = state.runtime;
-  if (rt.toast) rt = { ...rt, toast: rt.toast.ms > stepMs ? { ...rt.toast, ms: rt.toast.ms - stepMs } : rt.toast.then ? { text: rt.toast.then, ms: TIMING.toastMs } : null };
+  // 알림 시간은 보는 동안만 셈 — 밖 · 숨김에서 흘러가 돌아오면 없던 것 (대기실 첫 알림 368 → 3089ms — 디자인팀 UX #27 큼 1)
+  if (rt.toast && !rt.headless && !rt.away) rt = { ...rt, toast: rt.toast.ms > stepMs ? { ...rt.toast, ms: rt.toast.ms - stepMs } : rt.toast.then ? { text: rt.toast.then, ms: TIMING.toastMs } : null };
   let signal: SaveSignal | null = null;
   const loc = save.location;
   if (loc.screen === 'stage' || loc.screen === 'gym') {
@@ -886,9 +887,17 @@ export function step(state: GameState, stepMs: number): StepOut {
     // ① 은 내 차례가 끝나면 (골랐거나 · 자동을 켬 · 떠남) 지움 (5초 만에 사라져 코드를 보다 돌아오면 놓치던 것 — UX 리뷰어)
     if (rt.toast?.kind === 'auto-tip' && rt.toast.text === AUTO_TIP_TURN) rt = { ...rt, toast: null };
   }
-  if (watchingNow && rt.noticed === 'paused' && autoTipLeft(save)) rt = { ...rt, toast: { text: AUTO_TIP_BACK, ms: TIMING.toastMs * 2, kind: 'auto-tip' } };
-  // 자동을 켜면 안내는 바로 지움
-  if (save.settings.autoBattle && rt.toast?.kind === 'auto-tip') rt = { ...rt, toast: null };
+  // ② 는 화면이 그릴 수 있는 장면에서 (다른 알림이 끝난 뒤) — 3:3 · 만남 · 결과 · 고르기 등에서 돌아오면 그 장면까지 미룸 · 5초는 띄운 뒤부터 (디자인팀 R12 큼 2)
+  if (watchingNow && rt.noticed === 'paused' && autoTipLeft(save)) rt = { ...rt, backTip: true };
+  if (rt.backTip && watchingNow && !rt.toast && canDrawAutoTip(rt.stage)) {
+    const { backTip: _b, ...rest } = rt;
+    rt = { ...rest, toast: { text: AUTO_TIP_BACK, ms: TIMING.toastMs * 2, kind: 'auto-tip' } };
+  }
+  // 자동을 켜면 안내는 바로 지움 (미룬 것도)
+  if (save.settings.autoBattle && (rt.toast?.kind === 'auto-tip' || rt.backTip)) {
+    const { backTip: _b, ...rest } = rt;
+    rt = { ...rest, toast: rt.toast?.kind === 'auto-tip' ? null : rt.toast };
+  }
   rt = awayStep(state, save, rt, signal);
   // 멈춤 · 알림 (gdd 4.13 · U6) — 밖 · 숨김에서 기다리는 이유가 생겼는데 아직 안 알렸으면 한 번 (장면마다 따로 알리던 것을 한곳에서 — 이로치 전투 중에 떠남 · 밖 고르기 · 대기실로 돌아옴 등 빠진 곳 없이).
   // 같은 기다림은 한 번 — 보고 다시 떠나도 다시 안 알림 (탭을 오갈 때마다 쌓이던 것 — 2026-10-21 태현 님 "추천안"), 기다림이 바뀌거나 풀리면 지움 (다음 기다림을 알리게).
@@ -907,6 +916,12 @@ export function step(state: GameState, stepMs: number): StepOut {
 }
 
 /** 자동 전투 첫 안내를 더 띄울 수 있는지 — 자동을 한 번도 안 켰고 (tips 'auto-on') 띄운 수 (tips 'auto-1' ~ ) 가 3 아래 (R12 A) */
+/** 자동 전투 첫 안내를 화면이 그릴 수 있는 장면 — 1:1 전투 (늘 자동 스위치) · 걷기 · 클리어 카드 · 대기실 · 시설 앞 (정보줄 스위치) (디자인팀) */
+function canDrawAutoTip(st: StageRuntime | null): boolean {
+  if (!st) return false;
+  return st.phase === 'battle' || st.phase === 'walk' || st.phase === 'clear' || st.phase === 'lobby' || (st.phase === 'facility' && !st.inside);
+}
+
 const AUTO_TIP_MAX = 3;
 /** 셈 (tips 'autotip-1' ~) — 화면이 그렸을 때만 ('tip-seen' auto). 옛 'auto-1' ~ 은 안 그린 채 세던 것이라 안 셈 (UX 리뷰어) */
 const AUTO_TIP_SEEN = /^autotip-\d$/;

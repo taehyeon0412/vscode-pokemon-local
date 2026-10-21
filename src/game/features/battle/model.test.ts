@@ -424,6 +424,11 @@ describe('머리 위 글 — 숫자만 머리 위, 문장은 말 칸 (2026-10-20
   });
 
   it('별로 = 작게 · 다른 쪽 · 다음 숫자의 상성은 안 섞임 (연속기 · 흡수)', () => {
+    // 지금 연출보다 먼저 생긴 상성 · 급소 말은 지금 말에 안 붙임 — 앞 기술의 "효과가 별로인 듯하다…" 가 상대 기술 말에 붙던 것 (디자인팀 UX #27 작음 8)
+    const old = { ...pop(5, 'foe', 'weak', '효과가 별로인 듯하다…'), ms: 900 };
+    const fresh = { ...pop(6, 'me', 'super', '효과가 굉장했다!'), ms: 100 };
+    expect(splitPopups([old, fresh], 'anim', 400).sentences.map((p) => p.id)).toEqual([6]);
+    expect(splitPopups([old, fresh], 'run').sentences.map((p) => p.id)).toEqual([5, 6]);
     const { numbers } = splitPopups([pop(1, 'foe', 'damage', '-3'), pop(2, 'foe', 'weak', '효과가 별로인 듯하다…'), pop(3, 'me', 'heal', '+2'), pop(4, 'foe', 'damage', '-3')]);
     expect(numbers.map((n) => [n.text, n.size])).toEqual([['-3', 'small'], ['+2', 'normal'], ['-3', 'normal']]);
   });

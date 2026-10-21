@@ -539,6 +539,17 @@ describe('멈춤 · 알림 표 (gdd 4.13 · U6 — orders #27 R13)', () => {
   const away = (s: GameState): GameState => ({ ...s, runtime: { ...s.runtime, away: true } });
   const at = (s: GameState, stage: NonNullable<GameState['runtime']['stage']>, save: Partial<Save> = {}): GameState => ({ ...s, save: { ...s.save, ...save }, runtime: { ...s.runtime, stageId: 'forest-1', stage } });
 
+  it('알림 시간은 보는 동안만 셈 — 밖 · 숨김에서 흘러가 돌아오면 없던 것 (디자인팀 UX #27 큼 1)', () => {
+    const base = start();
+    const toasted: GameState = { ...base, runtime: { ...base.runtime, toast: { text: '클리어 보상!', ms: 1000 } } };
+    const awayLater = advance(away(toasted), 5000).state;
+    expect(awayLater.runtime.toast).toMatchObject({ text: '클리어 보상!', ms: 1000 });
+    const hiddenLater = advance({ ...toasted, runtime: { ...toasted.runtime, headless: true } }, 5000).state;
+    expect(hiddenLater.runtime.toast?.text).toBe('클리어 보상!');
+    const back = advance({ ...awayLater, runtime: { ...awayLater.runtime, away: false } }, 600).state;
+    expect(back.runtime.toast?.ms).toBeLessThanOrEqual(400);
+  });
+
   it('장면마다 표에 줄이 있음 (flow · wait · entered) — 새 장면을 만들면 STAGE_WAIT 와 gdd 4.13 에 먼저', () => {
     for (const p of STAGE_PHASES) expect(['flow', 'wait', 'entered']).toContain(STAGE_WAIT[p]);
     expect(Object.keys(STAGE_WAIT).sort()).toEqual([...STAGE_PHASES].sort());
@@ -615,6 +626,15 @@ describe('멈춤 · 알림 표 (gdd 4.13 · U6 — orders #27 R13)', () => {
     expect(tipOf(back)).toBe(AUTO_TIP_BACK);
     expect(back.runtime.noticed).toBeUndefined();
     expect(back.runtime.awayLog).toBeDefined();
+    // 그릴 수 없는 장면 (고르기 · 3:3 · 만남 · 결과 …) 으로 돌아오면 ② 를 미룸 → 걷기로 오면 그때 5초 (디자인팀 R12 큼 2)
+    const choosing = at(base, { phase: 'choice', ms: 0 }, { pendingChoices: [{ kind: 'learn', uid: base.save.party[0]!, moveId: 22 }] });
+    const held = advance({ ...choosing, runtime: { ...choosing.runtime, noticed: 'paused' } }, 100).state;
+    expect(tipOf(held)).not.toBe(AUTO_TIP_BACK);
+    expect(held.runtime.backTip).toBe(true);
+    const walked = advance({ ...held, save: { ...held.save, pendingChoices: [] }, runtime: { ...held.runtime, stage: { phase: 'walk' } } }, 100).state;
+    expect(tipOf(walked)).toBe(AUTO_TIP_BACK);
+    expect(walked.runtime.toast?.ms).toBeGreaterThan(TIMING.toastMs * 2 - 200);
+    expect(walked.runtime.backTip).toBeUndefined();
     // 3번 그리면 끝
     const three = { ...base, save: { ...base.save, tips: ['autotip-1', 'autotip-2', 'autotip-3'] }, runtime: { ...base.runtime, noticed: 'paused' as const } };
     expect(tipOf(advance(three, 100).state)).not.toContain('[A] 자동 전투');

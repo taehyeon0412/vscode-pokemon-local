@@ -105,6 +105,8 @@ export interface RuntimeState {
   noticed?: GameNotice;
   /** 1:1 내 차례 (고르기) 가 입력 없이 기다린 ms — 자동 전투 첫 안내 (R12). 넘기기에는 안 남음 */
   chooseMs?: number;
+  /** 자동 전투 첫 안내 ② ("안 보는 동안 멈춰 있었어요") 를 띄울 차례 — 화면이 그릴 수 있는 장면 (1:1 전투 · 걷기 · 클리어 카드 · 대기실 · 시설 앞) 까지 미룸 (디자인팀 — 3:3 · 만남 · 결과 등에서는 못 그림) */
+  backTip?: true;
   /** 웹뷰 패널 크기 (px) — 3:3 배율 · 잠금 (teamScale). 3:3 배율이 바뀔 때만 웹뷰가 알림 · 모르면 없음 */
   view?: { w: number; h: number };
   /** 개발 모드 (임시, gdd 8장) — 확장이 개발 모드일 때만 붙임 (src/game/dev) */

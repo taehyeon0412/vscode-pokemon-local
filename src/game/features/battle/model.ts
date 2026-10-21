@@ -586,7 +586,7 @@ export interface PopNumber {
   crit: boolean;
 }
 
-export function splitPopups(popups: readonly BattlePopup[], phase?: BattleState['phase']): { numbers: PopNumber[]; sentences: BattlePopup[] } {
+export function splitPopups(popups: readonly BattlePopup[], phase?: BattleState['phase'], animMs?: number): { numbers: PopNumber[]; sentences: BattlePopup[] } {
   const numbers: PopNumber[] = [];
   for (const p of popups) {
     if (p.kind !== 'damage' && p.kind !== 'heal') continue;
@@ -602,8 +602,11 @@ export function splitPopups(popups: readonly BattlePopup[], phase?: BattleState[
     numbers.push({ id: p.id, side: p.side, kind: p.kind, text: crit ? `${p.text}!` : p.text, size: has('super') ? 'big' : has('weak') ? 'small' : 'normal', crit });
   }
   // 마지막 기회 · 볼 던지는 동안은 상성 · 급소 말을 뺌 — 필살기 꼬리를 붙잡는 동안 남은 "효과가 별로인 듯하다…" 가 "몬스터볼을 꺼냈다!" 에 붙어 볼이 안 듣는다로 읽히던 것 (UX 리뷰어 2026-10-21)
+  // 지금 연출 (animMs = 시작하고 지난 ms) 보다 먼저 생긴 상성 · 급소 말도 뺌 — 앞 기술의 "효과가 별로인 듯하다…" 가 상대 기술 말에 붙어 0.9초 반대로 읽히던 것 (같은 종류 두 번째 — 디자인팀 UX #27 작음 8)
   const late = phase === 'last' || phase === 'catch';
-  return { numbers, sentences: popups.filter((p) => p.kind !== 'damage' && p.kind !== 'heal' && !(late && (p.kind === 'super' || p.kind === 'weak' || p.kind === 'immune' || p.kind === 'crit'))) };
+  const tail = (p: BattlePopup) => p.kind === 'super' || p.kind === 'weak' || p.kind === 'immune' || p.kind === 'crit';
+  const before = (p: BattlePopup) => animMs !== undefined && p.ms > animMs;
+  return { numbers, sentences: popups.filter((p) => p.kind !== 'damage' && p.kind !== 'heal' && !(tail(p) && (late || before(p)))) };
 }
 
 /**

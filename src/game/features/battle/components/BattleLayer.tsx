@@ -691,7 +691,7 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
   const midMe = ground + Math.round(geo.meSpritePx * 0.45);
   const midFoe = ground + Math.round(geo.foeSpritePx * 0.45);
   // 머리 위 = 숫자만 (상성 = 크기 · 급소 = "!"), 문장은 위 한 줄 말에 붙임 (2026-10-20 플레이 리뷰어 — 원작처럼)
-  const { numbers, sentences } = splitPopups(b.popups, b.phase);
+  const { numbers, sentences } = splitPopups(b.popups, b.phase, b.anim?.ms);
   const popBase = (side: Side) => (side === 'me' ? geo.meHpBottom : geo.foeHpBottom) + geo.hpBlockPx + 2;
   // 위 말 칸 위로는 안 올라감 — 자리가 없으면 (낮은 패널) 포켓몬 몸 위에
   const popTop = geo.bodyPx - geo.msgTop - POP_STACK_PX;
