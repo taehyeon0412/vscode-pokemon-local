@@ -9047,7 +9047,8 @@ function ultGeometry(pokemon, left) {
 }
 
 // ── 시작 연출 — 번쩍 · 어두워짐(쓰는 애만 동그랗게 밝음) · 컷인 · 큰 글씨 ──
-function ultIntro(pokemon, left, name, sub, o, fx, until, introMs = ULT_INTRO_MS) {
+// who = 어둠 속에서 밝게 둘 포켓몬들 (없으면 쓰는 애 — 3:3 합동은 참가자 모두)
+function ultIntro(pokemon, left, name, sub, o, fx, until, introMs = ULT_INTRO_MS, who) {
     const cols = ultCols(o, fx);
     const total = (until - performance.now()) / 1000;
     const r = pokemon.collision.getBoundingClientRect();
@@ -9062,7 +9063,7 @@ function ultIntro(pokemon, left, name, sub, o, fx, until, introMs = ULT_INTRO_MS
     sigBurst(cx, cy, S, [...cols, '#ffffff'], 26, 120);
     // 어둠 — 끝 0.5초 동안 다시 밝아짐
     const outro = ULT_OUTRO_MS / 1000;
-    ultDimLayer((life) => ULT_DIM * Math.min(1, life / 0.25) * (life > total - outro ? Math.max(0, (total - life) / outro) : 1), total);
+    ultDimLayer((life) => ULT_DIM * Math.min(1, life / 0.25) * (life > total - outro ? Math.max(0, (total - life) / outro) : 1), total, who);
     // 몸에서 피어오르는 기운 (시작 연출 동안)
     sigEmitter({ until: performance.now() + introMs + 300, rate: 50, fx: () => {
         const b = pokemon.collision.getBoundingClientRect();
@@ -48779,7 +48780,7 @@ let fxTeamUntil = 0;
 // 지금 연출을 부른 번호 (fxWithTimers 안) — 3:3 에서 번쩍 · 흔들기 · 전체 멈춤은 필살기 · 대결 (fxGame) 이 부른 것만.
 // 필살기 연출이 남아 있는 동안 쏜 기술 (번호 붙은 기술) · 임팩트 (fxMoveGen) 는 그대로 조용히 (코드 리뷰어)
 let fxNowGen = 0;
-const fxTeamQuiet = () => performance.now() < fxTeamUntil && (!fxGame || fxNowGen === fxMoveGen || fxTagged.has(fxNowGen));
+const fxTeamQuiet = () => performance.now() < fxTeamUntil && (!fxGame || fxNowGen === fxMoveGen || fxMoveTagged.has(fxNowGen));
 function fxGameShake(amp) {
     if (fxAway || fxTeamQuiet()) {
         return;
@@ -48863,6 +48864,8 @@ function fxGuard(gen, fn) {
 // run 하는 동안 거는 타이머 (setTimeout) 에 번호를 붙임 — 그 타이머 안에서도.
 // 3:3 기술 (fxTagged 번호) 은 그동안 만든 입자 · 발사기에도 번호 (_g) — stopMove 가 그 기술만 멈춤
 const fxTagged = new Set();
+// 그중 3:3 기술 번호 (번쩍 · 흔들기 · 전체 멈춤을 끔 — 필살기 번호는 입자에만 번호를 붙이고 번쩍은 그대로)
+const fxMoveTagged = new Set();
 const fxTagGen = new Map();
 // 번호 붙은 입자 · 발사기가 그 뒤에 만드는 입자에도 같은 번호 (발사기는 매 장면 입자를 만듦 — 기본 발사기는 spawnParticle, 전용기는 e.fx)
 function fxTagNew(from, gen) {
@@ -48958,11 +48961,21 @@ function fxGameStop(kill) {
     fxGame = undefined;
     if (kill) {
         fxKill(g.gen);
+        (g.gens || []).forEach((x) => fxKill(x));
+        // 대결 입자 (수명 FX_DUEL_LONG — fxGame 를 안 봄) 도 끝냄 (합동 마무리가 대결을 이어받을 때 가운데서 계속 밀던 것 — 코드 리뷰어)
+        if (g.duel) {
+            for (const q of moveParticles) {
+                if (q.max === FX_DUEL_LONG) {
+                    q.max = q.life;
+                }
+            }
+        }
         // 게임 화면 흔들기도 멈춤 (ultShake)
         document.querySelector('#pokemon-game .pg-field')?.ultShakeAnim?.cancel();
     }
     clearInterval(g.tick);
     clearTimeout(g.done);
+    (g.gens || []).forEach((x) => fxTagged.delete(x));
     if (ultActive && ultActive.pokemon === g.A) {
         ultEnd(g.A);
     }
@@ -49129,6 +49142,34 @@ function fxSparkArc(g, t) {
 }
 // 연출 자리를 옆으로 dx 만큼 (크기 · 방향은 쓰는 쪽 그대로)
 const fxShift = (g, dx) => ({ ...g, mouth: { ...g.mouth, x: g.mouth.x + dx }, body: { ...g.body, cx: g.body.cx + dx, front: g.body.front + dx } });
+// 위아래로 dy 만큼 (3:3 — 다른 줄 상대)
+const fxShiftY = (g, dy) => ({ ...g, mouth: { ...g.mouth, y: g.mouth.y + dy }, body: { ...g.body, cy: g.body.cy + dy, top: g.body.top + dy, bottom: g.body.bottom + dy } });
+// 3:3 다른 줄 상대 겨누기 (2026-10-21 디자인팀 6판 · 기획 — 일반 모드 기술은 쏘는 높이로 곧게 날아가 다른 줄 상대를 비켜 감):
+// 상대 자리에 놓는 틀 (회오리 · 돌떨구기 · 번개 · 땅 · 가루) 은 상대 발 높이로 · 광선은 상대 높이에서 · 날아가는 입자는 상대 쪽으로 기울여 (옆 빠르기 × 높이 차 ÷ 거리)
+const FX_PLACED = new Set(['vortex', 'rockfall', 'thunder', 'quake', 'powder']);
+function fxAimRow(fx, aim, g0, t) {
+    const dyMouth = t.cy - g0.mouth.y;
+    const dyGround = t.ground - g0.body.bottom;
+    if (FX_PLACED.has(fx)) {
+        return Math.abs(dyGround) < 2 ? aim : { ...aim, g: fxShiftY(aim.g, dyGround) };
+    }
+    if (Math.abs(dyMouth) < 2) {
+        return aim;
+    }
+    if (fx === 'beam' || fx === 'solarbeam') {
+        return { ...aim, g: fxShiftY(aim.g, dyMouth) };
+    }
+    const dx = t.cx - g0.mouth.x;
+    if (Math.abs(dx) < 20) {
+        return aim;
+    }
+    const slope = dyMouth / dx;
+    const prev = aim.cap;
+    return { ...aim, cap: (p) => {
+        prev?.(p);
+        p.vy = (p.vy ?? 0) + (p.vx ?? 0) * slope;
+    } };
+}
 // 입에서 날아가는 거리 (px) — 틀의 빠르기 · 끌림 · 수명으로 셈 (v / 끌림 × (1 − e^−끌림×수명), 끌림 없으면 v × 수명)
 const fxFly = (v, drag, life) => (drag > 0 ? (v / drag) * (1 - Math.exp(-drag * life)) : v * life);
 const FX_TRAVEL = {
@@ -49315,45 +49356,128 @@ function fxDuelSoftStop() {
     g.done = setTimeout(() => fxGame === g && fxGameStop(false), 1800);
 }
 
-// ── 합동 필살기 (3:3) — 참가자 줄기를 한 점에 모아 하나로 터뜨림 ──
-// 터진 뒤 여운 (그 뒤 정리)
-const FX_JOINT_BURST_MS = 1500;
-// 참가자 색을 번갈아 섞음 (겹치는 색은 한 번)
-function fxJointCols(parts) {
-    const out = [];
-    const max = Math.max(...parts.map((p) => p.cols.length));
-    for (let i = 0; i < max; i++) {
-        for (const p of parts) {
-            const c = p.cols[i];
-            if (c && !out.includes(c)) {
-                out.push(c);
+// ── 3:3 필살기 박자 · 자리 (2026-10-21 디자인팀 6판 · 기획) ──
+// 필살기 박자표 — "모습|이름|틀" → [큰 맞음 ms, 본편 ms, 자기 둘레 터짐 1/0] (dev/ult-fx.py — 본편 시작부터, 3:3 자리에서 잼).
+// 그 모습 값이 없으면 같은 필살기 (이름|틀) 의 다른 모습 값, 그것도 없으면 null (처음 닿음 · 본편 40% 로)
+let fxUltIndex;
+function fxUltTiming(form, e) {
+    const t = typeof ULT_HIT !== 'undefined' ? ULT_HIT : {};
+    if (!fxUltIndex) {
+        fxUltIndex = {};
+        for (const [k, v] of Object.entries(t)) {
+            const short = k.split('|').slice(-2).join('|');
+            if (!(short in fxUltIndex)) {
+                fxUltIndex[short] = v;
             }
         }
     }
-    return out;
+    const m = t[`${form}|${e[0]}|${e[1]}`] || fxUltIndex[`${e[0]}|${e[1]}`];
+    return m && m[0] >= 0 ? { main: m[0], run: m[1], self: m[2] === 1 } : null;
 }
-// 한 점 합체 폭발 — 대결 폭발 + 섞인 색 고리 · 타입 임팩트 (참가자 타입마다 같은 점에) · 쓰러뜨림 별빛 · 뒤로 밀림 · 마리 수 · 압도만큼 크게
-function fxJointBurst(parts, B, sure) {
+// 3:3 모드 켜짐 (게임이 상태마다 다시 켬)
+const fxTeamOn = () => performance.now() < fxTeamUntil;
+// 자기 둘레에서 터지는 필살기 (블래스트번 대폭발 등) — 큰 맞음 순간 (번쩍에 가림) 부터 그 필살기 입자 · 발사기를 맞는 상대 쪽으로 옮김 (1.5초 동안 새로 생기는 것도).
+// 쓴 쪽 둘레 (몸 폭 × 4) 의 것만 — 변신 · 기 모으기는 그 전에 끝나 제자리, 이미 상대 쪽으로 나간 것은 그대로
+function fxRelocate(gen, A, B) {
+    const a = A.collision.getBoundingClientRect();
+    const b = B.collision.getBoundingClientRect();
+    const ax = a.left + a.width / 2;
+    const ay = a.top + a.height / 2;
+    const dx = b.left + b.width / 2 - ax;
+    const dy = b.top + b.height / 2 - ay;
+    const R = Math.max(a.width, 40) * 4;
+    const move = () => {
+        for (const q of moveParticles) {
+            if (q._g === gen && !q._moved && typeof q.x === 'number' && Math.hypot(q.x - ax, q.y - ay) < R) {
+                q._moved = true;
+                q.x += dx;
+                q.y += dy;
+            }
+        }
+        for (const e of moveEmitters) {
+            if (e._g === gen && !e._moved) {
+                e._moved = true;
+                if (typeof e.x === 'number') {
+                    e.x += dx;
+                }
+                if (typeof e.y === 'number') {
+                    e.y += dy;
+                }
+            }
+        }
+    };
+    move();
+    sigParticle({ x: 0, y: 0, s: 1, max: 1.5, update: move, draw: () => {} });
+}
+
+// ── 합동 필살기 (3:3) — 참가자 줄기를 한 점에 모아 하나로 터뜨림 ──
+// 터진 뒤 여운 (그 뒤 정리)
+const FX_JOINT_BURST_MS = 1500;
+// 한 점 합체 폭발 — 디자인팀 6판 값 (참가자 타입 색 바둑판 · 마리 수만큼) + 패널 번쩍 한 번
+function fxJointBurst(parts, B, sure, others = []) {
     const r = B.collision.getBoundingClientRect();
-    const cx = r.left + r.width / 2;
-    const cy = r.top + r.height * 0.55;
-    const S = Math.max(2, Math.round(r.width / (B._originalSpriteSize || 32)));
-    // 마리 수만큼 크게 (둘 = 1.3 · 셋 = 1.6), 3:1 압도면 더
-    const k = (1 + 0.3 * (parts.length - 1)) * (sure ? 1.25 : 1);
-    const R = Math.max(r.width, 36) * 2.4 * k;
-    const cols = fxJointCols(parts);
-    const D = { S, lane: ultClamp(window.innerHeight * 0.09, 10, 34), W: window.innerWidth, H: window.innerHeight };
-    // 대결의 큰 폭발 (번쩍 · 흔들림 · 고리) — 섞인 색
-    duelBoom(D, cx, cy, cols, parts.length >= 3 || !!sure);
-    sigRing(cx, cy, S, 6, R, 1, 0.55, [...cols, '#ffffff']);
-    setTimeout(() => sigRing(cx, cy, S, 4, R * 1.45, 0.75, 0.7, cols), 130);
-    if (parts.length >= 3 || sure) {
-        setTimeout(() => sigRing(cx, cy, S, 4, R * 1.9, 0.6, 0.85, ['#ffffff', ...cols]), 260);
-    }
-    // 참가자 타입마다 같은 점에 큰 임팩트 — 불꽃 회오리 + 잎 · 빛 … 이 한 점에서 겹침
-    parts.forEach((p, i) => setTimeout(() => typeImpact(cx, cy, S, p.type, POKEMON_SHAPE[p.A.label]?.[0] ?? 0.5, true, B.left > p.A.left ? 1 : -1, r.width, { scale: 1.3 * k }), i * 60));
-    hitKO(sigGeometry(B, B.left > parts[0].A.left));
-    knockBack(B, B.left > parts[0].A.left, 1, spriteSize(B) * (sure ? 1.4 : 1));
+    const S = Math.max(1, Math.round(r.width / (B._originalSpriteSize || 32)));
+    // 마리 수만큼 크게 (3:1 은 셋이라 자연히 1.5배 — sure 는 따로 안 키움) · 점 = 2칸 (2 × 그림 배율 px) — 디자인팀 6판 mergeBurst 값
+    fxMergeBurst(r.left + r.width / 2, r.top + r.height * 0.5, 2 * S, parts.map((p) => sigPal(p.type)), Math.max(2, parts.length));
+    // 패널 번쩍 한 번 80ms (합동 · 3:1 마무리만 — 1초 3번 아래)
+    screenFlash(S, 0.55, '#ffffff', 0.08);
+    // 범위 필살기 — 나머지 상대에게 퍼지는 충격 (한 점보다 작게 · 조금 늦게, 기획 제안)
+    others.forEach((spec, i) => setTimeout(() => {
+        const q = (spec.box || spec.el).getBoundingClientRect();
+        if (q.width < 1) {
+            return;
+        }
+        typeImpact(q.left + q.width / 2, q.top + q.height * 0.55, S, parts[i % parts.length].type, 0.5, false, q.left > r.left ? 1 : -1, q.width, { scale: 0.9 });
+    }, 150 + i * 60));
+}
+// 합쳐 터짐 (디자인팀 6판 mergeBurst 그대로) — 150ms × 6걸음 (0.9초), 반지름 [4, 8, 12, 15, 17, 18] × 마리 수 × 0.5 칸, 안쪽 45% 흰 심 (처음 3걸음, 뒤는 #fffbe8),
+// 두 타입 색 바둑판 (가장자리 짙은 · 가운데 밝은), 뒤 두 걸음은 세 칸에 하나씩 비움, 고리 둘 (× 1.35 · × 1.7, 걸음마다 + 2칸, 한 칸 건너 점, 납작 0.6), 빛살 5줄 (처음 4걸음)
+function fxMergeBurst(x0, y0, u, pals, n) {
+    const shade = (pal) => [pal[3] ?? pal[pal.length - 1], pal[2] ?? pal[1] ?? pal[0], pal[1] ?? pal[0]];
+    const ca = shade(pals[0]);
+    const cb = shade(pals[1] ?? pals[0]);
+    const snap = (v) => Math.round(v / u) * u;
+    const x = snap(x0);
+    const y = snap(y0);
+    sigParticle({ x, y, s: 1, max: 0.9, draw: (ctx, p) => {
+        const k = Math.min(5, Math.floor((p.life * 1000) / 150));
+        const R = ([4, 8, 12, 15, 17, 18][k] * n * 0.5) | 0;
+        ctx.globalAlpha = 1;
+        for (let j = -R; j <= R; j++) {
+            for (let i = -R; i <= R; i++) {
+                const d2 = i * i + j * j;
+                if (d2 > R * R) {
+                    continue;
+                }
+                const inner = d2 < (R * 0.45) ** 2;
+                const edge = d2 > (R - 2) * (R - 2);
+                if (k >= 4 && !edge && !inner && (i * 7 + j * 3 + k) % 3 === 0) {
+                    continue;
+                }
+                ctx.fillStyle = inner ? (k < 3 ? '#ffffff' : '#fffbe8') : ((i + j) & 1 ? ca : cb)[edge ? 0 : d2 < (R * 0.7) ** 2 ? 2 : 1];
+                ctx.fillRect(x + i * u, y + j * u, u, u);
+            }
+        }
+        [1.35, 1.7].forEach((m, q) => {
+            const rr = Math.round(R * m + k * 2);
+            ctx.fillStyle = (q ? cb : ca)[2];
+            for (let a = 0; a < 48; a++) {
+                if ((a + q) % 2) {
+                    continue;
+                }
+                const an = (a / 48) * Math.PI * 2;
+                ctx.fillRect(snap(x + Math.cos(an) * rr * u), snap(y + Math.sin(an) * rr * u * 0.6), u, u);
+            }
+        });
+        if (k < 4) {
+            [[1, 0], [-1, 0], [0, -1], [1, -1], [-1, -1]].forEach(([dx, dy], q) => {
+                for (let i = R + 1; i <= R + 6 + k * 2; i++) {
+                    ctx.fillStyle = (q % 2 ? cb : ca)[i % 2 ? 2 : 1];
+                    ctx.fillRect(x + dx * i * u, y + dy * i * u, u, u);
+                }
+            });
+        }
+    } });
 }
 
 // 개발 창 — 필살기 박자 · 터지는 자리 재기 (dev/ult-fx.py): 지금 입자들의 가운데 · 개수
@@ -49394,12 +49518,14 @@ window.pokemonFx = {
         if (tag !== undefined) {
             gen = ++fxGen;
             fxTagged.add(gen);
+            fxMoveTagged.add(gen);
             fxTagGen.set(tag, gen);
             // 오래된 번호는 버림 (다 끝난 기술 — 판이 길어도 쌓이지 않게)
             if (fxTagGen.size > 96) {
                 const [oldTag, oldGen] = fxTagGen.entries().next().value;
                 fxTagGen.delete(oldTag);
                 fxTagged.delete(oldGen);
+                fxMoveTagged.delete(oldGen);
             }
         }
         if (p.sig[1] === 'dash') {
@@ -49418,7 +49544,12 @@ window.pokemonFx = {
             // 색도 타입 임팩트 색 (순백 대신 색이 든 흰색 — 뒤따르는 임팩트와 같은 흰색, 아트 디렉터 2바퀴)
             let aim = { g: g0, o: FX_CONTACT.has(p.sig[1]) ? { ...p.o, onTarget: true, c: hitColsOfPal(p.o.c ?? 'normal') } : p.o };
             if (dst && fxWidth(dst) >= 1) {
-                aim = fxAim(p.sig[1], g0, p.o, fxTarget(g0, dst));
+                const tg = fxTarget(g0, dst);
+                aim = fxAim(p.sig[1], g0, p.o, tg);
+                // 3:3 — 다른 줄 상대 (1:1 은 같은 땅이라 그대로)
+                if (fxTeamOn()) {
+                    aim = fxAimRow(p.sig[1], aim, g0, tg);
+                }
             } else if (p.sig[1] === 'breath' && reach > 0) {
                 aim = { g: g0, o: { ...p.o, speed: (p.o.speed ?? 1) * Math.min(25, Math.max(1, reach / FX_TRAVEL.breath(g0))) } };
             }
@@ -49483,14 +49614,32 @@ window.pokemonFx = {
         const A = fxActor(src);
         const B = fxActor(dst);
         const gen = ++fxGen;
+        // 3:3 — 큰 맞음 (빛줄기 닿음 · 대폭발 번쩍) 에 피해 (처음 닿음이 아니라), 자기 둘레 터짐은 그때 상대 자리로 (1:1 은 그대로 처음 닿음)
+        const tm = fxTeamOn() && !o?.sub ? fxUltTiming(src.form, entry) : null;
+        if (tm) {
+            fxTagged.add(gen);
+        }
         // o.sub = 반격기 — 패널 전체 번쩍 없음 (fxFlashCap)
-        fxGame = { A, B, gen, tick: setInterval(fxGameTick, 100), onHit, hit: false, noFlash: !!o?.sub };
+        fxGame = { A, B, gen, tick: setInterval(fxGameTick, 100), onHit: tm ? null : onHit, hit: false, noFlash: !!o?.sub };
         let total = 0;
         try {
             // o.quick = 같은 전투에서 다시 보는 필살기 — 컷인 없이 짧게 (ult/core.js ULT_QUICK_INTRO_MS)
             // 쓰기 전 기 모으기 (일반 모드 꾹 누르기와 같은 연출, 2026-10-20 태현 님) — 첫 필살기 0.8초 · 다시 보는 필살기 0.4초 · 반격기 (sub) 는 바로
             const charge = o?.sub ? 0 : o?.quick ? 400 : 800;
             total = fxWithTimers(gen, () => useUltimate(A, entry, { quick: !!o?.quick, charge, ...(o?.sub ? { sub: o.sub } : {}) })) || 0;
+            if (tm && total) {
+                const at = charge + (o?.quick ? ULT_QUICK_INTRO_MS : ULT_INTRO_MS) + tm.main;
+                setTimeout(fxGuard(gen, () => {
+                    if (tm.self) {
+                        fxRelocate(gen, A, B);
+                    }
+                    try {
+                        onHit?.();
+                    } catch (err) {
+                        ultError('game hit', err);
+                    }
+                }), at);
+            }
         } catch (err) {
             ultError('game ult', err);
         }
@@ -49511,15 +49660,15 @@ window.pokemonFx = {
      */
     ultJoint(srcs, dst, onHit, o = {}) {
         fxGameStop(true);
-        const list = (srcs || []).filter((s) => s && POKEMON_SHAPE[s.form] && fxWidth(s) >= 1);
+        // 그림이 없는 참가자는 그 타입 · 피할 이름 · 고를 이름과 같이 뺌 (순번이 어긋나 다른 포켓몬 것이 붙지 않게 — 코드 리뷰어)
+        const list = (srcs || []).map((s, i) => ({ s, i })).filter(({ s }) => s && POKEMON_SHAPE[s.form] && fxWidth(s) >= 1);
         if (!list.length || ultActive || fxWidth(dst) < 1) {
             return 0;
         }
-        const As = list.map(fxActor);
         const B = fxActor(dst);
         const gen = ++fxGen;
-        const parts = list.map((s, i) => {
-            // o.pick = 참가자마다 고를 필살기 이름 (개발 창 · 시안 사진 — 그 포켓몬이 가진 것만), 없으면 늘 고르는 대로
+        const parts = list.map(({ s, i }) => {
+            // o.pick = 참가자마다 고를 필살기 이름 (개발 창 · 시안 사진 — 그 포켓몬이 가진 것만), 없으면 늘 고르는 대로 (돌아가며 — 기획 #90 A)
             const want = o.pick?.[i];
             let e = (want && (POKEMON_ULT[s.form] || []).map((k) => ULT_LIB[k]).find((v) => v && v[0] === want)) || fxUltPick(s.form, o.avoid?.[i]);
             if (!e || ULT_SPECIALS.includes(e[1])) {
@@ -49532,12 +49681,15 @@ window.pokemonFx = {
             } catch (err) {
                 ultError('joint ms', err);
             }
-            // 처음 맞는 때 — 잰 값 (없으면 본편의 40%)
-            const m = (typeof ULT_HIT !== 'undefined' && ULT_HIT[`${e[0]}|${e[1]}`]) || null;
-            const hit = m && m[0] >= 0 ? m[0] : Math.round(ms * 0.4);
-            const A = As[i];
-            return { A, e, T, ms, hit, left: A.left + spriteSize(A) / 2 > window.innerWidth / 2, cols: ultCols(e[2] || {}, e[1]), type: o.types?.[i] || 'normal' };
+            // 큰 맞음 (빛줄기 닿음 · 대폭발 번쩍) — 잰 값, 없으면 본편 40%
+            const tm = fxUltTiming(s.form, e);
+            const A = fxActor(s);
+            // 참가자마다 번호 — 자기 둘레 터짐을 따로 옮김 · 멈출 때 다 같이
+            const pg = ++fxGen;
+            fxTagged.add(pg);
+            return { A, e, T, ms, hit: tm ? tm.main : Math.round(ms * 0.4), self: !!tm?.self, gen: pg, left: A.left + spriteSize(A) / 2 > window.innerWidth / 2, cols: ultCols(e[2] || {}, e[1]), type: o.types?.[i] || 'normal' };
         });
+        const As = parts.map((p) => p.A);
         const lead = parts[0];
         const charge = 800;
         const introMs = ULT_INTRO_MS;
@@ -49547,8 +49699,10 @@ window.pokemonFx = {
         const now = performance.now();
         const runEnd = Math.max(...parts.map((p) => p.start + p.ms), hitAt + FX_JOINT_BURST_MS);
         const until = now + charge + introMs + runEnd + ULT_OUTRO_MS;
-        const g = { A: lead.A, B, many: As, gen, tick: setInterval(fxGameTick, 100), hit: false, joint: true };
+        const g = { A: lead.A, B, many: As, gen, gens: parts.map((p) => p.gen), tick: setInterval(fxGameTick, 100), hit: false, joint: true };
         fxGame = g;
+        // 기 모으기를 먼저 (ultActive 가 걸리면 기 모으기가 바로 끝남 — useUltimate 와 같은 순서, 코드 리뷰어)
+        fxWithTimers(gen, () => parts.forEach((p) => ultChargeFor(p.A, charge)));
         ultActive = { pokemon: lead.A, until, name: lead.e[0], fx: lead.e[1] };
         moveCanvasReady();
         moveCanvas.style.zIndex = '6';
@@ -49562,27 +49716,29 @@ window.pokemonFx = {
         }
         const names = parts.map((p) => p.e[0]);
         fxWithTimers(gen, () => {
-            // 다 같이 기 모으기 (일반 모드 꾹 누르기와 같은 연출) → 컷인 한 번 → 각자 필살기
-            parts.forEach((p) => ultChargeFor(p.A, charge));
+            // 기 모으기 (0.8초) → 컷인 한 번 → 각자 필살기
             setTimeout(() => {
                 try {
-                    ultIntro(lead.A, lead.left, names.join(' × '), o.sub ?? (o.sure ? '압도하는 합동 필살기!' : '합동 필살기!'), lead.e[2] || {}, lead.e[1], until, introMs);
+                    ultIntro(lead.A, lead.left, names.join(' × '), o.sub ?? (o.sure ? '압도하는 합동 필살기!' : '합동 필살기!'), lead.e[2] || {}, lead.e[1], until, introMs, () => As);
                 } catch (err) {
                     ultError('joint intro', err);
                 }
                 parts.forEach((p) => {
                     setTimeout(() => {
-                        try {
-                            p.T.run(ultGeometry(p.A, p.left), p.e[2] || {}, p.ms, p.A);
-                        } catch (err) {
-                            ultError(`joint ${p.e[1]}.run`, err);
-                        }
+                        fxWithTimers(p.gen, () => {
+                            try {
+                                p.T.run(ultGeometry(p.A, p.left), p.e[2] || {}, p.ms, p.A);
+                            } catch (err) {
+                                ultError(`joint ${p.e[1]}.run`, err);
+                            }
+                        });
                     }, introMs + p.start);
                 });
-                // 같은 때 맞는 순간 — 한 점 합체 폭발 · 게임 피해
+                // 같은 때 맞는 순간 — 자기 둘레 터짐은 상대 자리로 · 한 점 합체 폭발 · 게임 피해
                 setTimeout(() => {
+                    parts.forEach((p) => p.self && fxRelocate(p.gen, p.A, B));
                     try {
-                        fxJointBurst(parts, B, !!o.sure);
+                        fxJointBurst(parts, B, !!o.sure, (o.others || []).filter((x) => x && fxWidth(x) >= 1));
                     } catch (err) {
                         ultError('joint burst', err);
                     }
@@ -50200,6 +50356,7 @@ window.pokemonFx = {
         }
         fxTagGen.delete(tag);
         fxTagged.delete(gen);
+        fxMoveTagged.delete(gen);
         fxKill(gen);
         for (let i = moveEmitters.length - 1; i >= 0; i--) {
             if (moveEmitters[i]._g === gen) {
@@ -50228,6 +50385,7 @@ window.pokemonFx = {
         fxKill(fxMoveGen);
         fxDeadBelow = fxGen;
         fxTagged.clear();
+        fxMoveTagged.clear();
         fxTagGen.clear();
         fxMoveGen = ++fxGen;
         moveEmitters.length = 0;

@@ -83,7 +83,7 @@ export interface PokemonFx {
   /** o.quick = 같은 전투에서 다시 보는 필살기 — 컷인 없이 짧게 (2026-10-20) */
   ult?(src: FxActor, dst: FxActor, onHit?: () => void, avoid?: string[], o?: { quick?: boolean; sub?: string }): number;
   /** 3:3 합동 필살기 마무리 — 참가자 필살기가 같은 때 닿아 한 점에서 합쳐 터짐. onHit = 합쳐진 순간 · 걸리는 시간 (ms), 못 쓰면 0 */
-  ultJoint?(srcs: FxActor[], dst: FxActor, onHit?: () => void, o?: { types?: string[]; avoid?: string[][]; pick?: (string | null)[]; sure?: boolean; sub?: string }): number;
+  ultJoint?(srcs: FxActor[], dst: FxActor, onHit?: () => void, o?: { types?: string[]; avoid?: string[][]; pick?: (string | null)[]; sure?: boolean; sub?: string; others?: FxActor[] }): number;
   stopUlt?(): void;
   /** 남은 필살기 연출을 ms 동안 흐리게 한 뒤 끔 (반격기 — 맞힌 뒤 줄기가 메뉴 위로 남지 않게) */
   fadeUlt?(ms: number): void;

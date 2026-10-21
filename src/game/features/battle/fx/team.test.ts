@@ -110,7 +110,7 @@ describe('계획', () => {
     expect(ults[0]).toMatchObject({ dst: { side: 'foe', slot: 1 }, key: 'teamult5000' });
     // 합동 마무리 — 이긴 참가자 · 가운데 진 참가자 · 타입
     expect(plan([{ t: 'ult', side: 'me', from: 0, joint: { winners: [0, 2], losers: [0, 1, 2], sure: false } }])).toEqual([
-      { do: 'joint', winners: [{ side: 'me', slot: 0 }, { side: 'me', slot: 2 }], dst: { side: 'foe', slot: 1 }, types: [withLog([]).me[0]!.types[0], withLog([]).me[2]!.types[0]], sure: false, key: 'teamult5000' },
+      { do: 'joint', winners: [{ side: 'me', slot: 0 }, { side: 'me', slot: 2 }], dst: { side: 'foe', slot: 1 }, types: [withLog([]).me[0]!.types[0], withLog([]).me[2]!.types[0]], sure: false, key: 'teamult5000', others: [{ side: 'foe', slot: 0 }, { side: 'foe', slot: 2 }] },
     ]);
     const end = plan([
       { t: 'ult-clash', me: [0], foe: [1] },

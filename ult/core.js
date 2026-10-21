@@ -534,7 +534,8 @@ function ultGeometry(pokemon, left) {
 }
 
 // ── 시작 연출 — 번쩍 · 어두워짐(쓰는 애만 동그랗게 밝음) · 컷인 · 큰 글씨 ──
-function ultIntro(pokemon, left, name, sub, o, fx, until, introMs = ULT_INTRO_MS) {
+// who = 어둠 속에서 밝게 둘 포켓몬들 (없으면 쓰는 애 — 3:3 합동은 참가자 모두)
+function ultIntro(pokemon, left, name, sub, o, fx, until, introMs = ULT_INTRO_MS, who) {
     const cols = ultCols(o, fx);
     const total = (until - performance.now()) / 1000;
     const r = pokemon.collision.getBoundingClientRect();
@@ -549,7 +550,7 @@ function ultIntro(pokemon, left, name, sub, o, fx, until, introMs = ULT_INTRO_MS
     sigBurst(cx, cy, S, [...cols, '#ffffff'], 26, 120);
     // 어둠 — 끝 0.5초 동안 다시 밝아짐
     const outro = ULT_OUTRO_MS / 1000;
-    ultDimLayer((life) => ULT_DIM * Math.min(1, life / 0.25) * (life > total - outro ? Math.max(0, (total - life) / outro) : 1), total);
+    ultDimLayer((life) => ULT_DIM * Math.min(1, life / 0.25) * (life > total - outro ? Math.max(0, (total - life) / outro) : 1), total, who);
     // 몸에서 피어오르는 기운 (시작 연출 동안)
     sigEmitter({ until: performance.now() + introMs + 300, rate: 50, fx: () => {
         const b = pokemon.collision.getBoundingClientRect();
