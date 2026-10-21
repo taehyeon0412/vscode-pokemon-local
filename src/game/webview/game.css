@@ -6226,3 +6226,54 @@ body.vscode-light .pg-field-balls {
   flex: none;
   align-items: center;
 }
+
+/* 오늘의 목표 (#28 · gdd U13) — 세계 지도 판 맨 위 세 줄 · 아래 흐린 선 · 상자 10 × 10 (다 하면 금 칠) · 할 일 크림 12 · 한 수 / 할 수 금색 (tabular) · 보상 흐림 11 · 좁으면 보상이 다음 줄 */
+.pg-daily {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding-top: 4px;
+  margin-top: 4px;
+  border-top: 1px solid var(--pg-sos-line-soft);
+}
+.pg-daily-head {
+  font-size: 12px;
+}
+.pg-daily-goal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+.pg-daily-box {
+  flex: none;
+  box-sizing: border-box;
+  width: 10px;
+  height: 10px;
+  border: 1px solid var(--pg-sos-line);
+}
+.pg-daily-goal.pg-on .pg-daily-box {
+  background: var(--pg-sos-gold);
+  border-color: var(--pg-sos-gold);
+}
+.pg-daily-goal.pg-on .pg-daily-label {
+  color: var(--pg-sos-dim);
+}
+.pg-daily-n {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--pg-sos-gold);
+}
+.pg-daily-reward {
+  font-size: 11px;
+  color: var(--pg-sos-dim);
+}
+.pg-daily-rec {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--pg-sos-dim);
+}

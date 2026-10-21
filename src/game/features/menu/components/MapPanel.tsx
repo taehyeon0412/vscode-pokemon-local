@@ -4,7 +4,7 @@
  * 걷는 중에 다른 스테이지를 고르면 "지금 스테이지 진행이 처음부터 다시예요" 확인 한 번 · 지금 스테이지를 고르면 그대로 이어 함.
  */
 import { useState } from 'preact/hooks';
-import type { GameInput, GameState } from '../../../core/engine';
+import { dailyView, type GameInput, type GameState } from '../../../core/engine';
 import type { StageId } from '../../../core/save';
 import { Button } from '../../../ui/Button';
 import { Icon } from '../../../ui/Icon';
@@ -24,6 +24,9 @@ export interface MapPanelProps {
 
 export function MapPanel({ state, swap, midStage, onInput, onTeam, onClose }: MapPanelProps) {
   const v = mapView(state);
+  // 오늘의 목표 (#28 · gdd U13 — 개발 모드에서만, 엔진이 꺼져 있으면 null) · 기록 (U12)
+  const daily = dailyView(state);
+  const rec = state.save.records;
   const [confirm, setConfirm] = useState<StageId | 'gym' | null>(null);
   const go = (to: StageId | 'gym') => {
     const here = state.save.location.screen === 'stage' ? state.save.location.stageId : null;
@@ -58,6 +61,30 @@ export function MapPanel({ state, swap, midStage, onInput, onTeam, onClose }: Ma
           <Icon name="box" /> 팀 바꾸기{!swap && <span class="pg-sub"> 병원에서</span>}
         </Button>
       </Row>
+      {/* 오늘의 목표 = 스테이지 줄 아래 세 줄 (상자 · 할 일 · 한 수 / 할 수 · 보상 — 위에 두면 150 ~ 187 에서 지도의 본 일인 스테이지 버튼이 밀려 안 보이던 것) — 다 하면 상자 금 칠 · 숫자 금색 (색 하나에만 맡기지 않게 상자 모양도 바뀜) */}
+      {daily && (
+        <div class="pg-daily" aria-label={`오늘의 목표 ${daily.done}/${daily.goals.length}`}>
+          <span class="pg-daily-head">
+            <b>오늘의 목표</b> <span class="pg-dim">{daily.done}/{daily.goals.length}</span>
+          </span>
+          {daily.goals.map((g, i) => (
+            <span key={i} class={`pg-daily-goal${g.done ? ' pg-on' : ''}`} title={`${g.label} — ${Math.min(g.have, g.need)}/${g.need} · 보상 ${g.reward}`}>
+              <span class="pg-daily-box" aria-hidden="true" />
+              <span class="pg-daily-label">{g.label}</span>
+              <span class="pg-daily-n">
+                {Math.min(g.have, g.need)}/{g.need}
+              </span>
+              <span class="pg-daily-reward">{g.reward}</span>
+            </span>
+          ))}
+        </div>
+      )}
+      {/* 기록 (U12 [제안]) = 판 아래 흐린 한 줄 */}
+      {daily && rec && (
+        <div class="pg-daily-rec">
+          이긴 전투 {rec.wins} · 잡은 포켓몬 {rec.catches} · 걸은 길 {(rec.walked / 10000).toFixed(1)} 스테이지
+        </div>
+      )}
       {confirm && (
         <Row>
           <span class="pg-warning">지금 스테이지 진행이 처음부터 다시예요 — 갈까요?</span>
