@@ -923,6 +923,32 @@ describe('멈춤 · 알림 표 — 넘겨받을 때 · 탭 배지 · 접힌 줄 
     expect(view.badges.at(-1)).toBe(1);
   });
 
+  it('넘겨받은 뒤 늦게 온 save-now · hidden 에 같은 알림을 되풀이하지 않음 · 게임에서 나가면 배지 지움 (코드 리뷰어)', async () => {
+    const start = await enterAndStart(sampleSave({ settings: { notifications: true, autoBattle: false } }));
+    session.onVisibilityChanged(false);
+    session.handleMessage(msg({ type: 'save-now', epoch: start.epoch, reason: 'catch', state: withPlay(start.state, 900) }));
+    await vi.advanceTimersByTimeAsync(0);
+    session.handleMessage(msg({ type: 'hidden', epoch: start.epoch, state: withPlay(start.state, 950) }));
+    expect(notices.filter((n) => n.includes('멈춰 있어요'))).toHaveLength(1);
+    expect(view.badges.at(-1)).toBe(1);
+    await exitNow();
+    expect(snap().mode).toBe('normal');
+    expect(view.badges.at(-1)).toBe(0);
+  });
+
+  it('멈춤 (paused) 은 스테이지에서만 — 병원 안 · 화면 오류로 넘겨받음은 알림 · 배지 없음 (표대로)', async () => {
+    const off = sampleSave({ settings: { notifications: true, autoBattle: false } });
+    let start = await enterAndStart(off);
+    const inside = { ...start.state, runtime: { ...start.state.runtime, stage: { phase: 'facility' as const, kind: 'hospital' as const, at: 0.3, ms: 0, inside: true }, stageId: 'forest-1' as const } };
+    session.handleMessage(msg({ type: 'hidden', epoch: start.epoch, state: inside }));
+    expect(notices).toEqual([]);
+    expect(view.badges.at(-1) ?? 0).toBe(0);
+    start = await enterAndStart(off);
+    session.handleMessage(msg({ type: 'load-failed', message: 'x' }));
+    expect(warns.some((w) => w.includes('화면에 문제'))).toBe(true);
+    expect(notices).toEqual([]);
+  });
+
   it('접힌 동안 (150px 아래) 확장이 계산하면 지금 상태를 웹뷰에 (접힌 줄 — 1초에 한 번까지)', async () => {
     const start = await enterAndStart(autoSave());
     session.handleMessage(msg({ type: 'hidden', epoch: start.epoch, state: start.state, collapsed: true }));

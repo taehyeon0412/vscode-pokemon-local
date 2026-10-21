@@ -2,6 +2,7 @@
  * 게임 상태 = 세이브 (저장함) + 진행 중 상태 (저장 안 함 — 랜덤 상태 · 남은 걸음 시간 · 지금 화면에서 하는 일).
  * 이 상태 하나가 웹뷰와 확장 사이를 오가고, 누가 계산하든 같은 함수(advance)로 앞으로 간다 (play.ts).
  */
+import { GAME_NOTICES, type GameNotice } from './notices';
 import { TIMING } from '../balance';
 import { isHeroLookId } from '../../data/heroes';
 import { ITEM_IDS, STAGE_IDS, type FacilitySpot, type ItemId, type Save, type StageId } from '../save';
@@ -60,12 +61,8 @@ export type StageRuntime =
   | { phase: 'lobby'; pick?: string[]; picking?: true }
   | { phase: 'badge' };
 
-/**
- * 멈춤 · 알림 (gdd 4.13 표 · U6 "멈추면 알리고, 알리지 않으면 멈추지 않는다") — 밖 (패널은 보이는데 VS Code 포커스 없음) · 숨김에서 사람을 기다리는 이유.
- * paused = 자동 꺼짐 + 숨김 (확장이 계산을 멈춤 — 확장이 넘겨받을 때 한 번)
- */
-export const GAME_NOTICES = ['shiny', 'rival', 'battle', 'choice', 'defeat', 'clear', 'gym', 'badge', 'paused'] as const;
-export type GameNotice = (typeof GAME_NOTICES)[number];
+// 멈춤 · 알림 이유 — 가져오는 것이 없는 파일에 (shared/messages · boot.js 가 값으로 가져감)
+export { GAME_NOTICES, type GameNotice } from './notices';
 
 export const STAGE_PHASES = ['walk', 'appear', 'trainer', 'rival', 'battle', 'team', 'request', 'hold', 'facility', 'result', 'choice', 'defeat', 'clear', 'gym-enter', 'lobby', 'badge'] as const;
 

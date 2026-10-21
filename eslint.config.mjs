@@ -43,6 +43,15 @@ export default tseslint.config(
   { files: ['src/game/data/**'], rules: ban('vscode', 'preact', 'node', 'host', 'webview', 'ui', 'components', 'features', 'shared', 'core') },
   { files: ['src/game/core/**'], rules: ban('vscode', 'preact', 'node', 'host', 'webview', 'ui', 'components', 'features', 'shared') },
   { files: ['src/game/shared/**'], rules: ban('vscode', 'preact', 'node', 'host', 'webview', 'ui', 'components', 'features') },
+  // boot.js (일반 모드에서도 포켓몬 보기가 뜰 때마다 읽힘) 에 들어가는 메시지 파일 — 게임 코드 (core) 는 type 으로만 (값으로 가져오면 엔진 · 데이터가 통째로 딸려 감 — 코드 리뷰어)
+  {
+    files: ['src/game/shared/messages.ts', 'src/game/webview/boot.ts', 'src/game/webview/vscode-api.ts'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': ['error', {
+        patterns: [{ regex: '^(?!.*/core/engine/notices$).*(^|/)(core|data)(/|$)', allowTypeImports: true, message: 'boot.js 에 들어가는 파일 — 게임 코드는 type 으로만 (값은 core/engine/notices 처럼 가져오는 것이 없는 파일에서)' }],
+      }],
+    },
+  },
   { files: ['src/game/features/**/model.ts', 'src/game/features/**/model/**'], rules: ban('vscode', 'preact', 'node', 'host', 'webview', 'ui', 'components') },
   { files: ['src/game/ui/**', 'src/game/features/**/components/**'], rules: ban('vscode', 'node', 'host', 'webview') },
   { files: ['src/game/webview/**'], rules: ban('vscode', 'node', 'host') },

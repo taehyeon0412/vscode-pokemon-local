@@ -214,7 +214,7 @@ export class GameSession {
         } else if (this.mode === 'game') {
           this.warn(`포켓몬 게임 화면에 문제가 생겼어요 — 제목줄 🏠 로 일반 모드로 나갈 수 있어요 (${this.dev ? '개발 모드는 저장되지 않아요' : '진행은 저장돼요'}).`);
           // 아무도 계산하지 않는 채로 두지 않음 — 자동 전투면 여기서 이어 감
-          if (this.owner !== 'host') this.hostOwns('웹뷰가 게임을 못 불러옴');
+          if (this.owner !== 'host') this.hostOwns('웹뷰가 게임을 못 불러옴', false);
         }
         return;
       case 'title-new':
@@ -509,6 +509,8 @@ export class GameSession {
     if (this.mode === mode) return;
     this.mode = mode;
     if (mode !== 'title') this.stopBusyWatch();
+    // 게임에서 나가면 탭 배지도 지움 (접힌 채 대기실 → 🏠 에 "기다려요" 가 일반 모드에 남던 것 — 코드 리뷰어)
+    this.updateBadge();
     try {
       this.deps.onModeChanged?.(mode);
     } catch (e) {
@@ -638,7 +640,10 @@ export class GameSession {
    */
   private noticeHidden(): void {
     if (!this.state || this.mode !== 'game' || this.owner !== 'host') return;
-    const reason = waitReason(this.state) ?? (shouldRunWhenHidden(this.state) ? null : 'paused');
+    const wait = waitReason(this.state);
+    // 자동 꺼짐 멈춤 (paused) 은 자동을 켜면 걷는 곳 (스테이지) 에서만 — 병원 · 상점 안 (사람이 먼저 들어간 곳) · 세계 지도는 표대로 알림 · 배지 없음 (코드 리뷰어)
+    const paused = wait === null && !shouldRunWhenHidden(this.state) && this.state.save.location.screen === 'stage' && !isWaitingForInput(this.state);
+    const reason = wait ?? (paused ? 'paused' : null);
     if (reason && reason !== this.state.runtime.noticed) {
       this.state = { ...this.state, runtime: { ...this.state.runtime, noticed: reason } };
       this.notify(reason);
@@ -665,14 +670,15 @@ export class GameSession {
     this.post({ type: 'peek', state: this.state });
   }
 
-  /** 웹뷰에 맡기지 않고 여기서 들고 있음 */
-  private hostOwns(why: string): void {
+  /** 웹뷰에 맡기지 않고 여기서 들고 있음 · notice = 기다리면 알림 (화면 오류로 온 것이면 그 경고만 — 겹치지 않게) */
+  private hostOwns(why: string, notice = true): void {
     this.epoch++;
     this.owner = 'host';
     this.handoverEpoch = null;
     this.markHeadless(true);
     this.updateRunner();
-    this.noticeHidden();
+    if (notice) this.noticeHidden();
+    else this.updateBadge();
     this.deps.log(`${why} → 확장이 들고 있음 (epoch ${this.epoch})`);
   }
 
@@ -757,8 +763,11 @@ export class GameSession {
       this.stats.stale++;
       return false;
     }
+    const told = this.state?.runtime.noticed;
     const ok = this.applyFromWebview(state);
     if (ok && late) {
+      // 웹뷰는 보던 중이라 noticed 가 없음 — 넘겨받을 때 이미 알린 것을 그대로 (visibility → save-now → hidden 에 같은 알림 2 ~ 3번 — 코드 리뷰어)
+      if (told !== undefined && this.state && this.state.runtime.noticed === undefined) this.state = { ...this.state, runtime: { ...this.state.runtime, noticed: told } };
       this.updateRunner();
       // 넘겨받은 뒤 늦게 온 마지막 상태 — 그 장면으로 다시 봄 (같은 기다림이면 noticed 로 한 번만)
       this.noticeHidden();

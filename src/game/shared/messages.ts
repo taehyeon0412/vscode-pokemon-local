@@ -15,7 +15,9 @@
  * epoch: 상태를 맡는 쪽이 바뀔 때마다 1씩 늘어남. 지난 epoch 의 메시지는 버린다 (늦게 온 옛 상태가 덮어쓰지 않게).
  *   단, 확장이 넘겨받기 바로 전 epoch 의 메시지는 받아 줌 (패널을 접는 순간의 잡기 · 마지막 상태를 잃지 않게).
  */
-import { GAME_NOTICES, type GameNotice, type GameState } from '../core/engine';
+// 값은 가져오는 것이 없는 파일에서만 — 이 파일은 boot.js (일반 모드에서도 읽힘) 에 들어감 (eslint 가 막음)
+import { GAME_NOTICES, type GameNotice } from '../core/engine/notices';
+import type { GameState } from '../core/engine';
 import type { Save } from '../core/save';
 
 export const GAME_COMMAND = 'game';

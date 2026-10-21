@@ -41,7 +41,7 @@ export type TeamFxCall =
   /** 필살기 (일반 모드 그대로 — 변신 · 전용 연출) — dst = 가운데 상대 (모두를 침) · quick = 짧게 (TEAM_FX.quickRepeat) · key = 엔진 붙잡기 열쇠 (맞는 순간까지) */
   | { do: 'ult'; src: TeamSlot; dst: TeamSlot; quick: boolean; key: string; others: TeamSlot[]; type: string; name?: string }
   /** 합동 필살기 마무리 — 이긴 참가자 필살기가 같은 때 닿아 한 점에서 합쳐 터짐 (ult/bridge.js ultJoint) · sure = 3:1 압도 */
-  | { do: 'joint'; winners: TeamSlot[]; dst: TeamSlot; types: string[]; sure: boolean; key: string; others: TeamSlot[] }
+  | { do: 'joint'; winners: TeamSlot[]; dst: TeamSlot; types: string[]; sure: boolean; key: string; others: TeamSlot[]; name?: string }
   /** 필살기 힘겨루기 — 앞장 (첫 참가자) 끼리 대결 · 합류는 join */
   | { do: 'ult-clash'; me: number[]; foe: number[] }
   | { do: 'ult-join'; who: TeamSlot }
@@ -135,7 +135,7 @@ function planOne(b: TeamBattle, e: TeamLogEntry, final: boolean, seen: Set<strin
         const j = e.joint;
         // 한 점 = 진 쪽 가운데 · 나머지 상대에게는 퍼지는 충격 (범위 필살기 — 기획 제안)
         const mid = j.losers[Math.floor((j.losers.length - 1) / 2)]!;
-        out.push({ do: 'joint', winners: j.winners.map((slot) => ({ side: e.side, slot })), dst: { side: other(e.side), slot: mid }, others: j.losers.filter((x) => x !== mid).map((slot) => ({ side: other(e.side), slot })), types: j.winners.map((w) => b[e.side][w]?.types[0] ?? 'normal'), sure: j.sure, key: teamUltKey(e.at) });
+        out.push({ do: 'joint', winners: j.winners.map((slot) => ({ side: e.side, slot })), dst: { side: other(e.side), slot: mid }, others: j.losers.filter((x) => x !== mid).map((slot) => ({ side: other(e.side), slot })), types: j.winners.map((w) => b[e.side][w]?.types[0] ?? 'normal'), sure: j.sure, key: teamUltKey(e.at), ...(e.name ? { name: e.name } : {}) });
         return;
       }
       const key = `${e.side}:${e.from}`;
@@ -376,7 +376,8 @@ export class TeamFxRunner {
         fx.stopDuel?.();
         // 그림이 없는 참가자는 타입 · 피할 이름과 같이 뺌 (순번이 어긋나 다른 포켓몬 것이 붙던 것)
         const ps = c.winners
-          .map((w, i) => ({ actor: a(w), type: c.types[i] ?? 'normal', avoid: this.learned(w), pick: devUltOf(this.last?.[w.side][w.slot]?.uid) ?? null }))
+          // 첫 참가자 (처음 쓴 포켓몬) 는 엔진이 고른 필살기 (기획 R7 — 이름 · 연출 같게) · 나머지는 개발 모드에서 고른 것 / 저절로
+          .map((w, i) => ({ actor: a(w), type: c.types[i] ?? 'normal', avoid: this.learned(w), pick: (i === 0 ? c.name : undefined) ?? devUltOf(this.last?.[w.side][w.slot]?.uid) ?? null }))
           .filter((p): p is { actor: FxActor; type: string; avoid: string[]; pick: string | null } => !!p.actor);
         const dst = a(c.dst);
         const others = c.others.map(a).filter((x): x is FxActor => !!x);

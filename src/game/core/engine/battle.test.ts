@@ -514,8 +514,20 @@ describe('필살기 (mvp-spec 3.3 · gdd S09 ⑧)', () => {
     // 자동 전투 · HP 30% 아래 · 다 참 → 상대 필살기 창에서 저절로 받아침 (태현 님 B) · 30% 이상 · 손 전투는 안 받아침
     const foeUltOpen: BattleState = { ...full, phase: 'anim', anim: { side: 'foe', action: { kind: 'ult' }, ms: 100, dur: TIMING.ultAnimMs, counter: false } };
     const lowHp = Math.ceil(full.me.maxHp * BALANCE.autoPotionBelow) - 1;
-    expect(battleStep({ ...foeUltOpen, me: { ...foeUltOpen.me, hp: lowHp } }, save, STEP, fixedRng(0.5), { auto: true }).phase).toBe('clash');
-    expect(battleStep({ ...foeUltOpen, me: { ...foeUltOpen.me, hp: lowHp + 1 } }, save, STEP, fixedRng(0.5), { auto: true }).phase).toBe('anim');
+    // 볼 때는 창 끝에 (예고 "!" 가 1.2초 다 보인 뒤 — 한 장면만에 사라지던 것, U1 코드 리뷰어) · 안 볼 때는 바로
+    let lowOpen: BattleState = { ...foeUltOpen, me: { ...foeUltOpen.me, hp: lowHp } };
+    expect(battleStep(lowOpen, save, STEP, fixedRng(0.5), { auto: true }).phase).toBe('anim');
+    expect(battleStep(lowOpen, save, STEP, fixedRng(0.5), { auto: true, away: true }).phase).toBe('clash');
+    for (let t = 0; t < 3000 && lowOpen.phase === 'anim'; t += STEP) lowOpen = battleStep(lowOpen, save, STEP, fixedRng(0.5), { auto: true });
+    expect(lowOpen.phase).toBe('clash');
+    expect(battleFoeUltWarn({ ...foeUltOpen, anim: { ...foeUltOpen.anim!, ms: TIMING.ultCounterWindowMs - STEP } })?.full).toBe(true);
+    expect(battleStep({ ...foeUltOpen, me: { ...foeUltOpen.me, hp: lowHp + 1 }, anim: { ...foeUltOpen.anim!, ms: TIMING.ultCounterWindowMs } }, save, STEP, fixedRng(0.5), { auto: true }).phase).toBe('anim');
+    // 자동으로 기다리다 손으로 고르면 기다림 (pickMs) 도 지움 — 다음 쓰러짐의 기다림이 줄지 않게 (코드 리뷰어)
+    const halfWait: BattleState = { ...b, phase: 'pick', me: { ...b.me, hp: 0 }, bench: { m2: { hp: 20, moves: b.me.moves, status: null } }, pickMs: 900 };
+    const halfSave = { ...save, party: [...save.party, 'm2'], monsters: { ...save.monsters, m2: { ...save.monsters[save.party[0]!]!, uid: 'm2', hp: 20 } } };
+    const picked = battleInput(halfWait, halfSave, { kind: 'pick', uid: 'm2' }, fixedRng(0.5));
+    expect(picked.phase).toBe('run');
+    expect(picked.pickMs).toBeUndefined();
     expect(battleStep({ ...foeUltOpen, me: { ...foeUltOpen.me, hp: lowHp } }, save, STEP, fixedRng(0.5), { auto: false }).phase).toBe('anim');
     // 예약한 Z 는 상대 필살기 맞받아치기 창이 열리면 그걸로 (코드 리뷰어)
     const foeUltNow: BattleState = { ...full, phase: 'anim', anim: { side: 'foe', action: { kind: 'ult' }, ms: 100, dur: TIMING.ultAnimMs, counter: false }, ultQueued: true };

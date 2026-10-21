@@ -673,7 +673,8 @@ export function battleStep(b0: BattleState, save: Save, stepMs: number, rng: Rng
   const myUltNow = (opts.auto && b.me.ult >= 1 && (opts.away === true || low || (b.ultWait ?? 0) >= BALANCE.ultAutoWaitMs)) || b.ultQueued === true;
   // 예약한 Z 는 맞받아치기 창 (관장 끼어들기 · 상대 필살기) 이 열리면 그걸로 (예약을 둔 채 상대 필살기를 맞던 것 — 코드 리뷰어).
   // 자동 전투 · HP 30% 아래 · 다 참이면 저절로 받아침 (맞고 쓰러져 필살기가 날아가던 것 — 2026-10-21 태현 님 B, 그 밖의 맞받아치기는 손으로)
-  if ((b.ultQueued || (opts.auto && low)) && ultCounterOpen(b)) return startClash({ ...b, me: { ...b.me, ult: 0 }, ultQueued: undefined, ultWait: undefined }, 'ult', null, null);
+  const autoCounter = opts.auto && low && (opts.away === true || (b.anim?.ms ?? 0) + stepMs > TIMING.ultCounterWindowMs);
+  if ((b.ultQueued || autoCounter) && ultCounterOpen(b)) return startClash({ ...b, me: { ...b.me, ult: 0 }, ultQueued: undefined, ultWait: undefined }, 'ult', null, null);
   if (myUltNow && b.phase !== 'run' && canUlt(b) && !ultCounterOpen(b)) return pressUlt(b, rng);
   switch (b.phase) {
     case 'riposte': {
@@ -761,8 +762,7 @@ export function battleStep(b0: BattleState, save: Save, stepMs: number, rng: Rng
         if (pickMs < TIMING.autoPickMs) return { ...b, pickMs };
       }
       const next = bestNext(team, b.foe.types);
-      const { pickMs: _p, ...rest } = b;
-      return next ? pickNext(rest, save, next.uid) : b;
+      return next ? pickNext(b, save, next.uid) : b;
     }
     case 'catch':
       return catchStep(b, save, stepMs, rng);
@@ -894,7 +894,9 @@ function pickNext(b: BattleState, save: Save, uid: string): BattleState {
   if (!m) return b;
   const next = fighterOf(m);
   next.ult = b.bench[uid]?.ult ?? BALANCE.ultStart;
-  return { ...b, me: next, phase: 'run', msg: `가랏, ${nameOf(next)}!`, fought: b.fought.includes(uid) ? b.fought : [...b.fought, uid] };
+  // 자동 기다림 (pickMs) 은 손으로 골라도 지움 — 남으면 다음 쓰러짐의 기다림이 줄어듦 (U1, 코드 리뷰어)
+  const { pickMs: _p, ...rest } = b;
+  return { ...rest, me: next, phase: 'run', msg: `가랏, ${nameOf(next)}!`, fought: b.fought.includes(uid) ? b.fought : [...b.fought, uid] };
 }
 
 /** 잡기 어려움 (orders #23) — 지금 이 야생에게 볼마다 던질 때의 기본 확률 · 쉬움 / 보통 / 어려움 (마지막 기회면 × 0.5). 야생이 아니면 null */
