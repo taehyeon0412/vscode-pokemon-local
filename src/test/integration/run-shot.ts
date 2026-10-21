@@ -16,8 +16,8 @@ async function main(): Promise<void> {
   if (!user) throw new Error('SHOT_USER_DIR 이 없음 (dev/vscode-shot.py 로 띄우세요)');
   const root = resolve(__dirname, '..');
   const tmp = mkdtempSync(join(tmpdir(), 'pokemon-shot-'));
-  // 창 제목으로 파이썬이 찾음 (pokemon-shot)
-  const workspace = join(tmp, 'pokemon-shot');
+  // 창 제목으로 파이썬이 찾음 — 파이썬이 정한 임의 이름 (SHOT_NAME, 남은 창 · 탐색기 창과 안 헷갈리게)
+  const workspace = join(tmp, process.env.SHOT_NAME || 'pokemon-shot');
   mkdirSync(workspace);
   // 윈도우에서 test-electron 은 셸로 VS Code 를 띄우면서 경로를 따옴표로 감싸지 않음 → 띄어쓰기가 있으면 잘림
   const q = (p: string) => (process.platform === 'win32' ? `"${p}"` : p);

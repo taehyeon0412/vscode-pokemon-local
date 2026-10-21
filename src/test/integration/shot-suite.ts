@@ -52,7 +52,12 @@ export async function run(): Promise<void> {
   writeFileSync(join(dir, 'ready.json'), JSON.stringify({ mode: d.mode, owner: d.owner, progress: d.progress, view: d.view, version: vscode.version }));
   // 파이썬이 다 찍을 때까지 (최대 10분) — 그동안 웹뷰 크기를 view.json 으로 (창 크기를 바꾸면 웹뷰가 알림)
   const end = Date.now() + 600_000;
+  let cleared = Date.now();
   while (!existsSync(join(dir, 'done')) && Date.now() < end) {
+    if (Date.now() - cleared > 1000) {
+      cleared = Date.now();
+      void vscode.commands.executeCommand('notifications.clearAll');
+    }
     try {
       writeFileSync(join(dir, 'view.json'), JSON.stringify(game.debug().view));
     } catch {

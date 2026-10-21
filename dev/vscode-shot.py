@@ -56,8 +56,8 @@ def args():
     return sys.argv[1], out
 
 
-def find_window(title_part, pid_hint=None, timeout=60):
-    """제목에 title_part 가 들어간 보이는 창"""
+def find_window(title_part, timeout=60):
+    """제목에 title_part (이번에 정한 임의 작업 폴더 이름) 가 들어간 보이는 창"""
     end = time.time() + timeout
     found = []
     proto = ctypes.WINFUNCTYPE(ctypes.c_bool, wt.HWND, wt.LPARAM)
@@ -165,7 +165,10 @@ def fit(hwnd, talk, w, h):
 def shoot(out, theme, h, widths, o):
     talk = tempfile.mkdtemp(prefix='pokemon-shot-talk-')
     user = user_dir(theme)
-    env = dict(os.environ, SHOT_DIR=talk, SHOT_USER_DIR=user, SHOT_SAVE=os.path.abspath(o['save']) if o['save'] else '', SHOT_WAIT_MS=o['wait'], SHOT_VERSION=o['version'])
+    # 작업 폴더 이름 = 창 제목 — 임의 글자로 (지난번에 남은 창 · 같은 이름 탐색기 창을 잡지 않게)
+    name_tag = 'pokemon-shot-' + os.urandom(4).hex()
+    hwnd, code_pid = None, None
+    env = dict(os.environ, SHOT_DIR=talk, SHOT_USER_DIR=user, SHOT_SAVE=os.path.abspath(o['save']) if o['save'] else '', SHOT_WAIT_MS=o['wait'], SHOT_VERSION=o['version'], SHOT_NAME=name_tag)
     env.pop('ELECTRON_RUN_AS_NODE', None)
     proc = subprocess.Popen(['node', os.path.join(ROOT, '.test-out', 'run-shot.cjs')], cwd=ROOT, env=env)
     try:
@@ -179,9 +182,12 @@ def shoot(out, theme, h, widths, o):
             time.sleep(0.5)
         with open(ready, encoding='utf-8') as f:
             info = json.load(f)
-        hwnd = find_window('pokemon-shot')
+        hwnd = find_window(name_tag)
         if not hwnd:
-            sys.exit('VS Code 창을 못 찾음 (제목 pokemon-shot)')
+            sys.exit(f'VS Code 창을 못 찾음 (제목 {name_tag})')
+        pid = wt.DWORD()
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        code_pid = pid.value
         for w in widths:
             got = fit(hwnd, talk, w, h)
             time.sleep(1.2)
@@ -193,9 +199,15 @@ def shoot(out, theme, h, widths, o):
         open(os.path.join(talk, 'done'), 'w').close()
         proc.wait(timeout=60)
     finally:
+        # 이 도구가 띄운 것만 PID 로 (이름으로 끄지 않음) — node 가 먼저 죽어도 찾은 VS Code 창의 프로세스는 끔
         if proc.poll() is None:
-            # 이 도구가 띄운 것만 PID 로 (이름으로 끄지 않음)
             subprocess.run(['taskkill', '/PID', str(proc.pid), '/T', '/F'], capture_output=True)
+        # 찾은 창이 아직 있고 같은 프로세스일 때만 (꺼진 뒤 같은 PID 를 다른 프로그램이 받았을 수 있음)
+        if hwnd and code_pid and user32.IsWindow(hwnd):
+            now = wt.DWORD()
+            user32.GetWindowThreadProcessId(hwnd, ctypes.byref(now))
+            if now.value == code_pid:
+                subprocess.run(['taskkill', '/PID', str(code_pid), '/T', '/F'], capture_output=True)
         shutil.rmtree(talk, ignore_errors=True)
         shutil.rmtree(user, ignore_errors=True)
 
