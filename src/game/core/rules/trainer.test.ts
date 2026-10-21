@@ -3,7 +3,7 @@ import { BALANCE } from '../balance';
 import { STAGE_IDS } from '../save';
 import { formsOfSpecies } from '../../data';
 import { stageLayout, stageLevelBand, trainerCount, trainerId } from './stage';
-import { leaderTeam, trainerInfo, trainerTeam, trainerTeamSize } from './trainer';
+import { leaderTeam, trainerInfo, trainerTeam, trainerTeamSize, shortTrainerName, withShortFoe } from './trainer';
 
 describe('트레이너 (mvp-spec S08 · 4장)', () => {
   it('스테이지마다 2 ~ 3명 — 수는 시드와 상관없이 같고, 길 순서로 t0 · t1 …', () => {
@@ -53,5 +53,17 @@ describe('숲 관장 (mvp-spec 3.9)', () => {
     ]);
     expect(leaderTeam()).toEqual(team);
     for (const m of team) expect(m.moves.length).toBeGreaterThan(0);
+  });
+});
+
+describe('직함을 뺀 이름 (orders #20)', () => {
+  it('마지막 낱말 · 직함이 없으면 그대로 · 말 안의 이름만 바꿈', () => {
+    expect(shortTrainerName('엘리트 트레이너 소율')).toBe('소율');
+    expect(shortTrainerName('관장 나래')).toBe('나래');
+    expect(shortTrainerName('소율')).toBe('소율');
+    expect(withShortFoe('엘리트 트레이너 소율은 다음 포켓몬을 꺼낸다…', '엘리트 트레이너 소율')).toBe('소율은 다음 포켓몬을 꺼낸다…');
+    expect(withShortFoe('야생 파이리가 쓰러졌다!', null)).toBe('야생 파이리가 쓰러졌다!');
+    // 숲 트레이너 모두 — 짧은 이름이 직함보다 짧음
+    for (let n = 0; n < 9; n++) expect(shortTrainerName(trainerInfo('forest-1', n).name).length).toBeLessThan(trainerInfo('forest-1', n).name.length);
   });
 });

@@ -57,6 +57,19 @@ export function trainerInfo(stageId: StageId, n: number): TrainerInfo {
   return { id: `${stageId}:t${n}`, name: `${t.title} ${t.name}`, hat: TRAINER_HAT, shirt: TRAINER_SHIRT, look: t.look };
 }
 
+/** 직함을 뺀 이름 — "엘리트 트레이너 소율" → "소율" · "관장 나래" → "나래" · "라이벌 ○○" → "○○" (좁은 패널의 전투 말 — orders #20) */
+export function shortTrainerName(name: string): string {
+  const i = name.lastIndexOf(' ');
+  return i < 0 ? name : name.slice(i + 1);
+}
+
+/** 말 안의 트레이너 이름을 직함 없이 — 조사는 이름 끝 글자가 같아 그대로 맞음 ("엘리트 트레이너 소율은" → "소율은") */
+export function withShortFoe(msg: string, foeName: string | null): string {
+  if (!foeName) return msg;
+  const short = shortTrainerName(foeName);
+  return short === foeName ? msg : msg.split(foeName).join(short);
+}
+
 /** 트레이너 번호 ("forest-1:t2" → 2) */
 export function trainerNumber(id: string): number {
   const m = /:t(\d+)$/.exec(id);

@@ -647,11 +647,14 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
   //     안 들어가면 첫 문장 (진 경우는 끝 문장)
   //   행동 중 · 내 차례 = 안 들어가면 "○○의 기술!" · "○○는 무엇을 할까?" 를 빼고 상성 · 급소 문장을 남김 (240 × 187 "…별로인 듯하…" 로 잘리던 것)
   const ending = b.phase === 'over' || b.phase === 'send' || b.phase === 'pick' || b.phase === 'last';
+  //   안 들어가면 트레이너 직함을 뺀 말 → 그래도 안 들어가면 첫 문장 (시작 말 "엘리트 트레이너 소율이 …를 내보냈다! 가랏, …!" 도 — orders #20)
   const msgText = ending
-    ? endSay(b.msg, b.phase === 'over' && b.result === 'lose', (s) => msgFits(s, geo))
+    ? endSay(b.msg, b.phase === 'over' && b.result === 'lose', (s) => msgFits(s, geo), b.foeName)
     : said.length > 0 && !msgFits(msgFull, geo)
       ? said.join(' ')
-      : msgFull;
+      : said.length === 0
+        ? endSay(b.msg, false, (s) => msgFits(s, geo), b.foeName)
+        : msgFull;
   // 필살기 컷인이 같은 말을 하는 동안 · 둘 곳이 없는 좁은 패널에서는 위 한 줄을 숨김 — 그때 문장은 머리 위 한 줄로
   // 잡기 흔들기 창 (가운데) 이 떠 있는 동안도 숨김 — 창 이름표와 같은 말을 두 번 함 (아트 디렉터 8차)
   const catchShown = catchView(b)?.stage;
@@ -753,7 +756,7 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
  *  고르기는 칸이 무대 위 세로 목록으로 빠져 (2초 뒤) 위 줄 자리가 비어서 "이상해씨가 쓰러졌다!" 를 다시 띄움.
  *  첫 문장만 ("야생 파이리가 쓰러졌다!") — 뒷말 ("다음 포켓몬을 골라요") 은 고르기 목록 제목이 말함. 마지막 기회는 같은 줄에 "마지막 기회! 6초" · 볼 칸이 있어 자리가 없고, 쓰러진 모습 (회색) 과 그 칸이 뜻을 전함 */
 export const barSay = (b: BattleState, msgHidden: boolean, widthPx: number, lines: number): string | null =>
-  msgHidden && (b.phase === 'over' || b.phase === 'send' || b.phase === 'pick') && b.msg ? endSay(b.msg, b.phase === 'over' && b.result === 'lose', (s) => fitsPx(s, widthPx, lines)) : null;
+  msgHidden && (b.phase === 'over' || b.phase === 'send' || b.phase === 'pick') && b.msg ? endSay(b.msg, b.phase === 'over' && b.result === 'lose', (s) => fitsPx(s, widthPx, lines), b.foeName) : null;
 
 export function BattleMenuBar({ battle, save, onInput, withAuto, compact, say, hint }: { battle: BattleState; save: Save; onInput(i: GameInput): void; withAuto: boolean; compact: boolean | 'tiny'; say?: string | null; hint?: '막기' | '반격' | null }) {
   return (

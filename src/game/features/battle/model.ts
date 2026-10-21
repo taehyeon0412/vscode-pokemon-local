@@ -8,6 +8,7 @@ import { isShooting } from '../../core/rules/battle';
 import { maxHpOf } from '../../core/rules/bag';
 import { BALLS, catchChance, isBall } from '../../core/rules/catch';
 import { BATTLE_ITEMS, itemName } from '../../core/rules/items';
+import { withShortFoe } from '../../core/rules/trainer';
 import type { Save } from '../../core/save';
 import { typeNameKo, withJosa } from '../../core/text';
 import { formOf, moveOf, speciesOf, type TypeName } from '../../data';
@@ -274,13 +275,16 @@ export const firstSentence = (msg: string): string => msg.match(/^[^!?.…]*[!?.
  * 끝 · 다음 포켓몬 · 고르기 말을 자리에 맞춰 — 다 들어가면 전부 ("(볼이 없어 잡을 수 없어요)" 까지), 아니면 첫 문장.
  * 진 경우는 끝 문장 ("…내 포켓몬도 다 쓰러졌다… 눈앞이 깜깜해졌다") — 첫 문장 "상대 ○○가 쓰러졌다!" 만 보여 이긴 줄 알던 것 (UX 리뷰어 2026-10-21)
  */
-export function endSay(msg: string, lose: boolean, fits: (s: string) => boolean): string {
+export function endSay(msg: string, lose: boolean, fits: (s: string) => boolean, foeName: string | null = null): string {
   if (fits(msg)) return msg;
-  const parts = msg.split(/(?<=[!?.…])\s+/).filter(Boolean);
-  if (parts.length < 2) return msg;
-  if (!lose) return parts[0] ?? msg;
+  // 트레이너 직함을 빼면 들어가면 그것 — 아니면 직함을 뺀 말에서 문장을 고름 ("엘리트 트레이너 소율은…" 이 240 · 600 × 170 에서 첫 문장도 안 들어가던 것, orders #20)
+  const short = withShortFoe(msg, foeName);
+  if (fits(short)) return short;
+  const parts = short.split(/(?<=[!?.…])\s+/).filter(Boolean);
+  if (parts.length < 2) return short;
+  if (!lose) return parts[0] ?? short;
   const two = parts.slice(-2).join(' ');
-  return fits(two) ? two : (parts[parts.length - 1] ?? msg);
+  return fits(two) ? two : (parts[parts.length - 1] ?? short);
 }
 /** 옆 메뉴일 때 한 줄 말 = 옆 메뉴 탭 · 상대 HP 묶음 위 끝에서 이만큼 위 (싸우는 곳 가까이 — 아트 디렉터 3차) */
 const MSG_NEAR_GAP_PX = 8;

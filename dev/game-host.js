@@ -217,8 +217,22 @@
         if (place === 'shop-front') { st.progress = 0.6132 - 1e-7; stage = { phase: 'facility', kind: 'shop', at: 0.6132, ms: 0, inside: false }; }
         if (place === 'trainer' || place === 'trainer-battle') {
             st.progress = 0.30551;
-            save.pendingEncounter = { kind: 'trainer', trainerId: 'forest-1:t0', stageId: 'forest-1' };
-            stage = place === 'trainer' ? { phase: 'trainer', n: 0, ms: Number(q.get('ms') || 1200) } : { phase: 'battle', battle: battle('trainer', '등산가 민수', foeMon('foe0', 11, 'metapod', 6), [foeMon('foe1', 14, 'kakuna', 6)]) };
+            // tid=<스테이지>:t<번호> — 그 자리 트레이너 (예: forest-3:t2 = 엘리트 트레이너 소율 — tname 도 같은 이름이어야 엔진이 이 전투를 그대로 씀)
+            const tid = q.get('tid') || 'forest-1:t0';
+            const tst = tid.split(':')[0];
+            if (tst !== 'forest-1') {
+                save.stages[tst] = { ...st };
+                save.location = { screen: 'stage', stageId: tst };
+            }
+            save.pendingEncounter = { kind: 'trainer', trainerId: tid, stageId: tst };
+            // tname=<직함 이름> · tfoe=<모습>:<도감 번호> · tmsg=<말> · tphase=<단계> — 긴 직함 · 긴 이름 말 잘림 시험 (orders #20, 예: tname=엘리트 트레이너 소율&tfoe=beautifly:267&tphase=send)
+            const [tf, ts] = (q.get('tfoe') || 'metapod:11').split(':');
+            const tb = battle('trainer', q.get('tname') || '등산가 민수', foeMon('foe0', Number(ts) || 11, tf, 6), [foeMon('foe1', 14, 'kakuna', 6)]);
+            if (q.get('tmsg')) tb.msg = q.get('tmsg');
+            if (q.get('tphase')) tb.phase = q.get('tphase');
+            if (q.get('tphase') === 'over') tb.result = 'win';
+            if (q.get('tphase') === 'run') Object.assign(tb, { me: { ...tb.me, gauge: 0 }, foe: { ...tb.foe, gauge: 0 } });
+            stage = place === 'trainer' ? { phase: 'trainer', n: 0, ms: Number(q.get('ms') || 1200) } : { phase: 'battle', battle: tb };
         }
         if (place && place.startsWith('rival')) {
             // 라이벌 — 시드 42 숲 1-1 의 빈 곳 (0.4) 에서 깜짝 등장 (사진용, 실제 자리는 시드마다)
@@ -242,7 +256,7 @@
         }
         if (place === 'defeat') { st.progress = 0.4724 - 1e-7; st.run.reach = 0.61; st.run.retries = Number(q.get('retries') || 0); save.lastHospital = { stageId: 'forest-1', at: 0.4724 }; stage = { phase: 'defeat', gym: false, lost: 100 }; }
         if (place === 'clear') { st.progress = 1; st.cleared = true; save.playTimeMs = 2280000; stage = { phase: 'clear' }; }
-        let stageId = 'forest-1';
+        let stageId = save.location.screen === 'stage' ? save.location.stageId : 'forest-1';
         if (place === 'lobby' || place === 'gym-battle' || place === 'badge') {
             save.location = { screen: 'gym' };
             save.stages['forest-3'] = { ...st, progress: 1, cleared: true };

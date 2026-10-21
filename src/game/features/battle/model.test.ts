@@ -343,6 +343,18 @@ describe('지도 줄 아래 · 긴 한 줄 말 (2026-10-19 태현 님)', () => {
     expect(endSay('야생 파이리가 쓰러졌다!', false, () => false)).toBe('야생 파이리가 쓰러졌다!');
   });
 
+  it('좁으면 트레이너 직함을 뺀 말 — 그래도 안 들어가면 그 말의 첫 문장 · 조사는 이름 끝 글자 그대로 (orders #20)', () => {
+    const who = '엘리트 트레이너 소율';
+    const send = `상대 뷰티플라이가 쓰러졌다! ${who}은 다음 포켓몬을 꺼낸다…`;
+    const start = `${who}이 장크로다일을 내보냈다! 가랏, 이상해씨!`;
+    expect(endSay(send, false, () => true, who)).toBe(send);
+    expect(endSay(send, false, (s) => s.length <= 34, who)).toBe('상대 뷰티플라이가 쓰러졌다! 소율은 다음 포켓몬을 꺼낸다…');
+    expect(endSay(start, false, (s) => s.length <= 28, who)).toBe('소율이 장크로다일을 내보냈다! 가랏, 이상해씨!');
+    expect(endSay(start, false, () => false, who)).toBe('소율이 장크로다일을 내보냈다!');
+    expect(endSay(start, false, () => false, null)).toBe(`${who}이 장크로다일을 내보냈다!`);
+    expect(endSay('관장 나래의 승부!', false, () => false, '관장 나래')).toBe('나래의 승부!');
+  });
+
   it('두 줄은 둘째 줄 아래가 빌 때만 — 위가 붐벼 상대 오른쪽에 둘 때도 · 트레이너전은 오른쪽 끝 이름표 (땅 + 키 + 16) 위까지', () => {
     // 150px 야생: 위가 붐벼 상대 오른쪽 — 그 아래가 비어 두 줄
     expect(real(150, 412).topBusy).toBe(true);
