@@ -112,9 +112,12 @@ ONE = r"""
   }
   const lead = cfg.charge + cfg.intro;
   const until = Math.min(total, lead + cfg.wait);
+  // 상대 둘레 (몸 폭만큼 넓힌 칸) — 덮는 연출 재기
+  const fr = foeBox.getBoundingClientRect();
+  const box = [fr.left - fr.width * 0.5, fr.top - fr.height * 0.5, fr.right + fr.width * 0.5, fr.bottom + fr.height * 0.25];
   while (w.performance.now() - t0 < until) {
     await new Promise((r) => w.setTimeout(r, 40));
-    samples.push([w.performance.now() - t0 - lead, w.__fxDebug.centroid()]);
+    samples.push([w.performance.now() - t0 - lead, w.__fxDebug.centroid(), w.__fxDebug.near(...box)]);
   }
   const tr = w.__fxTrace.map((x) => [x[0], x[1] - t0 - lead, x[2]]);
   w.__fxTrace = null;
@@ -135,8 +138,11 @@ ONE = r"""
   } else if (hits.length) {
     main = Math.round(hits[0]);
   }
-  // [큰 맞음, 본편 길이, 자기 둘레, 가장 센 번쩍 (없으면 -1)]
-  return [main, Math.round(total - lead - cfg.outro), self, big ? Math.round(big[1]) : -1];
+  // 덮음 끝 = 큰 맞음 뒤 상대 둘레에 입자가 3개 이상 있던 마지막 때 (없으면 -1) — 쓰러진 포켓몬이 연출이 다 걷힌 뒤 넘어지게 (디자인팀 — 개구마르 등)
+  const covered = samples.filter((s) => s[0] >= main && s[2] >= 3);
+  const cover = main >= 0 && covered.length ? Math.round(covered[covered.length - 1][0]) : -1;
+  // [큰 맞음, 본편 길이, 자기 둘레, 가장 센 번쩍 (없으면 -1), 덮음 끝 (없으면 -1)]
+  return [main, Math.round(total - lead - cfg.outro), self, big ? Math.round(big[1]) : -1, cover];
 })(%FORM%, %IDX%, %CFG%)
 """
 

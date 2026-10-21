@@ -25,7 +25,8 @@ export function TeamChoice({ state, media, onInput }: { state: GameState; media:
   const lock = teamLock(state);
   const pick = teamPickOf(state);
   const lobby = st.phase === 'lobby';
-  const team = lobby || (st.team ?? save.settings.teamMode === true);
+  // 잠겼으면 (3마리 미만 · 좁음) 주 버튼 = 1:1 (엔진도 1:1 로 시작 — 코드 리뷰어)
+  const team = lobby || (lock === null && (st.team ?? save.settings.teamMode === true));
   if ((lobby || st.team) && pick) {
     // 3마리 고르기 — 팀 순서 키 1 ~ 5 · 고른 순서 = 싸울 때 발밑 판 키
     const left = st.phase === 'trainer' ? Math.max(0, 1 - (st.pickMs ?? 0) / TIMING.teamPickAutoMs) : 0;
@@ -37,7 +38,7 @@ export function TeamChoice({ state, media, onInput }: { state: GameState; media:
           const order = pick.indexOf(uid);
           const down = m.hp <= 0;
           return (
-            <button key={uid} type="button" class={`pg-team-pk${order >= 0 ? ' pg-on' : ''}${down ? ' pg-down' : ''}`} disabled={down} onClick={() => onInput({ kind: 'team-pick', uid })} title={`${speciesOf(m.species)?.name.ko ?? m.form} Lv${m.level} — ${i + 1} 넣고 빼기`}>
+            <button key={uid} type="button" class={`pg-team-pk${order >= 0 ? ' pg-on' : ''}${down ? ' pg-down' : ''}`} disabled={down} onMouseDown={(e) => e.preventDefault()} onClick={() => onInput({ kind: 'team-pick', uid })} title={`${speciesOf(m.species)?.name.ko ?? m.form} Lv${m.level} — ${i + 1} 넣고 빼기`}>
               <span class="pg-team-key">{i + 1}</span>
               <Sprite media={media} form={m.form} shiny={m.shiny} scale={1} crop={24} />
               <span class="pg-team-pk-lv">Lv{m.level}</span>
@@ -49,7 +50,7 @@ export function TeamChoice({ state, media, onInput }: { state: GameState; media:
         {lobby ? (
           <span class="pg-team-count">{`관장 3:3 ${pick.length}/${BALANCE.team.size}`}</span>
         ) : (
-          <Button extraClass="pg-team-start" onClick={() => onInput({ kind: 'space' })} disabled={pick.length === 0} title="고른 셋으로 시작 (Enter)">
+          <Button extraClass="pg-team-start" onClick={() => onInput({ kind: 'space' })} title="고른 셋으로 시작 (Enter — 모자라면 상성 좋은 순으로 채움)">
             <span class="pg-menu-key">Enter</span> 시작 {`${pick.length}/${BALANCE.team.size}`}
             <span class="pg-team-left" style={{ width: `${Math.round(left * 100)}%` }} />
           </Button>

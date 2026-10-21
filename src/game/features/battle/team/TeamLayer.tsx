@@ -33,7 +33,14 @@ function Fighter({ b, g, side, slot, media, onUlt }: { b: TeamBattle; g: TeamGeo
   const warn = side === 'foe' ? foeWarn(b, slot) : null;
   const pops = b.popups.filter((p) => p.side === side && p.slot === slot);
   const name = speciesOf(f.species)?.name.ko ?? f.form;
-  const click = mine && st !== 'down' ? () => onUlt(slot) : undefined;
+  // 필살기 힘겨루기 중엔 끼어들 수 있는 칸 (join) 만 합류 — 나머지는 바깥 (연타) 으로 (누를 때마다 예약이 켜졌다 꺼지던 것 — 코드 리뷰어)
+  const click =
+    mine && st !== 'down' && (b.phase !== 'clash' || st === 'join')
+      ? (e: MouseEvent) => {
+          if (b.phase === 'clash') e.stopPropagation();
+          onUlt(slot);
+        }
+      : undefined;
   return (
     <>
       {/* 포켓몬 — 발 가운데 (x, y) · 칸 = 32 × 배율 (그림 발끝이 칸 아래 3점 위) */}
@@ -72,8 +79,8 @@ function Fighter({ b, g, side, slot, media, onUlt }: { b: TeamBattle; g: TeamGeo
   );
 }
 
-export function TeamLayer({ team: b, media, widthPx, heightPx, fieldTop, onInput }: { team: TeamBattle; media: string; widthPx: number; heightPx: number; fieldTop: number; onInput(i: GameInput): void }) {
-  const g = useMemo(() => teamGeometry(widthPx, heightPx, fieldTop), [widthPx, heightPx, fieldTop]);
+export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, onInput }: { team: TeamBattle; media: string; widthPx: number; heightPx: number; infoBarPx: number; onInput(i: GameInput): void }) {
+  const g = useMemo(() => teamGeometry(widthPx, heightPx, infoBarPx), [widthPx, heightPx, infoBarPx]);
   const root = useRef<HTMLDivElement>(null);
   const layer = useRef<HTMLDivElement>(null);
   const runner = useRef<TeamFxRunner | null>(null);
@@ -100,7 +107,7 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, fieldTop, onInput
   const ult = (slot: number) => onInput({ kind: 'team-battle', input: { kind: 'ult', slot } });
   return (
     // 자리는 패널 기준 (시안 geo) — 이 층은 들판 (정보줄 아래) 안이라 정보줄 높이만큼 위로
-    <div class={`pg-team pg-team-x${g.scale}${g.oneRow ? ' pg-team-row' : ''}`} style={{ top: `${-fieldTop}px` }} ref={root} onClick={b.phase === 'clash' ? () => onInput({ kind: 'team-battle', input: { kind: 'space' } }) : undefined}>
+    <div class={`pg-team pg-team-x${g.scale}${g.oneRow ? ' pg-team-row' : ''}`} style={{ top: `${-infoBarPx}px` }} ref={root} onClick={b.phase === 'clash' ? () => onInput({ kind: 'team-battle', input: { kind: 'space' } }) : undefined}>
       {SIDES.map((side) => b[side].map((_, slot) => <Fighter key={`${side}-${slot}`} b={b} g={g} side={side} slot={slot} media={media} onUlt={ult} />))}
       {/* 연출 층 — 비어 있는 상자 (Preact 는 안을 안 건드림), 연출 다리가 캔버스를 넣음 */}
       <div class="pg-fxlayer pg-team-fx" ref={layer} />

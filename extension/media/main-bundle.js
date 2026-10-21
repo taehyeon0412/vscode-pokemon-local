@@ -49390,7 +49390,7 @@ function fxUltTiming(form, e) {
         }
     }
     const m = t[`${form}|${e[0]}|${e[1]}`] || fxUltIndex[`${e[0]}|${e[1]}`];
-    return m && m[0] >= 0 ? { main: m[0], run: m[1], self: m[2] === 1, flash: m[3] ?? -1 } : null;
+    return m && m[0] >= 0 ? { main: m[0], run: m[1], self: m[2] === 1, flash: m[3] ?? -1, cover: m[4] ?? -1 } : null;
 }
 // 3:3 모드 켜짐 (게임이 상태마다 다시 켬)
 const fxTeamOn = () => performance.now() < fxTeamUntil;
@@ -49405,8 +49405,7 @@ const FX_LINK_MS = 300;
 // 닿은 뒤 여운 (섞인 큰 폭발 0.9초 + 정리)
 const FX_JOINT_BURST_MS = 1500;
 const FX_CORE = '#fffbe8';
-// 쏘는 필살기가 합류점 너머를 그리지 않게 (번호 → 자를 칸) · 번쩍을 빼는 번호 (합동의 쏘는 쪽 — 흰 돔이 회색으로 깜빡이던 것)
-const fxClipGen = new Map();
+// 번쩍을 빼는 번호 (합동의 쏘는 쪽 — 흰 돔이 회색으로 깜빡이던 것)
 const fxNoFlashGens = new Set();
 const fxDrawParticle0 = drawParticle;
 drawParticle = function (ctx, p) {
@@ -49417,21 +49416,8 @@ drawParticle = function (ctx, p) {
         // 합동 쏘는 줄기 — 따로 그려 두면 장 끝에 계단 · 앞끝까지만 (fxStairBlit). 화면 전체 어두워짐 판은 빼고 (앞끝에서 어두워짐이 끊겨 네모 경계가 보이던 것)
         const view = p._full ? undefined : fxBeamView.get(p._g);
         if (view?.ctx && ctx === moveCtx) {
+            view.drawn = true;
             fxDrawParticle0(view.ctx, p);
-            return;
-        }
-        const cut = p._full ? undefined : fxClipGen.get(p._g);
-        if (cut) {
-            ctx.save();
-            ctx.beginPath();
-            ctx.rect(0, 0, window.innerWidth, window.innerHeight);
-            ctx.rect(cut.x0, cut.y0, cut.x1 - cut.x0, cut.y1 - cut.y0);
-            ctx.clip('evenodd');
-            try {
-                fxDrawParticle0(ctx, p);
-            } finally {
-                ctx.restore();
-            }
             return;
         }
     }
@@ -49449,6 +49435,10 @@ ultDimLayer = function (...args) {
 };
 const fxScreenFlash0 = screenFlash;
 screenFlash = function (...args) {
+    // 합동 쏘는 쪽 번쩍은 아예 안 부름 (박자 0.34초를 먼저 써서 같은 순간의 진짜 번쩍이 버려지던 것 — 코드 리뷰어)
+    if (fxNowGen !== undefined && fxNoFlashGens.has(fxNowGen)) {
+        return undefined;
+    }
     const n = moveParticles.length;
     const out = fxScreenFlash0(...args);
     if (moveParticles.length > n) {
@@ -49572,7 +49562,7 @@ function fxDomeScan(a, dir, reach) {
     try {
         const dpr = window.devicePixelRatio || 1;
         const R = Math.min(reach, a.w * 4);
-        const x0 = Math.max(0, Math.floor((dir > 0 ? a.x - R : a.x - R) * dpr));
+        const x0 = Math.max(0, Math.floor((a.x - R) * dpr));
         const x1 = Math.min(moveCanvas.width, Math.ceil((a.x + R) * dpr));
         const y0 = Math.max(0, Math.floor((a.y - a.h * 2.5) * dpr));
         const y1 = Math.min(moveCanvas.height, Math.ceil((a.y + a.h * 0.6) * dpr));
@@ -49700,13 +49690,16 @@ function fxStairCanvas(v) {
         v.cv.height = h;
     }
     v.ctx.setTransform(1, 0, 0, 1, 0, 0);
-    v.ctx.clearRect(0, 0, w, h);
+    if (v.drawn !== false) {
+        v.ctx.clearRect(0, 0, w, h);
+    }
+    v.drawn = false;
     v.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     return v.ctx;
 }
 // 따로 그린 줄기를 2칸 폭 열마다 계단 · 앞끝까지만 큰 캔버스로
 function fxStairBlit(v, now) {
-    if (!v.cv || !moveCtx) {
+    if (!v.cv || !moveCtx || !v.drawn) {
         return;
     }
     const dpr = window.devicePixelRatio || 1;
@@ -49716,7 +49709,14 @@ function fxStairBlit(v, now) {
     const H = window.innerHeight;
     moveCtx.save();
     moveCtx.imageSmoothingEnabled = false;
-    for (let x = 0; x < W; x += step) {
+    // 입 뒤 (밀리지 않음) 는 한 번에
+    const xs = Math.max(0, Math.min(W, Math.floor(v.x0 / step) * step));
+    if (v.dir > 0 && xs > 0) {
+        moveCtx.drawImage(v.cv, 0, 0, Math.round(xs * dpr), H * dpr, 0, 0, xs, H);
+    } else if (v.dir < 0 && xs < W) {
+        moveCtx.drawImage(v.cv, Math.round(xs * dpr), 0, Math.round((W - xs) * dpr), H * dpr, xs, 0, W - xs, H);
+    }
+    for (let x = v.dir > 0 ? xs : 0; v.dir > 0 ? x < W : x < xs; x += step) {
         if (v.dir > 0 ? x >= front : x + step <= front) {
             continue;
         }
@@ -49728,7 +49728,8 @@ function fxStairBlit(v, now) {
 // 그리기 한 장 — 멈춘 번호는 움직이지 않고 그 자리에 · 줄기 보기 번호는 따로 그려 계단 · 앞끝으로
 const fxMoveTick0 = moveTick;
 moveTick = function (now) {
-    const dt = fxFrozenLast ? now - fxFrozenLast : 0;
+    // 그리기가 멈췄다 돌아오면 (패널을 가림) 그 사이는 0.25초까지만
+    const dt = fxFrozenLast ? Math.min(250, now - fxFrozenLast) : 0;
     fxFrozenLast = now;
     for (const [g, until] of fxFrozen) {
         if (now >= until || g <= fxDeadBelow || fxKilled.has(g)) {
@@ -49766,7 +49767,17 @@ moveTick = function (now) {
     for (const v of fxBeamView.values()) {
         fxStairCanvas(v);
     }
-    fxMoveTick0(now);
+    try {
+        fxMoveTick0(now);
+    } finally {
+        fxPutBack(held, heldE);
+    }
+    for (const v of fxBeamView.values()) {
+        fxStairBlit(v, now);
+    }
+};
+// 멈춘 번호 입자 · 발사기를 그 자리에 그리고 되돌림 (틱이 던져도)
+function fxPutBack(held, heldE) {
     if (held) {
         for (const p of held) {
             try {
@@ -49781,10 +49792,7 @@ moveTick = function (now) {
             moveRaf = requestAnimationFrame(moveTick);
         }
     }
-    for (const v of fxBeamView.values()) {
-        fxStairBlit(v, now);
-    }
-};
+}
 // 8판 1차 (아트 디렉터) — 점 = 포켓몬 점 1칸 (p = 배율 px) · 빛줄기 · 불 · 불씨. 기운 줄기 (fxFlow) 만 2칸 (몸에서 나온 덩어리)
 const fxHashN = (i, k = 0) => (((i * 374761393) ^ (k * 668265263)) >>> 0) % 997;
 // 닿은 뒤 굵은 빔 · 나선이 3걸음에 흐려짐 (그동안 꽃 터짐이 시작)
@@ -50136,6 +50144,16 @@ window.__fxDebug = {
         }
         return n ? { x: x / n, y: y / n, n } : null;
     },
+    // 그 칸 안의 입자 수 (어두워짐 · 번쩍 판 빼고) — 상대를 덮는 연출이 끝나는 때 (cover) 재기
+    near: (x0, y0, x1, y1) => {
+        let n = 0;
+        for (const q of moveParticles) {
+            if (!q._full && !q._flash && typeof q.x === 'number' && q.x >= x0 && q.x <= x1 && q.y >= y0 && q.y <= y1) {
+                n += 1;
+            }
+        }
+        return n;
+    },
 };
 
 window.pokemonFx = {
@@ -50274,6 +50292,12 @@ window.pokemonFx = {
             total = fxWithTimers(gen, () => useUltimate(A, entry, { quick: !!o?.quick, charge, ...(o?.sub ? { sub: o.sub } : {}) })) || 0;
             if (tm && total) {
                 const at = charge + (o?.quick ? ULT_QUICK_INTRO_MS : ULT_INTRO_MS) + tm.main;
+                // 부른 쪽에 박자 — main = 큰 맞음 · cover = 상대를 덮는 연출이 끝나는 때 (없으면 −1) · 지금부터 ms (쓰러진 포켓몬이 연출이 걷힌 뒤 넘어지게 — 디자인팀)
+                try {
+                    o?.timing?.({ main: at, cover: tm.cover >= 0 ? at - tm.main + tm.cover : -1, total });
+                } catch (err) {
+                    ultError('ult timing', err);
+                }
                 // 자기 둘레 필살기 (블래스트번 등) 는 제자리에서 원래대로 터지고, 대폭발 번쩍 뒤 기운이 줄기로 맞을 상대 모두에게 → 닿을 때 피해 (태현 님 #92)
                 // 쏘는 필살기는 큰 맞음 (줄기가 상대에 닿음) 에 피해
                 const hitNow = () => {
@@ -50378,6 +50402,7 @@ window.pokemonFx = {
         const until = now + base + runEnd + ULT_OUTRO_MS;
         const g = { A: lead.A, B, many: As, gen, gens: parts.map((p) => p.gen), tick: setInterval(fxGameTick, 100), hit: false, joint: true };
         fxGame = g;
+        try {
         // 기 모으기를 먼저 (ultActive 가 걸리면 기 모으기가 바로 끝남 — useUltimate 와 같은 순서, 코드 리뷰어)
         fxWithTimers(gen, () => parts.forEach((p) => ultChargeFor(p.A, charge)));
         ultActive = { pokemon: lead.A, until, name: lead.e[0], fx: lead.e[1] };
@@ -50432,6 +50457,9 @@ window.pokemonFx = {
                     if (p.freeze > 0) {
                         const at = Math.max(0, p.anchor - 500);
                         fxSetTimeout0(() => {
+                            if (gen <= fxDeadBelow || fxKilled.has(gen)) {
+                                return;
+                            }
                             fxFreeze(p.gen, p.freeze);
                             const gm = ultGeometry(p.A, p.left);
                             const S = Math.max(1, Math.round(gm.s));
@@ -50461,7 +50489,11 @@ window.pokemonFx = {
                 // 빔 끝 (꽃 터짐) 을 나선이 닿는 때로 — 큰 맞음 0.04초 전에서 멈춤
                 shooters.forEach((p) => {
                     if (p.hold > 0) {
-                        fxSetTimeout0(() => fxFreeze(p.gen, p.hold), base + big + Math.max(0, p.reach - 40));
+                        fxSetTimeout0(() => {
+                            if (gen > fxDeadBelow && !fxKilled.has(gen)) {
+                                fxFreeze(p.gen, p.hold);
+                            }
+                        }, base + big + Math.max(0, p.reach - 40));
                     }
                 });
                 setTimeout(() => {
@@ -50526,6 +50558,12 @@ window.pokemonFx = {
                 fxGameStop(false);
             }
         }, until - now);
+        } catch (err) {
+            // 시작하다 던지면 (그림이 떨어져 나감 등) 멈춤 — 0 을 돌려 게임은 엔진 박자로 (코드 리뷰어)
+            ultError('joint start', err);
+            fxGameStop(true);
+            return 0;
+        }
         return until - now;
     },
     /** 힘대결 시작 — a = 내 포켓몬 (왼쪽), b = 상대. spec = { kind: 'ult' | 'move', a: 기술 | null, b: 기술 | null }, live() = 내가 이길 확률 (연타 반영, 0 ~ 1).

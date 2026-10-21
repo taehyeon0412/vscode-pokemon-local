@@ -14,6 +14,7 @@ import type { FacilitySpot, Save, StageId } from '../../core/save';
 import type { IconName } from '../../data/icons';
 import { battleViewKey } from '../battle/model';
 import { resultViewKey } from '../result/model';
+import { teamChoiceOn } from '../battle/team/TeamChoice';
 
 /** 메뉴 · 대기실 · 병원에 보이는 세이브 값 (팀 · 돈 · 가방) — 바뀌면 다시 그림 */
 function saveViewKey(save: Save): string {
@@ -298,6 +299,8 @@ export function stageViewKey(state: GameState): string {
     // 병원 · 상점 앞: 남은 초 · 들어감 / 트레이너: "!" → "승부다!" / 패배 · 클리어 · 대기실 · 배지는 그대로
     st?.phase === 'facility' ? `${st.inside}:${Math.ceil((TIMING.facilityPromptMs - st.ms) / 1000)}` : '',
     st?.phase === 'trainer' ? `${st.n}:${st.ms >= TIMING.trainerAlertMs}:${st.ms >= vsStartMs('trainer')}` : '',
+    // 3:3 고르기 막대 (만남 4초 · 3마리 고르기 10초) — 0.25초마다 (빠지면 막대가 꽉 찬 채 멈춰 있다 갑자기 줄었음 — 코드 리뷰어, 다시 그리는 열쇠 세 번째)
+    st?.phase === 'trainer' && teamChoiceOn(state) ? `${Math.floor(st.ms / 250)}:${Math.floor((st.pickMs ?? 0) / 250)}` : '',
     st?.phase === 'rival' ? `${st.rival}:${st.ms >= TIMING.trainerAlertMs}:${st.ms >= vsStartMs('rival')}` : '',
     // 체육관 들어가기: 걸음 · 문 · 들어감 · 닦기가 한 걸음 바뀔 때마다 (빠지면 장면 내내 안 그려져 서 있다가 대기실로 — 2026-10-20 연속 캡처로 찾음)
     st?.phase === 'gym-enter' ? JSON.stringify(gymEnterView(st.ms)) : '',

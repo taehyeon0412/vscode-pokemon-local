@@ -372,7 +372,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
           <BattleLayer battle={battle} save={save} media={media} ground={ground} geo={geo} onInput={battleInput} onProfile={(side) => onOpen({ kind: 'profile', side })} foeTrainerLeft={foeTrainer || gym ? leaderX : undefined} />
         )}
         {teamChoiceOn(state) && <TeamChoice state={state} media={media} onInput={onInput} />}
-        {team && <TeamLayer team={team} media={media} widthPx={widthPx} heightPx={layout.heightPx} fieldTop={Math.round(INFO_BAR_PX * layout.uiScale)} onInput={onInput} />}
+        {team && <TeamLayer team={team} media={media} widthPx={widthPx} heightPx={layout.heightPx} infoBarPx={Math.round(INFO_BAR_PX * layout.uiScale)} onInput={onInput} />}
         {/* 체육관으로 — 화면 닦기 (위 → 아래) */}
         {gymEnter && gymEnter.wipe > 0 && (
           <div class="pg-gym-wipe" style={{ '--pg-wipe': String(gymEnter.wipe) }} />

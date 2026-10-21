@@ -84,3 +84,18 @@ describe('체육관 대기실 3마리 고르기 (관장 3:3)', () => {
     expect(st?.phase === 'team' && st.team.me.map((f) => f.uid)).toContain(pika);
   });
 });
+
+describe('다시 그리는 열쇠 — 3:3 고르기 막대 (코드 리뷰어)', () => {
+  it('만남 4초 · 3마리 고르기 10초 막대가 0.25초마다 열쇠를 바꿈', async () => {
+    const { createGameState } = await import('../../../core/engine');
+    const { createStartSave } = await import('../../starter/model');
+    const { devState } = await import('../../../dev/demo');
+    const { stageViewKey } = await import('../../stage/model');
+    const { trainerId } = await import('../../../core/rules/stage');
+    const s0 = devState(createGameState({ ...createStartSave(0, 5, 4), location: { screen: 'stage', stageId: 'forest-1' }, pendingEncounter: { kind: 'trainer', trainerId: trainerId('forest-1', 0), stageId: 'forest-1' } }, 5));
+    const at = (ms: number, pickMs?: number) => stageViewKey({ ...s0, runtime: { ...s0.runtime, stageId: 'forest-1', stage: { phase: 'trainer', n: 0, ms, ...(pickMs !== undefined ? { team: true, pick: [], pickMs } : {}) } } });
+    expect(at(1200)).not.toBe(at(1260));
+    expect(at(4000, 0)).not.toBe(at(4000, 260));
+    expect(at(1200)).toBe(at(1240));
+  });
+});
