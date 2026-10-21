@@ -497,7 +497,7 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 /* ④ 야생 흔적 — 정체는 숨기고 흔들림만 (크게 = 센 포켓몬, ✨ = 이로치) */
 .pg-trace {
   transform-origin: 50% 100%;
-  animation: pg-rustle 0.9s ease-in-out infinite;
+  animation: pg-rustle 0.9s steps(1, end) infinite;
   z-index: 2;
 }
 .pg-trace-strong {
@@ -513,16 +513,18 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   transform: translateX(-50%);
   font-size: 0.6em;
   opacity: 0.85;
-  animation: pg-bob 1.2s ease-in-out infinite;
+  animation: pg-bob 1.2s steps(1, end) infinite;
 }
 .pg-trace-shiny {
   filter: drop-shadow(0 0 3px gold);
 }
+/* 흔적 움직임 = 픽셀 박자 (steps) · 정수 px 옮김만 — rotate · scale 을 부드럽게 돌리면 그림이 소수 배율 (2.14 × 2.34) 로 그려져 점 굵기가 들쭉날쭉하던 것 (픽셀 밤 점검, 원칙 4 · 8).
+   풀숲 = 좌우 2px 흔들 · 센 흔적 = 크게 세 번 흔들고 쉼 · 물 = 위아래 출렁 · 하늘 = 위로 펄럭 · 반짝 = 깜빡 (1초에 3번 넘지 않음) */
 @keyframes pg-burst {
-  0%, 18%, 100% { transform: translateX(-50%) rotate(0deg) scale(1); }
-  4% { transform: translateX(-50%) rotate(-14deg) scale(1.08); }
-  8% { transform: translateX(-50%) rotate(14deg) scale(1.08); }
-  12% { transform: translateX(-50%) rotate(-10deg) scale(1.04); }
+  0%, 18%, 100% { transform: translateX(-50%); }
+  4% { transform: translateX(calc(-50% - 4px)); }
+  8% { transform: translateX(calc(-50% + 4px)); }
+  12% { transform: translateX(calc(-50% - 2px)); }
 }
 .pg-trace-water {
   animation-name: pg-ripple;
@@ -539,28 +541,28 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   top: -40%;
   right: -40%;
   font-size: 0.6em;
-  animation: pg-twinkle 0.8s ease-in-out infinite;
+  animation: pg-twinkle 0.8s steps(1, end) infinite;
 }
 @keyframes pg-rustle {
-  0%, 100% { transform: translateX(-50%) rotate(0deg); }
-  25% { transform: translateX(-50%) rotate(-9deg); }
-  75% { transform: translateX(-50%) rotate(9deg); }
+  0%, 50%, 100% { transform: translateX(-50%); }
+  25% { transform: translateX(calc(-50% - 2px)); }
+  75% { transform: translateX(calc(-50% + 2px)); }
 }
 @keyframes pg-ripple {
-  0%, 100% { transform: translateX(-50%) scaleX(1); }
-  50% { transform: translateX(-50%) scaleX(1.25); }
+  0%, 100% { transform: translateX(-50%); }
+  50% { transform: translateX(-50%) translateY(2px); }
 }
 @keyframes pg-flutter {
-  0%, 100% { transform: translateX(-50%) translateY(0) rotate(0deg); }
-  50% { transform: translateX(-50%) translateY(-30%) rotate(20deg); }
+  0%, 100% { transform: translateX(-50%); }
+  50% { transform: translateX(-50%) translateY(-4px); }
 }
 @keyframes pg-flicker {
   0%, 100% { opacity: 0.8; }
   50% { opacity: 0.35; }
 }
 @keyframes pg-twinkle {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(0.7); }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
 }
 
 /* 튀어나옴 — 타입 · 지형별로 (gdd 4.6: 풀숲 · 물 · 하늘 급강하 · 땅 뚫고 · 나무 떨어짐 · 그림자 스르륵) */
@@ -614,7 +616,7 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 /* ⑭ 떨어진 아이템 · ⑯ 부탁하는 사람 · ⑥ 시설 */
 .pg-item {
   font-size: calc(14px * var(--pg-scale, 1));
-  animation: pg-twinkle 1s ease-in-out infinite;
+  animation: pg-twinkle 1s steps(1, end) infinite;
   z-index: 2;
 }
 .pg-npc {
@@ -630,14 +632,14 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   bottom: 100%;
   transform: translateX(-50%);
   font-size: 0.7em;
-  animation: pg-bob 1s ease-in-out infinite;
+  animation: pg-bob 1s steps(1, end) infinite;
 }
 .pg-npc-active .pg-npc-mark {
   animation-duration: 0.4s;
 }
 @keyframes pg-bob {
-  0%, 100% { transform: translateX(-50%) translateY(0); }
-  50% { transform: translateX(-50%) translateY(-25%); }
+  0%, 100% { transform: translateX(-50%); }
+  50% { transform: translateX(-50%) translateY(-2px); }
 }
 .pg-facility {
   font-size: calc(22px * var(--pg-scale, 1));
@@ -680,7 +682,7 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 }
 .pg-scenery-sky {
   top: 4%;
-  animation: pg-bob 2.4s ease-in-out infinite;
+  animation: pg-bob 2.4s steps(1, end) infinite;
 }
 
 /* 알림 줄 — 나타났다 · 전투 (임시) · 부탁 · 스테이지 끝 */
@@ -1196,11 +1198,8 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   justify-content: center;
   padding: 0 6px;
 }
-/* 아주 좁은 패널 패배 상자 — 둘째 줄 흐린 안내 ("잡은 포켓…" 으로 잘리던 것, U4) 를 빼고 다시 시작 버튼만 · 두 번째 3:3 패배 상자는 "남은 포켓몬으로 계속" 이 할 일이라 남김 */
+/* 아주 좁은 패널 패배 상자 — 둘째 줄 안내는 줄 바꿈으로 남기고 (예전엔 "잡은 포켓…" 으로 잘려서 뺐음 — "자꾸 지면 …" 조언까지 사라지던 것, 밤 점검) 다시 시작 버튼은 다음 줄 오른쪽 */
 @media (max-width: 300px) {
-  .pg-defeat:not(.pg-defeat-keep) > .pg-line:last-child > .pg-dim {
-    display: none;
-  }
   .pg-defeat:not(.pg-defeat-keep) > .pg-line:last-child > .pg-button {
     margin-left: auto;
   }
@@ -1486,11 +1485,29 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 .pg-forget {
   color: var(--pg-sos-red);
 }
-/* 아주 좁은 부탁 상자 (260px 아래) — "성공" 을 빼고 "30%" 만 */
-@media (max-width: 259px) {
-  .pg-request .pg-helper-word {
-    display: none;
-  }
+/* 패배 상자 둘째 줄 안내 · 설정 끝 줄 = 낱말 단위 줄 바꿈 (줄임표 없음 — "자꾸 지면 지도에서 …" 가 잘리던 것 · 맥 글자 240, 픽셀 밤 점검) · 버튼은 넘치면 다음 줄 */
+.pg-defeat-more {
+  flex-wrap: wrap;
+  row-gap: 3px;
+}
+.pg-defeat-say,
+.pg-wrap-say {
+  min-width: 0;
+  white-space: normal;
+  word-break: keep-all;
+}
+/* 부탁 상자 말 · 결과 = 낱말 단위 줄 바꿈 (줄임표 없음 — U4) · 버튼 줄은 넘치면 버튼이 다음 줄 ("성공 30%" 는 늘 남김 — 260 아래에서 "성공" 을 빼 숫자 뜻이 빠지던 것, UX 밤 점검) */
+.pg-request-say {
+  min-width: 0;
+  white-space: normal;
+  word-break: keep-all;
+}
+.pg-request .pg-request-act {
+  flex-wrap: wrap;
+  row-gap: 3px;
+}
+.pg-request .pg-helper {
+  white-space: nowrap;
 }
 /* 전투 자동 켜짐 (금색이 아닌 남색 칸) 의 A 키 칸 — 금색 */
 .pg-button.pg-auto-btn:not(.pg-secondary):not(:disabled) .pg-menu-key {
@@ -1636,8 +1653,12 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   opacity: 0.6;
 }
 /* 줄이 넘쳐 목록이 된 넓은 자리 (옆 메뉴 · 가로 줄) · 두 칸 목록 = 내 쪽 위 (가운데면 볼을 던질 상대 · 상대 HP 를 덮던 것 — UX 리뷰어 #23 3차 · 두 칸은 오른쪽 자리 계산 230 보다 넓어 왼쪽 밖으로 나가던 것 — 4차) */
+/* 옆 메뉴 자리에서 넘친 목록 = 무대 (가운데 720 칸) 안 왼쪽 위 — 내 HP 칸 자리 (목록이 떠 있으면 숨김, 제목 줄에 HP) · 옆 메뉴가 뜨던 쪽.
+   패널 왼쪽 끝 아래면 860 에서 주인공을 다 덮고 1860 에서 싸움과 525px 떨어지던 것 (픽셀 밤 점검) */
 #pokemon-game .pg-pick-list.pg-pick-left {
-  left: 8px;
+  top: max(calc(20px * var(--pg-ui, 1) + 4px), var(--pg-field-top, 30px));
+  bottom: auto;
+  left: max(8px, calc((100% - 720px) / 2 + 8px));
   right: auto;
   margin: 0;
 }
@@ -1648,6 +1669,19 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 /* 무대 위 목록 (기술 · 아이템 · 교체) 이 떠 있으면 내 HP 칸은 숨기고 목록 제목 줄에 "HP 15/21" (반쯤 덮여 "5/21" 로 보이던 것) */
 #pokemon-game:has(.pg-pick-list.pg-pick-now) .pg-hpblock-me {
   visibility: hidden;
+}
+/* 좁은 패널 (300 아래) 은 상대 HP 도 숨김 — 목록이 상대 HP 를 반쯤 덮어 "파이리" 는 가려지고 "Lv5" · 막대 끝만 삐져나오던 것 (픽셀 밤 점검) */
+@media (max-width: 300px) {
+  #pokemon-game:has(.pg-pick-list.pg-pick-now) .pg-hpblock-foe {
+    visibility: hidden;
+  }
+}
+/* 높은 패널 (300 이상) 의 무대 안 목록은 위 (정보줄 아래) — 아래면 240 × 315 에서 위 150px 를 비워 두고 싸우는 그림을 덮던 것 (픽셀 밤 점검) */
+@media (min-height: 300px) {
+  #pokemon-game .pg-pick-list.pg-pick-list-low {
+    top: max(calc(20px * var(--pg-ui, 1) + 4px), var(--pg-field-top, 30px));
+    bottom: auto;
+  }
 }
 .pg-pick-myhp {
   font-size: 11px;
@@ -5344,6 +5378,19 @@ body.vscode-high-contrast-light .pg-title-body {
   grid-template-columns: repeat(4, auto);
   column-gap: 8px;
 }
+/* 좁은 판 (320 아래) — 스탯 넷을 2열 (240 에서 넷째 칸 "10 필살" 이 판 끝에서 24px 잘리던 것 — 픽셀 밤 점검) */
+@media (max-width: 320px) {
+  .pg-statcard-stats {
+    grid-template-columns: repeat(2, auto);
+  }
+}
+/* S18 남은 포인트 = 금색 글 (할 수 있는 일 — 따로 한 줄 맨 위, +HP … 버튼과 같은 줄) */
+.pg-points-left {
+  color: var(--pg-sos-gold);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
 .pg-statcard-stat {
   font-size: 11px;
   color: var(--pg-sos-dim);
@@ -5440,6 +5487,13 @@ body.vscode-light .pg-field-balls {
   height: 18px;
   padding: 0 4px;
   background: var(--pg-sos-panel);
+}
+/* 밝은 테마 전투 HP 묶음 (이름 · Lv · HP 숫자 · 막대) 뒤에도 같은 남색 판 — 크림 글자가 낮 하늘 #dde6ea · 체육관 창 위에서 대비 1.02 ~ 1.4 로 묻히던 것 (픽셀 밤 점검).
+   자리 계산을 바꾸지 않게 바탕 + 3px 단단한 그림자로 칠함 (흐린 그림자 아님) */
+body.vscode-light .pg-hpblock,
+body.vscode-high-contrast-light .pg-hpblock {
+  background: var(--pg-sos-panel);
+  box-shadow: 0 0 0 3px var(--pg-sos-panel);
 }
 /* 대화 상자 얼굴 칸 (ui/Face — Sea of Stars 대화 상자 왼쪽 얼굴): 원작 정면 그림 머리 쪽 12칸 × 2 · 글 줄 가운데 · 이름표 앞 4px */
 .pg-face {

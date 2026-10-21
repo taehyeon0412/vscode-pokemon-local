@@ -132,11 +132,30 @@ export function TeamPanel({ save, media, swap, first, onInput, onClose }: TeamPa
     <Panel
       icon="ball"
       title="내 포켓몬"
-      extra={`팀 ${party.length}/${BALANCE.partySize} · 보관함 ${box.length}`}
+      // 보관함 = 아이콘 (칩 줄 보관함 칸과 같은 그림 — 맥 글자면 240 에서 "팀 1/5 · 보관함 0" 이 "…" 로 잘리던 것, 픽셀 밤 점검)
+      extra={
+        <span title={`팀 ${party.length}/${BALANCE.partySize} · 보관함 ${box.length}`}>
+          <span class="pg-tip-long">팀 </span>
+          {party.length}/{BALANCE.partySize} · <Icon name="box" /> {box.length}
+        </span>
+      }
       onClose={onClose}
     >
-      {/* 라벨 열 없음 — 칩 줄만 봐도 팀 · 보관함 (아트 디렉터 3차 "라벨: 값 양식") */}
-      <Row>
+      {/* 남은 포인트 = 판 맨 위 따로 한 줄 + 누구의 포인트인지 (스탯 찍기 말풍선에서 오면 바로 보이게 — 이동 버튼과 한 줄이면 480 에서 "+스피드" 가 반쯤 · "+필살" 이 안 보이고, 칩 아래면 240 에서 칩 네 줄에 밀려 스크롤해야 보이던 것, UX 밤 점검) */}
+      {selected && selected.unspent > 0 && (
+        <Row wrap>
+          <span class="pg-points-left">
+            {selected.name} 남은 포인트 {selected.unspent}
+          </span>
+          {STAT_KEYS.map((k) => (
+            <Button key={k} secondary onClick={(e?: MouseEvent) => onInput({ kind: 'points', uid: selected.uid, stat: k, n: e?.shiftKey ? BALANCE.shopBulk : 1 })} title={`${STAT_LABEL[k]} +1 포인트 (Shift + 클릭 +${BALANCE.shopBulk})`}>
+              +{STAT_LABEL[k]}
+            </Button>
+          ))}
+        </Row>
+      )}
+      {/* 라벨 열 없음 — 칩 줄만 봐도 팀 · 보관함 (아트 디렉터 3차 "라벨: 값 양식") · 넘치면 다음 줄 (480 에서 다섯째 칩 · 240 에서 "보관함이 비었어요" 가 잘리던 것 — UX · 픽셀 밤 점검) */}
+      <Row wrap>
         {party.map((m, i) => (
           <Chip key={m.uid} m={m} media={media} selected={selected?.uid === m.uid} lead={i === 0} onClick={() => setSel(m.uid)} drag={drag} />
         ))}
@@ -147,7 +166,7 @@ export function TeamPanel({ save, media, swap, first, onInput, onClose }: TeamPa
       </Row>
       {selected && (
         <>
-          <Row>
+          <Row wrap>
             {inParty && (
               <>
                 <Button secondary onClick={() => onInput({ kind: 'team-move', uid: selected.uid, dir: -1 })} disabled={idx <= 0} title="한 칸 앞으로 (맨 앞 = 선두)">
@@ -174,16 +193,6 @@ export function TeamPanel({ save, media, swap, first, onInput, onClose }: TeamPa
               </>
             )}
             {!inParty && !swap && <span class="pg-dim">보관함 포켓몬이에요 (병원에서 팀과 바꿔요)</span>}
-            {selected.unspent > 0 && (
-              <>
-                <span class="pg-panel-sep">남은 포인트 {selected.unspent}</span>
-                {STAT_KEYS.map((k) => (
-                  <Button key={k} secondary onClick={(e?: MouseEvent) => onInput({ kind: 'points', uid: selected.uid, stat: k, n: e?.shiftKey ? BALANCE.shopBulk : 1 })} title={`${STAT_LABEL[k]} +1 포인트 (Shift + 클릭 +${BALANCE.shopBulk})`}>
-                    +{STAT_LABEL[k]}
-                  </Button>
-                ))}
-              </>
-            )}
           </Row>
           {/* 180px 이상 = 두 줄 카드 (왼쪽 48 그림 · 1줄 이름 · HP · 스탯 / 2줄 경험치 · 기술 — 아트 디렉터 5차), 낮으면 한 줄 (판 안 스크롤) · 좁으면 다음 줄로 */}
           {window.innerHeight >= MAP_ROW_MIN_HEIGHT_PX ? (

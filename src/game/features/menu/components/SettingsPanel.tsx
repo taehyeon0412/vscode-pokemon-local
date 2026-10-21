@@ -80,7 +80,8 @@ export function SettingsPanel({ save, onInput, onExit, onClose, dev = false, onS
         <Button secondary onClick={onExit} title="자동저장하고 일반 모드로 (패널 제목줄 🏠 와 같음)">
           일반 모드로
         </Button>
-        <span class="pg-dim pg-ellipsis">진행은 자동으로 저장돼요</span>
+        {/* 줄임표 대신 줄 바꿈 (맥 글자면 240 에서 "진행은 자동으로 저장…" — 픽셀 밤 점검) */}
+        <span class="pg-dim pg-wrap-say">진행은 자동으로 저장돼요</span>
       </Row>
     </Panel>
   );

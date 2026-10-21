@@ -37,9 +37,11 @@ export interface ObjectsProps {
   ground: number;
   /** 사람이 쓸 수 있는 높이 (px) — 큰 그림이 안 들어가면 작게 (data/heroes.ts heroDraw) */
   roomPx?: number;
+  /** 건물이 보일 높이 (땅 ~ 무대 위 끝) — 지도 줄 · 정보줄 뒤로 지붕이 들어가지 않게 위를 자름 (없으면 roomPx) */
+  buildRoomPx?: number;
 }
 
-export function StageObjects({ objects, media, scale, ground, roomPx }: ObjectsProps) {
+export function StageObjects({ objects, media, scale, ground, roomPx, buildRoomPx }: ObjectsProps) {
   return (
     <>
       {objects.map((o) => {
@@ -56,7 +58,8 @@ export function StageObjects({ objects, media, scale, ground, roomPx }: ObjectsP
             const kind = o.facility.kind;
             const b = BUILDINGS[kind];
             const room = roomPx ?? Number.POSITIVE_INFINITY;
-            const d = buildingDraw(kind, scale, room);
+            // 보이는 높이 = 무대 위 끝까지 (187 높이에서 지붕이 지도 줄 뒤로 27px 들어가 지도 막대 · 아이콘이 지붕 위에 그려지고, 150 에서 판 위로 13px 나가던 것 — 픽셀 밤 점검) · 배율 k 는 그대로
+            const d = buildingDraw(kind, scale, Math.min(room, buildRoomPx ?? room));
             const staff = FACILITY_STAFF[kind];
             const look = personLook(staff.look);
             const title = kind === 'hospital' ? '병원 — 회복 · 보관함' : '상점';

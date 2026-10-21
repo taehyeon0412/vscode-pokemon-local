@@ -98,7 +98,7 @@ function RequestBox({ state, media, onInput }: { state: GameState; media: string
   if (stage.result) {
     return (
       <div class={stage.result.ok ? 'pg-banner pg-request pg-ok' : 'pg-banner pg-request'} title={stage.result.text}>
-        <span class="pg-ellipsis">{stage.result.text}</span>
+        <span class="pg-request-say">{stage.result.text}</span>
         {stage.result.reward && (
           <span class="pg-reward">
             <Icon name="gift" /> {stage.result.reward}
@@ -113,14 +113,15 @@ function RequestBox({ state, media, onInput }: { state: GameState; media: string
   const left = Math.max(1, Math.ceil((TIMING.requestAutoMs - stage.ms) / 1000));
   const sec = <span class="pg-sub">{left}초</span>;
   return (
+    // 말 · 도움 줄은 줄임표 없이 낱말 단위로 줄 바꿈 · 버튼 줄은 넘치면 버튼이 다음 줄 (240 에서 "쓰러진 나무가 길을 막…" 으로 무엇을 돕는지 모른 채 고르던 것 · "성공" 이 빠져 "30%" 만 — UX · 픽셀 밤 점검)
     <div class="pg-banner pg-request pg-two" title={`${t.who.name}: ${t.text}`}>
-      <span class="pg-ellipsis">
+      <span class="pg-request-say">
         {t.who.look ? <Face media={media} id={t.who.look} /> : `${t.who.icon} `}
         <span class="pg-speaker">{t.who.name}</span> {t.text}
       </span>
       <span class="pg-line pg-request-act">
         {helper && (
-          <span class="pg-helper pg-ellipsis" title={helper.moveName ? `${helper.name}의 ${helper.moveName}` : `${helper.name} — ${types} 기술이 있으면 성공 ${Math.round(BALANCE.requestChanceMatch * 100)}%`}>
+          <span class="pg-helper" title={helper.moveName ? `${helper.name}의 ${helper.moveName}` : `${helper.name} — ${types} 기술이 있으면 성공 ${Math.round(BALANCE.requestChanceMatch * 100)}%`}>
             {/* 370px 아래는 누가 돕는지 빼고 "성공 30%" 만 (도울 포켓몬 이름이 "이상해…" 로 잘리던 것 — UX 리뷰어 2026-10-21) */}
             <span class="pg-helper-who">{helper.moveName ? `${helper.name}의 ${helper.moveName}` : helper.name} · </span>
             <span class="pg-helper-word">성공 </span>
@@ -392,7 +393,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         {/* 아주 좁은 패널 — 볼 칸은 숲 왼쪽 위 (정보줄은 지도 · 메뉴) */}
         {/* 걷는 동안만 — 상자 (결과 · 병원 · 트레이너) 가 같은 왼쪽 위 자리를 덮어 아이콘 조각만 삐져나오던 것 */}
         {ballsInField && phase === 'walk' && <div class="pg-field-balls">{balls}</div>}
-        <StageObjects objects={objects} media={media} scale={layout.scale} ground={ground} roomPx={heroRoom} />
+        <StageObjects objects={objects} media={media} scale={layout.scale} ground={ground} roomPx={heroRoom} buildRoomPx={bodyPx - ground - fieldTop} />
         {gymX !== null && media && <GymFront x={gymX} restX={gymRestX(widthPx, layout.scale)} k={gymK} ground={ground} roomPx={heroRoom} media={media} door={gymEnter?.door ?? 0} gymName={`${regionHere(save.location).name} 체육관`} leader={gymLeader.name} />}
         {/* 체육관 장면 · 대기실 = 자리 옮김 0.45초 없이 (걸음이 픽셀 박자로 · 대기실에 들어오며 미끄러지지 않게 — UX 리뷰어 2026-10-21) · 가운데 맞춤 translateX 는 그대로 */}
         <span hidden={teamOn} class={`pg-obj pg-hero-wrap${gymEnter || phase === 'lobby' ? ' pg-hero-still' : ''}`} style={{ left: `${heroLeft}px`, bottom: `${ground}px`, ...(gymEnter ? { opacity: String(gymEnter.fade), transform: `translateX(-50%) translateY(${-gymEnter.rise * gymK}px)` } : {}) }}>

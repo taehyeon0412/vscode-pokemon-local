@@ -224,13 +224,22 @@ function DefeatKeep({ keep, lost, left, hospital, onInput }: { keep: string; los
 }
 
 /** S17 패배 — ① 안내 · ② 다시 시작 (마지막 병원 앞 · 관장전이면 대기실) */
-export function DefeatBox({ state, onInput }: BoxProps) {
+export function DefeatBox({ state, media, onInput }: BoxProps) {
   const st = state.runtime.stage;
   if (st?.phase !== 'defeat') return null;
   if (st.keep !== undefined) {
     const here = state.save.location.screen === 'stage' && state.save.lastHospital?.stageId === state.save.location.stageId;
     return <DefeatKeep keep={st.keep} lost={st.lost} left={st.left ?? aliveCount(state.save)} hospital={here} onInput={onInput} />;
   }
+  return <DefeatPlain state={state} media={media} onInput={onInput} />;
+}
+
+/** 패배 상자 (보통) — 첫 줄은 넘치면 한 단계 ("졌다…" 만 — 맥 글자면 240 에서 "−100원" 이 잘리던 것, 픽셀 밤 점검) · 둘째 줄 안내는 줄임표 대신 줄 바꿈 */
+function DefeatPlain({ state, onInput }: BoxProps) {
+  const box = useRef<HTMLDivElement>(null);
+  const short = useFit(box, 1, ':scope > .pg-line:first-child') >= 1;
+  const st = state.runtime.stage;
+  if (st?.phase !== 'defeat') return null;
   const lh = state.save.lastHospital;
   const loc = state.save.location;
   const atHospital = loc.screen === 'stage' && lh?.stageId === loc.stageId;
@@ -240,9 +249,9 @@ export function DefeatBox({ state, onInput }: BoxProps) {
   const stuck = !st.gym && (run?.retries ?? 0) >= 2;
   const from = atHospital && lh ? Math.round(lh.at * 100) : 0;
   return (
-    <div class="pg-banner pg-defeat pg-two">
-      <span class="pg-line pg-ellipsis">
-        <b>{st.gym ? '관장에게 졌다…' : '졌다… 눈앞이 깜깜해졌다'}</b>
+    <div class="pg-banner pg-defeat pg-two" ref={box}>
+      <span class="pg-line">
+        <b>{st.gym ? '관장에게 졌다…' : short ? '졌다…' : '졌다… 눈앞이 깜깜해졌다'}</b>
         {st.lost > 0 ? (
           <span class="pg-reward pg-loss">
             <Icon name="coin" /> −{formatMoney(st.lost)}
@@ -251,8 +260,8 @@ export function DefeatBox({ state, onInput }: BoxProps) {
           <span class="pg-dim">돈은 그대로</span>
         )}
       </span>
-      <span class="pg-line">
-        <span class="pg-dim pg-ellipsis">
+      <span class="pg-line pg-defeat-more">
+        <span class="pg-dim pg-defeat-say">
           {stuck ? (
             '자꾸 지면 지도에서 깬 스테이지로 가서 키우거나, 약해진 야생에게 볼을 던져 팀을 늘려 보세요'
           ) : (
