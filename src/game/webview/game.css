@@ -6277,3 +6277,45 @@ body.vscode-light .pg-field-balls {
   font-size: 11px;
   color: var(--pg-sos-dim);
 }
+
+/* 세이브 내보내기 · 가져오기 (orders #33) — 판 위 가운데 상자 (정보줄 아래 6px · 띠 남색 · 금 1px — 길 위 상자와 같은 판) · 결과 한 줄 · 실패는 빨강 제목 */
+.pg-banner.pg-saveio {
+  top: calc(20px * var(--pg-ui, 1) + 6px);
+  z-index: 60;
+  /* 좁으면 줄을 바꿈 (240 에서 파일 이름 · 오류 글 · 결과 줄이 양쪽으로 잘리던 것 — U4) */
+  white-space: normal;
+  word-break: keep-all;
+  background: var(--pg-sos-bar);
+  border-color: var(--pg-sos-gold);
+}
+.pg-saveio > .pg-line {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+.pg-saveio-q .pg-dim {
+  word-break: break-all;
+}
+.pg-saveio-result {
+  text-align: center;
+}
+.pg-saveio-sum {
+  flex-wrap: wrap;
+  column-gap: 8px;
+  font-size: 12px;
+}
+.pg-saveio-act {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  row-gap: 3px;
+  width: 100%;
+}
+.pg-saveio-act > span:first-child {
+  margin-right: auto;
+}
+.pg-saveio-q .pg-dim {
+  font-size: 12px;
+}
+.pg-saveio-fail b,
+.pg-saveio-result.pg-saveio-fail {
+  color: var(--pg-sos-red);
+}

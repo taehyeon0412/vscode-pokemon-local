@@ -8,7 +8,7 @@ import type { Save } from '../../../core/save';
 import { Button } from '../../../ui/Button';
 import { Panel, Row } from './Panel';
 
-export function SettingsPanel({ save, onInput, onExit, onClose }: { save: Save; onInput(i: GameInput): void; onExit(): void; onClose(): void }) {
+export function SettingsPanel({ save, onInput, onExit, onClose, dev = false, onSaveIO }: { save: Save; onInput(i: GameInput): void; onExit(): void; onClose(): void; /** 개발 모드 — 세이브 내보내기 · 불러오기를 숨김 (저장 안 됨 모드) */ dev?: boolean; /** ④ 세이브 내보내기 · 불러오기 (orders #33 — 파일 창은 확장) */ onSaveIO?(kind: 'export' | 'import'): void }) {
   const on = save.settings.notifications;
   return (
     <Panel icon="gear" title="설정" onClose={onClose}>
@@ -43,6 +43,18 @@ export function SettingsPanel({ save, onInput, onExit, onClose }: { save: Save; 
           <span class="pg-long">{save.settings.reduceMotion === true ? ' 켜짐' : ' 꺼짐'}</span>
         </Button>
       </Row>
+      {/* ④ 세이브 (orders #33 · gdd S20 ④) — PC 옮기기 · 백업. 불러오면 확인 상자 (지금 세이브는 보관함에 따로) · 개발 모드는 숨김 */}
+      {onSaveIO && !dev && (
+        <Row label="세이브">
+          <Button secondary onClick={() => onSaveIO('export')} title="지금 세이브를 파일로 저장해요 (PC 옮기기 · 백업)">
+            내보내기
+          </Button>
+          <Button secondary onClick={() => onSaveIO('import')} title="세이브 파일을 불러와 지금 세이브를 바꿔요 — 바꾸기 전에 한 번 더 물어보고, 지금 것은 보관함에 따로 둬요">
+            불러오기
+          </Button>
+          <span class="pg-dim pg-long">PC 옮기기 · 백업</span>
+        </Row>
+      )}
       {/* 단축키 (2026-10-19 전체 점검 — 키보드로 하는 사람이 찾지 않게, 정보줄 메뉴 글자와 같은 자판 칸) */}
       <Row>
         <span class="pg-keys pg-keys-wrap">

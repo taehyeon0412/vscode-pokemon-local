@@ -26,6 +26,8 @@ export function Panel({ icon, title, extra, onClose, closeLabel = '닫기', sub,
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || e.repeat) return;
+      // 세이브 불러오기 확인 상자가 떠 있으면 Esc 는 그 상자 몫 (그만두기 — 판까지 닫히던 것)
+      if (document.querySelector('#pokemon-game .pg-saveio')) return;
       e.preventDefault();
       e.stopPropagation();
       onClose();
