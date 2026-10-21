@@ -77,7 +77,7 @@ function EncounterBox({ state }: { state: GameState }) {
       </span>
       {stage.isNew && <span class="pg-new">NEW!</span>}
       {/* 시작은 만날 때 스피드로 정해짐 — 띠가 보이는 내내 (전투 첫 말은 선제공격이면 바로 "무엇을 할까?" 로 덮이고 좁은 패널은 말 줄이 숨음, 2026-10-21) */}
-      {pending.start !== 'normal' && <span class={pending.start === 'ambush' ? 'pg-space-done pg-start-ambush' : 'pg-space-done'}>{pending.start === 'ambush' ? '기습당했다!' : '선제공격!'}</span>}
+      {pending.start !== 'normal' && <span class={pending.start === 'ambush' ? 'pg-start pg-start-ambush' : 'pg-start'}>{pending.start === 'ambush' ? '기습당했다!' : '선제공격!'}</span>}
     </div>
   );
 }

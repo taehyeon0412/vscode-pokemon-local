@@ -735,12 +735,7 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   font-size: 0.85em;
   font-weight: bold;
 }
-.pg-space-hint {
-  font-weight: bold;
-  color: var(--vscode-editorWarning-foreground, #cca700);
-  animation: pg-twinkle 0.6s steps(2) infinite;
-}
-.pg-space-done,
+/* 만남 띠 끝 시작 표시 — "선제공격!" 금색 · "기습당했다!" 빨강 (스피드로 정해짐, 2026-10-21 Space 선제공격을 뺌) */
 .pg-start {
   font-weight: bold;
   color: var(--vscode-editorWarning-foreground, #cca700);
@@ -2717,13 +2712,15 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   color: var(--pg-sos-ink);
   background: var(--pg-sos-red);
 }
-.pg-space-hint,
-.pg-space-done,
 .pg-start,
 .pg-last-sec,
 .pg-last-tag,
 .pg-warning {
   color: var(--pg-sos-gold);
+}
+/* 기습 = 위험 — 빨강 (글자가 뜻을 같이 말함) */
+.pg-start.pg-start-ambush {
+  color: var(--pg-sos-red);
 }
 /* 프로필이 띄운 동안 "‖ 전투 멈춤" = 흐린 글 (금색 = 고른 것) */
 .pg-paused {

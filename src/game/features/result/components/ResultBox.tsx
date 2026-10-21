@@ -120,7 +120,7 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
       <Line p={p} />
     </span>
   ));
-  const altB = rest.length > 0 ? restLine : ups.length > 0 ? <><span class="pg-up">▲</span> {ups.map((u) => `${u.name} Lv ${u.to}`).join(' · ')}</> : null;
+  const altB = rest.length > 0 ? restLine : ups.length > 0 ? <><span class="pg-up">▲</span> {ups.map((u) => `${u.name} Lv\u00a0${u.to}`).join(' · ')}</> : null;
   const lines = (
     <>
       <span class="pg-line">
