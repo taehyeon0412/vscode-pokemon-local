@@ -1515,8 +1515,11 @@ function awayStep(before: GameState, save: Save, rt: RuntimeState, signal: SaveS
     const prev = before.runtime.stage;
     // 잡은 야생도 셈 (신호가 'catch')
     const wildEnd = (signal === 'battle-end' || signal === 'catch') && prev?.phase === 'battle' && prev.battle.kind === 'wild';
-    // 진 것도 셈 (패배 상자에 들어선 때)
-    const lostNow = rt.stage?.phase === 'defeat' && prev?.phase !== 'defeat';
+    // 진 것도 셈 — 패배 상자에 들어선 때 · 3:3 에서 지고 남은 포켓몬으로 계속 (상자 없이 바로 걷기 — 명세 검사관: 요약에 "패배" 가 빠지던 것)
+    const met = before.save.pendingEncounter;
+    const teamLost =
+      prev?.phase === 'team' && rt.stage?.phase !== 'team' && rt.stage?.phase !== 'defeat' && met?.kind === 'trainer' && !save.pendingEncounter && save.stages[met.stageId]?.defeatedTrainers.includes(met.trainerId) !== true;
+    const lostNow = (rt.stage?.phase === 'defeat' && prev?.phase !== 'defeat') || teamLost;
     if (rt.awayLog && !wildEnd && !lostNow) return rt;
     const log: AwayLog = rt.awayLog ?? awayStart(before.save);
     return { ...rt, awayLog: { ...log, ...(wildEnd ? { wild: log.wild + 1 } : {}), ...(lostNow ? { lost: (log.lost ?? 0) + 1 } : {}) } };

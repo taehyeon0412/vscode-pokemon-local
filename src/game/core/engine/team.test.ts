@@ -4,7 +4,7 @@ import { fixedRng } from '../../../test/fixtures/rng';
 import { sampleMonster, sampleSave, viaJson } from '../../../test/fixtures/save';
 import { BALANCE, TIMING } from '../balance';
 import type { Monster, Save } from '../save';
-import { applyInput, defeatWaits, step, teamChoiceMeet, teamLock, teamMainOf, teamPickOf } from './play';
+import { applyInput, defeatWaits, step, TEAM_MEET_TIP, teamChoiceMeet, teamLock, teamMainOf, teamMeetTipDue, teamPickOf } from './play';
 import { Rng } from './rng';
 import { createGameState, readRuntime, type GameState } from './state';
 import { shotTiming, applyTeamResult, isSpread, pickTeam, readTeam, startTeamBattle, TEAM_BASIC, teamClashSure, teamDone, teamInput, teamPick, teamPossible, teamScale, teamStep, teamAutoUltLeft, teamAutoUltNext, teamUltLevel, teamUltOpen, type TeamBattle, teamGather, teamLayout } from './team';
@@ -273,6 +273,15 @@ describe('연결 — 트레이너 만남 · 관장전 (BALANCE.team.on 이 켜�
       const save = { ...four, money: 1000, monsters: { ...four.monsters, m4: extra }, party: [...four.party, 'm4'] };
       const { s, over, fought } = lose(save);
       expect(over?.msg).toContain('남은 포켓몬으로 계속');
+      // 안 보는 동안 (확장이 계산) 이렇게 지면 그동안 요약 "패배 1번" 에 셈 (상자 없이 바로 걷기 — 명세 검사관)
+      let away = meet(remembered(save));
+      for (let t = 0; t < TIMING.vsMs + STEP * 3 && away.runtime.stage?.phase === 'trainer'; t += STEP) away = step(away, STEP).state;
+      const ast = away.runtime.stage;
+      if (ast?.phase !== 'team') throw new Error('3:3 아님');
+      away = { ...away, runtime: { ...away.runtime, headless: true, stage: { phase: 'team', team: { ...ast.team, me: ast.team.me.map((f) => ({ ...f, hp: 0 })) } } } };
+      for (let t = 0; t < 5000 && away.runtime.stage?.phase === 'team'; t += STEP) away = step(away, STEP).state;
+      expect(away.runtime.stage?.phase).not.toBe('defeat');
+      expect(away.runtime.awayLog?.lost).toBe(1);
       expect(s.runtime.stage?.phase).toBe('walk');
       expect(s.save.money).toBe(900);
       expect(s.runtime.toast?.text).toContain('돈 −100원');
@@ -532,6 +541,11 @@ describe('#17 준비 — 배율 · 잠금 · 3마리 고르기 · 필살기 예�
       expect(teamLock(s)).toBe('narrow');
       expect(teamLock(meet(sampleSave()))).toBe('few');
       expect(teamLock(meet(five(), { w: 860, h: 187 }))).toBeNull();
+      // 3:3 처음 안내 — 3:3 을 고를 수 있는 만남에서 아직 안 봤으면 · 보면 끝 · 잠기면 안 뜸 (2026-10-22 태현 님 "추천안")
+      const open = meet(five(), { w: 860, h: 187 });
+      expect(teamMeetTipDue(open)).toBe(true);
+      expect(teamMeetTipDue(applyInput(open, { kind: 'tip-seen', id: TEAM_MEET_TIP }))).toBe(false);
+      expect(teamMeetTipDue(s)).toBe(false);
       expect(applyInput(s, { kind: 'team-mode', on: true })).toBe(s);
       const remembered = meet({ ...five(), settings: { ...five().settings, teamMode: true } }, narrow);
       expect(steps(remembered, TIMING.teamChoiceMs + TIMING.vsMs + STEP * 2).runtime.stage?.phase).toBe('battle');
