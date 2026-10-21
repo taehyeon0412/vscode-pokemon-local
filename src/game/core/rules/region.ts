@@ -169,7 +169,7 @@ export function regionOf(stageId: StageId): { region: RegionDef; index: number }
  */
 export function regionOrder(region: RegionId): number {
   // 해변 = 늘 2번째 이후 (시작은 숲 고정 — 7-3) · 미리 보기는 2번째 (관장 에이스 Lv 21 — orders #37)
-  return region === 'forest' ? 1 : 2;
+  return region === 'forest' ? 1 : BALANCE.region.beachOrder;
 }
 
 /** 관장 첫 승 돈 = 1,000 × (k + 2) (gdd 5.2 — k = 1 은 지금 숲 그대로 BALANCE.gymFirstMoney) */
@@ -177,9 +177,11 @@ export function regionGymMoney(k: number): number {
   return k <= 1 ? BALANCE.gymFirstMoney : 1000 * (k + 2);
 }
 
-/** 관장 에이스 레벨 g = 15 + 6 × (k − 1) (5.2 [임시값]) */
+/** 관장 에이스 레벨 g = 15 + 6 × (k − 1) (5.2 [임시값] — BALANCE.region) */
 export function regionAceLevel(k: number): number {
-  return 15 + 6 * (Math.max(1, k) - 1);
+  const { aceBase, aceStep, aceJump2 } = BALANCE.region;
+  const n = Math.max(1, k);
+  return aceBase + aceStep * (n - 1) + (n >= 2 ? aceJump2 : 0);
 }
 
 /** 스테이지 레벨대 — k = 1 은 지금 숲 숫자 그대로 (BALANCE.stageLevels) · k ≥ 2 는 g−8 ~ g−5 / g−5 ~ g−2 / g−3 ~ g (5.2) */

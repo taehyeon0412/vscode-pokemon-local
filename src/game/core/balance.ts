@@ -91,6 +91,11 @@ export const BALANCE = {
   /** 오늘의 목표 · 기록 (gdd 4.11 U13 · U12, orders #28) — on = 모두에게 켬 (3:3 을 켤 때 같이 — 2026-10-22 기획). 꺼져 있어도 개발 모드에서는 켜짐 */
   daily: { on: false },
   /**
+   * 지역 레벨표 (gdd 5.2 [임시값]) — 관장 에이스 g = aceBase + aceStep × (k − 1) (+ aceJump2, 2번째부터) · k = 1 (숲) 은 stageLevels · gymTeam 그대로.
+   * beachOrder = 해변이 몇 번째 (시작은 숲 고정 — 늘 2번째 이후, 지역 순서 칸 #30 전까지). 시뮬이 바꿔 봄 (orders #38 — scripts/sim-mvp.ts)
+   */
+  region: { aceBase: 15, aceStep: 6, aceJump2: 0, beachOrder: 2 },
+  /**
    * 3:3 실시간 팀 배틀 (다음 버전 5단계 — gdd 4.7 끝, 2026-10-21 orders #17) — 숫자는 모두 [임시값] (시뮬로 한 판 1분 안팎에 맞춤).
    * on = 게임에서 켬 (화면 · 연출이 생길 때까지 꺼 둠 — 모양은 디자인팀이 정하는 중) · size = 한쪽 마리 수 · ultGainScale = 필살기 게이지가 1:1 의 몇 배로 참 ·
    * interruptChance = 상대 AI 가 내 필살기에 끼어드는 확률 (트레이너 가끔 · 관장 자주) · spreadScale = 범위 기술 · 필살기가 여럿을 칠 때 ·
