@@ -528,18 +528,27 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
 }
 
 /** 체육관 첫 알림 글 (gdd S16 — 문구 = 기획) · 큰 줄 + 작은 줄 (좁으면 작은 줄은 키 칸만 — 줄은 낱말 묶음 사이에서만 바뀜) · 3:3 을 못 하면 이유 + "이번엔 1:1 승부" */
+// 360 아래는 짧은 말 한 줄 (두 줄 38px 가 240 대기실 바닥 줄 주인공 · 관장 아래 15px 를 덮던 것 — 픽셀 검사원 새 화면 한 바퀴)
 function GymTip({ lock }: { lock: 'few' | 'narrow' | null }) {
   if (lock !== null)
     return (
       <>
-        <span class="pg-tip-part">{lock === 'few' ? '살아 있는 포켓몬이 3마리면 3:3 —' : '패널을 넓히면 3:3 —'}</span> <span class="pg-tip-part">이번엔 1:1 승부</span>
+        <span class="pg-tip-long">
+          <span class="pg-tip-part">{lock === 'few' ? '살아 있는 포켓몬이 3마리면 3:3 —' : '패널을 넓히면 3:3 —'}</span> <span class="pg-tip-part">이번엔 1:1 승부</span>
+        </span>
+        <span class="pg-tip-short">{lock === 'few' ? '3마리면 3:3 — 이번엔 1:1' : '넓히면 3:3 — 이번엔 1:1'}</span>
       </>
     );
   return (
     <>
-      <b class="pg-tip-part">관장전은 3:3 실시간 배틀!</b> <span class="pg-tip-part pg-long">포켓몬 3마리가 함께 싸운다 ·</span>{' '}
-      <span class="pg-tip-part">
-        필살기는 <KeyCap k="1" /> <KeyCap k="2" /> <KeyCap k="3" />
+      <span class="pg-tip-long">
+        <b class="pg-tip-part">관장전은 3:3 실시간 배틀!</b> <span class="pg-tip-part pg-long">포켓몬 3마리가 함께 싸운다 ·</span>{' '}
+        <span class="pg-tip-part">
+          필살기는 <KeyCap k="1" /> <KeyCap k="2" /> <KeyCap k="3" />
+        </span>
+      </span>
+      <span class="pg-tip-short">
+        <b>관장전 3:3!</b> 필살기 <KeyCap k="1" /> <KeyCap k="2" /> <KeyCap k="3" />
       </span>
     </>
   );
