@@ -49672,7 +49672,7 @@ window.__fxDebug = {
 
 window.pokemonFx = {
     version: 4,
-    /** 그 모습이 가진 필살기 이름 (게임 개발 모드 — 필살기 고르기) */
+    /** 그 모습이 가진 필살기 이름 (게임 개발 모드 (임시) — 필살기 고르기) */
     ults(form) {
         return (POKEMON_ULT[form] || []).map((k) => ULT_LIB[k]).filter(Boolean).map((v) => v[0]);
     },
@@ -49779,7 +49779,7 @@ window.pokemonFx = {
         if (!POKEMON_SHAPE[src.form] || ultActive || fxWidth(src) < 1 || fxWidth(dst) < 1) {
             return 0;
         }
-        // o.entry = 이 필살기로 (ULT_LIB 한 줄 — 개발 창 dev/ult-fx.py 가 필살기마다 맞는 때를 잼) · o.pick = 이 이름으로 (게임 개발 모드 — 그 포켓몬이 가진 것만)
+        // o.entry = 이 필살기로 (ULT_LIB 한 줄 — 개발 창 dev/ult-fx.py 가 필살기마다 맞는 때를 잼) · o.pick = 이 이름으로 (게임 개발 모드 (임시) — 그 포켓몬이 가진 것만)
         let entry = o?.entry || (o?.pick && (POKEMON_ULT[src.form] || []).map((k) => ULT_LIB[k]).find((v) => v && v[0] === o.pick)) || fxUltPick(src.form, avoid);
         if (!entry) {
             return 0;

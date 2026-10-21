@@ -12,6 +12,8 @@ import { moveOf } from '../../../data';
 import { pokemonFx, type FxActor, type FxImpact, type FxMove, type PokemonFx } from './bridge';
 import { FX_HOLD_ULT_MAX_MS, holdFx, releaseFx, teamUltKey } from './hold';
 import { shotHitAt } from './shot-hit';
+// 개발 모드 (임시) 에서 고른 필살기
+import { devUltOf } from '../../../dev/ult-pick';
 
 export interface TeamSlot {
   side: Side;
@@ -353,7 +355,9 @@ export class TeamFxRunner {
         fx.stopDuel?.();
         // 일반 모드 필살기 그대로 — 맞는 순간까지 엔진을 붙잡아 그때 피해 (1:1 과 같음 · 안 볼 때는 엔진 박자)
         const others = c.others.map(a).filter((x): x is FxActor => !!x);
-        const total = src && dst ? (fx.ult?.(src, dst, () => releaseFx(), this.learned(c.src), { quick: c.quick, others, type: c.type }) ?? 0) : 0;
+        // 개발 모드 (임시) 에서 고른 필살기
+        const pick = devUltOf(this.last?.[c.src.side][c.src.slot]?.uid);
+        const total = src && dst ? (fx.ult?.(src, dst, () => releaseFx(), this.learned(c.src), { quick: c.quick, others, type: c.type, ...(pick ? { pick } : {}) }) ?? 0) : 0;
         if (total > 0) holdFx(c.key, total, performance.now(), FX_HOLD_ULT_MAX_MS);
         return;
       }
@@ -361,10 +365,12 @@ export class TeamFxRunner {
         // 힘겨루기를 이겨 합동이면 대결 입자부터 지움 (fxGameStop 은 타이머만 막아 가운데서 계속 밀던 것 — 코드 리뷰어)
         fx.stopDuel?.();
         // 그림이 없는 참가자는 타입 · 피할 이름과 같이 뺌 (순번이 어긋나 다른 포켓몬 것이 붙던 것)
-        const ps = c.winners.map((w, i) => ({ actor: a(w), type: c.types[i] ?? 'normal', avoid: this.learned(w) })).filter((p): p is { actor: FxActor; type: string; avoid: string[] } => !!p.actor);
+        const ps = c.winners
+          .map((w, i) => ({ actor: a(w), type: c.types[i] ?? 'normal', avoid: this.learned(w), pick: devUltOf(this.last?.[w.side][w.slot]?.uid) ?? null }))
+          .filter((p): p is { actor: FxActor; type: string; avoid: string[]; pick: string | null } => !!p.actor);
         const dst = a(c.dst);
         const others = c.others.map(a).filter((x): x is FxActor => !!x);
-        const total = ps.length && dst ? (fx.ultJoint?.(ps.map((p) => p.actor), dst, () => releaseFx(), { types: ps.map((p) => p.type), avoid: ps.map((p) => p.avoid), sure: c.sure, others }) ?? 0) : 0;
+        const total = ps.length && dst ? (fx.ultJoint?.(ps.map((p) => p.actor), dst, () => releaseFx(), { types: ps.map((p) => p.type), avoid: ps.map((p) => p.avoid), pick: ps.map((p) => p.pick), sure: c.sure, others }) ?? 0) : 0;
         if (total > 0) holdFx(c.key, total, performance.now(), FX_HOLD_ULT_MAX_MS);
         return;
       }

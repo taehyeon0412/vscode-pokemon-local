@@ -8,6 +8,7 @@ import { ITEM_IDS, STAGE_IDS, type FacilitySpot, type ItemId, type Save, type St
 import { readBattle, type BattleState } from './battle';
 import { readTeam, type TeamBattle } from './team';
 import type { BattleSummary } from './rewards';
+// 개발 모드 (임시)
 import { readDev, type DevRuntime } from '../../dev/runtime';
 
 type FacilityKind = FacilitySpot['kind'];

@@ -22,6 +22,15 @@ const real = {
   raf: window.requestAnimationFrame.bind(window),
 };
 
+/** 끼우기 전 원래 함수 (되돌릴 때) */
+const original = {
+  setTimeout: window.setTimeout,
+  setInterval: window.setInterval,
+  clearTimeout: window.clearTimeout,
+  clearInterval: window.clearInterval,
+  raf: window.requestAnimationFrame,
+};
+
 let installed = false;
 let scale = 1;
 let vBase = 0;
@@ -49,7 +58,8 @@ function fire(): void {
   for (const [id, t] of due) {
     if (timers.get(id) !== t) continue;
     if (t.every === null) timers.delete(id);
-    else t.due += Math.max(1, t.every);
+    // 밀린 인터벌은 몰아서 돌지 않음 (진짜 setInterval 처럼)
+    else t.due = Math.max(t.due + Math.max(1, t.every), now);
     try {
       t.fn(...t.args);
     } catch (e) {
@@ -99,6 +109,29 @@ function install(): void {
   w.clearTimeout = clear;
   w.clearInterval = clear;
   w.requestAnimationFrame = (cb: FrameRequestCallback) => real.raf(() => cb(vnow()));
+}
+
+/** 게임 화면을 떠남 — 원래 시계로 되돌림 (일반 모드 포켓몬 · 다른 화면이 가짜 시계를 거치지 않게). 남은 타이머는 남은 시간 그대로 진짜 타이머로 */
+export function resetDevClock(): void {
+  if (!installed) return;
+  setDevClock(1);
+  if (wake !== null) real.clearTimeout(wake);
+  wake = null;
+  const now = vnow();
+  Object.defineProperty(performance, 'now', { value: real.now, configurable: true, writable: true });
+  const w = window as unknown as Record<string, unknown>;
+  w.setTimeout = original.setTimeout;
+  w.setInterval = original.setInterval;
+  w.clearTimeout = original.clearTimeout;
+  w.clearInterval = original.clearInterval;
+  w.requestAnimationFrame = original.raf;
+  installed = false;
+  for (const [, t] of timers) {
+    const left = Math.max(0, t.due - now);
+    if (t.every === null) original.setTimeout(t.fn, left, ...t.args);
+    else original.setTimeout(() => original.setInterval(t.fn, t.every!, ...t.args), left);
+  }
+  timers.clear();
 }
 
 /** 지금 배 (1 = 그대로 · 0 = 멈춤) */

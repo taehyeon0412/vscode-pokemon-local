@@ -24,7 +24,7 @@ import '../dev/dev.css';
 import { getGameConfig, getGamePort } from './vscode-api';
 import { WebviewSession } from './webview-session';
 import { devApply } from '../dev/actions';
-import { devClockFor, setDevClock } from '../dev/clock';
+import { devClockFor, resetDevClock, setDevClock } from '../dev/clock';
 import { setDevUlts } from '../dev/ult-pick';
 
 /** 게임 화면이 보이는 동안 body 에 붙임 — game.css 가 일반 모드 층을 숨기고, 일반 모드는 포켓몬을 멈춤 (main-bundle.js GAME-PATCH) */
@@ -98,6 +98,8 @@ if (!port) {
     if (!low && session.isCollapsed) expandTimer = window.setTimeout(() => session.setCollapsed(store.get().layout.tooSmall, !document.hidden), EXPAND_WAIT_MS);
     else session.setCollapsed(low, !document.hidden);
     if (session.running && (document.hidden || low)) session.hide();
+    // 개발 모드 (임시) — 계산을 안 맡는 동안 (접힘 · 안 보임) 은 시계를 그대로 (멈춤이면 다시 펴는 타이머까지 굳음)
+    if (low || !session.running) setDevClock(1);
     if (session.running && !low) loop.start();
     else loop.stop();
   };
@@ -121,7 +123,7 @@ if (!port) {
   store.subscribe(() => document.body.classList.toggle(GAME_ON_CLASS, store.get().screen !== 'none'));
   // 개발 모드 (임시) — 게임 화면을 떠나면 (일반 모드 · 타이틀) 시계를 그대로 (일반 모드 포켓몬이 느려지거나 멈추지 않게)
   store.subscribe(() => {
-    if (store.get().screen !== 'game') setDevClock(1);
+    if (store.get().screen !== 'game') resetDevClock();
   });
 
   const actions: AppActions = {

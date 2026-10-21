@@ -207,7 +207,7 @@ export class GameSession {
           this.post({ type: 'stop' }); // 화면 오류로 온 것이면 웹뷰도 일반 모드로
           this.warn('포켓몬 게임 화면을 불러오지 못했어요 — 창을 다시 로드해 보세요 (Developer: Reload Window).');
         } else if (this.mode === 'game') {
-          this.warn('포켓몬 게임 화면에 문제가 생겼어요 — 제목줄 🏠 로 일반 모드로 나갈 수 있어요 (진행은 저장돼요).');
+          this.warn(`포켓몬 게임 화면에 문제가 생겼어요 — 제목줄 🏠 로 일반 모드로 나갈 수 있어요 (${this.dev ? '개발 모드는 저장되지 않아요' : '진행은 저장돼요'}).`);
           // 아무도 계산하지 않는 채로 두지 않음 — 자동 전투면 여기서 이어 감
           if (this.owner !== 'host') this.hostOwns('웹뷰가 게임을 못 불러옴');
         }
@@ -421,6 +421,7 @@ export class GameSession {
       this.deps.log(`게임 모드에 들어가지 않음: ${result}${this.deps.store.lockedReason ? ` (${this.deps.store.lockedReason})` : ''}`);
       return result;
     }
+    this.dev = false; // 개발 모드 (임시) 표시가 남아 일반 게임 저장을 건너뛰지 않게
     this.setMode('game');
     this.deps.store.setWritable(true);
     this.deps.log('게임 모드로');
@@ -432,6 +433,8 @@ export class GameSession {
   /** 줄을 서지 않는 새로 하기 — serial 안에서만 부름. keepLease: 게임에 바로 들어갈 거라 창 잠금을 쥔 채로 둠 */
   private async doReplace(save: Save, options: { keepLease: boolean }): Promise<'done' | 'busy' | 'failed'> {
     await this.loading;
+    // 개발 모드 (임시) — 세이브를 바꾸지 않음
+    if (this.dev) return 'busy';
     const temporary = this.mode !== 'game';
     if (temporary) {
       const lease = this.tryAcquire();
@@ -651,8 +654,9 @@ export class GameSession {
     const r = this.deps.store.peek();
     const real = r.kind === 'ok' && r.save.party.length > 0 && r.save.location.screen !== 'title' ? r.save : null;
     const save = real ?? devDemoSave(this.deps.now(), this.deps.newSeed());
+    const state = devState(createGameState(save, this.deps.newSeed()));
+    this.state = state;
     this.dev = true;
-    this.state = devState(createGameState(save, this.deps.newSeed()));
     this.setMode('game');
     this.deps.log(`개발 모드로 (저장 안 함 · ${real ? '지금 진행' : '시연 팀'})`);
     // 웹뷰에 아직 game.js 가 없으면 boot.js 가 불러오고, 이미 있으면 game.js 가 ready 로 답함
@@ -661,6 +665,7 @@ export class GameSession {
 
   /** 개발 모드 끝내기 (개발 메뉴) — 저장 없이 타이틀로. serial 안에서만 */
   private async endDev(): Promise<void> {
+    if (this.mode !== 'game' || !this.dev) return;
     this.runner.stop();
     this.owner = 'none';
     this.epoch++;
@@ -683,7 +688,8 @@ export class GameSession {
   }
 
   private notify(notice: GameNotice, away = false): void {
-    if (!this.state?.save.settings.notifications) return;
+    // 개발 모드 (임시) 는 VS Code 알림을 띄우지 않음
+    if (this.dev || !this.state?.save.settings.notifications) return;
     const text = noticeText(notice, this.webviewCollapsed, away);
     this.deps.log(`알림: ${text}`);
     try {
@@ -696,7 +702,8 @@ export class GameSession {
   /** 안 볼 때 계산은 지금 상태의 자동 전투 설정으로 정함 (늦게 온 상태로 바뀌면 다시 정함) */
   private updateRunner(): void {
     // 사람이 골라야 하는 순간 (부탁 · 스테이지 끝) 에는 안 볼 때 계산할 게 없음 — 깨어나 저장만 되풀이하지 않게
-    const run = this.state !== null && this.mode === 'game' && this.owner === 'host' && shouldRunWhenHidden(this.state) && !isWaitingForInput(this.state);
+    // 개발 모드 (임시) 멈춤이면 안 볼 때도 멈춘 채로
+    const run = this.state !== null && this.mode === 'game' && this.owner === 'host' && shouldRunWhenHidden(this.state) && !isWaitingForInput(this.state) && this.state.runtime.dev?.pause !== true;
     if (run) this.runner.start();
     else this.runner.stop();
   }

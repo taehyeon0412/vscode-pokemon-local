@@ -23,6 +23,7 @@ import { moveOf, speciesOf } from '../../data';
 import { applyBattleResult, battleDone, battleInput, battleStep, battleWaiting, firstAlive, startBattle, startTrainerBattle, switchable, type BattleInput, type BattleState } from './battle';
 import { addItem, battleRewards, clearStage, defeatPenalty, FOREST_BADGE, pickTreasure, resolveEvolve, resolveLearn, rivalWinRewards, stageClearExp, takeLaterChoices, useRareCandy, type BattleSummary } from './rewards';
 import { Rng } from './rng';
+// 개발 모드 (임시)
 import { devTeam, devWalk } from '../../dev/runtime';
 import { MAX_SPEED, type AwayLog, type GameState, type RuntimeState, type StageRuntime } from './state';
 import { applyTeamResult, pickTeam, startTeamBattle, teamDone, teamInput, teamPossible, teamRewardBattle, teamScale, teamStep, type TeamBattle, type TeamInput } from './team';

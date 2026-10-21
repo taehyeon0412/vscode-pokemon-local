@@ -1031,6 +1031,21 @@ describe('개발 모드 (임시, gdd 8장 · S02 ④) — 저장하지 않음', 
     expect(stored()?.money).toBe(4321);
   });
 
+  it('개발 모드 중에 VS Code 를 끔 · 🏠 뒤 늦게 온 끝내기 · 새로 하기 — 쓰지 않고 타이틀이 다시 뜨지 않음', async () => {
+    const real = autoSave(5000);
+    const start = await enterDev(real);
+    session.handleMessage(msg({ type: 'state', epoch: start.epoch, state: { ...start.state, save: { ...start.state.save, money: 7 } } }));
+    expect(await session.startNewSave(sampleSave())).toBe('busy');
+    const exit = session.exitGame();
+    session.handleMessage(msg({ type: 'dev-end' }));
+    await exitNow(exit);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(snap().mode).toBe('normal');
+    expect(session.dispose()).toBe(true);
+    expect(storage.writes).toBe(0);
+    expect(archive.items).toHaveLength(0);
+  });
+
   it('웹뷰가 보낸 개발 값으로는 일반 게임이 개발 모드가 되지 않음', async () => {
     const start = await enterAndStart(sampleSave());
     session.handleMessage(msg({ type: 'state', epoch: start.epoch, state: { ...start.state, runtime: { ...start.state.runtime, dev: { team: true, walk: 10, battle: 1, pause: false, foes: [], ults: {} } } } }));
