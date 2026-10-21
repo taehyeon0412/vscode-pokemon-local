@@ -8,6 +8,7 @@ import { ITEM_IDS, STAGE_IDS, type FacilitySpot, type ItemId, type Save, type St
 import { readBattle, type BattleState } from './battle';
 import { readTeam, type TeamBattle } from './team';
 import type { BattleSummary } from './rewards';
+import { readDev, type DevRuntime } from '../../dev/runtime';
 
 type FacilityKind = FacilitySpot['kind'];
 
@@ -93,6 +94,8 @@ export interface RuntimeState {
   awayLog?: AwayLog;
   /** 웹뷰 패널 크기 (px) — 3:3 배율 · 잠금 (teamScale). 3:3 배율이 바뀔 때만 웹뷰가 알림 · 모르면 없음 */
   view?: { w: number; h: number };
+  /** 개발 모드 (임시, gdd 8장) — 확장이 개발 모드일 때만 붙임 (src/game/dev) */
+  dev?: DevRuntime;
 }
 
 /** 자리 비운 동안 — 떠날 때의 돈 · 가방과 그동안 싸운 야생 수 */
@@ -255,6 +258,8 @@ export function readRuntime(raw: unknown, fallbackSeed: number, stepMs: number =
     headless: false, // 웹뷰에서 온 상태는 늘 보이는 쪽 — 확장이 넘겨받을 때 다시 켬
     ...(readAwayLog(r.awayLog) ? { awayLog: readAwayLog(r.awayLog)! } : {}),
     ...(isObj(r.view) && num(r.view.w, 0, 20_000) !== null && num(r.view.h, 0, 20_000) !== null ? { view: { w: r.view.w as number, h: r.view.h as number } } : {}),
+    // 개발 모드 (임시) — 확장이 개발 모드가 아니면 다시 뗌 (game-session)
+    ...(readDev(r.dev) ? { dev: readDev(r.dev)! } : {}),
   };
 }
 

@@ -1,0 +1,48 @@
+/* 개발 모드 (임시, gdd 8장) — 기능 뼈대 모양만 (디자인팀이 다듬음). 지울 때 이 파일 + main.ts 의 import 한 줄 */
+#pokemon-game .pg-dev-badge {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: auto;
+  min-width: 0;
+  height: auto;
+  z-index: 60;
+  padding: 0 4px;
+  border: 1px solid var(--pg-sos-red);
+  background: var(--pg-sos-bar);
+  color: var(--pg-sos-red);
+  font: 600 calc(9px * var(--pg-ui, 1)) / 1.4 Pretendard, sans-serif;
+  cursor: pointer;
+}
+#pokemon-game .pg-dev-team {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 2px 0;
+}
+#pokemon-game .pg-dev-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+#pokemon-game .pg-dev-head {
+  min-width: 3.5em;
+  color: var(--pg-sos-gold);
+}
+#pokemon-game .pg-dev-select,
+#pokemon-game .pg-dev-level {
+  background: var(--pg-sos-bar);
+  color: var(--pg-sos-ink);
+  border: 1px solid var(--pg-sos-line-soft);
+  font: inherit;
+  max-width: 12em;
+}
+#pokemon-game .pg-dev-level {
+  width: 3.5em;
+  height: auto;
+}
+#pokemon-game .pg-dev-say {
+  color: var(--pg-sos-dim);
+}

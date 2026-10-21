@@ -23,6 +23,7 @@ import { moveOf, speciesOf } from '../../data';
 import { applyBattleResult, battleDone, battleInput, battleStep, battleWaiting, firstAlive, startBattle, startTrainerBattle, switchable, type BattleInput, type BattleState } from './battle';
 import { addItem, battleRewards, clearStage, defeatPenalty, FOREST_BADGE, pickTreasure, resolveEvolve, resolveLearn, rivalWinRewards, stageClearExp, takeLaterChoices, useRareCandy, type BattleSummary } from './rewards';
 import { Rng } from './rng';
+import { devTeam, devWalk } from '../../dev/runtime';
 import { MAX_SPEED, type AwayLog, type GameState, type RuntimeState, type StageRuntime } from './state';
 import { applyTeamResult, pickTeam, startTeamBattle, teamDone, teamInput, teamPossible, teamRewardBattle, teamScale, teamStep, type TeamBattle, type TeamInput } from './team';
 import { takeSteps } from './step';
@@ -176,8 +177,11 @@ function rivalBattle(save: Save, id: StageId, prog: StageProgress, rival: string
  * 고른 대로 (고르지 않았으면 마지막으로 고른 방식 — 처음엔 1:1, gdd 4.7 · 명세 검사관). 관장전은 늘 3:3 (choice = true)
  */
 function useTeam(save: Save, rt: RuntimeState, choice?: boolean): boolean {
-  return BALANCE.team.on && teamLockOf(save, rt) === null && (choice ?? save.settings.teamMode === true);
+  return teamOn(rt) && teamLockOf(save, rt) === null && (choice ?? save.settings.teamMode === true);
 }
+
+/** 3:3 을 켰는지 — 본편은 BALANCE.team.on, 개발 모드 (임시) 는 "3:3 미리 켜기" 로도 */
+const teamOn = (rt: RuntimeState) => BALANCE.team.on || devTeam(rt.dev);
 
 /** 3:3 을 못 하는 까닭 — few = 살아 있는 포켓몬 3마리 미만 · narrow = 패널이 좁아 6마리가 안 들어감 ("패널을 넓히면 3:3") · null = 됨 */
 function teamLockOf(save: Save, rt: RuntimeState): 'few' | 'narrow' | null {
@@ -212,7 +216,7 @@ function fillPick(save: Save, pick: readonly string[] | undefined, foes: readonl
 export function teamPickOf(state: GameState): string[] | null {
   const { save, runtime: rt } = state;
   const stage = rt.stage;
-  if (!BALANCE.team.on || teamLockOf(save, rt) !== null) return null;
+  if (!teamOn(rt) || teamLockOf(save, rt) !== null) return null;
   const alive = (pick: readonly string[]) => pick.filter((uid) => save.party.includes(uid) && (save.monsters[uid]?.hp ?? 0) > 0);
   if (stage?.phase === 'lobby' && inLobby(state)) return stage.pick ? alive(stage.pick) : fillPick(save, undefined, leaderTeam());
   if (stage?.phase !== 'trainer' || !stage.pick || save.pendingEncounter?.kind !== 'trainer') return null;
@@ -241,7 +245,9 @@ const beaten = (prog: StageProgress, id: StageId, s: Spot) =>
  * 걷는 빠르기 배 — 빨리 걷기 (설정, 2026-10-19 태현 님 "걷는 시간이 길어 루즈해") 가 켜져 있으면 ×3, 단 앞으로 0.5초 (보통 걸음, fastWalkLookMs) 안에
  * 흔적 · 트레이너 · 병원 · 상점 · 아이템 · 부탁이 있으면 보통 빠르기 (다가오는 걸 보고 선제공격 · 고르기를 할 수 있게). 지나가면 다시 ×3
  */
-function walkSpeed(save: Save, layout: StageLayout, prog: StageProgress, id: StageId): number {
+function walkSpeed(save: Save, layout: StageLayout, prog: StageProgress, id: StageId, rt?: RuntimeState): number {
+  // 개발 모드 (임시) 걷기 배 — 다가오는 것과 상관없이 늘
+  if (devWalk(rt?.dev) > 1) return devWalk(rt?.dev);
   if (save.settings.fastWalk !== true) return 1;
   const from = prog.progress;
   return nextEvent(layout, prog, id, from, Math.min(1, from + walkDelta(BALANCE.fastWalkLookMs))) ? 1 : BALANCE.fastWalkSpeed;
@@ -250,10 +256,10 @@ function walkSpeed(save: Save, layout: StageLayout, prog: StageProgress, id: Sta
 /** 화면용 — 지금 빨리 걷는 중인지 (배경 흐름 · 걷기 그림을 같이 빠르게 · 정보줄 표시) */
 export function isWalkingFast(state: GameState): boolean {
   const loc = state.save.location;
-  if (loc.screen !== 'stage' || state.runtime.stage?.phase !== 'walk' || state.save.settings.fastWalk !== true) return false;
+  if (loc.screen !== 'stage' || state.runtime.stage?.phase !== 'walk' || (state.save.settings.fastWalk !== true && devWalk(state.runtime.dev) <= 1)) return false;
   const prog = state.save.stages[loc.stageId];
   if (!prog) return false;
-  return walkSpeed(state.save, stageLayout(loc.stageId, prog.seed, prog.facilities), prog, loc.stageId) > 1;
+  return walkSpeed(state.save, stageLayout(loc.stageId, prog.seed, prog.facilities), prog, loc.stageId, state.runtime) > 1;
 }
 
 function nextEvent(layout: StageLayout, prog: StageProgress, id: StageId, from: number, to: number): { spot: Spot } | { facility: FacilitySpot } | null {
@@ -365,7 +371,7 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
   switch (stage.phase) {
     case 'walk': {
       const from = prog.progress;
-      const to = Math.min(1, from + walkDelta(stepMs * walkSpeed(save, layout, prog, id)));
+      const to = Math.min(1, from + walkDelta(stepMs * walkSpeed(save, layout, prog, id, rt)));
       const ev = nextEvent(layout, prog, id, from, to);
       if (!ev) {
         save = withProgress(save, id, to);
@@ -965,7 +971,7 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       return team === stage.team ? state : { ...state, runtime: { ...state.runtime, rngState: rng.state, stage: { phase: 'team', team } } };
     }
     case 'team-mode': {
-      if (stage?.phase !== 'trainer' || !BALANCE.team.on || (input.on && teamLock(state) !== null) || stage.team === input.on) return state;
+      if (stage?.phase !== 'trainer' || !teamOn(state.runtime) || (input.on && teamLock(state) !== null) || stage.team === input.on) return state;
       // 고른 방식을 기억 — 다음 트레이너 (자동 전투 · 안 볼 때 포함) 는 이걸로. 3:3 이면 3마리 고르기를 염 (상성 좋은 셋이 미리 체크 — gdd 4.7)
       const id = state.runtime.stageId;
       const prog = id ? save.stages[id] : undefined;

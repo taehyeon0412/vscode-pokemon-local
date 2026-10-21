@@ -27,6 +27,8 @@ export interface TitleScreenProps {
   /** S03 · S04 에서 고른 것으로 새로 하기 */
   onNew(choice: NewGameChoice): void;
   onContinue(): void;
+  /** 개발 모드 (임시, gdd 8장 · S02 ④) — 저장하지 않는 시연 (없으면 줄이 안 보임) */
+  onDev?(): void;
   /** 주인공 그림 픽셀 크기 (S03) */
   heroPx: number;
   /** 정보줄 뺀 높이 — S03 칸에 큰 그림이 들어가는지 */
@@ -87,7 +89,7 @@ function Summary({ summary }: { summary: TitleSummary }) {
   );
 }
 
-export function TitleScreen({ info, media, pending, onNew, onContinue, heroPx, bodyPx, size = 'medium' }: TitleScreenProps) {
+export function TitleScreen({ info, media, pending, onNew, onContinue, onDev, heroPx, bodyPx, size = 'medium' }: TitleScreenProps) {
   const view = titleView(info);
   const [confirming, setConfirming] = useState(false);
   // 새로 하기 다음 단계 — S03 주인공 · S04 스타팅 (고르는 동안은 화면에만, 결정하면 확장에 새 세이브)
@@ -175,6 +177,12 @@ export function TitleScreen({ info, media, pending, onNew, onContinue, heroPx, b
                 이어 하기
               </MenuRow>
             </>
+          )}
+          {/* 개발 모드 (임시) — 맨 아래 줄. 진짜 세이브를 읽기만 (없으면 시연 팀), 저장하지 않음 */}
+          {onDev && !confirming && (
+            <MenuRow on={false} onClick={onDev} disabled={pending} title="개발 모드 (임시) — 장면 · 팀 · 속도를 바로 (D = 개발 메뉴). 저장하지 않아요">
+              개발 모드 (임시)
+            </MenuRow>
           )}
         </div>
         {/* 세이브가 없을 때만 — 이 게임이 무엇을 저절로 하고 내가 무엇을 하는지 한 줄 (2026-10-21 첫 안내 #9 · 기획 [제안] 을 줄임). 좁으면 쉬기 안내를 뺌 */}

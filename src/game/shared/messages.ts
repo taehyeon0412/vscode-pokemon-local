@@ -48,6 +48,9 @@ export type WebviewToHost =
   | { command: typeof GAME_COMMAND; type: 'load-failed'; message: string }
   | { command: typeof GAME_COMMAND; type: 'title-new'; save: Save }
   | { command: typeof GAME_COMMAND; type: 'title-continue' }
+  /** 개발 모드 (임시, gdd 8장 · S02 ④) — 저장하지 않는 게임으로 · 끝내기 (타이틀로) */
+  | { command: typeof GAME_COMMAND; type: 'title-dev' }
+  | { command: typeof GAME_COMMAND; type: 'dev-end' }
   /** 일반 모드로 — 게임 중이면 마지막 상태도 (epoch 는 맡은 것, 없으면 null) */
   | { command: typeof GAME_COMMAND; type: 'exit'; epoch: number | null; state: GameState | null }
   /** 웹뷰가 계산하다 생긴 알림 (VS Code 에 포커스가 없을 때 이로치 흔적 — 2026-10-19) → 확장이 VS Code 알림으로 */
@@ -87,6 +90,8 @@ export function isWebviewToHost(v: unknown): v is WebviewToHost {
     case 'title-new':
       return isObj(v.save);
     case 'title-continue':
+    case 'title-dev':
+    case 'dev-end':
       return true;
     case 'exit':
       return (v.epoch === null || typeof v.epoch === 'number') && (v.state === null || (isObj(v.state) && isObj(v.state.save)));

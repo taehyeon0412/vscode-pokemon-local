@@ -82,7 +82,9 @@ export interface PokemonFx {
   /** onHit = 상대를 처음 맞힌 순간 (그때 피해를 넣음) */
   /** o.quick = 같은 전투에서 다시 보는 필살기 — 컷인 없이 짧게 (2026-10-20) */
   /** o.others = 나머지 맞을 상대 (3:3 — 자기 둘레 필살기의 기운 줄기가 모두에게) · o.type = 쓴 포켓몬 타입 (기운이 닿을 때 임팩트) */
-  ult?(src: FxActor, dst: FxActor, onHit?: () => void, avoid?: string[], o?: { quick?: boolean; sub?: string; others?: FxActor[]; type?: string }): number;
+  ult?(src: FxActor, dst: FxActor, onHit?: () => void, avoid?: string[], o?: { quick?: boolean; sub?: string; others?: FxActor[]; type?: string; pick?: string }): number;
+  /** 그 모습이 가진 필살기 이름 (개발 모드 (임시) — 필살기 고르기) */
+  ults?(form: string): string[];
   /** 3:3 합동 필살기 마무리 — 참가자 필살기가 같은 때 닿아 한 점에서 합쳐 터짐. onHit = 합쳐진 순간 · 걸리는 시간 (ms), 못 쓰면 0 */
   ultJoint?(srcs: FxActor[], dst: FxActor, onHit?: () => void, o?: { types?: string[]; avoid?: string[][]; pick?: (string | null)[]; sure?: boolean; sub?: string; others?: FxActor[] }): number;
   stopUlt?(): void;

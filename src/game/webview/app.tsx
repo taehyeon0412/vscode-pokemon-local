@@ -22,6 +22,9 @@ import { foldStatus } from '../features/stage/model';
 import { TooSmall } from '../ui/TooSmall';
 import { useStore } from '../ui/use-store';
 import type { Screen } from './webview-session';
+import type { DevAction } from '../dev/actions';
+import { DevPanel } from '../dev/DevPanel';
+import { DEV_MODE } from '../dev/runtime';
 
 export interface ViewState {
   screen: Screen;
@@ -51,6 +54,10 @@ export interface AppActions {
   close(): void;
   /** 화면을 그리다 오류 — 확장에 알림 (확장이 알림을 띄우고 계산을 넘겨받음) */
   crashed(error: unknown): void;
+  /** 개발 모드 (임시, gdd 8장 · S02 ④) — 타이틀에서 들어가기 (저장 안 함) · 개발 메뉴 · 끝내기 (타이틀로) */
+  devStart(): void;
+  dev(action: DevAction): void;
+  devEnd(): void;
 }
 
 /** 그 판을 지금 띄울 수 있는지 — 안 되면 닫음 (돌을 써서 진화 연출이 시작됨 · 전투가 끝남 등) */
@@ -68,6 +75,9 @@ export function overlayAllowed(o: Overlay, state: GameState): boolean {
     case 'bag':
     case 'settings':
       return canOpenMenus(state);
+    case 'dev':
+      // 개발 모드 (임시) — 켜져 있으면 언제든 (전투 중에도)
+      return !!state.runtime.dev;
   }
 }
 
@@ -88,7 +98,7 @@ export function App({ store, media, actions }: { store: Store<ViewState>; media:
 
 function Screens({ v, media, actions }: { v: ViewState; media: string; actions: AppActions }) {
   if (v.screen === 'title' && v.title) {
-    const title = <TitleScreen info={v.title} media={media} pending={v.pending} onNew={actions.newGame} onContinue={actions.continueGame} heroPx={Math.max(2, Math.round(2 * v.layout.scale))} bodyPx={v.layout.heightPx - Math.round(INFO_BAR_PX * v.layout.uiScale)} size={v.layout.size} />;
+    const title = <TitleScreen info={v.title} media={media} pending={v.pending} onNew={actions.newGame} onContinue={actions.continueGame} onDev={DEV_MODE ? actions.devStart : undefined} heroPx={Math.max(2, Math.round(2 * v.layout.scale))} bodyPx={v.layout.heightPx - Math.round(INFO_BAR_PX * v.layout.uiScale)} size={v.layout.size} />;
     // 주인공 · 스타팅을 고르다 패널이 낮아져도 고르던 것이 그대로 — 타이틀은 숨겨 둔 채로 둠 (#298)
     if (v.layout.tooSmall) {
       return (
@@ -106,6 +116,12 @@ function Screens({ v, media, actions }: { v: ViewState; media: string; actions: 
       <>
         <StageScreen state={v.state} layout={v.layout} widthPx={v.widthPx} media={media} onInput={actions.input} onOpen={actions.open} live={v.live && !v.overlay} covered={v.overlay !== null} />
         {v.overlay && <OverlayView o={v.overlay} state={v.state} media={media} actions={actions} />}
+        {/* 개발 모드 (임시) — 늘 "개발 · 저장 안 됨" (누르면 개발 메뉴 · D) */}
+        {v.state.runtime.dev && (
+          <button type="button" class="pg-dev-badge" onClick={() => actions.open({ kind: 'dev' })} title="개발 모드 (임시) — 저장 안 됨, 나가면 사라져요 · D = 개발 메뉴">
+            개발 · 저장 안 됨
+          </button>
+        )}
       </>
     );
   }
@@ -124,6 +140,8 @@ function OverlayView({ o, state, media, actions }: { o: Overlay; state: GameStat
       return <BagPanel save={save} media={media} onInput={actions.input} onClose={actions.close} />;
     case 'settings':
       return <SettingsPanel save={save} onInput={actions.input} onExit={actions.exit} onClose={actions.close} />;
+    case 'dev':
+      return <DevPanel state={state} media={media} onDev={actions.dev} onEnd={actions.devEnd} onClose={actions.close} />;
     case 'shop':
       return (
         <div class="pg-overlay-field">

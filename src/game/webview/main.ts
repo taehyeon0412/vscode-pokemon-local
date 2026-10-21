@@ -3,6 +3,7 @@
  * 메시지 · 보임/안 보임 · 그리기 박자를 세션에 잇고, 화면(Preact)을 #pokemon-game 에 그린다.
  */
 import { h, render } from 'preact';
+import { TIMING } from '../core/balance';
 import { canHeal, canOpenMenus, teamScale } from '../core/engine';
 import { teamHealthy } from '../core/rules/bag';
 import { STAGE_IDS } from '../core/save';
@@ -18,8 +19,13 @@ import { Store } from '../ui/store';
 import { App, OVERLAY_INPUTS, overlayAllowed, type AppActions, type ViewState } from './app';
 import { FrameLoop } from './frame-loop';
 import './game.css';
+// 개발 모드 (임시) 모양 — 지울 때 이 줄
+import '../dev/dev.css';
 import { getGameConfig, getGamePort } from './vscode-api';
 import { WebviewSession } from './webview-session';
+import { devApply } from '../dev/actions';
+import { devClockFor, setDevClock } from '../dev/clock';
+import { setDevUlts } from '../dev/ult-pick';
 
 /** 게임 화면이 보이는 동안 body 에 붙임 — game.css 가 일반 모드 층을 숨기고, 일반 모드는 포켓몬을 멈춤 (main-bundle.js GAME-PATCH) */
 const GAME_ON_CLASS = 'pokemon-game-on';
@@ -62,6 +68,9 @@ if (!port) {
     (dt) => {
       // 접힌 상태 (150px 아래) 면 그리지 않음 — 게임은 확장이 맡음 (sync)
       if (store.get().layout.tooSmall) return;
+      // 개발 모드 (임시) — 전투 느리게 · 멈춤 (웹뷰 시계) · 고른 필살기
+      setDevClock(devClockFor(session.current, true));
+      setDevUlts(session.current?.runtime.dev?.ults);
       session.frame(dt);
       // 판이 떠 있는 동안은 게임이 멈춤 — 판에서 누른 것은 input 이 바로 그림 (초당 30번 열쇠 계산을 쉼)
       if (store.get().overlay) return;
@@ -110,6 +119,10 @@ if (!port) {
   });
 
   store.subscribe(() => document.body.classList.toggle(GAME_ON_CLASS, store.get().screen !== 'none'));
+  // 개발 모드 (임시) — 게임 화면을 떠나면 (일반 모드 · 타이틀) 시계를 그대로 (일반 모드 포켓몬이 느려지거나 멈추지 않게)
+  store.subscribe(() => {
+    if (store.get().screen !== 'game') setDevClock(1);
+  });
 
   const actions: AppActions = {
     newGame: (choice) => {
@@ -145,6 +158,30 @@ if (!port) {
     close: () => {
       const o = store.get().overlay;
       store.set({ overlay: o?.kind === 'team' && o.back ? { kind: o.back } : null });
+    },
+    // 개발 모드 (임시, gdd 8장 · S02 ④) — 타이틀에서 들어가기 · 끝내기 (타이틀로) · 개발 메뉴 (한 줄 알림은 정보줄 알림 자리 toast)
+    devStart: () => {
+      setPending(true);
+      session.devStart();
+    },
+    devEnd: () => {
+      setPending(true);
+      store.set({ overlay: null });
+      setDevClock(1);
+      session.devEnd();
+    },
+    dev: (action) => {
+      let say = '';
+      const changed = session.devChange((s) => {
+        const r = devApply(s, action);
+        say = r.say;
+        return say ? { ...r.state, runtime: { ...r.state.runtime, toast: { text: `개발 — ${say}`, ms: TIMING.toastMs } } } : r.state;
+      });
+      if (!changed) return;
+      setDevClock(devClockFor(session.current, true));
+      // 장면을 바꾸면 판을 닫음 (바로 그 장면을 보게)
+      const close = action.kind === 'scene';
+      store.set({ state: session.current, ...(close ? { overlay: null } : {}) });
     },
     crashed: (e) => {
       loop.stop();
@@ -223,6 +260,13 @@ if (!port) {
         else if (cur.save.location.screen === 'stage') actions.input({ kind: 'fast-walk', on: cur.save.settings.fastWalk !== true });
         return;
       }
+    }
+    // D = 개발 메뉴 (개발 모드 (임시) 가 켜져 있을 때 — 전투 중에도) · 열려 있으면 닫기
+    if (e.code === 'KeyD' && !(e.ctrlKey || e.metaKey || e.altKey) && session.current?.runtime.dev) {
+      e.preventDefault();
+      if (overlay?.kind === 'dev') actions.close();
+      else actions.open({ kind: 'dev' });
+      return;
     }
     // A = 자동 전투 켜고 끄기 (2026-10-21 ideas #116 — 정보줄 · 전투의 자동 전투 칸과 같음, 판이 없을 때)
     if (!overlay && e.code === 'KeyA' && !(e.ctrlKey || e.metaKey || e.altKey)) {

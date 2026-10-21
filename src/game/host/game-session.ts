@@ -22,6 +22,8 @@ import type { TeamSave } from './team-out';
 import type { WindowLease } from './window-lease';
 import { stageCode } from '../core/rules/stage';
 import { speciesOf } from '../data';
+import { devDemoSave, devState } from '../dev/demo';
+import { DEV_MODE } from '../dev/runtime';
 
 /** 일반 모드로 갈 때 상태줄 "저장했어요" 를 보여 주는 시간 (ms, 2026-10-21 ideas #8) */
 const SAVED_STATUS_MS = 2000;
@@ -102,6 +104,8 @@ export class GameSession {
   private finalWait: (() => void) | null = null;
   /** 타이틀에서 다른 창이 게임을 끝냈는지 지켜봄 */
   private busyWatch: ReturnType<typeof setInterval> | null = null;
+  /** 개발 모드 (임시, gdd 8장 · S02 ④) — 저장하지 않는 게임: 진짜 세이브는 읽기만, 이 동안은 어디서도 쓰지 않음 (자동저장 · 나갈 때 · 끌 때). 나가면 사라짐 */
+  private dev = false;
   private readonly runner: HeadlessRunner;
   readonly stats: SessionStats = { boots: 0, titles: 0, accepted: 0, stale: 0, rejected: 0, headlessSteps: 0 };
 
@@ -172,7 +176,7 @@ export class GameSession {
         if (this.owner === 'webview' && message.epoch === this.epoch) this.notify(message.notice, true);
         return;
       case 'save-now':
-        if (this.accept(message.epoch, message.state) && this.state) void this.deps.store.saveNow(this.state.save);
+        if (this.accept(message.epoch, message.state) && this.state) this.persist(this.state.save, true);
         return;
       case 'hidden': {
         // 🎮 · 🏠 로 나가는 중에 달라고 한 마지막 상태 — 받기만 하고 나가기를 이어 감
@@ -213,6 +217,12 @@ export class GameSession {
         return;
       case 'title-continue':
         if (this.mode === 'title') void this.continueFromTitle();
+        return;
+      case 'title-dev':
+        if (this.mode === 'title' && DEV_MODE) void this.serial(() => this.enterDev());
+        return;
+      case 'dev-end':
+        if (this.mode === 'game' && this.dev) void this.serial(() => this.endDev());
         return;
       case 'exit':
         // 게임 중이면 웹뷰가 들고 있던 마지막 상태를 받고 나감 (S02 ③ · S06 ⑪ — 모드 전환은 바로 저장)
@@ -291,7 +301,7 @@ export class GameSession {
   changeSave(change: (save: Save) => Save): boolean {
     if (this.mode !== 'game' || !this.state) return false;
     this.state = { ...this.state, save: change(this.state.save) };
-    this.deps.store.set(this.state.save);
+    this.persist(this.state.save);
     if (this.owner === 'webview') this.handToWebview();
     else this.updateRunner();
     return true;
@@ -309,7 +319,7 @@ export class GameSession {
   /** S01 ② 📦 꺼내기 — 세이브를 읽기만 (다른 창이 바꿨을 수 있어 파일에서 다시) · 게임 중이면 지금 상태. 줄에 섬 (들어가기 · 나가기와 겹치지 않게) */
   readSaveForTeam(): Promise<TeamSave> {
     return this.serial(async () => {
-      if (this.mode === 'game') return this.state ? { kind: 'ok', save: this.state.save } : { kind: 'none' };
+      if (this.mode === 'game' && !this.dev) return this.state ? { kind: 'ok', save: this.state.save } : { kind: 'none' };
       // 읽기만 — 세션 상태 · 저장소를 건드리지 않음 (줄을 서는 건 게임에서 나올 때 마지막 저장이 끝난 뒤에 읽으려고)
       const r = this.deps.store.peek();
       return r.kind === 'ok' ? { kind: 'ok', save: r.save } : { kind: r.kind };
@@ -331,7 +341,7 @@ export class GameSession {
     this.stopBusyWatch();
     this.finalWait?.();
     this.runner.stop();
-    if (this.state && this.mode === 'game') this.deps.store.set(this.state.save);
+    if (this.state && this.mode === 'game') this.persist(this.state.save);
     const ok = this.deps.store.dispose();
     this.deps.lease?.release();
     return ok;
@@ -528,6 +538,17 @@ export class GameSession {
       return;
     }
     if (this.mode !== 'game') return;
+    if (this.dev) {
+      // 개발 모드 — 저장 없이 나감 (한 것은 사라짐), 다음엔 진짜 세이브로
+      this.runner.stop();
+      this.setMode('normal');
+      this.owner = 'none';
+      this.epoch++;
+      this.handoverEpoch = null;
+      this.post({ type: 'stop' });
+      await this.leaveDev('일반 모드로');
+      return;
+    }
     // 이미 잠겨서 나가는 것이면 (onStoreLocked) 알림은 거기서 했음
     const lockedBefore = this.deps.store.lockedReason !== null;
     if (options.askWebview) await this.collectFinalState();
@@ -616,6 +637,51 @@ export class GameSession {
     if (this.state && this.state.runtime.headless !== on) this.state = { ...this.state, runtime: { ...this.state.runtime, headless: on } };
   }
 
+  /** 저장 — 바로 (now) 또는 5초 안에. 개발 모드 (임시) 는 아무 데도 쓰지 않음 */
+  private persist(save: Save, now = false): void {
+    if (this.dev) return;
+    if (now) void this.deps.store.saveNow(save);
+    else this.deps.store.set(save);
+  }
+
+  /** 개발 모드로 (타이틀 S02 ④) — 진짜 세이브를 읽기만 (없으면 시연 팀), 창 잠금 · 쓰기 없이 게임으로. serial 안에서만 */
+  private async enterDev(): Promise<void> {
+    await this.loading;
+    if (this.mode !== 'title') return;
+    const r = this.deps.store.peek();
+    const real = r.kind === 'ok' && r.save.party.length > 0 && r.save.location.screen !== 'title' ? r.save : null;
+    const save = real ?? devDemoSave(this.deps.now(), this.deps.newSeed());
+    this.dev = true;
+    this.state = devState(createGameState(save, this.deps.newSeed()));
+    this.setMode('game');
+    this.deps.log(`개발 모드로 (저장 안 함 · ${real ? '지금 진행' : '시연 팀'})`);
+    // 웹뷰에 아직 game.js 가 없으면 boot.js 가 불러오고, 이미 있으면 game.js 가 ready 로 답함
+    this.post({ type: 'load' });
+  }
+
+  /** 개발 모드 끝내기 (개발 메뉴) — 저장 없이 타이틀로. serial 안에서만 */
+  private async endDev(): Promise<void> {
+    this.runner.stop();
+    this.owner = 'none';
+    this.epoch++;
+    this.handoverEpoch = null;
+    this.setMode('title');
+    await this.leaveDev('타이틀로');
+    await this.postTitle();
+  }
+
+  /** 개발 모드에서 나옴 — 한 것을 버리고 진짜 세이브를 다시 읽어 둠 (읽기만) */
+  private async leaveDev(to: string): Promise<void> {
+    this.dev = false;
+    this.deps.log(`개발 모드 끝 → ${to} (저장 안 함)`);
+    await this.init({ readOnly: true });
+  }
+
+  /** 개발 모드 (임시) 인지 — 테스트 · 기록 */
+  get devMode(): boolean {
+    return this.dev;
+  }
+
   private notify(notice: GameNotice, away = false): void {
     if (!this.state?.save.settings.notifications) return;
     const text = noticeText(notice, this.webviewCollapsed, away);
@@ -658,9 +724,12 @@ export class GameSession {
     if (checked.problems.length > 0) this.deps.log(`웹뷰가 보낸 상태를 고침: ${checked.problems.slice(0, 3).join(' / ')}`);
     // 배속은 확장 쪽 값이 기준 (개발 창 빨리 감기 — 웹뷰가 보낸 값은 믿지 않음)
     const speed = this.state?.runtime.speed ?? 1;
-    this.state = { save: checked.save, runtime: { ...readRuntime(state.runtime, this.deps.newSeed()), speed, headless: this.owner === 'host' } };
+    // 개발 값은 개발 모드일 때만 (웹뷰가 보낸 값으로 개발 모드를 켜거나 끄지 못하게)
+    const { dev, ...runtime } = readRuntime(state.runtime, this.deps.newSeed());
+    this.state = { save: checked.save, runtime: { ...runtime, speed, headless: this.owner === 'host' } };
+    if (this.dev) this.state = devState({ ...this.state, runtime: { ...this.state.runtime, ...(dev ? { dev } : {}) } });
     this.stats.accepted++;
-    this.deps.store.set(this.state.save);
+    this.persist(this.state.save);
     return true;
   }
 
@@ -682,8 +751,7 @@ export class GameSession {
     if (r.steps > 0) {
       this.stats.headlessSteps += r.steps;
       // 전투 끝 등은 바로, 나머지는 5초 안에 (mvp-spec 3.1)
-      if (r.saves.length > 0) void this.deps.store.saveNow(this.state.save);
-      else this.deps.store.set(this.state.save);
+      this.persist(this.state.save, r.saves.length > 0);
     }
     for (const n of r.notices) this.notify(n);
     if (isWaitingForInput(this.state)) this.runner.stop();

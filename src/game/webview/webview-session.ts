@@ -59,6 +59,16 @@ export class WebviewSession {
     this.deps.post({ command: GAME_COMMAND, type: 'title-continue' });
   }
 
+  /** 개발 모드 (임시, gdd 8장) — 타이틀에서 들어가기 · 끝내기 (확장이 타이틀을 다시 보냄) */
+  devStart(): void {
+    this.deps.post({ command: GAME_COMMAND, type: 'title-dev' });
+  }
+
+  devEnd(): void {
+    this.epoch = null;
+    this.deps.post({ command: GAME_COMMAND, type: 'dev-end' });
+  }
+
   /** 일반 모드로 (S02 ③ · S06 ⑪) — 게임 중이면 마지막 상태를 같이 */
   exit(): void {
     const running = this.epoch !== null && this.state !== null;
@@ -172,6 +182,16 @@ export class WebviewSession {
   input(input: GameInput): boolean {
     if (this.epoch === null || !this.state) return false;
     const next = applyInput(this.state, input);
+    if (next === this.state) return false;
+    this.state = next;
+    this.dirty = true;
+    return true;
+  }
+
+  /** 개발 모드 (임시, gdd 8장) — 개발 메뉴가 상태를 바로 바꿈 (입력처럼, 맡고 있을 때만). 바꿨으면 true */
+  devChange(change: (state: GameState) => GameState): boolean {
+    if (this.epoch === null || !this.state) return false;
+    const next = change(this.state);
     if (next === this.state) return false;
     this.state = next;
     this.dirty = true;

@@ -282,6 +282,9 @@
     }
     // bt=<ms> — 전투 시간 (0 이면 막 시작 — 볼 던지기 · 화면 닦기 사진, 2026-10-20)
     if (q.get('bt') && runtime.stage && runtime.stage.phase === 'battle') runtime.stage.battle.t = Number(q.get('bt'));
+    // 개발 모드 (임시) — dev=1 이면 처음부터 개발 모드 · 타이틀의 개발 모드 줄 (title-dev) 도 흉내
+    const devRt = { team: true, walk: 1, battle: 1, pause: false, foes: [], ults: {} };
+    if (q.get('dev') === '1') runtime.dev = devRt;
     let epoch = 0;
     const toWebview = (m) => setTimeout(() => window.postMessage({ command: 'game', ...m }, '*'), 0);
     const start = (s) => toWebview({ type: 'start', epoch: ++epoch, state: { save: s, runtime } });
@@ -301,6 +304,14 @@
             if (m.type === 'ready') return screen === 'game' ? start(save) : toWebview({ type: 'title', info });
             if (m.type === 'title-new') return start(m.save);
             if (m.type === 'title-continue') return start(save);
+            if (m.type === 'title-dev') {
+                runtime.dev = devRt;
+                return start(save);
+            }
+            if (m.type === 'dev-end') {
+                delete runtime.dev;
+                return toWebview({ type: 'title', info });
+            }
             if (m.type === 'exit') return toWebview({ type: 'stop' });
         },
     };
@@ -385,7 +396,7 @@
     const click = q.get('click');
     if (click) {
         // map|team|bag|settings = 오른쪽 위 버튼 (S07 · S18 · S19 · S20) · profile = 상대 포켓몬 누르기 (S21) · item = 가방에서 상처약 고르기
-        const label = { new: '새로 하기', continue: '이어 하기', exit: '일반 모드', skills: '3 스킬', items: '4 아이템', map: '🗺', team: '◓', bag: '🎒', settings: '⚙', item: '상처약' }[click];
+        const label = { new: '새로 하기', continue: '이어 하기', exit: '일반 모드', skills: '3 스킬', items: '4 아이템', map: '🗺', team: '◓', bag: '🎒', settings: '⚙', item: '상처약', dev: '개발 · 저장 안 됨', devtitle: '개발 모드 (임시)' }[click];
         const alt = { skills: '3✨' }[click];
         // game.js 를 받아 화면이 그려질 때까지 기다렸다가
         const tryClick = (left) => {

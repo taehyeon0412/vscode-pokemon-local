@@ -15,6 +15,7 @@ import { pokemonFx, type FxActor, type FxImpact, type FxMove } from '../fx/bridg
 import { battleAnimKey, FX_HOLD_DUEL_MAX_MS, FX_HOLD_ULT_MAX_MS, holdFx, releaseFx } from '../fx/hold';
 import { shotHitAt } from '../fx/shot-hit';
 import { clearImpact, impactOf, setImpact, setUltSkip } from '../fx/parry';
+import { devUltOf } from '../../../dev/ult-pick';
 
 /** 쏘는 기술을 쓰기 시작하는 때 — 몸을 젖혔다 내미는 동안 (일반 모드 useSignature 의 120ms) */
 const CAST_DELAY_MS = 120;
@@ -323,7 +324,9 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
           // 같은 전투에서 이 포켓몬이 필살기를 이미 썼으면 (두 번째부터 — 필살기가 여럿이면 다른 것이어도) 컷인 없이 짧게. 컷인 띠는 포켓몬 얼굴이라 포켓몬 기준
           const seenKey = `${side}:${b[side].uid}:${b[side].form}`;
           const quick = riposte || seenUlts.current.has(seenKey);
-          const total = fx.ult && src && dst ? fx.ult(src, dst, onHit, learnedNames(b, side), { quick, ...(riposte ? { sub: `${src?.name ?? ''}의 반격!` } : {}) }) : 0;
+          // 개발 모드 (임시) 에서 고른 필살기
+          const pick = devUltOf(b[side].uid);
+          const total = fx.ult && src && dst ? fx.ult(src, dst, onHit, learnedNames(b, side), { quick, ...(riposte ? { sub: `${src?.name ?? ''}의 반격!` } : {}), ...(pick ? { pick } : {}) }) : 0;
           if (total > 0) {
             // 반격기로 본 것은 "본 필살기" 로 안 셈 (진짜 필살기는 처음엔 컷인까지) · 반격기는 금색 "반격!" (그림이 준비된 뒤라 여기서)
             if (!riposte) seenUlts.current.add(seenKey);

@@ -956,3 +956,85 @@ describe('📦 꺼내기 연결 (단계 10)', () => {
     expect(store.lockedReason).toBeNull();
   });
 });
+
+describe('개발 모드 (임시, gdd 8장 · S02 ④) — 저장하지 않음', () => {
+  /** 타이틀 → 개발 모드 → 웹뷰 준비 → start */
+  async function enterDev(save?: Save) {
+    await setup(save, { lease: true });
+    await session.openTitle();
+    session.handleMessage(msg({ type: 'title-dev' }));
+    await vi.advanceTimersByTimeAsync(0);
+    session.handleMessage(msg({ type: 'ready' }));
+    const start = view.last('start');
+    if (!start) throw new Error('start 가 안 옴');
+    return start;
+  }
+
+  it('진짜 세이브를 불러와 시작 · 팀 · 돈 · 레벨을 바꾸고 웹뷰 상태 · 바로 저장 · 안 볼 때 계산 · 나가기 · 끄기를 해도 세이브 파일이 그대로', async () => {
+    const real = autoSave(5000);
+    const start = await enterDev(real);
+    expect(session.devMode).toBe(true);
+    expect(start.state.runtime.dev).toBeTruthy();
+    expect(start.state.save.money).toBe(real.money);
+    const before = JSON.stringify(storage.read());
+    const writes = storage.writes;
+    const lead = start.state.save.party[0]!;
+    const changed: GameState = {
+      ...start.state,
+      save: { ...start.state.save, money: 999_999, monsters: { ...start.state.save.monsters, [lead]: { ...start.state.save.monsters[lead]!, level: 99 } } },
+    };
+    session.handleMessage(msg({ type: 'state', epoch: start.epoch, state: changed }));
+    session.handleMessage(msg({ type: 'save-now', epoch: start.epoch, reason: 'battle-end', state: changed }));
+    expect(snap().state?.save.money).toBe(999_999);
+    // 패널을 접어도 이어짐 (자동 전투 — 확장이 계산) · 그래도 안 씀
+    view.visible = false;
+    session.onVisibilityChanged(false);
+    runHost(10_000);
+    expect(snap().state?.save.money).toBe(999_999);
+    vi.advanceTimersByTime(TIMING.autosaveCheckMs * 3);
+    await exitNow();
+    expect(snap().mode).toBe('normal');
+    expect(session.devMode).toBe(false);
+    session.dispose();
+    expect(storage.writes).toBe(writes);
+    expect(JSON.stringify(storage.read())).toBe(before);
+    expect(archive.items).toHaveLength(0);
+    expect(warns).toEqual([]);
+  });
+
+  it('세이브가 없으면 시연 팀 (3마리) · 웹뷰가 개발 값을 지워 보내도 개발 모드 그대로', async () => {
+    const start = await enterDev();
+    expect(start.state.save.party).toHaveLength(3);
+    const { dev: _dev, ...runtime } = start.state.runtime;
+    session.handleMessage(msg({ type: 'state', epoch: start.epoch, state: { ...start.state, runtime } }));
+    expect(snap().state?.runtime.dev).toBeTruthy();
+    expect(storage.read()).toBeUndefined();
+  });
+
+  it('개발 모드 끝내기 → 타이틀 (진짜 세이브 요약) · 그다음 이어 하기는 진짜 진행 · 일반 저장은 그대로 됨', async () => {
+    const real = autoSave(5000);
+    const start = await enterDev(real);
+    session.handleMessage(msg({ type: 'state', epoch: start.epoch, state: { ...start.state, save: { ...start.state.save, money: 1 } } }));
+    session.handleMessage(msg({ type: 'dev-end' }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(snap().mode).toBe('title');
+    expect(view.last('title')?.info.summary?.money).toBe(real.money);
+    session.handleMessage(msg({ type: 'title-continue' }));
+    await vi.advanceTimersByTimeAsync(0);
+    session.handleMessage(msg({ type: 'ready' }));
+    const again = view.last('start')!;
+    expect(again.state.runtime.dev).toBeUndefined();
+    expect(again.state.save.money).toBe(real.money);
+    // 일반 플레이 — 저장됨
+    session.handleMessage(msg({ type: 'save-now', epoch: again.epoch, reason: 'battle-end', state: { ...again.state, save: { ...again.state.save, money: 4321 } } }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(stored()?.money).toBe(4321);
+  });
+
+  it('웹뷰가 보낸 개발 값으로는 일반 게임이 개발 모드가 되지 않음', async () => {
+    const start = await enterAndStart(sampleSave());
+    session.handleMessage(msg({ type: 'state', epoch: start.epoch, state: { ...start.state, runtime: { ...start.state.runtime, dev: { team: true, walk: 10, battle: 1, pause: false, foes: [], ults: {} } } } }));
+    expect(snap().state?.runtime.dev).toBeUndefined();
+    expect(session.devMode).toBe(false);
+  });
+});
