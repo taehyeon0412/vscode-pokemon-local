@@ -445,6 +445,15 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
             <GymTip lock={teamLock(state)} />
           </FirstTip>
         )}
+        {/* 3:3 처음 안내 (기획 R9 ⑤ — 2026-10-22 태현 님 A "추천안으로") — 3:3 을 고를 수 있는 만남이 처음 나올 때 4초 · 아래 가운데 (위는 "승부다!" 상자 — 1:1 / 3:3 버튼을 가리지 않게) · 보는 동안만 셈 */}
+        {teamMeetOn(state) && teamLock(state) === null && !(save.tips ?? []).includes('team-meet') && (
+          <FirstTip key="team-meet" ms={4000} className="pg-first-tip-low" paused={away} onSeen={() => onInput({ kind: 'tip-seen', id: 'team-meet' })}>
+            <span class="pg-tip-part">3:3 이 열렸어요 —</span>{' '}
+            <span class="pg-tip-part">
+              셋이 함께 싸우고 돈 ×{BALANCE.team.moneyScale} · <KeyCap k="3" />
+            </span>
+          </FirstTip>
+        )}
         {/* 필살기 안내 = 고르는 때 · 게이지 차는 때만 (원 · 연출 중엔 원을 가려서) · 자동 전투면 안 띄움 (차자마자 저절로 써서 한 장면만 번쩍이던 것) */}
         {battle && (battle.phase === 'choose' || battle.phase === 'run') && !save.settings.autoBattle && battle.me.ult >= 1 && !(save.tips ?? []).includes('ult') && (
           <FirstTip key="ult" ms={3000} className="pg-first-tip-low" onSeen={() => onInput({ kind: 'tip-seen', id: 'ult' })}>
