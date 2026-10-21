@@ -8,7 +8,8 @@ import { dailyView, type GameInput, type GameState } from '../../../core/engine'
 import type { StageId } from '../../../core/save';
 import { Button } from '../../../ui/Button';
 import { Icon } from '../../../ui/Icon';
-import { mapView } from '../model';
+import { formatPlayTime } from '../../../ui/format';
+import { ITEM_ICON, mapView } from '../model';
 import { Panel, Row } from './Panel';
 
 export interface MapPanelProps {
@@ -75,8 +76,19 @@ export function MapPanel({ state, swap, midStage, onInput, onTeam, onClose }: Ma
               <span class="pg-daily-n">
                 {Math.min(g.have, g.need)}/{g.need}
               </span>
-              {/* 보상이라는 뜻 + 개수는 × ("몬스터볼 2" 가 가진 수로 읽히던 것 — UX 밤 점검 · orders #51) */}
-              <span class="pg-daily-reward">보상 {g.reward.replace(/ (\d+)$/, ' ×$1')}</span>
+              {/* 보상 = 물건 아이콘 + ×개수 (받은 것 = 아이콘 + 숫자 — 6장, 글 "보상 몬스터볼 ×2" 는 title · 240 에서 줄이 꺾이던 것, 아트 디렉터 새 화면 한 바퀴) */}
+              {(() => {
+                const raw = state.save.daily?.goals[i];
+                return raw ? (
+                  // 다 한 줄 = 받음 ✓ (다 하는 순간 줌 — "보상" 이 아직 받을 것처럼 읽히던 것, UX 리뷰어)
+                  <span class="pg-daily-reward" title={`${raw.done ? '받음' : '보상'} ${g.reward.replace(/ (\d+)$/, ' ×$1')}`}>
+                    <Icon name={ITEM_ICON[raw.reward]} />
+                    {raw.done ? `+${raw.rewardN} ✓` : `×${raw.rewardN}`}
+                  </span>
+                ) : (
+                  <span class="pg-daily-reward">보상 {g.reward.replace(/ (\d+)$/, ' ×$1')}</span>
+                );
+              })()}
             </span>
           ))}
         </div>
@@ -84,7 +96,8 @@ export function MapPanel({ state, swap, midStage, onInput, onTeam, onClose }: Ma
       {/* 기록 (U12 [제안]) = 판 아래 흐린 한 줄 */}
       {daily && rec && (
         <div class="pg-daily-rec">
-          이긴 전투 {rec.wins} · 잡은 포켓몬 {rec.catches} · 걸은 길 {(rec.walked / 10000).toFixed(1)} 스테이지
+          {/* 플레이 시간까지 (gdd U12 — 명세 검사관 #53) */}
+          이긴 전투 {rec.wins} · 잡은 포켓몬 {rec.catches} · 걸은 길 {(rec.walked / 10000).toFixed(1)} 스테이지 · 플레이 {formatPlayTime(state.save.playTimeMs)}
         </div>
       )}
       {confirm && (

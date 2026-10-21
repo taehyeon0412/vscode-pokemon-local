@@ -124,9 +124,10 @@ export const REGIONS: Readonly<Record<RegionId, RegionDef>> = {
     name: '해변',
     badge: 'beach',
     stages: [
-      { id: 'beach-1', name: '반짝 모래길', icon: 'sparkle', trainers: 2 },
-      { id: 'beach-2', name: '갯바위 해안', icon: 'pebbles', trainers: 3 },
-      { id: 'beach-3', name: '등대 곶', icon: 'ripple', trainers: 3 },
+      // 아이콘 = 스테이지 아이콘 (8 × 8 — 디자인팀 icons.ts, 길 위 흔적 그림을 쓰던 것)
+      { id: 'beach-1', name: '반짝 모래길', icon: 'beachSand', trainers: 2 },
+      { id: 'beach-2', name: '갯바위 해안', icon: 'beachRock', trainers: 3 },
+      { id: 'beach-3', name: '등대 곶', icon: 'lighthouse', trainers: 3 },
     ],
     wild: {
       common: ['water'],

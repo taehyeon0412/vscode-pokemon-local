@@ -114,6 +114,7 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
     void document.fonts?.ready.then(() => {
       if (!alive) return;
       fitRef.current.n = 0;
+      setMainTiny(false);
       refit((v) => v + 1);
     });
     return () => {
@@ -121,6 +122,11 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
     };
   }, []);
   const rowLayer = useRef<HTMLSpanElement>(null);
+  // 처음 메뉴 줄 (가로) 도 넘치면 한 단계 — 번호 없는 짧은 낱말 (240 의 그것). 줄이기 단계는 아래 줄만 재서, 300 ~ 320 · 맥 글자에서 "1 …" "4 아…" 로 다섯 버튼이 다 잘리던 것 (UX 리뷰어 1px 훑기 — U4)
+  //   폭이 바뀌거나 글꼴이 들어오면 다시 잼 (fitKey 의 win · fonts.ready)
+  const mainLayer = useRef<HTMLSpanElement>(null);
+  const [mainTiny, setMainTiny] = useState(false);
+  useEffect(() => setMainTiny(false), [win, compact]);
   const lastBalls = b.phase === 'last' ? BALLS.filter((ball) => itemLeft(b, save, ball) > 0) : [];
   const sameTier = lastBalls.length > 1 && lastBalls.every((ball) => ballTier(b, ball) === ballTier(b, lastBalls[0]!));
   const fitSteps = b.phase === 'last' ? (sameTier ? FIT_LAST_SAME : FIT_LAST) : vertical !== undefined ? FIT_SIDE : FIT_ROW;
@@ -138,6 +144,11 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
       fitRef.current.n += 1;
       refit((v) => v + 1);
     }
+  });
+  useLayoutEffect(() => {
+    const el = mainLayer.current;
+    if (!el || mainTiny || compact === 'tiny' || vertical !== undefined || el.clientWidth === 0) return;
+    if ([...el.querySelectorAll<HTMLElement>('.pg-button')].some(textOver)) setMainTiny(true);
   });
   // 커서 (Sea of Stars 1f — 고를 줄이 늘 보임: ▸ + 밝은 줄, 아트 디렉터) · ↑ ↓ 로 옮기고 Enter 로 고름 · 페이지 · 차례가 바뀌면 첫 줄로
   const [cursor, setCursor] = useState(0);
@@ -562,8 +573,8 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
   const fitCls = steps.map((s) => ` pg-fit-${s}`).join('');
   const stack = (
     <span class={`pg-bmenu-items pg-stack${fitCls}`}>
-      <span class={onMain ? 'pg-layer' : gone ? 'pg-layer pg-hidden pg-gone' : 'pg-layer pg-hidden'} aria-hidden={!onMain}>
-        {renderItems(page === 'main' ? items : menuItems(b, save, 'main', compact))}
+      <span ref={mainLayer} class={onMain ? 'pg-layer' : gone ? 'pg-layer pg-hidden pg-gone' : 'pg-layer pg-hidden'} aria-hidden={!onMain}>
+        {renderItems(page === 'main' && !mainTiny ? items : menuItems(b, save, 'main', mainTiny ? 'tiny' : compact), page === 'main')}
       </span>
       {row && (
         <span ref={rowLayer} class={counter || ultCounter ? 'pg-layer pg-counter' : 'pg-layer'}>

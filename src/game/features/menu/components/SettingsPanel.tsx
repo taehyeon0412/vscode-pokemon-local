@@ -31,7 +31,8 @@ export function SettingsPanel({ save, onInput, onExit, onClose, dev = false, onS
         </Button>
         <Button secondary extraClass={save.settings.skipCaughtLast === true ? 'pg-picked' : undefined} onClick={() => onInput({ kind: 'skip-caught-last', on: save.settings.skipCaughtLast !== true })} title="잡은 포켓몬은 마지막 기회 건너뛰기 — 이미 잡은 종을 쓰러뜨리면 볼 고르기 없이 지나가요">
           {/* "잡은 종 마지막 기회 볼 건너뛰기" = 설명서 같은 글 → 짧게, 뜻은 title (orders #51) */}
-          {save.settings.skipCaughtLast === true ? '✓ 잡은 종 건너뛰기' : '잡은 종 건너뛰기'}
+          {/* "볼" 까지 (빠지면 잡은 종과의 전투를 건너뛰는 것처럼 읽히던 것 — UX 리뷰어) */}
+          {save.settings.skipCaughtLast === true ? '✓ 잡은 종 볼 건너뛰기' : '잡은 종 볼 건너뛰기'}
           <span class="pg-long">{save.settings.skipCaughtLast === true ? ' 켜짐' : ' 꺼짐'}</span>
         </Button>
         <Button secondary extraClass={save.settings.fastWalk === true ? 'pg-picked' : undefined} onClick={() => onInput({ kind: 'fast-walk', on: save.settings.fastWalk !== true })} title={`빨리 걷기 ×${BALANCE.fastWalkSpeed} — 흔적 · 트레이너 · 병원 · 아이템 · 부탁이 다가오면 보통 빠르기로 (정보줄 ▶▶ 와 같음)`}>

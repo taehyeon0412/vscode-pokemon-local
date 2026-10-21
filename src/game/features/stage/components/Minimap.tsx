@@ -8,7 +8,7 @@ export function Minimap({ stage, progress, facilities, gym, leftMs = null, team 
   const pct = Math.min(100, Math.floor(progress * 100));
   // 1분 아래는 "1분 안" (0분 남음이 되지 않게)
   const leftMin = leftMs !== null && leftMs > 0 ? Math.ceil(leftMs / 60_000) : null;
-  // 다음에 올 시설 — 막대가 짧으면 (120 아래) 이것만 (아이콘 16px 둘이 서로 · 내 위치와 겹치던 것, 아트 디렉터 밤 점검 · game.css 컨테이너 쿼리)
+  // 다음에 올 시설 — 막대가 짧으면 (160 아래) 이것만 (아이콘 16px 둘이 서로 · 내 위치와 겹치던 것, 아트 디렉터 밤 점검 · game.css 컨테이너 쿼리)
   const next = facilities.findIndex((f) => f.at > progress);
   return (
     <span class="pg-minimap">

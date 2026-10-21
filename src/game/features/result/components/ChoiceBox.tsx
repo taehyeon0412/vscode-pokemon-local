@@ -170,12 +170,15 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
           <span class="pg-ellipsis">어…? {view.name}의 모습이…!</span>
           {/* 마우스로도 (편집기에 포커스가 있으면 Space 가 코드에 들어감 — 선제공격과 같은 규칙) · 처음 0.8초는 엔진이 안 받음 */}
           {/* [Space 넘기기] · [Esc 진화 취소] — ▶▶ 아이콘만 · "멈추기" (잠깐 멈춤으로 읽혔는데 다음 레벨업까지 진화 취소) 이던 것 (UX 밤 점검 · orders #51) */}
+          {/* 두 버튼 = 한 묶음 (안 들어가면 묶음째 다음 줄 — [진화 취소] 만 혼자 가운데로 내려가 주 버튼처럼 보이던 것, UX 리뷰어) */}
+          <span class="pg-evolve-btns">
           <Button secondary onClick={() => onInput({ kind: 'evolve-skip' })} title="진화 연출 빨리 넘기기 (Space)">
             <KeyCap k="Space" /> 넘기기
           </Button>
           <Button secondary onClick={() => onInput({ kind: 'evolve-cancel', uid: view.monster.uid, to: view.to })} title="이번엔 진화하지 않아요 — 다음 레벨업 때 다시 (Esc)">
             <KeyCap k="Esc" /> 진화 취소
           </Button>
+          </span>
         </div>
       </div>
     );

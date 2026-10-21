@@ -4689,8 +4689,8 @@ body.vscode-high-contrast-light .pg-title-body {
   width: clamp(48px, 18vw, 240px);
   container-type: inline-size;
 }
-/* 짧은 막대 (120 아래) = 다음에 올 시설 하나만 (16px 아이콘 둘이 서로 · 빨간 내 위치와 겹치던 것 — 아트 디렉터 밤 점검) */
-@container (max-width: 119px) {
+/* 짧은 막대 (160 아래) = 다음에 올 시설 하나만 (16px 아이콘 둘이 서로 · 빨간 내 위치와 겹치던 것 — 아트 디렉터 밤 점검 · 해변 2-1 은 시설 사이가 짧아 130px 막대에서도 9px 로 붙음, 새 화면 한 바퀴) */
+@container (max-width: 159px) {
   .pg-mapicon.pg-mapicon-more {
     display: none;
   }
@@ -6426,11 +6426,15 @@ body.vscode-high-contrast-light .pg-hpblock {
 }
 
 /* 대기실 도전 버튼 끝 작은 칩 "3:3" / "1:1" (체육관 첫 알림 뒤 — gdd S16) · 앞 3px (0.25em 은 소수) · 못 하면 흐림 (.pg-button .pg-sub 가 .pg-dim 을 덮어 3:3 과 같던 것 — 픽셀 검사원 #27) */
+/* 칩 = 금 칠 위 키 칸과 같은 모양 (짙은 글 + 1px 짙은 칸) · 3:3 = 700 · 1:1 = 500 (예전 1:1 은 opacity .45 라 금 칠 위에서 대비 약 2:1 · 팔레트 밖 섞인 색 — 아트 디렉터 새 화면 한 바퀴) */
 .pg-button .pg-sub.pg-lobby-mode {
   margin-left: 3px;
+  padding: 0 2px;
+  border: 1px solid rgba(12, 16, 30, 0.45);
+  font-weight: 700;
 }
 .pg-button .pg-sub.pg-lobby-mode.pg-dim {
-  opacity: 0.45;
+  font-weight: 500;
 }
 /* 대기실 바닥 관장 이름표가 위 상자에 깔리면 숨김 (이름은 상자 첫 줄에 — 240 × 150 에서 글자 위가 잘리던 것, 픽셀 검사원 #27) */
 .pg-foe-trainer .pg-nametag.pg-tag-under {
@@ -6464,7 +6468,8 @@ body.vscode-high-contrast-light .pg-hpblock {
 /* 목표 = 격자 (칸 최소 220 — 넓으면 셋이 한 줄, 좁으면 한 칸씩) · 머리 줄은 한 줄 전체 (187 높이 넓은 패널에서 셋 중 하나만 보이고 1860 도 세로로만 쌓이던 것 — UX · 아트 디렉터 밤 점검) */
 .pg-daily {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  /* min(220px, 100%) — 240 에서 220 칸이 판 안쪽 (222) 보다 넓어 옆으로 6px 스크롤되던 것 (UX 리뷰어) */
+  grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
   column-gap: 12px;
   row-gap: 0;
   padding-top: 4px;
@@ -6499,14 +6504,22 @@ body.vscode-high-contrast-light .pg-hpblock {
 .pg-daily-goal.pg-on .pg-daily-label {
   color: var(--pg-sos-dim);
 }
+/* 하는 중 숫자 = 크림 · 다 한 줄만 금색 (판 하나에 금색이 다섯 — 지도의 본 일인 스테이지 칩보다 목표 줄이 먼저 보이던 것, 아트 디렉터 3장 "금색 = 고른 것") */
 .pg-daily-n {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  color: var(--pg-sos-ink);
+}
+.pg-daily-goal.pg-on .pg-daily-n {
   color: var(--pg-sos-gold);
 }
 .pg-daily-reward {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   font-size: 11px;
-  color: var(--pg-sos-dim);
+  font-weight: 700;
+  color: var(--pg-sos-ink);
 }
 .pg-daily-rec {
   margin-top: 4px;
@@ -6558,6 +6571,12 @@ body.vscode-high-contrast-light .pg-hpblock {
 }
 .pg-saveio-q .pg-dim {
   font-size: 12px;
+}
+/* 진화 두 버튼 = 한 묶음 */
+.pg-evolve-btns {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 6px;
 }
 .pg-saveio-note {
   flex-wrap: wrap;

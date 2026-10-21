@@ -68,7 +68,12 @@ export function SaveIoBox({ io, onAct }: { io: SaveIoState; onAct(kind: Act): vo
         {(io.ask.fixes || io.ask.lost) && (
           <span class="pg-line pg-saveio-note">
             {io.ask.fixes ? <span class="pg-dim">고친 곳 {io.ask.fixes}</span> : null}
-            {io.ask.lost ? <span class="pg-saveio-lost">포켓몬 {io.ask.lost}마리가 이 버전에 없어 빠져요</span> : null}
+            {/* 문장은 크림 · 빠지는 수만 빨강 (지울 때 규칙 — 6장, 문장 전체가 빨강이던 것 · 아트 디렉터) */}
+            {io.ask.lost ? (
+              <span>
+                포켓몬 <b class="pg-saveio-lost">{io.ask.lost}마리</b>가 이 버전에 없어 빠져요
+              </span>
+            ) : null}
           </span>
         )}
         {s && (
