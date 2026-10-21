@@ -46,9 +46,12 @@ describe('스테이지 길 (mvp-spec 3.2 · gdd 4.5 · 4.6)', () => {
     expect(spotBetween(l, first.at - 0.000001, 1)).toEqual(first);
   });
 
-  it('걷는 시간 15분 = 진행 100% (15분 → 20분 단계 11 → 15분 2026-10-19 밤 태현 님 "루즈해" + 빨리 걷기)', () => {
+  it('걷는 시간 12분 30초 = 진행 100% (15분 → 20분 단계 11 → 15분 2026-10-19 밤 "루즈해" → 12분 30초 2026-10-21 태현 님 "1.2배")', () => {
     expect(walkDelta(BALANCE.stageWalkMs)).toBeCloseTo(1);
-    expect(walkDelta(50) * (20 * 60 * 15)).toBeCloseTo(1);
+    // 50ms 걸음 × 20 × 60 × 12.5 = 12분 30초
+    expect(walkDelta(50) * (20 * 60 * 12.5)).toBeCloseTo(1);
+    // 빨리 걷기 = 기본의 2.5배 — 보이는 빠르기는 전 (48 × 3) 과 같은 144px/초
+    expect(BALANCE.fastWalkSpeed).toBe(2.5);
   });
 });
 
