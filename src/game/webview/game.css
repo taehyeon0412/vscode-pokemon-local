@@ -3227,6 +3227,10 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   border-top: 1px solid var(--vscode-editorWidget-border, #555);
 }
 /* 몸통 아래로 한 줄 넘게 더 있음 — 몸통 밑 따로 13px 줄 (개발 메뉴 "▼ 아래에 더" 와 같은 말 · 누르면 한 화면 아래로 — 몸통 위에 얹으면 마지막 줄을 가리고 밑 버튼이 눌리던 것, UX 리뷰어) */
+#pokemon-game .pg-panel-more {
+  width: auto;
+  min-width: 0;
+}
 .pg-panel-more {
   flex: none;
   align-self: flex-start;
@@ -3243,6 +3247,23 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 }
 .pg-panel-more:hover {
   color: var(--pg-sos-ink);
+}
+.pg-panel-more.pg-hidden-keep {
+  visibility: hidden;
+}
+/* 머리 줄 자리 (480 이상) — 아래 줄은 숨김 · 머리 줄 것은 ✕ 바로 왼쪽 */
+.pg-panel-more.pg-panel-more-head {
+  display: none;
+  align-self: center;
+  margin: 0 6px 0 auto;
+}
+@media (min-width: 480px) {
+  .pg-panel-more.pg-panel-more-head {
+    display: inline-block;
+  }
+  .pg-panel-more.pg-panel-more-foot {
+    display: none;
+  }
 }
 .pg-panel-head {
   flex: none;

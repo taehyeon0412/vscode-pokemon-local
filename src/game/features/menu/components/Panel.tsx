@@ -27,9 +27,14 @@ export function Panel({ icon, title, extra, onClose, closeLabel = '닫기', sub,
   //   몸통 위에 얹으면 마지막 줄 이름을 가리고 · 누르면 밑 버튼이 눌리던 것 (UX 리뷰어 — 상점에서 물건이 사짐) · 끝까지 내리면 사라짐 · 맨 아래 고정 줄 (foot) 이 있는 판은 그 줄이 맡음
   const body = useRef<HTMLDivElement>(null);
   const [more, setMore] = useState(false);
+  // 한 번 생긴 아래 줄은 판이 열려 있는 동안 자리를 지킴 (끝에서 글만 숨김 — 빠지면 몸통이 14px 길어지며 마지막 줄이 툭 내려가던 것, UX 리뷰어 U2)
+  const [kept, setKept] = useState(false);
   const check = () => {
     const el = body.current;
-    if (el) setMore(el.scrollHeight - (el.scrollTop + el.clientHeight) > 12);
+    if (!el) return;
+    const m = el.scrollHeight - (el.scrollTop + el.clientHeight) > 12;
+    setMore(m);
+    if (m) setKept(true);
   };
   const down = () => {
     const el = body.current;
@@ -64,6 +69,12 @@ export function Panel({ icon, title, extra, onClose, closeLabel = '닫기', sub,
         {icon && <Icon name={icon} />}
         <b class="pg-panel-title pg-ellipsis">{title}</b>
         {extra && <span class="pg-panel-extra pg-ellipsis">{extra}</span>}
+        {/* 넓으면 (480 이상) "▼ 더" 는 머리 줄 ✕ 왼쪽 — 세로 자리를 안 씀 (187 높이 지도에서 아래 줄이 목표 줄을 반쯤 자르던 것, UX 리뷰어) */}
+        {!foot && more && (
+          <button type="button" class="pg-panel-more pg-panel-more-head" onClick={down} title="아래로 (휠 · 끌기로도)">
+            ▼ 아래에 더
+          </button>
+        )}
         <Button secondary extraClass="pg-pin" onClick={onClose} title="Esc">
           {/* 아주 좁은 패널 (300px 아래) 은 ✕ 만 — 판 머리 줄에 탭 · 돈이 들어가게 (2026-10-21 상점 사기 · 팔기) */}
           ✕ <span class="pg-close-word">{closeLabel}</span>
@@ -74,8 +85,8 @@ export function Panel({ icon, title, extra, onClose, closeLabel = '닫기', sub,
         {children}
       </div>
       {foot && <div class="pg-panel-foot">{foot}</div>}
-      {!foot && more && (
-        <button type="button" class="pg-panel-more" onClick={down} title="아래로 (휠 · 끌기로도)">
+      {!foot && kept && (
+        <button type="button" class={`pg-panel-more pg-panel-more-foot${more ? '' : ' pg-hidden-keep'}`} onClick={down} title="아래로 (휠 · 끌기로도)" tabIndex={more ? 0 : -1}>
           ▼ 아래에 더
         </button>
       )}
