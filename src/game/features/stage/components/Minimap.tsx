@@ -8,6 +8,8 @@ export function Minimap({ stage, progress, facilities, gym, leftMs = null, team 
   const pct = Math.min(100, Math.floor(progress * 100));
   // 1분 아래는 "1분 안" (0분 남음이 되지 않게)
   const leftMin = leftMs !== null && leftMs > 0 ? Math.ceil(leftMs / 60_000) : null;
+  // 다음에 올 시설 — 막대가 짧으면 (120 아래) 이것만 (아이콘 16px 둘이 서로 · 내 위치와 겹치던 것, 아트 디렉터 밤 점검 · game.css 컨테이너 쿼리)
+  const next = facilities.findIndex((f) => f.at > progress);
   return (
     <span class="pg-minimap">
       <span class="pg-stage-name">
@@ -18,8 +20,8 @@ export function Minimap({ stage, progress, facilities, gym, leftMs = null, team 
       </span>
       <span class="pg-mapbar" title={`진행 ${pct}%${leftMin !== null ? ` · 약 ${leftMin}분 남음 (전투 · 부탁 빼고)` : ''}`}>
         <span class="pg-mapfill" style={{ width: `${progress * 100}%` }} />
-        {facilities.map((f) => (
-          <span key={`${f.kind}${f.at}`} class="pg-mapicon" style={{ left: `${f.at * 100}%` }} title={f.kind === 'hospital' ? '병원' : '상점'}>
+        {facilities.map((f, i) => (
+          <span key={`${f.kind}${f.at}`} class={i === next ? 'pg-mapicon pg-mapicon-next' : 'pg-mapicon pg-mapicon-more'} style={{ left: `${f.at * 100}%` }} title={f.kind === 'hospital' ? '병원' : '상점'}>
             <Icon name={f.kind === 'hospital' ? 'hospital' : 'shop'} />
           </span>
         ))}

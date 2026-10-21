@@ -129,6 +129,10 @@ export function TrainerBanner({ name, balls, text, tag, media, look, children }:
   });
   const head = (
     <>
+      {/* 좁은 패널 (400 아래) 은 상자가 길 위 "!" 를 덮어 0.6초만 보이던 것 — 상자 앞에도 같은 빨간 "!" (UX 밤 점검 U1) */}
+      <b class="pg-bang-in" aria-hidden="true">
+        !
+      </b>
       <Face media={media} id={look} />
       <span class="pg-ellipsis" ref={line}>
         {text ? (

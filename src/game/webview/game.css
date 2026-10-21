@@ -1721,11 +1721,27 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 .pg-pick-list .pg-pick-title > .pg-button.pg-pick-tab + .pg-pick-tab {
   margin-left: -4px;
 }
-/* 메뉴 줄 커서 규칙 (.pg-bmenu-items · .pg-vmenu .pg-layer 의 .pg-on — ▸ · 올리면 투명) 보다 세게 */
+/* 탭 부품 하나 (6장 — 개발 메뉴 탭 모양): 고름 = 밝은 남색 + 금 글자 + 아래 2px 금선 · 안 고름 = 테두리 없는 흐린 글자 — 아이템 탭 · 상점 [사기][팔기] · 개발 메뉴 탭이 세 모양이던 것 (아트 디렉터 밤 점검)
+   메뉴 줄 커서 규칙 (.pg-bmenu-items · .pg-vmenu .pg-layer 의 .pg-on — ▸ · 올리면 투명) 보다 세게 */
 #pokemon-game .pg-pick-list .pg-pick-title > .pg-button.pg-pick-tab.pg-on {
   color: var(--pg-sos-gold);
   background: var(--pg-sos-hi);
-  border-color: var(--pg-sos-gold);
+  border-color: transparent;
+  box-shadow: inset 0 -2px 0 var(--pg-sos-gold);
+}
+#pokemon-game .pg-shop-tabs > .pg-button {
+  border-color: transparent;
+  background: none;
+  color: var(--pg-sos-dim);
+}
+#pokemon-game .pg-shop-tabs > .pg-button:hover:not(:disabled) {
+  color: var(--pg-sos-ink);
+}
+#pokemon-game .pg-shop-tabs > .pg-button.pg-picked {
+  color: var(--pg-sos-gold);
+  background: var(--pg-sos-hi);
+  border-color: transparent;
+  box-shadow: inset 0 -2px 0 var(--pg-sos-gold);
 }
 #pokemon-game .pg-pick-list .pg-pick-title > .pg-button.pg-pick-tab::before {
   content: none;
@@ -4248,6 +4264,22 @@ body.vscode-high-contrast-light .pg-title-body {
 .pg-trainer-mark {
   color: var(--pg-sos-red);
 }
+/* 트레이너 · 라이벌 대사 상자 앞 "!" — 좁은 패널에서만 (상자가 길 위 "!" 를 덮어서) · 길 위 "!" 와 같은 빨강 + 네 방향 테두리 */
+.pg-bang-in {
+  display: none;
+  flex: none;
+  margin-right: 4px;
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--pg-sos-red);
+  text-shadow: 1px 0 0 var(--pg-sos-tab-ink), -1px 0 0 var(--pg-sos-tab-ink), 0 1px 0 var(--pg-sos-tab-ink), 0 -1px 0 var(--pg-sos-tab-ink);
+}
+@media (max-width: 399px) {
+  .pg-bang-in {
+    display: inline-block;
+  }
+}
 /* 라이벌 기다림 그림자 (ideas #154) — 누구인지 대신 사람 모양만 (다시 보면 같은 자리에 그 라이벌) · "!" 는 트레이너와 같은 빨강.
    검은 칠 + 그림 한 칸 (--pg-dot) 흐린 크림 테두리 (--pg-sos-dim) — 두 테마 같은 규칙. 단단한 색 (반투명이면 유령) · 무채색 회색이면 나무줄기 밝기라 돌 · 비석으로 읽히던 것 · 테두리가 없으면 검정이 어두운 숲에 묻히던 것 (아트 디렉터) */
 .pg-rival-shadow .pg-hero {
@@ -4469,6 +4501,15 @@ body.vscode-high-contrast-light .pg-title-body {
 .pg-infobar {
   column-gap: clamp(12px, 4vw, 48px);
 }
+/* 판 (상자 · 카드) 이 떠 있는 동안 그 밑 길 위 표시는 숨김 — 판 바탕이 .88 이라 부탁 "?" 가 [지나간다] 뒤로 · 관장 이름표가 배지 카드 뒤로 비치던 것 (픽셀 밤 점검) */
+#pokemon-game:has(.pg-banner.pg-request) .pg-npc-mark {
+  visibility: hidden;
+}
+@media (max-width: 480px) {
+  #pokemon-game:has(.pg-badge-card) .pg-foe-trainer .pg-nametag {
+    visibility: hidden;
+  }
+}
 /* 오른쪽 칸 (메뉴) 이 빈 동안 (전투 · 연출) = 볼 + 지도 묶음을 가운데로 — 빈 칸이 자리를 남겨 묶음이 왼쪽으로 35 ~ 82px 쏠리던 것 (픽셀 밤 점검, U3 가운데 축) */
 .pg-infobar:not(.pg-infobar-split):has(> .pg-infobar-right:empty) {
   display: flex;
@@ -4646,6 +4687,13 @@ body.vscode-high-contrast-light .pg-title-body {
 /* 진행 막대 — 좁으면 짧게 (48px 까지), 300 아래에서만 숨김 (예전엔 420 아래에서 숨겨 360 에서 막대가 없었음) */
 .pg-mapbar {
   width: clamp(48px, 18vw, 240px);
+  container-type: inline-size;
+}
+/* 짧은 막대 (120 아래) = 다음에 올 시설 하나만 (16px 아이콘 둘이 서로 · 빨간 내 위치와 겹치던 것 — 아트 디렉터 밤 점검) */
+@container (max-width: 119px) {
+  .pg-mapicon.pg-mapicon-more {
+    display: none;
+  }
 }
 @media (max-width: 300px) {
   .pg-mapbar {

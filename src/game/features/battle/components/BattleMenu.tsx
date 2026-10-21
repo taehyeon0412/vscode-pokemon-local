@@ -13,6 +13,7 @@ import type { Save } from '../../../core/save';
 import { moveOf, speciesOf } from '../../../data';
 import { Button } from '../../../ui/Button';
 import { BALL_ICON } from '../../../ui/BallCount';
+import { ITEM_ICON } from '../../menu/model';
 import { Icon } from '../../../ui/Icon';
 import { KeyCap } from '../../../ui/KeyCap';
 import { koWaitMs, setPickShow } from '../fx/hold';
@@ -339,6 +340,13 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
             {`${i.num} `}
             <Icon name={BALL_ICON[i.ball]} />
             <span class="pg-ball-word"> {i.label.replace(/^\d+\s/, '')}</span>
+          </>
+        ) : page === 'items' && i.key in ITEM_ICON ? (
+          // 회복 물건도 번호 + 물건 아이콘 + 이름 (볼 줄은 아이콘 · 회복 줄은 이름만이라 아이콘 열이 안 맞던 것 — 아트 디렉터 밤 점검)
+          <>
+            {`${i.num} `}
+            <Icon name={ITEM_ICON[i.key as keyof typeof ITEM_ICON]} />
+            {` ${i.label.replace(/^\d+\s/, '')}`}
           </>
         ) : (
           i.label

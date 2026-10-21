@@ -26,7 +26,21 @@ export function BagPanel({ save, media, onInput, onClose }: BagPanelProps) {
   return (
     <Panel
       icon="bag"
-      title="가방" extra={rows.length === 0 ? '아무것도 없어요' : '쓸 아이템을 골라요'} onClose={onClose}>
+      title="가방"
+      // 길에서 쓸 것이 없으면 (볼만 있음) 그렇다고 — 고를 것이 없는데 "쓸 아이템을 골라요" 이던 것 (UX 밤 점검)
+      extra={
+        rows.length === 0 ? (
+          '아무것도 없어요'
+        ) : rows.some((r) => r.field) ? (
+          '쓸 아이템을 골라요'
+        ) : (
+          <>
+            지금 쓸 것이 없어요<span class="pg-long"> · 볼은 전투에서</span>
+          </>
+        )
+      }
+      onClose={onClose}
+    >
       {/* 고른 물건 줄 (쓸 포켓몬 · 안내) 을 칩 위에 — 칩이 여러 줄이면 아래로 밀려 굴려야 보이던 것 (UX 리뷰어 2026-10-21) */}
       {item && !item.field && (
         <Row>
