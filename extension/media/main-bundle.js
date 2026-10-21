@@ -50367,6 +50367,8 @@ window.pokemonFx = {
         const gen = ++fxGen;
         // 3:3 — 큰 맞음 (빛줄기 닿음 · 대폭발 번쩍) 에 피해 (처음 닿음이 아니라), 자기 둘레 터짐은 그때 상대 자리로 (1:1 은 그대로 처음 닿음)
         const tm = fxTeamOn() && !o?.sub ? fxUltTiming(src.form, entry) : null;
+        // 박자표 — 1:1 · 3:3 모두 (반격기 빼고): 부른 쪽에 큰 맞음 · 덮음 끝을 알림 (쓰러진 포켓몬이 연출이 걷힌 뒤 넘어지게 — 디자인팀). 피해 때는 3:3 (tm) 만
+        const tmAll = !o?.sub ? (tm ?? fxUltTiming(src.form, entry)) : null;
         if (tm) {
             fxTagged.add(gen);
         }
@@ -50378,14 +50380,17 @@ window.pokemonFx = {
             // 쓰기 전 기 모으기 (일반 모드 꾹 누르기와 같은 연출, 2026-10-20 태현 님) — 첫 필살기 0.8초 · 다시 보는 필살기 0.4초 · 반격기 (sub) 는 바로
             const charge = o?.sub ? 0 : o?.quick ? 400 : 800;
             total = fxWithTimers(gen, () => useUltimate(A, entry, { quick: !!o?.quick, charge, ...(o?.sub ? { sub: o.sub } : {}) })) || 0;
-            if (tm && total) {
-                const at = charge + (o?.quick ? ULT_QUICK_INTRO_MS : ULT_INTRO_MS) + tm.main;
-                // 부른 쪽에 박자 — main = 큰 맞음 · cover = 상대를 덮는 연출이 끝나는 때 (없으면 −1) · 지금부터 ms (쓰러진 포켓몬이 연출이 걷힌 뒤 넘어지게 — 디자인팀)
+            if (tmAll && total) {
+                const at0 = charge + (o?.quick ? ULT_QUICK_INTRO_MS : ULT_INTRO_MS) + tmAll.main;
+                // 부른 쪽에 박자 — main = 큰 맞음 · cover = 상대를 덮는 연출이 끝나는 때 (없으면 −1) · 지금부터 ms
                 try {
-                    o?.timing?.({ main: at, cover: tm.cover >= 0 ? at - tm.main + tm.cover : -1, total });
+                    o?.timing?.({ main: at0, cover: tmAll.cover >= 0 ? at0 - tmAll.main + tmAll.cover : -1, total });
                 } catch (err) {
                     ultError('ult timing', err);
                 }
+            }
+            if (tm && total) {
+                const at = charge + (o?.quick ? ULT_QUICK_INTRO_MS : ULT_INTRO_MS) + tm.main;
                 // 자기 둘레 필살기 (블래스트번 등) 는 제자리에서 원래대로 터지고, 대폭발 번쩍 뒤 기운이 줄기로 맞을 상대 모두에게 → 닿을 때 피해 (태현 님 #92)
                 // 쏘는 필살기는 큰 맞음 (줄기가 상대에 닿음) 에 피해
                 const hitNow = () => {
