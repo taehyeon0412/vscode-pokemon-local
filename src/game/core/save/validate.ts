@@ -24,7 +24,7 @@ const MAX_SLEEP_TURNS = 3;
 /** SaveV1 의 칸 이름 — 모르는 칸은 고칠 때 뺌 */
 const KNOWN_KEYS: readonly (keyof Save)[] = [
   'version', 'createdAt', 'updatedAt', 'playTimeMs', 'player', 'monsters', 'party', 'box', 'nextMonsterUid',
-  'bag', 'money', 'badges', 'stages', 'location', 'lastHospital', 'dex', 'pendingEncounter', 'pendingChoices', 'settings', 'rivals',
+  'bag', 'money', 'badges', 'stages', 'location', 'lastHospital', 'dex', 'pendingEncounter', 'pendingChoices', 'settings', 'rivals', 'laterChoices', 'tips',
 ];
 
 /** 클리어 카드에 보일 새로 만난 포켓몬 수 */
@@ -285,6 +285,17 @@ function readEncounter(v: unknown, path: string, fx: Fixer): Encounter | null {
   return null;
 }
 
+/** 본 첫 안내 id — 짧은 영문 id 만 · 겹침 없이 · 최대 20개 (칸이 없으면 부르지 않음) */
+function readTips(v: unknown, path: string, fx: Fixer): string[] {
+  if (!Array.isArray(v)) {
+    fx.note(path, '배열이 아님 → 비움');
+    return [];
+  }
+  const out = [...new Set(v.filter((t): t is string => typeof t === 'string' && /^[a-z0-9-]{1,24}$/.test(t)))].slice(0, 20);
+  if (out.length !== v.length) fx.note(path, '이상한 안내 id → 뺌');
+  return out;
+}
+
 /** 라이벌 전적 — 모르는 라이벌 · 이상한 수는 뺌 (칸이 없으면 부르지 않음) */
 function readRivals(v: unknown, path: string, fx: Fixer): NonNullable<Save['rivals']> {
   if (!isObj(v)) {
@@ -517,8 +528,13 @@ export function validateSave(raw: unknown): ValidateResult {
       // 빨리 걷기 — 옛 세이브엔 없음 (없으면 꺼짐, 고친 기록 안 남김)
       ...(settingsRaw.fastWalk === undefined ? {} : { fastWalk: fx.bool(settingsRaw.fastWalk, 'settings.fastWalk', false) }),
       ...(settingsRaw.reduceMotion === undefined ? {} : { reduceMotion: fx.bool(settingsRaw.reduceMotion, 'settings.reduceMotion', false) }),
+      ...(settingsRaw.autoPotion === undefined ? {} : { autoPotion: fx.bool(settingsRaw.autoPotion, 'settings.autoPotion', true) }),
+      ...(settingsRaw.skipCaughtLast === undefined ? {} : { skipCaughtLast: fx.bool(settingsRaw.skipCaughtLast, 'settings.skipCaughtLast', false) }),
     },
     ...(raw.rivals === undefined ? {} : { rivals: readRivals(raw.rivals, 'rivals', fx) }),
+    // 쌓아 둔 기술 고르기 — 새 기술 (learn) 만 · 최대 수 (없는 포켓몬 · 모르는 기술은 readChoices 가 뺌)
+    ...(raw.laterChoices === undefined ? {} : { laterChoices: readChoices(raw.laterChoices, 'laterChoices', fx, monsters, renamed).filter((c) => c.kind === 'learn').slice(-BALANCE.laterChoicesMax) }),
+    ...(raw.tips === undefined ? {} : { tips: readTips(raw.tips, 'tips', fx) }),
   };
   return { ok: true, save, problems: fx.problems };
 }

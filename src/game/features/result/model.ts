@@ -112,6 +112,8 @@ export type ChoiceView =
       toForm: string;
       /** 진화 연출 중 (Space 넘기기 · Esc 멈추기) */
       animating: boolean;
+      /** 진화를 보기 전 "어…? ○○의 모습이…!" 에서 기다림 (Space · 클릭으로 시작 — 2026-10-21 ideas #33) */
+      waiting: boolean;
       current: MoveView[];
       fresh: MoveView[];
       /** 남길 지금 기술 수 — 지금 기술 수와 같으면 고를 것 없이 결정 */
@@ -136,6 +138,7 @@ export function choiceView(state: GameState): ChoiceView | null {
     toName: nameOf(c.to),
     toForm: evolvedForm(m.form, m.species, c.to),
     animating: st.ms < TIMING.evolveAnimMs,
+    waiting: st.ms < 0,
     current,
     fresh,
     keep: keepCount(m, c.newMoves),
@@ -149,5 +152,6 @@ export function resultViewKey(state: GameState): string {
   if (st?.phase === 'result') return `result:${st.summary.title}:${!!st.summary.caught && st.ms >= TIMING.caughtIntroMs}`;
   if (st?.phase !== 'choice') return '';
   const c = state.save.pendingChoices[0];
-  return `choice:${state.save.pendingChoices.length}:${c ? JSON.stringify(c) : ''}:${st.ms >= TIMING.evolveAnimMs}`;
+  // ms < 0 = 진화를 보기 전 기다림 → 보기 시작하면 다시 그림 (2026-10-21 ideas #33)
+  return `choice:${state.save.pendingChoices.length}:${c ? JSON.stringify(c) : ''}:${st.ms < 0}:${st.ms >= TIMING.evolveAnimMs}`;
 }

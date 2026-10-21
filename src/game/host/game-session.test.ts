@@ -847,16 +847,14 @@ describe('단계 4 검토에서 고친 것 — 스테이지 (확장 쪽)', () =>
   const stageSave = (progress = 0) =>
     sampleSave({ settings: { notifications: true, autoBattle: true }, stages: { 'forest-1': { seed: 42, progress, cleared: false, defeatedTrainers: [], facilities: [], run: { startMs: 0, caught: 0, trainers: 0, seen: [], reach: 0, retries: 0 } } } });
 
-  it('안 볼 때 (자동 전투) 걷다가 부탁에서 멈추면 계산 · 저장을 멈춤 — 깨어나 저장만 되풀이하지 않게 (테스터)', async () => {
+  it('안 볼 때 부탁에 오면 바로 [도와준다] 하고 계속 계산 — 멈추지 않음 (2026-10-21 ideas #115, 예전엔 고를 때까지 멈춤)', async () => {
     await enterAndStart(stageSave(nearRequest()));
     session.onVisibilityChanged(false);
     expect(snap().running).toBe(true);
     runHost(2000);
-    expect(snap().state?.runtime.stage?.phase).toBe('request');
-    expect(snap().running).toBe(false);
-    const steps = session.stats.headlessSteps;
-    runHost(5000);
-    expect(session.stats.headlessSteps).toBe(steps);
+    const st = snap().state?.runtime.stage;
+    expect(st?.phase === 'request' ? st.result : 'walked').not.toBeNull();
+    expect(snap().running).toBe(true);
   });
 
   it('안 볼 때 (자동 전투) 전투를 끝까지 계산하고 끝나면 바로 저장', async () => {
@@ -921,12 +919,11 @@ describe('단계 5 · 6 — 전투 · 안 볼 때 알림 (확장 쪽, U9)', () =
     expect(notices).toHaveLength(0);
   });
 
-  it('안 볼 때 부탁에 오면 알림 (고를 때까지 멈춤)', async () => {
+  it('안 볼 때 부탁에 와도 알림 없음 — 바로 [도와준다] (2026-10-21 ideas #115)', async () => {
     await enterAndStart(sampleSave({ settings: { notifications: true, autoBattle: true }, stages: { 'forest-1': { seed: 42, progress: nearRequest(), cleared: false, defeatedTrainers: [], facilities: [], run: { startMs: 0, caught: 0, trainers: 0, seen: [], reach: 0, retries: 0 } } } }));
     session.onVisibilityChanged(false);
     runHost(2000);
-    expect(snap().state?.runtime.stage?.phase).toBe('request');
-    expect(notices.some((n) => n.includes('부탁'))).toBe(true);
+    expect(notices.some((n) => n.includes('부탁'))).toBe(false);
   });
 
   it('확장이 들고 있을 때만 "안 볼 때" 표시 — 웹뷰가 다시 맡으면 꺼짐', async () => {

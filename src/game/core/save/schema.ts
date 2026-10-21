@@ -164,9 +164,22 @@ export interface SaveV1 {
   /** 전투 끝에 남은 고르기 (S23 · S22) — 앞에서부터 */
   pendingChoices: PendingChoice[];
   /** fastWalk = 빨리 걷기 (2026-10-19 — 없으면 꺼짐, 옛 세이브엔 없음) · reduceMotion = 게임의 동작 줄이기 (2026-10-20 태현 님 — OS 설정 대신, 없으면 꺼짐) */
-  settings: { notifications: boolean; autoBattle: boolean; fastWalk?: boolean; reduceMotion?: boolean };
+  settings: {
+    notifications: boolean;
+    autoBattle: boolean;
+    fastWalk?: boolean;
+    reduceMotion?: boolean;
+    /** 자동 전투가 HP 30% 아래에서 상처약 (없으면 켬 — 2026-10-21 ideas #65) */
+    autoPotion?: boolean;
+    /** 이미 잡은 종은 마지막 기회 (볼) 를 건너뜀 (없으면 꺼짐 — ideas #35) */
+    skipCaughtLast?: boolean;
+  };
   /** 라이벌 전적 (gdd 4.12) — 주인공 id → 내가 이긴 수 · 진 수. 처음 만나기 전 (옛 세이브 포함) 엔 칸이 없음 — 없는 칸을 만들면 옛 세이브가 "고친 세이브" 로 다시 써짐 */
   rivals?: Record<string, { wins: number; losses: number }>;
+  /** 쌓아 둔 새 기술 고르기 (S23) — 선두가 아닌 포켓몬은 바로 멈추지 않고 여기 → 병원 · 클리어 때 pendingChoices 로 (2026-10-21 ideas #72). 쌓인 적이 없으면 칸이 없음 */
+  laterChoices?: PendingChoice[];
+  /** 본 첫 안내 id (2026-10-21 디자인팀 orders #12 — 'walk' · 'last' · 'ult' …). 처음 볼 때 생김 */
+  tips?: string[];
 }
 
 /** 지금 버전의 세이브 */

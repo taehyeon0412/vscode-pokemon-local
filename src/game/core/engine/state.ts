@@ -4,7 +4,7 @@
  */
 import { TIMING } from '../balance';
 import { isHeroLookId } from '../../data/heroes';
-import { STAGE_IDS, type FacilitySpot, type Save, type StageId } from '../save';
+import { ITEM_IDS, STAGE_IDS, type FacilitySpot, type ItemId, type Save, type StageId } from '../save';
 import { readBattle, type BattleState } from './battle';
 import type { BattleSummary } from './rewards';
 
@@ -39,9 +39,12 @@ export type StageRuntime =
   | { phase: 'request'; at: number; number: number; result: RequestResult | null; ms: number }
   | { phase: 'facility'; kind: FacilityKind; at: number; ms: number; inside: boolean }
   | { phase: 'result'; summary: BattleSummary; ms: number; then?: 'badge' }
+  /** ms = 진화 연출 시간 · −1 = 진화를 보기 전 "어…? ○○의 모습이…!" 에서 기다림 (Space · 클릭으로 시작 — 2026-10-21 ideas #33) */
   | { phase: 'choice'; ms: number; then?: 'badge' }
-  | { phase: 'defeat'; gym: boolean; lost: number }
-  | { phase: 'clear' }
+  /** ms = 저절로 다시 시작까지 지난 시간 (defeatAutoMs — ideas #49, 옛 상태엔 없음) */
+  | { phase: 'defeat'; gym: boolean; lost: number; ms?: number }
+  /** ms = 자동 전투일 때 [다음 스테이지] 까지 지난 시간 (clearAutoMs — ideas #48, 자동 전투가 아니면 없음) */
+  | { phase: 'clear'; ms?: number }
   /** 1-3 끝 — 체육관 문이 열리고 걸어 들어감 (ms 동안, 그다음 클리어 처리 · S16 대기실 — 2026-10-20 태현 님 A안) */
   | { phase: 'gym-enter'; ms: number }
   | { phase: 'lobby' }
@@ -80,6 +83,15 @@ export interface RuntimeState {
   headless: boolean;
   /** VS Code 창에 포커스가 없음 (패널은 보이고 웹뷰가 계산) — 이로치 흔적 앞에서도 멈추고 알림 (2026-10-19, 다른 화면을 보는 사이 놓치지 않게). 세이브 · 넘기기에는 안 남음 */
   away?: boolean;
+  /** 확장이 안 볼 때 계산하는 동안 바뀐 것 — 다시 보면 "그동안: …" 한 줄 (2026-10-21 ideas #16). 안 볼 때 처음 걸음에 생기고 한 줄을 띄우면 지움 */
+  awayLog?: AwayLog;
+}
+
+/** 자리 비운 동안 — 떠날 때의 돈 · 가방과 그동안 싸운 야생 수 */
+export interface AwayLog {
+  money: number;
+  bag: Partial<Record<ItemId, number>>;
+  wild: number;
 }
 
 export interface GameState {
@@ -138,10 +150,11 @@ function readStage(raw: unknown): StageRuntime | null {
   const ms = num(raw.ms, 0, 1e9);
   switch (raw.phase) {
     case 'walk':
-    case 'clear':
     case 'lobby':
     case 'badge':
       return { phase: raw.phase };
+    case 'clear':
+      return ms !== null && ms > 0 ? { phase: 'clear', ms } : { phase: 'clear' };
     case 'trainer': {
       const n = num(raw.n, 0, 10);
       return ms !== null && n !== null && Number.isInteger(n) ? { phase: 'trainer', n, ms } : null;
@@ -157,7 +170,8 @@ function readStage(raw: unknown): StageRuntime | null {
     }
     case 'defeat': {
       const lost = num(raw.lost, 0, 1e9);
-      return typeof raw.gym === 'boolean' && lost !== null ? { phase: 'defeat', gym: raw.gym, lost } : null;
+      if (typeof raw.gym !== 'boolean' || lost === null) return null;
+      return ms !== null && ms > 0 ? { phase: 'defeat', gym: raw.gym, lost, ms } : { phase: 'defeat', gym: raw.gym, lost };
     }
     case 'appear':
       // 옛 상태의 space · ambush 칸은 버림 (시작은 pendingEncounter.start)
@@ -187,9 +201,12 @@ function readStage(raw: unknown): StageRuntime | null {
       if (ms === null || !summary || !okThen(raw.then)) return null;
       return raw.then === 'badge' ? { phase: 'result', summary, ms, then: 'badge' } : { phase: 'result', summary, ms };
     }
-    case 'choice':
-      if (ms === null || !okThen(raw.then)) return null;
-      return raw.then === 'badge' ? { phase: 'choice', ms, then: 'badge' } : { phase: 'choice', ms };
+    case 'choice': {
+      // −1 = 진화를 보기 전 기다림
+      const cms = raw.ms === -1 ? -1 : ms;
+      if (cms === null || !okThen(raw.then)) return null;
+      return raw.then === 'badge' ? { phase: 'choice', ms: cms, then: 'badge' } : { phase: 'choice', ms: cms };
+    }
     default:
       return null;
   }
@@ -212,7 +229,21 @@ export function readRuntime(raw: unknown, fallbackSeed: number, stepMs: number =
     stageId: (STAGE_IDS as readonly unknown[]).includes(r.stageId) ? (r.stageId as StageId) : null,
     toast,
     headless: false, // 웹뷰에서 온 상태는 늘 보이는 쪽 — 확장이 넘겨받을 때 다시 켬
+    ...(readAwayLog(r.awayLog) ? { awayLog: readAwayLog(r.awayLog)! } : {}),
   };
+}
+
+function readAwayLog(v: unknown): AwayLog | null {
+  if (!isObj(v) || !isObj(v.bag)) return null;
+  const money = num(v.money, 0, 1e12);
+  const wild = num(v.wild, 0, 1e6);
+  if (money === null || wild === null) return null;
+  const bag: AwayLog['bag'] = {};
+  for (const id of ITEM_IDS) {
+    const n = num(v.bag[id], 0, 1e6);
+    if (n !== null) bag[id] = n;
+  }
+  return { money, bag, wild: Math.floor(wild) };
 }
 
 /**

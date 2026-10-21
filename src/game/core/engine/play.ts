@@ -17,13 +17,13 @@ import { spotBetween, spotRng, stageCode, stageLayout, trainerId, walkDelta, typ
 import { statsOf } from '../rules/stats';
 import { aliveCount, GYM_LEADER, leaderTeam, trainerInfo, trainerNumber, trainerTeam } from '../rules/trainer';
 import { pickRival, rivalLine, rivalLoseMsg, rivalName, rivalRecord, rivalTeam, withRivalResult } from '../rules/rival';
-import { RUN_SEEN_MAX, STAGE_IDS, type FacilitySpot, type ItemId, type Save, type StageId, type StageProgress, type StageRun, type StatKey } from '../save';
+import { ITEM_IDS, RUN_SEEN_MAX, STAGE_IDS, type FacilitySpot, type ItemId, type Save, type StageId, type StageProgress, type StageRun, type StatKey } from '../save';
 import { withJosa } from '../text';
 import { moveOf, speciesOf } from '../../data';
 import { applyBattleResult, battleDone, battleInput, battleStep, battleWaiting, firstAlive, startBattle, startTrainerBattle, switchable, type BattleInput, type BattleState } from './battle';
-import { battleRewards, clearBonusExp, clearStage, defeatPenalty, FOREST_BADGE, resolveEvolve, resolveLearn, rivalWinRewards } from './rewards';
+import { battleRewards, clearBonusExp, clearStage, defeatPenalty, FOREST_BADGE, resolveEvolve, resolveLearn, rivalWinRewards, takeLaterChoices } from './rewards';
 import { Rng } from './rng';
-import { MAX_SPEED, type GameState, type RuntimeState, type StageRuntime } from './state';
+import { MAX_SPEED, type AwayLog, type GameState, type RuntimeState, type StageRuntime } from './state';
 import { takeSteps } from './step';
 
 /** 바로 저장해야 하는 일 (mvp-spec 3.1) — 웹뷰는 save-now 로, 확장은 바로 씀 */
@@ -42,6 +42,13 @@ export type GameInput =
   | { kind: 'fast-walk'; on: boolean }
   /** 게임의 동작 줄이기 (설정 — 화면이 움직임을 줄임, OS 설정은 안 봄 · 2026-10-20 태현 님) */
   | { kind: 'reduce-motion'; on: boolean }
+  /** 설정 — 자동 전투 상처약 (ideas #65) · 이미 잡은 종은 마지막 기회 건너뛰기 (ideas #35) */
+  | { kind: 'auto-potion'; on: boolean }
+  | { kind: 'skip-caught-last'; on: boolean }
+  /** 첫 안내를 다 보여 줌 — 본 안내 id 를 세이브에 (디자인팀 orders #12) */
+  | { kind: 'tip-seen'; id: string }
+  /** S22 "어…? ○○의 모습이…!" 에서 진화 연출 시작 (Space · 클릭 — ideas #33) */
+  | { kind: 'evolve-watch' }
   /** S12 계속 (Space · Enter · 클릭) */
   | { kind: 'result-continue' }
   /** S23 — 바꿀 칸 (null = 배우지 않기) */
@@ -229,7 +236,7 @@ function checkedStage(rt: RuntimeState, save: Save, id: StageId, layout: StageLa
 /** 진행 중 상태가 없을 때 세이브를 보고 정함 — 고르다 껐으면 그 고르기부터 · 전투 중에 껐다 켜면 그 전투를 처음부터 (mvp-spec 9장) */
 function defaultStage(save: Save, id: StageId, prog: StageProgress): StageRuntime {
   const p = save.pendingEncounter;
-  if (save.pendingChoices.length > 0) return { phase: 'choice', ms: 0 };
+  if (save.pendingChoices.length > 0) return choiceStage(save);
   if (p?.kind === 'wild') return { phase: 'battle', battle: startBattle(save, p.monster, p.start) };
   if (p?.kind === 'trainer' && p.stageId === id) return { phase: 'battle', battle: trainerBattle(save, id, prog, trainerNumber(p.trainerId)) };
   if (p?.kind === 'rival' && p.stageId === id) return { phase: 'battle', battle: rivalBattle(save, id, prog, p.rival) };
@@ -351,8 +358,8 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
       } else {
         const number = layout.spots.filter((s) => s.kind === 'request' && s.at < spot.at).length;
         save = withProgress(save, id, Math.max(from, spot.at - BEFORE_SPOT));
+        // 안 볼 때는 다음 걸음에 바로 [도와준다] (ideas #115) — 알림 없음
         stage = { phase: 'request', at: spot.at, number, result: null, ms: 0 };
-        if (rt.headless) notice = 'request';
       }
       break;
     }
@@ -364,7 +371,9 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
       const ms = stage.ms + stepMs;
       if (rt.headless || ms >= TIMING.facilityPromptMs) {
         save = passFacility(save, id, stage.kind, stage.at);
-        stage = { phase: 'walk' };
+        // 병원을 지나면 쌓아 둔 새 기술 고르기를 한 번에 (ideas #72)
+        if (stage.kind === 'hospital') save = takeLaterChoices(save);
+        stage = afterResult(save);
       } else stage = { ...stage, ms };
       break;
     }
@@ -458,8 +467,8 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
       const d = stageDefeat(save, id);
       save = d.save;
       rt = { ...rt, rngState: rng.state };
+      // 5초 뒤 (안 볼 때는 다음 걸음에) 저절로 다시 시작 (ideas #49) — 알림 없음
       stage = { phase: 'defeat', gym: false, lost: d.lost };
-      if (rt.headless) notice = 'defeat';
       break;
     }
     case 'result':
@@ -470,15 +479,33 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
       break;
     }
     case 'request': {
-      if (!stage.result) break; // 고를 때까지 기다림 (고른 순간 진행 % 는 자리로 — applyInput)
+      if (!stage.result) {
+        // 10초 뒤 (안 볼 때는 바로) 저절로 [도와준다] (2026-10-21 ideas #115 — 고른 순간 진행 % 는 자리로, applyInput)
+        const wait = stage.ms + stepMs;
+        if (!rt.headless && wait < TIMING.requestAutoMs) {
+          stage = { ...stage, ms: wait };
+          break;
+        }
+        const helped = applyInput({ save, runtime: { ...rt, stage, stageId: id } }, { kind: 'request', help: true });
+        return { save: helped.save, rt: helped.runtime, signal: null, notice: null };
+      }
       const ms = stage.ms + stepMs;
       stage = ms < TIMING.requestResultMs ? { ...stage, ms } : { phase: 'walk' };
       break;
     }
-    case 'clear':
+    case 'clear': {
       // 끝까지 왔는데 아직 클리어 처리를 안 한 세이브 (단계 9 전에 끝에 서 있던 세이브) — 지금 처리
       if (!prog.cleared) return finishStage(save, rt, id);
+      // 자동 전투면 10초 뒤 (안 볼 때는 바로) [다음 스테이지] (2026-10-21 ideas #48)
+      if (!save.settings.autoBattle) break;
+      const ms = (stage.ms ?? 0) + stepMs;
+      if (rt.headless || ms >= TIMING.clearAutoMs) {
+        const t = travel({ save, runtime: { ...rt, stage, stageId: id } }, nextPlace(id));
+        return { save: t.save, rt: t.runtime, signal: null, notice: null };
+      }
+      stage = { ...stage, ms };
       break;
+    }
     case 'gym-enter': {
       const ms = stage.ms + stepMs;
       if (ms >= TIMING.gymEnterMs || rt.headless) return finishStage(save, rt, id);
@@ -486,6 +513,8 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
       break;
     }
     case 'defeat':
+      stage = defeatStep(stage, rt, stepMs);
+      break;
     case 'lobby':
     case 'badge':
       break;
@@ -499,7 +528,8 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
 function finishStage(save0: Save, rt0: RuntimeState, id: StageId): { save: Save; rt: RuntimeState; signal: SaveSignal | null; notice: GameNotice | null } {
   const rng = new Rng(rt0.rngState);
   const r = clearStage(save0, id, rng);
-  let save = r.save;
+  // 쌓아 둔 새 기술 고르기를 한 번에 (클리어 카드 전, ideas #72)
+  let save = takeLaterChoices(r.save);
   let rt: RuntimeState = { ...rt0, rngState: rng.state };
   // 두 마리까지 이름 · 나머지는 "외 N마리" (5 ~ 6마리면 240×150 에서 3줄로 자라 대기실 버튼을 가림 — 2026-10-21 UX 리뷰어)
   const lv = r.levelUps.length > 2 ? `${r.levelUps.slice(0, 2).join(' · ')} 외 ${r.levelUps.length - 2}마리` : r.levelUps.join(' · ');
@@ -510,7 +540,8 @@ function finishStage(save0: Save, rt0: RuntimeState, id: StageId): { save: Save;
     rt = { ...rt, toast: lv ? { text: head, ms: TIMING.toastMs, then: lv } : { text: head, ms: TIMING.toastMs * 2 } };
   } else if (lv) rt = { ...rt, toast: { text: lv, ms: TIMING.toastMs * 2 } };
   const stage = afterResult(save);
-  const notice: GameNotice | null = !rt.headless ? null : stage.phase === 'choice' ? 'choice' : id === 'forest-3' ? 'gym' : 'clear';
+  // 자동 전투면 클리어 카드가 저절로 넘어가니 알림 없음 (ideas #48)
+  const notice: GameNotice | null = !rt.headless ? null : stage.phase === 'choice' ? 'choice' : id === 'forest-3' ? 'gym' : save.settings.autoBattle ? null : 'clear';
   return { save, rt: { ...rt, stage, stageId: id === 'forest-3' ? null : id }, signal: 'stage-clear', notice };
 }
 
@@ -521,8 +552,9 @@ function resultOrChoiceStep(stage: Extract<StageRuntime, { phase: 'result' | 'ch
     // 잡았으면 소개 카드 시간만큼 더 (결과 상자는 늘 5초)
     return ms < TIMING.resultMs + (stage.summary.caught ? TIMING.caughtIntroMs : 0) ? { ...stage, ms } : afterResult(save, stage.then);
   }
-  // 고를 것이 없으면 다음으로 · 있으면 고를 때까지 (ms = 진화 연출, 다 차면 그대로)
+  // 고를 것이 없으면 다음으로 · 있으면 고를 때까지 (ms = 진화 연출, 다 차면 그대로 · −1 = 진화를 보기 전 기다림)
   if (save.pendingChoices.length === 0) return afterResult(save, stage.then);
+  if (stage.ms < 0) return stage;
   return { ...stage, ms: Math.min(TIMING.evolveAnimMs, stage.ms + stepMs) };
 }
 
@@ -541,7 +573,7 @@ function gymStep(save0: Save, rt0: RuntimeState, stepMs: number): { save: Save; 
   let stage: StageRuntime = okHere(st)
     ? st
     : save.pendingChoices.length > 0
-      ? { phase: 'choice', ms: 0 }
+      ? choiceStage(save)
       : pending?.kind === 'gym-leader'
         ? { phase: 'battle', battle: leaderBattle(save) }
         : { phase: 'lobby' };
@@ -572,7 +604,6 @@ function gymStep(save0: Save, rt0: RuntimeState, stepMs: number): { save: Save; 
       const d = defeatPenalty(save, true);
       save = d.save;
       stage = { phase: 'defeat', gym: true, lost: 0 };
-      if (rt.headless) notice = 'defeat';
       break;
     }
     case 'result':
@@ -582,6 +613,9 @@ function gymStep(save0: Save, rt0: RuntimeState, stepMs: number): { save: Save; 
       stage = next;
       break;
     }
+    case 'defeat':
+      stage = defeatStep(stage, rt, stepMs);
+      break;
     default:
       break;
   }
@@ -605,6 +639,7 @@ export function step(state: GameState, stepMs: number): StepOut {
   } else if (rt.stage) {
     rt = { ...rt, stage: null, stageId: null };
   }
+  rt = awayStep(state, save, rt, signal);
   return { state: { save, runtime: rt }, save: signal, notice };
 }
 
@@ -643,9 +678,12 @@ export function isWaitingForInput(state: GameState): boolean {
       return !st.result;
     case 'facility':
       return st.inside;
-    case 'hold':
+    // 패배 상자 = 저절로 다시 시작 (ideas #49) · 클리어 카드 = 자동 전투면 저절로 다음 (ideas #48)
     case 'defeat':
+      return false;
     case 'clear':
+      return !state.save.settings.autoBattle;
+    case 'hold':
     case 'lobby':
     case 'badge':
       return true;
@@ -729,7 +767,7 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       if (stage?.phase === 'battle') return withBattleInput(state, { kind: 'space', extraMs: state.runtime.stepAccMs });
       // S12 계속 · S22 진화 연출 빨리 넘기기
       if (stage?.phase === 'result') return applyInput(state, { kind: 'result-continue' });
-      if (stage?.phase === 'choice') return applyInput(state, { kind: 'evolve-skip' });
+      if (stage?.phase === 'choice') return applyInput(state, { kind: stage.ms < 0 ? 'evolve-watch' : 'evolve-skip' });
       // 체육관 들어가기 — 바로 대기실로 (다음 걸음에 클리어 처리)
       if (stage?.phase === 'gym-enter') return stage.ms >= TIMING.gymEnterMs ? state : { ...state, runtime: { ...state.runtime, stage: { ...stage, ms: TIMING.gymEnterMs } } };
       // 트레이너 · 라이벌 만남 — "!" 가 지난 뒤 Space · 클릭 = 바로 전투 (2026-10-20 태현 님 "2초 정도 두고 클릭하면 바로 넘어가게")
@@ -750,6 +788,15 @@ export function applyInput(state: GameState, input: GameInput): GameState {
     case 'reduce-motion':
       if ((save.settings.reduceMotion === true) === input.on) return state;
       return { ...state, save: { ...save, settings: { ...save.settings, reduceMotion: input.on } } };
+    case 'auto-potion':
+      if ((save.settings.autoPotion !== false) === input.on) return state;
+      return { ...state, save: { ...save, settings: { ...save.settings, autoPotion: input.on } } };
+    case 'skip-caught-last':
+      if ((save.settings.skipCaughtLast === true) === input.on) return state;
+      return { ...state, save: { ...save, settings: { ...save.settings, skipCaughtLast: input.on } } };
+    case 'tip-seen':
+      if (!/^[a-z0-9-]{1,24}$/.test(input.id) || save.tips?.includes(input.id) || (save.tips?.length ?? 0) >= 20) return state;
+      return { ...state, save: { ...save, tips: [...(save.tips ?? []), input.id] } };
     case 'notifications':
       if (save.settings.notifications === input.on) return state;
       return { ...state, save: { ...save, settings: { ...save.settings, notifications: input.on } } };
@@ -782,6 +829,9 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       const text = input.kind === 'evolve-cancel' ? (head.item ? `진화를 멈췄다 — ${withJosa(itemName(head.item), '은/는')} 가방으로` : '진화를 멈췄다 — 다음 레벨업 때 다시') : undefined;
       return afterChoice(state, resolveEvolve(save, input.kind === 'evolve' ? input.keep : null, rng), rng.state, text);
     }
+    case 'evolve-watch':
+      if (stage?.phase !== 'choice' || save.pendingChoices[0]?.kind !== 'evolve' || stage.ms >= 0) return state;
+      return { ...state, runtime: { ...state.runtime, stage: { ...stage, ms: 0 } } };
     case 'evolve-skip':
       if (stage?.phase !== 'choice' || save.pendingChoices[0]?.kind !== 'evolve' || stage.ms >= TIMING.evolveAnimMs || stage.ms < TIMING.evolveGuardMs) return state;
       return { ...state, runtime: { ...state.runtime, stage: { ...stage, ms: TIMING.evolveAnimMs } } };
@@ -808,11 +858,16 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       if (stage?.phase !== 'facility' || stage.inside || save.location.screen !== 'stage') return state;
       // 고른 순간 진행 % 를 그 자리로 (병원이면 마지막 병원) — 안에서 꺼도 다시 켜면 그 앞을 지나 걸음
       const passed = passFacility(save, save.location.stageId, stage.kind, stage.at);
-      return { save: passed, runtime: { ...state.runtime, stage: input.enter ? { ...stage, inside: true } : { phase: 'walk' } } };
+      if (input.enter) return { save: passed, runtime: { ...state.runtime, stage: { ...stage, inside: true } } };
+      // 병원을 지나면 쌓아 둔 새 기술 고르기를 한 번에 (ideas #72)
+      const next = stage.kind === 'hospital' ? takeLaterChoices(passed) : passed;
+      return { save: next, runtime: { ...state.runtime, stage: afterResult(next) } };
     }
-    case 'facility-leave':
+    case 'facility-leave': {
       if (stage?.phase !== 'facility' || !stage.inside) return state;
-      return { ...state, runtime: { ...state.runtime, stage: { phase: 'walk' } } };
+      const next = stage.kind === 'hospital' ? takeLaterChoices(save) : save;
+      return { save: next, runtime: { ...state.runtime, stage: afterResult(next) } };
+    }
     case 'heal':
       if (!canHeal(state)) return state;
       return toast(state, healTeam(save), '포켓몬들이 모두 기운을 되찾았다!');
@@ -866,11 +921,62 @@ export function applyInput(state: GameState, input: GameInput): GameState {
 
 /** S12 다음 — 고를 것 (S23 · S22) 이 있으면 고르기, 없으면: MVP 끝 카드 · 대기실 · 클리어 카드 · 걷기 */
 function afterResult(save: Save, then?: 'badge'): StageRuntime {
-  if (save.pendingChoices.length > 0) return then ? { phase: 'choice', ms: 0, then } : { phase: 'choice', ms: 0 };
+  if (save.pendingChoices.length > 0) return choiceStage(save, then);
   if (then === 'badge') return { phase: 'badge' };
   if (save.location.screen === 'gym') return { phase: 'lobby' };
   const prog = save.location.screen === 'stage' ? save.stages[save.location.stageId] : undefined;
   return prog && prog.progress >= 1 ? { phase: 'clear' } : { phase: 'walk' };
+}
+
+/** S23 · S22 고르기 시작 — 진화는 "어…? ○○의 모습이…!" 에서 기다렸다 보면 연출 (ms −1, 2026-10-21 ideas #33 — 코딩 중에 4초 연출을 놓치지 않게) */
+function choiceStage(save: Save, then?: 'badge'): StageRuntime {
+  const ms = save.pendingChoices[0]?.kind === 'evolve' ? -1 : 0;
+  return then ? { phase: 'choice', ms, then } : { phase: 'choice', ms };
+}
+
+/** 패배 상자 — 5초 뒤 (안 볼 때는 바로) 저절로 다시 시작 = [다시 시작] 과 같음 (ideas #49) */
+function defeatStep(stage: Extract<StageRuntime, { phase: 'defeat' }>, rt: RuntimeState, stepMs: number): StageRuntime {
+  const ms = (stage.ms ?? 0) + stepMs;
+  if (rt.headless || ms >= TIMING.defeatAutoMs) return stage.gym ? { phase: 'lobby' } : { phase: 'walk' };
+  return { ...stage, ms };
+}
+
+/** 클리어 카드 [다음 스테이지] — 다음 스테이지 (마지막이면 체육관) */
+function nextPlace(id: StageId): StageId | 'gym' {
+  return STAGE_IDS[STAGE_IDS.indexOf(id) + 1] ?? 'gym';
+}
+
+/**
+ * 자리 비운 동안 (ideas #16) — 확장이 계산하는 동안 떠날 때의 돈 · 가방을 적고 야생 전투를 셈.
+ * 다시 보면 (웹뷰) 한 줄이 보이는 때 (걷기 · 클리어 카드 · 대기실, 다른 한 줄이 없을 때) "그동안: 몬스터볼 1 · 상처약 1 · 60원 · 야생 3마리" 를 띄우고 지움 — 바뀐 게 없으면 띄우지 않음
+ */
+function awayStep(before: GameState, save: Save, rt: RuntimeState, signal: SaveSignal | null): RuntimeState {
+  if (rt.headless) {
+    const prev = before.runtime.stage;
+    const wildEnd = signal === 'battle-end' && prev?.phase === 'battle' && prev.battle.kind === 'wild';
+    if (rt.awayLog && !wildEnd) return rt;
+    const log: AwayLog = rt.awayLog ?? { money: before.save.money, bag: { ...before.save.bag }, wild: 0 };
+    return { ...rt, awayLog: wildEnd ? { ...log, wild: log.wild + 1 } : log };
+  }
+  if (!rt.awayLog) return rt;
+  const phase = rt.stage?.phase;
+  if (rt.toast || !(phase === 'walk' || phase === 'clear' || phase === 'lobby')) return rt;
+  const { awayLog, ...rest } = rt;
+  const text = awaySummary(awayLog, save);
+  return text ? { ...rest, toast: { text, ms: TIMING.awaySummaryMs } } : rest;
+}
+
+/** "그동안: 몬스터볼 1 · 상처약 1 · 60원 · 야생 3마리" — 늘어난 물건 · 돈 (줄었으면 −) · 싸운 야생. 없으면 빈 글 */
+export function awaySummary(log: AwayLog, save: Save): string {
+  const parts: string[] = [];
+  for (const id of ITEM_IDS) {
+    const d = (save.bag[id] ?? 0) - (log.bag[id] ?? 0);
+    if (d > 0) parts.push(`${itemName(id)} ${d}`);
+  }
+  const dm = save.money - log.money;
+  if (dm !== 0) parts.push(dm > 0 ? `${dm}원` : `−${-dm}원`);
+  if (log.wild > 0) parts.push(`야생 ${log.wild}마리`);
+  return parts.length > 0 ? `그동안: ${parts.join(' · ')}` : '';
 }
 
 /** 하나 고른 뒤 — 다음 고르기 (새 연출부터) 또는 다음 · 한 줄 알림 (걸을 때 주인공 머리 위) */

@@ -254,7 +254,11 @@ describe('S17 패배 (gdd 4.10)', () => {
     expect(s.save.stages['forest-1']!.seed).toBe(42);
     expect(s.save.stages['forest-1']!.run).toMatchObject({ reach: 0.7, retries: 1 });
     expect(s.save.stages['forest-1']!.facilities).toEqual([{ kind: 'hospital', at: 0.5 }]);
-    expect(isWaitingForInput(s)).toBe(true);
+    // 5초 뒤 저절로 다시 시작 · 안 볼 때는 바로 (2026-10-21 ideas #49)
+    expect(isWaitingForInput(s)).toBe(false);
+    expect(phase(until(s, () => false, TIMING.defeatAutoMs - 500))).toBe('defeat');
+    expect(phase(until(s, (x) => phase(x) !== 'defeat', TIMING.defeatAutoMs + 500))).toBe('walk');
+    expect(phase(step({ ...s, runtime: { ...s.runtime, headless: true } }, STEP).state)).toBe('walk');
     const back = applyInput(s, { kind: 'defeat-continue' });
     expect(phase(back)).toBe('walk');
     // 다시 걸으면 바로 그 병원 앞

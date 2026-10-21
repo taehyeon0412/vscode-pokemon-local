@@ -103,6 +103,24 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
     );
   }
 
+  if (view.waiting) {
+    // 진화는 볼 때 시작 (2026-10-21 ideas #33 — 코딩 중에 4초 연출을 놓치지 않게): 옛 모습 그대로 서 있고 [보기] (Space · 클릭) 를 기다림. 모양은 디자인팀이 다듬음
+    return (
+      <div class="pg-evolve">
+        {/* pg-evolve-old 는 번갈아 숨는 움직임이 붙어 있어 따로 (움직임 없이 서 있음) */}
+        <span class="pg-evolve-wait" style={{ lineHeight: 0 }}>
+          <Sprite media={media} form={view.monster.form} shiny={view.monster.shiny} scale={scale} />
+        </span>
+        <div class="pg-banner pg-evolve-msg">
+          <span class="pg-ellipsis">어…? {view.name}의 모습이…!</span>
+          <Button onClick={() => onInput({ kind: 'evolve-watch' })} title={document.hasFocus() ? 'Space' : '클릭'}>
+            보기
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   if (view.animating) {
     // 진화 연출 — 메가진화처럼 하얗게 빛나며 하얀 실루엣이 옛 ↔ 새 모습으로 점점 빠르게 · 빛줄기 · 펑 (캔버스 — EvolveStage, 2026-10-20 태현 님).
     // 연출 번들이 없으면 예전 CSS (옛 · 새 모습이 번갈아) 그대로

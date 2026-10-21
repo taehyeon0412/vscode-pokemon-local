@@ -243,9 +243,13 @@ describe('길 위의 부탁 (gdd 4.6)', () => {
     let s = until(state, (x) => phase(x) === 'request');
     expect(prog(s)).toBeLessThan(spot.at);
     expect(prog(s)).toBeGreaterThan(spot.at - 0.001);
-    const waited = advance(s, 30_000).state;
+    const waited = advance(s, TIMING.requestAutoMs - 1000).state;
     expect(prog(waited)).toBe(prog(s));
-    expect(phase(waited)).toBe('request');
+    expect(waited.runtime.stage).toMatchObject({ phase: 'request', result: null });
+    // 10초 뒤 저절로 [도와준다] — 진행 % 는 자리로 (2026-10-21 ideas #115)
+    const auto = advance(s, TIMING.requestAutoMs + 200).state;
+    expect(auto.runtime.stage).toMatchObject({ phase: 'request', result: { ok: expect.any(Boolean) } });
+    expect(prog(auto)).toBe(spot.at);
     s = applyInput(s, { kind: 'request', help: true });
     expect(s.runtime.stage).toMatchObject({ phase: 'request', result: { ok: expect.any(Boolean) } });
     s = until(s, (x) => phase(x) === 'walk', TIMING.requestResultMs + 100);
@@ -408,7 +412,11 @@ describe('전투 (단계 5 · 6) — 스테이지 쪽', () => {
     expect(r.notices).toEqual([]);
     const { state } = nearSpot(start(), 'request');
     expect(advance(state, 3000).notices).toEqual([]);
-    expect(advance({ ...state, runtime: { ...state.runtime, headless: true } }, 3000).notices).toEqual(['request']);
+    // 안 볼 때도 알림 없이 바로 [도와준다] (2026-10-21 ideas #115 — 예전엔 알림 · 고를 때까지 멈춤)
+    const away = advance({ ...state, runtime: { ...state.runtime, headless: true } }, 3000);
+    expect(away.notices).toEqual([]);
+    const st = away.state.runtime.stage;
+    expect(st?.phase === 'request' ? st.result : 'walked').not.toBeNull();
   });
 });
 
@@ -441,6 +449,15 @@ describe('S12 결과 · S23 · S22 — 스테이지 쪽 (단계 7)', () => {
     expect(phase(advance(s, 10_000).state)).toBe('choice');
     s = applyInput(s, { kind: 'learn', replace: null });
     expect(s.save.pendingChoices[0]?.kind).toBe('evolve');
+    // 진화는 "어…? ○○의 모습이…!" 에서 기다림 — 시간이 가도 시작 안 함 · 고르기 · 멈추기 없음 · Space (클릭 = evolve-watch) 로 시작 (2026-10-21 ideas #33)
+    expect(s.runtime.stage).toEqual({ phase: 'choice', ms: -1 });
+    expect(advance(s, 10_000).state.runtime.stage).toEqual({ phase: 'choice', ms: -1 });
+    expect(applyInput(s, { kind: 'evolve', keep: [33] })).toBe(s);
+    expect(applyInput(s, { kind: 'evolve-cancel' })).toBe(s);
+    expect(applyInput(s, { kind: 'evolve-watch' }).runtime.stage).toEqual({ phase: 'choice', ms: 0 });
+    s = applyInput(s, { kind: 'space' });
+    expect(s.runtime.stage).toEqual({ phase: 'choice', ms: 0 });
+    expect(applyInput(s, { kind: 'evolve-watch' })).toBe(s);
     // 진화: 연출이 끝나기 전에는 남길 기술을 못 고름 · Space 로 빨리 넘김 · 연출 중 Esc = 멈추기
     expect(applyInput(s, { kind: 'evolve', keep: [33] })).toBe(s);
     // 연출 시작 0.8초 동안은 Space · Esc 를 안 받음 (결과에서 Space 를 두 번 눌러 연출을 놓치지 않게 — 플레이 리뷰어)

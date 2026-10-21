@@ -40,6 +40,26 @@ export interface BattleSummary {
 }
 
 const nameOf = (dex: number) => speciesOf(dex)?.name.ko ?? '???';
+
+/** 고를 것 더하기 — 선두가 아닌 포켓몬의 새 기술 (S23) 은 바로 멈추지 않고 laterChoices 에 쌓음 (병원 · 클리어 때 한 번에 — 2026-10-21 ideas #72). 진화 (S22) 는 바로 */
+export function addChoices(save: Save, choices: readonly PendingChoice[]): Save {
+  const lead = save.party[0];
+  const later = choices.filter((c) => c.kind === 'learn' && c.uid !== lead);
+  const now = choices.filter((c) => !later.includes(c));
+  const next: Save = { ...save, pendingChoices: [...save.pendingChoices, ...now] };
+  return later.length > 0 ? { ...next, laterChoices: [...(save.laterChoices ?? []), ...later].slice(-BALANCE.laterChoicesMax) } : next;
+}
+
+/** 쌓아 둔 새 기술 고르기를 지금 고르기로 — 병원 · 클리어 때 (없는 포켓몬 · 이미 아는 기술은 뺌). 칸은 지움 */
+export function takeLaterChoices(save: Save): Save {
+  if (save.laterChoices === undefined) return save;
+  const { laterChoices, ...rest } = save;
+  const ok = laterChoices.filter((c) => {
+    const m = save.monsters[c.uid];
+    return c.kind === 'learn' && !!m && !m.moves.some((x) => x.moveId === c.moveId);
+  });
+  return { ...rest, pendingChoices: [...save.pendingChoices, ...ok] };
+}
 const addDex = (list: number[], dex: number) => (list.includes(dex) ? list : [...list, dex].sort((a, b) => a - b));
 
 /** 팀 전원에게 경험치 (스테이지 · 관장 보너스) — 레벨업 · 새 기술 · 진화 고르기까지. 받은 레벨 변화 */
@@ -58,7 +78,7 @@ function giveTeamExp(save: Save, gain: number, rng: Rng): { save: Save; exp: Bat
     for (const id of r.learned) learned.push({ name: nameOf(m.species), move: moveOf(id)?.name.ko ?? '?' });
     choices.push(...r.choices);
   }
-  return { save: { ...save, monsters, pendingChoices: [...save.pendingChoices, ...choices] }, exp, learned };
+  return { save: addChoices({ ...save, monsters }, choices), exp, learned };
 }
 
 /**
@@ -109,7 +129,7 @@ export function battleRewards(save0: Save, b: BattleState, wild: Monster | null,
     for (const id of r.learned) summary.learned.push({ name: nameOf(m.species), move: moveOf(id)?.name.ko ?? '?' });
     choices.push(...r.choices);
   }
-  save = { ...save, pendingChoices: [...save.pendingChoices, ...choices] };
+  save = addChoices(save, choices);
 
   if (b.kind === 'wild') {
     // 돈 — 이기거나 잡았을 때 (잡아도 쓰러뜨린 판에서 손해 보지 않게 — 2026-10-18 태현 님) · 아이템 — 이겼을 때만 (잡았을 때는 없음, gdd 4.3)

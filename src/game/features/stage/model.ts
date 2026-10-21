@@ -21,7 +21,9 @@ function saveViewKey(save: Save): string {
     const m = save.monsters[uid];
     return m ? `${uid}:${m.species}:${m.level}:${m.hp}:${m.unspentPoints}:${m.status?.kind ?? ''}` : uid;
   });
-  return [save.money, team.join(','), save.box.length, JSON.stringify(save.bag), save.settings.notifications, save.badges.length].join('/');
+  // 쌓아 둔 기술 고르기 수 · 본 안내 · 설정 (자동 전투 상처약 · 잡은 종 건너뛰기) — 2026-10-21 ideas #72 · #65 · #35 · orders #12
+  const s = save.settings;
+  return [save.money, team.join(','), save.box.length, JSON.stringify(save.bag), s.notifications, save.badges.length, save.laterChoices?.length ?? 0, save.tips?.length ?? 0, s.autoPotion !== false, s.skipCaughtLast === true].join('/');
 }
 
 export interface StageInfo {
@@ -289,7 +291,10 @@ export function stageViewKey(state: GameState): string {
     loc.screen === 'stage' ? loc.stageId : '',
     progress,
     st?.phase ?? '',
-    st?.phase === 'request' ? `${st.result?.text ?? ''}` : '',
+    // 부탁: 결과 · 저절로 [도와준다] 까지 남은 초 (ideas #115) / 패배: 저절로 다시 시작까지 남은 초 (#49) / 클리어 카드: 자동 전투면 [다음 스테이지] 까지 남은 초 (#48)
+    st?.phase === 'request' ? `${st.result?.text ?? ''}:${st.result ? '' : Math.ceil((TIMING.requestAutoMs - st.ms) / 1000)}` : '',
+    st?.phase === 'defeat' ? Math.ceil((TIMING.defeatAutoMs - (st.ms ?? 0)) / 1000) : '',
+    st?.phase === 'clear' && state.save.settings.autoBattle ? Math.ceil((TIMING.clearAutoMs - (st.ms ?? 0)) / 1000) : '',
     // 병원 · 상점 앞: 남은 초 · 들어감 / 트레이너: "!" → "승부다!" / 패배 · 클리어 · 대기실 · 배지는 그대로
     st?.phase === 'facility' ? `${st.inside}:${Math.ceil((TIMING.facilityPromptMs - st.ms) / 1000)}` : '',
     st?.phase === 'trainer' ? `${st.n}:${st.ms >= TIMING.trainerAlertMs}:${st.ms >= vsStartMs('trainer')}` : '',

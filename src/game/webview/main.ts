@@ -224,6 +224,15 @@ if (!port) {
         return;
       }
     }
+    // A = 자동 전투 켜고 끄기 (2026-10-21 ideas #116 — 정보줄 · 전투의 자동 전투 칸과 같음, 판이 없을 때)
+    if (!overlay && e.code === 'KeyA' && !(e.ctrlKey || e.metaKey || e.altKey)) {
+      const cur = session.current;
+      if (cur && (cur.save.location.screen === 'stage' || cur.save.location.screen === 'gym')) {
+        e.preventDefault();
+        actions.input({ kind: 'auto-battle', on: !cur.save.settings.autoBattle });
+        return;
+      }
+    }
     if (overlay) {
       // 판 (지도 · 내 포켓몬 …) 의 Esc 는 판이 들음 · S21 프로필은 여기서
       if (overlay.kind === 'profile' && e.key === 'Escape') {

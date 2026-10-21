@@ -155,7 +155,7 @@
     const scene = q.get('scene');
     if (scene) {
         save.monsters.m1 = { ...save.monsters.m1, level: scene === 'result' ? 6 : 16, moves: [{ moveId: 33, pp: 30 }, { moveId: 22, pp: 20 }, { moveId: 52, pp: 25 }, { moveId: 84, pp: 30 }] };
-        let stage = { phase: 'choice', ms: scene === 'evolve-pick' ? 4000 : 0 };
+        let stage = { phase: 'choice', ms: scene === 'evolve-pick' ? 4000 : scene === 'evolve-wait' ? -1 : 0 };
         if (scene === 'result') stage = { phase: 'result', ms: 0, summary: { title: '야생 피죤을 쓰러뜨렸다!', exp: [{ uid: 'm1', name: '이상해씨', gain: 28, from: 5, to: 6 }], money: 20, item: '몬스터볼', caught: null, learned: [{ name: '이상해씨', move: '덩굴채찍' }], choices: 1 } };
         // ups=2 — 둘이 같이 레벨업 (팀 경험치) · ups=0 — 레벨업 없음 (경험치만)
         if (scene === 'result' && q.get('ups') === '2') {
@@ -172,7 +172,7 @@
         if (scene === 'result' && q.get('rms')) stage.ms = Number(q.get('rms'));
         if (scene === 'result' && q.get('ups') === '0') stage.summary = { ...stage.summary, exp: [{ uid: 'm1', name: '이상해씨', gain: 28, from: 5, to: 5 }], learned: [] };
         if (scene === 'learn') save.pendingChoices = [{ kind: 'learn', uid: 'm1', moveId: 75 }];
-        if (scene === 'evolve' || scene === 'evolve-pick') save.pendingChoices = [{ kind: 'evolve', uid: 'm1', to: 2, newMoves: [75, 76], level: 16, item: null }];
+        if (scene === 'evolve' || scene === 'evolve-pick' || scene === 'evolve-wait') save.pendingChoices = [{ kind: 'evolve', uid: 'm1', to: 2, newMoves: [75, 76], level: 16, item: null }];
         runtime = { rngState: 1, stepAccMs: 0, speed: 1, stage, stageId: 'forest-1', toast: null };
     }
 

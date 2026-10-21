@@ -257,6 +257,14 @@ export function catchTimeline(c: BattleCatch): { thrown: number; open: number; d
 }
 
 /** 지금 가방에 남은 그 아이템 수 (전투 중 쓴 것 빼고) */
+/** 자동 전투 상처약 — 설정이 켜져 있고 (없으면 켬) HP 가 최대의 30% 아래면 모자란 만큼에 맞는 약 (상처약 → 좋은상처약 순, 둘 다 없으면 null) */
+export function autoPotion(b: BattleState, save: Save): ItemId | null {
+  if (save.settings.autoPotion === false || b.me.hp <= 0 || b.me.hp >= b.me.maxHp * BALANCE.autoPotionBelow) return null;
+  const missing = b.me.maxHp - b.me.hp;
+  const order: ItemId[] = missing > BALANCE.potionHeal ? ['super-potion', 'potion'] : ['potion', 'super-potion'];
+  return order.find((item) => itemLeft(b, save, item) > 0) ?? null;
+}
+
 export function itemLeft(b: BattleState, save: Save, item: ItemId): number {
   return Math.max(0, (save.bag[item] ?? 0) - (b.bagUsed[item] ?? 0));
 }
@@ -592,7 +600,9 @@ function afterHits(b0: BattleState, save: Save): BattleState {
     }
     // 볼 기회가 남았을 때만 (3번 다 던졌으면 없음 — 2026-10-20 태현 님)
     const hasBall = BALLS.some((ball) => itemLeft(b, save, ball) > 0) && catchTriesUsed(b) < BALANCE.catchTries;
-    if (b.kind === 'wild' && hasBall && !wiped) return { ...b, phase: 'last', lastMs: 0, msg: down };
+    // 이미 잡은 종은 마지막 기회를 건너뜀 (설정, 2026-10-21 ideas #35)
+    const skip = save.settings.skipCaughtLast === true && save.dex.caught.includes(b.foe.species);
+    if (b.kind === 'wild' && hasBall && !wiped && !skip) return { ...b, phase: 'last', lastMs: 0, msg: down };
     return { ...b, phase: 'over', result: 'win', overMs: 0, msg: b.kind === 'wild' && !hasBall && !wiped ? `${down} (볼이 없어 잡을 수 없어요)` : down };
   }
   const b = b0;
@@ -666,7 +676,11 @@ export function battleStep(b0: BattleState, save: Save, stepMs: number, rng: Rng
       return b;
     }
     case 'choose':
-      if (opts.auto) return startAction(b, 'me', aiPick(b.me, b.foe, 'smart', rng), rng);
+      if (opts.auto) {
+        // HP 30% 아래면 상처약 (설정 — 기본 켬, 2026-10-21 ideas #65)
+        const potion = autoPotion(b, save);
+        return startAction(b, 'me', potion ? { kind: 'item', item: potion } : aiPick(b.me, b.foe, 'smart', rng), rng);
+      }
       return b; // 양쪽 멈춤 — 내가 고를 때까지 (상대 필살기 기다림도 멈춤)
     case 'anim': {
       const anim = { ...b.anim!, ms: b.anim!.ms + stepMs };
@@ -706,7 +720,8 @@ export function battleStep(b0: BattleState, save: Save, stepMs: number, rng: Rng
     case 'last': {
       const lastMs = b.lastMs + stepMs;
       // 볼을 고르지 않으면 (자동 전투 · 안 봄 · 그냥 둠) 지나감 [제안]
-      if (opts.away || lastMs >= TIMING.lastChanceMs) return { ...b, lastMs, phase: 'over', result: 'win', overMs: 0, msg: `${withJosa(label(b, 'foe'), '이/가')} 쓰러졌다!` };
+      // 자동 전투면 3초 (ideas #35)
+      if (opts.away || lastMs >= (opts.auto ? TIMING.lastChanceAutoMs : TIMING.lastChanceMs)) return { ...b, lastMs, phase: 'over', result: 'win', overMs: 0, msg: `${withJosa(label(b, 'foe'), '이/가')} 쓰러졌다!` };
       return { ...b, lastMs };
     }
     case 'send': {
