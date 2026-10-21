@@ -80,7 +80,8 @@ function Line({ p }: { p: SummaryPart }) {
 
 /** 얼굴 카드 (최대 셋) — 포켓몬 그림 (길 위 크기) · 왼쪽 아래 Lv · 오른쪽 위 +남은 포인트 · 2px 금색 테두리 = 버튼. hint = 첫 포인트 카드 아래 말풍선 */
 function FaceCards({ ups, media, hint, onStats }: { ups: LevelUpView[]; media: string; hint: boolean; onStats(uid: string): void }) {
-  const shown = ups.slice(0, 3);
+  // 찍을 포인트가 있는 카드를 앞으로 — 아주 좁은 패널 (260px 아래) 은 카드 한 장만 보여서, 포인트 카드 · 말풍선이 숨지 않게 (2026-10-21)
+  const shown = [...ups].sort((a, b) => Number(b.points > 0) - Number(a.points > 0)).slice(0, 3);
   const hintAt = shown.find((u) => u.points > 0)?.uid;
   return (
     <>
@@ -111,10 +112,22 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
   const all = [title, ...head.map(partText), ...body.map(partText)].join(' · ') + (summary.rival ? ` · 라이벌 보상 (돈 ×${BALANCE.rivalMoneyScale} · 아이템)` : '');
   // 카드가 레벨업을 보여 주면 둘째 줄의 "▲ 이상해씨 Lv 5 → 6 (경험치 +28)" 은 빼고 새 기술 (★) 을 앞에 — 같은 말 두 번 · 좁으면 ★ 가 잘리던 것 (아트 디렉터 7차, 전체는 마우스를 올리면)
   const rest = ups.length === 0 ? body : [...body.filter((p) => p.kind === 'learned'), ...body.filter((p) => p.kind !== 'up' && p.kind !== 'learned')];
+  // 제목 — 좁으면 "야생 " 을 빼고 (pg-title-pre) 낱말 단위로 줄을 바꿈 (줄임표 금지 U4 — "야생 파이리를 …" 로 잘리던 것, 2026-10-21 orders #5)
+  const pre = title.startsWith('야생 ') ? '야생 ' : '';
+  const restLine = rest.map((p, i) => (
+    <span key={i}>
+      {i > 0 && ' · '}
+      <Line p={p} />
+    </span>
+  ));
+  const altB = rest.length > 0 ? restLine : ups.length > 0 ? <><span class="pg-up">▲</span> {ups.map((u) => `${u.name} Lv ${u.to}`).join(' · ')}</> : null;
   const lines = (
     <>
       <span class="pg-line">
-        <b class="pg-ellipsis">{title}</b>
+        <b class="pg-result-title">
+          {pre && <span class="pg-title-pre">{pre}</span>}
+          {title.slice(pre.length)}
+        </b>
         {head.map((p) => (
           <Reward key={p.kind} p={p} rare={!!summary.rival} />
         ))}
@@ -122,14 +135,16 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
           <KeyCap k="Enter" /> {next === 'evolve' ? '▶ 어…?' : next === 'learn' ? '▶ 새 기술' : '계속 ▶'}
         </Button>
       </span>
-      {rest.length > 0 && (
-        <span class="pg-line pg-ellipsis pg-result-body">
-          {rest.map((p, i) => (
-            <span key={i}>
-              {i > 0 && ' · '}
-              <Line p={p} />
-            </span>
-          ))}
+      {rest.length > 0 && <span class="pg-line pg-ellipsis pg-result-body">{restLine}</span>}
+      {/* 좁은 패널 (360px 아래) — 첫 줄에서 빠진 얻은 것 (돈 · 볼) 2.5초 → 배운 기술 · 경험치 (레벨업 상자면 레벨업) 2.5초 (2026-10-21 태현 님 A — 예전 #437 "얻은 것 숨김" · 아이콘 + … 잘림을 바꿈). 둘째가 없으면 얻은 것만 */}
+      {head.length > 0 && (
+        <span class={`pg-line pg-result-alt${altB ? '' : ' pg-result-alt-solo'}`}>
+          <span class="pg-result-alt-a">
+            {head.map((p) => (
+              <Reward key={p.kind} p={p} rare={!!summary.rival} />
+            ))}
+          </span>
+          {altB && <span class="pg-result-alt-b">{altB}</span>}
         </span>
       )}
     </>

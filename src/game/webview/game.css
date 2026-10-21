@@ -4435,14 +4435,64 @@ body.vscode-light .pg-field-balls {
     display: none;
   }
 }
-/* 아주 좁은 패널 — 제목은 3글자까지 줄고, 레벨업 상자는 돈 · 아이템 칸을 뺌 (마우스를 올리면 전체 · 버튼이 패널 밖으로 밀리지 않게) */
-@media (max-width: 300px) {
-  .pg-result .pg-line > b.pg-ellipsis {
-    min-width: 3em;
-  }
-  .pg-lvup .pg-reward {
+/* 결과 제목 — 줄임표 없이 낱말 단위로 줄 바꿈 (U4, 2026-10-21 orders #5) · 좁으면 "야생 " 을 뺌 */
+.pg-result .pg-result-title {
+  min-width: 0;
+  white-space: normal;
+  word-break: keep-all;
+}
+/* 좁은 패널에서만 쓰는 번갈아 줄 (넓으면 첫 줄에 얻은 것이 있음) */
+.pg-result-alt {
+  display: none;
+}
+/* 좁은 패널 (360px 아래) — 첫 줄 얻은 것 칸 (아이콘 + … 로 잘리던 것) 을 빼고 둘째 줄에서 얻은 것 2.5초 → 배운 기술 · 경험치 · 레벨업 2.5초 (2026-10-21 태현 님 A — 예전엔 레벨업 상자에서 얻은 것을 숨겨 0초) */
+@media (max-width: 360px) {
+  .pg-result .pg-line:first-child > .pg-reward,
+  .pg-result:has(.pg-result-alt) .pg-result-body {
     display: none;
   }
+  .pg-result .pg-result-alt {
+    display: grid;
+    font-size: 12px;
+    color: var(--pg-sos-dim);
+  }
+  .pg-result-alt > span {
+    grid-area: 1 / 1;
+    min-width: 0;
+    white-space: normal;
+    word-break: keep-all;
+  }
+  /* 얻은 것 칸 사이 = 첫 줄과 같은 8px */
+  .pg-result-alt-a {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 8px;
+  }
+  .pg-result-alt:not(.pg-result-alt-solo) > .pg-result-alt-a {
+    animation: pg-alt-a 5s steps(1, end) both;
+  }
+  .pg-result-alt-b {
+    animation: pg-alt-b 5s steps(1, end) both;
+  }
+}
+/* 아주 좁은 패널 — 제목에서 "야생 " 을 뺌 · 레벨업 얼굴 카드는 한 장만 (240 에서 제목 자리가 40px 라 "쓰러뜨렸다!" 가 버튼 밑으로 들어가던 것) */
+@media (max-width: 300px) {
+  .pg-result .pg-title-pre {
+    display: none;
+  }
+}
+@media (max-width: 260px) {
+  .pg-lvup-cards > .pg-lvup-card:nth-child(n + 2) {
+    display: none;
+  }
+}
+@keyframes pg-alt-a {
+  0% { visibility: visible; }
+  50%, 100% { visibility: hidden; }
+}
+@keyframes pg-alt-b {
+  0% { visibility: hidden; }
+  50%, 100% { visibility: visible; }
 }
 /* 왼쪽 얼굴 카드 44 × 44 (포켓몬 = 길 위와 같은 크기 40 칸 창 · 왼쪽 아래 ▲ Lv 칩 · 2px 금색 테두리 · 오른쪽 위 +포인트 칩) = 버튼. 처음 한 번 2px 톡 · 반짝 별 둘이 네 번 깜박이고 꺼짐 */
 .pg-banner.pg-two.pg-lvup {
