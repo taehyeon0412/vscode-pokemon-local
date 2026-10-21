@@ -4,7 +4,7 @@
  * 쓰러지면 같은 줄이 "다음 포켓몬" (숫자 키).
  */
 import type { ComponentChildren } from 'preact';
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { maxHpOf } from '../../../core/rules/bag';
 import { canUlt, catchTriesUsed, counterOpen, itemLeft, lastChanceLimitMs, switchable, ultCounterOpen, type BattleState, type GameInput } from '../../../core/engine';
 import { BALLS, type BallId } from '../../../core/rules/catch';
@@ -14,7 +14,7 @@ import { speciesOf } from '../../../data';
 import { Button } from '../../../ui/Button';
 import { BALL_ICON } from '../../../ui/BallCount';
 import { Icon } from '../../../ui/Icon';
-import { catchView, menuItems, type MenuItem, type MenuPage } from '../model';
+import { catchTone, catchView, menuItems, TONE_WORD, type MenuItem, type MenuPage } from '../model';
 
 export interface BattleMenuProps {
   battle: BattleState;
@@ -44,8 +44,9 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
   // 커서 (Sea of Stars 1f — 고를 줄이 늘 보임: ▸ + 밝은 줄, 아트 디렉터) · ↑ ↓ 로 옮기고 Enter 로 고름 · 페이지 · 차례가 바뀌면 첫 줄로
   const [cursor, setCursor] = useState(0);
   // 볼을 놓친 뒤 다음 차례는 커서를 "4 아이템" (볼이 있는 줄) 에 — 바로 Enter 로 다시 던지게 (ideas #131, 2026-10-21). 지난 차례의 볼 수를 기억해 비교
+  // 그리기 전에 옮김 (useEffect 면 "▸1 공격" 이 한 장면 보였다가 아이템으로 튐 — UX 리뷰어)
   const triesSeen = useRef(catchTriesUsed(b));
-  useEffect(() => {
+  useLayoutEffect(() => {
     const tries = catchTriesUsed(b);
     const missed = page === 'main' && b.phase === 'choose' && tries > triesSeen.current;
     if (b.phase === 'choose') triesSeen.current = tries;
@@ -247,12 +248,19 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
     // S11 타이밍 원 — 원이 딱 맞을 때 Space (클릭도 됨)
     // 던진 뒤 = 지금 장면 한 줄 (2026-10-20 — 누른 때 = 던짐)
     const stage = catchView(b)?.stage;
+    // 잡기 쉬움 글 (원 색 · 선 모양과 같은 뜻 — ideas #128) · "어려움" 만 쓰면 타이밍이 어렵다로 읽혀서 "잡기 어려움" (UX 리뷰어 2026-10-21) · 옆 메뉴는 버튼 아래 한 줄
+    const tone = catchTone(b);
     row =
       stage === 'ring' ? (
-        <Button onClick={() => onInput({ kind: 'space' })} title="원이 안쪽 원에 딱 맞을 때">
-          {/* 옆 메뉴는 칸이 좁아 짧게 (×3 패널에서 "원이 딱 맞을 때 (…" 로 잘리던 것) */}
-          {vertical ? `딱 맞을 때 ${document.hasFocus() ? 'Space' : '클릭'}` : `원이 딱 맞을 때 ${key}`}
-        </Button>
+        <>
+          <Button onClick={() => onInput({ kind: 'space' })} title="원이 안쪽 원에 딱 맞을 때">
+            {/* 옆 메뉴는 칸이 좁아 짧게 (×3 패널에서 "원이 딱 맞을 때 (…" 로 잘리던 것) */}
+            {vertical ? `딱 맞을 때 ${document.hasFocus() ? 'Space' : '클릭'}` : `원이 딱 맞을 때 ${key}`}
+          </Button>
+          <span class={`pg-catch-tone pg-catch-tone-${tone}`} title="그냥 던졌을 때 잡기 쉬운 정도 — HP 를 더 깎거나 좋은 볼이면 쉬워져요">
+            잡기 {TONE_WORD[tone]}
+          </span>
+        </>
       ) : (
         <span class="pg-dim">{stage === 'shake' ? '흔들… 흔들…' : stage === 'end' ? (b.catch.caught ? '딸깍!' : '앗!') : '던졌다!'}</span>
       );

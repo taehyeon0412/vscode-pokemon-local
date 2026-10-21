@@ -1424,6 +1424,11 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   border-radius: 0;
   box-shadow: none;
 }
+/* 그림이 있는 줄 (마지막 기회 볼 칸) = 16px — 13px 줄에서 볼 그림 아래 3px 가 잘리던 것 (픽셀 검사원 2026-10-21) */
+.pg-vmenu .pg-layer .pg-button:has(.pg-icon) {
+  height: 16px;
+  line-height: 16px;
+}
 /* 고른 줄 = 줄 전체 바탕 칸 + 금색 글자 + ▸ (Sea of Stars) */
 .pg-vmenu .pg-layer .pg-button:hover:not(:disabled),
 .pg-vmenu .pg-layer .pg-button:focus-visible {
@@ -1854,12 +1859,6 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   pointer-events: none;
   transform: translateX(-50%);
 }
-.pg-catch-fly {
-  opacity: 0;
-  animation-name: pg-send-fly;
-  animation-timing-function: steps(8);
-  animation-fill-mode: both;
-}
 .pg-catch-open {
   transform: translate(-50%, 50%);
   animation: pg-catch-open 400ms steps(1, end) both;
@@ -1995,7 +1994,7 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 .pg-catch-win-ball {
   position: relative;
   line-height: 0;
-  animation: pg-catch-flyin 150ms steps(3) both;
+  animation: pg-catch-flyin 150ms steps(1, end) both;
 }
 /* 창 안 바닥 — 흐린 금색 1px 선 (볼이 놓인 땅) + 볼 아래 픽셀 그림자 (가운데가 넓은 납작 육각) */
 .pg-catch-win-ball::before {
@@ -2019,8 +2018,9 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   clip-path: polygon(4px 0, calc(100% - 4px) 0, 100% 50%, calc(100% - 4px) 100%, 4px 100%, 0 50%);
 }
 @keyframes pg-catch-flyin {
-  0% { translate: var(--pg-fx, 0) var(--pg-fy, 0); scale: var(--pg-fs, 1); }
-  100% { translate: 0 0; scale: 1; }
+  0% { translate: var(--pg-fx1, 0) var(--pg-fy1, 0); }
+  33.33% { translate: var(--pg-fx2, 0) var(--pg-fy2, 0); }
+  66.67%, 100% { translate: 0 0; }
 }
 .pg-catch-win .pg-catch-ball {
   position: static;
@@ -2035,33 +2035,45 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   24% { translate: 6px 0; }
   48%, 100% { translate: 0 0; }
 }
-/* 흔들기가 갈수록 세짐 (ideas #129, 2026-10-21) — 흔든 수 n 만큼 한 번에 (BattleLayer shakeStyle): 첫 번째 ±3px → 두 번째 ±5px → 세 번째 ±7px 를 빨리 흔들고 남은 시간 멈춤 (딸깍 · 터지기 직전 숨 고르기) */
+/* 흔들기가 갈수록 세짐 (ideas #129, 2026-10-21) — 흔든 수 n 만큼 한 번에 (BattleLayer shakeStyle): 첫 번째 ±3px → 두 번째 ±5px → 세 번째 ±7px.
+   한 번 = 550ms 칸 (TIMING.catchShakeMs) 의 200ms 에 왼 → 330ms 오 → 460ms 제자리 (멈춤 = 딸깍 · 터지기 직전 숨 고르기).
+   200ms 부터 = 창이 들어오는 0.15초 (pg-catch-win-in · pg-catch-flyin) 가 끝난 뒤 — 첫 흔들기가 그 안에 묻혀 "움찔 + 2번" 으로 보이던 것 (UX 리뷰어 2026-10-21) */
 @keyframes pg-catch-shake-n1 {
-  0% { translate: -4px 0; }
-  24% { translate: 4px 0; }
-  48%, 100% { translate: 0 0; }
+  0% { translate: 0 0; }
+  36.36% { translate: -3px 0; }
+  60% { translate: 3px 0; }
+  83.64%, 100% { translate: 0 0; }
 }
 @keyframes pg-catch-shake-n2 {
-  0% { translate: -3px 0; }
-  12% { translate: 3px 0; }
-  24%, 50% { translate: 0 0; }
-  50.01% { translate: -6px 0; }
-  62% { translate: 6px 0; }
-  74%, 100% { translate: 0 0; }
+  0% { translate: 0 0; }
+  18.18% { translate: -3px 0; }
+  30% { translate: 3px 0; }
+  41.82% { translate: 0 0; }
+  68.18% { translate: -5px 0; }
+  80% { translate: 5px 0; }
+  91.82%, 100% { translate: 0 0; }
 }
 @keyframes pg-catch-shake-n3 {
-  0% { translate: -3px 0; }
-  8% { translate: 3px 0; }
-  16%, 33.3% { translate: 0 0; }
-  33.34% { translate: -5px 0; }
-  41.3% { translate: 5px 0; }
-  49.3%, 66.6% { translate: 0 0; }
-  66.7% { translate: -7px 0; }
-  72% { translate: 7px 0; }
-  77.3%, 100% { translate: 0 0; }
+  0% { translate: 0 0; }
+  12.12% { translate: -3px 0; }
+  20% { translate: 3px 0; }
+  27.88% { translate: 0 0; }
+  45.45% { translate: -5px 0; }
+  53.33% { translate: 5px 0; }
+  61.21% { translate: 0 0; }
+  78.79% { translate: -7px 0; }
+  86.67% { translate: 7px 0; }
+  94.55%, 100% { translate: 0 0; }
 }
-/* 흔들기 창 상태 한 줄 — 잡는 중… 크림 흐림 · 잡았다! 금색 · 아깝다! 빨강 (이름표가 포켓몬 이름이 되어 상태를 여기로) */
+/* 흔들기 창 상태 한 줄 — 잡는 중… 크림 흐림 · 잡았다! 금색 · 아깝다! 빨강 (이름표가 포켓몬 이름이 되어 상태를 여기로) ·
+   바닥 선과 3px (예전 1px — 픽셀 검사원) · 볼이 들어오는 0.15초 동안은 숨김 (아래에서 들어오는 볼이 글 위를 지나가던 것) */
+@keyframes pg-catch-state-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
 .pg-catch-state {
+  margin-top: 2px;
+  animation: pg-catch-state-in 150ms steps(1, end) both;
   color: var(--pg-sos-dim);
   font-size: 11px;
   font-weight: 700;
@@ -2073,25 +2085,74 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 .pg-catch-state-miss {
   color: var(--pg-sos-red);
 }
-/* 잡기 원 = 잡기 쉬움 (ideas #128) — 쉬움 초록 실선 · 보통 금색 끊긴 선 · 어려움 빨강 점선 (색 하나에만 맡기지 않음 — 원칙 7) · 키 칸 글에도 "쉬움 · 보통 · 어려움" */
-.pg-parry-ring.pg-ring-tone-easy {
-  border-color: var(--pg-sos-hp);
+/* 픽셀 원 (패링 · 반격 · 잡기 원, BattleLayer PixelRing) — SVG 원을 계단 모양 그대로 (crispEdges), 반지름 · 색 · 투명도는 걸음마다 JS 가 정함.
+   연출 층 (z 3) 위 · HP 줄 (z 4, 뒤에 그림) 아래 — 큰 원이 HP 숫자를 가로지르지 않게. 기본 금색 2px (패링 · 반격) */
+.pg-ring-box {
+  position: absolute;
+  z-index: 4;
+  line-height: 0;
+  pointer-events: none;
 }
-.pg-parry-ring.pg-ring-tone-mid {
-  border-color: var(--pg-sos-gold);
-  border-style: dashed;
+.pg-ring-box svg {
+  display: block;
+  overflow: visible;
+  shape-rendering: crispEdges;
 }
-.pg-parry-ring.pg-ring-tone-hard {
-  border-color: var(--pg-sos-red);
-  border-style: dotted;
-  border-width: 3px;
+.pg-ring-c {
+  fill: none;
+  stroke: #ffd76a;
+  stroke-width: 2;
 }
-/* 완벽 타이밍 금색 꼬리 (ideas #130) — 볼과 같은 포물선을 늦게 따라가는 금색 점 셋 (뒤로 갈수록 작고 흐림) */
+.pg-ring-target {
+  fill: none;
+  stroke: rgba(255, 215, 106, 0.55);
+  stroke-width: 1;
+}
+.pg-ring-box.pg-parry-auto {
+  filter: opacity(0.4);
+}
+/* 잡기 원 = 잡기 쉬움 (ideas #128) — 쉬움 초록 실선 · 보통 금색 끊긴 선 · 어려움 빨강 점선 (색 하나에만 맡기지 않음 — 원칙 7) · 글 "잡기 쉬움 · 보통 · 어려움" 은 메뉴 줄 안내 끝.
+   색은 줄어드는 동안 85% 까지 그대로, 그 뒤 맞는 때 흰색 (예전엔 처음부터 흰색으로 섞여 0.45초 뒤엔 거의 흰 원 — UX 리뷰어 2026-10-21) */
+.pg-ring-c.pg-ring-tone-easy {
+  stroke: var(--pg-sos-hp);
+}
+.pg-ring-c.pg-ring-tone-mid {
+  stroke: var(--pg-sos-gold);
+  stroke-dasharray: 6 4;
+}
+.pg-ring-c.pg-ring-tone-hard {
+  stroke: var(--pg-sos-red);
+  stroke-width: 3;
+  stroke-dasharray: 3 3;
+}
+/* 누른 원 — 완벽 금색 · 좋음 초록 · 빗나감 흐림 */
+.pg-ring-c.pg-ring-perfect {
+  stroke: var(--pg-sos-gold);
+}
+.pg-ring-c.pg-ring-good {
+  stroke: var(--pg-sos-hp);
+}
+.pg-ring-c.pg-ring-none {
+  stroke: var(--pg-sos-dim);
+}
+/* 메뉴 줄 잡기 원 안내 끝 "잡기 어려움" — 원과 같은 색 */
+.pg-catch-tone {
+  flex: none;
+  font-weight: 700;
+}
+.pg-catch-tone-easy {
+  color: var(--pg-sos-hp);
+}
+.pg-catch-tone-mid {
+  color: var(--pg-sos-gold);
+}
+.pg-catch-tone-hard {
+  color: var(--pg-sos-red);
+}
+/* 완벽 타이밍 금색 꼬리 (ideas #130) — 볼과 같은 포물선을 늦게 따라가는 금색 점 셋 (뒤로 갈수록 작고 흐림, 크기 · 길은 BattleLayer FlyBall) ·
+   점 가운데 = 볼 가운데 (예전 margin 으로 볼 오른쪽 위 테두리를 따라가던 것 — 픽셀 검사원) · 출발 전에는 숨김 */
 .pg-catch-trail {
-  width: var(--pg-tp, 4px);
-  height: var(--pg-tp, 4px);
-  margin-left: calc(var(--pg-bh, 8px) - var(--pg-tp, 4px) / 2);
-  margin-bottom: calc(var(--pg-bh, 8px) - var(--pg-tp, 4px) / 2);
+  opacity: 0;
   background: var(--pg-sos-gold);
 }
 .pg-catch-trail-2 {
@@ -2311,13 +2372,25 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
     display: none;
   }
 }
-/* 마지막 기회 상대 HP 줄 잡은 적 표시 (ideas #37) — 잡은 적 있음 = 작은 볼 그림 · 처음 = 빨간 NEW 칠 (만남 띠 NEW 와 같은 모양) · 320px 아래는 레벨 대신 (이름이 "파…" 로 잘리지 않게) */
-@media (max-width: 320px) {
-  .pg-hprow:has(.pg-last-new, .pg-last-dex) > .pg-lv {
-    display: none;
-  }
+/* 마지막 기회 상대 HP 줄 잡은 적 표시 (ideas #37) — 잡은 적 있음 = 작은 볼 그림 · 처음 = 빨간 NEW 칠 (만남 띠 NEW 와 같은 모양) · 모든 폭에서 레벨 대신
+   (5글자 이름 + NEW 가 "장크로…" 로 잘리던 것 — UX 리뷰어 · 픽셀 검사원 2026-10-21, 쓰러진 상대라 Lv 는 덜 중요 · 마우스를 올리면 나옴) */
+.pg-hprow:has(.pg-last-new, .pg-last-dex) > .pg-lv {
+  display: none;
 }
+/* 이름은 줄이지 않음 — 표시까지 HP 묶음보다 넓으면 이름 줄만 왼쪽으로 넘침 (240 에서 HP 묶음 84px 에 "장크로다일 NEW" 89px — 막대 왼쪽 끝보다 5px 나가도 내 HP 묶음과 11px 떨어짐) */
+.pg-hprow:has(.pg-last-new, .pg-last-dex) {
+  align-self: flex-end;
+  width: max-content;
+  min-width: 100%;
+}
+.pg-hprow:has(.pg-last-new, .pg-last-dex) > .pg-hpname {
+  flex: none;
+  max-width: none;
+}
+/* 볼 그림 16px 가 12px 줄 위아래 막대에 1px 씩 가려지던 것 — 막대 위 층 */
 .pg-last-dex {
+  position: relative;
+  z-index: 1;
   display: inline-block;
   vertical-align: -3px;
   line-height: 0;
@@ -2326,8 +2399,9 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   padding: 0 3px;
   color: var(--pg-sos-ink);
   background: var(--pg-sos-red);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
+  line-height: 12px;
 }
 /* 마지막 기회 — 쓰러진 상대를 흐리게 남김 */
 .pg-down {
@@ -3293,6 +3367,14 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 .pg-ring-text.pg-ring-perfect { color: var(--pg-sos-gold); }
 .pg-ring-text.pg-ring-good { color: var(--pg-sos-hp); }
 .pg-ring-text.pg-ring-none { color: var(--pg-sos-dim); }
+/* 잡기 타이밍 결과 (완벽! · 좋아! · 조금 빨랐다) — 톡 올라온 뒤 흐려지지 않고 볼이 떨어질 때까지 (1.1초 — 떠오르는 글 공통 1.2초는 0.9초부터 흐려져 1초가 안 됐음, ux-rules U1) */
+.pg-pop.pg-ring-text {
+  animation: pg-ring-text-in 1100ms steps(1, end) both;
+}
+@keyframes pg-ring-text-in {
+  0% { transform: translateX(-50%) translateY(2px); }
+  10%, 100% { transform: translateX(-50%); }
+}
 
 /* 밝은 테마 — 숲 그림의 빈칸 (나무 사이) 은 편집기 바탕이 비쳐 밝은 낮 숲 (일반 모드와 같은 그림 · 같은 규칙) · 판 · 띠는 그대로 남색 */
 body.vscode-light .pg-field,
@@ -4214,6 +4296,11 @@ body.vscode-high-contrast-light .pg-title-body {
 /* 동작 줄이기 = 게임 설정 (.pg-reduce-motion, 2026-10-20 태현 님 1안 — OS 설정은 안 봄) */
 .pg-reduce-motion .pg-points { animation: none; }
 
+/* 잡기 흔들기 창이 떠 있는 동안 전투 메뉴 = 숨김 (내리면 다시 올라올 때 "볼을 놓친 차례" 를 잊어 커서가 "1 공격" 으로 가던 것 — UX 리뷰어 2026-10-21 #131) */
+.pg-bmenu-wrap.pg-bmenu-away {
+  visibility: hidden;
+  pointer-events: none;
+}
 /* 패링 키 칸 = 원 왼쪽 (끝을 원 왼쪽에 맞춤) · 자동 전투면 원은 흐리게 */
 .pg-parry-key {
   transform: translate(-100%, 50%);

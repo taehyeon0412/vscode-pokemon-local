@@ -147,7 +147,7 @@
             const last = q.get('last') === '1';
             Object.assign(b, { phase: 'catch', bagUsed: { 'poke-ball': Number(q.get('tries') || 0) + 1 }, ...(last ? { foe: { ...b.foe, hp: 0 } } : {}), catch: { ball: 'poke-ball', ms: Number(q.get('cms') || 0), pressMs: at, throwMs: at, shakes: at === null ? 0 : Number(q.get('shakes') || 3), last, caught: at === null ? null : q.get('caught') !== '0', startT: 5000 }, msg: at === null ? '몬스터볼을 꺼냈다!' : '가랏, 몬스터볼!' });
         }
-        if (battleKind === 'last') { save.bag = { 'poke-ball': 3, 'great-ball': 1 }; Object.assign(b, { phase: 'last', foe: { ...foe, hp: 0 }, msg: '야생 파이리가 쓰러졌다! 마지막 기회 — 볼을 던질까?' }); }
+        if (battleKind === 'last') { save.bag = { 'poke-ball': 3, 'great-ball': 1 }; Object.assign(b, { phase: 'last', foe: { ...foe, hp: 0 }, msg: '야생 파이리가 쓰러졌다!' }); }
         runtime = { rngState: 1, stepAccMs: 0, speed: 1, stage: { phase: 'battle', battle: b }, stageId: 'forest-1', toast: null };
     }
 

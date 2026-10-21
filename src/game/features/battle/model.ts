@@ -6,7 +6,7 @@ import type { BattleAction, BattlePopup, BattleState, Side } from '../../core/en
 import { canAct, canParry, catchTimeline, catchTriesUsed, counterOpen, faintedTeam, itemLeft, switchable, ultCounterOpen } from '../../core/engine';
 import { isShooting } from '../../core/rules/battle';
 import { maxHpOf } from '../../core/rules/bag';
-import { BALLS, isBall } from '../../core/rules/catch';
+import { BALLS, catchChance, isBall } from '../../core/rules/catch';
 import { BATTLE_ITEMS, itemName } from '../../core/rules/items';
 import type { Save } from '../../core/save';
 import { typeNameKo, withJosa } from '../../core/text';
@@ -540,6 +540,17 @@ export type CatchStage = 'ring' | 'fly' | 'suck' | 'drop' | 'shake' | 'end' | 'h
 /** S11 잡기 장면 (2026-10-20 태현 님 다시 기획) — 엔진 시간표 (catchTimeline) 대로:
  *  ring 서 있는 상대 둘레 원 → fly 볼이 날아감 → suck 열려 빨려 들어감 → drop 떨어져 통통 → shake 가운데 창에서 흔들 × shakes → end 딸깍 · 터짐 → held 잡힘 (전투 끝).
  *  since = 그 장면이 시작하고 지난 ms · left = 남은 기회 (이번 볼 포함, 3/3 · 2/3 · 1/3) */
+/** 잡기 쉬움 (2026-10-21 ideas #128 — 레전드 아르세우스처럼 원 색으로) = 그냥 던졌을 때 (타이밍 보너스 없이) 잡을 확률 — 반 넘으면 쉬움 · 5분의 1 넘으면 보통 · 아래는 어려움.
+ *  잡기 원 (색 + 선 모양) · 메뉴 줄 안내 끝 "잡기 어려움" (글) 이 같이 씀 */
+export type CatchTone = 'easy' | 'mid' | 'hard';
+export const TONE_WORD: Record<CatchTone, string> = { easy: '쉬움', mid: '보통', hard: '어려움' };
+export function catchTone(b: BattleState): CatchTone {
+  const c = b.catch;
+  if (!c) return 'mid';
+  const p = catchChance({ captureRate: speciesOf(b.foe.species)?.captureRate ?? 45, hp: b.foe.hp, maxHp: b.foe.maxHp, ball: c.ball, timing: 'none', lastChance: c.last });
+  return p >= 0.5 ? 'easy' : p >= 0.2 ? 'mid' : 'hard';
+}
+
 export function catchView(b: BattleState): { stage: CatchStage; since: number; left: number; shakes: number; caught: boolean | null } | null {
   const c = b.catch;
   if (!c) return null;
