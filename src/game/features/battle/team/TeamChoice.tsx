@@ -6,7 +6,7 @@
  */
 import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
-import { teamChoiceMeet, teamFoesOf, teamLock, teamPickOf, type GameInput, type GameState } from '../../../core/engine';
+import { teamChoiceMeet, teamFoesOf, teamLock, teamMainOf, teamPickOf, type GameInput, type GameState } from '../../../core/engine';
 import { speciesOf } from '../../../data';
 import { TypeTags } from '../components/TypeTag';
 import { Button } from '../../../ui/Button';
@@ -18,7 +18,8 @@ export function teamChoiceOn(state: GameState): boolean {
   const st = state.runtime.stage;
   const on = BALANCE.team.on || state.runtime.dev?.team === true;
   // 체육관 대기실 — 관장 3:3 에 나갈 셋 (도전 = 대기실 주 버튼)
-  if (st?.phase === 'lobby') return on && state.save.location.screen === 'gym' && teamPickOf(state) !== null;
+  // 고르는 중에 패널이 좁아져 잠겨도 (picking) 판은 그대로 — "넓히면 3:3" 안내 (개발팀 03f8982 — 넓히면 그대로 3:3)
+  if (st?.phase === 'lobby') return on && state.save.location.screen === 'gym' && (teamPickOf(state) !== null || (st.picking === true && teamLock(state) !== null));
   return st?.phase === 'trainer' && st.ms >= TIMING.trainerAlertMs && on && state.save.pendingEncounter?.kind === 'trainer';
 }
 
@@ -44,8 +45,8 @@ export function TeamMeet({ state, onInput }: { state: GameState; onInput(i: Game
   const st = state.runtime.stage;
   if (st?.phase !== 'trainer' || !teamMeetOn(state)) return null;
   const lock = teamLock(state);
-  // 잠겼으면 (3마리 미만 · 좁음) 주 버튼 = 1:1 (엔진도 1:1 로 시작 — 코드 리뷰어)
-  const team = lock === null && (st.team ?? state.save.settings.teamMode === true);
+  // 잠겼으면 (3마리 미만 · 좁음) 주 버튼 = 1:1 (엔진도 1:1 로 시작 — 코드 리뷰어) · 이번 판 3:3 에서 진 트레이너도 1:1 (teamMainOf — 기획 #27 R8)
+  const team = lock === null && (st.team ?? teamMainOf(state));
   const narrow = (state.runtime.view?.w ?? 1000) < NARROW_PX;
   const why = lock === 'few' ? (narrow ? '3마리 필요' : '3마리가 있어야 3:3') : lock === 'narrow' ? '넓히면 3:3' : null;
   const left = Math.ceil(Math.max(0, Math.min(1, (TIMING.trainerAlertMs + TIMING.teamChoiceMs - st.ms) / TIMING.teamChoiceMs)) * 12) / 12;
@@ -127,7 +128,9 @@ export function TeamChoice({ state, media, onInput }: { state: GameState; media:
   });
   if (st?.phase !== 'trainer' && st?.phase !== 'lobby') return null;
   const save = state.save;
-  const pick = teamPickOf(state);
+  // 고르는 중에 잠기면 (좁아짐) 엔진은 고르기를 이어 감 — 판은 고른 셋을 그대로 보이고 시작만 막음 ("넓히면 3:3", 개발팀 03f8982 · 판이 통째로 사라지던 것)
+  const lock = teamLock(state);
+  const pick = teamPickOf(state) ?? (lock === null ? null : st.phase === 'trainer' ? (st.pick ?? null) : st.phase === 'lobby' && st.picking ? (st.pick ?? []) : null);
   const lobby = st.phase === 'lobby';
   // 3마리 고르기는 VS 전 (고른 뒤 VS — 개발팀 29b90b4 만남 순서) · 대기실은 늘
   if (!(lobby || (st.phase === 'trainer' && st.team && st.vsAt === undefined)) || !pick) return null;
@@ -202,6 +205,13 @@ export function TeamChoice({ state, media, onInput }: { state: GameState; media:
           );
         })}
         {/* 시작 = 셋째 열 마지막 줄 (팀 다섯이면 여섯째 자리) · 대기실은 "도전" (두 번째 Enter — 저절로 시작 없음, 막대 없음) */}
+        {lock !== null && (
+          // 잠김 안내 = 시작 칸 자리 (넓히면 그대로 3:3 · 3마리 미만은 고를 수 없음)
+          <span class="pg-team-lockmsg" title={lock === 'narrow' ? '패널을 넓히면 3:3 으로 시작할 수 있어요' : '살아 있는 포켓몬이 3마리 있어야 3:3'}>
+            {lock === 'narrow' ? '넓히면 3:3' : '3마리 필요'}
+          </span>
+        )}
+        {lock === null && (
         <Button
           extraClass="pg-team-start"
           onClick={() => onInput(lobby ? { kind: 'challenge' } : { kind: 'space' })}
@@ -212,6 +222,7 @@ export function TeamChoice({ state, media, onInput }: { state: GameState; media:
           {`${lobby ? '도전' : '시작'} ${pick.length}/${n}`}
           {!lobby && <span class="pg-team-left" style={{ width: `${Math.round(left * 100)}%` }} />}
         </Button>
+        )}
       </div>
     </div>
   );

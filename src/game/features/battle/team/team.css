@@ -466,12 +466,11 @@
   background: var(--pg-sos-red);
 }
 
-/* 기획 R2 — 다 찬 필살기 누를 틈 = 발밑 판 오른쪽 숫자 3 · 2 · 1 (1:1 Z 모서리와 같은 칩) */
+/* 기획 R2 — 다 찬 필살기 누를 틈 = 먼저 나갈 칸 발밑 판 왼쪽 위 탭 "3초" · "2초" · "1초" (1:1 Z 옆 칩과 같은 모양) · 왼쪽 끝 = 금 테두리 (outline 2 · 2 바깥) 바깥 끝 · 아래 2px 이 그 테두리에 겹침 — 판 오른쪽 바깥이면 240 에서 다음 칸 포켓몬을 덮던 것 (UX 리뷰어 3차) */
 #pokemon-game .pg-team-auto {
   position: absolute;
-  left: 100%;
-  top: 1px;
-  margin-left: 2px;
+  left: -4px;
+  bottom: calc(100% + 2px);
   box-sizing: border-box;
   height: 12px;
   padding: 0 2px;
@@ -480,4 +479,20 @@
   color: var(--pg-sos-gold);
   background: var(--pg-sos-bar);
   border: 1px solid var(--pg-sos-gold);
+}
+
+/* 고르는 중 잠김 안내 (패널이 좁아짐 — 넓히면 3:3) = 시작 칸 자리 · 흐린 점선 칸 (못 누름) */
+#pokemon-game .pg-team-grid > .pg-team-lockmsg {
+  grid-column: 3;
+  align-self: center;
+  justify-self: end;
+  box-sizing: border-box;
+  height: 22px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 20px;
+  color: var(--pg-sos-dim);
+  border: 1px dashed var(--pg-sos-line-soft);
+  white-space: nowrap;
 }

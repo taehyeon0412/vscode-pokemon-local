@@ -26,7 +26,7 @@ function Bar({ v, kind }: { v: number; kind: 'hp' | 'ult' | 'ult-full' }) {
   );
 }
 
-function Fighter({ b, g, side, slot, media, topMin, final, onUlt }: { b: TeamBattle; g: TeamGeo; side: Side; slot: number; media: string; topMin: number; final: boolean; onUlt(slot: number): void }) {
+function Fighter({ b, g, side, slot, media, topMin, final, autoNext, onUlt }: { b: TeamBattle; g: TeamGeo; side: Side; slot: number; media: string; topMin: number; final: boolean; autoNext: boolean; onUlt(slot: number): void }) {
   const f = b[side][slot]!;
   const { x, y } = g.pos(side, slot);
   const st = plateState(b, side, slot);
@@ -35,7 +35,7 @@ function Fighter({ b, g, side, slot, media, topMin, final, onUlt }: { b: TeamBat
   const warn = side === 'foe' ? foeWarn(b, slot) : null;
   const pops = b.popups.filter((p) => p.side === side && p.slot === slot);
   const name = speciesOf(f.species)?.name.ko ?? f.form;
-  const autoLeft = mine ? teamAutoUltLeft(b, slot) : null;
+  const autoLeft = mine && autoNext ? teamAutoUltLeft(b, slot) : null;
   // 필살기 힘겨루기 중엔 끼어들 수 있는 칸 (join) 만 합류 — 나머지는 바깥 (연타) 으로 (누를 때마다 예약이 켜졌다 꺼지던 것 — 코드 리뷰어)
   const click =
     mine && st !== 'down' && (b.phase !== 'clash' || st === 'join')
@@ -73,8 +73,13 @@ function Fighter({ b, g, side, slot, media, topMin, final, onUlt }: { b: TeamBat
           </span>
         )}
         {/* 다 찬 필살기 누를 틈 (기획 R2 — 볼 때 3초 뒤 저절로) = 판 오른쪽 숫자 3 · 2 · 1 (1:1 Z 모서리와 같은 칩 · 나갈 때까지 1 — 게이지를 줄이면 "필살기가 빠져나간다" 로 읽히던 것, UX 리뷰어) */}
-        {/* 세는 때 (지금 쓸 수 있는 칸 — ready) 만 · "3초" 칠 없는 금 테두리 (키 칩과 다른 모양) · 판 오른쪽 바깥에 겹침 (판 안이면 HP 막대가 줄던 것) — UX 리뷰어 2차 */}
-        {autoLeft !== null && st === 'ready' && <span class="pg-team-auto">{Math.max(1, Math.ceil(autoLeft / 1000))}초</span>}
+        {/* 세는 때 (지금 쓸 수 있는 칸 — ready) 만 · "3초" 칠 없는 금 테두리 (키 칩과 다른 모양) · 판 밖 (판 안이면 HP 막대가 줄던 것) — UX 리뷰어 2차 */}
+        {/* 먼저 나갈 한 칸만 · 판 왼쪽 위 탭 (판 오른쪽 바깥이면 240 에서 다음 칸 포켓몬 몸을 덮고 · 셋 다 "1초" 인데 하나만 나가던 것 — UX 리뷰어 3차) */}
+        {autoLeft !== null && st === 'ready' && (
+          <span class="pg-team-auto" title={`${Math.max(1, Math.ceil(autoLeft / 1000))}초 뒤 저절로 필살기 — 지금 ${slot + 1} 로 바로`}>
+            {Math.max(1, Math.ceil(autoLeft / 1000))}초
+          </span>
+        )}
       </span>
 
       {/* 피해 숫자 · 짧은 말 — 머리 위 */}
@@ -128,10 +133,18 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   // 엔진 한 줄 (필살기 · 합류 · 결과) 은 판 끝 결과만 · 쓰러지는 장면이 0.9초 보인 뒤 (컷인 이름을 가리고 · 지난 필살기 줄이 남던 것 — UX 리뷰어)
   const msgOn = b.phase === 'over' && b.overMs >= 900 && !!b.msg;
   const ult = (slot: number) => onInput({ kind: 'team-battle', input: { kind: 'ult', slot } });
+  // 저절로 나갈 칸 하나 = 남은 시간이 가장 짧은 칸 · 같으면 먼저 찬 칸 (엔진 firstWaited 와 같은 순서)
+  let autoNext: number | null = null;
+  b.me.forEach((_, i) => {
+    const l = teamAutoUltLeft(b, i);
+    if (l === null) return;
+    const best = autoNext === null ? null : teamAutoUltLeft(b, autoNext)!;
+    if (best === null || l < best || (l === best && (b.ultReadyAt.me[i] ?? 0) < (b.ultReadyAt.me[autoNext!] ?? 0))) autoNext = i;
+  });
   return (
     // 자리는 패널 기준 (시안 geo) — 이 층은 들판 (정보줄 아래) 안이라 정보줄 높이만큼 위로
     <div class={`pg-team pg-team-x${g.scale}${g.oneRow ? ' pg-team-row' : ''}`} style={{ top: `${-infoBarPx}px` }} ref={root} onClick={b.phase === 'clash' ? () => onInput({ kind: 'team-battle', input: { kind: 'space' } }) : undefined}>
-      {SIDES.map((side) => b[side].map((_, slot) => <Fighter key={`${side}-${slot}`} b={b} g={g} side={side} slot={slot} media={media} topMin={topMin} final={finalKo === `${side}-${slot}`} onUlt={ult} />))}
+      {SIDES.map((side) => b[side].map((_, slot) => <Fighter key={`${side}-${slot}`} b={b} g={g} side={side} slot={slot} media={media} topMin={topMin} final={finalKo === `${side}-${slot}`} autoNext={side === 'me' && slot === autoNext} onUlt={ult} />))}
       {/* 연출 층 — 비어 있는 상자 (Preact 는 안을 안 건드림), 연출 다리가 캔버스를 넣음 */}
       <div class="pg-fxlayer pg-team-fx" ref={layer} />
       {/* 안내 — 무대 가운데 위 */}

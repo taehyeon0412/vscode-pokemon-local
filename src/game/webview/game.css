@@ -6087,8 +6087,9 @@ body.vscode-light .pg-field-balls {
   border: 1px solid var(--pg-sos-gold);
   pointer-events: none;
 }
-/* 멈춤 (내 행동 연출 중 — 엔진이 안 셈) = 점선 테두리 */
+/* 멈춤 (내 행동 연출 중 — 엔진이 안 셈) = 점선 테두리 + 흐린 글 (점선만으로는 "멈춤" 이 안 읽히던 것 — UX 리뷰어 3차) */
 .pg-ultz-count.pg-paused {
+  color: var(--pg-sos-dim);
   border-style: dashed;
 }
 /* 기획 R4 — 1:1 상대 필살기 예고 칩 = 상대 이름 줄 안 (Lv 뒤) · 80% 부터 금색 "필살기 곧" · 다 차면 빨강 칠 "필살기!" (좁으면 "곧" · "!") · 3:3 .pg-team-warn 과 같은 모양 */

@@ -299,6 +299,8 @@ export function DevPanel({ state, media, onDev, onEnd, onClose }: { state: GameS
           {/* 전투 전용은 전투가 아닐 때 흐리게 (눌러야 "전투 중에만 돼요" 가 나오던 것 — UX 리뷰어) */}
           <Row wrap label="전투">
             {btn('필살기 게이지 가득', { kind: 'gauge-full' }, inBattle ? undefined : '전투 중에만 돼요', !inBattle)}
+            {/* 상대 예고 "!" · 맞받아치기 시험 (기획 R11) */}
+            {btn('상대 필살기 가득', { kind: 'gauge-full', side: 'foe' }, inBattle ? undefined : '전투 중에만 돼요', !inBattle)}
             {btn('모두 회복', { kind: 'heal' })}
             {/* 전투 밖에서도 됨 — 선두 포켓몬 HP 1 */}
             {btn(inBattle ? '내 HP 1' : '선두 HP 1', { kind: 'hp1', side: 'me' })}
