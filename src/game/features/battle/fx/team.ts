@@ -381,7 +381,10 @@ export class TeamFxRunner {
           .filter((p): p is { actor: FxActor; type: string; avoid: string[]; pick: string | null } => !!p.actor);
         const dst = a(c.dst);
         const others = c.others.map(a).filter((x): x is FxActor => !!x);
-        const total = ps.length && dst ? (fx.ultJoint?.(ps.map((p) => p.actor), dst, () => releaseFx(), { types: ps.map((p) => p.type), avoid: ps.map((p) => p.avoid), pick: ps.map((p) => p.pick), sure: c.sure, others }) ?? 0) : 0;
+        // 상대 합동이면 컷인 부제도 "상대 …" (내 것과 같은 "합동 필살기!" 이던 것 — 디자인팀 UX R9 ⑥ U5)
+        const foeJoint = c.winners[0]?.side === 'foe';
+        const sub = foeJoint ? (c.sure ? '상대의 압도하는 합동 필살기!' : '상대 합동 필살기!') : undefined;
+        const total = ps.length && dst ? (fx.ultJoint?.(ps.map((p) => p.actor), dst, () => releaseFx(), { types: ps.map((p) => p.type), avoid: ps.map((p) => p.avoid), pick: ps.map((p) => p.pick), sure: c.sure, others, ...(sub ? { sub } : {}) }) ?? 0) : 0;
         if (total > 0) {
           holdFx(c.key, total, performance.now(), FX_HOLD_ULT_MAX_MS);
           this.ultUntil = performance.now() + total;

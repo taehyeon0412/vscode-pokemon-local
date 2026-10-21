@@ -552,7 +552,7 @@ function startUlt(b: TeamBattle, side: Side, slot: number, rng: Rng, ults?: Read
   const chance = side === 'me' ? BALANCE.team.interruptChance[b.kind] : 0;
   const joiners = foes.map((x, i) => (alive(x) && x.ult >= 1 && rng.chance(chance) ? i : -1)).filter((i) => i >= 0);
   // 상대 AI 동료 — 찬 동료마다 한 번 굴려 모일 때를 정함 (트레이너 가끔 · 관장 자주)
-  const allyAt = side === 'foe' && gather ? allies.filter(() => rng.chance(BALANCE.team.interruptChance[b.kind])).map((i) => ({ slot: i, at: rng.int(150, gather - 250) })) : [];
+  const allyAt = side === 'foe' && gather ? allies.filter(() => rng.chance(BALANCE.team.interruptChance[b.kind])).map((i) => ({ slot: i, at: rng.int(150, Math.min(TIMING.team.foeAllyByMs, gather - 250)) })) : [];
   b.phase = 'ult';
   b.ult = {
     side,
@@ -563,7 +563,7 @@ function startUlt(b: TeamBattle, side: Side, slot: number, rng: Rng, ults?: Read
     hitMs: Math.round(TIMING.ultAnimMs * 0.6),
     hit: false,
     window,
-    joinAt: joiners.length ? rng.int(200, window - 100) : null,
+    joinAt: joiners.length ? rng.int(Math.min(TIMING.team.foeJoinMinMs, window - 100), window - 100) : null,
     joiners,
     ...pick,
     ...(gather ? { gather, team: [], ...(allyAt.length ? { allyAt } : {}) } : {}),
@@ -694,6 +694,20 @@ function firstReady(b: TeamBattle, side: Side): number | null {
     const t = b.ultReadyAt[side][i] ?? 0;
     if (best === null || t < (b.ultReadyAt[side][best] ?? 0)) best = i;
   });
+  return best;
+}
+
+/**
+ * 볼 때 저절로 나갈 내 칸 하나 — HP 30% 아래 (기다리지 않음) 먼저, 아니면 먼저 찬 칸. 기다림 (autoWait) 은 이 칸만 셈 · 화면 "N초" 칩도 이 칸 (디자인팀 UX R9 ⑥)
+ */
+export function teamAutoUltNext(b: TeamBattle): number | null {
+  const low = (i: number) => b.me[i]!.hp < b.me[i]!.maxHp * BALANCE.autoPotionBelow;
+  let best: number | null = null;
+  for (let i = 0; i < b.me.length; i++) {
+    const f = b.me[i]!;
+    if (!alive(f) || f.ult < 1) continue;
+    if (best === null || (low(i) !== low(best) ? low(i) : (b.ultReadyAt.me[i] ?? 0) < (b.ultReadyAt.me[best] ?? 0))) best = i;
+  }
   return best;
 }
 
@@ -961,7 +975,11 @@ export function teamStep(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamSte
   // 내 필살기 — 예약한 것 · 볼 때는 찬 지 ultAutoWaitMs 뒤 저절로 (발밑 판이 반짝 · 자동 전투가 꺼져도) · 안 볼 때는 바로 (R2 A). 끼어들기 · 합동 멘트는 그대로 손으로
   // 기다림은 내 필살기를 쓸 수 있는 걸음 (여기까지 온 run) 에서만 셈 — 다른 필살기 · 힘겨루기 · 합동 멘트 중엔 멈춤 (0 에서 2.5 ~ 6초 서 있던 것, 디자인팀 #26 판정)
   // 안 볼 때는 지움 (안 보다 돌아오면 남은 3초가 짧아져 있던 것 — 코드 리뷰어)
-  if (!opts.away) b.autoWait = b.me.map((f, i) => (alive(f) && f.ult >= 1 ? (b.autoWait?.[i] ?? 0) + stepMs : 0));
+  // 쌓는 건 저절로 나갈 한 칸 (화면 "N초" 칩이 뜬 칸) 만 — 찬 칸이 다 같이 쌓여 둘째 칸 칩이 1장면만 보이고 나가던 것 (디자인팀 UX R9 ⑥ U1)
+  if (!opts.away) {
+    const next = teamAutoUltNext(b);
+    b.autoWait = b.me.map((_, i) => (i === next ? (b.autoWait?.[i] ?? 0) + stepMs : 0));
+  }
   else if (b.autoWait) delete b.autoWait;
   const z = opts.away ? firstReady(b, 'me') : (firstReserved(b) ?? firstWaited(b));
   if (z !== null) {

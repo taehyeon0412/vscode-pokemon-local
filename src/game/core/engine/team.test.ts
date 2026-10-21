@@ -7,7 +7,7 @@ import type { Monster, Save } from '../save';
 import { applyInput, defeatWaits, step, teamChoiceMeet, teamLock, teamMainOf, teamPickOf } from './play';
 import { Rng } from './rng';
 import { createGameState, readRuntime, type GameState } from './state';
-import { shotTiming, applyTeamResult, isSpread, pickTeam, readTeam, startTeamBattle, TEAM_BASIC, teamClashSure, teamDone, teamInput, teamPick, teamPossible, teamScale, teamStep, teamAutoUltLeft, teamUltLevel, teamUltOpen, type TeamBattle, teamGather, teamLayout } from './team';
+import { shotTiming, applyTeamResult, isSpread, pickTeam, readTeam, startTeamBattle, TEAM_BASIC, teamClashSure, teamDone, teamInput, teamPick, teamPossible, teamScale, teamStep, teamAutoUltLeft, teamAutoUltNext, teamUltLevel, teamUltOpen, type TeamBattle, teamGather, teamLayout } from './team';
 import { moveFxOf, moveOf, ultIsSpread, ultNamesOf } from '../../data';
 import { trainerTeam } from '../rules/trainer';
 
@@ -662,6 +662,42 @@ describe('#17 준비 — 배율 · 잠금 · 3마리 고르기 · 필살기 예�
     } finally {
       setOn(false);
     }
+  });
+
+  it('기다림은 저절로 나갈 한 칸 (칩 칸) 만 셈 — 둘째로 찬 칸은 첫 칸이 나간 뒤 0 부터 3초 (디자인팀 UX R9 ⑥ U1)', () => {
+    const b0 = startTeamBattle(team3(), foes(), 'trainer', '상대');
+    const two: TeamBattle = { ...b0, me: b0.me.map((f, i) => ({ ...f, ult: i === 2 ? 0 : 1, gauge: 0 })), foe: b0.foe.map((f) => ({ ...f, ult: 0, gauge: 0 })), ultReadyAt: { me: [b0.t + 500, b0.t, null], foe: [null, null, null] } };
+    expect(teamAutoUltNext(two)).toBe(1);
+    const later = teamStep(teamStep(two, STEP, new Rng(3), { auto: false, away: false }), STEP, new Rng(3), { auto: false, away: false });
+    expect(later.autoWait).toEqual([0, STEP * 2, 0]);
+    // HP 30% 아래 (바로 나감) 칸이 먼저
+    const low: TeamBattle = { ...two, me: two.me.map((f, i) => (i === 0 ? { ...f, hp: 1 } : f)) };
+    expect(teamAutoUltNext(low)).toBe(0);
+    expect(teamAutoUltNext({ ...two, me: two.me.map((f) => ({ ...f, ult: 0 })) })).toBeNull();
+  });
+
+  it('상대 AI 끼어들기는 1초 뒤부터 (컷인 이름 · 합동 멘트를 1초는 봄) · 상대 동료는 0.5초 안에 모임 (디자인팀 UX R9 ⑥ U1)', () => {
+    const b0 = startTeamBattle(team3(), foes(), 'gym', '관장');
+    let joins = 0;
+    let allies = 0;
+    for (let seed = 1; seed <= 40; seed++) {
+      // 내 필살기 (찬 동료가 있어 합동 멘트) — 상대 셋 다 참 · 관장 (자주 끼어듦)
+      const mine: TeamBattle = { ...b0, me: b0.me.map((f, i) => ({ ...f, ult: i < 2 ? 1 : 0, gauge: 0 })), foe: b0.foe.map((f) => ({ ...f, ult: 1, gauge: 0 })), reserve: [0], ultReadyAt: { me: [b0.t, b0.t + 100, null], foe: [null, null, null] } };
+      const s = teamStep(mine, STEP, new Rng(seed), { auto: false, away: false });
+      if (s.phase === 'ult' && s.ult?.joinAt !== null && s.ult?.joinAt !== undefined) {
+        joins++;
+        expect(s.ult.joinAt).toBeGreaterThanOrEqual(TIMING.team.foeJoinMinMs);
+      }
+      // 상대 필살기 (찬 동료) — 모이는 때
+      const theirs: TeamBattle = { ...b0, me: b0.me.map((f) => ({ ...f, ult: 0, gauge: 0 })), foe: b0.foe.map((f) => ({ ...f, ult: 1, gauge: 0 })), foeUltWait: [STEP, null, null] };
+      const f = teamStep(theirs, STEP, new Rng(seed), { auto: false, away: false });
+      for (const a of f.ult?.allyAt ?? []) {
+        allies++;
+        expect(a.at).toBeLessThanOrEqual(TIMING.team.foeAllyByMs);
+      }
+    }
+    expect(joins).toBeGreaterThan(0);
+    expect(allies).toBeGreaterThan(0);
   });
 
   it('저절로 쓰기 기다림은 쓸 수 있는 걸음에서만 셈 — 다른 필살기 중엔 멈춤 (디자인팀 #26 판정)', () => {

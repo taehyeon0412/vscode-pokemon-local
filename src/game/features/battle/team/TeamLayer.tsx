@@ -178,8 +178,13 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
       {/* 연타 — VS · 맞닿기 (ultClashLeadMs) 뒤부터 (엔진도 그때부터 셈) */}
       {prompt?.kind === 'mash' && (b.clash?.ms ?? 0) >= TIMING.team.ultClashLeadMs && (
         <div class="pg-team-prompt pg-team-prompt-mash" style={promptStyle}>
-          {prompt.sure === 'me' ? <b class="pg-team-sure">3:1</b> : prompt.sure === 'foe' ? <b class="pg-team-sure pg-team-sure-foe">1:3 — 질 거예요</b> : <b>{`${prompt.me} 대 ${prompt.foe}`}</b>}
-          <span class="pg-team-key">Space</span> 연타
+          {/* 정해진 힘겨루기 (3:1 · 1:3) 는 연타가 소용없어 결과만 (디자인팀 UX R9 ⑥ U5) */}
+          {prompt.sure === 'me' ? <b class="pg-team-sure">3:1 — 이길 거예요</b> : prompt.sure === 'foe' ? <b class="pg-team-sure pg-team-sure-foe">1:3 — 질 거예요</b> : <b>{`${prompt.me} 대 ${prompt.foe}`}</b>}
+          {!prompt.sure && (
+            <>
+              <span class="pg-team-key">Space</span> 연타
+            </>
+          )}
         </div>
       )}
       {/* 결과 · 엔진 한 줄 (합류 · 힘겨루기 결과 · 이김 · 짐) — 안내가 없을 때 */}
