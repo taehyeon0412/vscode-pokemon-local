@@ -8,6 +8,14 @@ import { dayKey } from '../core/rules/daily';
 import { SAVE_VERSION, type Save } from '../core/save';
 import { GAME_COMMAND, type HostToWebview, type SaveReason, type TitleInfo, type WebviewToHost } from '../shared/messages';
 
+/** 세이브 내보내기 · 가져오기 화면 상태 (orders #33 — 모양은 디자인팀): 확인 상자 · 못 읽음 · 결과 한 줄 */
+export interface SaveIoView {
+  ask?: { name: string; summary: TitleInfo['summary'] };
+  error?: string;
+  name?: string;
+  result?: { ok: boolean; text: string };
+}
+
 /** 지금 보일 화면 — none 이면 일반 모드 (게임 화면을 숨김) */
 export type Screen = 'none' | 'title' | 'game';
 
@@ -25,6 +33,8 @@ export class WebviewSession {
   private dirty = false;
   private lastSentAt = 0;
   private titleInfo: TitleInfo | null = null;
+  /** 세이브 내보내기 · 가져오기 (orders #33) — 확인 상자 (ask) · 결과 한 줄 (result) · 화면이 닫으면 null */
+  private saveIoNow: SaveIoView | null = null;
   private screenNow: Screen = 'none';
   /** 판 (지도 · 내 포켓몬 · 프로필 …) 이 떠 있음 — 계산을 쉼 (바뀐 상태는 그대로 보냄) */
   private paused = false;
@@ -42,6 +52,17 @@ export class WebviewSession {
 
   get title(): TitleInfo | null {
     return this.titleInfo;
+  }
+
+  get saveIO(): SaveIoView | null {
+    return this.saveIoNow;
+  }
+
+  /** 화면이 확인 상자 · 결과 한 줄을 닫음 */
+  clearSaveIO(): void {
+    if (this.saveIoNow === null) return;
+    this.saveIoNow = null;
+    this.changed();
   }
 
   /** 화면이 바뀔 때 (title · start · stop) — 화면 컴포넌트가 다시 그림 */
@@ -113,6 +134,14 @@ export class WebviewSession {
         this.screenNow = 'game';
         // 접힌 상태 (150px 아래) 에서 맡겨지면 계산하지 않고 바로 돌려줌 — 안 그리는 웹뷰가 맡아 게임이 조용히 멈추지 않게
         if (this.collapsed) this.hide();
+        this.changed();
+        return;
+      case 'save-import-ask':
+        this.saveIoNow = message.error !== undefined ? { error: message.error, ...(message.name ? { name: message.name } : {}) } : { ask: { name: message.name ?? '', summary: message.summary ?? null } };
+        this.changed();
+        return;
+      case 'save-result':
+        this.saveIoNow = { result: { ok: message.ok, text: message.text } };
         this.changed();
         return;
       case 'title':

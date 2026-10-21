@@ -127,9 +127,9 @@ export class SaveStore {
   }
 
   /** 새로 하기 (S02 ①) — 사용자가 고른 것이라 잠금을 풀고 덮어씀. 지금 세이브 · 아직 안 쓴 세이브는 보관함에 */
-  async replace(save: Save): Promise<boolean> {
+  async replace(save: Save, note = '새로 하기 전 세이브'): Promise<boolean> {
     const old = this.storage.read();
-    if (old !== undefined) await this.archive.add('replaced', '새로 하기 전 세이브', old);
+    if (old !== undefined) await this.archive.add('replaced', note, old);
     if (this.pending) await this.archive.add('replaced', '새로 하기 전 (아직 안 쓴) 세이브', this.pending);
     this.lockReason = null;
     this.lockLogged = false;

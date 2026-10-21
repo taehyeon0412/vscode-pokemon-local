@@ -13,7 +13,7 @@
  */
 import { TIMING } from '../core/balance';
 import { advance, createGameState, isWaitingForInput, readRuntime, shouldRunWhenHidden, waitReason, withSpeed, type GameNotice, type GameState } from '../core/engine';
-import { TIPS_MAX, validateSave, type Save } from '../core/save';
+import { readSave, TIPS_MAX, validateSave, type Save } from '../core/save';
 import { GAME_COMMAND, isWebviewToHost, type HostToWebview, type TitleInfo, type TitleNotice } from '../shared/messages';
 import { GAME_MIN_HEIGHT_PX } from '../shared/screen';
 import { HeadlessRunner, type HeadlessRunnerOptions } from './headless-runner';
@@ -32,6 +32,16 @@ const SAVED_STATUS_MS = 2000;
 /** 이어 하기 요약 "어디서" — "1-1 · 37%" · "전투 중" · "체육관" (2026-10-21 ideas #6) */
 /** "멈춰 있어요" 팝업은 처음 이만큼만 (태현 님 "추천안") */
 const PAUSED_NOTICE_MAX = 3;
+
+/** 불러올 세이브 파일 크기 상한 (글자) — 세이브는 보통 수십 KB */
+const IMPORT_MAX_CHARS = 5_000_000;
+
+/** 세이브 한 줄 요약 — 타이틀 이어 하기 · 불러오기 확인 상자 (같은 모양) */
+function summaryOf(save: Save): NonNullable<TitleInfo['summary']> {
+  const leadUid = save.party[0];
+  const lead = leadUid ? save.monsters[leadUid] : undefined;
+  return { playTimeMs: save.playTimeMs, money: save.money, badges: [...save.badges], lead: lead ? { form: lead.form, species: lead.species, level: lead.level } : null, where: whereOf(save) };
+}
 
 function whereOf(save: Save): string {
   if (save.pendingEncounter) return '전투 중';
@@ -74,6 +84,8 @@ export interface SessionDeps {
   onWebviewBoot?(): void;
   /** 벽시계 (ms) — 오늘의 목표 날짜 (없으면 Date.now — 테스트가 바꿈) */
   wallNow?(): number;
+  /** 세이브 파일 창 (orders #33) — save = 저장 창 · 쓰기 (파일 이름 · 취소면 null) · open = 열기 창 · 읽기 (취소면 null). 없으면 내보내기 · 가져오기 안 됨 */
+  files?: { save(defaultName: string, text: string): Promise<string | null>; open(): Promise<{ name: string; text: string } | null> };
 }
 
 /** 세는 것 — 기록 · 테스트용 */
@@ -112,6 +124,8 @@ export class GameSession {
   /** 기다리는 팝업이 밖 (포커스 없음) 것인지 · 그 이유 — 포커스가 돌아오면 밖 것만 취소, 안 보낸 숨김 것은 noticed 를 지움 (코드 리뷰어) */
   private noticeAway = false;
   private noticePending: GameNotice | null = null;
+  /** 불러오기 확인을 기다리는 세이브 (orders #33) */
+  private pendingImport: { save: Save; name: string } | null = null;
   private loadResult: LoadResult = { kind: 'none' };
   /** 확장이 넘겨받기 바로 전 epoch — 그 epoch 의 늦은 메시지는 다시 맡기기 전까지 받아 줌 */
   private handoverEpoch: number | null = null;
@@ -233,6 +247,18 @@ export class GameSession {
         return;
       case 'title-new':
         if (this.mode === 'title') void this.newFromTitle(message.save);
+        return;
+      case 'save-export':
+        void this.exportSave();
+        return;
+      case 'save-import':
+        void this.importSave();
+        return;
+      case 'save-import-confirm':
+        void this.confirmImport();
+        return;
+      case 'save-import-cancel':
+        this.pendingImport = null;
         return;
       case 'title-continue':
         if (this.mode === 'title') void this.continueFromTitle();
@@ -375,19 +401,84 @@ export class GameSession {
     return this.serial(() => this.postTitle(notice));
   }
 
+  /** 세이브 내보내기 (orders #33) — 게임 중이면 지금 상태 · 아니면 파일 세이브를 JSON 으로 저장 창에 (개발 모드는 막음 — 저장 안 됨 모드) */
+  private async exportSave(): Promise<void> {
+    if (!this.deps.files) return;
+    if (this.dev) return this.postSaveResult(false, '개발 모드에서는 세이브를 내보내지 않아요');
+    const r = this.deps.store.peek();
+    const save = this.mode === 'game' && this.state ? this.state.save : r.kind === 'ok' ? r.save : null;
+    if (!save) return this.postSaveResult(false, '내보낼 세이브가 없어요');
+    let name: string | null;
+    try {
+      name = await this.deps.files.save(`pokemon-save-${dayKey(new Date(this.deps.wallNow?.() ?? Date.now()))}.json`, JSON.stringify(save, null, 2));
+    } catch (e) {
+      return this.postSaveResult(false, `세이브를 저장하지 못했어요 (${String(e)})`);
+    }
+    if (name) this.postSaveResult(true, `세이브를 저장했어요 — ${name}`);
+  }
+
+  /** 세이브 불러오기 1 (orders #33) — 열기 창 · 읽기 · 검사 (옛 판은 옮김) → 웹뷰에 확인 상자 (요약) · 못 읽으면 까닭. 게임 중에만 (개발 모드는 막음) */
+  private async importSave(): Promise<void> {
+    if (!this.deps.files) return;
+    this.pendingImport = null;
+    if (this.dev || this.mode !== 'game') return this.post({ type: 'save-import-ask', error: '개발 모드에서는 세이브를 불러오지 않아요' });
+    let file: { name: string; text: string } | null;
+    try {
+      file = await this.deps.files.open();
+    } catch (e) {
+      return this.post({ type: 'save-import-ask', error: `파일을 읽지 못했어요 (${String(e)})` });
+    }
+    if (!file) return;
+    let raw: unknown;
+    try {
+      raw = file.text.length > IMPORT_MAX_CHARS ? null : JSON.parse(file.text);
+    } catch {
+      raw = null;
+    }
+    const r = readSave(raw);
+    if (r.kind === 'newer') return this.post({ type: 'save-import-ask', name: file.name, error: `더 새 확장의 세이브 (${r.version}판) 라 불러올 수 없어요 — 확장을 업데이트해 주세요` });
+    if (r.kind !== 'ok') return this.post({ type: 'save-import-ask', name: file.name, error: '포켓몬 게임 세이브가 아니거나 망가진 파일이에요' });
+    this.pendingImport = { save: r.save, name: file.name };
+    this.post({ type: 'save-import-ask', name: file.name, summary: summaryOf(r.save) });
+  }
+
+  /** 세이브 불러오기 2 — 확인하면 지금 세이브를 보관함에 두고 (자동 보관 [제안]) 덮어써서 그 세이브로 이어 함 */
+  private confirmImport(): Promise<void> {
+    return this.serial(async () => {
+      const p = this.pendingImport;
+      this.pendingImport = null;
+      if (!p || this.dev || this.mode !== 'game') return;
+      if (this.deps.lease && !this.deps.lease.held) return this.postSaveResult(false, '다른 VS Code 창이 게임 중이라 불러오지 못했어요');
+      let ok = false;
+      try {
+        ok = await this.deps.store.replace(p.save, '불러오기 전 세이브');
+      } catch (e) {
+        this.deps.log(`불러오기 실패: ${String(e)}`);
+      }
+      if (!ok) return this.postSaveResult(false, '세이브를 쓰지 못해 불러오지 못했어요');
+      this.state = createGameState(p.save, this.deps.newSeed());
+      this.loadResult = { kind: 'ok', save: p.save, problems: [], migratedFrom: null };
+      // 새 epoch 으로 — 웹뷰가 옛 진행을 보내 불러온 세이브를 덮지 않게
+      if (this.owner === 'webview') this.handToWebview();
+      else this.hostOwns('세이브 불러오기');
+      this.postSaveResult(true, `불러왔어요 — 지금 것은 보관함에 둠 (${p.name})`);
+    });
+  }
+
+  private postSaveResult(ok: boolean, text: string): void {
+    this.deps.log(`세이브 ${ok ? '' : '실패 '}— ${text}`);
+    this.post({ type: 'save-result', ok, text });
+  }
+
   /** 세이브 요약 — 다른 창이 바꿨을 수 있어 파일에서 다시 읽음 (읽기만). 다른 창이 게임 중이면 끝날 때까지 지켜봄 */
   private async postTitle(notice?: TitleNotice): Promise<void> {
     if (this.mode !== 'title') return;
     const r = await this.init({ readOnly: true });
     const save = r.kind === 'ok' ? r.save : null;
-    const leadUid = save?.party[0];
-    const lead = leadUid ? save?.monsters[leadUid] : undefined;
     const info: TitleInfo = {
       save: r.kind,
       busy: this.otherWindowPlaying(),
-      summary: save
-        ? { playTimeMs: save.playTimeMs, money: save.money, badges: [...save.badges], lead: lead ? { form: lead.form, species: lead.species, level: lead.level } : null, where: whereOf(save) }
-        : null,
+      summary: save ? summaryOf(save) : null,
     };
     if (notice) info.notice = notice;
     this.stats.titles++;

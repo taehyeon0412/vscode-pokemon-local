@@ -51,6 +51,7 @@ if (!port) {
     widthPx: window.innerWidth,
     pending: false,
     overlay: null,
+    saveIO: null,
     live: false,
   });
   let viewRefreshedAt = 0;
@@ -110,7 +111,7 @@ if (!port) {
     // 새로 맡김 (다른 쪽에서 계산한 상태) — 같은 게임을 이어 받으면 (접었다 펴기 · 다른 탭) 떠 있던 판 (지도 · 가방 …) 은 그대로 두고
     // 지금 상태에서 못 띄우는 판만 아래에서 닫음 (#298). 타이틀 · 일반 모드로 바뀌면 닫음
     const keep = session.screen === 'game' && store.get().screen === 'game';
-    store.set({ screen: session.screen, title: session.title, state: session.current, overlay: keep ? store.get().overlay : null, live: session.running });
+    store.set({ screen: session.screen, title: session.title, state: session.current, overlay: keep ? store.get().overlay : null, saveIO: session.saveIO, live: session.running });
   });
 
   // 판이 떠 있는 동안 게임을 멈춤 · 지금 상태에서 띄울 수 없는 판은 닫음
@@ -165,6 +166,11 @@ if (!port) {
     devStart: () => {
       setPending(true);
       session.devStart();
+    },
+    saveIO: (kind) => {
+      // 확인 상자 · 결과 한 줄은 바로 닫음 · 파일 창은 확장이 (orders #33)
+      if (kind === 'dismiss' || kind === 'import-cancel' || kind === 'import-confirm') session.clearSaveIO();
+      if (kind !== 'dismiss') port.postMessage({ command: GAME_COMMAND, type: `save-${kind}` });
     },
     devEnd: () => {
       setPending(true);

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MemoryLeaseFile, MemorySaveArchive, MemorySaveStorage, sampleMonster, sampleSave } from '../../test/fixtures/save';
+import { MemoryLeaseFile, MemorySaveArchive, MemorySaveStorage, sampleMonster, sampleSave, viaJson } from '../../test/fixtures/save';
 import { BALANCE } from '../core/balance';
 import { createGameState, readRuntime } from '../core/engine';
 import { createNewSave, validateSave } from '../core/save';
@@ -46,11 +46,16 @@ let view: FakeView;
 let warns: string[];
 let modes: Mode[];
 let notices: string[];
+/** 세이브 파일 창 흉내 (orders #33) — 저장한 파일 · 열 파일 (null = 취소) */
+let savedFiles: { name: string; text: string }[];
+let openFile: { name: string; text: string } | null;
 
 async function setup(save?: unknown, opts: { lease?: boolean } = {}): Promise<void> {
   warns = [];
   modes = [];
   notices = [];
+  savedFiles = [];
+  openFile = null;
   storage = new MemorySaveStorage(save);
   archive = new MemorySaveArchive();
   leaseFile = new MemoryLeaseFile();
@@ -68,6 +73,13 @@ async function setup(save?: unknown, opts: { lease?: boolean } = {}): Promise<vo
     onModeChanged: (m) => modes.push(m),
     notify: (m) => notices.push(m),
     runner: { intervalMs: 250, maxCatchUpMs: 1000, now: () => now },
+    files: {
+      save: async (name, text) => {
+        savedFiles.push({ name, text });
+        return name;
+      },
+      open: async () => openFile,
+    },
   });
   await session.init();
   store.start();
@@ -1260,5 +1272,80 @@ describe('개발 모드 (임시, gdd 8장 · S02 ④) — 저장하지 않음', 
     session.handleMessage(msg({ type: 'state', epoch: start.epoch, state: { ...start.state, runtime: { ...start.state.runtime, dev: { team: true, walk: 10, battle: 1, pause: false, foes: [], ults: {} } } } }));
     expect(snap().state?.runtime.dev).toBeUndefined();
     expect(session.devMode).toBe(false);
+  });
+});
+
+describe('세이브 내보내기 · 가져오기 (orders #33 · U6 S20 ④)', () => {
+  const ask = () => view.last('save-import-ask');
+  const result = () => view.last('save-result');
+
+  it('내보내고 불러오면 같음 — 확인하면 지금 세이브를 보관함에 두고 덮어씀 · 웹뷰에 새로 맡김', async () => {
+    const start = await enterAndStart(sampleSave({ money: 1234 }));
+    session.handleMessage(msg({ type: 'save-export' }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(savedFiles).toHaveLength(1);
+    expect(savedFiles[0]!.name).toMatch(/^pokemon-save-\d{4}-\d{2}-\d{2}\.json$/);
+    expect(JSON.parse(savedFiles[0]!.text)).toEqual(viaJson(start.state.save));
+    expect(result()).toMatchObject({ ok: true });
+    // 다른 세이브를 불러옴
+    const other = sampleSave({ money: 777, playTimeMs: 90_000 });
+    openFile = { name: 'friend.json', text: JSON.stringify(other) };
+    session.handleMessage(msg({ type: 'save-import' }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ask()).toMatchObject({ name: 'friend.json', summary: { money: 777, playTimeMs: 90_000 } });
+    expect(stored()?.money).not.toBe(777);
+    const epoch = snap().epoch;
+    session.handleMessage(msg({ type: 'save-import-confirm' }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(stored()?.money).toBe(777);
+    expect(archive.items.some((i) => i.reason === 'replaced' && i.note === '불러오기 전 세이브')).toBe(true);
+    expect(snap().epoch).toBeGreaterThan(epoch);
+    expect(view.last('start')?.state.save.money).toBe(777);
+    expect(result()).toMatchObject({ ok: true });
+  });
+
+  it('그만두기 · 취소 · 망가진 파일 · 더 새 판 · 옛 1판 (옮김)', async () => {
+    await enterAndStart(sampleSave({ money: 1234 }));
+    // 열기 창 취소 = 아무것도 안 보냄
+    session.handleMessage(msg({ type: 'save-import' }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ask()).toBeUndefined();
+    // 망가진 파일
+    openFile = { name: 'bad.json', text: '{ not json' };
+    session.handleMessage(msg({ type: 'save-import' }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ask()?.error).toContain('망가진');
+    // 더 새 판
+    openFile = { name: 'future.json', text: JSON.stringify({ ...sampleSave(), version: 99 }) };
+    session.handleMessage(msg({ type: 'save-import' }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ask()?.error).toContain('더 새');
+    // 옛 1판 표본 — 옮겨서 읽음
+    const v1 = (await import('../../test/fixtures/save-v1.json')).default;
+    openFile = { name: 'old.json', text: JSON.stringify(v1) };
+    session.handleMessage(msg({ type: 'save-import' }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ask()?.summary).toBeTruthy();
+    // 그만두기 — 덮지 않음
+    session.handleMessage(msg({ type: 'save-import-cancel' }));
+    session.handleMessage(msg({ type: 'save-import-confirm' }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(stored()?.money ?? 1234).toBe(1234);
+  });
+
+  it('개발 모드는 둘 다 막음 (저장 안 됨 모드)', async () => {
+    await setup(sampleSave());
+    await session.openTitle();
+    session.handleMessage(msg({ type: 'ready' }));
+    session.handleMessage(msg({ type: 'title-dev' }));
+    await vi.advanceTimersByTimeAsync(0);
+    session.handleMessage(msg({ type: 'save-export' }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(savedFiles).toHaveLength(0);
+    expect(result()).toMatchObject({ ok: false });
+    openFile = { name: 'x.json', text: JSON.stringify(sampleSave()) };
+    session.handleMessage(msg({ type: 'save-import' }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ask()?.error).toContain('개발 모드');
   });
 });

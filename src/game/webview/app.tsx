@@ -21,7 +21,7 @@ import type { Store } from '../ui/store';
 import { foldStatus } from '../features/stage/model';
 import { TooSmall } from '../ui/TooSmall';
 import { useStore } from '../ui/use-store';
-import type { Screen } from './webview-session';
+import type { SaveIoView, Screen } from './webview-session';
 import type { DevAction } from '../dev/actions';
 import { DevPanel } from '../dev/DevPanel';
 import { DEV_MODE } from '../dev/runtime';
@@ -38,6 +38,8 @@ export interface ViewState {
   pending: boolean;
   /** 게임 위에 뜬 판 (null = 없음) */
   overlay: Overlay | null;
+  /** 세이브 내보내기 · 가져오기 — 확인 상자 · 결과 한 줄 (orders #33, 모양은 디자인팀) */
+  saveIO: SaveIoView | null;
   /** 이 웹뷰가 지금 계산을 맡음 — 아니면 (숨김 · 접힘 — 확장이 계산) 화면은 멈춘 그림 (배경 흐름 · 걷기도 멈춤, 테스터 · 접힌 줄은 확장이 보낸 지금 상태 peek). VS Code 밖 (포커스 없음) 은 웹뷰가 계속 계산 */
   live: boolean;
 }
@@ -58,6 +60,8 @@ export interface AppActions {
   devStart(): void;
   dev(action: DevAction): void;
   devEnd(): void;
+  /** 세이브 내보내기 · 가져오기 (orders #33) — export · import (파일 창은 확장) · 확인 상자의 import-confirm · import-cancel · 결과 한 줄 닫기 dismiss */
+  saveIO(kind: 'export' | 'import' | 'import-confirm' | 'import-cancel' | 'dismiss'): void;
 }
 
 /** 그 판을 지금 띄울 수 있는지 — 안 되면 닫음 (돌을 써서 진화 연출이 시작됨 · 전투가 끝남 등) */

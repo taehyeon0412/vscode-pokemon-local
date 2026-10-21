@@ -55,6 +55,8 @@ export type WebviewToHost =
   | { command: typeof GAME_COMMAND; type: 'dev-end' }
   /** 일반 모드로 — 게임 중이면 마지막 상태도 (epoch 는 맡은 것, 없으면 null) */
   | { command: typeof GAME_COMMAND; type: 'exit'; epoch: number | null; state: GameState | null }
+  /** 세이브 내보내기 · 가져오기 (U6 · S20 ④, orders #33) — 파일 창은 확장이 열고, 불러오기는 확인 (confirm) 뒤에 덮어씀 */
+  | { command: typeof GAME_COMMAND; type: 'save-export' | 'save-import' | 'save-import-confirm' | 'save-import-cancel' }
   /** 웹뷰가 계산하다 생긴 알림 (VS Code 에 포커스가 없을 때 이로치 흔적 — 2026-10-19) → 확장이 VS Code 알림으로 */
   | { command: typeof GAME_COMMAND; type: 'notice'; epoch: number; notice: GameNotice };
 
@@ -67,6 +69,10 @@ export type HostToWebview =
   | { command: typeof GAME_COMMAND; type: 'title'; info: TitleInfo }
   /** 접힌 동안 (150px 아래 — 확장이 계산) 지금 상태 — 접힌 줄이 그때 모습 그대로 멈춰 있지 않게 (gdd 4.13 R13, 1초에 한 번까지) */
   | { command: typeof GAME_COMMAND; type: 'peek'; state: GameState }
+  /** 불러올 세이브 확인 — 한 줄 요약 (타이틀 요약과 같은 모양) · 못 읽으면 error (orders #33) */
+  | { command: typeof GAME_COMMAND; type: 'save-import-ask'; name?: string; summary?: TitleInfo['summary']; error?: string }
+  /** 내보내기 · 불러오기 결과 한 줄 (취소면 안 보냄) */
+  | { command: typeof GAME_COMMAND; type: 'save-result'; ok: boolean; text: string }
   | { command: typeof GAME_COMMAND; type: 'stop' };
 
 
@@ -94,6 +100,10 @@ export function isWebviewToHost(v: unknown): v is WebviewToHost {
     case 'title-continue':
     case 'title-dev':
     case 'dev-end':
+    case 'save-export':
+    case 'save-import':
+    case 'save-import-confirm':
+    case 'save-import-cancel':
       return true;
     case 'exit':
       return (v.epoch === null || typeof v.epoch === 'number') && (v.state === null || (isObj(v.state) && isObj(v.state.save)));
@@ -117,6 +127,10 @@ export function isHostToWebview(v: unknown): v is HostToWebview {
       return hasState(v);
     case 'peek':
       return isObj(v.state) && isObj(v.state.save) && isObj(v.state.runtime);
+    case 'save-import-ask':
+      return (v.name === undefined || typeof v.name === 'string') && (v.error === undefined || typeof v.error === 'string') && (v.summary === undefined || v.summary === null || isObj(v.summary));
+    case 'save-result':
+      return typeof v.ok === 'boolean' && typeof v.text === 'string';
     case 'title':
       return (
         isObj(v.info) &&

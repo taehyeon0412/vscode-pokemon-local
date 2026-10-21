@@ -45,6 +45,15 @@ describe('확장 → 웹뷰 메시지 모양', () => {
     expect(isHostToWebview({ command: 'list-pokemon' })).toBe(false);
   });
 
+  it('세이브 내보내기 · 가져오기 (orders #33)', () => {
+    for (const type of ['save-export', 'save-import', 'save-import-confirm', 'save-import-cancel']) expect(isWebviewToHost({ command: 'game', type })).toBe(true);
+    expect(isHostToWebview({ command: 'game', type: 'save-result', ok: true, text: '저장했어요' })).toBe(true);
+    expect(isHostToWebview({ command: 'game', type: 'save-result', ok: 'yes', text: 'x' })).toBe(false);
+    expect(isHostToWebview({ command: 'game', type: 'save-import-ask', name: 'a.json', summary: null })).toBe(true);
+    expect(isHostToWebview({ command: 'game', type: 'save-import-ask', error: '망가짐' })).toBe(true);
+    expect(isHostToWebview({ command: 'game', type: 'save-import-ask', error: 3 })).toBe(false);
+  });
+
   it('title (S02 요약)', () => {
     expect(isHostToWebview({ command: 'game', type: 'title', info: { save: 'none', busy: false, summary: null } })).toBe(true);
     expect(isHostToWebview({ command: 'game', type: 'title', info: { save: 'none' } })).toBe(false);

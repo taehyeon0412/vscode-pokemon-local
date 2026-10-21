@@ -9,7 +9,8 @@
  */
 import { randomUUID } from 'crypto';
 import { existsSync } from 'fs';
-import { join } from 'path';
+import { homedir } from 'os';
+import { basename, join } from 'path';
 import * as vscode from 'vscode';
 import { GameSession } from './game-session';
 import { FileSaveArchive } from './save-archive';
@@ -104,6 +105,22 @@ export function activate(context: vscode.ExtensionContext): GameHost {
     onWebviewBoot: () => {
       if (game.currentMode === 'normal') void teamOut.refresh();
       else teamStale = true;
+    },
+    // 세이브 내보내기 · 가져오기 (orders #33, U6) — 저장 · 열기 창 (작업 폴더가 없어도 — 기본 자리 = 홈 폴더)
+    files: {
+      async save(defaultName, text) {
+        const uri = await vscode.window.showSaveDialog({ defaultUri: vscode.Uri.file(join(homedir(), defaultName)), filters: { JSON: ['json'] }, saveLabel: '세이브 저장' });
+        if (!uri) return null;
+        await vscode.workspace.fs.writeFile(uri, Buffer.from(text, 'utf8'));
+        return basename(uri.fsPath);
+      },
+      async open() {
+        const picked = await vscode.window.showOpenDialog({ canSelectMany: false, filters: { JSON: ['json'] }, openLabel: '세이브 불러오기' });
+        const uri = picked?.[0];
+        if (!uri) return null;
+        const bytes = await vscode.workspace.fs.readFile(uri);
+        return { name: basename(uri.fsPath), text: Buffer.from(bytes).toString('utf8') };
+      },
     },
   });
 
