@@ -111,6 +111,8 @@ export const BALANCE = {
     /** 포켓몬 크기 배율 — 폭 unitW × 배율이 있어야 그 배율 (240 = ×1 · 480 = ×2 · 720 = ×3), ×3 은 높이 x3MinH 부터. ×1 로도 안 들어가면 3:3 잠금 (gdd S06 ④ · 2026-10-21 기획) [임시값] */
     /** 가장 낮은 패널 (높이 rowMaxH 아래 · 폭 rowMinW 부터) 은 ×2 로 여섯이 한 줄 (2026-10-21 태현 님 #85 A — ×2 를 비스듬히 세 줄 세우면 판끼리 겹침) [임시값] */
     view: { unitW: 240, x3MinH: 300, rowMinW: 400, rowMaxH: 170 },
+    /** 3:3 상대 AI 가 다 찬 필살기를 쓰기까지 기다림 (ms) — 1초부터 (예고 "곧!" 이 1초 넘게 보이게, UX 리뷰어 U1 — 1:1 은 trainerUltWaitMs) [임시값] */
+    foeUltWaitMs: [1000, 3000],
   },
   /** 팀 HP 가 이 아래 (또는 쓰러진 포켓몬) 면 "위험" — 정보줄 작은 칸 (ideas #47) [제안] */
   teamDangerBelow: 0.5,
@@ -343,7 +345,9 @@ export const TIMING = {
   team: {
     moveMs: 900,
     moveClashMs: 1500,
-    ultClashMs: 3000,
+    /** 필살기 힘겨루기 = 앞 ultClashLeadMs (VS 연출 · 두 기술이 맞닿기까지 — 그동안 연타 안 셈) + 미는 동안 (UX 리뷰어 U2: 연타 안내가 맞닿기 2.4초 전에 떴음) [임시값] */
+    ultClashLeadMs: 2400,
+    ultClashMs: 4400,
     interruptMs: 1200,
     maxMs: 180_000,
     /** 기술 박자 = 일반 모드 연출 길이 (data moveFxOf — 2026-10-21 태현 님 "일반 모드 기준으로 화려한 기술들을 그대로") · 쏘는 기술 길이 범위 · 맞은 뒤 여운 [임시값] */

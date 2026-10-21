@@ -707,7 +707,8 @@ export function teamUltOpen(b: TeamBattle, slot: number): boolean {
 export function teamInput(b0: TeamBattle, input: TeamInput, rng: Rng): TeamBattle {
   if (b0.phase === 'over') return b0;
   if (input.kind === 'space') {
-    if (b0.phase !== 'clash' || !b0.clash) return b0;
+    // 필살기 힘겨루기는 맞닿은 뒤부터 셈 (VS 연출 동안 누른 것은 안 셈 — 화면도 그때부터 "연타")
+    if (b0.phase !== 'clash' || !b0.clash || (b0.clash.kind === 'ult' && b0.clash.ms < TIMING.team.ultClashLeadMs)) return b0;
     return { ...b0, clash: { ...b0.clash, taps: b0.clash.taps + 1 } };
   }
   const slot = input.slot ?? firstReady(b0, 'me');
@@ -867,7 +868,7 @@ export function teamStep(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamSte
   for (let i = 0; i < b.foe.length; i++) {
     const f = b.foe[i]!;
     if (!alive(f) || f.ult < 1) continue;
-    const [lo, hi] = BALANCE.trainerUltWaitMs;
+    const [lo, hi] = BALANCE.team.foeUltWaitMs;
     const wait = b.foeUltWait[i] ?? rng.int(lo, hi);
     b.foeUltWait[i] = wait - stepMs;
     if (wait - stepMs <= 0) {

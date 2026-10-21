@@ -105,6 +105,9 @@ describe('필살기 — 1 · 2 · 3 · Z · 나머지 멈춤 · 끼어들기 · 
     expect(b.clash).toMatchObject({ kind: 'ult', me: [0], foe: [0] });
     b = teamInput(b, { kind: 'ult', slot: 2 }, new Rng(1));
     expect(b.clash!.me).toEqual([0, 2]);
+    // VS · 맞닿기 (ultClashLeadMs) 동안 누른 것은 안 셈 — 그 뒤부터 (UX 리뷰어 U2)
+    expect(teamInput(b, { kind: 'space' }, new Rng(1)).clash!.taps).toBe(0);
+    b = { ...b, clash: { ...b.clash!, ms: TIMING.team.ultClashLeadMs } };
     b = teamInput(b, { kind: 'space' }, new Rng(1));
     expect(b.clash!.taps).toBe(1);
     // 둘이 이김 → 합동 마무리 (합쳐 터지는 순간에 피해) 까지
@@ -484,7 +487,8 @@ describe('#17 준비 — 배율 · 잠금 · 3마리 고르기 · 필살기 예�
       const go = step(applyInput(held, { kind: 'space' }), STEP).state;
       expect(go.runtime.stage?.phase).toBe('team');
       expect(go.runtime.stage?.phase === 'team' && [...go.runtime.stage.team.fought].sort()).toEqual([...first.slice(1), other].sort());
-      expect(steps(swapped, TIMING.teamPickAutoMs + STEP * 2).runtime.stage?.phase).toBe('team');
+      // 10초는 VS 가 끝난 뒤부터 (UX 리뷰어)
+      expect(steps(swapped, TIMING.trainerMeetMs - TIMING.trainerAlertMs + TIMING.teamPickAutoMs + STEP * 2).runtime.stage?.phase).toBe('team');
       // 하나만 빼고 바로 시작 — 뺀 포켓몬 말고 다음 포켓몬으로 채움 (코드 리뷰어)
       const quick = step(applyInput(out, { kind: 'space' }), STEP).state;
       expect(quick.runtime.stage?.phase === 'team' && quick.runtime.stage.team.fought.includes(first[0]!)).toBe(false);

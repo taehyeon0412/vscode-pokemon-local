@@ -196,6 +196,8 @@ export class TeamFxRunner {
   private timers = new Set<number>();
   /** 달려가는 몸짓 (기술 번호 → 몸짓 · 그 그림) — 쏜 포켓몬이 쓰러지면 (stop · ko) 멈춤 (코드 리뷰어) */
   private dashes = new Map<number, { an: Animation; el: Element }>();
+  /** 필살기 · 합동 연출이 끝나는 때 (performance.now) — 판 끝 (end) 에서 지우지 않게 */
+  private ultUntil = 0;
 
   constructor(
     private readonly stage: TeamFxStage,
@@ -237,6 +239,7 @@ export class TeamFxRunner {
 
   /** 판이 끝나 화면이 사라질 때 — 남은 연출 · 타이머를 지우고 3:3 모드를 끔 */
   reset(): void {
+    this.ultUntil = 0;
     releaseKnocks();
     this.pending.forEach((t) => window.clearTimeout(t));
     this.pending.clear();
@@ -283,7 +286,8 @@ export class TeamFxRunner {
       case 'dash': {
         const src = a(c.src);
         const dst = a(c.dst);
-        const an = src && dst ? dash(src, dst, shotTiming(c.moveId)) : null;
+        // 칸마다 ±12px 다르게 섬 (근접 셋이 한 상대에게 달려가면 한 점에 겹치던 것 — UX 리뷰어)
+        const an = src && dst ? dash(src, dst, shotTiming(c.moveId), (c.src.slot - 1) * 12) : null;
         if (an && src) {
           this.dashes.set(c.tag, { an, el: src.box ?? src.el });
           an.finished.then(() => this.dashes.delete(c.tag)).catch(() => this.dashes.delete(c.tag));
@@ -360,7 +364,10 @@ export class TeamFxRunner {
         // 개발 모드 (임시) 에서 고른 필살기
         const pick = devUltOf(this.last?.[c.src.side][c.src.slot]?.uid);
         const total = src && dst ? (fx.ult?.(src, dst, () => releaseFx(), this.learned(c.src), { quick: c.quick, others, type: c.type, ...(pick ? { pick } : {}) }) ?? 0) : 0;
-        if (total > 0) holdFx(c.key, total, performance.now(), FX_HOLD_ULT_MAX_MS);
+        if (total > 0) {
+          holdFx(c.key, total, performance.now(), FX_HOLD_ULT_MAX_MS);
+          this.ultUntil = performance.now() + total;
+        }
         return;
       }
       case 'joint': {
@@ -373,7 +380,10 @@ export class TeamFxRunner {
         const dst = a(c.dst);
         const others = c.others.map(a).filter((x): x is FxActor => !!x);
         const total = ps.length && dst ? (fx.ultJoint?.(ps.map((p) => p.actor), dst, () => releaseFx(), { types: ps.map((p) => p.type), avoid: ps.map((p) => p.avoid), pick: ps.map((p) => p.pick), sure: c.sure, others }) ?? 0) : 0;
-        if (total > 0) holdFx(c.key, total, performance.now(), FX_HOLD_ULT_MAX_MS);
+        if (total > 0) {
+          holdFx(c.key, total, performance.now(), FX_HOLD_ULT_MAX_MS);
+          this.ultUntil = performance.now() + total;
+        }
         return;
       }
       case 'ult-clash': {
@@ -396,6 +406,8 @@ export class TeamFxRunner {
         // 기술 힘겨루기 모양은 디자인팀 (둘 사이 부딪힘) — 지금은 두 기술을 멈추기만
         return;
       case 'end':
+        // 필살기 · 합동이 아직 돌면 그대로 (마지막 한 방 폭발이 한 장면 만에 지워지던 것 — UX 리뷰어 U1). 화면이 사라질 때 reset 이 지움
+        if (performance.now() < this.ultUntil) return;
         fx.stopDuel?.(true);
         return;
     }
@@ -434,7 +446,7 @@ export class TeamFxRunner {
  * 닿는 기술 — 몸이 상대 앞까지 달려가 (dashMs) 박치기 자리에 머물고 (strike) 제자리로 (backMs) — 엔진 박자 shotTiming 그대로.
  * 상대 몸 앞 (두 그림 폭 사이) 까지 · 정수 px · 동작 줄이기면 반만
  */
-export function dash(src: FxActor, dst: FxActor, t: { dur: number; hitMs: number }): Animation | null {
+export function dash(src: FxActor, dst: FxActor, t: { dur: number; hitMs: number }, spread = 0): Animation | null {
   const el = src.box ?? src.el;
   const to = dst.box ?? dst.el;
   if (typeof el.animate !== 'function') return null;
@@ -443,7 +455,7 @@ export function dash(src: FxActor, dst: FxActor, t: { dur: number; hitMs: number
   const dir = b.left + b.width / 2 >= a.left + a.width / 2 ? 1 : -1;
   const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 0.5 : 1;
   const dx = Math.round(((b.left + b.width / 2 - dir * (b.width / 2 + a.width * 0.3)) - (a.left + a.width / 2)) * reduce);
-  const dy = Math.round((b.bottom - a.bottom) * reduce);
+  const dy = Math.round((b.bottom - a.bottom + spread) * reduce);
   const atHit = Math.min(0.9, Math.max(0.05, (t.hitMs - TIMING_STRIKE_HIT_MS) / t.dur));
   const back = Math.min(0.97, Math.max(atHit + 0.05, 1 - TIMING_BACK_MS / t.dur));
   const an = el.animate(

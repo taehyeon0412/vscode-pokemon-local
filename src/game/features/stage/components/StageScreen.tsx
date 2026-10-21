@@ -196,7 +196,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   const choice = choiceView(state);
   const foeTrainer = foeTrainerView(state);
   // VS 컷인 중 — 길 위 상대 이름표는 숨김 (컷인 띠에 같은 이름이 있고, 반투명 덮개 너머로 대결 그림과 겹쳐 보임)
-  const vsOn = (stageRt?.phase === 'trainer' || stageRt?.phase === 'rival') && stageRt.ms >= vsStartMs(stageRt.phase);
+  // VS 는 만남 끝까지 — 3마리 고르기로 만남이 멈춰 있으면 (ms = 끝) 숨김 (고르기 줄 뒤에 계속 깔리던 것 — UX 리뷰어)
+  const vsOn = (stageRt?.phase === 'trainer' || stageRt?.phase === 'rival') && stageRt.ms >= vsStartMs(stageRt.phase) && !(stageRt.phase === 'trainer' && stageRt.pick && stageRt.ms >= TIMING.trainerMeetMs);
   // 전투 · 관장 · 라이벌은 무대 안에서 (넓은 패널은 720px 무대 — battleStage), 자리는 무대 안에서 재고 패널 자리로 옮김
   const stage = battleStage(widthPx);
   const geoAt = (topPx: number) =>
@@ -372,7 +373,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
           <BattleLayer battle={battle} save={save} media={media} ground={ground} geo={geo} onInput={battleInput} onProfile={(side) => onOpen({ kind: 'profile', side })} foeTrainerLeft={foeTrainer || gym ? leaderX : undefined} />
         )}
         {teamChoiceOn(state) && <TeamChoice state={state} media={media} onInput={onInput} />}
-        {team && <TeamLayer team={team} media={media} widthPx={widthPx} heightPx={layout.heightPx} infoBarPx={Math.round(INFO_BAR_PX * layout.uiScale)} onInput={onInput} />}
+        {team && <TeamLayer team={team} media={media} widthPx={widthPx} heightPx={layout.heightPx} infoBarPx={Math.round(INFO_BAR_PX * layout.uiScale)} fieldTopPx={fieldTopPx(layout.heightPx)} onInput={onInput} />}
         {/* 체육관으로 — 화면 닦기 (위 → 아래) */}
         {gymEnter && gymEnter.wipe > 0 && (
           <div class="pg-gym-wipe" style={{ '--pg-wipe': String(gymEnter.wipe) }} />

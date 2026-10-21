@@ -487,7 +487,8 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
       // 3:3 을 손으로 골랐으면 3마리 고르기 — Enter 까지 기다림, 늦어도 teamPickAutoMs 뒤 (안 볼 때 · 자동 전투는 안 기다림 — gdd 4.7 "자동 전투면 멈추지 않고")
       // 고르는 중에 패널이 좁아져 3:3 이 잠기면 기다리지 않음 (고르기가 사라졌는데 10초를 기다린 뒤 1:1 로 시작하던 것 — 코드 리뷰어)
       const picking = stage.pick !== undefined && stage.team === true && !rt.headless && !save.settings.autoBattle && teamLockOf(save, rt) === null;
-      const pickMs = picking ? (stage.pickMs ?? 0) + stepMs : 0;
+      // 10초는 VS 가 끝난 뒤 (고르기 줄이 보일 때) 부터 (UX 리뷰어 — VS 를 가리지 않게 고르기는 VS 뒤)
+      const pickMs = picking ? (stage.pickMs ?? 0) + (stage.ms >= TIMING.trainerMeetMs ? stepMs : 0) : 0;
       if (ms < TIMING.trainerMeetMs || (picking && pickMs < TIMING.teamPickAutoMs)) {
         stage = { ...stage, ms: Math.min(ms, TIMING.trainerMeetMs), ...(picking ? { pickMs } : {}) };
         break;

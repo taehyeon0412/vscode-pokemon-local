@@ -421,6 +421,11 @@
                 return setTimeout(() => run(i + 1, 40), 300);
             }
             if (badge && !document.querySelector('#pokemon-game .pg-panel')) badge.click();
+            // 개발 메뉴 탭 (장면 · 팀 · 바꾸기 · 속도) 을 차례로 넘겨 찾음
+            else {
+                const tabs = [...document.querySelectorAll('#pokemon-game .pg-dev-tabs button')];
+                if (tabs.length) tabs[(40 - left) % tabs.length].click();
+            }
             if (left > 0) setTimeout(() => run(i, left - 1), 100);
         };
         setTimeout(() => run(0, 40), 300);

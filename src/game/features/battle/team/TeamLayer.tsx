@@ -4,6 +4,7 @@
  * 누르기: 발밑 판 · 포켓몬 = 그 칸 필살기 (쓰기 · 예약 · 끼어들기 · 합류) — 키 1 · 2 · 3 · Z · Space 는 main.ts.
  */
 import { useEffect, useMemo, useRef } from 'preact/hooks';
+import { TIMING } from '../../../core/balance';
 import type { GameInput, Side, TeamBattle } from '../../../core/engine';
 import { formOf, speciesOf } from '../../../data';
 import { Sprite } from '../../../ui/Sprite';
@@ -24,7 +25,7 @@ function Bar({ v, kind }: { v: number; kind: 'hp' | 'ult' | 'ult-full' }) {
   );
 }
 
-function Fighter({ b, g, side, slot, media, onUlt }: { b: TeamBattle; g: TeamGeo; side: Side; slot: number; media: string; onUlt(slot: number): void }) {
+function Fighter({ b, g, side, slot, media, topMin, onUlt }: { b: TeamBattle; g: TeamGeo; side: Side; slot: number; media: string; topMin: number; onUlt(slot: number): void }) {
   const f = b[side][slot]!;
   const { x, y } = g.pos(side, slot);
   const st = plateState(b, side, slot);
@@ -65,13 +66,14 @@ function Fighter({ b, g, side, slot, media, onUlt }: { b: TeamBattle; g: TeamGeo
       </span>
       {/* 상대 필살기 예고 — 머리 위 */}
       {warn && (
-        <span class={`pg-team-warn${warn.full ? ' pg-team-warn-full' : ''}`} style={{ left: `${x}px`, top: `${y - g.sp}px` }}>
+        <span class={`pg-team-warn${warn.full ? ' pg-team-warn-full' : ''}`} style={{ left: `${x}px`, top: `${Math.max(topMin, y - g.sp)}px` }}>
           {warn.full ? '곧!' : `${warn.pct}%`}
         </span>
       )}
       {/* 피해 숫자 · 짧은 말 — 머리 위 */}
-      {pops.map((p) => (
-        <span key={p.id} class={`pg-team-pop pg-pop-${p.kind}`} style={{ left: `${x}px`, top: `${y - g.sp - 4}px` }}>
+      {/* 칸마다 쌓음 (쓰러짐 말 · 피해 숫자가 같은 자리에 겹치던 것) · 지도 줄 아래로 막음 · 한 줄 배치 · ×1 (좁은 패널 — 셋이 가까움) 은 칸마다 높이를 엇갈림 — UX 리뷰어 */}
+      {pops.map((p, i) => (
+        <span key={p.id} class={`pg-team-pop pg-pop-${p.kind}`} style={{ left: `${x}px`, top: `${Math.max(topMin + 15 * (pops.length - 1 - i) + (slot % 3) * 15, y - g.sp - 4 - 15 * i - (g.oneRow || g.scale === 1 ? (slot % 3) * 15 : 0))}px` }}>
           {p.text}
         </span>
       ))}
@@ -79,7 +81,7 @@ function Fighter({ b, g, side, slot, media, onUlt }: { b: TeamBattle; g: TeamGeo
   );
 }
 
-export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, onInput }: { team: TeamBattle; media: string; widthPx: number; heightPx: number; infoBarPx: number; onInput(i: GameInput): void }) {
+export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldTopPx = 0, onInput }: { team: TeamBattle; media: string; widthPx: number; heightPx: number; infoBarPx: number; fieldTopPx?: number; onInput(i: GameInput): void }) {
   const g = useMemo(() => teamGeometry(widthPx, heightPx, infoBarPx), [widthPx, heightPx, infoBarPx]);
   const root = useRef<HTMLDivElement>(null);
   const layer = useRef<HTMLDivElement>(null);
@@ -104,16 +106,23 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, onInpu
   }, [b]);
   useEffect(() => () => runner.current?.reset(), []);
   const prompt = teamPrompt(b);
+  // 숫자 · 말 · 예고의 아래 끝 (translate −100%) 이 지도 줄 아래 + 2 보다 위로 가지 않게 (글 높이 약 14)
+  const topMin = infoBarPx + fieldTopPx + 2 + 14;
+  // 안내 (끼어들기 · 합동 · 연타) 자리 — 넓으면 무대 아래 가운데 (위 가운데는 필살기 컷인 이름 자리), 좁으면 정보줄 + 4 (정보줄 밑에 숨던 것 — UX 리뷰어)
+  const low = widthPx >= 400;
+  const promptStyle = low ? { top: 'auto', bottom: '4px' } : { top: `${infoBarPx + 4}px` };
+  // 엔진 한 줄 (필살기 · 합류 · 결과) 은 판 끝 결과만 · 쓰러지는 장면이 0.9초 보인 뒤 (컷인 이름을 가리고 · 지난 필살기 줄이 남던 것 — UX 리뷰어)
+  const msgOn = b.phase === 'over' && b.overMs >= 900 && !!b.msg;
   const ult = (slot: number) => onInput({ kind: 'team-battle', input: { kind: 'ult', slot } });
   return (
     // 자리는 패널 기준 (시안 geo) — 이 층은 들판 (정보줄 아래) 안이라 정보줄 높이만큼 위로
     <div class={`pg-team pg-team-x${g.scale}${g.oneRow ? ' pg-team-row' : ''}`} style={{ top: `${-infoBarPx}px` }} ref={root} onClick={b.phase === 'clash' ? () => onInput({ kind: 'team-battle', input: { kind: 'space' } }) : undefined}>
-      {SIDES.map((side) => b[side].map((_, slot) => <Fighter key={`${side}-${slot}`} b={b} g={g} side={side} slot={slot} media={media} onUlt={ult} />))}
+      {SIDES.map((side) => b[side].map((_, slot) => <Fighter key={`${side}-${slot}`} b={b} g={g} side={side} slot={slot} media={media} topMin={topMin} onUlt={ult} />))}
       {/* 연출 층 — 비어 있는 상자 (Preact 는 안을 안 건드림), 연출 다리가 캔버스를 넣음 */}
       <div class="pg-fxlayer pg-team-fx" ref={layer} />
       {/* 안내 — 무대 가운데 위 */}
       {prompt?.kind === 'join' && (
-        <div class="pg-team-prompt pg-team-prompt-join">
+        <div class="pg-team-prompt pg-team-prompt-join" style={promptStyle}>
           {prompt.keys.map((k) => (
             <span key={k} class="pg-team-key pg-team-key-on">
               {k}
@@ -124,7 +133,7 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, onInpu
         </div>
       )}
       {prompt?.kind === 'gather' && (
-        <div class="pg-team-prompt pg-team-prompt-gather">
+        <div class="pg-team-prompt pg-team-prompt-gather" style={promptStyle}>
           <b>{widthPx < 400 ? '합동!' : '합동 필살기!'}</b>
           {prompt.who.map((w) => (
             <span key={w.key} class="pg-team-who" onClick={() => ult(w.key - 1)}>
@@ -135,14 +144,19 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, onInpu
           <span class="pg-team-left" style={{ width: `${Math.round(prompt.left * 100)}%` }} />
         </div>
       )}
-      {prompt?.kind === 'mash' && (
-        <div class="pg-team-prompt pg-team-prompt-mash">
-          {prompt.sure === 'me' ? <b class="pg-team-sure">3:1</b> : prompt.sure === 'foe' ? <b class="pg-team-sure pg-team-sure-foe">1:3 — 질 거예요</b> : <b>{`${prompt.me}:${prompt.foe}`}</b>}
+      {/* 연타 — VS · 맞닿기 (ultClashLeadMs) 뒤부터 (엔진도 그때부터 셈) */}
+      {prompt?.kind === 'mash' && (b.clash?.ms ?? 0) >= TIMING.team.ultClashLeadMs && (
+        <div class="pg-team-prompt pg-team-prompt-mash" style={promptStyle}>
+          {prompt.sure === 'me' ? <b class="pg-team-sure">3:1</b> : prompt.sure === 'foe' ? <b class="pg-team-sure pg-team-sure-foe">1:3 — 질 거예요</b> : <b>{`${prompt.me} 대 ${prompt.foe}`}</b>}
           <span class="pg-team-key">Space</span> 연타
         </div>
       )}
       {/* 결과 · 엔진 한 줄 (합류 · 힘겨루기 결과 · 이김 · 짐) — 안내가 없을 때 */}
-      {!prompt && b.msg && <div class={`pg-team-msg${b.phase === 'over' ? ' pg-team-msg-over' : ''}`}>{b.msg}</div>}
+      {msgOn && (
+        <div class="pg-team-msg pg-team-msg-over" style={{ top: `${infoBarPx + fieldTopPx + 4}px` }}>
+          {b.msg}
+        </div>
+      )}
     </div>
   );
 }

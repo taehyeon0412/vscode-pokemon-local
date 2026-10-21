@@ -27,9 +27,10 @@ export function TeamChoice({ state, media, onInput }: { state: GameState; media:
   const lobby = st.phase === 'lobby';
   // 잠겼으면 (3마리 미만 · 좁음) 주 버튼 = 1:1 (엔진도 1:1 로 시작 — 코드 리뷰어)
   const team = lobby || (lock === null && (st.team ?? save.settings.teamMode === true));
-  if ((lobby || st.team) && pick) {
+  // 3마리 고르기는 VS 가 끝난 뒤 (VS 이름을 가리지 않게 — UX 리뷰어) · 대기실은 늘
+  if ((lobby || (st.team && st.phase === 'trainer' && st.ms >= TIMING.trainerMeetMs)) && pick) {
     // 3마리 고르기 — 팀 순서 키 1 ~ 5 · 고른 순서 = 싸울 때 발밑 판 키
-    const left = st.phase === 'trainer' ? Math.max(0, 1 - (st.pickMs ?? 0) / TIMING.teamPickAutoMs) : 0;
+    const left = st.phase === 'trainer' ? Math.ceil(Math.max(0, 1 - (st.pickMs ?? 0) / TIMING.teamPickAutoMs) * 12) / 12 : 0;
     return (
       <div class={`pg-team-choice pg-team-pick${lobby ? ' pg-team-pick-lobby' : ''}`}>
         {save.party.map((uid, i) => {
@@ -61,7 +62,8 @@ export function TeamChoice({ state, media, onInput }: { state: GameState; media:
   // 1:1 / 3:3 — 주 버튼 = 지난번 고른 방식 · 다른 쪽은 작은 버튼
   const why = lock === 'few' ? '살아 있는 포켓몬이 3마리 있어야 3:3' : lock === 'narrow' ? '패널을 넓히면 3:3' : null;
   if (st.phase !== 'trainer') return null;
-  const left = Math.max(0, 1 - st.ms / TIMING.trainerMeetMs);
+  // 막대 = 보이는 때 ("!" 뒤) 부터 끝까지 12걸음 (80% 에서 시작하던 것 — UX 리뷰어)
+  const left = Math.ceil(Math.max(0, (TIMING.trainerMeetMs - st.ms) / (TIMING.trainerMeetMs - TIMING.trainerAlertMs)) * 12) / 12;
   return (
     <div class="pg-team-choice">
       <Button
