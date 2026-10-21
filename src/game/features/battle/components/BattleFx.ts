@@ -31,7 +31,7 @@ const SHOT_HOLD_AFTER_MS = 60;
 /** 필살기 시작을 이만큼 넘겨서 붙었으면 (접었다 펴기 등) 처음부터 못 보여 줘서 이모지로 — 나와라! 등장 (0.45초) 을 기다리는 것 포함 */
 const ULT_LATE_MS = 600;
 const ULT_RETRY_MS = 50;
-/** 반격기 — 맞힌 뒤 줄기를 보여 주는 시간 · 그다음 흐리게 끄는 시간. 그동안 엔진을 붙잡아 피해 · 고르기 메뉴는 그 뒤 (2026-10-21 orders #7 — 처음 맞힌 순간 = 줄기 시작이라 바로 끄면 줄기가 안 보임) */
+/** 반격기 — 맞힌 뒤 줄기를 보여 주는 가장 짧은 시간 · 그다음 흐리게 끄는 시간. 흐림은 엔진 행동이 끝나는 때 (= 피해) 에 끝나게 맞춤, 그동안 엔진을 붙잡음 (2026-10-21 orders #7 — 처음 맞힌 순간 = 줄기 시작이라 바로 끄면 줄기가 안 보임) */
 const RIPOSTE_BEAM_MS = 500;
 const RIPOSTE_FADE_MS = 200;
 /** 힘대결 밀고 밀리기 — 일반 모드 대결과 같은 3.6초 (가운데서 만난 뒤부터, 연타는 그동안 계속) */
@@ -203,6 +203,8 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
       };
     }
     const side = a.side;
+    // 엔진이 이 행동을 끝내는 때 (벽시계) — 반격기 흐림 끝을 피해 들어가는 때와 맞춤
+    const animEndAt = performance.now() + Math.max(0, a.dur - a.ms);
     const timers: number[] = [];
     // 아직 안 온 순간 — 행동이 끊기면 (관장 끼어들기 · 맞받아치기) 남은 연출을 지움 (#330)
     const pending = new Set<number>();
@@ -309,10 +311,13 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
           // 상대를 처음 맞힌 순간 피해를 넣음 — 붙잡기를 풀고 남은 연출은 흘러가게 둠 (연출이 다 끝난 뒤 숫자가 늦게 뜨지 않게)
           const onHit = () => {
             ultHitDone = true;
-            // 반격기: 줄기 0.5초 → 0.2초에 흐리게 끄고 그다음 피해 · 메뉴 (메뉴가 뜬 뒤에도 줄기가 0.66초 더 나가던 것, orders #7)
+            // 반격기: 줄기 (0.5초 이상) → 0.2초에 흐리게 끄고 그다음 피해 · 메뉴 (메뉴가 뜬 뒤에도 줄기가 0.66초 더 나가던 것, orders #7).
+            //   흐림 끝 = 엔진 행동 끝 (피해) — 0.5초로 고정하면 줄기가 사라지고 약 0.15초 뒤에 맞던 것 (UX 리뷰어 U2)
             if (riposte && fx.fadeUlt) {
-              holdFx(key, RIPOSTE_BEAM_MS + RIPOSTE_FADE_MS, performance.now(), FX_HOLD_ULT_MAX_MS);
-              timers.push(window.setTimeout(() => fx.fadeUlt?.(RIPOSTE_FADE_MS), RIPOSTE_BEAM_MS));
+              const t = performance.now();
+              const fadeAt = Math.max(t + RIPOSTE_BEAM_MS, animEndAt - RIPOSTE_FADE_MS);
+              holdFx(key, fadeAt + RIPOSTE_FADE_MS - t, t, FX_HOLD_ULT_MAX_MS);
+              timers.push(window.setTimeout(() => fx.fadeUlt?.(RIPOSTE_FADE_MS), fadeAt - t));
             } else releaseFx();
             down();
           };

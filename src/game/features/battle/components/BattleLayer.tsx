@@ -625,7 +625,15 @@ function PopSay({ kind, x, bottom, text }: { kind: string; x: number; bottom: nu
     if (!el || !W) return;
     // translateX(-50%) 는 그대로 — 가운데만 [끝 + 반폭, 폭 − 끝 − 반폭] 안으로 (offsetWidth = 움직임 배율과 상관없는 폭)
     const half = Math.ceil(el.offsetWidth / 2);
-    el.style.left = `${Math.round(Math.min(W - POP_EDGE - half, Math.max(POP_EDGE + half, x)))}px`;
+    let cx = Math.min(W - POP_EDGE - half, Math.max(POP_EDGE + half, x));
+    el.style.left = `${Math.round(cx)}px`;
+    // 상대 트레이너 이름표 ("반바지 꼬마 민수") 와 겹치면 그 왼쪽으로 (240px 트레이너전 처음 0.2초, 2026-10-21 UX 리뷰어)
+    const r = el.getBoundingClientRect();
+    for (const tag of document.querySelectorAll('#pokemon-game .pg-foe-trainer .pg-nametag')) {
+      const t = tag.getBoundingClientRect();
+      if (t.width > 0 && r.left < t.right && r.right > t.left && r.top < t.bottom && r.bottom > t.top) cx = Math.max(POP_EDGE + half, cx - (r.right - (t.left - POP_EDGE)));
+    }
+    el.style.left = `${Math.round(cx)}px`;
   });
   return (
     <span ref={ref} class={`pg-pop pg-pop-say pg-pop-${kind}`} style={{ left: `${x}px`, bottom: `${bottom}px` }}>

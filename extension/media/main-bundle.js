@@ -49841,7 +49841,8 @@ window.pokemonFx = {
                 hide(oldImg, false);
                 hide(newImg, false);
             };
-            setTimeout(restore, ms + 50);
+            // 캔버스 끝 (ms) 보다 조금 먼저 되살림 — 끝난 뒤 되살리면 약 0.1초 그림이 비던 것 (2026-10-21 UX 리뷰어, CSS 새 모습은 3.1초에 이미 보임)
+            setTimeout(restore, ms - 30);
             const sec = ms / 1000;
             const T0 = 0.4;
             const T1 = sec * 0.78;
