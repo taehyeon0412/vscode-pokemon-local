@@ -119,7 +119,8 @@ function Screens({ v, media, actions }: { v: ViewState; media: string; actions: 
         {/* 개발 모드 (임시) — 늘 "개발 · 저장 안 됨" (누르면 개발 메뉴 · D) */}
         {v.state.runtime.dev && (
           <button type="button" class="pg-dev-badge" onClick={() => actions.open({ kind: 'dev' })} title="개발 모드 (임시) — 저장 안 됨, 나가면 사라져요 · D = 개발 메뉴">
-            개발 · 저장 안 됨
+            {/* 이름표 문법 — "개발" 크림 · "저장 안 됨" 낱말만 빨강 (src/game/dev/dev.css) */}
+            <b>개발</b> <span class="pg-dev-badge-warn">저장 안 됨</span>
           </button>
         )}
       </>

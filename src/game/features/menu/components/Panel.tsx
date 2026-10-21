@@ -17,10 +17,12 @@ export interface PanelProps {
   closeLabel?: string;
   /** 제목 줄 바로 아래 고정 한 줄 (내용과 같이 스크롤되지 않음 — 상점 알림 · 안내, 2026-10-21) */
   sub?: ComponentChildren;
+  /** 판 맨 아래 고정 한 줄 (드물게 누르는 것 — 개발 메뉴 끝내기 · 알림, 2026-10-21 아트 디렉터: 위험한 것이 첫 자리에 있던 것) */
+  foot?: ComponentChildren;
   children: ComponentChildren;
 }
 
-export function Panel({ icon, title, extra, onClose, closeLabel = '닫기', sub, children }: PanelProps) {
+export function Panel({ icon, title, extra, onClose, closeLabel = '닫기', sub, foot, children }: PanelProps) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || e.repeat) return;
@@ -44,6 +46,7 @@ export function Panel({ icon, title, extra, onClose, closeLabel = '닫기', sub,
       </div>
       {sub && <div class="pg-panel-sub">{sub}</div>}
       <div class="pg-panel-body">{children}</div>
+      {foot && <div class="pg-panel-foot">{foot}</div>}
     </div>
   );
 }

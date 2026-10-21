@@ -198,6 +198,13 @@
             save.party = ['m1', 'm2', 'm3'];
             save.box = [];
         }
+        // party5=1 — 다섯 (3마리 고르기 판 2줄 · 상대 셋 사진 — 5글자 이름 버터플 · 피죤투 포함)
+        if (q.get('party5') === '1') {
+            const mk5 = (uid, species, form, level) => ({ ...save.monsters.m1, uid, species, form, level, unspentPoints: 0, hp: 30, caughtAt: 'forest-1' });
+            Object.assign(save.monsters, { m1: mk5('m1', 5, 'charmeleon', 19), m2: mk5('m2', 2, 'ivysaur', 18), m3: mk5('m3', 8, 'wartortle', 17), m4: mk5('m4', 17, 'pidgeotto', 16), m5: mk5('m5', 12, 'butterfree', 15) });
+            save.party = ['m1', 'm2', 'm3', 'm4', 'm5'];
+            save.box = [];
+        }
         save.nextMonsterUid = 4;
         save.bag = { 'poke-ball': 3, potion: 2, 'leaf-stone': 1 };
         const fighter = (m, types, stats, hp, extra) => ({
@@ -434,7 +441,7 @@
     const click = q.get('click');
     if (click) {
         // map|team|bag|settings = 오른쪽 위 버튼 (S07 · S18 · S19 · S20) · profile = 상대 포켓몬 누르기 (S21) · item = 가방에서 상처약 고르기
-        const label = { new: '새로 하기', continue: '이어 하기', exit: '일반 모드', skills: '3 스킬', items: '4 아이템', map: '🗺', team: '◓', bag: '🎒', settings: '⚙', item: '상처약', dev: '개발 · 저장 안 됨', devtitle: '개발 모드 (임시)' }[click];
+        const label = { new: '새로 하기', continue: '이어 하기', exit: '일반 모드', skills: '3 스킬', items: '4 아이템', map: '🗺', team: '◓', bag: '🎒', settings: '⚙', item: '상처약', dev: '개발 저장 안 됨', devtitle: '개발 모드 (임시)' }[click];
         const alt = { skills: '3✨' }[click];
         // game.js 를 받아 화면이 그려질 때까지 기다렸다가
         const tryClick = (left) => {

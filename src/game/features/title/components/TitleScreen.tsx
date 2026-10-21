@@ -61,9 +61,9 @@ function Logo() {
 }
 
 /** 메뉴 한 줄 (Sea of Stars 세로 메뉴와 같은 줄 — 올리면 줄 전체 바탕 + 금색 + ▸, 주로 누를 줄은 ▸ 가 늘 붙음) */
-function MenuRow({ on, onClick, disabled, title, children }: { on: boolean; onClick(): void; disabled?: boolean; title?: string; children: ComponentChildren }) {
+function MenuRow({ on, onClick, disabled, title, extraClass, children }: { on: boolean; onClick(): void; disabled?: boolean; title?: string; extraClass?: string; children: ComponentChildren }) {
   return (
-    <button type="button" class={on ? 'pg-title-item pg-on' : 'pg-title-item'} onClick={onClick} disabled={disabled} title={title}>
+    <button type="button" class={`pg-title-item${on ? ' pg-on' : ''}${extraClass ? ` ${extraClass}` : ''}`} onClick={onClick} disabled={disabled} title={title}>
       {children}
     </button>
   );
@@ -180,8 +180,9 @@ export function TitleScreen({ info, media, pending, onNew, onContinue, onDev, he
           )}
           {/* 개발 모드 (임시) — 맨 아래 줄. 진짜 세이브를 읽기만 (없으면 시연 팀), 저장하지 않음 */}
           {onDev && !confirming && (
-            <MenuRow on={false} onClick={onDev} disabled={pending} title="개발 모드 (임시) — 장면 · 팀 · 속도를 바로 (D = 개발 메뉴). 저장하지 않아요">
-              개발 모드 (임시)
+            // 작게 · 위 1px 실선 (주로 누를 줄은 이어 하기) · 빨강 "저장 안 됨" (src/game/dev/dev.css)
+            <MenuRow on={false} onClick={onDev} disabled={pending} extraClass="pg-title-dev" title="개발 모드 (임시) — 장면 · 팀 · 속도를 바로 (D = 개발 메뉴). 저장하지 않아요">
+              개발 모드 (임시) <span class="pg-title-dev-note">저장 안 됨</span>
             </MenuRow>
           )}
         </div>

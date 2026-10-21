@@ -144,7 +144,7 @@ function scene(state: GameState, sc: DevScene, rng: Rng): DevResult {
         return m && evolveAt(m) !== null;
       });
       const m = uid ? save0.monsters[uid] : undefined;
-      if (!m) return { state, say: '레벨로 진화하는 포켓몬이 팀에 없어요 — 팀 만들기에서 더하세요' };
+      if (!m) return { state, say: '레벨로 진화하는 포켓몬이 없어요 — 팀 탭에서 더하기' };
       const level = Math.max(m.level, evolveAt(m)!);
       const to = pickEvolution({ ...m, level }, level, rng);
       if (to === null) return { state, say: '진화할 모습을 못 찾았어요' };
@@ -163,7 +163,7 @@ function scene(state: GameState, sc: DevScene, rng: Rng): DevResult {
     case 'trainer-team':
     case 'gym-team': {
       const alive = save0.party.filter((u) => (save0.monsters[u]?.hp ?? 0) > 0);
-      if (alive.length < BALANCE.team.size) return { state, say: `3:3 은 살아 있는 포켓몬 ${BALANCE.team.size}마리가 있어야 해요 — 팀 만들기 · 회복` };
+      if (alive.length < BALANCE.team.size) return { state, say: `3:3 은 살아 있는 ${BALANCE.team.size}마리 — 팀 탭 더하기 · 바꾸기 탭 모두 회복` };
       if (sc === 'gym-team') {
         const foes = devFoes(state, rng, BALANCE.team.size) ?? leaderTeam();
         const save: Save = { ...save0, location: { screen: 'gym' }, pendingEncounter: { kind: 'gym-leader' }, pendingChoices: [] };
@@ -317,7 +317,7 @@ export function devApply(state: GameState, action: DevAction): DevResult {
       return { state: { ...state, save: { ...state.save, monsters: { ...state.save.monsters, [m.uid]: { ...m, hp: 1 } } } }, say: '선두 HP 1' };
     }
     case 'money':
-      return { state: { ...state, save: { ...state.save, money: state.save.money + 10_000 } }, say: '돈 +10000' };
+      return { state: { ...state, save: { ...state.save, money: state.save.money + 10_000 } }, say: `돈 +10000 → ${state.save.money + 10_000}` };
     case 'balls':
       return { state: { ...state, save: addItems(state.save, ['poke-ball', 'great-ball', 'ultra-ball'], 10) }, say: '볼 +10씩' };
     case 'items':
