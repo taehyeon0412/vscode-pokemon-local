@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../balance';
+import { speciesOf } from '../../data';
 import { STAGE_IDS } from '../save';
 import { sampleSave, viaJson } from '../../../test/fixtures/save';
 import { startTrainerBattle } from '../engine/battle';
@@ -7,7 +8,7 @@ import { nextStageOf, stageUnlocked } from '../engine/play';
 import { battleRewards } from '../engine/rewards';
 import { Rng } from '../engine/rng';
 import { validateSave } from '../save';
-import { pickupAt, planWild, regionPool } from './encounter';
+import { createWild, pickupAt, planWild, regionPool } from './encounter';
 import { BEACH_REQUESTS, requestAt } from './request';
 import { REGIONS, regionAceLevel, regionGymMoney, regionGymTeam, regionLevelBand, regionOf, regionOrder } from './region';
 import { stageCode, stageLevelBand } from './stage';
@@ -81,6 +82,29 @@ describe('해변 한 벌 (gdd 5.3 — orders #37, 개발 모드 미리 보기 ·
       expect(new Set(got.filter((g) => g.item && !['poke-ball', 'potion'].includes(g.item)).map((g) => g.item))).toEqual(new Set(['water-stone']));
       expect(new Set(got.filter((g) => g.money).map((g) => g.money))).toEqual(new Set([hi * BALANCE.pickupMoneyPerLevel]));
     }
+  });
+
+  it('숲 목록 초안 (gdd 5.4 — 개발 모드 스위치만, orders #41) — 흔함 8 · 8 · 8 + 강한 2 · 드묾 덩쿠리 · 로젤리아 · 노말 · 비행 3종 · 앞 스테이지 드문 타입 2종 · 끄면 지금 숲 그대로', () => {
+    expect(regionPool('forest-1', true).common).toEqual([10, 13, 265, 165, 401, 187, 273, 420]);
+    expect(regionPool('forest-2', true).common).toEqual([46, 285, 43, 69, 48, 167, 191, 290]);
+    expect(regionPool('forest-3', true).common).toEqual([415, 412, 204, 588, 616, 313, 314, 193, 123, 214]);
+    expect(regionPool('forest-3', true).rare).toEqual([114, 315]);
+    for (const id of ['forest-1', 'forest-2', 'forest-3'] as const) {
+      const p = regionPool(id, true);
+      expect(p.mixed).toHaveLength(3);
+      expect(regionPool(id, true).mixed).toEqual(p.mixed);
+      for (const d of p.mixed) expect(speciesOf(d)!.types.every((t) => t === 'normal' || t === 'flying')).toBe(true);
+      if (id !== 'forest-3') {
+        expect(p.rare).toHaveLength(2);
+        for (const d of p.rare) expect(speciesOf(d)!.types.some((t) => t === 'poison' || t === 'dragon' || t === 'fairy') && !speciesOf(d)!.types.some((t) => t === 'grass' || t === 'bug')).toBe(true);
+      }
+      // 끄면 (일반 플레이) 지금 숲 — 타입 자동 (흔함이 목록보다 훨씬 많음)
+      expect(regionPool(id).common.length).toBeGreaterThan(20);
+    }
+    // 같은 자리라도 켜면 다른 포켓몬이 나올 수 있음 (엔진 · 화면이 같은 값을 넘김)
+    const spots = Array.from({ length: 40 }, (_, i) => ({ kind: 'wild' as const, at: 0.5, index: i }));
+    expect(spots.some((sp) => createWild('forest-1', 7, sp, 0, true).species !== createWild('forest-1', 7, sp).species)).toBe(true);
+    expect(spots.every((sp) => planWild('forest-1', 7, sp).dex === planWild('forest-1', 7, sp, 0, false).dex)).toBe(true);
   });
 
   it('레벨표 값 한 곳 (BALANCE.region) — 게임 숫자 그대로 (에이스 15 + 6 × (k − 1) · 해변 2번째, 시뮬만 바꿔 봄 — orders #38)', () => {

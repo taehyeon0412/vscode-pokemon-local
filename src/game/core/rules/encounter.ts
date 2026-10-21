@@ -46,39 +46,62 @@ interface Pool {
   /** 노말 · 비행 (숲에 섞임, mixedTypeChance) */
   mixed: number[];
 }
-const pools = new Map<StageId, Pool>();
+const pools = new Map<string, Pool>();
 
-/** 예전 이름 (개발 모드 · 시험이 씀) */
-export const forestPool = (stageId: StageId): Pool => regionPool(stageId);
+/** 예전 이름 (개발 모드 · 시험이 씀) · preview = 정한 목록 초안 (숲 gdd 5.4 — 개발 모드 스위치) */
+export const forestPool = (stageId: StageId, preview = false): Pool => regionPool(stageId, preview);
+
+/** 스테이지 id 로 늘 같은 n 종 (정한 목록 초안의 노말 · 비행 · 드문 타입 — gdd 5.4 "지역 id 시드로 모두에게 같게" [제안]) */
+function pickFixed(list: readonly number[], n: number, stageId: StageId, salt: number): number[] {
+  let h = salt;
+  for (const ch of stageId) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const rng = spotRng(h, 0, salt);
+  const left = [...list].sort((a, b) => a - b);
+  const out: number[] = [];
+  while (out.length < n && left.length > 0) out.push(left.splice(rng.int(0, left.length - 1), 1)[0]!);
+  return out;
+}
 
 /** 레벨업으로 피해 기술을 하나라도 배우는지 (메타몽처럼 변신만 있으면 숲에 섞지 않음) */
 const canAttack = (dex: number) => learnsetOf(dex).some(([, id]) => (moveOf(id)?.class ?? 'status') !== 'status');
 
-/** 그 스테이지에 나오는 1단계 종 (도감 번호) — 지역 표의 타입으로 자동 (숲 = 풀 · 벌레 / 드묾 독 · 드래곤 · 페어리), 종족값 큰 것은 지역 마지막 스테이지에서만 */
-export function regionPool(stageId: StageId): Pool {
-  let pool = pools.get(stageId);
+/**
+ * 그 스테이지에 나오는 1단계 종 (도감 번호) — 지역 표의 타입으로 자동 (숲 = 풀 · 벌레 / 드묾 독 · 드래곤 · 페어리), 종족값 큰 것은 지역 마지막 스테이지에서만.
+ * preview = 정한 목록 초안 (region.wild.preview — 숲 gdd 5.4, 개발 모드 스위치에서만): 흔함 = 목록 · 노말 · 비행 3종 · 드묾 = 마지막 스테이지 목록 · 앞 스테이지는 드문 타입 2종
+ */
+export function regionPool(stageId: StageId, preview = false): Pool {
+  const { region, index } = regionOf(stageId);
+  const draft = preview ? region.wild.preview : undefined;
+  const key = draft ? `${stageId}:preview` : stageId;
+  let pool = pools.get(key);
   if (pool) return pool;
   pool = { common: [], rare: [], mixed: [] };
-  const { region, index } = regionOf(stageId);
+  const lists = draft?.lists ?? region.wild.lists;
+  const strong = draft ? draft.strong : region.wild.strong;
+  const rareList = draft ? draft.rareList : region.wild.rareList;
+  const rareTypes: number[] = [];
   for (const dex of allSpecies()) {
     const s = speciesOf(dex);
     if (!s || !isWildable(s) || isStarterLine(s) || formsOfSpecies(dex).length === 0) continue;
     if (baseTotal(s) > BALANCE.bigBaseTotal && index < region.stages.length - 1) continue;
-    // 스테이지마다 정한 목록 (해변) 이면 흔함 · 드묾은 목록에서 (아래), 노말 · 비행 섞기만 타입으로
-    if (region.wild.lists) {
+    // 스테이지마다 정한 목록 (해변 · 숲 초안) 이면 흔함 · 드묾은 목록에서 (아래), 노말 · 비행 섞기만 타입으로
+    if (lists) {
       if (s.types.every((t) => t === 'normal' || t === 'flying') && canAttack(dex)) pool.mixed.push(dex);
+      else if (draft && !hasAny(s.types, region.wild.common) && hasAny(s.types, region.wild.rare)) rareTypes.push(dex);
       continue;
     }
     if (hasAny(s.types, region.wild.common)) pool.common.push(dex);
     else if (hasAny(s.types, region.wild.rare)) pool.rare.push(dex);
     else if (s.types.every((t) => t === 'normal' || t === 'flying') && canAttack(dex)) pool.mixed.push(dex);
   }
-  if (region.wild.lists) {
+  if (lists) {
     const last = index === region.stages.length - 1;
-    pool.common = [...(region.wild.lists[index] ?? []), ...(last ? (region.wild.strong ?? []) : [])].filter((d) => !!speciesOf(d) && formsOfSpecies(d).length > 0);
-    pool.rare = last ? (region.wild.rareList ?? []).filter((d) => !!speciesOf(d) && formsOfSpecies(d).length > 0) : [];
+    pool.common = [...(lists[index] ?? []), ...(last ? (strong ?? []) : [])].filter((d) => !!speciesOf(d) && formsOfSpecies(d).length > 0);
+    pool.rare = last ? (rareList ?? []).filter((d) => !!speciesOf(d) && formsOfSpecies(d).length > 0) : draft ? pickFixed(rareTypes, 2, stageId, 2) : [];
+    // 숲 초안 — 노말 · 비행도 스테이지마다 3종 (gdd 5.4)
+    if (draft) pool.mixed = pickFixed(pool.mixed, 3, stageId, 1);
   }
-  pools.set(stageId, pool);
+  pools.set(key, pool);
   return pool;
 }
 
@@ -139,9 +162,9 @@ export function traceKindOf(types: readonly TypeName[]): TraceKind {
 export const wildKey = (spot: Spot, retries = 0) => spot.index + retries * 10_007;
 
 /** 그 야생 자리에 무엇이 있는지 (만나기 전에도 흔적 모양 · 크게 흔들림 · 반짝임을 그리려고 미리 정함) */
-export function planWild(stageId: StageId, stageSeed: number, spot: Spot, retries = 0): WildPlan {
+export function planWild(stageId: StageId, stageSeed: number, spot: Spot, retries = 0, preview = false): WildPlan {
   const rng = spotRng(stageSeed, wildKey(spot, retries), 1);
-  const pool = regionPool(stageId);
+  const pool = regionPool(stageId, preview);
   const list = pool.mixed.length > 0 && rng.chance(BALANCE.mixedTypeChance) ? pool.mixed : pool.rare.length > 0 && rng.chance(BALANCE.rareTypeChance) ? pool.rare : pool.common;
   const base = list[rng.int(0, list.length - 1)] ?? 1;
   const [lo, hi] = stageLevelBand(stageId);
@@ -154,8 +177,8 @@ export function planWild(stageId: StageId, stageSeed: number, spot: Spot, retrie
 }
 
 /** 만난 야생 포켓몬 — 개체값 · 기술을 지금 정함 (잡으면 그대로 가져감) */
-export function createWild(stageId: StageId, stageSeed: number, spot: Spot, retries = 0): Monster {
-  const plan = planWild(stageId, stageSeed, spot, retries);
+export function createWild(stageId: StageId, stageSeed: number, spot: Spot, retries = 0, preview = false): Monster {
+  const plan = planWild(stageId, stageSeed, spot, retries, preview);
   const key = wildKey(spot, retries);
   return createMonster({
     uid: 'wild',

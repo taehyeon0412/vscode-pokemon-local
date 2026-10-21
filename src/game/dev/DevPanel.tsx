@@ -216,6 +216,15 @@ export function DevPanel({ state, media, onDev, onEnd, onClose }: { state: GameS
           {/* 지역마다 한 줄 (해변 넷이 장소 줄 끝에 붙어 "아래에 더" 로 숨던 것 — #37) */}
           <Row wrap label="숲">
             {SCENES.slice(6, 11).map((sc) => btn(sc.label, { kind: 'scene', scene: sc.scene }))}
+            {/* 숲 야생 = 정한 목록 초안 (gdd 5.4 — 아침 질문 #103 비교, orders #41) · 3:3 스위치와 같은 모양 */}
+            <Button
+              secondary
+              extraClass={`pg-dev-switch pg-dev-forest${dev.forestLists ? ' pg-on' : ''}`}
+              onClick={() => onDev({ kind: 'forest-lists', on: !dev.forestLists })}
+              title="숲 야생을 정한 목록 초안 (gdd 5.4 — 1-1 8 · 1-2 8 · 1-3 12종) 으로 — 개발 모드에서만, 아직 안 만난 야생부터"
+            >
+              {dev.forestLists ? '목록 초안 켜짐' : '목록 초안 꺼짐'}
+            </Button>
           </Row>
           <Row wrap label="해변">
             {SCENES.slice(11).map((sc) => btn(sc.label, { kind: 'scene', scene: sc.scene }))}

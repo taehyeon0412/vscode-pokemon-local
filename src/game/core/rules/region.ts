@@ -46,7 +46,15 @@ export interface RegionDef {
    * 나오는 종 — 타입으로 자동 (숲): 흔함 · 드묾 (노말 · 비행 섞기는 BALANCE.mixedTypeChance) ·
    * 스테이지마다 정한 목록 (해변 — gdd 5.3): lists[i] = 그 스테이지 흔함 · strong = 마지막 스테이지에 더하는 강한 1단계 (야생에서만) · rareList = 마지막 스테이지 드묾
    */
-  wild: { common: readonly TypeName[]; rare: readonly TypeName[]; lists?: readonly (readonly number[])[]; strong?: readonly number[]; rareList?: readonly number[] };
+  wild: {
+    common: readonly TypeName[];
+    rare: readonly TypeName[];
+    lists?: readonly (readonly number[])[];
+    strong?: readonly number[];
+    rareList?: readonly number[];
+    /** 정한 목록 초안 (숲 — gdd 5.4, 아침 질문 #103) — 개발 모드 스위치로만 켜 봄 (orders #41) · 노말 · 비행 3종 · 드문 타입 2종은 스테이지 id 로 뽑음 [제안] */
+    preview?: { lists: readonly (readonly number[])[]; strong?: readonly number[]; rareList?: readonly number[] };
+  };
   /** 길에서 주울 수 있는 진화의 돌 */
   stones: readonly ItemId[];
   /** 배경 속 포켓몬 (보기만) — 하늘 · 땅 (없으면 날 수 있는 포켓몬 · 흔한 목록) */
@@ -70,7 +78,23 @@ export const REGIONS: Readonly<Record<RegionId, RegionDef>> = {
       { id: 'forest-2', name: '버섯 그늘길', icon: 'mushroom' },
       { id: 'forest-3', name: '깊은 숲', icon: 'oak' },
     ],
-    wild: { common: ['grass', 'bug'], rare: ['poison', 'dragon', 'fairy'] },
+    wild: {
+      common: ['grass', 'bug'],
+      rare: ['poison', 'dragon', 'fairy'],
+      preview: {
+        lists: [
+          // 새싹 오솔길 — 캐터피 · 뿔충이 · 개무소 · 레디바 · 귀뚤뚜기 · 통통코 · 도토링 · 체리버 (작은 벌레 · 씨앗)
+          [10, 13, 265, 165, 401, 187, 273, 420],
+          // 버섯 그늘길 — 파라스 · 버섯꼬 · 뚜벅쵸 · 모다피 · 콘팡 · 페이검 · 해너츠 · 토중몬 (버섯 · 독 · 그늘)
+          [46, 285, 43, 69, 48, 167, 191, 290],
+          // 깊은 숲 — 세꿀버리 · 도롱충이 · 피콘 · 딱정곤 · 쪼마리 · 볼비트 · 네오비트 · 왕자리 (큰 벌레)
+          [415, 412, 204, 588, 616, 313, 314, 193],
+        ],
+        // 강한 1단계 (종족값 450 넘음 — 야생에서만) 스라크 · 헤라크로스 · 드묾 덩쿠리 · 로젤리아
+        strong: [123, 214],
+        rareList: [114, 315],
+      },
+    },
     stones: ['leaf-stone', 'moon-stone'],
     badgeName: '숲 배지',
     firstWinItem: 'leaf-stone',

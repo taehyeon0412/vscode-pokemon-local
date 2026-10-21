@@ -26,7 +26,7 @@ import { applyBattleResult, battleDone, battleInput, battleStep, battleWaiting, 
 import { addItem, battleRewards, clearStage, defeatPenalty, pickTreasure, resolveEvolve, resolveLearn, rivalWinRewards, stageClearExp, takeLaterChoices, useRareCandy, type BattleSummary } from './rewards';
 import { Rng } from './rng';
 // 개발 모드 (임시)
-import { devTeam, devWalk } from '../../dev/runtime';
+import { devForestLists, devTeam, devWalk } from '../../dev/runtime';
 import { MAX_SPEED, type AwayLog, type GameNotice, type GameState, type RuntimeState, type StageRuntime } from './state';
 import { applyTeamResult, pickTeam, startTeamBattle, teamDone, teamInput, teamPossible, teamRewardBattle, teamScale, teamStep, type TeamBattle, type TeamInput } from './team';
 import { takeSteps } from './step';
@@ -485,12 +485,12 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
         // 앞 한 줄 ("그동안: …" 등) 이 떠 있으면 덮지 않고 그 뒤에 (1초 넘게 — U1, 코드 리뷰어)
         const picked = `${withJosa(what, '을/를')} 주웠다!`;
         rt = queueToast(rt, picked);
-      } else if (spot.kind === 'wild' && (rt.headless || rt.away) && planWild(id, prog.seed, spot, prog.run.retries).shiny) {
+      } else if (spot.kind === 'wild' && (rt.headless || rt.away) && planWild(id, prog.seed, spot, prog.run.retries, devForestLists(rt.dev)).shiny) {
         // 안 볼 때 · VS Code 에 포커스가 없을 때 이로치 흔적 — 바로 앞에서 멈추고 알림 (U9), 다시 보이면 · 돌아오면 이어 감
         save = withProgress(save, id, Math.max(from, spot.at - BEFORE_SPOT));
         stage = { phase: 'hold', why: 'shiny' };
       } else if (spot.kind === 'wild') {
-        const wild = createWild(id, prog.seed, spot, prog.run.retries);
+        const wild = createWild(id, prog.seed, spot, prog.run.retries, devForestLists(rt.dev));
         const enemySpeed = statsOf(speciesOf(wild.species)!.base, wild.ivs, wild.points, wild.level).speed;
         const start = encounterStart(enemySpeed, leadSpeed(save), spotRng(prog.seed, wildKey(spot, prog.run.retries), 6));
         const isNew = !save.dex.seen.includes(wild.species);

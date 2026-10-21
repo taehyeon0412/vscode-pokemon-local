@@ -19,7 +19,7 @@ import { ITEM_IDS, STAGE_IDS, type ItemId, type Monster, type Save, type StageId
 import { evolutionsOf, speciesOf } from '../data';
 import { gymLocation, REGIONS } from '../core/rules/region';
 import { stageCode, stageLevelBand } from '../core/rules/stage';
-import { DEV_BATTLES, DEV_FOES_MAX, DEV_LEVEL_MAX, DEV_WALKS, devDefault, type DevMon, type DevRuntime } from './runtime';
+import { DEV_BATTLES, DEV_FOES_MAX, DEV_LEVEL_MAX, DEV_WALKS, devDefault, devForestLists, type DevMon, type DevRuntime } from './runtime';
 
 export type DevScene = 'stage-1' | 'stage-2' | 'stage-3' | 'beach-1' | 'beach-2' | 'beach-3' | 'beach-gym' | 'wild' | 'catch' | 'evolve' | 'rival' | 'trainer-team' | 'gym-team' | 'gym-enter' | 'lobby';
 
@@ -42,6 +42,8 @@ export type DevAction =
   | { kind: 'items' }
   | { kind: 'pre-evolve' }
   | { kind: 'team'; on: boolean }
+  /** 숲 야생 = 정한 목록 초안 (gdd 5.4 — 아침 질문 #103 비교, orders #41) */
+  | { kind: 'forest-lists'; on: boolean }
   | { kind: 'walk' }
   | { kind: 'battle-speed' }
   | { kind: 'pause' };
@@ -113,7 +115,7 @@ function devFoes(state: GameState, rng: Rng, n: number): Monster[] | null {
 function devWild(state: GameState, id: StageId, rng: Rng): Monster {
   const pick = devOf(state.runtime).foes[0];
   if (pick) return devMonster('wild', pick, rng, id);
-  const pool = forestPool(id).common;
+  const pool = forestPool(id, devForestLists(state.runtime.dev)).common;
   const dex = pool.length ? pool[rng.int(0, pool.length - 1)]! : 16;
   // 그 스테이지 레벨대 위끝쯤 (숲 4 · 8 · 12 — 지역 표 레벨표)
   const [lo, hi] = stageLevelBand(id);
@@ -359,6 +361,11 @@ export function devApply(state: GameState, action: DevAction): DevResult {
     }
     case 'team':
       return { state: withDev(state, (d) => ({ ...d, team: action.on })), say: action.on ? '3:3 켜짐 (개발 모드에서만)' : '3:3 꺼짐' };
+    case 'forest-lists':
+      return {
+        state: withDev(state, (d) => ({ ...d, forestLists: action.on })),
+        say: action.on ? '숲 목록 초안 켜짐 (gdd 5.4) — 아직 안 만난 야생부터 · 1-1 8종 · 1-2 8종 · 1-3 12종' : '숲 목록 초안 꺼짐 — 지금 숲 (풀 · 벌레 타입 전부)',
+      };
     case 'walk': {
       const walk = cycle(DEV_WALKS, devOf(state.runtime).walk as (typeof DEV_WALKS)[number]);
       return { state: withDev(state, (d) => ({ ...d, walk })), say: `걷기 ×${walk}` };

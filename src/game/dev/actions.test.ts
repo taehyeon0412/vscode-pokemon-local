@@ -124,6 +124,16 @@ describe('개발 모드 (임시) — 메뉴 동작', () => {
     const back = readRuntime(JSON.parse(JSON.stringify(s.runtime)), 1);
     expect(back.dev?.walk).toBe(4);
     expect(back.dev?.foes).toEqual([{ dex: 25, level: 5 }]);
-    expect(readDev({ walk: 999, battle: 3, foes: [{ dex: 99999, level: 5 }, 'x'], ults: { a: 5 } })).toEqual({ team: true, walk: 1, battle: 1, pause: false, foes: [], ults: {} });
+    expect(readDev({ walk: 999, battle: 3, foes: [{ dex: 99999, level: 5 }, 'x'], ults: { a: 5 } })).toEqual({ team: true, forestLists: false, walk: 1, battle: 1, pause: false, foes: [], ults: {} });
+  });
+
+  it('숲 목록 초안 스위치 (gdd 5.4 — orders #41) — 켜고 끄기 · 넘기기에서 남음 · 처음은 꺼짐 (일반 플레이 그대로)', () => {
+    const s0 = start();
+    expect(s0.runtime.dev?.forestLists ?? false).toBe(false);
+    const on = apply(s0, { kind: 'forest-lists', on: true });
+    expect(on.runtime.dev?.forestLists).toBe(true);
+    expect(readRuntime(JSON.parse(JSON.stringify(on.runtime)), 1).dev?.forestLists).toBe(true);
+    expect(apply(on, { kind: 'forest-lists', on: false }).runtime.dev?.forestLists).toBe(false);
+    expect(devApply(s0, { kind: 'forest-lists', on: true }).say).toContain('5.4');
   });
 });
