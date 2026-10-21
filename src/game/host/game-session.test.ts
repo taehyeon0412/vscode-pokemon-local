@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MemoryLeaseFile, MemorySaveArchive, MemorySaveStorage, sampleSave } from '../../test/fixtures/save';
+import { MemoryLeaseFile, MemorySaveArchive, MemorySaveStorage, sampleMonster, sampleSave } from '../../test/fixtures/save';
+import { BALANCE } from '../core/balance';
+import { createGameState, readRuntime } from '../core/engine';
+import { validateSave } from '../core/save';
 import type { GameState } from '../core/engine';
 import type { Save } from '../core/save';
 import type { HostToWebview } from '../shared/messages';
@@ -928,6 +931,55 @@ describe('멈춤 · 알림 표 — 넘겨받을 때 · 탭 배지 · 접힌 줄 
     runHost(3000);
     expect(view.count('peek')).toBeGreaterThan(first);
     expect(view.count('peek')).toBeLessThanOrEqual(first + 4);
+  });
+});
+
+describe('3:3 을 켠 저장 넷 — 개발 모드 밖 (기획 R9 켜기 점검표 ②)', () => {
+  const setOn = (on: boolean) => {
+    (BALANCE.team as { on: boolean }).on = on;
+  };
+  const three = (o: Partial<Save> = {}): Save => {
+    const ms = ['m1', 'm2', 'm3'].map((uid, i) => ({ ...sampleMonster({ uid, level: 12, species: [1, 4, 7][i]!, form: ['bulbasaur', 'charmander', 'squirtle'][i]! }), hp: 999 }));
+    return sampleSave({ settings: { notifications: true, autoBattle: true, teamMode: true }, monsters: Object.fromEntries(ms.map((m) => [m.uid, m])), party: ms.map((m) => m.uid), ...o });
+  };
+
+  it('트레이너 3:3 중에 숨김 (접기) → 확장이 이어 계산 · 저장 → 껐다 켜도 같은 3:3 (그 트레이너를 처음부터)', async () => {
+    setOn(true);
+    try {
+      const start = await enterAndStart(three());
+      const meet = { ...start.state, save: { ...start.state.save, pendingEncounter: { kind: 'trainer' as const, trainerId: 'forest-1:t0', stageId: 'forest-1' as const } }, runtime: { ...start.state.runtime, stage: { phase: 'trainer' as const, n: 0, ms: TIMING.trainerMeetMs - 50 }, stageId: 'forest-1' as const } };
+      session.handleMessage(msg({ type: 'hidden', epoch: start.epoch, state: meet, collapsed: true }));
+      runHost(3000);
+      expect(snap().state?.runtime.stage?.phase).toBe('team');
+      runHost(6000);
+      const saved = stored();
+      expect(saved?.pendingEncounter).toMatchObject({ kind: 'trainer', trainerId: 'forest-1:t0' });
+      // 껐다 켬 (진행 중 상태 없음) — 세이브로 다시 시작하면 그 트레이너와 3:3 (마지막으로 고른 방식)
+      const checked = validateSave(saved);
+      expect(checked.ok).toBe(true);
+      if (!checked.ok) return;
+      const fresh = createGameState(checked.save, 3);
+      const again = { ...fresh, runtime: { ...readRuntime({}, 3), stage: null, stageId: 'forest-1' as const } };
+      expect(checked.save.settings.teamMode).toBe(true);
+      expect(again.save.pendingEncounter?.kind).toBe('trainer');
+    } finally {
+      setOn(false);
+    }
+  });
+
+  it('3:3 에서 진 판 기록 (teamLost) · 3:3 방식 (teamMode) 은 저장 · 다시 읽기를 지나도 그대로 · 옛 세이브 (칸 없음) 는 1:1 · 빈 목록', () => {
+    const base = three();
+    const lost = { ...base, stages: { 'forest-1': { seed: 42, progress: 0.4, cleared: false, defeatedTrainers: [], facilities: [], run: { startMs: 0, caught: 0, trainers: 0, seen: [], reach: 0, retries: 0, teamLost: ['forest-1:t0'] } } } };
+    const r = validateSave(JSON.parse(JSON.stringify(lost)));
+    expect(r.ok && r.save.stages['forest-1']!.run.teamLost).toEqual(['forest-1:t0']);
+    expect(r.ok && r.save.settings.teamMode).toBe(true);
+    const old = JSON.parse(JSON.stringify(sampleSave())) as Record<string, unknown>;
+    const o = validateSave(old);
+    expect(o.ok && o.save.settings.teamMode).toBeFalsy();
+    expect(o.ok && Object.values(o.save.stages).every((st) => (st.run.teamLost ?? []).length === 0)).toBe(true);
+    // 이상한 값은 걸러 냄
+    const bad = validateSave({ ...JSON.parse(JSON.stringify(lost)), stages: { 'forest-1': { ...lost.stages['forest-1'], run: { ...lost.stages['forest-1'].run, teamLost: [1, 'forest-1:t0', 'forest-1:t0', ''] } } } });
+    expect(bad.ok && bad.save.stages['forest-1']!.run.teamLost).toEqual(['forest-1:t0']);
   });
 });
 

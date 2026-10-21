@@ -454,7 +454,7 @@ export function dash(src: FxActor, dst: FxActor, t: { dur: number; hitMs: number
   const a = el.getBoundingClientRect();
   const b = to.getBoundingClientRect();
   const dir = b.left + b.width / 2 >= a.left + a.width / 2 ? 1 : -1;
-  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 0.5 : 1;
+  const reduce = reduceMotion() ? 0.5 : 1;
   const dx = Math.round(((b.left + b.width / 2 - dir * (b.width / 2 + a.width * 0.3)) - (a.left + a.width / 2)) * reduce);
   const dy = Math.round((b.bottom - a.bottom + spread) * reduce);
   const atHit = Math.min(0.9, Math.max(0.05, (t.hitMs - TIMING_STRIKE_HIT_MS) / t.dur));
@@ -504,9 +504,14 @@ export function knock(dst: FxActor, dir: 1 | -1, cells: number, ms: number): voi
   fresh.forEach((an) => an.pause());
   const paused = [...(prev?.paused ?? []), ...fresh];
   knocked.set(el, { paused, timer: window.setTimeout(() => unknock(el), ms) });
-  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+  if (reduceMotion()) return;
   // 1칸 = 그림 폭의 1/4 (반 칸 = 1/8) — 정수 px [제안]
   const px = Math.max(1, Math.round(el.getBoundingClientRect().width * 0.25 * cells)) * dir;
   const an = el.animate([{ translate: '0 0' }, { translate: `${px}px 0`, offset: 0.25 }, { translate: `${px}px 0`, offset: 0.7 }, { translate: '0 0' }], { duration: ms, easing: 'steps(2, end)', composite: 'add' });
   an.id = KNOCK_ID;
+}
+
+/** 게임 설정 "동작 줄이기" (main.ts 가 #pokemon-game 에 pg-reduce-motion) — OS 설정 prefers-reduced-motion 은 안 봄 (2026-10-20 태현 님 1안 · OS 만 켜면 줄던 것, 디자인팀 #531) */
+function reduceMotion(): boolean {
+  return document.getElementById('pokemon-game')?.classList.contains('pg-reduce-motion') === true;
 }

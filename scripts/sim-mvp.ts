@@ -30,6 +30,9 @@ const PARRY = (args[3] ?? 'none') as 'none' | 'half' | 'perfect';
 /** 스타팅 하나만 (도감 번호) · 질 때마다 한 줄 (어디 · 상대 · 내 팀) — 벽 찾기 (기획 2026-10-21) */
 const ONLY = args[4] ? Number(args[4]) : null;
 const LOG_DEFEATS = ONLY !== null || process.env.SIM_LOG === 'defeat';
+/** SIM_TEAM=1 — 3:3 을 켜고 늘 3:3 으로 (트레이너 · 관장, 기획 R9 켜기 점검표 — 1:1 과 견줌) */
+const TEAM = process.env.SIM_TEAM === '1';
+if (TEAM) (BALANCE.team as { on: boolean }).on = true;
 
 type Where = StageId | 'gym';
 interface StageStat {
@@ -70,6 +73,8 @@ interface RunResult {
   spent: number;
   potionsUsed: number;
   team: number;
+  /** 3:3 전투 수 (SIM_TEAM) */
+  teamBattles: number;
 }
 
 const blank = (): StageStat => ({ ms: 0, battleMs: 0, newWild: 0, firstClearMs: 0, defeats: 0, trainerDefeats: 0, ults: 0, clashes: 0, perfects: 0, pauses: 0, wild: 0, trainers: 0, caught: 0 });
@@ -188,9 +193,10 @@ function decide(s: GameState, mem: { resultMs: number; lostGymOnce: boolean; gri
 function runOnce(dex: number, seed: number): RunResult {
   let s = createGameState(createStartSave(0, seed, dex, { gender: 'male' }), seed);
   s = applyInput(s, { kind: 'auto-battle', on: true });
+  if (TEAM) s = { ...s, save: { ...s.save, settings: { ...s.save.settings, teamMode: true } } };
   const stages = Object.fromEntries([...STAGE_IDS, 'gym'].map((k) => [k, blank()])) as Record<Where, StageStat>;
   const mem = { resultMs: 0, lostGymOnce: false, grindNext: false, parryKey: '', parryYes: false };
-  const r: RunResult = { starter: speciesOf(dex)?.name.ko ?? String(dex), seed, done: false, totalMs: 0, stages, gymTries: 0, firstGymLevels: [], winLevels: [], moneyAtGym: -1, firstUltMin: -1, spent: 0, potionsUsed: 0, team: 0 };
+  const r: RunResult = { starter: speciesOf(dex)?.name.ko ?? String(dex), seed, done: false, totalMs: 0, stages, gymTries: 0, firstGymLevels: [], winLevels: [], moneyAtGym: -1, firstUltMin: -1, spent: 0, potionsUsed: 0, team: 0, teamBattles: 0 };
   let prevPhase: string | undefined;
   let prevBattle: string | null = null;
   let lastKind: string | null = null;
@@ -253,6 +259,22 @@ function runOnce(dex: number, seed: number): RunResult {
       if ((st.battle.perfects ?? 0) > prevPerfects) stages[w].perfects += (st.battle.perfects ?? 0) - prevPerfects;
       prevPerfects = st.battle.perfects ?? 0;
       if (st.battle.result === 'catch' && st.battle.overMs === 0) stages[w].caught++;
+    } else if (st?.phase === 'team') {
+      // 3:3 (SIM_TEAM) — 트레이너 · 관장 수 · 전투 시간 (필살기 장면을 붙잡는 시간은 빼고 엔진 시간)
+      const key = `team:${st.team.foeName}:${st.team.foe.map((f) => f.uid).join(',')}`;
+      if (prevBattle !== key) {
+        if (st.team.kind === 'gym') {
+          r.gymTries++;
+          if (r.gymTries === 1) {
+            r.firstGymLevels = party(s.save).map((m) => m.level);
+            r.moneyAtGym = s.save.money;
+          }
+        } else stages[w].trainers++;
+        r.teamBattles++;
+      }
+      if (st.team.kind !== 'gym') stages[w].battleMs += STEP;
+      prevBattle = key;
+      lastKind = st.team.kind;
     } else {
       prevBattle = null;
       prevPerfects = 0;
@@ -301,7 +323,7 @@ for (const sp of starters.filter((x) => ONLY === null || x.dex === ONLY)) {
   }
 }
 const ace = Math.max(...leaderTeam().map((m) => m.level));
-console.log(`판 ${results.length} (스타팅 ${starters.length} × ${RUNS}) · 잡기 ${CATCH ? '함' : '안 함'} · 연타 ${MASH ? '함' : '안 함'} · 패링 ${PARRY} · 계산 ${((Date.now() - started) / 1000).toFixed(0)}초 · 관장 에이스 Lv ${ace}`);
+console.log(`판 ${results.length} (스타팅 ${starters.length} × ${RUNS}) · ${TEAM ? `3:3 (한 판에 ${avg(results.map((r) => r.teamBattles)).toFixed(1)}번)` : '1:1'} · 잡기 ${CATCH ? '함' : '안 함'} · 연타 ${MASH ? '함' : '안 함'} · 패링 ${PARRY} · 계산 ${((Date.now() - started) / 1000).toFixed(0)}초 · 관장 에이스 Lv ${ace}`);
 console.log(`끝까지 간 판 ${results.filter((r) => r.done).length} / ${results.length}`);
 for (const w of [...STAGE_IDS, 'gym'] as Where[]) {
   const xs = results.map((r) => r.stages[w]);
