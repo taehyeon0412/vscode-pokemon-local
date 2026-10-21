@@ -84,7 +84,8 @@ function Summary({ summary }: { summary: TitleSummary }) {
       {/* 오늘의 목표 (#28 · gdd U13 — 켜졌고 오늘 것일 때만 확장이 보냄) · 다 하면 금색 */}
       {summary.daily && (
         <span class={`pg-sum-daily${summary.daily.done >= summary.daily.total ? ' pg-on' : ''}`} title="오늘의 목표 — 세계 지도에서 볼 수 있어요">
-          오늘 {summary.daily.done}/{summary.daily.total}
+          {/* 넓으면 "오늘의 목표 1/3" · 720 아래 "목표 1/3" (오늘 것 · 목표라는 뜻 — orders #51) */}
+          <span class="pg-sum-wide">오늘의 </span>목표 {summary.daily.done}/{summary.daily.total}
         </span>
       )}
       <span class="pg-sum-money">{formatMoney(summary.money)}</span>

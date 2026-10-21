@@ -75,7 +75,8 @@ export function MapPanel({ state, swap, midStage, onInput, onTeam, onClose }: Ma
               <span class="pg-daily-n">
                 {Math.min(g.have, g.need)}/{g.need}
               </span>
-              <span class="pg-daily-reward">{g.reward}</span>
+              {/* 보상이라는 뜻 + 개수는 × ("몬스터볼 2" 가 가진 수로 읽히던 것 — UX 밤 점검 · orders #51) */}
+              <span class="pg-daily-reward">보상 {g.reward.replace(/ (\d+)$/, ' ×$1')}</span>
             </span>
           ))}
         </div>

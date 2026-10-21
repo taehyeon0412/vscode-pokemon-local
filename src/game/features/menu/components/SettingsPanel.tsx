@@ -25,12 +25,14 @@ export function SettingsPanel({ save, onInput, onExit, onClose, dev = false, onS
         </Button>
         {/* 다음 버전 1단계 (2026-10-21) — 자동 전투 상처약 (기본 켬) · 이미 잡은 종은 마지막 기회 건너뛰기 (기본 끔) */}
         <Button secondary extraClass={save.settings.autoPotion !== false ? 'pg-picked' : undefined} onClick={() => onInput({ kind: 'auto-potion', on: save.settings.autoPotion === false })} title="자동 전투 상처약 — 자동 전투일 때 내 포켓몬 HP 가 30% 아래면 상처약을 써요">
+          {/* 켜짐 · 꺼짐은 다른 스위치와 같은 자리 (켜짐만 빠져 있던 것 — 아트 디렉터 밤 점검 · orders #51) */}
           {save.settings.autoPotion !== false ? '✓ 자동 상처약' : '자동 상처약'}
-          {save.settings.autoPotion === false && <span class="pg-long"> 꺼짐</span>}
+          <span class="pg-long">{save.settings.autoPotion !== false ? ' 켜짐' : ' 꺼짐'}</span>
         </Button>
         <Button secondary extraClass={save.settings.skipCaughtLast === true ? 'pg-picked' : undefined} onClick={() => onInput({ kind: 'skip-caught-last', on: save.settings.skipCaughtLast !== true })} title="잡은 포켓몬은 마지막 기회 건너뛰기 — 이미 잡은 종을 쓰러뜨리면 볼 고르기 없이 지나가요">
-          {save.settings.skipCaughtLast === true ? '✓ ' : ''}잡은 종<span class="pg-long"> 마지막 기회</span> 볼 건너뛰기
-          {save.settings.skipCaughtLast !== true && <span class="pg-long"> 꺼짐</span>}
+          {/* "잡은 종 마지막 기회 볼 건너뛰기" = 설명서 같은 글 → 짧게, 뜻은 title (orders #51) */}
+          {save.settings.skipCaughtLast === true ? '✓ 잡은 종 건너뛰기' : '잡은 종 건너뛰기'}
+          <span class="pg-long">{save.settings.skipCaughtLast === true ? ' 켜짐' : ' 꺼짐'}</span>
         </Button>
         <Button secondary extraClass={save.settings.fastWalk === true ? 'pg-picked' : undefined} onClick={() => onInput({ kind: 'fast-walk', on: save.settings.fastWalk !== true })} title={`빨리 걷기 ×${BALANCE.fastWalkSpeed} — 흔적 · 트레이너 · 병원 · 아이템 · 부탁이 다가오면 보통 빠르기로 (정보줄 ▶▶ 와 같음)`}>
           {save.settings.fastWalk === true ? '✓ 빨리 걷기' : '빨리 걷기'}

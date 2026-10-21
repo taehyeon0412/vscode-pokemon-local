@@ -317,6 +317,11 @@ body.pokemon-game-on {
 .pg-sum-daily.pg-on {
   color: var(--pg-sos-gold);
 }
+@media (max-width: 720px) {
+  .pg-sum-wide {
+    display: none;
+  }
+}
 @media (max-width: 400px) {
   .pg-sum-badges {
     display: none;
@@ -4464,6 +4469,14 @@ body.vscode-high-contrast-light .pg-title-body {
 .pg-infobar {
   column-gap: clamp(12px, 4vw, 48px);
 }
+/* 오른쪽 칸 (메뉴) 이 빈 동안 (전투 · 연출) = 볼 + 지도 묶음을 가운데로 — 빈 칸이 자리를 남겨 묶음이 왼쪽으로 35 ~ 82px 쏠리던 것 (픽셀 밤 점검, U3 가운데 축) */
+.pg-infobar:not(.pg-infobar-split):has(> .pg-infobar-right:empty) {
+  display: flex;
+  justify-content: center;
+}
+.pg-infobar:not(.pg-infobar-split) > .pg-infobar-right:empty {
+  display: none;
+}
 /* 300px 아래 = 6px (240 에서 지도 칸이 34px 만 남아 🌲 0% 가 잘리던 것 — UX 리뷰어 2026-10-21) */
 @media (max-width: 300px) {
   .pg-infobar {
@@ -6400,15 +6413,18 @@ body.vscode-high-contrast-light .pg-hpblock {
 }
 
 /* 오늘의 목표 (#28 · gdd U13) — 세계 지도 판 맨 위 세 줄 · 아래 흐린 선 · 상자 10 × 10 (다 하면 금 칠) · 할 일 크림 12 · 한 수 / 할 수 금색 (tabular) · 보상 흐림 11 · 좁으면 보상이 다음 줄 */
+/* 목표 = 격자 (칸 최소 220 — 넓으면 셋이 한 줄, 좁으면 한 칸씩) · 머리 줄은 한 줄 전체 (187 높이 넓은 패널에서 셋 중 하나만 보이고 1860 도 세로로만 쌓이던 것 — UX · 아트 디렉터 밤 점검) */
 .pg-daily {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  column-gap: 12px;
+  row-gap: 0;
   padding-top: 4px;
   margin-top: 4px;
   border-top: 1px solid var(--pg-sos-line-soft);
 }
 .pg-daily-head {
+  grid-column: 1 / -1;
   font-size: 12px;
 }
 .pg-daily-goal {
@@ -6448,6 +6464,7 @@ body.vscode-high-contrast-light .pg-hpblock {
   margin-top: 4px;
   font-size: 11px;
   color: var(--pg-sos-dim);
+  word-break: keep-all;
 }
 
 /* 세이브 내보내기 · 가져오기 (orders #33) — 판 위 가운데 상자 (정보줄 아래 6px · 띠 남색 · 금 1px — 길 위 상자와 같은 판) · 결과 한 줄 · 실패는 빨강 제목 */

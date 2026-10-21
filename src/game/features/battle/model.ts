@@ -46,7 +46,8 @@ export interface MenuItem {
 /** 좁은 패널의 짧은 이름 (번호 + 낱말 하나, 전체 이름은 title) — 이모지는 쓰지 않음 (아트 디렉터 2026-10-19). 넓은 메뉴와 같은 낱말 (4 아이템 — 크기마다 '가방' · '아이템' 으로 다르던 것) */
 const COMPACT_LABEL: Record<string, string> = { attack: '1 공격', guard: '2 방어', skills: '3 스킬', items: '4 아이템', switch: '5 교체', flee: '5 도망', more: '5 교체·도망' };
 /** 아주 좁은 패널 (300px 아래) — 번호 없이 두 글자 (240 에서 "1 …" 로 잘려 못 읽던 것 — 아트 디렉터 5차). 숫자 키는 그대로, 번호는 title */
-const TINY_LABEL: Record<string, string> = { attack: '공격', guard: '방어', skills: '스킬', items: '가방', switch: '교체', flee: '도망', more: '교체' };
+// 아이템 = 넓은 메뉴와 같은 이름 (240 만 "가방" 이던 것 — orders #51, 태현 님 기획안 "아이템") · 스킬 → 기술은 태현 님께 여쭙는 중 (그대로)
+const TINY_LABEL: Record<string, string> = { attack: '공격', guard: '방어', skills: '스킬', items: '아이템', switch: '교체', flee: '도망', more: '교체' };
 
 /** 메뉴 한 줄 (mvp-spec S09 ⑦: 1 공격 · 2 방어 · 3 스킬 · 4 아이템 · 5 교체 · 도망, 숫자 키 1 ~ 5) — compact = 좁은 패널 · 'tiny' = 300px 아래 (번호 없이 두 글자) */
 export function menuItems(b: BattleState, save: Save, page: MenuPage, compact: boolean | 'tiny' = false): MenuItem[] {

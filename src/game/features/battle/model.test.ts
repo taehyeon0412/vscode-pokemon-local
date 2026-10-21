@@ -104,15 +104,16 @@ describe('S09 화면 자리 (gdd S09)', () => {
     expect(menuItems(b, save, 'main', true)[0]!.title).toContain('공격');
   });
 
-  it('아주 좁은 패널 (300px 아래): 번호 없는 두 글자 — 240 에서 "1 …" 로 잘리던 것 (아트 디렉터 5차), 숫자 키 · title 은 그대로', () => {
+  it('아주 좁은 패널 (300px 아래): 번호 없는 짧은 낱말 (세 글자까지) — 240 에서 "1 …" 로 잘리던 것 (아트 디렉터 5차), 숫자 키 · title 은 그대로', () => {
     expect(geo(190, 240).tiny).toBe(true);
     expect(geo(190, 320).tiny).toBe(false);
     const b = myTurn(startBattle(save, wild, 'normal'));
     const tiny = menuItems(b, save, 'main', 'tiny');
-    expect(tiny.map((i) => i.label)).toEqual(['공격', '방어', '스킬', '가방', '교체']);
+    // 아이템 = 넓은 메뉴와 같은 이름 (orders #51 — 240 에서 세 글자도 줄 안 28 ~ 191px, 맥 +10% 22 ~ 197px)
+    expect(tiny.map((i) => i.label)).toEqual(['공격', '방어', '스킬', '아이템', '교체']);
     expect(tiny.map((i) => i.num)).toEqual([1, 2, 3, 4, 5]);
     expect(tiny[4]!.title).toContain('도망');
-    expect(Math.max(...tiny.map((i) => i.label.length))).toBeLessThanOrEqual(2);
+    expect(Math.max(...tiny.map((i) => i.label.length))).toBeLessThanOrEqual(3);
   });
 
   it('낮은 패널: 지금 한 줄이 HP 바를 가리지 않게 상대 오른쪽으로 (자리가 없으면 위 가운데)', () => {
