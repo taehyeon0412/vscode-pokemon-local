@@ -2,7 +2,7 @@
  * 웹뷰 쪽 세션 — 확장에게 받은 상태로 계산을 이어 가고, 1초마다(바뀌었을 때) 상태를 돌려준다.
  * 화면(DOM)을 모르는 부분만 모아서 자동 테스트로 확인한다 (그리기 · 이벤트 연결은 main.ts).
  */
-import { TIMING } from '../core/balance';
+import { BALANCE, TIMING } from '../core/balance';
 import { advance, applyInput, clampFrameDelta, type GameInput, type GameState } from '../core/engine';
 import { dayKey } from '../core/rules/daily';
 import { SAVE_VERSION, type Save } from '../core/save';
@@ -23,11 +23,15 @@ export type Screen = 'none' | 'title' | 'game';
 export interface WebviewSessionDeps {
   post(message: WebviewToHost): void;
   now(): number;
+  /** 벽시계 (ms — 오늘의 목표 날짜, 없으면 Date.now · 테스트가 날짜를 바꿈) */
+  wallNow?(): number;
   /** 이번 걸음을 미룰지 (연출이 끝날 때까지 — 없으면 안 미룸) */
   hold?: (state: GameState, dtMs: number) => boolean;
 }
 
 export class WebviewSession {
+  /** 날짜를 마지막으로 본 때 (deps.now — 1초에 한 번) */
+  private dayCheckedAt = -Infinity;
   /** 확장이 맡긴 epoch — null 이면 지금은 계산을 맡지 않음 */
   private epoch: number | null = null;
   private state: GameState | null = null;
@@ -201,9 +205,13 @@ export class WebviewSession {
       this.sendIfDue();
       return;
     }
-    // 내 PC 날짜 — 오늘의 목표 (U13, 엔진은 시계를 모름) · 걸음을 계산할 때만 (연출을 기다리는 동안은 상태를 안 바꿈)
-    const today = dayKey(new Date());
-    if (this.state.runtime.today !== today) this.state = { ...this.state, runtime: { ...this.state.runtime, today } };
+    // 내 PC 날짜 — 오늘의 목표 (U13, 엔진은 시계를 모름) · 걸음을 계산할 때만 (연출을 기다리는 동안은 상태를 안 바꿈) · 목표가 켜졌을 때 1초에 한 번 (코드 리뷰어 #52)
+    const nowMs = this.deps.now();
+    if ((BALANCE.daily.on || this.state.runtime.dev !== undefined) && (this.state.runtime.today === undefined || nowMs - this.dayCheckedAt >= 1000)) {
+      this.dayCheckedAt = nowMs;
+      const today = dayKey(new Date(this.deps.wallNow?.() ?? Date.now()));
+      if (this.state.runtime.today !== today) this.state = { ...this.state, runtime: { ...this.state.runtime, today } };
+    }
     const r = advance(this.state, dt);
     this.state = r.state;
     if (r.steps > 0) this.dirty = true;

@@ -11,7 +11,7 @@ import { validateSave } from '../save';
 import { createWild, pickupAt, planWild, regionPool } from './encounter';
 import { BEACH_REQUESTS, requestAt } from './request';
 import { REGIONS, regionAceLevel, regionGymMoney, regionGymTeam, regionLevelBand, regionOf, regionOrder } from './region';
-import { stageCode, stageLevelBand } from './stage';
+import { stageCode, stageLevelBand, trainerCount } from './stage';
 import { GYM_LEADER, gymHint, leaderTeam, trainerInfo, trainerTeam } from './trainer';
 
 describe('지역 표 (gdd 5.1 · 5.2 — orders #35)', () => {
@@ -70,7 +70,7 @@ describe('해변 한 벌 (gdd 5.3 — orders #37, 개발 모드 미리 보기 ·
     expect(gymHint({ ...sampleSave(), location: { screen: 'gym', region: 'beach' } }).text).toContain('관장 해솔은');
   });
 
-  it('해변 야생 레벨은 그 스테이지 레벨대 (센 흔적 = 위끝 + 2) · 떨어진 돌은 물의 돌만 · 돈은 레벨대 위끝 × 10 (orders #37 — 2번째 지역)', () => {
+  it('해변 야생 레벨은 그 스테이지 레벨대 (센 흔적 = 위끝 + 2) · 떨어진 돌은 물의 돌 · 가끔 진주 (gdd 5.3) · 돈은 레벨대 위끝 × 10 (orders #37 — 2번째 지역)', () => {
     for (const id of ['beach-1', 'beach-2', 'beach-3'] as const) {
       const [lo, hi] = stageLevelBand(id);
       for (let i = 0; i < 120; i++) {
@@ -79,7 +79,7 @@ describe('해변 한 벌 (gdd 5.3 — orders #37, 개발 모드 미리 보기 ·
         else expect(p.level >= lo && p.level <= hi).toBe(true);
       }
       const got = Array.from({ length: 400 }, (_, i) => pickupAt(id, 99, { kind: 'item', at: 0.5, index: i }));
-      expect(new Set(got.filter((g) => g.item && !['poke-ball', 'potion'].includes(g.item)).map((g) => g.item))).toEqual(new Set(['water-stone']));
+      expect(new Set(got.filter((g) => g.item && !['poke-ball', 'potion'].includes(g.item)).map((g) => g.item))).toEqual(new Set(['water-stone', 'pearl']));
       expect(new Set(got.filter((g) => g.money).map((g) => g.money))).toEqual(new Set([hi * BALANCE.pickupMoneyPerLevel]));
     }
   });
@@ -145,3 +145,15 @@ describe('해변 한 벌 (gdd 5.3 — orders #37, 개발 모드 미리 보기 ·
   });
 });
 
+describe('지역 표 맞추기 (명세 검사관 #53)', () => {
+  it('해변 트레이너 2 · 3 · 3 · gdd 5.3 자리 (k-2 낚시꾼 만석 · k-3 엘리트 트레이너 도현) · 숲은 그대로 2 · 3 · 3', () => {
+    expect(['beach-1', 'beach-2', 'beach-3'].map((id) => trainerCount(id as 'beach-1'))).toEqual([2, 3, 3]);
+    expect(['forest-1', 'forest-2', 'forest-3'].map((id) => trainerCount(id as 'forest-1'))).toEqual([2, 3, 3]);
+    expect([0, 1].map((n) => trainerInfo('beach-1', n).name)).toEqual(['튜브 꼬마 준호', '튜브 꼬마 서윤']);
+    expect(trainerInfo('beach-2', 0).name).toBe('낚시꾼 만석');
+    expect(trainerInfo('beach-3', 2).name).toBe('엘리트 트레이너 도현');
+    // 숲 진주는 없음
+    const got = Array.from({ length: 400 }, (_, i) => pickupAt('forest-1', 99, { kind: 'item', at: 0.5, index: i }));
+    expect(got.some((g) => g.item === 'pearl')).toBe(false);
+  });
+});

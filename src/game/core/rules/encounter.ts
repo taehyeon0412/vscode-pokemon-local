@@ -225,6 +225,9 @@ export function pickupAt(stageId: StageId, stageSeed: number, spot: Spot): Picku
   const t = BALANCE.pickupTable;
   const r = rng.next();
   if (r < t['poke-ball']) return { item: 'poke-ball' };
+  // 지역마다 가끔 섞이는 것 (해변 진주 — 돈 몫에서, gdd 5.3)
+  const extra = regionOf(stageId).region.pickupExtra;
+  if (extra && r >= t['poke-ball'] + t.potion && r < t['poke-ball'] + t.potion + extra.chance) return { item: extra.item };
   if (r < t['poke-ball'] + t.potion) return { item: 'potion' };
   if (r < t['poke-ball'] + t.potion + t.money) return { money: stageLevelBand(stageId)[1] * BALANCE.pickupMoneyPerLevel };
   // 진화의 돌 — 지역 표 (숲 = 리프의 돌 · 달의 돌 · 해변 = 물의 돌)

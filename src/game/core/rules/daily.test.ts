@@ -149,3 +149,48 @@ describe('오늘의 목표 · 기록 — 엔진 (개발 모드에서만)', () =>
     expect(old.ok && ('daily' in old.save || 'records' in old.save)).toBe(false);
   });
 });
+
+describe('오늘의 목표 고침 (명세 검사관 #53 · 코드 리뷰어 #52)', () => {
+  const base = (): GameState => {
+    const s = createGameState(sampleSave(), 7);
+    return devState({ ...s, runtime: { ...s.runtime, today: DAY } });
+  };
+  const walkOnce = (s: GameState) => step(s, STEP).state;
+
+  it('보상 흔한 팔 물건 = 작은버섯 · 진주 (별의모래 빠짐) · 타입 목표는 그 지역 타입', () => {
+    for (let d = 1; d <= 28; d++) {
+      const g = dailyFor(`2026-11-${String(d).padStart(2, '0')}`);
+      for (const x of g.goals) expect(['poke-ball', 'tiny-mushroom', 'pearl']).toContain(x.reward);
+    }
+    expect(['water']).toContain(dailyFor(DAY, ['water']).goals[2]!.type);
+  });
+
+  it('손으로 [도와준다] 해 성공하면 부탁 목표를 셈 (결과가 걸음 밖에서 들어가 안 세던 것) · 실패는 안 셈', () => {
+    const s0 = walkOnce(base());
+    const goals = [{ kind: 'request' as const, need: 1, have: 0, reward: 'pearl' as const, rewardN: 1 }];
+    const withReq = (ok: boolean): GameState => ({
+      ...s0,
+      save: { ...s0.save, daily: { day: DAY, goals } },
+      runtime: { ...s0.runtime, stageId: 'forest-1', stage: { phase: 'request', at: 0.3, number: 0, result: { ok, text: ok ? '고마워!' : '아쉽다…' } as never, ms: 999_999 } },
+    });
+    // 결과 장면이 끝나는 걸음 (다음 장면으로)
+    const end = (s: GameState) => {
+      let cur = s;
+      for (let i = 0; i < 400 && cur.runtime.stage?.phase === 'request'; i++) cur = walkOnce(cur);
+      return cur;
+    };
+    expect(end(withReq(true)).save.daily?.goals[0]?.have).toBe(1);
+    expect(end(withReq(false)).save.daily?.goals[0]?.have).toBe(0);
+  });
+
+  it('걸은 거리 = 스테이지 하나 10000 · PC 날짜를 되돌려도 같은 날 목표를 다시 받지 않음', () => {
+    const s = walkOnce(base());
+    const w = s.save.records?.walked ?? 0;
+    // 한 걸음 진행 × 10000 (반올림 없이 — 걸음마다 반올림하면 한 스테이지가 1.5배로 셈)
+    expect(w).toBeGreaterThan(0);
+    expect(w).toBeLessThan(5);
+    const back = walkOnce({ ...s, save: { ...s.save, daily: { ...s.save.daily!, goals: s.save.daily!.goals.map((g) => ({ ...g, have: 1 })) } }, runtime: { ...s.runtime, today: '2026-10-21' } });
+    expect(back.save.daily?.day).toBe(DAY);
+    expect(back.save.daily?.goals[0]?.have).toBe(1);
+  });
+});

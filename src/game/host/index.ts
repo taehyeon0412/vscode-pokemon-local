@@ -42,7 +42,9 @@ export function activate(context: vscode.ExtensionContext): GameHost {
   const debug = context.extensionMode !== vscode.ExtensionMode.Production;
   const testMode = context.extensionMode === vscode.ExtensionMode.Test;
   /** 실제 VS Code 테스트 — 저장 · 열기 창 대신 정해 둔 경로 (Test 모드에서 test-api pickFiles 가 한 번씩 채움 · 사용자 PC 에는 없음 — orders #49) */
-  const testPick: { save?: string; open?: string } = {};
+  const testPick: { save?: string; open?: string; at?: number } = {};
+  /** 정해 둔 경로는 10초 안에만 (열기 전에 막혀 안 쓴 경로가 다음 진짜 창을 건너뛰지 않게 — 코드 리뷰어 #52) */
+  const fresh = () => testPick.at !== undefined && Date.now() - testPick.at < 10_000;
   const channel = debug ? vscode.window.createOutputChannel('포켓몬 게임') : undefined;
   if (channel) context.subscriptions.push(channel);
   const log = (m: string) => {
@@ -111,7 +113,7 @@ export function activate(context: vscode.ExtensionContext): GameHost {
     // 세이브 내보내기 · 가져오기 (orders #33, U6) — 저장 · 열기 창 (작업 폴더가 없어도 — 기본 자리 = 홈 폴더)
     files: {
       async save(defaultName, text) {
-        const preset = testMode && testPick.save ? vscode.Uri.file(testPick.save) : undefined;
+        const preset = testMode && testPick.save && fresh() ? vscode.Uri.file(testPick.save) : undefined;
         delete testPick.save;
         const uri = preset ?? (await vscode.window.showSaveDialog({ defaultUri: vscode.Uri.file(join(homedir(), defaultName)), filters: { JSON: ['json'] }, saveLabel: '세이브 저장' }));
         if (!uri) return null;
@@ -119,7 +121,7 @@ export function activate(context: vscode.ExtensionContext): GameHost {
         return basename(uri.fsPath);
       },
       async open() {
-        const preset = testMode && testPick.open ? [vscode.Uri.file(testPick.open)] : undefined;
+        const preset = testMode && testPick.open && fresh() ? [vscode.Uri.file(testPick.open)] : undefined;
         delete testPick.open;
         const picked = preset ?? (await vscode.window.showOpenDialog({ canSelectMany: false, filters: { JSON: ['json'] }, openLabel: '세이브 불러오기' }));
         const uri = picked?.[0];
@@ -216,7 +218,7 @@ export function activate(context: vscode.ExtensionContext): GameHost {
       viewConnection?.dispose();
       game.dispose();
     },
-    exports: testMode ? { game: createTestApi(game, store, storage, archive, ready, () => probeNormalWebview(view), (p) => Object.assign(testPick, p)) } : undefined,
+    exports: testMode ? { game: createTestApi(game, store, storage, archive, ready, () => probeNormalWebview(view), (p) => Object.assign(testPick, p, { at: Date.now() })) } : undefined,
   };
 }
 

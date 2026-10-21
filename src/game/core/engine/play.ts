@@ -987,14 +987,16 @@ function dailyStep(before: GameState, save0: Save, rt0: RuntimeState, signal: Sa
   const prev = before.runtime.stage;
   const st = rt.stage;
   const boundary = !st || st.phase === 'walk' || st.phase === 'lobby';
-  if (rt.today && save.daily?.day !== rt.today && boundary) save = { ...save, daily: dailyFor(rt.today) };
+  // 새 날만 (PC 날짜를 되돌려 같은 날 목표를 다시 받지 않게 — 코드 리뷰어 #52) · 타입 목표 = 지금 지역 타입 (명세 검사관 #53)
+  if (rt.today && (!save.daily || rt.today > save.daily.day) && boundary) save = { ...save, daily: dailyFor(rt.today, regionHere(save.location).wild.common) };
   // 한 일
   const won = (prev?.phase === 'battle' || prev?.phase === 'team') && st?.phase === 'result';
   const wildWin = won && prev?.phase === 'battle' && prev.battle.kind === 'wild';
   const foeTypes = wildWin && prev?.phase === 'battle' ? prev.battle.foe.types : [];
   const perfects = prev?.phase === 'battle' && st?.phase === 'battle' ? Math.max(0, (st.battle.perfects ?? 0) - (prev.battle.perfects ?? 0)) : 0;
   const newSpecies = Math.max(0, save.dex.caught.length - before.save.dex.caught.length);
-  const helped = prev?.phase === 'request' && !prev.result && st?.phase === 'request' && !!st.result ? 1 : 0;
+  // 부탁을 끝냈을 때 (성공만 — gdd 7장) · 부탁 장면이 끝나는 걸음에 셈 (손으로 누르면 결과가 걸음 밖에서 들어가 안 세던 것 — 명세 검사관 #53)
+  const helped = prev?.phase === 'request' && prev.result?.ok === true && st?.phase !== 'request' ? 1 : 0;
   const cleared = signal === 'stage-clear' ? 1 : 0;
   const bl = before.save.location;
   const al = save.location;
@@ -1002,7 +1004,8 @@ function dailyStep(before: GameState, save0: Save, rt0: RuntimeState, signal: Sa
   // 기록 (U12)
   if (won || signal === 'catch' || walked > 0) {
     const r = save.records ?? { wins: 0, catches: 0, walked: 0 };
-    save = { ...save, records: { wins: r.wins + (won ? 1 : 0), catches: r.catches + (signal === 'catch' ? 1 : 0), walked: r.walked + walked } };
+    // 걸은 거리 = 스테이지 하나 10000 (schema · 세계 지도 판과 같게 — 늘 0.0 으로 보이던 것, 명세 검사관 #53)
+    save = { ...save, records: { wins: r.wins + (won ? 1 : 0), catches: r.catches + (signal === 'catch' ? 1 : 0), walked: r.walked + walked * 10000 } };
   }
   if (!save.daily) return { save, rt };
   let daily = save.daily;

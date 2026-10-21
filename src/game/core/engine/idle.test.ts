@@ -300,3 +300,12 @@ describe('세이브 새 칸 — 설정 둘 · laterChoices · tips (디자인팀
     expect(applyInput(s, { kind: 'tip-seen', id: 'Bad id' })).toBe(s);
   });
 });
+
+describe('넘기기 — 해변 (지역 표의 스테이지) 도 stageId · 그동안 자리가 남음 (코드 리뷰어 #52)', () => {
+  it('readRuntime 이 beach-1 stageId · awayLog.at 을 지우지 않음', () => {
+    const s = createGameState(sampleSave(), 7);
+    const rt = readRuntime(viaJson({ ...s.runtime, stageId: 'beach-1', awayLog: { money: 0, bag: {}, wild: 0, at: { place: 'beach-1', progress: 0.4 } } }), 7);
+    expect(rt.stageId).toBe('beach-1');
+    expect(rt.awayLog?.at).toEqual({ place: 'beach-1', progress: 0.4 });
+  });
+});

@@ -27,7 +27,7 @@ async function main(): Promise<void> {
       extensionDevelopmentPath: q(join(root, 'extension')),
       extensionTestsPath: q(join(root, '.test-out', 'shot-suite.cjs')),
       // 실제 사용자와 같은 최소 높이 (테스트 창의 68px 이 아니라 150px) — extension host index.ts
-      extensionTestsEnv: { POKEMON_SHOT: '1', SHOT_DIR: process.env.SHOT_DIR ?? '', SHOT_SAVE: process.env.SHOT_SAVE ?? '', SHOT_WAIT_MS: process.env.SHOT_WAIT_MS ?? '' },
+      extensionTestsEnv: { POKEMON_SHOT: '1', SHOT_DIR: process.env.SHOT_DIR ?? '', SHOT_SAVE: process.env.SHOT_SAVE ?? '', SHOT_IMPORT: process.env.SHOT_IMPORT ?? '', SHOT_WAIT_MS: process.env.SHOT_WAIT_MS ?? '' },
       launchArgs: [q(workspace), '--disable-extensions', '--user-data-dir', q(user), '--extensions-dir', q(join(tmp, 'extensions'))],
     });
   } finally {

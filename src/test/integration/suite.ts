@@ -5,7 +5,7 @@
  * POKEMON_IT_PHASE=restart: 같은 사용자 폴더로 다시 켜서, 끌 때(deactivate) 쓴 그 세이브가 세이브 파일에 남아 있는지
  */
 import * as assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import * as vscode from 'vscode';
@@ -22,6 +22,8 @@ const NORMAL_COMMAND_ID = 'vscode-pokemon.normal-mode';
 /** 끄기 전에 남기는 표시 돈 */
 const SHUTDOWN_MONEY = 4242;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+/** 테스트가 끝난 뒤 치울 것 (임시 폴더 등 — runAll 끝에서) */
+const after: (() => void)[] = [];
 
 async function waitFor(what: string, check: () => boolean, timeoutMs = 20_000): Promise<void> {
   const end = Date.now() + timeoutMs;
@@ -194,6 +196,8 @@ export async function run(): Promise<void> {
       // 1배속 — 불러온 뒤 자동 전투로 돈이 바로 바뀌지 않게
       game.setSpeed(1);
       const dir = mkdtempSync(join(tmpdir(), 'pokemon-io-'));
+      // 다 끝나면 임시 폴더 지움 (5 MB 파일이 돌릴 때마다 쌓이던 것 — 코드 리뷰어 #52)
+      after.push(() => rmSync(dir, { recursive: true, force: true }));
       const out = join(dir, 'export.json');
       // 내보내기 — 게임 중 지금 상태를 파일로
       game.pickFiles({ save: out });
@@ -281,6 +285,13 @@ async function runAll(tests: [string, () => Promise<void>][]): Promise<void> {
     } catch (e) {
       failed++;
       console.error(`  ✗ ${name}\n`, e);
+    }
+  }
+  for (const clean of after.splice(0)) {
+    try {
+      clean();
+    } catch {
+      // 치우기 실패는 테스트 결과와 상관없음
     }
   }
   console.log(`실제 VS Code 테스트: ${tests.length - failed}/${tests.length} 통과`);

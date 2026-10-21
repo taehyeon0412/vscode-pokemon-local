@@ -15,6 +15,8 @@ export interface RegionStage {
   name: string;
   /** 화면 이름표 그림 (features/stage) */
   icon: string;
+  /** 트레이너 수 (없으면 스테이지 순서 시드로 2 ~ 3 — 숲은 그 결과가 2 · 3 · 3) — 지역 표대로 (해변 2 · 3 · 3, 명세 검사관 #53) */
+  trainers?: number;
 }
 
 export interface RegionTrainer {
@@ -64,6 +66,8 @@ export interface RegionDef {
   firstWinItem: ItemId;
   /** 관장 첫 승에 더 주는 팔 물건 (숲 = 큰금구슬 — ideas #125) */
   firstWinTreasure?: ItemId;
+  /** 떨어진 아이템에 가끔 섞이는 것 (돈 몫에서 — 해변 진주, gdd 5.3) [임시값] */
+  pickupExtra?: { item: ItemId; chance: number };
   trainers: readonly RegionTrainer[];
   leader: RegionLeader;
 }
@@ -120,9 +124,9 @@ export const REGIONS: Readonly<Record<RegionId, RegionDef>> = {
     name: '해변',
     badge: 'beach',
     stages: [
-      { id: 'beach-1', name: '반짝 모래길', icon: 'sparkle' },
-      { id: 'beach-2', name: '갯바위 해안', icon: 'pebbles' },
-      { id: 'beach-3', name: '등대 곶', icon: 'ripple' },
+      { id: 'beach-1', name: '반짝 모래길', icon: 'sparkle', trainers: 2 },
+      { id: 'beach-2', name: '갯바위 해안', icon: 'pebbles', trainers: 3 },
+      { id: 'beach-3', name: '등대 곶', icon: 'ripple', trainers: 3 },
     ],
     wild: {
       common: ['water'],
@@ -140,6 +144,7 @@ export const REGIONS: Readonly<Record<RegionId, RegionDef>> = {
       rareList: [349, 140],
     },
     stones: ['water-stone'],
+    pickupExtra: { item: 'pearl', chance: 0.05 },
     // 하늘 갈모매 · 패리퍼 · 바다 잉어킹 · 만타인 [제안]
     scenery: { sky: [278, 279], ground: [129, 226] },
     badgeName: '해변 배지',

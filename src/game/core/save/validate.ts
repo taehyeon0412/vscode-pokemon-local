@@ -365,7 +365,8 @@ function readDailyField(v: unknown, fx: Fixer): Pick<Save, 'daily'> {
 function readRecords(v: unknown, path: string, fx: Fixer): NonNullable<Save['records']> {
   const r = isObj(v) ? v : {};
   if (!isObj(v)) fx.note(path, '객체가 아님 → 0');
-  const walked = typeof r.walked === 'number' && Number.isFinite(r.walked) && r.walked >= 0 && r.walked <= 1e6 ? r.walked : 0;
+  // 걸은 거리 (스테이지 하나 10000) — 넘으면 0 이 아니라 상한으로 (코드 리뷰어 #52)
+  const walked = typeof r.walked === 'number' && Number.isFinite(r.walked) && r.walked >= 0 ? Math.min(r.walked, 1e12) : 0;
   return { wins: fx.int(r.wins, `${path}.wins`, 0, 1e9, 0), catches: fx.int(r.catches, `${path}.catches`, 0, 1e9, 0), walked };
 }
 

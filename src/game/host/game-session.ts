@@ -38,6 +38,17 @@ const IMPORT_MAX_CHARS = 5_000_000;
 
 /** 보관함 파일 모양 ({ at, reason, note, raw } — save-archive) */
 const isArchived = (v: unknown): v is { raw: unknown } => typeof v === 'object' && v !== null && !Array.isArray(v) && 'raw' in v && 'reason' in v && 'at' in v;
+/** 아직 모두에게 열리지 않은 지역 (숲 말고) 의 스테이지 · 위치 · 배지가 있는지 (#30 전까지) */
+function lockedRegion(save: Save): boolean {
+  const loc = save.location;
+  return (
+    Object.keys(save.stages).some((id) => !id.startsWith('forest-')) ||
+    (loc.screen === 'stage' && !loc.stageId.startsWith('forest-')) ||
+    (loc.screen === 'gym' && loc.region !== undefined && loc.region !== 'forest') ||
+    save.badges.some((b) => b !== 'forest')
+  );
+}
+
 /** 원본에 적힌 포켓몬 수 (읽으며 빠진 수를 세려고) */
 function monstersIn(raw: unknown): number {
   const m = typeof raw === 'object' && raw !== null ? (raw as { monsters?: unknown }).monsters : undefined;
@@ -476,6 +487,8 @@ export class GameSession {
     if (r.kind !== 'ok') return this.post({ type: 'save-import-ask', name: file.name, error: '포켓몬 게임 세이브가 아니거나 망가진 파일이에요' });
     // 포켓몬이 없으면 이어 할 수 없음 (타이틀의 #351 규칙과 같게 — 불러온 뒤 아무 일도 안 일어나던 것, 테스터 #48 큼)
     if (r.save.party.length === 0) return this.post({ type: 'save-import-ask', name: file.name, error: '팀에 포켓몬이 없는 세이브라 불러올 수 없어요' });
+    // 아직 모두에게 열리지 않은 지역 (해변 — 개발 모드 미리 보기만) 이 든 세이브는 받지 않음 (손으로 넣은 파일로 본편에서 해변을 걷던 것 — 코드 리뷰어 #52). #30 에서 지역을 열면 이 줄을 지움
+    if (lockedRegion(r.save)) return this.post({ type: 'save-import-ask', name: file.name, error: '아직 열리지 않은 지역이 들어 있는 세이브라 불러올 수 없어요' });
     // 읽으며 고친 곳 · 빠진 포켓몬 (다른 PC 의 더 새 빌드 세이브 등) 을 확인 상자에 (말없이 빠지던 것 — 코드 리뷰어 #48 큼 4)
     const before = monstersIn(raw);
     const lost = Math.max(0, before - Object.keys(r.save.monsters).length);

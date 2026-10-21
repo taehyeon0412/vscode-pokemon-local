@@ -7,7 +7,7 @@ import { teamChoiceMeet, teamViewKey, waitReason, type BattleState, type GameSta
 import { resumeLine } from '../../core/engine/play';
 import { planWild, sceneryAt, type Scenery, type WildPlan } from '../../core/rules/encounter';
 import { requestAt, type RequestTemplate } from '../../core/rules/request';
-import { REGIONS, regionHere } from '../../core/rules/region';
+import { isRegionLast, REGIONS, regionHere } from '../../core/rules/region';
 import { stageCode, stageLayout, trainerId } from '../../core/rules/stage';
 import { aliveCount, shortTrainerName, trainerInfo, trainerNumber, trainerTeamSize, type TrainerInfo } from '../../core/rules/trainer';
 import { pickRival, recordText, rivalName, rivalRecord, rivalTeamSize } from '../../core/rules/rival';
@@ -128,8 +128,9 @@ export const gymRestX = (widthPx: number, scale: number): number =>
 /** 길 끝 체육관 문 가운데 x (화면 px) — 1-3 에서 보일 때만 (멀면 null) */
 export function gymFrontX(state: GameState, widthPx: number, scale: number): number | null {
   const save = state.save;
-  if (save.location.screen !== 'stage' || save.location.stageId !== 'forest-3') return null;
-  const prog = save.stages['forest-3'];
+  // 지역 끝 스테이지 (숲 1-3 · 해변 등대 곶 — 해변 미리 보기에서 문이 안 그려지던 것, 코드 리뷰어 #52)
+  if (save.location.screen !== 'stage' || !isRegionLast(save.location.stageId)) return null;
+  const prog = save.stages[save.location.stageId];
   if (!prog) return null;
   const x = gymRestX(widthPx, scale) + (1 - prog.progress) * stagePx(scale);
   return x < widthPx + GYM_FRONT.w * scale ? x : null;
@@ -287,7 +288,7 @@ export function minimapOf(state: GameState): { progress: number; facilities: rea
   const prog = save.stages[save.location.stageId];
   if (!prog) return null;
   const layout = stageLayout(save.location.stageId, prog.seed, prog.facilities);
-  return { progress: prog.progress, facilities: layout.facilities, gym: save.location.stageId === 'forest-3' };
+  return { progress: prog.progress, facilities: layout.facilities, gym: isRegionLast(save.location.stageId) };
 }
 
 /**

@@ -5,7 +5,7 @@
 import { GAME_NOTICES, type GameNotice } from './notices';
 import { TIMING } from '../balance';
 import { isHeroLookId } from '../../data/heroes';
-import { ITEM_IDS, STAGE_IDS, type FacilitySpot, type ItemId, type Save, type StageId } from '../save';
+import { ITEM_IDS, REGION_STAGE_IDS, type FacilitySpot, type ItemId, type Save, type StageId } from '../save';
 import { readBattle, type BattleState } from './battle';
 import { readTeam, type TeamBattle } from './team';
 import type { BattleSummary } from './rewards';
@@ -295,7 +295,8 @@ export function readRuntime(raw: unknown, fallbackSeed: number, stepMs: number =
     stepAccMs: typeof acc === 'number' && Number.isFinite(acc) && acc >= 0 && acc < stepMs ? acc : 0,
     speed: num(r.speed, 1, MAX_SPEED) ?? 1,
     stage: readStage(r.stage),
-    stageId: (STAGE_IDS as readonly unknown[]).includes(r.stageId) ? (r.stageId as StageId) : null,
+    // 지역 표의 스테이지 모두 (개발 모드 해변을 넘길 때 stageId 가 빠져 결과 상자 · 부탁이 사라지던 것 — 코드 리뷰어 #52)
+    stageId: (REGION_STAGE_IDS as readonly unknown[]).includes(r.stageId) ? (r.stageId as StageId) : null,
     toast,
     headless: false, // 웹뷰에서 온 상태는 늘 보이는 쪽 — 확장이 넘겨받을 때 다시 켬
     ...(readAwayLog(r.awayLog) ? { awayLog: readAwayLog(r.awayLog)! } : {}),
@@ -331,7 +332,7 @@ function readAwayLog(v: unknown): AwayLog | null {
     if (n !== null) bag[id] = n;
   }
   const lost = num(v.lost, 0, 1e6);
-  const at = isObj(v.at) && ((STAGE_IDS as readonly unknown[]).includes(v.at.place) || v.at.place === 'gym') && num(v.at.progress, 0, 1) !== null ? { place: v.at.place as StageId | 'gym', progress: v.at.progress as number } : null;
+  const at = isObj(v.at) && ((REGION_STAGE_IDS as readonly unknown[]).includes(v.at.place) || v.at.place === 'gym') && num(v.at.progress, 0, 1) !== null ? { place: v.at.place as StageId | 'gym', progress: v.at.progress as number } : null;
   const levels: Record<string, number> = {};
   if (isObj(v.levels)) for (const [uid, lv] of Object.entries(v.levels).slice(0, 6)) if (typeof uid === 'string' && uid.length <= 40 && num(lv, 1, 100) !== null) levels[uid] = Math.floor(lv as number);
   const points = num(v.points, 0, 1e6);

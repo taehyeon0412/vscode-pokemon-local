@@ -210,3 +210,15 @@ describe('새로 하기 · 불러오기 (replace) — 보관하는 동안 이 �
     expect(locks).toEqual([]);
   });
 });
+
+describe('불러오기 · 새로 하기 백업 — 다른 창이 그 사이 쓴 디스크 것도 (코드 리뷰어 #52)', () => {
+  it('아직 안 쓴 진행이 있고 디스크 것이 이 창이 아는 것과 다르면 둘 다 백업 · 같으면 하나', async () => {
+    make(sampleSave({ money: 1, updatedAt: 1 }));
+    await store.load();
+    store.set(sampleSave({ money: 2 }));
+    // 다른 창이 몰래 씀
+    storage.write(sampleSave({ money: 9, updatedAt: 99 }));
+    await store.replace(createNewSave(1));
+    expect(archive.items.map((i) => (i.raw as Save).money).sort()).toEqual([2, 9]);
+  });
+});

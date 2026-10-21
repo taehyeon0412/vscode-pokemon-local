@@ -132,6 +132,8 @@ export class SaveStore {
     const old = this.storage.read();
     const latest = this.pending ?? old;
     if (latest !== undefined) await this.archive.add('replaced', this.pending ? `${note} (아직 안 쓴 진행)` : note, latest);
+    // 디스크 것이 이 창이 아는 것과 다르면 (다른 창이 그 사이 씀) 그것도 — 백업 없이 덮지 않게 (코드 리뷰어 #52)
+    if (this.pending && old !== undefined && stampOf(old) !== this.knownStamp) await this.archive.add('replaced', `${note} (다른 창이 쓴 것)`, old);
     this.lockReason = null;
     this.lockLogged = false;
     // 보관하는 동안 (await) 이 창이 한 번 더 썼을 수 있음 (전투 끝 save-now · 5초 자동저장) → 쓰기 바로 앞의 파일 표로 (옛 표로 되돌려 "다른 창" 으로 잠기던 것 — 코드 리뷰어 #48 큼 2)

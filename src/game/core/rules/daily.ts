@@ -5,6 +5,7 @@
  * 어제 것은 쌓이지 않음 (밀린 숙제 없음). 지금은 개발 모드에서만 (BALANCE.daily.on — 3:3 을 켤 때 같이).
  */
 import { Rng } from '../engine/rng';
+import type { TypeName } from '../../data';
 import type { Daily, DailyGoal, DailyKind, ItemId } from '../save';
 import { typeNameKo } from '../text';
 import { REGIONS } from './region';
@@ -31,7 +32,7 @@ const WATCH: readonly { kind: DailyKind; need: number }[] = [
 const FOREST_TYPES = REGIONS.forest.wild.common;
 const TYPE_NEED = 5;
 /** 보상 — 몬스터볼 2 또는 흔한 팔 물건 1 · 셋 다 하면 금구슬 1 [임시값] */
-const COMMON_SELL: readonly ItemId[] = ['tiny-mushroom', 'pearl', 'stardust'];
+const COMMON_SELL: readonly ItemId[] = ['tiny-mushroom', 'pearl'];
 export const DAILY_BONUS: { item: ItemId; n: number } = { item: 'nugget', n: 1 };
 
 function seedOf(day: string): number {
@@ -40,14 +41,14 @@ function seedOf(day: string): number {
   return h >>> 0;
 }
 
-/** 그날의 목표 셋 (같은 날이면 늘 같음 — 날짜 시드) */
-export function dailyFor(day: string): Daily {
+/** 그날의 목표 셋 (같은 날이면 늘 같음 — 날짜 시드) · types = 타입 목표를 고를 지역 타입 (그 지역 — 없으면 숲) */
+export function dailyFor(day: string, types: readonly TypeName[] = FOREST_TYPES): Daily {
   const rng = new Rng(seedOf(day));
   const pick = <T>(list: readonly T[]): T => list[rng.int(0, list.length - 1)]!;
   const reward = (): Pick<DailyGoal, 'reward' | 'rewardN'> => (rng.chance(0.5) ? { reward: 'poke-ball', rewardN: 2 } : { reward: pick(COMMON_SELL), rewardN: 1 });
   const a = pick(PASSIVE);
   const b = pick(WATCH);
-  const type = pick(FOREST_TYPES);
+  const type = pick(types.length > 0 ? types : FOREST_TYPES);
   return {
     day,
     goals: [

@@ -73,6 +73,9 @@ const FACILITY_GAP = 0.012;
 
 /** 그 스테이지의 트레이너 수 — 스테이지마다 정해짐 (시드와 상관없음) */
 export function trainerCount(stageId: StageId): number {
+  const { region, index } = regionOf(stageId);
+  const fixed = region.stages[index]?.trainers;
+  if (fixed !== undefined) return fixed;
   const rng = new Rng(mixSeed(0x7a1e5, REGION_STAGE_IDS.indexOf(stageId) + 1));
   return between(rng, BALANCE.stageTrainers);
 }

@@ -1484,3 +1484,20 @@ describe('세이브 불러오기 — 테스터 #48 (빈 세이브 · 나간 뒤 
     expect(view.count('save-result')).toBe(results);
   });
 });
+
+describe('세이브 불러오기 — 아직 안 열린 지역 (코드 리뷰어 #52)', () => {
+  it('해변 스테이지 · 위치 · 배지가 든 세이브는 받지 않음 (#30 전까지)', async () => {
+    await enterAndStart(sampleSave({ money: 1234 }));
+    const base = sampleSave({ money: 777 });
+    for (const bad of [
+      { ...base, location: { screen: 'stage', stageId: 'beach-1' }, stages: { ...base.stages, 'beach-1': base.stages['forest-1'] } },
+      { ...base, location: { screen: 'gym', region: 'beach' } },
+      { ...base, badges: ['forest', 'beach'] },
+    ]) {
+      openFile = { name: 'beach.json', text: JSON.stringify(bad) };
+      session.handleMessage(msg({ type: 'save-import' }));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(view.last('save-import-ask')?.error).toContain('열리지 않은 지역');
+    }
+  });
+});

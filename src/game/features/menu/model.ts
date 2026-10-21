@@ -5,6 +5,7 @@ import { BALANCE } from '../../core/balance';
 import { gymUnlocked, nextStageOf, stageClearExp, stageUnlocked, type GameState } from '../../core/engine';
 import { canBuyCandy, FIELD_ITEMS, fieldUseBlock, isEvolutionItem, maxHpOf, priceOf, sellPrice, SHOP_ITEMS, type ShopItem } from '../../core/rules/bag';
 import { itemName, VALUABLES } from '../../core/rules/items';
+import { isRegionLast } from '../../core/rules/region';
 import { expForLevel, starGrade, statsOf } from '../../core/rules/stats';
 import { ITEM_IDS, STAGE_IDS, STAT_KEYS, type ItemId, type Monster, type Save, type StageId, type StatKey } from '../../core/save';
 import { typeNameKo } from '../../core/text';
@@ -259,7 +260,7 @@ export function mapView(state: GameState): { stages: MapStage[]; gym: boolean; b
   const stages = STAGE_IDS.map((id): MapStage => {
     const info = STAGES[id];
     const s: MapStageState = id === here ? 'current' : !stageUnlocked(save, id) ? 'locked' : save.stages[id]?.cleared ? 'cleared' : 'open';
-    return { id, label: info.name, code: info.code, icon: info.icon, state: s, gym: id === 'forest-3' };
+    return { id, label: info.name, code: info.code, icon: info.icon, state: s, gym: isRegionLast(id) };
   });
   return { stages, gym: gymUnlocked(save), badge: save.badges.includes('forest') };
 }
