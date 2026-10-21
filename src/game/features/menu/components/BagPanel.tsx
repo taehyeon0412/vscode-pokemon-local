@@ -27,14 +27,15 @@ export function BagPanel({ save, media, onInput, onClose }: BagPanelProps) {
     <Panel
       icon="bag"
       title="가방" extra={rows.length === 0 ? '아무것도 없어요' : '쓸 아이템을 골라요'} onClose={onClose}>
-      <Row>
+      {/* 칩은 여러 줄로 (새 물건이 생겨 18개면 한 줄 옆 스크롤 끝이 반 잘리던 것 — UX 리뷰어 2026-10-21) */}
+      <Row wrap>
         {rows.map((r) => (
           <button
             key={r.item}
             type="button"
             class={`pg-chip${sel === r.item ? ' pg-chip-on' : ''}${r.field ? '' : ' pg-chip-dim'}`}
             onClick={() => setSel(r.item)}
-            title={r.field ? (r.evolution ? '진화의 돌 — 진화하는 포켓몬에게' : '전투 밖에서 써요') : '볼은 전투에서만 써요'}
+            title={r.field ? (r.evolution ? '진화의 돌 — 진화하는 포켓몬에게' : '전투 밖에서 써요') : r.note}
           >
             <Icon name={ITEM_ICON[r.item]} /> {r.name} <b>{r.count}개</b>
           </button>
@@ -42,7 +43,7 @@ export function BagPanel({ save, media, onInput, onClose }: BagPanelProps) {
       </Row>
       {item && !item.field && (
         <Row>
-          <span class="pg-dim">{item.name}은(는) 전투에서 써요 (볼 = 야생 포켓몬에게)</span>
+          <span class="pg-dim">{item.note}</span>
         </Row>
       )}
       {item?.field && (

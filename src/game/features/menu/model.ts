@@ -142,6 +142,8 @@ export interface BagRow {
   field: boolean;
   /** 진화의 돌 · 연결의끈 */
   evolution: boolean;
+  /** 전투 밖에서 못 쓰는 것의 안내 (볼 · 팔 물건 · 경험 부적 — 2026-10-21 UX 리뷰어: 진주가 "전투에서 써요" 로 나오던 것) */
+  note?: string;
 }
 
 /** S19 ① 가진 아이템 — 쓰는 것 먼저 */
@@ -149,7 +151,15 @@ export function bagView(save: Save): BagRow[] {
   const rows: BagRow[] = [];
   for (const [item, count] of Object.entries(save.bag) as [ItemId, number][]) {
     if (!count || count <= 0) continue;
-    rows.push({ item, name: itemName(item), count, field: FIELD_ITEMS.includes(item), evolution: isEvolutionItem(item) });
+    const field = FIELD_ITEMS.includes(item);
+    const note = field
+      ? undefined
+      : VALUABLES.includes(item)
+        ? `상점에서 팔아요 · 1개 +${sellPrice(item).toLocaleString()}원`
+        : item === 'exp-charm'
+          ? `다음 스테이지를 새로 시작하면 저절로 써요 (경험치 ×${BALANCE.expCharmScale})`
+          : '볼은 전투에서 써요 (야생 포켓몬에게)';
+    rows.push({ item, name: itemName(item), count, field, evolution: isEvolutionItem(item), note });
   }
   return rows.sort((a, b) => Number(b.field) - Number(a.field));
 }
@@ -186,7 +196,7 @@ const SHOP_EFFECT: Record<ShopItem, string> = {
   'full-heal': '상태 회복',
   revive: '되살림 HP ½',
   'rare-candy': '레벨 +1',
-  'exp-charm': `경험치 ×${BALANCE.expCharmScale}`,
+  'exp-charm': `다음 판 경험치 ×${BALANCE.expCharmScale}`,
 };
 /** 마우스를 올리면 보이는 긴 설명 */
 const SHOP_DETAIL: Record<ShopItem, string> = {
@@ -205,7 +215,8 @@ const SHOP_DETAIL: Record<ShopItem, string> = {
 export function shopView(save: Save): ShopRow[] {
   // 이상한사탕 = 스테이지 상점에서 한 판에 1개 (대기실 상점 · 이미 산 판은 흐리게 — 다음 버전 2단계)
   // 규칙은 엔진과 같은 canBuyCandy (rules/bag)
-  const candyBlock = canBuyCandy(save) ? undefined : save.location.screen === 'stage' ? '한 판에 1개' : '스테이지 상점에서만';
+  // 까닭은 짧게 (3칸 바둑판 · 240 에서 안 잘리게 — UX 리뷰어)
+  const candyBlock = canBuyCandy(save) ? undefined : save.location.screen === 'stage' ? '한 판에 1개' : '길 상점만';
   return SHOP_ITEMS.map((item) => {
     const blocked = item === 'rare-candy' ? candyBlock : undefined;
     return { item, name: itemName(item), effect: SHOP_EFFECT[item], detail: SHOP_DETAIL[item], price: priceOf(item), have: save.bag[item] ?? 0, affordable: save.money >= priceOf(item) && !blocked, blocked };

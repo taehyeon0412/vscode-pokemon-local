@@ -248,7 +248,9 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   const bannerBottom = fieldTop + Math.round(BANNER_PX * layout.uiScale);
   const buildingTall = facility !== undefined && bodyPx - ground - buildingDraw(facility.facility.kind, layout.scale, heroRoom).visible < bannerBottom;
   const heroTall = !battle && (bodyPx - ground - heroH < bannerBottom || buildingTall) && bannerRight - bannerLeft >= (buildingTall ? FACILITY_SIDE_MIN_PX : BANNER_SIDE_MIN_PX);
-  const showToast = state.runtime.toast && (phase === 'walk' || phase === 'clear' || phase === 'lobby' || phase === 'facility');
+  // 상점 안에서는 길 위 알림을 안 그림 — 상점 판 안 알림 ("진주를 팔았다!") 과 같은 말이 판 너머로 비쳐 겹치던 것 (UX 리뷰어 2026-10-21)
+  const inShop = stageRt?.phase === 'facility' && stageRt.inside && stageRt.kind === 'shop';
+  const showToast = state.runtime.toast && !inShop && (phase === 'walk' || phase === 'clear' || phase === 'lobby' || phase === 'facility');
   const shopInside = stageRt?.phase === 'facility' && stageRt.inside && stageRt.kind === 'shop';
   // 전투 화면 단추의 Space (막기 · 맞받아치기 · 잡기 원) = 키 · 판 클릭과 같은 시계 — 엔진 시간으로만 재면 연출을 기다리는 동안 아무 때나 '완벽'
   const battleInput = (i: GameInput) => onInput(i.kind === 'space' ? spaceInput(state, performance.now()) : i);

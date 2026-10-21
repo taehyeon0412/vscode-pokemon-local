@@ -42,7 +42,8 @@ export function FacilityBox({ state, media, onInput, onBox }: BoxProps & { onBox
           {hospital ? (
             <span class="pg-dim">회복 · 보관함</span>
           ) : (
-            <span class="pg-money">
+            <span class="pg-money" title="내 돈">
+              <span class="pg-dim">내 돈 </span>
               <Icon name="coin" /> {formatMoney(state.save.money)}
             </span>
           )}

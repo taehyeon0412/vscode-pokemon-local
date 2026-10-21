@@ -4157,6 +4157,29 @@ body.vscode-high-contrast-light .pg-title-body {
 .pg-panel .pg-button:disabled b {
   color: var(--pg-sos-red);
 }
+/* 규칙으로 막힌 것 (이상한사탕 "한 판에 1개" · "길 상점만") 은 값이 흐린 회색 — 빨강은 돈이 모자랄 때만 (UX 리뷰어 2026-10-21) */
+.pg-panel .pg-button.pg-shop-rule:disabled b {
+  color: var(--pg-sos-dim);
+}
+/* 좁은 패널 (480px 아래) 상점 알림 = 판 맨 위 한 줄 (머리 줄에선 줄임표에 묻힘) · 넓으면 머리 줄 */
+.pg-shop-note-line {
+  display: none;
+  color: var(--pg-sos-gold);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 16px;
+}
+@media (max-width: 480px) {
+  .pg-shop-note-line {
+    display: block;
+  }
+}
+/* 팔기 — 팔 물건과 쓰는 물건 사이 한 줄 (칸 전체 폭) */
+.pg-shop-sep {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  line-height: 14px;
+}
 
 /* ---- 아트 디렉터 3차 (16/25) 반영 ---- */
 #pokemon-game {
