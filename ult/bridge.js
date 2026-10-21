@@ -1036,12 +1036,16 @@ function fxStairBlit(v, now) {
     const front = v.front(now);
     const step = v.u;
     const W = window.innerWidth;
-    const H = window.innerHeight;
+    // 빔이 나가는 동안은 빔 축 + 13칸 아래를 숨김 (찍은 줄기 아래 조각이 먼저 닿은 것처럼 보이던 것)
+    const travel = v.bigAt !== undefined && now >= v.bigAt && now < v.hitAt;
+    const H = travel ? Math.max(0, Math.min(window.innerHeight, Math.round(v.y0 + 13 * (v.p || 1)))) : window.innerHeight;
     moveCtx.save();
     moveCtx.imageSmoothingEnabled = false;
     // 입 뒤 (밀리지 않음) 는 한 번에
     const xs = Math.max(0, Math.min(W, Math.floor(v.x0 / step) * step));
-    if (v.dir > 0 && xs > 0) {
+    if (H <= 0) {
+        // 다 숨김
+    } else if (v.dir > 0 && xs > 0) {
         moveCtx.drawImage(v.cv, 0, 0, Math.round(xs * dpr), H * dpr, 0, 0, xs, H);
     } else if (v.dir < 0 && xs < W) {
         moveCtx.drawImage(v.cv, Math.round(xs * dpr), 0, Math.round((W - xs) * dpr), H * dpr, xs, 0, W - xs, H);
@@ -1051,7 +1055,9 @@ function fxStairBlit(v, now) {
             continue;
         }
         const dy = fxStairDy(v, x + step / 2);
-        moveCtx.drawImage(v.cv, x * dpr, 0, step * dpr, H * dpr, x, dy, step, H);
+        if (H > 0) {
+            moveCtx.drawImage(v.cv, x * dpr, 0, step * dpr, H * dpr, x, dy, step, H);
+        }
     }
     moveCtx.restore();
 }
@@ -1129,26 +1135,88 @@ const fxHashN = (i, k = 0) => (((i * 374761393) ^ (k * 668265263)) >>> 0) % 997;
 const FX_BEAM_FADE_MS = 150;
 // 블래스트번 (메가리자몽X) 파란 불 — 나선 · 기운 색 (디자인팀 정한 줄). 그 밖의 자기 둘레 필살기는 그 필살기 색 4단
 const FX_SPIN_COLS = { 블래스트번: ['#ffffff', '#c4ecff', '#5cb8f6', '#2466d0'] };
-// 커지는 빛 모으기 (아트 2차) — 쏘는 쪽 원래 모으기 빛 자리 (입 − 8칸 · 빔 축 − 1칸, 빛이 두 곳에서 나지 않게) · 모으기 시간을 여섯으로 나눠 한 칸씩 (반지름 3 → 8칸) ·
-// 빔이 나가는 동안 (grow 뒤 ~ 닿음) 은 반지름 6칸으로 남아 빔 뿌리를 덮음 (빔이 구슬에서 나옴) · 흰 심 2칸 + [0] · [1] · 빛살 4개 (1칸, 150ms 마다 길이 R+3 ↔ R+5, 끝 칸 [1])
-function fxGrowOrb(M, cols, p, growSec, holdSec) {
-    sigParticle({ x: 0, y: 0, s: 1, max: growSec + holdSec, draw: (ctx, q) => {
-        const R = q.life >= growSec ? 6 : Math.min(8, 3 + Math.floor((q.life * 6) / Math.max(0.01, growSec)));
-        ctx.globalAlpha = 1;
-        for (let j = -R; j <= R; j++) {
-            for (let i = -R; i <= R; i++) {
-                const d2 = i * i + j * j;
-                if (d2 <= R * R) {
-                    fxDot(ctx, M.x + i * p, M.y + j * p, p, d2 <= 4 ? '#ffffff' : d2 <= (R * 0.65) ** 2 ? cols[0] : cols[1]);
+// 바둑판 흐려짐 (디자인팀 8판 끝) — step 0 그대로 · 1 칸 절반 · 2 칸 4분의 1 · 3 없음. 따로 그린 캔버스에 2p × 2p 무늬를 destination-out 으로 덮어 지움
+// (globalAlpha 로 흐리면 남색 바탕과 섞여 팔레트 밖 회색이 나옴 — 픽셀 검사원)
+let fxDissolveCv = null;
+const fxDissolvePat = new Map();
+function fxDissolveDraw(ctx, p, step, draw) {
+    if (step <= 0) {
+        draw(ctx);
+        return;
+    }
+    if (step >= 3) {
+        return;
+    }
+    const dpr = window.devicePixelRatio || 1;
+    const w = Math.round(window.innerWidth * dpr);
+    const h = Math.round(window.innerHeight * dpr);
+    fxDissolveCv ??= document.createElement('canvas');
+    if (fxDissolveCv.width !== w || fxDissolveCv.height !== h) {
+        fxDissolveCv.width = w;
+        fxDissolveCv.height = h;
+    }
+    const oc = fxDissolveCv.getContext('2d');
+    oc.setTransform(1, 0, 0, 1, 0, 0);
+    oc.clearRect(0, 0, w, h);
+    oc.setTransform(dpr, 0, 0, dpr, 0, 0);
+    oc.globalAlpha = 1;
+    oc.globalCompositeOperation = 'source-over';
+    draw(oc);
+    const key = `${p}:${step}`;
+    if (!fxDissolvePat.has(key)) {
+        const t = document.createElement('canvas');
+        t.width = 2 * p;
+        t.height = 2 * p;
+        const tc = t.getContext('2d');
+        tc.fillStyle = '#000';
+        // 지울 칸 — 절반: 바둑판 두 칸 · 4분의 1: 왼쪽 위 한 칸만 남김
+        tc.fillRect(p, 0, p, p);
+        tc.fillRect(0, p, p, p);
+        if (step === 2) {
+            tc.fillRect(p, p, p, p);
+        }
+        fxDissolvePat.set(key, oc.createPattern(t, 'repeat'));
+    }
+    oc.globalCompositeOperation = 'destination-out';
+    oc.fillStyle = fxDissolvePat.get(key);
+    oc.fillRect(0, 0, window.innerWidth, window.innerHeight);
+    oc.globalCompositeOperation = 'source-over';
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = 1;
+    ctx.drawImage(fxDissolveCv, 0, 0);
+    ctx.restore();
+}
+// 커지는 빛 모으기 (8판 끝) — 쏘는 쪽 원래 모으기 빛 자리 (입 − 8칸 · 빔 축 − 1칸) · 모으기 시간을 여섯으로 나눠 한 칸씩 (반지름 3 → 8칸) ·
+// 빔이 나갈 때 8 → 7 → 6칸 (50ms 두 걸음) · 빔이 나가는 동안 6칸으로 남아 빔 뿌리를 덮음 · 흰 심 2칸 + [0] · [1] ·
+// 빛살 4개 (1칸 — 모으는 동안 200ms 마다 길이 3 ↔ 5칸, 빔이 나간 뒤 4칸으로 멈춤, 끝 칸 [1]) · 닿은 뒤 빔 · 나선과 같이 바둑판으로 흐려짐 (v = 그 빔 보기)
+function fxGrowOrb(M, cols, p, growSec, v) {
+    sigParticle({ x: 0, y: 0, s: 1, max: growSec + (FX_SPIRAL_RUN_MS + FX_BEAM_FADE_MS) / 1000 + 0.2, draw: (ctx, q) => {
+        const now = performance.now();
+        const out = v && now >= v.bigAt;
+        if (v && now >= v.hitAt + FX_BEAM_FADE_MS) {
+            q.life = q.max;
+            return;
+        }
+        const after = out ? now - v.bigAt : 0;
+        const R = !out ? Math.min(8, 3 + Math.floor((q.life * 6) / Math.max(0.01, growSec))) : after < 50 ? 8 : after < 100 ? 7 : 6;
+        const L = R + (out ? 4 : Math.floor((q.life * 1000) / 200) % 2 ? 5 : 3);
+        const step = v && now >= v.hitAt ? 1 + Math.floor(((now - v.hitAt) / FX_BEAM_FADE_MS) * 3) : 0;
+        fxDissolveDraw(ctx, p, step, (c) => {
+            for (let j = -R; j <= R; j++) {
+                for (let i = -R; i <= R; i++) {
+                    const d2 = i * i + j * j;
+                    if (d2 <= R * R) {
+                        fxDot(c, M.x + i * p, M.y + j * p, p, d2 <= 4 ? '#ffffff' : d2 <= (R * 0.65) ** 2 ? cols[0] : cols[1]);
+                    }
                 }
             }
-        }
-        const L = R + (Math.floor((q.life * 1000) / 150) % 2 ? 5 : 3);
-        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-            for (let k = R + 1; k <= L; k++) {
-                fxDot(ctx, M.x + dx * k * p, M.y + dy * k * p, p, k < L ? '#ffffff' : cols[1]);
+            for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+                for (let k = R + 1; k <= L; k++) {
+                    fxDot(c, M.x + dx * k * p, M.y + dy * k * p, p, k < L ? '#ffffff' : cols[1]);
+                }
             }
-        }
+        });
     } });
 }
 // 빔 굵게 (×1.5) — 원래 줄기 위아래 한쪽마다 1칸 줄 셋 (끝 1칸을 덮는 옅은 [1] · 옅은 [1] · 본색 [2]) + 바깥 들쭉날쭉 1칸 (열의 반, 해시) ·
@@ -1271,13 +1339,15 @@ function fxSpiralRun(v, beamCols, spinCols) {
         const k = Math.max(0, Math.min(1, (t - v.bigAt) / Math.max(1, v.hitAt - v.bigAt)));
         const front = v.x0 + (v.tx - v.x0) * k;
         const after = t >= v.hitAt;
-        ctx.globalAlpha = after ? 1 - Math.min(3, Math.floor(((t - v.hitAt) / FX_BEAM_FADE_MS) * 3)) / 3 : 1;
-        fxBeamThicken(ctx, v, front, beamCols, q.life, true);
-        if (!after) {
-            fxBeamSparks(ctx, v, v.orbX, front, beamCols, q.life);
-        }
-        fxFireSpiral(ctx, v, v.x0 + v.dir * 4, front, spinCols, q.life);
-        ctx.globalAlpha = 1;
+        const step = after ? 1 + Math.floor(((t - v.hitAt) / FX_BEAM_FADE_MS) * 3) : 0;
+        fxDissolveDraw(ctx, v.p, step, (c) => {
+            c.globalAlpha = 1;
+            fxBeamThicken(c, v, front, beamCols, q.life, true);
+            if (!after) {
+                fxBeamSparks(c, v, v.orbX, front, beamCols, q.life);
+            }
+            fxFireSpiral(c, v, v.x0 + v.dir * 4, front, spinCols, q.life);
+        });
     } });
 }
 // 섞인 큰 폭발 (8판 1차) — 1칸 격자 · 가운데 45% 를 비운 고리 (꽃이 안에 보이게) · 반지름 [5 9 13 16 18 19] × 참가 수 × 0.5 칸 · 6걸음 × 150ms ·
@@ -1813,7 +1883,7 @@ window.pokemonFx = {
                             const gm = ultGeometry(p.A, p.left);
                             const S = Math.max(1, Math.round(gm.s));
                             // 구슬 = 원래 모으기 빛 자리 (입 − 8칸 · 빔 축 − 1칸) · 빔이 나가는 동안 (닿을 때까지) 도 남아 빔 뿌리를 덮음
-                            fxGrowOrb({ x: gm.mouth.x - gm.dir * 8 * S, y: gm.mouth.y - S }, p.cols, S, (p.freeze + Math.min(500, p.anchor)) / 1000, run / 1000);
+                            fxGrowOrb({ x: gm.mouth.x - gm.dir * 8 * S, y: gm.mouth.y - S }, p.cols, S, (p.freeze + Math.min(500, p.anchor)) / 1000, fxBeamView.get(p.gen));
                         }, at);
                     }
                 }, base + p.start);
@@ -1831,8 +1901,8 @@ window.pokemonFx = {
                     // 점 = 포켓몬 점 1칸 (p) · 계단 = 2칸 폭 (u) · 빔 반 높이 = 5칸 (원래 줄기 20px — ×2)
                     const v = { x0, y0: gm.mouth.y, dir, slope: ((b.y - gm.mouth.y) / Math.max(20, Math.abs(b.x - x0))) * dir, u: 2 * S, p: S, half: 5 * S, tx: b.x, bigAt: now + base + big, hitAt: now + base + finishAt };
                     v.orbX = gm.mouth.x - dir * 8 * S;
-                    // 닿은 뒤 100ms 는 상대 + 24px 까지 (줄기가 상대를 뚫고 나가 보이지 않게 — 아트 2차)
-                    v.front = (t) => (t < v.bigAt ? Infinity * v.dir : t < v.hitAt ? v.x0 + (v.tx - v.x0) * Math.min(1, (t - v.bigAt) / (v.hitAt - v.bigAt)) : t < v.hitAt + 100 ? v.tx + v.dir * 24 : Infinity * v.dir);
+                    // 닿은 뒤 100ms 는 상대 + 40px 까지 (줄기가 상대를 뚫고 나가 보이지 않게 — 디자인팀 8판 끝)
+                    v.front = (t) => (t < v.bigAt ? Infinity * v.dir : t < v.hitAt ? v.x0 + (v.tx - v.x0) * Math.min(1, (t - v.bigAt) / (v.hitAt - v.bigAt)) : t < v.hitAt + 100 ? v.tx + v.dir * 40 : Infinity * v.dir);
                     fxBeamView.set(p.gen, v);
                     // 꽃 터짐 뒤 화면 전체 번쩍 장은 뺌 (흰 돔이 회색으로 깜빡이던 것) — 번쩍은 닿는 순간 한 번
                     fxNoFlashGens.add(p.gen);
