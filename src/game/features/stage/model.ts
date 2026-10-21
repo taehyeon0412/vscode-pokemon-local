@@ -3,7 +3,7 @@
  * 주인공은 제자리걸음, 배경 · 길 위의 것들이 오른쪽 → 왼쪽으로 흐름 (gdd S06 ③).
  */
 import { BALANCE, TIMING } from '../../core/balance';
-import type { BattleState, GameState } from '../../core/engine';
+import { teamViewKey, type BattleState, type GameState } from '../../core/engine';
 import { planWild, sceneryAt, type Scenery, type WildPlan } from '../../core/rules/encounter';
 import { requestAt, type RequestTemplate } from '../../core/rules/request';
 import { stageLayout, trainerId } from '../../core/rules/stage';
@@ -305,6 +305,7 @@ export function stageViewKey(state: GameState): string {
     saveViewKey(state.save),
     pending?.kind === 'wild' ? pending.start : '',
     st?.phase === 'battle' ? battleViewKey(st.battle, state.save.settings.autoBattle) : '',
+    st?.phase === 'team' ? teamViewKey(st.team) : '',
     resultViewKey(state),
   ].join('|');
 }

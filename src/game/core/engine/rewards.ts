@@ -105,7 +105,10 @@ function giveTeamExp(save: Save, gain: number, rng: Rng): { save: Save; exp: Bat
  * 전투 끝 (이김 · 잡음) — applyBattleResult (HP · PP · 쓴 아이템) 다음에. wild = 조우 때 정한 상대 (잡으면 개체값 · 기술을 그대로).
  * where = 잡은 곳 (스테이지 id · 'gym')
  */
-export function battleRewards(save0: Save, b: BattleState, wild: Monster | null, where: StageId | 'gym', rng: Rng): { save: Save; summary: BattleSummary } {
+/** 보상에 쓰는 전투 값 — 1:1 (BattleState) · 3:3 (teamRewardBattle) 이 같이 씀 */
+export type RewardBattle = Pick<BattleState, 'kind' | 'result' | 'foe' | 'foeDown' | 'fought' | 'foeName'>;
+
+export function battleRewards(save0: Save, b: RewardBattle, wild: Monster | null, where: StageId | 'gym', rng: Rng): { save: Save; summary: BattleSummary } {
   let save: Save = { ...save0, monsters: { ...save0.monsters }, bag: { ...save0.bag } };
   const summary: BattleSummary = { title: '', exp: [], money: 0, item: null, caught: null, learned: [], choices: 0, badge: null };
   const choices: PendingChoice[] = [];

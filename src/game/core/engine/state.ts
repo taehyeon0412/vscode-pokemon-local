@@ -6,6 +6,7 @@ import { TIMING } from '../balance';
 import { isHeroLookId } from '../../data/heroes';
 import { ITEM_IDS, STAGE_IDS, type FacilitySpot, type ItemId, type Save, type StageId } from '../save';
 import { readBattle, type BattleState } from './battle';
+import { readTeam, type TeamBattle } from './team';
 import type { BattleSummary } from './rewards';
 
 type FacilityKind = FacilitySpot['kind'];
@@ -30,10 +31,13 @@ type FacilityKind = FacilitySpot['kind'];
 export type StageRuntime =
   | { phase: 'walk' }
   | { phase: 'appear'; ms: number; isNew: boolean }
-  | { phase: 'trainer'; n: number; ms: number }
+  /** team = 3:3 으로 (고른 것 — 없으면 자동 전투 · 안 볼 때 3:3, 아니면 1:1 — 2026-10-21 orders #17) */
+  | { phase: 'trainer'; n: number; ms: number; team?: boolean }
   /** 라이벌 깜짝 등장 (gdd 4.12) — rival = 주인공 id, "!" → 띠 → 전투 */
   | { phase: 'rival'; rival: string; ms: number }
   | { phase: 'battle'; battle: BattleState }
+  /** 3:3 실시간 팀 배틀 (트레이너 · 관장 — orders #17) */
+  | { phase: 'team'; team: TeamBattle }
   /** 안 볼 때 드문 일 바로 앞에서 멈춤 — 이로치 흔적 (U9) · 라이벌 (2026-10-20 ideas #87). 다시 보면 걸어가 만남 */
   | { phase: 'hold'; why: 'shiny' | 'rival' }
   | { phase: 'request'; at: number; number: number; result: RequestResult | null; ms: number }
@@ -50,7 +54,7 @@ export type StageRuntime =
   | { phase: 'lobby' }
   | { phase: 'badge' };
 
-export const STAGE_PHASES = ['walk', 'appear', 'trainer', 'rival', 'battle', 'request', 'hold', 'facility', 'result', 'choice', 'defeat', 'clear', 'gym-enter', 'lobby', 'badge'] as const;
+export const STAGE_PHASES = ['walk', 'appear', 'trainer', 'rival', 'battle', 'team', 'request', 'hold', 'facility', 'result', 'choice', 'defeat', 'clear', 'gym-enter', 'lobby', 'badge'] as const;
 
 /** 부탁 결과 — 글 · 받은 것 (따로 둬서 좁은 패널에서도 받은 것이 안 잘리게) */
 export interface RequestResult {
@@ -158,7 +162,8 @@ function readStage(raw: unknown): StageRuntime | null {
       return ms !== null && ms > 0 ? { phase: 'clear', ms } : { phase: 'clear' };
     case 'trainer': {
       const n = num(raw.n, 0, 10);
-      return ms !== null && n !== null && Number.isInteger(n) ? { phase: 'trainer', n, ms } : null;
+      if (ms === null || n === null || !Number.isInteger(n)) return null;
+      return typeof raw.team === 'boolean' ? { phase: 'trainer', n, ms, team: raw.team } : { phase: 'trainer', n, ms };
     }
     case 'rival':
       return ms !== null && isHeroLookId(raw.rival) ? { phase: 'rival', rival: raw.rival, ms } : null;
@@ -178,6 +183,10 @@ function readStage(raw: unknown): StageRuntime | null {
       // 옛 상태의 space · ambush 칸은 버림 (시작은 pendingEncounter.start)
       if (ms === null || typeof raw.isNew !== 'boolean') return null;
       return { phase: 'appear', ms, isNew: raw.isNew };
+    case 'team': {
+      const team = readTeam(raw.team);
+      return team ? { phase: 'team', team } : null;
+    }
     case 'battle': {
       const battle = readBattle(raw.battle);
       return battle ? { phase: 'battle', battle } : null;

@@ -170,7 +170,7 @@ export interface BattleState {
   start: EncounterStart;
 }
 
-const POPUP_MS = 1200;
+export const POPUP_MS = 1200;
 const nameOf = (f: Fighter) => speciesOf(f.species)?.name.ko ?? '???';
 /** 한 줄에 쓰는 이름 — 상대는 "야생 ○○" · "상대 ○○" */
 const label = (b: BattleState, side: Side) => (side === 'foe' ? `${b.kind === 'wild' ? '야생' : '상대'} ${nameOf(b.foe)}` : nameOf(b.me));
@@ -737,7 +737,7 @@ export function battleStep(b0: BattleState, save: Save, stepMs: number, rng: Rng
       const lastMs = b.lastMs + stepMs;
       // 볼을 고르지 않으면 (자동 전투 · 안 봄 · 그냥 둠) 지나감 [제안]
       // 자동 전투면 3초 (ideas #35)
-      if (opts.away || lastMs >= (opts.auto && !b.foe.shiny ? TIMING.lastChanceAutoMs : TIMING.lastChanceMs)) return { ...b, lastMs, phase: 'over', result: 'win', overMs: 0, msg: `${withJosa(label(b, 'foe'), '이/가')} 쓰러졌다!` };
+      if (opts.away || lastMs >= lastChanceLimitMs(b, opts.auto)) return { ...b, lastMs, phase: 'over', result: 'win', overMs: 0, msg: `${withJosa(label(b, 'foe'), '이/가')} 쓰러졌다!` };
       return { ...b, lastMs };
     }
     case 'send': {
@@ -894,6 +894,11 @@ function prePressable(b: BattleState, action: BattleAction): boolean {
 export function moveEffect(b: BattleState, moveId: number): number | null {
   const mv = moveOf(moveId);
   return mv && mv.power > 0 ? effectiveness(mv.type, b.foe.types) : null;
+}
+
+/** 마지막 기회 길이 — 자동 전투 3초 (이로치는 6초 그대로) · 손으로 6초 (화면의 남은 초도 이걸로, 2026-10-21 디자인팀) */
+export function lastChanceLimitMs(b: BattleState, auto: boolean): number {
+  return auto && !b.foe.shiny ? TIMING.lastChanceAutoMs : TIMING.lastChanceMs;
 }
 
 /** 지금 할 수 있는 행동인지 (메뉴를 흐리게) */
