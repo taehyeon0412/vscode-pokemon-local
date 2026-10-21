@@ -173,7 +173,14 @@
   color: var(--pg-sos-ink);
   background: rgba(12, 16, 30, 0.94);
   border: 1px solid var(--pg-sos-gold);
-  white-space: nowrap;
+  /* 넘치면 낱말 사이에서 줄 바꿈 (240 에서 "…에게 졌다… 남은 포켓몬으로 계속 간다" 가 양쪽이 잘리고 테두리가 밖으로 나가던 것 — UX 리뷰어 R9 ⑥) */
+  box-sizing: border-box;
+  width: max-content;
+  max-width: calc(100% - 16px);
+  justify-content: center;
+  text-align: center;
+  white-space: normal;
+  word-break: keep-all;
   z-index: 9;
 }
 #pokemon-game .pg-team-msg {

@@ -56,8 +56,10 @@ export function useFit(box: { current: HTMLElement | null }, max: number, lines?
       setStep(0);
     };
     window.addEventListener('resize', onResize);
-    const t = window.setTimeout(check, 400);
-    void document.fonts?.ready.then(check);
+    // 400ms · 글꼴이 오면 0 단계부터 다시 (처음 잼이 늦은 글꼴로 줄어든 채 남아 300 에서 실행마다 모양이 다르던 것 — 픽셀 검사원 #27)
+    const again = () => setStep(0);
+    const t = window.setTimeout(again, 400);
+    void document.fonts?.ready.then(again);
     return () => {
       window.removeEventListener('resize', onResize);
       window.clearTimeout(t);

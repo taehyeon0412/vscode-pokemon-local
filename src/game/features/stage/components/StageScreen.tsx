@@ -7,7 +7,7 @@
  * 전투 (S09 · S10) 는 같은 길 위에서 — features/battle 의 BattleLayer (주인공은 왼쪽 끝 트레이너 자리로, 야생은 튀어나온 자리 그대로 · 트레이너는 오른쪽 끝).
  * 튀어나올 때 선제공격 · 기습은 스피드로 정함 (2026-10-21 태현 님 — Space · 클릭 선제공격을 뺌).
  */
-import { useRef } from 'preact/hooks';
+import { useLayoutEffect, useRef } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
 import { canOpenMenus, canParry, canRiposte, isWalkingFast, itemLeft, teamLock, walkLeftMs, type GameInput, type GameState } from '../../../core/engine';
 import { maxHpOf, teamHealth } from '../../../core/rules/bag';
@@ -299,8 +299,20 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
     </span>
   );
 
+  // 대기실 바닥 관장 이름표가 위 상자에 깔리면 숨김 (이름은 상자 첫 줄에 있음 — 240 × 150 에서 글자 위 6줄이 잘리던 것, 픽셀 검사원 #27)
+  const screen = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const tag = screen.current?.querySelector<HTMLElement>('.pg-foe-trainer .pg-nametag');
+    if (!tag) return;
+    tag.classList.remove('pg-tag-under');
+    const box = screen.current?.querySelector<HTMLElement>('.pg-lobby');
+    if (!box) return;
+    const a = box.getBoundingClientRect();
+    const t = tag.getBoundingClientRect();
+    if (t.top < a.bottom + 2 && t.right > a.left && t.left < a.right) tag.classList.add('pg-tag-under');
+  });
   return (
-    <div class={`pg-screen pg-stage pg-size-${layout.size}${gym ? ' pg-gym' : ''}${covered ? ' pg-covered' : ''}`}>
+    <div class={`pg-screen pg-stage pg-size-${layout.size}${gym ? ' pg-gym' : ''}${covered ? ' pg-covered' : ''}`} ref={screen}>
       {battle && geo?.menuInBar ? (
         <BattleMenuBar battle={battle} save={save} onInput={battleInput} withAuto={geo.autoInMenu} compact={geo.tiny ? 'tiny' : geo.compact} say={barSay(battle, geo.msgHidden, geo.widthPx - 48, 2)} hint={ringHint(battle, geo, save.settings.autoBattle)} pickRight={pickRightOf(geo)} autoTip={autoTip} />
       ) : (

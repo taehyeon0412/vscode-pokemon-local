@@ -3,7 +3,7 @@
  * 기능 뼈대 — 자리 · 판 상태 · 안내는 model.ts (시안 geo 그대로), 모양은 디자인팀 (클래스 pg-team-*). 연출은 일반 모드 그대로 (fx/team.ts TeamFxRunner).
  * 누르기: 발밑 판 · 포켓몬 = 그 칸 필살기 (쓰기 · 예약 · 끼어들기 · 합류) — 키 1 · 2 · 3 · Z · Space 는 main.ts.
  */
-import { useEffect, useMemo, useRef } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'preact/hooks';
 import { TIMING } from '../../../core/balance';
 import { teamAutoUltLeft, type GameInput, type Side, type TeamBattle } from '../../../core/engine';
 import { formOf, speciesOf } from '../../../data';
@@ -128,11 +128,22 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   // 숫자 · 말 · 예고의 아래 끝 (translate −100%) 이 지도 줄 아래 + 2 보다 위로 가지 않게 (글 높이 약 14)
   const topMin = infoBarPx + fieldTopPx + 2 + 14;
   // 안내 (끼어들기 · 합동 · 연타) 자리 — 넓으면 무대 아래 가운데 (위 가운데는 필살기 컷인 이름 자리), 좁으면 정보줄 + 4 (정보줄 밑에 숨던 것 — UX 리뷰어)
-  const low = widthPx >= 400;
+  // 아래 가운데는 720 부터 (400 ~ 719 는 안내 폭 약 200 이 앞줄 발밑 판 — 끼어들 3번 판까지 — 을 덮던 것, UX 리뷰어 R9 ⑥)
+  const low = widthPx >= 720;
   const promptStyle = low ? { top: 'auto', bottom: '4px' } : { top: `${infoBarPx + 4}px` };
   // 엔진 한 줄 (필살기 · 합류 · 결과) 은 판 끝 결과만 · 쓰러지는 장면이 0.9초 보인 뒤 (컷인 이름을 가리고 · 지난 필살기 줄이 남던 것 — UX 리뷰어)
   const msgOn = b.phase === 'over' && b.overMs >= 900 && !!b.msg;
   const ult = (slot: number) => onInput({ kind: 'team-battle', input: { kind: 'ult', slot } });
+  // 머리 위 말 · 숫자를 패널 양 끝 2px 안으로 (끝 칸의 "버섯꼬 쓰러졌다!" 의 "!" · "리자드" 의 "리" 가 잘리던 것 — UX 리뷰어 R9 ⑥, U4) · 정수 px
+  useLayoutEffect(() => {
+    const W = window.innerWidth;
+    root.current?.querySelectorAll<HTMLElement>('.pg-team-pop').forEach((el) => {
+      el.style.marginLeft = '0px';
+      const r = el.getBoundingClientRect();
+      const shift = r.left < 2 ? 2 - r.left : r.right > W - 2 ? W - 2 - r.right : 0;
+      if (shift) el.style.marginLeft = `${Math.round(shift)}px`;
+    });
+  });
   // 저절로 나갈 칸 하나 = 남은 시간이 가장 짧은 칸 · 같으면 먼저 찬 칸 (엔진 firstWaited 와 같은 순서)
   let autoNext: number | null = null;
   b.me.forEach((_, i) => {

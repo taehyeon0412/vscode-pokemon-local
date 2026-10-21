@@ -1212,10 +1212,12 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 .pg-banner.pg-hold {
   background: var(--pg-sos-bar);
 }
-/* 밖에서 이로치 전투가 멈춤 = 아래 가운데 (전투 위 줄 · HP · 말 칸 밖) · 패널 아래 끝 (4px 띄우면 세 그림의 발을 7px 덮던 것 — UX 리뷰어 #27) */
+/* 밖에서 이로치 전투가 멈춤 = 아래 가운데 (전투 위 줄 · HP · 말 칸 밖) · 패널 아래 끝 + 높이 22 (위아래 여백 2) — 위 끝 = 땅 (발 아래 남는 높이 23px, 26 · bottom 4 면 세 그림의 발을 덮던 것 — UX 리뷰어 · 픽셀 검사원 #27) */
 .pg-banner.pg-hold.pg-hold-low {
   top: auto;
   bottom: 0;
+  padding-top: 2px;
+  padding-bottom: 2px;
   z-index: 7;
 }
 /* 처음 한 번 안내 (orders #12, ui/FirstTip) — 판과 같은 남색 · 1px 금색 선 · 앞에 금색 "처음" 표 · 크림 12px, 좁으면 낱말 단위 두 줄 · 누름을 막지 않음.
@@ -1234,6 +1236,7 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   border: 1px solid var(--pg-sos-line);
   box-shadow: 0 0 0 1px var(--pg-sos-bar);
   font-size: 12px;
+  font-weight: 500;
   line-height: 16px;
   text-align: center;
   word-break: keep-all;
@@ -3717,6 +3720,7 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 }
 .pg-too-small {
   font-size: 12px;
+  font-weight: 500;
   color: var(--pg-sos-gold);
   /* 낱말 안에서 줄을 바꾸지 않음 (240 에서 "포켓 / 몬으로" 로 갈리던 것) */
   word-break: keep-all;
@@ -6175,4 +6179,16 @@ body.vscode-light .pg-field-balls {
 }
 .pg-guard-up.pg-full {
   color: var(--pg-sos-red);
+}
+
+/* 대기실 도전 버튼 끝 작은 칩 "3:3" / "1:1" (체육관 첫 알림 뒤 — gdd S16) · 앞 3px (0.25em 은 소수) · 못 하면 흐림 (.pg-button .pg-sub 가 .pg-dim 을 덮어 3:3 과 같던 것 — 픽셀 검사원 #27) */
+.pg-button .pg-sub.pg-lobby-mode {
+  margin-left: 3px;
+}
+.pg-button .pg-sub.pg-lobby-mode.pg-dim {
+  opacity: 0.45;
+}
+/* 대기실 바닥 관장 이름표가 위 상자에 깔리면 숨김 (이름은 상자 첫 줄에 — 240 × 150 에서 글자 위가 잘리던 것, 픽셀 검사원 #27) */
+.pg-foe-trainer .pg-nametag.pg-tag-under {
+  visibility: hidden;
 }
