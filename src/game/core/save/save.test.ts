@@ -264,6 +264,33 @@ describe('고정된 1판 세이브 표본 (src/test/fixtures/save-v1.json)', () 
   });
 });
 
+describe('고정된 3판 세이브 표본 (src/test/fixtures/save-v3.json — #30 세이브 4판 옮기기의 바탕, orders #43)', () => {
+  // 시뮬 (scripts/sim-mvp.ts) 로 숲 관장을 이긴 순간의 세이브 (꼬부기 · 5마리 · 라이벌 전적 · 처음 안내) + 2 · 3판 옵션 칸 (빨리 걷기 · 상처약 · 이미 잡은 종 건너뛰기 · 3:3 · 쌓아 둔 기술 고르기).
+  // 4판을 만들 때: 이 표본을 그대로 두고 "옮기면 같이 쓰는 칸 · 진행 칸이 그대로 + regions.order = ['forest']" 테스트를 더함 (dev-log #40)
+  const load = async () => (await import('../../../test/fixtures/save-v3.json')).default as unknown as Record<string, unknown>;
+
+  it('지금 코드로 고칠 것 없이 그대로 읽힘 (모든 칸 · 옵션 칸)', async () => {
+    const raw = await load();
+    expect(raw.version).toBe(3);
+    const r = readSave(viaJson(raw));
+    expect(r.kind).toBe('ok');
+    if (r.kind !== 'ok') return;
+    expect(r.problems).toEqual([]);
+    expect(viaJson(r.save)).toEqual(raw);
+    expect(r.save.badges).toEqual(['forest']);
+    expect(r.save.location).toEqual({ screen: 'gym' });
+    expect(r.save.settings.teamMode).toBe(true);
+    expect(r.save.laterChoices).toHaveLength(1);
+    expect(Object.keys(r.save.rivals ?? {}).length).toBeGreaterThan(0);
+    expect(validateSave(viaJson(raw))).toEqual({ ok: true, save: r.save, problems: [] });
+  });
+
+  it('옛 창 대비 — 판이 더 새 (4판) 이면 지금 코드는 읽지 않고 잠금 (newer)', async () => {
+    const raw = await load();
+    expect(readSave(viaJson({ ...raw, version: SAVE_VERSION + 1 }))).toEqual({ kind: 'newer', version: SAVE_VERSION + 1 });
+  });
+});
+
 describe('pendingChoices 검사 (단계 7 코드 리뷰어)', () => {
   it('toString 같은 이름 · 고친 열쇠 이름', async () => {
     const raw = (await import('../../../test/fixtures/save-v1.json')).default as Record<string, unknown>;

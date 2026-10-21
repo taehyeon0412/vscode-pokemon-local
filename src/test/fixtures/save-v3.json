@@ -1,0 +1,468 @@
+{
+  "version": 3,
+  "createdAt": 0,
+  "updatedAt": 0,
+  "playTimeMs": 5080100,
+  "player": {
+    "gender": "male"
+  },
+  "monsters": {
+    "m1": {
+      "uid": "m1",
+      "species": 7,
+      "form": "squirtle",
+      "level": 12,
+      "exp": 2051,
+      "ivs": {
+        "hp": 27,
+        "attack": 7,
+        "defense": 3,
+        "speed": 13,
+        "ultimate": 5
+      },
+      "points": {
+        "hp": 8,
+        "attack": 9,
+        "defense": 1,
+        "speed": 3,
+        "ultimate": 5
+      },
+      "unspentPoints": 2,
+      "moves": [
+        {
+          "moveId": 33,
+          "pp": 35
+        },
+        {
+          "moveId": 55,
+          "pp": 25
+        }
+      ],
+      "hp": 0,
+      "status": {
+        "kind": "paralysis"
+      },
+      "shiny": false,
+      "caughtAt": "starter"
+    },
+    "m2": {
+      "uid": "m2",
+      "species": 267,
+      "form": "beautifly",
+      "level": 19,
+      "exp": 7209,
+      "ivs": {
+        "hp": 10,
+        "attack": 8,
+        "defense": 21,
+        "speed": 3,
+        "ultimate": 0
+      },
+      "points": {
+        "hp": 22,
+        "attack": 25,
+        "defense": 7,
+        "speed": 2,
+        "ultimate": 8
+      },
+      "unspentPoints": 4,
+      "moves": [
+        {
+          "moveId": 33,
+          "pp": 32
+        },
+        {
+          "moveId": 40,
+          "pp": 34
+        },
+        {
+          "moveId": 318,
+          "pp": 1
+        },
+        {
+          "moveId": 71,
+          "pp": 25
+        }
+      ],
+      "hp": 34,
+      "status": {
+        "kind": "paralysis"
+      },
+      "shiny": false,
+      "caughtAt": "forest-1"
+    },
+    "m3": {
+      "uid": "m3",
+      "species": 43,
+      "form": "oddish",
+      "level": 16,
+      "exp": 4370,
+      "ivs": {
+        "hp": 25,
+        "attack": 2,
+        "defense": 5,
+        "speed": 30,
+        "ultimate": 30
+      },
+      "points": {
+        "hp": 15,
+        "attack": 19,
+        "defense": 7,
+        "speed": 3,
+        "ultimate": 6
+      },
+      "unspentPoints": 2,
+      "moves": [
+        {
+          "moveId": 71,
+          "pp": 25
+        },
+        {
+          "moveId": 51,
+          "pp": 30
+        },
+        {
+          "moveId": 77,
+          "pp": 35
+        },
+        {
+          "moveId": 78,
+          "pp": 30
+        }
+      ],
+      "hp": 66,
+      "status": null,
+      "shiny": false,
+      "caughtAt": "forest-1"
+    },
+    "m4": {
+      "uid": "m4",
+      "species": 313,
+      "form": "volbeat",
+      "level": 16,
+      "exp": 4773,
+      "ivs": {
+        "hp": 21,
+        "attack": 20,
+        "defense": 10,
+        "speed": 0,
+        "ultimate": 16
+      },
+      "points": {
+        "hp": 19,
+        "attack": 21,
+        "defense": 4,
+        "speed": 6,
+        "ultimate": 4
+      },
+      "unspentPoints": 2,
+      "moves": [
+        {
+          "moveId": 33,
+          "pp": 35
+        },
+        {
+          "moveId": 98,
+          "pp": 30
+        },
+        {
+          "moveId": 522,
+          "pp": 20
+        }
+      ],
+      "hp": 78,
+      "status": null,
+      "shiny": false,
+      "caughtAt": "forest-1"
+    },
+    "m5": {
+      "uid": "m5",
+      "species": 48,
+      "form": "venonat",
+      "level": 17,
+      "exp": 5546,
+      "ivs": {
+        "hp": 20,
+        "attack": 13,
+        "defense": 30,
+        "speed": 23,
+        "ultimate": 10
+      },
+      "points": {
+        "hp": 17,
+        "attack": 20,
+        "defense": 3,
+        "speed": 5,
+        "ultimate": 5
+      },
+      "unspentPoints": 2,
+      "moves": [
+        {
+          "moveId": 33,
+          "pp": 35
+        },
+        {
+          "moveId": 93,
+          "pp": 25
+        },
+        {
+          "moveId": 77,
+          "pp": 35
+        },
+        {
+          "moveId": 60,
+          "pp": 20
+        }
+      ],
+      "hp": 75,
+      "status": null,
+      "shiny": false,
+      "caughtAt": "forest-1"
+    }
+  },
+  "party": [
+    "m1",
+    "m2",
+    "m3",
+    "m4",
+    "m5"
+  ],
+  "box": [],
+  "nextMonsterUid": 6,
+  "bag": {
+    "poke-ball": 14,
+    "potion": 6,
+    "big-mushroom": 1,
+    "stardust": 3,
+    "moon-stone": 2,
+    "tiny-mushroom": 1,
+    "leaf-stone": 3,
+    "big-pearl": 1,
+    "nugget": 1,
+    "star-piece": 1,
+    "big-nugget": 1
+  },
+  "money": 4619,
+  "badges": [
+    "forest"
+  ],
+  "stages": {
+    "forest-1": {
+      "seed": 4006036606,
+      "progress": 0,
+      "cleared": true,
+      "defeatedTrainers": [
+        "forest-1:t0",
+        "forest-1:t1"
+      ],
+      "facilities": [
+        {
+          "kind": "hospital",
+          "at": 0.3711
+        },
+        {
+          "kind": "hospital",
+          "at": 0.431
+        },
+        {
+          "kind": "shop",
+          "at": 0.5001
+        },
+        {
+          "kind": "shop",
+          "at": 0.6063
+        }
+      ],
+      "run": {
+        "startMs": 1413500,
+        "caught": 0,
+        "trainers": 0,
+        "seen": [],
+        "reach": 0,
+        "retries": 0
+      }
+    },
+    "forest-2": {
+      "seed": 4029037021,
+      "progress": 0,
+      "cleared": true,
+      "defeatedTrainers": [
+        "forest-2:t0",
+        "forest-2:t1",
+        "forest-2:t2"
+      ],
+      "facilities": [
+        {
+          "kind": "hospital",
+          "at": 0.3636
+        },
+        {
+          "kind": "shop",
+          "at": 0.4231
+        },
+        {
+          "kind": "shop",
+          "at": 0.5135
+        },
+        {
+          "kind": "hospital",
+          "at": 0.6642
+        }
+      ],
+      "run": {
+        "startMs": 2680500,
+        "caught": 0,
+        "trainers": 0,
+        "seen": [],
+        "reach": 0,
+        "retries": 0
+      }
+    },
+    "forest-3": {
+      "seed": 4045531314,
+      "progress": 1,
+      "cleared": true,
+      "defeatedTrainers": [
+        "forest-3:t0",
+        "forest-3:t1",
+        "forest-3:t2"
+      ],
+      "facilities": [
+        {
+          "kind": "hospital",
+          "at": 0.4306
+        },
+        {
+          "kind": "shop",
+          "at": 0.4952
+        },
+        {
+          "kind": "shop",
+          "at": 0.6764
+        }
+      ],
+      "run": {
+        "startMs": 4014950,
+        "caught": 0,
+        "trainers": 0,
+        "seen": [
+          32,
+          137,
+          165,
+          213,
+          315,
+          427
+        ],
+        "reach": 0,
+        "retries": 0
+      }
+    }
+  },
+  "location": {
+    "screen": "gym"
+  },
+  "lastHospital": {
+    "stageId": "forest-3",
+    "at": 0.4306
+  },
+  "dex": {
+    "seen": [
+      7,
+      10,
+      11,
+      13,
+      32,
+      41,
+      43,
+      46,
+      48,
+      52,
+      69,
+      83,
+      92,
+      108,
+      137,
+      161,
+      165,
+      167,
+      183,
+      191,
+      193,
+      204,
+      206,
+      209,
+      213,
+      216,
+      263,
+      265,
+      266,
+      267,
+      270,
+      280,
+      290,
+      300,
+      313,
+      314,
+      315,
+      327,
+      345,
+      357,
+      412,
+      415,
+      420,
+      427,
+      451,
+      504,
+      542,
+      546,
+      548,
+      572,
+      585,
+      588
+    ],
+    "caught": [
+      7,
+      43,
+      48,
+      265,
+      266,
+      267,
+      313
+    ]
+  },
+  "pendingEncounter": null,
+  "pendingChoices": [],
+  "settings": {
+    "notifications": false,
+    "autoBattle": true,
+    "fastWalk": true,
+    "reduceMotion": false,
+    "autoPotion": true,
+    "skipCaughtLast": true,
+    "teamMode": true
+  },
+  "rivals": {
+    "blue": {
+      "wins": 0,
+      "losses": 1
+    },
+    "brendan": {
+      "wins": 1,
+      "losses": 0
+    }
+  },
+  "laterChoices": [
+    {
+      "kind": "learn",
+      "uid": "m2",
+      "moveId": 22
+    }
+  ],
+  "tips": [
+    "notify-off",
+    "auto-on",
+    "walk",
+    "last",
+    "gym-team"
+  ]
+}
