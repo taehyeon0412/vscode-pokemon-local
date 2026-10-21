@@ -614,6 +614,8 @@ function afterHits(b0: BattleState, save: Save): BattleState {
     // 이로치는 건너뛰지 않음 (코드 리뷰어)
     const skip = save.settings.skipCaughtLast === true && save.dex.caught.includes(b.foe.species) && !b.foe.shiny;
     if (b.kind === 'wild' && hasBall && !wiped && !skip) return { ...b, phase: 'last', lastMs: 0, msg: down };
+    // 같이 쓰러짐 (반동 · 독) = 진 것 — 트레이너전처럼 내 쪽도 말함 ("야생 ○○이 쓰러졌다!" 만 보이고 패배로 가던 것 — 기획 #25)
+    if (wiped) return { ...b, phase: 'over', result: 'lose', overMs: 0, msg: `${down} 내 포켓몬도 다 쓰러졌다… 눈앞이 깜깜해졌다` };
     return { ...b, phase: 'over', result: 'win', overMs: 0, msg: b.kind === 'wild' && !hasBall && !wiped ? `${down} (볼이 없어 잡을 수 없어요)` : down };
   }
   const b = b0;

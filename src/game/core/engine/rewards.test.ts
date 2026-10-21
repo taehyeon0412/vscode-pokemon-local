@@ -279,7 +279,9 @@ describe('단계 7 검토에서 고친 것 (bugs #136 ~)', () => {
     const both = { ...myTurn(b0), me: { ...b0.me, hp: 1, status: { kind: 'poison' as const } }, foe: { ...b0.foe, hp: 1 } };
     const end = run(battleInput(both, save, { kind: 'act', action: { kind: 'attack' } }, fixedRng(0.5)), save, TIMING.attackAnimMs, fixedRng(0.5));
     expect(end.me.hp).toBe(0);
-    expect([end.phase, end.result]).toEqual(['over', 'win']);
+    // 같이 쓰러짐 = 진 것 · 내 쪽도 말함 (기획 #25 — 트레이너전과 같게)
+    expect([end.phase, end.result]).toEqual(['over', 'lose']);
+    expect(end.msg).toContain('내 포켓몬도 다 쓰러졌다');
   });
 
   it('볼이 없으면 "볼이 없어 잡을 수 없어요" (mvp-spec S11 [제안])', () => {

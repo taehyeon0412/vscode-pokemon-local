@@ -14,6 +14,8 @@ export {
   defeatWaits,
   isWaitingForInput,
   stageUnlocked,
+  teamChoiceMeet,
+  teamFoesOf,
   teamLock,
   teamPickOf,
   walkLeftMs,

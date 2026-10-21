@@ -72,7 +72,8 @@ export function foeWarn(b: TeamBattle, slot: number): { full: boolean; pct: numb
 
 /** 무대 가운데 위 안내 — 끼어들기 (상대 필살기 창) · 합동 멘트 (내 필살기에 같은 편 모임) · 연타 (필살기 힘겨루기) · 3:1 / 1:3 */
 export type TeamPrompt =
-  | { kind: 'join'; keys: number[]; left: number }
+  /** 끼어들기 — me : foe = 머릿수 (받아치면 힘겨루기) · sure = 1:3 이면 'foe' (받아치면 짐) · foeJoint = 상대가 합동으로 모이는 중 ("상대 합동!") */
+  | { kind: 'join'; keys: number[]; left: number; me: number; foe: number; sure: Side | null; foeJoint: boolean }
   | { kind: 'gather'; who: { key: number; name: string }[]; left: number }
   | { kind: 'mash'; sure: Side | null; me: number; foe: number }
   | null;
@@ -84,7 +85,12 @@ export function teamPrompt(b: TeamBattle): TeamPrompt {
     if (g && g.side === 'me') {
       return { kind: 'gather', who: g.can.map((i) => ({ key: i + 1, name: speciesOf(b.me[i]!.species)?.name.ko ?? '' })), left: Math.max(0, g.leftMs / g.totalMs) };
     }
-    if (b.ult.side === 'foe' && b.ult.window > 0 && !b.ult.hit && keys.length > 0) return { kind: 'join', keys: keys.map((i) => i + 1), left: Math.max(0, b.ult.window / TIMING.team.interruptMs) };
+    if (b.ult.side === 'foe' && b.ult.window > 0 && !b.ult.hit && keys.length > 0) {
+      // 막대 = 실제 창 (상대 합동 멘트면 1.5초) 대로 (U2 — 1.2초로 셈하던 것, 기획 #24) · 머릿수 = 나 1 : 상대 (쓴 포켓몬 + 모인 동료)
+      const foe = 1 + (b.ult.team?.length ?? 0);
+      const total = b.ult.windowMs ?? TIMING.team.interruptMs;
+      return { kind: 'join', keys: keys.map((i) => i + 1), left: Math.max(0, Math.min(1, b.ult.window / total)), me: 1, foe, sure: teamClashSure({ me: [0], foe: Array.from({ length: foe }, (_, i) => i) }), foeJoint: (b.ult.gather ?? 0) > 0 };
+    }
   }
   if (b.phase === 'clash' && b.clash?.kind === 'ult') return { kind: 'mash', sure: teamClashSure(b.clash), me: b.clash.me.length, foe: b.clash.foe.length };
   return null;

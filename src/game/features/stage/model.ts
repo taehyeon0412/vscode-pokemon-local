@@ -3,7 +3,7 @@
  * 주인공은 제자리걸음, 배경 · 길 위의 것들이 오른쪽 → 왼쪽으로 흐름 (gdd S06 ③).
  */
 import { BALANCE, TIMING } from '../../core/balance';
-import { teamViewKey, type BattleState, type GameState } from '../../core/engine';
+import { teamChoiceMeet, teamViewKey, type BattleState, type GameState } from '../../core/engine';
 import { planWild, sceneryAt, type Scenery, type WildPlan } from '../../core/rules/encounter';
 import { requestAt, type RequestTemplate } from '../../core/rules/request';
 import { stageLayout, trainerId } from '../../core/rules/stage';
@@ -298,7 +298,7 @@ export function stageViewKey(state: GameState): string {
     st?.phase === 'clear' && state.save.settings.autoBattle ? Math.ceil((TIMING.clearAutoMs - (st.ms ?? 0)) / 1000) : '',
     // 병원 · 상점 앞: 남은 초 · 들어감 / 트레이너: "!" → "승부다!" / 패배 · 클리어 · 대기실 · 배지는 그대로
     st?.phase === 'facility' ? `${st.inside}:${Math.ceil((TIMING.facilityPromptMs - st.ms) / 1000)}` : '',
-    st?.phase === 'trainer' ? `${st.n}:${st.ms >= TIMING.trainerAlertMs}:${st.ms >= vsStartMs('trainer')}` : '',
+    st?.phase === 'trainer' ? `${st.n}:${st.ms >= TIMING.trainerAlertMs}:${st.ms >= meetVsAt(state)}:${st.vsAt ?? ''}` : '',
     // 3:3 고르기 막대 (만남 4초 · 3마리 고르기 10초) — 0.25초마다 (빠지면 막대가 꽉 찬 채 멈춰 있다 갑자기 줄었음 — 코드 리뷰어, 다시 그리는 열쇠 세 번째)
     st?.phase === 'trainer' && teamChoiceOn(state) ? `${Math.floor(st.ms / 250)}:${Math.floor((st.pickMs ?? 0) / 250)}` : '',
     st?.phase === 'rival' ? `${st.rival}:${st.ms >= TIMING.trainerAlertMs}:${st.ms >= vsStartMs('rival')}` : '',
@@ -314,9 +314,15 @@ export function stageViewKey(state: GameState): string {
 }
 
 /** VS 컷인 길이 · 시작 — 만남 단계 끝 2초 ("승부다!" 띠 다음, 2026-10-20 태현 님 B안 · "휙 지나가 읽지도 못해" 0.8 → 2초) · 클릭 · Space · Enter 로 바로 넘김 */
-export const VS_MS = 2000;
+export const VS_MS = TIMING.vsMs;
 export function vsStartMs(phase: 'trainer' | 'rival'): number {
   return (phase === 'rival' ? TIMING.rivalMeetMs : TIMING.trainerMeetMs) - VS_MS;
+}
+/** 지금 만남의 VS 시작 ms — 3:3 을 고를 수 있는 만남은 고른 때 (stage.vsAt, 아직이면 Infinity), 그 밖은 만남 끝 2초 전 */
+export function meetVsAt(state: GameState): number {
+  const st = state.runtime.stage;
+  if (st?.phase === 'trainer' && teamChoiceMeet(state)) return st.vsAt ?? Infinity;
+  return vsStartMs(st?.phase === 'rival' ? 'rival' : 'trainer');
 }
 
 /**

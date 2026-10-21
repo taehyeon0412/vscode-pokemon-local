@@ -168,7 +168,12 @@ describe('연결 — 트레이너 만남 · 관장전 (BALANCE.team.on 이 켜�
     const s = createGameState({ ...save, pendingEncounter: { kind: 'trainer', trainerId: 'forest-1:t0', stageId: 'forest-1' } }, 3);
     return { ...s, runtime: { ...s.runtime, stage: { phase: 'trainer', n: 0, ms: TIMING.trainerMeetMs - STEP, ...(team === undefined ? {} : { team }) }, stageId: 'forest-1' } };
   };
-  const phaseAfter = (s: GameState) => step(s, STEP).state.runtime.stage?.phase;
+  // 3:3 을 고를 수 있는 만남은 고른 때 (시간 끝 · Space) VS 2초 뒤 전투 — 그만큼 걸어 봄
+  const phaseAfter = (s: GameState) => {
+    let cur = s;
+    for (let t = 0; t < TIMING.vsMs + STEP * 3; t += STEP) cur = step(cur, STEP).state;
+    return cur.runtime.stage?.phase;
+  };
   const auto = (save: Save): Save => ({ ...save, settings: { ...save.settings, autoBattle: true } });
   /** 지난번에 3:3 을 고름 */
   const remembered = (save: Save): Save => ({ ...save, settings: { ...save.settings, teamMode: true } });
@@ -225,7 +230,8 @@ describe('연결 — 트레이너 만남 · 관장전 (BALANCE.team.on 이 켜�
     setOn(true);
     try {
       const lose = (save: Save) => {
-        let s = step(meet(remembered(save)), STEP).state;
+        let s = meet(remembered(save));
+        for (let t = 0; t < TIMING.vsMs + STEP * 3 && s.runtime.stage?.phase === 'trainer'; t += STEP) s = step(s, STEP).state;
         const st = s.runtime.stage;
         if (st?.phase !== 'team') throw new Error('3:3 아님');
         s = { ...s, runtime: { ...s.runtime, stage: { phase: 'team', team: { ...st.team, me: st.team.me.map((f) => ({ ...f, hp: 0 })) } } } };
@@ -433,7 +439,9 @@ describe('#17 준비 — 배율 · 잠금 · 3마리 고르기 · 필살기 예�
     expect(teamScale(null)).toBe(2);
     expect(teamScale({ w: 239, h: 187 })).toBe(0);
     expect(teamScale({ w: 240, h: 187 })).toBe(1);
-    expect(teamScale({ w: 479, h: 400 })).toBe(1);
+    // 폭 400 ~ 479 는 높이와 상관없이 ×2 한 줄 (기획 #24 — ×1 비스듬히는 #85 에서 버린 모양)
+    expect([teamScale({ w: 479, h: 400 }), teamLayout({ w: 479, h: 400 })]).toEqual([2, 'row']);
+    expect([teamScale({ w: 399, h: 400 }), teamLayout({ w: 399, h: 400 })]).toEqual([1, 'slant']);
     expect(teamScale({ w: 480, h: 187 })).toBe(2);
     expect(teamScale({ w: 1860, h: 299 })).toBe(2);
     expect(teamScale({ w: 720, h: 300 })).toBe(3);
@@ -454,7 +462,7 @@ describe('#17 준비 — 배율 · 잠금 · 3마리 고르기 · 필살기 예�
       expect(teamLock(meet(five(), { w: 860, h: 187 }))).toBeNull();
       expect(applyInput(s, { kind: 'team-mode', on: true })).toBe(s);
       const remembered = meet({ ...five(), settings: { ...five().settings, teamMode: true } }, narrow);
-      expect(steps(remembered, TIMING.trainerMeetMs).runtime.stage?.phase).toBe('battle');
+      expect(steps(remembered, TIMING.teamChoiceMs + TIMING.vsMs + STEP * 2).runtime.stage?.phase).toBe('battle');
       const lobby = createGameState({ ...five(), location: { screen: 'gym' } }, 3);
       const l = { ...lobby, runtime: { ...lobby.runtime, stage: { phase: 'lobby' as const }, stageId: null, view: narrow } };
       expect(applyInput(l, { kind: 'challenge' }).runtime.stage?.phase).toBe('battle');
@@ -484,17 +492,18 @@ describe('#17 준비 — 배율 · 잠금 · 3마리 고르기 · 필살기 예�
       // 만남이 끝나도 기다림 → Enter (Space) = 바로 · 10초 = 저절로
       const held = steps(swapped, TIMING.trainerMeetMs + 1000);
       expect(held.runtime.stage?.phase).toBe('trainer');
-      const go = step(applyInput(held, { kind: 'space' }), STEP).state;
+      // Enter = 그때 VS (2초) → 3:3
+      const go = steps(applyInput(held, { kind: 'space' }), TIMING.vsMs + STEP);
       expect(go.runtime.stage?.phase).toBe('team');
       expect(go.runtime.stage?.phase === 'team' && [...go.runtime.stage.team.fought].sort()).toEqual([...first.slice(1), other].sort());
-      // 10초는 VS 가 끝난 뒤부터 (UX 리뷰어)
-      expect(steps(swapped, TIMING.trainerMeetMs - TIMING.trainerAlertMs + TIMING.teamPickAutoMs + STEP * 2).runtime.stage?.phase).toBe('team');
+      // 10초 = 저절로 시작 → VS 2초 → 3:3 (3마리 고르기는 VS 전 — 디자인팀 4안)
+      expect(steps(swapped, TIMING.teamPickAutoMs + TIMING.vsMs + STEP * 2).runtime.stage?.phase).toBe('team');
       // 하나만 빼고 바로 시작 — 뺀 포켓몬 말고 다음 포켓몬으로 채움 (코드 리뷰어)
-      const quick = step(applyInput(out, { kind: 'space' }), STEP).state;
+      const quick = steps(applyInput(out, { kind: 'space' }), TIMING.vsMs + STEP);
       expect(quick.runtime.stage?.phase === 'team' && quick.runtime.stage.team.fought.includes(first[0]!)).toBe(false);
       // 고르는 중에 패널이 좁아지면 기다리지 않고 1:1
       const narrow = { ...swapped, runtime: { ...swapped.runtime, view: { w: 200, h: 187 } } };
-      expect(steps(narrow, TIMING.trainerMeetMs).runtime.stage?.phase).toBe('battle');
+      expect(steps(narrow, TIMING.teamChoiceMs + TIMING.vsMs + STEP * 2).runtime.stage?.phase).toBe('battle');
       const auto = applyInput(meet({ ...five(), settings: { ...five().settings, autoBattle: true } }), { kind: 'team-mode', on: true });
       expect(steps(auto, TIMING.trainerMeetMs).runtime.stage?.phase).toBe('team');
       // 다시 읽어도 고르기가 남음 · 1:1 로 바꾸면 고르기를 닫음

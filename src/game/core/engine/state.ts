@@ -35,7 +35,8 @@ export type StageRuntime =
   | { phase: 'appear'; ms: number; isNew: boolean }
   /** team = 3:3 으로 (고른 것 — 없으면 자동 전투 · 안 볼 때 3:3, 아니면 1:1 — 2026-10-21 orders #17) */
   /** team = 고른 방식 · pick = 3:3 을 손으로 고르면 3마리 고르기 (미리 체크된 셋에서 바꿈) · pickMs = 고르기가 열린 뒤 (늦어도 teamPickAutoMs 뒤 시작) */
-  | { phase: 'trainer'; n: number; ms: number; team?: boolean; pick?: string[]; pickMs?: number }
+  /** vsAt = VS 를 시작한 ms (3:3 을 고를 수 있는 만남 — 고른 때 · 시간 끝, 없으면 아직 고르는 중) */
+  | { phase: 'trainer'; n: number; ms: number; team?: boolean; pick?: string[]; pickMs?: number; vsAt?: number }
   /** 라이벌 깜짝 등장 (gdd 4.12) — rival = 주인공 id, "!" → 띠 → 전투 */
   | { phase: 'rival'; rival: string; ms: number }
   | { phase: 'battle'; battle: BattleState }
@@ -181,6 +182,7 @@ function readStage(raw: unknown): StageRuntime | null {
         ms,
         ...(typeof raw.team === 'boolean' ? { team: raw.team } : {}),
         ...(raw.team === true && okPick(raw.pick) ? { pick: raw.pick, ...(pickMs !== null ? { pickMs } : {}) } : {}),
+        ...(num(raw.vsAt, 0, 1e9) !== null ? { vsAt: raw.vsAt as number } : {}),
       };
     }
     case 'rival':

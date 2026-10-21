@@ -40,7 +40,7 @@ import { menuLabels, type Overlay, unspentPoints } from '../../menu/model';
 import { ChoiceBox } from '../../result/components/ChoiceBox';
 import { ResultBox } from '../../result/components/ResultBox';
 import { CAUGHT_INTRO_H, CAUGHT_INTRO_W, caughtView, choiceView, levelUps, needsStatHint } from '../../result/model';
-import { battleStage, buildingDraw, BUILDINGS, contactX, foeTrainerView, gymEnterView, gymFrontX, gymRestX, heroX, minimapOf, staffLeftPx, type StageObject, stagePx, STAGES, visibleObjects, vsStartMs, WALK_PX_PER_SEC } from '../model';
+import { battleStage, buildingDraw, BUILDINGS, contactX, foeTrainerView, gymEnterView, gymFrontX, gymRestX, heroX, minimapOf, staffLeftPx, type StageObject, stagePx, STAGES, visibleObjects, meetVsAt, vsStartMs, WALK_PX_PER_SEC } from '../model';
 import { BadgeCard, ClearCard, DefeatBox, FacilityBox, LobbyBox, TrainerBanner, VsCutIn, type VsArt } from './FieldBoxes';
 import { GymFront } from './GymFront';
 import { StageToast } from './StageToast';
@@ -197,7 +197,9 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   const foeTrainer = foeTrainerView(state);
   // VS 컷인 중 — 길 위 상대 이름표는 숨김 (컷인 띠에 같은 이름이 있고, 반투명 덮개 너머로 대결 그림과 겹쳐 보임)
   // VS 는 만남 끝까지 — 3마리 고르기로 만남이 멈춰 있으면 (ms = 끝) 숨김 (고르기 줄 뒤에 계속 깔리던 것 — UX 리뷰어)
-  const vsOn = (stageRt?.phase === 'trainer' || stageRt?.phase === 'rival') && stageRt.ms >= vsStartMs(stageRt.phase) && !(stageRt.phase === 'trainer' && stageRt.pick && stageRt.ms >= TIMING.trainerMeetMs);
+  // VS = 만남 끝 2초 · 3:3 을 고를 수 있는 만남은 고른 때부터 2초 (meetVsAt — 디자인팀 4안)
+  const vsAt = meetVsAt(state);
+  const vsOn = (stageRt?.phase === 'trainer' || stageRt?.phase === 'rival') && stageRt.ms >= vsAt;
   // 전투 · 관장 · 라이벌은 무대 안에서 (넓은 패널은 720px 무대 — battleStage), 자리는 무대 안에서 재고 패널 자리로 옮김
   const stage = battleStage(widthPx);
   const geoAt = (topPx: number) =>
@@ -379,10 +381,10 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
           <div class="pg-gym-wipe" style={{ '--pg-wipe': String(gymEnter.wipe) }} />
         )}
         <EncounterBox state={state} />
-        {stageRt?.phase === 'trainer' && foeTrainer?.talking && stageRt.ms < vsStartMs('trainer') && <TrainerBanner name={foeTrainer.name} balls={foeTrainer.balls} media={media} look={foeTrainer.look} />}
+        {stageRt?.phase === 'trainer' && foeTrainer?.talking && stageRt.ms < vsAt && <TrainerBanner name={foeTrainer.name} balls={foeTrainer.balls} media={media} look={foeTrainer.look} />}
         {/* VS 컷인 — 만남 단계 끝 2초 (트레이너 · 라이벌, VS_MS) */}
         {vsOn && foeTrainer && (
-          <VsCutIn me={look.label} myBalls={save.party.map((uid) => (save.monsters[uid]?.hp ?? 0) > 0)} foe={foeTrainer.name} foeBalls={foeTrainer.balls} tag={foeTrainer.record} at={stageRt.ms - vsStartMs(stageRt.phase)} meArt={vsArt(media, look.dir ?? look.id)} foeArt={vsArt(media, foeTrainer.look)} />
+          <VsCutIn me={look.label} myBalls={save.party.map((uid) => (save.monsters[uid]?.hp ?? 0) > 0)} foe={foeTrainer.name} foeBalls={foeTrainer.balls} tag={foeTrainer.record} at={stageRt.ms - vsAt} meArt={vsArt(media, look.dir ?? look.id)} foeArt={vsArt(media, foeTrainer.look)} />
         )}
         {stageRt?.phase === 'rival' && foeTrainer?.talking && stageRt.ms < vsStartMs('rival') && (
           <TrainerBanner name={foeTrainer.name} balls={foeTrainer.balls} text={`${josaOf(foeTrainer.name, '이/가')} 승부를 걸어왔다!`} tag={foeTrainer.record ?? ''} media={media} look={foeTrainer.look} />

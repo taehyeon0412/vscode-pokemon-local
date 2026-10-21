@@ -134,6 +134,8 @@ function decide(s: GameState, mem: { resultMs: number; lostGymOnce: boolean; gri
         return applyInput(s, { kind: 'learn', replace: better ? weakest : null });
       }
       if (c?.kind === 'evolve') {
+        // "어…? ○○의 모습이…!" 에서 기다림 (ms < 0) — 보기를 눌러 진화 시작 (ideas #33 — 빠지면 판이 여기서 멈춤, 기획 #25)
+        if (st.ms < 0) return applyInput(s, { kind: 'evolve-watch' });
         if (st.ms < TIMING.evolveAnimMs) return applyInput(s, { kind: 'evolve-skip' });
         const m = save.monsters[c.uid];
         // 남길 수 = 4 - 새 기술 수 (엔진 keepCount 와 같은 어림) — 다 넘기면 엔진이 지금 기술 순서대로 앞에서부터 남김

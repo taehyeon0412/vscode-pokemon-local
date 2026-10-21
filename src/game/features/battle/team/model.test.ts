@@ -36,6 +36,7 @@ describe('3:3 자리 (디자인팀 4안 시안 geo 그대로)', () => {
 describe('트레이너 만남 1:1 / 3:3 고르기 · 3마리 고르기 (개발 모드 3:3 미리 켜기)', () => {
   it('3 → 3마리 고르기 (상성 좋은 셋 미리 체크) → 넣고 빼기 → Enter 로 3:3 · 3:3 꺼져 있으면 고르기 칸 없음', async () => {
     const { createGameState, applyInput, advance } = await import('../../../core/engine');
+    const { TIMING } = await import('../../../core/balance');
     const { createStartSave } = await import('../../starter/model');
     const { devState } = await import('../../../dev/demo');
     const { devApply } = await import('../../../dev/actions');
@@ -53,8 +54,9 @@ describe('트레이너 만남 1:1 / 3:3 고르기 · 3마리 고르기 (개발 �
     s = applyInput(s, { kind: 'team-pick', uid: s.save.party[0]! });
     const st2 = s.runtime.stage;
     expect(st2?.phase === 'trainer' && st2.pick).toHaveLength(2);
+    // Enter = 그때 VS 2초 → 3:3
     s = applyInput(s, { kind: 'space' });
-    s = advance(s, 100).state;
+    s = advance(s, TIMING.vsMs + 100).state;
     expect(s.runtime.stage?.phase).toBe('team');
     const off = devApply(s, { kind: 'team', on: false }).state;
     expect(teamChoiceOn({ ...off, runtime: { ...off.runtime, stage: { phase: 'trainer', n: 0, ms: 1000 } } })).toBe(false);

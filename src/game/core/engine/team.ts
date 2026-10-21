@@ -61,6 +61,8 @@ export interface TeamUlt {
   hitMs: number;
   hit: boolean;
   window: number;
+  /** 끼어들 수 있는 창의 처음 길이 (ms — 화면 막대, 옛 상태엔 없음: 합동 멘트면 gatherMs · 아니면 interruptMs) */
+  windowMs?: number;
   /** 상대 AI 가 끼어들 때 (ms, null = 안 끼어듦) · 끼어들 포켓몬 */
   joinAt: number | null;
   joiners: number[];
@@ -511,6 +513,7 @@ function startUlt(b: TeamBattle, side: Side, slot: number, rng: Rng): void {
   b.ult = {
     side,
     from: slot,
+    windowMs: window,
     ms: 0,
     dur: TIMING.ultAnimMs,
     hitMs: Math.round(TIMING.ultAnimMs * 0.6),
@@ -683,10 +686,13 @@ export function teamScale(view: { w: number; h: number } | null | undefined): 0 
   return view.w >= unitW ? 1 : 0;
 }
 
-/** 여섯을 세우는 모양 — row = 가장 낮은 패널 (높이 150 ~ 169 · 폭 400 부터) 은 ×2 로 한 줄 (#85 A — 빛줄기는 머리 위 · 안내는 내 편 위, 디자인팀) · slant = 비스듬히 세 줄 */
+/**
+ * 여섯을 세우는 모양 — row = ×2 로 한 줄: 가장 낮은 패널 (높이 150 ~ 169 · 폭 400 부터, #85 A) · 폭 400 ~ 479 (×2 비스듬히가 안 들어감 — 높이와 상관없이, 기획 #24: #85 에서 버린 ×1 비스듬히 대신) ·
+ * slant = 비스듬히 세 줄. 빛줄기는 머리 위 · 안내는 내 편 위 (디자인팀)
+ */
 export function teamLayout(view: { w: number; h: number } | null | undefined): 'row' | 'slant' {
-  const { rowMinW, rowMaxH } = BALANCE.team.view;
-  return view && view.h < rowMaxH && view.w >= rowMinW ? 'row' : 'slant';
+  const { rowMinW, rowMaxH, unitW } = BALANCE.team.view;
+  return view && view.w >= rowMinW && (view.h < rowMaxH || view.w < unitW * 2) ? 'row' : 'slant';
 }
 
 /** 지금 그 칸 필살기를 쓸 · 끼어들 · 합류할 수 있는지 (화면이 아이콘을 밝게) */
@@ -947,7 +953,7 @@ export function readTeam(raw: unknown): TeamBattle | null {
   const u = raw.ult;
   const okJoint = (j: unknown, side: Side) => isObj(j) && slots(j.winners, side, 1) && slots(j.losers, other(side), 1) && typeof j.sure === 'boolean' && (j.spread === undefined || typeof j.spread === 'boolean');
   const okUlt = (x: Obj) =>
-    isSide(x.side) && slot(x.from, x.side) && fin(x.ms, 0) && fin(x.dur, 1) && fin(x.hitMs, 0) && typeof x.hit === 'boolean' && fin(x.window, 0) && (x.joinAt === null || fin(x.joinAt, 0)) && slots(x.joiners, other(x.side)) &&
+    isSide(x.side) && slot(x.from, x.side) && fin(x.ms, 0) && fin(x.dur, 1) && fin(x.hitMs, 0) && typeof x.hit === 'boolean' && fin(x.window, 0) && (x.windowMs === undefined || fin(x.windowMs, 1)) && (x.joinAt === null || fin(x.joinAt, 0)) && slots(x.joiners, other(x.side)) &&
     (x.joint === undefined || okJoint(x.joint, x.side)) &&
     (x.gather === undefined || fin(x.gather, 0, 60_000)) && (x.team === undefined || slots(x.team, x.side)) &&
     (x.allyAt === undefined || (Array.isArray(x.allyAt) && x.allyAt.every((j) => isObj(j) && slot(j.slot, x.side as Side) && fin(j.at, 0))));
