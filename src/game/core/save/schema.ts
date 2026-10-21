@@ -9,7 +9,8 @@
  *   (설치 뒤 다시 로드 안 한 옛 창이 새 칸을 지우지 못함 — save-store lock). 판 올리기는 "파일 읽기" 만 막음 —
  *   설치 직후 "옛 확장 + 새 웹뷰" 는 웹뷰가 판이 다른 상태를 계산하지 않고 넘겨서 막음 (webview-session start).
  */
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
+// 2 → 3 (2026-10-21 orders #17): settings.teamMode (옵션) — 옛 2판 창이 지우지 못하게 판만 올림
 // 1 → 2 (2026-10-21 orders #15): 칸은 1판 + 옵션 칸 (settings.autoPotion · skipCaughtLast · laterChoices · tips · 새 물건 id · run.candy · boost) — 옛 1판 창이 이 세이브를 지우지 못하게 판만 올림
 
 /** 스탯 5개 (mvp-spec 3.5): HP · 공격 · 방어 · 스피드 · 필살 */
@@ -150,9 +151,9 @@ export interface LastHospital {
   at: number;
 }
 
-export interface SaveV2 {
-  /** 2 = 1판과 같은 칸 + 옵션 칸 (orders #15) */
-  version: 2;
+export interface SaveV3 {
+  /** 2 = 1판과 같은 칸 + 옵션 칸 (orders #15) · 3 = + settings.teamMode (orders #17) */
+  version: 3;
   createdAt: number;
   updatedAt: number;
   playTimeMs: number;
@@ -189,6 +190,8 @@ export interface SaveV2 {
     autoPotion?: boolean;
     /** 이미 잡은 종은 마지막 기회 (볼) 를 건너뜀 (없으면 꺼짐 — ideas #35) */
     skipCaughtLast?: boolean;
+    /** 트레이너를 만났을 때 마지막으로 고른 방식 — true = 3:3 (없으면 1:1, 2026-10-21 orders #17) */
+    teamMode?: boolean;
   };
   /** 라이벌 전적 (gdd 4.12) — 주인공 id → 내가 이긴 수 · 진 수. 처음 만나기 전 (옛 세이브 포함) 엔 칸이 없음 — 없는 칸을 만들면 옛 세이브가 "고친 세이브" 로 다시 써짐 */
   rivals?: Record<string, { wins: number; losses: number }>;
@@ -199,4 +202,4 @@ export interface SaveV2 {
 }
 
 /** 지금 버전의 세이브 */
-export type Save = SaveV2;
+export type Save = SaveV3;

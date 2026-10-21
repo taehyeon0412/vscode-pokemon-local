@@ -1071,7 +1071,7 @@ const ACTIONS = ['attack', 'move', 'guard', 'item', 'switch', 'flee', 'ult', 'sk
 const PARRY_GRADES = ['perfect', 'good', 'early', 'late'];
 const STATUS = ['poison', 'burn', 'paralysis', 'sleep'];
 // 옛 세이브의 'info' 는 그대로 통과 — 새 종류는 2026-10-20 (화면이 숫자 크기 · 말 칸으로 나눔)
-const POPUP_KINDS = ['damage', 'heal', 'info', 'super', 'weak', 'immune', 'crit', 'miss', 'parry', 'status'];
+export const POPUP_KINDS = ['damage', 'heal', 'info', 'super', 'weak', 'immune', 'crit', 'miss', 'parry', 'status'];
 const STARTS = ['preemptive', 'normal', 'ambush'];
 
 function okStatus(st: unknown): boolean {
@@ -1084,7 +1084,7 @@ function okMoves(moves: unknown): boolean {
   return Array.isArray(moves) && moves.length <= BALANCE.moveSlots && moves.every((m) => isObj(m) && fin(m.moveId, 1, 100000) && fin(m.pp, 0, 100));
 }
 
-function okFighter(f: unknown): boolean {
+export function okFighter(f: unknown): boolean {
   if (!isObj(f)) return false;
   const s = f.stats;
   return (

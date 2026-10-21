@@ -30,7 +30,7 @@ describe('웹뷰 세션', () => {
   it('판이 다른 세이브 (설치 뒤 다시 로드 전 — 옛 확장 + 새 웹뷰) 는 맡지 않고 load-failed 로 넘김 (2026-10-21 코드 리뷰어)', () => {
     const { s, sent, frames } = make();
     const old = start(5);
-    s.handleMessage({ ...old, state: { ...old.state, save: { ...old.state.save, version: 1 as unknown as 2 } } });
+    s.handleMessage({ ...old, state: { ...old.state, save: { ...old.state.save, version: 1 as never } } });
     frames(2000);
     expect(s.running).toBe(false);
     expect(sent).toHaveLength(1);

@@ -49,7 +49,7 @@
     document.body.classList.add(theme === 'light' ? 'vscode-light' : 'vscode-dark');
 
     const save = {
-        version: 2, createdAt: 0, updatedAt: 0, playTimeMs: 754000, player: null,
+        version: 3, createdAt: 0, updatedAt: 0, playTimeMs: 754000, player: null,
         monsters: { m1: { uid: 'm1', species: 1, form: 'bulbasaur', level: 5, exp: 125, ivs: { hp: 1, attack: 1, defense: 1, speed: 1, ultimate: 1 },
             points: { hp: 0, attack: 0, defense: 0, speed: 0, ultimate: 0 }, unspentPoints: 0, moves: [{ moveId: 33, pp: 35 }], hp: 20, status: null, shiny: false, caughtAt: 'starter' } },
         party: ['m1'], box: [], nextMonsterUid: 2, bag: { 'poke-ball': 3 }, money: 1000, badges: [],

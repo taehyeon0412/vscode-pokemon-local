@@ -246,7 +246,7 @@ if (!port) {
     const loc = session.current?.save.location;
     // 버튼에 포커스가 있으면 Enter · Space 는 그 버튼이 받음 (Tab 으로 [지나간다] 에 두고 Enter)
     const onButton = e.target instanceof HTMLButtonElement;
-    if (e.code === 'Space' && !(onButton && phase !== 'appear' && phase !== 'battle')) {
+    if (e.code === 'Space' && !(onButton && phase !== 'appear' && phase !== 'battle' && phase !== 'team')) {
       e.preventDefault(); // 화면이 스크롤되지 않게
       // 전투 중에는 방금 누른 메뉴 버튼에 포커스가 남아 있어도 Space 는 게임으로 (버튼이 또 눌리지 않게 포커스를 뺌)
       if (onButton) e.target.blur();

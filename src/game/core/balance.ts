@@ -92,7 +92,7 @@ export const BALANCE = {
    * 3:3 실시간 팀 배틀 (다음 버전 5단계 — gdd 4.7 끝, 2026-10-21 orders #17) — 숫자는 모두 [임시값] (시뮬로 한 판 1분 안팎에 맞춤).
    * on = 게임에서 켬 (화면 · 연출이 생길 때까지 꺼 둠 — 모양은 디자인팀이 정하는 중) · size = 한쪽 마리 수 · ultGainScale = 필살기 게이지가 1:1 의 몇 배로 참 ·
    * interruptChance = 상대 AI 가 내 필살기에 끼어드는 확률 (트레이너 가끔 · 관장 자주) · spreadScale = 범위 기술 · 필살기가 여럿을 칠 때 ·
-   * statusWeight = 변화 기술 총점수 · moneyScale = 돈 · ultJoinBonus = 힘겨루기 이긴 쪽 더 합류한 마리마다 · damageScale = 피해 배율
+   * statusWeight = 변화 기술 총점수 · moneyScale = 트레이너전 돈 (관장 돈은 그대로) · damageScale = 피해 배율
    */
   team: {
     on: false,
@@ -102,7 +102,6 @@ export const BALANCE = {
     spreadScale: 0.75,
     statusWeight: 0.3,
     moneyScale: 1.5,
-    ultJoinBonus: 0.25,
     damageScale: 0.2,
     /** 행동 게이지가 1:1 보다 이만큼 느리게 (6마리가 겹쳐 치니) */
     gaugeScale: 1.4,
@@ -326,8 +325,11 @@ export const TIMING = {
   parryShowMs: 1400,
   /** 같은 전투 두 번째 완벽 패링부터 — 쳐올리기를 짧게 (2026-10-21 ideas #127 — 두 번째 필살기를 짧게 하는 규칙과 같게) [제안] */
   parryShowRepeatMs: 1000,
-  /** 3:3 (orders #17) — 기술 연출 · 기술 힘겨루기 (자동, 연타 없음) · 필살기 힘겨루기 (연타) · 상대 필살기에 끼어들 수 있는 창 ("1 끼어들기" 1초 넘게 — U1) [임시값] */
-  team: { moveMs: 900, moveClashMs: 1500, ultClashMs: 3000, interruptMs: 1200 },
+  /**
+   * 3:3 (orders #17) — 기술 연출 · 기술 힘겨루기 (자동, 연타 없음) · 필살기 힘겨루기 (연타) · 상대 필살기에 끼어들 수 있는 창 ("1 끼어들기" 1초 넘게 — U1) [임시값]
+   * maxMs = 한 판 상한 — 넘으면 남은 HP 비율로 판정 (끝나지 않는 판을 막는 안전망, 보통 30 ~ 60초 — 2026-10-21 코드 리뷰어) [임시값]
+   */
+  team: { moveMs: 900, moveClashMs: 1500, ultClashMs: 3000, interruptMs: 1200, maxMs: 180_000 },
   /** 힘대결 길이 (연타하는 시간) */
   clashMs: 4000,
   /** 힘대결 승자가 정해진 뒤 이긴 줄기가 뚫고 나가는 시간 → 피해 */

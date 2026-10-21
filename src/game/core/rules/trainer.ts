@@ -76,12 +76,14 @@ export function trainerTeamSize(stageSeed: number, n: number, alive: number): nu
 }
 
 /** 트레이너 포켓몬 — 숲 목록에서, 레벨 = 그 스테이지 레벨대 가운데 (위끝 → 가운데: 단계 11 시뮬, 2026-10-19 태현 님) (진화 레벨을 넘으면 진화형) */
-export function trainerTeam(stageId: StageId, stageSeed: number, n: number, alive: number): Monster[] {
+/** size = 마리 수를 정해서 (3:3 은 늘 3 — 2026-10-21 명세 검사관), 없으면 시드로 1 ~ 3 */
+export function trainerTeam(stageId: StageId, stageSeed: number, n: number, alive: number, size?: number): Monster[] {
   const pool = forestPool(stageId).common;
   const [lo, hi] = stageLevelBand(stageId);
   const level = Math.round((lo + hi) / 2);
   const out: Monster[] = [];
-  for (let i = 0; i < trainerTeamSize(stageSeed, n, alive); i++) {
+  const count = size ?? trainerTeamSize(stageSeed, n, alive);
+  for (let i = 0; i < count; i++) {
     const rng = spotRng(stageSeed, 5000 + n, 10 + i);
     const dex = evolveForLevel(pool[rng.int(0, pool.length - 1)] ?? 10, level, rng);
     out.push(createMonster({ uid: `foe${i}`, dex, level, moves: wildMoves(dex, level, rng), rng, caughtAt: 'trainer' }));

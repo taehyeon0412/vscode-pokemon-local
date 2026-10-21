@@ -12,6 +12,8 @@ export type Migrations = Readonly<Record<number, (old: RawSave) => RawSave>>;
 export const MIGRATIONS: Migrations = {
   // 1 → 2 (2026-10-21 orders #15): 칸은 그대로 — 새 칸은 모두 옵션 (없으면 기본). 옛 1판 창이 2판 세이브를 "더 새 버전" 으로 잠그게 판만 올림
   1: (v1) => ({ ...v1, version: 2 }),
+  // 2 → 3 (2026-10-21 orders #17): settings.teamMode 옵션 칸 — 칸은 그대로 판만
+  2: (v2) => ({ ...v2, version: 3 }),
 };
 
 export type MigrateResult =
