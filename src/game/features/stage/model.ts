@@ -340,11 +340,11 @@ export function meetVsAt(state: GameState): number {
 export function foldStatus(state: GameState): string {
   const loc = state.save.location;
   const where = loc.screen === 'stage' ? `${STAGES[loc.stageId].name} ${Math.min(100, Math.floor((state.save.stages[loc.stageId]?.progress ?? 0) * 100))}%` : loc.screen === 'gym' ? '숲 체육관' : '세계 지도';
-  // 할 일이 앞 · 어디는 끝 (한 줄 높이에서 앞부분만 보여도 할 일을 앎 — UX 리뷰어 #27) · 구분점은 앞 낱말에 붙여 줄이 "·" 로 시작하지 않게
+  // 할 일이 앞 · 어디는 끝 · 자동 꺼짐은 켜는 방법까지 (접힌 채로는 켤 곳이 없음 — gdd 4.13 · ideas #155) (한 줄 높이에서 앞부분만 보여도 할 일을 앎 — UX 리뷰어 #27) · 구분점은 앞 낱말에 붙여 줄이 "·" 로 시작하지 않게
   const sep = '\u00a0· ';
   const wait = foldWait(state);
   if (wait) return [wait, '▲ 올리면 이어서', where].join(sep);
-  return (state.save.settings.autoBattle ? ['자동 전투 켜짐 — 전투도 저절로', '▲ 올리면 보여요', where] : ['자동 전투 꺼짐 — 접혀 있는 동안 멈춰 있어요', '켜면 계속 걸어요', where]).join(sep);
+  return (state.save.settings.autoBattle ? ['자동 전투 켜짐 — 전투도 저절로', '▲ 올리면 보여요', where] : ['자동 전투 꺼짐 — 접혀 있는 동안 멈춰 있어요', '▲ 올려서 자동 전투를 켜면 계속 걸어요', where]).join(sep);
 }
 
 /** 숨김에서도 기다리는 장면의 한 줄 · 없으면 null — 고르기는 엔진 waitReason (gdd 4.13 표와 늘 같음, 개발팀 f2002de) + 사람이 먼저 들어간 병원 · 상점 안 (알림은 없지만 멈춰 있음) */
