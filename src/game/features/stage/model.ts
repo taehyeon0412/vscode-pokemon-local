@@ -309,6 +309,9 @@ export function stageViewKey(state: GameState): string {
     st?.phase === 'gym-enter' ? JSON.stringify(gymEnterView(st.ms)) : '',
     // 기다리는 이유 (밖 · 숨김 — 이로치 전투가 멈추면 걸음이 안 바뀌어 기다림 한 줄이 안 그려지던 것)
     waitReason(state) ?? '',
+    // 보는 상태 (밖 · 숨김) — 멈춘 장면 (대기실 등) 에서 돌아와도 안 그려져 처음 안내가 멈춘 채 남던 것 (다시 그리는 열쇠 네 번째, UX 리뷰어 R12 재확인)
+    state.runtime.away === true ? 'away' : '',
+    state.runtime.headless === true ? 'hidden' : '',
     // 다시 켜기 한 줄 (R15 — 2초 뒤 사라짐)
     resumeLine(state) ?? '',
     state.runtime.toast?.text ?? '',
@@ -345,9 +348,11 @@ export function foldStatus(state: GameState): string {
   const where = loc.screen === 'stage' ? `${STAGES[loc.stageId].name} ${Math.min(100, Math.floor((state.save.stages[loc.stageId]?.progress ?? 0) * 100))}%` : loc.screen === 'gym' ? '숲 체육관' : '세계 지도';
   // ▲ 는 뒤 낱말과 한 덩이 (줄 끝에 "▲" 혼자 남던 것 — 픽셀 검사원) · 할 일이 앞 · 어디는 끝 · 자동 꺼짐은 켜는 방법까지 (접힌 채로는 켤 곳이 없음 — gdd 4.13 · ideas #155) (한 줄 높이에서 앞부분만 보여도 할 일을 앎 — UX 리뷰어 #27) · 구분점은 앞 낱말에 붙여 줄이 "·" 로 시작하지 않게
   const sep = '\u00a0· ';
+  // 어디 ("새싹 오솔길 47%") 는 한 덩이 — 240 × 30 에서 "… · 새싹" 으로 끝나고 "오솔길 47%" 가 숨던 것 (UX 리뷰어)
+  const place = where.replace(/ /g, '\u00a0');
   const wait = foldWait(state);
-  if (wait) return [wait, '▲\u00a0올리면 이어서', where].join(sep);
-  return (state.save.settings.autoBattle ? ['자동 전투 켜짐 — 전투도 저절로', '▲\u00a0올리면 보여요', where] : ['자동 전투 꺼짐 — 접혀 있는 동안 멈춰 있어요', '▲\u00a0올려서 자동 전투를 켜면 계속 걸어요', where]).join(sep);
+  if (wait) return [wait, '▲\u00a0올리면 이어서', place].join(sep);
+  return (state.save.settings.autoBattle ? ['자동 전투 켜짐 — 전투도 저절로', '▲\u00a0올리면 보여요', place] : ['자동 전투 꺼짐 — 접혀 있는 동안 멈춰 있어요', '▲\u00a0올려서 자동 전투를 켜면 계속 걸어요', place]).join(sep);
 }
 
 /** 숨김에서도 기다리는 장면의 한 줄 · 없으면 null — 고르기는 엔진 waitReason (gdd 4.13 표와 늘 같음, 개발팀 f2002de) + 사람이 먼저 들어간 병원 · 상점 안 (알림은 없지만 멈춰 있음) */

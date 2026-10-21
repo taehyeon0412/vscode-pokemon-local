@@ -30,7 +30,6 @@ import { TeamLayer } from '../../battle/team/TeamLayer';
 import { TeamChoice, teamChoiceOn, TeamMeet, teamMeetOn } from '../../battle/team/TeamChoice';
 import { Face } from '../../../ui/Face';
 import { resumeLine } from '../../../core/engine/play';
-import { SeenAfter } from '../../../ui/AutoTip';
 import { FirstTip } from '../../../ui/FirstTip';
 import { KeyCap } from '../../../ui/KeyCap';
 import { fieldTopPx, hasMapRow, INFO_BAR_PX, MAP_ROW_PX, topGapPx, type Layout } from '../../../ui/layout';
@@ -265,13 +264,14 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   const inShop = stageRt?.phase === 'facility' && stageRt.inside && stageRt.kind === 'shop';
   // 자동 전투 첫 안내 (기획 R12 — toast kind 'auto-tip') = 자동 스위치 옆: 전투 = 전투 스위치 · 걷기 = 정보줄 스위치 (메뉴가 보일 때 — 340px 아래도 안내 동안은 스위치를 보임, game.css) · 아니면 머리 위 알림.
   // 숲 1-1 첫 걷기 안내 (5초) 가 떠 있으면 뒤로 (240 에서 가리던 것 — UX 리뷰어) · 1초 넘게 보이면 tip-seen 'auto' (엔진이 그렸을 때만 셈)
+  // 안 보는 동안 (밖 · 숨김) — 처음 안내 · 자동 전투 안내는 시간을 세지 않음 (자동 전투 안내는 그리지 않음 — 밖에서 1초 지나 셈하던 것, UX 리뷰어 R12 재확인)
+  const away = state.runtime.away === true || state.runtime.headless === true;
   const walkTipOn = save.location.screen === 'stage' && save.location.stageId === 'forest-1' && phase === 'walk' && !(save.tips ?? []).includes('walk');
-  const tipText = state.runtime.toast?.kind === 'auto-tip' && !walkTipOn ? state.runtime.toast.text : null;
+  const tipText = state.runtime.toast?.kind === 'auto-tip' && !walkTipOn && !away ? state.runtime.toast.text : null;
+  // 스위치가 있는 곳 (1:1 전투 · 메뉴가 보이는 걷기 · 대기실) 에만 — 없으면 그리지 않음 (머리 위 알림으로 떨어져 병원 앞 · 클리어 카드 상자를 덮고 "[A]" 가 글자로 나오던 것, UX 리뷰어 R12 재확인 큼)
   const autoTip = tipText && (battle || canOpenMenus(state)) ? tipText : null;
   const autoSeen = () => onInput({ kind: 'tip-seen', id: 'auto' });
-  // 안 보는 동안 (밖 · 숨김) — 처음 안내는 시간을 세지 않음
-  const away = state.runtime.away === true || state.runtime.headless === true;
-  const showToast = state.runtime.toast && !inShop && !autoTip && !(state.runtime.toast.kind === 'auto-tip' && walkTipOn) && (phase === 'walk' || phase === 'clear' || phase === 'lobby' || phase === 'facility');
+  const showToast = state.runtime.toast && state.runtime.toast.kind !== 'auto-tip' && !inShop && (phase === 'walk' || phase === 'clear' || phase === 'lobby' || phase === 'facility');
   const shopInside = stageRt?.phase === 'facility' && stageRt.inside && stageRt.kind === 'shop';
   // 전투 화면 단추의 Space (막기 · 맞받아치기 · 잡기 원) = 키 · 판 클릭과 같은 시계 — 엔진 시간으로만 재면 연출을 기다리는 동안 아무 때나 '완벽'
   const battleInput = (i: GameInput) => onInput(i.kind === 'space' ? spaceInput(state, performance.now()) : i);
@@ -440,7 +440,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
           </FirstTip>
         )}
         {battle?.phase === 'last' && !(save.tips ?? []).includes('last') && (
-          <FirstTip key="last" ms={4000} className="pg-first-tip-low" onSeen={() => onInput({ kind: 'tip-seen', id: 'last' })}>
+          <FirstTip key="last" ms={4000} className="pg-first-tip-low" paused={away} onSeen={() => onInput({ kind: 'tip-seen', id: 'last' })}>
             {/* 360px 아래는 짧게 한 줄 — 두 줄이면 잡을 상대 · 내 포켓몬을 가림 (UX 리뷰어) */}
             <span class="pg-tip-long">약해진 포켓몬에게 </span>볼을 던지면 팀이 늘어요
           </FirstTip>
@@ -463,7 +463,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         )}
         {/* 필살기 안내 = 고르는 때 · 게이지 차는 때만 (원 · 연출 중엔 원을 가려서) · 자동 전투면 안 띄움 (차자마자 저절로 써서 한 장면만 번쩍이던 것) */}
         {battle && (battle.phase === 'choose' || battle.phase === 'run') && !save.settings.autoBattle && battle.me.ult >= 1 && !(save.tips ?? []).includes('ult') && (
-          <FirstTip key="ult" ms={3000} className="pg-first-tip-low" onSeen={() => onInput({ kind: 'tip-seen', id: 'ult' })}>
+          <FirstTip key="ult" ms={3000} className="pg-first-tip-low" paused={away} onSeen={() => onInput({ kind: 'tip-seen', id: 'ult' })}>
             필살기 준비! <KeyCap k="Z" />
           </FirstTip>
         )}
@@ -475,8 +475,6 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         ) : (
           <StageToast key={state.runtime.toast.text} text={state.runtime.toast.text} center={heroLeft} bottom={toastBottom} />
         ))}
-        {/* 자동 전투 안내를 머리 위 알림으로 대신 띄웠을 때도 1초 넘게 보이면 셈 */}
-        {showToast && tipText && <SeenAfter key={tipText} onSeen={autoSeen} />}
       </div>
     </div>
   );

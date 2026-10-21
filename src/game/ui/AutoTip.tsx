@@ -6,7 +6,7 @@
  * 1초 넘게 보이면 onSeen 한 번 (엔진은 그렸을 때만 셈 — tip-seen 'auto', 개발 b24a649 · 띄우자마자 세어 전투 화면이 그리지 않은 채 세 번이 끝나던 것).
  */
 import type { ComponentChildren } from 'preact';
-import { useEffect, useLayoutEffect, useRef } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { KeyCap } from './KeyCap';
 
 const EDGE_PX = 8;
@@ -23,16 +23,15 @@ export function useSeen(onSeen: (() => void) | undefined): void {
     return () => window.clearTimeout(id);
   }, []);
 }
-export function SeenAfter({ onSeen }: { onSeen(): void }) {
-  useSeen(onSeen);
-  return null;
-}
 
 export type AutoTipPlace = 'below' | 'above' | 'low';
 
 export function AutoTip({ text, place, onSeen }: { text: string; place: AutoTipPlace; onSeen?(): void }) {
   const el = useRef<HTMLSpanElement>(null);
   useSeen(onSeen);
+  // 패널 아래 끝 (전투) 에서 두 줄이 되면 뒷말 ("— 알아서 싸워요") 을 뺌 — 240 에서 두 줄이 양쪽 포켓몬 아래를 최대 60초 덮던 것 (UX 리뷰어 R12 재확인)
+  const [short, setShort] = useState(false);
+  useEffect(() => setShort(false), [text]);
   // 세로는 높이를 재지 않고 top / bottom 으로 (처음 그릴 때 높이가 0 으로 재져 240 에서 판이 패널 밖에 놓이던 것) · 가로만 폭을 재서 양 끝 안으로
   const put = () => {
     const t = el.current;
@@ -43,6 +42,7 @@ export function AutoTip({ text, place, onSeen }: { text: string; place: AutoTipP
     t.style.top = place === 'below' ? `${Math.round(a.bottom) + GAP_PX}px` : 'auto';
     t.style.bottom = place === 'above' ? `${window.innerHeight - Math.round(a.top) + GAP_PX}px` : place === 'low' ? `${GAP_PX}px` : 'auto';
     t.style.visibility = 'visible';
+    if (place === 'low' && !short && t.offsetHeight > 24) setShort(true);
   };
   useLayoutEffect(put);
   // 첫 그림 뒤 한 번 더 (전투 화면은 열쇠가 안 바뀌면 다시 안 그려져 첫 잼이 그대로 남음)
@@ -55,9 +55,9 @@ export function AutoTip({ text, place, onSeen }: { text: string; place: AutoTipP
     <span class="pg-auto-tip" role="status" ref={el}>
       <span class="pg-tip-part">
         {keyCaps(head ?? text)}
-        {tail ? ' —' : ''}
+        {tail && !short ? ' —' : ''}
       </span>
-      {tail && (
+      {tail && !short && (
         <>
           {' '}
           <span class="pg-tip-part">{keyCaps(tail)}</span>

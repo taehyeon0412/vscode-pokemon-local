@@ -341,7 +341,9 @@ export function LobbyBox({ state, media, onInput, onBox, onShop, onMap }: BoxPro
   const modeWhy = lock === 'few' ? '살아 있는 포켓몬이 3마리면 3:3' : lock === 'narrow' ? '패널을 넓히면 3:3' : null;
   // 버튼 줄이 넘치면 도전의 ▶ 를 뺌 (240 에서 "3:3" 칩까지 2px 넘쳐 상자 여백을 먹던 것 — UX 리뷰어 #27, 맥 여유 10%)
   const lobbyBox = useRef<HTMLDivElement>(null);
-  const tight = useFit(lobbyBox, 1, ':scope > .pg-line:last-child') >= 1;
+  // 2 단계 = Enter 키 칸도 뺌 (맥 +10% 에서 331 ~ 335 에 도전 버튼이 여백을 먹던 것 — UX 리뷰어 R12 재확인)
+  const fit = useFit(lobbyBox, 2, ':scope > .pg-line:last-child');
+  const tight = fit >= 1;
   return (
     <div class="pg-banner pg-lobby pg-two" ref={lobbyBox}>
       <span class="pg-line">
@@ -381,7 +383,7 @@ export function LobbyBox({ state, media, onInput, onBox, onShop, onMap }: BoxPro
           <span class="pg-long"> 세계 지도</span>
         </Button>
         <Button extraClass="pg-go" onClick={() => onInput({ kind: 'challenge' })} title={mode === '3:3' ? '② 관장 3마리와 3:3 실시간 배틀 — 나갈 3마리를 고름 (Enter)' : `② 관장 3마리와 1:1 토너먼트 (도망 불가) — Enter${modeWhy ? ` · ${modeWhy}` : ''}`}>
-          <KeyCap k="Enter" /> {tight ? '도전' : '도전 ▶'}
+          {fit < 2 && <KeyCap k="Enter" />} {tight ? '도전' : '도전 ▶'}
           {mode && <span class={`pg-sub pg-lobby-mode${mode === '1:1' ? ' pg-dim' : ''}`}>{mode}</span>}
         </Button>
       </span>

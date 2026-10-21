@@ -199,17 +199,29 @@ describe('1-3 끝 체육관 들어가기 (2026-10-20 태현 님 A안)', () => {
 describe('접힌 줄 (gdd 4.13 R13 ② — 기다리는 장면 · 자동 전투)', () => {
   it('기다리는 장면이면 그 장면 + "▲ 올리면 이어서"', () => {
     // 할 일 먼저 · 어디는 끝 · 구분점은 앞 낱말에 붙음 (줄이 "·" 로 시작하지 않게)
-    expect(foldStatus(at(0.35, { phase: 'hold', why: 'shiny' }))).toBe('반짝이는 흔적에서 기다려요\u00a0· ▲\u00a0올리면 이어서\u00a0· 새싹 오솔길 35%');
+    expect(foldStatus(at(0.35, { phase: 'hold', why: 'shiny' }))).toBe('반짝이는 흔적에서 기다려요\u00a0· ▲\u00a0올리면 이어서\u00a0· 새싹\u00a0오솔길\u00a035%');
     expect(foldStatus(at(0.35, { phase: 'hold', why: 'rival' }))).toContain('라이벌이 길에서 기다려요');
     // 두 번째 3:3 패배 상자 = 직함 뺀 이름 (좁은 줄 — R8 A)
-    expect(foldStatus(at(0.47, { phase: 'defeat', gym: false, lost: 100, keep: '엘리트 트레이너 소율' }))).toBe('소율에게 졌다 — 남은 포켓몬으로 계속\u00a0· ▲\u00a0올리면 이어서\u00a0· 새싹 오솔길 47%');
+    expect(foldStatus(at(0.47, { phase: 'defeat', gym: false, lost: 100, keep: '엘리트 트레이너 소율' }))).toBe('소율에게 졌다 — 남은 포켓몬으로 계속\u00a0· ▲\u00a0올리면 이어서\u00a0· 새싹\u00a0오솔길\u00a047%');
   });
 
   it('자동 전투 꺼짐 = 접혀 있는 동안 전부 멈춤 (예전 "전투가 나오면 멈춰요" 는 틀림 — gdd 4.13)', () => {
     const off = at(0.47);
     const s = { ...off, save: { ...off.save, settings: { ...off.save.settings, autoBattle: false } } };
-    expect(foldStatus(s)).toBe('자동 전투 꺼짐 — 접혀 있는 동안 멈춰 있어요\u00a0· ▲\u00a0올려서 자동 전투를 켜면 계속 걸어요\u00a0· 새싹 오솔길 47%');
+    expect(foldStatus(s)).toBe('자동 전투 꺼짐 — 접혀 있는 동안 멈춰 있어요\u00a0· ▲\u00a0올려서 자동 전투를 켜면 계속 걸어요\u00a0· 새싹\u00a0오솔길\u00a047%');
     const on = { ...off, save: { ...off.save, settings: { ...off.save.settings, autoBattle: true } } };
-    expect(foldStatus(on)).toBe('자동 전투 켜짐 — 전투도 저절로\u00a0· ▲\u00a0올리면 보여요\u00a0· 새싹 오솔길 47%');
+    expect(foldStatus(on)).toBe('자동 전투 켜짐 — 전투도 저절로\u00a0· ▲\u00a0올리면 보여요\u00a0· 새싹\u00a0오솔길\u00a047%');
+  });
+});
+
+describe('다시 그리는 열쇠 — 보는 상태 (UX 리뷰어 R12 재확인)', () => {
+  it('밖 · 숨김 앞뒤로 열쇠가 바뀜 (대기실처럼 멈춘 장면에서 돌아와도 처음 안내가 다시 셈)', () => {
+    const lobby = at(0.47, { phase: 'lobby' });
+    const k0 = stageViewKey(lobby);
+    const away = { ...lobby, runtime: { ...lobby.runtime, away: true } };
+    const hidden = { ...lobby, runtime: { ...lobby.runtime, headless: true } };
+    expect(stageViewKey(away)).not.toBe(k0);
+    expect(stageViewKey(hidden)).not.toBe(k0);
+    expect(stageViewKey({ ...away, runtime: { ...away.runtime, away: false } })).toBe(k0);
   });
 });
