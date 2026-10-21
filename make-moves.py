@@ -319,6 +319,43 @@ def write_bundle(table, acts, lib, movesets, shape, ult_lib, ults, out):
     open(out, "w", encoding="utf-8").write(src)
 
 
+# 게임 엔진이 고르는 필살기 (3:3 대상 — 2026-10-21 기획 R7: 원작 범위기만 상대 모두, 그 밖 · 원작 기술이 아닌 필살기는 한 마리)
+ULT_MOVES_OUT = os.path.join(HERE, "src", "game", "data", "generated", "ult-moves.json")
+SPREAD_TARGETS = {"all-opponents", "all-other-pokemon"}
+
+
+def ult_spread_names(names):
+    """필살기 이름 중 원작 범위기 (PokeAPI 대상이 상대 모두 · 나 빼고 모두) — .cache/pokeapi (scripts/fetch-pokeapi.mjs 가 받음), 없으면 None"""
+    root = os.path.join(HERE, ".cache", "pokeapi")
+    dirs = sorted((os.path.join(root, d) for d in os.listdir(root)), key=os.path.getmtime) if os.path.isdir(root) else []
+    dirs = [d for d in dirs if os.path.exists(os.path.join(d, "move_names.csv")) and os.path.exists(os.path.join(d, "moves.csv"))]
+    if not dirs:
+        return None
+    d = dirs[-1]
+    read = lambda f: list(csv.DictReader(io.open(os.path.join(d, f), encoding="utf-8")))
+    target_name = {r["id"]: r["identifier"] for r in read("move_targets.csv")}
+    target_of = {r["id"]: target_name.get(r["target_id"], "") for r in read("moves.csv")}
+    spread_ids = {i for i, t in target_of.items() if t in SPREAD_TARGETS}
+    ko = {}
+    for r in read("move_names.csv"):
+        if r["local_language_id"] == "3":
+            ko.setdefault(r["name"].replace(" ", ""), r["move_id"])
+    return sorted(n for n in names if ko.get(n.replace(" ", "")) in spread_ids)
+
+
+def write_ult_moves(ult_lib, ults):
+    forms = {key: [ult_lib[i][0] for i in ids] for key, ids in sorted(ults.items())}
+    names = sorted({n for v in forms.values() for n in v})
+    spread = ult_spread_names(names)
+    if spread is None:
+        # 캐시가 없으면 지난번 범위기 목록 그대로
+        prev = json.load(open(ULT_MOVES_OUT, encoding="utf-8")) if os.path.exists(ULT_MOVES_OUT) else {}
+        spread = [n for n in prev.get("spread", []) if n in names]
+    data = {"forms": forms, "spread": spread}
+    open(ULT_MOVES_OUT, "w", encoding="utf-8", newline=chr(10)).write(json.dumps(data, ensure_ascii=False, separators=(",", ":")) + chr(10))
+    print(f"엔진 필살기 표 — 모습 {len(forms)} · 이름 {len(names)} · 원작 범위기 {len(spread)} → {os.path.relpath(ULT_MOVES_OUT, HERE)}")
+
+
 def main():
     out = BUNDLE
     if "--out" in sys.argv:
@@ -377,6 +414,7 @@ def main():
             acts[key] = "fly"
     write_bundle(table, acts, lib, movesets, shape, ult_lib, ults, out)
     subprocess.run(["node", "--check", out], check=True)
+    write_ult_moves(ult_lib, ults)
     counts = {m: sum(1 for v in table.values() if v[0] == m) for m in MOVE_OF_TYPE.values()}
     print(f"기술 {len(table)}종 — " + " · ".join(f"{m} {n}" for m, n in counts.items()))
     sizes = [len(v) for v in movesets.values()]

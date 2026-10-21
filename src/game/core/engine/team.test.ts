@@ -8,7 +8,7 @@ import { applyInput, defeatWaits, step, teamChoiceMeet, teamLock, teamMainOf, te
 import { Rng } from './rng';
 import { createGameState, readRuntime, type GameState } from './state';
 import { shotTiming, applyTeamResult, isSpread, pickTeam, readTeam, startTeamBattle, TEAM_BASIC, teamClashSure, teamDone, teamInput, teamPick, teamPossible, teamScale, teamStep, teamAutoUltLeft, teamUltLevel, teamUltOpen, type TeamBattle, teamGather, teamLayout } from './team';
-import { moveFxOf, moveOf } from '../../data';
+import { moveFxOf, moveOf, ultIsSpread, ultNamesOf } from '../../data';
 import { trainerTeam } from '../rules/trainer';
 
 const STEP = TIMING.simStepMs;
@@ -79,7 +79,7 @@ describe('실시간 — 게이지가 차면 바로 · 겹쳐도', () => {
 describe('필살기 — 1 · 2 · 3 · Z · 나머지 멈춤 · 끼어들기 · 힘겨루기', () => {
   const ready = (b: TeamBattle, side: 'me' | 'foe', i: number): TeamBattle => ({ ...b, [side]: b[side].map((f, j) => (j === i ? { ...f, ult: 1 } : f)), ultReadyAt: { ...b.ultReadyAt, [side]: b.ultReadyAt[side].map((t, j) => (j === i ? 0 : t)) } });
 
-  it('찬 포켓몬만 · 쓰면 나머지 멈춤 (게이지 그대로) · 상대 모두에게 피해', () => {
+  it('찬 포켓몬만 · 쓰면 나머지 멈춤 (게이지 그대로) · 대상 = 원작 기술대로 (범위기만 상대 모두 · 그 밖 한 마리 — 기획 R7)', () => {
     const b0 = startTeamBattle(team3(), foes(), 'trainer', '상대');
     expect(teamInput(b0, { kind: 'ult' }, new Rng(1))).toBe(b0);
     const b = ready(b0, 'me', 1);
@@ -91,7 +91,33 @@ describe('필살기 — 1 · 2 · 3 · Z · 나머지 멈춤 · 끼어들기 · 
     expect(mid.me.map((f) => f.gauge)).toEqual(u.me.map((f) => f.gauge));
     const done = run(u, TIMING.ultAnimMs + STEP, fixedRng(0.99));
     expect(done.phase).toBe('run');
-    expect(done.foe.every((f, i) => f.hp < u.foe[i]!.hp)).toBe(true);
+    const hurt = done.foe.filter((f, i) => f.hp < u.foe[i]!.hp).length;
+    expect(hurt).toBe(u.ult!.spread ? 3 : 1);
+    if (!u.ult!.spread) expect(done.foe[u.ult!.target!]!.hp).toBeLessThan(u.foe[u.ult!.target!]!.hp);
+    expect(u.log.at(-1)).toMatchObject({ t: 'ult', side: 'me', from: 1, target: u.ult!.target });
+  });
+
+  it('필살기 고르기 — 그 모습의 필살기 중 (개발 모드 고른 것 먼저) · 원작 범위기면 상대 모두 · 옛 상태 (이름 없음) 는 상대 모두', () => {
+    const b = ready(startTeamBattle(team3(), foes(), 'trainer', '상대'), 'me', 1);
+    const form = b.me[1]!.form;
+    const names = ultNamesOf(form);
+    expect(names.length).toBeGreaterThan(0);
+    const u = teamInput(b, { kind: 'ult' }, fixedRng(0.99));
+    expect(names).toContain(u.ult!.name);
+    expect(u.ult!.spread).toBe(ultIsSpread(u.ult!.name!));
+    // 개발 모드에서 고른 이름 그대로
+    const dev = teamInput(b, { kind: 'ult' }, fixedRng(0.99), { [b.me[1]!.uid]: names[names.length - 1]! });
+    expect(dev.ult!.name).toBe(names[names.length - 1]);
+    // 범위기 이름이면 상대 모두
+    expect(ultIsSpread('지진')).toBe(true);
+    expect(ultIsSpread('블래스트번')).toBe(false);
+    const quake = { ...u, ult: { ...u.ult!, name: '지진', spread: true } };
+    const allHit = run(quake, TIMING.ultAnimMs + STEP, fixedRng(0.99));
+    expect(allHit.foe.every((f, i) => f.hp < quake.foe[i]!.hp)).toBe(true);
+    // 옛 상태 (이름 · 대상 없음) = 상대 모두
+    const { name: _n, spread: _s, target: _t, ...old } = u.ult!;
+    const oldHit = run({ ...u, ult: old }, TIMING.ultAnimMs + STEP, fixedRng(0.99));
+    expect(oldHit.foe.every((f, i) => f.hp < u.foe[i]!.hp)).toBe(true);
   });
 
   it('상대 필살기 — 끼어들기 창 (1.2초) 안에 내가 쓰면 힘겨루기 · 창이 지나면 못 끼어듦 · 다른 포켓몬 합류 (2:1) · 연타', () => {
@@ -263,6 +289,14 @@ describe('연결 — 트레이너 만남 · 관장전 (BALANCE.team.on 이 켜�
       expect(defeatWaits(again, { phase: 'defeat', gym: false, lost: 0 })).toBe(false);
       const twice = { ...again, stages: { ...again.stages, 'forest-1': { ...again.stages['forest-1']!, run: { ...again.stages['forest-1']!.run, retries: 1 } } } };
       expect(defeatWaits(twice, { phase: 'defeat', gym: false, lost: 0 })).toBe(true);
+      // 3:3 패배가 같은 판 두 번째면 멈춤 상자 (다시 시작 없음) → 계속 = 걷기 (R8 A)
+      const second = { ...save, stages: { ...save.stages, 'forest-1': { ...save.stages['forest-1']!, run: { ...save.stages['forest-1']!.run, retries: 1 } } } };
+      const box = lose(second).s;
+      expect(box.runtime.stage).toMatchObject({ phase: 'defeat', gym: false, keep: expect.any(String) });
+      expect(box.save.money).toBe(900);
+      expect(step(box, 60_000).state.runtime.stage?.phase).toBe('defeat');
+      expect(applyInput(box, { kind: 'defeat-continue' }).runtime.stage?.phase).toBe('walk');
+      expect(readRuntime(viaJson(box.runtime), 1).stage).toEqual(viaJson(box.runtime.stage));
       // 셋뿐이면 전멸 → S17
       expect(lose(team3()).s.runtime.stage?.phase).toBe('defeat');
     } finally {
@@ -757,11 +791,13 @@ describe('같은 편 합동 필살기 — 합동 필살기 멘트 (2026-10-21 �
     expect(joined.ult!.team).toEqual([1]);
     expect(joined.me[1]!.ult).toBe(0);
     const joint = run(joined, TIMING.team.gatherMs, fixedRng(0.99));
-    expect(joint.ult).toMatchObject({ joint: { winners: [0, 1], losers: [0, 1, 2], sure: false }, dur: TIMING.team.jointMs, window: 0 });
+    // 합동은 한 점 = 한 마리 (기획 R7 A)
+    expect(joint.ult).toMatchObject({ joint: { winners: [0, 1], losers: [joint.ult!.target], sure: false }, dur: TIMING.team.jointMs, window: 0 });
     expect(teamGather(joint)).toBeNull();
     const hp = joint.foe.map((f) => f.hp);
     const hit = run(joint, TIMING.team.jointHitMs + STEP, fixedRng(0.99));
-    expect(hit.foe.every((f, i) => f.hp < hp[i]!)).toBe(true);
+    expect(hit.foe.filter((f, i) => f.hp < hp[i]!).length).toBe(1);
+    expect(hit.foe[joint.ult!.target!]!.hp).toBeLessThan(hp[joint.ult!.target!]!);
     // 안 누르면 따로 — 멘트가 끝난 뒤 혼자 (끼어들기 창은 멘트로 지났음)
     const solo = run(g, TIMING.team.gatherMs, fixedRng(0.99));
     expect(solo.ult).toMatchObject({ side: 'me', from: 0, window: 0 });

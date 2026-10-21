@@ -50,7 +50,8 @@ export type StageRuntime =
   /** ms = 진화 연출 시간 · −1 = 진화를 보기 전 "어…? ○○의 모습이…!" 에서 기다림 (Space · 클릭으로 시작 — 2026-10-21 ideas #33) */
   | { phase: 'choice'; ms: number; then?: 'badge' }
   /** ms = 저절로 다시 시작까지 지난 시간 (defeatAutoMs — ideas #49, 옛 상태엔 없음) */
-  | { phase: 'defeat'; gym: boolean; lost: number; ms?: number }
+  /** keep = 3:3 으로 진 트레이너 이름 — 같은 판 두 번째 패배라 멈춘 상자 ("○○에게 졌다 — 남은 포켓몬으로 계속", 다시 시작 없음 — 2026-10-21 기획 R8 A) */
+  | { phase: 'defeat'; gym: boolean; lost: number; ms?: number; keep?: string }
   /** ms = 자동 전투일 때 [다음 스테이지] 까지 지난 시간 (clearAutoMs — ideas #48, 자동 전투가 아니면 없음) */
   | { phase: 'clear'; ms?: number }
   /** 1-3 끝 — 체육관 문이 열리고 걸어 들어감 (ms 동안, 그다음 클리어 처리 · S16 대기실 — 2026-10-20 태현 님 A안) */
@@ -199,7 +200,8 @@ function readStage(raw: unknown): StageRuntime | null {
     case 'defeat': {
       const lost = num(raw.lost, 0, 1e9);
       if (typeof raw.gym !== 'boolean' || lost === null) return null;
-      return ms !== null && ms > 0 ? { phase: 'defeat', gym: raw.gym, lost, ms } : { phase: 'defeat', gym: raw.gym, lost };
+      const keep = typeof raw.keep === 'string' && raw.keep.length <= 40 ? { keep: raw.keep } : {};
+      return ms !== null && ms > 0 ? { phase: 'defeat', gym: raw.gym, lost, ms, ...keep } : { phase: 'defeat', gym: raw.gym, lost, ...keep };
     }
     case 'appear':
       // 옛 상태의 space · ambush 칸은 버림 (시작은 pendingEncounter.start)

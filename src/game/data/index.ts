@@ -12,6 +12,7 @@ import movesJson from './generated/moves.json';
 import moveFxJson from './generated/move-fx.json';
 import signatureJson from './generated/signature.json';
 import speciesJson from './generated/species.json';
+import ultMovesJson from './generated/ult-moves.json';
 
 export const TYPE_NAMES = [
   'normal', 'fire', 'water', 'electric', 'grass', 'ice', 'fighting', 'poison', 'ground',
@@ -183,6 +184,20 @@ export function allForms(): string[] {
 }
 
 const signature = signatureJson as unknown as Readonly<Record<string, readonly number[]>>;
+
+/** 모습마다 필살기 이름 · 원작 범위기 이름 (make-moves.py 가 연출 표 · PokeAPI 기술 대상에서 만듦 — 3:3 필살기 대상, 2026-10-21 기획 R7) */
+const ultMoves = ultMovesJson as unknown as { forms: Readonly<Record<string, readonly string[]>>; spread: readonly string[] };
+const ultSpread = new Set(ultMoves.spread);
+
+/** 그 모습의 필살기 이름들 (연출과 같은 이름) — 없으면 빈 목록 */
+export function ultNamesOf(form: string): readonly string[] {
+  return hasOwn(ultMoves.forms, form) ? (ultMoves.forms[form] ?? []) : [];
+}
+
+/** 원작에서 상대 모두를 치는 기술 이름인지 (대상 = 상대 모두 · 나 빼고 모두) — 원작 기술이 아닌 필살기는 false */
+export function ultIsSpread(name: string): boolean {
+  return ultSpread.has(name);
+}
 
 /** 진화할 때 들어오는 대표 기술 후보 (확장의 대표 기술 중 게임에 있는 피해 기술, scripts/build-signature.mjs) — 없으면 빈 목록 */
 export function signatureOf(dex: number): readonly number[] {

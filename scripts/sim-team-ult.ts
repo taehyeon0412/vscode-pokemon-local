@@ -1,7 +1,8 @@
 /**
  * 3:3 필살기 횟수 시뮬 (2026-10-21 기획 #88 — 태현 님 "시뮬레이션을 돌려봐야 알것같아") — 필살기 게이지 속도마다 판 (1-2 · 1-3 · 관장) 별
  * 필살기 횟수 · 필살기 장면을 넣은 한 판 길이 · 그중 필살기 장면 비율 · 이기는 비율 (자동 전투 = 같은 편 찬 포켓몬은 늘 합동).
- * 실행: npx vite-node scripts/sim-team-ult.ts -- [판 수=60]
+ * 실행: npx vite-node scripts/sim-team-ult.ts -- [판 수=60] [single]
+ *   single = 게이지 속도는 그대로 두고 한 마리 필살기 배율 (team.ultSingleScale — 기획 R7 원작 대상) 별로
  * 필살기 장면 (보는 중 — 연출이 맞을 때까지 엔진을 붙잡음):
  *   혼자 = 기 모으기 0.8 + 컷인 0.9 + 그 필살기가 처음 맞는 때 (ult/ult-hit.json 에서 무작위) + 맞은 뒤 엔진 남은 0.88초
  *   합동 = 멘트 1.5 + 기 모으기 0.8 + 컷인 0.9 + 참가자 중 가장 늦게 맞는 때 + 합체 뒤 1.55초
@@ -15,18 +16,22 @@ import { createMonster, wildMoves } from '../src/game/core/rules/monster';
 import { leaderTeam, trainerTeam } from '../src/game/core/rules/trainer';
 import { sampleSave } from '../src/test/fixtures/save';
 
-const runs = Number(process.argv.slice(2).filter((a) => a !== '--')[0] ?? 60);
+const argv = process.argv.slice(2).filter((a) => a !== '--');
+const runs = Number(argv[0] ?? 60);
+const SINGLE = argv[1] === 'single';
 const HITS = Object.values(ultHit as Record<string, [number, number]>).map((v) => v[0]).filter((h) => h >= 0);
 const LEAD = 800 + 900;
 const SOLO_AFTER = TIMING.ultAnimMs - Math.round(TIMING.ultAnimMs * 0.6);
 const JOINT_AFTER = TIMING.team.jointMs - TIMING.team.jointHitMs;
 const CLASH_AFTER = 1500;
-const team = BALANCE.team as { ultGainScale: number };
+const team = BALANCE.team as { ultGainScale: number; ultSingleScale: number };
 const base = team.ultGainScale;
+const baseSingle = team.ultSingleScale;
 
 const rows: string[] = [];
-for (const scale of [1.2, 1.0, 0.8, 0.6, 0.5]) {
-  team.ultGainScale = scale;
+for (const scale of SINGLE ? [1, 1.5, 2, 2.5] : [1.2, 1.0, 0.8, 0.6, 0.5]) {
+  if (SINGLE) team.ultSingleScale = scale;
+  else team.ultGainScale = scale;
   for (const [label, lv, stage] of [['1-2', 9, 'forest-2'], ['1-3', 12, 'forest-3'], ['관장', 16, 'gym']] as const) {
     let real = 0;
     let scene = 0;
@@ -83,6 +88,7 @@ for (const scale of [1.2, 1.0, 0.8, 0.6, 0.5]) {
   }
 }
 team.ultGainScale = base;
-console.log('| 필살기 게이지 (1:1 의 배) | 판 | 필살기 (한 판) | 한 판 길이 (필살기 장면 포함) | 필살기 장면 비율 | 이김 |');
+team.ultSingleScale = baseSingle;
+console.log(`| ${SINGLE ? '한 마리 필살기 배율' : '필살기 게이지 (1:1 의 배)'} | 판 | 필살기 (한 판) | 한 판 길이 (필살기 장면 포함) | 필살기 장면 비율 | 이김 |`);
 console.log('|---|---|---|---|---|---|');
 for (const r of rows) console.log(r);

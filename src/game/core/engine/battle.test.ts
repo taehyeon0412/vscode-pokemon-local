@@ -497,10 +497,26 @@ describe('필살기 (mvp-spec 3.3 · gdd S09 ⑧)', () => {
     for (let t = 0; t < 1000 && !(s.anim?.side === 'me' && s.anim.action.kind === 'ult'); t += STEP) s = battleStep(s, save, STEP, fixedRng(0.5), { auto: false });
     expect(s.anim).toMatchObject({ side: 'me', action: { kind: 'ult' } });
     expect(s.ultQueued).toBeUndefined();
+    // 자동 전투 — 내 포켓몬이 쓰러지면 볼 때는 autoPickMs 뒤 다음 포켓몬 (쓰러짐이 0 ~ 1장면이던 것 #530) · 안 볼 때는 바로
+    const fallen: BattleState = { ...b, phase: 'pick', me: { ...b.me, hp: 0 }, bench: { m2: { hp: 20, moves: b.me.moves, status: null } } };
+    const fallenSave = { ...save, party: [...save.party, 'm2'], monsters: { ...save.monsters, m2: { ...save.monsters[save.party[0]!]!, uid: 'm2', hp: 20 } } };
+    let wait = fallen;
+    for (let t = STEP; t < TIMING.autoPickMs; t += STEP) {
+      wait = battleStep(wait, fallenSave, STEP, fixedRng(0.5), { auto: true });
+      expect(wait.phase).toBe('pick');
+    }
+    expect(battleStep(wait, fallenSave, STEP, fixedRng(0.5), { auto: true }).phase).not.toBe('pick');
+    expect(battleStep(fallen, fallenSave, STEP, fixedRng(0.5), { auto: true, away: true }).phase).not.toBe('pick');
     // 교체 연출 중 Z 는 예약 안 함 (들어오는 포켓몬 필살기로 나가던 것 — 테스터) · 저절로 못 나가는 단계는 남은 시간 없음
     const switching: BattleState = { ...full, phase: 'anim', anim: { side: 'me', action: { kind: 'switch', uid: 'x' }, ms: 0, dur: 700, counter: false } };
     expect(battleInput(switching, save, { kind: 'ult' }, fixedRng(0.5)).ultQueued).toBeUndefined();
     expect(battleAutoUltLeft({ ...full, phase: 'last' }, true)).toBeNull();
+    // 자동 전투 · HP 30% 아래 · 다 참 → 상대 필살기 창에서 저절로 받아침 (태현 님 B) · 30% 이상 · 손 전투는 안 받아침
+    const foeUltOpen: BattleState = { ...full, phase: 'anim', anim: { side: 'foe', action: { kind: 'ult' }, ms: 100, dur: TIMING.ultAnimMs, counter: false } };
+    const lowHp = Math.ceil(full.me.maxHp * BALANCE.autoPotionBelow) - 1;
+    expect(battleStep({ ...foeUltOpen, me: { ...foeUltOpen.me, hp: lowHp } }, save, STEP, fixedRng(0.5), { auto: true }).phase).toBe('clash');
+    expect(battleStep({ ...foeUltOpen, me: { ...foeUltOpen.me, hp: lowHp + 1 } }, save, STEP, fixedRng(0.5), { auto: true }).phase).toBe('anim');
+    expect(battleStep({ ...foeUltOpen, me: { ...foeUltOpen.me, hp: lowHp } }, save, STEP, fixedRng(0.5), { auto: false }).phase).toBe('anim');
     // 예약한 Z 는 상대 필살기 맞받아치기 창이 열리면 그걸로 (코드 리뷰어)
     const foeUltNow: BattleState = { ...full, phase: 'anim', anim: { side: 'foe', action: { kind: 'ult' }, ms: 100, dur: TIMING.ultAnimMs, counter: false }, ultQueued: true };
     const countered = battleStep(foeUltNow, save, STEP, fixedRng(0.5), { auto: false });
@@ -618,7 +634,9 @@ describe('아이템 · 도망 · 교체', () => {
     expect(battleWaiting(down)).toBe(true);
     const picked = battleInput(down, save, { kind: 'pick', uid: 'm2' }, new SeededRng(1));
     expect([picked.me.uid, picked.phase]).toEqual(['m2', 'run']);
-    expect(battleStep(down, save, STEP, new SeededRng(1), { auto: true }).me.uid).toBe('m2');
+    // 볼 때는 쓰러진 모습을 보인 뒤 (autoPickMs, #530) · 안 볼 때는 바로
+    expect(battleStep({ ...down, pickMs: TIMING.autoPickMs }, save, STEP, new SeededRng(1), { auto: true }).me.uid).toBe('m2');
+    expect(battleStep(down, save, STEP, new SeededRng(1), { auto: true, away: true }).me.uid).toBe('m2');
     const lastSave = { ...save, monsters: { ...save.monsters, m2: { ...save.monsters.m2!, hp: 0 } } };
     const last = run({ ...ready }, lastSave, STEP + TIMING.attackAnimMs, fixedRng(0.1));
     expect([last.phase, last.result]).toEqual(['over', 'lose']);

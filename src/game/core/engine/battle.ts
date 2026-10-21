@@ -132,6 +132,8 @@ export interface BattleState {
   ultWait?: number;
   /** Z 를 못 누르는 때 (내 행동 연출 중) 누른 필살기 — 누를 수 있게 되면 바로 씀 (말없이 버려지던 것, U5) */
   ultQueued?: boolean;
+  /** 자동 전투 — 내 포켓몬이 쓰러진 뒤 다음 포켓몬까지 기다린 ms (볼 때 autoPickMs, #530) · 옛 상태엔 없음 */
+  pickMs?: number;
   /** 상대 트레이너 이름 ("곤충채집 소년 민수") — 야생은 null */
   foeName: string | null;
   /** 관장이 남긴 상처약 (2026-10-20) — 관장전만, 옛 상태에는 없음 (= 0) */
@@ -669,8 +671,9 @@ export function battleStep(b0: BattleState, save: Save, stepMs: number, rng: Rng
   // HP 가 자동 상처약 기준 (30%) 아래면 기다리지 않음 — 3초 안에 쓰러져 필살기가 날아가던 것 (2026-10-21 태현 님 "추천대로", 기획 #26 R2 ①)
   const low = b.me.hp < b.me.maxHp * BALANCE.autoPotionBelow;
   const myUltNow = (opts.auto && b.me.ult >= 1 && (opts.away === true || low || (b.ultWait ?? 0) >= BALANCE.ultAutoWaitMs)) || b.ultQueued === true;
-  // 예약한 Z 는 맞받아치기 창 (관장 끼어들기 · 상대 필살기) 이 열리면 그걸로 (예약을 둔 채 상대 필살기를 맞던 것 — 코드 리뷰어)
-  if (b.ultQueued && ultCounterOpen(b)) return startClash({ ...b, me: { ...b.me, ult: 0 }, ultQueued: undefined, ultWait: undefined }, 'ult', null, null);
+  // 예약한 Z 는 맞받아치기 창 (관장 끼어들기 · 상대 필살기) 이 열리면 그걸로 (예약을 둔 채 상대 필살기를 맞던 것 — 코드 리뷰어).
+  // 자동 전투 · HP 30% 아래 · 다 참이면 저절로 받아침 (맞고 쓰러져 필살기가 날아가던 것 — 2026-10-21 태현 님 B, 그 밖의 맞받아치기는 손으로)
+  if ((b.ultQueued || (opts.auto && low)) && ultCounterOpen(b)) return startClash({ ...b, me: { ...b.me, ult: 0 }, ultQueued: undefined, ultWait: undefined }, 'ult', null, null);
   if (myUltNow && b.phase !== 'run' && canUlt(b) && !ultCounterOpen(b)) return pressUlt(b, rng);
   switch (b.phase) {
     case 'riposte': {
@@ -752,8 +755,14 @@ export function battleStep(b0: BattleState, save: Save, stepMs: number, rng: Rng
       // 고를 포켓몬이 없으면 (이상한 상태로 왔어도) 기다리지 않고 짐
       if (team.length === 0) return { ...b, phase: 'over', result: 'lose', overMs: 0 };
       if (!opts.auto) return b;
+      // 자동 — 볼 때는 쓰러진 모습을 보인 뒤 (autoPickMs) 다음 포켓몬 · 안 볼 때는 바로 (#530 U1)
+      if (!opts.away) {
+        const pickMs = (b.pickMs ?? 0) + stepMs;
+        if (pickMs < TIMING.autoPickMs) return { ...b, pickMs };
+      }
       const next = bestNext(team, b.foe.types);
-      return next ? pickNext(b, save, next.uid) : b;
+      const { pickMs: _p, ...rest } = b;
+      return next ? pickNext(rest, save, next.uid) : b;
     }
     case 'catch':
       return catchStep(b, save, stepMs, rng);
@@ -1198,7 +1207,7 @@ export function readBattle(raw: unknown): BattleState | null {
   if (!Array.isArray(raw.foeQueue) || raw.foeQueue.length > 6 || !raw.foeQueue.every(okFoeMonster)) return null;
   if (!Array.isArray(raw.foeDown) || raw.foeDown.length > 6 || !raw.foeDown.every((d) => isObj(d) && fin(d.species, 1, 2000) && fin(d.level, 1, 100))) return null;
   if (!(raw.foeUltWait === null || fin(raw.foeUltWait, -1e6, 1e6)) || !(raw.foeName === null || (typeof raw.foeName === 'string' && raw.foeName.length <= 40)) || !fin(raw.sendMs, 0)) return null;
-  if (!(raw.foePotions === undefined || fin(raw.foePotions, 0, 10)) || !(raw.ultWait === undefined || fin(raw.ultWait, 0, 1e6)) || !(raw.ultQueued === undefined || typeof raw.ultQueued === 'boolean')) return null;
+  if (!(raw.foePotions === undefined || fin(raw.foePotions, 0, 10)) || !(raw.ultWait === undefined || fin(raw.ultWait, 0, 1e6)) || !(raw.ultQueued === undefined || typeof raw.ultQueued === 'boolean') || !(raw.pickMs === undefined || fin(raw.pickMs, 0, 1e6))) return null;
   if (!(raw.escaped === undefined || typeof raw.escaped === 'boolean')) return null;
   if (!(raw.perfects === undefined || fin(raw.perfects, 0, 1000))) return null;
   if (!(raw.lastMe === undefined || okAction(raw.lastMe)) || !(raw.queued === undefined || raw.queued === null || okAction(raw.queued))) return null;

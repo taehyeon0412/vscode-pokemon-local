@@ -641,7 +641,7 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
       // 3:3 실시간 (orders #17) — 이기면 1:1 트레이너와 같은 길 (결과 · 돈 ×1.5 · 다시 안 나옴).
       // 지면 그 트레이너에게만 진 것 — 남은 포켓몬이 있으면 돈 −10% · 쓰러진 셋은 그대로 · 계속 걸음, 없을 때만 S17 (2026-10-21 태현 님 "추천안대로")
       const rng = new Rng(rt.rngState);
-      let team = teamStep(stage.team, stepMs, rng, { auto: save.settings.autoBattle, away: rt.headless });
+      let team = teamStep(stage.team, stepMs, rng, { auto: save.settings.autoBattle, away: rt.headless, ...(rt.dev ? { ults: rt.dev.ults } : {}) });
       rt = { ...rt, rngState: rng.state };
       if (team.phase === 'over' && stage.team.phase !== 'over' && team.result === 'lose' && aliveCount(applyTeamResult(save, team)) > 0) {
         team = { ...team, msg: `${team.foeName}에게 졌다… 남은 포켓몬으로 계속 간다` };
@@ -669,6 +669,13 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
         save = { ...save, money: save.money - lost };
         // 이 트레이너는 이번 판에 다시 만나면 주 버튼 1:1 · 같은 판 패배로 셈 (R8 A)
         if (p?.kind === 'trainer') save = withStage(save, id, (s) => ({ ...s, run: { ...s.run, teamLost: [...(s.run.teamLost ?? []).filter((t) => t !== p.trainerId), p.trainerId] } }));
+        const run = save.stages[id]?.run;
+        if ((run?.retries ?? 0) + (run?.teamLost?.length ?? 0) >= 2) {
+          // 같은 판 두 번째 패배 — 멈춤 상자 (다시 시작 없음, Enter · 클릭 = 계속 걷기) · 안 볼 때는 알림 (R8 A — 방치 손해 막기)
+          stage = { phase: 'defeat', gym: false, lost, keep: team.foeName ?? '상대' };
+          if (rt.headless) notice = 'defeat';
+          break;
+        }
         rt = { ...rt, toast: { text: `${team.foeName}에게 졌다… 돈 −${lost.toLocaleString('en-US')}원`, ms: TIMING.toastMs * 2 } };
         stage = afterResult(save);
         break;
@@ -824,7 +831,7 @@ function gymStep(save0: Save, rt0: RuntimeState, stepMs: number): { save: Save; 
     case 'team': {
       // 관장전 3:3 (orders #17) — 1:1 토너먼트와 같은 길 (처음 이기면 배지 · MVP 끝 카드, 지면 대기실)
       const rng = new Rng(rt.rngState);
-      const team = teamStep(stage.team, stepMs, rng, { auto: save.settings.autoBattle, away: rt.headless });
+      const team = teamStep(stage.team, stepMs, rng, { auto: save.settings.autoBattle, away: rt.headless, ...(rt.dev ? { ults: rt.dev.ults } : {}) });
       rt = { ...rt, rngState: rng.state };
       if (!teamDone(team)) {
         stage = { phase: 'team', team };
@@ -1040,7 +1047,7 @@ export function applyInput(state: GameState, input: GameInput): GameState {
     case 'team-battle': {
       if (stage?.phase !== 'team') return state;
       const rng = new Rng(state.runtime.rngState);
-      const team = teamInput(stage.team, input.input, rng);
+      const team = teamInput(stage.team, input.input, rng, state.runtime.dev?.ults);
       return team === stage.team ? state : { ...state, runtime: { ...state.runtime, rngState: rng.state, stage: { phase: 'team', team } } };
     }
     case 'team-mode': {
@@ -1239,6 +1246,8 @@ export function applyInput(state: GameState, input: GameInput): GameState {
     }
     case 'defeat-continue':
       if (stage?.phase !== 'defeat') return state;
+      // 3:3 두 번째 패배 상자 = 남은 포켓몬으로 계속 (다시 시작 없음 — R8 A)
+      if (stage.keep !== undefined) return { ...state, runtime: { ...state.runtime, stage: afterResult(save) } };
       return { ...state, runtime: { ...state.runtime, stage: stage.gym ? { phase: 'lobby' } : { phase: 'walk' } } };
     case 'travel':
       return travel(state, input.to);
@@ -1292,6 +1301,8 @@ function defeatStep(stage: Extract<StageRuntime, { phase: 'defeat' }>, rt: Runti
 
 /** 스테이지 패배를 기다릴지 — 같은 판에서 두 번째 패배부터 (run.retries ≥ 2, 관장전 패배는 돈을 안 잃어 늘 저절로). 처음 한 번만 저절로 다시 걸어 돈이 계속 빠지는 고리를 막음 (2026-10-21 코드 리뷰어) */
 export function defeatWaits(save: Save, stage: Extract<StageRuntime, { phase: 'defeat' }>): boolean {
+  // 3:3 두 번째 패배 상자는 늘 기다림 (멈추고 알림 — R8 A)
+  if (stage.keep !== undefined) return true;
   if (stage.gym || save.location.screen !== 'stage') return false;
   // 3:3 으로 진 것 (남은 포켓몬으로 계속 걸은 것) 도 같은 판 패배로 셈 (R8 A)
   const run = save.stages[save.location.stageId]?.run;

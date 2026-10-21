@@ -108,6 +108,12 @@ describe('계획', () => {
     // 필살기는 매번 일반 모드 그대로 (태현 님 — 짧게는 TEAM_FX.quickRepeat, 기획 #88 대기) · 열쇠 = 시작 시각
     expect(ults.map((c) => c.do === 'ult' && c.quick)).toEqual([false, false, false]);
     expect(ults[0]).toMatchObject({ dst: { side: 'foe', slot: 1 }, key: 'teamult5000' });
+    // 엔진이 고른 이름 · 대상 (기획 R7) — 한 마리 필살기는 그 상대만 (기운 줄기 없음) · 범위기는 나머지도
+    const single = plan([{ t: 'ult', side: 'me', from: 0, name: '블래스트번', spread: false, target: 2 }]);
+    expect(single[0]).toMatchObject({ do: 'ult', dst: { side: 'foe', slot: 2 }, others: [], name: '블래스트번' });
+    const spread = plan([{ t: 'ult', side: 'me', from: 0, name: '지진', spread: true, target: 2 }]);
+    expect(spread[0]).toMatchObject({ do: 'ult', dst: { side: 'foe', slot: 2 }, name: '지진' });
+    expect(spread[0]?.do === 'ult' && spread[0].others.map((o) => o.slot).sort()).toEqual([0, 1]);
     // 합동 마무리 — 이긴 참가자 · 가운데 진 참가자 · 타입
     expect(plan([{ t: 'ult', side: 'me', from: 0, joint: { winners: [0, 2], losers: [0, 1, 2], sure: false } }])).toEqual([
       { do: 'joint', winners: [{ side: 'me', slot: 0 }, { side: 'me', slot: 2 }], dst: { side: 'foe', slot: 1 }, types: [withLog([]).me[0]!.types[0], withLog([]).me[2]!.types[0]], sure: false, key: 'teamult5000', others: [{ side: 'foe', slot: 0 }, { side: 'foe', slot: 2 }] },
