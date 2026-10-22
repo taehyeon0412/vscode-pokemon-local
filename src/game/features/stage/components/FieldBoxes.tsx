@@ -5,7 +5,7 @@
  * 단축키 Enter · Esc 는 main.ts (부탁과 같은 규칙).
  */
 import type { ComponentChildren } from 'preact';
-import { useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
 import { canHeal, gymLeaderOf, regionsOn, teamLock, waitReason, type GameInput, type GameState } from '../../../core/engine';
 import { defeatWaits } from '../../../core/engine/play';
@@ -451,6 +451,29 @@ export function LobbyBox({ state, media, onInput, onBox, onShop, onMap }: BoxPro
 /** 관장 첫 승 카드 — 배지 → "숲 클리어! …" → 세계 지도. 배지 이름 · 첫 승 물건 = 지금 지역 표 (해변 관장을 이겨도 "숲 배지 · 리프의돌" 이던 것).
  *  뒷말 = 다음 지역 (orders #67 — 개발 #66): 고를 곳이 있으면 "다음 지역을 골라요" · 바로 열렸으면 "새 지역 해변이 열렸어요" · 꺼져 있으면 (본편) "다음 지역은 준비 중이에요" */
 export function BadgeCard({ state, onInput, onMap }: BoxProps & { onMap(): void }) {
+  // 보상 · 버튼 줄이 넘치면 한 단계 — Enter 키 칸을 빼고 배지와 글 사이 6 (폭 경계 330 고정이라 맥 331 ~ 333 에서 버튼 묶음이 셋째 줄로 내려가 카드가 주인공을 덮던 것, 개발 UX #70 · U4)
+  const card = useRef<HTMLDivElement>(null);
+  const [tight, setTight] = useState(false);
+  useLayoutEffect(() => {
+    const el = card.current;
+    if (!el || tight) return;
+    const row = el.querySelector<HTMLElement>('.pg-badge-row');
+    const glow = el.querySelector<HTMLElement>('.pg-badge-glow');
+    if (!row || !glow || row.clientWidth === 0) return;
+    const cs = getComputedStyle(el);
+    const edge = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth);
+    const parent = el.offsetParent instanceof HTMLElement ? el.offsetParent.clientWidth : window.innerWidth;
+    const room = parent - 16 - edge - glow.offsetWidth - (parseFloat(cs.columnGap) || 0);
+    const kids = [...row.children].filter((c): c is HTMLElement => c instanceof HTMLElement && c.offsetWidth > 0);
+    const gap = parseFloat(getComputedStyle(row).columnGap) || 0;
+    const need = kids.reduce((w, c) => w + c.scrollWidth * 1.1, 0) + gap * Math.max(0, kids.length - 1);
+    if (need > room + 0.5) setTight(true);
+  });
+  useEffect(() => {
+    const reset = () => setTight(false);
+    window.addEventListener('resize', reset);
+    return () => window.removeEventListener('resize', reset);
+  }, []);
   if (state.runtime.stage?.phase !== 'badge') return null;
   const region = regionHere(state.save.location);
   const map = regionsOn(state) ? mapView(state) : null;
@@ -470,7 +493,7 @@ export function BadgeCard({ state, onInput, onMap }: BoxProps & { onMap(): void 
   );
   const item = region.firstWinItem;
   return (
-    <div class="pg-banner pg-badge-card">
+    <div class={`pg-banner pg-badge-card${tight ? ' pg-badge-tight' : ''}`} ref={card}>
       <span class="pg-badge-glow">
         <Icon name={badgeIcon(region.id, true)} title={region.badgeName} />
       </span>

@@ -4408,14 +4408,12 @@ body.vscode-high-contrast-light .pg-title-body {
   flex-wrap: wrap;
   gap: 6px;
 }
-/* 좁은 배지 카드 (330 아래) — 대기실과 같게 Enter 키 칸 숨김 · 배지와 글 사이 10 → 6 (두 버튼이 한 줄에 — 네 줄 카드가 주인공 · 관장을 덮던 것) */
-@media (max-width: 330px) {
-  .pg-badge-card {
-    gap: 6px;
-  }
-  .pg-badge-card .pg-menu-key {
-    display: none;
-  }
+/* 좁은 배지 카드 (보상 · 버튼 줄이 넘치면 — FieldBoxes BadgeCard 가 재서 pg-badge-tight · 예전 330 고정) — 대기실과 같게 Enter 키 칸 숨김 · 배지와 글 사이 10 → 6 (두 버튼이 한 줄에 — 네 줄 카드가 주인공 · 관장을 덮던 것) */
+.pg-badge-card.pg-badge-tight {
+  gap: 6px;
+}
+.pg-badge-card.pg-badge-tight .pg-menu-key {
+  display: none;
 }
 .pg-badge-glow {
   flex: none;
