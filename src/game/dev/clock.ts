@@ -1,10 +1,11 @@
 /**
- * 개발 모드 (임시, gdd 8장) — 웹뷰 시계를 늦추거나 멈춤 (전투 ×0.5 · ×0.25 · 멈춤).
+ * 웹뷰 시계 — 3:3 박자 (기본 0.8 · 전투 ×2 · 끼어들 창 늦춤 — orders #83 · #81, core gameTempo) + 개발 모드 (임시, gdd 8장) 전투 ×0.5 · ×0.25 · 멈춤.
+ * 3:3 을 처음 볼 때 끼우고 게임 화면을 떠나면 되돌림 (resetDevClock — 일반 모드 포켓몬은 늘 진짜 시계).
  * 게임 계산 · 일반 모드 연출 (main-bundle.js) · CSS 움직임이 모두 같은 시계를 보게: performance.now · setTimeout · setInterval ·
  * requestAnimationFrame 의 시간을 바꾸고, CSS · Web Animations 는 재생 빠르기를 같은 배로.
  * 처음 늦출 때 한 번 끼우고 그 뒤로는 이 웹뷰가 다시 뜰 때까지 같은 시계 (배 1 = 그대로 흐름). 0ms 타이머는 그대로 (Preact 그리기 · "다음 차례" 가 멈춤에 막히지 않게).
  */
-import { inBattle, type GameState } from '../core/engine';
+import { gameTempo, inBattle, type GameState } from '../core/engine';
 
 type Fn = (...args: unknown[]) => void;
 interface Timer {
@@ -155,10 +156,10 @@ export function setDevClock(next: number): void {
   }
 }
 
-/** 게임 상태에 맞는 배 — 개발 모드 멈춤 = 0 · 전투 중 = 전투 배 · 그 밖 (일반 모드 · 타이틀 포함) = 1 */
+/** 게임 상태에 맞는 배 — 개발 모드 멈춤 = 0 · 3:3 박자 (gameTempo) × 개발 모드 전투 배 · 그 밖 (일반 모드 · 타이틀 포함) = 1 */
 export function devClockFor(state: GameState | null, playing: boolean): number {
-  const dev = playing ? state?.runtime.dev : undefined;
-  if (!dev || !state) return 1;
-  if (dev.pause) return 0;
-  return inBattle(state) ? dev.battle : 1;
+  if (!playing || !state) return 1;
+  const dev = state.runtime.dev;
+  if (dev?.pause) return 0;
+  return (dev && inBattle(state) ? dev.battle : 1) * gameTempo(state);
 }

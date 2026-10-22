@@ -225,7 +225,7 @@ describe('불러오기 · 새로 하기 백업 — 다른 창이 그 사이 쓴 
 });
 
 describe('3판 → 4판 (orders #30) — 설치 뒤 첫 읽기', () => {
-  it('3판 세이브를 읽으면 원본을 "옮기기 전" 으로 보관하고 4판 (연 지역 = 숲) 으로 5초 안에 씀 · 같이 쓰는 칸 그대로', async () => {
+  it('3판 세이브를 읽으면 원본을 "옮기기 전" 으로 보관하고 지금 판 (4판에서 연 지역 = 숲 · 5판은 판만) 으로 5초 안에 씀 · 같이 쓰는 칸 그대로', async () => {
     const v3 = (await import('../../test/fixtures/save-v3.json')).default as unknown as Save;
     make(v3);
     const r = await store.load();
@@ -233,7 +233,7 @@ describe('3판 → 4판 (orders #30) — 설치 뒤 첫 읽기', () => {
     expect(archive.items.map((i) => [i.reason, i.note])).toEqual([['before-migration', '3판']]);
     store.start();
     await vi.advanceTimersByTimeAsync(5000);
-    expect(stored()?.version).toBe(4);
+    expect(stored()?.version).toBe(SAVE_VERSION);
     expect(stored()?.regions).toEqual({ order: ['forest'] });
     expect(stored()?.monsters).toEqual(v3.monsters);
     expect(stored()?.money).toBe(v3.money);

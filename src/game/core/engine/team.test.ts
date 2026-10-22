@@ -4,10 +4,10 @@ import { fixedRng } from '../../../test/fixtures/rng';
 import { sampleMonster, sampleSave, viaJson } from '../../../test/fixtures/save';
 import { BALANCE, TIMING } from '../balance';
 import type { Monster, Save } from '../save';
-import { applyInput, AUTO_TEAM_TIP, autoTeamTipDue, defeatWaits, step, TEAM_MEET_TIP, teamChoiceMeet, teamFoesOf, teamLock, teamMainOf, teamMeetTipDue, teamPickOf } from './play';
+import { applyInput, AUTO_TEAM_TIP, autoTeamTipDue, defeatWaits, gameTempo, step, TEAM_MEET_TIP, teamChoiceMeet, teamFoesOf, teamLock, teamMainOf, teamMeetTipDue, teamPickOf } from './play';
 import { Rng } from './rng';
 import { createGameState, readRuntime, type GameState } from './state';
-import { shotTiming, applyTeamResult, isSpread, pickTeam, readTeam, startTeamBattle, TEAM_BASIC, teamClashSure, teamDone, teamInput, teamPick, teamPossible, teamScale, teamStep, teamAutoUltLeft, teamAutoUltNext, teamUltLevel, teamUltOpen, type TeamBattle, teamGather, teamLayout } from './team';
+import { shotTiming, applyTeamResult, isSpread, pickTeam, readTeam, startTeamBattle, TEAM_BASIC, teamClashSure, teamDone, teamInput, teamPick, teamPossible, teamScale, teamStep, teamAutoUltLeft, teamAutoUltNext, teamUltLevel, teamUltOpen, type TeamBattle, teamGather, teamJoinOpen, teamLayout } from './team';
 import { moveFxOf, moveOf, ultIsSpread, ultNamesOf } from '../../data';
 import { teamHealthy } from '../rules/bag';
 import { leaderTeam, trainerTeam } from '../rules/trainer';
@@ -1035,5 +1035,74 @@ describe('필살기는 사용자가 눌러야만 (orders #82 — BALANCE.ultAuto
     expect(teamInput(full, { kind: 'ult', slot: 1 }, new Rng(3)).ult?.from).toBe(1);
     const reserved = teamStep({ ...full, reserve: [2] }, STEP, new Rng(3), { auto: true, away: true });
     expect(reserved.phase === 'ult' && reserved.ult?.from).toBe(2);
+  });
+});
+
+describe('3:3 박자 (orders #83 — 기본 0.8 · 전투 ×2) · 누를 창 (orders #81 — 2초 넘게)', () => {
+  const inTeam = (b: TeamBattle, fast?: boolean): GameState => {
+    const s = createGameState(team3(), 3);
+    const save = fast === undefined ? s.save : { ...s.save, settings: { ...s.save.settings, battleFast: fast } };
+    return { ...s, save, runtime: { ...s.runtime, stage: { ...s.runtime.stage!, phase: 'team', team: b } as never } };
+  };
+  const b0 = startTeamBattle(team3(), foes(), 'trainer', '상대');
+
+  it('시계 배 — 3:3 0.8 · ×2 면 보통 공격만 1.6 · 필살기 · 힘겨루기 · 결과는 0.8 · 3:3 밖은 1', () => {
+    expect(TIMING.team.tempo).toBe(0.8);
+    expect(gameTempo(createGameState(team3(), 3))).toBe(1);
+    expect(gameTempo(inTeam(b0))).toBe(0.8);
+    expect(gameTempo(inTeam(b0, false))).toBe(0.8);
+    expect(gameTempo(inTeam(b0, true))).toBeCloseTo(1.6, 10);
+    const mine = teamInput({ ...b0, me: b0.me.map((f) => ({ ...f, ult: 1 })) }, { kind: 'ult', slot: 0 }, new Rng(3));
+    expect(mine.phase).toBe('ult');
+    expect(gameTempo(inTeam(mine, true))).toBe(0.8);
+    expect(gameTempo(inTeam({ ...b0, phase: 'over' }, true))).toBe(0.8);
+  });
+
+  it('상대 필살기 — 찬 내 포켓몬이 있으면 끼어들 창 동안 joinSlow (1.2초 창이 실제 2초 넘게) · 없으면 기본 · 상대 합동 멘트는 기본 (이미 길어서)', () => {
+    const foeFull: TeamBattle = { ...b0, foe: b0.foe.map((f, i) => ({ ...f, ult: i === 0 ? 1 : 0 })) };
+    const foeUlt = (b: TeamBattle) => {
+      // 상대 AI 기다림 (foeUltWaitMs) 을 거의 끝으로 — 다음 장면에 필살기
+      let cur: TeamBattle = { ...b, foeUltWait: b.foe.map((_, i) => (i === 0 ? 1 : null)) };
+      for (let t = 0; t < 2000 && cur.phase !== 'ult'; t += STEP) cur = teamStep({ ...cur, foe: cur.foe.map((f, i) => ({ ...f, ult: i === 0 ? 1 : f.ult })) }, STEP, new Rng(5), { auto: false, away: false });
+      return cur;
+    };
+    const ready = foeUlt({ ...foeFull, me: foeFull.me.map((f, i) => ({ ...f, ult: i === 2 ? 1 : 0 })) });
+    expect(ready.phase === 'ult' && ready.ult?.side).toBe('foe');
+    expect(teamJoinOpen(ready)).toEqual({ gathering: false });
+    expect(gameTempo(inTeam(ready, true))).toBe(TIMING.team.joinSlow);
+    expect(TIMING.team.interruptMs / TIMING.team.joinSlow).toBeGreaterThan(2000);
+    const none = foeUlt(foeFull);
+    expect(none.phase === 'ult' && teamJoinOpen(none)).toBeNull();
+    expect(gameTempo(inTeam(none))).toBe(0.8);
+    // 상대 합동 멘트 (상대 동료도 참) — 창 = gatherMs · 기본 박자로 2초 넘게
+    const both = foeUlt({ ...foeFull, me: foeFull.me.map((f, i) => ({ ...f, ult: i === 2 ? 1 : 0 })), foe: foeFull.foe.map((f, i) => ({ ...f, ult: i < 2 ? 1 : 0 })) });
+    expect(both.ult?.gather).toBeGreaterThan(0);
+    expect(teamJoinOpen(both)).toEqual({ gathering: true });
+    expect(gameTempo(inTeam(both))).toBe(0.8);
+  });
+
+  it('합동 멘트 (내 필살기 · 찬 동료) 창 = gatherMs 2초 · 기본 박자로 실제 2.5초 · ×2 여도 그대로 · 그동안 다른 공격 · 피해 없음', () => {
+    expect(TIMING.team.gatherMs).toBeGreaterThanOrEqual(2000);
+    const full: TeamBattle = { ...b0, me: b0.me.map((f) => ({ ...f, ult: 1 })), foe: b0.foe.map((f) => ({ ...f, ult: 0 })) };
+    const g = teamInput(full, { kind: 'ult', slot: 0 }, new Rng(3));
+    expect(teamGather(g)?.leftMs).toBe(TIMING.team.gatherMs);
+    expect(gameTempo(inTeam(g, true))).toBe(0.8);
+    expect(TIMING.team.gatherMs / gameTempo(inTeam(g, true))).toBeGreaterThan(2000);
+    const hp = (b: TeamBattle) => [...b.me, ...b.foe].map((f) => f.hp);
+    const mid = run(g, TIMING.team.gatherMs - 100);
+    expect(teamGather(mid)).not.toBeNull();
+    expect(hp(mid)).toEqual(hp(g));
+  });
+
+  it('전투 ×2 입력 — 켜고 끄기 · 3:3 중에도 · 키로 바꾸면 한 줄 알림 · 판이 떠 있어도 받음 (OVERLAY_INPUTS)', () => {
+    const s = createGameState(team3(), 3);
+    const on = applyInput(s, { kind: 'battle-fast', on: true });
+    expect(on.save.settings.battleFast).toBe(true);
+    expect(applyInput(on, { kind: 'battle-fast', on: true })).toBe(on);
+    expect(applyInput(on, { kind: 'battle-fast', on: false }).save.settings.battleFast).toBe(false);
+    const said = applyInput(s, { kind: 'battle-fast', on: true, say: true });
+    expect(said.runtime.toast?.text).toBe('전투 ×2 켜짐 (X)');
+    const fighting = inTeam(b0);
+    expect(applyInput(fighting, { kind: 'battle-fast', on: true }).save.settings.battleFast).toBe(true);
   });
 });

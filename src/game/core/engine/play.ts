@@ -28,7 +28,7 @@ import { Rng } from './rng';
 // 개발 모드 (임시)
 import { devTeam, devWalk } from '../../dev/runtime';
 import { MAX_SPEED, type AwayLog, type GameNotice, type GameState, type RuntimeState, type StageRuntime } from './state';
-import { applyTeamResult, pickTeam, startTeamBattle, teamDone, teamInput, teamPossible, teamRewardBattle, teamScale, teamStep, type TeamBattle, type TeamInput } from './team';
+import { applyTeamResult, pickTeam, startTeamBattle, teamDone, teamInput, teamJoinOpen, teamPossible, teamRewardBattle, teamScale, teamStep, type TeamBattle, type TeamInput } from './team';
 import { takeSteps } from './step';
 
 /** 바로 저장해야 하는 일 (mvp-spec 3.1) — 웹뷰는 save-now 로, 확장은 바로 씀 */
@@ -55,6 +55,8 @@ export type GameInput =
   | { kind: 'auto-battle'; on: boolean; say?: boolean }
   /** 빨리 걷기 켜기 · 끄기 (S06 정보줄 · S20, 2026-10-19) */
   | { kind: 'fast-walk'; on: boolean }
+  /** 전투 ×2 켜기 · 끄기 — 3:3 보통 공격만 두 배 (화면 위 스위치 · 설정 · X — orders #83). say = 한 줄 알림 (키로 바꿀 때) */
+  | { kind: 'battle-fast'; on: boolean; say?: boolean }
   /** 게임의 동작 줄이기 (설정 — 화면이 움직임을 줄임, OS 설정은 안 봄 · 2026-10-20 태현 님) */
   | { kind: 'reduce-motion'; on: boolean }
   /** 설정 — 자동 전투 상처약 (ideas #65) · 이미 잡은 종은 마지막 기회 건너뛰기 (ideas #35) */
@@ -1276,6 +1278,18 @@ export function inBattle(state: GameState): boolean {
   const p = phaseOf(state);
   return p === 'battle' || p === 'appear' || p === 'trainer' || p === 'rival' || p === 'team';
 }
+/**
+ * 웹뷰 시계 배 (orders #83 · #81) — 3:3 은 기본 박자 (TIMING.team.tempo 0.8) · 전투 ×2 (settings.battleFast) 를 켜면 보통 공격 (run) 만 두 배
+ * (필살기 · 힘겨루기 · 결과는 기본 박자 — U1) · 상대 필살기에 끼어들 창은 joinSlow (2초 넘게). 그 밖 (1:1 · 걷기 · 타이틀) = 1
+ */
+export function gameTempo(state: GameState): number {
+  const st = state.runtime.stage;
+  if (st?.phase !== 'team') return 1;
+  const t = TIMING.team;
+  const join = teamJoinOpen(st.team);
+  if (join && !join.gathering) return t.joinSlow;
+  return st.team.phase === 'run' && state.save.settings.battleFast === true ? t.tempo * t.fastScale : t.tempo;
+}
 /** S06 ⑦ ~ ⑩ 오른쪽 위 버튼 · S19 가방 — 걷는 중 (그동안 화면은 걸음을 멈춤) · 체육관 대기실 (관장에게 받은 리프의 돌을 바로) */
 export function canOpenMenus(state: GameState): boolean {
   return (state.save.location.screen === 'stage' && phaseOf(state) === 'walk') || inLobby(state);
@@ -1446,6 +1460,11 @@ export function applyInput(state: GameState, input: GameInput): GameState {
     case 'fast-walk':
       if ((save.settings.fastWalk === true) === input.on) return state;
       return { ...state, save: { ...save, settings: { ...save.settings, fastWalk: input.on } } };
+    case 'battle-fast': {
+      if ((save.settings.battleFast === true) === input.on) return state;
+      const next = { ...save, settings: { ...save.settings, battleFast: input.on } };
+      return input.say ? toast(state, next, input.on ? '전투 ×2 켜짐 (X)' : '전투 ×2 꺼짐 (X)') : { ...state, save: next };
+    }
     case 'reduce-motion':
       if ((save.settings.reduceMotion === true) === input.on) return state;
       return { ...state, save: { ...save, settings: { ...save.settings, reduceMotion: input.on } } };

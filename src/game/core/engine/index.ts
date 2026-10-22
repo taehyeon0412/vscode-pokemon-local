@@ -17,6 +17,7 @@ export {
   autoTeamTipDue,
   syncRegionOrder,
   inBattle,
+  gameTempo,
   defeatWaits,
   isWaitingForInput,
   stageUnlocked,
@@ -69,7 +70,7 @@ export {
   type Side,
 } from './battle';
 export { clearBonusExp, FOREST_BADGE, runExpScale, stageClearExp, stageClearGain, type BattleSummary } from './rewards';
-export { readTeam, TEAM_BASIC, TEAM_LOG_MAX, teamClashSure, teamGather, teamLayout, teamScale, teamAutoUltLeft, teamAutoUltNext, teamUltLevel, teamUltOpen, teamViewKey, type TeamBattle, type TeamClash, type TeamInput, type TeamLogEntry, type TeamNote, type TeamPopup, type TeamShot, type TeamUlt } from './team';
+export { readTeam, TEAM_BASIC, TEAM_LOG_MAX, teamClashSure, teamGather, teamJoinOpen, teamLayout, teamScale, teamAutoUltLeft, teamAutoUltNext, teamUltLevel, teamUltOpen, teamViewKey, type TeamBattle, type TeamClash, type TeamInput, type TeamLogEntry, type TeamNote, type TeamPopup, type TeamShot, type TeamUlt } from './team';
 export {
   createGameState,
   MAX_SPEED,

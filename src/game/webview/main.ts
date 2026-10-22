@@ -300,6 +300,15 @@ if (!port) {
         return;
       }
     }
+    // X = 전투 ×2 켜고 끄기 (orders #83 — 3:3 보통 공격만, 화면 위 스위치 · 설정과 같음, 판이 없을 때)
+    if (!overlay && e.code === 'KeyX' && !(e.ctrlKey || e.metaKey || e.altKey)) {
+      const cur = session.current;
+      if (cur && (cur.save.location.screen === 'stage' || cur.save.location.screen === 'gym')) {
+        e.preventDefault();
+        actions.input({ kind: 'battle-fast', on: cur.save.settings.battleFast !== true, say: true });
+        return;
+      }
+    }
     if (overlay) {
       // 판 (지도 · 내 포켓몬 …) 의 Esc 는 판이 들음 · S21 프로필은 여기서
       if (overlay.kind === 'profile' && e.key === 'Escape') {

@@ -787,6 +787,13 @@ export function teamLayout(view: { w: number; h: number } | null | undefined): '
 }
 
 /** 지금 그 칸 필살기를 쓸 · 끼어들 · 합류할 수 있는지 (화면이 아이콘을 밝게) */
+/** 상대 필살기에 내가 끼어들 창이 열림 (찬 포켓몬이 있을 때 — 화면 "끼어들기" 판 · 시계를 늦춤 orders #81). 상대 합동 멘트 중이면 gathering = true */
+export function teamJoinOpen(b: TeamBattle): { gathering: boolean } | null {
+  const u = b.ult;
+  if (b.phase !== 'ult' || !u || u.side !== 'foe' || u.window <= 0 || u.hit || !b.me.some((_, i) => teamUltOpen(b, i))) return null;
+  return { gathering: (u.gather ?? 0) > 0 };
+}
+
 export function teamUltOpen(b: TeamBattle, slot: number): boolean {
   const f = b.me[slot];
   if (!f || !alive(f) || f.ult < 1) return false;

@@ -277,7 +277,7 @@ describe('고정된 3판 세이브 표본 (src/test/fixtures/save-v3.json — #3
     if (r.kind !== 'ok') return;
     expect(r.problems).toEqual([]);
     expect(r.migratedFrom).toBe(3);
-    expect(viaJson(r.save)).toEqual({ ...raw, version: 4, regions: { order: ['forest'] } });
+    expect(viaJson(r.save)).toEqual({ ...raw, version: SAVE_VERSION, regions: { order: ['forest'] } });
     expect(r.save.badges).toEqual(['forest']);
     expect(r.save.location).toEqual({ screen: 'gym' });
     expect(r.save.settings.teamMode).toBe(true);
@@ -293,7 +293,7 @@ describe('고정된 3판 세이브 표본 (src/test/fixtures/save-v3.json — #3
     const r = readSave(viaJson(await load()));
     if (r.kind !== 'ok') throw new Error('읽기 실패');
     const old = { 1: MIGRATIONS[1]!, 2: MIGRATIONS[2]! };
-    expect(migrateSave(viaJson(r.save) as unknown as Record<string, unknown>, old, 3)).toEqual({ ok: false, reason: 'newer', version: 4 });
+    expect(migrateSave(viaJson(r.save) as unknown as Record<string, unknown>, old, 3)).toEqual({ ok: false, reason: 'newer', version: SAVE_VERSION });
   });
 
   it('옛 창 대비 — 판이 더 새 (4판) 이면 지금 코드는 읽지 않고 잠금 (newer)', async () => {
@@ -469,5 +469,22 @@ describe('위치 고치기 한 곳 (코드 리뷰어 #30) — 맨 위 · 다른 
     const top = validateSave(viaJson({ ...base, location: { screen: 'world-map' } }));
     expect(top.ok && top.save.location).toEqual({ screen: 'stage', stageId: 'forest-1' });
     expect(top.ok && top.problems.join(' ')).toContain('world-map 에서는 이어 할 수 없음');
+  });
+});
+
+describe('5판 칸 — 전투 ×2 (orders #83)', () => {
+  it('4판 세이브는 칸 그대로 판만 5 · battleFast 는 있으면 읽고 (이상하면 꺼짐) · 없으면 칸이 없음 · 옛 4판 코드는 5판을 잠금', () => {
+    const v4 = { ...viaJson(createNewSave(0)), version: 4 } as unknown as Record<string, unknown>;
+    const r = readSave(v4);
+    expect(r.kind === 'ok' && r.migratedFrom).toBe(4);
+    if (r.kind !== 'ok') return;
+    expect(viaJson(r.save)).toEqual({ ...v4, version: 5 });
+    expect(r.save.settings.battleFast).toBeUndefined();
+    const on = validateSave(viaJson({ ...r.save, settings: { ...r.save.settings, battleFast: true } }));
+    expect(on.ok && on.save.settings.battleFast).toBe(true);
+    const bad = validateSave(viaJson({ ...r.save, settings: { ...r.save.settings, battleFast: 'yes' } }));
+    expect(bad.ok && bad.save.settings.battleFast).toBe(false);
+    const old = { 1: MIGRATIONS[1]!, 2: MIGRATIONS[2]!, 3: MIGRATIONS[3]! };
+    expect(migrateSave(viaJson(r.save) as unknown as Record<string, unknown>, old, 4)).toEqual({ ok: false, reason: 'newer', version: 5 });
   });
 });

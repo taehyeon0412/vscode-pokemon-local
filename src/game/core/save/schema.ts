@@ -9,7 +9,8 @@
  *   (설치 뒤 다시 로드 안 한 옛 창이 새 칸을 지우지 못함 — save-store lock). 판 올리기는 "파일 읽기" 만 막음 —
  *   설치 직후 "옛 확장 + 새 웹뷰" 는 웹뷰가 판이 다른 상태를 계산하지 않고 넘겨서 막음 (webview-session start).
  */
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
+// 4 → 5 (2026-10-22 orders #83): settings.battleFast (옵션 — 전투 ×2) — 옛 4판 창이 지우지 못하게 판만 올림
 // 3 → 4 (2026-10-22 orders #30 · dev-log #40 안 A): regions (연 지역 순서 · 다음 고를 곳) · mode · stash (안 하는 모드의 진행) · cleared — 옛 3판 창이 새 칸을 지우지 못하게 판을 올림
 // 2 → 3 (2026-10-21 orders #17): settings.teamMode (옵션) — 옛 2판 창이 지우지 못하게 판만 올림
 // 1 → 2 (2026-10-21 orders #15): 칸은 1판 + 옵션 칸 (settings.autoPotion · skipCaughtLast · laterChoices · tips · 새 물건 id · run.candy · boost) — 옛 1판 창이 이 세이브를 지우지 못하게 판만 올림
@@ -205,6 +206,8 @@ export interface SaveV3 {
     skipCaughtLast?: boolean;
     /** 트레이너를 만났을 때 마지막으로 고른 방식 — true = 3:3 (없으면 1:1, 2026-10-21 orders #17) */
     teamMode?: boolean;
+    /** 3:3 전투 ×2 — 보통 공격만 두 배 (없으면 꺼짐 — 2026-10-22 orders #83) */
+    battleFast?: boolean;
   };
   /** 라이벌 전적 (gdd 4.12) — 주인공 id → 내가 이긴 수 · 진 수. 처음 만나기 전 (옛 세이브 포함) 엔 칸이 없음 — 없는 칸을 만들면 옛 세이브가 "고친 세이브" 로 다시 써짐 */
   rivals?: Record<string, { wins: number; losses: number }>;
@@ -281,5 +284,10 @@ export interface SaveV4 extends Omit<SaveV3, 'version'> {
   cleared?: { normal?: number };
 }
 
+export interface SaveV5 extends Omit<SaveV4, 'version'> {
+  /** 5 = 4판 + settings.battleFast (옵션 — orders #83) */
+  version: 5;
+}
+
 /** 지금 버전의 세이브 */
-export type Save = SaveV4;
+export type Save = SaveV5;
