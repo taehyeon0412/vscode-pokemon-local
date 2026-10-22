@@ -42,8 +42,8 @@ function shadowStyle(form: string, g: TeamGeo, flip: boolean): Record<string, st
   return { left: `${snap(cx - w / 2)}px`, top: `${snap(g.sp - 3 * k - 1.5 * u)}px`, width: `${w}px`, '--pg-sh-u': `${u}px`, '--pg-sh-in': `${2 * k}px` };
 }
 
-/** 머리 위 말 · 숫자 쌓는 높이 — 한 줄 15 · 합동 칩 22 (칩 20 + 2) */
-const popGap = (ps: readonly { joint?: boolean }[]) => ps.reduce((h, p) => h + (p.joint ? 22 : 15), 0);
+/** 머리 위 말 · 숫자 쌓는 높이 — 한 줄 15 · 합동 칩 24 (칩 20 + 간격 1단 4 — 2 면 "쓰러졌다!" 가 칩 테두리에 붙던 것, 개발 #80 UX ④) */
+const popGap = (ps: readonly { joint?: boolean }[]) => ps.reduce((h, p) => h + (p.joint ? 24 : 15), 0);
 
 function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, onUlt }: { b: TeamBattle; g: TeamGeo; side: Side; slot: number; media: string; topMin: number; final: boolean; autoNext: boolean; fullChip: boolean; onUlt(slot: number): void }) {
   const f = b[side][slot]!;
@@ -53,15 +53,12 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, o
   const w = mine ? g.pw : g.pw - 16;
   const warn = side === 'foe' ? foeWarn(b, slot) : null;
   const pops0 = b.popups.filter((p) => p.side === side && p.slot === slot);
-  // 합동 마무리 피해 숫자 = 칩 "합동! −숫자" (같은 걸음에 여럿이면 합계 하나) (판 없는 빨강 "−7" "−9" 둘이 240 에서 묻히던 것, #80 아트 디렉터 2바퀴 · design-system 12장)
-  const dmgKinds = new Set(['damage', 'super', 'weak', 'crit']);
-  // 합동 마무리가 막 있었을 때만 (같은 걸음에 두 상대가 따로 친 숫자는 그대로 둘 — 합동이 아닌데 "합동!" 이 붙지 않게)
-  const jointNow = b.log.some((e) => e.t === 'ult' && !!e.joint && b.t - e.at < TIMING.team.jointMs + 1500);
-  const isDmg = (p: { kind: string; text: string }) => dmgKinds.has(p.kind) && p.text.startsWith('-');
+  // 합동 마무리 피해 숫자 = 칩 "합동! −숫자" (같은 걸음 합동 피해끼리 합계 하나) — 엔진이 그 피해 팝업에만 joint 를 닮 (개발 b488a8a · 판 없는 빨강 "−7" "−9" 둘이 240 에서 묻히던 것, #80 아트 디렉터 2바퀴 · design-system 12장).
+  //   예전엔 "최근 로그에 합동" 으로 골라 합동 뒤 2 ~ 3초 보통 공격 숫자에도 붙고 창이 끝나면 칩이 글로 바뀌며 깜빡이던 것 (개발 #80 UX 마지막 큼)
   const pops = pops0.reduce<(typeof pops0[number] & { joint?: boolean })[]>((out, p) => {
-    if (!jointNow || !isDmg(p)) return [...out, p];
+    if (!p.joint) return [...out, p];
     const same = out.find((q) => q.joint && q.ms === p.ms);
-    if (!same) return [...out, { ...p, joint: true }];
+    if (!same) return [...out, p];
     return out.map((q) => (q === same ? { ...q, text: `-${Number(q.text.slice(1)) + Number(p.text.slice(1))}` } : q));
   }, []);
   const name = speciesOf(f.species)?.name.ko ?? f.form;

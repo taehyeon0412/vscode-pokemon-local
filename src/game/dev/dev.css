@@ -60,6 +60,10 @@
   top: 4px;
   bottom: auto;
 }
+/* 그 자리 (정보줄 오른쪽 위) 의 3:3 스위치 묶음은 배지 폭 ("개발" 약 32 + 틈) 만큼 비킴 — 240 에서 ▶▶ 가 배지 밑에 깔려 "□" 만 보이던 것 (개발 #80 UX ⑤) */
+#pokemon-game:has(.pg-team-mon):has(.pg-dev-badge) .pg-team-switches {
+  margin-right: 38px;
+}
 /* 아래 가운데 처음 안내 (체육관 첫 알림 · 마지막 기회 · 필살기 준비 — 3 ~ 4초) 동안은 숨김 — 240 에서 안내 끝 (키 칸 · "1:1 승부") 을 덮던 것 */
 #pokemon-game:has(.pg-first-tip-low) .pg-dev-badge {
   visibility: hidden;

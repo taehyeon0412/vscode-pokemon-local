@@ -207,6 +207,10 @@
   font-size: 11px;
   color: var(--pg-sos-ink);
 }
+/* 흰 말 (쓰러졌다! 등) = 테두리 1칸 + 아래 1칸 그림자 — 밝은 폭발 고리 위에서 묻히던 것 (개발 #80 UX ④) */
+#pokemon-game .pg-team-pop.pg-pop-info {
+  text-shadow: 0 1px 0 #0c101e, 1px 0 0 #0c101e, -1px 0 0 #0c101e, 0 -1px 0 #0c101e, 1px 1px 0 #0c101e, -1px 1px 0 #0c101e, 0 2px 0 #0c101e;
+}
 #pokemon-game .pg-team-prompt,
 #pokemon-game .pg-team-msg {
   position: absolute;
