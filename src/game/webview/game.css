@@ -5412,6 +5412,26 @@ body.vscode-high-contrast-light .pg-title-body {
   border: 1px solid var(--pg-sos-tab-ink);
   background: var(--pg-sos-red);
 }
+/* 지도 이동 확인 (걷는 중 다른 스테이지) — 판 맨 위 · 줄 바꿈 (줄임표 금지) */
+.pg-map-confirm {
+  min-width: 0;
+  font-size: 11px;
+  white-space: normal;
+  /* 낱말 안에서 안 갈림 ("갈 / 까요?") */
+  word-break: keep-all;
+  color: var(--pg-sos-ink);
+}
+/* 새 소식 점 = 그림 오른쪽 위 빨간 네모 6 × 6 (미니맵 알림 점 · 대기실 [세계 지도] — 아직 안 가 본 새 지역) */
+.pg-new-dot {
+  position: absolute;
+  right: -2px;
+  top: -2px;
+  box-sizing: border-box;
+  width: 6px;
+  height: 6px;
+  border: 1px solid var(--pg-sos-tab-ink);
+  background: var(--pg-sos-red);
+}
 /* 다음 지역 고르기 = 결정 띠 (밝은 남색 + 1px 금선 — 5장 특별한 순간) · 안쪽 3 × 6 · 아래 칩 줄과 6 · 첫 버튼 ▸ · 버튼 최소 72 */
 .pg-panel-row.pg-region-pick-row {
   padding: 3px 6px;
@@ -5423,10 +5443,24 @@ body.vscode-high-contrast-light .pg-title-body {
   min-width: 72px;
   justify-content: center;
 }
-.pg-region-pick-row > .pg-button:first-of-type::before {
-  content: '▸';
-  margin-right: 4px;
-  color: var(--pg-sos-gold);
+/* 머리 줄이 넘치면 한 단계 (MapPanel tight — 맥 여유 1.1): 1 = 지도 아이콘 · 구분선 뺌 · 2 = NEW 글자 → 빨간 점 */
+.pg-panel-head:has(.pg-region-tabs.pg-tight1) > .pg-icon,
+.pg-panel-head:has(.pg-region-tabs.pg-tight2) > .pg-icon,
+.pg-region-tabs.pg-tight1::before,
+.pg-region-tabs.pg-tight2::before {
+  display: none;
+}
+.pg-region-tabs.pg-tight2 .pg-region-new {
+  display: inline-block;
+  box-sizing: border-box;
+  width: 6px;
+  height: 6px;
+  margin-left: 3px;
+  overflow: hidden;
+  font-size: 0;
+  vertical-align: middle;
+  border: 1px solid var(--pg-sos-tab-ink);
+  background: var(--pg-sos-red);
 }
 @media (max-width: 480px) {
   .pg-region-pick-title {
@@ -5443,6 +5477,10 @@ body.vscode-high-contrast-light .pg-title-body {
   }
   .pg-badge-newtag {
     display: inline-flex;
+  }
+  /* NEW 표가 있으면 첫 승 물건은 그림만 (이름은 title) — 240 에서 카드가 네 줄이 되어 주인공 머리 · 관장을 덮던 것 (#67 UX 리뷰어) */
+  .pg-badge-row:has(.pg-badge-newtag) .pg-badge-item-name {
+    display: none;
   }
 }
 .pg-region-tabs .pg-icon + .pg-icon {

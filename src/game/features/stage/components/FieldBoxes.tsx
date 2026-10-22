@@ -11,7 +11,7 @@ import { canHeal, gymLeaderOf, regionsOn, teamLock, waitReason, type GameInput, 
 import { defeatWaits } from '../../../core/engine/play';
 import { maxHpOf, teamHealth, teamHealthy } from '../../../core/rules/bag';
 import { itemName } from '../../../core/rules/items';
-import { regionHere } from '../../../core/rules/region';
+import { regionGymMoney, regionHere, regionOrder } from '../../../core/rules/region';
 import { FACILITY_STAFF } from '../../../core/rules/stage';
 import { aliveCount, gymHint, shortTrainerName } from '../../../core/rules/trainer';
 import { josaOf } from '../../../core/text';
@@ -20,7 +20,7 @@ import type { StageId } from '../../../core/save';
 import { Button } from '../../../ui/Button';
 import { Face } from '../../../ui/Face';
 import { Icon } from '../../../ui/Icon';
-import { badgeIcon, regionIcon } from '../../../ui/regionArt';
+import { badgeIcon, isNewRegion, regionIcon } from '../../../ui/regionArt';
 import { KeyCap } from '../../../ui/KeyCap';
 import { formatMoney } from '../../../ui/format';
 import { Sprite } from '../../../ui/Sprite';
@@ -381,6 +381,8 @@ export function LobbyBox({ state, media, onInput, onBox, onShop, onMap }: BoxPro
   // 버튼 줄이 넘치면 도전의 ▶ 를 뺌 (240 에서 "3:3" 칩까지 2px 넘쳐 상자 여백을 먹던 것 — UX 리뷰어 #27, 맥 여유 10%)
   const lobbyBox = useRef<HTMLDivElement>(null);
   // 2 단계 = Enter 키 칸도 뺌 (맥 +10% 에서 331 ~ 335 에 도전 버튼이 여백을 먹던 것 — UX 리뷰어 R12 재확인)
+  // 새 지역 (지역이 켜졌을 때 — 가 본 기록이 없는 연 지역)
+  const newRegion = regionsOn(state) ? mapView(state).regions.find((r) => isNewRegion(r, state.save.stages)) : undefined;
   const fit = useFit(lobbyBox, 2, ':scope > .pg-line:last-child');
   const tight = fit >= 1;
   return (
@@ -418,8 +420,12 @@ export function LobbyBox({ state, media, onInput, onBox, onShop, onMap }: BoxPro
           <Icon name="shop" />
           <span class="pg-long"> 상점</span>
         </Button>
-        <Button secondary onClick={onMap} title="③ 깬 스테이지로 가서 키우기">
-          <Icon name="map" />
+        {/* 아직 안 가 본 새 지역이 있으면 지도 그림 오른쪽 위 빨간 알림 점 + title — 알림 2.4초가 지나면 새 지역을 알려 줄 곳이 없던 것 (#67 UX 리뷰어) */}
+        <Button secondary onClick={onMap} title={newRegion ? `③ 세계 지도 (M) — 새 지역 ${newRegion.name}` : '③ 세계 지도 (M) — 깬 스테이지로 가서 키우기'}>
+          <span class="pg-region-ico">
+            <Icon name="map" />
+            {newRegion && <span class="pg-new-dot" aria-hidden="true" />}
+          </span>
           <span class="pg-long"> 세계 지도</span>
         </Button>
         <Button extraClass="pg-go" onClick={() => onInput({ kind: 'challenge' })} title={mode === '3:3' ? '② 관장 3마리와 3:3 실시간 배틀 — 나갈 3마리를 고름 (Enter)' : `② 관장 3마리와 1:1 토너먼트 (도망 불가) — Enter${modeWhy ? ` · ${modeWhy}` : ''}`}>
@@ -437,7 +443,7 @@ export function BadgeCard({ state, onInput, onMap }: BoxProps & { onMap(): void 
   if (state.runtime.stage?.phase !== 'badge') return null;
   const region = regionHere(state.save.location);
   const map = regionsOn(state) ? mapView(state) : null;
-  const opened = map?.regions.find((r) => !r.here && !r.badge && r.stages.every((s) => s.state !== 'cleared' && s.state !== 'current'));
+  const opened = map?.regions.find((r) => isNewRegion(r, state.save.stages));
   // 뒷말 — 새 지역 이름만 빨강 (0장 중요한 낱말 · SoS 2f) · 본편 "준비 중" 은 흐리게
   const tail = map?.next.length ? (
     <>다음 지역을 골라요</>
@@ -470,10 +476,11 @@ export function BadgeCard({ state, onInput, onMap }: BoxProps & { onMap(): void 
         </span>
         <span class="pg-line pg-badge-row">
           <span class="pg-reward">
-            <Icon name="coin" /> +{formatMoney(BALANCE.gymFirstMoney)}
+            <Icon name="coin" /> +{formatMoney(regionGymMoney(regionOrder(region.id)))}
           </span>
-          <span class="pg-reward" title="가방에서 써요 (진화의 돌)">
-            <Icon name={ITEM_ICON[item]} /> {itemName(item)}
+          <span class="pg-reward" title={`${itemName(item)} — 가방에서 써요 (진화의 돌)`}>
+            <Icon name={ITEM_ICON[item]} />
+            <span class="pg-badge-item-name"> {itemName(item)}</span>
           </span>
           {/* 360 아래 = 뒷말 대신 지도 탭과 같은 표 "[해변 그림] 해변 NEW" (카드 · 알림 · 탭이 같은 표로 이어짐) */}
           {opened && (

@@ -14,3 +14,8 @@ export const badgeIcon = (id: RegionId, big = false): IconName => BADGE[id][big 
 
 /** 지역 표시 그림 = 첫 스테이지 아이콘 (숲 나무 · 해변 모래길) */
 export const regionIcon = (id: RegionId): IconName => REGIONS[id].stages[0].icon as IconName;
+
+/** 새로 연 지역 (NEW) = 지금 있지 않고 · 배지 없고 · 그 지역 스테이지 기록이 하나도 없음 — 깬 곳으로만 보면 2-1 에 갔다가 안 깨고 돌아와도 다시 NEW 였던 것 (#67 UX 리뷰어) */
+export function isNewRegion(r: { here: boolean; badge: boolean; stages: readonly { id: string }[] }, stages: Readonly<Record<string, unknown>>): boolean {
+  return !r.here && !r.badge && r.stages.every((s) => !stages[s.id]);
+}
