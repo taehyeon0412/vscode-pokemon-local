@@ -204,6 +204,48 @@
   align-items: center;
   gap: 3px;
 }
+/* 끼어들기 · 합동 큰 판 (태현 님 #81 — 무대 한가운데 · 크게 · 2초 넘게) = 2px 금 테두리 · 금 제목 15 · 키 칸 22 (발밑 판 키와 같은 금 칠) · 이름 13 · 아래 4px 남은 막대 · 자리는 TeamLayer 가 재서 정수 px */
+#pokemon-game .pg-team-prompt.pg-team-prompt-big {
+  left: 0;
+  top: 0;
+  transform: none;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 14px 10px;
+  border-width: 2px;
+  font-size: 13px;
+  line-height: 16px;
+  z-index: 10;
+}
+#pokemon-game .pg-team-big-title {
+  font-size: 15px;
+  line-height: 18px;
+  color: var(--pg-sos-gold);
+}
+#pokemon-game .pg-team-big-keys {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px 12px;
+}
+#pokemon-game .pg-team-prompt-big .pg-team-who {
+  gap: 5px;
+  cursor: pointer;
+}
+#pokemon-game .pg-team-prompt-big .pg-team-key {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 4px;
+  font-size: 15px;
+  line-height: 20px;
+}
+#pokemon-game .pg-team-big-name {
+  font-size: 13px;
+}
+#pokemon-game .pg-team-prompt-big .pg-team-left {
+  height: 4px;
+}
 #pokemon-game .pg-team-sure {
   color: var(--pg-sos-gold);
 }

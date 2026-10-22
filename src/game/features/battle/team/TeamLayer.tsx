@@ -140,6 +140,16 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   // 엔진 한 줄 (필살기 · 합류 · 결과) 은 판 끝 결과만 · 쓰러지는 장면이 0.9초 보인 뒤 (컷인 이름을 가리고 · 지난 필살기 줄이 남던 것 — UX 리뷰어)
   const msgOn = b.phase === 'over' && b.overMs >= 900 && !!b.msg;
   const ult = (slot: number) => onInput({ kind: 'team-battle', input: { kind: 'ult', slot } });
+  // 큰 판 (끼어들기 · 합동) 은 무대 한가운데 — 폭 · 높이를 재서 왼쪽 · 위를 정수 px 로 (translate −50% 는 홀수 폭이면 반 픽셀)
+  const bigBox = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = bigBox.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const midY = infoBarPx + (heightPx - infoBarPx) / 2;
+    el.style.left = `${Math.round(Math.max(8, Math.min(widthPx - 8 - r.width, g.cx - r.width / 2)))}px`;
+    el.style.top = `${Math.round(Math.max(infoBarPx + fieldTopPx + 2, midY - r.height / 2))}px`;
+  });
   // 머리 위 말 · 숫자를 패널 양 끝 2px 안으로 (끝 칸의 "버섯꼬 쓰러졌다!" 의 "!" · "리자드" 의 "리" 가 잘리던 것 — UX 리뷰어 R9 ⑥, U4) · 정수 px
   // 처음 안내 (위 · 3:3 저절로 필살기) 와 겹치면 안내 아래 2px 로 내림 — 이 층 (z 5) 이 안내 (z 7) 아래라 240 에서 "레디바 쓰러졌다!" 첫 글자가 1.2초 숨던 것 (#59 UX 다시 보기 · 480 "-7" 의 "-" 도)
   useLayoutEffect(() => {
@@ -163,32 +173,38 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
       {/* 연출 층 — 비어 있는 상자 (Preact 는 안을 안 건드림), 연출 다리가 캔버스를 넣음 */}
       <div class="pg-fxlayer pg-team-fx" ref={layer} />
       {/* 안내 — 무대 가운데 위 */}
+      {/* 끼어들기 · 합동 = 무대 한가운데 큰 판 (태현 님 #81 "화면 가운데에 크게 띄우고 2초 넘게 확실히" — 아래 · 위 가운데 작은 한 줄이 빨리 지나가 몰랐던 것) ·
+          금 제목 · 큰 키 칸 · 아래 4px 남은 막대 · 누를 틈은 엔진 (합동 약 2.5초 · 끼어들기 약 2.2초) · 자리는 재서 정수 px (반 픽셀이면 2px 금 테두리가 흐림) */}
       {prompt?.kind === 'join' && !faintFresh && (
-        <div class="pg-team-prompt pg-team-prompt-join" style={promptStyle}>
-          {/* 상대가 합동으로 모이는 중 = 빨강 "상대 합동!" (내 편 멘트와 같은 말이던 것 — 기획 #24-4) */}
-          {prompt.foeJoint && <b class="pg-team-foe-joint">{widthPx < 400 ? '상대 합동' : '상대 합동!'}</b>}
-          {prompt.keys.map((k) => (
-            <span key={k} class="pg-team-key pg-team-key-on">
-              {k}
-            </span>
-          ))}
-          끼어들기
-          {/* 머릿수 (기획 #24-3) — 받아치면 나 1 대 상대 쓴 포켓몬 + 모인 동료 · 1 대 3 이면 빨강 "받아치면 짐" (확정 패배)
-              "1:1" 은 만남의 "1:1 승부" 와 같은 글이라 "1:1 로 바꾸기" 로 읽혀서 연타 띠처럼 "대" (개발 UX #59) */}
-          {/* 좁으면 (400 아래) "받아치면 짐" → "짐" (가장 긴 띠 "상대 합동 [2][3] 끼어들기 · 1 대 3 받아치면 짐" 248px 가 240 의 224 에 두 줄로 — #59 UX 다시 보기) */}
-          <span class={`pg-team-odds${prompt.sure === 'foe' ? ' pg-team-sure-foe' : ''}`}>{`· ${prompt.me} 대 ${prompt.foe}${prompt.sure === 'foe' ? (widthPx < 400 ? ' 짐' : ' 받아치면 짐') : ''}`}</span>
+        <div class="pg-team-prompt pg-team-prompt-join pg-team-prompt-big" ref={bigBox}>
+          <b class="pg-team-big-title">
+            {/* 상대가 합동으로 모이는 중 = 빨강 "상대 합동!" (내 편 멘트와 같은 말이던 것 — 기획 #24-4) */}
+            {prompt.foeJoint && <span class="pg-team-foe-joint">{widthPx < 400 ? '상대 합동 · ' : '상대 합동! · '}</span>}
+            끼어들기
+          </b>
+          <span class="pg-team-big-keys">
+            {prompt.keys.map((k) => (
+              <span key={k} class="pg-team-who" onClick={() => ult(k - 1)}>
+                <span class="pg-team-key pg-team-key-on">{k}</span>
+              </span>
+            ))}
+            {/* 머릿수 (기획 #24-3) — 받아치면 나 1 대 상대 쓴 포켓몬 + 모인 동료 · 1 대 3 이면 빨강 "받아치면 짐" (확정 패배) · "1:1" 은 만남의 "1:1 승부" 와 같은 글이라 "대" (개발 UX #59) */}
+            <span class={`pg-team-odds${prompt.sure === 'foe' ? ' pg-team-sure-foe' : ''}`}>{`${prompt.me} 대 ${prompt.foe}${prompt.sure === 'foe' ? (widthPx < 400 ? ' 짐' : ' 받아치면 짐') : ''}`}</span>
+          </span>
           <span class="pg-team-left" style={{ width: `${Math.round(prompt.left * 100)}%` }} />
         </div>
       )}
       {prompt?.kind === 'gather' && !faintFresh && (
-        <div class="pg-team-prompt pg-team-prompt-gather" style={promptStyle}>
-          <b>{widthPx < 400 ? '합동!' : '합동 필살기!'}</b>
-          {prompt.who.map((w) => (
-            <span key={w.key} class="pg-team-who" onClick={() => ult(w.key - 1)}>
-              <span class="pg-team-key pg-team-key-on">{w.key}</span>
-              {w.name}
-            </span>
-          ))}
+        <div class="pg-team-prompt pg-team-prompt-gather pg-team-prompt-big" ref={bigBox}>
+          <b class="pg-team-big-title">{widthPx < 400 ? '합동!' : '합동 필살기!'}</b>
+          <span class="pg-team-big-keys">
+            {prompt.who.map((w) => (
+              <span key={w.key} class="pg-team-who" onClick={() => ult(w.key - 1)}>
+                <span class="pg-team-key pg-team-key-on">{w.key}</span>
+                <span class="pg-team-big-name">{w.name}</span>
+              </span>
+            ))}
+          </span>
           <span class="pg-team-left" style={{ width: `${Math.round(prompt.left * 100)}%` }} />
         </div>
       )}
