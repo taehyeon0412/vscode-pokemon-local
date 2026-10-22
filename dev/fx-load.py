@@ -121,7 +121,11 @@ httpd, port = gs.serve()
 w, h = win.split("x")
 q = {"screen": "game", "look": "may", "size": "medium", "battle": "choose", "fx": "1", "shim": "1"}
 url = f"http://127.0.0.1:{port}/dev/frame.html?" + urllib.parse.urlencode({"w": w, "h": h, "page": "game.html", "q": urllib.parse.urlencode(q)})
-dbg = 9300 + os.getpid() % 500
+# 빈 포트 (OS 가 고름) — pid % 500 이면 두 세션 (워크트리) 이 같은 포트를 잡아 결과가 섞이던 것 (2026-10-22 워크트리 시험 ⑥)
+_dbg_sock = socket.socket()
+_dbg_sock.bind(("127.0.0.1", 0))
+dbg = _dbg_sock.getsockname()[1]
+_dbg_sock.close()
 with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as prof:
     p = subprocess.Popen([gs.browser(), "--headless=new", "--disable-gpu", f"--remote-debugging-port={dbg}", f"--user-data-dir={prof}", f"--window-size={w},{h}", "--hide-scrollbars", "about:blank"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:

@@ -23,3 +23,6 @@ docs/game-dev-team.md
 
 # 아트 디렉터 규칙도 내 PC에만 (2026-10-19)
 docs/game-art-director.md
+
+# 팀 워크트리 (2026-10-22 태현 님 — 워크트리로 나눠 고치고 주제마다 squash 로 합침, docs/game-design/collab-worktree.md)
+.claude/worktrees/
