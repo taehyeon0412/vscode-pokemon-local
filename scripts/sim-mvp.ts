@@ -188,9 +188,10 @@ function decide(s: GameState, mem: { resultMs: number; lostGymOnce: boolean; gri
       // 3:3 필살기 — 다 찬 칸을 보고 누름 (SIM_ULT)
       const t = st.team;
       const full = t.me.findIndex((f) => f.hp > 0 && f.ult >= 1);
-      if (ULT_PRESS !== null && full >= 0 && t.phase === 'run') {
+      // 찬 뒤 지난 시간은 장면 단계와 상관없이 셈 (단계가 바뀔 때마다 0 이 되어 못 누르던 것)
+      if (ULT_PRESS !== null && full >= 0) {
         mem.ultMs += STEP;
-        if (mem.ultMs >= ULT_PRESS) {
+        if (mem.ultMs >= ULT_PRESS && t.phase === 'run') {
           mem.ultMs = 0;
           return applyInput(s, { kind: 'team-battle', input: { kind: 'ult', slot: full } });
         }
@@ -206,9 +207,10 @@ function decide(s: GameState, mem: { resultMs: number; lostGymOnce: boolean; gri
       if (b.phase === 'catch' && b.catch && b.catch.pressMs === null && b.catch.ms >= TIMING.catchRingMs - STEP) return applyInput(s, { kind: 'space' });
       if (MASH && b.phase === 'clash' && b.clash && b.clash.winner === null && Math.random() < 0.4) return applyInput(s, { kind: 'space' });
       // 필살기 — 사람이 다 찬 걸 보고 누름 (SIM_ULT — 필살기는 사용자가 눌러야만, orders #82)
-      if (ULT_PRESS !== null && b.me.ult >= 1 && b.me.hp > 0 && (b.phase === 'run' || b.phase === 'choose')) {
+      // 찬 뒤 지난 시간은 장면 단계와 상관없이 셈 (1:1 은 run ↔ anim 이 자주 바뀌어 늘 0 이 되어 한 번도 못 누르던 것) · 내 연출 중이면 예약
+      if (ULT_PRESS !== null && b.me.ult >= 1 && b.me.hp > 0) {
         mem.ultMs += STEP;
-        if (mem.ultMs >= ULT_PRESS) {
+        if (mem.ultMs >= ULT_PRESS && (b.phase === 'run' || b.phase === 'choose' || b.phase === 'anim')) {
           mem.ultMs = 0;
           return applyInput(s, { kind: 'battle', input: { kind: 'ult' } });
         }
@@ -398,7 +400,9 @@ function runOnce(dex: number, seed: number): RunResult {
       const an = st.battle.anim;
       // 내 필살기 — 연출로 나가거나 상대도 필살기로 맞받아 바로 힘대결이 되거나
       const ultClash = st.battle.phase === 'clash' && st.battle.clash?.kind === 'ult' && st.battle.clash.ms === 0;
-      if ((an && an !== prevAnim && an.side === 'me' && an.action.kind === 'ult' && an.ms === 0) || ultClash) {
+      // 새로 시작한 내 필살기 (장면을 넘긴 뒤 봐서 ms 가 이미 0 이 아님 — "필살기 0.0" 이던 것) · 바로 힘대결
+      const isMyUlt = (x: typeof an) => !!x && x.side === 'me' && x.action.kind === 'ult';
+      if ((isMyUlt(an) && !isMyUlt(prevAnim)) || ultClash) {
         stages[w].ults++;
         if (r.firstUltMin < 0) r.firstUltMin = t / 60000;
       }

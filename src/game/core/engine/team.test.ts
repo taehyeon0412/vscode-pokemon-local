@@ -883,6 +883,9 @@ describe('3:3 연출 방향 (2026-10-21 태현 님 — 일반 모드 기술 그�
     const won = run(clash, TIMING.team.ultClashMs + STEP, fixedRng(0.01));
     expect(won.phase).toBe('ult');
     expect(won.ult).toMatchObject({ side: 'me', from: 0, window: 0, joint: { winners: [0, 2], losers: [0], sure: false } });
+    // 힘겨루기를 이긴 합동도 참가자마다 엔진이 필살기를 고름 (기획 #80 답)
+    expect(won.ult!.joint!.names).toHaveLength(2);
+    won.ult!.joint!.names!.forEach((n, i) => expect(n !== null && ultNamesOf(won.me[won.ult!.joint!.winners[i]!]!.form).includes(n)).toBe(true));
     expect(won.foe[0]!.hp).toBe(base.foe[0]!.hp);
     expect(won.log.some((e) => e.t === 'ult' && e.joint !== undefined)).toBe(true);
     const before = run(won, TIMING.team.jointHitMs - STEP * 3, fixedRng(0.01));
@@ -926,6 +929,17 @@ describe('같은 편 합동 필살기 — 합동 필살기 멘트 (2026-10-21 �
     const joint = run(joined, TIMING.team.gatherMs, fixedRng(0.99));
     // 합동은 한 점 = 한 마리 (기획 R7 A)
     expect(joint.ult).toMatchObject({ joint: { winners: [0, 1], losers: [joint.ult!.target], sure: false }, dur: TIMING.team.jointMs, window: 0 });
+    // 참가자 필살기도 엔진이 고름 (기획 #80 답 — 연출이 고르면 피해 때가 참가자마다 달라짐, U2) · 첫 참가자 = 쓴 필살기 · 다시 읽기 · 길이가 다르면 버림
+    const names = joint.ult!.joint!.names!;
+    expect(names).toHaveLength(2);
+    expect(names[0]).toBe(joint.ult!.name ?? null);
+    names.forEach((n, i) => expect(n === null || ultNamesOf(joint.me[joint.ult!.joint!.winners[i]!]!.form).includes(n)).toBe(true));
+    expect(names[1]).not.toBeNull();
+    expect(joint.log.at(-1)).toMatchObject({ t: 'ult', joint: { names } });
+    expect(readTeam(viaJson(joint))).toEqual(viaJson(joint));
+    const bad = viaJson(joint) as unknown as { ult: { joint: { names: unknown[] } } };
+    bad.ult.joint.names = ['하나'];
+    expect(readTeam(bad)).toBeNull();
     expect(teamGather(joint)).toBeNull();
     const hp = joint.foe.map((f) => f.hp);
     const hit = run(joint, TIMING.team.jointHitMs + STEP, fixedRng(0.99));
@@ -1052,6 +1066,19 @@ describe('3:3 박자 (orders #83 — 기본 0.8 · 전투 ×2) · 누를 창 (or
     expect(gameTempo(inTeam(b0))).toBe(0.8);
     expect(gameTempo(inTeam(b0, false))).toBe(0.8);
     expect(gameTempo(inTeam(b0, true))).toBeCloseTo(1.6, 10);
+    // ×2 여도 알아챌 순간은 기본 박자 (코드 리뷰어 #83 — U1): 상대 다 참 (곧!) · 내 다 참 1초 · 쓰러짐 1초 · 안내 팝업
+    const foeFull = { ...b0, foe: b0.foe.map((f, i) => ({ ...f, ult: i === 1 ? 1 : 0 })) };
+    expect(gameTempo(inTeam(foeFull, true))).toBe(0.8);
+    const meFull = { ...b0, me: b0.me.map((f, i) => ({ ...f, ult: i === 0 ? 1 : 0 })), ultReadyAt: { me: [b0.t, null, null], foe: [null, null, null] } };
+    expect(gameTempo(inTeam(meFull, true))).toBe(0.8);
+    expect(gameTempo(inTeam({ ...meFull, t: b0.t + TIMING.team.fastKeepMs }, true))).toBeCloseTo(1.6, 10);
+    const ko = { ...b0, log: [{ id: 1, at: b0.t, t: 'faint' as const, side: 'foe' as const, slot: 2 }], logSeq: 1 };
+    expect(gameTempo(inTeam(ko, true))).toBe(0.8);
+    expect(gameTempo(inTeam({ ...ko, t: b0.t + TIMING.team.fastKeepMs }, true))).toBeCloseTo(1.6, 10);
+    const info = { ...b0, popups: [{ id: 1, side: 'me' as const, slot: 0, text: '2:1', ms: 0, kind: 'info' as const }] };
+    expect(gameTempo(inTeam(info, true))).toBe(0.8);
+    const dmg = { ...b0, popups: [{ id: 1, side: 'me' as const, slot: 0, text: '-12', ms: 0, kind: 'damage' as const }] };
+    expect(gameTempo(inTeam(dmg, true))).toBeCloseTo(1.6, 10);
     const mine = teamInput({ ...b0, me: b0.me.map((f) => ({ ...f, ult: 1 })) }, { kind: 'ult', slot: 0 }, new Rng(3));
     expect(mine.phase).toBe('ult');
     expect(gameTempo(inTeam(mine, true))).toBe(0.8);
@@ -1101,7 +1128,7 @@ describe('3:3 박자 (orders #83 — 기본 0.8 · 전투 ×2) · 누를 창 (or
     expect(applyInput(on, { kind: 'battle-fast', on: true })).toBe(on);
     expect(applyInput(on, { kind: 'battle-fast', on: false }).save.settings.battleFast).toBe(false);
     const said = applyInput(s, { kind: 'battle-fast', on: true, say: true });
-    expect(said.runtime.toast?.text).toBe('전투 ×2 켜짐 (X)');
+    expect(said.runtime.toast?.text).toBe('3:3 전투 ×2 켜짐 (X)');
     const fighting = inTeam(b0);
     expect(applyInput(fighting, { kind: 'battle-fast', on: true }).save.settings.battleFast).toBe(true);
   });

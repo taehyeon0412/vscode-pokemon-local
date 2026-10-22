@@ -72,7 +72,8 @@ export interface TeamUlt {
   joiners: number[];
   /** 합동 마무리 — 힘겨루기를 여럿이 이김 (3:1 = sure) · 같은 편이 모임: 이긴 참가자마다 자기 필살기를 진 참가자 모두에게 (합쳐 터지는 순간) */
   /** spread = 같은 편이 모인 합동 (필살기 = 상대 모두 — 여럿이면 0.75배, 혼자 필살기와 같음) · 힘겨루기 뒤 합동은 진 참가자 모두 (힘겨루기 규칙) */
-  joint?: { winners: number[]; losers: number[]; sure: boolean; spread?: boolean };
+  /** names = 참가자 (winners 순) 마다 엔진이 고른 필살기 이름 (없으면 null — 옛 상태엔 칸 없음) · 연출이 그대로 씀 (2026-10-22 기획 #80 답) */
+  joint?: { winners: number[]; losers: number[]; sure: boolean; spread?: boolean; names?: (string | null)[] };
   /** 합동 필살기 멘트 — 남은 ms (그동안 필살기는 멈추고 같은 편이 모임) · 모인 같은 편 (쓴 포켓몬 빼고) · 상대 AI 동료가 모일 때 */
   gather?: number;
   team?: number[];
@@ -97,7 +98,7 @@ export type TeamNote =
   | { t: 'clash'; shots: [number, number]; me: number; foe: number }
   | { t: 'clash-end'; shots: [number, number]; me: number; foe: number; winner: Side }
   /** joint = 합동 마무리 (이긴 참가자 · 진 참가자 · 3:1) */
-  | { t: 'ult'; side: Side; from: number; joint?: { winners: number[]; losers: number[]; sure: boolean; spread?: boolean }; name?: string; spread?: boolean; target?: number }
+  | { t: 'ult'; side: Side; from: number; joint?: { winners: number[]; losers: number[]; sure: boolean; spread?: boolean; names?: (string | null)[] }; name?: string; spread?: boolean; target?: number }
   | { t: 'ult-clash'; me: number[]; foe: number[] }
   /** 합동 필살기 멘트 시작 (같은 편이 모임 — 끝나면 ult 가 따로 · 합동으로) */
   | { t: 'gather'; side: Side; from: number }
@@ -593,7 +594,7 @@ function joinTeam(b: TeamBattle, side: Side, slot: number): void {
 }
 
 /** 멘트 끝 — 모였으면 합동 (같은 때 맞아 합쳐 터지는 순간에 피해), 아니면 따로 (끼어들기 창은 멘트로 지났음) */
-function finishGather(b: TeamBattle): void {
+function finishGather(b: TeamBattle, rng: Rng, ults?: Readonly<Record<string, string>>): void {
   const u = b.ult!;
   const team = (u.team ?? []).filter((i) => alive(b[u.side][i]!));
   const pick = { ...(u.name ? { name: u.name } : {}), ...(u.spread !== undefined ? { spread: u.spread } : {}), ...(u.target !== undefined ? { target: u.target } : {}) };
@@ -601,7 +602,9 @@ function finishGather(b: TeamBattle): void {
     // 합동은 한 점 = 한 마리 (기획 R7 A) — 처음 쓴 포켓몬이 고른 대상 (쓰러졌으면 다시 고름)
     const foes = b[other(u.side)];
     const target = u.target !== undefined && alive(foes[u.target]!) ? u.target : (bestUltTarget(foes, b[u.side][u.from]!.types[0] ?? 'normal') ?? 0);
-    const joint = { winners: [u.from, ...team], losers: [target], sure: false, spread: true };
+    // 참가자 필살기도 엔진이 고름 (첫 참가자 = 쓴 필살기 · 나머지 = 같은 규칙 pickUlt)
+    const names = [u.name ?? null, ...team.map((i) => pickUlt(b, u.side, i, rng, ults).name ?? null)];
+    const joint = { winners: [u.from, ...team], losers: [target], sure: false, spread: true, names };
     b.ult = { side: u.side, from: u.from, ms: 0, dur: TIMING.team.jointMs, hitMs: TIMING.team.jointHitMs, hit: false, window: 0, joinAt: null, joiners: [], joint, ...pick, target };
     note(b, { t: 'ult', side: u.side, from: u.from, joint, ...pick, target });
     b.msg = `합동 필살기! ${joint.winners.length}마리`;
@@ -644,7 +647,7 @@ export function teamClashSure(c: Pick<TeamClash, 'me' | 'foe'>): Side | null {
 }
 
 /** 필살기 힘겨루기 끝 — 3:1 이면 셋 쪽 · 아니면 합류한 필살 스탯의 합 · 연타 · 진 쪽 참가자 모두 피해 = 이긴 쪽 참가자마다 자기 필살기 (합류한 위력을 다 더함 — gdd 4.7) */
-function endUltClash(b: TeamBattle, rng: Rng): void {
+function endUltClash(b: TeamBattle, rng: Rng, ults?: Readonly<Record<string, string>>): void {
   const c = b.clash!;
   const sum = (side: Side, list: number[]) => list.reduce((s, i) => s + b[side][i]!.stats.ultimate, 0);
   const sure = teamClashSure(c);
@@ -659,7 +662,8 @@ function endUltClash(b: TeamBattle, rng: Rng): void {
   b.clash = null;
   if (live.length > 1) {
     // 합동 마무리 — 이긴 참가자 필살기가 합쳐 터지는 순간에 피해 (2026-10-21 태현 님 "필살기가 합쳐지듯이") · 그동안 나머지는 멈춤
-    const joint = { winners: live, losers: [...losers], sure: sure !== null };
+    // 참가자마다 필살기를 엔진이 고름 (연출이 고르면 피해 때가 참가자 필살기에 따라 6.2 ↔ 8.2초로 달라짐 — 기획 #80 답, U2)
+    const joint = { winners: live, losers: [...losers], sure: sure !== null, names: live.map((w) => pickUlt(b, winSide, w, rng, ults).name ?? null) };
     b.phase = 'ult';
     b.ult = { side: winSide, from: live[0]!, ms: 0, dur: TIMING.team.jointMs, hitMs: TIMING.team.jointHitMs, hit: false, window: 0, joinAt: null, joiners: [], joint };
     note(b, { t: 'ult', side: winSide, from: live[0]!, joint });
@@ -786,7 +790,6 @@ export function teamLayout(view: { w: number; h: number } | null | undefined): '
   return view && view.w >= rowMinW && (view.h < rowMaxH || view.w < unitW * 2) ? 'row' : 'slant';
 }
 
-/** 지금 그 칸 필살기를 쓸 · 끼어들 · 합류할 수 있는지 (화면이 아이콘을 밝게) */
 /** 상대 필살기에 내가 끼어들 창이 열림 (찬 포켓몬이 있을 때 — 화면 "끼어들기" 판 · 시계를 늦춤 orders #81). 상대 합동 멘트 중이면 gathering = true */
 export function teamJoinOpen(b: TeamBattle): { gathering: boolean } | null {
   const u = b.ult;
@@ -794,6 +797,20 @@ export function teamJoinOpen(b: TeamBattle): { gathering: boolean } | null {
   return { gathering: (u.gather ?? 0) > 0 };
 }
 
+/**
+ * 전투 ×2 를 걸어도 되는 때 (orders #83) — 보통 공격 (run) 중 알아챌 순간이 화면에 없을 때만 (U1 — ×2 로 1초 아래가 되던 것, 코드 리뷰어 #83):
+ * 상대 필살기 예고 (다 참 · "곧!") · 내 필살기 다 참 말풍선 (찬 지 1초) · 쓰러짐 (1초) · 안내 팝업 (머릿수 등 info)
+ */
+export function teamFastOk(b: TeamBattle): boolean {
+  if (b.phase !== 'run') return false;
+  const keep = TIMING.team.fastKeepMs;
+  if (b.foe.some((f) => teamUltLevel(f) === 'full')) return false;
+  if (b.me.some((f, i) => teamUltLevel(f) === 'full' && b.t - (b.ultReadyAt.me[i] ?? -Infinity) < keep)) return false;
+  if (b.log.some((e) => e.t === 'faint' && b.t - e.at < keep)) return false;
+  return !b.popups.some((p) => p.kind === 'info');
+}
+
+/** 지금 그 칸 필살기를 쓸 · 끼어들 · 합류할 수 있는지 (화면이 아이콘을 밝게) */
 export function teamUltOpen(b: TeamBattle, slot: number): boolean {
   const f = b.me[slot];
   if (!f || !alive(f) || f.ult < 1) return false;
@@ -915,7 +932,7 @@ function teamStepOnce(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamStepOp
         // 내 멘트에 찬 동료가 다 모였고 상대 끼어들기도 안 걸려 있으면 바로 (자동 전투가 1.5초를 그냥 기다리지 않게 — 코드 리뷰어).
         // 상대 멘트는 끝까지 — 그 시간이 내가 받아칠 창이기도 함
         const allIn = u.side === 'me' && (u.team ?? []).length > 0 && u.joinAt === null && (teamGather(b)?.can.length ?? 0) === 0;
-        if (u.gather === 0 || allIn) finishGather(b);
+        if (u.gather === 0 || allIn) finishGather(b, rng, opts.ults);
         return b;
       }
       if (!u.hit && u.ms >= u.hitMs && u.joint) {
@@ -964,7 +981,7 @@ function teamStepOnce(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamStepOp
           b.msg = `상대 합류! 필살기 힘겨루기 ${c.me.length}:${c.foe.length}`;
         }
       }
-      if (c.ms >= c.dur) endUltClash(b, rng);
+      if (c.ms >= c.dur) endUltClash(b, rng, opts.ults);
       checkEnd(b);
       return b;
     }
@@ -1086,7 +1103,10 @@ export function readTeam(raw: unknown): TeamBattle | null {
   if (!(c === null || (isObj(c) && c.kind === 'ult' && c.shots === null && okBase(c) && (c.foeJoin === undefined || (Array.isArray(c.foeJoin) && c.foeJoin.every(okJoin)))))) return null;
   if ((raw.phase === 'clash') !== (c !== null)) return null;
   const u = raw.ult;
-  const okJoint = (j: unknown, side: Side) => isObj(j) && slots(j.winners, side, 1) && slots(j.losers, other(side), 1) && typeof j.sure === 'boolean' && (j.spread === undefined || typeof j.spread === 'boolean');
+  const okNames = (n: unknown, len: number) => Array.isArray(n) && n.length === len && n.every((x) => x === null || (typeof x === 'string' && x.length <= 30));
+  const okJoint = (j: unknown, side: Side) =>
+    isObj(j) && slots(j.winners, side, 1) && slots(j.losers, other(side), 1) && typeof j.sure === 'boolean' && (j.spread === undefined || typeof j.spread === 'boolean') &&
+    (j.names === undefined || okNames(j.names, (j.winners as unknown[]).length));
   const okUlt = (x: Obj) =>
     isSide(x.side) && slot(x.from, x.side) && fin(x.ms, 0) && fin(x.dur, 1) && fin(x.hitMs, 0) && typeof x.hit === 'boolean' && fin(x.window, 0) && (x.windowMs === undefined || fin(x.windowMs, 1)) && (x.joinAt === null || fin(x.joinAt, 0)) && slots(x.joiners, other(x.side)) &&
     (x.joint === undefined || okJoint(x.joint, x.side)) &&

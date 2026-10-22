@@ -24,7 +24,7 @@ import '../dev/dev.css';
 import { getGameConfig, getGamePort } from './vscode-api';
 import { WebviewSession, type SaveIoView } from './webview-session';
 import { devApply } from '../dev/actions';
-import { devClockFor, resetDevClock, setDevClock } from '../dev/clock';
+import { gameClockFor, resetGameClock, setGameClock } from './clock';
 import { setDevUlts } from '../dev/ult-pick';
 
 /** 게임 화면이 보이는 동안 body 에 붙임 — game.css 가 일반 모드 층을 숨기고, 일반 모드는 포켓몬을 멈춤 (main-bundle.js GAME-PATCH) */
@@ -80,8 +80,8 @@ if (!port) {
     (dt) => {
       // 접힌 상태 (150px 아래) 면 그리지 않음 — 게임은 확장이 맡음 (sync)
       if (store.get().layout.tooSmall) return;
-      // 개발 모드 (임시) — 전투 느리게 · 멈춤 (웹뷰 시계) · 고른 필살기
-      setDevClock(devClockFor(session.current, true));
+      // 게임 시계 — 3:3 박자 (0.8 · 전투 ×2 · 끼어들 창) · 개발 모드 (임시) 전투 느리게 · 멈춤 / 개발 모드 고른 필살기
+      setGameClock(gameClockFor(session.current, true));
       setDevUlts(session.current?.runtime.dev?.ults);
       session.frame(dt);
       // 판이 떠 있는 동안은 게임이 멈춤 — 판에서 누른 것은 input 이 바로 그림 (초당 30번 열쇠 계산을 쉼)
@@ -110,8 +110,8 @@ if (!port) {
     if (!low && session.isCollapsed) expandTimer = window.setTimeout(() => session.setCollapsed(store.get().layout.tooSmall, !document.hidden), EXPAND_WAIT_MS);
     else session.setCollapsed(low, !document.hidden);
     if (session.running && (document.hidden || low)) session.hide();
-    // 개발 모드 (임시) — 계산을 안 맡는 동안 (접힘 · 안 보임) 은 시계를 그대로 (멈춤이면 다시 펴는 타이머까지 굳음)
-    if (low || !session.running) setDevClock(1);
+    // 계산을 안 맡는 동안 (접힘 · 안 보임) 은 시계를 그대로 (개발 모드 멈춤이면 다시 펴는 타이머까지 굳음)
+    if (low || !session.running) setGameClock(1);
     if (session.running && !low) loop.start();
     else loop.stop();
   };
@@ -134,9 +134,9 @@ if (!port) {
   });
 
   store.subscribe(() => document.body.classList.toggle(GAME_ON_CLASS, store.get().screen !== 'none'));
-  // 개발 모드 (임시) — 게임 화면을 떠나면 (일반 모드 · 타이틀) 시계를 그대로 (일반 모드 포켓몬이 느려지거나 멈추지 않게)
+  // 게임 화면을 떠나면 (일반 모드 · 타이틀) 시계를 그대로 (일반 모드 포켓몬이 느려지거나 멈추지 않게)
   store.subscribe(() => {
-    if (store.get().screen !== 'game') resetDevClock();
+    if (store.get().screen !== 'game') resetGameClock();
   });
 
   const actions: AppActions = {
@@ -187,7 +187,7 @@ if (!port) {
     devEnd: () => {
       setPending(true);
       store.set({ overlay: null });
-      setDevClock(1);
+      setGameClock(1);
       session.devEnd();
     },
     dev: (action) => {
@@ -199,7 +199,7 @@ if (!port) {
         return say ? { ...r.state, runtime: { ...r.state.runtime, toast: { text: `개발 — ${say}`, ms: TIMING.toastMs } } } : r.state;
       });
       if (!changed) return;
-      setDevClock(devClockFor(session.current, true));
+      setGameClock(gameClockFor(session.current, true));
       // 장면을 바꾸면 판을 닫음 (바로 그 장면을 보게) — 안 바뀌었으면 (3마리가 안 됨 등) 판을 열어 둔 채 아래 줄 알림 (판만 닫히고 말이 없던 것 — UX 리뷰어 2026-10-21)
       const close = action.kind === 'scene' && session.current?.runtime.stage !== stage0;
       store.set({ state: session.current, ...(close ? { overlay: null } : {}) });
