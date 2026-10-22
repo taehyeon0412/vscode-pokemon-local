@@ -332,7 +332,8 @@ function useUltimate(pokemon, ult, opt = {}) {
         ultError(`${fx}.ms`, err);
     }
     const now = performance.now();
-    const introMs = opt.quick ? ULT_QUICK_INTRO_MS : ULT_INTRO_MS;
+    // opt.noIntro = 컷인 · 어둠 · 큰 이름 없이 바로 본편 (게임 3:3 용 판 — 이름은 화면 3:3 띠, ult/bridge.js fxStageUlt)
+    const introMs = opt.noIntro ? 0 : opt.quick ? ULT_QUICK_INTRO_MS : ULT_INTRO_MS;
     // opt.charge = 쓰기 전 기 모으기 ms (게임 전투 — 일반 모드에서 꾹 누를 때와 같은 연출, 2026-10-20 태현 님). 그만큼 도입이 늦게 시작
     const charge = Math.max(0, opt.charge || 0);
     if (charge) {
@@ -361,17 +362,30 @@ function useUltimate(pokemon, ult, opt = {}) {
     const begin = () => {
         try {
             pre?.start?.();
-            ultIntro(pokemon, left, name, sub, o, fx, until, introMs);
+            if (!opt.noIntro) {
+                ultIntro(pokemon, left, name, sub, o, fx, until, introMs);
+            }
         } catch (err) {
             ultError('intro', err);
         }
-        setTimeout(() => {
+        // opt.wrap(run) = 본편을 감싸 부름 (게임 3:3 용 판 — 무대 상자 안 · 앞 감기, ult/bridge.js fxSeekRun)
+        const go = () => {
             try {
-                T.run(ultGeometry(pokemon, left), o, ms, pokemon);
+                const run = () => T.run(ultGeometry(pokemon, left), o, ms, pokemon);
+                if (opt.wrap) {
+                    opt.wrap(run);
+                } else {
+                    run();
+                }
             } catch (err) {
                 ultError(`${fx}.run`, err);
             }
-        }, introMs);
+        };
+        if (introMs > 0) {
+            setTimeout(go, introMs);
+        } else {
+            go();
+        }
     };
     if (charge) {
         setTimeout(begin, charge);
@@ -921,6 +935,11 @@ function ultAimTarget(u) {
     if (typeof fxInGame !== 'function' || !fxInGame()) {
         return null;
     }
+    // 스스로 대상을 겨눔 — 3:3 용 판 계단 (fxUltAim) 으로 또 기울이지 않음
+    if (typeof moveFrame !== 'undefined' && moveFrame) {
+        moveFrame.aimed = true;
+        moveFrame.stair = null;
+    }
     const t = u.others();
     return t.length ? t[0] : null;
 }
@@ -1056,6 +1075,10 @@ function ultMove(pokemon, fn, ms) {
 
 // 그림 숨기기 · 다시 보이기 (화면 밖으로 날아간 동안)
 function ultHide(pokemon, on) {
+    // 3:3 용 판 — 진짜 그림은 숨기지 않음 (ult/bridge.js fxStageUlt)
+    if (on && typeof moveFrame !== 'undefined' && moveFrame && moveFrame.quiet) {
+        return;
+    }
     pokemon.el.style.visibility = on ? 'hidden' : '';
 }
 

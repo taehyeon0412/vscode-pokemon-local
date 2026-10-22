@@ -33,6 +33,8 @@ export interface TeamShot {
   clash: boolean;
   /** 연달아 세지는 기술 배율 (쏠 때 정함, 1:1 과 같음) */
   boost?: number;
+  /** 쏠 때 들어간 독 · 화상 피해 (큰 연출로 거두면 돌려줌 — settleDashes) */
+  ticked?: number;
   /** 몸으로 닿는 기술 — 상대 앞까지 달려가 박치기 → 제자리 (연출이 몸을 옮김) */
   contact?: boolean;
 }
@@ -81,6 +83,12 @@ export interface TeamUlt {
   gather?: number;
   team?: number[];
   allyAt?: { slot: number; at: number }[];
+}
+
+/** 게이지가 찬 칸 하나 — 찬 때 · 막힌 고름 */
+export interface TeamReady {
+  at: number;
+  pick?: { moveId: number; targets: number[] };
 }
 
 /** joint = 합동 필살기 피해 (화면 "합동! −숫자" 칩 — 시간 창으로 고르면 뒤따른 보통 공격 피해에도 붙던 것, #80 UX) */
@@ -150,6 +158,13 @@ export interface TeamBattle {
   deny?: { slot: number; ms: number; why: 'charge' | 'busy' };
   /** 내 칸마다 다 찬 필살기를 기다린 ms (볼 때 — 쓸 수 있는 걸음에서만 셈, ultAutoWaitMs 가 되면 저절로 · R2) · 옛 상태엔 없음 */
   autoWait?: number[];
+  /** 마지막 기술을 쏜 때 (t) — 다음 기술은 staggerMs 뒤 (시작 시각 엇갈림, #117) · 옛 상태엔 없음 */
+  lastShotAt?: number;
+  /**
+   * 게이지가 찬 칸 — 찬 때 (at · 먼저 찬 칸부터 쏨) · 막혀 기다리는 고른 기술 (pick — 다음 걸음엔 막힘만 다시 봄).
+   * 걸음마다 다시 고르면 막히기 쉬운 센 기술 (범위 · 닿는) 이 약한 기술로 바뀌고 (지진 93 → 29%) · 칸 번호 순이면 뒤 칸이 20초 굶던 것 (테스터 #95). 옛 상태엔 없음
+   */
+  ready?: { me: (TeamReady | null)[]; foe: (TeamReady | null)[] };
   /** 연출 다리 — 일어난 일 (TeamNote) 과 마지막 번호 */
   log: TeamLogEntry[];
   logSeq: number;
@@ -215,7 +230,7 @@ export function startTeamBattle(save: Save, foes: readonly Monster[], kind: 'tra
   const foe = foes.slice(0, BALANCE.team.size).map((m) => fighterOf({ ...m, hp: 1e6 }));
   // 관장 에이스 (마지막) 는 필살기 게이지 절반에서 시작 (1:1 과 같음 — gdd S16 ①)
   if (kind === 'gym' && foe.length > 0) foe[foe.length - 1]!.ult = BALANCE.gymAceUlt;
-  return {
+  const b: TeamBattle = {
     kind,
     foeName,
     me,
@@ -240,6 +255,13 @@ export function startTeamBattle(save: Save, foes: readonly Monster[], kind: 'tra
     log: [],
     logSeq: 0,
   };
+  // 처음 게이지 — 빠른 순으로 startFirstMs · + startGapMs … 뒤에 차게 (VS 뒤 0.8초 안 첫 공격 · 여섯이 한꺼번에 나가지 않게 — 2026-10-22 태현 님 #130 · #117)
+  const order = [...b.me.map((f) => ({ f, side: 0 })), ...b.foe.map((f) => ({ f, side: 1 }))].sort((x, y) => y.f.stats.speed - x.f.stats.speed || x.side - y.side);
+  order.forEach(({ f }, i) => {
+    const wait = TIMING.team.startFirstMs + i * TIMING.team.startGapMs;
+    f.gauge = Math.max(0, Math.min(0.999, 1 - wait * gaugeRate(b, f)));
+  });
+  return b;
 }
 
 // ---------- 계산 도구
@@ -259,6 +281,7 @@ function clone(b: TeamBattle): TeamBattle {
     foeDown: [...b.foeDown],
     reserve: [...b.reserve],
     ...(b.autoWait ? { autoWait: [...b.autoWait] } : {}),
+    ...(b.ready ? { ready: { me: [...b.ready.me], foe: [...b.ready.foe] } } : {}),
     log: [...b.log],
   };
 }
@@ -454,23 +477,68 @@ function land(b: TeamBattle, s: TeamShot, rng: Rng): void {
   }
 }
 
-/** 한 포켓몬 행동 — 잠듦이면 쉼 · 아니면 AI 가 고른 기술을 바로 쏨 (겹쳐도) */
-function act(b: TeamBattle, side: Side, slot: number, rng: Rng): void {
+/**
+ * 큰 연출이 겹치지 않게 (2026-10-22 태현 님 #117 "평소엔 다 같이 움직이고 큰 연출만 겹치지 않게") — 이 기술을 지금 쏘면 안 되는지:
+ * 닿는 기술 = 쓰는 포켓몬 · 맞을 상대가 다른 달려가기 (가는 중 · 박치기 · 돌아오는 중) 에 든 동안 기다림 (같은 상대 앞에 둘이 겹쳐 서던 것) ·
+ * 범위 기술 (화면을 크게 쓰는 기술 — 지진 · 파도타기) = 앞 범위 기술이 끝날 때까지 기다림
+ */
+function actBlocked(b: TeamBattle, side: Side, slot: number, pick: { moveId: number; targets: number[] }): boolean {
+  if (shotTiming(pick.moveId).contact) {
+    if (bodyBusy(b, side, slot)) return true;
+    // 맞을 상대 앞에 다른 포켓몬이 있으면 비어 있는 다른 상대로 (그 기술 상성이 좋은 순) — 모두 바쁠 때만 기다림 (멈춰 있는 포켓몬이 없게 — 태현 님 #117)
+    if (bodyBusy(b, other(side), pick.targets[0]!)) {
+      const foes = b[other(side)];
+      const mv = moveOf(pick.moveId);
+      const free = foes.map((f, i) => (alive(f) && !bodyBusy(b, other(side), i) && (!mv || effectiveness(mv.type, f.types) > 0) ? i : -1)).filter((i) => i >= 0);
+      if (!free.length) return true;
+      // 범위 + 닿는 기술 (바람가르기 · 에어컷터 · 바크아웃 · 폭음파) 은 대상은 그대로 · 달려갈 상대만 비어 있는 쪽으로 (한 마리 기술로 바뀌던 것 — 코드 리뷰어)
+      if (pick.targets.length > 1) {
+        const first = pick.targets.find((i) => free.includes(i));
+        if (first === undefined) return true;
+        pick.targets = [first, ...pick.targets.filter((i) => i !== first)];
+      } else {
+        const best = bestTarget(foes.map((f, i) => (free.includes(i) ? f : { ...f, hp: 0 })), mv ?? null);
+        pick.targets = [best ?? free[0]!];
+      }
+    }
+  }
+  return isSpread(moveOf(pick.moveId)) && b.shots.some((x) => isSpread(moveOf(x.moveId)));
+}
+
+/** 그 포켓몬이 달려가기에 든 동안 (달려가는 쪽 · 맞는 쪽 — 가는 중 · 박치기 · 돌아오는 중) */
+function bodyBusy(b: TeamBattle, side: Side, slot: number): boolean {
+  return b.shots.some((x) => x.contact && ((x.side === side && x.from === slot) || (x.side !== side && x.targets[0] === slot)));
+}
+
+/** 한 포켓몬 행동 — 잠듦이면 쉼 · 아니면 AI 가 고른 기술을 쏨 (겹쳐도 — 큰 연출이 겹치면 기다림 actBlocked). 기다리면 false (게이지 그대로) */
+function act(b: TeamBattle, side: Side, slot: number, rng: Rng): boolean {
   const f = b[side][slot]!;
-  f.gauge = 0;
   if (f.status?.kind === 'sleep') {
+    f.gauge = 0;
     const left = f.status.turnsLeft - 1;
     f.status = left > 0 ? { kind: 'sleep', turnsLeft: left } : null;
     popup(b, side, slot, left > 0 ? '쿨쿨 잠들어 있다' : '잠에서 깼다!', 'info');
-    return;
+    return true;
   }
+  // 막혀 기다리던 고름이 있으면 그대로 (대상이 다 쓰러졌으면 새로 고름)
+  const held = b.ready?.[side][slot]?.pick;
+  const foes = b[other(side)];
+  const pick = held && held.targets.some((i) => foes[i] && alive(foes[i]!)) ? { moveId: held.moveId, targets: held.targets.filter((i) => alive(foes[i]!)) } : teamPick(f, foes, rng);
+  if (!pick) {
+    f.gauge = 0;
+    return true;
+  }
+  if (actBlocked(b, side, slot, pick)) {
+    const r = b.ready?.[side][slot];
+    if (r && b.ready) b.ready[side][slot] = { ...r, pick: { moveId: pick.moveId, targets: [...pick.targets] } };
+    return false;
+  }
+  f.gauge = 0;
   // 마비 — 가끔 못 움직임 (1:1 과 같음)
   if (f.status?.kind === 'paralysis' && rng.chance(BALANCE.paralysisSkip)) {
     popup(b, side, slot, '몸이 저려 움직일 수 없다!', 'info');
-    return;
+    return true;
   }
-  const pick = teamPick(f, b[other(side)], rng);
-  if (!pick) return;
   const mv = moveOf(pick.moveId);
   // 연달아 세지는 기술 — 같은 기술을 또 쓰면 +1, 다른 기술이면 처음부터 (1:1 과 같음)
   if (mv?.streak && f.streakMove === mv.id) f.streakCount += 1;
@@ -482,7 +550,11 @@ function act(b: TeamBattle, side: Side, slot: number, rng: Rng): void {
   const { dur, hitMs, contact } = shotTiming(pick.moveId);
   b.shots = [...b.shots, { id: b.seq, side, from: slot, targets: pick.targets, moveId: pick.moveId, ms: 0, dur, hitMs, hit: false, shooting: isShooting(mv) && !contact, clash: false, ...(contact ? { contact } : {}), ...(mv?.streak ? { boost: streakMultiplier(f.streakCount) } : {}) }];
   note(b, { t: 'shoot', shot: b.seq, side, from: slot, targets: [...pick.targets], moveId: pick.moveId, hitMs, contact });
+  b.lastShotAt = b.t;
+  const hp0 = f.hp;
   tick(b, side, slot);
+  if (f.hp < hp0) b.shots[b.shots.length - 1]!.ticked = hp0 - f.hp;
+  return true;
 }
 
 /** 쏘는 기술끼리 엇갈림 — 둘 다 날아가는 중 (쏜 뒤 · 닿기 전) 이고 아직 힘겨루기를 안 한 반대편 기술 */
@@ -551,8 +623,28 @@ function bestUltTarget(foes: readonly Fighter[], type: TypeName): number | null 
   return best;
 }
 
+/**
+ * 큰 연출 (필살기 · 합동 · 힘겨루기) 이 시작되면 아직 안 맞은 달려가기를 거둠 — 몸은 집으로 (연출 0.3초), 게이지는 거의 찬 채 (0.9) 돌려줌.
+ * 상대 앞에 선 채 큰 연출이 시작돼 떠 보이고 · 맞음이 연출 뒤에 따로 나던 것 (아트 디렉터 #95 ③). 이미 맞은 달려가기는 돌아오는 중이라 그대로
+ */
+function settleDashes(b: TeamBattle): void {
+  for (const s of b.shots) {
+    if (!s.contact || s.hit || s.clash) continue;
+    note(b, { t: 'stop', shot: s.id });
+    const f = b[s.side][s.from];
+    if (f && alive(f)) {
+      f.gauge = Math.max(f.gauge, 0.9);
+      // 쏠 때 쓴 것을 돌려줌 — 독 · 화상 피해 · 연달아 세지는 횟수 (다시 쏠 때 두 번 들어가던 것 — 테스터 #95)
+      if (s.ticked) f.hp = Math.min(f.maxHp, f.hp + s.ticked);
+      if (s.boost !== undefined && f.streakMove === s.moveId) f.streakCount = Math.max(0, f.streakCount - 1);
+    }
+  }
+  b.shots = b.shots.filter((s) => !s.contact || s.hit || s.clash);
+}
+
 function startUlt(b: TeamBattle, side: Side, slot: number, rng: Rng, ults?: Readonly<Record<string, string>>): void {
   const f = b[side][slot]!;
+  settleDashes(b);
   spendUlt(b, side, slot);
   const pick = pickUlt(b, side, slot, rng, ults);
   // 같은 편에 찬 포켓몬이 있으면 합동 필살기 멘트 (모이는 동안 멈춤 — 이 시간이 끼어들기 창도 됨), 없으면 바로 (끼어들기 창 1.2초)
@@ -565,14 +657,18 @@ function startUlt(b: TeamBattle, side: Side, slot: number, rng: Rng, ults?: Read
   const joiners = foes.map((x, i) => (alive(x) && x.ult >= 1 && rng.chance(chance) ? i : -1)).filter((i) => i >= 0);
   // 상대 AI 동료 — 찬 동료마다 한 번 굴려 모일 때를 정함 (트레이너 가끔 · 관장 자주)
   const allyAt = side === 'foe' && gather ? allies.filter(() => rng.chance(BALANCE.team.interruptChance[b.kind])).map((i) => ({ slot: i, at: rng.int(150, Math.min(TIMING.team.foeAllyByMs, gather - 250)) })) : [];
+  // 3:3 용 판 (#122 — 2초 안팎): 보는 중엔 연출이 맞힐 때까지 붙잡음 · 안 볼 때는 이 박자.
+  // 끼어들 수 있으면 (상대 필살기에 내 다 찬 칸 · 내 필살기에 상대 AI 가 끼어듦) 맞는 때를 끼어들기 창 뒤로 — 맞으면 창이 닫혀서 (u.hit) 0.25초로 줄면 못 끼어들던 것 (#95)
+  const canJoin = !gather && (side === 'foe' ? b.me.some((x) => alive(x) && x.ult >= 1) : joiners.length > 0);
+  const hitMs = canJoin ? Math.max(TIMING.team.ultHitMs, window + 100) : TIMING.team.ultHitMs;
   b.phase = 'ult';
   b.ult = {
     side,
     from: slot,
     windowMs: window,
     ms: 0,
-    dur: TIMING.ultAnimMs,
-    hitMs: Math.round(TIMING.ultAnimMs * 0.6),
+    dur: hitMs + TIMING.team.ultMs - TIMING.team.ultHitMs,
+    hitMs,
     hit: false,
     window,
     joinAt: joiners.length ? rng.int(Math.min(TIMING.team.foeJoinMinMs, window - 100), window - 100) : null,
@@ -624,6 +720,7 @@ function finishGather(b: TeamBattle, rng: Rng, ults?: Readonly<Record<string, st
 /** 필살기 힘겨루기 시작 — 쓴 쪽 + 끼어든 쪽 (그 뒤에도 합류) */
 function startUltClash(b: TeamBattle, joinSide: Side, joiners: number[], rng: Rng): void {
   const u = b.ult!;
+  settleDashes(b);
   for (const i of joiners) spendUlt(b, joinSide, i);
   // 쓴 쪽은 모인 같은 편과 함께 (합동 필살기 멘트 중에 받아침 — 양쪽이 모인 채 힘겨루기)
   const me = u.side === 'me' ? [u.from, ...(u.team ?? [])] : joiners;
@@ -669,7 +766,8 @@ function endUltClash(b: TeamBattle, rng: Rng, ults?: Readonly<Record<string, str
   const live = winners.filter((w) => alive(b[winSide][w]!));
   b.msg = meWins ? '힘겨루기에서 이겼다!' : '힘겨루기에서 졌다…';
   b.clash = null;
-  if (live.length > 1) {
+  // 혼자 이겨도 짧은 마무리 (3:3 용 판 #132 — 이긴 쪽 줄기가 뚫고 터짐 · 그동안 나머지는 멈춤) · 여럿이면 합동 마무리
+  if (live.length > 0) {
     // 합동 마무리 — 이긴 참가자 필살기가 합쳐 터지는 순간에 피해 (2026-10-21 태현 님 "필살기가 합쳐지듯이") · 그동안 나머지는 멈춤
     // 참가자마다 필살기를 엔진이 고름 (연출이 고르면 피해 때가 참가자 필살기에 따라 6.2 ↔ 8.2초로 달라짐 — 기획 #80 답, U2)
     // quick — 참가자 필살기는 방금 대결에서 나감 → 처음부터 다시 쓰지 않고 짧은 마무리 (#86)
@@ -680,9 +778,7 @@ function endUltClash(b: TeamBattle, rng: Rng, ults?: Readonly<Record<string, str
     note(b, { t: 'ult', side: winSide, from: live[0]!, joint });
     return;
   }
-  for (const w of live) {
-    for (const t of losers) damage(b, winSide, w, t, BALANCE.ultPower, b[winSide][w]!.types[0] ?? null, rng, true);
-  }
+  // 이긴 쪽이 다 쓰러짐 (반동 등) — 피해 없이 다시 달림
   b.phase = 'run';
 }
 
@@ -766,6 +862,32 @@ export function teamGather(b: TeamBattle): { side: Side; from: number; leftMs: n
   const team = u.team ?? [];
   const can = b[u.side].map((f, i) => (i !== u.from && !team.includes(i) && alive(f) && f.ult >= 1 ? i : -1)).filter((i) => i >= 0);
   return { side: u.side, from: u.from, leftMs: u.gather!, totalMs: TIMING.team.gatherMs, team: [...team], can };
+}
+
+/**
+ * 큰 연출 동안 밝게 둘 칸 (2026-10-22 태현 님 #121 — 필살기 · 합동 · 힘겨루기 동안 나머지는 멈추고 흐리게): 혼자 필살기 = 쓴 포켓몬 + 맞는 상대 (범위면 상대 모두) ·
+ * 합동 멘트 = 쓴 포켓몬 + 모인 · 모일 수 있는 동료 · 합동 = 참가자 + 맞는 상대 · 힘겨루기 = 참가자. 평소 (run) · 끝은 null
+ */
+export function teamLit(b: TeamBattle): { me: number[]; foe: number[] } | null {
+  const lit = { me: [] as number[], foe: [] as number[] };
+  const add = (side: Side, list: readonly number[]) => list.forEach((i) => !lit[side].includes(i) && lit[side].push(i));
+  const living = (side: Side) => b[side].map((f, i) => (alive(f) ? i : -1)).filter((i) => i >= 0);
+  if (b.phase === 'clash' && b.clash) {
+    add('me', b.clash.me);
+    add('foe', b.clash.foe);
+    return lit;
+  }
+  const u = b.phase === 'ult' ? b.ult : null;
+  if (!u) return null;
+  if (u.joint) {
+    add(u.side, u.joint.winners);
+    add(other(u.side), u.joint.losers);
+    return lit;
+  }
+  add(u.side, [u.from, ...(u.team ?? [])]);
+  if ((u.gather ?? 0) > 0) add(u.side, teamGather(b)?.can ?? []);
+  add(other(u.side), u.spread !== false || u.target === undefined ? living(other(u.side)) : [u.target]);
+  return lit;
 }
 
 /** 필살기 게이지 단계 — 화면의 상대 필살기 예고 (near = ultWarnAt 넘음 · full = 다 참) · 내 발밑 판에도 씀 */
@@ -957,7 +1079,8 @@ function teamStepOnce(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamStepOp
       if (!u.hit && u.ms >= u.hitMs && u.joint) {
         u.hit = true;
         // 합동 마무리 — 이긴 참가자마다 자기 필살기를 진 참가자 모두에게 (합류한 위력을 다 더함 — gdd 4.7)
-        jointDamage = true;
+        // 합동 칩 ("합동!") 은 여럿일 때만 — 혼자 이긴 힘겨루기 마무리는 보통 필살기 숫자
+        jointDamage = u.joint.winners.length > 1;
         try {
           for (const w of u.joint.winners) {
             if (!alive(b[u.side][w]!)) continue;
@@ -1064,13 +1187,32 @@ function teamStepOnce(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamStepOp
     startUlt(b, 'me', z, rng, opts.ults);
     return b;
   }
-  // 행동 게이지 — 차면 바로 (겹쳐도) · 기술 힘겨루기 중인 둘은 멈춤 (그동안 다른 포켓몬만 계속 — 한 포켓몬이 힘겨루기 둘을 하지 않게)
+  // 행동 게이지 — 차면 쏨 · 기술 힘겨루기 중인 둘은 멈춤 (그동안 다른 포켓몬만 계속 — 한 포켓몬이 힘겨루기 둘을 하지 않게).
+  // 시작 시각 엇갈림 (#117): 앞 기술 뒤 staggerMs 안이면 찬 채로 기다림 · 큰 연출이 겹치면 (actBlocked) 그 포켓몬만 기다리고 다음 포켓몬 · 걸음마다 먼저 볼 편을 번갈아
+  // 찬 때를 칸마다 적고 먼저 찬 칸부터 (같으면 편을 걸음마다 번갈아) — 칸 번호 순이면 범위 기술 팀의 뒤 칸이 굶던 것 (테스터 #95)
+  const q = (b.ready ??= { me: b.me.map(() => null), foe: b.foe.map(() => null) });
+  const ready: { side: Side; i: number; at: number }[] = [];
   for (const side of ['me', 'foe'] as const) {
     b[side].forEach((f, i) => {
-      if (!alive(f) || b.moveClashes.some((c) => c[side].includes(i))) return;
+      if (!alive(f)) {
+        q[side][i] = null;
+        return;
+      }
+      if (b.moveClashes.some((c) => c[side].includes(i))) return;
       f.gauge = Math.min(1, f.gauge + gaugeRate(b, f) * stepMs);
-      if (f.gauge >= 1) act(b, side, i, rng);
+      if (f.gauge >= 1) {
+        q[side][i] ??= { at: b.t };
+        ready.push({ side, i, at: q[side][i]!.at });
+      }
     });
+  }
+  const meFirst = b.seq % 2 === 0;
+  ready.sort((x, y) => x.at - y.at || (x.side === y.side ? x.i - y.i : (x.side === 'me') === meFirst ? -1 : 1));
+  for (const { side, i } of ready) {
+    if (b.lastShotAt !== undefined && b.t - b.lastShotAt < TIMING.team.staggerMs) break;
+    if (!alive(b[side][i]!)) continue;
+    if (act(b, side, i, rng)) q[side][i] = null;
+    if ((b.phase as TeamBattle['phase']) === 'over') break;
   }
   checkEnd(b, b.t >= TIMING.team.maxMs);
   return b;
@@ -1116,7 +1258,7 @@ export function readTeam(raw: unknown): TeamBattle | null {
   const slots = (v: unknown, side: Side, min = 0) => Array.isArray(v) && v.length >= min && v.length <= n[side] && v.every((i) => slot(i, side));
   const okShot = (s: unknown) =>
     isObj(s) && fin(s.id, 0) && isSide(s.side) && slot(s.from, s.side) && slots(s.targets, other(s.side), 1) && fin(s.moveId, 0, 100000) && fin(s.ms, 0) && fin(s.dur, 1) && fin(s.hitMs, 0) &&
-    typeof s.hit === 'boolean' && typeof s.shooting === 'boolean' && typeof s.clash === 'boolean' && (s.boost === undefined || fin(s.boost, 1, 100)) && (s.contact === undefined || s.contact === true);
+    typeof s.hit === 'boolean' && typeof s.shooting === 'boolean' && typeof s.clash === 'boolean' && (s.boost === undefined || fin(s.boost, 1, 100)) && (s.contact === undefined || s.contact === true) && (s.ticked === undefined || fin(s.ticked, 0, 1e6));
   if (!Array.isArray(raw.shots) || raw.shots.length > 30 || !raw.shots.every(okShot)) return null;
   const shotIds = new Set(raw.shots.map((s: Obj) => s.id));
   const okBase = (c: Obj) => slots(c.me, 'me', 1) && slots(c.foe, 'foe', 1) && fin(c.ms, 0) && fin(c.dur, 1) && fin(c.taps, 0, 1000) && (c.winner === null || isSide(c.winner));
@@ -1152,6 +1294,10 @@ export function readTeam(raw: unknown): TeamBattle | null {
   const d = raw.deny;
   if (!(d === undefined || (isObj(d) && Number.isInteger(d.slot) && (d.slot as number) >= -1 && (d.slot as number) < BALANCE.team.size && fin(d.ms, 0, 1e6) && (d.why === 'charge' || d.why === 'busy')))) return null;
   if (!(raw.autoWait === undefined || (Array.isArray(raw.autoWait) && raw.autoWait.length === n.me && raw.autoWait.every((x) => fin(x, 0, 1e6))))) return null;
+  // 판 시각보다 뒤면 안 읽음 (아무도 행동하지 않고 상한까지 멈추던 것 — 코드 리뷰어)
+  if (!(raw.lastShotAt === undefined || fin(raw.lastShotAt, 0, typeof raw.t === 'number' ? raw.t : 0))) return null;
+  const okReady = (r: unknown, side: Side) => r === null || (isObj(r) && fin(r.at, 0, typeof raw.t === 'number' ? raw.t : 0) && (r.pick === undefined || (isObj(r.pick) && fin(r.pick.moveId, 0, 100000) && slots(r.pick.targets, other(side), 1))));
+  if (!(raw.ready === undefined || (isObj(raw.ready) && Array.isArray(raw.ready.me) && raw.ready.me.length === n.me && raw.ready.me.every((r) => okReady(r, 'me')) && Array.isArray(raw.ready.foe) && raw.ready.foe.length === n.foe && raw.ready.foe.every((r) => okReady(r, 'foe'))))) return null;
   const both = (e: Obj) => isSide(e.side) && slot(e.from, e.side) && slot(e.to, other(e.side));
   const pair = (v: unknown) => Array.isArray(v) && v.length === 2 && v.every((x) => fin(x, 0));
   const okNote = (e: unknown): boolean => {

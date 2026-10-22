@@ -69,9 +69,9 @@ describe('계획', () => {
       { t: 'hit', side: 'me', from: 2, to: 1, moveId: 55, ult: false, effect: 'damage', dmg: 30, ko: true },
     ]);
     expect(one(calls, 'impact')).toEqual([
-      { do: 'impact', dst: { side: 'foe', slot: 0 }, type: 'fire', big: true, name: '불꽃세례', o: { scale: 1.25 } },
+      { do: 'impact', dst: { side: 'foe', slot: 0 }, type: 'fire', big: true, name: '불꽃세례', o: { scale: 1.25 * TEAM_FX.impactScale } },
       { do: 'impact', dst: { side: 'me', slot: 1 }, type: 'normal', big: false, name: '몸통박치기', o: { none: true }, delayMs: TEAM_FX.contactImpactLagMs },
-      { do: 'impact', dst: { side: 'foe', slot: 1 }, type: 'water', big: false, name: '물대포', o: { scale: 1 } },
+      { do: 'impact', dst: { side: 'foe', slot: 1 }, type: 'water', big: false, name: '물대포', o: { scale: TEAM_FX.impactScale } },
     ]);
     // 닿는 기술 (몸통박치기) 은 맞는 쪽 몸에 자국 (1:1 과 같음) → 임팩트는 조금 늦게
     expect(one(calls, 'strike')).toEqual([{ do: 'strike', dst: { side: 'me', slot: 1 }, src: { side: 'foe', slot: 0 }, move: { name: '몸통박치기', type: 'normal' } }]);
@@ -88,7 +88,7 @@ describe('계획', () => {
       { t: 'faint', side: 'foe', slot: 2 },
       { t: 'end', result: 'win' },
     ]);
-    expect(one(calls, 'impact')[0]).toMatchObject({ big: true, o: { scale: 1.4 } });
+    expect(one(calls, 'impact')[0]).toMatchObject({ big: true, o: { scale: 1.4 * TEAM_FX.impactScale } });
     expect(one(calls, 'knock')[0]).toMatchObject({ cells: TEAM_KNOCK.finalCells, ms: TEAM_KNOCK.finalMs });
     expect(one(calls, 'final')).toEqual([{ do: 'final', dst: { side: 'foe', slot: 2 } }]);
     expect(one(calls, 'ko')).toEqual([]);
@@ -191,11 +191,12 @@ describe('필살기가 그린 상대에는 큰 임팩트를 또 안 그림 (#80 
   const hit = (to: number, ko: boolean): TeamNote => ({ t: 'hit', side: 'me', from: 0, to, moveId: -1, ult: true, effect: 'damage', dmg: 30, ko });
 
   it('합동 — 진 쪽 가운데가 쓰러져도 그 상대는 합동이 그림 (나머지만 임팩트)', () => {
-    expect(impacts([{ t: 'ult', side: 'me', from: 0, joint: { winners: [0, 2], losers: [0, 1, 2], sure: false } }, hit(0, false), hit(1, true), hit(2, false)], [1])).toEqual([0, 2]);
+    // 3:3 용 판 (TEAM_FX.stage) 은 나머지 대상도 임팩트 없이 밀림만 (터짐 하나 — 아트 디렉터 #95 ④)
+    expect(impacts([{ t: 'ult', side: 'me', from: 0, joint: { winners: [0, 2], losers: [0, 1, 2], sure: false } }, hit(0, false), hit(1, true), hit(2, false)], [1])).toEqual(TEAM_FX.stage ? [] : [0, 2]);
   });
 
   it('범위기 — 그때 살아 있던 상대 가운데 (쓰러진 상대 포함해 셈) · 고른 대상은 그 상대', () => {
-    expect(impacts([{ t: 'ult', side: 'me', from: 0 }, hit(0, false), hit(1, true), hit(2, false)], [1])).toEqual([0, 2]);
+    expect(impacts([{ t: 'ult', side: 'me', from: 0 }, hit(0, false), hit(1, true), hit(2, false)], [1])).toEqual(TEAM_FX.stage ? [] : [0, 2]);
     expect(impacts([{ t: 'ult', side: 'me', from: 0, spread: false, target: 2 }, hit(2, true)], [2])).toEqual([]);
   });
 });

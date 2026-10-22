@@ -77,6 +77,8 @@ export interface PokemonFx {
   contactParry?(dst: FxActor, src: FxActor | null, perfect: boolean): void;
   /** 필살기 게이지가 다 참 — 몸 둘레 금색 반짝임 세 번 */
   ultReady?(dst: FxActor): void;
+  /** 보이는 몸 위 끝 (화면 px — 그림 모양) · 모르면 null */
+  shapeTop?(a: FxActor): number | null;
   /** S22 진화 — stage 안 옛 · 새 그림을 숨기고 캔버스로 메가진화처럼 (ms 동안) */
   evolve?(stage: HTMLElement, ms: number): void;
   /** 패링 되튀기 — 막은 쪽 (dst) 에서 친 쪽 (src) 으로 불똥 · 완벽 = 금색 초승달 + 히트스톱 */
@@ -85,7 +87,7 @@ export interface PokemonFx {
   /** onHit = 상대를 처음 맞힌 순간 (그때 피해를 넣음) */
   /** o.quick = 같은 전투에서 다시 보는 필살기 — 컷인 없이 짧게 (2026-10-20) */
   /** o.others = 나머지 맞을 상대 (3:3 — 자기 둘레 필살기의 기운 줄기가 모두에게) · o.type = 쓴 포켓몬 타입 (기운이 닿을 때 임팩트) */
-  ult?(src: FxActor, dst: FxActor, onHit?: () => void, avoid?: string[], o?: { quick?: boolean; sub?: string; others?: FxActor[]; type?: string; pick?: string; timing?: (t: { main: number; cover: number; total: number }) => void }): number;
+  ult?(src: FxActor, dst: FxActor, onHit?: () => void, avoid?: string[], o?: { quick?: boolean; sub?: string; others?: FxActor[]; type?: string; pick?: string; stage?: boolean; hitMs?: number; timing?: (t: { main: number; cover: number; total: number }) => void }): number;
   /** 그 모습이 가진 필살기 이름 (개발 모드 (임시) — 필살기 고르기) */
   ults?(form: string): string[];
   /** 3:3 합동 필살기 마무리 — 참가자 필살기가 같은 때 닿아 한 점에서 합쳐 터짐. onHit = 합쳐진 순간 · 걸리는 시간 (ms), 못 쓰면 0 */
@@ -96,6 +98,11 @@ export interface PokemonFx {
   /** 힘대결 (version 3) — a = 나, b = 상대 · live() = 내가 이길 확률 · { meetMs } 또는 null */
   duel?(a: FxActor, b: FxActor, spec: FxDuel, live: () => number): { meetMs: number } | null;
   duelWin?(who: 'a' | 'b'): void;
+  /** 3:3 용 판 (orders #95) — 합동 한 장면 · 필살기 힘겨루기 (ult/fx-team33.js) */
+  teamJoint?(srcs: FxActor[], dst: FxActor, onHit?: () => void, o?: { types?: string[]; quick?: boolean; hitMs?: number; others?: FxActor[]; near?: FxActor[] }): number;
+  teamDuel?(a: FxActor, b: FxActor, spec: { typeA: string; typeB: string; leadMs?: number; clashMs?: number }, live: () => number): { meetMs: number } | null;
+  teamDuelJoin?(side: 'a' | 'b', type?: string): void;
+  teamDuelWin?(who: 'a' | 'b'): void;
   /** soft = 터지는 여운까지 그리고 정리 */
   stopDuel?(soft?: boolean): void;
   /** 연출 캔버스를 둘 곳 (version 4) — 전투 판의 연출 층, null 이면 맨 위 */

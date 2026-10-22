@@ -22,6 +22,48 @@ let moveCtx;
 let moveRaf = 0;
 let moveLast = 0;
 let moveAutoStarted = false;
+// 무대 상자 (게임 3:3 필살기 판 — ult/bridge.js, 2026-10-22 orders #95) — { x, y, W, H }: 이 안에서 만든 입자 · 발사기는 상자를 화면으로 알고 그림
+// (상자 왼쪽 위 = 0, 0 · 크기 = W × H). 그 입자를 움직이고 그릴 때 상자로 옮김. 없으면 (일반 모드 · 1:1) 그대로
+let moveFrame = null;
+// 포켓몬 아래 캔버스 (게임 3:3 판 — ult/bridge.js 가 넣음) — 무대 상자 그림의 대상 둘레 밖을 여기에 (없으면 다 위 캔버스)
+let moveBackHook = null;
+// 상자 시계 차이 (f.skew ms) — 앞 감은 만큼 상자 안에서 보는 performance.now 를 앞당김 (필살기 코드가 시작 때 잡은 시계
+// (const t0 = performance.now()) 가 감기 뒤에도 이어지게 — 돌진 · 다이브 · 연타 · 사이코 · 그림자 틀이 처음부터 다시 그리던 것, 코드 리뷰어 #95)
+function moveInFrame(f, fn) {
+    const prev = moveFrame;
+    const skew = (f && f.skew) || 0;
+    const undo = skew !== moveSkewNow ? moveSkew(skew) : null;
+    moveFrame = f;
+    try {
+        return fn();
+    } finally {
+        moveFrame = prev;
+        undo?.();
+    }
+}
+let moveSkewNow = 0;
+let moveSkewRoot = null;
+function moveSkew(skew) {
+    const was = moveSkewNow;
+    if (was === 0) {
+        moveSkewRoot = { own: Object.getOwnPropertyDescriptor(performance, 'now'), base: performance.now.bind(performance) };
+    }
+    const set = (s) => {
+        moveSkewNow = s;
+        const r = moveSkewRoot;
+        if (s === 0) {
+            if (r.own) {
+                Object.defineProperty(performance, 'now', r.own);
+            } else {
+                delete performance.now;
+            }
+            return;
+        }
+        Object.defineProperty(performance, 'now', { configurable: true, writable: true, value: () => r.base() + s });
+    };
+    set(skew);
+    return () => set(was);
+}
 
 const moveRand = (min, max) => min + Math.random() * (max - min);
 const movePick = (list) => list[Math.floor(Math.random() * list.length)];
@@ -464,32 +506,433 @@ function moveTick(now) {
     moveCanvasReady();
     const ctx = moveCtx;
     ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+    moveStep(now, dt, null);
+    // 무대 상자 입자는 상자마다 따로 그린 뒤 가장자리를 흐려 깖 (moveFrameLayer)
+    const frames = new Set();
+    // 그리기 — 층(z) 순서: z<0 맨 밑 → 보통(나중 것부터 그려서 먼저 만든 게 위) → z>0 맨 위
+    for (const layer of [-1, 0, 1]) {
+        for (let i = moveParticles.length - 1; i >= 0; i--) {
+            const p = moveParticles[i];
+            const z = p.z ?? 0;
+            if ((z < 0 ? -1 : z > 0 ? 1 : 0) !== layer || p.life >= p.max) {
+                continue;
+            }
+            const f = p._f;
+            let c = ctx;
+            try {
+                if (f) {
+                    // 무대 상자 입자 — 상자 그림판에 상자 자리로 옮겨 그림 (그동안 상자를 화면으로)
+                    if (!frames.has(f)) {
+                        frames.add(f);
+                        moveFrameLayer(f);
+                    }
+                    c = f.ctx;
+                    c.save();
+                    c.translate(f.x, f.y);
+                    moveInFrame(f, () => drawParticle(c, p));
+                } else {
+                    drawParticle(ctx, p);
+                }
+            } catch (err) {
+                moveFault(err);
+                p.life = p.max;
+                c.globalCompositeOperation = 'source-over';
+            } finally {
+                if (f && c !== ctx) {
+                    c.restore();
+                }
+            }
+        }
+    }
+    ctx.globalAlpha = 1;
+    for (const f of frames) {
+        moveFramePut(ctx, f);
+    }
 
+    if (moveEmitters.length || moveParticles.length) {
+        moveRaf = requestAnimationFrame(moveTick);
+    } else {
+        moveRaf = 0;
+        moveLast = 0;
+    }
+}
+
+// 무대 상자 그림판 — 화면과 같은 크기 · 장마다 비움
+function moveFrameLayer(f) {
+    const dpr = window.devicePixelRatio || 1;
+    const w = moveCanvas.width;
+    const h = moveCanvas.height;
+    if (!f.cv) {
+        f.cv = document.createElement('canvas');
+        // 장마다 읽음 (moveFrameDither — 반투명을 바둑판으로)
+        f.ctx = f.cv.getContext('2d', { willReadFrequently: true });
+    }
+    if (f.cv.width !== w || f.cv.height !== h) {
+        f.cv.width = w;
+        f.cv.height = h;
+        f.mask = null;
+    }
+    f.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    f.ctx.globalCompositeOperation = 'source-over';
+    f.ctx.globalAlpha = 1;
+    // 상자 영역만 비움 · 넣음 (밖은 마스크가 0 이라 안 씀 — 매 장면 화면 전체를 세 번 거치던 것, 코드 리뷰어)
+    const r = moveFrameRect(f);
+    f.ctx.clearRect(r.x, r.y, r.w, r.h);
+    f.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+// 상자 영역 (기기 px) — 왼쪽 · 위 · 폭 · 화면 아래 끝까지 (모양이 있으면 그 모양들을 품는 네모)
+function moveFrameRect(f) {
+    const dpr = window.devicePixelRatio || 1;
+    if (f.shapes && f.shapes.length) {
+        const b = moveFrameBox(f);
+        const x = Math.max(0, Math.floor(b.x0 * dpr));
+        const y = Math.max(0, Math.floor(b.y0 * dpr));
+        return { x, y, w: Math.max(1, Math.min(f.cv.width - x, Math.ceil((b.x1 - b.x0) * dpr) + 1)), h: Math.max(1, Math.min(f.cv.height - y, Math.ceil((b.y1 - b.y0) * dpr) + 1)) };
+    }
+    const x = Math.max(0, Math.floor(f.x * dpr));
+    const y = Math.max(0, Math.floor(Math.min(f.y, f.maskTop ?? f.y) * dpr));
+    return { x, y, w: Math.max(1, Math.min(f.cv.width - x, Math.ceil(f.W * dpr))), h: Math.max(1, f.cv.height - y) };
+}
+// 모양들을 품는 네모 (화면 px)
+function moveFrameBox(f) {
+    let x0 = Infinity;
+    let y0 = Infinity;
+    let x1 = -Infinity;
+    let y1 = -Infinity;
+    for (const s of f.shapes) {
+        const r = s.kind === 'seg' ? s.r : 0;
+        const ax = s.kind === 'seg' ? Math.min(s.x0, s.x1) - r : s.cx - s.rx;
+        const bx = s.kind === 'seg' ? Math.max(s.x0, s.x1) + r : s.cx + s.rx;
+        const ay = s.kind === 'seg' ? Math.min(s.y0, s.y1) - r : s.cy - s.ry;
+        const by = s.kind === 'seg' ? Math.max(s.y0, s.y1) + r : s.cy + s.ry;
+        x0 = Math.min(x0, ax);
+        x1 = Math.max(x1, bx);
+        y0 = Math.min(y0, ay);
+        y1 = Math.max(y1, by);
+    }
+    return { x0: Math.max(0, x0), y0: Math.max(0, y0), x1, y1 };
+}
+// 그 점이 모양 안으로 들어간 깊이 (px — 음수 = 밖) · 여럿이면 가장 깊은 것
+function moveShapeDepth(shapes, px, py) {
+    let best = -Infinity;
+    for (const s of shapes) {
+        let e;
+        if (s.kind === 'seg') {
+            const vx = s.x1 - s.x0;
+            const vy = s.y1 - s.y0;
+            const L2 = vx * vx + vy * vy || 1;
+            const t = Math.max(0, Math.min(1, ((px - s.x0) * vx + (py - s.y0) * vy) / L2));
+            e = s.r - Math.hypot(px - (s.x0 + vx * t), py - (s.y0 + vy * t));
+        } else {
+            const dx = (px - s.cx) / s.rx;
+            const dy = (py - s.cy) / s.ry;
+            e = (1 - Math.sqrt(dx * dx + dy * dy)) * Math.min(s.rx, s.ry);
+        }
+        if (e > best) {
+            best = e;
+        }
+    }
+    return best;
+}
+// 상자 가장자리 — 그림 점 (S) 칸 (옆 6 · 위 10줄) 에 걸쳐 바둑판 (4×4 Bayer) 으로 사그라짐 (흐린 그라데이션 대신 픽셀 — 디자인 규칙) · 아래 끝은 그대로 (땅에 닿는 것)
+const MOVE_BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+function moveFrameMask(f) {
+    if (f.mask) {
+        return f.mask;
+    }
+    const dpr = window.devicePixelRatio || 1;
+    const m = document.createElement('canvas');
+    m.width = moveCanvas.width;
+    m.height = moveCanvas.height;
+    const mc = m.getContext('2d');
+    const S = Math.max(1, f.S || 2);
+    // 타원 (상자 아래 끝 가운데 · 가로 반지름 = 폭 반 · 세로 = 높이 — 위로 둥근 돔) 안쪽만 · 바깥 4px 씩 50% · 25% 바둑판
+    // (네모 상자 변이 곧은 바둑판으로 보이던 것 — 아트 디렉터 #95 ①) · 아래 끝 밑 (땅) 은 같은 폭으로 화면 끝까지
+    mc.setTransform(dpr, 0, 0, dpr, 0, 0);
+    mc.fillStyle = '#fff';
+    // f.shapes = 보이는 곳 (통로 seg · 타원 ell — 화면 px) 의 합 — 3:3 판은 쓰는 입 → 대상 통로 + 대상 둘레 + 입 앞만 (불벽 · 큰 호 · 빛 기둥 · 바닥 줄이 무대를 덮던 것, 아트 디렉터 #95 2바퀴)
+    if (f.shapes && f.shapes.length) {
+        const b = moveFrameBox(f);
+        // 앞 모양 (front — 대상 둘레) 마스크 · 뒤 마스크 (= 전체 − 앞) — 앞은 포켓몬 위 캔버스 · 뒤는 포켓몬 아래 (moveFramePut)
+        const fronts = f.shapes.filter((s) => s.front);
+        let fm = null;
+        let fc = null;
+        if (fronts.length) {
+            fm = document.createElement('canvas');
+            fm.width = m.width;
+            fm.height = m.height;
+            fc = fm.getContext('2d');
+            fc.setTransform(dpr, 0, 0, dpr, 0, 0);
+            fc.fillStyle = '#fff';
+        }
+        const lvlOf = (e) => (e >= 8 ? 16 : e >= 4 ? 8 : 4);
+        for (let y = Math.floor(b.y0 / S) * S; y < b.y1; y += S) {
+            for (let x = Math.floor(b.x0 / S) * S; x < b.x1; x += S) {
+                // 가장자리를 칸마다 ±4px 흔듦 — 곧은 바둑판 변이 네모로 읽히던 것 (불꽃 혀처럼 들쭉날쭉 — 아트 디렉터 #95 2바퀴)
+                const jag = ((((Math.floor(x / S) * 73856093) ^ (Math.floor(y / S) * 19349663)) >>> 0) % 3) * 4 - 4;
+                const bay = MOVE_BAYER[(Math.floor(x / S) & 3) + (Math.floor(y / S) & 3) * 4];
+                const e = moveShapeDepth(f.shapes, x + S / 2, y + S / 2) + jag;
+                if (e >= 0 && bay < lvlOf(e)) {
+                    mc.fillRect(x, y, S, S);
+                }
+                if (fc) {
+                    const ef = moveShapeDepth(fronts, x + S / 2, y + S / 2) + jag;
+                    if (ef >= 0 && bay < lvlOf(ef)) {
+                        fc.fillRect(x, y, S, S);
+                    }
+                }
+            }
+        }
+        if (fm) {
+            const bm = document.createElement('canvas');
+            bm.width = m.width;
+            bm.height = m.height;
+            const bc = bm.getContext('2d');
+            bc.drawImage(m, 0, 0);
+            bc.globalCompositeOperation = 'destination-out';
+            bc.drawImage(fm, 0, 0);
+            f.maskFront = fm;
+            f.maskBack = bm;
+        }
+        f.mask = m;
+        return m;
+    }
+    const cx0 = f.x + f.W / 2;
+    const cy0 = f.y + f.H;
+    const top = Math.min(f.y, f.maskTop ?? f.y);
+    const rx = Math.max(1, f.W / 2);
+    const ry = Math.max(1, cy0 - top);
+    const H0 = m.height / dpr;
+    const rmin = Math.min(rx, ry);
+    for (let y = Math.floor(top / S) * S; y < H0; y += S) {
+        for (let x = Math.floor(f.x / S) * S; x < f.x + f.W; x += S) {
+            const dx = (x + S / 2 - cx0) / rx;
+            const dy = Math.min(0, y + S / 2 - cy0) / ry;
+            const e = (1 - Math.sqrt(dx * dx + dy * dy)) * rmin;
+            if (e < 0) {
+                continue;
+            }
+            const lvl = e >= 8 ? 16 : e >= 4 ? 8 : 4;
+            if (MOVE_BAYER[(Math.floor(x / S) & 3) + (Math.floor(y / S) & 3) * 4] < lvl) {
+                mc.fillRect(x, y, S, S);
+            }
+        }
+    }
+    f.mask = m;
+    return m;
+}
+// 바둑판 무늬 (지울 칸 — Bayer < lvl) · 칸 = S 그림 점 (기기 px 로) — 칸 · 단마다 하나
+const MOVE_BAYER_PAT = new Map();
+function moveBayerPattern(ctx, S, lvl) {
+    const dpr = window.devicePixelRatio || 1;
+    const key = `${S}:${lvl}:${dpr}`;
+    let p = MOVE_BAYER_PAT.get(key);
+    if (!p) {
+        const c = Math.max(1, Math.round(S * dpr));
+        const t = document.createElement('canvas');
+        t.width = c * 4;
+        t.height = c * 4;
+        const tc = t.getContext('2d');
+        tc.fillStyle = '#000';
+        for (let i = 0; i < 16; i++) {
+            if (MOVE_BAYER[i] < lvl) {
+                tc.fillRect((i % 4) * c, Math.floor(i / 4) * c, c, c);
+            }
+        }
+        p = ctx.createPattern(t, 'repeat');
+        MOVE_BAYER_PAT.set(key, p);
+    }
+    return p;
+}
+// 상자 그림을 가장자리를 흐려 연출 밑에 깖 (다른 연출 — 맞음 · 쓰러짐 별빛 — 이 위)
+function moveFramePut(ctx, f) {
+    const mask = moveFrameMask(f);
+    const r = moveFrameRect(f);
+    // 계단 (f.stair — 1:1 연출을 대상 줄로, bridge fxUltAim) — 마스크 앞에 (통로 · 대상 둘레는 대상 쪽이라)
+    if (f.stair && f.stair.dy) {
+        moveFrameStair(f, r);
+    }
+    moveFrameDither(f, r);
+    // f.drop = 바둑판으로 지울 단 (0 ~ 16 — 쓰러짐 옅게 · 끝 흐려짐, bridge fxStageSoft · fxStageCut) · 반투명 (globalAlpha) 대신 (반투명 조각 · 유령 — 아트 디렉터 #95 ②)
+    if (f.drop > 0) {
+        f.ctx.save();
+        f.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        f.ctx.globalCompositeOperation = 'destination-out';
+        f.ctx.fillStyle = moveBayerPattern(f.ctx, Math.max(1, f.S || 2), Math.min(16, f.drop));
+        f.ctx.fillRect(r.x, r.y, r.w, r.h);
+        f.ctx.restore();
+    }
+    // 뒤 · 앞 나눔 — 대상 둘레 (앞 마스크) 만 위 캔버스 · 나머지는 포켓몬 아래 캔버스 (moveBackHook) · 자기 둘레 (allBack) 는 다 아래
+    const back = (f.maskBack || f.allBack) && typeof moveBackHook === 'function' ? moveBackHook() : null;
+    if (back) {
+        let src = f.cv;
+        if (!f.allBack) {
+            if (!f.cvB || f.cvB.width !== f.cv.width || f.cvB.height !== f.cv.height) {
+                f.cvB = document.createElement('canvas');
+                f.cvB.width = f.cv.width;
+                f.cvB.height = f.cv.height;
+            }
+            const cb = f.cvB.getContext('2d');
+            cb.setTransform(1, 0, 0, 1, 0, 0);
+            cb.globalCompositeOperation = 'source-over';
+            cb.globalAlpha = 1;
+            cb.clearRect(r.x, r.y, r.w, r.h);
+            cb.drawImage(f.cv, r.x, r.y, r.w, r.h, r.x, r.y, r.w, r.h);
+            cb.globalCompositeOperation = 'destination-in';
+            cb.drawImage(f.maskBack, r.x, r.y, r.w, r.h, r.x, r.y, r.w, r.h);
+            src = f.cvB;
+        } else {
+            f.ctx.save();
+            f.ctx.setTransform(1, 0, 0, 1, 0, 0);
+            f.ctx.globalCompositeOperation = 'destination-in';
+            f.ctx.globalAlpha = 1;
+            f.ctx.drawImage(mask, r.x, r.y, r.w, r.h, r.x, r.y, r.w, r.h);
+            f.ctx.restore();
+        }
+        back.save();
+        back.globalCompositeOperation = 'source-over';
+        back.globalAlpha = 1;
+        back.imageSmoothingEnabled = false;
+        back.drawImage(src, r.x, r.y, r.w, r.h, r.x, r.y, r.w, r.h);
+        back.restore();
+        if (f.allBack) {
+            return;
+        }
+    }
+    f.ctx.save();
+    f.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    f.ctx.globalCompositeOperation = 'destination-in';
+    f.ctx.globalAlpha = 1;
+    f.ctx.drawImage(back ? f.maskFront : mask, r.x, r.y, r.w, r.h, r.x, r.y, r.w, r.h);
+    f.ctx.restore();
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = 'destination-over';
+    ctx.globalAlpha = 1;
+    ctx.drawImage(f.cv, r.x, r.y, r.w, r.h, r.x, r.y, r.w, r.h);
+    ctx.restore();
+}
+
+// 계단 — 입 (x0) 뒤는 그대로 · 앞은 열 u (2칸) 마다 기울기 (dy / dx) 만큼 u 단위로 옮김 (돌린 그림 대신 칸 계단 — 픽셀 그대로, 합동 줄기 fxStairBlit 과 같은 문법).
+// 1:1 은 같은 땅 높이라 가로로 쏘는데 3:3 은 상대 줄이 달라 허공에서 터지던 것 (아트 디렉터 #95 4바퀴 ③)
+function moveFrameStair(f, r) {
+    const s = f.stair;
+    const dpr = window.devicePixelRatio || 1;
+    if (!f.cv2 || f.cv2.width !== f.cv.width || f.cv2.height !== f.cv.height) {
+        f.cv2 = document.createElement('canvas');
+        f.cv2.width = f.cv.width;
+        f.cv2.height = f.cv.height;
+    }
+    const c2 = f.cv2.getContext('2d');
+    c2.setTransform(1, 0, 0, 1, 0, 0);
+    c2.globalCompositeOperation = 'source-over';
+    c2.globalAlpha = 1;
+    c2.clearRect(r.x, r.y, r.w, r.h);
+    c2.drawImage(f.cv, r.x, r.y, r.w, r.h, r.x, r.y, r.w, r.h);
+    const c = f.ctx;
+    c.save();
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.globalCompositeOperation = 'source-over';
+    c.globalAlpha = 1;
+    c.imageSmoothingEnabled = false;
+    c.clearRect(r.x, r.y, r.w, r.h);
+    // 열 = 그림 칸 한 칸 · 화면 칸 격자에 맞춤 (2칸 열이 칸 격자와 어긋나 물줄기 눈금이 1px 조각으로 쪼개져 위아래로 튀어나오던 것 — 아트 디렉터 #95 6바퀴 ③) · 높이는 2칸 (u) 계단
+    const U = Math.max(1, Math.round((f.S || 2) * dpr));
+    const x0 = Math.floor(r.x / U) * U;
+    for (let x = x0; x < r.x + r.w; x += U) {
+        const a = Math.max(x, r.x);
+        const w = Math.min(x + U, r.x + r.w) - a;
+        if (w <= 0) {
+            continue;
+        }
+        const t = ((x + U / 2) / dpr - s.x0) / s.dx;
+        const dy = t <= 0 ? 0 : Math.round((s.dy * t) / s.u) * s.u;
+        c.drawImage(f.cv2, a, r.y, w, r.h, a, r.y + Math.round(dy * dpr), w, r.h);
+    }
+    c.restore();
+}
+// 반투명 → 1칸 바둑판 (알파 단 = 4×4 Bayer · 그림 칸 격자) — 3:3 용 판은 1:1 연출의 반투명 물기둥 · 빛 구슬 · 원판이 뒤 포켓몬을 비쳐 팔레트 밖 색이 되던 것 (아트 디렉터 #95 6바퀴 ⑧ · 태현 님 ⑨ 반투명 원판).
+// 아주 옅은 것 (3/16 아래) 은 지움 — 넓은 옅은 빛이 흩어진 점이 되지 않게
+const MOVE_DITHER_MIN = 3;
+function moveFrameDither(f, r) {
+    const dpr = window.devicePixelRatio || 1;
+    const c = Math.max(1, Math.round((f.S || 2) * dpr));
+    let img;
+    try {
+        img = f.ctx.getImageData(r.x, r.y, r.w, r.h);
+    } catch {
+        return;
+    }
+    const d = img.data;
+    let changed = false;
+    for (let y = 0; y < r.h; y++) {
+        const by = (Math.floor((r.y + y) / c) & 3) * 4;
+        let i = y * r.w * 4 + 3;
+        for (let x = 0; x < r.w; x++, i += 4) {
+            const a = d[i];
+            if (a === 0 || a === 255) {
+                continue;
+            }
+            const lvl = Math.round((a * 16) / 255);
+            d[i] = lvl >= MOVE_DITHER_MIN && MOVE_BAYER[(Math.floor((r.x + x) / c) & 3) + by] < lvl ? 255 : 0;
+            changed = true;
+        }
+    }
+    if (changed) {
+        f.ctx.putImageData(img, r.x, r.y);
+    }
+}
+
+// 앞 감기 (게임 3:3 필살기 판) — 그 상자 (f) 의 입자 · 발사기만 sec 초를 그리지 않고 움직임 (1/30초씩 · tick(지난 초) 은 걸음마다).
+// 발사기 시각 (until · nextShot) 은 감은 만큼 당겨 둠 — 감는 동안 performance.now 를 같이 앞당기는 건 부르는 쪽 (bridge)
+function moveSeek(f, sec, tick) {
+    const now = performance.now();
+    let done = 0;
+    while (done < sec - 1e-6) {
+        const dt = Math.min(1 / 30, sec - done);
+        done += dt;
+        // 상자 시계를 감은 만큼 앞당김 — 발사기 · 장면 시각 · 타이머가 같은 시계 (moveInFrame · moveStep)
+        f.skew = done * 1000;
+        moveStep(now, dt, f);
+        tick?.(done);
+    }
+    f.skew = sec * 1000;
+}
+
+// 한 걸음 — 발사기 · 입자 움직이기 (only = 그 무대 상자 것만 · null 이면 모두)
+function moveStep(now0, dt, only) {
     for (let i = moveEmitters.length - 1; i >= 0; i--) {
         const e = moveEmitters[i];
+        if (only && e._f !== only) {
+            continue;
+        }
+        // 상자 발사기는 상자 시계로 (감은 만큼 앞 — moveSeek)
+        const now = now0 + (e._f && e._f.skew ? e._f.skew : 0);
         if (now >= e.until) {
             moveEmitters.splice(i, 1);
             continue;
         }
         if (e.fx) {
-            // 전용기 발사기 — 정해진 시각마다 shots 개, 아니면 초당 rate 개
-            if (e.shots !== undefined) {
-                while (e.shots > 0 && now >= e.nextShot) {
-                    if (!safeFx(e, () => e.fx(e, e.shot++))) {
-                        break;
+            // 전용기 발사기 — 정해진 시각마다 shots 개, 아니면 초당 rate 개 (무대 상자 발사기는 그 상자 안에서)
+            moveInFrame(e._f ?? null, () => {
+                if (e.shots !== undefined) {
+                    while (e.shots > 0 && now >= e.nextShot) {
+                        if (!safeFx(e, () => e.fx(e, e.shot++))) {
+                            break;
+                        }
+                        e.shots -= 1;
+                        e.nextShot += e.every;
                     }
-                    e.shots -= 1;
-                    e.nextShot += e.every;
-                }
-            } else {
-                e.acc += dt * e.rate;
-                while (e.acc >= 1) {
-                    e.acc -= 1;
-                    if (!safeFx(e, () => e.fx(e))) {
-                        break;
+                } else {
+                    e.acc += dt * e.rate;
+                    while (e.acc >= 1) {
+                        e.acc -= 1;
+                        if (!safeFx(e, () => e.fx(e))) {
+                            break;
+                        }
                     }
                 }
-            }
+            });
             continue;
         }
         if (e.move === 'shuriken') {
@@ -512,6 +955,9 @@ function moveTick(now) {
     }
     for (let i = moveParticles.length - 1; i >= 0; i--) {
         const p = moveParticles[i];
+        if (only && p._f !== only) {
+            continue;
+        }
         p.life += dt;
         if (p.life >= p.max) {
             moveParticles.splice(i, 1);
@@ -526,7 +972,13 @@ function moveTick(now) {
             p.y += Math.sin(p.phase + p.life * 14) * p.s * 0.6;
         }
         try {
-            p.update?.(p, dt);
+            if (p.update) {
+                if (p._f) {
+                    moveInFrame(p._f, () => p.update(p, dt));
+                } else {
+                    p.update(p, dt);
+                }
+            }
         } catch (err) {
             moveFault(err);
             p.life = p.max;
@@ -543,31 +995,6 @@ function moveTick(now) {
                 moveParticles.push({ move: 'trail', x: p.x, y: p.y + moveRand(-1, 1) * p.s, life: 0, s: p.s, vx: -p.dir * moveRand(5, 20) * p.s, vy: moveRand(-6, 6) * p.s, g: 40 * p.s, drag: 1, max: 0.25 });
             }
         }
-    }
-    // 그리기 — 층(z) 순서: z<0 맨 밑 → 보통(나중 것부터 그려서 먼저 만든 게 위) → z>0 맨 위
-    for (const layer of [-1, 0, 1]) {
-        for (let i = moveParticles.length - 1; i >= 0; i--) {
-            const p = moveParticles[i];
-            const z = p.z ?? 0;
-            if ((z < 0 ? -1 : z > 0 ? 1 : 0) !== layer || p.life >= p.max) {
-                continue;
-            }
-            try {
-                drawParticle(ctx, p);
-            } catch (err) {
-                moveFault(err);
-                p.life = p.max;
-                ctx.globalCompositeOperation = 'source-over';
-            }
-        }
-    }
-    ctx.globalAlpha = 1;
-
-    if (moveEmitters.length || moveParticles.length) {
-        moveRaf = requestAnimationFrame(moveTick);
-    } else {
-        moveRaf = 0;
-        moveLast = 0;
     }
 }
 
@@ -683,11 +1110,19 @@ function sigStart() {
     }
 }
 function sigParticle(p) {
-    moveParticles.push({ life: 0, vx: 0, vy: 0, g: 0, drag: 0, ...p });
+    const q = { life: 0, vx: 0, vy: 0, g: 0, drag: 0, ...p };
+    if (moveFrame && q._f === undefined) {
+        q._f = moveFrame;
+    }
+    moveParticles.push(q);
     sigStart();
 }
 function sigEmitter(e) {
-    moveEmitters.push({ acc: 1, shot: 0, ...e });
+    const q = { acc: 1, shot: 0, ...e };
+    if (moveFrame && q._f === undefined) {
+        q._f = moveFrame;
+    }
+    moveEmitters.push(q);
     sigStart();
 }
 // 그림 칸에 맞춘 점 하나
@@ -957,7 +1392,9 @@ function sigDisc(ctx, px, s, x, y, r, color) {
 // 퍼지는 고리 (ry 는 납작한 정도)
 function sigRing(x, y, s, r0, r1, flat, max, cols) {
     sigParticle({ x, y, s, max, draw: (ctx, p, t, px) => {
-        const r = r0 + (r1 - r0) * t;
+        // 3:3 용 판 상자 안 — 둘레 고리는 그림 한 폭 (반지름) 안 (우리 셋 위를 지나던 큰 고리 — 아트 디렉터 #95 ②)
+        const cap = moveFrame && moveFrame.ringMax ? moveFrame.ringMax : Infinity;
+        const r = Math.min(cap, r0 + (r1 - r0) * t);
         ctx.globalAlpha = 1 - t;
         const dots = Math.max(24, Math.round(r / p.s) * 2);
         for (let j = 0; j < dots; j++) {

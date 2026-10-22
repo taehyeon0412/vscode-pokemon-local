@@ -209,6 +209,10 @@
     }
     // 점으로 된 고리 (납작하게 flat)
     function ringDots(ctx, px, s, x, y, r, flat, cols, alpha, th = 1) {
+        // 3:3 용 판 상자 안 — 고리는 그림 한 폭 (반지름) 안 (아트 디렉터 #95 ②)
+        if (typeof moveFrame !== 'undefined' && moveFrame && moveFrame.ringMax) {
+            r = Math.min(r, moveFrame.ringMax);
+        }
         const n = clamp(Math.round((r * TAU) / (s * 2)), 12, 300);
         ctx.globalAlpha = Math.min(1, alpha);
         for (let c = 0; c < cols.length; c++) {
@@ -3026,6 +3030,10 @@
     // 진짜 그림 숨기기 — visibility 만으로는 그림이 남아 보일 때가 있어(점검 화면에서 확인) 투명도까지.
     // 장면이 끊겨도(패널이 가려짐) 그림이 사라진 채 남지 않게 끝날 때 타이머로 한 번 더 되돌림
     function hideMon(pokemon, on) {
+        // 3:3 용 판 — 진짜 그림은 그 자리 (꼭두각시 · 잔상은 안 그림 — 쓰는 포켓몬이 사라졌다 튀어나와 쓰러짐처럼 읽히던 것, UX 리뷰어 #95 ②)
+        if (on && typeof moveFrame !== 'undefined' && moveFrame && moveFrame.quiet) {
+            return;
+        }
         const el = pokemon.el;
         ultHide(pokemon, on);
         if (on && el.ninjaOpacity === undefined) {
@@ -5565,11 +5573,18 @@
         // 광선 — 땅과 나란히, 아래가 땅 위에 오는 높이로 꽃 앞에서 화면 끝까지
         const yb = Math.max(bw, Math.min(my, G - bw * 0.8));
         const bx = me.x + dir * me.w * 0.45; // 광선 시작 — 이상해꽃 앞쪽 (몸을 덮지 않게)
-        const blen = (dir > 0 ? W - bx : bx) + bw;
+        let blen = (dir > 0 ? W - bx : bx) + bw;
         // 빛 폭발 자리 — 앞쪽에서 가장 가까운 애, 없으면 앞쪽 55%
         const q = nearest(u);
         const ahead = q && Math.sign(q.x - me.x) === dir && Math.abs(q.x - me.x) > me.w * 0.6;
         const ix = clamp(ahead ? q.x : me.x + dir * W * 0.55, W * 0.05, W * 0.95);
+        // 3:3 — 광선 축이 대상에 닿는 곳 (빛 폭발 자리) 을 알림 → 판이 대상 가슴으로 기울임 (bridge fxUltAim) · 광선 끝은 대상 몸 뒤 끝 (화면 끝까지 가 옆 상대 몸까지 닿던 것 — 디자인 UX #95 6바퀴 ③)
+        if (typeof fxUltAim === 'function') {
+            fxUltAim(ix, yb);
+        }
+        if (typeof moveFrame !== 'undefined' && moveFrame && ahead) {
+            blen = Math.min(blen, Math.abs(ix - bx) + q.w * 0.35);
+        }
         // 때 — (기 모으기) · 번쩍 · 광선 · 다 닿음 · 가늘어짐 · 빛의 꽃 · 꽃잎 폭풍
         const TC0 = 0.25;
         const TF = 2.3;
@@ -6377,10 +6392,17 @@
         const bw = clamp(H * 0.16 * (0.9 + 0.2 * P), 16, Math.max(20, me.h * 1.7)); // 물줄기 두 가닥을 합친 굵기
         const yb = Math.max(bw * 0.65, Math.min(cyM, G - bw * 0.45)); // 대포 높이 — 아래 가닥이 땅을 스치며 물보라
         const ybBig = Math.max(bw * 1.1, Math.min(yb, G - bw * 1.05)); // 출력 최대 — 두 배 굵기의 아래가 땅 위에 오게
-        const blenF = (dir > 0 ? W - cF : cF) + bw * 2;
+        let blenF = (dir > 0 ? W - cF : cF) + bw * 2;
         const q = nearest(u);
         const ahead = q && Math.sign(q.x - me.x) === dir && Math.abs(q.x - me.x) > me.w * 0.6;
         const ix = clamp(ahead ? q.x : me.x + dir * W * 0.55, W * 0.05, W * 0.95);
+        // 3:3 — 물줄기 축이 대상에 닿는 곳 (bridge fxUltAim) · 물줄기 끝은 대상 몸 뒤 끝
+        if (typeof fxUltAim === 'function') {
+            fxUltAim(ix, yb);
+        }
+        if (typeof moveFrame !== 'undefined' && moveFrame && ahead) {
+            blenF = Math.min(blenF, Math.abs(ix - cF) + q.w * 0.35);
+        }
         // 때 — (모으기) · 정적 · 임팩트 프레임 · 발사 · 다 닿음 · 출력 최대 · 그침 · 해일
         const TC0 = 0.25;
         const TQ = 2.2;
@@ -6427,6 +6449,43 @@
             }
         };
 
+        // 3:3 용 판 물줄기 — 칸 띠 4겹 (가장자리 #2466d0 → #5cb8f6 → #c4ecff → 흰 심 2칸) · 위아래 가장자리 1칸 거품 혹 (반원 3칸 · 5칸 간격 · 흐름 따라 밀림) ·
+        // 뒤 (입 쪽) 로 밀려가는 1칸 물방울 고리 3개 (아트 디렉터 #95 9바퀴 ③)
+        const beam33 = (ctx, px, x0, y0, L, T, life) => {
+            const cols = ['#2466d0', '#5cb8f6', '#c4ecff', '#ffffff'];
+            const hs = [T / 2, T * 0.36, T * 0.22, s];
+            const yc = px(y0);
+            const flow = Math.floor(life * 30);
+            ctx.globalAlpha = 1;
+            for (let d = 0; d <= L; d += s) {
+                const x = px(x0 + dir * d);
+                const c = Math.round(d / s);
+                for (let i = 0; i < 4; i++) {
+                    const h = Math.max(s, px(hs[i]));
+                    ctx.fillStyle = cols[i];
+                    ctx.fillRect(x, yc - h, s, 2 * h);
+                }
+                const ph = (((c - flow) % 5) + 5) % 5;
+                if (ph < 3) {
+                    const bump = ph === 1 ? 2 : 1;
+                    const h0 = Math.max(s, px(hs[0]));
+                    ctx.fillStyle = cols[2];
+                    ctx.fillRect(x, yc - h0 - bump * s, s, bump * s);
+                    ctx.fillStyle = cols[1];
+                    ctx.fillRect(x, yc + h0, s, bump * s);
+                }
+            }
+            for (let i = 0; i < 3; i++) {
+                const fr = (((i + 0.5) / 3 - life * 0.6) % 1 + 1) % 1;
+                const rx = px(x0 + dir * fr * L);
+                const ry = yc + (i % 2 ? 1 : -1) * (px(hs[0]) + 3 * s);
+                ctx.fillStyle = cols[2];
+                ctx.fillRect(rx - s, ry - s, 3 * s, s);
+                ctx.fillRect(rx - s, ry + s, 3 * s, s);
+                ctx.fillRect(rx - s, ry, s, s);
+                ctx.fillRect(rx + s, ry, s, s);
+            }
+        };
         // ③ 물줄기 (거북왕 뒤) — 두 가닥이 꼬이다가 출력 최대 때 하나로 합쳐진 거대한 물 광선 · 날아가는 물 머리 · 맞는 자리 물 덩이
         sc.add({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
@@ -6438,18 +6497,28 @@
             const sx = slideAt(life);
             const mk = mergeAt(life);
             const dy = (ybBig - yb) * mk;
-            for (const [cx, ph] of [[cB, Math.PI], [cF, 0]]) {
+            const jets33 = typeof moveFrame !== 'undefined' && !!moveFrame;
+            for (const [cx, ph] of jets33 ? [] : [[cB, Math.PI], [cF, 0]]) {
                 const L = len + (cx === cB ? Math.abs(cF - cB) : 0);
                 waterJet(ctx, px, s, cx + sx, yb, dir, L, w * 0.62 * (1 + 0.5 * mk), TIDE, life, ph, w * 0.32 * (1 - mk), G, 1, mk > 0 ? { w0: 1 / (1 + 0.5 * mk), L: flareL, dy } : null);
             }
-            if (mk > 0) {
+            if (mk > 0 && !jets33) {
                 const wBig = w * 2 * mk;
                 waterJet(ctx, px, s, cF + sx, yb, dir, len, wBig, TIDE, life, 0, 0, G, 1, { w0: clamp((me.h * 1.1) / wBig, 0.15, 1), L: flareL, dy }); // 합쳐진 거대한 물 광선 — 대포에서 뿜어져 퍼짐
             }
             const half = w * (0.68 + 0.4 * mk);
-            ctx.globalAlpha = 0.7;
+            // 3:3 용 판 — 고리 (세로 눈금) 는 물줄기가 그려진 곳에만 · 반투명 없이 (꼬인 두 가닥 굵기가 자리마다 달라 눈금이 위아래로 튀어나와 떨어져 보이던 것 — 아트 디렉터 #95 6바퀴 ③)
+            const in33 = typeof moveFrame !== 'undefined' && !!moveFrame;
+            if (in33) {
+                // 3:3 은 칸 물줄기 하나로 (두 가닥 · 톱니 가장자리 · 흰 직선 눈금이 번개로 읽히던 것 — 아트 디렉터 #95 9바퀴 ③) — 눈금 없음
+                beam33(ctx, px, cF + sx, yb + dy, len, Math.max(6 * s, w * (1.1 + 0.4 * mk)), life);
+            }
+            ctx.globalAlpha = in33 ? 1 : 0.7;
+            if (in33) {
+                ctx.globalCompositeOperation = 'source-atop';
+            }
             ctx.fillStyle = '#ffffff';
-            const nRing = Math.max(2, Math.round(len / (w * 2)));
+            const nRing = in33 ? 0 : Math.max(2, Math.round(len / (w * 2)));
             for (let k = 0; k < nRing; k++) {
                 const at = ((life * (2.2 + mk) + k / nRing) % 1) * len;
                 if (at < w || (mk > 0 && at < flareL)) {
@@ -6460,6 +6529,7 @@
                 const bot = Math.min(G, y0 + half);
                 ctx.fillRect(px(cF + sx + dir * at - s), px(top), 2 * s, Math.max(s, px(bot - top)));
             }
+            ctx.globalCompositeOperation = 'source-over';
             if (life < TH + 0.05) {
                 fireOrb(ctx, px, s, cF + sx + dir * len, yb, w * 0.85, TIDE, life, 1, G, 1, 0, [1, 0.8, 0.6, 0.38], 0.2); // 날아가는 물 머리
             }
@@ -6584,7 +6654,34 @@
             }
             const dark = clamp(k / 0.25, 0, 1);
             // 합동 줄기 보기 캔버스에 그릴 때는 화면 판 (어둠 · 집중선) 을 뺌 — 앞끝 · 계단으로 잘려 네모가 되던 것 (#80 다시 찍기, ult/bridge.js fxViewDrawing). 합동은 제 어둠이 있음
-            if (typeof fxViewDrawing === 'undefined' || !fxViewDrawing) {
+            // 3:3 용 판 — 앞쪽 줄만 · 가장 가까운 상대 16px 앞 (moveFrame.clearX) 까지 · 물 팔레트 (몸 물색 + 앞끝 1칸 밝은 물 · 회색 없음) — 흰 회색 줄이 상대 몸 위로 지나가던 것 (아트 디렉터 #95 6바퀴 ③)
+            const f33 = typeof moveFrame !== 'undefined' && moveFrame && typeof moveFrame.clearX === 'number' ? moveFrame : null;
+            if (f33 && (typeof fxViewDrawing === 'undefined' || !fxViewDrawing)) {
+                const lim = f33.clearX - f33.x;
+                const body = new Path2D();
+                const tips = new Path2D();
+                for (const r of rays) {
+                    const cs = Math.cos(r.a) * dir;
+                    if (cs < 0.6) {
+                        continue;
+                    }
+                    const head = farR * (0.9 - (((life - TQ) * r.sp * 2.2 + r.ph) % 1) * 0.75);
+                    const inner = Math.max(me.w * 1.4, head);
+                    // x 가 lim 을 넘지 않는 길이까지
+                    const maxL = (Math.abs(lim - focusX) / Math.max(0.01, Math.abs(Math.cos(r.a))));
+                    const tail = Math.min(head + farR * r.len, maxL);
+                    if (tail <= inner + s) {
+                        continue;
+                    }
+                    addLine(body, px, s, [[focusX + Math.cos(r.a) * inner, focusY + Math.sin(r.a) * inner], [focusX + Math.cos(r.a) * tail, focusY + Math.sin(r.a) * tail]], r.w);
+                    tips.rect(px(focusX + Math.cos(r.a) * inner), px(focusY + Math.sin(r.a) * inner), s, s);
+                }
+                ctx.globalAlpha = 1;
+                ctx.fillStyle = '#5cb8f6';
+                ctx.fill(body);
+                ctx.fillStyle = '#c4ecff';
+                ctx.fill(tips);
+            } else if (typeof fxViewDrawing === 'undefined' || !fxViewDrawing) {
                 ctx.globalAlpha = 0.78 * dark;
                 ctx.fillStyle = '#05070c';
                 ctx.fillRect(0, 0, W, H);
@@ -6858,6 +6955,10 @@
         hideMon(pokemon, true);
         hideUntil(pokemon, ms + 100);
         const aimAng = clamp(Math.atan2(G - me.h * 0.3 - (me.b - me.h * 1.1), Math.abs(ix - cx)), -0.6, 0.15);
+        // 3:3 — 물 구가 떨어지는 곳 (bridge fxUltAim)
+        if (typeof fxUltAim === 'function') {
+            fxUltAim(ix, G - Rb * 0.6);
+        }
         const kickAt = (t) => (t > TS && t < TS + 0.9 ? -dir * s * 10 * Math.sin(Math.min(1, (t - TS) / 0.15) * Math.PI * 0.5) * (1 - clamp((t - TS - 0.3) / 0.6, 0, 1)) : 0);
 
         // 꼭두각시 · 물 구
@@ -6971,7 +7072,8 @@
         }
         // 팔 대포 연사 — 작은 물탄이 앞쪽 곳곳으로 날아가 작은 물기둥 · 합동에선 뺌 (상대 앞에 물기둥이 피해 1.4 ~ 2초 전에 서서 먼저 맞은 것처럼 보이던 것 — #80 UX)
         const bullets = [];
-        const volley = !(typeof fxJointTop !== 'undefined' && fxJointTop);
+        // 3:3 용 판에서도 뺌 (상대 앞 · 위에 작은 물기둥이 맞기 전에 서던 것 — 아트 디렉터 #95 6바퀴 ③)
+        const volley = !(typeof fxJointTop !== 'undefined' && fxJointTop) && !(typeof moveFrame !== 'undefined' && moveFrame);
         for (let i = 0; i < (volley ? 6 : 0); i++) {
             const f = (i + 0.5) / 6;
             const tx = clamp(me.x + dir * (me.w * 1.5 + (Math.abs(ix - me.x) + W * 0.15) * f) + (hash(i, 91) - 0.5) * W * 0.06, W * 0.04, W * 0.96);

@@ -5,6 +5,14 @@
   pointer-events: none;
   z-index: 5;
 }
+/* 한 줄 판이 지도 줄 자리에 떠 있는 동안 지도 줄 숨김 (TeamLayer — 판 양옆 잘린 글) */
+#pokemon-game .pg-maprow.pg-maprow-under {
+  visibility: hidden;
+}
+/* 굵은 글 = 700 하나 (700 판 안 <b> 가 bolder 로 900 이 되던 것 — design-system 4장 굵기 표에 900 없음, 픽셀 검사원 #95 14바퀴 4) */
+#pokemon-game .pg-team b {
+  font-weight: 700;
+}
 #pokemon-game .pg-team-mon,
 #pokemon-game .pg-team-plate,
 #pokemon-game .pg-team-prompt .pg-team-who {
@@ -54,7 +62,8 @@
 #pokemon-game .pg-team-down .pg-team-body {
   filter: grayscale(1) brightness(0.7);
 }
-#pokemon-game .pg-team-foe.pg-team-down {
+/* 쓰러진 칸 = 회색으로 1.2초 (U1) 보인 뒤 그 칸만 빔 — 내 편 · 상대 같게 (원작 트리플: 그 칸만 빠지고 빈칸 · 기획 #95) */
+#pokemon-game .pg-team-mon.pg-team-down {
   animation: pg-team-gone 0.45s steps(3, end) 1.2s forwards;
 }
 @keyframes pg-team-gone {
@@ -62,7 +71,7 @@
     opacity: 0;
   }
 }
-/* 판은 포켓몬 그림 위 (z 2 — 240 에서 다음 칸 포켓몬 그림이 앞 판의 숫자 칩을 덮던 것, 픽셀 검사원 2차) · 연출 층 (z 3) 아래 */
+/* 판은 포켓몬 그림 위 · 연출 층 (z 3) 위 (z 4 — 맞는 순간 HP 가 줄어드는 걸 마무리 고리 밑에서 못 보던 것, 아트 디렉터 #95 3바퀴 · 1:1 "연출 3 < HP 묶음 4" 와 같게) */
 #pokemon-game .pg-team-plate {
   position: absolute;
   box-sizing: border-box;
@@ -70,7 +79,7 @@
   display: flex;
   align-items: center;
   gap: 2px;
-  z-index: 2;
+  z-index: 4;
 }
 #pokemon-game .pg-team-plate-foe.pg-plate-down {
   animation: pg-team-gone 0.45s steps(3, end) 1.2s forwards;
@@ -85,9 +94,6 @@
 #pokemon-game .pg-plate-join {
   outline: 2px solid var(--pg-sos-gold);
 }
-#pokemon-game .pg-plate-join {
-  box-shadow: 0 0 0 5px var(--pg-sos-red);
-}
 #pokemon-game .pg-plate-down {
   background: repeating-conic-gradient(#1a2131 0 25%, #0c101e 0 50%) 0 0 / 4px 4px;
 }
@@ -99,7 +105,7 @@
   font: 700 11px / 12px Pretendard, sans-serif;
   text-align: center;
   color: var(--pg-sos-dim);
-  background: rgba(12, 16, 30, 0.85);
+  background: var(--pg-sos-panel);
   border: 1px solid var(--pg-sos-line-soft);
 }
 #pokemon-game .pg-plate-ready .pg-team-key,
@@ -145,11 +151,14 @@
   background: var(--pg-sos-red);
 }
 #pokemon-game .pg-team-ult-full {
-  background: #fff3b0;
+  background: var(--pg-sos-gold);
 }
-/* 상대 필살기 예고 칩 (1:1 .pg-foe-warn 과 같은 모양 — 80% 부터 금색 "곧" · 다 차면 빨강 칠 "!") · 상대 발밑 판 오른쪽 (판 높이 14 안 12 — 정수 px) */
+/* 상대 필살기 예고 칩 = 판 밖 오른쪽 2px (판 안 flex 면 HP 막대가 36 → 14px 로 줄어 "맞았다" 로 읽히던 것 — 아트 디렉터 3:3 점검 #5) ·
+   다 참 = 남색 + 1px 빨강 테두리 + 빨강 "!" (빨강 칠 + 흰 글 = 웹 알림 배지 · 흰색은 팔레트 밖) */
 #pokemon-game .pg-team-warn {
-  flex: none;
+  position: absolute;
+  left: calc(100% + 2px);
+  top: 1px;
   box-sizing: border-box;
   width: 22px;
   height: 12px;
@@ -160,9 +169,189 @@
   border: 1px solid var(--pg-sos-line-soft);
 }
 #pokemon-game .pg-team-warn-full {
-  color: #fff;
-  background: var(--pg-sos-red);
+  color: var(--pg-sos-red);
+  background: var(--pg-sos-bar);
   border-color: var(--pg-sos-red);
+}
+/* 큰 연출 (필살기 · 합동 · 힘겨루기) 중 주인공이 아닌 칸 = 밝기 72% + 채도 1.25 (숨기지 않음 — 150px 에서 HP 가 보여야 함, 기획 #95 · 채도는 흐려도 색이 회색 쓰러짐과 안 섞이게) */
+#pokemon-game .pg-team-dim {
+  filter: brightness(0.72) saturate(1.25);
+}
+/* 다 찼지만 먼저 나갈 칸이 아닌 상대 = 판 1px 빨강 테두리 ("!" 칩은 먼저 나갈 한 칸만) */
+#pokemon-game .pg-plate-warn {
+  outline: 1px solid var(--pg-sos-red);
+  outline-offset: 1px;
+}
+/* 혼자 필살기에 맞은 숫자 = 하나를 크게 · 단단한 판 (불 위 빨강 "−1" 이 안 읽히던 것 — 아트 디렉터 #95 · 12장 피해 숫자 판 = 합동 칩과 같은 판) */
+#pokemon-game .pg-team .pg-team-pop.pg-pop-big {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  height: 20px;
+  padding: 0 4px;
+  font-size: 16px;
+  background: var(--pg-sos-bar);
+  border: 1px solid var(--pg-sos-line-soft);
+  text-shadow: none;
+}
+/* 연타 안내 · 엔진 한 줄 = 가운데는 left/right 0 + margin auto (translateX(−50%) 면 홀수 폭에서 반 픽셀 — 아트 디렉터 #95 8④) */
+#pokemon-game .pg-team .pg-team-prompt-mash,
+#pokemon-game .pg-team .pg-team-msg {
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  transform: none;
+}
+/* 회복 숫자 = 초록 (빨강 피해 숫자 사이에 같은 모습으로 뜨던 것 — UX 3:3 점검 #9) */
+#pokemon-game .pg-team-pop.pg-pop-heal {
+  color: var(--pg-sos-hp);
+}
+/* 쓰러짐 한 줄 — 무대 위 가운데 (엔진 한 줄과 같은 판) · 가운데는 left/right 0 + margin auto (translateX(−50%) 면 반 픽셀) */
+#pokemon-game .pg-team-msg.pg-team-faint {
+  /* 높이 24 = 띠와 같은 줄 높이 (28 이면 240 에서 위 줄 상대에게 달려간 포켓몬을 더 덮던 것 — 픽셀 검사원 #95 6바퀴 7) */
+  padding: 3px 8px;
+  z-index: 8;
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  transform: none;
+  pointer-events: none;
+}
+/* 3:3 띠 (이름 컷인 · VS · 이겼다!) — 남색 + 1px 금 · 높이 24 · 얼굴 24 × 20 + 금 13/700 이름 + 크림 뒷말 · 다 그린 판을 한 장면에 띄움 (가운데에서 벌어지는 2걸음이면 중간 장면에
+   "자몽 플레어드라" 처럼 글자가 반쯤 잘려 보이던 것 — 아트 디렉터 #95 4바퀴 ⑧ · 번쩍임 없음) · 상대 필살기 = 빨강 테두리 */
+#pokemon-game .pg-team-band {
+  position: absolute;
+  z-index: 12;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: calc(100% - 16px);
+  height: 24px;
+  margin: 0 auto;
+  padding: 0 8px 0 2px;
+  overflow: hidden;
+  font: 700 13px / 16px Pretendard, sans-serif;
+  white-space: nowrap;
+  color: var(--pg-sos-gold);
+  background: var(--pg-sos-bar);
+  border: 1px solid var(--pg-sos-gold);
+  pointer-events: none;
+}
+#pokemon-game .pg-team-band.pg-band-foe,
+#pokemon-game .pg-team-band.pg-band-lose {
+  border-color: var(--pg-sos-red);
+}
+#pokemon-game .pg-team-band.pg-band-lose {
+  color: var(--pg-sos-red);
+}
+/* 이겼다! · 졌다… 띠는 처음부터 쓰러짐 말이 붙을 폭 (최소 208 · 글은 왼쪽부터 — 11 · 12바퀴) — 64 로 떴다가 쓰러짐 말이 붙어 208 이 되며 가운데에서 71px 치우치던 것 (아트 디렉터 #95 6바퀴 ④) */
+#pokemon-game .pg-team-band.pg-band-win,
+#pokemon-game .pg-team-band.pg-band-lose {
+  min-width: min(208px, calc(100% - 16px));
+  /* 글은 왼쪽부터 (가운데였다가 쓰러짐 말이 붙으면 왼쪽으로 74px 튀던 것 — 아트 디렉터 #95 11 · 12바퀴 · BW 글 상자 · 240 과 같은 모양) */
+  justify-content: flex-start;
+  padding: 0 12px;
+}
+#pokemon-game .pg-band-face {
+  flex: none;
+  width: 24px;
+  height: 20px;
+  overflow: hidden;
+}
+#pokemon-game .pg-band-sub {
+  color: var(--pg-sos-ink);
+}
+/* 힘겨루기 머릿수가 바뀐 뒤 1초 = 금색 */
+#pokemon-game .pg-team-count-new {
+  color: var(--pg-sos-gold);
+}
+/* 모으기 판 — 이미 낀 칸 = ✓ 금 칸 + 흐린 이름 (누를 것 아님) · 끼어들기 판 제목 앞 "소미안 필살기 · " = 크림 */
+#pokemon-game .pg-team-joined {
+  cursor: default;
+}
+#pokemon-game .pg-team-joined .pg-team-big-name {
+  color: var(--pg-sos-dim);
+}
+#pokemon-game .pg-team-big-who {
+  color: var(--pg-sos-ink);
+}
+#pokemon-game .pg-band-short .pg-band-sub,
+#pokemon-game .pg-band-shorter .pg-band-title {
+  display: none;
+}
+/* 합동 · 혼자 필살기 띠는 줄일 때 포켓몬 이름 (얼굴이 말함) 을 먼저 빼고 뜻 ("합동!" · 필살기 이름) 을 남김 — 240 에서 얼굴 셋만 남던 것 (아트 디렉터 #95 3바퀴 · 원칙 5) ·
+   쓰러짐 말이 붙어 넘치면 필살기 이름이 빠져 0.56 ~ 0.93초만 보이던 것 (UX 리뷰어 #95 6바퀴 큼 1 — "[얼굴] 플레어드라이브! │ 레디바 쓰러졌다!") */
+#pokemon-game .pg-band-joint.pg-band-short .pg-band-title,
+#pokemon-game .pg-band-ult.pg-band-short .pg-band-title {
+  display: none;
+}
+#pokemon-game .pg-band-joint.pg-band-short:not(.pg-band-shorter) .pg-band-sub,
+#pokemon-game .pg-band-ult.pg-band-short:not(.pg-band-shorter) .pg-band-sub {
+  display: inline;
+}
+/* VS 띠 얼굴 줄이기 = 내 첫 얼굴 · 상대 첫 얼굴 (VS 자리) 만 남김 (UX 리뷰어 #95 11바퀴 3) */
+#pokemon-game .pg-band-vstight .pg-band-face:not(:first-child):not(.pg-band-vs-gap) {
+  display: none;
+}
+/* 줄이는 3단계 = 얼굴 뺌 (혼자 · 합동 — 필살기 이름 · "합동!" 을 얼굴보다 오래 남김, UX 리뷰어 #95 7바퀴 1) */
+#pokemon-game .pg-band-noface .pg-band-face {
+  display: none;
+}
+/* 좁은 패널 (400 아래) 띠 = 패널 폭 판 (왼 8 · 오른 8) · 글은 왼쪽부터 (BW 글 상자처럼) — 글이 붙어도 판은 그대로 (240 에서 띠가 늘며 왼쪽 끝이 −11 ~ −30px 당겨지고 ·
+   가운데에서 치우치던 것, UX 리뷰어 · 아트 디렉터 #95 6바퀴) */
+#pokemon-game .pg-team-band.pg-band-wide {
+  width: calc(100% - 16px);
+  justify-content: flex-start;
+}
+/* 패널 폭 판 글 시작 = 테두리 8 + 1 + 8 = x 17 하나 (얼굴 뺀 띠 11 · 쓰러짐 줄 16 · 이겼다 띠 20 으로 같은 자리 말이 바뀔 때마다 글이 옆으로 움직이던 것 — 아트 디렉터 #95 13바퀴 1 · BW 글 상자 왼쪽 여백 하나) */
+#pokemon-game .pg-team-band.pg-band-wide.pg-band-noface {
+  padding-left: 8px;
+}
+#pokemon-game .pg-team-band.pg-band-wide.pg-band-win,
+#pokemon-game .pg-team-band.pg-band-wide.pg-band-lose {
+  padding: 0 8px;
+}
+/* 상대 판이 패널 오른쪽 끝에 붙으면 "!" 칩은 ×2 = 판 왼쪽 2px · ×1 (240) = 판 아래 2px (판 왼쪽이면 옆 칸 그림을 덮던 것 — 픽셀 검사원 #95 6바퀴) ·
+   한 줄 배치에서 옆 상대 칩과 같은 틈이면 판 위 오른쪽 끝 (TeamLayer warnPosOf) */
+#pokemon-game .pg-team-warn.pg-team-warn-left {
+  left: auto;
+  right: calc(100% + 2px);
+}
+#pokemon-game .pg-team-warn.pg-team-warn-below {
+  left: auto;
+  right: 0;
+  top: calc(100% + 2px);
+}
+#pokemon-game .pg-team-warn.pg-team-warn-up {
+  left: auto;
+  right: 0;
+  top: -14px;
+}
+/* VS 띠 = 내 편 얼굴 · 금 "VS" · 상대 얼굴 · 힘겨루기! (이름 여섯이 약 460px 로 길던 것 — 아트 디렉터 #95 · 원칙 5) */
+#pokemon-game .pg-band-face.pg-band-vs-gap {
+  position: relative;
+  margin-left: 28px;
+  overflow: visible;
+}
+#pokemon-game .pg-band-vs-gap::before {
+  content: "VS";
+  position: absolute;
+  left: -28px;
+  top: 2px;
+  width: 24px;
+  text-align: center;
+  color: var(--pg-sos-gold);
+}
+/* 쓰러짐 말 = 띠 끝 같은 줄 (띠 아래 연출 한가운데에 쌓이던 것 — 아트 디렉터 #95 7①) · 앞 1px 흐린 금 구분선 · 크림 */
+#pokemon-game .pg-band-faint {
+  padding-left: 8px;
+  font-weight: 500;
+  color: var(--pg-sos-ink);
+  border-left: 1px solid var(--pg-sos-line-soft);
 }
 #pokemon-game .pg-team-pop {
   position: absolute;
@@ -185,6 +374,14 @@
   background: var(--pg-sos-bar);
   border: 1px solid var(--pg-sos-line-soft);
   text-shadow: none;
+}
+/* 머리 위 자리가 없는 합동 칩 · 큰 숫자 판 = 그림 왼쪽 2px (오른쪽 끝이 left) · 패널 밖이면 TeamLayer 가 그림 오른쪽 2px 로 (아트 디렉터 #95 6바퀴 ①) */
+#pokemon-game .pg-team .pg-team-pop.pg-pop-side {
+  transform: none;
+}
+/* 그림 왼쪽 칩 = 오른쪽 끝이 left (폭은 TeamLayer 가 정수로 맞춰 반 픽셀 없음) */
+#pokemon-game .pg-team .pg-team-pop.pg-pop-side-l {
+  transform: translateX(-100%);
 }
 #pokemon-game .pg-team-joint-tag {
   font-size: 11px;
@@ -219,10 +416,12 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 8px 6px;
-  font: 700 12px / 16px Pretendard, sans-serif;
+  /* 한 줄 24 = 띠 · 쓰러짐 줄과 같은 높이 (결과 줄 · 연타 안내만 28 이라 240 에서 VS 띠가 연타 안내로 바뀌면 아래 끝이 4px 내려가던 것 — 아트 디렉터 #95 13바퀴 2) · 큰 판은 따로 */
+  padding: 3px 8px;
+  /* 13 = 띠와 같은 크기 (쓰러짐 줄 · 결과 줄 · 연타 안내가 12 라 같은 말이 띠 안 13 · 따로 12 이던 것 — 아트 디렉터 #95 12바퀴 4 · design-system 4장 한 줄 말 13) */
+  font: 700 13px / 16px Pretendard, sans-serif;
   color: var(--pg-sos-ink);
-  background: rgba(12, 16, 30, 0.94);
+  background: var(--pg-sos-bar);
   border: 1px solid var(--pg-sos-gold);
   /* 넘치면 낱말 사이에서 줄 바꿈 (240 에서 "…에게 졌다… 남은 포켓몬으로 계속 간다" 가 양쪽이 잘리고 테두리가 밖으로 나가던 것 — UX 리뷰어 R9 ⑥) */
   box-sizing: border-box;
@@ -243,6 +442,29 @@
   color: var(--pg-sos-gold);
   font-weight: 700;
 }
+/* ×1 무대 (400 아래) 위 가운데 줄 넷 (띠 · 쓰러짐 줄 · 결과 줄 · 연타 안내) = 같은 패널 폭 판 (왼 8 · 오른 8 · 글 왼쪽부터 — BW 글 상자 하나에 말만 바뀜) —
+   띠는 패널 폭인데 쓰러짐 줄 · 연타 안내는 가운데 알약이라 같은 자리에서 판 폭이 116 ↔ 224 로 바뀌던 것 (아트 디렉터 #95 8바퀴 3 · 원칙 2) · 테두리 색은 그대로 */
+#pokemon-game .pg-team-x1 .pg-team-faint,
+#pokemon-game .pg-team-x1 .pg-team-msg-over,
+#pokemon-game .pg-team-x1 .pg-team-prompt-mash {
+  width: calc(100% - 16px);
+  justify-content: flex-start;
+  text-align: left;
+}
+/* ×1 무대 (400 아래) 결과 줄 = 글 11 · 좌우 6 (맥 글꼴 +10% 에서 240 결과 줄이 두 줄 (44) 이 되어 리자몽 머리를 1.4초 덮던 것 — 픽셀 검사원 #95 7바퀴 5) */
+#pokemon-game .pg-team-x1 .pg-team-msg-over {
+  /* 왼 8 = 위 줄 넷과 같은 글 시작 x 17 (6 이면 15 — 픽셀 검사원 #95 14바퀴 3) · 오른 4 (합 12 그대로) */
+  padding-left: 8px;
+  padding-right: 4px;
+  font-size: 11px;
+}
+/* 그래도 두 줄이면 (맥 글꼴) 좌우 4 · 글 사이 −0.3px · 한 줄로 */
+#pokemon-game .pg-team-x1 .pg-team-msg-over.pg-msg-tight {
+  padding-left: 4px;
+  padding-right: 4px;
+  letter-spacing: -0.3px;
+  white-space: nowrap;
+}
 #pokemon-game .pg-team-prompt .pg-team-left {
   position: absolute;
   left: 0;
@@ -255,7 +477,7 @@
   align-items: center;
   gap: 3px;
 }
-/* 끼어들기 · 합동 큰 판 (태현 님 #81 — 무대 한가운데 · 크게 · 2초 넘게) = 2px 금 테두리 · 금 제목 15 · 키 칸 22 (발밑 판 키와 같은 금 칠) · 이름 13 · 아래 4px 남은 막대 · 자리는 TeamLayer 가 재서 정수 px */
+/* 끼어들기 · 합동 큰 판 (태현 님 #81 — 무대 한가운데 · 크게 · 2초 넘게) = 2px 금 테두리 · 금 제목 16 · 키 칸 22 (발밑 판 키와 같은 금 칠) · 이름 13 · 아래 4px 남은 막대 · 자리는 TeamLayer 가 재서 정수 px */
 #pokemon-game .pg-team-prompt.pg-team-prompt-big {
   left: 0;
   top: 0;
@@ -268,16 +490,54 @@
   line-height: 16px;
   z-index: 10;
 }
+/* 큰 판 안 쓰러짐 말 (판이 뜰 때 떠 있던 1.2초 안 된 쓰러짐 말 — #131 · UX 리뷰어 #95 10바퀴) = 판 맨 위 크림 13/500 한 줄 · 아래 1px 흐린 금 선 ·
+   한 줄 판은 맨 앞 + 오른쪽 1px 선 */
+#pokemon-game .pg-team-big-faint {
+  align-self: stretch;
+  /* 한 줄 고정 · 아래 틈 5 (선 ↔ 제목 틈과 같게 — 3 이면 밑줄처럼 보이던 것, 아트 디렉터 #95 11바퀴 2) */
+  white-space: nowrap;
+  padding-bottom: 5px;
+  font: 500 13px / 16px Pretendard, sans-serif;
+  color: var(--pg-sos-ink);
+  border-bottom: 1px solid var(--pg-sos-line-soft);
+}
+#pokemon-game .pg-team-big-row .pg-team-big-faint {
+  align-self: center;
+  padding: 0 8px 0 0;
+  border-bottom: 0;
+  border-right: 1px solid var(--pg-sos-line-soft);
+}
 /* 한 줄 판 (상대 컷인 이름이 떠 있을 때 · 낮은 패널 — TeamLayer bigRow) = 제목 · 키 · 머릿수를 한 줄에 (높이 38) · 막대는 그대로 아래 */
 #pokemon-game .pg-team-prompt.pg-team-prompt-big.pg-team-big-row {
   flex-direction: row;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 10px;
   padding: 4px 10px 8px;
+  /* 한 줄 고정 (넘치면 TeamLayer 가 줄이는 단계 — 줄바꿈으로 판이 38 → 60 · 116 이 되던 것, 픽셀 검사원 · UX 리뷰어 #95 11 · 12바퀴) */
+  white-space: nowrap;
+}
+#pokemon-game .pg-team-big-row .pg-team-big-keys {
+  flex-wrap: nowrap;
+}
+/* 넘칠 때 줄이는 단계 — 1 "받아치면" · 2 제목 앞 줄이기 ("리자몽 필살기 · " → "리자몽과 " · "소미안 필살기 · " → "소미안에 ") · 3 접힌 쓰러짐 말 (늘 마지막) · 4 제목 앞 빼기 · 5 모으기 키 옆 이름 */
+#pokemon-game .pg-big-f1 .pg-odds-pre,
+#pokemon-game .pg-big-f2 .pg-team-big-who,
+#pokemon-game .pg-big-f2 .pg-big-lead,
+#pokemon-game .pg-big-f3 .pg-team-big-faint,
+#pokemon-game .pg-big-f5 .pg-team-big-name,
+#pokemon-game .pg-big-lead-s,
+#pokemon-game .pg-big-f4 .pg-big-lead-s {
+  display: none;
+}
+#pokemon-game .pg-big-f2:not(.pg-big-f4) .pg-big-lead-s {
+  display: inline;
 }
 #pokemon-game .pg-team-big-title {
-  font-size: 15px;
+  font-size: 16px;
   line-height: 18px;
+  /* 한 줄 고정 — 넘치면 TeamLayer 가 제목 앞을 줄임 (세로 판도) */
+  white-space: nowrap;
   color: var(--pg-sos-gold);
 }
 #pokemon-game .pg-team-big-keys {
@@ -292,10 +552,12 @@
   cursor: pointer;
 }
 #pokemon-game .pg-team-prompt-big .pg-team-key {
+  /* 폭 22 고정 — ✓ 가 숫자보다 2px 넓어 [2] 를 누르면 460 모으기 판이 넘쳐 키 옆 이름이 빠지고 판이 44px 옮겨 가던 것 (UX 리뷰어 #95 15바퀴 2) */
+  width: 22px;
   min-width: 22px;
   height: 22px;
-  padding: 0 4px;
-  font-size: 15px;
+  padding: 0;
+  font-size: 16px;
   line-height: 20px;
 }
 #pokemon-game .pg-team-big-name {
@@ -553,7 +815,7 @@
   --pg-ko-dx: 0px;
   animation: pg-ko 2.3s linear both;
 }
-#pokemon-game .pg-team-foe.pg-team-down.pg-team-ko {
+#pokemon-game .pg-team-mon.pg-team-down.pg-team-ko {
   animation: none;
 }
 /* 동작 줄이기 — 벌러덩 없이 회색 주저앉기 (1:1 과 같음) */
@@ -589,6 +851,36 @@
   color: var(--pg-sos-gold);
   background: var(--pg-sos-bar);
   border: 1px solid var(--pg-sos-gold);
+}
+/* 다 참 · N초 칩 = 판 왼쪽 2px (판 위 탭이면 자기 포켓몬 발을 덮던 것 — 픽셀 검사원 #95 6바퀴 5) · 패널 왼쪽 밖이면 판 아래 2px · 한 줄 배치는 판 위 탭 그대로 */
+#pokemon-game .pg-team-auto.pg-auto-left {
+  left: auto;
+  right: calc(100% + 2px);
+  bottom: auto;
+  top: 1px;
+}
+#pokemon-game .pg-team-auto.pg-auto-below {
+  left: 0;
+  bottom: auto;
+  top: calc(100% + 2px);
+}
+#pokemon-game .pg-team-auto.pg-auto-right {
+  left: calc(100% + 2px);
+  bottom: auto;
+  top: 1px;
+}
+/* 다 찬 판 (2px 금 테두리 + 띄움 2 — 바깥 끝 −4) 옆 칩은 테두리 밖 2px (테두리를 2px 덮던 것 — 아트 디렉터 #95 7바퀴 2) */
+#pokemon-game .pg-plate-ready > .pg-team-auto.pg-auto-left,
+#pokemon-game .pg-plate-join > .pg-team-auto.pg-auto-left {
+  right: calc(100% + 6px);
+}
+#pokemon-game .pg-plate-ready > .pg-team-auto.pg-auto-below,
+#pokemon-game .pg-plate-join > .pg-team-auto.pg-auto-below {
+  top: calc(100% + 6px);
+}
+#pokemon-game .pg-plate-ready > .pg-team-auto.pg-auto-right,
+#pokemon-game .pg-plate-join > .pg-team-auto.pg-auto-right {
+  left: calc(100% + 6px);
 }
 
 /* 버린 누름 (#88 — 예약 없음, 엔진 b.deny 1초) = 누른 칸 판 키 · 막대를 흐리게 (번쩍임 없음 — 1초 그대로) · 까닭 한 줄은 무대 위 가운데 (아래 deny-mid) */

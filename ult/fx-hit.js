@@ -571,8 +571,9 @@ function hitStatus(g, kind) {
 }
 
 // 쓰러뜨린 한 방 (2026-10-20 ideas #109) — 금색 별빛 살 8줄이 크게 뻗고 + 큰 조각 별 + 발밑 충격파 (히트스톱 0.1초와 같이 — BattleFx)
-function hitKO(g) {
-    const R = Math.max(14 * g.s, g.w * 0.6);
+// k = 크기 배 (게임 3:3 0.7)
+function hitKO(g, k = 1) {
+    const R = Math.max(14 * g.s, g.w * 0.6) * k;
     const cols = HIT_GOLD;
     hitLines(g.body.cx, g.body.cy, g.s, R, cols, 8, 0.45);
     hitBloom(g.body.cx, g.body.cy, g.s, R * 0.8, cols, 'star', 0.6, true, { g: 40 });

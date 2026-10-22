@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TEAM_ROW_GAP, teamGeometry } from './model';
+import { bandLeft, faintHoldLeft, faintIsBig, faintShortLine, stackRows, TEAM_ROW_GAP, teamGeometry } from './model';
 
 describe('3:3 자리 (디자인팀 4안 시안 geo 그대로)', () => {
   it('860 × 187 = ×2 비스듬히 세 줄 · 앞줄끼리 약 310px · 판 안 잘림', () => {
@@ -109,5 +109,56 @@ describe('다시 그리는 열쇠 — 3:3 고르기 막대 (코드 리뷰어)', 
     expect(at(1200)).not.toBe(at(1260));
     expect(at(4000, 0)).not.toBe(at(4000, 260));
     expect(at(1200)).toBe(at(1240));
+  });
+});
+
+describe('3:3 위 가운데 줄 — 띠 · 쓰러짐 줄 · 결과 줄 (픽셀 검사원 · UX 리뷰어 · 아트 디렉터 #95 4바퀴)', () => {
+  it('보통 공격 쓰러짐 뒤에 상대 필살기가 시작돼도 큰 연출 쓰러짐이 아님 · 큰 연출 중 · 막 끝난 0.4초 안은 큰 것', () => {
+    // 레디바 쓰러짐이 6000 에 생김 · 그 전 큰 연출은 2000 에 끝남 → 6350 에 상대 필살기가 시작돼도 생긴 때로 정함
+    expect(faintIsBig(6000, null, 2000)).toBe(false);
+    // 필살기 (5000 시작) 중에 생김 = 큰 것 · 필살기가 5800 에 끝나고 0.2초 뒤 = 큰 것 · 0.4초 넘어 = 아님
+    expect(faintIsBig(6000, 5000, 6000)).toBe(true);
+    expect(faintIsBig(6000, null, 5800)).toBe(true);
+    expect(faintIsBig(6000, null, 5600)).toBe(false);
+    // 같은 때 (0.2초 안) 시작한 상대 필살기 = 아님 (VS 띠로 옮겨 가던 것 — 6바퀴)
+    expect(faintIsBig(6000, 5950, 6000)).toBe(false);
+  });
+
+  it('쓰러짐 말 넘겨받기는 가장 늦게 뜬 이름 + 1.2초 (판 끝 결과 줄이 마지막 이름을 0.98초에 덮던 것 — UX #95 15바퀴)', () => {
+    // 레디바 0 · 통통코 800 에 뜸 → 1700 에는 통통코가 0.9초라 아직 300ms 남음 (첫 이름으로 세면 0 — 넘겨 버림)
+    expect(faintHoldLeft([0, 800], 1700)).toBe(300);
+    expect(faintHoldLeft([0, 800], 2000)).toBe(0);
+    // 마지막 KO 와 판 끝 (결과 줄 1초) 이 같은 때 — 결과 줄은 이름이 1.2초 된 뒤
+    expect(faintHoldLeft([5000], 6000)).toBe(200);
+    expect(faintHoldLeft([], 6000)).toBe(0);
+  });
+
+  it('띠 끝 쓰러짐 말을 줄이면 "2마리 쓰러졌다!" · 하나면 줄이지 않음', () => {
+    expect(faintShortLine(['통통코', '소미안'])).toBe('2마리 쓰러졌다!');
+    expect(faintShortLine(['통통코', '통통코'])).toBeNull();
+    expect(faintShortLine(['레디바'])).toBeNull();
+  });
+
+  it('위에서부터 앞 줄 아래 + 4 로 쌓음 · 띠 (24) 아래 쓰러짐 줄 (28) 아래 결과 줄', () => {
+    expect(stackRows([{ base: 30, h: 24 }, { base: 30, h: 28 }, { base: 30, h: 28 }])).toEqual([30, 58, 90]);
+  });
+
+  it('떠 있는 줄은 위로 안 감 — 띠가 닫혀도 쓰러짐 줄은 58 그대로 · 처음 안내가 닫혀도 안내 아래 자리 그대로', () => {
+    const [faint] = stackRows([{ base: 30, h: 28, min: 58 }]);
+    expect(faint).toBe(58);
+    // 처음 안내 (30 ~ 52) 와 겹치면 안내 아래 + 2 = 54 · 안내가 닫힌 뒤에도 54
+    const [withTip] = stackRows([{ base: 30, h: 28, tip: { top: 30, bottom: 52 } }]);
+    expect(withTip).toBe(54);
+    expect(stackRows([{ base: 30, h: 28, min: withTip }])).toEqual([54]);
+  });
+
+  it('띠 왼쪽 끝 — 처음 가운데 (정수) · 글이 붙어 넓어져도 왼쪽 그대로 · 오른쪽 끝이 패널 8 안을 넘을 때만 왼쪽으로', () => {
+    const first = bandLeft(860, 165, null);
+    expect(first).toBe(348);
+    // 쓰러짐 말이 붙어 165 → 265: 왼쪽은 그대로 (예전엔 양쪽으로 50 씩 벌어짐)
+    expect(bandLeft(860, 265, first)).toBe(first);
+    // 240 "이겼다!" 64 → 170: 오른쪽이 넘쳐 어차피 옮겨야 하니 가운데 (35 · 35) — 왼 36 · 오른 8 로 치우치던 것 (아트 디렉터 6바퀴 ④)
+    expect(bandLeft(240, 170, bandLeft(240, 64, null))).toBe(35);
+    expect(Number.isInteger(bandLeft(861, 164, null))).toBe(true);
   });
 });

@@ -28,7 +28,7 @@ import { themeKind } from '../../../ui/theme';
 import { typeNameKo } from '../../../ui/format';
 import { InfoBar } from '../../../ui/InfoBar';
 import { TeamLayer } from '../../battle/team/TeamLayer';
-import { teamDenyNote } from '../../battle/team/model';
+import { teamDenyNote, teamPrompt } from '../../battle/team/model';
 import { TeamChoice, teamChoiceOn, TeamMeet, teamMeetOn } from '../../battle/team/TeamChoice';
 import { Face } from '../../../ui/Face';
 import { resumeLine } from '../../../core/engine/play';
@@ -213,6 +213,12 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   const autoTeamTip = team !== null && autoTeamTipDue(state) && team.t < 12000;
   // 3:3 에서 먼저 다 찬 칸 (필살기는 눌러야만 나감 — #82) — 처음 한 번 "필살기 다 참 — [1] 누르면 나가요"
   const teamReadyKey = team && team.phase === 'run' ? [0, 1, 2].find((i) => teamUltOpen(team, i)) : undefined;
+  // 3:3 끼어들기 · 모으기 큰 판이 떠 있는 동안 위 처음 안내는 내림 (판이 안내 · 쓰러짐 줄 아래로 밀려 포켓몬을 2.5초 덮던 것 — UX · 픽셀 검사원 #95 10바퀴 · 안내는 1초 안이면 다음에 다시 뜸)
+  const teamBigPrompt = team !== null && ['join', 'gather'].includes(teamPrompt(team)?.kind ?? '');
+  //   다 찬 채 0.5초 이어진 뒤에 띄움 (다 차고 0.1초 만에 끼어들기 판이 떠 안내가 2장면만 비치던 것 — UX 리뷰어 #95 4바퀴 6)
+  const readySince = useRef<{ key: number | undefined; at: number }>({ key: undefined, at: 0 });
+  if (teamReadyKey !== readySince.current.key) readySince.current = { key: teamReadyKey, at: performance.now() };
+  const teamReadyTip = teamReadyKey !== undefined && performance.now() - readySince.current.at >= 500;
   // 빠르게 ▶▶ (전투 ×2 — 10-22 이름 바뀜) 를 켰는데 지금은 기본 박자 (필살기 · 끼어들기 · 알아챌 순간 — 엔진 teamFastOk) = 스위치 글을 흐리게 (켰는데 안 먹는 것처럼 보이던 것, UX 리뷰어 #83 큼 ②) ·
   //   0.4초 넘게 이어질 때만 바꿈 (0.3초 · 40ms 끼었다 빠지는 박자에 스위치가 깜빡이지 않게 — U2)
   // 안 가 본 새 지역 (정보줄 지도 아이콘 표시 — 대기실 지도 버튼과 같은 규칙 · 개발 UX #70)
@@ -613,7 +619,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         {/* "N초" 칩의 뜻 (ideas #150 · orders #34) — 볼 때 저절로 나가는 필살기가 처음 다 찼을 때 한 번: 1:1 자동 전투 (Z 모서리 3 · 2 · 1) · 3:3 (발밑 판 3 · 2 · 1 — 자동 전투가 꺼져도).
             저절로 나가면 (3초) 같이 사라짐 · 1초 넘게 보면 셈 · 1:1 = 아래 가운데 · 3:3 = 위 가운데 (아래는 발밑 판), 480 아래 3:3 은 내 쪽 왼쪽 위 (가운데면 상대 쓰러짐 말 · 피해 숫자를 0.7초 덮던 것 — UX 리뷰어) */}
         {/* 자동 전투 3:3 처음 안내 (orders #71 — 자동이면 트레이너전은 3:3 기본) = VS 뒤 3:3 판 첫 12초 · 위 가운데 · 보는 동안만 셈 (U6) · 한 줄만 — 두 줄이면 1번 포켓몬 머리를 덮음 (폭을 재서 세 단계: 520 이상 418 · 361 ~ 519 302 · 360 아래 181, 맥 +10% 포함) */}
-        {autoTeamTip && (
+        {autoTeamTip && !teamBigPrompt && (
           <FirstTip key={AUTO_TEAM_TIP} ms={5000} className="pg-first-tip-top pg-tip-auto-team" paused={away} onSeen={() => onInput({ kind: 'tip-seen', id: AUTO_TEAM_TIP })}>
             <span class="pg-t71-long">
               자동 전투는 3:3 — 셋이 같이 싸우고 돈 ×{BALANCE.team.moneyScale} · 1:1 은 <KeyCap k="A" /> 자동을 끄고 만남에서
@@ -627,7 +633,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
           </FirstTip>
         )}
         {/* 자동 3:3 안내가 떠 있으면 같은 자리 필살기 안내는 기다림 */}
-        {ultWaitKey && !autoTeamTip && !(save.tips ?? []).includes(ULT_WAIT_TIP) && (
+        {ultWaitKey && !autoTeamTip && !teamBigPrompt && !(save.tips ?? []).includes(ULT_WAIT_TIP) && (
           <FirstTip key={ULT_WAIT_TIP} ms={BALANCE.ultAutoWaitMs} className={team ? 'pg-first-tip-top pg-tip-mine' : 'pg-first-tip-low'} paused={away} onSeen={() => onInput({ kind: 'tip-seen', id: ULT_WAIT_TIP })}>
             {/* 좁으면 (360 아래 · 480 아래 3:3) 짧은 말 — "필살기" 는 남김 (빼면 무엇이 저절로인지 빠지던 것) */}
             <span class="pg-tip-part pg-tip-long">필살기 다 참 —&nbsp;</span>
@@ -646,7 +652,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
           </FirstTip>
         )}
         {/* 3:3 필살기 다 참 처음 안내 (#82 — 저절로 안 나가니 "3초 뒤 저절로" 대신) · 같은 자리 (위 · 좁으면 내 쪽 왼쪽 위) · 자동 3:3 안내가 떠 있으면 기다림 */}
-        {team && teamReadyKey !== undefined && !autoTeamTip && !(save.tips ?? []).includes(ULT_READY_TIP) && (
+        {team && teamReadyKey !== undefined && teamReadyTip && !autoTeamTip && !teamBigPrompt && !(save.tips ?? []).includes(ULT_READY_TIP) && (
           <FirstTip key={ULT_READY_TIP} ms={4000} seenMs={2500} className="pg-first-tip-top pg-tip-mine" paused={away} onSeen={() => onInput({ kind: 'tip-seen', id: ULT_READY_TIP })}>
             <span class="pg-tip-part pg-tip-long">필살기 다 참 —&nbsp;</span>
             <span class="pg-tip-part pg-tip-long">

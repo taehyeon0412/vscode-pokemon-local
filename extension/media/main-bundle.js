@@ -5862,6 +5862,48 @@ let moveCtx;
 let moveRaf = 0;
 let moveLast = 0;
 let moveAutoStarted = false;
+// 무대 상자 (게임 3:3 필살기 판 — ult/bridge.js, 2026-10-22 orders #95) — { x, y, W, H }: 이 안에서 만든 입자 · 발사기는 상자를 화면으로 알고 그림
+// (상자 왼쪽 위 = 0, 0 · 크기 = W × H). 그 입자를 움직이고 그릴 때 상자로 옮김. 없으면 (일반 모드 · 1:1) 그대로
+let moveFrame = null;
+// 포켓몬 아래 캔버스 (게임 3:3 판 — ult/bridge.js 가 넣음) — 무대 상자 그림의 대상 둘레 밖을 여기에 (없으면 다 위 캔버스)
+let moveBackHook = null;
+// 상자 시계 차이 (f.skew ms) — 앞 감은 만큼 상자 안에서 보는 performance.now 를 앞당김 (필살기 코드가 시작 때 잡은 시계
+// (const t0 = performance.now()) 가 감기 뒤에도 이어지게 — 돌진 · 다이브 · 연타 · 사이코 · 그림자 틀이 처음부터 다시 그리던 것, 코드 리뷰어 #95)
+function moveInFrame(f, fn) {
+    const prev = moveFrame;
+    const skew = (f && f.skew) || 0;
+    const undo = skew !== moveSkewNow ? moveSkew(skew) : null;
+    moveFrame = f;
+    try {
+        return fn();
+    } finally {
+        moveFrame = prev;
+        undo?.();
+    }
+}
+let moveSkewNow = 0;
+let moveSkewRoot = null;
+function moveSkew(skew) {
+    const was = moveSkewNow;
+    if (was === 0) {
+        moveSkewRoot = { own: Object.getOwnPropertyDescriptor(performance, 'now'), base: performance.now.bind(performance) };
+    }
+    const set = (s) => {
+        moveSkewNow = s;
+        const r = moveSkewRoot;
+        if (s === 0) {
+            if (r.own) {
+                Object.defineProperty(performance, 'now', r.own);
+            } else {
+                delete performance.now;
+            }
+            return;
+        }
+        Object.defineProperty(performance, 'now', { configurable: true, writable: true, value: () => r.base() + s });
+    };
+    set(skew);
+    return () => set(was);
+}
 
 const moveRand = (min, max) => min + Math.random() * (max - min);
 const movePick = (list) => list[Math.floor(Math.random() * list.length)];
@@ -6304,32 +6346,433 @@ function moveTick(now) {
     moveCanvasReady();
     const ctx = moveCtx;
     ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+    moveStep(now, dt, null);
+    // 무대 상자 입자는 상자마다 따로 그린 뒤 가장자리를 흐려 깖 (moveFrameLayer)
+    const frames = new Set();
+    // 그리기 — 층(z) 순서: z<0 맨 밑 → 보통(나중 것부터 그려서 먼저 만든 게 위) → z>0 맨 위
+    for (const layer of [-1, 0, 1]) {
+        for (let i = moveParticles.length - 1; i >= 0; i--) {
+            const p = moveParticles[i];
+            const z = p.z ?? 0;
+            if ((z < 0 ? -1 : z > 0 ? 1 : 0) !== layer || p.life >= p.max) {
+                continue;
+            }
+            const f = p._f;
+            let c = ctx;
+            try {
+                if (f) {
+                    // 무대 상자 입자 — 상자 그림판에 상자 자리로 옮겨 그림 (그동안 상자를 화면으로)
+                    if (!frames.has(f)) {
+                        frames.add(f);
+                        moveFrameLayer(f);
+                    }
+                    c = f.ctx;
+                    c.save();
+                    c.translate(f.x, f.y);
+                    moveInFrame(f, () => drawParticle(c, p));
+                } else {
+                    drawParticle(ctx, p);
+                }
+            } catch (err) {
+                moveFault(err);
+                p.life = p.max;
+                c.globalCompositeOperation = 'source-over';
+            } finally {
+                if (f && c !== ctx) {
+                    c.restore();
+                }
+            }
+        }
+    }
+    ctx.globalAlpha = 1;
+    for (const f of frames) {
+        moveFramePut(ctx, f);
+    }
 
+    if (moveEmitters.length || moveParticles.length) {
+        moveRaf = requestAnimationFrame(moveTick);
+    } else {
+        moveRaf = 0;
+        moveLast = 0;
+    }
+}
+
+// 무대 상자 그림판 — 화면과 같은 크기 · 장마다 비움
+function moveFrameLayer(f) {
+    const dpr = window.devicePixelRatio || 1;
+    const w = moveCanvas.width;
+    const h = moveCanvas.height;
+    if (!f.cv) {
+        f.cv = document.createElement('canvas');
+        // 장마다 읽음 (moveFrameDither — 반투명을 바둑판으로)
+        f.ctx = f.cv.getContext('2d', { willReadFrequently: true });
+    }
+    if (f.cv.width !== w || f.cv.height !== h) {
+        f.cv.width = w;
+        f.cv.height = h;
+        f.mask = null;
+    }
+    f.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    f.ctx.globalCompositeOperation = 'source-over';
+    f.ctx.globalAlpha = 1;
+    // 상자 영역만 비움 · 넣음 (밖은 마스크가 0 이라 안 씀 — 매 장면 화면 전체를 세 번 거치던 것, 코드 리뷰어)
+    const r = moveFrameRect(f);
+    f.ctx.clearRect(r.x, r.y, r.w, r.h);
+    f.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+// 상자 영역 (기기 px) — 왼쪽 · 위 · 폭 · 화면 아래 끝까지 (모양이 있으면 그 모양들을 품는 네모)
+function moveFrameRect(f) {
+    const dpr = window.devicePixelRatio || 1;
+    if (f.shapes && f.shapes.length) {
+        const b = moveFrameBox(f);
+        const x = Math.max(0, Math.floor(b.x0 * dpr));
+        const y = Math.max(0, Math.floor(b.y0 * dpr));
+        return { x, y, w: Math.max(1, Math.min(f.cv.width - x, Math.ceil((b.x1 - b.x0) * dpr) + 1)), h: Math.max(1, Math.min(f.cv.height - y, Math.ceil((b.y1 - b.y0) * dpr) + 1)) };
+    }
+    const x = Math.max(0, Math.floor(f.x * dpr));
+    const y = Math.max(0, Math.floor(Math.min(f.y, f.maskTop ?? f.y) * dpr));
+    return { x, y, w: Math.max(1, Math.min(f.cv.width - x, Math.ceil(f.W * dpr))), h: Math.max(1, f.cv.height - y) };
+}
+// 모양들을 품는 네모 (화면 px)
+function moveFrameBox(f) {
+    let x0 = Infinity;
+    let y0 = Infinity;
+    let x1 = -Infinity;
+    let y1 = -Infinity;
+    for (const s of f.shapes) {
+        const r = s.kind === 'seg' ? s.r : 0;
+        const ax = s.kind === 'seg' ? Math.min(s.x0, s.x1) - r : s.cx - s.rx;
+        const bx = s.kind === 'seg' ? Math.max(s.x0, s.x1) + r : s.cx + s.rx;
+        const ay = s.kind === 'seg' ? Math.min(s.y0, s.y1) - r : s.cy - s.ry;
+        const by = s.kind === 'seg' ? Math.max(s.y0, s.y1) + r : s.cy + s.ry;
+        x0 = Math.min(x0, ax);
+        x1 = Math.max(x1, bx);
+        y0 = Math.min(y0, ay);
+        y1 = Math.max(y1, by);
+    }
+    return { x0: Math.max(0, x0), y0: Math.max(0, y0), x1, y1 };
+}
+// 그 점이 모양 안으로 들어간 깊이 (px — 음수 = 밖) · 여럿이면 가장 깊은 것
+function moveShapeDepth(shapes, px, py) {
+    let best = -Infinity;
+    for (const s of shapes) {
+        let e;
+        if (s.kind === 'seg') {
+            const vx = s.x1 - s.x0;
+            const vy = s.y1 - s.y0;
+            const L2 = vx * vx + vy * vy || 1;
+            const t = Math.max(0, Math.min(1, ((px - s.x0) * vx + (py - s.y0) * vy) / L2));
+            e = s.r - Math.hypot(px - (s.x0 + vx * t), py - (s.y0 + vy * t));
+        } else {
+            const dx = (px - s.cx) / s.rx;
+            const dy = (py - s.cy) / s.ry;
+            e = (1 - Math.sqrt(dx * dx + dy * dy)) * Math.min(s.rx, s.ry);
+        }
+        if (e > best) {
+            best = e;
+        }
+    }
+    return best;
+}
+// 상자 가장자리 — 그림 점 (S) 칸 (옆 6 · 위 10줄) 에 걸쳐 바둑판 (4×4 Bayer) 으로 사그라짐 (흐린 그라데이션 대신 픽셀 — 디자인 규칙) · 아래 끝은 그대로 (땅에 닿는 것)
+const MOVE_BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+function moveFrameMask(f) {
+    if (f.mask) {
+        return f.mask;
+    }
+    const dpr = window.devicePixelRatio || 1;
+    const m = document.createElement('canvas');
+    m.width = moveCanvas.width;
+    m.height = moveCanvas.height;
+    const mc = m.getContext('2d');
+    const S = Math.max(1, f.S || 2);
+    // 타원 (상자 아래 끝 가운데 · 가로 반지름 = 폭 반 · 세로 = 높이 — 위로 둥근 돔) 안쪽만 · 바깥 4px 씩 50% · 25% 바둑판
+    // (네모 상자 변이 곧은 바둑판으로 보이던 것 — 아트 디렉터 #95 ①) · 아래 끝 밑 (땅) 은 같은 폭으로 화면 끝까지
+    mc.setTransform(dpr, 0, 0, dpr, 0, 0);
+    mc.fillStyle = '#fff';
+    // f.shapes = 보이는 곳 (통로 seg · 타원 ell — 화면 px) 의 합 — 3:3 판은 쓰는 입 → 대상 통로 + 대상 둘레 + 입 앞만 (불벽 · 큰 호 · 빛 기둥 · 바닥 줄이 무대를 덮던 것, 아트 디렉터 #95 2바퀴)
+    if (f.shapes && f.shapes.length) {
+        const b = moveFrameBox(f);
+        // 앞 모양 (front — 대상 둘레) 마스크 · 뒤 마스크 (= 전체 − 앞) — 앞은 포켓몬 위 캔버스 · 뒤는 포켓몬 아래 (moveFramePut)
+        const fronts = f.shapes.filter((s) => s.front);
+        let fm = null;
+        let fc = null;
+        if (fronts.length) {
+            fm = document.createElement('canvas');
+            fm.width = m.width;
+            fm.height = m.height;
+            fc = fm.getContext('2d');
+            fc.setTransform(dpr, 0, 0, dpr, 0, 0);
+            fc.fillStyle = '#fff';
+        }
+        const lvlOf = (e) => (e >= 8 ? 16 : e >= 4 ? 8 : 4);
+        for (let y = Math.floor(b.y0 / S) * S; y < b.y1; y += S) {
+            for (let x = Math.floor(b.x0 / S) * S; x < b.x1; x += S) {
+                // 가장자리를 칸마다 ±4px 흔듦 — 곧은 바둑판 변이 네모로 읽히던 것 (불꽃 혀처럼 들쭉날쭉 — 아트 디렉터 #95 2바퀴)
+                const jag = ((((Math.floor(x / S) * 73856093) ^ (Math.floor(y / S) * 19349663)) >>> 0) % 3) * 4 - 4;
+                const bay = MOVE_BAYER[(Math.floor(x / S) & 3) + (Math.floor(y / S) & 3) * 4];
+                const e = moveShapeDepth(f.shapes, x + S / 2, y + S / 2) + jag;
+                if (e >= 0 && bay < lvlOf(e)) {
+                    mc.fillRect(x, y, S, S);
+                }
+                if (fc) {
+                    const ef = moveShapeDepth(fronts, x + S / 2, y + S / 2) + jag;
+                    if (ef >= 0 && bay < lvlOf(ef)) {
+                        fc.fillRect(x, y, S, S);
+                    }
+                }
+            }
+        }
+        if (fm) {
+            const bm = document.createElement('canvas');
+            bm.width = m.width;
+            bm.height = m.height;
+            const bc = bm.getContext('2d');
+            bc.drawImage(m, 0, 0);
+            bc.globalCompositeOperation = 'destination-out';
+            bc.drawImage(fm, 0, 0);
+            f.maskFront = fm;
+            f.maskBack = bm;
+        }
+        f.mask = m;
+        return m;
+    }
+    const cx0 = f.x + f.W / 2;
+    const cy0 = f.y + f.H;
+    const top = Math.min(f.y, f.maskTop ?? f.y);
+    const rx = Math.max(1, f.W / 2);
+    const ry = Math.max(1, cy0 - top);
+    const H0 = m.height / dpr;
+    const rmin = Math.min(rx, ry);
+    for (let y = Math.floor(top / S) * S; y < H0; y += S) {
+        for (let x = Math.floor(f.x / S) * S; x < f.x + f.W; x += S) {
+            const dx = (x + S / 2 - cx0) / rx;
+            const dy = Math.min(0, y + S / 2 - cy0) / ry;
+            const e = (1 - Math.sqrt(dx * dx + dy * dy)) * rmin;
+            if (e < 0) {
+                continue;
+            }
+            const lvl = e >= 8 ? 16 : e >= 4 ? 8 : 4;
+            if (MOVE_BAYER[(Math.floor(x / S) & 3) + (Math.floor(y / S) & 3) * 4] < lvl) {
+                mc.fillRect(x, y, S, S);
+            }
+        }
+    }
+    f.mask = m;
+    return m;
+}
+// 바둑판 무늬 (지울 칸 — Bayer < lvl) · 칸 = S 그림 점 (기기 px 로) — 칸 · 단마다 하나
+const MOVE_BAYER_PAT = new Map();
+function moveBayerPattern(ctx, S, lvl) {
+    const dpr = window.devicePixelRatio || 1;
+    const key = `${S}:${lvl}:${dpr}`;
+    let p = MOVE_BAYER_PAT.get(key);
+    if (!p) {
+        const c = Math.max(1, Math.round(S * dpr));
+        const t = document.createElement('canvas');
+        t.width = c * 4;
+        t.height = c * 4;
+        const tc = t.getContext('2d');
+        tc.fillStyle = '#000';
+        for (let i = 0; i < 16; i++) {
+            if (MOVE_BAYER[i] < lvl) {
+                tc.fillRect((i % 4) * c, Math.floor(i / 4) * c, c, c);
+            }
+        }
+        p = ctx.createPattern(t, 'repeat');
+        MOVE_BAYER_PAT.set(key, p);
+    }
+    return p;
+}
+// 상자 그림을 가장자리를 흐려 연출 밑에 깖 (다른 연출 — 맞음 · 쓰러짐 별빛 — 이 위)
+function moveFramePut(ctx, f) {
+    const mask = moveFrameMask(f);
+    const r = moveFrameRect(f);
+    // 계단 (f.stair — 1:1 연출을 대상 줄로, bridge fxUltAim) — 마스크 앞에 (통로 · 대상 둘레는 대상 쪽이라)
+    if (f.stair && f.stair.dy) {
+        moveFrameStair(f, r);
+    }
+    moveFrameDither(f, r);
+    // f.drop = 바둑판으로 지울 단 (0 ~ 16 — 쓰러짐 옅게 · 끝 흐려짐, bridge fxStageSoft · fxStageCut) · 반투명 (globalAlpha) 대신 (반투명 조각 · 유령 — 아트 디렉터 #95 ②)
+    if (f.drop > 0) {
+        f.ctx.save();
+        f.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        f.ctx.globalCompositeOperation = 'destination-out';
+        f.ctx.fillStyle = moveBayerPattern(f.ctx, Math.max(1, f.S || 2), Math.min(16, f.drop));
+        f.ctx.fillRect(r.x, r.y, r.w, r.h);
+        f.ctx.restore();
+    }
+    // 뒤 · 앞 나눔 — 대상 둘레 (앞 마스크) 만 위 캔버스 · 나머지는 포켓몬 아래 캔버스 (moveBackHook) · 자기 둘레 (allBack) 는 다 아래
+    const back = (f.maskBack || f.allBack) && typeof moveBackHook === 'function' ? moveBackHook() : null;
+    if (back) {
+        let src = f.cv;
+        if (!f.allBack) {
+            if (!f.cvB || f.cvB.width !== f.cv.width || f.cvB.height !== f.cv.height) {
+                f.cvB = document.createElement('canvas');
+                f.cvB.width = f.cv.width;
+                f.cvB.height = f.cv.height;
+            }
+            const cb = f.cvB.getContext('2d');
+            cb.setTransform(1, 0, 0, 1, 0, 0);
+            cb.globalCompositeOperation = 'source-over';
+            cb.globalAlpha = 1;
+            cb.clearRect(r.x, r.y, r.w, r.h);
+            cb.drawImage(f.cv, r.x, r.y, r.w, r.h, r.x, r.y, r.w, r.h);
+            cb.globalCompositeOperation = 'destination-in';
+            cb.drawImage(f.maskBack, r.x, r.y, r.w, r.h, r.x, r.y, r.w, r.h);
+            src = f.cvB;
+        } else {
+            f.ctx.save();
+            f.ctx.setTransform(1, 0, 0, 1, 0, 0);
+            f.ctx.globalCompositeOperation = 'destination-in';
+            f.ctx.globalAlpha = 1;
+            f.ctx.drawImage(mask, r.x, r.y, r.w, r.h, r.x, r.y, r.w, r.h);
+            f.ctx.restore();
+        }
+        back.save();
+        back.globalCompositeOperation = 'source-over';
+        back.globalAlpha = 1;
+        back.imageSmoothingEnabled = false;
+        back.drawImage(src, r.x, r.y, r.w, r.h, r.x, r.y, r.w, r.h);
+        back.restore();
+        if (f.allBack) {
+            return;
+        }
+    }
+    f.ctx.save();
+    f.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    f.ctx.globalCompositeOperation = 'destination-in';
+    f.ctx.globalAlpha = 1;
+    f.ctx.drawImage(back ? f.maskFront : mask, r.x, r.y, r.w, r.h, r.x, r.y, r.w, r.h);
+    f.ctx.restore();
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = 'destination-over';
+    ctx.globalAlpha = 1;
+    ctx.drawImage(f.cv, r.x, r.y, r.w, r.h, r.x, r.y, r.w, r.h);
+    ctx.restore();
+}
+
+// 계단 — 입 (x0) 뒤는 그대로 · 앞은 열 u (2칸) 마다 기울기 (dy / dx) 만큼 u 단위로 옮김 (돌린 그림 대신 칸 계단 — 픽셀 그대로, 합동 줄기 fxStairBlit 과 같은 문법).
+// 1:1 은 같은 땅 높이라 가로로 쏘는데 3:3 은 상대 줄이 달라 허공에서 터지던 것 (아트 디렉터 #95 4바퀴 ③)
+function moveFrameStair(f, r) {
+    const s = f.stair;
+    const dpr = window.devicePixelRatio || 1;
+    if (!f.cv2 || f.cv2.width !== f.cv.width || f.cv2.height !== f.cv.height) {
+        f.cv2 = document.createElement('canvas');
+        f.cv2.width = f.cv.width;
+        f.cv2.height = f.cv.height;
+    }
+    const c2 = f.cv2.getContext('2d');
+    c2.setTransform(1, 0, 0, 1, 0, 0);
+    c2.globalCompositeOperation = 'source-over';
+    c2.globalAlpha = 1;
+    c2.clearRect(r.x, r.y, r.w, r.h);
+    c2.drawImage(f.cv, r.x, r.y, r.w, r.h, r.x, r.y, r.w, r.h);
+    const c = f.ctx;
+    c.save();
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.globalCompositeOperation = 'source-over';
+    c.globalAlpha = 1;
+    c.imageSmoothingEnabled = false;
+    c.clearRect(r.x, r.y, r.w, r.h);
+    // 열 = 그림 칸 한 칸 · 화면 칸 격자에 맞춤 (2칸 열이 칸 격자와 어긋나 물줄기 눈금이 1px 조각으로 쪼개져 위아래로 튀어나오던 것 — 아트 디렉터 #95 6바퀴 ③) · 높이는 2칸 (u) 계단
+    const U = Math.max(1, Math.round((f.S || 2) * dpr));
+    const x0 = Math.floor(r.x / U) * U;
+    for (let x = x0; x < r.x + r.w; x += U) {
+        const a = Math.max(x, r.x);
+        const w = Math.min(x + U, r.x + r.w) - a;
+        if (w <= 0) {
+            continue;
+        }
+        const t = ((x + U / 2) / dpr - s.x0) / s.dx;
+        const dy = t <= 0 ? 0 : Math.round((s.dy * t) / s.u) * s.u;
+        c.drawImage(f.cv2, a, r.y, w, r.h, a, r.y + Math.round(dy * dpr), w, r.h);
+    }
+    c.restore();
+}
+// 반투명 → 1칸 바둑판 (알파 단 = 4×4 Bayer · 그림 칸 격자) — 3:3 용 판은 1:1 연출의 반투명 물기둥 · 빛 구슬 · 원판이 뒤 포켓몬을 비쳐 팔레트 밖 색이 되던 것 (아트 디렉터 #95 6바퀴 ⑧ · 태현 님 ⑨ 반투명 원판).
+// 아주 옅은 것 (3/16 아래) 은 지움 — 넓은 옅은 빛이 흩어진 점이 되지 않게
+const MOVE_DITHER_MIN = 3;
+function moveFrameDither(f, r) {
+    const dpr = window.devicePixelRatio || 1;
+    const c = Math.max(1, Math.round((f.S || 2) * dpr));
+    let img;
+    try {
+        img = f.ctx.getImageData(r.x, r.y, r.w, r.h);
+    } catch {
+        return;
+    }
+    const d = img.data;
+    let changed = false;
+    for (let y = 0; y < r.h; y++) {
+        const by = (Math.floor((r.y + y) / c) & 3) * 4;
+        let i = y * r.w * 4 + 3;
+        for (let x = 0; x < r.w; x++, i += 4) {
+            const a = d[i];
+            if (a === 0 || a === 255) {
+                continue;
+            }
+            const lvl = Math.round((a * 16) / 255);
+            d[i] = lvl >= MOVE_DITHER_MIN && MOVE_BAYER[(Math.floor((r.x + x) / c) & 3) + by] < lvl ? 255 : 0;
+            changed = true;
+        }
+    }
+    if (changed) {
+        f.ctx.putImageData(img, r.x, r.y);
+    }
+}
+
+// 앞 감기 (게임 3:3 필살기 판) — 그 상자 (f) 의 입자 · 발사기만 sec 초를 그리지 않고 움직임 (1/30초씩 · tick(지난 초) 은 걸음마다).
+// 발사기 시각 (until · nextShot) 은 감은 만큼 당겨 둠 — 감는 동안 performance.now 를 같이 앞당기는 건 부르는 쪽 (bridge)
+function moveSeek(f, sec, tick) {
+    const now = performance.now();
+    let done = 0;
+    while (done < sec - 1e-6) {
+        const dt = Math.min(1 / 30, sec - done);
+        done += dt;
+        // 상자 시계를 감은 만큼 앞당김 — 발사기 · 장면 시각 · 타이머가 같은 시계 (moveInFrame · moveStep)
+        f.skew = done * 1000;
+        moveStep(now, dt, f);
+        tick?.(done);
+    }
+    f.skew = sec * 1000;
+}
+
+// 한 걸음 — 발사기 · 입자 움직이기 (only = 그 무대 상자 것만 · null 이면 모두)
+function moveStep(now0, dt, only) {
     for (let i = moveEmitters.length - 1; i >= 0; i--) {
         const e = moveEmitters[i];
+        if (only && e._f !== only) {
+            continue;
+        }
+        // 상자 발사기는 상자 시계로 (감은 만큼 앞 — moveSeek)
+        const now = now0 + (e._f && e._f.skew ? e._f.skew : 0);
         if (now >= e.until) {
             moveEmitters.splice(i, 1);
             continue;
         }
         if (e.fx) {
-            // 전용기 발사기 — 정해진 시각마다 shots 개, 아니면 초당 rate 개
-            if (e.shots !== undefined) {
-                while (e.shots > 0 && now >= e.nextShot) {
-                    if (!safeFx(e, () => e.fx(e, e.shot++))) {
-                        break;
+            // 전용기 발사기 — 정해진 시각마다 shots 개, 아니면 초당 rate 개 (무대 상자 발사기는 그 상자 안에서)
+            moveInFrame(e._f ?? null, () => {
+                if (e.shots !== undefined) {
+                    while (e.shots > 0 && now >= e.nextShot) {
+                        if (!safeFx(e, () => e.fx(e, e.shot++))) {
+                            break;
+                        }
+                        e.shots -= 1;
+                        e.nextShot += e.every;
                     }
-                    e.shots -= 1;
-                    e.nextShot += e.every;
-                }
-            } else {
-                e.acc += dt * e.rate;
-                while (e.acc >= 1) {
-                    e.acc -= 1;
-                    if (!safeFx(e, () => e.fx(e))) {
-                        break;
+                } else {
+                    e.acc += dt * e.rate;
+                    while (e.acc >= 1) {
+                        e.acc -= 1;
+                        if (!safeFx(e, () => e.fx(e))) {
+                            break;
+                        }
                     }
                 }
-            }
+            });
             continue;
         }
         if (e.move === 'shuriken') {
@@ -6352,6 +6795,9 @@ function moveTick(now) {
     }
     for (let i = moveParticles.length - 1; i >= 0; i--) {
         const p = moveParticles[i];
+        if (only && p._f !== only) {
+            continue;
+        }
         p.life += dt;
         if (p.life >= p.max) {
             moveParticles.splice(i, 1);
@@ -6366,7 +6812,13 @@ function moveTick(now) {
             p.y += Math.sin(p.phase + p.life * 14) * p.s * 0.6;
         }
         try {
-            p.update?.(p, dt);
+            if (p.update) {
+                if (p._f) {
+                    moveInFrame(p._f, () => p.update(p, dt));
+                } else {
+                    p.update(p, dt);
+                }
+            }
         } catch (err) {
             moveFault(err);
             p.life = p.max;
@@ -6383,31 +6835,6 @@ function moveTick(now) {
                 moveParticles.push({ move: 'trail', x: p.x, y: p.y + moveRand(-1, 1) * p.s, life: 0, s: p.s, vx: -p.dir * moveRand(5, 20) * p.s, vy: moveRand(-6, 6) * p.s, g: 40 * p.s, drag: 1, max: 0.25 });
             }
         }
-    }
-    // 그리기 — 층(z) 순서: z<0 맨 밑 → 보통(나중 것부터 그려서 먼저 만든 게 위) → z>0 맨 위
-    for (const layer of [-1, 0, 1]) {
-        for (let i = moveParticles.length - 1; i >= 0; i--) {
-            const p = moveParticles[i];
-            const z = p.z ?? 0;
-            if ((z < 0 ? -1 : z > 0 ? 1 : 0) !== layer || p.life >= p.max) {
-                continue;
-            }
-            try {
-                drawParticle(ctx, p);
-            } catch (err) {
-                moveFault(err);
-                p.life = p.max;
-                ctx.globalCompositeOperation = 'source-over';
-            }
-        }
-    }
-    ctx.globalAlpha = 1;
-
-    if (moveEmitters.length || moveParticles.length) {
-        moveRaf = requestAnimationFrame(moveTick);
-    } else {
-        moveRaf = 0;
-        moveLast = 0;
     }
 }
 
@@ -6523,11 +6950,19 @@ function sigStart() {
     }
 }
 function sigParticle(p) {
-    moveParticles.push({ life: 0, vx: 0, vy: 0, g: 0, drag: 0, ...p });
+    const q = { life: 0, vx: 0, vy: 0, g: 0, drag: 0, ...p };
+    if (moveFrame && q._f === undefined) {
+        q._f = moveFrame;
+    }
+    moveParticles.push(q);
     sigStart();
 }
 function sigEmitter(e) {
-    moveEmitters.push({ acc: 1, shot: 0, ...e });
+    const q = { acc: 1, shot: 0, ...e };
+    if (moveFrame && q._f === undefined) {
+        q._f = moveFrame;
+    }
+    moveEmitters.push(q);
     sigStart();
 }
 // 그림 칸에 맞춘 점 하나
@@ -6797,7 +7232,9 @@ function sigDisc(ctx, px, s, x, y, r, color) {
 // 퍼지는 고리 (ry 는 납작한 정도)
 function sigRing(x, y, s, r0, r1, flat, max, cols) {
     sigParticle({ x, y, s, max, draw: (ctx, p, t, px) => {
-        const r = r0 + (r1 - r0) * t;
+        // 3:3 용 판 상자 안 — 둘레 고리는 그림 한 폭 (반지름) 안 (우리 셋 위를 지나던 큰 고리 — 아트 디렉터 #95 ②)
+        const cap = moveFrame && moveFrame.ringMax ? moveFrame.ringMax : Infinity;
+        const r = Math.min(cap, r0 + (r1 - r0) * t);
         ctx.globalAlpha = 1 - t;
         const dots = Math.max(24, Math.round(r / p.s) * 2);
         for (let j = 0; j < dots; j++) {
@@ -8845,7 +9282,8 @@ function useUltimate(pokemon, ult, opt = {}) {
         ultError(`${fx}.ms`, err);
     }
     const now = performance.now();
-    const introMs = opt.quick ? ULT_QUICK_INTRO_MS : ULT_INTRO_MS;
+    // opt.noIntro = 컷인 · 어둠 · 큰 이름 없이 바로 본편 (게임 3:3 용 판 — 이름은 화면 3:3 띠, ult/bridge.js fxStageUlt)
+    const introMs = opt.noIntro ? 0 : opt.quick ? ULT_QUICK_INTRO_MS : ULT_INTRO_MS;
     // opt.charge = 쓰기 전 기 모으기 ms (게임 전투 — 일반 모드에서 꾹 누를 때와 같은 연출, 2026-10-20 태현 님). 그만큼 도입이 늦게 시작
     const charge = Math.max(0, opt.charge || 0);
     if (charge) {
@@ -8874,17 +9312,30 @@ function useUltimate(pokemon, ult, opt = {}) {
     const begin = () => {
         try {
             pre?.start?.();
-            ultIntro(pokemon, left, name, sub, o, fx, until, introMs);
+            if (!opt.noIntro) {
+                ultIntro(pokemon, left, name, sub, o, fx, until, introMs);
+            }
         } catch (err) {
             ultError('intro', err);
         }
-        setTimeout(() => {
+        // opt.wrap(run) = 본편을 감싸 부름 (게임 3:3 용 판 — 무대 상자 안 · 앞 감기, ult/bridge.js fxSeekRun)
+        const go = () => {
             try {
-                T.run(ultGeometry(pokemon, left), o, ms, pokemon);
+                const run = () => T.run(ultGeometry(pokemon, left), o, ms, pokemon);
+                if (opt.wrap) {
+                    opt.wrap(run);
+                } else {
+                    run();
+                }
             } catch (err) {
                 ultError(`${fx}.run`, err);
             }
-        }, introMs);
+        };
+        if (introMs > 0) {
+            setTimeout(go, introMs);
+        } else {
+            go();
+        }
     };
     if (charge) {
         setTimeout(begin, charge);
@@ -9434,6 +9885,11 @@ function ultAimTarget(u) {
     if (typeof fxInGame !== 'function' || !fxInGame()) {
         return null;
     }
+    // 스스로 대상을 겨눔 — 3:3 용 판 계단 (fxUltAim) 으로 또 기울이지 않음
+    if (typeof moveFrame !== 'undefined' && moveFrame) {
+        moveFrame.aimed = true;
+        moveFrame.stair = null;
+    }
     const t = u.others();
     return t.length ? t[0] : null;
 }
@@ -9569,6 +10025,10 @@ function ultMove(pokemon, fn, ms) {
 
 // 그림 숨기기 · 다시 보이기 (화면 밖으로 날아간 동안)
 function ultHide(pokemon, on) {
+    // 3:3 용 판 — 진짜 그림은 숨기지 않음 (ult/bridge.js fxStageUlt)
+    if (on && typeof moveFrame !== 'undefined' && moveFrame && moveFrame.quiet) {
+        return;
+    }
     pokemon.el.style.visibility = on ? 'hidden' : '';
 }
 
@@ -17079,8 +17539,9 @@ function hitStatus(g, kind) {
 }
 
 // 쓰러뜨린 한 방 (2026-10-20 ideas #109) — 금색 별빛 살 8줄이 크게 뻗고 + 큰 조각 별 + 발밑 충격파 (히트스톱 0.1초와 같이 — BattleFx)
-function hitKO(g) {
-    const R = Math.max(14 * g.s, g.w * 0.6);
+// k = 크기 배 (게임 3:3 0.7)
+function hitKO(g, k = 1) {
+    const R = Math.max(14 * g.s, g.w * 0.6) * k;
     const cols = HIT_GOLD;
     hitLines(g.body.cx, g.body.cy, g.s, R, cols, 8, 0.45);
     hitBloom(g.body.cx, g.body.cy, g.s, R * 0.8, cols, 'star', 0.6, true, { g: 40 });
@@ -17434,6 +17895,10 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
     }
     // 점으로 된 고리 (납작하게 flat)
     function ringDots(ctx, px, s, x, y, r, flat, cols, alpha, th = 1) {
+        // 3:3 용 판 상자 안 — 고리는 그림 한 폭 (반지름) 안 (아트 디렉터 #95 ②)
+        if (typeof moveFrame !== 'undefined' && moveFrame && moveFrame.ringMax) {
+            r = Math.min(r, moveFrame.ringMax);
+        }
         const n = clamp(Math.round((r * TAU) / (s * 2)), 12, 300);
         ctx.globalAlpha = Math.min(1, alpha);
         for (let c = 0; c < cols.length; c++) {
@@ -20251,6 +20716,10 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
     // 진짜 그림 숨기기 — visibility 만으로는 그림이 남아 보일 때가 있어(점검 화면에서 확인) 투명도까지.
     // 장면이 끊겨도(패널이 가려짐) 그림이 사라진 채 남지 않게 끝날 때 타이머로 한 번 더 되돌림
     function hideMon(pokemon, on) {
+        // 3:3 용 판 — 진짜 그림은 그 자리 (꼭두각시 · 잔상은 안 그림 — 쓰는 포켓몬이 사라졌다 튀어나와 쓰러짐처럼 읽히던 것, UX 리뷰어 #95 ②)
+        if (on && typeof moveFrame !== 'undefined' && moveFrame && moveFrame.quiet) {
+            return;
+        }
         const el = pokemon.el;
         ultHide(pokemon, on);
         if (on && el.ninjaOpacity === undefined) {
@@ -22790,11 +23259,18 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         // 광선 — 땅과 나란히, 아래가 땅 위에 오는 높이로 꽃 앞에서 화면 끝까지
         const yb = Math.max(bw, Math.min(my, G - bw * 0.8));
         const bx = me.x + dir * me.w * 0.45; // 광선 시작 — 이상해꽃 앞쪽 (몸을 덮지 않게)
-        const blen = (dir > 0 ? W - bx : bx) + bw;
+        let blen = (dir > 0 ? W - bx : bx) + bw;
         // 빛 폭발 자리 — 앞쪽에서 가장 가까운 애, 없으면 앞쪽 55%
         const q = nearest(u);
         const ahead = q && Math.sign(q.x - me.x) === dir && Math.abs(q.x - me.x) > me.w * 0.6;
         const ix = clamp(ahead ? q.x : me.x + dir * W * 0.55, W * 0.05, W * 0.95);
+        // 3:3 — 광선 축이 대상에 닿는 곳 (빛 폭발 자리) 을 알림 → 판이 대상 가슴으로 기울임 (bridge fxUltAim) · 광선 끝은 대상 몸 뒤 끝 (화면 끝까지 가 옆 상대 몸까지 닿던 것 — 디자인 UX #95 6바퀴 ③)
+        if (typeof fxUltAim === 'function') {
+            fxUltAim(ix, yb);
+        }
+        if (typeof moveFrame !== 'undefined' && moveFrame && ahead) {
+            blen = Math.min(blen, Math.abs(ix - bx) + q.w * 0.35);
+        }
         // 때 — (기 모으기) · 번쩍 · 광선 · 다 닿음 · 가늘어짐 · 빛의 꽃 · 꽃잎 폭풍
         const TC0 = 0.25;
         const TF = 2.3;
@@ -23602,10 +24078,17 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         const bw = clamp(H * 0.16 * (0.9 + 0.2 * P), 16, Math.max(20, me.h * 1.7)); // 물줄기 두 가닥을 합친 굵기
         const yb = Math.max(bw * 0.65, Math.min(cyM, G - bw * 0.45)); // 대포 높이 — 아래 가닥이 땅을 스치며 물보라
         const ybBig = Math.max(bw * 1.1, Math.min(yb, G - bw * 1.05)); // 출력 최대 — 두 배 굵기의 아래가 땅 위에 오게
-        const blenF = (dir > 0 ? W - cF : cF) + bw * 2;
+        let blenF = (dir > 0 ? W - cF : cF) + bw * 2;
         const q = nearest(u);
         const ahead = q && Math.sign(q.x - me.x) === dir && Math.abs(q.x - me.x) > me.w * 0.6;
         const ix = clamp(ahead ? q.x : me.x + dir * W * 0.55, W * 0.05, W * 0.95);
+        // 3:3 — 물줄기 축이 대상에 닿는 곳 (bridge fxUltAim) · 물줄기 끝은 대상 몸 뒤 끝
+        if (typeof fxUltAim === 'function') {
+            fxUltAim(ix, yb);
+        }
+        if (typeof moveFrame !== 'undefined' && moveFrame && ahead) {
+            blenF = Math.min(blenF, Math.abs(ix - cF) + q.w * 0.35);
+        }
         // 때 — (모으기) · 정적 · 임팩트 프레임 · 발사 · 다 닿음 · 출력 최대 · 그침 · 해일
         const TC0 = 0.25;
         const TQ = 2.2;
@@ -23652,6 +24135,43 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             }
         };
 
+        // 3:3 용 판 물줄기 — 칸 띠 4겹 (가장자리 #2466d0 → #5cb8f6 → #c4ecff → 흰 심 2칸) · 위아래 가장자리 1칸 거품 혹 (반원 3칸 · 5칸 간격 · 흐름 따라 밀림) ·
+        // 뒤 (입 쪽) 로 밀려가는 1칸 물방울 고리 3개 (아트 디렉터 #95 9바퀴 ③)
+        const beam33 = (ctx, px, x0, y0, L, T, life) => {
+            const cols = ['#2466d0', '#5cb8f6', '#c4ecff', '#ffffff'];
+            const hs = [T / 2, T * 0.36, T * 0.22, s];
+            const yc = px(y0);
+            const flow = Math.floor(life * 30);
+            ctx.globalAlpha = 1;
+            for (let d = 0; d <= L; d += s) {
+                const x = px(x0 + dir * d);
+                const c = Math.round(d / s);
+                for (let i = 0; i < 4; i++) {
+                    const h = Math.max(s, px(hs[i]));
+                    ctx.fillStyle = cols[i];
+                    ctx.fillRect(x, yc - h, s, 2 * h);
+                }
+                const ph = (((c - flow) % 5) + 5) % 5;
+                if (ph < 3) {
+                    const bump = ph === 1 ? 2 : 1;
+                    const h0 = Math.max(s, px(hs[0]));
+                    ctx.fillStyle = cols[2];
+                    ctx.fillRect(x, yc - h0 - bump * s, s, bump * s);
+                    ctx.fillStyle = cols[1];
+                    ctx.fillRect(x, yc + h0, s, bump * s);
+                }
+            }
+            for (let i = 0; i < 3; i++) {
+                const fr = (((i + 0.5) / 3 - life * 0.6) % 1 + 1) % 1;
+                const rx = px(x0 + dir * fr * L);
+                const ry = yc + (i % 2 ? 1 : -1) * (px(hs[0]) + 3 * s);
+                ctx.fillStyle = cols[2];
+                ctx.fillRect(rx - s, ry - s, 3 * s, s);
+                ctx.fillRect(rx - s, ry + s, 3 * s, s);
+                ctx.fillRect(rx - s, ry, s, s);
+                ctx.fillRect(rx + s, ry, s, s);
+            }
+        };
         // ③ 물줄기 (거북왕 뒤) — 두 가닥이 꼬이다가 출력 최대 때 하나로 합쳐진 거대한 물 광선 · 날아가는 물 머리 · 맞는 자리 물 덩이
         sc.add({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
@@ -23663,18 +24183,28 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             const sx = slideAt(life);
             const mk = mergeAt(life);
             const dy = (ybBig - yb) * mk;
-            for (const [cx, ph] of [[cB, Math.PI], [cF, 0]]) {
+            const jets33 = typeof moveFrame !== 'undefined' && !!moveFrame;
+            for (const [cx, ph] of jets33 ? [] : [[cB, Math.PI], [cF, 0]]) {
                 const L = len + (cx === cB ? Math.abs(cF - cB) : 0);
                 waterJet(ctx, px, s, cx + sx, yb, dir, L, w * 0.62 * (1 + 0.5 * mk), TIDE, life, ph, w * 0.32 * (1 - mk), G, 1, mk > 0 ? { w0: 1 / (1 + 0.5 * mk), L: flareL, dy } : null);
             }
-            if (mk > 0) {
+            if (mk > 0 && !jets33) {
                 const wBig = w * 2 * mk;
                 waterJet(ctx, px, s, cF + sx, yb, dir, len, wBig, TIDE, life, 0, 0, G, 1, { w0: clamp((me.h * 1.1) / wBig, 0.15, 1), L: flareL, dy }); // 합쳐진 거대한 물 광선 — 대포에서 뿜어져 퍼짐
             }
             const half = w * (0.68 + 0.4 * mk);
-            ctx.globalAlpha = 0.7;
+            // 3:3 용 판 — 고리 (세로 눈금) 는 물줄기가 그려진 곳에만 · 반투명 없이 (꼬인 두 가닥 굵기가 자리마다 달라 눈금이 위아래로 튀어나와 떨어져 보이던 것 — 아트 디렉터 #95 6바퀴 ③)
+            const in33 = typeof moveFrame !== 'undefined' && !!moveFrame;
+            if (in33) {
+                // 3:3 은 칸 물줄기 하나로 (두 가닥 · 톱니 가장자리 · 흰 직선 눈금이 번개로 읽히던 것 — 아트 디렉터 #95 9바퀴 ③) — 눈금 없음
+                beam33(ctx, px, cF + sx, yb + dy, len, Math.max(6 * s, w * (1.1 + 0.4 * mk)), life);
+            }
+            ctx.globalAlpha = in33 ? 1 : 0.7;
+            if (in33) {
+                ctx.globalCompositeOperation = 'source-atop';
+            }
             ctx.fillStyle = '#ffffff';
-            const nRing = Math.max(2, Math.round(len / (w * 2)));
+            const nRing = in33 ? 0 : Math.max(2, Math.round(len / (w * 2)));
             for (let k = 0; k < nRing; k++) {
                 const at = ((life * (2.2 + mk) + k / nRing) % 1) * len;
                 if (at < w || (mk > 0 && at < flareL)) {
@@ -23685,6 +24215,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                 const bot = Math.min(G, y0 + half);
                 ctx.fillRect(px(cF + sx + dir * at - s), px(top), 2 * s, Math.max(s, px(bot - top)));
             }
+            ctx.globalCompositeOperation = 'source-over';
             if (life < TH + 0.05) {
                 fireOrb(ctx, px, s, cF + sx + dir * len, yb, w * 0.85, TIDE, life, 1, G, 1, 0, [1, 0.8, 0.6, 0.38], 0.2); // 날아가는 물 머리
             }
@@ -23809,7 +24340,34 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             }
             const dark = clamp(k / 0.25, 0, 1);
             // 합동 줄기 보기 캔버스에 그릴 때는 화면 판 (어둠 · 집중선) 을 뺌 — 앞끝 · 계단으로 잘려 네모가 되던 것 (#80 다시 찍기, ult/bridge.js fxViewDrawing). 합동은 제 어둠이 있음
-            if (typeof fxViewDrawing === 'undefined' || !fxViewDrawing) {
+            // 3:3 용 판 — 앞쪽 줄만 · 가장 가까운 상대 16px 앞 (moveFrame.clearX) 까지 · 물 팔레트 (몸 물색 + 앞끝 1칸 밝은 물 · 회색 없음) — 흰 회색 줄이 상대 몸 위로 지나가던 것 (아트 디렉터 #95 6바퀴 ③)
+            const f33 = typeof moveFrame !== 'undefined' && moveFrame && typeof moveFrame.clearX === 'number' ? moveFrame : null;
+            if (f33 && (typeof fxViewDrawing === 'undefined' || !fxViewDrawing)) {
+                const lim = f33.clearX - f33.x;
+                const body = new Path2D();
+                const tips = new Path2D();
+                for (const r of rays) {
+                    const cs = Math.cos(r.a) * dir;
+                    if (cs < 0.6) {
+                        continue;
+                    }
+                    const head = farR * (0.9 - (((life - TQ) * r.sp * 2.2 + r.ph) % 1) * 0.75);
+                    const inner = Math.max(me.w * 1.4, head);
+                    // x 가 lim 을 넘지 않는 길이까지
+                    const maxL = (Math.abs(lim - focusX) / Math.max(0.01, Math.abs(Math.cos(r.a))));
+                    const tail = Math.min(head + farR * r.len, maxL);
+                    if (tail <= inner + s) {
+                        continue;
+                    }
+                    addLine(body, px, s, [[focusX + Math.cos(r.a) * inner, focusY + Math.sin(r.a) * inner], [focusX + Math.cos(r.a) * tail, focusY + Math.sin(r.a) * tail]], r.w);
+                    tips.rect(px(focusX + Math.cos(r.a) * inner), px(focusY + Math.sin(r.a) * inner), s, s);
+                }
+                ctx.globalAlpha = 1;
+                ctx.fillStyle = '#5cb8f6';
+                ctx.fill(body);
+                ctx.fillStyle = '#c4ecff';
+                ctx.fill(tips);
+            } else if (typeof fxViewDrawing === 'undefined' || !fxViewDrawing) {
                 ctx.globalAlpha = 0.78 * dark;
                 ctx.fillStyle = '#05070c';
                 ctx.fillRect(0, 0, W, H);
@@ -24083,6 +24641,10 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         hideMon(pokemon, true);
         hideUntil(pokemon, ms + 100);
         const aimAng = clamp(Math.atan2(G - me.h * 0.3 - (me.b - me.h * 1.1), Math.abs(ix - cx)), -0.6, 0.15);
+        // 3:3 — 물 구가 떨어지는 곳 (bridge fxUltAim)
+        if (typeof fxUltAim === 'function') {
+            fxUltAim(ix, G - Rb * 0.6);
+        }
         const kickAt = (t) => (t > TS && t < TS + 0.9 ? -dir * s * 10 * Math.sin(Math.min(1, (t - TS) / 0.15) * Math.PI * 0.5) * (1 - clamp((t - TS - 0.3) / 0.6, 0, 1)) : 0);
 
         // 꼭두각시 · 물 구
@@ -24196,7 +24758,8 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         }
         // 팔 대포 연사 — 작은 물탄이 앞쪽 곳곳으로 날아가 작은 물기둥 · 합동에선 뺌 (상대 앞에 물기둥이 피해 1.4 ~ 2초 전에 서서 먼저 맞은 것처럼 보이던 것 — #80 UX)
         const bullets = [];
-        const volley = !(typeof fxJointTop !== 'undefined' && fxJointTop);
+        // 3:3 용 판에서도 뺌 (상대 앞 · 위에 작은 물기둥이 맞기 전에 서던 것 — 아트 디렉터 #95 6바퀴 ③)
+        const volley = !(typeof fxJointTop !== 'undefined' && fxJointTop) && !(typeof moveFrame !== 'undefined' && moveFrame);
         for (let i = 0; i < (volley ? 6 : 0); i++) {
             const f = (i + 0.5) / 6;
             const tx = clamp(me.x + dir * (me.w * 1.5 + (Math.abs(ix - me.x) + W * 0.15) * f) + (hash(i, 91) - 0.5) * W * 0.06, W * 0.04, W * 0.96);
@@ -25649,6 +26212,530 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         pal: { SUN, PINK, VINE, BARK, TIDE, GUNM, MEWP, MEWPK, STARC, BLUE, GLOW, ROCK, ICEC, ZAPC, SPARKW, DARK, BAYER },
     });
 })();
+
+// ===== ult/fx-team33.js =====
+// ── 3:3 용 판 — 합동 한 장면 · 필살기 힘겨루기 (2026-10-22 태현 님 #126 · #127 · #132 — orders #95, 디자인 시안 A) ──
+// 합동: 모이기 (동료 기운이 앞장 입으로 · 입 앞 빛 구슬) → 발사 하나 (앞장 타입 줄기 + 동료 색 나선) → 터짐 하나 (참가자 색 고리) · 큰 효과는 한 번에 하나.
+// 힘겨루기: 두 앞장 입에서 줄기가 무대 가운데서 만나 밀고 밀림 (0.9초 박자로 느리게) → 이긴 쪽 짧은 마무리는 합동 (quick) 이 그림.
+// 모든 점은 포켓몬 그림 점 칸 (k) 에 맞춤 · 무대 위 끝 (--pg-fx-top) 아래 · 번쩍은 맞는 때 한 번 무대만 (흰색 55% 80ms). 게임 다리 (ult/bridge.js) 가 부름
+
+// 타입 → 네 색 (흰 심 · 밝은 · 가운데 · 가장자리)
+function t33Cols(type) {
+    const name = (typeof FX_TYPE_PAL !== 'undefined' && FX_TYPE_PAL[type]) || type || 'normal';
+    const p = sigPal(name);
+    return ['#ffffff', p[1] ?? p[0], p[2] ?? p[1] ?? p[0], p[3] ?? p[p.length - 1]];
+}
+// 그림 점 칸 (k) — 그 포켓몬 그림 배율
+function t33Cell(spec) {
+    const r = (spec.box || spec.el).getBoundingClientRect();
+    return Math.max(1, Math.round(r.width / (spec.size || 32)));
+}
+// 입 · 몸 가운데 (화면 px) — 대상 쪽을 봄
+function t33Mouth(spec, toward) {
+    const A = fxActor(spec);
+    const left = fxFacesLeft(A, fxActor(toward));
+    if (POKEMON_SHAPE[spec.form]) {
+        return sigGeometry(A, left).mouth;
+    }
+    const b = fxBody(A);
+    return { x: b.x + (left ? -b.w * 0.4 : b.w * 0.4), y: b.y - b.h * 0.15 };
+}
+// 몸 — 보이는 몸 상자 (그림 모양 — bridge fxShapeBox) · 없으면 칸 · y = 발 − 키 × 0.55 (가슴 — 칸 기준이라 작은 포켓몬은 머리 위 허공이던 것, 아트 디렉터 #95 4바퀴 ③)
+function t33Body(spec) {
+    const b = typeof fxShapeBox === 'function' ? fxShapeBox(spec) : null;
+    if (b) {
+        return { x: (b.left + b.right) / 2, y: b.bottom - (b.bottom - b.top) * 0.55, top: b.top, bottom: b.bottom, w: b.right - b.left, h: b.bottom - b.top };
+    }
+    const r = (spec.box || spec.el).getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height * 0.55, top: r.top, bottom: r.bottom, w: r.width, h: r.height };
+}
+// 뒤 층 (bridge fxBackCtx — 포켓몬 몸 뒤) · 없으면 그대로
+const t33Back = (ctx) => (typeof fxBackCtx === 'function' ? fxBackCtx(ctx) : ctx);
+// 작은 별 — 8갈래 · 길이 L 칸 · 1칸 (안쪽 반 흰색) — 같이 맞아 쓰러진 상대 (고리 없음)
+function t33Star(ctx, k, cx, cy, L, cols) {
+    const px = (v) => Math.round(v / k) * k;
+    const top = t33Top();
+    for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        for (let j = 1; j < L; j++) {
+            const y = cy + Math.sin(a) * j * k * (i % 2 ? 0.7 : 1);
+            if (y < top) {
+                continue;
+            }
+            ctx.fillStyle = j < L * 0.5 ? '#ffffff' : cols[1];
+            ctx.fillRect(px(cx + Math.cos(a) * j * k * (i % 2 ? 0.7 : 1)), px(y), k, k);
+        }
+    }
+}
+// 먼지 — 2칸 네 점 (발 양옆으로 퍼짐 · step 0 ~ 3) — 맞는 상대 말고 같이 맞은 상대 (고리 대신, 아트 디렉터 #95 4바퀴 ④)
+function t33Dust(ctx, k, cx, foot, step) {
+    const px = (v) => Math.round(v / k) * k;
+    for (const side of [-1, 1]) {
+        for (let j = 0; j < 2; j++) {
+            ctx.fillStyle = j ? '#a88a55' : '#d1b178';
+            ctx.fillRect(px(cx + side * (4 + step * 2 + j * 3) * k), px(foot - (j + (step >> 1)) * k), 2 * k, 2 * k);
+        }
+    }
+}
+const t33Top = () => Math.max(typeof fxTop === 'function' ? fxTop() : 0, parseFloat(document.body.style.getPropertyValue('--pg-fx-top')) || 0);
+const T33_BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+const t33Reduce = () => document.getElementById('pokemon-game')?.classList.contains('pg-reduce-motion') === true;
+
+// 줄기 — p0 (입) → p1 (끝) · 두께 T 칸 · head = 0 ~ 1 (앞끝이 간 만큼) · 열 2칸마다 높이를 칸 단위로 (계단 — 줄이 달라도 기울기는 칸 계단, 아트 fxAimRow)
+// style: fire (6칸마다 위로 눕힌 불꽃 혀) · water (5칸마다 흰 거품 마루) · 그 밖은 반짝 점
+// 1칸 열 · 높이는 1칸 계단 — 겹 (가장자리 → 심) 마다 내려앉는 x 를 엇갈림 (모든 겹이 같은 x 에서 한꺼번에 내려앉아 벽돌 마디로 보이던 것 — 아트 디렉터 #95 9바퀴 ① · 태현 님 대각선) ·
+// edges = [위 가장자리 색, 아래 가장자리 색] — 합동 동료 몫 (줄기 가장자리 1칸 줄, 한 색 심 + 감는 고리)
+const T33_STAGGER = [-0.375, -0.125, 0.125, 0.375];
+function t33Beam(ctx, k, p0, p1, T, head, cols, style, t, edges = null) {
+    const px = (v) => Math.round(v / k) * k;
+    const dir = p1.x >= p0.x ? 1 : -1;
+    const len = Math.abs(p1.x - p0.x);
+    const reach = len * Math.max(0, Math.min(1, head));
+    const half = (T * k) / 2;
+    const layers = [
+        [1, cols[3]],
+        [0.78, cols[2]],
+        [0.5, cols[1]],
+        [0.22, cols[0]],
+    ];
+    const shimmer = Math.floor(t / 0.08) % 2;
+    for (let d = 0; d <= reach; d += k) {
+        const x = px(p0.x + dir * d);
+        const f = len ? d / len : 0;
+        const yf = p0.y + (p1.y - p0.y) * f;
+        const cell = Math.round(d / k);
+        let top0 = 0;
+        let bot0 = 0;
+        layers.forEach(([w, c], li) => {
+            const h = Math.max(k, px(half * 2 * w));
+            const yc = Math.round(yf / k + T33_STAGGER[li]) * k;
+            const top = yc - Math.round(h / 2 / k) * k;
+            ctx.fillStyle = c;
+            ctx.fillRect(x, top, k, h);
+            if (li === 0) {
+                top0 = top;
+                bot0 = top + h;
+            }
+        });
+        // 동료 색 줄은 바깥 짙은 테 한 칸 안쪽 (테 위에 두면 풀밭 초록에 묻히던 것)
+        if (edges) {
+            ctx.fillStyle = edges[0];
+            ctx.fillRect(x, top0 + k, k, k);
+            ctx.fillStyle = edges[1];
+            ctx.fillRect(x, bot0 - 2 * k, k, k);
+        }
+        // 불꽃 혀 — 간격 · 높이를 칸 해시로 들쭉날쭉 (6칸마다 똑같아 톱날 같던 것 — 아트 디렉터 #95 3바퀴 ②)
+        const hh = ((Math.floor(cell / 2) * 2654435761) >>> 0) % 13;
+        if (style === 'fire' && cell % 2 === 0 && hh < 3 && d > 3 * k) {
+            const tall = 2 + ((hh + shimmer) % 4);
+            for (let j = 0; j < tall; j++) {
+                ctx.fillStyle = j < 1 ? cols[1] : j < tall - 1 ? cols[2] : cols[3];
+                ctx.fillRect(px(x - dir * j * k * 0.6), top0 - (j + 1) * k, 2 * k, k);
+            }
+        } else if (style === 'water' && cell % 5 === 0) {
+            // 거품 마루 — 위 가장자리에 붙은 2칸 (떠 있는 흰 네모 점이 아니게 — 아트 디렉터 #95 ④)
+            ctx.fillStyle = cols[1];
+            ctx.fillRect(x, top0 - k, 2 * k, k);
+        }
+    }
+    // 앞끝 — 둥근 머리 (반지름 T/2 + 1 칸)
+    if (head > 0) {
+        const hx = p0.x + dir * reach;
+        const hy = p0.y + (p1.y - p0.y) * (len ? reach / len : 0);
+        t33Disc(ctx, k, hx, hy, Math.round(T / 2) + 1, [cols[3], cols[2], cols[1], cols[0]]);
+    }
+}
+// 칸 원판 — 반지름 R 칸 · 바깥부터 색 (cols 4개 — 비율 1 · 0.75 · 0.5 · 0.25)
+function t33Disc(ctx, k, cx, cy, R, cols) {
+    const px = (v) => Math.round(v / k) * k;
+    const steps = [1, 0.75, 0.5, 0.25];
+    for (let i = 0; i < 4; i++) {
+        const r = Math.max(1, Math.round(R * steps[i]));
+        ctx.fillStyle = cols[i];
+        for (let dy = -r; dy <= r; dy++) {
+            const w = Math.round(Math.sqrt(Math.max(0, r * r - dy * dy)));
+            ctx.fillRect(px(cx) - w * k, px(cy) + dy * k, (2 * w + 1) * k, k);
+        }
+    }
+}
+// 섞인 큰 폭발 (시안 A ⑤ — 아트 디렉터 #95 2바퀴): 8갈래 별 (2칸 · 반지름 12 → 20 → 24칸, 80ms 씩) + 두꺼운 고리 (가운데 45% 빈 · 8조각 두 색 번갈아 · 가로 ×1.4) + 발밑 충격파 호 3조각.
+// 위 끝 (무대) · 아래 끝 (패널) 안으로 줄임 · step = 0 ~ 3 · keep = 바둑판 지우기 (null = 다)
+function t33Burst(ctx, k, cx, cy, foot, step, R, colsA, colsB, keep, edge = 'dot', maxR = Infinity) {
+    const px = (v) => Math.round(v / k) * k;
+    const top = t33Top();
+    const H0 = window.innerHeight;
+    // 반지름 — 무대 위 끝 · 패널 아래 끝 · 옆 포켓몬 (가로 ×1.6 로 닿기 2칸 앞) 안으로 (옆 상대를 덮던 것 — 아트 디렉터 #95 3바퀴 ⑤)
+    const fitR = Math.max(4, Math.min(R, maxR, Math.floor((cy - top) / k) - 1, Math.floor((H0 - 2 - cy) / k)));
+    const ok = (x, y) => y >= top && y < H0 && (!keep || keep(Math.round(x / k), Math.round(y / k)));
+    const put = (x, y, w, h, c) => {
+        if (ok(x, y)) {
+            ctx.fillStyle = c;
+            ctx.fillRect(px(x), px(y), w * k, h * k);
+        }
+    };
+    // 별 — 처음 0.24초 (3걸음)
+    if (step < 3) {
+        const L = Math.min(fitR + 4, [12, 20, 24][step]);
+        for (let i = 0; i < 8; i++) {
+            const a = (i / 8) * Math.PI * 2;
+            for (let j = 2; j < L; j++) {
+                const x = cx + Math.cos(a) * j * k * (i % 2 ? 0.8 : 1.15);
+                const y = cy + Math.sin(a) * j * k * (i % 2 ? 0.8 : 1);
+                put(x, y, 2, 2, j < L * 0.5 ? '#ffffff' : colsA[0]);
+            }
+        }
+    }
+    // 고리 — 얇게 (안쪽 75% 빔 · 두께 최대 2칸) · 가로 ×1.6 · 8조각 두 색 · 4걸음째부터 호 6조각 (40° 칠 · 20° 빔) 으로 끊고 걸음마다 1칸씩 얇아지며 사라짐 · 조각마다 혀
+    // (두께 55% 칠한 도넛이 납작한 벡터 · 구명 튜브처럼 보이던 것 — 아트 디렉터 #95 3바퀴 ①, design-system 265)
+    const Rr = Math.max(4, Math.min(fitR, [6, 11, 16, 20][Math.min(3, step)]));
+    // 호 6조각은 같은 걸음에 2칸 → 없음 (1칸씩 얇아지다 조각 하나가 ^ 처럼 혼자 남던 것 — 아트 디렉터 #95 4바퀴 ⑥)
+    const thick = step <= 3 ? 2 : 0;
+    const arcs = step >= 3;
+    if (thick > 0) {
+        for (let dy = -Rr; dy <= Rr; dy++) {
+            for (let dx = -Math.round(Rr * 1.6); dx <= Math.round(Rr * 1.6); dx++) {
+                const nx = dx / 1.6;
+                const d = Math.sqrt(nx * nx + dy * dy);
+                if (d > Rr || d < Math.max(Rr * 0.75, Rr - thick)) {
+                    continue;
+                }
+                const deg = ((Math.atan2(dy, nx) * 180) / Math.PI + 360) % 360;
+                if (arcs && deg % 60 >= 40) {
+                    continue;
+                }
+                const seg = Math.floor(deg / 45) % 8;
+                const cols = seg % 2 ? colsB : colsA;
+                put(cx + dx * k, cy + dy * k, 1, 1, d > Rr - 1 ? cols[1] : cols[0]);
+            }
+        }
+        // 호 조각마다 혀 (불 = 불꽃 혀 · 풀 = 꽃잎 · 물 = 물방울)
+        if (arcs) {
+            for (let i = 0; i < 6; i++) {
+                const a = ((i * 60 + 20) * Math.PI) / 180;
+                const x = cx + Math.cos(a) * (Rr + 1) * 1.6 * k;
+                const y = cy + Math.sin(a) * (Rr + 1) * k;
+                if (edge === 'fire') {
+                    put(x, y - 2 * k, 1, 2, '#ff7a21');
+                    put(x - k, y - k, 1, 1, '#ffc93c');
+                } else if (edge === 'grass') {
+                    put(x, y, 2, 1, '#ffb3d1');
+                    put(x, y - k, 1, 1, '#ffb3d1');
+                } else if (edge === 'water') {
+                    put(x, y, 1, 2, '#5cb8f6');
+                    put(x, y, 1, 1, '#ffffff');
+                } else {
+                    put(x, y, 1, 1, colsA[0]);
+                }
+            }
+        }
+    }
+    // 발밑 충격파 호 3조각 (가운데 · 양옆) — 고리와 같은 걸음에 없앰 (고리가 걷힌 뒤 발밑 ^ 셋이 0.35초 혼자 남던 것 — 아트 디렉터 #95 6바퀴 ⑥)
+    if (step > 3) {
+        return;
+    }
+    // 고리 가로 폭 안 (옆 발밑 판에 닿던 것 — 아트 디렉터 #95 4바퀴 ⑤)
+    const sw = Math.max(2, Math.min(Math.floor(fitR * 1.6) - 3, 8 + step * 5));
+    for (const side of [-1, 0, 1]) {
+        for (let j = -3; j <= 3; j++) {
+            const x = cx + (side * sw + j) * k;
+            const y = foot - Math.round(Math.cos((j / 3) * Math.PI * 0.5) * 2) * k;
+            put(x, y, 1, 1, colsA[1]);
+        }
+    }
+}
+// 고리 — 가로 타원 (가로 × 1.6) · 두께 2칸 · 8조각 (cols 번갈아) · 가운데 빔 · 조각 끝마다 모양 (fire 불꽃 혀 · grass 꽃잎 · water 물방울)
+function t33Ring(ctx, k, cx, cy, R, cols, edge, keep) {
+    const px = (v) => Math.round(v / k) * k;
+    const n = Math.max(16, Math.round(R * 7));
+    for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2;
+        const seg = Math.floor((i / n) * 8);
+        for (let w = 0; w < 3; w++) {
+            const rr = R - w;
+            const x = cx + Math.cos(a) * rr * 1.6 * k;
+            const y = cy + Math.sin(a) * rr * k;
+            if (keep && !keep(px(x) / k, px(y) / k)) {
+                continue;
+            }
+            ctx.fillStyle = w === 1 ? cols[seg % cols.length][0] : cols[seg % cols.length][1];
+            ctx.fillRect(px(x), px(y), k, k);
+        }
+    }
+    for (let s = 0; s < 8; s++) {
+        const a = ((s + 0.5) / 8) * Math.PI * 2;
+        const x = px(cx + Math.cos(a) * (R + 1) * 1.6 * k);
+        const y = px(cy + Math.sin(a) * (R + 1) * k);
+        if (keep && !keep(x / k, y / k)) {
+            continue;
+        }
+        if (edge === 'fire') {
+            ctx.fillStyle = '#ff7a21';
+            ctx.fillRect(x, y - 2 * k, k, 2 * k);
+            ctx.fillStyle = '#ffc93c';
+            ctx.fillRect(x - k, y - k, k, k);
+        } else if (edge === 'grass') {
+            ctx.fillStyle = '#ffb3d1';
+            ctx.fillRect(x, y, 2 * k, k);
+            ctx.fillRect(x, y - k, k, k);
+        } else if (edge === 'water') {
+            ctx.fillStyle = '#5cb8f6';
+            ctx.fillRect(x, y, k, 2 * k);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(x, y, k, k);
+        } else {
+            ctx.fillStyle = cols[0][1];
+            ctx.fillRect(x, y, k, k);
+        }
+    }
+}
+// 맞는 곳 둘레만 번쩍 (가로 타원 · 반지름 R 칸 · 흰색 a — 무대 전체 흰 막이던 것, UX 리뷰어 #95 ⑥) · 위 끝은 넘지 않음
+// 반투명 대신 바둑판 점 (a = 남길 비율 — 반투명 흰 원판으로 보이던 것, #95 ⑨)
+function t33Flash(ctx, k, cx, cy, R, a) {
+    const top = t33Top();
+    const lvl = Math.round(a * 16);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#ffffff';
+    const x0 = Math.round(cx / k);
+    const y0 = Math.round(cy / k);
+    for (let dy = -R; dy <= R; dy++) {
+        const y = (y0 + dy) * k;
+        if (y < top) {
+            continue;
+        }
+        const w = Math.round(Math.sqrt(Math.max(0, R * R - dy * dy)) * 1.6);
+        for (let dx = -w; dx <= w; dx++) {
+            const cxk = x0 + dx;
+            if (T33_BAYER[(((cxk % 4) + 4) % 4) + ((((y0 + dy) % 4) + 4) % 4) * 4] < lvl) {
+                ctx.fillRect(cxk * k, y, k, k);
+            }
+        }
+    }
+}
+const t33Edge = (type) => (type === 'fire' ? 'fire' : type === 'grass' ? 'grass' : type === 'water' ? 'water' : 'dot');
+// 동료 나선 색 [몸 · 그림자 (같은 색 진하게)] — 금색 (UI 금) · 검은 그림자 쓰지 않음 (아트 디렉터 #95 ④ ⑤)
+const T33_SPIRAL = { fire: ['#ff9f5a', '#a83a1c'], water: ['#5cb8f6', '#2466d0'], grass: ['#7bd04a', '#2f8a2f'], electric: ['#ffe066', '#b08a00'], ice: ['#bff0ff', '#4a9ec4'], psychic: ['#ff8fd0', '#a33a7a'] };
+const t33Spiral2 = (type) => T33_SPIRAL[type] || [t33Cols(type)[2], t33Cols(type)[3]];
+const t33Style = (type) => (type === 'fire' ? 'fire' : type === 'water' ? 'water' : 'plain');
+// 동료 타입들 → 줄기 가장자리 색 [위, 아래] (없으면 null)
+const t33Edges = (types) => (types.length ? [t33Spiral2(types[0])[0], t33Spiral2(types[1] ?? types[0])[0]] : null);
+
+/**
+ * 합동 한 장면 — parts = [{ spec, type }] (첫째 = 앞장) · dst = 맞는 상대 (spec) · quick = 힘겨루기 뒤 짧은 마무리.
+ * 박자 (초): 보통 = 모이기 0.6 ~ 1.3 · 발사 1.3 (0.3초에 뻗음) · 맞음 2.25 · 터짐 ~ 2.9 · 사그라짐 ~ 3.3 / quick = 발사 0.3 · 맞음 0.9 · 사그라짐 ~ 1.9.
+ * 피해는 다리가 맞는 때 타이머 (엔진 jointHitMs · clashJointHitMs 와 같게). 돌려줌 = 끝 (ms)
+ */
+function t33Joint(parts, dst, o = {}) {
+    const lead = parts[0];
+    const k = t33Cell(lead.spec);
+    const quick = !!o.quick;
+    // finish = 힘겨루기 줄기가 이미 뚫고 닿음 (다리가 이어받음) — 구슬 · 줄기 없이 맞음 · 터짐만
+    const finish = !!o.finish;
+    const triple = parts.length >= 3;
+    const T = triple ? 13 : 11;
+    const cL = t33Cols(lead.type);
+    const c2 = t33Cols(parts[1]?.type ?? lead.type);
+    const style = t33Style(lead.type);
+    const edge = t33Edge(parts[1]?.type ?? lead.type);
+    // 맞는 때 = 엔진 박자 (o.hitMs — TIMING.team.jointHitMs · clashJointHitMs) · 발사는 그 0.95초 (quick 0.6초) 앞
+    const tHit = (o.hitMs ?? (quick ? 900 : 2250)) / 1000;
+    const tGather = quick ? 0 : Math.min(0.6, tHit * 0.27);
+    // 줄기는 맞기 0.35초 앞에 뻗음 (0.3초) — 닿고 0.6초 동안 아무 일 없던 것 (UX 리뷰어 #95 ⑧) · 그 앞은 모으기 · 구슬
+    const tFire = Math.max(tGather + 0.1, tHit - 0.35);
+    const tGone = tHit + 0.65;
+    const tEnd = tGone + 0.4;
+    // 고리 6 → 11 → 16 → 20 칸 (셋이면 +4) — 혼자 필살기보다 작아 보이던 것 (아트 디렉터 #95 ⑤)
+    const ringR = triple ? [10, 15, 20, 24] : [6, 11, 16, 20];
+    const reduce = t33Reduce();
+    sigParticle({
+        x: 0, y: 0, s: k, max: tEnd, z: 0,
+        draw: (ctx, p) => {
+            const t = p.life;
+            // 앞 입자가 남긴 투명도를 이어받지 않게 (반짝이가 사그라질 때 줄기 · 고리가 같이 깜빡이던 것 — UX 리뷰어 #95 ③)
+            ctx.globalAlpha = 1;
+            ctx.globalCompositeOperation = 'source-over';
+            // 자리는 장마다 다시 잼 (맞음 밀림 · 쓰러짐 — 줄기 끝이 몸을 따라감)
+            const m = t33Mouth(lead.spec, dst);
+            const tb = t33Body(dst);
+            const tgt = { x: tb.x, y: Math.min(tb.y, tb.bottom - T * k * 0.6) };
+            ctx.imageSmoothingEnabled = false;
+            // 모이기 · 구슬 · 줄기 · 나선 = 포켓몬 뒤 층 (bk) · 터짐 = 위 (ctx)
+            const bk = t33Back(ctx);
+            // ③ 모이기 — 동료 몸 → 앞장 입 (위로 볼록 점선 · 3칸 · 80ms 마다 한 칸) · 입 앞 빛 구슬 3 → 7칸
+            if (!quick && t >= tGather && t < tFire + 0.1) {
+                // 동료 → 앞장 기운 = 동료 색 2칸 점선 (2칸 찍고 1칸 비움 · 80ms 마다 한 칸 흐름) · 앞 층 (앞줄 꽃 뒤에 숨어 동료 몫이 1칸 점 몇 개로만 보이던 것 — 아트 디렉터 #95 9바퀴 ②)
+                parts.slice(1).forEach((q, i) => {
+                    const b = t33Body(q.spec);
+                    const cq = t33Cols(q.type);
+                    const steps = Math.max(6, Math.round(Math.hypot(m.x - b.x, m.y - b.y) / (2 * k)));
+                    const adv = Math.floor((t - tGather) / 0.08);
+                    for (let j = 0; j < steps; j++) {
+                        if ((j - adv + 3000) % 3 === 2) {
+                            continue;
+                        }
+                        const f = j / steps;
+                        const x = b.x + (m.x - b.x) * f;
+                        const y = b.y + (m.y - b.y) * f - Math.sin(f * Math.PI) * (10 + i * 4) * k * 0.6;
+                        ctx.fillStyle = j > steps * 0.8 ? '#ffffff' : cq[1];
+                        ctx.fillRect(Math.round(x / k) * k, Math.round(y / k) * k, 2 * k, 2 * k);
+                    }
+                });
+            }
+            const orbR = quick ? 4 : t < tFire ? Math.min(7, 3 + Math.floor(Math.max(0, t - tGather) / 0.14)) : 4;
+            if (t < tHit + 0.1 && !finish) {
+                // 입 앞 구슬도 앞 층 (앞줄 동료 몸에 반쯤 숨던 것)
+                t33Disc(ctx, k, m.x, m.y, orbR, [cL[3], cL[2], cL[1], cL[0]]);
+                // 바깥 고리 — 동료 색 45° 조각 번갈아
+                if (parts.length > 1) {
+                    const n = Math.max(12, orbR * 7);
+                    for (let i = 0; i < n; i++) {
+                        const a = (i / n) * Math.PI * 2;
+                        const seg = Math.floor((i / n) * 8) % (parts.length - 1);
+                        ctx.fillStyle = t33Cols(parts[1 + seg].type)[2];
+                        ctx.fillRect(Math.round((m.x + Math.cos(a) * (orbR + 1) * k) / k) * k, Math.round((m.y + Math.sin(a) * (orbR + 1) * k) / k) * k, k, k);
+                    }
+                }
+            }
+            // ④ 발사 하나 — 0.3초에 6단으로 뻗음 · 맞을 때까지 머묾 (동작 줄이기면 다 뻗은 모양)
+            if (t >= tFire && t < tHit + 0.12 && !finish) {
+                const head = reduce ? 1 : Math.min(1, Math.floor(((t - tFire) / 0.3) * 6) / 6);
+                // 맞은 뒤 0.12초 — 꼬리 (입 쪽) 부터 2걸음에 걷어 냄 (반투명 0.5 이던 것 — 아트 디렉터 #95 3바퀴 ③)
+                const cut = t > tHit ? Math.min(2, 1 + Math.floor((t - tHit) / 0.06)) / 2 : 0;
+                const from = { x: m.x + (tgt.x - m.x) * cut, y: m.y + (tgt.y - m.y) * cut };
+                // 동료 몫 = 줄기 위 가장자리 (동료 1) · 아래 가장자리 (동료 2 — 둘이면 동료 1) 1칸 줄 (흩뿌린 물결 점이 안 보이던 것 — 아트 디렉터 #95 9바퀴 ②)
+                t33Beam(bk, k, from, tgt, T, head, cL, style, t, t33Edges(parts.slice(1).map((q) => q.type)));
+            }
+            // ⑤ 터짐 하나 — 섞인 큰 폭발 (별 + 두꺼운 고리 + 발밑 충격파 · 앞장 + 두 번째 참가자 색만) · 다른 상대는 발밑 작은 터짐 · 사그라짐은 바둑판 (흰 원판 · 몸 둘레 점 고리이던 것 — 아트 디렉터 #95 2바퀴)
+            if (t >= tHit && t < tEnd) {
+                // 0 ~ 3 = 커짐 (80ms 씩) · 3 = 호 6조각으로 머묾 · tGone 부터 80ms 마다 1칸씩 얇아지며 사라짐 (바둑판 지우기 대신)
+                const step = reduce ? 3 : t < tGone ? Math.min(3, Math.floor((t - tHit) / 0.08)) : 3 + 1 + Math.floor((t - tGone) / 0.08);
+                // 고리 가로 반지름 ≤ 옆 몸 끝 − 2칸 · 세로 (= 가로 ÷ 1.6) 아래 끝 ≤ 발밑 판 − 1칸 (아트 디렉터 #95 4바퀴 ⑤)
+                const nearR = Number.isFinite(o.nearDx) ? Math.floor((o.nearDx - 2 * k) / (1.6 * k)) : Infinity;
+                const floorR = o.floorY ? Math.floor((o.floorY - tgt.y) / k) - 1 : Infinity;
+                t33Burst(ctx, k, tgt.x, tgt.y, tb.bottom - k, step, ringR[3], [cL[1], cL[2]], [c2[1], c2[2]], null, edge, Math.min(nearR, floorR));
+                // 같이 맞은 상대 = 발밑 2칸 먼지만 (고리는 맞는 상대 하나 — 큰 것이 한 장면에 6 ~ 7개이던 것, 아트 디렉터 #95 4바퀴 ④) ·
+                // 그 상대가 쓰러졌으면 맞고 0.15초 뒤 작은 별 두 걸음 (고리 없이 0.16초 — 쓰러진 쪽은 아무 일 없이 회색이 되고 살아남은 쪽에만 터지던 것, 디자인 UX #95 6바퀴 ④)
+                if (step <= 3) {
+                    for (const q of o.others || []) {
+                        const ob = t33Body(q);
+                        t33Dust(ctx, k, ob.x, ob.bottom - 2 * k, step);
+                        const down = !!(q.box && q.box.classList && q.box.classList.contains('pg-team-down'));
+                        const ks = Math.floor((t - tHit - 0.15) / 0.08);
+                        if (down && ks >= 0 && ks < 2) {
+                            t33Star(ctx, k, ob.x, ob.y, [6, 9][ks], cL);
+                        }
+                    }
+                }
+            }
+        },
+    });
+    return Math.round(tEnd * 1000);
+}
+
+/**
+ * 필살기 힘겨루기 (3:3 용 판) — 두 앞장 입에서 줄기가 나와 (0.8초 뒤 · 0.3초에 뻗음) 무대 가운데서 만나 밀고 밀림.
+ * 만나는 곳 = 가운데 + 이길 확률 (live) 만큼 · 0.9초마다 한쪽씩 천천히 (빠른 떨림 없음 — 태현 님). 합류한 포켓몬은 앞장 입으로 기운이 흘러가고 줄기가 2칸씩 굵어짐.
+ * st = { win: 'a' | 'b' | null, joinA, joinB } — 다리가 바꿈. 끝은 다리가 particle 수명을 줄여서
+ */
+function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
+    const k = t33Cell(a);
+    const cA = t33Cols(typeA);
+    const cB = t33Cols(typeB);
+    const sA = t33Style(typeA);
+    const sB = t33Style(typeB);
+    // 줄기가 나가는 때 = 만나는 때 (엔진 ultClashLeadMs) 0.3초 앞 · 수명 = 만남 + 힘겨루기 + 1초 (다리가 결과 · 멈춤에서 끝냄)
+    const t0 = Math.max(0.2, ((o.leadMs ?? 1100) - 300) / 1000);
+    const life = ((o.leadMs ?? 1100) + (o.clashMs ?? 3800)) / 1000 + 1;
+    const reduce = t33Reduce();
+    let push = 0;
+    let goal = 0;
+    let lastBeat = -1;
+    const p = {
+        x: 0, y: 0, s: k, max: life, z: 0,
+        update: (q, dt) => {
+            const t = q.life;
+            const beat = Math.floor((t - t0 - 0.3) / 0.9);
+            if (t > t0 + 0.3 && beat !== lastBeat) {
+                lastBeat = beat;
+                let pr = 0.5;
+                try {
+                    pr = Math.min(1, Math.max(0, Number(live()) || 0.5));
+                } catch (err) {
+                    ultError('team duel live', err);
+                }
+                // 이길 확률만큼 기울고 · 박자마다 반대쪽으로 조금 (밀고 밀림)
+                goal = Math.max(-0.6, Math.min(0.6, (pr - 0.5) * 1.2 + (beat % 2 ? 0.12 : -0.12)));
+            }
+            if (st.win) {
+                goal = st.win === 'a' ? 1 : -1;
+            }
+            // 만나는 곳은 목표로 천천히 (1초에 0.6 — 0.9초마다 한 장면에 42 ~ 68px 순간이동하던 것, UX 리뷰어 #95 ④) · 이기면 1초에 1.2 이상 — 맞기 (st.hitAt) 0.3초 앞에는 진 쪽 입에 닿게
+            // (그 뒤 꼬리부터 걷혀 맞기 0.1초 앞에 다 걷힘 — 아트 디렉터 #95 4바퀴 ④) · 동작 줄이기면 바로
+            const left = st.hitAt ? Math.max(0.05, st.hitAt - 0.3 - t) : 0.6;
+            const rate = st.win ? Math.max(1.2, Math.abs(goal - push) / left) : 0.6;
+            const step = reduce ? 1 : rate * (dt || 0);
+            push += Math.max(-step, Math.min(step, goal - push));
+        },
+        draw: (ctx, q) => {
+            const t = q.life;
+            ctx.globalAlpha = 1;
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.imageSmoothingEnabled = false;
+            const mA = t33Mouth(a, b);
+            const mB = t33Mouth(b, a);
+            // 줄기 · 나선 · 구슬 = 포켓몬 뒤 층 (bk) · 만나는 곳 별 = 위
+            const bk = t33Back(ctx);
+            // 이긴 줄기 걷기 — 맞기 0.2초 앞 반 · 0.15초 앞 4분의 3 (꼬리 = 입 쪽부터)
+            const cut = st.hitAt ? (t < st.hitAt - 0.2 ? 0 : t < st.hitAt - 0.15 ? 0.5 : 0.75) : 0;
+            // 모으기 구슬 (0 ~ 0.8 · VS 띠 동안) · 결과가 나면 진 쪽 구슬은 없음 · 걷기 시작하면 이긴 쪽도
+            const r = Math.min(5, 2 + Math.floor(t / 0.2));
+            if (st.win !== 'b' && !cut) {
+                t33Disc(bk, k, mA.x, mA.y, r, [cA[3], cA[2], cA[1], cA[0]]);
+            }
+            if (st.win !== 'a' && !cut) {
+                t33Disc(bk, k, mB.x, mB.y, r, [cB[3], cB[2], cB[1], cB[0]]);
+            }
+            if (t < t0) {
+                return;
+            }
+            const head = reduce ? 1 : Math.min(1, Math.floor(((t - t0) / 0.3) * 6) / 6);
+            const mid = { x: (mA.x + mB.x) / 2, y: (mA.y + mB.y) / 2 };
+            const span = Math.abs(mB.x - mA.x) / 2;
+            const dirAB = mB.x >= mA.x ? 1 : -1;
+            const meet = { x: mid.x + dirAB * push * span, y: mid.y + (mB.y - mA.y) * (push * 0.5) };
+            const TA = 9 + 2 * (st.joinA || 0);
+            const TB = 9 + 2 * (st.joinB || 0);
+            const fromA = cut ? { x: mA.x + (meet.x - mA.x) * cut, y: mA.y + (meet.y - mA.y) * cut } : mA;
+            const fromB = cut ? { x: mB.x + (meet.x - mB.x) * cut, y: mB.y + (meet.y - mB.y) * cut } : mB;
+            // 합류한 동료 = 그쪽 줄기 가장자리 1칸 줄 (합동과 같은 문법)
+            if (st.win !== 'b') {
+                t33Beam(bk, k, fromA, meet, TA, head, cA, sA, t, t33Edges(st.typesA || []));
+            }
+            if (st.win !== 'a') {
+                t33Beam(bk, k, fromB, meet, TB, head, cB, sB, t, t33Edges(st.typesB || []));
+            }
+            // 만나는 곳 — 별 빛 (두 색 · 0.16초마다 돎) · 동작 줄이기면 멈춘 모양
+            if (head >= 1 && !st.win) {
+                const rot = reduce ? 0 : Math.floor(t / 0.16) % 2;
+                const px = (v) => Math.round(v / k) * k;
+                const R = 6;
+                for (let i = -R; i <= R; i++) {
+                    ctx.fillStyle = Math.abs(i) < 2 ? '#ffffff' : i % 2 ? cA[1] : cB[1];
+                    if (rot) {
+                        ctx.fillRect(px(meet.x + i * k), px(meet.y + i * k), k, k);
+                        ctx.fillRect(px(meet.x + i * k), px(meet.y - i * k), k, k);
+                    } else {
+                        ctx.fillRect(px(meet.x + i * k), px(meet.y), k, k);
+                        ctx.fillRect(px(meet.x), px(meet.y + i * k), k, k);
+                    }
+                }
+                t33Disc(ctx, k, meet.x, meet.y, 3, ['#ffffff', cA[1], '#ffffff', '#ffffff']);
+            }
+        },
+    };
+    sigParticle(p);
+    // sigParticle 은 복사해 넣음 — 실제 입자를 돌려줌 (다리가 수명을 줄이고 · 지우기에서 뺄 때 같은 것을 보게)
+    return moveParticles[moveParticles.length - 1];
+}
 
 // ===== ult/fx-unique.js =====
 // ───── 전용 필살기 — 인기 · 전설 포켓몬 (2026-10-19 태현 님: 모든 포켓몬 필살기를 리자몽 · 거북왕처럼) ─────
@@ -48891,19 +49978,22 @@ function fxActor(spec) {
         _originalSpriteSize: spec.size || 32,
         _size: 'game',
         calculateSpriteWidth: () => box().getBoundingClientRect().width,
+        // 무대 상자 안 (3:3 필살기 판 — moveFrame) 에서는 상자 기준 자리 (왼쪽 = 상자 왼쪽 · 아래 = 상자 아래 끝에서)
         get left() {
-            return base.left + tx;
+            return base.left + tx - (moveFrame ? moveFrame.x : 0);
         },
         get bottom() {
-            return base.bottom + ty;
+            return base.bottom + ty - fxFrameDrop();
         },
-        floor: base.bottom,
+        get floor() {
+            return base.bottom - fxFrameDrop();
+        },
         positionLeft(x) {
-            tx = x - base.left;
+            tx = x + (moveFrame ? moveFrame.x : 0) - base.left;
             apply();
         },
         positionBottom(y) {
-            ty = y - base.bottom;
+            ty = y + fxFrameDrop() - base.bottom;
             apply();
         },
         currentState: fxIdle(!!spec.left),
@@ -48942,12 +50032,478 @@ function fxActor(spec) {
     };
 }
 
+// ── 무대 상자 (3:3 용 필살기 판 — 2026-10-22 태현 님 #122 · orders #95) ──
+// 필살기를 무대 안 작은 상자를 화면으로 알고 그리게 — 상자 안 (moves.js moveFrame) 에서 읽는 그림 자리 (getBoundingClientRect) · 화면 크기 (innerWidth · innerHeight) 를 상자 기준으로.
+// 112개 필살기 코드는 그대로 (패널 크기에 맞춰 그리는 코드라 상자가 작으면 작게 · 상자 끝 = 대상 조금 너머라 화면 끝을 겨누던 것도 대상에 닿음)
+const fxRect0 = Element.prototype.getBoundingClientRect;
+Element.prototype.getBoundingClientRect = function () {
+    const r = fxRect0.call(this);
+    const f = moveFrame;
+    return f ? new DOMRect(r.x - f.x, r.y - f.y, r.width, r.height) : r;
+};
+const fxWinGet = {};
+for (const k of ['innerWidth', 'innerHeight']) {
+    const d = Object.getOwnPropertyDescriptor(window, k);
+    if (d && d.get && d.configurable) {
+        fxWinGet[k] = d.get;
+        Object.defineProperty(window, k, {
+            configurable: true,
+            enumerable: d.enumerable,
+            get() {
+                const f = moveFrame;
+                return f ? (k === 'innerWidth' ? f.W : f.H) : d.get.call(window);
+            },
+            set: d.set ? (v) => d.set.call(window, v) : undefined,
+        });
+    }
+}
+// 3:3 판 상자 안에서 상자 폭 전체를 칠하는 것 (화면 색 입히기 · 땅 빛 띠 · 가로 줄) 은 안 그림 — 화면 전체를 칠하던 그림이 상자 모서리에서 끊겨 반투명 네모 · 무대를 가로지르는 줄로 보여서 (#95 — 태현 님 지적 ⑨)
+const fxFillRect0 = CanvasRenderingContext2D.prototype.fillRect;
+CanvasRenderingContext2D.prototype.fillRect = function (x, y, w, h) {
+    const f = moveFrame;
+    // 상자 그림판에 그릴 때만 (다른 캔버스 — 실루엣 · 그림 캔버스는 그대로, 코드 리뷰어) · 상자 폭 전체 (화면 물들임 · 땅 빛 띠).
+    // 넓이로 거르기 (폭 80% · 높이 30%) 는 뺌 — 보이는 곳은 마스크 모양 (통로 + 대상 둘레) 이 정하고, 그 거르기가 솔라빔 빔 몸통까지 지웠음 (#95 2바퀴)
+    if (f && f.quiet && this === f.ctx && x <= 0 && x + w >= f.W) {
+        return undefined;
+    }
+    return fxFillRect0.call(this, x, y, w, h);
+};
+// 3:3 용 판 상자 안 — 반투명 그림 복사본 (잔상 · 유령 — 쓰는 포켓몬이 반투명하게 겹쳐 보이던 것) · 상자를 거의 다 덮는 큰 그림은 안 그림 (아트 디렉터 #95 ②)
+const fxDrawImage0 = CanvasRenderingContext2D.prototype.drawImage;
+CanvasRenderingContext2D.prototype.drawImage = function (img, ...a) {
+    const f = moveFrame;
+    if (f && f.quiet && this === f.ctx) {
+        if (typeof HTMLImageElement !== 'undefined' && img instanceof HTMLImageElement && (this.globalAlpha < 0.9 || img === f.skipImg)) {
+            return undefined;
+        }
+    }
+    return fxDrawImage0.call(this, img, ...a);
+};
+// 진짜 화면 크기 (상자 밖)
+const fxWinW = () => (fxWinGet.innerWidth ? fxWinGet.innerWidth.call(window) : moveInFrame(null, () => window.innerWidth));
+const fxWinH = () => (fxWinGet.innerHeight ? fxWinGet.innerHeight.call(window) : moveInFrame(null, () => window.innerHeight));
+// 상자 아래 끝 ~ 화면 아래 끝 (px) — 포켓몬 bottom (화면 아래에서 잰 높이) 을 상자 기준으로
+const fxFrameDrop = () => (moveFrame ? fxWinH() - moveFrame.H - moveFrame.y : 0);
+
+// 3:3 용 판 박자 — 큰 순간 (가장 센 번쩍 · 없으면 큰 맞음) 앞 0.6초부터 (자기 둘레 터짐은 0.1초 — 솟는 불길 · 그림 크기를 따르는 큰 기 모으기 구슬이 무대 위 끝에 붙던 것) 보이고 ·
+// 맞은 뒤 1초 · 0.25초에 흐려짐 (엔진 TIMING.team.ultHitMs · ultMs 는 이 박자에 맞춤 — 보는 중엔 연출이 맞힐 때까지 붙잡음) [임시값]
+const FX_STAGE_LEAD_MS = 600;
+// 자기 둘레는 터지는 순간부터 (0 — 기 모으기 덩어리가 한 장면 비치던 것, 240) · 맞은 뒤 0.5초 (되돌아오는 물결 · 남은 돔이 우리 편 위에 0.7 ~ 0.8초 남던 것)
+const FX_STAGE_SELF_LEAD_MS = 0;
+const FX_STAGE_AFTER_MS = 500;
+// 쏘는 필살기 — 빔이 나가는 번쩍 뒤 이만큼 (큰 맞음이 더 이르면 그때) 에 피해 숫자 (빔이 닿는 때 — 닿고 0.6초 뒤 숫자이던 것, UX 리뷰어 #95 ⑧)
+const FX_STAGE_REACH_MS = 350;
+// 끊기 — 바둑판 3걸음 50ms 씩 (솔라빔 점 줄이 0.25초 넘게 남던 것 — 아트 디렉터 #95 4바퀴 ⑦)
+const FX_STAGE_FADE_MS = 150;
+// 앞 감는 동안 — 흔들기 · 맞음 (DOM) · 번쩍은 건너뜀 (감은 장면은 안 보여서 · 맞음은 보이는 때 다시)
+let fxSeeking = false;
+
+/**
+ * 무대 상자 — 쓰는 포켓몬 · 맞을 상대 (범위면 모두) 를 품는 가장 작은 상자 + 양옆 그림 한 폭 · 위는 지도 줄 아래 (--pg-fx-top) 를 안 넘음.
+ * 높이 = 화면 반 (크기 절반 — #122) · 몸이 다 들어가야 하면 그만큼. 왼쪽 · 위는 그림 점 (S) 칸에 맞춤 (반 칸 없음)
+ */
+function fxStageFrame(A, list, self) {
+    const rs = [A, ...list].map((q) => fxRect0.call(q.collision || q.box || q.el)).filter((r) => r.width > 0);
+    const W0 = fxWinW();
+    const H0 = fxWinH();
+    const a = fxRect0.call(A.collision || A.el);
+    const S = Math.max(1, Math.round(a.width / (A._originalSpriteSize || 32)));
+    const top0 = Math.max(fxTop(), parseFloat(document.body.style.getPropertyValue('--pg-fx-top')) || 0);
+    const unit = Math.max(...rs.map((r) => r.width));
+    // 자기 둘레 터짐 = 쓰는 포켓몬 둘레 (그림 4폭) — 상대에게는 기운 줄기로 (상자가 무대 전체가 되어 터짐이 무대를 덮던 것)
+    // 쏘는 필살기 = 쓰는 쪽 한 폭 · 맞는 쪽 0.6폭 너머까지 (상대를 60px 지나 끝나던 것 — UX 리뷰어 #95 ⑦)
+    const toRight = list[0] ? fxRect0.call(list[0].collision || list[0].box || list[0].el).left >= a.left : true;
+    const lo = Math.min(...rs.map((r) => r.left));
+    const hi = Math.max(...rs.map((r) => r.right));
+    const span = self ? [a.left + a.width / 2 - unit * 2, a.left + a.width / 2 + unit * 2] : toRight ? [lo - unit, hi + unit * 0.6] : [lo - unit * 0.6, hi + unit];
+    const x0 = Math.max(0, Math.floor(span[0] / S) * S);
+    const x1 = Math.min(W0, span[1]);
+    const bottom = Math.min(H0, Math.max(...rs.map((r) => r.bottom)) + 2 * S);
+    const need = bottom - Math.min(...rs.map((r) => r.top)) + 4 * S;
+    // 높이 = 몸이 다 들어가는 만큼 · 그 밖은 그림 1.6폭까지 (패널 높이를 따라 커지던 것 — 443 에서 줄기 두께 ×1.9, UX 리뷰어 #95 ⑤)
+    const H = Math.max(S * 8, Math.min(bottom - top0, Math.max(need, Math.min(Math.round(H0 * 0.5), Math.round(unit * 1.6)))));
+    const y = Math.max(0, Math.ceil((bottom - H) / S) * S);
+    // 보이는 곳 (마스크 모양 — moves.js moveFrameMask) — 무대 위 끝 · 화면 아래 끝 안으로 줄인 타원 (아래 끝에서 잘리던 것 — 아트 2바퀴)
+    const fit = (cx, cy, rx, ry) => ({ kind: 'ell', cx, cy, rx, ry: Math.max(S * 4, Math.min(ry, cy - top0, H0 - 2 - cy)) });
+    const ab = { x: a.left + a.width / 2, y: a.top + a.height * 0.55 };
+    let shapes;
+    let stairTo = null;
+    if (self) {
+        // 자기 둘레 — 쓰는 포켓몬 둘레 타원 (가로 1.2폭 · 세로 1폭)
+        shapes = [fit(ab.x, ab.y, unit * 1.2, unit)];
+    } else {
+        // 쏘는 필살기 — 입 → 대상 통로 (굵기 0.66폭) + 대상 둘레 (가로 1폭 · 세로 0.8폭) + 입 앞 (0.45폭)
+        const tb = fxChest(list[0] || A);
+        const mouth = POKEMON_SHAPE[A.label] ? sigGeometry(A, fxFacesLeft(A, list[0] || A)).mouth : ab;
+        // 계단 목표 — 입 x 부터 · 대상 가슴 (1:1 연출이 fxUltAim 으로 맞히는 곳을 알리면 그곳이 여기로)
+        // 계단 = 1칸 (2칸 계단이 두꺼운 빔에서 벽돌 마디로 보이던 것 — 아트 디렉터 #95 9바퀴 ① · design-system 12장 바뀜)
+        stairTo = { x0: mouth.x, ty: tb.y, u: S };
+        // 통로 둘 — 입 → 대상 (겨누는 필살기) · 쓰는 포켓몬 몸 높이 가로 (1:1 에 맞춘 가로 빔은 입 · 등 꽃 등 몸 높이 어디서나 나감 — 솔라빔이 통로를 벗어나 안 보이던 것)
+        // 몸 위쪽 (높이 42% 가운데 · 반지름 0.36폭) — 땅 높이 (되돌아오는 물결 · 바닥 줄) 는 빼고
+        const midY = a.top + a.height * 0.42;
+        shapes = [{ kind: 'seg', x0: mouth.x, y0: mouth.y, x1: tb.x, y1: tb.y, r: unit * 0.33 }, { kind: 'seg', x0: mouth.x, y0: midY, x1: tb.x, y1: midY, r: unit * 0.36 }, fit(tb.x, tb.y, unit, unit * 0.8), fit(mouth.x, mouth.y, unit * 0.45, unit * 0.45)];
+        // 앞 모양 — 대상 둘레 (가로 0.6폭 · 세로 0.7폭) 만 포켓몬 위 캔버스 (맞음 · 터짐이 대상을 덮음) · 나머지는 포켓몬 아래 (moves.js moveFramePut)
+        shapes.push({ ...fit(tb.x, tb.y, unit * 0.6, unit * 0.7), front: true });
+    }
+    // ringMax = 둘레 고리 반지름 상한 (그림 한 폭 — 지름 두 폭) · maskTop = 그리는 곳 위 끝 (무대 위 끝 — 상자 위로 넘는 것은 거기까지 사그라짐, 허공에서 잘리던 것 UX ①)
+    // 자기 둘레 (돔 · 덩굴) 는 다 포켓몬 아래 (allBack) — 쓰는 포켓몬 · 우리 편이 그 앞에
+    return { x: x0, y, W: Math.round(x1 - x0), H: Math.round(bottom - y), S, quiet: true, ringMax: Math.round(unit), maskTop: Math.min(y, Math.ceil(top0 / S) * S), skipImg: A.el, shapes, stairTo, allBack: !!self };
+}
+
+/**
+ * 앞 감기 — run (필살기 본편 시작) 을 무대 상자 안에서 부르고 sec 초를 그리지 않고 지나감: 입자 · 발사기 (moves.js moveSeek) · 0.1초 게임 걸음 (돌진 · 다이브 몸) ·
+ * 그동안 건 타이머 (가상 시계로 돌리고 남은 것은 남은 시간 뒤로) · performance.now 도 감은 만큼 앞당겨 보이게 (발사기 · 장면 시각)
+ */
+function fxSeekRun(g, frame, seekMs, run) {
+    const sec = Math.max(0, seekMs) / 1000;
+    let v = 0;
+    const timers = [];
+    const realSet = window.setTimeout;
+    const animate0 = Element.prototype.animate;
+    // 감는 중에 시작한 몸짓 (el.animate — 흔들기 · 밀림 · 몸 옮기기) — 끝나면 감은 만큼 앞당김 (실제 시간으로 처음부터 돌던 것)
+    const anims = [];
+    const vset = (fn, ms, ...args) => {
+        if (typeof fn !== 'function') {
+            return 0;
+        }
+        const f = moveFrame;
+        timers.push({ due: v + Math.max(0, Number(ms) || 0), fn: () => moveInFrame(f, () => fn(...args)) });
+        return 0;
+    };
+    // 때가 된 타이머를 때 순으로 · 한 번에 500개까지 (0ms 로 자기를 다시 거는 타이머가 끝없이 돌지 않게 — 코드 리뷰어)
+    const fire = () => {
+        for (let n = 0; n < 500; n++) {
+            let i = -1;
+            for (let j = 0; j < timers.length; j++) {
+                if (timers[j].due <= v && (i < 0 || timers[j].due < timers[i].due)) {
+                    i = j;
+                }
+            }
+            if (i < 0) {
+                return;
+            }
+            const t = timers.splice(i, 1)[0];
+            try {
+                t.fn();
+            } catch (err) {
+                ultError('stage seek timer', err);
+            }
+        }
+    };
+    let out;
+    try {
+        fxSeeking = sec > 0;
+        window.setTimeout = vset;
+        Element.prototype.animate = function (...a) {
+            const an = animate0.apply(this, a);
+            anims.push({ an, at: v });
+            return an;
+        };
+        out = moveInFrame(frame, run);
+        if (sec > 0) {
+            let tick = 0;
+            moveSeek(frame, sec, (done) => {
+                v = done * 1000;
+                fire();
+                while (tick + 100 <= v) {
+                    tick += 100;
+                    if (fxGame === g) {
+                        fxGameTick();
+                    }
+                }
+            });
+            v = sec * 1000;
+            fire();
+        }
+    } finally {
+        fxSeeking = false;
+        window.setTimeout = realSet;
+        Element.prototype.animate = animate0;
+    }
+    for (const a of anims) {
+        try {
+            a.an.currentTime = (Number(a.an.currentTime) || 0) + (v - a.at);
+        } catch (err) {
+            ultError('stage seek anim', err);
+        }
+    }
+    // 남은 타이머 — 남은 만큼 뒤에 (그 필살기 번호로)
+    for (const t of timers) {
+        setTimeout(fxGuard(g.gen, t.fn), Math.max(0, t.due - v));
+    }
+    return out;
+}
+
+// 3:3 판 상자 안 어둠 (ultDark · 컷인 어둠) 은 끔 — 상자만 어두워져 네모 판으로 보여서 (흐리게는 화면이 나머지 다섯을 — #121)
+const fxDimLayer0 = ultDimLayer;
+ultDimLayer = function (...a) {
+    if (moveFrame?.quiet) {
+        return undefined;
+    }
+    return fxDimLayer0(...a);
+};
+
+/** 상자 밑에서 새로 쓰러지면 (시작 때 쓰러져 있던 칸은 빼고) 상자 그림을 0.1초마다 옅게 (0.35 까지) — 쓰러짐 (회색 주저앉기) · 쓰러짐 말이 하얀 빔 · 돔 속에 묻히던 것 (#1706 을 모든 필살기로 — 디자인 #92 UX ③) */
+function fxStageSoft(g) {
+    const f = g.frame;
+    if (!f) {
+        return;
+    }
+    if (!f.softAt) {
+        const hit = moveInFrame(f, () => fxGameDown().some((q) => !g.down0.has(q.el) && q.r.right > 0 && q.r.left < f.W && q.r.top < f.H && q.r.bottom > 0));
+        if (hit) {
+            f.softAt = performance.now();
+            // 쓰러지면 0.25초 바둑판으로 끊음 (옅게 남긴 판이 죽은 상대 위에 1초 머물던 것 — 디자인 UX #95 ①)
+            fxStageCut(g);
+        }
+    }
+}
+
+/** 끊기 — 무대 상자 입자를 흐리게 (캔버스 0.25초) 지우고 필살기를 끝냄 (진짜 그림 · 자리를 되돌림) */
+function fxStageCut(g) {
+    // 한 번만 (쓰러짐 · 끝 둘 중 먼저)
+    if (g.cutting) {
+        return;
+    }
+    g.cutting = true;
+    const f = g.frame;
+    // 다른 연출이 이어받았으면 흐리기 없이 상자만 끝냄 (코드 리뷰어 — TS 쪽 부르는 순서에 기대지 않게)
+    if (fxGame !== g) {
+        fxFrameFree(f);
+        return;
+    }
+    // 바둑판 3걸음 (50 → 75 → 100% 지움 · 50ms 씩) — 캔버스 반투명 대신 (아트 디렉터 #95 ② · 4바퀴 ⑦)
+    f.drop = Math.max(f.drop || 0, 8);
+    fxSetTimeout0(() => {
+        f.drop = Math.max(f.drop || 0, 12);
+    }, 50);
+    fxSetTimeout0(() => {
+        f.drop = 16;
+    }, 100);
+    fxSetTimeout0(() => {
+        fxFrameFree(f);
+        if (fxGame === g) {
+            fxGameStop(true);
+        }
+    }, FX_STAGE_FADE_MS);
+}
+/** 상자 끝 — 그 상자 입자 · 발사기를 끝내고 그림판 · 마스크를 비움 (필살기마다 화면 크기 캔버스 둘이 남던 것 — 코드 리뷰어) */
+function fxFrameFree(f) {
+    if (!f) {
+        return;
+    }
+    for (const p of moveParticles) {
+        if (p._f === f) {
+            p.max = p.life;
+        }
+    }
+    for (const e of moveEmitters) {
+        if (e._f === f) {
+            e.until = 0;
+        }
+    }
+    if (f.cv) {
+        f.cv.width = 0;
+        f.cv.height = 0;
+    }
+    f.mask = null;
+    f.maskFront = null;
+    f.maskBack = null;
+    f.cvB = null;
+    f.cv2 = null;
+}
+
+/** 큰 연출 시작 — 남은 작은 연출 (맞음 · 기술 입자) 은 0.1초 안에 끝냄 (하던 맞음 터짐이 큰 연출 위에 계속되던 것 — 아트 디렉터 #95 ③) */
+function fxQuietOthers(keep) {
+    for (const p of moveParticles) {
+        if (!p._f && p !== keep && p.max - p.life > 0.1) {
+            p.max = p.life + 0.1;
+        }
+    }
+}
+/**
+ * 몸 구멍 — 맞는 상대 (hit) 가 아닌 3:3 칸 (쓰는 포켓몬 · 우리 편 · 지나가기만 하는 몸) 의 그림 모양만큼 연출을 지움 (fxPunchHoles — 그릴 때마다).
+ * 줄기 · 물 덩어리 · 모으기 구슬이 몸 위로 지나가던 것 (아트 디렉터 #95 2바퀴 ③ ④ ⑤) — 캔버스가 z 10001 이라 몸을 위로 올릴 수 없어서 (z-index 올리기는 안 들음)
+ */
+function fxLiftBystanders(g, hit) {
+    const els = new Set(hit.filter(Boolean).map((q) => q.collision || q.box || q.el));
+    g.holes = [];
+    for (const el of document.querySelectorAll('#pokemon-game .pg-team-mon')) {
+        if (els.has(el)) {
+            continue;
+        }
+        const img = el.querySelector('.pg-sprite');
+        if (img) {
+            g.holes.push(img);
+        }
+    }
+}
+function fxPunchHoles() {
+    const g = fxGame;
+    if (!g || !g.holes || !g.holes.length || !moveCtx) {
+        return;
+    }
+    fxCutSprites(moveCtx, g.holes);
+}
+/** 그림 모양만큼 지움 (ctx — 화면 크기 캔버스) */
+function fxCutSprites(ctx, imgs) {
+    const dpr = window.devicePixelRatio || 1;
+    ctx.save();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.globalAlpha = 1;
+    ctx.imageSmoothingEnabled = false;
+    for (const img of imgs) {
+        if (!img.isConnected || !img.complete || !img.naturalWidth) {
+            continue;
+        }
+        const r = fxRect0.call(img);
+        if (r.width < 1) {
+            continue;
+        }
+        if (img.classList.contains('pg-face-left')) {
+            ctx.save();
+            ctx.translate(r.left + r.width, r.top);
+            ctx.scale(-1, 1);
+            fxDrawImage0.call(ctx, img, 0, 0, r.width, r.height);
+            ctx.restore();
+        } else {
+            fxDrawImage0.call(ctx, img, r.left, r.top, r.width, r.height);
+        }
+    }
+    ctx.restore();
+}
+/**
+ * 뒤 층 — 3:3 판 (.pg-team) 맨 아래 진짜 캔버스 (포켓몬 · 판 밑). 합동 · 힘겨루기 줄기 · 나선 · 구슬 · 모이는 점선 · 혼자 필살기 판의 대상 둘레 밖은 여기에 —
+ * 포켓몬 몸이 진짜로 줄기 앞에 섬 (BW 트리플 문법, 아트 디렉터 #95 4바퀴 ①). 몸 모양을 지우는 구멍은 GIF 첫 장 모양이라 걷기 그림이 다음 장일 때
+ * 줄기가 몸 테두리 위에 그려지고 몸과 줄기 사이로 바탕이 비치던 것 (디자인 픽셀 #95 6바퀴 ① — drawImage 는 움직이는 그림의 첫 장만 그림). 맞음 · 고리 · 별은 그대로 위 캔버스
+ */
+const fxBack = { cv: null, ctx: null, dirty: false };
+function fxBackCanvas() {
+    if (!fxInGame() || !fxTeamOn()) {
+        return null;
+    }
+    const root = document.querySelector('#pokemon-game .pg-team');
+    if (!root) {
+        return null;
+    }
+    if (!fxBack.cv) {
+        const cv = document.createElement('canvas');
+        cv.className = 'pg-fx-back';
+        cv.style.cssText = 'position:absolute;pointer-events:none;image-rendering:pixelated;margin:0;padding:0;';
+        fxBack.cv = cv;
+        fxBack.ctx = cv.getContext('2d');
+    }
+    const cv = fxBack.cv;
+    // 판 맨 아래 (화면이 다시 그려져 자리가 바뀌면 다시 넣음)
+    if (root.firstChild !== cv) {
+        root.insertBefore(cv, root.firstChild);
+    }
+    const dpr = window.devicePixelRatio || 1;
+    const W = fxWinW();
+    const H = fxWinH();
+    const w = Math.round(W * dpr);
+    const h = Math.round(H * dpr);
+    if (cv.width !== w || cv.height !== h) {
+        cv.width = w;
+        cv.height = h;
+        cv.style.width = `${W}px`;
+        cv.style.height = `${H}px`;
+    }
+    // 화면 0, 0 에 맞춤 (판은 정보줄 위로 올라가 있음)
+    const pr = fxRect0.call(root);
+    const L = `${Math.round(-pr.left)}px`;
+    const T = `${Math.round(-pr.top)}px`;
+    if (cv.style.left !== L) {
+        cv.style.left = L;
+    }
+    if (cv.style.top !== T) {
+        cv.style.top = T;
+    }
+    fxBack.dirty = true;
+    return fxBack.ctx;
+}
+function fxBackCtx(ctx) {
+    const b = fxBackCanvas();
+    if (!b) {
+        return ctx;
+    }
+    b.setTransform(ctx.getTransform());
+    b.globalAlpha = 1;
+    b.globalCompositeOperation = 'source-over';
+    b.imageSmoothingEnabled = false;
+    return b;
+}
+/** 장마다 처음에 비움 (그린 장 다음 장 — 아무것도 안 그리면 빈 채로 남음) */
+function fxBackBegin() {
+    if (fxBack.dirty && fxBack.ctx) {
+        fxBack.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        fxBack.ctx.clearRect(0, 0, fxBack.cv.width, fxBack.cv.height);
+    }
+    fxBack.dirty = false;
+}
+// 혼자 필살기 판 (moves.js moveFramePut) — 대상 둘레 밖을 이 캔버스에
+moveBackHook = () => {
+    const b = fxBackCanvas();
+    if (b) {
+        b.setTransform(1, 0, 0, 1, 0, 0);
+    }
+    return b;
+};
+/** 보이는 몸 상자 (화면 px) — 그림 모양 (POKEMON_SHAPE 왼 · 위 · 오른 · 아래) · 3:3 칸 (FxActor) · 게임 배우 (fxActor) 둘 다 · 모르면 null */
+function fxShapeBox(q) {
+    const form = q && (q.form || q.label);
+    const sh = form && typeof POKEMON_SHAPE !== 'undefined' ? POKEMON_SHAPE[form] : null;
+    const img = q && q.el;
+    if (!sh || !img) {
+        return null;
+    }
+    const r = fxRect0.call(img);
+    if (r.width < 1) {
+        return null;
+    }
+    const size = q.size || q._originalSpriteSize || 32;
+    const s = r.width / size;
+    const [, , , l, t, rr, b] = sh;
+    const left = img.classList.contains('pg-face-left');
+    return { left: left ? r.left + (size - rr) * s : r.left + l * s, right: left ? r.left + (size - l) * s : r.left + rr * s, top: r.top + t * s, bottom: r.top + b * s };
+}
+/** 가슴 (화면 px) — 발 − 키 × 0.55 (합동 줄기 · 3:3 용 판 계단이 겨누는 곳, 아트 디렉터 #95 4바퀴 ③) */
+function fxChest(q) {
+    const b = fxShapeBox(q);
+    if (b) {
+        return { x: (b.left + b.right) / 2, y: b.bottom - (b.bottom - b.top) * 0.55 };
+    }
+    const r = fxRect0.call(q.collision || q.box || q.el);
+    return { x: r.left + r.width / 2, y: r.top + r.height * 0.55 };
+}
+/**
+ * 1:1 연출이 맞히는 곳 (그 판 좌표 — 상자 기준) 을 알림 — 3:3 용 판은 입 뒤는 그대로 · 앞은 열 2칸마다 칸 단위 계단으로 기울여 그곳이 대상 가슴에 오게 (moves.js moveFrameStair).
+ * 1:1 은 같은 땅 높이라 가로로 쏘는데 3:3 은 줄이 달라 솔라빔이 대상 머리 위 허공에서 터지던 것 (아트 디렉터 #95 4바퀴 ③ · 태현 님 ⑧). 스스로 겨누는 필살기 (ultAimTarget) 는 안 기울임
+ */
+function fxUltAim(x, y) {
+    const f = moveFrame;
+    if (!f || !f.stairTo || f.stair || f.aimed) {
+        return;
+    }
+    const s = f.stairTo;
+    const dx = x + f.x - s.x0;
+    if (Math.abs(dx) < 8) {
+        return;
+    }
+    f.stair = { x0: s.x0, dx, dy: s.ty - (y + f.y), u: s.u };
+}
+
 // ── 게임 화면 안에서만 (2026-10-19 아트 디렉터 · 플레이 리뷰어 — 정보줄 · HP 를 덮지 않게, 번쩍 · 흔들기는 순하게) ──
 function fxInGame() {
     return !!document.body && document.body.classList.contains('pokemon-game-on');
 }
 // 연출이 넘지 않는 위 끝 = 게임 정보줄 아래 끝 (px) — 게임 밖이면 0 (game.css 가 캔버스를 여기서 자름)
 function fxTop() {
+    // 무대 상자 안 (3:3 판) = 상자 위 끝 (상자는 이미 지도 줄 아래)
+    if (moveFrame) {
+        return 0;
+    }
     const bar = fxInGame() && document.querySelector('#pokemon-game .pg-infobar');
     return bar ? Math.round(bar.getBoundingClientRect().bottom) : 0;
 }
@@ -48971,12 +50527,15 @@ window.addEventListener('message', (e) => {
 // 3:3 모드 (2026-10-21 orders #17) — 6마리 기술이 겹치니 기술은 패널 번쩍 · 흔들기 · 전체 멈춤 없이 (필살기 · 대결 = fxGame 중에만, 마지막 한 방은 hitStop(ms, true))
 // 3:3 모드는 켠 뒤 1.5초 동안만 (게임이 상태마다 다시 켬) — 3:3 화면이 끄지 못하고 사라져도 1:1 연출이 3:3 모드로 남지 않게 (코드 리뷰어)
 let fxTeamUntil = 0;
+// 실제 시계 — 3:3 용 판 상자 안은 앞 감은 만큼 performance.now 가 앞서 (moves.js moveSkew) 3:3 켜짐을 못 알아보고 1:1 흔들기 · 띄우기가 그대로 나가던 것 (디자인 UX #95 4바퀴 ① · 아트 디렉터 ⑦)
+const fxRealNow = () => performance.now() - (typeof moveSkewNow === 'number' ? moveSkewNow : 0);
 // 지금 연출을 부른 번호 (fxWithTimers 안) — 3:3 에서 번쩍 · 흔들기 · 전체 멈춤은 필살기 · 대결 (fxGame) 이 부른 것만.
 // 필살기 연출이 남아 있는 동안 쏜 기술 (번호 붙은 기술) · 임팩트 (fxMoveGen) 는 그대로 조용히 (코드 리뷰어)
 let fxNowGen = 0;
-const fxTeamQuiet = () => performance.now() < fxTeamUntil && (!fxGame || fxNowGen === fxMoveGen || fxMoveTagged.has(fxNowGen));
+const fxTeamQuiet = () => fxRealNow() < fxTeamUntil && (!fxGame || fxNowGen === fxMoveGen || fxMoveTagged.has(fxNowGen));
 function fxGameShake(amp) {
-    if (fxAway || fxTeamQuiet()) {
+    // 3:3 은 필살기 · 힘겨루기도 흔들지 않음 (흔들면 무대 왼쪽 끝 남색 세로줄이 드러남 — design-system 253, 아트 디렉터 #95 3바퀴 ③)
+    if (fxAway || fxTeamQuiet() || fxSeeking || fxTeamOn()) {
         return;
     }
     const a = Math.max(2, Math.min(3, Math.round(amp)));
@@ -48998,7 +50557,8 @@ screenFlash = function (s, alpha, color, max) {
     if (!fxInGame()) {
         return fxScreenFlash(s, alpha, color, max);
     }
-    if ((fxGame && fxGame.noFlash) || fxTeamQuiet()) {
+    // 3:3 판 상자 안 — 번쩍은 상자만 하얗게 되어 네모로 보여서 끔 (#95 — 무대 흰 줄 · 판 지적)
+    if ((fxGame && fxGame.noFlash) || fxTeamQuiet() || fxSeeking || moveFrame?.quiet) {
         return undefined;
     }
     const now = performance.now();
@@ -49008,10 +50568,38 @@ screenFlash = function (s, alpha, color, max) {
     fxLastFlash = now;
     return fxScreenFlash(s, Math.min(fxFlashCap(), alpha), color, max);
 };
+// 3:3 은 1:1 연출의 흔들기도 끔 — 앞쪽 층 (#foreground) 이 ±1px 흔들려 무대 양 끝에 세로줄이 번갈아 생기던 것 (fxGameShake 는 막았는데 이 길은 그대로, 아트 디렉터 #95 4바퀴 ⑦)
+const fxUltShake0 = ultShake;
+ultShake = function (...args) {
+    if (fxInGame() && fxTeamOn()) {
+        return undefined;
+    }
+    return fxUltShake0(...args);
+};
+// 기술 연출 (moves.js) · 1:1 연출도 앞쪽 층을 직접 흔듦 — 3:3 동안은 그 층의 몸짓을 안 받음 (혼자 필살기 6종 1.2 ~ 1.4초 ±1 ~ 4px · 동작 줄이기에서도, 디자인 UX #95 4바퀴 ①)
+function fxHoldForeground() {
+    const fg = document.getElementById('foreground');
+    if (!fg || fg.fxHeld) {
+        return;
+    }
+    fg.fxHeld = true;
+    fg.animate = function (...args) {
+        if (fxInGame() && fxTeamOn()) {
+            return null;
+        }
+        return Element.prototype.animate.apply(this, args);
+    };
+}
+fxHoldForeground();
 // 필살기가 상대를 처음 맞힌 순간 — 게임은 그때 피해를 넣음 (연출이 다 끝날 때까지 기다리지 않게)
 const fxUltHit = ultHit;
 ultHit = function (q, ...rest) {
-    const out = fxUltHit(q, ...rest);
+    // 앞 감는 동안 맞음 (밀림 · 벌러덩 몸짓) 은 건너뜀 — 감은 장면은 안 보여서 (보이는 맞음 · 피해는 3:3 판 타이머)
+    if (fxSeeking) {
+        return undefined;
+    }
+    // 3:3 은 밀기 · 띄우기 · 떨기 없이 (1:1 벌러덩이 옆 칸 HP 판 위로 밀려 겹쳤다 튀던 것 — 아트 디렉터 #95 4바퀴 ③) · 맞음은 연출 · 숫자로
+    const out = fxTeamOn() ? undefined : fxUltHit(q, ...rest);
     const g = fxGame;
     if (Array.isArray(window.__fxTrace) && g && (q?.pokemon ?? q) === g.B) {
         window.__fxTrace.push(['h', performance.now()]);
@@ -49115,7 +50703,15 @@ function fxWithTimers(gen, run) {
     const tag = fxTagged.has(gen);
     const p0 = moveParticles.length;
     const e0 = moveEmitters.length;
-    window.setTimeout = (fn, ms, ...rest) => prev(typeof fn === 'function' ? fxGuard(gen, fn, performance.now()) : fn, ms, ...rest);
+    window.setTimeout = (fn, ms, ...rest) => {
+        if (typeof fn !== 'function') {
+            return prev(fn, ms, ...rest);
+        }
+        // 무대 상자 안에서 건 타이머는 그 상자 안에서 (3:3 판)
+        const f = moveFrame;
+        const run = f ? (...a) => moveInFrame(f, () => fn(...a)) : fn;
+        return prev(fxGuard(gen, run, performance.now()), ms, ...rest);
+    };
     try {
         return run();
     } finally {
@@ -49147,8 +50743,11 @@ function fxGameTick() {
         return;
     }
     const g = fxGame;
-    // 움직이기 (UltMoveState) 가 거는 타이머도 그 필살기 번호로
-    fxWithTimers(g.gen, () => {
+    // 움직이기 (UltMoveState) 가 거는 타이머도 그 필살기 번호로 · 3:3 판은 무대 상자 안에서 (몸 자리가 상자 기준)
+    if (g.stage) {
+        fxStageSoft(g);
+    }
+    moveInFrame(g.frame || null, () => fxWithTimers(g.gen, () => {
         for (const p of [...(g.many || [g.A]), g.B]) {
             const st = p.currentState;
             try {
@@ -49160,7 +50759,7 @@ function fxGameTick() {
                 p.currentState = fxIdle(false);
             }
         }
-    });
+    }));
 }
 // kill = 중간에 멈춤 (남은 타이머 건너뜀) · 아니면 다 끝나서 정리만
 function fxGameStop(kill) {
@@ -49179,6 +50778,11 @@ function fxGameStop(kill) {
     if (kill) {
         fxKill(g.gen);
         (g.gens || []).forEach((x) => fxKill(x));
+        // 3:3 용 판 — 상자 · 힘겨루기 줄기 (수명이 길어 멈출 때 끝냄 — 코드 리뷰어)
+        fxFrameFree(g.frame);
+        if (g.duel33) {
+            g.duel33.p.max = g.duel33.p.life;
+        }
         // 대결 입자 (수명 FX_DUEL_LONG — fxGame 를 안 봄) 도 끝냄 (합동 마무리가 대결을 이어받을 때 가운데서 계속 밀던 것 — 코드 리뷰어)
         if (g.duel) {
             for (const q of moveParticles) {
@@ -49192,6 +50796,7 @@ function fxGameStop(kill) {
     }
     clearInterval(g.tick);
     clearTimeout(g.done);
+
     (g.gens || []).forEach((x) => {
         fxTagged.delete(x);
         fxFrozen.delete(x);
@@ -49618,7 +51223,87 @@ function fxGap(a, b) {
     return ra && rb ? Math.abs(rb.left + rb.width / 2 - (ra.left + ra.width / 2)) : 0;
 }
 // 3:3 모드 켜짐 (게임이 상태마다 다시 켬)
-const fxTeamOn = () => performance.now() < fxTeamUntil;
+const fxTeamOn = () => fxRealNow() < fxTeamUntil;
+
+
+/**
+ * 3:3 용 필살기 판 (2026-10-22 태현 님 #122 B · #125 기본 — "너무 화려하게 하니까 깨지는 부분이 많아서 절충안"): 1:1 연출의 핵심 장면만 · 크기 절반 · 2초 안팎 · 무대 안 · 대상을 보고 닿음.
+ * 같은 필살기 코드 (112개 그대로) 를 무대 상자 (fxStageFrame) 안에서 컷인 없이 · 큰 순간 (박자표 가장 센 번쩍 · 없으면 큰 맞음) 0.6초 앞까지 앞 감아 (fxSeekRun) ·
+ * 그때부터 0.6초 뒤 피해 · 그 뒤 1.3초 보이고 흐려 끔 (fxStageCut). 자기 둘레 터짐은 번쩍 뒤 기운 줄기가 맞을 상대에게 (#92 그대로). 이름은 화면 3:3 띠 (디자인)
+ */
+function fxStageUlt(A, B, entry, gen, onHit, o) {
+    fxHoldForeground();
+    fxQuietOthers();
+    const tm = fxUltTiming(A.label, entry, fxGap(A, B));
+    // 박자표 번쩍이 쏘는 때가 아닌 필살기 (거북왕 메가런처 = 메가진화 펑 · 하이드로캐논 = 물줄기 뒤 폭발) 는 합동과 같은 발사 · 닿음 시각 (FX_JOINT_FIRE) —
+    // 메가진화 펑에 피해가 들어가고 물 구슬은 0.6초 뒤에 반쯤 날아가다 끊기던 것 (디자인 UX #95 3바퀴 · #1705 · 태현 님 ⑧ 못 닿음)
+    const fire = fxTurtleFire(entry);
+    const self = !fire && !!(tm && tm.self && tm.flash >= 0);
+    // 큰 순간 = 가장 센 번쩍 (자기 둘레 = 대폭발 → 기운 줄기 · 쏘는 필살기 = 빔이 나감) · 번쩍이 없으면 큰 맞음
+    const anchor = fire ? fire[0] : tm ? (tm.flash >= 0 ? tm.flash : tm.main) : -1;
+    const reach = fire ? fire[1] - fire[0] : tm && !self && tm.flash >= 0 ? Math.min(FX_STAGE_REACH_MS, Math.max(0, tm.main - tm.flash)) : 0;
+    const lead = self ? FX_STAGE_SELF_LEAD_MS : FX_STAGE_LEAD_MS;
+    const others = (o.others || []).filter((x) => x && fxWidth(x) >= 1);
+    // 상자 = 쓰는 포켓몬 + 맞는 상대 하나 (범위의 나머지 상대는 맞음 임팩트 — 상자가 무대 전체가 되지 않게) · 자기 둘레는 쓰는 포켓몬 둘레
+    const frame = fxStageFrame(A, [B], !!tm?.self);
+    fxTagged.add(gen);
+    // 엔진 맞는 때가 연출보다 늦으면 (끼어들기 창) 그만큼 기 모으기 (일반 모드 꾹 누르기 고리) 를 먼저 — 맞음 = 엔진 맞는 때 (U2)
+    const hitAt0 = self ? FX_STAGE_SELF_LEAD_MS + FX_FLOW_DELAY_MS + FX_FLOW_MS + 80 : FX_STAGE_LEAD_MS + reach;
+    const wait = Math.max(0, Math.round((o.hitMs ?? 0) - hitAt0));
+    // down0 = 시작할 때 쓰러져 있던 칸 (상자 밑에서 새로 쓰러지면 상자 그림을 옅게 — fxStageSoft)
+    const g = { A, B, gen, tick: setInterval(fxGameTick, 100), onHit: null, hit: false, noFlash: false, frame, stage: true, down0: new Set(fxGameDown().map((q) => q.el)) };
+    fxGame = g;
+    // 맞을 상대 (범위면 모두) 만 연출이 덮음 · 쓰는 포켓몬 · 우리 편 · 지나가는 몸은 구멍
+    fxLiftBystanders(g, [B, ...others]);
+    // 앞길 끝 = 가장 가까운 상대 칸 16px 앞 (화면 px) — 1:1 연출의 집중선 · 모으기 줄이 상대 몸 위로 지나가지 않게 (fx-sky 하이드로캐논 — 아트 디렉터 #95 6바퀴 ③)
+    const aBox = A.collision || A.el;
+    const foeCls = aBox.classList?.contains('pg-team-me') ? 'pg-team-foe' : 'pg-team-me';
+    const toR = fxRect0.call(B.collision || B.el).left >= fxRect0.call(aBox).left;
+    let clear = toR ? Infinity : -Infinity;
+    for (const el of document.querySelectorAll(`#pokemon-game .${foeCls}`)) {
+        const r = fxRect0.call(el);
+        if (r.width >= 1) {
+            clear = toR ? Math.min(clear, r.left) : Math.max(clear, r.right);
+        }
+    }
+    if (Number.isFinite(clear)) {
+        frame.clearX = clear - (toR ? 16 : -16);
+    }
+    let total = 0;
+    try {
+        const seek = anchor >= 0 ? Math.max(0, anchor - lead) : 0;
+        // wait 동안 기 모으기 고리 (useUltimate charge — 끝나면 본편 · 앞 감기)
+        total = fxWithTimers(gen, () => useUltimate(A, entry, { quick: true, charge: wait, noIntro: true, wrap: (run) => fxSeekRun(g, frame, seek, run) })) || 0;
+    } catch (err) {
+        ultError('stage ult', err);
+    }
+    if (!total) {
+        fxGameStop(true);
+        return 0;
+    }
+    const at = (ms) => wait + ms;
+    const hitNow = () => {
+        try {
+            onHit?.();
+        } catch (err) {
+            ultError('game hit', err);
+        }
+    };
+    // 자기 둘레 (블래스트번 등) — 번쩍 0.2초 뒤 기운 줄기가 맞을 상대 모두에게 → 닿을 때 피해 (#92) · 쏘는 필살기는 큰 순간에 피해
+    // 자기 둘레 — 기운 줄기가 닿고 한 장면 뒤 (숫자가 줄기보다 65 ~ 100ms 먼저 뜨던 것, 디자인 UX #95)
+    const hitAt = self ? lead + FX_FLOW_DELAY_MS + FX_FLOW_MS + 80 : lead + reach;
+    if (self) {
+        const targets = [B, ...others];
+        fxSetTimeout0(fxGuard(gen, () => fxSoloFlow(gen, A, targets, fxCols4(ultCols(entry[2] || {}, entry[1])), FX_SPIN_COLS[entry[0]])), at(lead + FX_FLOW_DELAY_MS));
+        // 쓰는 쪽 터짐은 기운이 닿고 0.3초 뒤 바둑판으로 끊음 (돔 · 덩굴이 맞은 뒤에도 우리 편을 덮던 것 — UX 리뷰어 #95 ② · 240)
+        fxSetTimeout0(() => fxStageCut(g), at(hitAt + 300));
+    }
+    fxSetTimeout0(fxGuard(gen, hitNow), at(hitAt));
+    const end = at(hitAt + FX_STAGE_AFTER_MS);
+    fxSetTimeout0(() => fxStageCut(g), end);
+    g.done = fxSetTimeout0(() => fxGame === g && fxGameStop(true), end + FX_STAGE_FADE_MS + 200);
+    return end + FX_STAGE_FADE_MS;
+}
 // ── 3:3 필살기 마무리 — 디자인팀 7판 값 (2026-10-21, 시안 fx7.js · joint7.js 그대로) ──
 // 혼자 · 자기 둘레 필살기 (태현 님 #92): 대폭발 번쩍 → 0.2초 뒤 돔 끝에서 기운 줄기 (위로 볼록) 가 맞을 상대 모두에게 0.45초 → 불꽃 맞음 · 피해 (타이머)
 // 합동 (#89 A): 컷인 → 두 포켓몬 머리 위 빛줄 0.3초 → 각자 필살기 · 쏘는 줄기는 합류점까지만 (구슬로 기다림) → 대폭발 번쩍 0.2초 뒤 기운 셋이 합류점으로 0.3초 →
@@ -49719,6 +51404,7 @@ function fxJointCut(J) {
 // 박자표 번쩍 5045 는 물줄기가 그친 뒤 거대한 물 폭발 (재는 창이 번쩍 판을 안 그려 물줄기가 나가는 하양 · 검정 번쩍을 못 잡음) → 물줄기 나감 TB 2.72초 · 가장 가까운 애에 닿음 TH 2.88초 (#80 진단 ①)
 // 메가런처 (o.turtle · ultorb — runMegaLauncher): 박자표 번쩍 2833 = 메가진화 펑 · main 4172 → 구슬이 피해 0.6 ~ 0.8초 뒤에 닿던 것 → 발사 TS 4.5초 · 맞음 TX 4.9초 (#80 다시 찍기 ③)
 const FX_JOINT_FIRE = { hydro: [2720, 2880], launcher: [4500, 4900] };
+const fxTurtleFire = (e) => (e?.[2]?.turtle ? (e[1] === 'ultbeam' ? FX_JOINT_FIRE.hydro : e[1] === 'ultorb' ? FX_JOINT_FIRE.launcher : null) : null);
 // 자리형 틀 (불기둥 · 땅 · 꽃 · 대폭발) — 박자표가 쏘는 (self 0) 이어도 자기 둘레 길로 (분화가 쏘는 쪽이 되어 줄기 없이 가운데 불기둥이 5초 얼어 있던 것 — #80 다시 찍기 ④)
 const FX_JOINT_AREA = new Set(['ultpillar', 'ultquake', 'ultbloom', 'ultnova']);
 // 줄기 보기 캔버스에 그리는 중 — 화면 전체를 칠하는 입자 (빔이 화면을 물들이는 판 등) 는 이때 안 칠함 (계단 · 앞끝으로 잘려 회색 네모가 되던 것 — #80 진단 ④)
@@ -50154,7 +51840,9 @@ moveTick = function (now) {
         fxStairCanvas(J.top);
     }
     try {
+        fxBackBegin();
         fxMoveTick0(now);
+        fxPunchHoles();
     } finally {
         fxPutBack(held, heldE);
     }
@@ -50829,6 +52517,10 @@ window.pokemonFx = {
         if (tm) {
             fxTagged.add(gen);
         }
+        // 3:3 용 판 (orders #95 · 기본 — 반격기 빼고): 무대 상자 · 큰 순간 0.6초 앞까지 앞 감기 · 맞은 뒤 1.3초 · 흐려짐
+        if (o?.stage && !o?.sub && fxTeamOn()) {
+            return fxStageUlt(A, B, entry, gen, onHit, o);
+        }
         // o.sub = 반격기 — 패널 전체 번쩍 없음 (fxFlashCap)
         fxGame = { A, B, gen, tick: setInterval(fxGameTick, 100), onHit: tm ? null : onHit, hit: false, noFlash: !!o?.sub };
         let total = 0;
@@ -50917,7 +52609,7 @@ window.pokemonFx = {
             fxNoFlashGens.add(pg);
             const self = (!!tm && FX_JOINT_AREA.has(e[1])) || (!!tm?.self && tm.flash >= 0);
             // 박자표 번쩍이 쏘는 때가 아닌 필살기는 따로 적은 때로 (FX_JOINT_FIRE — 거북왕 하이드로캐논 · 메가런처)
-            const fire = e[2]?.turtle ? (e[1] === 'ultbeam' ? FX_JOINT_FIRE.hydro : e[1] === 'ultorb' ? FX_JOINT_FIRE.launcher : null) : null;
+            const fire = fxTurtleFire(e);
             // 맞출 순간 = 대폭발 "크게" (자기 둘레 — 번쩍이 없으면 큰 맞음) · 빔이 나가는 번쩍 (쏘는 — 없으면 큰 맞음 0.26초 전)
             const anchor = fire ? fire[0] : tm ? (self ? (tm.flash >= 0 ? tm.flash : tm.main) : tm.flash >= 0 && tm.flash < tm.main ? tm.flash : Math.max(0, tm.main - 260)) : Math.round(ms * 0.4);
             // 빔이 나가서 상대에 닿기까지 (쏘는 — 꽃 터짐 = 큰 맞음)
@@ -51255,6 +52947,110 @@ window.pokemonFx = {
         }
         return { meetMs: Math.round(meetMs) };
     },
+    /**
+     * 3:3 용 판 합동 한 장면 (2026-10-22 태현 님 #126 · #127 · orders #95 — ult/fx-team33.js t33Joint): 모이기 → 발사 하나 → 터짐 하나 · 약 3초 (quick = 힘겨루기 뒤 짧은 마무리 · 혼자 이겨도).
+     * 맞는 때 (보통 2.25초 · quick 0.9초 — 엔진 jointHitMs · clashJointHitMs) 에 피해. 돌려줌 = 길이 (ms)
+     */
+    teamJoint(srcs, dst, onHit, o = {}) {
+        // 힘겨루기를 이긴 짧은 마무리 — 이긴 줄기를 끊지 않고 이어받음 (줄기가 사라지고 0.4초 멈췄다 새 줄기를 다시 쏘던 것 — 디자인 UX #95 ③ · #86 두 번 나감과 같은 종류)
+        const keep = o.quick && fxGame && fxGame.duel33 ? fxGame.duel33 : null;
+        if (keep) {
+            fxGame.duel33 = null;
+        }
+        fxGameStop(true);
+        const list = (srcs || []).map((s, i) => ({ spec: s, type: o.types?.[i] || 'normal' })).filter((x) => x.spec && fxWidth(x.spec) >= 1);
+        if (!list.length || fxWidth(dst) < 1) {
+            if (keep) {
+                keep.p.max = keep.p.life;
+            }
+            return 0;
+        }
+        // 이어받은 힘겨루기 줄기는 지우지 않음 (줄기가 0.1초 만에 사라지고 0.7초 비던 것)
+        fxQuietOthers(keep?.p);
+        const gen = ++fxGen;
+        const g = { A: fxActor(list[0].spec), B: fxActor(dst), gen, tick: setInterval(fxGameTick, 100), onHit: null, hit: false, duel33: keep };
+        fxGame = g;
+        // 참가자 몸도 구멍 안 냄 — 모으기 기운 · 입 앞 구슬은 앞 층 (아트 디렉터 #95 9바퀴 ②) · 쏘는 줄기는 포켓몬 아래 캔버스라 상관없음
+        fxLiftBystanders(g, [dst, ...(o.others || []), ...list.map((x) => x.spec)]);
+        let total = 0;
+        try {
+            // 고리 크기 — 맞는 상대 가운데에서 가장 가까운 옆 몸 (보이는 몸 상자) 끝까지 가로 거리 · 발밑 판 위 끝 (아트 디렉터 #95 4바퀴 ⑤ — 가운데 거리 ×1.6 이라 옆 몸 · 판에 닿던 것)
+            const tbx = fxShapeBox(dst) || (() => {
+                const r = fxRect0.call(dst.box || dst.el);
+                return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
+            })();
+            const dcx = (tbx.left + tbx.right) / 2;
+            let nearDx = Infinity;
+            for (const q of o.near || []) {
+                const b = q && fxWidth(q) >= 1 ? fxShapeBox(q) : null;
+                // 위아래로 고리 (가장 클 때 반지름 ≈ 몸 높이) 밖이면 안 셈
+                if (!b || b.bottom < tbx.top - (tbx.bottom - tbx.top) || b.top > tbx.bottom + 8) {
+                    continue;
+                }
+                nearDx = Math.min(nearDx, b.left >= dcx ? b.left - dcx : b.right <= dcx ? dcx - b.right : 0);
+            }
+            total = fxWithTimers(gen, () => t33Joint(list, dst, { quick: !!o.quick, hitMs: o.hitMs, finish: !!keep, others: (o.others || []).filter((x) => x && fxWidth(x) >= 1), nearDx, floorY: tbx.bottom + 4 })) || 0;
+            // 이어받은 줄기 — 맞기 0.2초 앞부터 꼬리부터 걷어 0.1초 앞에 다 걷힘 (걷히는 줄기 · 별 · 터짐 · 고리가 한 장면에 겹치던 것 — 아트 디렉터 #95 4바퀴 ④) · 그 전에 진 쪽 입에 닿게 (t33Duel)
+            if (keep) {
+                keep.st.hitAt = keep.p.life + (o.hitMs ?? 900) / 1000;
+                keep.p.max = Math.min(keep.p.max, keep.st.hitAt - 0.1);
+            }
+        } catch (err) {
+            ultError('team joint', err);
+        }
+        if (!total) {
+            fxGameStop(true);
+            return 0;
+        }
+        fxSetTimeout0(fxGuard(gen, () => {
+            try {
+                onHit?.();
+            } catch (err) {
+                ultError('game hit', err);
+            }
+        }), Math.round(o.hitMs ?? (o.quick ? 900 : 2250)));
+        g.done = fxSetTimeout0(() => fxGame === g && fxGameStop(true), total + 200);
+        return total;
+    },
+    /** 3:3 용 판 필살기 힘겨루기 (#132 — t33Duel): 두 앞장 줄기가 무대 가운데서 밀고 밀림 · 결과는 teamDuelWin · 합류는 teamDuelJoin. 돌려줌 = 만나는 때 */
+    teamDuel(a, b, spec, live) {
+        fxGameStop(true);
+        if (fxWidth(a) < 1 || fxWidth(b) < 1) {
+            return null;
+        }
+        fxQuietOthers();
+        const gen = ++fxGen;
+        const g = { A: fxActor(a), B: fxActor(b), gen, tick: setInterval(fxGameTick, 100) };
+        fxGame = g;
+        fxLiftBystanders(g, []);
+        const st = { win: null, joinA: 0, joinB: 0 };
+        let p = null;
+        try {
+            p = fxWithTimers(gen, () => t33Duel(a, b, spec.typeA || 'normal', spec.typeB || 'normal', live, st, spec));
+        } catch (err) {
+            ultError('team duel', err);
+        }
+        if (!p) {
+            fxGameStop(true);
+            return null;
+        }
+        g.duel33 = { p, st };
+        return { meetMs: Math.round(spec.leadMs ?? 1100) };
+    },
+    teamDuelJoin(side, type) {
+        const d = fxGame && fxGame.duel33;
+        if (d) {
+            d.st[side === 'a' ? 'joinA' : 'joinB'] += 1;
+            // 합류한 동료 색 — 그쪽 줄기에 나선 (2:1 · 3:1 에서 동료 몫이 안 보이던 것)
+            (d.st[side === 'a' ? 'typesA' : 'typesB'] ||= []).push(type || 'normal');
+        }
+    },
+    teamDuelWin(who) {
+        const d = fxGame && fxGame.duel33;
+        if (d) {
+            d.st.win = who;
+        }
+    },
     /** 힘대결 승자 — 'a' (나) | 'b' (상대). 이긴 쪽이 뚫고 나가 진 쪽에서 터짐 (0.4초) */
     duelWin(who) {
         const D = fxGame && fxGame.duel && fxGame.duel.D;
@@ -51270,6 +53066,10 @@ window.pokemonFx = {
     },
     /** 힘대결이 끝남 — soft = 터지는 여운까지 그리고 정리 (전투가 이어질 때), 아니면 바로 */
     stopDuel(soft) {
+        // 3:3 힘겨루기 줄기 — 그 입자만 끝냄
+        if (fxGame && fxGame.duel33) {
+            fxGame.duel33.p.max = fxGame.duel33.p.life;
+        }
         if (soft && fxGame && fxGame.duel && fxGame.duel.D.winner) {
             fxDuelSoftStop();
             return;
@@ -51423,7 +53223,8 @@ window.pokemonFx = {
             if (!POKEMON_SHAPE[dst.form] || fxWidth(dst) < 1) {
                 return;
             }
-            fxWithTimers(fxMoveGen, () => hitKO(sigGeometry(fxActor(dst), !!dst.left)));
+            // 3:3 은 0.7배 (보통 공격 장면에 큰 효과가 둘 — 아트 디렉터 #95 3바퀴 ④)
+            fxWithTimers(fxMoveGen, () => hitKO(sigGeometry(fxActor(dst), !!dst.left), fxTeamOn() ? 0.7 : 1));
         });
     },
     /** 완벽 패링 — 쳐내기 (2026-10-20 태현 님 그림 docs: 날아온 줄이 내 포켓몬 앞에서 위쪽 대각선으로 튕겨 나감).
@@ -51822,8 +53623,16 @@ window.pokemonFx = {
         }
     },
     /** 3:3 모드 켜고 끄기 — 켜면 기술은 패널 번쩍 · 흔들기 · 전체 멈춤 없이 (1.5초 뒤 저절로 꺼짐 — 게임이 상태마다 다시 켬) */
+    /** 보이는 몸 위 끝 (화면 px — POKEMON_SHAPE) · 모르면 null (3:3 달려가기 끝자리) */
+    shapeTop(q) {
+        const b = fxShapeBox(q);
+        return b ? b.top : null;
+    },
     team(on) {
-        fxTeamUntil = on ? performance.now() + 1500 : 0;
+        fxTeamUntil = on ? fxRealNow() + 1500 : 0;
+        if (on) {
+            fxHoldForeground();
+        }
     },
     /** 남은 연출을 지움 — 전투가 갑자기 끝나거나 화면이 바뀔 때 */
     clear() {

@@ -32,19 +32,22 @@ function fxActor(spec) {
         _originalSpriteSize: spec.size || 32,
         _size: 'game',
         calculateSpriteWidth: () => box().getBoundingClientRect().width,
+        // 무대 상자 안 (3:3 필살기 판 — moveFrame) 에서는 상자 기준 자리 (왼쪽 = 상자 왼쪽 · 아래 = 상자 아래 끝에서)
         get left() {
-            return base.left + tx;
+            return base.left + tx - (moveFrame ? moveFrame.x : 0);
         },
         get bottom() {
-            return base.bottom + ty;
+            return base.bottom + ty - fxFrameDrop();
         },
-        floor: base.bottom,
+        get floor() {
+            return base.bottom - fxFrameDrop();
+        },
         positionLeft(x) {
-            tx = x - base.left;
+            tx = x + (moveFrame ? moveFrame.x : 0) - base.left;
             apply();
         },
         positionBottom(y) {
-            ty = y - base.bottom;
+            ty = y + fxFrameDrop() - base.bottom;
             apply();
         },
         currentState: fxIdle(!!spec.left),
@@ -83,12 +86,478 @@ function fxActor(spec) {
     };
 }
 
+// ── 무대 상자 (3:3 용 필살기 판 — 2026-10-22 태현 님 #122 · orders #95) ──
+// 필살기를 무대 안 작은 상자를 화면으로 알고 그리게 — 상자 안 (moves.js moveFrame) 에서 읽는 그림 자리 (getBoundingClientRect) · 화면 크기 (innerWidth · innerHeight) 를 상자 기준으로.
+// 112개 필살기 코드는 그대로 (패널 크기에 맞춰 그리는 코드라 상자가 작으면 작게 · 상자 끝 = 대상 조금 너머라 화면 끝을 겨누던 것도 대상에 닿음)
+const fxRect0 = Element.prototype.getBoundingClientRect;
+Element.prototype.getBoundingClientRect = function () {
+    const r = fxRect0.call(this);
+    const f = moveFrame;
+    return f ? new DOMRect(r.x - f.x, r.y - f.y, r.width, r.height) : r;
+};
+const fxWinGet = {};
+for (const k of ['innerWidth', 'innerHeight']) {
+    const d = Object.getOwnPropertyDescriptor(window, k);
+    if (d && d.get && d.configurable) {
+        fxWinGet[k] = d.get;
+        Object.defineProperty(window, k, {
+            configurable: true,
+            enumerable: d.enumerable,
+            get() {
+                const f = moveFrame;
+                return f ? (k === 'innerWidth' ? f.W : f.H) : d.get.call(window);
+            },
+            set: d.set ? (v) => d.set.call(window, v) : undefined,
+        });
+    }
+}
+// 3:3 판 상자 안에서 상자 폭 전체를 칠하는 것 (화면 색 입히기 · 땅 빛 띠 · 가로 줄) 은 안 그림 — 화면 전체를 칠하던 그림이 상자 모서리에서 끊겨 반투명 네모 · 무대를 가로지르는 줄로 보여서 (#95 — 태현 님 지적 ⑨)
+const fxFillRect0 = CanvasRenderingContext2D.prototype.fillRect;
+CanvasRenderingContext2D.prototype.fillRect = function (x, y, w, h) {
+    const f = moveFrame;
+    // 상자 그림판에 그릴 때만 (다른 캔버스 — 실루엣 · 그림 캔버스는 그대로, 코드 리뷰어) · 상자 폭 전체 (화면 물들임 · 땅 빛 띠).
+    // 넓이로 거르기 (폭 80% · 높이 30%) 는 뺌 — 보이는 곳은 마스크 모양 (통로 + 대상 둘레) 이 정하고, 그 거르기가 솔라빔 빔 몸통까지 지웠음 (#95 2바퀴)
+    if (f && f.quiet && this === f.ctx && x <= 0 && x + w >= f.W) {
+        return undefined;
+    }
+    return fxFillRect0.call(this, x, y, w, h);
+};
+// 3:3 용 판 상자 안 — 반투명 그림 복사본 (잔상 · 유령 — 쓰는 포켓몬이 반투명하게 겹쳐 보이던 것) · 상자를 거의 다 덮는 큰 그림은 안 그림 (아트 디렉터 #95 ②)
+const fxDrawImage0 = CanvasRenderingContext2D.prototype.drawImage;
+CanvasRenderingContext2D.prototype.drawImage = function (img, ...a) {
+    const f = moveFrame;
+    if (f && f.quiet && this === f.ctx) {
+        if (typeof HTMLImageElement !== 'undefined' && img instanceof HTMLImageElement && (this.globalAlpha < 0.9 || img === f.skipImg)) {
+            return undefined;
+        }
+    }
+    return fxDrawImage0.call(this, img, ...a);
+};
+// 진짜 화면 크기 (상자 밖)
+const fxWinW = () => (fxWinGet.innerWidth ? fxWinGet.innerWidth.call(window) : moveInFrame(null, () => window.innerWidth));
+const fxWinH = () => (fxWinGet.innerHeight ? fxWinGet.innerHeight.call(window) : moveInFrame(null, () => window.innerHeight));
+// 상자 아래 끝 ~ 화면 아래 끝 (px) — 포켓몬 bottom (화면 아래에서 잰 높이) 을 상자 기준으로
+const fxFrameDrop = () => (moveFrame ? fxWinH() - moveFrame.H - moveFrame.y : 0);
+
+// 3:3 용 판 박자 — 큰 순간 (가장 센 번쩍 · 없으면 큰 맞음) 앞 0.6초부터 (자기 둘레 터짐은 0.1초 — 솟는 불길 · 그림 크기를 따르는 큰 기 모으기 구슬이 무대 위 끝에 붙던 것) 보이고 ·
+// 맞은 뒤 1초 · 0.25초에 흐려짐 (엔진 TIMING.team.ultHitMs · ultMs 는 이 박자에 맞춤 — 보는 중엔 연출이 맞힐 때까지 붙잡음) [임시값]
+const FX_STAGE_LEAD_MS = 600;
+// 자기 둘레는 터지는 순간부터 (0 — 기 모으기 덩어리가 한 장면 비치던 것, 240) · 맞은 뒤 0.5초 (되돌아오는 물결 · 남은 돔이 우리 편 위에 0.7 ~ 0.8초 남던 것)
+const FX_STAGE_SELF_LEAD_MS = 0;
+const FX_STAGE_AFTER_MS = 500;
+// 쏘는 필살기 — 빔이 나가는 번쩍 뒤 이만큼 (큰 맞음이 더 이르면 그때) 에 피해 숫자 (빔이 닿는 때 — 닿고 0.6초 뒤 숫자이던 것, UX 리뷰어 #95 ⑧)
+const FX_STAGE_REACH_MS = 350;
+// 끊기 — 바둑판 3걸음 50ms 씩 (솔라빔 점 줄이 0.25초 넘게 남던 것 — 아트 디렉터 #95 4바퀴 ⑦)
+const FX_STAGE_FADE_MS = 150;
+// 앞 감는 동안 — 흔들기 · 맞음 (DOM) · 번쩍은 건너뜀 (감은 장면은 안 보여서 · 맞음은 보이는 때 다시)
+let fxSeeking = false;
+
+/**
+ * 무대 상자 — 쓰는 포켓몬 · 맞을 상대 (범위면 모두) 를 품는 가장 작은 상자 + 양옆 그림 한 폭 · 위는 지도 줄 아래 (--pg-fx-top) 를 안 넘음.
+ * 높이 = 화면 반 (크기 절반 — #122) · 몸이 다 들어가야 하면 그만큼. 왼쪽 · 위는 그림 점 (S) 칸에 맞춤 (반 칸 없음)
+ */
+function fxStageFrame(A, list, self) {
+    const rs = [A, ...list].map((q) => fxRect0.call(q.collision || q.box || q.el)).filter((r) => r.width > 0);
+    const W0 = fxWinW();
+    const H0 = fxWinH();
+    const a = fxRect0.call(A.collision || A.el);
+    const S = Math.max(1, Math.round(a.width / (A._originalSpriteSize || 32)));
+    const top0 = Math.max(fxTop(), parseFloat(document.body.style.getPropertyValue('--pg-fx-top')) || 0);
+    const unit = Math.max(...rs.map((r) => r.width));
+    // 자기 둘레 터짐 = 쓰는 포켓몬 둘레 (그림 4폭) — 상대에게는 기운 줄기로 (상자가 무대 전체가 되어 터짐이 무대를 덮던 것)
+    // 쏘는 필살기 = 쓰는 쪽 한 폭 · 맞는 쪽 0.6폭 너머까지 (상대를 60px 지나 끝나던 것 — UX 리뷰어 #95 ⑦)
+    const toRight = list[0] ? fxRect0.call(list[0].collision || list[0].box || list[0].el).left >= a.left : true;
+    const lo = Math.min(...rs.map((r) => r.left));
+    const hi = Math.max(...rs.map((r) => r.right));
+    const span = self ? [a.left + a.width / 2 - unit * 2, a.left + a.width / 2 + unit * 2] : toRight ? [lo - unit, hi + unit * 0.6] : [lo - unit * 0.6, hi + unit];
+    const x0 = Math.max(0, Math.floor(span[0] / S) * S);
+    const x1 = Math.min(W0, span[1]);
+    const bottom = Math.min(H0, Math.max(...rs.map((r) => r.bottom)) + 2 * S);
+    const need = bottom - Math.min(...rs.map((r) => r.top)) + 4 * S;
+    // 높이 = 몸이 다 들어가는 만큼 · 그 밖은 그림 1.6폭까지 (패널 높이를 따라 커지던 것 — 443 에서 줄기 두께 ×1.9, UX 리뷰어 #95 ⑤)
+    const H = Math.max(S * 8, Math.min(bottom - top0, Math.max(need, Math.min(Math.round(H0 * 0.5), Math.round(unit * 1.6)))));
+    const y = Math.max(0, Math.ceil((bottom - H) / S) * S);
+    // 보이는 곳 (마스크 모양 — moves.js moveFrameMask) — 무대 위 끝 · 화면 아래 끝 안으로 줄인 타원 (아래 끝에서 잘리던 것 — 아트 2바퀴)
+    const fit = (cx, cy, rx, ry) => ({ kind: 'ell', cx, cy, rx, ry: Math.max(S * 4, Math.min(ry, cy - top0, H0 - 2 - cy)) });
+    const ab = { x: a.left + a.width / 2, y: a.top + a.height * 0.55 };
+    let shapes;
+    let stairTo = null;
+    if (self) {
+        // 자기 둘레 — 쓰는 포켓몬 둘레 타원 (가로 1.2폭 · 세로 1폭)
+        shapes = [fit(ab.x, ab.y, unit * 1.2, unit)];
+    } else {
+        // 쏘는 필살기 — 입 → 대상 통로 (굵기 0.66폭) + 대상 둘레 (가로 1폭 · 세로 0.8폭) + 입 앞 (0.45폭)
+        const tb = fxChest(list[0] || A);
+        const mouth = POKEMON_SHAPE[A.label] ? sigGeometry(A, fxFacesLeft(A, list[0] || A)).mouth : ab;
+        // 계단 목표 — 입 x 부터 · 대상 가슴 (1:1 연출이 fxUltAim 으로 맞히는 곳을 알리면 그곳이 여기로)
+        // 계단 = 1칸 (2칸 계단이 두꺼운 빔에서 벽돌 마디로 보이던 것 — 아트 디렉터 #95 9바퀴 ① · design-system 12장 바뀜)
+        stairTo = { x0: mouth.x, ty: tb.y, u: S };
+        // 통로 둘 — 입 → 대상 (겨누는 필살기) · 쓰는 포켓몬 몸 높이 가로 (1:1 에 맞춘 가로 빔은 입 · 등 꽃 등 몸 높이 어디서나 나감 — 솔라빔이 통로를 벗어나 안 보이던 것)
+        // 몸 위쪽 (높이 42% 가운데 · 반지름 0.36폭) — 땅 높이 (되돌아오는 물결 · 바닥 줄) 는 빼고
+        const midY = a.top + a.height * 0.42;
+        shapes = [{ kind: 'seg', x0: mouth.x, y0: mouth.y, x1: tb.x, y1: tb.y, r: unit * 0.33 }, { kind: 'seg', x0: mouth.x, y0: midY, x1: tb.x, y1: midY, r: unit * 0.36 }, fit(tb.x, tb.y, unit, unit * 0.8), fit(mouth.x, mouth.y, unit * 0.45, unit * 0.45)];
+        // 앞 모양 — 대상 둘레 (가로 0.6폭 · 세로 0.7폭) 만 포켓몬 위 캔버스 (맞음 · 터짐이 대상을 덮음) · 나머지는 포켓몬 아래 (moves.js moveFramePut)
+        shapes.push({ ...fit(tb.x, tb.y, unit * 0.6, unit * 0.7), front: true });
+    }
+    // ringMax = 둘레 고리 반지름 상한 (그림 한 폭 — 지름 두 폭) · maskTop = 그리는 곳 위 끝 (무대 위 끝 — 상자 위로 넘는 것은 거기까지 사그라짐, 허공에서 잘리던 것 UX ①)
+    // 자기 둘레 (돔 · 덩굴) 는 다 포켓몬 아래 (allBack) — 쓰는 포켓몬 · 우리 편이 그 앞에
+    return { x: x0, y, W: Math.round(x1 - x0), H: Math.round(bottom - y), S, quiet: true, ringMax: Math.round(unit), maskTop: Math.min(y, Math.ceil(top0 / S) * S), skipImg: A.el, shapes, stairTo, allBack: !!self };
+}
+
+/**
+ * 앞 감기 — run (필살기 본편 시작) 을 무대 상자 안에서 부르고 sec 초를 그리지 않고 지나감: 입자 · 발사기 (moves.js moveSeek) · 0.1초 게임 걸음 (돌진 · 다이브 몸) ·
+ * 그동안 건 타이머 (가상 시계로 돌리고 남은 것은 남은 시간 뒤로) · performance.now 도 감은 만큼 앞당겨 보이게 (발사기 · 장면 시각)
+ */
+function fxSeekRun(g, frame, seekMs, run) {
+    const sec = Math.max(0, seekMs) / 1000;
+    let v = 0;
+    const timers = [];
+    const realSet = window.setTimeout;
+    const animate0 = Element.prototype.animate;
+    // 감는 중에 시작한 몸짓 (el.animate — 흔들기 · 밀림 · 몸 옮기기) — 끝나면 감은 만큼 앞당김 (실제 시간으로 처음부터 돌던 것)
+    const anims = [];
+    const vset = (fn, ms, ...args) => {
+        if (typeof fn !== 'function') {
+            return 0;
+        }
+        const f = moveFrame;
+        timers.push({ due: v + Math.max(0, Number(ms) || 0), fn: () => moveInFrame(f, () => fn(...args)) });
+        return 0;
+    };
+    // 때가 된 타이머를 때 순으로 · 한 번에 500개까지 (0ms 로 자기를 다시 거는 타이머가 끝없이 돌지 않게 — 코드 리뷰어)
+    const fire = () => {
+        for (let n = 0; n < 500; n++) {
+            let i = -1;
+            for (let j = 0; j < timers.length; j++) {
+                if (timers[j].due <= v && (i < 0 || timers[j].due < timers[i].due)) {
+                    i = j;
+                }
+            }
+            if (i < 0) {
+                return;
+            }
+            const t = timers.splice(i, 1)[0];
+            try {
+                t.fn();
+            } catch (err) {
+                ultError('stage seek timer', err);
+            }
+        }
+    };
+    let out;
+    try {
+        fxSeeking = sec > 0;
+        window.setTimeout = vset;
+        Element.prototype.animate = function (...a) {
+            const an = animate0.apply(this, a);
+            anims.push({ an, at: v });
+            return an;
+        };
+        out = moveInFrame(frame, run);
+        if (sec > 0) {
+            let tick = 0;
+            moveSeek(frame, sec, (done) => {
+                v = done * 1000;
+                fire();
+                while (tick + 100 <= v) {
+                    tick += 100;
+                    if (fxGame === g) {
+                        fxGameTick();
+                    }
+                }
+            });
+            v = sec * 1000;
+            fire();
+        }
+    } finally {
+        fxSeeking = false;
+        window.setTimeout = realSet;
+        Element.prototype.animate = animate0;
+    }
+    for (const a of anims) {
+        try {
+            a.an.currentTime = (Number(a.an.currentTime) || 0) + (v - a.at);
+        } catch (err) {
+            ultError('stage seek anim', err);
+        }
+    }
+    // 남은 타이머 — 남은 만큼 뒤에 (그 필살기 번호로)
+    for (const t of timers) {
+        setTimeout(fxGuard(g.gen, t.fn), Math.max(0, t.due - v));
+    }
+    return out;
+}
+
+// 3:3 판 상자 안 어둠 (ultDark · 컷인 어둠) 은 끔 — 상자만 어두워져 네모 판으로 보여서 (흐리게는 화면이 나머지 다섯을 — #121)
+const fxDimLayer0 = ultDimLayer;
+ultDimLayer = function (...a) {
+    if (moveFrame?.quiet) {
+        return undefined;
+    }
+    return fxDimLayer0(...a);
+};
+
+/** 상자 밑에서 새로 쓰러지면 (시작 때 쓰러져 있던 칸은 빼고) 상자 그림을 0.1초마다 옅게 (0.35 까지) — 쓰러짐 (회색 주저앉기) · 쓰러짐 말이 하얀 빔 · 돔 속에 묻히던 것 (#1706 을 모든 필살기로 — 디자인 #92 UX ③) */
+function fxStageSoft(g) {
+    const f = g.frame;
+    if (!f) {
+        return;
+    }
+    if (!f.softAt) {
+        const hit = moveInFrame(f, () => fxGameDown().some((q) => !g.down0.has(q.el) && q.r.right > 0 && q.r.left < f.W && q.r.top < f.H && q.r.bottom > 0));
+        if (hit) {
+            f.softAt = performance.now();
+            // 쓰러지면 0.25초 바둑판으로 끊음 (옅게 남긴 판이 죽은 상대 위에 1초 머물던 것 — 디자인 UX #95 ①)
+            fxStageCut(g);
+        }
+    }
+}
+
+/** 끊기 — 무대 상자 입자를 흐리게 (캔버스 0.25초) 지우고 필살기를 끝냄 (진짜 그림 · 자리를 되돌림) */
+function fxStageCut(g) {
+    // 한 번만 (쓰러짐 · 끝 둘 중 먼저)
+    if (g.cutting) {
+        return;
+    }
+    g.cutting = true;
+    const f = g.frame;
+    // 다른 연출이 이어받았으면 흐리기 없이 상자만 끝냄 (코드 리뷰어 — TS 쪽 부르는 순서에 기대지 않게)
+    if (fxGame !== g) {
+        fxFrameFree(f);
+        return;
+    }
+    // 바둑판 3걸음 (50 → 75 → 100% 지움 · 50ms 씩) — 캔버스 반투명 대신 (아트 디렉터 #95 ② · 4바퀴 ⑦)
+    f.drop = Math.max(f.drop || 0, 8);
+    fxSetTimeout0(() => {
+        f.drop = Math.max(f.drop || 0, 12);
+    }, 50);
+    fxSetTimeout0(() => {
+        f.drop = 16;
+    }, 100);
+    fxSetTimeout0(() => {
+        fxFrameFree(f);
+        if (fxGame === g) {
+            fxGameStop(true);
+        }
+    }, FX_STAGE_FADE_MS);
+}
+/** 상자 끝 — 그 상자 입자 · 발사기를 끝내고 그림판 · 마스크를 비움 (필살기마다 화면 크기 캔버스 둘이 남던 것 — 코드 리뷰어) */
+function fxFrameFree(f) {
+    if (!f) {
+        return;
+    }
+    for (const p of moveParticles) {
+        if (p._f === f) {
+            p.max = p.life;
+        }
+    }
+    for (const e of moveEmitters) {
+        if (e._f === f) {
+            e.until = 0;
+        }
+    }
+    if (f.cv) {
+        f.cv.width = 0;
+        f.cv.height = 0;
+    }
+    f.mask = null;
+    f.maskFront = null;
+    f.maskBack = null;
+    f.cvB = null;
+    f.cv2 = null;
+}
+
+/** 큰 연출 시작 — 남은 작은 연출 (맞음 · 기술 입자) 은 0.1초 안에 끝냄 (하던 맞음 터짐이 큰 연출 위에 계속되던 것 — 아트 디렉터 #95 ③) */
+function fxQuietOthers(keep) {
+    for (const p of moveParticles) {
+        if (!p._f && p !== keep && p.max - p.life > 0.1) {
+            p.max = p.life + 0.1;
+        }
+    }
+}
+/**
+ * 몸 구멍 — 맞는 상대 (hit) 가 아닌 3:3 칸 (쓰는 포켓몬 · 우리 편 · 지나가기만 하는 몸) 의 그림 모양만큼 연출을 지움 (fxPunchHoles — 그릴 때마다).
+ * 줄기 · 물 덩어리 · 모으기 구슬이 몸 위로 지나가던 것 (아트 디렉터 #95 2바퀴 ③ ④ ⑤) — 캔버스가 z 10001 이라 몸을 위로 올릴 수 없어서 (z-index 올리기는 안 들음)
+ */
+function fxLiftBystanders(g, hit) {
+    const els = new Set(hit.filter(Boolean).map((q) => q.collision || q.box || q.el));
+    g.holes = [];
+    for (const el of document.querySelectorAll('#pokemon-game .pg-team-mon')) {
+        if (els.has(el)) {
+            continue;
+        }
+        const img = el.querySelector('.pg-sprite');
+        if (img) {
+            g.holes.push(img);
+        }
+    }
+}
+function fxPunchHoles() {
+    const g = fxGame;
+    if (!g || !g.holes || !g.holes.length || !moveCtx) {
+        return;
+    }
+    fxCutSprites(moveCtx, g.holes);
+}
+/** 그림 모양만큼 지움 (ctx — 화면 크기 캔버스) */
+function fxCutSprites(ctx, imgs) {
+    const dpr = window.devicePixelRatio || 1;
+    ctx.save();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.globalAlpha = 1;
+    ctx.imageSmoothingEnabled = false;
+    for (const img of imgs) {
+        if (!img.isConnected || !img.complete || !img.naturalWidth) {
+            continue;
+        }
+        const r = fxRect0.call(img);
+        if (r.width < 1) {
+            continue;
+        }
+        if (img.classList.contains('pg-face-left')) {
+            ctx.save();
+            ctx.translate(r.left + r.width, r.top);
+            ctx.scale(-1, 1);
+            fxDrawImage0.call(ctx, img, 0, 0, r.width, r.height);
+            ctx.restore();
+        } else {
+            fxDrawImage0.call(ctx, img, r.left, r.top, r.width, r.height);
+        }
+    }
+    ctx.restore();
+}
+/**
+ * 뒤 층 — 3:3 판 (.pg-team) 맨 아래 진짜 캔버스 (포켓몬 · 판 밑). 합동 · 힘겨루기 줄기 · 나선 · 구슬 · 모이는 점선 · 혼자 필살기 판의 대상 둘레 밖은 여기에 —
+ * 포켓몬 몸이 진짜로 줄기 앞에 섬 (BW 트리플 문법, 아트 디렉터 #95 4바퀴 ①). 몸 모양을 지우는 구멍은 GIF 첫 장 모양이라 걷기 그림이 다음 장일 때
+ * 줄기가 몸 테두리 위에 그려지고 몸과 줄기 사이로 바탕이 비치던 것 (디자인 픽셀 #95 6바퀴 ① — drawImage 는 움직이는 그림의 첫 장만 그림). 맞음 · 고리 · 별은 그대로 위 캔버스
+ */
+const fxBack = { cv: null, ctx: null, dirty: false };
+function fxBackCanvas() {
+    if (!fxInGame() || !fxTeamOn()) {
+        return null;
+    }
+    const root = document.querySelector('#pokemon-game .pg-team');
+    if (!root) {
+        return null;
+    }
+    if (!fxBack.cv) {
+        const cv = document.createElement('canvas');
+        cv.className = 'pg-fx-back';
+        cv.style.cssText = 'position:absolute;pointer-events:none;image-rendering:pixelated;margin:0;padding:0;';
+        fxBack.cv = cv;
+        fxBack.ctx = cv.getContext('2d');
+    }
+    const cv = fxBack.cv;
+    // 판 맨 아래 (화면이 다시 그려져 자리가 바뀌면 다시 넣음)
+    if (root.firstChild !== cv) {
+        root.insertBefore(cv, root.firstChild);
+    }
+    const dpr = window.devicePixelRatio || 1;
+    const W = fxWinW();
+    const H = fxWinH();
+    const w = Math.round(W * dpr);
+    const h = Math.round(H * dpr);
+    if (cv.width !== w || cv.height !== h) {
+        cv.width = w;
+        cv.height = h;
+        cv.style.width = `${W}px`;
+        cv.style.height = `${H}px`;
+    }
+    // 화면 0, 0 에 맞춤 (판은 정보줄 위로 올라가 있음)
+    const pr = fxRect0.call(root);
+    const L = `${Math.round(-pr.left)}px`;
+    const T = `${Math.round(-pr.top)}px`;
+    if (cv.style.left !== L) {
+        cv.style.left = L;
+    }
+    if (cv.style.top !== T) {
+        cv.style.top = T;
+    }
+    fxBack.dirty = true;
+    return fxBack.ctx;
+}
+function fxBackCtx(ctx) {
+    const b = fxBackCanvas();
+    if (!b) {
+        return ctx;
+    }
+    b.setTransform(ctx.getTransform());
+    b.globalAlpha = 1;
+    b.globalCompositeOperation = 'source-over';
+    b.imageSmoothingEnabled = false;
+    return b;
+}
+/** 장마다 처음에 비움 (그린 장 다음 장 — 아무것도 안 그리면 빈 채로 남음) */
+function fxBackBegin() {
+    if (fxBack.dirty && fxBack.ctx) {
+        fxBack.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        fxBack.ctx.clearRect(0, 0, fxBack.cv.width, fxBack.cv.height);
+    }
+    fxBack.dirty = false;
+}
+// 혼자 필살기 판 (moves.js moveFramePut) — 대상 둘레 밖을 이 캔버스에
+moveBackHook = () => {
+    const b = fxBackCanvas();
+    if (b) {
+        b.setTransform(1, 0, 0, 1, 0, 0);
+    }
+    return b;
+};
+/** 보이는 몸 상자 (화면 px) — 그림 모양 (POKEMON_SHAPE 왼 · 위 · 오른 · 아래) · 3:3 칸 (FxActor) · 게임 배우 (fxActor) 둘 다 · 모르면 null */
+function fxShapeBox(q) {
+    const form = q && (q.form || q.label);
+    const sh = form && typeof POKEMON_SHAPE !== 'undefined' ? POKEMON_SHAPE[form] : null;
+    const img = q && q.el;
+    if (!sh || !img) {
+        return null;
+    }
+    const r = fxRect0.call(img);
+    if (r.width < 1) {
+        return null;
+    }
+    const size = q.size || q._originalSpriteSize || 32;
+    const s = r.width / size;
+    const [, , , l, t, rr, b] = sh;
+    const left = img.classList.contains('pg-face-left');
+    return { left: left ? r.left + (size - rr) * s : r.left + l * s, right: left ? r.left + (size - l) * s : r.left + rr * s, top: r.top + t * s, bottom: r.top + b * s };
+}
+/** 가슴 (화면 px) — 발 − 키 × 0.55 (합동 줄기 · 3:3 용 판 계단이 겨누는 곳, 아트 디렉터 #95 4바퀴 ③) */
+function fxChest(q) {
+    const b = fxShapeBox(q);
+    if (b) {
+        return { x: (b.left + b.right) / 2, y: b.bottom - (b.bottom - b.top) * 0.55 };
+    }
+    const r = fxRect0.call(q.collision || q.box || q.el);
+    return { x: r.left + r.width / 2, y: r.top + r.height * 0.55 };
+}
+/**
+ * 1:1 연출이 맞히는 곳 (그 판 좌표 — 상자 기준) 을 알림 — 3:3 용 판은 입 뒤는 그대로 · 앞은 열 2칸마다 칸 단위 계단으로 기울여 그곳이 대상 가슴에 오게 (moves.js moveFrameStair).
+ * 1:1 은 같은 땅 높이라 가로로 쏘는데 3:3 은 줄이 달라 솔라빔이 대상 머리 위 허공에서 터지던 것 (아트 디렉터 #95 4바퀴 ③ · 태현 님 ⑧). 스스로 겨누는 필살기 (ultAimTarget) 는 안 기울임
+ */
+function fxUltAim(x, y) {
+    const f = moveFrame;
+    if (!f || !f.stairTo || f.stair || f.aimed) {
+        return;
+    }
+    const s = f.stairTo;
+    const dx = x + f.x - s.x0;
+    if (Math.abs(dx) < 8) {
+        return;
+    }
+    f.stair = { x0: s.x0, dx, dy: s.ty - (y + f.y), u: s.u };
+}
+
 // ── 게임 화면 안에서만 (2026-10-19 아트 디렉터 · 플레이 리뷰어 — 정보줄 · HP 를 덮지 않게, 번쩍 · 흔들기는 순하게) ──
 function fxInGame() {
     return !!document.body && document.body.classList.contains('pokemon-game-on');
 }
 // 연출이 넘지 않는 위 끝 = 게임 정보줄 아래 끝 (px) — 게임 밖이면 0 (game.css 가 캔버스를 여기서 자름)
 function fxTop() {
+    // 무대 상자 안 (3:3 판) = 상자 위 끝 (상자는 이미 지도 줄 아래)
+    if (moveFrame) {
+        return 0;
+    }
     const bar = fxInGame() && document.querySelector('#pokemon-game .pg-infobar');
     return bar ? Math.round(bar.getBoundingClientRect().bottom) : 0;
 }
@@ -112,12 +581,15 @@ window.addEventListener('message', (e) => {
 // 3:3 모드 (2026-10-21 orders #17) — 6마리 기술이 겹치니 기술은 패널 번쩍 · 흔들기 · 전체 멈춤 없이 (필살기 · 대결 = fxGame 중에만, 마지막 한 방은 hitStop(ms, true))
 // 3:3 모드는 켠 뒤 1.5초 동안만 (게임이 상태마다 다시 켬) — 3:3 화면이 끄지 못하고 사라져도 1:1 연출이 3:3 모드로 남지 않게 (코드 리뷰어)
 let fxTeamUntil = 0;
+// 실제 시계 — 3:3 용 판 상자 안은 앞 감은 만큼 performance.now 가 앞서 (moves.js moveSkew) 3:3 켜짐을 못 알아보고 1:1 흔들기 · 띄우기가 그대로 나가던 것 (디자인 UX #95 4바퀴 ① · 아트 디렉터 ⑦)
+const fxRealNow = () => performance.now() - (typeof moveSkewNow === 'number' ? moveSkewNow : 0);
 // 지금 연출을 부른 번호 (fxWithTimers 안) — 3:3 에서 번쩍 · 흔들기 · 전체 멈춤은 필살기 · 대결 (fxGame) 이 부른 것만.
 // 필살기 연출이 남아 있는 동안 쏜 기술 (번호 붙은 기술) · 임팩트 (fxMoveGen) 는 그대로 조용히 (코드 리뷰어)
 let fxNowGen = 0;
-const fxTeamQuiet = () => performance.now() < fxTeamUntil && (!fxGame || fxNowGen === fxMoveGen || fxMoveTagged.has(fxNowGen));
+const fxTeamQuiet = () => fxRealNow() < fxTeamUntil && (!fxGame || fxNowGen === fxMoveGen || fxMoveTagged.has(fxNowGen));
 function fxGameShake(amp) {
-    if (fxAway || fxTeamQuiet()) {
+    // 3:3 은 필살기 · 힘겨루기도 흔들지 않음 (흔들면 무대 왼쪽 끝 남색 세로줄이 드러남 — design-system 253, 아트 디렉터 #95 3바퀴 ③)
+    if (fxAway || fxTeamQuiet() || fxSeeking || fxTeamOn()) {
         return;
     }
     const a = Math.max(2, Math.min(3, Math.round(amp)));
@@ -139,7 +611,8 @@ screenFlash = function (s, alpha, color, max) {
     if (!fxInGame()) {
         return fxScreenFlash(s, alpha, color, max);
     }
-    if ((fxGame && fxGame.noFlash) || fxTeamQuiet()) {
+    // 3:3 판 상자 안 — 번쩍은 상자만 하얗게 되어 네모로 보여서 끔 (#95 — 무대 흰 줄 · 판 지적)
+    if ((fxGame && fxGame.noFlash) || fxTeamQuiet() || fxSeeking || moveFrame?.quiet) {
         return undefined;
     }
     const now = performance.now();
@@ -149,10 +622,38 @@ screenFlash = function (s, alpha, color, max) {
     fxLastFlash = now;
     return fxScreenFlash(s, Math.min(fxFlashCap(), alpha), color, max);
 };
+// 3:3 은 1:1 연출의 흔들기도 끔 — 앞쪽 층 (#foreground) 이 ±1px 흔들려 무대 양 끝에 세로줄이 번갈아 생기던 것 (fxGameShake 는 막았는데 이 길은 그대로, 아트 디렉터 #95 4바퀴 ⑦)
+const fxUltShake0 = ultShake;
+ultShake = function (...args) {
+    if (fxInGame() && fxTeamOn()) {
+        return undefined;
+    }
+    return fxUltShake0(...args);
+};
+// 기술 연출 (moves.js) · 1:1 연출도 앞쪽 층을 직접 흔듦 — 3:3 동안은 그 층의 몸짓을 안 받음 (혼자 필살기 6종 1.2 ~ 1.4초 ±1 ~ 4px · 동작 줄이기에서도, 디자인 UX #95 4바퀴 ①)
+function fxHoldForeground() {
+    const fg = document.getElementById('foreground');
+    if (!fg || fg.fxHeld) {
+        return;
+    }
+    fg.fxHeld = true;
+    fg.animate = function (...args) {
+        if (fxInGame() && fxTeamOn()) {
+            return null;
+        }
+        return Element.prototype.animate.apply(this, args);
+    };
+}
+fxHoldForeground();
 // 필살기가 상대를 처음 맞힌 순간 — 게임은 그때 피해를 넣음 (연출이 다 끝날 때까지 기다리지 않게)
 const fxUltHit = ultHit;
 ultHit = function (q, ...rest) {
-    const out = fxUltHit(q, ...rest);
+    // 앞 감는 동안 맞음 (밀림 · 벌러덩 몸짓) 은 건너뜀 — 감은 장면은 안 보여서 (보이는 맞음 · 피해는 3:3 판 타이머)
+    if (fxSeeking) {
+        return undefined;
+    }
+    // 3:3 은 밀기 · 띄우기 · 떨기 없이 (1:1 벌러덩이 옆 칸 HP 판 위로 밀려 겹쳤다 튀던 것 — 아트 디렉터 #95 4바퀴 ③) · 맞음은 연출 · 숫자로
+    const out = fxTeamOn() ? undefined : fxUltHit(q, ...rest);
     const g = fxGame;
     if (Array.isArray(window.__fxTrace) && g && (q?.pokemon ?? q) === g.B) {
         window.__fxTrace.push(['h', performance.now()]);
@@ -256,7 +757,15 @@ function fxWithTimers(gen, run) {
     const tag = fxTagged.has(gen);
     const p0 = moveParticles.length;
     const e0 = moveEmitters.length;
-    window.setTimeout = (fn, ms, ...rest) => prev(typeof fn === 'function' ? fxGuard(gen, fn, performance.now()) : fn, ms, ...rest);
+    window.setTimeout = (fn, ms, ...rest) => {
+        if (typeof fn !== 'function') {
+            return prev(fn, ms, ...rest);
+        }
+        // 무대 상자 안에서 건 타이머는 그 상자 안에서 (3:3 판)
+        const f = moveFrame;
+        const run = f ? (...a) => moveInFrame(f, () => fn(...a)) : fn;
+        return prev(fxGuard(gen, run, performance.now()), ms, ...rest);
+    };
     try {
         return run();
     } finally {
@@ -288,8 +797,11 @@ function fxGameTick() {
         return;
     }
     const g = fxGame;
-    // 움직이기 (UltMoveState) 가 거는 타이머도 그 필살기 번호로
-    fxWithTimers(g.gen, () => {
+    // 움직이기 (UltMoveState) 가 거는 타이머도 그 필살기 번호로 · 3:3 판은 무대 상자 안에서 (몸 자리가 상자 기준)
+    if (g.stage) {
+        fxStageSoft(g);
+    }
+    moveInFrame(g.frame || null, () => fxWithTimers(g.gen, () => {
         for (const p of [...(g.many || [g.A]), g.B]) {
             const st = p.currentState;
             try {
@@ -301,7 +813,7 @@ function fxGameTick() {
                 p.currentState = fxIdle(false);
             }
         }
-    });
+    }));
 }
 // kill = 중간에 멈춤 (남은 타이머 건너뜀) · 아니면 다 끝나서 정리만
 function fxGameStop(kill) {
@@ -320,6 +832,11 @@ function fxGameStop(kill) {
     if (kill) {
         fxKill(g.gen);
         (g.gens || []).forEach((x) => fxKill(x));
+        // 3:3 용 판 — 상자 · 힘겨루기 줄기 (수명이 길어 멈출 때 끝냄 — 코드 리뷰어)
+        fxFrameFree(g.frame);
+        if (g.duel33) {
+            g.duel33.p.max = g.duel33.p.life;
+        }
         // 대결 입자 (수명 FX_DUEL_LONG — fxGame 를 안 봄) 도 끝냄 (합동 마무리가 대결을 이어받을 때 가운데서 계속 밀던 것 — 코드 리뷰어)
         if (g.duel) {
             for (const q of moveParticles) {
@@ -333,6 +850,7 @@ function fxGameStop(kill) {
     }
     clearInterval(g.tick);
     clearTimeout(g.done);
+
     (g.gens || []).forEach((x) => {
         fxTagged.delete(x);
         fxFrozen.delete(x);
@@ -759,7 +1277,87 @@ function fxGap(a, b) {
     return ra && rb ? Math.abs(rb.left + rb.width / 2 - (ra.left + ra.width / 2)) : 0;
 }
 // 3:3 모드 켜짐 (게임이 상태마다 다시 켬)
-const fxTeamOn = () => performance.now() < fxTeamUntil;
+const fxTeamOn = () => fxRealNow() < fxTeamUntil;
+
+
+/**
+ * 3:3 용 필살기 판 (2026-10-22 태현 님 #122 B · #125 기본 — "너무 화려하게 하니까 깨지는 부분이 많아서 절충안"): 1:1 연출의 핵심 장면만 · 크기 절반 · 2초 안팎 · 무대 안 · 대상을 보고 닿음.
+ * 같은 필살기 코드 (112개 그대로) 를 무대 상자 (fxStageFrame) 안에서 컷인 없이 · 큰 순간 (박자표 가장 센 번쩍 · 없으면 큰 맞음) 0.6초 앞까지 앞 감아 (fxSeekRun) ·
+ * 그때부터 0.6초 뒤 피해 · 그 뒤 1.3초 보이고 흐려 끔 (fxStageCut). 자기 둘레 터짐은 번쩍 뒤 기운 줄기가 맞을 상대에게 (#92 그대로). 이름은 화면 3:3 띠 (디자인)
+ */
+function fxStageUlt(A, B, entry, gen, onHit, o) {
+    fxHoldForeground();
+    fxQuietOthers();
+    const tm = fxUltTiming(A.label, entry, fxGap(A, B));
+    // 박자표 번쩍이 쏘는 때가 아닌 필살기 (거북왕 메가런처 = 메가진화 펑 · 하이드로캐논 = 물줄기 뒤 폭발) 는 합동과 같은 발사 · 닿음 시각 (FX_JOINT_FIRE) —
+    // 메가진화 펑에 피해가 들어가고 물 구슬은 0.6초 뒤에 반쯤 날아가다 끊기던 것 (디자인 UX #95 3바퀴 · #1705 · 태현 님 ⑧ 못 닿음)
+    const fire = fxTurtleFire(entry);
+    const self = !fire && !!(tm && tm.self && tm.flash >= 0);
+    // 큰 순간 = 가장 센 번쩍 (자기 둘레 = 대폭발 → 기운 줄기 · 쏘는 필살기 = 빔이 나감) · 번쩍이 없으면 큰 맞음
+    const anchor = fire ? fire[0] : tm ? (tm.flash >= 0 ? tm.flash : tm.main) : -1;
+    const reach = fire ? fire[1] - fire[0] : tm && !self && tm.flash >= 0 ? Math.min(FX_STAGE_REACH_MS, Math.max(0, tm.main - tm.flash)) : 0;
+    const lead = self ? FX_STAGE_SELF_LEAD_MS : FX_STAGE_LEAD_MS;
+    const others = (o.others || []).filter((x) => x && fxWidth(x) >= 1);
+    // 상자 = 쓰는 포켓몬 + 맞는 상대 하나 (범위의 나머지 상대는 맞음 임팩트 — 상자가 무대 전체가 되지 않게) · 자기 둘레는 쓰는 포켓몬 둘레
+    const frame = fxStageFrame(A, [B], !!tm?.self);
+    fxTagged.add(gen);
+    // 엔진 맞는 때가 연출보다 늦으면 (끼어들기 창) 그만큼 기 모으기 (일반 모드 꾹 누르기 고리) 를 먼저 — 맞음 = 엔진 맞는 때 (U2)
+    const hitAt0 = self ? FX_STAGE_SELF_LEAD_MS + FX_FLOW_DELAY_MS + FX_FLOW_MS + 80 : FX_STAGE_LEAD_MS + reach;
+    const wait = Math.max(0, Math.round((o.hitMs ?? 0) - hitAt0));
+    // down0 = 시작할 때 쓰러져 있던 칸 (상자 밑에서 새로 쓰러지면 상자 그림을 옅게 — fxStageSoft)
+    const g = { A, B, gen, tick: setInterval(fxGameTick, 100), onHit: null, hit: false, noFlash: false, frame, stage: true, down0: new Set(fxGameDown().map((q) => q.el)) };
+    fxGame = g;
+    // 맞을 상대 (범위면 모두) 만 연출이 덮음 · 쓰는 포켓몬 · 우리 편 · 지나가는 몸은 구멍
+    fxLiftBystanders(g, [B, ...others]);
+    // 앞길 끝 = 가장 가까운 상대 칸 16px 앞 (화면 px) — 1:1 연출의 집중선 · 모으기 줄이 상대 몸 위로 지나가지 않게 (fx-sky 하이드로캐논 — 아트 디렉터 #95 6바퀴 ③)
+    const aBox = A.collision || A.el;
+    const foeCls = aBox.classList?.contains('pg-team-me') ? 'pg-team-foe' : 'pg-team-me';
+    const toR = fxRect0.call(B.collision || B.el).left >= fxRect0.call(aBox).left;
+    let clear = toR ? Infinity : -Infinity;
+    for (const el of document.querySelectorAll(`#pokemon-game .${foeCls}`)) {
+        const r = fxRect0.call(el);
+        if (r.width >= 1) {
+            clear = toR ? Math.min(clear, r.left) : Math.max(clear, r.right);
+        }
+    }
+    if (Number.isFinite(clear)) {
+        frame.clearX = clear - (toR ? 16 : -16);
+    }
+    let total = 0;
+    try {
+        const seek = anchor >= 0 ? Math.max(0, anchor - lead) : 0;
+        // wait 동안 기 모으기 고리 (useUltimate charge — 끝나면 본편 · 앞 감기)
+        total = fxWithTimers(gen, () => useUltimate(A, entry, { quick: true, charge: wait, noIntro: true, wrap: (run) => fxSeekRun(g, frame, seek, run) })) || 0;
+    } catch (err) {
+        ultError('stage ult', err);
+    }
+    if (!total) {
+        fxGameStop(true);
+        return 0;
+    }
+    const at = (ms) => wait + ms;
+    const hitNow = () => {
+        try {
+            onHit?.();
+        } catch (err) {
+            ultError('game hit', err);
+        }
+    };
+    // 자기 둘레 (블래스트번 등) — 번쩍 0.2초 뒤 기운 줄기가 맞을 상대 모두에게 → 닿을 때 피해 (#92) · 쏘는 필살기는 큰 순간에 피해
+    // 자기 둘레 — 기운 줄기가 닿고 한 장면 뒤 (숫자가 줄기보다 65 ~ 100ms 먼저 뜨던 것, 디자인 UX #95)
+    const hitAt = self ? lead + FX_FLOW_DELAY_MS + FX_FLOW_MS + 80 : lead + reach;
+    if (self) {
+        const targets = [B, ...others];
+        fxSetTimeout0(fxGuard(gen, () => fxSoloFlow(gen, A, targets, fxCols4(ultCols(entry[2] || {}, entry[1])), FX_SPIN_COLS[entry[0]])), at(lead + FX_FLOW_DELAY_MS));
+        // 쓰는 쪽 터짐은 기운이 닿고 0.3초 뒤 바둑판으로 끊음 (돔 · 덩굴이 맞은 뒤에도 우리 편을 덮던 것 — UX 리뷰어 #95 ② · 240)
+        fxSetTimeout0(() => fxStageCut(g), at(hitAt + 300));
+    }
+    fxSetTimeout0(fxGuard(gen, hitNow), at(hitAt));
+    const end = at(hitAt + FX_STAGE_AFTER_MS);
+    fxSetTimeout0(() => fxStageCut(g), end);
+    g.done = fxSetTimeout0(() => fxGame === g && fxGameStop(true), end + FX_STAGE_FADE_MS + 200);
+    return end + FX_STAGE_FADE_MS;
+}
 // ── 3:3 필살기 마무리 — 디자인팀 7판 값 (2026-10-21, 시안 fx7.js · joint7.js 그대로) ──
 // 혼자 · 자기 둘레 필살기 (태현 님 #92): 대폭발 번쩍 → 0.2초 뒤 돔 끝에서 기운 줄기 (위로 볼록) 가 맞을 상대 모두에게 0.45초 → 불꽃 맞음 · 피해 (타이머)
 // 합동 (#89 A): 컷인 → 두 포켓몬 머리 위 빛줄 0.3초 → 각자 필살기 · 쏘는 줄기는 합류점까지만 (구슬로 기다림) → 대폭발 번쩍 0.2초 뒤 기운 셋이 합류점으로 0.3초 →
@@ -860,6 +1458,7 @@ function fxJointCut(J) {
 // 박자표 번쩍 5045 는 물줄기가 그친 뒤 거대한 물 폭발 (재는 창이 번쩍 판을 안 그려 물줄기가 나가는 하양 · 검정 번쩍을 못 잡음) → 물줄기 나감 TB 2.72초 · 가장 가까운 애에 닿음 TH 2.88초 (#80 진단 ①)
 // 메가런처 (o.turtle · ultorb — runMegaLauncher): 박자표 번쩍 2833 = 메가진화 펑 · main 4172 → 구슬이 피해 0.6 ~ 0.8초 뒤에 닿던 것 → 발사 TS 4.5초 · 맞음 TX 4.9초 (#80 다시 찍기 ③)
 const FX_JOINT_FIRE = { hydro: [2720, 2880], launcher: [4500, 4900] };
+const fxTurtleFire = (e) => (e?.[2]?.turtle ? (e[1] === 'ultbeam' ? FX_JOINT_FIRE.hydro : e[1] === 'ultorb' ? FX_JOINT_FIRE.launcher : null) : null);
 // 자리형 틀 (불기둥 · 땅 · 꽃 · 대폭발) — 박자표가 쏘는 (self 0) 이어도 자기 둘레 길로 (분화가 쏘는 쪽이 되어 줄기 없이 가운데 불기둥이 5초 얼어 있던 것 — #80 다시 찍기 ④)
 const FX_JOINT_AREA = new Set(['ultpillar', 'ultquake', 'ultbloom', 'ultnova']);
 // 줄기 보기 캔버스에 그리는 중 — 화면 전체를 칠하는 입자 (빔이 화면을 물들이는 판 등) 는 이때 안 칠함 (계단 · 앞끝으로 잘려 회색 네모가 되던 것 — #80 진단 ④)
@@ -1295,7 +1894,9 @@ moveTick = function (now) {
         fxStairCanvas(J.top);
     }
     try {
+        fxBackBegin();
         fxMoveTick0(now);
+        fxPunchHoles();
     } finally {
         fxPutBack(held, heldE);
     }
@@ -1970,6 +2571,10 @@ window.pokemonFx = {
         if (tm) {
             fxTagged.add(gen);
         }
+        // 3:3 용 판 (orders #95 · 기본 — 반격기 빼고): 무대 상자 · 큰 순간 0.6초 앞까지 앞 감기 · 맞은 뒤 1.3초 · 흐려짐
+        if (o?.stage && !o?.sub && fxTeamOn()) {
+            return fxStageUlt(A, B, entry, gen, onHit, o);
+        }
         // o.sub = 반격기 — 패널 전체 번쩍 없음 (fxFlashCap)
         fxGame = { A, B, gen, tick: setInterval(fxGameTick, 100), onHit: tm ? null : onHit, hit: false, noFlash: !!o?.sub };
         let total = 0;
@@ -2058,7 +2663,7 @@ window.pokemonFx = {
             fxNoFlashGens.add(pg);
             const self = (!!tm && FX_JOINT_AREA.has(e[1])) || (!!tm?.self && tm.flash >= 0);
             // 박자표 번쩍이 쏘는 때가 아닌 필살기는 따로 적은 때로 (FX_JOINT_FIRE — 거북왕 하이드로캐논 · 메가런처)
-            const fire = e[2]?.turtle ? (e[1] === 'ultbeam' ? FX_JOINT_FIRE.hydro : e[1] === 'ultorb' ? FX_JOINT_FIRE.launcher : null) : null;
+            const fire = fxTurtleFire(e);
             // 맞출 순간 = 대폭발 "크게" (자기 둘레 — 번쩍이 없으면 큰 맞음) · 빔이 나가는 번쩍 (쏘는 — 없으면 큰 맞음 0.26초 전)
             const anchor = fire ? fire[0] : tm ? (self ? (tm.flash >= 0 ? tm.flash : tm.main) : tm.flash >= 0 && tm.flash < tm.main ? tm.flash : Math.max(0, tm.main - 260)) : Math.round(ms * 0.4);
             // 빔이 나가서 상대에 닿기까지 (쏘는 — 꽃 터짐 = 큰 맞음)
@@ -2396,6 +3001,110 @@ window.pokemonFx = {
         }
         return { meetMs: Math.round(meetMs) };
     },
+    /**
+     * 3:3 용 판 합동 한 장면 (2026-10-22 태현 님 #126 · #127 · orders #95 — ult/fx-team33.js t33Joint): 모이기 → 발사 하나 → 터짐 하나 · 약 3초 (quick = 힘겨루기 뒤 짧은 마무리 · 혼자 이겨도).
+     * 맞는 때 (보통 2.25초 · quick 0.9초 — 엔진 jointHitMs · clashJointHitMs) 에 피해. 돌려줌 = 길이 (ms)
+     */
+    teamJoint(srcs, dst, onHit, o = {}) {
+        // 힘겨루기를 이긴 짧은 마무리 — 이긴 줄기를 끊지 않고 이어받음 (줄기가 사라지고 0.4초 멈췄다 새 줄기를 다시 쏘던 것 — 디자인 UX #95 ③ · #86 두 번 나감과 같은 종류)
+        const keep = o.quick && fxGame && fxGame.duel33 ? fxGame.duel33 : null;
+        if (keep) {
+            fxGame.duel33 = null;
+        }
+        fxGameStop(true);
+        const list = (srcs || []).map((s, i) => ({ spec: s, type: o.types?.[i] || 'normal' })).filter((x) => x.spec && fxWidth(x.spec) >= 1);
+        if (!list.length || fxWidth(dst) < 1) {
+            if (keep) {
+                keep.p.max = keep.p.life;
+            }
+            return 0;
+        }
+        // 이어받은 힘겨루기 줄기는 지우지 않음 (줄기가 0.1초 만에 사라지고 0.7초 비던 것)
+        fxQuietOthers(keep?.p);
+        const gen = ++fxGen;
+        const g = { A: fxActor(list[0].spec), B: fxActor(dst), gen, tick: setInterval(fxGameTick, 100), onHit: null, hit: false, duel33: keep };
+        fxGame = g;
+        // 참가자 몸도 구멍 안 냄 — 모으기 기운 · 입 앞 구슬은 앞 층 (아트 디렉터 #95 9바퀴 ②) · 쏘는 줄기는 포켓몬 아래 캔버스라 상관없음
+        fxLiftBystanders(g, [dst, ...(o.others || []), ...list.map((x) => x.spec)]);
+        let total = 0;
+        try {
+            // 고리 크기 — 맞는 상대 가운데에서 가장 가까운 옆 몸 (보이는 몸 상자) 끝까지 가로 거리 · 발밑 판 위 끝 (아트 디렉터 #95 4바퀴 ⑤ — 가운데 거리 ×1.6 이라 옆 몸 · 판에 닿던 것)
+            const tbx = fxShapeBox(dst) || (() => {
+                const r = fxRect0.call(dst.box || dst.el);
+                return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
+            })();
+            const dcx = (tbx.left + tbx.right) / 2;
+            let nearDx = Infinity;
+            for (const q of o.near || []) {
+                const b = q && fxWidth(q) >= 1 ? fxShapeBox(q) : null;
+                // 위아래로 고리 (가장 클 때 반지름 ≈ 몸 높이) 밖이면 안 셈
+                if (!b || b.bottom < tbx.top - (tbx.bottom - tbx.top) || b.top > tbx.bottom + 8) {
+                    continue;
+                }
+                nearDx = Math.min(nearDx, b.left >= dcx ? b.left - dcx : b.right <= dcx ? dcx - b.right : 0);
+            }
+            total = fxWithTimers(gen, () => t33Joint(list, dst, { quick: !!o.quick, hitMs: o.hitMs, finish: !!keep, others: (o.others || []).filter((x) => x && fxWidth(x) >= 1), nearDx, floorY: tbx.bottom + 4 })) || 0;
+            // 이어받은 줄기 — 맞기 0.2초 앞부터 꼬리부터 걷어 0.1초 앞에 다 걷힘 (걷히는 줄기 · 별 · 터짐 · 고리가 한 장면에 겹치던 것 — 아트 디렉터 #95 4바퀴 ④) · 그 전에 진 쪽 입에 닿게 (t33Duel)
+            if (keep) {
+                keep.st.hitAt = keep.p.life + (o.hitMs ?? 900) / 1000;
+                keep.p.max = Math.min(keep.p.max, keep.st.hitAt - 0.1);
+            }
+        } catch (err) {
+            ultError('team joint', err);
+        }
+        if (!total) {
+            fxGameStop(true);
+            return 0;
+        }
+        fxSetTimeout0(fxGuard(gen, () => {
+            try {
+                onHit?.();
+            } catch (err) {
+                ultError('game hit', err);
+            }
+        }), Math.round(o.hitMs ?? (o.quick ? 900 : 2250)));
+        g.done = fxSetTimeout0(() => fxGame === g && fxGameStop(true), total + 200);
+        return total;
+    },
+    /** 3:3 용 판 필살기 힘겨루기 (#132 — t33Duel): 두 앞장 줄기가 무대 가운데서 밀고 밀림 · 결과는 teamDuelWin · 합류는 teamDuelJoin. 돌려줌 = 만나는 때 */
+    teamDuel(a, b, spec, live) {
+        fxGameStop(true);
+        if (fxWidth(a) < 1 || fxWidth(b) < 1) {
+            return null;
+        }
+        fxQuietOthers();
+        const gen = ++fxGen;
+        const g = { A: fxActor(a), B: fxActor(b), gen, tick: setInterval(fxGameTick, 100) };
+        fxGame = g;
+        fxLiftBystanders(g, []);
+        const st = { win: null, joinA: 0, joinB: 0 };
+        let p = null;
+        try {
+            p = fxWithTimers(gen, () => t33Duel(a, b, spec.typeA || 'normal', spec.typeB || 'normal', live, st, spec));
+        } catch (err) {
+            ultError('team duel', err);
+        }
+        if (!p) {
+            fxGameStop(true);
+            return null;
+        }
+        g.duel33 = { p, st };
+        return { meetMs: Math.round(spec.leadMs ?? 1100) };
+    },
+    teamDuelJoin(side, type) {
+        const d = fxGame && fxGame.duel33;
+        if (d) {
+            d.st[side === 'a' ? 'joinA' : 'joinB'] += 1;
+            // 합류한 동료 색 — 그쪽 줄기에 나선 (2:1 · 3:1 에서 동료 몫이 안 보이던 것)
+            (d.st[side === 'a' ? 'typesA' : 'typesB'] ||= []).push(type || 'normal');
+        }
+    },
+    teamDuelWin(who) {
+        const d = fxGame && fxGame.duel33;
+        if (d) {
+            d.st.win = who;
+        }
+    },
     /** 힘대결 승자 — 'a' (나) | 'b' (상대). 이긴 쪽이 뚫고 나가 진 쪽에서 터짐 (0.4초) */
     duelWin(who) {
         const D = fxGame && fxGame.duel && fxGame.duel.D;
@@ -2411,6 +3120,10 @@ window.pokemonFx = {
     },
     /** 힘대결이 끝남 — soft = 터지는 여운까지 그리고 정리 (전투가 이어질 때), 아니면 바로 */
     stopDuel(soft) {
+        // 3:3 힘겨루기 줄기 — 그 입자만 끝냄
+        if (fxGame && fxGame.duel33) {
+            fxGame.duel33.p.max = fxGame.duel33.p.life;
+        }
         if (soft && fxGame && fxGame.duel && fxGame.duel.D.winner) {
             fxDuelSoftStop();
             return;
@@ -2564,7 +3277,8 @@ window.pokemonFx = {
             if (!POKEMON_SHAPE[dst.form] || fxWidth(dst) < 1) {
                 return;
             }
-            fxWithTimers(fxMoveGen, () => hitKO(sigGeometry(fxActor(dst), !!dst.left)));
+            // 3:3 은 0.7배 (보통 공격 장면에 큰 효과가 둘 — 아트 디렉터 #95 3바퀴 ④)
+            fxWithTimers(fxMoveGen, () => hitKO(sigGeometry(fxActor(dst), !!dst.left), fxTeamOn() ? 0.7 : 1));
         });
     },
     /** 완벽 패링 — 쳐내기 (2026-10-20 태현 님 그림 docs: 날아온 줄이 내 포켓몬 앞에서 위쪽 대각선으로 튕겨 나감).
@@ -2963,8 +3677,16 @@ window.pokemonFx = {
         }
     },
     /** 3:3 모드 켜고 끄기 — 켜면 기술은 패널 번쩍 · 흔들기 · 전체 멈춤 없이 (1.5초 뒤 저절로 꺼짐 — 게임이 상태마다 다시 켬) */
+    /** 보이는 몸 위 끝 (화면 px — POKEMON_SHAPE) · 모르면 null (3:3 달려가기 끝자리) */
+    shapeTop(q) {
+        const b = fxShapeBox(q);
+        return b ? b.top : null;
+    },
     team(on) {
-        fxTeamUntil = on ? performance.now() + 1500 : 0;
+        fxTeamUntil = on ? fxRealNow() + 1500 : 0;
+        if (on) {
+            fxHoldForeground();
+        }
     },
     /** 남은 연출을 지움 — 전투가 갑자기 끝나거나 화면이 바뀔 때 */
     clear() {
