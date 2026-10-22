@@ -42,6 +42,7 @@ export const NOTICE_TEXT: Record<TitleNotice, string> = {
   locked: '세이브를 지금 쓸 수 없어요 (더 새 버전 세이브 · 백업 실패)',
   'write-failed': '세이브를 쓰지 못했어요 (디스크를 확인해 주세요)',
   'bad-save': '새 게임을 만들지 못했어요',
+  'no-answer': '확장이 답하지 않아요 — VS Code 창을 다시 로드해 주세요',
 };
 
 export function titleView(info: TitleInfo): TitleView {

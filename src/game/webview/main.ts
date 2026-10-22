@@ -65,7 +65,13 @@ if (!port) {
 
   const setPending = (pending: boolean) => {
     window.clearTimeout(pendingTimer);
-    if (pending) pendingTimer = window.setTimeout(() => store.set({ pending: false }), PENDING_TIMEOUT_MS);
+    // 5초 안에 답이 없으면 풀고 까닭 한 줄 (타이틀) — 다시 로드 안 한 옛 확장이 새 웹뷰의 요청 (개발 모드 등) 을 몰라 조용히 멈추던 것 (#77 · U6)
+    if (pending) {
+      pendingTimer = window.setTimeout(() => {
+        const v = store.get();
+        store.set(v.screen === 'title' && v.title ? { pending: false, title: { ...v.title, notice: 'no-answer' } } : { pending: false });
+      }, PENDING_TIMEOUT_MS);
+    }
     store.set({ pending });
   };
 

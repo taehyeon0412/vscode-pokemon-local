@@ -27,7 +27,8 @@ export const SAVE_REASONS = ['catch', 'battle-end', 'stage-clear', 'mode-change'
 export type SaveReason = (typeof SAVE_REASONS)[number];
 
 /** 타이틀에서 방금 누른 것이 안 된 까닭 — 문구는 features/title/model.ts 한 곳에서 */
-export const TITLE_NOTICES = ['busy', 'no-save', 'locked', 'write-failed', 'bad-save'] as const;
+/** no-answer = 웹뷰가 보낸 것 (확장이 5초 안에 답하지 않음 — 다시 로드 안 한 옛 확장 + 새 웹뷰, #77) */
+export const TITLE_NOTICES = ['busy', 'no-save', 'locked', 'write-failed', 'bad-save', 'no-answer'] as const;
 export type TitleNotice = (typeof TITLE_NOTICES)[number];
 
 /** 타이틀(S02)에 보일 것 — 세이브가 어떤지 · 다른 창이 게임 중인지 · 요약 */
