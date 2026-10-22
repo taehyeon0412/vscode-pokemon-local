@@ -492,7 +492,7 @@
     const click = q.get('click');
     if (click) {
         // map|team|bag|settings = 오른쪽 위 버튼 (S07 · S18 · S19 · S20) · profile = 상대 포켓몬 누르기 (S21) · item = 가방에서 상처약 고르기
-        const label = { new: '새로 하기', continue: '이어 하기', exit: '일반 모드', skills: '3 스킬', items: '4 아이템', map: '🗺', team: '◓', bag: '🎒', settings: '⚙', item: '상처약', dev: '개발 저장 안 됨', devtitle: '개발 모드 (임시)' }[click];
+        const label = { new: '새로 하기', continue: '이어 하기', exit: '일반 모드', skills: '3 기술', items: '4 아이템', map: '🗺', team: '◓', bag: '🎒', settings: '⚙', item: '상처약', dev: '개발 저장 안 됨', devtitle: '개발 모드 (임시)' }[click];
         const alt = { skills: '3✨' }[click];
         // game.js 를 받아 화면이 그려질 때까지 기다렸다가
         const tryClick = (left) => {

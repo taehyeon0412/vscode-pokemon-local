@@ -2486,7 +2486,7 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   .pg-compact > .pg-button {
     padding: 0 3px;
   }
-  /* 두 글자 메뉴 (공격 · 방어 · 스킬 · 가방 · 교체) 사이 2px — 아트 디렉터 5차 */
+  /* 두 글자 메뉴 (공격 · 방어 · 기술 · 가방 · 교체) 사이 2px — 아트 디렉터 5차 */
   .pg-compact .pg-layer {
     gap: 2px;
   }

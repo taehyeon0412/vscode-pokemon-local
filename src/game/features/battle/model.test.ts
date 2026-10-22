@@ -13,18 +13,18 @@ const save = sampleSave();
 const myTurn = (b: BattleState): BattleState => ({ ...b, phase: 'choose', me: { ...b.me, gauge: 1 } });
 
 describe('S09 ⑦ 메뉴 한 줄', () => {
-  it('1 공격 · 2 방어 · 3 스킬 · 4 아이템 · 5 교체 · 도망 — 내 차례가 아니면 흐림', () => {
+  it('1 공격 · 2 방어 · 3 기술 · 4 아이템 · 5 교체 · 도망 — 내 차례가 아니면 흐림', () => {
     const b = startBattle(save, wild, 'normal');
     const main = menuItems(b, save, 'main');
     expect(main.map((i) => i.num)).toEqual([1, 2, 3, 4, 5]);
-    expect(main.map((i) => i.label)).toEqual(['1 공격', '2 방어', '3 스킬', '4 아이템', '5 교체·도망']);
+    expect(main.map((i) => i.label)).toEqual(['1 공격', '2 방어', '3 기술', '4 아이템', '5 교체·도망']);
     expect(main.every((i) => !i.enabled)).toBe(true);
     const turn = menuItems(myTurn(b), save, 'main');
     expect(turn.find((i) => i.key === 'attack')?.enabled).toBe(true);
     expect(turn.find((i) => i.key === 'skills')?.enabled).toBe(true);
   });
 
-  it('3 스킬 → 같은 줄이 기술 목록 (PP 표시) + ← 뒤로', () => {
+  it('3 기술 → 같은 줄이 기술 목록 (PP 표시) + ← 뒤로', () => {
     const b = myTurn(startBattle(save, wild, 'normal'));
     const skills = menuItems(b, save, 'skills');
     expect(skills.map((i) => i.label)).toEqual(['1 몸통박치기', '2 덩굴채찍', '← 뒤로']);
@@ -100,7 +100,7 @@ describe('S09 화면 자리 (gdd S09)', () => {
     expect(geo(200, 720).compact).toBe(false);
     const b = myTurn(startBattle(save, wild, 'normal'));
     // 야생 · 바꿀 포켓몬 있음 = 좁아도 "5 교체·도망" (2026-10-20 플레이 리뷰어 — "5 교체" 만이면 도망칠 수 있는지 모름)
-    expect(menuItems(b, save, 'main', true).map((i) => i.label)).toEqual(['1 공격', '2 방어', '3 스킬', '4 아이템', '5 교체·도망']);
+    expect(menuItems(b, save, 'main', true).map((i) => i.label)).toEqual(['1 공격', '2 방어', '3 기술', '4 아이템', '5 교체·도망']);
     expect(menuItems(b, save, 'main', true)[0]!.title).toContain('공격');
   });
 
@@ -110,7 +110,7 @@ describe('S09 화면 자리 (gdd S09)', () => {
     const b = myTurn(startBattle(save, wild, 'normal'));
     const tiny = menuItems(b, save, 'main', 'tiny');
     // 아이템 = 넓은 메뉴와 같은 이름 (orders #51 — 240 에서 세 글자도 줄 안 28 ~ 191px, 맥 +10% 22 ~ 197px)
-    expect(tiny.map((i) => i.label)).toEqual(['공격', '방어', '스킬', '아이템', '교체']);
+    expect(tiny.map((i) => i.label)).toEqual(['공격', '방어', '기술', '아이템', '교체']);
     expect(tiny.map((i) => i.num)).toEqual([1, 2, 3, 4, 5]);
     expect(tiny[4]!.title).toContain('도망');
     expect(Math.max(...tiny.map((i) => i.label.length))).toBeLessThanOrEqual(3);
