@@ -26,7 +26,7 @@ function Bar({ v, kind }: { v: number; kind: 'hp' | 'ult' | 'ult-full' }) {
   );
 }
 
-function Fighter({ b, g, side, slot, media, topMin, final, autoNext, onUlt }: { b: TeamBattle; g: TeamGeo; side: Side; slot: number; media: string; topMin: number; final: boolean; autoNext: boolean; onUlt(slot: number): void }) {
+function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, onUlt }: { b: TeamBattle; g: TeamGeo; side: Side; slot: number; media: string; topMin: number; final: boolean; autoNext: boolean; fullChip: boolean; onUlt(slot: number): void }) {
   const f = b[side][slot]!;
   const { x, y } = g.pos(side, slot);
   const st = plateState(b, side, slot);
@@ -82,7 +82,7 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, onUlt }: { 
           </span>
         ) : (
           // 필살기는 눌러야만 나감 (태현 님 #82) — 다 찬 칸 = 같은 자리 "다 참" (남은 초 대신 · 내 편만)
-          mine && st === 'ready' && (
+          mine && st === 'ready' && fullChip && (
             <span class="pg-team-auto pg-team-full" title={`필살기 다 참 — ${slot + 1} 누르면 나가요`}>
               다 참
             </span>
@@ -196,10 +196,12 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   });
   // 저절로 나갈 칸 하나 = 엔진이 기다림을 세는 칸 (teamAutoUltNext — HP 30% 아래 칸 먼저, 아니면 먼저 찬 칸 · 둘째 칸 칩이 1장면만 보이던 것, 개발 4016471)
   const autoNext = teamAutoUltNext(b);
+  // "다 참" 칩 = 먼저 찬 한 칸만 (셋 다 뜨면 240 에서 칩이 자기 포켓몬 발을 덮던 것 — UX 리뷰어 #82 · 나머지 찬 칸은 판 금 테두리로 구별)
+  const fullFirst = [0, 1, 2].find((i) => b.me[i] && plateState(b, 'me', i) === 'ready');
   return (
     // 자리는 패널 기준 (시안 geo) — 이 층은 들판 (정보줄 아래) 안이라 정보줄 높이만큼 위로
     <div class={`pg-team pg-team-x${g.scale}${g.oneRow ? ' pg-team-row' : ''}`} style={{ top: `${-infoBarPx}px` }} ref={root} onClick={b.phase === 'clash' ? () => onInput({ kind: 'team-battle', input: { kind: 'space' } }) : undefined}>
-      {SIDES.map((side) => b[side].map((_, slot) => <Fighter key={`${side}-${slot}`} b={b} g={g} side={side} slot={slot} media={media} topMin={topMin} final={finalKo === `${side}-${slot}`} autoNext={side === 'me' && slot === autoNext} onUlt={ult} />))}
+      {SIDES.map((side) => b[side].map((_, slot) => <Fighter key={`${side}-${slot}`} b={b} g={g} side={side} slot={slot} media={media} topMin={topMin} final={finalKo === `${side}-${slot}`} autoNext={side === 'me' && slot === autoNext} fullChip={side === 'me' && slot === fullFirst} onUlt={ult} />))}
       {/* 연출 층 — 비어 있는 상자 (Preact 는 안을 안 건드림), 연출 다리가 캔버스를 넣음 */}
       <div class="pg-fxlayer pg-team-fx" ref={layer} />
       {/* 안내 — 무대 가운데 위 */}

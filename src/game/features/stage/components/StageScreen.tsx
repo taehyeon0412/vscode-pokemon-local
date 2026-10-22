@@ -9,7 +9,7 @@
  */
 import { useEffect, useLayoutEffect, useRef } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
-import { AUTO_TEAM_TIP, autoTeamTipDue, battleAutoUltLeft, canOpenMenus, teamUltOpen, canParry, canRiposte, gymLeaderOf, isWalkingFast, itemLeft, teamAutoUltLeft, teamAutoUltNext, teamLock, teamMeetTipDue, TEAM_MEET_TIP, walkLeftMs, type GameInput, type GameState } from '../../../core/engine';
+import { AUTO_TEAM_TIP, autoTeamTipDue, battleAutoUltLeft, canOpenMenus, teamFastOk, teamUltOpen, canParry, canRiposte, gymLeaderOf, isWalkingFast, itemLeft, teamAutoUltLeft, teamAutoUltNext, teamLock, teamMeetTipDue, TEAM_MEET_TIP, walkLeftMs, type GameInput, type GameState } from '../../../core/engine';
 import { maxHpOf, teamHealth } from '../../../core/rules/bag';
 import { spaceInput, ultSkippable } from '../../battle/fx/parry';
 import { BALLS } from '../../../core/rules/catch';
@@ -212,6 +212,20 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   const autoTeamTip = team !== null && autoTeamTipDue(state) && team.t < 12000;
   // 3:3 에서 먼저 다 찬 칸 (필살기는 눌러야만 나감 — #82) — 처음 한 번 "필살기 다 참 — [1] 누르면 나가요"
   const teamReadyKey = team && team.phase === 'run' ? [0, 1, 2].find((i) => teamUltOpen(team, i)) : undefined;
+  // 전투 ×2 를 켰는데 지금은 기본 박자 (필살기 · 끼어들기 · 알아챌 순간 — 엔진 teamFastOk) = 스위치 글을 흐리게 (켰는데 안 먹는 것처럼 보이던 것, UX 리뷰어 #83 큼 ②) ·
+  //   0.4초 넘게 이어질 때만 바꿈 (0.3초 · 40ms 끼었다 빠지는 박자에 스위치가 깜빡이지 않게 — U2)
+  const fastHeldNow = team !== null && save.settings.battleFast === true && !teamFastOk(team);
+  const fastHeldRef = useRef({ on: false, want: false, since: 0 });
+  {
+    const h = fastHeldRef.current;
+    const now = performance.now();
+    if (h.want !== fastHeldNow) {
+      h.want = fastHeldNow;
+      h.since = now;
+    }
+    if (h.on !== h.want && now - h.since >= 400) h.on = h.want;
+  }
+  const fastHeld = fastHeldRef.current.on && team !== null && save.settings.battleFast === true;
   const choice = choiceView(state);
   const foeTrainer = foeTrainerView(state);
   const rivalShadow = holdRivalLook(state);
@@ -371,9 +385,9 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
                 </Button>
                 <Button
                   secondary
-                  extraClass={save.settings.battleFast ? 'pg-battle-fast pg-on' : 'pg-battle-fast'}
+                  extraClass={save.settings.battleFast ? `pg-battle-fast pg-on${fastHeld ? ' pg-held' : ''}` : 'pg-battle-fast'}
                   onClick={() => onInput({ kind: 'battle-fast', on: save.settings.battleFast !== true })}
-                  title={`전투 ×2 ${save.settings.battleFast ? '켜짐' : '꺼짐'} (C) — 보통 공격만 빨리 · 필살기 · 누를 틈 · 알아챌 순간은 그대로`}
+                  title={fastHeld ? '전투 ×2 켜짐 (C) — 지금은 필살기 · 끼어들기라 기본 박자' : `전투 ×2 ${save.settings.battleFast ? '켜짐' : '꺼짐'} (C) — 보통 공격만 빨리 · 필살기 · 누를 틈 · 알아챌 순간은 그대로`}
                 >
                   {menuLabels(widthPx, mapRow) === 'full' && <span class="pg-menu-key">C</span>}
                   {/* 좁으면 "×2" 만 (240 에서 정보줄이 넘치지 않게 — title 에 전체) */}
@@ -578,7 +592,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         )}
         {/* 3:3 필살기 다 참 처음 안내 (#82 — 저절로 안 나가니 "3초 뒤 저절로" 대신) · 같은 자리 (위 · 좁으면 내 쪽 왼쪽 위) · 자동 3:3 안내가 떠 있으면 기다림 */}
         {team && teamReadyKey !== undefined && !autoTeamTip && !(save.tips ?? []).includes(ULT_READY_TIP) && (
-          <FirstTip key={ULT_READY_TIP} ms={4000} className="pg-first-tip-top pg-tip-mine" paused={away} onSeen={() => onInput({ kind: 'tip-seen', id: ULT_READY_TIP })}>
+          <FirstTip key={ULT_READY_TIP} ms={4000} seenMs={2500} className="pg-first-tip-top pg-tip-mine" paused={away} onSeen={() => onInput({ kind: 'tip-seen', id: ULT_READY_TIP })}>
             <span class="pg-tip-part pg-tip-long">필살기 다 참 —&nbsp;</span>
             <span class="pg-tip-part pg-tip-long">
               <KeyCap k={String(teamReadyKey + 1)} /> 누르면 나가요 (저절로 안 나가요)

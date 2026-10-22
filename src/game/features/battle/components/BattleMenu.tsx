@@ -614,7 +614,7 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
     <span class="pg-ultz-wrap">
     <button
       type="button"
-      class={`${zReady ? 'pg-ultz pg-ultz-ready' : 'pg-ultz'}${autoSec !== null ? ' pg-ultz-auto' : ''}`}
+      class={`${zReady ? 'pg-ultz pg-ultz-ready' : 'pg-ultz'}${autoSec !== null ? ' pg-ultz-auto' : ''}${fullOff && b.me.ult >= 1 ? ' pg-ultz-fullline' : ''}`}
       disabled={!zReady}
       onClick={() => onInput({ kind: 'battle', input: { kind: 'ult' } })}
       title={
@@ -654,9 +654,10 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
       ) : autoSec !== null ? (
         <span class={`pg-ultz-count${autoPaused ? ' pg-paused' : ''}`}>{autoSec}초</span>
       ) : (
-        ultReady &&
+        b.me.ult >= 1 &&
         !fullOff && (
-          <span ref={fullChip} class="pg-ultz-count pg-ultz-full">
+          // 게이지가 차 있는 동안 늘 (내 기술 연출 중엔 흐리게 — 연출마다 칩이 빠져 자동 전투면 차례마다 깜빡이던 것, UX 리뷰어 #82)
+          <span ref={fullChip} class={`pg-ultz-count pg-ultz-full${ultReady ? '' : ' pg-paused'}`}>
             다 참
           </span>
         )

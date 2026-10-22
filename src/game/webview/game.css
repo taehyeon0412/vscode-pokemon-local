@@ -4867,6 +4867,11 @@ body.vscode-high-contrast-light .pg-title-body {
   background: var(--pg-sos-hi);
   color: var(--pg-sos-ink);
 }
+/* 전투 ×2 켜짐인데 지금 기본 박자 (필살기 · 끼어들기) = 금 테두리는 그대로 (켜짐) · 칠 · 글만 흐리게 (#83 UX) */
+.pg-infobar .pg-button.pg-battle-fast.pg-on.pg-held {
+  background: transparent;
+  color: var(--pg-sos-dim);
+}
 .pg-infobar .pg-button.pg-auto-walk:hover:not(:disabled),
 .pg-infobar .pg-button.pg-battle-fast:hover:not(:disabled) {
   border-color: var(--pg-sos-line-soft);
@@ -6707,6 +6712,17 @@ body.vscode-high-contrast-light .pg-hpblock > .pg-hprow,
   box-shadow: 0 1px 0 var(--pg-sos-line-soft);
 }
 
+/* 좁아 "다 참" 칩이 빠지면 (패널 끝을 넘음) Z 칸 안 아래 2px 남색 밑줄 — 금 칠 위에서 다 찬 것을 한 번 더 말함 (#82 UX — 처음 안내가 지나면 반짝만 남던 것) */
+.pg-ultz.pg-ultz-fullline::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  bottom: 1px;
+  height: 2px;
+  background: var(--pg-sos-tab-ink);
+  pointer-events: none;
+}
 /* 기획 R2 — 다 찬 필살기 누를 틈 (자동 전투 · 볼 때 3초 [임시값] 뒤 저절로): Z 배지 오른쪽 옆 숫자 칩 3 · 2 · 1 (남은 초 · 나갈 때까지 1 · 13 × 12 정수 — Z 가운데 높이) ·
    Z 오른쪽 아래에 걸치면 150 정보줄에서 아래 1px 잘리고 정보줄 선을 덮고 · 600 × 160 에서 내 이름을 덮던 것 (픽셀 검사원 2차) · 반짝임은 다 참 반짝 그대로 (동작 줄이기에도 남김 — 10-20 태현 님) */
 .pg-ultz-count {
