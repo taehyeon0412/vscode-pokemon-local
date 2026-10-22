@@ -7,22 +7,25 @@
 import type { ComponentChildren } from 'preact';
 import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
-import { canHeal, gymLeaderOf, teamLock, waitReason, type GameInput, type GameState } from '../../../core/engine';
+import { canHeal, gymLeaderOf, regionsOn, teamLock, waitReason, type GameInput, type GameState } from '../../../core/engine';
 import { defeatWaits } from '../../../core/engine/play';
 import { maxHpOf, teamHealth, teamHealthy } from '../../../core/rules/bag';
+import { itemName } from '../../../core/rules/items';
 import { regionHere } from '../../../core/rules/region';
 import { FACILITY_STAFF } from '../../../core/rules/stage';
 import { aliveCount, gymHint, shortTrainerName } from '../../../core/rules/trainer';
+import { josaOf } from '../../../core/text';
 import { speciesOf } from '../../../data';
 import type { StageId } from '../../../core/save';
 import { Button } from '../../../ui/Button';
 import { Face } from '../../../ui/Face';
 import { Icon } from '../../../ui/Icon';
+import { badgeIcon, regionIcon } from '../../../ui/regionArt';
 import { KeyCap } from '../../../ui/KeyCap';
 import { formatMoney } from '../../../ui/format';
 import { Sprite } from '../../../ui/Sprite';
 import { useFit } from '../../../ui/useFit';
-import { clearView, ITEM_ICON, lobbyView } from '../../menu/model';
+import { clearView, ITEM_ICON, lobbyView, mapView } from '../../menu/model';
 import { STAGES, VS_MS } from '../model';
 
 export interface BoxProps {
@@ -396,7 +399,7 @@ export function LobbyBox({ state, media, onInput, onBox, onShop, onMap }: BoxPro
           추천 Lv {v.recommended} · <span class={v.short ? 'pg-lv-short' : 'pg-dim'}>내 팀 Lv {Math.floor(v.average)}{v.short ? ' ▼' : ''}</span>
         </span>
         {/* 이 체육관 (지금 지역) 배지 — 숲 고정이면 해변 대기실에서 숲 배지가 떠 이미 딴 것처럼 읽히던 것 (UX 새 화면 한 바퀴) */}
-        {state.save.badges.includes(regionHere(state.save.location).badge) && <Icon name="badge" title={`${regionHere(state.save.location).name} 배지`} />}
+        {state.save.badges.includes(regionHere(state.save.location).badge) && <Icon name={badgeIcon(regionHere(state.save.location).id)} title={`${regionHere(state.save.location).name} 배지`} />}
         <span class="pg-lobby-hint" title={hintTitle}>
           {hint.text.replace(/^\S+ \S+ /, '').replace(' 포켓몬을 써요', ' 타입')}
           {goodNames.length > 0 && <span class="pg-lobby-good"> · 상성 좋음 {goodNames.length > 1 ? `${goodNames[0]} 외 ${goodNames.length - 1}` : goodNames[0]}</span>}
@@ -428,26 +431,57 @@ export function LobbyBox({ state, media, onInput, onBox, onShop, onMap }: BoxPro
   );
 }
 
-/** MVP 끝 카드 — 관장을 처음 이김: 배지 → "숲 클리어! 다음 지역은 준비 중이에요" → 세계 지도 (숲에서 계속 키우기 · 다시 도전) */
+/** 관장 첫 승 카드 — 배지 → "숲 클리어! …" → 세계 지도. 배지 이름 · 첫 승 물건 = 지금 지역 표 (해변 관장을 이겨도 "숲 배지 · 리프의돌" 이던 것).
+ *  뒷말 = 다음 지역 (orders #67 — 개발 #66): 고를 곳이 있으면 "다음 지역을 골라요" · 바로 열렸으면 "새 지역 해변이 열렸어요" · 꺼져 있으면 (본편) "다음 지역은 준비 중이에요" */
 export function BadgeCard({ state, onInput, onMap }: BoxProps & { onMap(): void }) {
   if (state.runtime.stage?.phase !== 'badge') return null;
+  const region = regionHere(state.save.location);
+  const map = regionsOn(state) ? mapView(state) : null;
+  const opened = map?.regions.find((r) => !r.here && !r.badge && r.stages.every((s) => s.state !== 'cleared' && s.state !== 'current'));
+  // 뒷말 — 새 지역 이름만 빨강 (0장 중요한 낱말 · SoS 2f) · 본편 "준비 중" 은 흐리게
+  const tail = map?.next.length ? (
+    <>다음 지역을 골라요</>
+  ) : opened ? (
+    <>
+      새 지역 <span class="pg-em">{opened.name}</span>
+      {josaOf(opened.name, '이/가')} 열렸어요
+    </>
+  ) : map ? (
+    <>모든 지역을 열었어요</>
+  ) : (
+    <span class="pg-dim">다음 지역은 준비 중이에요</span>
+  );
+  const item = region.firstWinItem;
   return (
     <div class="pg-banner pg-badge-card">
       <span class="pg-badge-glow">
-        <Icon name="badgeBig" title="숲 배지" />
+        <Icon name={badgeIcon(region.id, true)} title={region.badgeName} />
       </span>
       {/* 좁으면 (480 아래) 첫 줄 뒷말을 빼고, 보상 · 버튼은 넘치면 버튼 묶음이 다음 줄 (240 에서 카드가 패널 밖으로 나가 [Enter 세계 지도] 가 "Ent" 로 잘리던 것 — 아트 디렉터 밤 점검) */}
       <span class="pg-badge-lines">
         <span class="pg-line">
-          <b>숲 배지를 받았다!</b> <span class="pg-long">숲 클리어! 다음 지역은 준비 중이에요</span>
+          <b>
+            {region.badgeName}
+            {josaOf(region.badgeName, '을/를')} 받았다!
+          </b>{' '}
+          {/* "숲 클리어!" 만 480 아래에서 빼고 뒷말 (이번 소식) 은 360 아래에서만 뺌 — 480 · 240 에서 새 소식이 통째로 사라지던 것 (아트 디렉터) */}
+          <span class="pg-long">{region.name} 클리어! </span>
+          <span class="pg-badge-tail">{tail}</span>
         </span>
         <span class="pg-line pg-badge-row">
           <span class="pg-reward">
             <Icon name="coin" /> +{formatMoney(BALANCE.gymFirstMoney)}
           </span>
-          <span class="pg-reward" title="가방에서 써요 (냄새꼬 → 라플레시아 등)">
-            <Icon name={ITEM_ICON['leaf-stone']} /> 리프의돌
+          <span class="pg-reward" title="가방에서 써요 (진화의 돌)">
+            <Icon name={ITEM_ICON[item]} /> {itemName(item)}
           </span>
+          {/* 360 아래 = 뒷말 대신 지도 탭과 같은 표 "[해변 그림] 해변 NEW" (카드 · 알림 · 탭이 같은 표로 이어짐) */}
+          {opened && (
+            <span class="pg-reward pg-badge-newtag" title={`새 지역 ${opened.name}`}>
+              <Icon name={regionIcon(opened.id)} /> {opened.name}
+              <span class="pg-region-new">NEW</span>
+            </span>
+          )}
           <span class="pg-badge-btns">
             <Button
               onClick={() => {

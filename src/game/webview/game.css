@@ -5372,6 +5372,102 @@ body.vscode-high-contrast-light .pg-title-body {
   gap: 4px;
   margin-right: 8px;
 }
+/* 세계 지도 지역 탭 (orders #67) — 상점 탭과 같은 부품 · 잠긴 지역 = 점선 (못 누름 모양, 원칙 7) · NEW = 빨간 글자 하나 (6장) · "지금" = 흐린 작은 글 (480 아래는 뺌 — 처음 열면 지금 지역 탭이 골라져 있고 title 에 있음) */
+#pokemon-game .pg-region-tabs > .pg-button.pg-region-locked {
+  border: 1px dashed var(--pg-sos-line-soft);
+}
+/* 안 고른 탭은 그림도 흐리게 (글만 흐리고 아이콘 둘이 밝아 240 에서 "🌲숲◆" 이 아이콘 둘로 읽히던 것) · 올리면 다시 밝게 */
+#pokemon-game .pg-region-tabs > .pg-button:not(.pg-picked) .pg-icon {
+  opacity: 0.6;
+}
+#pokemon-game .pg-region-tabs > .pg-button:not(.pg-picked):hover .pg-icon {
+  opacity: 1;
+}
+/* 이름표 "세계 지도" ↔ 탭 묶음 16px + 가운데 1 × 14 흐린 세로 선 (8px 로 붙어 이름표가 탭 첫 칸으로 읽히던 것 — 아트 디렉터) */
+.pg-panel-head:has(.pg-region-tabs) > .pg-panel-title {
+  margin-right: 8px;
+}
+.pg-region-tabs::before {
+  content: '';
+  align-self: center;
+  width: 1px;
+  height: 14px;
+  margin-right: 4px;
+  background: var(--pg-sos-line-soft);
+}
+/* 내 위치 점 = 그림 오른쪽 아래 빨간 네모 6 × 6 (미니맵 내 위치와 같은 점 · 지역 탭 · 지금 스테이지 칩) — "점 = 내가 있는 곳 · 금 = 고른 것" */
+.pg-region-ico {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+  vertical-align: middle;
+}
+.pg-region-me {
+  position: absolute;
+  right: -2px;
+  bottom: -1px;
+  box-sizing: border-box;
+  width: 6px;
+  height: 6px;
+  border: 1px solid var(--pg-sos-tab-ink);
+  background: var(--pg-sos-red);
+}
+/* 다음 지역 고르기 = 결정 띠 (밝은 남색 + 1px 금선 — 5장 특별한 순간) · 안쪽 3 × 6 · 아래 칩 줄과 6 · 첫 버튼 ▸ · 버튼 최소 72 */
+.pg-panel-row.pg-region-pick-row {
+  padding: 3px 6px;
+  margin-bottom: 6px;
+  background: var(--pg-sos-hi);
+  border: 1px solid var(--pg-sos-gold);
+}
+.pg-region-pick-row > .pg-button {
+  min-width: 72px;
+  justify-content: center;
+}
+.pg-region-pick-row > .pg-button:first-of-type::before {
+  content: '▸';
+  margin-right: 4px;
+  color: var(--pg-sos-gold);
+}
+@media (max-width: 480px) {
+  .pg-region-pick-title {
+    flex-basis: 100%;
+  }
+}
+/* 배지 카드 — 뒷말 (새 소식) 은 360 아래에서만 빼고 그때는 둘째 줄 "[그림] 해변 NEW" 표 */
+.pg-badge-newtag {
+  display: none;
+}
+@media (max-width: 360px) {
+  .pg-badge-tail {
+    display: none;
+  }
+  .pg-badge-newtag {
+    display: inline-flex;
+  }
+}
+.pg-region-tabs .pg-icon + .pg-icon {
+  margin-left: 2px;
+}
+.pg-region-new {
+  margin-left: 4px;
+  color: var(--pg-sos-red);
+  font-size: 11px;
+  font-weight: 800;
+}
+.pg-region-pick-title {
+  color: var(--pg-sos-gold);
+}
+@media (max-width: 480px) {
+  .pg-region-here {
+    display: none;
+  }
+}
+/* 360 아래 잠긴 지역 탭은 자물쇠만 (240 에서 "해변 NEW" 옆 "???" 가 판 머리 줄 밖으로 밀리던 것 — 점선 테두리 · title 은 그대로) */
+@media (max-width: 360px) {
+  .pg-region-qq {
+    display: none;
+  }
+}
 /* 좁은 패널 — 상점 판 머리 줄은 "상점" 이름표를 빼고 (아이콘이 말함) 탭 · 돈 · 나가기만 · 300px 아래 닫기 버튼은 ✕ 만 ([팔기] 가 나가기에 가려지던 것) */
 @media (max-width: 360px) {
   .pg-panel-head:has(.pg-shop-tabs) > .pg-panel-title {

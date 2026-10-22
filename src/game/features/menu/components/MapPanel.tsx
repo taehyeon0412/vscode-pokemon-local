@@ -5,12 +5,14 @@
  */
 import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { dailyView, type GameInput, type GameState } from '../../../core/engine';
+import { regionHere, type RegionId } from '../../../core/rules/region';
 import type { StageId } from '../../../core/save';
 import { Button } from '../../../ui/Button';
 import { Icon } from '../../../ui/Icon';
+import { badgeIcon, regionIcon } from '../../../ui/regionArt';
 import { formatPlayTime } from '../../../ui/format';
 import { josaOf } from '../../../core/text';
-import { ITEM_ICON, mapView } from '../model';
+import { ITEM_ICON, mapView, type MapRegion } from '../model';
 import { Panel, Row } from './Panel';
 
 export interface MapPanelProps {
@@ -39,39 +41,100 @@ export function MapPanel({ state, swap, midStage, onInput, onTeam, onClose }: Ma
     body.scrollTop += Math.round(el.getBoundingClientRect().top - body.getBoundingClientRect().top) - 4;
     // 처음 그릴 때 한 번만
   }, []);
-  const [confirm, setConfirm] = useState<StageId | 'gym' | null>(null);
-  const go = (to: StageId | 'gym') => {
+  // 지역 (orders #67) — 연 지역이 둘 넘거나 · 잠긴 지역 · 고를 곳이 있으면 판 머리 줄에 지역 탭 (상점 [사기][팔기] 와 같은 탭 부품). 고른 탭 = 보는 지역 (처음엔 지금 지역)
+  const hereId = regionHere(state.save.location).id;
+  // 개발 #66 mapView — 연 지역 (꺼지면 지금 지역 하나) · 고를 곳 · 잠긴 곳
+  const regions: MapRegion[] = v.regions.length ? v.regions : [{ id: hereId, name: v.region, k: 1, badge: v.badge, here: true, stages: v.stages, gym: v.gym }];
+  const { next, locked } = v;
+  const tabsOn = regions.length > 1 || locked.length > 0;
+  const first = regions[0] as MapRegion;
+  // 새로 연 지역 = 아직 아무 스테이지도 안 깨고 가 본 적 없음 → 탭에 NEW (빨간 글자 하나 — 6장)
+  const isNew = (r: MapRegion) => !r.here && !r.badge && r.stages.every((s) => s.state !== 'cleared' && s.state !== 'current');
+  // "새 지역이 열렸어요" 알림 중에 열면 그 지역 탭부터 (알림이 보낸 곳 — 목표 알림과 같은 규칙)
+  const toNew = state.runtime.toast?.text.startsWith('새 지역') ? regions.find(isNew) : undefined;
+  const [viewId, setViewId] = useState<RegionId>(toNew?.id ?? regions.find((r) => r.here)?.id ?? first.id);
+  const view = regions.find((r) => r.id === viewId) ?? first;
+  const [confirm, setConfirm] = useState<string | null>(null);
+  const go = (to: StageId | 'gym', region?: RegionId) => {
     const here = state.save.location.screen === 'stage' ? state.save.location.stageId : null;
     if (to === here && midStage) return onClose(); // 지금 스테이지 = 그대로 이어 함
-    if (midStage && confirm !== to) return setConfirm(to);
-    onInput({ kind: 'travel', to });
+    const key = to === 'gym' && region ? `gym:${region}` : to;
+    if (midStage && confirm !== key) return setConfirm(key);
+    // 다른 지역 체육관 = to 'gym' + region (개발 #66)
+    onInput({ kind: 'travel', to, ...(to === 'gym' && region && region !== hereId ? { region } : {}) });
     onClose();
   };
+  const goConfirm = () => {
+    if (!confirm) return;
+    const [to, region] = confirm.startsWith('gym:') ? ['gym' as const, confirm.slice(4) as RegionId] : [confirm as StageId, undefined];
+    go(to, region);
+  };
   // 지역 끝 스테이지 이름 — 체육관 잠김 안내 ("깊은 숲을 깨면 열려요" · "등대 곶을 …")
-  const lastName = v.stages[v.stages.length - 1]?.label ?? '지역 끝 스테이지';
+  const lastName = view.stages[view.stages.length - 1]?.label ?? '지역 끝 스테이지';
   return (
     <Panel
       icon="map"
       title="세계 지도"
       extra={
-        <>
-          {/* 지금 지역 (숲 · 해변 — 개발 b80dfc7 mapView.region) */}
-          {v.region} {v.badge && <Icon name="badge" title={`${v.region} 배지`} />}
-        </>
+        tabsOn ? (
+          // 지역 탭 — 그림 + 이름 (+ 배지 · NEW · 지금) · 잠긴 지역 = 자물쇠 "???" (점선 — 못 누름 모양, 원칙 7) · 360 아래는 "세계 지도" 이름표를 뺌 (상점 탭과 같은 규칙)
+          <span class="pg-shop-tabs pg-region-tabs" role="tablist">
+            {regions.map((r) => (
+              <Button key={r.id} secondary extraClass={r.id === view.id ? 'pg-picked' : undefined} onClick={() => setViewId(r.id)} title={`${r.name}${r.here ? ' — 지금 있는 지역' : ''}${r.badge ? ' · 배지 받음' : ''}`}>
+                {/* 지금 있는 지역 = 그림 오른쪽 아래 빨간 네모 점 (미니맵 "내 위치" 와 같은 점 — 금 칠은 "보는 곳" 이라 "지금" 이 글자 하나뿐이고 480 아래선 빠지던 것, 아트 디렉터) */}
+                <span class="pg-region-ico">
+                  <Icon name={regionIcon(r.id)} />
+                  {r.here && <span class="pg-region-me" aria-hidden="true" />}
+                </span>{' '}
+                {r.name}
+                {r.badge && <Icon name={badgeIcon(r.id)} />}
+                {isNew(r) && <span class="pg-region-new">NEW</span>}
+                {r.here && <span class="pg-sub pg-region-here"> 지금</span>}
+              </Button>
+            ))}
+            {locked.length > 0 && (
+              <Button secondary disabled extraClass="pg-region-locked" onClick={() => undefined} title={`관장을 이기면 새 지역이 열려요 (남은 곳 ${locked.length + next.length})`}>
+                <Icon name="lock" />
+                <span class="pg-region-qq"> ???</span>
+              </Button>
+            )}
+          </span>
+        ) : (
+          <>
+            {/* 지금 지역 (숲 · 해변 — 개발 b80dfc7 mapView.region) */}
+            {v.region} {v.badge && <Icon name={badgeIcon(hereId)} title={`${v.region} 배지`} />}
+          </>
+        )
       }
       onClose={onClose}
     >
+      {/* 다음 지역 고르기 (관장 첫 승 뒤 남은 곳이 둘 넘을 때 — 개발 #66 next, 고를 때까지 남음) = 판 맨 위 한 줄 · 고른 곳은 연 지역에 더해지고 이동은 그 지역 탭에서 */}
+      {next.length > 0 && (
+        // 결정 띠 = 밝은 남색 + 1px 금선 (5장 특별한 순간 — 아래 스테이지 칩 줄과 같은 무게로 섞이던 것, 아트 디렉터) · 첫 버튼 ▸
+        <div class="pg-panel-row pg-panel-wrap pg-region-pick-row">
+          <b class="pg-region-pick-title">다음 지역을 골라요</b>
+          {next.map((n) => (
+            <Button key={n.id} secondary extraClass="pg-region-pick" onClick={() => onInput({ kind: 'region-pick', region: n.id })} title={`${n.name} 지역을 열어요 — 고르지 않은 곳은 다음 관장 뒤에 다시 나와요`}>
+              <Icon name={regionIcon(n.id)} /> {n.name}
+            </Button>
+          ))}
+        </div>
+      )}
       {/* 칩 줄은 넘치면 다음 줄 (옆으로 잘라 240 에서 "버섯 그늘" · 480 에서 다섯째 칩이 판 끝에서 잘리던 것 — 아트 디렉터 밤 점검) */}
       <Row wrap>
-        {v.stages.map((s) => (
+        {view.stages.map((s) => (
           // 지금 스테이지 = 고른 칩 모양 (금색 테두리 · 밝은 남색 · 금색 글씨) — 금색 채움은 주 버튼이라 "눌러야 할 것" 으로 읽혀서, "● 지금" 글은 모양이 대신 (아트 디렉터 5차)
           <Button key={s.id} secondary extraClass={s.state === 'current' ? 'pg-picked' : undefined} disabled={s.state === 'locked'} onClick={() => go(s.id)} title={s.state === 'locked' ? '앞 스테이지를 깨면 열려요' : s.state === 'current' ? '지금 있는 스테이지 (이어서 걷기)' : '새 길로 걷기 (아이템 · 부탁 · 야생이 새로)'}>
-            <Icon name={s.state === 'locked' ? 'lock' : s.icon} /> {s.label} <span class="pg-sub">{s.code}</span>
+            <span class="pg-region-ico">
+              <Icon name={s.state === 'locked' ? 'lock' : s.icon} />
+              {s.state === 'current' && <span class="pg-region-me" aria-hidden="true" />}
+            </span>{' '}
+            {s.label} <span class="pg-sub">{s.code}</span>
             {s.state === 'cleared' && ' ✓'}
           </Button>
         ))}
-        <Button secondary disabled={!v.gym} onClick={() => go('gym')} title={v.gym ? '체육관 대기실로' : `${lastName}${josaOf(lastName, '을/를')} 깨면 열려요`}>
-          <Icon name={v.gym ? 'gym' : 'lock'} /> 체육관
+        <Button secondary disabled={!view.gym} onClick={() => go('gym', view.id)} title={view.gym ? `${view.name} 체육관 대기실로` : `${lastName}${josaOf(lastName, '을/를')} 깨면 열려요`}>
+          <Icon name={view.gym ? 'gym' : 'lock'} /> 체육관
         </Button>
         <Button secondary disabled={!swap} onClick={onTeam} title={swap ? '보관함과 팀 바꾸기' : '스테이지를 시작하기 전에만 (걷는 중에는 병원에서)'}>
           <Icon name="box" /> 팀 바꾸기{!swap && <span class="pg-sub"> 병원에서</span>}
@@ -119,7 +182,7 @@ export function MapPanel({ state, swap, midStage, onInput, onTeam, onClose }: Ma
       {confirm && (
         <Row>
           <span class="pg-warning">지금 스테이지 진행이 처음부터 다시예요 — 갈까요?</span>
-          <Button onClick={() => go(confirm)}>가기</Button>
+          <Button onClick={goConfirm}>가기</Button>
           <Button secondary onClick={() => setConfirm(null)}>
             취소
           </Button>

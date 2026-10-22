@@ -10,7 +10,8 @@ import { KeyCap } from '../../../ui/KeyCap';
 
 const EDGE = 8;
 /** 오늘의 목표 알림 (엔진 play.ts "오늘의 목표 ✓ …" · "오늘의 목표 다 했어요!") — 끝에 어디서 보는지 "· [M] 지도" (모두에게 켰는데 목표가 생긴 걸 알 곳이 없던 것 — 개발 UX #59) */
-const DAILY_TOAST = '오늘의 목표';
+/** 새 지역 알림 (개발 #66 — "새 지역이 열렸어요 — 해변" · "다음 지역을 골라요") 도 지도에서 보니 같은 꼬리 (orders #67) */
+const MAP_TOASTS = ['오늘의 목표', '새 지역', '다음 지역'];
 
 export function StageToast({ text, center, bottom, room, avoid }: { text: string; center: number; bottom: number; room?: number; /** 덮으면 안 되는 상자 (선택자) — 줄이 늘어 그 상자에 닿으면 아래로 내림 */ avoid?: string }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -47,20 +48,29 @@ export function StageToast({ text, center, bottom, room, avoid }: { text: string
     }
     return undefined;
   });
+  const newRegion = /^(새 지역이 열렸어요 — )(\S+)$/.exec(text);
   return (
     <div ref={ref} class="pg-toast" style={{ left: `${Math.round(center)}px`, bottom: `${bottom}px` }}>
       {/* "리자몽 Lv 36!" · "외 4마리" 가 줄 끝에서 "리자몽 / Lv 36!" · "외 / 4마리" 로 갈라지지 않게 (한 덩어리) · "\n" = 줄 바꿈 (지금은 만드는 곳 없음 — #156 되돌림 d8eb3a6, 긴 알림을 나눌 때 쓰게 남김) */}
-      {text.split('\n').map((line, i) => (
-        <Fragment key={i}>
-          {i > 0 && <br />}
-          {/* "하이퍼볼 +1" 도 한 덩어리 (오늘의 목표 알림 끝 "· [M] 지도" 가 붙으며 "하이퍼볼 / +1" 로 갈리던 것 — #59 UX 다시 보기) */}
-          {line
-            .replace(/(\S+) Lv (\d)/g, '$1\u00a0Lv\u00a0$2')
-            .replace(/외 (\d)/g, '외\u00a0$1')
-            .replace(/(\S+) \+(\d)/g, '$1\u00a0+$2')}
-        </Fragment>
-      ))}
-      {text.startsWith(DAILY_TOAST) && (
+      {/* 새 지역 알림 (개발 #66 "새 지역이 열렸어요 — 해변") = 지역 이름만 빨강 (배지 카드 뒷말과 같은 규칙 — 0장 중요한 낱말, 아트 디렉터) */}
+      {newRegion ? (
+        <>
+          {newRegion[1]}
+          <b class="pg-em">{newRegion[2]}</b>
+        </>
+      ) : (
+        text.split('\n').map((line, i) => (
+          <Fragment key={i}>
+            {i > 0 && <br />}
+            {/* "하이퍼볼 +1" 도 한 덩어리 (오늘의 목표 알림 끝 "· [M] 지도" 가 붙으며 "하이퍼볼 / +1" 로 갈리던 것 — #59 UX 다시 보기) */}
+            {line
+              .replace(/(\S+) Lv (\d)/g, '$1\u00a0Lv\u00a0$2')
+              .replace(/외 (\d)/g, '외\u00a0$1')
+              .replace(/(\S+) \+(\d)/g, '$1\u00a0+$2')}
+          </Fragment>
+        ))
+      )}
+      {MAP_TOASTS.some((p) => text.startsWith(p)) && (
         <span class="pg-nw">
           {' · '}
           <KeyCap k="M" /> 지도

@@ -87,8 +87,12 @@ export const ICONS = {
   gear: ['W..WW..W', '.WWWWWW.', '.WW..Ww.', 'WW....ww', 'WW....ww', '.Ww..ww.', '.wwwwww.', 'w..ww..w'],
   /** 배지 */
   badge: ['...yy...', '..yYGy..', '.yYGGGy.', 'yYGWGGgy', 'yYGGGggy', '.yGGggy.', '..yggy..', '...yy...'],
+  // 해변 배지 = 같은 모양 · 잎 초록 → 물 파랑 (orders #67 — 숲 · 해변 배지가 같은 그림이던 것, 아트 디렉터)
+  badgeBeach: ['...yy...', '..yYBy..', '.yYBBBy.', 'yYBWBBby', 'yYBBBbby', '.yBBbby.', '..ybby..', '...yy...'],
   /** 큰 배지 (MVP 끝 카드 — 16 × 16 칸, 점 크기는 다른 아이콘과 같은 2) */
   badgeBig: ['.......yy.......', '......yYYy......', '.....yYGGYy.....', '....yYGGGGYy....', '...yYGGWGGGYy...', '..yYGGWWGGGGYy..', '.yYGGGWGGGGgGYy.', 'yYGGGGGGGGggGGYy', 'yYGGGGGGGgggGGYy', '.yYGGGGGgggGGYy.', '..yYGGggggGGYy..', '...yYGgggGGYy...', '....yYGGGGYy....', '.....yYGGYy.....', '......yYYy......', '.......yy.......'],
+  // 해변 배지 = 같은 모양 · 잎 초록 → 물 파랑 (orders #67 — 숲 · 해변 배지가 같은 그림이던 것, 아트 디렉터)
+  badgeBeachBig: ['.......yy.......', '......yYYy......', '.....yYBBYy.....', '....yYBBBBYy....', '...yYBBWBBBYy...', '..yYBBWWBBBBYy..', '.yYBBBWBBBBbBYy.', 'yYBBBBBBBBbbBBYy', 'yYBBBBBBBbbbBBYy', '.yYBBBBBbbbBBYy.', '..yYBBbbbbBBYy..', '...yYBbbbBBYy...', '....yYBBBBYy....', '.....yYBBYy.....', '......yYYy......', '.......yy.......'],
   /** 빨리 걷기 ▶▶ (꺼짐 · 켜졌지만 지금은 보통 빠르기) */
   fast: ['........', 'W...W...', 'WW..WW..', 'WWW.WWW.', 'WWW.WWW.', 'WW..WW..', 'W...W...', '........'],
   /** 빨리 걷기 ▶▶ — 지금 ×3 으로 걷는 중 */
