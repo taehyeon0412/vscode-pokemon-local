@@ -27,6 +27,8 @@ export default tseslint.config(
     ignores: [
       'node_modules/**', 'extension/**', 'dist/**', '.test-out/**', '.vscode-test/**',
       'dev/**', 'ult/**', 'moves.js', 'docs/**', 'moves-data/**',
+      // 팀 워크트리 (저장소의 다른 사본 — 그 안에서 따로 검사, collab-worktree.md)
+      '.claude/**',
     ],
   },
   js.configs.recommended,
