@@ -4495,6 +4495,15 @@ body.vscode-high-contrast-light .pg-title-body {
   color: var(--pg-sos-dim);
   cursor: default;
 }
+/* 원래 확장 pokemon.css 의 button:hover (VS Code 버튼 파랑 · 명시도 0,1,1) 가 우리 바탕 (0,1,0) 을 이김 — 우리 올림 규칙이 빠지는 때 (누른 뒤 못 누름 · 안 찬 Z) 마우스가 올라 있으면
+   줄 전체가 파랗게 새어 나오던 것 (#77 태현 님 맥 — 타이틀 "개발 모드 (임시)" 줄). 그때도 우리 판 모양 그대로 */
+#pokemon-game .pg-title-item:disabled,
+#pokemon-game .pg-title-item:disabled:hover {
+  background: transparent;
+}
+#pokemon-game .pg-ultz:not(.pg-ultz-ready):hover {
+  background: var(--pg-sos-bar);
+}
 .pg-title-item:hover:not(:disabled),
 .pg-title-item:focus-visible {
   color: var(--pg-sos-gold);
