@@ -15229,6 +15229,10 @@ window.__ult = {
             const sx = u.body.cx;
             const yb = u.ground;
             part({ x: sx, y: 0, s: S, max: charge + 0.7, draw: (ctx, p, t, px) => {
+                // 합동 줄기 보기 캔버스면 뺌 — 화면 높이 어둠 · 빛기둥이 앞끝 · 계단으로 잘려 맞은 뒤 한 장면 네모 (#80 넷째 바퀴 · bugs #758). 합동은 제 어둠이 있음
+                if (typeof fxViewDrawing !== 'undefined' && fxViewDrawing) {
+                    return;
+                }
                 const k = smooth(p.life / charge);
                 const a = p.life > charge ? Math.max(0, 1 - (p.life - charge) / 0.7) : 1;
                 const x0 = px(sx - hw);
@@ -23721,21 +23725,24 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                 return;
             }
             const dark = clamp(k / 0.25, 0, 1);
-            ctx.globalAlpha = 0.78 * dark;
-            ctx.fillStyle = '#05070c';
-            ctx.fillRect(0, 0, W, H);
-            const lines = [new Path2D(), new Path2D()];
-            for (const r of rays) {
-                const head = farR * (0.9 - (((life - TQ) * r.sp * 2.2 + r.ph) % 1) * 0.75); // 바깥에서 가운데로 빨려 듦
-                const tail = head + farR * r.len;
-                const inner = Math.max(me.w * 1.4, head);
-                addLine(lines[r.w - 1], px, s, [[focusX + Math.cos(r.a) * inner, focusY + Math.sin(r.a) * inner], [focusX + Math.cos(r.a) * tail, focusY + Math.sin(r.a) * tail]], r.w);
+            // 합동 줄기 보기 캔버스에 그릴 때는 화면 판 (어둠 · 집중선) 을 뺌 — 앞끝 · 계단으로 잘려 네모가 되던 것 (#80 다시 찍기, ult/bridge.js fxViewDrawing). 합동은 제 어둠이 있음
+            if (typeof fxViewDrawing === 'undefined' || !fxViewDrawing) {
+                ctx.globalAlpha = 0.78 * dark;
+                ctx.fillStyle = '#05070c';
+                ctx.fillRect(0, 0, W, H);
+                const lines = [new Path2D(), new Path2D()];
+                for (const r of rays) {
+                    const head = farR * (0.9 - (((life - TQ) * r.sp * 2.2 + r.ph) % 1) * 0.75); // 바깥에서 가운데로 빨려 듦
+                    const tail = head + farR * r.len;
+                    const inner = Math.max(me.w * 1.4, head);
+                    addLine(lines[r.w - 1], px, s, [[focusX + Math.cos(r.a) * inner, focusY + Math.sin(r.a) * inner], [focusX + Math.cos(r.a) * tail, focusY + Math.sin(r.a) * tail]], r.w);
+                }
+                ctx.globalAlpha = 0.75 * dark;
+                ctx.fillStyle = '#ffffff';
+                ctx.fill(lines[0]);
+                ctx.fillStyle = TIDE[1];
+                ctx.fill(lines[1]);
             }
-            ctx.globalAlpha = 0.75 * dark;
-            ctx.fillStyle = '#ffffff';
-            ctx.fill(lines[0]);
-            ctx.fillStyle = TIDE[1];
-            ctx.fill(lines[1]);
             const press = 1 - 0.45 * easeIn(k);
             for (const cx of [cB, cF]) {
                 fireOrb(ctx, px, s, cx, cyM, Ro, TIDE, life + cx, press * (1 + 0.1 * Math.sin(life * 50)), G, 1, 0, [1, 0.92, 0.84, 0.7], 0.2);
@@ -23745,7 +23752,8 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         // ③ 임팩트 프레임 — 하양 → 검정(거북왕과 대포 빛만 하얗게) 번쩍, 각 0.06초
         sc.add({ max: TB + 0.05, draw: (ctx, it, t, px) => {
             const life = sc.t;
-            if (life < TF || life >= TB) {
+            // 합동 줄기 보기 캔버스면 임팩트 프레임 (화면 전체 하양 · 검정) 을 뺌 — 계단으로 밀리던 것 · 합동 번쩍은 닿는 순간 한 번 (#80 다시 찍기)
+            if (life < TF || life >= TB || (typeof fxViewDrawing !== 'undefined' && fxViewDrawing)) {
                 return;
             }
             if (life < TF + 0.06) {
@@ -49531,10 +49539,16 @@ const FX_CORE = '#fffbe8';
 const fxNoFlashGens = new Set();
 // 합동 맞은 뒤 꼬리 — 엔진은 피해 (jointMs − jointHitMs) 뒤 다시 달림 · 그 전에 흐려 끔 (보통 기술 · 쓰러짐 · 다음 필살기가 합동 꼬리 위에 겹치고 다음 필살기가 꼬리를 뚝 끊던 것 — #80 진단 ②)
 const FX_JOINT_TAIL_MS = 1550;
-const FX_JOINT_FADE_MS = 400;
+// 흐려 끄기 걸음 수 — 멈춘 그림이 0.8초 그대로 서 있다가 3단에 꺼지던 것 (U2 — 장면이 2장 넘게 같음, #80 셋째 바퀴) → 멈추는 때부터 끝까지 8단 (걸음마다 약 0.14초)
+const FX_JOINT_FADE_STEPS = 8;
 // 박자표 번쩍이 쏘는 때가 아닌 필살기 — 합동에서 맞출 때 · 닿는 때 (ms, 본편 시작부터). 거북왕 하이드로캐논 (o.turtle · fx-sky runHydroCannon):
 // 박자표 번쩍 5045 는 물줄기가 그친 뒤 거대한 물 폭발 (재는 창이 번쩍 판을 안 그려 물줄기가 나가는 하양 · 검정 번쩍을 못 잡음) → 물줄기 나감 TB 2.72초 · 가장 가까운 애에 닿음 TH 2.88초 (#80 진단 ①)
-const FX_JOINT_FIRE = { hydro: [2720, 2880] };
+// 메가런처 (o.turtle · ultorb — runMegaLauncher): 박자표 번쩍 2833 = 메가진화 펑 · main 4172 → 구슬이 피해 0.6 ~ 0.8초 뒤에 닿던 것 → 발사 TS 4.5초 · 맞음 TX 4.9초 (#80 다시 찍기 ③)
+const FX_JOINT_FIRE = { hydro: [2720, 2880], launcher: [4500, 4900] };
+// 자리형 틀 (불기둥 · 땅 · 꽃 · 대폭발) — 박자표가 쏘는 (self 0) 이어도 자기 둘레 길로 (분화가 쏘는 쪽이 되어 줄기 없이 가운데 불기둥이 5초 얼어 있던 것 — #80 다시 찍기 ④)
+const FX_JOINT_AREA = new Set(['ultpillar', 'ultquake', 'ultbloom', 'ultnova']);
+// 맞은 뒤 이만큼 뒤 참가자 연출을 그 자리에 멈춤 — 본편 남은 단계 (하이드로캐논 출력 최대로 다시 굵어짐 · 하드플랜트 덩굴이 패널 전체로) 가 흐려 끄기 전에 흐르지 않게 (#80 다시 찍기 ② ⑤)
+const FX_JOINT_STILL_MS = 300;
 // 줄기 보기 캔버스에 그리는 중 — 화면 전체를 칠하는 입자 (빔이 화면을 물들이는 판 등) 는 이때 안 칠함 (계단 · 앞끝으로 잘려 회색 네모가 되던 것 — #80 진단 ④)
 let fxViewDrawing = false;
 const fxDrawParticle0 = drawParticle;
@@ -50602,11 +50616,11 @@ window.pokemonFx = {
             // 참가자마다 번호 — 멈춤 · 계단 · 번쩍 빼기를 따로, 멈출 때 다 같이
             const pg = ++fxGen;
             fxTagged.add(pg);
-            const self = !!tm?.self && tm.flash >= 0;
-            // 박자표 번쩍이 쏘는 때가 아닌 필살기는 따로 적은 때로 (FX_JOINT_FIRE)
-            const fire = e[1] === 'ultbeam' && e[2]?.turtle ? FX_JOINT_FIRE.hydro : null;
-            // 맞출 순간 = 대폭발 "크게" (자기 둘레) · 빔이 나가는 번쩍 (쏘는 — 없으면 큰 맞음 0.26초 전)
-            const anchor = fire ? fire[0] : tm ? (self ? tm.flash : tm.flash >= 0 && tm.flash < tm.main ? tm.flash : Math.max(0, tm.main - 260)) : Math.round(ms * 0.4);
+            const self = (!!tm && FX_JOINT_AREA.has(e[1])) || (!!tm?.self && tm.flash >= 0);
+            // 박자표 번쩍이 쏘는 때가 아닌 필살기는 따로 적은 때로 (FX_JOINT_FIRE — 거북왕 하이드로캐논 · 메가런처)
+            const fire = e[2]?.turtle ? (e[1] === 'ultbeam' ? FX_JOINT_FIRE.hydro : e[1] === 'ultorb' ? FX_JOINT_FIRE.launcher : null) : null;
+            // 맞출 순간 = 대폭발 "크게" (자기 둘레 — 번쩍이 없으면 큰 맞음) · 빔이 나가는 번쩍 (쏘는 — 없으면 큰 맞음 0.26초 전)
+            const anchor = fire ? fire[0] : tm ? (self ? (tm.flash >= 0 ? tm.flash : tm.main) : tm.flash >= 0 && tm.flash < tm.main ? tm.flash : Math.max(0, tm.main - 260)) : Math.round(ms * 0.4);
             // 빔이 나가서 상대에 닿기까지 (쏘는 — 꽃 터짐 = 큰 맞음)
             const reach = fire ? fire[1] - fire[0] : tm && !self ? Math.max(0, tm.main - anchor) : 0;
             return { A, e, T, ms, anchor, reach, self, gen: pg, left: A.left + spriteSize(A) / 2 > window.innerWidth / 2, cols: fxCols4(ultCols(e[2] || {}, e[1])), type: o.types?.[i] || 'normal', freeze: 0 };
@@ -50667,12 +50681,16 @@ window.pokemonFx = {
             } catch (err) {
                 ultError('joint hit', err);
             }
-            // 맞은 뒤 꼬리 — 엔진이 다시 달리기 조금 전 (50ms) 에 다 흐려지게 (그사이 새 필살기 · 대결이 시작했으면 그건 둠 — fadeUlt)
+            // 맞은 뒤 0.3초 — 참가자 연출을 그 자리에 멈추고 (섞인 큰 폭발은 합동 번호라 그대로 흐름) 그때부터 흐려 끔: 엔진이 다시 달리기 0.1초 전에 다 꺼짐
+            // (그사이 새 필살기 · 대결이 시작했으면 그건 둠 — fadeUlt)
             setTimeout(() => {
                 if (fxGame === g) {
-                    window.pokemonFx.fadeUlt(FX_JOINT_FADE_MS);
+                    parts.forEach((p) => fxFreeze(p.gen, tailMs));
+                    // 진짜 그림을 지금 되돌림 — 연출이 그린 꼭두각시만 흐려지며 서로 바뀜 (빈 자리로 흐려졌다가 끝에 한 번에 나타나던 것 — #80 넷째 바퀴)
+                    parts.forEach((p) => p.A.fxReset());
+                    window.pokemonFx.fadeUlt(Math.max(200, tailMs - 100 - FX_JOINT_STILL_MS), FX_JOINT_FADE_STEPS);
                 }
-            }, Math.max(0, tailMs - 50 - FX_JOINT_FADE_MS));
+            }, FX_JOINT_STILL_MS);
         };
         fxWithTimers(gen, () => {
             // 기 모으기 (0.8초) → 컷인 한 번 → 머리 위 빛줄 0.3초 → 각자 필살기
@@ -50906,13 +50924,13 @@ window.pokemonFx = {
     },
     /** 쓰는 중인 필살기를 멈춤 (맞받아치기 · 전투 끝) — 몸 자리 · 그림 · 어둠을 되돌림 */
     /** 남은 필살기 연출을 ms 동안 흐리게 한 뒤 끔 (픽셀 박자 3단) — 반격기는 맞힌 뒤 줄기가 고르기 메뉴 위로 0.66초 남던 것 (2026-10-21 orders #7) */
-    fadeUlt(ms) {
+    fadeUlt(ms, steps = 3) {
         const g = fxGame;
         if (!g || typeof moveCanvas === 'undefined' || !moveCanvas) {
             return;
         }
         const c = moveCanvas;
-        c.style.transition = `opacity ${ms}ms steps(3, end)`;
+        c.style.transition = `opacity ${ms}ms steps(${steps}, end)`;
         c.style.opacity = '0';
         setTimeout(() => {
             // 그사이 새 필살기 · 대결이 시작했으면 그건 두고 캔버스만 다시 보이게
@@ -50921,6 +50939,14 @@ window.pokemonFx = {
             } else if (!fxGame) {
                 moveEmitters.length = 0;
                 moveParticles.length = 0;
+            }
+            // 캔버스를 비우고 되돌림 — 마지막 장이 다음 그리기 전에 한 장면 진하게 다시 보이던 것 (1860 — #80 다시 찍기)
+            if (!fxGame) {
+                const cx = c.getContext('2d');
+                cx.save();
+                cx.setTransform(1, 0, 0, 1, 0, 0);
+                cx.clearRect(0, 0, c.width, c.height);
+                cx.restore();
             }
             c.style.transition = '';
             c.style.opacity = '';

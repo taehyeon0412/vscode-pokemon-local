@@ -889,6 +889,10 @@
             const sx = u.body.cx;
             const yb = u.ground;
             part({ x: sx, y: 0, s: S, max: charge + 0.7, draw: (ctx, p, t, px) => {
+                // 합동 줄기 보기 캔버스면 뺌 — 화면 높이 어둠 · 빛기둥이 앞끝 · 계단으로 잘려 맞은 뒤 한 장면 네모 (#80 넷째 바퀴 · bugs #758). 합동은 제 어둠이 있음
+                if (typeof fxViewDrawing !== 'undefined' && fxViewDrawing) {
+                    return;
+                }
                 const k = smooth(p.life / charge);
                 const a = p.life > charge ? Math.max(0, 1 - (p.life - charge) / 0.7) : 1;
                 const x0 = px(sx - hw);

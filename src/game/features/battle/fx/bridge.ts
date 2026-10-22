@@ -89,7 +89,7 @@ export interface PokemonFx {
   ultJoint?(srcs: FxActor[], dst: FxActor, onHit?: () => void, o?: { types?: string[]; avoid?: string[][]; pick?: (string | null)[]; sure?: boolean; sub?: string; others?: FxActor[]; tailMs?: number }): number;
   stopUlt?(): void;
   /** 남은 필살기 연출을 ms 동안 흐리게 한 뒤 끔 (반격기 — 맞힌 뒤 줄기가 메뉴 위로 남지 않게) */
-  fadeUlt?(ms: number): void;
+  fadeUlt?(ms: number, steps?: number): void;
   /** 힘대결 (version 3) — a = 나, b = 상대 · live() = 내가 이길 확률 · { meetMs } 또는 null */
   duel?(a: FxActor, b: FxActor, spec: FxDuel, live: () => number): { meetMs: number } | null;
   duelWin?(who: 'a' | 'b'): void;

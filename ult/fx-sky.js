@@ -6560,21 +6560,24 @@
                 return;
             }
             const dark = clamp(k / 0.25, 0, 1);
-            ctx.globalAlpha = 0.78 * dark;
-            ctx.fillStyle = '#05070c';
-            ctx.fillRect(0, 0, W, H);
-            const lines = [new Path2D(), new Path2D()];
-            for (const r of rays) {
-                const head = farR * (0.9 - (((life - TQ) * r.sp * 2.2 + r.ph) % 1) * 0.75); // 바깥에서 가운데로 빨려 듦
-                const tail = head + farR * r.len;
-                const inner = Math.max(me.w * 1.4, head);
-                addLine(lines[r.w - 1], px, s, [[focusX + Math.cos(r.a) * inner, focusY + Math.sin(r.a) * inner], [focusX + Math.cos(r.a) * tail, focusY + Math.sin(r.a) * tail]], r.w);
+            // 합동 줄기 보기 캔버스에 그릴 때는 화면 판 (어둠 · 집중선) 을 뺌 — 앞끝 · 계단으로 잘려 네모가 되던 것 (#80 다시 찍기, ult/bridge.js fxViewDrawing). 합동은 제 어둠이 있음
+            if (typeof fxViewDrawing === 'undefined' || !fxViewDrawing) {
+                ctx.globalAlpha = 0.78 * dark;
+                ctx.fillStyle = '#05070c';
+                ctx.fillRect(0, 0, W, H);
+                const lines = [new Path2D(), new Path2D()];
+                for (const r of rays) {
+                    const head = farR * (0.9 - (((life - TQ) * r.sp * 2.2 + r.ph) % 1) * 0.75); // 바깥에서 가운데로 빨려 듦
+                    const tail = head + farR * r.len;
+                    const inner = Math.max(me.w * 1.4, head);
+                    addLine(lines[r.w - 1], px, s, [[focusX + Math.cos(r.a) * inner, focusY + Math.sin(r.a) * inner], [focusX + Math.cos(r.a) * tail, focusY + Math.sin(r.a) * tail]], r.w);
+                }
+                ctx.globalAlpha = 0.75 * dark;
+                ctx.fillStyle = '#ffffff';
+                ctx.fill(lines[0]);
+                ctx.fillStyle = TIDE[1];
+                ctx.fill(lines[1]);
             }
-            ctx.globalAlpha = 0.75 * dark;
-            ctx.fillStyle = '#ffffff';
-            ctx.fill(lines[0]);
-            ctx.fillStyle = TIDE[1];
-            ctx.fill(lines[1]);
             const press = 1 - 0.45 * easeIn(k);
             for (const cx of [cB, cF]) {
                 fireOrb(ctx, px, s, cx, cyM, Ro, TIDE, life + cx, press * (1 + 0.1 * Math.sin(life * 50)), G, 1, 0, [1, 0.92, 0.84, 0.7], 0.2);
@@ -6584,7 +6587,8 @@
         // ③ 임팩트 프레임 — 하양 → 검정(거북왕과 대포 빛만 하얗게) 번쩍, 각 0.06초
         sc.add({ max: TB + 0.05, draw: (ctx, it, t, px) => {
             const life = sc.t;
-            if (life < TF || life >= TB) {
+            // 합동 줄기 보기 캔버스면 임팩트 프레임 (화면 전체 하양 · 검정) 을 뺌 — 계단으로 밀리던 것 · 합동 번쩍은 닿는 순간 한 번 (#80 다시 찍기)
+            if (life < TF || life >= TB || (typeof fxViewDrawing !== 'undefined' && fxViewDrawing)) {
                 return;
             }
             if (life < TF + 0.06) {
