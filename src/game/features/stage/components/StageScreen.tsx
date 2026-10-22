@@ -468,7 +468,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         {team && <TeamLayer team={team} media={media} widthPx={widthPx} heightPx={layout.heightPx} infoBarPx={Math.round(INFO_BAR_PX * layout.uiScale)} fieldTopPx={fieldTopPx(layout.heightPx)} onInput={onInput} />}
         {/* 체육관으로 — 화면 닦기 (위 → 아래) */}
         {gymEnter && gymEnter.wipe > 0 && (
-          <div class="pg-gym-wipe" style={{ '--pg-wipe': String(gymEnter.wipe) }} />
+          <div class={`pg-gym-wipe${gymEnter.wipe > 0 && gymEnter.wipe < 1 ? ' pg-wiping' : ''}`} style={{ '--pg-wipe': String(gymEnter.wipe) }} />
         )}
         <EncounterBox state={state} />
         {/* 3마리 고르는 동안은 숨김 (고르기 판 뒤로 "승부다!" 상자 끝이 비치던 것) */}

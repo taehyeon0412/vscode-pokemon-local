@@ -1447,9 +1447,20 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 .pg-lobby-good {
   color: var(--pg-sos-hp);
 }
+/* 대기실 첫 줄 끝 관장 타입 표 — 힌트 글이 빠지는 좁은 패널에서만 (#661 — 넓으면 힌트 글 "물 타입" 이 같은 말) */
+.pg-lobby-type {
+  display: none;
+  flex: none;
+}
+.pg-lobby-type-disc .pg-type-tag > b {
+  display: none;
+}
 @media (max-width: 700px) {
   .pg-lobby-hint {
     display: none;
+  }
+  .pg-lobby-type {
+    display: inline-flex;
   }
 }
 @media (max-width: 360px) {
@@ -6690,6 +6701,10 @@ body.vscode-high-contrast-light .pg-hpblock > .pg-hprow,
   pointer-events: none;
   background: var(--pg-sos-bar);
   height: calc(var(--pg-wipe) * 100%);
+}
+/* 밤 스테이지는 닦는 남색이 밤하늘과 같아 끝이 안 보이던 것 (#662 UX) — 닦는 동안만 끝에 밝은 선 1px (판 테두리 색 · 크기는 안 움직임) */
+.pg-stage.pg-bg-beach-night .pg-gym-wipe.pg-wiping {
+  box-shadow: 0 1px 0 var(--pg-sos-line-soft);
 }
 
 /* 기획 R2 — 다 찬 필살기 누를 틈 (자동 전투 · 볼 때 3초 [임시값] 뒤 저절로): Z 배지 오른쪽 옆 숫자 칩 3 · 2 · 1 (남은 초 · 나갈 때까지 1 · 13 × 12 정수 — Z 가운데 높이) ·

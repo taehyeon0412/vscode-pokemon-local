@@ -11,7 +11,7 @@ import { canHeal, gymLeaderOf, regionsOn, teamLock, waitReason, type GameInput, 
 import { defeatWaits } from '../../../core/engine/play';
 import { maxHpOf, teamHealth, teamHealthy } from '../../../core/rules/bag';
 import { itemName } from '../../../core/rules/items';
-import { regionGymMoney, regionHere, regionOrder } from '../../../core/rules/region';
+import { regionGymMoney, regionGymTeam, regionHere, regionOrder } from '../../../core/rules/region';
 import { FACILITY_STAFF } from '../../../core/rules/stage';
 import { aliveCount, gymHint, shortTrainerName } from '../../../core/rules/trainer';
 import { josaOf } from '../../../core/text';
@@ -27,6 +27,7 @@ import { Sprite } from '../../../ui/Sprite';
 import { useFit } from '../../../ui/useFit';
 import { clearView, lobbyView, mapView } from '../../menu/model';
 import { STAGES, VS_MS } from '../model';
+import { TypeTag } from '../../battle/components/TypeTag';
 
 export interface BoxProps {
   state: GameState;
@@ -366,6 +367,9 @@ export function LobbyBox({ state, media, onInput, onBox, onShop, onMap }: BoxPro
   const healthy = teamHealthy(state.save);
   // 관장 힌트 (ideas #44) — 쓰는 타입 + 상성 좋은 내 포켓몬 (팀 · 보관함, 선두부터). 넓으면 첫 줄 끝, 좁으면 관장 이름에 올리면
   const hint = gymHint(state.save);
+  // 관장이 가장 많이 쓰는 타입 — 좁아 힌트 글이 빠지면 (700 아래) 첫 줄 끝 타입 표 (물 방 240 에서 물 체육관 신호가 약하던 것, #661 UX)
+  const gymTypes = regionGymTeam(regionHere(state.save.location), regionOrder(regionHere(state.save.location).id)).flatMap(([dex]) => speciesOf(dex)?.types ?? []);
+  const gymType = gymTypes.sort((a, b) => gymTypes.filter((t) => t === b).length - gymTypes.filter((t) => t === a).length)[0];
   // 지금 지역 관장 (숲 나래 · 해변 해솔 — 엔진 gymLeaderOf, #37 해변 미리 보기에서 나래가 보이던 것)
   const leader = gymLeaderOf(state.save);
   const goodNames = hint.good.map((uid) => {
@@ -385,6 +389,8 @@ export function LobbyBox({ state, media, onInput, onBox, onShop, onMap }: BoxPro
   const newRegion = regionsOn(state) ? mapView(state).regions.find((r) => isNewRegion(r, state.save.stages)) : undefined;
   const fit = useFit(lobbyBox, 2, ':scope > .pg-line:last-child');
   const tight = fit >= 1;
+  // 첫 줄이 넘치면 타입 표를 한 단계씩 — 1 = 동그라미만 · 2 = 뺌 (관장 이름이 "나…" 로 줄던 것, U4 · 맥 여유 10%)
+  const typeFit = useFit(lobbyBox, 2, ':scope > .pg-line:first-child');
   return (
     <div class="pg-banner pg-lobby pg-two" ref={lobbyBox}>
       <span class="pg-line">
@@ -406,6 +412,11 @@ export function LobbyBox({ state, media, onInput, onBox, onShop, onMap }: BoxPro
           {hint.text.replace(/^\S+ \S+ /, '').replace(' 포켓몬을 써요', ' 타입')}
           {goodNames.length > 0 && <span class="pg-lobby-good"> · 상성 좋음 {goodNames.length > 1 ? `${goodNames[0]} 외 ${goodNames.length - 1}` : goodNames[0]}</span>}
         </span>
+        {gymType && typeFit < 2 && (
+          <span class={typeFit >= 1 ? 'pg-lobby-type pg-lobby-type-disc' : 'pg-lobby-type'} title={hintTitle}>
+            <TypeTag type={gymType} />
+          </span>
+        )}
       </span>
       <span class="pg-line">
         <Button secondary onClick={() => onInput({ kind: 'heal' })} disabled={healthy} title={healthy ? '이미 다 건강해요' : '⑤ 병원 — 무료로 다 회복'}>
