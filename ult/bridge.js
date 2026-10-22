@@ -762,6 +762,14 @@ const FX_JOINT_BURST_MS = 1500;
 const FX_CORE = '#fffbe8';
 // 번쩍을 빼는 번호 (합동의 쏘는 쪽 — 흰 돔이 회색으로 깜빡이던 것)
 const fxNoFlashGens = new Set();
+// 합동 맞은 뒤 꼬리 — 엔진은 피해 (jointMs − jointHitMs) 뒤 다시 달림 · 그 전에 흐려 끔 (보통 기술 · 쓰러짐 · 다음 필살기가 합동 꼬리 위에 겹치고 다음 필살기가 꼬리를 뚝 끊던 것 — #80 진단 ②)
+const FX_JOINT_TAIL_MS = 1550;
+const FX_JOINT_FADE_MS = 400;
+// 박자표 번쩍이 쏘는 때가 아닌 필살기 — 합동에서 맞출 때 · 닿는 때 (ms, 본편 시작부터). 거북왕 하이드로캐논 (o.turtle · fx-sky runHydroCannon):
+// 박자표 번쩍 5045 는 물줄기가 그친 뒤 거대한 물 폭발 (재는 창이 번쩍 판을 안 그려 물줄기가 나가는 하양 · 검정 번쩍을 못 잡음) → 물줄기 나감 TB 2.72초 · 가장 가까운 애에 닿음 TH 2.88초 (#80 진단 ①)
+const FX_JOINT_FIRE = { hydro: [2720, 2880] };
+// 줄기 보기 캔버스에 그리는 중 — 화면 전체를 칠하는 입자 (빔이 화면을 물들이는 판 등) 는 이때 안 칠함 (계단 · 앞끝으로 잘려 회색 네모가 되던 것 — #80 진단 ④)
+let fxViewDrawing = false;
 const fxDrawParticle0 = drawParticle;
 drawParticle = function (ctx, p) {
     // 개발 창 덮음 재기 (dev/ult-fx.py) — 화면 전체 어두워짐 · 번쩍 판은 그리지 않음 (캔버스 점 수로 상대를 덮는 연출만 셈)
@@ -769,14 +777,20 @@ drawParticle = function (ctx, p) {
         return;
     }
     if (p._g !== undefined) {
-        if (p._flash && fxNoFlashGens.has(p._g)) {
+        // _screen = 기술 연출이 직접 그리는 화면 전체 번쩍 판 (fx-energy overlay) — 합동 쏘는 쪽은 core 번쩍과 같이 뺌 (번쩍은 닿는 순간 한 번)
+        if ((p._flash || p._screen) && fxNoFlashGens.has(p._g)) {
             return;
         }
         // 합동 쏘는 줄기 — 따로 그려 두면 장 끝에 계단 · 앞끝까지만 (fxStairBlit). 화면 전체 어두워짐 판은 빼고 (앞끝에서 어두워짐이 끊겨 네모 경계가 보이던 것)
-        const view = p._full ? undefined : fxBeamView.get(p._g);
+        const view = p._full || p._screen ? undefined : fxBeamView.get(p._g);
         if (view?.ctx && ctx === moveCtx) {
             view.drawn = true;
-            fxDrawParticle0(view.ctx, p);
+            fxViewDrawing = true;
+            try {
+                fxDrawParticle0(view.ctx, p);
+            } finally {
+                fxViewDrawing = false;
+            }
             return;
         }
     }
@@ -1007,7 +1021,10 @@ const FX_SPIRAL_RUN_MS = 900;
 // 번호마다 멈춤 (그 때까지) — 입자 · 발사기 · 타이머 (fxGuard) 가 멈춤: 쏘는 필살기의 모으기를 늘리고 · 빔 끝 (꽃 터짐) 을 나선이 닿는 때에 맞춤
 const fxFrozen = new Map();
 let fxFrozenLast = 0;
-const fxSetTimeout0 = window.setTimeout.bind(window);
+// fxGuard 를 건너뛰는 타이머 — 게임 시계 (3:3 박자 0.8 · 개발 모드 — src/game/webview/clock.ts 가 __pgSetTimeout 을 내놓음) 는 따름.
+// 불러올 때 잡아 둔 진짜 setTimeout 만 쓰면 3:3 에서 빔 멈춤 · 힘대결 HUD 되돌림이 20% 일찍 오던 것 (코드 리뷰어 #83)
+const fxSetTimeoutReal = window.setTimeout.bind(window);
+const fxSetTimeout0 = (fn, ms, ...args) => (window.__pgSetTimeout || fxSetTimeoutReal)(fn, ms, ...args);
 // 번호마다 쏘는 줄기 보기 — 앞끝 (front(now)) 너머는 안 그림 · 줄이 다르면 계단 (열마다 2칸 폭으로 아래 · 위로 밀기, 기울기 = 줄 차이 / 거리)
 const fxBeamView = new Map();
 // 멈춘 때 기록 (번호 → [시작, 끝]) — 멈춘 동안 걸려 있던 타이머는 멈춘 만큼 뒤로 (fxGuard)
@@ -1819,10 +1836,12 @@ window.pokemonFx = {
             const pg = ++fxGen;
             fxTagged.add(pg);
             const self = !!tm?.self && tm.flash >= 0;
+            // 박자표 번쩍이 쏘는 때가 아닌 필살기는 따로 적은 때로 (FX_JOINT_FIRE)
+            const fire = e[1] === 'ultbeam' && e[2]?.turtle ? FX_JOINT_FIRE.hydro : null;
             // 맞출 순간 = 대폭발 "크게" (자기 둘레) · 빔이 나가는 번쩍 (쏘는 — 없으면 큰 맞음 0.26초 전)
-            const anchor = tm ? (self ? tm.flash : tm.flash >= 0 && tm.flash < tm.main ? tm.flash : Math.max(0, tm.main - 260)) : Math.round(ms * 0.4);
+            const anchor = fire ? fire[0] : tm ? (self ? tm.flash : tm.flash >= 0 && tm.flash < tm.main ? tm.flash : Math.max(0, tm.main - 260)) : Math.round(ms * 0.4);
             // 빔이 나가서 상대에 닿기까지 (쏘는 — 꽃 터짐 = 큰 맞음)
-            const reach = tm && !self ? Math.max(0, tm.main - anchor) : 0;
+            const reach = fire ? fire[1] - fire[0] : tm && !self ? Math.max(0, tm.main - anchor) : 0;
             return { A, e, T, ms, anchor, reach, self, gen: pg, left: A.left + spriteSize(A) / 2 > window.innerWidth / 2, cols: fxCols4(ultCols(e[2] || {}, e[1])), type: o.types?.[i] || 'normal', freeze: 0 };
         });
         const As = parts.map((p) => p.A);
@@ -1854,7 +1873,9 @@ window.pokemonFx = {
         const base = charge + introMs + FX_LINK_MS;
         const now = performance.now();
         const runEnd = Math.max(...parts.map((p) => p.start + p.ms + p.freeze + (p.hold || 0)), finishAt + FX_JOINT_BURST_MS);
-        const until = now + base + runEnd + ULT_OUTRO_MS;
+        // 맞은 뒤 꼬리 (엔진이 다시 달릴 때) 에서 끝 — 본편 끝 (해일 · 꽃 터짐 · 메가 되돌림 — 맞음 뒤 약 5초) 까지 기다리지 않음 (#80 진단 ②)
+        const tailMs = o.tailMs ?? FX_JOINT_TAIL_MS;
+        const until = now + base + Math.min(runEnd, finishAt + tailMs) + ULT_OUTRO_MS;
         const g = { A: lead.A, B, many: As, gen, gens: parts.map((p) => p.gen), tick: setInterval(fxGameTick, 100), hit: false, joint: true };
         fxGame = g;
         try {
@@ -1879,6 +1900,12 @@ window.pokemonFx = {
             } catch (err) {
                 ultError('joint hit', err);
             }
+            // 맞은 뒤 꼬리 — 엔진이 다시 달리기 조금 전 (50ms) 에 다 흐려지게 (그사이 새 필살기 · 대결이 시작했으면 그건 둠 — fadeUlt)
+            setTimeout(() => {
+                if (fxGame === g) {
+                    window.pokemonFx.fadeUlt(FX_JOINT_FADE_MS);
+                }
+            }, Math.max(0, tailMs - 50 - FX_JOINT_FADE_MS));
         };
         fxWithTimers(gen, () => {
             // 기 모으기 (0.8초) → 컷인 한 번 → 머리 위 빛줄 0.3초 → 각자 필살기
@@ -1937,8 +1964,8 @@ window.pokemonFx = {
                     // 점 = 포켓몬 점 1칸 (p) · 계단 = 2칸 폭 (u) · 빔 반 높이 = 5칸 (원래 줄기 20px — ×2)
                     const v = { x0, y0: gm.mouth.y, dir, slope: ((b.y - gm.mouth.y) / Math.max(20, Math.abs(b.x - x0))) * dir, u: 2 * S, p: S, half: 5 * S, tx: b.x, bigAt: now + base + big, hitAt: now + base + finishAt };
                     v.orbX = gm.mouth.x - dir * 8 * S;
-                    // 닿은 뒤 100ms 는 상대 + 40px 까지 (줄기가 상대를 뚫고 나가 보이지 않게 — 디자인팀 8판 끝)
-                    v.front = (t) => (t < v.bigAt ? Infinity * v.dir : t < v.hitAt ? v.x0 + (v.tx - v.x0) * Math.min(1, (t - v.bigAt) / (v.hitAt - v.bigAt)) : t < v.hitAt + 100 ? v.tx + v.dir * 40 : Infinity * v.dir);
+                    // 닿은 뒤는 상대 + 40px 까지 (줄기가 상대를 뚫고 나가 보이지 않게 — 디자인팀 8판 끝). 100ms 뒤 풀던 것 → 꼬리가 흐려질 때까지 묶음 (본편 빔이 화면 끝까지 1.5 ~ 2.5초 보이던 것 — #80 진단 ③)
+                    v.front = (t) => (t < v.bigAt ? Infinity * v.dir : t < v.hitAt ? v.x0 + (v.tx - v.x0) * Math.min(1, (t - v.bigAt) / (v.hitAt - v.bigAt)) : v.tx + v.dir * 40);
                     fxBeamView.set(p.gen, v);
                     // 꽃 터짐 뒤 화면 전체 번쩍 장은 뺌 (흰 돔이 회색으로 깜빡이던 것) — 번쩍은 닿는 순간 한 번
                     fxNoFlashGens.add(p.gen);

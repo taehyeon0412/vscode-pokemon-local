@@ -41,7 +41,7 @@ export type TeamFxCall =
   /** 필살기 (일반 모드 그대로 — 변신 · 전용 연출) — dst = 가운데 상대 (모두를 침) · quick = 짧게 (TEAM_FX.quickRepeat) · key = 엔진 붙잡기 열쇠 (맞는 순간까지) */
   | { do: 'ult'; src: TeamSlot; dst: TeamSlot; quick: boolean; key: string; others: TeamSlot[]; type: string; name?: string }
   /** 합동 필살기 마무리 — 이긴 참가자 필살기가 같은 때 닿아 한 점에서 합쳐 터짐 (ult/bridge.js ultJoint) · sure = 3:1 압도 */
-  | { do: 'joint'; winners: TeamSlot[]; dst: TeamSlot; types: string[]; sure: boolean; key: string; others: TeamSlot[]; name?: string }
+  | { do: 'joint'; winners: TeamSlot[]; dst: TeamSlot; types: string[]; sure: boolean; key: string; others: TeamSlot[]; name?: string; names?: (string | null)[] }
   /** 필살기 힘겨루기 — 앞장 (첫 참가자) 끼리 대결 · 합류는 join */
   | { do: 'ult-clash'; me: number[]; foe: number[] }
   | { do: 'ult-join'; who: TeamSlot }
@@ -70,6 +70,22 @@ const fxMoveOf = (moveId: number): FxMove | null => {
 function ultTarget(b: TeamBattle, side: Side): TeamSlot {
   const foes = b[other(side)].map((f, i) => (f.hp > 0 ? i : -1)).filter((i) => i >= 0);
   return { side: other(side), slot: foes[Math.floor((foes.length - 1) / 2)] ?? 0 };
+}
+
+/**
+ * 필살기 연출이 맞은 모양을 그린 상대 (그 피해 기록 앞의 필살기) — 합동 = 진 쪽 가운데 · 고른 대상 · 범위기 = 그때 살아 있던 상대 가운데.
+ * 피해 뒤 상태로 셈 (ultTarget) 하면 대상이 쓰러졌을 때 · 합동 대상이 달라 늘 어긋나 큰 임팩트가 세 겹이던 것 (#80 진단 ⑤)
+ */
+function ultDrawnSlot(b: TeamBattle, hit: Extract<TeamLogEntry, { t: 'hit' }>): number {
+  const ult = [...b.log].reverse().find((x): x is Extract<TeamLogEntry, { t: 'ult' }> => x.id < hit.id && x.t === 'ult' && x.side === hit.side);
+  if (!ult) return ultTarget(b, hit.side).slot;
+  if (ult.joint) return ult.joint.losers[Math.floor((ult.joint.losers.length - 1) / 2)] ?? hit.to;
+  if (ult.target !== undefined) return ult.target;
+  // 범위기 — 그 필살기로 쓰러진 상대도 그때는 살아 있었음 (다음 필살기 앞까지의 피해 기록)
+  const next = b.log.find((x) => x.id > ult.id && x.t === 'ult' && x.side === hit.side)?.id ?? Infinity;
+  const down = new Set(b.log.filter((x) => x.id > ult.id && x.id < next && x.t === 'hit' && x.ult === true && x.side === hit.side && x.ko).map((x) => (x as Extract<TeamLogEntry, { t: 'hit' }>).to));
+  const foes = b[other(hit.side)].map((f, i) => (f.hp > 0 || down.has(i) ? i : -1)).filter((i) => i >= 0);
+  return foes[Math.floor((foes.length - 1) / 2)] ?? hit.to;
 }
 
 /**
@@ -111,7 +127,7 @@ function planOne(b: TeamBattle, e: TeamLogEntry, final: boolean, seen: Set<strin
       const contact = !e.ult && shotTiming(e.moveId).contact;
       if (contact && m) out.push({ do: 'strike', dst, src: { side: e.side, slot: e.from }, move: m });
       // 필살기가 직접 맞힌 상대 (가운데) 는 필살기 연출이 맞은 모양을 그림 — 큰 임팩트가 두 번 겹치지 않게 (코드 리뷰어)
-      const ultDrawn = e.ult && dst.slot === ultTarget(b, e.side).slot;
+      const ultDrawn = e.ult && dst.slot === ultDrawnSlot(b, e);
       if (!ultDrawn) out.push({ do: 'impact', dst, type, big, name: m?.name ?? '필살기', o, ...(contact && m ? { delayMs: TEAM_FX.contactImpactLagMs } : {}) });
       if (e.effect !== 'immune' && e.dmg > 0) out.push({ do: 'knock', dst, cells: final ? TEAM_KNOCK.finalCells : TEAM_KNOCK.cells, ms: final ? TEAM_KNOCK.finalMs : TEAM_KNOCK.ms });
       if (final) out.push({ do: 'final', dst });
@@ -135,7 +151,7 @@ function planOne(b: TeamBattle, e: TeamLogEntry, final: boolean, seen: Set<strin
         const j = e.joint;
         // 한 점 = 진 쪽 가운데 · 나머지 상대에게는 퍼지는 충격 (범위 필살기 — 기획 제안)
         const mid = j.losers[Math.floor((j.losers.length - 1) / 2)]!;
-        out.push({ do: 'joint', winners: j.winners.map((slot) => ({ side: e.side, slot })), dst: { side: other(e.side), slot: mid }, others: j.losers.filter((x) => x !== mid).map((slot) => ({ side: other(e.side), slot })), types: j.winners.map((w) => b[e.side][w]?.types[0] ?? 'normal'), sure: j.sure, key: teamUltKey(e.at), ...(e.name ? { name: e.name } : {}) });
+        out.push({ do: 'joint', winners: j.winners.map((slot) => ({ side: e.side, slot })), dst: { side: other(e.side), slot: mid }, others: j.losers.filter((x) => x !== mid).map((slot) => ({ side: other(e.side), slot })), types: j.winners.map((w) => b[e.side][w]?.types[0] ?? 'normal'), sure: j.sure, key: teamUltKey(e.at), ...(e.name ? { name: e.name } : {}), ...(j.names ? { names: j.names } : {}) });
         return;
       }
       const key = `${e.side}:${e.from}`;
@@ -376,15 +392,17 @@ export class TeamFxRunner {
         fx.stopDuel?.();
         // 그림이 없는 참가자는 타입 · 피할 이름과 같이 뺌 (순번이 어긋나 다른 포켓몬 것이 붙던 것)
         const ps = c.winners
-          // 첫 참가자 (처음 쓴 포켓몬) 는 엔진이 고른 필살기 (기획 R7 — 이름 · 연출 같게) · 나머지는 개발 모드에서 고른 것 / 저절로
-          .map((w, i) => ({ actor: a(w), type: c.types[i] ?? 'normal', avoid: this.learned(w), pick: (i === 0 ? c.name : undefined) ?? devUltOf(this.last?.[w.side][w.slot]?.uid) ?? null }))
+          // 참가자마다 엔진이 고른 필살기 (기획 R7 · #80 답 — 이름 · 연출 · 피해 때 같게) · 옛 기록이면 첫 참가자만 엔진 · 나머지는 개발 모드에서 고른 것 / 저절로
+          .map((w, i) => ({ actor: a(w), type: c.types[i] ?? 'normal', avoid: this.learned(w), pick: c.names?.[i] ?? (i === 0 ? c.name : undefined) ?? devUltOf(this.last?.[w.side][w.slot]?.uid) ?? null }))
           .filter((p): p is { actor: FxActor; type: string; avoid: string[]; pick: string | null } => !!p.actor);
         const dst = a(c.dst);
         const others = c.others.map(a).filter((x): x is FxActor => !!x);
         // 상대 합동이면 컷인 부제도 "상대 …" (내 것과 같은 "합동 필살기!" 이던 것 — 디자인팀 UX R9 ⑥ U5)
         const foeJoint = c.winners[0]?.side === 'foe';
         const sub = foeJoint ? (c.sure ? '상대의 압도하는 합동 필살기!' : '상대 합동 필살기!') : undefined;
-        const total = ps.length && dst ? (fx.ultJoint?.(ps.map((p) => p.actor), dst, () => releaseFx(), { types: ps.map((p) => p.type), avoid: ps.map((p) => p.avoid), pick: ps.map((p) => p.pick), sure: c.sure, others, ...(sub ? { sub } : {}) }) ?? 0) : 0;
+        // tailMs = 맞은 뒤 엔진이 다시 달리기까지 — 연출 꼬리를 그 전에 흐려 끔 (#80 진단 ②)
+        const tailMs = TIMING.team.jointMs - TIMING.team.jointHitMs;
+        const total = ps.length && dst ? (fx.ultJoint?.(ps.map((p) => p.actor), dst, () => releaseFx(), { types: ps.map((p) => p.type), avoid: ps.map((p) => p.avoid), pick: ps.map((p) => p.pick), sure: c.sure, others, tailMs, ...(sub ? { sub } : {}) }) ?? 0) : 0;
         if (total > 0) {
           holdFx(c.key, total, performance.now(), FX_HOLD_ULT_MAX_MS);
           this.ultUntil = performance.now() + total;

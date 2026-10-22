@@ -81,7 +81,7 @@
     // 맨 위 덮개 — 화면 전체 번쩍 · 하얗게 (연출 처음에 만들어야 맨 위). flash(색, 진하기, 사라지는 초, 머무는 초, 늦춤)
     function overlay(sec) {
         const list = [];
-        const p = part({ x: 0, y: 0, s: 1, max: sec + 0.6, draw: (ctx, q) => {
+        const p = part({ x: 0, y: 0, s: 1, max: sec + 0.6, _screen: true, draw: (ctx, q) => {
             for (let i = list.length - 1; i >= 0; i--) {
                 const f = list[i];
                 const age = q.life - f.at;
@@ -763,12 +763,14 @@
             if (alpha <= 0.01) {
                 return;
             }
-            // 광선 빛이 화면을 물들임 (모든 것 밑에 깔림)
-            ctx.globalCompositeOperation = 'destination-over';
-            ctx.globalAlpha = (0.07 + 0.03 * Math.sin(f * 40)) * alpha;
-            ctx.fillStyle = o.rainbow ? hue(f * 300, 60) : cols[1];
-            ctx.fillRect(0, 0, W, H);
-            ctx.globalCompositeOperation = 'source-over';
+            // 광선 빛이 화면을 물들임 (모든 것 밑에 깔림) — 합동 줄기 보기 캔버스에 그릴 때는 뺌 (앞끝 · 계단으로 잘려 회색 네모 — #80 진단 ④, ult/bridge.js)
+            if (typeof fxViewDrawing === 'undefined' || !fxViewDrawing) {
+                ctx.globalCompositeOperation = 'destination-over';
+                ctx.globalAlpha = (0.07 + 0.03 * Math.sin(f * 40)) * alpha;
+                ctx.fillStyle = o.rainbow ? hue(f * 300, 60) : cols[1];
+                ctx.fillRect(0, 0, W, H);
+                ctx.globalCompositeOperation = 'source-over';
+            }
             const seg = 2 * S;
             const n = Math.max(1, Math.ceil(front / seg));
             const tick = Math.floor(f * 30);
