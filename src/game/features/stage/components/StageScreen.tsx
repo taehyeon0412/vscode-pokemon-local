@@ -478,7 +478,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
       >
         {gym ? (
           // 체육관 3:3 = 바닥 윗선을 3:3 무대 지평선 (무대 높이 22% — teamGeometry) 까지 올림 (위 두 줄이 벽 앞에 떠 보이던 것 — #78)
-          <GymRoom media={media} room={gymRoomOf(regionHere(save.location))} k={buildingDraw('hospital', layout.scale, heroRoom).k} floorPx={team ? Math.max(Math.round(bodyPx * GYM_FLOOR_SHARE), bodyPx - Math.round(bodyPx * 0.22)) : Math.max(ground + GYM_FLOOR_ABOVE_GROUND_PX, Math.round(bodyPx * GYM_FLOOR_SHARE))} dark={themeKind() === 'dark'} team={team !== null} />
+          <GymRoom media={media} room={gymRoomOf(regionHere(save.location))} k={team && widthPx < 400 ? 1 : buildingDraw('hospital', layout.scale, heroRoom).k} floorPx={team ? Math.max(Math.round(bodyPx * GYM_FLOOR_SHARE), bodyPx - Math.round(bodyPx * 0.22)) : Math.max(ground + GYM_FLOOR_ABOVE_GROUND_PX, Math.round(bodyPx * GYM_FLOOR_SHARE))} dark={themeKind() === 'dark'} team={team !== null} />
         ) : (
           <>
             <ScrollLayer key={`bg-${sceneBackground(state)}`} cls="pg-bg" image={art('background')} start={sceneBackground(state).startsWith('arena-') ? 0 : offset * 0.35} pxPerSec={WALK_PX_PER_SEC * layout.scale * 0.35 * walkK} running={phase === 'walk' && live} />

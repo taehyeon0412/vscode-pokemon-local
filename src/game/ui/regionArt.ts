@@ -8,7 +8,7 @@ const BADGE: Record<RegionId, readonly [IconName, IconName]> = {
   forest: ['badge', 'badgeBig'],
   beach: ['badgeBeach', 'badgeBeachBig'],
   // 임시 (숲 배지) — 디자인팀이 화산 배지 그림으로 바꿈 (orders #75)
-  volcano: ['badge', 'badgeBig'],
+  volcano: ['badgeVolcano', 'badgeVolcanoBig'],
 };
 
 /** 그 지역 배지 그림 (big = 16 × 16 — 배지 카드) */

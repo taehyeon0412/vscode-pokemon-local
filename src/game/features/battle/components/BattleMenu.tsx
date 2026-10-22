@@ -526,8 +526,14 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
     };
     // 줄이 안 들어가면 한 칸 스크롤 (두 칸이면 넓어져 볼 던질 상대 · 옆 메뉴 탭을 덮던 것 — UX 리뷰어 #23 5차)
     const listCls = `pg-pick-list pg-pick-now${bar ? '' : ' pg-pick-list-low'}${fitList && !compact ? ' pg-pick-left' : ''}${many ? ' pg-pick-scroll' : ''}${tabOn ? ' pg-pick-tabs' : ''}`;
+    // 스크롤 끝이면 pg-scroll-end ("▼ 더" 숨김) — 처음 · 커서로 내릴 때 · 휠
+    const markEnd = (el: HTMLElement | null): void => {
+      el?.classList.toggle('pg-scroll-end', el.scrollTop + el.clientHeight >= el.scrollHeight - 1);
+    };
     row = (
-      <span class={listCls}>
+      <span class={listCls} ref={(el) => {
+        markEnd(el);
+      }} onScroll={(e) => markEnd(e.currentTarget as HTMLElement)}>
         <span class="pg-pick-title">
           {/* 탭이면 제목 자리에 탭 둘 (탭 이름이 무엇의 목록인지 말함 — 240 에서 제목 · 탭 · HP · 뒤로가 한 줄에 안 들어가서) */}
           {tabOn

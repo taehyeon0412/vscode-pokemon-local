@@ -7,9 +7,11 @@
 import { useEffect, useLayoutEffect, useState } from 'preact/hooks';
 
 const ROOM = 1.1;
+/** 맥 가로 여유 — 다른 재기 (VS 컷인) 도 같은 값 */
+export const FIT_ROOM = ROOM;
 
 /** 줄 내용의 실제 너비 = 칸마다 (글 · 칸) 너비 합 + 칸 사이 gap — 줄 전체 Range 는 space-between 이면 줄 끝까지 재져 늘 넘친 것으로 보여서 */
-function contentWidth(line: HTMLElement): number {
+export function contentWidth(line: HTMLElement): number {
   const range = document.createRange();
   let w = 0;
   let n = 0;

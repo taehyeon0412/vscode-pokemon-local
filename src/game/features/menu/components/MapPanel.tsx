@@ -72,7 +72,8 @@ export function MapPanel({ state, swap, midStage, onInput, onTeam, onClose }: Ma
   useLayoutEffect(() => {
     const tabs = tabsBox.current;
     const head = tabs?.closest<HTMLElement>('.pg-panel-head');
-    if (!tabs || !head || tight >= 2) return;
+    // 3 = 탭 안 배지 그림 뺌 (title 에 남음) · 4 = 지역 그림 뺌 (내 위치는 점만) — 지역이 셋이 되어 2단계로 모자라 화산 탭이 닫기 밑에 깔리던 것 (UX 리뷰어 #75)
+    if (!tabs || !head || tight >= 4) return;
     const cs = getComputedStyle(head);
     const inner = head.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
     const gap = parseFloat(cs.columnGap) || 0;

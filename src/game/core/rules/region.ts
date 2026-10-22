@@ -179,9 +179,9 @@ export const REGIONS: Readonly<Record<RegionId, RegionDef>> = {
     badge: 'volcano',
     stages: [
       // 아이콘 = 임시 (디자인팀이 화산 스테이지 아이콘 volcanoSlope · volcanoCave · volcanoCrater 로 바꿈) · 배경 = 디자인 1위 (선명한 용암 17/25 — 8aba212)
-      { id: 'volcano-1', name: '화산 기슭', icon: 'pebbles', trainers: 2, background: 'volcano-slope' },
-      { id: 'volcano-2', name: '용암 동굴', icon: 'stone', trainers: 3, background: 'volcano-cave' },
-      { id: 'volcano-3', name: '분화구', icon: 'sparkle', trainers: 3, background: 'volcano-crater' },
+      { id: 'volcano-1', name: '화산 기슭', icon: 'volcanoSlope', trainers: 2, background: 'volcano-slope' },
+      { id: 'volcano-2', name: '용암 동굴', icon: 'volcanoCave', trainers: 3, background: 'volcano-cave' },
+      { id: 'volcano-3', name: '분화구', icon: 'volcanoCrater', trainers: 3, background: 'volcano-crater' },
     ],
     wild: {
       common: ['fire', 'ground'],

@@ -42,6 +42,9 @@ export const ICONS = {
   potion: ['...ww...', '...WW...', '..wWWw..', '.PPPPPP.', '.PWPPPp.', '.PWPPPp.', '.PPPPPp.', '..pppp..'],
   superPotion: ['...ww...', '...WW...', '..wWWw..', '.RRRRRR.', '.RWRRRr.', '.RWRRRr.', '.RRRRRr.', '..rrrr..'],
   fullHeal: ['...gg...', '...GG...', '..wWWw..', '.YYYYYY.', '.YWYYYy.', '.YWYYYy.', '.YYYYYy.', '..yyyy..'],
+  /** 회복약 배지 단계 (#75 화산 — 배지 3 · 5) — 상처약 셋과 같은 분무기 · 금 꼭지 · 고급상처약 = 파랑 · 풀회복약 = 초록 + 흰 십자 (HP 가득 + 상태 — 병원 십자와 같은 뜻) */
+  hyperPotion: ['...yy...', '...YY...', '..wWWw..', '.BBBBBB.', '.BWBBBb.', '.BWBBBb.', '.BBBBBb.', '..bbbb..'],
+  fullRestore: ['...yy...', '...YY...', '..wWWw..', '.GGGGGG.', '.GWGWGg.', '.GGWWWg.', '.GGGWGg.', '..gggg..'],
   revive: ['...YY...', '..YWYy..', '.YWYYyy.', 'YWYYYYyy', 'yYYYYYyy', '.yYYYyy.', '..yyyy..', '...yy...'],
   stone: ['..wwww..', '.wWWWWw.', 'wWWWwWWw', 'wWWwwWww', 'wWWWWwww', '.wWWwww.', '..wwww..', '........'],
   cord: ['.YY..BB.', 'Y..YB..B', 'Y..YB..B', '.YYYBBB.', '..YB.B..', '..Y..B..', '.YY..BB.', '........'],
@@ -71,6 +74,11 @@ export const ICONS = {
   /** 깊은 숲 (1-3) */
   oak: ['..GGGG..', '.GGGGGg.', 'GGGGGGgg', 'GGGGGggg', '.GGGggg.', '..gnng..', '...nn...', '...nn...'],
   /** 해변 스테이지 (2-1 반짝 모래길 · 2-2 갯바위 해안 · 2-3 등대 곶) — 숲 셋과 같은 8 × 8 · 테두리 없음 (길 위 흔적 그림 sparkle · pebbles · ripple 을 쓰던 것: 크기가 셋으로 섞이고 반짝은 이로치로 읽힘, 아트 디렉터 새 화면 한 바퀴) */
+  /** 화산 스테이지 (#75) — 기슭 (용암이 흘러내리는 산) · 용암 동굴 (둥근 굴 입구 안 용암) · 분화구 (용암 그릇 + 연기 덩어리) ·
+   *  몸통은 밝은 갈색 N (그늘 n 은 오른쪽 · 맨 아래만) — 어두운 n 몸통이 남색 판에서 2.7:1 · 안 고른 탭 0.6 에서 거의 안 보이던 것 · 동굴이 보관함 네모와 같던 것 (아트 디렉터 #75 큼) */
+  volcanoSlope: ['........', '..RYYR..', '..NRRn..', '.NNNRnn.', '.NNNnRn.', 'NNNNnRnn', 'NNNnnnRn', 'nnnnnnnn'],
+  volcanoCave: ['...nn...', '..NNNn..', '.NNNNnn.', 'NNN..nnn', 'NN....nn', 'NN.YY.nn', 'NNRYYRnn', 'nnRRRRnn'],
+  volcanoCrater: ['..wWw...', '...ww...', '........', '.nN..Nn.', 'nNNRRNnn', 'NNRYYRnn', 'NNNRRnnn', 'nnnnnnnn'],
   beachSand: ['........', '........', '.....WW.', '....WWww', '..YYYyy.', '.YYYYYyy', 'YYYYYYyy', 'yyyyyyyy'],
   beachRock: ['........', 'B......B', '.B.WW.B.', '..WWWw..', '.WWWWww.', 'WWWWwwww', 'bBbBbBbB', 'BbBbBbBb'],
   // 등대 = 지붕 + 넓은 불빛 + 줄무늬 탑 (불빛이 탑보다 넓어야 등대로 — 원뿔만이면 라바콘으로 읽히던 것, UX)
@@ -89,9 +97,12 @@ export const ICONS = {
   badge: ['...yy...', '..yYGy..', '.yYGGGy.', 'yYGWGGgy', 'yYGGGggy', '.yGGggy.', '..yggy..', '...yy...'],
   // 해변 배지 = 같은 모양 · 잎 초록 → 물 파랑 (orders #67 — 숲 · 해변 배지가 같은 그림이던 것, 아트 디렉터)
   badgeBeach: ['...yy...', '..yYBy..', '.yYBBBy.', 'yYBWBBby', 'yYBBBbby', '.yBBbby.', '..ybby..', '...yy...'],
+  /** 화산 배지 (#75) — 숲 초록 · 해변 파랑과 같은 다이아 틀 · 불 빨강 */
+  badgeVolcano: ['...yy...', '..yYRy..', '.yYRRRy.', 'yYRWRRry', 'yYRRRrry', '.yRRrry.', '..yrry..', '...yy...'],
   /** 큰 배지 (MVP 끝 카드 — 16 × 16 칸, 점 크기는 다른 아이콘과 같은 2) */
   badgeBig: ['.......yy.......', '......yYYy......', '.....yYGGYy.....', '....yYGGGGYy....', '...yYGGWGGGYy...', '..yYGGWWGGGGYy..', '.yYGGGWGGGGgGYy.', 'yYGGGGGGGGggGGYy', 'yYGGGGGGGgggGGYy', '.yYGGGGGgggGGYy.', '..yYGGggggGGYy..', '...yYGgggGGYy...', '....yYGGGGYy....', '.....yYGGYy.....', '......yYYy......', '.......yy.......'],
   // 해변 배지 = 같은 모양 · 잎 초록 → 물 파랑 (orders #67 — 숲 · 해변 배지가 같은 그림이던 것, 아트 디렉터)
+  badgeVolcanoBig: ['.......yy.......', '......yYYy......', '.....yYRRYy.....', '....yYRRRRYy....', '...yYRRWRRRYy...', '..yYRRWWRRRRYy..', '.yYRRRWRRRRrRYy.', 'yYRRRRRRRRrrRRYy', 'yYRRRRRRRrrrRRYy', '.yYRRRRRrrrRRYy.', '..yYRRrrrrRRYy..', '...yYRrrrRRYy...', '....yYRRRRYy....', '.....yYRRYy.....', '......yYYy......', '.......yy.......'],
   badgeBeachBig: ['.......yy.......', '......yYYy......', '.....yYBBYy.....', '....yYBBBBYy....', '...yYBBWBBBYy...', '..yYBBWWBBBBYy..', '.yYBBBWBBBBbBYy.', 'yYBBBBBBBBbbBBYy', 'yYBBBBBBBbbbBBYy', '.yYBBBBBbbbBBYy.', '..yYBBbbbbBBYy..', '...yYBbbbBBYy...', '....yYBBBBYy....', '.....yYBBYy.....', '......yYYy......', '.......yy.......'],
   /** 빨리 걷기 ▶▶ (꺼짐 · 켜졌지만 지금은 보통 빠르기) */
   fast: ['........', 'W...W...', 'WW..WW..', 'WWW.WWW.', 'WWW.WWW.', 'WW..WW..', 'W...W...', '........'],

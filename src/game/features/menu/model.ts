@@ -29,8 +29,8 @@ export const ITEM_ICON: Record<ItemId, IconName> = {
   potion: 'potion',
   'super-potion': 'superPotion',
   // 화산 (#75) 새 약 — 그림 (hyperPotion · fullRestore) 은 디자인이 이어받아 넣음 · 그때까지 좋은상처약 그림
-  'hyper-potion': 'superPotion',
-  'full-restore': 'superPotion',
+  'hyper-potion': 'hyperPotion',
+  'full-restore': 'fullRestore',
   'full-heal': 'fullHeal',
   revive: 'revive',
   'fire-stone': 'stone',
@@ -168,7 +168,8 @@ export function bagView(save: Save): BagRow[] {
           : '볼은 전투에서 써요 (야생 포켓몬에게)';
     rows.push({ item, name: itemName(item), count, field, evolution: isEvolutionItem(item), note });
   }
-  return rows.sort((a, b) => Number(b.field) - Number(a.field));
+  // 쓰는 물건 먼저 · 그 안은 쓰는 순서 (상처약 → 좋은 → 고급 → 풀회복 · 상태 · 기력 …) — 세이브에 들어온 순서라 "고급 · 풀회복 · 상처약 · 좋은" 처럼 섞이던 것 (UX 리뷰어 #75)
+  return rows.sort((a, b) => Number(b.field) - Number(a.field) || FIELD_ITEMS.indexOf(a.item) - FIELD_ITEMS.indexOf(b.item));
 }
 
 /** 그 아이템을 팀 포켓몬마다 쓸 수 있는지 (흐리게 + 까닭) */
@@ -198,10 +199,12 @@ const SHOP_EFFECT: Record<ShopItem, string> = {
   'poke-ball': '잡기 보통',
   'great-ball': `잘 잡힘 ×${BALANCE.ballScale['great-ball']}`,
   'ultra-ball': `잘 잡힘 ×${BALANCE.ballScale['ultra-ball']}`,
-  potion: `HP ${BALANCE.potionHeal} 회복`,
-  'super-potion': `HP ${BALANCE.superPotionHeal} 회복`,
-  'hyper-potion': `HP ${BALANCE.hyperPotionHeal} 회복`,
-  'full-restore': 'HP 가득 · 상태',
+  // 회복 = 분무기 아이콘이 말함 — "HP 120 회복 · 가진 3" 이 860 에서 고급상처약 칸만 두 줄이던 것 (아트 디렉터 #75)
+  potion: `HP ${BALANCE.potionHeal}`,
+  'super-potion': `HP ${BALANCE.superPotionHeal}`,
+  'hyper-potion': `HP ${BALANCE.hyperPotionHeal}`,
+  // 한 줄 ("HP 가득 · 상태 · 가진 2" 가 두 줄이 되어 상점 셋째 줄이 두 배이던 것 — UX 리뷰어 #75)
+  'full-restore': '가득 + 상태',
   'full-heal': '상태 회복',
   revive: '되살림 HP ½',
   'rare-candy': '레벨 +1',

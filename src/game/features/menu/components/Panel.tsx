@@ -6,6 +6,7 @@ import type { ComponentChildren } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { Button } from '../../../ui/Button';
 import { Icon, type IconName } from '../../../ui/Icon';
+import { FIT_ROOM } from '../../../ui/useFit';
 
 export interface PanelProps {
   /** 제목 앞 아이콘 (금색 이름표 밖 남색 위 — 이름표 위에서는 묻혀서) */
@@ -32,7 +33,8 @@ export function Panel({ icon, title, extra, onClose, closeLabel = '닫기', sub,
   const check = () => {
     const el = body.current;
     if (!el) return;
-    const m = el.scrollHeight - (el.scrollTop + el.clientHeight) > 12;
+    // 2px 넘게 숨으면 (반만 보이는 줄) — 12 였을 때 숨은 12 ~ 13px 줄 (화산 상점 "경험 부적" 13/22px) 에 표시가 안 뜨던 것 (UX 리뷰어 #75)
+    const m = el.scrollHeight - (el.scrollTop + el.clientHeight) > 2;
     setMore(m);
     if (m) setKept(true);
   };
@@ -41,13 +43,28 @@ export function Panel({ icon, title, extra, onClose, closeLabel = '닫기', sub,
     if (el) el.scrollBy({ top: Math.max(16, el.clientHeight - 16) });
   };
   useLayoutEffect(check);
+  // 넘치면 한 단계 (U4) — 머리 줄 오른쪽 (탭 · 돈) 의 실제 너비 × 맥 여유가 칸을 넘으면 머리 아이콘을 뺌 (맥 240 상점 "99,99…" — 픽셀 검사원 #75).
+  //   일부러 줄여 보이는 긴 안내 (.pg-long) 는 빼고 잼 · 패널 크기가 바뀌면 다시
+  const head = useRef<HTMLDivElement>(null);
+  const [tight, setTight] = useState(false);
+  useLayoutEffect(() => {
+    const ex = head.current?.querySelector<HTMLElement>('.pg-panel-extra');
+    if (tight || !ex || ex.clientWidth <= 0) return;
+    const kids = Array.from(ex.children).filter((c) => !c.classList.contains('pg-long') && c.getBoundingClientRect().width > 0);
+    const gap = parseFloat(getComputedStyle(ex).columnGap) || 0;
+    const need = kids.reduce((w, c) => w + c.getBoundingClientRect().width + (parseFloat(getComputedStyle(c).marginLeft) || 0) + (parseFloat(getComputedStyle(c).marginRight) || 0), 0) + Math.max(0, kids.length - 1) * gap;
+    if (need * FIT_ROOM > ex.clientWidth + 0.02) setTight(true);
+  });
   useEffect(() => {
     const el = body.current;
     el?.addEventListener('scroll', check, { passive: true });
+    const reset = () => setTight(false);
     window.addEventListener('resize', check);
+    window.addEventListener('resize', reset);
     return () => {
       el?.removeEventListener('scroll', check);
       window.removeEventListener('resize', check);
+      window.removeEventListener('resize', reset);
     };
   }, []);
   useEffect(() => {
@@ -65,8 +82,8 @@ export function Panel({ icon, title, extra, onClose, closeLabel = '닫기', sub,
   }, [onClose]);
   return (
     <div class="pg-panel" role="dialog">
-      <div class="pg-panel-head">
-        {icon && <Icon name={icon} />}
+      <div ref={head} class="pg-panel-head">
+        {icon && !tight && <Icon name={icon} />}
         <b class="pg-panel-title pg-ellipsis">{title}</b>
         {extra && <span class="pg-panel-extra pg-ellipsis">{extra}</span>}
         {/* 넓으면 (480 이상) "▼ 더" 는 머리 줄 ✕ 왼쪽 — 세로 자리를 안 씀 (187 높이 지도에서 아래 줄이 목표 줄을 반쯤 자르던 것, UX 리뷰어) */}

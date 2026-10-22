@@ -89,7 +89,7 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, o
         </span>
       </span>
       {/* 발밑 판 — 키 칸 (내 편) + HP + 필살기 게이지 */}
-      <span class={`pg-team-plate pg-team-plate-${side} pg-plate-${st}`} style={{ left: `${Math.round(x - w / 2)}px`, top: `${y + 4}px`, width: `${w}px` }} onClick={click}>
+      <span class={`pg-team-plate pg-team-plate-${side} pg-plate-${st}`} style={{ left: `${Math.round(x - w / 2)}px`, top: `${y + (g.scale >= 3 ? 6 : 4)}px`, width: `${w}px` }} onClick={click}>
         {mine && <span class="pg-team-key">{slot + 1}</span>}
         <span class="pg-team-bars">
           <Bar v={f.hp / Math.max(1, f.maxHp)} kind="hp" />

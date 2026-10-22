@@ -24,7 +24,7 @@ import { badgeIcon, isNewRegion, regionIcon } from '../../../ui/regionArt';
 import { KeyCap } from '../../../ui/KeyCap';
 import { formatMoney } from '../../../ui/format';
 import { Sprite } from '../../../ui/Sprite';
-import { useFit } from '../../../ui/useFit';
+import { contentWidth, FIT_ROOM, useFit } from '../../../ui/useFit';
 import { clearView, lobbyView, mapView } from '../../menu/model';
 import { STAGES, VS_MS } from '../model';
 import { TypeTag } from '../../battle/components/TypeTag';
@@ -454,6 +454,16 @@ export function BadgeCard({ state, onInput, onMap }: BoxProps & { onMap(): void 
   // 보상 · 버튼 줄이 넘치면 한 단계 — Enter 키 칸을 빼고 배지와 글 사이 6 (폭 경계 330 고정이라 맥 331 ~ 333 에서 버튼 묶음이 셋째 줄로 내려가 카드가 주인공을 덮던 것, 개발 UX #70 · U4)
   const card = useRef<HTMLDivElement>(null);
   const [tight, setTight] = useState(false);
+  // 첫 줄 (배지 이름 + 뒷말) 이 넘치면 뒷말을 뺌 — 맥 240 ~ 274 에서 "모든 지역 열" 로 잘리던 것 (UX 리뷰어 #75 · 맥 여유 1.1)
+  const [tailOff, setTailOff] = useState(false);
+  useLayoutEffect(() => {
+    const el = card.current;
+    const line = el?.querySelector<HTMLElement>('.pg-badge-lines > .pg-line');
+    if (!el || !line || tailOff || line.clientWidth === 0) return;
+    const kids = [...line.children].filter((c): c is HTMLElement => c instanceof HTMLElement && c.offsetWidth > 0);
+    const need = kids.reduce((w, c) => w + c.scrollWidth * 1.1, 0) + 4 * Math.max(0, kids.length - 1);
+    if (need > line.clientWidth + 0.5 && line.querySelector('.pg-badge-tail')?.getClientRects().length) setTailOff(true);
+  });
   useLayoutEffect(() => {
     const el = card.current;
     if (!el || tight) return;
@@ -470,7 +480,10 @@ export function BadgeCard({ state, onInput, onMap }: BoxProps & { onMap(): void 
     if (need > room + 0.5) setTight(true);
   });
   useEffect(() => {
-    const reset = () => setTight(false);
+    const reset = () => {
+      setTight(false);
+      setTailOff(false);
+    };
     window.addEventListener('resize', reset);
     return () => window.removeEventListener('resize', reset);
   }, []);
@@ -503,7 +516,7 @@ export function BadgeCard({ state, onInput, onMap }: BoxProps & { onMap(): void 
   );
   const item = region.firstWinItem;
   return (
-    <div class={`pg-banner pg-badge-card${tight ? ' pg-badge-tight' : ''}`} ref={card}>
+    <div class={`pg-banner pg-badge-card${tight ? ' pg-badge-tight' : ''}${tailOff ? ' pg-badge-notail' : ''}`} ref={card}>
       <span class="pg-badge-glow">
         <Icon name={badgeIcon(region.id, true)} title={region.badgeName} />
       </span>
@@ -570,8 +583,18 @@ const VS_ART_SCALE = 2;
 
 export function VsCutIn({ me, myBalls, foe, foeBalls, tag, at, meArt, foeArt }: { me: string; myBalls: boolean[]; foe: string; foeBalls: number; /** 라이벌 전적 ("전적 2승 1패") — 전적 띠가 VS 에 가려지는 동안에도 보이게 */ tag?: string; at: number; /** 원작 대결 그림 (없으면 이름 · 볼만) */ meArt?: VsArt | null; foeArt?: VsArt | null }) {
   const at0 = useRef(at).current;
+  // 넘치면 한 단계 (U4) — 상대 띠 내용 (오른쪽 맞춤) 의 왼쪽 끝이 내 그림 칸 오른쪽 끝을 넘으면 상대 볼 줄을 뺌. offsetLeft 는 밀려 들어오는 transform 과 상관없음
+  const vsRef = useRef<HTMLDivElement>(null);
+  const [tight, setTight] = useState(false);
+  useLayoutEffect(() => {
+    const band = vsRef.current?.querySelector<HTMLElement>('.pg-vs-foe');
+    const art = vsRef.current?.querySelector<HTMLElement>('.pg-vs-art-me');
+    if (tight || !band || !art) return;
+    const right = band.offsetLeft + band.clientWidth - parseFloat(getComputedStyle(band).paddingRight);
+    if (right - contentWidth(band) * FIT_ROOM < art.offsetLeft + art.offsetWidth + 4) setTight(true);
+  });
   return (
-    <div class="pg-vs" style={{ '--pg-vs-at': `${-at0}ms`, '--pg-vs-dur': `${VS_MS}ms` }}>
+    <div ref={vsRef} class={tight ? 'pg-vs pg-vs-tight' : 'pg-vs'} style={{ '--pg-vs-at': `${-at0}ms`, '--pg-vs-dur': `${VS_MS}ms` }}>
       {meArt && <VsArtBox art={meArt} side="me" />}
       {foeArt && <VsArtBox art={foeArt} side="foe" />}
       <div class={meArt ? 'pg-vs-band pg-vs-me pg-has-art' : 'pg-vs-band pg-vs-me'}>
