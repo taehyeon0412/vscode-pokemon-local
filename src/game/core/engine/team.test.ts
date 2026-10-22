@@ -903,17 +903,26 @@ describe('3:3 연출 방향 (2026-10-21 태현 님 — 일반 모드 기술 그�
     const clash: TeamBattle = { ...base, phase: 'clash', clash: { kind: 'ult', me: [0, 2], foe: [0], shots: null, ms: 0, dur: TIMING.team.ultClashMs, taps: 0, winner: null } };
     const won = run(clash, TIMING.team.ultClashMs + STEP, fixedRng(0.01));
     expect(won.phase).toBe('ult');
-    expect(won.ult).toMatchObject({ side: 'me', from: 0, window: 0, joint: { winners: [0, 2], losers: [0], sure: false } });
+    // 힘겨루기를 이긴 합동 = quick (참가자 필살기는 대결에서 나감 — 짧은 마무리, orders #86) · 엔진 박자도 짧게
+    expect(won.ult).toMatchObject({ side: 'me', from: 0, window: 0, joint: { winners: [0, 2], losers: [0], sure: false, quick: true }, dur: TIMING.team.clashJointMs, hitMs: TIMING.team.clashJointHitMs });
+    expect(won.log.filter((e) => e.t === 'ult')).toHaveLength(1);
     // 힘겨루기를 이긴 합동도 참가자마다 엔진이 필살기를 고름 (기획 #80 답)
     expect(won.ult!.joint!.names).toHaveLength(2);
     won.ult!.joint!.names!.forEach((n, i) => expect(n !== null && ultNamesOf(won.me[won.ult!.joint!.winners[i]!]!.form).includes(n)).toBe(true));
     expect(won.foe[0]!.hp).toBe(base.foe[0]!.hp);
     expect(won.log.some((e) => e.t === 'ult' && e.joint !== undefined)).toBe(true);
-    const before = run(won, TIMING.team.jointHitMs - STEP * 3, fixedRng(0.01));
+    const before = run(won, TIMING.team.clashJointHitMs - STEP * 3, fixedRng(0.01));
     expect(before.foe[0]!.hp).toBe(base.foe[0]!.hp);
-    const after = run(won, TIMING.team.jointHitMs + STEP, fixedRng(0.01));
+    const after = run(won, TIMING.team.clashJointHitMs + STEP, fixedRng(0.01));
+    // 필살기 한 번씩만 — 합동 마무리 뒤에 참가자 필살기 (ult 기록) 가 또 생기지 않음
+    expect(after.log.filter((e) => e.t === 'ult')).toHaveLength(1);
     expect(after.foe[0]!.hp).toBeLessThan(base.foe[0]!.hp);
     expect(readTeam(viaJson(won))).toEqual(viaJson(won));
+    // 앞장 필살기 이름 = 힘겨루기에 적어 둔 것 (첫 컷인 · 대결 VS · 합동 컷인이 같은 이름 — 코드 리뷰어 #86) · 기록 다시 읽기
+    const lead = ultNamesOf(base.me[0]!.form);
+    const named = run({ ...clash, clash: { ...clash.clash!, names: { me: lead[lead.length - 1]! } } }, TIMING.team.ultClashMs + STEP, fixedRng(0.01));
+    expect(named.ult!.joint!.names![0]).toBe(lead[lead.length - 1]);
+    expect(readTeam(viaJson({ ...clash, clash: { ...clash.clash!, names: { me: 'x'.repeat(41) } } }))).toBeNull();
     const solo = run({ ...clash, clash: { ...clash.clash!, me: [0] } }, TIMING.team.ultClashMs + STEP, fixedRng(0.01));
     expect(solo.phase).toBe('run');
     expect(solo.foe[0]!.hp).toBeLessThan(base.foe[0]!.hp);
@@ -950,6 +959,8 @@ describe('같은 편 합동 필살기 — 합동 필살기 멘트 (2026-10-21 �
     const joint = run(joined, TIMING.team.gatherMs, fixedRng(0.99));
     // 합동은 한 점 = 한 마리 (기획 R7 A)
     expect(joint.ult).toMatchObject({ joint: { winners: [0, 1], losers: [joint.ult!.target], sure: false }, dur: TIMING.team.jointMs, window: 0 });
+    // 모여서 한 합동 (힘겨루기 없음) 은 참가자 필살기가 처음 나가는 것 — quick 아님 (#86)
+    expect(joint.ult!.joint!.quick).toBeUndefined();
     // 참가자 필살기도 엔진이 고름 (기획 #80 답 — 연출이 고르면 피해 때가 참가자마다 달라짐, U2) · 첫 참가자 = 쓴 필살기 · 다시 읽기 · 길이가 다르면 버림
     const names = joint.ult!.joint!.names!;
     expect(names).toHaveLength(2);

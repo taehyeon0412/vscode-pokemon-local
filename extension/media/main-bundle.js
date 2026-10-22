@@ -9322,22 +9322,38 @@ function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1, at = null) {
         const s0 = at && at.s0 ? at.s0 : 2.4;
         const scale = t < inT ? s0 - (s0 - 1) * back : 1;
         const alpha = Math.min(1, t / 0.06) * (t > p.max - 0.3 ? Math.max(0, (p.max - t) / 0.3) : 1);
-        let size = Math.round(ultClamp(W / 9, 18, 40) * k0);
+        const size0 = Math.round(ultClamp(W / 9, 18, 40) * k0);
+        let size = size0;
         const font = ultFont();
         ctx.save();
         ctx.font = `900 ${size}px ${font}`;
-        const tw = ctx.measureText(text).width;
+        let tw = ctx.measureText(text).width;
+        let lines = [text];
         if (tw > W * 0.9) {
             size = Math.max(12, Math.floor((size * W * 0.9) / tw));
             ctx.font = `900 ${size}px ${font}`;
+            // 12px 에서도 넘치면 " × " 에서 두 줄 (합동 이름 셋 — 240 에서 양쪽이 잘리던 것, UX 리뷰어 #86 U4)
+            if (ctx.measureText(text).width > W * 0.9 && text.includes(' × ')) {
+                const ps = text.split(' × ');
+                const h = Math.ceil(ps.length / 2);
+                lines = [`${ps.slice(0, h).join(' × ')} ×`, ps.slice(h).join(' × ')];
+                ctx.font = `900 ${size0}px ${font}`;
+                const mw = Math.max(...lines.map((l) => ctx.measureText(l).width));
+                size = Math.max(12, Math.min(size0, Math.floor((size0 * W * 0.9) / mw)));
+                ctx.font = `900 ${size}px ${font}`;
+            }
+            tw = Math.max(...lines.map((l) => ctx.measureText(l).width));
         }
+        // 두 줄이면 줄 사이 · 위아래로 반 줄씩 더 (부제 · 자리 계산)
+        const lh = Math.round(size * 1.05);
+        const extra = ((lines.length - 1) * lh) / 2;
         const jx = t < 0.35 && !(at && at.still) ? moveRand(-1, 1) * 2 : 0;
         // 게임 모드 — 부제까지 정보줄 (높은 패널은 둘째 줄 지도까지) 아래에 (연출 캔버스 위쪽은 정보줄 아래 끝에서 잘림)
         if (textTop === null) {
             textTop = ultTextTop();
         }
         const top = textTop;
-        const yMin = top ? top + (sub ? size * 0.85 + Math.max(10, Math.round(size * 0.4)) / 2 : size / 2) + 4 : 0;
+        const yMin = top ? top + extra + (sub ? size * 0.85 + Math.max(10, Math.round(size * 0.4)) / 2 : size / 2) + 4 : 0;
         // at.x · at.y = 그 자리 가운데 (화면 밖으로 안 나가게 안쪽으로) — 없으면 화면 가운데
         const fixed = !!at && at.x !== undefined;
         const cx = fixed ? Math.min(W - tw / 2 - 4, Math.max(tw / 2 + 4, at.x)) : W / 2;
@@ -9347,8 +9363,8 @@ function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1, at = null) {
             if (!hud) {
                 hud = typeof fxHudRects === 'function' ? fxHudRects() : [];
             }
-            const up = sub ? size * 0.85 + Math.max(10, Math.round(size * 0.4)) / 2 : size / 2;
-            const down = size / 2;
+            const up = (sub ? size * 0.85 + Math.max(10, Math.round(size * 0.4)) / 2 : size / 2) + extra;
+            const down = size / 2 + extra;
             const half = Math.min(tw, W * 0.9) / 2 + 4;
             const hits = hud.filter((r) => r.left < cx + half && r.right > cx - half && r.top < y + down && r.bottom > y - up);
             if (hits.length) {
@@ -9362,45 +9378,48 @@ function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1, at = null) {
         ctx.textBaseline = 'middle';
         ctx.lineJoin = 'round';
         ctx.globalAlpha = alpha;
-        ctx.lineWidth = Math.max(5, size / 4);
-        ctx.strokeStyle = 'rgba(10, 5, 0, 0.9)';
-        ctx.strokeText(text, 0, 0);
-        ctx.lineWidth = Math.max(2, size / 9);
-        ctx.strokeStyle = C[3];
-        ctx.strokeText(text, 0, 0);
-        const grad = ctx.createLinearGradient(0, -size / 2, 0, size / 2);
-        grad.addColorStop(0, '#ffffff');
-        grad.addColorStop(0.3, C[0]);
-        grad.addColorStop(0.62, C[1]);
-        grad.addColorStop(1, C[2]);
-        ctx.fillStyle = grad;
-        ctx.fillText(text, 0, 0);
-        // 반짝 — 글씨 위로 하얀 빛이 비스듬히 지나감
-        const sweep = (t - 0.25) / 0.35;
-        if (sweep > 0 && sweep < 1) {
-            const w2 = ctx.measureText(text).width / 2 + size;
-            ctx.save();
-            ctx.beginPath();
-            const x = -w2 + sweep * 2 * w2;
-            ctx.moveTo(x - size * 0.5, -size);
-            ctx.lineTo(x + size * 0.1, -size);
-            ctx.lineTo(x - size * 0.1, size);
-            ctx.lineTo(x - size * 0.7, size);
-            ctx.closePath();
-            ctx.clip();
-            ctx.globalAlpha = alpha * 0.85;
-            ctx.fillStyle = '#ffffff';
-            ctx.fillText(text, 0, 0);
-            ctx.restore();
-        }
+        lines.forEach((line, li) => {
+            const ly = li * lh - extra;
+            ctx.lineWidth = Math.max(5, size / 4);
+            ctx.strokeStyle = 'rgba(10, 5, 0, 0.9)';
+            ctx.strokeText(line, 0, ly);
+            ctx.lineWidth = Math.max(2, size / 9);
+            ctx.strokeStyle = C[3];
+            ctx.strokeText(line, 0, ly);
+            const grad = ctx.createLinearGradient(0, ly - size / 2, 0, ly + size / 2);
+            grad.addColorStop(0, '#ffffff');
+            grad.addColorStop(0.3, C[0]);
+            grad.addColorStop(0.62, C[1]);
+            grad.addColorStop(1, C[2]);
+            ctx.fillStyle = grad;
+            ctx.fillText(line, 0, ly);
+            // 반짝 — 글씨 위로 하얀 빛이 비스듬히 지나감
+            const sweep = (t - 0.25) / 0.35;
+            if (sweep > 0 && sweep < 1) {
+                const w2 = ctx.measureText(line).width / 2 + size;
+                ctx.save();
+                ctx.beginPath();
+                const x = -w2 + sweep * 2 * w2;
+                ctx.moveTo(x - size * 0.5, ly - size);
+                ctx.lineTo(x + size * 0.1, ly - size);
+                ctx.lineTo(x - size * 0.1, ly + size);
+                ctx.lineTo(x - size * 0.7, ly + size);
+                ctx.closePath();
+                ctx.clip();
+                ctx.globalAlpha = alpha * 0.85;
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText(line, 0, ly);
+                ctx.restore();
+            }
+        });
         if (sub) {
             const ss = Math.max(10, Math.round(size * 0.4));
             ctx.font = `bold ${ss}px ${font}`;
             ctx.lineWidth = 3;
             ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)';
-            ctx.strokeText(sub, 0, -size * 0.85);
+            ctx.strokeText(sub, 0, -size * 0.85 - extra);
             ctx.fillStyle = '#ffffff';
-            ctx.fillText(sub, 0, -size * 0.85);
+            ctx.fillText(sub, 0, -size * 0.85 - extra);
         }
         ctx.restore();
     } });
@@ -49504,8 +49523,12 @@ const FX_DUEL_FX = {
 };
 // 대결 입자의 수명 표시 (멈출 때 찾아서 줄임) — 승자가 정해질 때까지 밀기가 이어지게 아주 길게
 const FX_DUEL_LONG = 59.75;
-function fxDuelEntry(kind, form, m, avoid) {
+function fxDuelEntry(kind, form, m, avoid, name) {
     if (kind === 'ult') {
+        const named = name && (POKEMON_ULT[form] || []).map((k) => ULT_LIB[k]).find((v) => v && v[0] === name && !ULT_SPECIALS.includes(v[1]));
+        if (named) {
+            return named;
+        }
         // 필살기 대결 — 그 포켓몬 필살기 (일반 모드 주머니 순서, 배운 기술과 이름이 같으면 다른 것), 특수 필살기 (튀어오르기 · 변신 · 손가락흔들기) 면 다른 것
         const e = fxUltPick(form, avoid);
         if (e && !ULT_SPECIALS.includes(e[1])) {
@@ -50855,18 +50878,23 @@ window.pokemonFx = {
         // 어둠 속에서 밝게 둘 포켓몬 — 참가자 · 닿는 때부터 맞는 상대 (어두워짐 아래 흐린 그림자로 남던 것 — 디자인팀 7판)
         const lit = [...As];
         const lead = parts[0];
-        const charge = 800;
+        // quick = 힘겨루기를 이긴 합동 — 참가자 필살기는 대결에서 이미 나감 → 기 모으기 · 각자 필살기를 다시 쓰지 않고 컷인 → 빛줄 → 기운이 모여 큰 구슬 → 폭발 (orders #86 —
+        // "처음에 썼던 포켓몬의 기술이 먼저 나간후에 갑자기 기를 모으면서 3명이 또 다시 쓰는")
+        const quick = !!o.quick;
+        const charge = quick ? 0 : 800;
         const introMs = ULT_INTRO_MS;
         const shooters = parts.filter((p) => !p.self);
         const selfs = parts.filter((p) => p.self);
         // 나선 감기 (#98 D) = 쏘는 줄기가 하나라도 있고 함께가 있을 때 — 쏘는 + 자기 둘레 (기운 나선) · 쏘는 + 쏘는 (두 색 나선) / 자기 둘레끼리는 기운이 모여 큰 구슬 (fxJointFinish)
-        const spiral = shooters.length > 0 && parts.length > 1;
+        const spiral = !quick && shooters.length > 0 && parts.length > 1;
         const beam = spiral ? shooters[0] : null;
         const partner = spiral ? (selfs[0] ?? shooters[1]) : null;
         // 같은 때 맞게 — 늦은 쪽에 맞춤. 쏘는 쪽이 이르면 늦추지 않고 모으기를 늘림 (같이 시작 — 빛 구슬이 커짐), 자기 둘레가 이르면 늦게 시작
-        const big = Math.max(...parts.map((p) => p.anchor));
+        const big = quick ? 0 : Math.max(...parts.map((p) => p.anchor));
         parts.forEach((p) => {
-            if (spiral && !p.self && p.anchor < big) {
+            if (quick) {
+                p.start = 0;
+            } else if (spiral && !p.self && p.anchor < big) {
                 p.start = 0;
                 p.freeze = big - p.anchor;
             } else {
@@ -50890,7 +50918,9 @@ window.pokemonFx = {
         const J = { g, gen, gens: new Set(parts.map((p) => p.gen)), selfGens: new Set(parts.filter((p) => p.self).map((p) => p.gen)), p: Math.max(1, Math.round(fxBody(lead.A).w / (lead.A._originalSpriteSize || 32))), dissolveAt: 0, top: {} };
         fxJointTop = J;
         // 기 모으기를 먼저 (ultActive 가 걸리면 기 모으기가 바로 끝남 — useUltimate 와 같은 순서, 코드 리뷰어)
-        fxWithTimers(gen, () => parts.forEach((p) => ultChargeFor(p.A, charge)));
+        if (!quick) {
+            fxWithTimers(gen, () => parts.forEach((p) => ultChargeFor(p.A, charge)));
+        }
         ultActive = { pokemon: lead.A, until, name: lead.e[0], fx: lead.e[1] };
         moveCanvasReady();
         moveCanvas.style.zIndex = '6';
@@ -50898,7 +50928,8 @@ window.pokemonFx = {
             p.A.currentState = new UltState(p.left, until);
             p.A.currentStateEnum = 'swipe';
             p.A.hideSpeechBubble();
-            if (p.e[2]?.tint) {
+            // quick 은 참가자 필살기 연출이 안 돌아 색만 바뀌던 것 (웨더볼 · 섀도크루 등 — 코드 리뷰어 #86)
+            if (!quick && p.e[2]?.tint) {
                 p.A.el.style.filter = p.e[2].tint;
             }
         }
@@ -50950,7 +50981,7 @@ window.pokemonFx = {
                     fxLinkLine(heads[i - 1], heads[i], u0);
                 }
             }, charge + introMs);
-            parts.forEach((p) => {
+            (quick ? [] : parts).forEach((p) => {
                 setTimeout(() => {
                     fxWithTimers(p.gen, () => {
                         try {
@@ -51085,7 +51116,8 @@ window.pokemonFx = {
                 let finishMs = FX_JOINT_FLOW_MS + FX_JOINT_GO_MS;
                 setTimeout(() => {
                     try {
-                        finishMs = fxJointFinish(parts, B, !!o.sure, others);
+                        // quick — 참가자 모두에게서 기운이 모여 큰 구슬 (쏘는 쪽도 제자리에서 기운만 — 빔을 다시 쏘지 않음)
+                        finishMs = fxJointFinish(quick ? parts.map((p) => ({ ...p, self: true })) : parts, B, !!o.sure, others);
                     } catch (err) {
                         ultError('joint finish', err);
                         finishMs = 0;
@@ -51126,8 +51158,8 @@ window.pokemonFx = {
         fxGame = { A, B, gen, tick: setInterval(fxGameTick, 100) };
         let meetMs = 0;
         const ok = safeFx({}, () => fxWithTimers(gen, () => {
-            const ultA = fxDuelEntry(spec.kind, a.form, spec.a, spec.aAvoid);
-            const ultB = fxDuelEntry(spec.kind, b.form, spec.b, spec.bAvoid);
+            const ultA = fxDuelEntry(spec.kind, a.form, spec.a, spec.aAvoid, spec.aName);
+            const ultB = fxDuelEntry(spec.kind, b.form, spec.b, spec.bAvoid, spec.bName);
             const leftA = !!a.left;
             const leftB = !!b.left;
             // 승패는 게임 엔진이 4초 끝에 정함 — 처음엔 가운데 (무승부 모양) 로 짜고, 밀기는 승자가 올 때까지 (duelWin)

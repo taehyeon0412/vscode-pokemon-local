@@ -41,9 +41,9 @@ export type TeamFxCall =
   /** 필살기 (일반 모드 그대로 — 변신 · 전용 연출) — dst = 가운데 상대 (모두를 침) · quick = 짧게 (TEAM_FX.quickRepeat) · key = 엔진 붙잡기 열쇠 (맞는 순간까지) */
   | { do: 'ult'; src: TeamSlot; dst: TeamSlot; quick: boolean; key: string; others: TeamSlot[]; type: string; name?: string }
   /** 합동 필살기 마무리 — 이긴 참가자 필살기가 같은 때 닿아 한 점에서 합쳐 터짐 (ult/bridge.js ultJoint) · sure = 3:1 압도 */
-  | { do: 'joint'; winners: TeamSlot[]; dst: TeamSlot; types: string[]; sure: boolean; key: string; others: TeamSlot[]; name?: string; names?: (string | null)[] }
+  | { do: 'joint'; winners: TeamSlot[]; dst: TeamSlot; types: string[]; sure: boolean; key: string; others: TeamSlot[]; name?: string; names?: (string | null)[]; quick?: true }
   /** 필살기 힘겨루기 — 앞장 (첫 참가자) 끼리 대결 · 합류는 join */
-  | { do: 'ult-clash'; me: number[]; foe: number[] }
+  | { do: 'ult-clash'; me: number[]; foe: number[]; names?: { me?: string; foe?: string } }
   | { do: 'ult-join'; who: TeamSlot }
   /** joint = 이긴 쪽이 여럿 (합쳐지는 마무리) · sure = 3:1 (압도하는 마무리) */
   | { do: 'ult-clash-end'; winner: Side; joint: boolean; sure: boolean }
@@ -151,7 +151,7 @@ function planOne(b: TeamBattle, e: TeamLogEntry, final: boolean, seen: Set<strin
         const j = e.joint;
         // 한 점 = 진 쪽 가운데 · 나머지 상대에게는 퍼지는 충격 (범위 필살기 — 기획 제안)
         const mid = j.losers[Math.floor((j.losers.length - 1) / 2)]!;
-        out.push({ do: 'joint', winners: j.winners.map((slot) => ({ side: e.side, slot })), dst: { side: other(e.side), slot: mid }, others: j.losers.filter((x) => x !== mid).map((slot) => ({ side: other(e.side), slot })), types: j.winners.map((w) => b[e.side][w]?.types[0] ?? 'normal'), sure: j.sure, key: teamUltKey(e.at), ...(e.name ? { name: e.name } : {}), ...(j.names ? { names: j.names } : {}) });
+        out.push({ do: 'joint', winners: j.winners.map((slot) => ({ side: e.side, slot })), dst: { side: other(e.side), slot: mid }, others: j.losers.filter((x) => x !== mid).map((slot) => ({ side: other(e.side), slot })), types: j.winners.map((w) => b[e.side][w]?.types[0] ?? 'normal'), sure: j.sure, key: teamUltKey(e.at), ...(e.name ? { name: e.name } : {}), ...(j.names ? { names: j.names } : {}), ...(j.quick ? { quick: true as const } : {}) });
         return;
       }
       const key = `${e.side}:${e.from}`;
@@ -164,7 +164,7 @@ function planOne(b: TeamBattle, e: TeamLogEntry, final: boolean, seen: Set<strin
       return;
     }
     case 'ult-clash':
-      out.push({ do: 'ult-clash', me: [...e.me], foe: [...e.foe] });
+      out.push({ do: 'ult-clash', me: [...e.me], foe: [...e.foe], ...(e.names ? { names: e.names } : {}) });
       return;
     case 'ult-join':
       out.push({ do: 'ult-join', who: { side: e.side, slot: e.slot } });
@@ -399,10 +399,20 @@ export class TeamFxRunner {
         const others = c.others.map(a).filter((x): x is FxActor => !!x);
         // 상대 합동이면 컷인 부제도 "상대 …" (내 것과 같은 "합동 필살기!" 이던 것 — 디자인팀 UX R9 ⑥ U5)
         const foeJoint = c.winners[0]?.side === 'foe';
-        const sub = foeJoint ? (c.sure ? '상대의 압도하는 합동 필살기!' : '상대 합동 필살기!') : undefined;
+        // 힘겨루기 뒤 (quick) 는 누가 이겼는지를 부제에 — 대결 결과 장면 없이 바로 합동 컷인이라 이긴 쪽이 부제 하나로만 갈리던 것 (UX 리뷰어 #86 U2 · U5)
+        const sub = c.quick
+          ? foeJoint
+            ? '힘겨루기에서 졌다… 상대 합동 필살기!'
+            : '힘겨루기 승리! 합동 필살기!'
+          : foeJoint
+            ? c.sure
+              ? '상대의 압도하는 합동 필살기!'
+              : '상대 합동 필살기!'
+            : undefined;
         // tailMs = 맞은 뒤 엔진이 다시 달리기까지 — 연출 꼬리를 그 전에 흐려 끔 (#80 진단 ②)
-        const tailMs = TIMING.team.jointMs - TIMING.team.jointHitMs;
-        const total = ps.length && dst ? (fx.ultJoint?.(ps.map((p) => p.actor), dst, () => releaseFx(), { types: ps.map((p) => p.type), avoid: ps.map((p) => p.avoid), pick: ps.map((p) => p.pick), sure: c.sure, others, tailMs, ...(sub ? { sub } : {}) }) ?? 0) : 0;
+        // quick = 힘겨루기를 이긴 합동 — 참가자 필살기를 다시 쓰지 않고 짧은 마무리 (#86)
+        const tailMs = c.quick ? TIMING.team.clashJointMs - TIMING.team.clashJointHitMs : TIMING.team.jointMs - TIMING.team.jointHitMs;
+        const total = ps.length && dst ? (fx.ultJoint?.(ps.map((p) => p.actor), dst, () => releaseFx(), { types: ps.map((p) => p.type), avoid: ps.map((p) => p.avoid), pick: ps.map((p) => p.pick), sure: c.sure, others, tailMs, ...(sub ? { sub } : {}), ...(c.quick ? { quick: true } : {}) }) ?? 0) : 0;
         if (total > 0) {
           holdFx(c.key, total, performance.now(), FX_HOLD_ULT_MAX_MS);
           this.ultUntil = performance.now() + total;
@@ -413,7 +423,8 @@ export class TeamFxRunner {
         const me = a({ side: 'me', slot: c.me[0]! });
         const foe = a({ side: 'foe', slot: c.foe[0]! });
         fx.stopUlt?.();
-        if (me && foe) fx.duel?.(me, foe, { kind: 'ult', a: null, b: null, aAvoid: this.learned({ side: 'me', slot: c.me[0]! }), bAvoid: this.learned({ side: 'foe', slot: c.foe[0]! }) }, () => this.live());
+        // 앞장 필살기 이름은 엔진이 정한 것 (첫 컷인 · 이긴 뒤 합동 컷인과 같게 — #86)
+        if (me && foe) fx.duel?.(me, foe, { kind: 'ult', a: null, b: null, aAvoid: this.learned({ side: 'me', slot: c.me[0]! }), bAvoid: this.learned({ side: 'foe', slot: c.foe[0]! }), ...(c.names?.me ? { aName: c.names.me } : {}), ...(c.names?.foe ? { bName: c.names.foe } : {}) }, () => this.live());
         return;
       }
       case 'ult-join': {

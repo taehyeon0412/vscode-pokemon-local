@@ -50,6 +50,8 @@ export interface TeamClash {
   winner: Side | null;
   /** 필살기 힘겨루기에 상대가 합류할 칸 · 때 (시작할 때 마리마다 한 번 정함 — 명세 검사관: 걸음마다 굴리면 30% · 70% 가 26% · 50% 로 줄었음) */
   foeJoin?: { slot: number; at: number }[];
+  /** 필살기 힘겨루기 앞장 (me[0] · foe[0]) 필살기 이름 — 첫 컷인 · 대결 VS · 이긴 뒤 합동 컷인이 같은 이름 (따로 골라 "또 다른 필살기" 로 읽히던 것 — 코드 리뷰어 #86) */
+  names?: { me?: string; foe?: string };
 }
 
 /** 필살기 하나 (나머지는 멈춤) — window = 끼어들 수 있는 남은 ms */
@@ -73,7 +75,8 @@ export interface TeamUlt {
   /** 합동 마무리 — 힘겨루기를 여럿이 이김 (3:1 = sure) · 같은 편이 모임: 이긴 참가자마다 자기 필살기를 진 참가자 모두에게 (합쳐 터지는 순간) */
   /** spread = 같은 편이 모인 합동 (필살기 = 상대 모두 — 여럿이면 0.75배, 혼자 필살기와 같음) · 힘겨루기 뒤 합동은 진 참가자 모두 (힘겨루기 규칙) */
   /** names = 참가자 (winners 순) 마다 엔진이 고른 필살기 이름 (없으면 null — 옛 상태엔 칸 없음) · 연출이 그대로 씀 (2026-10-22 기획 #80 답) */
-  joint?: { winners: number[]; losers: number[]; sure: boolean; spread?: boolean; names?: (string | null)[] };
+  /** quick = 힘겨루기를 이긴 합동 (참가자 필살기는 대결에서 나감 — 연출은 짧은 마무리만, orders #86) */
+  joint?: { winners: number[]; losers: number[]; sure: boolean; spread?: boolean; names?: (string | null)[]; quick?: true };
   /** 합동 필살기 멘트 — 남은 ms (그동안 필살기는 멈추고 같은 편이 모임) · 모인 같은 편 (쓴 포켓몬 빼고) · 상대 AI 동료가 모일 때 */
   gather?: number;
   team?: number[];
@@ -99,8 +102,8 @@ export type TeamNote =
   | { t: 'clash'; shots: [number, number]; me: number; foe: number }
   | { t: 'clash-end'; shots: [number, number]; me: number; foe: number; winner: Side }
   /** joint = 합동 마무리 (이긴 참가자 · 진 참가자 · 3:1) */
-  | { t: 'ult'; side: Side; from: number; joint?: { winners: number[]; losers: number[]; sure: boolean; spread?: boolean; names?: (string | null)[] }; name?: string; spread?: boolean; target?: number }
-  | { t: 'ult-clash'; me: number[]; foe: number[] }
+  | { t: 'ult'; side: Side; from: number; joint?: { winners: number[]; losers: number[]; sure: boolean; spread?: boolean; names?: (string | null)[]; quick?: true }; name?: string; spread?: boolean; target?: number }
+  | { t: 'ult-clash'; me: number[]; foe: number[]; names?: { me?: string; foe?: string } }
   /** 합동 필살기 멘트 시작 (같은 편이 모임 — 끝나면 ult 가 따로 · 합동으로) */
   | { t: 'gather'; side: Side; from: number }
   | { t: 'ult-join'; side: Side; slot: number }
@@ -632,8 +635,11 @@ function startUltClash(b: TeamBattle, joinSide: Side, joiners: number[], rng: Rn
     .map((f, i) => ({ f, i }))
     .filter(({ f, i }) => alive(f) && f.ult >= 1 && !foe.includes(i) && rng.chance(BALANCE.team.interruptChance[b.kind]))
     .map(({ i }) => ({ slot: i, at: rng.int(200, dur - 300) }));
-  b.clash = { kind: 'ult', me: [...me], foe: [...foe], shots: null, ms: 0, dur, taps: 0, winner: null, foeJoin };
-  note(b, { t: 'ult-clash', me: [...me], foe: [...foe] });
+  // 앞장 이름 — 쓴 쪽 = 쓴 필살기 (u.name) · 받아친 쪽 = 엔진이 고름
+  const leadName = (side: Side, list: number[]) => (side === u.side ? u.name : list[0] !== undefined ? pickUlt(b, side, list[0], rng).name : undefined);
+  const names = { ...(leadName('me', me) ? { me: leadName('me', me) } : {}), ...(leadName('foe', foe) ? { foe: leadName('foe', foe) } : {}) };
+  b.clash = { kind: 'ult', me: [...me], foe: [...foe], shots: null, ms: 0, dur, taps: 0, winner: null, foeJoin, names };
+  note(b, { t: 'ult-clash', me: [...me], foe: [...foe], names });
   b.ult = null;
   b.msg = me.length === foe.length ? '필살기 힘겨루기!' : `필살기 힘겨루기! ${me.length}:${foe.length}`;
 }
@@ -666,9 +672,11 @@ function endUltClash(b: TeamBattle, rng: Rng, ults?: Readonly<Record<string, str
   if (live.length > 1) {
     // 합동 마무리 — 이긴 참가자 필살기가 합쳐 터지는 순간에 피해 (2026-10-21 태현 님 "필살기가 합쳐지듯이") · 그동안 나머지는 멈춤
     // 참가자마다 필살기를 엔진이 고름 (연출이 고르면 피해 때가 참가자 필살기에 따라 6.2 ↔ 8.2초로 달라짐 — 기획 #80 답, U2)
-    const joint = { winners: live, losers: [...losers], sure: sure !== null, names: live.map((w) => pickUlt(b, winSide, w, rng, ults).name ?? null) };
+    // quick — 참가자 필살기는 방금 대결에서 나감 → 처음부터 다시 쓰지 않고 짧은 마무리 (#86)
+    const lead = winners[0];
+    const joint = { winners: live, losers: [...losers], sure: sure !== null, names: live.map((w) => (w === lead && c.names?.[winSide] ? c.names[winSide]! : (pickUlt(b, winSide, w, rng, ults).name ?? null))), quick: true as const };
     b.phase = 'ult';
-    b.ult = { side: winSide, from: live[0]!, ms: 0, dur: TIMING.team.jointMs, hitMs: TIMING.team.jointHitMs, hit: false, window: 0, joinAt: null, joiners: [], joint };
+    b.ult = { side: winSide, from: live[0]!, ms: 0, dur: TIMING.team.clashJointMs, hitMs: TIMING.team.clashJointHitMs, hit: false, window: 0, joinAt: null, joiners: [], joint };
     note(b, { t: 'ult', side: winSide, from: live[0]!, joint });
     return;
   }
@@ -1109,13 +1117,15 @@ export function readTeam(raw: unknown): TeamBattle | null {
   if (!Array.isArray(raw.moveClashes) || !raw.moveClashes.every(okMoveClash)) return null;
   const c = raw.clash;
   const okJoin = (j: unknown) => isObj(j) && slot(j.slot, 'foe') && fin(j.at, 0);
-  if (!(c === null || (isObj(c) && c.kind === 'ult' && c.shots === null && okBase(c) && (c.foeJoin === undefined || (Array.isArray(c.foeJoin) && c.foeJoin.every(okJoin)))))) return null;
+  // 힘겨루기 앞장 필살기 이름 (#86) — me · foe 각각 없거나 40자 안 글자
+  const okLeadNames = (n: unknown) => isObj(n) && Object.keys(n).every((k) => k === 'me' || k === 'foe') && [n.me, n.foe].every((x) => x === undefined || (typeof x === 'string' && x.length <= 40));
+  if (!(c === null || (isObj(c) && c.kind === 'ult' && c.shots === null && okBase(c) && (c.foeJoin === undefined || (Array.isArray(c.foeJoin) && c.foeJoin.every(okJoin))) && (c.names === undefined || okLeadNames(c.names))))) return null;
   if ((raw.phase === 'clash') !== (c !== null)) return null;
   const u = raw.ult;
   const okNames = (n: unknown, len: number) => Array.isArray(n) && n.length === len && n.every((x) => x === null || (typeof x === 'string' && x.length <= 30));
   const okJoint = (j: unknown, side: Side) =>
     isObj(j) && slots(j.winners, side, 1) && slots(j.losers, other(side), 1) && typeof j.sure === 'boolean' && (j.spread === undefined || typeof j.spread === 'boolean') &&
-    (j.names === undefined || okNames(j.names, (j.winners as unknown[]).length));
+    (j.names === undefined || okNames(j.names, (j.winners as unknown[]).length)) && (j.quick === undefined || j.quick === true);
   const okUlt = (x: Obj) =>
     isSide(x.side) && slot(x.from, x.side) && fin(x.ms, 0) && fin(x.dur, 1) && fin(x.hitMs, 0) && typeof x.hit === 'boolean' && fin(x.window, 0) && (x.windowMs === undefined || fin(x.windowMs, 1)) && (x.joinAt === null || fin(x.joinAt, 0)) && slots(x.joiners, other(x.side)) &&
     (x.joint === undefined || okJoint(x.joint, x.side)) &&
@@ -1151,7 +1161,7 @@ export function readTeam(raw: unknown): TeamBattle | null {
       case 'ult':
         return isSide(e.side) && slot(e.from, e.side) && (e.joint === undefined || okJoint(e.joint, e.side));
       case 'ult-clash':
-        return slots(e.me, 'me', 1) && slots(e.foe, 'foe', 1);
+        return slots(e.me, 'me', 1) && slots(e.foe, 'foe', 1) && (e.names === undefined || okLeadNames(e.names));
       case 'ult-clash-end':
         return isSide(e.winner) && typeof e.sure === 'boolean' && slots(e.me, 'me', 1) && slots(e.foe, 'foe', 1);
       case 'ult-join':

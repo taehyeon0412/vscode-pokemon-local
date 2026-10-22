@@ -809,22 +809,38 @@ function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1, at = null) {
         const s0 = at && at.s0 ? at.s0 : 2.4;
         const scale = t < inT ? s0 - (s0 - 1) * back : 1;
         const alpha = Math.min(1, t / 0.06) * (t > p.max - 0.3 ? Math.max(0, (p.max - t) / 0.3) : 1);
-        let size = Math.round(ultClamp(W / 9, 18, 40) * k0);
+        const size0 = Math.round(ultClamp(W / 9, 18, 40) * k0);
+        let size = size0;
         const font = ultFont();
         ctx.save();
         ctx.font = `900 ${size}px ${font}`;
-        const tw = ctx.measureText(text).width;
+        let tw = ctx.measureText(text).width;
+        let lines = [text];
         if (tw > W * 0.9) {
             size = Math.max(12, Math.floor((size * W * 0.9) / tw));
             ctx.font = `900 ${size}px ${font}`;
+            // 12px 에서도 넘치면 " × " 에서 두 줄 (합동 이름 셋 — 240 에서 양쪽이 잘리던 것, UX 리뷰어 #86 U4)
+            if (ctx.measureText(text).width > W * 0.9 && text.includes(' × ')) {
+                const ps = text.split(' × ');
+                const h = Math.ceil(ps.length / 2);
+                lines = [`${ps.slice(0, h).join(' × ')} ×`, ps.slice(h).join(' × ')];
+                ctx.font = `900 ${size0}px ${font}`;
+                const mw = Math.max(...lines.map((l) => ctx.measureText(l).width));
+                size = Math.max(12, Math.min(size0, Math.floor((size0 * W * 0.9) / mw)));
+                ctx.font = `900 ${size}px ${font}`;
+            }
+            tw = Math.max(...lines.map((l) => ctx.measureText(l).width));
         }
+        // 두 줄이면 줄 사이 · 위아래로 반 줄씩 더 (부제 · 자리 계산)
+        const lh = Math.round(size * 1.05);
+        const extra = ((lines.length - 1) * lh) / 2;
         const jx = t < 0.35 && !(at && at.still) ? moveRand(-1, 1) * 2 : 0;
         // 게임 모드 — 부제까지 정보줄 (높은 패널은 둘째 줄 지도까지) 아래에 (연출 캔버스 위쪽은 정보줄 아래 끝에서 잘림)
         if (textTop === null) {
             textTop = ultTextTop();
         }
         const top = textTop;
-        const yMin = top ? top + (sub ? size * 0.85 + Math.max(10, Math.round(size * 0.4)) / 2 : size / 2) + 4 : 0;
+        const yMin = top ? top + extra + (sub ? size * 0.85 + Math.max(10, Math.round(size * 0.4)) / 2 : size / 2) + 4 : 0;
         // at.x · at.y = 그 자리 가운데 (화면 밖으로 안 나가게 안쪽으로) — 없으면 화면 가운데
         const fixed = !!at && at.x !== undefined;
         const cx = fixed ? Math.min(W - tw / 2 - 4, Math.max(tw / 2 + 4, at.x)) : W / 2;
@@ -834,8 +850,8 @@ function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1, at = null) {
             if (!hud) {
                 hud = typeof fxHudRects === 'function' ? fxHudRects() : [];
             }
-            const up = sub ? size * 0.85 + Math.max(10, Math.round(size * 0.4)) / 2 : size / 2;
-            const down = size / 2;
+            const up = (sub ? size * 0.85 + Math.max(10, Math.round(size * 0.4)) / 2 : size / 2) + extra;
+            const down = size / 2 + extra;
             const half = Math.min(tw, W * 0.9) / 2 + 4;
             const hits = hud.filter((r) => r.left < cx + half && r.right > cx - half && r.top < y + down && r.bottom > y - up);
             if (hits.length) {
@@ -849,45 +865,48 @@ function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1, at = null) {
         ctx.textBaseline = 'middle';
         ctx.lineJoin = 'round';
         ctx.globalAlpha = alpha;
-        ctx.lineWidth = Math.max(5, size / 4);
-        ctx.strokeStyle = 'rgba(10, 5, 0, 0.9)';
-        ctx.strokeText(text, 0, 0);
-        ctx.lineWidth = Math.max(2, size / 9);
-        ctx.strokeStyle = C[3];
-        ctx.strokeText(text, 0, 0);
-        const grad = ctx.createLinearGradient(0, -size / 2, 0, size / 2);
-        grad.addColorStop(0, '#ffffff');
-        grad.addColorStop(0.3, C[0]);
-        grad.addColorStop(0.62, C[1]);
-        grad.addColorStop(1, C[2]);
-        ctx.fillStyle = grad;
-        ctx.fillText(text, 0, 0);
-        // 반짝 — 글씨 위로 하얀 빛이 비스듬히 지나감
-        const sweep = (t - 0.25) / 0.35;
-        if (sweep > 0 && sweep < 1) {
-            const w2 = ctx.measureText(text).width / 2 + size;
-            ctx.save();
-            ctx.beginPath();
-            const x = -w2 + sweep * 2 * w2;
-            ctx.moveTo(x - size * 0.5, -size);
-            ctx.lineTo(x + size * 0.1, -size);
-            ctx.lineTo(x - size * 0.1, size);
-            ctx.lineTo(x - size * 0.7, size);
-            ctx.closePath();
-            ctx.clip();
-            ctx.globalAlpha = alpha * 0.85;
-            ctx.fillStyle = '#ffffff';
-            ctx.fillText(text, 0, 0);
-            ctx.restore();
-        }
+        lines.forEach((line, li) => {
+            const ly = li * lh - extra;
+            ctx.lineWidth = Math.max(5, size / 4);
+            ctx.strokeStyle = 'rgba(10, 5, 0, 0.9)';
+            ctx.strokeText(line, 0, ly);
+            ctx.lineWidth = Math.max(2, size / 9);
+            ctx.strokeStyle = C[3];
+            ctx.strokeText(line, 0, ly);
+            const grad = ctx.createLinearGradient(0, ly - size / 2, 0, ly + size / 2);
+            grad.addColorStop(0, '#ffffff');
+            grad.addColorStop(0.3, C[0]);
+            grad.addColorStop(0.62, C[1]);
+            grad.addColorStop(1, C[2]);
+            ctx.fillStyle = grad;
+            ctx.fillText(line, 0, ly);
+            // 반짝 — 글씨 위로 하얀 빛이 비스듬히 지나감
+            const sweep = (t - 0.25) / 0.35;
+            if (sweep > 0 && sweep < 1) {
+                const w2 = ctx.measureText(line).width / 2 + size;
+                ctx.save();
+                ctx.beginPath();
+                const x = -w2 + sweep * 2 * w2;
+                ctx.moveTo(x - size * 0.5, ly - size);
+                ctx.lineTo(x + size * 0.1, ly - size);
+                ctx.lineTo(x - size * 0.1, ly + size);
+                ctx.lineTo(x - size * 0.7, ly + size);
+                ctx.closePath();
+                ctx.clip();
+                ctx.globalAlpha = alpha * 0.85;
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText(line, 0, ly);
+                ctx.restore();
+            }
+        });
         if (sub) {
             const ss = Math.max(10, Math.round(size * 0.4));
             ctx.font = `bold ${ss}px ${font}`;
             ctx.lineWidth = 3;
             ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)';
-            ctx.strokeText(sub, 0, -size * 0.85);
+            ctx.strokeText(sub, 0, -size * 0.85 - extra);
             ctx.fillStyle = '#ffffff';
-            ctx.fillText(sub, 0, -size * 0.85);
+            ctx.fillText(sub, 0, -size * 0.85 - extra);
         }
         ctx.restore();
     } });

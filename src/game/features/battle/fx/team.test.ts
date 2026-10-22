@@ -129,6 +129,10 @@ describe('계획', () => {
       { do: 'ult-clash-end', winner: 'me', joint: true, sure: false },
     ]);
     expect(plan([{ t: 'ult-clash-end', winner: 'foe', sure: true, me: [0], foe: [0, 1, 2] }])).toEqual([{ do: 'ult-clash-end', winner: 'foe', joint: true, sure: true }]);
+    // 힘겨루기 앞장 필살기 이름은 엔진이 정한 대로 대결 연출에 (첫 컷인 · 합동 컷인과 같게 — #86)
+    expect(plan([{ t: 'ult-clash', me: [0], foe: [1], names: { me: '솔라빔', foe: '10만볼트' } }])).toEqual([{ do: 'ult-clash', me: [0], foe: [1], names: { me: '솔라빔', foe: '10만볼트' } }]);
+    // 힘겨루기를 이긴 합동 (quick) 은 연출에 그대로 — 참가자 필살기를 다시 쓰지 않는 짧은 마무리 (#86)
+    expect(plan([{ t: 'ult', side: 'me', from: 0, joint: { winners: [0, 2], losers: [0], sure: false, quick: true } }])[0]).toMatchObject({ do: 'joint', quick: true });
   });
 });
 
