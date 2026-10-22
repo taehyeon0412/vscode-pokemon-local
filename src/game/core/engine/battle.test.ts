@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { fixedRng } from '../../../test/fixtures/rng';
 import { sampleMonster, sampleSave, viaJson } from '../../../test/fixtures/save';
 import { BALANCE, TIMING } from '../balance';
@@ -419,6 +419,16 @@ describe('패링 — 상대 공격이 맞기 직전 Space · 클릭 (2026-10-19 
 });
 
 describe('필살기 (mvp-spec 3.3 · gdd S09 ⑧)', () => {
+  // 예전 규칙 (저절로 쓰기 — R2) 을 보는 묶음: 켜고 봄 · 게임 값 (꺼짐 — 사용자가 눌러야만, orders #82) 은 'ultAutoUse 꺼짐' 테스트가 봄
+  const autoUse = BALANCE as { ultAutoUse: boolean };
+  const wasAutoUse = autoUse.ultAutoUse;
+  beforeEach(() => {
+    autoUse.ultAutoUse = true;
+  });
+  afterEach(() => {
+    autoUse.ultAutoUse = wasAutoUse;
+  });
+
   it('상대 기술 연출 중에 끼어들면 그 기술은 취소 — 상대 PP 는 깎인 채 (2026-10-18 태현 님)', () => {
     const { b, save } = setup();
     const ready = { ...b, me: { ...b.me, ult: 1 }, foe: { ...b.foe, gauge: 1 } };
@@ -690,6 +700,16 @@ describe('전투 상태 검사 (확장 ↔ 웹뷰)', () => {
 });
 
 describe('단계 5 · 6 검토에서 고친 것 (bugs #104 ~)', () => {
+  // 예전 규칙 (저절로 쓰기 — R2) 을 보는 묶음: 켜고 봄 · 게임 값 (꺼짐 — 사용자가 눌러야만, orders #82) 은 'ultAutoUse 꺼짐' 테스트가 봄
+  const autoUse = BALANCE as { ultAutoUse: boolean };
+  const wasAutoUse = autoUse.ultAutoUse;
+  beforeEach(() => {
+    autoUse.ultAutoUse = true;
+  });
+  afterEach(() => {
+    autoUse.ultAutoUse = wasAutoUse;
+  });
+
   it('교체: 독 · 화상 피해는 들어가는 포켓몬이 받고, 나오는 포켓몬은 그대로 (코드 리뷰어)', () => {
     const { b, save } = setup();
     const sick = myTurn({ ...b, me: { ...b.me, status: { kind: 'poison' as const } } });
@@ -824,5 +844,25 @@ describe('단계 5 · 6 검토에서 고친 것 — 테스터', () => {
     const save = sampleSave();
     const none: Save = { ...save, monsters: { m1: { ...save.monsters.m1!, hp: 0 }, m2: { ...save.monsters.m2!, hp: 0 } } };
     expect(startBattle(none, wildMon(), 'normal').msg).toContain('싸울 수 있는 포켓몬이 없다');
+  });
+});
+
+describe('필살기는 사용자가 눌러야만 (orders #82 — BALANCE.ultAutoUse 꺼짐)', () => {
+  it('1:1 — 자동 전투 · 안 볼 때 · HP 30% 아래에도 다 찬 필살기가 저절로 안 나감 · 보통 공격은 이어 감 · Z 를 누르면 나감', () => {
+    expect(BALANCE.ultAutoUse).toBe(false);
+    const { b, save } = setup();
+    const full = { ...b, me: { ...b.me, ult: 1 }, foe: { ...b.foe, ult: 0 } };
+    for (const opts of [{ auto: true, away: true }, { auto: true }, { auto: false }]) {
+      let s: BattleState = { ...full, me: { ...full.me, hp: Math.floor(full.me.maxHp * 0.2) } };
+      for (let t = 0; t < 6000; t += STEP) {
+        s = battleStep(s, save, STEP, fixedRng(0.5), opts);
+        expect(s.anim?.side === 'me' && s.anim.action.kind === 'ult', JSON.stringify(opts)).toBe(false);
+        if (s.phase !== 'run') s = { ...s, phase: 'run', anim: null, me: { ...s.me, gauge: 0 }, foe: { ...s.foe, gauge: 0 } };
+      }
+      expect(s.me.ult).toBe(1);
+    }
+    expect(battleAutoUltLeft(full, true)).toBeNull();
+    const pressed = battleInput(full, save, { kind: 'ult' }, fixedRng(0.5));
+    expect(pressed.anim).toMatchObject({ side: 'me', action: { kind: 'ult' } });
   });
 });

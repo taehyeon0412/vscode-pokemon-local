@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { BALANCE } from '../balance';
 import { expForLevel, gameBase, levelForExp, maxHp, starGrade, statsOf, statValue } from './stats';
 
 const bulbasaur = { hp: 45, attack: 49, defense: 49, spAttack: 65, spDefense: 65, speed: 45 };
@@ -15,9 +16,9 @@ describe('스탯 (mvp-spec 3.5 · 4장)', () => {
     expect(statValue('attack', 65, 0, 5, 0)).toBe(11); // floor(130×5/100)=6 + 5
   });
 
-  it('포인트: HP +1.5 · 나머지 +0.5 씩', () => {
-    expect(statValue('hp', 45, 0, 5, 2)).toBe(22);
-    expect(statValue('speed', 45, 0, 5, 3)).toBe(statValue('speed', 45, 0, 5, 0) + 1.5);
+  it('포인트: HP +pointHp · 나머지 +pointOther 씩 (2 · 0.7 — orders #82)', () => {
+    expect(statValue('hp', 45, 0, 5, 2)).toBe(statValue('hp', 45, 0, 5, 0) + 2 * BALANCE.pointHp);
+    expect(statValue('speed', 45, 0, 5, 3)).toBeCloseTo(statValue('speed', 45, 0, 5, 0) + 3 * BALANCE.pointOther, 10);
   });
 
   it('레벨 · 개체값이 오르면 스탯도 오름 · 최대 HP 는 정수', () => {

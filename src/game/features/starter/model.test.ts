@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { BALANCE } from '../../core/balance';
+import { expForLevel } from '../../core/rules/stats';
 import { validateSave } from '../../core/save';
 import { moveOf, speciesOf } from '../../data';
 import { spriteBoxOf } from '../../data/sprite-boxes';
@@ -26,10 +28,10 @@ describe('스타팅 처음 기술 (mvp-spec 3.6 · S04)', () => {
 });
 
 describe('새로 하기 세이브', () => {
-  it('이상해씨 Lv 5 한 마리 · 숲 1-1 · HP 가득 · 볼 3 · 1000원 · 검사를 고칠 것 없이 통과', () => {
+  it('이상해씨 스타팅 레벨 (Lv 6 — orders #82) 한 마리 · 숲 1-1 · HP 가득 · 볼 3 · 1000원 · 검사를 고칠 것 없이 통과', () => {
     const save = createStartSave(1_800_000_000_000, 42);
     const m = save.monsters.m1!;
-    expect(m).toMatchObject({ species: 1, form: 'bulbasaur', level: 5, exp: 125, caughtAt: 'starter', status: null });
+    expect(m).toMatchObject({ species: 1, form: 'bulbasaur', level: BALANCE.starterLevel, exp: expForLevel(BALANCE.starterLevel), caughtAt: 'starter', status: null });
     expect(m.hp).toBeGreaterThanOrEqual(19);
     expect(m.moves.map((x) => moveOf(x.moveId)!.key)).toEqual(['tackle', 'vine-whip']);
     expect(m.moves.every((x) => x.pp === moveOf(x.moveId)!.pp)).toBe(true);

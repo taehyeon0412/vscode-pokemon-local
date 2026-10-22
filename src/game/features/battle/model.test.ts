@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { sampleMonster, sampleSave } from '../../../test/fixtures/save';
-import { TIMING } from '../../core/balance';
+import { BALANCE, TIMING } from '../../core/balance';
 import { battleStep, startBattle, type BattleState } from '../../core/engine/battle';
 import { Rng } from '../../core/engine/rng';
 import { counterMove, isShooting } from '../../core/rules/battle';
@@ -125,6 +125,16 @@ describe('S09 화면 자리 (gdd S09)', () => {
 });
 
 describe('화면 다시 그릴지 보는 열쇠', () => {
+  // 예전 규칙 (저절로 쓰기 — R2) 의 막대를 보는 묶음: 켜고 봄 (게임 값 꺼짐 — orders #82)
+  const autoUse = BALANCE as { ultAutoUse: boolean };
+  const wasAutoUse = autoUse.ultAutoUse;
+  beforeEach(() => {
+    autoUse.ultAutoUse = true;
+  });
+  afterEach(() => {
+    autoUse.ultAutoUse = wasAutoUse;
+  });
+
   it('내 차례를 기다리는 동안은 안 바뀜 (초당 30번 다시 그리지 않게) · 게이지가 차면 바뀜', () => {
     const b = startBattle(save, wild, 'normal');
     const rng = new Rng(1);

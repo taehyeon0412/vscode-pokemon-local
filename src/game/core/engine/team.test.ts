@@ -1,5 +1,5 @@
 /** 3:3 실시간 팀 배틀 (gdd 4.7 끝 · 2026-10-21 orders #17) */
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { fixedRng } from '../../../test/fixtures/rng';
 import { sampleMonster, sampleSave, viaJson } from '../../../test/fixtures/save';
 import { BALANCE, TIMING } from '../balance';
@@ -509,6 +509,16 @@ describe('명세 검사관 · 코드 리뷰어 (2026-10-21)', () => {
 });
 
 describe('#17 준비 — 배율 · 잠금 · 3마리 고르기 · 필살기 예약 · 상대 필살기 예고 (2026-10-21)', () => {
+  // 예전 규칙 (저절로 쓰기 — R2) 을 보는 묶음: 켜고 봄 · 게임 값 (꺼짐 — 사용자가 눌러야만, orders #82) 은 'ultAutoUse 꺼짐' 테스트가 봄
+  const autoUse = BALANCE as { ultAutoUse: boolean };
+  const wasAutoUse = autoUse.ultAutoUse;
+  beforeEach(() => {
+    autoUse.ultAutoUse = true;
+  });
+  afterEach(() => {
+    autoUse.ultAutoUse = wasAutoUse;
+  });
+
   const setOn = (on: boolean) => {
     (BALANCE.team as { on: boolean }).on = on;
   };
@@ -887,6 +897,16 @@ describe('3:3 연출 방향 (2026-10-21 태현 님 — 일반 모드 기술 그�
 });
 
 describe('같은 편 합동 필살기 — 합동 필살기 멘트 (2026-10-21 태현 님 "멘트가 있을때 다른 포켓몬 필살기를 누르면 합동")', () => {
+  // 예전 규칙 (저절로 쓰기 — R2) 을 보는 묶음: 켜고 봄 · 게임 값 (꺼짐 — 사용자가 눌러야만, orders #82) 은 'ultAutoUse 꺼짐' 테스트가 봄
+  const autoUse = BALANCE as { ultAutoUse: boolean };
+  const wasAutoUse = autoUse.ultAutoUse;
+  beforeEach(() => {
+    autoUse.ultAutoUse = true;
+  });
+  afterEach(() => {
+    autoUse.ultAutoUse = wasAutoUse;
+  });
+
   const full = (b: TeamBattle, side: 'me' | 'foe', slots: number[]): TeamBattle => ({ ...b, [side]: b[side].map((f, i) => (slots.includes(i) ? { ...f, ult: 1 } : f)) });
   const base = () => startTeamBattle(team3(), foes(), 'trainer', '상대');
 
@@ -995,5 +1015,25 @@ describe('3마리 기본 고르기 레벨 규칙 (orders #46 · #44 — 꺼 둔 
     } finally {
       setGap(10);
     }
+  });
+});
+
+describe('필살기는 사용자가 눌러야만 (orders #82 — BALANCE.ultAutoUse 꺼짐)', () => {
+  it('3:3 — 볼 때 · 안 볼 때 · 자동 전투 모두 다 찬 필살기가 저절로 안 나감 · 상대 필살기에 저절로 안 끼어듦 · 누르거나 예약하면 나감', () => {
+    expect(BALANCE.ultAutoUse).toBe(false);
+    const b0 = startTeamBattle(team3(), foes(), 'trainer', '상대');
+    const full: TeamBattle = { ...b0, me: b0.me.map((f) => ({ ...f, ult: 1, gauge: 0 })), foe: b0.foe.map((f) => ({ ...f, ult: 0, gauge: 0 })), ultReadyAt: { me: [b0.t, b0.t, b0.t], foe: [null, null, null] } };
+    expect(teamAutoUltLeft(full, 0)).toBeNull();
+    for (const opts of [{ auto: true, away: true }, { auto: true, away: false }, { auto: false, away: false }]) {
+      let b = full;
+      for (let t = 0; t < 6000; t += STEP) {
+        b = teamStep({ ...b, me: b.me.map((f) => ({ ...f, gauge: 0 })), foe: b.foe.map((f) => ({ ...f, gauge: 0 })) }, STEP, new Rng(3), opts);
+        expect(b.phase === 'ult' && b.ult?.side === 'me', JSON.stringify(opts)).toBe(false);
+      }
+    }
+    // 누르면 · 예약하면
+    expect(teamInput(full, { kind: 'ult', slot: 1 }, new Rng(3)).ult?.from).toBe(1);
+    const reserved = teamStep({ ...full, reserve: [2] }, STEP, new Rng(3), { auto: true, away: true });
+    expect(reserved.phase === 'ult' && reserved.ult?.from).toBe(2);
   });
 });

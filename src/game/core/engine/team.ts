@@ -730,7 +730,8 @@ function firstWaited(b: TeamBattle): number | null {
 /** 그 칸 필살기가 저절로 나가기까지 남은 ms (볼 때 — 발밑 판 반짝 · 막대, R2) · 안 찼으면 null */
 export function teamAutoUltLeft(b: TeamBattle, slot: number): number | null {
   const f = b.me[slot];
-  if (!f || !alive(f) || f.ult < 1) return null;
+  // 저절로 안 씀 (사용자가 눌러야만 — orders #82) 이면 늘 null (화면은 "다 참 · 1 · 2 · 3")
+  if (!BALANCE.ultAutoUse || !f || !alive(f) || f.ult < 1) return null;
   // 기다림은 run 에서만 셈 — 다른 필살기 · 힘겨루기 · 합동 멘트 중엔 칩도 없음 (멈춘 숫자가 1장면 보였다 사라지던 것 — 디자인 UX R9)
   if (b.phase !== 'run') return null;
   // HP 가 30% (자동 상처약 기준) 아래면 기다리지 않음 — 3초 안에 쓰러져 필살기가 날아가던 것 (2026-10-21 태현 님 "추천대로", 기획 #26 R2 ①)
@@ -846,7 +847,7 @@ export function teamStep(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamSte
 function joinsNow(b: TeamBattle, auto: boolean): boolean {
   const u = b.ult;
   if (!u) return false;
-  const ready = (i: number) => alive(b.me[i]!) && b.me[i]!.ult >= 1 && (auto || b.reserve.includes(i));
+  const ready = (i: number) => alive(b.me[i]!) && b.me[i]!.ult >= 1 && ((BALANCE.ultAutoUse && auto) || b.reserve.includes(i));
   if (u.side === 'foe') return u.window > 0 && !u.hit && b.me.some((_, i) => ready(i));
   return (u.gather ?? 0) > 0 && b.me.some((_, i) => i !== u.from && !(u.team ?? []).includes(i) && ready(i));
 }
@@ -861,7 +862,8 @@ function teamStepOnce(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamStepOp
     if (alive(f) && f.ult >= 1 && b.ultReadyAt.me[i] === null) b.ultReadyAt.me[i] = b.t;
   });
   b.popups = b.popups.map((p) => ({ ...p, ms: p.ms + stepMs })).filter((p) => p.ms < POPUP_MS);
-  const auto = opts.auto || opts.away;
+  // 내 필살기 저절로 쓰기 (끼어들기 · 합류 포함) — 꺼짐 = 사용자가 누르거나 예약한 것만 (orders #82, BALANCE.ultAutoUse)
+  const auto = BALANCE.ultAutoUse && (opts.auto || opts.away);
   switch (b.phase) {
     case 'over':
       b.overMs += stepMs;
@@ -1003,12 +1005,13 @@ function teamStepOnce(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamStepOp
   // 기다림은 내 필살기를 쓸 수 있는 걸음 (여기까지 온 run) 에서만 셈 — 다른 필살기 · 힘겨루기 · 합동 멘트 중엔 멈춤 (0 에서 2.5 ~ 6초 서 있던 것, 디자인팀 #26 판정)
   // 안 볼 때는 지움 (안 보다 돌아오면 남은 3초가 짧아져 있던 것 — 코드 리뷰어)
   // 쌓는 건 저절로 나갈 한 칸 (화면 "N초" 칩이 뜬 칸) 만 — 찬 칸이 다 같이 쌓여 둘째 칸 칩이 1장면만 보이고 나가던 것 (디자인팀 UX R9 ⑥ U1)
-  if (!opts.away) {
+  if (!opts.away && BALANCE.ultAutoUse) {
     const next = teamAutoUltNext(b);
     b.autoWait = b.me.map((_, i) => (i === next ? (b.autoWait?.[i] ?? 0) + stepMs : 0));
   }
   else if (b.autoWait) delete b.autoWait;
-  const z = opts.away ? firstReady(b, 'me') : (firstReserved(b) ?? firstWaited(b));
+  // 저절로 안 씀 (orders #82) 이면 예약한 것만 · 안 볼 때도 멈추지 않고 보통 공격으로
+  const z = !BALANCE.ultAutoUse ? firstReserved(b) : opts.away ? firstReady(b, 'me') : (firstReserved(b) ?? firstWaited(b));
   if (z !== null) {
     startUlt(b, 'me', z, rng, opts.ults);
     return b;

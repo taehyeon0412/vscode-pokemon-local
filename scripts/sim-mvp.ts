@@ -29,6 +29,15 @@ const STEP = TIMING.simStepMs;
 const IDLE_H = Number(process.env.SIM_IDLE ?? 0);
 // 6시간 넘으면 못 깬 것으로 (해변을 되풀이하면 (SIM_REGIONS) 지역마다 1.5시간 더 · 방치면 그 시간 더)
 const MAX_MS = Math.max(6, process.env.SIM_REGION === 'beach' ? 2 + 1.5 * (Math.max(2, Number(process.env.SIM_REGIONS ?? 2)) - 1) : 0, IDLE_H > 0 ? 3 + IDLE_H : 0) * 60 * 60 * 1000;
+/** SIM_ULT=<ms> — 다 찬 필살기를 사람이 그만큼 뒤에 누름 (없으면 안 누름 — 필살기는 사용자가 눌러야만, orders #82) */
+const ULT_PRESS = process.env.SIM_ULT ? Number(process.env.SIM_ULT) : null;
+/** SIM_AUTOULT=1 — 예전 규칙 (다 차면 저절로 · 안 볼 때 바로) 으로 견주기 (BALANCE.ultAutoUse) */
+if (process.env.SIM_AUTOULT === '1') (BALANCE as { ultAutoUse: boolean }).ultAutoUse = true;
+/** SIM_SET=<이름>=<수>,… — BALANCE 맨 위 숫자를 바꿔 견주기 (예: autoPotionBelow=0.4) */
+for (const kv of (process.env.SIM_SET ?? '').split(',').filter(Boolean)) {
+  const [k, v] = kv.split('=');
+  (BALANCE as unknown as Record<string, number>)[k!] = Number(v);
+}
 /** SIM_MIXED=<0 ~ 1> — 숲 노말 · 비행 섞기 확률 (BALANCE.mixedTypeChance — 지금 0.3, orders #73 견주기) */
 if (process.env.SIM_MIXED) (BALANCE as { mixedTypeChance: number }).mixedTypeChance = Number(process.env.SIM_MIXED);
 /** SIM_DRAFT52=1 — 5.2 숫자 초안을 모두 켬 (방치 경험치 · 라이벌 마릿수 · 공짜 볼 · 질 때 잃는 돈 — orders #69) */
@@ -163,7 +172,7 @@ const hpRatio = (save: Save) => {
 const power = (id: number) => moveOf(id)?.power ?? 0;
 const where = (save: Save): Where => (save.location.screen === 'stage' ? save.location.stageId : save.location.screen === 'gym' && save.location.region === 'beach' ? 'beach-gym' : 'gym');
 
-function decide(s: GameState, mem: { resultMs: number; lostGymOnce: boolean; grindNext: boolean; parryKey: string; parryYes: boolean }): GameState {
+function decide(s: GameState, mem: { resultMs: number; lostGymOnce: boolean; grindNext: boolean; parryKey: string; parryYes: boolean; ultMs: number }): GameState {
   const st = s.runtime.stage;
   const save = s.save;
   if (!st) return s;
@@ -175,6 +184,19 @@ function decide(s: GameState, mem: { resultMs: number; lostGymOnce: boolean; gri
       }
       return s;
     }
+    case 'team': {
+      // 3:3 필살기 — 다 찬 칸을 보고 누름 (SIM_ULT)
+      const t = st.team;
+      const full = t.me.findIndex((f) => f.hp > 0 && f.ult >= 1);
+      if (ULT_PRESS !== null && full >= 0 && t.phase === 'run') {
+        mem.ultMs += STEP;
+        if (mem.ultMs >= ULT_PRESS) {
+          mem.ultMs = 0;
+          return applyInput(s, { kind: 'team-battle', input: { kind: 'ult', slot: full } });
+        }
+      } else mem.ultMs = 0;
+      return s;
+    }
     case 'battle': {
       const b = st.battle;
       if (b.phase === 'last' && CATCH && b.kind === 'wild') {
@@ -183,6 +205,14 @@ function decide(s: GameState, mem: { resultMs: number; lostGymOnce: boolean; gri
       }
       if (b.phase === 'catch' && b.catch && b.catch.pressMs === null && b.catch.ms >= TIMING.catchRingMs - STEP) return applyInput(s, { kind: 'space' });
       if (MASH && b.phase === 'clash' && b.clash && b.clash.winner === null && Math.random() < 0.4) return applyInput(s, { kind: 'space' });
+      // 필살기 — 사람이 다 찬 걸 보고 누름 (SIM_ULT — 필살기는 사용자가 눌러야만, orders #82)
+      if (ULT_PRESS !== null && b.me.ult >= 1 && b.me.hp > 0 && (b.phase === 'run' || b.phase === 'choose')) {
+        mem.ultMs += STEP;
+        if (mem.ultMs >= ULT_PRESS) {
+          mem.ultMs = 0;
+          return applyInput(s, { kind: 'battle', input: { kind: 'ult' } });
+        }
+      } else mem.ultMs = 0;
       // 패링 — 상대 공격 하나마다 한 번 정함 (반쯤 = 50%) · 완벽 (ms 0) 이면 반격 기회도 씀
       if (PARRY !== 'none' && (canParry(b) || canRiposte(b))) {
         const key = b.anim ? `${b.anim.side}${b.t - b.anim.ms}` : mem.parryKey;
@@ -289,7 +319,7 @@ function runOnce(dex: number, seed: number): RunResult {
   if (TEAM) s = { ...s, save: { ...s.save, settings: { ...s.save.settings, teamMode: true } } };
   if (FOREST_DEV) s = { ...s, runtime: { ...s.runtime, dev: { ...devDefault(), team: TEAM } } };
   const stages = Object.fromEntries([...STAGE_IDS, 'gym', ...BEACH_STAGES].map((k) => [k, blank()])) as Record<Where, StageStat>;
-  const mem = { resultMs: 0, lostGymOnce: false, grindNext: false, parryKey: '', parryYes: false };
+  const mem = { resultMs: 0, lostGymOnce: false, grindNext: false, parryKey: '', parryYes: false, ultMs: 0 };
   const r: RunResult = { idle: null, seenEnd: 0, caughtEnd: 0, firstCatchMs: 0, starter: speciesOf(dex)?.name.ko ?? String(dex), seed, done: false, totalMs: 0, stages, gymTries: 0, firstGymLevels: [], winLevels: [], moneyAtGym: -1, firstUltMin: -1, spent: 0, potionsUsed: 0, team: 0, teamBattles: 0, forestMs: 0, beachGymTries: 0, regions: [] };
   setOrder(2);
   let cur: RegionRun | null = null;

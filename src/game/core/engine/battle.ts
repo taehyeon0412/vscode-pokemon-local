@@ -665,15 +665,17 @@ export function battleStep(b0: BattleState, save: Save, stepMs: number, rng: Rng
   };
   // 다 찬 내 필살기 — 자동 전투 · 볼 때는 ultAutoWaitMs 기다림 (Z 가 반짝 · 눌러도 됨), 안 볼 때는 바로 (R2 A).
   // 기다림은 Z 를 누를 수 있을 때만 셈 (내 행동 연출 중엔 멈춤) · 다 되면 쓸 수 있는 첫 걸음에 (상대 연출 중이면 끼어듦 — 1 이 연출 끝까지 남던 것, 디자인팀 #26 판정)
-  if (b.me.ult >= 1 && b.me.hp > 0 && opts.auto && !opts.away) b.ultWait = (b0.ultWait ?? 0) + (canUlt(b) ? stepMs : 0);
+  // 저절로 쓰기는 꺼짐 (사용자가 눌러야만 — orders #82, BALANCE.ultAutoUse)
+  const autoUlt = BALANCE.ultAutoUse && opts.auto;
+  if (b.me.ult >= 1 && b.me.hp > 0 && autoUlt && !opts.away) b.ultWait = (b0.ultWait ?? 0) + (canUlt(b) ? stepMs : 0);
   else if (b.ultWait !== undefined) delete b.ultWait;
   if (b.ultQueued && (b.me.ult < 1 || b.me.hp <= 0)) delete b.ultQueued;
   // HP 가 자동 상처약 기준 (30%) 아래면 기다리지 않음 — 3초 안에 쓰러져 필살기가 날아가던 것 (2026-10-21 태현 님 "추천대로", 기획 #26 R2 ①)
   const low = b.me.hp < b.me.maxHp * BALANCE.autoPotionBelow;
-  const myUltNow = (opts.auto && b.me.ult >= 1 && (opts.away === true || low || (b.ultWait ?? 0) >= BALANCE.ultAutoWaitMs)) || b.ultQueued === true;
+  const myUltNow = (autoUlt && b.me.ult >= 1 && (opts.away === true || low || (b.ultWait ?? 0) >= BALANCE.ultAutoWaitMs)) || b.ultQueued === true;
   // 예약한 Z 는 맞받아치기 창 (관장 끼어들기 · 상대 필살기) 이 열리면 그걸로 (예약을 둔 채 상대 필살기를 맞던 것 — 코드 리뷰어).
   // 자동 전투 · HP 30% 아래 · 다 참이면 저절로 받아침 (맞고 쓰러져 필살기가 날아가던 것 — 2026-10-21 태현 님 B, 그 밖의 맞받아치기는 손으로)
-  const autoCounter = opts.auto && low && (opts.away === true || (b.anim?.ms ?? 0) + stepMs > TIMING.ultCounterWindowMs);
+  const autoCounter = autoUlt && low && (opts.away === true || (b.anim?.ms ?? 0) + stepMs > TIMING.ultCounterWindowMs);
   if ((b.ultQueued || autoCounter) && ultCounterOpen(b)) return startClash({ ...b, me: { ...b.me, ult: 0 }, ultQueued: undefined, ultWait: undefined }, 'ult', null, null);
   if (myUltNow && b.phase !== 'run' && canUlt(b) && !ultCounterOpen(b)) return pressUlt(b, rng);
   switch (b.phase) {
@@ -921,7 +923,8 @@ export function battleFoeUltWarn(b: BattleState): { full: boolean; pct: number }
 
 /** 다 찬 내 필살기가 저절로 나가기까지 남은 ms (자동 전투 · 볼 때 — Z 반짝 · 막대, R2) · 저절로 안 나가면 null */
 export function battleAutoUltLeft(b: BattleState, auto: boolean): number | null {
-  if (!auto || b.me.ult < 1 || b.me.hp <= 0) return null;
+  // 저절로 안 씀 (사용자가 눌러야만 — orders #82) 이면 늘 null (화면은 "다 참 · Z")
+  if (!BALANCE.ultAutoUse || !auto || b.me.ult < 1 || b.me.hp <= 0) return null;
   // 저절로 나갈 수 없는 단계 (마지막 기회 · 잡기 · 다음 볼 · 반격 기회 · 고르기 · 끝) 는 없음 (테스터 — 숫자가 멈춘 채 남던 것)
   if (b.phase !== 'run' && b.phase !== 'choose' && b.phase !== 'anim' && b.phase !== 'clash') return null;
   if (b.me.hp < b.me.maxHp * BALANCE.autoPotionBelow) return 0;
