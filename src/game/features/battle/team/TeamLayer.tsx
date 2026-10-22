@@ -76,10 +76,17 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, onUlt }: { 
         {/* 세는 때 (지금 쓸 수 있는 칸 — ready) 만 · "3초" 칠 없는 금 테두리 (키 칩과 다른 모양) · 판 밖 (판 안이면 HP 막대가 줄던 것) — UX 리뷰어 2차 */}
         {/* 먼저 나갈 한 칸만 · 판 왼쪽 위 탭 (판 오른쪽 바깥이면 240 에서 다음 칸 포켓몬 몸을 덮고 · 셋 다 "1초" 인데 하나만 나가던 것 — UX 리뷰어 3차) */}
         {/* 바로 나가는 칸 (HP 30% 아래 — 0ms) 은 칩 없음 (1장면만 비치던 것 — UX 리뷰어 R9 ⑥) */}
-        {autoLeft !== null && autoLeft > 0 && st === 'ready' && (
+        {autoLeft !== null && autoLeft > 0 && st === 'ready' ? (
           <span class="pg-team-auto" title={`${Math.max(1, Math.ceil(autoLeft / 1000))}초 뒤 저절로 필살기 — 지금 ${slot + 1} 로 바로`}>
             {Math.max(1, Math.ceil(autoLeft / 1000))}초
           </span>
+        ) : (
+          // 필살기는 눌러야만 나감 (태현 님 #82) — 다 찬 칸 = 같은 자리 "다 참" (남은 초 대신 · 내 편만)
+          mine && st === 'ready' && (
+            <span class="pg-team-auto pg-team-full" title={`필살기 다 참 — ${slot + 1} 누르면 나가요`}>
+              다 참
+            </span>
+          )
         )}
       </span>
 

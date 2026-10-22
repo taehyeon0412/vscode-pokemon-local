@@ -9,7 +9,7 @@
  */
 import { useEffect, useLayoutEffect, useRef } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
-import { AUTO_TEAM_TIP, autoTeamTipDue, battleAutoUltLeft, canOpenMenus, canParry, canRiposte, gymLeaderOf, isWalkingFast, itemLeft, teamAutoUltLeft, teamAutoUltNext, teamLock, teamMeetTipDue, TEAM_MEET_TIP, walkLeftMs, type GameInput, type GameState } from '../../../core/engine';
+import { AUTO_TEAM_TIP, autoTeamTipDue, battleAutoUltLeft, canOpenMenus, teamUltOpen, canParry, canRiposte, gymLeaderOf, isWalkingFast, itemLeft, teamAutoUltLeft, teamAutoUltNext, teamLock, teamMeetTipDue, TEAM_MEET_TIP, walkLeftMs, type GameInput, type GameState } from '../../../core/engine';
 import { maxHpOf, teamHealth } from '../../../core/rules/bag';
 import { spaceInput, ultSkippable } from '../../battle/fx/parry';
 import { BALLS } from '../../../core/rules/catch';
@@ -164,6 +164,8 @@ function leadOf(save: GameState['save']): { form: string; shiny: boolean } | nul
 
 /** 저절로 나가는 필살기 첫 안내 (save.tips — ideas #150) */
 const ULT_WAIT_TIP = 'ult-wait';
+/** 3:3 필살기 다 참 처음 안내 (태현 님 #82 — 필살기는 눌러야만 나감) */
+const ULT_READY_TIP = 'ult-ready';
 
 export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, live = true, covered = false }: StageScreenProps) {
   const save = state.save;
@@ -208,6 +210,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   const ultWaitSec = Math.ceil(ultWaitMs / 1000);
   // 자동 전투로 3:3 이 시작된 판의 처음 안내 (orders #71 — 엔진 autoTeamTipDue) · 판 첫 12초만 (중간에 갑자기 뜨지 않게 — 못 보고 지나가면 다음 판에)
   const autoTeamTip = team !== null && autoTeamTipDue(state) && team.t < 12000;
+  // 3:3 에서 먼저 다 찬 칸 (필살기는 눌러야만 나감 — #82) — 처음 한 번 "필살기 다 참 — [1] 누르면 나가요"
+  const teamReadyKey = team && team.phase === 'run' ? [0, 1, 2].find((i) => teamUltOpen(team, i)) : undefined;
   const choice = choiceView(state);
   const foeTrainer = foeTrainerView(state);
   const rivalShadow = holdRivalLook(state);
@@ -353,7 +357,33 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
           left={ballsOut ? undefined : balls}
           center={mapRow ? undefined : where}
           right={
-            canOpenMenus(state) ? (
+            team ? (
+              // 3:3 정보줄 오른쪽 = 자동 · 전투 ×2 스위치 (태현 님 #83 "화면 상단에 전투 x2 를 사용자가 선택" · 개발 UX — 3:3 에 자동 표시가 없던 것) — 빨리 걷기 · 자동 스위치와 같은 모양 (켜짐 = ✓ · 금 테두리)
+              <span class="pg-menu-buttons pg-team-switches">
+                <Button
+                  secondary
+                  extraClass={save.settings.autoBattle ? 'pg-auto-walk pg-on' : 'pg-auto-walk'}
+                  onClick={() => onInput({ kind: 'auto-battle', on: !save.settings.autoBattle })}
+                  title={save.settings.autoBattle ? '자동 전투 켜짐 — 누르면 끔 (A)' : '자동 전투 꺼짐 — 켜면 알아서 (A · 필살기는 늘 직접)'}
+                >
+                  {menuLabels(widthPx, mapRow) === 'full' && <span class="pg-menu-key">A</span>}
+                  <span class="pg-menu-text">{save.settings.autoBattle ? '✓ 자동' : '□ 자동'}</span>
+                </Button>
+                <Button
+                  secondary
+                  extraClass={save.settings.battleFast ? 'pg-battle-fast pg-on' : 'pg-battle-fast'}
+                  onClick={() => onInput({ kind: 'battle-fast', on: save.settings.battleFast !== true })}
+                  title={`전투 ×2 ${save.settings.battleFast ? '켜짐' : '꺼짐'} (X) — 보통 공격만 빨리 · 필살기 · 누를 틈은 그대로`}
+                >
+                  {menuLabels(widthPx, mapRow) === 'full' && <span class="pg-menu-key">X</span>}
+                  {/* 좁으면 "×2" 만 (240 에서 정보줄이 넘치지 않게 — title 에 전체) */}
+                  <span class="pg-menu-text">
+                    {save.settings.battleFast ? '✓ ' : '□ '}
+                    <span class="pg-long">전투 </span>×2
+                  </span>
+                </Button>
+              </span>
+            ) : canOpenMenus(state) ? (
               <MenuButtons
                 onOpen={onOpen}
                 points={unspentPoints(save)}
@@ -504,10 +534,11 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
             </span>
           </FirstTip>
         )}
-        {/* 필살기 안내 = 고르는 때 · 게이지 차는 때만 (원 · 연출 중엔 원을 가려서) · 자동 전투면 안 띄움 (차자마자 저절로 써서 한 장면만 번쩍이던 것) */}
-        {battle && (battle.phase === 'choose' || battle.phase === 'run') && !save.settings.autoBattle && battle.me.ult >= 1 && !(save.tips ?? []).includes('ult') && (
+        {/* 필살기 안내 = 고르는 때 · 게이지 차는 때만 (원 · 연출 중엔 원을 가려서) · 자동 전투도 띄움 (#82 — 이제 저절로 안 나가서 눌러야 함 · 개발 코드 리뷰어) —
+            자동이면 연출 중에도 (원 안내가 없고 · 고르기 ↔ 연출이 번갈아 1초 안에 끊겼다 다시 뜨지 않게) */}
+        {battle && (battle.phase === 'choose' || battle.phase === 'run' || (save.settings.autoBattle && battle.phase === 'anim')) && battle.me.ult >= 1 && !(save.tips ?? []).includes('ult') && (
           <FirstTip key="ult" ms={3000} className="pg-first-tip-low" paused={away} onSeen={() => onInput({ kind: 'tip-seen', id: 'ult' })}>
-            필살기 준비! <KeyCap k="Z" />
+            필살기 다 참! <KeyCap k="Z" />
           </FirstTip>
         )}
         {/* "N초" 칩의 뜻 (ideas #150 · orders #34) — 볼 때 저절로 나가는 필살기가 처음 다 찼을 때 한 번: 1:1 자동 전투 (Z 모서리 3 · 2 · 1) · 3:3 (발밑 판 3 · 2 · 1 — 자동 전투가 꺼져도).
@@ -543,6 +574,21 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
                 필살기 {ultWaitSec}초 뒤 · <KeyCap k={ultWaitKey} /> 바로
               </span>
             )}
+          </FirstTip>
+        )}
+        {/* 3:3 필살기 다 참 처음 안내 (#82 — 저절로 안 나가니 "3초 뒤 저절로" 대신) · 같은 자리 (위 · 좁으면 내 쪽 왼쪽 위) · 자동 3:3 안내가 떠 있으면 기다림 */}
+        {team && teamReadyKey !== undefined && !autoTeamTip && !(save.tips ?? []).includes(ULT_READY_TIP) && (
+          <FirstTip key={ULT_READY_TIP} ms={4000} className="pg-first-tip-top pg-tip-mine" paused={away} onSeen={() => onInput({ kind: 'tip-seen', id: ULT_READY_TIP })}>
+            <span class="pg-tip-part pg-tip-long">필살기 다 참 —&nbsp;</span>
+            <span class="pg-tip-part pg-tip-long">
+              <KeyCap k={String(teamReadyKey + 1)} /> 누르면 나가요 (저절로 안 나가요)
+            </span>
+            <span class="pg-tip-short">
+              필살기 다 참 · <KeyCap k={String(teamReadyKey + 1)} /> 누르면 나가요
+            </span>
+            <span class="pg-tip-tiny">
+              필살기 다 참 · <KeyCap k={String(teamReadyKey + 1)} /> 누르기
+            </span>
           </FirstTip>
         )}
         {/* 주인공 머리 위 — 주운 자리에서 바로 보이게 (긴 알림은 패널 끝 안쪽으로 당김 · 줄 바꿈).

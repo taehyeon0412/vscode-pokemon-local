@@ -147,6 +147,16 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
       refit((v) => v + 1);
     }
   });
+  // Z 옆 "다 참" 칩 (#82) — 패널 오른쪽 끝을 넘으면 뺌 (맥 글자 1.1 · 메뉴 줄이 가운데라 넘는 폭이 줄이기 단계마다 달라 손으로 고른 경계 대신 잼 — U4) · 폭이 바뀌면 다시 잼
+  const fullChip = useRef<HTMLSpanElement>(null);
+  const [fullOff, setFullOff] = useState(false);
+  useEffect(() => setFullOff(false), [win, compact]);
+  useLayoutEffect(() => {
+    const el = fullChip.current;
+    if (!el || fullOff) return;
+    const r = el.getBoundingClientRect();
+    if (r.width > 0 && r.left + r.width * 1.1 > document.documentElement.clientWidth - 1) setFullOff(true);
+  });
   useLayoutEffect(() => {
     const el = mainLayer.current;
     if (!el || mainTiny || compact === 'tiny' || vertical !== undefined || el.clientWidth === 0) return;
@@ -638,7 +648,19 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
     </button>
       {/* "3초" — 칠 없는 금 테두리 (키 칩 [1] [2] 과 다른 모양 — 같은 금 칠 숫자면 "누를 키" 로 읽히던 것, UX 리뷰어 2차) */}
       {/* 예약됨 = 같은 자리 "예약" 칩 (남은 초보다 먼저) */}
-      {ultQueued ? <span class="pg-ultz-count">예약</span> : autoSec !== null && <span class={`pg-ultz-count${autoPaused ? ' pg-paused' : ''}`}>{autoSec}초</span>}
+      {/* 필살기는 눌러야만 나감 (태현 님 #82) — 다 차면 "다 참" (3 · 2 · 1 남은 초 대신 · 다 찬 것을 알아채게 U1 · U5) */}
+      {ultQueued ? (
+        <span class="pg-ultz-count">예약</span>
+      ) : autoSec !== null ? (
+        <span class={`pg-ultz-count${autoPaused ? ' pg-paused' : ''}`}>{autoSec}초</span>
+      ) : (
+        ultReady &&
+        !fullOff && (
+          <span ref={fullChip} class="pg-ultz-count pg-ultz-full">
+            다 참
+          </span>
+        )
+      )}
     </span>
   );
 
