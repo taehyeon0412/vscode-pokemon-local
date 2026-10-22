@@ -5661,6 +5661,14 @@ body.vscode-high-contrast-light .pg-hpblock,
   background: var(--pg-sos-panel);
   box-shadow: 0 0 0 3px var(--pg-sos-panel);
 }
+/* 이름 줄은 묶음보다 넓으면 밖으로 넘침 (상대 = 오른쪽 · 내 것 = 왼쪽) — 넘친 "Lv21" · "Lv5" 가 판 밖 유리 · 창 위에서 2.3 ~ 2.8:1 이던 것 (#61 UX · 240 관장전).
+   줄에도 같은 칠 + 좌우 3px (위아래로 주면 상대 필살 게이지를 덮어서 좌우만) */
+body.vscode-light .pg-hpblock > .pg-hprow,
+body.vscode-high-contrast-light .pg-hpblock > .pg-hprow,
+.pg-stage.pg-bg-beach-dusk .pg-hpblock > .pg-hprow {
+  background: var(--pg-sos-panel);
+  box-shadow: 3px 0 0 var(--pg-sos-panel), -3px 0 0 var(--pg-sos-panel);
+}
 /* 노을 위 피해 숫자 — 빨강이 노을과 같은 색이라 묻혀서 (1.5 ~ 2.4:1, UX 리뷰어) 테두리 2px (단단한 점 그림자만) */
 .pg-stage.pg-bg-beach-dusk .pg-pop-damage {
   text-shadow: 2px 0 0 #000, -2px 0 0 #000, 0 2px 0 #000, 0 -2px 0 #000, 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
