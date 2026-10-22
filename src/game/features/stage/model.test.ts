@@ -8,7 +8,7 @@ import { setRegionOrder } from '../../core/rules/region';
 import { heroLookOf } from '../../data/heroes';
 import { STAGE_IDS } from '../../core/save';
 import { summaryLines } from '../result/model';
-import { BATTLE_STAGE_MAX_PX, battleStage, CONTACT_PX, contactX, foldStatus, foeTrainerView, gymEnterView, gymFrontX, heroX, holdRivalLook, minimapOf, rivalTag, STAGES, stageLabel, stagePx, stageViewKey, visibleObjects, WALK_PX_PER_SEC } from './model';
+import { BATTLE_STAGE_MAX_PX, battleStage, CONTACT_PX, contactX, foldStatus, foeTrainerView, gymEnterView, gymFrontX, heroX, holdRivalLook, minimapOf, rivalTag, STAGES, sceneBackground, stageLabel, stagePx, stageViewKey, TEAM_ARENA, visibleObjects, WALK_PX_PER_SEC } from './model';
 
 function at(progress: number, stage: GameState['runtime']['stage'] = { phase: 'walk' }): GameState {
   const s = createGameState(sampleSave({ stages: { 'forest-1': { seed: 42, progress, cleared: false, defeatedTrainers: [], facilities: [], run: { startMs: 0, caught: 0, trainers: 0, seen: [], reach: 0, retries: 0 } } } }), 1);
@@ -258,5 +258,13 @@ describe('이름표 번호 — 지역 순서를 따라감 (코드 리뷰어 #66 
     }
     expect(STAGES['beach-1'].code).toBe('2-1');
     expect(STAGES['forest-3'].code).toBe('1-3');
+  });
+});
+
+describe('3:3 판 배경 (태현 님 #78 — 시합장)', () => {
+  it('그림이 들어오기 전 (TEAM_ARENA null) 은 길 배경 그대로 · 길에서는 스테이지 배경', () => {
+    const s = createGameState(sampleSave(), 1);
+    expect(sceneBackground(s)).toBe('forest');
+    expect(TEAM_ARENA === null ? sceneBackground({ ...s, runtime: { ...s.runtime, stage: { phase: 'team' } as never } }) : 'forest').toBe('forest');
   });
 });

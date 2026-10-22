@@ -15,7 +15,7 @@ import { spaceInput, ultSkippable } from '../../battle/fx/parry';
 import { BALLS } from '../../../core/rules/catch';
 import { bestHelper, requestAt } from '../../../core/rules/request';
 import { FACILITY_STAFF } from '../../../core/rules/stage';
-import { gymRoomOf, regionHere, stageBackground } from '../../../core/rules/region';
+import { gymRoomOf, regionHere } from '../../../core/rules/region';
 import { josaOf, withJosa } from '../../../core/text';
 import { speciesOf } from '../../../data';
 import { heroDraw, heroHeightPx, heroLookOf, heroWidthPx, personLook } from '../../../data/heroes';
@@ -42,7 +42,7 @@ import { menuLabels, type Overlay, unspentPoints } from '../../menu/model';
 import { ChoiceBox } from '../../result/components/ChoiceBox';
 import { ResultBox } from '../../result/components/ResultBox';
 import { CAUGHT_INTRO_H, CAUGHT_INTRO_W, caughtView, choiceView, levelUps, needsStatHint } from '../../result/model';
-import { battleStage, buildingDraw, BUILDINGS, contactX, foeTrainerView, gymEnterView, holdRivalLook, gymFrontX, gymRestX, heroX, minimapOf, staffLeftPx, type StageObject, stagePx, STAGES, visibleObjects, meetVsAt, vsStartMs, WALK_PX_PER_SEC } from '../model';
+import { battleStage, buildingDraw, BUILDINGS, contactX, foeTrainerView, gymEnterView, holdRivalLook, gymFrontX, gymRestX, heroX, minimapOf, sceneBackground, staffLeftPx, type StageObject, stagePx, STAGES, visibleObjects, meetVsAt, vsStartMs, WALK_PX_PER_SEC } from '../model';
 import { BadgeCard, ClearCard, DefeatBox, FacilityBox, HoldBox, LobbyBox, TrainerBanner, VsCutIn, type VsArt } from './FieldBoxes';
 import { GymFront } from './GymFront';
 import { StageToast } from './StageToast';
@@ -247,7 +247,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   const mapRow = mapRowFits && !geoWithRow?.topBusy;
   const geo = mapRowFits && !mapRow ? geoAt(0) : geoWithRow;
   // 배경 = 지역 표 (스테이지 → 지역 → 숲 — orders #57, 지금은 모두 숲)
-  const art = (layer: 'background' | 'foreground') => (media && !gym ? `url("${media}/backgrounds/${stageBackground(stageId)}/${layer}-${themeKind()}-${layout.size}.png")` : 'none');
+  // 3:3 판이면 시합장 (태현 님 #78 — sceneBackground, 그림이 들어오기 전엔 길 배경)
+  const art = (layer: 'background' | 'foreground') => (media && !gym ? `url("${media}/backgrounds/${sceneBackground(state)}/${layer}-${themeKind()}-${layout.size}.png")` : 'none');
   // 체육관: 주인공은 무대 왼쪽 (대기실) · 관장은 무대 오른쪽 끝
   const heroStand = geo ? geo.trainerX : gym ? stage.left + Math.round(stage.width * 0.18) : hero;
   // 1-3 길 끝 체육관 (2026-10-20 태현 님 A안) — gym-enter 동안 주인공이 문 앞까지 걸어가 들어가며 사라지고 화면 닦기 (stage/model gymEnterView)
@@ -343,7 +344,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   }, []);
   return (
     // pg-bg-<배경> = 배경 시간에 맞춰 건물 빛을 맞춤 (밤 · 노을 해변 — 원작 낮 그림 건물이 가장 밝은 덩어리였던 것, game.css · orders #61 아트 디렉터)
-    <div class={`pg-screen pg-stage pg-size-${layout.size}${gym ? ' pg-gym' : ` pg-bg-${stageBackground(stageId)}`}${covered ? ' pg-covered' : ''}`} ref={screen}>
+    <div class={`pg-screen pg-stage pg-size-${layout.size}${gym ? ' pg-gym' : ` pg-bg-${sceneBackground(state)}`}${covered ? ' pg-covered' : ''}`} ref={screen}>
       {battle && geo?.menuInBar ? (
         <BattleMenuBar battle={battle} save={save} onInput={battleInput} withAuto={geo.autoInMenu} compact={geo.tiny ? 'tiny' : geo.compact} say={barSay(battle, geo.msgHidden, geo.widthPx - 48, 2)} hint={ringHint(battle, geo, save.settings.autoBattle)} pickRight={pickRightOf(geo)} autoTip={autoTip} />
       ) : (

@@ -7,7 +7,7 @@ import { teamChoiceMeet, teamViewKey, waitReason, type BattleState, type GameSta
 import { resumeLine } from '../../core/engine/play';
 import { planWild, sceneryAt, type Scenery, type WildPlan } from '../../core/rules/encounter';
 import { requestAt, type RequestTemplate } from '../../core/rules/request';
-import { isRegionLast, REGIONS, regionHere } from '../../core/rules/region';
+import { isRegionLast, REGIONS, regionHere, stageBackground } from '../../core/rules/region';
 import { stageCode, stageLayout, trainerId } from '../../core/rules/stage';
 import { aliveCount, shortTrainerName, trainerInfo, trainerNumber, trainerTeamSize, type TrainerInfo } from '../../core/rules/trainer';
 import { pickRival, recordText, rivalName, rivalRecord, rivalTeamSize } from '../../core/rules/rival';
@@ -390,4 +390,17 @@ export function foldWait(state: GameState): string | null {
     default:
       return st?.phase === 'facility' && st.inside ? `${st.kind === 'hospital' ? '병원' : '상점'} 안에서 기다려요` : null;
   }
+}
+
+/**
+ * 3:3 판 배경 폴더 (태현 님 #78 — 숲에서 3:3 을 하면 포켓몬이 공중에 뜬 것 같아 시합장으로 · 그림 · 배치는 디자인) —
+ * 그림이 들어오면 폴더 이름 (media/backgrounds/<이것>/background · foreground-<테마>-<크기>.png) 을 넣음 · null = 길 배경 그대로
+ */
+export const TEAM_ARENA: string | null = null;
+
+/** 지금 그릴 길 배경 폴더 — 3:3 판이면 시합장 (#78 — VS 가 끝나 판이 시작될 때 바뀌고 결과 뒤 걷기로 돌아오면 길) · 아니면 스테이지 배경 (지역 표 #57) */
+export function sceneBackground(state: GameState): string {
+  const loc = state.save.location;
+  if (TEAM_ARENA && state.runtime.stage?.phase === 'team') return TEAM_ARENA;
+  return stageBackground(loc.screen === 'stage' ? loc.stageId : null);
 }
