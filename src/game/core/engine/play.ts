@@ -1100,6 +1100,23 @@ function nextToast(t: NonNullable<RuntimeState['toast']>): RuntimeState['toast']
 }
 
 /** 알림 줄 세우기 — 떠 있는 알림이 있으면 그 뒤에 (덮지 않음, U1 · 최대 4) */
+/** 알림 줄에서 맞는 글을 지움 — 앞 것이 지워지면 다음 것이 새 시간으로 앞에 */
+function dropToasts(rt: RuntimeState, drop: (text: string) => boolean): RuntimeState {
+  const t = rt.toast;
+  if (!t) return rt;
+  const then = t.then === undefined ? [] : Array.isArray(t.then) ? t.then : [t.then];
+  const left = [t.text, ...then].filter((x) => !drop(x));
+  if (left.length === 1 + then.length) return rt;
+  if (left.length === 0) return { ...rt, toast: null };
+  const [head, ...rest] = left;
+  const tail = rest.length === 0 ? {} : { then: rest.length === 1 ? rest[0]! : rest };
+  if (head === t.text) {
+    const { then: _then, ...keep } = t;
+    return { ...rt, toast: { ...keep, ...tail } };
+  }
+  return { ...rt, toast: { text: head!, ms: t.thenMs ?? TIMING.toastMs, ...tail } };
+}
+
 function queueToast(rt: RuntimeState, text: string): RuntimeState {
   if (!rt.toast) return { ...rt, toast: { text, ms: TIMING.toastMs } };
   const q = rt.toast.then === undefined ? [] : Array.isArray(rt.toast.then) ? rt.toast.then : [rt.toast.then];
@@ -1333,13 +1350,16 @@ function travel(state: GameState, to: StageId | 'gym', toRegion?: RegionId): Gam
   const rng = new Rng(state.runtime.rngState);
   let save = state.save;
   const gymRegion = toRegion ? REGIONS[toRegion] : regionHere(loc);
+  // 가는 지역의 "새 지역이 열렸어요 — …" 알림은 지움 (이미 왔는데 지도로 가라던 것 — UX 리뷰어 #70)
+  const arrive = to === 'gym' ? gymRegion : regionOf(to).region;
+  const rt0 = dropToasts(state.runtime, (x) => x === `새 지역이 열렸어요 — ${arrive.name}`);
   if (to === 'gym' ? !regionGymUnlocked(save, gymRegion) : !stageUnlocked(save, to)) return state;
   if (loc.screen === 'stage') {
     const from = loc.stageId;
     save = withStage(save, from, (p) => ({ ...freshRun(p, newSeed(rng), save.playTimeMs) }));
     if (save.lastHospital?.stageId === from) save = { ...save, lastHospital: null };
   }
-  if (to === 'gym') return { save: { ...save, location: gymLocation(gymRegion) }, runtime: { ...state.runtime, rngState: rng.state, stage: { phase: 'lobby' }, stageId: null } };
+  if (to === 'gym') return { save: { ...save, location: gymLocation(gymRegion) }, runtime: { ...rt0, rngState: rng.state, stage: { phase: 'lobby' }, stageId: null } };
   save = { ...save, stages: { ...save.stages, [to]: freshRun(save.stages[to], newSeed(rng), save.playTimeMs) }, location: { screen: 'stage', stageId: to } };
   if (save.lastHospital?.stageId === to) save = { ...save, lastHospital: null };
   // 경험 부적 — 스테이지를 새로 시작할 때 1개를 써서 이 판 동안 경험치 ×1.5 (2026-10-21 ideas #70)
@@ -1347,9 +1367,9 @@ function travel(state: GameState, to: StageId | 'gym', toRegion?: RegionId): Gam
   if (charm) save = withRun({ ...save, bag: { ...save.bag, 'exp-charm': (save.bag['exp-charm'] ?? 0) - 1 } }, to, (r) => ({ ...r, boost: true }));
   const charmText = `경험 부적을 썼다! 이 스테이지 경험치 ×${BALANCE.expCharmScale}`;
   // 앞 알림 (클리어 · 레벨업) 이 떠 있으면 덮지 않고 그 뒤에 (코드 리뷰어)
-  const prev = state.runtime.toast;
-  const toastNow = !charm ? prev : prev ? queueToast(state.runtime, charmText).toast : { text: charmText, ms: TIMING.toastMs * 2 };
-  return { save, runtime: { ...state.runtime, rngState: rng.state, stage: null, stageId: to, toast: toastNow } };
+  const prev = rt0.toast;
+  const toastNow = !charm ? prev : prev ? queueToast(rt0, charmText).toast : { text: charmText, ms: TIMING.toastMs * 2 };
+  return { save, runtime: { ...rt0, rngState: rng.state, stage: null, stageId: to, toast: toastNow } };
 }
 
 /** 입력 — 지금 받을 수 없는 입력이면 상태를 그대로 돌려줌 */

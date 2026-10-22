@@ -632,6 +632,16 @@ describe('다음 지역 열기 (orders #66 · #70 — BALANCE.region.open 본편
     expect(step(fighting, STEP).state.save.regions).toEqual({ order: ['forest'] });
   });
 
+  it('그 지역으로 가면 "새 지역" 알림을 지움 (이미 왔는데 지도로 가라던 것 — UX 리뷰어 #70) · 다른 알림은 남음', () => {
+    const s0 = lobby({ badges: ['forest'], regions: { order: ['forest', 'beach'] } }, true);
+    const told = { ...s0, runtime: { ...s0.runtime, toast: { text: '숲 클리어!', ms: 2000, then: ['새 지역이 열렸어요 — 해변', 'Lv 9!'] } } };
+    const there = applyInput(told, { kind: 'travel', to: 'beach-1' });
+    expect(there.save.location).toEqual({ screen: 'stage', stageId: 'beach-1' });
+    expect(toasts(there)).toEqual(['숲 클리어!', 'Lv 9!']);
+    const only = { ...s0, runtime: { ...s0.runtime, toast: { text: '새 지역이 열렸어요 — 해변', ms: 2000 } } };
+    expect(applyInput(only, { kind: 'travel', to: 'beach-1' }).runtime.toast).toBeNull();
+  });
+
   it('다른 지역 체육관으로 이동 (travel gym + region) — 연 지역이고 끝 스테이지를 깼을 때만', () => {
     const open = { badges: ['forest'], regions: { order: ['forest' as const, 'beach' as const] } };
     const s0 = lobby({ ...open, stages: { 'forest-3': stageAt(1, { cleared: true }), 'beach-3': stageAt(1, { cleared: true }) } }, true);
