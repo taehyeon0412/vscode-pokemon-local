@@ -441,9 +441,10 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
   pointer-events: none;
 }
 /* 걷는 동안 흐름 (StageScreen ScrollLayer — 빠르기 · 시작점 · 멈춤은 style) */
+/* steps = 1px 씩 (1,000,000 걸음 = 1,000,000px) — linear 면 멈춘 자리 · 흐르는 자리가 소수 px 라 2×2 점 해변 그림의 이웃 점이 섞여 흐렸음 (반 픽셀 f 0.15 ~ 0.80 — #61 픽셀 검사원, 숲은 색이 많아 안 드러났음) */
 .pg-scroll {
   animation-name: pg-scroll;
-  animation-timing-function: linear;
+  animation-timing-function: steps(1000000);
   animation-iteration-count: infinite;
   will-change: background-position;
 }
@@ -1317,6 +1318,21 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
     display: none;
   }
   .pg-tip-mine .pg-tip-short {
+    display: inline;
+  }
+}
+/* 459 아래 3:3 저절로 필살기 첫 안내 = 더 짧은 한 줄 (163px) · 폭은 반 또는 184 — 짧은 말 197px 가 240 반 폭 112 에 두 줄로 접혀 1번 포켓몬 반짝임을 덮던 것 (개발 UX #59 · 경계는 실제 폭을 재서 맥 글자 +10% 여유: 짧은 말 218 이 반 폭에 들어가는 460 부터 · 짧은 한 줄 180 < 184) */
+.pg-tip-tiny {
+  display: none;
+}
+@media (max-width: 459px) {
+  .pg-first-tip.pg-tip-mine {
+    max-width: max(calc(50% - 8px), 184px);
+  }
+  .pg-tip-mine .pg-tip-short {
+    display: none;
+  }
+  .pg-tip-mine .pg-tip-tiny {
     display: inline;
   }
 }
@@ -5625,7 +5641,12 @@ body.vscode-light .pg-field-balls,
 .pg-stage.pg-bg-beach-dusk .pg-maprow > .pg-balls,
 .pg-stage.pg-bg-beach-dusk .pg-field-balls,
 .pg-stage.pg-bg-beach-night .pg-maprow > .pg-balls,
-.pg-stage.pg-bg-beach-night .pg-field-balls {
+.pg-stage.pg-bg-beach-night .pg-field-balls,
+/* 길 끝 체육관이 보이면 (지붕이 지도 줄 뒤까지 옴) 두 테마 모두 — 황토 지붕 위 "99%" 1.7 · "1분 안" 1.2:1 (숲 1-3 부터 · #61 픽셀 검사원 큼) */
+.pg-stage:has(.pg-gymfront) .pg-maprow .pg-stage-name,
+.pg-stage:has(.pg-gymfront) .pg-maprow .pg-mappct,
+.pg-stage:has(.pg-gymfront) .pg-maprow .pg-mapleft,
+.pg-stage:has(.pg-gymfront) .pg-maprow .pg-team-hp {
   display: inline-flex;
   align-items: center;
   height: 18px;

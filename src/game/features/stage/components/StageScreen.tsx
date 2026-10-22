@@ -197,7 +197,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   const objects = gym || teamOn ? [] : visibleObjects(state, widthPx, layout.scale);
   const stageRt = state.runtime.stage;
   const battle = stageRt?.phase === 'battle' ? stageRt.battle : null;
-  // 3:3 (orders #17 — 본편은 꺼져 있고 개발 모드에서만 켬)
+  // 3:3 (orders #17 — 모두에게, orders #59)
   const team = stageRt?.phase === 'team' ? stageRt.team : null;
   // 저절로 나갈 필살기를 기다리는 중이면 지금 누를 키 (1:1 자동 전투 = Z · 3:3 = 그 칸 번호) — "N초" 칩의 뜻 첫 안내 (ideas #150)
   const teamNext = team?.phase === 'run' ? teamAutoUltNext(team) : null;
@@ -490,9 +490,13 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         {/* 3:3 처음 안내 (기획 R9 ⑤ — 2026-10-22 태현 님 A "추천안으로") — 3:3 을 고를 수 있는 만남이 처음 나올 때 4초 · 아래 가운데 (위는 "승부다!" 상자 — 1:1 / 3:3 버튼을 가리지 않게) · 보는 동안만 셈 */}
         {teamMeetOn(state) && teamMeetTipDue(state) && (
           <FirstTip key="team-meet" ms={4000} className="pg-first-tip-low" paused={away} onSeen={() => onInput({ kind: 'tip-seen', id: TEAM_MEET_TIP })}>
-            <span class="pg-tip-part">3:3 이 열렸어요 —</span>{' '}
-            <span class="pg-tip-part">
+            <span class="pg-tip-part pg-tip-long">3:3 이 열렸어요 —&nbsp;</span>
+            <span class="pg-tip-part pg-tip-long">
               셋이 함께 싸우고 돈 ×{BALANCE.team.moneyScale} · <KeyCap k="3" />
+            </span>
+            {/* 360 아래 한 줄 (두 줄이 주인공 · 트레이너 아래 반을 덮던 것 — 개발 UX #59) */}
+            <span class="pg-tip-short">
+              3:3 이 열렸어요 · 돈 ×{BALANCE.team.moneyScale} · <KeyCap k="3" />
             </span>
           </FirstTip>
         )}
@@ -514,6 +518,12 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
             <span class="pg-tip-short">
               필살기 {ultWaitSec}초 뒤 저절로 · <KeyCap k={ultWaitKey} /> 바로
             </span>
+            {/* 459 아래 3:3 = 더 짧게 한 줄 (짧은 말 197px 가 반 폭 112px 에 두 줄로 접혀 막 다 찬 1번 포켓몬 반짝임을 덮던 것 — 개발 UX #59) */}
+            {team && (
+              <span class="pg-tip-tiny">
+                필살기 {ultWaitSec}초 뒤 · <KeyCap k={ultWaitKey} /> 바로
+              </span>
+            )}
           </FirstTip>
         )}
         {/* 주인공 머리 위 — 주운 자리에서 바로 보이게 (긴 알림은 패널 끝 안쪽으로 당김 · 줄 바꿈).
@@ -536,9 +546,9 @@ function GymTip({ lock }: { lock: 'few' | 'narrow' | null }) {
     return (
       <>
         <span class="pg-tip-long">
-          <span class="pg-tip-part">{lock === 'few' ? '살아 있는 포켓몬이 3마리면 3:3 —' : '패널을 넓히면 3:3 —'}</span> <span class="pg-tip-part">이번엔 1:1 승부</span>
+          <span class="pg-tip-part">{lock === 'few' ? '싸울 수 있는 포켓몬이 3마리면 3:3 —' : '패널을 넓히면 3:3 —'}</span> <span class="pg-tip-part">이번엔 1:1 승부</span>
         </span>
-        <span class="pg-tip-short">{lock === 'few' ? '3마리면 3:3 — 이번엔 1:1' : '넓히면 3:3 — 이번엔 1:1'}</span>
+        <span class="pg-tip-short">{lock === 'few' ? '싸울 3마리면 3:3 — 이번엔 1:1' : '넓히면 3:3 — 이번엔 1:1'}</span>
       </>
     );
   return (

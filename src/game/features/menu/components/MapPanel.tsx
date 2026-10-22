@@ -26,7 +26,7 @@ export interface MapPanelProps {
 
 export function MapPanel({ state, swap, midStage, onInput, onTeam, onClose }: MapPanelProps) {
   const v = mapView(state);
-  // 오늘의 목표 (#28 · gdd U13 — 개발 모드에서만, 엔진이 꺼져 있으면 null) · 기록 (U12)
+  // 오늘의 목표 (#28 · gdd U13 — 모두에게, orders #59 · 엔진이 꺼져 있으면 null) · 기록 (U12)
   const daily = dailyView(state);
   const rec = state.save.records;
   const [confirm, setConfirm] = useState<StageId | 'gym' | null>(null);

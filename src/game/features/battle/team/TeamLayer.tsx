@@ -169,8 +169,9 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
             </span>
           ))}
           끼어들기
-          {/* 머릿수 (기획 #24-3) — 받아치면 나 1 : 상대 쓴 포켓몬 + 모인 동료 · 1:3 이면 빨강 "받아치면 짐" (확정 패배) */}
-          <span class={`pg-team-odds${prompt.sure === 'foe' ? ' pg-team-sure-foe' : ''}`}>{`· ${prompt.me}:${prompt.foe}${prompt.sure === 'foe' ? ' 받아치면 짐' : ''}`}</span>
+          {/* 머릿수 (기획 #24-3) — 받아치면 나 1 대 상대 쓴 포켓몬 + 모인 동료 · 1 대 3 이면 빨강 "받아치면 짐" (확정 패배)
+              "1:1" 은 만남의 "1:1 승부" 와 같은 글이라 "1:1 로 바꾸기" 로 읽혀서 연타 띠처럼 "대" (개발 UX #59) */}
+          <span class={`pg-team-odds${prompt.sure === 'foe' ? ' pg-team-sure-foe' : ''}`}>{`· ${prompt.me} 대 ${prompt.foe}${prompt.sure === 'foe' ? ' 받아치면 짐' : ''}`}</span>
           <span class="pg-team-left" style={{ width: `${Math.round(prompt.left * 100)}%` }} />
         </div>
       )}
@@ -190,7 +191,7 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
       {prompt?.kind === 'mash' && (b.clash?.ms ?? 0) >= TIMING.team.ultClashLeadMs && (
         <div class="pg-team-prompt pg-team-prompt-mash" style={promptStyle}>
           {/* 정해진 힘겨루기 (3:1 · 1:3) 는 연타가 소용없어 결과만 (디자인팀 UX R9 ⑥ U5) */}
-          {prompt.sure === 'me' ? <b class="pg-team-sure">3:1 — 이길 거예요</b> : prompt.sure === 'foe' ? <b class="pg-team-sure pg-team-sure-foe">1:3 — 질 거예요</b> : <b>{`${prompt.me} 대 ${prompt.foe}`}</b>}
+          {prompt.sure === 'me' ? <b class="pg-team-sure">3 대 1 — 이길 거예요</b> : prompt.sure === 'foe' ? <b class="pg-team-sure pg-team-sure-foe">1 대 3 — 질 거예요</b> : <b>{`${prompt.me} 대 ${prompt.foe}`}</b>}
           {!prompt.sure && (
             <>
               <span class="pg-team-key">Space</span> 연타

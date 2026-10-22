@@ -49,7 +49,8 @@ export function TeamMeet({ state, onInput }: { state: GameState; onInput(i: Game
   // 잠겼으면 (3마리 미만 · 좁음) 주 버튼 = 1:1 (엔진도 1:1 로 시작 — 코드 리뷰어) · 이번 판 3:3 에서 진 트레이너도 1:1 (teamMainOf — 기획 #27 R8)
   const team = lock === null && (st.team ?? teamMainOf(state));
   const narrow = (state.runtime.view?.w ?? 1000) < NARROW_PX;
-  const why = lock === 'few' ? (narrow ? '3마리 필요' : '3마리가 있어야 3:3') : lock === 'narrow' ? '넓히면 3:3' : null;
+  // 체육관 알림 · 대기실과 같은 말 "싸울 수 있는 3마리" (쓰러진 포켓몬이 있을 때 "3마리가 있어야" 와 "살아 있는 3마리면" 이 따로 놀던 것 — 개발 UX #59)
+  const why = lock === 'few' ? (narrow ? '싸울 3마리 필요' : '싸울 수 있는 3마리면 3:3') : lock === 'narrow' ? '넓히면 3:3' : null;
   const left = Math.ceil(Math.max(0, Math.min(1, (TIMING.trainerAlertMs + TIMING.teamChoiceMs - st.ms) / TIMING.teamChoiceMs)) * 12) / 12;
   // 잠겼으면 고를 게 없어 막대 없음 (예전 박자)
   const bar = why ? null : <span class="pg-team-left" style={{ width: `${Math.round(left * 100)}%` }} />;
@@ -71,7 +72,8 @@ export function TeamMeet({ state, onInput }: { state: GameState; onInput(i: Game
       <Button secondary={!team} extraClass={`pg-team-mode${why ? ' pg-locked' : ''}`} disabled={!!why} onClick={() => onInput({ kind: 'team-mode', on: true })} title={why ?? `3:3 팀 배틀 — 셋이 같이 싸움 · 상대도 ${n}마리 · 돈 ×${BALANCE.team.moneyScale} (3)`}>
         {/* 잠겼으면 키 칸 없음 (눌릴 것처럼 보이지 않게 — 점선 테두리 + "3마리 필요") */}
         {!why && <KeyCap k={team ? 'Enter' : '3'} />}
-        {narrow ? '3:3 팀' : '3:3 팀 배틀'}
+        {/* 좁고 잠겼으면 "3:3" 만 (옆 "싸울 3마리 필요" 가 240 에서 상자 끝 5px 앞까지 와 맥 글자면 넘침 — 개발 UX #59) */}
+        {narrow ? (why ? '3:3' : '3:3 팀') : '3:3 팀 배틀'}
         {team && bar}
       </Button>
       <span class="pg-dim pg-team-meet-note">{why ?? (narrow ? `상대 ${n}` : `상대 ${n} · 돈 ×${BALANCE.team.moneyScale}`)}</span>
@@ -213,8 +215,8 @@ export function TeamChoice({ state, media, onInput }: { state: GameState; media:
         {/* 시작 = 셋째 열 마지막 줄 (팀 다섯이면 여섯째 자리) · 대기실은 "도전" (두 번째 Enter — 저절로 시작 없음, 막대 없음) */}
         {lock !== null && (
           // 잠김 안내 = 시작 칸 자리 (넓히면 그대로 3:3 · 3마리 미만은 고를 수 없음)
-          <span class="pg-team-lockmsg" title={lock === 'narrow' ? '패널을 넓히면 3:3 으로 시작할 수 있어요' : '살아 있는 포켓몬이 3마리 있어야 3:3'}>
-            {lock === 'narrow' ? '넓히면 3:3' : '3마리 필요'}
+          <span class="pg-team-lockmsg" title={lock === 'narrow' ? '패널을 넓히면 3:3 으로 시작할 수 있어요' : '싸울 수 있는 포켓몬이 3마리면 3:3'}>
+            {lock === 'narrow' ? '넓히면 3:3' : '싸울 3마리 필요'}
           </span>
         )}
         {lock === null && (

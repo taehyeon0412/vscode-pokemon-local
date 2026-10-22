@@ -374,7 +374,7 @@ export function LobbyBox({ state, media, onInput, onBox, onShop, onMap }: BoxPro
   const teamOn = BALANCE.team.on || state.runtime.dev?.team === true;
   const lock = teamOn ? teamLock(state) : null;
   const mode = !teamOn ? null : lock === null ? '3:3' : '1:1';
-  const modeWhy = lock === 'few' ? '살아 있는 포켓몬이 3마리면 3:3' : lock === 'narrow' ? '패널을 넓히면 3:3' : null;
+  const modeWhy = lock === 'few' ? '싸울 수 있는 포켓몬이 3마리면 3:3' : lock === 'narrow' ? '패널을 넓히면 3:3' : null;
   // 버튼 줄이 넘치면 도전의 ▶ 를 뺌 (240 에서 "3:3" 칩까지 2px 넘쳐 상자 여백을 먹던 것 — UX 리뷰어 #27, 맥 여유 10%)
   const lobbyBox = useRef<HTMLDivElement>(null);
   // 2 단계 = Enter 키 칸도 뺌 (맥 +10% 에서 331 ~ 335 에 도전 버튼이 여백을 먹던 것 — UX 리뷰어 R12 재확인)
