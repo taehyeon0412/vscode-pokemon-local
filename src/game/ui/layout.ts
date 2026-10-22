@@ -10,11 +10,6 @@ export const SIZES = ['nano', 'small', 'medium', 'large'] as const;
 export type SizeName = (typeof SIZES)[number];
 
 export const SIZE_SCALE: Record<SizeName, number> = { nano: 1, small: 1.5, medium: 2, large: 2.5 };
-/** 게임 모드: 이 패널 높이부터 크게 — 포켓몬 · 사람 ×3 (정수 배 — 설정의 크게 ×2.5 는 점 굵기가 고르지 않아 안 씀) · 큰 숲 배경 (2026-10-20 태현 님 "높은 패널이면 반응형으로 넓게") */
-export const LARGE_MIN_HEIGHT_PX = 300;
-/** 크게 (×3) 는 이 폭 이상에서만 — 좁으면 전투 무대에 ×3 그림 셋이 안 들어가 상대가 패널 밖으로 나가고 HP 줄이 겹치던 것 (240 × 315, 아트 디렉터 밤 점검) */
-export const LARGE_MIN_WIDTH_PX = 480;
-export const LARGE_GAME_SCALE = 3;
 /** 보통 포켓몬 원본 키 (원본이 64px 인 큰 포켓몬은 따로) */
 export const BASE_SPRITE_PX = 32;
 /** 위 정보줄 높이 (uiScale 1 일 때) */
@@ -78,11 +73,12 @@ export function gameSize(_wanted: unknown): SizeName {
   return 'medium';
 }
 
-/** 게임 모드 화면 틀 — 보통 (×2) 이고, 패널이 300px 이상 · 폭 480 이상이면 크게 (포켓몬 · 사람 ×3 · 큰 숲 배경 — 위 빈 공간을 씀, 2026-10-20 태현 님 "추천대로") */
-export function fitGameLayout(heightPx: number, minHeightPx = GAME_MIN_HEIGHT_PX, widthPx = Number.POSITIVE_INFINITY): Layout {
-  const base = fitLayout('medium', heightPx, minHeightPx);
-  if (base.heightPx < LARGE_MIN_HEIGHT_PX || widthPx < LARGE_MIN_WIDTH_PX) return base;
-  return { ...base, size: 'large', scale: LARGE_GAME_SCALE, petPx: BASE_SPRITE_PX * LARGE_GAME_SCALE };
+/**
+ * 게임 모드 화면 틀 — 패널 크기와 상관없이 보통 ×2 (포켓몬 64px · 사람 · 건물 · 배경도 같은 점 크기). 2026-10-22 태현 님 #92 "패널이 커져도 포켓몬은 저걸로 고정 — 포켓몬이 커지니까 안이뻐"
+ * (10-20 의 높은 패널 크게 ×3 을 없앰 · 배경 ×2 그림은 500px 높이라 높은 패널 위도 채움). 폭 인자는 예전 호출 그대로 받기만 함
+ */
+export function fitGameLayout(heightPx: number, minHeightPx = GAME_MIN_HEIGHT_PX, _widthPx = Number.POSITIVE_INFINITY): Layout {
+  return fitLayout('medium', heightPx, minHeightPx);
 }
 
 export function minHeightOf(size: SizeName): number {

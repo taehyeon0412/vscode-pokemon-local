@@ -152,18 +152,20 @@ export function TitleScreen({ info, media, pending, onNew, onContinue, onDev, he
         <Logo />
         <div class="pg-title-menu">
           {confirming ? (
-            // 지우는 쪽 (새로 하기) 은 빨간 보조 버튼, 주 버튼은 취소 — 경고 문장은 크림, 지워지는 말만 빨강 (금색 = 고른 것)
-            <div class="pg-row">
+            // 지우는 쪽 (새로 하기) 은 빨간 보조 버튼, 주 버튼은 취소 — 경고 문장은 크림, 지워지는 말만 빨강 (금색 = 고른 것) · 좁으면 버튼 둘은 아래 줄 (pg-title-confirm)
+            <div class="pg-row pg-title-confirm">
               <span class="pg-ask">
                 {lead && <span class="pg-ask-what">{`${lead.name} Lv ${lead.level} · ${formatPlayTime(view.summary?.playTimeMs ?? 0)} `}</span>}
                 <b class="pg-danger-text">지금 저장이 지워져요.</b> 새로 할까요?
               </span>
-              <Button secondary extraClass="pg-danger" onClick={startNew} disabled={locked} key="confirm-new">
-                새로 하기
-              </Button>
-              <Button onClick={() => setConfirming(false)} disabled={pending} name="cancel" key="confirm-cancel">
-                취소
-              </Button>
+              <span class="pg-title-confirm-btns">
+                <Button secondary extraClass="pg-danger" onClick={startNew} disabled={locked} key="confirm-new">
+                  새로 하기
+                </Button>
+                <Button onClick={() => setConfirming(false)} disabled={pending} name="cancel" key="confirm-cancel">
+                  취소
+                </Button>
+              </span>
             </div>
           ) : view.canContinue ? (
             // 세이브가 있으면 주로 누를 것은 이어 하기 (위 · ▸) — 새로 하기는 아래

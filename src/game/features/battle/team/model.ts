@@ -1,9 +1,10 @@
 /**
  * 3:3 화면 모델 (orders #17 3단계 — 디자인팀 4안 시안 그대로의 자리 · 판 상태). 화면 (TeamLayer) 과 떼어 둔 계산 — 자동 테스트.
- * 자리 (geo) = 시안 geo(): 폭 400 아래 ×1 · 높이 300 아래 ×2 · 그 위 ×3 · 가장 낮은 패널 (높이 170 아래 · 폭 400 부터) 은 ×2 한 줄 (#85 A).
+ * 자리 (geo) = 시안 geo(): 폭 400 아래 ×1 · 그 밖은 ×2 (높아도 ×3 없음 — 태현 님 #92) · 가장 낮은 패널 (높이 170 아래 · 폭 400 부터) 은 ×2 한 줄 (#85 A).
+ * 비스듬한 세 줄은 바닥 띠에 모음 — 줄 사이 세로는 패널 높이와 상관없이 고정 (TEAM_ROW_GAP — 태현 님 #93 "대각선으로 너무 각지게 서있는데 각을 줄여서").
  * 칸 0 · 1 · 2 = 위 (뒷줄 · 바깥) → 아래 (앞줄 · 가운데) = 발밑 판 키 1 · 2 · 3.
  */
-import { BALANCE, TIMING } from '../../../core/balance';
+import { TIMING } from '../../../core/balance';
 import { teamClashSure, teamGather, teamLayout, teamUltLevel, teamUltOpen, type Side, type TeamBattle } from '../../../core/engine';
 import { speciesOf } from '../../../data';
 
@@ -12,7 +13,7 @@ export interface TeamGeo {
   H: number;
   /** 정보줄 아래 무대가 시작하는 높이 */
   IB: number;
-  scale: 1 | 2 | 3;
+  scale: 1 | 2;
   /** 포켓몬 칸 (32 × 배율) */
   sp: number;
   oneRow: boolean;
@@ -23,20 +24,30 @@ export interface TeamGeo {
   pos(side: Side, slot: number): { x: number; y: number };
 }
 
+/**
+ * 비스듬한 세 줄 사이 세로 (px) — ×2 = 16 (가로 칸 60 에 약 15° · 판 높이 14 + 2 — 아트 디렉터가 13 · 16 · 20 중 고름, 2026-10-22 #93). 예전엔 무대 높이에 비례 (187 약 23° · 443 약 51 ~ 57°).
+ * ×1 (폭 400 아래) = 24 — 판 (40px) 이 가로 칸 (24) 보다 넓어 16 이면 판이 다음 칸 포켓몬을 23 ~ 34% 덮고 머리 위 말이 겹치던 것 (픽셀 검사원 · UX 리뷰어 #92) · 예전 낮은 패널과 같은 값 (높은 ×1 패널은 더 완만해짐)
+ */
+export const TEAM_ROW_GAP = { x1: 24, x2: 16 } as const;
+
+/** 시합장 그림 높이 (무대 위 끝부터 — ×1 x1 그림 250 · ×2 500) — 앞줄이 그림 아래 남색 띠에 서지 않게 (240 × 315 에서 셋이 그림 밖에 서던 것) */
+const ARENA_ART_PX = { 1: 250, 2: 500 } as const;
+
 export function teamGeometry(W: number, H: number, IB: number): TeamGeo {
   const oneRow = teamLayout({ w: W, h: H }) === 'row';
-  const scale: 1 | 2 | 3 = W < 400 ? 1 : oneRow || H < BALANCE.team.view.x3MinH ? 2 : 3;
+  const scale: 1 | 2 = W < 400 ? 1 : 2;
   const sp = 32 * scale;
   const stageH = H - IB;
-  const HZh = Math.round(stageH * 0.22);
-  const r3 = stageH - 23;
-  const r1 = HZh + Math.round(sp * 0.8);
-  const r2 = Math.round((r1 + r3) / 2);
+  // 앞줄 = 바닥 − 23 (판 · 그림자 자리) · 가운데 · 뒷줄은 고정 간격으로 위 (세 줄을 바닥 띠에 모음 — 높은 패널에서 뒷줄이 하늘로 올라가 가팔라지던 것)
+  const gap = scale === 1 ? TEAM_ROW_GAP.x1 : TEAM_ROW_GAP.x2;
+  const r3 = Math.min(stageH - 23, ARENA_ART_PX[scale] - 23);
+  const r2 = r3 - gap;
+  const r1 = r3 - 2 * gap;
   const cx = Math.round(W / 2);
-  const pw = oneRow ? 46 : scale === 1 ? 40 : scale === 2 ? 52 : 68;
-  const s = scale === 1 ? 24 : scale === 2 ? 60 : 69;
+  const pw = oneRow ? 46 : scale === 1 ? 40 : 52;
+  const s = scale === 1 ? 24 : 60;
   const Wb = Math.min(W, 860);
-  const pwE = scale === 1 ? 40 : scale === 2 ? 52 : 68;
+  const pwE = scale === 1 ? 40 : 52;
   // 가운데에서 앞줄까지 = 무대 폭 × 0.18 (넓은 패널은 860 무대 안) · 좁으면 판이 패널 안에 들어가는 만큼 (짝수)
   const d = 2 * Math.round(Math.max(scale === 1 ? 30 : 40, Math.min(Math.round(Wb * 0.18), Math.round(W / 2 - 2 * s - pwE / 2 - 12))) / 2);
   const dA = 2 * Math.round(Math.max(35, Math.min(Math.round(Wb * 0.18), Math.round(W / 2 - 120 - 23 - 8))) / 2);

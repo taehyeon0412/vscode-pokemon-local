@@ -111,7 +111,8 @@ describe('S04 ② 진화 줄 그림 (2026-10-20 태현 님 "크기가 제각각 
     expect([s187.l.chipZoom, s187.l.chainZoom]).toEqual([1, 2]);
     expect(s187.used).toBeLessThanOrEqual(187 - 27);
     const tall = fits(443, 860, big);
-    expect(tall.l.chainZoom).toBeGreaterThanOrEqual(3);
+    // 높아도 ×2 까지 (×3 · ×4 없앰 — 태현 님 #92 "패널이 커져도 포켓몬은 ×2 고정")
+    expect([tall.l.chipZoom, tall.l.chainZoom]).toEqual([2, 2]);
     expect(tall.l.chainZoom).toBeGreaterThanOrEqual(tall.l.chipZoom);
     expect(tall.l.stripRows).toBeGreaterThanOrEqual(2); // 큰 칩은 860 폭에 한 줄로 안 들어가 감음
     expect(tall.used).toBeLessThanOrEqual(443 - 27);

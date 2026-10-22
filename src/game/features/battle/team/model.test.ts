@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { teamGeometry } from './model';
+import { TEAM_ROW_GAP, teamGeometry } from './model';
 
 describe('3:3 자리 (디자인팀 4안 시안 geo 그대로)', () => {
   it('860 × 187 = ×2 비스듬히 세 줄 · 앞줄끼리 약 310px · 판 안 잘림', () => {
@@ -15,12 +15,19 @@ describe('3:3 자리 (디자인팀 4안 시안 geo 그대로)', () => {
     expect(g.pos('me', 2).y + 4 + 14).toBeLessThanOrEqual(187);
   });
 
-  it('240 × 150 = ×1 · 480 × 150 = ×2 한 줄 (#85 A) · 860 × 315 = ×3 · 넓은 패널은 가운데 860 무대', () => {
+  it('240 × 150 = ×1 · 480 × 150 = ×2 한 줄 (#85 A) · 860 × 315 · 443 도 ×2 (#92) · 넓은 패널은 가운데 860 무대', () => {
     expect(teamGeometry(240, 150, 26).scale).toBe(1);
     const row = teamGeometry(480, 150, 26);
     expect(row.oneRow).toBe(true);
     expect(new Set([0, 1, 2].map((i) => row.pos('me', i).y)).size).toBe(1);
-    expect(teamGeometry(860, 315, 26).scale).toBe(3);
+    expect(teamGeometry(860, 315, 26).scale).toBe(2);
+    expect(teamGeometry(1860, 443, 26).scale).toBe(2);
+    // 줄 사이 세로는 패널 높이와 상관없이 같음 · 앞줄은 바닥 − 23 (#93 각 줄이기)
+    for (const h of [187, 300, 443]) {
+      const t = teamGeometry(860, h, 26);
+      expect([t.pos('me', 1).y - t.pos('me', 0).y, t.pos('me', 2).y - t.pos('me', 1).y]).toEqual([TEAM_ROW_GAP.x2, TEAM_ROW_GAP.x2]);
+      expect(Math.abs(t.pos('me', 2).y - (h - 23))).toBeLessThanOrEqual(1);
+    }
     const wide = teamGeometry(1860, 187, 26);
     expect(wide.pos('foe', 0).x - wide.pos('me', 0).x).toBe(teamGeometry(860, 187, 26).pos('foe', 0).x - teamGeometry(860, 187, 26).pos('me', 0).x);
   });

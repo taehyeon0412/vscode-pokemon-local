@@ -36,16 +36,16 @@ describe('화면 틀 (mvp-spec 1장)', () => {
     expect(fitLayout('nano', 67, 68).tooSmall).toBe(true);
   });
 
-  it('게임 모드 크기: 설정과 상관없이 보통 ×2, 패널 300px 부터 크게 ×3 (정수 배 · 큰 숲 배경 — 2026-10-20 태현 님 "높은 패널이면 넓게")', () => {
+  it('게임 모드 크기: 설정 · 패널 크기와 상관없이 보통 ×2 (2026-10-22 태현 님 #92 "패널이 커져도 포켓몬은 저걸로 고정")', () => {
     expect([gameSize('nano'), gameSize('small'), gameSize('medium'), gameSize('large'), gameSize('huge')]).toEqual(['medium', 'medium', 'medium', 'medium', 'medium']);
-    // 150px 이면 보통이 늘 들어감 · 299 까지 보통 · 300 부터 크게 ×3
+    // 150px 이면 보통이 늘 들어감 · 높아도 · 넓어도 보통
     expect(fitGameLayout(150)).toMatchObject({ size: 'medium', scale: 2, tooSmall: false });
     expect(fitGameLayout(299)).toMatchObject({ size: 'medium', scale: 2 });
-    expect(fitGameLayout(300)).toMatchObject({ size: 'large', scale: 3, petPx: 96, tooSmall: false });
-    // 좁으면 높아도 보통 (240 × 315 에서 ×3 그림이 무대 밖으로 — 아트 디렉터 밤 점검)
+    expect(fitGameLayout(300)).toMatchObject({ size: 'medium', scale: 2, petPx: 64, tooSmall: false });
+    expect(fitGameLayout(443, undefined, 860)).toMatchObject({ size: 'medium', scale: 2 });
     expect(fitGameLayout(315, undefined, 240)).toMatchObject({ size: 'medium', scale: 2 });
     expect(fitGameLayout(315, undefined, 479)).toMatchObject({ size: 'medium', scale: 2 });
-    expect(fitGameLayout(315, undefined, 480)).toMatchObject({ size: 'large', scale: 3 });
+    expect(fitGameLayout(315, undefined, 1860)).toMatchObject({ size: 'medium', scale: 2 });
     expect(fitGameLayout(100).tooSmall).toBe(true);
   });
 

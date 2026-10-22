@@ -4561,6 +4561,29 @@ body.vscode-high-contrast-light .pg-title-body {
 .pg-title-menu > .pg-row {
   padding: 2px 10px;
 }
+/* 새로 하기 확인 줄 — 좁으면 경고 글 (낱말 단위로 줄 바꿈) + 버튼 둘을 다음 줄 가운데로 (240 · 300 에서 양 끝이 잘려 [취소] 가 안 보이던 것 — 세이브를 지우는 확인, UX 리뷰어 #92) */
+.pg-title-menu > .pg-row.pg-title-confirm {
+  flex-wrap: wrap;
+  justify-content: center;
+  row-gap: 4px;
+  box-sizing: border-box;
+  max-width: calc(100vw - 24px);
+  overflow: visible;
+  white-space: normal;
+}
+/* 버튼 둘은 한 묶음 (한쪽만 다음 줄로 떨어지지 않게) */
+.pg-title-confirm-btns {
+  display: inline-flex;
+  gap: 6px;
+  flex: none;
+}
+.pg-title-confirm > .pg-ask {
+  flex: 0 1 auto;
+  overflow: visible;
+  white-space: normal;
+  word-break: keep-all;
+  text-align: center;
+}
 /* 세이브가 없을 때 타이틀 첫 안내 (#9) — 메뉴 아래 크림 흐린 12px 한 줄 (좁으면 낱말 단위 두 줄) · 400px 아래는 쉬기 안내를 뺌 */
 .pg-title-tip {
   margin: 0;

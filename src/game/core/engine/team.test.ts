@@ -540,7 +540,7 @@ describe('#17 준비 — 배율 · 잠금 · 3마리 고르기 · 필살기 예�
     return cur;
   };
 
-  it('배율 — 240 폭 ×1 · 높이 300 아래 ×2 · 300 부터 ×3 · ×1 로도 안 들어가면 0 (잠금) · 모르면 들어감', () => {
+  it('배율 — 240 폭 ×1 · 480 부터 ×2 · 높아도 ×3 없음 (#92) · ×1 로도 안 들어가면 0 (잠금) · 모르면 들어감', () => {
     expect(teamScale(null)).toBe(2);
     expect(teamScale({ w: 239, h: 187 })).toBe(0);
     expect(teamScale({ w: 240, h: 187 })).toBe(1);
@@ -549,7 +549,8 @@ describe('#17 준비 — 배율 · 잠금 · 3마리 고르기 · 필살기 예�
     expect([teamScale({ w: 399, h: 400 }), teamLayout({ w: 399, h: 400 })]).toEqual([1, 'slant']);
     expect(teamScale({ w: 480, h: 187 })).toBe(2);
     expect(teamScale({ w: 1860, h: 299 })).toBe(2);
-    expect(teamScale({ w: 720, h: 300 })).toBe(3);
+    expect(teamScale({ w: 720, h: 300 })).toBe(2);
+    expect(teamScale({ w: 1860, h: 443 })).toBe(2);
     // 가장 낮은 패널 (높이 150 ~ 169 · 폭 400 부터) = ×2 한 줄 (#85 A) · 그 밖은 비스듬히
     expect([teamScale({ w: 400, h: 150 }), teamLayout({ w: 400, h: 150 })]).toEqual([2, 'row']);
     expect([teamScale({ w: 1860, h: 169 }), teamLayout({ w: 1860, h: 169 })]).toEqual([2, 'row']);

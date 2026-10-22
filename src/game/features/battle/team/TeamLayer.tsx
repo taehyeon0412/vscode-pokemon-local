@@ -7,8 +7,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from 'preact/hooks';
 import { TIMING } from '../../../core/balance';
 import { teamAutoUltLeft, teamAutoUltNext, type GameInput, type Side, type TeamBattle } from '../../../core/engine';
 import { formOf, speciesOf } from '../../../data';
-import { spriteBoxOf } from '../../../data/sprite-boxes';
-import { koSinkPx } from '../model';
+import { spriteBoxOf, walkBoxOf } from '../../../data/sprite-boxes';
+import { battleSpritePx, koSinkPx } from '../model';
 import { Sprite } from '../../../ui/Sprite';
 import type { FxActor } from '../fx/bridge';
 import { TeamFxRunner, type TeamSlot } from '../fx/team';
@@ -27,19 +27,30 @@ function Bar({ v, kind }: { v: number; kind: 'hp' | 'ult' | 'ult-full' }) {
   );
 }
 
-/** 발밑 그림자 자리 · 크기 — 그림 실제 폭 (sprite-boxes) × 0.6 을 2k 단위로 · 줄 높이 u = k (그림 점 하나) · 가운데 = 그림 발끝 (칸 아래 − 3k) ·
+/** 그림 칸 (그린 크기 px · 원본 한 점 = s px · 발끝 줄) — 보통 = 32 × k · 발끝 29 (원본 아래 3 위) · 큰 포켓몬 (원본 64) = 1:1 과 같은 보통 키 × 1.3 (battleSpritePx) ·
+ *  큰 포켓몬 발끝 = 걷기 그림 실제 발끝 (sprite-walk) − 2 (보통과 같은 땅 묻힘 — 원본 58 로 셈하면 대검귀가 4px 아래로 내려가 판과 겹치던 것, 픽셀 검사원 #92).
+ *  ×1 무대 (폭 400 아래) 의 큰 포켓몬은 원본 ÷ 2 = 32 (×1.3 = 42 는 원본 0.66 배라 점이 뭉개지던 것 — 아트 디렉터 #92 · 칩과 같은 2:1) */
+function artOf(form: string, k: number): { px: number; s: number; foot: number } {
+  const n = formOf(form)?.size ?? 32;
+  const px = k === 1 && n > 32 ? n / 2 : battleSpritePx(form, k, Number.POSITIVE_INFINITY);
+  const foot = n > 32 ? (walkBoxOf(form)?.[1] ?? n - 1) - 2 : n - (3 * n) / 32;
+  return { px, s: px / n, foot };
+}
+
+/** 발밑 그림자 자리 · 크기 — 그림 실제 폭 (sprite-boxes) × 0.6 을 2k 단위로 · 줄 높이 u = k (그림 점 하나) · 가운데 = 그림 발끝 ·
  *  가로 가운데 = 그림 실제 범위 가운데 (칸 가운데면 이상해씨 −6 · 레디바 +8px 어긋나던 것 — 픽셀 검사원) · 상대는 왼쪽을 봐서 좌우 뒤집음 · 자리는 k 칸 격자 (×2 top 55 → 56) */
-function shadowStyle(form: string, g: TeamGeo, flip: boolean): Record<string, string> {
+function shadowStyle(form: string, g: TeamGeo, flip: boolean, artTop: number): Record<string, string> {
   const k = g.scale;
   const box = spriteBoxOf(form);
   const n = formOf(form)?.size ?? 32;
-  const vis = box ? (box[2] - box[0]) * k : g.sp;
+  const { px, s, foot } = artOf(form, k);
+  const vis = box ? (box[2] - box[0]) * s : px;
   const w = Math.max(k === 1 ? 12 : 20, Math.min(20 * k, Math.round((vis * 0.6) / (2 * k)) * 2 * k));
   const u = k;
   const mid = box ? (flip ? n - (box[0] + box[2]) / 2 : (box[0] + box[2]) / 2) : n / 2;
-  const cx = (g.sp - n * k) / 2 + mid * k;
+  const cx = mid * s;
   const snap = (v: number) => Math.round(v / k) * k;
-  return { left: `${snap(cx - w / 2)}px`, top: `${snap(g.sp - 3 * k - 1.5 * u)}px`, width: `${w}px`, '--pg-sh-u': `${u}px`, '--pg-sh-in': `${2 * k}px` };
+  return { left: `${snap(cx - w / 2)}px`, top: `${snap(artTop + foot * s - 1.5 * u) - artTop}px`, width: `${w}px`, '--pg-sh-u': `${u}px`, '--pg-sh-in': `${2 * k}px` };
 }
 
 /** 머리 위 말 · 숫자 쌓는 높이 — 한 줄 15 · 합동 칩 24 (칩 20 + 간격 1단 4 — 2 면 "쓰러졌다!" 가 칩 테두리에 붙던 것, 개발 #80 UX ④) */
@@ -62,6 +73,24 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, o
     return out.map((q) => (q === same ? { ...q, text: `-${Number(q.text.slice(1)) + Number(p.text.slice(1))}` } : q));
   }, []);
   const name = speciesOf(f.species)?.name.ko ?? f.form;
+  // 그림 칸 = 그린 크기 (큰 포켓몬 ×1.3) · 발끝이 (x, y) — 보통은 예전 그대로 (칸 sp · 위 = y − sp + 3k)
+  const art = artOf(f.form, g.scale);
+  const artTop = y - Math.round(art.foot * art.s);
+  // 머리 위 말 · 숫자 바닥 — ×1 무대 (가로 칸 24 · 판 40 · 말 폭 약 90) 는 칸마다 더미가 가로로 겹쳐, 앞 칸 더미를 뒤 칸 더미 위로 쌓음
+  //   (240 × 315 에서 앞줄 "-9" 가 가운데 칸 "통통코 쓰러졌다!" 위에 찍혀 "통9코" 로 읽히던 것 — UX 리뷰어 #92) · ×2 · 한 줄은 예전 그대로
+  let popBase = artTop - 4;
+  if (g.scale === 1 && !g.oneRow) {
+    let base = Infinity;
+    let prevH = 0;
+    for (let j = 0; j <= slot; j++) {
+      const fj = b[side][j];
+      if (!fj) continue;
+      const aj = artOf(fj.form, g.scale);
+      base = Math.min(g.pos(side, j).y - Math.round(aj.foot * aj.s) - 4, base - prevH);
+      prevH = popGap(b.popups.filter((p) => p.side === side && p.slot === j));
+    }
+    popBase = base;
+  }
   const autoLeft = mine && autoNext ? teamAutoUltLeft(b, slot) : null;
   // 필살기 힘겨루기 중엔 끼어들 수 있는 칸 (join) 만 합류 — 나머지는 바깥 (연타) 으로 (코드 리뷰어)
   // 버린 누름 (#88 — 엔진 b.deny, 1.2초) = 이 칸 판이 흐려짐 (까닭 한 줄은 정보줄 위 가운데 — StageScreen teamDenyNote) · 그동안 쓸 수 있게 되면 흐림만 거둠
@@ -80,18 +109,18 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, o
         // 마지막 한 방 (판을 끝낸 ko) = 벌러덩 90° · 그 밖의 쓰러짐 = 회색 주저앉기 (2026-10-21 태현 님 B — 1:1 과 같은 값, game.css pg-ko)
         class={`pg-team-mon pg-team-${side}${st === 'down' ? ' pg-team-down' : ''}${st === 'down' && final ? ' pg-team-ko' : ''}`}
         data-team={`${side}-${slot}`}
-        style={{ left: `${x - g.sp / 2}px`, top: `${y - g.sp + 3 * g.scale}px`, width: `${g.sp}px`, height: `${g.sp}px` }}
+        style={{ left: `${Math.round((x - art.px / 2) / g.scale) * g.scale}px`, top: `${artTop}px`, width: `${art.px}px`, height: `${art.px}px` }}
         title={`${name} Lv${f.level}${mine && st !== 'down' ? ` — ${slot + 1} 필살기` : ''}`}
         onClick={click}
       >
         {/* 발밑 그림자 (시합장 배경에서만 — game.css) = 칸 안 (달려가기 · 밀림 · 사라짐에 같이 움직임) · 그림 발끝 가운데 · 폭 = 그림 폭 × 0.6 (2k 단위 · ×1 12 ~ ×2 20 이상 · 20k 이하) · k 칸 줄 3단 (아트 디렉터 #78) */}
-        <span class="pg-team-shadow" style={shadowStyle(f.form, g, !mine)} />
-        <span class="pg-team-body" style={st === 'down' && final ? { '--pg-back': mine ? '-1' : '1', '--pg-ko-y': `${koSinkPx(f.form, g.sp)}px` } : undefined}>
-          <Sprite media={media} form={f.form} shiny={f.shiny} scale={g.scale} action="walk" faceLeft={!mine} />
+        <span class="pg-team-shadow" style={shadowStyle(f.form, g, !mine, artTop)} />
+        <span class="pg-team-body" style={st === 'down' && final ? { '--pg-back': mine ? '-1' : '1', '--pg-ko-y': `${koSinkPx(f.form, art.px)}px` } : undefined}>
+          <Sprite media={media} form={f.form} shiny={f.shiny} scale={g.scale} px={art.px} action="walk" faceLeft={!mine} />
         </span>
       </span>
       {/* 발밑 판 — 키 칸 (내 편) + HP + 필살기 게이지 */}
-      <span class={`pg-team-plate pg-team-plate-${side} pg-plate-${st}${deny ? ' pg-plate-deny' : ''}`} style={{ left: `${Math.round(x - w / 2)}px`, top: `${y + (g.scale >= 3 ? 6 : 4)}px`, width: `${w}px` }} onClick={click}>
+      <span class={`pg-team-plate pg-team-plate-${side} pg-plate-${st}${deny ? ' pg-plate-deny' : ''}`} style={{ left: `${Math.round(x - w / 2)}px`, top: `${y + 4}px`, width: `${w}px` }} onClick={click}>
         {mine && <span class="pg-team-key">{slot + 1}</span>}
         <span class="pg-team-bars">
           <Bar v={f.hp / Math.max(1, f.maxHp)} kind="hp" />
@@ -124,7 +153,7 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, o
       {/* 피해 숫자 · 짧은 말 — 머리 위 */}
       {/* 칸마다 쌓음 (쓰러짐 말 · 피해 숫자가 같은 자리에 겹치던 것) · 지도 줄 아래로 막음 · 한 줄 배치 · ×1 (좁은 패널 — 셋이 가까움) 은 칸마다 높이를 엇갈림 — UX 리뷰어 */}
       {pops.map((p, i) => (
-        <span key={p.id} class={`pg-team-pop pg-pop-${p.kind}${p.joint ? ' pg-team-joint' : ''}`} style={{ left: `${x}px`, top: `${Math.max(topMin + popGap(pops.slice(i + 1)) + (slot % 3) * 15, y - g.sp - 4 - popGap(pops.slice(0, i)) - (g.oneRow || g.scale === 1 ? (slot % 3) * 15 : 0))}px` }}>
+        <span key={p.id} class={`pg-team-pop pg-pop-${p.kind}${p.joint ? ' pg-team-joint' : ''}`} style={{ left: `${x}px`, top: `${Math.max(topMin + popGap(pops.slice(i + 1)) + (slot % 3) * 15, popBase - popGap(pops.slice(0, i)) - (g.oneRow ? (slot % 3) * 15 : 0))}px` }}>
           {p.joint ? (
             <>
               <b class="pg-team-joint-tag">합동!</b> {p.text}

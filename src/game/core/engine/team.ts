@@ -774,14 +774,13 @@ export function teamUltLevel(f: Fighter): 'none' | 'near' | 'full' {
 }
 
 /**
- * 포켓몬 크기 배율 (화면) · 0 = 3:3 잠금 — 폭 unitW × 배율이 있어야 그 배율, ×3 은 높이 x3MinH 부터 (240 폭 ×1 · 높이 300 아래 ×2 · 300 부터 ×3).
+ * 포켓몬 크기 배율 (화면) · 0 = 3:3 잠금 — 폭 unitW × 배율이 있어야 그 배율 (240 폭 ×1 · 480 부터 ×2 · 높아도 ×3 없음 — 태현 님 #92).
  * 패널 크기를 모르면 (안 볼 때 · 아직 안 알림) 들어가는 것으로
  */
-export function teamScale(view: { w: number; h: number } | null | undefined): 0 | 1 | 2 | 3 {
+export function teamScale(view: { w: number; h: number } | null | undefined): 0 | 1 | 2 {
   if (!view) return 2;
-  const { unitW, x3MinH } = BALANCE.team.view;
+  const { unitW } = BALANCE.team.view;
   if (teamLayout(view) === 'row') return 2;
-  if (view.w >= unitW * 3 && view.h >= x3MinH) return 3;
   if (view.w >= unitW * 2) return 2;
   return view.w >= unitW ? 1 : 0;
 }

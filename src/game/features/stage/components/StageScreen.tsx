@@ -408,7 +408,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
     // 시합장 (3:3 — pg-bg-arena-*) 은 위에 붙인 그림 · 낮은 패널은 위로 올림 (--pg-arena-y — 150 에서 맨 위 줄 발이 땅 시작에 걸리던 것, 아트 디렉터 #78: 150 −8 · 169 −4 · 187 위 0)
     <div
       class={`pg-screen pg-stage pg-size-${layout.size}${gym ? ' pg-gym' : ` pg-bg-${sceneBackground(state)}`}${covered ? ' pg-covered' : ''}`}
-      style={!gym && sceneBackground(state).startsWith('arena-') ? { '--pg-arena-y': `${arenaY(layout.heightPx, arenaX1 ? 1 : layout.size === 'large' ? 3 : 2, Math.round(INFO_BAR_PX * layout.uiScale))}px` } : undefined}
+      style={!gym && sceneBackground(state).startsWith('arena-') ? { '--pg-arena-y': `${arenaY(layout.heightPx, arenaX1 ? 1 : 2, Math.round(INFO_BAR_PX * layout.uiScale))}px` } : undefined}
       ref={screen}
     >
       {battle && geo?.menuInBar ? (
