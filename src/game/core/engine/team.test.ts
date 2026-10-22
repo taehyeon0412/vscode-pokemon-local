@@ -554,6 +554,22 @@ describe('#17 준비 — 배율 · 잠금 · 3마리 고르기 · 필살기 예�
     expect(teamLayout({ w: 860, h: 187 })).toBe('slant');
   });
 
+  it('자동 전투 만남에서 3 (3:3) 을 눌러도 3마리 고르기 판을 안 엶 — 판이 VS 를 가리다 Enter 없이 시작하던 것 (orders #84) · 3:3 으로 예전 4초 박자 그대로', () => {
+    const autoOn = (save: Save): Save => ({ ...save, settings: { ...save.settings, autoBattle: true, teamMode: false } });
+    const wide = { w: 860, h: 187 };
+    let s = steps(meet(autoOn(five()), wide), TIMING.trainerAlertMs + STEP);
+    s = applyInput(s, { kind: 'team-mode', on: true });
+    const st = s.runtime.stage;
+    expect(st?.phase === 'trainer' && st.team).toBe(true);
+    expect(st?.phase === 'trainer' && st.pick).toBeUndefined();
+    expect(teamPickOf(s)).toBeNull();
+    expect(steps(s, TIMING.trainerMeetMs).runtime.stage?.phase).toBe('team');
+    // 자동을 끈 만남은 예전처럼 판을 엶 (고르기를 기다림)
+    let m = steps(meet({ ...five(), settings: { ...five().settings, teamMode: false } }, wide), TIMING.trainerAlertMs + STEP);
+    m = applyInput(m, { kind: 'team-mode', on: true });
+    expect(teamPickOf(m)).not.toBeNull();
+  });
+
   it('자동 전투면 3:3 이 기본 (orders #71 · #108 A) — 싸울 수 있는 3마리 = 3:3 · 2마리 = 1:1 · 좁은 패널 = 1:1 · 처음 안내 (3:3 판에서 한 번)', () => {
     const autoOn = (save: Save): Save => ({ ...save, settings: { ...save.settings, autoBattle: true } });
     const wide = { w: 860, h: 187 };

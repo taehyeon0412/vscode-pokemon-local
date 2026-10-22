@@ -1437,7 +1437,8 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       // 고른 방식을 기억 — 다음 트레이너 (자동 전투 · 안 볼 때 포함) 는 이걸로. 3:3 이면 3마리 고르기를 염 (상성 좋은 셋이 미리 체크 — gdd 4.7)
       const id = state.runtime.stageId;
       const prog = id ? save.stages[id] : undefined;
-      const pick = input.on && id && prog ? fillPick(save, undefined, trainerFoes(save, id, prog, stage.n)) : undefined;
+      // 3마리 고르기 판은 만남이 고르기를 기다릴 때만 — 자동 전투 (예전 4초 길) 에서 3 을 누르면 판이 VS 를 가리다 Enter 없이 1.6초 뒤 시작하던 것 (orders #84) → 판 없이 3:3 (상성 좋은 셋)
+      const pick = input.on && id && prog && choiceFree(save, state.runtime) ? fillPick(save, undefined, trainerFoes(save, id, prog, stage.n)) : undefined;
       const { pick: _p, pickMs: _m, ...rest } = stage;
       return { save: { ...save, settings: { ...save.settings, teamMode: input.on } }, runtime: { ...state.runtime, stage: { ...rest, team: input.on, ...(pick ? { pick, pickMs: 0 } : {}), ...(goNow ? { vsAt: stage.ms } : {}) } } };
     }
