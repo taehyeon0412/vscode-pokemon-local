@@ -206,8 +206,23 @@ export function regionOf(stageId: StageId): { region: RegionDef; index: number }
  * 다음 지역을 열면 세이브의 지역 순서 칸 (#30, 세이브 4판) 에서 셈
  */
 export function regionOrder(region: RegionId): number {
+  if (region === 'forest') return 1;
+  // 다음 지역 열기가 켜져 있으면 세이브의 연 순서 (아직 안 연 곳 = 다음 번째) — orders #66
+  if (activeOrder) {
+    const i = activeOrder.indexOf(region);
+    return i >= 0 ? i + 1 : activeOrder.length + 1;
+  }
   // 해변 = 늘 2번째 이후 (시작은 숲 고정 — 7-3) · 미리 보기는 2번째 (관장 에이스 = 레벨표 2번째 — orders #37)
-  return region === 'forest' ? 1 : BALANCE.region.beachOrder;
+  return BALANCE.region.beachOrder;
+}
+
+/**
+ * 지금 세이브의 연 지역 순서 (regions.order) — 엔진이 걸음 · 입력마다 넣음 (다음 지역 열기가 켜졌을 때만 · 꺼지면 null = BALANCE.region.beachOrder).
+ * 스테이지 레벨대 · 번호 · 관장 팀처럼 세이브 없이 도는 규칙 함수 (약 35곳) 가 같은 순서를 보게 — 세이브 하나를 한 엔진이 돌리니 늘 그 세이브 것 (orders #66)
+ */
+let activeOrder: readonly RegionId[] | null = null;
+export function setRegionOrder(order: readonly RegionId[] | null): void {
+  activeOrder = order;
 }
 
 /** 관장 첫 승 돈 = 1,000 × (k + 2) (gdd 5.2 — k = 1 은 지금 숲 그대로 BALANCE.gymFirstMoney) */

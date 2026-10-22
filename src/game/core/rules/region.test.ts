@@ -11,7 +11,7 @@ import { validateSave } from '../save';
 import { createWild, devolveForLevel, learnsDamage, pickupAt, planWild, regionPool } from './encounter';
 import { wildMoves } from './monster';
 import { BEACH_REQUESTS, requestAt } from './request';
-import { gymRoomOf, REGIONS, regionAceLevel, regionGymMoney, regionGymTeam, regionLevelBand, regionOf, regionOrder, stageBackground } from './region';
+import { gymRoomOf, REGIONS, regionAceLevel, setRegionOrder, regionGymMoney, regionGymTeam, regionLevelBand, regionOf, regionOrder, stageBackground } from './region';
 import { stageCode, stageLevelBand, trainerCount } from './stage';
 import { GYM_LEADER, gymHint, leaderTeam, trainerInfo, trainerTeam } from './trainer';
 import { rivalTeam } from './rival';
@@ -57,7 +57,9 @@ describe('해변 한 벌 (gdd 5.3 — orders #37, 개발 모드 미리 보기 ·
     expect(nextStageOf('forest-3')).toBe('gym');
     const save = sampleSave();
     expect(stageUnlocked(save, 'beach-1')).toBe(false);
-    expect(stageUnlocked({ ...save, badges: ['forest'] }, 'beach-1')).toBe(true);
+    // 연 지역 (4판 regions.order) 이어야 — 배지만으로는 안 열림 (세이브 검사와 같은 규칙 · orders #66)
+    expect(stageUnlocked({ ...save, badges: ['forest'] }, 'beach-1')).toBe(false);
+    expect(stageUnlocked({ ...save, badges: ['forest'], regions: { order: ['forest', 'beach'] } }, 'beach-1')).toBe(true);
   });
 
   it('스테이지마다 정한 종 (8 · 8 · 12) — 강한 1단계 · 드묾은 마지막 스테이지만 · 트레이너는 종족값 큰 것을 안 씀', () => {
@@ -139,7 +141,7 @@ describe('해변 한 벌 (gdd 5.3 — orders #37, 개발 모드 미리 보기 ·
   });
 
   it('레벨표 값 한 곳 (BALANCE.region) — 게임 숫자 그대로 (#47 T3 표 · 해변 2번째, 시뮬만 바꿔 봄 — orders #38 · #59)', () => {
-    expect(BALANCE.region).toEqual({ aceBase: 15, aceStep: 6, aceJump2: 0, aceTable: [15, 23, 31, 39, 46, 52, 57, 62], beachOrder: 2 });
+    expect(BALANCE.region).toEqual({ aceBase: 15, aceStep: 6, aceJump2: 0, aceTable: [15, 23, 31, 39, 46, 52, 57, 62], beachOrder: 2, open: false });
     expect([1, 2, 3, 8, 9].map(regionAceLevel)).toEqual([15, 23, 31, 62, 68]);
     expect(regionOrder('beach')).toBe(2);
   });
@@ -278,5 +280,25 @@ describe('드문 종 — 같은 지역 안에서 겹치지 않음 (orders #65 �
     }
     expect(regionPool('forest-1').rare.map((d) => speciesOf(d)?.name.ko)).toEqual(['삐삐', '블루']);
     expect(regionPool('forest-2').rare.map((d) => speciesOf(d)?.name.ko)).toEqual(['마릴', '랄토스']);
+  });
+});
+
+describe('지역 순서 = 세이브 연 순서 (orders #66 — 엔진이 걸음마다 넣음)', () => {
+  it('켜져 있으면 연 순서 (안 연 곳 = 다음 번째) · 꺼지면 (null) BALANCE.region.beachOrder · 숲은 늘 1', () => {
+    try {
+      setRegionOrder(['forest', 'beach']);
+      expect([regionOrder('forest'), regionOrder('beach')]).toEqual([1, 2]);
+      setRegionOrder(['forest']);
+      expect(regionOrder('beach')).toBe(2);
+      // 셋째로 연 지역이면 그 번째의 레벨 (지역이 늘면 — 지금은 숲 · 해변 둘)
+      setRegionOrder(['forest', 'cave', 'beach'] as never);
+      expect(regionOrder('beach')).toBe(3);
+      expect(stageLevelBand('beach-3')).toEqual(regionLevelBand(3, 2, 'beach-3'));
+      expect(stageCode('beach-1')).toBe('3-1');
+    } finally {
+      setRegionOrder(null);
+    }
+    expect(regionOrder('beach')).toBe(BALANCE.region.beachOrder);
+    expect(stageCode('beach-1')).toBe('2-1');
   });
 });

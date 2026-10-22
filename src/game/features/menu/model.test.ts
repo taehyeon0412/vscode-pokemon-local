@@ -6,6 +6,7 @@ import { ICONS } from '../../data/icons';
 import { clearBonusExp } from '../../core/engine';
 import { clearView, ITEM_ICON, lobbyView, mapView, MENU_KEYS, menuLabels, menuShortcutOf, shopView } from './model';
 import { createGameState } from '../../core/engine';
+import { devDefault } from '../../dev/runtime';
 
 describe('S16 ④ 추천 레벨 (mvp-spec S16)', () => {
   it('내 팀에서 가장 센 3마리 평균과 비교 — 관장이 3마리라 약한 2마리 때문에 빨간색이 되지 않게 (단계 11 플레이 리뷰)', () => {
@@ -75,5 +76,27 @@ describe('대기실 추천 Lv — 그 지역 관장 에이스 (gdd 5.2)', () => 
   it('숲 그대로 · 해변 체육관 (2번째) = 2번째 에이스 (T3 23)', () => {
     expect(lobbyView(sampleSave({ location: { screen: 'gym' } })).recommended).toBe(BALANCE.gymRecommendedLevel);
     expect(lobbyView(sampleSave({ location: { screen: 'gym', region: 'beach' } })).recommended).toBe(regionAceLevel(2));
+  });
+});
+
+describe('세계 지도 지역 칸 (orders #66 · 디자인 #67)', () => {
+  it('꺼짐 = 지금 지역 하나 · 고를 곳 · 잠긴 지역 없음 / 켜짐 (개발 모드) = 연 지역 순서 · 몇 번째 · 지금 지역 · 잠긴 지역', () => {
+    const off = mapView(createGameState(sampleSave(), 1));
+    expect(off.regions.map((r) => [r.id, r.k, r.here])).toEqual([['forest', 1, true]]);
+    expect([off.next, off.locked]).toEqual([[], []]);
+    const on = (o: object) => {
+      const s = createGameState({ ...sampleSave(), ...o }, 1);
+      return mapView({ ...s, runtime: { ...s.runtime, dev: devDefault() } });
+    };
+    const fresh = on({});
+    expect(fresh.regions.map((r) => r.id)).toEqual(['forest']);
+    expect(fresh.locked).toEqual([{ id: 'beach', name: '해변' }]);
+    const choose = on({ badges: ['forest'], regions: { order: ['forest'], next: ['beach'] } });
+    expect(choose.next).toEqual([{ id: 'beach', name: '해변' }]);
+    expect(choose.locked).toEqual([]);
+    const opened = on({ badges: ['forest'], regions: { order: ['forest', 'beach'] } });
+    expect(opened.regions.map((r) => [r.id, r.k, r.badge, r.here])).toEqual([['forest', 1, true, true], ['beach', 2, false, false]]);
+    expect(opened.regions[1]!.stages.map((s) => s.state)).toEqual(['open', 'locked', 'locked']);
+    expect(opened.regions[1]!.gym).toBe(false);
   });
 });

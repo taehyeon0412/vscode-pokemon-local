@@ -244,7 +244,11 @@ function decide(s: GameState, mem: { resultMs: number; lostGymOnce: boolean; gri
     case 'lobby': {
       const beachGym = save.location.screen === 'gym' && save.location.region === 'beach';
       // 숲 배지를 받았으면 해변으로 (SIM_REGION=beach — 2번째 지역)
-      if (BEACH && !beachGym && save.badges.includes(REGIONS.forest.badge)) return applyInput(s, { kind: 'travel', to: 'beach-1' });
+      if (BEACH && !beachGym && save.badges.includes(REGIONS.forest.badge)) {
+        // 해변을 연 지역에 (다음 지역 열기가 꺼진 본편 값으로 돌려서 — stageUnlocked 가 연 지역을 봄, orders #66)
+        const open = save.regions.order.includes('beach') ? s : { ...s, save: { ...save, regions: { ...save.regions, order: [...save.regions.order, 'beach' as const] } } };
+        return applyInput(open, { kind: 'travel', to: 'beach-1' });
+      }
       // 해변을 다음 번째로 되풀이 (SIM_REGIONS — 해변 스테이지를 지웠으면 처음부터)
       if (BEACH && beachGym && !save.stages['beach-1']) return applyInput(s, { kind: 'travel', to: 'beach-1' });
       if (mem.grindNext) {

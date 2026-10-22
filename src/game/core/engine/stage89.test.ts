@@ -9,7 +9,9 @@ import type { Monster, Save, StageProgress } from '../save';
 import { battleInput, battleStep, readBattle, startBattle, startTrainerBattle, type BattleState } from './battle';
 
 const startBattleFor = (save: Save, m: Monster) => startBattle(save, m, 'normal');
-import { advance, applyInput, canHeal, canShop, canSwapBox, isWaitingForInput, step } from './play';
+import { advance, applyInput, canHeal, canShop, canSwapBox, isWaitingForInput, openNextRegion, regionsOn, step } from './play';
+import { devDefault } from '../../dev/runtime';
+import type { RegionId } from '../save';
 import { Rng } from './rng';
 import { createGameState, readRuntime, type GameState, type StageRuntime } from './state';
 
@@ -527,5 +529,81 @@ describe('단계 8 · 9 테스터가 찾은 것', () => {
       return b.foe.ult - BALANCE.ultStart;
     };
     expect(gain('trainer')).toBeGreaterThan(gain('wild') * 1.9);
+  });
+});
+
+describe('다음 지역 열기 (orders #66 — BALANCE.region.open 꺼짐 = 지금 그대로 · 개발 모드는 켬)', () => {
+  const lobby = (o: Partial<Save> = {}, dev = false): GameState => {
+    const s = createGameState(sampleSave({ location: { screen: 'gym' }, monsters: { m1: strong() }, party: ['m1'], stages: { 'forest-3': stageAt(1, { cleared: true }) }, ...o }), 11);
+    return auto({ ...s, runtime: { ...s.runtime, stage: { phase: 'lobby' }, stageId: null, ...(dev ? { dev: devDefault() } : {}) } });
+  };
+  const toasts = (s: GameState) => [s.runtime.toast?.text, ...[s.runtime.toast?.then ?? []].flat()].filter(Boolean);
+  const win = (s0: GameState) => {
+    const s = until(applyInput(s0, { kind: 'challenge' }), (x) => phase(x) === 'badge', 900_000);
+    expect(phase(s)).toBe('badge');
+    return applyInput(s, { kind: 'badge-continue' });
+  };
+
+  it('꺼짐 (본편) — 숲 관장을 이겨도 연 지역은 숲뿐 · 알림 없음 · 해변 1스테이지는 잠김 (배지만으로는 안 열림)', () => {
+    const s0 = lobby();
+    expect(BALANCE.region.open).toBe(false);
+    expect(regionsOn(s0)).toBe(false);
+    const s = win(s0);
+    expect(s.save.badges).toContain('forest');
+    expect(s.save.regions).toEqual({ order: ['forest'] });
+    expect(toasts(s).some((t) => String(t).startsWith('새 지역'))).toBe(false);
+    expect(applyInput(s, { kind: 'travel', to: 'beach-1' }).save.location).toEqual({ screen: 'gym' });
+  });
+
+  it('켜짐 (개발 모드) — 숲 관장 첫 승 → 남은 곳이 해변 하나라 바로 열림 · 배지 카드 뒤 "새 지역이 열렸어요 — 해변" · 해변 1스테이지로 이동 · 다시 이겨도 그대로', () => {
+    const s0 = lobby({}, true);
+    expect(regionsOn(s0)).toBe(true);
+    const s = win(s0);
+    expect(s.save.regions).toEqual({ order: ['forest', 'beach'] });
+    expect(toasts(s)).toContain('새 지역이 열렸어요 — 해변');
+    const there = applyInput(s, { kind: 'travel', to: 'beach-1' });
+    expect(there.save.location).toEqual({ screen: 'stage', stageId: 'beach-1' });
+    // 다시 이김 (배지 있음) — 열 곳도 알림도 없음
+    const again = until(applyInput(lobby({ badges: ['forest'], regions: { order: ['forest', 'beach'] } }, true), { kind: 'challenge' }), (x) => phase(x) === 'lobby' || phase(x) === 'result', 900_000);
+    expect(again.save.regions).toEqual({ order: ['forest', 'beach'] });
+  });
+
+  it('남은 곳이 2곳 넘으면 2곳을 뽑아 고르기 (같은 시드 = 같은 두 곳 · 연 곳 · 지금 곳 빼고) · 고를 곳이 있으면 또 뽑지 않음 · 다 열었으면 그대로', () => {
+    const all = ['forest', 'beach', 'cave', 'snow', 'city'] as unknown as RegionId[];
+    const save = sampleSave();
+    const a = openNextRegion(save, new Rng(5), all);
+    expect(a.regions.order).toEqual(['forest']);
+    expect(a.regions.next).toHaveLength(2);
+    expect(new Set(a.regions.next).size).toBe(2);
+    expect(a.regions.next!.every((r) => r !== 'forest')).toBe(true);
+    expect(openNextRegion(save, new Rng(5), all).regions.next).toEqual(a.regions.next);
+    expect(openNextRegion(a, new Rng(9), all)).toBe(a);
+    const full = { ...save, regions: { order: all } };
+    expect(openNextRegion(full, new Rng(5), all)).toBe(full);
+  });
+
+  it('고르기 (region-pick) — 고를 곳 중 하나만 · 연 지역에 더하고 고르기를 지움 · 알림 · 꺼지면 · 전투 중엔 안 받음', () => {
+    const s0 = lobby({ badges: ['forest'], regions: { order: ['forest'], next: ['beach'] } }, true);
+    const picked = applyInput(s0, { kind: 'region-pick', region: 'beach' });
+    expect(picked.save.regions).toEqual({ order: ['forest', 'beach'] });
+    expect(toasts(picked)).toContain('새 지역이 열렸어요 — 해변');
+    expect(applyInput(s0, { kind: 'region-pick', region: 'forest' })).toBe(s0);
+    const off = lobby({ badges: ['forest'], regions: { order: ['forest'], next: ['beach'] } });
+    expect(applyInput(off, { kind: 'region-pick', region: 'beach' })).toBe(off);
+    const fighting = applyInput(s0, { kind: 'challenge' });
+    expect(applyInput(fighting, { kind: 'region-pick', region: 'beach' })).toBe(fighting);
+  });
+
+  it('다른 지역 체육관으로 이동 (travel gym + region) — 연 지역이고 끝 스테이지를 깼을 때만', () => {
+    const open = { badges: ['forest'], regions: { order: ['forest' as const, 'beach' as const] } };
+    const s0 = lobby({ ...open, stages: { 'forest-3': stageAt(1, { cleared: true }), 'beach-3': stageAt(1, { cleared: true }) } }, true);
+    const there = applyInput(s0, { kind: 'travel', to: 'gym', region: 'beach' });
+    expect(there.save.location).toEqual({ screen: 'gym', region: 'beach' });
+    expect(phase(there)).toBe('lobby');
+    // 해변 3스테이지를 안 깸 · 해변을 안 엶 → 그대로
+    const notYet = lobby(open, true);
+    expect(applyInput(notYet, { kind: 'travel', to: 'gym', region: 'beach' }).save.location).toEqual({ screen: 'gym' });
+    const closed = lobby({ stages: { 'forest-3': stageAt(1, { cleared: true }), 'beach-3': stageAt(1, { cleared: true }) } }, true);
+    expect(applyInput(closed, { kind: 'travel', to: 'gym', region: 'beach' }).save.location).toEqual({ screen: 'gym' });
   });
 });

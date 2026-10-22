@@ -14,12 +14,12 @@ import { buy, canBuyCandy, healTeam, isShopItem, moveInTeam, sell, spendPoint, s
 import { createWild, encounterStart, pickupAt, planWild, wildKey } from '../rules/encounter';
 import { itemName, requestAt, resolveRequest } from '../rules/request';
 import { DAILY_BONUS, dailyAdd, dailyDone, dailyFor, dailyLabel, dayFarAhead, trainersLeft } from '../rules/daily';
-import { gymLocation, isRegionLast, REGIONS, regionHere, regionOf, type RegionDef } from '../rules/region';
+import { gymLocation, isRegionLast, REGIONS, regionHere, regionOf, setRegionOrder, type RegionDef } from '../rules/region';
 import { spotBetween, spotRng, stageCode, stageLayout, trainerId, walkDelta, type Spot, type StageLayout } from '../rules/stage';
 import { statsOf } from '../rules/stats';
 import { aliveCount, leaderTeam, trainerInfo, trainerNumber, trainerTeam } from '../rules/trainer';
 import { pickRival, rivalLine, rivalLoseMsg, rivalName, rivalRecord, rivalTeam, withRivalResult } from '../rules/rival';
-import { isTipId, ITEM_IDS, RUN_SEEN_MAX, TIPS_MAX, type DailyGoal, type FacilitySpot, type ItemId, type Monster, type Save, type StageId, type StageProgress, type StageRun, type StatKey } from '../save';
+import { isTipId, ITEM_IDS, REGION_IDS, RUN_SEEN_MAX, TIPS_MAX, type RegionId, type DailyGoal, type FacilitySpot, type ItemId, type Monster, type Save, type StageId, type StageProgress, type StageRun, type StatKey } from '../save';
 import { withJosa } from '../text';
 import { moveOf, speciesOf } from '../../data';
 import { applyBattleResult, battleDone, battleInput, battleStep, battleWaiting, firstAlive, startBattle, startTrainerBattle, switchable, type BattleInput, type BattleState } from './battle';
@@ -98,7 +98,10 @@ export type GameInput =
   /** 3:3 두 번째 패배 상자 [병원 앞으로] — 팀 회복 · 마지막으로 지나간 병원 앞 (없으면 스테이지 처음) 에서 다시 걷기, 돈은 더 안 뺌 (#152) */
   | { kind: 'defeat-retreat' }
   /** S07 · S24 · S16 ③ — 스테이지 · 체육관으로 */
-  | { kind: 'travel'; to: StageId | 'gym' }
+  /** region = 다른 지역 체육관으로 (to 'gym' 일 때 — 없으면 지금 지역, orders #66) */
+  | { kind: 'travel'; to: StageId | 'gym'; region?: RegionId }
+  /** 관장 첫 승 뒤 고를 다음 지역 (regions.next) 중 하나 — 연 지역에 더함 (orders #66 · 7-2) */
+  | { kind: 'region-pick'; region: RegionId }
   /** S16 ② 관장에게 도전 · MVP 끝 카드 다음 — 3:3 이 되는 대기실은 처음 누르면 3마리 고르기 판 · 판에서 누르면 시작 */
   | { kind: 'challenge' }
   /** S16 3마리 고르기 판 닫기 (Esc — 대기실로) */
@@ -848,7 +851,7 @@ function gymStep(save0: Save, rt0: RuntimeState, stepMs: number): { save: Save; 
       if (battle.result === 'win' && !wiped) {
         const first = !save.badges.includes(regionHere(save.location).badge);
         const r = battleRewards(save, battle, null, 'gym', rng);
-        save = r.save;
+        save = first && regionsOnRt(rt) ? openNextRegion(r.save, rng) : r.save;
         rt = { ...rt, rngState: rng.state };
         stage = first ? { phase: 'result', summary: r.summary, ms: 0, then: 'badge' } : { phase: 'result', summary: r.summary, ms: 0 };
         break;
@@ -873,7 +876,7 @@ function gymStep(save0: Save, rt0: RuntimeState, stepMs: number): { save: Save; 
       if (team.result === 'win') {
         const first = !save.badges.includes(regionHere(save.location).badge);
         const r = teamRewards(save, team, 'gym', rng);
-        save = r.save;
+        save = first && regionsOnRt(rt) ? openNextRegion(r.save, rng) : r.save;
         rt = { ...rt, rngState: rng.state };
         stage = first ? { phase: 'result', summary: r.summary, ms: 0, then: 'badge' } : { phase: 'result', summary: r.summary, ms: 0 };
         break;
@@ -899,6 +902,7 @@ function gymStep(save0: Save, rt0: RuntimeState, stepMs: number): { save: Save; 
 
 /** 걸음 하나 */
 export function step(state: GameState, stepMs: number): StepOut {
+  syncRegionOrder(state);
   let save: Save = { ...state.save, playTimeMs: state.save.playTimeMs + stepMs };
   let rt: RuntimeState = state.runtime;
   // 알림 시간은 보는 동안 · 그 알림을 그리는 장면에서만 셈 — 밖 · 숨김에서 흘러가 돌아오면 없던 것 (디자인팀 UX #27 큼 1) · 만남 · 전투 중에 흘러가 요약 둘째 장이 0ms 이던 것 (UX 리뷰어 R14)
@@ -1241,33 +1245,62 @@ export function canTravel(state: GameState): boolean {
   const p = phaseOf(state);
   return (state.save.location.screen === 'stage' && (p === 'walk' || p === 'clear')) || inLobby(state);
 }
-/** 그 스테이지가 열렸는지 — 지역 첫 스테이지 (숲 1-1 은 처음부터 · 다음 지역은 앞 지역 배지), 그다음은 지역 안 앞 스테이지를 깨야 */
+/**
+ * 그 스테이지가 열렸는지 — 지역 첫 스테이지는 연 지역 (세이브 regions.order — 숲은 처음부터, 세이브 검사와 같은 규칙 · 코드 리뷰어 #30), 그다음은 지역 안 앞 스테이지를 깨야
+ */
 export function stageUnlocked(save: Save, id: StageId): boolean {
   const { region, index } = regionOf(id);
   if (index > 0) return save.stages[region.stages[index - 1]!.id]?.cleared === true;
-  return region.id === 'forest' || save.badges.includes(REGIONS.forest.badge);
+  return region.id === 'forest' || save.regions.order.includes(region.id);
 }
-/** 체육관 — 지역 끝 스테이지 (숲 1-3) 를 깨면 지도에서 바로 (mvp-spec S07 ① [제안]) · 지금 지역의 체육관 */
-export const gymUnlocked = (save: Save) => save.stages[regionHere(save.location).stages[2].id]?.cleared === true;
+/** 그 지역 체육관 — 연 지역이고 끝 스테이지를 깨면 지도에서 바로 (mvp-spec S07 ① [제안]) */
+export function regionGymUnlocked(save: Save, region: RegionDef): boolean {
+  return (region.id === 'forest' || save.regions.order.includes(region.id)) && save.stages[region.stages[region.stages.length - 1]!.id]?.cleared === true;
+}
+/** 지금 지역의 체육관 */
+export const gymUnlocked = (save: Save) => regionGymUnlocked(save, regionHere(save.location));
+
+/** 다음 지역 열기가 켜졌는지 (orders #66 — BALANCE.region.open · 개발 모드 (임시) 는 늘) */
+const regionsOnRt = (rt: RuntimeState) => BALANCE.region.open || rt.dev !== undefined;
+export const regionsOn = (state: GameState): boolean => regionsOnRt(state.runtime);
+/** 규칙 함수 (레벨대 · 번호 · 관장 팀) 가 볼 지역 순서 — 켜져 있으면 세이브 것 · 꺼지면 예전 (BALANCE.region.beachOrder) */
+function syncRegionOrder(state: GameState): void {
+  setRegionOrder(regionsOn(state) ? state.save.regions.order : null);
+}
+
+/**
+ * 관장 첫 승 → 다음 지역 (gdd 5.1 · 7-2 — orders #66): 남은 곳이 1곳이면 바로 연 지역에 · 2곳 넘으면 2곳을 뽑아 고르기 (regions.next — 껐다 켜도 같은 두 곳).
+ * all = 지역 목록 (테스트가 셋 넘는 지역으로 봄)
+ */
+export function openNextRegion(save: Save, rng: Rng, all: readonly RegionId[] = REGION_IDS): Save {
+  const order = save.regions.order;
+  const left = all.filter((r) => !order.includes(r));
+  if (left.length === 0 || (save.regions.next?.length ?? 0) > 0) return save;
+  if (left.length === 1) return { ...save, regions: { ...save.regions, order: [...order, left[0]!] } };
+  const a = left.splice(rng.int(0, left.length - 1), 1)[0]!;
+  const b = left[rng.int(0, left.length - 1)]!;
+  return { ...save, regions: { ...save.regions, next: [a, b] } };
+}
 
 function toast(state: GameState, save: Save, text: string): GameState {
   return { save, runtime: { ...state.runtime, toast: { text, ms: TIMING.toastMs } } };
 }
 
-/** S07 · S24 · S16 ③ — 떠나는 스테이지는 처음부터 다시 (지도 확인 한 번은 화면이), 가는 스테이지는 새 판 (새 길, #62) */
-function travel(state: GameState, to: StageId | 'gym'): GameState {
+/** S07 · S24 · S16 ③ — 떠나는 스테이지는 처음부터 다시 (지도 확인 한 번은 화면이), 가는 스테이지는 새 판 (새 길, #62) · region = 다른 지역 체육관 (orders #66) */
+function travel(state: GameState, to: StageId | 'gym', toRegion?: RegionId): GameState {
   if (!canTravel(state)) return state;
   const loc = state.save.location;
   if (loc.screen === 'stage' && to === loc.stageId && phaseOf(state) === 'walk') return state; // 지금 스테이지 = 그대로 이어 함
   const rng = new Rng(state.runtime.rngState);
   let save = state.save;
-  if (to === 'gym' ? !gymUnlocked(save) : !stageUnlocked(save, to)) return state;
+  const gymRegion = toRegion ? REGIONS[toRegion] : regionHere(loc);
+  if (to === 'gym' ? !regionGymUnlocked(save, gymRegion) : !stageUnlocked(save, to)) return state;
   if (loc.screen === 'stage') {
     const from = loc.stageId;
     save = withStage(save, from, (p) => ({ ...freshRun(p, newSeed(rng), save.playTimeMs) }));
     if (save.lastHospital?.stageId === from) save = { ...save, lastHospital: null };
   }
-  if (to === 'gym') return { save: { ...save, location: gymLocation(regionHere(loc)) }, runtime: { ...state.runtime, rngState: rng.state, stage: { phase: 'lobby' }, stageId: null } };
+  if (to === 'gym') return { save: { ...save, location: gymLocation(gymRegion) }, runtime: { ...state.runtime, rngState: rng.state, stage: { phase: 'lobby' }, stageId: null } };
   save = { ...save, stages: { ...save.stages, [to]: freshRun(save.stages[to], newSeed(rng), save.playTimeMs) }, location: { screen: 'stage', stageId: to } };
   if (save.lastHospital?.stageId === to) save = { ...save, lastHospital: null };
   // 경험 부적 — 스테이지를 새로 시작할 때 1개를 써서 이 판 동안 경험치 ×1.5 (2026-10-21 ideas #70)
@@ -1282,6 +1315,7 @@ function travel(state: GameState, to: StageId | 'gym'): GameState {
 
 /** 입력 — 지금 받을 수 없는 입력이면 상태를 그대로 돌려줌 */
 export function applyInput(state: GameState, input: GameInput): GameState {
+  syncRegionOrder(state);
   const stage = state.runtime.stage;
   const save = state.save;
   switch (input.kind) {
@@ -1539,7 +1573,15 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       return { save: back, runtime: { ...state.runtime, stage: afterResult(back) } };
     }
     case 'travel':
-      return travel(state, input.to);
+      return travel(state, input.to, input.region);
+    case 'region-pick': {
+      // 고를 곳 중 하나 — 연 지역에 더하고 고르기를 지움 (그 자리에서 이동은 안 함 — 지도에서). 전투 중엔 안 받음
+      const next = save.regions.next;
+      if (!regionsOn(state) || !next?.includes(input.region) || inBattle(state)) return state;
+      const { next: _next, ...regions } = save.regions;
+      const picked: Save = { ...save, regions: { ...regions, order: [...regions.order, input.region] } };
+      return { save: picked, runtime: queueToast(state.runtime, `새 지역이 열렸어요 — ${REGIONS[input.region].name}`) };
+    }
     case 'challenge': {
       if (!inLobby(state) || !firstAlive(save)) return state;
       const next: Save = { ...save, pendingEncounter: { kind: 'gym-leader' } };
@@ -1559,9 +1601,17 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       const { picking: _k, ...rest } = stage;
       return { ...state, runtime: { ...state.runtime, stage: rest } };
     }
-    case 'badge-continue':
+    case 'badge-continue': {
       if (stage?.phase !== 'badge') return state;
-      return { ...state, runtime: { ...state.runtime, stage: { phase: 'lobby' } } };
+      let rt: RuntimeState = { ...state.runtime, stage: { phase: 'lobby' } };
+      // 관장 첫 승으로 연 다음 지역 · 고를 곳 알림 — 배지 카드 뒤에 (덮지 않게 — U1). 앞머리 "새 지역" · "다음 지역" 은 화면이 [M] 지도 칸을 붙이는 표시 (디자인 #67)
+      if (regionsOn(state)) {
+        const last = save.regions.order[save.regions.order.length - 1];
+        if (save.regions.next?.length) rt = queueToast(rt, '다음 지역을 골라요');
+        else if (last && last !== regionHere(save.location).id) rt = queueToast(rt, `새 지역이 열렸어요 — ${REGIONS[last].name}`);
+      }
+      return { ...state, runtime: rt };
+    }
   }
 }
 

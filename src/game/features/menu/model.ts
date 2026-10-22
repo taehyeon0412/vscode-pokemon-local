@@ -2,12 +2,12 @@
  * S07 지도 · S13 병원 · S14 상점 · S16 대기실 · S18 내 포켓몬 · S19 가방 · S21 프로필 · S24 클리어 — 화면을 모르는 부분: 무엇을 어떤 글로 보여 줄지.
  */
 import { BALANCE } from '../../core/balance';
-import { gymUnlocked, nextStageOf, stageClearExp, stageUnlocked, type GameState } from '../../core/engine';
+import { gymUnlocked, nextStageOf, regionGymUnlocked, regionsOn, stageClearExp, stageUnlocked, type GameState } from '../../core/engine';
 import { canBuyCandy, FIELD_ITEMS, fieldUseBlock, isEvolutionItem, maxHpOf, priceOf, sellPrice, SHOP_ITEMS, type ShopItem } from '../../core/rules/bag';
 import { itemName, VALUABLES } from '../../core/rules/items';
-import { isRegionLast, regionAceLevel, regionHere, regionOrder } from '../../core/rules/region';
+import { isRegionLast, regionAceLevel, regionHere, regionOrder, REGIONS, type RegionDef } from '../../core/rules/region';
 import { expForLevel, starGrade, statsOf } from '../../core/rules/stats';
-import { ITEM_IDS, STAT_KEYS, type ItemId, type Monster, type Save, type StageId, type StatKey } from '../../core/save';
+import { ITEM_IDS, REGION_IDS, STAT_KEYS, type ItemId, type Monster, type RegionId, type Save, type StageId, type StatKey } from '../../core/save';
 import { typeNameKo } from '../../core/text';
 import { formsOfSpecies, speciesOf } from '../../data';
 import { moveView, type MoveView } from '../result/model';
@@ -254,16 +254,44 @@ export interface MapStage {
 }
 
 /** S07 ① 갈 수 있는 스테이지 · ② 잠긴 스테이지 · 체육관 (지역 끝을 깨면 바로) — 지금 있는 지역 (지역 표 — 해변 미리 보기면 해변 셋, 디자인 UX 리뷰어) · region = 지역 이름 ("숲") */
-export function mapView(state: GameState): { region: string; stages: MapStage[]; gym: boolean; badge: boolean } {
+/** S07 지역 칸 (orders #66 · 디자인 #67) — 연 지역마다: 몇 번째 · 배지 · 지금 있는 지역 · 스테이지 · 체육관 열림 */
+export interface MapRegion {
+  id: RegionId;
+  name: string;
+  /** 몇 번째 지역 (1 부터 — 연 순서) */
+  k: number;
+  badge: boolean;
+  here: boolean;
+  stages: MapStage[];
+  gym: boolean;
+}
+
+/**
+ * S07 세계 지도 — region · stages · gym · badge = 지금 지역 (예전 그대로) ·
+ * regions = 연 지역 (다음 지역 열기가 꺼지면 지금 지역 하나) · next = 관장 첫 승 뒤 고를 곳 · locked = 아직 안 연 지역 (고를 곳도 아님 — 화면이 "???" 로 가릴 수 있음)
+ */
+export function mapView(state: GameState): { region: string; stages: MapStage[]; gym: boolean; badge: boolean; regions: MapRegion[]; next: { id: RegionId; name: string }[]; locked: { id: RegionId; name: string }[] } {
   const save = state.save;
-  const here = save.location.screen === 'stage' ? save.location.stageId : null;
   const region = regionHere(save.location);
-  const stages = region.stages.map(({ id }): MapStage => {
+  const on = regionsOn(state);
+  const order = on ? save.regions.order : [region.id];
+  const regions = order.map((id, i): MapRegion => {
+    const r = REGIONS[id];
+    return { id, name: r.name, k: i + 1, badge: save.badges.includes(r.badge), here: id === region.id, stages: mapStages(save, r), gym: regionGymUnlocked(save, r) };
+  });
+  const next = on ? (save.regions.next ?? []) : [];
+  const locked = on ? REGION_IDS.filter((id) => !order.includes(id) && !next.includes(id)) : [];
+  const name = (id: RegionId) => ({ id, name: REGIONS[id].name });
+  return { region: region.name, stages: mapStages(save, region), gym: gymUnlocked(save), badge: save.badges.includes(region.badge), regions, next: next.map(name), locked: locked.map(name) };
+}
+
+function mapStages(save: Save, region: RegionDef): MapStage[] {
+  const here = save.location.screen === 'stage' ? save.location.stageId : null;
+  return region.stages.map(({ id }): MapStage => {
     const info = STAGES[id];
     const s: MapStageState = id === here ? 'current' : !stageUnlocked(save, id) ? 'locked' : save.stages[id]?.cleared ? 'cleared' : 'open';
     return { id, label: info.name, code: info.code, icon: info.icon, state: s, gym: isRegionLast(id) };
   });
-  return { region: region.name, stages, gym: gymUnlocked(save), badge: save.badges.includes(region.badge) };
 }
 
 /** S24 ① 클리어 안내 — 세이브의 이번 판 기록으로 (껐다 켜도 같은 카드) */
