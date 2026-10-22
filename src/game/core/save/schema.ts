@@ -9,7 +9,8 @@
  *   (설치 뒤 다시 로드 안 한 옛 창이 새 칸을 지우지 못함 — save-store lock). 판 올리기는 "파일 읽기" 만 막음 —
  *   설치 직후 "옛 확장 + 새 웹뷰" 는 웹뷰가 판이 다른 상태를 계산하지 않고 넘겨서 막음 (webview-session start).
  */
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
+// 3 → 4 (2026-10-22 orders #30 · dev-log #40 안 A): regions (연 지역 순서 · 다음 고를 곳) · mode · stash (안 하는 모드의 진행) · cleared — 옛 3판 창이 새 칸을 지우지 못하게 판을 올림
 // 2 → 3 (2026-10-21 orders #17): settings.teamMode (옵션) — 옛 2판 창이 지우지 못하게 판만 올림
 // 1 → 2 (2026-10-21 orders #15): 칸은 1판 + 옵션 칸 (settings.autoPotion · skipCaughtLast · laterChoices · tips · 새 물건 id · run.candy · boost) — 옛 1판 창이 이 세이브를 지우지 못하게 판만 올림
 
@@ -247,5 +248,38 @@ export interface Records {
   walked: number;
 }
 
+/**
+ * 연 지역 (gdd 5.1 — 지금 모드). order[0] = 시작 지역 (숲 고정 — 7-3) · 몇 번째 = 자리 + 1 · 없는 지역 = 아직 안 열림.
+ * next = 관장을 이긴 뒤 고를 곳 (1 ~ 2곳 — 뽑은 그때 저장해 껐다 켜도 같음 · 고르면 지움). "지금 지역" 은 따로 안 둠 (location 에서 — 두 군데 적으면 어긋남)
+ */
+export interface RegionProgress {
+  order: RegionId[];
+  next?: RegionId[];
+}
+/** 노말 · 하드 (gdd 4.5 — 하드는 노말 엔딩 뒤 열림) */
+export const GAME_MODES = ['normal', 'hard'] as const;
+export type GameMode = (typeof GAME_MODES)[number];
+/** 모드마다 따로인 진행 (배지 · 깬 스테이지 · 위치 · 병원 · 연 지역) — 포켓몬 · 돈 · 아이템 · 도감 · 설정은 같이 씀 */
+export interface ModeProgress {
+  badges: string[];
+  stages: Partial<Record<StageId, StageProgress>>;
+  location: Location;
+  lastHospital: LastHospital | null;
+  regions: RegionProgress;
+}
+
+export interface SaveV4 extends Omit<SaveV3, 'version'> {
+  /** 4 = 3판 + regions · mode · stash · cleared (orders #30) */
+  version: 4;
+  /** 연 지역 (지금 모드) */
+  regions: RegionProgress;
+  /** 'hard' 면 하드 모드 · 없으면 노말 (옛 세이브 = 노말) */
+  mode?: 'hard';
+  /** 지금 안 하는 모드의 진행 — 처음 하드에 들어갈 때 생김 (switchMode 가 맨 위 진행과 맞바꿈) */
+  stash?: ModeProgress;
+  /** 엔딩을 본 때 (ms) — normal = 노말 엔딩 (리그 챔피언) → 하드 열림 */
+  cleared?: { normal?: number };
+}
+
 /** 지금 버전의 세이브 */
-export type Save = SaveV3;
+export type Save = SaveV4;

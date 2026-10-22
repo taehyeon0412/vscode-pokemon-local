@@ -129,6 +129,11 @@ function evolveAt(m: Monster): number | null {
   return levels.length ? Math.min(...levels) : null;
 }
 
+/** 해변 미리 보기 — 연 지역에 해변 (4판: 안 연 지역의 곳은 세이브 검사가 숲으로 옮겨서 — 안 볼 때 확장이 받는 상태도 검사함) */
+function openBeach(save: Save): Save {
+  return save.regions.order.includes('beach') ? save : { ...save, regions: { ...save.regions, order: [...save.regions.order, 'beach'] } };
+}
+
 function scene(state: GameState, sc: DevScene, rng: Rng): DevResult {
   const save0 = state.save;
   switch (sc) {
@@ -139,11 +144,12 @@ function scene(state: GameState, sc: DevScene, rng: Rng): DevResult {
     case 'beach-2':
     case 'beach-3': {
       const id = STAGE_OF[sc];
-      return { state: withStage(state, standOn(state, id, rng), { phase: 'walk' }, id, rng), say: `${stageCode(id)} 처음부터` };
+      const save = id.startsWith('beach-') ? openBeach(standOn(state, id, rng)) : standOn(state, id, rng);
+      return { state: withStage(state, save, { phase: 'walk' }, id, rng), say: `${stageCode(id)} 처음부터` };
     }
     case 'beach-gym': {
       // 해변 체육관 대기실 (관장 해솔 · 2번째 지역 — 에이스 = 레벨표 2번째)
-      const save: Save = { ...save0, location: gymLocation(REGIONS.beach), pendingEncounter: null, pendingChoices: [] };
+      const save: Save = openBeach({ ...save0, location: gymLocation(REGIONS.beach), pendingEncounter: null, pendingChoices: [] });
       return { state: withStage(state, save, { phase: 'lobby' }, null, rng), say: '해변 체육관 대기실' };
     }
     case 'wild':

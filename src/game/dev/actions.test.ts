@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { advance, createGameState, readRuntime, type GameState } from '../core/engine';
 import { validateSave, type Save } from '../core/save';
+import { viaJson } from '../../test/fixtures/save';
 import { createStartSave } from '../features/starter/model';
 import { devApply, type DevAction, type DevScene } from './actions';
 import { devDemoSave, devState } from './demo';
@@ -125,5 +126,16 @@ describe('개발 모드 (임시) — 메뉴 동작', () => {
     expect(back.dev?.walk).toBe(4);
     expect(back.dev?.foes).toEqual([{ dex: 25, level: 5 }]);
     expect(readDev({ walk: 999, battle: 3, foes: [{ dex: 99999, level: 5 }, 'x'], ults: { a: 5 } })).toEqual({ team: true, walk: 1, battle: 1, pause: false, foes: [], ults: {} });
+  });
+});
+
+describe('해변 미리 보기 — 4판 연 지역 (orders #30)', () => {
+  it('해변 장면은 연 지역에 해변을 더함 · 세이브 검사 (안 볼 때 확장이 받는 상태) 를 지나도 해변에 그대로', () => {
+    for (const sc of ['beach-2', 'beach-gym'] as const) {
+      const s = devApply(start(), { kind: 'scene', scene: sc }).state;
+      expect(s.save.regions.order).toEqual(['forest', 'beach']);
+      const checked = validateSave(viaJson(s.save));
+      expect(checked.ok && checked.save.location).toEqual(s.save.location);
+    }
   });
 });

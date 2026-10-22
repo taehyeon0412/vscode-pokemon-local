@@ -165,8 +165,11 @@ describe('해변 한 벌 (gdd 5.3 — orders #37, 개발 모드 미리 보기 ·
   });
 
   it('등대 곶 끝 → 해변 체육관 · 관장 첫 승 = 해변 배지 + 4,000원 (1,000 × (2 + 2)) + 물의 돌', () => {
-    const save = { ...sampleSave(), badges: ['forest'], location: { screen: 'gym' as const, region: 'beach' as const } };
+    const save = { ...sampleSave(), badges: ['forest'], location: { screen: 'gym' as const, region: 'beach' as const }, regions: { order: ['forest' as const, 'beach' as const] } };
     expect(validateSave(viaJson(save)).ok && (validateSave(viaJson(save)) as { save: { location: unknown } }).save.location).toEqual({ screen: 'gym', region: 'beach' });
+    // 해변을 안 연 세이브 (4판 regions) 면 해변 체육관에 있을 수 없음 → 숲 1-1
+    const closed = validateSave(viaJson({ ...save, regions: { order: ['forest'] } }));
+    expect(closed.ok && closed.save.location).toEqual({ screen: 'stage', stageId: 'forest-1' });
     const b = startTrainerBattle(save, leaderTeam(REGIONS.beach), 'gym', REGIONS.beach.leader.name);
     const r = battleRewards(save, { ...b, result: 'win' }, null, 'gym', new Rng(1));
     expect(r.save.badges).toContain('beach');
@@ -220,7 +223,6 @@ describe('그림 칸 (orders #57) — 스테이지마다 배경 · 지역마다 
     }
   });
 });
-
 describe('VS 대결 그림 — 지역 표의 트레이너 · 관장 모두 (bugs 663 — 해변 9명 + 해솔이 빠져 VS 오른쪽이 비던 것)', () => {
   it('REGIONS 의 트레이너 · 관장 look 마다 battle.png 목록이 있음', () => {
     for (const region of Object.values(REGIONS)) {

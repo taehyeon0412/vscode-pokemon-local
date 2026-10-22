@@ -11,6 +11,7 @@ export { createNewSave } from './create';
 export { NOTIFY_OFF_TIP } from './schema';
 export { validateSave, MAX_SPECIES, RUN_SEEN_MAX, type ValidateResult } from './validate';
 export { migrateSave, MIGRATIONS, type Migrations, type MigrateResult } from './migrate';
+export { freshProgress, modeOf, switchMode } from './progress';
 
 export type ReadSaveResult =
   /** 읽음. problems = 고친 것, migratedFrom = 옛 버전에서 옮겼으면 그 버전 */

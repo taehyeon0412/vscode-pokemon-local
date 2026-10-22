@@ -6,9 +6,9 @@
  */
 import { BALANCE } from '../balance';
 import {
-  DAILY_KINDS, ENCOUNTER_STARTS, isTipId, REGION_IDS, REGION_STAGE_IDS, ITEM_IDS, LOCATION_SCREENS, NOTIFY_OFF_TIP, SAVE_VERSION, STAGE_IDS, STAT_KEYS, STATUS_KINDS, TIPS_MAX,
+  DAILY_KINDS, ENCOUNTER_STARTS, isTipId, REGION_IDS, REGION_STAGE_IDS, ITEM_IDS, LOCATION_SCREENS, NOTIFY_OFF_TIP, SAVE_VERSION, STAT_KEYS, STATUS_KINDS, TIPS_MAX,
   type DailyGoal, type DailyKind, type RegionId, type Encounter, type FacilitySpot, type ItemId, type LastHospital, type Location, type Monster,
-  type MoveSlot, type PendingChoice, type Save, type StageId, type StageProgress, type StageRun, type Stats, type StatusCondition,
+  type ModeProgress, type MoveSlot, type PendingChoice, type RegionProgress, type Save, type StageId, type StageProgress, type StageRun, type Stats, type StatusCondition,
 } from './schema';
 import { evolutionsOf, moveOf, speciesOf } from '../../data';
 import { heroLookOf, isHeroLookId, LEGACY_LOOKS } from '../../data/heroes';
@@ -21,11 +21,11 @@ export type ValidateResult =
 export const MAX_SPECIES = 1025;
 /** 잠듦 1~3번 (mvp-spec 3.3) */
 const MAX_SLEEP_TURNS = 3;
-/** SaveV3 의 칸 이름 — 모르는 칸은 고칠 때 뺌 */
+/** SaveV4 의 칸 이름 — 모르는 칸은 고칠 때 뺌 */
 const KNOWN_KEYS: readonly (keyof Save)[] = [
   'version', 'createdAt', 'updatedAt', 'playTimeMs', 'player', 'monsters', 'party', 'box', 'nextMonsterUid',
   'bag', 'money', 'badges', 'stages', 'location', 'lastHospital', 'dex', 'pendingEncounter', 'pendingChoices', 'settings', 'rivals', 'laterChoices', 'tips',
-  'daily', 'records',
+  'daily', 'records', 'regions', 'mode', 'stash', 'cleared',
 ];
 
 /** 클리어 카드에 보일 새로 만난 포켓몬 수 */
@@ -44,6 +44,11 @@ const uidNumber = (key: string): number | null => {
   return m ? Number(m[1]) : null;
 };
 const isStageId = (v: unknown): v is StageId => (REGION_STAGE_IDS as readonly unknown[]).includes(v);
+const isRegionId = (v: unknown): v is RegionId => (REGION_IDS as readonly unknown[]).includes(v);
+/** 스테이지 id 의 지역 ("beach-2" → beach — REGION_STAGE_IDS 는 늘 "지역-번호") */
+const stageRegion = (id: StageId): RegionId => id.slice(0, id.lastIndexOf('-')) as RegionId;
+/** 그 곳이 있는 지역 (체육관은 region 이 없으면 숲) · 타이틀 · 지도는 null */
+const locationRegion = (loc: Location): RegionId | null => (loc.screen === 'stage' ? stageRegion(loc.stageId) : loc.screen === 'gym' ? (loc.region ?? 'forest') : null);
 const isItemId = (v: unknown): v is ItemId => (ITEM_IDS as readonly unknown[]).includes(v);
 
 /** 값 하나씩 읽으며 고친 것을 적어 두는 도우미 */
@@ -287,6 +292,97 @@ function readLocation(v: unknown, path: string, fx: Fixer): Location {
   }
   fx.note(path, '알 수 없는 곳 → 타이틀');
   return { screen: 'title' };
+}
+
+function readStages(v: unknown, path: string, fx: Fixer, playTimeMs: number): Save['stages'] {
+  const stages: Save['stages'] = {};
+  if (!isObj(v)) {
+    fx.note(path, '객체가 아님 → 진행 없음');
+    return stages;
+  }
+  for (const [id, s] of Object.entries(v)) {
+    if (!isStageId(id)) {
+      fx.note(`${path}.${id}`, '알 수 없는 스테이지를 뺌');
+      continue;
+    }
+    const stage = readStage(s, `${path}.${id}`, fx, playTimeMs);
+    if (stage) stages[id] = stage;
+  }
+  return stages;
+}
+
+/** 연 지역 (4판 — orders #30): 아는 지역만 · 겹치면 뺌 · 시작 (숲) 은 맨 앞 · 다음 고를 곳은 아직 안 연 아는 지역 1 ~ 2곳 (아니면 빼고 다음에 다시 뽑음) */
+function readRegions(v: unknown, path: string, fx: Fixer): RegionProgress {
+  if (!isObj(v)) {
+    fx.note(path, '객체가 아님 → 숲만');
+    return { order: ['forest'] };
+  }
+  let order: RegionId[] = [];
+  if (!Array.isArray(v.order)) fx.note(`${path}.order`, '목록이 아님 → 숲만');
+  for (const r of (Array.isArray(v.order) ? v.order : []).slice(0, REGION_IDS.length * 4)) {
+    if (!isRegionId(r)) fx.note(`${path}.order`, `모르는 지역 ${String(r).slice(0, 40)} 을 뺌`);
+    else if (order.includes(r)) fx.note(`${path}.order`, `겹친 지역 ${r} 을 뺌`);
+    else order.push(r);
+  }
+  if (order[0] !== 'forest') {
+    if (Array.isArray(v.order)) fx.note(`${path}.order`, '시작 지역 (숲) 을 맨 앞에');
+    order = ['forest', ...order.filter((r) => r !== 'forest')];
+  }
+  const out: RegionProgress = { order };
+  if (v.next !== undefined) {
+    const next = Array.isArray(v.next) ? v.next : [];
+    const ok = next.length >= 1 && next.length <= 2 && new Set(next).size === next.length && next.every((r) => isRegionId(r) && !order.includes(r));
+    if (ok) out.next = next as RegionId[];
+    else fx.note(`${path}.next`, '틀린 다음 지역 → 다음에 다시 뽑음');
+  }
+  return out;
+}
+
+/** 지금 안 하는 모드의 진행 — 모양이 틀리면 null (지금 모드 진행은 살림) · 위치는 맨 위와 같은 규칙 (fixLocation — 맞바꿔 올라와도 이어 할 수 있게) */
+function readStash(v: unknown, path: string, fx: Fixer, playTimeMs: number, hasMonsters: boolean): ModeProgress | null {
+  if (!isObj(v)) {
+    fx.note(path, '다른 모드 진행을 읽지 못해 뺌');
+    return null;
+  }
+  const regions = readRegions(v.regions, `${path}.regions`, fx);
+  const stages = readStages(v.stages, `${path}.stages`, fx, playTimeMs);
+  return {
+    badges: fx.texts(v.badges, `${path}.badges`),
+    stages,
+    location: fixLocation(readLocation(v.location, `${path}.location`, fx), regions, stages, hasMonsters, `${path}.location`, fx),
+    lastHospital: readLastHospital(v.lastHospital ?? null, `${path}.lastHospital`, fx),
+    regions,
+  };
+}
+
+/** 아직 안 연 지역에 있는 곳 → 가장 앞 지역 (order 끝) 의 첫 스테이지 (스테이지 진행은 그대로) */
+function placeInRegions(loc: Location, regions: RegionProgress, path: string, fx: Fixer): Location {
+  const r = locationRegion(loc);
+  if (r === null || regions.order.includes(r)) return loc;
+  const last = regions.order[regions.order.length - 1] ?? 'forest';
+  const stageId = REGION_STAGE_IDS.find((id) => stageRegion(id) === last) ?? 'forest-1';
+  fx.note(path, `아직 안 연 지역 (${r}) → ${stageId}`);
+  return { screen: 'stage', stageId };
+}
+
+/**
+ * 이어 할 수 있는 곳 (맨 위 · stash 같은 규칙): 안 연 지역 → 가장 앞 지역 첫 스테이지 · 포켓몬이 없으면 타이틀 (스타팅부터) ·
+ * 포켓몬이 있는데 타이틀 · 지도 (엔진은 스테이지 · 체육관만 돌려 이어 하면 아무 일도 안 일어남 — 명세 검사관 bugs #351) → 연 지역 순서로 안 깬 첫 스테이지, 다 깼으면 가장 앞 지역 체육관
+ */
+function fixLocation(loc0: Location, regions: RegionProgress, stages: Save['stages'], hasMonsters: boolean, path: string, fx: Fixer): Location {
+  const loc = placeInRegions(loc0, regions, path, fx);
+  if (!hasMonsters && loc.screen !== 'title') {
+    fx.note(path, '포켓몬이 하나도 없음 → 타이틀 (스타팅부터)');
+    return { screen: 'title' };
+  }
+  if ((loc.screen === 'title' || loc.screen === 'world-map') && hasMonsters) {
+    const ids = regions.order.flatMap((r) => REGION_STAGE_IDS.filter((id) => stageRegion(id) === r));
+    const next = ids.find((id) => stages[id]?.cleared !== true);
+    const last = regions.order[regions.order.length - 1] ?? 'forest';
+    fx.note(path, `${loc.screen} 에서는 이어 할 수 없음 → ${next ?? '체육관'}`);
+    return next ? { screen: 'stage', stageId: next } : last === 'forest' ? { screen: 'gym' } : { screen: 'gym', region: last };
+  }
+  return loc;
 }
 
 function readLastHospital(v: unknown, path: string, fx: Fixer): LastHospital | null {
@@ -547,19 +643,7 @@ export function validateSave(raw: unknown): ValidateResult {
   }
 
   const playTimeMs = fx.int(raw.playTimeMs, 'playTimeMs', 0, Number.MAX_SAFE_INTEGER, 0);
-  const stages: Save['stages'] = {};
-  if (isObj(raw.stages)) {
-    for (const [id, s] of Object.entries(raw.stages)) {
-      if (!isStageId(id)) {
-        fx.note(`stages.${id}`, '알 수 없는 스테이지를 뺌');
-        continue;
-      }
-      const stage = readStage(s, `stages.${id}`, fx, playTimeMs);
-      if (stage) stages[id] = stage;
-    }
-  } else {
-    fx.note('stages', '객체가 아님 → 진행 없음');
-  }
+  const stages = readStages(raw.stages, 'stages', fx, playTimeMs);
 
   const dexRaw = isObj(raw.dex) ? raw.dex : {};
   if (!isObj(raw.dex)) fx.note('dex', '객체가 아님 → 빈 기록');
@@ -572,18 +656,10 @@ export function validateSave(raw: unknown): ValidateResult {
   const settingsRaw = isObj(raw.settings) ? raw.settings : {};
   if (!isObj(raw.settings)) fx.note('settings', '객체가 아님 → 기본값');
 
-  let location = readLocation(raw.location, 'location', fx);
-  if (party.length === 0 && box.length === 0 && location.screen !== 'title') {
-    fx.note('location', '포켓몬이 하나도 없음 → 타이틀 (스타팅부터)');
-    location = { screen: 'title' };
-  }
-  // 포켓몬이 있는데 타이틀 · 지도 (알 수 없는 곳을 고친 세이브 · 옛 세이브) — 엔진은 스테이지 · 체육관만 돌려서 이어 하면 아무 일도 안 일어남 (명세 검사관, bugs #351)
-  //  → 아직 안 깬 첫 스테이지, 다 깼으면 체육관 대기실
-  if ((location.screen === 'title' || location.screen === 'world-map') && party.length > 0) {
-    const next = STAGE_IDS.find((id) => stages[id]?.cleared !== true);
-    fx.note('location', `${location.screen} 에서는 이어 할 수 없음 → ${next ?? '체육관'}`);
-    location = next ? { screen: 'stage', stageId: next } : { screen: 'gym' };
-  }
+  const regions = readRegions(raw.regions, 'regions', fx);
+  // 포켓몬이 있는데 타이틀 · 지도 (알 수 없는 곳을 고친 세이브 · 옛 세이브) → 안 깬 첫 스테이지 · 다 깼으면 체육관 (bugs #351 — fixLocation)
+  // (팀이 비면 readRoster 뒤 보관함 첫 포켓몬이 팀으로 와서 party 만 보면 됨)
+  const location = fixLocation(readLocation(raw.location, 'location', fx), regions, stages, party.length > 0 || box.length > 0, 'location', fx);
 
   const save: Save = {
     version: SAVE_VERSION,
@@ -621,6 +697,45 @@ export function validateSave(raw: unknown): ValidateResult {
     tips: notifyMoved ? tipsRead : [NOTIFY_OFF_TIP, ...tipsRead].slice(0, TIPS_MAX),
     ...(raw.daily === undefined ? {} : readDailyField(raw.daily, fx)),
     ...(raw.records === undefined ? {} : { records: readRecords(raw.records, 'records', fx) }),
+    regions,
   };
+  // 모드 · 다른 모드 진행 · 엔딩 (4판 — orders #30)
+  // 엔딩 기록은 숫자면 고쳐서 남김 (소수 · 0 · 너무 큼 → 1 ~ 안전한 정수 — 버리면 하드가 다시 잠김, 코드 리뷰어 #30) · 숫자가 아니면 뺌
+  if (raw.cleared !== undefined) {
+    const normalAt = isObj(raw.cleared) ? raw.cleared.normal : undefined;
+    if (!isObj(raw.cleared)) fx.note('cleared', '틀린 엔딩 기록을 뺌');
+    else if (normalAt === undefined) save.cleared = {};
+    else if (typeof normalAt === 'number' && !Number.isNaN(normalAt)) {
+      const at = Math.min(Number.MAX_SAFE_INTEGER, Math.max(1, Math.round(normalAt)));
+      if (at !== normalAt) fx.note('cleared.normal', `${normalAt} → ${at}`);
+      save.cleared = { normal: at };
+    } else {
+      fx.note('cleared.normal', '숫자가 아님 → 뺌');
+      save.cleared = {};
+    }
+  }
+  const stash = raw.stash === undefined ? null : readStash(raw.stash, 'stash', fx, playTimeMs, party.length > 0 || box.length > 0);
+  if (stash) save.stash = stash;
+  if (raw.mode !== undefined && raw.mode !== 'hard') fx.note('mode', '모르는 모드 → 노말');
+  if (raw.mode === 'hard') {
+    if (normalCleared(save)) save.mode = 'hard';
+    else if (save.stash) {
+      // 노말 엔딩 전인데 하드 — 노말 진행 (stash) 으로 되돌림 · 하드 진행에 묶인 전투는 버림 (위치가 바뀌어 안 맞아서 — 테스터 #30, 기술 고르기는 포켓몬 것이라 남김)
+      fx.note('mode', '노말 엔딩 전 하드 → 노말 진행으로');
+      return { ok: true, save: { ...swapProgress(save), pendingEncounter: null }, problems: fx.problems };
+    } else fx.note('mode', '노말 엔딩 전 하드 → 노말');
+  }
   return { ok: true, save, problems: fx.problems };
+}
+
+/** 노말 엔딩을 봤는지 (하드가 열림) — 고치기 · switchMode 가 같은 판단 (엔딩 기록이 있으면 — 고치기가 늘 1 이상으로 맞춤, 테스터 #30) */
+export const normalCleared = (save: Pick<Save, 'cleared'>): boolean => save.cleared?.normal !== undefined;
+
+/** 맨 위 (지금 모드) 진행 ↔ stash 맞바꿈 — 모드 칸은 부르는 쪽이 정함 (switchMode · 고치기) */
+export function swapProgress(save: Save, there?: ModeProgress): Save {
+  const here: ModeProgress = { badges: save.badges, stages: save.stages, location: save.location, lastHospital: save.lastHospital, regions: save.regions };
+  const next = there ?? save.stash;
+  const { mode: _mode, stash: _stash, ...rest } = save;
+  if (!next) return rest;
+  return { ...rest, ...next, stash: here };
 }

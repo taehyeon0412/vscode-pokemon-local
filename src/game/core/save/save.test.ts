@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { sampleMonster, sampleSave, viaJson } from '../../../test/fixtures/save';
 import { BALANCE } from '../balance';
-import { createNewSave, NOTIFY_OFF_TIP, readSave, SAVE_VERSION, validateSave, type Save } from './index';
+import { createNewSave, freshProgress, migrateSave, MIGRATIONS, modeOf, NOTIFY_OFF_TIP, readSave, SAVE_VERSION, switchMode, validateSave, type Save } from './index';
 
 /** 고친 세이브를 꺼냄 (ok 가 아니면 실패) */
 function fix(raw: unknown): { save: Save; problems: string[] } {
@@ -242,7 +242,7 @@ describe('고정된 1판 세이브 표본 (src/test/fixtures/save-v1.json)', () 
     // 2판 (2026-10-21 orders #15) — 칸은 그대로, 판만 올라감
     // 알림 처음 값이 꺼짐으로 바뀜 (2026-10-21) — 옛 세이브는 읽을 때 한 번 꺼짐으로 · 표시 (고친 기록 없음)
     const settings = { ...(raw as { settings: object }).settings, notifications: false };
-    expect(viaJson(r.save)).toEqual({ ...(raw as object), version: SAVE_VERSION, stages, pendingChoices: [], settings, tips: [NOTIFY_OFF_TIP] });
+    expect(viaJson(r.save)).toEqual({ ...(raw as object), version: SAVE_VERSION, stages, pendingChoices: [], settings, tips: [NOTIFY_OFF_TIP], regions: { order: ['forest'] } });
     // 옮긴 뒤 켠 것은 그대로 (다시 읽어도 꺼지지 않음)
     const on = readSave(viaJson({ ...r.save, settings: { ...r.save.settings, notifications: true } }));
     expect(on.kind === 'ok' && on.save.settings.notifications).toBe(true);
@@ -269,20 +269,31 @@ describe('고정된 3판 세이브 표본 (src/test/fixtures/save-v3.json — #3
   // 4판을 만들 때: 이 표본을 그대로 두고 "옮기면 같이 쓰는 칸 · 진행 칸이 그대로 + regions.order = ['forest']" 테스트를 더함 (dev-log #40)
   const load = async () => (await import('../../../test/fixtures/save-v3.json')).default as unknown as Record<string, unknown>;
 
-  it('지금 코드로 고칠 것 없이 그대로 읽힘 (모든 칸 · 옵션 칸)', async () => {
+  it('4판으로 옮기면 같이 쓰는 칸 · 진행 칸이 그대로 + regions.order = 숲 (고칠 것 없음 — orders #30)', async () => {
     const raw = await load();
     expect(raw.version).toBe(3);
     const r = readSave(viaJson(raw));
     expect(r.kind).toBe('ok');
     if (r.kind !== 'ok') return;
     expect(r.problems).toEqual([]);
-    expect(viaJson(r.save)).toEqual(raw);
+    expect(r.migratedFrom).toBe(3);
+    expect(viaJson(r.save)).toEqual({ ...raw, version: 4, regions: { order: ['forest'] } });
     expect(r.save.badges).toEqual(['forest']);
     expect(r.save.location).toEqual({ screen: 'gym' });
     expect(r.save.settings.teamMode).toBe(true);
     expect(r.save.laterChoices).toHaveLength(1);
     expect(Object.keys(r.save.rivals ?? {}).length).toBeGreaterThan(0);
-    expect(validateSave(viaJson(raw))).toEqual({ ok: true, save: r.save, problems: [] });
+    expect(validateSave(viaJson(r.save))).toEqual({ ok: true, save: r.save, problems: [] });
+    // 지역 배지가 더 있으면 (개발 · 손으로 고친 세이브) 그 순서대로 연 지역
+    const more = readSave(viaJson({ ...raw, badges: ['forest', 'beach'] }));
+    expect(more.kind === 'ok' && more.save.regions.order).toEqual(['forest', 'beach']);
+  });
+
+  it('옛 3판 창 대비 — 3 → 4 옮기기가 없는 3판 코드는 4판 세이브를 읽지 않고 잠금 (newer — 새 칸을 지우지 못함)', async () => {
+    const r = readSave(viaJson(await load()));
+    if (r.kind !== 'ok') throw new Error('읽기 실패');
+    const old = { 1: MIGRATIONS[1]!, 2: MIGRATIONS[2]! };
+    expect(migrateSave(viaJson(r.save) as unknown as Record<string, unknown>, old, 3)).toEqual({ ok: false, reason: 'newer', version: 4 });
   });
 
   it('옛 창 대비 — 판이 더 새 (4판) 이면 지금 코드는 읽지 않고 잠금 (newer)', async () => {
@@ -335,5 +346,128 @@ describe('손으로 만든 큰 세이브 (테스터 #48 — 불러오기)', () =
     // 포켓몬 열쇠가 아주 많아도 스택이 넘치지 않음 (Math.max(...) 펼치기 대신 반복)
     const junk = Object.fromEntries(Array.from({ length: 140_000 }, (_, i) => [`m${i + 2}`, 0]));
     expect(() => readSave(viaJson({ ...base, monsters: { ...base.monsters, ...junk } }))).not.toThrow();
+  });
+});
+
+describe('4판 칸 — 연 지역 · 모드 · 다른 모드 진행 · 엔딩 (orders #30 · dev-log #40 안 A)', () => {
+  const check = (raw: unknown) => {
+    const r = validateSave(viaJson(raw));
+    if (!r.ok) throw new Error(r.reason);
+    return r;
+  };
+
+  it('새 세이브 = 숲만 · 모드 · stash · cleared 없음 (노말 · 처음)', () => {
+    const s = createNewSave(0);
+    expect(s.regions).toEqual({ order: ['forest'] });
+    expect(s.mode).toBeUndefined();
+    expect(s.stash).toBeUndefined();
+    expect(s.cleared).toBeUndefined();
+    expect(modeOf(s)).toBe('normal');
+  });
+
+  it('연 지역 고치기 — 모르는 지역 · 겹침 뺌 · 숲이 맨 앞 · 없으면 숲만 · 다음 고를 곳은 안 연 아는 지역 1 ~ 2곳만', () => {
+    const base = sampleSave();
+    const a = check({ ...base, regions: { order: ['beach', 'mars', 'beach'] } });
+    expect(a.save.regions).toEqual({ order: ['forest', 'beach'] });
+    expect(a.problems.join(' ')).toContain('mars');
+    const { regions: _r, ...noRegions } = base;
+    expect(check(noRegions).save.regions).toEqual({ order: ['forest'] });
+    expect(check({ ...base, regions: 'x' }).save.regions).toEqual({ order: ['forest'] });
+    expect(check({ ...base, regions: { order: ['forest'], next: ['beach'] } }).save.regions).toEqual({ order: ['forest'], next: ['beach'] });
+    for (const next of [['forest'], ['beach', 'beach'], [], ['mars'], 'beach', ['beach', 'beach', 'beach']]) {
+      const r = check({ ...base, regions: { order: ['forest'], next } });
+      expect(r.save.regions).toEqual({ order: ['forest'] });
+      expect(r.problems.some((p) => p.startsWith('regions.next'))).toBe(true);
+    }
+    // 아주 긴 목록도 금방 (앞부분만 봄)
+    expect(check({ ...base, regions: { order: Array.from({ length: 100_000 }, () => 'mars') } }).save.regions).toEqual({ order: ['forest'] });
+  });
+
+  it('아직 안 연 지역에 있는 곳 → 가장 앞 지역의 첫 스테이지 (스테이지 진행은 그대로)', () => {
+    const base = sampleSave();
+    const beachStage = { ...base.stages['forest-1']!, progress: 0.7 };
+    const r = check({ ...base, location: { screen: 'stage', stageId: 'beach-2' }, stages: { ...base.stages, 'beach-2': beachStage } });
+    expect(r.save.location).toEqual({ screen: 'stage', stageId: 'forest-1' });
+    expect(r.save.stages['beach-2']?.progress).toBe(0.7);
+    expect(check({ ...base, location: { screen: 'gym', region: 'beach' } }).save.location).toEqual({ screen: 'stage', stageId: 'forest-1' });
+    // 연 지역이면 그대로 · 가장 앞 지역이 해변이면 해변 첫 스테이지로
+    const open = { ...base, regions: { order: ['forest', 'beach'] } };
+    expect(check({ ...open, location: { screen: 'gym', region: 'beach' } }).save.location).toEqual({ screen: 'gym', region: 'beach' });
+    expect(check({ ...base, regions: { order: ['forest', 'beach'] }, stash: { ...freshProgress(), location: { screen: 'stage', stageId: 'beach-3' }, regions: { order: ['forest'] } } }).save.stash?.location).toEqual({ screen: 'stage', stageId: 'forest-1' });
+  });
+
+  it('모드 · stash · cleared 고치기 — 하드는 노말 엔딩 뒤만 (전이면 노말 진행으로 되돌림) · 모르는 모드 · 틀린 기록은 뺌 · 저장 → 다시 읽기 같음', () => {
+    const base = sampleSave();
+    const hardStash = { badges: ['forest'], stages: base.stages, location: { screen: 'gym' as const }, lastHospital: null, regions: { order: ['forest' as const] } };
+    // 제대로 된 하드 — 그대로 (고친 것 없음)
+    const hard: Save = { ...base, mode: 'hard', cleared: { normal: 1_700_000_000_000 }, stash: hardStash, badges: [], stages: {}, location: { screen: 'stage', stageId: 'forest-1' } };
+    expect(check(hard)).toEqual({ ok: true, save: hard, problems: [] });
+    // 노말 엔딩 전 하드 + stash → 노말 진행 (stash) 으로 되돌림
+    const early = check({ ...hard, cleared: undefined });
+    expect(early.save.mode).toBeUndefined();
+    expect(early.save.badges).toEqual(['forest']);
+    expect(early.save.location).toEqual({ screen: 'gym' });
+    expect(early.save.stash?.location).toEqual({ screen: 'stage', stageId: 'forest-1' });
+    expect(early.problems.some((p) => p.startsWith('mode'))).toBe(true);
+    // 하드 진행에 묶인 전투는 버림 (위치가 노말 쪽으로 바뀌어 — 테스터 #30)
+    const fight = check({ ...hard, cleared: undefined, location: { screen: 'stage', stageId: 'forest-2' }, pendingEncounter: { kind: 'trainer', trainerId: 'forest-2:t0', stageId: 'forest-2' } });
+    expect(fight.save.location).toEqual({ screen: 'gym' });
+    expect(fight.save.pendingEncounter).toBeNull();
+    // 엔딩 기록이 0 이어도 하드는 열림 — 고치기 (1 로) · switchMode 같은 판단
+    expect(switchMode({ ...base, cleared: { normal: 0 } }, 'hard')?.mode).toBe('hard');
+    // stash 도 없으면 모드만 뺌
+    expect(check({ ...base, mode: 'hard' }).save.mode).toBeUndefined();
+    expect(check({ ...base, mode: 'easy' }).save.mode).toBeUndefined();
+    // 틀린 stash · 엔딩 기록은 뺌 (지금 진행은 살림)
+    const bad = check({ ...base, stash: 7, cleared: { normal: 'x' } });
+    expect(bad.save.stash).toBeUndefined();
+    expect(bad.save.cleared).toEqual({});
+    expect(check({ ...base, cleared: 3 }).save.cleared).toBeUndefined();
+    // 숫자면 고쳐서 남김 — 소수 · 0 이어도 하드는 그대로 (버리면 하드가 다시 잠김, 코드 리뷰어 #30)
+    const odd = check({ ...hard, cleared: { normal: 0.4 } });
+    expect(odd.save.cleared).toEqual({ normal: 1 });
+    expect(odd.save.mode).toBe('hard');
+    expect(bad.save.location).toEqual(base.location);
+    expect(check({ ...base, cleared: {} }).save.cleared).toEqual({});
+  });
+
+  it('모드 바꾸기 (switchMode) — 노말 엔딩 전엔 하드 못 함 · 진행만 맞바꿈 (포켓몬 · 돈 · 가방 · 도감 · 설정은 같이) · 전투 · 고르기 중엔 못 바꿈 · 다시 바꾸면 그대로', () => {
+    const normal: Save = { ...sampleSave({ money: 4321, badges: ['forest'] }), location: { screen: 'gym' }, regions: { order: ['forest'], next: ['beach'] } };
+    expect(switchMode(normal, 'hard')).toBeNull();
+    expect(switchMode(normal, 'normal')).toBe(normal);
+    const done = { ...normal, cleared: { normal: 5 } };
+    const hard = switchMode(done, 'hard')!;
+    expect(hard.mode).toBe('hard');
+    expect({ badges: hard.badges, stages: hard.stages, location: hard.location, lastHospital: hard.lastHospital, regions: hard.regions }).toEqual(freshProgress());
+    expect(hard.stash).toEqual({ badges: ['forest'], stages: normal.stages, location: { screen: 'gym' }, lastHospital: normal.lastHospital, regions: { order: ['forest'], next: ['beach'] } });
+    for (const k of ['monsters', 'party', 'box', 'money', 'bag', 'dex', 'settings', 'tips', 'cleared'] as const) expect(hard[k]).toEqual(done[k]);
+    // 저장 → 다시 읽기 같음
+    expect(check(hard)).toEqual({ ok: true, save: hard, problems: [] });
+    // 다시 노말 — 처음 진행 그대로 · 하드 진행은 stash
+    const back = switchMode(hard, 'normal')!;
+    expect(back.mode).toBeUndefined();
+    expect(back.location).toEqual({ screen: 'gym' });
+    expect(back.regions).toEqual({ order: ['forest'], next: ['beach'] });
+    expect(back.stash?.location).toEqual({ screen: 'stage', stageId: 'forest-1' });
+    expect(switchMode(back, 'hard')).toEqual(hard);
+    // 전투 · 고르기 중
+    expect(switchMode({ ...done, pendingEncounter: { kind: 'gym-leader' } }, 'hard')).toBeNull();
+    expect(switchMode({ ...done, pendingChoices: [{ kind: 'learn', uid: 'm1', moveId: 33 }] }, 'hard')).toBeNull();
+  });
+});
+
+describe('위치 고치기 한 곳 (코드 리뷰어 #30) — 맨 위 · 다른 모드 진행 (stash) 같은 규칙', () => {
+  it('stash 위치가 깨졌거나 타이틀 · 지도면 안 깬 첫 스테이지 · 다 깼으면 체육관 → 맞바꿔 올라와도 이어 할 수 있음', () => {
+    const base = sampleSave();
+    const r = validateSave(viaJson({ ...base, stash: { ...freshProgress(), location: 'x' } }));
+    if (!r.ok) throw new Error(r.reason);
+    expect(r.save.stash?.location).toEqual({ screen: 'stage', stageId: 'forest-1' });
+    const cleared = { 'forest-1': { ...base.stages['forest-1']!, cleared: true }, 'forest-2': { ...base.stages['forest-1']!, cleared: true }, 'forest-3': { ...base.stages['forest-1']!, cleared: true } };
+    const done = validateSave(viaJson({ ...base, stash: { ...freshProgress(), stages: cleared, location: { screen: 'world-map' } } }));
+    expect(done.ok && done.save.stash?.location).toEqual({ screen: 'gym' });
+    // 맨 위도 같은 말 (#351)
+    const top = validateSave(viaJson({ ...base, location: { screen: 'world-map' } }));
+    expect(top.ok && top.save.location).toEqual({ screen: 'stage', stageId: 'forest-1' });
+    expect(top.ok && top.problems.join(' ')).toContain('world-map 에서는 이어 할 수 없음');
   });
 });

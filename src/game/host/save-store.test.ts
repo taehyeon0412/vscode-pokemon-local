@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemorySaveArchive, MemorySaveStorage, sampleSave } from '../../test/fixtures/save';
 import { createNewSave, SAVE_VERSION, type Save } from '../core/save';
@@ -220,5 +221,29 @@ describe('불러오기 · 새로 하기 백업 — 다른 창이 그 사이 쓴 
     storage.write(sampleSave({ money: 9, updatedAt: 99 }));
     await store.replace(createNewSave(1));
     expect(archive.items.map((i) => (i.raw as Save).money).sort()).toEqual([2, 9]);
+  });
+});
+
+describe('3판 → 4판 (orders #30) — 설치 뒤 첫 읽기', () => {
+  it('3판 세이브를 읽으면 원본을 "옮기기 전" 으로 보관하고 4판 (연 지역 = 숲) 으로 5초 안에 씀 · 같이 쓰는 칸 그대로', async () => {
+    const v3 = (await import('../../test/fixtures/save-v3.json')).default as unknown as Save;
+    make(v3);
+    const r = await store.load();
+    expect(r.kind === 'ok' && r.migratedFrom).toBe(3);
+    expect(archive.items.map((i) => [i.reason, i.note])).toEqual([['before-migration', '3판']]);
+    store.start();
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(stored()?.version).toBe(4);
+    expect(stored()?.regions).toEqual({ order: ['forest'] });
+    expect(stored()?.monsters).toEqual(v3.monsters);
+    expect(stored()?.money).toBe(v3.money);
+  });
+});
+
+describe('시험 창 세이브 판 (코드 리뷰어 #30)', () => {
+  it('시험 창 (dev/game-host.js) 세이브도 지금 판 — 판을 올리면 같이 (2 → 3 때 고친 줄을 3 → 4 에서 놓친 것)', () => {
+    const host = readFileSync('dev/game-host.js', 'utf8');
+    expect(host).toContain(`version: ${SAVE_VERSION},`);
+    expect(host).toContain(`regions: { order: ['forest'] }`);
   });
 });

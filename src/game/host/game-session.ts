@@ -13,7 +13,7 @@
  */
 import { BALANCE, TIMING } from '../core/balance';
 import { advance, createGameState, isWaitingForInput, readRuntime, shouldRunWhenHidden, waitReason, withSpeed, type GameNotice, type GameState } from '../core/engine';
-import { readSave, TIPS_MAX, validateSave, type Save } from '../core/save';
+import { readSave, TIPS_MAX, validateSave, type ModeProgress, type Save } from '../core/save';
 import { GAME_COMMAND, isWebviewToHost, type HostToWebview, type TitleInfo, type TitleNotice } from '../shared/messages';
 import { GAME_MIN_HEIGHT_PX } from '../shared/screen';
 import { HeadlessRunner, type HeadlessRunnerOptions } from './headless-runner';
@@ -38,10 +38,15 @@ const IMPORT_MAX_CHARS = 5_000_000;
 
 /** 보관함 파일 모양 ({ at, reason, note, raw } — save-archive) */
 const isArchived = (v: unknown): v is { raw: unknown } => typeof v === 'object' && v !== null && !Array.isArray(v) && 'raw' in v && 'reason' in v && 'at' in v;
-/** 아직 모두에게 열리지 않은 지역 (숲 말고) 의 스테이지 · 위치 · 배지가 있는지 (#30 전까지) */
+/** 아직 모두에게 열리지 않은 지역 (숲 말고) 의 스테이지 · 위치 · 배지 · 연 지역 · 다음 고를 곳이 있는지 — 다른 모드 진행 (stash) 도 (해변을 본편에 열 때까지) */
 function lockedRegion(save: Save): boolean {
+  return [save, ...(save.stash ? [save.stash] : [])].some(lockedIn);
+}
+function lockedIn(save: ModeProgress): boolean {
   const loc = save.location;
   return (
+    save.regions.order.some((r) => r !== 'forest') ||
+    (save.regions.next?.length ?? 0) > 0 ||
     Object.keys(save.stages).some((id) => !id.startsWith('forest-')) ||
     (loc.screen === 'stage' && !loc.stageId.startsWith('forest-')) ||
     (loc.screen === 'gym' && loc.region !== undefined && loc.region !== 'forest') ||

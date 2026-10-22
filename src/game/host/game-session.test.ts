@@ -1495,8 +1495,11 @@ describe('세이브 불러오기 — 아직 안 열린 지역 (코드 리뷰어 
     const base = sampleSave({ money: 777 });
     for (const bad of [
       { ...base, location: { screen: 'stage', stageId: 'beach-1' }, stages: { ...base.stages, 'beach-1': base.stages['forest-1'] } },
-      { ...base, location: { screen: 'gym', region: 'beach' } },
+      { ...base, location: { screen: 'gym', region: 'beach' }, regions: { order: ['forest', 'beach'] } },
       { ...base, badges: ['forest', 'beach'] },
+      { ...base, regions: { order: ['forest', 'beach'] } },
+      { ...base, regions: { order: ['forest'], next: ['beach'] } },
+      { ...base, mode: 'hard', cleared: { normal: 5 }, stash: { badges: ['forest', 'beach'], stages: base.stages, location: { screen: 'gym' }, lastHospital: null, regions: { order: ['forest'] } } },
     ]) {
       openFile = { name: 'beach.json', text: JSON.stringify(bad) };
       session.handleMessage(msg({ type: 'save-import' }));

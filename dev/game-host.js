@@ -49,7 +49,7 @@
     document.body.classList.add(theme === 'light' ? 'vscode-light' : 'vscode-dark');
 
     const save = {
-        version: 3, createdAt: 0, updatedAt: 0, playTimeMs: 754000, player: null,
+        version: 4, createdAt: 0, updatedAt: 0, playTimeMs: 754000, player: null, regions: { order: ['forest'] },
         monsters: { m1: { uid: 'm1', species: 1, form: 'bulbasaur', level: 5, exp: 125, ivs: { hp: 1, attack: 1, defense: 1, speed: 1, ultimate: 1 },
             points: { hp: 0, attack: 0, defense: 0, speed: 0, ultimate: 0 }, unspentPoints: 0, moves: [{ moveId: 33, pp: 35 }], hp: 20, status: null, shiny: false, caughtAt: 'starter' } },
         party: ['m1'], box: [], nextMonsterUid: 2, bag: { 'poke-ball': 3 }, money: 1000, badges: [],
@@ -326,6 +326,9 @@
         const sid = q.get('stageid');
         save.stages[sid] = { ...save.stages[save.location.stageId] };
         save.location = { screen: 'stage', stageId: sid };
+        // 4판 — 안 연 지역의 곳은 세이브 검사가 숲으로 옮김 (해변 시안)
+        const region = sid.slice(0, sid.lastIndexOf('-'));
+        if (!save.regions.order.includes(region)) save.regions.order.push(region);
         if (runtime.stage) runtime.stageId = sid;
     }
     // bgset=<폴더> — 길 배경 두 겹을 바꿔 끼움 (해변 시안 #36 — 폴더 안 background|foreground-<dark|light>-<nano|small|medium|large>.png, 이 페이지 기준 경로 · 예: shots/bgprev/pret-sand · ../extension/media/backgrounds/beach)

@@ -19,6 +19,7 @@ export function createNewSave(now: number): Save {
     stages: {},
     location: { screen: 'title' },
     lastHospital: null,
+    regions: { order: ['forest'] },
     dex: { seen: [], caught: [] },
     pendingEncounter: null,
     pendingChoices: [],

@@ -14,6 +14,8 @@ export const MIGRATIONS: Migrations = {
   1: (v1) => ({ ...v1, version: 2 }),
   // 2 → 3 (2026-10-21 orders #17): settings.teamMode 옵션 칸 — 칸은 그대로 판만
   2: (v2) => ({ ...v2, version: 3 }),
+  // 3 → 4 (2026-10-22 orders #30 · dev-log #40 안 A): 연 지역 = 숲 + 받은 지역 배지 순서 (진짜 세이브는 숲뿐 — 해변은 개발 모드 미리 보기라 저장 안 됨) · mode · stash · cleared 는 안 만듦 (없으면 노말 · 처음)
+  3: (v3) => ({ ...v3, version: 4, regions: { order: ['forest', ...(Array.isArray(v3.badges) ? v3.badges.filter((b) => typeof b === 'string' && b !== 'forest') : [])] } }),
 };
 
 export type MigrateResult =
