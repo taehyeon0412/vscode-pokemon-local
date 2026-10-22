@@ -593,6 +593,11 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
           // 예전 길 (자동 전투) 로 VS 가 나오던 중에 끄면 그 VS 그대로 (사라졌다 처음부터 다시 나오던 것 — 코드 리뷰어)
           st = { ...st, vsAt: oldVs };
         } else if (choose || (free && st.ask)) {
+          // 처음 고르기를 여는 때 — 자동 전투 중 3 으로 판 없이 고른 3:3 은 지움 (그 뒤 자동을 끄면 주 버튼 · 3 · Enter 가 판을 안 열던 것 — #84 UX)
+          if (!st.ask && st.team === true && st.pick === undefined) {
+            const { team: _t, ...rest } = st;
+            st = rest;
+          }
           st = { ...st, ask: true };
           if (st.pick !== undefined && st.team === true) {
             const pickMs = (st.pickMs ?? 0) + stepMs;

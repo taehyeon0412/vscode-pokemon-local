@@ -564,6 +564,11 @@ describe('#17 준비 — 배율 · 잠금 · 3마리 고르기 · 필살기 예�
     expect(st?.phase === 'trainer' && st.pick).toBeUndefined();
     expect(teamPickOf(s)).toBeNull();
     expect(steps(s, TIMING.trainerMeetMs).runtime.stage?.phase).toBe('team');
+    // 자동 중 3 (판 없음) → 자동을 끄면 고르기 — 3 이 다시 판을 엶 (#84 UX)
+    let off = applyInput(steps(meet(autoOn(five()), wide), TIMING.trainerAlertMs + STEP), { kind: 'team-mode', on: true });
+    off = steps(applyInput(off, { kind: 'auto-battle', on: false }), STEP);
+    off = applyInput(off, { kind: 'team-mode', on: true });
+    expect(teamPickOf(off)).not.toBeNull();
     // 자동을 끈 만남은 예전처럼 판을 엶 (고르기를 기다림)
     let m = steps(meet({ ...five(), settings: { ...five().settings, teamMode: false } }, wide), TIMING.trainerAlertMs + STEP);
     m = applyInput(m, { kind: 'team-mode', on: true });
