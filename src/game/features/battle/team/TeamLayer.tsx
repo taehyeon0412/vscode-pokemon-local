@@ -101,6 +101,9 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, o
   );
 }
 
+/** 상대 필살기 컷인 이름 (ult/core ultIntro — ULT_INTRO_MS 0.9 + 0.9초, 연출 시계 = 게임 시계) 이 떠 있는 동안 (그 필살기 ms) — 끼어들기 큰 판은 이름 아래로 */
+const ULT_TITLE_MS = 1900;
+
 /** 쓰러짐 말이 이만큼 보인 뒤에 좁은 패널 합동 · 끼어들기 띠 (U1 — 1초) */
 const FAINT_SAY_MS = 1000;
 
@@ -162,6 +165,15 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
     const left = Math.round(Math.max(8, Math.min(widthPx - 8 - r.width, g.cx - r.width / 2)));
     let top = bigLow.current ?? Math.round(Math.max(infoBarPx + fieldTopPx + 2, midY - r.height / 2));
     let hide = false;
+    // 상대 필살기 컷인 이름 (무대 높이 36% 가운데) 이 떠 있을 때 뜬 끼어들기 판 = 무대 아래 끝으로 (판이 끝날 때까지 그 자리 — 튀지 않게 U2) · "스파[끼어들기]볼트" 로 0.5초 가리던 것 (개발 #80 UX U1)
+    const u = b.phase === 'ult' ? b.ult : null;
+    if (bigLow.current === null && prompt?.kind === 'join' && u && u.side === 'foe' && u.ms < ULT_TITLE_MS) {
+      const low = Math.round(heightPx - r.height - 4);
+      if (low > top) {
+        top = low;
+        bigLow.current = top;
+      }
+    }
     if (bigLow.current === null && faintFresh) {
       const o = host.getBoundingClientRect();
       host.querySelectorAll<HTMLElement>('.pg-team-pop').forEach((p) => {
