@@ -81,9 +81,18 @@ describe('대기실 추천 Lv — 그 지역 관장 에이스 (gdd 5.2)', () => 
 
 describe('세계 지도 지역 칸 (orders #66 · 디자인 #67)', () => {
   it('꺼짐 = 지금 지역 하나 · 고를 곳 · 잠긴 지역 없음 / 켜짐 (개발 모드) = 연 지역 순서 · 몇 번째 · 지금 지역 · 잠긴 지역', () => {
-    const off = mapView(createGameState(sampleSave(), 1));
-    expect(off.regions.map((r) => [r.id, r.k, r.here])).toEqual([['forest', 1, true]]);
-    expect([off.next, off.locked]).toEqual([[], []]);
+    const region = BALANCE.region as { open: boolean };
+    const was = region.open;
+    region.open = false;
+    try {
+      const off = mapView(createGameState(sampleSave(), 1));
+      expect(off.regions.map((r) => [r.id, r.k, r.here])).toEqual([['forest', 1, true]]);
+      expect([off.next, off.locked]).toEqual([[], []]);
+    } finally {
+      region.open = was;
+    }
+    // 본편 (켬 — orders #70) = 개발 모드와 같게 잠긴 지역까지
+    expect(mapView(createGameState(sampleSave(), 1)).locked).toEqual([{ id: 'beach', name: '해변' }]);
     const on = (o: object) => {
       const s = createGameState({ ...sampleSave(), ...o }, 1);
       return mapView({ ...s, runtime: { ...s.runtime, dev: devDefault() } });

@@ -532,7 +532,18 @@ describe('단계 8 · 9 테스터가 찾은 것', () => {
   });
 });
 
-describe('다음 지역 열기 (orders #66 — BALANCE.region.open 꺼짐 = 지금 그대로 · 개발 모드는 켬)', () => {
+describe('다음 지역 열기 (orders #66 · #70 — BALANCE.region.open 본편 켬 · 끄면 숲 하나 · 개발 모드는 늘 켬)', () => {
+  const region = BALANCE.region as { open: boolean };
+  const GAME_OPEN = region.open;
+  /** 꺼짐 (숲 하나) 동작을 볼 때만 잠깐 끔 */
+  const closed = <T>(f: () => T): T => {
+    region.open = false;
+    try {
+      return f();
+    } finally {
+      region.open = GAME_OPEN;
+    }
+  };
   const lobby = (o: Partial<Save> = {}, dev = false): GameState => {
     const s = createGameState(sampleSave({ location: { screen: 'gym' }, monsters: { m1: strong() }, party: ['m1'], stages: { 'forest-3': stageAt(1, { cleared: true }) }, ...o }), 11);
     return auto({ ...s, runtime: { ...s.runtime, stage: { phase: 'lobby' }, stageId: null, ...(dev ? { dev: devDefault() } : {}) } });
@@ -544,15 +555,22 @@ describe('다음 지역 열기 (orders #66 — BALANCE.region.open 꺼짐 = 지�
     return applyInput(s, { kind: 'badge-continue' });
   };
 
-  it('꺼짐 (본편) — 숲 관장을 이겨도 연 지역은 숲뿐 · 알림 없음 · 해변 1스테이지는 잠김 (배지만으로는 안 열림)', () => {
-    const s0 = lobby();
-    expect(BALANCE.region.open).toBe(false);
-    expect(regionsOn(s0)).toBe(false);
-    const s = win(s0);
-    expect(s.save.badges).toContain('forest');
-    expect(s.save.regions).toEqual({ order: ['forest'] });
-    expect(toasts(s).some((t) => String(t).startsWith('새 지역'))).toBe(false);
-    expect(applyInput(s, { kind: 'travel', to: 'beach-1' }).save.location).toEqual({ screen: 'gym' });
+  it('본편 = 켬 (해변 — orders #70) · 끄면 숲 관장을 이겨도 연 지역은 숲뿐 · 알림 없음 · 해변 1스테이지는 잠김 (배지만으로는 안 열림)', () => {
+    expect(GAME_OPEN).toBe(true);
+    expect(regionsOn(lobby())).toBe(true);
+    // 본편 (개발 모드 아님) 에서도 숲 관장 첫 승 → 해변
+    const opened = win(lobby());
+    expect(opened.save.regions).toEqual({ order: ['forest', 'beach'] });
+    expect(toasts(opened)).toContain('새 지역이 열렸어요 — 해변');
+    closed(() => {
+      const s0 = lobby();
+      expect(regionsOn(s0)).toBe(false);
+      const s = win(s0);
+      expect(s.save.badges).toContain('forest');
+      expect(s.save.regions).toEqual({ order: ['forest'] });
+      expect(toasts(s).some((t) => String(t).startsWith('새 지역'))).toBe(false);
+      expect(applyInput(s, { kind: 'travel', to: 'beach-1' }).save.location).toEqual({ screen: 'gym' });
+    });
   });
 
   it('켜짐 (개발 모드) — 숲 관장 첫 승 → 남은 곳이 해변 하나라 바로 열림 · 배지 카드 뒤 "새 지역이 열렸어요 — 해변" · 해변 1스테이지로 이동 · 다시 이겨도 그대로', () => {
@@ -588,8 +606,10 @@ describe('다음 지역 열기 (orders #66 — BALANCE.region.open 꺼짐 = 지�
     expect(picked.save.regions).toEqual({ order: ['forest', 'beach'] });
     expect(toasts(picked)).toContain('새 지역이 열렸어요 — 해변');
     expect(applyInput(s0, { kind: 'region-pick', region: 'forest' })).toBe(s0);
-    const off = lobby({ badges: ['forest'], regions: { order: ['forest'], next: ['beach'] } });
-    expect(applyInput(off, { kind: 'region-pick', region: 'beach' })).toBe(off);
+    closed(() => {
+      const off = lobby({ badges: ['forest'], regions: { order: ['forest'], next: ['beach'] } });
+      expect(applyInput(off, { kind: 'region-pick', region: 'beach' })).toBe(off);
+    });
     const fighting = applyInput(s0, { kind: 'challenge' });
     expect(applyInput(fighting, { kind: 'region-pick', region: 'beach' })).toBe(fighting);
     // 이미 연 지역은 또 안 더함 (연 지역 · 고를 곳이 겹친 개발 세이브 — 코드 리뷰어 #66)
@@ -604,7 +624,9 @@ describe('다음 지역 열기 (orders #66 — BALANCE.region.open 꺼짐 = 지�
     expect(toasts(s)).toContain('새 지역이 열렸어요 — 해변');
     // 다음 걸음엔 또 열지 않음 (해변 배지는 아직)
     expect(step(s, STEP).state.save.regions).toEqual({ order: ['forest', 'beach'] });
-    expect(step(lobby({ badges: ['forest'] }), STEP).state.save.regions).toEqual({ order: ['forest'] });
+    closed(() => expect(step(lobby({ badges: ['forest'] }), STEP).state.save.regions).toEqual({ order: ['forest'] }));
+    // 본편 (켬) 도 같게 — 숲을 깬 세이브는 다음 걸음에 해변 (7-6 A)
+    expect(step(lobby({ badges: ['forest'] }), STEP).state.save.regions).toEqual({ order: ['forest', 'beach'] });
     // 전투 중엔 기다림
     const fighting = applyInput(old, { kind: 'challenge' });
     expect(step(fighting, STEP).state.save.regions).toEqual({ order: ['forest'] });

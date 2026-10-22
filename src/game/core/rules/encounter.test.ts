@@ -103,9 +103,9 @@ describe('숲 포켓몬 (mvp-spec 3.2)', () => {
       if (rarePool.has(speciesOf(p.dex)?.evolvesFrom ?? -1) || rarePool.has(p.dex)) rare++;
       if (mixedPool.has(speciesOf(p.dex)?.evolvesFrom ?? -1) || mixedPool.has(p.dex)) mixed++;
     }
-    // 노말 · 비행 30% · 독 · 드래곤 · 페어리는 나머지의 10% (= 7%)
-    expect(mixed / N).toBeGreaterThan(0.26);
-    expect(mixed / N).toBeLessThan(0.34);
+    // 노말 · 비행 15% (30 → 15 — orders #73) · 독 · 드래곤 · 페어리는 나머지의 10% (= 8.5%)
+    expect(mixed / N).toBeGreaterThan(0.12);
+    expect(mixed / N).toBeLessThan(0.18);
     expect(strong / N).toBeGreaterThan(0.12);
     expect(strong / N).toBeLessThan(0.18);
     expect(rare / N).toBeGreaterThan(0.05);

@@ -23,7 +23,7 @@ import { isTipId, ITEM_IDS, REGION_IDS, RUN_SEEN_MAX, TIPS_MAX, type RegionId, t
 import { withJosa } from '../text';
 import { moveOf, speciesOf } from '../../data';
 import { applyBattleResult, battleDone, battleInput, battleStep, battleWaiting, firstAlive, startBattle, startTrainerBattle, switchable, type BattleInput, type BattleState } from './battle';
-import { addItem, battleRewards, clearStage, defeatPenalty, pickTreasure, resolveEvolve, resolveLearn, rivalWinRewards, stageClearExp, takeLaterChoices, useRareCandy, type BattleSummary } from './rewards';
+import { addItem, battleRewards, clearStage, defeatLoss, defeatPenalty, stageClearGain, pickTreasure, resolveEvolve, resolveLearn, rivalWinRewards, takeLaterChoices, useRareCandy, type BattleSummary } from './rewards';
 import { Rng } from './rng';
 // 개발 모드 (임시)
 import { devTeam, devWalk } from '../../dev/runtime';
@@ -189,9 +189,12 @@ function useTeam(save: Save, rt: RuntimeState, choice?: boolean): boolean {
   return teamOn(rt) && teamLockOf(save, rt) === null && (choice ?? teamMain(save));
 }
 
-/** 주 버튼 방식 — 마지막으로 고른 방식. 이번 판 3:3 에서 진 트레이너면 1:1 (자동 · 안 볼 때도 — 2026-10-21 기획 R8 A) */
+/**
+ * 주 버튼 방식 — 마지막으로 고른 방식 · 자동 전투면 3:3 이 기본 (할 수 있으면 — 잠기면 useTeam 이 1:1, orders #71 · #108 A).
+ * 이번 판 3:3 에서 진 트레이너면 1:1 (자동 · 안 볼 때도 — 2026-10-21 기획 R8 A)
+ */
 function teamMain(save: Save): boolean {
-  if (save.settings.teamMode !== true) return false;
+  if (save.settings.teamMode !== true && !save.settings.autoBattle) return false;
   const p = save.pendingEncounter;
   return !(p?.kind === 'trainer' && (save.stages[p.stageId]?.run.teamLost ?? []).includes(p.trainerId));
 }
@@ -218,6 +221,17 @@ function choiceFree(save: Save, rt: RuntimeState): boolean {
 /** 엔진이 고를 때까지 기다리는 만남인지 (자동 전투 · 안 볼 때는 아님) — 화면에 고르기를 그려도 되는지는 TeamChoice 의 teamChoiceOn (자동 전투도 포함) */
 export function teamChoiceMeet(state: GameState): boolean {
   return state.runtime.stage?.phase === 'trainer' && choiceMeet(state.save, state.runtime);
+}
+
+/**
+ * 자동 전투 3:3 처음 안내 (orders #71) — 자동 전투로 트레이너와 3:3 이 된 판 (만남 고르기 없이) 에서 한 번. 화면은 VS 가 끝난 3:3 판 첫 몇 초에 그림 (디자인 #71 —
+ * "승부다!" · VS 를 안 가리게) · 보는 동안만 셈 · 보면 tip-seen 'auto-team'
+ */
+export const AUTO_TEAM_TIP = 'auto-team';
+export function autoTeamTipDue(state: GameState): boolean {
+  const { save, runtime: rt } = state;
+  const st = rt.stage;
+  return st?.phase === 'team' && st.team.kind === 'trainer' && save.settings.autoBattle && !(save.tips ?? []).includes(AUTO_TEAM_TIP);
 }
 
 /** 3:3 처음 안내 — 3:3 을 처음 고를 수 있는 만남에서 "승부다!" 상자 위 4초 (보는 동안만 셈 — 화면이 다 보이면 tip-seen 'team-meet', 2026-10-22 태현 님 "추천안") */
@@ -702,7 +716,8 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
       }
       if (aliveCount(save) > 0) {
         // 그 트레이너에게만 짐 — 트레이너는 이긴 게 아니라 지나간 자리 (졌다 다시 걸을 때 · 다음 판에 또 나옴), 회복은 병원에서
-        const lost = Math.floor(save.money * BALANCE.defeatMoneyLoss);
+        // 1:1 패배와 같은 돈 (5.2 상한 — 코드 리뷰어 #70)
+        const lost = defeatLoss(save, false);
         save = { ...save, money: save.money - lost };
         // 이 트레이너는 이번 판에 다시 만나면 주 버튼 1:1 · 같은 판 패배로 셈 (R8 A)
         if (p?.kind === 'trainer') save = withStage(save, id, (s) => ({ ...s, run: { ...s.run, teamLost: [...(s.run.teamLost ?? []).filter((t) => t !== p.trainerId), p.trainerId] } }));
@@ -778,8 +793,8 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
 /** 스테이지 끝 — 볼 +1 · 보너스 경험치 · 깬 표시 → S24 클리어 카드 (고를 것이 있으면 먼저) · 1-3 은 S16 체육관 대기실로 */
 function finishStage(save0: Save, rt0: RuntimeState, id: StageId): { save: Save; rt: RuntimeState; signal: SaveSignal | null } {
   const rng = new Rng(rt0.rngState);
-  // 클리어 보너스 — 경험 부적 판이면 ×1.5 (한 줄 알림에도 같은 수)
-  const bonus = stageClearExp(save0, id);
+  // 클리어 보너스 — 경험 부적 판이면 ×1.5 · 방치면 줄어든 값 (선두가 받는 값 — 한 줄 알림에도 같은 수)
+  const bonus = stageClearGain(save0, id);
   const r = clearStage(save0, id, rng);
   // 쌓아 둔 새 기술 고르기를 한 번에 (클리어 카드 전, ideas #72)
   let save = takeLaterChoices(r.save);
@@ -1745,7 +1760,7 @@ function awayStart(save: Save, toastAtLeave?: string): AwayLog {
     const m = save.monsters[uid];
     if (m) levels[uid] = m.level;
   }
-  return { money: save.money, bag: { ...save.bag }, wild: 0, lost: 0, at: placeOf(save), levels, points: pointsOf(save), ...(toastAtLeave ? { toastAtLeave } : {}), ...(save.daily ? { dailyDone: dailyDone(save.daily) } : {}) };
+  return { money: save.money, bag: { ...save.bag }, wild: 0, lost: 0, at: placeOf(save), levels, points: pointsOf(save), regions: save.regions.order.length, ...(toastAtLeave ? { toastAtLeave } : {}), ...(save.daily ? { dailyDone: dailyDone(save.daily) } : {}) };
 }
 
 /** 지금 자리 — 스테이지와 진행 (0 ~ 1) · 체육관 */
@@ -1782,6 +1797,11 @@ export function awaySummary(log: AwayLog, save: Save): string[] {
   if (log.points !== undefined && pointsOf(save) > log.points) grow.push(`포인트${NB}+${pointsOf(save) - log.points}`);
   // 오늘의 목표 — 안 보는 동안 끝냈으면 한 줄 (gdd 4.13 R14 "오늘의 목표가 끝났으면 한 줄 더")
   if (save.daily && dailyDone(save.daily) > (log.dailyDone ?? 0)) grow.push(`오늘의${NB}목표${NB}${dailyDone(save.daily)}/${save.daily.goals.length}`);
+  // 안 보는 동안 연 지역 · 고를 곳 — "새 지역" 알림을 요약이 대신해 한 번도 안 보이던 것 (U6 — 코드 리뷰어 #70)
+  if (log.regions !== undefined) {
+    for (const r of save.regions.order.slice(log.regions)) grow.push(`새${NB}지역${NB}${REGIONS[r].name}`);
+    if (save.regions.next?.length && save.regions.order.length === log.regions) grow.push(`다음${NB}지역${NB}고르기`);
+  }
   const gain: string[] = [];
   if ((log.lost ?? 0) > 0) gain.push(`패배${NB}${log.lost}번`);
   // 물건은 두 가지까지 · 나머지는 "외 N가지" (7종이면 240 × 150 에서 4줄로 자라 메뉴 줄 밑으로 잘리던 것 — UX 리뷰어 R14, U4)

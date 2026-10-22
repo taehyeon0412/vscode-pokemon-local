@@ -74,5 +74,15 @@ export function wildMoves(dex: number, level: number, rng: Rng): ReadonlyMove[] 
   const n = Math.min(wildMoveCount(level), learned.length);
   const pick = new Set<number>();
   while (pick.size < n) pick.add(rng.int(0, learned.length - 1));
+  // 배울 수 있는 피해 기술이 있으면 하나는 꼭 (변화 기술만 뽑혀 "1 공격" 뿐이던 것 — 2-2 파라스 32%, orders #72 · #110 A) —
+  // 뽑힌 것 중 마지막 자리를 가장 늦게 배운 피해 기술로 (rng 를 더 안 써서 다른 값이 그대로)
+  const hurts = (m: ReadonlyMove) => m.class !== 'status' && m.power > 0;
+  if (n > 0 && ![...pick].some((i) => hurts(learned[i]!))) {
+    const last = learned.reduce((best, m, i) => (hurts(m) ? i : best), -1);
+    if (last >= 0) {
+      pick.delete(Math.max(...pick));
+      pick.add(last);
+    }
+  }
   return learned.filter((_, i) => pick.has(i));
 }

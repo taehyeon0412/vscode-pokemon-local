@@ -29,6 +29,8 @@ const STEP = TIMING.simStepMs;
 const IDLE_H = Number(process.env.SIM_IDLE ?? 0);
 // 6시간 넘으면 못 깬 것으로 (해변을 되풀이하면 (SIM_REGIONS) 지역마다 1.5시간 더 · 방치면 그 시간 더)
 const MAX_MS = Math.max(6, process.env.SIM_REGION === 'beach' ? 2 + 1.5 * (Math.max(2, Number(process.env.SIM_REGIONS ?? 2)) - 1) : 0, IDLE_H > 0 ? 3 + IDLE_H : 0) * 60 * 60 * 1000;
+/** SIM_MIXED=<0 ~ 1> — 숲 노말 · 비행 섞기 확률 (BALANCE.mixedTypeChance — 지금 0.3, orders #73 견주기) */
+if (process.env.SIM_MIXED) (BALANCE as { mixedTypeChance: number }).mixedTypeChance = Number(process.env.SIM_MIXED);
 /** SIM_DRAFT52=1 — 5.2 숫자 초안을 모두 켬 (방치 경험치 · 라이벌 마릿수 · 공짜 볼 · 질 때 잃는 돈 — orders #69) */
 if (process.env.SIM_DRAFT52 === '1') Object.assign(BALANCE.draft52 as { idleExp: boolean; rivalByRegion: boolean; freeBallTier: boolean; loseMoneyCap: boolean }, { idleExp: true, rivalByRegion: true, freeBallTier: true, loseMoneyCap: true });
 const args = process.argv.slice(2).filter((a) => a !== '--');
@@ -577,7 +579,7 @@ if (FOREST_REPORT) {
 
 // SIM_DUMP=<파일> — 판마다 스타팅 · 관장 도전 · 관장에서 진 수 · 진 수 합계 (스타팅 타입별로 묶어 보기 — orders #65)
 if (process.env.SIM_DUMP) {
-  const rows = results.map((r) => ({ starter: r.starter, seed: r.seed, done: r.done, gymTries: r.gymTries, gymDefeats: r.stages.gym.defeats, defeats: Object.values(r.stages).reduce((a, x) => a + x.defeats, 0), totalMs: r.totalMs }));
+  const rows = results.map((r) => ({ starter: r.starter, seed: r.seed, done: r.done, gymTries: r.gymTries, gymDefeats: r.stages.gym.defeats, defeats: Object.values(r.stages).reduce((a, x) => a + x.defeats, 0), stageDefeats: Object.fromEntries(Object.entries(r.stages).map(([w, x]) => [w, x.defeats])), totalMs: r.totalMs }));
   writeFileSync(process.env.SIM_DUMP, JSON.stringify(rows));
 }
 

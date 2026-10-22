@@ -303,6 +303,25 @@ export function useRareCandy(save: Save, uid: string, rng: Rng): Save | null {
   return { ...save, bag: { ...save.bag, 'rare-candy': have - 1 }, monsters: { ...save.monsters, [uid]: r.monster }, pendingChoices: [...save.pendingChoices, ...r.choices] };
 }
 
+/**
+ * 질 때 잃는 돈 — 10% (관장전 0) · 5.2 를 켜면 그 스테이지 위끝 × 50원 상한 (orders #69) — 1:1 패배 (defeatPenalty) 와 3:3 일부 패배 (play) 가 같이 씀 (코드 리뷰어 #70)
+ */
+export function defeatLoss(save: Save, gym: boolean): number {
+  const pct = gym ? 0 : Math.floor(save.money * BALANCE.defeatMoneyLoss);
+  const cap = BALANCE.draft52.loseMoneyCap && save.location.screen === 'stage' ? stageLevelBand(save.location.stageId)[1] * BALANCE.draft52.loseMoneyPerLevel : Infinity;
+  return Math.min(pct, cap);
+}
+
+/**
+ * 선두가 실제로 받는 클리어 보너스 — 방치 경험치 (5.2) 를 켜면 선두 레벨이 위끝보다 높을수록 줄어듦 (화면이 보여 주는 값이 받는 값과 같게 — 코드 리뷰어 #70).
+ * 클리어 뒤 (레벨이 오른 뒤) 에 부르면 오른 레벨로 셈 — 클리어 카드는 대개 같은 값
+ */
+export function stageClearGain(save: Save, id: StageId): number {
+  const base = stageClearExp(save, id);
+  const lead = save.monsters[save.party[0] ?? ''];
+  return BALANCE.draft52.idleExp && lead ? Math.max(1, Math.round(base * idleExpScale(lead.level, stageLevelBand(id)[1]))) : base;
+}
+
 /** 이번 판 클리어 보너스 (경험 부적 판이면 ×1.5) — 받는 값 · 알림 · 클리어 카드가 같이 씀 */
 export function stageClearExp(save: Save, id: StageId): number {
   return Math.round(clearBonusExp(id) * runExpScale(save, id));
@@ -334,9 +353,6 @@ export function clearStage(save0: Save, id: StageId, rng: Rng): { save: Save; le
 
 /** S17 — 지면: 돈 −10% (관장전은 안 잃음) · 팀 회복. 잡은 포켓몬 · 경험치는 그대로 (gdd 4.10) */
 export function defeatPenalty(save: Save, gym: boolean): { save: Save; lost: number } {
-  // 질 때 잃는 돈 초안 (5.2 — 10% 와 그 스테이지 위끝 × 50원 중 작은 쪽, orders #69)
-  const pct = gym ? 0 : Math.floor(save.money * BALANCE.defeatMoneyLoss);
-  const cap = BALANCE.draft52.loseMoneyCap && save.location.screen === 'stage' ? stageLevelBand(save.location.stageId)[1] * BALANCE.draft52.loseMoneyPerLevel : Infinity;
-  const lost = Math.min(pct, cap);
+  const lost = defeatLoss(save, gym);
   return { save: { ...healTeam(save), money: save.money - lost, pendingEncounter: null }, lost };
 }

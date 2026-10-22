@@ -4,7 +4,9 @@ import { BALANCE } from '../balance';
 import { expGain, idleExpScale } from '../rules/growth';
 import { freeBall, setRegionOrder } from '../rules/region';
 import { rivalTeamSize } from '../rules/rival';
-import { defeatPenalty } from './rewards';
+import { defeatLoss, defeatPenalty, stageClearExp, stageClearGain } from './rewards';
+import { awaySummary } from './play';
+import { readRuntime } from './state';
 
 type Draft = { -readonly [K in keyof typeof BALANCE.draft52]: (typeof BALANCE.draft52)[K] };
 const draft = BALANCE.draft52 as Draft;
@@ -69,5 +71,29 @@ describe('5.2 숫자 [임시값] (orders #69 — 태현 님 "추천대로 해줘
     expect(defeatPenalty(rich, false).lost).toBe(200);
     expect(defeatPenalty({ ...rich, money: 1000 }, false).lost).toBe(100);
     expect(defeatPenalty(rich, true).lost).toBe(0);
+  });
+});
+
+describe('#70 리뷰 고침 (코드 리뷰어 · 테스터)', () => {
+  it('질 때 잃는 돈 — 1:1 · 3:3 일부 패배가 같은 함수 (5.2 상한)', () => {
+    const rich = sampleSave({ money: 100_000, location: { screen: 'stage', stageId: 'beach-1' } });
+    expect(defeatLoss(rich, false)).toBe(900);
+    expect(defeatPenalty(rich, false).lost).toBe(defeatLoss(rich, false));
+  });
+
+  it('클리어 보너스 표시 = 선두가 받는 값 (방치면 줄어든 값)', () => {
+    const base = sampleSave();
+    const strong = { ...base, monsters: { ...base.monsters, m1: { ...base.monsters.m1!, level: 30 } } };
+    expect(stageClearGain(base, 'forest-1')).toBe(stageClearExp(base, 'forest-1'));
+    expect(stageClearGain(strong, 'forest-1')).toBe(Math.round(stageClearExp(strong, 'forest-1') * 0.1));
+  });
+
+  it('안 보는 동안 연 지역 — 그동안 요약에 한 줄 (U6) · 결과 상자 easy 칸이 넘기기에서 남음', () => {
+    const save = { ...sampleSave(), regions: { order: ['forest' as const, 'beach' as const] } };
+    const log = { money: save.money, bag: save.bag, wild: 0, regions: 1 };
+    expect(awaySummary(log, save).join(' ')).toContain('새 지역 해변');
+    const summary = { title: 't', exp: [{ uid: 'm1', name: 'a', gain: 1, from: 5, to: 5, easy: 0.25 }], money: 0, item: null, caught: null, learned: [], choices: 0, badge: null };
+    const rt = readRuntime(JSON.parse(JSON.stringify({ stage: { phase: 'result', summary, ms: 0 } })), 1);
+    expect(rt.stage?.phase === 'result' && rt.stage.summary.exp[0]?.easy).toBe(0.25);
   });
 });

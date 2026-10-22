@@ -4,7 +4,7 @@ import { fixedRng } from '../../../test/fixtures/rng';
 import { sampleMonster, sampleSave, viaJson } from '../../../test/fixtures/save';
 import { BALANCE, TIMING } from '../balance';
 import type { Monster, Save } from '../save';
-import { applyInput, defeatWaits, step, TEAM_MEET_TIP, teamChoiceMeet, teamFoesOf, teamLock, teamMainOf, teamMeetTipDue, teamPickOf } from './play';
+import { applyInput, AUTO_TEAM_TIP, autoTeamTipDue, defeatWaits, step, TEAM_MEET_TIP, teamChoiceMeet, teamFoesOf, teamLock, teamMainOf, teamMeetTipDue, teamPickOf } from './play';
 import { Rng } from './rng';
 import { createGameState, readRuntime, type GameState } from './state';
 import { shotTiming, applyTeamResult, isSpread, pickTeam, readTeam, startTeamBattle, TEAM_BASIC, teamClashSure, teamDone, teamInput, teamPick, teamPossible, teamScale, teamStep, teamAutoUltLeft, teamAutoUltNext, teamUltLevel, teamUltOpen, type TeamBattle, teamGather, teamLayout } from './team';
@@ -210,12 +210,13 @@ describe('연결 — 트레이너 만남 · 관장전 (BALANCE.team.on 이 켜�
   /** 지난번에 3:3 을 고름 */
   const remembered = (save: Save): Save => ({ ...save, settings: { ...save.settings, teamMode: true } });
 
-  it('꺼져 있으면 늘 1:1 · 켜면 마지막으로 고른 방식 (처음엔 자동 전투도 1:1) · 고르면 기억 · 3마리 미만이면 1:1', () => {
+  it('꺼져 있으면 늘 1:1 · 켜면 마지막으로 고른 방식 · 자동 전투면 3:3 이 기본 (orders #71) · 고르면 기억 · 3마리 미만이면 1:1', () => {
     try {
       setOn(false);
       expect(phaseAfter(meet(remembered(auto(team3()))))).toBe('battle');
       setOn(true);
-      expect(phaseAfter(meet(auto(team3())))).toBe('battle');
+      // 자동 전투면 3:3 이 기본 (할 수 있으면 — orders #71 · #108 A)
+      expect(phaseAfter(meet(auto(team3())))).toBe('team');
       expect(phaseAfter(meet(team3()))).toBe('battle');
       const chose = applyInput(meet(team3()), { kind: 'team-mode', on: true });
       expect(chose.save.settings.teamMode).toBe(true);
@@ -543,6 +544,23 @@ describe('#17 준비 — 배율 · 잠금 · 3마리 고르기 · 필살기 예�
     expect(teamLayout({ w: 860, h: 187 })).toBe('slant');
   });
 
+  it('자동 전투면 3:3 이 기본 (orders #71 · #108 A) — 싸울 수 있는 3마리 = 3:3 · 2마리 = 1:1 · 좁은 패널 = 1:1 · 처음 안내 (3:3 판에서 한 번)', () => {
+    const autoOn = (save: Save): Save => ({ ...save, settings: { ...save.settings, autoBattle: true } });
+    const wide = { w: 860, h: 187 };
+    const go = (s: GameState) => steps(s, TIMING.trainerMeetMs + STEP * 2).runtime.stage?.phase;
+    expect(go(meet(autoOn(five()), wide))).toBe('team');
+    const two = { ...five(), party: ['m1', 'm2'] };
+    expect(go(meet(autoOn(two), wide))).toBe('battle');
+    expect(go(meet(autoOn(five()), { w: 200, h: 187 }))).toBe('battle');
+    // 자동을 끄면 예전처럼 만남에서 고름 (기다림)
+    expect(teamChoiceMeet(meet(five(), wide))).toBe(true);
+    // 처음 안내 — 자동으로 3:3 이 된 판에서 · 보면 끝
+    const fight = steps(meet(autoOn(five()), wide), TIMING.trainerMeetMs + STEP * 2);
+    expect(autoTeamTipDue(fight)).toBe(true);
+    expect(autoTeamTipDue(applyInput(fight, { kind: 'tip-seen', id: AUTO_TEAM_TIP }))).toBe(false);
+    expect(autoTeamTipDue(steps(meet(autoOn(two), wide), TIMING.trainerMeetMs + STEP * 2))).toBe(false);
+  });
+
   it('모두에게 켜짐 (orders #59) — 게임 값 그대로 · 개발 모드 아님: 트레이너 만남에서 1:1 / 3:3 고르기 · 3:3 처음 안내가 뜸', () => {
     expect(BALANCE.team.on).toBe(true);
     const open = meet({ ...five(), settings: { ...five().settings, autoBattle: false } }, { w: 860, h: 187 });
@@ -641,12 +659,14 @@ describe('#17 준비 — 배율 · 잠금 · 3마리 고르기 · 필살기 예�
       const on = step(autoOn(at3, true), STEP).state;
       expect(vsAtOf(on)).toBe(at3.runtime.stage?.phase === 'trainer' ? at3.runtime.stage.ms : -1);
       expect(steps(on, TIMING.vsMs - STEP * 2).runtime.stage?.phase).toBe('trainer');
-      expect(steps(on, TIMING.vsMs + STEP).runtime.stage?.phase).toBe('battle');
+      // 자동 전투면 3:3 이 기본 (orders #71)
+      expect(steps(on, TIMING.vsMs + STEP).runtime.stage?.phase).toBe('team');
       // 자동 전투 (예전 길) VS 가 나오던 중 (3초) 에 끄면 그 VS 그대로 (vsAt = 2초) — 사라졌다 다시 나오지 않음
       const autoMeet = steps(meet({ ...five(), settings: { ...five().settings, autoBattle: true } }), 2200);
       expect(vsAtOf(autoMeet)).toBeUndefined();
       const off = step(autoOn(autoMeet, false), STEP).state;
       expect(vsAtOf(off)).toBe(TIMING.trainerMeetMs - TIMING.vsMs);
+      // VS 중에 자동을 끄면 손으로 고른 방식 (지난번 1:1) 으로 — 자동 3:3 기본은 자동이 켜져 있을 때만 (orders #71)
       expect(steps(off, 1000).runtime.stage?.phase).toBe('battle');
       // VS 뒤에는 1 ~ 5 로 셋을 못 바꿈
       const held = applyInput(meet(five()), { kind: 'team-mode', on: true });

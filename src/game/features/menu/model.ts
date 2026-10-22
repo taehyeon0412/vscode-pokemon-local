@@ -2,7 +2,7 @@
  * S07 지도 · S13 병원 · S14 상점 · S16 대기실 · S18 내 포켓몬 · S19 가방 · S21 프로필 · S24 클리어 — 화면을 모르는 부분: 무엇을 어떤 글로 보여 줄지.
  */
 import { BALANCE } from '../../core/balance';
-import { gymUnlocked, nextStageOf, regionGymUnlocked, regionsOn, stageClearExp, stageUnlocked, type GameState } from '../../core/engine';
+import { gymUnlocked, nextStageOf, regionGymUnlocked, regionsOn, stageClearGain, stageUnlocked, type GameState } from '../../core/engine';
 import { canBuyCandy, FIELD_ITEMS, fieldUseBlock, isEvolutionItem, maxHpOf, priceOf, sellPrice, SHOP_ITEMS, type ShopItem } from '../../core/rules/bag';
 import { itemName, VALUABLES } from '../../core/rules/items';
 import { isRegionLast, regionAceLevel, regionHere, regionOrder, REGIONS, type RegionDef } from '../../core/rules/region';
@@ -301,7 +301,8 @@ export function clearView(save: Save, id: StageId): { title: string; bonus: numb
   return {
     title: `${stageLabel(id)} 클리어!`,
     // 경험 부적 판이면 ×1.5 (받은 그대로 — 2026-10-21 ideas #70)
-    bonus: stageClearExp(save, id),
+    // 선두가 받는 값 (방치면 줄어든 값 — 코드 리뷰어 #70)
+    bonus: stageClearGain(save, id),
     balls: BALANCE.clearBalls,
     caught: run.caught,
     trainers: run.trainers,

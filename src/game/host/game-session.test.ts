@@ -1490,8 +1490,24 @@ describe('세이브 불러오기 — 테스터 #48 (빈 세이브 · 나간 뒤 
 });
 
 describe('세이브 불러오기 — 아직 안 열린 지역 (코드 리뷰어 #52)', () => {
-  it('해변 스테이지 · 위치 · 배지가 든 세이브는 받지 않음 (#30 전까지)', async () => {
+  it('해변이 열린 본편 (orders #70) 은 해변 세이브를 받음 · 다음 지역 열기를 끄면 해변 스테이지 · 위치 · 배지가 든 세이브는 받지 않음', async () => {
     await enterAndStart(sampleSave({ money: 1234 }));
+    const opened = { ...sampleSave({ money: 777 }), badges: ['forest'], regions: { order: ['forest', 'beach'] }, location: { screen: 'stage', stageId: 'beach-1' }, stages: { ...sampleSave().stages, 'beach-1': sampleSave().stages['forest-1'] } };
+    openFile = { name: 'beach.json', text: JSON.stringify(opened) };
+    session.handleMessage(msg({ type: 'save-import' }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(view.last('save-import-ask')?.error).toBeUndefined();
+    const region = BALANCE.region as { open: boolean };
+    const was = region.open;
+    region.open = false;
+    try {
+      await importLockedRegions();
+    } finally {
+      region.open = was;
+    }
+  });
+
+  async function importLockedRegions(): Promise<void> {
     const base = sampleSave({ money: 777 });
     for (const bad of [
       { ...base, location: { screen: 'stage', stageId: 'beach-1' }, stages: { ...base.stages, 'beach-1': base.stages['forest-1'] } },
@@ -1506,5 +1522,5 @@ describe('세이브 불러오기 — 아직 안 열린 지역 (코드 리뷰어 
       await vi.advanceTimersByTimeAsync(0);
       expect(view.last('save-import-ask')?.error).toContain('열리지 않은 지역');
     }
-  });
+  }
 });

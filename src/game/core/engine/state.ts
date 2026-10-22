@@ -140,6 +140,8 @@ export interface AwayLog {
   dailyDone?: number;
   /** 떠날 때 알림 뒤에 줄 서 있던 수 — 돌아와 그 알림을 남길 때 그만큼만 (떠난 뒤 줄 선 것은 요약이 대신) */
   thenAtLeave?: number;
+  /** 떠날 때 연 지역 수 — 안 보는 동안 연 지역을 요약에 한 줄 (U6 — orders #70) */
+  regions?: number;
 }
 
 export interface GameState {
@@ -166,7 +168,8 @@ function readSummary(raw: unknown): BattleSummary | null {
   const exp = raw.exp
     .slice(0, 6)
     .filter(isObj)
-    .map((e) => ({ uid: text(e.uid, 20) ?? '', name: text(e.name, 30) ?? '', gain: num(e.gain, 0, 1e9) ?? 0, from: num(e.from, 1, 100) ?? 1, to: num(e.to, 1, 100) ?? 1 }));
+    // easy = 방치 경험치 배율 (5.2 — 1 아래일 때만, 넘기기에서 버려지던 것 · 코드 리뷰어 #70)
+    .map((e) => ({ uid: text(e.uid, 20) ?? '', name: text(e.name, 30) ?? '', gain: num(e.gain, 0, 1e9) ?? 0, from: num(e.from, 1, 100) ?? 1, to: num(e.to, 1, 100) ?? 1, ...(num(e.easy, 0, 0.99) !== null ? { easy: e.easy as number } : {}) }));
   const learned = raw.learned
     .slice(0, 12)
     .filter(isObj)
@@ -348,6 +351,7 @@ function readAwayLog(v: unknown): AwayLog | null {
     ...(toastAtLeave !== null ? { toastAtLeave } : {}),
     ...(num(v.dailyDone, 0, 3) !== null ? { dailyDone: Math.floor(v.dailyDone as number) } : {}),
     ...(num(v.thenAtLeave, 0, 4) !== null ? { thenAtLeave: Math.floor(v.thenAtLeave as number) } : {}),
+    ...(num(v.regions, 1, 16) !== null ? { regions: Math.floor(v.regions as number) } : {}),
   };
 }
 

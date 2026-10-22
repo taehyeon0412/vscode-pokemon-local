@@ -13,6 +13,8 @@ export {
   openNextRegion,
   regionGymUnlocked,
   regionsOn,
+  AUTO_TEAM_TIP,
+  autoTeamTipDue,
   syncRegionOrder,
   inBattle,
   defeatWaits,
@@ -66,7 +68,7 @@ export {
   type BattleState,
   type Side,
 } from './battle';
-export { clearBonusExp, FOREST_BADGE, runExpScale, stageClearExp, type BattleSummary } from './rewards';
+export { clearBonusExp, FOREST_BADGE, runExpScale, stageClearExp, stageClearGain, type BattleSummary } from './rewards';
 export { readTeam, TEAM_BASIC, TEAM_LOG_MAX, teamClashSure, teamGather, teamLayout, teamScale, teamAutoUltLeft, teamAutoUltNext, teamUltLevel, teamUltOpen, teamViewKey, type TeamBattle, type TeamClash, type TeamInput, type TeamLogEntry, type TeamNote, type TeamPopup, type TeamShot, type TeamUlt } from './team';
 export {
   createGameState,

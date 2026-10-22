@@ -141,7 +141,7 @@ describe('해변 한 벌 (gdd 5.3 — orders #37, 개발 모드 미리 보기 ·
   });
 
   it('레벨표 값 한 곳 (BALANCE.region) — 게임 숫자 그대로 (#47 T3 표 · 해변 2번째, 시뮬만 바꿔 봄 — orders #38 · #59)', () => {
-    expect(BALANCE.region).toEqual({ aceBase: 15, aceStep: 6, aceJump2: 0, aceTable: [15, 23, 31, 39, 46, 52, 57, 62], beachOrder: 2, open: false });
+    expect(BALANCE.region).toEqual({ aceBase: 15, aceStep: 6, aceJump2: 0, aceTable: [15, 23, 31, 39, 46, 52, 57, 62], beachOrder: 2, open: true });
     expect([1, 2, 3, 8, 9].map(regionAceLevel)).toEqual([15, 23, 31, 62, 68]);
     expect(regionOrder('beach')).toBe(2);
   });
@@ -300,5 +300,26 @@ describe('지역 순서 = 세이브 연 순서 (orders #66 — 엔진이 걸음�
     }
     expect(regionOrder('beach')).toBe(BALANCE.region.beachOrder);
     expect(stageCode('beach-1')).toBe('2-1');
+  });
+});
+
+describe('기술 뽑기 — 배울 수 있는 피해 기술이 있으면 하나는 늘 (orders #72 · #110 A)', () => {
+  const hurts = (id: number) => (moveOf(id)?.power ?? 0) > 0 && moveOf(id)?.class !== 'status';
+  it('파라스 Lv 6 ~ 12 (할퀴기 하나 — 예전 32% 가 변화 기술만) · 숲 · 해변 목록 모두 · 개수 (2 ~ 4) 는 그대로', () => {
+    for (let lv = 6; lv <= 12; lv++) {
+      for (let s = 0; s < 300; s++) {
+        const moves = wildMoves(46, lv, new Rng(s));
+        expect(moves.some((m) => hurts(m.id)), `Lv ${lv} 시드 ${s}`).toBe(true);
+      }
+    }
+    for (const region of Object.values(REGIONS)) {
+      for (const st of region.stages) {
+        const [lo] = stageLevelBand(st.id);
+        const p = regionPool(st.id);
+        for (const d of [...p.common, ...p.mixed, ...p.rare]) for (let s = 0; s < 40; s++) expect(wildMoves(d, lo, new Rng(s)).some((m) => hurts(m.id)), `${st.id} ${speciesOf(d)?.name.ko}`).toBe(true);
+      }
+    }
+    // 변화 기술만 배우는 종 (단데기 Lv 7 — 단단해지기) 은 그대로 빈손 대신 변화 기술
+    expect(wildMoves(11, 7, new Rng(1)).every((m) => !hurts(m.id))).toBe(true);
   });
 });
