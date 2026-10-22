@@ -685,19 +685,50 @@ function ultDimLayer(alphaAt, sec, who = () => ultActive?.pokemon, update) {
         ctx.globalAlpha = Math.min(0.95, a);
         ctx.fillStyle = '#05080f';
         ctx.beginPath();
-        ctx.rect(0, 0, W, H);
-        for (const u of [].concat(who() || [])) {
-            if (u.el.style.visibility === 'hidden') {
-                continue;
+        const lit = [].concat(who() || []).filter((u) => u.el.style.visibility !== 'hidden');
+        if (typeof fxInGame === 'function' && fxInGame()) {
+            // 게임 모드 — 구멍을 픽셀 줄로 (줄 높이 = 그림 점 1칸 · 반지름 = 그림 반 + 2칸 정수) · 줄마다 구멍을 합쳐 그 사이만 어둡게
+            // (매끈한 원이 밝은 시합장에서 연두 원판 · 겹치면 렌즈로 보이던 것 — 아트 디렉터 #80 셋째 ③ · bugs #781)
+            const holes = lit.map((u) => {
+                const r = u.collision.getBoundingClientRect();
+                const px = Math.max(1, Math.round(r.width / (u._originalSpriteSize || 32)));
+                return { x: r.left + r.width / 2, y: r.top + r.height / 2, px, R: Math.round(Math.max(r.width, r.height) / 2 / px) + 2 };
+            });
+            const ph = holes.length ? Math.min(...holes.map((h) => h.px)) : 2;
+            for (let y0 = 0; y0 < H; y0 += ph) {
+                const segs = [];
+                for (const h of holes) {
+                    const dy = (y0 + ph / 2 - h.y) / h.px;
+                    if (Math.abs(dy) < h.R) {
+                        const hw = Math.round(Math.sqrt(h.R * h.R - dy * dy)) * h.px;
+                        segs.push([h.x - hw, h.x + hw]);
+                    }
+                }
+                segs.sort((p0, p1) => p0[0] - p1[0]);
+                let from = 0;
+                for (const [s0, s1] of segs) {
+                    if (s0 > from) {
+                        ctx.rect(from, y0, Math.round(s0 - from), ph);
+                    }
+                    from = Math.max(from, Math.round(s1));
+                }
+                if (from < W) {
+                    ctx.rect(from, y0, W - from, ph);
+                }
             }
-            const r = u.collision.getBoundingClientRect();
-            const R = typeof fxInGame === 'function' && fxInGame() ? Math.max(r.width, r.height) * 0.6 + 4 : Math.max(r.width, r.height) * 0.8 + 6;
-            const x = r.left + r.width / 2;
-            const y = r.top + r.height / 2;
-            ctx.moveTo(x + R, y);
-            ctx.arc(x, y, R, 0, Math.PI * 2);
+            ctx.fill();
+        } else {
+            ctx.rect(0, 0, W, H);
+            for (const u of lit) {
+                const r = u.collision.getBoundingClientRect();
+                const R = Math.max(r.width, r.height) * 0.8 + 6;
+                const x = r.left + r.width / 2;
+                const y = r.top + r.height / 2;
+                ctx.moveTo(x + R, y);
+                ctx.arc(x, y, R, 0, Math.PI * 2);
+            }
+            ctx.fill('evenodd');
         }
-        ctx.fill('evenodd');
         ctx.restore();
         ctx.globalCompositeOperation = 'source-over';
     } });

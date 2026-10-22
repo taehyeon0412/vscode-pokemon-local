@@ -274,6 +274,10 @@ function fxGameTargets() {
     if (!fxGame) {
         return undefined;
     }
+    // 합동 — 참가자 연출은 상대를 직접 안 침 (각자 맞음 · 도착 알갱이가 맞기 0.8 ~ 1초 전에 상대 위에서 튀던 것 — #80 UX U2). 맞음은 합동 마무리 하나
+    if (fxGame.joint) {
+        return [];
+    }
     return [fxGame.B].map((q) => {
         const r = q.collision.getBoundingClientRect();
         return { pokemon: q, x: r.left + r.width / 2, y: r.top + r.height / 2, bottom: r.bottom, w: r.width, h: r.height };
@@ -1526,18 +1530,21 @@ function fxSpiralRun(v, beamCols, spinCols) {
 }
 // 합친 줄기 (Y 자 — 아트 디렉터 #80 ② [제안]) — M 에서 상대까지 앞끝이 mAt → hitAt 에 감 · 반 굵기 = 빔 반 높이 × 1.3 칸 · 위 반 A 색 · 아래 반 B 색 ·
 // 흰 심 3칸 · 12칸마다 위아래가 바뀌는 꼬임 (50ms 마다 2칸 앞으로) · M 에 1칸 흰 고리 (반지름 6 → 10칸, 50ms 두 걸음) · 닿은 뒤 번쩍 80ms 뒤 150ms 3걸음 바둑판
-function fxMergeRun(M, T, ca, cb, p, half, mAt, hitAt) {
-    // 반 굵기 = 빔 반 높이 + 3칸 (패널 22% 로 키웠더니 평평한 노랑 · 하늘 깃발 네모가 되던 것 — 디자인 캡처) · 빔 문법 (흰 심 → 옅은 → 본색 → 짙은 테 · 들쭉날쭉 바깥 칸)
-    const H = Math.max(4, Math.round(half / p) + 3);
-    const len = Math.hypot(T.x - M.x, T.y - M.y);
-    const ux = (T.x - M.x) / Math.max(1, len);
-    const uy = (T.y - M.y) / Math.max(1, len);
+function fxMergeRun(M, B, ca, cb, p, half, mAt, hitAt) {
+    // 반 굵기 = 굵게 한 빔 (×1.5 — fxBeamThicken) 반 높이 + 3칸 (합치면 가늘어져 보이던 것 — 아트 디렉터 #80 셋째 ①) · 빔 문법 (흰 심 → 옅은 → 본색 → 짙은 테 · 들쭉날쭉 바깥 칸)
+    // (패널 22% 로 키웠던 것은 평평한 깃발 네모 — 디자인 캡처)
+    const H = Math.max(4, Math.round((half * 1.5) / p) + 3);
     const sec = Math.max(0.3, (hitAt - performance.now() + FX_JOINT_DISSOLVE_MS + 3 * FX_JOINT_STEP_MS) / 1000 + 0.1);
     sigParticle({ x: 0, y: 0, s: 1, max: sec, draw: (ctx) => {
         const t = performance.now();
         if (t < mAt) {
             return;
         }
+        // 앞끝 = 그때 상대 가운데 (처음 잰 자리에서 멈춰 상대 앞 약 45px 비던 것 — 셋째 ②)
+        const T = fxBody(B);
+        const len = Math.hypot(T.x - M.x, T.y - M.y);
+        const ux = (T.x - M.x) / Math.max(1, len);
+        const uy = (T.y - M.y) / Math.max(1, len);
         const k = Math.min(1, (t - mAt) / Math.max(1, hitAt - mAt));
         // Y 전체가 한 모양으로 같이 사라짐 — 팔 (줄기 보기) 과 같은 때 · 걸음 (맞음 +300 · 150ms — 합친 줄기만 먼저 지워져 팔이 잘린 채 떠 있던 것, 둘째 바퀴 ⑥)
         const step = t >= hitAt + FX_JOINT_DISSOLVE_MS ? 1 + Math.floor((t - hitAt - FX_JOINT_DISSOLVE_MS) / FX_JOINT_STEP_MS) : 0;
@@ -1560,11 +1567,14 @@ function fxMergeRun(M, T, ca, cb, p, half, mAt, hitAt) {
                     fxDot(c, bx - uy * j * p, by + ux * j * p, p, a <= 1 ? '#ffffff' : a <= H * 0.45 ? P[1] : a <= H * 0.8 ? P[2] : P[3]);
                 }
             }
-            // M 매듭 — 금 1칸 고리 (반지름 8칸) + 바깥 1칸 남색 · 합칠 때부터 내내 (흰 빔 위 흰 고리라 안 보이던 것 — 둘째 바퀴 ③)
-            for (let s = 0; s < 72; s++) {
-                const an = (s / 72) * Math.PI * 2;
-                fxDot(c, M.x + Math.cos(an) * 9 * p, M.y + Math.sin(an) * 9 * p, p, '#0c101e');
-                fxDot(c, M.x + Math.cos(an) * 8 * p, M.y + Math.sin(an) * 8 * p, p, '#ffd76a');
+            // M 매듭 — 꽉 찬 빛 (반지름 6칸: 흰 3칸 + 금 2칸 + 남색 1칸 테) · 합칠 때부터 내내 · 맨 나중에 (고리가 반만 보여 괄호 같던 것 — 셋째 ①)
+            for (let j = -6; j <= 6; j++) {
+                for (let i = -6; i <= 6; i++) {
+                    const d = Math.hypot(i, j);
+                    if (d <= 6.4) {
+                        fxDot(c, M.x + i * p, M.y + j * p, p, d <= 3.4 ? '#ffffff' : d <= 5.4 ? '#ffd76a' : '#0c101e');
+                    }
+                }
             }
         });
     } });
@@ -2223,7 +2233,7 @@ window.pokemonFx = {
                     // 기운 색 = 자기 둘레 대폭발 색 (캔버스에서 — 메가리자몽X 파란 불) · 쏘는 + 쏘는 은 둘째 줄기 색
                     const spin = FX_SPIN_COLS[partner.e[0]] ?? partner.cols;
                     if (yMerge) {
-                        fxMergeRun(M, bB, (arms[0] ?? v).cols ?? beam.cols, (arms[1] ?? v).cols ?? spin, v.p, v.half, mAt, v.hitAt);
+                        fxMergeRun(M, B, (arms[0] ?? v).cols ?? beam.cols, (arms[1] ?? v).cols ?? spin, v.p, v.half, mAt, v.hitAt);
                     } else {
                         fxSpiralRun(v, beam.cols, spin);
                     }

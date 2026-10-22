@@ -944,6 +944,15 @@ describe('같은 편 합동 필살기 — 합동 필살기 멘트 (2026-10-21 �
     const hp = joint.foe.map((f) => f.hp);
     const hit = run(joint, TIMING.team.jointHitMs + STEP, fixedRng(0.99));
     expect(hit.foe.filter((f, i) => f.hp < hp[i]!).length).toBe(1);
+    // 합동 피해 팝업에만 joint (화면 "합동!" 칩 — 뒤따른 보통 공격 피해엔 안 붙음, #80 UX) · 다시 읽기
+    // 팝업은 1.2초만 — 맞은 바로 뒤로 봄
+    const atHit = run(joint, TIMING.team.jointHitMs - joint.ult!.ms + 2 * STEP, fixedRng(0.99));
+    const jp = atHit.popups.filter((p) => p.joint);
+    expect(jp.length).toBeGreaterThan(0);
+    expect(jp.every((p) => p.side === 'foe' && p.slot === joint.ult!.target)).toBe(true);
+    expect(readTeam(viaJson(atHit))).toEqual(viaJson(atHit));
+    const later = run(atHit, 3000, fixedRng(0.5));
+    expect(later.popups.filter((p) => p.joint && p.id > Math.max(...atHit.popups.map((q) => q.id)))).toEqual([]);
     expect(hit.foe[joint.ult!.target!]!.hp).toBeLessThan(hp[joint.ult!.target!]!);
     // 안 누르면 따로 — 멘트가 끝난 뒤 혼자 (끼어들기 창은 멘트로 지났음)
     const solo = run(g, TIMING.team.gatherMs, fixedRng(0.99));

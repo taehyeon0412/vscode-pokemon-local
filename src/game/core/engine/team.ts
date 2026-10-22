@@ -80,7 +80,8 @@ export interface TeamUlt {
   allyAt?: { slot: number; at: number }[];
 }
 
-export type TeamPopup = BattlePopup & { slot: number };
+/** joint = 합동 필살기 피해 (화면 "합동! −숫자" 칩 — 시간 창으로 고르면 뒤따른 보통 공격 피해에도 붙던 것, #80 UX) */
+export type TeamPopup = BattlePopup & { slot: number; joint?: true };
 
 /**
  * 연출 다리 — 3:3 에서 일어난 일 (번호순, 마지막 TEAM_LOG_MAX 개). 화면 · 연출은 본 번호 뒤 것만 그림 (여러 걸음을 한 번에 그려도 안 놓침 · 다시 붙으면 옛것은 안 그림).
@@ -263,9 +264,11 @@ function note(b: TeamBattle, n: TeamNote): void {
   b.log = [...b.log.slice(-(TEAM_LOG_MAX - 1)), { ...n, id: b.logSeq, at: b.t }];
 }
 
-function popup(b: TeamBattle, side: Side, slot: number, text: string, kind: BattlePopup['kind']): void {
+/** 지금 합동 마무리 피해를 주는 중 (그 피해 팝업에 joint) */
+let jointDamage = false;
+function popup(b: TeamBattle, side: Side, slot: number, text: string, kind: BattlePopup['kind'], joint = false): void {
   b.popupSeq += 1;
-  b.popups = [...b.popups.slice(-11), { id: b.popupSeq, side, slot, text, ms: 0, kind }];
+  b.popups = [...b.popups.slice(-11), { id: b.popupSeq, side, slot, text, ms: 0, kind, ...(joint ? { joint: true as const } : {}) }];
 }
 
 /** 행동 게이지 빠르기 — 가장 느린 포켓몬 (살아 있는 6마리 중) 이 gaugeMs 에 한 번, 빠르면 스피드 비율대로 최대 2배 · 마비면 절반 */
@@ -375,7 +378,7 @@ function damage(b: TeamBattle, side: Side, from: number, to: number, power: numb
   d.hp = Math.max(0, d.hp - dmg);
   dmg = before - d.hp;
   const effect = r.crit ? 'crit' : r.effect > 1 ? 'super' : r.effect < 1 ? (r.effect === 0 ? 'immune' : 'weak') : 'damage';
-  popup(b, other(side), to, `-${dmg}`, effect);
+  popup(b, other(side), to, `-${dmg}`, effect, jointDamage);
   note(b, { t: 'hit', side, from, to, moveId: useUlt ? -1 : (move?.id ?? TEAM_BASIC), ult: useUlt, effect, dmg, ko: d.hp <= 0 });
   // 필살기 게이지 — 피해가 있을 때만 · 때린 쪽 (필살기 빼고) · 맞은 쪽 (필살기에 맞아도 참 — 1:1 과 같음)
   if (dmg > 0) {
@@ -939,10 +942,15 @@ function teamStepOnce(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamStepOp
       if (!u.hit && u.ms >= u.hitMs && u.joint) {
         u.hit = true;
         // 합동 마무리 — 이긴 참가자마다 자기 필살기를 진 참가자 모두에게 (합류한 위력을 다 더함 — gdd 4.7)
-        for (const w of u.joint.winners) {
-          if (!alive(b[u.side][w]!)) continue;
-          const scale = u.joint.spread && u.joint.losers.length > 1 ? BALANCE.team.spreadScale : 1;
-          for (const t of u.joint.losers) damage(b, u.side, w, t, BALANCE.ultPower, b[u.side][w]!.types[0] ?? null, rng, true, scale);
+        jointDamage = true;
+        try {
+          for (const w of u.joint.winners) {
+            if (!alive(b[u.side][w]!)) continue;
+            const scale = u.joint.spread && u.joint.losers.length > 1 ? BALANCE.team.spreadScale : 1;
+            for (const t of u.joint.losers) damage(b, u.side, w, t, BALANCE.ultPower, b[u.side][w]!.types[0] ?? null, rng, true, scale);
+          }
+        } finally {
+          jointDamage = false;
         }
       }
       if (!u.hit && u.ms >= u.hitMs) {
@@ -1117,7 +1125,7 @@ export function readTeam(raw: unknown): TeamBattle | null {
   if (!(u === null || (isObj(u) && okUlt(u)))) return null;
   if ((raw.phase === 'ult') !== (u !== null)) return null;
   if (!waits(raw.foeUltWait, n.foe) || !isObj(raw.ultReadyAt) || !waits(raw.ultReadyAt.me, n.me) || !waits(raw.ultReadyAt.foe, n.foe)) return null;
-  const okPopup = (p: unknown) => isObj(p) && fin(p.id, 0) && isSide(p.side) && slot(p.slot, p.side) && typeof p.text === 'string' && p.text.length <= 200 && fin(p.ms, 0) && POPUP_KINDS.includes(p.kind as string);
+  const okPopup = (p: unknown) => isObj(p) && fin(p.id, 0) && isSide(p.side) && slot(p.slot, p.side) && typeof p.text === 'string' && p.text.length <= 200 && fin(p.ms, 0) && POPUP_KINDS.includes(p.kind as string) && (p.joint === undefined || p.joint === true);
   if (!Array.isArray(raw.popups) || raw.popups.length > 12 || !raw.popups.every(okPopup)) return null;
   // 쓰러뜨린 상대 (보상 계산 — level 이 없으면 돈 · 경험치가 NaN → 세이브 검사에서 0 이 됨)
   if (!Array.isArray(raw.foeDown) || raw.foeDown.length > n.foe || !raw.foeDown.every((d) => isObj(d) && fin(d.species, 1, 2000) && fin(d.level, 1, 100))) return null;
