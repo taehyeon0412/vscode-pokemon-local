@@ -775,8 +775,6 @@ const FX_JOINT_KEEP_S = 0.45;
 const FX_JOINT_DISSOLVE_MS = 300;
 const FX_JOINT_STEP_MS = 150;
 const FX_JOINT_END_MS = 950;
-// 닿는 순간 번쩍 한 장면 — 줄기 바둑판은 그 뒤부터 (비는 칸에 번쩍 흰색이 바둑판 띠로 비치던 것 — 아트 디렉터 #80 ⑤)
-const FX_FLASH_MS = 80;
 // 합동 층 — 합동 번호 (컷인 · 빛줄 · 나선 · 합친 줄기 · 섞인 폭발 · 번쩍) 는 맨 위 (각자 맞은 그림 뒤에 묻히던 것 — 아트 디렉터 #80 ③) ·
 // 맞은 뒤 참가자 (자기 둘레) 는 따로 층에 그려 바둑판으로 지움 · 쏘는 쪽은 줄기 보기 캔버스를 같이 지움. { g, gen, gens, p, dissolveAt, top, part }
 let fxJointTop = null;
@@ -822,6 +820,19 @@ function fxLayerBlit(L) {
     moveCtx.imageSmoothingEnabled = false;
     moveCtx.drawImage(L.cv, 0, 0);
     moveCtx.restore();
+}
+// 맞는 순간 (합동 번쩍이 덮는 장면) — 자기 둘레 참가자 입자 · 발사기를 한 번에 뺌 (진짜 그림이 같은 장면에 돌아옴)
+function fxJointDrop(J) {
+    for (let i = moveParticles.length - 1; i >= 0; i--) {
+        if (J.selfGens.has(moveParticles[i]._g)) {
+            moveParticles.splice(i, 1);
+        }
+    }
+    for (let i = moveEmitters.length - 1; i >= 0; i--) {
+        if (J.selfGens.has(moveEmitters[i]._g)) {
+            moveEmitters.splice(i, 1);
+        }
+    }
 }
 // 맞은 뒤 히트스톱이 끝날 때 — 참가자 발사기를 끄고 입자 수명을 자르고 번호를 멈춤 (뒤 타이머 단계가 안 나오게)
 function fxJointCut(J) {
@@ -873,20 +884,11 @@ drawParticle = function (ctx, p) {
             }
             return;
         }
-        // 합동 층 — 합동 번호는 맨 위 층 · 맞은 뒤 참가자는 따로 층 (화면 판은 그 층에선 안 칠함)
-        if (J && ctx === moveCtx && !p._full) {
-            const L = p._g === J.gen ? J.top : J.dissolveAt && J.gens.has(p._g) ? J.part : null;
-            if (L?.ctx) {
-                L.drawn = true;
-                const was = fxViewDrawing;
-                fxViewDrawing = L === J.part;
-                try {
-                    fxDrawParticle0(L.ctx, p);
-                } finally {
-                    fxViewDrawing = was;
-                }
-                return;
-            }
+        // 합동 층 — 합동 번호는 맨 위 층
+        if (J && ctx === moveCtx && !p._full && p._g === J.gen && J.top.ctx) {
+            J.top.drawn = true;
+            fxDrawParticle0(J.top.ctx, p);
+            return;
         }
     }
     fxDrawParticle0(ctx, p);
@@ -905,6 +907,10 @@ const fxScreenFlash0 = screenFlash;
 screenFlash = function (...args) {
     // 합동 쏘는 쪽 번쩍은 아예 안 부름 (박자 0.34초를 먼저 써서 같은 순간의 진짜 번쩍이 버려지던 것 — 코드 리뷰어)
     if (fxNowGen !== undefined && fxNoFlashGens.has(fxNowGen)) {
+        return undefined;
+    }
+    // 합동 중엔 합동 번호의 번쩍만 — 참가자 연출이 장면 안에서 (번호 없이) 부른 번쩍이 맞기 1.2초 전에 패널 전체를 번쩍이던 것 (#80 다섯째 바퀴)
+    if (fxJointTop && fxNowGen !== fxJointTop.gen) {
         return undefined;
     }
     const n = moveParticles.length;
@@ -1181,9 +1187,11 @@ function fxStairBlit(v, now) {
     const H = travel ? Math.max(0, Math.min(window.innerHeight, Math.round(v.y0 + 13 * (v.p || 1)))) : window.innerHeight;
     moveCtx.save();
     moveCtx.imageSmoothingEnabled = false;
-    // 입 뒤 (밀리지 않음) 는 한 번에
+    // 입 뒤 (밀리지 않음) 는 한 번에 — 합동 맞은 뒤 바둑판이 시작하면 안 그림 (꼭두각시 자리 — 진짜 그림이 돌아옴)
     const xs = Math.max(0, Math.min(W, Math.floor(v.x0 / step) * step));
-    if (H <= 0) {
+    const J = fxJointTop;
+    const gone = !!J?.dissolveAt && now >= J.dissolveAt;
+    if (H <= 0 || gone) {
         // 다 숨김
     } else if (v.dir > 0 && xs > 0) {
         moveCtx.drawImage(v.cv, 0, 0, Math.round(xs * dpr), H * dpr, 0, 0, xs, H);
@@ -1195,7 +1203,17 @@ function fxStairBlit(v, now) {
             continue;
         }
         const dy = fxStairDy(v, x + step / 2);
-        if (H > 0) {
+        if (H > 0 && v.clip && v.mid) {
+            // Y 자 팔 — 두 입 가운데 → M 줄 위 (A) · 아래 (B) 만 (넓은 빔이 다른 팔을 덮어 깔때기로 읽히던 것 — 아트 디렉터 #80 둘째 바퀴 ③)
+            const m = v.mid;
+            const k = Math.max(0, Math.min(1, (x + step / 2 - m.x1) / (m.x2 - m.x1 || 1)));
+            const cut = Math.max(0, Math.min(H, Math.round(m.y1 + (m.y2 - m.y1) * k) - dy));
+            if (v.clip < 0 && cut > 0) {
+                moveCtx.drawImage(v.cv, x * dpr, 0, step * dpr, cut * dpr, x, dy, step, cut);
+            } else if (v.clip > 0 && cut < H) {
+                moveCtx.drawImage(v.cv, x * dpr, cut * dpr, step * dpr, (H - cut) * dpr, x, dy + cut, step, H - cut);
+            }
+        } else if (H > 0) {
             moveCtx.drawImage(v.cv, x * dpr, 0, step * dpr, H * dpr, x, dy, step, H);
         }
     }
@@ -1246,25 +1264,21 @@ moveTick = function (now) {
     const J = fxJointTop;
     if (J) {
         fxStairCanvas(J.top);
-        fxStairCanvas(J.part);
     }
     try {
         fxMoveTick0(now);
     } finally {
         fxPutBack(held, heldE);
     }
-    // 합동 맞은 뒤 — 참가자 층 · 쏘는 쪽 줄기 보기를 바둑판으로 지움 (+300 · +450 · +600)
+    // 합동 맞은 뒤 — 쏘는 쪽 줄기 보기를 바둑판으로 지움 (+300 · +450 · +600). 자기 둘레 참가자는 +300 에 한 번에 뺌 (fxJointDrop —
+    // 따로 층에 그려 통째로 바둑판을 덮었더니 그 연출의 큰 반투명 판 · 고리가 패널 전체 2px 그물이 되던 것, #80 다섯째 바퀴)
     if (J?.dissolveAt && now >= J.dissolveAt) {
         const step = Math.min(3, 1 + Math.floor((now - J.dissolveAt) / FX_JOINT_STEP_MS));
-        fxBayerErase(J.part, J.p, step);
         for (const [x, v] of fxBeamView) {
             if (J.gens.has(x)) {
                 fxBayerErase(v, J.p, step);
             }
         }
-    }
-    if (J) {
-        fxLayerBlit(J.part);
     }
     for (const v of fxBeamView.values()) {
         fxStairBlit(v, now);
@@ -1292,8 +1306,6 @@ function fxPutBack(held, heldE) {
 }
 // 8판 1차 (아트 디렉터) — 점 = 포켓몬 점 1칸 (p = 배율 px) · 빛줄기 · 불 · 불씨. 기운 줄기 (fxFlow) 만 2칸 (몸에서 나온 덩어리)
 const fxHashN = (i, k = 0) => (((i * 374761393) ^ (k * 668265263)) >>> 0) % 997;
-// 닿은 뒤 굵은 빔 · 나선이 3걸음에 흐려짐 (그동안 꽃 터짐이 시작)
-const FX_BEAM_FADE_MS = 150;
 // 블래스트번 (메가리자몽X) 파란 불 — 나선 · 기운 색 (디자인팀 정한 줄). 그 밖의 자기 둘레 필살기는 그 필살기 색 4단
 const FX_SPIN_COLS = { 블래스트번: ['#ffffff', '#c4ecff', '#5cb8f6', '#2466d0'] };
 // 바둑판 흐려짐 (디자인팀 8판 끝) — step 0 그대로 · 1 칸 절반 · 2 칸 4분의 1 · 3 없음. 따로 그린 캔버스에 2p × 2p 무늬를 destination-out 으로 덮어 지움
@@ -1352,17 +1364,17 @@ function fxDissolveDraw(ctx, p, step, draw) {
 // 빔이 나갈 때 8 → 7 → 6칸 (50ms 두 걸음) · 빔이 나가는 동안 6칸으로 남아 빔 뿌리를 덮음 · 흰 심 2칸 + [0] · [1] ·
 // 빛살 4개 (1칸 — 모으는 동안 200ms 마다 길이 3 ↔ 5칸, 빔이 나간 뒤 4칸으로 멈춤, 끝 칸 [1]) · 닿은 뒤 빔 · 나선과 같이 바둑판으로 흐려짐 (v = 그 빔 보기)
 function fxGrowOrb(M, cols, p, growSec, v) {
-    sigParticle({ x: 0, y: 0, s: 1, max: growSec + (FX_SPIRAL_RUN_MS + FX_FLASH_MS + FX_BEAM_FADE_MS) / 1000 + 0.2, draw: (ctx, q) => {
+    sigParticle({ x: 0, y: 0, s: 1, max: growSec + (FX_SPIRAL_RUN_MS + FX_JOINT_DISSOLVE_MS + 3 * FX_JOINT_STEP_MS) / 1000 + 0.2, draw: (ctx, q) => {
         const now = performance.now();
         const out = v && now >= v.bigAt;
-        if (v && now >= v.hitAt + FX_FLASH_MS + FX_BEAM_FADE_MS) {
+        if (v && now >= v.hitAt + FX_JOINT_DISSOLVE_MS + 3 * FX_JOINT_STEP_MS) {
             q.life = q.max;
             return;
         }
         const after = out ? now - v.bigAt : 0;
         const R = !out ? Math.min(8, 3 + Math.floor((q.life * 6) / Math.max(0.01, growSec))) : after < 50 ? 8 : after < 100 ? 7 : 6;
         const L = R + (out ? 4 : Math.floor((q.life * 1000) / 200) % 2 ? 5 : 3);
-        const step = v && now >= v.hitAt + FX_FLASH_MS ? 1 + Math.floor(((now - v.hitAt - FX_FLASH_MS) / FX_BEAM_FADE_MS) * 3) : 0;
+        const step = v && now >= v.hitAt + FX_JOINT_DISSOLVE_MS ? 1 + Math.floor((now - v.hitAt - FX_JOINT_DISSOLVE_MS) / FX_JOINT_STEP_MS) : 0;
         fxDissolveDraw(ctx, p, step, (c) => {
             for (let j = -R; j <= R; j++) {
                 for (let i = -R; i <= R; i++) {
@@ -1493,14 +1505,15 @@ function fxBeamSparks(ctx, v, from, front, cols, t) {
 }
 // 나선 그림 — 대폭발 크게부터 빔 앞끝까지 굵은 띠 + 기운 나선 (주 줄기 보기 v 를 따라 계단) · 닿은 뒤 150ms 3걸음에 흐려짐 (심을 [0] 로 채움)
 function fxSpiralRun(v, beamCols, spinCols) {
-    const sec = (FX_SPIRAL_RUN_MS + FX_FLASH_MS + FX_BEAM_FADE_MS) / 1000;
+    const sec = (FX_SPIRAL_RUN_MS + FX_JOINT_DISSOLVE_MS + 3 * FX_JOINT_STEP_MS) / 1000;
     sigParticle({ x: 0, y: 0, s: 1, max: sec, draw: (ctx, q) => {
         // 앞끝 — 입에서 상대 가슴까지 (늘 그 사이 — 타이머가 늦어도 끝없는 줄이 되지 않게)
         const t = performance.now();
         const k = Math.max(0, Math.min(1, (t - v.bigAt) / Math.max(1, v.hitAt - v.bigAt)));
         const front = v.x0 + (v.tx - v.x0) * k;
         const after = t >= v.hitAt;
-        const step = t >= v.hitAt + FX_FLASH_MS ? 1 + Math.floor(((t - v.hitAt - FX_FLASH_MS) / FX_BEAM_FADE_MS) * 3) : 0;
+        // 팔 · 합친 줄기와 같은 때 같은 걸음 (맞음 +300 · 150ms — 둘째 바퀴 ⑥)
+        const step = t >= v.hitAt + FX_JOINT_DISSOLVE_MS ? 1 + Math.floor((t - v.hitAt - FX_JOINT_DISSOLVE_MS) / FX_JOINT_STEP_MS) : 0;
         fxDissolveDraw(ctx, v.p, step, (c) => {
             c.globalAlpha = 1;
             fxBeamThicken(c, v, front, beamCols, q.life, true);
@@ -1514,18 +1527,20 @@ function fxSpiralRun(v, beamCols, spinCols) {
 // 합친 줄기 (Y 자 — 아트 디렉터 #80 ② [제안]) — M 에서 상대까지 앞끝이 mAt → hitAt 에 감 · 반 굵기 = 빔 반 높이 × 1.3 칸 · 위 반 A 색 · 아래 반 B 색 ·
 // 흰 심 3칸 · 12칸마다 위아래가 바뀌는 꼬임 (50ms 마다 2칸 앞으로) · M 에 1칸 흰 고리 (반지름 6 → 10칸, 50ms 두 걸음) · 닿은 뒤 번쩍 80ms 뒤 150ms 3걸음 바둑판
 function fxMergeRun(M, T, ca, cb, p, half, mAt, hitAt) {
-    const H = Math.max(3, Math.round((half / p) * 1.3));
+    // 반 굵기 = 빔 반 높이 + 3칸 (패널 22% 로 키웠더니 평평한 노랑 · 하늘 깃발 네모가 되던 것 — 디자인 캡처) · 빔 문법 (흰 심 → 옅은 → 본색 → 짙은 테 · 들쭉날쭉 바깥 칸)
+    const H = Math.max(4, Math.round(half / p) + 3);
     const len = Math.hypot(T.x - M.x, T.y - M.y);
     const ux = (T.x - M.x) / Math.max(1, len);
     const uy = (T.y - M.y) / Math.max(1, len);
-    const sec = Math.max(0.3, (hitAt - performance.now() + FX_FLASH_MS + FX_BEAM_FADE_MS) / 1000 + 0.1);
+    const sec = Math.max(0.3, (hitAt - performance.now() + FX_JOINT_DISSOLVE_MS + 3 * FX_JOINT_STEP_MS) / 1000 + 0.1);
     sigParticle({ x: 0, y: 0, s: 1, max: sec, draw: (ctx) => {
         const t = performance.now();
         if (t < mAt) {
             return;
         }
         const k = Math.min(1, (t - mAt) / Math.max(1, hitAt - mAt));
-        const step = t >= hitAt + FX_FLASH_MS ? 1 + Math.floor(((t - hitAt - FX_FLASH_MS) / FX_BEAM_FADE_MS) * 3) : 0;
+        // Y 전체가 한 모양으로 같이 사라짐 — 팔 (줄기 보기) 과 같은 때 · 걸음 (맞음 +300 · 150ms — 합친 줄기만 먼저 지워져 팔이 잘린 채 떠 있던 것, 둘째 바퀴 ⑥)
+        const step = t >= hitAt + FX_JOINT_DISSOLVE_MS ? 1 + Math.floor((t - hitAt - FX_JOINT_DISSOLVE_MS) / FX_JOINT_STEP_MS) : 0;
         fxDissolveDraw(ctx, p, step, (c) => {
             c.globalAlpha = 1;
             const n = Math.floor((len * k) / p);
@@ -1533,20 +1548,23 @@ function fxMergeRun(M, T, ca, cb, p, half, mAt, hitAt) {
             for (let i = 0; i <= n; i++) {
                 const bx = M.x + ux * i * p;
                 const by = M.y + uy * i * p;
-                const swap = Math.floor((i + ph) / 12) % 2 === 1;
+                // 꼰 밧줄 — 위 반 A · 아래 반 B, 두 색 경계가 24칸 주기로 ±2칸 비스듬히 (12칸마다 딱 바뀌어 블록 같던 것 — 둘째 바퀴 ③ [제안])
+                const edge = Math.round(2 * Math.sin(((i + ph) / 24) * Math.PI * 2));
                 for (let j = -H; j <= H; j++) {
                     const a = Math.abs(j);
-                    const P = j < 0 !== swap ? ca : cb;
-                    fxDot(c, bx - uy * j * p, by + ux * j * p, p, a <= 1 ? '#ffffff' : a >= H ? P[3] : a >= H - 1 ? P[2] : P[1]);
+                    // 바깥 한 칸은 들쭉날쭉 (열의 반)
+                    if (a === H && fxHashN(i + ph, j > 0 ? 5 : 6) % 2) {
+                        continue;
+                    }
+                    const P = j < edge ? ca : cb;
+                    fxDot(c, bx - uy * j * p, by + ux * j * p, p, a <= 1 ? '#ffffff' : a <= H * 0.45 ? P[1] : a <= H * 0.8 ? P[2] : P[3]);
                 }
             }
-            const age = t - mAt;
-            if (age < 100) {
-                const R = age < 50 ? 6 : 10;
-                for (let s = 0; s < 64; s++) {
-                    const an = (s / 64) * Math.PI * 2;
-                    fxDot(c, M.x + Math.cos(an) * R * p, M.y + Math.sin(an) * R * p, p, '#ffffff');
-                }
+            // M 매듭 — 금 1칸 고리 (반지름 8칸) + 바깥 1칸 남색 · 합칠 때부터 내내 (흰 빔 위 흰 고리라 안 보이던 것 — 둘째 바퀴 ③)
+            for (let s = 0; s < 72; s++) {
+                const an = (s / 72) * Math.PI * 2;
+                fxDot(c, M.x + Math.cos(an) * 9 * p, M.y + Math.sin(an) * 9 * p, p, '#0c101e');
+                fxDot(c, M.x + Math.cos(an) * 8 * p, M.y + Math.sin(an) * 8 * p, p, '#ffd76a');
             }
         });
     } });
@@ -1565,22 +1583,21 @@ function fxMixBurst8(x0, y0, ca, cb, p, n) {
     sigParticle({ x, y, s: 1, max: 1.2, draw: (ctx, q) => {
         const k = Math.min(5, Math.floor((q.life * 1000) / 200));
         const R = Math.round([5, 9, 13, 16, 18, 19][k] * n * 0.5);
-        const inner = R * 0.45;
+        // 걸음마다 안에서부터 얇아지며 흩어짐 (R 이 거의 안 변해 큰 도넛이 0.6초 멈춰 있던 것 — 아트 디렉터 #80 둘째 바퀴 ④) · 5걸음째는 바깥 테 + 혀 + 잎
+        const inner = R * [0.45, 0.45, 0.55, 0.7, 0.82, 0.92][k];
         ctx.globalAlpha = 1;
-        // 가로 타원 (가로 × 1.6 — 솔라빔 꽃 폭에 맞게, 아트 2차)
-        for (let j = -R; j <= R; j++) {
-            for (let i = -Math.ceil(R * 1.6); i <= Math.ceil(R * 1.6); i++) {
+        // 가로 타원 (가로 × 1.6 — 솔라빔 꽃 폭에 맞게, 아트 2차) · 색은 동심원 (바깥 띠 = ca · 안 띠 = cb — 45° 부채꼴로 번갈아 비치볼 · 구명 튜브 같던 것) ·
+        // 바깥 가장자리는 15° 칸마다 −2 ~ +2칸 들쭉날쭉 (규칙적인 부채꼴 · 끊긴 호 대신 — 골든 선 불길)
+        for (let j = -R - 2; j <= R + 2; j++) {
+            for (let i = -Math.ceil((R + 2) * 1.6); i <= Math.ceil((R + 2) * 1.6); i++) {
                 const d = Math.hypot(i / 1.6, j);
-                if (d > R || d < inner) {
-                    continue;
-                }
                 const ang = (Math.atan2(j, i) * 180) / Math.PI + 180;
-                if (k >= 3 && ang % 60 >= 40) {
+                const Rj = R + ((fxHashN(Math.floor(ang / 15), k) % 5) - 2);
+                if (d > Rj || d < inner) {
                     continue;
                 }
-                const P = Math.floor(ang / 45) % 2 ? cb : ca;
-                const rr = (d - inner) / (R - inner);
-                ctx.fillStyle = rr < 0.2 && k < 1 ? '#ffffff' : rr < 0.5 ? P[1] : rr < 0.85 ? P[2] : P[3];
+                const rr = (d - inner) / Math.max(1, Rj - inner);
+                ctx.fillStyle = rr < 0.2 && k < 1 ? '#ffffff' : rr < 0.55 ? (rr < 0.35 ? cb[1] : cb[2]) : rr < 0.7 ? ca[1] : rr < 0.85 ? ca[2] : ca[3];
                 ctx.fillRect(x + i * p, y + j * p, p, p);
             }
         }
@@ -1623,7 +1640,8 @@ function fxMixBurst8(x0, y0, ca, cb, p, n) {
             const rr = Math.round(R * 1.4 + k * 2);
             for (let a = 0; a < 72; a++) {
                 const deg = a * 5;
-                if (deg % 60 >= 40) {
+                // 끊긴 곳은 해시 (규칙적인 점선 고리가 로딩 표시처럼 읽히던 것 — 둘째 바퀴 ④)
+                if (fxHashN(a, k + 31) % 3 === 0) {
                     continue;
                 }
                 const an = (deg * Math.PI) / 180;
@@ -2001,6 +2019,8 @@ window.pokemonFx = {
             // 참가자마다 번호 — 멈춤 · 계단 · 번쩍 빼기를 따로, 멈출 때 다 같이
             const pg = ++fxGen;
             fxTagged.add(pg);
+            // 번쩍 · 화면 판은 합동 것 하나만 (참가자 모두 — 메가런처 본편 번쩍이 3장면 남던 것, 아트 디렉터 #80 둘째 바퀴 ⑦)
+            fxNoFlashGens.add(pg);
             const self = (!!tm && FX_JOINT_AREA.has(e[1])) || (!!tm?.self && tm.flash >= 0);
             // 박자표 번쩍이 쏘는 때가 아닌 필살기는 따로 적은 때로 (FX_JOINT_FIRE — 거북왕 하이드로캐논 · 메가런처)
             const fire = e[2]?.turtle ? (e[1] === 'ultbeam' ? FX_JOINT_FIRE.hydro : e[1] === 'ultorb' ? FX_JOINT_FIRE.launcher : null) : null;
@@ -2046,7 +2066,7 @@ window.pokemonFx = {
         fxGame = g;
         try {
         // 합동 층 (맨 위 · 맞은 뒤 참가자 층) — 칸 = 첫 참가자 점 1칸
-        const J = { g, gen, gens: new Set(parts.map((p) => p.gen)), p: Math.max(1, Math.round(fxBody(lead.A).w / (lead.A._originalSpriteSize || 32))), dissolveAt: 0, top: {}, part: {} };
+        const J = { g, gen, gens: new Set(parts.map((p) => p.gen)), selfGens: new Set(parts.filter((p) => p.self).map((p) => p.gen)), p: Math.max(1, Math.round(fxBody(lead.A).w / (lead.A._originalSpriteSize || 32))), dissolveAt: 0, top: {} };
         fxJointTop = J;
         // 기 모으기를 먼저 (ultActive 가 걸리면 기 모으기가 바로 끝남 — useUltimate 와 같은 순서, 코드 리뷰어)
         fxWithTimers(gen, () => parts.forEach((p) => ultChargeFor(p.A, charge)));
@@ -2074,17 +2094,21 @@ window.pokemonFx = {
                 return;
             }
             J.dissolveAt = performance.now() + FX_JOINT_DISSOLVE_MS;
+            // 자기 둘레 참가자 (돔 · 불기둥 · 덩굴) 는 맞는 순간 — 합동 번쩍이 덮는 장면 — 에 빼고 진짜 그림 (+300 에 한 장면에 빠져 "툭 꺼지던" 것 — 여섯째 바퀴)
+            parts.filter((p) => p.self).forEach((p) => p.A.fxReset());
+            fxJointDrop(J);
             parts.forEach((p) => fxFreeze(p.gen, FX_JOINT_STOP_MS));
             setTimeout(() => {
                 if (fxGame === g) {
                     fxJointCut(J);
                 }
             }, FX_JOINT_STOP_MS);
+            // 진짜 그림은 바둑판이 시작하는 장면에 한 번에 (꼭두각시가 바둑판 유령 · 두 겹으로 남던 것 — 아트 디렉터 #80 둘째 바퀴 ⑤) · 줄기 보기의 입 뒤도 그때부터 안 그림 (fxStairBlit)
             setTimeout(() => {
                 if (fxGame === g) {
-                    parts.forEach((p) => p.A.fxReset());
+                    parts.filter((p) => !p.self).forEach((p) => p.A.fxReset());
                 }
-            }, FX_JOINT_DISSOLVE_MS + FX_JOINT_STEP_MS);
+            }, FX_JOINT_DISSOLVE_MS);
         };
         fxWithTimers(gen, () => {
             // 기 모으기 (0.8초) → 컷인 한 번 → 머리 위 빛줄 0.3초 → 각자 필살기
@@ -2133,11 +2157,16 @@ window.pokemonFx = {
             if (spiral) {
                 // 쏘는 + 쏘는 = Y 자 (아트 디렉터 #80 ② [제안]) — 두 줄기가 합류점 M (두 입 가운데 → 상대 55%) 까지 각자 · M 너머는 합친 줄기 하나 (fxMergeRun).
                 // 나란히 따로 가다 상대 앞에서만 만나던 것 · 나선이 갈고리처럼 매달려 보이던 것 대신
-                const yMerge = shooters.length >= 2;
+                // 빔 (ultbeam) 둘 · 입 높이가 다를 때만 — 구슬 · 소용돌이 · 불길은 팔로 안 읽히고, 한 줄 (낮은 패널) 이면 가운데 줄로 나눈 팔이 사라짐 (#80 다섯째 바퀴) → 그 밖은 나선
+                const beamers = shooters.filter((p) => p.e[1] === 'ultbeam');
+                const geos2 = beamers.slice(0, 2).map((p) => ultGeometry(p.A, p.left));
+                const mouths2 = geos2.map((gm) => gm.mouth);
+                // 입 높이 차가 빔 굵기 (반 높이 5칸 × 2) 보다 커야 위 · 아래 팔이 나뉨 (480 에서 15px 차로 Y 가 되어 위 팔이 잘려 사라지던 것 — 여섯째 바퀴)
+                const yMerge = beamers.length >= 2 && Math.abs(mouths2[0].y - mouths2[1].y) >= 2 * 5 * Math.max(1, Math.round(geos2[0].s));
                 const bB = fxBody(B);
                 let M = null;
                 if (yMerge) {
-                    const ms = shooters.map((p) => ultGeometry(p.A, p.left).mouth);
+                    const ms = mouths2;
                     const mx = ms.reduce((a, m) => a + m.x, 0) / ms.length;
                     const my = ms.reduce((a, m) => a + m.y, 0) / ms.length;
                     M = { x: mx + (bB.x - mx) * 0.55, y: my + (bB.y - my) * 0.55 };
@@ -2163,11 +2192,21 @@ window.pokemonFx = {
                     v.front = yMerge
                         ? (t) => (t < v.bigAt ? Infinity * v.dir : t < mAt ? v.x0 + (v.tx - v.x0) * Math.min(1, (t - v.bigAt) / Math.max(1, mAt - v.bigAt)) : v.tx)
                         : (t) => (t < v.bigAt ? Infinity * v.dir : t < v.hitAt ? v.x0 + (v.tx - v.x0) * Math.min(1, (t - v.bigAt) / (v.hitAt - v.bigAt)) : v.tx + v.dir * 40);
+                    v.cols = p.cols;
                     fxBeamView.set(p.gen, v);
                     // 꽃 터짐 뒤 화면 전체 번쩍 장은 뺌 (흰 돔이 회색으로 깜빡이던 것) — 번쩍은 닿는 순간 한 번
                     fxNoFlashGens.add(p.gen);
                     return v;
                 });
+                // Y 자 — 위 입 쪽 팔은 가운데 줄 위 · 아래 입 쪽은 아래 · 합친 줄기 위 반 = 위 팔 색 (두 색이 들어와 하나가 됨)
+                const arms = yMerge ? views.filter((_, i) => shooters[i].e[1] === 'ultbeam').slice(0, 2).sort((a, b2) => a.y0 - b2.y0) : [];
+                if (arms.length === 2) {
+                    const mid = { x1: (arms[0].x0 + arms[1].x0) / 2, y1: (arms[0].y0 + arms[1].y0) / 2, x2: M.x, y2: M.y };
+                    arms[0].clip = -1;
+                    arms[1].clip = 1;
+                    arms[0].mid = mid;
+                    arms[1].mid = mid;
+                }
                 // 빔 끝 (꽃 터짐) 을 나선이 닿는 때로 — 큰 맞음 0.04초 전에서 멈춤
                 shooters.forEach((p) => {
                     if (p.hold > 0) {
@@ -2184,7 +2223,7 @@ window.pokemonFx = {
                     // 기운 색 = 자기 둘레 대폭발 색 (캔버스에서 — 메가리자몽X 파란 불) · 쏘는 + 쏘는 은 둘째 줄기 색
                     const spin = FX_SPIN_COLS[partner.e[0]] ?? partner.cols;
                     if (yMerge) {
-                        fxMergeRun(M, bB, beam.cols, spin, v.p, v.half, mAt, v.hitAt);
+                        fxMergeRun(M, bB, (arms[0] ?? v).cols ?? beam.cols, (arms[1] ?? v).cols ?? spin, v.p, v.half, mAt, v.hitAt);
                     } else {
                         fxSpiralRun(v, beam.cols, spin);
                     }
