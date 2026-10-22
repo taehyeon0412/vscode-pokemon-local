@@ -1079,6 +1079,9 @@ describe('3:3 박자 (orders #83 — 기본 0.8 · 전투 ×2) · 누를 창 (or
     expect(gameTempo(inTeam(info, true))).toBe(0.8);
     const dmg = { ...b0, popups: [{ id: 1, side: 'me' as const, slot: 0, text: '-12', ms: 0, kind: 'damage' as const }] };
     expect(gameTempo(inTeam(dmg, true))).toBeCloseTo(1.6, 10);
+    // 기술 힘겨루기 (run 안 1.5초) 도 기본 박자 (명세 검사관 — "힘겨루기는 기본 박자")
+    const clash = { ...b0, moveClashes: [{ kind: 'move' as const, me: [0], foe: [0], ms: 0, dur: TIMING.team.moveClashMs, taps: 0, winner: null, shots: [1, 2] }] } as unknown as TeamBattle;
+    expect(gameTempo(inTeam(clash, true))).toBe(0.8);
     const mine = teamInput({ ...b0, me: b0.me.map((f) => ({ ...f, ult: 1 })) }, { kind: 'ult', slot: 0 }, new Rng(3));
     expect(mine.phase).toBe('ult');
     expect(gameTempo(inTeam(mine, true))).toBe(0.8);
@@ -1128,7 +1131,7 @@ describe('3:3 박자 (orders #83 — 기본 0.8 · 전투 ×2) · 누를 창 (or
     expect(applyInput(on, { kind: 'battle-fast', on: true })).toBe(on);
     expect(applyInput(on, { kind: 'battle-fast', on: false }).save.settings.battleFast).toBe(false);
     const said = applyInput(s, { kind: 'battle-fast', on: true, say: true });
-    expect(said.runtime.toast?.text).toBe('3:3 전투 ×2 켜짐 (X)');
+    expect(said.runtime.toast?.text).toBe('3:3 전투 ×2 켜짐 (C)');
     const fighting = inTeam(b0);
     expect(applyInput(fighting, { kind: 'battle-fast', on: true }).save.settings.battleFast).toBe(true);
   });

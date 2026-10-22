@@ -55,7 +55,7 @@ export type GameInput =
   | { kind: 'auto-battle'; on: boolean; say?: boolean }
   /** 빨리 걷기 켜기 · 끄기 (S06 정보줄 · S20, 2026-10-19) */
   | { kind: 'fast-walk'; on: boolean }
-  /** 전투 ×2 켜기 · 끄기 — 3:3 보통 공격만 두 배 (화면 위 스위치 · 설정 · X — orders #83). say = 한 줄 알림 (키로 바꿀 때) */
+  /** 전투 ×2 켜기 · 끄기 — 3:3 보통 공격만 두 배 (화면 위 스위치 · 설정 · C — orders #83). say = 한 줄 알림 (키로 바꿀 때) */
   | { kind: 'battle-fast'; on: boolean; say?: boolean }
   /** 게임의 동작 줄이기 (설정 — 화면이 움직임을 줄임, OS 설정은 안 봄 · 2026-10-20 태현 님) */
   | { kind: 'reduce-motion'; on: boolean }
@@ -1464,7 +1464,7 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       if ((save.settings.battleFast === true) === input.on) return state;
       const next = { ...save, settings: { ...save.settings, battleFast: input.on } };
       // 1:1 · 걷기에서 눌러도 무엇이 바뀌는지 알게 "3:3" (코드 리뷰어 #83)
-      return input.say ? toast(state, next, input.on ? '3:3 전투 ×2 켜짐 (X)' : '3:3 전투 ×2 꺼짐 (X)') : { ...state, save: next };
+      return input.say ? toast(state, next, input.on ? '3:3 전투 ×2 켜짐 (C)' : '3:3 전투 ×2 꺼짐 (C)') : { ...state, save: next };
     }
     case 'reduce-motion':
       if ((save.settings.reduceMotion === true) === input.on) return state;

@@ -799,10 +799,10 @@ export function teamJoinOpen(b: TeamBattle): { gathering: boolean } | null {
 
 /**
  * 전투 ×2 를 걸어도 되는 때 (orders #83) — 보통 공격 (run) 중 알아챌 순간이 화면에 없을 때만 (U1 — ×2 로 1초 아래가 되던 것, 코드 리뷰어 #83):
- * 상대 필살기 예고 (다 참 · "곧!") · 내 필살기 다 참 말풍선 (찬 지 1초) · 쓰러짐 (1초) · 안내 팝업 (머릿수 등 info)
+ * 상대 필살기 예고 (다 참 · "곧!") · 내 필살기 다 참 말풍선 (찬 지 1초) · 쓰러짐 (1초) · 안내 팝업 (머릿수 등 info) · 기술 힘겨루기 (1.5초 — "힘겨루기는 기본 박자", 명세 검사관)
  */
 export function teamFastOk(b: TeamBattle): boolean {
-  if (b.phase !== 'run') return false;
+  if (b.phase !== 'run' || b.moveClashes.length > 0) return false;
   const keep = TIMING.team.fastKeepMs;
   if (b.foe.some((f) => teamUltLevel(f) === 'full')) return false;
   if (b.me.some((f, i) => teamUltLevel(f) === 'full' && b.t - (b.ultReadyAt.me[i] ?? -Infinity) < keep)) return false;

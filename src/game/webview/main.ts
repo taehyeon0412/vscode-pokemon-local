@@ -300,8 +300,8 @@ if (!port) {
         return;
       }
     }
-    // X = 전투 ×2 켜고 끄기 (orders #83 — 3:3 보통 공격만, 화면 위 스위치 · 설정과 같음, 판이 없을 때)
-    if (!overlay && e.code === 'KeyX' && !(e.ctrlKey || e.metaKey || e.altKey)) {
+    // C = 전투 ×2 켜고 끄기 (orders #83 — 3:3 보통 공격만, 화면 위 스위치 · 설정과 같음, 판이 없을 때 · X 는 각성 자리 [확정 2026-10-17] 라 C — 기획 답)
+    if (!overlay && e.code === 'KeyC' && !(e.ctrlKey || e.metaKey || e.altKey)) {
       const cur = session.current;
       if (cur && (cur.save.location.screen === 'stage' || cur.save.location.screen === 'gym')) {
         e.preventDefault();
