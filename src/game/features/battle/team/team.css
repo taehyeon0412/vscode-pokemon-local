@@ -17,6 +17,36 @@
   align-items: flex-end;
   justify-content: center;
 }
+/* 발밑 그림자 (#78 시합장 — TeamLayer shadowStyle) = k 칸 줄 3단: 위 · 아래 줄은 양쪽 2k 안으로 (::before + 같은 모양 단단한 그림자 2u 아래) · 가운데 줄 = 폭 전체 (::after).
+   흐림 없음 · 색은 배경마다 (game.css --pg-arena-shadow) · 시합장이 아니면 안 그림 */
+#pokemon-game .pg-team-shadow {
+  position: absolute;
+  display: none;
+  height: calc(var(--pg-sh-u) * 3);
+  pointer-events: none;
+}
+#pokemon-game .pg-team-shadow::before,
+#pokemon-game .pg-team-shadow::after {
+  content: "";
+  position: absolute;
+  height: var(--pg-sh-u);
+  background: var(--pg-arena-shadow);
+}
+#pokemon-game .pg-team-shadow::before {
+  top: 0;
+  left: var(--pg-sh-in);
+  right: var(--pg-sh-in);
+  box-shadow: 0 calc(var(--pg-sh-u) * 2) 0 var(--pg-arena-shadow);
+}
+#pokemon-game .pg-team-shadow::after {
+  top: var(--pg-sh-u);
+  left: 0;
+  right: 0;
+}
+/* 그림이 그림자 위 (그림자는 positioned 라 static 그림 위에 그려지던 것) */
+#pokemon-game .pg-team-mon .pg-team-body {
+  position: relative;
+}
 #pokemon-game .pg-team-mon .pg-team-body {
   display: block;
   line-height: 0;

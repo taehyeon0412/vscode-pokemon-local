@@ -7,6 +7,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from 'preact/hooks';
 import { TIMING } from '../../../core/balance';
 import { teamAutoUltLeft, teamAutoUltNext, type GameInput, type Side, type TeamBattle } from '../../../core/engine';
 import { formOf, speciesOf } from '../../../data';
+import { spriteBoxOf } from '../../../data/sprite-boxes';
 import { koSinkPx } from '../model';
 import { Sprite } from '../../../ui/Sprite';
 import type { FxActor } from '../fx/bridge';
@@ -24,6 +25,16 @@ function Bar({ v, kind }: { v: number; kind: 'hp' | 'ult' | 'ult-full' }) {
       <span class={`pg-team-fill ${tone}`} style={{ width: `${Math.round(pct * 100)}%` }} />
     </span>
   );
+}
+
+/** 발밑 그림자 자리 · 크기 — 그림 실제 폭 (sprite-boxes) × 0.6 을 2k 단위로 · 줄 높이 u = max(2, k) · 가운데 = 그림 발끝 (칸 아래 − 3k) */
+function shadowStyle(form: string, g: TeamGeo): Record<string, string> {
+  const k = g.scale;
+  const box = spriteBoxOf(form);
+  const vis = box ? (box[2] - box[0]) * k : g.sp;
+  const w = Math.max(k === 1 ? 12 : 20, Math.min(20 * k, Math.round((vis * 0.6) / (2 * k)) * 2 * k));
+  const u = Math.max(2, k);
+  return { left: `${Math.round((g.sp - w) / 2)}px`, top: `${g.sp - 3 * k - Math.round((3 * u) / 2)}px`, width: `${w}px`, '--pg-sh-u': `${u}px`, '--pg-sh-in': `${2 * k}px` };
 }
 
 function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, onUlt }: { b: TeamBattle; g: TeamGeo; side: Side; slot: number; media: string; topMin: number; final: boolean; autoNext: boolean; fullChip: boolean; onUlt(slot: number): void }) {
@@ -66,6 +77,8 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, o
         title={`${name} Lv${f.level}${mine && st !== 'down' ? ` — ${slot + 1} 필살기` : ''}`}
         onClick={click}
       >
+        {/* 발밑 그림자 (시합장 배경에서만 — game.css) = 칸 안 (달려가기 · 밀림 · 사라짐에 같이 움직임) · 그림 발끝 가운데 · 폭 = 그림 폭 × 0.6 (2k 단위 · ×1 12 ~ ×2 20 이상 · 20k 이하) · k 칸 줄 3단 (아트 디렉터 #78) */}
+        <span class="pg-team-shadow" style={shadowStyle(f.form, g)} />
         <span class="pg-team-body" style={st === 'down' && final ? { '--pg-back': mine ? '-1' : '1', '--pg-ko-y': `${koSinkPx(f.form, g.sp)}px` } : undefined}>
           <Sprite media={media} form={f.form} shiny={f.shiny} scale={g.scale} action="walk" faceLeft={!mine} />
         </span>

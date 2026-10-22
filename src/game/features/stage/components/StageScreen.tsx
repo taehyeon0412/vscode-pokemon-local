@@ -384,7 +384,12 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   }, []);
   return (
     // pg-bg-<배경> = 배경 시간에 맞춰 건물 빛을 맞춤 (밤 · 노을 해변 — 원작 낮 그림 건물이 가장 밝은 덩어리였던 것, game.css · orders #61 아트 디렉터)
-    <div class={`pg-screen pg-stage pg-size-${layout.size}${gym ? ' pg-gym' : ` pg-bg-${sceneBackground(state)}`}${covered ? ' pg-covered' : ''}`} ref={screen}>
+    // 시합장 (3:3 — pg-bg-arena-*) 은 위에 붙인 그림 · 낮은 패널은 위로 올림 (--pg-arena-y — 150 에서 맨 위 줄 발이 땅 시작에 걸리던 것, 아트 디렉터 #78: 150 −8 · 169 −4 · 187 위 0)
+    <div
+      class={`pg-screen pg-stage pg-size-${layout.size}${gym ? ' pg-gym' : ` pg-bg-${sceneBackground(state)}`}${covered ? ' pg-covered' : ''}`}
+      style={!gym && sceneBackground(state).startsWith('arena-') ? { '--pg-arena-y': `${Math.min(0, Math.round(((layout.heightPx - 187) * 8) / 37))}px` } : undefined}
+      ref={screen}
+    >
       {battle && geo?.menuInBar ? (
         <BattleMenuBar battle={battle} save={save} onInput={battleInput} withAuto={geo.autoInMenu} compact={geo.tiny ? 'tiny' : geo.compact} say={barSay(battle, geo.msgHidden, geo.widthPx - 48, 2)} hint={ringHint(battle, geo, save.settings.autoBattle)} pickRight={pickRightOf(geo)} autoTip={autoTip} />
       ) : (
@@ -451,7 +456,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         }}
       >
         {gym ? (
-          <GymRoom media={media} room={gymRoomOf(regionHere(save.location))} k={buildingDraw('hospital', layout.scale, heroRoom).k} floorPx={Math.max(ground + GYM_FLOOR_ABOVE_GROUND_PX, Math.round(bodyPx * GYM_FLOOR_SHARE))} dark={themeKind() === 'dark'} />
+          // 체육관 3:3 = 바닥 윗선을 3:3 무대 지평선 (무대 높이 22% — teamGeometry) 까지 올림 (위 두 줄이 벽 앞에 떠 보이던 것 — #78)
+          <GymRoom media={media} room={gymRoomOf(regionHere(save.location))} k={buildingDraw('hospital', layout.scale, heroRoom).k} floorPx={team ? Math.max(Math.round(bodyPx * GYM_FLOOR_SHARE), bodyPx - Math.round(bodyPx * 0.22)) : Math.max(ground + GYM_FLOOR_ABOVE_GROUND_PX, Math.round(bodyPx * GYM_FLOOR_SHARE))} dark={themeKind() === 'dark'} />
         ) : (
           <>
             <ScrollLayer cls="pg-bg" image={art('background')} start={offset * 0.35} pxPerSec={WALK_PX_PER_SEC * layout.scale * 0.35 * walkK} running={phase === 'walk' && live} />

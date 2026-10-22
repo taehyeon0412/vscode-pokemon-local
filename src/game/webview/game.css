@@ -455,6 +455,26 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 .pg-fg {
   opacity: 0.9;
 }
+/* 3:3 시합장 (#78 — 2026-10-22 태현 님 "추천대로": 숲 = A 풀밭 경기장 · 해변 = E 해변 시합장) — 그림은 위에 붙임 (지평선 = 무대 위 48 · 큰 패널 72 — 세 줄이 다 땅 위) ·
+   낮은 패널은 위로 올림 (StageScreen --pg-arena-y) · 발밑 그림자 색 (design-system 12장 시합장) */
+.pg-stage[class*="pg-bg-arena-"] .pg-bg {
+  background-position-y: var(--pg-arena-y, 0px);
+}
+#pokemon-game .pg-stage[class*="pg-bg-arena-"] .pg-team-shadow {
+  display: block;
+}
+.pg-stage.pg-bg-arena-forest {
+  --pg-arena-shadow: #1c2e30;
+}
+body.vscode-light .pg-stage.pg-bg-arena-forest {
+  --pg-arena-shadow: #4a7a50;
+}
+.pg-stage.pg-bg-arena-beach {
+  --pg-arena-shadow: #3e3628;
+}
+body.vscode-light .pg-stage.pg-bg-arena-beach {
+  --pg-arena-shadow: #beaa80;
+}
 
 /* 길 위의 것 하나 — 가운데가 x 에, 바닥이 땅에.
    자리는 게임 계산 (0.05초) 마다 몇 px 씩 옮겨져서 짧게 이어 줌 — 걷는 동안 끊겨 보이지 않게 (2026-10-19, 주인공 · 전투 자리는 따로) */
