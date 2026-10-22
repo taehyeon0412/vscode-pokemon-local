@@ -455,6 +455,18 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 .pg-fg {
   opacity: 0.9;
 }
+/* 배경이 바뀌는 순간 (3:3 시합장 ↔ 길 · 체육관 3:3 바닥 올림) = 남색 막 0.8 → 0 세 걸음 0.2초 (한 장면에 뚝 바뀌던 것 — UX 리뷰어 #78 U2) · 배경 위 · 사람 · 포켓몬 아래 */
+.pg-scene-fade {
+  position: absolute;
+  inset: 0;
+  background: var(--pg-sos-bar);
+  pointer-events: none;
+  animation: pg-scene-fade 0.2s steps(3, end) forwards;
+}
+@keyframes pg-scene-fade {
+  from { opacity: 0.8; }
+  to { opacity: 0; }
+}
 /* 3:3 시합장 (#78 — 2026-10-22 태현 님 "추천대로": 숲 = A 풀밭 경기장 · 해변 = E 해변 시합장) — 그림은 위에 붙임 (지평선 = 무대 위 48 · 큰 패널 72 — 세 줄이 다 땅 위) ·
    낮은 패널은 위로 올림 (StageScreen --pg-arena-y) · 발밑 그림자 색 (design-system 12장 시합장) */
 .pg-stage[class*="pg-bg-arena-"] .pg-bg {
@@ -4932,11 +4944,7 @@ body.vscode-high-contrast-light .pg-title-body {
   background: var(--pg-sos-hi);
   color: var(--pg-sos-ink);
 }
-/* 전투 ×2 켜짐인데 지금 기본 박자 (필살기 · 끼어들기) = 금 테두리는 그대로 (켜짐) · 칠 · 글만 흐리게 (#83 UX) */
-.pg-infobar .pg-button.pg-battle-fast.pg-on.pg-held {
-  background: transparent;
-  color: var(--pg-sos-dim);
-}
+/* 빠르게 켜짐인데 지금 기본 박자 (누르는 창 · 알아챌 순간) = ▶▶ 만 금 → 흰색 (StageScreen — 글 · 칠을 흐리면 "못 누름" 모양이라 꺼진 줄 알던 것, UX 리뷰어) */
 .pg-infobar .pg-button.pg-auto-walk:hover:not(:disabled),
 .pg-infobar .pg-button.pg-battle-fast:hover:not(:disabled) {
   border-color: var(--pg-sos-line-soft);

@@ -265,6 +265,13 @@
   line-height: 16px;
   z-index: 10;
 }
+/* 한 줄 판 (상대 컷인 이름이 떠 있을 때 · 낮은 패널 — TeamLayer bigRow) = 제목 · 키 · 머릿수를 한 줄에 (높이 38) · 막대는 그대로 아래 */
+#pokemon-game .pg-team-prompt.pg-team-prompt-big.pg-team-big-row {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 10px 8px;
+}
 #pokemon-game .pg-team-big-title {
   font-size: 15px;
   line-height: 18px;
@@ -536,6 +543,9 @@
 }
 /* 대기실 — 도전을 누르면 대기실 상자 대신 같은 자리 (위 가운데 — 아래에 두면 대기실 버튼 줄을 덮던 것, 개발팀 92c4e03 흐름) */
 /* 3:3 마지막 한 방 = 벌러덩 90° (1:1 과 같은 game.css pg-ko · 2026-10-21 태현 님 B) — 날아감은 연출 다리 knock 이 해서 0 · 회색 · 사라짐 (pg-team-gone) 대신 pg-ko 안의 세 걸음 흐려짐 */
+#pokemon-game .pg-team-ko .pg-team-shadow {
+  animation: pg-team-gone 0.3s steps(3, end) 1.82s forwards;
+}
 #pokemon-game .pg-team-ko .pg-team-body {
   --pg-ko-dx: 0px;
   animation: pg-ko 2.3s linear both;

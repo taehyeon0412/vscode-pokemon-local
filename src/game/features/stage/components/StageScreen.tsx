@@ -42,7 +42,7 @@ import { mapView, menuLabels, type Overlay, unspentPoints } from '../../menu/mod
 import { ChoiceBox } from '../../result/components/ChoiceBox';
 import { ResultBox } from '../../result/components/ResultBox';
 import { CAUGHT_INTRO_H, CAUGHT_INTRO_W, caughtView, choiceView, levelUps, needsStatHint } from '../../result/model';
-import { battleStage, buildingDraw, BUILDINGS, contactX, foeTrainerView, gymEnterView, holdRivalLook, gymFrontX, gymRestX, heroX, minimapOf, sceneBackground, staffLeftPx, type StageObject, stagePx, STAGES, visibleObjects, meetVsAt, vsStartMs, WALK_PX_PER_SEC } from '../model';
+import { battleStage, buildingDraw, BUILDINGS, TEAM_ARENA, contactX, foeTrainerView, gymEnterView, holdRivalLook, gymFrontX, gymRestX, heroX, minimapOf, sceneBackground, staffLeftPx, type StageObject, stagePx, STAGES, visibleObjects, meetVsAt, vsStartMs, WALK_PX_PER_SEC } from '../model';
 import { BadgeCard, ClearCard, DefeatBox, FacilityBox, HoldBox, LobbyBox, TrainerBanner, VsCutIn, type VsArt } from './FieldBoxes';
 import { GymFront } from './GymFront';
 import { StageToast } from './StageToast';
@@ -290,6 +290,24 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   // 3:3 판이면 시합장 (태현 님 #78 — sceneBackground, 그림이 들어오기 전엔 길 배경)
   //   시합장 + 폭 400 아래 (3:3 포켓몬 ×1 — teamGeometry) = ×1 그림 (-x1) — 포켓몬 1px 점 옆에 울타리 · 풀이 2px 점이던 것 (아트 디렉터 #78 큼 2)
   const arenaX1 = sceneBackground(state).startsWith('arena-') && widthPx < 400;
+  // 배경이 바뀐 횟수 (시합장 ↔ 길 · 체육관 3:3 바닥) — 바뀔 때마다 남색 막 3걸음 (pg-scene-fade, 처음 그릴 땐 없음)
+  const sceneKey = gym ? `gym-${teamOn}` : sceneBackground(state);
+  const sceneSeen = useRef<string | null>(null);
+  const sceneSwaps = useRef(0);
+  if (sceneSeen.current !== null && sceneSeen.current !== sceneKey) sceneSwaps.current += 1;
+  sceneSeen.current = sceneKey;
+  // 작음 5 — 이 지역 시합장 그림을 미리 받아 둠 (처음 3:3 판에서 그림이 오기 전 빈 남색이 2장면 보이던 것 — UX 리뷰어)
+  const arenaHere = TEAM_ARENA[regionHere(save.location).id];
+  const preload = useRef<HTMLImageElement[]>([]);
+  useEffect(() => {
+    if (!media || !arenaHere) return;
+    const size = widthPx < 400 ? 'x1' : layout.size;
+    preload.current = (['background', 'foreground'] as const).map((layer) => {
+      const img = new Image();
+      img.src = `${media}/backgrounds/${arenaHere}/${layer}-${themeKind()}-${size}.png`;
+      return img;
+    });
+  }, [media, arenaHere, layout.size, widthPx < 400]);
   const art = (layer: 'background' | 'foreground') => (media && !gym ? `url("${media}/backgrounds/${sceneBackground(state)}/${layer}-${themeKind()}-${arenaX1 ? 'x1' : layout.size}.png")` : 'none');
   // 체육관: 주인공은 무대 왼쪽 (대기실) · 관장은 무대 오른쪽 끝
   const heroStand = geo ? geo.trainerX : gym ? stage.left + Math.round(stage.width * 0.18) : hero;
@@ -418,7 +436,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
                   onClick={() => onInput({ kind: 'battle-fast', on: save.settings.battleFast !== true })}
                   title={fastHeld ? '빠르게 켜짐 (C) — 지금은 누르는 창 · 알아챌 순간이라 기본 박자' : `${save.settings.battleFast ? '켜짐' : '꺼짐'} · 빠르게 (C) — 3:3 을 약 1.5배로: 보통 공격 · 상대 필살기 연출 (컷인 1초 뒤부터) 을 빨리 · 알아챌 순간 1초 · 누르는 창은 그대로`}
                 >
-                  {menuLabels(widthPx, mapRow) === 'full' && <span class="pg-menu-key">C</span>}
+                  {/* 키 칸 C = 글자 메뉴 다 보일 때 · 이름이 빠졌을 때 (□ ▶▶ 만이면 걷기 줄 빨리 걷기와 같은 그림이라 헷갈리던 것 — UX 리뷰어) */}
+                  {(menuLabels(widthPx, mapRow) === 'full' || fastShort) && <span class="pg-menu-key">C</span>}
                   {/* "✓ 빠르게 ▶▶" — ▶▶ = 빨리 걷기와 같은 그림 (지금 빠름 = 금 ▶▶) · 정보줄이 넘치면 "✓ ▶▶" (이름 · 키는 title — 재서, 맥 여유 10%) */}
                   <span class="pg-menu-text">
                     {save.settings.battleFast ? '✓ ' : '□ '}
@@ -466,6 +485,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
             <ScrollLayer key={`fg-${sceneBackground(state)}`} cls="pg-fg" image={art('foreground')} start={sceneBackground(state).startsWith('arena-') ? 0 : offset * 0.7} pxPerSec={WALK_PX_PER_SEC * layout.scale * 0.7 * walkK} running={phase === 'walk' && live} />
           </>
         )}
+        {/* 배경이 바뀌는 순간 남색 막 (시합장 ↔ 길 · 체육관 3:3 바닥) */}
+        {sceneSwaps.current > 0 && <div key={`fade-${sceneSwaps.current}`} class="pg-scene-fade" />}
         {/* ② 지도 줄 — 정보줄 아래 길게 (가운데 720px 칸, 정보줄 볼 · 메뉴와 같은 양 끝) */}
         {mapRow && (
           <div class="pg-maprow">

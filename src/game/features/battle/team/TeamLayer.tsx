@@ -208,6 +208,11 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   // 쓰러짐 말을 피해 내린 판의 위 (판이 떠 있는 동안만 기억)
   const bigLow = useRef<number | null>(null);
   if (prompt?.kind !== 'join' && prompt?.kind !== 'gather') bigLow.current = null;
+  // 상대 컷인 이름 (ult/core — 약 1.9초) 이 떠 있을 때 뜬 끼어들기 판 · 낮은 패널 (200 아래) = 한 줄 판 (판이 떠 있는 동안 그대로) — 무대 아래 끝으로 보내도 150 에서 이름 아래 절반을 0.55초 가리던 것 (UX 리뷰어 #78 큼)
+  const bigRowRef = useRef<boolean | null>(null);
+  if (prompt?.kind !== 'join') bigRowRef.current = null;
+  else if (bigRowRef.current === null) bigRowRef.current = heightPx < 200 && b.phase === 'ult' && b.ult?.side === 'foe' && b.ult.ms < ULT_TITLE_MS;
+  const bigRow = bigRowRef.current === true;
   useLayoutEffect(() => {
     const el = bigBox.current;
     const host = root.current;
@@ -274,7 +279,7 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
       {/* 끼어들기 · 합동 = 무대 한가운데 큰 판 (태현 님 #81 "화면 가운데에 크게 띄우고 2초 넘게 확실히" — 아래 · 위 가운데 작은 한 줄이 빨리 지나가 몰랐던 것) ·
           금 제목 · 큰 키 칸 · 아래 4px 남은 막대 · 누를 틈은 엔진 (합동 약 2.5초 · 끼어들기 약 2.2초) · 자리는 재서 정수 px (반 픽셀이면 2px 금 테두리가 흐림) */}
       {prompt?.kind === 'join' && (
-        <div class="pg-team-prompt pg-team-prompt-join pg-team-prompt-big" ref={bigBox}>
+        <div class={`pg-team-prompt pg-team-prompt-join pg-team-prompt-big${bigRow ? ' pg-team-big-row' : ''}`} ref={bigBox}>
           <b class="pg-team-big-title">
             {/* 상대가 합동으로 모이는 중 = 빨강 "상대 합동!" (내 편 멘트와 같은 말이던 것 — 기획 #24-4) */}
             {prompt.foeJoint && <span class="pg-team-foe-joint">{widthPx < 400 ? '상대 합동 · ' : '상대 합동! · '}</span>}
