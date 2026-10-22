@@ -460,6 +460,7 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 .pg-stage[class*="pg-bg-arena-"] .pg-bg {
   background-position-y: var(--pg-arena-y, 0px);
 }
+#pokemon-game .pg-stage.pg-gym .pg-team-shadow,
 #pokemon-game .pg-stage[class*="pg-bg-arena-"] .pg-team-shadow {
   display: block;
 }
@@ -470,10 +471,36 @@ body.vscode-light .pg-stage.pg-bg-arena-forest {
   --pg-arena-shadow: #4a7a50;
 }
 .pg-stage.pg-bg-arena-beach {
-  --pg-arena-shadow: #3e3628;
+  --pg-arena-shadow: #66605a;
 }
 body.vscode-light .pg-stage.pg-bg-arena-beach {
-  --pg-arena-shadow: #beaa80;
+  --pg-arena-shadow: #b0a48c;
+}
+/* 체육관 방 3:3 (#78 아트 디렉터 작음 4 — 관장전만 떠 보이던 것) — 숲 방 · 물 방 · 불 방 */
+.pg-stage.pg-gym {
+  --pg-arena-shadow: #103230;
+}
+body.vscode-light .pg-stage.pg-gym {
+  --pg-arena-shadow: #288c76;
+}
+.pg-stage.pg-gym:has(.pg-room-gym-water) {
+  --pg-arena-shadow: #202f3b;
+}
+body.vscode-light .pg-stage.pg-gym:has(.pg-room-gym-water) {
+  --pg-arena-shadow: #5b8298;
+}
+.pg-stage.pg-gym:has(.pg-room-gym-fire) {
+  --pg-arena-shadow: #291c1d;
+}
+body.vscode-light .pg-stage.pg-gym:has(.pg-room-gym-fire) {
+  --pg-arena-shadow: #5c3a32;
+}
+/* 화산 (지역이 생기면 — arena-volcano) */
+.pg-stage.pg-bg-arena-volcano {
+  --pg-arena-shadow: #2a2028;
+}
+body.vscode-light .pg-stage.pg-bg-arena-volcano {
+  --pg-arena-shadow: #5a4c54;
 }
 
 /* 길 위의 것 하나 — 가운데가 x 에, 바닥이 땅에.

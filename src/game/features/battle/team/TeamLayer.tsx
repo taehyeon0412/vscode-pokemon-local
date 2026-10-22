@@ -27,13 +27,13 @@ function Bar({ v, kind }: { v: number; kind: 'hp' | 'ult' | 'ult-full' }) {
   );
 }
 
-/** 발밑 그림자 자리 · 크기 — 그림 실제 폭 (sprite-boxes) × 0.6 을 2k 단위로 · 줄 높이 u = max(2, k) · 가운데 = 그림 발끝 (칸 아래 − 3k) */
+/** 발밑 그림자 자리 · 크기 — 그림 실제 폭 (sprite-boxes) × 0.6 을 2k 단위로 · 줄 높이 u = k (그림 점 하나) · 가운데 = 그림 발끝 (칸 아래 − 3k) */
 function shadowStyle(form: string, g: TeamGeo): Record<string, string> {
   const k = g.scale;
   const box = spriteBoxOf(form);
   const vis = box ? (box[2] - box[0]) * k : g.sp;
   const w = Math.max(k === 1 ? 12 : 20, Math.min(20 * k, Math.round((vis * 0.6) / (2 * k)) * 2 * k));
-  const u = Math.max(2, k);
+  const u = k;
   return { left: `${Math.round((g.sp - w) / 2)}px`, top: `${g.sp - 3 * k - Math.round((3 * u) / 2)}px`, width: `${w}px`, '--pg-sh-u': `${u}px`, '--pg-sh-in': `${2 * k}px` };
 }
 
