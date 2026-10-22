@@ -25,7 +25,7 @@ import { KeyCap } from '../../../ui/KeyCap';
 import { formatMoney } from '../../../ui/format';
 import { Sprite } from '../../../ui/Sprite';
 import { useFit } from '../../../ui/useFit';
-import { clearView, ITEM_ICON, lobbyView, mapView } from '../../menu/model';
+import { clearView, lobbyView, mapView } from '../../menu/model';
 import { STAGES, VS_MS } from '../model';
 
 export interface BoxProps {
@@ -474,14 +474,8 @@ export function BadgeCard({ state, onInput, onMap }: BoxProps & { onMap(): void 
           <span class="pg-long">{region.name} 클리어! </span>
           <span class="pg-badge-tail">{tail}</span>
         </span>
-        <span class="pg-line pg-badge-row">
-          <span class="pg-reward">
-            <Icon name="coin" /> +{formatMoney(regionGymMoney(regionOrder(region.id)))}
-          </span>
-          <span class="pg-reward" title={`${itemName(item)} — 가방에서 써요 (진화의 돌)`}>
-            <Icon name={ITEM_ICON[item]} />
-            <span class="pg-badge-item-name"> {itemName(item)}</span>
-          </span>
+        {/* 돈 · 첫 승 물건은 바로 앞 결과 상자가 보여 줌 — 카드에서 또 보여 두 번 받은 것처럼 읽히던 것 (#70 개발 UX) · 받은 것은 title 에 */}
+        <span class="pg-line pg-badge-row" title={`받은 것: ${formatMoney(regionGymMoney(regionOrder(region.id)))} · ${itemName(item)}`}>
           {/* 360 아래 = 뒷말 대신 지도 탭과 같은 표 "[해변 그림] 해변 NEW" (카드 · 알림 · 탭이 같은 표로 이어짐) */}
           {opened && (
             <span class="pg-reward pg-badge-newtag" title={`새 지역 ${opened.name}`}>

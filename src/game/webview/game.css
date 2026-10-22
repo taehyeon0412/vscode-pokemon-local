@@ -5509,10 +5509,6 @@ body.vscode-high-contrast-light .pg-title-body {
   .pg-badge-newtag {
     display: inline-flex;
   }
-  /* NEW 표가 있으면 첫 승 물건은 그림만 (이름은 title) — 240 에서 카드가 네 줄이 되어 주인공 머리 · 관장을 덮던 것 (#67 UX 리뷰어) */
-  .pg-badge-row:has(.pg-badge-newtag) .pg-badge-item-name {
-    display: none;
-  }
 }
 /* 이름 ↔ 배지 그림 2px (첫 그림은 내 위치 점 칸에 감싸여 .pg-icon + .pg-icon 이 안 맞던 것 — 픽셀 검사원) */
 .pg-region-tabs .pg-button > .pg-icon {
@@ -6245,6 +6241,33 @@ body.vscode-high-contrast-light .pg-hpblock > .pg-hprow,
   :is(.pg-result.pg-lvup, .pg-result.pg-result-caught) .pg-result-alt-b {
     animation: pg-alt-b 5s steps(1, end) both;
   }
+}
+/* 넘치면 한 단계 (ResultBox useResultFit — 첫 줄 얻은 것이 맥 여유 1.1 로 안 들어가면) = 위 번갈아 줄과 같은 모양 · 폭 경계를 손으로 고르지 않음 (경계 460 고정이라 관장 첫 승 상자가 461 ~ 579 에서 "+300…" 으로 잘리던 것 — #70 개발 UX 큼) */
+.pg-result.pg-result-tight .pg-line:first-child > .pg-reward,
+.pg-result.pg-result-tight:has(.pg-result-alt) .pg-result-body {
+  display: none;
+}
+.pg-result.pg-result-tight .pg-result-alt {
+  display: grid;
+  font-size: 12px;
+  color: var(--pg-sos-dim);
+}
+.pg-result.pg-result-tight .pg-result-alt > span {
+  grid-area: 1 / 1;
+  min-width: 0;
+  white-space: normal;
+  word-break: keep-all;
+}
+.pg-result.pg-result-tight .pg-result-alt-a {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 8px;
+}
+.pg-result.pg-result-tight .pg-result-alt:not(.pg-result-alt-solo) > .pg-result-alt-a {
+  animation: pg-alt-a 5s steps(1, end) both;
+}
+.pg-result.pg-result-tight .pg-result-alt-b {
+  animation: pg-alt-b 5s steps(1, end) both;
 }
 /* 아주 좁은 패널 — 제목에서 "야생 " 을 뺌 · 레벨업 얼굴 카드는 한 장만 (240 에서 제목 자리가 40px 라 "쓰러뜨렸다!" 가 버튼 밑으로 들어가던 것) */
 @media (max-width: 300px) {

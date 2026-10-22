@@ -5,6 +5,7 @@
  * ④ 레벨업 = 왼쪽 얼굴 카드 (누르면 · P = 내 포켓몬 판에서 그 포켓몬 스탯 찍기) + 스탯을 찍어 본 적이 없으면 안내 말풍선 (2026-10-20 태현 님 B + 말풍선)
  * 잡았으면 결과 상자 전에 가운데 소개 카드 1.5초 (2026-10-20 태현 님 안 2)
  */
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
 import type { BattleSummary, GameInput } from '../../../core/engine';
 import { Button } from '../../../ui/Button';
@@ -116,8 +117,37 @@ function FaceCards({ ups, media, hint, onStats }: { ups: LevelUpView[]; media: s
   );
 }
 
+/**
+ * 넘치면 한 단계 (ux-rules U4 — 폭 경계를 손으로 고르지 않음): 첫 줄 얻은 것 (돈 · 물건 칩) 이 맥 여유 1.1 로 안 들어가면 번갈아 줄 (pg-result-tight) 로.
+ * 칩이 더 필요한 폭 (원래 폭 × 1.1 − 지금 폭) 을 제목이 줄 수 있는 만큼 (지금 폭 − 최소 폭) 과 견줌 — 경계 460 고정이라 관장 첫 승 상자가 461 ~ 579 에서 "+300…" · "리프…" 로 잘리던 것 (#70 개발 UX 큼)
+ */
+function useResultFit(): { box: { current: HTMLDivElement | null }; on: boolean } {
+  const box = useRef<HTMLDivElement>(null);
+  const [on, setOn] = useState(false);
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (on || !el) return;
+    const line = el.querySelector<HTMLElement>('.pg-line');
+    const title = line?.querySelector<HTMLElement>('.pg-result-title');
+    if (!line || !title) return;
+    let need = 0;
+    line.querySelectorAll<HTMLElement>(':scope > .pg-reward').forEach((c) => {
+      if (c.offsetWidth > 0) need += c.scrollWidth * 1.1 - c.clientWidth;
+    });
+    const slack = title.getBoundingClientRect().width - (parseFloat(getComputedStyle(title).minWidth) || 0);
+    if (need > Math.max(0, slack) + 0.5) setOn(true);
+  });
+  useEffect(() => {
+    const reset = () => setOn(false);
+    window.addEventListener('resize', reset);
+    return () => window.removeEventListener('resize', reset);
+  }, []);
+  return { box, on };
+}
+
 /** next = 이어서 고를 것 (맨 앞) — 버튼에 다음 할 일 · ups = 레벨업한 포켓몬 (result/model levelUps) · onStats = 내 포켓몬 판 (그 포켓몬) */
 export function ResultBox({ summary, next, ups, hint = false, caught = null, ms = 0, introAt = { left: 0, top: 0 }, media, onInput, onStats }: { summary: BattleSummary; next: 'learn' | 'evolve' | null; ups: LevelUpView[]; /** 얼굴 카드 안내 말풍선 (needsStatHint) */ hint?: boolean; /** 잡은 포켓몬 — 처음 caughtIntroMs 동안 소개 카드만 */ caught?: CaughtView | null; /** 결과 단계 지난 ms */ ms?: number; /** 소개 카드 자리 (길 칸 기준 정수 px) */ introAt?: { left: number; top: number; width?: number }; media: string; onInput(i: GameInput): void; onStats(uid: string): void }) {
+  const tight = useResultFit();
   if (caught && ms < TIMING.caughtIntroMs) return <CaughtIntro c={caught} media={media} at={introAt} onSkip={() => onInput({ kind: 'result-continue' })} />;
   const { title, head, body } = summaryLines(summary);
   // 찍을 포인트가 있는 카드를 앞으로 — 아주 좁은 패널 (260px 아래) 은 카드 한 장만 보여서, 포인트 카드 · 말풍선이 숨지 않게 (2026-10-21)
@@ -175,13 +205,13 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
   );
   if (ups.length === 0) {
     return (
-      <div class={`pg-banner pg-result pg-two${summary.caught ? ' pg-result-caught' : ''}`} title={all}>
+      <div ref={tight.box} class={`pg-banner pg-result pg-two${summary.caught ? ' pg-result-caught' : ''}${tight.on ? ' pg-result-tight' : ''}`} title={all}>
         {lines}
       </div>
     );
   }
   return (
-    <div class="pg-banner pg-result pg-two pg-lvup" title={all}>
+    <div ref={tight.box} class={`pg-banner pg-result pg-two pg-lvup${tight.on ? ' pg-result-tight' : ''}`} title={all}>
       <span class="pg-lvup-cards">
         <FaceCards ups={cards} media={media} hint={hint} onStats={onStats} />
       </span>
