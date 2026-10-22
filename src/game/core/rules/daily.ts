@@ -6,9 +6,10 @@
  */
 import { Rng } from '../engine/rng';
 import type { TypeName } from '../../data';
-import type { Daily, DailyGoal, DailyKind, ItemId } from '../save';
+import type { Daily, DailyGoal, DailyKind, ItemId, Save } from '../save';
 import { typeNameKo } from '../text';
-import { REGIONS } from './region';
+import { REGIONS, type RegionDef } from './region';
+import { trainerCount } from './stage';
 
 /** 내 PC 날짜 "2026-10-22" (자정에 바뀜) — 웹뷰 · 확장이 걸음마다 runtime.today 로 넣음 (엔진은 시계를 모름) */
 export function dayKey(d: Date): string {
@@ -41,12 +42,20 @@ function seedOf(day: string): number {
   return h >>> 0;
 }
 
-/** 그날의 목표 셋 (같은 날이면 늘 같음 — 날짜 시드) · types = 타입 목표를 고를 지역 타입 (그 지역 — 없으면 숲) */
-export function dailyFor(day: string, types: readonly TypeName[] = FOREST_TYPES): Daily {
+/** 그 지역에 아직 안 이긴 트레이너 수 (이긴 트레이너는 다시 안 나옴 — 라이벌 · 관장은 안 셈) */
+export function trainersLeft(save: Pick<Save, 'stages'>, region: RegionDef): number {
+  return region.stages.reduce((n, st) => n + Math.max(0, trainerCount(st.id) - (save.stages[st.id]?.defeatedTrainers.length ?? 0)), 0);
+}
+
+/**
+ * 그날의 목표 셋 (같은 날이면 늘 같음 — 날짜 시드) · types = 타입 목표를 고를 지역 타입 (그 지역 — 없으면 숲) ·
+ * trainers = 그 지역에 남은 트레이너 수 — 목표 수보다 적으면 트레이너 목표는 안 냄 (다 이긴 사람이 못 채우던 것 — orders #62)
+ */
+export function dailyFor(day: string, types: readonly TypeName[] = FOREST_TYPES, trainers = Infinity): Daily {
   const rng = new Rng(seedOf(day));
   const pick = <T>(list: readonly T[]): T => list[rng.int(0, list.length - 1)]!;
   const reward = (): Pick<DailyGoal, 'reward' | 'rewardN'> => (rng.chance(0.5) ? { reward: 'poke-ball', rewardN: 2 } : { reward: pick(COMMON_SELL), rewardN: 1 });
-  const a = pick(PASSIVE);
+  const a = pick(PASSIVE.filter((g) => g.kind !== 'trainer-win' || trainers >= g.need));
   const b = pick(WATCH);
   const type = pick(types.length > 0 ? types : FOREST_TYPES);
   return {

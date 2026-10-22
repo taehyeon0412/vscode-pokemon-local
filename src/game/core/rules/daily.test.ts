@@ -7,7 +7,9 @@ import { createGameState, type GameState } from '../engine/state';
 import { validateSave } from '../save';
 import type { TypeName } from '../../data';
 import { devState } from '../../dev/demo';
-import { dailyAdd, dailyDone, dailyFor, dailyLabel, dayFarAhead, dayKey } from './daily';
+import { dailyAdd, dailyDone, dailyFor, dailyLabel, dayFarAhead, dayKey, trainersLeft } from './daily';
+import { REGIONS } from './region';
+import { trainerCount, trainerId } from './stage';
 import { trainerInfo } from './trainer';
 
 const STEP = TIMING.simStepMs;
@@ -241,5 +243,37 @@ describe('PC 시계를 미래로 잘못 맞췄다 고침 (코드 리뷰어 #59)'
     const s = createGameState(sampleSave(), 7);
     const future = { ...s, save: { ...s.save, daily: { day: '2027-01-01', goals: dailyFor('2027-01-01').goals } }, runtime: { ...s.runtime, today: DAY } };
     expect(step(future, STEP).state.save.daily?.day).toBe(DAY);
+  });
+});
+
+describe('지금 할 수 없는 목표는 빼기 (orders #62)', () => {
+  const days = Array.from({ length: 60 }, (_, i) => `2026-${String(11 + Math.floor(i / 28)).padStart(2, '0')}-${String((i % 28) + 1).padStart(2, '0')}`);
+  it('그 지역 트레이너를 다 이긴 세이브 = 트레이너 목표가 안 나옴 (야생 10 · 스테이지 1 중) · 남은 게 3명 아래여도 · 처음엔 나옴', () => {
+    const fresh = sampleSave();
+    expect(trainersLeft(fresh, REGIONS.forest)).toBe(8);
+    expect(days.some((d) => dailyFor(d, undefined, trainersLeft(fresh, REGIONS.forest)).goals[0]!.kind === 'trainer-win')).toBe(true);
+    const beat = (left: number) => {
+      const stages = { ...fresh.stages };
+      let skip = left;
+      for (const id of ['forest-1', 'forest-2', 'forest-3'] as const) {
+        const n = trainerCount(id);
+        const keep = Math.min(skip, n);
+        skip -= keep;
+        stages[id] = { ...(fresh.stages['forest-1']!), defeatedTrainers: Array.from({ length: n - keep }, (_, i) => trainerId(id, i)) };
+      }
+      return { ...fresh, stages };
+    };
+    for (const left of [0, 2]) {
+      const save = beat(left);
+      expect(trainersLeft(save, REGIONS.forest)).toBe(left);
+      for (const d of days) expect(['wild-win', 'stage-clear']).toContain(dailyFor(d, undefined, trainersLeft(save, REGIONS.forest)).goals[0]!.kind);
+    }
+    expect(trainersLeft(beat(3), REGIONS.forest)).toBe(3);
+    // 엔진이 지금 지역 남은 수를 넘김 — 다 이긴 세이브로 새 날 목표
+    const s = createGameState(beat(0), 7);
+    for (const d of days.slice(0, 20)) {
+      const after = step({ ...s, runtime: { ...s.runtime, today: d } }, STEP).state;
+      expect(after.save.daily?.goals[0]?.kind).not.toBe('trainer-win');
+    }
   });
 });

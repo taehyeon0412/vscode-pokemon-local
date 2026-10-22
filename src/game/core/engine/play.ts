@@ -13,7 +13,7 @@ import { BALANCE, TIMING } from '../balance';
 import { buy, canBuyCandy, healTeam, isShopItem, moveInTeam, sell, spendPoint, swapWithBox, teamHealth, toBox, useFieldItem, walkRegen } from '../rules/bag';
 import { createWild, encounterStart, pickupAt, planWild, wildKey } from '../rules/encounter';
 import { itemName, requestAt, resolveRequest } from '../rules/request';
-import { DAILY_BONUS, dailyAdd, dailyDone, dailyFor, dailyLabel, dayFarAhead } from '../rules/daily';
+import { DAILY_BONUS, dailyAdd, dailyDone, dailyFor, dailyLabel, dayFarAhead, trainersLeft } from '../rules/daily';
 import { gymLocation, isRegionLast, REGIONS, regionHere, regionOf, type RegionDef } from '../rules/region';
 import { spotBetween, spotRng, stageCode, stageLayout, trainerId, walkDelta, type Spot, type StageLayout } from '../rules/stage';
 import { statsOf } from '../rules/stats';
@@ -991,7 +991,7 @@ function dailyStep(before: GameState, save0: Save, rt0: RuntimeState, signal: Sa
   const boundary = !st || st.phase === 'walk' || st.phase === 'lobby';
   // 새 날만 (PC 날짜를 되돌려 같은 날 목표를 다시 받지 않게 — 코드 리뷰어 #52) · 타입 목표 = 지금 지역 타입 (명세 검사관 #53) ·
   // 목표 날이 오늘보다 2일 넘게 앞 (시계를 미래로 잘못 맞췄다 고침) 이면 그날까지 기다리지 않고 오늘 것 (코드 리뷰어 #59)
-  if (rt.today && (!save.daily || rt.today > save.daily.day || dayFarAhead(save.daily.day, rt.today)) && boundary) save = { ...save, daily: dailyFor(rt.today, regionHere(save.location).wild.common) };
+  if (rt.today && (!save.daily || rt.today > save.daily.day || dayFarAhead(save.daily.day, rt.today)) && boundary) save = { ...save, daily: dailyFor(rt.today, regionHere(save.location).wild.common, trainersLeft(save, regionHere(save.location))) };
   // 한 일
   const won = (prev?.phase === 'battle' || prev?.phase === 'team') && st?.phase === 'result';
   const wildWin = won && prev?.phase === 'battle' && prev.battle.kind === 'wild';
