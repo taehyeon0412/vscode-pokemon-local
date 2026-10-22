@@ -1134,5 +1134,11 @@ describe('3:3 박자 (orders #83 — 기본 0.8 · 전투 ×2) · 누를 창 (or
     expect(said.runtime.toast?.text).toBe('3:3 전투 ×2 켜짐 (C)');
     const fighting = inTeam(b0);
     expect(applyInput(fighting, { kind: 'battle-fast', on: true }).save.settings.battleFast).toBe(true);
+    // 전투 중 키 알림은 안 띄움 (끝난 뒤에야 뜨고 남은 알림을 덮던 것 — 테스터 #83) · 남은 알림은 그대로
+    const withToast = { ...fighting, runtime: { ...fighting.runtime, toast: { text: '오늘의 목표 ✓', ms: 2000 } } };
+    const pressed = applyInput(withToast, { kind: 'battle-fast', on: true, say: true });
+    expect(pressed.save.settings.battleFast).toBe(true);
+    expect(pressed.runtime.toast?.text).toBe('오늘의 목표 ✓');
+    expect(applyInput(withToast, { kind: 'auto-battle', on: true, say: true }).runtime.toast?.text).toBe('오늘의 목표 ✓');
   });
 });

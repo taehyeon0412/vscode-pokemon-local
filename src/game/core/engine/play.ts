@@ -1455,7 +1455,8 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       // 자동을 한 번 켜면 자동 전투 첫 안내는 끝 (R12 A)
       const tips = save.tips ?? [];
       const next = { ...save, settings: { ...save.settings, autoBattle: input.on }, ...(input.on && !tips.includes('auto-on') && tips.length < TIPS_MAX ? { tips: [...tips, 'auto-on'] } : {}) };
-      return input.say ? toast(state, next, input.on ? '자동 전투 켜짐 (A)' : '자동 전투 꺼짐 (A)') : { ...state, save: next };
+      // 한 줄 알림은 전투 밖에서만 — 전투 · 3:3 중에는 알림 자리가 안 보여 끝난 뒤에야 뜨고 남은 알림을 덮던 것 (테스터 #83 — 전투 화면은 스위치 ✓ 가 알려 줌)
+      return input.say && !inBattle(state) ? toast(state, next, input.on ? '자동 전투 켜짐 (A)' : '자동 전투 꺼짐 (A)') : { ...state, save: next };
     }
     case 'fast-walk':
       if ((save.settings.fastWalk === true) === input.on) return state;
@@ -1464,7 +1465,7 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       if ((save.settings.battleFast === true) === input.on) return state;
       const next = { ...save, settings: { ...save.settings, battleFast: input.on } };
       // 1:1 · 걷기에서 눌러도 무엇이 바뀌는지 알게 "3:3" (코드 리뷰어 #83)
-      return input.say ? toast(state, next, input.on ? '3:3 전투 ×2 켜짐 (C)' : '3:3 전투 ×2 꺼짐 (C)') : { ...state, save: next };
+      return input.say && !inBattle(state) ? toast(state, next, input.on ? '3:3 전투 ×2 켜짐 (C)' : '3:3 전투 ×2 꺼짐 (C)') : { ...state, save: next };
     }
     case 'reduce-motion':
       if ((save.settings.reduceMotion === true) === input.on) return state;

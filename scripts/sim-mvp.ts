@@ -334,6 +334,7 @@ function runOnce(dex: number, seed: number): RunResult {
   let prevBattle: string | null = null;
   let lastKind: string | null = null;
   let prevAnim: unknown = null;
+  let prevTeamLog = 0;
   let prevPerfects = 0;
   let lastBattle: BattleState | null = null;
   /** 처음 길 야생 — 진 뒤 같은 자리를 다시 걸을 때 두 번 세지 않게 (스테이지 · 시드 · 자리) */
@@ -437,6 +438,14 @@ function runOnce(dex: number, seed: number): RunResult {
         r.teamBattles++;
       }
       if (st.team.kind !== 'gym') stages[w].battleMs += STEP;
+      // 3:3 내 필살기 수 (기록의 새 'ult' — 합동 포함, 1:1 만 세던 것 — 테스터 #83)
+      if (prevBattle !== key) prevTeamLog = 0;
+      const newUlts = st.team.log.filter((e) => e.id > prevTeamLog && e.t === 'ult' && e.side === 'me').length;
+      if (newUlts > 0) {
+        stages[w].ults += newUlts;
+        if (r.firstUltMin < 0) r.firstUltMin = t / 60000;
+      }
+      prevTeamLog = st.team.logSeq;
       prevBattle = key;
       lastKind = st.team.kind;
     } else {
