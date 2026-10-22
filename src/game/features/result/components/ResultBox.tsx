@@ -115,6 +115,12 @@ function FaceCards({ ups, media, hint, onStats }: { ups: LevelUpView[]; media: s
           )}
         </button>
       ))}
+      {/* 넷째부터 = "+N" (카드는 셋까지 — 4 ~ 6마리 레벨업이면 넷째부터 화면에 없던 것, 개발 UX #70) · 이름은 title */}
+      {ups.length > 3 && (
+        <span class="pg-lvup-more" title={ups.slice(3).map((u) => `${u.name} Lv ${u.to}`).join(' · ')}>
+          +{ups.length - 3}
+        </span>
+      )}
     </>
   );
 }

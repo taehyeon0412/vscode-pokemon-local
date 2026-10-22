@@ -50,8 +50,8 @@ export function MapPanel({ state, swap, midStage, onInput, onTeam, onClose }: Ma
   const first = regions[0] as MapRegion;
   // 새로 연 지역 = 가 본 기록이 없음 → 탭에 NEW (빨간 글자 하나 — 6장 · ui/regionArt)
   const isNew = (r: MapRegion) => isNewRegion(r, state.save.stages);
-  // "새 지역이 열렸어요" 알림 중에 열면 그 지역 탭부터 (알림이 보낸 곳 — 목표 알림과 같은 규칙)
-  const toNew = state.runtime.toast?.text.startsWith('새 지역') ? regions.find(isNew) : undefined;
+  // 안 가 본 새 지역이 있으면 그 지역 탭부터 — 알림 중에만 그랬더니 알림이 지난 뒤 대기실에서 M 이면 숲 탭이던 것 (Enter 길은 해변 탭 — 개발 UX #70)
+  const toNew = regions.find(isNew);
   const [viewId, setViewIdRaw] = useState<RegionId>(toNew?.id ?? regions.find((r) => r.here)?.id ?? first.id);
   const view = regions.find((r) => r.id === viewId) ?? first;
   const [confirm, setConfirm] = useState<string | null>(null);

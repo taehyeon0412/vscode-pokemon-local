@@ -67,6 +67,7 @@ export function MenuButtons({
   auto,
   labels = 'icon',
   later = 0,
+  newRegion = null,
 }: {
   onOpen(o: Overlay): void;
   /** 내 포켓몬에 남은 포인트 합 (0 이면 안 보임) */
@@ -81,6 +82,8 @@ export function MenuButtons({
   labels?: MenuLabels;
   /** 나중에 고를 새 기술 수 (save.laterChoices — 병원을 지날 때 · 스테이지를 깰 때 저절로 뜸) */
   later?: number;
+  /** 안 가 본 새 지역 이름 — 지도 아이콘에 새 것 표시 (대기실 지도 버튼과 같은 표 · 알림 · 그동안 요약이 지나면 남는 곳이 없던 것, 개발 UX #70) */
+  newRegion?: string | null;
 }) {
   const cls = labels === 'icon' ? 'pg-icon-btn' : 'pg-icon-btn pg-menu-item';
   return (
@@ -114,11 +117,24 @@ export function MenuButtons({
         </AutoWrap>
       )}
       {BUTTONS.map((b) => (
-        <Button key={b.kind} secondary extraClass={b.kind === 'team' && (points > 0 || later > 0) ? `${cls} pg-has-points` : cls} onClick={() => onOpen({ kind: b.kind })} title={`${b.title} (${MENU_KEYS[b.kind]})`}>
+        <Button key={b.kind} secondary extraClass={b.kind === 'team' && (points > 0 || later > 0) ? `${cls} pg-has-points` : cls} onClick={() => onOpen({ kind: b.kind })} title={`${b.title} (${MENU_KEYS[b.kind]})${b.kind === 'map' && newRegion ? ` — 새 지역 ${newRegion}` : ''}`}>
           <Face
             labels={labels}
             shortcut={b.kind}
-            icon={b.icon ? <Icon name={b.icon} /> : lead ? <Sprite media={media} form={lead.form} shiny={lead.shiny} scale={1} crop={20} /> : <Icon name="ball" />}
+            icon={
+              b.kind === 'map' && newRegion ? (
+                <span class="pg-region-ico">
+                  <Icon name="map" />
+                  <span class="pg-new-dot" aria-hidden="true" />
+                </span>
+              ) : b.icon ? (
+                <Icon name={b.icon} />
+              ) : lead ? (
+                <Sprite media={media} form={lead.form} shiny={lead.shiny} scale={1} crop={20} />
+              ) : (
+                <Icon name="ball" />
+              )
+            }
             label={b.label}
           />
           {b.kind === 'team' && points > 0 && (

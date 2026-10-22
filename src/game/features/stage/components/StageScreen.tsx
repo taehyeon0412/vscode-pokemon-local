@@ -9,7 +9,7 @@
  */
 import { useEffect, useLayoutEffect, useRef } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
-import { AUTO_TEAM_TIP, autoTeamTipDue, battleAutoUltLeft, canOpenMenus, teamFastOk, teamUltOpen, canParry, canRiposte, gymLeaderOf, isWalkingFast, itemLeft, teamAutoUltLeft, teamAutoUltNext, teamLock, teamMeetTipDue, TEAM_MEET_TIP, walkLeftMs, type GameInput, type GameState } from '../../../core/engine';
+import { AUTO_TEAM_TIP, autoTeamTipDue, battleAutoUltLeft, canOpenMenus, regionsOn, teamFastOk, teamUltOpen, canParry, canRiposte, gymLeaderOf, isWalkingFast, itemLeft, teamAutoUltLeft, teamAutoUltNext, teamLock, teamMeetTipDue, TEAM_MEET_TIP, walkLeftMs, type GameInput, type GameState } from '../../../core/engine';
 import { maxHpOf, teamHealth } from '../../../core/rules/bag';
 import { spaceInput, ultSkippable } from '../../battle/fx/parry';
 import { BALLS } from '../../../core/rules/catch';
@@ -23,7 +23,7 @@ import { battleArtOf } from '../../../data/people-battle';
 import { BallCount } from '../../../ui/BallCount';
 import { Button } from '../../../ui/Button';
 import { Icon } from '../../../ui/Icon';
-import { badgeIcon } from '../../../ui/regionArt';
+import { badgeIcon, isNewRegion } from '../../../ui/regionArt';
 import { themeKind } from '../../../ui/theme';
 import { typeNameKo } from '../../../ui/format';
 import { InfoBar } from '../../../ui/InfoBar';
@@ -38,7 +38,7 @@ import { barSay, BattleLayer, BattleMenuBar, pickRightOf } from '../../battle/co
 import { battleGeometry, battleSpritePx, foeTrainerX, placeOnStage, ringHint, trainerBattleFoeX } from '../../battle/model';
 import { MenuButtons } from '../../menu/components/MenuButtons';
 import { ShopPanel } from '../../menu/components/ShopPanel';
-import { menuLabels, type Overlay, unspentPoints } from '../../menu/model';
+import { mapView, menuLabels, type Overlay, unspentPoints } from '../../menu/model';
 import { ChoiceBox } from '../../result/components/ChoiceBox';
 import { ResultBox } from '../../result/components/ResultBox';
 import { CAUGHT_INTRO_H, CAUGHT_INTRO_W, caughtView, choiceView, levelUps, needsStatHint } from '../../result/model';
@@ -214,6 +214,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   const teamReadyKey = team && team.phase === 'run' ? [0, 1, 2].find((i) => teamUltOpen(team, i)) : undefined;
   // 전투 ×2 를 켰는데 지금은 기본 박자 (필살기 · 끼어들기 · 알아챌 순간 — 엔진 teamFastOk) = 스위치 글을 흐리게 (켰는데 안 먹는 것처럼 보이던 것, UX 리뷰어 #83 큼 ②) ·
   //   0.4초 넘게 이어질 때만 바꿈 (0.3초 · 40ms 끼었다 빠지는 박자에 스위치가 깜빡이지 않게 — U2)
+  // 안 가 본 새 지역 (정보줄 지도 아이콘 표시 — 대기실 지도 버튼과 같은 규칙 · 개발 UX #70)
+  const newRegionName = regionsOn(state) ? (mapView(state).regions.find((r) => isNewRegion(r, save.stages))?.name ?? null) : null;
   const fastHeldNow = team !== null && save.settings.battleFast === true && !teamFastOk(team);
   const fastHeldRef = useRef({ on: false, want: false, since: 0 });
   {
@@ -407,6 +409,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
                 fast={gym ? undefined : { on: save.settings.fastWalk === true, active: isWalkingFast(state), onToggle: () => onInput({ kind: 'fast-walk', on: save.settings.fastWalk !== true }) }}
                 auto={{ on: save.settings.autoBattle, onToggle: () => onInput({ kind: 'auto-battle', on: !save.settings.autoBattle }), tip: battle ? null : autoTip, onSeen: autoSeen }}
                 labels={menuLabels(widthPx, mapRow)}
+                newRegion={newRegionName}
               />
             ) : null
           }
