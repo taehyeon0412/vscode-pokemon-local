@@ -101,10 +101,70 @@
   "h": 64,
   "top": 6
  },
+ "frlg-tuber-m": {
+  "source": "pret/pokefirered graphics/trainers/front_pics/tuber_m_front_pic.png",
+  "w": 64,
+  "h": 64,
+  "top": 19
+ },
+ "frlg-tuber-f": {
+  "source": "pret/pokefirered graphics/trainers/front_pics/tuber_f_front_pic.png",
+  "w": 64,
+  "h": 64,
+  "top": 23
+ },
+ "frlg-fisher": {
+  "source": "pret/pokefirered graphics/trainers/front_pics/fisherman_front_pic.png",
+  "w": 64,
+  "h": 64,
+  "top": 4
+ },
+ "frlg-swimmer-m": {
+  "source": "pret/pokefirered graphics/trainers/front_pics/swimmer_m_front_pic.png",
+  "w": 64,
+  "h": 64,
+  "top": 15
+ },
+ "frlg-swimmer-f": {
+  "source": "pret/pokefirered graphics/trainers/front_pics/swimmer_f_front_pic.png",
+  "w": 64,
+  "h": 64,
+  "top": 4
+ },
+ "frlg-sailor": {
+  "source": "pret/pokefirered graphics/trainers/front_pics/sailor_front_pic.png",
+  "w": 64,
+  "h": 64,
+  "top": 1
+ },
+ "em-triathlete-f": {
+  "source": "pret/pokeemerald graphics/trainers/front_pics/running_triathlete_f.png",
+  "w": 64,
+  "h": 64,
+  "top": 5
+ },
+ "frlg-cooltrainer-m": {
+  "source": "pret/pokefirered graphics/trainers/front_pics/cool_trainer_m_front_pic.png",
+  "w": 64,
+  "h": 64,
+  "top": 3
+ },
+ "frlg-beauty": {
+  "source": "pret/pokefirered graphics/trainers/front_pics/beauty_front_pic.png",
+  "w": 64,
+  "h": 64,
+  "top": 2
+ },
  "frlg-erika": {
   "source": "pret/pokefirered graphics/trainers/front_pics/leader_erika_front_pic.png",
   "w": 64,
   "h": 64,
   "top": 6
+ },
+ "frlg-misty": {
+  "source": "pret/pokefirered graphics/trainers/front_pics/leader_misty_front_pic.png",
+  "w": 64,
+  "h": 64,
+  "top": 2
  }
 }

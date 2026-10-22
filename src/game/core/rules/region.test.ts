@@ -14,6 +14,7 @@ import { gymRoomOf, REGIONS, regionAceLevel, regionGymMoney, regionGymTeam, regi
 import { stageCode, stageLevelBand, trainerCount } from './stage';
 import { GYM_LEADER, gymHint, leaderTeam, trainerInfo, trainerTeam } from './trainer';
 import { rivalTeam } from './rival';
+import { battleArtOf } from '../../data/people-battle';
 
 describe('지역 표 (gdd 5.1 · 5.2 — orders #35)', () => {
   it('숲 줄 = 예전 값 그대로 — 스테이지 · 번호 · 레벨대 · 관장 · 트레이너 (보이는 것 · 숫자가 같음)', () => {
@@ -216,6 +217,14 @@ describe('그림 칸 (orders #57) — 스테이지마다 배경 · 지역마다 
       expect(gymRoomOf(REGIONS.beach)).toBe('gym-water');
     } finally {
       regions.beach = was;
+    }
+  });
+});
+
+describe('VS 대결 그림 — 지역 표의 트레이너 · 관장 모두 (bugs 663 — 해변 9명 + 해솔이 빠져 VS 오른쪽이 비던 것)', () => {
+  it('REGIONS 의 트레이너 · 관장 look 마다 battle.png 목록이 있음', () => {
+    for (const region of Object.values(REGIONS)) {
+      for (const look of [...region.trainers.map((t) => t.look), region.leader.look]) expect(battleArtOf(look), `${region.id} ${look}`).toBeDefined();
     }
   });
 });
