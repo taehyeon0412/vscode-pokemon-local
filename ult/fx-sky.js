@@ -6946,9 +6946,10 @@
                 ultShake(1.5 + (tp - bpulses[0]) * 2.5, 150);
             });
         }
-        // 팔 대포 연사 — 작은 물탄이 앞쪽 곳곳으로 날아가 작은 물기둥
+        // 팔 대포 연사 — 작은 물탄이 앞쪽 곳곳으로 날아가 작은 물기둥 · 합동에선 뺌 (상대 앞에 물기둥이 피해 1.4 ~ 2초 전에 서서 먼저 맞은 것처럼 보이던 것 — #80 UX)
         const bullets = [];
-        for (let i = 0; i < 6; i++) {
+        const volley = !(typeof fxJointTop !== 'undefined' && fxJointTop);
+        for (let i = 0; i < (volley ? 6 : 0); i++) {
             const f = (i + 0.5) / 6;
             const tx = clamp(me.x + dir * (me.w * 1.5 + (Math.abs(ix - me.x) + W * 0.15) * f) + (hash(i, 91) - 0.5) * W * 0.06, W * 0.04, W * 0.96);
             bullets.push({ t0: TM + 0.45 + i * 0.19, tx, x0: 0, y0: 0, on: false, done: false });
