@@ -9,7 +9,7 @@
  * - 부탁: 늘 도움 · 결과: 1.5초 보고 계속 · 새 기술: 위력이 더 세면 가장 약한 기술 대신 · 진화: 함 (센 기술을 남김)
  * - 포인트: 공격 · HP 번갈아 · 대기실: 처음엔 바로 도전, 지면 1-3 을 한 번 더 걷고 다시 도전
  */
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { BALANCE, TIMING } from '../src/game/core/balance';
 import { canParry, canRiposte, type BattleState } from '../src/game/core/engine/battle';
 import { applyInput, nextStageOf, step } from '../src/game/core/engine/play';
@@ -20,7 +20,7 @@ import { planWild } from '../src/game/core/rules/encounter';
 import { stageLayout } from '../src/game/core/rules/stage';
 import { devDefault } from '../src/game/dev/runtime';
 import { leaderTeam } from '../src/game/core/rules/trainer';
-import { STAGE_IDS, type Monster, type Save, type StageId } from '../src/game/core/save';
+import { readSave, STAGE_IDS, type Monster, type Save, type StageId } from '../src/game/core/save';
 import { moveOf, speciesOf } from '../src/game/data';
 import { createStartSave, starterList } from '../src/game/features/starter/model';
 
@@ -55,6 +55,12 @@ const modeLabel = TEAM ? '3:3' : BALANCE.team.on ? '3:3 켬 · 만남 1:1 (관�
 const FOREST_REPORT = process.env.SIM_FOREST === '1' || process.env.SIM_FOREST === 'dev';
 const FOREST_DEV = process.env.SIM_FOREST === 'dev';
 if (FOREST_DEV) (BALANCE.team as { on: boolean }).on = false;
+
+/** SIM_OPEN=1 — 다음 지역 열기 켬 (BALANCE.region.open — 해변 본편 켤 때 모습, orders #68): 숲 관장 첫 승에 해변이 엔진으로 열림 */
+if (process.env.SIM_OPEN === '1') (BALANCE.region as { open: boolean }).open = true;
+/** SIM_START=<세이브.json> — 그 세이브에서 시작 (스타팅 고르기 대신 · 판 수만큼 시드만 바꿈 — 숲 배지가 있는 옛 세이브 따라잡기, orders #68) */
+const START = process.env.SIM_START ? readSave(JSON.parse(readFileSync(process.env.SIM_START, 'utf8'))) : null;
+if (START && START.kind !== 'ok') throw new Error(`SIM_START 세이브를 못 읽음 (${START.kind})`);
 
 /** 'beach-gym' = 해변 체육관 (SIM_REGION=beach — 2번째 지역) */
 type Where = StageId | 'gym' | 'beach-gym';
@@ -246,7 +252,8 @@ function decide(s: GameState, mem: { resultMs: number; lostGymOnce: boolean; gri
       // 숲 배지를 받았으면 해변으로 (SIM_REGION=beach — 2번째 지역)
       if (BEACH && !beachGym && save.badges.includes(REGIONS.forest.badge)) {
         // 해변을 연 지역에 (다음 지역 열기가 꺼진 본편 값으로 돌려서 — stageUnlocked 가 연 지역을 봄, orders #66)
-        const open = save.regions.order.includes('beach') ? s : { ...s, save: { ...save, regions: { ...save.regions, order: [...save.regions.order, 'beach' as const] } } };
+        // SIM_OPEN 이면 엔진이 열었어야 함 (관장 첫 승 · 따라잡기 — 안 열렸으면 해변으로 못 가 시간 끝까지 멈춤 = 확인)
+        const open = BALANCE.region.open || save.regions.order.includes('beach') ? s : { ...s, save: { ...save, regions: { ...save.regions, order: [...save.regions.order, 'beach' as const] } } };
         return applyInput(open, { kind: 'travel', to: 'beach-1' });
       }
       // 해변을 다음 번째로 되풀이 (SIM_REGIONS — 해변 스테이지를 지웠으면 처음부터)
@@ -265,7 +272,7 @@ function decide(s: GameState, mem: { resultMs: number; lostGymOnce: boolean; gri
 }
 
 function runOnce(dex: number, seed: number): RunResult {
-  let s = createGameState(createStartSave(0, seed, dex, { gender: 'male' }), seed);
+  let s = createGameState(START?.kind === 'ok' ? START.save : createStartSave(0, seed, dex, { gender: 'male' }), seed);
   s = applyInput(s, { kind: 'auto-battle', on: true });
   if (TEAM) s = { ...s, save: { ...s.save, settings: { ...s.save.settings, teamMode: true } } };
   if (FOREST_DEV) s = { ...s, runtime: { ...s.runtime, dev: { ...devDefault(), team: TEAM } } };
@@ -448,7 +455,7 @@ const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.le
 const results: RunResult[] = [];
 const starters = starterList();
 const started = Date.now();
-for (const sp of starters.filter((x) => ONLY === null || x.dex === ONLY)) {
+for (const sp of START ? starters.slice(0, 1) : starters.filter((x) => ONLY === null || x.dex === ONLY)) {
   for (let i = 0; i < RUNS; i++) {
     const r = runOnce(sp.dex, 1000 + i * 7919 + sp.dex);
     results.push(r);
