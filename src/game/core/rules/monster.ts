@@ -61,12 +61,13 @@ export function wildMoveCount(level: number): number {
 /**
  * 야생 · 잡은 포켓몬 기술 (mvp-spec 3.4): 그 레벨까지 레벨업으로 배울 수 있는 기술 중 무작위 2 ~ 4개 (레벨이 높을수록 많이).
  * 배울 수 있는 게 그보다 적으면 있는 만큼, 0개면 빈 목록 → 전투에서 1 공격만 씀 (3.3 — 변화 기술만 배우는 단데기도 1 공격만).
- * 레벨 0 = 진화할 때 배우는 기술 (야생은 안 가짐). 순서는 배우는 순서대로
+ * 레벨 0 = 진화할 때 배우는 기술 — 그 모습이면 배운 것으로 (원작대로 — orders #64, Lv 20 갸라도스는 물기). 순서는 배우는 순서대로
  */
 export function wildMoves(dex: number, level: number, rng: Rng): ReadonlyMove[] {
   const learned: ReadonlyMove[] = [];
   for (const [lv, id] of learnsetOf(dex)) {
-    if (lv < 1 || lv > level) continue;
+    // 진화할 때 배우는 기술 (Lv 0 — 갸라도스 물기) 도 그 모습이면 배운 것 (원작대로 — orders #64)
+    if (lv < 0 || lv > level) continue;
     const m = moveOf(id);
     if (m && !learned.some((x) => x.id === m.id)) learned.push(m);
   }

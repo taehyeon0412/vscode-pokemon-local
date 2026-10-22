@@ -10,7 +10,7 @@ import type { ItemId, Monster, Save, StageId } from '../save';
 import { HERO_LOOKS, heroLookOf } from '../../data/heroes';
 import { speciesOf } from '../../data';
 import { STONES } from './bag';
-import { baseTotal, evolveForLevel, regionPool } from './encounter';
+import { evolveForLevel, isBig, regionPool } from './encounter';
 import { createMonster, wildMoves } from './monster';
 import { spotRng } from './stage';
 import { aliveCount } from './trainer';
@@ -104,8 +104,7 @@ export function rivalTeam(save: Save, id: string, stageId: StageId, stageSeed: n
   const low = Math.max(2, top - BALANCE.rivalLevelGap);
   const r = rivalRecord(save, id);
   // 강한 1단계 (종족값 450 넘음) 는 야생에서만 — 라이벌 · 트레이너 앞 포켓몬은 거름 (gdd 5.3 · 5.4 — 숲도, orders #60)
-  const big = (dex: number) => { const s = speciesOf(dex); return !!s && baseTotal(s) > BALANCE.bigBaseTotal; };
-  const pool = regionPool(stageId).common.filter((dex) => !big(dex));
+  const pool = regionPool(stageId).common.filter((dex) => !isBig(dex));
   const out: Monster[] = [];
   for (let i = 0; i < size; i++) {
     const rng = spotRng(stageSeed, 7000 + r.wins + r.losses, 10 + i);

@@ -11,7 +11,7 @@ import type { Monster, Save, StageId, Stats } from '../save';
 import { formsOfSpecies, learnsetOf, moveOf, speciesOf, type ReadonlyMove } from '../../data';
 import { typeNameKo, withJosa } from '../text';
 import { effectiveness } from './types';
-import { baseTotal, devolveForLevel, evolveForLevel, regionPool } from './encounter';
+import { devolveForLevel, evolveForLevel, isBig, regionPool } from './encounter';
 import { REGIONS, regionGymTeam, regionHere, regionOf, regionOrder, type RegionDef } from './region';
 import { createMonster, wildMoves } from './monster';
 import { spotRng, stageLevelBand, trainerCount } from './stage';
@@ -84,8 +84,7 @@ export function trainerTeamSize(stageSeed: number, n: number, alive: number): nu
 /** size = 마리 수를 정해서 (3:3 은 늘 3 — 2026-10-21 명세 검사관), 없으면 시드로 1 ~ 3 */
 export function trainerTeam(stageId: StageId, stageSeed: number, n: number, alive: number, size?: number): Monster[] {
   // 종족값 아주 큰 포켓몬 (bigBaseTotal 넘음) 은 트레이너가 안 씀 — 야생에서만 드물게 (orders #32 B)
-  const big = (dex: number) => { const s = speciesOf(dex); return !!s && baseTotal(s) > BALANCE.bigBaseTotal; };
-  const pool = regionPool(stageId).common.filter((dex) => !big(dex));
+  const pool = regionPool(stageId).common.filter((dex) => !isBig(dex));
   const [lo, hi] = stageLevelBand(stageId);
   const level = Math.round((lo + hi) / 2);
   const out: Monster[] = [];
@@ -95,7 +94,7 @@ export function trainerTeam(stageId: StageId, stageSeed: number, n: number, aliv
     // 그 레벨에 맞는 모습 (아직 될 수 없는 진화형은 진화 전 → 레벨이 되면 진화형, orders #32 A) · 진화해서 아주 커지면 진화 전 그대로
     const base = devolveForLevel(pool[rng.int(0, pool.length - 1)] ?? 10, level);
     const grown = evolveForLevel(base, level, rng);
-    const dex = big(grown) ? base : grown;
+    const dex = isBig(grown) ? base : grown;
     out.push(createMonster({ uid: `foe${i}`, dex, level, moves: wildMoves(dex, level, rng), rng, caughtAt: 'trainer' }));
   }
   return out;
@@ -130,7 +129,8 @@ const LEADER_IVS: Stats = { hp: 20, attack: 20, defense: 20, speed: 20, ultimate
 function leaderMoves(dex: number, level: number): ReadonlyMove[] {
   const learned: ReadonlyMove[] = [];
   for (const [lv, id] of learnsetOf(dex)) {
-    const m = lv >= 1 && lv <= level ? moveOf(id) : undefined;
+    // 진화 기술 (Lv 0) 도 (orders #64)
+    const m = lv >= 0 && lv <= level ? moveOf(id) : undefined;
     if (m && !learned.some((x) => x.id === m.id)) learned.push(m);
   }
   const damage = learned.filter((m) => m.class !== 'status' && m.power > 0).reverse();

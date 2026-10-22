@@ -3,7 +3,8 @@
  *
  * 나오는 종 = 지역 표 (region.ts) 의 스테이지마다 정한 목록 (숲 gdd 5.4 · 해변 5.3 — 1단계, 확장에 그림이 있는 것) · 30% 는 노말 · 비행으로만 된 1단계
  *   (공격 기술이 있는 것 — 단계 11, 2026-10-19 태현 님 · 숲은 스테이지마다 3종) · 그 나머지의 10% 는 드묾 (마지막 스테이지 목록 · 앞 스테이지는 드문 타입 2종).
- * 종족값 합 450 이 넘는 1단계 (스라크 · 헤라크로스 등) 는 지역 마지막 스테이지에만 (야생에서만 — 트레이너 · 라이벌은 거름). 레벨이 진화 레벨을 넘으면 진화형 (돌 · 교환은 안 나옴).
+ * 종족값 합 450 이 넘는 1단계 (스라크 · 헤라크로스 등) 는 지역 마지막 스테이지에만 (야생에서만 — 트레이너 · 라이벌은 거름). 레벨이 진화 레벨을 넘으면 진화형 (돌 · 교환은 안 나옴) —
+ *   진화는 그 스테이지 레벨대 위 끝까지만 봄 (센 흔적 +2 로는 진화 안 함 — orders #64 B). 섞기 · 드문 종은 레벨대 아래 끝에서 피해 기술을 배우는 종만 (learnsDamage).
  * 스타팅 18종 계열은 야생에 안 나옴 (mvp-spec 9장 [제안] — 처음 고른 포켓몬이 특별하게).
  */
 import { BALANCE } from '../balance';
@@ -62,8 +63,22 @@ function pickFixed(list: readonly number[], n: number, stageId: StageId, salt: n
   return out;
 }
 
-/** 레벨업으로 피해 기술을 하나라도 배우는지 (메타몽처럼 변신만 있으면 숲에 섞지 않음) */
-const canAttack = (dex: number) => learnsetOf(dex).some(([, id]) => (moveOf(id)?.class ?? 'status') !== 'status');
+/**
+ * 그 레벨까지 배울 수 있는 피해 기술이 있는지 (진화 기술 Lv 0 포함) — 섞기 · 드문 종은 그 스테이지 레벨대 아래 끝에서 피해 기술을 배우는 종만
+ * (메타몽처럼 변신만 · 1-1 푸린처럼 노래하기만이면 "1 공격" 뿐이던 것 — orders #64)
+ */
+/** 종족값 합이 큰 포켓몬 (BALANCE.bigBaseTotal 넘음 — 강한 1단계는 야생 마지막 스테이지에서만 · 트레이너 · 라이벌은 안 씀) */
+export const isBig = (dex: number): boolean => {
+  const s = speciesOf(dex);
+  return !!s && baseTotal(s) > BALANCE.bigBaseTotal;
+};
+
+export function learnsDamage(dex: number, level: number): boolean {
+  return learnsetOf(dex).some(([lv, id]) => {
+    const mv = moveOf(id);
+    return lv <= level && !!mv && mv.class !== 'status' && mv.power > 0;
+  });
+}
 
 /**
  * 그 스테이지에 나오는 1단계 종 (도감 번호) — 스테이지마다 정한 목록 (숲 gdd 5.4 · 해변 5.3): 흔함 = 목록 (+ 마지막 스테이지 강한 1단계) · 드묾 = 마지막 스테이지 목록 ·
@@ -71,7 +86,10 @@ const canAttack = (dex: number) => learnsetOf(dex).some(([, id]) => (moveOf(id)?
  */
 export function regionPool(stageId: StageId): Pool {
   const { region, index } = regionOf(stageId);
-  let pool = pools.get(stageId);
+  // 레벨대 아래 끝 — 섞기 · 드문 종은 여기서 피해 기술을 배우는 종만 (시뮬이 지역 번째를 바꾸면 레벨대도 바뀌어 열쇠에 넣음)
+  const lo = stageLevelBand(stageId)[0];
+  const key = `${stageId}:${lo}`;
+  let pool = pools.get(key);
   if (pool) return pool;
   pool = { common: [], rare: [], mixed: [] };
   const { lists, strong, rareList, mixedPick } = region.wild;
@@ -82,13 +100,15 @@ export function regionPool(stageId: StageId): Pool {
     if (baseTotal(s) > BALANCE.bigBaseTotal && index < region.stages.length - 1) continue;
     // 스테이지마다 정한 목록 (해변 · 숲) 이면 흔함 · 드묾은 목록에서 (아래), 노말 · 비행 섞기만 타입으로
     if (lists) {
-      if (s.types.every((t) => t === 'normal' || t === 'flying') && canAttack(dex)) pool.mixed.push(dex);
-      else if (!hasAny(s.types, region.wild.common) && hasAny(s.types, region.wild.rare)) rareTypes.push(dex);
+      if (s.types.every((t) => t === 'normal' || t === 'flying')) {
+        if (learnsDamage(dex, lo)) pool.mixed.push(dex);
+      } else if (!hasAny(s.types, region.wild.common) && hasAny(s.types, region.wild.rare) && learnsDamage(dex, lo)) rareTypes.push(dex);
       continue;
     }
     if (hasAny(s.types, region.wild.common)) pool.common.push(dex);
-    else if (hasAny(s.types, region.wild.rare)) pool.rare.push(dex);
-    else if (s.types.every((t) => t === 'normal' || t === 'flying') && canAttack(dex)) pool.mixed.push(dex);
+    else if (hasAny(s.types, region.wild.rare)) {
+      if (learnsDamage(dex, lo)) pool.rare.push(dex);
+    } else if (s.types.every((t) => t === 'normal' || t === 'flying') && learnsDamage(dex, lo)) pool.mixed.push(dex);
   }
   if (lists) {
     const last = index === region.stages.length - 1;
@@ -98,7 +118,7 @@ export function regionPool(stageId: StageId): Pool {
     // 숲 — 노말 · 비행도 스테이지마다 3종 (gdd 5.4)
     if (mixedPick) pool.mixed = pickFixed(pool.mixed, mixedPick, stageId, 1);
   }
-  pools.set(stageId, pool);
+  pools.set(key, pool);
   return pool;
 }
 
@@ -167,7 +187,9 @@ export function planWild(stageId: StageId, stageSeed: number, spot: Spot, retrie
   const [lo, hi] = stageLevelBand(stageId);
   const strong = rng.chance(BALANCE.strongTraceChance);
   const level = strong ? hi + BALANCE.strongLevelBonus : Math.min(hi, Math.max(lo, Math.round(lo + (hi - lo) * spot.at + rng.int(-1, 1))));
-  const dex = evolveForLevel(base, level, rng);
+  // 진화는 그 스테이지 레벨대 위 끝까지만 — 센 흔적의 +2 레벨로는 진화하지 않음 (해변 2-1 센 흔적 잉어킹이 갸라도스로 나오던 것 — orders #64 B,
+  // 진화형을 앞 스테이지 전부에서 막으면 뒤 지역 (Lv 40 ~ 60) 야생이 다 1단계가 되어 레벨이 뒤처짐 — 시뮬 만남 1:1 51/54)
+  const dex = evolveForLevel(base, Math.min(level, hi), rng);
   const form = formsOfSpecies(dex)[0] ?? 'bulbasaur';
   const shiny = rng.chance(BALANCE.shinyChance) && formOf(form)?.shiny === true;
   return { dex, form, level, strong, shiny, trace: traceKindOf(speciesOf(dex)?.types ?? []) };

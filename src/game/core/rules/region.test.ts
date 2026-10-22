@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../balance';
-import { speciesOf } from '../../data';
+import { learnsetOf, moveOf, speciesOf } from '../../data';
 import { STAGE_IDS } from '../save';
 import { sampleSave, viaJson } from '../../../test/fixtures/save';
 import { startTrainerBattle } from '../engine/battle';
@@ -8,7 +8,8 @@ import { nextStageOf, stageUnlocked } from '../engine/play';
 import { battleRewards } from '../engine/rewards';
 import { Rng } from '../engine/rng';
 import { validateSave } from '../save';
-import { createWild, pickupAt, planWild, regionPool } from './encounter';
+import { createWild, devolveForLevel, learnsDamage, pickupAt, planWild, regionPool } from './encounter';
+import { wildMoves } from './monster';
 import { BEACH_REQUESTS, requestAt } from './request';
 import { gymRoomOf, REGIONS, regionAceLevel, regionGymMoney, regionGymTeam, regionLevelBand, regionOf, regionOrder, stageBackground } from './region';
 import { stageCode, stageLevelBand, trainerCount } from './stage';
@@ -102,8 +103,8 @@ describe('해변 한 벌 (gdd 5.3 — orders #37, 개발 모드 미리 보기 ·
   });
 
   it('숲 목록 (gdd 5.4 [확정] — orders #60 본편) — 흔함 8 · 8 · 8 + 강한 2 · 드묾 덩쿠리 · 로젤리아 · 노말 · 비행 3종 · 앞 스테이지 드문 타입 2종', () => {
-    expect(regionPool('forest-1').common).toEqual([10, 13, 265, 165, 401, 187, 273, 420]);
-    expect(regionPool('forest-2').common).toEqual([46, 285, 43, 69, 48, 167, 191, 290]);
+    expect(regionPool('forest-1').common).toEqual([10, 13, 265, 165, 48, 187, 546, 420]);
+    expect(regionPool('forest-2').common).toEqual([46, 285, 43, 69, 401, 167, 191, 290]);
     expect(regionPool('forest-3').common).toEqual([415, 412, 204, 588, 616, 313, 314, 193, 123, 214]);
     expect(regionPool('forest-3').rare).toEqual([114, 315]);
     for (const id of ['forest-1', 'forest-2', 'forest-3'] as const) {
@@ -228,5 +229,43 @@ describe('VS 대결 그림 — 지역 표의 트레이너 · 관장 모두 (bugs
     for (const region of Object.values(REGIONS)) {
       for (const look of [...region.trainers.map((t) => t.look), region.leader.look]) expect(battleArtOf(look), `${region.id} ${look}`).toBeDefined();
     }
+  });
+});
+
+describe('기술 없는 야생 막기 (orders #63 · #64)', () => {
+  const dmgAt = (dex: number, level: number) => learnsetOf(dex).some(([lv, id]) => lv <= level && (moveOf(id)?.power ?? 0) > 0 && moveOf(id)?.class !== 'status');
+  it('숲 · 해변 모든 스테이지 — 흔함 · 섞기 · 드묾 모두 그 레벨대 아래 끝에서 피해 기술을 배움 (진화 기술 Lv 0 포함)', () => {
+    for (const region of Object.values(REGIONS)) {
+      for (const st of region.stages) {
+        const [lo] = stageLevelBand(st.id);
+        const p = regionPool(st.id);
+        for (const d of [...p.common, ...p.mixed, ...p.rare]) expect(dmgAt(d, lo), `${st.id} ${speciesOf(d)?.name.ko}`).toBe(true);
+        expect(p.mixed.every((d) => learnsDamage(d, lo)) && p.rare.every((d) => learnsDamage(d, lo))).toBe(true);
+      }
+    }
+  });
+
+  it('진화 기술 (Lv 0) 도 야생 · 관장 기술에 — 갸라도스 Lv 20 은 물기', () => {
+    const moves = wildMoves(130, 20, new Rng(1));
+    expect(moves.some((m) => m.id === learnsetOf(130).find(([lv]) => lv === 0)![1])).toBe(true);
+  });
+
+  it('진화는 레벨대 위 끝까지만 — 센 흔적의 +2 로는 진화하지 않음 (해변 2-1 센 잉어킹은 잉어킹 · orders #64 B)', () => {
+    const spots = Array.from({ length: 400 }, (_, i) => ({ kind: 'wild' as const, at: (i % 20) / 20, index: i }));
+    let strongSeen = 0;
+    for (const region of Object.values(REGIONS)) {
+      for (const st of region.stages) {
+        const [, hi] = stageLevelBand(st.id);
+        const bases = new Set([...regionPool(st.id).common, ...regionPool(st.id).rare, ...regionPool(st.id).mixed]);
+        for (const sp of spots) {
+          const p = planWild(st.id, 777, sp);
+          if (p.strong) strongSeen++;
+          // 진화형이면 위 끝 레벨로 될 수 있는 것 (목록의 1단계 — 삐삐처럼 앞에 아기가 있어도 — 는 그대로)
+          if (!bases.has(p.dex)) expect(devolveForLevel(p.dex, hi), `${st.id} ${speciesOf(p.dex)?.name.ko} Lv${p.level}`).toBe(p.dex);
+        }
+      }
+    }
+    expect(strongSeen).toBeGreaterThan(0);
+    expect(spots.some((sp) => planWild('beach-1', 777, sp).dex === 130)).toBe(false);
   });
 });
