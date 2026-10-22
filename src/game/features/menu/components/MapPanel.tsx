@@ -78,7 +78,8 @@ export function MapPanel({ state, swap, midStage, onInput, onTeam, onClose }: Ma
     const gap = parseFloat(cs.columnGap) || 0;
     const range = document.createRange();
     range.selectNodeContents(tabs);
-    let used = range.getBoundingClientRect().width * 1.1;
+    // 탭 묶음 자체 폭도 견줌 (Range 는 앞 구분선 ::before · 여백을 안 세어 368 ~ 369 에서 1px 잘림을 못 봤음 — 픽셀 검사원)
+    let used = Math.max(range.getBoundingClientRect().width, tabs.getBoundingClientRect().width) * 1.1;
     let n = 1;
     head.childNodes.forEach((c) => {
       // 그림 (svg) 도 셈 — HTMLElement 만 세면 지도 아이콘 16px 이 빠져 240 에서 넘침을 못 봤음

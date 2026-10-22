@@ -5384,14 +5384,12 @@ body.vscode-high-contrast-light .pg-title-body {
   opacity: 1;
 }
 /* 이름표 "세계 지도" ↔ 탭 묶음 16px + 가운데 1 × 14 흐린 세로 선 (8px 로 붙어 이름표가 탭 첫 칸으로 읽히던 것 — 아트 디렉터) */
-.pg-panel-head:has(.pg-region-tabs) > .pg-panel-title {
-  margin-right: 8px;
-}
 .pg-region-tabs::before {
   content: '';
   align-self: center;
   width: 1px;
   height: 14px;
+  /* 머리 줄 간격 8 + 선 + 오른쪽 4 + 탭 사이 4 = 선 양옆 8 · 8 (가운데 — 픽셀 검사원) */
   margin-right: 4px;
   background: var(--pg-sos-line-soft);
 }
@@ -5400,12 +5398,14 @@ body.vscode-high-contrast-light .pg-title-body {
   position: relative;
   display: inline-block;
   line-height: 0;
-  vertical-align: middle;
+  /* top — middle 이면 그림이 0.66px 내려가 맨 아랫줄이 금 밑줄에 얹히던 것 (픽셀 검사원) */
+  vertical-align: top;
 }
 .pg-region-me {
   position: absolute;
   right: -2px;
-  bottom: -1px;
+  /* 그림 안 아래 끝 (−1 이면 고른 탭 금 밑줄을 6 × 2 덮음) */
+  bottom: 0;
   box-sizing: border-box;
   width: 6px;
   height: 6px;
@@ -5456,7 +5456,8 @@ body.vscode-high-contrast-light .pg-title-body {
 /* 다음 지역 고르기 = 결정 띠 (밝은 남색 + 1px 금선 — 5장 특별한 순간) · 안쪽 3 × 6 · 아래 칩 줄과 6 · 첫 버튼 ▸ · 버튼 최소 72 */
 .pg-panel-row.pg-region-pick-row {
   padding: 3px 6px;
-  margin-bottom: 6px;
+  /* 보이는 틈 6 (줄 사이 간격 · 칩 줄 가운데 맞춤 더해 8 ~ 9 이던 것) */
+  margin-bottom: 4px;
   background: var(--pg-sos-hi);
   border: 1px solid var(--pg-sos-gold);
 }
@@ -5504,14 +5505,15 @@ body.vscode-high-contrast-light .pg-title-body {
     display: none;
   }
 }
-.pg-region-tabs .pg-icon + .pg-icon {
+/* 이름 ↔ 배지 그림 2px (첫 그림은 내 위치 점 칸에 감싸여 .pg-icon + .pg-icon 이 안 맞던 것 — 픽셀 검사원) */
+.pg-region-tabs .pg-button > .pg-icon {
   margin-left: 2px;
 }
 .pg-region-new {
   margin-left: 4px;
   color: var(--pg-sos-red);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
 }
 .pg-region-pick-title {
   color: var(--pg-sos-gold);
@@ -5531,6 +5533,12 @@ body.vscode-high-contrast-light .pg-title-body {
 @media (max-width: 360px) {
   .pg-panel-head:has(.pg-shop-tabs) > .pg-panel-title {
     display: none;
+  }
+}
+/* 300 아래는 탭 사이가 2 라 선 오른쪽 6 (양옆 8 · 8) */
+@media (max-width: 300px) {
+  .pg-region-tabs::before {
+    margin-right: 6px;
   }
 }
 @media (max-width: 300px) {
