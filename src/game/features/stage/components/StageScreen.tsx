@@ -358,7 +358,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
           center={mapRow ? undefined : where}
           right={
             team ? (
-              // 3:3 정보줄 오른쪽 = 자동 · 전투 ×2 스위치 (태현 님 #83 "화면 상단에 전투 x2 를 사용자가 선택" · 개발 UX — 3:3 에 자동 표시가 없던 것) — 빨리 걷기 · 자동 스위치와 같은 모양 (켜짐 = ✓ · 금 테두리)
+              // 3:3 정보줄 오른쪽 = 자동 · 전투 ×2 스위치 (태현 님 #83 "화면 상단에 전투 x2 를 사용자가 선택" · 개발 UX — 3:3 에 자동 표시가 없던 것) · 키 C (X = 각성, 기획 10-22) — 빨리 걷기 · 자동 스위치와 같은 모양 (켜짐 = ✓ · 금 테두리)
               <span class="pg-menu-buttons pg-team-switches">
                 <Button
                   secondary
@@ -373,9 +373,9 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
                   secondary
                   extraClass={save.settings.battleFast ? 'pg-battle-fast pg-on' : 'pg-battle-fast'}
                   onClick={() => onInput({ kind: 'battle-fast', on: save.settings.battleFast !== true })}
-                  title={`전투 ×2 ${save.settings.battleFast ? '켜짐' : '꺼짐'} (X) — 보통 공격만 빨리 · 필살기 · 누를 틈은 그대로`}
+                  title={`전투 ×2 ${save.settings.battleFast ? '켜짐' : '꺼짐'} (C) — 보통 공격만 빨리 · 필살기 · 누를 틈 · 알아챌 순간은 그대로`}
                 >
-                  {menuLabels(widthPx, mapRow) === 'full' && <span class="pg-menu-key">X</span>}
+                  {menuLabels(widthPx, mapRow) === 'full' && <span class="pg-menu-key">C</span>}
                   {/* 좁으면 "×2" 만 (240 에서 정보줄이 넘치지 않게 — title 에 전체) */}
                   <span class="pg-menu-text">
                     {save.settings.battleFast ? '✓ ' : '□ '}

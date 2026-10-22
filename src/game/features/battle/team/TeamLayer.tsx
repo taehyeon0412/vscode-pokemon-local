@@ -142,20 +142,43 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   // 아래 가운데는 720 부터 (400 ~ 719 는 안내 폭 약 200 이 앞줄 발밑 판 — 끼어들 3번 판까지 — 을 덮던 것, UX 리뷰어 R9 ⑥)
   const low = widthPx >= 720;
   const promptStyle = low ? { top: 'auto', bottom: '4px' } : { top: `${infoBarPx + 4}px` };
-  // 좁은 패널 (400 아래) — 띠가 폭 전체라 머리 위 "… 쓰러졌다!" 를 덮음: 그 말이 1초 보일 때까지 합동 · 끼어들기 띠를 늦게 그림 (0.85 ~ 0.93초에 덮던 것 — UX 밤 점검 U1, 막대 1.5초라 띠도 1초 넘게) · 키는 그대로 받음
-  const faintFresh = widthPx < 400 && b.popups.some((p) => p.text.endsWith('쓰러졌다!') && p.ms < FAINT_SAY_MS);
+  // 머리 위 "… 쓰러졌다!" 가 1초 안 (U1) — 큰 판 (합동 · 끼어들기) 이 그 말을 덮으면 판을 말 아래로 내리고 (판이 끝날 때까지 그 자리 — 돌아가며 튀지 않게 U2), 아래 자리가 없으면 그동안만 숨김 · 키는 그대로 받음
+  //   예전엔 400 아래에서 그 1초 동안 판을 통째로 안 그려 끼어들 창 2.2초 중 약 1초만 보이던 것 (개발 명세 검사 #81 "2초 넘게")
+  const faintFresh = b.popups.some((p) => p.text.endsWith('쓰러졌다!') && p.ms < FAINT_SAY_MS);
   // 엔진 한 줄 (필살기 · 합류 · 결과) 은 판 끝 결과만 · 쓰러지는 장면이 0.9초 보인 뒤 (컷인 이름을 가리고 · 지난 필살기 줄이 남던 것 — UX 리뷰어)
   const msgOn = b.phase === 'over' && b.overMs >= 900 && !!b.msg;
   const ult = (slot: number) => onInput({ kind: 'team-battle', input: { kind: 'ult', slot } });
   // 큰 판 (끼어들기 · 합동) 은 무대 한가운데 — 폭 · 높이를 재서 왼쪽 · 위를 정수 px 로 (translate −50% 는 홀수 폭이면 반 픽셀)
   const bigBox = useRef<HTMLDivElement>(null);
+  // 쓰러짐 말을 피해 내린 판의 위 (판이 떠 있는 동안만 기억)
+  const bigLow = useRef<number | null>(null);
+  if (prompt?.kind !== 'join' && prompt?.kind !== 'gather') bigLow.current = null;
   useLayoutEffect(() => {
     const el = bigBox.current;
-    if (!el) return;
+    const host = root.current;
+    if (!el || !host) return;
     const r = el.getBoundingClientRect();
     const midY = infoBarPx + (heightPx - infoBarPx) / 2;
-    el.style.left = `${Math.round(Math.max(8, Math.min(widthPx - 8 - r.width, g.cx - r.width / 2)))}px`;
-    el.style.top = `${Math.round(Math.max(infoBarPx + fieldTopPx + 2, midY - r.height / 2))}px`;
+    const left = Math.round(Math.max(8, Math.min(widthPx - 8 - r.width, g.cx - r.width / 2)));
+    let top = bigLow.current ?? Math.round(Math.max(infoBarPx + fieldTopPx + 2, midY - r.height / 2));
+    let hide = false;
+    if (bigLow.current === null && faintFresh) {
+      const o = host.getBoundingClientRect();
+      host.querySelectorAll<HTMLElement>('.pg-team-pop').forEach((p) => {
+        if (!p.textContent?.endsWith('쓰러졌다!')) return;
+        const q = p.getBoundingClientRect();
+        const [pl, pt, pr, pb] = [q.left - o.left, q.top - o.top, q.right - o.left, q.bottom - o.top];
+        if (pl >= left + r.width || pr <= left || pt >= top + r.height || pb <= top) return;
+        const low = Math.ceil(pb + 2);
+        if (low + r.height <= heightPx - 2) {
+          top = Math.max(top, low);
+          bigLow.current = top;
+        } else hide = true;
+      });
+    }
+    el.style.left = `${left}px`;
+    el.style.top = `${top}px`;
+    el.style.visibility = hide ? 'hidden' : '';
   });
   // 머리 위 말 · 숫자를 패널 양 끝 2px 안으로 (끝 칸의 "버섯꼬 쓰러졌다!" 의 "!" · "리자드" 의 "리" 가 잘리던 것 — UX 리뷰어 R9 ⑥, U4) · 정수 px
   // 처음 안내 (위 · 3:3 저절로 필살기) 와 겹치면 안내 아래 2px 로 내림 — 이 층 (z 5) 이 안내 (z 7) 아래라 240 에서 "레디바 쓰러졌다!" 첫 글자가 1.2초 숨던 것 (#59 UX 다시 보기 · 480 "-7" 의 "-" 도)
@@ -182,7 +205,7 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
       {/* 안내 — 무대 가운데 위 */}
       {/* 끼어들기 · 합동 = 무대 한가운데 큰 판 (태현 님 #81 "화면 가운데에 크게 띄우고 2초 넘게 확실히" — 아래 · 위 가운데 작은 한 줄이 빨리 지나가 몰랐던 것) ·
           금 제목 · 큰 키 칸 · 아래 4px 남은 막대 · 누를 틈은 엔진 (합동 약 2.5초 · 끼어들기 약 2.2초) · 자리는 재서 정수 px (반 픽셀이면 2px 금 테두리가 흐림) */}
-      {prompt?.kind === 'join' && !faintFresh && (
+      {prompt?.kind === 'join' && (
         <div class="pg-team-prompt pg-team-prompt-join pg-team-prompt-big" ref={bigBox}>
           <b class="pg-team-big-title">
             {/* 상대가 합동으로 모이는 중 = 빨강 "상대 합동!" (내 편 멘트와 같은 말이던 것 — 기획 #24-4) */}
@@ -201,7 +224,7 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
           <span class="pg-team-left" style={{ width: `${Math.round(prompt.left * 100)}%` }} />
         </div>
       )}
-      {prompt?.kind === 'gather' && !faintFresh && (
+      {prompt?.kind === 'gather' && (
         <div class="pg-team-prompt pg-team-prompt-gather pg-team-prompt-big" ref={bigBox}>
           <b class="pg-team-big-title">{widthPx < 400 ? '합동!' : '합동 필살기!'}</b>
           <span class="pg-team-big-keys">

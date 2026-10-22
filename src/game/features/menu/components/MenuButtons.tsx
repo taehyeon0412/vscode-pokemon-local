@@ -103,7 +103,7 @@ export function MenuButtons({
           secondary
           extraClass={auto.on ? 'pg-auto-walk pg-on' : 'pg-auto-walk'}
           onClick={auto.onToggle}
-          title={auto.on ? '자동 전투 켜짐 — 누르면 끔 (A · 전투 중 버튼 · 설정과 같음)' : '자동 전투 꺼짐 — 켜면 전투를 알아서 (A · 필살기 · 연타는 직접도 됨)'}
+          title={auto.on ? '자동 전투 켜짐 — 누르면 끔 (A · 전투 중 버튼 · 설정과 같음)' : '자동 전투 꺼짐 — 켜면 전투를 알아서 (A · 필살기는 늘 직접)'}
         >
           {/* A = 자동 전투 켜고 끄기 (다음 버전 1단계 #116 — 판이 없을 때) */}
           {labels === 'full' && <span class="pg-menu-key">A</span>}

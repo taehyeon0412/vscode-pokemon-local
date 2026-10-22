@@ -25,7 +25,7 @@ export function SettingsPanel({ save, onInput, onExit, onClose, dev = false, onS
           {on ? '✓ 알림' : '알림'}
           <span class="pg-long">{on ? ' 켜짐' : ' 꺼짐'}</span>
         </Button>
-        <Button secondary extraClass={save.settings.autoBattle ? 'pg-picked' : undefined} onClick={() => onInput({ kind: 'auto-battle', on: !save.settings.autoBattle })} title="자동 전투 — 자리를 비워도 메뉴 · 필살기를 알아서 (전투 중 스위치와 같음)">
+        <Button secondary extraClass={save.settings.autoBattle ? 'pg-picked' : undefined} onClick={() => onInput({ kind: 'auto-battle', on: !save.settings.autoBattle })} title="자동 전투 — 자리를 비워도 메뉴를 알아서 · 필살기는 늘 직접 (전투 중 스위치와 같음)">
           {save.settings.autoBattle ? '✓ 자동 전투' : '자동 전투'}
           <span class="pg-long">{save.settings.autoBattle ? ' 켜짐' : ' 꺼짐'}</span>
         </Button>
@@ -45,6 +45,11 @@ export function SettingsPanel({ save, onInput, onExit, onClose, dev = false, onS
           {save.settings.fastWalk === true ? '✓ 빨리 걷기' : '빨리 걷기'}
           {/* 배수는 실제 값 그대로 ("×3" 이라 써 두고 2.5배로 걷던 것 — 기획 검토 #25) */}
           <span class="pg-long">{save.settings.fastWalk === true ? ` ×${BALANCE.fastWalkSpeed}` : ' 꺼짐'}</span>
+        </Button>
+        {/* 전투 ×2 (태현 님 #83 — 3:3 정보줄 스위치와 같음 · 키 C) — 3:3 보통 공격만 빨리, 필살기 · 누를 틈 · 알아챌 순간은 기본 박자 */}
+        <Button secondary extraClass={save.settings.battleFast === true ? 'pg-picked' : undefined} onClick={() => onInput({ kind: 'battle-fast', on: save.settings.battleFast !== true })} title="전투 ×2 (C) — 3:3 보통 공격만 빨리 · 필살기 · 누를 틈 · 알아챌 순간은 그대로 (정보줄 스위치와 같음)">
+          {save.settings.battleFast === true ? '✓ 전투 ×2' : '전투 ×2'}
+          <span class="pg-long">{save.settings.battleFast === true ? ' 켜짐' : ' 꺼짐'}</span>
         </Button>
         {/* 동작 줄이기 (2026-10-20 태현 님 1안 — 기본 꺼짐 · OS 설정은 안 봄, 맥도 윈도와 같게) — 켜면 꾸밈 움직임 (배지 빛 · +N 깜박 · 레벨업 별 · 말풍선 까딱 · 넓어지기 등) 을 멈춤, 흔들기 · 필살기 꽉 참 같은 게임 정보는 그대로 */}
         <Button secondary extraClass={save.settings.reduceMotion === true ? 'pg-picked' : undefined} onClick={() => onInput({ kind: 'reduce-motion', on: save.settings.reduceMotion !== true })} title="동작 줄이기 — 꾸밈 움직임 (반짝 · 깜박 · 까딱) 을 멈춤. 잡기 흔들기 · 필살기 꽉 참 같은 알림은 그대로">
@@ -79,6 +84,9 @@ export function SettingsPanel({ save, onInput, onExit, onClose, dev = false, onS
           </span>
           <span class="pg-key-item">
             <span class="pg-menu-key">A</span> 자동 전투
+          </span>
+          <span class="pg-key-item">
+            <span class="pg-menu-key">C</span> 전투 ×2
           </span>
           <span class="pg-key-item">
             <span class="pg-menu-key">Esc</span> 닫기 · 지나가기

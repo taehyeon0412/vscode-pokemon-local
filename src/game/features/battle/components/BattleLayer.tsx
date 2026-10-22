@@ -70,7 +70,7 @@ export function AutoButton({ save, onInput, short, tip, tipPlace = 'below' }: { 
       secondary={!auto}
       extraClass="pg-auto-btn"
       onClick={() => onInput({ kind: 'auto-battle', on: !auto })}
-      title={auto ? '자동 전투 켜짐 — 누르면 끔 (A)' : '자동 전투 꺼짐 — 켜면 내 행동도 알아서 (A · 필살기 · 연타는 직접도 됨)'}
+      title={auto ? '자동 전투 켜짐 — 누르면 끔 (A)' : '자동 전투 꺼짐 — 켜면 내 행동도 알아서 (A · 필살기는 늘 직접)'}
     >
       {/* A = 자동 전투 켜고 끄기 (다음 버전 1단계 #116) — 좁으면 키 칸 없이 */}
       {!short && <span class="pg-menu-key">A</span>}
