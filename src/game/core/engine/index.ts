@@ -13,6 +13,7 @@ export {
   openNextRegion,
   regionGymUnlocked,
   regionsOn,
+  syncRegionOrder,
   inBattle,
   defeatWaits,
   isWaitingForInput,

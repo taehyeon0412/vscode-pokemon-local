@@ -4,6 +4,7 @@ import { BALANCE, TIMING } from '../../core/balance';
 import { createGameState, type GameState } from '../../core/engine';
 import { pickRival } from '../../core/rules/rival';
 import { stageLayout } from '../../core/rules/stage';
+import { setRegionOrder } from '../../core/rules/region';
 import { heroLookOf } from '../../data/heroes';
 import { STAGE_IDS } from '../../core/save';
 import { summaryLines } from '../result/model';
@@ -234,5 +235,19 @@ describe('다시 그리는 열쇠 — 보는 상태 (UX 리뷰어 R12 재확인)
     expect(stageViewKey(away)).not.toBe(k0);
     expect(stageViewKey(hidden)).not.toBe(k0);
     expect(stageViewKey({ ...away, runtime: { ...away.runtime, away: false } })).toBe(k0);
+  });
+});
+
+describe('이름표 번호 — 지역 순서를 따라감 (코드 리뷰어 #66 — 모듈을 읽을 때 한 번 세어 늘 2-x 이던 것)', () => {
+  it('STAGES.code · stageLabel 이 지금 지역 순서로', () => {
+    try {
+      setRegionOrder(['forest', 'cave', 'beach'] as never);
+      expect(STAGES['beach-1'].code).toBe('3-1');
+      expect(stageLabel('beach-2')).toContain('3-2');
+    } finally {
+      setRegionOrder(null);
+    }
+    expect(STAGES['beach-1'].code).toBe('2-1');
+    expect(STAGES['forest-3'].code).toBe('1-3');
   });
 });

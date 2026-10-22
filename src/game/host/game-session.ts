@@ -22,6 +22,7 @@ import type { TeamSave } from './team-out';
 import type { WindowLease } from './window-lease';
 import { dailyDone, dayKey } from '../core/rules/daily';
 import { stageCode } from '../core/rules/stage';
+import { setRegionOrder } from '../core/rules/region';
 import { speciesOf } from '../data';
 import { devDemoSave, devState } from '../dev/demo';
 import { DEV_MODE } from '../dev/runtime';
@@ -63,6 +64,8 @@ function monstersIn(raw: unknown): number {
 /** 세이브 한 줄 요약 — 타이틀 이어 하기 · 불러오기 확인 상자 (같은 모양) */
 /** today = 오늘 날짜 (있으면 오늘의 목표 수도 — 켜졌고 세이브의 목표가 오늘 것일 때만, #28 타이틀 "오늘 1/3") */
 function summaryOf(save: Save, today?: string): NonNullable<TitleInfo['summary']> {
+  // 타이틀 · 불러오기 상자 "2-1" — 확장은 웹뷰가 계산하는 동안 걸음을 안 돌려 지역 순서를 여기서 (진짜 세이브 — 개발 모드는 저장 안 함, 코드 리뷰어 #66)
+  setRegionOrder(BALANCE.region.open ? save.regions.order : null);
   const leadUid = save.party[0];
   const lead = leadUid ? save.monsters[leadUid] : undefined;
   const d = save.daily;
@@ -492,8 +495,9 @@ export class GameSession {
     if (r.kind !== 'ok') return this.post({ type: 'save-import-ask', name: file.name, error: '포켓몬 게임 세이브가 아니거나 망가진 파일이에요' });
     // 포켓몬이 없으면 이어 할 수 없음 (타이틀의 #351 규칙과 같게 — 불러온 뒤 아무 일도 안 일어나던 것, 테스터 #48 큼)
     if (r.save.party.length === 0) return this.post({ type: 'save-import-ask', name: file.name, error: '팀에 포켓몬이 없는 세이브라 불러올 수 없어요' });
-    // 아직 모두에게 열리지 않은 지역 (해변 — 개발 모드 미리 보기만) 이 든 세이브는 받지 않음 (손으로 넣은 파일로 본편에서 해변을 걷던 것 — 코드 리뷰어 #52). #30 에서 지역을 열면 이 줄을 지움
-    if (lockedRegion(r.save)) return this.post({ type: 'save-import-ask', name: file.name, error: '아직 열리지 않은 지역이 들어 있는 세이브라 불러올 수 없어요' });
+    // 아직 모두에게 열리지 않은 지역 (해변 — 개발 모드 미리 보기만) 이 든 세이브는 받지 않음 (손으로 넣은 파일로 본편에서 해변을 걷던 것 — 코드 리뷰어 #52).
+    // 다음 지역 열기를 켜면 (BALANCE.region.open) 받음 — 내가 내보낸 해변 세이브를 다시 못 불러오지 않게 (코드 리뷰어 #66)
+    if (!BALANCE.region.open && lockedRegion(r.save)) return this.post({ type: 'save-import-ask', name: file.name, error: '아직 열리지 않은 지역이 들어 있는 세이브라 불러올 수 없어요' });
     // 읽으며 고친 곳 · 빠진 포켓몬 (다른 PC 의 더 새 빌드 세이브 등) 을 확인 상자에 (말없이 빠지던 것 — 코드 리뷰어 #48 큼 4)
     const before = monstersIn(raw);
     const lost = Math.max(0, before - Object.keys(r.save.monsters).length);

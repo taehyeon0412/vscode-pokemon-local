@@ -851,7 +851,8 @@ function gymStep(save0: Save, rt0: RuntimeState, stepMs: number): { save: Save; 
       if (battle.result === 'win' && !wiped) {
         const first = !save.badges.includes(regionHere(save.location).badge);
         const r = battleRewards(save, battle, null, 'gym', rng);
-        save = first && regionsOnRt(rt) ? openNextRegion(r.save, rng) : r.save;
+        save = r.save;
+        if (first && regionsOnRt(rt)) ({ save, rt } = openAndAnnounce(save, rt, rng));
         rt = { ...rt, rngState: rng.state };
         stage = first ? { phase: 'result', summary: r.summary, ms: 0, then: 'badge' } : { phase: 'result', summary: r.summary, ms: 0 };
         break;
@@ -876,7 +877,8 @@ function gymStep(save0: Save, rt0: RuntimeState, stepMs: number): { save: Save; 
       if (team.result === 'win') {
         const first = !save.badges.includes(regionHere(save.location).badge);
         const r = teamRewards(save, team, 'gym', rng);
-        save = first && regionsOnRt(rt) ? openNextRegion(r.save, rng) : r.save;
+        save = r.save;
+        if (first && regionsOnRt(rt)) ({ save, rt } = openAndAnnounce(save, rt, rng));
         rt = { ...rt, rngState: rng.state };
         stage = first ? { phase: 'result', summary: r.summary, ms: 0, then: 'badge' } : { phase: 'result', summary: r.summary, ms: 0 };
         break;
@@ -926,6 +928,12 @@ export function step(state: GameState, stepMs: number): StepOut {
     signal = r.signal;
   } else if (rt.stage) {
     rt = { ...rt, stage: null, stageId: null };
+  }
+  // 다음 지역 따라잡기 — 연 지역 관장을 다 이겼는데 다음 곳이 없으면 (배지가 이미 있는 세이브 · 결과 상자 전에 꺼진 첫 승) 걷기 · 대기실 경계에서 열고 알림 (코드 리뷰어 #66)
+  if (regionsOnRt(rt) && (rt.stage?.phase === 'walk' || rt.stage?.phase === 'lobby') && nextRegionDue(save)) {
+    const rng = new Rng(rt.rngState);
+    ({ save, rt } = openAndAnnounce(save, rt, rng));
+    rt = { ...rt, rngState: rng.state };
   }
   // 오늘의 목표 · 기록 (U13 · U12) — 모두에게 (3:3 과 같이 — orders #59)
   if (dailyOn(rt)) {
@@ -1263,13 +1271,29 @@ export const gymUnlocked = (save: Save) => regionGymUnlocked(save, regionHere(sa
 /** 다음 지역 열기가 켜졌는지 (orders #66 — BALANCE.region.open · 개발 모드 (임시) 는 늘) */
 const regionsOnRt = (rt: RuntimeState) => BALANCE.region.open || rt.dev !== undefined;
 export const regionsOn = (state: GameState): boolean => regionsOnRt(state.runtime);
-/** 규칙 함수 (레벨대 · 번호 · 관장 팀) 가 볼 지역 순서 — 켜져 있으면 세이브 것 · 꺼지면 예전 (BALANCE.region.beachOrder) */
-function syncRegionOrder(state: GameState): void {
+/** 규칙 함수 (레벨대 · 번호 · 관장 팀) 가 볼 지역 순서 — 켜져 있으면 세이브 것 · 꺼지면 예전 (BALANCE.region.beachOrder). 화면이 엔진 걸음 전에 그릴 때 (start · peek) 도 부름 */
+export function syncRegionOrder(state: GameState): void {
   setRegionOrder(regionsOn(state) ? state.save.regions.order : null);
 }
 
+/** 연 지역마다 관장을 이겼는지 (배지) — 그러면 다음 지역을 열 차례 (관장 첫 승 · 배지가 이미 있는 세이브 따라잡기 — 코드 리뷰어 #66) */
+function nextRegionDue(save: Save): boolean {
+  return !save.regions.next?.length && REGION_IDS.some((r) => !save.regions.order.includes(r)) && save.regions.order.every((r) => save.badges.includes(REGIONS[r].badge));
+}
+
 /**
- * 관장 첫 승 → 다음 지역 (gdd 5.1 · 7-2 — orders #66): 남은 곳이 1곳이면 바로 연 지역에 · 2곳 넘으면 2곳을 뽑아 고르기 (regions.next — 껐다 켜도 같은 두 곳).
+ * 다음 지역을 열고 알림 줄에 (알림은 걷기 · 대기실에서만 셈 — 관장 첫 승이면 배지 카드 뒤에 보임, U1). 앞머리 "새 지역" · "다음 지역" 은 화면이 [M] 지도 칸을 붙이는 표시 (디자인 #67)
+ */
+function openAndAnnounce(save: Save, rt: RuntimeState, rng: Rng): { save: Save; rt: RuntimeState } {
+  if (!nextRegionDue(save)) return { save, rt };
+  const opened = openNextRegion(save, rng);
+  if (opened.regions.next?.length) return { save: opened, rt: queueToast(rt, '다음 지역을 골라요') };
+  const added = opened.regions.order.find((r) => !save.regions.order.includes(r));
+  return { save: opened, rt: added ? queueToast(rt, `새 지역이 열렸어요 — ${REGIONS[added].name}`) : rt };
+}
+
+/**
+ * 관장 첫 승 → 다음 지역 (gdd 5.1 · 7-2 — orders #66): 남은 곳이 1곳이면 바로 연 지역에 · 2곳 이상이면 2곳을 뽑아 고르기 (regions.next — 껐다 켜도 같은 두 곳).
  * all = 지역 목록 (테스트가 셋 넘는 지역으로 봄)
  */
 export function openNextRegion(save: Save, rng: Rng, all: readonly RegionId[] = REGION_IDS): Save {
@@ -1577,7 +1601,7 @@ export function applyInput(state: GameState, input: GameInput): GameState {
     case 'region-pick': {
       // 고를 곳 중 하나 — 연 지역에 더하고 고르기를 지움 (그 자리에서 이동은 안 함 — 지도에서). 전투 중엔 안 받음
       const next = save.regions.next;
-      if (!regionsOn(state) || !next?.includes(input.region) || inBattle(state)) return state;
+      if (!regionsOn(state) || !next?.includes(input.region) || save.regions.order.includes(input.region) || inBattle(state)) return state;
       const { next: _next, ...regions } = save.regions;
       const picked: Save = { ...save, regions: { ...regions, order: [...regions.order, input.region] } };
       return { save: picked, runtime: queueToast(state.runtime, `새 지역이 열렸어요 — ${REGIONS[input.region].name}`) };
@@ -1601,17 +1625,9 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       const { picking: _k, ...rest } = stage;
       return { ...state, runtime: { ...state.runtime, stage: rest } };
     }
-    case 'badge-continue': {
+    case 'badge-continue':
       if (stage?.phase !== 'badge') return state;
-      let rt: RuntimeState = { ...state.runtime, stage: { phase: 'lobby' } };
-      // 관장 첫 승으로 연 다음 지역 · 고를 곳 알림 — 배지 카드 뒤에 (덮지 않게 — U1). 앞머리 "새 지역" · "다음 지역" 은 화면이 [M] 지도 칸을 붙이는 표시 (디자인 #67)
-      if (regionsOn(state)) {
-        const last = save.regions.order[save.regions.order.length - 1];
-        if (save.regions.next?.length) rt = queueToast(rt, '다음 지역을 골라요');
-        else if (last && last !== regionHere(save.location).id) rt = queueToast(rt, `새 지역이 열렸어요 — ${REGIONS[last].name}`);
-      }
-      return { ...state, runtime: rt };
-    }
+      return { ...state, runtime: { ...state.runtime, stage: { phase: 'lobby' } } };
   }
 }
 

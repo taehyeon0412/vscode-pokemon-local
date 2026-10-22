@@ -3,7 +3,7 @@
  * 화면(DOM)을 모르는 부분만 모아서 자동 테스트로 확인한다 (그리기 · 이벤트 연결은 main.ts).
  */
 import { BALANCE, TIMING } from '../core/balance';
-import { advance, applyInput, clampFrameDelta, type GameInput, type GameState } from '../core/engine';
+import { advance, applyInput, clampFrameDelta, syncRegionOrder, type GameInput, type GameState } from '../core/engine';
 import { dayKey } from '../core/rules/daily';
 import { SAVE_VERSION, type Save } from '../core/save';
 import { GAME_COMMAND, type HostToWebview, type SaveReason, type TitleInfo, type WebviewToHost } from '../shared/messages';
@@ -133,6 +133,8 @@ export class WebviewSession {
         }
         this.epoch = message.epoch;
         this.state = message.state;
+        // 첫 그림이 엔진 걸음 전이라 지역 순서를 받은 세이브로 (개발 모드 ↔ 진짜 게임을 오갈 때 지난 세이브 것으로 그리던 것 — 코드 리뷰어 #66)
+        syncRegionOrder(message.state);
         this.dirty = false;
         this.lastSentAt = this.deps.now();
         this.titleInfo = null;
@@ -174,6 +176,7 @@ export class WebviewSession {
         // 접힌 동안 확장이 계산한 지금 상태 — 맡지 않은 채 그림만 (접힌 줄이 접은 순간 모습 그대로 멈춰 있던 것 — gdd 4.13 R13)
         if (this.epoch === null && this.collapsed && this.screenNow === 'game') {
           this.state = message.state;
+          syncRegionOrder(message.state);
           this.changed();
         }
         return;

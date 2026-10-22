@@ -41,7 +41,8 @@ export interface StageInfo {
 
 /** 지역 표 (core/rules/region — orders #35) 에서 — 숲 = 새싹 오솔길 1-1 · 버섯 그늘길 1-2 · 깊은 숲 1-3 */
 export const STAGES: Readonly<Record<StageId, StageInfo>> = Object.fromEntries(
-  Object.values(REGIONS).flatMap((r) => r.stages.map((s) => [s.id, { id: s.id, name: s.name, code: stageCode(s.id), icon: s.icon as IconName }])),
+  // code 는 그때그때 (지역 순서 = 세이브 연 순서를 따라감 — 모듈을 읽을 때 한 번 세면 늘 2-x 이던 것, 코드 리뷰어 #66)
+  Object.values(REGIONS).flatMap((r) => r.stages.map((s) => [s.id, { id: s.id, name: s.name, get code() { return stageCode(s.id); }, icon: s.icon as IconName }])),
 ) as Record<StageId, StageInfo>;
 
 /** "🌲 새싹 오솔길 (1-1)" — 글로만 쓸 때 (클리어 카드 문구 등). 화면 이름표는 STAGES 로 번호를 따로 작게 */

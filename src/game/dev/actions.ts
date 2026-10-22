@@ -131,7 +131,11 @@ function evolveAt(m: Monster): number | null {
 
 /** 해변 미리 보기 — 연 지역에 해변 (4판: 안 연 지역의 곳은 세이브 검사가 숲으로 옮겨서 — 안 볼 때 확장이 받는 상태도 검사함) */
 function openBeach(save: Save): Save {
-  return save.regions.order.includes('beach') ? save : { ...save, regions: { ...save.regions, order: [...save.regions.order, 'beach'] } };
+  if (save.regions.order.includes('beach')) return save;
+  // 고를 곳에 해변이 있었으면 그것도 지움 (연 지역 · 고를 곳이 겹치지 않게 — 코드 리뷰어 #66)
+  const next = save.regions.next?.filter((r) => r !== 'beach');
+  const { next: _next, ...rest } = save.regions;
+  return { ...save, regions: { ...rest, order: [...rest.order, 'beach'], ...(next?.length ? { next } : {}) } };
 }
 
 function scene(state: GameState, sc: DevScene, rng: Rng): DevResult {

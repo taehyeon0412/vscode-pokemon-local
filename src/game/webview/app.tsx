@@ -86,8 +86,8 @@ export function overlayAllowed(o: Overlay, state: GameState): boolean {
   }
 }
 
-/** 판이 떠 있는 동안 받는 입력 (판에서 누른 것) — 나머지 (전투 숫자 키 · Space 등) 는 안 받음 */
-export const OVERLAY_INPUTS: readonly GameInput['kind'][] = ['team-move', 'team-swap', 'team-to-box', 'points', 'use-item', 'notifications', 'fast-walk', 'auto-battle', 'reduce-motion', 'auto-potion', 'skip-caught-last', 'tip-seen', 'buy', 'sell', 'travel'];
+/** 판이 떠 있는 동안 받는 입력 — overlay-inputs.ts (화면 없이 테스트) */
+export { OVERLAY_INPUTS } from './overlay-inputs';
 
 export function App({ store, media, actions }: { store: Store<ViewState>; media: string; actions: AppActions }) {
   const v = useStore(store);

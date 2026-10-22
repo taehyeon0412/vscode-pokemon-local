@@ -592,6 +592,22 @@ describe('다음 지역 열기 (orders #66 — BALANCE.region.open 꺼짐 = 지�
     expect(applyInput(off, { kind: 'region-pick', region: 'beach' })).toBe(off);
     const fighting = applyInput(s0, { kind: 'challenge' });
     expect(applyInput(fighting, { kind: 'region-pick', region: 'beach' })).toBe(fighting);
+    // 이미 연 지역은 또 안 더함 (연 지역 · 고를 곳이 겹친 개발 세이브 — 코드 리뷰어 #66)
+    const both = lobby({ badges: ['forest'], regions: { order: ['forest', 'beach'], next: ['beach'] } }, true);
+    expect(applyInput(both, { kind: 'region-pick', region: 'beach' })).toBe(both);
+  });
+
+  it('따라잡기 — 연 지역 관장을 다 이겼는데 다음 곳이 없는 세이브 (숲 배지가 이미 있는 옛 세이브) 는 대기실 · 걷기에서 열고 알림 · 꺼지면 그대로 (코드 리뷰어 #66)', () => {
+    const old = lobby({ badges: ['forest'] }, true);
+    const s = step(old, STEP).state;
+    expect(s.save.regions).toEqual({ order: ['forest', 'beach'] });
+    expect(toasts(s)).toContain('새 지역이 열렸어요 — 해변');
+    // 다음 걸음엔 또 열지 않음 (해변 배지는 아직)
+    expect(step(s, STEP).state.save.regions).toEqual({ order: ['forest', 'beach'] });
+    expect(step(lobby({ badges: ['forest'] }), STEP).state.save.regions).toEqual({ order: ['forest'] });
+    // 전투 중엔 기다림
+    const fighting = applyInput(old, { kind: 'challenge' });
+    expect(step(fighting, STEP).state.save.regions).toEqual({ order: ['forest'] });
   });
 
   it('다른 지역 체육관으로 이동 (travel gym + region) — 연 지역이고 끝 스테이지를 깼을 때만', () => {
