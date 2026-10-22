@@ -6298,13 +6298,12 @@ body.vscode-high-contrast-light .pg-hpblock > .pg-hprow,
 .pg-alt-ups {
   display: none;
 }
-@media (max-width: 260px) {
-  .pg-lvup-cards > .pg-lvup-card:nth-child(n + 2) {
-    display: none;
-  }
-  .pg-alt-ups {
-    display: inline;
-  }
+/* 넘쳐서 카드 한 장 (ResultBox useResultFit one — 폭 경계 260 고정이던 것, #70 UX 큼 1) */
+.pg-result-one .pg-lvup-cards > .pg-lvup-card:nth-child(n + 2) {
+  display: none;
+}
+.pg-result-one .pg-alt-ups {
+  display: inline;
 }
 @keyframes pg-alt-a {
   0% { visibility: visible; }

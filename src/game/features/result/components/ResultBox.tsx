@@ -16,7 +16,7 @@ import { speciesOf } from '../../../data';
 import { spriteBoxOf } from '../../../data/sprite-boxes';
 import { TypeTags } from '../../battle/components/TypeTag';
 import { ITEM_ICON } from '../../menu/model';
-import { itemName } from '../../../core/rules/items';
+import { itemName, VALUABLES } from '../../../core/rules/items';
 import { ITEM_IDS } from '../../../core/save';
 import { partText, summaryLines, type CaughtView, type LevelUpView, type SummaryPart } from '../model';
 
@@ -69,9 +69,11 @@ const treasureIcon = (name: string) => {
 
 /** 첫 줄 받은 것 — 라이벌 보상 (돈 ×1.5 · 아이템) 은 ★ 금색 (gdd 4.12 — 글을 늘리면 좁은 패널에서 잘려서 표시로만) */
 function Reward({ p, rare }: { p: SummaryPart; rare: boolean }) {
+  // 받은 물건 (첫 승 리프의돌 · 보물) = 그 물건 그림 + 쓰는 곳 (공통 선물 그림 · 설명 없음이던 것 — 개발 UX #70, 배지 카드에서 칩을 뺀 f5b4ea5 뒤)
+  const id = p.kind === 'item' || p.kind === 'treasure' ? ITEM_IDS.find((i) => itemName(i) === p.text) : undefined;
   return (
-    <span class={rare && p.kind !== 'caught' ? 'pg-reward pg-reward-rare' : 'pg-reward'}>
-      <Icon name={p.kind === 'caught' ? 'ball' : p.kind === 'money' ? 'coin' : p.kind === 'treasure' ? treasureIcon(p.text) : 'gift'} /> {p.text}
+    <span class={rare && p.kind !== 'caught' ? 'pg-reward pg-reward-rare' : 'pg-reward'} title={id ? `${p.text} — ${VALUABLES.includes(id) ? '상점에서 팔아요' : '가방에서 써요'}` : undefined}>
+      <Icon name={p.kind === 'caught' ? 'ball' : p.kind === 'money' ? 'coin' : p.kind === 'treasure' || p.kind === 'item' ? treasureIcon(p.text) : 'gift'} /> {p.text}
     </span>
   );
 }
@@ -120,29 +122,47 @@ function FaceCards({ ups, media, hint, onStats }: { ups: LevelUpView[]; media: s
 /**
  * 넘치면 한 단계 (ux-rules U4 — 폭 경계를 손으로 고르지 않음): 첫 줄 얻은 것 (돈 · 물건 칩) 이 맥 여유 1.1 로 안 들어가면 번갈아 줄 (pg-result-tight) 로.
  * 칩이 더 필요한 폭 (원래 폭 × 1.1 − 지금 폭) 을 제목이 줄 수 있는 만큼 (지금 폭 − 최소 폭) 과 견줌 — 경계 460 고정이라 관장 첫 승 상자가 461 ~ 579 에서 "+300…" · "리프…" 로 잘리던 것 (#70 개발 UX 큼)
+ * 그래도 넘치면 (첫 줄 버튼 · 칩 × 1.1 + 제목 최소 폭이 줄보다 넓음 · 상자가 패널 아래로) 얼굴 카드를 한 장만 (one — 빠진 레벨업은 pg-alt-ups) —
+ * 경계 260 고정이라 261 ~ 330 레벨업 3마리 이상 · 진화 버튼에서 "계속 ▶" · "▶ 어…?" 가 넘치고 6마리면 상자가 패널보다 높던 것 (#70 개발 UX 다시 보기 큼 1 · U4 다섯 번째)
  */
-function useResultFit(): { box: { current: HTMLDivElement | null }; on: boolean } {
+function useResultFit(): { box: { current: HTMLDivElement | null }; on: boolean; one: boolean } {
   const box = useRef<HTMLDivElement>(null);
   const [on, setOn] = useState(false);
+  const [one, setOne] = useState(false);
+  // 한 번에 한 단계 — 칩 번갈아 줄 (on) 이 먼저, 그 판에서도 첫 줄이 넘치면 카드 한 장 (one) (카드를 먼저 빼면 461 ~ 598 에서 칩이 첫 줄에 남고 카드 둘이 빠지던 것)
   useLayoutEffect(() => {
     const el = box.current;
-    if (on || !el) return;
+    if (!el) return;
     const line = el.querySelector<HTMLElement>('.pg-line');
     const title = line?.querySelector<HTMLElement>('.pg-result-title');
-    if (!line || !title) return;
-    let need = 0;
-    line.querySelectorAll<HTMLElement>(':scope > .pg-reward').forEach((c) => {
-      if (c.offsetWidth > 0) need += c.scrollWidth * 1.1 - c.clientWidth;
-    });
-    const slack = title.getBoundingClientRect().width - (parseFloat(getComputedStyle(title).minWidth) || 0);
-    if (need > Math.max(0, slack) + 0.5) setOn(true);
+    if (!line || !title || line.clientWidth === 0) return;
+    const minW = (c: HTMLElement) => parseFloat(getComputedStyle(c).minWidth) || 0;
+    if (!on) {
+      let need = 0;
+      line.querySelectorAll<HTMLElement>(':scope > .pg-reward').forEach((c) => {
+        if (c.offsetWidth > 0) need += c.scrollWidth * 1.1 - c.clientWidth;
+      });
+      if (need > Math.max(0, title.getBoundingClientRect().width - minW(title)) + 0.5) {
+        setOn(true);
+        return;
+      }
+    }
+    if (one || !el.classList.contains('pg-lvup')) return;
+    // 첫 줄 = 제목 (최소 폭까지 줄어듦) + 보이는 칩 · 버튼 (내용 실제 너비 × 1.1) + 칸 사이 gap
+    const kids = [...line.children].filter((c): c is HTMLElement => c instanceof HTMLElement && c.offsetWidth > 0);
+    const gap = parseFloat(getComputedStyle(line).columnGap) || 0;
+    const need = kids.reduce((w, c) => w + (c === title ? minW(c) : c.scrollWidth * 1.1), 0) + gap * Math.max(0, kids.length - 1);
+    if (need > line.clientWidth + 0.5 || el.getBoundingClientRect().bottom > window.innerHeight - 1) setOne(true);
   });
   useEffect(() => {
-    const reset = () => setOn(false);
+    const reset = () => {
+      setOn(false);
+      setOne(false);
+    };
     window.addEventListener('resize', reset);
     return () => window.removeEventListener('resize', reset);
   }, []);
-  return { box, on };
+  return { box, on, one };
 }
 
 /** next = 이어서 고를 것 (맨 앞) — 버튼에 다음 할 일 · ups = 레벨업한 포켓몬 (result/model levelUps) · onStats = 내 포켓몬 판 (그 포켓몬) */
@@ -150,7 +170,7 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
   const tight = useResultFit();
   if (caught && ms < TIMING.caughtIntroMs) return <CaughtIntro c={caught} media={media} at={introAt} onSkip={() => onInput({ kind: 'result-continue' })} />;
   const { title, head, body } = summaryLines(summary);
-  // 찍을 포인트가 있는 카드를 앞으로 — 아주 좁은 패널 (260px 아래) 은 카드 한 장만 보여서, 포인트 카드 · 말풍선이 숨지 않게 (2026-10-21)
+  // 찍을 포인트가 있는 카드를 앞으로 — 넘쳐서 카드 한 장만 보일 때 (tight.one) 포인트 카드 · 말풍선이 숨지 않게 (2026-10-21)
   const cards = [...ups].sort((a, b) => Number(b.points > 0) - Number(a.points > 0));
   const all = [title, ...head.map(partText), ...body.map(partText)].join(' · ') + (summary.rival ? ` · 라이벌 보상 (돈 ×${BALANCE.rivalMoneyScale} · 아이템)` : '');
   // 카드가 레벨업을 보여 주면 둘째 줄의 "▲ 이상해씨 Lv 5 → 6 (경험치 +28)" 은 빼고 새 기술 (★) 을 앞에 — 같은 말 두 번 · 좁으면 ★ 가 잘리던 것 (아트 디렉터 7차, 전체는 마우스를 올리면)
@@ -163,7 +183,7 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
       <Line p={p} />
     </span>
   ));
-  // 260px 아래 카드에서 빠진 포켓몬 레벨업 (pg-alt-ups — 그 폭에서만 보임, 카드에도 글에도 없던 것 · UX 리뷰어)
+  // 카드 한 장일 때 빠진 포켓몬 레벨업 (pg-alt-ups — 그때만 보임, 카드에도 글에도 없던 것 · UX 리뷰어)
   const hiddenUps = cards.slice(1).map((u) => `${u.name} Lv\u00a0${u.to}`).join(' · ');
   const altB = rest.length > 0 ? (
     <>
@@ -211,7 +231,7 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
     );
   }
   return (
-    <div ref={tight.box} class={`pg-banner pg-result pg-two pg-lvup${tight.on ? ' pg-result-tight' : ''}`} title={all}>
+    <div ref={tight.box} class={`pg-banner pg-result pg-two pg-lvup${tight.on ? ' pg-result-tight' : ''}${tight.one ? ' pg-result-one' : ''}`} title={all}>
       <span class="pg-lvup-cards">
         <FaceCards ups={cards} media={media} hint={hint} onStats={onStats} />
       </span>
