@@ -1067,8 +1067,10 @@ describe('3:3 박자 (orders #83 — 기본 0.8 · 전투 ×2) · 누를 창 (or
     expect(gameTempo(inTeam(b0, false))).toBe(0.8);
     expect(gameTempo(inTeam(b0, true))).toBeCloseTo(1.6, 10);
     // ×2 여도 알아챌 순간은 기본 박자 (코드 리뷰어 #83 — U1): 상대 다 참 (곧!) · 내 다 참 1초 · 쓰러짐 1초 · 안내 팝업
-    const foeFull = { ...b0, foe: b0.foe.map((f, i) => ({ ...f, ult: i === 1 ? 1 : 0 })) };
+    const foeFull = { ...b0, foe: b0.foe.map((f, i) => ({ ...f, ult: i === 1 ? 1 : 0 })), ultReadyAt: { me: [null, null, null], foe: [null, b0.t, null] } };
     expect(gameTempo(inTeam(foeFull, true))).toBe(0.8);
+    // 상대 "!" 도 찬 뒤 1초만 (기다림 내내 0.8 이면 ×2 가 1.16배뿐 — 디자인 UX #83)
+    expect(gameTempo(inTeam({ ...foeFull, t: b0.t + TIMING.team.fastKeepMs }, true))).toBeCloseTo(1.6, 10);
     const meFull = { ...b0, me: b0.me.map((f, i) => ({ ...f, ult: i === 0 ? 1 : 0 })), ultReadyAt: { me: [b0.t, null, null], foe: [null, null, null] } };
     expect(gameTempo(inTeam(meFull, true))).toBe(0.8);
     expect(gameTempo(inTeam({ ...meFull, t: b0.t + TIMING.team.fastKeepMs }, true))).toBeCloseTo(1.6, 10);

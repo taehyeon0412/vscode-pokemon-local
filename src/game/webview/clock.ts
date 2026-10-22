@@ -148,6 +148,26 @@ export function setGameClock(next: number): void {
   rate(document.getAnimations());
 }
 
+/**
+ * 빨라지는 쪽 (1 넘는 배 — 전투 ×2) 은 그 배가 0.5초 넘게 이어질 때만 — 0.8 사이에 1.6 이 0.04 ~ 0.3초 끼었다 빠지던 것 (디자인 UX #83 U2).
+ * 느려지는 쪽 · 1 이하는 바로 (알아챌 순간 · 끼어들 창은 늦게 걸리면 안 됨). 진짜 시간으로 셈
+ */
+const SETTLE_MS = 500;
+let settleWant = 1;
+let settleSince = 0;
+export function gameClockSettle(target: number): number {
+  if (target <= 1 || target <= scale) {
+    settleWant = target;
+    return target;
+  }
+  const now = real.now();
+  if (target !== settleWant) {
+    settleWant = target;
+    settleSince = now;
+  }
+  return now - settleSince >= SETTLE_MS ? target : scale;
+}
+
 /** 게임 상태에 맞는 배 — 개발 모드 멈춤 = 0 · 3:3 박자 (gameTempo) × 개발 모드 전투 배 · 그 밖 (일반 모드 · 타이틀 포함) = 1 */
 export function gameClockFor(state: GameState | null, playing: boolean): number {
   if (!playing || !state) return 1;

@@ -57,6 +57,22 @@ describe('웹뷰 게임 시계', () => {
     expect(ran).toBe(0);
   });
 
+  it('빨라지는 쪽 (×2 — 1 넘는 배) 은 0.5초 넘게 이어질 때만 · 느려지는 쪽은 바로 (0.8 사이에 1.6 이 잠깐 끼던 것 — 디자인 UX #83)', async () => {
+    clock.setGameClock(0.8);
+    expect(clock.gameClockSettle(1.6)).toBe(0.8);
+    await sleep(200);
+    expect(clock.gameClockSettle(1.6)).toBe(0.8);
+    // 잠깐 느려지면 다시 처음부터 셈
+    expect(clock.gameClockSettle(0.8)).toBe(0.8);
+    expect(clock.gameClockSettle(1.6)).toBe(0.8);
+    await sleep(550);
+    expect(clock.gameClockSettle(1.6)).toBe(1.6);
+    clock.setGameClock(1.6);
+    expect(clock.gameClockSettle(0.55)).toBe(0.55);
+    expect(clock.gameClockSettle(1)).toBe(1);
+    clock.setGameClock(1);
+  });
+
   it('main-bundle 의 fxGuard 건너뛰는 타이머 (__pgSetTimeout) 도 배를 따름 — 배 2 면 200ms 가 약 100ms', async () => {
     clock.setGameClock(2);
     const later = win.__pgSetTimeout as (fn: () => void, ms: number) => number;

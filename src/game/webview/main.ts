@@ -4,7 +4,7 @@
  */
 import { h, render } from 'preact';
 import { TIMING } from '../core/balance';
-import { canHeal, canOpenMenus, nextStageOf, teamScale } from '../core/engine';
+import { canHeal, canOpenMenus, inBattle, nextStageOf, teamScale } from '../core/engine';
 import { teamHealthy } from '../core/rules/bag';
 import { MENU_PANELS, menuShortcutOf } from '../features/menu/model';
 import { levelUps } from '../features/result/model';
@@ -24,7 +24,7 @@ import '../dev/dev.css';
 import { getGameConfig, getGamePort } from './vscode-api';
 import { WebviewSession, type SaveIoView } from './webview-session';
 import { devApply } from '../dev/actions';
-import { gameClockFor, resetGameClock, setGameClock } from './clock';
+import { gameClockFor, gameClockSettle, resetGameClock, setGameClock } from './clock';
 import { setDevUlts } from '../dev/ult-pick';
 
 /** 게임 화면이 보이는 동안 body 에 붙임 — game.css 가 일반 모드 층을 숨기고, 일반 모드는 포켓몬을 멈춤 (main-bundle.js GAME-PATCH) */
@@ -81,7 +81,7 @@ if (!port) {
       // 접힌 상태 (150px 아래) 면 그리지 않음 — 게임은 확장이 맡음 (sync)
       if (store.get().layout.tooSmall) return;
       // 게임 시계 — 3:3 박자 (0.8 · 전투 ×2 · 끼어들 창) · 개발 모드 (임시) 전투 느리게 · 멈춤 / 개발 모드 고른 필살기
-      setGameClock(gameClockFor(session.current, true));
+      setGameClock(gameClockSettle(gameClockFor(session.current, true)));
       setDevUlts(session.current?.runtime.dev?.ults);
       session.frame(dt);
       // 판이 떠 있는 동안은 게임이 멈춤 — 판에서 누른 것은 input 이 바로 그림 (초당 30번 열쇠 계산을 쉼)
@@ -303,7 +303,9 @@ if (!port) {
     // C = 전투 ×2 켜고 끄기 (orders #83 — 3:3 보통 공격만, 화면 위 스위치 · 설정과 같음, 판이 없을 때 · X 는 각성 자리 [확정 2026-10-17] 라 C — 기획 답)
     if (!overlay && e.code === 'KeyC' && !(e.ctrlKey || e.metaKey || e.altKey)) {
       const cur = session.current;
-      if (cur && (cur.save.location.screen === 'stage' || cur.save.location.screen === 'gym')) {
+      // 1:1 전투 중에는 무시 — 1:1 엔 ×2 가 없고 스위치 · 알림도 안 보여 설정만 몰래 바뀌던 것 (디자인 UX #83)
+      const oneOnOne = cur ? inBattle(cur) && cur.runtime.stage?.phase !== 'team' : false;
+      if (cur && !oneOnOne && (cur.save.location.screen === 'stage' || cur.save.location.screen === 'gym')) {
         e.preventDefault();
         actions.input({ kind: 'battle-fast', on: cur.save.settings.battleFast !== true, say: true });
         return;

@@ -804,8 +804,9 @@ export function teamJoinOpen(b: TeamBattle): { gathering: boolean } | null {
 export function teamFastOk(b: TeamBattle): boolean {
   if (b.phase !== 'run' || b.moveClashes.length > 0) return false;
   const keep = TIMING.team.fastKeepMs;
-  if (b.foe.some((f) => teamUltLevel(f) === 'full')) return false;
-  if (b.me.some((f, i) => teamUltLevel(f) === 'full' && b.t - (b.ultReadyAt.me[i] ?? -Infinity) < keep)) return false;
+  // 다 참 (상대 "!" · 내 말풍선) 은 찬 뒤 1초만 — 상대 "!" 기다림 내내 0.8 이라 ×2 를 켜도 관장 판이 1.16배밖에 안 빨라지던 것 (디자인 UX #83 큼 — "!" 칩은 화면에 남아 U1 은 지켜짐)
+  const freshFull = (side: Side) => b[side].some((f, i) => teamUltLevel(f) === 'full' && b.t - (b.ultReadyAt[side][i] ?? -Infinity) < keep);
+  if (freshFull('foe') || freshFull('me')) return false;
   if (b.log.some((e) => e.t === 'faint' && b.t - e.at < keep)) return false;
   return !b.popups.some((p) => p.kind === 'info');
 }
