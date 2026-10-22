@@ -53,7 +53,11 @@ export function StageToast({ text, center, bottom, room, avoid }: { text: string
       {text.split('\n').map((line, i) => (
         <Fragment key={i}>
           {i > 0 && <br />}
-          {line.replace(/(\S+) Lv (\d)/g, '$1\u00a0Lv\u00a0$2').replace(/외 (\d)/g, '외\u00a0$1')}
+          {/* "하이퍼볼 +1" 도 한 덩어리 (오늘의 목표 알림 끝 "· [M] 지도" 가 붙으며 "하이퍼볼 / +1" 로 갈리던 것 — #59 UX 다시 보기) */}
+          {line
+            .replace(/(\S+) Lv (\d)/g, '$1\u00a0Lv\u00a0$2')
+            .replace(/외 (\d)/g, '외\u00a0$1')
+            .replace(/(\S+) \+(\d)/g, '$1\u00a0+$2')}
         </Fragment>
       ))}
       {text.startsWith(DAILY_TOAST) && (

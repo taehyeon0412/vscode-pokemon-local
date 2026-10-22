@@ -141,13 +141,17 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   const msgOn = b.phase === 'over' && b.overMs >= 900 && !!b.msg;
   const ult = (slot: number) => onInput({ kind: 'team-battle', input: { kind: 'ult', slot } });
   // 머리 위 말 · 숫자를 패널 양 끝 2px 안으로 (끝 칸의 "버섯꼬 쓰러졌다!" 의 "!" · "리자드" 의 "리" 가 잘리던 것 — UX 리뷰어 R9 ⑥, U4) · 정수 px
+  // 처음 안내 (위 · 3:3 저절로 필살기) 와 겹치면 안내 아래 2px 로 내림 — 이 층 (z 5) 이 안내 (z 7) 아래라 240 에서 "레디바 쓰러졌다!" 첫 글자가 1.2초 숨던 것 (#59 UX 다시 보기 · 480 "-7" 의 "-" 도)
   useLayoutEffect(() => {
     const W = window.innerWidth;
+    const tip = root.current?.closest('#pokemon-game')?.querySelector<HTMLElement>('.pg-first-tip.pg-first-tip-top')?.getBoundingClientRect();
     root.current?.querySelectorAll<HTMLElement>('.pg-team-pop').forEach((el) => {
       el.style.marginLeft = '0px';
+      el.style.marginTop = '0px';
       const r = el.getBoundingClientRect();
       const shift = r.left < 2 ? 2 - r.left : r.right > W - 2 ? W - 2 - r.right : 0;
       if (shift) el.style.marginLeft = `${Math.round(shift)}px`;
+      if (tip && tip.height > 0 && r.left + shift < tip.right && r.right + shift > tip.left && r.top < tip.bottom && r.bottom > tip.top) el.style.marginTop = `${Math.ceil(tip.bottom + 2 - r.top)}px`;
     });
   });
   // 저절로 나갈 칸 하나 = 엔진이 기다림을 세는 칸 (teamAutoUltNext — HP 30% 아래 칸 먼저, 아니면 먼저 찬 칸 · 둘째 칸 칩이 1장면만 보이던 것, 개발 4016471)
@@ -171,7 +175,8 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
           끼어들기
           {/* 머릿수 (기획 #24-3) — 받아치면 나 1 대 상대 쓴 포켓몬 + 모인 동료 · 1 대 3 이면 빨강 "받아치면 짐" (확정 패배)
               "1:1" 은 만남의 "1:1 승부" 와 같은 글이라 "1:1 로 바꾸기" 로 읽혀서 연타 띠처럼 "대" (개발 UX #59) */}
-          <span class={`pg-team-odds${prompt.sure === 'foe' ? ' pg-team-sure-foe' : ''}`}>{`· ${prompt.me} 대 ${prompt.foe}${prompt.sure === 'foe' ? ' 받아치면 짐' : ''}`}</span>
+          {/* 좁으면 (400 아래) "받아치면 짐" → "짐" (가장 긴 띠 "상대 합동 [2][3] 끼어들기 · 1 대 3 받아치면 짐" 248px 가 240 의 224 에 두 줄로 — #59 UX 다시 보기) */}
+          <span class={`pg-team-odds${prompt.sure === 'foe' ? ' pg-team-sure-foe' : ''}`}>{`· ${prompt.me} 대 ${prompt.foe}${prompt.sure === 'foe' ? (widthPx < 400 ? ' 짐' : ' 받아치면 짐') : ''}`}</span>
           <span class="pg-team-left" style={{ width: `${Math.round(prompt.left * 100)}%` }} />
         </div>
       )}

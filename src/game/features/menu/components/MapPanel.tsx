@@ -3,7 +3,7 @@
  * ④ 팀 바꾸기 (스테이지 시작 전에만 — 걷는 중에 연 지도에서는 흐리게) · ③ 닫기.
  * 걷는 중에 다른 스테이지를 고르면 "지금 스테이지 진행이 처음부터 다시예요" 확인 한 번 · 지금 스테이지를 고르면 그대로 이어 함.
  */
-import { useState } from 'preact/hooks';
+import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { dailyView, type GameInput, type GameState } from '../../../core/engine';
 import type { StageId } from '../../../core/save';
 import { Button } from '../../../ui/Button';
@@ -29,6 +29,16 @@ export function MapPanel({ state, swap, midStage, onInput, onTeam, onClose }: Ma
   // 오늘의 목표 (#28 · gdd U13 — 모두에게, orders #59 · 엔진이 꺼져 있으면 null) · 기록 (U12)
   const daily = dailyView(state);
   const rec = state.save.records;
+  // 오늘의 목표 알림 ("… · [M] 지도") 이 떠 있을 때 열면 목표 칸까지 내려서 엶 — 240 · 480 × 150 에서 목표가 "▼ 더" 밑에 있어 알림이 보낸 곳에 목표가 안 보이던 것 (#59 UX 다시 보기)
+  const dailyBox = useRef<HTMLDivElement>(null);
+  const toDaily = state.runtime.toast?.text.startsWith('오늘의 목표') ?? false;
+  useLayoutEffect(() => {
+    const el = dailyBox.current;
+    const body = el?.closest<HTMLElement>('.pg-panel-body');
+    if (!toDaily || !el || !body) return;
+    body.scrollTop += Math.round(el.getBoundingClientRect().top - body.getBoundingClientRect().top) - 4;
+    // 처음 그릴 때 한 번만
+  }, []);
   const [confirm, setConfirm] = useState<StageId | 'gym' | null>(null);
   const go = (to: StageId | 'gym') => {
     const here = state.save.location.screen === 'stage' ? state.save.location.stageId : null;
@@ -69,7 +79,7 @@ export function MapPanel({ state, swap, midStage, onInput, onTeam, onClose }: Ma
       </Row>
       {/* 오늘의 목표 = 스테이지 줄 아래 세 줄 (상자 · 할 일 · 한 수 / 할 수 · 보상 — 위에 두면 150 ~ 187 에서 지도의 본 일인 스테이지 버튼이 밀려 안 보이던 것) — 다 하면 상자 금 칠 · 숫자 금색 (색 하나에만 맡기지 않게 상자 모양도 바뀜) */}
       {daily && (
-        <div class="pg-daily" aria-label={`오늘의 목표 ${daily.done}/${daily.goals.length}`}>
+        <div class="pg-daily" ref={dailyBox} aria-label={`오늘의 목표 ${daily.done}/${daily.goals.length}`}>
           <span class="pg-daily-head">
             <b>오늘의 목표</b> <span class="pg-dim">{daily.done}/{daily.goals.length}</span>
           </span>
