@@ -33,7 +33,18 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, o
   const mine = side === 'me';
   const w = mine ? g.pw : g.pw - 16;
   const warn = side === 'foe' ? foeWarn(b, slot) : null;
-  const pops = b.popups.filter((p) => p.side === side && p.slot === slot);
+  const pops0 = b.popups.filter((p) => p.side === side && p.slot === slot);
+  // 합동 마무리 피해 숫자 = 칩 "합동! −숫자" (같은 걸음에 여럿이면 합계 하나) (판 없는 빨강 "−7" "−9" 둘이 240 에서 묻히던 것, #80 아트 디렉터 2바퀴 · design-system 12장)
+  const dmgKinds = new Set(['damage', 'super', 'weak', 'crit']);
+  // 합동 마무리가 막 있었을 때만 (같은 걸음에 두 상대가 따로 친 숫자는 그대로 둘 — 합동이 아닌데 "합동!" 이 붙지 않게)
+  const jointNow = b.log.some((e) => e.t === 'ult' && !!e.joint && b.t - e.at < TIMING.team.jointMs + 1500);
+  const isDmg = (p: { kind: string; text: string }) => dmgKinds.has(p.kind) && p.text.startsWith('-');
+  const pops = pops0.reduce<(typeof pops0[number] & { joint?: boolean })[]>((out, p) => {
+    if (!jointNow || !isDmg(p)) return [...out, p];
+    const same = out.find((q) => q.joint && q.ms === p.ms);
+    if (!same) return [...out, { ...p, joint: true }];
+    return out.map((q) => (q === same ? { ...q, text: `-${Number(q.text.slice(1)) + Number(p.text.slice(1))}` } : q));
+  }, []);
   const name = speciesOf(f.species)?.name.ko ?? f.form;
   const autoLeft = mine && autoNext ? teamAutoUltLeft(b, slot) : null;
   // 필살기 힘겨루기 중엔 끼어들 수 있는 칸 (join) 만 합류 — 나머지는 바깥 (연타) 으로 (누를 때마다 예약이 켜졌다 꺼지던 것 — 코드 리뷰어)
@@ -93,8 +104,14 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, o
       {/* 피해 숫자 · 짧은 말 — 머리 위 */}
       {/* 칸마다 쌓음 (쓰러짐 말 · 피해 숫자가 같은 자리에 겹치던 것) · 지도 줄 아래로 막음 · 한 줄 배치 · ×1 (좁은 패널 — 셋이 가까움) 은 칸마다 높이를 엇갈림 — UX 리뷰어 */}
       {pops.map((p, i) => (
-        <span key={p.id} class={`pg-team-pop pg-pop-${p.kind}`} style={{ left: `${x}px`, top: `${Math.max(topMin + 15 * (pops.length - 1 - i) + (slot % 3) * 15, y - g.sp - 4 - 15 * i - (g.oneRow || g.scale === 1 ? (slot % 3) * 15 : 0))}px` }}>
-          {p.text}
+        <span key={p.id} class={`pg-team-pop pg-pop-${p.kind}${p.joint ? ' pg-team-joint' : ''}`} style={{ left: `${x}px`, top: `${Math.max(topMin + 15 * (pops.length - 1 - i) + (slot % 3) * 15, y - g.sp - 4 - 15 * i - (g.oneRow || g.scale === 1 ? (slot % 3) * 15 : 0))}px` }}>
+          {p.joint ? (
+            <>
+              <b class="pg-team-joint-tag">합동!</b> {p.text}
+            </>
+          ) : (
+            p.text
+          )}
         </span>
       ))}
     </>
@@ -130,7 +147,21 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   useEffect(() => {
     runner.current?.update(b);
   }, [b]);
-  useEffect(() => () => runner.current?.reset(), []);
+  useEffect(
+    () => () => {
+      runner.current?.reset();
+      document.body.style.removeProperty('--pg-fx-top');
+    },
+    [],
+  );
+  // 연출 캔버스 위 끝 = 지도 줄 (스테이지 이름 · 진행 막대) 아래 끝, 없으면 정보줄 아래 끝 (game.css 가 여기서 자름 — 1:1 BattleFx 와 같은 규칙) ·
+  //   3:3 엔 이 잼이 없어 블래스트번 돔 · 분화 불기둥 · 합동 폭발 · 컷인 띠가 맨 위 줄 · 지도 줄을 덮던 것 (#80 아트 디렉터 2바퀴 큼 — 레퍼런스 goldensun-1f) · 그릴 때마다 잼 (값이 같으면 안 씀)
+  useEffect(() => {
+    const game = root.current?.closest('#pokemon-game');
+    const rows = [game?.querySelector<HTMLElement>('.pg-infobar'), game?.querySelector<HTMLElement>('.pg-maprow')].filter((e): e is HTMLElement => !!e && e.getClientRects().length > 0);
+    const top = `${rows.length ? Math.round(Math.max(...rows.map((e) => e.getBoundingClientRect().bottom))) : 0}px`;
+    if (document.body.style.getPropertyValue('--pg-fx-top') !== top) document.body.style.setProperty('--pg-fx-top', top);
+  });
   const prompt = teamPrompt(b);
   // 판을 끝낸 마지막 ko (끝 바로 앞 ko 한 방 — fx/team 의 final 과 같은 규칙) · 맞은 쪽 = 친 쪽 반대
   const finalKo = useMemo(() => {
@@ -202,8 +233,10 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
       el.style.marginTop = '0px';
       const r = el.getBoundingClientRect();
       const shift = r.left < 2 ? 2 - r.left : r.right > W - 2 ? W - 2 - r.right : 0;
-      if (shift) el.style.marginLeft = `${Math.round(shift)}px`;
-      if (tip && tip.height > 0 && r.left + shift < tip.right && r.right + shift > tip.left && r.top < tip.bottom && r.bottom > tip.top) el.style.marginTop = `${Math.ceil(tip.bottom + 2 - r.top)}px`;
+      // 왼쪽 끝을 정수 px 로 (translate −50% 가 홀수 폭이면 반 px — 1px 판 테두리 · 글이 흐림, 아트 디렉터 #80)
+      const fix = Math.round(r.left + shift) - r.left;
+      if (Math.abs(fix) > 0.01) el.style.marginLeft = `${fix}px`;
+      if (tip && tip.height > 0 && r.left + fix < tip.right && r.right + fix > tip.left && r.top < tip.bottom && r.bottom > tip.top) el.style.marginTop = `${Math.ceil(tip.bottom + 2 - r.top)}px`;
     });
   });
   // 저절로 나갈 칸 하나 = 엔진이 기다림을 세는 칸 (teamAutoUltNext — HP 30% 아래 칸 먼저, 아니면 먼저 찬 칸 · 둘째 칸 칩이 1장면만 보이던 것, 개발 4016471)
