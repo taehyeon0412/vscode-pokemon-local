@@ -25,8 +25,12 @@ import { moveOf, speciesOf } from '../src/game/data';
 import { createStartSave, starterList } from '../src/game/features/starter/model';
 
 const STEP = TIMING.simStepMs;
-// 6시간 넘으면 못 깬 것으로 (해변을 되풀이하면 (SIM_REGIONS) 지역마다 1.5시간 더)
-const MAX_MS = Math.max(6, process.env.SIM_REGION === 'beach' ? 2 + 1.5 * (Math.max(2, Number(process.env.SIM_REGIONS ?? 2)) - 1) : 0) * 60 * 60 * 1000;
+/** SIM_IDLE=<시간> — 숲 관장 첫 승 뒤 그만큼 1-3 을 되풀이 걷기 (방치 — 선두 Lv · 돈, orders #69 "8시간 방치 35 → 26") */
+const IDLE_H = Number(process.env.SIM_IDLE ?? 0);
+// 6시간 넘으면 못 깬 것으로 (해변을 되풀이하면 (SIM_REGIONS) 지역마다 1.5시간 더 · 방치면 그 시간 더)
+const MAX_MS = Math.max(6, process.env.SIM_REGION === 'beach' ? 2 + 1.5 * (Math.max(2, Number(process.env.SIM_REGIONS ?? 2)) - 1) : 0, IDLE_H > 0 ? 3 + IDLE_H : 0) * 60 * 60 * 1000;
+/** SIM_DRAFT52=1 — 5.2 숫자 초안을 모두 켬 (방치 경험치 · 라이벌 마릿수 · 공짜 볼 · 질 때 잃는 돈 — orders #69) */
+if (process.env.SIM_DRAFT52 === '1') Object.assign(BALANCE.draft52 as { idleExp: boolean; rivalByRegion: boolean; freeBallTier: boolean; loseMoneyCap: boolean }, { idleExp: true, rivalByRegion: true, freeBallTier: true, loseMoneyCap: true });
 const args = process.argv.slice(2).filter((a) => a !== '--');
 const RUNS = Number(args[0] ?? 3);
 const CATCH = (args[1] ?? 'on') === 'on';
@@ -118,6 +122,8 @@ interface StageStat {
   caught: number;
 }
 interface RunResult {
+  /** 방치 (SIM_IDLE) — 시작한 때 · 그때와 끝의 선두 Lv · 팀 평균 Lv · 돈 */
+  idle: { from: number; lead0: number; lead1: number; team0: number; team1: number; money0: number; money1: number; defeats: number } | null;
   /** 끝날 때 도감 만난 · 잡은 종 수 · 처음 잡은 때 (1-1, ms) — orders #56 */
   seenEnd: number;
   caughtEnd: number;
@@ -242,12 +248,16 @@ function decide(s: GameState, mem: { resultMs: number; lostGymOnce: boolean; gri
     case 'clear': {
       const loc = save.location;
       if (loc.screen !== 'stage') return s;
+      // 방치 — 같은 스테이지를 다시 (SIM_IDLE)
+      if (IDLE_H > 0 && save.badges.includes(REGIONS.forest.badge)) return applyInput(s, { kind: 'travel', to: loc.stageId });
       // 지역 안 다음 스테이지 · 끝이면 그 지역 체육관 (지역 표)
       return applyInput(s, { kind: 'travel', to: nextStageOf(loc.stageId) });
     }
     case 'badge':
       return applyInput(s, { kind: 'badge-continue' });
     case 'lobby': {
+      // 방치 — 숲 관장을 이긴 뒤 1-3 을 되풀이 (SIM_IDLE)
+      if (IDLE_H > 0 && save.badges.includes(REGIONS.forest.badge)) return applyInput(s, { kind: 'travel', to: 'forest-3' });
       const beachGym = save.location.screen === 'gym' && save.location.region === 'beach';
       // 숲 배지를 받았으면 해변으로 (SIM_REGION=beach — 2번째 지역)
       if (BEACH && !beachGym && save.badges.includes(REGIONS.forest.badge)) {
@@ -278,7 +288,7 @@ function runOnce(dex: number, seed: number): RunResult {
   if (FOREST_DEV) s = { ...s, runtime: { ...s.runtime, dev: { ...devDefault(), team: TEAM } } };
   const stages = Object.fromEntries([...STAGE_IDS, 'gym', ...BEACH_STAGES].map((k) => [k, blank()])) as Record<Where, StageStat>;
   const mem = { resultMs: 0, lostGymOnce: false, grindNext: false, parryKey: '', parryYes: false };
-  const r: RunResult = { seenEnd: 0, caughtEnd: 0, firstCatchMs: 0, starter: speciesOf(dex)?.name.ko ?? String(dex), seed, done: false, totalMs: 0, stages, gymTries: 0, firstGymLevels: [], winLevels: [], moneyAtGym: -1, firstUltMin: -1, spent: 0, potionsUsed: 0, team: 0, teamBattles: 0, forestMs: 0, beachGymTries: 0, regions: [] };
+  const r: RunResult = { idle: null, seenEnd: 0, caughtEnd: 0, firstCatchMs: 0, starter: speciesOf(dex)?.name.ko ?? String(dex), seed, done: false, totalMs: 0, stages, gymTries: 0, firstGymLevels: [], winLevels: [], moneyAtGym: -1, firstUltMin: -1, spent: 0, potionsUsed: 0, team: 0, teamBattles: 0, forestMs: 0, beachGymTries: 0, regions: [] };
   setOrder(2);
   let cur: RegionRun | null = null;
   const top3 = (save: Save) => {
@@ -300,6 +310,13 @@ function runOnce(dex: number, seed: number): RunResult {
   for (let t = 0; t < MAX_MS; t += STEP) {
     s = decide(s, mem);
     s = step(s, STEP).state;
+    if (r.idle && t - r.idle.from >= IDLE_H * 3_600_000) {
+      const lv = party(s.save).map((m) => m.level);
+      Object.assign(r.idle, { lead1: lv[0] ?? 0, team1: avg(lv), money1: s.save.money, defeats: Object.values(stages).reduce((a, x) => a + x.defeats, 0) });
+      r.done = true;
+      r.totalMs = t;
+      return r;
+    }
     const w = where(s.save);
     stages[w].ms += STEP;
     const st = s.runtime.stage;
@@ -424,6 +441,12 @@ function runOnce(dex: number, seed: number): RunResult {
         cur = { k, ace: regionAceLevel(k), gap: null, third: null, tries: 0, defeats: 0, ms: 0 };
         const stagesLeft = Object.fromEntries(Object.entries(s.save.stages).filter(([id]) => !id.startsWith('beach-')));
         s = { ...s, save: { ...s.save, badges: s.save.badges.filter((b) => b !== REGIONS.beach.badge), stages: stagesLeft } };
+      } else if (phase === 'badge' && IDLE_H > 0) {
+        // 방치 시작 (숲 관장 첫 승) — 끝은 위 시간 확인
+        if (!r.idle) {
+          const lv = party(s.save).map((m) => m.level);
+          r.idle = { from: t, lead0: lv[0] ?? 0, lead1: 0, team0: avg(lv), team1: 0, money0: s.save.money, money1: 0, defeats: 0 };
+        }
       } else if (phase === 'badge') {
         if (BEACH && cur) {
           cur.ms = t - (r.regions.reduce((a, x) => a + x.ms, 0) + r.forestMs);
@@ -556,4 +579,11 @@ if (FOREST_REPORT) {
 if (process.env.SIM_DUMP) {
   const rows = results.map((r) => ({ starter: r.starter, seed: r.seed, done: r.done, gymTries: r.gymTries, gymDefeats: r.stages.gym.defeats, defeats: Object.values(r.stages).reduce((a, x) => a + x.defeats, 0), totalMs: r.totalMs }));
   writeFileSync(process.env.SIM_DUMP, JSON.stringify(rows));
+}
+
+if (IDLE_H > 0) {
+  const rs = results.filter((r) => r.idle && r.idle.lead1 > 0);
+  const a = (f: (x: NonNullable<RunResult['idle']>) => number) => avg(rs.map((r) => f(r.idle!))).toFixed(1);
+  const lead1 = rs.map((r) => r.idle!.lead1).sort((x, y) => x - y);
+  console.log(`방치 ${IDLE_H}시간 (숲 관장 첫 승 뒤 1-3 되풀이 · 5.2 초안 ${process.env.SIM_DRAFT52 === '1' ? '켬' : '끔'}) — 판 ${rs.length} · 선두 Lv ${a((x) => x.lead0)} → ${a((x) => x.lead1)} (낮은 ${lead1[0]} · 높은 ${lead1[lead1.length - 1]}) · 팀 평균 ${a((x) => x.team0)} → ${a((x) => x.team1)} · 돈 ${a((x) => x.money0)} → ${a((x) => x.money1)}원`);
 }

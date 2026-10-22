@@ -8,12 +8,22 @@ import { STAT_KEYS, type Monster, type MoveSlot, type PendingChoice, type StatKe
 import { evolutionsOf, formsOfSpecies, learnsetOf, moveOf, signatureOf, speciesOf, type ReadonlyEvolution, type ReadonlyMove } from '../../data';
 import { gameBase, levelForExp, maxHp } from './stats';
 
-/** 경험치 한 번 (4장): 상대 기본 경험치 × 상대 레벨 / 7 · 트레이너 × 1.5 · 팀 나머지 × 0.5 · 상대가 5레벨 이상 낮으면 × 0.5 */
-export function expGain(foe: { species: number; level: number }, receiverLevel: number, opts: { trainer?: boolean; share?: boolean } = {}): number {
+/**
+ * 경험치 한 번 (4장): 상대 기본 경험치 × 상대 레벨 / 7 · 트레이너 × 1.5 · 팀 나머지 × 0.5 · 상대가 5레벨 이상 낮으면 × 0.5.
+ * cap = 그 스테이지 레벨대 위끝 — 방치 경험치 초안을 켜면 (BALANCE.draft52.idleExp) 상대 레벨 대신 이것과 견줌 (gdd 5.2 · orders #69)
+ */
+export function expGain(foe: { species: number; level: number }, receiverLevel: number, opts: { trainer?: boolean; share?: boolean; cap?: number } = {}): number {
   const base = ((speciesOf(foe.species)?.baseExp ?? 50) * foe.level) / BALANCE.expDivisor;
   let g = base * (opts.trainer ? BALANCE.expTrainerScale : 1) * (opts.share ? BALANCE.expShareScale : 1);
-  if (foe.level <= receiverLevel - BALANCE.expLowGap) g *= BALANCE.expLowScale;
+  if (BALANCE.draft52.idleExp && opts.cap !== undefined) g *= idleExpScale(receiverLevel, opts.cap);
+  else if (foe.level <= receiverLevel - BALANCE.expLowGap) g *= BALANCE.expLowScale;
   return Math.max(1, Math.floor(g));
+}
+
+/** 방치 경험치 배율 — 그 스테이지 위끝 (cap) 보다 +5 ×0.5 · +8 ×0.25 · +12 ×0.1 (gdd 5.2 초안 — 켜졌을 때만 씀) */
+export function idleExpScale(level: number, cap: number): number {
+  const over = level - cap;
+  return BALANCE.draft52.idleExpSteps.find(([gap]) => over >= gap)?.[1] ?? 1;
 }
 
 function maxHpOf(m: Monster): number {

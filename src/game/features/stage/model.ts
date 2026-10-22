@@ -244,7 +244,7 @@ export function foeTrainerView(state: GameState): { name: string; hat: string; s
   if (p?.kind === 'rival' && save.location.screen === 'stage') {
     const who = { name: rivalName(p.rival), hat: '#d8382e', shirt: '#2f6fd0', look: heroLookOf(p.rival).dir, record: rivalTag(save, p.rival) };
     if (st?.phase === 'rival') {
-      const balls = rivalTeamSize(save, p.rival);
+      const balls = rivalTeamSize(save, p.rival, p.stageId);
       return { ...who, balls, left: balls, talking: st.ms >= TIMING.trainerAlertMs };
     }
     if (st?.phase === 'battle' && st.battle.kind === 'trainer') return { ...who, ...foeBalls(st.battle), talking: false };

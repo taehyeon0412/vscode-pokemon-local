@@ -13,7 +13,7 @@ import type { EncounterStart, ItemId, Monster, StageId } from '../save';
 import { allSpecies, evolutionsOf, formOf, formsOfSpecies, learnsetOf, moveOf, speciesOf, type ReadonlySpecies, type TypeName } from '../../data';
 import { createMonster, wildMoves } from './monster';
 import { spotRng, stageLevelBand, type Spot } from './stage';
-import { regionOf, type RegionDef } from './region';
+import { freeBall, regionOf, type RegionDef } from './region';
 
 /** 흔적 모양 6가지 — 타입 · 지형별로 다르게 튀어나옴 (gdd 4.6) */
 export type TraceKind = 'grass' | 'water' | 'sky' | 'ground' | 'tree' | 'shadow';
@@ -253,7 +253,8 @@ export function pickupAt(stageId: StageId, stageSeed: number, spot: Spot): Picku
   const rng = spotRng(stageSeed, spot.index, 3);
   const t = BALANCE.pickupTable;
   const r = rng.next();
-  if (r < t['poke-ball']) return { item: 'poke-ball' };
+  // 공짜 볼 종류 = 몇 번째 지역 (5.2 초안 — 꺼지면 몬스터볼, orders #69)
+  if (r < t['poke-ball']) return { item: freeBall(regionOf(stageId).region.id) };
   // 지역마다 가끔 섞이는 것 (해변 진주 — 돈 몫에서, gdd 5.3)
   const extra = regionOf(stageId).region.pickupExtra;
   if (extra && r >= t['poke-ball'] + t.potion && r < t['poke-ball'] + t.potion + extra.chance) return { item: extra.item };

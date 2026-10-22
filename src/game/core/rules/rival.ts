@@ -11,6 +11,7 @@ import { HERO_LOOKS, heroLookOf } from '../../data/heroes';
 import { speciesOf } from '../../data';
 import { STONES } from './bag';
 import { evolveForLevel, isBig, regionPool } from './encounter';
+import { regionOf, regionOrder } from './region';
 import { createMonster, wildMoves } from './monster';
 import { spotRng } from './stage';
 import { aliveCount } from './trainer';
@@ -92,14 +93,19 @@ function topLevel(save: Save): number {
 }
 
 /** 데리고 나오는 수 — 처음 1마리, 만날 때마다 +1 (최대 3), 내 살아 있는 포켓몬 + 1 까지 */
-export function rivalTeamSize(save: Save, id: string): number {
+export function rivalTeamSize(save: Save, id: string, stageId?: StageId): number {
+  // 5.2 초안 (BALANCE.draft52.rivalByRegion) — 몇 번째 지역 (1번째 1 · 2 ~ 3번째 2 · 4번째부터 3) · 꺼지면 전적 (orders #69)
+  if (BALANCE.draft52.rivalByRegion && stageId) {
+    const k = regionOrder(regionOf(stageId).region.id);
+    return Math.max(1, Math.min(k <= 1 ? 1 : k <= 3 ? 2 : 3, aliveCount(save) + 1));
+  }
   const r = rivalRecord(save, id);
   return Math.max(1, Math.min(3, r.wins + r.losses + 1, aliveCount(save) + 1));
 }
 
 /** 라이벌 팀 — 앞은 숲 포켓몬 (그린은 에이스 앞에 이브이), 맨 끝 = 에이스 (파트너, 진화 레벨을 넘으면 진화형). 시드 = 판 시드 · 만난 수 */
 export function rivalTeam(save: Save, id: string, stageId: StageId, stageSeed: number): Monster[] {
-  const size = rivalTeamSize(save, id);
+  const size = rivalTeamSize(save, id, stageId);
   const top = topLevel(save);
   const low = Math.max(2, top - BALANCE.rivalLevelGap);
   const r = rivalRecord(save, id);

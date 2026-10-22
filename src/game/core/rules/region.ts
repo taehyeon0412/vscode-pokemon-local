@@ -272,3 +272,10 @@ export function stageBackground(stageId: StageId | null | undefined): string {
 export function gymRoomOf(region: RegionDef): string {
   return region.gymRoom ?? 'gym';
 }
+
+/** 공짜 볼 (클리어 · 길에 떨어진 볼) — 5.2 초안 (BALANCE.draft52.freeBallTier) 을 켜면 몇 번째 지역마다 1 ~ 2 몬스터볼 · 3 ~ 5 슈퍼볼 · 6 ~ 8 하이퍼볼 · 꺼지면 늘 몬스터볼 (orders #69) */
+export function freeBall(region: RegionId): 'poke-ball' | 'great-ball' | 'ultra-ball' {
+  if (!BALANCE.draft52.freeBallTier) return 'poke-ball';
+  const k = regionOrder(region);
+  return k <= 2 ? 'poke-ball' : k <= 5 ? 'great-ball' : 'ultra-ball';
+}

@@ -5,10 +5,10 @@
  */
 import { BALANCE } from '../balance';
 import { BAG_MAX, healTeam } from '../rules/bag';
-import { addExp, evolve, expGain, learnMove, levelUpChoices } from '../rules/growth';
+import { addExp, evolve, expGain, idleExpScale, learnMove, levelUpChoices } from '../rules/growth';
 import { expForLevel } from '../rules/stats';
 import { itemName } from '../rules/items';
-import { REGIONS, regionGymMoney, regionHere, regionOrder } from '../rules/region';
+import { freeBall, REGIONS, regionGymMoney, regionHere, regionOf, regionOrder } from '../rules/region';
 import { stageLevelBand } from '../rules/stage';
 import { rivalItem } from '../rules/rival';
 import type { ItemId, Monster, PendingChoice, Save, StageId } from '../save';
@@ -23,7 +23,8 @@ export const FOREST_BADGE = REGIONS.forest.badge;
 /** S12 에 보여 줄 것 (보여 주기만 — 세이브에는 이미 들어감) */
 export interface BattleSummary {
   title: string;
-  exp: { uid: string; name: string; gain: number; from: number; to: number }[];
+  /** easy = 방치 경험치 배율 (5.2 초안을 켰을 때 1 아래면 — S12 "▼½ 쉬운 길", orders #69) */
+  exp: { uid: string; name: string; gain: number; from: number; to: number; easy?: number }[];
   money: number;
   item: string | null;
   /** 받은 팔 물건 (이름 — 2026-10-21 ideas #125, 없으면 null · 옛 상태엔 칸이 없음) */
@@ -83,7 +84,7 @@ export function takeLaterChoices(save: Save): Save {
 const addDex = (list: number[], dex: number) => (list.includes(dex) ? list : [...list, dex].sort((a, b) => a - b));
 
 /** 팀 전원에게 경험치 (스테이지 · 관장 보너스) — 레벨업 · 새 기술 · 진화 고르기까지. 받은 레벨 변화 */
-function giveTeamExp(save: Save, gain: number, rng: Rng): { save: Save; exp: BattleSummary['exp']; learned: BattleSummary['learned'] } {
+function giveTeamExp(save: Save, gain0: number, rng: Rng, cap?: number): { save: Save; exp: BattleSummary['exp']; learned: BattleSummary['learned'] } {
   const monsters = { ...save.monsters };
   const choices: PendingChoice[] = [];
   const exp: BattleSummary['exp'] = [];
@@ -91,6 +92,8 @@ function giveTeamExp(save: Save, gain: number, rng: Rng): { save: Save; exp: Bat
   for (const uid of save.party) {
     const m = monsters[uid];
     if (!m) continue;
+    // 방치 경험치 초안 — 클리어 보너스도 위끝과 견줌 (orders #69)
+    const gain = BALANCE.draft52.idleExp && cap !== undefined ? Math.max(1, Math.round(gain0 * idleExpScale(m.level, cap))) : gain0;
     const grown = addExp(m, gain, rng);
     const r = levelUpChoices(grown, m.level, grown.level, rng);
     monsters[uid] = r.monster;
@@ -141,15 +144,20 @@ export function battleRewards(save0: Save, b: RewardBattle, wild: Monster | null
   }
 
   // 경험치 — 싸운 포켓몬은 다, 팀 나머지는 절반, 쓰러진 포켓몬은 없음 (방금 잡은 포켓몬도 없음) · 트레이너 · 관장 × 1.5
+  // cap = 그 스테이지 위끝 (관장 = 지역 끝 스테이지 위끝) — 방치 경험치 초안이 견주는 값 (orders #69)
+  const capStage = where === 'gym' ? regionHere(save0.location).stages[regionHere(save0.location).stages.length - 1]!.id : where;
+  const cap = stageLevelBand(capStage)[1];
   for (const uid of save0.party) {
     const m = save.monsters[uid];
     if (!m || m.hp <= 0) continue;
     // 경험 부적 판이면 ×1.5 (ideas #70)
-    const gain = Math.round(foes.reduce((sum, foe) => sum + expGain(foe, m.level, { share: !b.fought.includes(uid), trainer }), 0) * runExpScale(save0));
+    // 방치 경험치 초안 (5.2 — 켜면 상대 레벨 대신 그 스테이지 위끝과 견줌, orders #69)
+    const gain = Math.round(foes.reduce((sum, foe) => sum + expGain(foe, m.level, { share: !b.fought.includes(uid), trainer, cap }), 0) * runExpScale(save0));
     const grown = addExp(m, gain, rng);
     const r = levelUpChoices(grown, m.level, grown.level, rng);
     save.monsters[uid] = r.monster;
-    summary.exp.push({ uid, name: nameOf(m.species), gain, from: m.level, to: grown.level });
+    const easy = BALANCE.draft52.idleExp ? idleExpScale(m.level, cap) : 1;
+    summary.exp.push({ uid, name: nameOf(m.species), gain, from: m.level, to: grown.level, ...(easy < 1 ? { easy } : {}) });
     for (const id of r.learned) summary.learned.push({ name: nameOf(m.species), move: moveOf(id)?.name.ko ?? '?' });
     choices.push(...r.choices);
   }
@@ -188,7 +196,7 @@ export function battleRewards(save0: Save, b: RewardBattle, wild: Monster | null
       summary.item = itemName(region.firstWinItem);
       // 관장 첫 승 = 큰금구슬 (숲 — ideas #125)
       if (region.firstWinTreasure) save = giveTreasure(save, summary, region.firstWinTreasure);
-      const bonus = giveTeamExp(save, stageLevelBand(region.stages[2].id)[1] * BALANCE.clearExpPerLevel * BALANCE.gymClearExpScale, rng);
+      const bonus = giveTeamExp(save, stageLevelBand(region.stages[2].id)[1] * BALANCE.clearExpPerLevel * BALANCE.gymClearExpScale, rng, cap);
       save = bonus.save;
       // 보너스까지 합친 레벨 변화 (같은 포켓몬이면 한 줄로)
       for (const e of bonus.exp) {
@@ -312,18 +320,23 @@ export function clearBonusExp(id: StageId): number {
 export function clearStage(save0: Save, id: StageId, rng: Rng): { save: Save; levelUps: string[] } {
   const prog = save0.stages[id];
   if (!prog) return { save: save0, levelUps: [] };
+  const ball = freeBall(regionOf(id).region.id);
   let save: Save = {
     ...save0,
-    bag: { ...save0.bag, 'poke-ball': Math.min(999, (save0.bag['poke-ball'] ?? 0) + BALANCE.clearBalls) },
+    // 공짜 볼 종류 = 몇 번째 지역 (5.2 초안 — 꺼지면 몬스터볼, orders #69)
+    bag: { ...save0.bag, [ball]: Math.min(999, (save0.bag[ball] ?? 0) + BALANCE.clearBalls) },
     stages: { ...save0.stages, [id]: { ...prog, progress: 1, cleared: true } },
   };
-  const r = giveTeamExp(save, stageClearExp(save0, id), rng);
+  const r = giveTeamExp(save, stageClearExp(save0, id), rng, stageLevelBand(id)[1]);
   save = r.save;
   return { save, levelUps: r.exp.filter((e) => e.to > e.from).map((e) => `${e.name} Lv ${e.to}!`) };
 }
 
 /** S17 — 지면: 돈 −10% (관장전은 안 잃음) · 팀 회복. 잡은 포켓몬 · 경험치는 그대로 (gdd 4.10) */
 export function defeatPenalty(save: Save, gym: boolean): { save: Save; lost: number } {
-  const lost = gym ? 0 : Math.floor(save.money * BALANCE.defeatMoneyLoss);
+  // 질 때 잃는 돈 초안 (5.2 — 10% 와 그 스테이지 위끝 × 50원 중 작은 쪽, orders #69)
+  const pct = gym ? 0 : Math.floor(save.money * BALANCE.defeatMoneyLoss);
+  const cap = BALANCE.draft52.loseMoneyCap && save.location.screen === 'stage' ? stageLevelBand(save.location.stageId)[1] * BALANCE.draft52.loseMoneyPerLevel : Infinity;
+  const lost = Math.min(pct, cap);
   return { save: { ...healTeam(save), money: save.money - lost, pendingEncounter: null }, lost };
 }
