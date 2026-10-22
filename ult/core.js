@@ -321,7 +321,9 @@ function useUltimate(pokemon, ult, opt = {}) {
     if (!ULT_FX[fx]) {
         ultError('useUltimate', `없는 틀 ${fx} — ultgeneric 으로`);
     }
-    const left = pokemon.left + spriteSize(pokemon) / 2 > window.innerWidth / 2; // 화면 가운데 쪽을 보고
+    // 화면 가운데 쪽을 보고 · 게임 (전투) 은 대상 쪽 (3:3 에서 가운데를 넘어 선 포켓몬이 상대 반대로 쏘던 것 — 개굴닌자, 태현 님 #91)
+    const faceGame = typeof fxGameFacesLeft === 'function' ? fxGameFacesLeft(pokemon) : null;
+    const left = faceGame ?? pokemon.left + spriteSize(pokemon) / 2 > window.innerWidth / 2;
     const P = POKEMON_SHAPE[pokemon.label][0];
     let ms = 3000;
     try {
@@ -914,6 +916,14 @@ function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1, at = null) {
 
 // ── 연출 틀이 쓰는 도구 (SPEC.md) ──
 // 맞을 수 있는 다른 포켓몬
+// 게임 (전투) 이면 맞을 대상 { x, y, w, h, bottom } — 화면 끝을 겨누던 필살기가 대상에 닿게 (3:3 은 상대가 화면 끝이 아니라서 넘어가던 것 — 개굴닌자 #91) · 일반 모드는 null (그대로 화면 끝)
+function ultAimTarget(u) {
+    if (typeof fxInGame !== 'function' || !fxInGame()) {
+        return null;
+    }
+    const t = u.others();
+    return t.length ? t[0] : null;
+}
 function ultOthers(pokemon) {
     // 게임 모드 전투 (ult/bridge.js) — 맞을 상대 = 게임 상대 (일반 모드 포켓몬은 숨어 있음)
     if (typeof fxGameTargets === 'function' && fxGameTargets()) {

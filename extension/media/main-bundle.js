@@ -8834,7 +8834,9 @@ function useUltimate(pokemon, ult, opt = {}) {
     if (!ULT_FX[fx]) {
         ultError('useUltimate', `없는 틀 ${fx} — ultgeneric 으로`);
     }
-    const left = pokemon.left + spriteSize(pokemon) / 2 > window.innerWidth / 2; // 화면 가운데 쪽을 보고
+    // 화면 가운데 쪽을 보고 · 게임 (전투) 은 대상 쪽 (3:3 에서 가운데를 넘어 선 포켓몬이 상대 반대로 쏘던 것 — 개굴닌자, 태현 님 #91)
+    const faceGame = typeof fxGameFacesLeft === 'function' ? fxGameFacesLeft(pokemon) : null;
+    const left = faceGame ?? pokemon.left + spriteSize(pokemon) / 2 > window.innerWidth / 2;
     const P = POKEMON_SHAPE[pokemon.label][0];
     let ms = 3000;
     try {
@@ -9427,6 +9429,14 @@ function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1, at = null) {
 
 // ── 연출 틀이 쓰는 도구 (SPEC.md) ──
 // 맞을 수 있는 다른 포켓몬
+// 게임 (전투) 이면 맞을 대상 { x, y, w, h, bottom } — 화면 끝을 겨누던 필살기가 대상에 닿게 (3:3 은 상대가 화면 끝이 아니라서 넘어가던 것 — 개굴닌자 #91) · 일반 모드는 null (그대로 화면 끝)
+function ultAimTarget(u) {
+    if (typeof fxInGame !== 'function' || !fxInGame()) {
+        return null;
+    }
+    const t = u.others();
+    return t.length ? t[0] : null;
+}
 function ultOthers(pokemon) {
     // 게임 모드 전투 (ult/bridge.js) — 맞을 상대 = 게임 상대 (일반 모드 포켓몬은 숨어 있음)
     if (typeof fxGameTargets === 'function' && fxGameTargets()) {
@@ -20415,6 +20425,11 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         let spray = 0;
         let broke = false;
         let look = 0;
+        // 3:3 — 돔 밑에서 새로 쓰러지면 (돔이 솟을 때 이미 쓰러져 있던 칸은 빼고) 0.2초에 속빛을 빼 옅은 물 껍질로 (쓰러짐 · 회색 주저앉기가 하얀 속에 가려 안 보이던 것 — UX 리뷰어 #91 U1)
+        const downAt0 = new Set(typeof fxGameDown === 'function' ? fxGameDown().map((q) => q.el) : []);
+        let downAt = -1;
+        let downLook = 0;
+        const soft = (life) => (downAt < 0 ? 0 : clamp((life - downAt) / 0.2, 0, 1));
         // 높이 h(0 바닥 → 1 꼭대기) 고리 위 한 점 — f 0 → 1 이 앞면을 rot 쪽으로 가로지름, back 이면 뒷면(거꾸로 · 위쪽)
         const ringAt = (h, f, back = false) => {
             const hw = R * Math.sqrt(Math.max(0, 1 - h * h));
@@ -20430,6 +20445,13 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                 cx = lerp(x0, x1, easeOut(k));
                 R = lerp(R0, Rmax, easeOut(k)) * (life > tBreak ? 1 + 0.12 * ((life - tBreak) / (dur - tBreak)) : 1);
                 phase += dt * (1.0 + 1.4 * k);
+                downLook -= dt;
+                if (downAt < 0 && downLook <= 0 && typeof fxGameDown === 'function') {
+                    downLook = 0.05;
+                    if (fxGameDown().some((q) => !downAt0.has(q.el) && Math.abs(q.r.left + q.r.width / 2 - cx) < R + q.r.width / 2 && q.r.top < G)) {
+                        downAt = life;
+                    }
+                }
                 if (life < tBreak) {
                     // 닿은 애 휘말림
                     look -= dt;
@@ -20470,7 +20492,10 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             draw: (ctx, it, t, px) => {
                 const life = it.life;
                 const ry = R * V;
-                const a = life < tBreak ? 1 : Math.max(0, 1 - (life - tBreak) / (dur - tBreak));
+                const a0 = life < tBreak ? 1 : Math.max(0, 1 - (life - tBreak) / (dur - tBreak));
+                // 쓰러짐을 봄 — 속 (하얀 겹) 은 빼고 테두리 · 줄기만 옅게
+                const sf = soft(life);
+                const a = a0 * (1 - 0.6 * sf);
                 const thick = clamp(Math.round(R / (55 * s)), 1, 4);
                 const rows = clamp(Math.round(ry / (8 * s)), 7, 18);
                 // 줄기 하나 — 높이 h, 앞머리 f0, 길이 span (머리가 굵고 하얗게, 가로로 납작하게)
@@ -20503,6 +20528,9 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                 ctx.fill(back);
                 // 몸 — 속이 하얗게 빛나는 반투명 겹
                 const fill = (f, c, al) => {
+                    if (al <= 0.01) {
+                        return;
+                    }
                     const path = new Path2D();
                     const rx = R * f;
                     const rr = ry * f;
@@ -20512,15 +20540,15 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                             path.rect(px(cx - half), px(G - dy - s), Math.max(s, px(2 * half)), s);
                         }
                     }
-                    ctx.globalAlpha = a * al;
+                    ctx.globalAlpha = a0 * al;
                     ctx.fillStyle = c;
                     ctx.fill(path);
                 };
-                fill(1.04, pal.rim, 0.4);
-                fill(1, pal.body[0], 0.42);
-                fill(0.82, pal.body[1], 0.48);
-                fill(0.6, pal.body[2], 0.45);
-                fill(0.36, pal.body[3], 0.75);
+                fill(1.04, pal.rim, 0.4 * (1 - 0.6 * sf));
+                fill(1, pal.body[0], 0.42 * (1 - 0.85 * sf));
+                fill(0.82, pal.body[1], 0.48 * (1 - 0.95 * sf));
+                fill(0.6, pal.body[2], 0.45 * (1 - sf));
+                fill(0.36, pal.body[3], 0.75 * (1 - sf));
                 // 앞면 줄기 — 층마다 셋, 위층일수록 조금 느리게 (뒤틀린 회오리). 0 꼬리(물빛) 1 가운데(밝은 물빛) 2 머리(하양) 3 보랏빛 4 바람 결 · 테두리
                 const P0 = [new Path2D(), new Path2D(), new Path2D(), new Path2D(), new Path2D()];
                 for (let k = 0; k < rows; k++) {
@@ -20657,8 +20685,9 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             return [clamp(x - dir * me.w * 0.15, D * 0.5, W - D * 0.5), Math.max(D * 0.5 + 2, b - me.h - D * 0.42)];
         };
         const [bx, by] = over(T2);
-        // 꽂히는 곳 — 화면 끝에서 조금 안쪽 (물기둥 · 대폭발이 화면 안에 다 보이게)
-        const fx = dir > 0 ? W - Math.max(D * 0.75, W * 0.14) : Math.max(D * 0.75, W * 0.14);
+        // 꽂히는 곳 — 화면 끝에서 조금 안쪽 (물기둥 · 대폭발이 화면 안에 다 보이게) · 게임은 대상 자리 (3:3 은 상대가 화면 끝이 아니라 오른쪽 끝에 꽂히던 것 — 태현 님 #91)
+        const aim = ultAimTarget(u);
+        const fx = aim ? clamp(aim.x, D * 0.75, W - D * 0.75) : dir > 0 ? W - Math.max(D * 0.75, W * 0.14) : Math.max(D * 0.75, W * 0.14);
         const fy = clamp(G - D * 0.5, D * 0.5 + 2, G - D * 0.45);
         const heatAt = (t) => (t >= T3b ? clamp((t - T3b) / (TB - T3b), 0, 1) : 0);
         const pos = (t) => {
@@ -49773,6 +49802,27 @@ function fxArcAt(a, b, lift, p) {
 // 필살기 색 → [흰 심, 옅은, 본색, 짙은]
 const fxCols4 = (pal) => ['#ffffff', pal[1] ?? pal[0], pal[2] ?? pal[1] ?? pal[0], pal[3] ?? pal[pal.length - 1]];
 // 몸 가운데 · 크기
+// 게임 — A 가 B 를 보려면 왼쪽인지 (몸 가운데끼리 — 화면 가운데 쪽을 보던 것: 3:3 에서 가운데를 넘어 선 포켓몬이 상대 반대로 쏘던 것, 개굴닌자 태현 님 #91)
+function fxFacesLeft(A, B) {
+    const a = A.collision.getBoundingClientRect();
+    const b = B.collision.getBoundingClientRect();
+    return b.left + b.width / 2 < a.left + a.width / 2;
+}
+// 필살기 방향 (ult/core.js useUltimate) — 게임 필살기를 쓰는 포켓몬이면 대상 쪽 · 아니면 null (일반 모드 = 화면 가운데 쪽)
+function fxGameFacesLeft(pokemon) {
+    const g = fxGame;
+    if (!g?.B || !pokemon?.collision || !g.A || g.A.el !== pokemon.el) {
+        return null;
+    }
+    return fxFacesLeft(pokemon, g.B);
+}
+// 3:3 — 지금 쓰러져 있는 칸 (회색 주저앉기 · 벌러덩, TeamLayer pg-team-down) [{ el, r }]. 1:1 은 넘어짐을 덮음 끝 (cover) 뒤로 미뤄서 빈 목록
+function fxGameDown() {
+    if (!fxInGame() || !fxTeamOn()) {
+        return [];
+    }
+    return [...document.querySelectorAll('#pokemon-game .pg-team-down')].map((el) => ({ el, r: el.getBoundingClientRect() })).filter((q) => q.r.width > 0);
+}
 function fxBody(A) {
     const r = (A.collision || A.box || A.el).getBoundingClientRect();
     return { x: r.left + r.width / 2, y: r.top + r.height * 0.55, w: r.width, h: r.height, ok: r.width >= 1 };
@@ -50872,7 +50922,8 @@ window.pokemonFx = {
             const anchor = fire ? fire[0] : tm ? (self ? (tm.flash >= 0 ? tm.flash : tm.main) : tm.flash >= 0 && tm.flash < tm.main ? tm.flash : Math.max(0, tm.main - 260)) : Math.round(ms * 0.4);
             // 빔이 나가서 상대에 닿기까지 (쏘는 — 꽃 터짐 = 큰 맞음)
             const reach = fire ? fire[1] - fire[0] : tm && !self ? Math.max(0, tm.main - anchor) : 0;
-            return { A, e, T, ms, anchor, reach, self, gen: pg, left: A.left + spriteSize(A) / 2 > window.innerWidth / 2, cols: fxCols4(ultCols(e[2] || {}, e[1])), type: o.types?.[i] || 'normal', freeze: 0 };
+            // 대상 쪽을 봄 (화면 가운데가 아니라 — #91)
+            return { A, e, T, ms, anchor, reach, self, gen: pg, left: fxFacesLeft(A, B), cols: fxCols4(ultCols(e[2] || {}, e[1])), type: o.types?.[i] || 'normal', freeze: 0 };
         });
         const As = parts.map((p) => p.A);
         // 어둠 속에서 밝게 둘 포켓몬 — 참가자 · 닿는 때부터 맞는 상대 (어두워짐 아래 흐린 그림자로 남던 것 — 디자인팀 7판)

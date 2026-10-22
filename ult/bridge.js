@@ -943,6 +943,27 @@ function fxArcAt(a, b, lift, p) {
 // 필살기 색 → [흰 심, 옅은, 본색, 짙은]
 const fxCols4 = (pal) => ['#ffffff', pal[1] ?? pal[0], pal[2] ?? pal[1] ?? pal[0], pal[3] ?? pal[pal.length - 1]];
 // 몸 가운데 · 크기
+// 게임 — A 가 B 를 보려면 왼쪽인지 (몸 가운데끼리 — 화면 가운데 쪽을 보던 것: 3:3 에서 가운데를 넘어 선 포켓몬이 상대 반대로 쏘던 것, 개굴닌자 태현 님 #91)
+function fxFacesLeft(A, B) {
+    const a = A.collision.getBoundingClientRect();
+    const b = B.collision.getBoundingClientRect();
+    return b.left + b.width / 2 < a.left + a.width / 2;
+}
+// 필살기 방향 (ult/core.js useUltimate) — 게임 필살기를 쓰는 포켓몬이면 대상 쪽 · 아니면 null (일반 모드 = 화면 가운데 쪽)
+function fxGameFacesLeft(pokemon) {
+    const g = fxGame;
+    if (!g?.B || !pokemon?.collision || !g.A || g.A.el !== pokemon.el) {
+        return null;
+    }
+    return fxFacesLeft(pokemon, g.B);
+}
+// 3:3 — 지금 쓰러져 있는 칸 (회색 주저앉기 · 벌러덩, TeamLayer pg-team-down) [{ el, r }]. 1:1 은 넘어짐을 덮음 끝 (cover) 뒤로 미뤄서 빈 목록
+function fxGameDown() {
+    if (!fxInGame() || !fxTeamOn()) {
+        return [];
+    }
+    return [...document.querySelectorAll('#pokemon-game .pg-team-down')].map((el) => ({ el, r: el.getBoundingClientRect() })).filter((q) => q.r.width > 0);
+}
 function fxBody(A) {
     const r = (A.collision || A.box || A.el).getBoundingClientRect();
     return { x: r.left + r.width / 2, y: r.top + r.height * 0.55, w: r.width, h: r.height, ok: r.width >= 1 };
@@ -2042,7 +2063,8 @@ window.pokemonFx = {
             const anchor = fire ? fire[0] : tm ? (self ? (tm.flash >= 0 ? tm.flash : tm.main) : tm.flash >= 0 && tm.flash < tm.main ? tm.flash : Math.max(0, tm.main - 260)) : Math.round(ms * 0.4);
             // 빔이 나가서 상대에 닿기까지 (쏘는 — 꽃 터짐 = 큰 맞음)
             const reach = fire ? fire[1] - fire[0] : tm && !self ? Math.max(0, tm.main - anchor) : 0;
-            return { A, e, T, ms, anchor, reach, self, gen: pg, left: A.left + spriteSize(A) / 2 > window.innerWidth / 2, cols: fxCols4(ultCols(e[2] || {}, e[1])), type: o.types?.[i] || 'normal', freeze: 0 };
+            // 대상 쪽을 봄 (화면 가운데가 아니라 — #91)
+            return { A, e, T, ms, anchor, reach, self, gen: pg, left: fxFacesLeft(A, B), cols: fxCols4(ultCols(e[2] || {}, e[1])), type: o.types?.[i] || 'normal', freeze: 0 };
         });
         const As = parts.map((p) => p.A);
         // 어둠 속에서 밝게 둘 포켓몬 — 참가자 · 닿는 때부터 맞는 상대 (어두워짐 아래 흐린 그림자로 남던 것 — 디자인팀 7판)
