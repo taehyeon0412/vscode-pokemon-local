@@ -24,6 +24,15 @@
 
 @docs/ux-rules.md
 
+## 팀 워크트리 (2026-10-22 태현 님)
+
+개발 · 디자인 세션은 자기 워크트리에서 코드를 고친다 — 서로의 하다 만 작업에 막히지 않고, main 에는 검토가 끝난 것만 합치려고. 흐름 · 파일 주인 표 = `docs/game-design/collab-worktree.md`.
+
+- 개발 `.claude/worktrees/dev` · 디자인 `.claude/worktrees/design` · 기획은 main 폴더 (문서만). 들어갈 때 `EnterWorktree` (path) 를 써도 되고, 셸 명령은 절대 경로로 쓴다. 나올 때 워크트리를 지우는 선택은 하지 않는다.
+- 주제 하나 = `topic/<팀>-<orders 번호>` 브랜치 (시작할 때 `python dev/worktree-setup.py <팀> --check`) → 검토 (직원에게 워크트리 경로 + `PG_ROOT`) → `git rebase main` → `docs/game-design/merge.lock` → main 폴더에서 `git merge --squash` → 커밋 하나 → 푸시 → 설치.
+- main 폴더의 코드는 합치기 · 설치 전용 — 여기서 코드를 고치지 않고, 워크트리에서 `install.py` 를 돌리지 않는다.
+- 워크트리 지우기는 `python dev/worktree-setup.py <팀> --remove` 만 (그냥 지우면 정션 너머 기록 · 직원까지 지워질 위험).
+
 ## 커밋 규칙 (2026-10-17 태현 님)
 
 - **Claude 표시를 넣지 않는다.** 커밋 메시지에 `Co-Authored-By: Claude …` 같은 줄을 절대 넣지 않는다 (GitHub에 Claude 마크가 뜸). PR 설명에도 Claude 표시 줄을 넣지 않는다.
@@ -36,6 +45,7 @@
   ```
   첫 줄 = 한국어 제목 "무엇 — 어떻게", 빈 줄, 그 아래는 "- "로 시작하는 바뀐 내용 줄들.
 - **언제**: 하나의 주제가 끝나면 자동으로 커밋하고 푸시한다 (main). 태현 님이 "커밋해줘"라고 하면 커밋 · 푸시까지 한 번에 하고 GitHub에 올라갔는지 확인한다.
+  - 〔2026-10-22 태현 님〕 main 에는 **주제 (orders 한 줄) 마다 커밋 하나**, 큰 주제 (지역 · 새 기능) 는 **단계 (3 ~ 5) 마다 커밋 하나** (제목에 "화산 1/2 — …"). 주제 브랜치에는 작게 여러 번 커밋해도 되고, main 에는 squash 로 하나만. 주제 브랜치는 푸시하지 않는다 (main 만).
 - **무엇을**: 그 주제에서 바뀐 파일만 올린다. 내가 만들지 않은 파일(예: urls.txt)은 묻기 전에는 올리지 않는다.
 - **기획 문서는 올리지 않는다**: `docs/game-design/` · `docs/game-design-partner.md`는 .gitignore에 있어 내 PC에만 있다 (2026-10-17 태현 님). 기획 주제만 끝났고 올릴 게 없으면 커밋하지 않고 "기획 문서는 PC에만 저장됨"이라고만 알린다.
 - **개발팀 파일도 올리지 않는다**: `docs/game-dev-team.md` · `.claude/agents/` · 개발 기록 (`docs/game-design/dev/`)도 PC에만 (2026-10-17 태현 님). 아트 디렉터 규칙 `docs/game-art-director.md` · 디자인 레퍼런스 사진 (`docs/game-design/design/refs/`) 도 PC에만 (2026-10-19).
