@@ -1060,7 +1060,7 @@ describe('3:3 박자 (orders #83 — 기본 0.8 · 전투 ×2) · 누를 창 (or
   };
   const b0 = startTeamBattle(team3(), foes(), 'trainer', '상대');
 
-  it('시계 배 — 3:3 0.8 · ×2 면 보통 공격만 1.6 · 필살기 · 힘겨루기 · 결과는 0.8 · 3:3 밖은 1', () => {
+  it('시계 배 — 3:3 0.8 · 빠르게 ▶▶ 면 보통 공격 1.6 · 알아챌 순간 (내 필살기 · 힘겨루기 · 결과 · 다 참 · 쓰러짐 · 안내) 은 1.0 (딱 1초) · 3:3 밖은 1', () => {
     expect(TIMING.team.tempo).toBe(0.8);
     expect(gameTempo(createGameState(team3(), 3))).toBe(1);
     expect(gameTempo(inTeam(b0))).toBe(0.8);
@@ -1068,26 +1068,29 @@ describe('3:3 박자 (orders #83 — 기본 0.8 · 전투 ×2) · 누를 창 (or
     expect(gameTempo(inTeam(b0, true))).toBeCloseTo(1.6, 10);
     // ×2 여도 알아챌 순간은 기본 박자 (코드 리뷰어 #83 — U1): 상대 다 참 (곧!) · 내 다 참 1초 · 쓰러짐 1초 · 안내 팝업
     const foeFull = { ...b0, foe: b0.foe.map((f, i) => ({ ...f, ult: i === 1 ? 1 : 0 })), ultReadyAt: { me: [null, null, null], foe: [null, b0.t, null] } };
-    expect(gameTempo(inTeam(foeFull, true))).toBe(0.8);
+    expect(gameTempo(inTeam(foeFull, true))).toBe(1);
     // 상대 "!" 도 찬 뒤 1초만 (기다림 내내 0.8 이면 ×2 가 1.16배뿐 — 디자인 UX #83)
     expect(gameTempo(inTeam({ ...foeFull, t: b0.t + TIMING.team.fastKeepMs }, true))).toBeCloseTo(1.6, 10);
     const meFull = { ...b0, me: b0.me.map((f, i) => ({ ...f, ult: i === 0 ? 1 : 0 })), ultReadyAt: { me: [b0.t, null, null], foe: [null, null, null] } };
-    expect(gameTempo(inTeam(meFull, true))).toBe(0.8);
+    expect(gameTempo(inTeam(meFull, true))).toBe(1);
     expect(gameTempo(inTeam({ ...meFull, t: b0.t + TIMING.team.fastKeepMs }, true))).toBeCloseTo(1.6, 10);
     const ko = { ...b0, log: [{ id: 1, at: b0.t, t: 'faint' as const, side: 'foe' as const, slot: 2 }], logSeq: 1 };
-    expect(gameTempo(inTeam(ko, true))).toBe(0.8);
+    expect(gameTempo(inTeam(ko, true))).toBe(1);
     expect(gameTempo(inTeam({ ...ko, t: b0.t + TIMING.team.fastKeepMs }, true))).toBeCloseTo(1.6, 10);
     const info = { ...b0, popups: [{ id: 1, side: 'me' as const, slot: 0, text: '2:1', ms: 0, kind: 'info' as const }] };
-    expect(gameTempo(inTeam(info, true))).toBe(0.8);
+    expect(gameTempo(inTeam(info, true))).toBe(1);
     const dmg = { ...b0, popups: [{ id: 1, side: 'me' as const, slot: 0, text: '-12', ms: 0, kind: 'damage' as const }] };
     expect(gameTempo(inTeam(dmg, true))).toBeCloseTo(1.6, 10);
     // 기술 힘겨루기 (run 안 1.5초) 도 기본 박자 (명세 검사관 — "힘겨루기는 기본 박자")
     const clash = { ...b0, moveClashes: [{ kind: 'move' as const, me: [0], foe: [0], ms: 0, dur: TIMING.team.moveClashMs, taps: 0, winner: null, shots: [1, 2] }] } as unknown as TeamBattle;
-    expect(gameTempo(inTeam(clash, true))).toBe(0.8);
-    const mine = teamInput({ ...b0, me: b0.me.map((f) => ({ ...f, ult: 1 })) }, { kind: 'ult', slot: 0 }, new Rng(3));
+    expect(gameTempo(inTeam(clash, true))).toBe(1);
+    // 혼자 필살기 (같은 편이 안 차 합동 멘트 없음 — 멘트는 누를 창이라 0.8)
+    const mine = teamInput({ ...b0, me: b0.me.map((f, i) => ({ ...f, ult: i === 0 ? 1 : 0 })) }, { kind: 'ult', slot: 0 }, new Rng(3));
     expect(mine.phase).toBe('ult');
-    expect(gameTempo(inTeam(mine, true))).toBe(0.8);
-    expect(gameTempo(inTeam({ ...b0, phase: 'over' }, true))).toBe(0.8);
+    expect(mine.ult?.gather ?? 0).toBe(0);
+    expect(gameTempo(inTeam(mine, true))).toBe(1);
+    expect(gameTempo(inTeam(mine, false))).toBe(0.8);
+    expect(gameTempo(inTeam({ ...b0, phase: 'over' }, true))).toBe(1);
   });
 
   it('상대 필살기 — 찬 내 포켓몬이 있으면 끼어들 창 동안 joinSlow (1.2초 창이 실제 2초 넘게) · 없으면 기본 · 상대 합동 멘트는 기본 (이미 길어서)', () => {
@@ -1106,11 +1109,17 @@ describe('3:3 박자 (orders #83 — 기본 0.8 · 전투 ×2) · 누를 창 (or
     const none = foeUlt(foeFull);
     expect(none.phase === 'ult' && teamJoinOpen(none)).toBeNull();
     expect(gameTempo(inTeam(none))).toBe(0.8);
+    // 빠르게 ▶▶ — 상대 필살기 연출은 컷인 1초 동안 1.0 · 그 뒤 두 배
+    expect(gameTempo(inTeam(none, true))).toBe(1);
+    const late = run(none, TIMING.team.fastFoeUltMs + STEP);
+    expect(late.phase === 'ult' && late.ult?.side).toBe('foe');
+    expect(gameTempo(inTeam(late, true))).toBeCloseTo(1.6, 10);
     // 상대 합동 멘트 (상대 동료도 참) — 창 = gatherMs · 기본 박자로 2초 넘게
     const both = foeUlt({ ...foeFull, me: foeFull.me.map((f, i) => ({ ...f, ult: i === 2 ? 1 : 0 })), foe: foeFull.foe.map((f, i) => ({ ...f, ult: i < 2 ? 1 : 0 })) });
     expect(both.ult?.gather).toBeGreaterThan(0);
     expect(teamJoinOpen(both)).toEqual({ gathering: true });
     expect(gameTempo(inTeam(both))).toBe(0.8);
+    expect(gameTempo(inTeam(both, true))).toBe(0.8);
   });
 
   it('합동 멘트 (내 필살기 · 찬 동료) 창 = gatherMs 2초 · 기본 박자로 실제 2.5초 · ×2 여도 그대로 · 그동안 다른 공격 · 피해 없음', () => {
@@ -1133,7 +1142,7 @@ describe('3:3 박자 (orders #83 — 기본 0.8 · 전투 ×2) · 누를 창 (or
     expect(applyInput(on, { kind: 'battle-fast', on: true })).toBe(on);
     expect(applyInput(on, { kind: 'battle-fast', on: false }).save.settings.battleFast).toBe(false);
     const said = applyInput(s, { kind: 'battle-fast', on: true, say: true });
-    expect(said.runtime.toast?.text).toBe('3:3 전투 ×2 켜짐 (C)');
+    expect(said.runtime.toast?.text).toBe('3:3 빠르게 ▶▶ 켜짐 (C)');
     const fighting = inTeam(b0);
     expect(applyInput(fighting, { kind: 'battle-fast', on: true }).save.settings.battleFast).toBe(true);
     // 전투 중 키 알림은 안 띄움 (끝난 뒤에야 뜨고 남은 알림을 덮던 것 — 테스터 #83) · 남은 알림은 그대로

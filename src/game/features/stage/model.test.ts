@@ -262,9 +262,20 @@ describe('이름표 번호 — 지역 순서를 따라감 (코드 리뷰어 #66 
 });
 
 describe('3:3 판 배경 (태현 님 #78 — 시합장)', () => {
-  it('그림이 들어오기 전 (TEAM_ARENA null) 은 길 배경 그대로 · 길에서는 스테이지 배경', () => {
+  it('지역마다 (#78 — 숲 A · 해변 E · 화산 B 틀) · 그 지역 그림이 들어오기 전은 길 배경 그대로 · 길에서는 스테이지 배경', () => {
     const s = createGameState(sampleSave(), 1);
+    const team = { ...s, runtime: { ...s.runtime, stage: { phase: 'team' } as never } };
     expect(sceneBackground(s)).toBe('forest');
-    expect(TEAM_ARENA === null ? sceneBackground({ ...s, runtime: { ...s.runtime, stage: { phase: 'team' } as never } }) : 'forest').toBe('forest');
+    expect(sceneBackground(team)).toBe(TEAM_ARENA.forest ?? 'forest');
+    const arena = TEAM_ARENA as Record<string, string | undefined>;
+    const was = arena.forest;
+    arena.forest = 'arena-forest';
+    try {
+      expect(sceneBackground(team)).toBe('arena-forest');
+      expect(sceneBackground(s)).toBe('forest');
+    } finally {
+      if (was === undefined) delete arena.forest;
+      else arena.forest = was;
+    }
   });
 });

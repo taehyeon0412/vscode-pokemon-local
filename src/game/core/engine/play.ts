@@ -55,7 +55,7 @@ export type GameInput =
   | { kind: 'auto-battle'; on: boolean; say?: boolean }
   /** 빨리 걷기 켜기 · 끄기 (S06 정보줄 · S20, 2026-10-19) */
   | { kind: 'fast-walk'; on: boolean }
-  /** 전투 ×2 켜기 · 끄기 — 3:3 보통 공격만 두 배 (화면 위 스위치 · 설정 · C — orders #83). say = 한 줄 알림 (키로 바꿀 때) */
+  /** 빠르게 ▶▶ 켜기 · 끄기 — 3:3 약 1.5배 (보통 공격 두 배 · 알아챌 순간 1초 · 누를 창 그대로 — 화면 위 스위치 · 설정 · C, orders #83). say = 한 줄 알림 (키로 바꿀 때) */
   | { kind: 'battle-fast'; on: boolean; say?: boolean }
   /** 게임의 동작 줄이기 (설정 — 화면이 움직임을 줄임, OS 설정은 안 봄 · 2026-10-20 태현 님) */
   | { kind: 'reduce-motion'; on: boolean }
@@ -1279,8 +1279,8 @@ export function inBattle(state: GameState): boolean {
   return p === 'battle' || p === 'appear' || p === 'trainer' || p === 'rival' || p === 'team';
 }
 /**
- * 웹뷰 시계 배 (orders #83 · #81) — 3:3 은 기본 박자 (TIMING.team.tempo 0.8) · 전투 ×2 (settings.battleFast) 를 켜면 보통 공격 (run) 만 두 배
- * (필살기 · 힘겨루기 · 결과 · 예고 · 다 참 · 쓰러짐 · 안내 팝업은 기본 박자 — U1, teamFastOk) · 상대 필살기에 끼어들 창은 joinSlow (2초 넘게). 그 밖 (1:1 · 걷기 · 타이틀) = 1
+ * 웹뷰 시계 배 (orders #83 · #81) — 3:3 은 기본 박자 (TIMING.team.tempo 0.8) · 빠르게 ▶▶ (settings.battleFast — 태현 님 C 안, 약 1.5배) 를 켜면 보통 공격 (run) 두 배 ·
+ * 알아챌 순간 1.0 (딱 1초 — U1, teamFastOk) · 상대 필살기 연출은 컷인 1초 뒤 두 배 · 누를 창 (끼어들기 joinSlow · 합동 멘트) 그대로. 그 밖 (1:1 · 걷기 · 타이틀) = 1
  */
 export function gameTempo(state: GameState): number {
   const st = state.runtime.stage;
@@ -1288,7 +1288,15 @@ export function gameTempo(state: GameState): number {
   const t = TIMING.team;
   const join = teamJoinOpen(st.team);
   if (join && !join.gathering) return t.joinSlow;
-  return state.save.settings.battleFast === true && teamFastOk(st.team) ? t.tempo * t.fastScale : t.tempo;
+  if (state.save.settings.battleFast !== true) return t.tempo;
+  // 빠르게 ▶▶ (C 안 — 2026-10-22 태현 님): 보통 공격 = 두 배 · 누를 창 (합동 멘트 — 내 것 · 상대 것) 은 기본 박자 그대로 ·
+  // 상대 필살기 연출 (합동 빼고) 은 컷인 1초 뒤부터 두 배 · 그 밖 알아챌 순간 (내 필살기 · 힘겨루기 · 다 참 · 쓰러짐 · 안내 · 합동 · 결과) 은 1.0 (딱 1초 — U1)
+  const b = st.team;
+  if (teamFastOk(b)) return t.tempo * t.fastScale;
+  const u = b.phase === 'ult' ? b.ult : null;
+  if (u && (u.gather ?? 0) > 0) return t.tempo;
+  if (u && u.side === 'foe' && !u.joint && u.ms > t.fastFoeUltMs) return t.tempo * t.fastScale;
+  return t.fastNotice;
 }
 /** S06 ⑦ ~ ⑩ 오른쪽 위 버튼 · S19 가방 — 걷는 중 (그동안 화면은 걸음을 멈춤) · 체육관 대기실 (관장에게 받은 리프의 돌을 바로) */
 export function canOpenMenus(state: GameState): boolean {
@@ -1465,7 +1473,7 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       if ((save.settings.battleFast === true) === input.on) return state;
       const next = { ...save, settings: { ...save.settings, battleFast: input.on } };
       // 1:1 · 걷기에서 눌러도 무엇이 바뀌는지 알게 "3:3" (코드 리뷰어 #83)
-      return input.say && !inBattle(state) ? toast(state, next, input.on ? '3:3 전투 ×2 켜짐 (C)' : '3:3 전투 ×2 꺼짐 (C)') : { ...state, save: next };
+      return input.say && !inBattle(state) ? toast(state, next, input.on ? '3:3 빠르게 ▶▶ 켜짐 (C)' : '3:3 빠르게 ▶▶ 꺼짐 (C)') : { ...state, save: next };
     }
     case 'reduce-motion':
       if ((save.settings.reduceMotion === true) === input.on) return state;
