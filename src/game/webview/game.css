@@ -5544,23 +5544,18 @@ body.vscode-high-contrast-light .pg-title-body {
   word-break: keep-all;
   color: var(--pg-sos-ink);
 }
-/* 새 것 표시 = 금 십자 반짝 7 × 7 (빨간 네모는 "내 위치" — 같은 빨간 점이 두 뜻이던 것, 개발 UX #70) · 대기실 지도 버튼 · 정보줄 지도 아이콘 */
+/* 새 것 표시 = 빨간 칸 7 × 7 + 흰 N ("새 것" — 금 십자는 아이콘 반짝임으로 읽혀 뜻이 약하던 것, UX 리뷰어 #78 · 내 위치 = 글자 없는 빨간 네모라 같은 뜻으로 안 읽힘) · 대기실 지도 버튼 · 정보줄 지도 아이콘 */
 .pg-new-dot {
   position: absolute;
   right: -3px;
   top: -3px;
   width: 7px;
   height: 7px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='7' height='7' shape-rendering='crispEdges'%3E%3Crect width='7' height='7' fill='%23ff6b5a'/%3E%3Cpath d='M1 1h1v5H1zM5 1h1v5H5zM2 2h1v1H2zM3 3h1v1H3zM4 4h1v1H4z' fill='%23ffffff'/%3E%3C/svg%3E") no-repeat;
   pointer-events: none;
 }
 .pg-infobar .pg-new-dot {
   top: -1px;
-}
-.pg-new-dot::before,
-.pg-new-dot::after {
-  content: "";
-  position: absolute;
-  background: var(--pg-sos-gold);
 }
 .pg-new-dot::before {
   left: 0;
@@ -5610,6 +5605,9 @@ body.vscode-high-contrast-light .pg-title-body {
     flex-basis: 100%;
   }
 }
+.pg-badge-tail .pg-tail-short {
+  display: none;
+}
 /* 배지 카드 — 뒷말 (새 소식) 은 360 아래에서만 빼고 그때는 둘째 줄 "[그림] 해변 NEW" 표 */
 .pg-badge-newtag {
   display: none;
@@ -5617,6 +5615,16 @@ body.vscode-high-contrast-light .pg-title-body {
 @media (max-width: 360px) {
   .pg-badge-tail {
     display: none;
+  }
+  /* 새 지역 표 (아래 줄 "[그림] 해변 NEW") 가 없을 때는 뒷말을 남김 — "다음 지역을 골라요" · "모든 지역을 열었어요" 가 333 아래에서 빠지던 것 (UX 리뷰어 #78) */
+  .pg-badge-card:not(:has(.pg-badge-newtag)) .pg-badge-tail {
+    display: inline;
+  }
+  .pg-badge-tail .pg-tail-long {
+    display: none;
+  }
+  .pg-badge-tail .pg-tail-short {
+    display: inline;
   }
   .pg-badge-newtag {
     display: inline-flex;

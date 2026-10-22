@@ -51,6 +51,8 @@ export function SettingsPanel({ save, onInput, onExit, onClose, dev = false, onS
         <Button secondary extraClass={save.settings.battleFast === true ? 'pg-picked' : undefined} onClick={() => onInput({ kind: 'battle-fast', on: save.settings.battleFast !== true })} title="빠르게 (C) — 3:3 을 약 1.5배로: 보통 공격 · 상대 필살기 연출 (컷인 1초 뒤부터) 을 빨리 · 알아챌 순간 1초 · 누르는 창은 그대로 (정보줄 스위치와 같음)">
           {save.settings.battleFast === true ? '✓ 빠르게 ' : '빠르게 '}
           <Icon name="fast" />
+          {/* "3:3" 작은 칩 — 위 빨리 걷기와 같은 ▶▶ 라 무엇을 빠르게 하는지 (UX 리뷰어 #78 아이디어) */}
+          <span class="pg-sub">3:3</span>
           <span class="pg-long">{save.settings.battleFast === true ? ' 켜짐' : ' 꺼짐'}</span>
         </Button>
         {/* 동작 줄이기 (2026-10-20 태현 님 1안 — 기본 꺼짐 · OS 설정은 안 봄, 맥도 윈도와 같게) — 켜면 꾸밈 움직임 (배지 빛 · +N 깜박 · 레벨업 별 · 말풍선 까딱 · 넓어지기 등) 을 멈춤, 흔들기 · 필살기 꽉 참 같은 게임 정보는 그대로 */}

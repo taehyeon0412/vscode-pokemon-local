@@ -479,17 +479,27 @@ export function BadgeCard({ state, onInput, onMap }: BoxProps & { onMap(): void 
   const map = regionsOn(state) ? mapView(state) : null;
   const opened = map?.regions.find((r) => isNewRegion(r, state.save.stages));
   // 뒷말 — 새 지역 이름만 빨강 (0장 중요한 낱말 · SoS 2f) · 본편 "준비 중" 은 흐리게
+  // 360 아래 (새 지역 표가 없을 때만 뒷말이 남음) 는 짧은 말 — 240 에서 "모든 지역을 열었어" 로 잘리던 것 (U4)
   const tail = map?.next.length ? (
-    <>다음 지역을 골라요</>
+    <>
+      <span class="pg-tail-long">다음 지역을 골라요</span>
+      <span class="pg-tail-short">다음 지역 고르기</span>
+    </>
   ) : opened ? (
     <>
       새 지역 <span class="pg-em">{opened.name}</span>
       {josaOf(opened.name, '이/가')} 열렸어요
     </>
   ) : map ? (
-    <>모든 지역을 열었어요</>
+    <>
+      <span class="pg-tail-long">모든 지역을 열었어요</span>
+      <span class="pg-tail-short">모든 지역 열림</span>
+    </>
   ) : (
-    <span class="pg-dim">다음 지역은 준비 중이에요</span>
+    <span class="pg-dim">
+      <span class="pg-tail-long">다음 지역은 준비 중이에요</span>
+      <span class="pg-tail-short">다음 지역 준비 중</span>
+    </span>
   );
   const item = region.firstWinItem;
   return (
