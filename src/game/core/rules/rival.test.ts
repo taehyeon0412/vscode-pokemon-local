@@ -1,5 +1,5 @@
 /** 라이벌 (gdd 4.12 · mvp-spec 3.10 — 2026-10-19 태현 님) — 누가 · 팀 · 보상 · 전적 · 자리 */
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { sampleMonster, sampleSave, viaJson } from '../../../test/fixtures/save';
 import { BALANCE } from '../balance';
 import { Rng } from '../engine/rng';
@@ -42,6 +42,15 @@ describe('누가 나오나 — 내가 고르지 않은 7명 중 가장 덜 만�
 });
 
 describe('팀 — 1 → 3마리 · 에이스 = 파트너 · 레벨 = 내 팀 가장 높은 레벨', () => {
+  // 5.2 초안을 켠 본편은 라이벌 마릿수 = 몇 번째 지역 (draft52.test) — 여기는 끄고 예전 전적 규칙 (1 → 3마리) 을 봄
+  const draft52 = BALANCE.draft52 as { rivalByRegion: boolean };
+  beforeEach(() => {
+    draft52.rivalByRegion = false;
+  });
+  afterEach(() => {
+    draft52.rivalByRegion = true;
+  });
+
   it('처음 1마리, 만날 때마다 +1, 최대 3, 살아 있는 내 포켓몬 + 1 까지', () => {
     expect(rivalTeamSize(sampleSave(), 'boy')).toBe(1);
     expect(rivalTeamSize(met({ boy: { wins: 1, losses: 0 } }), 'boy')).toBe(2);

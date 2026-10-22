@@ -259,18 +259,19 @@ export const BALANCE = {
   /** 졌을 때 잃는 돈 (관장전은 안 잃음 — gdd 4.10) */
   defeatMoneyLoss: 0.1,
   /**
-   * gdd 5.2 숫자 초안 (orders #69 — 7-8 질문을 숫자로 보여 드리려고) — 하나씩 켜 봄 · 꺼짐 = 지금 그대로. 관장 첫 승 돈 1,000 × (몇 번째 + 2) 는 이미 그대로 (숲 3,000 = 1번째).
+   * gdd 5.2 숫자 [임시값] (orders #69 — 2026-10-22 태현 님 "추천대로 해줘" 7-8 → 켬 · 끄면 예전 규칙). 관장 첫 승 돈 1,000 × (몇 번째 + 2) 는 이미 그대로 (숲 3,000 = 1번째).
+   * 시뮬 (18 × 3): 숲 관장 뒤 8시간 방치 선두 Lv 14.9 → 36.4 (끔) · 26.6 (켬) · 숲 → 해변 한 바퀴 129.3 → 129.7분 · 54/54 둘 다
    * idleExp = 방치 경험치 — 그 스테이지 위끝보다 +5 ×0.5 · +8 ×0.25 · +12 ×0.1 (전투 · 라이벌 · 클리어 보너스 · 관장은 지역 끝 스테이지 위끝 — 상대 레벨 −5 ×0.5 대신) ·
    * rivalByRegion = 라이벌 마릿수 = 몇 번째 지역 (1번째 1 · 2 ~ 3번째 2 · 4번째부터 3 — 전적 대신, "살아 있는 + 1" 상한 그대로) ·
    * freeBallTier = 공짜 볼 (클리어 · 길에 떨어진 볼) 종류 — 1 ~ 2번째 몬스터볼 · 3 ~ 5 슈퍼볼 · 6 ~ 8 하이퍼볼 ·
    * loseMoneyCap = 질 때 잃는 돈 = 10% 와 그 스테이지 위끝 × loseMoneyPerLevel 원 중 작은 쪽
    */
   draft52: {
-    idleExp: false as boolean,
+    idleExp: true as boolean,
     idleExpSteps: [[12, 0.1], [8, 0.25], [5, 0.5]] as readonly (readonly [number, number])[],
-    rivalByRegion: false as boolean,
-    freeBallTier: false as boolean,
-    loseMoneyCap: false as boolean,
+    rivalByRegion: true as boolean,
+    freeBallTier: true as boolean,
+    loseMoneyCap: true as boolean,
     loseMoneyPerLevel: 50,
   },
   /** 상점 값 (원, 4장) — 마스터볼은 안 팖 */

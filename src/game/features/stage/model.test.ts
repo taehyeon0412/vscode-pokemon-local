@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { sampleSave } from '../../../test/fixtures/save';
 import { BALANCE, TIMING } from '../../core/balance';
 import { createGameState, type GameState } from '../../core/engine';
@@ -91,6 +91,15 @@ describe('S08 · S09 상대 볼 개수 (단계 9 테스터)', () => {
 });
 
 describe('라이벌 (gdd 4.12) — 띠 · 결과 보이기', () => {
+  // 5.2 초안을 켠 본편은 라이벌 마릿수 = 몇 번째 지역 (draft52.test) — 여기는 끄고 예전 전적 규칙 (1 → 3마리) 을 봄
+  const draft52 = BALANCE.draft52 as { rivalByRegion: boolean };
+  beforeEach(() => {
+    draft52.rivalByRegion = false;
+  });
+  afterEach(() => {
+    draft52.rivalByRegion = true;
+  });
+
   it('띠의 전적 칩 — 처음이면 "첫 만남!", 그 뒤 "전적 W승 L패" · 이름 · 볼 수 · "!" 뒤 띠', () => {
     expect(rivalTag(sampleSave(), 'boy')).toBe('첫 만남!');
     expect(rivalTag(sampleSave({ rivals: { boy: { wins: 0, losses: 1 } } }), 'boy')).toBe('전적 0승 1패');

@@ -1,5 +1,5 @@
 /** 라이벌 흐름 (gdd 4.12 · mvp-spec 3.10) — 깜짝 등장 → 띠 → 1:1 토너먼트 → 이기면 더 좋은 보상 · 지면 싸우기 전으로 */
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { sampleMonster, sampleSave, viaJson } from '../../../test/fixtures/save';
 import { BALANCE, TIMING } from '../balance';
 import { maxHpOf } from '../rules/bag';
@@ -51,6 +51,15 @@ function meet(s0: GameState): GameState {
 }
 
 describe('라이벌 깜짝 등장 (gdd 4.12)', () => {
+  // 5.2 초안을 켠 본편은 라이벌 마릿수 = 몇 번째 지역 (draft52.test) — 여기는 끄고 예전 전적 규칙 (1 → 3마리) 을 봄
+  const draft52 = BALANCE.draft52 as { rivalByRegion: boolean };
+  beforeEach(() => {
+    draft52.rivalByRegion = false;
+  });
+  afterEach(() => {
+    draft52.rivalByRegion = true;
+  });
+
   it('안 볼 때 · VS Code 에 포커스가 없을 때는 라이벌 바로 앞에서 멈추고 알림 → 다시 보면 걸어가 만남 (2026-10-20 ideas #87)', () => {
     for (const away of [{ headless: true }, { away: true }]) {
       const s0 = auto(game());
