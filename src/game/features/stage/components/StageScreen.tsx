@@ -9,7 +9,7 @@
  */
 import { useEffect, useLayoutEffect, useRef } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
-import { battleAutoUltLeft, canOpenMenus, canParry, canRiposte, gymLeaderOf, isWalkingFast, itemLeft, teamAutoUltLeft, teamAutoUltNext, teamLock, teamMeetTipDue, TEAM_MEET_TIP, walkLeftMs, type GameInput, type GameState } from '../../../core/engine';
+import { AUTO_TEAM_TIP, autoTeamTipDue, battleAutoUltLeft, canOpenMenus, canParry, canRiposte, gymLeaderOf, isWalkingFast, itemLeft, teamAutoUltLeft, teamAutoUltNext, teamLock, teamMeetTipDue, TEAM_MEET_TIP, walkLeftMs, type GameInput, type GameState } from '../../../core/engine';
 import { maxHpOf, teamHealth } from '../../../core/rules/bag';
 import { spaceInput, ultSkippable } from '../../battle/fx/parry';
 import { BALLS } from '../../../core/rules/catch';
@@ -206,6 +206,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   const ultWaitKey = ultWaitMs <= 0 ? null : battle ? 'Z' : teamNext !== null ? String(teamNext + 1) : null;
   // 칩과 같은 남은 초 (3 · 2 · 1 — 글이 "3초" 로 멈춰 있고 칩만 줄던 것, UX 리뷰어)
   const ultWaitSec = Math.ceil(ultWaitMs / 1000);
+  // 자동 전투로 3:3 이 시작된 판의 처음 안내 (orders #71 — 엔진 autoTeamTipDue) · 판 첫 12초만 (중간에 갑자기 뜨지 않게 — 못 보고 지나가면 다음 판에)
+  const autoTeamTip = team !== null && autoTeamTipDue(state) && team.t < 12000;
   const choice = choiceView(state);
   const foeTrainer = foeTrainerView(state);
   const rivalShadow = holdRivalLook(state);
@@ -509,7 +511,22 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         )}
         {/* "N초" 칩의 뜻 (ideas #150 · orders #34) — 볼 때 저절로 나가는 필살기가 처음 다 찼을 때 한 번: 1:1 자동 전투 (Z 모서리 3 · 2 · 1) · 3:3 (발밑 판 3 · 2 · 1 — 자동 전투가 꺼져도).
             저절로 나가면 (3초) 같이 사라짐 · 1초 넘게 보면 셈 · 1:1 = 아래 가운데 · 3:3 = 위 가운데 (아래는 발밑 판), 480 아래 3:3 은 내 쪽 왼쪽 위 (가운데면 상대 쓰러짐 말 · 피해 숫자를 0.7초 덮던 것 — UX 리뷰어) */}
-        {ultWaitKey && !(save.tips ?? []).includes(ULT_WAIT_TIP) && (
+        {/* 자동 전투 3:3 처음 안내 (orders #71 — 자동이면 트레이너전은 3:3 기본) = VS 뒤 3:3 판 첫 12초 · 위 가운데 · 보는 동안만 셈 (U6) · 한 줄만 — 두 줄이면 1번 포켓몬 머리를 덮음 (폭을 재서 세 단계: 520 이상 418 · 361 ~ 519 302 · 360 아래 181, 맥 +10% 포함) */}
+        {autoTeamTip && (
+          <FirstTip key={AUTO_TEAM_TIP} ms={5000} className="pg-first-tip-top pg-tip-auto-team" paused={away} onSeen={() => onInput({ kind: 'tip-seen', id: AUTO_TEAM_TIP })}>
+            <span class="pg-t71-long">
+              자동 전투는 3:3 — 셋이 같이 싸우고 돈 ×{BALANCE.team.moneyScale} · 1:1 은 <KeyCap k="A" /> 자동을 끄고 만남에서
+            </span>
+            <span class="pg-t71-mid">
+              자동 전투는 3:3 · 돈 ×{BALANCE.team.moneyScale} — 1:1 은 <KeyCap k="A" /> 끄고 만남에서
+            </span>
+            <span class="pg-t71-short">
+              자동은 3:3 · 1:1 은 <KeyCap k="A" /> 끄고
+            </span>
+          </FirstTip>
+        )}
+        {/* 자동 3:3 안내가 떠 있으면 같은 자리 필살기 안내는 기다림 */}
+        {ultWaitKey && !autoTeamTip && !(save.tips ?? []).includes(ULT_WAIT_TIP) && (
           <FirstTip key={ULT_WAIT_TIP} ms={BALANCE.ultAutoWaitMs} className={team ? 'pg-first-tip-top pg-tip-mine' : 'pg-first-tip-low'} paused={away} onSeen={() => onInput({ kind: 'tip-seen', id: ULT_WAIT_TIP })}>
             {/* 좁으면 (360 아래 · 480 아래 3:3) 짧은 말 — "필살기" 는 남김 (빼면 무엇이 저절로인지 빠지던 것) */}
             <span class="pg-tip-part pg-tip-long">필살기 다 참 —&nbsp;</span>

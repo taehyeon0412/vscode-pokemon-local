@@ -5412,6 +5412,27 @@ body.vscode-high-contrast-light .pg-title-body {
   border: 1px solid var(--pg-sos-tab-ink);
   background: var(--pg-sos-red);
 }
+/* 자동 전투 3:3 처음 안내 (orders #71) — 폭마다 한 줄 (재서 정함: 긴 418 · 맥 473 → 520 이상 · 중간 302 · 맥 343 → 361 ~ 519 · 짧은 181 · 맥 203 → 360 아래) */
+.pg-t71-mid,
+.pg-t71-short {
+  display: none;
+}
+@media (max-width: 519px) {
+  .pg-t71-long {
+    display: none;
+  }
+  .pg-t71-mid {
+    display: inline;
+  }
+}
+@media (max-width: 360px) {
+  .pg-t71-mid {
+    display: none;
+  }
+  .pg-t71-short {
+    display: inline;
+  }
+}
 /* 지도 이동 확인 (걷는 중 다른 스테이지) — 판 맨 위 · 줄 바꿈 (줄임표 금지) */
 .pg-map-confirm {
   min-width: 0;
