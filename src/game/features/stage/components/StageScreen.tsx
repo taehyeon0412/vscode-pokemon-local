@@ -7,9 +7,9 @@
  * 전투 (S09 · S10) 는 같은 길 위에서 — features/battle 의 BattleLayer (주인공은 왼쪽 끝 트레이너 자리로, 야생은 튀어나온 자리 그대로 · 트레이너는 오른쪽 끝).
  * 튀어나올 때 선제공격 · 기습은 스피드로 정함 (2026-10-21 태현 님 — Space · 클릭 선제공격을 뺌).
  */
-import { useEffect, useLayoutEffect, useRef } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
-import { AUTO_TEAM_TIP, autoTeamTipDue, battleAutoUltLeft, canOpenMenus, regionsOn, teamFastOk, teamUltOpen, canParry, canRiposte, gymLeaderOf, isWalkingFast, itemLeft, teamAutoUltLeft, teamAutoUltNext, teamLock, teamMeetTipDue, TEAM_MEET_TIP, walkLeftMs, type GameInput, type GameState } from '../../../core/engine';
+import { AUTO_TEAM_TIP, autoTeamTipDue, battleAutoUltLeft, canOpenMenus, gameTempo, regionsOn, teamUltOpen, canParry, canRiposte, gymLeaderOf, isWalkingFast, itemLeft, teamAutoUltLeft, teamAutoUltNext, teamLock, teamMeetTipDue, TEAM_MEET_TIP, walkLeftMs, type GameInput, type GameState } from '../../../core/engine';
 import { maxHpOf, teamHealth } from '../../../core/rules/bag';
 import { spaceInput, ultSkippable } from '../../battle/fx/parry';
 import { BALLS } from '../../../core/rules/catch';
@@ -212,12 +212,32 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   const autoTeamTip = team !== null && autoTeamTipDue(state) && team.t < 12000;
   // 3:3 에서 먼저 다 찬 칸 (필살기는 눌러야만 나감 — #82) — 처음 한 번 "필살기 다 참 — [1] 누르면 나가요"
   const teamReadyKey = team && team.phase === 'run' ? [0, 1, 2].find((i) => teamUltOpen(team, i)) : undefined;
-  // 전투 ×2 를 켰는데 지금은 기본 박자 (필살기 · 끼어들기 · 알아챌 순간 — 엔진 teamFastOk) = 스위치 글을 흐리게 (켰는데 안 먹는 것처럼 보이던 것, UX 리뷰어 #83 큼 ②) ·
+  // 빠르게 ▶▶ (전투 ×2 — 10-22 이름 바뀜) 를 켰는데 지금은 기본 박자 (필살기 · 끼어들기 · 알아챌 순간 — 엔진 teamFastOk) = 스위치 글을 흐리게 (켰는데 안 먹는 것처럼 보이던 것, UX 리뷰어 #83 큼 ②) ·
   //   0.4초 넘게 이어질 때만 바꿈 (0.3초 · 40ms 끼었다 빠지는 박자에 스위치가 깜빡이지 않게 — U2)
   // 안 가 본 새 지역 (정보줄 지도 아이콘 표시 — 대기실 지도 버튼과 같은 규칙 · 개발 UX #70)
   const newRegionName = regionsOn(state) ? (mapView(state).regions.find((r) => isNewRegion(r, save.stages))?.name ?? null) : null;
-  const fastHeldNow = team !== null && save.settings.battleFast === true && !teamFastOk(team);
+  //   조건 = 지금 박자 (엔진 gameTempo) 가 빠른 박자보다 느림 — teamFastOk 만 보면 상대 필살기 컷인 1초 뒤 빠른 구간을 쉼으로 읽음 (개발 a01cfeb)
+  const fastHeldNow = team !== null && save.settings.battleFast === true && gameTempo(state) < TIMING.team.tempo * TIMING.team.fastScale - 1e-6;
   const fastHeldRef = useRef({ on: false, want: false, since: 0 });
+  // 스위치 이름 "빠르게" — 왼쪽 묶음 (진행 · 지도 줄) 과 사이가 스위치 폭의 10% (맥 여유) + 6px 보다 좁으면 빼고 ▶▶ 만 (오른쪽 붙임이라 오른쪽 끝으로는 못 잼) · 폭이 바뀌면 다시 잼
+  const switchesBox = useRef<HTMLSpanElement>(null);
+  const [fastShort, setFastShort] = useState(false);
+  useEffect(() => {
+    const reset = () => setFastShort(false);
+    window.addEventListener('resize', reset);
+    return () => window.removeEventListener('resize', reset);
+  }, []);
+  useLayoutEffect(() => {
+    const el = switchesBox.current;
+    if (!el || fastShort || !el.querySelector('.pg-fast-name')) return;
+    const group = el.closest<HTMLElement>('.pg-infobar-right') ?? el;
+    const prev = group.previousElementSibling;
+    const bar = el.closest<HTMLElement>('.pg-infobar');
+    const r = el.getBoundingClientRect();
+    if (r.width === 0) return;
+    const free = prev ? r.left - prev.getBoundingClientRect().right : Infinity;
+    if (free < r.width * 0.1 + 6 || (bar !== null && bar.scrollWidth > bar.clientWidth + 0.5)) setFastShort(true);
+  });
   {
     const h = fastHeldRef.current;
     const now = performance.now();
@@ -374,8 +394,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
           center={mapRow ? undefined : where}
           right={
             team ? (
-              // 3:3 정보줄 오른쪽 = 자동 · 전투 ×2 스위치 (태현 님 #83 "화면 상단에 전투 x2 를 사용자가 선택" · 개발 UX — 3:3 에 자동 표시가 없던 것) · 키 C (X = 각성, 기획 10-22) — 빨리 걷기 · 자동 스위치와 같은 모양 (켜짐 = ✓ · 금 테두리)
-              <span class="pg-menu-buttons pg-team-switches">
+              // 3:3 정보줄 오른쪽 = 자동 · 빠르게 ▶▶ 스위치 (태현 님 #83 "화면 상단에 전투 x2 를 사용자가 선택" → 10-22 "이름은 빠르게 ▶▶" · 개발 UX — 3:3 에 자동 표시가 없던 것) · 키 C (X = 각성, 기획 10-22) — 빨리 걷기 · 자동 스위치와 같은 모양 (켜짐 = ✓ · 금 테두리)
+              <span class="pg-menu-buttons pg-team-switches" ref={switchesBox}>
                 <Button
                   secondary
                   extraClass={save.settings.autoBattle ? 'pg-auto-walk pg-on' : 'pg-auto-walk'}
@@ -389,14 +409,15 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
                   secondary
                   extraClass={save.settings.battleFast ? `pg-battle-fast pg-on${fastHeld ? ' pg-held' : ''}` : 'pg-battle-fast'}
                   onClick={() => onInput({ kind: 'battle-fast', on: save.settings.battleFast !== true })}
-                  title={fastHeld ? '전투 ×2 켜짐 (C) — 지금은 필살기 · 끼어들기라 기본 박자' : `전투 ×2 ${save.settings.battleFast ? '켜짐' : '꺼짐'} (C) — 보통 공격만 빨리 · 필살기 · 누를 틈 · 알아챌 순간은 그대로`}
+                  title={fastHeld ? '빠르게 켜짐 (C) — 지금은 누르는 창 · 알아챌 순간이라 기본 박자' : `${save.settings.battleFast ? '켜짐' : '꺼짐'} · 빠르게 (C) — 3:3 을 약 1.5배로: 보통 공격 · 상대 필살기 연출 (컷인 1초 뒤부터) 을 빨리 · 알아챌 순간 1초 · 누르는 창은 그대로`}
                 >
                   {menuLabels(widthPx, mapRow) === 'full' && <span class="pg-menu-key">C</span>}
-                  {/* 좁으면 "×2" 만 (240 에서 정보줄이 넘치지 않게 — title 에 전체) */}
+                  {/* "✓ 빠르게 ▶▶" — ▶▶ = 빨리 걷기와 같은 그림 (지금 빠름 = 금 ▶▶) · 정보줄이 넘치면 "✓ ▶▶" (이름 · 키는 title — 재서, 맥 여유 10%) */}
                   <span class="pg-menu-text">
                     {save.settings.battleFast ? '✓ ' : '□ '}
-                    <span class="pg-long">전투 </span>×2
+                    {!fastShort && <span class="pg-fast-name">빠르게 </span>}
                   </span>
+                  <Icon name={save.settings.battleFast && !fastHeld ? 'fastOn' : 'fast'} />
                 </Button>
               </span>
             ) : canOpenMenus(state) ? (

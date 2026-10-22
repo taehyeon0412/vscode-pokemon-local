@@ -7,6 +7,7 @@ import { BALANCE } from '../../../core/balance';
 import type { GameInput } from '../../../core/engine';
 import type { Save } from '../../../core/save';
 import { Button } from '../../../ui/Button';
+import { Icon } from '../../../ui/Icon';
 import { Panel, Row } from './Panel';
 
 export function SettingsPanel({ save, onInput, onExit, onClose, dev = false, onSaveIO, saveNote = null }: { save: Save; onInput(i: GameInput): void; onExit(): void; onClose(): void; /** 개발 모드 — 세이브 내보내기 · 불러오기를 숨김 (저장 안 됨 모드) */ dev?: boolean; /** ④ 세이브 내보내기 · 불러오기 (orders #33 — 파일 창은 확장) */ onSaveIO?(kind: 'export' | 'import'): void; /** 내보내기 · 불러오기 결과 한 줄 (3초) — 판 머리 아래 고정 줄에 (판 위에 뜨면 머리 · 첫 줄을 덮던 것, 픽셀 검사원) */ saveNote?: { ok: boolean; text: string } | null }) {
@@ -46,9 +47,10 @@ export function SettingsPanel({ save, onInput, onExit, onClose, dev = false, onS
           {/* 배수는 실제 값 그대로 ("×3" 이라 써 두고 2.5배로 걷던 것 — 기획 검토 #25) */}
           <span class="pg-long">{save.settings.fastWalk === true ? ` ×${BALANCE.fastWalkSpeed}` : ' 꺼짐'}</span>
         </Button>
-        {/* 전투 ×2 (태현 님 #83 — 3:3 정보줄 스위치와 같음 · 키 C) — 3:3 보통 공격만 빨리, 필살기 · 누를 틈 · 알아챌 순간은 기본 박자 */}
-        <Button secondary extraClass={save.settings.battleFast === true ? 'pg-picked' : undefined} onClick={() => onInput({ kind: 'battle-fast', on: save.settings.battleFast !== true })} title="전투 ×2 (C) — 3:3 보통 공격만 빨리 · 필살기 · 누를 틈 · 알아챌 순간은 그대로 (정보줄 스위치와 같음)">
-          {save.settings.battleFast === true ? '✓ 전투 ×2' : '전투 ×2'}
+        {/* 빠르게 ▶▶ (태현 님 #83 — 10-22 "이름은 빠르게 ▶▶" · 3:3 정보줄 스위치와 같음 · 키 C) */}
+        <Button secondary extraClass={save.settings.battleFast === true ? 'pg-picked' : undefined} onClick={() => onInput({ kind: 'battle-fast', on: save.settings.battleFast !== true })} title="빠르게 (C) — 3:3 을 약 1.5배로: 보통 공격 · 상대 필살기 연출 (컷인 1초 뒤부터) 을 빨리 · 알아챌 순간 1초 · 누르는 창은 그대로 (정보줄 스위치와 같음)">
+          {save.settings.battleFast === true ? '✓ 빠르게 ' : '빠르게 '}
+          <Icon name="fast" />
           <span class="pg-long">{save.settings.battleFast === true ? ' 켜짐' : ' 꺼짐'}</span>
         </Button>
         {/* 동작 줄이기 (2026-10-20 태현 님 1안 — 기본 꺼짐 · OS 설정은 안 봄, 맥도 윈도와 같게) — 켜면 꾸밈 움직임 (배지 빛 · +N 깜박 · 레벨업 별 · 말풍선 까딱 · 넓어지기 등) 을 멈춤, 흔들기 · 필살기 꽉 참 같은 게임 정보는 그대로 */}
@@ -86,7 +88,7 @@ export function SettingsPanel({ save, onInput, onExit, onClose, dev = false, onS
             <span class="pg-menu-key">A</span> 자동 전투
           </span>
           <span class="pg-key-item">
-            <span class="pg-menu-key">C</span> 전투 ×2
+            <span class="pg-menu-key">C</span> 빠르게
           </span>
           <span class="pg-key-item">
             <span class="pg-menu-key">Esc</span> 닫기 · 지나가기
