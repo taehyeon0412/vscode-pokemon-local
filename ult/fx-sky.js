@@ -5716,9 +5716,13 @@
             ring(sc, bx, yb, bw * 0.5, bw * 3.5, 1, 0.35, ['#ffffff', SUN[1]], 3);
             fireBits(bx, yb, s, SUN, 40, { spread: TAU, speed: H * 0.8, drag: 2.4, life: 0.6, rx: bw * 0.3, ry: bw * 0.3 });
         });
-        // 빛 폭발 자리에 닿는 순간 — 큰 충격파 · 흙 · 빛가루
+        // 빛 폭발 자리에 닿는 순간 — 큰 충격파 · 흙 · 빛가루. 합동에선 뺌 (상대가 없으면 앞쪽 55% 가 상대 자리와 겹쳐 맞기 0.9초 전에 상대 위에서 터지던 것 — #80 여덟째 바퀴 · 맞음은 합동 마무리 하나)
+        const inJoint = typeof fxJointTop !== 'undefined' && !!fxJointTop;
         const TX = TB + (TH - TB) * clamp(Math.abs(ix - bx) / blen, 0, 1);
         sc.at(TX, () => {
+            if (inJoint) {
+                return;
+            }
             screenFlash(s, 0.4, SUN[0], 0.12);
             ultShake(9, 700);
             ring(sc, ix, yb, bw * 0.6, Math.max(W, H) * 0.6, 0.6, 0.55, ['#ffffff', SUN[1], SUN[2]], 3);
@@ -5730,7 +5734,7 @@
         let pulse = 0;
         let bits = 0;
         sc.tick((t, dt) => {
-            if (t < TH || t > TN) {
+            if (t < TH || t > TN || inJoint) {
                 return;
             }
             pulse += dt;
