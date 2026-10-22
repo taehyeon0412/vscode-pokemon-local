@@ -5617,6 +5617,12 @@ body.vscode-high-contrast-light .pg-title-body {
     padding: 0 6px;
   }
 }
+/* 낮은 패널 (160 아래) 대기실 상자 아래 여백 4 → 2 — 480 × 150 에서 상자 금테 바로 아래 주인공 모자가 0px 로 닿던 것 (픽셀 밤 점검 651 · 이제 2px 띄움) */
+@media (max-height: 160px) {
+  .pg-banner.pg-lobby {
+    padding-bottom: 2px;
+  }
+}
 /* 가방 — 지금 못 쓰는 칩 (볼은 전투에서만) = 흐림 + 점선 테두리 (못 누르는 버튼과 같은 모양, 원칙 7) */
 .pg-chip.pg-chip-dim {
   border-style: dashed;
