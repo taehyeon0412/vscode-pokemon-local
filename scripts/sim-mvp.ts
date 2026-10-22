@@ -449,7 +449,7 @@ for (const sp of starters.filter((x) => ONLY === null || x.dex === ONLY)) {
     results.push(r);
   }
 }
-const ace = Math.max(...leaderTeam().map((m) => m.level));
+const ace = Math.max(...leaderTeam(REGIONS.forest).map((m) => m.level));
 console.log(`판 ${results.length} (스타팅 ${starters.length} × ${RUNS}) · ${BALANCE.team.on ? `${modeLabel} (한 판에 3:3 ${avg(results.map((r) => r.teamBattles)).toFixed(1)}번)` : '1:1'}${BALANCE.team.pickLevelGap ? ` · 고르기 레벨 규칙 ${BALANCE.team.pickLevelGap}` : ''} · 잡기 ${CATCH ? '함' : '안 함'} · 연타 ${MASH ? '함' : '안 함'} · 패링 ${PARRY} · 계산 ${((Date.now() - started) / 1000).toFixed(0)}초 · 관장 에이스 Lv ${ace}`);
 console.log(`끝까지 간 판 ${results.filter((r) => r.done).length} / ${results.length}`);
 for (const w of [...STAGE_IDS, 'gym'] as Where[]) {

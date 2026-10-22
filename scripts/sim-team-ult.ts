@@ -14,6 +14,7 @@ import { Rng } from '../src/game/core/engine/rng';
 import { startTeamBattle, teamDone, teamStep } from '../src/game/core/engine/team';
 import { createMonster, wildMoves } from '../src/game/core/rules/monster';
 import { leaderTeam, trainerTeam } from '../src/game/core/rules/trainer';
+import { REGIONS } from '../src/game/core/rules/region';
 import { sampleSave } from '../src/test/fixtures/save';
 
 const argv = process.argv.slice(2).filter((a) => a !== '--');
@@ -46,7 +47,7 @@ for (const scale of SINGLE ? [1, 1.5, 2, 2.5] : [1.2, 1.0, 0.8, 0.6, 0.5]) {
       const mk = (uid: string, dex: number) => createMonster({ uid, dex, level: lv, moves: wildMoves(dex, lv, rng), rng, caughtAt: 'forest-1' });
       const mine = [mk('m1', [1, 4, 7][seed % 3]!), mk('m2', 16), mk('m3', 10 + (seed % 3) * 3)];
       const save = sampleSave({ monsters: Object.fromEntries(mine.map((m) => [m.uid, m])), party: mine.map((m) => m.uid) });
-      const foes = stage === 'gym' ? leaderTeam() : trainerTeam(stage, seed, seed % 3, 3, BALANCE.team.size);
+      const foes = stage === 'gym' ? leaderTeam(REGIONS.forest) : trainerTeam(stage, seed, seed % 3, 3, BALANCE.team.size);
       let b = startTeamBattle(save, foes, stage === 'gym' ? 'gym' : 'trainer', '상대');
       let t = 0;
       let extra = 0;

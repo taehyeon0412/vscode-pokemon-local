@@ -8,6 +8,7 @@ import { Rng } from '../src/game/core/engine/rng';
 import { startTeamBattle, teamDone, teamStep } from '../src/game/core/engine/team';
 import { createMonster, wildMoves } from '../src/game/core/rules/monster';
 import { leaderTeam, trainerTeam } from '../src/game/core/rules/trainer';
+import { REGIONS } from '../src/game/core/rules/region';
 import { sampleSave } from '../src/test/fixtures/save';
 
 const runs = Number(process.argv.slice(2).filter((a) => a !== '--')[0] ?? 60);
@@ -23,7 +24,7 @@ for (const [label, lv, stage] of [['1-2', 9, 'forest-2'], ['1-3', 12, 'forest-3'
     // 스타팅 (풀 · 불꽃 · 물 번갈아) + 구구 + 숲 벌레
     const team = [mk('m1', [1, 4, 7][seed % 3]!), mk('m2', 16), mk('m3', 10 + (seed % 3) * 3)];
     const save = sampleSave({ monsters: Object.fromEntries(team.map((m) => [m.uid, m])), party: team.map((m) => m.uid) });
-    const foes = stage === 'gym' ? leaderTeam() : trainerTeam(stage, seed, seed % 3, 3, BALANCE.team.size);
+    const foes = stage === 'gym' ? leaderTeam(REGIONS.forest) : trainerTeam(stage, seed, seed % 3, 3, BALANCE.team.size);
     let b = startTeamBattle(save, foes, stage === 'gym' ? 'gym' : 'trainer', '상대');
     let t = 0;
     let lastPhase = b.phase;
