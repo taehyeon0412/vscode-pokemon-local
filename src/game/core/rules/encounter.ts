@@ -13,7 +13,7 @@ import type { EncounterStart, ItemId, Monster, StageId } from '../save';
 import { allSpecies, evolutionsOf, formOf, formsOfSpecies, learnsetOf, moveOf, speciesOf, type ReadonlySpecies, type TypeName } from '../../data';
 import { createMonster, wildMoves } from './monster';
 import { spotRng, stageLevelBand, type Spot } from './stage';
-import { regionOf } from './region';
+import { regionOf, type RegionDef } from './region';
 
 /** 흔적 모양 6가지 — 타입 · 지형별로 다르게 튀어나옴 (gdd 4.6) */
 export type TraceKind = 'grass' | 'water' | 'sky' | 'ground' | 'tree' | 'shadow';
@@ -114,12 +114,22 @@ export function regionPool(stageId: StageId): Pool {
     const last = index === region.stages.length - 1;
     pool.common = [...(lists[index] ?? []), ...(last ? (strong ?? []) : [])].filter((d) => !!speciesOf(d) && formsOfSpecies(d).length > 0);
     // 드묾 — 마지막 스테이지 = 정한 목록 · 앞 스테이지 = 드문 타입 2종 (스테이지 id 시드 — 해변 얼음 · 전기 · 바위, 숲 독 · 드래곤 · 페어리, gdd 5.3 · 5.4 기획 답)
-    pool.rare = last ? (rareList ?? []).filter((d) => !!speciesOf(d) && formsOfSpecies(d).length > 0) : pickFixed(rareTypes, 2, stageId, 2);
+    pool.rare = last ? (rareList ?? []).filter((d) => !!speciesOf(d) && formsOfSpecies(d).length > 0) : pickRare(rareTypes, region, index, stageId);
     // 숲 — 노말 · 비행도 스테이지마다 3종 (gdd 5.4)
     if (mixedPick) pool.mixed = pickFixed(pool.mixed, mixedPick, stageId, 1);
   }
   pools.set(key, pool);
   return pool;
+}
+
+/**
+ * 앞 스테이지 드문 2종 — 같은 지역의 앞 스테이지에서 뽑은 종과 겹치면 겹친 종을 뺀 목록에서 다시 뽑음 (해변 2-1 · 2-2 가 둘 다 파치리스이던 것 — orders #65 ②).
+ * 안 겹치면 예전 뽑기 그대로 (숲은 그대로)
+ */
+function pickRare(rareTypes: readonly number[], region: RegionDef, index: number, stageId: StageId): number[] {
+  const taken = new Set(region.stages.slice(0, index).flatMap((st) => regionPool(st.id).rare));
+  const picks = pickFixed(rareTypes, 2, stageId, 2);
+  return picks.some((d) => taken.has(d)) ? pickFixed(rareTypes.filter((d) => !taken.has(d)), 2, stageId, 2) : picks;
 }
 
 /** 레벨에 맞게 진화 — 레벨 진화 (친밀도는 Lv 20) 만, 조건 · 돌 · 교환은 안 함. 갈래는 확률 (없으면 반반) */

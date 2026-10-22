@@ -269,3 +269,14 @@ describe('기술 없는 야생 막기 (orders #63 · #64)', () => {
     expect(spots.some((sp) => planWild('beach-1', 777, sp).dex === 130)).toBe(false);
   });
 });
+
+describe('드문 종 — 같은 지역 안에서 겹치지 않음 (orders #65 ②)', () => {
+  it('숲 · 해변 앞 스테이지 드문 2종이 지역 안에서 모두 다름 · 숲은 그대로 (삐삐 · 블루 / 마릴 · 랄토스)', () => {
+    for (const region of Object.values(REGIONS)) {
+      const rare = region.stages.slice(0, -1).flatMap((st) => regionPool(st.id).rare);
+      expect(new Set(rare).size, region.id).toBe(rare.length);
+    }
+    expect(regionPool('forest-1').rare.map((d) => speciesOf(d)?.name.ko)).toEqual(['삐삐', '블루']);
+    expect(regionPool('forest-2').rare.map((d) => speciesOf(d)?.name.ko)).toEqual(['마릴', '랄토스']);
+  });
+});

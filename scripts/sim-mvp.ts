@@ -9,6 +9,7 @@
  * - 부탁: 늘 도움 · 결과: 1.5초 보고 계속 · 새 기술: 위력이 더 세면 가장 약한 기술 대신 · 진화: 함 (센 기술을 남김)
  * - 포인트: 공격 · HP 번갈아 · 대기실: 처음엔 바로 도전, 지면 1-3 을 한 번 더 걷고 다시 도전
  */
+import { writeFileSync } from 'node:fs';
 import { BALANCE, TIMING } from '../src/game/core/balance';
 import { canParry, canRiposte, type BattleState } from '../src/game/core/engine/battle';
 import { applyInput, nextStageOf, step } from '../src/game/core/engine/play';
@@ -538,4 +539,10 @@ if (FOREST_REPORT) {
   }
   const sorted = [...needs].sort((a, b) => a - b);
   console.log(`  숲에 나오는 종 (진화형 따로) ${all.size} · 다 만나는 판 수 가운데 ${sorted[Math.floor(sorted.length / 2)]} (빠르게 ${sorted[0]} · 늦게 ${sorted[sorted.length - 1]}) · 한 판에 만나는 야생 ${avgOf(plays.map((r) => r.length)).toFixed(0)}`);
+}
+
+// SIM_DUMP=<파일> — 판마다 스타팅 · 관장 도전 · 관장에서 진 수 · 진 수 합계 (스타팅 타입별로 묶어 보기 — orders #65)
+if (process.env.SIM_DUMP) {
+  const rows = results.map((r) => ({ starter: r.starter, seed: r.seed, done: r.done, gymTries: r.gymTries, gymDefeats: r.stages.gym.defeats, defeats: Object.values(r.stages).reduce((a, x) => a + x.defeats, 0), totalMs: r.totalMs }));
+  writeFileSync(process.env.SIM_DUMP, JSON.stringify(rows));
 }
