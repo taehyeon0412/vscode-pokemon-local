@@ -27,15 +27,23 @@ function Bar({ v, kind }: { v: number; kind: 'hp' | 'ult' | 'ult-full' }) {
   );
 }
 
-/** 발밑 그림자 자리 · 크기 — 그림 실제 폭 (sprite-boxes) × 0.6 을 2k 단위로 · 줄 높이 u = k (그림 점 하나) · 가운데 = 그림 발끝 (칸 아래 − 3k) */
-function shadowStyle(form: string, g: TeamGeo): Record<string, string> {
+/** 발밑 그림자 자리 · 크기 — 그림 실제 폭 (sprite-boxes) × 0.6 을 2k 단위로 · 줄 높이 u = k (그림 점 하나) · 가운데 = 그림 발끝 (칸 아래 − 3k) ·
+ *  가로 가운데 = 그림 실제 범위 가운데 (칸 가운데면 이상해씨 −6 · 레디바 +8px 어긋나던 것 — 픽셀 검사원) · 상대는 왼쪽을 봐서 좌우 뒤집음 · 자리는 k 칸 격자 (×2 top 55 → 56) */
+function shadowStyle(form: string, g: TeamGeo, flip: boolean): Record<string, string> {
   const k = g.scale;
   const box = spriteBoxOf(form);
+  const n = formOf(form)?.size ?? 32;
   const vis = box ? (box[2] - box[0]) * k : g.sp;
   const w = Math.max(k === 1 ? 12 : 20, Math.min(20 * k, Math.round((vis * 0.6) / (2 * k)) * 2 * k));
   const u = k;
-  return { left: `${Math.round((g.sp - w) / 2)}px`, top: `${g.sp - 3 * k - Math.round((3 * u) / 2)}px`, width: `${w}px`, '--pg-sh-u': `${u}px`, '--pg-sh-in': `${2 * k}px` };
+  const mid = box ? (flip ? n - (box[0] + box[2]) / 2 : (box[0] + box[2]) / 2) : n / 2;
+  const cx = (g.sp - n * k) / 2 + mid * k;
+  const snap = (v: number) => Math.round(v / k) * k;
+  return { left: `${snap(cx - w / 2)}px`, top: `${snap(g.sp - 3 * k - 1.5 * u)}px`, width: `${w}px`, '--pg-sh-u': `${u}px`, '--pg-sh-in': `${2 * k}px` };
 }
+
+/** 머리 위 말 · 숫자 쌓는 높이 — 한 줄 15 · 합동 칩 22 (칩 20 + 2) */
+const popGap = (ps: readonly { joint?: boolean }[]) => ps.reduce((h, p) => h + (p.joint ? 22 : 15), 0);
 
 function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, onUlt }: { b: TeamBattle; g: TeamGeo; side: Side; slot: number; media: string; topMin: number; final: boolean; autoNext: boolean; fullChip: boolean; onUlt(slot: number): void }) {
   const f = b[side][slot]!;
@@ -78,7 +86,7 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, o
         onClick={click}
       >
         {/* 발밑 그림자 (시합장 배경에서만 — game.css) = 칸 안 (달려가기 · 밀림 · 사라짐에 같이 움직임) · 그림 발끝 가운데 · 폭 = 그림 폭 × 0.6 (2k 단위 · ×1 12 ~ ×2 20 이상 · 20k 이하) · k 칸 줄 3단 (아트 디렉터 #78) */}
-        <span class="pg-team-shadow" style={shadowStyle(f.form, g)} />
+        <span class="pg-team-shadow" style={shadowStyle(f.form, g, !mine)} />
         <span class="pg-team-body" style={st === 'down' && final ? { '--pg-back': mine ? '-1' : '1', '--pg-ko-y': `${koSinkPx(f.form, g.sp)}px` } : undefined}>
           <Sprite media={media} form={f.form} shiny={f.shiny} scale={g.scale} action="walk" faceLeft={!mine} />
         </span>
@@ -117,7 +125,7 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, o
       {/* 피해 숫자 · 짧은 말 — 머리 위 */}
       {/* 칸마다 쌓음 (쓰러짐 말 · 피해 숫자가 같은 자리에 겹치던 것) · 지도 줄 아래로 막음 · 한 줄 배치 · ×1 (좁은 패널 — 셋이 가까움) 은 칸마다 높이를 엇갈림 — UX 리뷰어 */}
       {pops.map((p, i) => (
-        <span key={p.id} class={`pg-team-pop pg-pop-${p.kind}${p.joint ? ' pg-team-joint' : ''}`} style={{ left: `${x}px`, top: `${Math.max(topMin + 15 * (pops.length - 1 - i) + (slot % 3) * 15, y - g.sp - 4 - 15 * i - (g.oneRow || g.scale === 1 ? (slot % 3) * 15 : 0))}px` }}>
+        <span key={p.id} class={`pg-team-pop pg-pop-${p.kind}${p.joint ? ' pg-team-joint' : ''}`} style={{ left: `${x}px`, top: `${Math.max(topMin + popGap(pops.slice(i + 1)) + (slot % 3) * 15, y - g.sp - 4 - popGap(pops.slice(0, i)) - (g.oneRow || g.scale === 1 ? (slot % 3) * 15 : 0))}px` }}>
           {p.joint ? (
             <>
               <b class="pg-team-joint-tag">합동!</b> {p.text}

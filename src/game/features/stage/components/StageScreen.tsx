@@ -389,7 +389,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
     // 시합장 (3:3 — pg-bg-arena-*) 은 위에 붙인 그림 · 낮은 패널은 위로 올림 (--pg-arena-y — 150 에서 맨 위 줄 발이 땅 시작에 걸리던 것, 아트 디렉터 #78: 150 −8 · 169 −4 · 187 위 0)
     <div
       class={`pg-screen pg-stage pg-size-${layout.size}${gym ? ' pg-gym' : ` pg-bg-${sceneBackground(state)}`}${covered ? ' pg-covered' : ''}`}
-      style={!gym && sceneBackground(state).startsWith('arena-') ? { '--pg-arena-y': `${Math.min(0, Math.round(((layout.heightPx - 187) * (arenaX1 ? 4 : 8)) / 37))}px` } : undefined}
+      style={!gym && sceneBackground(state).startsWith('arena-') ? { '--pg-arena-y': `${arenaY(layout.heightPx, arenaX1 ? 1 : layout.size === 'large' ? 3 : 2, Math.round(INFO_BAR_PX * layout.uiScale))}px` } : undefined}
       ref={screen}
     >
       {battle && geo?.menuInBar ? (
@@ -462,8 +462,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
           <GymRoom media={media} room={gymRoomOf(regionHere(save.location))} k={buildingDraw('hospital', layout.scale, heroRoom).k} floorPx={team ? Math.max(Math.round(bodyPx * GYM_FLOOR_SHARE), bodyPx - Math.round(bodyPx * 0.22)) : Math.max(ground + GYM_FLOOR_ABOVE_GROUND_PX, Math.round(bodyPx * GYM_FLOOR_SHARE))} dark={themeKind() === 'dark'} team={team !== null} />
         ) : (
           <>
-            <ScrollLayer cls="pg-bg" image={art('background')} start={offset * 0.35} pxPerSec={WALK_PX_PER_SEC * layout.scale * 0.35 * walkK} running={phase === 'walk' && live} />
-            <ScrollLayer cls="pg-fg" image={art('foreground')} start={offset * 0.7} pxPerSec={WALK_PX_PER_SEC * layout.scale * 0.7 * walkK} running={phase === 'walk' && live} />
+            <ScrollLayer key={`bg-${sceneBackground(state)}`} cls="pg-bg" image={art('background')} start={sceneBackground(state).startsWith('arena-') ? 0 : offset * 0.35} pxPerSec={WALK_PX_PER_SEC * layout.scale * 0.35 * walkK} running={phase === 'walk' && live} />
+            <ScrollLayer key={`fg-${sceneBackground(state)}`} cls="pg-fg" image={art('foreground')} start={sceneBackground(state).startsWith('arena-') ? 0 : offset * 0.7} pxPerSec={WALK_PX_PER_SEC * layout.scale * 0.7 * walkK} running={phase === 'walk' && live} />
           </>
         )}
         {/* ② 지도 줄 — 정보줄 아래 길게 (가운데 720px 칸, 정보줄 볼 · 메뉴와 같은 양 끝) */}
@@ -678,6 +678,12 @@ function GymTip({ lock }: { lock: 'few' | 'narrow' | null }) {
 }
 
 /** 체육관 바닥 = 사람이 서는 땅 위로 적어도 이만큼 · 높은 패널은 길 칸의 42% 까지 (위에서 비스듬히 보는 방 — 뒷벽 위가 텅 비지 않게) */
+/** 시합장 그림 세로 자리 — 낮은 패널은 올림 (150 −8 · ×1 −4) · 그림 점 칸 (k) 에 맞춤 (무대 위 끝 + y 가 k 의 배수 — ×3 에서 시작 26 이 포켓몬 칸과 2px 어긋나던 것, 픽셀 검사원) */
+function arenaY(h: number, k: number, top: number): number {
+  const y0 = Math.min(0, Math.round(((h - 187) * (k === 1 ? 4 : 8)) / 37));
+  return y0 - ((((top + y0) % k) + k) % k);
+}
+
 const GYM_FLOOR_ABOVE_GROUND_PX = 20;
 const GYM_FLOOR_SHARE = 0.42;
 

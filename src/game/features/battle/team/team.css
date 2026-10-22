@@ -175,7 +175,7 @@
   z-index: 7;
 }
 /* 합동 마무리 숫자 = 칩 하나 (#80 아트 디렉터 2바퀴 · design-system 12장 "합동! −숫자" 단단한 판) — 남색 판 + 1px 흐린 금 · 좌우 4 · 높이 20 · 금 11 "합동!" + 빨강 16 합계 */
-#pokemon-game .pg-team-pop.pg-team-joint {
+#pokemon-game .pg-team .pg-team-pop.pg-team-joint {
   display: inline-flex;
   align-items: center;
   gap: 3px;

@@ -4711,6 +4711,9 @@ body.vscode-high-contrast-light .pg-title-body {
   .pg-menu-buttons {
     gap: 3px;
   }
+  .pg-infobar .pg-team-switches {
+    gap: 4px;
+  }
   .pg-infobar .pg-button.pg-icon-btn {
     width: 24px;
   }
@@ -5541,6 +5544,9 @@ body.vscode-high-contrast-light .pg-title-body {
   width: 7px;
   height: 7px;
   pointer-events: none;
+}
+.pg-infobar .pg-new-dot {
+  top: -1px;
 }
 .pg-new-dot::before,
 .pg-new-dot::after {
