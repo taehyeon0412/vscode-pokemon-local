@@ -1,7 +1,7 @@
 /**
  * S09 3:3 실시간 팀 배틀 화면 (orders #17 3단계 — 디자인팀 4안: 띠 · 카드 없이 포켓몬 발밑 판이 전부).
  * 기능 뼈대 — 자리 · 판 상태 · 안내는 model.ts (시안 geo 그대로), 모양은 디자인팀 (클래스 pg-team-*). 연출은 일반 모드 그대로 (fx/team.ts TeamFxRunner).
- * 누르기: 발밑 판 · 포켓몬 = 그 칸 필살기 (쓰기 · 예약 · 끼어들기 · 합류) — 키 1 · 2 · 3 · Z · Space 는 main.ts.
+ * 누르기: 발밑 판 · 포켓몬 = 그 칸 필살기 (쓰기 · 끼어들기 · 합류 — 예약 없음, 못 쓰면 판 흐림 + 정보줄 위 한 줄 #88 — StageScreen) — 키 1 · 2 · 3 · Z · Space 는 main.ts.
  */
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'preact/hooks';
 import { TIMING } from '../../../core/balance';
@@ -63,7 +63,9 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, o
   }, []);
   const name = speciesOf(f.species)?.name.ko ?? f.form;
   const autoLeft = mine && autoNext ? teamAutoUltLeft(b, slot) : null;
-  // 필살기 힘겨루기 중엔 끼어들 수 있는 칸 (join) 만 합류 — 나머지는 바깥 (연타) 으로 (누를 때마다 예약이 켜졌다 꺼지던 것 — 코드 리뷰어)
+  // 필살기 힘겨루기 중엔 끼어들 수 있는 칸 (join) 만 합류 — 나머지는 바깥 (연타) 으로 (코드 리뷰어)
+  // 버린 누름 (#88 — 엔진 b.deny, 1.2초) = 이 칸 판이 흐려짐 (까닭 한 줄은 정보줄 위 가운데 — StageScreen teamDenyNote) · 그동안 쓸 수 있게 되면 흐림만 거둠
+  const deny = mine && b.deny && b.deny.slot === slot && st !== 'ready' && st !== 'join' ? b.deny : null;
   const click =
     mine && st !== 'down' && (b.phase !== 'clash' || st === 'join')
       ? (e: MouseEvent) => {
@@ -89,7 +91,7 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, o
         </span>
       </span>
       {/* 발밑 판 — 키 칸 (내 편) + HP + 필살기 게이지 */}
-      <span class={`pg-team-plate pg-team-plate-${side} pg-plate-${st}`} style={{ left: `${Math.round(x - w / 2)}px`, top: `${y + (g.scale >= 3 ? 6 : 4)}px`, width: `${w}px` }} onClick={click}>
+      <span class={`pg-team-plate pg-team-plate-${side} pg-plate-${st}${deny ? ' pg-plate-deny' : ''}`} style={{ left: `${Math.round(x - w / 2)}px`, top: `${y + (g.scale >= 3 ? 6 : 4)}px`, width: `${w}px` }} onClick={click}>
         {mine && <span class="pg-team-key">{slot + 1}</span>}
         <span class="pg-team-bars">
           <Bar v={f.hp / Math.max(1, f.maxHp)} kind="hp" />
@@ -320,6 +322,7 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
           )}
         </div>
       )}
+      {/* 칸 없이 누른 Z 를 버림 (#88 — 다 찬 포켓몬이 없음 · 다른 연출 중) = 무대 위 가운데 한 줄 1초 (엔진 한 줄이 있으면 그 아래) */}
       {/* 결과 · 엔진 한 줄 (합류 · 힘겨루기 결과 · 이김 · 짐) — 안내가 없을 때 */}
       {msgOn && (
         <div class="pg-team-msg pg-team-msg-over" style={{ top: `${infoBarPx + fieldTopPx + 4}px` }}>

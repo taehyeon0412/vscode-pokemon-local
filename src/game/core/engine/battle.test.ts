@@ -488,7 +488,7 @@ describe('필살기 (mvp-spec 3.3 · gdd S09 ⑧)', () => {
     expect(ultCounterOpen(late)).toBe(false);
   });
 
-  it('기다림은 Z 를 누를 수 있을 때만 셈 · 다 되면 상대 기술 중에도 끼어듦 · 못 누를 때 누른 Z 는 예약 · 상대 예고는 컷인까지 (디자인팀 #26 판정)', () => {
+  it('기다림은 Z 를 누를 수 있을 때만 셈 · 다 되면 상대 기술 중에도 끼어듦 · 못 누를 때 누른 Z 는 버림 + 까닭 도장 (예약 없음 — #88) · 상대 예고는 컷인까지 (디자인팀 #26 판정)', () => {
     const { b, save } = setup();
     const full: BattleState = { ...b, me: { ...b.me, ult: 1 }, foe: { ...b.foe, ult: 0 } };
     // 내 공격 연출 중 = Z 못 누름 → 안 셈
@@ -499,14 +499,25 @@ describe('필살기 (mvp-spec 3.3 · gdd S09 ⑧)', () => {
     const cut = battleStep(foeMove, save, STEP, fixedRng(0.5), { auto: true });
     expect(cut.anim).toMatchObject({ side: 'me', action: { kind: 'ult' } });
     expect(cut.msg.startsWith('끼어들었다!')).toBe(true);
-    // 손 전투 — 내 연출 중 Z = 예약 → 연출이 끝나 누를 수 있으면 바로
-    const queued = battleInput({ ...mine, ultWait: undefined }, save, { kind: 'ult' }, fixedRng(0.5));
-    expect(queued.ultQueued).toBe(true);
-    const done = battleStep({ ...queued, anim: { ...queued.anim!, ms: queued.anim!.dur } }, save, STEP, fixedRng(0.5), { auto: false });
-    let s = done;
-    for (let t = 0; t < 1000 && !(s.anim?.side === 'me' && s.anim.action.kind === 'ult'); t += STEP) s = battleStep(s, save, STEP, fixedRng(0.5), { auto: false });
-    expect(s.anim).toMatchObject({ side: 'me', action: { kind: 'ult' } });
-    expect(s.ultQueued).toBeUndefined();
+    // 손 전투 — 내 연출 중 Z = 버림 (예약 없음 — 2026-10-22 태현 님 "필살기 예약 이라는건 없애자", #88) · 까닭 도장 busy 1초 → 끝나도 안 나감 · 다시 눌러야 나감
+    const denied = battleInput({ ...mine, ultWait: undefined }, save, { kind: 'ult' }, fixedRng(0.5));
+    expect(denied.ultQueued).toBeUndefined();
+    expect(denied.ultDeny).toEqual({ ms: 0, why: 'busy' });
+    let s = battleStep({ ...denied, anim: { ...denied.anim!, ms: denied.anim!.dur } }, save, STEP, fixedRng(0.5), { auto: false });
+    for (let t = 0; t < 2000; t += STEP) s = battleStep(s, save, STEP, fixedRng(0.5), { auto: false });
+    expect(s.anim?.side === 'me' && s.anim.action.kind === 'ult').toBe(false);
+    expect(s.ultDeny).toBeUndefined();
+    // 게이지가 안 찼을 때 Z = charge 도장 · 옛 기록의 예약 (ultQueued) 은 읽은 뒤 첫 걸음에 지움
+    expect(battleInput({ ...b, phase: 'run', me: { ...b.me, ult: 0.4 } }, save, { kind: 'ult' }, fixedRng(0.5)).ultDeny).toEqual({ ms: 0, why: 'charge' });
+    // 버린 뒤 다시 눌러 쓰면 도장을 지움 (필살기가 나가는데 "아직 안 찼어요" 가 남던 것 — 디자인 #88)
+    const used = battleInput({ ...b, phase: 'run', me: { ...b.me, ult: 1 }, ultDeny: { ms: 200, why: 'charge' } }, save, { kind: 'ult' }, fixedRng(0.5));
+    expect(used.anim?.side === 'me' && used.anim.action.kind === 'ult').toBe(true);
+    expect(used.ultDeny).toBeUndefined();
+    // 내 필살기 연출 중 (연타) · 힘대결 중 Z 는 조용히 — 도장 없음 (UX 리뷰어 #88)
+    const myUlt: BattleState = { ...full, phase: 'anim', me: { ...full.me, ult: 0 }, anim: { side: 'me', action: { kind: 'ult' }, ms: 100, dur: 3000, counter: false } };
+    expect(battleInput(myUlt, save, { kind: 'ult' }, fixedRng(0.5)).ultDeny).toBeUndefined();
+    expect(battleInput({ ...full, phase: 'clash', me: { ...full.me, ult: 0 } }, save, { kind: 'ult' }, fixedRng(0.5)).ultDeny).toBeUndefined();
+    expect(battleStep({ ...mine, ultQueued: true }, save, STEP, fixedRng(0.5), { auto: false }).ultQueued).toBeUndefined();
     // 자동 전투 — 내 포켓몬이 쓰러지면 볼 때는 autoPickMs 뒤 다음 포켓몬 (쓰러짐이 0 ~ 1장면이던 것 #530) · 안 볼 때는 바로
     const fallen: BattleState = { ...b, phase: 'pick', me: { ...b.me, hp: 0 }, bench: { m2: { hp: 20, moves: b.me.moves, status: null } } };
     const fallenSave = { ...save, party: [...save.party, 'm2'], monsters: { ...save.monsters, m2: { ...save.monsters[save.party[0]!]!, uid: 'm2', hp: 20 } } };
@@ -519,7 +530,7 @@ describe('필살기 (mvp-spec 3.3 · gdd S09 ⑧)', () => {
     expect(battleStep(fallen, fallenSave, STEP, fixedRng(0.5), { auto: true, away: true }).phase).not.toBe('pick');
     // 교체 연출 중 Z 는 예약 안 함 (들어오는 포켓몬 필살기로 나가던 것 — 테스터) · 저절로 못 나가는 단계는 남은 시간 없음
     const switching: BattleState = { ...full, phase: 'anim', anim: { side: 'me', action: { kind: 'switch', uid: 'x' }, ms: 0, dur: 700, counter: false } };
-    expect(battleInput(switching, save, { kind: 'ult' }, fixedRng(0.5)).ultQueued).toBeUndefined();
+    expect(battleInput(switching, save, { kind: 'ult' }, fixedRng(0.5)).anim?.action.kind).toBe('switch');
     expect(battleAutoUltLeft({ ...full, phase: 'last' }, true)).toBeNull();
     // 자동 전투 · HP 30% 아래 · 다 참 → 상대 필살기 창에서 저절로 받아침 (태현 님 B) · 30% 이상 · 손 전투는 안 받아침
     const foeUltOpen: BattleState = { ...full, phase: 'anim', anim: { side: 'foe', action: { kind: 'ult' }, ms: 100, dur: TIMING.ultAnimMs, counter: false } };
@@ -539,15 +550,12 @@ describe('필살기 (mvp-spec 3.3 · gdd S09 ⑧)', () => {
     expect(picked.phase).toBe('run');
     expect(picked.pickMs).toBeUndefined();
     expect(battleStep({ ...foeUltOpen, me: { ...foeUltOpen.me, hp: lowHp } }, save, STEP, fixedRng(0.5), { auto: false }).phase).toBe('anim');
-    // 예약한 Z 는 상대 필살기 맞받아치기 창이 열리면 그걸로 (코드 리뷰어)
-    const foeUltNow: BattleState = { ...full, phase: 'anim', anim: { side: 'foe', action: { kind: 'ult' }, ms: 100, dur: TIMING.ultAnimMs, counter: false }, ultQueued: true };
-    const countered = battleStep(foeUltNow, save, STEP, fixedRng(0.5), { auto: false });
+    // 상대 필살기 맞받아치기 창은 지금 누르면 됨 (예약은 없음 — 옛 기록의 예약으로는 안 받아침, #88)
+    const foeUltNow: BattleState = { ...full, phase: 'anim', anim: { side: 'foe', action: { kind: 'ult' }, ms: 100, dur: TIMING.ultAnimMs, counter: false } };
+    expect(battleStep({ ...foeUltNow, ultQueued: true }, save, STEP, fixedRng(0.5), { auto: false }).phase).toBe('anim');
+    const countered = battleInput(foeUltNow, save, { kind: 'ult' }, fixedRng(0.5));
     expect(countered.phase).toBe('clash');
     expect(countered.clash?.kind).toBe('ult');
-    expect(countered.ultQueued).toBeUndefined();
-    // 예약 Z · 자동 필살기가 나갈 때 상대가 기다리는 중이기만 하면 힘대결이 아님 — 야생은 맞받아치지 않음 (명세 검사관)
-    const wildWaiting: BattleState = { ...full, foe: { ...full.foe, ult: 1 }, foeUltWait: 800, ultQueued: true };
-    expect(battleStep(wildWaiting, save, STEP, fixedRng(0.5), { auto: false }).anim).toMatchObject({ side: 'me', action: { kind: 'ult' } });
     // HP 30% (자동 상처약 기준) 아래면 기다리지 않고 바로 (기획 #26 R2 ① — 3초 안에 쓰러져 날아가던 것)
     const low: BattleState = { ...full, me: { ...full.me, hp: Math.ceil(full.me.maxHp * BALANCE.autoPotionBelow) - 1 } };
     expect(battleAutoUltLeft(low, true)).toBe(0);

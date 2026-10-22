@@ -144,8 +144,10 @@ export interface TeamBattle {
   seq: number;
   t: number;
   msg: string;
-  /** 필살기 예약 (내 칸) — 게이지가 차는 중에 그 칸을 누르면 예약 · 다시 누르면 취소 → 차는 순간 씀 (끼어들기 창 · 힘겨루기 합류도 바로, 2026-10-21 태현 님 ①) */
+  /** (옛 기록) 필살기 예약 — 없앰 (2026-10-22 orders #88 "필살기 예약 이라는건 없애자"). 늘 빈 목록 (옛 상태 읽기용) */
   reserve: number[];
+  /** 버린 필살기 누름 (내 칸 — slot −1 = 칸 없이 Z) — 지난 ms · 까닭 (charge = 아직 안 참 · busy = 찼지만 다른 필살기 · 연출 중). TIMING.team.denyMs 뒤 지움 */
+  deny?: { slot: number; ms: number; why: 'charge' | 'busy' };
   /** 내 칸마다 다 찬 필살기를 기다린 ms (볼 때 — 쓸 수 있는 걸음에서만 셈, ultAutoWaitMs 가 되면 저절로 · R2) · 옛 상태엔 없음 */
   autoWait?: number[];
   /** 연출 다리 — 일어난 일 (TeamNote) 과 마지막 번호 */
@@ -287,7 +289,6 @@ function spendUlt(b: TeamBattle, side: Side, slot: number): void {
   b[side][slot]!.ult = 0;
   b.ultReadyAt[side][slot] = null;
   if (side === 'foe') b.foeUltWait[slot] = null;
-  else b.reserve = b.reserve.filter((i) => i !== slot);
 }
 
 function gainUlt(b: TeamBattle, side: Side, slot: number, kind: 'hit' | 'hurt'): void {
@@ -409,7 +410,6 @@ function faint(b: TeamBattle, side: Side, slot: number): void {
   popup(b, side, slot, `${nameOf(f)} 쓰러졌다!`, 'info');
   note(b, { t: 'faint', side, slot });
   if (side === 'foe') b.foeDown = [...b.foeDown, { species: f.species, level: f.level }];
-  else b.reserve = b.reserve.filter((i) => i !== slot);
   b.ultReadyAt[side][slot] = null;
 }
 
@@ -754,12 +754,6 @@ export function teamAutoUltLeft(b: TeamBattle, slot: number): number | null {
   return Math.max(0, BALANCE.ultAutoWaitMs - (b.autoWait?.[slot] ?? 0));
 }
 
-/** 예약해 둔 내 포켓몬 중 먼저 찬 것 */
-function firstReserved(b: TeamBattle): number | null {
-  const ready = b.reserve.filter((i) => alive(b.me[i]!) && b.me[i]!.ult >= 1);
-  return ready.length ? ready.reduce((best, i) => ((b.ultReadyAt.me[i] ?? 0) < (b.ultReadyAt.me[best] ?? 0) ? i : best)) : null;
-}
-
 // ---------- 입력 · 걸음
 
 /**
@@ -814,6 +808,8 @@ export function teamJoinOpen(b: TeamBattle): { gathering: boolean } | null {
  */
 export function teamFastOk(b: TeamBattle): boolean {
   if (b.phase !== 'run' || b.moveClashes.length > 0) return false;
+  // 버린 누름 한 줄 (#88) 은 알아챌 순간 — 기본 박자 (빠르게면 ×2 시계로 세어 0.4초만 보이던 것, UX 리뷰어)
+  if (b.deny) return false;
   const keep = TIMING.team.fastKeepMs;
   // 다 참 (상대 "!" · 내 말풍선) 은 찬 뒤 1초만 — 상대 "!" 기다림 내내 0.8 이라 ×2 를 켜도 관장 판이 1.16배밖에 안 빨라지던 것 (디자인 UX #83 큼 — "!" 칩은 화면에 남아 U1 은 지켜짐)
   const freshFull = (side: Side) => b[side].some((f, i) => teamUltLevel(f) === 'full' && b.t - (b.ultReadyAt[side][i] ?? -Infinity) < keep);
@@ -844,22 +840,29 @@ export function teamInput(b0: TeamBattle, input: TeamInput, rng: Rng, ults?: Rea
     if (b0.phase !== 'clash' || !b0.clash || (b0.clash.kind === 'ult' && b0.clash.ms < TIMING.team.ultClashLeadMs)) return b0;
     return { ...b0, clash: { ...b0.clash, taps: b0.clash.taps + 1 } };
   }
+  // 내 필살기 중 (연타 — 동료가 차 있어도 "지금은 못 써요" 가 컷인 내내 2.5초 남던 것) · 힘겨루기 중 (할 일은 Space) 의 Z 는 조용히 — 합동 멘트 창은 Z 로 합류 그대로 (UX 리뷰어 #88 2차)
+  const quiet = b0.phase === 'clash' || (b0.phase === 'ult' && b0.ult?.side === 'me' && !((b0.ult.gather ?? 0) > 0));
+  if (input.slot === undefined && quiet) return b0;
   const slot = input.slot ?? firstReady(b0, 'me');
-  if (slot === null) return b0;
+  // Z (칸 없이) 인데 찬 포켓몬이 없음 — 버린 누름 도장 (아직 안 참)
+  if (slot === null) return b0.me.some(alive) ? { ...clone(b0), deny: { slot: -1, ms: 0, why: 'charge' } } : b0;
   if (!teamUltOpen(b0, slot)) {
-    // 예약 — 그 칸 (1 · 2 · 3 · 발밑 판) 만, Z 는 예약 없음 · 이미 힘겨루기에 든 · 합동 멘트에서 쓴 · 모인 포켓몬은 빼고 (멘트 중 연타가 예약이 되지 않게 — 코드 리뷰어)
+    // 못 쓸 때 누른 것은 버림 — 예약 없음 (2026-10-22 orders #88). 까닭 도장 1초 (화면 한 줄 — 말없이 먹지 않게, U5).
+    // 이미 힘겨루기에 든 · 합동 멘트에서 쓴 · 모인 포켓몬은 조용히 (멘트 중 연타)
     const f = b0.me[slot];
     const u = b0.phase === 'ult' && b0.ult?.side === 'me' ? b0.ult : null;
-    if (input.slot === undefined || !f || !alive(f) || (b0.clash?.kind === 'ult' && b0.clash.me.includes(slot)) || (u && (slot === u.from || (u.team ?? []).includes(slot)))) return b0;
+    // 합동 마무리 중 참가자 (joint.winners — b.ult.team 은 비어 있음) 를 또 누름도 조용히 (방금 쓴 칸에 "아직 안 찼어요" 가 3.5초 남던 것 — UX 리뷰어 #88 2차)
+    if (!f || !alive(f) || b0.phase === 'clash' || (u && (slot === u.from || (u.team ?? []).includes(slot) || (u.joint?.winners ?? []).includes(slot)))) return b0;
     const b = clone(b0);
-    b.reserve = b.reserve.includes(slot) ? b.reserve.filter((i) => i !== slot) : [...b.reserve, slot];
+    b.deny = { slot: input.slot === undefined ? -1 : slot, ms: 0, why: f.ult < 1 ? 'charge' : 'busy' };
     return b;
   }
   const b = clone(b0);
+  // 쓴 누름은 앞서 버린 누름 한 줄을 지움 (필살기가 나가는데 "아직 안 찼어요" 가 남던 것 — 디자인 #88 캡처)
+  delete b.deny;
   if (b.phase === 'run') {
     startUlt(b, 'me', slot, rng, ults);
-    // 예약해 둔 찬 동료는 같은 때 모임 (합동 띠가 한 장면만 번쩍이던 것 — teamStep 과 같은 규칙, UX 리뷰어 #59)
-    if (joinsNow(b, false)) return teamStepOnce(b, 0, rng, { auto: false, away: false, ults });
+
   } else if (b.phase === 'ult' && b.ult!.side === 'me') joinTeam(b, 'me', slot);
   else if (b.phase === 'ult') startUltClash(b, 'me', [slot], rng);
   else if (b.clash) {
@@ -883,7 +886,7 @@ export function teamStep(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamSte
 function joinsNow(b: TeamBattle, auto: boolean): boolean {
   const u = b.ult;
   if (!u) return false;
-  const ready = (i: number) => alive(b.me[i]!) && b.me[i]!.ult >= 1 && ((BALANCE.ultAutoUse && auto) || b.reserve.includes(i));
+  const ready = (i: number) => alive(b.me[i]!) && b.me[i]!.ult >= 1 && BALANCE.ultAutoUse && auto;
   if (u.side === 'foe') return u.window > 0 && !u.hit && b.me.some((_, i) => ready(i));
   return (u.gather ?? 0) > 0 && b.me.some((_, i) => i !== u.from && !(u.team ?? []).includes(i) && ready(i));
 }
@@ -891,8 +894,13 @@ function joinsNow(b: TeamBattle, auto: boolean): boolean {
 function teamStepOnce(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamStepOptions): TeamBattle {
   const b = clone(b0);
   b.t += stepMs;
-  // 쓰러진 포켓몬의 예약은 지움 (독 · 반동 등 어디서 쓰러졌든)
-  if (b.reserve.some((i) => !alive(b.me[i]!))) b.reserve = b.reserve.filter((i) => alive(b.me[i]!));
+  // 예약은 없음 (#88) — 옛 상태의 예약은 지움 · 버린 누름 도장은 1초 뒤 지움
+  if (b.reserve.length) b.reserve = [];
+  if (b.deny) {
+    const ms = b.deny.ms + stepMs;
+    if (ms >= TIMING.team.denyMs) delete b.deny;
+    else b.deny = { ...b.deny, ms };
+  }
   // 찬 때를 모르는 내 필살기 (개발 모드 게이지 가득 · 옛 상태) 는 지금부터 셈 — 저절로 쓰기 3초 (R2)
   b.me.forEach((f, i) => {
     if (alive(f) && f.ult >= 1 && b.ultReadyAt.me[i] === null) b.ultReadyAt.me[i] = b.t;
@@ -923,7 +931,7 @@ function teamStepOnce(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamStepOp
       }
       // 예약해 둔 포켓몬도 끼어들기 창이 열리면 바로 끼어듦 (예약 = 차는 대로 쓰기 — 끼어들기도 쓰기)
       if (u.side === 'foe' && u.window > 0 && !u.hit) {
-        const mine = b.me.map((f, i) => (alive(f) && f.ult >= 1 && (auto || b.reserve.includes(i)) ? i : -1)).filter((i) => i >= 0);
+        const mine = b.me.map((f, i) => (alive(f) && f.ult >= 1 && auto ? i : -1)).filter((i) => i >= 0);
         if (mine.length) {
           startUltClash(b, 'me', mine, rng);
           return b;
@@ -933,7 +941,7 @@ function teamStepOnce(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamStepOp
         // 같은 편 합류 — 내 편: 예약 · 자동 전투 (안 볼 때) 면 찬 포켓몬 모두 / 상대 편: 정해 둔 때
         if (u.side === 'me') {
           b.me.forEach((f, i) => {
-            if (i !== u.from && !(u.team ?? []).includes(i) && alive(f) && f.ult >= 1 && (auto || b.reserve.includes(i))) joinTeam(b, 'me', i);
+            if (i !== u.from && !(u.team ?? []).includes(i) && alive(f) && f.ult >= 1 && auto) joinTeam(b, 'me', i);
           });
         } else {
           for (const j of u.allyAt ?? []) {
@@ -983,7 +991,7 @@ function teamStepOnce(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamStepOp
       c.ms += stepMs;
       // 자동 전투면 차는 대로 합류 · 상대 AI 도 가끔 (트레이너) · 자주 (관장) 합류
       b.me.forEach((f, i) => {
-        if (alive(f) && f.ult >= 1 && !c.me.includes(i) && (auto || b.reserve.includes(i))) {
+        if (alive(f) && f.ult >= 1 && !c.me.includes(i) && auto) {
           spendUlt(b, 'me', i);
           c.me = [...c.me, i];
           note(b, { t: 'ult-join', side: 'me', slot: i });
@@ -1042,7 +1050,7 @@ function teamStepOnce(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamStepOp
       return b;
     }
   }
-  // 내 필살기 — 예약한 것 · 볼 때는 찬 지 ultAutoWaitMs 뒤 저절로 (발밑 판이 반짝 · 자동 전투가 꺼져도) · 안 볼 때는 바로 (R2 A). 끼어들기 · 합동 멘트는 그대로 손으로
+  // 내 필살기 — (저절로 쓰기가 켜졌을 때만) 볼 때는 찬 지 ultAutoWaitMs 뒤 저절로 (발밑 판이 반짝 · 자동 전투가 꺼져도) · 안 볼 때는 바로 (R2 A). 끼어들기 · 합동 멘트는 그대로 손으로
   // 기다림은 내 필살기를 쓸 수 있는 걸음 (여기까지 온 run) 에서만 셈 — 다른 필살기 · 힘겨루기 · 합동 멘트 중엔 멈춤 (0 에서 2.5 ~ 6초 서 있던 것, 디자인팀 #26 판정)
   // 안 볼 때는 지움 (안 보다 돌아오면 남은 3초가 짧아져 있던 것 — 코드 리뷰어)
   // 쌓는 건 저절로 나갈 한 칸 (화면 "N초" 칩이 뜬 칸) 만 — 찬 칸이 다 같이 쌓여 둘째 칸 칩이 1장면만 보이고 나가던 것 (디자인팀 UX R9 ⑥ U1)
@@ -1051,8 +1059,8 @@ function teamStepOnce(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamStepOp
     b.autoWait = b.me.map((_, i) => (i === next ? (b.autoWait?.[i] ?? 0) + stepMs : 0));
   }
   else if (b.autoWait) delete b.autoWait;
-  // 저절로 안 씀 (orders #82) 이면 예약한 것만 · 안 볼 때도 멈추지 않고 보통 공격으로
-  const z = !BALANCE.ultAutoUse ? firstReserved(b) : opts.away ? firstReady(b, 'me') : (firstReserved(b) ?? firstWaited(b));
+  // 저절로 안 씀 (orders #82) 이면 누른 것만 (예약 없음 — #88) · 안 볼 때도 멈추지 않고 보통 공격으로
+  const z = !BALANCE.ultAutoUse ? null : opts.away ? firstReady(b, 'me') : firstWaited(b);
   if (z !== null) {
     startUlt(b, 'me', z, rng, opts.ults);
     return b;
@@ -1141,6 +1149,9 @@ export function readTeam(raw: unknown): TeamBattle | null {
   if (!Array.isArray(raw.foeDown) || raw.foeDown.length > n.foe || !raw.foeDown.every((d) => isObj(d) && fin(d.species, 1, 2000) && fin(d.level, 1, 100))) return null;
   if (!Array.isArray(raw.fought) || raw.fought.length > n.me || !raw.fought.every((x) => typeof x === 'string')) return null;
   if (!Array.isArray(raw.reserve) || !slots(raw.reserve, 'me') || new Set(raw.reserve).size !== raw.reserve.length) return null;
+  // 버린 누름 도장 (#88) — 칸 −1 ~ 2 · 지난 ms · 까닭
+  const d = raw.deny;
+  if (!(d === undefined || (isObj(d) && Number.isInteger(d.slot) && (d.slot as number) >= -1 && (d.slot as number) < BALANCE.team.size && fin(d.ms, 0, 1e6) && (d.why === 'charge' || d.why === 'busy')))) return null;
   if (!(raw.autoWait === undefined || (Array.isArray(raw.autoWait) && raw.autoWait.length === n.me && raw.autoWait.every((x) => fin(x, 0, 1e6))))) return null;
   const both = (e: Obj) => isSide(e.side) && slot(e.from, e.side) && slot(e.to, other(e.side));
   const pair = (v: unknown) => Array.isArray(v) && v.length === 2 && v.every((x) => fin(x, 0));
@@ -1189,5 +1200,5 @@ export function teamViewKey(b: TeamBattle): string {
   const f = (x: Fighter) => `${x.hp}:${Math.floor(x.gauge * 20)}:${Math.floor(x.ult * 20)}:${x.status?.kind ?? ''}`;
   // 다 찬 필살기 저절로 쓰기까지 남은 막대 (0.25초 칸 — 발밑 판 막대, R2)
   const auto = b.me.map((_, i) => { const l = teamAutoUltLeft(b, i); return l === null ? '' : Math.ceil(l / 250); }).join(',');
-  return [b.phase, b.me.map(f).join(','), b.foe.map(f).join(','), auto, b.shots.map((s) => `${s.id}:${s.clash}`).join(','), b.moveClashes.map((c) => `${c.shots?.join('-')}:${Math.floor(c.ms / 100)}`).join(','), b.ult ? `${b.ult.side}${b.ult.from}:${b.ult.window > 0}:${b.ult.hit}:${Math.floor(b.ult.ms / 100)}:${Math.floor((b.ult.gather ?? 0) / 100)}:${(b.ult.team ?? []).join('')}` : '', b.clash ? `${b.clash.me.join('')}:${b.clash.foe.join('')}:${b.clash.taps}:${Math.floor(b.clash.ms / 100)}` : '', b.popups.map((p) => p.id).join(','), b.msg, b.reserve.join(''), b.logSeq].join('|');
+  return [b.phase, b.me.map(f).join(','), b.foe.map(f).join(','), auto, b.shots.map((s) => `${s.id}:${s.clash}`).join(','), b.moveClashes.map((c) => `${c.shots?.join('-')}:${Math.floor(c.ms / 100)}`).join(','), b.ult ? `${b.ult.side}${b.ult.from}:${b.ult.window > 0}:${b.ult.hit}:${Math.floor(b.ult.ms / 100)}:${Math.floor((b.ult.gather ?? 0) / 100)}:${(b.ult.team ?? []).join('')}` : '', b.clash ? `${b.clash.me.join('')}:${b.clash.foe.join('')}:${b.clash.taps}:${Math.floor(b.clash.ms / 100)}` : '', b.popups.map((p) => p.id).join(','), b.msg, b.deny ? `${b.deny.slot}${b.deny.why}` : '', b.logSeq].join('|');
 }

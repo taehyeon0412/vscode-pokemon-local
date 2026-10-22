@@ -331,7 +331,7 @@ if (!port) {
       // 상대 공격 중이면 패링 (맞기까지 남은 ms — fx/parry, 2026-10-19), 아니면 그냥 Space
       actions.input(spaceInput(session.current, performance.now()));
     } else if (phase === 'team' && /^Digit[123]$/.test(e.code) && !(e.ctrlKey || e.metaKey || e.altKey)) {
-      // 3:3 필살기 1 · 2 · 3 — 찼으면 씀 · 끼어듦 · 합류, 차는 중이면 예약 (다시 누르면 취소) — 발밑 판 클릭과 같음
+      // 3:3 필살기 1 · 2 · 3 — 찼으면 씀 · 끼어듦 · 합류, 못 쓰면 엔진이 버리고 한 줄 (예약 없음 — #88) — 발밑 판 클릭과 같음
       e.preventDefault();
       actions.input({ kind: 'team-battle', input: { kind: 'ult', slot: Number(e.code.slice(5)) - 1 } });
     } else if (phase === 'team' && e.code === 'KeyZ' && !(e.ctrlKey || e.metaKey || e.altKey)) {

@@ -9,7 +9,7 @@
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
-import { AUTO_TEAM_TIP, autoTeamTipDue, battleAutoUltLeft, canOpenMenus, gameTempo, regionsOn, teamUltOpen, canParry, canRiposte, gymLeaderOf, isWalkingFast, itemLeft, teamAutoUltLeft, teamAutoUltNext, teamLock, teamMeetTipDue, TEAM_MEET_TIP, walkLeftMs, type GameInput, type GameState } from '../../../core/engine';
+import { AUTO_TEAM_TIP, autoTeamTipDue, battleAutoUltLeft, canOpenMenus, gameTempo, regionsOn, teamUltOpen, canParry, canRiposte, gymLeaderOf, isWalkingFast, itemLeft, teamAutoUltLeft, teamAutoUltNext, teamLock, teamMeetTipDue, TEAM_MEET_TIP, walkLeftMs, type GameInput, type GameState, type TeamBattle } from '../../../core/engine';
 import { maxHpOf, teamHealth } from '../../../core/rules/bag';
 import { spaceInput, ultSkippable } from '../../battle/fx/parry';
 import { BALLS } from '../../../core/rules/catch';
@@ -28,6 +28,7 @@ import { themeKind } from '../../../ui/theme';
 import { typeNameKo } from '../../../ui/format';
 import { InfoBar } from '../../../ui/InfoBar';
 import { TeamLayer } from '../../battle/team/TeamLayer';
+import { teamDenyNote } from '../../battle/team/model';
 import { TeamChoice, teamChoiceOn, TeamMeet, teamMeetOn } from '../../battle/team/TeamChoice';
 import { Face } from '../../../ui/Face';
 import { resumeLine } from '../../../core/engine/play';
@@ -415,6 +416,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
       ) : (
         <InfoBar
           split={mapRow}
+          notice={teamNotice(team)}
           left={ballsOut ? undefined : balls}
           center={mapRow ? undefined : where}
           right={
@@ -700,6 +702,18 @@ function GymTip({ lock }: { lock: 'few' | 'narrow' | null }) {
 
 /** 체육관 바닥 = 사람이 서는 땅 위로 적어도 이만큼 · 높은 패널은 길 칸의 42% 까지 (위에서 비스듬히 보는 방 — 뒷벽 위가 텅 비지 않게) */
 /** 시합장 그림 세로 자리 — 낮은 패널은 올림 (150 −8 · ×1 −4) · 그림 점 칸 (k) 에 맞춤 (무대 위 끝 + y 가 k 의 배수 — ×3 에서 시작 26 이 포켓몬 칸과 2px 어긋나던 것, 픽셀 검사원) */
+/** 3:3 버린 필살기 누름 한 줄 (#88) — 정보줄 위 가운데 · 누른 키 + 까닭 (그 1초 안에 쓸 수 있게 되면 금색 "[2] 지금!") */
+function teamNotice(team: TeamBattle | null) {
+  const n = team ? teamDenyNote(team) : null;
+  if (!n) return undefined;
+  return (
+    <span class={n.go ? 'pg-infobar-notice pg-deny-go' : 'pg-infobar-notice'}>
+      {n.key !== null && <span class="pg-team-key">{n.key}</span>}
+      {n.text}
+    </span>
+  );
+}
+
 function arenaY(h: number, k: number, top: number): number {
   const y0 = Math.min(0, Math.round(((h - 187) * (k === 1 ? 4 : 8)) / 37));
   return y0 - ((((top + y0) % k) + k) % k);

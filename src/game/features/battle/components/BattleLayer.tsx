@@ -7,9 +7,9 @@
  * 연출은 CSS 로 간단히 (임시 디자인 — 원래 확장 필살기 연출에 잇는 건 단계 12).
  */
 import type { ComponentChildren } from 'preact';
-import { useLayoutEffect, useRef } from 'preact/hooks';
+import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
-import { battleFoeUltWarn, canParry, canRiposte, type BattleState, type GameInput, type Side } from '../../../core/engine';
+import { battleFoeUltWarn, canParry, canRiposte, canUlt, ultCounterOpen, type BattleState, type GameInput, type Side } from '../../../core/engine';
 import { clashWithTaps, isShooting, type Fighter } from '../../../core/rules/battle';
 import { catchTiming } from '../../../core/rules/catch';
 import type { Save } from '../../../core/save';
@@ -688,6 +688,29 @@ function Clash({ b, geo, y, native }: { b: BattleState; geo: BattleGeometry; y: 
   );
 }
 
+/**
+ * 버린 Z 한 줄 (#88 — 필살기 예약 없앰, 엔진 b.ultDeny 1.2초) = 내 포켓몬 발밑 가운데 (Z 옆 · 위는 메뉴 버튼 · 상대 필살기 막대를 덮거나 240 에서 패널 밖으로 잘리던 것 — 픽셀 검사원 · UX 리뷰어).
+ * 아직 안 참 · 다른 연출 중 · 그 1초 안에 쓸 수 있게 되면 금색 "지금 Z!" (거두면 0.4초 만에 깜빡 지나가던 것). 가운데는 잰 폭으로 정수 자리 (translateX(−50%) 면 반 픽셀)
+ */
+function UltDeny({ b, x, ground, panelPx }: { b: BattleState; x: number; ground: number; panelPx: number }) {
+  const el = useRef<HTMLSpanElement>(null);
+  const [w, setW] = useState(0);
+  useLayoutEffect(() => {
+    const r = el.current?.getBoundingClientRect();
+    if (r && Math.ceil(r.width) !== w) setW(Math.ceil(r.width));
+  });
+  if (!b.ultDeny) return null;
+  const go = canUlt(b) || ultCounterOpen(b);
+  // 오른쪽 막기는 패널 끝 (무대 폭 panelPx 는 넓은 패널에서 720 이라 1860 에서 한 줄이 포켓몬 가운데를 61 ~ 114px 벗어나던 것 — 픽셀 검사원)
+  const right = Math.max(panelPx, document.documentElement.clientWidth);
+  const left = Math.max(4, Math.min(right - w - 4, Math.round(x - w / 2)));
+  return (
+    <span ref={el} class={go ? 'pg-ult-deny pg-deny-go' : 'pg-ult-deny'} style={{ left: `${left}px`, bottom: `${Math.max(2, ground - 14)}px` }}>
+      {go ? '지금 Z!' : b.ultDeny.why === 'charge' ? '아직 안 찼어요' : '지금은 못 써요'}
+    </span>
+  );
+}
+
 export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onProfile, foeTrainerLeft, autoTip }: BattleLayerProps) {
   // 일반 모드 기술 · 방어 · 회복 연출 (2026-10-19 태현 님) — 번들이 없으면 false (이모지 그대로)
   // 연출 층 (포켓몬 위 · HUD 아래, #350) — 일반 모드 연출 캔버스를 전투 중 이 안으로 옮김
@@ -764,6 +787,7 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
       {/* 패링 원은 HP 줄보다 먼저 (같은 층에서 HP 숫자가 위) */}
       <ParryRing b={b} geo={geo} y={midMe} auto={save.settings.autoBattle} />
       <RiposteRing b={b} geo={geo} y={midFoe} auto={save.settings.autoBattle} />
+      {hasMe && b.ultDeny && <UltDeny b={b} x={geo.meX} ground={ground} panelPx={geo.widthPx} />}
       {hasMe && <HpBlock f={b.me} side="me" x={geo.meHpX} bottom={geo.meHpBottom} wide={geo.meHpWide} prefix="" noName={geo.menuSide !== null || geo.tiny} />}
       {b.phase !== 'send' && <HpBlock f={b.foe} side="foe" x={geo.foeHpX} bottom={geo.foeHpBottom} wide={geo.foeHpWide} prefix={foePrefix(b)} dex={b.phase === 'last' ? (save.dex.caught.includes(b.foe.species) ? 'caught' : 'new') : undefined} panelPx={geo.widthPx} warn={battleFoeUltWarn(b)} short={geo.compact} />}
       {b.phase === 'clash' ? <Clash b={b} geo={geo} y={Math.round((midMe + midFoe) / 2)} native={native} /> : <Effects b={b} geo={geo} ground={ground} midMe={midMe} midFoe={midFoe} native={native} />}

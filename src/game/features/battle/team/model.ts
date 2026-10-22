@@ -50,16 +50,32 @@ export function teamGeometry(W: number, H: number, IB: number): TeamGeo {
   return { W, H, IB, scale, sp, oneRow, cx, pw, pos };
 }
 
-/** 발밑 판 모양 — charge (차는 중 · 판 없음) · reserved (예약) · ready (쓸 수 있음) · join (끼어들기 · 합류) · down (쓰러짐) */
-export type PlateState = 'charge' | 'reserved' | 'ready' | 'join' | 'down';
+/** 발밑 판 모양 — charge (차는 중 · 판 없음) · ready (쓸 수 있음) · join (끼어들기 · 합류) · down (쓰러짐). 예약 판은 없앰 (태현 님 #88) */
+export type PlateState = 'charge' | 'ready' | 'join' | 'down';
 
 export function plateState(b: TeamBattle, side: Side, slot: number): PlateState {
   const f = b[side][slot];
   if (!f || f.hp <= 0) return 'down';
   if (side === 'foe') return 'charge';
   if (teamUltOpen(b, slot)) return b.phase === 'run' ? 'ready' : 'join';
-  if (b.reserve.includes(slot)) return 'reserved';
   return 'charge';
+}
+
+/**
+ * 버린 필살기 누름 한 줄 (#88 — 예약 없앰, 엔진 b.deny 1.2초) — 정보줄 위 가운데 (연출 · 큰 판 · 머리 위 말이 오지 않는 고정 자리 — 무대 가운데에 두면 합동 이름 · 끼어들기 판 · 쓰러짐 말을 덮던 것, UX 리뷰어 2차).
+ * key = 누른 키 (칸 없는 Z 면 없음 · 그 1초 안에 누가 쓸 수 있게 되면 그 키) · go = 그 1초 안에 쓸 수 있게 됨 (금색 "지금!")
+ */
+export function teamDenyNote(b: TeamBattle): { key: number | null; text: string; go: boolean } | null {
+  const d = b.deny;
+  if (!d) return null;
+  if (d.slot >= 0) {
+    const go = teamUltOpen(b, d.slot);
+    return { key: d.slot + 1, go, text: go ? '지금!' : d.why === 'charge' ? '아직 안 찼어요' : '지금은 못 써요' };
+  }
+  const open = b.me.findIndex((_, i) => teamUltOpen(b, i));
+  if (open >= 0) return { key: open + 1, go: true, text: '지금!' };
+  const full = b.me.some((f) => f.hp > 0 && f.ult >= 1);
+  return { key: null, go: false, text: d.why === 'charge' && !full ? '아직 다 찬 포켓몬이 없어요' : '지금은 못 써요' };
 }
 
 /** 상대 필살기 예고 — 80% 부터 % · 다 차면 "곧!" */

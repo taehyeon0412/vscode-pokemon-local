@@ -132,7 +132,10 @@ export interface BattleState {
   /** 내 필살기가 다 찬 뒤 기다린 ms (자동 전투 · 볼 때 — ultAutoWaitMs 가 되면 저절로, R2) · Z 를 누를 수 있을 때만 셈 · 안 찼으면 없음 (옛 상태에도 없음) */
   ultWait?: number;
   /** Z 를 못 누르는 때 (내 행동 연출 중) 누른 필살기 — 누를 수 있게 되면 바로 씀 (말없이 버려지던 것, U5) */
+  /** (옛 기록) 필살기 예약 — 없앰 (2026-10-22 orders #88 "필살기 예약 이라는건 없애자") · 읽으면 지움 */
   ultQueued?: boolean;
+  /** 버린 Z — 지난 ms · 까닭 (charge = 아직 안 참 · busy = 찼지만 다른 연출 중). TIMING.team.denyMs 뒤 지움 (화면 한 줄 — 디자인) */
+  ultDeny?: { ms: number; why: 'charge' | 'busy' };
   /** 자동 전투 — 내 포켓몬이 쓰러진 뒤 다음 포켓몬까지 기다린 ms (볼 때 autoPickMs, #530) · 옛 상태엔 없음 */
   pickMs?: number;
   /** 상대 트레이너 이름 ("곤충채집 소년 민수") — 야생은 null */
@@ -675,14 +678,18 @@ export function battleStep(b0: BattleState, save: Save, stepMs: number, rng: Rng
   const autoUlt = BALANCE.ultAutoUse && opts.auto;
   if (b.me.ult >= 1 && b.me.hp > 0 && autoUlt && !opts.away) b.ultWait = (b0.ultWait ?? 0) + (canUlt(b) ? stepMs : 0);
   else if (b.ultWait !== undefined) delete b.ultWait;
-  if (b.ultQueued && (b.me.ult < 1 || b.me.hp <= 0)) delete b.ultQueued;
+  if (b.ultQueued) delete b.ultQueued;
+  if (b.ultDeny) {
+    const ms = b.ultDeny.ms + stepMs;
+    if (ms >= TIMING.team.denyMs) delete b.ultDeny;
+    else b.ultDeny = { ...b.ultDeny, ms };
+  }
   // HP 가 자동 상처약 기준 (30%) 아래면 기다리지 않음 — 3초 안에 쓰러져 필살기가 날아가던 것 (2026-10-21 태현 님 "추천대로", 기획 #26 R2 ①)
   const low = b.me.hp < b.me.maxHp * BALANCE.autoPotionBelow;
-  const myUltNow = (autoUlt && b.me.ult >= 1 && (opts.away === true || low || (b.ultWait ?? 0) >= BALANCE.ultAutoWaitMs)) || b.ultQueued === true;
-  // 예약한 Z 는 맞받아치기 창 (관장 끼어들기 · 상대 필살기) 이 열리면 그걸로 (예약을 둔 채 상대 필살기를 맞던 것 — 코드 리뷰어).
-  // 자동 전투 · HP 30% 아래 · 다 참이면 저절로 받아침 (맞고 쓰러져 필살기가 날아가던 것 — 2026-10-21 태현 님 B, 그 밖의 맞받아치기는 손으로)
+  const myUltNow = autoUlt && b.me.ult >= 1 && (opts.away === true || low || (b.ultWait ?? 0) >= BALANCE.ultAutoWaitMs);
+  // 자동 전투 · HP 30% 아래 · 다 참이면 저절로 받아침 (맞고 쓰러져 필살기가 날아가던 것 — 2026-10-21 태현 님 B, 그 밖의 맞받아치기는 손으로) · 예약은 없음 (#88)
   const autoCounter = autoUlt && low && (opts.away === true || (b.anim?.ms ?? 0) + stepMs > TIMING.ultCounterWindowMs);
-  if ((b.ultQueued || autoCounter) && ultCounterOpen(b)) return startClash({ ...b, me: { ...b.me, ult: 0 }, ultQueued: undefined, ultWait: undefined }, 'ult', null, null);
+  if (autoCounter && ultCounterOpen(b)) return startClash({ ...b, me: { ...b.me, ult: 0 }, ultWait: undefined }, 'ult', null, null);
   if (myUltNow && b.phase !== 'run' && canUlt(b) && !ultCounterOpen(b)) return pressUlt(b, rng);
   switch (b.phase) {
     case 'riposte': {
@@ -701,7 +708,7 @@ export function battleStep(b0: BattleState, save: Save, stepMs: number, rng: Rng
       // 상대가 기다리는 중이기만 해도 힘대결이 되어 야생도 맞받아치던 것)
       const tick = foeUltTick(b, stepMs, rng);
       b = tick.b;
-      if (tick.fire && myUltNow) return startClash({ ...b, me: { ...b.me, ult: 0 }, foe: { ...b.foe, ult: 0 }, foeUltWait: null, ultQueued: undefined, ultWait: undefined }, 'ult', null, null);
+      if (tick.fire && myUltNow) return startClash({ ...b, me: { ...b.me, ult: 0 }, foe: { ...b.foe, ult: 0 }, foeUltWait: null, ultWait: undefined }, 'ult', null, null);
       if (tick.fire) return startAction(b, 'foe', { kind: 'ult' }, rng);
       if (myUltNow) return pressUlt(b, rng);
       const meReady = b.me.gauge >= 1;
@@ -814,6 +821,13 @@ function foeUltTick(b: BattleState, stepMs: number, rng: Rng): { b: BattleState;
 }
 
 /** Z — 지금 내 필살기 (상대 기술 연출 중이면 끼어들어 상대 기술은 취소 — 상대 PP 는 깎인 채, 2026-10-18 태현 님) · 고르는 중에 쓴 필살기는 끝나면 다시 고르기 */
+function withoutDeny(b: BattleState): BattleState {
+  if (!b.ultDeny) return b;
+  const c = { ...b };
+  delete c.ultDeny;
+  return c;
+}
+
 function pressUlt(b0: BattleState, rng: Rng): BattleState {
   const { ultQueued: _q, ultWait: _w, ...b } = b0;
   const interrupted = b.phase === 'anim' && b.anim?.side === 'foe';
@@ -1085,11 +1099,13 @@ export function battleInput(b: BattleState, save: Save, input: BattleInput, rng:
       if (b.phase !== 'last') return b;
       return { ...b, phase: 'over', result: 'win', overMs: 0, msg: `${withJosa(label(b, 'foe'), '이/가')} 쓰러졌다!` };
     case 'ult': {
-      if (ultCounterOpen(b)) return startClash({ ...b, me: { ...b.me, ult: 0 } }, 'ult', null, null);
-      // 내 행동 연출 중 (Z 를 못 누름) 이면 예약 — 누를 수 있게 되면 바로 (말없이 버려지던 것, U5)
-      // 교체 연출은 빼고 (들어오는 포켓몬의 필살기로 나가던 것 — 테스터)
-      if (!canUlt(b)) return b.me.ult >= 1 && b.me.hp > 0 && b.phase === 'anim' && b.anim?.side === 'me' && b.anim.action.kind !== 'switch' ? { ...b, ultQueued: true } : b;
-      return pressUlt(b, rng);
+      // 쓴 누름은 앞서 버린 누름 한 줄을 지움 (필살기가 나가는데 "아직 안 찼어요" 가 1초 남던 것 — 디자인 #88 캡처)
+      if (ultCounterOpen(b)) return startClash({ ...withoutDeny(b), me: { ...b.me, ult: 0 } }, 'ult', null, null);
+      // 못 쓸 때 누른 Z 는 버림 — 예약 없음 (2026-10-22 태현 님 "필살기 예약 이라는건 없애자", orders #88) · 까닭 도장 1초 (말없이 먹지 않게 — 화면 한 줄, U5)
+      //   내 필살기 연출 중 (연타 — 방금 써서 게이지 0 이라 "아직 안 찼어요" 가 컷인 내내 뜨던 것) · 힘대결 중 (할 일은 Space) 은 조용히 (UX 리뷰어 #88)
+      const quiet = (b.phase === 'anim' && b.anim?.side === 'me' && b.anim.action.kind === 'ult') || b.phase === 'clash';
+      if (!canUlt(b)) return b.me.hp > 0 && !quiet && (b.phase === 'run' || b.phase === 'anim' || b.phase === 'choose' || b.phase === 'riposte') ? { ...b, ultDeny: { ms: 0, why: b.me.ult < 1 ? 'charge' : 'busy' } } : b;
+      return pressUlt(withoutDeny(b), rng);
     }
     case 'space': {
       // 타이밍 원 — 누른 때 = 던짐 (처음 한 번만, 다 줄어든 뒤 조금 늦게까지)
@@ -1219,7 +1235,7 @@ export function readBattle(raw: unknown): BattleState | null {
   if (!Array.isArray(raw.foeQueue) || raw.foeQueue.length > 6 || !raw.foeQueue.every(okFoeMonster)) return null;
   if (!Array.isArray(raw.foeDown) || raw.foeDown.length > 6 || !raw.foeDown.every((d) => isObj(d) && fin(d.species, 1, 2000) && fin(d.level, 1, 100))) return null;
   if (!(raw.foeUltWait === null || fin(raw.foeUltWait, -1e6, 1e6)) || !(raw.foeName === null || (typeof raw.foeName === 'string' && raw.foeName.length <= 40)) || !fin(raw.sendMs, 0)) return null;
-  if (!(raw.foePotions === undefined || fin(raw.foePotions, 0, 10)) || !(raw.ultWait === undefined || fin(raw.ultWait, 0, 1e6)) || !(raw.ultQueued === undefined || typeof raw.ultQueued === 'boolean') || !(raw.pickMs === undefined || fin(raw.pickMs, 0, 1e6))) return null;
+  if (!(raw.foePotions === undefined || fin(raw.foePotions, 0, 10)) || !(raw.ultWait === undefined || fin(raw.ultWait, 0, 1e6)) || !(raw.ultQueued === undefined || typeof raw.ultQueued === 'boolean') || !(raw.ultDeny === undefined || (typeof raw.ultDeny === 'object' && raw.ultDeny !== null && fin((raw.ultDeny as { ms?: unknown }).ms, 0, 1e6) && ['charge', 'busy'].includes((raw.ultDeny as { why?: unknown }).why as string))) || !(raw.pickMs === undefined || fin(raw.pickMs, 0, 1e6))) return null;
   if (!(raw.escaped === undefined || typeof raw.escaped === 'boolean')) return null;
   if (!(raw.perfects === undefined || fin(raw.perfects, 0, 1000))) return null;
   if (!(raw.lastMe === undefined || okAction(raw.lastMe)) || !(raw.queued === undefined || raw.queued === null || okAction(raw.queued))) return null;

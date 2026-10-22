@@ -1284,7 +1284,7 @@ export function inBattle(state: GameState): boolean {
   return p === 'battle' || p === 'appear' || p === 'trainer' || p === 'rival' || p === 'team';
 }
 /**
- * 웹뷰 시계 배 (orders #83 · #81) — 3:3 은 기본 박자 (TIMING.team.tempo 0.8) · 빠르게 ▶▶ (settings.battleFast — 태현 님 C 안, 약 1.5배) 를 켜면 보통 공격 (run) 두 배 ·
+ * 웹뷰 시계 배 (orders #83 · #81 · #89) — 3:3 은 기본 박자 (TIMING.team.tempo 1.0 — #89) · 빠르게 ▶▶ (settings.battleFast — 태현 님 C 안, 약 1.5배) 를 켜면 보통 공격 (run) 두 배 ·
  * 알아챌 순간 1.0 (딱 1초 — U1, teamFastOk) · 상대 필살기 연출은 컷인 1초 뒤 두 배 · 누를 창 (끼어들기 joinSlow · 합동 멘트) 그대로. 그 밖 (1:1 · 걷기 · 타이틀) = 1
  */
 export function gameTempo(state: GameState): number {
@@ -1298,6 +1298,8 @@ export function gameTempo(state: GameState): number {
   // 상대 필살기 연출 (합동 빼고) 은 컷인 1초 뒤부터 두 배 · 그 밖 알아챌 순간 (내 필살기 · 힘겨루기 · 다 참 · 쓰러짐 · 안내 · 합동 · 결과) 은 1.0 (딱 1초 — U1)
   const b = st.team;
   if (teamFastOk(b)) return t.tempo * t.fastScale;
+  // 버린 누름 한 줄 (#88) 은 알아챌 순간 — 상대 컷인 뒤 ×2 가지에서도 (0.7초만 보이던 것, UX 리뷰어 2차)
+  if (b.deny) return t.fastNotice;
   const u = b.phase === 'ult' ? b.ult : null;
   if (u && (u.gather ?? 0) > 0) return t.tempo;
   if (u && u.side === 'foe' && !u.joint && u.ms > t.fastFoeUltMs) return t.tempo * t.fastScale;

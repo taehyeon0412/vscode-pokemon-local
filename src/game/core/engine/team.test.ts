@@ -7,7 +7,7 @@ import type { Monster, Save } from '../save';
 import { applyInput, AUTO_TEAM_TIP, autoTeamTipDue, defeatWaits, gameTempo, step, TEAM_MEET_TIP, teamChoiceMeet, teamFoesOf, teamLock, teamMainOf, teamMeetTipDue, teamPickOf } from './play';
 import { Rng } from './rng';
 import { createGameState, readRuntime, type GameState } from './state';
-import { shotTiming, applyTeamResult, isSpread, pickTeam, readTeam, startTeamBattle, TEAM_BASIC, teamClashSure, teamDone, teamInput, teamPick, teamPossible, teamScale, teamStep, teamAutoUltLeft, teamAutoUltNext, teamUltLevel, teamUltOpen, type TeamBattle, teamGather, teamJoinOpen, teamLayout } from './team';
+import { shotTiming, applyTeamResult, isSpread, pickTeam, readTeam, startTeamBattle, TEAM_BASIC, teamClashSure, teamDone, teamFastOk, teamInput, teamPick, teamPossible, teamScale, teamStep, teamAutoUltLeft, teamAutoUltNext, teamUltLevel, teamUltOpen, type TeamBattle, teamGather, teamJoinOpen, teamLayout } from './team';
 import { moveFxOf, moveOf, ultIsSpread, ultNamesOf } from '../../data';
 import { teamHealthy } from '../rules/bag';
 import { leaderTeam, trainerTeam } from '../rules/trainer';
@@ -86,7 +86,10 @@ describe('필살기 — 1 · 2 · 3 · Z · 나머지 멈춤 · 끼어들기 · 
 
   it('찬 포켓몬만 · 쓰면 나머지 멈춤 (게이지 그대로) · 대상 = 원작 기술대로 (범위기만 상대 모두 · 그 밖 한 마리 — 기획 R7)', () => {
     const b0 = startTeamBattle(team3(), foes(), 'trainer', '상대');
-    expect(teamInput(b0, { kind: 'ult' }, new Rng(1))).toBe(b0);
+    // 찬 포켓몬이 없는 Z — 버린 누름 도장 (아직 안 참 — #88), 필살기는 안 나감
+    const none = teamInput(b0, { kind: 'ult' }, new Rng(1));
+    expect(none.phase).toBe('run');
+    expect(none.deny).toEqual({ slot: -1, ms: 0, why: 'charge' });
     const b = ready(b0, 'me', 1);
     expect(teamUltOpen(b, 1)).toBe(true);
     const u = teamInput(b, { kind: 'ult' }, fixedRng(0.99)); // Z = 먼저 찬 포켓몬 · 상대 AI 는 안 끼어듦 (0.99)
@@ -789,8 +792,8 @@ describe('#17 준비 — 배율 · 잠금 · 3마리 고르기 · 필살기 예�
     let allies = 0;
     for (let seed = 1; seed <= 40; seed++) {
       // 내 필살기 (찬 동료가 있어 합동 멘트) — 상대 셋 다 참 · 관장 (자주 끼어듦)
-      const mine: TeamBattle = { ...b0, me: b0.me.map((f, i) => ({ ...f, ult: i < 2 ? 1 : 0, gauge: 0 })), foe: b0.foe.map((f) => ({ ...f, ult: 1, gauge: 0 })), reserve: [0], ultReadyAt: { me: [b0.t, b0.t + 100, null], foe: [null, null, null] } };
-      const s = teamStep(mine, STEP, new Rng(seed), { auto: false, away: false });
+      const mine: TeamBattle = { ...b0, me: b0.me.map((f, i) => ({ ...f, ult: i < 2 ? 1 : 0, gauge: 0 })), foe: b0.foe.map((f) => ({ ...f, ult: 1, gauge: 0 })), ultReadyAt: { me: [b0.t, b0.t + 100, null], foe: [null, null, null] } };
+      const s = teamInput(mine, { kind: 'ult', slot: 0 }, new Rng(seed));
       if (s.phase === 'ult' && s.ult?.joinAt !== null && s.ult?.joinAt !== undefined) {
         joins++;
         expect(s.ult.joinAt).toBeGreaterThanOrEqual(TIMING.team.foeJoinMinMs);
@@ -845,29 +848,47 @@ describe('#17 준비 — 배율 · 잠금 · 3마리 고르기 · 필살기 예�
     expect(b.ult?.from).toBe(1);
   });
 
-  it('필살기 예약 — 차는 중에 그 칸을 누르면 예약 · 다시 누르면 취소 · 차는 순간 씀 · 끼어들기 창 · 힘겨루기에도 바로 · Z 는 예약 없음', () => {
+  it('필살기 예약 없음 (2026-10-22 태현 님 "필살기 예약 이라는건 없애자", #88) — 못 쓸 때 누름은 버리고 까닭 도장 1초 · 차도 안 나감 · 끼어들기 창 · 힘겨루기 합류는 지금 누르면 됨', () => {
     const b = startTeamBattle(team3(), foes(), 'trainer', '상대');
-    const r = teamInput(b, { kind: 'ult', slot: 0 }, new Rng(1));
-    expect(r.reserve).toEqual([0]);
-    expect(teamInput(r, { kind: 'ult', slot: 0 }, new Rng(1)).reserve).toEqual([]);
-    expect(teamInput(b, { kind: 'ult' }, new Rng(1))).toBe(b);
     const full = (x: TeamBattle, i: number): TeamBattle => ({ ...x, me: x.me.map((f, j) => (j === i ? { ...f, ult: 1 } : f)) });
-    expect(run(full(r, 0), STEP, fixedRng(0.99)).ult).toMatchObject({ side: 'me', from: 0 });
-    expect(run(full(b, 0), STEP, fixedRng(0.99)).phase).toBe('run');
-    const used = run(full(r, 0), STEP, fixedRng(0.99));
-    expect(used.reserve).toEqual([]);
-    // 상대 필살기 창 — 예약한 포켓몬이 차 있으면 바로 끼어듦
-    const foeUlt: TeamBattle = { ...full({ ...b, reserve: [1] }, 1), phase: 'ult', ult: { side: 'foe', from: 0, ms: 0, dur: TIMING.ultAnimMs, hitMs: 800, hit: false, window: 1200, joinAt: null, joiners: [] } };
-    expect(run(foeUlt, STEP, fixedRng(0.99)).clash).toMatchObject({ kind: 'ult', me: [1] });
-    // 힘겨루기 — 예약한 포켓몬이 차면 합류
-    const clash: TeamBattle = { ...full({ ...b, reserve: [2] }, 2), phase: 'clash', clash: { kind: 'ult', me: [0], foe: [0], shots: null, ms: 0, dur: TIMING.team.ultClashMs, taps: 0, winner: null } };
-    expect(run(clash, STEP, fixedRng(0.99)).clash!.me).toEqual([0, 2]);
-    // 쓰러지면 예약이 빠짐 · 다시 읽기
-    const dead = run({ ...r, me: r.me.map((f, i) => (i === 0 ? { ...f, hp: 0 } : f)) }, STEP, fixedRng(0.99));
-    expect(dead.reserve).toEqual([]);
+    // 차는 중에 누름 — 예약 없이 도장 (charge) · 차도 저절로 안 나감
+    const r = teamInput(b, { kind: 'ult', slot: 0 }, new Rng(1));
+    expect(r.reserve).toEqual([]);
+    expect(r.deny).toEqual({ slot: 0, ms: 0, why: 'charge' });
+    expect(run(full(r, 0), STEP, fixedRng(0.99)).phase).toBe('run');
+    // 버린 뒤 다시 눌러 쓰면 도장을 지움 (디자인 #88 — 필살기가 나가는데 "아직 안 찼어요" 가 남던 것)
+    const used = teamInput(full(r, 0), { kind: 'ult', slot: 0 }, new Rng(1));
+    expect(used.phase).toBe('ult');
+    expect(used.deny).toBeUndefined();
+    // 내 필살기 중 칸 없는 Z · 힘겨루기 중 못 끼는 누름은 조용히 (UX 리뷰어 #88) · 도장이 있으면 빠르게도 기본 박자
+    const myUltNow: TeamBattle = { ...b, phase: 'ult', ult: { side: 'me', from: 0, ms: 300, dur: TIMING.ultAnimMs, hitMs: 800, hit: false, window: 0, joinAt: null, joiners: [] } };
+    expect(teamInput(myUltNow, { kind: 'ult' }, new Rng(1)).deny).toBeUndefined();
+    // 동료가 차 있어도 내 필살기 중 Z 는 조용히 · 합동 참가자 (joint.winners) 를 또 누름도 조용히 (UX 리뷰어 #88 2차)
+    expect(teamInput(full(myUltNow, 1), { kind: 'ult' }, new Rng(1)).deny).toBeUndefined();
+    const jointNow: TeamBattle = { ...myUltNow, ult: { ...myUltNow.ult!, joint: { winners: [0, 2], losers: [1], sure: false } } };
+    expect(teamInput(jointNow, { kind: 'ult', slot: 2 }, new Rng(1)).deny).toBeUndefined();
+    expect(teamFastOk(r)).toBe(false);
+    // 도장은 denyMs 뒤 지움 · 다시 읽기 · 틀린 도장은 안 읽음
+    expect(run(r, TIMING.team.denyMs - STEP, fixedRng(0.99)).deny?.slot).toBe(0);
+    expect(run(r, TIMING.team.denyMs + STEP, fixedRng(0.99)).deny).toBeUndefined();
     expect(readTeam(viaJson(r))).toEqual(viaJson(r));
+    expect(readTeam({ ...viaJson(r), deny: { slot: 5, ms: 0, why: 'charge' } })).toBeNull();
+    expect(readTeam({ ...viaJson(r), deny: { slot: 0, ms: 0, why: 'later' } })).toBeNull();
+    // 내 다른 필살기가 나가는 중에 찬 칸을 누름 — busy (합동 멘트가 아닌 혼자 필살기)
+    const mineUlt: TeamBattle = { ...full(full(b, 0), 1), phase: 'ult', ult: { side: 'me', from: 0, ms: 300, dur: TIMING.ultAnimMs, hitMs: 800, hit: false, window: 0, joinAt: null, joiners: [] } };
+    const busy = teamInput(mineUlt, { kind: 'ult', slot: 1 }, new Rng(1));
+    expect(busy.deny).toEqual({ slot: 1, ms: 0, why: 'busy' });
+    expect(busy.ult).toEqual(mineUlt.ult);
+    // 상대 필살기 창 (끼어들기) — 지금 누르면 끼어듦 · 누르지 않으면 찬 포켓몬도 안 끼어듦 (옛 기록의 예약도)
+    const foeUlt: TeamBattle = { ...full(b, 1), phase: 'ult', ult: { side: 'foe', from: 0, ms: 0, dur: TIMING.ultAnimMs, hitMs: 800, hit: false, window: 1200, joinAt: null, joiners: [] } };
+    expect(teamInput(foeUlt, { kind: 'ult', slot: 1 }, fixedRng(0.99)).clash).toMatchObject({ kind: 'ult', me: [1] });
+    expect(run({ ...foeUlt, reserve: [1] }, STEP, fixedRng(0.99)).clash).toBeNull();
+    expect(run({ ...foeUlt, reserve: [1] }, STEP, fixedRng(0.99)).reserve).toEqual([]);
+    // 힘겨루기 — 지금 누르면 합류 · 옛 예약으로는 안 합류
+    const clash: TeamBattle = { ...full(b, 2), phase: 'clash', clash: { kind: 'ult', me: [0], foe: [0], shots: null, ms: 0, dur: TIMING.team.ultClashMs, taps: 0, winner: null } };
+    expect(teamInput(clash, { kind: 'ult', slot: 2 }, fixedRng(0.99)).clash!.me).toEqual([0, 2]);
+    expect(run({ ...clash, reserve: [2] }, STEP, fixedRng(0.99)).clash!.me).toEqual([0]);
     expect(readTeam({ ...viaJson(r), reserve: [0, 0] })).toBeNull();
-    expect(readTeam({ ...viaJson(r), reserve: [5] })).toBeNull();
   });
 
   it('상대 필살기 예고 — 80% 넘으면 near · 다 차면 full · 쓰러지면 none', () => {
@@ -956,7 +977,8 @@ describe('같은 편 합동 필살기 — 합동 필살기 멘트 (2026-10-21 �
     const joined = teamInput(mid, { kind: 'ult', slot: 1 }, fixedRng(0.99));
     expect(joined.ult!.team).toEqual([1]);
     expect(joined.me[1]!.ult).toBe(0);
-    const joint = run(joined, TIMING.team.gatherMs, fixedRng(0.99));
+    // 멘트 남은 시간 (mid 에서 500 지남) — 다 모여 바로 합동, 맞기 (jointHitMs) 전
+    const joint = run(joined, TIMING.team.gatherMs - 500, fixedRng(0.99));
     // 합동은 한 점 = 한 마리 (기획 R7 A)
     expect(joint.ult).toMatchObject({ joint: { winners: [0, 1], losers: [joint.ult!.target], sure: false }, dur: TIMING.team.jointMs, window: 0 });
     // 모여서 한 합동 (힘겨루기 없음) 은 참가자 필살기가 처음 나가는 것 — quick 아님 (#86)
@@ -1000,7 +1022,7 @@ describe('같은 편 합동 필살기 — 합동 필살기 멘트 (2026-10-21 �
     expect(one.ult!.window).toBe(TIMING.team.interruptMs);
     const g = teamInput(full(base(), 'me', [0, 2]), { kind: 'ult', slot: 0 }, fixedRng(0.99));
     // 찬 동료가 다 모이고 상대 끼어들기도 없으면 멘트를 끝까지 안 기다리고 바로 합동 (코드 리뷰어)
-    expect(run({ ...g, reserve: [2] }, STEP, fixedRng(0.99)).ult!.joint?.winners).toEqual([0, 2]);
+    expect(run(teamInput(g, { kind: 'ult', slot: 2 }, fixedRng(0.99)), STEP, fixedRng(0.99)).ult!.joint?.winners).toEqual([0, 2]);
     expect(teamStep(g, STEP, fixedRng(0.99), { auto: true, away: false }).ult!.joint?.winners).toEqual([0, 2]);
     // 막 시작한 걸음에 바로 모임 — 멘트 (합동 띠) 가 한 장면만 보이지 않게 (UX 리뷰어 #59, U1): 자동 전투 · 예약
     let autoStart = full(base(), 'me', [0, 2]);
@@ -1008,9 +1030,9 @@ describe('같은 편 합동 필살기 — 합동 필살기 멘트 (2026-10-21 �
     expect(autoStart.phase).toBe('ult');
     expect(teamGather(autoStart)).toBeNull();
     expect(autoStart.ult!.joint?.winners.slice().sort()).toEqual([0, 2]);
+    // 옛 기록의 예약은 저절로 합류하지 않음 — 멘트가 떠서 지금 눌러야 (예약 없음 — #88)
     const reserved = teamInput({ ...full(base(), 'me', [0, 2]), reserve: [2] }, { kind: 'ult', slot: 0 }, fixedRng(0.99));
-    expect(teamGather(reserved)).toBeNull();
-    expect(reserved.ult!.joint?.winners).toEqual([0, 2]);
+    expect(teamGather(reserved)).not.toBeNull();
     // 멘트 중에 쓴 포켓몬 · 모인 포켓몬의 키를 또 눌러도 예약이 되지 않음
     expect(teamInput(g, { kind: 'ult', slot: 0 }, fixedRng(0.99))).toBe(g);
     // 상대 AI 가 멘트 중에 받아침 (0 = 늘) — 내 쪽은 모인 동료와 함께
@@ -1086,10 +1108,10 @@ describe('필살기는 사용자가 눌러야만 (orders #82 — BALANCE.ultAuto
         expect(b.phase === 'ult' && b.ult?.side === 'me', JSON.stringify(opts)).toBe(false);
       }
     }
-    // 누르면 · 예약하면
+    // 누르면 나감 · 옛 기록의 예약으로는 안 나감 (예약 없음 — #88)
     expect(teamInput(full, { kind: 'ult', slot: 1 }, new Rng(3)).ult?.from).toBe(1);
     const reserved = teamStep({ ...full, reserve: [2] }, STEP, new Rng(3), { auto: true, away: true });
-    expect(reserved.phase === 'ult' && reserved.ult?.from).toBe(2);
+    expect(reserved.phase === 'ult' && reserved.ult?.side === 'me').toBe(false);
   });
 });
 
@@ -1101,27 +1123,28 @@ describe('3:3 박자 (orders #83 — 기본 0.8 · 전투 ×2) · 누를 창 (or
   };
   const b0 = startTeamBattle(team3(), foes(), 'trainer', '상대');
 
-  it('시계 배 — 3:3 0.8 · 빠르게 ▶▶ 면 보통 공격 1.6 · 알아챌 순간 (내 필살기 · 힘겨루기 · 결과 · 다 참 · 쓰러짐 · 안내) 은 1.0 (딱 1초) · 3:3 밖은 1', () => {
-    expect(TIMING.team.tempo).toBe(0.8);
+  it('시계 배 — 3:3 기본 1.0 (#89) · 빠르게 ▶▶ 면 보통 공격 2.0 · 알아챌 순간 (내 필살기 · 힘겨루기 · 결과 · 다 참 · 쓰러짐 · 안내) 은 1.0 (딱 1초) · 3:3 밖은 1', () => {
+    // 기본 박자 1.0 (2026-10-22 태현 님 "원래대로 1.0으로" — orders #89)
+    expect(TIMING.team.tempo).toBe(1);
     expect(gameTempo(createGameState(team3(), 3))).toBe(1);
-    expect(gameTempo(inTeam(b0))).toBe(0.8);
-    expect(gameTempo(inTeam(b0, false))).toBe(0.8);
-    expect(gameTempo(inTeam(b0, true))).toBeCloseTo(1.6, 10);
+    expect(gameTempo(inTeam(b0))).toBe(TIMING.team.tempo);
+    expect(gameTempo(inTeam(b0, false))).toBe(TIMING.team.tempo);
+    expect(gameTempo(inTeam(b0, true))).toBeCloseTo(TIMING.team.tempo * TIMING.team.fastScale, 10);
     // ×2 여도 알아챌 순간은 기본 박자 (코드 리뷰어 #83 — U1): 상대 다 참 (곧!) · 내 다 참 1초 · 쓰러짐 1초 · 안내 팝업
     const foeFull = { ...b0, foe: b0.foe.map((f, i) => ({ ...f, ult: i === 1 ? 1 : 0 })), ultReadyAt: { me: [null, null, null], foe: [null, b0.t, null] } };
     expect(gameTempo(inTeam(foeFull, true))).toBe(1);
     // 상대 "!" 도 찬 뒤 1초만 (기다림 내내 0.8 이면 ×2 가 1.16배뿐 — 디자인 UX #83)
-    expect(gameTempo(inTeam({ ...foeFull, t: b0.t + TIMING.team.fastKeepMs }, true))).toBeCloseTo(1.6, 10);
+    expect(gameTempo(inTeam({ ...foeFull, t: b0.t + TIMING.team.fastKeepMs }, true))).toBeCloseTo(TIMING.team.tempo * TIMING.team.fastScale, 10);
     const meFull = { ...b0, me: b0.me.map((f, i) => ({ ...f, ult: i === 0 ? 1 : 0 })), ultReadyAt: { me: [b0.t, null, null], foe: [null, null, null] } };
     expect(gameTempo(inTeam(meFull, true))).toBe(1);
-    expect(gameTempo(inTeam({ ...meFull, t: b0.t + TIMING.team.fastKeepMs }, true))).toBeCloseTo(1.6, 10);
+    expect(gameTempo(inTeam({ ...meFull, t: b0.t + TIMING.team.fastKeepMs }, true))).toBeCloseTo(TIMING.team.tempo * TIMING.team.fastScale, 10);
     const ko = { ...b0, log: [{ id: 1, at: b0.t, t: 'faint' as const, side: 'foe' as const, slot: 2 }], logSeq: 1 };
     expect(gameTempo(inTeam(ko, true))).toBe(1);
-    expect(gameTempo(inTeam({ ...ko, t: b0.t + TIMING.team.fastKeepMs }, true))).toBeCloseTo(1.6, 10);
+    expect(gameTempo(inTeam({ ...ko, t: b0.t + TIMING.team.fastKeepMs }, true))).toBeCloseTo(TIMING.team.tempo * TIMING.team.fastScale, 10);
     const info = { ...b0, popups: [{ id: 1, side: 'me' as const, slot: 0, text: '2:1', ms: 0, kind: 'info' as const }] };
     expect(gameTempo(inTeam(info, true))).toBe(1);
     const dmg = { ...b0, popups: [{ id: 1, side: 'me' as const, slot: 0, text: '-12', ms: 0, kind: 'damage' as const }] };
-    expect(gameTempo(inTeam(dmg, true))).toBeCloseTo(1.6, 10);
+    expect(gameTempo(inTeam(dmg, true))).toBeCloseTo(TIMING.team.tempo * TIMING.team.fastScale, 10);
     // 기술 힘겨루기 (run 안 1.5초) 도 기본 박자 (명세 검사관 — "힘겨루기는 기본 박자")
     const clash = { ...b0, moveClashes: [{ kind: 'move' as const, me: [0], foe: [0], ms: 0, dur: TIMING.team.moveClashMs, taps: 0, winner: null, shots: [1, 2] }] } as unknown as TeamBattle;
     expect(gameTempo(inTeam(clash, true))).toBe(1);
@@ -1130,7 +1153,7 @@ describe('3:3 박자 (orders #83 — 기본 0.8 · 전투 ×2) · 누를 창 (or
     expect(mine.phase).toBe('ult');
     expect(mine.ult?.gather ?? 0).toBe(0);
     expect(gameTempo(inTeam(mine, true))).toBe(1);
-    expect(gameTempo(inTeam(mine, false))).toBe(0.8);
+    expect(gameTempo(inTeam(mine, false))).toBe(TIMING.team.tempo);
     expect(gameTempo(inTeam({ ...b0, phase: 'over' }, true))).toBe(1);
   });
 
@@ -1149,26 +1172,26 @@ describe('3:3 박자 (orders #83 — 기본 0.8 · 전투 ×2) · 누를 창 (or
     expect(TIMING.team.interruptMs / TIMING.team.joinSlow).toBeGreaterThan(2000);
     const none = foeUlt(foeFull);
     expect(none.phase === 'ult' && teamJoinOpen(none)).toBeNull();
-    expect(gameTempo(inTeam(none))).toBe(0.8);
+    expect(gameTempo(inTeam(none))).toBe(TIMING.team.tempo);
     // 빠르게 ▶▶ — 상대 필살기 연출은 컷인 1초 동안 1.0 · 그 뒤 두 배
     expect(gameTempo(inTeam(none, true))).toBe(1);
     const late = run(none, TIMING.team.fastFoeUltMs + STEP);
     expect(late.phase === 'ult' && late.ult?.side).toBe('foe');
-    expect(gameTempo(inTeam(late, true))).toBeCloseTo(1.6, 10);
+    expect(gameTempo(inTeam(late, true))).toBeCloseTo(TIMING.team.tempo * TIMING.team.fastScale, 10);
     // 상대 합동 멘트 (상대 동료도 참) — 창 = gatherMs · 기본 박자로 2초 넘게
     const both = foeUlt({ ...foeFull, me: foeFull.me.map((f, i) => ({ ...f, ult: i === 2 ? 1 : 0 })), foe: foeFull.foe.map((f, i) => ({ ...f, ult: i < 2 ? 1 : 0 })) });
     expect(both.ult?.gather).toBeGreaterThan(0);
     expect(teamJoinOpen(both)).toEqual({ gathering: true });
-    expect(gameTempo(inTeam(both))).toBe(0.8);
-    expect(gameTempo(inTeam(both, true))).toBe(0.8);
+    expect(gameTempo(inTeam(both))).toBe(TIMING.team.tempo);
+    expect(gameTempo(inTeam(both, true))).toBe(TIMING.team.tempo);
   });
 
-  it('합동 멘트 (내 필살기 · 찬 동료) 창 = gatherMs 2초 · 기본 박자로 실제 2.5초 · ×2 여도 그대로 · 그동안 다른 공격 · 피해 없음', () => {
-    expect(TIMING.team.gatherMs).toBeGreaterThanOrEqual(2000);
+  it('합동 멘트 (내 필살기 · 찬 동료) 창 = gatherMs 2.5초 · 기본 박자 1.0 으로 실제 2.5초 (#89) · ×2 여도 그대로 · 그동안 다른 공격 · 피해 없음', () => {
+    expect(TIMING.team.gatherMs).toBeGreaterThanOrEqual(2500);
     const full: TeamBattle = { ...b0, me: b0.me.map((f) => ({ ...f, ult: 1 })), foe: b0.foe.map((f) => ({ ...f, ult: 0 })) };
     const g = teamInput(full, { kind: 'ult', slot: 0 }, new Rng(3));
     expect(teamGather(g)?.leftMs).toBe(TIMING.team.gatherMs);
-    expect(gameTempo(inTeam(g, true))).toBe(0.8);
+    expect(gameTempo(inTeam(g, true))).toBe(TIMING.team.tempo);
     expect(TIMING.team.gatherMs / gameTempo(inTeam(g, true))).toBeGreaterThan(2000);
     const hp = (b: TeamBattle) => [...b.me, ...b.foe].map((f) => f.hp);
     const mid = run(g, TIMING.team.gatherMs - 100);

@@ -127,6 +127,8 @@ body.pokemon-game-on {
 
 /* 위 정보줄 20px (× --pg-ui: 패널이 높으면 글자 · 버튼과 같이 1.15 · 1.3배) — 왼쪽 · 가운데 · 오른쪽 */
 .pg-infobar {
+  /* 버린 필살기 누름 한 줄 (.pg-infobar-notice — 3:3 #88) 의 기준 */
+  position: relative;
   flex: 0 0 calc(20px * var(--pg-ui, 1));
   height: calc(20px * var(--pg-ui, 1));
   display: grid;
@@ -6918,6 +6920,31 @@ body.vscode-high-contrast-light .pg-hpblock > .pg-hprow,
   background: var(--pg-sos-bar);
   border: 1px solid var(--pg-sos-gold);
   pointer-events: none;
+}
+/* 버린 Z (#88 — 예약 없음, 엔진 b.ultDeny 1.2초) = Z 흐리게 + 내 포켓몬 발밑 한 줄 (BattleLayer UltDeny) — 흰 글 + 흐린 선 (금 = 할 수 있음과 다르게) · 번쩍임 없음.
+   Z 옆 · 위에 두면 메뉴 버튼 · 상대 필살기 막대를 덮거나 240 에서 패널 밖으로 잘리던 것 (픽셀 검사원 · UX 리뷰어) · 글은 1px 아래로 (11/700 · 줄 10 이면 위 테두리에 닿던 것) */
+.pg-ultz.pg-ultz-denied {
+  opacity: 0.55;
+}
+.pg-ult-deny {
+  position: absolute;
+  z-index: 6;
+  box-sizing: border-box;
+  height: 12px;
+  padding: 1px 3px 0;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 10px;
+  white-space: nowrap;
+  color: var(--pg-sos-ink);
+  background: var(--pg-sos-bar);
+  border: 1px solid var(--pg-sos-line);
+  pointer-events: none;
+}
+/* 그 1초 안에 쓸 수 있게 됨 = 금색 "지금 Z!" (다 참 칩과 같은 금) */
+.pg-ult-deny.pg-deny-go {
+  color: var(--pg-sos-gold);
+  border-color: var(--pg-sos-gold);
 }
 /* 멈춤 (내 행동 연출 중 — 엔진이 안 셈) = 점선 테두리 + 흐린 글 (점선만으로는 "멈춤" 이 안 읽히던 것 — UX 리뷰어 3차) */
 .pg-ultz-count.pg-paused {

@@ -75,7 +75,6 @@
 #pokemon-game .pg-team-plate-foe.pg-plate-down {
   animation: pg-team-gone 0.45s steps(3, end) 1.2s forwards;
 }
-#pokemon-game .pg-plate-reserved,
 #pokemon-game .pg-plate-ready,
 #pokemon-game .pg-plate-join {
   background: var(--pg-sos-panel);
@@ -590,6 +589,41 @@
   color: var(--pg-sos-gold);
   background: var(--pg-sos-bar);
   border: 1px solid var(--pg-sos-gold);
+}
+
+/* 버린 누름 (#88 — 예약 없음, 엔진 b.deny 1초) = 누른 칸 판 키 · 막대를 흐리게 (번쩍임 없음 — 1초 그대로) · 까닭 한 줄은 무대 위 가운데 (아래 deny-mid) */
+#pokemon-game .pg-plate-deny .pg-team-key,
+#pokemon-game .pg-plate-deny .pg-team-bars {
+  opacity: 0.5;
+}
+/* 버린 누름 한 줄 — 정보줄 위 가운데 (InfoBar notice · StageScreen) · 가운데는 left/right 0 + margin auto (translateX(−50%) 면 폭이 소수일 때 테두리가 두 열로 번지던 것 — 픽셀 검사원) ·
+   정보줄 높이 안 (위 1 · 아래 선 2 남김) · 정보줄 스위치를 1.2초 덮음 (누름은 아래로 지나감) */
+#pokemon-game .pg-infobar-notice {
+  position: absolute;
+  z-index: 3;
+  top: 1px;
+  bottom: 2px;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: calc(100% - 8px);
+  margin: 0 auto;
+  padding: 0 8px;
+  font: 700 12px / 14px Pretendard, sans-serif;
+  white-space: nowrap;
+  color: var(--pg-sos-ink);
+  background: var(--pg-sos-bar);
+  border: 1px solid var(--pg-sos-line);
+  pointer-events: none;
+}
+/* 그 1초 안에 쓸 수 있게 됨 = 금색 "[2] 지금!" */
+#pokemon-game .pg-infobar-notice.pg-deny-go {
+  color: var(--pg-sos-gold);
+  border-color: var(--pg-sos-gold);
 }
 
 /* 고르는 중 잠김 안내 (패널이 좁아짐 — 넓히면 3:3) = 시작 칸 자리 · 흐린 점선 칸 (못 누름) */
