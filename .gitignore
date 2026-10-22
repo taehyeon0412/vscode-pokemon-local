@@ -23,6 +23,8 @@ docs/game-dev-team.md
 
 # 아트 디렉터 규칙도 내 PC에만 (2026-10-19)
 docs/game-art-director.md
+# UX 규칙 하드 링크 (원본 docs/game-design/ux-rules.md — CLAUDE.md 가 허락 창 없이 싣게, 2026-10-22 · dev/worktree-setup.py)
+docs/ux-rules.md
 
 # 팀 워크트리 (2026-10-22 태현 님 — 워크트리로 나눠 고치고 주제마다 squash 로 합침, docs/game-design/collab-worktree.md)
 .claude/worktrees/
