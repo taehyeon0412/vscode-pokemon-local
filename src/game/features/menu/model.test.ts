@@ -92,20 +92,22 @@ describe('세계 지도 지역 칸 (orders #66 · 디자인 #67)', () => {
       region.open = was;
     }
     // 본편 (켬 — orders #70) = 개발 모드와 같게 잠긴 지역까지
-    expect(mapView(createGameState(sampleSave(), 1)).locked).toEqual([{ id: 'beach', name: '해변' }]);
+    // 잠긴 지역 = 안 연 곳 모두 (해변 · 화산 — orders #75)
+    expect(mapView(createGameState(sampleSave(), 1)).locked).toEqual([{ id: 'beach', name: '해변' }, { id: 'volcano', name: '화산' }]);
     const on = (o: object) => {
       const s = createGameState({ ...sampleSave(), ...o }, 1);
       return mapView({ ...s, runtime: { ...s.runtime, dev: devDefault() } });
     };
     const fresh = on({});
     expect(fresh.regions.map((r) => r.id)).toEqual(['forest']);
-    expect(fresh.locked).toEqual([{ id: 'beach', name: '해변' }]);
+    expect(fresh.locked).toEqual([{ id: 'beach', name: '해변' }, { id: 'volcano', name: '화산' }]);
     const choose = on({ badges: ['forest'], regions: { order: ['forest'], next: ['beach'] } });
     expect(choose.next).toEqual([{ id: 'beach', name: '해변' }]);
-    expect(choose.locked).toEqual([]);
+    expect(choose.locked).toEqual([{ id: 'volcano', name: '화산' }]);
     const opened = on({ badges: ['forest'], regions: { order: ['forest', 'beach'] } });
     expect(opened.regions.map((r) => [r.id, r.k, r.badge, r.here])).toEqual([['forest', 1, true, true], ['beach', 2, false, false]]);
     expect(opened.regions[1]!.stages.map((s) => s.state)).toEqual(['open', 'locked', 'locked']);
     expect(opened.regions[1]!.gym).toBe(false);
+    expect(opened.locked).toEqual([{ id: 'volcano', name: '화산' }]);
   });
 });

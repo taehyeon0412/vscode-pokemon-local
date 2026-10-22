@@ -155,6 +155,54 @@
   "h": 64,
   "top": 2
  },
+ "frlg-camper": {
+  "source": "pret/pokefirered graphics/trainers/front_pics/camper_front_pic.png",
+  "w": 64,
+  "h": 64,
+  "top": 13
+ },
+ "em-hiker": {
+  "source": "pret/pokeemerald graphics/trainers/front_pics/hiker.png",
+  "w": 64,
+  "h": 64,
+  "top": 1
+ },
+ "frlg-rocker": {
+  "source": "pret/pokefirered graphics/trainers/front_pics/rocker_front_pic.png",
+  "w": 64,
+  "h": 64,
+  "top": 0
+ },
+ "frlg-biker": {
+  "source": "pret/pokefirered graphics/trainers/front_pics/biker_front_pic.png",
+  "w": 64,
+  "h": 64,
+  "top": 1
+ },
+ "frlg-black-belt": {
+  "source": "pret/pokefirered graphics/trainers/front_pics/black_belt_front_pic.png",
+  "w": 64,
+  "h": 64,
+  "top": 3
+ },
+ "frlg-crush-girl": {
+  "source": "pret/pokefirered graphics/trainers/front_pics/crush_girl_front_pic.png",
+  "w": 64,
+  "h": 64,
+  "top": 8
+ },
+ "em-expert-f": {
+  "source": "pret/pokeemerald graphics/trainers/front_pics/expert_f.png",
+  "w": 64,
+  "h": 64,
+  "top": 21
+ },
+ "em-expert-m": {
+  "source": "pret/pokeemerald graphics/trainers/front_pics/expert_m.png",
+  "w": 64,
+  "h": 64,
+  "top": 5
+ },
  "frlg-erika": {
   "source": "pret/pokefirered graphics/trainers/front_pics/leader_erika_front_pic.png",
   "w": 64,
@@ -163,6 +211,12 @@
  },
  "frlg-misty": {
   "source": "pret/pokefirered graphics/trainers/front_pics/leader_misty_front_pic.png",
+  "w": 64,
+  "h": 64,
+  "top": 2
+ },
+ "frlg-blaine": {
+  "source": "pret/pokefirered graphics/trainers/front_pics/leader_blaine_front_pic.png",
   "w": 64,
   "h": 64,
   "top": 2

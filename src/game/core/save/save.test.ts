@@ -3,6 +3,18 @@ import { sampleMonster, sampleSave, viaJson } from '../../../test/fixtures/save'
 import { BALANCE } from '../balance';
 import { createNewSave, freshProgress, migrateSave, MIGRATIONS, modeOf, NOTIFY_OFF_TIP, readSave, SAVE_VERSION, switchMode, validateSave, type Save } from './index';
 
+/** 고를 곳 (regions.next) 을 보는 시험 — 지금 지역은 3곳이라 정한 순서 (BALANCE.region.pickAbove = 3 이면 next 를 뺌), 4곳 넘는 판처럼 문턱을 낮춰 봄 */
+function withPick(f: () => void): void {
+  const tune = BALANCE.region as { pickAbove: number };
+  const was = tune.pickAbove;
+  tune.pickAbove = 2;
+  try {
+    f();
+  } finally {
+    tune.pickAbove = was;
+  }
+}
+
 /** 고친 세이브를 꺼냄 (ok 가 아니면 실패) */
 function fix(raw: unknown): { save: Save; problems: string[] } {
   const r = validateSave(raw);
@@ -365,7 +377,7 @@ describe('4판 칸 — 연 지역 · 모드 · 다른 모드 진행 · 엔딩 (o
     expect(modeOf(s)).toBe('normal');
   });
 
-  it('연 지역 고치기 — 모르는 지역 · 겹침 뺌 · 숲이 맨 앞 · 없으면 숲만 · 다음 고를 곳은 안 연 아는 지역 1 ~ 2곳만', () => {
+  it('연 지역 고치기 — 모르는 지역 · 겹침 뺌 · 숲이 맨 앞 · 없으면 숲만 · 다음 고를 곳은 안 연 아는 지역 1 ~ 2곳만', () => withPick(() => {
     const base = sampleSave();
     const a = check({ ...base, regions: { order: ['beach', 'mars', 'beach'] } });
     expect(a.save.regions).toEqual({ order: ['forest', 'beach'] });
@@ -381,7 +393,7 @@ describe('4판 칸 — 연 지역 · 모드 · 다른 모드 진행 · 엔딩 (o
     }
     // 아주 긴 목록도 금방 (앞부분만 봄)
     expect(check({ ...base, regions: { order: Array.from({ length: 100_000 }, () => 'mars') } }).save.regions).toEqual({ order: ['forest'] });
-  });
+  }));
 
   it('아직 안 연 지역에 있는 곳 → 가장 앞 지역의 첫 스테이지 (스테이지 진행은 그대로)', () => {
     const base = sampleSave();
@@ -431,7 +443,7 @@ describe('4판 칸 — 연 지역 · 모드 · 다른 모드 진행 · 엔딩 (o
     expect(check({ ...base, cleared: {} }).save.cleared).toEqual({});
   });
 
-  it('모드 바꾸기 (switchMode) — 노말 엔딩 전엔 하드 못 함 · 진행만 맞바꿈 (포켓몬 · 돈 · 가방 · 도감 · 설정은 같이) · 전투 · 고르기 중엔 못 바꿈 · 다시 바꾸면 그대로', () => {
+  it('모드 바꾸기 (switchMode) — 노말 엔딩 전엔 하드 못 함 · 진행만 맞바꿈 (포켓몬 · 돈 · 가방 · 도감 · 설정은 같이) · 전투 · 고르기 중엔 못 바꿈 · 다시 바꾸면 그대로', () => withPick(() => {
     const normal: Save = { ...sampleSave({ money: 4321, badges: ['forest'] }), location: { screen: 'gym' }, regions: { order: ['forest'], next: ['beach'] } };
     expect(switchMode(normal, 'hard')).toBeNull();
     expect(switchMode(normal, 'normal')).toBe(normal);
@@ -453,7 +465,7 @@ describe('4판 칸 — 연 지역 · 모드 · 다른 모드 진행 · 엔딩 (o
     // 전투 · 고르기 중
     expect(switchMode({ ...done, pendingEncounter: { kind: 'gym-leader' } }, 'hard')).toBeNull();
     expect(switchMode({ ...done, pendingChoices: [{ kind: 'learn', uid: 'm1', moveId: 33 }] }, 'hard')).toBeNull();
-  });
+  }));
 });
 
 describe('위치 고치기 한 곳 (코드 리뷰어 #30) — 맨 위 · 다른 모드 진행 (stash) 같은 규칙', () => {
@@ -472,19 +484,41 @@ describe('위치 고치기 한 곳 (코드 리뷰어 #30) — 맨 위 · 다른 
   });
 });
 
+describe('6판 — 화산 (orders #75)', () => {
+  it('5판 세이브는 칸 그대로 판만 6 · 화산 지역 · 스테이지 · 새 약 id 를 읽음 · 옛 5판 코드는 6판을 잠금 (모르는 id 를 지우지 않게)', () => {
+    const v5 = { ...viaJson(createNewSave(0)), version: 5 } as unknown as Record<string, unknown>;
+    const r = readSave(v5);
+    expect(r.kind === 'ok' && r.migratedFrom).toBe(5);
+    if (r.kind !== 'ok') return;
+    expect(viaJson(r.save)).toEqual({ ...v5, version: 6 });
+    const hot = validateSave(viaJson({ ...sampleSave(), badges: ['forest', 'beach'], regions: { order: ['forest', 'beach', 'volcano'] }, bag: { 'hyper-potion': 2, 'full-restore': 1 }, location: { screen: 'stage', stageId: 'volcano-2' } }));
+    expect(hot.ok && hot.save.regions.order).toEqual(['forest', 'beach', 'volcano']);
+    expect(hot.ok && hot.save.bag).toEqual({ 'hyper-potion': 2, 'full-restore': 1 });
+    expect(hot.ok && hot.save.location).toEqual({ screen: 'stage', stageId: 'volcano-2' });
+    const old = { 1: MIGRATIONS[1]!, 2: MIGRATIONS[2]!, 3: MIGRATIONS[3]!, 4: MIGRATIONS[4]! };
+    expect(migrateSave(viaJson(r.save) as unknown as Record<string, unknown>, old, 5)).toEqual({ ok: false, reason: 'newer', version: 6 });
+    // 지역 3곳까지는 고를 곳이 없음 — 손으로 넣은 next (화산을 해변보다 먼저) 는 빼고 고친 기록 (테스터 #75)
+    for (const next of [['volcano'], ['beach', 'volcano']]) {
+      const odd = validateSave(viaJson({ ...sampleSave(), badges: ['forest'], regions: { order: ['forest'], next } }));
+      expect(odd.ok && odd.save.regions).toEqual({ order: ['forest'] });
+      expect(odd.ok && odd.problems.join(' ')).toContain('고를 곳을 뺌');
+    }
+  });
+});
+
 describe('5판 칸 — 전투 ×2 (orders #83)', () => {
   it('4판 세이브는 칸 그대로 판만 5 · battleFast 는 있으면 읽고 (이상하면 꺼짐) · 없으면 칸이 없음 · 옛 4판 코드는 5판을 잠금', () => {
     const v4 = { ...viaJson(createNewSave(0)), version: 4 } as unknown as Record<string, unknown>;
     const r = readSave(v4);
     expect(r.kind === 'ok' && r.migratedFrom).toBe(4);
     if (r.kind !== 'ok') return;
-    expect(viaJson(r.save)).toEqual({ ...v4, version: 5 });
+    expect(viaJson(r.save)).toEqual({ ...v4, version: SAVE_VERSION });
     expect(r.save.settings.battleFast).toBeUndefined();
     const on = validateSave(viaJson({ ...r.save, settings: { ...r.save.settings, battleFast: true } }));
     expect(on.ok && on.save.settings.battleFast).toBe(true);
     const bad = validateSave(viaJson({ ...r.save, settings: { ...r.save.settings, battleFast: 'yes' } }));
     expect(bad.ok && bad.save.settings.battleFast).toBe(false);
     const old = { 1: MIGRATIONS[1]!, 2: MIGRATIONS[2]!, 3: MIGRATIONS[3]! };
-    expect(migrateSave(viaJson(r.save) as unknown as Record<string, unknown>, old, 4)).toEqual({ ok: false, reason: 'newer', version: 5 });
+    expect(migrateSave(viaJson(r.save) as unknown as Record<string, unknown>, old, 4)).toEqual({ ok: false, reason: 'newer', version: SAVE_VERSION });
   });
 });

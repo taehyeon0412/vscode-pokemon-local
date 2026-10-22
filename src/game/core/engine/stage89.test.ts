@@ -573,7 +573,7 @@ describe('다음 지역 열기 (orders #66 · #70 — BALANCE.region.open 본편
     });
   });
 
-  it('켜짐 (개발 모드) — 숲 관장 첫 승 → 남은 곳이 해변 하나라 바로 열림 · 배지 카드 뒤 "새 지역이 열렸어요 — 해변" · 해변 1스테이지로 이동 · 다시 이겨도 그대로', () => {
+  it('켜짐 (개발 모드) — 숲 관장 첫 승 → 지역 3곳까지는 만드는 순서라 해변이 바로 열림 · 배지 카드 뒤 "새 지역이 열렸어요 — 해변" · 해변 1스테이지로 이동 · 다시 이겨도 그대로', () => {
     const s0 = lobby({}, true);
     expect(regionsOn(s0)).toBe(true);
     const s = win(s0);
@@ -584,6 +584,24 @@ describe('다음 지역 열기 (orders #66 · #70 — BALANCE.region.open 본편
     // 다시 이김 (배지 있음) — 열 곳도 알림도 없음
     const again = until(applyInput(lobby({ badges: ['forest'], regions: { order: ['forest', 'beach'] } }, true), { kind: 'challenge' }), (x) => phase(x) === 'lobby' || phase(x) === 'result', 900_000);
     expect(again.save.regions).toEqual({ order: ['forest', 'beach'] });
+  });
+
+  it('해변 관장 첫 승 → 화산 (gdd 5.5 — 3번째 · 고르기 없음) · 해변을 이미 깬 세이브는 다음 걸음에 화산 · 다 열면 더 안 엶 (orders #75)', () => {
+    const beachGym = { location: { screen: 'gym' as const, region: 'beach' as const }, badges: ['forest'], regions: { order: ['forest', 'beach'] as RegionId[] }, stages: { 'forest-3': stageAt(1, { cleared: true }), 'beach-3': stageAt(1, { cleared: true }) } };
+    const s = win(lobby(beachGym));
+    expect(s.save.badges).toEqual(['forest', 'beach']);
+    expect(s.save.regions).toEqual({ order: ['forest', 'beach', 'volcano'] });
+    expect(toasts(s)).toContain('새 지역이 열렸어요 — 화산');
+    expect(applyInput(s, { kind: 'travel', to: 'volcano-1' }).save.location).toEqual({ screen: 'stage', stageId: 'volcano-1' });
+    // 따라잡기 — 해변 배지가 이미 있는 세이브
+    const old = step(lobby({ ...beachGym, badges: ['forest', 'beach'] }), STEP).state;
+    expect(old.save.regions).toEqual({ order: ['forest', 'beach', 'volcano'] });
+    expect(toasts(old)).toContain('새 지역이 열렸어요 — 화산');
+    // 셋 다 연 세이브는 그대로 (지역 3곳 = 다 엶)
+    const all = lobby({ ...beachGym, badges: ['forest', 'beach', 'volcano'], regions: { order: ['forest', 'beach', 'volcano'] } });
+    expect(step(all, STEP).state.save.regions).toEqual({ order: ['forest', 'beach', 'volcano'] });
+    // 지역 3곳 이하 = 정한 순서 (남은 곳이 2곳이어도 고르기 없음)
+    expect(openNextRegion(sampleSave(), new Rng(5), ['forest', 'beach', 'volcano']).regions).toEqual({ order: ['forest', 'beach'] });
   });
 
   it('남은 곳이 2곳 넘으면 2곳을 뽑아 고르기 (같은 시드 = 같은 두 곳 · 연 곳 · 지금 곳 빼고) · 고를 곳이 있으면 또 뽑지 않음 · 다 열었으면 그대로', () => {

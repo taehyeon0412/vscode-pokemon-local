@@ -30,6 +30,11 @@ const SCENES: { scene: DevScene; label: string }[] = [
   { scene: 'beach-2', label: '해변 2-2' },
   { scene: 'beach-3', label: '해변 2-3' },
   { scene: 'beach-gym', label: '해변 체육관' },
+  // 화산 미리 보기 (orders #75 — 3번째 지역)
+  { scene: 'volcano-1', label: '화산 3-1' },
+  { scene: 'volcano-2', label: '화산 3-2' },
+  { scene: 'volcano-3', label: '화산 3-3' },
+  { scene: 'volcano-gym', label: '화산 체육관' },
 ];
 
 let speciesList: { dex: number; name: string }[] | null = null;

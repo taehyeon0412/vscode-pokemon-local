@@ -1497,13 +1497,15 @@ describe('세이브 불러오기 — 아직 안 열린 지역 (코드 리뷰어 
     session.handleMessage(msg({ type: 'save-import' }));
     await vi.advanceTimersByTimeAsync(0);
     expect(view.last('save-import-ask')?.error).toBeUndefined();
-    const region = BALANCE.region as { open: boolean };
-    const was = region.open;
+    // pickAbove 2 = 고를 곳 (next) 을 보는 판 (지역 3곳은 정한 순서라 검사가 next 를 빼서 — orders #75)
+    const region = BALANCE.region as { open: boolean; pickAbove: number };
+    const was = { open: region.open, pickAbove: region.pickAbove };
     region.open = false;
+    region.pickAbove = 2;
     try {
       await importLockedRegions();
     } finally {
-      region.open = was;
+      Object.assign(region, was);
     }
   });
 

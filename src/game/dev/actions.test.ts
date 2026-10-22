@@ -28,7 +28,7 @@ describe('개발 모드 (임시) — 메뉴 동작', () => {
   });
 
   it('장면 바로 가기 — 모두 올바른 세이브 · 다음 걸음도 그 장면에서 이어짐', () => {
-    const scenes: DevScene[] = ['stage-1', 'stage-2', 'stage-3', 'beach-1', 'beach-2', 'beach-3', 'beach-gym', 'wild', 'catch', 'evolve', 'rival', 'trainer-team', 'gym-team', 'gym-enter', 'lobby'];
+    const scenes: DevScene[] = ['stage-1', 'stage-2', 'stage-3', 'beach-1', 'beach-2', 'beach-3', 'beach-gym', 'volcano-1', 'volcano-2', 'volcano-3', 'volcano-gym', 'wild', 'catch', 'evolve', 'rival', 'trainer-team', 'gym-team', 'gym-enter', 'lobby'];
     const want: Record<DevScene, string> = {
       'stage-1': 'walk',
       'stage-2': 'walk',
@@ -37,6 +37,10 @@ describe('개발 모드 (임시) — 메뉴 동작', () => {
       'beach-2': 'walk',
       'beach-3': 'walk',
       'beach-gym': 'lobby',
+      'volcano-1': 'walk',
+      'volcano-2': 'walk',
+      'volcano-3': 'walk',
+      'volcano-gym': 'lobby',
       wild: 'appear',
       catch: 'battle',
       evolve: 'choice',
@@ -52,6 +56,14 @@ describe('개발 모드 (임시) — 메뉴 동작', () => {
       const next = advance(s.state, 50).state;
       expect(next.runtime.stage?.phase, `${sc}: ${s.say}`).toBe(want[sc]);
     }
+    // 화산 미리 보기 = 해변까지 같이 열어 3번째 지역 (관장 에이스 = 레벨표 3번째 — orders #75) · 체육관은 화산 방
+    const v = devApply(three(start()), { kind: 'scene', scene: 'volcano-gym' }).state;
+    expect(v.save.regions.order).toEqual(['forest', 'beach', 'volcano']);
+    expect(v.save.location).toEqual({ screen: 'gym', region: 'volcano' });
+    const v2 = devApply(three(start()), { kind: 'scene', scene: 'volcano-2' });
+    expect(v2.state.save.regions.order).toEqual(['forest', 'beach', 'volcano']);
+    // 알림 번호도 새 순서로 (숲만 연 세이브에서 "2-2" 로 나오던 것 — 코드 리뷰어 · 테스터 #75)
+    expect(v2.say).toBe('3-2 처음부터');
   });
 
   it('3:3 — 본편 스위치가 꺼져 있어도 개발 모드 3:3 이면 트레이너전이 3:3 · 3마리 미만이면 안 감', () => {

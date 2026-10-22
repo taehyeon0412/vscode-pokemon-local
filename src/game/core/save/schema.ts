@@ -9,7 +9,8 @@
  *   (설치 뒤 다시 로드 안 한 옛 창이 새 칸을 지우지 못함 — save-store lock). 판 올리기는 "파일 읽기" 만 막음 —
  *   설치 직후 "옛 확장 + 새 웹뷰" 는 웹뷰가 판이 다른 상태를 계산하지 않고 넘겨서 막음 (webview-session start).
  */
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
+// 5 → 6 (2026-10-22 orders #75 화산): 지역 id volcano · 스테이지 volcano-1 ~ 3 · 아이템 hyper-potion · full-restore — 옛 5판 창이 모르는 칸을 지우지 못하게 판만 올림
 // 4 → 5 (2026-10-22 orders #83): settings.battleFast (옵션 — 전투 ×2) — 옛 4판 창이 지우지 못하게 판만 올림
 // 3 → 4 (2026-10-22 orders #30 · dev-log #40 안 A): regions (연 지역 순서 · 다음 고를 곳) · mode · stash (안 하는 모드의 진행) · cleared — 옛 3판 창이 새 칸을 지우지 못하게 판을 올림
 // 2 → 3 (2026-10-21 orders #17): settings.teamMode (옵션) — 옛 2판 창이 지우지 못하게 판만 올림
@@ -64,6 +65,8 @@ export interface Monster {
 export const ITEM_IDS = [
   'poke-ball', 'great-ball', 'ultra-ball',
   'potion', 'super-potion', 'full-heal', 'revive',
+  // 회복약 배지 단계 (gdd 5.2 · 5.5 — 2026-10-22 orders #75): 고급상처약 (배지 3개부터 상점) · 풀회복약 (5개부터)
+  'hyper-potion', 'full-restore',
   'fire-stone', 'water-stone', 'thunder-stone', 'leaf-stone', 'moon-stone', 'linking-cord',
   // 다음 버전 2단계 (2026-10-21 ideas #70 · #125): 이상한사탕 · 경험 부적 · 팔 물건 8가지 (팔기만)
   'rare-candy', 'exp-charm',
@@ -71,11 +74,11 @@ export const ITEM_IDS = [
 ] as const;
 export type ItemId = (typeof ITEM_IDS)[number];
 
-/** 지역 (gdd 5.1 지역 표 — core/rules/region) — 숲 · 해변 (해변은 개발 모드 미리 보기만, 모두에게 여는 것은 세이브 4판 #30 과 같이) */
-export const REGION_IDS = ['forest', 'beach'] as const;
+/** 지역 (gdd 5.1 지역 표 — core/rules/region) — 만드는 순서: 숲 · 해변 (#70 본편) · 화산 (#75 — 세이브 6판) */
+export const REGION_IDS = ['forest', 'beach', 'volcano'] as const;
 export type RegionId = (typeof REGION_IDS)[number];
 /** 지역 표의 스테이지 전부 — 숲 1-1 · 1-2 · 1-3 + 해변 (개발 모드 미리 보기 — orders #37) */
-export const REGION_STAGE_IDS = ['forest-1', 'forest-2', 'forest-3', 'beach-1', 'beach-2', 'beach-3'] as const;
+export const REGION_STAGE_IDS = ['forest-1', 'forest-2', 'forest-3', 'beach-1', 'beach-2', 'beach-3', 'volcano-1', 'volcano-2', 'volcano-3'] as const;
 export type StageId = (typeof REGION_STAGE_IDS)[number];
 /** 스테이지 (mvp-spec 3.2) — 진짜 게임 진행 = 숲 1-1 · 1-2 · 1-3 (세계 지도 · 이어 하기 · 다음 스테이지) */
 export const STAGE_IDS: readonly StageId[] = ['forest-1', 'forest-2', 'forest-3'];
@@ -289,5 +292,10 @@ export interface SaveV5 extends Omit<SaveV4, 'version'> {
   version: 5;
 }
 
+export interface SaveV6 extends Omit<SaveV5, 'version'> {
+  /** 6 = 5판 + 지역 volcano · 스테이지 volcano-1 ~ 3 · 아이템 hyper-potion · full-restore (orders #75 — 칸 모양은 그대로) */
+  version: 6;
+}
+
 /** 지금 버전의 세이브 */
-export type Save = SaveV5;
+export type Save = SaveV6;

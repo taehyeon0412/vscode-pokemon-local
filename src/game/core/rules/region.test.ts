@@ -10,7 +10,7 @@ import { Rng } from '../engine/rng';
 import { validateSave } from '../save';
 import { createWild, devolveForLevel, learnsDamage, pickupAt, planWild, regionPool } from './encounter';
 import { wildMoves } from './monster';
-import { BEACH_REQUESTS, requestAt } from './request';
+import { BEACH_REQUESTS, requestAt, VOLCANO_REQUESTS } from './request';
 import { gymRoomOf, REGIONS, regionAceLevel, setRegionOrder, regionGymMoney, regionGymTeam, regionLevelBand, regionOf, regionOrder, stageBackground } from './region';
 import { stageCode, stageLevelBand, trainerCount } from './stage';
 import { GYM_LEADER, gymHint, leaderTeam, trainerInfo, trainerTeam } from './trainer';
@@ -43,6 +43,74 @@ describe('지역 표 (gdd 5.1 · 5.2 — orders #35)', () => {
       expect(regionGymTeam(REGIONS.forest, 2).map(([, lv]) => lv)).toEqual([19, 20, 21]);
     } finally {
       tune.aceTable = before;
+    }
+  });
+});
+
+describe('화산 한 벌 (gdd 5.5 — orders #75, 3번째 지역)', () => {
+  it('스테이지 셋 · 번호 3-1 ~ 3-3 · 레벨대 (3번째 T3 = 23 ~ 26 / 26 ~ 29 / 28 ~ 31) · 배경 · 체육관 방 · 첫 승 불꽃의 돌', () => {
+    setRegionOrder(null);
+    expect(REGIONS.volcano.stages.map((x) => x.name)).toEqual(['화산 기슭', '용암 동굴', '분화구']);
+    expect(regionOrder('volcano')).toBe(3);
+    expect(['volcano-1', 'volcano-2', 'volcano-3'].map((id) => stageLevelBand(id as 'volcano-1'))).toEqual([[23, 26], [26, 29], [28, 31]]);
+    expect(stageCode('volcano-1')).toBe('3-1');
+    expect(nextStageOf('beach-3')).toBe('gym');
+    expect(nextStageOf('volcano-1')).toBe('volcano-2');
+    expect(nextStageOf('volcano-3')).toBe('gym');
+    expect(['volcano-1', 'volcano-2', 'volcano-3'].map((id) => trainerCount(id as 'volcano-1'))).toEqual([2, 3, 3]);
+    expect(['volcano-1', 'volcano-2', 'volcano-3'].map((id) => stageBackground(id as 'volcano-1'))).toEqual(['volcano-slope', 'volcano-cave', 'volcano-crater']);
+    expect(gymRoomOf(REGIONS.volcano)).toBe('gym-fire');
+    expect(REGIONS.volcano.firstWinItem).toBe('fire-stone');
+    expect(regionGymMoney(3)).toBe(5000);
+    // 화산 배지가 있어도 해변을 안 열었으면 3-1 은 잠김 · 연 지역이면 해변 배지로 열림
+    const save = sampleSave();
+    expect(stageUnlocked({ ...save, badges: ['forest', 'beach'] }, 'volcano-1')).toBe(false);
+    expect(stageUnlocked({ ...save, badges: ['forest', 'beach'], regions: { order: ['forest', 'beach', 'volcano'] } }, 'volcano-1')).toBe(true);
+  });
+
+  it('목록 (흔함 8 · 8 · 8 + 3-3 강한 마그마 · 코터스 · 드묾 딥상어동 · 애버라스) · 노말 · 비행 3종 · 앞 스테이지 드문 타입 (바위 · 강철 · 드래곤) 2종', () => {
+    expect(regionPool('volcano-1').common).toEqual([37, 58, 77, 27, 50, 74, 104, 220]);
+    expect(regionPool('volcano-2').common).toEqual([218, 607, 95, 207, 328, 343, 529, 622]);
+    expect(regionPool('volcano-3').common).toEqual([322, 513, 228, 449, 111, 552, 339, 231, 126, 324]);
+    expect(regionPool('volcano-3').rare).toEqual([443, 246]);
+    for (const id of ['volcano-1', 'volcano-2', 'volcano-3'] as const) {
+      const p = regionPool(id);
+      expect(p.mixed).toHaveLength(3);
+      for (const d of p.mixed) expect(speciesOf(d)!.types.every((t) => t === 'normal' || t === 'flying')).toBe(true);
+      if (id !== 'volcano-3') {
+        expect(p.rare).toHaveLength(2);
+        for (const d of p.rare) expect(speciesOf(d)!.types.some((t) => t === 'rock' || t === 'steel' || t === 'dragon')).toBe(true);
+      }
+    }
+    // 두 앞 스테이지의 드묾이 겹치지 않음 (같은 지역 안 — gdd 5.5)
+    expect(regionPool('volcano-1').rare.some((d) => regionPool('volcano-2').rare.includes(d))).toBe(false);
+    // 모든 종이 그림 · 피해 기술 (3번째 Lv 23 부터)
+    for (const id of ['volcano-1', 'volcano-2', 'volcano-3'] as const) {
+      const p = regionPool(id);
+      for (const d of [...p.common, ...p.rare]) expect(learnsDamage(d, stageLevelBand(id)[0]), `No.${d}`).toBe(true);
+    }
+    for (let n = 0; n < 3; n++) for (const m of trainerTeam('volcano-3', 77, n, 6, 3)) expect([126, 324]).not.toContain(m.species);
+  });
+
+  it('트레이너 9 (대결 그림 있음) · 부탁 5 · 관장 강연 셋 묶음 (3번째 = 가디 29 · 포니타 30 · 에이스 마그마 31) · 힌트 불꽃', () => {
+    expect(trainerInfo('volcano-1', 0)).toMatchObject({ name: '캠프보이 석진', look: 'frlg-camper' });
+    expect(REGIONS.volcano.trainers).toHaveLength(9);
+    expect(new Set(REGIONS.volcano.trainers.map((t) => `${t.title} ${t.name}`)).size).toBe(9);
+    for (const t of [...REGIONS.volcano.trainers.map((x) => x.look), REGIONS.volcano.leader.look]) expect(battleArtOf(t), t).toBeTruthy();
+    expect(new Set(Array.from({ length: 5 }, (_, n) => requestAt(42, n, 'volcano-2').id))).toEqual(new Set(VOLCANO_REQUESTS.map((r) => r.id)));
+    expect(VOLCANO_REQUESTS.map((r) => r.who.name)).toEqual(['온천 아저씨', '광부 할아버지', '아이', '등산객', '연구원']);
+    expect(leaderTeam(REGIONS.volcano).map((m) => [m.species, m.level])).toEqual([[58, 29], [77, 30], [126, 31]]);
+    expect(regionGymTeam(REGIONS.volcano, 5).map(([d]) => d)).toEqual([78, 323, 59]);
+    expect(regionGymTeam(REGIONS.volcano, 8).map(([d, lv]) => [d, lv])).toEqual([[219, 60], [229, 61], [467, 62]]);
+    expect(gymHint({ ...sampleSave(), location: { screen: 'gym', region: 'volcano' } }).text).toBe('관장 강연은 불꽃 포켓몬을 써요');
+  });
+
+  it('떨어진 돌은 불꽃의 돌 · 가끔 별의모래 (gdd 5.5)', () => {
+    for (const id of ['volcano-1', 'volcano-3'] as const) {
+      const kinds = new Set(Array.from({ length: 400 }, (_, i) => pickupAt(id, 99, { kind: 'item', at: 0.5, index: i }).item).filter(Boolean));
+      // 볼 · 약은 레벨에 따라 (3번째는 슈퍼볼도) — 돌 · 팔 물건만 봄
+      expect([...kinds].filter((k) => k!.endsWith('-stone') || ['stardust', 'pearl'].includes(k!))).toEqual(expect.arrayContaining(['fire-stone', 'stardust']));
+      expect([...kinds].filter((k) => k!.endsWith('-stone') || k === 'pearl').sort()).toEqual(['fire-stone']);
     }
   });
 });
@@ -141,7 +209,7 @@ describe('해변 한 벌 (gdd 5.3 — orders #37, 개발 모드 미리 보기 ·
   });
 
   it('레벨표 값 한 곳 (BALANCE.region) — 게임 숫자 그대로 (#47 T3 표 · 해변 2번째, 시뮬만 바꿔 봄 — orders #38 · #59)', () => {
-    expect(BALANCE.region).toEqual({ aceBase: 15, aceStep: 6, aceJump2: 0, aceTable: [15, 23, 31, 39, 46, 52, 57, 62], beachOrder: 2, open: true });
+    expect(BALANCE.region).toEqual({ aceBase: 15, aceStep: 6, aceJump2: 0, aceTable: [15, 23, 31, 39, 46, 52, 57, 62], beachOrder: 2, open: true, pickAbove: 3 });
     expect([1, 2, 3, 8, 9].map(regionAceLevel)).toEqual([15, 23, 31, 62, 68]);
     expect(regionOrder('beach')).toBe(2);
   });

@@ -28,7 +28,8 @@ const STEP = TIMING.simStepMs;
 /** SIM_IDLE=<시간> — 숲 관장 첫 승 뒤 그만큼 1-3 을 되풀이 걷기 (방치 — 선두 Lv · 돈, orders #69 "8시간 방치 35 → 26") */
 const IDLE_H = Number(process.env.SIM_IDLE ?? 0);
 // 6시간 넘으면 못 깬 것으로 (해변을 되풀이하면 (SIM_REGIONS) 지역마다 1.5시간 더 · 방치면 그 시간 더)
-const MAX_MS = Math.max(6, process.env.SIM_REGION === 'beach' ? 2 + 1.5 * (Math.max(2, Number(process.env.SIM_REGIONS ?? 2)) - 1) : 0, IDLE_H > 0 ? 3 + IDLE_H : 0) * 60 * 60 * 1000;
+// 화산 (SIM_REGION=volcano) = 숲 · 해변 · 화산 세 지역이라 9시간
+const MAX_MS = Math.max(6, process.env.SIM_REGION === 'beach' ? 2 + 1.5 * (Math.max(2, Number(process.env.SIM_REGIONS ?? 2)) - 1) : 0, process.env.SIM_REGION === 'volcano' ? 9 : 0, IDLE_H > 0 ? 3 + IDLE_H : 0) * 60 * 60 * 1000;
 /** SIM_ULT=<ms> — 다 찬 필살기를 사람이 그만큼 뒤에 누름 (없으면 안 누름 — 필살기는 사용자가 눌러야만, orders #82) */
 const ULT_PRESS = process.env.SIM_ULT ? Number(process.env.SIM_ULT) : null;
 /** SIM_AUTOULT=1 — 예전 규칙 (다 차면 저절로 · 안 볼 때 바로) 으로 견주기 (BALANCE.ultAutoUse) */
@@ -77,10 +78,13 @@ if (process.env.SIM_OPEN === '1') (BALANCE.region as { open: boolean }).open = t
 const START = process.env.SIM_START ? readSave(JSON.parse(readFileSync(process.env.SIM_START, 'utf8'))) : null;
 if (START && START.kind !== 'ok') throw new Error(`SIM_START 세이브를 못 읽음 (${START.kind})`);
 
-/** 'beach-gym' = 해변 체육관 (SIM_REGION=beach — 2번째 지역) */
-type Where = StageId | 'gym' | 'beach-gym';
+/** 'beach-gym' = 해변 체육관 (SIM_REGION=beach — 2번째 지역) · 'volcano-gym' = 화산 체육관 (SIM_REGION=volcano — 3번째) */
+type Where = StageId | 'gym' | 'beach-gym' | 'volcano-gym';
 /** SIM_REGION=beach — 숲 관장 뒤 해변을 2번째 지역으로 한 바퀴 (orders #37 — 관장 도전 · 진 수 · 한 바퀴 시간) */
 const BEACH = process.env.SIM_REGION === 'beach';
+/** SIM_REGION=volcano — 숲 → 해변 (2번째) → 화산 (3번째) 을 엔진이 여는 대로 한 판 (orders #75 — 화산이 벽인지 · 스타팅마다) */
+const VOLCANO = process.env.SIM_REGION === 'volcano';
+const VIA_BEACH = BEACH || VOLCANO;
 /**
  * 레벨표 맞추기 (orders #38 — 게임 값은 안 바꿈, 이 시뮬에서만): SIM_ACE_STEP = 지역마다 에이스 + (기본 6) · SIM_ACE_JUMP2 = 2번째부터 더 (기본 0) ·
  * SIM_REGIONS = 해변을 2 ~ N 번째로 되풀이 (기본 2 — 해변 배지를 받으면 해변을 처음으로 되돌리고 다음 번째 레벨로)
@@ -107,6 +111,7 @@ interface RegionRun {
   ms: number;
 }
 const BEACH_STAGES: Where[] = ['beach-1', 'beach-2', 'beach-3', 'beach-gym'];
+const VOLCANO_STAGES: Where[] = ['volcano-1', 'volcano-2', 'volcano-3', 'volcano-gym'];
 interface StageStat {
   ms: number;
   /** 전투 시간 (야생 · 트레이너) */
@@ -148,6 +153,8 @@ interface RunResult {
   /** 해변 (SIM_REGION=beach) — 숲 배지를 받은 때 · 해변 관장 도전 수 */
   forestMs: number;
   beachGymTries: number;
+  /** 화산 관장 도전 수 (SIM_REGION=volcano) */
+  volcanoGymTries: number;
   /** 2번째부터 지역마다 (SIM_REGIONS) */
   regions: RegionRun[];
   firstGymLevels: number[];
@@ -170,7 +177,7 @@ const hpRatio = (save: Save) => {
   return max > 0 ? t.reduce((a, m) => a + m.hp, 0) / max : 0;
 };
 const power = (id: number) => moveOf(id)?.power ?? 0;
-const where = (save: Save): Where => (save.location.screen === 'stage' ? save.location.stageId : save.location.screen === 'gym' && save.location.region === 'beach' ? 'beach-gym' : 'gym');
+const where = (save: Save): Where => (save.location.screen === 'stage' ? save.location.stageId : save.location.screen === 'gym' && save.location.region === 'beach' ? 'beach-gym' : save.location.screen === 'gym' && save.location.region === 'volcano' ? 'volcano-gym' : 'gym');
 
 function decide(s: GameState, mem: { resultMs: number; lostGymOnce: boolean; grindNext: boolean; parryKey: string; parryYes: boolean; ultMs: number }): GameState {
   const st = s.runtime.stage;
@@ -293,8 +300,11 @@ function decide(s: GameState, mem: { resultMs: number; lostGymOnce: boolean; gri
       // 방치 — 숲 관장을 이긴 뒤 1-3 을 되풀이 (SIM_IDLE)
       if (IDLE_H > 0 && save.badges.includes(REGIONS.forest.badge)) return applyInput(s, { kind: 'travel', to: 'forest-3' });
       const beachGym = save.location.screen === 'gym' && save.location.region === 'beach';
+      const volcanoGym = save.location.screen === 'gym' && save.location.region === 'volcano';
+      // 해변 배지를 받았으면 화산으로 (SIM_REGION=volcano — 엔진이 해변 관장 첫 승에 화산을 엶)
+      if (VOLCANO && beachGym && save.badges.includes(REGIONS.beach.badge)) return applyInput(s, { kind: 'travel', to: 'volcano-1' });
       // 숲 배지를 받았으면 해변으로 (SIM_REGION=beach — 2번째 지역)
-      if (BEACH && !beachGym && save.badges.includes(REGIONS.forest.badge)) {
+      if (VIA_BEACH && !beachGym && !volcanoGym && save.badges.includes(REGIONS.forest.badge)) {
         // 해변을 연 지역에 (다음 지역 열기가 꺼진 본편 값으로 돌려서 — stageUnlocked 가 연 지역을 봄, orders #66)
         // SIM_OPEN 이면 엔진이 열었어야 함 (관장 첫 승 · 따라잡기 — 안 열렸으면 해변으로 못 가 시간 끝까지 멈춤 = 확인)
         const open = BALANCE.region.open || save.regions.order.includes('beach') ? s : { ...s, save: { ...save, regions: { ...save.regions, order: [...save.regions.order, 'beach' as const] } } };
@@ -304,7 +314,7 @@ function decide(s: GameState, mem: { resultMs: number; lostGymOnce: boolean; gri
       if (BEACH && beachGym && !save.stages['beach-1']) return applyInput(s, { kind: 'travel', to: 'beach-1' });
       if (mem.grindNext) {
         mem.grindNext = false;
-        return applyInput(s, { kind: 'travel', to: beachGym ? 'beach-3' : 'forest-3' });
+        return applyInput(s, { kind: 'travel', to: volcanoGym ? 'volcano-3' : beachGym ? 'beach-3' : 'forest-3' });
       }
       // 대기실 회복 (관장전은 져도 돈을 안 잃고 회복됨 — 사람은 회복하고 도전)
       if (hpRatio(save) < 1) return applyInput(s, { kind: 'heal' });
@@ -320,9 +330,9 @@ function runOnce(dex: number, seed: number): RunResult {
   s = applyInput(s, { kind: 'auto-battle', on: true });
   if (TEAM) s = { ...s, save: { ...s.save, settings: { ...s.save.settings, teamMode: true } } };
   if (FOREST_DEV) s = { ...s, runtime: { ...s.runtime, dev: { ...devDefault(), team: TEAM } } };
-  const stages = Object.fromEntries([...STAGE_IDS, 'gym', ...BEACH_STAGES].map((k) => [k, blank()])) as Record<Where, StageStat>;
+  const stages = Object.fromEntries([...STAGE_IDS, 'gym', ...BEACH_STAGES, ...VOLCANO_STAGES].map((k) => [k, blank()])) as Record<Where, StageStat>;
   const mem = { resultMs: 0, lostGymOnce: false, grindNext: false, parryKey: '', parryYes: false, ultMs: 0 };
-  const r: RunResult = { idle: null, seenEnd: 0, caughtEnd: 0, firstCatchMs: 0, starter: speciesOf(dex)?.name.ko ?? String(dex), seed, done: false, totalMs: 0, stages, gymTries: 0, firstGymLevels: [], winLevels: [], moneyAtGym: -1, firstUltMin: -1, spent: 0, potionsUsed: 0, team: 0, teamBattles: 0, forestMs: 0, beachGymTries: 0, regions: [] };
+  const r: RunResult = { idle: null, seenEnd: 0, caughtEnd: 0, firstCatchMs: 0, starter: speciesOf(dex)?.name.ko ?? String(dex), seed, done: false, totalMs: 0, stages, gymTries: 0, firstGymLevels: [], winLevels: [], moneyAtGym: -1, firstUltMin: -1, spent: 0, potionsUsed: 0, team: 0, teamBattles: 0, forestMs: 0, beachGymTries: 0, volcanoGymTries: 0, regions: [] };
   setOrder(2);
   let cur: RegionRun | null = null;
   const top3 = (save: Save) => {
@@ -377,8 +387,9 @@ function runOnce(dex: number, seed: number): RunResult {
           }
         }
         else if (st.battle.kind === 'trainer') stages[w].trainers++;
-        else if (w === 'beach-gym') {
-          r.beachGymTries++;
+        else if (w === 'beach-gym' || w === 'volcano-gym') {
+          if (w === 'beach-gym') r.beachGymTries++;
+          else r.volcanoGymTries++;
           if (cur) {
             cur.tries++;
             if (cur.gap === null) {
@@ -419,8 +430,9 @@ function runOnce(dex: number, seed: number): RunResult {
       // 3:3 (SIM_TEAM) — 트레이너 · 관장 수 · 전투 시간 (필살기 장면을 붙잡는 시간은 빼고 엔진 시간)
       const key = `team:${st.team.foeName}:${st.team.foe.map((f) => f.uid).join(',')}`;
       if (prevBattle !== key) {
-        if (st.team.kind === 'gym' && w === 'beach-gym') {
-          r.beachGymTries++;
+        if (st.team.kind === 'gym' && (w === 'beach-gym' || w === 'volcano-gym')) {
+          if (w === 'beach-gym') r.beachGymTries++;
+          else r.volcanoGymTries++;
           if (cur) {
             cur.tries++;
             if (cur.gap === null) {
@@ -462,7 +474,7 @@ function runOnce(dex: number, seed: number): RunResult {
           console.log(`짐 ${r.starter} ${w} ${(t / 60000).toFixed(1)}분 · ${b.kind} ${b.foeName ?? ''} [${foes}] · 쓰러뜨림 ${b.foeDown.length} · 내 팀 [${mine}] · 돈 ${s.save.money}${pend ? ` · 남은 만남 ${pend.kind}` : ''}`);
         }
         stages[w].defeats++;
-        if (cur && BEACH_STAGES.includes(w)) cur.defeats++;
+        if (cur && (BEACH_STAGES.includes(w) || VOLCANO_STAGES.includes(w))) cur.defeats++;
         if (lastKind === 'trainer') stages[w].trainerDefeats++;
         if (st?.phase === 'defeat' && st.gym) mem.grindNext = true;
       }
@@ -472,11 +484,16 @@ function runOnce(dex: number, seed: number): RunResult {
       }
       if (phase === 'choice' || phase === 'request' || phase === 'clear' || phase === 'defeat') stages[w].pauses++;
       // 숲 배지 — 해변을 돌면 여기서 끝나지 않음 (해변 배지까지)
-      if (phase === 'badge' && BEACH && w !== 'beach-gym') {
+      if (phase === 'badge' && VIA_BEACH && w === 'gym') {
         if (!r.forestMs) {
           r.forestMs = t;
           cur = { k: 2, ace: regionAceLevel(2), gap: null, third: null, tries: 0, defeats: 0, ms: 0 };
         }
+      } else if (phase === 'badge' && VOLCANO && w === 'beach-gym' && cur) {
+        // 해변 배지 — 화산 (3번째) 으로 이어 감 (엔진이 연 대로)
+        cur.ms = t - (r.regions.reduce((a, x) => a + x.ms, 0) + r.forestMs);
+        r.regions.push(cur);
+        cur = { k: 3, ace: regionAceLevel(3), gap: null, third: null, tries: 0, defeats: 0, ms: 0 };
       } else if (phase === 'badge' && BEACH && cur && cur.k < REGIONS_N) {
         // 해변 배지 — 다음 번째 지역으로 해변을 처음부터 (세이브의 해변 배지 · 스테이지를 지우고 레벨만 올림 — 시뮬에서만)
         cur.ms = t - (r.regions.reduce((a, x) => a + x.ms, 0) + r.forestMs);
@@ -493,7 +510,7 @@ function runOnce(dex: number, seed: number): RunResult {
           r.idle = { from: t, lead0: lv[0] ?? 0, lead1: 0, team0: avg(lv), team1: 0, money0: s.save.money, money1: 0, defeats: 0 };
         }
       } else if (phase === 'badge') {
-        if (BEACH && cur) {
+        if (VIA_BEACH && cur) {
           cur.ms = t - (r.regions.reduce((a, x) => a + x.ms, 0) + r.forestMs);
           r.regions.push(cur);
           cur = null;
@@ -566,12 +583,26 @@ if (BEACH) {
   console.log(`  해변 진 수: ${BEACH_STAGES.map((w) => `${w} ${avgOf(results.map((r) => r.stages[w].defeats)).toFixed(1)}`).join(' · ')} · 스테이지 시간 ${BEACH_STAGES.map((w) => `${w} ${min(avgOf(results.map((r) => r.stages[w].ms)))}분`).join(' · ')}`);
 }
 
-if (BEACH) {
+if (VOLCANO) {
+  // 화산 = 3번째 지역 한 바퀴 (orders #75 — 관장 에이스 Lv 31 · 물 스타팅이 유리한 차례)
+  const avgOf = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
+  const vMs = (r: RunResult) => r.regions.find((x) => x.k === 3)?.ms ?? 0;
+  console.log(`화산 (3번째) — 끝까지 간 판 ${done.length} / ${results.length} · 화산 한 바퀴 ${min(avgOf(done.map(vMs)))}분 (길게 ${min(Math.max(0, ...done.map(vMs)))}) · 화산 관장 도전 ${avgOf(results.map((r) => r.volcanoGymTries)).toFixed(1)}번 (최대 ${Math.max(0, ...results.map((r) => r.volcanoGymTries))}) · 해변 관장 도전 ${avgOf(results.map((r) => r.beachGymTries)).toFixed(1)}번`);
+  console.log(`  화산 진 수: ${VOLCANO_STAGES.map((w) => `${w} ${avgOf(results.map((r) => r.stages[w].defeats)).toFixed(1)} (트 ${avgOf(results.map((r) => r.stages[w].trainerDefeats)).toFixed(1)} · 최대 ${Math.max(0, ...results.map((r) => r.stages[w].defeats))})`).join(' · ')}`);
+  console.log(`  화산 스테이지 시간: ${VOLCANO_STAGES.map((w) => `${w} ${min(avgOf(results.map((r) => r.stages[w].ms)))}분`).join(' · ')} · 잡음 ${VOLCANO_STAGES.slice(0, 3).map((w) => avgOf(results.map((r) => r.stages[w].caught)).toFixed(1)).join(' · ')}`);
+  for (const [g, from, to] of [['풀', 0, 6], ['불꽃', 6, 12], ['물', 12, 18]] as const) {
+    const names = starters.slice(from, to).map((x) => speciesOf(x.dex)?.name.ko ?? '');
+    const rs = results.filter((r) => names.includes(r.starter));
+    console.log(`  ${g} 스타팅 화산: ${VOLCANO_STAGES.map((w) => `${w} ${avgOf(rs.map((r) => r.stages[w].defeats)).toFixed(1)}`).join(' · ')} · 관장 도전 ${avgOf(rs.map((r) => r.volcanoGymTries)).toFixed(1)} · 화산 한 바퀴 ${min(avgOf(rs.filter((r) => r.done).map(vMs)))}분 · 못 깸 ${rs.filter((r) => !r.done).length}`);
+  }
+}
+
+if (VIA_BEACH) {
   // 레벨표 맞추기 (orders #38) — 번째마다 센 셋 평균 − 에이스 (목표 0 ~ +2) · 관장 도전 · 진 수 (해변 스테이지 + 체육관) · 한 바퀴
   const avgOf = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
   const { aceStep, aceJump2 } = BALANCE.region;
   console.log(`레벨표 안 — ${ACE_TABLE ? `에이스 표 15 · ${ACE_TABLE.join(' · ')}` : `에이스 +${aceStep}/지역${aceJump2 ? ` · 2번째부터 +${aceJump2}` : ''}`} · ${modeLabel}${BALANCE.team.pickLevelGap ? ` · 고르기 레벨 규칙 ${BALANCE.team.pickLevelGap}` : ''} · 판 ${results.length}`);
-  for (let k = 2; k <= REGIONS_N; k++) {
+  for (let k = 2; k <= (VOLCANO ? 3 : REGIONS_N); k++) {
     const rs = results.map((r) => r.regions.find((x) => x.k === k)).filter((x): x is RegionRun => !!x);
     const gaps = rs.map((x) => x.gap).filter((g): g is number => g !== null);
     const sorted = [...gaps].sort((a, b) => a - b);

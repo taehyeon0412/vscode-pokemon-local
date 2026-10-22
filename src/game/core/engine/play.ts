@@ -1353,13 +1353,13 @@ function openAndAnnounce(save: Save, rt: RuntimeState, rng: Rng): { save: Save; 
 
 /**
  * 관장 첫 승 → 다음 지역 (gdd 5.1 · 7-2 — orders #66): 남은 곳이 1곳이면 바로 연 지역에 · 2곳 이상이면 2곳을 뽑아 고르기 (regions.next — 껐다 켜도 같은 두 곳).
- * all = 지역 목록 (테스트가 셋 넘는 지역으로 봄)
+ * 지역이 3곳 (BALANCE.region.pickAbove) 까지는 고르기 없이 만드는 순서대로 (숲 → 해변 → 화산 — gdd 5.1, orders #75) · all = 지역 목록 (테스트가 셋 넘는 지역으로 봄)
  */
 export function openNextRegion(save: Save, rng: Rng, all: readonly RegionId[] = REGION_IDS): Save {
   const order = save.regions.order;
   const left = all.filter((r) => !order.includes(r));
   if (left.length === 0 || (save.regions.next?.length ?? 0) > 0) return save;
-  if (left.length === 1) return { ...save, regions: { ...save.regions, order: [...order, left[0]!] } };
+  if (left.length === 1 || all.length <= BALANCE.region.pickAbove) return { ...save, regions: { ...save.regions, order: [...order, left[0]!] } };
   const a = left.splice(rng.int(0, left.length - 1), 1)[0]!;
   const b = left[rng.int(0, left.length - 1)]!;
   return { ...save, regions: { ...save.regions, next: [a, b] } };
@@ -1652,7 +1652,7 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       if (r.evolve) return { save: r.save, runtime: { ...state.runtime, stage: { phase: 'choice', ms: 0 } } };
       const m = r.save.monsters[input.uid];
       const name = m ? (speciesOf(m.species)?.name.ko ?? m.form) : '';
-      const text = r.healedHp > 0 ? `${withJosa(name, '은/는')} HP 가 ${r.healedHp} 회복됐다!` : `${withJosa(name, '은/는')} 몸이 개운해졌다!`;
+      const text = r.healedHp > 0 ? `${withJosa(name, '은/는')} HP 가 ${r.healedHp} ${r.cured ? '회복되고 몸도 개운해졌다!' : '회복됐다!'}` : `${withJosa(name, '은/는')} 몸이 개운해졌다!`;
       return toast(state, r.save, text);
     }
     case 'defeat-continue':

@@ -627,6 +627,28 @@ describe('아이템 · 도망 · 교체', () => {
     expect(applyBattleResult(save, used).bag.potion).toBe(0);
   });
 
+  it('고급상처약 +120 · 풀회복약 = HP 가득 + 상태 이상 (HP 가득이어도 상태 이상이면 씀 — gdd 5.5)', () => {
+    const save = { ...sampleSave(), bag: { ...sampleSave().bag, 'hyper-potion': 1, 'full-restore': 1 } };
+    const { b } = setup({ save });
+    const hurt = myTurn({ ...b, me: { ...b.me, hp: 2, status: { kind: 'burn' as const } } });
+    // 고급상처약은 상태 이상 없이 (화상이면 쓴 뒤 화상 피해 1 — 풀회복약과 견줌)
+    const hyper = run(battleInput({ ...hurt, me: { ...hurt.me, status: null } }, save, { kind: 'act', action: { kind: 'item', item: 'hyper-potion' } }, new SeededRng(1)), save, TIMING.itemAnimMs);
+    expect(hyper.me.hp).toBe(Math.min(b.me.maxHp, 2 + BALANCE.hyperPotionHeal));
+    expect(itemLeft(hyper, save, 'hyper-potion')).toBe(0);
+    const full = run(battleInput(hurt, save, { kind: 'act', action: { kind: 'item', item: 'full-restore' } }, new SeededRng(1)), save, TIMING.itemAnimMs);
+    expect(full.me.hp).toBe(b.me.maxHp);
+    expect(full.me.status).toBeNull();
+    expect(canAct(myTurn({ ...b, me: { ...b.me, hp: b.me.maxHp, status: { kind: 'poison' as const } } }), save, { kind: 'item', item: 'full-restore' })).toBe(true);
+    // HP 가득 + 상태 이상만 고치면 "+0" 대신 상태 말 (코드 리뷰어 · 테스터 #75)
+    const sickFull = myTurn({ ...b, me: { ...b.me, hp: b.me.maxHp, status: { kind: 'poison' as const } } });
+    const cured = run(battleInput(sickFull, save, { kind: 'act', action: { kind: 'item', item: 'full-restore' } }, new SeededRng(1)), save, TIMING.itemAnimMs);
+    expect(cured.me.status).toBeNull();
+    expect(cured.popups.map((p) => p.text)).toContain('몸이 개운해졌다!');
+    expect(cured.popups.map((p) => p.text)).not.toContain('+0');
+    expect(canAct(myTurn({ ...b, me: { ...b.me, hp: b.me.maxHp, status: null } }), save, { kind: 'item', item: 'full-restore' })).toBe(false);
+    expect(canAct(myTurn({ ...b, me: { ...b.me, hp: b.me.maxHp, status: { kind: 'poison' as const } } }), save, { kind: 'item', item: 'hyper-potion' })).toBe(false);
+  });
+
   it('도망: 성공하면 끝 · 실패하면 다음엔 +10%p', () => {
     const { b, save } = setup();
     const ok = run(battleInput(myTurn(b), save, { kind: 'act', action: { kind: 'flee' } }, new SeededRng(1)), save, TIMING.fleeAnimMs, fixedRng(0));

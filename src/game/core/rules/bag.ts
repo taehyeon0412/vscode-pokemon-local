@@ -16,6 +16,21 @@ export type ShopItem = keyof typeof BALANCE.shopPrices;
 export const SHOP_ITEMS = Object.keys(BALANCE.shopPrices) as ShopItem[];
 export const isShopItem = (id: string): id is ShopItem => (SHOP_ITEMS as readonly string[]).includes(id);
 export const priceOf = (id: ShopItem): number => BALANCE.shopPrices[id];
+/** 상점에 나오는지 — 회복약 배지 단계 (고급상처약 배지 3 · 풀회복약 5 — gdd 5.2 · 5.5) */
+export const shopItemOpen = (save: Save, id: ShopItem): boolean => save.badges.length >= (BALANCE.shopBadges[id] ?? 0);
+/** 상점 목록 (배지 단계로 닫힌 것 뺌) — 화면이 이 순서로 */
+export const shopItemsFor = (save: Save): ShopItem[] => SHOP_ITEMS.filter((id) => shopItemOpen(save, id));
+
+/** HP 를 채우는 약의 양 — 풀회복약 = 가득 · 약이 아니면 null */
+export function healAmount(item: ItemId, missing: number): number | null {
+  if (item === 'potion') return Math.min(missing, BALANCE.potionHeal);
+  if (item === 'super-potion') return Math.min(missing, BALANCE.superPotionHeal);
+  if (item === 'hyper-potion') return Math.min(missing, BALANCE.hyperPotionHeal);
+  if (item === 'full-restore') return missing;
+  return null;
+}
+/** HP 를 채우는 약인지 (상처약 넷 — 위 표 하나가 기준) */
+export const isHealItem = (item: ItemId): boolean => healAmount(item, 1) !== null;
 /** 가방 한 칸 상한 (세이브 검사와 같음) */
 export const BAG_MAX = 999;
 
@@ -96,7 +111,7 @@ export function canBuyCandy(save: Save): boolean {
 export function buy(save: Save, item: ShopItem): Save | null {
   const price = priceOf(item);
   const have = save.bag[item] ?? 0;
-  if (save.money < price || have >= BAG_MAX) return null;
+  if (save.money < price || have >= BAG_MAX || !shopItemOpen(save, item)) return null;
   return { ...save, money: save.money - price, bag: { ...save.bag, [item]: have + 1 } };
 }
 
@@ -169,7 +184,7 @@ export function teamHealth(save: Save): { hpPct: number; fainted: number; health
 // ---------- S19 가방 (전투 밖)
 
 /** 전투 밖에서 쓰는 아이템 (볼은 전투에서만) */
-export const FIELD_ITEMS: readonly ItemId[] = ['potion', 'super-potion', 'full-heal', 'revive', 'rare-candy', 'fire-stone', 'water-stone', 'thunder-stone', 'leaf-stone', 'moon-stone', 'linking-cord'];
+export const FIELD_ITEMS: readonly ItemId[] = ['potion', 'super-potion', 'hyper-potion', 'full-restore', 'full-heal', 'revive', 'rare-candy', 'fire-stone', 'water-stone', 'thunder-stone', 'leaf-stone', 'moon-stone', 'linking-cord'];
 /** 진화의 돌 5종 (라이벌 보상도 여기서 — rules/rival.ts) */
 export const STONES: readonly ItemId[] = ['fire-stone', 'water-stone', 'thunder-stone', 'leaf-stone', 'moon-stone'];
 export const isEvolutionItem = (item: ItemId) => STONES.includes(item) || item === 'linking-cord';
@@ -185,9 +200,13 @@ export function fieldUseBlock(m: Monster, item: ItemId): string | null {
   switch (item) {
     case 'potion':
     case 'super-potion':
+    case 'hyper-potion':
       if (m.hp <= 0) return '쓰러진 포켓몬에게는 기력의조각을 써요';
       if (m.hp >= maxHpOf(m)) return 'HP 가 가득해요';
       return null;
+    case 'full-restore':
+      if (m.hp <= 0) return '쓰러진 포켓몬에게는 기력의조각을 써요';
+      return m.hp >= maxHpOf(m) && !m.status ? 'HP 가 가득하고 상태 이상도 없어요' : null;
     case 'full-heal':
       if (m.hp <= 0) return '쓰러진 포켓몬이에요';
       return m.status ? null : '상태 이상이 없어요';
@@ -208,7 +227,8 @@ export function fieldUseBlock(m: Monster, item: ItemId): string | null {
  * S19 — 아이템 하나 쓰기. 진화의 돌 · 연결의끈은 진화 고르기 (S22) 를 맨 앞에 넣음 (멈추면 아이템을 돌려줌 — resolveEvolve).
  * 못 쓰면 null
  */
-export function useFieldItem(save: Save, item: ItemId, uid: string): { save: Save; healedHp: number; evolve: boolean } | null {
+/** cured = 상태 이상이 나음 (풀회복약 · 만병통치제 · 기력의조각 — 알림에 "몸도 개운해졌다", 테스터 #75) */
+export function useFieldItem(save: Save, item: ItemId, uid: string): { save: Save; healedHp: number; evolve: boolean; cured: boolean } | null {
   const m = save.monsters[uid];
   const have = save.bag[item] ?? 0;
   // 이상한사탕은 레벨업 (랜덤) 이라 엔진 (useRareCandy) 이 씀
@@ -217,11 +237,12 @@ export function useFieldItem(save: Save, item: ItemId, uid: string): { save: Sav
   if (isEvolutionItem(item)) {
     const to = itemEvolution(m, item)!;
     const choice = { kind: 'evolve' as const, uid, to, newMoves: evolutionMoves(m, to), level: m.level, item };
-    return { save: { ...save, bag, pendingChoices: [choice, ...save.pendingChoices] }, healedHp: 0, evolve: true };
+    return { save: { ...save, bag, pendingChoices: [choice, ...save.pendingChoices] }, healedHp: 0, evolve: true, cured: false };
   }
   let next: Monster = m;
-  if (item === 'potion' || item === 'super-potion') next = { ...m, hp: Math.min(maxHpOf(m), m.hp + (item === 'potion' ? BALANCE.potionHeal : BALANCE.superPotionHeal)) };
+  const heal = healAmount(item, maxHpOf(m) - m.hp);
+  if (heal !== null) next = { ...m, hp: m.hp + heal, ...(item === 'full-restore' ? { status: null } : {}) };
   else if (item === 'full-heal') next = { ...m, status: null };
   else if (item === 'revive') next = { ...m, hp: Math.max(1, Math.floor(maxHpOf(m) * BALANCE.reviveFraction)), status: null };
-  return { save: { ...save, bag, monsters: { ...save.monsters, [uid]: next } }, healedHp: next.hp - m.hp, evolve: false };
+  return { save: { ...save, bag, monsters: { ...save.monsters, [uid]: next } }, healedHp: next.hp - m.hp, evolve: false, cured: !!m.status && !next.status };
 }

@@ -89,9 +89,18 @@ export const BEACH_REQUESTS: readonly RequestTemplate[] = [
   { id: 'lost-tube', who: { icon: '👦', name: '소년', look: 'em-boy-1' }, text: '파도에 튜브가 떠내려갔어! 잡아 줘!', types: ['flying', 'water', 'psychic'], done: '{move}! 튜브를 잡아 왔다!', reward: { items: { pearl: 1 } } },
 ];
 
-const REQUESTS_BY_REGION: Readonly<Record<RegionId, readonly RequestTemplate[]>> = { forest: FOREST_REQUESTS, beach: BEACH_REQUESTS };
+/** 화산 부탁 다섯 (gdd 5.5) — 사람 그림은 있는 것에서 (온천 아저씨 = 뚱뚱한 아저씨 · 연구원 = 과학자) */
+export const VOLCANO_REQUESTS: readonly RequestTemplate[] = [
+  { id: 'hot-spring', who: { icon: '👨', name: '온천 아저씨', look: 'frlg-fat-man' }, text: '온천 물이 식어 버렸어… 다시 데워 줄 수 있니?', types: ['fire'], done: '{move}! 온천이 다시 따뜻해졌다!', reward: { items: { 'super-potion': 1 } } },
+  { id: 'blocked-tunnel', who: { icon: '👴', name: '광부 할아버지', look: 'em-old-man' }, text: '굴이 바위로 막혔어! 길을 뚫어 줘!', types: ['fighting', 'ground', 'steel'], done: '{move}! 굴이 뚫렸다!', reward: { money: 800 } },
+  { id: 'hat-by-lava', who: { icon: '👦', name: '아이', look: 'em-little-boy' }, text: '용암 근처로 모자가 날아갔어… 뜨거워서 못 가!', types: ['water', 'flying'], done: '{move}! 모자를 찾아왔다!', reward: { items: { 'poke-ball': 2 } } },
+  { id: 'ash-cloud', who: { icon: '🧑', name: '등산객', look: 'frlg-man' }, text: '화산재 때문에 앞이 안 보여. 바람으로 날려 줘!', types: ['flying', 'grass'], done: '{move}! 화산재가 걷혔다!', reward: { items: { potion: 2 } } },
+  { id: 'crater-rock', who: { icon: '🧑‍🔬', name: '연구원', look: 'frlg-scientist' }, text: '분화구 돌을 조사하고 싶어. 단단한 포켓몬이 지켜 줄래?', types: ['rock', 'steel', 'ground'], done: '{move}! 무사히 조사를 마쳤다!', reward: { items: { stardust: 1 } } },
+];
 
-/** 그 스테이지 (지역) 의 n 번째 부탁 — 지역 표 (숲 · 해변) */
+const REQUESTS_BY_REGION: Readonly<Record<RegionId, readonly RequestTemplate[]>> = { forest: FOREST_REQUESTS, beach: BEACH_REQUESTS, volcano: VOLCANO_REQUESTS };
+
+/** 그 스테이지 (지역) 의 n 번째 부탁 — 지역 표 (숲 · 해변 · 화산) */
 export function requestAt(stageSeed: number, requestNumber: number, stageId: StageId = 'forest-1'): RequestTemplate {
   const list = REQUESTS_BY_REGION[regionOf(stageId).region.id];
   const start = spotRng(stageSeed, 0, 5).int(0, list.length - 1);

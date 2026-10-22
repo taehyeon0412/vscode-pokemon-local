@@ -9,6 +9,8 @@ const ITEM_NAMES: Record<ItemId, string> = {
   'ultra-ball': '하이퍼볼',
   potion: '상처약',
   'super-potion': '좋은상처약',
+  'hyper-potion': '고급상처약',
+  'full-restore': '풀회복약',
   'full-heal': '상태 회복약',
   revive: '기력의조각',
   'fire-stone': '불꽃의돌',
@@ -35,4 +37,4 @@ export const VALUABLES: readonly ItemId[] = ['tiny-mushroom', 'pearl', 'stardust
 export const itemName = (id: ItemId): string => ITEM_NAMES[id] ?? id;
 
 /** S09 ⑦ 4 아이템 — 전투에서 쓰는 것 (볼은 단계 7 S11) */
-export const BATTLE_ITEMS: readonly ItemId[] = ['potion', 'super-potion', 'full-heal', 'revive'];
+export const BATTLE_ITEMS: readonly ItemId[] = ['potion', 'super-potion', 'hyper-potion', 'full-restore', 'full-heal', 'revive'];

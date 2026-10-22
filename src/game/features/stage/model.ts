@@ -397,8 +397,8 @@ export function foldWait(state: GameState): string | null {
  * 숲 A · 해변 E · 화산 B 틀 현무암 · 용암). 그림 · 배치는 디자인 — 그 지역 그림이 들어오면 폴더 이름 (media/backgrounds/<이것>/background · foreground-<테마>-<크기>.png,
  * 예 'arena-forest') 을 그 지역 칸에 넣음 · 칸이 없으면 길 배경 그대로
  */
-// 2026-10-22 태현 님 "추천대로" — 숲 = A 풀밭 경기장 · 해변 = E 해변 시합장 (같은 틀: 지평선 위 24칸 · 울타리 높이 · 그림자 — 바닥 · 뒤 띠만 다름, 디자인 scratchpad make_arena.py) · 화산은 지역이 생기면 B 틀 현무암 · 용암
-export const TEAM_ARENA: Partial<Record<RegionId, string>> = { forest: 'arena-forest', beach: 'arena-beach' };
+// 2026-10-22 태현 님 "추천대로" — 숲 = A 풀밭 경기장 · 해변 = E 해변 시합장 (같은 틀: 지평선 위 24칸 · 울타리 높이 · 그림자 — 바닥 · 뒤 띠만 다름, 디자인 scratchpad make_arena.py) · 화산 = B 틀 현무암 · 용암 (orders #75)
+export const TEAM_ARENA: Partial<Record<RegionId, string>> = { forest: 'arena-forest', beach: 'arena-beach', volcano: 'arena-volcano' };
 
 /** 지금 그릴 길 배경 폴더 — 3:3 판이면 시합장 (#78 — VS 가 끝나 판이 시작될 때 바뀌고 결과 뒤 걷기로 돌아오면 길) · 아니면 스테이지 배경 (지역 표 #57) */
 export function sceneBackground(state: GameState): string {

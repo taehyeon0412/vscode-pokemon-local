@@ -4,7 +4,7 @@ import { BALANCE } from '../balance';
 import { Rng } from '../engine/rng';
 import { resolveEvolve } from '../engine/rewards';
 import type { Save } from '../save';
-import { buy, fieldUseBlock, healTeam, itemEvolution, maxHpOf, moveInTeam, priceOf, spendPoint, swapWithBox, teamHealthy, toBox, useFieldItem, walkRegen } from './bag';
+import { buy, fieldUseBlock, healAmount, healTeam, itemEvolution, maxHpOf, moveInTeam, priceOf, shopItemsFor, spendPoint, swapWithBox, teamHealthy, toBox, useFieldItem, walkRegen } from './bag';
 
 const GLOOM = 44;
 const withBox = (): Save => {
@@ -32,6 +32,43 @@ describe('S13 병원 · S14 상점 (mvp-spec S13 · S14 · 4장)', () => {
     expect(one.bag['poke-ball']).toBe((s.bag['poke-ball'] ?? 0) + 1);
     expect(buy(s, 'ultra-ball')).toBeNull();
     expect(priceOf('revive')).toBe(1500);
+  });
+
+  it('회복약 배지 단계 (gdd 5.2 · 5.5) — 고급상처약은 배지 3개부터 · 풀회복약은 5개부터 상점에 · 그 전엔 돈이 있어도 못 삼', () => {
+    const rich = { ...sampleSave(), money: 99_999 };
+    const with_ = (n: number) => ({ ...rich, badges: ['forest', 'beach', 'volcano', 'x4', 'x5'].slice(0, n) });
+    expect(shopItemsFor(with_(2))).not.toContain('hyper-potion');
+    expect(buy(with_(2), 'hyper-potion')).toBeNull();
+    expect(shopItemsFor(with_(3))).toContain('hyper-potion');
+    expect(shopItemsFor(with_(3))).not.toContain('full-restore');
+    expect(buy(with_(3), 'hyper-potion')!.bag['hyper-potion']).toBe(1);
+    expect(buy(with_(4), 'full-restore')).toBeNull();
+    expect(buy(with_(5), 'full-restore')!.money).toBe(99_999 - priceOf('full-restore'));
+    // 배지 없이도 원래 물건은 그대로 (목록 순서도)
+    expect(shopItemsFor(with_(0))[0]).toBe('poke-ball');
+  });
+
+  it('고급상처약 120 · 풀회복약 = HP 가득 + 상태 이상 · HP 가득이어도 상태 이상이면 풀회복약은 씀', () => {
+    expect(healAmount('hyper-potion', 500)).toBe(BALANCE.hyperPotionHeal);
+    expect(healAmount('hyper-potion', 30)).toBe(30);
+    expect(healAmount('full-restore', 333)).toBe(333);
+    expect(healAmount('full-heal', 10)).toBeNull();
+    const s = sampleSave();
+    const m = s.monsters.m1!;
+    const sick = { ...s, bag: { 'hyper-potion': 1, 'full-restore': 1 }, monsters: { ...s.monsters, m1: { ...m, hp: 1, status: { kind: 'burn' as const } } } };
+    const h = useFieldItem(sick, 'hyper-potion', 'm1')!;
+    expect(h.save.monsters.m1!.hp).toBe(Math.min(maxHpOf(m), 1 + BALANCE.hyperPotionHeal));
+    expect(h.save.monsters.m1!.status).toEqual({ kind: 'burn' });
+    const f = useFieldItem(sick, 'full-restore', 'm1')!;
+    expect([h.cured, f.cured]).toEqual([false, true]);
+    expect(f.save.monsters.m1!.hp).toBe(maxHpOf(m));
+    expect(f.save.monsters.m1!.status).toBeNull();
+    expect(f.save.bag['full-restore']).toBe(0);
+    const fullSick = { ...m, hp: maxHpOf(m), status: { kind: 'poison' as const } };
+    expect(fieldUseBlock(fullSick, 'full-restore')).toBeNull();
+    expect(fieldUseBlock(fullSick, 'hyper-potion')).toBe('HP 가 가득해요');
+    expect(fieldUseBlock({ ...m, hp: maxHpOf(m), status: null }, 'full-restore')).not.toBeNull();
+    expect(fieldUseBlock({ ...m, hp: 0 }, 'full-restore')).toContain('기력의조각');
   });
 });
 

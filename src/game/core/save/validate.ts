@@ -21,7 +21,7 @@ export type ValidateResult =
 export const MAX_SPECIES = 1025;
 /** 잠듦 1~3번 (mvp-spec 3.3) */
 const MAX_SLEEP_TURNS = 3;
-/** SaveV5 의 칸 이름 — 모르는 칸은 고칠 때 뺌 */
+/** SaveV6 의 칸 이름 — 모르는 칸은 고칠 때 뺌 */
 const KNOWN_KEYS: readonly (keyof Save)[] = [
   'version', 'createdAt', 'updatedAt', 'playTimeMs', 'player', 'monsters', 'party', 'box', 'nextMonsterUid',
   'bag', 'money', 'badges', 'stages', 'location', 'lastHospital', 'dex', 'pendingEncounter', 'pendingChoices', 'settings', 'rivals', 'laterChoices', 'tips',
@@ -329,7 +329,10 @@ function readRegions(v: unknown, path: string, fx: Fixer): RegionProgress {
     order = ['forest', ...order.filter((r) => r !== 'forest')];
   }
   const out: RegionProgress = { order };
-  if (v.next !== undefined) {
+  // 지역이 3곳 (BALANCE.region.pickAbove) 까지는 고르기 없이 만드는 순서 — 고를 곳이 든 세이브 (손으로 고침 · 옛 판) 는 버리고 따라잡기가 정한 순서로 엶 (화산이 해변보다 먼저 2번째가 되던 길, 테스터 #75)
+  if (v.next !== undefined && REGION_IDS.length <= BALANCE.region.pickAbove) {
+    fx.note(`${path}.next`, `지역 ${REGION_IDS.length}곳은 정한 순서 → 고를 곳을 뺌`);
+  } else if (v.next !== undefined) {
     const next = Array.isArray(v.next) ? v.next : [];
     const ok = next.length >= 1 && next.length <= 2 && new Set(next).size === next.length && next.every((r) => isRegionId(r) && !order.includes(r));
     if (ok) out.next = next as RegionId[];

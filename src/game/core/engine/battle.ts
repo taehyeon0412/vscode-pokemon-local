@@ -33,6 +33,7 @@ import {
   type Fighter,
 } from '../rules/battle';
 import { BALLS, catchChance, catchOdds, catchTiming, isBall, type BallId } from '../rules/catch';
+import { healAmount, isHealItem } from '../rules/bag';
 import { itemName } from '../rules/items';
 import { effectiveness, effectivenessText } from '../rules/types';
 import { ITEM_IDS, type EncounterStart, type ItemId, type Monster, type MoveSlot, type Save, type StatusCondition } from '../save';
@@ -272,7 +273,8 @@ export function catchTimeline(c: BattleCatch): { thrown: number; open: number; d
 export function autoPotion(b: BattleState, save: Save): ItemId | null {
   if (save.settings.autoPotion === false || b.me.hp <= 0 || b.me.hp >= b.me.maxHp * BALANCE.autoPotionBelow) return null;
   const missing = b.me.maxHp - b.me.hp;
-  const order: ItemId[] = missing > BALANCE.potionHeal ? ['super-potion', 'potion'] : ['potion', 'super-potion'];
+  // 모자란 만큼에 맞는 약부터 (상처약 → 좋은 → 고급 — 풀회복약은 아껴 안 씀)
+  const order: ItemId[] = missing > BALANCE.superPotionHeal ? ['hyper-potion', 'super-potion', 'potion'] : missing > BALANCE.potionHeal ? ['super-potion', 'hyper-potion', 'potion'] : ['potion', 'super-potion', 'hyper-potion'];
   return order.find((item) => itemLeft(b, save, item) > 0) ?? null;
 }
 
@@ -522,10 +524,14 @@ function finishAnim(b0: BattleState, save: Save, rng: Rng): BattleState {
       const item = anim.action.item;
       // 내 가방에서 쓴 것만 셈 (관장 상처약은 관장 것)
       if (side === 'me') b.bagUsed = { ...b.bagUsed, [item]: (b.bagUsed[item] ?? 0) + 1 };
-      if (item === 'potion' || item === 'super-potion') {
-        const heal = Math.min(actor.maxHp - actor.hp, item === 'potion' ? BALANCE.potionHeal : BALANCE.superPotionHeal);
+      if (isHealItem(item)) {
+        const heal = healAmount(item, actor.maxHp - actor.hp) ?? 0;
+        const cured = item === 'full-restore' && actor.status !== null;
         actor.hp += heal;
-        popup(b, side, `+${heal}`, 'heal');
+        if (item === 'full-restore') actor.status = null;
+        // HP 가득 + 상태 이상만 고친 풀회복약은 "+0" 대신 상태 회복약 말 (필드와 같게 — 코드 리뷰어 #75)
+        if (heal > 0 || !cured) popup(b, side, `+${heal}`, 'heal');
+        else popup(b, side, '몸이 개운해졌다!', 'status');
       } else if (item === 'full-heal') {
         actor.status = null;
         popup(b, side, '몸이 개운해졌다!', 'status');
@@ -986,7 +992,8 @@ export function canAct(b: BattleState, save: Save, action: BattleAction): boolea
       return b.me.moves.some((s) => s.moveId === action.moveId && s.pp > 0);
     case 'item':
       if (itemLeft(b, save, action.item) <= 0) return false;
-      if (action.item === 'potion' || action.item === 'super-potion') return b.me.hp < b.me.maxHp;
+      if (action.item === 'full-restore') return b.me.hp < b.me.maxHp || b.me.status !== null;
+      if (isHealItem(action.item)) return b.me.hp < b.me.maxHp;
       if (action.item === 'full-heal') return b.me.status !== null;
       if (action.item === 'revive') {
         const fainted = faintedTeam(b, save);

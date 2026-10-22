@@ -4,7 +4,7 @@
  * 숲 줄은 예전 코드 값을 그대로 옮김 (trainer.ts FOREST_TRAINERS · GYM_LEADER · balance.ts stageLevels · gymTeam · encounter.ts 숲 타입).
  */
 import { BALANCE } from '../balance';
-import type { ItemId, RegionId, StageId } from '../save';
+import { REGION_IDS, type ItemId, type RegionId, type StageId } from '../save';
 import type { TypeName } from '../../data';
 
 export type { RegionId } from '../save';
@@ -172,6 +172,57 @@ export const REGIONS: Readonly<Record<RegionId, RegionDef>> = {
     // 원작 이슬 그림 · 셋 묶음 — 초반 쏘드라 · 별가사리 · 에이스 아쿠스타 / 중반 골덕 · 라프라스 · 에이스 갸라도스 / 후반 킹크랩 · 랜턴 · 에이스 밀로틱
     leader: { name: '관장 해솔', title: '해변 체육관 관장', hat: '#1d5fa8', shirt: '#5fb4e8', look: 'frlg-misty', teams: { early: [116, 120, 121], mid: [55, 131, 130], late: [99, 171, 350] } },
   },
+  // 화산 (gdd 5.5 — 2026-10-22 태현 님 "좋아 전부 추천대로 해줘", orders #75) — 해변 다음 3번째 (물 스타팅이 유리한 차례) · 목록 · 숫자 [임시값]
+  volcano: {
+    id: 'volcano',
+    name: '화산',
+    badge: 'volcano',
+    stages: [
+      // 아이콘 = 임시 (디자인팀이 화산 스테이지 아이콘 volcanoSlope · volcanoCave · volcanoCrater 로 바꿈) · 배경 = 디자인 1위 (선명한 용암 17/25 — 8aba212)
+      { id: 'volcano-1', name: '화산 기슭', icon: 'pebbles', trainers: 2, background: 'volcano-slope' },
+      { id: 'volcano-2', name: '용암 동굴', icon: 'stone', trainers: 3, background: 'volcano-cave' },
+      { id: 'volcano-3', name: '분화구', icon: 'sparkle', trainers: 3, background: 'volcano-crater' },
+    ],
+    wild: {
+      common: ['fire', 'ground'],
+      rare: ['rock', 'steel', 'dragon'],
+      lists: [
+        // 화산 기슭 — 식스테일 · 가디 · 포니타 · 모래두지 · 디그다 · 꼬마돌 · 탕구리 · 꾸꾸리 (따뜻한 흙길 · 바위 — 첫 불꽃 · 땅)
+        [37, 58, 77, 27, 50, 74, 104, 220],
+        // 용암 동굴 — 마그마그 · 불켜미 · 롱스톤 · 글라이거 · 톱치 · 오뚝군 · 두더류 · 골비람 (용암 웅덩이 · 굴 · 진흙)
+        [218, 607, 95, 207, 328, 343, 529, 622],
+        // 분화구 — 둔타 · 바오프 · 델빌 · 히포포타스 · 뿔카노 · 악비르 · 미꾸리 · 코코리 (불길 · 화산재 — 센 곳)
+        [322, 513, 228, 449, 111, 552, 339, 231],
+      ],
+      // 강한 1단계 (종족값 450 넘음 — 야생에서만) 마그마 · 코터스 · 드묾 딥상어동 · 애버라스
+      strong: [126, 324],
+      rareList: [443, 246],
+      // 노말 · 비행 15% — 숲과 같은 섞기 (스테이지마다 3종, gdd 5.5)
+      mixedPick: 3,
+    },
+    stones: ['fire-stone'],
+    // 가끔 별의모래 (팔 물건 — 해변 진주처럼, gdd 5.5) [임시값]
+    pickupExtra: { item: 'stardust', chance: 0.05 },
+    // 하늘 무장조 · 용암 속 마그마그 [제안]
+    scenery: { sky: [227], ground: [218] },
+    badgeName: '화산 배지',
+    firstWinItem: 'fire-stone',
+    // 불 체육관 방 (돌벽돌 18/25 — 디자인 a6c0dce)
+    gymRoom: 'gym-fire',
+    trainers: [
+      { title: '캠프보이', name: '석진', look: 'frlg-camper' },
+      { title: '등산가', name: '대호', look: 'frlg-hiker' },
+      { title: '등산가', name: '만길', look: 'em-hiker' },
+      { title: '로커', name: '진우', look: 'frlg-rocker' },
+      { title: '폭주족', name: '강산', look: 'frlg-biker' },
+      { title: '태권왕', name: '철민', look: 'frlg-black-belt' },
+      { title: '배틀걸', name: '소라', look: 'frlg-crush-girl' },
+      { title: '고수', name: '하람', look: 'em-expert-f' },
+      { title: '고수', name: '무진', look: 'em-expert-m' },
+    ],
+    // 원작 강연 그림 · 셋 묶음 — 초반 가디 · 포니타 · 에이스 마그마 / 중반 날쌩마 · 폭타 · 에이스 윈디 / 후반 마그카르고 · 헬가 · 에이스 마그마번
+    leader: { name: '관장 강연', title: '화산 체육관 관장', hat: '#8a2a12', shirt: '#e0662c', look: 'frlg-blaine', teams: { early: [58, 77, 126], mid: [78, 323, 59], late: [219, 229, 467] } },
+  },
 };
 
 /** 지역 끝 스테이지인지 (끝에 체육관 — 숲 1-3 · 해변 등대 곶) */
@@ -212,8 +263,8 @@ export function regionOrder(region: RegionId): number {
     const i = activeOrder.indexOf(region);
     return i >= 0 ? i + 1 : activeOrder.length + 1;
   }
-  // 해변 = 늘 2번째 이후 (시작은 숲 고정 — 7-3) · 미리 보기는 2번째 (관장 에이스 = 레벨표 2번째 — orders #37)
-  return BALANCE.region.beachOrder;
+  // 해변 = 늘 2번째 이후 (시작은 숲 고정 — 7-3) · 미리 보기는 2번째 (관장 에이스 = 레벨표 2번째 — orders #37) · 그 뒤 지역은 만드는 순서 (화산 3번째 — gdd 5.5)
+  return region === 'beach' ? BALANCE.region.beachOrder : REGION_IDS.indexOf(region) + 1;
 }
 
 /**

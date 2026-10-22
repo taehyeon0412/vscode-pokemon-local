@@ -2,6 +2,8 @@
  * 게임 숫자 모음 — docs mvp-spec 4장과 1:1.
  * 해 보면서 맞춘 값은 여기만 고치고, mvp-spec 4장에도 바꾼 값을 적는다.
  */
+import type { ItemId } from './save';
+
 export const BALANCE = {
   /** 새 게임 시작 돈 (원) — 4장 돈 · 아이템 */
   startingMoney: 1000,
@@ -101,7 +103,8 @@ export const BALANCE = {
    * open = 다음 지역 열기 (orders #66 — 관장 첫 승 → 다음 곳 · 지역 순서 = 세이브 regions.order · 지도에 연 지역). 켬 = 해변 본편 (2026-10-22 태현 님 "추천대로 해줘" —
    *   5.3 · 7-6 A 숲을 깬 세이브는 다음 걸음에 열고 알림 · orders #70) · 끄면 숲 하나 (개발 모드 (임시) 는 늘 켬)
    */
-  region: { aceBase: 15, aceStep: 6, aceJump2: 0, aceTable: [15, 23, 31, 39, 46, 52, 57, 62] as readonly number[], beachOrder: 2, open: true as boolean },
+  // pickAbove = 지역이 이만큼을 넘으면 관장 뒤 "남은 곳 2곳 중 고르기" · 그 전엔 만드는 순서대로 (숲 → 해변 → 화산 — gdd 5.1 · 2026-10-22 태현 님 "추천대로")
+  region: { aceBase: 15, aceStep: 6, aceJump2: 0, aceTable: [15, 23, 31, 39, 46, 52, 57, 62] as readonly number[], beachOrder: 2, open: true as boolean, pickAbove: 3 },
   /**
    * 3:3 실시간 팀 배틀 (다음 버전 5단계 — gdd 4.7 끝, 2026-10-21 orders #17) — 숫자는 모두 [임시값] (시뮬로 한 판 1분 안팎에 맞춤).
    * on = 게임에서 켬 (모두에게 — 2026-10-22 태현 님 "추천대로", orders #59 · 끄면 개발 모드에서만) · size = 한쪽 마리 수 · ultGainScale = 필살기 게이지가 1:1 의 몇 배로 참 ·
@@ -200,6 +203,8 @@ export const BALANCE = {
   /** 회복약 · 기력의조각 (쓰러진 포켓몬을 최대 HP 의 절반으로 [제안 — 원작]) */
   potionHeal: 20,
   superPotionHeal: 50,
+  /** 고급상처약 (원작 120 — gdd 5.5) · 풀회복약은 HP 가득 + 상태 이상 [임시값] */
+  hyperPotionHeal: 120,
   reviveFraction: 0.5,
   /** 야생 AI: 공격 30% · 기술 70% */
   wildAttackChance: 0.3,
@@ -279,7 +284,9 @@ export const BALANCE = {
     loseMoneyPerLevel: 50,
   },
   /** 상점 값 (원, 4장) — 마스터볼은 안 팖 */
-  shopPrices: { 'poke-ball': 200, 'great-ball': 600, 'ultra-ball': 1200, potion: 300, 'super-potion': 700, 'full-heal': 600, revive: 1500, 'rare-candy': 3000, 'exp-charm': 1500 },
+  shopPrices: { 'poke-ball': 200, 'great-ball': 600, 'ultra-ball': 1200, potion: 300, 'super-potion': 700, 'hyper-potion': 1200, 'full-restore': 3000, 'full-heal': 600, revive: 1500, 'rare-candy': 3000, 'exp-charm': 1500 },
+  /** 회복약 배지 단계 (gdd 5.2 · 5.5) — 배지가 이만큼 있어야 상점에 나옴 (화산 관장 = 배지 3개째) [임시값] */
+  shopBadges: { 'hyper-potion': 3, 'full-restore': 5 } as Partial<Record<ItemId, number>>,
   // ---- 돈 쓰는 재미 (다음 버전 2단계 — 2026-10-21 태현 님 "추천대로", gdd 7장 · 숫자는 [임시값])
   /** 팔 물건 정가 (팔면 sellRate) — 전투 · 쓰임 없이 팔기만 (ideas #125) */
   valuablePrices: { 'tiny-mushroom': 400, pearl: 1000, stardust: 1200, 'big-mushroom': 2500, 'big-pearl': 3000, nugget: 4000, 'star-piece': 5000, 'big-nugget': 10000 },

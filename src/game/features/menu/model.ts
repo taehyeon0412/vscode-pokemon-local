@@ -3,7 +3,7 @@
  */
 import { BALANCE } from '../../core/balance';
 import { gymUnlocked, nextStageOf, regionGymUnlocked, regionsOn, stageClearGain, stageUnlocked, type GameState } from '../../core/engine';
-import { canBuyCandy, FIELD_ITEMS, fieldUseBlock, isEvolutionItem, maxHpOf, priceOf, sellPrice, SHOP_ITEMS, type ShopItem } from '../../core/rules/bag';
+import { canBuyCandy, FIELD_ITEMS, fieldUseBlock, isEvolutionItem, maxHpOf, priceOf, sellPrice, shopItemsFor, type ShopItem } from '../../core/rules/bag';
 import { itemName, VALUABLES } from '../../core/rules/items';
 import { isRegionLast, regionAceLevel, regionHere, regionOrder, REGIONS, type RegionDef } from '../../core/rules/region';
 import { expForLevel, starGrade, statsOf } from '../../core/rules/stats';
@@ -28,6 +28,9 @@ export const ITEM_ICON: Record<ItemId, IconName> = {
   'ultra-ball': 'ultraBall',
   potion: 'potion',
   'super-potion': 'superPotion',
+  // 화산 (#75) 새 약 — 그림 (hyperPotion · fullRestore) 은 디자인이 이어받아 넣음 · 그때까지 좋은상처약 그림
+  'hyper-potion': 'superPotion',
+  'full-restore': 'superPotion',
   'full-heal': 'fullHeal',
   revive: 'revive',
   'fire-stone': 'stone',
@@ -197,6 +200,8 @@ const SHOP_EFFECT: Record<ShopItem, string> = {
   'ultra-ball': `잘 잡힘 ×${BALANCE.ballScale['ultra-ball']}`,
   potion: `HP ${BALANCE.potionHeal} 회복`,
   'super-potion': `HP ${BALANCE.superPotionHeal} 회복`,
+  'hyper-potion': `HP ${BALANCE.hyperPotionHeal} 회복`,
+  'full-restore': 'HP 가득 · 상태',
   'full-heal': '상태 회복',
   revive: '되살림 HP ½',
   'rare-candy': '레벨 +1',
@@ -210,6 +215,8 @@ const SHOP_DETAIL: Record<ShopItem, string> = {
   'ultra-ball': `몬스터볼보다 ${BALANCE.ballScale['ultra-ball']}배 잘 잡혀요`,
   potion: `포켓몬 하나의 HP 를 ${BALANCE.potionHeal} 회복해요`,
   'super-potion': `포켓몬 하나의 HP 를 ${BALANCE.superPotionHeal} 회복해요`,
+  'hyper-potion': `포켓몬 하나의 HP 를 ${BALANCE.hyperPotionHeal} 회복해요`,
+  'full-restore': '포켓몬 하나의 HP 를 가득 채우고 상태 이상도 낫게 해요',
   'full-heal': '독 · 화상 · 마비 · 잠듦을 낫게 해요',
   revive: '쓰러진 포켓몬을 HP 절반으로 깨워요',
   'rare-candy': `포켓몬 하나의 레벨이 1 올라요 — 스테이지 상점에서 한 판에 ${BALANCE.candyPerStage}개만`,
@@ -222,7 +229,8 @@ export function shopView(save: Save): ShopRow[] {
   // 규칙은 엔진과 같은 canBuyCandy (rules/bag)
   // 까닭은 짧게 (3칸 바둑판 · 240 에서 안 잘리게 — UX 리뷰어)
   const candyBlock = canBuyCandy(save) ? undefined : save.location.screen === 'stage' ? '한 판에 1개' : '길 상점만';
-  return SHOP_ITEMS.map((item) => {
+  // 회복약 배지 단계로 닫힌 것은 안 보임 (고급상처약 배지 3 · 풀회복약 5 — gdd 5.5)
+  return shopItemsFor(save).map((item) => {
     const blocked = item === 'rare-candy' ? candyBlock : undefined;
     return { item, name: itemName(item), effect: SHOP_EFFECT[item], detail: SHOP_DETAIL[item], price: priceOf(item), have: save.bag[item] ?? 0, affordable: save.money >= priceOf(item) && !blocked, blocked };
   });

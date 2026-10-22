@@ -4,6 +4,7 @@
  */
 import { BALANCE } from '../core/balance';
 import { startBattle } from '../core/engine/battle';
+import { syncRegionOrder } from '../core/engine/play';
 import { Rng } from '../core/engine/rng';
 import type { GameState, RuntimeState, StageRuntime } from '../core/engine/state';
 import { pickTeam, startTeamBattle } from '../core/engine/team';
@@ -15,13 +16,13 @@ import { pickRival } from '../core/rules/rival';
 import { trainerId } from '../core/rules/stage';
 import { expForLevel, maxHp } from '../core/rules/stats';
 import { aliveCount, GYM_LEADER, leaderTeam, trainerInfo, trainerTeam } from '../core/rules/trainer';
-import { ITEM_IDS, STAGE_IDS, type ItemId, type Monster, type Save, type StageId } from '../core/save';
+import { ITEM_IDS, REGION_IDS, STAGE_IDS, type ItemId, type Monster, type Save, type StageId } from '../core/save';
 import { evolutionsOf, speciesOf } from '../data';
-import { gymLocation, REGIONS } from '../core/rules/region';
+import { gymLocation, regionOf, REGIONS, type RegionId } from '../core/rules/region';
 import { stageCode, stageLevelBand } from '../core/rules/stage';
 import { DEV_BATTLES, DEV_FOES_MAX, DEV_LEVEL_MAX, DEV_WALKS, devDefault, type DevMon, type DevRuntime } from './runtime';
 
-export type DevScene = 'stage-1' | 'stage-2' | 'stage-3' | 'beach-1' | 'beach-2' | 'beach-3' | 'beach-gym' | 'wild' | 'catch' | 'evolve' | 'rival' | 'trainer-team' | 'gym-team' | 'gym-enter' | 'lobby';
+export type DevScene = 'stage-1' | 'stage-2' | 'stage-3' | 'beach-1' | 'beach-2' | 'beach-3' | 'beach-gym' | 'volcano-1' | 'volcano-2' | 'volcano-3' | 'volcano-gym' | 'wild' | 'catch' | 'evolve' | 'rival' | 'trainer-team' | 'gym-team' | 'gym-enter' | 'lobby';
 
 export type DevAction =
   | { kind: 'scene'; scene: DevScene }
@@ -56,7 +57,7 @@ const devOf = (rt: RuntimeState): DevRuntime => rt.dev ?? devDefault();
 const withDev = (state: GameState, change: (d: DevRuntime) => DevRuntime): GameState => ({ ...state, runtime: { ...state.runtime, dev: change(devOf(state.runtime)) } });
 const cycle = <T>(list: readonly T[], now: T): T => list[(list.indexOf(now) + 1) % list.length]!;
 const nameOf = (dex: number) => speciesOf(dex)?.name.ko ?? `#${dex}`;
-const STAGE_OF: Record<'stage-1' | 'stage-2' | 'stage-3' | 'beach-1' | 'beach-2' | 'beach-3', StageId> = {
+const STAGE_OF: Record<'stage-1' | 'stage-2' | 'stage-3' | 'beach-1' | 'beach-2' | 'beach-3' | 'volcano-1' | 'volcano-2' | 'volcano-3', StageId> = {
   'stage-1': 'forest-1',
   'stage-2': 'forest-2',
   'stage-3': 'forest-3',
@@ -64,6 +65,10 @@ const STAGE_OF: Record<'stage-1' | 'stage-2' | 'stage-3' | 'beach-1' | 'beach-2'
   'beach-1': 'beach-1',
   'beach-2': 'beach-2',
   'beach-3': 'beach-3',
+  // 화산 미리 보기 (gdd 5.5 · orders #75 — 3번째 지역: 해변까지 같이 열어 관장 에이스 = 레벨표 3번째)
+  'volcano-1': 'volcano-1',
+  'volcano-2': 'volcano-2',
+  'volcano-3': 'volcano-3',
 };
 
 /** 지금 스테이지 (체육관 · 지도면 1-1) */
@@ -129,13 +134,16 @@ function evolveAt(m: Monster): number | null {
   return levels.length ? Math.min(...levels) : null;
 }
 
-/** 해변 미리 보기 — 연 지역에 해변 (4판: 안 연 지역의 곳은 세이브 검사가 숲으로 옮겨서 — 안 볼 때 확장이 받는 상태도 검사함) */
-function openBeach(save: Save): Save {
-  if (save.regions.order.includes('beach')) return save;
-  // 고를 곳에 해변이 있었으면 그것도 지움 (연 지역 · 고를 곳이 겹치지 않게 — 코드 리뷰어 #66)
-  const next = save.regions.next?.filter((r) => r !== 'beach');
+/**
+ * 지역 미리 보기 — 연 지역에 그 지역까지 만드는 순서대로 (화산이면 해변도 — 3번째 지역 레벨) (4판: 안 연 지역의 곳은 세이브 검사가 숲으로 옮겨서 — 안 볼 때 확장이 받는 상태도 검사함)
+ */
+function openRegion(save: Save, region: RegionId): Save {
+  const want = REGION_IDS.slice(0, REGION_IDS.indexOf(region) + 1).filter((r) => !save.regions.order.includes(r));
+  if (!want.length) return save;
+  // 고를 곳에 연 지역이 있었으면 그것도 지움 (연 지역 · 고를 곳이 겹치지 않게 — 코드 리뷰어 #66)
+  const next = save.regions.next?.filter((r) => !want.includes(r));
   const { next: _next, ...rest } = save.regions;
-  return { ...save, regions: { ...rest, order: [...rest.order, 'beach'], ...(next?.length ? { next } : {}) } };
+  return { ...save, regions: { ...rest, order: [...rest.order, ...want], ...(next?.length ? { next } : {}) } };
 }
 
 function scene(state: GameState, sc: DevScene, rng: Rng): DevResult {
@@ -146,15 +154,23 @@ function scene(state: GameState, sc: DevScene, rng: Rng): DevResult {
     case 'stage-3':
     case 'beach-1':
     case 'beach-2':
-    case 'beach-3': {
+    case 'beach-3':
+    case 'volcano-1':
+    case 'volcano-2':
+    case 'volcano-3': {
       const id = STAGE_OF[sc];
-      const save = id.startsWith('beach-') ? openBeach(standOn(state, id, rng)) : standOn(state, id, rng);
-      return { state: withStage(state, save, { phase: 'walk' }, id, rng), say: `${stageCode(id)} 처음부터` };
+      const region = regionOf(id).region.id;
+      const save = region === 'forest' ? standOn(state, id, rng) : openRegion(standOn(state, id, rng), region);
+      const next = withStage(state, save, { phase: 'walk' }, id, rng);
+      syncRegionOrder(next);
+      return { state: next, say: `${stageCode(id)} 처음부터` };
     }
-    case 'beach-gym': {
-      // 해변 체육관 대기실 (관장 해솔 · 2번째 지역 — 에이스 = 레벨표 2번째)
-      const save: Save = openBeach({ ...save0, location: gymLocation(REGIONS.beach), pendingEncounter: null, pendingChoices: [] });
-      return { state: withStage(state, save, { phase: 'lobby' }, null, rng), say: '해변 체육관 대기실' };
+    case 'beach-gym':
+    case 'volcano-gym': {
+      // 지역 체육관 대기실 (해변 관장 해솔 · 2번째 / 화산 관장 강연 · 3번째 — 에이스 = 레벨표 그 번째)
+      const region = REGIONS[sc === 'beach-gym' ? 'beach' : 'volcano'];
+      const save: Save = openRegion({ ...save0, location: gymLocation(region), pendingEncounter: null, pendingChoices: [] }, region.id);
+      return { state: withStage(state, save, { phase: 'lobby' }, null, rng), say: `${region.name} 체육관 대기실` };
     }
     case 'wild':
     case 'catch': {
@@ -277,6 +293,13 @@ const addItems = (save: Save, items: readonly ItemId[], n: number): Save => ({ .
 
 /** 개발 메뉴 한 번 누름 — 바뀐 상태 + 한 줄 알림 (안 바뀌면 state 그대로) */
 export function devApply(state: GameState, action: DevAction): DevResult {
+  const r = devApplyRaw(state, action);
+  // 연 지역 순서를 새 세이브로 (개발 메뉴로 멈춘 동안엔 걸음이 없어 정보줄 번호 · 대기실 추천 Lv 가 옛 순서로 남던 것)
+  syncRegionOrder(r.state);
+  return r;
+}
+
+function devApplyRaw(state: GameState, action: DevAction): DevResult {
   const rng = new Rng(state.runtime.rngState);
   switch (action.kind) {
     case 'scene':
