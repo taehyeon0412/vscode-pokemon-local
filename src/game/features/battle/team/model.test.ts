@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bandLeft, faintHoldLeft, faintIsBig, faintShortLine, stackRows, TEAM_ROW_GAP, teamGeometry } from './model';
+import { bandLeft, faintHoldLeft, faintIsBig, faintShortLine, overLineHold, stackRows, TEAM_ROW_GAP, teamGeometry } from './model';
 
 describe('3:3 자리 (디자인팀 4안 시안 geo 그대로)', () => {
   it('860 × 187 = ×2 비스듬히 세 줄 · 앞줄끼리 약 310px · 판 안 잘림', () => {
@@ -131,6 +131,17 @@ describe('3:3 위 가운데 줄 — 띠 · 쓰러짐 줄 · 결과 줄 (픽셀 �
     // 마지막 KO 와 판 끝 (결과 줄 1초) 이 같은 때 — 결과 줄은 이름이 1.2초 된 뒤
     expect(faintHoldLeft([5000], 6000)).toBe(200);
     expect(faintHoldLeft([], 6000)).toBe(0);
+  });
+
+  it('판 끝 쓰러짐 줄은 결과 줄이 뜰 때까지 붙잡음 — 이기는 판 · 지는 판 둘 다 (지는 판에서 마지막 이름 하나로 줄던 것 — UX #95 17바퀴)', () => {
+    // 이기는 판: 이름 1.2초 안 = 붙잡음
+    expect(overLineHold(true, 1500, true)).toBe(true);
+    // 지는 판: 이름은 1.2초가 지났지만 결과 줄 (판 끝 1초) 이 아직 = 붙잡음
+    expect(overLineHold(false, 700, true)).toBe(true);
+    // 결과 줄이 뜰 때 = 놓음 (결과 줄로 한 번에)
+    expect(overLineHold(false, 1000, true)).toBe(false);
+    // 결과 줄이 없는 판 끝 = 이름 1.2초만
+    expect(overLineHold(false, 300, false)).toBe(false);
   });
 
   it('띠 끝 쓰러짐 말을 줄이면 "2마리 쓰러졌다!" · 하나면 줄이지 않음', () => {

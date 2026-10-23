@@ -533,6 +533,33 @@
 #pokemon-game .pg-big-f2:not(.pg-big-f4) .pg-big-lead-s {
   display: inline;
 }
+/* 한 줄 판에서 이름까지 빠지면 (f4) 상대 얼굴 (24 × 20 — 띠 얼굴과 같음) · 그 밖에는 숨김 */
+#pokemon-game .pg-team-big-title .pg-big-face {
+  display: none;
+  /* 글과 틈 6 = 띠 (gap 6) 와 같게 · −4 = 제목 줄 20 · y 정수 (−3 이면 줄 21 · y 36.5 반 픽셀 — 아트 디렉터 #95 17바퀴 1) */
+  margin-right: 6px;
+  vertical-align: -4px;
+}
+#pokemon-game .pg-team-big-row.pg-big-f4 .pg-team-big-title .pg-big-face {
+  display: inline-block;
+}
+/* 그래도 넘치면 (f7) 얼굴도 뺌 — 쓰러짐 이름을 N마리로 줄이기 전에 */
+#pokemon-game .pg-team-big-row.pg-big-f7 .pg-team-big-title .pg-big-face {
+  display: none;
+}
+/* 간격 줄이기 단계 (f6) — 판 안 여백 · 틈 10 → 6 · 키 사이 12 → 6 */
+#pokemon-game .pg-team-prompt.pg-team-prompt-big.pg-team-big-row.pg-big-f6 {
+  gap: 6px;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+#pokemon-game .pg-big-f6 .pg-team-big-keys {
+  gap: 6px;
+}
+/* 접힌 쓰러짐 말 칸막이 오른쪽도 6 (f6 은 모든 틈 6 — 칸막이 왼 8 · 오른 6 으로 갈리던 것, 아트 디렉터 #95 17바퀴 3) */
+#pokemon-game .pg-team-big-row.pg-big-f6 .pg-team-big-faint {
+  padding-right: 6px;
+}
 #pokemon-game .pg-team-big-title {
   font-size: 16px;
   line-height: 18px;
@@ -836,6 +863,14 @@
   padding: 0 4px;
   color: var(--pg-sos-tab-ink);
   background: var(--pg-sos-red);
+}
+/* 상대 합동 판 줄이기 — f8 칠 뒤 " · " 빼고 칠 오른쪽 4 · f9 "상대 " 빼기 (빨강 칠이 상대를 말함) */
+#pokemon-game .pg-big-f8 .pg-fj-sep,
+#pokemon-game .pg-big-f9 .pg-fj-pre {
+  display: none;
+}
+#pokemon-game .pg-big-f8 .pg-team-foe-joint {
+  margin-right: 4px;
 }
 
 /* 기획 R2 — 다 찬 필살기 누를 틈 = 먼저 나갈 칸 발밑 판 왼쪽 위 탭 "3초" · "2초" · "1초" (1:1 Z 옆 칩과 같은 모양) · 왼쪽 끝 = 금 테두리 (outline 2 · 2 바깥) 바깥 끝 · 아래 2px 이 그 테두리에 겹침 — 판 오른쪽 바깥이면 240 에서 다음 칸 포켓몬을 덮던 것 (UX 리뷰어 3차) */

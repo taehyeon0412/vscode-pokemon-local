@@ -153,6 +153,12 @@ export function faintHoldLeft(shownAt: readonly number[], now: number, hold = FA
   return shownAt.length ? Math.max(0, Math.max(...shownAt) + hold - now) : 0;
 }
 
+/** 판 끝 (over) 쓰러짐 줄을 붙잡을지 — 가장 늦은 이름이 1.2초 안 됐거나, 결과 줄 ("…이겼다!" · "내 포켓몬이 다 쓰러졌다…") 이 아직 안 떴을 때 (판 끝 1초)
+ *  (지는 판은 결과 줄이 이름 1.2초보다 0.3 ~ 0.6초 늦게 와서 그 사이 줄이 마지막 이름 하나로 줄던 것 — UX 리뷰어 #95 17바퀴 2 · bugs 1655 같은 종류) */
+export function overLineHold(lineYoung: boolean, overMs: number, hasMsg: boolean): boolean {
+  return lineYoung || (hasMsg && overMs < 1000);
+}
+
 /** 띠 끝 쓰러짐 말을 줄인 것 — 둘 넘게면 "2마리 쓰러졌다!" (240 "이겼다! · 2마리 쓰러졌다!" — 아트 디렉터 #95 4바퀴 ②) · 하나면 줄이지 않음 */
 export function faintShortLine(names: readonly string[]): string | null {
   const n = new Set(names).size;

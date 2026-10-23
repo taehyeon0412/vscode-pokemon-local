@@ -12,7 +12,7 @@ import { battleSpritePx, koSinkPx } from '../model';
 import { Sprite } from '../../../ui/Sprite';
 import type { FxActor } from '../fx/bridge';
 import { TeamFxRunner, type TeamSlot } from '../fx/team';
-import { faintHoldLeft, faintIsBig, faintShortLine, foeWarn, plateState, stackRows, teamGeometry, teamPrompt, type TeamGeo } from './model';
+import { faintHoldLeft, faintIsBig, faintShortLine, foeWarn, overLineHold, plateState, stackRows, teamGeometry, teamPrompt, type TeamGeo } from './model';
 import { BAND_PX, TeamBand, useTeamBand, type TeamBandView } from './TeamBand';
 import { topGapPx } from '../../../ui/layout';
 import { realLater, realNow } from '../../../ui/real-clock';
@@ -447,7 +447,20 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   const boxYoung = faintBox.current !== null && faintHoldLeft(boxAt, bandNow) > 0;
   //   결과 줄도 떠 있는 쓰러짐 줄의 가장 늦은 이름이 1.2초 된 뒤 (판 끝 합동으로 셋을 연달아 쓰러뜨리면 마지막 이름이 0.98 ~ 1.0초에 결과 줄로 바뀌던 것 — UX 리뷰어 #95 15바퀴 큼 1 ·
   //   #131 일곱 번째 · 띠에 붙은 말은 attach 가 기다림)
-  const lineYoung = b.phase === 'over' && faintHoldLeft(boxAt, bandNow) > 0;
+  // 판 끝 (over) 쓰러짐 줄은 한 번 늘어난 글을 줄이지 않고 가장 늦은 이름 + 1.2초에 결과 줄로 한 번에 바꿈 (앞 이름부터 하나씩 빠지며 1.2초 안에 글이 네 번 바뀌고
+  //   남은 이름이 앞으로 당겨지던 것 — 아트 디렉터 · UX 리뷰어 #95 16바퀴 작음 · bugs 1655 · BW 말 상자는 통째로 바뀜)
+  const overLine = useRef<{ names: string[]; last: number } | null>(null);
+  if (b.phase !== 'over') overLine.current = null;
+  else if (boxPs.length) {
+    const ol = overLine.current ?? { names: [], last: Number.NEGATIVE_INFINITY };
+    boxPs.forEach((p) => {
+      const nm = p.text.replace(FAINT_RE, '');
+      if (!ol.names.includes(nm)) ol.names.push(nm);
+    });
+    ol.last = Math.max(ol.last, boxLast);
+    overLine.current = ol;
+  }
+  const lineYoung = b.phase === 'over' && faintHoldLeft(overLine.current ? [overLine.current.last] : boxAt, bandNow) > 0;
   const msgOn = b.phase === 'over' && b.overMs >= 1000 && !!b.msg && !(attach.current !== null && realNow() - attach.current.at < 1200) && !lineYoung;
   // VS 띠는 쓰러짐 줄을 기다리지 않고 그 말을 띠 끝에 붙임 (기다리다 720 아래에서 연타 안내에 넘겨 VS 가 0.38 ~ 0.72초만 보이던 것 — UX 리뷰어 #95 10바퀴 2 · 태현 님 #431 같은 종류)
   if (band?.kind === 'vs' && !seenBand0(band.key) && boxYoung && boxText && !bigHide) {
@@ -517,7 +530,9 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   const promptStyle = low ? { top: 'auto', bottom: '4px' } : { top: `${bandVis ? bandTop + BAND_PX + 4 : bandTop}px` };
   // 엔진 한 줄 (필살기 · 합류 · 결과) 은 판 끝 결과만 · 쓰러지는 장면이 1초 보인 뒤 (컷인 이름을 가리고 · 지난 필살기 줄이 남던 것 — UX 리뷰어 · U1 1초) ·
   //   결과 줄은 쓰러짐 줄 · 띠 자리를 넘겨받음 (픽셀 검사원 #95 6바퀴 6 · UX 10바퀴 7) · 큰 판이 떠 있으면 쓰러짐 말은 판 안 (위)
-  const apart = msgOn || (bigOn && panelFaint.current) ? null : apart0;
+  //   결과 줄이 뜰 때까지 붙잡음 (지는 판은 결과 줄이 0.3 ~ 0.6초 늦어 그 사이 마지막 이름 하나로 줄던 것 — UX 리뷰어 #95 17바퀴 2)
+  const overText = b.phase === 'over' && overLineHold(lineYoung, b.overMs, !!b.msg) && !msgOn && !boxTaken && overLine.current?.names.length ? `${overLine.current.names.join(' · ')} 쓰러졌다!` : null;
+  const apart = msgOn || (bigOn && panelFaint.current) ? null : (overText ?? apart0);
   // 기다림 · 붙잡기 끝에 다시 그림 (그림은 열쇠가 바뀔 때만 다시 그려져, 띠 기다림이 끝나도 0.05 ~ 0.5초 늦게 뜨던 것 — UX 리뷰어 #95 10바퀴 4)
   const [, wakeUp] = useState(0);
   const wakes = [
@@ -525,7 +540,7 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
     mashOn && !mashShow && vsSeenAt !== null ? vsSeenAt + 1200 : 0,
     (narrowWait || bandKept) && seenBand.current ? seenBand.current.at + 1200 : 0,
     attach.current ? attach.current.at + 1200 : 0,
-    lineYoung ? boxLast + 1200 : 0,
+    lineYoung ? (overLine.current?.last ?? boxLast) + 1200 : 0,
   ].filter((t) => t > bandNow);
   const nextWake = wakes.length ? Math.min(...wakes) : 0;
   useEffect(() => {
@@ -635,7 +650,7 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
     const maxW = widthPx - 16;
     const fold = el.querySelector<HTMLElement>('.pg-team-big-faint');
     const title = el.querySelector<HTMLElement>('.pg-team-big-title');
-    el.classList.remove('pg-big-f1', 'pg-big-f2', 'pg-big-f3', 'pg-big-f4', 'pg-big-f5');
+    el.classList.remove('pg-big-f1', 'pg-big-f2', 'pg-big-f3', 'pg-big-f4', 'pg-big-f5', 'pg-big-f6', 'pg-big-f7', 'pg-big-f8', 'pg-big-f9');
     if (fold?.dataset.full && fold.textContent !== fold.dataset.full) fold.textContent = fold.dataset.full;
     //   제목 앞은 지우지 않고 먼저 줄임 ("리자몽 필살기 · 같이 쓰기!" → "리자몽과 같이 쓰기!" · "소미안 필살기 · 끼어들기" → "소미안에 끼어들기" — 지우면 "같이 쓰기! [2] 이상해꽃" 이
     //   "이 둘이 합동한다" 로 읽히던 것, UX 리뷰어 #95 13바퀴 3 · UX 3:3 점검 3) · 세로 판은 제목도 잼 (띠를 숨긴 높은 패널은 제목에 이름)
@@ -645,7 +660,10 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
     //   모으기 판은 앞장 이름을 마지막까지 (빼면 "이 둘이 합동한다" 로 읽힘)
     //   모으기 한 줄 판은 키 옆 이름 ("이상해꽃 · 거북왕" — 칸 번호판이 말함) 을 앞장 이름 · 접힌 말보다 먼저 뺌 · 접힌 말 빼기는 늘 마지막, 한 번 보인 말은 판이 떠 있는 동안 안 뺌
     //   (400 ~ 459 × 150 · 맥 480 모으기 판이 접힌 말부터 빼 "소미안 쓰러졌다!" 가 0.13 ~ 0.44초만 보이고 · [2] ✓ 에 다시 재며 빠지던 것 — UX 리뷰어 #95 14바퀴 큼 2)
-    const steps = (!row ? ['short', 'pg-big-f2', 'pg-big-f4'] : prompt?.kind === 'join' ? ['pg-big-f1', 'pg-big-f2', 'pg-big-f4', 'short', 'pg-big-f3'] : ['pg-big-f2', 'pg-big-f5', 'short', 'pg-big-f4', 'pg-big-f3']).filter((k) => k !== 'pg-big-f3' || !foldShown.current);
+    //   상대 합동 판은 그다음 빨강 칠 뒤 " · " 빼기 (f8) → "상대 합동" → "합동" (f9 — 빨강이 상대를 말함): 맥 240 에서 줄이기를 다 써도 9px 넘쳐 "짐" 이 패널 끝에 잘리던 것 (UX 리뷰어 #95 17바퀴 큼 1)
+    //   끼어들기 한 줄 판은 N마리 앞에 상대 얼굴 빼기 (f7 — 쓰러짐 이름이 먼저 · 누구 필살기인지는 판이 닫힌 뒤 띠가 말함, 400 · 맥 440 에서 얼굴 28px 로 다시 "2마리" 가 되던 것)
+    //   한 줄 판은 N마리 앞에 간격 줄이기 (f6 — 판 안 여백 · 틈 10 → 6 · 키 사이 12 → 6: 400 ~ 419 에서 접힌 이름이 처음부터 "2마리" 이던 것 · 240 상대 합동 판 여백 1 ~ 2px — UX · 아트 #95 15 · 16바퀴, ideas 1605)
+    const steps = (!row ? ['short', 'pg-big-f2', 'pg-big-f4'] : prompt?.kind === 'join' ? ['pg-big-f1', 'pg-big-f2', 'pg-big-f4', 'pg-big-f6', 'pg-big-f7', 'pg-big-f8', 'pg-big-f9', 'short', 'pg-big-f3'] : ['pg-big-f2', 'pg-big-f5', 'pg-big-f6', 'short', 'pg-big-f4', 'pg-big-f3']).filter((k) => k !== 'pg-big-f3' || !foldShown.current);
     for (const k of steps) {
       if (!over()) break;
       if (k !== 'short') el.classList.add(k);
@@ -685,7 +703,8 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
     //   (높은 자리 = 정보줄 + 4 — 위 줄 쌓기 틈 4 와 같게 · + 2 면 정보줄 아래 선과 판 테두리가 겹선처럼 보이던 것, 아트 디렉터 #95 15바퀴 제안 2)
     const rowTop = headCap >= bandTop ? bandTop : infoBarPx + 4;
     bigCover.current = rowUp && rowTop < bandTop;
-    const lo = rowUp ? rowTop : infoBarPx + fieldTopPx + 2;
+    //   ×1 (400 아래) 한 줄 판 바닥도 띠 위 (지도 줄 아래 + 2 라 240 상대 합동 판 위 끝 32 ↔ 다른 위 줄 30 — 아트 디렉터 #95 16바퀴 작음 2)
+    const lo = rowUp ? rowTop : bigRow ? Math.min(bandTop, infoBarPx + fieldTopPx + 2) : infoBarPx + fieldTopPx + 2;
     const base0 = rowUp ? rowTop : heightPx >= 300 ? Math.round(Math.max(infoBarPx + fieldTopPx + 2, Math.min(headTop - 6 - r.height, bandSoon || bandVis ? bandTop - 4 - r.height : Number.POSITIVE_INFINITY))) : Math.round(Math.max(infoBarPx + fieldTopPx + 2, midY - r.height / 2));
     const base = rowUp ? rowTop : Math.max(lo, Math.min(base0, headCap));
     // 높은 패널 · 480 아래 끼어들기 판이 띠 위에 안 들어가면 (위 bigTall) 띠를 숨기고 그 자리에 판 — 이 그림은 그 자리에 두고 다시 그림
@@ -764,13 +783,22 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
             {/* 상대가 합동으로 모이는 중 = 빨강 "상대 합동!" (내 편 멘트와 같은 말이던 것 — 기획 #24-4) */}
             {prompt.foeJoint ? (
               <>
-                <span class="pg-team-foe-joint">{widthPx < 400 ? '상대 합동' : '상대 합동!'}</span>
-                {' · '}
+                <span class="pg-team-foe-joint">
+                  <span class="pg-fj-pre">상대 </span>
+                  {widthPx < 400 ? '합동' : '합동!'}
+                </span>
+                <span class="pg-fj-sep">{' · '}</span>
               </>
             ) : (widthPx >= 480 || bigHide) && prompt.user ? (
               <>
                 <span class="pg-team-big-who">{`${prompt.user} 필살기 · `}</span>
                 <span class="pg-big-lead-s">{`${prompt.user}에 `}</span>
+                {/* 한 줄 판에서 이름까지 빠지면 (f4) 상대 얼굴 — 띠를 숨긴 동안 누구 필살기인지 글이 없던 것 (UX 리뷰어 #95 14 · 15바퀴, ideas 1601) · 띠 얼굴과 같은 24 × 20 창 */}
+                {b.ult && b[b.ult.side][b.ult.from] && (
+                  <span class="pg-band-face pg-big-face">
+                    <Sprite media={media} form={b[b.ult.side][b.ult.from]!.form} scale={1} px={32} crop={20} cropWidth={24} center action="walk" faceLeft={b.ult.side === 'foe'} />
+                  </span>
+                )}
               </>
             ) : null}
             끼어들기
