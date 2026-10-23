@@ -763,7 +763,7 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
     <div class={`pg-team pg-team-x${g.scale}${g.oneRow ? ' pg-team-row' : ''}`} style={{ top: `${-infoBarPx}px` }} ref={root} onClick={b.phase === 'clash' ? () => onInput({ kind: 'team-battle', input: { kind: 'space' } }) : undefined}>
       {SIDES.map((side) => b[side].map((_, slot) => <Fighter key={`${side}-${slot}`} b={b} g={g} side={side} slot={slot} media={media} topMin={rowsBottom > 0 ? Math.max(topMin, rowsBottom + 2 + 14) : topMin} final={finalKo === `${side}-${slot}`} autoNext={side === 'me' && slot === autoNext} fullChip={side === 'me' && slot === fullFirst} warnChip={side === 'foe' && slot === foeFirstSlot} warnShow={side === 'foe' && (warnShow[slot] ?? false)} warnPos={side === 'foe' ? (warnPos[slot] ?? 'right') : 'right'} blocks={blocks} dim={lit !== null && !lit[side].includes(slot)} big={bigHit === side && (lit?.[side].includes(slot) ?? false)} onUlt={ult} />))}
       {/* 띠 · 쓰러짐 줄이 떠 있는 동안 머리 위 숫자 · 칩은 그 줄 아래까지만 (240 에서 쓰러짐 줄이 "합동!" 칩을 덮던 것 — 픽셀 검사원 #95) */}
-      {bandVis && <TeamBand view={bandVis} media={media} top={bandTop} faint={inBand?.text ?? null} faintShort={inBand?.short ?? null} wide={widthPx < 400} />}
+      {bandVis && <TeamBand view={bandVis} media={media} top={bandTop} faint={inBand?.text ?? null} faintShort={inBand?.short ?? null} wide={widthPx < 400} tight={widthPx < 300} />}
       {/* 쓰러짐 말 한 줄 (기획 #95 — 머리 위에 따로 뜨던 "쓰러졌다!" 둘이 15px 차이로 붙고 숫자에 묻히던 것) · 띠가 있으면 그 아래 · 엔진 결과 한 줄이 있으면 그 아래 */}
       {apart && (
         // 띠 아래 자리 = 보이는 띠가 있거나, 큰 연출 중 (띠가 곧 뜸) — 숨긴 띠까지 세어 낮은 패널에서 28px 빈 줄이 남고 · 0.6초 뒤 띠가 뜨며 28px 내려가던 것 (UX 리뷰어 #95 7바퀴 3 · 8)

@@ -73,7 +73,9 @@ export function useTeamBand(b: TeamBattle, hold = false): TeamBandView | null {
   const end = [...b.log].reverse().find((e) => e.t === 'ult-clash-end');
   if (end && end.t === 'ult-clash-end' && end.id !== win.current?.id) {
     const lose = end.winner === 'foe';
-    win.current = { id: end.id, at: now, view: { key: `win:${end.id}`, kind: lose ? 'lose' : 'win', side: end.winner, who: [], title: lose ? '졌다…' : '이겼다!', sub: '' } };
+    // 얼굴 = 그 줄의 주인 (#136 A — 합동 띠와 같은 모양): 이겼다! = 이긴 내 얼굴 · 졌다… = 진 내 얼굴 (상대 얼굴이면 "상대가 졌다" 로 거꾸로 읽히던 것 — UX 리뷰어 #96)
+    const mine = end.me.map((i) => ({ side: 'me' as Side, slot: i, form: b.me[i]?.form ?? '' }));
+    win.current = { id: end.id, at: now, view: { key: `win:${end.id}`, kind: lose ? 'lose' : 'win', side: end.winner, who: mine, title: lose ? '졌다…' : '이겼다!', sub: '' } };
   }
   // "이겼다!" 띠도 쓰러짐 말이 붙어 있는 동안 붙잡음 (0.3초 만에 말이 따로 상자로 옮겨 가던 것 — UX 리뷰어 #95 3바퀴)
   const winOn = win.current !== null && now - win.current.at < (hold ? WIN_MS + HOLD_MAX_MS : WIN_MS) && win.current.at > 0;
@@ -98,7 +100,7 @@ export function useTeamBand(b: TeamBattle, hold = false): TeamBandView | null {
 }
 
 /** 띠 — 정보줄 아래 가운데 · 얼굴 = 그 포켓몬 걷기 그림 ×1 (24 × 20 창 · 실제 그림 범위 가운데) (left/right 0 + margin auto — translateX(−50%) 면 홀수 폭에서 반 픽셀) · 넘치면 뒷말 (· 필살기!) 을 뺌 (재서, 맥 여유 10%) */
-export function TeamBand({ view, media, top, faint, faintShort, wide = false }: { view: TeamBandView; media: string; top: number; /** 같은 줄 끝에 붙는 쓰러짐 말 */ faint?: string | null; /** 넘칠 때 쓰러짐 말 ("2마리 쓰러졌다!") */ faintShort?: string | null; /** 좁은 패널 = 패널 폭 판 · 글은 왼쪽부터 */ wide?: boolean }) {
+export function TeamBand({ view, media, top, faint, faintShort, wide = false, tight = false }: { view: TeamBandView; media: string; top: number; /** 같은 줄 끝에 붙는 쓰러짐 말 */ faint?: string | null; /** 넘칠 때 쓰러짐 말 ("2마리 쓰러졌다!") */ faintShort?: string | null; /** 좁은 패널 = 패널 폭 판 · 글은 왼쪽부터 */ wide?: boolean; /** 아주 좁은 패널 — 이겼다 · 졌다는 처음부터 첫 얼굴 하나 (쓰러짐 말이 붙는 순간 얼굴 셋 → 하나로 줄며 "이겼다!" 가 60px 옮겨 가던 것 — UX 리뷰어 #96) */ tight?: boolean }) {
   const box = useRef<HTMLDivElement>(null);
   // (좁은 패널은 띠가 1.2초 보인 뒤에 쓰러짐 말을 붙임 — TeamLayer 가 정함 · 붙은 때부터 띠 붙잡기를 셈)
   // 넘치면 한 단계씩 (U4 — 재서, 맥 여유 10%): 1 = 혼자 · 합동은 포켓몬 이름, VS 는 뒷말 뺌 · 2 = 쓰러짐 말을 "N마리 쓰러졌다!" 로 · 3 = 얼굴 뺌 (혼자 · 합동 — 필살기 이름보다 먼저,
@@ -109,7 +111,8 @@ export function TeamBand({ view, media, top, faint, faintShort, wide = false }: 
   //   넘쳐 잘리던 것 — UX 리뷰어 #95 11바퀴 3 · 이름은 얼굴을 줄인 뒤에 줄임 — 11바퀴 5)
   //   VS 는 얼굴부터 줄임 ("힘겨루기!" 가 끼어든 얼굴이 늘 때 0.83 ~ 0.87초에 빠지던 것 — UX 리뷰어 #95 12바퀴 7)
   //   VS 는 쓰러짐 말 N마리를 "힘겨루기!" 빼기보다 먼저 (240 · 300 에서 쓰러짐 말이 붙으면 "힘겨루기!" 가 한 번도 안 보이던 것 — UX 리뷰어 #95 13바퀴 7)
-  const stages: Stage[] = view.kind === 'vs' ? ['vsTight', 'faintShort', 'short', 'noFaint'] : view.kind === 'ult' || view.kind === 'joint' ? ['short', 'faintShort', 'noface', 'shorter'] : ['short', 'faintShort', 'shorter'];
+  //   이겼다 · 졌다 는 얼굴을 빼도 "이겼다!" 는 남김 (뜻이 먼저 — #136 얼굴) · 얼굴은 첫 얼굴 하나 → 없음 (240 에서 쓰러짐 말이 붙는 순간 얼굴 셋이 다 빠져 글이 90px 옮겨 가던 것)
+  const stages: Stage[] = view.kind === 'vs' ? ['vsTight', 'faintShort', 'short', 'noFaint'] : view.kind === 'ult' || view.kind === 'joint' ? ['short', 'faintShort', 'noface', 'shorter'] : ['short', 'faintShort', 'vsTight', 'noface'];
   const content = `${view.key}|${view.title}|${view.who.length}|${faint ?? ''}`;
   const [fit, setFit] = useState<{ content: string; step: number }>({ content, step: 0 });
   const step = fit.content === content ? fit.step : 0;
@@ -141,7 +144,8 @@ export function TeamBand({ view, media, top, faint, faintShort, wide = false }: 
     el.style.marginRight = '0';
   });
   const on = (s: Stage) => stages.slice(0, step).includes(s);
-  const cls = ['pg-team-band', `pg-band-${view.kind}`, view.side === 'foe' && (view.kind === 'ult' || view.kind === 'joint') ? 'pg-band-foe' : '', on('short') ? 'pg-band-short' : '', on('vsTight') ? 'pg-band-vstight' : '', on('noface') && !on('shorter') ? 'pg-band-noface' : '', on('shorter') ? 'pg-band-shorter' : '', wide ? 'pg-band-wide' : ''].filter(Boolean).join(' ');
+  const winTight = tight && (view.kind === 'win' || view.kind === 'lose');
+  const cls = ['pg-team-band', `pg-band-${view.kind}`, view.side === 'foe' && (view.kind === 'ult' || view.kind === 'joint') ? 'pg-band-foe' : '', on('short') ? 'pg-band-short' : '', on('vsTight') || winTight ? 'pg-band-vstight' : '', on('noface') && !on('shorter') ? 'pg-band-noface' : '', on('shorter') ? 'pg-band-shorter' : '', wide ? 'pg-band-wide' : ''].filter(Boolean).join(' ');
   const faintText = on('noFaint') ? null : faint && on('faintShort') && faintShort ? faintShort : faint;
   return (
     <div key={view.key} ref={box} class={cls} style={{ top: `${top}px` }}>
