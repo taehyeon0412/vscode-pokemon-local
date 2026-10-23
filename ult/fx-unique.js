@@ -9,6 +9,8 @@
     const { ZAPC } = K.pal;
     const hsl = (h, l = 60) => `hsl(${Math.round(((h % 360) + 360) % 360)}, 100%, ${l}%)`;
     const UNIQ = {}; // 이름 → { fx, ms(P, o), run(u, o, ms, pokemon) }
+    // 게임 화면 연출 위 끝 (bridge fxStageTop — 정보줄 · 지도 줄 아래 끝) · 일반 모드 · 3:3 무대 상자 안은 0 — 위로 던지는 불덩이 · 뛰어오른 몸이 그 뒤로 숨지 않게 (#105)
+    const gameTop = () => (typeof fxStageTop === 'function' ? fxStageTop() : 0);
 
     // 꼭두각시 — 진짜 그림을 숨기고 footAt(t) 높이에 테두리 두른 그림. until 초까지 (그 뒤 진짜 그림이 다시 보임)
     // extra: x(t) 자리 · dx(t) 옆으로 · scale(t) 크기 · rot(t) 기울기 · glow(t) 한 색으로 빛남(glowColor)
@@ -1362,6 +1364,9 @@
         }
         tx = clamp(tx, W * 0.1, W * 0.9);
         const sky = Math.max(30, H * 0.22);
+        // 하늘 꼭대기 초록 별 · 혜성 출발 높이 — 연출 위 끝 + 별 (폭 × 0.45) + 4칸 아래 (정보줄에 반쯤 걸친 빛 덩어리가 1.2초 머물던 것 — UX 리뷰어 #105) · 솟구침 · 내려옴은 화면 밖까지 그대로
+        const top0 = gameTop();
+        const starY = Math.max(sky * 0.55, top0 > 0 ? top0 + me.w * 0.45 + 4 * s : 0);
         // 혜성이 나타나는 하늘 자리 — 과녁에서 비스듬히 떨어진 곳 (화면 안, 한쪽이 모자라면 반대쪽)
         let sx0 = tx - dir * W * 0.35;
         if (sx0 < W * 0.12 || sx0 > W * 0.88) {
@@ -1370,7 +1375,7 @@
         sx0 = clamp(sx0, W * 0.12, W * 0.88);
         const cometAt = (t) => {
             const k = easeIn(clamp((t - TCOMET) / (TI - TCOMET), 0, 1));
-            return [lerp(sx0, tx, k), lerp(sky * 0.55, G - me.h * 0.4, k)];
+            return [lerp(sx0, tx, k), lerp(starY, G - me.h * 0.4, k)];
         };
         const pathUp = (t) => {
             const k = easeIn(clamp((t - TUP) / (TGONE - TUP), 0, 1));
@@ -1394,8 +1399,8 @@
                 return;
             }
             const k = easeOut((life - TSKY - 0.2) / 0.8) * (1 + 0.25 * Math.max(0, Math.sin(life * 9)) ** 4);
-            fireOrb(ctx, px, s, sx0, sky * 0.55, Math.max(4 * s, me.w * 0.35), RAYQ, life, k, Infinity, 1, 0, [1, 0.8, 0.6, 0.38], 0.4);
-            glint(ctx, px, s, sx0, sky * 0.55, me.w * 0.8 * k, 0.9);
+            fireOrb(ctx, px, s, sx0, starY, Math.max(4 * s, me.w * 0.35), RAYQ, life, k, Infinity, 1, 0, [1, 0.8, 0.6, 0.38], 0.4);
+            glint(ctx, px, s, sx0, starY, me.w * 0.8 * k, 0.9);
         } });
         // 솟구침 꼬리 · 초록 기운
         sc.add({ max: TGONE + 0.4, draw: (ctx, it, t, px) => {
@@ -1426,7 +1431,7 @@
             }
             const [x, y] = cometAt(life);
             const dx = tx - sx0;
-            const dy = G - me.h * 0.4 - sky * 0.55;
+            const dy = G - me.h * 0.4 - starY;
             const L = Math.hypot(dx, dy) || 1;
             K.fireTail(ctx, px, s, x, y, dx / L, dy / L, Math.max(H * 0.6, me.w * 4), Math.max(me.w * 1.3, 8 * s), RAYQ, life, 1);
             fireOrb(ctx, px, s, x, y, Math.max(me.w * 0.7, 5 * s), RAYQ, life, 1, G, 0.9, 0, [1, 0.8, 0.6, 0.38], 0.5);
@@ -1478,7 +1483,7 @@
             ultShake(4, 300);
         });
         [TSKY + 0.5, TSKY + 0.9, TSKY + 1.25].forEach((tb, i) => sc.at(tb, () => {
-            ring(sc, sx0, sky * 0.55, me.w * 0.3, me.w * (1.6 + i * 0.6), 1, 0.4, ['#ffffff', RAYQ[2]], 2);
+            ring(sc, sx0, starY, me.w * 0.3, me.w * (1.6 + i * 0.6), 1, 0.4, ['#ffffff', RAYQ[2]], 2);
             ultShake(1.5 + i, 150);
         }));
         // 내리꽂힘 — 초록 빛의 반구 · 하늘까지 빛기둥
@@ -3547,7 +3552,9 @@
         const q = nearest(u);
         const tx = clamp(q ? q.x : me.x + dir * W * 0.45, W * 0.1, W * 0.9);
         const sx0 = clamp(tx - dir * W * 0.3, W * 0.08, W * 0.92);
-        const sy0 = Math.max(20, H * 0.12);
+        // 하늘 번쩍 · 용 머리 (반지름 폭 × 0.7) 출발 자리 — 연출 위 끝 + 반지름 + 4칸 아래 (정보줄에 반쯤 걸친 채 0.5초 머물던 것 — UX 리뷰어 #105)
+        const top0 = gameTop();
+        const sy0 = Math.max(20, H * 0.12, top0 > 0 ? top0 + Math.max(6 * s, me.w * 0.7) + 4 * s : 0);
         const headAt = (t) => {
             const k = easeIn(clamp((t - TDIVE) / (TI - TDIVE), 0, 1));
             return [lerp(sx0, tx, k), lerp(sy0, G - me.h * 0.5, k)];
@@ -5343,7 +5350,9 @@
         const THOME = TI + 1.9;
         const q = nearest(u);
         const tx = clamp(q ? q.x : me.x + dir * W * 0.4, W * 0.1, W * 0.9);
-        const topY = Math.max(me.h * 1.2, G * 0.25);
+        // 꼭대기 (발) — 불꽃 바퀴 (몸 위로 폭 × 0.35 · ±2칸 출렁임 · 불꽃 가시) 가 연출 위 끝 + 8칸 아래 (꼭대기 바퀴가 정보줄 뒤로 숨던 것 — #105) · 그래도 몸 키 × 0.35 는 뜀
+        const top0 = gameTop();
+        const topY = Math.min(me.b - me.h * 0.35, Math.max(me.h * 1.2, G * 0.25, top0 > 0 ? top0 + me.h + me.w * 0.35 + 10 * s : 0));
         const posAt = (t) => {
             if (t < TUP) {
                 return [me.x, me.b, 0];
@@ -10878,7 +10887,11 @@
         const tx = clamp(q ? q.x : me.x + dir * Math.min(W * 0.4, me.w * 5 + 40), W * 0.15, W * 0.85);
         const DR = clamp(Math.max(me.h * 1.6, H * 0.22), 16 * s, Math.min(H * 0.38, W * 0.22));
         const ty = Math.max(DR * 1.1, G - DR * 1.15);
-        const hold = [me.x, me.b - me.h * 1.35];
+        // 불덩이 가운데 ≥ 연출 위 끝 + 가장 큰 반지름 + 6칸 (붉은 테 · 꼬리) — 손 위에서 키우는 자리도 · 날아가는 길은 높이를 줄여 꼭대기가 그 선에 닿게 (187 에서 던진 불덩이가 정보줄 뒤로 숨던 것 — #105 ·
+        // 길만 자르면 던지는 순간 25px 튀고 일자로 날던 것, 코드 리뷰어)
+        const top0 = gameTop();
+        const ballTop = top0 > 0 ? top0 + Math.max(me.w * 0.35, 5 * s) * 1.6 + 6 * s : -Infinity;
+        const hold = [me.x, Math.max(ballTop, me.b - me.h * 1.35)];
         const footAt = (t) => (t > TF0 && t < TF1 ? me.b - Math.sin(((t - TF0) / (TF1 - TF0)) * Math.PI * 2 % Math.PI) * me.h * 0.8 : me.b);
         const rotAt = (t) => (t > TF0 && t < TF1 ? -dir * TAU * 2 * easeOut((t - TF0) / (TF1 - TF0)) : 0);
         const ballAt = (t) => {
@@ -10886,7 +10899,8 @@
                 return hold;
             }
             const k = clamp((t - TTHROW) / (TOPEN - TTHROW), 0, 1);
-            return [lerp(hold[0], tx, k), lerp(hold[1], ty, k) - Math.sin(k * Math.PI) * me.h];
+            const amp = clamp((hold[1] + ty) / 2 - ballTop, 0, me.h);
+            return [lerp(hold[0], tx, k), lerp(hold[1], ty, k) - Math.sin(k * Math.PI) * amp];
         };
         const sc = scene(u, sec + 0.3, 'uniq chimchar');
         ultDark(0.34, ms - 200);
@@ -12771,7 +12785,9 @@
         const TSNAP = TLAND + 0.45;
         const q = nearest(u);
         const tx = clamp(q ? q.x : me.x + dir * Math.min(W * 0.4, me.w * 5 + 40), W * 0.12, W * 0.88);
-        const topY = me.b - Math.min(H * 0.55, G * 0.65);
+        // 꼭대기 (발) — 몸 위 끝이 연출 위 끝 + 4칸 아래 (뛰어올라 던지는 순간이 정보줄 뒤로 숨던 것 — #105) · 그래도 몸 키 × 0.35 는 뜀 (땅 속으로 뛰지 않게)
+        const top0 = gameTop();
+        const topY = Math.min(me.b - me.h * 0.35, Math.max(me.b - Math.min(H * 0.55, G * 0.65), top0 > 0 ? top0 + me.h + 4 * s : -Infinity));
         const NS = 11;
         const sh = [];
         for (let i = 0; i < NS; i++) {

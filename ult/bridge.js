@@ -552,6 +552,10 @@ function fxUltAim(x, y) {
 function fxInGame() {
     return !!document.body && document.body.classList.contains('pokemon-game-on');
 }
+// 필살기 연출이 넘으면 안 보이는 위 끝 (정보줄 · 지도 줄 아래 끝 — 3:3 은 --pg-fx-top) — 게임 밖 · 3:3 무대 상자 안은 0 (#105 — 던지는 구 · 뛰어오른 몸이 그 뒤로 숨지 않게. fx-energy runOrb · fx-unique 가 씀)
+function fxStageTop() {
+    return fxInGame() && !moveFrame && typeof t33Top === 'function' ? t33Top() : 0;
+}
 // 연출이 넘지 않는 위 끝 = 게임 정보줄 아래 끝 (px) — 게임 밖이면 0 (game.css 가 캔버스를 여기서 자름)
 function fxTop() {
     // 무대 상자 안 (3:3 판) = 상자 위 끝 (상자는 이미 지도 줄 아래)

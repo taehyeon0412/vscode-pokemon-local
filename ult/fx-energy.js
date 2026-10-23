@@ -1100,8 +1100,22 @@
         const size = clamp(o.size ?? 1, 0.5, 2);
         const total = ms / 1000;
         const flash = overlay(total);
+        // 게임 화면 — 구 가운데 ≥ 연출 위 끝 (정보줄 · 지도 줄 아래 끝 — bridge fxStageTop) + 바깥 끝 (불꽃 혀까지 r × 1.75 · 그 밖 r × 1.3) + 4칸 ·
+        // 던지기 직전 · 던지는 길 진짜 꼭대기도 그 아래 (187 에서 던진 구가 정보줄 뒤로 숨던 것 — #105 · 모양 그대로) · 일반 모드 · 3:3 무대 상자 안은 위 끝 0 이라 그대로
+        const top0 = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+        const edge = style === 'flame' ? 1.75 : 1.3;
         const rF = clamp(Math.min(H * 0.15, W * 0.13) * size * (0.85 + 0.3 * P), 9, Math.min(W, H) * 0.3);
-        const C = { x: clamp(u.body.cx, rF + 2, W - rF - 2), y: Math.max(rF + 3, u.body.top - rF - 4 * S) };
+        const minY = top0 > 0 ? top0 + rF * edge + 4 * S : 0;
+        // 위 끝에 막혀 머리 위에 못 서면 (낮은 패널 · 큰 구) 크기는 그대로 두고 몸 앞쪽 (대상 쪽) 으로 — 위 끝 아래로 끌어내린 구가 몸을 덮던 것 (UX 리뷰어 · 코드 리뷰어 #105) ·
+        // 던지기 직전은 들어 올림 대신 뒤로 당김 (막힌 자리에서 올리면 들어 올림이 사라짐)
+        const capped = top0 > 0 && minY > u.body.top - rF - 4 * S;
+        // 앞으로 옮기는 양은 대상까지 거리 × 0.25 까지 (240 에서 옮긴 구가 상대를 덮고 던지는 길이 짧아지던 것 — UX 리뷰어 #105)
+        const near0 = capped ? nearest(u, u.body.cx) : null;
+        const fwd = capped ? Math.min(u.body.rx + rF * 0.9, near0 ? Math.abs(near0.x - u.body.cx) * 0.25 : Infinity) : 0;
+        const C = {
+            x: clamp(u.body.cx + dir * fwd, rF + 2, W - rF - 2),
+            y: Math.max(rF + 3, u.body.top - rF - 4 * S, minY),
+        };
         const home = { x: C.x, y: C.y };
         const st = { acc: 0, aura: 0, bits: 0, trail: [], thrown: false, boom: false };
         // 몸 → 구체로 올라가는 기운 줄기
@@ -1162,8 +1176,9 @@
             const ty = Math.min(q ? q.y : u.ground - Math.max(4, rF * 0.3), u.ground - Rb * 0.35);
             st.from = { x: C.x, y: C.y };
             st.to = { x: tx, y: ty };
-            const apex = Math.max(rF * 0.7, Math.min(C.y, ty) - Math.max(20, Math.abs(tx - C.x) * 0.3));
-            st.cy = 2 * apex - (C.y + ty) / 2;
+            // 진짜 꼭대기 = v (2차 곡선 꼭짓점 — 출발 · 끝 높이가 달라도 v 를 넘지 않게: 조절점 = v − √((출발 − v)(끝 − v)))
+            const v = Math.min(Math.max(rF * 0.7, minY, Math.min(C.y, ty) - Math.max(20, Math.abs(tx - C.x) * 0.3)), C.y, ty);
+            st.cy = v - Math.sqrt(Math.max(0, (C.y - v) * (ty - v)));
             el?.animate?.([{ translate: '0 0' }, { translate: `${dir * 2 * S}px ${-5 * S}px`, offset: 0.3 }, { translate: '0 0' }], { duration: 400, easing: 'ease-out', composite: 'add' });
             ring(C.x, C.y, S, rF, rF * 2.2, 1, 0.35, [cols[0], '#ffffff']);
             flash(cols[0], 0.18, 0.2);
@@ -1195,7 +1210,12 @@
                     growTick(dt, k, rF * easeOut(k / 0.9));
                     // 던지기 직전 — 살짝 들어 올림
                     if (life > G - 0.18) {
-                        C.y = home.y - rF * 0.3 * smooth((life - (G - 0.18)) / 0.18);
+                        const e = smooth((life - (G - 0.18)) / 0.18);
+                        if (capped) {
+                            C.x = home.x - dir * rF * 0.3 * e;
+                        } else {
+                            C.y = home.y - rF * 0.3 * e;
+                        }
                     }
                     return;
                 }
