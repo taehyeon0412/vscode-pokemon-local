@@ -833,6 +833,9 @@ function fxGameStop(kill) {
     if (fxJointTop?.g === g) {
         fxJointTop = null;
     }
+    if (fxJ11?.g === g) {
+        fxJ11 = null;
+    }
     if (kill) {
         fxKill(g.gen);
         (g.gens || []).forEach((x) => fxKill(x));
@@ -1388,6 +1391,27 @@ const FX_JOINT_END_MS = 950;
 // 합동 층 — 합동 번호 (컷인 · 빛줄 · 나선 · 합친 줄기 · 섞인 폭발 · 번쩍) 는 맨 위 (각자 맞은 그림 뒤에 묻히던 것 — 아트 디렉터 #80 ③) ·
 // 맞은 뒤 참가자 (자기 둘레) 는 따로 층에 그려 바둑판으로 지움 · 쏘는 쪽은 줄기 보기 캔버스를 같이 지움. { g, gen, gens, p, dissolveAt, top, part }
 let fxJointTop = null;
+// 3:3 장면 전환 합동 (#101 team11Joint) — { g: 앞장 게임 · lit: 어둠에서 밝게 둘 참가자 · 대상 }
+// 합동 — 동료가 기를 모아 주는 구간을 늘리는 길이 (#106 — 첫 합동 4.8 → 약 5.8초 · #96 빔 · 오라 앞장도)
+const FX_J11_GATHER_EXTRA_MS = 1000;
+// 메가진화하는 필살기 (블라스트번 · 하드플랜트 · 메가런처 — 1:1 하얀 실루엣, 태현 님 10-20) — 합동 그림은 꾹 누르기부터 메가진화가 끝날 때까지
+// 번개 · 오라 불꽃 혀를 쉬고, 실루엣 위에는 아무것도 안 그림 (연출 틀이 track.morph · morphed · morphBox 를 알림 — #96 디자인)
+// 전용 연출 틀 (fx-unique uniq · fx-sky 스타팅 특수 키 — dev/ult-top.py · joint-kinds.py SPECIAL 과 같게) — o.track 을 안 채움 (하이드로캐논 turtle 빔 · 플레어드라이브 flare 빼고)
+const FX_J11_SPECIAL = ['uniq', 'blast', 'flare', 'venus', 'turtle', 'ninja', 'clones', 'lucario', 'mew', 'mewtwo'];
+const fxJ11Special = (e) => FX_J11_SPECIAL.some((k) => e?.[2]?.[k]);
+const fxJ11Morph = (e) => (e?.[1] === 'ultpillar' && !!(e[2]?.blast || e[2]?.venus)) || (e?.[1] === 'ultorb' && !!e[2]?.turtle);
+// 3:3 합동 앞장 분류 (#96 — dev/joint-kinds.py 와 같은 규칙 · 바꾸면 둘 다): 구 (모으는 자리 = 구 가운데) · 빔 (빔 시작 = 입) · 오라 (몸)
+function fxJ11Kind(e) {
+    const o = (e && e[2]) || {};
+    if ((e[1] === 'ultorb' && !o.sky) || e[1] === 'ultblackhole' || (e[1] === 'ultdive' && o.flare)) {
+        return 'orb';
+    }
+    if (e[1] === 'ultbeam' || e[1] === 'ultvolt') {
+        return 'beam';
+    }
+    return 'aura';
+}
+let fxJ11 = null;
 const fxBayerTiles = new Map();
 function fxBayerErase(L, p, step) {
     if (!L?.ctx || !L.drawn) {
@@ -1504,9 +1528,26 @@ drawParticle = function (ctx, p) {
     }
     fxDrawParticle0(ctx, p);
 };
+// 장면 전환 합동 — 앞장 연출이 알린 대비 장면 (track.contrast — 하이드로캐논 압축 어둠 → 하양) 인지. 어둠 진하기로 셈하던 것은 섀도볼 밤 어둠 전체에 걸려
+//   동료가 6.4초 꺼진 것처럼 보이고 (#96 아트 7바퀴 — 6바퀴 ① 고침의 회귀) 틀이 직접 칠하는 어둠은 못 잡아 뺌 · 오라 · 구 앞장은 6바퀴 모습 (제 색 + 1칸 테) 그대로
+function fxJ11Contrast(J) {
+    return !!J?.track?.contrast;
+}
 // 필살기 어두워짐 판 (화면 전체) 표시 — 줄기 보기 · 자르기에 들지 않게
 const fxUltDimLayer0 = ultDimLayer;
 ultDimLayer = function (...args) {
+    // 장면 전환 합동 (#101) — 앞장 연출의 어둠 (밝게 둘 애를 안 정한 것) 은 참가자 · 대상 밝게 · 구멍 가장자리 바둑판 · 0.3 아래면 구멍 없음 (#100 ①)
+    const J = fxJ11;
+    // 동료 꾹 누르기 기 모으기 어둠 (그 포켓몬만 밝게) 은 끔 — 동료가 둘이면 겹으로 어두워져 앞장 구 · 대포까지 묻히던 것 (#103)
+    if (J && fxGame === J.g && args[2] !== undefined && !args[4]?.j11) {
+        return undefined;
+    }
+    if (J && fxGame === J.g && args[2] === undefined) {
+        // 대비 장면 (fxJ11Contrast) 동안은 동료 구멍을 닫음 — 동료가 앞장보다 또렷해 위계가 거꾸로이던 것 (#96 아트 6바퀴 1)
+        args[2] = () => J.lit.filter((u, i) => u?.el?.isConnected && (i === 0 || ((!J.allyUntil || performance.now() < J.allyUntil) && !fxJ11Contrast(J))));
+        args[3] = args[3] ?? undefined;
+        args[4] = args[4] ?? { edge: 3, minA: 0.3, edgeOf: J.edgeOf };
+    }
     const n = moveParticles.length;
     const out = fxUltDimLayer0(...args);
     for (let i = n; i < moveParticles.length; i++) {
@@ -2585,10 +2626,17 @@ window.pokemonFx = {
         try {
             // o.quick = 같은 전투에서 다시 보는 필살기 — 컷인 없이 짧게 (ult/core.js ULT_QUICK_INTRO_MS)
             // 쓰기 전 기 모으기 (일반 모드 꾹 누르기와 같은 연출, 2026-10-20 태현 님) — 첫 필살기 0.8초 · 다시 보는 필살기 0.4초 · 반격기 (sub) 는 바로
-            const charge = o?.sub ? 0 : o?.quick ? 400 : 800;
-            total = fxWithTimers(gen, () => useUltimate(A, entry, { quick: !!o?.quick, charge, ...(o?.sub ? { sub: o.sub } : {}) })) || 0;
+            // o.charge = 기 모으기 길이를 정함 (3:3 합동 빔 · 오라 앞장 — 동료가 기를 모아 주는 구간 +1초, #96)
+            const charge = o?.charge ?? (o?.sub ? 0 : o?.quick ? 400 : 800);
+            // o.hitShift = 연출 틀이 스스로 늘리는 ms (3:3 합동 — 구 · 메가진화 o.track.extraG) · 맞는 때 · 자기 둘레 줄기 · 박자표 · 끝을 그만큼 늦춤
+            const shift = Math.max(0, o?.hitShift || 0);
+            // o.mainAt = 큰 맞음 (본편 시작부터 ms) 을 연출이 알려 줌 — 1:1 측정값 (ULT_HIT) 이 합동에서 빠진 장면 (메가런처 팔 대포 연사) 때라 회색 · 끝 장식이 0.7초 이르던 것 (#96 UX 큼 2)
+            const mainAt = typeof o?.mainAt === 'number' ? o.mainAt : null;
+            // o.noIntro = 1:1 컷인 없이 (3:3 장면 전환 합동 — 이름은 화면 큰 컷인, #99)
+            const introMs = o?.noIntro ? 0 : o?.quick ? ULT_QUICK_INTRO_MS : ULT_INTRO_MS;
+            total = fxWithTimers(gen, () => useUltimate(A, entry, { quick: !!o?.quick, charge, ...(shift ? { extraMs: shift } : {}), ...(o?.sub ? { sub: o.sub } : {}), ...(o?.noIntro ? { noIntro: true } : {}) })) || 0;
             if (tmAll && total) {
-                const at0 = charge + (o?.quick ? ULT_QUICK_INTRO_MS : ULT_INTRO_MS) + tmAll.main;
+                const at0 = charge + introMs + (mainAt ?? tmAll.main) + shift;
                 // 부른 쪽에 박자 — main = 큰 맞음 · cover = 상대를 덮는 연출이 끝나는 때 (없으면 −1) · 지금부터 ms
                 try {
                     o?.timing?.({ main: at0, cover: tmAll.cover >= 0 ? at0 - tmAll.main + tmAll.cover : -1, total });
@@ -2597,7 +2645,7 @@ window.pokemonFx = {
                 }
             }
             if (tm && total) {
-                const at = charge + (o?.quick ? ULT_QUICK_INTRO_MS : ULT_INTRO_MS) + tm.main;
+                const at = charge + introMs + (mainAt ?? tm.main) + shift;
                 // 자기 둘레 필살기 (블래스트번 등) 는 제자리에서 원래대로 터지고, 대폭발 번쩍 뒤 기운이 줄기로 맞을 상대 모두에게 → 닿을 때 피해 (태현 님 #92)
                 // 쏘는 필살기는 큰 맞음 (줄기가 상대에 닿음) 에 피해
                 const hitNow = () => {
@@ -2626,6 +2674,214 @@ window.pokemonFx = {
         }
         fxGame.done = setTimeout(fxGameStop, total + 200);
         return total;
+    },
+    /**
+     * 3:3 장면 전환 합동 (#101 시안 3 — 태현 님 "처음에 쓴 포켓몬한테 기를 모아서 주는 형식 · 구는 원기옥을 모으듯이 · 빔이면 나선형으로 2가지 기운이 돌거나 스파크가 튀듯이", 후레쉬맨 팀 필살기):
+     * 앞장 (합동을 처음 쓴 포켓몬) = 자기 1:1 필살기를 처음부터 끝까지 그대로 (끊지 않음 · 마무리 폭발 그대로 — 시안 2 의 끊고 가는 빔으로 바꾸던 것을 없앰, 태현 님 "허접한 빔 하나").
+     * 동료 = 쏘지 않고 같이 기 모으기 (0.8초) → 앞장이 기를 모으는 동안 자기 타입 색 기운을 앞장에게 넘겨줌 (모양 = ult/fx-team33 t11Gather — #102 시안 A 빛의 끈 · B 오라 리본 · C 빛 알갱이 강).
+     * 앞장 연출이 매 장면 알려 주는 자리 (o.track — fx-sky 플레어드라이브 불꽃 구 · 하이드로캐논 대포 끝 · 물줄기) 로:
+     *  구 = 들어올 때마다 구 둘레 기운 막 · 고리가 커짐 (원기옥) · 다 모이면 구 안에 동료 색 점이 뜀 /
+     *  빔 = 물줄기에 동료 색 나선 (뒤로 가는 반은 물줄기에 가림) + 스파크 /
+     *  그 밖 (알려 주지 않는 연출 — 돌진 · 범위) = 쏘기 0.5초 앞까지 앞장 입으로 모이고 앞장 몸에 동료 색 오라 (규칙 — 시안은 구 · 빔).
+     * 맞을 때 = 앞장 진짜 폭발 그대로 + 참가자 색 고리 · 파편 (번갈아). 어둠은 앞장 연출 것 그대로 · 참가자 · 대상 밝게 (구멍 가장자리 바둑판 — #100).
+     * o.timing = { main: 맞는 때, total } (같은 판 두 번째는 실행기가 맞고 1.5초 뒤 끊음 — #140)
+     */
+    team11Joint(srcs, dst, onHit, o = {}) {
+        const list = (srcs || []).map((s, i) => ({ s, i })).filter(({ s }) => s && POKEMON_SHAPE[s.form] && fxWidth(s) >= 1);
+        if (!list.length || fxWidth(dst) < 1) {
+            return 0;
+        }
+        const lead = list[0];
+        const want = o.pick?.[lead.i];
+        const e = (want && (POKEMON_ULT[lead.s.form] || []).map((k) => ULT_LIB[k]).find((v) => v && v[0] === want)) || fxUltPick(lead.s.form, o.avoid?.[lead.i]);
+        if (!e) {
+            return 0;
+        }
+        // 앞장 연출이 채우는 자리 (구 · 빔) — 없으면 입 · 몸
+        // half = 주는 동안만 앞장 혜성 반 (마무리 · 유성 그대로 — 태현 님 "응 그러자", 동료 별이 주인공으로 보이게) · avoid = 혜성이 피해 갈 동료 상자 (아래에서 채움)
+        // 구 합동 = 일반 구 틀 (fx-energy runOrb) 만 — 전용 구는 연출 자리를 안 알려 별 · 번개가 안 나오고 박자만 1초 늦던 것 (#96 코드 리뷰)
+        const orbUlt = e[1] === 'ultorb' && !e[2]?.sky && !fxJ11Special(e);
+        const kind = fxJ11Kind(e);
+        // 동료가 기를 모아 주는 구간 (모으기 · 별 보내기 · 앞장 구 커짐) 을 늘림 (#106 — 태현 님 "기모으는 시간만 1초정도 더 늘려서 하자") ·
+        // 구 (fx-energy runOrb) = 연출 틀이 모으기를 그만큼 길게 · 여기서 맞는 때 · 피해 (엔진) · 끝을 그만큼 늦춤 /
+        // 메가진화 (fxJ11Morph) = 연출 틀이 메가진화 뒤 기 모으기를 그만큼 길게 (번개 · 오라 혀는 메가진화 뒤부터라 — #96 디자인) · 박자는 구와 같이 /
+        // 그 밖 (빔 · 오라 — #96) = 앞장 꾹 누르기 기 모으기를 그만큼 길게 (박자는 this.ult 가 기 모으기만큼 늦춤) — 그동안 동료 별이 입 (빔 시작) · 몸으로
+        const gather = list.length >= 2 ? FX_J11_GATHER_EXTRA_MS : 0;
+        const morph = fxJ11Morph(e);
+        const extra = orbUlt || morph ? gather : 0;
+        const track = { half: true, extraG: extra / 1000, willMorph: morph };
+        // 빔은 모두 (일반 runBeam 도 o.track 을 채움 — #96 ②) · 이상해꽃 솔라빔처럼 안 채우는 틀은 입으로 (gatherTo 가 track.kind 를 봄)
+        const tracked = (e[1] === 'ultdive' && !!e[2]?.flare) || (e[1] === 'ultbeam' && (!!e[2]?.turtle || !fxJ11Special(e))) || orbUlt;
+        // 늘린 만큼 (extra) 은 this.ult 가 맞는 때 · 자기 둘레 줄기 · 박자표 · 끝을 한 곳에서 늦춤 (hitShift — 따로 늦추던 onHit1 · total 고치기가
+        // 타이머 피해가 아닌 경로에서 두 번 늦고 자기 둘레 줄기는 안 늦던 것, #96 코드 리뷰)
+        let hitAt = -1;
+        // 메가런처 합동 = 연사 없음 (fx-sky runMegaLauncher volley) → 큰 맞음 = 물 구가 닿는 때 (발사 TS 4.5초 + 날아감 0.4초)
+        const mainAt = e[1] === 'ultorb' && e[2]?.turtle ? 4900 : undefined;
+        const total = this.ult(lead.s, dst, onHit, o.avoid?.[lead.i], { noIntro: true, hitShift: extra, ...(mainAt ? { mainAt } : {}), charge: 800 + (extra ? 0 : gather), entry: [e[0], e[1], { ...(e[2] || {}), track }], timing: (t) => {
+            hitAt = t.main;
+            try {
+                o.timing?.(t);
+            } catch (err) {
+                ultError('joint11 timing', err);
+            }
+        } }) || 0;
+        if (!total || !fxGame || list.length < 2) {
+            return total;
+        }
+        const g = fxGame;
+        const gen = g.gen;
+        // 시험 창 (모양 스위치를 쓴 때만) — 길이 기록
+        if (typeof window !== 'undefined' && window.__pgJointStyle) {
+            window.__pgBoomLog = { total0: total - extra, total, hit: hitAt };
+        }
+        // 빔 합동 (하이드로캐논) — 해일이 끝난 뒤 남는 0.8초를 줄임 (마무리는 그대로 — 태현 님 #146 A "추천으로")
+        const cut = e[1] === 'ultbeam' && e[2]?.turtle ? 800 : 0;
+        if (cut) {
+            setTimeout(fxGuard(gen, () => fxGame === g && fxGameStop(true)), total - cut);
+        }
+        const As = list.map(({ s }) => fxActor(s));
+        const LA = As[0];
+        const B = fxActor(dst);
+        g.many = As;
+        // 어둠 (앞장 연출의 ultDark) — 참가자 · 대상 밝게 · 구멍 가장자리 바둑판 (앞장만 밝아 기운을 보내는 동료가 어둠에 묻히던 것)
+        // 상대는 안 밝힘 · 동료 구멍은 가장자리 바둑판 없이 (동료 색 1칸 테는 t11Gather) — 동료 · 상대 둘레가 같은 지름 90px 바둑판 원이라 뜻 없는 얼룩 둘로 보이던 것 (#96 아트 5바퀴 8)
+        //   동료 구멍은 맞은 뒤 0.3초까지만 (그 뒤엔 어둠 속 밝은 원판만 남아 얼룩으로 보이던 것 — #96 6바퀴)
+        fxJ11 = { g, lit: [...As], edgeOf: (u) => (u === LA ? 3 : 0), allyUntil: performance.now() + (hitAt > 0 ? hitAt : 2000) + 300, track };
+        const allies = list.slice(1).map(({ i }, n) => ({ A: As[n + 1], c: t33Cols(o.types?.[i] || 'normal'), n, type: o.types?.[i] || 'normal' }));
+        const leadC = t33Cols(o.types?.[lead.i] || 'normal');
+        const cell = (A) => Math.max(1, Math.round(fxBody(A).w / (A._originalSpriteSize || 32)));
+        const kL = cell(LA);
+        const t0 = performance.now();
+        // 모으는 자리 — 연출이 알려 주면 그 자리 (구 가운데 · 대포 끝) · 아니면 기 모으기부터 맞기 0.5초 앞까지 빔 = 입 (빔 시작) · 오라 = 몸 가운데 (#96)
+        // 빔 · 플레어드라이브 (알려 주는 틀) 도 앞장 기 모으기 동안 (틀이 아직 안 시작) 은 입 · 몸으로
+        const homeOf = () => {
+            if (kind === 'aura') {
+                const b = t11LeadBody(LA, track);
+                return { x: b.x, y: b.y, r: 0 };
+            }
+            return { ...sigGeometry(LA, fxFacesLeft(LA, B)).mouth, r: 0 };
+        };
+        const gatherTo = (now) => {
+            // 전용 구 (fx-unique jointOrb) 는 연출이 시작되면 스스로 구 자리를 알림 → 그때부터 그 자리 (#96 아트 5바퀴 1)
+            if ((tracked && (orbUlt || track.kind)) || track.kind === 'orb') {
+                if (track.kind === 'orb') {
+                    return track.gather && track.r > 0 ? { x: track.x, y: track.y, r: track.r } : null;
+                }
+                // 빔 — 대포 끝에서 모으는 동안은 그 자리 · 그 앞 (대포가 솟는 동안 — 별이 0.9초 끊기던 것) 은 입 · 쏜 뒤는 끝
+                if (track.kind === 'beam') {
+                    st.fired = st.fired || !!track.on;
+                    return track.gather ? { x: track.gx, y: track.gy, r: 0 } : st.fired ? null : homeOf();
+                }
+                return null;
+            }
+            return now - t0 < (hitAt > 0 ? hitAt - 500 : 2000) ? homeOf() : null;
+        };
+        const st = { arrivals: 0, on: false };
+        // 모으기가 시작되면 동료도 기 모으기 빛 (일반 모드 꾹 누르기 — ms 에 다 차고 hold 동안 계속, t11Gather 갈래마다) · 모으기가 끝나면 멈춤
+        const onGatherEnd = () => allies.forEach((a) => ultChargeStop(a.A));
+        const onGather = (ms = 1800, hold = 0, star = false) => fxWithTimers(gen, () => {
+            allies.forEach((a) => {
+                try {
+                    ultChargeFor(a.A, ms, true, hold, star ? { cols: T11_STAR_COLS[a.type] || T11_STAR_COLS.normal } : undefined);
+                } catch (err) {
+                    ultError('joint11 send', err);
+                }
+            });
+            // 구 필살기 — 모으기부터 맞을 때까지 무대 어둡게 (1:1 기 모으기 어둠과 같은 0.32) · 앞장 · 동료 모두 둥근 조명 (셋이 같이 빛남 = 합동감 — 아트 #103 ② · 1:1 구 연출엔 제 어둠이 없어서)
+            if (star && orbUlt && hitAt > 0) {
+                const sec = Math.max(0.3, (t0 + hitAt - performance.now()) / 1000);
+                ultDimLayer((life) => 0.32 * Math.min(1, life / 0.3, Math.max(0, sec - life) / 0.1), sec, () => As.filter((u) => u?.el?.isConnected), undefined, { edge: 3, minA: 0.3, j11: true, edgeOf: fxJ11?.edgeOf });
+            }
+        });
+        // 진짜 구 안 (fx-energy drawOrb mid) — 섞임 바둑판 · 동료 색 소용돌이 (상대 쪽이면 시계 방향)
+        const foe = fxBody(LA).x > fxBody(B).x;
+        // 구 필살기 — 구가 생길 자리를 미리 알림 (화면 합동 이름 판이 뜰 때 한 번 견줘 자리를 정함 · 1.08 부풂 포함 — 구가 생기는 순간 판이 245px 뛰던 것, 아트 #103)
+        if (typeof window !== 'undefined') {
+            window.__pgJointOrbPlan = null;
+            if (orbUlt && typeof fxOrbPreview === 'function') {
+                try {
+                    const pv = fxOrbPreview(ultGeometry(LA, fxFacesLeft(LA, B)), e[2] || {});
+                    window.__pgJointOrbPlan = { x: pv.x, y: pv.y, R: pv.r * 1.08 + 2 * kL, at: performance.now() };
+                } catch (err) {
+                    ultError('joint11 orb plan', err);
+                }
+            }
+        }
+        // 주는 동안 앞장 혜성이 동료 몸 (그림 상자 + 둘레 8px) 을 피해 감 — 혜성이 동료를 덮던 것 (아트 #103)
+        track.avoid = () => allies.map((a) => {
+            const b = fxBody(a.A);
+            return { l: b.x - b.w / 2 - 8, r: b.x + b.w / 2 + 8, t: b.y - b.h / 2 - 8, b: b.y + b.h / 2 + 8 };
+        });
+        track.inner = (ctx, x, y, r, armsPer) => t11OrbInner(ctx, { now: performance.now(), allies, kL, st, x, y, r, foe, armsPer, small: !!armsPer });
+        fxWithTimers(gen, () => {
+            allies.forEach((a) => {
+                try {
+                    ultChargeFor(a.A, 800);
+                } catch (err) {
+                    ultError('joint11 charge', err);
+                }
+            });
+            sigParticle({ x: 0, y: 0, s: kL, max: total / 1000 + 0.3, z: 1, draw: (ctx) => {
+                if (fxGame !== g) {
+                    return;
+                }
+                try {
+                    // 대비 장면 — 동료 그림을 어둡게 (연출 층 위라 어둠 · 하양에 안 덮임) · 끝나면 되돌림
+                    const contrast = fxJ11?.g === g && fxJ11Contrast(fxJ11);
+                    if (contrast !== st.contrast) {
+                        st.contrast = contrast;
+                        allies.forEach((a) => a.A?.el && (a.A.el.style.filter = contrast ? 'brightness(0.35)' : ''));
+                    }
+                    t11Gather(ctx, { now: performance.now(), allies, kL, track, tracked, gatherTo, st, LA, hitEnd: t0 + (hitAt > 0 ? hitAt : 2000), onGather, onGatherEnd, leadType: o.types?.[lead.i] || 'normal', kind, foe, contrast });
+                } catch (err) {
+                    ultError('joint11 draw', err);
+                }
+            } });
+        });
+        // 대비 장면 중에 그림이 끝나도 (끊김 · 접힘) 동료 어둡게를 되돌림
+        setTimeout(() => {
+            if (st.contrast) {
+                st.contrast = false;
+                allies.forEach((a) => a.A?.el && (a.A.el.style.filter = ''));
+            }
+        }, total + 400);
+        // 맞을 때 — 참가자 색 고리 (번갈아) · 파편
+        if (hitAt > 0) {
+            setTimeout(fxGuard(gen, () => {
+                if (fxWidth(dst) < 1) {
+                    return;
+                }
+                const r = fxRect0.call(dst.box || dst.el);
+                const k = Math.max(1, Math.round(r.width / (dst.size || 32)));
+                const tb = fxBody(B);
+                const pairs = [leadC, ...allies.map((a) => a.c)].map((c) => [c[1], c[2]]);
+                // 끝을 동료 타입으로 (합동에서만 — 혼자 판 터짐 + 고리 하나라 "증기 폭발" 인데 김이 안 보이던 것, 아트 #103 ①) — 물 = 김 + 물 왕관 · 풀 = 잎 · 그 밖 = 동료 별
+                try {
+                    t11Finale(allies.map((a) => a.type), tb, k);
+                    if (track.uniq && (o.types?.[lead.i] || 'normal') === 'grass') {
+                        t11LeafBurst(tb, k);
+                    }
+                } catch (err) {
+                    ultError('joint11 finale', err);
+                }
+                sigParticle({ x: 0, y: 0, s: k, max: 0.6, z: 1, draw: (ctx, p) => {
+                    const step = Math.min(5, Math.floor(p.life / 0.08));
+                    ctx.globalAlpha = 1;
+                    ctx.imageSmoothingEnabled = false;
+                    const rMax = Math.max(6, Math.floor(Math.min(window.innerWidth - tb.x, tb.x) / k) - 2);
+                    t33Ring(ctx, k, tb.x, tb.y, Math.min(rMax, [10, 15, 20, 24, 26, 26][step]), pairs, 'dot', step >= 5 ? (x, y) => (Math.round(x) + Math.round(y)) % 2 === 0 : null);
+                    // 파편 — 참가자 색 2칸 조각 12개가 바깥으로 (0.08초마다 한 걸음)
+                    const fly = (1 + Math.floor(p.life / 0.08)) * 3 * k;
+                    for (let j = 0; j < 12; j++) {
+                        const a = (j / 12) * Math.PI * 2 + 0.26;
+                        const c = pairs[j % pairs.length];
+                        ctx.fillStyle = j % 2 ? c[0] : c[1];
+                        ctx.fillRect(Math.round((tb.x + Math.cos(a) * (12 * k + fly) * 1.4) / k) * k, Math.round((tb.y + Math.sin(a) * (8 * k + fly * 0.7)) / k) * k, 2 * k, 2 * k);
+                    }
+                } });
+            }), hitAt);
+        }
+        return total - cut;
     },
     /**
      * 합동 필살기 (3:3 — 2026-10-21 태현 님 "필살기 연출은 그대로 (메가 변신 · 큰 폭발까지) · 필살기가 합쳐져서 멋진 형태로, 어색하지 않게")

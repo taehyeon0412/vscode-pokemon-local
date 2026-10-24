@@ -8,11 +8,14 @@ import { TIMING } from '../../../core/balance';
 import { teamAutoUltLeft, teamAutoUltNext, teamLit, type GameInput, type Side, type TeamBattle } from '../../../core/engine';
 import { formOf, speciesOf } from '../../../data';
 import { spriteBoxOf, walkBoxOf } from '../../../data/sprite-boxes';
-import { battleSpritePx, koSinkPx } from '../model';
+import { battleSpritePx, koSinkPx, TYPE_COLOR } from '../model';
 import { Sprite } from '../../../ui/Sprite';
 import type { FxActor } from '../fx/bridge';
-import { TeamFxRunner, type TeamSlot } from '../fx/team';
-import { faintHoldLeft, faintIsBig, faintShortLine, foeWarn, overLineHold, plateState, stackRows, teamGeometry, teamPrompt, type TeamGeo } from './model';
+import { TEAM_FX, TeamFxRunner, type TeamSlot } from '../fx/team';
+import { bandDrawn, VIEW_WAIT_MS, duelSpots, faintHoldLeft, faintIsBig, faintShortLine, foeWarn, overLineHold, plateState, stackRows, teamGeometry, teamPrompt, viewPopsBack, type TeamGeo } from './model';
+import { getTeamView, subscribeTeamView, type TeamView } from '../fx/team-view';
+import { JointNamePlate, TeamCutin } from './TeamCutin';
+import { jointName } from './joint-names';
 import { BAND_PX, TeamBand, useTeamBand, type TeamBandView } from './TeamBand';
 import { topGapPx } from '../../../ui/layout';
 import { realLater, realNow } from '../../../ui/real-clock';
@@ -115,7 +118,7 @@ function warnPosOf(b: TeamBattle, g: TeamGeo, show: readonly boolean[]): WarnPos
 /** 머리 위 말 · 숫자 쌓는 높이 — 한 줄 15 · 합동 칩 24 (칩 20 + 간격 1단 4 — 2 면 "쓰러졌다!" 가 칩 테두리에 붙던 것, 개발 #80 UX ④) */
 const popGap = (ps: readonly { joint?: boolean }[]) => ps.reduce((h, p) => h + (p.joint ? 24 : 15), 0);
 
-function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, dim, big, warnChip, warnShow, warnPos, blocks, onUlt }: { b: TeamBattle; g: TeamGeo; side: Side; slot: number; media: string; topMin: number; final: boolean; autoNext: boolean; fullChip: boolean; /** 다 찬 상대 중 먼저 나갈 한 칸 — 그 칸만 "!" 칩 (셋 다 뜨면 끼어들기 장면이 8 ~ 9개로 붐비던 것, 아트 디렉터 #95 2바퀴) */ warnChip: boolean; /** 상대 예고 칩을 보임 ("!" = 먼저 나갈 칸 · "곧" = 0.3초 이어진 뒤) */ warnShow: boolean; /** 상대 예고 칩 자리 (TeamLayer warnPosOf) */ warnPos: WarnPos; /** 모든 칸의 보이는 그림 · 발밑 판 상자 — 칩을 옆에 둘 때 피함 */ blocks: readonly Block[]; /** 큰 연출 (필살기 · 합동 · 힘겨루기) 중 주인공이 아닌 칸 — 흐리게 · 숫자 · 말 지움 (기획 #95) */ dim: boolean; /** 혼자 필살기에 맞는 칸 — 숫자 하나를 크게 */ big: boolean; onUlt(slot: number): void }) {
+function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, dim, big, warnChip, warnShow, warnPos, blocks, viewAt, vMon, vRest, onUlt }: { /** 장면 전환 (#99 시안) — 1:1 자리 (쏘는 칸 · 맞는 칸, 없으면 3:3 자리) */ viewAt: { x: number; y: number } | null; /** 포켓몬 칸 전환 클래스 (자리 옮김 · 숨김) */ vMon: string; /** 판 · 숫자 숨김 클래스 */ vRest: string; b: TeamBattle; g: TeamGeo; side: Side; slot: number; media: string; topMin: number; final: boolean; autoNext: boolean; fullChip: boolean; /** 다 찬 상대 중 먼저 나갈 한 칸 — 그 칸만 "!" 칩 (셋 다 뜨면 끼어들기 장면이 8 ~ 9개로 붐비던 것, 아트 디렉터 #95 2바퀴) */ warnChip: boolean; /** 상대 예고 칩을 보임 ("!" = 먼저 나갈 칸 · "곧" = 0.3초 이어진 뒤) */ warnShow: boolean; /** 상대 예고 칩 자리 (TeamLayer warnPosOf) */ warnPos: WarnPos; /** 모든 칸의 보이는 그림 · 발밑 판 상자 — 칩을 옆에 둘 때 피함 */ blocks: readonly Block[]; /** 큰 연출 (필살기 · 합동 · 힘겨루기) 중 주인공이 아닌 칸 — 흐리게 · 숫자 · 말 지움 (기획 #95) */ dim: boolean; /** 혼자 필살기에 맞는 칸 — 숫자 하나를 크게 */ big: boolean; onUlt(slot: number): void }) {
   const f = b[side][slot]!;
   const { x, y } = g.pos(side, slot);
   const st = plateState(b, side, slot);
@@ -173,7 +176,9 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, d
   const name = speciesOf(f.species)?.name.ko ?? f.form;
   // 그림 칸 = 그린 크기 (큰 포켓몬 ×1.3) · 발끝이 (x, y) — 보통은 예전 그대로 (칸 sp · 위 = y − sp + 3k)
   const art = artOf(f.form, g.scale);
-  const artTop = y - Math.round(art.foot * art.s);
+  // 장면 전환 동안 포켓몬 칸만 1:1 자리 (판 · 숫자는 숨겨 둠 — 돌아온 뒤 제자리에서 보임)
+  const mp = viewAt ?? { x, y };
+  const mTop = mp.y - Math.round(art.foot * art.s);
   // 칩마다 처음 정한 자리 (옆 · 머리 위) 를 끝까지 — 이겼다 띠가 닫히는 장면에 옆 자리에서 머리 위로 47 ~ 61px 옆걸음하던 것 (UX 리뷰어 #95 7바퀴 4)
   const placed = useRef(new Map<number, { l: number; t: number } | null>());
   // 머리 위 숫자 바닥 = 보이는 그림 위 끝 − 4 (맞은 몸에 붙임 — 그림 칸 위 끝으로 잡아 860 에서 머리 18px 위에 뜨고 · ×1 은 #92 때 쓰러짐 말 (폭 약 90) 을 앞 칸 더미 위로 쌓던 규칙이 남아
@@ -196,20 +201,20 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, d
       {/* 포켓몬 — 발 가운데 (x, y) · 칸 = 32 × 배율 (그림 발끝이 칸 아래 3점 위) */}
       <span
         // 마지막 한 방 (판을 끝낸 ko) = 벌러덩 90° · 그 밖의 쓰러짐 = 회색 주저앉기 (2026-10-21 태현 님 B — 1:1 과 같은 값, game.css pg-ko)
-        class={`pg-team-mon pg-team-${side}${st === 'down' ? ' pg-team-down' : ''}${st === 'down' && final ? ' pg-team-ko' : ''}${dim ? ' pg-team-dim' : ''}`}
+        class={`pg-team-mon pg-team-${side}${st === 'down' ? ' pg-team-down' : ''}${st === 'down' && final ? ' pg-team-ko' : ''}${dim ? ' pg-team-dim' : ''}${vMon}`}
         data-team={`${side}-${slot}`}
-        style={{ left: `${Math.round((x - art.px / 2) / g.scale) * g.scale}px`, top: `${artTop}px`, width: `${art.px}px`, height: `${art.px}px` }}
+        style={{ left: `${Math.round((mp.x - art.px / 2) / g.scale) * g.scale}px`, top: `${mTop}px`, width: `${art.px}px`, height: `${art.px}px` }}
         title={`${name} Lv${f.level}${mine && st !== 'down' ? ` — ${slot + 1} 필살기` : ''}`}
         onClick={click}
       >
         {/* 발밑 그림자 (시합장 배경에서만 — game.css) = 칸 안 (달려가기 · 밀림 · 사라짐에 같이 움직임) · 그림 발끝 가운데 · 폭 = 그림 폭 × 0.6 (2k 단위 · ×1 12 ~ ×2 20 이상 · 20k 이하) · k 칸 줄 3단 (아트 디렉터 #78) */}
-        <span class="pg-team-shadow" style={shadowStyle(f.form, g, !mine, artTop)} />
+        <span class="pg-team-shadow" style={shadowStyle(f.form, g, !mine, mTop)} />
         <span class="pg-team-body" style={st === 'down' && final ? { '--pg-back': mine ? '-1' : '1', '--pg-ko-y': `${koSinkPx(f.form, art.px)}px` } : undefined}>
           <Sprite media={media} form={f.form} shiny={f.shiny} scale={g.scale} px={art.px} action="walk" faceLeft={!mine} />
         </span>
       </span>
       {/* 발밑 판 — 키 칸 (내 편) + HP + 필살기 게이지 */}
-      <span class={`pg-team-plate pg-team-plate-${side} pg-plate-${st}${deny ? ' pg-plate-deny' : ''}${dim ? ' pg-team-dim' : ''}${warnPlate ? ' pg-plate-warn' : ''}`} style={{ left: `${Math.round(x - w / 2)}px`, top: `${y + 4}px`, width: `${w}px` }} onClick={click}>
+      <span class={`pg-team-plate pg-team-plate-${side} pg-plate-${st}${deny ? ' pg-plate-deny' : ''}${dim ? ' pg-team-dim' : ''}${warnPlate ? ' pg-plate-warn' : ''}${vRest}`} style={{ left: `${Math.round(x - w / 2)}px`, top: `${y + 4}px`, width: `${w}px` }} onClick={click}>
         {mine && <span class="pg-team-key">{slot + 1}</span>}
         <span class="pg-team-bars">
           <Bar v={f.hp / Math.max(1, f.maxHp)} kind="hp" />
@@ -273,7 +278,7 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, d
         }
         return (
           // 그림 왼쪽에 둘 때는 오른쪽 끝 = 그림 왼쪽 − 2 (left 로 잡으면 폭 어림 차이가 그대로 그림 쪽 틈이 되어 0 ~ 7px 로 들쭉날쭉하던 것 — 아트 디렉터 #95 8바퀴 2)
-          <span key={p.id} class={`pg-team-pop pg-pop-${p.kind}${p.joint ? ' pg-team-joint' : ''}${tall && !p.joint ? ' pg-pop-big' : ''}${at ? (at.l < vis.l ? ' pg-pop-side pg-pop-side-l' : ' pg-pop-side') : ''}`} style={at ? { left: `${at.l < vis.l ? vis.l - 2 : at.l}px`, top: `${at.t}px` } : { left: `${x}px`, top: `${top}px` }}>
+          <span key={p.id} class={`pg-team-pop${vRest} pg-pop-${p.kind}${p.joint ? ' pg-team-joint' : ''}${tall && !p.joint ? ' pg-pop-big' : ''}${at ? (at.l < vis.l ? ' pg-pop-side pg-pop-side-l' : ' pg-pop-side') : ''}`} style={at ? { left: `${at.l < vis.l ? vis.l - 2 : at.l}px`, top: `${at.t}px` } : { left: `${x}px`, top: `${top}px` }}>
             {p.joint ? (
               <>
                 {tagOn && <b class="pg-team-joint-tag">합동!</b>} {p.text}
@@ -288,12 +293,64 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, d
   );
 }
 
+/** 장면 전환 상태 (개발 fx/team-view) — 단계가 바뀔 때마다 다시 그림 (연출 동안 엔진 시계가 붙잡혀 b 가 안 바뀜) */
+function useTeamView(): TeamView | null {
+  const [, tick] = useState(0);
+  useEffect(() => subscribeTeamView(() => tick((n) => n + 1)), []);
+  return getTeamView();
+}
+
+/** 합동 큰 컷인 자리 · 참가자 */
+function JointCutin({ b, view, media, widthPx, heightPx, infoBarPx, fieldTopPx, scale, feetPx }: { b: TeamBattle; view: TeamView; media: string; widthPx: number; heightPx: number; infoBarPx: number; fieldTopPx: number; scale: 1 | 2; /** 무대 앞줄 발끝 (장면 전환 자리 — duelSpots 앞장) */ feetPx: number }) {
+  //   포켓몬은 ×2 까지 (태현 님 10-23 "크게 키운 장면 너무 못생겼는데" — 180 이상 ×3 이던 것) · 작은 무대 (scale 1) 는 ×1
+  const k: 1 | 2 = scale === 1 ? 1 : 2;
+  const base = 32 * k + 28;
+  //   지도 줄 아래부터 (지도 줄을 반만 덮던 것) · 남는 자리 가운데
+  const fieldTop = infoBarPx + fieldTopPx - 4;
+  const mid = fieldTop + Math.max(0, Math.round((heightPx - fieldTop - base) / 2));
+  //   띠가 무대 포켓몬에 반쯤 걸치면 띠 아래 끝 = 발끝 + 4 — 240 × 150 은 띠 아래 끝 117 · 발끝 127 이라 머리는 띠 뒤 · 발만 띠 아래로 나와 잘려 보이던 것 (아트 디렉터 #96 5바퀴) ·
+  //   걸침 = 큰 포켓몬 (×1.3) 머리 + 동료 지그재그 (위 8 · 12) 까지 · 띠가 포켓몬보다 위에 따로 있으면 (높은 패널) 가운데 그대로 ·
+  //   모자람이 16px 까지면 위 끝은 두고 아래로 늘림 (240 × 150 = 58 ~ 130 · 높이 73 — 옮기면 띠가 무대 아래로 몰리고 두 줄 제목 위아래 여유가 4 ~ 5px 이던 것) · 더 모자라면 옮김
+  const monTop = feetPx - Math.round(32 * k * 1.3) - (k === 1 ? 8 : 12);
+  const short = feetPx + 4 - (mid + base);
+  const cut = mid + base > monTop && short > 0;
+  const height = cut && short <= 16 && mid + base + short <= heightPx ? base + short : base;
+  const top = cut && height === base ? Math.min(heightPx - base, feetPx + 4 - base) : mid;
+  const mons = view.from.flatMap((i) => (b[view.side][i] ? [b[view.side][i]!] : []));
+  const who = mons.map((f) => ({ form: f.form, shiny: f.shiny, name: speciesOf(f.species)?.name.ko ?? f.form }));
+  // 타입 색 — 앞장 = 띠 바탕 (어둡게) · 동료 = 속도선 ("합동" 을 색으로 — 남색 띠가 HUD 판처럼 읽히던 것, 아트 디렉터 #99 · 마스터즈 타입 색 방사선)
+  const colors = mons.map((f) => TYPE_COLOR[speciesOf(f.species)?.types[0] ?? 'normal']);
+  // 큰 제목 = 합동 이름 (짝마다 — #100 시안 · joint-names) · 위 작은 줄 "합동 필살기!" · 좁으면 이름 하나
+  const name = jointName(mons.map((f) => speciesOf(f.species)?.types[0] ?? 'normal'));
+  return <TeamCutin who={who} side={view.side} title={widthPx < 400 ? name : '합동 필살기!'} sub={widthPx < 400 ? '' : name} media={media} k={k} top={top} height={height} colors={colors} quick={!!view.quick} />;
+}
+
 /** 상대 필살기 컷인 이름 (ult/core ultIntro — ULT_INTRO_MS 0.9 + 0.9초, 연출 시계 = 게임 시계) 이 떠 있는 동안 (그 필살기 ms) — 끼어들기 큰 판은 이름 아래로 */
 const ULT_TITLE_MS = 1900;
 
 
 export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldTopPx = 0, onInput }: { team: TeamBattle; media: string; widthPx: number; heightPx: number; infoBarPx: number; fieldTopPx?: number; onInput(i: GameInput): void }) {
   const g = useMemo(() => teamGeometry(widthPx, heightPx, infoBarPx), [widthPx, heightPx, infoBarPx]);
+  // 장면 전환 (#99 시안 — 개발 fx/team-view): 필살기 · 합동 동안 무대가 잠깐 1:1 처럼 (내 편 무리 왼쪽 · 상대 무리 오른쪽 · 나머지 숨김) → 1:1 필살기 연출 그대로 → 3:3 으로 돌아옴
+  const view = useTeamView();
+  const vGroups = view ? { me: view.side === 'me' ? view.from : view.to.side === 'me' ? [view.to.slot] : [], foe: view.side === 'foe' ? view.from : view.to.side === 'foe' ? [view.to.slot] : [] } : null;
+  const vSpots = vGroups ? duelSpots(g, vGroups.me.length, vGroups.foe.length) : null;
+  //   나머지 포켓몬 = 바둑판 두 걸음으로 사라짐 · 판 · 숫자 = in 에 바로 숨김 (바둑판이 옮겨 가는 몸 위에 겹쳐 어수선하던 것 — 개발 #99) · out 에 바둑판으로 나타남
+  const vHide = !view ? '' : view.phase === 'in' ? ' pg-view-hide-in' : view.phase === 'out' ? ' pg-view-hide-out' : ' pg-view-hidden';
+  const vRestHide = view?.phase === 'in' ? ' pg-view-hidden' : vHide;
+  //   합동 쏘는 무리는 돌아갈 때 걷지 않고 바둑판으로 사라졌다 제자리에서 나타남 (동료 왼쪽 · 앞장 오른쪽 순서가 줄과 달라 돌아가는 길에 서로를 지나쳐 0.3초 겹치던 것 — 아트 디렉터 #101) ·
+  //   합동 동료는 연출 층 위 (1:1 불 혜성 · 불벽이 동료 몸을 덮어 "앞장이 동료를 친다" 로 보이던 것 — 아트 디렉터 #101)
+  const vOf = (side: Side, slot: number) => {
+    const i = vGroups ? vGroups[side].indexOf(slot) : -1;
+    const shooter = !!view && view.kind === 'joint' && side === view.side && i >= 0;
+    // 앞장도 연출 층 위 (#103 — 터질 때 흰 막 아래에서 앞장만 반쯤 하얘지던 것, 아트 디렉터) · 앞장을 숨기고 캔버스에 꼭두각시로 그리는 필살기는 상관없음 ·
+    // 돌아갈 때 합동 쏜 무리 · 맞은 칸은 바둑판으로 제자리에 (viewPopsBack) — 쓰러진 칸은 숨겼다가 끝에 제자리 (쓰러짐 사라지기 애니메이션이 바둑판을 덮고
+    //   장면 전환 동안 멈춰 있어, 회색 레디바가 보이는 채로 38px 옮겨 가던 것 — #96 6바퀴 · 회색 1.2초는 돌아온 뒤 그대로)
+    const hideDown = !!view && view.phase === 'out' && viewPopsBack(view, side, slot) && plateState(b, side, slot) === 'down';
+    const vMon = !view ? '' : i < 0 ? vHide : hideDown ? ' pg-view-hidden' : view.phase === 'out' && viewPopsBack(view, side, slot) ? vHide : ` pg-view-move${shooter ? ' pg-view-partner' : ''}`;
+    // 숨긴 쓰러진 칸은 판 · 숫자도 같이 숨김 (빈 자리 위에 "-1" 만 떠 있던 것 — #96 UX 6바퀴 작음 5)
+    return { viewAt: vSpots && i >= 0 && view!.phase !== 'out' ? (vSpots[side][i] ?? null) : null, vMon, vRest: hideDown ? ' pg-view-hidden' : vRestHide };
+  };
   const root = useRef<HTMLDivElement>(null);
   const layer = useRef<HTMLDivElement>(null);
   const runner = useRef<TeamFxRunner | null>(null);
@@ -350,7 +407,7 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   } else litStart.current = null;
   const faints = b.popups.filter((p) => p.kind === 'info' && FAINT_RE.test(p.text));
   // 생긴 때 = 처음 본 때 − 말의 나이 (p.ms)
-  faints.forEach((p) => faintSeen.current.has(p.id) || faintSeen.current.set(p.id, faintIsBig(seenNow - p.ms, litStart.current, litAt.current)));
+  faints.forEach((p) => faintSeen.current.has(p.id) || faintSeen.current.set(p.id, faintIsBig(seenNow - p.ms, litStart.current, litAt.current, !!view)));
   if (faintSeen.current.size > 24) faintSeen.current = new Map([...faintSeen.current].slice(-12));
   const line = (ps: typeof faints) => {
     const names = [...new Set(ps.map((p) => p.text.replace(FAINT_RE, '')))];
@@ -362,6 +419,8 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   //   좁아 넘치면 띠가 "N마리 쓰러졌다!" 로 줄임 (TeamBand) · 띠가 닫힐 때까지 그대로
   //   띠 붙잡기 = 엔진 말이 살아 있는 동안 + 띠에 말이 붙은 때부터 1.2초 (좁은 패널은 1.2초 늦게 붙여 말이 0.8초만 보이던 것 — UX 리뷰어 #95 8바퀴 1 · 기획 #131 "쓰러짐 말 1초 넘게")
   const attach = useRef<{ key: string; at: number } | null>(null);
+  // 필살기 · 합동 띠가 생긴 때 · 장면 전환이 섰는지 (bandDrawn — 150ms 안에 장면 전환이 안 서면 띠를 그림, #96 코드 리뷰 중간 2)
+  const viewWait = useRef<{ key: string; at: number; viewed: boolean } | null>(null);
   const band = useTeamBand(b, faintBig !== null || (attach.current !== null && realNow() - attach.current.at < 1200));
   // 띠에 붙은 쓰러짐 말은 띠가 닫힐 때까지 그대로 (글자가 먼저 빠져 띠가 줄며 왼쪽 끝이 50px 튀던 것 — UX 리뷰어 #95 3바퀴)
   const bandFaint = useRef<{ key: string; text: string; short: string | null } | null>(null);
@@ -489,6 +548,16 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   }
   const bandKept = !bandVis0 && !band && !bigHide && !msgOn && seenBand.current !== null && seenBand.current.view.key !== vsTaken.current && bandNow - seenBand.current.at < 1200;
   const bandVis = bandVis0 ?? (bandKept ? seenBand.current!.view : null);
+  // 실제로 그리는 띠 — 장면 전환 (view) 동안은 띠를 안 그림 (이름은 큰 컷인 · 1:1 이름 띠) · 줄 자리 (쓰러짐 줄 · 연타 안내 · 머리 위 숫자 아래 끝) 도 이것으로 셈
+  // 장면 전환을 켠 판의 필살기 · 합동 띠 (힘겨루기 뒤 합동은 띠가 없음 — bandOf) 는 늘 장면 전환으로 바뀌니 처음부터 안 그림 — 엔진 상태가 먼저 바뀌고 연출이 다음 그림에 view 를 세워
+  //   띠가 한 장면 (50 ~ 100ms) 번쩍이던 것 (#96 UX 5바퀴 큼 1)
+  //   짝 · 이름은 앞의 합동 멘트 판 · 큰 컷인 (짝 그림 + 합동! + 이름) 이 말함 (디자인 #96 5바퀴)
+  const waitKey = bandVis && (bandVis.kind === 'ult' || bandVis.kind === 'joint') ? bandVis.key : null;
+  if (waitKey && viewWait.current?.key !== waitKey) viewWait.current = { key: waitKey, at: bandNow, viewed: false };
+  if (!waitKey) viewWait.current = null;
+  if (viewWait.current && view) viewWait.current.viewed = true;
+  const viewWaitAt = viewWait.current && !viewWait.current.viewed ? viewWait.current.at : null;
+  const bandShown = bandDrawn(bandVis, !!view, TEAM_FX.view11, viewWait.current?.viewed ? 0 : viewWaitAt !== null ? bandNow - viewWaitAt : undefined);
   // 좁은 패널 (패널 폭 판) 은 띠가 1.2초 보인 뒤에 쓰러짐 말을 붙임 — 붙으면 한 말만 남아 필살기 이름이 빠짐 (맥 글꼴이면 4단계 — 이름이 1.2초는 보이게, UX 리뷰어 #95 8바퀴 1)
   //   (이겼다 · 졌다 · VS 는 바로 — 제목이 짧아 같이 들어가고, 늦게 붙이면 결과 줄에 닫혀 말이 1초가 안 됨, UX 리뷰어 #95 11바퀴 4)
   const narrowWait = widthPx < 400 && (bandVis0?.kind === 'ult' || bandVis0?.kind === 'joint') && seenBand.current !== null && bandNow - seenBand.current.at < 1200;
@@ -501,7 +570,7 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   if (boxTaken) take(boxPs);
   // 넘긴 말은 이 그림에서 바로 뺌 (VS 띠 끝 말과 밀린 같은 줄이 1장면 함께 보이던 것 — UX 리뷰어 #95 12바퀴 5)
   const freeNow = faints.filter((p) => !faintTaken.current.has(p.id));
-  let apart0 = boxTaken ? null : line(bandVis ? freeNow.filter((p) => faintSeen.current.get(p.id) !== true) : freeNow);
+  let apart0 = boxTaken ? null : line(bandShown ? freeNow.filter((p) => faintSeen.current.get(p.id) !== true) : freeNow);
   // 큰 판 (끼어들기 · 모으기) 이 뜨면 떠 있는 쓰러짐 말을 판 맨 위에 접어 넣음 (판이 끝날 때까지 그대로 — #131 "쓰러짐 말 1초 넘게" 를 지키며, 판은 늘 머리 위 자리 ·
   //   쓰러짐 줄 아래에 판이 서서 누를 [2][3] 을 2.4초 가리던 것 — UX 리뷰어 #95 10바퀴 1 · 6 · 픽셀 2 · 3)
   //   한 줄 판 (낮은 패널 · 150 높이 상대 끼어들기) 에는 안 접음 — 줄이 넘쳐 판이 2 ~ 4줄로 커지며 머리 · 키를 덮던 것 (UX 리뷰어 #95 11바퀴 1) · 줄은 띠 자리, 판은 그 아래 ·
@@ -510,7 +579,7 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   //   240 한 줄 판은 #81 (태현 님 결정 대기) 이라 그대로)
   const foldOk = bigOn && !msgOn && (!(bigUp || (prompt?.kind === 'join' && heightPx < 200)) || widthPx >= 400);
   if (foldOk && apart0 && !panelFaint.current) {
-    const ps = bandVis ? freeNow.filter((p) => faintSeen.current.get(p.id) !== true) : freeNow;
+    const ps = bandShown ? freeNow.filter((p) => faintSeen.current.get(p.id) !== true) : freeNow;
     // 이미 1초 넘게 보인 말은 접지 않고 넘김 (#131 을 채움 — 판 맨 앞에서 2.4초 더 보이며 한 줄 판 제목 앞을 밀어내 "통통코 쓰러졌다! │ 같이 쓰기! [2] 이상해꽃" 으로 읽히고 ·
     //   400 × 187 세로 판이 94 높이로 [3] 거북왕을 덮던 것 — UX 리뷰어 #95 13바퀴 3 · 4 · 5)
     const young = ps.filter((p) => bandNow - (faintAt.current.get(p.id) ?? bandNow) < 1000);
@@ -527,7 +596,7 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   const countNew = count !== '' && countAt.current.at > 0 && realNow() - countAt.current.at < 1000;
   //   좁으면 띠 줄 (24 + 4) 아래 — 힘겨루기 VS 띠가 "3 대 1 — 이길 거예요" 를 1.7초 덮던 것 (픽셀 검사원 #95)
   //   띠가 없으면 띠 자리 (위 줄 쌓기에 같이 — 쓰러짐 줄이 먼저 떠 있으면 그 아래)
-  const promptStyle = low ? { top: 'auto', bottom: '4px' } : { top: `${bandVis ? bandTop + BAND_PX + 4 : bandTop}px` };
+  const promptStyle = low ? { top: 'auto', bottom: '4px' } : { top: `${bandShown ? bandTop + BAND_PX + 4 : bandTop}px` };
   // 엔진 한 줄 (필살기 · 합류 · 결과) 은 판 끝 결과만 · 쓰러지는 장면이 1초 보인 뒤 (컷인 이름을 가리고 · 지난 필살기 줄이 남던 것 — UX 리뷰어 · U1 1초) ·
   //   결과 줄은 쓰러짐 줄 · 띠 자리를 넘겨받음 (픽셀 검사원 #95 6바퀴 6 · UX 10바퀴 7) · 큰 판이 떠 있으면 쓰러짐 말은 판 안 (위)
   //   결과 줄이 뜰 때까지 붙잡음 (지는 판은 결과 줄이 0.3 ~ 0.6초 늦어 그 사이 마지막 이름 하나로 줄던 것 — UX 리뷰어 #95 17바퀴 2)
@@ -541,6 +610,7 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
     (narrowWait || bandKept) && seenBand.current ? seenBand.current.at + 1200 : 0,
     attach.current ? attach.current.at + 1200 : 0,
     lineYoung ? (overLine.current?.last ?? boxLast) + 1200 : 0,
+    viewWaitAt !== null ? viewWaitAt + VIEW_WAIT_MS : 0,
   ].filter((t) => t > bandNow);
   const nextWake = wakes.length ? Math.min(...wakes) : 0;
   useEffect(() => {
@@ -548,7 +618,7 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
     return realLater(() => wakeUp((n) => n + 1), Math.max(16, nextWake - realNow() + 16));
   }, [nextWake]);
   // 위 가운데 줄 (띠 · 쓰러짐 줄 · 연타 안내 · 결과 줄 모두 24, 사이 4) 의 아래 끝 — 머리 위 숫자 · 칩은 그 아래까지만 (띠 아래 쓰러짐 줄은 안 봐서 240 "합동! −12" 칩이 그 밑에 가려지던 것 — 픽셀 검사원 #95 4바퀴 ①)
-  const rows = [bandVis ? BAND_PX : 0, apart ? 24 : 0, mashShow && !low ? 24 : 0, msgOn ? 24 : 0].filter((h) => h > 0);
+  const rows = [bandShown ? BAND_PX : 0, apart ? 24 : 0, mashShow && !low ? 24 : 0, msgOn ? 24 : 0].filter((h) => h > 0);
   const rowsBottom = rows.length ? bandTop + rows.reduce((t, h) => t + h, 0) + 4 * (rows.length - 1) : 0;
   const ult = (slot: number) => onInput({ kind: 'team-battle', input: { kind: 'ult', slot } });
   // 큰 판 (끼어들기 · 합동) 은 무대 한가운데 — 폭 · 높이를 재서 왼쪽 · 위를 정수 px 로 (translate −50% 는 홀수 폭이면 반 픽셀)
@@ -760,14 +830,15 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   const blocks: Block[] = SIDES.flatMap((s) => b[s].flatMap((f, i) => (f ? [{ side: s, slot: i, box: visBoxOf(f.form, g, s, i) }, { side: s, slot: i, box: plateBoxOf(g, s, i), plate: true }] : [])));
   return (
     // 자리는 패널 기준 (시안 geo) — 이 층은 들판 (정보줄 아래) 안이라 정보줄 높이만큼 위로
-    <div class={`pg-team pg-team-x${g.scale}${g.oneRow ? ' pg-team-row' : ''}`} style={{ top: `${-infoBarPx}px` }} ref={root} onClick={b.phase === 'clash' ? () => onInput({ kind: 'team-battle', input: { kind: 'space' } }) : undefined}>
-      {SIDES.map((side) => b[side].map((_, slot) => <Fighter key={`${side}-${slot}`} b={b} g={g} side={side} slot={slot} media={media} topMin={rowsBottom > 0 ? Math.max(topMin, rowsBottom + 2 + 14) : topMin} final={finalKo === `${side}-${slot}`} autoNext={side === 'me' && slot === autoNext} fullChip={side === 'me' && slot === fullFirst} warnChip={side === 'foe' && slot === foeFirstSlot} warnShow={side === 'foe' && (warnShow[slot] ?? false)} warnPos={side === 'foe' ? (warnPos[slot] ?? 'right') : 'right'} blocks={blocks} dim={lit !== null && !lit[side].includes(slot)} big={bigHit === side && (lit?.[side].includes(slot) ?? false)} onUlt={ult} />))}
+    <div class={`pg-team pg-team-x${g.scale}${g.oneRow ? ' pg-team-row' : ''}${view ? ' pg-team-viewing' : ''}`} style={{ top: `${-infoBarPx}px` }} ref={root} onClick={b.phase === 'clash' ? () => onInput({ kind: 'team-battle', input: { kind: 'space' } }) : undefined}>
+      {SIDES.map((side) => b[side].map((_, slot) => <Fighter key={`${side}-${slot}`} b={b} g={g} side={side} slot={slot} media={media} topMin={rowsBottom > 0 ? Math.max(topMin, rowsBottom + 2 + 14) : topMin} final={finalKo === `${side}-${slot}`} autoNext={side === 'me' && slot === autoNext} fullChip={side === 'me' && slot === fullFirst} warnChip={side === 'foe' && slot === foeFirstSlot} warnShow={side === 'foe' && (warnShow[slot] ?? false)} warnPos={side === 'foe' ? (warnPos[slot] ?? 'right') : 'right'} blocks={blocks} dim={lit !== null && !lit[side].includes(slot)} big={bigHit === side && (lit?.[side].includes(slot) ?? false)} {...vOf(side, slot)} onUlt={ult} />))}
       {/* 띠 · 쓰러짐 줄이 떠 있는 동안 머리 위 숫자 · 칩은 그 줄 아래까지만 (240 에서 쓰러짐 줄이 "합동!" 칩을 덮던 것 — 픽셀 검사원 #95) */}
-      {bandVis && <TeamBand view={bandVis} media={media} top={bandTop} faint={inBand?.text ?? null} faintShort={inBand?.short ?? null} wide={widthPx < 400} tight={widthPx < 300} />}
+      {/* 장면 전환 동안은 3:3 띠를 안 띄움 — 혼자 = 1:1 캔버스 이름 띠 · 합동 = 큰 컷인이 이름을 말함 (이름 두 번 안 나오게) */}
+      {bandShown && <TeamBand view={bandShown} media={media} top={bandTop} faint={inBand?.text ?? null} faintShort={inBand?.short ?? null} wide={widthPx < 400} tight={widthPx < 300} />}
       {/* 쓰러짐 말 한 줄 (기획 #95 — 머리 위에 따로 뜨던 "쓰러졌다!" 둘이 15px 차이로 붙고 숫자에 묻히던 것) · 띠가 있으면 그 아래 · 엔진 결과 한 줄이 있으면 그 아래 */}
       {apart && (
         // 띠 아래 자리 = 보이는 띠가 있거나, 큰 연출 중 (띠가 곧 뜸) — 숨긴 띠까지 세어 낮은 패널에서 28px 빈 줄이 남고 · 0.6초 뒤 띠가 뜨며 28px 내려가던 것 (UX 리뷰어 #95 7바퀴 3 · 8)
-        <div class="pg-team-msg pg-team-faint" style={{ top: `${bandTop + (bandVis ? BAND_PX + 4 : 0)}px` }}>
+        <div class="pg-team-msg pg-team-faint" style={{ top: `${bandTop + (bandShown ? BAND_PX + 4 : 0)}px` }}>
           {apart}
         </div>
       )}
@@ -882,6 +953,14 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
           {b.msg}
         </div>
       )}
+      {/* 합동 큰 컷인 (#99 시안) — cut 단계 동안 · 무대 가운데 패널 폭 띠 · 그림 배율 = ×1 무대면 1 · 높은 패널 3 · 그 밖 2 */}
+      {/* 합동 이름 판 (#100 시안) — show 동안 위쪽 1.5초 (합동은 1:1 캔버스 이름 띠가 없어서) */}
+      {view?.kind === 'joint' && view.phase === 'show' && (() => {
+        const mons = view.from.flatMap((i) => (b[view.side][i] ? [b[view.side][i]!] : []));
+        const types = mons.map((f) => speciesOf(f.species)?.types[0] ?? 'normal');
+        return <JointNamePlate key={view.at} who={mons} side={view.side} name={jointName(types)} media={media} top={bandTop} colors={types.map((t) => TYPE_COLOR[t])} quick={!!view.quick} />;
+      })()}
+      {view?.kind === 'joint' && view.phase === 'cut' && <JointCutin b={b} view={view} media={media} widthPx={widthPx} heightPx={heightPx} infoBarPx={infoBarPx} fieldTopPx={fieldTopPx} scale={g.scale} feetPx={g.pos('me', 2).y} />}
     </div>
   );
 }

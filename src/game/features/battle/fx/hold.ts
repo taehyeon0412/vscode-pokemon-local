@@ -87,6 +87,12 @@ export function releaseFx(): void {
   holdKey = '';
 }
 
+/** 3:3 장면 전환 (#99) — 1:1 필살기 연출 · 나옴 (out) 이 끝날 때까지 필살기 끝 걸음을 붙잡음 (맞은 뒤 엔진이 0.75초 만에 다시 달려 연출 밑에서 다음 기술이 나가던 것) */
+let teamTailUntil = 0;
+export function holdTeamTail(until: number): void {
+  teamTailUntil = until;
+}
+
 /** 이번 걸음을 미룰지 — 같은 행동 · 이번 프레임에 끝날 수 있음 · 연출이 아직.
  *  엔진 (advance) 은 모아 둔 시간 (stepAccMs) + 이번 시간 × 배속 만큼 걸어서 — 이번 시간만 보면 끝 걸음이 빠져나감 (2026-10-19 필살기가 2.2초에 끊김) */
 export function shouldHoldBattle(state: GameState, dtMs: number, now: number): boolean {
@@ -102,6 +108,16 @@ export function shouldHoldBattle(state: GameState, dtMs: number, now: number): b
   if (b0 && !b0.anim && b0.phase === 'send' && fxTailUntil > 0) {
     const koStart = fxCoverUntil > 0 ? Math.min(fxCoverUntil, fxTailUntil) - 400 - KO_FLIP_MS : fxTailUntil;
     if (now < koStart) return true;
+  }
+  // 3:3 장면 전환 — 맞은 뒤 필살기 끝 걸음을 연출 · 나옴이 끝날 때까지 (holdTeamTail)
+  const stT = state.runtime.stage;
+  if (stT?.phase === 'team' && now < teamTailUntil) {
+    const u = stT.team.ult;
+    if (stT.team.phase === 'ult' && u && u.hit) {
+      const speed = Math.min(MAX_SPEED, Math.max(1, state.runtime.speed || 1));
+      const { steps } = takeSteps(state.runtime.stepAccMs, dtMs * speed, TIMING.simStepMs);
+      if (steps > 0 && u.ms + steps * TIMING.simStepMs >= u.dur) return true;
+    }
   }
   if (now >= holdUntil) return false;
   const st = state.runtime.stage;

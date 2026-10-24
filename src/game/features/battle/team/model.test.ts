@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bandLeft, faintHoldLeft, faintIsBig, faintShortLine, overLineHold, stackRows, TEAM_ROW_GAP, teamGeometry } from './model';
+import { bandDrawn, bandLeft, duelSpots, faintHoldLeft, faintIsBig, faintShortLine, overLineHold, stackRows, TEAM_ROW_GAP, teamGeometry, viewPopsBack } from './model';
 
 describe('3:3 자리 (디자인팀 4안 시안 geo 그대로)', () => {
   it('860 × 187 = ×2 비스듬히 세 줄 · 앞줄끼리 약 310px · 판 안 잘림', () => {
@@ -120,6 +120,8 @@ describe('3:3 위 가운데 줄 — 띠 · 쓰러짐 줄 · 결과 줄 (픽셀 �
     expect(faintIsBig(6000, 5000, 6000)).toBe(true);
     expect(faintIsBig(6000, null, 5800)).toBe(true);
     expect(faintIsBig(6000, null, 5600)).toBe(false);
+    // 장면 전환 중 쓰러짐 = 따로 줄 (안 보이는 띠에 붙어 사라지던 것 — #96 UX 큼 1)
+    expect(faintIsBig(6000, 5000, 6000, true)).toBe(false);
     // 같은 때 (0.2초 안) 시작한 상대 필살기 = 아님 (VS 띠로 옮겨 가던 것 — 6바퀴)
     expect(faintIsBig(6000, 5950, 6000)).toBe(false);
   });
@@ -142,6 +144,29 @@ describe('3:3 위 가운데 줄 — 띠 · 쓰러짐 줄 · 결과 줄 (픽셀 �
     expect(overLineHold(false, 1000, true)).toBe(false);
     // 결과 줄이 없는 판 끝 = 이름 1.2초만
     expect(overLineHold(false, 300, false)).toBe(false);
+  });
+
+  it('장면 전환 자리 (#99 · #101) — 내 편 왼쪽 · 상대 오른쪽 · 혼자는 가운데 맞춤 · 합동 동료는 바깥으로 넉넉히 · 패널 안 · 배율 칸', () => {
+    for (const [W, H] of [[860, 187], [860, 443], [480, 150], [240, 150]] as const) {
+      const g = teamGeometry(W, H, 26);
+      const solo = duelSpots(g, 1, 1);
+      expect(Math.abs(g.cx - solo.me[0]!.x - (solo.foe[0]!.x - g.cx))).toBeLessThanOrEqual(g.scale);
+      const s = duelSpots(g, 3, 1);
+      expect(s.me[0]!.x).toBeLessThan(g.cx);
+      expect(s.foe[0]!.x).toBeGreaterThan(g.cx);
+      // 합동은 앞장을 대상 쪽으로 당김
+      expect(s.me[0]!.x).toBeGreaterThan(solo.me[0]!.x);
+      if (W === 860) expect(s.me[0]!.x - s.me[1]!.x).toBeGreaterThanOrEqual(110);
+      expect(s.me[1]!.x).toBeLessThan(s.me[0]!.x);
+      expect(s.me[1]!.y).toBeLessThan(s.me[0]!.y);
+      for (const p of [...s.me, ...s.foe]) {
+        expect(p.x - g.sp / 2).toBeGreaterThanOrEqual(0);
+        expect(p.x + g.sp / 2).toBeLessThanOrEqual(W);
+        expect(p.x % g.scale).toBe(0);
+      }
+      // 앞줄 = 3:3 앞줄 발 높이
+      expect(s.me[0]!.y).toBe(g.pos('me', 2).y);
+    }
   });
 
   it('띠 끝 쓰러짐 말을 줄이면 "2마리 쓰러졌다!" · 하나면 줄이지 않음', () => {
@@ -171,5 +196,33 @@ describe('3:3 위 가운데 줄 — 띠 · 쓰러짐 줄 · 결과 줄 (픽셀 �
     // 240 "이겼다!" 64 → 170: 오른쪽이 넘쳐 어차피 옮겨야 하니 가운데 (35 · 35) — 왼 36 · 오른 8 로 치우치던 것 (아트 디렉터 6바퀴 ④)
     expect(bandLeft(240, 170, bandLeft(240, 64, null))).toBe(35);
     expect(Number.isInteger(bandLeft(861, 164, null))).toBe(true);
+  });
+});
+
+describe('장면 전환 — 띠 · 돌아오는 칸 (#96 UX 5바퀴)', () => {
+  it('장면 전환을 켠 판의 필살기 · 합동 띠는 view 가 서기 전에도 안 그림 (큼 1 — 한 장면 번쩍)', () => {
+    expect(bandDrawn({ kind: 'ult' }, false, true, 0)).toBeNull();
+    expect(bandDrawn({ kind: 'joint' }, false, true, 16)).toBeNull();
+    expect(bandDrawn({ kind: 'vs' }, false, true)).toEqual({ kind: 'vs' });
+    expect(bandDrawn({ kind: 'win' }, true, true)).toBeNull();
+    expect(bandDrawn({ kind: 'ult' }, false, false)).toEqual({ kind: 'ult' });
+  });
+  it('돌아갈 때 맞은 칸 · 합동 쏜 무리는 바둑판으로 제자리에 (큼 2 — 민 자리가 풀려 순간 이동)', () => {
+    const solo = { kind: 'solo' as const, side: 'me' as const, from: [1], to: { side: 'foe' as const, slot: 2 } };
+    expect(viewPopsBack(solo, 'foe', 2)).toBe(true);
+    expect(viewPopsBack(solo, 'me', 1)).toBe(false);
+    const joint = { kind: 'joint' as const, side: 'me' as const, from: [0, 2], to: { side: 'foe' as const, slot: 1 } };
+    expect(viewPopsBack(joint, 'me', 2)).toBe(true);
+    expect(viewPopsBack(joint, 'foe', 1)).toBe(true);
+    expect(viewPopsBack(joint, 'me', 1)).toBe(false);
+  });
+});
+
+describe('장면 전환 띠 기다림 (#96 코드 리뷰 중간 2)', () => {
+  it('필살기 · 합동 띠는 150ms 기다렸다가 장면 전환이 안 서면 그림', () => {
+    expect(bandDrawn({ kind: 'ult' }, false, true, 100)).toBeNull();
+    expect(bandDrawn({ kind: 'ult' }, false, true, 200)).toEqual({ kind: 'ult' });
+    expect(bandDrawn({ kind: 'joint' }, false, true, 0)).toBeNull();
+    expect(bandDrawn({ kind: 'joint' }, true, true, 500)).toBeNull();
   });
 });

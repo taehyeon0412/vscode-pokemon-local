@@ -44,7 +44,7 @@ try:
 finally:
     import subprocess
     import shutil
-    subprocess.run(["taskkill", "/PID", str(p.pid), "/T", "/F"], capture_output=True)
+    uf.kill_browser(p)
     httpd.shutdown()
     shutil.rmtree(getattr(uf.browser_page, "prof", ""), ignore_errors=True)
 print("통과" if ok else "실패 — timing 이 안 불림")

@@ -14,6 +14,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 import urllib.parse
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
@@ -26,6 +27,19 @@ EDGE_CANDIDATES = [
     os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"),
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
 ]
+
+def team():
+    """이 도구를 돌린 팀 — 임시 프로필 이름 pg-<팀>- 으로 dev/cleanup.py 가 팀마다 구별 (#109 · PG_TEAM > PG_ROOT 워크트리 이름 > main)"""
+    if os.environ.get("PG_TEAM"):
+        return os.environ["PG_TEAM"]
+    p = (os.environ.get("PG_ROOT") or HERE).replace("\\", "/")
+    k = p.find("/.claude/worktrees/")
+    if k < 0:
+        return "main"
+    return p[k + len("/.claude/worktrees/"):].split("/")[0] or "main"
+
+
+PROF_PREFIX = f"pg-{team()}-"
 
 # 이름 · 패널 너비 x 높이 · 미리보기 주소 값 (dev/game-host.js)
 SHOTS = [
@@ -360,6 +374,20 @@ def browser():
     return exe
 
 
+def kill_browser(p, prof):
+    """머리 없는 브라우저 끄기 — p 나무 + 같은 임시 프로필을 쓰는 남은 것까지 PID 로 (2026-10-24 — Edge 가 호환성 층을 피하려 스스로 다시 띄워 p 로는 taskkill 이 못 찾음 (128) · 장면마다 브라우저 + 자식 약 16개가 남아 남은 메모리 0.3 GB. 띄울 때 --edge-skip-compat-layer-relaunch 로 막고 이건 안전망)"""
+    if p:
+        subprocess.run(["taskkill", "/PID", str(p.pid), "/T", "/F"], capture_output=True)
+    tag = os.path.basename(os.path.normpath(prof or ""))
+    if not tag.startswith(("tmp", "pg-")):
+        return
+    q = subprocess.run(["powershell", "-NoProfile", "-Command",
+                        "Get-CimInstance Win32_Process -Filter \"Name='msedge.exe' OR Name='chrome.exe'\" | Where-Object { $_.CommandLine -like '*" + tag + "*' } | ForEach-Object { $_.ProcessId }"],
+                       capture_output=True, text=True)
+    for pid in q.stdout.split():
+        subprocess.run(["taskkill", "/PID", pid, "/T", "/F"], capture_output=True)
+
+
 def png_size(path):
     with open(path, "rb") as f:
         head = f.read(24)
@@ -367,11 +395,24 @@ def png_size(path):
 
 
 def shoot(url, win, path, budget=3500):
-    with tempfile.TemporaryDirectory() as prof:
-        cmd = [browser(), "--headless=new", "--disable-gpu", "--no-first-run", "--no-default-browser-check", "--hide-scrollbars", "--mute-audio",
+    with tempfile.TemporaryDirectory(prefix=PROF_PREFIX, ignore_cleanup_errors=True) as prof:
+        cmd = [browser(), "--headless=new", "--disable-gpu", "--edge-skip-compat-layer-relaunch", "--no-first-run", "--no-default-browser-check", "--hide-scrollbars", "--mute-audio",
                "--force-device-scale-factor=1", f"--user-data-dir={prof}", f"--window-size={win.replace('x', ',')}", f"--virtual-time-budget={budget}",
                f"--screenshot={path}", url]
+        if os.path.exists(path):
+            os.remove(path)
         subprocess.run(cmd, capture_output=True, timeout=60)
+        # 보통은 여기서 파일이 다 써져 있음 (--edge-skip-compat-layer-relaunch) — 아니면 (Edge 가 스스로 다시 띄워 0.1초 만에 돌아온 때, 2026-10-24 시스템 복원 뒤)
+        # 파일 크기가 멈출 때까지 최대 10초 기다린 뒤 남은 것을 끔 (찍기 실패에 한 장 60초씩 기다리던 것 · 정리 조회는 기다린 때만 — #96 코드 리뷰 낮음 3)
+        if not (os.path.exists(path) and os.path.getsize(path) > 0):
+            end, last = time.time() + 10, -1
+            while time.time() < end:
+                n = os.path.getsize(path) if os.path.exists(path) else -1
+                if n > 0 and n == last:
+                    break
+                last = n
+                time.sleep(0.15)
+            kill_browser(None, prof)
 
 
 def main():

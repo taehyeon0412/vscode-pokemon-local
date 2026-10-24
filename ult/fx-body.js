@@ -988,13 +988,15 @@
                     pp.flash = 1;
                     bigBoom(wx, cy, S, bc, size);
                     // 벽이 번쩍
+                    // 게임 화면 = 벽 번쩍은 위 끝부터 · 금은 세로만 눌러 위 끝 아래 · 솟는 불길도 무대 높이만큼 (위 끝에 반쯤 걸쳐 머물던 것 — #96 디자인 4바퀴 · ult-top 걸쳐 머묾)
+                    const gT = typeof fxStageTop === 'function' ? fxStageTop() : 0;
                     sigParticle({ x: wx, y: 0, s: S, max: 0.35, draw: safeDraw((ctx, q, t, px) => {
                         ctx.globalAlpha = 0.8 * (1 - t);
                         const bw = S * 4;
                         ctx.fillStyle = ac[1];
-                        ctx.fillRect(dir > 0 ? W - bw * 2 : 0, 0, bw * 2, u.H);
+                        ctx.fillRect(dir > 0 ? W - bw * 2 : 0, gT, bw * 2, u.H - gT);
                         ctx.fillStyle = '#ffffff';
-                        ctx.fillRect(dir > 0 ? W - bw : 0, 0, bw, u.H);
+                        ctx.fillRect(dir > 0 ? W - bw : 0, gT, bw, u.H - gT);
                     }) });
                     for (let k = 0; k < 2; k++) {
                         later(70 + k * 120, () => sigRing(wx, cy, S, 4, size * (1.4 + 0.8 * k), 1.6, 0.55, [ac[0], ac[2], '#ffffff']));
@@ -1002,14 +1004,16 @@
                     if (onGround) {
                         groundWave(wx, u.ground - S, S, ac, W * 0.6, 0.75);
                     }
-                    cracks(wx, cy, S, ac, 7 + Math.round(3 * K), Math.max(size * 1.4, u.H * 0.55), (i, n) => (dir > 0 ? Math.PI : 0) + (i / (n - 1) - 0.5) * 2.9, 1, 1.3);
+                    const cl = Math.max(size * 1.4, u.H * 0.55);
+                    cracks(wx, cy, S, ac, 7 + Math.round(3 * K), cl, (i, n) => (dir > 0 ? Math.PI : 0) + (i / (n - 1) - 0.5) * 2.9, gT > 0 ? clamp((cy - gT - 4 * S) / (cl * 1.26), 0.2, 1) : 1, 1.3);
                     debris(wx - dir * S * 2, cy, S, [...ROCK, ...ac.slice(1), hot[1]], 30 + Math.round(28 * K), 380, u.ground, -dir * 0.75);
                     dust(wx - dir * S * 4, u.ground, S, 16, 80, -dir * 0.8, 1.6);
                     // 벽 앞에 있던 애도 휘말림
                     u.others().forEach((q) => Math.abs(q.x - wx) < U * 1.4 + q.w / 2 && ultHit(q, -dir, 'tumble'));
                     if (kind === 'fire') {
                         fireBlast(wx - dir * S * 3, cy, S, size, 44 + Math.round(20 * K));
-                        emit(600, 80, () => roomFor() && sigParticle({ x: wx - dir * moveRand(0, U), y: u.ground - S, s: S, vx: moveRand(-15, 15), vy: -moveRand(130, 280), g: -40, drag: 1.2, max: moveRand(0.4, 0.8), cols: ac, grow: 3 + 2 * K, smoke: 1, draw: DRAW.stream }));
+                        const rk = gT > 0 ? clamp((u.ground - gT - 16 * S) / 155, 0.35, 1) : 1;
+                        emit(600, 80, () => roomFor() && sigParticle({ x: wx - dir * moveRand(0, U), y: u.ground - S, s: S, vx: moveRand(-15, 15), vy: -moveRand(130, 280) * rk, g: -40, drag: 1.2, max: moveRand(0.4, 0.8), cols: ac, grow: 3 + 2 * K, smoke: 1, draw: DRAW.stream }));
                     } else if (kind === 'electric') {
                         for (let i = 0; i < 7 + Math.round(3 * K); i++) {
                             const a = (dir > 0 ? Math.PI : 0) + moveRand(-1.3, 1.3);
@@ -1060,7 +1064,9 @@
                 const ty = u.ground;
                 const tgt = nearest(u, xs);
                 const tx = tgt ? clamp(tgt.x, half, W - half) : clamp(xs + u.dir * W * 0.3, half, W - half);
-                const gy = Math.max(10, H * 0.1);
+                // 하늘 반짝 별 (내리꽂기 출발) — 게임 화면 = 위 끝 + 별 (마지막 번쩍 2.6배) + 4칸 아래 (#96 ④)
+                const top0 = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+                const gy = Math.max(10, H * 0.1, top0 > 0 ? top0 + (S * 3 + U * 0.45 * K) * 2.6 + 4 * S : 0);
                 // 내리꽂는 자리 — 솟은 쪽에서 비스듬히, 화면 밖이면 반대쪽에서
                 const off = Math.min(W * 0.32, (ty - gy) * 0.8);
                 let side0 = Math.sign(xs - tx) || -u.dir;
@@ -1589,7 +1595,9 @@
                         ctx.textBaseline = 'middle';
                         const hw = ctx.measureText(text).width / 2 + 4;
                         const x = clamp(b.x, hw, W - hw);
-                        const y = clamp(b.top - Math.max(U * 0.5, fs) - (fin ? (T - tBlow) * 20 : 0), fs, u.H - fs);
+                        const gT = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+                        const yMin = Math.max(fs, gT > 0 ? gT + 4 * S + fs * 0.6 + Math.max(3, fs / 4) / 2 : 0); // 게임 화면 = 글씨 윗끝이 위 끝 + 4칸 아래 (위 끝에 반쯤 걸쳐 머물던 것 — #96 디자인 4바퀴 · ult-top 걸쳐 머묾)
+                        const y = clamp(b.top - Math.max(U * 0.5, fs) - (fin ? (T - tBlow) * 20 : 0), yMin, u.H - fs);
                         ctx.globalAlpha = t > 0.85 ? (1 - t) / 0.15 : 1;
                         ctx.lineJoin = 'round';
                         ctx.lineWidth = Math.max(3, fs / 4);

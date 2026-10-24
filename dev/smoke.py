@@ -64,8 +64,12 @@ def browser():
 
 
 def run(url, win, budget, extra):
-    with tempfile.TemporaryDirectory() as prof:
-        cmd = [browser(), "--headless=new", "--disable-gpu", "--no-first-run", "--no-default-browser-check", "--hide-scrollbars", "--mute-audio",
+    # 임시 프로필 이름에 팀 (dev/cleanup.py 가 구별 — #109, game-shots team() 과 같은 규칙) · Edge 가 스스로 다시 띄우지 않게 (bugs 1769)
+    root = (os.environ.get("PG_ROOT") or HERE).replace("\\", "/")
+    k = root.find("/.claude/worktrees/")
+    team = os.environ.get("PG_TEAM") or (root[k + len("/.claude/worktrees/"):].split("/")[0] if k >= 0 else "main")
+    with tempfile.TemporaryDirectory(prefix=f"pg-{team}-") as prof:
+        cmd = [browser(), "--headless=new", "--disable-gpu", "--edge-skip-compat-layer-relaunch", "--no-first-run", "--no-default-browser-check", "--hide-scrollbars", "--mute-audio",
                f"--user-data-dir={prof}", f"--window-size={win}", f"--virtual-time-budget={budget}", *extra, url]
         r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=max(120, budget // 1000 * 3))
         return r.stdout

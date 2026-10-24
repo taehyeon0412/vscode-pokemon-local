@@ -61,6 +61,34 @@ export function teamGeometry(W: number, H: number, IB: number): TeamGeo {
   return { W, H, IB, scale, sp, oneRow, cx, pw, pos };
 }
 
+/**
+ * 3:3 필살기 · 합동 "장면 전환" 자리 (orders #99 시안) — 무대가 잠깐 1:1 처럼: 내 편 무리는 왼쪽 · 상대 무리는 오른쪽 (1:1 전투와 같은 쪽 — 그림을 안 뒤집음) ·
+ * 무리 첫째 (쏘는 포켓몬 · 맞는 포켓몬) 가 앞줄 · 나머지 (합동 동료) 는 바깥으로 지그재그 (둘째 = 바깥 · 위 · 셋째 = 더 바깥 · 앞줄 높이).
+ * 발 가운데 (x, y) · 배율 칸에 맞춤 · 패널 안 (그림 반 + 2).
+ */
+export function duelSpots(g: TeamGeo, nMe: number, nFoe: number): { me: { x: number; y: number }[]; foe: { x: number; y: number }[] } {
+  const k = g.scale;
+  const front = g.pos('me', 2).y;
+  const Wb = Math.min(g.W, 860);
+  //   동료는 지그재그 — 둘째 = 위 12 · 셋째 = 앞줄 높이 (위 24 면 187 에서 동료 기 모으기 빛 · 물 공이 무대 위 끝에서 잘리던 것, 아트 디렉터 #100)
+  const stepY = k === 1 ? 8 : 12;
+  const D = Math.max(k === 1 ? 40 : 90, Math.min(Math.round(Wb * 0.26), Math.round(g.W / 2 - g.sp)));
+  const lo = Math.round(g.sp / 2) + 2;
+  const snap = (v: number) => Math.round(v / k) * k;
+  //   혼자 = 가운데에서 D · 합동 (둘 넘게) = 앞장을 대상 쪽으로 당기고 (D × 0.5) 동료는 바깥으로 넉넉히 (×2 = 칸 사이 112 까지 · ×1 = 56 까지 · 자리가 모자라면 고르게) —
+  //   동료 기운이 앞장 구 · 대포 끝으로 흘러드는 길이 보이게 (44 면 빔 짝은 동료가 앞장 위에 겹치고, 구 짝은 동료가 불꽃 구 안에 들어가 길이 20 ~ 40px 뿐이던 것 — 개발 #101)
+  const group = (dir: -1 | 1, n: number) => {
+    const lead = n > 1 ? Math.round(D * 0.5) : D;
+    const room = g.cx - lead - lo;
+    const step = n > 1 ? Math.max(k === 1 ? 24 : 44, Math.min(k === 1 ? 56 : 112, Math.floor(room / (n - 1)))) : 0;
+    return Array.from({ length: n }, (_, i) => {
+      const x = g.cx + dir * (lead + i * step);
+      return { x: snap(Math.max(lo, Math.min(g.W - lo, x))), y: snap(front - (i % 2) * stepY) };
+    });
+  };
+  return { me: group(-1, nMe), foe: group(1, nFoe) };
+}
+
 /** 발밑 판 모양 — charge (차는 중 · 판 없음) · ready (쓸 수 있음) · join (끼어들기 · 합류) · down (쓰러짐). 예약 판은 없앰 (태현 님 #88) */
 export type PlateState = 'charge' | 'ready' | 'join' | 'down';
 
@@ -141,9 +169,26 @@ export function teamPrompt(b: TeamBattle): TeamPrompt {
  *  litStartMs = 지금 이어지는 큰 연출이 시작된 때 (없으면 null) · lastLitMs = 큰 연출이 마지막으로 보인 때 */
 export const FAINT_BIG_MS = 400;
 export const FAINT_LIT_LEAD_MS = 200;
-export function faintIsBig(createdMs: number, litStartMs: number | null, lastLitMs: number): boolean {
+export function faintIsBig(createdMs: number, litStartMs: number | null, lastLitMs: number, viewing = false): boolean {
+  // 장면 전환 (필살기 · 합동이 1:1 처럼) 중에는 띠가 안 보여 — 큰 것으로 세면 안 보이는 띠에 붙어 쓰러짐 말이 사라짐 (#96 UX 큼 1 · #131) · 따로 줄로
+  if (viewing) return false;
   if (litStartMs !== null) return createdMs - litStartMs >= FAINT_LIT_LEAD_MS;
   return createdMs - lastLitMs < FAINT_BIG_MS;
+}
+
+/** 장면 전환 (#99) — 그리는 띠: view 동안은 없음 · 장면 전환을 켠 판 (view11) 의 필살기 · 합동 띠는 VIEW_WAIT_MS 동안 기다림 — 엔진 상태가 먼저 바뀌고
+ *  연출이 다음 그림에 view 를 세워 띠가 한 장면 번쩍이던 것 (#96 UX 5바퀴 큼 1) · 그만큼 지나도 view 가 안 서면 (접었다 편 직후 · 칸을 못 찾음 — 3:3 용 판으로 감)
+ *  띠를 그림 (이름이 아예 안 보이던 것 — #96 코드 리뷰 중간 2) · waitedMs = 그 띠가 생긴 뒤 (한 번이라도 장면 전환이 섰으면 0 — 끝까지 안 그림) */
+export const VIEW_WAIT_MS = 150;
+export function bandDrawn<T extends { kind: string }>(band: T | null, viewing: boolean, view11: boolean, waitedMs = Number.POSITIVE_INFINITY): T | null {
+  if (!band || viewing) return null;
+  return view11 && (band.kind === 'ult' || band.kind === 'joint') && waitedMs < VIEW_WAIT_MS ? null : band;
+}
+
+/** 장면 전환이 끝날 때 (out) 걷지 않고 바둑판으로 사라졌다 제자리에서 나타나는 칸 — 합동 쏜 무리 (#101 — 돌아가는 길에 서로를 지나침) ·
+ *  맞은 칸 (1:1 연출이 민 자리가 한 번에 풀려 90px 순간 이동한 뒤 걸어가던 것 — #96 UX 5바퀴 큼 2) */
+export function viewPopsBack(view: { kind: 'solo' | 'joint'; side: Side; from: readonly number[]; to: { side: Side; slot: number } }, side: Side, slot: number): boolean {
+  return (view.kind === 'joint' && side === view.side && view.from.includes(slot)) || (side === view.to.side && slot === view.to.slot);
 }
 
 /** 쓰러짐 말 넘겨받기 문턱 (1.2초) 까지 남은 ms — 줄에 든 이름 중 가장 늦게 뜬 것부터 셈 (첫 이름으로 세어 뒤 이름이 0.78초 · 판 끝 결과 줄이 마지막 이름을 0.98초에

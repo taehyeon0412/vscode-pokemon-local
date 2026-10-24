@@ -6,7 +6,7 @@ import { advance, createGameState, type GameState } from '../../../core/engine';
 import { TIMING } from '../../../core/balance';
 import { Rng } from '../../../core/engine/rng';
 import { startTeamBattle, teamInput, teamStep, type TeamBattle } from '../../../core/engine/team';
-import { battleAnimKey, FX_HOLD_DUEL_MAX_MS, FX_HOLD_MAX_MS, fxCoverLeft, fxTailLeft, holdFx, KO_ANIM_MS, KO_FLIP_MS, koWaitMs, pickShown, releaseFx, setFxCover, setFxTail, setPickShow, shouldHoldBattle, teamUltKey } from './hold';
+import { battleAnimKey, FX_HOLD_DUEL_MAX_MS, FX_HOLD_MAX_MS, fxCoverLeft, fxTailLeft, holdFx, holdTeamTail, KO_ANIM_MS, KO_FLIP_MS, koWaitMs, pickShown, releaseFx, setFxCover, setFxTail, setPickShow, shouldHoldBattle, teamUltKey } from './hold';
 
 /** 내 포켓몬이 기술을 쓰는 중인 전투 상태 (ms 까지 지남) */
 function inMove(ms: number, dur = 900): { state: GameState; b: BattleState } {
@@ -131,6 +131,27 @@ describe('3:3 필살기 · 합동 마무리 — 연출이 맞힐 때까지 맞�
       // 다른 필살기 열쇠면 안 붙잡음
       holdFx(teamUltKey(-1), 5000, 0, 12_000);
       expect(shouldHoldBattle(at(save, tb), 50, 100)).toBe(false);
+    }
+  });
+
+  it('장면 전환 (#99) — 맞은 뒤 필살기 끝 걸음을 나옴이 끝날 때까지 붙잡음 · 맞기 붙잡기를 풀어도 남음 · 끝나면 풂', () => {
+    const { save, b } = team();
+    let tb = teamInput({ ...b, me: b.me.map((f, i) => (i === 0 ? { ...f, ult: 1 } : f)) }, { kind: 'ult', slot: 0 }, new Rng(9));
+    // 맞은 뒤 끝 바로 앞까지
+    while (tb.ult && (!tb.ult.hit || tb.ult.ms + 50 < tb.ult.dur)) tb = teamStep(tb, 50, new Rng(1), { auto: false, away: false });
+    expect(tb.phase).toBe('ult');
+    expect(tb.ult?.hit).toBe(true);
+    releaseFx();
+    holdTeamTail(1000);
+    try {
+      expect(shouldHoldBattle(at(save, tb), 50, 500)).toBe(true);
+      releaseFx();
+      expect(shouldHoldBattle(at(save, tb), 50, 500)).toBe(true);
+      // 끝 걸음이 아니면 안 붙잡음 · 때가 지나면 풂
+      expect(shouldHoldBattle(at(save, tb), 10, 500)).toBe(false);
+      expect(shouldHoldBattle(at(save, tb), 50, 1500)).toBe(false);
+    } finally {
+      holdTeamTail(0);
     }
   });
 });

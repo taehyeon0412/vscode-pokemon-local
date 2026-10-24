@@ -2,6 +2,8 @@
 // ───── 필살기 연출 A — 에너지 (ult/SPEC.md): ultbeam 광선 · ultorb 거대 구체 · ultnova 대폭발 · ultblackhole 블랙홀 · ultsparkle 반짝 ─────
 // 입자는 먼저 만든 것이 위에 그려짐 (moveTick 이 나중 것부터 그림) — 그래서 덮개(화면 번쩍) → 본체 → 조각 순서로 만듦
 // 다른 연출 파일과 한 덩어리로 이어 붙으니 전부 이 안에 (이름 겹침 방지)
+// 3:3 장면 전환 합동 (#103) — 구 필살기 (runOrb) 의 구 가운데 · 반지름을 미리 셈 (게임 다리가 이름 판 자리에 씀 — runOrb 와 같은 셈) · 안에서 채움
+let fxOrbPreview = null;
 (() => {
     const CAP = 1250; // 살아 있는 입자가 이만큼 넘으면 꾸밈 입자는 건너뜀 (한도 1500)
     const TAU = Math.PI * 2;
@@ -864,6 +866,12 @@
 
         part({ x: ox, y: C.y, s: S, max: total + 0.05,
             update: (p, dt) => {
+                if (o.track) {
+                    // 3:3 장면 전환 합동 (#96 ②) — 하이드로캐논처럼 모으는 곳 (입 앞 구슬) · 빔 자리 (시작 · 방향 · 길이 · 굵기 · 가운데 높이) 를 매 장면 알림 →
+                    // 동료 나선 · 가장자리 줄이 빔 안에 (here = 합동 구슬도 이 구슬 자리 — 앞으로 밀지 않음)
+                    const f = p.life - charge;
+                    Object.assign(o.track, { kind: 'beam', here: true, gx: C.x, gy: C.y, gather: f < 0, gLeft: -f, on: f >= 0 && f < fire - 0.1, x0: ox, dir, len: f >= 0 ? Math.min(reach, f * speed) : 0, w: (dbl ? sep * 2 + Tb : Tb) * st.sc, yAt: (x) => lineY(Math.abs(x - ox)), t: p.life });
+                }
                 if (p.life < charge) {
                     chargeTick(dt, p.life / charge, p.life);
                     return;
@@ -941,10 +949,21 @@
         }
     }
     // 구체 — 스타일마다
-    function drawOrb(ctx, px, s, x, y, r, style, cols, life, alpha = 1) {
+    // mid(ctx, x, y, r) = 구 안에 끼워 그릴 것 (3:3 장면 전환 합동 — 불꽃 구는 0.62 원판 뒤 · 0.36 심 앞 · 그 밖은 맨 위) · 없으면 그대로
+    function drawOrb(ctx, px, s, x, y, r, style, cols, life, alpha = 1, mid = null) {
         if (r < s) {
             ctx.globalAlpha = alpha;
             dotAt(ctx, px, s, x, y, cols[0]);
+            return;
+        }
+        if (mid && style !== 'flame') {
+            drawOrb(ctx, px, s, x, y, r, style, cols, life, alpha);
+            try {
+                mid(ctx, x, y, r);
+            } catch (err) {
+                fail(err);
+            }
+            ctx.globalAlpha = alpha;
             return;
         }
         const seed = Math.floor(life * 14);
@@ -959,6 +978,14 @@
             fuzzDisc(ctx, px, s, x, y, r * 1.04, cols[3], r * 0.1 + s, seed + 1);
             fuzzDisc(ctx, px, s, x, y + r * 0.03, r * 0.86, cols[2], r * 0.08 + s, seed + 2);
             fuzzDisc(ctx, px, s, x, y + r * 0.08, r * 0.62, cols[1], r * 0.06, seed + 3);
+            if (mid) {
+                try {
+                    mid(ctx, x, y, r);
+                } catch (err) {
+                    fail(err);
+                }
+                ctx.globalAlpha = alpha;
+            }
             fuzzDisc(ctx, px, s, x, y + r * 0.12, r * 0.36, cols[0], s, seed + 4);
             // 위로 날름거리는 불꽃 혀
             const w0 = Math.max(1, Math.round((r * 0.24) / s));
@@ -1090,6 +1117,17 @@
         }
     }
 
+    // 구 자리 미리 셈 — runOrb 와 같은 rF · 가운데 (합동 자리 규칙 포함) · { x, y, r (바깥 = rF × 1.3), top }
+    fxOrbPreview = (u, o) => {
+        const P = strength(u);
+        const { S, W, H } = u;
+        const size = clamp(o.size ?? 1, 0.5, 2);
+        const rF = clamp(Math.min(H * 0.15, W * 0.13) * size * (0.85 + 0.3 * P), 9, Math.min(W, H) * 0.3);
+        const top0 = typeof t33Top === 'function' ? t33Top() : 0;
+        const x = clamp(u.body.cx, rF + 2, W - rF - 2);
+        const y = Math.max(rF + 3, u.body.top - rF - 4 * S, top0 + rF * 1.3 + 4 * S);
+        return { x, y, r: rF * 1.3, top: top0 };
+    };
     function runOrb(u, o, ms, pokemon) {
         const P = strength(u);
         const Z = sceneScale(u);
@@ -1098,11 +1136,14 @@
         const style = ORB_C[o.style] ? o.style : 'energy';
         const cols = sigPal(o.c || ORB_C[style]);
         const size = clamp(o.size ?? 1, 0.5, 2);
-        const total = ms / 1000;
+        // 3:3 장면 전환 합동 (#106 — 태현 님 "기모으는 시간만 1초정도 더 늘려서 하자") — 모으기를 o.track.extraG 초 늘림 (동료 별 · 구 커짐이 그만큼 길게 · 본편도 그만큼 김 — 다리가 박자를 늦춤)
+        const GX = o.track?.extraG || 0;
+        const total = ms / 1000 + GX;
         const flash = overlay(total);
         // 게임 화면 — 구 가운데 ≥ 연출 위 끝 (정보줄 · 지도 줄 아래 끝 — bridge fxStageTop) + 바깥 끝 (불꽃 혀까지 r × 1.75 · 그 밖 r × 1.3) + 4칸 ·
         // 던지기 직전 · 던지는 길 진짜 꼭대기도 그 아래 (187 에서 던진 구가 정보줄 뒤로 숨던 것 — #105 · 모양 그대로) · 일반 모드 · 3:3 무대 상자 안은 위 끝 0 이라 그대로
-        const top0 = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+        // (합동 o.track 은 아래 #103 규칙만 — 태현 님이 고른 #103 · #106 모습 그대로)
+        const top0 = !o.track && typeof fxStageTop === 'function' ? fxStageTop() : 0;
         const edge = style === 'flame' ? 1.75 : 1.3;
         const rF = clamp(Math.min(H * 0.15, W * 0.13) * size * (0.85 + 0.3 * P), 9, Math.min(W, H) * 0.3);
         const minY = top0 > 0 ? top0 + rF * edge + 4 * S : 0;
@@ -1117,6 +1158,19 @@
             y: Math.max(rF + 3, u.body.top - rF - 4 * S, minY),
         };
         const home = { x: C.x, y: C.y };
+        // 3:3 장면 전환 합동 (#103) — 구 가운데 ≥ 무대 위 + 바깥 반지름 (r × 1.3) + 4칸 (187 에서 구 윗면이 일자로 잘리던 것) ·
+        // 좁은 패널 (400 아래) 은 합동 이름 판 아래 + 4칸 (판 아래 끝은 화면이 window.__pgJointPlate 로 알림)
+        if (o.track) {
+            const top0 = typeof t33Top === 'function' ? t33Top() : 0;
+            let minY = top0 + rF * 1.3 + 4 * S;
+            const plate = typeof window !== 'undefined' ? window.__pgJointPlate : null;
+            if (plate && W < 400 && performance.now() < plate.until) {
+                minY = Math.max(minY, plate.bottom + 4 * S + rF * 1.3);
+            }
+            C.y = Math.max(C.y, minY);
+            home.y = C.y;
+            o.track.top = top0;
+        }
         const st = { acc: 0, aura: 0, bits: 0, trail: [], thrown: false, boom: false };
         // 몸 → 구체로 올라가는 기운 줄기
         const channel = (ctx, px, life, r) => {
@@ -1162,7 +1216,7 @@
             return;
         }
 
-        const G = total * 0.38; // 키우기
+        const G = (total - GX) * 0.38 + GX; // 키우기 (합동 #106 은 늘린 만큼 더)
         const TH = 0.5; // 날아가기
         const tB = G + TH;
         const Rb = clamp((H / 3) * Math.sqrt(size) * (0.85 + 0.25 * P), 24, Math.min(W, H) * 0.6); // 폭발 반지름
@@ -1176,8 +1230,8 @@
             const ty = Math.min(q ? q.y : u.ground - Math.max(4, rF * 0.3), u.ground - Rb * 0.35);
             st.from = { x: C.x, y: C.y };
             st.to = { x: tx, y: ty };
-            // 진짜 꼭대기 = v (2차 곡선 꼭짓점 — 출발 · 끝 높이가 달라도 v 를 넘지 않게: 조절점 = v − √((출발 − v)(끝 − v)))
-            const v = Math.min(Math.max(rF * 0.7, minY, Math.min(C.y, ty) - Math.max(20, Math.abs(tx - C.x) * 0.3)), C.y, ty);
+            // 진짜 꼭대기 = v (2차 곡선 꼭짓점 — 출발 · 끝 높이가 달라도 v 를 넘지 않게: 조절점 = v − √((출발 − v)(끝 − v))) · 합동은 무대 위 + r × 1.3 + 4칸 (#103)
+            const v = Math.min(Math.max(rF * 0.7, minY, o.track ? (o.track.top ?? 0) + rF * 1.3 + 4 * S : 0, Math.min(C.y, ty) - Math.max(20, Math.abs(tx - C.x) * 0.3)), C.y, ty);
             st.cy = v - Math.sqrt(Math.max(0, (C.y - v) * (ty - v)));
             el?.animate?.([{ translate: '0 0' }, { translate: `${dir * 2 * S}px ${-5 * S}px`, offset: 0.3 }, { translate: '0 0' }], { duration: 400, easing: 'ease-out', composite: 'add' });
             ring(C.x, C.y, S, rF, rF * 2.2, 1, 0.35, [cols[0], '#ffffff']);
@@ -1205,11 +1259,16 @@
         part({ x: 0, y: 0, s: S, max: total,
             update: (p, dt) => {
                 const life = p.life;
+                // 3:3 장면 전환 합동 (#103) — 동료 기운이 모여드는 구 (게임 다리 team11Joint 가 매 장면 읽음 · 없으면 그대로) · solid = 진짜 구 (안에 동료 색 소용돌이)
+                if (o.track) {
+                    const rNow = life < G ? rF * (0.1 + 0.9 * easeOut(life / G / 0.9)) : life < tB ? rF * 0.95 : 0;
+                    Object.assign(o.track, { kind: 'orb', solid: true, x: C.x, y: C.y, r: rNow, gather: life < G, gLeft: G - life, fly: life >= G && life < tB, t: life });
+                }
                 if (life < G) {
                     const k = life / G;
                     growTick(dt, k, rF * easeOut(k / 0.9));
-                    // 던지기 직전 — 살짝 들어 올림
-                    if (life > G - 0.18) {
+                    // 던지기 직전 — 살짝 들어 올림 (위 끝에 막혔으면 뒤로 당김 · 합동은 안 올림 — 위로 잘리지 않게 그 자리에서 1장면 부풀었다 던짐)
+                    if (life > G - 0.18 && !o.track) {
                         const e = smooth((life - (G - 0.18)) / 0.18);
                         if (capped) {
                             C.x = home.x - dir * rF * 0.3 * e;
@@ -1250,12 +1309,12 @@
                 }
                 if (life < G) {
                     const k = life / G;
-                    const r = rF * (0.1 + 0.9 * easeOut(k / 0.9)) * (1 + 0.05 * Math.sin(life * 30));
+                    const r = rF * (0.1 + 0.9 * easeOut(k / 0.9)) * (1 + 0.05 * Math.sin(life * 30)) * (o.track && life > G - 0.05 ? 1.08 : 1);
                     channel(ctx, px, life, r);
                     if (k > 0.55) {
                         speedLines(ctx, px, S, C.x, C.y, rF * 2.2, Math.max(W, H), 20, cols[0], life, (k - 0.55) * 0.7);
                     }
-                    drawOrb(ctx, px, S, C.x, C.y, r, style, cols, life);
+                    drawOrb(ctx, px, S, C.x, C.y, r, style, cols, life, 1, o.track?.inner);
                     return;
                 }
                 // 날아감 — 잔상
@@ -1263,7 +1322,7 @@
                     ctx.globalAlpha = 0.35 * (1 - i / st.trail.length);
                     sigDisc(ctx, px, S, st.trail[i].x, st.trail[i].y, rF * (1 - i * 0.07), i < 3 ? cols[1] : cols[2]);
                 }
-                drawOrb(ctx, px, S, C.x, C.y, rF * 0.95, style, cols, life);
+                drawOrb(ctx, px, S, C.x, C.y, rF * 0.95, style, cols, life, 1, o.track?.inner);
             },
         });
     }
@@ -1769,7 +1828,8 @@
         const st = { hearts: 0, stars: 0, trail: 0, dashing: false, hit: false, shower: false };
         const tgt = nearest(u, u.body.cx);
         glowSprite(el, [1, 1.7, 1.3, 1.8, 1.4, 1.7, 1], total * 900);
-        // 화면 가득 하트 · 별
+        // 화면 가득 하트 · 별 — 게임 화면은 위 끝 (정보줄 · 지도 줄) 아래부터 (반짝이며 머무는 별이 정보줄 뒤에 깔리던 것 — #96 ④ ult-top)
+        const top0 = typeof fxStageTop === 'function' ? fxStageTop() : 0;
         const heartAt = (x, y, big) => {
             if (!room()) {
                 return;
@@ -1866,12 +1926,12 @@
                 st.hearts += dt * (18 + 12 * P) * A * busy;
                 while (st.hearts >= 1) {
                     st.hearts -= 1;
-                    heartAt(moveRand(4 * S, W - 4 * S), moveRand(H * 0.05, u.ground - 4 * S), Math.random() < 0.3);
+                    heartAt(moveRand(4 * S, W - 4 * S), moveRand(Math.max(H * 0.05, top0 > 0 ? top0 + 4 * S : 0), u.ground - 4 * S), Math.random() < 0.3);
                 }
                 st.stars += dt * 40 * A * busy;
                 while (st.stars >= 1) {
                     st.stars -= 1;
-                    starAt(moveRand(0, W), moveRand(0, u.ground), movePick([1, 2, 2, 3]));
+                    starAt(moveRand(0, W), moveRand(top0 > 0 ? top0 + 3 * S : 0, u.ground), movePick([1, 2, 2, 3]));
                 }
                 // 돌진 꼬리 — 반짝이 · 하트
                 if (st.dashing && el) {

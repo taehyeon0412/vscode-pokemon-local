@@ -10,7 +10,8 @@ import { shotTiming } from '../../../core/engine/team';
 import { clashChance, clashWithTaps } from '../../../core/rules/battle';
 import { moveOf } from '../../../data';
 import { pokemonFx, type FxActor, type FxImpact, type FxMove, type PokemonFx } from './bridge';
-import { FX_HOLD_ULT_MAX_MS, holdFx, releaseFx, teamUltKey } from './hold';
+import { FX_HOLD_ULT_MAX_MS, holdFx, holdTeamTail, releaseFx, teamUltKey } from './hold';
+import { TEAM_VIEW, getTeamView, setTeamView, type TeamView } from './team-view';
 import { shotHitAt } from './shot-hit';
 // 개발 모드 (임시) 에서 고른 필살기
 import { devUltOf } from '../../../dev/ult-pick';
@@ -40,9 +41,9 @@ export type TeamFxCall =
   | { do: 'status'; dst: TeamSlot; kind: 'poison' | 'burn' | 'paralysis' | 'sleep' }
   | { do: 'ready'; dst: TeamSlot }
   /** 필살기 (일반 모드 그대로 — 변신 · 전용 연출) — dst = 가운데 상대 (모두를 침) · quick = 짧게 (TEAM_FX.quickRepeat) · key = 엔진 붙잡기 열쇠 (맞는 순간까지) */
-  | { do: 'ult'; src: TeamSlot; dst: TeamSlot; quick: boolean; key: string; others: TeamSlot[]; type: string; name?: string; hitMs?: number }
+  | { do: 'ult'; src: TeamSlot; dst: TeamSlot; quick: boolean; key: string; others: TeamSlot[]; type: string; name?: string; hitMs?: number; repeat?: boolean }
   /** 합동 필살기 마무리 — 이긴 참가자 필살기가 같은 때 닿아 한 점에서 합쳐 터짐 (ult/bridge.js ultJoint) · sure = 3:1 압도 */
-  | { do: 'joint'; winners: TeamSlot[]; dst: TeamSlot; types: string[]; sure: boolean; key: string; others: TeamSlot[]; name?: string; names?: (string | null)[]; quick?: true }
+  | { do: 'joint'; winners: TeamSlot[]; dst: TeamSlot; types: string[]; sure: boolean; key: string; others: TeamSlot[]; name?: string; names?: (string | null)[]; quick?: true; repeat?: boolean }
   /** 필살기 힘겨루기 — 앞장 (첫 참가자) 끼리 대결 · 합류는 join */
   | { do: 'ult-clash'; me: number[]; foe: number[]; names?: { me?: string; foe?: string } }
   | { do: 'ult-join'; who: TeamSlot }
@@ -57,7 +58,8 @@ export const TEAM_KNOCK = { cells: 0.5, ms: 140, finalCells: 1, finalMs: 260 };
 /** 3:3 연출 값 — quickRepeat = 같은 포켓몬 두 번째 필살기부터 짧게 (태현 님 "필살기 연출은 그대로" — 끔, 기획 #88 답 대기) · 닿는 기술 임팩트를 자국보다 늦게 (1:1 과 같음) */
 // stage = 3:3 용 필살기 판 (2026-10-22 태현 님 #122 · #125 기본 — 무대 안 · 크기 절반 · 2초 안팎, ult/bridge.js fxStageUlt · 설정 "처음만 크게 · 늘 크게" 는 3/4)
 // impactScale = 보통 기술 맞음 크기 (빛살 길이 ×0.6 — 보통 공격 장면이 한 화면에 9 ~ 12개 · 큰 효과 둘이던 것, 아트 디렉터 #95 3바퀴 ④) · koLagMs = 큰 맞음과 쓰러뜨림 터짐이 겹치면 두 번째를 미룸
-export const TEAM_FX = { quickRepeat: false, contactImpactLagMs: 90, stage: true, impactScale: 0.6, koLagMs: 300 };
+// view11 = 필살기 · 합동은 장면 전환 (#99 시안 — 1:1 필살기를 그대로 크게, fx/team-view) · 힘겨루기 마무리 (quick) · 힘겨루기는 3:3 용 판 그대로
+export const TEAM_FX = { quickRepeat: false, contactImpactLagMs: 90, stage: true, impactScale: 0.6, koLagMs: 300, view11: true };
 const TIMING_STRIKE_HIT_MS = TIMING.team.strikeHitMs;
 const TIMING_BACK_MS = TIMING.team.backMs;
 /** 이만큼 지난 일은 그리지 않음 — 패널을 접었다 펴거나 다른 탭에서 돌아왔을 때 지난 필살기 · 쓰러짐을 한 번에 몰아 그리지 않게 (코드 리뷰어) */
@@ -161,7 +163,11 @@ function planOne(b: TeamBattle, e: TeamLogEntry, final: boolean, seen: Set<strin
         const j = e.joint;
         // 한 점 = 진 쪽 가운데 · 나머지 상대에게는 퍼지는 충격 (범위 필살기 — 기획 제안)
         const mid = j.losers[Math.floor((j.losers.length - 1) / 2)]!;
-        out.push({ do: 'joint', winners: j.winners.map((slot) => ({ side: e.side, slot })), dst: { side: other(e.side), slot: mid }, others: j.losers.filter((x) => x !== mid).map((slot) => ({ side: other(e.side), slot })), types: j.winners.map((w) => b[e.side][w]?.types[0] ?? 'normal'), sure: j.sure, key: teamUltKey(e.at), ...(e.name ? { name: e.name } : {}), ...(j.names ? { names: j.names } : {}), ...(j.quick ? { quick: true as const } : {}) });
+        // 같은 판에서 같은 짝이 다시 — 맞고 1.5초 뒤 끊음 (#140 A)
+        const jkey = `joint:${e.side}:${[...j.winners].sort((x, y) => x - y).join(',')}`;
+        const repeat = seen.has(jkey);
+        seen.add(jkey);
+        out.push({ do: 'joint', ...(repeat ? { repeat: true } : {}), winners: j.winners.map((slot) => ({ side: e.side, slot })), dst: { side: other(e.side), slot: mid }, others: j.losers.filter((x) => x !== mid).map((slot) => ({ side: other(e.side), slot })), types: jointFxTypes(j.winners.map((w) => b[e.side][w]?.types ?? [])), sure: j.sure, key: teamUltKey(e.at), ...(e.name ? { name: e.name } : {}), ...(j.names ? { names: j.names } : {}), ...(j.quick ? { quick: true as const } : {}) });
         return;
       }
       const key = `${e.side}:${e.from}`;
@@ -171,7 +177,7 @@ function planOne(b: TeamBattle, e: TeamLogEntry, final: boolean, seen: Set<strin
       const others = all ? b[other(e.side)].map((f, i) => (f.hp > 0 && i !== dst.slot ? i : -1)).filter((i) => i >= 0).map((slot) => ({ side: other(e.side), slot })) : [];
       // 엔진 맞는 때 (끼어들기 창이 있으면 그 뒤) — 연출이 그때 맞힘 (3:3 용 판 — 그동안 기 모으기)
       const live = b.ult && b.ult.side === e.side && b.ult.from === e.from && !b.ult.joint ? b.ult.hitMs : undefined;
-      out.push({ do: 'ult', src: { side: e.side, slot: e.from }, dst, quick: TEAM_FX.quickRepeat && seen.has(key), key: teamUltKey(e.at), others, type: b[e.side][e.from]?.types[0] ?? 'normal', ...(e.name ? { name: e.name } : {}), ...(live !== undefined ? { hitMs: live } : {}) });
+      out.push({ do: 'ult', src: { side: e.side, slot: e.from }, dst, quick: TEAM_FX.quickRepeat && seen.has(key), ...(seen.has(key) ? { repeat: true } : {}), key: teamUltKey(e.at), others, type: b[e.side][e.from]?.types[0] ?? 'normal', ...(e.name ? { name: e.name } : {}), ...(live !== undefined ? { hitMs: live } : {}) });
       seen.add(key);
       return;
     }
@@ -269,6 +275,8 @@ export class TeamFxRunner {
   /** 판이 끝나 화면이 사라질 때 — 남은 연출 · 타이머를 지우고 3:3 모드를 끔 */
   reset(): void {
     this.ultUntil = 0;
+    holdTeamTail(0);
+    if (getTeamView()) setTeamView(null);
     releaseKnocks();
     this.pending.forEach((t) => window.clearTimeout(t));
     this.pending.clear();
@@ -286,6 +294,53 @@ export class TeamFxRunner {
   }
 
   /** ms 뒤 (reset 이 지움) */
+  /**
+   * 장면 전환 (#99) — in (TEAM_VIEW.inMs — 화면이 1:1 자리로) → cut (합동만) → show (start() 가 1:1 연출을 시작 · 돌려준 길이만큼) → out → 끝.
+   * 맞는 걸음은 연출이 맞힐 때까지 (holdFx — 시작이 늦으니 상한을 넉넉히) · 필살기 끝 걸음은 나옴이 끝날 때까지 (holdTeamTail) 붙잡음
+   */
+  private view(v: Omit<TeamView, 'phase' | 'at'>, key: string, start: (timing: (t: { main: number }) => void) => number): void {
+    const now0 = performance.now();
+    const lead = TEAM_VIEW.inMs + (v.kind === 'joint' ? (v.quick ? TEAM_VIEW.cutQuickMs : TEAM_VIEW.cutMs) : 0);
+    setTeamView({ ...v, phase: 'in', at: now0 });
+    holdFx(key, lead + FX_HOLD_ULT_MAX_MS, now0, lead + FX_HOLD_ULT_MAX_MS);
+    holdTeamTail(now0 + lead + FX_HOLD_ULT_MAX_MS);
+    this.ultUntil = now0 + lead + FX_HOLD_ULT_MAX_MS;
+    if (v.kind === 'joint') this.later(TEAM_VIEW.inMs, () => setTeamView({ ...v, phase: 'cut', at: performance.now() }));
+    this.later(lead, () => {
+      const now = performance.now();
+      setTeamView({ ...v, phase: 'show', at: now });
+      let total = 0;
+      let hitAt = -1;
+      try {
+        total = start((t) => {
+          hitAt = t.main;
+        });
+      } catch (err) {
+        console.warn('[pokemon-game] 3:3 장면 전환 연출', err);
+      }
+      // 같은 판에서 다시 나온 필살기 · 같은 짝 합동 — 맞고 1.5초 뒤 연출을 끊고 나옴 (#140 A — 처음 보는 건 끝까지)
+      const cut = v.quick && hitAt > 0 && hitAt + TEAM_VIEW.repeatTailMs < total;
+      if (cut) total = hitAt + TEAM_VIEW.repeatTailMs;
+      if (total <= 0) {
+        // 연출을 못 씀 — 바로 피해 · 나옴
+        releaseFx();
+        total = 0;
+      } else {
+        holdFx(key, total, now, FX_HOLD_ULT_MAX_MS);
+      }
+      holdTeamTail(now + total + TEAM_VIEW.outMs);
+      this.ultUntil = now + total + TEAM_VIEW.outMs;
+      this.later(total, () => {
+        if (cut) this.fx?.stopUlt?.();
+        setTeamView({ ...v, phase: 'out', at: performance.now() });
+      });
+      this.later(total + TEAM_VIEW.outMs, () => {
+        setTeamView(null);
+        holdTeamTail(0);
+      });
+    });
+  }
+
   private later(ms: number, fn: () => void): void {
     const t = window.setTimeout(() => {
       this.timers.delete(t);
@@ -397,6 +452,16 @@ export class TeamFxRunner {
         const src = a(c.src);
         const dst = a(c.dst);
         fx.stopDuel?.();
+        // 장면 전환 (#99) — 들어감 → 1:1 필살기 그대로 → 나옴
+        if (TEAM_FX.view11 && src && dst && fx.ult) {
+          const pick0 = c.name ?? devUltOf(this.last?.[c.src.side][c.src.slot]?.uid);
+          this.view({ kind: 'solo', side: c.src.side, from: [c.src.slot], to: c.dst, ...(c.repeat ? { quick: true } : {}) }, c.key, (timing) => {
+            const s2 = a(c.src);
+            const d2 = a(c.dst);
+            return s2 && d2 ? (fx.ult?.(s2, d2, () => releaseFx(), this.learned(c.src), { quick: false, type: c.type, timing, ...(pick0 ? { pick: pick0 } : {}) }) ?? 0) : 0;
+          });
+          return;
+        }
         // 일반 모드 필살기 그대로 — 맞는 순간까지 엔진을 붙잡아 그때 피해 (1:1 과 같음 · 안 볼 때는 엔진 박자)
         const others = c.others.map(a).filter((x): x is FxActor => !!x);
         // 엔진이 고른 필살기 (대상 규칙과 같게 — 기획 R7) · 옛 기록이면 개발 모드에서 고른 것
@@ -430,6 +495,16 @@ export class TeamFxRunner {
               ? '상대의 압도하는 합동 필살기!'
               : '상대 합동 필살기!'
             : undefined;
+        // 장면 전환 (#99) — 들어감 → 큰 컷인 (디자인) → 앞장 1:1 필살기 + 동료 기운 → 나옴 · 힘겨루기 마무리 (quick) 는 3:3 용 판 그대로
+        if (TEAM_FX.view11 && !c.quick && ps.length && dst && fx.team11Joint) {
+          this.view({ kind: 'joint', side: c.winners[0]!.side, from: c.winners.map((w) => w.slot), to: c.dst, ...(c.repeat ? { quick: true } : {}) }, c.key, (timing) => {
+            const ps2 = c.winners.map((w) => a(w));
+            const d2 = a(c.dst);
+            if (!d2 || ps2.some((p) => !p)) return 0;
+            return fx.team11Joint?.(ps2 as FxActor[], d2, () => releaseFx(), { types: ps.map((p) => p.type), avoid: ps.map((p) => p.avoid), pick: ps.map((p) => p.pick), timing }) ?? 0;
+          });
+          return;
+        }
         // 3:3 용 판 (orders #95 — 합동 한 장면 · 힘겨루기 뒤 짧은 마무리, 이름은 화면 3:3 띠)
         if (TEAM_FX.stage && fx.teamJoint) {
           const hitMs = c.quick ? TIMING.team.clashJointHitMs : TIMING.team.jointHitMs;
@@ -550,19 +625,35 @@ export function dash(src: FxActor, dst: FxActor, t: { dur: number; hitMs: number
   const atHit = Math.min(0.9, Math.max(0.05, (t.hitMs - TIMING_STRIKE_HIT_MS) / t.dur));
   const back = Math.min(0.97, Math.max(atHit + 0.05, 1 - TIMING_BACK_MS / t.dur));
   const at = (f: number) => `${snap(dx * f)}px ${snap(dy * f)}px`;
-  // 가고 오기 각 4걸음 (steps — design-system 12장 "4걸음") · 걸음마다 칸 자리
+  // 가고 오기 각 n 걸음 (steps · 걸음마다 칸 자리) — 걸음 수는 거리로 (한 걸음 ≈ 그림 한 칸 폭 · 4 ~ 8 · 시간은 그대로 — #134 A)
+  const n = dashSteps(Math.hypot(dx, dy), k * (src.size || 32));
   const step = { easing: 'steps(1, end)' };
+  const go = Array.from({ length: n }, (_, i) => i / n);
   const an = el.animate(
     [
-      ...[0, 0.25, 0.5, 0.75].map((f, i) => ({ translate: at(f), offset: atHit * (i / 4), ...step })),
+      ...go.map((f, i) => ({ translate: at(f), offset: atHit * (i / n), ...step })),
       { translate: at(1), offset: atHit, ...step },
-      ...[1, 0.75, 0.5, 0.25].map((f, i) => ({ translate: at(f), offset: back + (1 - back) * (i / 4), ...step })),
+      ...go.map((f, i) => ({ translate: at(1 - f), offset: back + (1 - back) * (i / n), ...step })),
       { translate: '0px 0px', offset: 1 },
     ],
     { duration: t.dur, composite: 'add' },
   );
   an.id = DASH_ID;
   return an;
+}
+
+/**
+ * 합동 연출 타입 (별 · 번개 · 끝 장식 색) — 앞장 = 첫 타입 · 동료 = 첫 타입이 앞장과 같고 둘째 타입이 있으면 둘째 타입 (소미안 + 통통코 = 풀 + 풀 → 동료 비행 깃털 —
+ * 같은 타입 짝이라 동료 기운이 앞장 색에 묻혀 안 보이던 것, #96 아트 5바퀴 4)
+ */
+export function jointFxTypes(types: readonly (readonly string[])[]): string[] {
+  const lead = types[0]?.[0] ?? 'normal';
+  return types.map((t, i) => (i > 0 && t[0] === lead && t[1] ? t[1] : (t[0] ?? 'normal')));
+}
+
+/** 달려가기 걸음 수 — 거리 ÷ 그림 한 칸 폭 (반올림) 을 4 ~ 8 로 (#134 A — 3:3 자리는 860 부터 안 넓어져 860 · 1860 이 같음: 가까운 상대 4 ~ 6 · 먼 상대 8) */
+export function dashSteps(dist: number, cell: number): number {
+  return Math.max(4, Math.min(8, Math.round(Math.abs(dist) / Math.max(1, cell))));
 }
 
 /** 달려가던 몸을 지금 자리에서 0.3초에 집으로 (거꾸로 돌림) — 이미 끝났으면 그대로 */

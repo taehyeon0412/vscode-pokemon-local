@@ -11,6 +11,8 @@
     const UNIQ = {}; // 이름 → { fx, ms(P, o), run(u, o, ms, pokemon) }
     // 게임 화면 연출 위 끝 (bridge fxStageTop — 정보줄 · 지도 줄 아래 끝) · 일반 모드 · 3:3 무대 상자 안은 0 — 위로 던지는 불덩이 · 뛰어오른 몸이 그 뒤로 숨지 않게 (#105)
     const gameTop = () => (typeof fxStageTop === 'function' ? fxStageTop() : 0);
+    // 3:3 장면 전환 합동 — 전용 구도 구 자리를 알림 (fx-sky jointOrb · #96 아트 5바퀴 1)
+    const jointOrb = K.jointOrb;
 
     // 꼭두각시 — 진짜 그림을 숨기고 footAt(t) 높이에 테두리 두른 그림. until 초까지 (그 뒤 진짜 그림이 다시 보임)
     // extra: x(t) 자리 · dx(t) 옆으로 · scale(t) 크기 · rot(t) 기울기 · glow(t) 한 색으로 빛남(glowColor)
@@ -50,7 +52,7 @@
         const hit = makeHit();
         const me = monBox(pokemon);
         const bandH = Math.max(40, H * 0.3);
-        const cloudY = bandH * 0.38;
+        const cloudY = K.cloudAt(u, bandH * 0.38, bandH * 0.4);
         const TC0 = 0.3;
         const strikesAt = [0.65, 1.05, 1.38, 1.66, 1.9, 2.08];
         const TJ = 2.3; // 뛰어오름
@@ -59,7 +61,8 @@
         const TB = 4.85; // 대폭발
         const TD = TB + 2.0; // 내려앉음
         const Rs = clamp(Math.max(me.w * 0.9, short(u) * 0.13), 10 * s, Math.min(H * 0.22, W * 0.2));
-        const top = clamp(me.b - H * 0.32, bandH + me.h * 0.5 + Rs * 1.2, me.b - me.h * 0.3);
+        // 게임 화면 = 위 끝 + 몸 반 + 구 (커지는 1.3배까지) + 4칸 아래 (#96 ④)
+        const top = clamp(me.b - H * 0.32, Math.max(bandH + me.h * 0.5 + Rs * 1.2, gameTop() > 0 ? gameTop() + me.h * 0.5 + Rs * 1.45 + 4 * s : 0), me.b - me.h * 0.3);
         const footAt = (t) => {
             if (t < TJ) {
                 return me.b;
@@ -78,7 +81,7 @@
             lit = Math.max(0, lit - dt);
             flash = Math.max(0, flash - dt * 4);
         });
-        skyBand(sc, '#070914', bandH * 1.2, 0.65, sec);
+        skyBand(sc, '#070914', bandH * 1.2 + cloudY - bandH * 0.38, 0.65, sec);
         cloudBank(sc, { y: cloudY, h: bandH * 0.4, cols: ['#6b7090', '#454a63', '#2c3045'], sec, lit: () => (lit > 0 ? 1 : 0), speed: 25 * dir, litCols: ['#ffffff', ZAPC[1], ZAPC[2]] });
         // 전기 구 (피카츄 뒤) — 뛰어오르면 커지고, 대폭발 때 사라짐
         sc.add({ max: TB + 0.05, draw: (ctx, it, t, px) => {
@@ -270,10 +273,12 @@
         const TB = TT + TFLY; // 맞음
         const faceR = clamp(Math.min(W * 0.26, H * 0.32), 30, 180);
         const fx0 = W / 2;
-        const fy0 = clamp(H * 0.3, faceR * 0.7, Math.max(faceR * 0.7, G - faceR * 1.6));
+        // 게임 화면 = 웃는 얼굴 (위 끝 ≈ y − 0.46 R − 3칸) · 공 (≈ 1.56 Rb) 이 위 끝 + 4칸 아래 · 던지는 길 꼭대기도 (위 끝에 반쯤 걸쳐 머물던 것 — #96 디자인 4바퀴 · ult-top 걸쳐 머묾)
+        const fy0 = Math.max(clamp(H * 0.3, faceR * 0.7, Math.max(faceR * 0.7, G - faceR * 1.6)), gameTop() > 0 ? gameTop() + faceR * 0.5 + 6 * s : 0);
         const Rb = clamp(Math.max(me.w * 0.55, short(u) * 0.1), 6 * s, H * 0.14);
+        const ballMin = gameTop() > 0 ? gameTop() + Rb * 1.6 + 4 * s : -Infinity;
         const footAt = (t) => me.b - lift * easeOut(clamp((t - 0.2) / 0.5, 0, 1)) * (t > sec - 0.6 ? clamp((sec - 0.15 - t) / 0.45, 0, 1) : 1) + Math.sin(t * 3) * s;
-        const ball = (t) => [me.x + dir * me.w * 0.1, footAt(t) - me.h - Rb * 1.2];
+        const ball = (t) => [me.x + dir * me.w * 0.1, Math.max(ballMin, footAt(t) - me.h - Rb * 1.2)];
         const q = nearest(u);
         const tx = q ? q.x : clamp(me.x + dir * W * 0.45, W * 0.1, W * 0.9);
         const sc = scene(u, sec + 0.4, 'uniq gengar');
@@ -331,6 +336,7 @@
             const [x, y] = ball(life);
             const k = easeOut((life - TC0) / 1.4) * (1 + 0.1 * Math.max(0, Math.sin(life * 8)) ** 4);
             shadowBall(ctx, px, x, y, Rb * k, life);
+            jointOrb(o, ctx, x, y, Rb * k, true);
         } });
         // 작은 섀도볼 난사 — 다른 포켓몬 (모자라면 땅 곳곳)
         const spots = u.others().map((r) => ({ r, x: r.x }));
@@ -388,10 +394,12 @@
             const [x0, y0] = ball(TT);
             const ey = G - Rb;
             const x = lerp(x0, tx, k);
-            const y = lerp(y0, ey, k * k) - Math.sin(k * Math.PI) * H * 0.08;
+            const y = lerp(y0, ey, k * k) - Math.sin(k * Math.PI) * clamp(y0 - ballMin, 0, H * 0.08);
             shadowBall(ctx, px, x, y, Rb * 1.1, life);
+            jointOrb(o, ctx, x, y, Rb * 1.1, false, true);
         } });
         sc.at(TB, () => {
+            jointOrb(o);
             impactFrames(sc, W, H, 0.6, 0.6);
             blastDome(sc, tx, G, clamp(Math.max(H * 0.45, Rb * 5), 30, Math.min(G * 0.92, W * 0.5)), 2.0, GHOST);
             ring(sc, tx, G - s, Rb, W * 0.7, 0.25, 0.8, ['#ffffff', GHOST[1], GHOST[2]], 3);
@@ -637,12 +645,13 @@
         sc.tick((t, dt) => {
             lit = Math.max(0, lit - dt);
         });
-        skyBand(sc, '#060c18', bandH * 1.2, 0.7, sec);
-        cloudBank(sc, { y: bandH * 0.38, h: bandH * 0.42, cols: ['#5f6b86', '#3d4660', '#272e42'], sec, lit: () => (lit > 0 ? 1 : 0), speed: 30 * dir, litCols: ['#ffffff', '#dbe8ff', '#9fb4e0'] });
+        const gcy = K.cloudAt(u, bandH * 0.38, bandH * 0.42);
+        skyBand(sc, '#060c18', bandH * 1.2 + gcy - bandH * 0.38, 0.7, sec);
+        cloudBank(sc, { y: gcy, h: bandH * 0.42, cols: ['#5f6b86', '#3d4660', '#272e42'], sec, lit: () => (lit > 0 ? 1 : 0), speed: 30 * dir, litCols: ['#ffffff', '#dbe8ff', '#9fb4e0'] });
         K.waterRain(sc, 0.2, sec - 0.4, K.pal.TIDE);
         [0.5, 1.3, 2.2, 3.6].forEach((tb) => sc.at(tb, () => {
             lit = 0.1;
-            strike(sc, rnd(0.1, 0.9) * W, bandH * 0.3, rnd(0.1, 0.9) * W, bandH * 0.9 + rnd(0, H * 0.1), { w: 1, mid: '#dbe8ff', glow: '#6c88c8', dur: 0.2, branches: 1 });
+            strike(sc, rnd(0.1, 0.9) * W, gcy - bandH * 0.08, rnd(0.1, 0.9) * W, gcy + bandH * 0.52 + rnd(0, H * 0.1), { w: 1, mid: '#dbe8ff', glow: '#6c88c8', dur: 0.2, branches: 1 });
         }));
         // 발밑 물 소용돌이
         sc.add({ max: sec, draw: (ctx, it, t, px) => {
@@ -1147,10 +1156,12 @@
             }
             const c = Math.max(s, Math.round(short(u) / 100));
             const bands = [['#5dffb0', 0.12, 0.3], ['#7fe8ff', 0.2, 0.25], ['#c99cff', 0.28, 0.2]];
+            // 게임 화면 = 오로라 띠 윗끝이 위 끝 + 4칸 아래 (머무는 하늘 장식 — #96 ④)
+            const ay = gameTop() > 0 ? Math.max(0, gameTop() + 4 * s - H * 0.065) : 0;
             for (const [col, yk, al] of bands) {
                 const path = new Path2D();
                 for (let x = 0; x < W; x += c) {
-                    const y = H * yk + Math.sin(x * 0.012 + life * 0.9 + yk * 9) * H * 0.04 + Math.sin(x * 0.031 - life * 0.6) * H * 0.015;
+                    const y = ay + H * yk + Math.sin(x * 0.012 + life * 0.9 + yk * 9) * H * 0.04 + Math.sin(x * 0.031 - life * 0.6) * H * 0.015;
                     const hgt = H * 0.06 * (0.6 + 0.4 * Math.sin(x * 0.02 + life * 1.3));
                     path.rect(Math.round(x / c) * c, Math.round(y / c) * c, c, Math.max(c, Math.round(hgt / c) * c));
                 }
@@ -1536,8 +1547,8 @@
         sc.tick((t, dt) => {
             lit = Math.max(0, lit - dt);
         });
-        skyBand(sc, '#08101c', bandH * 1.2, 0.7, sec);
-        cloudBank(sc, { y: bandH * 0.38, h: bandH * 0.42, cols: ['#7a8aa8', '#55617d', '#38405a'], sec, lit: () => (lit > 0 ? 1 : 0), speed: 60 * dir, litCols: ['#ffffff', SILV[1], SILV[2]] });
+        skyBand(sc, '#08101c', bandH * 1.2 + K.cloudAt(u, bandH * 0.38, bandH * 0.42) - bandH * 0.38, 0.7, sec);
+        cloudBank(sc, { y: K.cloudAt(u, bandH * 0.38, bandH * 0.42), h: bandH * 0.42, cols: ['#7a8aa8', '#55617d', '#38405a'], sec, lit: () => (lit > 0 ? 1 : 0), speed: 60 * dir, litCols: ['#ffffff', SILV[1], SILV[2]] });
         // 바람 줄 — 화면을 가로지름
         sc.add({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
@@ -1952,8 +1963,8 @@
         sc.tick((t, dt) => {
             lit = Math.max(0, lit - dt);
         });
-        skyBand(sc, '#040a16', bandH * 1.3, 0.75, sec);
-        cloudBank(sc, { y: bandH * 0.38, h: bandH * 0.45, cols: ['#4f5c78', '#323b55', '#20263a'], sec, lit: () => (lit > 0 ? 1 : 0), speed: 35 * dir, litCols: ['#ffffff', ORIGIN[1], ORIGIN[2]] });
+        skyBand(sc, '#040a16', bandH * 1.3 + K.cloudAt(u, bandH * 0.38, bandH * 0.45) - bandH * 0.38, 0.75, sec);
+        cloudBank(sc, { y: K.cloudAt(u, bandH * 0.38, bandH * 0.45), h: bandH * 0.45, cols: ['#4f5c78', '#323b55', '#20263a'], sec, lit: () => (lit > 0 ? 1 : 0), speed: 35 * dir, litCols: ['#ffffff', ORIGIN[1], ORIGIN[2]] });
         K.waterRain(sc, 0.15, sec - 0.3, ORIGIN);
         K.waterRain(sc, 0.4, sec - 0.3, ['#ffffff', '#8fd8ff', '#3fa2ff', '#1b4fd1']);
         // 차오르는 바닷물 — 땅 위 물결
@@ -2771,6 +2782,7 @@
             ellipse(ctx, px, s, holeX, holeY, R * 1.25, R * 1.25 * 0.3, VOID[0], 0.6);
             ellipse(ctx, px, s, holeX, holeY, R, R, '#000000', 1);
             K.ringDots(ctx, px, s, holeX, holeY, R, 1, [VOID[1], VOID[0]], 0.9, 2);
+            jointOrb(o, ctx, holeX, holeY, R, life < TB - 0.15);
             for (let j = 0; j < 14; j++) {
                 const an = -life * 3 + (j * TAU) / 14;
                 const rr = R * (1.1 + 1.6 * (1 - ((life * 1.2 + j / 14) % 1)));
@@ -2785,6 +2797,7 @@
             ring(sc, holeX, holeY, holeR * 3, holeR * 0.5, 1, 0.5, [VOID[0], VOID[1]], 2);
         });
         sc.at(TB, () => {
+            jointOrb(o);
             impactFrames(sc, W, H, 0.55, 0.65);
             blastDome(sc, holeX, G, clamp(Math.max(H * 0.5, holeR * 3.5), 30, Math.min(G * 0.92, W * 0.48)), 1.9, VOID);
             ring(sc, holeX, holeY, holeR, Math.max(W, H) * 0.8, 1, 0.7, ['#ffffff', VOID[0], VOID[1]], 2);
@@ -3011,7 +3024,7 @@
         const hit = makeHit();
         const me = monBox(pokemon);
         const bandH = Math.max(40, H * 0.3);
-        const cloudY = bandH * 0.38;
+        const cloudY = K.cloudAt(u, bandH * 0.38, bandH * 0.42);
         const lift = me.h * 0.5;
         const charges = [0.8, 1.15, 1.45, 1.7, 1.9];
         const TRAIN = 2.15; // 번개 비
@@ -3031,7 +3044,7 @@
         sc.tick((t, dt) => {
             lit = Math.max(0, lit - dt);
         });
-        skyBand(sc, '#070914', bandH * 1.2, 0.7, sec);
+        skyBand(sc, '#070914', bandH * 1.2 + cloudY - bandH * 0.38, 0.7, sec);
         cloudBank(sc, { y: cloudY, h: bandH * 0.42, cols: ['#6b7090', '#454a63', '#2c3045'], sec, lit: () => (lit > 0 ? 1 : 0), speed: 30 * dir, litCols: ['#ffffff', ZAPC[1], ZAPC[2]] });
         // 날개 번개 깃 (썬더 뒤)
         sc.add({ max: TI + 0.3, draw: (ctx, it, t, px) => {
@@ -3139,7 +3152,7 @@
         const hit = makeHit();
         const me = monBox(pokemon);
         const bandH = Math.max(40, H * 0.3);
-        const cloudY = bandH * 0.38;
+        const cloudY = K.cloudAt(u, bandH * 0.38, bandH * 0.42);
         const charges = [0.7, 1.05, 1.35, 1.6, 1.8];
         const TJ0 = 2.1; // 순간이동 시작
         const STEP = 0.42;
@@ -3167,7 +3180,7 @@
         sc.tick((t, dt) => {
             lit = Math.max(0, lit - dt);
         });
-        skyBand(sc, '#0a0716', bandH * 1.2, 0.7, sec);
+        skyBand(sc, '#0a0716', bandH * 1.2 + cloudY - bandH * 0.38, 0.7, sec);
         cloudBank(sc, { y: cloudY, h: bandH * 0.42, cols: ['#6b6090', '#463e63', '#2c2645'], sec, lit: () => (lit > 0 ? 1 : 0), speed: 25 * dir, litCols: ['#ffffff', RAIKO[1], RAIKO[2]] });
         // 기운 (라이코 뒤)
         sc.add({ max: sec, draw: (ctx, it, t, px) => {
@@ -3380,9 +3393,11 @@
                 return;
             }
             const c = Math.max(s, Math.round(short(u) / 90));
+            // 게임 화면 = 커튼 윗끝이 위 끝 + 4칸 아래 (#96 ④)
+            const c0 = gameTop() > 0 ? gameTop() + 4 * s + H * 0.01 : 0;
             for (let x = 0; x < W; x += c) {
                 const k = Math.sin(x * 0.015 + life * 0.8) * 0.5 + 0.5;
-                const top = H * (0.05 + 0.06 * Math.sin(x * 0.03 + life));
+                const top = c0 + H * (0.05 + 0.06 * Math.sin(x * 0.03 + life));
                 const len = H * (0.15 + 0.2 * k);
                 const col = k > 0.66 ? '#5dffb0' : k > 0.33 ? '#7fe8ff' : '#e0a0ff';
                 ctx.globalAlpha = (0.12 + 0.18 * k) * a;
@@ -3502,9 +3517,11 @@
                 return;
             }
             const a = clamp((life - TPUR) / 0.3, 0, 1) * clamp((sec - 0.2 - life) / 0.6, 0, 1);
+            const gt = gameTop();
+            const g0 = gt > 0 ? gt + 3 * s : 0;
             for (let j = 0; j < 30; j++) {
                 const x = hash(j, 701) * W;
-                const y = ((hash(j, 702) * G + (life - TPUR) * G * 0.1) % G);
+                const y = g0 + ((hash(j, 702) * (G - g0) + (life - TPUR) * (G - g0) * 0.1) % (G - g0));
                 if (Math.sin(life * 8 + j * 1.7) > 0.3) {
                     glint(ctx, px, s, x, y, s * 2, 0.8 * a);
                 }
@@ -3870,7 +3887,7 @@
         };
         const cometAt = (t) => {
             const k = easeIn(clamp((t - TDIVE) / (TI - TDIVE), 0, 1));
-            return [lerp(tx - dir * W * 0.15, tx, k), lerp(-me.h, G - me.h * 0.4, k)];
+            return [lerp(tx - dir * W * 0.15, tx, k), lerp(gameTop() > 0 ? Math.max(-me.h, gameTop() - me.h * 0.5) : -me.h, G - me.h * 0.4, k)];
         };
         const sc = scene(u, sec + 0.4, 'uniq metagross');
         ultDark(0.4, ms - 200);
@@ -3972,8 +3989,10 @@
         const TBIG = TBURST + 1.5; // 거대 용성
         const TDOWN = sec - 0.7;
         const cx0 = clamp(me.x + dir * W * 0.3, W * 0.2, W * 0.8);
-        const cy0 = Math.max(H * 0.22, 30);
         const rl = Math.min(W * 0.15, H * 0.15);
+        // 게임 화면 = 공중 몸 (고리 꼬리 rl × 0.6) · 주황 구 (반지름 × 1.3) 가 위 끝 + 4칸 아래 (#96 ④)
+        const cy0 = Math.max(H * 0.22, 30, gameTop() > 0 ? gameTop() + me.h * 0.5 + rl * 0.6 + 4 * s : 0);
+        const orbY = Math.max(0.6 * cy0, gameTop() > 0 ? gameTop() + Math.max(5 * s, me.w * 0.4) * 1.3 + 4 * s : 0);
         const posAt = (t) => {
             if (t < TUP) {
                 return [me.x, me.b];
@@ -4049,11 +4068,11 @@
             }
             const [x0, y0] = posAt(TSHOT);
             const k = easeOut((life - TSHOT) / (TBURST - TSHOT));
-            fireOrb(ctx, px, s, lerp(x0, cx0, k), lerp(y0 - me.h * 0.5, cy0 * 0.6, k), Math.max(5 * s, me.w * 0.4), DRACO, life, 1, G, 1, 0, [1, 0.8, 0.6, 0.38], 0.5);
+            fireOrb(ctx, px, s, lerp(x0, cx0, k), lerp(y0 - me.h * 0.5, orbY, k), Math.max(5 * s, me.w * 0.4), DRACO, life, 1, G, 1, 0, [1, 0.8, 0.6, 0.38], 0.5);
         } });
         sc.at(TBURST, () => {
             impactFrames(sc, W, H, 0.5, 0.3);
-            ring(sc, cx0, cy0 * 0.6, me.w * 0.3, W * 0.5, 1, 0.5, ['#ffffff', DRACO[1], DRACO[2]], 2);
+            ring(sc, cx0, orbY, me.w * 0.3, W * 0.5, 1, 0.5, ['#ffffff', DRACO[1], DRACO[2]], 2);
             ultShake(4, 300);
         });
         // 용성 — 비스듬히 줄지어
@@ -4066,9 +4085,9 @@
                     return;
                 }
                 const x = lerp(sx, m.x, k);
-                const y = lerp(cy0 * 0.6, G - m.r, easeIn(k));
+                const y = lerp(orbY, G - m.r, easeIn(k));
                 const dx = m.x - sx;
-                const dy = G - cy0 * 0.6;
+                const dy = G - orbY;
                 const L = Math.hypot(dx, dy) || 1;
                 K.fireTail(ctx, px, s, x, y, dx / L, dy / L, m.r * 7, m.r * 2.6, DRACO, life + m.x, 1);
                 ctx.globalAlpha = 1;
@@ -4649,6 +4668,7 @@
             ellipse(ctx, px, s, x, y, R * 1.3, R * 1.3 * 0.32, ECLIPSE[1], 0.6);
             ellipse(ctx, px, s, x, y, R, R, '#000000', 1);
             K.ringDots(ctx, px, s, x, y, R * 1.02, 1, [ECLIPSE[0], ECLIPSE[1]], 0.9, 2);
+            jointOrb(o, ctx, x, y, R, true);
             for (let j = 0; j < 16; j++) {
                 const an = -life * 3 + (j * TAU) / 16;
                 const rr = R * (1.1 + 1.8 * (1 - ((life * 1.3 + j / 16) % 1)));
@@ -4664,6 +4684,7 @@
         // 블래키 (꼭두각시) — 노란 고리 무늬가 빛남
         puppet(sc, pokemon, u, () => me.b, ECLIPSE[1], sec - 0.1, { glow: (t) => clamp((t - 0.2) / 0.5, 0, 1) * (0.2 + 0.15 * Math.sin(t * 6)), glowColor: ECLIPSE[1] });
         sc.at(TB, () => {
+            jointOrb(o);
             impactFrames(sc, W, H, 0.6, 0.6);
             blastDome(sc, mx, G, clamp(Math.max(H * 0.5, Rm * 4.5), 30, Math.min(G * 0.92, W * 0.48)), 1.9, [ECLIPSE[0], ECLIPSE[1], ECLIPSE[2], ECLIPSE[3]]);
             ring(sc, mx, G - s, Rm, W * 0.8, 0.22, 0.8, ['#ffffff', ECLIPSE[1], ECLIPSE[2]], 3);
@@ -6234,6 +6255,7 @@
             if (life < TT) {
                 const [x, y] = hand(life);
                 mistBall(ctx, px, x, y, Rb * easeOut((life - TC0) / (TT - TC0)) * (1 + 0.06 * Math.sin(life * 18)), life);
+                jointOrb(o, ctx, x, y, Rb * easeOut((life - TC0) / (TT - TC0)), true);
                 return;
             }
             const k = (life - TT) / FLY;
@@ -6245,12 +6267,14 @@
                 mistBall(ctx, px, lerp(x0, tx, kk), lerp(y0, G - Rb, kk * kk) - Math.sin(kk * Math.PI) * H * 0.06, Rb * (1 - j * 0.12), life, 0.3);
             }
             mistBall(ctx, px, x, y, Rb, life);
+            jointOrb(o, ctx, x, y, Rb, false, true);
         } });
         sc.at(TT, () => {
             impactFrames(sc, W, H, 0.5, 0.3);
             ultShake(3, 200);
         });
         sc.at(TB, () => {
+            jointOrb(o);
             impactFrames(sc, W, H, 0.6, 0.35);
             blastDome(sc, tx, G, clamp(Math.max(H * 0.45, W * 0.22), 30, Math.min(G * 0.92, W * 0.48)), 1.8, MIST);
             for (let j = 0; j < 8; j++) {
@@ -7355,7 +7379,7 @@
         const hit = makeHit();
         const me = monBox(pokemon);
         const bandH = Math.max(40, H * 0.28);
-        const cloudY = bandH * 0.38;
+        const cloudY = K.cloudAt(u, bandH * 0.38, bandH * 0.4);
         const TSPIKE = 0.3;
         const TNEED = 1.3; // 번개 바늘
         const NN = 16;
@@ -7371,7 +7395,7 @@
         sc.tick((t, dt) => {
             lit = Math.max(0, lit - dt);
         });
-        skyBand(sc, '#070914', bandH * 1.2, 0.65, sec);
+        skyBand(sc, '#070914', bandH * 1.2 + cloudY - bandH * 0.38, 0.65, sec);
         cloudBank(sc, { y: cloudY, h: bandH * 0.4, cols: ['#6b7090', '#454a63', '#2c3045'], sec, lit: () => (lit > 0 ? 1 : 0), speed: 25 * dir, litCols: ['#ffffff', ZAPC[1], ZAPC[2]] });
         // 가시 후광 (쥬피썬더 뒤)
         sc.add({ max: TI + 0.3, draw: (ctx, it, t, px) => {
@@ -7467,7 +7491,10 @@
         const q = nearest(u);
         const tx = clamp(q ? q.x : me.x + dir * W * 0.45, W * 0.1, W * 0.9);
         const Rb = clamp(Math.max(me.w * 0.6, H * 0.08), 6 * s, H * 0.16);
-        const ball = (t) => [me.x, me.b - me.h - Rb * 1.1];
+        // 게임 화면 = 구 (불 혀 · 반짝 1.5 Rb) 가 위 끝 + 4칸 아래 · 던지는 길 꼭대기도 (위 끝에 반쯤 걸쳐 머물던 것 — #96 디자인 4바퀴 · ult-top 걸쳐 머묾)
+        const bTop = gameTop() > 0 ? gameTop() + Rb * 1.5 + 4 * s : -Infinity;
+        const ballY = Math.max(bTop, me.b - me.h - Rb * 1.1);
+        const ball = () => [me.x, ballY];
         const heat = (t) => clamp((t - TC0) / (TT - TC0), 0, 1);
         const palAt = (k) => (k < 0.4 ? ['#ffffff', '#fff3a0', '#ff8a2a', '#c8201a'] : k < 0.75 ? ['#ffffff', '#ffffd0', '#ffd23b', '#ff7a1a'] : ['#ffffff', '#f0f8ff', '#bfe9ff', '#ffb04a']);
         const sc = scene(u, sec + 0.4, 'uniq flareon');
@@ -7498,9 +7525,10 @@
             if (life > TT) {
                 const f = (life - TT) / FLY;
                 x = lerp(x, tx, f);
-                y = lerp(y, G - Rb, f * f) - Math.sin(f * Math.PI) * H * 0.08;
+                y = lerp(y, G - Rb, f * f) - Math.sin(f * Math.PI) * clamp(ballY - bTop, 0, H * 0.08);
             }
             fireOrb(ctx, px, s, x, y, Rb * (0.3 + 0.7 * easeOut(k)) * (1 + 0.08 * Math.sin(life * 25)), palAt(k), life, 1, G, 1, 0, [1, 0.85, 0.65, 0.4], 0.7);
+            jointOrb(o, ctx, x, y, Rb * (0.3 + 0.7 * easeOut(k)), life <= TT, life > TT);
             if (k > 0.75) {
                 glint(ctx, px, s, x, y, Rb * 1.3, 0.8);
             }
@@ -7510,6 +7538,7 @@
             ultShake(4, 300);
         });
         sc.at(TB, () => {
+            jointOrb(o);
             impactFrames(sc, W, H, 0.85, 0.5);
             const FIRE = ['#ffffff', '#fff3a0', '#ff8a2a', '#c8201a'];
             K.firePillar(sc, tx, G, clamp(Rb * 2, 8 * s, W * 0.2), 1.3, FIRE);
@@ -9811,10 +9840,20 @@
         const q = nearest(u);
         const tx = clamp(q ? q.x : me.x + dir * Math.min(W * 0.4, me.w * 5 + 40), W * 0.1, W * 0.9);
         const dd = Math.sign(tx - me.x) || dir;
-        const kx = clamp(me.x - dd * Math.max(me.w * 1.8, W * 0.12), me.w * 0.6, W - me.w * 0.6); // 차는 자리 (뒤쪽 허공)
-        const ky = me.b - Math.min(H * 0.3, me.h * 2.2);
-        const topY = Math.max(me.h * 1.2, G - Math.min(H * 0.62, G * 0.75));
+        let kx = clamp(me.x - dd * Math.max(me.w * 1.8, W * 0.12), me.w * 0.6, W - me.w * 0.6); // 차는 자리 (뒤쪽 허공)
+        // 3:3 합동 — 차는 자리가 동료 둘레 (그림 + 8px · 테 16px) 안이면 그 바깥 앞쪽으로 (구가 동료 머리 위에 떠 동료가 쏘는 것처럼 보이던 것, #96 아트 6바퀴 4)
+        for (const bx of o.track?.avoid?.() || []) {
+            if (kx > bx.l - 16 && kx < bx.r + 16) {
+                kx = clamp(dd > 0 ? bx.r + 16 + me.w * 0.3 : bx.l - 16 - me.w * 0.3, me.w * 0.6, W - me.w * 0.6);
+            }
+        }
         const Rb = Math.max(me.w * 0.32, 5 * s);
+        // 벽 차는 자리 — 게임 화면은 머리 위 공 (몸 키 1.15 + 뛰는 호 0.3 + 둘레 고리 Rb × 1.5) 이 위 끝 + 4칸 아래 (공이 정보줄에 반쯤 걸치던 것 — #96 아트 4바퀴 1)
+        const ky0 = me.b - Math.min(H * 0.3, me.h * 2.2);
+        const ky = gameTop() > 0 ? Math.min(me.b - me.h * 0.2, Math.max(ky0, gameTop() + me.h * 1.45 + Rb * 1.5 + 4 * s)) : ky0;
+        // 게임 화면 = 꼭대기의 몸 · 머리 위 공 (둘레 고리 Rb × 1.5) 이 위 끝 + 4칸 아래 · 그래도 몸 키 0.35 는 뜀 (#96 ④)
+        const topY0 = Math.max(me.h * 1.2, G - Math.min(H * 0.62, G * 0.75));
+        const topY = gameTop() > 0 ? Math.min(me.b - me.h * 0.35, Math.max(topY0, gameTop() + me.h * 1.15 + Rb * 1.5 + 4 * s)) : topY0;
         const P0 = [me.x, me.b];
         const P1 = [kx, ky];
         const P2 = [tx - dd * me.w * 0.3, topY];
@@ -9836,10 +9875,20 @@
             const k = clamp((t - TSLAM - 0.15) / (THOME - TSLAM - 0.15), 0, 1);
             return [lerp(P2[0], P0[0], k), lerp(P2[1], P0[1], k * k) - Math.sin(k * Math.PI) * me.h * 0.6];
         };
+        // 게임 화면 = 구 (둘레 고리 Rb × 1.5) 가 늘 위 끝 + 4칸 아래 — 벽을 차고 오르는 호 꼭대기에서 윗면이 위 끝에 0.2 ~ 0.4초 일자로 잘리던 것 (#96 UX 6바퀴 큼 1 · 같은 구 세 번째)
+        const ballTop = gameTop() > 0 ? gameTop() + Rb * 1.5 + 4 * s : -Infinity;
         const ballAt = (t) => {
+            const [bx, by] = ballAt0(t);
+            return [bx, Math.max(ballTop, by)];
+        };
+        const ballAt0 = (t) => {
             const [x, y] = posAt(t);
+            if (t < TJ) {
+                // 기 모으는 동안 = 입 앞 +12px · 위 6px (작은 몸이 구 · 별에 가려지던 것 — #96 아트 4바퀴 3)
+                return u.mouth ? [u.mouth.x + dir * 12, u.mouth.y - 6] : [x + dir * me.w * 0.1, y - me.h * 0.55];
+            }
             if (t < TTOP + 0.05) {
-                return [x + dir * me.w * 0.1 * (t < TJ ? 1 : 0), y - me.h * (t < TJ ? 0.55 : 1.15)];
+                return [x, y - me.h * 1.15];
             }
             const k = clamp((t - TTOP - 0.05) / (TSLAM - TTOP - 0.05), 0, 1);
             return [lerp(x, tx, k), lerp(y - me.h * 1.15, G - Rb, k * k)];
@@ -9861,6 +9910,7 @@
             const [x, y] = ballAt(life);
             const k = easeOut(clamp((life - TC) / 1.0, 0, 1));
             fireOrb(ctx, px, s, x, y, Rb * (0.3 + 0.7 * k), GE, life, 1, G, 0.95, 0, [1, 0.75, 0.5, 0.28], 0);
+            jointOrb(o, ctx, x, y, Rb * (0.3 + 0.7 * k), life < TTOP + 0.05, life >= TTOP + 0.05);
             K.swirlRing(ctx, px, s, x, y, Rb * (1.3 + 0.2 * Math.sin(life * 9)), 0.9, life, dir, [GE[0], GE[2]], 0.8 * k);
             glint(ctx, px, s, x - Rb * 0.3, y - Rb * 0.3, Rb * 0.4 * k, 0.9);
         } });
@@ -9874,7 +9924,8 @@
             const [x0, y0] = ballAt(TTOP + 0.05);
             const L = Math.hypot(x - x0, y - y0);
             if (L > s * 2) {
-                K.fireTail(ctx, px, s, x, y, (x - x0) / L, (y - y0) / L, L, Rb * 1.8, GE, life, 0.8);
+                // 불투명 (반투명 연두 기둥 한 장이 "유리" 로 읽히던 것 — #96 아트 6바퀴 8)
+                K.fireTail(ctx, px, s, x, y, (x - x0) / L, (y - y0) / L, L, Rb * 1.8, GE, life, 1);
             }
         } });
         K.chargeSwirl(sc, (t) => ballAt(t), TC, TJ - 0.05, Math.max(me.w * 3, short(u) * 0.35), Rb, GE, dir);
@@ -9888,9 +9939,21 @@
             ultShake(1.5, 100);
         });
         sc.at(TSLAM, () => {
+            jointOrb(o);
             impactFrames(sc, W, H, 0.55, 0.35);
             ultShake(5 + 2 * P, 450);
-            ring(sc, tx, G - s, me.w * 0.4, me.w * 3.4, 0.24, 0.55, ['#ffffff', GE[1], GE[2]], 3);
+            // 바닥 고리 = 점선 (2px 점 · 4px 간격 — 1px 매끈한 큰 타원이 다른 점 · 선 말투와 달라 보이던 것, #96 아트 4바퀴 3)
+            sc.add({ max: 0.55, draw: (ctx, it, t, px) => {
+                const r = me.w * 0.4 + (me.w * 3 * easeOut(Math.min(1, t)));
+                const n = Math.max(12, Math.round((Math.PI * 2 * r) / 6));
+                ctx.globalAlpha = (1 - Math.min(1, t)) ** 1.2;
+                ctx.fillStyle = GE[1];
+                for (let i = 0; i < n; i++) {
+                    const a = (i / n) * Math.PI * 2;
+                    ctx.fillRect(px(tx + Math.cos(a) * r), px(G - s + Math.sin(a) * r * 0.24), 2, 2);
+                }
+                ctx.globalAlpha = 1;
+            } });
             fireBits(tx, G - Rb, s, GE, 30, { angle: -Math.PI / 2, spread: 2.6, speed: H * 0.7, g: H, life: 0.8 });
             for (const r of u.others()) {
                 if (Math.abs(r.x - tx) < me.w * 2) {
@@ -10165,12 +10228,14 @@
         sc.add({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
             const fade = clamp((sec - life) / 0.5, 0, 1);
+            const gt = gameTop();
             for (const f of fe) {
                 const k = life - f.t0;
                 if (k <= 0) {
                     continue;
                 }
-                const y = -f.len + f.sp * k;
+                // 게임 화면 = 위 끝 바로 밑에서 나타나 내려옴 (위 끝에 반쯤 걸쳐 천천히 내려오던 것 — #96 ④)
+                const y = (gt > 0 ? gt + 4 * s + f.len * 0.5 + s : -f.len) + f.sp * k; // y = 깃털 가운데 (키 len)
                 if (y > G) {
                     continue;
                 }
@@ -10886,7 +10951,7 @@
         const q = nearest(u);
         const tx = clamp(q ? q.x : me.x + dir * Math.min(W * 0.4, me.w * 5 + 40), W * 0.15, W * 0.85);
         const DR = clamp(Math.max(me.h * 1.6, H * 0.22), 16 * s, Math.min(H * 0.38, W * 0.22));
-        const ty = Math.max(DR * 1.1, G - DR * 1.15);
+        const ty = Math.max(DR * 1.1, G - DR * 1.15, gameTop() > 0 ? gameTop() + DR * 0.8 + 4 * s : 0); // 大 자 위 팔 머리 ≈ ty − 0.75 DR (위 끝에 반쯤 걸쳐 머물던 것 — #96 디자인 4바퀴 · ult-top 걸쳐 머묾)
         // 불덩이 가운데 ≥ 연출 위 끝 + 가장 큰 반지름 + 6칸 (붉은 테 · 꼬리) — 손 위에서 키우는 자리도 · 날아가는 길은 높이를 줄여 꼭대기가 그 선에 닿게 (187 에서 던진 불덩이가 정보줄 뒤로 숨던 것 — #105 ·
         // 길만 자르면 던지는 순간 25px 튀고 일자로 날던 것, 코드 리뷰어)
         const top0 = gameTop();
@@ -10937,6 +11002,7 @@
                 K.fireTail(ctx, px, s, x, y, (x - x0) / L, (y - y0) / L, R * 3, R * 2, F, life, 0.9);
             }
             fireOrb(ctx, px, s, x, y, R, F, life, 1, G, 1, 0, [1, 0.8, 0.6, 0.38], 0.5);
+            jointOrb(o, ctx, x, y, R, life <= TTHROW, life > TTHROW);
         } });
         // 大 자 불꽃
         sc.add({ max: TBANG + 0.3, draw: (ctx, it, t, px) => {
@@ -10954,6 +11020,7 @@
         });
         sc.at(TTHROW, () => ultShake(2, 120));
         sc.at(TOPEN, () => {
+            jointOrb(o);
             impactFrames(sc, W, H, 0.45, 0.3);
             ultShake(4 + P, 400);
             ring(sc, tx, ty, DR * 0.3, DR * 1.6, 0.9, 0.4, ['#ffffff', F[1], F[2]], 2);
@@ -12405,9 +12472,11 @@
             return [clamp(me.x + dir * W * 0.35, W * 0.1, W * 0.9), G - me.h * 0.6];
         };
         const Rw = Math.max(me.w * 0.24, 4 * s);
+        // 게임 화면 = 도깨비불 (불 위 끝 = y − 1.9 Rw) 이 위 끝 + 4칸 아래 — 맴도는 자리 · 날아가는 호 꼭대기 (위 끝에 반쯤 걸쳐 머물던 것 — #96 디자인 4바퀴 · ult-top 걸쳐 머묾)
+        const wTop = gameTop() > 0 ? gameTop() + Rw * 2.2 + 4 * s : -Infinity;
         const wispAt = (i, t) => {
             const ph = (i * TAU) / 3;
-            const home = [me.x + Math.cos(ph + t * 3) * me.w * 0.9, me.b - me.h * 0.8 + Math.sin(ph + t * 3) * me.h * 0.3 + Math.sin(t * 5 + i) * s * 2];
+            const home = [me.x + Math.cos(ph + t * 3) * me.w * 0.9, Math.max(wTop, me.b - me.h * 0.8 + Math.sin(ph + t * 3) * me.h * 0.3 + Math.sin(t * 5 + i) * s * 2)];
             if (t < TGO) {
                 const k = clamp((t - TUP - i * 0.12) / 0.3, 0, 1);
                 return [lerp(me.x + (i - 1) * me.w * 0.25, home[0], k), lerp(me.b - me.h, home[1], k), k];
@@ -12418,7 +12487,8 @@
             const orbit = [x2 + Math.cos(ph + t * sp) * r, y2 + Math.sin(ph + t * sp) * r * 0.5];
             const k = clamp((t - TGO) / (TARR - TGO), 0, 1);
             const h0 = [me.x + Math.cos(ph + TGO * 3) * me.w * 0.9, me.b - me.h * 0.8 + Math.sin(ph + TGO * 3) * me.h * 0.3];
-            return [lerp(h0[0], orbit[0], easeOut(k)), lerp(h0[1], orbit[1], easeOut(k)) - Math.sin(k * Math.PI) * me.h, 1];
+            const ay = lerp(h0[1], orbit[1], easeOut(k));
+            return [lerp(h0[0], orbit[0], easeOut(k)), ay - Math.sin(k * Math.PI) * clamp(ay - wTop, 0, me.h), 1];
         };
         const sc = scene(u, sec + 0.3, 'uniq fennekin');
         ultDark(0.38, ms - 200);
@@ -12508,8 +12578,10 @@
             }
             return [clamp(me.x + dir * W * 0.35, W * 0.1, W * 0.9), G - me.h * 0.6, me.w];
         };
-        const over = [me.x, me.b - me.h * 1.5];
         const R0 = Math.max(me.w * 0.9, 12 * s);
+        // 게임 화면 = 올가미 (타원 R × 0.32 · 꼬리 · 반짝) 윗끝이 위 끝 + 4칸 아래 · 던지는 호 꼭대기도 (위 끝에 반쯤 걸쳐 머물던 것 — #96 디자인 4바퀴 · ult-top 걸쳐 머묾)
+        const lassoTop = gameTop() > 0 ? gameTop() + R0 * 0.5 + 6 * s : -Infinity;
+        const over = [me.x, Math.max(lassoTop, me.b - me.h * 1.5)];
         const ringAt = (t) => {
             if (t < TTHROW) {
                 return [over[0], over[1], R0 * easeOut(clamp((t - TSP) / 0.4, 0, 1)), 0.32];
@@ -12518,7 +12590,7 @@
             const k = clamp((t - TTHROW) / (TWRAP - TTHROW), 0, 1);
             const tight = t > TWRAP ? 1 - 0.55 * easeIn(clamp((t - TTIGHT + 0.6) / 0.6, 0, 1)) : 1;
             const Rt = Math.max(w2 * 0.9, R0 * 0.8) * tight;
-            return [lerp(over[0], x2, easeOut(k)), lerp(over[1], y2, easeOut(k)) - Math.sin(k * Math.PI) * me.h * 1.2, lerp(R0, Rt, k), lerp(0.32, 0.3, k)];
+            return [lerp(over[0], x2, easeOut(k)), lerp(over[1], y2, easeOut(k)) - Math.sin(k * Math.PI) * clamp(Math.min(over[1], y2) - lassoTop, 0, me.h * 1.2), lerp(R0, Rt, k), lerp(0.32, 0.3, k)];
         };
         const sc = scene(u, sec + 0.3, 'uniq braixen');
         ultDark(0.34, ms - 200);
@@ -12689,6 +12761,7 @@
                 ctx.fillRect(px(cx - R * b.r * 0.4), px(cy - R * b.r * 0.45), s, s);
             }
             ellipse(ctx, px, s, x - R * 0.1, y - R * 0.1, R * 0.45, R * 0.4 * squash, FOAM[1], 0.9);
+            jointOrb(o, ctx, x, y, R, life < TBALL, life >= TBALL);
         } });
         // 목에서 거품이 모여듦
         let pull = 0;
@@ -12726,6 +12799,7 @@
         }
         sc.at(TBALL + 0.2, () => K.splash(bx[0], G - s, s, FOAM, 5, H * 0.25, { spread: 1.4, life: 0.4 }));
         sc.at(THIT, () => {
+            jointOrb(o);
             impactFrames(sc, W, H, 0.45, 0.3);
             ultShake(4 + 2 * P, 400);
             ring(sc, tx, G - Rb, Rb * 0.5, Rb * 4, 0.6, 0.45, ['#ffffff', TIDE[1], TIDE[2]], 3);

@@ -1,12 +1,13 @@
 /** 3:3 연출 다리 — 엔진 기록 → 계획 → 실행 (2026-10-21 orders #17 준비) */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { sampleMonster, sampleSave, viaJson } from '../../../../test/fixtures/save';
 import { TIMING } from '../../../core/balance';
 import { Rng, readTeam, TEAM_LOG_MAX, type TeamBattle, type TeamNote } from '../../../core/engine';
 import { startTeamBattle, teamStep } from '../../../core/engine/team';
 import type { Monster, Save } from '../../../core/save';
 import type { FxActor, PokemonFx } from './bridge';
-import { planTeamFx, TEAM_FX, TEAM_FX_LATE_MS, TEAM_KNOCK, TeamFxRunner, type TeamFxCall } from './team';
+import { dashSteps, jointFxTypes, planTeamFx, TEAM_FX, TEAM_FX_LATE_MS, TEAM_KNOCK, TeamFxRunner, type TeamFxCall } from './team';
+import { getTeamView, subscribeTeamView, TEAM_VIEW, type TeamViewPhase } from './team-view';
 
 const mon = (uid: string, o: Partial<Monster> = {}) => sampleMonster({ uid, level: 12, ...o });
 function team3(): Save {
@@ -183,6 +184,108 @@ describe('실행', () => {
   });
 });
 
+describe('장면 전환 (#99 시안) — 들어감 → (합동 컷인) → 1:1 필살기 그대로 → 나옴', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+  const run = (kind: 'solo' | 'joint') => {
+    vi.useFakeTimers();
+    // 실행기 타이머는 window.setTimeout (웹뷰) — 시험은 가짜 시계로
+    vi.stubGlobal('window', globalThis);
+    const calls: string[] = [];
+    const fx = { version: 4, plan: () => null, team: () => undefined, mount: () => undefined, clear: () => undefined, stopDuel: () => undefined,
+      ult: (...a: unknown[]) => (calls.push(`ult:${JSON.stringify(a[4])}`), 4000),
+      team11Joint: (srcs: unknown[]) => (calls.push(`joint:${srcs.length}`), 5000) } as unknown as PokemonFx;
+    const actor = { el: {} as HTMLElement, form: 'charmander', size: 32, left: false } as FxActor;
+    const runner = new TeamFxRunner({ actor: () => actor }, fx);
+    const phases: (TeamViewPhase | null)[] = [];
+    const off = subscribeTeamView((v) => phases.push(v ? v.phase : null));
+    const b = withLog([]);
+    runner.update(b);
+    const ult = kind === 'solo'
+      ? { t: 'ult' as const, side: 'me' as const, from: 0, id: 1, at: 5050 }
+      : { t: 'ult' as const, side: 'me' as const, from: 0, joint: { winners: [0, 1], losers: [0, 1, 2], sure: false }, id: 1, at: 5050 };
+    runner.update({ ...b, t: 5050, log: [ult as never], logSeq: 1 });
+    return { calls, phases, runner, off };
+  };
+
+  it('혼자 — in 0.35초 뒤 1:1 필살기 (무대 상자 없이) · 연출 길이 뒤 out · 0.35초 뒤 끝', () => {
+    const { calls, phases, runner, off } = run('solo');
+    try {
+      expect(getTeamView()?.phase).toBe('in');
+      expect(calls).toEqual([]);
+      vi.advanceTimersByTime(TEAM_VIEW.inMs);
+      expect(getTeamView()?.phase).toBe('show');
+      expect(calls).toHaveLength(1);
+      expect(calls[0]).not.toContain('stage');
+      vi.advanceTimersByTime(4000);
+      expect(getTeamView()?.phase).toBe('out');
+      vi.advanceTimersByTime(TEAM_VIEW.outMs);
+      expect(getTeamView()).toBeNull();
+      expect(phases).toEqual(['in', 'show', 'out', null]);
+    } finally {
+      off();
+      runner.reset();
+    }
+  });
+
+  it('같은 판에서 다시 나온 필살기 (#140 A) — quick · 맞고 1.5초 뒤 연출을 끊고 out (처음은 끝까지)', () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('window', globalThis);
+    const calls: string[] = [];
+    const fx = { version: 4, plan: () => null, team: () => undefined, mount: () => undefined, clear: () => undefined, stopDuel: () => undefined,
+      stopUlt: () => calls.push('stopUlt'),
+      ult: (...a: unknown[]) => {
+        const o = a[4] as { timing?: (t: { main: number; cover: number; total: number }) => void };
+        o.timing?.({ main: 1000, cover: -1, total: 6000 });
+        calls.push('ult');
+        return 6000;
+      } } as unknown as PokemonFx;
+    const actor = { el: {} as HTMLElement, form: 'charmander', size: 32, left: false } as FxActor;
+    const runner = new TeamFxRunner({ actor: () => actor }, fx);
+    const b = withLog([]);
+    runner.update(b);
+    const ult = (id: number, t: number) => ({ t: 'ult' as const, side: 'me' as const, from: 0, id, at: t });
+    try {
+      runner.update({ ...b, t: 5050, log: [ult(1, 5050)], logSeq: 1 });
+      expect(getTeamView()?.quick).toBeUndefined();
+      vi.advanceTimersByTime(TEAM_VIEW.inMs + 6000);
+      expect(getTeamView()?.phase).toBe('out');
+      expect(calls).toEqual(['ult']);
+      vi.advanceTimersByTime(TEAM_VIEW.outMs);
+      // 두 번째 — 같은 칸 · 같은 판
+      runner.update({ ...b, t: 9000, log: [ult(1, 5050), ult(2, 9000)], logSeq: 2 });
+      expect(getTeamView()?.quick).toBe(true);
+      vi.advanceTimersByTime(TEAM_VIEW.inMs);
+      expect(getTeamView()?.phase).toBe('show');
+      vi.advanceTimersByTime(1000 + TEAM_VIEW.repeatTailMs);
+      expect(getTeamView()?.phase).toBe('out');
+      expect(calls).toEqual(['ult', 'ult', 'stopUlt']);
+    } finally {
+      runner.reset();
+    }
+  });
+
+  it('합동 — in → cut (큰 컷인) → show (앞장 하나 + 동료 기운) → out · 판이 끝나면 (reset) 전환도 지움', () => {
+    const { calls, phases, runner, off } = run('joint');
+    try {
+      vi.advanceTimersByTime(TEAM_VIEW.inMs);
+      expect(getTeamView()?.phase).toBe('cut');
+      expect(calls).toEqual([]);
+      vi.advanceTimersByTime(TEAM_VIEW.cutMs);
+      expect(getTeamView()?.phase).toBe('show');
+      expect(calls).toEqual(['joint:2']);
+      runner.reset();
+      expect(getTeamView()).toBeNull();
+      vi.advanceTimersByTime(10_000);
+      expect(phases).toEqual(['in', 'cut', 'show', null]);
+    } finally {
+      off();
+    }
+  });
+});
+
 describe('필살기가 그린 상대에는 큰 임팩트를 또 안 그림 (#80 진단 ⑤ — 큰 임팩트 세 겹)', () => {
   const impacts = (notes: TeamNote[], down: number[]) => {
     const b = withLog(notes);
@@ -198,5 +301,24 @@ describe('필살기가 그린 상대에는 큰 임팩트를 또 안 그림 (#80 
   it('범위기 — 그때 살아 있던 상대 가운데 (쓰러진 상대 포함해 셈) · 고른 대상은 그 상대', () => {
     expect(impacts([{ t: 'ult', side: 'me', from: 0 }, hit(0, false), hit(1, true), hit(2, false)], [1])).toEqual(TEAM_FX.stage ? [] : [0, 2]);
     expect(impacts([{ t: 'ult', side: 'me', from: 0, spread: false, target: 2 }, hit(2, true)], [2])).toEqual([]);
+  });
+});
+
+describe('달려가기 걸음 수 (#134 A — 거리로)', () => {
+  it('그림 한 칸 폭 (×2 = 64px) 마다 한 걸음 · 4 ~ 8', () => {
+    expect(dashSteps(80, 64)).toBe(4);
+    expect(dashSteps(380, 64)).toBe(6);
+    expect(dashSteps(500, 64)).toBe(8);
+    expect(dashSteps(2000, 64)).toBe(8);
+    expect(dashSteps(-380, 64)).toBe(6);
+  });
+});
+
+describe('합동 연출 타입 — 같은 타입 짝 (#96 아트 5바퀴 4)', () => {
+  it('동료 첫 타입이 앞장과 같고 둘째 타입이 있으면 둘째 타입', () => {
+    expect(jointFxTypes([['grass', 'flying'], ['grass', 'fairy']])).toEqual(['grass', 'fairy']);
+    expect(jointFxTypes([['grass'], ['grass', 'flying'], ['water']])).toEqual(['grass', 'flying', 'water']);
+    expect(jointFxTypes([['fire'], ['fire']])).toEqual(['fire', 'fire']);
+    expect(jointFxTypes([['water'], ['fire']])).toEqual(['water', 'fire']);
   });
 });

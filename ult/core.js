@@ -164,14 +164,32 @@ function ultCancelPress(press = ultPress) {
 // 기 모으기 — 빛 알갱이가 몸으로 빨려 들고, 발밑 고리가 차오르고, 몸이 점점 세게 떨림
 function ultChargeStart(press) {
     const p = press.pokemon;
-    if (ultBusy(p)) {
+    if (!press.force && ultBusy(p)) {
         return;
     }
     press.ult = ultPeek(p.label);
-    const cols = ultCols(press.ult[2] || {}, press.ult[1]);
-    const span = (ULT_HOLD_MS - ULT_CHARGE_FROM) / 1000;
+    const look = press.look;
+    const cols = look ? look.cols.slice(0, 3) : ultCols(press.ult[2] || {}, press.ult[1]);
+    // 합동 동료 — 3×3 "+" (심 + 팔) · 반투명 없이 · 몸 상자 + 2px 안엔 안 그림 (#96 아트 3바퀴 5)
+    let box = null;
+    const plus = (ctx, px, s, x, y) => {
+        if (box && x > box.left - 2 && x < box.right + 2 && y > box.top - 2 && y < box.bottom + 2) {
+            return;
+        }
+        const z = Math.max(LS, s);
+        const pz = (v) => Math.round(v / z) * z;
+        ctx.globalAlpha = 1;
+        dotAt(ctx, pz, z, x, y, look.cols[0], 1, 1);
+        for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+            dotAt(ctx, pz, z, x + ox * z, y + oy * z, look.cols[1], 1, 1);
+        }
+    };
+    // 보이는 길이 — 보통 다 찰 때까지 · press.hold 면 다 찬 채로 그만큼 (합동 동료)
+    const span = Math.max((ULT_HOLD_MS - ULT_CHARGE_FROM) / 1000, press.hold || 0);
     const prog = () => ultClamp((performance.now() - press.t0 - ULT_CHARGE_FROM) / (ULT_HOLD_MS - ULT_CHARGE_FROM), 0, 1);
     const S = Math.max(2, Math.round(spriteSize(p) / (p._originalSpriteSize || 32)));
+    // 합동 동료 (look) 는 점 2px 고정 (3:3 무대 그림이 ×2 인데 1px 로 그려지던 것 — 아트 #103)
+    const LS = 2;
     const tremble = (amp, n) => press.anims.push(p.el.animate([{ translate: `-${amp}px 0` }, { translate: `${amp}px 0` }], { duration: 40, iterations: n, direction: 'alternate', composite: 'add' }));
     tremble(0.6, 8);
     // 화면이 서서히 어두워짐 (누르는 애만 밝게) — 떼면 바로 사라짐
@@ -190,18 +208,23 @@ function ultChargeStart(press) {
             }
             const k = prog();
             const r = p.collision.getBoundingClientRect();
+            box = r;
             const cx = r.left + r.width / 2;
             const cy = r.top + r.height * 0.55;
             // 발밑에서 솟는 기운 — 갈수록 많이 · 높이
-            q.rise = (q.rise ?? 0) + dt * (20 + 90 * k);
+            q.rise = (q.rise ?? 0) + dt * (20 + 90 * k) * (look ? 0.5 : 1);
             while (q.rise >= 1) {
                 q.rise -= 1;
                 sigParticle({ x: r.left + moveRand(-0.1, 1.1) * r.width, y: r.bottom, s: S, vy: -moveRand(30, 70) * (1 + k), max: moveRand(0.3, 0.55), color: movePick(cols), size: 1, draw: (ctx, d, t, px) => {
+                    if (look) {
+                        plus(ctx, px, d.s, d.x, d.y);
+                        return;
+                    }
                     ctx.globalAlpha = fadeInOut(t, 0.1, 0.5);
                     dotAt(ctx, px, d.s, d.x, d.y, d.color, 1, 2 + Math.round(2 * k));
                 } });
             }
-            q.acc = (q.acc ?? 0) + dt * (40 + 160 * k);
+            q.acc = (q.acc ?? 0) + dt * (40 + 160 * k) * (look ? 0.5 : 1);
             while (q.acc >= 1) {
                 q.acc -= 1;
                 const a = moveRand(0, Math.PI * 2);
@@ -215,6 +238,10 @@ function ultChargeStart(press) {
                         d.y = d.y0 + (cy - d.y0) * f;
                     },
                     draw: (ctx, d, t, px) => {
+                        if (look) {
+                            plus(ctx, px, d.s, d.x, d.y);
+                            return;
+                        }
                         ctx.globalAlpha = Math.min(1, t * 4);
                         dotAt(ctx, px, d.s, d.x, d.y, d.color, d.size, d.size);
                     },
@@ -230,6 +257,21 @@ function ultChargeStart(press) {
             const lit = Math.floor(k * n);
             const rx = r.width * 0.8 + 10;
             const ry = Math.max(5, r.width * 0.22);
+            if (look) {
+                // 합동 동료 — 점선 (2칸 칠 · 1칸 빔 · 1칸 · 팔 색 · 차오름 그대로 — 디자인 #103 고리 말투 하나로)
+                const z = Math.max(LS, q.s);
+                const pz = (v) => Math.round(v / z) * z;
+                const m = Math.max(24, Math.round((2 * Math.PI * Math.sqrt((rx * rx + ry * ry) / 2)) / z));
+                ctx.globalAlpha = 1;
+                for (let j = 0; j < m; j++) {
+                    if (j % 3 === 2 || j / m >= k) {
+                        continue;
+                    }
+                    const a = -Math.PI / 2 + (j / m) * Math.PI * 2;
+                    dotAt(ctx, pz, z, cx + Math.cos(a) * rx, r.bottom - z + Math.sin(a) * ry, look.cols[1]);
+                }
+                return;
+            }
             for (let j = 0; j < n; j++) {
                 const a = -Math.PI / 2 + (j / n) * Math.PI * 2;
                 ctx.globalAlpha = j < lit ? 1 : 0.3;
@@ -337,9 +379,11 @@ function useUltimate(pokemon, ult, opt = {}) {
     // opt.charge = 쓰기 전 기 모으기 ms (게임 전투 — 일반 모드에서 꾹 누를 때와 같은 연출, 2026-10-20 태현 님). 그만큼 도입이 늦게 시작
     const charge = Math.max(0, opt.charge || 0);
     if (charge) {
-        ultChargeFor(pokemon, charge);
+        // 보통 꾹 누르기 길이 (0.8초) 보다 길면 그동안 내내 모음 (3:3 합동 빔 · 오라 앞장 1.8초 — 0.85초에 빛 · 어둠이 꺼졌다 본편이 시작되던 것, #96 코드 리뷰)
+        ultChargeFor(pokemon, charge, false, charge > ULT_HOLD_MS - ULT_CHARGE_FROM ? charge : 0);
     }
-    const until = now + charge + introMs + ms + ULT_OUTRO_MS;
+    // opt.extraMs = 연출 틀이 스스로 늘리는 길이 (3:3 합동 — 구 · 메가진화 틀의 o.track.extraG) · 끝 (ultActive · 앞 층) 도 그만큼 늦게
+    const until = now + charge + introMs + ms + Math.max(0, opt.extraMs || 0) + ULT_OUTRO_MS;
     const current = pokemon.currentState;
     if (current instanceof FlyState) {
         // 공중에서 쓰고 계속 날기
@@ -397,12 +441,15 @@ function useUltimate(pokemon, ult, opt = {}) {
 }
 
 // 게임 전투 필살기 앞 기 모으기 — 꾹 누르기 연출 (ultChargeStart) 을 ms 동안 (짧으면 고리가 반쯤 찬 데서 시작) · 끝나면 멈춤
-function ultChargeFor(pokemon, ms) {
+// force = 다른 포켓몬 필살기 중에도 (3:3 장면 전환 합동 동료 — 앞장 필살기가 걸려 있어 ultBusy 에 막혀 기 모으기가 안 나오던 것, #103)
+// holdMs = 다 찬 뒤에도 이만큼 계속 모음 (ultChargeStop 으로 먼저 끝낼 수 있음 — 합동 동료가 기를 주는 동안 내내, 태현 님 #103 "처음부터 기를 주는 구간끝까지 기를 계속 모으면서")
+// look = { cols: [심, 팔, 팔 끝, 그림자] } — 합동 동료 모양 (흰 점 대신 3×3 "+" 별 · 개수 반 · 발밑 고리는 팔 색 하나만 · 몸 둘레 점선 원 없음 — 디자인 #103 알갱이 언어 하나로)
+function ultChargeFor(pokemon, ms, force, holdMs = 0, look) {
     const span = ULT_HOLD_MS - ULT_CHARGE_FROM;
-    const press = { pokemon, t0: performance.now() - ULT_CHARGE_FROM - Math.max(0, span - ms), anims: [], cancelled: false };
+    const press = { pokemon, t0: performance.now() - ULT_CHARGE_FROM - Math.max(0, span - ms), anims: [], cancelled: false, force: !!force, hold: holdMs / 1000, look };
     ultChargeStart(press);
     pokemon.chargePress = press;
-    setTimeout(() => ultChargeStop(pokemon), ms);
+    setTimeout(() => ultChargeStop(pokemon), Math.max(ms, holdMs));
 }
 function ultChargeStop(pokemon) {
     const press = pokemon.chargePress;
@@ -678,7 +725,8 @@ function ultIntro(pokemon, left, name, sub, o, fx, until, introMs = ULT_INTRO_MS
 }
 
 // 어둠 한 겹 — alphaAt(life) 로 진하기, 쓰는 애 둘레만 동그랗게 비움. 먼저 그린 효과 밑으로 깔림
-function ultDimLayer(alphaAt, sec, who = () => ultActive?.pokemon, update) {
+// opt (게임 모드만) — edge = 구멍 가장자리 바둑판 칸 수 · minA = 이 진하기 아래면 구멍 없이 고르게 (3:3 장면 전환 합동 — 매끈한 연두 원판이 어둠이 걷혀도 남던 것, 아트 #100 ①)
+function ultDimLayer(alphaAt, sec, who = () => ultActive?.pokemon, update, opt) {
     sigParticle({ x: 0, y: 0, s: 1, max: sec, update, draw: (ctx, p) => {
         const a = alphaAt(p.life);
         if (a <= 0.005) {
@@ -705,19 +753,35 @@ function ultDimLayer(alphaAt, sec, who = () => ultActive?.pokemon, update) {
         if (typeof fxInGame === 'function' && fxInGame()) {
             // 게임 모드 — 구멍을 픽셀 줄로 (줄 높이 = 그림 점 1칸 · 반지름 = 그림 반 + 2칸 정수) · 줄마다 구멍을 합쳐 그 사이만 어둡게
             // (매끈한 원이 밝은 시합장에서 연두 원판 · 겹치면 렌즈로 보이던 것 — 아트 디렉터 #80 셋째 ③ · bugs #781)
-            const holes = lit.map((u) => {
+            const holes = opt?.minA && a < opt.minA ? [] : lit.map((u) => {
                 const r = u.collision.getBoundingClientRect();
                 const px = Math.max(1, Math.round(r.width / (u._originalSpriteSize || 32)));
-                return { x: r.left + r.width / 2, y: r.top + r.height / 2, px, R: Math.round(Math.max(r.width, r.height) / 2 / px) + 2 };
+                // 가장자리 바둑판 칸 수 — 구멍마다 (opt.edgeOf — 3:3 합동 동료는 0: 동료 색 테를 따로 그림, #96 아트 5바퀴 8)
+                return { x: r.left + r.width / 2, y: r.top + r.height / 2, px, R: Math.round(Math.max(r.width, r.height) / 2 / px) + 2, E: opt?.edgeOf ? opt.edgeOf(u) : opt?.edge || 0 };
             });
             const ph = holes.length ? Math.min(...holes.map((h) => h.px)) : 2;
             for (let y0 = 0; y0 < H; y0 += ph) {
                 const segs = [];
+                const row = Math.round(y0 / ph);
                 for (const h of holes) {
                     const dy = (y0 + ph / 2 - h.y) / h.px;
-                    if (Math.abs(dy) < h.R) {
-                        const hw = Math.round(Math.sqrt(h.R * h.R - dy * dy)) * h.px;
-                        segs.push([h.x - hw, h.x + hw]);
+                    const RO = h.R + h.E;
+                    if (Math.abs(dy) >= RO) {
+                        continue;
+                    }
+                    const hw = Math.abs(dy) < h.R ? Math.round(Math.sqrt(h.R * h.R - dy * dy)) : 0;
+                    if (hw > 0) {
+                        segs.push([h.x - hw * h.px, h.x + hw * h.px]);
+                    }
+                    // 가장자리 E 칸 — 바둑판으로 반만 비움 (한 칸 = 그림 점 1칸)
+                    const ho = Math.round(Math.sqrt(RO * RO - dy * dy));
+                    for (let c = hw; c < ho; c++) {
+                        for (const s of [-1, 1]) {
+                            const cx = s > 0 ? c : -c - 1;
+                            if (((cx + row) & 1) === 0) {
+                                segs.push([h.x + cx * h.px, h.x + (cx + 1) * h.px]);
+                            }
+                        }
                     }
                 }
                 segs.sort((p0, p1) => p0[0] - p1[0]);
@@ -809,7 +873,12 @@ function ultCutIn(pokemon, left, cols, sec, yc = 0.36, hf = 0.3) {
 // 큰 글씨 — 크게 쾅 박혔다가 자리 잡음, 반짝 지나감. cols 를 주면 그 색으로 (기본 금색), yc = 높이(패널 비율), k = 크기 배수
 // 필살기 글자 글꼴 — 게임 모드는 게임 글꼴 (Pretendard, 가변 굵기라 900 그대로), 일반 모드는 그대로
 const ultFont = () => (typeof fxInGame === 'function' && fxInGame() ? "'Pretendard', sans-serif" : 'sans-serif');
+// 큰 이름 글씨가 사라지는 때 (performance.now) — 게임 화면 먹구름이 그 뒤에 나타남 (글씨가 반투명으로 구름 위에 남던 것, #96 아트 3바퀴 4)
+let ultTitleUntil = 0;
 function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1, at = null) {
+    if (!at) {
+        ultTitleUntil = Math.max(ultTitleUntil, performance.now() + sec * 1000);
+    }
     const C = cols || ['#fffbe0', '#ffe680', '#f5c400', '#b88a00'];
     let hud = null; // at.hud — HP 묶음 자리 (첫 장면에 한 번 잼)
     let textTop = null; // 글씨 위 끝 (ultTextTop — 첫 장면에 한 번 잼: 장면마다 DOM 을 재던 것, 코드 리뷰어)

@@ -9114,14 +9114,32 @@ function ultCancelPress(press = ultPress) {
 // 기 모으기 — 빛 알갱이가 몸으로 빨려 들고, 발밑 고리가 차오르고, 몸이 점점 세게 떨림
 function ultChargeStart(press) {
     const p = press.pokemon;
-    if (ultBusy(p)) {
+    if (!press.force && ultBusy(p)) {
         return;
     }
     press.ult = ultPeek(p.label);
-    const cols = ultCols(press.ult[2] || {}, press.ult[1]);
-    const span = (ULT_HOLD_MS - ULT_CHARGE_FROM) / 1000;
+    const look = press.look;
+    const cols = look ? look.cols.slice(0, 3) : ultCols(press.ult[2] || {}, press.ult[1]);
+    // 합동 동료 — 3×3 "+" (심 + 팔) · 반투명 없이 · 몸 상자 + 2px 안엔 안 그림 (#96 아트 3바퀴 5)
+    let box = null;
+    const plus = (ctx, px, s, x, y) => {
+        if (box && x > box.left - 2 && x < box.right + 2 && y > box.top - 2 && y < box.bottom + 2) {
+            return;
+        }
+        const z = Math.max(LS, s);
+        const pz = (v) => Math.round(v / z) * z;
+        ctx.globalAlpha = 1;
+        dotAt(ctx, pz, z, x, y, look.cols[0], 1, 1);
+        for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+            dotAt(ctx, pz, z, x + ox * z, y + oy * z, look.cols[1], 1, 1);
+        }
+    };
+    // 보이는 길이 — 보통 다 찰 때까지 · press.hold 면 다 찬 채로 그만큼 (합동 동료)
+    const span = Math.max((ULT_HOLD_MS - ULT_CHARGE_FROM) / 1000, press.hold || 0);
     const prog = () => ultClamp((performance.now() - press.t0 - ULT_CHARGE_FROM) / (ULT_HOLD_MS - ULT_CHARGE_FROM), 0, 1);
     const S = Math.max(2, Math.round(spriteSize(p) / (p._originalSpriteSize || 32)));
+    // 합동 동료 (look) 는 점 2px 고정 (3:3 무대 그림이 ×2 인데 1px 로 그려지던 것 — 아트 #103)
+    const LS = 2;
     const tremble = (amp, n) => press.anims.push(p.el.animate([{ translate: `-${amp}px 0` }, { translate: `${amp}px 0` }], { duration: 40, iterations: n, direction: 'alternate', composite: 'add' }));
     tremble(0.6, 8);
     // 화면이 서서히 어두워짐 (누르는 애만 밝게) — 떼면 바로 사라짐
@@ -9140,18 +9158,23 @@ function ultChargeStart(press) {
             }
             const k = prog();
             const r = p.collision.getBoundingClientRect();
+            box = r;
             const cx = r.left + r.width / 2;
             const cy = r.top + r.height * 0.55;
             // 발밑에서 솟는 기운 — 갈수록 많이 · 높이
-            q.rise = (q.rise ?? 0) + dt * (20 + 90 * k);
+            q.rise = (q.rise ?? 0) + dt * (20 + 90 * k) * (look ? 0.5 : 1);
             while (q.rise >= 1) {
                 q.rise -= 1;
                 sigParticle({ x: r.left + moveRand(-0.1, 1.1) * r.width, y: r.bottom, s: S, vy: -moveRand(30, 70) * (1 + k), max: moveRand(0.3, 0.55), color: movePick(cols), size: 1, draw: (ctx, d, t, px) => {
+                    if (look) {
+                        plus(ctx, px, d.s, d.x, d.y);
+                        return;
+                    }
                     ctx.globalAlpha = fadeInOut(t, 0.1, 0.5);
                     dotAt(ctx, px, d.s, d.x, d.y, d.color, 1, 2 + Math.round(2 * k));
                 } });
             }
-            q.acc = (q.acc ?? 0) + dt * (40 + 160 * k);
+            q.acc = (q.acc ?? 0) + dt * (40 + 160 * k) * (look ? 0.5 : 1);
             while (q.acc >= 1) {
                 q.acc -= 1;
                 const a = moveRand(0, Math.PI * 2);
@@ -9165,6 +9188,10 @@ function ultChargeStart(press) {
                         d.y = d.y0 + (cy - d.y0) * f;
                     },
                     draw: (ctx, d, t, px) => {
+                        if (look) {
+                            plus(ctx, px, d.s, d.x, d.y);
+                            return;
+                        }
                         ctx.globalAlpha = Math.min(1, t * 4);
                         dotAt(ctx, px, d.s, d.x, d.y, d.color, d.size, d.size);
                     },
@@ -9180,6 +9207,21 @@ function ultChargeStart(press) {
             const lit = Math.floor(k * n);
             const rx = r.width * 0.8 + 10;
             const ry = Math.max(5, r.width * 0.22);
+            if (look) {
+                // 합동 동료 — 점선 (2칸 칠 · 1칸 빔 · 1칸 · 팔 색 · 차오름 그대로 — 디자인 #103 고리 말투 하나로)
+                const z = Math.max(LS, q.s);
+                const pz = (v) => Math.round(v / z) * z;
+                const m = Math.max(24, Math.round((2 * Math.PI * Math.sqrt((rx * rx + ry * ry) / 2)) / z));
+                ctx.globalAlpha = 1;
+                for (let j = 0; j < m; j++) {
+                    if (j % 3 === 2 || j / m >= k) {
+                        continue;
+                    }
+                    const a = -Math.PI / 2 + (j / m) * Math.PI * 2;
+                    dotAt(ctx, pz, z, cx + Math.cos(a) * rx, r.bottom - z + Math.sin(a) * ry, look.cols[1]);
+                }
+                return;
+            }
             for (let j = 0; j < n; j++) {
                 const a = -Math.PI / 2 + (j / n) * Math.PI * 2;
                 ctx.globalAlpha = j < lit ? 1 : 0.3;
@@ -9287,9 +9329,11 @@ function useUltimate(pokemon, ult, opt = {}) {
     // opt.charge = 쓰기 전 기 모으기 ms (게임 전투 — 일반 모드에서 꾹 누를 때와 같은 연출, 2026-10-20 태현 님). 그만큼 도입이 늦게 시작
     const charge = Math.max(0, opt.charge || 0);
     if (charge) {
-        ultChargeFor(pokemon, charge);
+        // 보통 꾹 누르기 길이 (0.8초) 보다 길면 그동안 내내 모음 (3:3 합동 빔 · 오라 앞장 1.8초 — 0.85초에 빛 · 어둠이 꺼졌다 본편이 시작되던 것, #96 코드 리뷰)
+        ultChargeFor(pokemon, charge, false, charge > ULT_HOLD_MS - ULT_CHARGE_FROM ? charge : 0);
     }
-    const until = now + charge + introMs + ms + ULT_OUTRO_MS;
+    // opt.extraMs = 연출 틀이 스스로 늘리는 길이 (3:3 합동 — 구 · 메가진화 틀의 o.track.extraG) · 끝 (ultActive · 앞 층) 도 그만큼 늦게
+    const until = now + charge + introMs + ms + Math.max(0, opt.extraMs || 0) + ULT_OUTRO_MS;
     const current = pokemon.currentState;
     if (current instanceof FlyState) {
         // 공중에서 쓰고 계속 날기
@@ -9347,12 +9391,15 @@ function useUltimate(pokemon, ult, opt = {}) {
 }
 
 // 게임 전투 필살기 앞 기 모으기 — 꾹 누르기 연출 (ultChargeStart) 을 ms 동안 (짧으면 고리가 반쯤 찬 데서 시작) · 끝나면 멈춤
-function ultChargeFor(pokemon, ms) {
+// force = 다른 포켓몬 필살기 중에도 (3:3 장면 전환 합동 동료 — 앞장 필살기가 걸려 있어 ultBusy 에 막혀 기 모으기가 안 나오던 것, #103)
+// holdMs = 다 찬 뒤에도 이만큼 계속 모음 (ultChargeStop 으로 먼저 끝낼 수 있음 — 합동 동료가 기를 주는 동안 내내, 태현 님 #103 "처음부터 기를 주는 구간끝까지 기를 계속 모으면서")
+// look = { cols: [심, 팔, 팔 끝, 그림자] } — 합동 동료 모양 (흰 점 대신 3×3 "+" 별 · 개수 반 · 발밑 고리는 팔 색 하나만 · 몸 둘레 점선 원 없음 — 디자인 #103 알갱이 언어 하나로)
+function ultChargeFor(pokemon, ms, force, holdMs = 0, look) {
     const span = ULT_HOLD_MS - ULT_CHARGE_FROM;
-    const press = { pokemon, t0: performance.now() - ULT_CHARGE_FROM - Math.max(0, span - ms), anims: [], cancelled: false };
+    const press = { pokemon, t0: performance.now() - ULT_CHARGE_FROM - Math.max(0, span - ms), anims: [], cancelled: false, force: !!force, hold: holdMs / 1000, look };
     ultChargeStart(press);
     pokemon.chargePress = press;
-    setTimeout(() => ultChargeStop(pokemon), ms);
+    setTimeout(() => ultChargeStop(pokemon), Math.max(ms, holdMs));
 }
 function ultChargeStop(pokemon) {
     const press = pokemon.chargePress;
@@ -9628,7 +9675,8 @@ function ultIntro(pokemon, left, name, sub, o, fx, until, introMs = ULT_INTRO_MS
 }
 
 // 어둠 한 겹 — alphaAt(life) 로 진하기, 쓰는 애 둘레만 동그랗게 비움. 먼저 그린 효과 밑으로 깔림
-function ultDimLayer(alphaAt, sec, who = () => ultActive?.pokemon, update) {
+// opt (게임 모드만) — edge = 구멍 가장자리 바둑판 칸 수 · minA = 이 진하기 아래면 구멍 없이 고르게 (3:3 장면 전환 합동 — 매끈한 연두 원판이 어둠이 걷혀도 남던 것, 아트 #100 ①)
+function ultDimLayer(alphaAt, sec, who = () => ultActive?.pokemon, update, opt) {
     sigParticle({ x: 0, y: 0, s: 1, max: sec, update, draw: (ctx, p) => {
         const a = alphaAt(p.life);
         if (a <= 0.005) {
@@ -9655,19 +9703,35 @@ function ultDimLayer(alphaAt, sec, who = () => ultActive?.pokemon, update) {
         if (typeof fxInGame === 'function' && fxInGame()) {
             // 게임 모드 — 구멍을 픽셀 줄로 (줄 높이 = 그림 점 1칸 · 반지름 = 그림 반 + 2칸 정수) · 줄마다 구멍을 합쳐 그 사이만 어둡게
             // (매끈한 원이 밝은 시합장에서 연두 원판 · 겹치면 렌즈로 보이던 것 — 아트 디렉터 #80 셋째 ③ · bugs #781)
-            const holes = lit.map((u) => {
+            const holes = opt?.minA && a < opt.minA ? [] : lit.map((u) => {
                 const r = u.collision.getBoundingClientRect();
                 const px = Math.max(1, Math.round(r.width / (u._originalSpriteSize || 32)));
-                return { x: r.left + r.width / 2, y: r.top + r.height / 2, px, R: Math.round(Math.max(r.width, r.height) / 2 / px) + 2 };
+                // 가장자리 바둑판 칸 수 — 구멍마다 (opt.edgeOf — 3:3 합동 동료는 0: 동료 색 테를 따로 그림, #96 아트 5바퀴 8)
+                return { x: r.left + r.width / 2, y: r.top + r.height / 2, px, R: Math.round(Math.max(r.width, r.height) / 2 / px) + 2, E: opt?.edgeOf ? opt.edgeOf(u) : opt?.edge || 0 };
             });
             const ph = holes.length ? Math.min(...holes.map((h) => h.px)) : 2;
             for (let y0 = 0; y0 < H; y0 += ph) {
                 const segs = [];
+                const row = Math.round(y0 / ph);
                 for (const h of holes) {
                     const dy = (y0 + ph / 2 - h.y) / h.px;
-                    if (Math.abs(dy) < h.R) {
-                        const hw = Math.round(Math.sqrt(h.R * h.R - dy * dy)) * h.px;
-                        segs.push([h.x - hw, h.x + hw]);
+                    const RO = h.R + h.E;
+                    if (Math.abs(dy) >= RO) {
+                        continue;
+                    }
+                    const hw = Math.abs(dy) < h.R ? Math.round(Math.sqrt(h.R * h.R - dy * dy)) : 0;
+                    if (hw > 0) {
+                        segs.push([h.x - hw * h.px, h.x + hw * h.px]);
+                    }
+                    // 가장자리 E 칸 — 바둑판으로 반만 비움 (한 칸 = 그림 점 1칸)
+                    const ho = Math.round(Math.sqrt(RO * RO - dy * dy));
+                    for (let c = hw; c < ho; c++) {
+                        for (const s of [-1, 1]) {
+                            const cx = s > 0 ? c : -c - 1;
+                            if (((cx + row) & 1) === 0) {
+                                segs.push([h.x + cx * h.px, h.x + (cx + 1) * h.px]);
+                            }
+                        }
                     }
                 }
                 segs.sort((p0, p1) => p0[0] - p1[0]);
@@ -9759,7 +9823,12 @@ function ultCutIn(pokemon, left, cols, sec, yc = 0.36, hf = 0.3) {
 // 큰 글씨 — 크게 쾅 박혔다가 자리 잡음, 반짝 지나감. cols 를 주면 그 색으로 (기본 금색), yc = 높이(패널 비율), k = 크기 배수
 // 필살기 글자 글꼴 — 게임 모드는 게임 글꼴 (Pretendard, 가변 굵기라 900 그대로), 일반 모드는 그대로
 const ultFont = () => (typeof fxInGame === 'function' && fxInGame() ? "'Pretendard', sans-serif" : 'sans-serif');
+// 큰 이름 글씨가 사라지는 때 (performance.now) — 게임 화면 먹구름이 그 뒤에 나타남 (글씨가 반투명으로 구름 위에 남던 것, #96 아트 3바퀴 4)
+let ultTitleUntil = 0;
 function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1, at = null) {
+    if (!at) {
+        ultTitleUntil = Math.max(ultTitleUntil, performance.now() + sec * 1000);
+    }
     const C = cols || ['#fffbe0', '#ffe680', '#f5c400', '#b88a00'];
     let hud = null; // at.hud — HP 묶음 자리 (첫 장면에 한 번 잼)
     let textTop = null; // 글씨 위 끝 (ultTextTop — 첫 장면에 한 번 잼: 장면마다 DOM 을 재던 것, 코드 리뷰어)
@@ -11160,13 +11229,15 @@ window.__ult = {
                     pp.flash = 1;
                     bigBoom(wx, cy, S, bc, size);
                     // 벽이 번쩍
+                    // 게임 화면 = 벽 번쩍은 위 끝부터 · 금은 세로만 눌러 위 끝 아래 · 솟는 불길도 무대 높이만큼 (위 끝에 반쯤 걸쳐 머물던 것 — #96 디자인 4바퀴 · ult-top 걸쳐 머묾)
+                    const gT = typeof fxStageTop === 'function' ? fxStageTop() : 0;
                     sigParticle({ x: wx, y: 0, s: S, max: 0.35, draw: safeDraw((ctx, q, t, px) => {
                         ctx.globalAlpha = 0.8 * (1 - t);
                         const bw = S * 4;
                         ctx.fillStyle = ac[1];
-                        ctx.fillRect(dir > 0 ? W - bw * 2 : 0, 0, bw * 2, u.H);
+                        ctx.fillRect(dir > 0 ? W - bw * 2 : 0, gT, bw * 2, u.H - gT);
                         ctx.fillStyle = '#ffffff';
-                        ctx.fillRect(dir > 0 ? W - bw : 0, 0, bw, u.H);
+                        ctx.fillRect(dir > 0 ? W - bw : 0, gT, bw, u.H - gT);
                     }) });
                     for (let k = 0; k < 2; k++) {
                         later(70 + k * 120, () => sigRing(wx, cy, S, 4, size * (1.4 + 0.8 * k), 1.6, 0.55, [ac[0], ac[2], '#ffffff']));
@@ -11174,14 +11245,16 @@ window.__ult = {
                     if (onGround) {
                         groundWave(wx, u.ground - S, S, ac, W * 0.6, 0.75);
                     }
-                    cracks(wx, cy, S, ac, 7 + Math.round(3 * K), Math.max(size * 1.4, u.H * 0.55), (i, n) => (dir > 0 ? Math.PI : 0) + (i / (n - 1) - 0.5) * 2.9, 1, 1.3);
+                    const cl = Math.max(size * 1.4, u.H * 0.55);
+                    cracks(wx, cy, S, ac, 7 + Math.round(3 * K), cl, (i, n) => (dir > 0 ? Math.PI : 0) + (i / (n - 1) - 0.5) * 2.9, gT > 0 ? clamp((cy - gT - 4 * S) / (cl * 1.26), 0.2, 1) : 1, 1.3);
                     debris(wx - dir * S * 2, cy, S, [...ROCK, ...ac.slice(1), hot[1]], 30 + Math.round(28 * K), 380, u.ground, -dir * 0.75);
                     dust(wx - dir * S * 4, u.ground, S, 16, 80, -dir * 0.8, 1.6);
                     // 벽 앞에 있던 애도 휘말림
                     u.others().forEach((q) => Math.abs(q.x - wx) < U * 1.4 + q.w / 2 && ultHit(q, -dir, 'tumble'));
                     if (kind === 'fire') {
                         fireBlast(wx - dir * S * 3, cy, S, size, 44 + Math.round(20 * K));
-                        emit(600, 80, () => roomFor() && sigParticle({ x: wx - dir * moveRand(0, U), y: u.ground - S, s: S, vx: moveRand(-15, 15), vy: -moveRand(130, 280), g: -40, drag: 1.2, max: moveRand(0.4, 0.8), cols: ac, grow: 3 + 2 * K, smoke: 1, draw: DRAW.stream }));
+                        const rk = gT > 0 ? clamp((u.ground - gT - 16 * S) / 155, 0.35, 1) : 1;
+                        emit(600, 80, () => roomFor() && sigParticle({ x: wx - dir * moveRand(0, U), y: u.ground - S, s: S, vx: moveRand(-15, 15), vy: -moveRand(130, 280) * rk, g: -40, drag: 1.2, max: moveRand(0.4, 0.8), cols: ac, grow: 3 + 2 * K, smoke: 1, draw: DRAW.stream }));
                     } else if (kind === 'electric') {
                         for (let i = 0; i < 7 + Math.round(3 * K); i++) {
                             const a = (dir > 0 ? Math.PI : 0) + moveRand(-1.3, 1.3);
@@ -11232,7 +11305,9 @@ window.__ult = {
                 const ty = u.ground;
                 const tgt = nearest(u, xs);
                 const tx = tgt ? clamp(tgt.x, half, W - half) : clamp(xs + u.dir * W * 0.3, half, W - half);
-                const gy = Math.max(10, H * 0.1);
+                // 하늘 반짝 별 (내리꽂기 출발) — 게임 화면 = 위 끝 + 별 (마지막 번쩍 2.6배) + 4칸 아래 (#96 ④)
+                const top0 = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+                const gy = Math.max(10, H * 0.1, top0 > 0 ? top0 + (S * 3 + U * 0.45 * K) * 2.6 + 4 * S : 0);
                 // 내리꽂는 자리 — 솟은 쪽에서 비스듬히, 화면 밖이면 반대쪽에서
                 const off = Math.min(W * 0.32, (ty - gy) * 0.8);
                 let side0 = Math.sign(xs - tx) || -u.dir;
@@ -11761,7 +11836,9 @@ window.__ult = {
                         ctx.textBaseline = 'middle';
                         const hw = ctx.measureText(text).width / 2 + 4;
                         const x = clamp(b.x, hw, W - hw);
-                        const y = clamp(b.top - Math.max(U * 0.5, fs) - (fin ? (T - tBlow) * 20 : 0), fs, u.H - fs);
+                        const gT = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+                        const yMin = Math.max(fs, gT > 0 ? gT + 4 * S + fs * 0.6 + Math.max(3, fs / 4) / 2 : 0); // 게임 화면 = 글씨 윗끝이 위 끝 + 4칸 아래 (위 끝에 반쯤 걸쳐 머물던 것 — #96 디자인 4바퀴 · ult-top 걸쳐 머묾)
+                        const y = clamp(b.top - Math.max(U * 0.5, fs) - (fin ? (T - tBlow) * 20 : 0), yMin, u.H - fs);
                         ctx.globalAlpha = t > 0.85 ? (1 - t) / 0.15 : 1;
                         ctx.lineJoin = 'round';
                         ctx.lineWidth = Math.max(3, fs / 4);
@@ -14862,6 +14939,8 @@ window.__ult = {
 // ───── 필살기 연출 A — 에너지 (ult/SPEC.md): ultbeam 광선 · ultorb 거대 구체 · ultnova 대폭발 · ultblackhole 블랙홀 · ultsparkle 반짝 ─────
 // 입자는 먼저 만든 것이 위에 그려짐 (moveTick 이 나중 것부터 그림) — 그래서 덮개(화면 번쩍) → 본체 → 조각 순서로 만듦
 // 다른 연출 파일과 한 덩어리로 이어 붙으니 전부 이 안에 (이름 겹침 방지)
+// 3:3 장면 전환 합동 (#103) — 구 필살기 (runOrb) 의 구 가운데 · 반지름을 미리 셈 (게임 다리가 이름 판 자리에 씀 — runOrb 와 같은 셈) · 안에서 채움
+let fxOrbPreview = null;
 (() => {
     const CAP = 1250; // 살아 있는 입자가 이만큼 넘으면 꾸밈 입자는 건너뜀 (한도 1500)
     const TAU = Math.PI * 2;
@@ -15724,6 +15803,12 @@ window.__ult = {
 
         part({ x: ox, y: C.y, s: S, max: total + 0.05,
             update: (p, dt) => {
+                if (o.track) {
+                    // 3:3 장면 전환 합동 (#96 ②) — 하이드로캐논처럼 모으는 곳 (입 앞 구슬) · 빔 자리 (시작 · 방향 · 길이 · 굵기 · 가운데 높이) 를 매 장면 알림 →
+                    // 동료 나선 · 가장자리 줄이 빔 안에 (here = 합동 구슬도 이 구슬 자리 — 앞으로 밀지 않음)
+                    const f = p.life - charge;
+                    Object.assign(o.track, { kind: 'beam', here: true, gx: C.x, gy: C.y, gather: f < 0, gLeft: -f, on: f >= 0 && f < fire - 0.1, x0: ox, dir, len: f >= 0 ? Math.min(reach, f * speed) : 0, w: (dbl ? sep * 2 + Tb : Tb) * st.sc, yAt: (x) => lineY(Math.abs(x - ox)), t: p.life });
+                }
                 if (p.life < charge) {
                     chargeTick(dt, p.life / charge, p.life);
                     return;
@@ -15801,10 +15886,21 @@ window.__ult = {
         }
     }
     // 구체 — 스타일마다
-    function drawOrb(ctx, px, s, x, y, r, style, cols, life, alpha = 1) {
+    // mid(ctx, x, y, r) = 구 안에 끼워 그릴 것 (3:3 장면 전환 합동 — 불꽃 구는 0.62 원판 뒤 · 0.36 심 앞 · 그 밖은 맨 위) · 없으면 그대로
+    function drawOrb(ctx, px, s, x, y, r, style, cols, life, alpha = 1, mid = null) {
         if (r < s) {
             ctx.globalAlpha = alpha;
             dotAt(ctx, px, s, x, y, cols[0]);
+            return;
+        }
+        if (mid && style !== 'flame') {
+            drawOrb(ctx, px, s, x, y, r, style, cols, life, alpha);
+            try {
+                mid(ctx, x, y, r);
+            } catch (err) {
+                fail(err);
+            }
+            ctx.globalAlpha = alpha;
             return;
         }
         const seed = Math.floor(life * 14);
@@ -15819,6 +15915,14 @@ window.__ult = {
             fuzzDisc(ctx, px, s, x, y, r * 1.04, cols[3], r * 0.1 + s, seed + 1);
             fuzzDisc(ctx, px, s, x, y + r * 0.03, r * 0.86, cols[2], r * 0.08 + s, seed + 2);
             fuzzDisc(ctx, px, s, x, y + r * 0.08, r * 0.62, cols[1], r * 0.06, seed + 3);
+            if (mid) {
+                try {
+                    mid(ctx, x, y, r);
+                } catch (err) {
+                    fail(err);
+                }
+                ctx.globalAlpha = alpha;
+            }
             fuzzDisc(ctx, px, s, x, y + r * 0.12, r * 0.36, cols[0], s, seed + 4);
             // 위로 날름거리는 불꽃 혀
             const w0 = Math.max(1, Math.round((r * 0.24) / s));
@@ -15950,6 +16054,17 @@ window.__ult = {
         }
     }
 
+    // 구 자리 미리 셈 — runOrb 와 같은 rF · 가운데 (합동 자리 규칙 포함) · { x, y, r (바깥 = rF × 1.3), top }
+    fxOrbPreview = (u, o) => {
+        const P = strength(u);
+        const { S, W, H } = u;
+        const size = clamp(o.size ?? 1, 0.5, 2);
+        const rF = clamp(Math.min(H * 0.15, W * 0.13) * size * (0.85 + 0.3 * P), 9, Math.min(W, H) * 0.3);
+        const top0 = typeof t33Top === 'function' ? t33Top() : 0;
+        const x = clamp(u.body.cx, rF + 2, W - rF - 2);
+        const y = Math.max(rF + 3, u.body.top - rF - 4 * S, top0 + rF * 1.3 + 4 * S);
+        return { x, y, r: rF * 1.3, top: top0 };
+    };
     function runOrb(u, o, ms, pokemon) {
         const P = strength(u);
         const Z = sceneScale(u);
@@ -15958,11 +16073,14 @@ window.__ult = {
         const style = ORB_C[o.style] ? o.style : 'energy';
         const cols = sigPal(o.c || ORB_C[style]);
         const size = clamp(o.size ?? 1, 0.5, 2);
-        const total = ms / 1000;
+        // 3:3 장면 전환 합동 (#106 — 태현 님 "기모으는 시간만 1초정도 더 늘려서 하자") — 모으기를 o.track.extraG 초 늘림 (동료 별 · 구 커짐이 그만큼 길게 · 본편도 그만큼 김 — 다리가 박자를 늦춤)
+        const GX = o.track?.extraG || 0;
+        const total = ms / 1000 + GX;
         const flash = overlay(total);
         // 게임 화면 — 구 가운데 ≥ 연출 위 끝 (정보줄 · 지도 줄 아래 끝 — bridge fxStageTop) + 바깥 끝 (불꽃 혀까지 r × 1.75 · 그 밖 r × 1.3) + 4칸 ·
         // 던지기 직전 · 던지는 길 진짜 꼭대기도 그 아래 (187 에서 던진 구가 정보줄 뒤로 숨던 것 — #105 · 모양 그대로) · 일반 모드 · 3:3 무대 상자 안은 위 끝 0 이라 그대로
-        const top0 = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+        // (합동 o.track 은 아래 #103 규칙만 — 태현 님이 고른 #103 · #106 모습 그대로)
+        const top0 = !o.track && typeof fxStageTop === 'function' ? fxStageTop() : 0;
         const edge = style === 'flame' ? 1.75 : 1.3;
         const rF = clamp(Math.min(H * 0.15, W * 0.13) * size * (0.85 + 0.3 * P), 9, Math.min(W, H) * 0.3);
         const minY = top0 > 0 ? top0 + rF * edge + 4 * S : 0;
@@ -15977,6 +16095,19 @@ window.__ult = {
             y: Math.max(rF + 3, u.body.top - rF - 4 * S, minY),
         };
         const home = { x: C.x, y: C.y };
+        // 3:3 장면 전환 합동 (#103) — 구 가운데 ≥ 무대 위 + 바깥 반지름 (r × 1.3) + 4칸 (187 에서 구 윗면이 일자로 잘리던 것) ·
+        // 좁은 패널 (400 아래) 은 합동 이름 판 아래 + 4칸 (판 아래 끝은 화면이 window.__pgJointPlate 로 알림)
+        if (o.track) {
+            const top0 = typeof t33Top === 'function' ? t33Top() : 0;
+            let minY = top0 + rF * 1.3 + 4 * S;
+            const plate = typeof window !== 'undefined' ? window.__pgJointPlate : null;
+            if (plate && W < 400 && performance.now() < plate.until) {
+                minY = Math.max(minY, plate.bottom + 4 * S + rF * 1.3);
+            }
+            C.y = Math.max(C.y, minY);
+            home.y = C.y;
+            o.track.top = top0;
+        }
         const st = { acc: 0, aura: 0, bits: 0, trail: [], thrown: false, boom: false };
         // 몸 → 구체로 올라가는 기운 줄기
         const channel = (ctx, px, life, r) => {
@@ -16022,7 +16153,7 @@ window.__ult = {
             return;
         }
 
-        const G = total * 0.38; // 키우기
+        const G = (total - GX) * 0.38 + GX; // 키우기 (합동 #106 은 늘린 만큼 더)
         const TH = 0.5; // 날아가기
         const tB = G + TH;
         const Rb = clamp((H / 3) * Math.sqrt(size) * (0.85 + 0.25 * P), 24, Math.min(W, H) * 0.6); // 폭발 반지름
@@ -16036,8 +16167,8 @@ window.__ult = {
             const ty = Math.min(q ? q.y : u.ground - Math.max(4, rF * 0.3), u.ground - Rb * 0.35);
             st.from = { x: C.x, y: C.y };
             st.to = { x: tx, y: ty };
-            // 진짜 꼭대기 = v (2차 곡선 꼭짓점 — 출발 · 끝 높이가 달라도 v 를 넘지 않게: 조절점 = v − √((출발 − v)(끝 − v)))
-            const v = Math.min(Math.max(rF * 0.7, minY, Math.min(C.y, ty) - Math.max(20, Math.abs(tx - C.x) * 0.3)), C.y, ty);
+            // 진짜 꼭대기 = v (2차 곡선 꼭짓점 — 출발 · 끝 높이가 달라도 v 를 넘지 않게: 조절점 = v − √((출발 − v)(끝 − v))) · 합동은 무대 위 + r × 1.3 + 4칸 (#103)
+            const v = Math.min(Math.max(rF * 0.7, minY, o.track ? (o.track.top ?? 0) + rF * 1.3 + 4 * S : 0, Math.min(C.y, ty) - Math.max(20, Math.abs(tx - C.x) * 0.3)), C.y, ty);
             st.cy = v - Math.sqrt(Math.max(0, (C.y - v) * (ty - v)));
             el?.animate?.([{ translate: '0 0' }, { translate: `${dir * 2 * S}px ${-5 * S}px`, offset: 0.3 }, { translate: '0 0' }], { duration: 400, easing: 'ease-out', composite: 'add' });
             ring(C.x, C.y, S, rF, rF * 2.2, 1, 0.35, [cols[0], '#ffffff']);
@@ -16065,11 +16196,16 @@ window.__ult = {
         part({ x: 0, y: 0, s: S, max: total,
             update: (p, dt) => {
                 const life = p.life;
+                // 3:3 장면 전환 합동 (#103) — 동료 기운이 모여드는 구 (게임 다리 team11Joint 가 매 장면 읽음 · 없으면 그대로) · solid = 진짜 구 (안에 동료 색 소용돌이)
+                if (o.track) {
+                    const rNow = life < G ? rF * (0.1 + 0.9 * easeOut(life / G / 0.9)) : life < tB ? rF * 0.95 : 0;
+                    Object.assign(o.track, { kind: 'orb', solid: true, x: C.x, y: C.y, r: rNow, gather: life < G, gLeft: G - life, fly: life >= G && life < tB, t: life });
+                }
                 if (life < G) {
                     const k = life / G;
                     growTick(dt, k, rF * easeOut(k / 0.9));
-                    // 던지기 직전 — 살짝 들어 올림
-                    if (life > G - 0.18) {
+                    // 던지기 직전 — 살짝 들어 올림 (위 끝에 막혔으면 뒤로 당김 · 합동은 안 올림 — 위로 잘리지 않게 그 자리에서 1장면 부풀었다 던짐)
+                    if (life > G - 0.18 && !o.track) {
                         const e = smooth((life - (G - 0.18)) / 0.18);
                         if (capped) {
                             C.x = home.x - dir * rF * 0.3 * e;
@@ -16110,12 +16246,12 @@ window.__ult = {
                 }
                 if (life < G) {
                     const k = life / G;
-                    const r = rF * (0.1 + 0.9 * easeOut(k / 0.9)) * (1 + 0.05 * Math.sin(life * 30));
+                    const r = rF * (0.1 + 0.9 * easeOut(k / 0.9)) * (1 + 0.05 * Math.sin(life * 30)) * (o.track && life > G - 0.05 ? 1.08 : 1);
                     channel(ctx, px, life, r);
                     if (k > 0.55) {
                         speedLines(ctx, px, S, C.x, C.y, rF * 2.2, Math.max(W, H), 20, cols[0], life, (k - 0.55) * 0.7);
                     }
-                    drawOrb(ctx, px, S, C.x, C.y, r, style, cols, life);
+                    drawOrb(ctx, px, S, C.x, C.y, r, style, cols, life, 1, o.track?.inner);
                     return;
                 }
                 // 날아감 — 잔상
@@ -16123,7 +16259,7 @@ window.__ult = {
                     ctx.globalAlpha = 0.35 * (1 - i / st.trail.length);
                     sigDisc(ctx, px, S, st.trail[i].x, st.trail[i].y, rF * (1 - i * 0.07), i < 3 ? cols[1] : cols[2]);
                 }
-                drawOrb(ctx, px, S, C.x, C.y, rF * 0.95, style, cols, life);
+                drawOrb(ctx, px, S, C.x, C.y, rF * 0.95, style, cols, life, 1, o.track?.inner);
             },
         });
     }
@@ -16629,7 +16765,8 @@ window.__ult = {
         const st = { hearts: 0, stars: 0, trail: 0, dashing: false, hit: false, shower: false };
         const tgt = nearest(u, u.body.cx);
         glowSprite(el, [1, 1.7, 1.3, 1.8, 1.4, 1.7, 1], total * 900);
-        // 화면 가득 하트 · 별
+        // 화면 가득 하트 · 별 — 게임 화면은 위 끝 (정보줄 · 지도 줄) 아래부터 (반짝이며 머무는 별이 정보줄 뒤에 깔리던 것 — #96 ④ ult-top)
+        const top0 = typeof fxStageTop === 'function' ? fxStageTop() : 0;
         const heartAt = (x, y, big) => {
             if (!room()) {
                 return;
@@ -16726,12 +16863,12 @@ window.__ult = {
                 st.hearts += dt * (18 + 12 * P) * A * busy;
                 while (st.hearts >= 1) {
                     st.hearts -= 1;
-                    heartAt(moveRand(4 * S, W - 4 * S), moveRand(H * 0.05, u.ground - 4 * S), Math.random() < 0.3);
+                    heartAt(moveRand(4 * S, W - 4 * S), moveRand(Math.max(H * 0.05, top0 > 0 ? top0 + 4 * S : 0), u.ground - 4 * S), Math.random() < 0.3);
                 }
                 st.stars += dt * 40 * A * busy;
                 while (st.stars >= 1) {
                     st.stars -= 1;
-                    starAt(moveRand(0, W), moveRand(0, u.ground), movePick([1, 2, 2, 3]));
+                    starAt(moveRand(0, W), moveRand(top0 > 0 ? top0 + 3 * S : 0, u.ground), movePick([1, 2, 2, 3]));
                 }
                 // 돌진 꼬리 — 반짝이 · 하트
                 if (st.dashing && el) {
@@ -18155,6 +18292,29 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         [[-0.6, 0.18, 0.36], [-0.2, -0.1, 0.5], [0.25, -0.3, 0.5], [0.65, 0.05, 0.4]],
         [[-0.45, -0.05, 0.5], [0.1, -0.28, 0.45], [0.55, 0.1, 0.45]],
     ];
+    // 3:3 장면 전환 합동 (o.track 있을 때만) — 전용 구도 구 자리를 알림: 동료 별이 손을 떠날 때까지 (gather) 구로 모이고 날아가는 동안 (fly) 꼬리 ·
+    // 구 안에 동료 색 쉼표 팔 (fx-team33 t11OrbInner — 동료마다 2개 · 구 반지름 × 0.8) — 구가 앞장 한 색이라 기운이 섞이는 게 안 보이던 것 (#96 아트 5바퀴 1)
+    // 그린 구 위에 부름 · 끝나면 jointOrb(o) (ctx 없이 = 끝 — 그 뒤 부름은 무시: 장면 틀이 sc.at 을 그리기보다 먼저 돌려 끝난 프레임에 그리기가 구를 다시 켜
+    //   터진 뒤에도 고리 · 꼬리가 얼어붙어 남던 것, #96 코드 리뷰 높음 1) · fx-unique 도 ULT_KIT 으로 씀
+    function jointOrb(o, ctx, x, y, r, gather = false, fly = false) {
+        if (!o?.track || o.track.orbEnd) {
+            return;
+        }
+        if (!ctx) {
+            Object.assign(o.track, { kind: 'orb', r: 0, gather: false, fly: false, orbEnd: true });
+            return;
+        }
+        Object.assign(o.track, { kind: 'orb', solid: true, uniq: true, x: x || 0, y: y || 0, r: r > 0 ? r : 0, gather: r > 0 && gather, fly: r > 0 && fly });
+        if (r > 0) {
+            o.track.inner?.(ctx, x, y, r * 0.8, 2);
+        }
+    }
+    // 게임 화면 (#105 · #96 ④) — 머무는 구름 띠 윗끝 (덩이 y − h × 1.32) 을 연출 위 끝 (정보줄 · 지도 줄 아래 끝) + 4칸 아래로 · 크기 그대로
+    // (번개 · 기둥이 이 y 에서 나오게 부르는 쪽 cloudY 도 이 값 — 일반 모드 · 3:3 무대 상자는 그대로)
+    function cloudAt(u, y, h) {
+        const top0 = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+        return top0 > 0 ? Math.max(y, top0 + h * 1.35 + 4 * u.S) : y;
+    }
     // 구름 띠 — 위에서 내려와 흘러감. gather 면 양옆에서 cx 쪽으로 몰려듦
     function cloudBank(sc, o) {
         const u = sc.u;
@@ -18177,6 +18337,15 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         sc.add({ max: sec, draw: (ctx, it, t, px) => {
             const life = it.life;
             const drop = (1 - easeOut(life / 0.6)) + easeIn((life - (sec - 0.5)) / 0.5);
+            const inGame = (typeof fxStageTop === 'function' ? fxStageTop() : 0) > 0;
+            // 게임 화면 — 1:1 컷인 큰 글씨 (ultTitle — 장면 시작 뒤 약 0.9초까지 남음) 가 사라진 뒤에 부풀기 시작 (#96 아트 3바퀴 4)
+            if (inGame && it.shown === undefined) {
+                if (performance.now() < (typeof ultTitleUntil !== 'undefined' ? ultTitleUntil : 0)) {
+                    return;
+                }
+                it.shown = life;
+            }
+            const dropG = (1 - easeOut((life - (it.shown || 0)) / 0.6)) + easeIn((life - (sec - 0.5)) / 0.5);
             const L = lit();
             ctx.globalAlpha = alpha;
             for (const pass of [true, false]) {
@@ -18190,6 +18359,13 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                         x = q.bx + side * u.W * 0.75 * (1 - easeOut(life / 0.9)) + Math.sin(life * 1.3 + q.y) * s * 2;
                     } else {
                         x = wrap(q.bx + speed * life, n * step, -step);
+                    }
+                    if (inGame) {
+                        // 게임 화면 — 위에서 내려오고 위로 빠지면 위 끝 (정보줄) 뒤를 지나 숨음 (#96 ④) → 그 자리에서 부풀어 나타나고 줄며 사라짐 (30% ↔ 100%)
+                        const g = 0.3 + 0.7 * (1 - Math.min(1, dropG));
+                        ctx.globalAlpha = alpha * Math.min(1, (g - 0.3) / 0.35);
+                        lump(ctx, px, s, x, q.y, q.rw * g, q.rh * g, pass ? [cols[1], cols[2], cols[2]] : cols, pass ? L * 0.6 : L, litCols, q.puffs);
+                        continue;
                     }
                     const yy = q.y - drop * (q.y + q.rh * 2);
                     lump(ctx, px, s, x, yy, q.rw, q.rh, pass ? [cols[1], cols[2], cols[2]] : cols, pass ? L * 0.6 : L, litCols, q.puffs);
@@ -18680,7 +18856,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         // 구름 (빗줄기 위로)
         if (K.cloud) {
             const cc = kind === 'acid' && o.c ? [cols[1], cols[2], cols[3]] : K.cloud;
-            cloudBank(sc, { y: bandH * 0.3, h: bandH * 0.36, cols: cc, sec, lit: () => (lit > 0 ? 1 : 0), speed: (kind === 'thunder' ? 22 : 12) * dir,
+            cloudBank(sc, { y: cloudAt(u, bandH * 0.3, bandH * 0.36), h: bandH * 0.36, cols: cc, sec, lit: () => (lit > 0 ? 1 : 0), speed: (kind === 'thunder' ? 22 : 12) * dir,
                 litCols: kind === 'thunder' || kind === 'rain' ? ['#ffffff', '#fffbe0', o.c ? cols[1] : '#ffe680'] : ['#ffffff', cols[0], cols[1]] });
         }
         // 모래 — 화면 전체가 누렇게
@@ -18699,7 +18875,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         // ── 일 ──
         const flash = (a, color = K.flash, d = 0.25) => screenFlash(s, a, color, d);
         const bw = clamp(Math.round(H / (70 * s)) + 1, 2, 5);
-        const cloudY = bandH * 0.42;
+        const cloudY = cloudAt(u, bandH * 0.3, bandH * 0.36) + bandH * 0.12;
         const bolt = (x, y1, w, big) => {
             strike(sc, x + rnd(-1, 1) * W * 0.04, cloudY, x, y1, { w, mid: cols[2], glow: cols[3], dur: big ? 0.55 : 0.32, branches: big ? 4 : 2 });
             lit = Math.max(lit, big ? 0.16 : 0.08);
@@ -19123,7 +19299,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         const tHit = 1.35;
         const tBreak = tHit + 0.5;
         const x0 = tx - dir * W * 0.16;
-        const y0 = -D * 0.8;
+        const y0 = (typeof fxStageTop === 'function' ? fxStageTop() : 0) - D * 0.8; // 게임 화면 = 위 끝에서 들어옴 (#96 ④)
         const yEnd = G - D * 0.42;
         const pos = (t) => {
             const k = clamp(t / tHit, 0, 1);
@@ -19350,14 +19526,15 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         const ux = dir * Math.cos(th);
         const uy = Math.sin(th);
         ultDark(0.3, ms - 200);
-        skyBand(sc, star ? '#0a0a2a' : '#1e0806', bandH, 0.65, sec);
-        // 하늘 별 반짝
+        // 하늘 별 반짝 — 게임 화면 = 위 끝 아래 (하늘 띠도 그만큼 — #96 ④)
+        const sy0 = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+        skyBand(sc, star ? '#0a0a2a' : '#1e0806', bandH + sy0, 0.65, sec);
         sc.add({ max: sec, draw: (ctx, it, t, px) => {
             const path = new Path2D();
             const m = Math.round(30 * clamp(W / 480, 0.6, 2));
             for (let j = 0; j < m; j++) {
                 if (Math.sin(it.life * (3 + 4 * hash(j, 3)) + j) > 0.1) {
-                    path.rect(px(hash(j, 1) * W), px(hash(j, 2) * bandH * 0.9), s, s);
+                    path.rect(px(hash(j, 1) * W), px(sy0 + hash(j, 2) * bandH * 0.9), s, s);
                 }
             }
             ctx.globalAlpha = 0.8 * clamp(it.life / 0.4, 0, 1) * clamp((sec - it.life) / 0.5, 0, 1);
@@ -19575,14 +19752,17 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         const cx = u.body.cx;
         const cy = u.body.cy;
         const bandH = Math.max(40, H * 0.3);
-        const cloudY = bandH * 0.4;
+        const cloudY = cloudAt(u, bandH * 0.4, bandH * 0.38);
         const L = clamp(Math.min(W * 0.55, H * 1.0), 90, 340) * (0.82 + 0.22 * P);
         const Wd = L * 0.15;
         const C = s * Math.max(1, Math.round(L / (70 * s)));
         const bw = clamp(Math.round(H / (70 * s)) + 1, 2, 5);
         // 머리 위 조금 뒤쪽 높이 — 던질 때 비스듬히 날아가게
         const hx = W < L + 8 ? W / 2 : clamp(cx - dir * L * 0.25, L * 0.5 + 4, W - L * 0.5 - 4);
-        const hy = clamp(Math.min(u.body.top - H * 0.3, H * 0.34), bandH * 0.7 + Wd, Math.max(bandH * 0.7 + Wd, G - H * 0.35));
+        // 게임 화면 = 창 위 끝 (기울어진 꼬리 L × 0.12 까지) 이 위 끝 + 4칸 아래 (#96 ④)
+        const top0 = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+        const lo = Math.max(bandH * 0.7, top0 > 0 ? top0 + 4 * s : 0) + Wd + (top0 > 0 ? L * 0.12 : 0);
+        const hy = clamp(Math.min(u.body.top - H * 0.3, H * 0.34), lo, Math.max(lo, G - H * 0.35));
         const tq = nearest(u);
         const tX = tq ? tq.x : clamp(cx + dir * W * 0.4, W * 0.1, W * 0.9);
         const tY = tq ? tq.y : G - 2 * s;
@@ -19598,7 +19778,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             lit = Math.max(0, lit - dt);
         });
         ultDark(0.3, ms - 200);
-        skyBand(sc, '#070914', bandH * 1.2, 0.65, sec);
+        skyBand(sc, '#070914', bandH * 1.2 + cloudY - bandH * 0.4, 0.65, sec);
         cloudBank(sc, { y: cloudY, h: bandH * 0.38, cols: ['#6b7090', '#454a63', '#2c3045'], sec, lit: () => (lit > 0 ? 1 : 0), gather: true, cx: hx, width: 1.0,
             litCols: ['#ffffff', cols[1], cols[2]] });
         // 몸 둘레 전기 — 번개를 맞을수록 세짐
@@ -19802,7 +19982,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         const { W, H, S: s, dir } = u;
         const G = u.ground;
         const bandH = Math.max(40, H * 0.3);
-        const cloudY = bandH * 0.38;
+        const cloudY = cloudAt(u, bandH * 0.38, bandH * 0.4);
         const k = 5 + Math.round(2 * P);
         const pw0 = clamp(W * 0.06, 14, 46) * (0.85 + 0.3 * P);
         const xs = u.body.cx + dir * Math.max(u.w * 0.9, W * 0.13);
@@ -19814,7 +19994,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             lit = Math.max(0, lit - dt);
         });
         ultDark(0.3, ms - 200);
-        skyBand(sc, '#070914', bandH * 1.2, 0.65, sec);
+        skyBand(sc, '#070914', bandH * 1.2 + cloudY - bandH * 0.38, 0.65, sec);
         cloudBank(sc, { y: cloudY, h: bandH * 0.4, cols: ['#6b7090', '#454a63', '#2c3045'], sec, lit: () => (lit > 0 ? 1 : 0), speed: 25 * dir, litCols: ['#ffffff', cols[1], cols[2]] });
         // 모으기 — 몸에 스파크, 구름 속 번쩍
         sc.at(0.05, () => SIG_FX.spark.run({ ...u, P: 1 }, {}, 900));
@@ -21855,7 +22035,10 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                 it.max = 0;
                 return;
             }
-            const top = G - (G + 10) * easeOut(life / 0.25);
+            // 게임 화면 = 기둥 윗끝 (고리 세로 0.4 w 포함) 이 위 끝 + 5칸 아래 (위 끝에 반쯤 걸쳐 머물던 것 — #96 디자인 4바퀴 · ult-top 걸쳐 머묾)
+            const gT = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+            const yTop = gT > 0 ? gT + 5 * s + hw * 1.15 : -10;
+            const top = G - (G - yTop) * easeOut(life / 0.25);
             const w = hw * (1 + 0.12 * Math.sin(life * 30)) * (1 + 1.5 * b);
             for (const [f, c, al] of [[1.3, NAVY[1], 0.6], [1, cols[3], 0.8], [0.65, cols[2], 0.9], [0.35, cols[1], 1], [0.12, '#ffffff', 1]]) {
                 const half = Math.max(s, Math.round((w * f) / s) * s);
@@ -22060,6 +22243,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             const r = orbR(life);
             const x = life < TF ? ox : lerp(ox, sx, easeOut((life - TF) / (TSp - TF)));
             auraOrb(ctx, px, s, x, oy, r, cols, life);
+            jointOrb(o, ctx, x, oy, r, life < TF, life >= TF);
             const kg = life - (TF - 0.18);
             if (kg >= 0 && kg < 0.3) {
                 glint(ctx, px, s, x + r * 0.5, oy - r * 0.5, D * 0.5 * Math.sin((kg / 0.3) * Math.PI), 1);
@@ -22073,6 +22257,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             recoil(pokemon, [{ translate: `${dir * 6 * u.s}px 0` }, { translate: '0 0' }], 300);
         });
         sc.at(TSp, () => {
+            jointOrb(o);
             ring(sc, sx, oy, R * 0.5, D * 1.1, 0.85, 0.3, ['#ffffff', cols[2]], 2);
             sparkles(sx, oy, s, ['#ffffff', cols[1]], 10, R, H * 0.15);
         });
@@ -22312,7 +22497,9 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
     // · 화면 꼭대기 너머까지 일자로 곧고 넓은 불기둥(겹친 색, 안쪽 밝은 띠가 위로 흐름) → 가늘어지며 사그라듦. 밑동 양옆 불꽃 혀, 기둥을 따라 불씨가 솟음
     function firePillar(sc, x, G, w, dur, cols) {
         const { S: s, H, W } = sc.u;
-        const R = w * 1.5; // 폭발 구 반지름
+        // 게임 화면 (#96 ④ 디자인) — 땅의 시작 폭발 구는 위 끝 + 4칸 아래에 드는 만큼만 (최소 0.6배) · 기둥이 위 끝에 닿는 2칸은 1칸 바둑판으로 끊음
+        const top0 = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+        const R = w * 1.5 * (top0 > 0 ? clamp((G - top0 - 4 * s) / (w * 1.5 * 1.15), 0.6, 1) : 1); // 폭발 구 반지름
         const top = G + H * 0.1; // 기둥 높이 — 화면 위 밖까지
         // 불꽃 줄기 — 위쪽 반원으로 14 가닥
         const rays = [];
@@ -22402,7 +22589,20 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                             if (half < s * 0.5) {
                                 continue;
                             }
-                            ctx.fillRect(px(x - half), px(G - yy - s), Math.max(s, px(2 * half)), s);
+                            const ry = px(G - yy - s);
+                            if (top0 > 0 && ry < top0 + 2 * s) {
+                                // 위 끝에 닿는 2칸 = 1칸 바둑판 (일자로 잘린 윗면 대신) · 그 위는 안 그림 (정보줄 뒤)
+                                if (ry < top0) {
+                                    break;
+                                }
+                                for (let cx = px(x - half); cx < px(x + half); cx += s) {
+                                    if ((Math.round(cx / s) + Math.round(ry / s)) % 2 === 0) {
+                                        ctx.fillRect(cx, ry, s, s);
+                                    }
+                                }
+                                continue;
+                            }
+                            ctx.fillRect(px(x - half), ry, Math.max(s, px(2 * half)), s);
                         }
                     }
                 }
@@ -22421,7 +22621,8 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
     }
     // 기 모으기 — t0 ~ t1 동안 둘레(반지름 pullR)의 불꽃 줄기 9 가닥이 소용돌이치며 at(t) 자리의 불꽃 구(반지름 Ro)로 빨려 들고
     // 불씨도 모여듦, 점점 빨라짐 (dirn 쪽으로 돎)
-    function chargeSwirl(sc, at, t0, t1, pullR, Ro, cols, dirn) {
+    // n = 불꽃 꼬리 수 · avoid() = 피해 갈 상자 [{ l, r, t, b }] (3:3 장면 전환 합동 — 동료 몸 · 그 상자 안에 든 자리는 가장 가까운 가장자리 밖으로 밈)
+    function chargeSwirl(sc, at, t0, t1, pullR, Ro, cols, dirn, n = 9, avoid = null) {
         const s = sc.u.S;
         sc.add({ max: t1 + 0.1, draw: (ctx, it, t, px) => {
             const life = sc.t;
@@ -22431,16 +22632,31 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             const [cx, cy] = at(life);
             const k = life - t0;
             const ramp = clamp(k / 0.4, 0, 1) * clamp((t1 - life) / 0.12, 0, 1);
-            for (let i = 0; i < 9; i++) {
-                const ph = (k * (1.3 + 0.5 * k) + i / 9) % 1; // 빠르기 1.3 → 점점 빨라짐
+            let boxes = [];
+            try {
+                boxes = avoid ? avoid() : [];
+            } catch (err) {
+                fail('swirl avoid', err);
+            }
+            for (let i = 0; i < n; i++) {
+                const ph = (k * (1.3 + 0.5 * k) + i / n) % 1; // 빠르기 1.3 → 점점 빨라짐
                 const a0 = hash(i, 41) * TAU + i * 2.4;
                 const pos = (q) => {
                     const r = lerp(pullR, Ro * 0.8, q ** 1.6);
                     const an = a0 + q * 2.4 * dirn;
                     return [cx + Math.cos(an) * r, cy + Math.sin(an) * r * 0.8];
                 };
-                const [x, y] = pos(ph);
-                const [x2, y2] = pos(Math.min(1, ph + 0.02));
+                const out = (pt) => {
+                    for (const b of boxes) {
+                        if (pt[0] > b.l && pt[0] < b.r && pt[1] > b.t && pt[1] < b.b) {
+                            const m = [[b.l - pt[0], 0], [b.r - pt[0], 0], [0, b.t - pt[1]], [0, b.b - pt[1]]].reduce((p0, q0) => (Math.abs(q0[0] + q0[1]) < Math.abs(p0[0] + p0[1]) ? q0 : p0));
+                            return [pt[0] + m[0], pt[1] + m[1]];
+                        }
+                    }
+                    return pt;
+                };
+                const [x, y] = out(pos(ph));
+                const [x2, y2] = out(pos(Math.min(1, ph + 0.02)));
                 const dl = Math.hypot(x2 - x, y2 - y) || 1;
                 fireTail(ctx, px, s, x, y, (x2 - x) / dl, (y2 - y) / dl, Ro * (0.9 + 0.8 * (1 - ph)), Ro * 0.55 * (1 - 0.5 * ph), cols, life + i, ramp * Math.sqrt(Math.sin(ph * Math.PI)));
             }
@@ -22717,6 +22933,13 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             return easeOut(clamp((t - T1) / 0.3, 0, 1)) * (0.6 + 0.4 * clamp((t - T1) / (TG - T1), 0, 1)) * (1 + 0.15 * beat + 0.3 * fire);
         };
         const sc = scene(u, sec + 0.3, 'ultdive');
+        // 3:3 장면 전환 합동 (#101) — 동료 기운이 모여드는 불꽃 구 (게임 다리 team11Joint 가 매 장면 읽음 · 없으면 그대로)
+        if (o.track) {
+            sc.tick((t) => {
+                const [cx, cy] = center(t);
+                Object.assign(o.track, { kind: 'orb', x: cx, y: cy, r: Ro * orbAt(t), gather: t >= T1 && t < TG, gLeft: TG - t, fly: t >= TG && t < TI, t });
+            });
+        }
         ultDark(0.25, ms - 200);
         emberRise(sc, TI, sec, cols);
         try {
@@ -22793,7 +23016,8 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         });
         // 기 모으기 — 꼭대기에서 2초 동안 둘레의 불꽃 줄기 · 불씨가 소용돌이치며 불꽃 구로 빨려 듦, 점점 빨라짐
         const pullR = Math.max(Ro * 3.5, D * 1.1);
-        chargeSwirl(sc, center, T1 + 0.1, TG, pullR, Ro, cols, fd);
+        // 3:3 장면 전환 합동 — 주는 동안만 혜성 반 (무대 폭 480 아래는 3개) · 동료 몸을 피해 감
+        chargeSwirl(sc, center, T1 + 0.1, TG, pullR, Ro, cols, fd, o.track?.half ? (W < 480 ? 3 : 5) : 9, o.track?.avoid);
         // 점화 — 다 모으면 확 (번쩍 · 고리 · 불씨)
         sc.at(TG, () => {
             const [cx, cy] = center(TG);
@@ -22941,6 +23165,9 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
     function runBlastBurn(u, o, ms, pokemon) {
         const cols = sigPal(o.c || 'fire');
         const P = strength(u);
+        // 3:3 장면 전환 합동 — 동료가 기를 모아 주는 시간 (#106 · bridge extraG) 을 메가진화 뒤 기 모으기에 더함 (#96)
+        const XG = o.track?.extraG || 0;
+        ms += XG * 1000;
         const sec = ms / 1000;
         const { W, H, S: s, dir } = u;
         const G = u.ground;
@@ -22959,18 +23186,22 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         const TL0 = 0.4;
         const TE = 1.75;
         const TM = 3.0;
-        const TF = 4.6;
+        const TF = 4.6 + XG;
         const TX = TF + 0.12;
         const DOME = 2.5; // 반구 대폭발 길이
         const TR2 = TX + DOME - 0.25; // 빛이 사그라들 때 메가리자몽X 가 다시 보임
         const TBack = sec - 0.5;
         const firePulses = [0.8, 1.25, 1.6];
-        const bluePulses = [TM + 0.6, TM + 1.0, TM + 1.3, TM + 1.5];
+        const bluePulses = [0.6, 1.0, 1.3, 1.5].map((p) => TM + (p * (TF - TM)) / 1.6);
         const Ro = Math.max(me.w, me.h) * 0.95; // 리자몽 불꽃 구
         const RoM = megaW() * 0.75; // 메가 파란 불꽃 구
-        const lift = Math.max(s * 4, Math.max(Ro, RoM) * 1.1 - me.h * 0.5 + s * 2); // 구가 땅에 묻히지 않게 떠오름
-        const pullR = Math.max(Ro * 3.5, D * 1.1);
-        const R = Math.min(Math.max(D * 1.7, megaW() * 2.5), W * 0.6, G * 0.95); // 반구 반지름
+        // 게임 화면 (1:1 · 3:3 장면 전환) — 머무는 모양 (떠 있는 몸 · 구 · 반구) 은 위 끝 (정보줄 · 지도 줄 아래 끝) 아래 (#1759 디자인 · ux-rules U4) · 일반 모드 · 무대 상자는 0
+        const top0 = Math.max(typeof fxStageTop === 'function' ? fxStageTop() : 0, o.track && typeof t33Top === 'function' ? t33Top() : 0);
+        // 떠오름 = 지금 높이와 "메가 머리 위 끝이 위 끝 + 2칸" 이 되는 높이 중 낮은 것 (187 에선 거의 땅 근처)
+        const lift = Math.min(Math.max(s * 4, Math.max(Ro, RoM) * 1.1 - me.h * 0.5 + s * 2), top0 > 0 ? Math.max(0, me.b - Math.max(me.h, megaW()) - top0 - 2 * s) : Infinity); // 구가 땅에 묻히지 않게 떠오름
+        // 빨려 드는 기운 · 두근 고리 반지름 — 게임 화면은 가슴 높이에서 위 끝 + 4칸 까지 (머무는 기 모으기가 정보줄 뒤로 반쯤 — #96 ④ ult-top)
+        const pullR = Math.max(Ro * 1.2, Math.min(Math.max(Ro * 3.5, D * 1.1), top0 > 0 ? me.b - me.h * 0.5 - top0 - 4 * s : Infinity));
+        const R = Math.min(Math.max(D * 1.7, megaW() * 2.5), W * 0.6, G * 0.95, top0 > 0 ? Math.max(megaW(), G - top0 - 4 * s) : Infinity); // 반구 반지름 (게임 화면 = 꼭대기가 위 끝 아래)
         const ex = me.x;
         // 떠 있는 발 높이 — 날갯짓하듯 살짝 들썩
         const bob = (t) => -Math.abs(Math.sin((t / 0.3) * Math.PI)) * s * 2;
@@ -22985,6 +23216,22 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         };
         const isMega = (t) => t >= TM;
         const center = (t) => [ex, footAt(t) - (isMega(t) ? megaW() : me.h) * 0.5];
+        // 불꽃 구 [x, y, 배율] — 게임 화면은 가운데 y ≥ 위 끝 + 바깥 반지름 (불꽃 혀 · 도는 불씨 끝: 불 Ro × 1.5 · 파랑 RoM × 1.8) + 4칸 ·
+        // 머리 위에 그 자리가 없으면 몸 앞쪽 (대상 쪽 몸 폭 × 0.8) 그 높이에 모음 (아래는 땅에서 잘림) · 그래도 무대보다 크면 (187 의 파란 구 —
+        // 반지름 약 96px · 무대 약 120px, 위아래가 일자로 잘리던 것) 땅에서 솟는 반구로 놓고 위 끝 아래에 들게 줄임 (#1759)
+        const orbAt = (t) => {
+            const [x, y] = center(t);
+            if (!(top0 > 0)) {
+                return [x, y, 1];
+            }
+            const outer = isMega(t) ? RoM * 1.8 : Ro * 1.5;
+            const need = top0 + outer + 4 * s;
+            if (y >= need) {
+                return [x, y, 1];
+            }
+            const fx = x + dir * (isMega(t) ? megaW() : me.w) * 0.8;
+            return need <= G ? [fx, need, 1] : [fx, G, clamp((G - top0 - 4 * s) / outer, 0.6, 1)]; // 무대에 드는 만큼만 · 최소 0.6 (디자인)
+        };
         const beatAt = (t, list) => list.reduce((m, tp) => Math.max(m, clamp(1 - Math.abs(t - tp) / 0.1, 0, 1)), 0);
         const sc = scene(u, sec + 0.3, 'ultpillar');
         ultDark(0.3, ms - 200);
@@ -22995,16 +23242,25 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         // 구 · 도는 불씨 · 꼭두각시 (한 덩어리 — 대폭발이 생기면 그 위에 다시 그림)
         const drawMon2 = (ctx, it, t, px) => {
             const life = sc.t;
-            if (life >= TBack || (life >= TX && life < TR2)) {
-                return; // 터지는 동안은 안 보임
+            // 3:3 장면 전환 합동 (o.track) — 하얀 실루엣 동안을 알림 (하드플랜트와 같음 · #96)
+            if (o.track) {
+                o.track.morph = (life >= TE && life < TM + 0.35) || (life >= TR2 && life < TR2 + 0.35) || (life > TBack - 0.4 && life < TBack);
+                o.track.morphed = life >= TM + 0.35;
+                o.track.morphBox = { x: ex, b: center(life)[1] + Math.max(me.h, megaW()) * 0.72, w: Math.max(me.w, megaW()) * 1.6 };
+                o.track.mega = megaReady() && life >= TM && life < TBack && !(life >= TX && life < TR2 && !(top0 > 0)) ? { scale: megaW() / Math.max(1, me.w), lift: me.b - footAt(life) } : null;
+            }
+            // 터지는 동안은 안 보임 (일반 모드 1:1 그대로) · 게임 화면은 반구 위 층에 메가리자몽X 를 그대로 (반구가 1.9초 가리던 것 — #96 아트 4바퀴 2)
+            if (life >= TBack || (life >= TX && life < TR2 && !(top0 > 0))) {
+                return;
             }
             const [cx, cy] = center(life);
             const b = footAt(life);
             if (life < TE + 0.25) {
                 // 리자몽 — 불꽃 구가 커지며 두근두근, 둘레로 불씨 세 줄
                 const k = easeOut(clamp((life - 0.1) / 0.3, 0, 1)) * (0.6 + 0.4 * clamp((life - 0.25) / 1.5, 0, 1)) * (1 + 0.15 * beatAt(life, firePulses)) * (1 - clamp((life - TE) / 0.25, 0, 1));
-                fireOrb(ctx, px, s, cx, cy, Ro, cols, life, k, G, 0.95);
-                orbitEmbers(ctx, px, s, cx, cy, Ro * k * 1.3, cols, life, dir, clamp((life - 0.3) / 0.2, 0, 1) * (1 - clamp((life - TE) / 0.15, 0, 1)));
+                const [ox, oy, of] = orbAt(life);
+                fireOrb(ctx, px, s, ox, oy, Ro * of, cols, life, k, G, 0.95);
+                orbitEmbers(ctx, px, s, ox, oy, Ro * of * k * 1.3, cols, life, dir, clamp((life - 0.3) / 0.2, 0, 1) * (1 - clamp((life - TE) / 0.15, 0, 1)));
             }
             if (life < TE) {
                 drawLitMon(ctx, img, ex, b, me.w, left, '#ffc93c', edge, 1);
@@ -23043,8 +23299,9 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             if (life < TX) {
                 const flash = clamp((life - TF) / 0.08, 0, 1);
                 const k = (0.7 + 0.5 * clamp((life - TM) / (TF - TM), 0, 1)) * (1 + 0.15 * beatAt(life, bluePulses)) * (1 + 0.4 * flash) * easeOut(clamp((life - TM) / 0.25, 0, 1));
-                fireOrb(ctx, px, s, cx, cy, RoM, BLUE, life, k, G, 0.95);
-                orbitEmbers(ctx, px, s, cx, cy, RoM * k * 1.3, BLUE, life, -dir, clamp((life - TM - 0.2) / 0.2, 0, 1));
+                const [ox, oy, of] = orbAt(life);
+                fireOrb(ctx, px, s, ox, oy, RoM * of, BLUE, life, k, G, 0.95);
+                orbitEmbers(ctx, px, s, ox, oy, RoM * of * k * 1.3, BLUE, life, -dir, clamp((life - TM - 0.2) / 0.2, 0, 1));
             }
             drawLitMon(ctx, mega, ex, b, w, false, BLUE[2], edge, 1);
             // 하얗게 — 나타날 때(메가진화 · 빛 속에서 다시), 그리고 원래대로 돌아가기 직전엔 메가 ↔ 리자몽 실루엣이 빠르게 깜빡
@@ -23064,10 +23321,10 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             ring(sc, ex, me.b - s, me.w * 0.5, me.w * 3, 0.2, 0.4, [cols[1], '#ffffff'], 2);
             fireBits(ex, me.b - s, s, cols, 20, { angle: -Math.PI / 2, spread: 2, speed: H * 0.5, drag: 2.4, life: 0.6 });
         });
-        chargeSwirl(sc, center, 0.25, TE, pullR, Ro, cols, dir);
+        chargeSwirl(sc, orbAt, 0.25, TE, pullR, Ro, cols, dir);
         for (const tp of firePulses) {
             sc.at(tp, () => {
-                const [cx, cy] = center(tp);
+                const [cx, cy] = orbAt(tp);
                 ring(sc, cx, cy, pullR * 0.6, Ro * 1.1, 1, 0.3, [cols[1], '#ffffff', cols[3]], 2);
                 ultShake(1.5, 150);
             });
@@ -23100,10 +23357,10 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             sparkles(cx, cy, s, ['#ffffff', BLUE[1]], 16, RoM * 1.5, H * 0.2);
         });
         // ④ 파란 기 모으기 → 번쩍!
-        chargeSwirl(sc, center, TM + 0.15, TF, pullR * 1.15, RoM, BLUE, -dir);
+        chargeSwirl(sc, orbAt, TM + 0.15, TF, pullR * 1.15, RoM, BLUE, -dir);
         for (const tp of bluePulses) {
             sc.at(tp, () => {
-                const [cx, cy] = center(tp);
+                const [cx, cy] = orbAt(tp);
                 ring(sc, cx, cy, pullR * 0.7, RoM * 1.1, 1, 0.3, [BLUE[1], '#ffffff', BLUE[3]], 2);
                 ultShake(1.5 + (tp - TM), 150);
             });
@@ -23118,6 +23375,9 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         sc.at(TX, () => {
             ultShake(10, 1000);
             blastDome(sc, ex, G, R, DOME, BLUE);
+            if (top0 > 0) {
+                sc.add({ max: sec, draw: drawMon2 }); // 게임 화면 — 반구 위 층
+            }
             ring(sc, ex, G - R * 0.4, R * 0.4, Math.max(W, H) * 0.9, 0.7, 0.6, ['#ffffff', BLUE[1], BLUE[2]], 3);
             ring(sc, ex, G - s, R * 0.5, Math.max(W, H), 0.16, 0.7, [BLUE[1], '#ffffff'], 2);
             ring(sc, ex, G - s, R * 0.4, R * 2.2, 0.12, 0.6, ['#c9b9a6', '#8a7660'], 2);
@@ -23153,7 +23413,9 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         });
         // ⑥ 빛이 사그라들 때 메가리자몽X 가 땅에 선 채로 다시 → 원래대로 (진짜 그림이 다시 보임)
         sc.at(TR2, () => {
-            sc.add({ max: sec, draw: drawMon2 });
+            if (!(top0 > 0)) {
+                sc.add({ max: sec, draw: drawMon2 });
+            }
             ring(sc, ex, me.b - s, me.w * 0.5, me.w * 3, 0.2, 0.4, [BLUE[1], '#ffffff'], 2);
         });
         sc.at(TBack, () => {
@@ -23671,6 +23933,9 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
     }
     function runHardPlant(u, o, ms, pokemon) {
         const P = strength(u);
+        // 3:3 장면 전환 합동 — 동료가 기를 모아 주는 시간 (#106 · bridge extraG) 을 메가진화 뒤 기 모으기에 더함 (#96)
+        const XG = o.track?.extraG || 0;
+        ms += XG * 1000;
         const sec = ms / 1000;
         const { W, H, S: s, dir } = u;
         const G = u.ground;
@@ -23683,7 +23948,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         // 때 — (기 모으기) · 진화 모션 · 펑(메가) · 쿵 · (덩굴 파도) · 꽃 · 꽃잎 폭풍 · 덩굴이 들어감 · 원래대로
         const TE = 1.5;
         const TM = 2.8;
-        const TS = 3.5;
+        const TS = 3.5 + XG;
         const TV = TS + 0.15;
         const NV = 6;
         const GAP = 0.17;
@@ -23703,7 +23968,9 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         const spots = [];
         for (let i = 0; i < NV; i++) {
             const f = (i + 0.6) / NV;
-            spots.push({ x: x0 + vd * span * f, t0: TV + i * GAP, h: Math.min(G * 0.8, lerp(H * 0.3, H * 0.62, i / (NV - 1))), w: Math.max(5 * s, Math.max(H * 0.04, lerp(me.w * 0.45, me.w * 0.75, i / (NV - 1)))), seed: i * 1.7 });
+            // 덩굴 높이 — 게임 화면은 무대 높이 − 4칸까지 (240 × 150 에서 덩굴 끝이 맨 위 줄 아래에 일자로 잘린 채 2.3초 — #96 UX 작음 6)
+            const hMax = (typeof fxStageTop === 'function' ? fxStageTop() : 0) > 0 ? G - fxStageTop() - 4 * s : Infinity;
+            spots.push({ x: x0 + vd * span * f, t0: TV + i * GAP, h: Math.min(G * 0.8, lerp(H * 0.3, H * 0.62, i / (NV - 1)), hMax), w: Math.max(5 * s, Math.max(H * 0.04, lerp(me.w * 0.45, me.w * 0.75, i / (NV - 1)))), seed: i * 1.7 });
         }
         const bloomR = Math.min(G * 0.45, Math.max(D * 0.9, me.w * 2.2));
         const fx = clamp(spots[NV - 1].x, bloomR * 0.8, W - bloomR * 0.8); // 거대한 꽃 — 화면 밖으로 잘리지 않게
@@ -23725,6 +23992,13 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         const beatAt = (t) => pulses.reduce((m, tp) => Math.max(m, clamp(1 - Math.abs(t - tp) / 0.1, 0, 1)), 0);
         sc.add({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
+            // 3:3 장면 전환 합동 (o.track) — 메가진화 · 풀림 (하얀 실루엣 · 걷히는 0.35초) 동안을 알림: 합동 그림이 실루엣 위에 안 그려지게 · 번개 · 오라 혀는 그 뒤부터 (#96 디자인 · bridge fxJ11Morph)
+            if (o.track) {
+                o.track.morph = (life >= TE && life < TM + 0.35) || (life > TBack - 0.4 && life < TBack);
+                o.track.morphed = life >= TM + 0.35;
+                o.track.morphBox = { x: cx, b: me.b, w: me.w * 1.35 * 1.6 };
+                o.track.mega = life >= TM && life < TBack ? { scale: 1.35 } : null;
+            }
             if (life >= TBack) {
                 return;
             }
@@ -24040,11 +24314,13 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
     };
     function waterFireworks(sc, t0, n, x0, x1) {
         const { W, H, S: s, ground: G } = sc.u;
+        // 게임 화면 — 터지는 높이 ≥ 위 끝 + 반지름 + 4칸 (터진 고리가 정보줄 아래 끝에 윗면이 잘린 채 1.7초 머물던 것 — #96 UX 큼 3) · 크기 그대로
+        const top0 = typeof fxStageTop === 'function' ? fxStageTop() : 0;
         for (let i = 0; i < n; i++) {
             const x = clamp(lerp(x0, x1, (i + 0.5) / n) + (hash(i, 95) - 0.5) * W * 0.08, W * 0.06, W * 0.94);
-            const top = Math.max(H * 0.1, G * (0.18 + 0.22 * hash(i, 96)));
             const tl = t0 + i * 0.22;
             const R = Math.min(W * 0.22, G * (0.22 + 0.08 * hash(i, 97)));
+            const top = Math.max(H * 0.1, G * (0.18 + 0.22 * hash(i, 96)), top0 > 0 ? Math.min(G - R * 0.5, top0 + R + 4 * s) : 0);
             sc.add({ max: tl + 0.5, draw: (ctx, it, t, px) => {
                 const k = (sc.t - tl) / 0.45;
                 if (k < 0 || k > 1) {
@@ -24121,6 +24397,13 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         const pulses = [0.95, 1.45, 1.85, 2.1];
         const pullR = Math.max(Ro * 6, D * 1.2);
         const sc = scene(u, sec + 0.3, 'ultbeam');
+        // 3:3 장면 전환 합동 (#101) — 모으는 동안 동료 기운이 앞 대포 끝으로 · 쏘는 동안 물줄기 (게임 다리 team11Joint 가 매 장면 읽음 · 없으면 그대로)
+        if (o.track) {
+            sc.tick((t) => {
+                const x0 = cF + slideAt(t) + dir * Ro;
+                Object.assign(o.track, { kind: 'beam', gx: x0, gy: yb, gather: t >= TC0 && t < TF, gLeft: TF - t, on: t >= TB && widthAt(t) > 0, x0, dir, len: reachAt(t), w: widthAt(t), yAt: (x) => centerAt(t, x), t });
+            });
+        }
         ultDark(0.4, ms - 200);
         hideMon(pokemon, true);
         hideUntil(pokemon, ms + 100);
@@ -24355,6 +24638,10 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         sc.add({ max: TB + 0.05, draw: (ctx, it, t, px) => {
             const life = sc.t;
             const k = (life - TQ) / (TF - TQ);
+            // 3:3 합동 — 압축 (어둠 → 하양) 동안 대비 장면이라고 알림 (다리가 동료를 어둡게 · 구멍 · 테를 끔, #96 아트 6바퀴 1)
+            if (o.track) {
+                o.track.contrast = k >= 0 && life <= TB;
+            }
             if (k < 0 || life > TF) {
                 return;
             }
@@ -24628,6 +24915,9 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
     // → 비 → 물 불꽃놀이 → 하얀 실루엣이 깜빡이며 원래 모습으로
     function runMegaLauncher(u, o, ms, pokemon) {
         const P = strength(u);
+        // 3:3 장면 전환 합동 — 동료가 기를 모아 주는 시간 (#106 · bridge extraG) 을 메가진화 뒤 기 모으기에 더함 (#96)
+        const XG = o.track?.extraG || 0;
+        ms += XG * 1000;
         const sec = ms / 1000;
         const { W, H, S: s, dir } = u;
         const G = u.ground;
@@ -24639,7 +24929,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         const D = Math.min(Math.max(H / 3, short(u) * 0.4) * (0.9 + 0.2 * P), W * 0.42, H * 0.62);
         const TE = 1.5;
         const TM = 2.8;
-        const TS = 4.5; // 발사
+        const TS = 4.5 + XG; // 발사
         const TFLY = 0.4;
         const TX = TS + TFLY; // 맞음
         const TBack = sec - 0.5;
@@ -24654,7 +24944,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         let mz = [cx + dir * me.w * 0.5, me.b - me.h * 1.1]; // 거대한 대포 포구 (그릴 때마다 갱신)
         let arm = [cx + dir * me.w * 0.5, me.b - me.h * 0.4]; // 팔 대포 포구
         const pulses = [0.7, 1.05, 1.35];
-        const bpulses = [TM + 0.6, TM + 1.0, TM + 1.3, TM + 1.55];
+        const bpulses = [0.6, 1.0, 1.3, 1.55].map((p) => TM + (p * (TS - TM)) / 1.7);
         const beatAt = (t, list) => list.reduce((m, tp) => Math.max(m, clamp(1 - Math.abs(t - tp) / 0.1, 0, 1)), 0);
         const sc = scene(u, sec + 0.3, 'ultorb');
         ultDark(0.35, ms - 200);
@@ -24670,6 +24960,13 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         // 꼭두각시 · 물 구
         sc.add({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
+            // 3:3 장면 전환 합동 (o.track) — 하얀 실루엣 동안을 알림 (하드플랜트와 같음 · #96)
+            if (o.track) {
+                o.track.morph = (life >= TE && life < TM + 0.35) || (life > TBack - 0.4 && life < TBack);
+                o.track.morphed = life >= TM + 0.35;
+                o.track.morphBox = { x: cx + kickAt(life), b: me.b, w: me.w * 1.3 * 1.6 };
+                o.track.mega = life >= TM && life < TBack ? { scale: 1.3, dx: kickAt(life) } : null;
+            }
             if (life >= TBack) {
                 return;
             }
@@ -24779,7 +25076,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         // 팔 대포 연사 — 작은 물탄이 앞쪽 곳곳으로 날아가 작은 물기둥 · 합동에선 뺌 (상대 앞에 물기둥이 피해 1.4 ~ 2초 전에 서서 먼저 맞은 것처럼 보이던 것 — #80 UX)
         const bullets = [];
         // 3:3 용 판에서도 뺌 (상대 앞 · 위에 작은 물기둥이 맞기 전에 서던 것 — 아트 디렉터 #95 6바퀴 ③)
-        const volley = !(typeof fxJointTop !== 'undefined' && fxJointTop) && !(typeof moveFrame !== 'undefined' && moveFrame);
+        const volley = !(typeof fxJointTop !== 'undefined' && fxJointTop) && !(typeof moveFrame !== 'undefined' && moveFrame) && !o.track;
         for (let i = 0; i < (volley ? 6 : 0); i++) {
             const f = (i + 0.5) / 6;
             const tx = clamp(me.x + dir * (me.w * 1.5 + (Math.abs(ix - me.x) + W * 0.15) * f) + (hash(i, 91) - 0.5) * W * 0.06, W * 0.04, W * 0.96);
@@ -25004,7 +25301,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         const ahead = q && Math.sign(q.x - me.x) === dir && Math.abs(q.x - me.x) > me.w;
         const ix = clamp(ahead ? q.x : me.x + dir * W * 0.5, W * 0.08, W * 0.92);
         const boomR = Math.min(G * 0.7, Math.max(D * 1.3, me.w * 3));
-        const domeR = Math.min(Math.max(D * 1.5, me.w * 3.2), W * 0.5, G * 0.9); // 보랏빛 빛의 반구
+        const domeR = Math.min(Math.max(D * 1.5, me.w * 3.2), W * 0.5, G * 0.9, typeof fxStageTop === 'function' && fxStageTop() > 0 ? (G - fxStageTop() - 4 * s) / 1.15 : Infinity); // 보랏빛 빛의 반구 · 게임 화면 = 바깥 빛 (× 1.15) 까지 위 끝 아래 (위 끝에 반쯤 걸쳐 머물던 것 — #96 디자인 4바퀴 · ult-top 걸쳐 머묾)
         const iy = G - Math.min(boomR * 0.35, G * 0.3);
         const bob = (t) => Math.sin(t * 3) * s * 1.5;
         const footAt = (t) => {
@@ -25096,6 +25393,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             const [hx, hy] = hand(life);
             const beat = Math.max(0, Math.sin(life * 9)) ** 4;
             fireOrb(ctx, px, s, hx, hy, Ro, MEWP, life, (0.3 + 0.7 * k) * (1 + 0.12 * beat), G, 0.97, 0, [1, 0.8, 0.6, 0.38], 0.3);
+            jointOrb(o, ctx, hx, hy, Ro * (0.3 + 0.7 * k), true);
             // 구 안 어두운 소용돌이
             const sw = new Path2D();
             for (let i = 0; i < 16; i++) {
@@ -25178,6 +25476,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                 fireTail(ctx, px, s, x, y, (x - x2) / dl, (y - y2) / dl, Ro * 4, Ro * 1.6, MEWP, life, 1);
             }
             fireOrb(ctx, px, s, x, y, Ro * 1.4, MEWP, life, implode * (1 + 0.08 * Math.sin(life * 40)), G, 1, 0, [1, 0.8, 0.6, 0.38], 0.2);
+            jointOrb(o, ctx, x, y, Ro * 1.4 * implode, false, life < TX);
             for (const r of rocks) {
                 if (life >= r.lt && life < TX) {
                     const [rx, ry] = rockAt(r, life);
@@ -25185,6 +25484,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                 }
             }
         } });
+        sc.at(TB, () => jointOrb(o));
         let trail = 0;
         sc.tick((t, dt) => {
             if (t < TT || t >= TX) {
@@ -25320,9 +25620,11 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         };
         const cy = (t) => footAt(t) - me.h * 0.5;
         const ocx = me.x;
-        const ocy = Math.max(H * 0.18, G - me.h * 1.4 - D * 0.35); // 소용돌이 가운데
         const orx = Math.min(W * 0.42, Math.max(D * 1.3, me.w * 3));
         const ory = Math.min(orx * 0.32, (G - me.h) * 0.4);
+        // 게임 화면 = 소용돌이 띠 (ory × 1.08) · 떠오른 포켓몬 (ory + 몸 반 + 멈칫) 이 위 끝 + 4칸 아래 (위 끝에 반쯤 걸쳐 머물던 것 — #96 디자인 4바퀴 · ult-top 걸쳐 머묾)
+        const gT = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+        const ocy = Math.max(H * 0.18, G - me.h * 1.4 - D * 0.35, gT > 0 ? gT + 4 * s + Math.max(ory * 1.08 + s, ory + me.h * 0.5 + H * 0.05) : 0); // 소용돌이 가운데
         const sc = scene(u, sec + 0.3, 'ultpsy');
         ultDark(0.4, ms - 200);
         hideMon(pokemon, true);
@@ -25673,7 +25975,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         const sx = clamp(lerp(me.x, ix, 0.35), W * 0.12, W * 0.88); // 하늘 자리
         const sy = Math.max(me.h * 1.6, G * 0.6); // 발 높이
         const Rsun = Math.max(s * 6, Math.min(Math.max(D * 0.55, me.w * 1.6), (sy - me.h) * 0.5)); // 머리 위 남은 자리에 맞춰 (화면 위로 잘리지 않게)
-        const sunY = Math.max(Rsun * 1.05, sy - me.h - Rsun * 0.9);
+        const sunY = Math.max(Rsun * 1.05, sy - me.h - Rsun * 0.9, typeof fxStageTop === 'function' && fxStageTop() > 0 ? fxStageTop() + Rsun * 1.6 + 6 * s : 0); // 게임 화면 = 태양 빛살 (1.6 r) 이 위 끝 + 6칸 아래 (위 끝에 반쯤 걸쳐 머물던 것 — #96 디자인 4바퀴 · ult-top 걸쳐 머묾)
         const R = Math.min(Math.max(D * 1.6, me.w * 4), W * 0.55, G * 0.92); // 반구
         const bob = (t) => Math.sin(t * 3.2) * s * 2;
         const posAt = (t) => {
@@ -25794,6 +26096,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             ctx.fillStyle = MEWPK[1];
             ctx.fill(rays);
             fireOrb(ctx, px, s, x, y, r, MEWPK, life, 1 + 0.05 * Math.sin(life * 20), Infinity, 1, 0, [1, 0.86, 0.7, 0.5], 0.25);
+            jointOrb(o, ctx, x, y, r, life < TTH, life >= TTH);
             swirlRing(ctx, px, s, x, y, r * 1.45, 0.4, life, dir, ['#ffffff', MEWPK[2]], 0.9 * k);
         } });
         sc.at(TC1, () => {
@@ -25806,6 +26109,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         });
         // ③ 분홍 초신성 — 빛의 반구 · 하늘로 솟는 빛기둥 · 별 반짝이 · 충격파
         sc.at(TX, () => {
+            jointOrb(o);
             screenFlash(s, 0.9, '#ffffff', 0.3);
             ultShake(12, 1000);
             blastDome(sc, ix, G, R, DOME, MEWPK);
@@ -25900,12 +26204,15 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         const TPOP = TFIN + 0.45; // 거품이 펑
         const TDN = TPOP + 0.9;
         const bubR = Math.max(me.w, me.h) * 0.75;
-        const hy = Math.max(me.h + bubR, G * 0.55); // 떠다니는 발 높이
-        const spots = KINDS.map((k, i) => [clamp(W * (0.18 + 0.64 * ((i * 3) % 5) / 4), bubR + 4, W - bubR - 4), hy - (i % 2) * H * 0.12]);
+        // 게임 화면 = 거품 (bubR × 1.04) 윗끝이 위 끝 + 7칸 아래 — 떠다니는 자리 · 깡충 꼭대기 (위 끝에 반쯤 걸쳐 머물던 것 — #96 디자인 4바퀴 · ult-top 걸쳐 머묾)
+        const gT = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+        const hyMin = gT > 0 ? gT + me.h * 0.5 + bubR * 1.04 + 7 * s : -Infinity;
+        const hy = Math.max(me.h + bubR, G * 0.55, hyMin); // 떠다니는 발 높이
+        const spots = KINDS.map((k, i) => [clamp(W * (0.18 + 0.64 * ((i * 3) % 5) / 4), bubR + 4, W - bubR - 4), Math.max(hyMin, hy - (i % 2) * H * 0.12)]);
         const homeAir = [clamp(me.x, bubR + 4, W - bubR - 4), hy];
-        const center = [W * 0.5, hy - H * 0.05];
+        const center = [W * 0.5, Math.max(hyMin, hy - H * 0.05)];
         const bob = (t) => Math.sin(t * 4) * s * 2;
-        const hop = (a, b, k) => [lerp(a[0], b[0], k), lerp(a[1], b[1], k) - Math.sin(k * Math.PI) * H * 0.12];
+        const hop = (a, b, k) => [lerp(a[0], b[0], k), lerp(a[1], b[1], k) - Math.sin(k * Math.PI) * clamp(Math.min(a[1], b[1]) - hyMin, 0, H * 0.12)];
         const posAt = (t) => {
             if (t < T0) {
                 const e = easeOut(clamp(t / 0.5, 0, 1));
@@ -26225,7 +26532,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
     // 전용 필살기(fx-unique.js)가 쓰는 도구 — 이 파일 안 이름을 밖으로
     Object.assign(ULT_KIT, {
         TAU, rnd, pick, clamp, lerp, easeOut, easeIn, hash, wrap, room, strength, fail, short, away, where, makeHit, nearest, scene,
-        addLine, fillPts, jag, branchOf, drawBolt, ellipse, ringDots, ring, strike, groundArcs, glowMark, debris, puff, flames, sparkles, chunk, skyBand, lump, cloudBank, fillPaths,
+        addLine, fillPts, jag, branchOf, drawBolt, ellipse, ringDots, ring, strike, groundArcs, glowMark, debris, puff, flames, sparkles, chunk, skyBand, lump, cloudBank, cloudAt, fillPaths, jointOrb,
         faceFlip, silhouette, drawMon, drawLitMon, monBox, hideMon, hideUntil, darkPoof, shards, waterRibbon, glint, geyser, swirlDome, waterRain, auraBubbles, recoil,
         flameTongue, groundFlames, fireTail, fireOrb, orbitEmbers, firePillar, chargeSwirl, blastDome, domeLight, fireBits, emberRise, beamBody, petalAt, petalBurst,
         vine, waterJet, waveFront, splash, swirlRing, crownSplash, waterFireworks, psyRock, galaxy, impactFrames, megaVenus, megaTurtle,
@@ -26379,8 +26686,8 @@ function t33Disc(ctx, k, cx, cy, R, cols) {
     }
 }
 // 섞인 큰 폭발 (시안 A ⑤ — 아트 디렉터 #95 2바퀴): 8갈래 별 (2칸 · 반지름 12 → 20 → 24칸, 80ms 씩) + 두꺼운 고리 (가운데 45% 빈 · 8조각 두 색 번갈아 · 가로 ×1.4) + 발밑 충격파 호 3조각.
-// 위 끝 (무대) · 아래 끝 (패널) 안으로 줄임 · step = 0 ~ 3 · keep = 바둑판 지우기 (null = 다)
-function t33Burst(ctx, k, cx, cy, foot, step, R, colsA, colsB, keep, edge = 'dot', maxR = Infinity) {
+// 위 끝 (무대) · 아래 끝 (패널) 안으로 줄임 · step = 0 ~ 3 · keep = 바둑판 지우기 (null = 다) · colsC = 셋째 색 (고리 조각을 세 색 번갈아 — 3인 합동)
+function t33Burst(ctx, k, cx, cy, foot, step, R, colsA, colsB, keep, edge = 'dot', maxR = Infinity, colsC = null) {
     const px = (v) => Math.round(v / k) * k;
     const top = t33Top();
     const H0 = window.innerHeight;
@@ -26424,7 +26731,7 @@ function t33Burst(ctx, k, cx, cy, foot, step, R, colsA, colsB, keep, edge = 'dot
                     continue;
                 }
                 const seg = Math.floor(deg / 45) % 8;
-                const cols = seg % 2 ? colsB : colsA;
+                const cols = colsC ? [colsA, colsB, colsC][seg % 3] : seg % 2 ? colsB : colsA;
                 put(cx + dx * k, cy + dy * k, 1, 1, d > Rr - 1 ? cols[1] : cols[0]);
             }
         }
@@ -26757,6 +27064,2102 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
     return moveParticles[moveParticles.length - 1];
 }
 
+/**
+ * 장면 전환 합동 — 넘겨주기 (#101 앞장에게 기를 모아 주기 · #102 모양 시안 A · B · C — 디자인 값): 다리 (team11Joint) 의 입자가 매 장면 부름.
+ * q = { now, allies: [{ A, c, n, type }], kL, track (앞장 연출이 채움), tracked, gatherTo(now), st, LA, hitEnd, onGather }
+ * 색 4단 = 흰 심 #fff8e0 · 옅은 (타입 + 흰 50%) · 본색 · 짙은 (타입 + 남색 #0c101e 50%) · 반투명 없이 (바둑판) · 자리는 매 장면 칸에 맞춤 · 고리 번쩍은 1초 3번 아래
+ * 모양 = window.__pgJointStyle (시안 — 기본 A):
+ *  A 빛의 끈 — 동료 가슴 → 구 가장자리 · 대포 끝 (2차 곡선 · 꼭짓점 거리 × 0.35 위 / 셋째 × 0.2 아래) · 단면 7칸 (흰 1 · 옅은 · 본색 · 짙은 테) 200ms 마다 5칸으로 숨쉼 ·
+ *    50ms 마다 4칸 뻗음 (머리 흰 3×3 + 옅은 십자) · 흐르는 빛 (흰 2×2 + 옅은 테 · 50ms 마다 4칸 · 28칸 간격) · 닿을 때 구 +1칸 (× 1.5 까지) · 끝나면 동료 쪽부터 50ms 마다 6칸 걷힘 ·
+ *    빔은 쏠 때 나선을 따라 흐르는 빛 · 3인은 두 끈이 구 −60° · +30° 에 닿고 흐르는 빛이 반 박자 어긋남
+ *  B 오라 리본 — 동료 몸 둘레 불꽃 혀 7개 (폭 2 ~ 3 · 높이 8 ~ 16칸 · 100ms 마다 바뀜) · 400ms 마다 오라 꼭대기가 4칸 솟고 리본 (40칸 · 폭 5 ↔ 3 — 8칸마다) 이 S 자 길로 50ms 마다 4칸 ·
+ *    구 둘레 (반지름 + 3칸) 를 3/4 바퀴 감고 바둑판 두 걸음으로 사라짐 · 구 +1칸 · 빔은 물줄기보다 넓은 나선 리본 · 3인은 200ms 어긋나 번갈아 · 구 둘레에서 반대로 감음
+ *  C 빛 알갱이 강 — 타입 모양 알갱이 (불꽃 혀 3×5 · 잎 5×3 · 물방울 3×5 · 별 3×3) 1초에 20개 · 분수처럼 10 ~ 16칸 솟고 머리 위를 나선으로 돈 뒤 (반지름 6칸) 강을 타고
+ *    마지막 0.4초에 구 가운데로 좁아지는 나선 (20 → 0칸 · 크기 5 → 3 → 1) · 네 개 중 하나 흰 십자 반짝 · 6개마다 구 +1칸 (× 1.6 까지) · 구 둘레 타입 색 점 4개가 돎 · 구 안 동료 색 점 ·
+ *    빔은 쏠 때 물줄기 둘레 나선 (반폭 + 4칸) 을 타고 대상 쪽으로 · 3인은 위 · 뒤 아래 두 강
+ * 공통: 구 (원기옥) — 고리 안 기운 막 (동료 색 바둑판) + 1칸 고리 · 무대 위 끝에 닿으면 세로를 줄인 타원 · 날아갈 때 구 안 동료 색 점 / 빔 — 물줄기를 감는 동료 색 나선 + 스파크 /
+ * 그 밖 (알려 주지 않는 연출) — 맞을 때까지 앞장 몸에 동료 색 점선 오라
+ */
+const T11_STYLES = ['A', 'B', 'C', 'S1'];
+const t11Style = () => {
+    const s = typeof window !== 'undefined' ? window.__pgJointStyle : '';
+    return T11_STYLES.includes(s) ? s : 'S1'; // 기본 = #103 반짝이 별 (태현 님 #106 "그냥 이걸로") · A · B · C 는 시험 창 스위치로만
+};
+// #103 반짝이 별 (태현 님 "리자몽 변신 필살기 끝 반짝이 + 일반 모드 꾹 누르기 기 모으기, 2개 합쳐서 기를 넘겨준다") — 디자인 값 (칸 · 초)
+//  S1 = 별이 넓게 날아감 (갈래 ② 끈은 태현 님 "넓게 들어가야돼" 로 뺌) · 별 색 = 동료 타입 4단 (태현 님 "속성에 따라서 별 색깔은 바껴야 되는거 알지?" · 3인은 두 색으로 누구 기운인지)
+// 18타입 별 4단 [심, 팔, 팔 끝, 그림자 (악 · 고스트는 별 둘레 1칸 밝은 테)] — 디자인 #103 (TYPE_COLOR 에서 셈: 심 흰 85% · 팔 흰 45% · 끝 본색 · 그림자 남색 55%)
+const T11_STAR_COLS = { normal: ['#f7f7f2', '#e1e1cf', '#c8c8a8', '#61635c'], fire: ['#ffebe0', '#ffb68c', '#ff7a2e', '#794025'], water: ['#e4f0ff', '#9bc9ff', '#4a9cff', '#284f83'], electric: ['#fff9e0', '#ffe88c', '#ffd52e', '#796925'], grass: ['#e7f8e4', '#a7e59b', '#5fcf4a', '#316632'], ice: ['#eefcff', '#c1f2ff', '#8fe8ff', '#477183'], fighting: ['#f8e5e1', '#e59f93', '#d0503a', '#642d2b'], poison: ['#f3e6f9', '#d4a4ea', '#b05ad8', '#563172'], ground: ['#f9f3e7', '#ead4a8', '#d8b060', '#68583c'], flying: ['#f2f6ff', '#cfdcff', '#a8c0ff', '#525f83'], psychic: ['#ffe6f1', '#ffa4cb', '#ff5aa0', '#793158'], bug: ['#f2f7e0', '#cfe18d', '#a8c830', '#526326'], rock: ['#f4f1e6', '#d8cba3', '#b8a058', '#595138'], ghost: ['#ebe7f4', '#b6a9d8', '#9b89ca', '#d0c8e6'], dragon: ['#ebe6ff', '#b6a4ff', '#7a5aff', '#3d3183'], dark: ['#e6e4e2', '#a49b96', '#837770', '#c5c0bc'], steel: ['#f4f6f8', '#d8dce5', '#b8c0d0', '#595f6e'], fairy: ['#fff2f9', '#ffcfea', '#ffa8d8', '#795472'] };
+const T11_STAR_RIM = new Set(['ghost', 'dark']);
+// 넘겨주기 별만 온 테를 두르는 타입 · 테 색 — 풀 별은 숲 그림자색 (연두 별이 풀밭 바닥에 묻히던 것 — 상대 합동 숲의 분노, #96 아트 5바퀴 4)
+const T11_STAR_RIM_COL = { grass: '#1c2e30' };
+// 앞장 번개 3단 (디자인 #103 — r = 닿은 무더기 ÷ 전체) [간격 ms, 개수, 길이 칸, 꺾임, 갈래]
+const T11_BOLT = [{ every: 900, n: 1, len: [8, 10], bends: [2, 2], br: [0, 0] }, { every: 600, n: 2, len: [10, 12], bends: [3, 3], br: [0, 1] }, { every: 400, n: 3, len: [12, 14], bends: [3, 4], br: [1, 2] }];
+// 모으기는 0.3초에 다 차고 주는 구간 끝까지 같은 세기로 계속 (hold — 끝나면 다리가 멈춤) · 별은 0.3초부터 무더기마다 갈래 수만큼 한꺼번에 (모으면서 동시에 보냄 · 넓게 — 디자인 #103)
+// lanes = 갈래마다 곧은 선 가운데에서 수직으로 비켜 둔 조절점 (칸 · 위가 −) · sizes = 갈래 크기 (무더기마다 한 칸씩 돌림) · stopLeft = 모으기가 이만큼 (초) 남으면 새 무더기 없음 (마지막이 끝에 닿게)
+const T11_STAR = { charge: 0.3, hold: 6000, first: 0.3, every2: 0.25, every3: 0.3, lanes2: [-40, -24, -10, 6, 18, 30], lanes3: [-36, -14, 6, 24], sizes2: ['tiny', 'small', 'big', 'big', 'small', 'tiny'], sizes3: ['small', 'big', 'big', 'tiny'], pop: [6, 10], dur: [0.45, 0.6], stopLeft: 0.55, ringN: 14, ringR: 150, ringDur: 0.8, ringStop: 0.85 };
+// 색 섞기 (#rrggbb 만 — 아니면 그대로)
+function t11Mix(a, b, t) {
+    if (!/^#[0-9a-f]{6}$/i.test(a) || !/^#[0-9a-f]{6}$/i.test(b)) {
+        return a;
+    }
+    const p = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+    const x = p(a);
+    const y = p(b);
+    return '#' + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join('');
+}
+// 넘겨주기 4단 색 — [흰 심, 옅은, 본색, 짙은]
+function t11Cols(type) {
+    const m = t33Cols(type)[2];
+    return ['#fff8e0', t11Mix(m, '#ffffff', 0.5), m, t11Mix(m, '#0c101e', 0.5)];
+}
+// 알갱이 모양 (W 흰 심 · L 옅은 · M 본색 · D 짙은)
+const T11_GRAIN = {
+    fire: ['.D.', '.M.', 'MLM', 'LWL', '.M.'],
+    grass: ['.MMD.', 'MLLLD', '.DMD.'],
+    water: ['.L.', '.M.', 'WLM', 'LMM', 'DMD'],
+    star: ['.L.', 'LWL', '.L.'],
+    mid: ['.M.', 'MLM', '.M.'],
+};
+function t11Gather(ctx, q) {
+    const { now, allies, track, st } = q;
+    const k = q.kL;
+    const px = (v) => Math.round(v / k) * k;
+    const top = t33Top();
+    const style = t11Style();
+    const dot = (x, y, c, n = 1) => {
+        if (y < top) {
+            return;
+        }
+        ctx.fillStyle = c;
+        ctx.fillRect(px(x), px(y), n * k, n * k);
+    };
+    // 가운데에 n 칸 네모
+    const blk = (x, y, c, n) => dot(x - ((n - 1) * k) / 2, y - ((n - 1) * k) / 2, c, n);
+    const cross = (x, y, c, arm = 1) => {
+        dot(x, y, c[0]);
+        for (let i = 1; i <= arm; i++) {
+            for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+                dot(x + ox * i * k, y + oy * i * k, c[1]);
+            }
+        }
+    };
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.imageSmoothingEnabled = false;
+    allies.forEach((a) => {
+        a.cols = a.cols || t11Cols(a.type);
+    });
+    // 메가진화 · 풀림 (1:1 하얀 실루엣 — 태현 님 10-20) 동안은 그 상자 안에 안 그림 (별은 실루엣 둘레에서 멈칫한 것처럼 · 번개 · 오라 불꽃 혀는 끝난 뒤부터 — #96 디자인)
+    const late = !track.willMorph || !!track.morphed;
+    let lbCache = null;
+    const leadBody = () => lbCache || (lbCache = t11LeadBody(q.LA, track));
+    // 빔 모으는 동안 (쏘기 전) · 오라 모으는 동안은 앞장 몸 상자 + 2px 안에 합동 별 · 꼬리 · 번개를 안 그림 (거북왕이 묻히던 것 · 동료 별이 이상해꽃 꽃 · 얼굴 위에 내려앉던 것 — #96 아트 2 · 2바퀴 1)
+    // 전용 구 (track.uniq) 는 구 자리를 알려도 모으는 동안 몸 비움을 그대로 (구가 입 앞이라 작은 몸이 별에 묻히던 것 — 나무지기, 4바퀴 3)
+    const beamGather = (q.kind === 'beam' && !track.on) || (q.kind === 'aura' && now < q.hitEnd) || (q.kind === 'orb' && (track.kind !== 'orb' || (track.uniq && track.gather)) && now < q.hitEnd);
+    const holes = [];
+    if (track.morph && track.morphBox) {
+        const mb = track.morphBox;
+        holes.push([mb.x - mb.w / 2, mb.b - mb.w * 1.1, mb.w, mb.w * 1.1 + 4 * k]);
+    }
+    if (beamGather) {
+        const lb = leadBody();
+        // 구를 안 알리는 구 앞장 (전용 구) 은 몸 16px 안 (작은 몸이 구 · 별에 가려지던 것 — 나무지기, #96 아트 4바퀴 3)
+        const pad = q.kind === 'orb' ? 16 : 2;
+        holes.push([lb.x - lb.w / 2 - pad, lb.y - lb.h * 0.55 - pad, lb.w + pad * 2, lb.h + pad * 2]);
+    }
+    let clipped = false;
+    let lateDraw = null;
+    if (holes.length) {
+        ctx.save();
+        for (const [x, y, w, h] of holes) {
+            ctx.beginPath();
+            ctx.rect(0, 0, window.innerWidth, window.innerHeight);
+            ctx.rect(x, y, w, h);
+            ctx.clip('evenodd');
+        }
+        clipped = true;
+    }
+    try {
+    // 빔 쏘는 쪽 (+1 = 오른쪽) — 쏜 뒤는 빔 방향 · 그 전은 상대 쪽 (q.foe = 앞장이 상대보다 오른쪽)
+    const bdir = track.kind === 'beam' && track.dir ? Math.sign(track.dir) : q.foe ? -1 : 1;
+    const ballR = Math.round(4 + 4 * Math.min(1, (st.hitWaves || 0) / Math.max(1, st.waves || 1))) * k;
+    // 빔 · 좁은 패널 (400 아래) = 별 꼬리 선 끔 · 무더기 별 반 (240 에서 앞장이 물 돔 · 별 꼬리에 묻히던 것 — #96 아트 2바퀴 4)
+    const thin = (q.kind === 'beam' || !!track.uniq) && window.innerWidth < 400;
+    const to0 = q.gatherTo(now);
+    // 빔 앞장 모이는 곳 = 대포 끝 · 입에서 쏘는 쪽으로 (구슬 반지름 + 2칸) 민 자리 (#96 아트 2)
+    const to = to0 && q.kind === 'beam' && track.kind !== 'orb' && !track.here ? { ...to0, x: to0.x + bdir * (ballR + 2 * k) } : to0;
+    const starStyle = style === 'S1';
+    if (to && !st.on) {
+        st.on = true;
+        q.onGather?.(starStyle ? T11_STAR.charge * 1000 : 1800, starStyle ? T11_STAR.hold : 0, starStyle);
+    }
+    if (!to && st.on && !st.ended) {
+        st.ended = true;
+        q.onGatherEnd?.();
+    }
+    // 구 — 지금 반지름 (닿을수록 커짐 · A · B × 1.5 · C × 1.6) · 위 끝에 닿으면 세로를 줄인 타원
+    const orb = track.kind === 'orb' && track.r > 0;
+    // 커짐 상한 = 구 가운데에서 (앞장 발 − 2칸) 까지 − 바깥 고리 1칸 − 2칸 (187 에서 커진 구 밑이 일자로 잘리던 것 — 아트 #103 ③)
+    const lb0 = fxBody(q.LA);
+    const R = orb ? Math.max(track.r + k, Math.min(track.r + k + Math.min(track.r * (style === 'C' ? 0.6 : 0.5), Math.floor(st.arrivals) * k), lb0.y + lb0.h / 2 - 5 * k - track.y, track.y - top - 4 * k)) : 0;
+    // 구 상자 — 화면 합동 이름 판이 비켜 섬 (TeamCutin JointNamePlate)
+    if (typeof window !== 'undefined') {
+        window.__pgJointOrb = orb ? { x: track.x, y: track.y, R: Math.max(R, track.r * 1.3) + 2 * k, at: now } : null;
+    }
+    const ryOf = (cy, rr) => Math.max(4 * k, Math.min(rr, cy - top - 2 * k));
+    // 닿음 고리 번쩍 (1장면 옅은 → 1장면 본색) — 0.34초에 한 번까지 (1초 3번 아래)
+    const ringFlash = (a) => {
+        if (now - (st.ringAt ?? -1e9) >= 340) {
+            st.ringAt = now;
+            st.ringC = a.cols;
+        }
+    };
+    // 베지어 (2차 · 3차) — at(t) · nrm(t) · cells (칸 길이)
+    const bez = (P) => {
+        const n = P.length - 1;
+        const at = (t) => {
+            const pts = P.map((p) => ({ x: p.x, y: p.y }));
+            for (let r = 1; r <= n; r++) {
+                for (let i = 0; i <= n - r; i++) {
+                    pts[i] = { x: pts[i].x + (pts[i + 1].x - pts[i].x) * t, y: pts[i].y + (pts[i + 1].y - pts[i].y) * t };
+                }
+            }
+            return pts[0];
+        };
+        const nrm = (t) => {
+            const a = at(Math.max(0, t - 0.01));
+            const b = at(Math.min(1, t + 0.01));
+            const l = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+            return { x: -(b.y - a.y) / l, y: (b.x - a.x) / l };
+        };
+        let L = 0;
+        let prev = P[0];
+        for (let s = 1; s <= 16; s++) {
+            const p = at(s / 16);
+            L += Math.hypot(p.x - prev.x, p.y - prev.y);
+            prev = p;
+        }
+        return { at, nrm, cells: Math.max(1, Math.round(L / k)), end: P[n] };
+    };
+    const lb = fxBody(q.LA);
+    const feet = lb.y + lb.h / 2;
+    // 모이는 곳 — 구면 가장자리 위 왼쪽 (동료 쪽) 에서 각도만 달리: 둘 = 60° · 셋 = 가까운 동료 35° · 먼 동료 70° (셋째 +30° 아래로 들어와 동료 발밑을 뚫던 것 — 아트 #102 ②) · 아니면 그 점
+    const entryOf = (a, ctr, src, pad = 0) => {
+        if (q.kind === 'aura' && !orb) {
+            const lb = leadBody();
+            return { x: lb.x + (src.x < lb.x ? -1 : 1) * (lb.w / 2 + 2 + pad), y: lb.y - lb.h * 0.1 };
+        }
+        if (!(ctr.r > 0) || !orb) {
+            return { x: ctr.x, y: ctr.y };
+        }
+        const rr = R + pad;
+        const sx = src.x < ctr.x ? -1 : 1;
+        const rad = ((allies.length < 2 ? 60 : a.n % 2 ? 70 : 35) * Math.PI) / 180;
+        return { x: ctr.x + sx * Math.cos(rad) * rr, y: ctr.y - Math.sin(rad) * ryOf(ctr.y, rr) };
+    };
+    // 2차 곡선 — 위로 (꼭짓점 거리 × up) · 셋째는 아래로 (× down · 앞장 발 4칸 위까지)
+    const quad = (a, src, dst, up = 0.35, down = 0.2) => {
+        const dist = Math.hypot(dst.x - src.x, dst.y - src.y) || 1;
+        const my = (src.y + dst.y) / 2;
+        let cy = a.n % 2 ? my + dist * down * 2 : my - dist * up * 2;
+        cy = a.n % 2 ? Math.min(cy, 2 * (feet - 4 * k) - my) : Math.max(cy, top + 2 * k);
+        return bez([src, { x: (src.x + dst.x) / 2, y: cy }, dst]);
+    };
+    const chest = (a) => {
+        const b = fxBody(a.A);
+        return { x: b.x, y: b.y - b.h / 2 + b.h * 0.4 };
+    };
+    // 위로 휘는 길 (A · B) — 꼭짓점: 가까운 동료 = 거리 × 0.35 위 · 먼 동료 (셋째) = 가운데 동료 머리보다 6칸 · 가까운 끈 꼭짓점보다 6칸 위 (두 끈이 겹치지 않게 —
+    // 아래로 휘어 동료 발밑 · 땅을 가로지르던 것, 아트 #102 ② ③)
+    const apexOf = (a, src, dst, ctr) => {
+        let y = (src.y + dst.y) / 2 - (Math.hypot(dst.x - src.x, dst.y - src.y) || 1) * 0.35;
+        const near = a.n % 2 ? allies.find((x) => x.n === 0) : null;
+        if (near) {
+            const ns = chest(near);
+            const nd = entryOf(near, ctr, ns);
+            const nb = fxBody(near.A);
+            y = Math.min(y, (ns.y + nd.y) / 2 - (Math.hypot(nd.x - ns.x, nd.y - ns.y) || 1) * 0.35 - 6 * k, nb.y - nb.h / 2 - 6 * k);
+        }
+        return Math.max(top + 2 * k, y);
+    };
+    const upPath = (a, src, dst, ctr) => bez([src, { x: (src.x + dst.x) / 2, y: 2 * apexOf(a, src, dst, ctr) - (src.y + dst.y) / 2 }, dst]);
+    // #96 빔 앞장 (디자인) — 빔 시작 (대포 끝 · 입) 충전 구슬: 반지름 4 → 8칸 (받을수록) · 앞장 별 색 4단 (심 [0]) + 동료마다 굵은 팔 2개 (구 소용돌이를 작게 — t11OrbInner)
+    const ball = q.kind === 'beam' && to && !orb ? { x: to.x, y: to.y, r: ballR } : null;
+    if (ball && ball.y - ball.r >= top) {
+        // 몸 상자 비우기 밖에서 (끝에) 그림 — 대포 끝에 걸쳐도 잘리지 않게
+        lateDraw = () => {
+            const LC0 = T11_STAR_COLS[q.leadType] || T11_STAR_COLS.normal;
+            t33Disc(ctx, k, ball.x, ball.y, Math.round(ball.r / k), [LC0[3], LC0[2], LC0[1], LC0[0]]);
+            t11OrbInner(ctx, { now, allies, kL: k, st, x: ball.x, y: ball.y, r: ball.r, foe: q.foe, armsPer: 2 });
+        };
+    }
+    // 동료 둘레 — 동료 색 1칸 테 (어둠 구멍 = 그림 반 + 2칸 — ult/core ultDimLayer 와 같은 셈) · 모으기부터 맞은 뒤 0.3초까지 · 셋에 하나는 비움
+    // (동료 · 상대 둘레가 같은 바둑판 원이라 뜻 없는 얼룩으로 보이던 것 — 상대 구멍은 없앰 · 동료는 테로만, #96 아트 5바퀴 8)
+    if (st.on && now < q.hitEnd + 300 && !q.contrast) {
+        allies.forEach((a) => {
+            const el = a.A?.collision;
+            if (!el || a.A.el?.style?.visibility === 'hidden') {
+                return;
+            }
+            const r = el.getBoundingClientRect();
+            if (r.width < 1) {
+                return;
+            }
+            const pxA = Math.max(1, Math.round(r.width / (a.A._originalSpriteSize || 32)));
+            const RR = (Math.round(Math.max(r.width, r.height) / 2 / pxA) + 2) * pxA;
+            const cx = r.left + r.width / 2;
+            const cy = r.top + r.height / 2;
+            const C = (T11_STAR_COLS[a.type] || T11_STAR_COLS.normal)[2];
+            const n = Math.max(24, Math.round((2 * Math.PI * RR) / k));
+            for (let j = 0; j < n; j++) {
+                if (j % 3 === 2) {
+                    continue;
+                }
+                const ang = (j / n) * Math.PI * 2;
+                dot(cx + Math.cos(ang) * RR, cy + Math.sin(ang) * RR, C);
+            }
+        });
+    }
+    // ① 넘겨주기
+    allies.forEach((a) => {
+        const f = (a.flow = a.flow || { parts: [], ribs: [], seq: 0 });
+        if (to) {
+            f.ctr = to;
+            f.on = f.on ?? now;
+            f.off = undefined;
+        } else if (f.on !== undefined && f.off === undefined) {
+            f.off = now;
+        }
+        // 끝난 뒤엔 지금 자리를 따라감 (구가 날아가도 · 대포가 밀려도 — 옛 자리에 토막이 남던 것, 아트 #102 ①)
+        if (!to && f.off !== undefined) {
+            if (orb) {
+                f.ctr = { x: track.x, y: track.y, r: track.r };
+            } else if (track.kind === 'beam') {
+                f.ctr = { x: track.gx, y: track.gy, r: 0 };
+            }
+        }
+        if (!f.ctr || f.on === undefined) {
+            return;
+        }
+        if (starStyle) {
+            drawStars(a, f);
+        } else if (style === 'A') {
+            drawCord(a, f);
+        } else if (style === 'B') {
+            drawRibbon(a, f);
+        } else {
+            drawRiver(a, f);
+        }
+    });
+    // 앞장 번개 (초사이어인 2 — 태현 님 #103 "기를 받아서 필살기를 쓰는 포켓몬이 그렇게" · 디자인 값) — 기운을 받는 쪽만 · 처음 무더기가 닿을 때부터 맞는 때 + 0.3초까지 ·
+    // 3단 (T11_BOLT — r = 닿은 무더기 ÷ 전체 · 쏘는 동안은 3단) · 한 번 = 2장면 (80ms → 80ms 꺾임만 반대로) · 진짜 시계 (▶▶ 에서도 1초 3번 아래) · 1칸 테두리 ·
+    // 자리 규칙 (기획): 구 필살기 = 구 (겉면 1 · 1 · 2 — 테두리를 가로질러 r × 0.7 → 바깥 · clamp(r × 0.6, 14, 22)칸 · 1장면 흰 심 + 양옆 동료 본색 3칸 굵기 · 2장면 동료 본색 · 테 = 동료 짙은
+    //   + 둘레 0 · 1 · 3 — 반지름 방향 ±30° · r + 3 ~ 10칸) / 빔 쏘는 동안 = 빔 둘레 (가장자리 바깥 2칸 · 빔 방향 ±20° · 25 ~ 85% 4토막 위아래) /
+    // 그 밖 = 몸 둘레 45° 7자리 · 반지름 방향 ±30° (머리 위 가로 지그재그가 만화 화남 표시처럼 읽히던 것) · 동작 줄이기면 안 그림 (아트 #103 — 번개가 노란 심 · 파랑 팔에 묻혀 안 보이던 것)
+    // 구 필살기는 구가 터진 뒤 (몸 둘레) 엔 번개 없음 — 날아가는 구 겉면을 따라가다 맞을 때 끝 (리자드 몸의 꺾은선이 낙서처럼 보이던 것 — 아트 #103)
+    if (starStyle && !t33Reduce() && st.hitWaves && now < q.hitEnd + 300 && !(track.kind === 'orb' && !orb) && late) {
+        const RN = typeof fxRealNow === 'function' ? fxRealNow() : now;
+        const LC = T11_STAR_COLS[q.leadType] || T11_STAR_COLS.normal;
+        const C2 = T11_STAR_RIM.has(q.leadType) ? LC[3] : LC[2];
+        const ratio = st.ended ? 1 : st.hitWaves / Math.max(1, st.waves || 1);
+        const li = ratio < 1 / 3 ? 0 : ratio < 2 / 3 ? 1 : 2;
+        const L = T11_BOLT[li];
+        const beamOn = track.kind === 'beam' && track.on && track.len > 8 * k;
+        const where = orb ? 'orb' : beamOn ? 'beam' : ball ? 'ball' : 'body';
+        const angD = (a1, b1) => Math.abs((((a1 - b1) % (2 * Math.PI)) + 3 * Math.PI) % (2 * Math.PI) - Math.PI);
+        let bx;
+        let by;
+        let rx;
+        let ry2;
+        let sc = 1;
+        if (orb) {
+            bx = track.x;
+            by = track.y;
+            rx = R;
+            ry2 = ryOf(track.y, R);
+            sc = Math.max(12, Math.min(18, (R / k) * 0.5)) / 14;
+        } else if (where === 'ball') {
+            // 빔 앞장 쏘기 전 — 충전 구슬 둘레 (#96 디자인 "대포 · 입 둘레")
+            bx = ball.x;
+            by = ball.y;
+            rx = ball.r;
+            ry2 = ball.r;
+            sc = 0.8;
+        } else {
+            const lb2 = leadBody();
+            bx = lb2.x;
+            by = lb2.y;
+            rx = lb2.w / 2;
+            ry2 = lb2.h / 2;
+            sc = Math.max(0.6, Math.min(1, lb2.h / k / 24));
+        }
+        const rint = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
+        const mk = () => ({ bends: rint(L.bends[0], L.bends[1]), br: rint(L.br[0], L.br[1]), jit: [rint(2, 3), rint(2, 3), rint(2, 3), rint(2, 3)], brs: [Math.random(), Math.random()], spark: Math.random() < 0.5 ? -1 : 1 });
+        // 자리가 바뀌어도 (구 → 몸 · 몸 → 빔) 다음 차례까지 기다림 — 바로 내면 19 ~ 280ms 만에 또 번쩍여 1초 3번을 넘던 것
+        if (!st.bolt || RN >= st.bolt.next) {
+            const prev = st.bolt && st.bolt.where === where ? st.bolt : { slots: [], segs: [], surfs: [] };
+            const bolts = [];
+            const slots = [];
+            const segs = [];
+            const surfs = [];
+            if (where === 'orb') {
+                // 겉면 1 · 1 · 2 — 불꽃 혀 자리 (위 ±30°) 빼고 · 앞 번 · 같은 번과 60° 넘게
+                const nSurf = li === 2 ? 2 : 1;
+                for (let tries = 0; tries < 24 && surfs.length < nSurf; tries++) {
+                    const a0 = Math.random() * Math.PI * 2;
+                    if (angD(a0, -Math.PI / 2) < Math.PI / 6 || prev.surfs.some((b0) => angD(a0, b0) < Math.PI / 3) || surfs.some((b0) => angD(a0, b0) < Math.PI / 3)) {
+                        continue;
+                    }
+                    surfs.push(a0);
+                    st.boltN = (st.boltN || 0) + 1;
+                    bolts.push({ kind: 'surf', a0, tilt: ((Math.random() * 2 - 1) * Math.PI) / 12, ally: st.boltN % allies.length, len: Math.round(Math.max(14, Math.min(22, (track.r / k) * 0.6))), jit: [2, 2] });
+                }
+            }
+            const nRest = where === 'orb' ? [0, 1, 3][li] : L.n;
+            if (where === 'beam') {
+                for (const sg of [0, 1, 2, 3].sort(() => Math.random() - 0.5)) {
+                    if (bolts.length >= nRest) {
+                        break;
+                    }
+                    if (prev.segs.includes(sg)) {
+                        continue;
+                    }
+                    segs.push(sg);
+                    bolts.push({ kind: 'beam', seg: sg, side: sg % 2 ? 1 : -1, tilt: ((Math.random() * 2 - 1) * Math.PI) / 9, ...mk() });
+                }
+            } else {
+                for (const sl of [0, 1, 3, 4, 5, 6, 7].sort(() => Math.random() - 0.5)) {
+                    if (slots.length >= nRest) {
+                        break;
+                    }
+                    // 45° 자리 (0 = 오른쪽 · 2 = 발밑 가운데 — 뺌) · 바로 앞 번 자리 · 같은 번 90° 안 자리는 건너뜀
+                    if (prev.slots.includes(sl) || slots.some((o2) => Math.min((sl - o2 + 8) % 8, (o2 - sl + 8) % 8) < 2)) {
+                        continue;
+                    }
+                    const th = (sl * Math.PI) / 4;
+                    // 구 = r + 3 ~ 10칸 · 몸 = 가장자리 바깥 1 ~ 3칸
+                    const out = (orb ? rint(3, 10) : where === 'ball' ? rint(2, 5) : rint(1, 3)) * k;
+                    const cx0 = bx + Math.cos(th) * (rx + out);
+                    const cy0 = by + Math.sin(th) * (ry2 + out);
+                    if ((track.kind === 'beam' && Math.cos(th) * (track.dir || 1) > 0.5) || cy0 < top + 4 * k || cy0 > feet - 2 * k) {
+                        continue;
+                    }
+                    // 반지름 방향 ±30° (구 · 몸 둘 다)
+                    const ta = th + ((Math.random() * 2 - 1) * Math.PI) / 6;
+                    bolts.push({ kind: orb ? 'rim' : 'body', cx: cx0 - bx, cy: cy0 - by, ta, len: Math.round(rint(L.len[0], L.len[1]) * sc), ...mk() });
+                    slots.push(sl);
+                }
+            }
+            st.bolt = { at: RN, next: RN + Math.max(360, L.every + (Math.random() * 2 - 1) * 40), slots, segs, surfs, bolts, where };
+            // 시험 창 (모양 스위치를 쓴 때만) — 번개 뜬 진짜 시각 기록 (1초 3번 아래인지 셈)
+            if (typeof window !== 'undefined' && window.__pgJointStyle && bolts.length) {
+                (window.__j11 = window.__j11 || []).push(Math.round(RN));
+            }
+        }
+        const age = RN - st.bolt.at;
+        if (age < 160) {
+            const first = age < 80;
+            // 1칸 계단 선 — 칸을 모아 두고 (색 · 테 색) 끝에 1칸 테두리 → 칠
+            const cells = [];
+            const line = (x0, y0, x1, y1, c, rim = LC[3]) => {
+                const n = Math.max(1, Math.round(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) / k));
+                for (let i = 0; i <= n; i++) {
+                    cells.push([x0 + ((x1 - x0) * i) / n, y0 + ((y1 - y0) * i) / n, c, rim]);
+                }
+            };
+            const one = (x, y, c) => cells.push([x, y, c, LC[3]]);
+            for (const bt of st.bolt.bolts) {
+                let cx0;
+                let cy0;
+                let ang;
+                let len = bt.len;
+                if (bt.kind === 'surf') {
+                    if (!orb) {
+                        continue;
+                    }
+                    // 겉면 — r × 0.7 에서 바깥으로 테두리를 가로지름 (반은 구 밖 풀 위)
+                    ang = bt.a0 + bt.tilt;
+                    cx0 = track.x + Math.cos(bt.a0) * track.r * 0.7 + Math.cos(ang) * (len / 2) * k;
+                    cy0 = track.y + Math.sin(bt.a0) * track.r * 0.7 + Math.sin(ang) * (len / 2) * k;
+                } else if (bt.kind === 'beam') {
+                    if (!beamOn) {
+                        continue;
+                    }
+                    const d = track.len * (0.25 + (bt.seg + 0.5) * 0.15);
+                    const xx = track.x0 + track.dir * d;
+                    cx0 = xx;
+                    cy0 = track.yAt(xx) + bt.side * (track.w / 2 + 2 * k);
+                    ang = (track.dir > 0 ? 0 : Math.PI) + bt.tilt;
+                    len = Math.round(Math.max(10, Math.min(16, (track.w / 2 / k) * 1.5)));
+                } else {
+                    cx0 = bx + bt.cx;
+                    cy0 = by + bt.cy;
+                    ang = bt.ta;
+                }
+                const ux = Math.cos(ang);
+                const uy = Math.sin(ang);
+                const nx = -uy;
+                const ny = ux;
+                const x0 = cx0 - ux * (len / 2) * k;
+                const y0 = cy0 - uy * (len / 2) * k;
+                const bends = bt.kind === 'surf' ? 2 : bt.bends;
+                const pts = [{ x: x0, y: y0 }];
+                for (let m = 1; m <= bends; m++) {
+                    const along = (len * m) / (bends + 1);
+                    const side = (m % 2 ? 1 : -1) * (first ? 1 : -1) * bt.jit[(m - 1) % bt.jit.length];
+                    pts.push({ x: x0 + (ux * along + nx * side) * k, y: y0 + (uy * along + ny * side) * k, side });
+                }
+                pts.push({ x: x0 + ux * len * k, y: y0 + uy * len * k });
+                if (bt.kind === 'surf') {
+                    // 1장면 = 흰 심 + 양옆 동료 본색 (3칸 굵기) · 2장면 = 동료 본색 · 테 = 동료 짙은 (흰 심 · 파랑 팔에 묻히던 것)
+                    const AC = T11_STAR_COLS[allies[bt.ally % allies.length].type] || T11_STAR_COLS.normal;
+                    for (let m = 0; m < pts.length - 1; m++) {
+                        if (first) {
+                            for (const sd of [-1, 1]) {
+                                line(pts[m].x + nx * sd * k, pts[m].y + ny * sd * k, pts[m + 1].x + nx * sd * k, pts[m + 1].y + ny * sd * k, AC[2], AC[3]);
+                            }
+                        }
+                        line(pts[m].x, pts[m].y, pts[m + 1].x, pts[m + 1].y, first ? LC[0] : AC[2], AC[3]);
+                    }
+                    continue;
+                }
+                const AB = T11_STAR_COLS[allies[(bt.ally ?? 0) % allies.length].type] || T11_STAR_COLS.normal;
+                for (let m = 0; m < pts.length - 1; m++) {
+                    line(pts[m].x, pts[m].y, pts[m + 1].x, pts[m + 1].y, first ? LC[0] : AB[2]);
+                }
+                if (!first) {
+                    continue;
+                }
+                // 꺾인 점 바깥 1칸 본색 · 갈래 (꺾인 점에서 30 ~ 60° · 3 ~ 5칸 · 꺾임 1번) · 불똥 (한쪽 끝 너머 1칸 띄우고)
+                for (let m = 1; m < pts.length - 1; m++) {
+                    const sd = Math.sign(pts[m].side) || 1;
+                    one(pts[m].x + nx * sd * k, pts[m].y + ny * sd * k, C2);
+                }
+                for (let b2 = 0; b2 < bt.br && b2 < pts.length - 2; b2++) {
+                    const pm = pts[1 + b2];
+                    const sd = Math.sign(pm.side) || 1;
+                    const a2 = ang + sd * (Math.PI / 6 + (bt.brs[b2] * Math.PI) / 6);
+                    const bl = 3 + Math.floor(bt.brs[b2] * 3);
+                    const mx = pm.x + Math.cos(a2) * (bl / 2) * k;
+                    const my = pm.y + Math.sin(a2) * (bl / 2) * k;
+                    const a3 = a2 - sd * (Math.PI / 6);
+                    line(pm.x, pm.y, mx, my, C2);
+                    line(mx, my, mx + Math.cos(a3) * (bl / 2) * k, my + Math.sin(a3) * (bl / 2) * k, C2);
+                }
+                const end = bt.spark < 0 ? pts[0] : pts[pts.length - 1];
+                one(end.x + ux * bt.spark * 2 * k, end.y + uy * bt.spark * 2 * k, C2);
+            }
+            for (const [x, y, , rim] of cells) {
+                for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+                    dot(x + ox * k, y + oy * k, rim);
+                }
+            }
+            for (const [x, y, c] of cells) {
+                dot(x, y, c);
+            }
+        }
+    }
+    // A 빛의 끈 (o.cols = 색 4단 · o.delay = 늦게 뻗음 ms)
+    function drawCord(a, f, o = {}) {
+        const src = chest(a);
+        const P = upPath(a, src, entryOf(a, f.ctr, src), f.ctr);
+        const C = o.cols || a.cols;
+        const age = now - f.on - (o.delay || 0);
+        if (age < 0) {
+            return;
+        }
+        const grown = Math.min(P.cells, Math.floor(age / 50) * 4 + 4);
+        // 끝나면 한 줄인 채로 3걸음 (150ms) 에 구 · 대포 쪽으로 빨려 듦 (지금 자리를 따라감) · 꼬리가 닿는 장면에 흰 번쩍 1장면
+        // (동료 쪽부터 걷혀 30 ~ 60px 토막이 구 위 · 패널 바닥에 2 ~ 3장면 떠 있던 것 — 아트 #102 ①)
+        let c0 = 0;
+        if (f.off !== undefined) {
+            const s3 = Math.floor((now - f.off) / 50) + 1;
+            if (s3 >= 3) {
+                if (s3 === 3) {
+                    cross(P.end.x, P.end.y, C, 2);
+                }
+                return;
+            }
+            c0 = Math.ceil((P.cells * s3) / 3);
+        }
+        if (c0 >= grown) {
+            return;
+        }
+        // 단면 — 짙은 테 → 본색 → 옅은 → 흰 심 (바깥부터 칠해 심이 남게) · 숨쉬기 200ms 마다 2장면 짙은 테를 뺌
+        const half = now % 200 < 100 ? 2 : 3;
+        for (let w = half; w >= 0; w--) {
+            for (let c = c0; c <= grown; c += 0.5) {
+                const t = c / P.cells;
+                const p = P.at(t);
+                const nn = P.nrm(t);
+                for (const s of w ? [-w, w] : [0]) {
+                    dot(p.x + nn.x * s * k, p.y + nn.y * s * k, C[w]);
+                }
+            }
+        }
+        if (grown < P.cells) {
+            const p = P.at(grown / P.cells);
+            blk(p.x, p.y, C[0], 3);
+            for (const [ox, oy] of [[-2, 0], [2, 0], [0, -2], [0, 2]]) {
+                dot(p.x + ox * k, p.y + oy * k, C[1]);
+            }
+        }
+        // 흐르는 빛 — 28칸 간격 · 50ms 마다 4칸 (셋째는 반 박자 어긋남)
+        const flow = Math.floor(age / 50) * 4 + (a.n % 2 ? 14 : 0);
+        for (let c = flow % 28; c <= grown; c += 28) {
+            if (c < c0) {
+                continue;
+            }
+            const p = P.at(c / P.cells);
+            blk(p.x, p.y, C[1], 4);
+            blk(p.x, p.y, C[0], 2);
+        }
+        if (grown >= P.cells && f.off === undefined) {
+            const passed = Math.floor((flow - P.cells) / 28);
+            if (f.passed === undefined) {
+                f.passed = passed;
+            } else if (passed > f.passed) {
+                st.arrivals += passed - f.passed;
+                f.passed = passed;
+                ringFlash(a);
+            }
+        }
+    }
+    // 반짝이 별 "+" — big 7×7 (팔 3칸 · 150ms 마다 3 → 2 → 3) · small 5×5 · tiny 3×3 · 동료 타입 4단 (T11_STAR_COLS): 가운데 심 · 팔 · 팔 끝 1칸 (작은 별 이상) ·
+    // 그림자 1칸 아래 (풀밭에 묻히지 않게) · 악 · 고스트는 그림자 대신 별 둘레 1칸 밝은 테 (어둠 바탕에서 보이게)
+    function starAt(x, y, a, size) {
+        const G = T11_STAR_COLS[a.type] || T11_STAR_COLS.normal;
+        const arms = size === 'big' ? (Math.floor(now / 150) % 3 === 1 ? 2 : 3) : size === 'small' ? 2 : 1;
+        const cells = [[0, 0, G[0]]];
+        for (let i = 1; i <= arms; i++) {
+            const c = i === arms && arms >= 2 ? G[2] : G[1];
+            cells.push([i, 0, c], [-i, 0, c], [0, i, c], [0, -i, c]);
+        }
+        const rimAll = T11_STAR_RIM.has(a.type) || !!T11_STAR_RIM_COL[a.type];
+        if (rimAll) {
+            const rim = T11_STAR_RIM_COL[a.type] || G[3];
+            for (const [ox, oy] of cells) {
+                for (const [rx, ry] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+                    dot(x + (ox + rx) * k, y + (oy + ry) * k, rim);
+                }
+            }
+        }
+        for (const [ox, oy] of cells) {
+            if (!rimAll) {
+                dot(x + ox * k, y + (oy + 1) * k, G[3]);
+            }
+        }
+        for (const [ox, oy, c] of cells) {
+            dot(x + ox * k, y + oy * k, c);
+        }
+    }
+    // #103 S1 — 넘겨주기 별 (디자인 값): 동료 꾹 누르기 기 모으기는 모으는 구간 내내 (다리 onGather — 0.3초에 차고 계속 · 끝나면 멈춤) ·
+    // 0.3초부터 무더기마다 갈래 수 (둘 = 6 · 셋 = 동료마다 4) 만큼 별이 한꺼번에 (±40ms) 떠남 — 몸 위쪽 반 둘레 타원 (폭 × 1.2 · 높이 × 0.8) 의 갈래마다 다른 점에서
+    // 바깥으로 6 ~ 10칸 튀어 나간 뒤 (0.1초) 앞장 쪽으로 — 곧은 선 가운데에서 수직으로 갈래마다 비켜 둔 2차 곡선 (위 두 갈래는 받는 쪽 위로 넘어가 위에서 들어옴 ·
+    // 무대 위 끝 + 4칸 · 앞장 발 − 2칸 밖으로 안 나감) · 구 테두리 −80° ~ +40° (동료 쪽 기준 · 위가 −) 에 고르게 · 빔은 대포 끝 둘레 6 ~ 10칸 원 위 ·
+    // 0.45 ~ 0.6초 (바깥 갈래가 늦게 — 물결처럼) · 50ms 걸음 · 빨라짐 · 꼬리 = 전 두 걸음 자리 1칸 점 · 무더기마다 처음 닿은 갈래 = 바깥 4칸에 큰 별 하나 + 작은 별 둘 (2장면) ·
+    // 나머지 = 아주 작은 별 1장면 · 구는 무더기마다 반 칸 (태현 님 #103 — "별은 한줄씩 순서대로 가는게 아니고 넓게 들어가야돼", 원기옥처럼 사방에서 모임)
+    function drawStars(a, f) {
+        const V = T11_STAR;
+        const b = fxBody(a.A);
+        const t = (now - f.on) / 1000;
+        const many = allies.length >= 2;
+        const few = many || (track.kind !== 'orb' && window.innerWidth < 400);
+        const lanes = thin ? V.lanes3.slice(1, 3) : few ? V.lanes3 : V.lanes2;
+        const sizes = thin ? V.sizes3.slice(1, 3) : few ? V.sizes3 : V.sizes2;
+        const every = many ? V.every3 : V.every2;
+        const nL = lanes.length;
+        const maxOff = Math.max(...lanes.map((v) => Math.abs(v)));
+        // 솟기 × clamp(무대 높이칸 ÷ 100, 0.5, 1) — 187 에서 출발점에 반짝이가 쌓이지 않게 (아트 #103 ②)
+        const popK = Math.max(0.5, Math.min(1, (window.innerHeight - top) / k / 100));
+        if (f.off === undefined) {
+            f.wave = f.wave ?? 0;
+            // 이 동료가 낼 무더기 수 (번개 3단 비율 r) — 처음 낼 때 모으기 남은 초로 셈
+            if (f.total === undefined) {
+                f.total = typeof track.gLeft === 'number' ? Math.max(1, Math.floor((track.gLeft + t - V.first - V.stopLeft) / every) + 1) : 6;
+                st.waves = (st.waves || 0) + f.total;
+            }
+            while (t >= V.first + f.wave * every) {
+                const tw = V.first + f.wave * every;
+                // 그 무더기를 낼 때 모으기가 남은 초 (지금 남은 초 + 지난 시간)
+                const left = typeof track.gLeft === 'number' ? track.gLeft + (t - tw) : 9;
+                if (left > V.stopLeft) {
+                    for (let i = 0; i < nL; i++) {
+                        f.parts.push({ t0: f.on + tw * 1000 + (Math.random() * 2 - 1) * 40, lane: i, wave: f.wave, size: sizes[(i + f.wave) % nL], id: f.seq++, pop: (V.pop[0] + Math.random() * (V.pop[1] - V.pop[0])) * popK });
+                    }
+                }
+                // 사방 별 (디자인 #103 d4dc1b9 — 원기옥처럼): 구 둘레 지름 약 300px 원 위 14곳 (위 · 오른쪽 포함) — 무더기마다 반씩 번갈아 (3인은 동료끼리 나눠) · 0.8초에 구로 빨려 듦
+                if (left > V.ringStop) {
+                    const A2 = 2 * allies.length;
+                    for (let i = 0; i < V.ringN; i++) {
+                        if (i % A2 === 2 * a.n + (f.wave % 2) && !(thin && i % 4 >= 2)) {
+                            // 빔 = 쏘는 반대쪽 120° 부채 (빔 방향 180° ± 60° — 상대 쪽 앞에서도 오던 것, #96 아트 3)
+                            const ang = q.kind === 'beam' ? (bdir > 0 ? Math.PI : 0) - Math.PI / 3 + ((i + 0.5) / V.ringN) * ((Math.PI * 2) / 3) : (i / V.ringN) * Math.PI * 2 + 0.2;
+                            f.parts.push({ ring: true, t0: f.on + tw * 1000 + (Math.random() * 2 - 1) * 40, ang, wave: f.wave, size: sizes[(i + f.wave) % nL], id: f.seq++ });
+                        }
+                    }
+                }
+                f.wave += 1;
+            }
+        }
+        const gone = f.off !== undefined ? 1 + Math.floor((now - f.off) / 50) : 0;
+        if (gone > 2) {
+            f.parts.length = 0;
+        }
+        const ctr = f.ctr;
+        const sx = b.x < ctr.x ? -1 : 1;
+        const tc = T11_STAR_COLS[a.type] || T11_STAR_COLS.normal;
+        f.waveHit = f.waveHit || {};
+        // 사방 별 하나 — 원 위 점 (위 · 아래는 무대 안으로 줄인 타원 · 양옆은 패널 안) → 구 테두리 (그 방향) 로 곧게 · 50ms 걸음 · 빨라짐 · 꼬리 = 이동 칸 × 2 · 닿으면 아주 작은 별 1장면
+        const H0 = window.innerHeight;
+        const ringStar = (g, i) => {
+            // 구가 없어진 구 필살기 (날아감) 는 거둠 · 빔 · 오라는 그 점 둘레 6칸으로 (#96)
+            if (track.kind === 'orb' && !orb) {
+                f.parts.splice(i, 1);
+                return;
+            }
+            const Rt = orb && ctr.r > 0 ? R : 6 * k;
+            // 원 반지름 — 구는 #103 그대로 · 빔 · 오라는 min(150, 앞장 몸 폭 × 1.5, 패널 폭 × 0.3) (흩어짐이 너무 넓던 것 — #96 아트 4 · 860 약 110 · 240 약 72)
+            const ringR = track.kind === 'orb' ? V.ringR : Math.max(Rt + 8 * k, Math.min(V.ringR, leadBody().w * 1.5, window.innerWidth * 0.3));
+            const RY = Math.max(Rt + 8 * k, Math.min(ringR, Math.max(ctr.y - top - 4 * k, H0 - 2 * k - ctr.y)));
+            const s0 = { x: Math.max(2 * k, Math.min(window.innerWidth - 2 * k, ctr.x + Math.cos(g.ang) * ringR)), y: Math.max(top + 4 * k, Math.min(H0 - 2 * k, ctr.y + Math.sin(g.ang) * RY)) };
+            const ang = Math.atan2(s0.y - ctr.y, s0.x - ctr.x);
+            const alb = q.kind === 'aura' && !orb ? leadBody() : null;
+            const d1 = alb ? { x: alb.x + Math.cos(ang) * (alb.w / 2 + 2), y: alb.y + Math.sin(ang) * (alb.h / 2 + 2) } : { x: ctr.x + Math.cos(ang) * Rt, y: ctr.y + Math.sin(ang) * (orb && ctr.r > 0 ? ryOf(ctr.y, R) : Rt) };
+            const L = Math.hypot(d1.x - s0.x, d1.y - s0.y) / k;
+            const u = Math.floor((now - g.t0) / 50) * 0.05;
+            const v = u / V.ringDur;
+            if (v >= 1) {
+                g.hit = g.hit ?? now;
+                if (now - g.hit < 50) {
+                    starAt(d1.x, d1.y, a, 'tiny');
+                } else {
+                    f.parts.splice(i, 1);
+                }
+                return;
+            }
+            const ease = (w) => Math.pow(Math.max(0, w), 1.6);
+            const dH = ease(v) * L;
+            const moved = Math.max(1, dH - ease(v - 0.05 / V.ringDur) * L);
+            const at = (d) => ({ x: s0.x + ((d1.x - s0.x) * Math.max(0, d)) / (L || 1), y: s0.y + ((d1.y - s0.y) * Math.max(0, d)) / (L || 1) });
+            const n = Math.max(1, Math.round(moved * 2));
+            for (let j = 1; j <= n && dH - j > 0; j++) {
+                const pt = at(dH - j);
+                dot(pt.x, pt.y, j === n ? tc[2] : tc[1]);
+            }
+            const pp = at(dH);
+            starAt(pp.x, pp.y, a, g.size);
+        };
+        for (let i = f.parts.length - 1; i >= 0; i--) {
+            const g = f.parts[i];
+            if (now < g.t0 || (gone === 1 && g.id % 2)) {
+                continue;
+            }
+            if (g.ring) {
+                ringStar(g, i);
+                continue;
+            }
+            const off = lanes[g.lane];
+            // 떠나는 점 — 몸 위쪽 반 타원 (위로 휘는 갈래일수록 뒤쪽 위 · 아래로 휘는 갈래일수록 앞쪽 위)
+            const fr = nL > 1 ? g.lane / (nL - 1) : 0.5;
+            const ang = Math.PI * (sx < 0 ? 1.2 + 0.6 * fr : 1.8 - 0.6 * fr);
+            const ex = Math.cos(ang);
+            const ey = Math.sin(ang);
+            let p0 = { x: b.x + ex * b.w * 0.6, y: b.y + ey * b.h * 0.4 };
+            // 전용 구 — 출발점 셋: 동료 몸 50% · 구 위 (위 끝 + 8px · 구 x ± 120px) 25% · 앞장 뒤 화면 가장자리 25% (늘 동료 몸 → 구 한 줄기라 "사방에서 넓게" 가 빠지던 것, #96 아트 6바퀴 3)
+            const src = track.uniq && orb && !thin ? g.id % 4 : 0;
+            if (src === 2) {
+                p0 = { x: Math.max(4 * k, Math.min(window.innerWidth - 4 * k, ctr.x + (g.id % 8 < 4 ? -120 : 120))), y: top + 8 };
+            } else if (src === 3) {
+                p0 = { x: bdir > 0 ? 8 : window.innerWidth - 8, y: top + 8 * k + (((g.id * 37) % 10) / 10) * Math.max(8 * k, feet - top - 16 * k) };
+            }
+            const p1 = src >= 2 ? p0 : { x: p0.x + ex * g.pop * k, y: p0.y + ey * g.pop * k };
+            const u = Math.floor((now - g.t0) / 50) * 0.05;
+            if (u < 0.1) {
+                const e = u / 0.1;
+                starAt(p0.x + (p1.x - p0.x) * e, p0.y + (p1.y - p0.y) * e, a, g.size);
+                continue;
+            }
+            // 닿는 자리 — 구 테두리 −80° ~ +40° (갈래 순서) · 빔은 대포 끝 둘레 6 ~ 10칸
+            const th = ((-80 + 120 * fr) * Math.PI) / 180;
+            let dst;
+            if (ctr.r > 0 && orb) {
+                dst = { x: ctr.x + sx * Math.cos(th) * R, y: ctr.y + Math.sin(th) * ryOf(ctr.y, R) };
+            } else {
+                const rr = (6 + (g.lane % 3) * 2) * k;
+                dst = { x: ctr.x + sx * Math.cos(th) * rr, y: ctr.y + Math.sin(th) * rr };
+            }
+            const dx = dst.x - p1.x;
+            const dy = dst.y - p1.y;
+            const dist = Math.hypot(dx, dy) || 1;
+            let cxp;
+            let cyp;
+            // 갈래 비킴 × clamp(길 길이칸 ÷ 80, 0.6, 1.8) — 먼 길은 넓게 · 187 짧은 길은 줄여 위 · 아래 끝에 잘려 한 띠로 뭉치지 않게 (아트 #103 ②)
+            const spread = Math.max(0.6, Math.min(1.8, dist / k / 80), (dist * 0.3) / (maxOff * k));
+            if (g.lane < 2 && off < 0) {
+                // 바깥 위 두 갈래 — 받는 쪽 위로 넘어가 위에서 내려와 들어감
+                cxp = dst.x - dx * 0.15;
+                cyp = dst.y - (38 - g.lane * 6) * k * spread;
+            } else {
+                let nx = dy / dist;
+                let ny = -dx / dist;
+                if (ny > 0) {
+                    nx = -nx;
+                    ny = -ny;
+                }
+                cxp = (p1.x + dst.x) / 2 + nx * -off * k * spread;
+                cyp = (p1.y + dst.y) / 2 + ny * -off * k * spread;
+            }
+            // 무대 위 끝 + 4칸 · 앞장 발 − 2칸 밖으로 안 나가게 (꼭짓점 = 조절점과 양 끝 가운데의 반)
+            const mid2 = (p1.y + dst.y) / 2;
+            cyp = Math.max(2 * (top + 4 * k) - mid2, Math.min(2 * (feet - 2 * k) - mid2, cyp));
+            const P = bez([p1, { x: cxp, y: cyp }, dst]);
+            const D = V.dur[0] + ((V.dur[1] - V.dur[0]) * Math.abs(off)) / maxOff;
+            const v = (u - 0.1) / D;
+            const ease = (w) => Math.pow(Math.max(0, w), 1.6);
+            // 갈래마다 별 2개 기차 (간격 6칸 · 뒤 별은 한 단계 작게) — 길 위 거리 (칸) 로
+            const dH = ease(v) * P.cells;
+            const dPrev = ease(v - 0.05 / D) * P.cells;
+            const dR = dH - 6;
+            const posAt = (d) => P.at(Math.max(0, Math.min(1, d / P.cells)));
+            const rearSize = g.size === 'big' ? 'small' : 'tiny';
+            // 꼬리 선 — 1칸 · 팔 색 · 길이 = 그 장면 이동 칸 × 2 · 끝 1칸 본색 (솟아 멈칫하는 동안은 없음)
+            const tail = (d, lenC) => {
+                if (thin) {
+                    return;
+                }
+                const n = Math.max(1, Math.round(lenC));
+                for (let j = 1; j <= n; j++) {
+                    const pt = posAt(d - j);
+                    dot(pt.x, pt.y, j === n ? tc[2] : tc[1]);
+                }
+            };
+            const moved = Math.max(1, dH - dPrev);
+            if (dH >= P.cells) {
+                if (!g.hit) {
+                    g.hit = now;
+                    if (!f.waveHit[g.wave]) {
+                        f.waveHit[g.wave] = true;
+                        st.hitWaves = (st.hitWaves || 0) + 1;
+                        g.big = true;
+                        st.arrivals += 0.5;
+                        ringFlash(a);
+                        // 구 안 굵은 팔 번쩍 (t11OrbInner — 진짜 시계로 340ms 에 한 번까지)
+                        const rn = typeof fxRealNow === 'function' ? fxRealNow() : now;
+                        if (rn - (st.armHit?.at ?? -1e9) >= 340) {
+                            st.armHit = { at: rn, ang: Math.atan2(dst.y - ctr.y, dst.x - ctr.x) };
+                        }
+                    }
+                }
+                const life = now - g.hit;
+                if (g.big && life < 100) {
+                    // 바깥 4칸 — 큰 별 하나 + 작은 별 둘
+                    const ox = ctr.r > 0 ? (dst.x - ctr.x) / (Math.hypot(dst.x - ctr.x, dst.y - ctr.y) || 1) : sx;
+                    const oy = ctr.r > 0 ? (dst.y - ctr.y) / (Math.hypot(dst.x - ctr.x, dst.y - ctr.y) || 1) : 0;
+                    const qx = dst.x + ox * 4 * k;
+                    const qy = dst.y + oy * 4 * k;
+                    starAt(qx, qy, a, 'big');
+                    starAt(qx - oy * 5 * k, qy + ox * 5 * k, a, 'small');
+                    starAt(qx + oy * 5 * k, qy - ox * 5 * k, a, 'small');
+                } else if (!g.big && life < 50) {
+                    starAt(dst.x, dst.y, a, 'tiny');
+                }
+            } else {
+                tail(dH, moved * 2);
+                const pp = posAt(dH);
+                starAt(pp.x, pp.y, a, g.size);
+            }
+            // 뒤 별
+            if (dR >= P.cells) {
+                g.hitR = g.hitR ?? now;
+                if (now - g.hitR < 50) {
+                    starAt(dst.x, dst.y, a, 'tiny');
+                } else if (now - (g.hit ?? now) >= 100) {
+                    f.parts.splice(i, 1);
+                }
+            } else if (dR > 0) {
+                tail(dR, moved * 2);
+                const pr = posAt(dR);
+                starAt(pr.x, pr.y, a, rearSize);
+            }
+        }
+    }
+    // B 오라 — 몸 둘레 (위 · 양옆 타원 — 동료 그림이 연출 층 위라 안쪽은 몸에 가림) 불꽃 혀 7개 · 100ms 마다 높이 · 자리 바뀜 · bump = 리본이 떨어지기 전 꼭대기 +4칸
+    // (몸 가운데에서 솟아 대부분 몸에 가려 가는 풀잎 세 가닥처럼 보이던 것)
+    function drawAura(a, f) {
+        const b = fxBody(a.A);
+        const C = a.cols;
+        const step = Math.floor(now / 100);
+        const bump = now - (f.bump ?? -1e9) < 100 ? 4 : 0;
+        for (let j = 0; j < 7; j++) {
+            const off = j - 3;
+            const ang = Math.PI * (1.08 + (j / 6) * 0.84);
+            const bx = b.x + Math.cos(ang) * b.w * 0.5 + ((step + j) % 2 ? k : 0);
+            const by = b.y + Math.sin(ang) * b.h * 0.5 + 3 * k;
+            const h = 8 + ((j * 5 + step * 3) % 9) + (Math.abs(off) <= 1 ? bump : 0);
+            // 폭 3 ~ 4칸 · 끝 쪽에서만 좁아짐 (2칸 혀가 1칸 줄로 보여 풀잎 같던 것)
+            const w = j % 2 ? 3 : 4;
+            for (let i = 0; i < h; i++) {
+                const rw = Math.max(1, Math.round(w * (1 - Math.pow(i / h, 2) * 0.75)));
+                const col = i === h - 1 ? C[0] : i < h * 0.25 ? C[3] : i < h * 0.6 ? C[2] : C[1];
+                for (let x = 0; x < rw; x++) {
+                    dot(bx + (x - (rw - 1) / 2) * k, by - i * k, col);
+                }
+            }
+        }
+    }
+    // B 리본 길 — 오라 꼭대기 → S 자 (위로 솟았다 앞장 쪽으로 내려옴) → 구 가장자리 + 3칸 → 구 둘레 3/4 바퀴 (셋째는 반대로)
+    function ribbonPath(a, ctr) {
+        const b = fxBody(a.A);
+        const s0 = { x: b.x, y: b.y - b.h / 2 - 8 * k };
+        const e = entryOf(a, ctr, s0, 3 * k);
+        const dx = e.x - s0.x;
+        const dist = Math.hypot(dx, e.y - s0.y) || 1;
+        // 3차 곡선 S 자 — 두 손잡이 높이 Y 로 꼭짓점 (가운데) 이 위로 휘는 길 (A 와 같은 꼭짓점 — 셋째 리본이 곧은 사선으로 이상해꽃을 뚫던 것, 아트 #102 ③)
+        const Y = Math.max(top + 2 * k, (apexOf(a, s0, e, ctr) - (s0.y + e.y) / 8) / 0.75);
+        const P = bez([s0, { x: s0.x - dx * 0.15, y: Y }, { x: e.x - dx * 0.45, y: Y }, e]);
+        let W = 0;
+        let pos = (c) => P.at(Math.min(1, c / P.cells));
+        if (orb) {
+            const rr = R + 3 * k;
+            const ry = ryOf(ctr.y, rr);
+            const a0 = Math.atan2((e.y - ctr.y) / (ry / rr), e.x - ctr.x);
+            const dir = a.n % 2 ? -1 : 1;
+            W = Math.max(8, Math.round((0.75 * 2 * Math.PI * rr) / k));
+            pos = (c) => {
+                if (c <= P.cells) {
+                    return P.at(c / P.cells);
+                }
+                const ang = a0 + dir * ((c - P.cells) / W) * 1.5 * Math.PI;
+                return { x: ctr.x + Math.cos(ang) * rr, y: ctr.y + Math.sin(ang) * ry };
+            };
+        }
+        return { pos, total: P.cells + W };
+    }
+    function drawRibbon(a, f) {
+        const C = a.cols;
+        // 오라 — 모으는 동안 + 끝난 뒤 0.2초
+        if (f.off === undefined || now - f.off < 200) {
+            drawAura(a, f);
+        }
+        if (f.off === undefined) {
+            f.next = f.next ?? f.on + (a.n % 2 ? 200 : 0);
+            while (now >= f.next) {
+                f.bump = f.next;
+                f.ribs.push({ t0: f.next + 100 });
+                f.next += 400;
+            }
+        }
+        const RP = ribbonPath(a, f.ctr);
+        for (let i = f.ribs.length - 1; i >= 0; i--) {
+            const r = f.ribs[i];
+            if (now < r.t0) {
+                continue;
+            }
+            const head = Math.min(RP.total, Math.floor((now - r.t0) / 50) * 4);
+            // 다 감으면 바둑판 두 걸음 (50ms 씩) 으로 사라짐 · 구 +1칸 · 모으기가 끝나면 날던 리본도 바둑판 두 걸음으로 (빈자리로 날아가지 않게)
+            let mask = f.off !== undefined ? 1 + Math.floor((now - f.off) / 50) : 0;
+            if (mask > 2) {
+                f.ribs.splice(i, 1);
+                continue;
+            }
+            if (head >= RP.total && f.off === undefined) {
+                r.end = r.end ?? now;
+                if (!r.counted) {
+                    r.counted = true;
+                    st.arrivals += 1;
+                    ringFlash(a);
+                }
+                mask = 1 + Math.floor((now - r.end) / 50);
+                if (mask > 2) {
+                    f.ribs.splice(i, 1);
+                    continue;
+                }
+            }
+            const tail = Math.max(0, head - 40);
+            for (let c = tail; c <= head; c += 0.5) {
+                const p = RP.pos(c);
+                const q2 = RP.pos(c + 0.5);
+                const l = Math.hypot(q2.x - p.x, q2.y - p.y) || 1;
+                const nn = { x: -(q2.y - p.y) / l, y: (q2.x - p.x) / l };
+                const wide = Math.floor(c / 8) % 2 === 0;
+                const band = wide ? [[-2, 3], [-1, 2], [0, 1], [1, 1], [2, 2]] : [[-1, 3], [0, 2], [1, 1]];
+                for (const [s, ci] of band) {
+                    const x = p.x + nn.x * s * k;
+                    const y = p.y + nn.y * s * k;
+                    if (mask === 1 && (Math.round(x / k) + Math.round(y / k)) % 2) {
+                        continue;
+                    }
+                    dot(x, y, C[ci]);
+                }
+            }
+        }
+    }
+    // C 알갱이 — 타입 모양 · size 5 (모양) · 3 · 1 · 짙은 그림자 없이 (모양에 짙은 테)
+    function grain(x, y, a, size) {
+        const C = a.cols;
+        const map = size >= 5 ? T11_GRAIN[a.type] || T11_GRAIN.star : size >= 3 ? T11_GRAIN.mid : null;
+        if (!map) {
+            dot(x, y, C[1]);
+            return;
+        }
+        const h = map.length;
+        const w = map[0].length;
+        for (let r = 0; r < h; r++) {
+            for (let c = 0; c < w; c++) {
+                const ch = map[r][c];
+                if (ch === '.') {
+                    continue;
+                }
+                dot(x + (c - (w - 1) / 2) * k, y + (r - (h - 1) / 2) * k, ch === 'W' ? C[0] : ch === 'L' ? C[1] : ch === 'M' ? C[2] : C[3]);
+            }
+        }
+    }
+    // C 빛 알갱이 강 — 솟음 0.3 · 머리 위 나선 0.3 · 강 0.5 · 빨려 듦 0.4 (초 · 50ms 걸음)
+    function drawRiver(a, f) {
+        const b = fxBody(a.A);
+        if (f.off === undefined) {
+            f.next = f.next ?? f.on + (a.n % 2 ? 25 : 0);
+            while (now >= f.next) {
+                f.parts.push({ t0: f.next, id: f.seq++, ox: (Math.random() - 0.5) * 0.6, oy: Math.random() * 0.3, dx: (Math.random() * 2 - 1) * 3, up: 10 + Math.random() * 6, a0: Math.random() * Math.PI * 2 });
+                f.next += 50;
+            }
+        }
+        const ctr = f.ctr;
+        const spin = a.n % 2 ? -1 : 1;
+        // 모으기가 끝나면 날던 알갱이는 바둑판 두 걸음으로 (빈자리로 빨려 들지 않게)
+        const gone = f.off !== undefined ? 1 + Math.floor((now - f.off) / 50) : 0;
+        if (gone > 2) {
+            f.parts.length = 0;
+        }
+        for (let i = f.parts.length - 1; i >= 0; i--) {
+            const g = f.parts[i];
+            if (gone === 1 && g.id % 2) {
+                continue;
+            }
+            const u = Math.floor((now - g.t0) / 50) * 0.05;
+            const sx = b.x + g.ox * b.w;
+            const sy = b.y - b.h * 0.1 - g.oy * b.h;
+            const topY = sy - g.up * k;
+            let x;
+            let y;
+            let size = 5;
+            if (u < 0.3) {
+                const e = Math.sin((u / 0.3) * Math.PI * 0.5);
+                x = sx + g.dx * k * (u / 0.3);
+                y = sy - g.up * k * e;
+            } else if (u < 0.6) {
+                const v = (u - 0.3) / 0.3;
+                const ang = g.a0 + spin * v * Math.PI * 1.2;
+                x = b.x + Math.cos(ang) * 6 * k;
+                y = topY - 2 * k + Math.sin(ang) * 2 * k - v * 4 * k;
+            } else {
+                const s1 = { x: b.x + Math.cos(g.a0 + spin * Math.PI * 1.2) * 6 * k, y: topY - 6 * k + Math.sin(g.a0 + spin * Math.PI * 1.2) * 2 * k };
+                const e1 = entryOf(a, ctr, s1, 20 * k);
+                if (u < 1.1) {
+                    const P = quad(a, s1, e1, 0.25, 0.15);
+                    const p = P.at((u - 0.6) / 0.5);
+                    x = p.x;
+                    y = p.y;
+                } else if (u < 1.5) {
+                    const v = (u - 1.1) / 0.4;
+                    const r0 = Math.hypot(e1.x - ctr.x, e1.y - ctr.y);
+                    const a1 = Math.atan2(e1.y - ctr.y, e1.x - ctr.x);
+                    const rr = r0 * (1 - v);
+                    const ang = a1 + spin * v * Math.PI * 2.5;
+                    x = ctr.x + Math.cos(ang) * rr;
+                    y = ctr.y + Math.sin(ang) * rr;
+                    size = v < 1 / 3 ? 5 : v < 2 / 3 ? 3 : 1;
+                } else {
+                    st.arrivals += 1 / 6;
+                    if (g.id % 6 === 5) {
+                        ringFlash(a);
+                    }
+                    f.parts.splice(i, 1);
+                    continue;
+                }
+            }
+            grain(x, y, a, size);
+            // 네 개 중 하나 — 흰 십자 반짝 한 번 (2장면)
+            if (g.id % 4 === 0 && u >= 0.6 && u < 0.7) {
+                cross(x + 3 * k, y - 3 * k, a.cols);
+            }
+        }
+    }
+    if (!st.arrivals) {
+        return;
+    }
+    // ② 구 (원기옥) — 기운 막 = 구 가장자리 2칸 바둑판 띠 (동료 색 · 닿을수록 바깥으로 커짐) · 닿음 번쩍 고리 (1장면 옅은 → 1장면 본색)
+    // (r+8 ~ 10 에 따로 뜬 가는 고리 · 바둑판 막이 겹쳐 고리 4겹으로 보이던 것 — 아트 #102 작음)
+    if (orb && starStyle) {
+        // 별 갈래 (#103) — 합동 점선 고리 하나 (1:1 구 점선 말투에 맞춤 · 바둑판 띠 · 닿음 번쩍 고리 대신 — 고리 화풍 넷이 겹치던 것, 디자인 #103):
+        // 반지름 R + 1칸 · 1칸 · 대시 2칸 칠 + 1칸 빔 · 동료 [2] (3인 45° 조각마다 번갈아) · 80ms 마다 1칸 돎 · 받을수록 밝아짐 (R ⅓ 부터 [1] · ⅔ 부터 대시 4개 중 1개 [0]) ·
+        // 무더기가 닿으면 대시 1장면 [0] → 1장면 [1] (진짜 시계 340ms 에 한 번 — st.armHit) · 앞장 발 줄 아래 안 그림
+        const RN2 = typeof fxRealNow === 'function' ? fxRealNow() : now;
+        const Rv = Math.min(1, (st.hitWaves || 0) / Math.max(1, st.waves || 1));
+        const rr = R + k;
+        const ryy = ryOf(track.y, rr);
+        const n = Math.max(24, Math.round((2 * Math.PI * rr) / k));
+        const rot = t33Reduce() ? 0 : Math.floor(RN2 / 80);
+        const fa = st.armHit ? RN2 - st.armHit.at : 1e9;
+        for (let j = 0; j < n; j++) {
+            const ci = j + rot;
+            if (ci % 3 === 2) {
+                continue;
+            }
+            const a = (j / n) * Math.PI * 2;
+            const yy = track.y + Math.sin(a) * ryy;
+            if (yy > feet) {
+                continue;
+            }
+            const C = T11_STAR_COLS[allies[Math.floor(a / (Math.PI / 4)) % allies.length].type] || T11_STAR_COLS.normal;
+            let c = Rv < 1 / 3 ? C[2] : Rv >= 2 / 3 && Math.floor(ci / 3) % 4 === 0 ? C[0] : C[1];
+            if (fa < 80) {
+                c = C[0];
+            } else if (fa < 160) {
+                c = C[1];
+            }
+            dot(track.x + Math.cos(a) * rr, yy, c);
+        }
+    } else if (orb) {
+        const ry = ryOf(track.y, R);
+        const sy = ry / R;
+        const x0 = Math.round(track.x / k);
+        const y0 = Math.round(track.y / k);
+        const Rk = R / k;
+        for (let dy = -Math.ceil(Rk); dy <= Math.ceil(Rk); dy++) {
+            for (let dx = -Math.ceil(Rk); dx <= Math.ceil(Rk); dx++) {
+                const d = Math.hypot(dx, dy);
+                if (d > Rk || d < Rk - 2) {
+                    continue;
+                }
+                const cx = x0 + dx;
+                const cy = Math.round(y0 + dy * sy);
+                // 앞장 발 줄 아래는 안 그림 — 1:1 불꽃은 땅에 앉은 돔이라 온전한 원 고리가 패널 끝까지 내려가면 "원 안의 돔 = 잘림" 으로 보이던 것 (아트 #103)
+                if ((cx + cy) % 2 || cy * k > feet) {
+                    continue;
+                }
+                const aa = allies[(((Math.floor(cx / 4) + Math.floor(cy / 4)) % allies.length) + allies.length) % allies.length];
+                const ac = starStyle ? (T11_STAR_COLS[aa.type] || T11_STAR_COLS.normal)[2] : aa.cols[1];
+                dot(cx * k, cy * k, ac);
+            }
+        }
+        const fl = now - (st.ringAt ?? -1e9);
+        if (fl < 100) {
+            const n = Math.max(24, Math.round((2 * Math.PI * R) / k));
+            for (let j = 0; j < n; j++) {
+                const a = (j / n) * Math.PI * 2;
+                const yy = track.y + Math.sin(a) * (ry + k);
+                if (yy <= feet) {
+                    dot(track.x + Math.cos(a) * (R + k), yy, fl < 50 ? st.ringC[1] : st.ringC[2]);
+                }
+            }
+        }
+        // C — 구 둘레 타입 색 2칸 점 (동료마다 4개) 이 돎 · 구 안 동료 색 점이 떠다님
+        if (style === 'C') {
+            allies.forEach((a, ai) => {
+                for (let j = 0; j < 4; j++) {
+                    const ang = now / 400 + (j * Math.PI) / 2 + ai * (Math.PI / 4);
+                    blk(track.x + Math.cos(ang) * (R + k), track.y + Math.sin(ang) * (ry + k), a.cols[2], 2);
+                }
+            });
+        }
+        if (track.fly || style === 'C') {
+            const step = Math.floor(now / 120);
+            for (let j = 0; j < 3 * allies.length; j++) {
+                const a = (j * 2.1 + step * 1.3) % (Math.PI * 2);
+                const rr = track.r * (0.25 + 0.2 * ((step + j) % 3));
+                dot(track.x + Math.cos(a) * rr, track.y + Math.sin(a) * rr, allies[j % allies.length].cols[1], track.fly ? 2 : 1);
+            }
+        }
+    }
+    // 전용 구가 날아가는 동안 — 꼬리에 동료 색 2칸 점 10개 (4칸 간격 · 앞 4개 [1] · 뒤 [2]) (#96 아트 5바퀴 1 — 날아가는 구가 앞장 한 색이던 것)
+    if (track.uniq) {
+        const tr = (st.trail = st.trail || []);
+        if (orb && track.fly) {
+            if (!tr.length || Math.hypot(track.x - tr[0].x, track.y - tr[0].y) >= 4 * k) {
+                tr.unshift({ x: track.x, y: track.y });
+                tr.length = Math.min(tr.length, 11);
+            }
+            tr.forEach((p, j) => {
+                if (j) {
+                    blk(p.x, p.y, (T11_STAR_COLS[allies[j % allies.length].type] || T11_STAR_COLS.normal)[j <= 4 ? 1 : 2], 2);
+                }
+            });
+        } else {
+            tr.length = 0;
+        }
+    }
+    // ③ 빔 — 물줄기를 감는 동료 색 나선 두 가닥 (뒤로 가는 반은 물줄기에 가림) + 갈래마다: A 흐르는 빛 · B 리본 (넓게) · C 알갱이
+    if (track.kind === 'beam' && track.on && track.len > 2 * k) {
+        st.beamAt = st.beamAt ?? now;
+        // 별 갈래 — 나선 위 별 · 튀는 작은 별은 쏜 뒤 0.3초까지 (그 뒤엔 물줄기 위가 어수선해서 — 아트 #103 · 나선 두 가닥은 #101 그대로)
+        const starsOn = !starStyle || now - st.beamAt < 300;
+        const flow = Math.floor(now / 50) * (style === 'A' ? 4 : 2);
+        const amp = Math.max(6 * k, track.w / 2 + (style === 'B' ? 6 : 4) * k);
+        const lighter = (c) => [c[0], c[0], c[1], c[2]];
+        const cs = [allies[0].cols, allies[1] ? allies[1].cols : lighter(allies[0].cols)];
+        const edgeLo = (allies[1] || allies[0]).cols;
+        const frame = Math.floor(now / 100);
+        const at = (c, s) => {
+            const x = track.x0 + track.dir * c * k;
+            const yc = track.yAt(x);
+            const ph = ((c - flow) / 24) * Math.PI * 2 + s * Math.PI;
+            return { x, yc, y: yc + Math.sin(ph) * amp, front: Math.cos(ph) > 0 };
+        };
+        const cells = Math.floor(track.len / k);
+        // 빔 가장자리 안쪽 1칸 줄 — 위 = 첫 동료 · 아래 = 둘째 (없으면 첫) 동료 [1] (#96 디자인)
+        for (let c = 0; c <= cells; c++) {
+            const ex = track.x0 + track.dir * c * k;
+            const ey = track.yAt(ex);
+            dot(ex, ey - track.w / 2 + k, cs[0][1]);
+            dot(ex, ey + track.w / 2 - 2 * k, edgeLo[1]);
+        }
+        for (let c = 0; c <= cells; c++) {
+            for (let s = 0; s < 2; s++) {
+                const p = at(c, s);
+                if (!p.front && Math.abs(p.y - p.yc) < track.w / 2) {
+                    continue;
+                }
+                if (style === 'B') {
+                    // 리본 — 40칸 · 16칸 틈 · 폭 5 ↔ 3 (8칸마다)
+                    if ((((c - flow) % 56) + 56) % 56 >= 40) {
+                        continue;
+                    }
+                    const band = Math.floor(c / 8) % 2 === 0 ? [[-2, 3], [-1, 2], [0, 1], [1, 1], [2, 2]] : [[-1, 3], [0, 2], [1, 1]];
+                    for (const [o, ci] of band) {
+                        dot(p.x, p.y + o * k, p.front ? cs[s][ci] : cs[s][3]);
+                    }
+                } else {
+                    dot(p.x, p.y, p.front ? cs[s][2] : cs[s][3]);
+                    dot(p.x, p.y + k, p.front ? cs[s][1] : cs[s][3]);
+                }
+            }
+            if ((((c - flow) % 8) + 8) % 8 === 0) {
+                const h = ((c * 73856093) ^ (frame * 19349663)) >>> 0;
+                const yc = at(c, 0).yc;
+                // 스파크 — 1칸 십자 1 ~ 2개 (네모 알갱이로 보이던 것 — 아트 #102 작음)
+                for (let m = 0; m < 1 + (h % 2); m++) {
+                    const side = (h >> (m + 1)) & 1 ? 1 : -1;
+                    const off = (4 + ((h >> (m * 3 + 2)) % 4)) * k;
+                    if (starStyle) {
+                        if (starsOn) {
+                            starAt(at(c, 0).x + m * 4 * k, yc + side * (track.w / 2 + off), allies[m % allies.length], 'tiny');
+                        }
+                    } else {
+                        cross(at(c, 0).x + m * 4 * k, yc + side * (track.w / 2 + off), [cs[m % 2][0], cs[m % 2][1]]);
+                    }
+                }
+            }
+        }
+        // A — 나선을 따라 흐르는 빛 (28칸 간격) · C — 나선을 타는 알갱이 (10칸 간격) · S1 · S2 — 나선을 타는 반짝이 별 (14칸 간격)
+        if (style !== 'B' && starsOn) {
+            const gap = style === 'A' ? 28 : starStyle ? 14 : 10;
+            for (let s = 0; s < 2; s++) {
+                for (let c = ((flow % gap) + gap) % gap; c <= cells; c += gap) {
+                    const p = at(c, s);
+                    if (!p.front) {
+                        continue;
+                    }
+                    if (style === 'A') {
+                        blk(p.x, p.y, cs[s][1], 4);
+                        blk(p.x, p.y, cs[s][0], 2);
+                    } else if (starStyle) {
+                        starAt(p.x, p.y, allies[s % allies.length], (c / gap) % 3 < 1 ? 'big' : 'small');
+                    } else {
+                        grain(p.x, p.y, allies[s % allies.length], 5);
+                    }
+                }
+            }
+        }
+    }
+    // ④ 오라 앞장 (#96 디자인) — 몸 둘레 안쪽 1칸 테 (동료 [1] · 3인 반씩) + 바깥 동료 색 불꽃 혀 7개 (몸 위쪽 둘레 · 폭 2 ~ 3칸 · 높이 6 ~ 14칸 — 받을수록 높게 ·
+    //   100ms 마다 높이 바뀜 · 동료 번갈아 · 끝 [0] · 몸 [1] · 밑 [2] · 테 [3]) / 달려드는 동안 뒤로 끌리는 동료 색 줄 2 (2칸 · [2] / [1] · 지난 3장면 자리)
+    if (q.kind === 'aura') {
+        const b = leadBody();
+        const AC = (n) => T11_STAR_COLS[allies[n % allies.length].type] || T11_STAR_COLS.normal;
+        // 불 앞장 메가진화 (블래스트번 — 메가리자몽X 파란 불) + 물 동료 = 동료 몫을 김 덩어리로 — 파란 혀가 파란 불에 묻혀 동료가 안 보이고 "증기 폭발" 인데 김이 없던 것
+        //   (#96 아트 5바퀴 2 · 같은 색이 셋 넘게 겹치면 모양으로 나눔): 몸 양옆 8덩이 (원 2 ~ 3개 · 지름 6 ~ 10px · #e8eef2 + 밑 1칸 #b8c4cc) · 100ms 마다 5px 위로 · 위에서 작아짐
+        const steam = q.leadType === 'fire' && !!track.willMorph && allies.every((al) => al.type === 'water');
+        // 김은 몸 · 메가진화 상자 비움 (clip) 밖에서 그림 — 메가진화가 끝난 뒤에도 남은 상자 구멍에 김 안쪽 반이 세로 일자로 잘리던 것 (#96 UX 7바퀴 큼 2)
+        if (steam && to && now < q.hitEnd && late) {
+            const prevLate = lateDraw;
+            lateDraw = () => {
+                prevLate?.();
+                // 김 (6바퀴 값): 10덩이 · 반지름 3칸 → 2걸음마다 1칸 커져 4칸 (187 에서 12 ~ 16px) · 세 톤 (위 1칸 #ffffff · 몸 #e8eef2 · 밑 1칸 #b8c4cc) · 가장자리 1칸 바둑판 ·
+                // 마지막 두 걸음은 바둑판으로 사라짐 · 몸 위쪽 양옆 (불꽃 혀 끝 높이) 에서 생김 (6 ~ 10px 흰 점이 자갈 · 팝콘처럼 읽히던 것 — #96 아트 6바퀴 2)
+                const f100 = Math.floor(now / 100);
+                const STEPS = 8;
+                for (let i = 0; i < 10; i++) {
+                    const sd = i % 2 ? 1 : -1;
+                    const step = (f100 + i * 3) % STEPS;
+                    const cx = b.x + sd * (b.w * 0.5 + (2 + (i % 3) * 3) * k);
+                    const cy = b.y - b.h * 0.1 - step * 5 - (i % 4) * 2 * k;
+                    const rc = 3 + Math.min(1, Math.floor(step / 4));
+                    const fade = step >= STEPS - 2 ? step - (STEPS - 3) : 0;
+                    for (let dy = -rc; dy <= rc; dy++) {
+                        for (let dx = -rc; dx <= rc; dx++) {
+                            const d2 = dx * dx + dy * dy;
+                            if (d2 > rc * rc + rc) {
+                                continue;
+                            }
+                            const rim = d2 > (rc - 1) * (rc - 1) + (rc - 1);
+                            const gx = Math.round(cx / k) + dx;
+                            const gy = Math.round(cy / k) + dy;
+                            if ((rim || fade) && (((gx + gy + fade) % 2) + 2) % 2 === 0) {
+                                continue;
+                            }
+                            if (fade >= 2 && ((gx + 2 * gy) % 3 + 3) % 3 === 0) {
+                                continue;
+                            }
+                            dot(gx * k, gy * k, dy === -rc || (dy === 1 - rc && !rim) ? '#ffffff' : dy === rc ? '#b8c4cc' : '#e8eef2');
+                        }
+                    }
+                }
+            };
+        }
+        if (!steam && to && now < q.hitEnd && late) {
+            const rx0 = b.w * 0.5 + 2 * k;
+            const ry0 = b.h * 0.5 + 2 * k;
+            const ring = Math.max(24, Math.round((Math.PI * (rx0 + ry0)) / k));
+            for (let j = 0; j < ring; j++) {
+                const a = (j / ring) * Math.PI * 2;
+                dot(b.x + Math.cos(a) * rx0, b.y + Math.sin(a) * ry0, AC(Math.floor((j / ring) * 2 * allies.length))[1]);
+            }
+            // 불꽃 혀 7 (#96 아트 1 — 곧은 쐐기 · 같은 길이 · 끝 흰색이라 "가시 왕관" 으로 읽히던 것): 길이 [7, 11, 8, 14, 9, 12, 6]칸 을 100ms 마다 한 칸씩 돌림 ·
+            // 각도 ±6° 흔듦 · 칸마다 옆으로 sin(t/h·π) × 2칸 (혀마다 좌우 번갈아) · 끝 1/3 은 위쪽 40% 섞음 · 밑동 3 ~ 4칸 → 끝 1칸 ·
+            // 색 = 밑 1/3 [0] 흰 심 → [1] → 끝 [2] · 테 [3] (불꽃은 밑이 가장 밝음) · 3인 = 동료가 선 쪽 반을 그 동료 색 · 발밑에 동료 색 1칸 빛 줄
+            const LENS = [7, 11, 8, 14, 9, 12, 6];
+            const f100 = Math.floor(now / 100);
+            const byX = allies.length >= 2 ? [...allies].sort((p1, p2) => fxBody(p1.A).x - fxBody(p2.A).x) : null;
+            const colAt = (i, ux) => (byX ? T11_STAR_COLS[(ux < -0.05 ? byX[0] : ux > 0.05 ? byX[byX.length - 1] : byX[i % 2]).type] || T11_STAR_COLS.normal : AC(0));
+            const tongues = [];
+            for (let i = 0; i < 7; i++) {
+                const a = Math.PI * (1.12 + (i / 6) * 0.76) + ((((f100 + i) % 3) - 1) * 6 * Math.PI) / 180;
+                const ux = Math.cos(a);
+                const uy = Math.sin(a);
+                const h = LENS[(i + f100) % 7];
+                const w0 = i % 2 ? 3 : 4;
+                const sd = i % 2 ? 1 : -1;
+                // 끝 1/3 방향 = 0.6 × 바깥 + 0.25 × 위 + 0.35 × 옆 (혀마다 + − 번갈아)
+                const tx0 = ux * 0.6 - uy * sd * 0.35;
+                const ty0 = uy * 0.6 - 0.25 + ux * sd * 0.35;
+                const up = Math.hypot(tx0, ty0);
+                const cells = [];
+                let x = b.x + ux * (rx0 + k);
+                let y = b.y + uy * (ry0 + k);
+                for (let t = 0; t <= h; t++) {
+                    const f = t / h;
+                    const [dx, dy] = t > (h * 2) / 3 ? [tx0 / up, ty0 / up] : [ux, uy];
+                    const side = Math.sin(f * Math.PI) * 2 * sd * k;
+                    cells.push({ x: x - dy * side, y: y + dx * side, dx, dy, w: f < 2 / 3 ? Math.max(2, Math.round(w0 * Math.pow(1 - f, 0.8))) : 1, ci: f < 1 / 3 ? 0 : f < 2 / 3 ? 1 : 2 });
+                    x += dx * k;
+                    y += dy * k;
+                }
+                tongues.push({ cells, C: colAt(i, ux) });
+            }
+            // 테 먼저 (모든 혀 — 한 칸 넓게) → 몸
+            for (const pass of [0, 1]) {
+                for (const tg of tongues) {
+                    for (const c of tg.cells) {
+                        const wv = c.w + (pass === 0 ? 2 : 0);
+                        for (let m = 0; m < wv; m++) {
+                            const o = m - (wv - 1) / 2;
+                            dot(c.x - c.dy * o * k, c.y + c.dx * o * k, pass === 0 ? tg.C[3] : tg.C[c.ci]);
+                        }
+                    }
+                }
+            }
+            const feet = b.y + b.h * 0.45 + k;
+            const half = Math.round((b.w * 0.6) / k);
+            for (let c = -half; c <= half; c++) {
+                dot(b.x + c * k, feet, colAt(Math.abs(c), c / Math.max(1, half))[1]);
+            }
+        }
+        // 달려드는 동안 끌리는 줄
+        st.lpos = st.lpos || [];
+        st.lpos.push({ x: b.x, y: b.y });
+        if (st.lpos.length > 4) {
+            st.lpos.shift();
+        }
+        const p0 = st.lpos[0];
+        const dd = Math.hypot(b.x - p0.x, b.y - p0.y);
+        if (!to && dd > 6 * k && now < q.hitEnd + 300) {
+            const ux = (b.x - p0.x) / dd;
+            const uy = (b.y - p0.y) / dd;
+            const L = Math.round(dd / k);
+            for (const [side, n, ci] of [[-1, 0, 2], [1, 1, 1]]) {
+                for (let t = 0; t <= L; t++) {
+                    const cx = b.x - ux * t * k - uy * side * 2 * k;
+                    const cy = b.y - uy * t * k + ux * side * 2 * k;
+                    dot(cx, cy, AC(n)[ci], 2);
+                }
+            }
+        }
+    } else if (!q.tracked && q.kind !== 'beam' && q.kind !== 'orb' && now < q.hitEnd && late) {
+        const b = leadBody();
+        const rr = Math.max(b.w, b.h) / 2 + 3 * k;
+        const n = Math.max(24, Math.round((2 * Math.PI * rr) / k));
+        const rot = Math.floor(now / 50);
+        for (let j = 0; j < n; j++) {
+            const ci = j + rot;
+            if (ci % 12 >= 8) {
+                continue;
+            }
+            const c = allies[Math.floor(ci / 12) % allies.length].cols;
+            const a = (j / n) * Math.PI * 2;
+            dot(b.x + Math.cos(a) * rr, b.y + Math.sin(a) * rr, c[2]);
+        }
+    }
+    } finally {
+        if (clipped) {
+            ctx.restore();
+        }
+        lateDraw?.();
+    }
+}
+
+/**
+ * 장면 전환 합동 — 앞장 몸 상자 (fxBody). 메가진화한 동안 (연출 틀이 track.mega = { scale · dx · lift } 를 알림 — 블래스트번 · 하드플랜트 · 메가런처) 은
+ * 메가 크기 (발 기준으로 scale 배 · 옆 dx · 위로 lift) — 오라 혀 · 테 · 번개가 원래 크기 몸 둘레에서 나와 메가 그림 위를 덮던 것 (#96)
+ */
+function t11LeadBody(LA, track) {
+    const b = fxBody(LA);
+    const m = track && track.mega;
+    if (!m) {
+        return b;
+    }
+    const foot = b.y + b.h * 0.45 - (m.lift || 0);
+    return { x: b.x + (m.dx || 0), y: foot - b.h * m.scale * 0.45, w: b.w * m.scale, h: b.h * m.scale, ok: b.ok };
+}
+
+/**
+ * 장면 전환 합동 — 진짜 구 안 (fx-energy drawOrb mid — 불꽃 구 0.62 원판 뒤 · 0.36 심 앞 — 동료 색이 흰 심으로 빨려 들어가 녹는 모양 · 디자인 #103 — "쉼표 모양 팔이 도는 태풍"):
+ * 굵은 팔 (r ≥ 10칸) — 동료마다 3개 (120° · 3인 6개 번갈아) · 반지름 r × (1.0 − 0.8t) · 각 t × 200° · 굵기 3 → 2 → 1칸 (t < 0.25 / < 0.6) · 색 [2] → [1] → [0] ·
+ * 보이는 길이 t ≤ 0.3 + 0.7R (받을수록 안쪽까지) · 받은 양 R ⅓ 부터 팔 사이 60° 짧은 토막 (1칸 [1] — 고리로 안 이어지게) · ⅔ 부터 흘러 드는 빛 (팔마다 [0] 2 × 2 · 80ms 마다 안쪽으로 3칸) ·
+ * 섞임 바둑판 (r × 0.36 ~ 0.62 · R ⅓ 25% · ⅔ 50% · 팔 사이에만 · 3인은 칸마다 번갈아) · 80ms 마다 15° 돎 (내 쪽 시계 반대 · 상대 시계) ·
+ * 무더기가 닿으면 가장 가까운 굵은 팔 바깥 30% 1장면 [0] · 동작 줄이기면 멈춘 모양 · 흘러 드는 빛 없음 (5겹 동그라미 · 무지개 과녁처럼 보이던 것 — 아트 #103)
+ */
+function t11OrbInner(ctx, q) {
+    const { now, allies, st, x, y, r } = q;
+    const k = q.kL;
+    if (!st.hitWaves || !allies.length) {
+        return;
+    }
+    const RN = typeof fxRealNow === 'function' ? fxRealNow() : now;
+    const Rv = Math.min(1, st.hitWaves / Math.max(1, st.waves || 1));
+    const reduce = t33Reduce();
+    const px = (v) => Math.round(v / k) * k;
+    const dot = (xx, yy, c, n = 1) => {
+        ctx.fillStyle = c;
+        ctx.fillRect(px(xx - ((n - 1) * k) / 2), px(yy - ((n - 1) * k) / 2), n * k, n * k);
+    };
+    const cols = allies.map((a) => T11_STAR_COLS[a.type] || T11_STAR_COLS.normal);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.imageSmoothingEnabled = false;
+    const sgn = q.foe ? 1 : -1;
+    const base = reduce ? 0 : sgn * Math.floor(RN / 80) * (Math.PI / 12);
+    const arms = (q.armsPer || 3) * cols.length;
+    const SWEEP = (200 * Math.PI) / 180;
+    const armAng = (j, t, off = 0) => base + off + (j * 2 * Math.PI) / arms + sgn * t * SWEEP;
+    const armAt = (j, t, off = 0) => {
+        const rr = r * (1.0 - 0.8 * t);
+        const ang = armAng(j, t, off);
+        return [x + Math.cos(ang) * rr, y + Math.sin(ang) * rr];
+    };
+    const angD = (a1, b1) => Math.abs((((a1 - b1) % (2 * Math.PI)) + 3 * Math.PI) % (2 * Math.PI) - Math.PI);
+    // 섞임 바둑판 — 팔 사이에만
+    if (Rv >= 1 / 3) {
+        const x0 = Math.round(x / k);
+        const y0 = Math.round(y / k);
+        const ro = (r * 0.62) / k;
+        const ri = (r * 0.36) / k;
+        for (let dy = -Math.ceil(ro); dy <= Math.ceil(ro); dy++) {
+            for (let dx = -Math.ceil(ro); dx <= Math.ceil(ro); dx++) {
+                const d = Math.hypot(dx, dy);
+                if (d > ro || d < ri) {
+                    continue;
+                }
+                const cx = x0 + dx;
+                const cy = y0 + dy;
+                const on = Rv >= 2 / 3 ? (((cx + cy) % 2) + 2) % 2 === 0 : (((cx % 2) + 2) % 2 === 0 && ((cy % 2) + 2) % 2 === 0);
+                if (!on) {
+                    continue;
+                }
+                // 이 반지름에서 팔 각도와 가까우면 (팔 간격의 0.3 안) 건너뜀
+                const t = (1 - (d * k) / r) / 0.8;
+                const a = Math.atan2(dy, dx);
+                let near = false;
+                for (let j = 0; j < arms && !near; j++) {
+                    near = angD(a, armAng(j, t)) < (Math.PI / arms) * 0.6;
+                }
+                if (near) {
+                    continue;
+                }
+                dot(cx * k, cy * k, cols[(((cx + 2 * cy) % cols.length) + cols.length) % cols.length][1]);
+            }
+        }
+    }
+    if (r / k < 10) {
+        // 작은 구 (전용 구 jointOrb — small) — 1칸 쉼표 팔 (밖 ⅓ 2칸 · 색 [1] → [0]) · 받을수록 안쪽까지 (작은 구엔 굵은 팔이 안 들어가 섞임 점만 보이던 것 — #96 아트 5바퀴 1) ·
+        // 빔 충전 구슬 (armsPer 2 · small 없음) 은 그대로 (#96 코드 리뷰 낮음 1)
+        if (q.small) {
+            // 팔 2칸 + 바깥 1칸 #1c2e30 (1칸 팔이 860 초록 구에서 안 보이던 것 — #96 아트 6바퀴 4) · 안쪽 끝 0.4 는 1칸
+            const tEnd = Math.min(1, 0.3 + 0.7 * Rv);
+            const n = Math.max(8, Math.ceil((r / k) * 3));
+            for (const pass of [0, 1]) {
+                for (let j = 0; j < arms; j++) {
+                    const c = cols[j % cols.length];
+                    for (let i = 0; i <= n; i++) {
+                        const t = (tEnd * i) / n;
+                        const [ax, ay] = armAt(j, t);
+                        const w = t < 0.6 ? 2 : 1;
+                        dot(ax, ay, pass === 0 ? '#1c2e30' : t < 0.5 ? c[1] : c[0], pass === 0 ? w + 1 : w);
+                    }
+                }
+            }
+        }
+        return;
+    }
+    const tMax = Math.min(1, 0.3 + 0.7 * Rv);
+    const n = Math.max(12, Math.ceil((r / k) * 4));
+    // 무더기가 닿은 팔 — 바깥 30% 1장면 [0]
+    let hitArm = -1;
+    if (st.armHit && RN - st.armHit.at < 80) {
+        let best = Infinity;
+        for (let j = 0; j < arms; j++) {
+            const dd = angD(armAng(j, 0), st.armHit.ang);
+            if (dd < best) {
+                best = dd;
+                hitArm = j;
+            }
+        }
+    }
+    // 팔 사이 60° 짧은 토막 (R ⅓ 부터)
+    if (Rv >= 1 / 3) {
+        for (let j = 0; j < arms; j++) {
+            const c = cols[j % cols.length];
+            for (let i = 0; i <= n; i++) {
+                const t = 0.25 + (0.3 * i) / n;
+                const [ax, ay] = armAt(j, t, Math.PI / arms);
+                dot(ax, ay, c[1]);
+            }
+        }
+    }
+    // 굵은 팔
+    for (let j = 0; j < arms; j++) {
+        const c = cols[j % cols.length];
+        for (let i = 0; i <= n; i++) {
+            const t = (tMax * i) / n;
+            const [ax, ay] = armAt(j, t);
+            const col = j === hitArm && t <= 0.3 ? c[0] : t < 0.4 ? c[2] : t < 0.75 ? c[1] : c[0];
+            dot(ax, ay, col, t < 0.25 ? 3 : t < 0.6 ? 2 : 1);
+        }
+    }
+    // 흘러 드는 빛
+    if (Rv >= 2 / 3 && !reduce) {
+        const armLen = (r * 0.8 * SWEEP) / k;
+        for (let j = 0; j < arms; j++) {
+            const t = ((((Math.floor(RN / 80) * 3) / armLen + j / arms) % 1) + 1) % 1;
+            const [ax, ay] = armAt(j, t * tMax);
+            dot(ax, ay, cols[j % cols.length][0], 2);
+        }
+    }
+}
+
+/**
+ * 장면 전환 합동 끝 — 동료 타입 (합동에서만 · 맞을 때 · tb = 맞는 몸 { x, y, w, h } · k = 그림 칸):
+ *  물 = 김 덩어리 7개 (6 ~ 10px 원 3 ~ 4개를 2px 칸 계단으로 묶음 · #e8eef2 · #b8c4cc) 가 터짐 아래 테두리에서 24 ~ 40px 위로 0.8초 (steps 6) +
+ *    물 왕관 6갈래 — 터짐 0.2초 뒤 (불 심이 줄 때) 맞은 자리에서 20 ~ 28칸 (187 에서 40 ~ 56px) 위로 솟아 불 심 위까지 · 0.5초 · 갈래 2칸 굵기 (속 #e8f6ff + 바깥쪽 테 #3c8ce0)
+ *    (가는 파란 점선 호가 불 심에 묻히던 것 — 디자인 #103 d4dc1b9) /
+ *  풀 = 잎 9장 (3 × 2칸 = 187 에서 6 × 4px · 두 톤 #7cd050 · #2f7a2c · 100ms 마다 뒤집힘) 이 바깥으로 0.6초 (2 ~ 3px 점으로 읽히던 것) /
+ *  불 = 불꽃 혀 8 나선 + 불티 / 그 밖 15 타입 = T11_FINALE (디자인 #152 A) · 3인 (둘 다) 은 둘 다 (15 타입은 조각 반씩) · add = 입자를 받을 곳 (기본 = 연출 캔버스)
+ */
+/**
+ * 장면 전환 합동 — 전용 풀 구 (나무지기 에너지볼 등) 가 맞을 때 잎 흩뿌림 (#96 아트 5바퀴 3 — 끝 터짐이 상대 둘레 27% 로 작던 것):
+ * 잎 18장 (6 × 4px — 몸 #7cd050 · 결 #2f7a2c) 이 맞는 점에서 반지름 패널 폭 × 0.25 까지 0.6초 6걸음 · 끝 0.3초 바둑판으로 사라짐 · 무대 위 끝 위로는 안 그림
+ */
+function t11LeafBurst(tb, k, add = sigParticle) {
+    const W = window.innerWidth;
+    // 화면 안쪽으로 치우침 (안쪽 W × 0.35 · 바깥 W × 0.2) — 맞는 점이 끝 150px 안이라 반이 화면 밖으로 나가던 것 (#96 아트 6바퀴 4)
+    const inSide = tb.x > W / 2 ? -1 : 1;
+    const top = t33Top();
+    const leaves = Array.from({ length: 24 }, (_, i) => ({ a: (i / 24) * Math.PI * 2 + ((i * 37) % 11) * 0.03, d: 0.55 + ((i * 53) % 9) * 0.05, fall: ((i * 29) % 5) * k }));
+    add({ x: 0, y: 0, s: k, max: 0.9, z: 1, draw: (ctx, p) => {
+        const step = Math.min(6, 1 + Math.floor(p.life / 0.1));
+        const fade = p.life > 0.6 ? 1 + Math.floor((p.life - 0.6) / 0.1) : 0;
+        ctx.globalAlpha = 1;
+        ctx.imageSmoothingEnabled = false;
+        const dot = (x, y, c) => {
+            const cx = Math.round(x / k);
+            const cy = Math.round(y / k);
+            if (cy * k < top || (fade && (cx + cy + fade) % 2 === 0) || fade >= 3) {
+                return;
+            }
+            ctx.fillStyle = c;
+            ctx.fillRect(cx * k, cy * k, k, k);
+        };
+        // 맞는 순간 연두 빛살 8줄 (2칸 굵기 · 0.3초 · 끝 바둑판)
+        if (p.life < 0.3) {
+            const L = Math.round((W * 0.12 * Math.min(1, p.life / 0.15)) / k);
+            for (let j = 0; j < 8; j++) {
+                const a = (j / 8) * Math.PI * 2 + Math.PI / 8;
+                for (let t = 2; t <= L; t++) {
+                    if (t > L - 3 && t % 2) {
+                        continue;
+                    }
+                    for (const w of [0, 1]) {
+                        dot(tb.x + Math.cos(a) * t * k - Math.sin(a) * w * k, tb.y + Math.sin(a) * t * k * 0.7 + Math.cos(a) * w * k, t < L / 2 ? '#e8ffd0' : '#7cd050');
+                    }
+                }
+            }
+        }
+        for (const lf of leaves) {
+            const R = W * (Math.sign(Math.cos(lf.a)) === inSide ? 0.35 : 0.2);
+            const dd = (R * lf.d * step) / 6;
+            const x = tb.x + Math.cos(lf.a) * dd;
+            const y = tb.y + Math.sin(lf.a) * dd * 0.6 + (step * lf.fall) / 3;
+            const flat = Math.abs(Math.cos(lf.a + step * 0.4)) > 0.5;
+            // 잎 4 × 2칸 · 몸 #7cd050 · 결 (아래 줄) #1c2e30 · 끝 1칸 #e8ffd0 (풀밭과 밝기가 같아 점으로 읽히던 것 — #96 아트 6바퀴 4)
+            const [w, h] = flat ? [4, 2] : [2, 4];
+            for (let j = 0; j < h; j++) {
+                for (let i = 0; i < w; i++) {
+                    const tip = flat ? i === w - 1 && j === 0 : j === 0 && i === 0;
+                    const edge = flat ? j === h - 1 : i === w - 1;
+                    dot(x + (i - 1) * k, y + (j - 1) * k, tip ? '#e8ffd0' : edge ? '#1c2e30' : '#7cd050');
+                }
+            }
+        }
+    } });
+}
+
+function t11Finale(types, tb, k, add = sigParticle) {
+    const px = (v) => Math.round(v / k) * k;
+    const bottom = tb.y + tb.h / 2;
+    const want = new Set(types);
+    const dot = (ctx, x, y, c, n = 1) => {
+        ctx.fillStyle = c;
+        ctx.fillRect(px(x), px(y), n * k, n * k);
+    };
+    if (want.has('water')) {
+        // 김 (#96 아트 3바퀴 1 — 흰 띠 한 장으로 붙어 상대 발을 가리던 것) — 덩어리 4 (3인 2) · 몸 상자 양옆 바깥에만 · 덩어리 = 6 ~ 10px 원 2 ~ 3개 ·
+        //   덩어리 사이 틈 4px 넘게 (26px 간격) · 높이 0 · 4 · 8px 엇갈림 · 걸음마다 4 ~ 6px 오름 (0.8초 · 6걸음) · 2걸음마다 1px 작아짐
+        const NP = want.size >= 2 ? 2 : 4;
+        const puffs = Array.from({ length: NP }, (_, i) => {
+            const side = i % 2 ? 1 : -1;
+            const lane = Math.floor(i / 2);
+            return { x: tb.x + side * (tb.w / 2 + 8 + lane * 26), y: bottom - 4 - [0, 4, 8, 4][i % 4], rise: 24 + ((i * 7) % 17), blobs: Array.from({ length: 2 + (i % 2) }, (_, j) => ({ dx: side * j * 5, dy: -(j % 2) * 3, r: 3 + ((i + j) % 3) })), c: '#e8eef2' };
+        });
+        add({ x: 0, y: 0, s: k, max: 0.8, z: 1, draw: (ctx, p) => {
+            const st = Math.min(6, Math.floor(p.life / (0.8 / 6)));
+            ctx.globalAlpha = 1;
+            ctx.imageSmoothingEnabled = false;
+            for (const f of puffs) {
+                const yy = f.y - (f.rise * st) / 6;
+                for (const b of f.blobs) {
+                    // 원을 2px 칸 계단으로 · 걸음마다 1칸 (2px) 씩 작아지며 오름 (땅에 누운 흰 덩어리처럼 보이던 것 — #96 아트 2바퀴 6) · 밑 1칸만 짙게
+                    const rr = Math.max(2, b.r - (st >> 1));
+                    for (let dy = -rr; dy <= rr; dy += 2) {
+                        const w = Math.round(Math.sqrt(Math.max(0, rr * rr - dy * dy)) / 2) * 2;
+                        ctx.fillStyle = dy + 2 > rr ? '#b8c4cc' : f.c;
+                        ctx.fillRect(Math.round((f.x + b.dx - w) / 2) * 2, Math.round((yy + b.dy + dy) / 2) * 2, w * 2, 2);
+                    }
+                }
+            }
+        } });
+        // 물 왕관 — 터짐 0.2초 뒤 · 0.5초: 솟음 3걸음 (40 · 70 · 100%) → 끝 물방울이 떨어져 나감 · 갈래마다 속 1칸 + 바깥쪽 테 1칸 · 끝 2 × 2칸 방울
+        const top0 = t33Top();
+        // 3인 (동료 타입 둘) = 갈래 4 · 높이 × 0.6 (왕관이 몸 상자를 덮어 다른 타입 장식이 안 보이던 것 — #96 아트 2바퀴 2)
+        const crown = (want.size >= 2 ? [-44, -16, 16, 44].map((deg, i) => ({ a: (deg * Math.PI) / 180, len: Math.round([22, 28, 28, 22][i] * 0.6) })) : [-52, -32, -12, 12, 32, 52].map((deg, i) => ({ a: (deg * Math.PI) / 180, len: [20, 24, 28, 28, 24, 20][i] })));
+        add({ x: 0, y: 0, s: k, max: 0.7, z: 1, draw: (ctx, p) => {
+            const t = p.life - 0.2;
+            if (t < 0) {
+                return;
+            }
+            const st = Math.floor(t / 0.1);
+            const grow = [0.4, 0.7, 1, 1, 1][Math.min(4, st)];
+            const drop = st >= 3 ? (st - 2) * 2 : 0;
+            ctx.globalAlpha = 1;
+            for (const c of crown) {
+                const sx = Math.sign(c.a);
+                const n = Math.round(c.len * grow);
+                const at = (j) => ({ x: tb.x + Math.sin(c.a) * j * k * (1 + (0.4 * j) / c.len), y: tb.y - Math.cos(c.a) * j * k });
+                // 끝 3칸은 떨어져 나간 방울 (걸음마다 2칸 아래로)
+                const body = drop ? n - 3 : n;
+                // 짙은 1칸 테 (#96 아트 6 — 덩굴 벽 연두 위에서 안 보이던 것) → 바깥쪽 테 · 속
+                for (let j = 0; j <= body; j++) {
+                    const q = at(j);
+                    if (q.y < top0) {
+                        continue;
+                    }
+                    dot(ctx, q.x - sx * k, q.y, '#284f83');
+                    dot(ctx, q.x + 2 * sx * k, q.y, '#284f83');
+                    dot(ctx, q.x + sx * k, q.y, '#3c8ce0');
+                    dot(ctx, q.x, q.y, '#e8f6ff');
+                }
+                const tip = at(n);
+                const ty = tip.y + drop * k;
+                if (ty - 2 * k >= top0) {
+                    dot(ctx, tip.x - 2 * k, ty - 2 * k, '#284f83', 5);
+                    dot(ctx, tip.x - k, ty - k, '#3c8ce0', 3);
+                    dot(ctx, tip.x - k, ty - k, '#e8f6ff', 2);
+                }
+            }
+        } });
+    }
+    if (want.has('grass')) {
+        // 풀 (#96 아트 2바퀴 8) — 잎 6 × 4 (#7cd050 · 잎맥 1칸 #2f7a2c) 10장 · 90ms 마다 −30° → 0 → +30° 돌며 바깥으로 · 0.7초
+        const LEAVES = [['221...', '.1221.', '..1121', '....11'], ['..111.', '.11111', '222221', '..111.'], ['....11', '..1121', '.1221.', '221...']];
+        add({ x: 0, y: 0, s: k, max: 0.7, z: 1, draw: (ctx, p) => {
+            const st = Math.floor(p.life / 0.09);
+            ctx.globalAlpha = 1;
+            for (let i = 0; i < 10; i++) {
+                const a = (i / 10) * Math.PI * 2 + 0.3;
+                const d = Math.max(tb.w, tb.h) * 0.55 + st * 3 * k;
+                const x = tb.x + Math.cos(a) * d * 1.3;
+                const y = tb.y + Math.sin(a) * d * 0.8;
+                const L = LEAVES[(st + i) % 3];
+                const fx = Math.cos(a) < 0;
+                for (let r = 0; r < 4; r++) {
+                    for (let c = 0; c < 6; c++) {
+                        const ch = L[r][fx ? 5 - c : c];
+                        if (ch !== '.') {
+                            dot(ctx, x + (c - 2.5) * k, y + (r - 1.5) * k, ch === '1' ? '#7cd050' : '#2f7a2c');
+                        }
+                    }
+                }
+            }
+        } });
+    }
+    if (want.has('fire')) {
+        // 불 (#96 디자인) — 불꽃 혀 3 × 5 (T11_GRAIN fire) 8개가 나선으로 솟음 (반지름 + 2칸 · 위로 3칸 / 90ms 걸음) + 불티 1칸 점 6 · 0.7초
+        const F = T11_STAR_COLS.fire;
+        const GL = T11_GRAIN.fire;
+        const col = { W: F[0], L: F[1], M: F[2], D: F[3] };
+        const r0 = Math.max(tb.w, tb.h) * 0.55;
+        add({ x: 0, y: 0, s: k, max: 0.7, z: 1, draw: (ctx, p) => {
+            const st = Math.floor(p.life / 0.09);
+            ctx.globalAlpha = 1;
+            for (let i = 0; i < 8; i++) {
+                const a = (i / 8) * Math.PI * 2 + st * 0.45;
+                const x = tb.x + Math.cos(a) * (r0 + st * 2 * k) * 1.2;
+                const y = tb.y + Math.sin(a) * (r0 + st * 2 * k) * 0.7 - st * 3 * k;
+                for (let r = 0; r < GL.length; r++) {
+                    for (let c = 0; c < GL[r].length; c++) {
+                        const ch = GL[r][c];
+                        if (ch !== '.') {
+                            dot(ctx, x + (c - 1) * k, y + (r - 2) * k, col[ch]);
+                        }
+                    }
+                }
+            }
+            for (let i = 0; i < 6; i++) {
+                const a = (i / 6) * Math.PI * 2 + 0.4;
+                dot(ctx, tb.x + Math.cos(a) * (r0 * 0.8 + st * 3 * k), tb.y - st * (2 + (i % 3)) * k + Math.sin(a) * r0 * 0.4, i % 2 ? F[1] : F[2]);
+            }
+        } });
+    }
+    // 나머지 15 타입 (#96 ② 디자인 #152 A) — 2px 칸 · 6 ~ 10조각 · 터짐 가장자리에서 시작 · 90ms 걸음 · 0.6 ~ 0.8초 · 별 4단 색 · 터짐 덮개 위 ·
+    // 3인 (동료 타입 둘) 은 타입마다 조각 반씩 · 위 끝 (정보줄 · 지도 줄) 위로는 안 그림
+    // 큰 장식 (얼음 반원) 먼저 = 아래 층 · 나머지는 그 위 (#96 아트 2바퀴 2)
+    for (const type of [...want].sort((p1, p2) => (p2 === 'ice') - (p1 === 'ice'))) {
+        const fin = T11_FINALE[type];
+        if (!fin) {
+            continue;
+        }
+        const S = T11_STAR_COLS[type] || T11_STAR_COLS.normal;
+        // [심 · 옅은 · 본색 · 짙은] — 악 · 고스트는 [3] 이 밝은 테라 짙은 색을 따로
+        const C = [S[0], S[1], S[2], T11_STAR_RIM.has(type) ? t11Mix(S[2], '#0c101e', 0.55) : S[3]];
+        const top0 = t33Top();
+        const r0 = Math.max(tb.w, tb.h) * 0.55;
+        const trio = want.size >= 2;
+        const n = (v) => v; // 조각 수 그대로 (3인도 반으로 안 줄임 — #96 아트 2바퀴 2) · 큰 장식 (얼음) 만 trio 로 작게
+        const at = (ctx, x, y, c, m = 1) => {
+            if (y >= top0) {
+                dot(ctx, x, y, c, m);
+            }
+        };
+        // 작은 그림 (글자 줄 — 0 ~ 3 = 색 4단 · 그 밖 글자 = X 색 · . = 빔) 을 (x, y) 가운데에
+        const spr = (ctx, x, y, rows, X = {}, fx = false, fy = false) => {
+            const h = rows.length;
+            const w = rows[0].length;
+            for (let r = 0; r < h; r++) {
+                const row = rows[fy ? h - 1 - r : r];
+                for (let c = 0; c < w; c++) {
+                    const ch = row[fx ? w - 1 - c : c];
+                    if (ch !== '.') {
+                        at(ctx, x + (c - (w - 1) / 2) * k, y + (r - (h - 1) / 2) * k, ch >= '0' && ch <= '3' ? C[+ch] : X[ch]);
+                    }
+                }
+            }
+        };
+        const life = fin.max;
+        add({ x: 0, y: 0, s: k, max: life, z: 1, draw: (ctx, p) => {
+            ctx.globalAlpha = 1;
+            fin.draw({ ctx, st: Math.floor(p.life / 0.09), tb, k, C, S, r0, floor: bottom, n, at, spr, trio, top0 });
+        } });
+    }
+}
+
+// 동료 타입 끝 장식 (물 · 풀 · 불 빼고 — t11Finale 위) · draw({ ctx, st = 90ms 걸음, tb = 맞는 몸, k = 칸, C = 4단, r0 = 터짐 가장자리, floor = 발밑, n = 조각 수 (3인 반), at = 점, spr = 그림 })
+const T11_SPR = {
+    flake: ['1..1..1', '.1.0.1.', '..000..', '1000001', '..000..', '.1.0.1.', '1..1..1'],
+    icicle: ['.0.', '.0.', '010', '121', '232'],
+    bubble: ['.222.', '2..02', '2...2', '2...2', '.222.'],
+    pop: ['1...1', '.....', '..0..', '.....', '1...1'],
+    clod3: ['112', '123', '233'],
+    clod4: ['1122', '1223', '2233', '.33.'],
+    feather: ['.1.1.1.', '1111111', '3333333', '.22222.'],
+    plus3: ['.1.', '101', '.1.'],
+    scale: ['.0.', '121'],
+    rock: ['.12.', '1223', '2333'],
+    wisp: ['.0.', '010', '020', '020', '.0.'],
+    diamond: ['..3..', '.313.', '31013', '.313.', '..3..'],
+    crescent: ['.3311..', '331....', '31.....', '331....', '.3311..'],
+    shardH: ['.0112', '01223', '1223.'],
+    shardV: ['.01', '012', '122', '123', '23.'],
+    heart: ['.2.2.', '20222', '22222', '.222.', '..2..'],
+    plus5: ['..1..', '..1..', '11011', '..1..', '..1..'],
+    twinkle: ['..2..', '..1..', '21012', '..1..', '..2..'],
+    spark3: ['0..', '.1.', '.00'],
+    rock5: ['.111.', '12221', '22222', '23332', '.333.'],
+    ghostA: ['.RRRR.', 'R2222R', 'R2002R', 'R2002R', 'R2222R', 'R2222R', '.R22R.', '..R2R.'],
+    ghostB: ['.RRRR.', 'R2222R', 'R2002R', 'R2002R', 'R2222R', 'R2222R', '.R22R.', '.R2R..'],
+    moon: ['..RRR..', '.R22...', 'R22....', 'R22....', 'R22....', '.R22...', '..RRR..'],
+};
+const T11_FINALE = {
+    // 전기 — 지그재그 6 (6 ~ 10칸 · 심 [0] 1칸 + 테 [3]) 은 2장면만 한 번 (1초 3번 넘게 번쩍이지 않게) · 360ms 에 작은 지그재그 (6칸 · [2]) 한 번 더 + 한 번 꺾인 3 × 3 불티 8개가 바깥으로 (#96 아트 2바퀴 8)
+    electric: { max: 0.7, draw: ({ ctx, st, tb, k, C, r0, n, at, spr }) => {
+        const z = n(6);
+        if (st >= 1 && st <= 2) {
+            for (const pass of [0, 1]) {
+                for (let i = 0; i < z; i++) {
+                    const a = (i / z) * Math.PI * 2 + 0.25;
+                    const ux = Math.cos(a);
+                    const uy = Math.sin(a);
+                    const len = 6 + ((i * 3) % 5);
+                    // 꼭짓점 = 2칸마다 · 옆으로 ±2칸 번갈아 (첫 점은 가운데) → 칸마다 이어 그음
+                    const x0 = tb.x + ux * r0 * 1.2;
+                    const y0 = tb.y + uy * r0 * 0.8;
+                    const vtx = (m) => {
+                        const side = m === 0 ? 0 : m % 2 ? 2 : -2;
+                        return [x0 + ux * m * 2 * k - uy * side * k, y0 + uy * m * 2 * k + ux * side * k];
+                    };
+                    for (let m = 0; m < len / 2; m++) {
+                        const [ax, ay] = vtx(m);
+                        const [bx, by] = vtx(m + 1);
+                        const cells = Math.max(1, Math.round(Math.hypot(bx - ax, by - ay) / k));
+                        for (let j = 0; j <= cells; j++) {
+                            const cx = ax + ((bx - ax) * j) / cells;
+                            const cy = ay + ((by - ay) * j) / cells;
+                            if (pass === 0) {
+                                at(ctx, cx - k, cy, C[3]);
+                                at(ctx, cx + k, cy, C[3]);
+                                at(ctx, cx, cy - k, C[3]);
+                                at(ctx, cx, cy + k, C[3]);
+                            } else {
+                                at(ctx, cx, cy, C[0]);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // 360ms — 작은 지그재그 (6칸 · 본색 [2] · 흰 심 아님) 한 번 더
+        if (st === 4) {
+            for (let i = 0; i < z; i++) {
+                const a = (i / z) * Math.PI * 2 + 0.25 + Math.PI / z;
+                const ux = Math.cos(a);
+                const uy = Math.sin(a);
+                for (let j = 0; j < 6; j++) {
+                    const side = (j >> 1) % 2 ? 1 : -1;
+                    at(ctx, tb.x + ux * (r0 * 1.6 + j * k) - uy * side * k, tb.y + uy * (r0 * 1.0 + j * k) + ux * side * k, C[2]);
+                }
+            }
+        }
+        const m = n(8);
+        for (let i = 0; i < m; i++) {
+            const a = (i / m) * Math.PI * 2 + 0.6;
+            const d = r0 + st * 3 * k;
+            spr(ctx, tb.x + Math.cos(a) * d * 1.3, tb.y + Math.sin(a) * d * 0.8, T11_SPR.spark3, {}, Math.cos(a) < 0);
+        }
+    } },
+    // 얼음 — 눈송이 7 × 7 8개가 터짐 가장자리 위쪽에서 흔들리며 떨어짐 + 발밑 고드름 4개가 3걸음에 솟음
+    ice: { max: 0.8, draw: ({ ctx, st, tb, k, r0, floor, n, spr, trio }) => {
+        const m = trio ? 4 : n(8);
+        const rk = trio ? 0.6 : 1;
+        for (let i = 0; i < m; i++) {
+            const a = Math.PI * (1.05 + (i / Math.max(1, m - 1)) * 0.9);
+            const x = tb.x + Math.cos(a) * r0 * 1.4 * rk + Math.sin(st * 0.8 + i) * 2 * k;
+            const y = tb.y + Math.sin(a) * r0 * 0.9 * rk + st * 2 * k;
+            spr(ctx, x, Math.min(y, floor - 4 * k), T11_SPR.flake);
+        }
+        const g = Math.min(5, 2 + st);
+        for (const [i, f] of [-1.2, -0.6, 0.6, 1.2].entries()) {
+            if (i >= n(4)) {
+                break;
+            }
+            // 밑 줄을 발밑 1칸 위에 붙이고 위로 자람
+            spr(ctx, tb.x + f * r0, floor - k - ((g - 1) / 2) * k, T11_SPR.icicle.slice(5 - g));
+        }
+    } },
+    // 격투 — 충격 호 조각 8 (두 겹 고리 · [2] 2칸 + [3] 그림자 — 연분홍 1칸이라 에스퍼처럼 읽히던 것) 이 퍼짐 + 발밑 금 4줄 (#642d2b)
+    fighting: { max: 0.6, draw: ({ ctx, st, tb, k, C, r0, floor, n, at }) => {
+        const m = n(8);
+        if (st < 6) {
+            for (let i = 0; i < m; i++) {
+                const ring = i % 2;
+                const R = ring ? r0 * 0.8 + st * 2 * k : r0 + st * 3 * k;
+                const a0 = (Math.floor(i / 2) / Math.max(1, Math.ceil(m / 2))) * Math.PI * 2 + (ring ? Math.PI / 4 : 0);
+                const cells = Math.max(3, Math.round((R * 0.5) / k));
+                for (let j = 0; j <= cells; j++) {
+                    const a = a0 - 0.25 + (0.5 * j) / cells;
+                    at(ctx, tb.x + Math.cos(a) * (R + 2 * k) * 1.2, tb.y + Math.sin(a) * (R + 2 * k) * 0.8 + k, C[3]);
+                    at(ctx, tb.x + Math.cos(a) * (R + k) * 1.2, tb.y + Math.sin(a) * (R + k) * 0.8, C[2]);
+                    at(ctx, tb.x + Math.cos(a) * R * 1.2, tb.y + Math.sin(a) * R * 0.8, C[2]);
+                }
+            }
+        }
+        const len = Math.min(7, 2 + st);
+        for (const [i, [dir, y0]] of [[-1, 0], [1, 0], [-1, 1], [1, 1]].entries()) {
+            if (i >= n(4)) {
+                break;
+            }
+            for (let j = 0; j < len - y0 * 2; j++) {
+                at(ctx, tb.x + dir * (r0 * (0.2 + y0 * 0.5) + j * k), floor - k + ((j + i) % 3 === 1 ? -k : 0) + y0 * k, '#642d2b');
+            }
+        }
+    } },
+    // 독 — 거품 고리 5 × 5 8개가 솟다가 터짐 (조각마다 4 ~ 6걸음) + 발밑 웅덩이 (두 줄 · 퍼졌다 마름)
+    poison: { max: 0.8, draw: ({ ctx, st, tb, k, C, r0, floor, n, at, spr }) => {
+        const m = n(8);
+        for (let i = 0; i < m; i++) {
+            const popAt = 4 + (i % 3);
+            if (st > popAt) {
+                continue;
+            }
+            const a = Math.PI * (1.0 + (i / Math.max(1, m - 1)) * 1.0);
+            const x = tb.x + Math.cos(a) * r0 * 1.2;
+            const y = tb.y + Math.sin(a) * r0 * 0.6 - st * 2 * k;
+            spr(ctx, x, y, st === popAt ? T11_SPR.pop : T11_SPR.bubble);
+        }
+        if (st < 8) {
+            const rw = Math.round((tb.w * 0.6) / k) + Math.min(st, 4) - Math.max(0, st - 5) * 2;
+            for (let c = -rw; c <= rw; c++) {
+                at(ctx, tb.x + c * k, floor - k, c % 4 === 0 ? C[1] : C[2]);
+                if (Math.abs(c) < rw - 1) {
+                    at(ctx, tb.x + c * k, floor, C[3]);
+                }
+            }
+        }
+    } },
+    // 땅 — 흙덩이 3 × 3 · 4 × 4 10개가 포물선 + 발밑 먼지 띠 (바둑판 두 줄)
+    ground: { max: 0.8, draw: ({ ctx, st, tb, k, C, r0, floor, n, at, spr }) => {
+        const m = n(10);
+        const t = st * 0.09;
+        for (let i = 0; i < m; i++) {
+            const dir = i % 2 ? 1 : -1;
+            const vx = (r0 * (1.4 + (i % 5) * 0.35)) / 0.8;
+            const vy = r0 * (4 + (i % 3));
+            const x = tb.x + dir * (r0 * 0.4 + vx * t);
+            const y = Math.min(floor - 2 * k, tb.y - vy * t + r0 * 6 * t * t);
+            spr(ctx, x, y, i % 3 ? T11_SPR.clod3 : T11_SPR.clod4);
+        }
+        const L = Math.round(r0 / k) + st * 3;
+        for (let c = -L; c <= L; c++) {
+            for (const r of [0, 1]) {
+                if ((c + r) % 2 === 0) {
+                    at(ctx, tb.x + c * k, floor - (r + 1) * k, r ? C[1] : C[2]);
+                }
+            }
+        }
+    } },
+    // 비행 — 깃털 7 × 3 8개가 흔들리며 내려옴 + 바람 곡선 3개 (옅은 1칸 호 · 돌며 퍼짐)
+    flying: { max: 0.8, draw: ({ ctx, st, tb, k, C, r0, floor, n, at, spr }) => {
+        const m = n(8);
+        for (let i = 0; i < m; i++) {
+            const a = (i / m) * Math.PI * 2 + 0.4;
+            const sway = Math.sin(st * 0.9 + i * 1.7);
+            const x = tb.x + Math.cos(a) * (r0 + st * 1.5 * k) * 1.3 + sway * 2 * k;
+            const y = Math.min(floor - 2 * k, tb.y + Math.sin(a) * r0 * 0.7 + st * 1.5 * k);
+            spr(ctx, x, y, T11_SPR.feather, {}, sway < 0);
+        }
+        for (let w = 0; w < n(3); w++) {
+            const R = r0 * 1.3 + st * 2 * k;
+            const a0 = (w / 3) * Math.PI * 2 + st * 0.35;
+            for (let j = 0; j < 10; j++) {
+                const a = a0 + j * 0.09;
+                at(ctx, tb.x + Math.cos(a) * R * 1.3, tb.y + Math.sin(a) * R * 0.7, j > 6 ? C[2] : C[1]);
+            }
+        }
+    } },
+    // 에스퍼 — 점선 고리 3개가 120ms 씩 늦게 퍼짐 + 둘레를 도는 "+" 4개
+    psychic: { max: 0.7, draw: ({ ctx, st, tb, k, C, r0, n, at, spr }) => {
+        for (let i = 0; i < 3; i++) {
+            const s2 = st - Math.round((i * 0.12) / 0.09);
+            if (s2 < 0 || s2 > 6) {
+                continue;
+            }
+            const R = r0 * 0.7 + s2 * 3 * k;
+            const cells = Math.max(16, Math.round((Math.PI * 2 * R) / k));
+            for (let j = 0; j < cells; j += 2) {
+                const a = (j / cells) * Math.PI * 2;
+                at(ctx, tb.x + Math.cos(a) * R * 1.2, tb.y + Math.sin(a) * R * 0.6, i % 2 ? C[1] : C[2]);
+            }
+        }
+        const m = n(4);
+        for (let i = 0; i < m; i++) {
+            const a = (i / m) * Math.PI * 2 + st * 0.5;
+            spr(ctx, tb.x + Math.cos(a) * r0 * 1.5, tb.y + Math.sin(a) * r0 * 0.7, T11_SPR.plus3);
+        }
+    } },
+    // 벌레 — 몸 2 × 2 [2] + 날개 1칸 [0] (90ms 마다 위 ↔ 아래 파닥) 12마리가 6마리씩 두 무리로 지름 12칸 원을 돎 (#96 아트 2바퀴 8)
+    bug: { max: 0.7, draw: ({ ctx, st, tb, k, C, r0, n, at }) => {
+        const m = n(8);
+        for (let i = 0; i < m; i++) {
+            const g = i % 2;
+            const cx = tb.x + (g ? 1 : -1) * r0 * 1.1;
+            const cy = tb.y - r0 * 0.3 - st * k;
+            const a = (Math.floor(i / 2) / Math.ceil(m / 2)) * Math.PI * 2 + st * 0.5 * (g ? 1 : -1);
+            const x = cx + Math.cos(a) * 8 * k;
+            const y = cy + Math.sin(a) * 8 * k * 0.7;
+            for (let c = 0; c < 3; c++) {
+                at(ctx, x + (c - 1) * k, y, C[2]);
+                at(ctx, x + (c - 1) * k, y + k, C[2]);
+            }
+            at(ctx, x, (st >> 1) % 2 ? y - k : y + 2 * k, C[0]);
+        }
+    } },
+    // 바위 — 5 × 5 팔각 돌 3단 6개가 무대 위 + 4칸에서 떨어져 발 줄에 닿고 1칸 튄 뒤 멈춤 + 닿을 때 2 × 1 먼지 둘 (땅 = 솟는 흙덩이와 갈리게 — #96 아트 2바퀴 8)
+    rock: { max: 0.8, draw: ({ ctx, st, tb, k, C, r0, floor, n, at, spr, top0 }) => {
+        const m = n(6);
+        const y0 = Math.max(top0, 0) + 4 * k;
+        const yEnd = floor - 3 * k;
+        for (let i = 0; i < m; i++) {
+            const x = tb.x + (i % 2 ? 1 : -1) * r0 * (0.4 + 0.3 * Math.floor(i / 2));
+            const s2 = st - (i % 3);
+            if (s2 < 0) {
+                continue;
+            }
+            // 떨어짐 (걸음마다 빨라짐) → 닿은 걸음은 1칸 위 (튐) → 그 뒤 멈춤
+            const fall = y0 + (s2 * (s2 + 1) * k * 3) / 2;
+            const land = fall >= yEnd;
+            const first = land && y0 + ((s2 - 1) * s2 * k * 3) / 2 < yEnd;
+            const y = land ? (first ? yEnd - k : yEnd) : fall;
+            spr(ctx, x, y, T11_SPR.rock5);
+            if (first) {
+                at(ctx, x - 3 * k, floor - k, C[1], 1);
+                at(ctx, x - 2 * k, floor - k, C[1], 1);
+                at(ctx, x + 2 * k, floor - k, C[1], 1);
+                at(ctx, x + 3 * k, floor - k, C[1], 1);
+            }
+        }
+    } },
+    // 고스트 — 몸 4 × 6 [2] + 심 2 × 2 [0] + 밝은 테 1칸 6개 · 꼬리 2칸이 90ms 마다 좌우 · ±1칸 떠다니며 천천히 떠남 (#96 아트 2바퀴 8)
+    ghost: { max: 0.8, draw: ({ ctx, st, tb, r0, k, n, spr, S }) => {
+        const m = n(6);
+        for (let i = 0; i < m; i++) {
+            const a = Math.PI * (0.95 + (i / Math.max(1, m - 1)) * 1.1);
+            const x = tb.x + Math.cos(a) * (r0 * 1.2 + st * k);
+            const y = tb.y + Math.sin(a) * r0 * 0.7 - st * k + ((st + i) % 4 < 2 ? -k : k);
+            spr(ctx, x, y, (st + i) % 2 ? T11_SPR.ghostA : T11_SPR.ghostB, { R: S[3] });
+        }
+    } },
+    // 드래곤 — 비늘 마름모 5 × 5 8개가 나선으로 솟음 + S 자 기운 줄기 2 (심 [1] · 테 [3])
+    dragon: { max: 0.8, draw: ({ ctx, st, tb, k, C, r0, floor, n, at, spr }) => {
+        const m = n(8);
+        for (let i = 0; i < m; i++) {
+            const a = (i / m) * Math.PI * 2 + st * 0.5;
+            const d = r0 + st * 1.5 * k;
+            spr(ctx, tb.x + Math.cos(a) * d * 1.2, tb.y + Math.sin(a) * d * 0.6 - st * 2 * k, T11_SPR.diamond);
+        }
+        const L = Math.min(16, st * 3);
+        for (const [i, sd] of [-1, 1].entries()) {
+            if (i >= n(2)) {
+                break;
+            }
+            const sx = (j) => tb.x + sd * r0 * 0.5 + Math.round(Math.sin(j * 0.6 + st * 0.8) * 3) * k * sd;
+            const sy = (j) => floor - 2 * k - j * k * 1.5;
+            for (let j = 0; j < L; j++) {
+                at(ctx, sx(j) - k, sy(j), C[3]);
+                at(ctx, sx(j) + k, sy(j), C[3]);
+                at(ctx, sx(j), sy(j), C[1]);
+            }
+            // 줄기 위 비늘 셋 (#96 아트 3바퀴 7 — 비늘이 안 보이던 것)
+            for (const f of [0.3, 0.6, 0.9]) {
+                const j = Math.floor(L * f);
+                if (j > 0) {
+                    spr(ctx, sx(j), sy(j), T11_SPR.diamond);
+                }
+            }
+        }
+    } },
+    // 악 — 초승달 (2칸 굵기 호 [2] + 바깥 밝은 테 1칸) 6개가 양옆으로 미끄러져 나감 + 발밑 그림자 점 2 × 1 넷 (#1a1626 — #96 아트 2바퀴 8)
+    dark: { max: 0.7, draw: ({ ctx, st, tb, k, r0, floor, n, at, spr, S }) => {
+        const m = n(6);
+        const rx = tb.w / 2 + 6 * k + st * k;
+        const ry = tb.h / 2 + 4 * k + st * k;
+        for (let i = 0; i < m; i++) {
+            const a = (i / m) * Math.PI * 2 + (st * 15 * Math.PI) / 180;
+            const x = tb.x + Math.cos(a) * rx;
+            spr(ctx, x, Math.min(floor - 4 * k, tb.y + Math.sin(a) * ry), T11_SPR.moon, { R: S[3] }, x < tb.x); // 땅 아래로는 안 감
+        }
+        for (let j = 0; j < 4; j++) {
+            const x = tb.x + (j - 1.5) * (r0 * 0.6 + st * 2 * k);
+            at(ctx, x, floor - k, '#1a1626');
+            at(ctx, x + k, floor - k, '#1a1626');
+        }
+    } },
+    // 강철 — 쇳조각 5 × 3 8개가 돌며 (가로 ↔ 세로) 퍼짐 + "+" 반짝 4개 (2 ~ 6걸음 · 깜빡이지 않음)
+    steel: { max: 0.7, draw: ({ ctx, st, tb, k, r0, n, spr }) => {
+        const m = n(8);
+        for (let i = 0; i < m; i++) {
+            const a = (i / m) * Math.PI * 2 + 0.2;
+            const d = r0 + st * 3 * k;
+            spr(ctx, tb.x + Math.cos(a) * d * 1.3, tb.y + Math.sin(a) * d * 0.8, (st + i) % 2 ? T11_SPR.shardV : T11_SPR.shardH);
+        }
+        if (st >= 2 && st <= 6) {
+            const s4 = n(4);
+            for (let i = 0; i < s4; i++) {
+                const a = (i / s4) * Math.PI * 2 + Math.PI / 4;
+                spr(ctx, tb.x + Math.cos(a) * r0 * 1.5, tb.y + Math.sin(a) * r0 * 0.8, T11_SPR.plus3);
+            }
+        }
+    } },
+    // 페어리 — 하트 5 × 5 6개 + "+" 5 × 5 4개가 위로 오름
+    // 페어리 — 하트 10 (넓게 — 같은 타입 짝 상대 합동에서 분홍 동료가 끝에만 조금이던 것, #96 아트 6바퀴 5) + 십자 4
+    fairy: { max: 0.8, draw: ({ ctx, st, tb, k, r0, n, spr }) => {
+        const m = n(10);
+        for (let i = 0; i < m; i++) {
+            const a = (i / m) * Math.PI * 2 + 0.3;
+            spr(ctx, tb.x + Math.cos(a) * (r0 + st * 1.5 * k) * 1.5, tb.y + Math.sin(a) * r0 * 0.75 - st * 2 * k, T11_SPR.heart);
+        }
+        const s4 = n(4);
+        for (let i = 0; i < s4; i++) {
+            const a = (i / s4) * Math.PI * 2 + 1.0;
+            spr(ctx, tb.x + Math.cos(a) * r0 * 1.4, tb.y + Math.sin(a) * r0 * 0.5 - st * 2.5 * k, T11_SPR.plus5);
+        }
+    } },
+    // 노말 — "✦" 8개가 바깥으로 + 발밑 베이지 먼지 뭉치 4 (천천히 오름)
+    normal: { max: 0.6, draw: ({ ctx, st, tb, k, r0, floor, n, at, spr }) => {
+        const m = n(8);
+        for (let i = 0; i < m; i++) {
+            const a = (i / m) * Math.PI * 2;
+            const d = r0 + st * 3 * k;
+            spr(ctx, tb.x + Math.cos(a) * d * 1.3, tb.y + Math.sin(a) * d * 0.8, T11_SPR.twinkle);
+        }
+        const p4 = n(4);
+        for (let i = 0; i < p4; i++) {
+            const x = tb.x + [-1.1, -0.5, 0.5, 1.1][i] * r0;
+            const y = floor - 2 * k - st * k;
+            for (const [dx, dy, c] of [[0, 0, '#d8c8a8'], [1, 0, '#d8c8a8'], [0, -1, '#b8a888'], [1, -1, '#d8c8a8'], [2, 0, '#b8a888']]) {
+                at(ctx, x + dx * k, y + dy * k, c);
+            }
+        }
+    } },
+};
+
 // ===== ult/fx-unique.js =====
 // ───── 전용 필살기 — 인기 · 전설 포켓몬 (2026-10-19 태현 님: 모든 포켓몬 필살기를 리자몽 · 거북왕처럼) ─────
 // 데이터 옵션 uniq: '<이름>' 이면 그 틀(fx) 대신 여기 연출 — 틀 이름이 그대로라 필살기 대결 모양도 그대로.
@@ -26771,6 +29174,8 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
     const UNIQ = {}; // 이름 → { fx, ms(P, o), run(u, o, ms, pokemon) }
     // 게임 화면 연출 위 끝 (bridge fxStageTop — 정보줄 · 지도 줄 아래 끝) · 일반 모드 · 3:3 무대 상자 안은 0 — 위로 던지는 불덩이 · 뛰어오른 몸이 그 뒤로 숨지 않게 (#105)
     const gameTop = () => (typeof fxStageTop === 'function' ? fxStageTop() : 0);
+    // 3:3 장면 전환 합동 — 전용 구도 구 자리를 알림 (fx-sky jointOrb · #96 아트 5바퀴 1)
+    const jointOrb = K.jointOrb;
 
     // 꼭두각시 — 진짜 그림을 숨기고 footAt(t) 높이에 테두리 두른 그림. until 초까지 (그 뒤 진짜 그림이 다시 보임)
     // extra: x(t) 자리 · dx(t) 옆으로 · scale(t) 크기 · rot(t) 기울기 · glow(t) 한 색으로 빛남(glowColor)
@@ -26810,7 +29215,7 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
         const hit = makeHit();
         const me = monBox(pokemon);
         const bandH = Math.max(40, H * 0.3);
-        const cloudY = bandH * 0.38;
+        const cloudY = K.cloudAt(u, bandH * 0.38, bandH * 0.4);
         const TC0 = 0.3;
         const strikesAt = [0.65, 1.05, 1.38, 1.66, 1.9, 2.08];
         const TJ = 2.3; // 뛰어오름
@@ -26819,7 +29224,8 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
         const TB = 4.85; // 대폭발
         const TD = TB + 2.0; // 내려앉음
         const Rs = clamp(Math.max(me.w * 0.9, short(u) * 0.13), 10 * s, Math.min(H * 0.22, W * 0.2));
-        const top = clamp(me.b - H * 0.32, bandH + me.h * 0.5 + Rs * 1.2, me.b - me.h * 0.3);
+        // 게임 화면 = 위 끝 + 몸 반 + 구 (커지는 1.3배까지) + 4칸 아래 (#96 ④)
+        const top = clamp(me.b - H * 0.32, Math.max(bandH + me.h * 0.5 + Rs * 1.2, gameTop() > 0 ? gameTop() + me.h * 0.5 + Rs * 1.45 + 4 * s : 0), me.b - me.h * 0.3);
         const footAt = (t) => {
             if (t < TJ) {
                 return me.b;
@@ -26838,7 +29244,7 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
             lit = Math.max(0, lit - dt);
             flash = Math.max(0, flash - dt * 4);
         });
-        skyBand(sc, '#070914', bandH * 1.2, 0.65, sec);
+        skyBand(sc, '#070914', bandH * 1.2 + cloudY - bandH * 0.38, 0.65, sec);
         cloudBank(sc, { y: cloudY, h: bandH * 0.4, cols: ['#6b7090', '#454a63', '#2c3045'], sec, lit: () => (lit > 0 ? 1 : 0), speed: 25 * dir, litCols: ['#ffffff', ZAPC[1], ZAPC[2]] });
         // 전기 구 (피카츄 뒤) — 뛰어오르면 커지고, 대폭발 때 사라짐
         sc.add({ max: TB + 0.05, draw: (ctx, it, t, px) => {
@@ -27030,10 +29436,12 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
         const TB = TT + TFLY; // 맞음
         const faceR = clamp(Math.min(W * 0.26, H * 0.32), 30, 180);
         const fx0 = W / 2;
-        const fy0 = clamp(H * 0.3, faceR * 0.7, Math.max(faceR * 0.7, G - faceR * 1.6));
+        // 게임 화면 = 웃는 얼굴 (위 끝 ≈ y − 0.46 R − 3칸) · 공 (≈ 1.56 Rb) 이 위 끝 + 4칸 아래 · 던지는 길 꼭대기도 (위 끝에 반쯤 걸쳐 머물던 것 — #96 디자인 4바퀴 · ult-top 걸쳐 머묾)
+        const fy0 = Math.max(clamp(H * 0.3, faceR * 0.7, Math.max(faceR * 0.7, G - faceR * 1.6)), gameTop() > 0 ? gameTop() + faceR * 0.5 + 6 * s : 0);
         const Rb = clamp(Math.max(me.w * 0.55, short(u) * 0.1), 6 * s, H * 0.14);
+        const ballMin = gameTop() > 0 ? gameTop() + Rb * 1.6 + 4 * s : -Infinity;
         const footAt = (t) => me.b - lift * easeOut(clamp((t - 0.2) / 0.5, 0, 1)) * (t > sec - 0.6 ? clamp((sec - 0.15 - t) / 0.45, 0, 1) : 1) + Math.sin(t * 3) * s;
-        const ball = (t) => [me.x + dir * me.w * 0.1, footAt(t) - me.h - Rb * 1.2];
+        const ball = (t) => [me.x + dir * me.w * 0.1, Math.max(ballMin, footAt(t) - me.h - Rb * 1.2)];
         const q = nearest(u);
         const tx = q ? q.x : clamp(me.x + dir * W * 0.45, W * 0.1, W * 0.9);
         const sc = scene(u, sec + 0.4, 'uniq gengar');
@@ -27091,6 +29499,7 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
             const [x, y] = ball(life);
             const k = easeOut((life - TC0) / 1.4) * (1 + 0.1 * Math.max(0, Math.sin(life * 8)) ** 4);
             shadowBall(ctx, px, x, y, Rb * k, life);
+            jointOrb(o, ctx, x, y, Rb * k, true);
         } });
         // 작은 섀도볼 난사 — 다른 포켓몬 (모자라면 땅 곳곳)
         const spots = u.others().map((r) => ({ r, x: r.x }));
@@ -27148,10 +29557,12 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
             const [x0, y0] = ball(TT);
             const ey = G - Rb;
             const x = lerp(x0, tx, k);
-            const y = lerp(y0, ey, k * k) - Math.sin(k * Math.PI) * H * 0.08;
+            const y = lerp(y0, ey, k * k) - Math.sin(k * Math.PI) * clamp(y0 - ballMin, 0, H * 0.08);
             shadowBall(ctx, px, x, y, Rb * 1.1, life);
+            jointOrb(o, ctx, x, y, Rb * 1.1, false, true);
         } });
         sc.at(TB, () => {
+            jointOrb(o);
             impactFrames(sc, W, H, 0.6, 0.6);
             blastDome(sc, tx, G, clamp(Math.max(H * 0.45, Rb * 5), 30, Math.min(G * 0.92, W * 0.5)), 2.0, GHOST);
             ring(sc, tx, G - s, Rb, W * 0.7, 0.25, 0.8, ['#ffffff', GHOST[1], GHOST[2]], 3);
@@ -27397,12 +29808,13 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
         sc.tick((t, dt) => {
             lit = Math.max(0, lit - dt);
         });
-        skyBand(sc, '#060c18', bandH * 1.2, 0.7, sec);
-        cloudBank(sc, { y: bandH * 0.38, h: bandH * 0.42, cols: ['#5f6b86', '#3d4660', '#272e42'], sec, lit: () => (lit > 0 ? 1 : 0), speed: 30 * dir, litCols: ['#ffffff', '#dbe8ff', '#9fb4e0'] });
+        const gcy = K.cloudAt(u, bandH * 0.38, bandH * 0.42);
+        skyBand(sc, '#060c18', bandH * 1.2 + gcy - bandH * 0.38, 0.7, sec);
+        cloudBank(sc, { y: gcy, h: bandH * 0.42, cols: ['#5f6b86', '#3d4660', '#272e42'], sec, lit: () => (lit > 0 ? 1 : 0), speed: 30 * dir, litCols: ['#ffffff', '#dbe8ff', '#9fb4e0'] });
         K.waterRain(sc, 0.2, sec - 0.4, K.pal.TIDE);
         [0.5, 1.3, 2.2, 3.6].forEach((tb) => sc.at(tb, () => {
             lit = 0.1;
-            strike(sc, rnd(0.1, 0.9) * W, bandH * 0.3, rnd(0.1, 0.9) * W, bandH * 0.9 + rnd(0, H * 0.1), { w: 1, mid: '#dbe8ff', glow: '#6c88c8', dur: 0.2, branches: 1 });
+            strike(sc, rnd(0.1, 0.9) * W, gcy - bandH * 0.08, rnd(0.1, 0.9) * W, gcy + bandH * 0.52 + rnd(0, H * 0.1), { w: 1, mid: '#dbe8ff', glow: '#6c88c8', dur: 0.2, branches: 1 });
         }));
         // 발밑 물 소용돌이
         sc.add({ max: sec, draw: (ctx, it, t, px) => {
@@ -27907,10 +30319,12 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
             }
             const c = Math.max(s, Math.round(short(u) / 100));
             const bands = [['#5dffb0', 0.12, 0.3], ['#7fe8ff', 0.2, 0.25], ['#c99cff', 0.28, 0.2]];
+            // 게임 화면 = 오로라 띠 윗끝이 위 끝 + 4칸 아래 (머무는 하늘 장식 — #96 ④)
+            const ay = gameTop() > 0 ? Math.max(0, gameTop() + 4 * s - H * 0.065) : 0;
             for (const [col, yk, al] of bands) {
                 const path = new Path2D();
                 for (let x = 0; x < W; x += c) {
-                    const y = H * yk + Math.sin(x * 0.012 + life * 0.9 + yk * 9) * H * 0.04 + Math.sin(x * 0.031 - life * 0.6) * H * 0.015;
+                    const y = ay + H * yk + Math.sin(x * 0.012 + life * 0.9 + yk * 9) * H * 0.04 + Math.sin(x * 0.031 - life * 0.6) * H * 0.015;
                     const hgt = H * 0.06 * (0.6 + 0.4 * Math.sin(x * 0.02 + life * 1.3));
                     path.rect(Math.round(x / c) * c, Math.round(y / c) * c, c, Math.max(c, Math.round(hgt / c) * c));
                 }
@@ -28296,8 +30710,8 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
         sc.tick((t, dt) => {
             lit = Math.max(0, lit - dt);
         });
-        skyBand(sc, '#08101c', bandH * 1.2, 0.7, sec);
-        cloudBank(sc, { y: bandH * 0.38, h: bandH * 0.42, cols: ['#7a8aa8', '#55617d', '#38405a'], sec, lit: () => (lit > 0 ? 1 : 0), speed: 60 * dir, litCols: ['#ffffff', SILV[1], SILV[2]] });
+        skyBand(sc, '#08101c', bandH * 1.2 + K.cloudAt(u, bandH * 0.38, bandH * 0.42) - bandH * 0.38, 0.7, sec);
+        cloudBank(sc, { y: K.cloudAt(u, bandH * 0.38, bandH * 0.42), h: bandH * 0.42, cols: ['#7a8aa8', '#55617d', '#38405a'], sec, lit: () => (lit > 0 ? 1 : 0), speed: 60 * dir, litCols: ['#ffffff', SILV[1], SILV[2]] });
         // 바람 줄 — 화면을 가로지름
         sc.add({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
@@ -28712,8 +31126,8 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
         sc.tick((t, dt) => {
             lit = Math.max(0, lit - dt);
         });
-        skyBand(sc, '#040a16', bandH * 1.3, 0.75, sec);
-        cloudBank(sc, { y: bandH * 0.38, h: bandH * 0.45, cols: ['#4f5c78', '#323b55', '#20263a'], sec, lit: () => (lit > 0 ? 1 : 0), speed: 35 * dir, litCols: ['#ffffff', ORIGIN[1], ORIGIN[2]] });
+        skyBand(sc, '#040a16', bandH * 1.3 + K.cloudAt(u, bandH * 0.38, bandH * 0.45) - bandH * 0.38, 0.75, sec);
+        cloudBank(sc, { y: K.cloudAt(u, bandH * 0.38, bandH * 0.45), h: bandH * 0.45, cols: ['#4f5c78', '#323b55', '#20263a'], sec, lit: () => (lit > 0 ? 1 : 0), speed: 35 * dir, litCols: ['#ffffff', ORIGIN[1], ORIGIN[2]] });
         K.waterRain(sc, 0.15, sec - 0.3, ORIGIN);
         K.waterRain(sc, 0.4, sec - 0.3, ['#ffffff', '#8fd8ff', '#3fa2ff', '#1b4fd1']);
         // 차오르는 바닷물 — 땅 위 물결
@@ -29531,6 +31945,7 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
             ellipse(ctx, px, s, holeX, holeY, R * 1.25, R * 1.25 * 0.3, VOID[0], 0.6);
             ellipse(ctx, px, s, holeX, holeY, R, R, '#000000', 1);
             K.ringDots(ctx, px, s, holeX, holeY, R, 1, [VOID[1], VOID[0]], 0.9, 2);
+            jointOrb(o, ctx, holeX, holeY, R, life < TB - 0.15);
             for (let j = 0; j < 14; j++) {
                 const an = -life * 3 + (j * TAU) / 14;
                 const rr = R * (1.1 + 1.6 * (1 - ((life * 1.2 + j / 14) % 1)));
@@ -29545,6 +31960,7 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
             ring(sc, holeX, holeY, holeR * 3, holeR * 0.5, 1, 0.5, [VOID[0], VOID[1]], 2);
         });
         sc.at(TB, () => {
+            jointOrb(o);
             impactFrames(sc, W, H, 0.55, 0.65);
             blastDome(sc, holeX, G, clamp(Math.max(H * 0.5, holeR * 3.5), 30, Math.min(G * 0.92, W * 0.48)), 1.9, VOID);
             ring(sc, holeX, holeY, holeR, Math.max(W, H) * 0.8, 1, 0.7, ['#ffffff', VOID[0], VOID[1]], 2);
@@ -29771,7 +32187,7 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
         const hit = makeHit();
         const me = monBox(pokemon);
         const bandH = Math.max(40, H * 0.3);
-        const cloudY = bandH * 0.38;
+        const cloudY = K.cloudAt(u, bandH * 0.38, bandH * 0.42);
         const lift = me.h * 0.5;
         const charges = [0.8, 1.15, 1.45, 1.7, 1.9];
         const TRAIN = 2.15; // 번개 비
@@ -29791,7 +32207,7 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
         sc.tick((t, dt) => {
             lit = Math.max(0, lit - dt);
         });
-        skyBand(sc, '#070914', bandH * 1.2, 0.7, sec);
+        skyBand(sc, '#070914', bandH * 1.2 + cloudY - bandH * 0.38, 0.7, sec);
         cloudBank(sc, { y: cloudY, h: bandH * 0.42, cols: ['#6b7090', '#454a63', '#2c3045'], sec, lit: () => (lit > 0 ? 1 : 0), speed: 30 * dir, litCols: ['#ffffff', ZAPC[1], ZAPC[2]] });
         // 날개 번개 깃 (썬더 뒤)
         sc.add({ max: TI + 0.3, draw: (ctx, it, t, px) => {
@@ -29899,7 +32315,7 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
         const hit = makeHit();
         const me = monBox(pokemon);
         const bandH = Math.max(40, H * 0.3);
-        const cloudY = bandH * 0.38;
+        const cloudY = K.cloudAt(u, bandH * 0.38, bandH * 0.42);
         const charges = [0.7, 1.05, 1.35, 1.6, 1.8];
         const TJ0 = 2.1; // 순간이동 시작
         const STEP = 0.42;
@@ -29927,7 +32343,7 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
         sc.tick((t, dt) => {
             lit = Math.max(0, lit - dt);
         });
-        skyBand(sc, '#0a0716', bandH * 1.2, 0.7, sec);
+        skyBand(sc, '#0a0716', bandH * 1.2 + cloudY - bandH * 0.38, 0.7, sec);
         cloudBank(sc, { y: cloudY, h: bandH * 0.42, cols: ['#6b6090', '#463e63', '#2c2645'], sec, lit: () => (lit > 0 ? 1 : 0), speed: 25 * dir, litCols: ['#ffffff', RAIKO[1], RAIKO[2]] });
         // 기운 (라이코 뒤)
         sc.add({ max: sec, draw: (ctx, it, t, px) => {
@@ -30140,9 +32556,11 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
                 return;
             }
             const c = Math.max(s, Math.round(short(u) / 90));
+            // 게임 화면 = 커튼 윗끝이 위 끝 + 4칸 아래 (#96 ④)
+            const c0 = gameTop() > 0 ? gameTop() + 4 * s + H * 0.01 : 0;
             for (let x = 0; x < W; x += c) {
                 const k = Math.sin(x * 0.015 + life * 0.8) * 0.5 + 0.5;
-                const top = H * (0.05 + 0.06 * Math.sin(x * 0.03 + life));
+                const top = c0 + H * (0.05 + 0.06 * Math.sin(x * 0.03 + life));
                 const len = H * (0.15 + 0.2 * k);
                 const col = k > 0.66 ? '#5dffb0' : k > 0.33 ? '#7fe8ff' : '#e0a0ff';
                 ctx.globalAlpha = (0.12 + 0.18 * k) * a;
@@ -30262,9 +32680,11 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
                 return;
             }
             const a = clamp((life - TPUR) / 0.3, 0, 1) * clamp((sec - 0.2 - life) / 0.6, 0, 1);
+            const gt = gameTop();
+            const g0 = gt > 0 ? gt + 3 * s : 0;
             for (let j = 0; j < 30; j++) {
                 const x = hash(j, 701) * W;
-                const y = ((hash(j, 702) * G + (life - TPUR) * G * 0.1) % G);
+                const y = g0 + ((hash(j, 702) * (G - g0) + (life - TPUR) * (G - g0) * 0.1) % (G - g0));
                 if (Math.sin(life * 8 + j * 1.7) > 0.3) {
                     glint(ctx, px, s, x, y, s * 2, 0.8 * a);
                 }
@@ -30630,7 +33050,7 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
         };
         const cometAt = (t) => {
             const k = easeIn(clamp((t - TDIVE) / (TI - TDIVE), 0, 1));
-            return [lerp(tx - dir * W * 0.15, tx, k), lerp(-me.h, G - me.h * 0.4, k)];
+            return [lerp(tx - dir * W * 0.15, tx, k), lerp(gameTop() > 0 ? Math.max(-me.h, gameTop() - me.h * 0.5) : -me.h, G - me.h * 0.4, k)];
         };
         const sc = scene(u, sec + 0.4, 'uniq metagross');
         ultDark(0.4, ms - 200);
@@ -30732,8 +33152,10 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
         const TBIG = TBURST + 1.5; // 거대 용성
         const TDOWN = sec - 0.7;
         const cx0 = clamp(me.x + dir * W * 0.3, W * 0.2, W * 0.8);
-        const cy0 = Math.max(H * 0.22, 30);
         const rl = Math.min(W * 0.15, H * 0.15);
+        // 게임 화면 = 공중 몸 (고리 꼬리 rl × 0.6) · 주황 구 (반지름 × 1.3) 가 위 끝 + 4칸 아래 (#96 ④)
+        const cy0 = Math.max(H * 0.22, 30, gameTop() > 0 ? gameTop() + me.h * 0.5 + rl * 0.6 + 4 * s : 0);
+        const orbY = Math.max(0.6 * cy0, gameTop() > 0 ? gameTop() + Math.max(5 * s, me.w * 0.4) * 1.3 + 4 * s : 0);
         const posAt = (t) => {
             if (t < TUP) {
                 return [me.x, me.b];
@@ -30809,11 +33231,11 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
             }
             const [x0, y0] = posAt(TSHOT);
             const k = easeOut((life - TSHOT) / (TBURST - TSHOT));
-            fireOrb(ctx, px, s, lerp(x0, cx0, k), lerp(y0 - me.h * 0.5, cy0 * 0.6, k), Math.max(5 * s, me.w * 0.4), DRACO, life, 1, G, 1, 0, [1, 0.8, 0.6, 0.38], 0.5);
+            fireOrb(ctx, px, s, lerp(x0, cx0, k), lerp(y0 - me.h * 0.5, orbY, k), Math.max(5 * s, me.w * 0.4), DRACO, life, 1, G, 1, 0, [1, 0.8, 0.6, 0.38], 0.5);
         } });
         sc.at(TBURST, () => {
             impactFrames(sc, W, H, 0.5, 0.3);
-            ring(sc, cx0, cy0 * 0.6, me.w * 0.3, W * 0.5, 1, 0.5, ['#ffffff', DRACO[1], DRACO[2]], 2);
+            ring(sc, cx0, orbY, me.w * 0.3, W * 0.5, 1, 0.5, ['#ffffff', DRACO[1], DRACO[2]], 2);
             ultShake(4, 300);
         });
         // 용성 — 비스듬히 줄지어
@@ -30826,9 +33248,9 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
                     return;
                 }
                 const x = lerp(sx, m.x, k);
-                const y = lerp(cy0 * 0.6, G - m.r, easeIn(k));
+                const y = lerp(orbY, G - m.r, easeIn(k));
                 const dx = m.x - sx;
-                const dy = G - cy0 * 0.6;
+                const dy = G - orbY;
                 const L = Math.hypot(dx, dy) || 1;
                 K.fireTail(ctx, px, s, x, y, dx / L, dy / L, m.r * 7, m.r * 2.6, DRACO, life + m.x, 1);
                 ctx.globalAlpha = 1;
@@ -31409,6 +33831,7 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
             ellipse(ctx, px, s, x, y, R * 1.3, R * 1.3 * 0.32, ECLIPSE[1], 0.6);
             ellipse(ctx, px, s, x, y, R, R, '#000000', 1);
             K.ringDots(ctx, px, s, x, y, R * 1.02, 1, [ECLIPSE[0], ECLIPSE[1]], 0.9, 2);
+            jointOrb(o, ctx, x, y, R, true);
             for (let j = 0; j < 16; j++) {
                 const an = -life * 3 + (j * TAU) / 16;
                 const rr = R * (1.1 + 1.8 * (1 - ((life * 1.3 + j / 16) % 1)));
@@ -31424,6 +33847,7 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
         // 블래키 (꼭두각시) — 노란 고리 무늬가 빛남
         puppet(sc, pokemon, u, () => me.b, ECLIPSE[1], sec - 0.1, { glow: (t) => clamp((t - 0.2) / 0.5, 0, 1) * (0.2 + 0.15 * Math.sin(t * 6)), glowColor: ECLIPSE[1] });
         sc.at(TB, () => {
+            jointOrb(o);
             impactFrames(sc, W, H, 0.6, 0.6);
             blastDome(sc, mx, G, clamp(Math.max(H * 0.5, Rm * 4.5), 30, Math.min(G * 0.92, W * 0.48)), 1.9, [ECLIPSE[0], ECLIPSE[1], ECLIPSE[2], ECLIPSE[3]]);
             ring(sc, mx, G - s, Rm, W * 0.8, 0.22, 0.8, ['#ffffff', ECLIPSE[1], ECLIPSE[2]], 3);
@@ -32994,6 +35418,7 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
             if (life < TT) {
                 const [x, y] = hand(life);
                 mistBall(ctx, px, x, y, Rb * easeOut((life - TC0) / (TT - TC0)) * (1 + 0.06 * Math.sin(life * 18)), life);
+                jointOrb(o, ctx, x, y, Rb * easeOut((life - TC0) / (TT - TC0)), true);
                 return;
             }
             const k = (life - TT) / FLY;
@@ -33005,12 +35430,14 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
                 mistBall(ctx, px, lerp(x0, tx, kk), lerp(y0, G - Rb, kk * kk) - Math.sin(kk * Math.PI) * H * 0.06, Rb * (1 - j * 0.12), life, 0.3);
             }
             mistBall(ctx, px, x, y, Rb, life);
+            jointOrb(o, ctx, x, y, Rb, false, true);
         } });
         sc.at(TT, () => {
             impactFrames(sc, W, H, 0.5, 0.3);
             ultShake(3, 200);
         });
         sc.at(TB, () => {
+            jointOrb(o);
             impactFrames(sc, W, H, 0.6, 0.35);
             blastDome(sc, tx, G, clamp(Math.max(H * 0.45, W * 0.22), 30, Math.min(G * 0.92, W * 0.48)), 1.8, MIST);
             for (let j = 0; j < 8; j++) {
@@ -34115,7 +36542,7 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
         const hit = makeHit();
         const me = monBox(pokemon);
         const bandH = Math.max(40, H * 0.28);
-        const cloudY = bandH * 0.38;
+        const cloudY = K.cloudAt(u, bandH * 0.38, bandH * 0.4);
         const TSPIKE = 0.3;
         const TNEED = 1.3; // 번개 바늘
         const NN = 16;
@@ -34131,7 +36558,7 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
         sc.tick((t, dt) => {
             lit = Math.max(0, lit - dt);
         });
-        skyBand(sc, '#070914', bandH * 1.2, 0.65, sec);
+        skyBand(sc, '#070914', bandH * 1.2 + cloudY - bandH * 0.38, 0.65, sec);
         cloudBank(sc, { y: cloudY, h: bandH * 0.4, cols: ['#6b7090', '#454a63', '#2c3045'], sec, lit: () => (lit > 0 ? 1 : 0), speed: 25 * dir, litCols: ['#ffffff', ZAPC[1], ZAPC[2]] });
         // 가시 후광 (쥬피썬더 뒤)
         sc.add({ max: TI + 0.3, draw: (ctx, it, t, px) => {
@@ -34227,7 +36654,10 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
         const q = nearest(u);
         const tx = clamp(q ? q.x : me.x + dir * W * 0.45, W * 0.1, W * 0.9);
         const Rb = clamp(Math.max(me.w * 0.6, H * 0.08), 6 * s, H * 0.16);
-        const ball = (t) => [me.x, me.b - me.h - Rb * 1.1];
+        // 게임 화면 = 구 (불 혀 · 반짝 1.5 Rb) 가 위 끝 + 4칸 아래 · 던지는 길 꼭대기도 (위 끝에 반쯤 걸쳐 머물던 것 — #96 디자인 4바퀴 · ult-top 걸쳐 머묾)
+        const bTop = gameTop() > 0 ? gameTop() + Rb * 1.5 + 4 * s : -Infinity;
+        const ballY = Math.max(bTop, me.b - me.h - Rb * 1.1);
+        const ball = () => [me.x, ballY];
         const heat = (t) => clamp((t - TC0) / (TT - TC0), 0, 1);
         const palAt = (k) => (k < 0.4 ? ['#ffffff', '#fff3a0', '#ff8a2a', '#c8201a'] : k < 0.75 ? ['#ffffff', '#ffffd0', '#ffd23b', '#ff7a1a'] : ['#ffffff', '#f0f8ff', '#bfe9ff', '#ffb04a']);
         const sc = scene(u, sec + 0.4, 'uniq flareon');
@@ -34258,9 +36688,10 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
             if (life > TT) {
                 const f = (life - TT) / FLY;
                 x = lerp(x, tx, f);
-                y = lerp(y, G - Rb, f * f) - Math.sin(f * Math.PI) * H * 0.08;
+                y = lerp(y, G - Rb, f * f) - Math.sin(f * Math.PI) * clamp(ballY - bTop, 0, H * 0.08);
             }
             fireOrb(ctx, px, s, x, y, Rb * (0.3 + 0.7 * easeOut(k)) * (1 + 0.08 * Math.sin(life * 25)), palAt(k), life, 1, G, 1, 0, [1, 0.85, 0.65, 0.4], 0.7);
+            jointOrb(o, ctx, x, y, Rb * (0.3 + 0.7 * easeOut(k)), life <= TT, life > TT);
             if (k > 0.75) {
                 glint(ctx, px, s, x, y, Rb * 1.3, 0.8);
             }
@@ -34270,6 +36701,7 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
             ultShake(4, 300);
         });
         sc.at(TB, () => {
+            jointOrb(o);
             impactFrames(sc, W, H, 0.85, 0.5);
             const FIRE = ['#ffffff', '#fff3a0', '#ff8a2a', '#c8201a'];
             K.firePillar(sc, tx, G, clamp(Rb * 2, 8 * s, W * 0.2), 1.3, FIRE);
@@ -36571,10 +39003,20 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
         const q = nearest(u);
         const tx = clamp(q ? q.x : me.x + dir * Math.min(W * 0.4, me.w * 5 + 40), W * 0.1, W * 0.9);
         const dd = Math.sign(tx - me.x) || dir;
-        const kx = clamp(me.x - dd * Math.max(me.w * 1.8, W * 0.12), me.w * 0.6, W - me.w * 0.6); // 차는 자리 (뒤쪽 허공)
-        const ky = me.b - Math.min(H * 0.3, me.h * 2.2);
-        const topY = Math.max(me.h * 1.2, G - Math.min(H * 0.62, G * 0.75));
+        let kx = clamp(me.x - dd * Math.max(me.w * 1.8, W * 0.12), me.w * 0.6, W - me.w * 0.6); // 차는 자리 (뒤쪽 허공)
+        // 3:3 합동 — 차는 자리가 동료 둘레 (그림 + 8px · 테 16px) 안이면 그 바깥 앞쪽으로 (구가 동료 머리 위에 떠 동료가 쏘는 것처럼 보이던 것, #96 아트 6바퀴 4)
+        for (const bx of o.track?.avoid?.() || []) {
+            if (kx > bx.l - 16 && kx < bx.r + 16) {
+                kx = clamp(dd > 0 ? bx.r + 16 + me.w * 0.3 : bx.l - 16 - me.w * 0.3, me.w * 0.6, W - me.w * 0.6);
+            }
+        }
         const Rb = Math.max(me.w * 0.32, 5 * s);
+        // 벽 차는 자리 — 게임 화면은 머리 위 공 (몸 키 1.15 + 뛰는 호 0.3 + 둘레 고리 Rb × 1.5) 이 위 끝 + 4칸 아래 (공이 정보줄에 반쯤 걸치던 것 — #96 아트 4바퀴 1)
+        const ky0 = me.b - Math.min(H * 0.3, me.h * 2.2);
+        const ky = gameTop() > 0 ? Math.min(me.b - me.h * 0.2, Math.max(ky0, gameTop() + me.h * 1.45 + Rb * 1.5 + 4 * s)) : ky0;
+        // 게임 화면 = 꼭대기의 몸 · 머리 위 공 (둘레 고리 Rb × 1.5) 이 위 끝 + 4칸 아래 · 그래도 몸 키 0.35 는 뜀 (#96 ④)
+        const topY0 = Math.max(me.h * 1.2, G - Math.min(H * 0.62, G * 0.75));
+        const topY = gameTop() > 0 ? Math.min(me.b - me.h * 0.35, Math.max(topY0, gameTop() + me.h * 1.15 + Rb * 1.5 + 4 * s)) : topY0;
         const P0 = [me.x, me.b];
         const P1 = [kx, ky];
         const P2 = [tx - dd * me.w * 0.3, topY];
@@ -36596,10 +39038,20 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
             const k = clamp((t - TSLAM - 0.15) / (THOME - TSLAM - 0.15), 0, 1);
             return [lerp(P2[0], P0[0], k), lerp(P2[1], P0[1], k * k) - Math.sin(k * Math.PI) * me.h * 0.6];
         };
+        // 게임 화면 = 구 (둘레 고리 Rb × 1.5) 가 늘 위 끝 + 4칸 아래 — 벽을 차고 오르는 호 꼭대기에서 윗면이 위 끝에 0.2 ~ 0.4초 일자로 잘리던 것 (#96 UX 6바퀴 큼 1 · 같은 구 세 번째)
+        const ballTop = gameTop() > 0 ? gameTop() + Rb * 1.5 + 4 * s : -Infinity;
         const ballAt = (t) => {
+            const [bx, by] = ballAt0(t);
+            return [bx, Math.max(ballTop, by)];
+        };
+        const ballAt0 = (t) => {
             const [x, y] = posAt(t);
+            if (t < TJ) {
+                // 기 모으는 동안 = 입 앞 +12px · 위 6px (작은 몸이 구 · 별에 가려지던 것 — #96 아트 4바퀴 3)
+                return u.mouth ? [u.mouth.x + dir * 12, u.mouth.y - 6] : [x + dir * me.w * 0.1, y - me.h * 0.55];
+            }
             if (t < TTOP + 0.05) {
-                return [x + dir * me.w * 0.1 * (t < TJ ? 1 : 0), y - me.h * (t < TJ ? 0.55 : 1.15)];
+                return [x, y - me.h * 1.15];
             }
             const k = clamp((t - TTOP - 0.05) / (TSLAM - TTOP - 0.05), 0, 1);
             return [lerp(x, tx, k), lerp(y - me.h * 1.15, G - Rb, k * k)];
@@ -36621,6 +39073,7 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
             const [x, y] = ballAt(life);
             const k = easeOut(clamp((life - TC) / 1.0, 0, 1));
             fireOrb(ctx, px, s, x, y, Rb * (0.3 + 0.7 * k), GE, life, 1, G, 0.95, 0, [1, 0.75, 0.5, 0.28], 0);
+            jointOrb(o, ctx, x, y, Rb * (0.3 + 0.7 * k), life < TTOP + 0.05, life >= TTOP + 0.05);
             K.swirlRing(ctx, px, s, x, y, Rb * (1.3 + 0.2 * Math.sin(life * 9)), 0.9, life, dir, [GE[0], GE[2]], 0.8 * k);
             glint(ctx, px, s, x - Rb * 0.3, y - Rb * 0.3, Rb * 0.4 * k, 0.9);
         } });
@@ -36634,7 +39087,8 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
             const [x0, y0] = ballAt(TTOP + 0.05);
             const L = Math.hypot(x - x0, y - y0);
             if (L > s * 2) {
-                K.fireTail(ctx, px, s, x, y, (x - x0) / L, (y - y0) / L, L, Rb * 1.8, GE, life, 0.8);
+                // 불투명 (반투명 연두 기둥 한 장이 "유리" 로 읽히던 것 — #96 아트 6바퀴 8)
+                K.fireTail(ctx, px, s, x, y, (x - x0) / L, (y - y0) / L, L, Rb * 1.8, GE, life, 1);
             }
         } });
         K.chargeSwirl(sc, (t) => ballAt(t), TC, TJ - 0.05, Math.max(me.w * 3, short(u) * 0.35), Rb, GE, dir);
@@ -36648,9 +39102,21 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
             ultShake(1.5, 100);
         });
         sc.at(TSLAM, () => {
+            jointOrb(o);
             impactFrames(sc, W, H, 0.55, 0.35);
             ultShake(5 + 2 * P, 450);
-            ring(sc, tx, G - s, me.w * 0.4, me.w * 3.4, 0.24, 0.55, ['#ffffff', GE[1], GE[2]], 3);
+            // 바닥 고리 = 점선 (2px 점 · 4px 간격 — 1px 매끈한 큰 타원이 다른 점 · 선 말투와 달라 보이던 것, #96 아트 4바퀴 3)
+            sc.add({ max: 0.55, draw: (ctx, it, t, px) => {
+                const r = me.w * 0.4 + (me.w * 3 * easeOut(Math.min(1, t)));
+                const n = Math.max(12, Math.round((Math.PI * 2 * r) / 6));
+                ctx.globalAlpha = (1 - Math.min(1, t)) ** 1.2;
+                ctx.fillStyle = GE[1];
+                for (let i = 0; i < n; i++) {
+                    const a = (i / n) * Math.PI * 2;
+                    ctx.fillRect(px(tx + Math.cos(a) * r), px(G - s + Math.sin(a) * r * 0.24), 2, 2);
+                }
+                ctx.globalAlpha = 1;
+            } });
             fireBits(tx, G - Rb, s, GE, 30, { angle: -Math.PI / 2, spread: 2.6, speed: H * 0.7, g: H, life: 0.8 });
             for (const r of u.others()) {
                 if (Math.abs(r.x - tx) < me.w * 2) {
@@ -36925,12 +39391,14 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
         sc.add({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
             const fade = clamp((sec - life) / 0.5, 0, 1);
+            const gt = gameTop();
             for (const f of fe) {
                 const k = life - f.t0;
                 if (k <= 0) {
                     continue;
                 }
-                const y = -f.len + f.sp * k;
+                // 게임 화면 = 위 끝 바로 밑에서 나타나 내려옴 (위 끝에 반쯤 걸쳐 천천히 내려오던 것 — #96 ④)
+                const y = (gt > 0 ? gt + 4 * s + f.len * 0.5 + s : -f.len) + f.sp * k; // y = 깃털 가운데 (키 len)
                 if (y > G) {
                     continue;
                 }
@@ -37646,7 +40114,7 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
         const q = nearest(u);
         const tx = clamp(q ? q.x : me.x + dir * Math.min(W * 0.4, me.w * 5 + 40), W * 0.15, W * 0.85);
         const DR = clamp(Math.max(me.h * 1.6, H * 0.22), 16 * s, Math.min(H * 0.38, W * 0.22));
-        const ty = Math.max(DR * 1.1, G - DR * 1.15);
+        const ty = Math.max(DR * 1.1, G - DR * 1.15, gameTop() > 0 ? gameTop() + DR * 0.8 + 4 * s : 0); // 大 자 위 팔 머리 ≈ ty − 0.75 DR (위 끝에 반쯤 걸쳐 머물던 것 — #96 디자인 4바퀴 · ult-top 걸쳐 머묾)
         // 불덩이 가운데 ≥ 연출 위 끝 + 가장 큰 반지름 + 6칸 (붉은 테 · 꼬리) — 손 위에서 키우는 자리도 · 날아가는 길은 높이를 줄여 꼭대기가 그 선에 닿게 (187 에서 던진 불덩이가 정보줄 뒤로 숨던 것 — #105 ·
         // 길만 자르면 던지는 순간 25px 튀고 일자로 날던 것, 코드 리뷰어)
         const top0 = gameTop();
@@ -37697,6 +40165,7 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
                 K.fireTail(ctx, px, s, x, y, (x - x0) / L, (y - y0) / L, R * 3, R * 2, F, life, 0.9);
             }
             fireOrb(ctx, px, s, x, y, R, F, life, 1, G, 1, 0, [1, 0.8, 0.6, 0.38], 0.5);
+            jointOrb(o, ctx, x, y, R, life <= TTHROW, life > TTHROW);
         } });
         // 大 자 불꽃
         sc.add({ max: TBANG + 0.3, draw: (ctx, it, t, px) => {
@@ -37714,6 +40183,7 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
         });
         sc.at(TTHROW, () => ultShake(2, 120));
         sc.at(TOPEN, () => {
+            jointOrb(o);
             impactFrames(sc, W, H, 0.45, 0.3);
             ultShake(4 + P, 400);
             ring(sc, tx, ty, DR * 0.3, DR * 1.6, 0.9, 0.4, ['#ffffff', F[1], F[2]], 2);
@@ -39165,9 +41635,11 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
             return [clamp(me.x + dir * W * 0.35, W * 0.1, W * 0.9), G - me.h * 0.6];
         };
         const Rw = Math.max(me.w * 0.24, 4 * s);
+        // 게임 화면 = 도깨비불 (불 위 끝 = y − 1.9 Rw) 이 위 끝 + 4칸 아래 — 맴도는 자리 · 날아가는 호 꼭대기 (위 끝에 반쯤 걸쳐 머물던 것 — #96 디자인 4바퀴 · ult-top 걸쳐 머묾)
+        const wTop = gameTop() > 0 ? gameTop() + Rw * 2.2 + 4 * s : -Infinity;
         const wispAt = (i, t) => {
             const ph = (i * TAU) / 3;
-            const home = [me.x + Math.cos(ph + t * 3) * me.w * 0.9, me.b - me.h * 0.8 + Math.sin(ph + t * 3) * me.h * 0.3 + Math.sin(t * 5 + i) * s * 2];
+            const home = [me.x + Math.cos(ph + t * 3) * me.w * 0.9, Math.max(wTop, me.b - me.h * 0.8 + Math.sin(ph + t * 3) * me.h * 0.3 + Math.sin(t * 5 + i) * s * 2)];
             if (t < TGO) {
                 const k = clamp((t - TUP - i * 0.12) / 0.3, 0, 1);
                 return [lerp(me.x + (i - 1) * me.w * 0.25, home[0], k), lerp(me.b - me.h, home[1], k), k];
@@ -39178,7 +41650,8 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
             const orbit = [x2 + Math.cos(ph + t * sp) * r, y2 + Math.sin(ph + t * sp) * r * 0.5];
             const k = clamp((t - TGO) / (TARR - TGO), 0, 1);
             const h0 = [me.x + Math.cos(ph + TGO * 3) * me.w * 0.9, me.b - me.h * 0.8 + Math.sin(ph + TGO * 3) * me.h * 0.3];
-            return [lerp(h0[0], orbit[0], easeOut(k)), lerp(h0[1], orbit[1], easeOut(k)) - Math.sin(k * Math.PI) * me.h, 1];
+            const ay = lerp(h0[1], orbit[1], easeOut(k));
+            return [lerp(h0[0], orbit[0], easeOut(k)), ay - Math.sin(k * Math.PI) * clamp(ay - wTop, 0, me.h), 1];
         };
         const sc = scene(u, sec + 0.3, 'uniq fennekin');
         ultDark(0.38, ms - 200);
@@ -39268,8 +41741,10 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
             }
             return [clamp(me.x + dir * W * 0.35, W * 0.1, W * 0.9), G - me.h * 0.6, me.w];
         };
-        const over = [me.x, me.b - me.h * 1.5];
         const R0 = Math.max(me.w * 0.9, 12 * s);
+        // 게임 화면 = 올가미 (타원 R × 0.32 · 꼬리 · 반짝) 윗끝이 위 끝 + 4칸 아래 · 던지는 호 꼭대기도 (위 끝에 반쯤 걸쳐 머물던 것 — #96 디자인 4바퀴 · ult-top 걸쳐 머묾)
+        const lassoTop = gameTop() > 0 ? gameTop() + R0 * 0.5 + 6 * s : -Infinity;
+        const over = [me.x, Math.max(lassoTop, me.b - me.h * 1.5)];
         const ringAt = (t) => {
             if (t < TTHROW) {
                 return [over[0], over[1], R0 * easeOut(clamp((t - TSP) / 0.4, 0, 1)), 0.32];
@@ -39278,7 +41753,7 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
             const k = clamp((t - TTHROW) / (TWRAP - TTHROW), 0, 1);
             const tight = t > TWRAP ? 1 - 0.55 * easeIn(clamp((t - TTIGHT + 0.6) / 0.6, 0, 1)) : 1;
             const Rt = Math.max(w2 * 0.9, R0 * 0.8) * tight;
-            return [lerp(over[0], x2, easeOut(k)), lerp(over[1], y2, easeOut(k)) - Math.sin(k * Math.PI) * me.h * 1.2, lerp(R0, Rt, k), lerp(0.32, 0.3, k)];
+            return [lerp(over[0], x2, easeOut(k)), lerp(over[1], y2, easeOut(k)) - Math.sin(k * Math.PI) * clamp(Math.min(over[1], y2) - lassoTop, 0, me.h * 1.2), lerp(R0, Rt, k), lerp(0.32, 0.3, k)];
         };
         const sc = scene(u, sec + 0.3, 'uniq braixen');
         ultDark(0.34, ms - 200);
@@ -39449,6 +41924,7 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
                 ctx.fillRect(px(cx - R * b.r * 0.4), px(cy - R * b.r * 0.45), s, s);
             }
             ellipse(ctx, px, s, x - R * 0.1, y - R * 0.1, R * 0.45, R * 0.4 * squash, FOAM[1], 0.9);
+            jointOrb(o, ctx, x, y, R, life < TBALL, life >= TBALL);
         } });
         // 목에서 거품이 모여듦
         let pull = 0;
@@ -39486,6 +41962,7 @@ function t33Duel(a, b, typeA, typeB, live, st, o = {}) {
         }
         sc.at(TBALL + 0.2, () => K.splash(bx[0], G - s, s, FOAM, 5, H * 0.25, { spread: 1.4, life: 0.4 }));
         sc.at(THIT, () => {
+            jointOrb(o);
             impactFrames(sc, W, H, 0.45, 0.3);
             ultShake(4 + 2 * P, 400);
             ring(sc, tx, G - Rb, Rb * 0.5, Rb * 4, 0.6, 0.45, ['#ffffff', TIDE[1], TIDE[2]], 3);
@@ -50815,6 +53292,9 @@ function fxGameStop(kill) {
     if (fxJointTop?.g === g) {
         fxJointTop = null;
     }
+    if (fxJ11?.g === g) {
+        fxJ11 = null;
+    }
     if (kill) {
         fxKill(g.gen);
         (g.gens || []).forEach((x) => fxKill(x));
@@ -51370,6 +53850,27 @@ const FX_JOINT_END_MS = 950;
 // 합동 층 — 합동 번호 (컷인 · 빛줄 · 나선 · 합친 줄기 · 섞인 폭발 · 번쩍) 는 맨 위 (각자 맞은 그림 뒤에 묻히던 것 — 아트 디렉터 #80 ③) ·
 // 맞은 뒤 참가자 (자기 둘레) 는 따로 층에 그려 바둑판으로 지움 · 쏘는 쪽은 줄기 보기 캔버스를 같이 지움. { g, gen, gens, p, dissolveAt, top, part }
 let fxJointTop = null;
+// 3:3 장면 전환 합동 (#101 team11Joint) — { g: 앞장 게임 · lit: 어둠에서 밝게 둘 참가자 · 대상 }
+// 합동 — 동료가 기를 모아 주는 구간을 늘리는 길이 (#106 — 첫 합동 4.8 → 약 5.8초 · #96 빔 · 오라 앞장도)
+const FX_J11_GATHER_EXTRA_MS = 1000;
+// 메가진화하는 필살기 (블라스트번 · 하드플랜트 · 메가런처 — 1:1 하얀 실루엣, 태현 님 10-20) — 합동 그림은 꾹 누르기부터 메가진화가 끝날 때까지
+// 번개 · 오라 불꽃 혀를 쉬고, 실루엣 위에는 아무것도 안 그림 (연출 틀이 track.morph · morphed · morphBox 를 알림 — #96 디자인)
+// 전용 연출 틀 (fx-unique uniq · fx-sky 스타팅 특수 키 — dev/ult-top.py · joint-kinds.py SPECIAL 과 같게) — o.track 을 안 채움 (하이드로캐논 turtle 빔 · 플레어드라이브 flare 빼고)
+const FX_J11_SPECIAL = ['uniq', 'blast', 'flare', 'venus', 'turtle', 'ninja', 'clones', 'lucario', 'mew', 'mewtwo'];
+const fxJ11Special = (e) => FX_J11_SPECIAL.some((k) => e?.[2]?.[k]);
+const fxJ11Morph = (e) => (e?.[1] === 'ultpillar' && !!(e[2]?.blast || e[2]?.venus)) || (e?.[1] === 'ultorb' && !!e[2]?.turtle);
+// 3:3 합동 앞장 분류 (#96 — dev/joint-kinds.py 와 같은 규칙 · 바꾸면 둘 다): 구 (모으는 자리 = 구 가운데) · 빔 (빔 시작 = 입) · 오라 (몸)
+function fxJ11Kind(e) {
+    const o = (e && e[2]) || {};
+    if ((e[1] === 'ultorb' && !o.sky) || e[1] === 'ultblackhole' || (e[1] === 'ultdive' && o.flare)) {
+        return 'orb';
+    }
+    if (e[1] === 'ultbeam' || e[1] === 'ultvolt') {
+        return 'beam';
+    }
+    return 'aura';
+}
+let fxJ11 = null;
 const fxBayerTiles = new Map();
 function fxBayerErase(L, p, step) {
     if (!L?.ctx || !L.drawn) {
@@ -51486,9 +53987,26 @@ drawParticle = function (ctx, p) {
     }
     fxDrawParticle0(ctx, p);
 };
+// 장면 전환 합동 — 앞장 연출이 알린 대비 장면 (track.contrast — 하이드로캐논 압축 어둠 → 하양) 인지. 어둠 진하기로 셈하던 것은 섀도볼 밤 어둠 전체에 걸려
+//   동료가 6.4초 꺼진 것처럼 보이고 (#96 아트 7바퀴 — 6바퀴 ① 고침의 회귀) 틀이 직접 칠하는 어둠은 못 잡아 뺌 · 오라 · 구 앞장은 6바퀴 모습 (제 색 + 1칸 테) 그대로
+function fxJ11Contrast(J) {
+    return !!J?.track?.contrast;
+}
 // 필살기 어두워짐 판 (화면 전체) 표시 — 줄기 보기 · 자르기에 들지 않게
 const fxUltDimLayer0 = ultDimLayer;
 ultDimLayer = function (...args) {
+    // 장면 전환 합동 (#101) — 앞장 연출의 어둠 (밝게 둘 애를 안 정한 것) 은 참가자 · 대상 밝게 · 구멍 가장자리 바둑판 · 0.3 아래면 구멍 없음 (#100 ①)
+    const J = fxJ11;
+    // 동료 꾹 누르기 기 모으기 어둠 (그 포켓몬만 밝게) 은 끔 — 동료가 둘이면 겹으로 어두워져 앞장 구 · 대포까지 묻히던 것 (#103)
+    if (J && fxGame === J.g && args[2] !== undefined && !args[4]?.j11) {
+        return undefined;
+    }
+    if (J && fxGame === J.g && args[2] === undefined) {
+        // 대비 장면 (fxJ11Contrast) 동안은 동료 구멍을 닫음 — 동료가 앞장보다 또렷해 위계가 거꾸로이던 것 (#96 아트 6바퀴 1)
+        args[2] = () => J.lit.filter((u, i) => u?.el?.isConnected && (i === 0 || ((!J.allyUntil || performance.now() < J.allyUntil) && !fxJ11Contrast(J))));
+        args[3] = args[3] ?? undefined;
+        args[4] = args[4] ?? { edge: 3, minA: 0.3, edgeOf: J.edgeOf };
+    }
     const n = moveParticles.length;
     const out = fxUltDimLayer0(...args);
     for (let i = n; i < moveParticles.length; i++) {
@@ -52567,10 +55085,17 @@ window.pokemonFx = {
         try {
             // o.quick = 같은 전투에서 다시 보는 필살기 — 컷인 없이 짧게 (ult/core.js ULT_QUICK_INTRO_MS)
             // 쓰기 전 기 모으기 (일반 모드 꾹 누르기와 같은 연출, 2026-10-20 태현 님) — 첫 필살기 0.8초 · 다시 보는 필살기 0.4초 · 반격기 (sub) 는 바로
-            const charge = o?.sub ? 0 : o?.quick ? 400 : 800;
-            total = fxWithTimers(gen, () => useUltimate(A, entry, { quick: !!o?.quick, charge, ...(o?.sub ? { sub: o.sub } : {}) })) || 0;
+            // o.charge = 기 모으기 길이를 정함 (3:3 합동 빔 · 오라 앞장 — 동료가 기를 모아 주는 구간 +1초, #96)
+            const charge = o?.charge ?? (o?.sub ? 0 : o?.quick ? 400 : 800);
+            // o.hitShift = 연출 틀이 스스로 늘리는 ms (3:3 합동 — 구 · 메가진화 o.track.extraG) · 맞는 때 · 자기 둘레 줄기 · 박자표 · 끝을 그만큼 늦춤
+            const shift = Math.max(0, o?.hitShift || 0);
+            // o.mainAt = 큰 맞음 (본편 시작부터 ms) 을 연출이 알려 줌 — 1:1 측정값 (ULT_HIT) 이 합동에서 빠진 장면 (메가런처 팔 대포 연사) 때라 회색 · 끝 장식이 0.7초 이르던 것 (#96 UX 큼 2)
+            const mainAt = typeof o?.mainAt === 'number' ? o.mainAt : null;
+            // o.noIntro = 1:1 컷인 없이 (3:3 장면 전환 합동 — 이름은 화면 큰 컷인, #99)
+            const introMs = o?.noIntro ? 0 : o?.quick ? ULT_QUICK_INTRO_MS : ULT_INTRO_MS;
+            total = fxWithTimers(gen, () => useUltimate(A, entry, { quick: !!o?.quick, charge, ...(shift ? { extraMs: shift } : {}), ...(o?.sub ? { sub: o.sub } : {}), ...(o?.noIntro ? { noIntro: true } : {}) })) || 0;
             if (tmAll && total) {
-                const at0 = charge + (o?.quick ? ULT_QUICK_INTRO_MS : ULT_INTRO_MS) + tmAll.main;
+                const at0 = charge + introMs + (mainAt ?? tmAll.main) + shift;
                 // 부른 쪽에 박자 — main = 큰 맞음 · cover = 상대를 덮는 연출이 끝나는 때 (없으면 −1) · 지금부터 ms
                 try {
                     o?.timing?.({ main: at0, cover: tmAll.cover >= 0 ? at0 - tmAll.main + tmAll.cover : -1, total });
@@ -52579,7 +55104,7 @@ window.pokemonFx = {
                 }
             }
             if (tm && total) {
-                const at = charge + (o?.quick ? ULT_QUICK_INTRO_MS : ULT_INTRO_MS) + tm.main;
+                const at = charge + introMs + (mainAt ?? tm.main) + shift;
                 // 자기 둘레 필살기 (블래스트번 등) 는 제자리에서 원래대로 터지고, 대폭발 번쩍 뒤 기운이 줄기로 맞을 상대 모두에게 → 닿을 때 피해 (태현 님 #92)
                 // 쏘는 필살기는 큰 맞음 (줄기가 상대에 닿음) 에 피해
                 const hitNow = () => {
@@ -52608,6 +55133,214 @@ window.pokemonFx = {
         }
         fxGame.done = setTimeout(fxGameStop, total + 200);
         return total;
+    },
+    /**
+     * 3:3 장면 전환 합동 (#101 시안 3 — 태현 님 "처음에 쓴 포켓몬한테 기를 모아서 주는 형식 · 구는 원기옥을 모으듯이 · 빔이면 나선형으로 2가지 기운이 돌거나 스파크가 튀듯이", 후레쉬맨 팀 필살기):
+     * 앞장 (합동을 처음 쓴 포켓몬) = 자기 1:1 필살기를 처음부터 끝까지 그대로 (끊지 않음 · 마무리 폭발 그대로 — 시안 2 의 끊고 가는 빔으로 바꾸던 것을 없앰, 태현 님 "허접한 빔 하나").
+     * 동료 = 쏘지 않고 같이 기 모으기 (0.8초) → 앞장이 기를 모으는 동안 자기 타입 색 기운을 앞장에게 넘겨줌 (모양 = ult/fx-team33 t11Gather — #102 시안 A 빛의 끈 · B 오라 리본 · C 빛 알갱이 강).
+     * 앞장 연출이 매 장면 알려 주는 자리 (o.track — fx-sky 플레어드라이브 불꽃 구 · 하이드로캐논 대포 끝 · 물줄기) 로:
+     *  구 = 들어올 때마다 구 둘레 기운 막 · 고리가 커짐 (원기옥) · 다 모이면 구 안에 동료 색 점이 뜀 /
+     *  빔 = 물줄기에 동료 색 나선 (뒤로 가는 반은 물줄기에 가림) + 스파크 /
+     *  그 밖 (알려 주지 않는 연출 — 돌진 · 범위) = 쏘기 0.5초 앞까지 앞장 입으로 모이고 앞장 몸에 동료 색 오라 (규칙 — 시안은 구 · 빔).
+     * 맞을 때 = 앞장 진짜 폭발 그대로 + 참가자 색 고리 · 파편 (번갈아). 어둠은 앞장 연출 것 그대로 · 참가자 · 대상 밝게 (구멍 가장자리 바둑판 — #100).
+     * o.timing = { main: 맞는 때, total } (같은 판 두 번째는 실행기가 맞고 1.5초 뒤 끊음 — #140)
+     */
+    team11Joint(srcs, dst, onHit, o = {}) {
+        const list = (srcs || []).map((s, i) => ({ s, i })).filter(({ s }) => s && POKEMON_SHAPE[s.form] && fxWidth(s) >= 1);
+        if (!list.length || fxWidth(dst) < 1) {
+            return 0;
+        }
+        const lead = list[0];
+        const want = o.pick?.[lead.i];
+        const e = (want && (POKEMON_ULT[lead.s.form] || []).map((k) => ULT_LIB[k]).find((v) => v && v[0] === want)) || fxUltPick(lead.s.form, o.avoid?.[lead.i]);
+        if (!e) {
+            return 0;
+        }
+        // 앞장 연출이 채우는 자리 (구 · 빔) — 없으면 입 · 몸
+        // half = 주는 동안만 앞장 혜성 반 (마무리 · 유성 그대로 — 태현 님 "응 그러자", 동료 별이 주인공으로 보이게) · avoid = 혜성이 피해 갈 동료 상자 (아래에서 채움)
+        // 구 합동 = 일반 구 틀 (fx-energy runOrb) 만 — 전용 구는 연출 자리를 안 알려 별 · 번개가 안 나오고 박자만 1초 늦던 것 (#96 코드 리뷰)
+        const orbUlt = e[1] === 'ultorb' && !e[2]?.sky && !fxJ11Special(e);
+        const kind = fxJ11Kind(e);
+        // 동료가 기를 모아 주는 구간 (모으기 · 별 보내기 · 앞장 구 커짐) 을 늘림 (#106 — 태현 님 "기모으는 시간만 1초정도 더 늘려서 하자") ·
+        // 구 (fx-energy runOrb) = 연출 틀이 모으기를 그만큼 길게 · 여기서 맞는 때 · 피해 (엔진) · 끝을 그만큼 늦춤 /
+        // 메가진화 (fxJ11Morph) = 연출 틀이 메가진화 뒤 기 모으기를 그만큼 길게 (번개 · 오라 혀는 메가진화 뒤부터라 — #96 디자인) · 박자는 구와 같이 /
+        // 그 밖 (빔 · 오라 — #96) = 앞장 꾹 누르기 기 모으기를 그만큼 길게 (박자는 this.ult 가 기 모으기만큼 늦춤) — 그동안 동료 별이 입 (빔 시작) · 몸으로
+        const gather = list.length >= 2 ? FX_J11_GATHER_EXTRA_MS : 0;
+        const morph = fxJ11Morph(e);
+        const extra = orbUlt || morph ? gather : 0;
+        const track = { half: true, extraG: extra / 1000, willMorph: morph };
+        // 빔은 모두 (일반 runBeam 도 o.track 을 채움 — #96 ②) · 이상해꽃 솔라빔처럼 안 채우는 틀은 입으로 (gatherTo 가 track.kind 를 봄)
+        const tracked = (e[1] === 'ultdive' && !!e[2]?.flare) || (e[1] === 'ultbeam' && (!!e[2]?.turtle || !fxJ11Special(e))) || orbUlt;
+        // 늘린 만큼 (extra) 은 this.ult 가 맞는 때 · 자기 둘레 줄기 · 박자표 · 끝을 한 곳에서 늦춤 (hitShift — 따로 늦추던 onHit1 · total 고치기가
+        // 타이머 피해가 아닌 경로에서 두 번 늦고 자기 둘레 줄기는 안 늦던 것, #96 코드 리뷰)
+        let hitAt = -1;
+        // 메가런처 합동 = 연사 없음 (fx-sky runMegaLauncher volley) → 큰 맞음 = 물 구가 닿는 때 (발사 TS 4.5초 + 날아감 0.4초)
+        const mainAt = e[1] === 'ultorb' && e[2]?.turtle ? 4900 : undefined;
+        const total = this.ult(lead.s, dst, onHit, o.avoid?.[lead.i], { noIntro: true, hitShift: extra, ...(mainAt ? { mainAt } : {}), charge: 800 + (extra ? 0 : gather), entry: [e[0], e[1], { ...(e[2] || {}), track }], timing: (t) => {
+            hitAt = t.main;
+            try {
+                o.timing?.(t);
+            } catch (err) {
+                ultError('joint11 timing', err);
+            }
+        } }) || 0;
+        if (!total || !fxGame || list.length < 2) {
+            return total;
+        }
+        const g = fxGame;
+        const gen = g.gen;
+        // 시험 창 (모양 스위치를 쓴 때만) — 길이 기록
+        if (typeof window !== 'undefined' && window.__pgJointStyle) {
+            window.__pgBoomLog = { total0: total - extra, total, hit: hitAt };
+        }
+        // 빔 합동 (하이드로캐논) — 해일이 끝난 뒤 남는 0.8초를 줄임 (마무리는 그대로 — 태현 님 #146 A "추천으로")
+        const cut = e[1] === 'ultbeam' && e[2]?.turtle ? 800 : 0;
+        if (cut) {
+            setTimeout(fxGuard(gen, () => fxGame === g && fxGameStop(true)), total - cut);
+        }
+        const As = list.map(({ s }) => fxActor(s));
+        const LA = As[0];
+        const B = fxActor(dst);
+        g.many = As;
+        // 어둠 (앞장 연출의 ultDark) — 참가자 · 대상 밝게 · 구멍 가장자리 바둑판 (앞장만 밝아 기운을 보내는 동료가 어둠에 묻히던 것)
+        // 상대는 안 밝힘 · 동료 구멍은 가장자리 바둑판 없이 (동료 색 1칸 테는 t11Gather) — 동료 · 상대 둘레가 같은 지름 90px 바둑판 원이라 뜻 없는 얼룩 둘로 보이던 것 (#96 아트 5바퀴 8)
+        //   동료 구멍은 맞은 뒤 0.3초까지만 (그 뒤엔 어둠 속 밝은 원판만 남아 얼룩으로 보이던 것 — #96 6바퀴)
+        fxJ11 = { g, lit: [...As], edgeOf: (u) => (u === LA ? 3 : 0), allyUntil: performance.now() + (hitAt > 0 ? hitAt : 2000) + 300, track };
+        const allies = list.slice(1).map(({ i }, n) => ({ A: As[n + 1], c: t33Cols(o.types?.[i] || 'normal'), n, type: o.types?.[i] || 'normal' }));
+        const leadC = t33Cols(o.types?.[lead.i] || 'normal');
+        const cell = (A) => Math.max(1, Math.round(fxBody(A).w / (A._originalSpriteSize || 32)));
+        const kL = cell(LA);
+        const t0 = performance.now();
+        // 모으는 자리 — 연출이 알려 주면 그 자리 (구 가운데 · 대포 끝) · 아니면 기 모으기부터 맞기 0.5초 앞까지 빔 = 입 (빔 시작) · 오라 = 몸 가운데 (#96)
+        // 빔 · 플레어드라이브 (알려 주는 틀) 도 앞장 기 모으기 동안 (틀이 아직 안 시작) 은 입 · 몸으로
+        const homeOf = () => {
+            if (kind === 'aura') {
+                const b = t11LeadBody(LA, track);
+                return { x: b.x, y: b.y, r: 0 };
+            }
+            return { ...sigGeometry(LA, fxFacesLeft(LA, B)).mouth, r: 0 };
+        };
+        const gatherTo = (now) => {
+            // 전용 구 (fx-unique jointOrb) 는 연출이 시작되면 스스로 구 자리를 알림 → 그때부터 그 자리 (#96 아트 5바퀴 1)
+            if ((tracked && (orbUlt || track.kind)) || track.kind === 'orb') {
+                if (track.kind === 'orb') {
+                    return track.gather && track.r > 0 ? { x: track.x, y: track.y, r: track.r } : null;
+                }
+                // 빔 — 대포 끝에서 모으는 동안은 그 자리 · 그 앞 (대포가 솟는 동안 — 별이 0.9초 끊기던 것) 은 입 · 쏜 뒤는 끝
+                if (track.kind === 'beam') {
+                    st.fired = st.fired || !!track.on;
+                    return track.gather ? { x: track.gx, y: track.gy, r: 0 } : st.fired ? null : homeOf();
+                }
+                return null;
+            }
+            return now - t0 < (hitAt > 0 ? hitAt - 500 : 2000) ? homeOf() : null;
+        };
+        const st = { arrivals: 0, on: false };
+        // 모으기가 시작되면 동료도 기 모으기 빛 (일반 모드 꾹 누르기 — ms 에 다 차고 hold 동안 계속, t11Gather 갈래마다) · 모으기가 끝나면 멈춤
+        const onGatherEnd = () => allies.forEach((a) => ultChargeStop(a.A));
+        const onGather = (ms = 1800, hold = 0, star = false) => fxWithTimers(gen, () => {
+            allies.forEach((a) => {
+                try {
+                    ultChargeFor(a.A, ms, true, hold, star ? { cols: T11_STAR_COLS[a.type] || T11_STAR_COLS.normal } : undefined);
+                } catch (err) {
+                    ultError('joint11 send', err);
+                }
+            });
+            // 구 필살기 — 모으기부터 맞을 때까지 무대 어둡게 (1:1 기 모으기 어둠과 같은 0.32) · 앞장 · 동료 모두 둥근 조명 (셋이 같이 빛남 = 합동감 — 아트 #103 ② · 1:1 구 연출엔 제 어둠이 없어서)
+            if (star && orbUlt && hitAt > 0) {
+                const sec = Math.max(0.3, (t0 + hitAt - performance.now()) / 1000);
+                ultDimLayer((life) => 0.32 * Math.min(1, life / 0.3, Math.max(0, sec - life) / 0.1), sec, () => As.filter((u) => u?.el?.isConnected), undefined, { edge: 3, minA: 0.3, j11: true, edgeOf: fxJ11?.edgeOf });
+            }
+        });
+        // 진짜 구 안 (fx-energy drawOrb mid) — 섞임 바둑판 · 동료 색 소용돌이 (상대 쪽이면 시계 방향)
+        const foe = fxBody(LA).x > fxBody(B).x;
+        // 구 필살기 — 구가 생길 자리를 미리 알림 (화면 합동 이름 판이 뜰 때 한 번 견줘 자리를 정함 · 1.08 부풂 포함 — 구가 생기는 순간 판이 245px 뛰던 것, 아트 #103)
+        if (typeof window !== 'undefined') {
+            window.__pgJointOrbPlan = null;
+            if (orbUlt && typeof fxOrbPreview === 'function') {
+                try {
+                    const pv = fxOrbPreview(ultGeometry(LA, fxFacesLeft(LA, B)), e[2] || {});
+                    window.__pgJointOrbPlan = { x: pv.x, y: pv.y, R: pv.r * 1.08 + 2 * kL, at: performance.now() };
+                } catch (err) {
+                    ultError('joint11 orb plan', err);
+                }
+            }
+        }
+        // 주는 동안 앞장 혜성이 동료 몸 (그림 상자 + 둘레 8px) 을 피해 감 — 혜성이 동료를 덮던 것 (아트 #103)
+        track.avoid = () => allies.map((a) => {
+            const b = fxBody(a.A);
+            return { l: b.x - b.w / 2 - 8, r: b.x + b.w / 2 + 8, t: b.y - b.h / 2 - 8, b: b.y + b.h / 2 + 8 };
+        });
+        track.inner = (ctx, x, y, r, armsPer) => t11OrbInner(ctx, { now: performance.now(), allies, kL, st, x, y, r, foe, armsPer, small: !!armsPer });
+        fxWithTimers(gen, () => {
+            allies.forEach((a) => {
+                try {
+                    ultChargeFor(a.A, 800);
+                } catch (err) {
+                    ultError('joint11 charge', err);
+                }
+            });
+            sigParticle({ x: 0, y: 0, s: kL, max: total / 1000 + 0.3, z: 1, draw: (ctx) => {
+                if (fxGame !== g) {
+                    return;
+                }
+                try {
+                    // 대비 장면 — 동료 그림을 어둡게 (연출 층 위라 어둠 · 하양에 안 덮임) · 끝나면 되돌림
+                    const contrast = fxJ11?.g === g && fxJ11Contrast(fxJ11);
+                    if (contrast !== st.contrast) {
+                        st.contrast = contrast;
+                        allies.forEach((a) => a.A?.el && (a.A.el.style.filter = contrast ? 'brightness(0.35)' : ''));
+                    }
+                    t11Gather(ctx, { now: performance.now(), allies, kL, track, tracked, gatherTo, st, LA, hitEnd: t0 + (hitAt > 0 ? hitAt : 2000), onGather, onGatherEnd, leadType: o.types?.[lead.i] || 'normal', kind, foe, contrast });
+                } catch (err) {
+                    ultError('joint11 draw', err);
+                }
+            } });
+        });
+        // 대비 장면 중에 그림이 끝나도 (끊김 · 접힘) 동료 어둡게를 되돌림
+        setTimeout(() => {
+            if (st.contrast) {
+                st.contrast = false;
+                allies.forEach((a) => a.A?.el && (a.A.el.style.filter = ''));
+            }
+        }, total + 400);
+        // 맞을 때 — 참가자 색 고리 (번갈아) · 파편
+        if (hitAt > 0) {
+            setTimeout(fxGuard(gen, () => {
+                if (fxWidth(dst) < 1) {
+                    return;
+                }
+                const r = fxRect0.call(dst.box || dst.el);
+                const k = Math.max(1, Math.round(r.width / (dst.size || 32)));
+                const tb = fxBody(B);
+                const pairs = [leadC, ...allies.map((a) => a.c)].map((c) => [c[1], c[2]]);
+                // 끝을 동료 타입으로 (합동에서만 — 혼자 판 터짐 + 고리 하나라 "증기 폭발" 인데 김이 안 보이던 것, 아트 #103 ①) — 물 = 김 + 물 왕관 · 풀 = 잎 · 그 밖 = 동료 별
+                try {
+                    t11Finale(allies.map((a) => a.type), tb, k);
+                    if (track.uniq && (o.types?.[lead.i] || 'normal') === 'grass') {
+                        t11LeafBurst(tb, k);
+                    }
+                } catch (err) {
+                    ultError('joint11 finale', err);
+                }
+                sigParticle({ x: 0, y: 0, s: k, max: 0.6, z: 1, draw: (ctx, p) => {
+                    const step = Math.min(5, Math.floor(p.life / 0.08));
+                    ctx.globalAlpha = 1;
+                    ctx.imageSmoothingEnabled = false;
+                    const rMax = Math.max(6, Math.floor(Math.min(window.innerWidth - tb.x, tb.x) / k) - 2);
+                    t33Ring(ctx, k, tb.x, tb.y, Math.min(rMax, [10, 15, 20, 24, 26, 26][step]), pairs, 'dot', step >= 5 ? (x, y) => (Math.round(x) + Math.round(y)) % 2 === 0 : null);
+                    // 파편 — 참가자 색 2칸 조각 12개가 바깥으로 (0.08초마다 한 걸음)
+                    const fly = (1 + Math.floor(p.life / 0.08)) * 3 * k;
+                    for (let j = 0; j < 12; j++) {
+                        const a = (j / 12) * Math.PI * 2 + 0.26;
+                        const c = pairs[j % pairs.length];
+                        ctx.fillStyle = j % 2 ? c[0] : c[1];
+                        ctx.fillRect(Math.round((tb.x + Math.cos(a) * (12 * k + fly) * 1.4) / k) * k, Math.round((tb.y + Math.sin(a) * (8 * k + fly * 0.7)) / k) * k, 2 * k, 2 * k);
+                    }
+                } });
+            }), hitAt);
+        }
+        return total - cut;
     },
     /**
      * 합동 필살기 (3:3 — 2026-10-21 태현 님 "필살기 연출은 그대로 (메가 변신 · 큰 폭발까지) · 필살기가 합쳐져서 멋진 형태로, 어색하지 않게")

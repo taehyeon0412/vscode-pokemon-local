@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """전용 필살기가 대상을 향하는지 훑기 (2026-10-22 orders #91 — 개굴닌자 필살기가 반대로 · 화면 끝으로 날아감)
-  python dev/ult-aim.py [창 수=6] [이름 걸러내기=]   → dev/shots/ult-aim.json + 표 (콘솔)
+  python dev/ult-aim.py [창 수=2] [이름 걸러내기=]   → dev/shots/ult-aim.json + 표 (콘솔)
   머리 없는 크롬 여러 개에서 전용 필살기 (fx-unique uniq · fx-sky 스타팅 특수 키) 마다 쓰는 쪽 · 대상 자리를 바꿔 (3:3 처럼 왼쪽 · 오른쪽 ·
   가운데를 넘어 섬 · 위 줄) window.pokemonFx.ult(…, { entry }) 로 돌리며, 대상 칸 · 거울 칸 (쓰는 쪽 반대편 같은 거리) · 대상 너머 (대상 뒤 ~ 화면 끝) 에
   그려진 점 넓이를 잼. 닿음 = 대상 칸 10% 넘게 칠함 · 반대 = 거울 칸이 대상 칸보다 · 넘어감 = 대상 너머가 대상 칸 넓이 넘게
@@ -142,7 +142,7 @@ def worker(k, n, out, filt):
             json.dump(res, open(out, "w", encoding="utf-8"), ensure_ascii=False)
     finally:
         json.dump(res, open(out, "w", encoding="utf-8"), ensure_ascii=False)
-        subprocess.run(["taskkill", "/PID", str(p.pid), "/T", "/F"], capture_output=True)
+        U.kill_browser(p)
         httpd.shutdown()
         shutil.rmtree(getattr(U.browser_page, "prof", ""), ignore_errors=True)
 
@@ -165,7 +165,8 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--worker":
         worker(int(sys.argv[2]), int(sys.argv[3]), sys.argv[4], sys.argv[5] if len(sys.argv) > 5 else "")
         sys.exit(0)
-    n = int(sys.argv[1]) if len(sys.argv) > 1 else 6
+    # 머리 없는 브라우저는 세션마다 2개까지 (game-dev-team 3장 정리 ④ · 2026-10-24 — 메모리 0.3 GB) · PG_MAX_BROWSERS 로만 늘림
+    n = min(int(sys.argv[1]) if len(sys.argv) > 1 else 2, int(os.environ.get("PG_MAX_BROWSERS", 2)))
     filt = sys.argv[2] if len(sys.argv) > 2 else ""
     tmp = tempfile.mkdtemp()
     t0 = time.time()

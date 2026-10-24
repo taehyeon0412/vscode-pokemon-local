@@ -11,6 +11,7 @@
     "watch": "node scripts/build.mjs --watch",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:ult-top": "python dev/ult-top.py 2 && python dev/ult-top.py 2 --joint",
     "test:integration": "node scripts/build.mjs --release --tests && node .test-out/run-integration.cjs",
     "typecheck": "tsc -p src/game/tsconfig.core.json && tsc -p src/game/tsconfig.host.json && tsc -p src/game/tsconfig.webview.json && tsc -p tsconfig.test.json",
     "lint": "eslint .",

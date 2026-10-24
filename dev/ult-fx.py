@@ -1,5 +1,5 @@
 """모습 · 필살기마다 "큰 맞음" 때 · 연출 길이 · 자기 둘레에서 터지는지 재기 → ult/ult-hit.json (2026-10-21 — 3:3 합동 필살기 박자 · 터짐 옮기기 · 기획 #88 시뮬)
-  python dev/ult-fx.py [창 수=6]
+  python dev/ult-fx.py [창 수=2]
   개발 창 (머리 없는 크롬) 여러 개에서 필살기 모음 (ULT_LIB) 한 줄씩 window.pokemonFx.ult(…, { entry }) 로 돌려,
   디자인팀 6판 3:3 자리에서 필살기 본편 (기 모으기 0.8 + 컷인 0.9초 뒤) 이 시작한 때부터 큰 맞음 (가장 센 번쩍 뒤 처음 맞음 — 빛줄기 닿음 · 대폭발) 까지 · 본편 길이 · 자기 둘레 터짐 (1/0).
   처음 맞음으로 재면 솔라빔의 하늘 빛기둥처럼 작은 닿음이 잡혀 합동 박자가 어긋났음 (디자인팀 6판). 같은 필살기도 모습마다 박자가 달라 "모습|이름|틀" 로 잼.
@@ -194,6 +194,11 @@ ONE = r"""
 """
 
 
+def kill_browser(p):
+    """browser_page 로 띄운 브라우저 끄기 (game-shots kill_browser — 같은 프로필의 남은 Edge 까지)"""
+    browser_page.gs.kill_browser(p, getattr(browser_page, "prof", ""))
+
+
 def browser_page():
     spec = importlib.util.spec_from_file_location("gs", os.path.join(ROOT, "dev", "game-shots.py"))
     gs = importlib.util.module_from_spec(spec)
@@ -209,9 +214,10 @@ def browser_page():
     _dbg_sock.bind(("127.0.0.1", 0))
     dbg = _dbg_sock.getsockname()[1]
     _dbg_sock.close()
-    prof = tempfile.mkdtemp()
+    prof = tempfile.mkdtemp(prefix=gs.PROF_PREFIX)
     browser_page.prof = prof
-    p = subprocess.Popen([gs.browser(), "--headless=new", "--disable-gpu", f"--remote-debugging-port={dbg}", f"--user-data-dir={prof}", "--window-size=860,187", "about:blank"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    browser_page.gs = gs
+    p = subprocess.Popen([gs.browser(), "--headless=new", "--disable-gpu", "--edge-skip-compat-layer-relaunch", f"--remote-debugging-port={dbg}", f"--user-data-dir={prof}", "--window-size=860,187", "about:blank"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     ws_url = None
     for _ in range(150):
         try:
@@ -282,7 +288,7 @@ def worker(k, n, out):
     finally:
         # 도중에 끊겨도 잰 데까지는 남김
         json.dump(res, open(out, "w", encoding="utf-8"), ensure_ascii=False)
-        subprocess.run(["taskkill", "/PID", str(p.pid), "/T", "/F"], capture_output=True)
+        kill_browser(p)
         httpd.shutdown()
         # 크롬 프로필 폴더는 지움 (%TEMP% 에 쌓이지 않게 — 코드 리뷰어)
         shutil.rmtree(getattr(browser_page, 'prof', ''), ignore_errors=True)
@@ -292,7 +298,8 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--worker":
         worker(int(sys.argv[2]), int(sys.argv[3]), sys.argv[4])
         sys.exit(0)
-    n = int(sys.argv[1]) if len(sys.argv) > 1 else 6
+    # 머리 없는 브라우저는 세션마다 2개까지 (game-dev-team 3장 정리 ④ · 2026-10-24 — 메모리 0.3 GB) · PG_MAX_BROWSERS 로만 늘림
+    n = min(int(sys.argv[1]) if len(sys.argv) > 1 else 2, int(os.environ.get("PG_MAX_BROWSERS", 2)))
     tmp = tempfile.mkdtemp()
     t0 = time.time()
     procs = [subprocess.Popen([sys.executable, __file__, "--worker", str(k), str(n), os.path.join(tmp, f"w{k}.json")]) for k in range(n)]
