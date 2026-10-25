@@ -4855,7 +4855,8 @@
     // · 화면 전체가 빛에 물듦 · 밑동의 돌덩이들이 빛 앞에서 검은 실루엣으로 천천히 떠오름. cols = 하양 → 짙은 색
     const ROCK = ['#2e2620', '#4a3d33', '#6b5a4a', '#8a7660'];
     const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5]; // 4×4 도트 섞기 차례
-    function blastDome(sc, x, G, R, dur, cols) {
+    // o.hollow (함수 → 0 ~ 1) = 돔 밑에서 새로 쓰러진 뒤 속빛을 빼 테 + 속 25% 점만 (0.5 넘으면 — 쓰러짐 · 회색 주저앉기가 하얀 속에 가려 안 보이던 것, #113 UX · #1706 과 같은 종류)
+    function blastDome(sc, x, G, R, dur, cols, o = {}) {
         const { S: s, H, W } = sc.u;
         // 빛줄기 — 반구 안에서 오른쪽 위로 천천히 흐르는 옅은 줄
         const streaks = [];
@@ -4892,13 +4893,14 @@
                 const grow = 1 - (1 - Math.min(1, life / 0.6)) ** 2; // 처음에 확 튀어나가지 않고 서서히 커짐
                 const fade = life > dur - 0.6 ? Math.max(0, (dur - life) / 0.6) : 1;
                 const rr = R * grow;
+                const hol = o.hollow ? o.hollow() : 0;
                 // 화면 전체가 빛에 물듦
-                ctx.globalAlpha = 0.22 * grow * fade;
+                ctx.globalAlpha = 0.22 * grow * fade * (1 - hol);
                 ctx.fillStyle = cols[1];
                 ctx.fillRect(0, 0, W, H);
-                domeLight(ctx, px, s, x, G, rr, cols, life, fade);
+                domeLight(ctx, px, s, x, G, rr, cols, life, fade, hol > 0.5);
                 // 빛줄기 — 하얀 심 안에서만
-                if (rr > s * 10) {
+                if (rr > s * 10 && hol <= 0.5) {
                     const path = new Path2D();
                     const ux = Math.cos(-0.6);
                     const uy = Math.sin(-0.6);
@@ -4931,12 +4933,13 @@
     // 빛의 반구 그림 — 반지름 R, 하얀 심 · 하늘 · 파랑 테두리(도트 섞기로 부드럽게) · 바깥 빛 무리(반 · 4분의 1 도트로 반투명처럼).
     // 가장자리는 거의 매끈하게, 아주 잘게만 일렁. show(1 → 0)에 따라 색이 한 단계씩 어두워지다(하양 → 연하늘 → 하늘 → 파랑 → 짙은 파랑) 사라짐
     // (옛날 게임처럼 — 옅게 하면 하양이 회색으로 탁해짐)
-    function domeLight(ctx, px, s, x, G, R, cols, T, show = 1) {
+    // hollow = 속 빈 반구 (테 0.78 ~ 1 · 속 = 25% 바둑판 점) — 돔 밑 쓰러짐이 비쳐 보이게 (blastDome o.hollow)
+    function domeLight(ctx, px, s, x, G, R, cols, T, show = 1, hollow = false) {
         if (R < s * 3 || show <= 0.01) {
             return;
         }
         const c = s * Math.max(1, Math.round(R / (70 * s))); // 아주 큰 반구는 칸을 키움 (가볍게)
-        const paths = [new Path2D(), new Path2D(), new Path2D(), new Path2D(), new Path2D(), new Path2D()];
+        const paths = [new Path2D(), new Path2D(), new Path2D(), new Path2D(), new Path2D(), new Path2D(), new Path2D()];
         const Rm = R * 1.15;
         for (let gy = Math.floor((G - Rm) / c) * c; gy < G; gy += c) {
             const dy = gy + c / 2 - G;
@@ -4952,7 +4955,11 @@
                 const dith = BAYER[by + ((gx / c) & 3)] / 16;
                 const f = d / edge + (dith - 0.5) * 0.06;
                 let k = -1;
-                if (f < 0.7 + 0.03 * Math.sin(T * 14)) {
+                if (hollow && f < 0.86) {
+                    k = f < 0.78 ? (dith < 0.25 ? 6 : -1) : 4;
+                } else if (hollow && f < 0.94) {
+                    k = 3;
+                } else if (f < 0.7 + 0.03 * Math.sin(T * 14)) {
                     k = 5; // 하얀 심
                 } else if (f < 0.85) {
                     k = 4;
@@ -4972,7 +4979,7 @@
         }
         const pal = [cols[3], cols[2], cols[1], cols[0], '#ffffff']; // 어두운 → 밝은
         const step = Math.floor((1 - show) * 5.99); // 사라지는 단계
-        [[2, 0.6], [2, 0.9], [1, 1], [2, 1], [3, 1], [4, 1]].forEach(([base, a], k) => {
+        [[2, 0.6], [2, 0.9], [1, 1], [2, 1], [3, 1], [4, 1], [2, 0.55]].forEach(([base, a], k) => {
             const i = base - step;
             if (i >= 0) {
                 ctx.globalAlpha = a;
@@ -5354,12 +5361,18 @@
         mega.src = (img.src || '').replace(/[^/]+\.gif(\?.*)?$/, 'megax_idle_8fps.gif');
         const megaW = () => (mega.naturalWidth || 64) * u.s;
         const megaReady = () => mega.complete && mega.naturalWidth > 0;
+        // #113 메가리자몽X 옆모습 (megax_walk — 오른쪽 보는 그림 · 쓰는 쪽을 봄 · ×2 그대로) — 입 = 칸 (45, 45)/64 → 몸 가운데 앞 메가 폭 × 0.2 · 발 위 × 0.3
+        const side = new Image();
+        side.src = (img.src || '').replace(/[^/]+\.gif(\?.*)?$/, 'megax_walk_8fps.gif');
+        const sideImg = () => (side.complete && side.naturalWidth > 0 ? side : mega);
+        // 태현 님 10-25 "메가 리자몽 옆모습으로 입 앞쪽에 동그란 화염을 모으면서 쏘는 형태" → 화염구가 나선 꼬리를 끌며 날아가 대상 자리 땅에서 끝 돔 (시안 A 확정)
+        const FL = 0.32; // 쏜 뒤 대상 자리 폭발까지
         // 때 — 떠오름 · (불꽃 기 모으기) · 진화 모션 · 펑(메가) · (파란 기 모으기) · 번쩍 · 대폭발 · 다시 나타남 · 원래대로
         const TL0 = 0.4;
         const TE = 1.75;
         const TM = 3.0;
         const TF = 4.6 + XG;
-        const TX = TF + 0.12;
+        const TX = TF + FL;
         const DOME = 2.5; // 반구 대폭발 길이
         const TR2 = TX + DOME - 0.25; // 빛이 사그라들 때 메가리자몽X 가 다시 보임
         const TBack = sec - 0.5;
@@ -5379,11 +5392,12 @@
         // 진화 모션 (하얀 빛 구 · 빛줄기) · 펑은 불꽃이 아니라 main 크기 그대로 (태현 님 "나머지는 이전과 동일" — #108 아트 2)
         const RoE = Math.max(me.w, me.h) * 0.95;
         const pullE = Math.max(RoE * 1.2, Math.min(Math.max(RoE * 3.5, D * 1.1), top0 > 0 ? me.b - me.h * 0.5 - top0 - 4 * s : Infinity));
-        // 480 아래 빨려 드는 줄기 — 길이 · 굵기 × 0.75 · 13 → 9 (240 에서 바람개비가 무대를 다 채워 이름표 · HP 줄을 덮던 것 — #108 아트 1)
-        const swR = W < 480 ? 0.75 : 1;
-        const swN = W < 480 ? 9 : 13;
         const R = Math.min(Math.max(D * 1.7, megaW() * 2.5), W * 0.6, G * 0.95, top0 > 0 ? Math.max(megaW(), G - top0 - 4 * s) : Infinity); // 반구 반지름 (게임 화면 = 꼭대기가 위 끝 아래)
         const ex = me.x;
+        // 맞는 자리 — 가장 가까운 상대 (없으면 앞쪽)
+        const q0 = nearest(u);
+        const tx = q0 ? q0.x : clamp(ex + dir * W * 0.45, W * 0.05, W * 0.95);
+        const ty = q0 ? q0.y : G - me.h * 0.45;
         // 떠 있는 발 높이 — 날갯짓하듯 살짝 들썩
         const bob = (t) => -Math.abs(Math.sin((t / 0.3) * Math.PI)) * s * 2;
         const isMega = (t) => t >= TM;
@@ -5394,33 +5408,226 @@
         const hoverOf = (m) => Math.min(me.b, Math.max(me.b - lift, top0 > 0 ? top0 + outerOf(m) + 4 * s + (m ? megaW() * 0.3 : me.h * 0.5) : -Infinity));
         const hoverAt = (t) => (t < TM ? hoverOf(false) : lerp(hoverOf(false), hoverOf(true), easeOut(clamp((t - TM) / 0.3, 0, 1))));
         const footAt = (t) => {
+            // 떠 있는 동안은 연출 칸 (s) 에 맞춰 (1px 씩 움직여 효과의 2px 격자와 반 칸 어긋나던 것 — 픽셀 검사원 #113)
             if (t < TL0) {
-                return lerp(me.b, hoverAt(t), easeOut(t / TL0));
+                return Math.round(lerp(me.b, hoverAt(t), easeOut(t / TL0)) / s) * s;
             }
             if (t < TX) {
-                return hoverAt(t) + bob(t);
+                return Math.round((hoverAt(t) + bob(t)) / s) * s;
             }
             return me.b; // 터진 뒤엔 땅에 선 채로
         };
         // 몸 가운데 — 메가 그림은 64칸 아래쪽 (35 ~ 63) 에 있어 칸 가운데 (× 0.5) 면 구가 머리 높이에 뜸 → 발 위 메가 폭 × 0.3 (보이는 몸 가운데 0.23 과 땅에 잘리는 구 사이 — #108 UX 작음 3)
         const center = (t) => [ex, footAt(t) - (isMega(t) ? megaW() * 0.3 : me.h * 0.5)];
-        // 불꽃 구 [x, y, 배율] — x 는 늘 몸 x (구를 몸 앞쪽으로 옮기면 모으는 원 · 파란 불꽃 구름이 메가리자몽X 에서 110px 옆에 모이던 것 — 태현 님 10-25 사진) ·
-        //   게임 화면은 가운데 y ≥ 위 끝 + 바깥 반지름 + 4칸 — 몸을 땅까지 내려도 모자라면 먼저 구를 줄여 몸 가운데에 두고 (최소 0.75) · 그래도 모자라면
-        //   구를 그 높이로 내림 (아래는 땅에서 잘림) · 그래도 무대보다 크면 땅에서 솟는 반구로 놓고 위 끝 아래에 들게 줄임 (최소 0.6 — #1759)
-        const orbAt = (t) => {
-            const [x, y] = center(t);
-            if (!(top0 > 0)) {
-                return [x, y, 1];
-            }
-            const outer = outerOf(isMega(t));
-            const f = clamp((y - top0 - 4 * s) / outer, 0.75, 1);
-            const need = top0 + outer * f + 4 * s;
-            if (y >= need) {
-                return [x, y, f];
-            }
-            return need <= G ? [x, need, f] : [x, G, clamp((G - top0 - 4 * s) / outer, 0.6, 1)];
-        };
         const beatAt = (t, list) => list.reduce((m, tp) => Math.max(m, clamp(1 - Math.abs(t - tp) / 0.1, 0, 1)), 0);
+        // 기 모으기 (#111 — 태현 님 10-25 "불꽃이 휘감기면서 도는것보다 …" → 고른 시안 "불티 빨아들이기 · 불티가 많이 흩날리면서 · 기를 모아서 터트린다"):
+        //   무대 곳곳의 네모 불티가 흩날리다 몸 앞 심으로 빨려 들고, 심이 맥동하며 밝아지다 멈칫 → 터져 끝 돔으로 (시안 넷은 topic/design-111 기록 · design-system #111)
+        // 심 자리 — 몸 앞 가슴 높이 (머리는 안 가림) · 메가X 는 정면 그림이라 가슴 가운데
+        const mouthM = (t) => [ex + dir * megaW() * 0.2, footAt(t) - megaW() * 0.3];
+        // 화염구 — 태현 님 "화염구가 더 컸으면 · 뮤의 저정도 크기의 반정도" (사진 뮤 구 약 220px → 지름 약 106px) · 무대 높이에 들게 · 240 은 패널 폭 15%
+        const ballMax = Math.max(4 * s, Math.min(megaW() * 0.42, W * 0.07, top0 > 0 ? (G - top0 - 8 * s) / 2 : Infinity)); // 확정 약 106px (태현 님 10-25)
+        const ballR = (p) => ballMax * (0.35 + 0.65 * p);
+        // 구 가운데 = 입 앞 (메가 머리 뒤에 걸쳐 주둥이가 구 앞에 보이게 — 앞으로 반지름 × 0.55 · 메가 폭 × 0.24 까지) · 땅 · 위 끝에 안 걸리게 높이만 맞춤 (U4)
+        const ballAt = (t) => {
+            const [x, y] = mouthM(t);
+            const r = ballR(pB(t));
+            return [x + dir * Math.min(r * 0.55, megaW() * 0.24), clamp(y, (top0 > 0 ? top0 : 0) + r + 4 * s, G - r - s)];
+        };
+        // 화염구 색 — 짙은 파랑 테 → 파랑 → 하늘 → 흰 심 (뮤 구처럼 겹친 층 · 테는 들쭉날쭉한 픽셀 불꽃)
+        const BALL = ['#ffffff', '#bfe9ff', BLUE[2], BLUE[3]];
+        const drawBall = (ctx, px, x, y, R, life, k) => {
+            fireOrb(ctx, px, s, x, y, R, BALL, life, k, G, 1, 0, [1, 0.8, 0.6, 0.42], 0.6);
+            // 빛살 — 사방으로 짧게 (천천히 돌며)
+            const rays = new Path2D();
+            for (let i = 0; i < 10; i++) {
+                const an = (i / 10) * TAU + life * 0.6;
+                const r0 = R * 1.08;
+                const r1 = R * (1.35 + 0.15 * Math.sin(life * 3 + i * 1.7));
+                addLine(rays, px, s, [[x + Math.cos(an) * r0, y + Math.sin(an) * r0], [x + Math.cos(an) * r1, y + Math.sin(an) * r1]], 1);
+            }
+            ctx.globalAlpha = 0.6 * k;
+            ctx.fillStyle = BLUE[1];
+            ctx.fill(rays);
+        };
+        // 치지직 — 둘레에 하양 · 하늘색 짧은 픽셀 번개 2 ~ 4갈래가 꺾이며 튐 (0.12초마다 자리 바꿈 · 화면 번쩍 없음)
+        const drawSpark = (ctx, px, x, y, R, life, n, len) => {
+            const step = Math.floor(life / 0.12);
+            const core = new Path2D();
+            const glow = new Path2D();
+            for (let i = 0; i < n; i++) {
+                const h = hash(step * 7 + i, 161);
+                if (h < 0.15) {
+                    continue; // 가끔 한 갈래 쉼 (2 ~ 4갈래)
+                }
+                const an = hash(step * 7 + i, 162) * TAU;
+                const r0 = R * (0.85 + 0.1 * hash(step * 7 + i, 163));
+                const L = len * (0.6 + 0.4 * hash(step * 7 + i, 164));
+                const pts = [[x + Math.cos(an) * r0, y + Math.sin(an) * r0]];
+                let a2 = an;
+                for (let j = 1; j <= 3; j++) {
+                    a2 += (hash(step * 7 + i * 3 + j, 165) - 0.5) * 1.6;
+                    const [lx, ly] = pts[j - 1];
+                    pts.push([lx + Math.cos(a2) * L / 3, ly + Math.sin(a2) * L / 3]);
+                }
+                addLine(glow, px, s, pts, 2);
+                addLine(core, px, s, pts, 1);
+            }
+            ctx.globalAlpha = 0.85;
+            ctx.fillStyle = BLUE[1];
+            ctx.fill(glow);
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = '#ffffff';
+            ctx.fill(core);
+        };
+        const mouthAt = (t) => (isMega(t) ? ballAt(t) : [ex + dir * me.w * 0.36, footAt(t) - me.h * 0.5]);
+        // 불티 빨아들이기 (태현 님 #111 "불티가 많이 흩날리면서 빨아들이게 · 기를 모아서 터트린다") — 860 84개 · 240 36개 ·
+        //   한 바퀴 (1.1 ~ 1.7초) = 흩날림 (흔들리며 떠다님) → 빨려 듦 (q² 로 빨라지며 꼬리) · 진행이 이를수록 흩날림이 짧아짐 (0.65 → 0.15) ·
+        //   처음 자리는 심 둘레로 치우침 (가까이 촘촘 · 멀리 드묾) · 크기는 심에 가까울수록 큼 (3 · 2 · 1칸) · 2칸 넘는 알갱이 가운데 1칸 밝은 노랑
+        const NS = W < 480 ? 36 : 84;
+        const drawSuck = (ctx, px, life, t0, pal, p, k, core) => {
+            if (k <= 0.01) {
+                return;
+            }
+            const paths = pal.map(() => new Path2D());
+            const hot = new Path2D();
+            const yTop = (top0 > 0 ? top0 : 0) + 6 * s;
+            const yBot = G - 2 * s;
+            const reach = W * 0.5;
+            const dq = lerp(0.65, 0.15, p);
+            for (let i = 0; i < NS; i++) {
+                const dur = 1.1 + 0.6 * hash(i, 131);
+                const q0 = (life - t0) / dur + hash(i, 132);
+                const cyc = Math.floor(q0);
+                const q = q0 - cyc;
+                if (q > 0.97) {
+                    continue; // 심에 닿음
+                }
+                const id = i * 31 + cyc;
+                const an = hash(id, 133) * TAU;
+                const rr = reach * (0.12 + 0.88 * hash(id, 134) ** 1.4);
+                const sx = clamp(core[0] + Math.cos(an) * rr, W * 0.02, W * 0.98);
+                const sy = clamp(core[1] + Math.sin(an) * rr * 0.6, yTop, yBot);
+                // 흩날린 끝 자리 — 흔들림 (좌우 4칸 · 위아래 3칸) + 바람에 밀림 + 6칸 떠오름
+                const wx = sx + Math.sin(life * 2.2 + i) * 4 * s + (hash(id, 137) - 0.5) * 10 * s;
+                const wy = sy - 6 * s + Math.cos(life * 1.7 + i * 1.3) * 3 * s;
+                let x = wx;
+                let y = wy;
+                let sp = 0;
+                if (q < dq) {
+                    const f = q / dq;
+                    x = lerp(sx, wx, f);
+                    y = lerp(sy, wy, f);
+                } else {
+                    sp = (q - dq) / (1 - dq);
+                    const e = sp * sp;
+                    x = lerp(wx, core[0], e);
+                    y = lerp(wy, core[1], e) + Math.sin(sp * Math.PI) * 8 * s * (hash(id, 135) - 0.5);
+                }
+                const d = Math.hypot(x - core[0], y - core[1]) / reach;
+                const h3 = hash(id, 145);
+                const z = (d < 0.18 ? (h3 > 0.4 ? 3 : 2) : d < 0.4 ? (h3 > 0.5 ? 2 : 1) : h3 > 0.85 ? 2 : 1) * s;
+                const ci = embCol(hash(id, 146));
+                paths[ci].rect(px(x - z / 2), px(y - z / 2), z, z);
+                if (z > s && ci < 4) {
+                    hot.rect(px(x - s / 2), px(y - s / 2), s, s);
+                }
+                if (sp > 0.05) {
+                    const dl = Math.hypot(wx - x, wy - y) || 1;
+                    const ux = (wx - x) / dl;
+                    const uy = (wy - y) / dl;
+                    for (let jj = 1; jj <= (sp > 0.5 ? 3 : 2); jj++) {
+                        const back = z / 2 + jj * s * (1 + 2 * sp);
+                        paths[Math.min(pal.length - 1, ci + jj)].rect(px(x + ux * back - s / 2), px(y + uy * back - s / 2), s, s);
+                    }
+                }
+            }
+            fillPaths(ctx, paths, pal, k);
+            ctx.globalAlpha = k;
+            ctx.fillStyle = pal === EMB_M ? '#ffffff' : '#ffe066';
+            ctx.fill(hot);
+        };
+        // 심 — 점점 커지며 맥동 (1.5 → 3번/초 · 크기만 · 번쩍 아님) · 점 고리 두 겹이 조여 듦 ("곧 터진다") · 끝 0.15초 한 번 움츠림 (멈칫) → 터짐
+        const drawCore = (ctx, px, life, c, p, k, beat, core, tEnd, m = false) => {
+            if (k <= 0.01) {
+                return;
+            }
+            const Rc = m ? ballR(p) : Math.max(3 * s, Math.min(me.w * (0.08 + 0.14 * p), W * 0.035));
+            const pre = clamp((life - (tEnd - 0.15)) / 0.15, 0, 1);
+            let R = Rc * (1 + 0.12 * Math.sin(life * TAU * (1.5 + 1.5 * p)) + 0.2 * beat) * (1 - 0.35 * pre);
+            if (m) {
+                R = Math.min(R, (core[1] - (top0 > 0 ? top0 : 0) - 2 * s) / 1.12); // 맥동해도 테 · 위로 솟는 혀가 위 끝 아래 (합동 860 테가 한 장 일자로 잘리던 것 — 픽셀 검사원)
+            }
+            // 메가 = 입 앞 동그란 파란 화염구 (겹친 층 · 빛살) · 불 = 하얀 심
+            if (m) {
+                drawBall(ctx, px, core[0], core[1], R, life, k);
+            } else {
+                fireOrb(ctx, px, s, core[0], core[1], R, ['#ffffff', c[0], c[1], c[2]], life, k, G, 1);
+            }
+            if (!m) {
+                glint(ctx, px, s, core[0], core[1], R * (1.4 + 0.6 * p), k * (0.4 + 0.6 * p));
+            }
+            ringDots(ctx, px, s, core[0], core[1], lerp(Rc * 7, Rc * 1.8, p), 1, [c[1], c[2]], 0.55 * k);
+            ringDots(ctx, px, s, core[0], core[1], lerp(Rc * 10, Rc * 2.6, p ** 0.7), 1, [c[2], c[3]], 0.35 * k);
+        };
+        // 불티 색 (태현 님 사진 taehyun-1025-charge-embers) — 주황 · 노랑 · 크림 + 재 (회색 · 올리브) · 메가X 는 하양 · 하늘 · 파랑 + 잿빛
+        const EMB_F = ['#fff3c4', '#ffd23f', '#ff8a1f', '#c8551c', '#8f8f86', '#7d7a3a'];
+        const EMB_M = ['#ffffff', '#cfefff', '#8fd8ff', '#3fa2ff', '#8f9aa8', '#5c6f8a'];
+        const EMB_W = [0.15, 0.4, 0.65, 0.77, 0.9, 1.01]; // 색 고르기 (쌓은 비율)
+        const embCol = (h) => EMB_W.findIndex((w) => h < w);
+        // 모으는 동안 (불 · 메가 파랑) — 꼭두각시 뒤 층 (빨려 드는 불티) · 앞 층 (가슴 앞 심)
+        const chargeBack = (ctx, px, life, m, k, p) => drawSuck(ctx, px, life, m ? TM : 0.25, m ? EMB_M : EMB_F, p, k, mouthAt(life));
+        const chargeFront = (ctx, px, life, m, k, p, beat) => drawCore(ctx, px, life, m ? BLUE : cols, p, k, beat, mouthAt(life), m ? TF : TE, m);
+        // 쏨 (TF ~) — 화염구가 나선 꼬리 (겹친 파랑 꼬리 + 두 줄 나선 점) 를 끌며 대상 자리 땅으로 (살짝 포물선 · FL 초) · 맞을 때 상대 둘레 치지직
+        const drawShot = (ctx, px, life) => {
+            const R1 = ballR(1);
+            const [bx, by] = ballAt(TF);
+            if (life >= TX) {
+                // 꽂힌 자리에서 0.15초 눌리며 (작아지며 옅어짐) 끝 돔으로 이어짐 (아트 작음 5)
+                const sq = (life - TX) / 0.15;
+                if (sq < 1) {
+                    drawBall(ctx, px, tx, G - R1 * 0.8 * (1 - 0.4 * sq), R1 * (1 - 0.4 * sq), life, 1 - sq);
+                }
+                // 맞을 때 상대 둘레 치지직 (0.5초)
+                if (life < TX + 0.5) {
+                    drawSpark(ctx, px, tx, ty, Math.max(me.w, q0 ? q0.w : me.w) * 0.6, life, 3, R1 * 0.8);
+                }
+                return;
+            }
+            const f = clamp((life - TF) / FL, 0, 1);
+            const gy = G - R1 * 0.8;
+            const arc = Math.min(H * 0.08, Math.max(0, by - R1 * 1.5 - (top0 > 0 ? top0 + 2 * s : 0))); // 날아가는 길 꼭대기도 바깥 불꽃 혀까지 위 끝 아래 (U4 · 아트 작음 6)
+            const x = lerp(bx, tx, f);
+            const y = lerp(by, gy, f) - Math.sin(f * Math.PI) * arc;
+            const dx = tx - bx;
+            const dy = gy - by - Math.cos(f * Math.PI) * Math.PI * arc;
+            const dl = Math.hypot(dx, dy) || 1;
+            const ux = dx / dl;
+            const uy = dy / dl;
+            const trav = Math.hypot(x - mouthM(TF)[0], y - mouthM(TF)[1]);
+            fireTail(ctx, px, s, x, y, ux, uy, Math.min(R1 * 3.2, trav), R1 * 1.5, BALL, life); // 꼬리 끝 ≤ 입 (아트 큼 1)
+            const spi = [new Path2D(), new Path2D()];
+            for (let j = 0; j < 16; j++) {
+                const back = R1 * 0.5 + j * R1 * 0.32;
+                if (back > trav) {
+                    break;
+                }
+                const bxj = x - ux * back;
+                const byj = y - uy * back;
+                for (const [ph, path] of [[0, spi[0]], [Math.PI, spi[1]]]) {
+                    const off = Math.sin(life * 30 - j * 0.8 + ph) * R1 * 1.1 * (1 - j / 18);
+                    const z = j < 4 ? 2 * s : s;
+                    path.rect(px(bxj - uy * off - z / 2), px(byj + ux * off - z / 2), z, z);
+                }
+            }
+            fillPaths(ctx, spi, [BLUE[0], BLUE[1]], 1);
+            drawBall(ctx, px, x, y, R1, life, 1);
+            drawSpark(ctx, px, x, y, R1, life, 3, R1 * 0.8);
+            jointOrb(o); // 3:3 — 쏘는 순간 합동 구 끝
+        };
+        const kF = (t) => easeOut(clamp((t - 0.1) / 0.3, 0, 1)) * (1 - clamp((t - TE) / 0.25, 0, 1));
+        const pF = (t) => clamp((t - 0.25) / (TE - 0.25), 0, 1);
+        const kB = (t) => easeOut(clamp((t - TM) / 0.25, 0, 1));
+        const pB = (t) => clamp((t - TM) / (TF - TM), 0, 1);
         const sc = scene(u, sec + 0.3, 'ultpillar');
         ultDark(0.3, ms - 200);
         emberRise(sc, TX, sec, BLUE);
@@ -5430,30 +5637,28 @@
         // 구 · 도는 불씨 · 꼭두각시 (한 덩어리 — 대폭발이 생기면 그 위에 다시 그림)
         const drawMon2 = (ctx, it, t, px) => {
             const life = sc.t;
-            window.__pgOrbProbe = { orb: orbAt(life), body: center(life), w: Math.max(me.w, megaW()) }; // 자동 검사 (dev/ult-orb.py — 모으는 원 가운데 ↔ 몸 가운데)
+            const probeBody = isMega(life) ? mouthM(life) : center(life);
+            window.__pgOrbProbe = { orb: life < TF ? mouthAt(life) : probeBody, body: probeBody, w: Math.max(me.w, megaW()) }; // 자동 검사 (dev/ult-orb.py — 모으는 구 ↔ 입 · 불 단계는 몸 가운데)
             // 3:3 장면 전환 합동 (o.track) — 하얀 실루엣 동안을 알림 (하드플랜트와 같음 · #96)
             if (o.track) {
-                o.track.morph = (life >= TE && life < TM + 0.35) || (life >= TR2 && life < TR2 + 0.35) || (life > TBack - 0.4 && life < TBack);
+                o.track.morph = (life >= TE && life < TM + 0.35) || (life > TBack - 0.4 && life < TBack);
                 o.track.morphed = life >= TM + 0.35;
                 o.track.morphBox = { x: ex, b: footAt(life) - (isMega(life) ? megaW() : me.h) * 0.5 + Math.max(me.h, megaW()) * 0.72, w: Math.max(me.w, megaW()) * 1.6 };
-                o.track.mega = megaReady() && life >= TM && life < TBack && !(life >= TX && life < TR2 && !(top0 > 0)) ? { scale: megaW() / Math.max(1, me.w), lift: me.b - footAt(life) } : null;
+                o.track.mega = megaReady() && life >= TM && life < TBack ? { scale: megaW() / Math.max(1, me.w), lift: me.b - footAt(life) } : null;
             }
-            // 터지는 동안은 안 보임 (일반 모드 1:1 그대로) · 게임 화면은 반구 위 층에 메가리자몽X 를 그대로 (반구가 1.9초 가리던 것 — #96 아트 4바퀴 2)
-            if (life >= TBack || (life >= TX && life < TR2 && !(top0 > 0))) {
+            // 끝 돔이 대상 자리라 메가리자몽X 는 쏜 뒤에도 그대로 (#113)
+            if (life >= TBack) {
                 return;
             }
             const [cx, cy] = center(life);
             const b = footAt(life);
             if (life < TE + 0.25) {
-                // 리자몽 — 불꽃 구가 커지며 두근두근, 둘레로 불씨 세 줄
-                const k = easeOut(clamp((life - 0.1) / 0.3, 0, 1)) * (0.6 + 0.4 * clamp((life - 0.25) / 1.5, 0, 1)) * (1 + 0.15 * beatAt(life, firePulses)) * (1 - clamp((life - TE) / 0.25, 0, 1));
-                const [ox, oy, of] = orbAt(life);
-                fireOrb(ctx, px, s, ox, oy, Ro * of, cols, life, narrowK(W, Ro * of, k), G, 0.95);
-                orbitEmbers(ctx, px, s, ox, oy, Ro * of * k * 1.3, cols, life, dir, clamp((life - 0.3) / 0.2, 0, 1) * (1 - clamp((life - TE) / 0.15, 0, 1)));
+                // 리자몽 — 불티가 흩날리다 빨려 듦
+                chargeBack(ctx, px, life, false, kF(life), pF(life));
             }
             if (life < TE) {
-                drawLitMon(ctx, img, ex, b, me.w, left, '#ffc93c', edge, 1);
-                drawMon(ctx, img, ex, b, me.w, left, clamp((life - 0.3) / 0.5, 0, 1) * (0.1 + 0.06 * Math.sin(life * 18)), cols[0]); // 달아오름 칠은 옅게 (작아진 구 안에서도 리자몽 무늬가 보이게 — #108)
+                drawMon(ctx, img, ex, b, me.w, left, 1);
+                chargeFront(ctx, px, life, false, kF(life), pF(life), beatAt(life, firePulses));
                 return;
             }
             if (life < TM) {
@@ -5483,41 +5688,55 @@
             if (!megaReady()) {
                 return;
             }
-            // 메가리자몽X — 파란 기 모으기 동안 파란 불꽃 구, 번쩍 때 확 커졌다 대폭발에 섞여 사라짐
+            // 메가리자몽X — 하양 · 하늘 · 파랑 불티가 파란 심으로 빨려 듦 → 멈칫 → 터짐
             const w = megaW();
-            if (life < TX) {
-                const flash = clamp((life - TF) / 0.08, 0, 1);
-                const k = (0.7 + 0.5 * clamp((life - TM) / (TF - TM), 0, 1)) * (1 + 0.15 * beatAt(life, bluePulses)) * (1 + 0.4 * flash) * easeOut(clamp((life - TM) / 0.25, 0, 1));
-                const [ox, oy, of] = orbAt(life);
-                fireOrb(ctx, px, s, ox, oy, RoM * of, BLUE, life, narrowK(W, RoM * of, k), G, 0.95);
-                orbitEmbers(ctx, px, s, ox, oy, RoM * of * k * 1.3, BLUE, life, -dir, clamp((life - TM - 0.2) / 0.2, 0, 1));
+            const sd = sideImg();
+            // 멈칫 — 번쩍 앞 0.12초 어둠 한 장 (구 · 메가X 는 그 위에 다시 그려 또렷하게 · screenFlash 는 0.34초에 한 번이라 연출 판에 직접)
+            if (life >= TF - 0.12 && life < TF) {
+                ctx.globalAlpha = 0.45;
+                ctx.fillStyle = '#05040a';
+                ctx.fillRect(0, 0, W, H);
+            }
+            if (life < TF) {
+                // 불티 · 화염구는 메가 뒤 (주둥이가 구 앞에 보이게) · 3:3 은 동료 별이 입 앞 구로 (원기옥)
+                chargeBack(ctx, px, life, true, kB(life), pB(life));
+                chargeFront(ctx, px, life, true, kB(life), pB(life), beatAt(life, bluePulses));
+                const [ox, oy] = ballAt(life);
+                jointOrb(o, ctx, ox, oy, ballR(pB(life)), true, false);
             }
             if (!(life > TBack - 0.2)) {
-                drawLitMon(ctx, mega, ex, b, w, false, BLUE[2], edge, 1); // 흰 원래 차례엔 메가 그림을 숨김 (파란 테가 흰 리자몽 둘레로 삐져나와 두 모습이 겹치던 것 — #108 UX 다시 보기 작음)
+                drawLitMon(ctx, sd, ex, b, w, left, BLUE[2], edge, 1); // 흰 원래 차례엔 메가 그림을 숨김 (파란 테가 흰 리자몽 둘레로 삐져나와 두 모습이 겹치던 것 — #108 UX 다시 보기 작음)
             }
-            // 하얗게 — 나타날 때(메가진화 · 빛 속에서 다시), 그리고 원래대로 돌아가기 직전엔 메가 ↔ 리자몽 실루엣이 빠르게 깜빡
-            const appear = clamp(1 - (life - (life >= TR2 ? TR2 : TM)) / 0.35, 0, 1);
+            if (life < TF) {
+                if (pB(life) > 0.2) {
+                    const [ox, oy] = ballAt(life);
+                    const r = ballR(pB(life));
+                    drawSpark(ctx, px, ox, oy, r, life, 4, r * 0.9);
+                }
+            } else {
+                drawShot(ctx, px, life);
+            }
+            // 하얗게 — 나타날 때 (메가진화), 그리고 원래대로 돌아가기 직전엔 메가 → 리자몽 실루엣
+            const appear = clamp(1 - (life - TM) / 0.35, 0, 1);
             if (appear > 0) {
-                drawMon(ctx, mega, ex, b, w, false, appear, '#ffffff');
+                drawMon(ctx, sd, ex, b, w, left, appear, '#ffffff');
             }
             if (life > TBack - 0.4) {
                 const back = life > TBack - 0.2; // 0.4초에 한 번만 바뀜 (흰 메가 0.2 → 흰 리자몽 0.2 · 0.06초마다 번갈면 240 에서 1초 6번 번쩍 — 깜빡임 1초 3번 규칙, #108 UX 큼 1)
-                drawMon(ctx, back ? img : mega, ex, b, back ? me.w : w, back ? left : false, 1, '#ffffff');
+                drawMon(ctx, back ? img : sd, ex, b, back ? me.w : w, left, 1, '#ffffff');
             }
         };
         sc.add({ max: TX, draw: drawMon2 });
 
-        // ① 떠오르며 불꽃 구 · 불꽃 기 모으기
+        // ① 떠오르며 불꽃 기 모으기
         sc.at(0.05, () => {
             ring(sc, ex, me.b - s, me.w * 0.5, me.w * 3, 0.2, 0.4, [cols[1], '#ffffff'], 2);
             fireBits(ex, me.b - s, s, cols, 20, { angle: -Math.PI / 2, spread: 2, speed: H * 0.5, drag: 2.4, life: 0.6 });
         });
-        // 빨려 드는 줄기 9 → 13 — 구가 작아진 만큼 둘레 픽셀 줄기로 화려함을 채움 (#108 · 480 아래는 9 · × 0.75)
-        chargeSwirl(sc, orbAt, 0.25, TE, pullR, Ro * swR, cols, dir, swN);
         for (const tp of firePulses) {
             sc.at(tp, () => {
-                const [cx, cy] = orbAt(tp);
-                ring(sc, cx, cy, pullR * 0.6, Ro * 1.1, 1, 0.3, [cols[1], '#ffffff', cols[3]], 2);
+                const [cx, cy] = mouthAt(tp);
+                ring(sc, cx, cy, pullR * 0.6, Ro * 0.6, 1, 0.3, [cols[1], '#ffffff', cols[3]], 2);
                 ultShake(1.5, 150);
             });
         }
@@ -5527,14 +5746,14 @@
             screenFlash(s, 0.25, '#ffffff', 0.15);
             ring(sc, cx, cy, RoE * 0.5, pullE, 1, 0.45, ['#ffffff', '#fff2b0'], 2);
         });
-        let glint = 0;
+        let sparkN = 0; // (glint 그림 함수를 가리지 않게)
         sc.tick((t, dt) => {
             if (t < TE || t > TM) {
                 return;
             }
-            glint += dt * 14;
-            while (glint >= 1) {
-                glint -= 1;
+            sparkN += dt * 14;
+            while (sparkN >= 1) {
+                sparkN -= 1;
                 const [cx, cy] = center(t);
                 sparkles(cx, cy, s, ['#ffffff', '#fff2b0', BLUE[1]], 1, RoE * 1.6, H * 0.15);
             }
@@ -5549,11 +5768,10 @@
             sparkles(cx, cy, s, ['#ffffff', BLUE[1]], 16, megaW() * 1.125, H * 0.2);
         });
         // ④ 파란 기 모으기 → 번쩍!
-        chargeSwirl(sc, orbAt, TM + 0.15, TF, pullR * 1.15, RoM * swR, BLUE, -dir, swN);
         for (const tp of bluePulses) {
             sc.at(tp, () => {
-                const [cx, cy] = orbAt(tp);
-                ring(sc, cx, cy, pullR * 0.7, RoM * 1.1, 1, 0.3, [BLUE[1], '#ffffff', BLUE[3]], 2);
+                const [cx, cy] = mouthAt(tp);
+                ring(sc, cx, cy, pullR * 0.7, RoM * 0.6, 1, 0.3, [BLUE[1], '#ffffff', BLUE[3]], 2);
                 ultShake(1.5 + (tp - TM), 150);
             });
         }
@@ -5561,27 +5779,49 @@
             screenFlash(s, 0.95, '#ffffff', 0.35);
             ultShake(5, 200);
         });
-        // ⑤ 파란 반구 대폭발 · 돌 파편 · 먼지 · 충격파 · 화면 끝까지 번지는 파란 땅 불길
+        // 번쩍 때 입 앞에서 터짐 고리 · 파란 불티 (어둠 한 장은 drawMon2 — 구 아래)
+        sc.at(TF, () => {
+            const [cx, cy] = mouthAt(TF);
+            ring(sc, cx, cy, s * 4, Math.max(W, H) * 0.45, 1, 0.45, ['#ffffff', BLUE[1], BLUE[2]], 2);
+            fireBits(cx, cy, s, BLUE, 40, { spread: TAU, speed: H * 0.9, drag: 2.4, life: 0.6 });
+        });
+        // 돔 밑에서 새로 쓰러지면 (쏠 때 쓰러져 있던 칸은 빼고) 0.2초에 속 빈 돔으로 (#113 UX 큼 1 — 3:3 쓰러짐 회색이 하얀 속에 1.8초 숨던 것)
+        let downAt0 = null;
+        let downAt = -1;
+        sc.at(TF, () => {
+            downAt0 = new Set(typeof fxGameDown === 'function' ? fxGameDown().map((q) => q.el) : []);
+        });
+        let downLook = 0;
+        sc.tick((t, dt) => {
+            downLook -= dt;
+            if (t < TX || downAt >= 0 || !downAt0 || downLook > 0 || typeof fxGameDown !== 'function') {
+                return;
+            }
+            downLook = 0.05;
+            if (fxGameDown().some((q) => !downAt0.has(q.el) && Math.abs(q.r.left + q.r.width / 2 - tx) < R + q.r.width / 2 && q.r.top < G)) {
+                downAt = t;
+            }
+        });
+        const domeHollow = () => (downAt < 0 ? 0 : clamp((sc.t - downAt) / 0.2, 0, 1));
+        // ⑤ 파란 반구 대폭발 (대상 자리 — #113) · 돌 파편 · 먼지 · 충격파 · 화면 끝까지 번지는 파란 땅 불길
         const spread = W * 0.64;
         const fireEnd = TX + 2.75;
         sc.at(TX, () => {
             ultShake(10, 1000);
-            blastDome(sc, ex, G, R, DOME, BLUE);
-            if (top0 > 0) {
-                sc.add({ max: sec, draw: drawMon2 }); // 게임 화면 — 반구 위 층
-            }
-            ring(sc, ex, G - R * 0.4, R * 0.4, Math.max(W, H) * 0.9, 0.7, 0.6, ['#ffffff', BLUE[1], BLUE[2]], 3);
-            ring(sc, ex, G - s, R * 0.5, Math.max(W, H), 0.16, 0.7, [BLUE[1], '#ffffff'], 2);
-            ring(sc, ex, G - s, R * 0.4, R * 2.2, 0.12, 0.6, ['#c9b9a6', '#8a7660'], 2);
-            debris(ex, G - s, s, ROCK, 50, H * 1.3, { ground: G, size: [2, 2, 3], angle: -Math.PI / 2, spread: 2.6 });
-            fireBits(ex, G - R * 0.4, s, BLUE, 80, { spread: TAU, speed: H * 1.2, drag: 2.2, life: 0.9, rx: R * 0.4 });
+            blastDome(sc, tx, G, R, DOME, BLUE, { hollow: domeHollow });
+            sc.add({ max: sec, draw: drawMon2 }); // 반구 위 층 — 쏜 뒤에도 메가리자몽X 그대로
+            ring(sc, tx, G - R * 0.4, R * 0.4, Math.max(W, H) * 0.9, 0.7, 0.6, ['#ffffff', BLUE[1], BLUE[2]], 3);
+            ring(sc, tx, G - s, R * 0.5, Math.max(W, H), 0.16, 0.7, [BLUE[1], '#ffffff'], 2);
+            ring(sc, tx, G - s, R * 0.4, R * 2.2, 0.12, 0.6, ['#c9b9a6', '#8a7660'], 2);
+            debris(tx, G - s, s, ROCK, 50, H * 1.3, { ground: G, size: [2, 2, 3], angle: -Math.PI / 2, spread: 2.6 });
+            fireBits(tx, G - R * 0.4, s, BLUE, 80, { spread: TAU, speed: H * 1.2, drag: 2.2, life: 0.9, rx: R * 0.4 });
             for (const r of u.others()) {
-                if (Math.abs(r.x - ex) < R + r.w * 0.5) {
+                if (Math.abs(r.x - tx) < R + r.w * 0.5) {
                     hit(r, Math.sign(r.x - ex) || dir, 'tumble');
                 }
             }
         });
-        sc.at(TX + 0.15, () => debris(ex, G - s, s, ROCK, 30, H * 1.0, { ground: G, size: [1, 2, 3], angle: -Math.PI / 2, spread: 2.8 }));
+        sc.at(TX + 0.15, () => debris(tx, G - s, s, ROCK, 30, H * 1.0, { ground: G, size: [1, 2, 3], angle: -Math.PI / 2, spread: 2.8 }));
         sc.add({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
             if (life < TX || life > fireEnd) {
@@ -5590,7 +5830,7 @@
             const k = life - TX;
             const reach = spread * k;
             const fade = clamp((fireEnd - life) / 0.6, 0, 1);
-            groundFlames(ctx, px, s, clamp(ex - reach, 0, W), clamp(ex + reach, 0, W), G, Math.max(6 * s, H * 0.13) * clamp(k / 0.2, 0, 1), life, BLUE, 0.92 * fade);
+            groundFlames(ctx, px, s, clamp(tx - reach, 0, W), clamp(tx + reach, 0, W), G, Math.max(6 * s, H * 0.13) * clamp(k / 0.2, 0, 1), life, BLUE, 0.92 * fade);
         } });
         sc.tick((t) => {
             if (t < TX || t > fireEnd - 0.4) {
@@ -5598,16 +5838,13 @@
             }
             const reach = spread * (t - TX);
             for (const r of u.others()) {
-                if (Math.abs(r.x - ex) < reach) {
+                if (Math.abs(r.x - tx) < reach) {
                     hit(r, Math.sign(r.x - ex) || dir, 'tumble');
                 }
             }
         });
         // ⑥ 빛이 사그라들 때 메가리자몽X 가 땅에 선 채로 다시 → 원래대로 (진짜 그림이 다시 보임)
         sc.at(TR2, () => {
-            if (!(top0 > 0)) {
-                sc.add({ max: sec, draw: drawMon2 });
-            }
             ring(sc, ex, me.b - s, me.w * 0.5, me.w * 3, 0.2, 0.4, [BLUE[1], '#ffffff'], 2);
         });
         sc.at(TBack, () => {

@@ -1,5 +1,5 @@
 """모습 · 필살기마다 "큰 맞음" 때 · 연출 길이 · 자기 둘레에서 터지는지 재기 → ult/ult-hit.json (2026-10-21 — 3:3 합동 필살기 박자 · 터짐 옮기기 · 기획 #88 시뮬)
-  python dev/ult-fx.py [창 수=2]
+  python dev/ult-fx.py [창 수=2] [이름 걸러내기=]   (걸러내기 = "모습|이름|틀" 일부 · 쉼표로 여럿 — 그 줄만 다시 재고 나머지는 예전 값 그대로, #113 블래스트번처럼 연출 하나를 바꿨을 때)
   개발 창 (머리 없는 크롬) 여러 개에서 필살기 모음 (ULT_LIB) 한 줄씩 window.pokemonFx.ult(…, { entry }) 로 돌려,
   디자인팀 6판 3:3 자리에서 필살기 본편 (기 모으기 0.8 + 컷인 0.9초 뒤) 이 시작한 때부터 큰 맞음 (가장 센 번쩍 뒤 처음 맞음 — 빛줄기 닿음 · 대폭발) 까지 · 본편 길이 · 자기 둘레 터짐 (1/0).
   처음 맞음으로 재면 솔라빔의 하늘 빛기둥처럼 작은 닿음이 잡혀 합동 박자가 어긋났음 (디자인팀 6판). 같은 필살기도 모습마다 박자가 달라 "모습|이름|틀" 로 잼.
@@ -179,7 +179,7 @@ ONE = r"""
     const mine = (s) => s && Math.abs(s[1].x - cfg.meX) < Math.abs(s[1].x - cfg.foeX);
     if (near && pre && main - big[1] > 400) self = mine(near) && mine(pre) ? 1 : 0;
     // 쏘는 필살기로 고정 — 쏘는 쪽 둘레 입자 (대포) 가 많아 가운데로는 못 가림 (거북왕 메가런처 = 물 구를 쏨, fx-sky.js — 코드 리뷰어)
-    if (['메가런처'].includes(lib[idx][0])) self = 0;
+    if (['메가런처', '블래스트번'].includes(lib[idx][0])) self = 0; // 블래스트번 = 메가리자몽X 화염구를 쏨 (#113 — 디자인)
   } else if (hits.length) {
     main = Math.round(hits[0]);
   }
@@ -272,12 +272,12 @@ def page_keys(ws, forms):
     raise RuntimeError("페이지가 안 뜸")
 
 
-def worker(k, n, out):
+def worker(k, n, out, filt=""):
     ws, p, httpd = browser_page()
     res = {}
     try:
         keys = page_keys(ws, FORMS)
-        mine = sorted(keys)[k::n]
+        mine = [key for key in sorted(keys) if not filt or any(f in key for f in filt.split(","))][k::n]
         cfg = json.dumps({"charge": CHARGE_MS, "intro": INTRO_MS, "outro": OUTRO_MS, "wait": WAIT_MAX_MS, "coverArea": COVER_AREA, "meX": 215, "foeX": 645})
         for key in mine:
             form, idx = keys[key]
@@ -296,13 +296,14 @@ def worker(k, n, out):
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--worker":
-        worker(int(sys.argv[2]), int(sys.argv[3]), sys.argv[4])
+        worker(int(sys.argv[2]), int(sys.argv[3]), sys.argv[4], sys.argv[5] if len(sys.argv) > 5 else "")
         sys.exit(0)
     # 머리 없는 브라우저는 세션마다 2개까지 (game-dev-team 3장 정리 ④ · 2026-10-24 — 메모리 0.3 GB) · PG_MAX_BROWSERS 로만 늘림
     n = min(int(sys.argv[1]) if len(sys.argv) > 1 else 2, int(os.environ.get("PG_MAX_BROWSERS", 2)))
+    filt = sys.argv[2] if len(sys.argv) > 2 else ""
     tmp = tempfile.mkdtemp()
     t0 = time.time()
-    procs = [subprocess.Popen([sys.executable, __file__, "--worker", str(k), str(n), os.path.join(tmp, f"w{k}.json")]) for k in range(n)]
+    procs = [subprocess.Popen([sys.executable, __file__, "--worker", str(k), str(n), os.path.join(tmp, f"w{k}.json"), filt]) for k in range(n)]
     for q in procs:
         q.wait()
     merged = {}
@@ -317,9 +318,11 @@ if __name__ == "__main__":
     except (OSError, ValueError):
         prev = {}
     lost = [key for key in prev if key not in merged]
-    if lost:
+    if filt:
+        print("다시 잰 줄:", {key: merged[key] for key in sorted(merged)})
+    elif lost:
         print(f"못 잰 줄 {len(lost)}개 — 예전 값 그대로 (다시 재 보세요)")
-        merged.update({key: prev[key] for key in lost})
+    merged.update({key: prev[key] for key in lost})
     out = dict(sorted(merged.items()))
     open(OUT, "w", encoding="utf-8", newline="\n").write(json.dumps(out, ensure_ascii=False, separators=(",", ":")) + "\n")
     hits = sorted(v[0] for v in out.values() if v[0] >= 0)
