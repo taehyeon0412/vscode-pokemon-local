@@ -1019,18 +1019,16 @@
     visibility: hidden;
   }
 }
+/* 돌아올 때 = 처음부터 바둑판 반 (0 ~ 50%) → 다 보임 — 0 ~ 33% 숨김이면 1:1 연출이 끊긴 뒤 무대가 1 ~ 2장 통째로 비던 것 (UX 7바퀴 작음 3 · bugs 1798) */
 @keyframes pg-view-show {
-  0%, 33% {
-    visibility: hidden;
-  }
-  34%, 66% {
+  0%, 50% {
     -webkit-mask-image: conic-gradient(#000 25%, transparent 0 50%, #000 0 75%, transparent 0);
     mask-image: conic-gradient(#000 25%, transparent 0 50%, #000 0 75%, transparent 0);
     -webkit-mask-size: 4px 4px;
     mask-size: 4px 4px;
     visibility: visible;
   }
-  67%, 100% {
+  51%, 100% {
     -webkit-mask-image: none;
     mask-image: none;
     visibility: visible;

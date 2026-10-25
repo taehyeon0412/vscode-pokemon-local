@@ -9282,10 +9282,12 @@
         sc.add({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
             const k = clamp((life - TC) / 0.6, 0, 1) * clamp((sec - 0.3 - life) / 0.5, 0, 1);
-            const erupt = life > TE && life < TE + NB * 0.17 + 0.2 ? 1.3 + 0.2 * Math.sin(life * 30) : 1;
+            // 불꽃 혀 크기 × 0.7 · 밑동을 등 위쪽 (몸 가운데 → 등 위 끝) 으로 — 몸 칸 60% 넘게 2.9초 덮어 브케인이 불덤불에 발만 보이던 것 (#108 훑기 C) ·
+            //   대신 혀 5 → 7 (가는 혀 둘) 로 일렁임 밀도는 그대로
+            const erupt = life > TE && life < TE + NB * 0.17 + 0.2 ? 1.08 + 0.06 * Math.sin(life * 30) : 1; // 혀 끝 ≤ 몸 높이 (HP 판을 덮던 것 — 아트 1바퀴)
             if (k > 0.02) {
-                for (const [ox, ww, hh, lean] of [[-0.42, 0.45, 0.65, -0.7], [0.42, 0.45, 0.65, 0.7], [-0.22, 0.55, 0.95, -0.35], [0.22, 0.55, 0.95, 0.35], [0, 0.75, 1.25, -dir * 0.1]]) {
-                    K.flameTongue(ctx, px, s, back[0] + ox * me.w, back[1] + me.h * 0.35, me.w * ww, me.h * hh * erupt, F, life + ox * 7, k, lean);
+                for (const [ox, ww, hh, lean] of [[-0.42, 0.32, 0.3, -0.7], [0.42, 0.32, 0.3, 0.7], [-0.22, 0.38, 0.43, -0.35], [0.22, 0.38, 0.43, 0.35], [0, 0.52, 0.57, -dir * 0.1], [-0.32, 0.2, 0.36, -0.55], [0.32, 0.2, 0.36, 0.55]]) {
+                    K.flameTongue(ctx, px, s, back[0] + ox * me.w, back[1] + me.h * 0.25, me.w * ww, me.h * hh * erupt, F, life + ox * 7, k, lean); // 밑동 = 등 위쪽 (몸 칸 위 끝이면 왕관처럼 떠 보이던 것 — 아트 1바퀴)
                 }
             }
         } });

@@ -22433,6 +22433,16 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
     // 불꽃 구 — (x, y) 둘레로 동그랗게 타오르는 불덩이: 겹친 색(바깥 빨강 → 주황 → 노랑 → 하얀 심)의 테두리가 저마다 일렁이고
     // 위쪽은 불꽃이 조금 더 솟음. 반지름 R × k, maxY 아래(땅 속)는 안 그림, cool(0 ~ 1)만큼 안쪽 색부터 줄어듦(식음).
     // 테두리는 각도 128칸으로 미리 계산 (칸마다 sin 을 안 하게). lay = 색 겹 크기(바깥 → 심), lick = 위로 솟는 불꽃 세기
+    // 좁은 패널 (480 아래) — 머무는 모으기 구의 몸통 지름 ≤ 패널 폭 30% (그리는 순간의 반지름 R × k 로 — 두근 · 커짐 배율이 곱해져 240 에서 110px 이 되던 것, #108 · 기획 10-25)
+    function narrowK(W, R, k) {
+        return W < 480 ? Math.min(k, (W * 0.15) / Math.max(1, R)) : k;
+    }
+    // 메가 진화 흰 실루엣 발 자리 — 짧은 패널에서 실루엣 위 끝이 위 끝 아래 2칸이 되게 내림 (크기 그대로 · 발은 땅 me.b 아래로 안 감 — 기획 10-25 · #157 A)
+    function megaFoot(cy, hh, b, s) {
+        const tT = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+        const fb0 = cy + hh * 0.5;
+        return tT > 0 && fb0 - hh < tT + 2 * s ? Math.min(b, fb0 + (tT + 2 * s - (fb0 - hh))) : fb0;
+    }
     function fireOrb(ctx, px, s, x, y, R, cols, T, k = 1, maxY = Infinity, alpha = 1, cool = 0, lay = [1, 0.8, 0.6, 0.38], lick = 1) {
         if (k <= 0.02 || alpha <= 0.01 || R < s * 2) {
             return;
@@ -22876,13 +22886,18 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         const pulses = [T1 + 0.55, T1 + 1.05, T1 + 1.45, T1 + 1.8];
         // 꼭대기 — 불꽃이 화면 밖으로 잘리지 않게 (위 · 양옆에 여유)
         const marg = Math.max(me.w * 1.4, short(u) * 0.16);
-        const topB = Math.max(me.h * 2 + marg * 0.5 + 4, H * 0.25 + me.h * 0.5);
+        // 꼭대기 발 높이 (y) — 몸 키 0.6 이상 떠오르고 (큰 그림이면 위에서 잰 값이 땅보다 아래가 되어 리자몽이 꼭대기에서 오히려 가라앉고 240 에서 몸 반이 패널 밖이던 것 — #108 UX 1바퀴 큼 1) ·
+        //   게임 화면은 불꽃 구 바깥 (Ro × 1.5) 이 위 끝 아래 (자리가 모자라면 구가 들어가는 높이까지만)
+        const Ro = Math.min(Math.max(me.w, me.h) * 0.72, W * 0.15); // 모으는 불꽃 구 반지름 — 그림 × 0.72 · 지름 패널 폭 30% 안 (태현 님 #108 "기 모을때 불꽃들만 좀 작게" · 블래스트번과 같음)
+        const topF = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+        const topLo = me.b - me.h * 0.6;
+        const topHi = topF > 0 ? topF + Ro * 1.5 * 1.45 + me.h * 0.6 : 0; // × 1.45 = 두근 · 점화 때 커짐까지 (860 5.2초 구 윗면이 정보줄 밑에 일자로 잘리던 것 — #108 아트 4 · UX 작음 2)
+        const topB = Math.max(topHi, Math.min(Math.max(me.h * 2 + marg * 0.5 + 4, H * 0.25 + me.h * 0.5), topLo));
         const ax = clamp(me.x + fd * W * 0.05, marg + 4, W - marg - 4);
         const vxN = (tx - ax) / (Math.hypot(tx - ax, G - topB) || 1);
         const vyN = (G - topB) / (Math.hypot(tx - ax, G - topB) || 1);
         const diveRot = fd * 0.6 * Math.atan2(G - topB, Math.abs(tx - ax) || 1); // 머리부터 — 그림이 너무 눕지 않게 반쯤만
         const upB = G - H * 0.25;
-        const Ro = Math.max(me.w, me.h) * 0.95; // 불꽃 구 반지름
         // 날갯짓 — 0.28초마다 몸이 들썩 (아래로 바람 고리)
         const BEAT = 0.28;
         const flapBob = (t) => -Math.abs(Math.sin((t / BEAT) * Math.PI)) * s * 3;
@@ -22987,7 +23002,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             const orb = orbAt(life);
             if (orb > 0.01) {
                 // 동그란 불꽃 구 — 리자몽이 그 안에 · 둘레로 불씨 세 줄이 빙글빙글 (내리꽂을 때까지)
-                fireOrb(ctx, px, s, cx, cy, Ro, cols, life, orb, G, 0.95);
+                fireOrb(ctx, px, s, cx, cy, Ro, cols, life, narrowK(W, Ro, orb), G, 0.95);
                 if (life < TI) {
                     orbitEmbers(ctx, px, s, cx, cy, Ro * orb * 1.3, cols, life, fd, clamp((life - T1 - 0.2) / 0.2, 0, 1));
                 }
@@ -23014,10 +23029,10 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                 fireBits(cx, cy - Ro * 0.9, s, cols, 1, { angle: -Math.PI / 2, spread: 1, speed: H * 0.4, drag: 1.6, life: 0.6, rx: Ro * 0.6 });
             }
         });
-        // 기 모으기 — 꼭대기에서 2초 동안 둘레의 불꽃 줄기 · 불씨가 소용돌이치며 불꽃 구로 빨려 듦, 점점 빨라짐
-        const pullR = Math.max(Ro * 3.5, D * 1.1);
+        // 기 모으기 — 꼭대기에서 2초 동안 둘레의 불꽃 줄기 · 불씨가 소용돌이치며 불꽃 구로 빨려 듦, 점점 빨라짐 · 꼬리까지 패널 폭 30% 안 (#108 — 블래스트번과 같음)
+        const pullR = Math.max(Ro * 1.2, Math.min(Math.max(Ro * 3.5, D * 1.1), W * 0.3 - Ro * 1.7));
         // 3:3 장면 전환 합동 — 주는 동안만 혜성 반 (무대 폭 480 아래는 3개) · 동료 몸을 피해 감
-        chargeSwirl(sc, center, T1 + 0.1, TG, pullR, Ro, cols, fd, o.track?.half ? (W < 480 ? 3 : 5) : 9, o.track?.avoid);
+        chargeSwirl(sc, center, T1 + 0.1, TG, pullR, Ro * (W < 480 ? 0.75 : 1), cols, fd, o.track?.half ? (W < 480 ? 3 : 5) : W < 480 ? 9 : 13, o.track?.avoid); // 혼자 = 9 → 13 줄기 (구가 작아진 만큼 — #108 · 480 아래는 9 · × 0.75)
         // 점화 — 다 모으면 확 (번쩍 · 고리 · 불씨)
         sc.at(TG, () => {
             const [cx, cy] = center(TG);
@@ -23193,44 +23208,60 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         const TBack = sec - 0.5;
         const firePulses = [0.8, 1.25, 1.6];
         const bluePulses = [0.6, 1.0, 1.3, 1.5].map((p) => TM + (p * (TF - TM)) / 1.6);
-        const Ro = Math.max(me.w, me.h) * 0.95; // 리자몽 불꽃 구
-        const RoM = megaW() * 0.75; // 메가 파란 불꽃 구
+        // 리자몽 불꽃 구 · 메가 파란 불꽃 구 — 그림 × 0.72 · 메가 폭 × 0.58 · 구 지름 ≤ 패널 폭 30% (그림 × 0.95 · 메가 × 0.75 면 240 에서 패널 폭을 거의 다 덮던 것 —
+        //   태현 님 #108 "기 모을때 불꽃들만 좀 작게" · 끝 반구 · 땅 불길은 그대로)
+        const Ro = Math.min(Math.max(me.w, me.h) * 0.72, W * 0.15);
+        const RoM = Math.min(megaW() * 0.58, W * 0.15);
         // 게임 화면 (1:1 · 3:3 장면 전환) — 머무는 모양 (떠 있는 몸 · 구 · 반구) 은 위 끝 (정보줄 · 지도 줄 아래 끝) 아래 (#1759 디자인 · ux-rules U4) · 일반 모드 · 무대 상자는 0
         const top0 = Math.max(typeof fxStageTop === 'function' ? fxStageTop() : 0, o.track && typeof t33Top === 'function' ? t33Top() : 0);
         // 떠오름 = 지금 높이와 "메가 머리 위 끝이 위 끝 + 2칸" 이 되는 높이 중 낮은 것 (187 에선 거의 땅 근처)
         const lift = Math.min(Math.max(s * 4, Math.max(Ro, RoM) * 1.1 - me.h * 0.5 + s * 2), top0 > 0 ? Math.max(0, me.b - Math.max(me.h, megaW()) - top0 - 2 * s) : Infinity); // 구가 땅에 묻히지 않게 떠오름
-        // 빨려 드는 기운 · 두근 고리 반지름 — 게임 화면은 가슴 높이에서 위 끝 + 4칸 까지 (머무는 기 모으기가 정보줄 뒤로 반쯤 — #96 ④ ult-top)
-        const pullR = Math.max(Ro * 1.2, Math.min(Math.max(Ro * 3.5, D * 1.1), top0 > 0 ? me.b - me.h * 0.5 - top0 - 4 * s : Infinity));
+        // 빨려 드는 기운 · 두근 고리 반지름 — 게임 화면은 가슴 높이에서 위 끝 + 4칸 까지 (머무는 기 모으기가 정보줄 뒤로 반쯤 — #96 ④ ult-top) ·
+        //   꼬리 (Ro × 1.7) 까지 패널 폭 30% 안 (240 에서 빨려 드는 줄기가 패널 끝까지 퍼지던 것 — #108)
+        const pullR = Math.max(Ro * 1.2, Math.min(Math.max(Ro * 3.5, D * 1.1), W * 0.3 - Ro * 1.7, top0 > 0 ? me.b - me.h * 0.5 - top0 - 4 * s : Infinity));
+        // 진화 모션 (하얀 빛 구 · 빛줄기) · 펑은 불꽃이 아니라 main 크기 그대로 (태현 님 "나머지는 이전과 동일" — #108 아트 2)
+        const RoE = Math.max(me.w, me.h) * 0.95;
+        const pullE = Math.max(RoE * 1.2, Math.min(Math.max(RoE * 3.5, D * 1.1), top0 > 0 ? me.b - me.h * 0.5 - top0 - 4 * s : Infinity));
+        // 480 아래 빨려 드는 줄기 — 길이 · 굵기 × 0.75 · 13 → 9 (240 에서 바람개비가 무대를 다 채워 이름표 · HP 줄을 덮던 것 — #108 아트 1)
+        const swR = W < 480 ? 0.75 : 1;
+        const swN = W < 480 ? 9 : 13;
         const R = Math.min(Math.max(D * 1.7, megaW() * 2.5), W * 0.6, G * 0.95, top0 > 0 ? Math.max(megaW(), G - top0 - 4 * s) : Infinity); // 반구 반지름 (게임 화면 = 꼭대기가 위 끝 아래)
         const ex = me.x;
         // 떠 있는 발 높이 — 날갯짓하듯 살짝 들썩
         const bob = (t) => -Math.abs(Math.sin((t / 0.3) * Math.PI)) * s * 2;
+        const isMega = (t) => t >= TM;
+        // 구 바깥 반지름 (불꽃 혀 · 도는 불씨 끝: 불 Ro × 1.5 · 파랑 RoM × 1.8)
+        const outerOf = (m) => (m ? RoM * 1.8 : Ro * 1.5);
+        // 떠 있는 발 높이 — 게임 화면에서 머리 위에 구 자리가 모자라면 몸을 내려 구 가운데 = 몸 가운데 (발은 땅 아래로 안 감) ·
+        //   불 → 파랑은 펑 (TM) 뒤 0.3초에 옮겨 감
+        const hoverOf = (m) => Math.min(me.b, Math.max(me.b - lift, top0 > 0 ? top0 + outerOf(m) + 4 * s + (m ? megaW() * 0.3 : me.h * 0.5) : -Infinity));
+        const hoverAt = (t) => (t < TM ? hoverOf(false) : lerp(hoverOf(false), hoverOf(true), easeOut(clamp((t - TM) / 0.3, 0, 1))));
         const footAt = (t) => {
             if (t < TL0) {
-                return lerp(me.b, me.b - lift, easeOut(t / TL0));
+                return lerp(me.b, hoverAt(t), easeOut(t / TL0));
             }
             if (t < TX) {
-                return me.b - lift + bob(t);
+                return hoverAt(t) + bob(t);
             }
             return me.b; // 터진 뒤엔 땅에 선 채로
         };
-        const isMega = (t) => t >= TM;
-        const center = (t) => [ex, footAt(t) - (isMega(t) ? megaW() : me.h) * 0.5];
-        // 불꽃 구 [x, y, 배율] — 게임 화면은 가운데 y ≥ 위 끝 + 바깥 반지름 (불꽃 혀 · 도는 불씨 끝: 불 Ro × 1.5 · 파랑 RoM × 1.8) + 4칸 ·
-        // 머리 위에 그 자리가 없으면 몸 앞쪽 (대상 쪽 몸 폭 × 0.8) 그 높이에 모음 (아래는 땅에서 잘림) · 그래도 무대보다 크면 (187 의 파란 구 —
-        // 반지름 약 96px · 무대 약 120px, 위아래가 일자로 잘리던 것) 땅에서 솟는 반구로 놓고 위 끝 아래에 들게 줄임 (#1759)
+        // 몸 가운데 — 메가 그림은 64칸 아래쪽 (35 ~ 63) 에 있어 칸 가운데 (× 0.5) 면 구가 머리 높이에 뜸 → 발 위 메가 폭 × 0.3 (보이는 몸 가운데 0.23 과 땅에 잘리는 구 사이 — #108 UX 작음 3)
+        const center = (t) => [ex, footAt(t) - (isMega(t) ? megaW() * 0.3 : me.h * 0.5)];
+        // 불꽃 구 [x, y, 배율] — x 는 늘 몸 x (구를 몸 앞쪽으로 옮기면 모으는 원 · 파란 불꽃 구름이 메가리자몽X 에서 110px 옆에 모이던 것 — 태현 님 10-25 사진) ·
+        //   게임 화면은 가운데 y ≥ 위 끝 + 바깥 반지름 + 4칸 — 몸을 땅까지 내려도 모자라면 먼저 구를 줄여 몸 가운데에 두고 (최소 0.75) · 그래도 모자라면
+        //   구를 그 높이로 내림 (아래는 땅에서 잘림) · 그래도 무대보다 크면 땅에서 솟는 반구로 놓고 위 끝 아래에 들게 줄임 (최소 0.6 — #1759)
         const orbAt = (t) => {
             const [x, y] = center(t);
             if (!(top0 > 0)) {
                 return [x, y, 1];
             }
-            const outer = isMega(t) ? RoM * 1.8 : Ro * 1.5;
-            const need = top0 + outer + 4 * s;
+            const outer = outerOf(isMega(t));
+            const f = clamp((y - top0 - 4 * s) / outer, 0.75, 1);
+            const need = top0 + outer * f + 4 * s;
             if (y >= need) {
-                return [x, y, 1];
+                return [x, y, f];
             }
-            const fx = x + dir * (isMega(t) ? megaW() : me.w) * 0.8;
-            return need <= G ? [fx, need, 1] : [fx, G, clamp((G - top0 - 4 * s) / outer, 0.6, 1)]; // 무대에 드는 만큼만 · 최소 0.6 (디자인)
+            return need <= G ? [x, need, f] : [x, G, clamp((G - top0 - 4 * s) / outer, 0.6, 1)];
         };
         const beatAt = (t, list) => list.reduce((m, tp) => Math.max(m, clamp(1 - Math.abs(t - tp) / 0.1, 0, 1)), 0);
         const sc = scene(u, sec + 0.3, 'ultpillar');
@@ -23242,11 +23273,12 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         // 구 · 도는 불씨 · 꼭두각시 (한 덩어리 — 대폭발이 생기면 그 위에 다시 그림)
         const drawMon2 = (ctx, it, t, px) => {
             const life = sc.t;
+            window.__pgOrbProbe = { orb: orbAt(life), body: center(life), w: Math.max(me.w, megaW()) }; // 자동 검사 (dev/ult-orb.py — 모으는 원 가운데 ↔ 몸 가운데)
             // 3:3 장면 전환 합동 (o.track) — 하얀 실루엣 동안을 알림 (하드플랜트와 같음 · #96)
             if (o.track) {
                 o.track.morph = (life >= TE && life < TM + 0.35) || (life >= TR2 && life < TR2 + 0.35) || (life > TBack - 0.4 && life < TBack);
                 o.track.morphed = life >= TM + 0.35;
-                o.track.morphBox = { x: ex, b: center(life)[1] + Math.max(me.h, megaW()) * 0.72, w: Math.max(me.w, megaW()) * 1.6 };
+                o.track.morphBox = { x: ex, b: footAt(life) - (isMega(life) ? megaW() : me.h) * 0.5 + Math.max(me.h, megaW()) * 0.72, w: Math.max(me.w, megaW()) * 1.6 };
                 o.track.mega = megaReady() && life >= TM && life < TBack && !(life >= TX && life < TR2 && !(top0 > 0)) ? { scale: megaW() / Math.max(1, me.w), lift: me.b - footAt(life) } : null;
             }
             // 터지는 동안은 안 보임 (일반 모드 1:1 그대로) · 게임 화면은 반구 위 층에 메가리자몽X 를 그대로 (반구가 1.9초 가리던 것 — #96 아트 4바퀴 2)
@@ -23259,12 +23291,12 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                 // 리자몽 — 불꽃 구가 커지며 두근두근, 둘레로 불씨 세 줄
                 const k = easeOut(clamp((life - 0.1) / 0.3, 0, 1)) * (0.6 + 0.4 * clamp((life - 0.25) / 1.5, 0, 1)) * (1 + 0.15 * beatAt(life, firePulses)) * (1 - clamp((life - TE) / 0.25, 0, 1));
                 const [ox, oy, of] = orbAt(life);
-                fireOrb(ctx, px, s, ox, oy, Ro * of, cols, life, k, G, 0.95);
+                fireOrb(ctx, px, s, ox, oy, Ro * of, cols, life, narrowK(W, Ro * of, k), G, 0.95);
                 orbitEmbers(ctx, px, s, ox, oy, Ro * of * k * 1.3, cols, life, dir, clamp((life - 0.3) / 0.2, 0, 1) * (1 - clamp((life - TE) / 0.15, 0, 1)));
             }
             if (life < TE) {
                 drawLitMon(ctx, img, ex, b, me.w, left, '#ffc93c', edge, 1);
-                drawMon(ctx, img, ex, b, me.w, left, clamp((life - 0.3) / 0.5, 0, 1) * (0.2 + 0.12 * Math.sin(life * 18)), cols[0]);
+                drawMon(ctx, img, ex, b, me.w, left, clamp((life - 0.3) / 0.5, 0, 1) * (0.1 + 0.06 * Math.sin(life * 18)), cols[0]); // 달아오름 칠은 옅게 (작아진 구 안에서도 리자몽 무늬가 보이게 — #108)
                 return;
             }
             if (life < TM) {
@@ -23274,18 +23306,18 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                 const paths = [new Path2D(), new Path2D()];
                 for (let i = 0; i < 12; i++) {
                     const a = (i / 12) * TAU + life * 0.9 * dir;
-                    const L = pullR * (0.55 + 0.35 * Math.sin(life * 6 + i * 1.7)) * ramp;
-                    addLine(paths[i % 2], px, s, [[cx + Math.cos(a) * Ro * 0.9, cy + Math.sin(a) * Ro * 0.9], [cx + Math.cos(a) * L, cy + Math.sin(a) * L]], i % 2 ? 1 : 2);
+                    const L = pullE * (0.55 + 0.35 * Math.sin(life * 6 + i * 1.7)) * ramp;
+                    addLine(paths[i % 2], px, s, [[cx + Math.cos(a) * RoE * 0.9, cy + Math.sin(a) * RoE * 0.9], [cx + Math.cos(a) * L, cy + Math.sin(a) * L]], i % 2 ? 1 : 2);
                 }
                 fillPaths(ctx, paths, ['#ffffff', '#ffe9a0'], 0.8 * ramp);
-                fireOrb(ctx, px, s, cx, cy, Ro, GLOW, life, (0.6 + 0.5 * k) * ramp, G, 0.6);
-                const flips = (life - TE) * (3 + 8.5 * k); // 점점 빨라짐 (초당 3번 → 20번)
+                fireOrb(ctx, px, s, cx, cy, RoE, GLOW, life, (0.6 + 0.5 * k) * ramp, G, 0.6);
+                const flips = (life - TE) * 2.8; // 초당 2.8번 그대로 (점점 빨라져 초당 20번이면 240 에서 1초 4 ~ 5번 번쩍임 — 깜빡임 1초 3번 규칙이 메가 결정보다 위, 기획 10-25 · #108 UX 3바퀴)
                 const showMega = megaReady() && (k > 0.9 || Math.floor(flips) % 2 === 1);
                 const im = showMega ? mega : img;
                 // 바뀔 때마다 부풀었다 줄어듦 (원작 진화처럼) — 발 대신 가운데를 기준으로
                 const swell = 1.1 + (k > 0.9 ? 0.15 : 0.3 * Math.sin((flips % 1) * Math.PI));
                 const w = (showMega ? megaW() : me.w) * swell;
-                const fb = cy + (showMega ? megaW() : me.h) * swell * 0.5;
+                const fb = megaFoot(cy, (showMega ? megaW() : me.h) * swell, me.b, s);
                 const lf = showMega ? false : left;
                 drawLitMon(ctx, im, ex, fb, w, lf, showMega ? BLUE[1] : '#ffe08a', edge * 2, 1);
                 drawMon(ctx, im, ex, fb, w, lf, 1, '#ffffff');
@@ -23300,17 +23332,19 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                 const flash = clamp((life - TF) / 0.08, 0, 1);
                 const k = (0.7 + 0.5 * clamp((life - TM) / (TF - TM), 0, 1)) * (1 + 0.15 * beatAt(life, bluePulses)) * (1 + 0.4 * flash) * easeOut(clamp((life - TM) / 0.25, 0, 1));
                 const [ox, oy, of] = orbAt(life);
-                fireOrb(ctx, px, s, ox, oy, RoM * of, BLUE, life, k, G, 0.95);
+                fireOrb(ctx, px, s, ox, oy, RoM * of, BLUE, life, narrowK(W, RoM * of, k), G, 0.95);
                 orbitEmbers(ctx, px, s, ox, oy, RoM * of * k * 1.3, BLUE, life, -dir, clamp((life - TM - 0.2) / 0.2, 0, 1));
             }
-            drawLitMon(ctx, mega, ex, b, w, false, BLUE[2], edge, 1);
+            if (!(life > TBack - 0.2)) {
+                drawLitMon(ctx, mega, ex, b, w, false, BLUE[2], edge, 1); // 흰 원래 차례엔 메가 그림을 숨김 (파란 테가 흰 리자몽 둘레로 삐져나와 두 모습이 겹치던 것 — #108 UX 다시 보기 작음)
+            }
             // 하얗게 — 나타날 때(메가진화 · 빛 속에서 다시), 그리고 원래대로 돌아가기 직전엔 메가 ↔ 리자몽 실루엣이 빠르게 깜빡
             const appear = clamp(1 - (life - (life >= TR2 ? TR2 : TM)) / 0.35, 0, 1);
             if (appear > 0) {
                 drawMon(ctx, mega, ex, b, w, false, appear, '#ffffff');
             }
             if (life > TBack - 0.4) {
-                const back = Math.floor((life - TBack + 0.4) / 0.06) % 2 === 1;
+                const back = life > TBack - 0.2; // 0.4초에 한 번만 바뀜 (흰 메가 0.2 → 흰 리자몽 0.2 · 0.06초마다 번갈면 240 에서 1초 6번 번쩍 — 깜빡임 1초 3번 규칙, #108 UX 큼 1)
                 drawMon(ctx, back ? img : mega, ex, b, back ? me.w : w, back ? left : false, 1, '#ffffff');
             }
         };
@@ -23321,7 +23355,8 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             ring(sc, ex, me.b - s, me.w * 0.5, me.w * 3, 0.2, 0.4, [cols[1], '#ffffff'], 2);
             fireBits(ex, me.b - s, s, cols, 20, { angle: -Math.PI / 2, spread: 2, speed: H * 0.5, drag: 2.4, life: 0.6 });
         });
-        chargeSwirl(sc, orbAt, 0.25, TE, pullR, Ro, cols, dir);
+        // 빨려 드는 줄기 9 → 13 — 구가 작아진 만큼 둘레 픽셀 줄기로 화려함을 채움 (#108 · 480 아래는 9 · × 0.75)
+        chargeSwirl(sc, orbAt, 0.25, TE, pullR, Ro * swR, cols, dir, swN);
         for (const tp of firePulses) {
             sc.at(tp, () => {
                 const [cx, cy] = orbAt(tp);
@@ -23333,7 +23368,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         sc.at(TE, () => {
             const [cx, cy] = center(TE);
             screenFlash(s, 0.25, '#ffffff', 0.15);
-            ring(sc, cx, cy, Ro * 0.5, pullR, 1, 0.45, ['#ffffff', '#fff2b0'], 2);
+            ring(sc, cx, cy, RoE * 0.5, pullE, 1, 0.45, ['#ffffff', '#fff2b0'], 2);
         });
         let glint = 0;
         sc.tick((t, dt) => {
@@ -23344,7 +23379,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             while (glint >= 1) {
                 glint -= 1;
                 const [cx, cy] = center(t);
-                sparkles(cx, cy, s, ['#ffffff', '#fff2b0', BLUE[1]], 1, Ro * 1.6, H * 0.15);
+                sparkles(cx, cy, s, ['#ffffff', '#fff2b0', BLUE[1]], 1, RoE * 1.6, H * 0.15);
             }
         });
         // ③ 펑 — 메가리자몽X (하얀 번쩍 · 큰 고리 · 파란 불씨)
@@ -23352,12 +23387,12 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             const [cx, cy] = center(TM);
             screenFlash(s, 0.6, '#ffffff', 0.3);
             ultShake(6, 450);
-            ring(sc, cx, cy, Ro * 0.5, Math.max(W, H) * 0.6, 1, 0.5, ['#ffffff', BLUE[1], BLUE[2]], 3);
-            fireBits(cx, cy, s, BLUE, 60, { spread: TAU, speed: H * 0.9, drag: 2.4, life: 0.8, rx: RoM * 0.5, ry: RoM * 0.5 });
-            sparkles(cx, cy, s, ['#ffffff', BLUE[1]], 16, RoM * 1.5, H * 0.2);
+            ring(sc, cx, cy, RoE * 0.5, Math.max(W, H) * 0.6, 1, 0.5, ['#ffffff', BLUE[1], BLUE[2]], 3);
+            fireBits(cx, cy, s, BLUE, 60, { spread: TAU, speed: H * 0.9, drag: 2.4, life: 0.8, rx: megaW() * 0.375, ry: megaW() * 0.375 }); // main 메가 구 (× 0.75) 의 반
+            sparkles(cx, cy, s, ['#ffffff', BLUE[1]], 16, megaW() * 1.125, H * 0.2);
         });
         // ④ 파란 기 모으기 → 번쩍!
-        chargeSwirl(sc, orbAt, TM + 0.15, TF, pullR * 1.15, RoM, BLUE, -dir);
+        chargeSwirl(sc, orbAt, TM + 0.15, TF, pullR * 1.15, RoM * swR, BLUE, -dir, swN);
         for (const tp of bluePulses) {
             sc.at(tp, () => {
                 const [cx, cy] = orbAt(tp);
@@ -24023,9 +24058,11 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                 }
                 fillPaths(ctx, paths, ['#ffffff', '#e9ffb0'], 0.8 * ramp);
                 fireOrb(ctx, px, s, cx, cy, Ro, GLOW, life, (0.6 + 0.5 * k) * ramp, G, 0.6);
-                const flips = (life - TE) * (3 + 8.5 * k);
+                const flips = (life - TE) * 2.8; // 초당 2.8번 (1초 3번 규칙 — 기획 10-25)
                 const showMega = k > 0.9 || Math.floor(flips) % 2 === 1;
-                const swell = 1.1 + (k > 0.9 ? 0.15 : 0.3 * Math.sin((flips % 1) * Math.PI));
+                // 짧은 패널 — 발 기준이라 부풂만 위 끝 아래 2칸까지 (메가 크기 × 1.3 그대로 — 기획 10-25 · #157 A · 240 위 끝에 일자로 잘리던 것)
+                const tT = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+                const swell = Math.min(1.1 + (k > 0.9 ? 0.15 : 0.3 * Math.sin((flips % 1) * Math.PI)), tT > 0 ? Math.max(1, (me.b - tT - 2 * s) / (me.h * 1.3)) : Infinity);
                 if (showMega) {
                     megaVenus(ctx, px, s, img, cx, me.b, me.w * swell, left, life, edge * 2, 1);
                 } else {
@@ -24035,7 +24072,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                 return;
             }
             const stomp = life > TS - 0.25 && life < TS ? -Math.sin(((life - TS + 0.25) / 0.25) * Math.PI) * s * 4 : 0; // 앞발을 들었다 쿵
-            if (life > TBack - 0.4 && Math.floor((life - TBack + 0.4) / 0.06) % 2 === 1) {
+            if (life > TBack - 0.2) { // 원래대로 — 0.4초에 한 번만 바뀜 (흰 메가 0.2 → 흰 원래 0.2 · 0.06초마다 번갈면 240 에서 1초 6번 번쩍 — 깜빡임 1초 3번 규칙, #108 UX 큼 1)
                 drawMon(ctx, img, cx, me.b, me.w, left, 1, '#ffffff'); // 원래대로 — 깜빡
                 return;
             }
@@ -24991,9 +25028,11 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                 }
                 fillPaths(ctx, paths, ['#ffffff', TIDE[1]], 0.8 * ramp);
                 fireOrb(ctx, px, s, cx, cy, Ro, GLOW, life, (0.6 + 0.5 * k) * ramp, G, 0.6);
-                const flips = (life - TE) * (3 + 8.5 * k);
+                const flips = (life - TE) * 2.8; // 초당 2.8번 (1초 3번 규칙 — 기획 10-25)
                 const showMega = k > 0.9 || Math.floor(flips) % 2 === 1;
-                const swell = 1.1 + (k > 0.9 ? 0.15 : 0.3 * Math.sin((flips % 1) * Math.PI));
+                // 짧은 패널 — 발 기준이라 부풂만 위 끝 아래 2칸까지 (메가 크기 × 1.3 그대로 — 기획 10-25 · #157 A · 240 위 끝에 일자로 잘리던 것)
+                const tT = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+                const swell = Math.min(1.1 + (k > 0.9 ? 0.15 : 0.3 * Math.sin((flips % 1) * Math.PI)), tT > 0 ? Math.max(1, (me.b - tT - 2 * s) / (me.h * 1.3)) : Infinity);
                 if (showMega) {
                     megaTurtle(ctx, px, s, img, cx, me.b, me.w * swell, left, dir, edge * 2, 1);
                 } else {
@@ -25002,7 +25041,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                 }
                 return;
             }
-            if (life > TBack - 0.4 && Math.floor((life - TBack + 0.4) / 0.06) % 2 === 1) {
+            if (life > TBack - 0.2) { // 원래대로 — 0.4초에 한 번만 바뀜 (흰 메가 0.2 → 흰 원래 0.2 · 0.06초마다 번갈면 240 에서 1초 6번 번쩍 — 깜빡임 1초 3번 규칙, #108 UX 큼 1)
                 drawMon(ctx, img, cx, me.b, me.w, left, 1, '#ffffff');
                 return;
             }
@@ -25764,18 +25803,18 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                 }
                 fillPaths(ctx, paths, ['#ffffff', MEWP[1]], 0.8 * ramp);
                 fireOrb(ctx, px, s, me.x, c, Ro, GLOW, life, (0.6 + 0.5 * k) * ramp, G, 0.6);
-                const flips = (life - TE) * (3 + 8.5 * k);
+                const flips = (life - TE) * 2.8; // 초당 2.8번 (1초 3번 규칙 — 기획 10-25)
                 const showMega = megaReady() && (k > 0.9 || Math.floor(flips) % 2 === 1);
                 const im = showMega ? mega : img;
                 const swell = 1.1 + (k > 0.9 ? 0.15 : 0.3 * Math.sin((flips % 1) * Math.PI));
                 const w = (showMega ? megaW() : me.w) * swell;
                 const lf = showMega ? false : left;
-                const fb = c + (showMega ? megaW() : me.h) * swell * 0.5;
+                const fb = megaFoot(c, (showMega ? megaW() : me.h) * swell, me.b, s); // 짧은 패널 — 위 끝 아래 2칸 (기획 10-25)
                 drawLitMon(ctx, im, me.x, fb, w, lf, showMega ? MEWP[2] : MEWP[1], edge * 2, 1);
                 drawMon(ctx, im, me.x, fb, w, lf, 1, '#ffffff');
                 return;
             }
-            if (life > TBack - 0.4 && Math.floor((life - TBack + 0.4) / 0.06) % 2 === 1) {
+            if (life > TBack - 0.2) { // 원래대로 — 0.4초에 한 번만 바뀜 (흰 메가 0.2 → 흰 원래 0.2 · 0.06초마다 번갈면 240 에서 1초 6번 번쩍 — 깜빡임 1초 3번 규칙, #108 UX 큼 1)
                 drawMon(ctx, img, me.x, footAt(life), me.w, left, 1, '#ffffff');
                 return;
             }
@@ -38445,10 +38484,12 @@ const T11_FINALE = {
         sc.add({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
             const k = clamp((life - TC) / 0.6, 0, 1) * clamp((sec - 0.3 - life) / 0.5, 0, 1);
-            const erupt = life > TE && life < TE + NB * 0.17 + 0.2 ? 1.3 + 0.2 * Math.sin(life * 30) : 1;
+            // 불꽃 혀 크기 × 0.7 · 밑동을 등 위쪽 (몸 가운데 → 등 위 끝) 으로 — 몸 칸 60% 넘게 2.9초 덮어 브케인이 불덤불에 발만 보이던 것 (#108 훑기 C) ·
+            //   대신 혀 5 → 7 (가는 혀 둘) 로 일렁임 밀도는 그대로
+            const erupt = life > TE && life < TE + NB * 0.17 + 0.2 ? 1.08 + 0.06 * Math.sin(life * 30) : 1; // 혀 끝 ≤ 몸 높이 (HP 판을 덮던 것 — 아트 1바퀴)
             if (k > 0.02) {
-                for (const [ox, ww, hh, lean] of [[-0.42, 0.45, 0.65, -0.7], [0.42, 0.45, 0.65, 0.7], [-0.22, 0.55, 0.95, -0.35], [0.22, 0.55, 0.95, 0.35], [0, 0.75, 1.25, -dir * 0.1]]) {
-                    K.flameTongue(ctx, px, s, back[0] + ox * me.w, back[1] + me.h * 0.35, me.w * ww, me.h * hh * erupt, F, life + ox * 7, k, lean);
+                for (const [ox, ww, hh, lean] of [[-0.42, 0.32, 0.3, -0.7], [0.42, 0.32, 0.3, 0.7], [-0.22, 0.38, 0.43, -0.35], [0.22, 0.38, 0.43, 0.35], [0, 0.52, 0.57, -dir * 0.1], [-0.32, 0.2, 0.36, -0.55], [0.32, 0.2, 0.36, 0.55]]) {
+                    K.flameTongue(ctx, px, s, back[0] + ox * me.w, back[1] + me.h * 0.25, me.w * ww, me.h * hh * erupt, F, life + ox * 7, k, lean); // 밑동 = 등 위쪽 (몸 칸 위 끝이면 왕관처럼 떠 보이던 것 — 아트 1바퀴)
                 }
             }
         } });
