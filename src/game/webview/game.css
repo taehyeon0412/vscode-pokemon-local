@@ -1375,6 +1375,15 @@ body.vscode-light .pg-stage.pg-bg-arena-volcano {
 }
 /* 처음 한 번 안내 (orders #12, ui/FirstTip) — 판과 같은 남색 · 1px 금색 선 · 앞에 금색 "처음" 표 · 크림 12px, 좁으면 낱말 단위 두 줄 · 누름을 막지 않음.
    top = 길 위 상자 자리 (숲 1-1 처음 걷기) · low = 땅 위 가운데 (전투 — 마지막 기회 · 필살기 준비) */
+/* 판 안 한 줄 처음 안내 (셋 고르기 — TeamChoice) = 판 맨 아래 제자리 글 줄 (상자 테두리 · 바탕 없이 — 판 안에 판이 겹쳐 150 에서 판 아래 끝이 패널을 6px 넘던 것) */
+#pokemon-game .pg-first-tip.pg-tip-inpanel {
+  position: static;
+  margin: 2px auto 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  box-shadow: none;
+}
 .pg-first-tip {
   position: absolute;
   left: 0;

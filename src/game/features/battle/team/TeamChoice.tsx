@@ -11,6 +11,7 @@ import { speciesOf } from '../../../data';
 import { TypeTags } from '../components/TypeTag';
 import { Button } from '../../../ui/Button';
 import { KeyCap } from '../../../ui/KeyCap';
+import { FirstTip } from '../../../ui/FirstTip';
 import { Sprite } from '../../../ui/Sprite';
 
 /** 3:3 을 고를 수 있는 만남인지 (본편 스위치 · 개발 모드 (임시) 3:3 미리 켜기) */
@@ -202,8 +203,8 @@ export function TeamChoice({ state, media, onInput }: { state: GameState; media:
               </span>
               {!narrow && <span class="pg-team-pk-name">{name}</span>}
               {narrow ? null : order >= 0 ? (
+                // 고른 순서 = 싸울 때 누를 발밑 판 키 그대로 (금 칠) — "필살기" 글은 뺌 (뜻은 처음 안내 한 줄 · 칸 title — 기획 10-26 A)
                 <span class="pg-team-ord">
-                  {!cut.includes('ordword') && <span class="pg-team-ord-word">필살기</span>}
                   <span class="pg-team-key pg-team-key-on">{order + 1}</span>
                 </span>
               ) : (
@@ -233,6 +234,15 @@ export function TeamChoice({ state, media, onInput }: { state: GameState; media:
         </Button>
         )}
       </div>
+      {/* 첫 판 한 줄 (기획 10-26 A — 처음부터 셋이 골라져 있어 누르면 빠지는 것 · 칸의 금 키가 싸울 때 필살기 키인 것을 처음 보는 사람이 몰랐던 것, UX 리뷰어 #98 2바퀴 ⑧) · 보는 동안만 셈 */}
+      {!(save.tips ?? []).includes(TEAM_PICK_TIP) && (
+        <FirstTip key={TEAM_PICK_TIP} ms={4000} seenMs={1200} className="pg-tip-inpanel" paused={state.runtime.away === true || state.runtime.headless === true} onSeen={() => onInput({ kind: 'tip-seen', id: TEAM_PICK_TIP })}>
+          {/* 좁으면 짧게 한 줄 (240 × 150 에서 두 줄로 접혀 둘째 줄이 패널 아래에서 잘리던 것 — U4) · 긴 뜻은 판 title */}
+          {narrow ? '누르면 빠져요 · 순서 = 키' : '누르면 빠져요 · 고른 순서 = 필살기 키'}
+        </FirstTip>
+      )}
     </div>
   );
 }
+
+const TEAM_PICK_TIP = 'team-pick';
