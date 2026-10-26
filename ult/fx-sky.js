@@ -4928,7 +4928,8 @@
     // · 화면 전체가 빛에 물듦 · 밑동의 돌덩이들이 빛 앞에서 검은 실루엣으로 천천히 떠오름. cols = 하양 → 짙은 색
     const ROCK = ['#2e2620', '#4a3d33', '#6b5a4a', '#8a7660'];
     const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5]; // 4×4 도트 섞기 차례
-    // o.hollow (함수 → 0 ~ 1) = 돔 밑에서 새로 쓰러진 뒤 속빛을 빼 테 + 속 25% 점만 (0.5 넘으면 — 쓰러짐 · 회색 주저앉기가 하얀 속에 가려 안 보이던 것, #113 UX · #1706 과 같은 종류)
+    // o.hollow (함수 → 0 ~ 1) = 돔 밑에서 새로 쓰러진 뒤 속빛을 빼 테 + 속 25% 점만 (0.5 넘으면 — 쓰러짐 · 회색 주저앉기가 하얀 속에 가려 안 보이던 것, #113 UX · #1706 과 같은 종류) ·
+    // o.cut (함수 → { l, t, r, b } | null) = 속 빈 돔일 때 그 사각형 (쓰러진 칸) 은 점 · 테 · 돌을 안 그리고 둘레 2칸은 바둑판 반 (1:1 누운 모습이 점 · 돌에 덮이던 것 — #114 UX)
     function blastDome(sc, x, G, R, dur, cols, o = {}) {
         const { S: s, H, W } = sc.u;
         // 빛줄기 — 반구 안에서 오른쪽 위로 천천히 흐르는 옅은 줄
@@ -4988,7 +4989,8 @@
         function body(ctx, px, life, grow, fade) {
                 const rr = R * grow;
                 const hol = o.hollow ? o.hollow() : 0;
-                domeLight(ctx, px, s, x, G, rr, cols, life, fade, hol > 0.5);
+                const cut = hol > 0.5 && o.cut ? o.cut() : null;
+                domeLight(ctx, px, s, x, G, rr, cols, life, fade, hol > 0.5, cut);
                 // 빛줄기 — 하얀 심 안에서만
                 if (rr > s * 10 && hol <= 0.5) {
                     const path = new Path2D();
@@ -5011,7 +5013,7 @@
                 // 돌덩이 — 빛 앞에서 검게
                 const rp = [new Path2D(), new Path2D(), new Path2D()];
                 for (const r of rocks) {
-                    if (life > r.t0) {
+                    if (life > r.t0 && !(cut && r.x + r.z / 2 > cut.l && r.x - r.z / 2 < cut.r && r.y > cut.t && r.y - r.z < cut.b)) {
                         const k = ROCK.indexOf(r.col);
                         rp[k].rect(px(r.x - r.z / 2), px(r.y - r.z), r.z, r.z);
                         rp[k].rect(px(r.x - r.z / 2 + s), px(r.y - r.z - s), Math.max(s, r.z - 2 * s), s); // 위가 좁은 돌 모양
@@ -5024,7 +5026,7 @@
     // 가장자리는 거의 매끈하게, 아주 잘게만 일렁. show(1 → 0)에 따라 색이 한 단계씩 어두워지다(하양 → 연하늘 → 하늘 → 파랑 → 짙은 파랑) 사라짐
     // (옛날 게임처럼 — 옅게 하면 하양이 회색으로 탁해짐)
     // hollow = 속 빈 반구 (테 0.78 ~ 1 · 속 = 25% 바둑판 점) — 돔 밑 쓰러짐이 비쳐 보이게 (blastDome o.hollow)
-    function domeLight(ctx, px, s, x, G, R, cols, T, show = 1, hollow = false) {
+    function domeLight(ctx, px, s, x, G, R, cols, T, show = 1, hollow = false, cut = null) {
         if (R < s * 3 || show <= 0.01) {
             return;
         }
@@ -5039,6 +5041,12 @@
                 const d = Math.hypot(dx, dy);
                 if (d >= Rm) {
                     continue;
+                }
+                // 쓰러진 칸 (cut) 은 비우고 둘레 2칸은 바둑판 반 — 곧은 네모 구멍이 그림 빠진 버그처럼 읽히던 것 (#114 UX)
+                if (cut && gx + c > cut.l - 2 * c && gx < cut.r + 2 * c && gy + c > cut.t - 2 * c && gy < cut.b + 2 * c) {
+                    if ((gx + c > cut.l && gx < cut.r && gy + c > cut.t && gy < cut.b) || (Math.round((gx + gy) / c) & 1) === 0) {
+                        continue;
+                    }
                 }
                 const a = Math.atan2(dy, dx);
                 const edge = R * (1 + 0.012 * Math.sin(a * 31 + T * 24) + 0.01 * Math.sin(a * 17 - T * 17));
@@ -5464,7 +5472,7 @@
         const TF = 4.6 + XG;
         const TX = TF + FL;
         const DOME = 2.5; // 반구 대폭발 길이
-        const TR2 = TX + DOME - 0.25; // 빛이 사그라들 때 메가리자몽X 가 다시 보임
+        const TR2 = Math.min(TX + DOME - 0.25, sec - 0.6); // 발밑 고리 — 원래대로 돌아가기 (끝 − 0.5초) 앞 (#114 길이 줄임)
         const TBack = sec - 0.5;
         const firePulses = [0.8, 1.25, 1.6];
         const bluePulses = [0.6, 1.0, 1.3, 1.5].map((p) => TM + (p * (TF - TM)) / 1.6);
@@ -5876,29 +5884,48 @@
             fireBits(cx, cy, s, BLUE, 40, { spread: TAU, speed: H * 0.9, drag: 2.4, life: 0.6 });
         });
         // 돔 밑에서 새로 쓰러지면 (쏠 때 쓰러져 있던 칸은 빼고) 0.2초에 속 빈 돔으로 (#113 UX 큼 1 — 3:3 쓰러짐 회색이 하얀 속에 1.8초 숨던 것)
+        // 쓰러진 칸 — 3:3 = fxGameDown (pg-team-down) · 1:1 = 쓰러진 전투 그림 안쪽 칸 (pg-fainted · pg-down — 1:1 에서 속 빈 돔이 안 켜지던 것, #114)
+        const downNow = () => {
+            const team = typeof fxGameDown === 'function' ? fxGameDown() : [];
+            if (team.length) {
+                return team;
+            }
+            return [...document.querySelectorAll('#pokemon-game .pg-fighter .pg-fainted, #pokemon-game .pg-fighter .pg-down')].map((el) => ({ el, r: el.getBoundingClientRect() })).filter((q) => q.r.width > 0);
+        };
         let downAt0 = null;
         let downAt = -1;
+        let downEl = null;
         sc.at(TF, () => {
-            downAt0 = new Set(typeof fxGameDown === 'function' ? fxGameDown().map((q) => q.el) : []);
+            downAt0 = new Set(downNow().map((q) => q.el));
         });
         let downLook = 0;
         sc.tick((t, dt) => {
             downLook -= dt;
-            if (t < TX || downAt >= 0 || !downAt0 || downLook > 0 || typeof fxGameDown !== 'function') {
+            if (t < TX || downAt >= 0 || !downAt0 || downLook > 0) {
                 return;
             }
             downLook = 0.05;
-            if (fxGameDown().some((q) => !downAt0.has(q.el) && Math.abs(q.r.left + q.r.width / 2 - tx) < R + q.r.width / 2 && q.r.top < G)) {
+            const q = downNow().find((d) => !downAt0.has(d.el) && Math.abs(d.r.left + d.r.width / 2 - tx) < R + d.r.width / 2 && d.r.top < G);
+            if (q) {
                 downAt = t;
+                downEl = q.el;
             }
         });
         const domeHollow = () => (downAt < 0 ? 0 : clamp((sc.t - downAt) / 0.2, 0, 1));
+        // 쓰러진 칸 (2칸 여유) — 속 빈 돔의 점 · 테 · 돌 · 땅 불길을 이 자리만 비움 (누운 모습 · 회색 · 사라지기가 그대로 보이게 — #114 UX 큼)
+        const downCut = () => {
+            if (!downEl || !downEl.isConnected) {
+                return null;
+            }
+            const r = downEl.getBoundingClientRect();
+            return r.width > 0 ? { l: r.left - 2 * s, t: r.top - 2 * s, r: r.right + 2 * s, b: r.bottom + 2 * s } : null;
+        };
         // ⑤ 파란 반구 대폭발 (대상 자리 — #113) · 돌 파편 · 먼지 · 충격파 · 화면 끝까지 번지는 파란 땅 불길
         const spread = W * 0.64;
-        const fireEnd = TX + 2.75;
+        const fireEnd = Math.min(TX + 2.75, sec + 0.25); // 장면 끝 (+ 0.3초) 안에서 사그라듦 (#114)
         sc.at(TX, () => {
             ultShake(10, 1000);
-            blastDome(sc, tx, G, R, DOME, BLUE, { hollow: domeHollow });
+            blastDome(sc, tx, G, R, DOME, BLUE, { hollow: domeHollow, cut: downCut });
             sc.add({ max: sec, draw: drawMon2 }); // 반구 위 층 — 쏜 뒤에도 메가리자몽X 그대로
             ring(sc, tx, G - R * 0.4, R * 0.4, Math.max(W, H) * 0.9, 0.7, 0.6, ['#ffffff', BLUE[1], BLUE[2]], 3);
             ring(sc, tx, G - s, R * 0.5, Math.max(W, H), 0.16, 0.7, [BLUE[1], '#ffffff'], 2);
@@ -5920,7 +5947,18 @@
             const k = life - TX;
             const reach = spread * k;
             const fade = clamp((fireEnd - life) / 0.6, 0, 1);
-            groundFlames(ctx, px, s, clamp(tx - reach, 0, W), clamp(tx + reach, 0, W), G, Math.max(6 * s, H * 0.13) * clamp(k / 0.2, 0, 1), life, BLUE, 0.92 * fade);
+            const fh = Math.max(6 * s, H * 0.13) * clamp(k / 0.2, 0, 1);
+            const x0 = clamp(tx - reach, 0, W);
+            const x1 = clamp(tx + reach, 0, W);
+            const cut = domeHollow() > 0.5 ? downCut() : null;
+            if (cut) {
+                // 쓰러진 칸 앞은 낮게 (35%) 남김 — 띠가 끊기지 않게 · 누운 모습은 가리지 않게
+                groundFlames(ctx, px, s, x0, Math.max(x0, cut.l), G, fh, life, BLUE, 0.92 * fade);
+                groundFlames(ctx, px, s, Math.max(x0, cut.l), Math.min(x1, cut.r), G, fh * 0.35, life, BLUE, 0.92 * fade);
+                groundFlames(ctx, px, s, Math.min(x1, cut.r), x1, G, fh, life, BLUE, 0.92 * fade);
+            } else {
+                groundFlames(ctx, px, s, x0, x1, G, fh, life, BLUE, 0.92 * fade);
+            }
         } });
         sc.tick((t) => {
             if (t < TX || t > fireEnd - 0.4) {
@@ -9006,7 +9044,7 @@
     const basePillar = ULT_FX.ultpillar;
     if (basePillar) {
         ULT_FX.ultpillar = {
-            ms: (P, o) => (o.blast ? 8500 + 200 * P : o.venus ? 8000 + 200 * P : basePillar.ms(P, o)),
+            ms: (P, o) => (o.blast ? 7100 + 200 * P : o.venus ? 8000 + 200 * P : basePillar.ms(P, o)), // 블래스트번 — 원래대로 돌아가기가 끝 돔이 걷힐 때 (맞은 뒤 메뉴까지 4.0 → 약 2.5초 — #114)
             run: (u, o, ms, pokemon) => (o.blast ? runBlastBurn(u, o, ms, pokemon) : o.venus ? runHardPlant(u, o, ms, pokemon) : basePillar.run(u, o, ms, pokemon)),
         };
     }

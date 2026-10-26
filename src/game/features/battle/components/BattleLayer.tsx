@@ -7,7 +7,7 @@
  * 연출은 CSS 로 간단히 (임시 디자인 — 원래 확장 필살기 연출에 잇는 건 단계 12).
  */
 import type { ComponentChildren } from 'preact';
-import { useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
 import { battleFoeUltWarn, canParry, canRiposte, canUlt, ultCounterOpen, type BattleState, type GameInput, type Side } from '../../../core/engine';
 import { clashWithTaps, isShooting, type Fighter } from '../../../core/rules/battle';
@@ -19,7 +19,7 @@ import { AutoTip, type AutoTipPlace } from '../../../ui/AutoTip';
 import { Icon } from '../../../ui/Icon';
 import { Sprite } from '../../../ui/Sprite';
 import { catchFoeClass, catchTone, catchView, duelKind, endSay, fitsPx, koSinkPx, msgFits, slumpPx, sayPhase, ringHint, ringKeyFits, hpColor, introView, moveColor, moveFx, profileOpenable, SEND_FLY_MS, sentenceText, splitPopups, STATUS_LABEL, type BattleGeometry, type CatchTone } from '../model';
-import { battleAnimKey, holdWindow, koWaitMs, pickShown } from '../fx/hold';
+import { battleAnimKey, fxTailLeft, holdWindow, koWaitMs, pickShown } from '../fx/hold';
 import { impactOf, ultSkippable } from '../fx/parry';
 import { BattleMenu } from './BattleMenu';
 import { fxCastAt, fxContact, useBattleFx } from './BattleFx';
@@ -716,6 +716,15 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
   // 연출 층 (포켓몬 위 · HUD 아래, #350) — 일반 모드 연출 캔버스를 전투 중 이 안으로 옮김
   const fxLayer = useRef<HTMLDivElement>(null);
   const native = useBattleFx(b, fxLayer);
+  // 필살기 동안 따로 선 자동 칩은 바둑판 반 (.pg-ult-under — 240 에서 메가리자몽X 날개 · 큰 연출이 칩 밑에 가려지던 것, #114) · 메뉴가 뜨면 바로 풂 · 연출 꼬리가 끝나면 한 번 다시 그려 돌아옴
+  const tailLeft = fxTailLeft(performance.now());
+  const autoUnder = b.phase !== 'choose' && (b.anim?.action.kind === 'ult' || tailLeft > 0);
+  const [, kickAuto] = useState(0);
+  useEffect(() => {
+    if (tailLeft <= 0) return undefined;
+    const id = setTimeout(() => kickAuto((n) => n + 1), tailLeft + 30);
+    return () => clearTimeout(id);
+  }, [autoUnder, Math.ceil(tailLeft / 500)]);
   const profile = onProfile && profileOpenable(b) ? onProfile : undefined;
   const midMe = ground + Math.round(geo.meSpritePx * 0.45);
   const midFoe = ground + Math.round(geo.foeSpritePx * 0.45);
@@ -832,7 +841,7 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
         </div>
       )}
       {!geo.autoInMenu && (
-        <span class="pg-auto" style={{ left: `${geo.autoLeft}px`, bottom: `${geo.autoBottom}px` }}>
+        <span class={autoUnder ? 'pg-auto pg-ult-under' : 'pg-auto'} style={{ left: `${geo.autoLeft}px`, bottom: `${geo.autoBottom}px` }}>
           <AutoButton save={save} onInput={onInput} short={false} tip={autoTip} tipPlace="low" />
         </span>
       )}
