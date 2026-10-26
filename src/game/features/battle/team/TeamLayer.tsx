@@ -184,7 +184,7 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, d
   // 칩마다 처음 정한 자리 (옆 · 머리 위) 를 끝까지 — 이겼다 띠가 닫히는 장면에 옆 자리에서 머리 위로 47 ~ 61px 옆걸음하던 것 (UX 리뷰어 #95 7바퀴 4)
   const placed = useRef(new Map<number, { l: number; t: number } | null>());
   // 버린 필살기 누름 글 자리 — 처음 정한 자리를 끝까지 (사라지는 동안 옆걸음 없게 — U2) · 머리 왼쪽 위 → 몸 왼쪽 → 오른쪽 … (다른 칸 그림 · 판 · 자기 판을 피함 · 위 줄 아래)
-  const headAt = useRef<{ key: string; l: number; t: number } | null>(null);
+  const headAt = useRef<{ key: string; l: number; t: number; w: number } | null>(null);
   if (head && headAt.current?.key !== head.key) {
     const hw = headNoteWidth(head.value.text, head.value.key !== null);
     // 자기 피해 숫자 기둥 (머리 위 가운데 ± 14 · 두 줄) · 시합장 흰 선도 피함 (240 · 480 에서 "-1" 이 "안 찼" 을 지나가고 · 흰 선이 글 가운데를 지나던 것 — 아트 디렉터 #97)
@@ -192,8 +192,12 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, d
     const popCol = { l: vx - 14, t: vis.t - 4 - 32, r: vx + 14, b: vis.t - 4 };
     const line = lineBand ? [{ l: 0, t: lineBand.t, r: g.W, b: lineBand.b }] : [];
     //   내 편은 오른쪽 자리 빼기 (맞을 때 상대가 달려와 서는 앞자리) · ×1 무대 (400 아래) 는 위쪽 자리만 → 막히면 위 줄 아래 왼쪽 고정 칸 (아트 디렉터 #97 2바퀴 큼 1)
-    headAt.current = { key: head.key, ...pickHeadSpot(vis, hw, HEAD_NOTE_H, { l: 0, t: topMin, r: g.W, b: g.H }, [...others.map((o) => o.box), plateB, popCol, ...line], { noRight: mine, upOnly: g.scale === 1, fallback: { l: 4, t: topMin - 13 } }) };
+    headAt.current = { key: head.key, w: hw, ...pickHeadSpot(vis, hw, HEAD_NOTE_H, { l: 0, t: topMin, r: g.W, b: g.H }, [...others.map((o) => o.box), plateB, popCol, ...line], { noRight: mine, upOnly: g.scale === 1, fallback: { l: 4, t: topMin - 13 } }) };
   }
+  // 글이 떠 있는 동안 이 칸 피해 숫자는 글 아래 끝 + 1 위로 못 올라감 (가로로 겹칠 때 — 위 왼쪽 고정 칸에 리자몽 "-1" 이 올라와 키 칸 [1] 에 겹치던 것, #97 마지막 확인 ·
+  //   1:1 "숫자는 말 칸 위로 안 올라감" 과 같은 규칙)
+  const ha = head ? headAt.current : null;
+  const popMin = ha && ha.l < x + 16 && ha.l + ha.w > x - 16 ? Math.max(topMin, ha.t + HEAD_NOTE_H + 1 + 14) : topMin;
   // 머리 위 숫자 바닥 = 보이는 그림 위 끝 − 4 (맞은 몸에 붙임 — 그림 칸 위 끝으로 잡아 860 에서 머리 18px 위에 뜨고 · ×1 은 #92 때 쓰러짐 말 (폭 약 90) 을 앞 칸 더미 위로 쌓던 규칙이 남아
   //   숫자가 다른 포켓몬 옆 45px 위에 뜨던 것 — 아트 디렉터 #95 9바퀴 1 · 쓰러짐 말은 이제 위 줄이라 더미엔 숫자 (폭 14 ~ 25) 만 · 칸 사이 24 ~ 60 이라 안 겹침)
   const popBase = vis.t - 4;
@@ -264,7 +268,7 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, d
           세로 = 머리 위 끝 + 4 (위 줄 아래 + 2 보다 위로는 안 감) — 240 에서 칩이 맞은 레디바 위 14px 를 덮고 (6바퀴 ①) · 옆 자리가 다른 포켓몬 머리 위에 붙어 그쪽이 맞은 것처럼 읽히던 것 (아트 디렉터 #95 7바퀴 ① · bw-triple-8 숫자는 그림을 덮지 않음) */}
       {pops.map((p, i) => {
         const tall = !!p.joint || (big && NUM_KINDS.has(p.kind) && p.kind !== 'heal');
-        const top = Math.max(topMin + (tall ? 6 : 0) + popGap(pops.slice(i + 1)) + stagger, popBase - popGap(pops.slice(0, i)));
+        const top = Math.max(popMin + (tall ? 6 : 0) + popGap(pops.slice(i + 1)) + stagger, popBase - popGap(pops.slice(0, i)));
         let at: { l: number; t: number } | null = placed.current.get(p.id) ?? null;
         // 칩 폭 어림 (합동 = 판 + "합동!" + 16px 숫자 · 큰 숫자 판) — 실측 (합동 −5 = 52 · −23 = 63 · 큰 −7 = 25) 보다 늘 크게 잡아 겹침을 놓치지 않게 (아트 디렉터 #95 8바퀴 2)
         // ×1 무대 (400 아래) 합동 칩은 숫자만 ("합동!" 은 띠가 말함 · 폭 62 → 약 30 — 옆 두 자리가 막혀 머리 위로 가 옆 칸 그림을 덮던 것, UX 리뷰어 #95 8바퀴 5)
