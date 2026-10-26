@@ -12,7 +12,7 @@ import { battleSpritePx, koSinkPx, TYPE_COLOR } from '../model';
 import { Sprite } from '../../../ui/Sprite';
 import type { FxActor } from '../fx/bridge';
 import { TEAM_FX, TeamFxRunner, type TeamSlot } from '../fx/team';
-import { bandDrawn, VIEW_CHIP_MS, VIEW_WAIT_MS, duelSpots, faintHoldLeft, faintIsBig, faintShortLine, foeWarn, overLineHold, plateBoxOf, plateState, stackRows, teamDenyNote, teamGeometry, teamPrompt, viewHitChip, viewPopsBack, warnPosOf, type TeamGeo, type WarnPos, viewCrossers, viewMonClass } from './model';
+import { bandDrawn, DUEL_VS_MS, VIEW_CHIP_MS, VIEW_WAIT_MS, duelSpots, faintHoldLeft, faintIsBig, faintShortLine, foeWarn, overLineHold, plateBoxOf, plateState, stackRows, teamDenyNote, teamGeometry, teamPrompt, viewHitChip, viewPopsBack, warnPosOf, type TeamGeo, type WarnPos, viewCrossers, viewMonClass } from './model';
 import { HEAD_NOTE_H, HeadNote, headNoteWidth, pickHeadSpot, useHeldNote } from '../../../ui/HeadNote';
 import { getTeamView, subscribeTeamView, type TeamView } from '../fx/team-view';
 import { cutinArtH, JointNamePlate, TeamCutin } from './TeamCutin';
@@ -354,8 +354,9 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   if (denyHeld && denyFixed.current?.key !== denyHeld.key) denyFixed.current = { key: denyHeld.key, fixed: view !== null };
   //   고정 자리는 장면 전환 동안만 — 돌아오면 남은 시간 동안 그 포켓몬 머리 왼쪽 위로 한 번 옮김 (구석에 남던 것 — 아트 디렉터 #98 2바퀴 7)
   const denyAtFixed = !!denyHeld && denyFixed.current?.fixed === true && view !== null;
-  const vGroups = view ? { me: view.side === 'me' ? view.from : view.to.side === 'me' ? [view.to.slot] : [], foe: view.side === 'foe' ? view.from : view.to.side === 'foe' ? [view.to.slot] : [] } : null;
-  const vSpots = vGroups ? duelSpots(g, vGroups.me.length, vGroups.foe.length) : null;
+  //   힘겨루기 장면 (#116) = 맞붙는 두 무리 (앞장 먼저) 를 둘 다 1:1 자리로
+  const vGroups = view ? (view.kind === 'duel' && view.duel ? { me: view.duel.me, foe: view.duel.foe } : { me: view.side === 'me' ? view.from : view.to.side === 'me' ? [view.to.slot] : [], foe: view.side === 'foe' ? view.from : view.to.side === 'foe' ? [view.to.slot] : [] }) : null;
+  const vSpots = vGroups ? duelSpots(g, vGroups.me.length, vGroups.foe.length, view?.kind === 'duel') : null;
   const vCross = vGroups && vSpots ? viewCrossers(g, vGroups, vSpots) : null;
   //   나머지 포켓몬 = 바둑판 두 걸음으로 사라짐 · 판 · 숫자 = in 에 바로 숨김 (바둑판이 옮겨 가는 몸 위에 겹쳐 어수선하던 것 — 개발 #99) · out 에 바둑판으로 나타남
   const vHide = !view ? '' : view.phase === 'in' ? ' pg-view-hide-in' : view.phase === 'out' ? ' pg-view-hide-out' : ' pg-view-hidden';
@@ -364,14 +365,15 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   //   합동 동료는 연출 층 위 (1:1 불 혜성 · 불벽이 동료 몸을 덮어 "앞장이 동료를 친다" 로 보이던 것 — 아트 디렉터 #101)
   const vOf = (side: Side, slot: number) => {
     const i = vGroups ? vGroups[side].indexOf(slot) : -1;
-    const shooter = !!view && view.kind === 'joint' && side === view.side && i >= 0;
+    const shooter = !!view && ((view.kind === 'joint' && side === view.side) || view.kind === 'duel') && i >= 0;
     // 앞장도 연출 층 위 (#103 — 터질 때 흰 막 아래에서 앞장만 반쯤 하얘지던 것, 아트 디렉터) · 앞장을 숨기고 캔버스에 꼭두각시로 그리는 필살기는 상관없음 ·
     // 돌아갈 때 합동 쏜 무리 · 맞은 칸은 바둑판으로 제자리에 (viewPopsBack) — 무리 안에서 쓰러진 칸도 바둑판 (pg-view-down-back — 예전엔 숨겼다가 끝에 툭, #98) · 예전 까닭: (쓰러짐 사라지기 애니메이션이 바둑판을 덮고
     //   장면 전환 동안 멈춰 있어, 회색 레디바가 보이는 채로 38px 옮겨 가던 것 — #96 6바퀴 · 회색 1.2초는 돌아온 뒤 그대로)
     const hideDown = !!view && view.phase === 'out' && viewPopsBack(view, side, slot) && plateState(b, side, slot) === 'down';
     //   들어갈 때 앞뒤가 바뀌는 동료 (viewCrossers) = in 동안 제자리에서 바둑판으로 사라지고 → 새 자리에서 바둑판으로 나타남 (pg-view-pop — 돌아갈 때 pg-view-hide-out 으로 바뀌어 다시 나타남이 돎)
-    const cross = !!view && view.phase !== 'out' && !!vCross?.has(`${side}-${slot}`);
-    const vMon = !view ? '' : viewMonClass(view.phase, { inGroup: i >= 0, hideDown, popsBack: viewPopsBack(view, side, slot), cross, shooter });
+    //   이어받는 장면 (cont — 다른 장면에서 숨어 있던 칸이 있음) 은 무리 모두 바둑판으로 새 자리에 (걸어가면 숨었던 칸이 제자리에서 툭 보였다 걸어감)
+    const cross = !!view && view.phase !== 'out' && (!!vCross?.has(`${side}-${slot}`) || (!!view.cont && i >= 0) || !!view.popIn?.includes(`${side}-${slot}`));
+    const vMon = !view ? '' : viewMonClass(view.phase, { inGroup: i >= 0, hideDown, popsBack: viewPopsBack(view, side, slot), cross, shooter, cont: !!view.cont });
     // 판 · 숫자도 다른 칸처럼 (쓰러진 칸도 이제 바둑판으로 보임 — 예전 숨김은 빈 자리 위에 "-1" 만 떠 있던 것, #96)
     return { viewAt: vSpots && i >= 0 && view!.phase !== 'out' && !(cross && view!.phase === 'in') ? (vSpots[side][i] ?? null) : null, vMon, vRest: vRestHide };
   };
@@ -516,7 +518,12 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   const bandNow = realNow();
   // 쓰러짐 말마다 처음 본 때 — 큰 판이 뜰 때 이미 1초 넘게 보인 말은 접지 않고 넘김 (아래)
   const faintAt = useRef(new Map<number, number>());
-  faints.forEach((p) => faintAt.current.has(p.id) || faintAt.current.set(p.id, bandNow));
+  // 힘겨루기 장면 (#116) — 쓰러짐 말을 붙잡아 두므로 (아래 duelFaintHold) 뜬 때를 계속 새로 잡고 · 장면이 끝난 첫 그림에서 한 번 더 (장면 끝무렵은 엔진이 붙잡혀
+  //   그림이 드물어 마지막으로 잡은 때가 돌아오기 0.5초 전 — 돌아온 뒤 0.8 ~ 0.9초만 보이던 것, #116 2바퀴)
+  const wasDuel = useRef(false);
+  const duelEnd = view?.kind !== 'duel' && wasDuel.current;
+  wasDuel.current = view?.kind === 'duel';
+  faints.forEach((p) => (view?.kind === 'duel' || duelEnd || !faintAt.current.has(p.id)) && faintAt.current.set(p.id, bandNow));
   if (faintAt.current.size > 24) faintAt.current = new Map([...faintAt.current].slice(-12));
   // 판이 닫히면 접혀 있던 쓰러짐 말을 넘김 — 처음 보인 지 1.2초가 넘었을 때만 (안 됐으면 줄로 남겨 1.2초를 채움) · 이 그림의 줄 계산보다 먼저
   //   (판이 닫히는 장면에 접힌 말이 줄로 한 장면 다시 뜨고 · 빨리 누르면 0.92 ~ 0.97초만 보이던 것 — UX 리뷰어 #95 11바퀴 2)
@@ -553,7 +560,8 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   const lineYoung = b.phase === 'over' && faintHoldLeft(overLine.current ? [overLine.current.last] : boxAt, bandNow) > 0;
   const msgOn = b.phase === 'over' && b.overMs >= 1000 && !!b.msg && !(attach.current !== null && realNow() - attach.current.at < 1200) && !lineYoung;
   // VS 띠는 쓰러짐 줄을 기다리지 않고 그 말을 띠 끝에 붙임 (기다리다 720 아래에서 연타 안내에 넘겨 VS 가 0.38 ~ 0.72초만 보이던 것 — UX 리뷰어 #95 10바퀴 2 · 태현 님 #431 같은 종류)
-  if (band?.kind === 'vs' && !seenBand0(band.key) && boxYoung && boxText && !bigHide) {
+  //   장면 전환 (view) 동안은 띠가 안 보이므로 붙이지 않음 (힘겨루기 장면의 숨은 VS 띠가 쓰러짐 말을 가져가 돌아온 뒤 줄에서 0.8초 만에 빠지던 것 — #116)
+  if (!view && band?.kind === 'vs' && !seenBand0(band.key) && boxYoung && boxText && !bigHide) {
     bandFaint.current = { key: band.key, text: boxText, short: faintShortLine(boxPs.map((p) => p.text.replace(FAINT_RE, ''))) };
     take(boxPs);
   }
@@ -562,7 +570,10 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   //   (머릿수가 바뀌며 VS 띠가 0.2초 다시 떠 연타 안내를 28px 밀고 그 자리에 남아 240 에서 리자몽을 1.8초 덮던 것 — 픽셀 검사원 #95 10바퀴 1 · UX 3)
   const vsTaken = useRef<string | null>(null);
   const vsSeenAt = band?.kind === 'vs' && seenBand0(band.key) ? seenBand.current!.at : null;
-  const mashShow = mashOn && (low || band?.kind !== 'vs' || vsTaken.current === band.key || (vsSeenAt !== null && bandNow - vsSeenAt >= 1200));
+  // 힘겨루기 장면 (#116) — VS 컷인이 걷힌 뒤 (장면 시계 = 연출과 같은 performance.now) · 자리는 위 가운데 (장면 동안 띠가 없음 — 아래 자리는 두 줄기 아래 끝에 붙던 것)
+  const duelView = view?.kind === 'duel' ? view : null;
+  const duelVsLeft = duelView ? (duelView.phase === 'show' ? DUEL_VS_MS - (seenNow - duelView.at) : DUEL_VS_MS) : 0;
+  const mashShow = mashOn && duelVsLeft <= 0 && (low || band?.kind !== 'vs' || vsTaken.current === band.key || (vsSeenAt !== null && bandNow - vsSeenAt >= 1200));
   if (mashShow && band?.kind === 'vs' && !low) vsTaken.current = band.key;
   const vsHidden = band?.kind === 'vs' && !low && vsTaken.current === band.key;
   const bandVis0 = band && !bigHide && !bandWait && !vsHidden && !msgOn ? band : null;
@@ -583,7 +594,8 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   // 장면 전환을 켠 판의 필살기 · 합동 띠 (힘겨루기 뒤 합동은 띠가 없음 — bandOf) 는 늘 장면 전환으로 바뀌니 처음부터 안 그림 — 엔진 상태가 먼저 바뀌고 연출이 다음 그림에 view 를 세워
   //   띠가 한 장면 (50 ~ 100ms) 번쩍이던 것 (#96 UX 5바퀴 큼 1)
   //   짝 · 이름은 앞의 합동 멘트 판 · 큰 컷인 (짝 그림 + 합동! + 이름) 이 말함 (디자인 #96 5바퀴)
-  const waitKey = bandVis && (bandVis.kind === 'ult' || bandVis.kind === 'joint') ? bandVis.key : null;
+  //   힘겨루기 VS 띠도 (#116 — 힘겨루기도 장면 전환 · 480 × 150 에서 한 틱 번쩍이던 것, UX 리뷰어 2바퀴 큼 1)
+  const waitKey = bandVis && (bandVis.kind === 'ult' || bandVis.kind === 'joint' || bandVis.kind === 'vs') ? bandVis.key : null;
   if (waitKey && viewWait.current?.key !== waitKey) viewWait.current = { key: waitKey, at: bandNow, viewed: false };
   if (!waitKey) viewWait.current = null;
   if (viewWait.current && view) viewWait.current.viewed = true;
@@ -598,7 +610,7 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   else if (!bandVis) attach.current = null;
   // 띠가 쓰러짐 줄 자리를 넘겨받은 뒤 (1초 넘게 보인 줄) · 낮은 패널 큰 판이 뜨면 (바로) 쓰러짐 줄을 닫음
   //   (낮은 패널 큰 판도 바로 지우지 않음 — 기획 #131 "쓰러짐 말 1초 넘게 보인 뒤" · 판이 줄 아래에 서고 1.2초 뒤 줄 자리를 넘겨받음)
-  const boxTaken = bandVis0 !== null && !boxYoung && faintBox.current !== null && seenBand.current !== null && seenBand.current.at >= faintBox.current.at;
+  const boxTaken = !view && bandVis0 !== null && !boxYoung && faintBox.current !== null && seenBand.current !== null && seenBand.current.at >= faintBox.current.at;
   if (boxTaken) take(boxPs);
   // 넘긴 말은 이 그림에서 바로 뺌 (VS 띠 끝 말과 밀린 같은 줄이 1장면 함께 보이던 것 — UX 리뷰어 #95 12바퀴 5)
   const freeNow = faints.filter((p) => !faintTaken.current.has(p.id));
@@ -630,7 +642,12 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
     const add = liveFaint.filter((nm) => !faintStick.current?.names.includes(nm));
     if (!faintStick.current) faintStick.current = { names: liveFaint, at: realNow() };
     else if (add.length) faintStick.current = { names: [...faintStick.current.names, ...add], at: realNow() };
-  } else if (faintStick.current && realNow() - faintStick.current.at >= 1200) faintStick.current = null;
+  }
+  // 힘겨루기 장면 (#116) — 쓰러짐 말이 장면 끝 1:1 큰 글씨 ("힘대결에서 이겼다!" · "거북왕의 하이드로캐논!") 를 덮던 것 → 장면 동안은 안 띄우고 붙잡아 두었다가 돌아온 뒤 그때부터 1.2초
+  //   (아래 가운데에 두면 합류 나선 아래 끝 · 줄기를 11 ~ 16줄 덮던 것 — 픽셀 검사원 #116 큼 1 · 위는 결과 글)
+  const duelFaintHold = duelView !== null;
+  if ((duelFaintHold || duelEnd) && faintStick.current) faintStick.current = { ...faintStick.current, at: realNow() };
+  else if (!liveFaint.length && faintStick.current && realNow() - faintStick.current.at >= 1200) faintStick.current = null;
   if (faintStick.current) apart0 = `${faintStick.current.names.join(' · ')} 쓰러졌다!`;
   const [, kickStick] = useState(0);
   const stickLeft = faintStick.current && !liveFaint.length ? faintStick.current.at + 1200 - realNow() : -1;
@@ -638,16 +655,32 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   // 힘겨루기 머릿수가 바뀐 뒤 1초 = 금색 (상대가 끼어들어도 숫자 한 글자만 바뀌어 몰랐던 것 — UX 리뷰어 #95 3바퀴)
   const count = prompt?.kind === 'mash' ? `${prompt.me}:${prompt.foe}` : '';
   const countAt = useRef<{ count: string; at: number }>({ count: '', at: 0 });
-  if (count && count !== countAt.current.count) countAt.current = { count, at: countAt.current.count ? realNow() : 0 };
+  //   보이는 동안만 셈 · 힘겨루기 장면은 처음 보일 때 1 대 1 이 아니면 새 표시 (VS 컷인 동안 상대가 합류해 끼어들기 판 "받아치면 1 대 1" 과 다른 "1 대 2" 가 새 표시 없이 뜨던 것 — UX 리뷰어 #116 큼 3)
+  if (mashShow && count && count !== countAt.current.count) countAt.current = { count, at: countAt.current.count || (duelView && count !== '1:1') ? realNow() : 0 };
   const countNew = count !== '' && countAt.current.at > 0 && realNow() - countAt.current.at < 1000;
   //   좁으면 띠 줄 (24 + 4) 아래 — 힘겨루기 VS 띠가 "3 대 1 — 이길 거예요" 를 1.7초 덮던 것 (픽셀 검사원 #95)
   //   띠가 없으면 띠 자리 (위 줄 쌓기에 같이 — 쓰러짐 줄이 먼저 떠 있으면 그 아래)
-  const promptStyle = low ? { top: 'auto', bottom: '4px' } : { top: `${bandShown ? bandTop + BAND_PX + 4 : bandTop}px` };
+  // 힘겨루기 장면 — 높은 패널 (300 이상) 은 장면 속 두 앞장 그림 위 끝 − 24 − 패널 높이 × 0.12 (정보줄 밑이면 줄기와 260px 떨어지던 것 — UX 리뷰어 #116 2바퀴 작음 2 · × 0.05 면 1860 나선 위쪽에 걸침) · 그 밖은 정보줄 밑 (bandTop0)
+  const duelTop = (() => {
+    if (!duelView || heightPx < 300 || !vSpots || !vGroups) return bandTop0;
+    const tops = SIDES.flatMap((s) => {
+      const i = vGroups[s][0];
+      const f = i !== undefined ? b[s][i] : undefined;
+      const sp = vSpots[s][0];
+      if (!f || !sp) return [];
+      const a = artOf(f.form, g.scale);
+      return [sp.y - Math.round(a.foot * a.s)];
+    });
+    return tops.length ? Math.max(bandTop0, Math.min(...tops) - 24 - Math.round(heightPx * 0.12)) : bandTop0;
+  })();
+  const promptStyle = duelView ? { top: `${duelTop}px` } : low ? { top: 'auto', bottom: '4px' } : { top: `${bandShown ? bandTop + BAND_PX + 4 : bandTop}px` };
   // 엔진 한 줄 (필살기 · 합류 · 결과) 은 판 끝 결과만 · 쓰러지는 장면이 1초 보인 뒤 (컷인 이름을 가리고 · 지난 필살기 줄이 남던 것 — UX 리뷰어 · U1 1초) ·
   //   결과 줄은 쓰러짐 줄 · 띠 자리를 넘겨받음 (픽셀 검사원 #95 6바퀴 6 · UX 10바퀴 7) · 큰 판이 떠 있으면 쓰러짐 말은 판 안 (위)
   //   결과 줄이 뜰 때까지 붙잡음 (지는 판은 결과 줄이 0.3 ~ 0.6초 늦어 그 사이 마지막 이름 하나로 줄던 것 — UX 리뷰어 #95 17바퀴 2)
-  const overText = b.phase === 'over' && overLineHold(lineYoung, b.overMs, !!b.msg) && !msgOn && !boxTaken && overLine.current?.names.length ? `${overLine.current.names.join(' · ')} 쓰러졌다!` : null;
-  const apart = msgOn || (bigOn && panelFaint.current) ? null : (overText ?? apart0);
+  //   떠 있던 쓰러짐 줄 이름 (faintStick — 엔진 말이 먼저 끝난 이름) 도 앞에 둠 (힘겨루기 장면에서 돌아온 직후 판이 끝나 "꼬렛 · 구구" 가 0.4초 만에 빠지고 마지막 이름만 남던 것 — #116 2바퀴)
+  const overNames = [...new Set([...(faintStick.current?.names ?? []), ...(overLine.current?.names ?? [])])];
+  const overText = b.phase === 'over' && overLineHold(lineYoung, b.overMs, !!b.msg) && !msgOn && !boxTaken && overLine.current?.names.length ? `${overNames.join(' · ')} 쓰러졌다!` : null;
+  const apart = duelFaintHold || msgOn || (bigOn && panelFaint.current) ? null : (overText ?? apart0);
   // 기다림 · 붙잡기 끝에 다시 그림 (그림은 열쇠가 바뀔 때만 다시 그려져, 띠 기다림이 끝나도 0.05 ~ 0.5초 늦게 뜨던 것 — UX 리뷰어 #95 10바퀴 4)
   // 장면 전환 피해 칩 (ideas 717 — 장면 동안 판 · 숫자를 숨겨 필살기 · 합동 피해가 안 보이던 것): 장면이 선 뒤 맞는 쪽에 뜬 피해를 합계 칩 하나로 맞는 칸 1:1 자리 머리 위에 ·
   //   진짜 시계 1.2초 (▶▶ 에서도 — ux-rules 화면 붙잡기) · out 에 바둑판으로 사라짐 · 그 숫자는 돌아온 뒤 3:3 자리에 다시 안 띄움 (skip)
@@ -669,6 +702,22 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   const chipOn = !!chip && !!vc && bandNow - vc.shownAt < VIEW_CHIP_MS;
   const skip: ReadonlySet<number> = vc?.ids.length ? new Set([...chipDone.current, ...vc.ids]) : chipDone.current;
   const [, wakeUp] = useState(0);
+  // 힘겨루기 장면 연타 안내 처음 폭 (장면마다 한 번 잼)
+  const mashEl = useRef<HTMLDivElement>(null);
+  const mashW = useRef<{ at: number; w: number } | null>(null);
+  useLayoutEffect(() => {
+    if (!duelView || !mashEl.current) return;
+    // 장면 동안 가장 넓었던 폭 (첫 판 "1 대 3 — 질 거예요" 가 좁아 넓어졌다 줄며 왼쪽 끝이 26px 튀던 것 — 픽셀 검사원 #116 2바퀴 작음 4)
+    const w = Math.ceil(mashEl.current.getBoundingClientRect().width);
+    if (mashW.current?.at !== duelView.at) mashW.current = { at: duelView.at, w };
+    else if (w > mashW.current.w) mashW.current = { at: duelView.at, w };
+  });
+  // VS 컷인이 걷히는 때에 다시 그림 (장면 동안 엔진이 붙잡혀 그림이 안 바뀜) — VS 는 연출 (게임 시계) 이 그려서 붙잡기가 아니라 같은 시계 setTimeout (화면 붙잡기 규칙 밖 · hold-clock 시험)
+  useEffect(() => {
+    if (duelVsLeft <= 0) return undefined;
+    const id = setTimeout(() => wakeUp((n) => n + 1), Math.ceil(duelVsLeft) + 30);
+    return () => clearTimeout(id);
+  }, [duelView?.at, duelView?.phase]);
   const wakes = [
     bandWait && faintBox.current ? boxLast + 1200 : 0,
     mashOn && !mashShow && vsSeenAt !== null ? vsSeenAt + 1200 : 0,
@@ -677,6 +726,8 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
     lineYoung ? (overLine.current?.last ?? boxLast) + 1200 : 0,
     viewWaitAt !== null ? viewWaitAt + VIEW_WAIT_MS : 0,
     chipOn && vc ? vc.shownAt + VIEW_CHIP_MS : 0,
+    // 머릿수 새 표시 1초 끝 (장면 동안 엔진이 붙잡혀 다시 안 그려져 금색이 남던 것)
+    countNew ? countAt.current.at + 1000 : 0,
   ].filter((t) => t > bandNow);
   const nextWake = wakes.length ? Math.min(...wakes) : 0;
   useEffect(() => {
@@ -916,9 +967,14 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
     const vis = { l: v0.l + spot.x - p0.x, t: v0.t + spot.y - p0.y, r: v0.r + spot.x - p0.x };
     const tagOn = g.scale !== 1;
     const cw = Math.ceil(((chip.joint && tagOn ? 35 : 12) + 10 * chip.text.length) * 1.1);
-    const top = Math.max(popTop + 6, vis.t - 4);
+    // 힘겨루기 장면 (#116) — 1:1 큰 결과 글 ("힘대결에서 이겼다!" · ult/core.js ultTitle — 크기 W ÷ 9 (18 ~ 40) · 가운데 H × 0.36 · 부제 자리만큼 아래) 아래로 (칩이 끝 글자 "다!" 를 덮던 것 — 480 × 150 · 187)
+    const tSize = Math.min(40, Math.max(18, widthPx / 9));
+    const titleB = view.kind === 'duel' ? Math.max(heightPx * 0.36, infoBarPx + fieldTopPx + tSize * 0.85 + Math.max(10, tSize * 0.4) / 2 + 4) + tSize * 0.6 : 0;
+    const top = Math.max(popTop + 6, vis.t - 4, titleB + 2 + 20);
     const head = { left: Math.round(Math.min(g.W - 2 - cw / 2, Math.max(2 + cw / 2, spot.x))), top, cls: '', tagOn };
-    if (top <= vis.t - 2) return head;
+    // 결과 글 아래로 내려 상대 머리를 덮으면 상대 그림 왼쪽 (오른쪽 끝 = 그림 왼쪽 − 2 · 480 에서 맞는 장면에 이브이 머리 16 ~ 20줄을 덮던 것 — 픽셀 검사원 #116 큼 4)
+    if (view.kind === 'duel' && top > vis.t - 2 && vis.l - 2 - cw >= 2) return { left: vis.l - 2, top: titleB + 2, cls: ' pg-pop-side pg-pop-side-l', tagOn };
+    if (top <= vis.t - 2 || view.kind === 'duel') return head;
     const ct = Math.max(vis.t + (g.scale === 1 ? -4 : 4), popTop - 14);
     for (const right of side === 'me' ? [false, true] : [true, false]) {
       const l = right ? vis.r + 2 : vis.l - 2 - cw;
@@ -928,7 +984,9 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   })();
   return (
     // 자리는 패널 기준 (시안 geo) — 이 층은 들판 (정보줄 아래) 안이라 정보줄 높이만큼 위로
-    <div class={`pg-team pg-team-x${g.scale}${g.oneRow ? ' pg-team-row' : ''}${view ? ' pg-team-viewing' : ''}`} style={{ top: `${-infoBarPx}px` }} ref={root} onClick={b.phase === 'clash' ? () => onInput({ kind: 'team-battle', input: { kind: 'space' } }) : undefined}>
+    // 힘겨루기 VS 컷인 동안은 장면 무리를 연출 층 아래로 — 이름이 그림과 겹치는 좁은 폭 (400 아래) 만 (240 에서 무리 그림이 아래 띠 이름 "나인에볼부스트" 의 첫 · 끝 글자를 덮던 것 — 픽셀 검사원 #116 2바퀴 큼 1 ·
+    //   넓은 폭까지 내리면 860 아래 띠가 거북왕 · 이브이 아래 반을 1.4초 덮음, UX 리뷰어 3바퀴 작음 3)
+    <div class={`pg-team pg-team-x${g.scale}${g.oneRow ? ' pg-team-row' : ''}${view ? ' pg-team-viewing' : ''}${duelVsLeft > 0 && widthPx < 400 ? ' pg-duel-vs' : ''}`} style={{ top: `${-infoBarPx}px` }} ref={root} onClick={b.phase === 'clash' ? () => onInput({ kind: 'team-battle', input: { kind: 'space' } }) : undefined}>
       {SIDES.map((side) => b[side].map((_, slot) => <Fighter key={`${side}-${slot}`} b={b} g={g} side={side} slot={slot} media={media} topMin={popTop} final={finalKo === `${side}-${slot}`} autoNext={side === 'me' && slot === autoNext} fullChip={side === 'me' && slot === fullFirst} warnChip={side === 'foe' && slot === foeFirstSlot} warnShow={side === 'foe' && (warnShow[slot] ?? false)} warnPos={side === 'foe' ? (warnPos[slot] ?? 'right') : 'right'} blocks={blocks} dim={lit !== null && !lit[side].includes(slot)} big={bigHit === side && (lit?.[side].includes(slot) ?? false)} {...vOf(side, slot)} skip={skip} head={side === 'me' && denyHeld && !denyAtFixed && denyHeld.value.slot === slot ? denyHeld : null} lineBand={lineBand} onUlt={ult} />))}
       {/* 장면 전환 피해 칩 (ideas 717) — 합동 "합동! −N" · 혼자 큰 숫자 판 · 숫자 칩 층 (연출 층 위) · 돌아갈 때 (out) 바둑판으로 사라짐 */}
       {chipAt && chip && (
@@ -1037,7 +1095,8 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
       )}
       {/* 연타 — VS · 맞닿기 (ultClashLeadMs) 뒤부터 (엔진도 그때부터 셈) */}
       {prompt?.kind === 'mash' && mashShow && (
-        <div class="pg-team-prompt pg-team-prompt-mash" style={promptStyle}>
+        // 힘겨루기 장면은 판 폭을 처음 폭 아래로 안 줄임 · 글은 가운데 (합류로 "· [2][3] 합류" 가 빠질 때 480 판이 가운데에서 34px 벗어나고 860 왼쪽 끝이 26px 튀던 것 — 픽셀 검사원 #116 큼 3)
+        <div ref={mashEl} class="pg-team-prompt pg-team-prompt-mash" style={duelView && mashW.current?.at === duelView.at ? { ...promptStyle, minWidth: `${mashW.current.w}px`, ...(widthPx >= 400 ? { justifyContent: 'center' } : {}) } : promptStyle}>
           {/* 정해진 힘겨루기 (3:1 · 1:3) 는 연타가 소용없어 결과만 (디자인팀 UX R9 ⑥ U5) */}
           {prompt.sure === 'me' ? <b class="pg-team-sure">3 대 1 — 이길 거예요</b> : prompt.sure === 'foe' ? <b class="pg-team-sure pg-team-sure-foe">1 대 3 — 질 거예요</b> : <b class={countNew ? 'pg-team-count-new' : undefined}>{`${prompt.me} 대 ${prompt.foe}`}</b>}
           {!prompt.sure && (

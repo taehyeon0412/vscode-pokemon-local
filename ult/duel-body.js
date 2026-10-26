@@ -1270,6 +1270,46 @@
         return { x: home.x, y: home.y, sc: 1 };
     }
 
+    // 혜성 꼬리 끝이 위 끝 (정보줄 · 지도 줄 아래 — fxStageTop) 에 걸치지 않게 — 길이는 그대로 두고 눕힘 (U4 — 머무는 모양은 무대 안 · 크기 대신 자리를 옮김)
+    //   (리자몽 플레어드라이브 앞장 꼬리가 밀기 3초 동안 정보줄 밑변에 일자로 잘려 머물던 것 — #116 UX 2바퀴) · 게임 밖 · 아래로 난 꼬리는 그대로 · back = 꼬리가 누울 쪽 (몸 뒤)
+    // 연타 안내 판 아래 끝 + 4 (없으면 0) — 0.1초마다 한 번만 잼 (그리는 장면마다 querySelector · 레이아웃을 부르던 것, 코드 리뷰어 #116)
+    let mashAt = -1e9;
+    let mashV = 0;
+    function mashBottom() {
+        const t = performance.now();
+        if (t - mashAt > 100) {
+            mashAt = t;
+            const el = document.querySelector('#pokemon-game .pg-team-prompt-mash');
+            mashV = el ? el.getBoundingClientRect().bottom + 4 : 0;
+        }
+        return mashV;
+    }
+    function tailUnderTop(cx, cy, ux, uy, len, r0, S, back) {
+        // 3:3 힘겨루기 장면에 연타 안내 (위 가운데) 가 떠 있으면 그 판 아래 끝 + 4 도 위 끝 (눕힌 꼬리가 판 가장자리에 46/48장면 닿던 것 — 픽셀 검사원 #116 3바퀴 큼 1) · 1:1 화면은 그대로
+        const top = Math.max(typeof fxStageTop === 'function' ? fxStageTop() : 0, mashBottom());
+        if (!top || uy >= 0) {
+            return [ux, uy];
+        }
+        const over = (vx, vy) => {
+            for (let i = 0; i <= 12; i++) {
+                const d = (len * i) / 12;
+                if (cy + vy * d - r0 * 1.14 * (1 - d / len) ** 0.8 < top + S * 2) {
+                    return true;
+                }
+            }
+            return false;
+        };
+        if (!over(ux, uy)) {
+            return [ux, uy];
+        }
+        const sx = Math.abs(ux) > 0.01 ? Math.sign(ux) : back;
+        let a = Math.asin(Math.min(1, -uy));
+        while (a > 0 && over(sx * Math.cos(a), -Math.sin(a))) {
+            a -= 0.05;
+        }
+        a = Math.max(0, a);
+        return [sx * Math.cos(a), -Math.sin(a)];
+    }
     // 몸 뒤 — 오라 · 혜성 꼬리
     function rushUnder(ctx, px, D, X) {
         const st = X.st;
@@ -1287,7 +1327,11 @@
         }
         if (pp.comet && pp.tail) {
             const big = st.heavy ? 1.15 : 1;
-            comet(ctx, px, S, pp.x, pp.y - h * 0.5 * pp.sy, pp.tail[0], pp.tail[1], U * (2.2 + 1.1 * st.K) * big * (1 + 0.35 * Math.max(0, st.pr) + 0.4 * st.surge), Math.max(w, h) * 0.6, ac, T);
+            const cy = pp.y - h * 0.5 * pp.sy;
+            const len = U * (2.2 + 1.1 * st.K) * big * (1 + 0.35 * Math.max(0, st.pr) + 0.4 * st.surge);
+            const r0 = Math.max(w, h) * 0.6;
+            const [ux, uy] = tailUnderTop(pp.x, cy, pp.tail[0], pp.tail[1], len, r0, S, -dir);
+            comet(ctx, px, S, pp.x, cy, ux, uy, len, r0, ac, T);
             return;
         }
         if (pp.dash) {
@@ -1980,7 +2024,8 @@
             twinkle, giant, shape, cols, n, heavy: !!HEAVY_SHOT[shape],
             K: 0.4 + 0.6 * clamp(X.P || 0, 0, 1),
             cs: Math.max(X.S, Math.round(Math.min(D.W, D.H) / 75)),
-            rate: 9 + n * 0.45, shots: [], pr: 0, muzzle: 0, recoil: 0, riddleUntil: -1,
+            // 수 ×1.5 — 하트 · 별이 1 ~ 3개 점선이라 줄기로 안 읽히던 것 (#116 아트 2바퀴 ①)
+            rate: (9 + n * 0.45) * 1.5, shots: [], pr: 0, muzzle: 0, recoil: 0, riddleUntil: -1,
             ox: X.x0, oy: clamp(X.mouth.y, D.H * 0.1, D.ground - 4 * X.S),
             R: Math.max(X.w, 24), per: clamp(Math.round(n / 5), 5, 12),
             pink, hearts: [pink[2], pink[3], '#ff7ab8', cols[2]], starCols: ['#ffffff', cols[0], cols[1], cols[2]],
@@ -2061,7 +2106,8 @@
         } else if (ph === 'push') {
             rate = st.rate * (1 + 0.8 * Math.max(0, st.pr) - 0.45 * Math.max(0, -st.pr));
         } else if (ph === 'through' && won) {
-            rate = st.rate * 2.2;
+            // 진 쪽을 겨누는 수는 ×1.5 전 그대로 (모여서 덩어리가 되던 것 — #116 아트 3바퀴 ⑤)
+            rate = (st.rate / 1.5) * 2.2;
             aimL = true;
             if (once(st, 'thr')) {
                 for (let j = 0; j < 8; j++) {
@@ -2070,7 +2116,7 @@
                 recoil(X, 4);
             }
         } else if (ph === 'after' && won && T < st.riddleUntil) {
-            rate = st.rate * 1.6;
+            rate = (st.rate / 1.5) * 1.6;
             aimL = true;
         }
         const n = acc(st, 'shot', dt, rate);
@@ -2188,9 +2234,42 @@
         }
         const live = ph === 'go' || ph === 'push' || (ph === 'through' && D.winner === X);
         const dist = (X.front - st.ox) * dir;
+        // 줄기 몸 — 입 ~ 앞머리 밑에 그 색 (cols[2]) 바둑판 띠 · 높이 = 반 굵기 × 1.2 · 25%, 앞머리 쪽 1/3 은 50% (#108 B 문법 — 한 색 면 없이)
+        //   (하트 · 별 점선만이라 상대 줄기에 몸이 없어 한쪽 공격으로 읽히던 것 — #116 아트 2바퀴 ①)
+        //   띠 안 밝은 (cols[1]) 3칸 줄이 12칸마다 · 0.05초마다 2칸 앞으로 · 위아래 끝은 0.15초마다 1칸 들쭉날쭉 (멈춘 방충망처럼 보이던 것 — #116 아트 3바퀴 ③)
+        //   뚫고 나가는 동안 (through) 은 25% 만 — 진 쪽에 닿은 앞머리가 네모 덩어리로 보이던 것 (#116 아트 3바퀴 ⑤)
+        if (live && dist > S * 6) {
+            const k = S;
+            const ex = impactX(D, X);
+            const n = Math.max(1, Math.floor(((ex - st.ox) * dir) / k));
+            const hh = lane * 0.6;
+            const flow = Math.floor(T / 0.05) * 2;
+            const jt = Math.floor(T / 0.15);
+            const thr = ph === 'through';
+            ctx.globalAlpha = F;
+            for (let i = 0; i <= n; i++) {
+                const f = i / n;
+                const gx = Math.round((st.ox + dir * i * k) / k);
+                const cy = lerp(st.oy, D.ym, f);
+                const dense = f >= 2 / 3 && !thr;
+                const g0 = Math.round((cy - hh) / k) + (hash(i, jt) < 0.5 ? 1 : 0);
+                const g1 = Math.round((cy + hh) / k) - (hash(i, jt + 7) < 0.5 ? 1 : 0);
+                const gm = Math.round(cy / k);
+                const lit = (((i - flow) % 12) + 12) % 12 < 3;
+                const lit2 = (((i - flow + 6) % 12) + 12) % 12 < 3;
+                for (let gy = g0; gy <= g1; gy++) {
+                    const line = (lit && gy === gm - 2) || (lit2 && gy === gm + 2);
+                    const on = line || (dense ? (((gx + gy) % 2) + 2) % 2 === 0 : ((gx % 2) + 2) % 2 === 0 && ((gy % 2) + 2) % 2 === 0);
+                    if (on) {
+                        ctx.fillStyle = line ? cols[1] : cols[2];
+                        ctx.fillRect(px(gx * k), px(gy * k), k, k);
+                    }
+                }
+            }
+        }
         // 먼 것들 — 작고 옅은 것들이 앞머리까지 끝없이 (입자 없이 계산)
         if (live && dist > S * 6) {
-            const m = 18;
+            const m = 27;
             for (let j = 0; j < m; j++) {
                 const cyc = 0.4 + 0.25 * hash(j, 1);
                 const tt = T + hash(j, 2) * 3;
@@ -2215,6 +2294,8 @@
         // 날리는 것들 — 꼬리 + 모양
         const cs = st.cs;
         const pxc = (v) => Math.round(v / cs) * cs;
+        const hc = cs * 7 > 24 ? Math.max(S, S * Math.floor(24 / (7 * S))) : cs;
+        const pxh = (v) => Math.round(v / hc) * hc;
         // 바늘은 긴 꼬리, 나머지는 짧고 옅게 (하나하나 보이게) · 잎 · 하트는 팔랑팔랑
         const longTail = st.shape === 'needle';
         const flutter = st.twinkle || st.shape === 'leaf' || st.shape === 'heart';
@@ -2238,9 +2319,11 @@
             ctx.globalAlpha = F;
             if (st.twinkle) {
                 if (q.tw === 'heart') {
-                    drawHeart(ctx, pxc, cs, q.x, q.y, false, q.color, '#ffffff');
+                    // 큰 하트 7×6칸 (칸 크기는 그대로 — 5×5 가 점처럼 보이던 것, #116 아트 2바퀴 ①) · 너비 24px 까지 (높은 패널 칸 6px 이면 42px 한 색 덩어리 — 3바퀴 ④)
+                    drawHeart(ctx, pxh, hc, q.x, q.y, true, q.color, '#ffffff');
                 } else {
-                    drawStar(ctx, pxc, cs, q.x, q.y, 2, st.starCols, Math.floor(q.life / 0.07) % 2 === 1);
+                    // 진 쪽을 겨눈 별은 + 모양만 (× 로 깜빡이는 별이 모여 흰 바둑판 덩어리 — 3바퀴 ⑤)
+                    drawStar(ctx, pxc, cs, q.x, q.y, 2, st.starCols, !q.aim && Math.floor(q.life / 0.07) % 2 === 1);
                 }
             } else {
                 drawShot(ctx, st.shape, q, cs, cols);
@@ -2400,7 +2483,8 @@
                 const sp = rnd(140, 320);
                 part({ x, y, s: S * 2, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 2.4, max: rnd(0.6, 0.95), draw: (ctx, p, t, px) => {
                     ctx.globalAlpha = fadeInOut(t, 0.04, 0.35);
-                    drawStar(ctx, px, p.s, p.x, p.y, 2, st.starCols, Math.floor(p.life / 0.07) % 2 === 1);
+                    // + 모양 그대로 크기만 반짝 (× 로 바뀌는 큰 별 14개가 진 쪽에 모여 흰 바둑판 덩어리 — #116 아트 3바퀴 ⑤)
+                    drawStar(ctx, px, p.s, p.x, p.y, Math.floor(p.life / 0.07) % 2 === 1 ? 1 : 2, st.starCols);
                 } });
             }
             for (let i = 0; i < 10 && roomFor(); i++) {

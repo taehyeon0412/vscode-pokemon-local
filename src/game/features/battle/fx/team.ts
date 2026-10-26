@@ -10,7 +10,7 @@ import { shotTiming } from '../../../core/engine/team';
 import { clashChance, clashWithTaps } from '../../../core/rules/battle';
 import { moveOf } from '../../../data';
 import { pokemonFx, type FxActor, type FxImpact, type FxMove, type PokemonFx } from './bridge';
-import { FX_HOLD_ULT_MAX_MS, holdFx, holdTeamTail, releaseFx, teamUltKey } from './hold';
+import { FX_HOLD_DUEL_MAX_MS, FX_HOLD_ULT_MAX_MS, holdFx, holdTeamTail, releaseFx, teamClashKey, teamUltKey } from './hold';
 import { TEAM_VIEW, getTeamView, setTeamView, type TeamView } from './team-view';
 import { shotHitAt } from './shot-hit';
 // 개발 모드 (임시) 에서 고른 필살기
@@ -45,7 +45,7 @@ export type TeamFxCall =
   /** 합동 필살기 마무리 — 이긴 참가자 필살기가 같은 때 닿아 한 점에서 합쳐 터짐 (ult/bridge.js ultJoint) · sure = 3:1 압도 */
   | { do: 'joint'; winners: TeamSlot[]; dst: TeamSlot; types: string[]; sure: boolean; key: string; others: TeamSlot[]; name?: string; names?: (string | null)[]; quick?: true; repeat?: boolean }
   /** 필살기 힘겨루기 — 앞장 (첫 참가자) 끼리 대결 · 합류는 join */
-  | { do: 'ult-clash'; me: number[]; foe: number[]; names?: { me?: string; foe?: string } }
+  | { do: 'ult-clash'; me: number[]; foe: number[]; names?: { me?: string; foe?: string }; by?: Side }
   | { do: 'ult-join'; who: TeamSlot }
   /** joint = 이긴 쪽이 여럿 (합쳐지는 마무리) · sure = 3:1 (압도하는 마무리) */
   | { do: 'ult-clash-end'; winner: Side; joint: boolean; sure: boolean }
@@ -59,6 +59,12 @@ export const TEAM_KNOCK = { cells: 0.5, ms: 140, finalCells: 1, finalMs: 260 };
 // stage = 3:3 용 필살기 판 (2026-10-22 태현 님 #122 · #125 기본 — 무대 안 · 크기 절반 · 2초 안팎, ult/bridge.js fxStageUlt · 설정 "처음만 크게 · 늘 크게" 는 3/4)
 // impactScale = 보통 기술 맞음 크기 (빛살 길이 ×0.6 — 보통 공격 장면이 한 화면에 9 ~ 12개 · 큰 효과 둘이던 것, 아트 디렉터 #95 3바퀴 ④) · koLagMs = 큰 맞음과 쓰러뜨림 터짐이 겹치면 두 번째를 미룸
 // view11 = 필살기 · 합동은 장면 전환 (#99 시안 — 1:1 필살기를 그대로 크게, fx/team-view) · 힘겨루기 마무리 (quick) · 힘겨루기는 3:3 용 판 그대로
+/** 1:1 힘겨루기 연출 박자 (ult/duel.js — 밀기 · 뚫고 나감 · 터진 여운, BattleFx DUEL_PUSH_MS 와 같음) — #116 힘겨루기 장면 */
+const DUEL_PUSH_MS = 3600;
+const DUEL_THROUGH_MS = 400;
+const DUEL_AFTER_MS = 1500;
+/** 뚫고 나간 줄기가 앞장 뒤 칸까지 가는 때 (어림 — 2장면 남짓) */
+const DUEL_BACK_MS = 150;
 export const TEAM_FX = { quickRepeat: false, contactImpactLagMs: 90, stage: true, impactScale: 0.6, koLagMs: 300, view11: true };
 const TIMING_STRIKE_HIT_MS = TIMING.team.strikeHitMs;
 const TIMING_BACK_MS = TIMING.team.backMs;
@@ -182,7 +188,7 @@ function planOne(b: TeamBattle, e: TeamLogEntry, final: boolean, seen: Set<strin
       return;
     }
     case 'ult-clash':
-      out.push({ do: 'ult-clash', me: [...e.me], foe: [...e.foe], ...(e.names ? { names: e.names } : {}) });
+      out.push({ do: 'ult-clash', me: [...e.me], foe: [...e.foe], ...(e.names ? { names: e.names } : {}), ...(e.by ? { by: e.by } : {}) });
       return;
     case 'ult-join':
       out.push({ do: 'ult-join', who: { side: e.side, slot: e.slot } });
@@ -235,6 +241,12 @@ export class TeamFxRunner {
   private dashes = new Map<number, { an: Animation; el: Element }>();
   /** 필살기 · 합동 연출이 끝나는 때 (performance.now) — 판 끝 (end) 에서 지우지 않게 */
   private ultUntil = 0;
+  /** 장면 전환 순번 — 새 장면이 열리면 앞 장면의 남은 타이머 (show 시작 · out · 끝) 는 아무것도 안 함 (#116 힘겨루기가 상대 필살기 장면을 이어받음) */
+  private viewGen = 0;
+  /** 지금 열린 힘겨루기 장면 (#116) — 순번 · 장면 (없으면 null) */
+  private duelView: { gen: number; v: Omit<TeamView, 'phase' | 'at'>; meetAt?: number; closing?: boolean } | null = null;
+  /** 힘겨루기 이길 확률 마지막 값 (live) */
+  private liveLast = 0.5;
 
   constructor(
     private readonly stage: TeamFxStage,
@@ -263,25 +275,42 @@ export class TeamFxRunner {
       }
       this.seq = b.logSeq;
       this.last = b;
+      this.syncDuel(b);
       return;
     }
     this.last = b;
-    if (b.logSeq === this.seq) return;
+    if (b.logSeq === this.seq) {
+      this.syncDuel(b);
+      return;
+    }
     const calls = planTeamFx(b, this.seq, this.seen);
     this.seq = b.logSeq;
-    if (!fx) return;
-    for (const c of calls) {
-      try {
-        this.run(fx, c);
-      } catch (err) {
-        console.warn('[pokemon-game] 3:3 연출', c.do, err);
+    if (fx) {
+      for (const c of calls) {
+        try {
+          this.run(fx, c);
+        } catch (err) {
+          console.warn('[pokemon-game] 3:3 연출', c.do, err);
+        }
       }
     }
+    this.syncDuel(b);
+  }
+
+  /**
+   * 힘겨루기 장면이 열린 채 판이 힘겨루기를 벗어남 — 바로 닫음. 끝 기록 (ult-clash-end) 을 못 받은 경우:
+   * 창을 최소화한 사이 확장이 계산해 0.6초 넘게 지난 기록은 버림 · 기록이 32개 넘게 밀려 건너뜀 (1:1 자리 · 숨은 칸 · 가운데서 미는 연출이 다음 필살기까지 남던 것 — 코드 리뷰어 #116 높음)
+   */
+  private syncDuel(b: TeamBattle): void {
+    const d = this.duelView;
+    if (d && !d.closing && d.gen === this.viewGen && b.phase !== 'clash') this.closeDuel(d.gen, 0);
   }
 
   /** 판이 끝나 화면이 사라질 때 — 남은 연출 · 타이머를 지우고 3:3 모드를 끔 */
   reset(): void {
     this.ultUntil = 0;
+    this.duelView = null;
+    this.viewGen += 1;
     holdTeamTail(0);
     if (getTeamView()) setTeamView(null);
     releaseKnocks();
@@ -306,14 +335,17 @@ export class TeamFxRunner {
    * 맞는 걸음은 연출이 맞힐 때까지 (holdFx — 시작이 늦으니 상한을 넉넉히) · 필살기 끝 걸음은 나옴이 끝날 때까지 (holdTeamTail) 붙잡음
    */
   private view(v: Omit<TeamView, 'phase' | 'at'>, key: string, start: (timing: (t: { main: number }) => void) => number): void {
+    const gen = ++this.viewGen;
+    this.duelView = null;
     const now0 = performance.now();
     const lead = TEAM_VIEW.inMs + (v.kind === 'joint' ? (v.quick ? TEAM_VIEW.cutQuickMs : TEAM_VIEW.cutMs) : 0);
     setTeamView({ ...v, phase: 'in', at: now0 });
     holdFx(key, lead + FX_HOLD_ULT_MAX_MS, now0, lead + FX_HOLD_ULT_MAX_MS);
     holdTeamTail(now0 + lead + FX_HOLD_ULT_MAX_MS);
     this.ultUntil = now0 + lead + FX_HOLD_ULT_MAX_MS;
-    if (v.kind === 'joint') this.later(TEAM_VIEW.inMs, () => setTeamView({ ...v, phase: 'cut', at: performance.now() }));
+    if (v.kind === 'joint') this.later(TEAM_VIEW.inMs, () => gen === this.viewGen && setTeamView({ ...v, phase: 'cut', at: performance.now() }));
     this.later(lead, () => {
+      if (gen !== this.viewGen) return;
       const now = performance.now();
       setTeamView({ ...v, phase: 'show', at: now });
       let total = 0;
@@ -339,13 +371,104 @@ export class TeamFxRunner {
       this.ultUntil = now + total + TEAM_VIEW.outMs;
       // 나올 때는 늘 연출을 끊음 — 앞장 꼭두각시가 out 첫 그림에 남아 제자리 바둑판과 한 장면 둘로 보이던 것 (#96 UX 5 · 6바퀴 작음 — #108)
       this.later(total, () => {
+        if (gen !== this.viewGen) return;
         this.fx?.stopUlt?.();
         setTeamView({ ...v, phase: 'out', at: performance.now() });
       });
       this.later(total + TEAM_VIEW.outMs, () => {
+        if (gen !== this.viewGen) return;
         setTeamView(null);
         holdTeamTail(0);
       });
+    });
+  }
+
+  /**
+   * 힘겨루기 장면 (#116 — 태현 님 "끼어들기해서 힘싸움하는거 왜이렇게 허접해??? 일반모드처럼 되는거 아니었어?"):
+   * 맞붙는 두 무리를 1:1 자리로 (다른 장면이 열려 있으면 이어받아 · 끼어든 포켓몬도 보이게) → 1:1 힘겨루기 연출 그대로 (마주 본 두 줄기 · 밀고 밀림 · 에너지 튀기)
+   * → 결과 (ult-clash-end) 뒤 이긴 줄기가 뚫고 나가 진 쪽에서 터짐 → 3:3 으로 돌아옴. 엔진 승패 걸음은 밀기 (DUEL_PUSH_MS) 가 끝날 때까지 붙잡음 (1:1 과 같음)
+   */
+  private openDuel(fx: PokemonFx, c: Extract<TeamFxCall, { do: 'ult-clash' }>): boolean {
+    const gen = ++this.viewGen;
+    const now0 = performance.now();
+    const v: Omit<TeamView, 'phase' | 'at'> = { kind: 'duel', side: c.by ?? 'me', from: [...c.me], to: { side: 'foe', slot: c.foe[0]! }, duel: { me: [...c.me], foe: [...c.foe] }, ...(getTeamView() ? { cont: true } : {}) };
+    this.duelView = { gen, v };
+    this.liveLast = 0.5;
+    setTeamView({ ...v, phase: 'in', at: now0 });
+    holdTeamTail(now0 + TEAM_VIEW.inMs + FX_HOLD_DUEL_MAX_MS);
+    this.ultUntil = now0 + TEAM_VIEW.inMs + FX_HOLD_DUEL_MAX_MS;
+    this.later(TEAM_VIEW.inMs, () => {
+      const d0 = this.duelView;
+      if (gen !== this.viewGen || !d0 || d0.gen !== gen || d0.closing) return;
+      // 들어오는 0.35초 사이 합류한 칸도 무리에 (처음 v 로 다시 세우면 합류한 칸이 장면 내내 숨던 것 — 코드 리뷰어 #116)
+      setTeamView({ ...d0.v, phase: 'show', at: performance.now() });
+      const me = this.stage.actor({ side: 'me', slot: c.me[0]! });
+      const foe = this.stage.actor({ side: 'foe', slot: c.foe[0]! });
+      let plan: { meetMs: number } | null = null;
+      try {
+        // 앞장 필살기 이름은 엔진이 정한 것 (첫 컷인 · 이긴 뒤 합동 컷인과 같게 — #86)
+        plan = me && foe && fx.duel ? fx.duel(me, foe, { kind: 'ult', a: null, b: null, aAvoid: this.learned({ side: 'me', slot: c.me[0]! }), bAvoid: this.learned({ side: 'foe', slot: c.foe[0]! }), ...(c.names?.me ? { aName: c.names.me } : {}), ...(c.names?.foe ? { bName: c.names.foe } : {}), behind: (s) => this.duelBehind(gen, s === 'a' ? 'me' : 'foe') }, () => this.live()) : null;
+      } catch (err) {
+        console.warn('[pokemon-game] 3:3 힘겨루기 장면', err);
+      }
+      if (!plan) {
+        // 연출을 못 씀 (그림이 없음 등) — 장면을 닫고 엔진 그대로
+        this.closeDuel(gen, 0);
+        return;
+      }
+      // 엔진 승패 걸음을 밀기가 끝날 때까지 (1:1 BattleFx 와 같음 — 그동안 연타는 계속 셈)
+      const cl = this.last?.clash;
+      const elapsed = cl?.ms ?? 0;
+      const now = performance.now();
+      // 처음부터 무리에 든 동료 (2:1 · 상대 합동 끼어들기) 도 합류로 — 두 줄기가 맞닿는 때 (VS 가 걷힌 뒤 — 그 전엔 별 · 굵어짐이 컷인에 가려 안 보임, #116 UX 큼 3)
+      d0.meetAt = now + plan.meetMs;
+      for (const side of ['me', 'foe'] as const) {
+        for (const slot of (d0.v.duel?.[side] ?? c[side]).slice(1)) this.duelJoinAt(fx, gen, side, slot);
+      }
+      holdFx(teamClashKey((this.last?.t ?? 0) - elapsed), plan.meetMs + DUEL_PUSH_MS - elapsed, now, FX_HOLD_DUEL_MAX_MS, now - elapsed);
+    });
+    return true;
+  }
+
+  /** 힘겨루기 장면에서 앞장 뒤에 선 같은 편 그림 (도중 합류 포함) */
+  private duelBehind(gen: number, side: Side): FxActor[] {
+    const d = this.duelView;
+    if (!d || d.gen !== gen) return [];
+    const list = d.v.duel?.[side] ?? [];
+    return list.slice(1).flatMap((slot) => this.stage.actor({ side, slot }) ?? []);
+  }
+
+  /** 힘겨루기 장면 합류 알림 — 두 줄기가 맞닿는 때 (meetAt) 전이면 그때까지 기다림 (VS 컷인 동안 합류가 알림 없이 지나가던 것 — #116 UX 큼 3) · 누가 (그림) 를 같이 넘김 (별이 동료에서 줄기 뿌리로) */
+  private duelJoinAt(fx: PokemonFx, gen: number, side: Side, slot: number): void {
+    const type = this.last?.[side][slot]?.types[0] ?? 'normal';
+    const go = () => {
+      if (gen !== this.viewGen) return;
+      const who = this.stage.actor({ side, slot });
+      fx.duelJoin?.(side === 'me' ? 'a' : 'b', type, who ?? undefined);
+    };
+    const wait = (this.duelView?.meetAt ?? 0) - performance.now();
+    if (wait > 0) this.later(wait, go);
+    else go();
+  }
+
+  /** 힘겨루기 장면 닫기 — after ms 뒤 연출을 끊고 (터진 여운은 그대로 — stopDuel soft) out → 끝 */
+  private closeDuel(gen: number, after: number): void {
+    const d = this.duelView;
+    if (!d || d.gen !== gen) return;
+    d.closing = true;
+    const now = performance.now();
+    holdTeamTail(now + after + TEAM_VIEW.outMs);
+    this.ultUntil = now + after + TEAM_VIEW.outMs;
+    this.later(after, () => {
+      if (gen !== this.viewGen) return;
+      this.fx?.stopDuel?.(true);
+      setTeamView({ ...d.v, phase: 'out', at: performance.now() });
+    });
+    this.later(after + TEAM_VIEW.outMs, () => {
+      if (gen !== this.viewGen) return;
+      setTeamView(null);
+      holdTeamTail(0);
+      this.duelView = null;
     });
   }
 
@@ -482,6 +605,12 @@ export class TeamFxRunner {
         return;
       }
       case 'joint': {
+        // 힘겨루기 장면 (#116) 의 마무리 — 1:1 힘겨루기가 이긴 줄기로 뚫고 나가 터뜨려 그림 (새 장면 · 3:3 마무리 없이 엔진 피해만)
+        if (c.quick && this.duelView && this.duelView.gen === this.viewGen) {
+          // 피해 (회색) 는 뚫고 나간 줄기가 뒤 칸까지 지난 뒤 — 엔진 clashJointHitMs 그대로면 뒤 칸이 줄기 끝 닿기 2장면 전에 회색 (#116 UX 작음)
+          holdFx(c.key, TIMING.team.clashJointHitMs + DUEL_BACK_MS, performance.now(), FX_HOLD_ULT_MAX_MS);
+          return;
+        }
         // 힘겨루기를 이겨 합동이면 대결 입자부터 지움 (fxGameStop 은 타이머만 막아 가운데서 계속 밀던 것 — 코드 리뷰어) · 3:3 용 판은 이긴 줄기를 이어받아 (teamJoint) 그대로 뚫고 닿음
         if (!(TEAM_FX.stage && fx.teamJoint)) fx.stopDuel?.();
         // 그림이 없는 참가자는 타입 · 피할 이름과 같이 뺌 (순번이 어긋나 다른 포켓몬 것이 붙던 것)
@@ -544,10 +673,12 @@ export class TeamFxRunner {
         const me = a({ side: 'me', slot: c.me[0]! });
         const foe = a({ side: 'foe', slot: c.foe[0]! });
         fx.stopUlt?.();
+        // 장면 전환 (#116) — 1:1 힘겨루기 그대로 (연출 끔이면 아래 3:3 용 판)
+        if (this.viewOn() && fx.duel && this.openDuel(fx, c)) return;
         // 3:3 용 판 힘겨루기 (#132 — 두 줄기가 무대 가운데서 · VS · 이름은 화면 3:3 띠)
         if (TEAM_FX.stage && fx.teamDuel) {
           const b = this.last;
-          if (me && foe) fx.teamDuel(me, foe, { typeA: b?.me[c.me[0]!]?.types[0] ?? 'normal', typeB: b?.foe[c.foe[0]!]?.types[0] ?? 'normal', leadMs: TIMING.team.ultClashLeadMs, clashMs: TIMING.team.ultClashMs }, () => this.live());
+          if (me && foe) fx.teamDuel(me, foe, { typeA: b?.me[c.me[0]!]?.types[0] ?? 'normal', typeB: b?.foe[c.foe[0]!]?.types[0] ?? 'normal', leadMs: TIMING.team.ultClashLeadMs, clashMs: TIMING.team.ultClashMs, ...(c.by ? { by: c.by } : {}) }, () => this.live());
           return;
         }
         // 앞장 필살기 이름은 엔진이 정한 것 (첫 컷인 · 이긴 뒤 합동 컷인과 같게 — #86)
@@ -557,11 +688,42 @@ export class TeamFxRunner {
       case 'ult-join': {
         const who = a(c.who);
         if (who) fx.ultReady?.(who);
-        // 3:3 힘겨루기 중 합류 — 그쪽 줄기가 굵어짐
-        if (this.last?.phase === 'clash') fx.teamDuelJoin?.(c.who.side === 'me' ? 'a' : 'b', this.last[c.who.side][c.who.slot]?.types[0] ?? 'normal');
+        // 3:3 힘겨루기 중 합류 — 그쪽 줄기가 굵어짐 (힘겨루기 장면이면 1:1 연출에 합류 목록 — 섞임 모양은 디자인 #116)
+        const jt = this.last?.[c.who.side][c.who.slot]?.types[0] ?? 'normal';
+        if (this.last?.phase === 'clash' && this.duelView) {
+          // 힘겨루기 장면 — 합류한 칸을 무리에 더해 제 자리 (앞장 뒤) 에 바둑판으로 나타나게 (도중 합류는 장면 무리에 없어 숨은 채 남던 것)
+          const d = this.duelView;
+          const cur = getTeamView();
+          const list = d.v.duel?.[c.who.side] ?? [];
+          if (cur && d.v.duel && !list.includes(c.who.slot)) {
+            d.v = { ...d.v, duel: { ...d.v.duel, [c.who.side]: [...list, c.who.slot] }, popIn: [...(d.v.popIn ?? []), `${c.who.side}-${c.who.slot}`] };
+            setTeamView({ ...d.v, phase: cur.phase, at: cur.at });
+          }
+          // 들어오는 동안 (in — 1:1 연출이 아직 없음) 은 무리에만 · 알림은 show 가 무리 전체로 (그때 알리면 빈 연출에 보내 사라지던 것 — 코드 리뷰어 #116)
+          if (d.meetAt !== undefined) this.duelJoinAt(fx, d.gen, c.who.side, c.who.slot);
+        }
+        else if (this.last?.phase === 'clash') fx.teamDuelJoin?.(c.who.side === 'me' ? 'a' : 'b', jt);
         return;
       }
       case 'ult-clash-end':
+        // 힘겨루기 장면 (#116) — 결과를 늦게 불러 (엔진 합동 마무리 피해 clashJointHitMs = 뚫고 나감 끝에 맞춤) → 터진 여운 뒤 돌아옴
+        if (this.duelView && this.duelView.gen === this.viewGen) {
+          const d = this.duelView;
+          if (d.closing) return;
+          const gen = this.viewGen;
+          // 장면 피해 칩은 진 쪽 앞장 (to) — 늘 상대 앞장이라 내가 지면 내 쪽 합동 피해 숫자가 한 번도 안 보이던 것 (코드 리뷰어 #116)
+          const lose: Side = c.winner === 'me' ? 'foe' : 'me';
+          const lead = d.v.duel?.[lose][0];
+          const cur = getTeamView();
+          if (lead !== undefined) {
+            d.v = { ...d.v, to: { side: lose, slot: lead } };
+            if (cur) setTeamView({ ...d.v, phase: cur.phase, at: cur.at });
+          }
+          const lag = Math.max(0, TIMING.team.clashJointHitMs - DUEL_THROUGH_MS);
+          this.later(lag, () => gen === this.viewGen && fx.duelWin?.(c.winner === 'me' ? 'a' : 'b'));
+          this.closeDuel(gen, lag + DUEL_THROUGH_MS + DUEL_AFTER_MS);
+          return;
+        }
         // 3:3 용 판 — 진 쪽 줄기를 거둠 (이긴 쪽 마무리는 곧 joint quick 이 그림)
         if (TEAM_FX.stage && fx.teamDuelWin) {
           fx.teamDuelWin(c.winner === 'me' ? 'a' : 'b');
@@ -596,11 +758,12 @@ export class TeamFxRunner {
   private live(): number {
     const b = this.last;
     const c = b?.clash;
-    if (!b || !c) return 0.5;
-    if (c.me.length >= BALANCE.team.size && c.foe.length === 1) return 1;
-    if (c.foe.length >= BALANCE.team.size && c.me.length === 1) return 0;
+    // 힘겨루기가 끝난 뒤 (결과를 늦게 부르는 0.5초) 는 마지막 값 — 0.5 로 돌아가 만나는 곳이 한 장면에 가운데로 140px 튀고 멈췄다 뚫고 나가던 것 (#116 UX 큼)
+    if (!b || !c) return this.liveLast;
     const sum = (side: Side, list: number[]) => list.reduce((s, i) => s + (b[side][i]?.stats.ultimate ?? 0), 0);
-    return clashWithTaps(clashChance(sum('me', c.me), sum('foe', c.foe)), c.taps);
+    const v = c.me.length >= BALANCE.team.size && c.foe.length === 1 ? 1 : c.foe.length >= BALANCE.team.size && c.me.length === 1 ? 0 : clashWithTaps(clashChance(sum('me', c.me), sum('foe', c.foe)), c.taps);
+    this.liveLast = v;
+    return v;
   }
 
   /** 필살기 이름이 배운 기술과 같으면 다른 것 (1:1 과 같음) */

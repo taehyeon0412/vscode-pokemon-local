@@ -45,6 +45,8 @@ export interface FxDuel {
   /** 필살기 대결 — 엔진이 정한 앞장 필살기 이름 (첫 컷인 · 합동 컷인과 같게 — #86) */
   aName?: string;
   bName?: string;
+  /** 앞장 뒤에 선 같은 편 그림 (3:3 힘겨루기 장면) — 진 쪽이 밀려날 때 그 앞에서 멈춤 (#116) */
+  behind?: (side: 'a' | 'b') => FxActor[];
 }
 
 export interface PokemonFx {
@@ -99,10 +101,12 @@ export interface PokemonFx {
   fadeUlt?(ms: number, steps?: number): void;
   /** 힘대결 (version 3) — a = 나, b = 상대 · live() = 내가 이길 확률 · { meetMs } 또는 null */
   duel?(a: FxActor, b: FxActor, spec: FxDuel, live: () => number): { meetMs: number } | null;
+  /** 1:1 힘겨루기에 동료 합류 (#116 3:3 힘겨루기 장면) — 쪽 (a = 왼쪽 · b) · 동료 타입 (섞임 · 굵기 모양은 연출이 그림) */
+  duelJoin?(side: 'a' | 'b', type: string, who?: FxActor): void;
   duelWin?(who: 'a' | 'b'): void;
   /** 3:3 용 판 (orders #95) — 합동 한 장면 · 필살기 힘겨루기 (ult/fx-team33.js) */
   teamJoint?(srcs: FxActor[], dst: FxActor, onHit?: () => void, o?: { types?: string[]; quick?: boolean; hitMs?: number; others?: FxActor[]; near?: FxActor[] }): number;
-  teamDuel?(a: FxActor, b: FxActor, spec: { typeA: string; typeB: string; leadMs?: number; clashMs?: number }, live: () => number): { meetMs: number } | null;
+  teamDuel?(a: FxActor, b: FxActor, spec: { typeA: string; typeB: string; leadMs?: number; clashMs?: number; /** 끊긴 필살기를 쓰던 쪽 — 맞부딪힘 자리 */ by?: 'me' | 'foe' }, live: () => number): { meetMs: number } | null;
   teamDuelJoin?(side: 'a' | 'b', type?: string): void;
   teamDuelWin?(who: 'a' | 'b'): void;
   /** soft = 터지는 여운까지 그리고 정리 */

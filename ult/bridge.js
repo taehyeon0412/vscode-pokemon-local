@@ -3849,6 +3849,17 @@ window.pokemonFx = {
         }
         const A = fxActor(a);
         const B = fxActor(b);
+        // 앞장 뒤에 선 같은 편 (3:3 힘겨루기 장면) — 진 쪽이 밀려날 거리를 그 앞까지 (duel.js duelKnockRoom)
+        for (const [X, side] of [[A, 'a'], [B, 'b']]) {
+            X.duelBehind = () => {
+                try {
+                    return (spec.behind && spec.behind(side)) || [];
+                } catch (err) {
+                    ultError('duel behind', err);
+                    return [];
+                }
+            };
+        }
         const gen = ++fxGen;
         fxGame = { A, B, gen, tick: setInterval(fxGameTick, 100) };
         let meetMs = 0;
@@ -3858,13 +3869,21 @@ window.pokemonFx = {
             const leftA = !!a.left;
             const leftB = !!b.left;
             // 승패는 게임 엔진이 4초 끝에 정함 — 처음엔 가운데 (무승부 모양) 로 짜고, 밀기는 승자가 올 때까지 (duelWin)
-            const D = duelPlan(A, ultA, leftA, B, ultB, leftB, 'draw');
+            const D = duelPlan(A, ultA, leftA, B, ultB, leftB, 'draw', { mouth: true });
             D.draw = false;
             D.winner = null;
             D.loser = null;
             D.tO = Infinity;
             D.total = FX_DUEL_LONG;
-            D.winTitle = (Wn) => [Wn === D.A ? '힘대결에서 이겼다!' : '힘대결에서 졌다…', `${Wn.p.name}의 ${Wn.name}!`, 1.3];
+            // 3:3 합류가 있던 쪽이 이기면 부제 = "거북왕 · 리자몽 · 이상해꽃 합동!" (셋이 합류해 이겼는데 앞장 필살기 이름만 나와 합동이라는 말이 없던 것 — UX 리뷰어 #116 작음 5)
+            D.winTitle = (Wn) => {
+                const names = ((D.joins && D.joins[Wn === D.A ? 'a' : 'b']) || []).map((j) => j.name).filter(Boolean);
+                // 1.5초 (1.3 이면 다 보이는 때가 0.98 ~ 1.02초로 U1 경계 — UX 리뷰어 #116 3바퀴 작음 1)
+                return [Wn === D.A ? '힘대결에서 이겼다!' : '힘대결에서 졌다…', names.length ? `${[Wn.p.name, ...names].join(' · ')} 합동!` : `${Wn.p.name}의 ${Wn.name}!`, 1.5];
+            };
+            // 이길 확률은 0.4초에 걸쳐 따라감 (합류 · 연타로 확률이 계단으로 바뀌면 만나는 곳이 한 장면에 140px 튀던 것 — #116 UX 큼 · 1:1 도 같이)
+            let pS = null;
+            let tS = 0;
             D.live = (t, s) => {
                 let p = 0.5;
                 try {
@@ -3872,6 +3891,9 @@ window.pokemonFx = {
                 } catch (err) {
                     ultError('duel live', err);
                 }
+                pS = pS === null ? p : pS + (p - pS) * Math.min(1, Math.max(0, t - tS) / 0.4);
+                tS = t;
+                p = pS;
                 // 연타로 기운 만큼 + 일반 모드 밀고 밀리기 리듬 (반만)
                 return Math.min(0.85, Math.max(-0.85, (p - 0.5) * 1.4 + 0.5 * s));
             };
@@ -3881,6 +3903,7 @@ window.pokemonFx = {
             ultActive = { pokemon: A, rival: B, until: now + FX_DUEL_LONG * 1000, name: ultA[0], fx: 'clash' };
             const start = () => {
                 duelStart(D);
+                duelJoinStart(D);
                 fxGame && fxGame.gen === gen && (fxGame.duel.dp = moveParticles.find((q) => q.max === FX_DUEL_LONG && q.z === -1));
             };
             fxGame.duel = { D, dp: null };
@@ -3987,6 +4010,24 @@ window.pokemonFx = {
             return null;
         }
         g.duel33 = { p, st };
+        // 맞부딪힘 한 번 — 날아가던 필살기 (구 · 줄기) 가 한 장면에 사라지고 줄기가 만나기까지 0.9초 빈 무대이던 것 (UX 리뷰어 #98 · bugs 1833)
+        try {
+            const ra = (a.box || a.el).getBoundingClientRect();
+            const rb = (b.box || b.el).getBoundingClientRect();
+            // 자리 = 끊긴 필살기가 가던 대상 바로 앞 (쓰던 쪽에서 85% — 구 · 줄기는 대상까지 거의 다 가 있음) · 모르면 가운데
+            const f = spec.by === 'me' ? 0.85 : spec.by === 'foe' ? 0.15 : 0.5;
+            const ax = (ra.left + ra.right) / 2;
+            const ay = (ra.top + ra.bottom) / 2;
+            const mx = ax + ((rb.left + rb.right) / 2 - ax) * f;
+            const my = ay + ((rb.top + rb.bottom) / 2 - ay) * f;
+            const S = Math.max(2, Math.round(ra.width / (a.size || 32)));
+            const cols = sigPal(spec.typeA || 'normal');
+            sigRing(mx, my, S, 4, Math.max(ra.width, 30) * 1.4, 1, 0.35, ['#ffffff', cols[1], cols[2]]);
+            sigBurst(mx, my, S, [...cols, '#ffffff'], 28, 150);
+            ultShake(2, 160);
+        } catch (err) {
+            ultError('team duel meet', err);
+        }
         return { meetMs: Math.round(spec.leadMs ?? 1100) };
     },
     teamDuelJoin(side, type) {
@@ -4015,6 +4056,17 @@ window.pokemonFx = {
         D.live = undefined;
         // 지금부터 결과 — 밀기가 아직 안 시작했으면 (VS · 모으기 중) 만나는 때부터
         D.tO = Math.max(D.t || 0, D.tm);
+    },
+    /** 1:1 힘겨루기에 동료 합류 (#116 3:3 힘겨루기 장면) — 합류 목록만 적음 (D.joins.a · b = { type, at }) · 섞임 · 굵기 그림은 디자인 #116 (design-system "3:3 힘겨루기") 이 이 목록을 읽어 그림 */
+    duelJoin(side, type, who) {
+        const D = fxGame && fxGame.duel && fxGame.duel.D;
+        if (!D) {
+            return;
+        }
+        // 동료 몸 가운데 — 별이 여기서 줄기 뿌리로 날아감 (디자인 #116 · 상자 안이면 상자 기준)
+        const r = who ? (who.box || who.el).getBoundingClientRect() : null;
+        const from = r && r.width > 0 ? { x: r.left + r.width / 2 - (moveFrame ? moveFrame.x : 0), y: r.top + r.height * 0.45 - (moveFrame ? moveFrame.y : 0) } : undefined;
+        (D.joins ||= { a: [], b: [] })[side === 'a' ? 'a' : 'b'].push({ type: type || 'normal', at: D.t || 0, ...(from ? { from } : {}), ...(who && who.name ? { name: who.name } : {}) });
     },
     /** 힘대결이 끝남 — soft = 터지는 여운까지 그리고 정리 (전투가 이어질 때), 아니면 바로 */
     stopDuel(soft) {

@@ -204,6 +204,25 @@ describe('3:3 위 가운데 줄 — 띠 · 쓰러짐 줄 · 결과 줄 (픽셀 �
     }
   });
 
+  it('힘겨루기 장면 자리 (#116 leadSolo) — 앞장은 동료 수와 상관없이 혼자일 때 자리 · 동료는 바깥으로 (도중 합류에 앞장이 안 옮겨 감)', () => {
+    for (const [W, H] of [[860, 187], [480, 150], [240, 150], [1860, 443]] as const) {
+      const g = teamGeometry(W, H, 26);
+      const one = duelSpots(g, 1, 1, true);
+      const three = duelSpots(g, 3, 2, true);
+      expect(three.me[0]).toEqual(one.me[0]);
+      expect(three.foe[0]).toEqual(one.foe[0]);
+      expect(three.me[1]!.x).toBeLessThan(three.me[0]!.x);
+      expect(three.foe[1]!.x).toBeGreaterThan(three.foe[0]!.x);
+      for (const p of [...three.me, ...three.foe]) expect(p.x - g.sp / 2).toBeGreaterThanOrEqual(0);
+      // 합류해도 이미 선 동료가 안 옮겨 감 (둘 → 셋) · 동료 간격은 그림 폭 0.7 넘게 (모자라면 뒷줄이 더 위)
+      const two = duelSpots(g, 2, 2, true);
+      expect(three.me[1]).toEqual(two.me[1]);
+      expect(three.foe[1]).toEqual(two.foe[1]);
+      const gap = Math.abs(three.me[1]!.x - three.me[0]!.x);
+      if (gap < Math.round(g.sp * 0.7)) expect(three.me[1]!.y).toBeLessThan(three.me[0]!.y - 4);
+    }
+  });
+
   it('장면 전환 자리 (#99 · #101) — 내 편 왼쪽 · 상대 오른쪽 · 혼자는 가운데 맞춤 · 합동 동료는 바깥으로 넉넉히 · 패널 안 · 배율 칸', () => {
     for (const [W, H] of [[860, 187], [860, 443], [480, 150], [240, 150]] as const) {
       const g = teamGeometry(W, H, 26);
@@ -262,6 +281,9 @@ describe('장면 전환 — 띠 · 돌아오는 칸 (#96 UX 5바퀴)', () => {
     expect(bandDrawn({ kind: 'ult' }, false, true, 0)).toBeNull();
     expect(bandDrawn({ kind: 'joint' }, false, true, 16)).toBeNull();
     expect(bandDrawn({ kind: 'vs' }, false, true)).toEqual({ kind: 'vs' });
+    // 힘겨루기 VS 띠도 장면이 서기를 기다림 (#116 — 한 틱 번쩍)
+    expect(bandDrawn({ kind: 'vs' }, false, true, 0)).toBeNull();
+    expect(bandDrawn({ kind: 'vs' }, false, false, 0)).toEqual({ kind: 'vs' });
     expect(bandDrawn({ kind: 'win' }, true, true)).toBeNull();
     expect(bandDrawn({ kind: 'ult' }, false, false)).toEqual({ kind: 'ult' });
   });

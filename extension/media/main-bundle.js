@@ -6350,12 +6350,12 @@ function moveTick(now) {
     moveStep(now, dt, null);
     // 무대 상자 입자는 상자마다 따로 그린 뒤 가장자리를 흐려 깖 (moveFrameLayer)
     const frames = new Set();
-    // 그리기 — 층(z) 순서: z<0 맨 밑 → 보통(나중 것부터 그려서 먼저 만든 게 위) → z>0 맨 위
-    for (const layer of [-1, 0, 1]) {
+    // 그리기 — 층(z) 순서: z<0 맨 밑 → 보통(나중 것부터 그려서 먼저 만든 게 위) → z>0 위 → z>=2 맨 위 (게임 힘대결 결과 글)
+    for (const layer of [-1, 0, 1, 2]) {
         for (let i = moveParticles.length - 1; i >= 0; i--) {
             const p = moveParticles[i];
             const z = p.z ?? 0;
-            if ((z < 0 ? -1 : z > 0 ? 1 : 0) !== layer || p.life >= p.max) {
+            if ((z < 0 ? -1 : z >= 2 ? 2 : z > 0 ? 1 : 0) !== layer || p.life >= p.max) {
                 continue;
             }
             const f = p._f;
@@ -9515,17 +9515,31 @@ function ultVsIntro(a, ultA, leftA, b, ultB, leftB, total) {
     // 게임 모드 — 인트로 (1.5초 — 밀고 밀리기 시작까지) 동안 HP 묶음 · 힘대결 상자 · Z 칸 (DOM) 을 숨김: 컷인 이름 · 부제 · VS 가 그 밑에 깔려 0초 보이던 것 (#34 UX 리뷰어 큼 2 · 3) · 다시 나타나는 상자 = 연타 시작
     ultHideHud(ULT_VS_MS);
     // 입자는 나중 것부터 그려서 — 글씨를 띠보다 먼저 만들어야 위에 보임
+    // 게임 모드 — 두 띠를 각 이름 줄 가운데에 같은 키로 (위 띠가 22% 자리라 3:3 정보줄 두 줄 뒤에 10px 만 보이고 아래 띠만 35px 이던 것 — #116 아트 · UX) ·
+    //   띠 키 = 이름 크기 × 1.5 (24 ~ 40) · 띠가 48 아래면 띠 안 큰 그림은 뺌 (ultCutIn — 잘린 그림이 무대의 진짜 포켓몬 옆을 지나 둘로 보이던 것)
+    const yA = game && L.yA ? L.yA : 0.22;
+    const bpx = game && L.yA ? Math.round(ultClamp(L.name * 1.5, 24, 40)) : 0;
+    // 아래 띠는 패널 아래 끝에서 6px 위까지 (187 에서 맨 아래 줄까지 내려가 틈 0 이던 것 — 픽셀 검사원 #116 2바퀴 작음 6 · 위 틈만큼 올리면 VS 가 아래 작은 줄을 덮음) · 아래 이름 · 부제도 같이 ·
+    //   VS 는 위 이름 아래 끝 ~ 아래 작은 줄 위 끝 사이 가운데 (ultVsLayout 과 같은 셈)
+    let yBf = yB;
+    let yV = yVs;
+    if (bpx) {
+        const H = window.innerHeight;
+        yBf = Math.min(yB, (H - 6 - bpx / 2) / H);
+        const above = L.name * 0.85 + Math.max(10, Math.round(L.name * 0.4)) / 2;
+        yV = ((yA * H + L.name / 2) + (yBf * H - above)) / 2 / H;
+    }
     ultTitle(ultA[0], `${a.name}의 필살기!`, ultA[2]?.tc ? sigPal(ultA[2].tc) : null, sec + 0.4, 0.22, 0.72 * L.k);
-    ultCutIn(a, leftA, ca, sec, 0.22, 0.26);
+    ultCutIn(a, leftA, ca, sec, yA, 0.26, false, bpx);
     setTimeout(() => {
         screenFlash(2, 0.4, '#ffffff', 0.2);
-        ultTitle(ultB[0], `${b.name}의 필살기!`, ultB[2]?.tc ? sigPal(ultB[2].tc) : null, sec + 0.15, yB, 0.72 * L.k);
-        ultCutIn(b, leftB, cb, sec - 0.25, yB, 0.26);
+        ultTitle(ultB[0], `${b.name}의 필살기!`, ultB[2]?.tc ? sigPal(ultB[2].tc) : null, sec + 0.15, yBf, 0.72 * L.k);
+        ultCutIn(b, leftB, cb, sec - 0.25, yBf, 0.26, false, bpx);
     }, 250);
     // VS = 맨 위층 (at — 나중에 만든 입자가 아래라 내 필살기 이름 밑에 깔리던 것) · 0.3초에 1.4초 (끝 0.3초 흐려짐 빼고 1초 넘게 — U1, #34 UX 리뷰어)
     setTimeout(() => {
         ultShake(4, 300);
-        ultTitle('VS', null, ULT_FOE_TITLE, game ? VS_LEN : sec - 0.35, yVs, 1.25 * L.k, game ? {} : null);
+        ultTitle('VS', null, ULT_FOE_TITLE, game ? VS_LEN : sec - 0.35, yV, 1.25 * L.k, game ? {} : null);
     }, (game ? VS_AT : 0.45) * 1000);
 }
 
@@ -9556,7 +9570,7 @@ function ultVsLayout(yB0, yVs0) {
         const yB = Math.min(H - 4 - name / 2, Math.max(H * yB0, aBottom + 4 + vs + 4 + above));
         const bTop = yB - above;
         if (bTop - aBottom >= vs + 4) {
-            return { k, yB: yB / H, yVs: (aBottom + bTop) / 2 / H };
+            return { k, yB: yB / H, yVs: (aBottom + bTop) / 2 / H, yA: yA / H, name };
         }
     }
     return { k, yB: yB0, yVs: yVs0 };
@@ -9596,7 +9610,8 @@ function ultHideHud(ms) {
             if (ultHud === h) ultHudRestore();
             return;
         }
-        for (const el of document.querySelectorAll('#pokemon-game .pg-hpblock, #pokemon-game .pg-clash-info, #pokemon-game .pg-ultz-wrap')) {
+        // 이름표 · 자동 칩도 (1:1 VS 띠 아래 끝 위로 "이상해씨" 이름표가 올라와 있던 것 — #116 아트 2바퀴 7)
+        for (const el of document.querySelectorAll('#pokemon-game .pg-hpblock, #pokemon-game .pg-clash-info, #pokemon-game .pg-ultz-wrap, #pokemon-game .pg-nametag, #pokemon-game .pg-vmenu-tabs, #pokemon-game .pg-auto')) {
             if (!h.hid.has(el)) {
                 h.hid.add(el);
                 el.style.visibility = 'hidden';
@@ -9773,7 +9788,7 @@ const ultFlip = (img, left) => left && !img.src.includes('_left_');
 
 // 컷인 — 가로 띠가 열리고 큰 그림이 휙 지나감 (속도선). yc = 띠 가운데 높이(패널 비율), hf = 띠 굵기
 // solo = 혼자 필살기 컷인 — 게임 화면에선 띠를 정보줄 · 지도 줄 아래로 (큰 이름 ultTitle 과 같은 자리 — 3:3 은 지도 줄에 띠 위가 잘려 42px 만 보이고 이름이 19px 밖으로 처지던 것, 아트 디렉터 #98)
-function ultCutIn(pokemon, left, cols, sec, yc = 0.36, hf = 0.3, solo = false) {
+function ultCutIn(pokemon, left, cols, sec, yc = 0.36, hf = 0.3, solo = false, hpx = 0) {
     const img = pokemon.el;
     const dir = left ? -1 : 1;
     const game = typeof fxInGame === 'function' && fxInGame();
@@ -9784,11 +9799,12 @@ function ultCutIn(pokemon, left, cols, sec, yc = 0.36, hf = 0.3, solo = false) {
         const H = window.innerHeight;
         const t = p.life / p.max;
         // 게임 화면 띠 키 60 ~ 96 (높은 패널에서 120 이라 그림이 ×4 로 커지던 것 · 큰 이름 두 줄이 들어가게 60 부터)
-        const bh = Math.round(game ? ultClamp(H * hf, solo ? 60 : 40, 96) : ultClamp(H * hf, 40, 120));
+        // hpx = 정한 띠 키 (게임 힘대결 VS — 두 띠 같은 키 · ultVsIntro)
+        const bh = game && hpx ? hpx : Math.round(game ? ultClamp(H * hf, solo ? 60 : 40, 96) : ultClamp(H * hf, 40, 120));
         const open = t < 0.14 ? t / 0.14 : t > 0.86 ? (1 - t) / 0.14 : 1;
         const h = Math.max(2, Math.round(bh * open));
         if (top === null) {
-            top = game && solo ? ultTextTop() : 0;
+            top = game && (solo || hpx) ? ultTextTop() : 0;
         }
         const yc0 = top ? Math.max(H * yc, top + 2 + bh / 2) : H * yc;
         const y0 = Math.round(yc0 - h / 2);
@@ -9811,7 +9827,7 @@ function ultCutIn(pokemon, left, cols, sec, yc = 0.36, hf = 0.3, solo = false) {
         }
         // 큰 그림 — 띠보다 살짝 크게, 천천히 앞으로
         // 좁은 게임 화면 (400 아래) 은 띠 안 큰 그림 없음 — 큰 이름이 띠 폭을 거의 다 써서 미끄러져 지나가는 그림이 "은빛바람" 앞 · 끝 글자를 0.6초 덮던 것 (UX 리뷰어 #98 7 · 240) · 무대에 그 포켓몬이 있음
-        if (open > 0.6 && img.naturalWidth && !(game && W < 400)) {
+        if (open > 0.6 && img.naturalWidth && !(game && (W < 400 || bh < 48))) {
             const nh = img.naturalHeight;
             // 게임 화면 = 정수 배율 ×2 까지 (포켓몬 그림은 ×2 넘게 키우지 않음 — 태현 님 · 높은 패널 ×4, 아트 디렉터 #98 큼 1)
             const dh = game ? nh * Math.min(2, Math.max(1, Math.round((bh * 1.25) / nh))) : Math.round(bh * 1.25);
@@ -9850,7 +9866,8 @@ function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1, at = null) {
     let hud = null; // at.hud — HP 묶음 자리 (첫 장면에 한 번 잼)
     let textTop = null; // 글씨 위 끝 (ultTextTop — 첫 장면에 한 번 잼: 장면마다 DOM 을 재던 것, 코드 리뷰어)
     // 게임 글씨 (at — 패링 · 짧은 필살기 이름) 는 맨 위층 — 솔라빔 모으는 빛이 반격기 이름 끝 0.15초를 덮던 것 (2026-10-21 UX 리뷰어)
-    sigParticle({ x: 0, y: 0, s: 2, max: sec, z: at ? 1 : 0, _ui: true, draw: (ctx, p) => {
+    // at.z = 층 (게임 힘대결 결과 글 = 2 — 맨 위 · moves.js 그리기)
+    sigParticle({ x: 0, y: 0, s: 2, max: sec, z: at ? (at.z ?? 1) : 0, _ui: true, draw: (ctx, p) => {
         const W = window.innerWidth;
         const H = window.innerHeight;
         const t = p.life;
@@ -43192,7 +43209,8 @@ const DUEL_DRAW = 0.25; // 무승부 확률
 
 // 대결 준비 — 위치 · 높이 · 승패 · 시간표 (VS 연출 전에, 시간을 알아야 해서)
 // force = 'a' | 'b' | 'draw' 면 승패를 정함 (점검용)
-function duelPlan(a, ultA, leftA, b, ultB, leftB, force) {
+// opt.mouth = 맞부딪히는 높이를 입 높이에 맞추고 바닥까지 모자라면 줄 굵기를 줄임 (게임 — 그림이 늘 ×2 라 높은 패널 · 굵은 lane 에서 줄기 뿌리가 입보다 30px 위로 끌려 올라가던 것, #116 아트 2바퀴 ②)
+function duelPlan(a, ultA, leftA, b, ultB, leftB, force, opt = {}) {
     const W = window.innerWidth;
     const H = window.innerHeight;
     const side = (p, ult, left) => {
@@ -43211,8 +43229,12 @@ function duelPlan(a, ultA, leftA, b, ultB, leftB, force) {
     const A = side(a, ultA, leftA);
     const B = side(b, ultB, leftB);
     const ground = Math.max(A.ground, B.ground);
-    const lane = ultClamp(H * 0.09, 10, 34); // 맞부딪히는 줄의 반 굵기 기준
-    const y0 = ultClamp(Math.min(A.mouth.y, B.mouth.y), H * 0.3, ground - lane * 1.7); // 맞부딪히는 높이 — 바닥에 잘리지 않게
+    const my = Math.min(A.mouth.y, B.mouth.y);
+    let lane = ultClamp(H * 0.09, 10, 34); // 맞부딪히는 줄의 반 굵기 기준
+    if (opt.mouth) {
+        lane = Math.min(lane, Math.max(10, (ground - my) / 1.7));
+    }
+    const y0 = ultClamp(my, H * 0.3, ground - lane * 1.7); // 맞부딪히는 높이 — 바닥에 잘리지 않게
     A.front = A.x0;
     B.front = B.x0;
     A.y0 = y0;
@@ -43307,6 +43329,89 @@ function duelSplash(D, up) {
             dotAt(ctx, px, S, q.x - q.vx * 0.025, q.y - q.vy * 0.025, q.color, q.size, q.size);
         },
     });
+}
+
+// swarm · rush 앞머리 — 날리기 · 몸 쪽은 빛 덩어리가 없어 만나는 곳이 한쪽만 커 "둘이 민다" 가 아니라 "한쪽이 친다" 로 읽히던 것 (#116 아트 ①) —
+//   앞머리 덩어리 (가운데 빛 덩어리 × 0.7 · 세 겹 픽셀) 를 밀기 동안 그리고, 0.12초마다 알갱이 벽 (12 ~ 16개 · 반지름 = 반 굵기 × 0.8 · 상대 쪽 반원)
+function duelHeadBlob(D, X) {
+    // 수명 = 대결 길이 (30초 고정이면 밀기 도중 끊긴 대결에서 push 에 멈춘 덩어리가 30초 남음 · 대결 입자 지우기에서도 빠짐 — 코드 리뷰어 #116)
+    sigParticle({ x: 0, y: 0, s: D.S, max: D.total, draw: (ctx, q, t, px) => {
+        if (D.phase !== 'push') {
+            if (D.phase !== 'charge' && D.phase !== 'go') {
+                q.life = q.max;
+            }
+            return;
+        }
+        const r = Math.max(D.S * 3, (D.blobR || D.lane) * 0.7);
+        // 가운데 빛 덩어리 바깥 (그 밑에 깔리면 안 보임 — duel-body impactX 와 같은 0.88)
+        const cx = X.front - X.dir * ((D.blobR || D.lane) * 0.88 + r * 0.5);
+        const c = Math.max(1, D.S);
+        ctx.globalAlpha = 1;
+        for (const [k, col] of [[1, X.cols[2] || X.cols[1]], [0.72, X.cols[1]], [0.4, '#ffffff']]) {
+            const rr = r * k;
+            ctx.fillStyle = col;
+            for (let yy = -rr; yy <= rr; yy += c) {
+                const w = Math.sqrt(Math.max(0, rr * rr - yy * yy));
+                ctx.fillRect(px(cx - w), px(D.ym + yy), px(w * 2) || c, c);
+            }
+        }
+    } });
+}
+function duelWall(D, X) {
+    const n = 12 + Math.floor(Math.random() * 5);
+    const R = Math.max(D.S * 4, D.lane * 0.8);
+    const sp = 70 * (D.S / 2);
+    for (let j = 0; j < n; j++) {
+        const an = ((j + 0.5) / n - 0.5) * Math.PI * 0.9;
+        const ax = Math.cos(an) * X.dir;
+        const ay = Math.sin(an);
+        sigParticle({ x: X.front - X.dir * (D.blobR || D.lane) * 0.88 + ax * R * 0.35, y: D.ym + ay * R, s: D.S, vx: ax * sp, vy: ay * sp * 0.6, drag: 3, max: 0.24, color: movePick([X.cols[0], X.cols[1], '#ffffff']), size: movePick([1, 2, 2]),
+            draw: (ctx, q, t, px) => {
+                ctx.globalAlpha = 1;
+                dotAt(ctx, px, D.S, q.x, q.y, q.color, q.size, q.size);
+            },
+        });
+    }
+}
+
+// 그림 몸 (POKEMON_SHAPE — 투명 테두리 뺀 자리) 의 화면 좌표 · 가운데 x · 서 있을 때 앞뒤 끝 · 누우면 (90도) 가로로 닿는 반 길이
+function duelBodyOf(q) {
+    const shape = POKEMON_SHAPE[q.form || q.label];
+    const box = q.box || q.collision || q.el;
+    if (!shape || !box) {
+        return null;
+    }
+    const r = box.getBoundingClientRect();
+    const size = q.size || q._originalSpriteSize || 32;
+    const s = r.width / size;
+    const [, , , l, t, rr, b] = shape;
+    const sx = (v) => r.left + (q.left ? size - v : v) * s;
+    const cx = (r.left + r.right) / 2;
+    return { cx, x0: Math.min(sx(l), sx(rr)), x1: Math.max(sx(l), sx(rr)), top: r.top + t * s, bottom: r.top + b * s, boxTop: r.top, h: r.height, cy: (r.top + r.bottom) / 2 };
+}
+
+// 진 쪽이 밀려날 거리 — 뒤에 선 같은 편 (3:3 힘겨루기 장면 동료 · 뚫고 나간 줄기에 쓰러질 칸) 몸 앞 4px 까지
+//   (밀려난 앞장이 뒤의 쓰러진 꼬렛 그림 위에 1.4초 겹치던 것 — #116 픽셀 검사원) · 1:1 은 뒤 칸이 없어 그대로
+//   진 쪽은 뒤로 벌러덩 (TumbleState — 그림 75% 높이 축으로 90도) 이라 머리 끝까지 · 뒤 칸은 서 있을 때와 누웠을 때 (pg-ko — 가운데 축) 중 더 닿는 쪽
+function duelKnockRoom(L, want) {
+    const list = L.p.duelBehind ? L.p.duelBehind() : [];
+    const me = list.length ? duelBodyOf(L.p) : null;
+    if (!me) {
+        return want;
+    }
+    const away = -L.dir;
+    const reachL = Math.max(away > 0 ? me.x1 - me.cx : me.cx - me.x0, me.boxTop + me.h * 0.75 - me.top);
+    let room = want;
+    for (const q of list) {
+        const o = duelBodyOf(q);
+        const dist = o ? away * (o.cx - me.cx) : 0;
+        if (!o || dist <= 0) {
+            continue;
+        }
+        const reachN = Math.max(away > 0 ? o.cx - o.x0 : o.x1 - o.cx, o.cy - o.top, o.bottom - o.cy);
+        room = Math.min(room, Math.max(0, dist - reachL - reachN - 4));
+    }
+    return room;
 }
 
 // 펑 — 번쩍 · 흔들림 · 고리 · 조각 (big 이면 화면 끝까지)
@@ -43444,6 +43549,11 @@ function duelStart(D) {
                 if (!st.met) {
                     // 처음 맞부딪힘
                     st.met = true;
+                    for (const X of sides) {
+                        if (X.kind === 'swarm' || X.kind === 'rush') {
+                            duelHeadBlob(D, X);
+                        }
+                    }
                     duelBoom(D, D.xm, D.ym, [...A.cols.slice(0, 2), ...B.cols.slice(0, 2)], false);
                     for (const X of sides) {
                         X.p.el.animate([{ translate: `-${S * 0.6}px 0` }, { translate: `${S * 0.6}px 0` }], { duration: 45, iterations: Math.round((DUEL_SEC * 1000) / 45), direction: 'alternate', composite: 'add' });
@@ -43462,6 +43572,13 @@ function duelStart(D) {
                     }
                     for (const X of sides) {
                         call(X, 'push', D, X, X.pushing > 0);
+                    }
+                }
+                // swarm · rush 앞머리 알갱이 벽 (0.12초마다)
+                for (const X of sides) {
+                    if ((X.kind === 'swarm' || X.kind === 'rush') && t >= (X.wallAt || 0)) {
+                        X.wallAt = t + 0.12;
+                        duelWall(D, X);
                     }
                 }
                 // 계속 튀는 에너지 · 둘레 번개 · 땅에 꽂히는 번개 · 흔들림
@@ -43531,14 +43648,15 @@ function duelStart(D) {
                         call(Wn, 'win', D, Wn, L);
                         duelBoom(D, L.body.cx, L.body.cy, Wn.cols, true);
                         duelHide(L, false);
-                        knockBack(L.p, L.left, -L.dir, spriteSize(L.p) * 1.4);
+                        knockBack(L.p, L.left, -L.dir, duelKnockRoom(L, spriteSize(L.p) * 1.4));
                         // 둘 사이에 있던 구경꾼도 휩쓸림
                         const lo = Math.min(A.x0, B.x0);
                         const hi = Math.max(A.x0, B.x0);
                         ultOthers(A.p).forEach((o) => o.pokemon !== B.p && o.x > lo && o.x < hi && ultHit(o, Wn.dir, 'tumble'));
                         // 게임 모드 힘대결은 결과 말을 게임 것으로 (D.winTitle — 타입 상성이 있어 "효과는 굉장했다" 가 틀릴 수 있음)
                         const [wt, ws, wsec] = D.winTitle ? D.winTitle(Wn) : ['효과는 굉장했다!', `${Wn.p.name}의 ${Wn.name}!`, 1.8];
-                        setTimeout(() => ultTitle(wt, ws, null, wsec), 150);
+                        // 게임 힘대결 결과 글은 맨 위 층 (z 2 — 먼저 만든 하트 알갱이가 "에" 글자 위에 그려지던 것, #116 아트 3바퀴 2)
+                        setTimeout(() => ultTitle(wt, ws, null, wsec, 0.36, 1, D.winTitle ? { z: 2 } : null), 150);
                     }
                     if (st.won) {
                         Wn.fade = Math.max(0, 1 - (t - D.tO - DUEL_THROUGH - 0.5) / 0.6);
@@ -43555,7 +43673,11 @@ function duelStart(D) {
         draw: (ctx, q, t, px) => {
             for (const X of sides) {
                 if (X.fade > 0.01 && D.phase !== 'charge') {
+                    // 3:3 합류 — 그 쪽만 굵게 (duel-join.js · #116) · 합류 없으면 그대로
+                    const lane0 = D.lane;
+                    D.lane = duelJoinLane(D, X);
                     call(X, 'draw', ctx, px, D, X);
+                    D.lane = lane0;
                     ctx.globalAlpha = 1;
                     ctx.globalCompositeOperation = 'source-over';
                 }
@@ -44843,6 +44965,46 @@ function duelStart(D) {
         return { x: home.x, y: home.y, sc: 1 };
     }
 
+    // 혜성 꼬리 끝이 위 끝 (정보줄 · 지도 줄 아래 — fxStageTop) 에 걸치지 않게 — 길이는 그대로 두고 눕힘 (U4 — 머무는 모양은 무대 안 · 크기 대신 자리를 옮김)
+    //   (리자몽 플레어드라이브 앞장 꼬리가 밀기 3초 동안 정보줄 밑변에 일자로 잘려 머물던 것 — #116 UX 2바퀴) · 게임 밖 · 아래로 난 꼬리는 그대로 · back = 꼬리가 누울 쪽 (몸 뒤)
+    // 연타 안내 판 아래 끝 + 4 (없으면 0) — 0.1초마다 한 번만 잼 (그리는 장면마다 querySelector · 레이아웃을 부르던 것, 코드 리뷰어 #116)
+    let mashAt = -1e9;
+    let mashV = 0;
+    function mashBottom() {
+        const t = performance.now();
+        if (t - mashAt > 100) {
+            mashAt = t;
+            const el = document.querySelector('#pokemon-game .pg-team-prompt-mash');
+            mashV = el ? el.getBoundingClientRect().bottom + 4 : 0;
+        }
+        return mashV;
+    }
+    function tailUnderTop(cx, cy, ux, uy, len, r0, S, back) {
+        // 3:3 힘겨루기 장면에 연타 안내 (위 가운데) 가 떠 있으면 그 판 아래 끝 + 4 도 위 끝 (눕힌 꼬리가 판 가장자리에 46/48장면 닿던 것 — 픽셀 검사원 #116 3바퀴 큼 1) · 1:1 화면은 그대로
+        const top = Math.max(typeof fxStageTop === 'function' ? fxStageTop() : 0, mashBottom());
+        if (!top || uy >= 0) {
+            return [ux, uy];
+        }
+        const over = (vx, vy) => {
+            for (let i = 0; i <= 12; i++) {
+                const d = (len * i) / 12;
+                if (cy + vy * d - r0 * 1.14 * (1 - d / len) ** 0.8 < top + S * 2) {
+                    return true;
+                }
+            }
+            return false;
+        };
+        if (!over(ux, uy)) {
+            return [ux, uy];
+        }
+        const sx = Math.abs(ux) > 0.01 ? Math.sign(ux) : back;
+        let a = Math.asin(Math.min(1, -uy));
+        while (a > 0 && over(sx * Math.cos(a), -Math.sin(a))) {
+            a -= 0.05;
+        }
+        a = Math.max(0, a);
+        return [sx * Math.cos(a), -Math.sin(a)];
+    }
     // 몸 뒤 — 오라 · 혜성 꼬리
     function rushUnder(ctx, px, D, X) {
         const st = X.st;
@@ -44860,7 +45022,11 @@ function duelStart(D) {
         }
         if (pp.comet && pp.tail) {
             const big = st.heavy ? 1.15 : 1;
-            comet(ctx, px, S, pp.x, pp.y - h * 0.5 * pp.sy, pp.tail[0], pp.tail[1], U * (2.2 + 1.1 * st.K) * big * (1 + 0.35 * Math.max(0, st.pr) + 0.4 * st.surge), Math.max(w, h) * 0.6, ac, T);
+            const cy = pp.y - h * 0.5 * pp.sy;
+            const len = U * (2.2 + 1.1 * st.K) * big * (1 + 0.35 * Math.max(0, st.pr) + 0.4 * st.surge);
+            const r0 = Math.max(w, h) * 0.6;
+            const [ux, uy] = tailUnderTop(pp.x, cy, pp.tail[0], pp.tail[1], len, r0, S, -dir);
+            comet(ctx, px, S, pp.x, cy, ux, uy, len, r0, ac, T);
             return;
         }
         if (pp.dash) {
@@ -45553,7 +45719,8 @@ function duelStart(D) {
             twinkle, giant, shape, cols, n, heavy: !!HEAVY_SHOT[shape],
             K: 0.4 + 0.6 * clamp(X.P || 0, 0, 1),
             cs: Math.max(X.S, Math.round(Math.min(D.W, D.H) / 75)),
-            rate: 9 + n * 0.45, shots: [], pr: 0, muzzle: 0, recoil: 0, riddleUntil: -1,
+            // 수 ×1.5 — 하트 · 별이 1 ~ 3개 점선이라 줄기로 안 읽히던 것 (#116 아트 2바퀴 ①)
+            rate: (9 + n * 0.45) * 1.5, shots: [], pr: 0, muzzle: 0, recoil: 0, riddleUntil: -1,
             ox: X.x0, oy: clamp(X.mouth.y, D.H * 0.1, D.ground - 4 * X.S),
             R: Math.max(X.w, 24), per: clamp(Math.round(n / 5), 5, 12),
             pink, hearts: [pink[2], pink[3], '#ff7ab8', cols[2]], starCols: ['#ffffff', cols[0], cols[1], cols[2]],
@@ -45634,7 +45801,8 @@ function duelStart(D) {
         } else if (ph === 'push') {
             rate = st.rate * (1 + 0.8 * Math.max(0, st.pr) - 0.45 * Math.max(0, -st.pr));
         } else if (ph === 'through' && won) {
-            rate = st.rate * 2.2;
+            // 진 쪽을 겨누는 수는 ×1.5 전 그대로 (모여서 덩어리가 되던 것 — #116 아트 3바퀴 ⑤)
+            rate = (st.rate / 1.5) * 2.2;
             aimL = true;
             if (once(st, 'thr')) {
                 for (let j = 0; j < 8; j++) {
@@ -45643,7 +45811,7 @@ function duelStart(D) {
                 recoil(X, 4);
             }
         } else if (ph === 'after' && won && T < st.riddleUntil) {
-            rate = st.rate * 1.6;
+            rate = (st.rate / 1.5) * 1.6;
             aimL = true;
         }
         const n = acc(st, 'shot', dt, rate);
@@ -45761,9 +45929,42 @@ function duelStart(D) {
         }
         const live = ph === 'go' || ph === 'push' || (ph === 'through' && D.winner === X);
         const dist = (X.front - st.ox) * dir;
+        // 줄기 몸 — 입 ~ 앞머리 밑에 그 색 (cols[2]) 바둑판 띠 · 높이 = 반 굵기 × 1.2 · 25%, 앞머리 쪽 1/3 은 50% (#108 B 문법 — 한 색 면 없이)
+        //   (하트 · 별 점선만이라 상대 줄기에 몸이 없어 한쪽 공격으로 읽히던 것 — #116 아트 2바퀴 ①)
+        //   띠 안 밝은 (cols[1]) 3칸 줄이 12칸마다 · 0.05초마다 2칸 앞으로 · 위아래 끝은 0.15초마다 1칸 들쭉날쭉 (멈춘 방충망처럼 보이던 것 — #116 아트 3바퀴 ③)
+        //   뚫고 나가는 동안 (through) 은 25% 만 — 진 쪽에 닿은 앞머리가 네모 덩어리로 보이던 것 (#116 아트 3바퀴 ⑤)
+        if (live && dist > S * 6) {
+            const k = S;
+            const ex = impactX(D, X);
+            const n = Math.max(1, Math.floor(((ex - st.ox) * dir) / k));
+            const hh = lane * 0.6;
+            const flow = Math.floor(T / 0.05) * 2;
+            const jt = Math.floor(T / 0.15);
+            const thr = ph === 'through';
+            ctx.globalAlpha = F;
+            for (let i = 0; i <= n; i++) {
+                const f = i / n;
+                const gx = Math.round((st.ox + dir * i * k) / k);
+                const cy = lerp(st.oy, D.ym, f);
+                const dense = f >= 2 / 3 && !thr;
+                const g0 = Math.round((cy - hh) / k) + (hash(i, jt) < 0.5 ? 1 : 0);
+                const g1 = Math.round((cy + hh) / k) - (hash(i, jt + 7) < 0.5 ? 1 : 0);
+                const gm = Math.round(cy / k);
+                const lit = (((i - flow) % 12) + 12) % 12 < 3;
+                const lit2 = (((i - flow + 6) % 12) + 12) % 12 < 3;
+                for (let gy = g0; gy <= g1; gy++) {
+                    const line = (lit && gy === gm - 2) || (lit2 && gy === gm + 2);
+                    const on = line || (dense ? (((gx + gy) % 2) + 2) % 2 === 0 : ((gx % 2) + 2) % 2 === 0 && ((gy % 2) + 2) % 2 === 0);
+                    if (on) {
+                        ctx.fillStyle = line ? cols[1] : cols[2];
+                        ctx.fillRect(px(gx * k), px(gy * k), k, k);
+                    }
+                }
+            }
+        }
         // 먼 것들 — 작고 옅은 것들이 앞머리까지 끝없이 (입자 없이 계산)
         if (live && dist > S * 6) {
-            const m = 18;
+            const m = 27;
             for (let j = 0; j < m; j++) {
                 const cyc = 0.4 + 0.25 * hash(j, 1);
                 const tt = T + hash(j, 2) * 3;
@@ -45788,6 +45989,8 @@ function duelStart(D) {
         // 날리는 것들 — 꼬리 + 모양
         const cs = st.cs;
         const pxc = (v) => Math.round(v / cs) * cs;
+        const hc = cs * 7 > 24 ? Math.max(S, S * Math.floor(24 / (7 * S))) : cs;
+        const pxh = (v) => Math.round(v / hc) * hc;
         // 바늘은 긴 꼬리, 나머지는 짧고 옅게 (하나하나 보이게) · 잎 · 하트는 팔랑팔랑
         const longTail = st.shape === 'needle';
         const flutter = st.twinkle || st.shape === 'leaf' || st.shape === 'heart';
@@ -45811,9 +46014,11 @@ function duelStart(D) {
             ctx.globalAlpha = F;
             if (st.twinkle) {
                 if (q.tw === 'heart') {
-                    drawHeart(ctx, pxc, cs, q.x, q.y, false, q.color, '#ffffff');
+                    // 큰 하트 7×6칸 (칸 크기는 그대로 — 5×5 가 점처럼 보이던 것, #116 아트 2바퀴 ①) · 너비 24px 까지 (높은 패널 칸 6px 이면 42px 한 색 덩어리 — 3바퀴 ④)
+                    drawHeart(ctx, pxh, hc, q.x, q.y, true, q.color, '#ffffff');
                 } else {
-                    drawStar(ctx, pxc, cs, q.x, q.y, 2, st.starCols, Math.floor(q.life / 0.07) % 2 === 1);
+                    // 진 쪽을 겨눈 별은 + 모양만 (× 로 깜빡이는 별이 모여 흰 바둑판 덩어리 — 3바퀴 ⑤)
+                    drawStar(ctx, pxc, cs, q.x, q.y, 2, st.starCols, !q.aim && Math.floor(q.life / 0.07) % 2 === 1);
                 }
             } else {
                 drawShot(ctx, st.shape, q, cs, cols);
@@ -45973,7 +46178,8 @@ function duelStart(D) {
                 const sp = rnd(140, 320);
                 part({ x, y, s: S * 2, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 2.4, max: rnd(0.6, 0.95), draw: (ctx, p, t, px) => {
                     ctx.globalAlpha = fadeInOut(t, 0.04, 0.35);
-                    drawStar(ctx, px, p.s, p.x, p.y, 2, st.starCols, Math.floor(p.life / 0.07) % 2 === 1);
+                    // + 모양 그대로 크기만 반짝 (× 로 바뀌는 큰 별 14개가 진 쪽에 모여 흰 바둑판 덩어리 — #116 아트 3바퀴 ⑤)
+                    drawStar(ctx, px, p.s, p.x, p.y, Math.floor(p.life / 0.07) % 2 === 1 ? 1 : 2, st.starCols);
                 } });
             }
             for (let i = 0; i < 10 && roomFor(); i++) {
@@ -52921,6 +53127,8 @@ function duelStart(D) {
         const won = st.wonAt !== undefined;
         const r = orbR(D, X, st);
         const c = orbPos(D, X, st, r);
+        // 그린 구 자리 · 반지름 — 3:3 합류 쉼표 팔이 구 안에 (duel-join.js · #116)
+        st.at = { x: c.x, y: c.y, r };
         // 터진 뒤엔 줄기만 사라져 감
         orbStream(ctx, px, D, X, st, c, r, won ? a * Math.max(0, 1 - (t - st.wonAt) / 0.3) : a);
         if (won) {
@@ -53360,6 +53568,309 @@ function duelStart(D) {
         dome: kind(domeInit, { charge: domeCharge, draw: domeDraw, tick: domeTick, push: domePush, win: domeWin }),
     });
 })();
+
+// ===== ult/duel-join.js =====
+// ───── 3:3 힘겨루기 합류 (#116 — 디자인 값 design-system "## #116") ─────
+// 장면 전환 안 1:1 힘겨루기 (duel.js) 에 동료 · 상대가 합류하면 합동처럼 색이 섞이고 줄기가 굵어짐 — 새 색 없이 합동 값 (#98 D 나선 · #103 반짝이 별 · T11_STAR_COLS) 을 다시 씀.
+// 약속: 다리 (bridge duelJoin) 가 합류마다 D.joins = { a: [{ type, at, from? }], b: [...] } 에 적음 (at = D.t 초 · from = 동료 몸 가운데) · 쪽마다 줄기 반 굵기 = duelJoinLane(D, X) (duel.js 그리기) · duelStart(D) 뒤에 duelJoinStart(D) 한 번
+// 흐름: 동료가 다 나타난 뒤 (0.25초) → 동료 몸 → 줄기 뿌리로 별 9개 (0.45초) → 뿌리 "+" 9 × 9 (0.25초) + 줄기 둘레 동료 색 테 (0.13초) + 굵기 3걸음 (100ms) →
+//   줄기 종류마다 섞임 (쏘는 = 나선 · 구 = 쉼표 팔 + 테 · 나머지 = 불꽃 혀) · 만나는 곳 동료 색 불티 · 이긴 쪽 터짐에 동료 타입 모양
+// (#116 아트 1바퀴 — 합류 순간 별이 0.3초 4장면에 140px 를 지나 안 보이던 것 · 1860 나선이 울타리 · 860 나선이 이발소 기둥 · 진 쪽 터짐에 동료 색 없음)
+const DUEL_JOIN = {
+    wait: 0.25, // 별 출발 — 동료가 바둑판으로 다 나타난 뒤 (나타남 0.15초 + 0.1초)
+    fly: 0.45, // 별이 뿌리까지 (초)
+    plus: 0.25, // 뿌리 "+" (초)
+    rim: 0.13, // 닿는 장면 줄기 둘레 동료 색 테 (2장면)
+    grow: 0.1, // 굵기 한 걸음 (초 · 3걸음)
+    step: 0.25, // 합류 하나마다 굵기 배
+    max: 2, // 굵어지는 합류 수 상한 (3:1 = × 1.5)
+    turn: 40, // 나선 한 바퀴 (칸) 아래 끝 — 진폭이 크면 진폭 ÷ 칸 × 3 (기울기 고정 · 1860 에서 40px 마다 세로 막대이던 것)
+    amp: 3, // 나선 진폭 = 반 굵기 + 3칸 (뿌리 × 0.7 → 앞머리 × 1.0)
+    adv: 2, // 50ms 마다 앞으로 (칸)
+    bright: 1.5, // 앞머리 쪽 이만큼 (바퀴) 앞 마디만 본색 3칸 · 그 뒤 그림자 2칸 · 뿌리 첫 반 바퀴 = 2칸에 1칸 점
+    tongues: 4, // 동료마다 불꽃 혀
+    lanes: [-56, -40, -24, -10, 6, 18, 30, 44, 60], // 별 길 — 곧은 선 가운데에서 비켜 둔 칸 (T11_STAR lanes2 + 바깥 셋)
+    sizes: [3, 4, 5, 5, 4, 3, 4, 5, 3], // 별 팔 길이 (칸)
+    burst: 0.5, // 이긴 쪽 터짐 동료 타입 모양 (초)
+    burstN: 6, // 동료마다 모양 수
+};
+const DUEL_JOIN_STREAM = new Set(['beam', 'bolt', 'wave']);
+const DUEL_JOIN_ORB = new Set(['orb', 'dome']);
+// 터짐 타입 모양 (W 흰 · L 옅은 · M 본색 · D 짙은 — T11_STAR_COLS [0 1 2 3]) · 바깥 테는 그림자색 (흰 가시에 묻히던 것 — #116 아트 2바퀴 5)
+const DUEL_JOIN_SHAPE = {
+    fire: ['.M..', '.MM.', 'MLM.', 'MLLM', '.MLM', 'MLLM', 'MLWM', 'MLWM', 'DMMD', '.DD.'],
+    grass: ['.M.', 'MLM', 'MLD', 'MLD', 'DM.', '.D.'],
+    water: ['.L..', '.LL.', 'LWMM', 'LMMD', 'MMDD', '.DD.'],
+    electric: ['..M', '.M.', 'MMM', '.M.', 'M..'],
+    star: ['..M..', '..L..', 'MLWLM', '..L..', '..M..'],
+};
+// 혀 대신 별 (크림 · 회색이라 풀밭 위 혀가 회색 말뚝으로 보이던 것 — #116 아트 2바퀴 2)
+const DUEL_JOIN_PALE = new Set(['normal', 'steel', 'flying', 'ice', 'ghost', 'dark', 'rock']);
+
+function duelJoinsOf(D, X) {
+    const side = X === D.A ? 'a' : 'b';
+    const list = Array.isArray(D.joins) ? D.joins.filter((j) => j.side === side) : (D.joins && D.joins[side]) || [];
+    // 동료 자리를 모르면 앞장 뒤 머리 높이에서 (장면 무리 = 앞장 뒤 제 자리)
+    return list.map((j) => ({ type: j.type, t: j.t ?? j.at ?? 0, from: j.from || { x: X.x0 - X.dir * X.w * 1.4, y: X.body.top } }));
+}
+
+// 별이 뿌리에 닿는 때 (초) — 굵어짐 · 섞임은 여기부터
+const duelJoinLand = (j) => j.t + DUEL_JOIN.wait + DUEL_JOIN.fly;
+
+// 쪽 굵기 배 — 별이 닿은 뒤 100ms 마다 한 걸음 (툭 커지지 않게 — U2) · 합류 둘까지
+function duelJoinK(D, X) {
+    let k = 1;
+    for (const j of duelJoinsOf(D, X).slice(0, DUEL_JOIN.max)) {
+        const u = D.t - duelJoinLand(j);
+        if (u >= 0) {
+            k += (DUEL_JOIN.step * Math.min(3, Math.floor(u / DUEL_JOIN.grow) + 1)) / 3;
+        }
+    }
+    return k;
+}
+
+// 쪽 줄기 반 굵기 — 정수 칸 (반 칸 금지)
+function duelJoinLane(D, X) {
+    const k = duelJoinK(D, X);
+    return k === 1 ? D.lane : Math.max(D.S, Math.round((D.lane * k) / D.S) * D.S);
+}
+
+function duelJoinCols(type) {
+    return T11_STAR_COLS[type] || T11_STAR_COLS.normal;
+}
+
+function duelJoinStart(D) {
+    const S = D.S;
+    const reduce = typeof t33Reduce === 'function' && t33Reduce();
+    const now = () => (typeof fxRealNow === 'function' ? fxRealNow() : performance.now());
+    const live = (X) => X.fade > 0.5 && D.phase !== 'charge';
+    const st = { burstAt: null };
+    // 동료 몸 → 줄기 뿌리 (입 앞 x0) 로 넓게 날아가는 별 · 닿는 장면에 뿌리 "+" 9 × 9 · 줄기 둘레 동료 색 테
+    const stars = (ctx, px, X, j) => {
+        const u = D.t - j.t - DUEL_JOIN.wait;
+        const cols = duelJoinCols(j.type);
+        const to = { x: X.x0, y: D.y0 };
+        if (u >= 0 && u < DUEL_JOIN.fly) {
+            const nx = -(to.y - j.from.y);
+            const ny = to.x - j.from.x;
+            const nl = Math.hypot(nx, ny) || 1;
+            DUEL_JOIN.lanes.forEach((off, i) => {
+                const p = Math.min(1, Math.max(0, (u - (i % 5) * 0.025) / (DUEL_JOIN.fly - 0.1)));
+                if (p <= 0 || p >= 1) {
+                    return;
+                }
+                const cx = (j.from.x + to.x) / 2 + (nx / nl) * off * S;
+                const cy = (j.from.y + to.y) / 2 + (ny / nl) * off * S;
+                const x = (1 - p) * (1 - p) * j.from.x + 2 * (1 - p) * p * cx + p * p * to.x;
+                // 바깥 길은 패널 아래 끝 위로 (팔 + 1칸 — 아래 끝에서 잘리던 것, 픽셀 검사원 #116 2바퀴 작음 7)
+                const y = Math.min(D.H - (DUEL_JOIN.sizes[i] + 2) * S, (1 - p) * (1 - p) * j.from.y + 2 * (1 - p) * p * cy + p * p * to.y);
+                t33Star(ctx, S, x, y, DUEL_JOIN.sizes[i], cols);
+            });
+        } else if (u >= DUEL_JOIN.fly && u < DUEL_JOIN.fly + DUEL_JOIN.plus) {
+            dotAt(ctx, px, S, to.x - 4 * S, to.y, cols[2], 9, 1);
+            dotAt(ctx, px, S, to.x, to.y - 4 * S, cols[2], 1, 9);
+            dotAt(ctx, px, S, to.x - S, to.y, cols[1], 3, 1);
+            dotAt(ctx, px, S, to.x, to.y - S, cols[1], 1, 3);
+            dotAt(ctx, px, S, to.x, to.y, '#ffffff');
+            // 줄기 위아래 끝을 따라 2칸에 1칸 점 (곧은 1px 선이 "고른 칸" 테두리로 보이던 것 — #116 아트 2바퀴 4)
+            if (u < DUEL_JOIN.fly + DUEL_JOIN.rim && live(X)) {
+                const half = duelJoinLane(D, X) + S;
+                const len = Math.abs(X.front - X.x0);
+                for (let d = 0; d < len; d += 2 * S) {
+                    dotAt(ctx, px, S, X.x0 + X.dir * d, D.y0 - half, cols[2]);
+                    dotAt(ctx, px, S, X.x0 + X.dir * (d + S), D.y0 + half, cols[2]);
+                }
+            }
+        }
+    };
+    // 쏘는 줄기 — 동료 1마리 = 나선 1줄 (3인 = 2줄 180° 엇갈림) · 앞 마디 = 늘 본색 (앞머리 쪽 1.5바퀴만 3칸 · 그 뒤 2칸 — 몸통 위를 그림자색으로 칠해 줄기가 금 간 것처럼 보이던 것, #116 아트 2바퀴 1) ·
+    //   뒤 마디 = 몸통 밖에서만 그림자 2칸 · 뿌리 첫 반 바퀴 = 점 (기운이 앞으로 흐름)
+    const spiral = (ctx, px, X, list) => {
+        const half = duelJoinLane(D, X);
+        const len = Math.abs(X.front - X.x0);
+        const adv = reduce ? 0 : Math.floor(now() / 50) * DUEL_JOIN.adv;
+        const amp0 = half + DUEL_JOIN.amp * S;
+        const turn = Math.max(DUEL_JOIN.turn, Math.round((amp0 / S) * 3));
+        list.forEach((j, n) => {
+            const cols = duelJoinCols(j.type);
+            for (let d = 0; d < len; d += S) {
+                const a = (((d / S - adv) / turn) * 2 + n) * Math.PI;
+                const amp = amp0 * (0.7 + (0.3 * d) / Math.max(1, len));
+                const off = Math.sin(a) * amp;
+                const front = Math.cos(a) > 0;
+                if (!front && Math.abs(off) < half) {
+                    continue;
+                }
+                const root = d < turn * S * 0.5;
+                if (root && Math.round(d / S) % 2) {
+                    continue;
+                }
+                const head = d > len - DUEL_JOIN.bright * turn * S;
+                const x = X.x0 + X.dir * d;
+                const y = D.y0 + off;
+                const big = front && head && !root;
+                dotAt(ctx, px, S, x, y - (big ? S : 0), front ? cols[2] : cols[3], 1, big ? 3 : 2);
+            }
+        });
+    };
+    // 구 · 돔 — 구 안 동료 색 쉼표 팔 (동료마다 2개) + 테 1칸 (칸마다 번갈아 — 반투명 섞기 금지)
+    const orb = (ctx, px, X, list) => {
+        // 그린 구 (duel-energy orbDraw — st.at) 안 · 없으면 (돔) 앞머리 둘레 반 굵기 × 1.2
+        const at = X.st && X.st.at;
+        const R = at ? at.r * 0.9 : duelJoinLane(D, X) * 1.2;
+        const cx = at ? at.x : X.front;
+        const cy = at ? at.y : D.y0;
+        const base = reduce ? 0 : (X === D.A ? -1 : 1) * Math.floor(now() / 80) * (Math.PI / 12);
+        const arms = 2 * list.length;
+        list.forEach((j, n) => {
+            const cols = duelJoinCols(j.type);
+            for (let m = 0; m < 2; m++) {
+                const j0 = n + m * list.length;
+                for (let t = 0; t <= 1; t += 0.08) {
+                    const rr = R * (0.8 - 0.5 * t);
+                    const an = base + (j0 * 2 * Math.PI) / arms + (X === D.A ? -1 : 1) * t * ((120 * Math.PI) / 180);
+                    const w = t < 0.4 ? 2 : 1;
+                    dotAt(ctx, px, S, cx + Math.cos(an) * rr, cy + Math.sin(an) * rr, cols[t < 0.3 ? 2 : t < 0.7 ? 1 : 0], w, w);
+                }
+            }
+        });
+        const steps = Math.max(12, Math.round((2 * Math.PI * R) / S));
+        for (let i = 0; i < steps; i++) {
+            const j = list[i % list.length];
+            if (i % 2) {
+                continue;
+            }
+            const an = (i / steps) * Math.PI * 2;
+            dotAt(ctx, px, S, cx + Math.cos(an) * R, cy + Math.sin(an) * R, duelJoinCols(j.type)[2]);
+        }
+    };
+    // 몸 · 땅 · 회오리 · 무리 — 앞머리 둘레 동료 색 불꽃 혀 (동료마다 4개 · 10 ~ 18칸) — 밑 3칸 → 가운데 2칸 → 끝 1칸 · 3칸 오를 때마다 나가는 쪽 반대로 1칸 눕힘 · 150ms 마다 끝이 좌우로 ·
+    //   바깥 테는 아래 40% 바깥 한 줄만 (곧은 막대 + 양옆 테가 바코드 · 말뚝으로 보이던 것 — #116 아트 2바퀴 2 · 파이어 방식 겹친 혀) · 옅은 타입은 혀 대신 "+" 별
+    const tongues = (ctx, px, X, list) => {
+        const half = duelJoinLane(D, X);
+        const tick = reduce ? 0 : Math.floor(now() / 150);
+        list.forEach((j, n) => {
+            const cols = duelJoinCols(j.type);
+            for (let i = 0; i < DUEL_JOIN.tongues; i++) {
+                const seed = (tick * 7 + n * 13 + i * 31) % 97;
+                const an = Math.PI + ((i + 0.5) / DUEL_JOIN.tongues) * Math.PI + (n ? Math.PI / (2 * DUEL_JOIN.tongues) : 0);
+                // 몸으로 달려드는 줄기 (rush) 는 몸 뒤 끝 − 2칸 · 꼬리 윗면을 따라 (앞몸 위에 나란히 그려져 앞장 실루엣을 가리던 것 — #116 아트 3바퀴 1) · 동료마다 4칸 뒤 · 둘째는 꼬리 아래쪽
+                const rush = X.kind === 'rush';
+                const x0 = rush ? X.front - X.dir * (X.w + (2 + 2 * i + 4 * n) * S) : X.front - X.dir * half * 0.4 + Math.cos(an) * half * 1.3;
+                const foot = rush ? D.y0 + (n ? half * 0.5 : -half * 0.3) + (i % 2) * S : D.y0 + Math.abs(Math.sin(an)) * half * 0.6;
+                if (DUEL_JOIN_PALE.has(j.type)) {
+                    t33Star(ctx, S, x0, foot - (4 + (seed % 5)) * S, 3 + (seed % 3), cols);
+                    continue;
+                }
+                const h = 10 + (seed % 9);
+                const sway = reduce ? 0 : (tick + i + n) % 2 ? 1 : -1;
+                for (let c = 0; c < h; c++) {
+                    const w = c < h * 0.4 ? 3 : c < h - 2 ? 2 : 1;
+                    const lean = -X.dir * Math.floor(c / 3) + (c >= h - 2 ? sway : 0);
+                    const col = c >= h - 2 ? cols[0] : c >= h * 0.55 ? cols[1] : cols[2];
+                    const l = x0 + lean * S - ((w - 1) * S) / 2;
+                    dotAt(ctx, px, S, l, foot - c * S, col, w, 1);
+                    if (c < h * 0.4) {
+                        dotAt(ctx, px, S, X.dir > 0 ? l + w * S : l - S, foot - c * S, cols[3]);
+                    }
+                }
+            }
+        });
+    };
+    // 만나는 곳 동료 색 불티 (1칸 — 가시 · 튀는 에너지 색 목록에 동료 본색)
+    const sparks = (ctx, px) => {
+        const all = [...duelJoinsOf(D, D.A), ...duelJoinsOf(D, D.B)];
+        if (!all.length || D.phase !== 'push') {
+            return;
+        }
+        const tick = reduce ? 0 : Math.floor(now() / 120);
+        for (let i = 0; i < 2 * all.length; i++) {
+            const j = all[i % all.length];
+            if (D.t < duelJoinLand(j)) {
+                continue;
+            }
+            const seed = (tick * 11 + i * 17) % 101;
+            const an = (seed / 101) * Math.PI * 2;
+            const rr = D.blobR * (1.2 + (seed % 9) / 10);
+            dotAt(ctx, px, S, D.xm + Math.cos(an) * rr, D.ym + Math.sin(an) * rr, duelJoinCols(j.type)[2]);
+        }
+    };
+    // 이긴 쪽이 뚫고 나가 터질 때 (after) — 이긴 쪽 동료마다 타입 모양 6개가 0.5초 동안 퍼짐 (섞인 큰 폭발 — 흰 고리 · 가시만이던 것) · 마지막 0.15초는 칸 절반 · 4분의 1 (바둑판)
+    const burst = (ctx, px) => {
+        if (D.phase === 'after' && st.burstAt === null && D.winner) {
+            st.burstAt = D.t;
+        }
+        if (st.burstAt === null || !D.loser) {
+            return;
+        }
+        // 흰 가시보다 0.1초 늦게 · 0.5초 남김 · 터짐 바깥 (반지름 × 1.1 ~ 1.4)
+        const u = (D.t - st.burstAt - 0.1) / DUEL_JOIN.burst;
+        const list = duelJoinsOf(D, D.winner).filter((j) => st.burstAt >= duelJoinLand(j));
+        if (u < 0 || u >= 1 || !list.length) {
+            return;
+        }
+        const cx = D.loser.body.cx;
+        const cy = D.loser.body.cy;
+        const R = D.lane * 2.8 * (1 + 0.25 * list.length) * (0.3 + 0.7 * (1 - (1 - u) * (1 - u)));
+        const keep = u < 0.7 ? 1 : u < 0.85 ? 2 : 4;
+        list.forEach((j, n) => {
+            const cols = duelJoinCols(j.type);
+            const rows = DUEL_JOIN_SHAPE[j.type] || DUEL_JOIN_SHAPE.star;
+            const key = { W: '#ffffff', L: cols[1], M: cols[2], D: cols[3] };
+            for (let i = 0; i < DUEL_JOIN.burstN; i++) {
+                if ((i + n) % keep) {
+                    continue;
+                }
+                const an = ((i + n * 0.5) / DUEL_JOIN.burstN) * Math.PI * 2;
+                const rr = R * (1.1 + (0.3 * ((i * 7 + n) % 4)) / 3);
+                const x = cx + Math.cos(an) * rr * 1.3;
+                const y = cy + Math.sin(an) * rr * 0.75;
+                const ox = x - (rows[0].length * S) / 2;
+                const oy = y - (rows.length * S) / 2;
+                const filled = (r, c) => !!rows[r] && !!rows[r][c] && rows[r][c] !== '.';
+                rows.forEach((row, r) => [...row].forEach((ch, c) => {
+                    if (!key[ch]) {
+                        return;
+                    }
+                    for (const [dr, dc] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+                        if (!filled(r + dr, c + dc)) {
+                            dotAt(ctx, px, S, ox + (c + dc) * S, oy + (r + dr) * S, cols[3]);
+                        }
+                    }
+                }));
+                rows.forEach((row, r) => [...row].forEach((ch, c) => key[ch] && dotAt(ctx, px, S, ox + c * S, oy + r * S, key[ch])));
+            }
+        });
+    };
+    // 합류 목록이 비어 있으면 아무것도 안 그림 (1:1 힘겨루기도 같이 부름)
+    sigParticle({ x: 0, y: 0, s: S, max: D.total, z: 0, draw: (ctx, q, t, px) => {
+        if (!duelJoinsOf(D, D.A).length && !duelJoinsOf(D, D.B).length) {
+            return;
+        }
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = 'source-over';
+        for (const X of [D.A, D.B]) {
+            const list = duelJoinsOf(D, X);
+            if (!list.length) {
+                continue;
+            }
+            list.forEach((j) => stars(ctx, px, X, j));
+            const on = list.filter((j) => D.t >= duelJoinLand(j));
+            if (!on.length || !live(X)) {
+                continue;
+            }
+            if (DUEL_JOIN_STREAM.has(X.kind) || !DUEL_FX[X.kind]) {
+                spiral(ctx, px, X, on.slice(0, 2));
+            } else if (DUEL_JOIN_ORB.has(X.kind)) {
+                orb(ctx, px, X, on.slice(0, 2));
+            } else {
+                tongues(ctx, px, X, on.slice(0, 2));
+            }
+        }
+        sparks(ctx, px);
+        burst(ctx, px);
+    } });
+}
 
 // ===== ult/bridge.js =====
 // 게임 모드 전투 다리 (2026-10-19 태현 님 "일반 모드처럼 자연스럽고 멋지게 스킬 · 필살기 · 배틀") — 게임 (src/game/features/battle/fx) 이 window.pokemonFx 로 일반 모드 연출을 씀.
@@ -57213,6 +57724,17 @@ window.pokemonFx = {
         }
         const A = fxActor(a);
         const B = fxActor(b);
+        // 앞장 뒤에 선 같은 편 (3:3 힘겨루기 장면) — 진 쪽이 밀려날 거리를 그 앞까지 (duel.js duelKnockRoom)
+        for (const [X, side] of [[A, 'a'], [B, 'b']]) {
+            X.duelBehind = () => {
+                try {
+                    return (spec.behind && spec.behind(side)) || [];
+                } catch (err) {
+                    ultError('duel behind', err);
+                    return [];
+                }
+            };
+        }
         const gen = ++fxGen;
         fxGame = { A, B, gen, tick: setInterval(fxGameTick, 100) };
         let meetMs = 0;
@@ -57222,13 +57744,21 @@ window.pokemonFx = {
             const leftA = !!a.left;
             const leftB = !!b.left;
             // 승패는 게임 엔진이 4초 끝에 정함 — 처음엔 가운데 (무승부 모양) 로 짜고, 밀기는 승자가 올 때까지 (duelWin)
-            const D = duelPlan(A, ultA, leftA, B, ultB, leftB, 'draw');
+            const D = duelPlan(A, ultA, leftA, B, ultB, leftB, 'draw', { mouth: true });
             D.draw = false;
             D.winner = null;
             D.loser = null;
             D.tO = Infinity;
             D.total = FX_DUEL_LONG;
-            D.winTitle = (Wn) => [Wn === D.A ? '힘대결에서 이겼다!' : '힘대결에서 졌다…', `${Wn.p.name}의 ${Wn.name}!`, 1.3];
+            // 3:3 합류가 있던 쪽이 이기면 부제 = "거북왕 · 리자몽 · 이상해꽃 합동!" (셋이 합류해 이겼는데 앞장 필살기 이름만 나와 합동이라는 말이 없던 것 — UX 리뷰어 #116 작음 5)
+            D.winTitle = (Wn) => {
+                const names = ((D.joins && D.joins[Wn === D.A ? 'a' : 'b']) || []).map((j) => j.name).filter(Boolean);
+                // 1.5초 (1.3 이면 다 보이는 때가 0.98 ~ 1.02초로 U1 경계 — UX 리뷰어 #116 3바퀴 작음 1)
+                return [Wn === D.A ? '힘대결에서 이겼다!' : '힘대결에서 졌다…', names.length ? `${[Wn.p.name, ...names].join(' · ')} 합동!` : `${Wn.p.name}의 ${Wn.name}!`, 1.5];
+            };
+            // 이길 확률은 0.4초에 걸쳐 따라감 (합류 · 연타로 확률이 계단으로 바뀌면 만나는 곳이 한 장면에 140px 튀던 것 — #116 UX 큼 · 1:1 도 같이)
+            let pS = null;
+            let tS = 0;
             D.live = (t, s) => {
                 let p = 0.5;
                 try {
@@ -57236,6 +57766,9 @@ window.pokemonFx = {
                 } catch (err) {
                     ultError('duel live', err);
                 }
+                pS = pS === null ? p : pS + (p - pS) * Math.min(1, Math.max(0, t - tS) / 0.4);
+                tS = t;
+                p = pS;
                 // 연타로 기운 만큼 + 일반 모드 밀고 밀리기 리듬 (반만)
                 return Math.min(0.85, Math.max(-0.85, (p - 0.5) * 1.4 + 0.5 * s));
             };
@@ -57245,6 +57778,7 @@ window.pokemonFx = {
             ultActive = { pokemon: A, rival: B, until: now + FX_DUEL_LONG * 1000, name: ultA[0], fx: 'clash' };
             const start = () => {
                 duelStart(D);
+                duelJoinStart(D);
                 fxGame && fxGame.gen === gen && (fxGame.duel.dp = moveParticles.find((q) => q.max === FX_DUEL_LONG && q.z === -1));
             };
             fxGame.duel = { D, dp: null };
@@ -57351,6 +57885,24 @@ window.pokemonFx = {
             return null;
         }
         g.duel33 = { p, st };
+        // 맞부딪힘 한 번 — 날아가던 필살기 (구 · 줄기) 가 한 장면에 사라지고 줄기가 만나기까지 0.9초 빈 무대이던 것 (UX 리뷰어 #98 · bugs 1833)
+        try {
+            const ra = (a.box || a.el).getBoundingClientRect();
+            const rb = (b.box || b.el).getBoundingClientRect();
+            // 자리 = 끊긴 필살기가 가던 대상 바로 앞 (쓰던 쪽에서 85% — 구 · 줄기는 대상까지 거의 다 가 있음) · 모르면 가운데
+            const f = spec.by === 'me' ? 0.85 : spec.by === 'foe' ? 0.15 : 0.5;
+            const ax = (ra.left + ra.right) / 2;
+            const ay = (ra.top + ra.bottom) / 2;
+            const mx = ax + ((rb.left + rb.right) / 2 - ax) * f;
+            const my = ay + ((rb.top + rb.bottom) / 2 - ay) * f;
+            const S = Math.max(2, Math.round(ra.width / (a.size || 32)));
+            const cols = sigPal(spec.typeA || 'normal');
+            sigRing(mx, my, S, 4, Math.max(ra.width, 30) * 1.4, 1, 0.35, ['#ffffff', cols[1], cols[2]]);
+            sigBurst(mx, my, S, [...cols, '#ffffff'], 28, 150);
+            ultShake(2, 160);
+        } catch (err) {
+            ultError('team duel meet', err);
+        }
         return { meetMs: Math.round(spec.leadMs ?? 1100) };
     },
     teamDuelJoin(side, type) {
@@ -57379,6 +57931,17 @@ window.pokemonFx = {
         D.live = undefined;
         // 지금부터 결과 — 밀기가 아직 안 시작했으면 (VS · 모으기 중) 만나는 때부터
         D.tO = Math.max(D.t || 0, D.tm);
+    },
+    /** 1:1 힘겨루기에 동료 합류 (#116 3:3 힘겨루기 장면) — 합류 목록만 적음 (D.joins.a · b = { type, at }) · 섞임 · 굵기 그림은 디자인 #116 (design-system "3:3 힘겨루기") 이 이 목록을 읽어 그림 */
+    duelJoin(side, type, who) {
+        const D = fxGame && fxGame.duel && fxGame.duel.D;
+        if (!D) {
+            return;
+        }
+        // 동료 몸 가운데 — 별이 여기서 줄기 뿌리로 날아감 (디자인 #116 · 상자 안이면 상자 기준)
+        const r = who ? (who.box || who.el).getBoundingClientRect() : null;
+        const from = r && r.width > 0 ? { x: r.left + r.width / 2 - (moveFrame ? moveFrame.x : 0), y: r.top + r.height * 0.45 - (moveFrame ? moveFrame.y : 0) } : undefined;
+        (D.joins ||= { a: [], b: [] })[side === 'a' ? 'a' : 'b'].push({ type: type || 'normal', at: D.t || 0, ...(from ? { from } : {}), ...(who && who.name ? { name: who.name } : {}) });
     },
     /** 힘대결이 끝남 — soft = 터지는 여운까지 그리고 정리 (전투가 이어질 때), 아니면 바로 */
     stopDuel(soft) {

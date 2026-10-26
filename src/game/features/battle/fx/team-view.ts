@@ -10,7 +10,14 @@ import type { Side } from '../../../core/engine';
 export type TeamViewPhase = 'in' | 'cut' | 'show' | 'out';
 
 export interface TeamView {
-  kind: 'solo' | 'joint';
+  /** duel = 필살기 힘겨루기 (#116 — 맞붙는 두 무리를 1:1 자리로 · 1:1 힘겨루기 연출 그대로) */
+  kind: 'solo' | 'joint' | 'duel';
+  /** 힘겨루기 두 무리 (앞장 먼저) — kind 'duel' 만 */
+  duel?: { me: number[]; foe: number[] };
+  /** 다른 장면 (상대 · 내 필살기) 이 열린 채 이어받음 — 나머지는 바로 숨기고 무리는 바둑판으로 새 자리에 (걸어가며 숨은 칸이 보이지 않게) */
+  cont?: boolean;
+  /** 장면 도중 무리에 든 칸 ("side-slot" — 힘겨루기 합류) — 걷지 않고 제 자리에 바둑판으로 나타남 */
+  popIn?: string[];
   /** 쏘는 쪽 */
   side: Side;
   /** 쏘는 칸 — 합동은 앞장 먼저 */

@@ -509,12 +509,12 @@ function moveTick(now) {
     moveStep(now, dt, null);
     // 무대 상자 입자는 상자마다 따로 그린 뒤 가장자리를 흐려 깖 (moveFrameLayer)
     const frames = new Set();
-    // 그리기 — 층(z) 순서: z<0 맨 밑 → 보통(나중 것부터 그려서 먼저 만든 게 위) → z>0 맨 위
-    for (const layer of [-1, 0, 1]) {
+    // 그리기 — 층(z) 순서: z<0 맨 밑 → 보통(나중 것부터 그려서 먼저 만든 게 위) → z>0 위 → z>=2 맨 위 (게임 힘대결 결과 글)
+    for (const layer of [-1, 0, 1, 2]) {
         for (let i = moveParticles.length - 1; i >= 0; i--) {
             const p = moveParticles[i];
             const z = p.z ?? 0;
-            if ((z < 0 ? -1 : z > 0 ? 1 : 0) !== layer || p.life >= p.max) {
+            if ((z < 0 ? -1 : z >= 2 ? 2 : z > 0 ? 1 : 0) !== layer || p.life >= p.max) {
                 continue;
             }
             const f = p._f;

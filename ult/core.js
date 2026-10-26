@@ -564,17 +564,31 @@ function ultVsIntro(a, ultA, leftA, b, ultB, leftB, total) {
     // 게임 모드 — 인트로 (1.5초 — 밀고 밀리기 시작까지) 동안 HP 묶음 · 힘대결 상자 · Z 칸 (DOM) 을 숨김: 컷인 이름 · 부제 · VS 가 그 밑에 깔려 0초 보이던 것 (#34 UX 리뷰어 큼 2 · 3) · 다시 나타나는 상자 = 연타 시작
     ultHideHud(ULT_VS_MS);
     // 입자는 나중 것부터 그려서 — 글씨를 띠보다 먼저 만들어야 위에 보임
+    // 게임 모드 — 두 띠를 각 이름 줄 가운데에 같은 키로 (위 띠가 22% 자리라 3:3 정보줄 두 줄 뒤에 10px 만 보이고 아래 띠만 35px 이던 것 — #116 아트 · UX) ·
+    //   띠 키 = 이름 크기 × 1.5 (24 ~ 40) · 띠가 48 아래면 띠 안 큰 그림은 뺌 (ultCutIn — 잘린 그림이 무대의 진짜 포켓몬 옆을 지나 둘로 보이던 것)
+    const yA = game && L.yA ? L.yA : 0.22;
+    const bpx = game && L.yA ? Math.round(ultClamp(L.name * 1.5, 24, 40)) : 0;
+    // 아래 띠는 패널 아래 끝에서 6px 위까지 (187 에서 맨 아래 줄까지 내려가 틈 0 이던 것 — 픽셀 검사원 #116 2바퀴 작음 6 · 위 틈만큼 올리면 VS 가 아래 작은 줄을 덮음) · 아래 이름 · 부제도 같이 ·
+    //   VS 는 위 이름 아래 끝 ~ 아래 작은 줄 위 끝 사이 가운데 (ultVsLayout 과 같은 셈)
+    let yBf = yB;
+    let yV = yVs;
+    if (bpx) {
+        const H = window.innerHeight;
+        yBf = Math.min(yB, (H - 6 - bpx / 2) / H);
+        const above = L.name * 0.85 + Math.max(10, Math.round(L.name * 0.4)) / 2;
+        yV = ((yA * H + L.name / 2) + (yBf * H - above)) / 2 / H;
+    }
     ultTitle(ultA[0], `${a.name}의 필살기!`, ultA[2]?.tc ? sigPal(ultA[2].tc) : null, sec + 0.4, 0.22, 0.72 * L.k);
-    ultCutIn(a, leftA, ca, sec, 0.22, 0.26);
+    ultCutIn(a, leftA, ca, sec, yA, 0.26, false, bpx);
     setTimeout(() => {
         screenFlash(2, 0.4, '#ffffff', 0.2);
-        ultTitle(ultB[0], `${b.name}의 필살기!`, ultB[2]?.tc ? sigPal(ultB[2].tc) : null, sec + 0.15, yB, 0.72 * L.k);
-        ultCutIn(b, leftB, cb, sec - 0.25, yB, 0.26);
+        ultTitle(ultB[0], `${b.name}의 필살기!`, ultB[2]?.tc ? sigPal(ultB[2].tc) : null, sec + 0.15, yBf, 0.72 * L.k);
+        ultCutIn(b, leftB, cb, sec - 0.25, yBf, 0.26, false, bpx);
     }, 250);
     // VS = 맨 위층 (at — 나중에 만든 입자가 아래라 내 필살기 이름 밑에 깔리던 것) · 0.3초에 1.4초 (끝 0.3초 흐려짐 빼고 1초 넘게 — U1, #34 UX 리뷰어)
     setTimeout(() => {
         ultShake(4, 300);
-        ultTitle('VS', null, ULT_FOE_TITLE, game ? VS_LEN : sec - 0.35, yVs, 1.25 * L.k, game ? {} : null);
+        ultTitle('VS', null, ULT_FOE_TITLE, game ? VS_LEN : sec - 0.35, yV, 1.25 * L.k, game ? {} : null);
     }, (game ? VS_AT : 0.45) * 1000);
 }
 
@@ -605,7 +619,7 @@ function ultVsLayout(yB0, yVs0) {
         const yB = Math.min(H - 4 - name / 2, Math.max(H * yB0, aBottom + 4 + vs + 4 + above));
         const bTop = yB - above;
         if (bTop - aBottom >= vs + 4) {
-            return { k, yB: yB / H, yVs: (aBottom + bTop) / 2 / H };
+            return { k, yB: yB / H, yVs: (aBottom + bTop) / 2 / H, yA: yA / H, name };
         }
     }
     return { k, yB: yB0, yVs: yVs0 };
@@ -645,7 +659,8 @@ function ultHideHud(ms) {
             if (ultHud === h) ultHudRestore();
             return;
         }
-        for (const el of document.querySelectorAll('#pokemon-game .pg-hpblock, #pokemon-game .pg-clash-info, #pokemon-game .pg-ultz-wrap')) {
+        // 이름표 · 자동 칩도 (1:1 VS 띠 아래 끝 위로 "이상해씨" 이름표가 올라와 있던 것 — #116 아트 2바퀴 7)
+        for (const el of document.querySelectorAll('#pokemon-game .pg-hpblock, #pokemon-game .pg-clash-info, #pokemon-game .pg-ultz-wrap, #pokemon-game .pg-nametag, #pokemon-game .pg-vmenu-tabs, #pokemon-game .pg-auto')) {
             if (!h.hid.has(el)) {
                 h.hid.add(el);
                 el.style.visibility = 'hidden';
@@ -822,7 +837,7 @@ const ultFlip = (img, left) => left && !img.src.includes('_left_');
 
 // 컷인 — 가로 띠가 열리고 큰 그림이 휙 지나감 (속도선). yc = 띠 가운데 높이(패널 비율), hf = 띠 굵기
 // solo = 혼자 필살기 컷인 — 게임 화면에선 띠를 정보줄 · 지도 줄 아래로 (큰 이름 ultTitle 과 같은 자리 — 3:3 은 지도 줄에 띠 위가 잘려 42px 만 보이고 이름이 19px 밖으로 처지던 것, 아트 디렉터 #98)
-function ultCutIn(pokemon, left, cols, sec, yc = 0.36, hf = 0.3, solo = false) {
+function ultCutIn(pokemon, left, cols, sec, yc = 0.36, hf = 0.3, solo = false, hpx = 0) {
     const img = pokemon.el;
     const dir = left ? -1 : 1;
     const game = typeof fxInGame === 'function' && fxInGame();
@@ -833,11 +848,12 @@ function ultCutIn(pokemon, left, cols, sec, yc = 0.36, hf = 0.3, solo = false) {
         const H = window.innerHeight;
         const t = p.life / p.max;
         // 게임 화면 띠 키 60 ~ 96 (높은 패널에서 120 이라 그림이 ×4 로 커지던 것 · 큰 이름 두 줄이 들어가게 60 부터)
-        const bh = Math.round(game ? ultClamp(H * hf, solo ? 60 : 40, 96) : ultClamp(H * hf, 40, 120));
+        // hpx = 정한 띠 키 (게임 힘대결 VS — 두 띠 같은 키 · ultVsIntro)
+        const bh = game && hpx ? hpx : Math.round(game ? ultClamp(H * hf, solo ? 60 : 40, 96) : ultClamp(H * hf, 40, 120));
         const open = t < 0.14 ? t / 0.14 : t > 0.86 ? (1 - t) / 0.14 : 1;
         const h = Math.max(2, Math.round(bh * open));
         if (top === null) {
-            top = game && solo ? ultTextTop() : 0;
+            top = game && (solo || hpx) ? ultTextTop() : 0;
         }
         const yc0 = top ? Math.max(H * yc, top + 2 + bh / 2) : H * yc;
         const y0 = Math.round(yc0 - h / 2);
@@ -860,7 +876,7 @@ function ultCutIn(pokemon, left, cols, sec, yc = 0.36, hf = 0.3, solo = false) {
         }
         // 큰 그림 — 띠보다 살짝 크게, 천천히 앞으로
         // 좁은 게임 화면 (400 아래) 은 띠 안 큰 그림 없음 — 큰 이름이 띠 폭을 거의 다 써서 미끄러져 지나가는 그림이 "은빛바람" 앞 · 끝 글자를 0.6초 덮던 것 (UX 리뷰어 #98 7 · 240) · 무대에 그 포켓몬이 있음
-        if (open > 0.6 && img.naturalWidth && !(game && W < 400)) {
+        if (open > 0.6 && img.naturalWidth && !(game && (W < 400 || bh < 48))) {
             const nh = img.naturalHeight;
             // 게임 화면 = 정수 배율 ×2 까지 (포켓몬 그림은 ×2 넘게 키우지 않음 — 태현 님 · 높은 패널 ×4, 아트 디렉터 #98 큼 1)
             const dh = game ? nh * Math.min(2, Math.max(1, Math.round((bh * 1.25) / nh))) : Math.round(bh * 1.25);
@@ -899,7 +915,8 @@ function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1, at = null) {
     let hud = null; // at.hud — HP 묶음 자리 (첫 장면에 한 번 잼)
     let textTop = null; // 글씨 위 끝 (ultTextTop — 첫 장면에 한 번 잼: 장면마다 DOM 을 재던 것, 코드 리뷰어)
     // 게임 글씨 (at — 패링 · 짧은 필살기 이름) 는 맨 위층 — 솔라빔 모으는 빛이 반격기 이름 끝 0.15초를 덮던 것 (2026-10-21 UX 리뷰어)
-    sigParticle({ x: 0, y: 0, s: 2, max: sec, z: at ? 1 : 0, _ui: true, draw: (ctx, p) => {
+    // at.z = 층 (게임 힘대결 결과 글 = 2 — 맨 위 · moves.js 그리기)
+    sigParticle({ x: 0, y: 0, s: 2, max: sec, z: at ? (at.z ?? 1) : 0, _ui: true, draw: (ctx, p) => {
         const W = window.innerWidth;
         const H = window.innerHeight;
         const t = p.life;

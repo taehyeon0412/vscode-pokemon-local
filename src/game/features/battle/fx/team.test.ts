@@ -132,6 +132,8 @@ describe('계획', () => {
     expect(plan([{ t: 'ult-clash-end', winner: 'foe', sure: true, me: [0], foe: [0, 1, 2] }])).toEqual([{ do: 'ult-clash-end', winner: 'foe', joint: true, sure: true }]);
     // 힘겨루기 앞장 필살기 이름은 엔진이 정한 대로 대결 연출에 (첫 컷인 · 합동 컷인과 같게 — #86)
     expect(plan([{ t: 'ult-clash', me: [0], foe: [1], names: { me: '솔라빔', foe: '10만볼트' } }])).toEqual([{ do: 'ult-clash', me: [0], foe: [1], names: { me: '솔라빔', foe: '10만볼트' } }]);
+    // 끊긴 필살기를 쓰던 쪽 (맞부딪힘 자리 — bugs 1833)
+    expect(plan([{ t: 'ult-clash', me: [0], foe: [1], by: 'me' }])).toEqual([{ do: 'ult-clash', me: [0], foe: [1], by: 'me' }]);
     // 힘겨루기를 이긴 합동 (quick) 은 연출에 그대로 — 참가자 필살기를 다시 쓰지 않는 짧은 마무리 (#86)
     expect(plan([{ t: 'ult', side: 'me', from: 0, joint: { winners: [0, 2], losers: [0], sure: false, quick: true } }])[0]).toMatchObject({ do: 'joint', quick: true });
   });
@@ -376,6 +378,73 @@ describe('필살기 연출 끔 (#97 태현 님 — 설정 teamCutscene) — 장�
       runner.update({ ...b, t: 9000, log: [{ t: 'ult', side: 'me', from: 0, id: 1, at: 5050 } as never, { t: 'ult', side: 'me', from: 1, id: 2, at: 9000 } as never], logSeq: 2 });
       expect(getTeamView()?.phase).toBe('in');
       expect(calls).toHaveLength(1);
+    } finally {
+      runner.reset();
+    }
+  });
+});
+
+describe('힘겨루기 장면 (#116 코드 리뷰어) — 끝 기록을 못 받아도 닫힘 · 들어오는 동안 합류 · 피해 칩은 진 쪽', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+  const run = () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('window', globalThis);
+    const calls: string[] = [];
+    const fx = { version: 4, plan: () => null, team: () => undefined, mount: () => undefined, clear: () => undefined, stopUlt: () => undefined,
+      stopDuel: () => calls.push('stopDuel'),
+      duel: () => (calls.push('duel'), { meetMs: 500 }),
+      duelJoin: (side: string) => calls.push(`join:${side}`),
+      duelWin: (w: string) => calls.push(`win:${w}`) } as unknown as PokemonFx;
+    const actor = { el: {} as HTMLElement, form: 'charmander', size: 32, left: false } as FxActor;
+    const runner = new TeamFxRunner({ actor: () => actor }, fx);
+    const b0 = withLog([]);
+    runner.update(b0);
+    const b1: TeamBattle = { ...b0, phase: 'clash', t: 5050, log: [{ t: 'ult-clash', me: [0], foe: [0], id: 1, at: 5050 }], logSeq: 1 };
+    runner.update(b1);
+    return { calls, runner, b1 };
+  };
+  it('판이 힘겨루기를 벗어났는데 끝 기록이 버려지면 (창 최소화 — 0.6초 넘게 지남) 바로 닫음', () => {
+    const { calls, runner, b1 } = run();
+    try {
+      expect(getTeamView()?.kind).toBe('duel');
+      vi.advanceTimersByTime(TEAM_VIEW.inMs);
+      expect(calls).toContain('duel');
+      runner.update({ ...b1, phase: 'run', t: 9000, log: [...b1.log, { t: 'ult-clash-end', winner: 'me', sure: false, me: [0], foe: [0], id: 2, at: 6000 }], logSeq: 2 });
+      vi.advanceTimersByTime(0);
+      expect(getTeamView()?.phase).toBe('out');
+      vi.advanceTimersByTime(TEAM_VIEW.outMs);
+      expect(getTeamView()).toBeNull();
+      expect(calls).toContain('stopDuel');
+      expect(calls.some((c) => c.startsWith('win:'))).toBe(false);
+    } finally {
+      runner.reset();
+    }
+  });
+  it('들어오는 0.35초 사이 합류한 칸도 장면 내내 무리에 · 알림은 두 줄기가 맞닿는 때', () => {
+    const { calls, runner, b1 } = run();
+    try {
+      runner.update({ ...b1, t: 5200, log: [...b1.log, { t: 'ult-join', side: 'me', slot: 1, id: 2, at: 5200 }], logSeq: 2 });
+      expect(getTeamView()?.duel?.me).toEqual([0, 1]);
+      expect(calls.filter((c) => c.startsWith('join:'))).toEqual([]);
+      vi.advanceTimersByTime(TEAM_VIEW.inMs);
+      expect(getTeamView()?.phase).toBe('show');
+      expect(getTeamView()?.duel?.me).toEqual([0, 1]);
+      vi.advanceTimersByTime(500);
+      expect(calls.filter((c) => c.startsWith('join:'))).toEqual(['join:a']);
+    } finally {
+      runner.reset();
+    }
+  });
+  it('상대가 이기면 장면 피해 칩 자리 (to) 는 내 앞장', () => {
+    const { runner, b1 } = run();
+    try {
+      vi.advanceTimersByTime(TEAM_VIEW.inMs);
+      expect(getTeamView()?.to).toEqual({ side: 'foe', slot: 0 });
+      runner.update({ ...b1, t: 9000, log: [...b1.log, { t: 'ult-clash-end', winner: 'foe', sure: false, me: [0], foe: [0], id: 2, at: 9000 }], logSeq: 2 });
+      expect(getTeamView()?.to).toEqual({ side: 'me', slot: 0 });
     } finally {
       runner.reset();
     }

@@ -19,7 +19,8 @@ const DUEL_DRAW = 0.25; // 무승부 확률
 
 // 대결 준비 — 위치 · 높이 · 승패 · 시간표 (VS 연출 전에, 시간을 알아야 해서)
 // force = 'a' | 'b' | 'draw' 면 승패를 정함 (점검용)
-function duelPlan(a, ultA, leftA, b, ultB, leftB, force) {
+// opt.mouth = 맞부딪히는 높이를 입 높이에 맞추고 바닥까지 모자라면 줄 굵기를 줄임 (게임 — 그림이 늘 ×2 라 높은 패널 · 굵은 lane 에서 줄기 뿌리가 입보다 30px 위로 끌려 올라가던 것, #116 아트 2바퀴 ②)
+function duelPlan(a, ultA, leftA, b, ultB, leftB, force, opt = {}) {
     const W = window.innerWidth;
     const H = window.innerHeight;
     const side = (p, ult, left) => {
@@ -38,8 +39,12 @@ function duelPlan(a, ultA, leftA, b, ultB, leftB, force) {
     const A = side(a, ultA, leftA);
     const B = side(b, ultB, leftB);
     const ground = Math.max(A.ground, B.ground);
-    const lane = ultClamp(H * 0.09, 10, 34); // 맞부딪히는 줄의 반 굵기 기준
-    const y0 = ultClamp(Math.min(A.mouth.y, B.mouth.y), H * 0.3, ground - lane * 1.7); // 맞부딪히는 높이 — 바닥에 잘리지 않게
+    const my = Math.min(A.mouth.y, B.mouth.y);
+    let lane = ultClamp(H * 0.09, 10, 34); // 맞부딪히는 줄의 반 굵기 기준
+    if (opt.mouth) {
+        lane = Math.min(lane, Math.max(10, (ground - my) / 1.7));
+    }
+    const y0 = ultClamp(my, H * 0.3, ground - lane * 1.7); // 맞부딪히는 높이 — 바닥에 잘리지 않게
     A.front = A.x0;
     B.front = B.x0;
     A.y0 = y0;
@@ -134,6 +139,89 @@ function duelSplash(D, up) {
             dotAt(ctx, px, S, q.x - q.vx * 0.025, q.y - q.vy * 0.025, q.color, q.size, q.size);
         },
     });
+}
+
+// swarm · rush 앞머리 — 날리기 · 몸 쪽은 빛 덩어리가 없어 만나는 곳이 한쪽만 커 "둘이 민다" 가 아니라 "한쪽이 친다" 로 읽히던 것 (#116 아트 ①) —
+//   앞머리 덩어리 (가운데 빛 덩어리 × 0.7 · 세 겹 픽셀) 를 밀기 동안 그리고, 0.12초마다 알갱이 벽 (12 ~ 16개 · 반지름 = 반 굵기 × 0.8 · 상대 쪽 반원)
+function duelHeadBlob(D, X) {
+    // 수명 = 대결 길이 (30초 고정이면 밀기 도중 끊긴 대결에서 push 에 멈춘 덩어리가 30초 남음 · 대결 입자 지우기에서도 빠짐 — 코드 리뷰어 #116)
+    sigParticle({ x: 0, y: 0, s: D.S, max: D.total, draw: (ctx, q, t, px) => {
+        if (D.phase !== 'push') {
+            if (D.phase !== 'charge' && D.phase !== 'go') {
+                q.life = q.max;
+            }
+            return;
+        }
+        const r = Math.max(D.S * 3, (D.blobR || D.lane) * 0.7);
+        // 가운데 빛 덩어리 바깥 (그 밑에 깔리면 안 보임 — duel-body impactX 와 같은 0.88)
+        const cx = X.front - X.dir * ((D.blobR || D.lane) * 0.88 + r * 0.5);
+        const c = Math.max(1, D.S);
+        ctx.globalAlpha = 1;
+        for (const [k, col] of [[1, X.cols[2] || X.cols[1]], [0.72, X.cols[1]], [0.4, '#ffffff']]) {
+            const rr = r * k;
+            ctx.fillStyle = col;
+            for (let yy = -rr; yy <= rr; yy += c) {
+                const w = Math.sqrt(Math.max(0, rr * rr - yy * yy));
+                ctx.fillRect(px(cx - w), px(D.ym + yy), px(w * 2) || c, c);
+            }
+        }
+    } });
+}
+function duelWall(D, X) {
+    const n = 12 + Math.floor(Math.random() * 5);
+    const R = Math.max(D.S * 4, D.lane * 0.8);
+    const sp = 70 * (D.S / 2);
+    for (let j = 0; j < n; j++) {
+        const an = ((j + 0.5) / n - 0.5) * Math.PI * 0.9;
+        const ax = Math.cos(an) * X.dir;
+        const ay = Math.sin(an);
+        sigParticle({ x: X.front - X.dir * (D.blobR || D.lane) * 0.88 + ax * R * 0.35, y: D.ym + ay * R, s: D.S, vx: ax * sp, vy: ay * sp * 0.6, drag: 3, max: 0.24, color: movePick([X.cols[0], X.cols[1], '#ffffff']), size: movePick([1, 2, 2]),
+            draw: (ctx, q, t, px) => {
+                ctx.globalAlpha = 1;
+                dotAt(ctx, px, D.S, q.x, q.y, q.color, q.size, q.size);
+            },
+        });
+    }
+}
+
+// 그림 몸 (POKEMON_SHAPE — 투명 테두리 뺀 자리) 의 화면 좌표 · 가운데 x · 서 있을 때 앞뒤 끝 · 누우면 (90도) 가로로 닿는 반 길이
+function duelBodyOf(q) {
+    const shape = POKEMON_SHAPE[q.form || q.label];
+    const box = q.box || q.collision || q.el;
+    if (!shape || !box) {
+        return null;
+    }
+    const r = box.getBoundingClientRect();
+    const size = q.size || q._originalSpriteSize || 32;
+    const s = r.width / size;
+    const [, , , l, t, rr, b] = shape;
+    const sx = (v) => r.left + (q.left ? size - v : v) * s;
+    const cx = (r.left + r.right) / 2;
+    return { cx, x0: Math.min(sx(l), sx(rr)), x1: Math.max(sx(l), sx(rr)), top: r.top + t * s, bottom: r.top + b * s, boxTop: r.top, h: r.height, cy: (r.top + r.bottom) / 2 };
+}
+
+// 진 쪽이 밀려날 거리 — 뒤에 선 같은 편 (3:3 힘겨루기 장면 동료 · 뚫고 나간 줄기에 쓰러질 칸) 몸 앞 4px 까지
+//   (밀려난 앞장이 뒤의 쓰러진 꼬렛 그림 위에 1.4초 겹치던 것 — #116 픽셀 검사원) · 1:1 은 뒤 칸이 없어 그대로
+//   진 쪽은 뒤로 벌러덩 (TumbleState — 그림 75% 높이 축으로 90도) 이라 머리 끝까지 · 뒤 칸은 서 있을 때와 누웠을 때 (pg-ko — 가운데 축) 중 더 닿는 쪽
+function duelKnockRoom(L, want) {
+    const list = L.p.duelBehind ? L.p.duelBehind() : [];
+    const me = list.length ? duelBodyOf(L.p) : null;
+    if (!me) {
+        return want;
+    }
+    const away = -L.dir;
+    const reachL = Math.max(away > 0 ? me.x1 - me.cx : me.cx - me.x0, me.boxTop + me.h * 0.75 - me.top);
+    let room = want;
+    for (const q of list) {
+        const o = duelBodyOf(q);
+        const dist = o ? away * (o.cx - me.cx) : 0;
+        if (!o || dist <= 0) {
+            continue;
+        }
+        const reachN = Math.max(away > 0 ? o.cx - o.x0 : o.x1 - o.cx, o.cy - o.top, o.bottom - o.cy);
+        room = Math.min(room, Math.max(0, dist - reachL - reachN - 4));
+    }
+    return room;
 }
 
 // 펑 — 번쩍 · 흔들림 · 고리 · 조각 (big 이면 화면 끝까지)
@@ -271,6 +359,11 @@ function duelStart(D) {
                 if (!st.met) {
                     // 처음 맞부딪힘
                     st.met = true;
+                    for (const X of sides) {
+                        if (X.kind === 'swarm' || X.kind === 'rush') {
+                            duelHeadBlob(D, X);
+                        }
+                    }
                     duelBoom(D, D.xm, D.ym, [...A.cols.slice(0, 2), ...B.cols.slice(0, 2)], false);
                     for (const X of sides) {
                         X.p.el.animate([{ translate: `-${S * 0.6}px 0` }, { translate: `${S * 0.6}px 0` }], { duration: 45, iterations: Math.round((DUEL_SEC * 1000) / 45), direction: 'alternate', composite: 'add' });
@@ -289,6 +382,13 @@ function duelStart(D) {
                     }
                     for (const X of sides) {
                         call(X, 'push', D, X, X.pushing > 0);
+                    }
+                }
+                // swarm · rush 앞머리 알갱이 벽 (0.12초마다)
+                for (const X of sides) {
+                    if ((X.kind === 'swarm' || X.kind === 'rush') && t >= (X.wallAt || 0)) {
+                        X.wallAt = t + 0.12;
+                        duelWall(D, X);
                     }
                 }
                 // 계속 튀는 에너지 · 둘레 번개 · 땅에 꽂히는 번개 · 흔들림
@@ -358,14 +458,15 @@ function duelStart(D) {
                         call(Wn, 'win', D, Wn, L);
                         duelBoom(D, L.body.cx, L.body.cy, Wn.cols, true);
                         duelHide(L, false);
-                        knockBack(L.p, L.left, -L.dir, spriteSize(L.p) * 1.4);
+                        knockBack(L.p, L.left, -L.dir, duelKnockRoom(L, spriteSize(L.p) * 1.4));
                         // 둘 사이에 있던 구경꾼도 휩쓸림
                         const lo = Math.min(A.x0, B.x0);
                         const hi = Math.max(A.x0, B.x0);
                         ultOthers(A.p).forEach((o) => o.pokemon !== B.p && o.x > lo && o.x < hi && ultHit(o, Wn.dir, 'tumble'));
                         // 게임 모드 힘대결은 결과 말을 게임 것으로 (D.winTitle — 타입 상성이 있어 "효과는 굉장했다" 가 틀릴 수 있음)
                         const [wt, ws, wsec] = D.winTitle ? D.winTitle(Wn) : ['효과는 굉장했다!', `${Wn.p.name}의 ${Wn.name}!`, 1.8];
-                        setTimeout(() => ultTitle(wt, ws, null, wsec), 150);
+                        // 게임 힘대결 결과 글은 맨 위 층 (z 2 — 먼저 만든 하트 알갱이가 "에" 글자 위에 그려지던 것, #116 아트 3바퀴 2)
+                        setTimeout(() => ultTitle(wt, ws, null, wsec, 0.36, 1, D.winTitle ? { z: 2 } : null), 150);
                     }
                     if (st.won) {
                         Wn.fade = Math.max(0, 1 - (t - D.tO - DUEL_THROUGH - 0.5) / 0.6);
@@ -382,7 +483,11 @@ function duelStart(D) {
         draw: (ctx, q, t, px) => {
             for (const X of sides) {
                 if (X.fade > 0.01 && D.phase !== 'charge') {
+                    // 3:3 합류 — 그 쪽만 굵게 (duel-join.js · #116) · 합류 없으면 그대로
+                    const lane0 = D.lane;
+                    D.lane = duelJoinLane(D, X);
                     call(X, 'draw', ctx, px, D, X);
+                    D.lane = lane0;
                     ctx.globalAlpha = 1;
                     ctx.globalCompositeOperation = 'source-over';
                 }

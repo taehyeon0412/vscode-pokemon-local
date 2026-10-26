@@ -66,7 +66,8 @@ export function teamGeometry(W: number, H: number, IB: number): TeamGeo {
  * 무리 첫째 (쏘는 포켓몬 · 맞는 포켓몬) 가 앞줄 · 나머지 (합동 동료) 는 바깥으로 지그재그 (둘째 = 바깥 · 위 · 셋째 = 더 바깥 · 앞줄 높이).
  * 발 가운데 (x, y) · 배율 칸에 맞춤 · 패널 안 (그림 반 + 2).
  */
-export function duelSpots(g: TeamGeo, nMe: number, nFoe: number): { me: { x: number; y: number }[]; foe: { x: number; y: number }[] } {
+// leadSolo = 앞장은 동료 수와 상관없이 혼자일 때 자리 (#116 힘겨루기 장면 — 1:1 힘겨루기 연출이 시작 때 앞장 자리를 잡아, 도중에 합류해도 앞장이 옮겨 가면 줄기가 어긋남)
+export function duelSpots(g: TeamGeo, nMe: number, nFoe: number, leadSolo = false): { me: { x: number; y: number }[]; foe: { x: number; y: number }[] } {
   const k = g.scale;
   const front = g.pos('me', 2).y;
   const Wb = Math.min(g.W, 860);
@@ -78,12 +79,16 @@ export function duelSpots(g: TeamGeo, nMe: number, nFoe: number): { me: { x: num
   //   혼자 = 가운데에서 D · 합동 (둘 넘게) = 앞장을 대상 쪽으로 당기고 (D × 0.5) 동료는 바깥으로 넉넉히 (×2 = 칸 사이 112 까지 · ×1 = 56 까지 · 자리가 모자라면 고르게) —
   //   동료 기운이 앞장 구 · 대포 끝으로 흘러드는 길이 보이게 (44 면 빔 짝은 동료가 앞장 위에 겹치고, 구 짝은 동료가 불꽃 구 안에 들어가 길이 20 ~ 40px 뿐이던 것 — 개발 #101)
   const group = (dir: -1 | 1, n: number) => {
-    const lead = n > 1 ? Math.round(D * 0.5) : D;
+    const lead = n > 1 && !leadSolo ? Math.round(D * 0.5) : D;
     const room = g.cx - lead - lo;
-    const step = n > 1 ? Math.max(k === 1 ? 24 : 44, Math.min(k === 1 ? 56 : 112, Math.floor(room / (n - 1)))) : 0;
+    //   힘겨루기 장면 (leadSolo) = 동료 간격은 머릿수와 상관없이 셋 기준 고정 (합류할 때마다 간격이 줄어 이미 선 동료가 한 장면에 15 ~ 20px 옆걸음하던 것 — #116 UX) ·
+    //   그림 폭 × 0.7 넘게 (240 · 480 × 150 에서 30 ~ 50% 겹치던 것 — #116 아트 ⑧) · 자리가 모자라면 뒷줄을 4px 더 위로
+    const need = Math.round(g.sp * 0.7);
+    const step = n > 1 ? (leadSolo ? Math.max(need, Math.min(k === 1 ? 56 : 112, Math.floor(room / 2))) : Math.max(k === 1 ? 24 : 44, Math.min(k === 1 ? 56 : 112, Math.floor(room / (n - 1))))) : 0;
+    const tight = leadSolo && Math.floor(room / 2) < need;
     return Array.from({ length: n }, (_, i) => {
       const x = g.cx + dir * (lead + i * step);
-      return { x: snap(Math.max(lo, Math.min(g.W - lo, x))), y: snap(front - (i % 2) * stepY) };
+      return { x: snap(Math.max(lo, Math.min(g.W - lo, x))), y: snap(front - (i % 2) * stepY - (tight && i > 0 ? 4 : 0)) };
     });
   };
   return { me: group(-1, nMe), foe: group(1, nFoe) };
@@ -97,8 +102,9 @@ export function duelSpots(g: TeamGeo, nMe: number, nFoe: number): { me: { x: num
  *   out 의 pg-view-hide-out 과 키프레임 이름이 달라야 돌아갈 때 다시 돎, 코드 리뷰어 #98)
  * - 나머지 무리 = 걸어서 자리 옮김 (pg-view-move) · 쏘는 무리는 연출 층 위 (pg-view-partner)
  */
-export function viewMonClass(phase: 'in' | 'cut' | 'show' | 'out', o: { inGroup: boolean; hideDown: boolean; popsBack: boolean; cross: boolean; shooter: boolean }): string {
-  const rest = phase === 'in' ? ' pg-view-hide-in' : phase === 'out' ? ' pg-view-hide-out' : ' pg-view-hidden';
+export function viewMonClass(phase: 'in' | 'cut' | 'show' | 'out', o: { inGroup: boolean; hideDown: boolean; popsBack: boolean; cross: boolean; shooter: boolean; cont?: boolean }): string {
+  //   cont = 다른 장면이 열린 채 이어받음 (#116 힘겨루기) — 나머지는 이미 숨어 있어 바로 숨김 (바둑판 사라지기를 다시 돌리면 숨은 칸이 0.1초 보임)
+  const rest = phase === 'in' ? (o.cont ? ' pg-view-hidden' : ' pg-view-hide-in') : phase === 'out' ? ' pg-view-hide-out' : ' pg-view-hidden';
   const top = o.shooter ? ' pg-view-partner' : '';
   if (!o.inGroup) return rest;
   //   쓰러진 칸 (hideDown — 돌아갈 때만) 은 걷지 않고 제자리에서 다른 칸과 같이 바둑판으로 나타남 (회색 그림만 0.2 ~ 0.3초 늦게 툭 나타나던 것, UX 리뷰어 #98 5 — team.css 가 쓰러짐 사라지기보다 앞에 둠)
@@ -226,14 +232,18 @@ export function faintIsBig(createdMs: number, litStartMs: number | null, lastLit
  *  연출이 다음 그림에 view 를 세워 띠가 한 장면 번쩍이던 것 (#96 UX 5바퀴 큼 1) · 그만큼 지나도 view 가 안 서면 (접었다 편 직후 · 칸을 못 찾음 — 3:3 용 판으로 감)
  *  띠를 그림 (이름이 아예 안 보이던 것 — #96 코드 리뷰 중간 2) · waitedMs = 그 띠가 생긴 뒤 (한 번이라도 장면 전환이 섰으면 0 — 끝까지 안 그림) */
 export const VIEW_WAIT_MS = 150;
+/** 힘겨루기 장면 (#116) 의 1:1 VS 컷인 (위아래 두 이름 · ult/core.js ULT_VS_MS 1.5초 + 걷힘 0.6초 — 1.6 이면 걷히는 VS 글자 위에 떴음) — 이 뒤에 연타 안내 (컷인 아래 띠의 상대 필살기 이름을 덮던 것) */
+export const DUEL_VS_MS = 2100;
 export function bandDrawn<T extends { kind: string }>(band: T | null, viewing: boolean, view11: boolean, waitedMs = Number.POSITIVE_INFINITY): T | null {
   if (!band || viewing) return null;
-  return view11 && (band.kind === 'ult' || band.kind === 'joint') && waitedMs < VIEW_WAIT_MS ? null : band;
+  // 힘겨루기 VS 띠도 (#116 — 힘겨루기도 장면 전환 · 장면이 서기 전 한 틱에 예전 "VS · 힘겨루기!" 띠가 번쩍이던 것, UX 리뷰어 2바퀴 큼 1 · #96 5바퀴 큼 1 과 같은 종류)
+  return view11 && (band.kind === 'ult' || band.kind === 'joint' || band.kind === 'vs') && waitedMs < VIEW_WAIT_MS ? null : band;
 }
 
 /** 장면 전환이 끝날 때 (out) 걷지 않고 바둑판으로 사라졌다 제자리에서 나타나는 칸 — 합동 쏜 무리 (#101 — 돌아가는 길에 서로를 지나침) ·
  *  맞은 칸 (1:1 연출이 민 자리가 한 번에 풀려 90px 순간 이동한 뒤 걸어가던 것 — #96 UX 5바퀴 큼 2) */
-export function viewPopsBack(view: { kind: 'solo' | 'joint'; side: Side; from: readonly number[]; to: { side: Side; slot: number } }, side: Side, slot: number): boolean {
+export function viewPopsBack(view: { kind: 'solo' | 'joint' | 'duel'; side: Side; from: readonly number[]; to: { side: Side; slot: number }; duel?: { me: readonly number[]; foe: readonly number[] } }, side: Side, slot: number): boolean {
+  if (view.kind === 'duel') return !!view.duel && view.duel[side].includes(slot);
   return (view.kind === 'joint' && side === view.side && view.from.includes(slot)) || (side === view.to.side && slot === view.to.slot);
 }
 

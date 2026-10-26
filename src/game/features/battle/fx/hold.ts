@@ -14,6 +14,8 @@ export const FX_HOLD_DUEL_MAX_MS = 7_000;
 
 /** 3:3 필살기 붙잡기 열쇠 — 엔진 필살기 시작 시각 (기록 at = 그때 b.t, 필살기 단계에선 b.t − ult.ms) · 실행기 (fx/team) 와 여기가 같은 함수를 씀 */
 export const teamUltKey = (startT: number): string => `teamult${startT}`;
+/** 3:3 필살기 힘겨루기 (#116 장면 전환) 열쇠 — 시작 시각 */
+export const teamClashKey = (startT: number): string => `teamclash${startT}`;
 
 let holdUntil = 0;
 let holdKey = '';
@@ -179,6 +181,13 @@ export function shouldHoldBattle(state: GameState, dtMs: number, now: number): b
   // 3:3 필살기 · 합동 마무리 — 맞는 순간 걸음을 연출이 맞힐 때까지 미룸 (그동안 나머지는 원래 멈춤 · 열쇠 = 시작 시각, fx/team teamUltKey)
   if (st?.phase === 'team') {
     const tb = st.team;
+    // 3:3 필살기 힘겨루기 (#116 장면 전환) — 승패를 정하는 걸음을 1:1 힘겨루기 연출의 밀기가 끝날 때까지 (그동안 연타는 계속 셈 — 1:1 과 같음)
+    const tc = tb.phase === 'clash' && tb.clash?.kind === 'ult' && tb.clash.winner === null ? tb.clash : null;
+    if (tc && teamClashKey(tb.t - tc.ms) === holdKey) {
+      const speed = Math.min(MAX_SPEED, Math.max(1, state.runtime.speed || 1));
+      const { steps } = takeSteps(state.runtime.stepAccMs, dtMs * speed, TIMING.simStepMs);
+      return steps > 0 && tc.ms + steps * TIMING.simStepMs >= tc.dur;
+    }
     const u = tb.ult;
     if (tb.phase !== 'ult' || !u || u.hit || teamUltKey(tb.t - u.ms) !== holdKey) return false;
     const speed = Math.min(MAX_SPEED, Math.max(1, state.runtime.speed || 1));

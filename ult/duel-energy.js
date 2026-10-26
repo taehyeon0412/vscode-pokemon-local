@@ -1931,6 +1931,8 @@
         const won = st.wonAt !== undefined;
         const r = orbR(D, X, st);
         const c = orbPos(D, X, st, r);
+        // 그린 구 자리 · 반지름 — 3:3 합류 쉼표 팔이 구 안에 (duel-join.js · #116)
+        st.at = { x: c.x, y: c.y, r };
         // 터진 뒤엔 줄기만 사라져 감
         orbStream(ctx, px, D, X, st, c, r, won ? a * Math.max(0, 1 - (t - st.wonAt) / 0.3) : a);
         if (won) {

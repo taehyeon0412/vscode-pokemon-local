@@ -111,7 +111,8 @@ export type TeamNote =
   | { t: 'clash-end'; shots: [number, number]; me: number; foe: number; winner: Side }
   /** joint = 합동 마무리 (이긴 참가자 · 진 참가자 · 3:1) */
   | { t: 'ult'; side: Side; from: number; joint?: { winners: number[]; losers: number[]; sure: boolean; spread?: boolean; names?: (string | null)[]; quick?: true }; name?: string; spread?: boolean; target?: number }
-  | { t: 'ult-clash'; me: number[]; foe: number[]; names?: { me?: string; foe?: string } }
+  /** by = 끊긴 필살기를 쓰던 쪽 (연출 — 맞부딪힘 자리) */
+  | { t: 'ult-clash'; me: number[]; foe: number[]; names?: { me?: string; foe?: string }; by?: Side }
   /** 합동 필살기 멘트 시작 (같은 편이 모임 — 끝나면 ult 가 따로 · 합동으로) */
   | { t: 'gather'; side: Side; from: number }
   | { t: 'ult-join'; side: Side; slot: number }
@@ -736,7 +737,7 @@ function startUltClash(b: TeamBattle, joinSide: Side, joiners: number[], rng: Rn
   const leadName = (side: Side, list: number[]) => (side === u.side ? u.name : list[0] !== undefined ? pickUlt(b, side, list[0], rng).name : undefined);
   const names = { ...(leadName('me', me) ? { me: leadName('me', me) } : {}), ...(leadName('foe', foe) ? { foe: leadName('foe', foe) } : {}) };
   b.clash = { kind: 'ult', me: [...me], foe: [...foe], shots: null, ms: 0, dur, taps: 0, winner: null, foeJoin, names };
-  note(b, { t: 'ult-clash', me: [...me], foe: [...foe], names });
+  note(b, { t: 'ult-clash', me: [...me], foe: [...foe], names, by: u.side });
   b.ult = null;
   b.msg = me.length === foe.length ? '필살기 힘겨루기!' : `필살기 힘겨루기! ${me.length}:${foe.length}`;
 }
@@ -1336,7 +1337,7 @@ export function readTeam(raw: unknown): TeamBattle | null {
       case 'ult':
         return isSide(e.side) && slot(e.from, e.side) && (e.joint === undefined || okJoint(e.joint, e.side));
       case 'ult-clash':
-        return slots(e.me, 'me', 1) && slots(e.foe, 'foe', 1) && (e.names === undefined || okLeadNames(e.names));
+        return slots(e.me, 'me', 1) && slots(e.foe, 'foe', 1) && (e.names === undefined || okLeadNames(e.names)) && (e.by === undefined || isSide(e.by));
       case 'ult-clash-end':
         return isSide(e.winner) && typeof e.sure === 'boolean' && slots(e.me, 'me', 1) && slots(e.foe, 'foe', 1);
       case 'ult-join':

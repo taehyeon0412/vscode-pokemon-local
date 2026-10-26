@@ -377,6 +377,7 @@ def run_one(out, cfg):
                 time.sleep(max(0, TICK_S - (time.time() - t0 - el)))
             K = ws.ev(f"{W}.__tr ? {W}.__tr.stop() : null") or {}
             K["inputs"] = acts.get("inputs", [])
+            K["probe"] = acts.get("probe", [])
             flashes = ws.ev(f"{W}.__tr ? {W}.__tr.fx() : []") or []
             print(f"  frames {n} · {round(time.time() - t0, 1)}s", flush=True)
         finally:
@@ -421,7 +422,11 @@ def step(ws, W, s, acts, el, rnd, cfg):
         # 정해진 장면 (표 events — at 초 · dev 동작: 상대 게이지 가득 · 내 게이지 가득)
         while acts["events"] and tin >= acts["events"][0]["at"]:
             e = acts["events"].pop(0)
-            ws.ev(f"{W}.__pgDebug.dev({json.dumps(e['dev'])})")
+            # js = 그때 페이지 (게임 iframe) 에서 돌려 결과를 기록 (acts probe → raw.json · 화면 자리 · 클래스 재기)
+            if "js" in e:
+                acts.setdefault("probe", []).append({"at": e["at"], "out": ws.ev(f"{W}.eval({json.dumps(e['js'])})")})
+            else:
+                ws.ev(f"{W}.__pgDebug.dev({json.dumps(e['dev'])})")
         if s.get("tp") == "clash":
             if el - acts["mash"] > 0.12:
                 acts["mash"] = el

@@ -996,6 +996,10 @@
 #pokemon-game .pg-team-mon.pg-view-partner {
   z-index: 4;
 }
+/* 힘겨루기 VS 컷인 동안은 연출 층 (z 3) 아래 — 무리 그림이 아래 띠 이름 끝 글자를 덮던 것 (픽셀 검사원 #116 2바퀴 큼 1 · 1:1 과 같은 순서) */
+#pokemon-game .pg-team.pg-duel-vs .pg-team-mon.pg-view-partner {
+  z-index: 2;
+}
 #pokemon-game .pg-view-hide-in {
   animation: pg-view-hide 350ms linear both;
 }
