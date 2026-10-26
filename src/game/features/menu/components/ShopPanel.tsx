@@ -3,7 +3,7 @@
  * ② 팔기 (2026-10-21 다음 버전 2단계 — 정가 50%, 진화의 돌 · 연결의끈은 못 팖) · ③ 내 돈 (원) · 나가기.
  * 누를 때마다 하나씩 · Shift + 클릭 = 5개 (돈 · 가진 수가 모자라면 되는 만큼).
  */
-import { useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { itemName, VALUABLES } from '../../../core/rules/items';
 import { BALANCE } from '../../../core/balance';
 import type { GameInput } from '../../../core/engine';
@@ -23,8 +23,39 @@ export function ShopPanel({ save, note, onInput, onClose }: { save: Save; /** �
   const openTab = (t: 'buy' | 'sell') => {
     setTab(t);
     setSellKeep(sellView(save).map((r) => r.item));
+    setCols(null);
   };
   const count = (e?: MouseEvent) => (e?.shiftKey ? BALANCE.shopBulk : 1);
+  // 칸 수 = 넘치면 한 단계 (ux-rules U4 — 폭 경계 720 · 470 을 손으로 골라 맥 722 ~ 1000 에서 고급상처약 · 풀회복약 칸만 두 줄이던 것, 픽셀 검사원 #75 · bugs 1613):
+  //   칸마다 이름 · 값 + 설명 · 가진 수의 실제 폭 (Range) × 맥 여유 1.1 이 칸 안쪽을 넘으면 칸을 하나 줄임 · 폭 · 탭이 바뀌면 다시 잼
+  const grid = useRef<HTMLDivElement>(null);
+  const [cols, setCols] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const g = grid.current;
+    if (!g) return;
+    const now = getComputedStyle(g).gridTemplateColumns.split(' ').filter(Boolean).length;
+    if (now <= 1) return;
+    const range = document.createRange();
+    const width = (el: Element) => {
+      range.selectNodeContents(el);
+      return range.getBoundingClientRect().width;
+    };
+    const over = Array.from(g.querySelectorAll<HTMLElement>(':scope > .pg-shop-item')).some((it) => {
+      const name = it.querySelector('.pg-shop-name');
+      const sub = it.querySelector('.pg-shop-sub');
+      if (!name || !sub || it.clientWidth === 0) return false;
+      const cs = getComputedStyle(it);
+      const inner = it.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+      return (width(name) + width(sub)) * 1.1 + (parseFloat(cs.columnGap) || 0) > inner + 0.5;
+    });
+    if (over) setCols(now - 1);
+  });
+  useEffect(() => {
+    const reset = () => setCols(null);
+    window.addEventListener('resize', reset);
+    return () => window.removeEventListener('resize', reset);
+  }, []);
+  const gridStyle = cols ? { gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` } : undefined;
   return (
     <Panel
       icon="shop"
@@ -54,7 +85,7 @@ export function ShopPanel({ save, note, onInput, onClose }: { save: Save; /** �
     >
       {tab === 'buy' ? (
         /* 3칸 바둑판 — 이름 · 값 왼쪽, 설명 · 가진 수는 오른쪽 끝 흐리게 (넘치면 설명만 줄임, 긴 설명은 title) — 아트 디렉터 3차 */
-        <div class="pg-shop-grid">
+        <div class="pg-shop-grid" ref={grid} style={gridStyle}>
           {shopView(save).map((r) => (
             <Button
               key={r.item}
@@ -84,7 +115,7 @@ export function ShopPanel({ save, note, onInput, onClose }: { save: Save; /** �
         <div class="pg-dim">팔 수 있는 물건이 없어요 — 길에서 진주 · 금구슬 같은 물건을 주우면 여기서 팔아요</div>
       ) : (
         /* 팔기 — 받는 돈은 + 금색 (얻는 돈), 가진 수 오른쪽 */
-        <div class="pg-shop-grid">
+        <div class="pg-shop-grid" ref={grid} style={gridStyle}>
           {sellRows.map((r, i) => [
             // 팔 물건 다음 쓰는 물건 앞에 구분 한 줄
             i > 0 && !VALUABLES.includes(r.item) && VALUABLES.includes(sellRows[i - 1]!.item) && (
