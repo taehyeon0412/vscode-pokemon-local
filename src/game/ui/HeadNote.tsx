@@ -6,7 +6,6 @@
  */
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { realLater, realNow } from './real-clock';
-import { FIT_ROOM } from './useFit';
 
 export type Rect = { l: number; t: number; r: number; b: number };
 
@@ -20,7 +19,8 @@ export const HEAD_NOTE_H = 13;
 const hits = (a: Rect, c: Rect) => a.l < c.r && a.r > c.l && a.t < c.b && a.b > c.t;
 
 let measureCtx: CanvasRenderingContext2D | null | undefined;
-/** 글 폭 어림 — 캔버스로 잰 실제 폭 × 맥 여유 (자리 고를 때만 · 그릴 때는 글 그대로) */
+/** 글 폭 — 캔버스로 잰 실제 폭 + 외곽선 2 (자리 고를 때만). 맥 여유 10% 는 안 곱함 — 캔버스가 그 컴퓨터 글꼴로 재고, 글은 왼쪽 끝이 고정이라 넓어지면 오른쪽 (머리 쪽) 으로 늘어남
+ *  (× 1.1 로 71px 로 잡아 1:1 480 × 187 머리 왼쪽 위가 "A 자동" 칩과 겹치는 걸로 계산돼 오른쪽 위로 가던 것 — 기획 10-26) */
 export function headNoteWidth(text: string, keyCap = false): number {
   if (measureCtx === undefined) measureCtx = typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d');
   let w = text.length * 11;
@@ -28,7 +28,7 @@ export function headNoteWidth(text: string, keyCap = false): number {
     measureCtx.font = '700 11px Pretendard, sans-serif';
     w = measureCtx.measureText(text).width;
   }
-  return Math.ceil(w * FIT_ROOM) + 2 + (keyCap ? 14 : 0);
+  return Math.ceil(w) + 2 + (keyCap ? 14 : 0);
 }
 
 /**
