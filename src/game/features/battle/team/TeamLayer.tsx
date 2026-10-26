@@ -149,11 +149,11 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, d
   //   큰 연출 중 주인공이 아닌 칸은 숫자 · 말을 지움 · 쓰러짐 말은 무대 위 한 줄 (TeamLayer) · 같은 칸 0.3초 안 숫자는 합침 (센 쪽 모양) · 숫자는 0.7초만 (합동 칩은 1.2초)
   //   합동 칩만 처음 본 때부터 진짜 시계 1.2초 (keepJointChips) · 엔진이 팝업을 먼저 지워도 마지막 모양 그대로 남김
   const jointKept = useRef(new Map<number, { p: (typeof pops0)[number]; at: number }>());
-  const { gone: jointGone, end: jointEnd } = keepJointChips(jointKept.current, pops0, realNow(), skip);
+  const { gone: jointGone, end: jointEnd, on: jointOn } = keepJointChips(jointKept.current, pops0, realNow(), skip);
   const [, jointWake] = useState(0);
   useEffect(() => (Number.isFinite(jointEnd) ? realLater(() => jointWake((n) => n + 1), Math.max(0, jointEnd - realNow()) + 16) : undefined), [jointEnd]);
   const pops = (dim ? [] : jointGone.length ? [...pops0, ...jointGone].sort((p, q) => p.id - q.id) : pops0)
-    .filter((p) => !(p.kind === 'info' && FAINT_RE.test(p.text)) && (!NUM_KINDS.has(p.kind) || (p.joint ? jointKept.current.has(p.id) : p.ms < NUM_SHOW_MS)))
+    .filter((p) => !(p.kind === 'info' && FAINT_RE.test(p.text)) && (!NUM_KINDS.has(p.kind) || (p.joint ? jointOn.has(p.id) : p.ms < NUM_SHOW_MS)))
     .reduce<(typeof pops0[number] & { joint?: boolean })[]>((out, p) => {
       if (p.joint) {
         const same = out.find((q) => q.joint && sameJoint(q.ms, p.ms));
@@ -991,18 +991,46 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
     if (!f || !spot) return null;
     const p0 = g.pos(side, slot);
     const v0 = visBoxOf(f.form, g, side, slot);
-    const vis = { l: v0.l + spot.x - p0.x, t: v0.t + spot.y - p0.y, r: v0.r + spot.x - p0.x };
+    let vis = { l: v0.l + spot.x - p0.x, t: v0.t + spot.y - p0.y, r: v0.r + spot.x - p0.x };
+    // 힘겨루기 장면은 실제 그린 그림 자리 (1:1 연출이 진 쪽을 밀고 · 마지막 한 방은 눕혀서 장면 자리와 다름 — 지는 판 칩이 쓰러진 내 앞장 몸에 15 ~ 20px 걸치던 것, bugs 1683) ·
+    //   눕힌 그림 (pg-team-ko — 90°) 은 보이는 높이 = 원래 폭
+    if (view.kind === 'duel') {
+      const st = document.querySelector<HTMLElement>('#pokemon-game .pg-team');
+      const mon = document.querySelector<HTMLElement>(`#pokemon-game [data-team="${side}-${slot}"]`);
+      const body = mon?.querySelector<HTMLElement>('.pg-team-body');
+      if (st && mon && body) {
+        const sr = st.getBoundingClientRect();
+        const r = body.getBoundingClientRect();
+        const a = artOf(f.form, g.scale);
+        const vw = v0.r - v0.l;
+        const vh = v0.b - v0.t;
+        if (r.width > 0 && mon.classList.contains('pg-team-ko')) {
+          const l = r.left - sr.left + (r.width - vh) / 2;
+          vis = { l, t: r.top - sr.top + Math.max(0, (r.height - vw) / 2), r: l + vh };
+        } else if (r.width > 0) {
+          const l = r.left - sr.left + (v0.l - (Math.round((p0.x - a.px / 2) / g.scale) * g.scale));
+          vis = { l, t: r.top - sr.top + (v0.t - (p0.y - Math.round(a.foot * a.s))), r: l + vw };
+        }
+      }
+    }
     const tagOn = g.scale !== 1;
     const cw = Math.ceil(((chip.joint && tagOn ? 35 : 12) + 10 * chip.text.length) * 1.1);
     // 힘겨루기 장면 (#116) — 1:1 큰 결과 글 ("힘대결에서 이겼다!" · ult/core.js ultTitle — 크기 W ÷ 9 (18 ~ 40) · 가운데 H × 0.36 · 부제 자리만큼 아래) 아래로 (칩이 끝 글자 "다!" 를 덮던 것 — 480 × 150 · 187)
+    // 칩 가로 가운데 = 그림 가운데 (힘겨루기 장면은 잰 자리)
+    const cxC = view.kind === 'duel' ? (vis.l + vis.r) / 2 : spot.x;
     const tSize = Math.min(40, Math.max(18, widthPx / 9));
-    const titleB = view.kind === 'duel' ? Math.max(heightPx * 0.36, infoBarPx + fieldTopPx + tSize * 0.85 + Math.max(10, tSize * 0.4) / 2 + 4) + tSize * 0.6 : 0;
-    const top = Math.max(popTop + 6, vis.t - 4, titleB + 2 + 20);
-    const head = { left: Math.round(Math.min(g.W - 2 - cw / 2, Math.max(2 + cw / 2, spot.x))), top, cls: '', tagOn };
+    //   결과 글과 가로로 겹칠 때만 (글 폭 ≈ 9.5 글자 · 패널 90% 까지 — 지는 판 칩이 가운데 글과 떨어져 있는데도 몸 높이까지 내려와 쓰러진 거북왕을 덮던 것, UX 리뷰어 bugs 1852 확인)
+    const tHalf = Math.min(widthPx * 0.45, (9.5 * tSize) / 2) + 4;
+    const underTitle = view.kind === 'duel' && Math.abs(Math.min(g.W - 2 - cw / 2, Math.max(2 + cw / 2, cxC)) - widthPx / 2) < tHalf + cw / 2;
+    const titleB = underTitle ? Math.max(heightPx * 0.36, infoBarPx + fieldTopPx + tSize * 0.85 + Math.max(10, tSize * 0.4) / 2 + 4) + tSize * 0.6 : 0;
+    //   힘겨루기 장면은 위 줄 (띠 · 쓰러짐 줄 — 장면 동안 안 그림) 대신 정보줄 기준 (topMin)
+    const chipTop = view.kind === 'duel' ? topMin : popTop;
+    const top = Math.max(chipTop + 6, vis.t - 4, titleB + 2 + 20);
+    const head = { left: Math.round(Math.min(g.W - 2 - cw / 2, Math.max(2 + cw / 2, cxC))), top, cls: '', tagOn };
     // 결과 글 아래로 내려 상대 머리를 덮으면 상대 그림 왼쪽 (오른쪽 끝 = 그림 왼쪽 − 2 · 480 에서 맞는 장면에 이브이 머리 16 ~ 20줄을 덮던 것 — 픽셀 검사원 #116 큼 4)
-    if (view.kind === 'duel' && top > vis.t - 2 && vis.l - 2 - cw >= 2) return { left: vis.l - 2, top: titleB + 2, cls: ' pg-pop-side pg-pop-side-l', tagOn };
-    if (top <= vis.t - 2 || view.kind === 'duel') return head;
-    const ct = Math.max(vis.t + (g.scale === 1 ? -4 : 4), popTop - 14);
+    if (underTitle && top > vis.t - 2 && vis.l - 2 - cw >= 2) return { left: vis.l - 2, top: titleB + 2, cls: ' pg-pop-side pg-pop-side-l', tagOn };
+    if (top <= vis.t - 2 || underTitle) return head;
+    const ct = Math.max(vis.t + (g.scale === 1 ? -4 : 4), chipTop - 14);
     for (const right of side === 'me' ? [false, true] : [true, false]) {
       const l = right ? vis.r + 2 : vis.l - 2 - cw;
       if (l >= 2 && l + cw <= g.W - 2) return { left: right ? l : vis.l - 2, top: ct, cls: right ? ' pg-pop-side' : ' pg-pop-side pg-pop-side-l', tagOn };

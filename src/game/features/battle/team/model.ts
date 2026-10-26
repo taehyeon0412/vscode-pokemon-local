@@ -181,11 +181,20 @@ export function foeUltSoon(b: TeamBattle, tempo: number, realMs = 1100): boolean
 /** 합동 칩 ("합동! −N") 붙잡기 — 진짜 시계 1.2초 (숫자 0.7초 규칙에 같이 걸려 "합동!" 글이 0.65 ~ 0.7초만 보이던 것 — 개발 #98 판 자동 검사 6 · 7판 · ux-rules U1 화면 붙잡기) */
 export const JOINT_CHIP_MS = 1200;
 /** 처음 본 때 (진짜 시계) 를 kept 에 적어 1.2초 동안 남김 — 엔진이 팝업을 먼저 지워도 (게임 시계 1.2초 · ▶▶ 에서 더 빨리) 마지막 모양 그대로 (gone) ·
- *  끝났거나 장면 전환 칩이 가져간 것 (skip) 은 지움 · end = 가장 먼저 끝나는 때 (다시 그리기 타이머) */
-export function keepJointChips<P extends { id: number; joint?: boolean }>(kept: Map<number, { p: P; at: number }>, live: readonly P[], now: number, skip: ReadonlySet<number>): { gone: P[]; end: number } {
+ *  장면 전환 칩이 가져간 것 (skip) 은 지움 · 1.2초가 지난 칩은 엔진 팝업이 살아 있는 동안 끝난 채로 적어 둠 (지우면 다음 그림에 at = 지금으로 다시 들어가
+ *  한 장면 꺼졌다 1.2초 다시 켜지던 것 — 3:3 박자 0.8 에서 엔진 팝업은 실제 약 1.5초, 코드 리뷰어 #116 · bugs 1852) · on = 지금 보이는 칩 · end = 가장 먼저 끝나는 때 (다시 그리기 타이머) */
+export function keepJointChips<P extends { id: number; joint?: boolean }>(kept: Map<number, { p: P; at: number }>, live: readonly P[], now: number, skip: ReadonlySet<number>): { gone: P[]; end: number; on: ReadonlySet<number> } {
   for (const p of live) if (p.joint) kept.set(p.id, { p, at: kept.get(p.id)?.at ?? now });
-  for (const [id, k] of kept) if (now - k.at >= JOINT_CHIP_MS || skip.has(id)) kept.delete(id);
-  return { gone: [...kept.values()].map((k) => k.p).filter((p) => !live.some((q) => q.id === p.id)), end: Math.min(...[...kept.values()].map((k) => k.at + JOINT_CHIP_MS)) };
+  for (const [id, k] of kept) {
+    const over = now - k.at >= JOINT_CHIP_MS;
+    if (skip.has(id) || (over && !live.some((q) => q.id === id))) kept.delete(id);
+  }
+  const shown = [...kept.entries()].filter(([, k]) => now - k.at < JOINT_CHIP_MS);
+  return {
+    gone: shown.map(([, k]) => k.p).filter((p) => !live.some((q) => q.id === p.id)),
+    end: Math.min(...shown.map(([, k]) => k.at + JOINT_CHIP_MS)),
+    on: new Set(shown.map(([id]) => id)),
+  };
 }
 
 /** 상대 필살기 예고 — 80% 부터 % · 다 차면 "곧!" */

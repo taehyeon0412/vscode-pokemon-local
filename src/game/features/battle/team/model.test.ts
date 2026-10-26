@@ -193,13 +193,26 @@ describe('3:3 위 가운데 줄 — 띠 · 쓰러짐 줄 · 결과 줄 (픽셀 �
     expect(keepJointChips(kept, [chip, num], 0, new Set()).gone).toEqual([]);
     expect([...kept.keys()]).toEqual([5]);
     // 엔진이 0.8초에 지워도 (▶▶) 남김 · 다음 다시 그리기 = 1.2초
-    expect(keepJointChips(kept, [], 800, new Set())).toEqual({ gone: [chip], end: JOINT_CHIP_MS });
+    expect(keepJointChips(kept, [], 800, new Set())).toEqual({ gone: [chip], end: JOINT_CHIP_MS, on: new Set([5]) });
     // 1.2초가 지나면 없음
     expect(keepJointChips(kept, [], JOINT_CHIP_MS, new Set()).gone).toEqual([]);
     expect(kept.size).toBe(0);
     // 장면 전환 칩이 가져간 숫자 (skip) 는 남기지 않음
     keepJointChips(kept, [chip], 0, new Set());
     expect(keepJointChips(kept, [], 300, new Set([5])).gone).toEqual([]);
+  });
+
+  it('합동 칩 1.2초가 지나도 엔진 팝업이 살아 있으면 다시 안 켬 (3:3 박자 0.8 — 엔진 팝업 약 1.5초 · 한 장면 꺼졌다 1.2초 다시 켜지던 것, bugs 1852)', () => {
+    const kept = new Map<number, { p: { id: number; joint?: boolean; text: string }; at: number }>();
+    const chip = { id: 7, joint: true, text: '-30' };
+    expect(keepJointChips(kept, [chip], 0, new Set()).on.has(7)).toBe(true);
+    // 1.2초 · 1.3초 — 엔진 팝업이 아직 있어도 꺼진 채 (다시 넣지 않음)
+    expect(keepJointChips(kept, [chip], JOINT_CHIP_MS, new Set()).on.has(7)).toBe(false);
+    expect(keepJointChips(kept, [chip], JOINT_CHIP_MS + 100, new Set()).on.has(7)).toBe(false);
+    expect(kept.get(7)?.at).toBe(0);
+    // 엔진 팝업이 끝나면 적어 둔 것도 지움
+    keepJointChips(kept, [], JOINT_CHIP_MS + 300, new Set());
+    expect(kept.size).toBe(0);
   });
 
   it('장면 전환 칸 클래스 (viewMonClass) — 앞뒤가 바뀌는 동료는 in 바둑판 사라짐 → 새 자리 나타남 → out 은 다른 키프레임 (코드 리뷰어 #98)', () => {
