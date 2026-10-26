@@ -200,6 +200,10 @@
             ctx.scale(-1, 1);
         }
         ctx.drawImage(img, -w / 2, -h / 2, w, h);
+        // 쓰러진 칸 지우기 뒤 다시 그릴 수 있게 적어 둠 (ult/bridge.js fxMonNote)
+        if (typeof fxMonNote === 'function') {
+            fxMonNote(ctx, o.src ?? img, img, w, h);
+        }
         ctx.restore();
     }
     // 한 색 실루엣 (잔상 · 테두리 · 번쩍) — 움직이는 그림이라 0.08초마다 새로. 크기는 배율 1 로 만들고 그릴 때 늘림

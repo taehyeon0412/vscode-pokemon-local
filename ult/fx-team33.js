@@ -1743,34 +1743,45 @@ function t11Gather(ctx, q) {
             const prevLate = lateDraw;
             lateDraw = () => {
                 prevLate?.();
-                // 김 (6바퀴 값): 10덩이 · 반지름 3칸 → 2걸음마다 1칸 커져 4칸 (187 에서 12 ~ 16px) · 세 톤 (위 1칸 #ffffff · 몸 #e8eef2 · 밑 1칸 #b8c4cc) · 가장자리 1칸 바둑판 ·
-                // 마지막 두 걸음은 바둑판으로 사라짐 · 몸 위쪽 양옆 (불꽃 혀 끝 높이) 에서 생김 (6 ~ 10px 흰 점이 자갈 · 팝콘처럼 읽히던 것 — #96 아트 6바퀴 2)
-                const f100 = Math.floor(now / 100);
+                // 김 (아트 디렉터 #113 — 흰 덩어리가 같은 자리에 머물러 태현 님이 어색해한 "뭉게 공" 으로 읽히던 것 · ideas 721 · 디자인 값 2판):
+                //   고리 4개 (양옆 2개씩 — 몸 폭 × 0.6 안쪽 · × 0.9 바깥쪽, 같은 쪽 둘은 위 · 아래로 12칸 떨어짐) · 반지름 4칸 · 여덟 자리 중 둘 비움 (걸음마다 돎) · 1칸 점 #e8f6ff + 바깥 점 하나 #8fd8ff ·
+                //   위로 오르는 점 2 ~ 3개 · 100ms 마다 5px 위로 · 시작 0.15초씩 엇갈림 · 마지막 두 걸음은 반씩 사라짐
                 const STEPS = 8;
-                for (let i = 0; i < 10; i++) {
+                const STEAM = '#e8f6ff';
+                const RIM = '#8fd8ff';
+                const rc = 4;
+                // 위 끝 띠 (8px) 에서는 띠 무늬로 남고 위 끝 위는 안 그림 (픽셀 검사원 #107 — 김이 위 끝에 일자로 닿던 것)
+                const sdot = (x, y, col) => {
+                    if (typeof fxBandKeep !== 'function' || fxBandKeep(px(x), px(y))) {
+                        dot(x, y, col);
+                    }
+                };
+                for (let i = 0; i < 4; i++) {
                     const sd = i % 2 ? 1 : -1;
-                    const step = (f100 + i * 3) % STEPS;
-                    const cx = b.x + sd * (b.w * 0.5 + (2 + (i % 3) * 3) * k);
-                    const cy = b.y - b.h * 0.1 - step * 5 - (i % 4) * 2 * k;
-                    const rc = 3 + Math.min(1, Math.floor(step / 4));
+                    const outer = i >= 2;
+                    const upper = i === 1 || i === 2;
+                    const step = ((Math.floor((now - i * 150) / 100) % STEPS) + STEPS) % STEPS;
+                    const cx = b.x + sd * b.w * (outer ? 0.9 : 0.6);
+                    const cy = b.y - b.h * 0.1 - (upper ? 12 * k : 0) - step * 5;
                     const fade = step >= STEPS - 2 ? step - (STEPS - 3) : 0;
-                    for (let dy = -rc; dy <= rc; dy++) {
-                        for (let dx = -rc; dx <= rc; dx++) {
-                            const d2 = dx * dx + dy * dy;
-                            if (d2 > rc * rc + rc) {
-                                continue;
-                            }
-                            const rim = d2 > (rc - 1) * (rc - 1) + (rc - 1);
-                            const gx = Math.round(cx / k) + dx;
-                            const gy = Math.round(cy / k) + dy;
-                            if ((rim || fade) && (((gx + gy + fade) % 2) + 2) % 2 === 0) {
-                                continue;
-                            }
-                            if (fade >= 2 && ((gx + 2 * gy) % 3 + 3) % 3 === 0) {
-                                continue;
-                            }
-                            dot(gx * k, gy * k, dy === -rc || (dy === 1 - rc && !rim) ? '#ffffff' : dy === rc ? '#b8c4cc' : '#e8eef2');
+                    const gx0 = Math.round(cx / k);
+                    const gy0 = Math.round(cy / k);
+                    // 끊긴 점 고리 — 여덟 자리 중 둘은 비움 (걸음마다 돎) · 바깥 점 하나는 하늘색
+                    const blue = (step + i * 3) % 8;
+                    for (let j = 0; j < 8; j++) {
+                        if ((j + i + step) % 4 === 0 || (fade && (j + fade) % 2 === 0)) {
+                            continue;
                         }
+                        const a8 = (j / 8) * Math.PI * 2;
+                        sdot((gx0 + Math.round(Math.cos(a8) * rc)) * k, (gy0 + Math.round(Math.sin(a8) * rc * 0.8)) * k, j === blue ? RIM : STEAM);
+                    }
+                    // 위로 오르는 점 2 ~ 3개
+                    const nUp = 2 + (i % 2);
+                    for (let j = 0; j < nUp; j++) {
+                        if (fade >= 2 && j % 2) {
+                            continue;
+                        }
+                        sdot((gx0 + Math.round((j - (nUp - 1) / 2) * 2)) * k, (gy0 - rc - 2 - ((step + j * 2) % 4)) * k, STEAM);
                     }
                 }
             };
@@ -2088,6 +2099,103 @@ function t11LeafBurst(tb, k, add = sigParticle) {
                 }
             }
         }
+    } });
+}
+
+/**
+ * 장면 전환 합동 — 일반 틀 풀 앞장 (씨기관총 · 씨뿌리기 등) 의 끝 (#108 디자인 — 상대 합동 숲의 분노 마무리가 하트 10개로 약하던 것):
+ * 잎 16장 (8 × 5칸 세 톤 — 나무지기 잎 그림 · 0.12초마다 뒤집힘) + 동료가 페어리면 하트 8 (5 × 5 · 상대 = #ff5a8a) 이
+ * 맞는 몸 둘레에서 사방으로 솟았다가 팔랑이며 발밑에 내려앉음 (1.2 ~ 1.7초 · 반지름 90px · 패널 폭 35% · 무대 위 15% 아래) +
+ * 땅 점선 고리 (2px 점 · 4px 틈) 가 발밑에서 패널 폭 60% 까지 0.5초 (앞장 색 → 동료 색) · 끝 0.2초 바둑판으로 사라짐
+ */
+// [x, y, 톤] 8 × 5칸 · 가운데 (3.5, 2) — 톤 0 = 밝은 위 · 1 = 테 · 잎맥 · 꼭지 · 2 = 아래 (두 톤이면 풀밭과 밝기가 같아 누운 알약처럼 읽히던 것 — 디자인 #108 테 세 톤)
+const T11_LEAF8 = [[2, 0, 1], [3, 0, 0], [4, 0, 0], [5, 0, 0], [6, 0, 1], [0, 1, 1], [1, 1, 0], [2, 1, 0], [3, 1, 0], [4, 1, 0], [5, 1, 0], [6, 1, 0], [7, 1, 1],
+    [0, 2, 1], [1, 2, 2], [2, 2, 1], [3, 2, 1], [4, 2, 1], [5, 2, 1], [6, 2, 2], [7, 2, 1], [1, 3, 1], [2, 3, 2], [3, 3, 2], [4, 3, 2], [5, 3, 2], [6, 3, 1],
+    [2, 4, 1], [3, 4, 1], [4, 4, 1], [5, 4, 1]];
+const T11_LEAF8_C = ['#b8ec6c', '#1f4a1c', '#6cc04a'];
+function t11ForestBurst(tb, k, allyTypes, foe, add = sigParticle) {
+    const W = window.innerWidth;
+    const top0 = t33Top();
+    const floor = tb.y + tb.h / 2;
+    const rx = Math.min(90, W * 0.35);
+    const ry = Math.max(20, Math.min(90, tb.y - (top0 + (window.innerHeight - top0) * 0.15)));
+    const fairy = allyTypes.includes('fairy');
+    const heartC = foe ? ['#ffe0ea', '#ff5a8a'] : [T11_STAR_COLS.fairy[0], T11_STAR_COLS.fairy[2]];
+    const hash = (i, s) => (((i + 1) * 9301 + s * 49297) % 233280) / 233280;
+    const bits = Array.from({ length: fairy ? 24 : 16 }, (_, i) => {
+        const heart = i >= 16;
+        const j = heart ? i - 16 : i;
+        const m = heart ? 8 : 16;
+        return { heart, a: (j / m) * Math.PI * 2 + (heart ? Math.PI / 8 : 0) + (hash(i, 1) - 0.5) * 0.3, d: 0.6 + hash(i, 2) * 0.4, t0: 0.05 + hash(i, 3) * 0.2, life: 1.2 + hash(i, 4) * 0.5, fall: 18 + hash(i, 5) * 14 };
+    });
+    const ringC = [T11_STAR_COLS.grass[2], fairy ? heartC[1] : (T11_STAR_COLS[allyTypes[0]] || T11_STAR_COLS.grass)[2]];
+    add({ x: 0, y: 0, s: k, max: 2, z: 1, draw: (ctx, p) => {
+        const px = (v) => Math.round(v / k) * k;
+        ctx.globalAlpha = 1;
+        ctx.imageSmoothingEnabled = false;
+        // 땅 점선 고리 — 0.5초에 패널 폭 60% (반지름 30%) · 위아래 0.25 · 점 2px · 틈 4px · 앞 0.25초 앞장 색 → 동료 색 · 0.5 ~ 0.7초 바둑판
+        if (p.life < 0.7) {
+            const R = W * 0.3 * Math.min(1, p.life / 0.5);
+            const n = Math.max(8, Math.floor((Math.PI * 2 * R) / 6));
+            ctx.fillStyle = ringC[p.life < 0.25 ? 0 : 1];
+            for (let i = 0; i < n; i++) {
+                if (p.life > 0.5 && (i + Math.floor(p.life / 0.1)) % 2 === 0) {
+                    continue;
+                }
+                const a = (i / n) * Math.PI * 2;
+                const x = px(tb.x + Math.cos(a) * R);
+                const y = px(floor + Math.sin(a) * R * 0.25);
+                if (x >= 0 && x < W && y >= top0) {
+                    ctx.fillRect(x, y, 2, 2);
+                }
+            }
+        }
+        const leaf = T11_LEAF8_C.map(() => new Path2D());
+        const hearts = [new Path2D(), new Path2D()];
+        bits.forEach((b, i) => {
+            const t = p.life - b.t0;
+            if (t < 0 || t >= b.life) {
+                return;
+            }
+            // 솟음 0.35초 (빨리 → 느리게) → 팔랑이며 내려앉음 (좌우 3칸 흔들림) · 끝 0.2초 바둑판
+            const u = Math.min(1, t / 0.35);
+            const out = 1 - (1 - u) * (1 - u);
+            // 다 위로 솟음 (위 0.9 · 옆 0.55 · 아래 0.2 × ry) · 가로는 화면 끝까지 남은 만큼만 (맞는 몸이 끝 가까이면 반이 밖으로 나가던 것 — t11LeafBurst 와 같음)
+            const room = Math.cos(b.a) > 0 ? W - tb.x - 8 * k : tb.x - 8 * k;
+            const x0 = tb.x + Math.cos(b.a) * Math.max(0, Math.min(rx, room)) * b.d * out + (t > 0.35 ? Math.sin(t * 6 + i) * 3 * k : 0);
+            const y0 = Math.min(floor - 2 * k, tb.y + (Math.sin(b.a) * 0.35 - 0.55) * ry * b.d * out + (t > 0.35 ? b.fall * (t - 0.35) * (1 + t) : 0));
+            if (b.life - t < 0.2 && (i + Math.floor(t / 0.1)) % 2 === 0) {
+                return;
+            }
+            if (b.heart) {
+                const rows = T11_SPR.heart;
+                for (let r = 0; r < 5; r++) {
+                    for (let c = 0; c < 5; c++) {
+                        const ch = rows[r][c];
+                        const y = px(y0 + (r - 2) * k);
+                        if (ch !== '.' && y >= top0) {
+                            hearts[ch === '0' ? 0 : 1].rect(px(x0 + (c - 2) * k), y, k, k);
+                        }
+                    }
+                }
+                return;
+            }
+            const flip = (Math.floor(p.life / 0.12) + i) % 2 === 1;
+            for (const [cx, cy, tone] of T11_LEAF8) {
+                const y = px(y0 + (cy - 2) * k);
+                if (y >= top0) {
+                    leaf[tone].rect(px(x0 + (flip ? 3.5 - cx : cx - 3.5) * k), y, k, k);
+                }
+            }
+        });
+        leaf.forEach((path, j) => {
+            ctx.fillStyle = T11_LEAF8_C[j];
+            ctx.fill(path);
+        });
+        ctx.fillStyle = heartC[1];
+        ctx.fill(hearts[1]);
+        ctx.fillStyle = heartC[0];
+        ctx.fill(hearts[0]);
     } });
 }
 

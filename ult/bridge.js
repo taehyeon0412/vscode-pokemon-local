@@ -553,8 +553,23 @@ function fxInGame() {
     return !!document.body && document.body.classList.contains('pokemon-game-on');
 }
 // 필살기 연출이 넘으면 안 보이는 위 끝 (정보줄 · 지도 줄 아래 끝 — 3:3 은 --pg-fx-top) — 게임 밖 · 3:3 무대 상자 안은 0 (#105 — 던지는 구 · 뛰어오른 몸이 그 뒤로 숨지 않게. fx-energy runOrb · fx-unique 가 씀)
+// 장마다 한 번만 잼 (그리기 루프 안에서 아이템마다 부르던 것 — querySelector · 레이아웃, 코드 리뷰어 #107) · 무대 상자 안 (moveFrame) 은 늘 0
+//   (장이 멈춘 사이 — 1:1 필살기 뒤 3:3 장면 전환처럼 위 끝이 바뀔 때 — 옛 값을 쓰지 않게 50ms 넘으면 다시 잼)
+let fxStageTopAt = -1;
+let fxStageTopT = -1e9;
+let fxStageTopV = 0;
+let fxFrameId = 0;
 function fxStageTop() {
-    return fxInGame() && !moveFrame && typeof t33Top === 'function' ? t33Top() : 0;
+    if (moveFrame) {
+        return 0;
+    }
+    const t = performance.now();
+    if (fxStageTopAt !== fxFrameId || t - fxStageTopT > 50) {
+        fxStageTopAt = fxFrameId;
+        fxStageTopT = t;
+        fxStageTopV = fxInGame() && typeof t33Top === 'function' ? t33Top() : 0;
+    }
+    return fxStageTopV;
 }
 // 연출이 넘지 않는 위 끝 = 게임 정보줄 아래 끝 (px) — 게임 밖이면 0 (game.css 가 캔버스를 여기서 자름)
 function fxTop() {
@@ -722,8 +737,32 @@ const fxTagGen = new Map();
 // 번호 붙은 입자 · 발사기가 그 뒤에 만드는 입자에도 같은 번호 (발사기는 매 장면 입자를 만듦 — 기본 발사기는 spawnParticle, 전용기는 e.fx)
 function fxTagNew(from, gen) {
     for (let i = from; i < moveParticles.length; i++) {
-        moveParticles[i]._g ??= gen;
+        const p = moveParticles[i];
+        if (p._g === undefined) {
+            p._g = gen;
+            fxTagUpdate(p, gen);
+        }
     }
+}
+// 위 끝 층 필살기 (fxSoftGens) 는 입자 update 안에서 만든 입자에도 같은 번호 — 하이퍼보이스 큰 터짐처럼 update 에서 터지면 번호가 없어 위 끝 층에 안 들어가던 것 (#107)
+//   (다른 필살기는 그대로 — 합동 줄기 보기 · 층이 번호로 입자를 나눠 그려서)
+function fxTagUpdate(p, gen) {
+    if (!fxSoftGens.has(gen) || typeof p.update !== 'function' || p._gUpd) {
+        return;
+    }
+    const f = p.update;
+    p._gUpd = true;
+    p.update = (...a) => {
+        const n = moveParticles.length;
+        const prev = fxNowGen;
+        fxNowGen = gen;
+        try {
+            return f(...a);
+        } finally {
+            fxNowGen = prev;
+            fxTagNew(n, gen);
+        }
+    };
 }
 function fxTagEmitter(em, gen) {
     if (em._g !== undefined) {
@@ -1455,6 +1494,105 @@ function fxLayerBlit(L) {
     moveCtx.drawImage(L.cv, 0, 0);
     moveCtx.restore();
 }
+// 위 끝 층 (#107 — 디자인 값 10-24 22:30): 하늘까지 닿는 기둥 · 회오리 · 날씨 틀은 그 필살기 입자를 따로 그려, 자르는 줄 (fxStageTop — 정보줄 · 지도 줄 아래) 위는 지우고
+//   그 아래 4칸 (2px 칸) 을 위에서부터 25 · 50 · 75 · 87.5% 채운 Bayer 바둑판 ("위로 이어짐" — 일자로 잘려 정보줄 · 지도 줄에 걸쳐 머물던 것, ux-rules U4) ·
+//   어둠 · 번쩍 · 화면 판 (_full · _flash · _screen) 은 큰 캔버스 그대로 (띠에 줄무늬가 생기지 않게) · 구 · 덩어리 · 큰 터짐 (블래스트번 반구) 은 이 층이 아니라 자리를 옮김
+// ultdive = 하늘에서 내려오는 빛기둥 · 내리꽂는 줄기 · 솟아 사라지는 몸 (리자몽 플레어드라이브 하늘 불꽃 구는 머무는 모양이라 뺌)
+// ultnova = 화면 전체 대폭발 (반지름이 무대보다 커서 자리를 옮겨도 위 끝을 넘음 — 크기는 그대로) · 솔라빔 하늘 햇빛 기둥 (o.solar) · twinkle 화면 가득 별 · 하트 (날씨처럼)
+// ultvolt = 화면 끝까지 뻗는 번개 줄기 (10만볼트 · 1000만볼트 — 위로 뻗은 줄기가 천천히 돌며 위 끝을 넘음) · ultthunder = 하늘에서 내리치는 번개 (스파킹기가볼트 끝 · 번개 기둥)
+const FX_SOFT_TOP = new Set(['ultpillar', 'ultvortex', 'ultstorm', 'ultbloom', 'ultdive', 'ultnova', 'ultvolt', 'ultthunder']);
+const fxSoftTopOk = (e) => (FX_SOFT_TOP.has(e?.[1]) || (e?.[1] === 'ultbeam' && !!e[2]?.solar) || (e?.[1] === 'ultsparkle' && e[2]?.mode !== 'moon' && !e[2]?.uniq)) && !e[2]?.blast && !e[2]?.flare;
+const fxSoftGens = new Set();
+const fxSoftTopL = {};
+// 필살기 하나 전체가 아니라 한 입자만 (_softTop — fx-sky scene sc.soft: 무대보다 큰 반구 등) 위 끝 층에 그릴 때 — 그 입자가 사는 동안 층을 켬
+let fxSoftTopUntil = 0;
+function fxSoftTopWant(ms) {
+    fxSoftTopUntil = Math.max(fxSoftTopUntil, performance.now() + ms);
+}
+const fxSoftTopOn = () => fxSoftGens.size > 0 || performance.now() < fxSoftTopUntil;
+// 한 그림을 둘로 — 큰 캔버스에는 위 끝 띠 (8px) 아래만 (몸 뒤 순서 그대로) · 위 끝 층에는 그 위만 (fx-body 오라처럼 무대보다 큰 몸 뒤 그림 — #107, fx-sky sc.split 과 같음)
+//   큰 캔버스에 그릴 때만 (위 끝 층 · 줄기 보기 캔버스에 그리는 중이면 그대로)
+function fxSplitTop(ctx, fn) {
+    const top0 = fxStageTop();
+    if (!(top0 > 0) || ctx !== moveCtx) {
+        fn(ctx);
+        return;
+    }
+    fxSoftTopWant(250);
+    const cut = top0 + 8;
+    const m = ctx.getTransform();
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.beginPath();
+    ctx.rect(0, Math.round(cut * (window.devicePixelRatio || 1)), ctx.canvas.width, ctx.canvas.height);
+    ctx.clip();
+    ctx.setTransform(m);
+    fn(ctx);
+    ctx.restore();
+    const L = fxSoftTopL.ctx;
+    if (!L) {
+        return;
+    }
+    L.save();
+    L.setTransform(1, 0, 0, 1, 0, 0);
+    L.beginPath();
+    L.rect(0, 0, L.canvas.width, Math.round(cut * (window.devicePixelRatio || 1)));
+    L.clip();
+    L.setTransform(m);
+    L.globalAlpha = ctx.globalAlpha;
+    L.globalCompositeOperation = 'source-over';
+    fn(L);
+    L.restore();
+    fxSoftTopL.drawn = true;
+}
+// 띠 4칸 (2px 칸 · 위에서부터 채움 25 · 50 · 75 · 87.5%) — 줄마다 8칸 순서표를 3칸씩 밀어 남김 (어느 위 끝에서도 8칸 중 정확히 2 · 4 · 6 · 7 ·
+//   줄마다 구멍이 엇갈려 일직선이 안 생김 — 75% 줄 구멍이 불기둥을 가로지르는 점선으로 읽히던 것 · 4 × 4 Bayer 한 줄만 써서 위 끝에 따라 50 · 50 · 100 · 75% 가 되던 것, 픽셀 검사원 #107)
+//   지울 칸 모양은 (폭 · 위 끝 · 칸) 마다 한 번 만들어 둠
+const FX_SOFT_FILL = [0.25, 0.5, 0.75, 0.875];
+const FX_SOFT_ORD8 = [0, 4, 2, 6, 1, 5, 3, 7];
+let fxSoftHoles = null;
+// 위 끝 층을 거치지 않고 큰 캔버스에 점으로 그리는 것 (3:3 합동 김 — 픽셀 검사원 #107 띠 없이 위 끝에 닿던 것) — 그 점 자리가 띠 무늬로 남는 칸인지 (위 끝 위는 안 남음)
+function fxBandKeep(x, y) {
+    const top = fxStageTop();
+    if (!(top > 0) || y >= top + FX_SOFT_FILL.length * 2) {
+        return true;
+    }
+    if (y < top) {
+        return false;
+    }
+    const r = Math.floor((y - top) / 2);
+    return FX_SOFT_ORD8[(Math.floor(x / 2) + 3 * r) % 8] < FX_SOFT_FILL[r] * 8;
+}
+function fxSoftTopTrim(L) {
+    const top = fxStageTop();
+    if (!L.cv || !L.drawn || top <= 0) {
+        return;
+    }
+    const c = L.ctx;
+    const dpr = window.devicePixelRatio || 1;
+    const k = Math.max(1, Math.round(2 * dpr));
+    const y0 = Math.round((top * dpr) / k) * k;
+    const w = L.cv.width;
+    const key = `${k}:${y0}:${w}`;
+    if (fxSoftHoles?.key !== key) {
+        const path = new Path2D();
+        for (let r = 0; r < FX_SOFT_FILL.length; r++) {
+            for (let cx = 0; cx * k < w; cx++) {
+                if (FX_SOFT_ORD8[(cx + 3 * r) % 8] >= FX_SOFT_FILL[r] * 8) {
+                    path.rect(cx * k, y0 + r * k, k, k);
+                }
+            }
+        }
+        fxSoftHoles = { key, path };
+    }
+    c.save();
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.clearRect(0, 0, w, y0);
+    c.globalCompositeOperation = 'destination-out';
+    c.fillStyle = '#000';
+    c.fill(fxSoftHoles.path);
+    c.restore();
+}
 // 맞는 순간 (합동 번쩍이 덮는 장면) — 자기 둘레 참가자 입자 · 발사기를 한 번에 뺌 (진짜 그림이 같은 장면에 돌아옴)
 function fxJointDrop(J) {
     for (let i = moveParticles.length - 1; i >= 0; i--) {
@@ -1525,6 +1663,20 @@ drawParticle = function (ctx, p) {
             fxDrawParticle0(J.top.ctx, p);
             return;
         }
+        // 위 끝 층 (#107 — 기둥 · 회오리 · 날씨) — 장 끝에 위 끝을 다듬어 큰 캔버스로 (fxSoftTopTrim)
+        if (p._softTop) {
+            fxSoftTopWant(250);
+        }
+        if (ctx === moveCtx && !p._full && !p._flash && !p._screen && !p._ui && (fxSoftGens.has(p._g) || p._softTop) && fxSoftTopL.ctx && fxSoftTopOn()) {
+            fxSoftTopL.drawn = true;
+            fxDrawParticle0(fxSoftTopL.ctx, p);
+            return;
+        }
+    } else if (p._softTop && ctx === moveCtx && fxSoftTopL.ctx && (fxSoftTopWant(250), true)) {
+        // 번호 없는 필살기의 위 끝 층 한 입자 (fx-sky sc.soft)
+        fxSoftTopL.drawn = true;
+        fxDrawParticle0(fxSoftTopL.ctx, p);
+        return;
     }
     fxDrawParticle0(ctx, p);
 };
@@ -1895,6 +2047,7 @@ function fxStairBlit(v, now) {
 // 그리기 한 장 — 멈춘 번호는 움직이지 않고 그 자리에 · 줄기 보기 번호는 따로 그려 계단 · 앞끝으로
 const fxMoveTick0 = moveTick;
 moveTick = function (now) {
+    fxFrameId += 1;
     // 그리기가 멈췄다 돌아오면 (패널을 가림) 그 사이는 0.25초까지만
     const dt = fxFrozenLast ? Math.min(250, now - fxFrozenLast) : 0;
     fxFrozenLast = now;
@@ -1938,6 +2091,9 @@ moveTick = function (now) {
     if (J) {
         fxStairCanvas(J.top);
     }
+    if (fxSoftTopOn()) {
+        fxStairCanvas(fxSoftTopL);
+    }
     try {
         fxBackBegin();
         fxMoveTick0(now);
@@ -1961,7 +2117,398 @@ moveTick = function (now) {
     if (J) {
         fxLayerBlit(J.top);
     }
+    if (fxSoftTopOn()) {
+        fxSoftTopTrim(fxSoftTopL);
+        fxLayerBlit(fxSoftTopL);
+    } else if (fxSoftTopL.ctx && fxSoftTopL.drawn) {
+        // 층이 꺼질 때 비움 — 다음에 켜진 첫 장에 옛 그림이 한 장 같이 붙지 않게 (코드 리뷰어 #107)
+        fxSoftTopL.ctx.save();
+        fxSoftTopL.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        fxSoftTopL.ctx.clearRect(0, 0, fxSoftTopL.cv.width, fxSoftTopL.cv.height);
+        fxSoftTopL.ctx.restore();
+        fxSoftTopL.drawn = false;
+    }
+    fxCutDown(now);
+    fxOnTopDraw(now);
+    // 입자가 다 끝나 루프가 멈춰도 맨 위 그리기 (대상 다시 그리기 등) 가 남았으면 한 장 더 — 마지막 장에 덧그린 그림이 지워지지 않고 남던 것 (코드 리뷰어 #107 높음)
+    if (fxOnTops.length && !moveRaf && moveCtx) {
+        moveRaf = requestAnimationFrame(moveTick);
+    }
 };
+// 맨 위 그리기 — 장 끝 (판 · 층을 다 붙인 뒤) 에 그림 (fxOnTop(fn, ms) — fn(ctx) · 화면 좌표). 1:1 필살기 입자는 판 캔버스에 그려 장 끝에 큰 캔버스로 붙어,
+//   큰 캔버스에 z 1 로 그린 꼭두각시도 그 밑에 깔리던 것 (하이퍼보이스 앞장 다시 그리기 — #108 아트 1바퀴 ②)
+// 진화 (S22) 흰 실루엣 옛 ↔ 새 바뀜 — 초당 2.8번 일정하게 (깜빡임 1초 3번 규칙 · fx-sky 메가 넷과 같은 값 — 초당 2 → 12번으로 빨라지던 것, 10-25 결정 · bugs 1800)
+//   시험 fx/evolve-flip.test.ts 가 이 줄을 읽음 (간격 ≥ 0.34초)
+const EVO_FLIP_HZ = 2.8;
+const fxOnTops = [];
+// gen = 그 연출 번호 — 멈춘 (clear · 끊김) 연출 것은 바로 뺌
+function fxOnTop(fn, ms, gen) {
+    fxOnTops.push({ fn, until: performance.now() + ms, gen });
+    if (!moveRaf && moveCtx) {
+        moveRaf = requestAnimationFrame(moveTick);
+    }
+}
+function fxOnTopDraw(now) {
+    if (!fxOnTops.length || !moveCtx) {
+        return;
+    }
+    const dpr = window.devicePixelRatio || 1;
+    for (let i = fxOnTops.length - 1; i >= 0; i--) {
+        const d = fxOnTops[i];
+        if (now >= d.until || (d.gen !== undefined && (d.gen <= fxDeadBelow || fxKilled.has(d.gen)))) {
+            fxOnTops.splice(i, 1);
+            continue;
+        }
+        moveCtx.save();
+        moveCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        moveCtx.globalAlpha = 1;
+        moveCtx.globalCompositeOperation = 'source-over';
+        try {
+            moveInFrame(null, () => d.fn(moveCtx));
+        } catch (err) {
+            ultError('on top', err);
+            fxOnTops.splice(i, 1);
+        } finally {
+            moveCtx.restore();
+        }
+    }
+}
+// ── 쓰러진 포켓몬 위 연출 지우기 (#107 UX 큼 1 — 대상 다시 그리기는 쓰러짐 시작에 끝나서, 그 뒤 연출이 누운 회색 모습을 계속 덮던 것 · #1706 같은 종류 세 번째) ──
+// 쓰러짐이 시작된 그림 (1:1 = pg-fainted · pg-down — 벌러덩은 넘어짐 기다림 --pg-ko-wait 뒤 · 3:3 = pg-team-down) 의 모양 + 1칸 위 연출 캔버스를 지움 ·
+//   테 칸에는 화면 전체 판 · 꼭두각시는 다시 · 모든 필살기 · 기술 공통 · 게임 화면만
+const FX_DOWN_PAD = 1; // 그림 점 칸
+// 1:1 쓰러짐 연출 (game.css pg-ko — --pg-ko-wait 만큼 늦게 시작) 이 시작했는지 = 그 CSS 애니메이션의 지금 시간 ≥ 늦춤 (처음 본 장 + wait 로 세면 늦게 본 경우 어긋나던 것 — 코드 리뷰어 #107)
+function fxKoStarted(body) {
+    if (!body.classList.contains('pg-ko-late')) {
+        return true;
+    }
+    // 늦게 넘어지는 판은 이름이 따로 (game.css pg-ko-late · pg-ko-down-late · pg-faint-late) — 'pg-ko' 만 찾아 1:1 에서 한 번도 안 맞던 것 (디자인 #107 UX 3바퀴 헤비봄버 구덩이)
+    const a = body.getAnimations?.().find((x) => /^pg-(ko|faint)/.test(x.animationName));
+    if (!a) {
+        return false;
+    }
+    const delay = Number(a.effect?.getTiming?.().delay) || 0;
+    return (Number(a.currentTime) || 0) >= delay;
+}
+// 캔버스에 그린 포켓몬 그림 (쓰는 쪽 꼭두각시 · 잔상) — 장마다 적어 두고, 쓰러진 칸을 지운 뒤 지운 칸 안에만 다시 그림
+//   (디자인 #107 UX 2바퀴 — 내리꽂는 리자몽 아랫몸이 지우기 상자 윗변에 일자로 잘리던 것 · 돌진 · 내려찍기 공통) · 쓰러진 포켓몬 그림은 빼고
+const fxMonDraws = [];
+let fxMonDrawsAt = -1;
+// 큰 캔버스로 그대로 붙는 판 — 큰 캔버스 · 위 끝 층 (헤비봄버처럼 번호째 이 층 — 위 끝 위만 다듬음) · 합동 층 · 지금 그리는 무대 상자 판
+//   (같은 크기 · 같은 기기 좌표라 그 변환 그대로 다시 그림) · 계단 상자는 빼고
+function fxMainCtx(ctx) {
+    return ctx === moveCtx || ctx === fxSoftTopL.ctx || (!!fxJointTop && ctx === fxJointTop.top.ctx) || (!!moveFrame && ctx === moveFrame.ctx && !moveFrame.stair?.dy);
+}
+// 그린 판 — null = 그대로 붙음 · 줄기 보기 (1:1 필살기 입자 — 장 끝에 칸마다 계단 dy 로 붙음, fxStairBlit) · undefined = 모르는 판 (안 적음)
+//   (큰 캔버스만 보아 1:1 꼭두각시를 못 적어 헤비봄버 꼭두각시가 지운 칸에서 사라지던 것, #107 개발 확인)
+function fxMonLayer(ctx) {
+    if (fxMainCtx(ctx)) {
+        return null;
+    }
+    if (fxViewDrawing) {
+        for (const v of fxBeamView.values()) {
+            if (v.ctx === ctx) {
+                return v;
+            }
+        }
+    }
+    return undefined;
+}
+function fxMonNote(ctx, src, img, w, h) {
+    const v = fxMonLayer(ctx);
+    if (v === undefined || !fxInGame()) {
+        return;
+    }
+    if (fxMonDrawsAt !== fxFrameId) {
+        fxMonDrawsAt = fxFrameId;
+        fxMonDraws.length = 0;
+    }
+    fxMonDraws.push({ m: ctx.getTransform(), a: ctx.globalAlpha, f: ctx.filter, src, img, w, h, v });
+}
+// 화면 전체 판 (어둠 _full · 번쩍 _flash · 물들임 _screen) 중 이번 장에 그려진 것 — drawParticle 이 빼는 것 (합동 쏘는 쪽 번쩍 · 참가자 어둠 · 덮음 재기) 은 빼고
+function fxScreenLayer(p) {
+    if (!(p._full || p._flash || p._screen) || p.life >= p.max) {
+        return false;
+    }
+    if (window.__fxMeasure && (p._full || p._flash)) {
+        return false;
+    }
+    if (p._g !== undefined && (((p._flash || p._screen) && fxNoFlashGens.has(p._g)) || (fxJointTop && p._full && fxJointTop.gens.has(p._g)))) {
+        return false;
+    }
+    return true;
+}
+function fxCutDown() {
+    if (!moveCtx || !fxInGame()) {
+        return;
+    }
+    const els = [];
+    // 1:1 = 필살기로 쓰러뜨려 늦게 넘어지는 칸만 (덮는 연출이 남는 경우 · 보통 기술로 쓰러뜨린 칸의 쓰러짐 금빛 별빛은 그대로) — 넘어짐이 시작된 뒤부터
+    for (const body of document.querySelectorAll('#pokemon-game .pg-fighter[data-ko] .pg-fx-body.pg-ko-late')) {
+        if (!fxKoStarted(body)) {
+            continue;
+        }
+        const img = body.querySelector('img');
+        if (img) {
+            els.push(img);
+        }
+    }
+    // 3:3 = 필살기 연출이 도는 동안만
+    if (fxGame) {
+        for (const q of fxGameDown()) {
+            els.push(q.el);
+        }
+    }
+    // 다 사라진 몸 (KO 끝 · 볼로 돌아감) 은 뺌 — 그 자리에 단데기 모양 얼룩이 0.3초 남던 것 (디자인 #107 UX 5바퀴 작음 ①)
+    for (let i = els.length - 1; i >= 0; i--) {
+        if (fxDownAlpha(els[i]) < 0.05) {
+            els.splice(i, 1);
+        }
+    }
+    if (!els.length) {
+        return;
+    }
+    const dpr = window.devicePixelRatio || 1;
+    // ① 지울 모양 M — 쓰러진 그림 모양 (지금 기울기 · 방향 그대로) 을 FX_DOWN_PAD 칸 넓힌 것 (네모로 지워 어둠 · 물들임 · 구덩이에 네모 구멍이 나던 것 — 디자인 #107 UX 3바퀴 신속 · 헤비봄버 ·
+    //   2칸째 바둑판 테는 1 ~ 2px 톱니로 보여 뺌 — 4바퀴)
+    const M = fxCutCanvas('m');
+    for (const el of els) {
+        fxDownShape(M, el, FX_DOWN_PAD);
+    }
+    // ② 그 자리에 다시 그릴 것 O — 화면 전체 판 (어둠 · 번쩍 · 물들임 — 같은 때 모습 · 같은 순서 · 어둠은 destination-over 라 번쩍 밑으로 · HP 묶음 · 밝힌 구멍도 그 판 그대로) — 테 칸에만 ·
+    //   쓰러진 그림 자리는 판 없이 (어둠만 다시 깔면 물들임 · 불 속에서 누운 몸이 검은 그림자로 보이다 어둠이 걷히면 갑자기 회색 — 디자인 #107 UX 4바퀴) + 꼭두각시 · 잔상
+    const O = fxCutCanvas('o');
+    for (const layer of [-1, 0, 1]) {
+        for (let i = moveParticles.length - 1; i >= 0; i--) {
+            const p = moveParticles[i];
+            const z = p.z ?? 0;
+            if ((z < 0 ? -1 : z > 0 ? 1 : 0) !== layer || !fxScreenLayer(p)) {
+                continue;
+            }
+            O.save();
+            try {
+                if (p._f) {
+                    O.translate(p._f.x, p._f.y);
+                    moveInFrame(p._f, () => fxDrawParticle0(O, p));
+                } else {
+                    fxDrawParticle0(O, p);
+                }
+            } catch {
+                // 그 판만 — 다음 장에 원래 자리에서 다시 그려짐
+            } finally {
+                O.restore();
+            }
+        }
+    }
+    O.save();
+    O.globalCompositeOperation = 'destination-out';
+    for (const el of els) {
+        // 흐려지는 만큼만 (KO 0.8 → 0.55 → 0.3) — 다 사라진 몸 자리에 판 없는 얼룩이 남지 않게
+        O.globalAlpha = fxDownAlpha(el);
+        fxDownShape(O, el, 0);
+    }
+    O.restore();
+    if (fxMonDrawsAt === fxFrameId) {
+        const down = new Set(els);
+        O.save();
+        for (const d of fxMonDraws) {
+            if (down.has(d.src)) {
+                continue;
+            }
+            let m = d.m;
+            if (d.v) {
+                // 줄기 보기 — 그림 가운데 칸의 계단 dy 만큼 (fxStairBlit 과 같게)
+                const c = m.transformPoint(new DOMPoint(0, 0));
+                m = new DOMMatrix([1, 0, 0, 1, 0, fxStairDy(d.v, c.x / dpr) * dpr]).multiply(m);
+            }
+            O.setTransform(m);
+            O.globalAlpha = d.a;
+            O.filter = d.f;
+            O.drawImage(d.img, -d.w / 2, -d.h / 2, d.w, d.h);
+        }
+        O.restore();
+    }
+    // ③ 큰 캔버스에서 M 모양을 지우고 · M 모양 안의 O 를 붙임
+    O.save();
+    O.setTransform(1, 0, 0, 1, 0, 0);
+    O.globalCompositeOperation = 'destination-in';
+    O.drawImage(M.canvas, 0, 0);
+    O.restore();
+    moveCtx.save();
+    moveCtx.setTransform(1, 0, 0, 1, 0, 0);
+    moveCtx.globalAlpha = 1;
+    moveCtx.globalCompositeOperation = 'destination-out';
+    moveCtx.drawImage(M.canvas, 0, 0);
+    moveCtx.globalCompositeOperation = 'source-over';
+    moveCtx.imageSmoothingEnabled = false;
+    moveCtx.drawImage(O.canvas, 0, 0);
+    moveCtx.restore();
+}
+// 쓰러진 몸이 보이는 정도 — 몸 상자 · 그림의 지금 opacity (KO 애니메이션 값) · 숨김이면 0
+function fxDownAlpha(el) {
+    if (!el.isConnected) {
+        return 0;
+    }
+    let a = 1;
+    for (const n of [el, el.closest('.pg-fx-body')]) {
+        if (!n) {
+            continue;
+        }
+        const cs = getComputedStyle(n);
+        if (cs.visibility === 'hidden' || cs.display === 'none') {
+            return 0;
+        }
+        a *= Number(cs.opacity);
+    }
+    return a;
+}
+// 쓰러진 칸 지우기 판 두 장 (큰 캔버스와 같은 크기 · 장마다 비우고 화면 좌표로)
+const fxCutL = {};
+function fxCutCanvas(key) {
+    const w = moveCtx.canvas.width;
+    const h = moveCtx.canvas.height;
+    if (!fxCutL[key]) {
+        fxCutL[key] = document.createElement('canvas').getContext('2d');
+    }
+    const x = fxCutL[key];
+    if (x.canvas.width !== w || x.canvas.height !== h) {
+        x.canvas.width = w;
+        x.canvas.height = h;
+    }
+    const dpr = window.devicePixelRatio || 1;
+    x.setTransform(1, 0, 0, 1, 0, 0);
+    x.globalCompositeOperation = 'source-over';
+    x.globalAlpha = 1;
+    x.filter = 'none';
+    x.clearRect(0, 0, w, h);
+    x.setTransform(dpr, 0, 0, dpr, 0, 0);
+    x.imageSmoothingEnabled = false;
+    return x;
+}
+// 쓰러진 그림 모양을 n 칸 넓혀 찍음 — 지금 모습 그대로 (벌러덩 기울기 = 몸 상자 transform · 그림 rotate · 방향 · 같은 칸 크기). 그림 도구가 없으면 상자 네모
+function fxDownShape(x, el, n) {
+    const r = fxRect0.call(el);
+    if (r.width < 1 || r.height < 1 || !el.naturalWidth) {
+        return;
+    }
+    const K = ULT_KIT;
+    if (!K.drawMon) {
+        x.fillStyle = '#000';
+        x.fillRect(r.left - n * 2, r.top - n * 2, r.width + n * 4, r.height + n * 4);
+        return;
+    }
+    const body = el.closest('.pg-fx-body');
+    const t = body ? getComputedStyle(body).transform : 'none';
+    const m = t && t !== 'none' ? new DOMMatrix(t) : null;
+    const rot = (m ? Math.atan2(m.b, m.a) : 0) + ((parseFloat(getComputedStyle(el).rotate) || 0) * Math.PI) / 180;
+    const w = el.offsetWidth || r.width;
+    const h = (w * el.naturalHeight) / el.naturalWidth;
+    const cell = Math.max(1, Math.round(w / el.naturalWidth));
+    const cx = r.left + r.width / 2;
+    const bottom = r.top + r.height / 2 + h / 2;
+    const left = el.classList.contains('pg-face-left');
+    for (let dy = -n; dy <= n; dy++) {
+        for (let dx = -n; dx <= n; dx++) {
+            if (Math.abs(dx) + Math.abs(dy) <= n) {
+                K.drawMon(x, el, cx + dx * cell, bottom + dy * cell, w, left, 1, '#000', rot);
+            }
+        }
+    }
+}
+// ── 대상 다시 그리기 (#107 — 기획 10-25: 필살기가 맞는 포켓몬을 0.5초 넘게 덮지 않게 · 크기는 줄이지 않고 대상을 연출 맨 위에) ──
+// 구간 = ULT_COVER (dev/ult-cover.py --data 가 860 × 187 에서 잰 가림 0.3초 넘는 구간 → make-moves) · 열쇠 = 틀 · 옵션 (색 · track 빼고) · o = 1:1 · j = 3:3 장면 전환 합동
+// 맞는 모습 (디자인 10-25): 다시 그리기 시작에 흰 실루엣 0.06초 한 번 · 처음 0.6초만 0.12초마다 좌우 ±2px · 몸 바깥 1칸 밝은 테 (그 연출 cols[1]) + 그 바깥 1칸 #1a1626 ·
+//   쓰러짐 (회색 주저앉기 · 벌러덩 — 1:1 은 넘어짐 기다림 --pg-ko-wait 이 끝날 때 · 3:3 pg-team-down) 이 시작하면 끝
+// 구간 앞 · 뒤 여유 (ms — 패널 폭마다 덮는 때가 조금 다름) · 이만큼 안 떨어진 구간은 하나로 (테가 켜졌다 꺼졌다 하지 않게)
+const FX_COVER_PAD = [150, 250];
+const FX_COVER_JOIN_MS = 600;
+const FX_COVER_RIM = '#1a1626';
+const FX_COVER_SHAKE = { px: 2, step: 0.12, sec: 0.6, white: 0.06 };
+// 구간 끝 뒤 넘어짐을 기다리며 이어 그리는 최대 ms (넘어짐 기다림 0.62초 + 여유)
+const FX_COVER_WAIT_MS = 1500;
+function fxCoverSig(e) {
+    const o = e[2] || {};
+    return JSON.stringify([e[1], Object.keys(o).filter((k) => k !== 'c' && k !== 'track').sort().map((k) => [k, o[k]])]);
+}
+/** 다시 그릴 구간 [[본편 시작부터 ms, 끝 ms] …] — 앞뒤 여유를 붙이고 가까운 것은 하나로 */
+function fxCoverSpans(e) {
+    const t = typeof ULT_COVER !== 'undefined' ? ULT_COVER[fxCoverSig(e)] : null;
+    const runs = (t && (e[2]?.track ? t.j : t.o)) || [];
+    const out = [];
+    for (const [a, n] of runs) {
+        const s0 = Math.max(0, a - FX_COVER_PAD[0]);
+        const s1 = a + n + FX_COVER_PAD[1];
+        if (out.length && s0 <= out[out.length - 1][1] + FX_COVER_JOIN_MS) {
+            out[out.length - 1][1] = Math.max(out[out.length - 1][1], s1);
+        } else {
+            out.push([s0, s1]);
+        }
+    }
+    return out;
+}
+/** B (fxActor) 를 ms 동안 연출 맨 위에 맞는 모습으로 — 칸 상자에 __fxRedrawUntil 을 적음 (dev/ult-cover.py 가 그동안은 가림으로 안 셈) */
+function fxCoverRedraw(gen, B, ms, color) {
+    if (window.__fxNoCoverRedraw || !ULT_KIT.drawMon) {
+        return;
+    }
+    const box = B.collision;
+    const t0 = performance.now();
+    let done = false;
+    let x0 = null;
+    fxOnTop((ctx) => {
+        // 게임이 그림 (<img>) 을 새로 바꿔 넣으면 처음 el 은 문서에서 빠짐 — 칸 상자 안 img 를 다시 찾음
+        const img = done ? null : B.el?.isConnected ? B.el : box?.isConnected ? box.querySelector('.pg-sprite') || box.querySelector('img') : null;
+        if (!img?.naturalWidth) {
+            return;
+        }
+        // 연출이 대상을 숨기고 꼭두각시로 그리는 동안은 안 그림 (뮤츠 사이코키네시스 — 둘로 보이던 것, 코드 리뷰어 #107)
+        if (img.style.visibility === 'hidden' || img.style.opacity === '0') {
+            return;
+        }
+        const now = performance.now();
+        // 쓰러짐이 시작하면 끝 — 1:1 벌러덩은 넘어짐 기다림 (맞은 모습으로 섬) 이 끝날 때 (pg-ko 애니메이션 시간으로)
+        const body = img.closest('.pg-fx-body');
+        const fallen = !!body && (body.classList.contains('pg-fainted') || body.classList.contains('pg-down'));
+        if (img.closest('.pg-team-down') || (fallen && fxKoStarted(body))) {
+            done = true;
+            return;
+        }
+        // 구간이 끝났어도 쓰러져 넘어짐을 기다리는 동안은 이어 그림 (구간 끝 → 넘어짐 사이 0.2초 동안 대상이 구덩이 밑에 사라지던 것 — 디자인 #107 UX 4바퀴 헤비봄버)
+        if (now - t0 > ms && !fallen) {
+            done = true;
+            return;
+        }
+        const r = img.getBoundingClientRect();
+        const w = img.offsetWidth || r.width;
+        if (w < 2) {
+            return;
+        }
+        box.__fxRedrawUntil = now + 120;
+        const t = (now - t0) / 1000;
+        const cell = Math.max(1, Math.round(w / img.naturalWidth));
+        const dx = t < FX_COVER_SHAKE.sec ? (Math.floor(t / FX_COVER_SHAKE.step) % 2 ? 1 : -1) * FX_COVER_SHAKE.px : 0;
+        // 흔들리는 0.6초는 처음 잰 자리 + dx (게임의 맞는 흔들림과 겹쳐 폭 6px 로 넓어지던 것 — 픽셀 검사원 #107 작음) · 그 뒤는 게임 자리를 따라감
+        x0 ??= r.left + r.width / 2;
+        const x = t < FX_COVER_SHAKE.sec ? x0 + dx : r.left + r.width / 2;
+        // 가운데 기준 (기울어진 그림도 — 상자 가운데 = 그림 가운데) · 기울기는 그림의 rotate 그대로
+        const bottom = r.top + r.height / 2 + (w * img.naturalHeight) / img.naturalWidth / 2;
+        const rot = ((parseFloat(getComputedStyle(img).rotate) || 0) * Math.PI) / 180;
+        const left = img.classList.contains('pg-face-left');
+        const K = ULT_KIT;
+        for (const [ox, oy] of [[2, 0], [-2, 0], [0, 2], [0, -2], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+            K.drawMon(ctx, img, x + ox * cell, bottom + oy * cell, w, left, 1, FX_COVER_RIM, rot);
+        }
+        for (const [ox, oy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            K.drawMon(ctx, img, x + ox * cell, bottom + oy * cell, w, left, 1, color, rot);
+        }
+        // 그림은 밝기 85% — 가장 밝은 빛줄기 위에서 원래 색 그대로라 스티커처럼 보이던 것 (#107 아트 작음 ①) · 번쩍 없이
+        if (t >= FX_COVER_SHAKE.white) {
+            ctx.filter = 'brightness(0.85)';
+        }
+        K.drawMon(ctx, img, x, bottom, w, left, 1, t < FX_COVER_SHAKE.white ? '#ffffff' : null, rot);
+        ctx.filter = 'none';
+    }, ms + FX_COVER_WAIT_MS, gen);
+}
 // 멈춘 번호 입자 · 발사기를 그 자리에 그리고 되돌림 (틱이 던져도)
 function fxPutBack(held, heldE) {
     if (held) {
@@ -2485,6 +3032,8 @@ window.__fxDebug = {
     },
     // 번쩍 판 (화면 전체 흰색) 이 떠 있는지 — 덮음 재기에서 그 순간은 뺌 (캔버스 점 수로 재서)
     flashing: () => moveParticles.some((q) => q._flash),
+    // 쓰러진 칸 지우기 — 이번 장에 적은 포켓몬 그림 수 · 화면 전체 판 수 (#107 확인)
+    cut: () => ({ frame: fxFrameId, mon: fxMonDrawsAt === fxFrameId ? fxMonDraws.length : -1, screens: moveParticles.filter(fxScreenLayer).length }),
 };
 
 window.pokemonFx = {
@@ -2620,9 +3169,17 @@ window.pokemonFx = {
         if (o?.stage && !o?.sub && fxTeamOn()) {
             return fxStageUlt(A, B, entry, gen, onHit, o);
         }
+        // 위 끝 층 (#107) — 기둥 · 회오리 · 날씨 필살기 입자에 번호를 붙여 따로 그림 (끝나면 뺌 — 아래 total 뒤)
+        const soft = fxInGame() && fxSoftTopOk(entry);
+        if (soft) {
+            fxTagged.add(gen);
+            fxSoftGens.add(gen);
+        }
         // o.sub = 반격기 — 패널 전체 번쩍 없음 (fxFlashCap)
         fxGame = { A, B, gen, tick: setInterval(fxGameTick, 100), onHit: tm ? null : onHit, hit: false, noFlash: !!o?.sub };
         let total = 0;
+        // 본편 시작 (기 모으기 + 컷인 뒤 — 대상 다시 그리기 구간의 기준)
+        let mainStart = 0;
         try {
             // o.quick = 같은 전투에서 다시 보는 필살기 — 컷인 없이 짧게 (ult/core.js ULT_QUICK_INTRO_MS)
             // 쓰기 전 기 모으기 (일반 모드 꾹 누르기와 같은 연출, 2026-10-20 태현 님) — 첫 필살기 0.8초 · 다시 보는 필살기 0.4초 · 반격기 (sub) 는 바로
@@ -2634,6 +3191,7 @@ window.pokemonFx = {
             const mainAt = typeof o?.mainAt === 'number' ? o.mainAt : null;
             // o.noIntro = 1:1 컷인 없이 (3:3 장면 전환 합동 — 이름은 화면 큰 컷인, #99)
             const introMs = o?.noIntro ? 0 : o?.quick ? ULT_QUICK_INTRO_MS : ULT_INTRO_MS;
+            mainStart = charge + introMs;
             total = fxWithTimers(gen, () => useUltimate(A, entry, { quick: !!o?.quick, charge, ...(shift ? { extraMs: shift } : {}), ...(o?.sub ? { sub: o.sub } : {}), ...(o?.noIntro ? { noIntro: true } : {}) })) || 0;
             if (tmAll && total) {
                 const at0 = charge + introMs + (mainAt ?? tmAll.main) + shift;
@@ -2667,6 +3225,19 @@ window.pokemonFx = {
             }
         } catch (err) {
             ultError('game ult', err);
+        }
+        if (soft) {
+            setTimeout(() => fxSoftGens.delete(gen), (total || 0) + 1500);
+        }
+        // 대상 다시 그리기 (#107) — 덮는 구간 (본편 시작부터) 마다 맞는 포켓몬을 연출 맨 위에
+        if (total && fxInGame()) {
+            const spans = fxCoverSpans(entry);
+            if (spans.length) {
+                const col = ultCols(entry[2] || {}, entry[1])[1];
+                for (const [a, b] of spans) {
+                    setTimeout(fxGuard(gen, () => fxCoverRedraw(gen, B, b - a, col)), mainStart + a);
+                }
+            }
         }
         if (!total) {
             fxGameStop(true);
@@ -2826,11 +3397,15 @@ window.pokemonFx = {
                     return;
                 }
                 try {
-                    // 대비 장면 — 동료 그림을 어둡게 (연출 층 위라 어둠 · 하양에 안 덮임) · 끝나면 되돌림
-                    const contrast = fxJ11?.g === g && fxJ11Contrast(fxJ11);
-                    if (contrast !== st.contrast) {
+                    // 대비 장면 — 동료 그림 (연출 층 위라 어둠 · 하양에 안 덮임): 'dark' = 어둡게 0.35 · 'white' · 'neg' (하양 · 반전 장) = #1a1626 한 색 실루엣
+                    //   (앞장 실루엣은 연출 틀이 그림 — 디자인 #108) · 끝나면 되돌림
+                    const cv = fxJ11?.g === g ? fxJ11?.track?.contrast || false : false;
+                    const contrast = !!cv;
+                    if (cv !== st.contrastV) {
+                        st.contrastV = cv;
                         st.contrast = contrast;
-                        allies.forEach((a) => a.A?.el && (a.A.el.style.filter = contrast ? 'brightness(0.35)' : ''));
+                        const filt = cv === 'white' || cv === 'neg' ? 'brightness(0) invert(0.09)' : cv ? 'brightness(0.35)' : '';
+                        allies.forEach((a) => a.A?.el && (a.A.el.style.filter = filt));
                     }
                     t11Gather(ctx, { now: performance.now(), allies, kL, track, tracked, gatherTo, st, LA, hitEnd: t0 + (hitAt > 0 ? hitAt : 2000), onGather, onGatherEnd, leadType: o.types?.[lead.i] || 'normal', kind, foe, contrast });
                 } catch (err) {
@@ -2840,8 +3415,9 @@ window.pokemonFx = {
         });
         // 대비 장면 중에 그림이 끝나도 (끊김 · 접힘) 동료 어둡게를 되돌림
         setTimeout(() => {
-            if (st.contrast) {
+            if (st.contrastV) {
                 st.contrast = false;
+                st.contrastV = false;
                 allies.forEach((a) => a.A?.el && (a.A.el.style.filter = ''));
             }
         }, total + 400);
@@ -2857,9 +3433,14 @@ window.pokemonFx = {
                 const pairs = [leadC, ...allies.map((a) => a.c)].map((c) => [c[1], c[2]]);
                 // 끝을 동료 타입으로 (합동에서만 — 혼자 판 터짐 + 고리 하나라 "증기 폭발" 인데 김이 안 보이던 것, 아트 #103 ①) — 물 = 김 + 물 왕관 · 풀 = 잎 · 그 밖 = 동료 별
                 try {
-                    t11Finale(allies.map((a) => a.type), tb, k);
-                    if (track.uniq && (o.types?.[lead.i] || 'normal') === 'grass') {
+                    // 일반 틀 풀 앞장 = 잎 16 (+ 페어리 동료 하트 8) · 땅 고리 — 그 동료 몫 (풀 잎 10 · 페어리 하트 10) 은 빼고 (#108 디자인 — 상대 합동 숲의 분노)
+                    const grassLead = (o.types?.[lead.i] || 'normal') === 'grass';
+                    const types = allies.map((a) => a.type);
+                    t11Finale(grassLead && !track.uniq ? types.filter((t) => t !== 'grass' && t !== 'fairy') : types, tb, k);
+                    if (grassLead && track.uniq) {
                         t11LeafBurst(tb, k);
+                    } else if (grassLead) {
+                        t11ForestBurst(tb, k, types, foe);
                     }
                 } catch (err) {
                     ultError('joint11 finale', err);
@@ -3878,8 +4459,8 @@ window.pokemonFx = {
                         const an = (j / dots) * Math.PI * 2;
                         dotAt(ctx, px, s, cx + Math.cos(an) * ring, cy + Math.sin(an) * ring, j % 2 ? '#dfe9ff' : '#ffffff', 1, 1);
                     }
-                    // 하얀 실루엣이 옛 ↔ 새 로 점점 빠르게 (초당 2 → 12번, 끝 10% 는 새 모습) · 바뀔 때마다 부풀었다 줄어듦
-                    const flips = (L - T0) * (2 + 5 * k);
+                    // 하얀 실루엣이 옛 ↔ 새 로 일정하게 (EVO_FLIP_HZ · 끝 10% 는 새 모습) · 바뀔 때마다 부풀었다 줄어듦
+                    const flips = (L - T0) * EVO_FLIP_HZ;
                     const showNew = k > 0.9 || Math.floor(flips) % 2 === 1;
                     const swell = 1 + 0.12 * Math.sin((flips % 1) * Math.PI);
                     evoDraw(ctx, showNew ? newImg : oldImg, showNew ? n : a, swell, '#ffffff', 1);

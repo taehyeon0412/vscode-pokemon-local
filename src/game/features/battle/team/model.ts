@@ -5,7 +5,7 @@
  * 칸 0 · 1 · 2 = 위 (뒷줄 · 바깥) → 아래 (앞줄 · 가운데) = 발밑 판 키 1 · 2 · 3.
  */
 import { TIMING } from '../../../core/balance';
-import { teamClashSure, teamGather, teamLayout, teamUltLevel, teamUltOpen, type Side, type TeamBattle } from '../../../core/engine';
+import { teamClashSure, teamGather, teamLayout, teamUltLevel, teamUltOpen, type Side, type TeamBattle, type TeamPopup } from '../../../core/engine';
 import { speciesOf } from '../../../data';
 
 export interface TeamGeo {
@@ -189,6 +189,19 @@ export function bandDrawn<T extends { kind: string }>(band: T | null, viewing: b
  *  맞은 칸 (1:1 연출이 민 자리가 한 번에 풀려 90px 순간 이동한 뒤 걸어가던 것 — #96 UX 5바퀴 큼 2) */
 export function viewPopsBack(view: { kind: 'solo' | 'joint'; side: Side; from: readonly number[]; to: { side: Side; slot: number } }, side: Side, slot: number): boolean {
   return (view.kind === 'joint' && side === view.side && view.from.includes(slot)) || (side === view.to.side && slot === view.to.slot);
+}
+
+/**
+ * 장면 전환 피해 칩 (ideas 717 — 1:1 자리로 옮긴 동안 판 · 숫자를 숨겨 피해가 안 보이던 것): 장면이 시작된 뒤 (afterId 다음 순번) 맞는 쪽에 뜬 피해 숫자를 합계 하나로.
+ * 회복 · 말은 뺌 · 모양은 센 쪽 (상성 > 급소 > 보통 > 반감) · 합동 숫자가 하나라도 있으면 합동 칩 · 없으면 null
+ */
+export const VIEW_CHIP_MS = 1200;
+const CHIP_RANK: Record<string, number> = { weak: 0, damage: 1, crit: 2, super: 3 };
+export function viewHitChip(popups: readonly TeamPopup[], side: Side, afterId: number): { ids: number[]; text: string; kind: TeamPopup['kind']; joint: boolean } | null {
+  const hits = popups.filter((p) => p.id > afterId && p.side === side && p.kind in CHIP_RANK && /^-\d+$/.test(p.text));
+  if (!hits.length) return null;
+  const kind = hits.reduce((k, p) => (CHIP_RANK[p.kind]! > CHIP_RANK[k]! ? p.kind : k), hits[0]!.kind);
+  return { ids: hits.map((p) => p.id), text: `-${hits.reduce((t, p) => t + Number(p.text.slice(1)), 0)}`, kind, joint: hits.some((p) => p.joint) };
 }
 
 /** 쓰러짐 말 넘겨받기 문턱 (1.2초) 까지 남은 ms — 줄에 든 이름 중 가장 늦게 뜬 것부터 셈 (첫 이름으로 세어 뒤 이름이 0.78초 · 판 끝 결과 줄이 마지막 이름을 0.98초에

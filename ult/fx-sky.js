@@ -104,22 +104,70 @@
                     }
                 }
             },
-            draw: (ctx, p, t, px) => {
-                for (const it of sc.items) {
-                    if (!it.draw) {
-                        continue;
-                    }
-                    ctx.save();
-                    try {
-                        it.draw(ctx, it, it.life / it.max, px);
-                    } catch (err) {
-                        fail(name, err);
-                        it.max = 0;
-                    }
+            draw: (ctx, p, t, px) => drawItems(ctx, px, false),
+        });
+        const drawItems = (ctx, px, soft) => {
+            for (const it of sc.items) {
+                if (!it.draw || !!it.soft !== soft) {
+                    continue;
+                }
+                ctx.save();
+                try {
+                    it.draw(ctx, it, it.life / it.max, px);
+                } catch (err) {
+                    fail(name, err);
+                    it.max = 0;
+                }
+                ctx.restore();
+            }
+        };
+        // 위 끝 층 (#107) — 무대보다 큰 반구처럼 크기를 줄이지 않고 위 끝 바둑판 띠로 흩어질 것만 따로 한 입자로 그림 (bridge _softTop · 게임 화면에서만 다듬음)
+        let softP = null;
+        sc.soft = (it) => {
+            // 게임 밖 (일반 모드) · 3:3 무대 상자 안은 자를 위 끝이 없어 그대로
+            if (!((typeof fxStageTop === 'function' ? fxStageTop() : 0) > 0)) {
+                return sc.add(it);
+            }
+            it.soft = true;
+            if (!softP) {
+                const left = Math.max(0.1, sec - sc.t);
+                if (typeof fxSoftTopWant === 'function') {
+                    fxSoftTopWant(left * 1000 + 500);
+                }
+                softP = true;
+                sigParticle({ x: 0, y: 0, s: u.S, max: left, _softTop: true, draw: (ctx, p, t, px) => drawItems(ctx, px, true) });
+            }
+            return sc.add(it);
+        };
+        // 몸에 붙은 오라 · 불꽃 혀처럼 몸 뒤에 그려야 하는데 위 끝을 넘는 것 — 위 끝 띠 (8px) 아래는 큰 캔버스 그대로 (몸 뒤) · 그 위만 위 끝 층 (#107)
+        //   위쪽 반도 아래쪽 아이템 (update 가 적는 상태 · 수명) 으로 그림
+        sc.split = (it) => {
+            const top0 = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+            if (!(top0 > 0)) {
+                return sc.add(it);
+            }
+            const cut = top0 + 8;
+            const part = (low) => (ctx, q, t, px) => {
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(0, low ? cut : -u.H, u.W, low ? u.H * 2 : cut + u.H);
+                ctx.clip();
+                try {
+                    it.draw(ctx, q, t, px);
+                } finally {
                     ctx.restore();
                 }
-            },
-        });
+            };
+            const low = sc.add({ ...it, draw: part(true) });
+            // 위쪽 반은 아래쪽 아이템 (low — update 가 적는 상태 · 수명) 으로 그리고, 아래쪽이 빠지면 같이 멈춤 (코드 리뷰어 #107)
+            const up = part(false);
+            sc.soft({ max: it.max, draw: (ctx, q, t, px) => {
+                if (sc.items.includes(low)) {
+                    up(ctx, low, low.life / low.max, px);
+                }
+            } });
+            return low;
+        };
         return sc;
     }
 
@@ -252,7 +300,8 @@
                 q.br.push(branchOf(q.pts, L * rnd(0.15, 0.35), seg));
             }
         };
-        const it = sc.add({ max: o.dur ?? 0.35,
+        // o.soft = 하늘 · 위 끝까지 닿는 번개 — 게임 화면은 위 끝 층 (#107)
+        const it = (o.soft && sc.soft ? sc.soft : sc.add)({ max: o.dur ?? 0.35,
             update: (q) => q.life - q.drawn > 0.05 && make(q),
             draw: (ctx, q, t, px) => {
                 if (t > 0.2 && Math.floor(q.life / 0.035) % 4 === 3) {
@@ -2832,9 +2881,11 @@
         const D = Math.min(Math.max(H / 3, short(u) * 0.38) * (0.88 + 0.2 * P), W * 0.4, H * 0.6);
         const C = s * Math.max(1, Math.round(D / (26 * s)));
         const sx = clamp(u.body.cx + dir * (u.w * 0.5 + D * 0.55), D * 0.5, W - D * 0.5);
-        const sy = clamp(G - D * 0.5, D * 0.5 + 2, G - D * 0.3);
+        // 게임 화면 — 돌아오는 길 꼭대기 · 나갈 때 솟음까지 연출 위 끝 (정보줄 · 지도 줄) 아래 (#107 — 알폭탄 · 씨폭탄이 위 끝에 걸쳐 0.3초 넘게)
+        const top0 = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+        const sy = clamp(G - D * 0.5, top0 > 0 ? top0 + D * 0.62 + 2 * s : D * 0.5 + 2, G - D * 0.3);
         const fx = dir > 0 ? W - D * 0.3 : D * 0.3;
-        const yr = Math.max(D * 0.55, sy - D * 0.95);
+        const yr = Math.max(top0 + D * 0.55, sy - D * 0.95);
         const tForm = 0.7;
         const tTurn = 1.5;
         const tBack = 1.8;
@@ -3055,7 +3106,11 @@
         if (faceFlip(img, left)) {
             ctx.scale(-1, 1);
         }
-        ctx.drawImage(color ? silhouette(img, w, h, color) : img, -w / 2, -h / 2, w, h);
+        const pic = color ? silhouette(img, w, h, color) : img;
+        ctx.drawImage(pic, -w / 2, -h / 2, w, h);
+        if (typeof fxMonNote === 'function') {
+            fxMonNote(ctx, img, pic, w, h);
+        }
         ctx.restore();
     }
     // 테두리 두른 그림 — 상하좌우로 d 만큼 밀어 찍은 실루엣 위에 그림
@@ -3183,7 +3238,10 @@
     function geyser(sc, x, G, hw, hTop, dur, cols) {
         const s = sc.u.S;
         let spray = 0;
-        const it = sc.add({ max: dur,
+        // 게임 화면 — 연출 위 끝까지 솟는 물기둥은 위 끝 층 (기둥 · 크기 그대로 — #107)
+        const top0 = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+        const tall = top0 > 0 && !!sc.soft && G - hTop * 1.1 < top0 + 4 * s;
+        const it = (tall ? sc.soft : sc.add)({ max: dur,
             update: (it, dt) => {
                 const t = it.life / dur;
                 if (t > 0.55) {
@@ -3198,7 +3256,8 @@
                     }
                     const a = -Math.PI / 2 + rnd(-0.9, 0.9);
                     const sp = hTop * rnd(0.4, 0.9);
-                    sigParticle({ x: x + rnd(-1, 1) * hw * 0.5, y: top, s, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, g: hTop * 2.4, drag: 0.4, max: rnd(0.5, 0.9), color: pick(cols), size: pick([1, 2, 2]), draw: DRAW.dot });
+                    // 솟는 기둥 끝에서 튀는 물보라도 위 끝 층 (기둥 끝 위로 줄지어 날아 위 끝에 걸쳐 머물던 것 — #107)
+                    sigParticle({ x: x + rnd(-1, 1) * hw * 0.5, y: top, s, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, g: hTop * 2.4, drag: 0.4, max: rnd(0.5, 0.9), color: pick(cols), size: pick([1, 2, 2]), draw: DRAW.dot, ...(tall ? { _softTop: true } : {}) });
                 }
             },
             draw: (ctx, it, t, px) => {
@@ -3264,7 +3323,9 @@
             return [cx + rot * b * Math.cos(phi) * hw, G - h * R * V + b * Math.sin(phi) * hw * TILT];
         };
         const headOf = (seed, span, speed) => (hash(seed, 6) * (1 + span) + phase * speed) % (1 + span);
-        sc.add({ max: dur,
+        // 게임 화면 — 연출 위 끝까지 솟는 돔은 크기 그대로 위 끝 띠 위만 위 끝 층 (돔 앞에 다시 그리는 꼭두각시 · 베인 자국은 앞 그대로 — #107)
+        const gTop = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+        (gTop > 0 && sc.split && G - Rmax * V < gTop + 4 * s ? sc.split : sc.add)({ max: dur,
             update: (it, dt) => {
                 const life = it.life;
                 const k = grow(life);
@@ -3506,11 +3567,20 @@
             return [lerp(ax, me.x, easeIn(k)), lerp(aB, me.b, easeIn(k)) - Math.sin(k * Math.PI) * me.h * 0.3, 0];
         };
         // 표창 자리 — 머리 위(뛰어오르는 꼭두각시를 따라감) · 내리꽂힘 · 꽂혀 부르르(달아오를수록 세게)
+        // 게임 화면 — 머리 위에 표창 (반지름 D × 0.5) 이 연출 위 끝 아래로 들어갈 자리가 없으면 (187 3:3 무대 약 121px < 몸 + 표창) 크기는 그대로 몸 앞쪽으로 (ux-rules U4 · #107)
+        const gT = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+        const overMin = gT > 0 ? gT + D * 0.5 + 2 * s : -Infinity;
         const over = (t) => {
             const [x, b] = pup(t);
-            return [clamp(x - dir * me.w * 0.15, D * 0.5, W - D * 0.5), Math.max(D * 0.5 + 2, b - me.h - D * 0.42)];
+            const y = Math.max(D * 0.5 + 2, b - me.h - D * 0.42);
+            if (y >= overMin) {
+                return [clamp(x - dir * me.w * 0.15, D * 0.5, W - D * 0.5), y];
+            }
+            return [clamp(x + dir * (me.w * 0.5 + D * 0.5), D * 0.5, W - D * 0.5), Math.min(G - D * 0.5, Math.max(overMin, b - me.h * 0.5))];
         };
         const [bx, by] = over(T2);
+        // 모으는 소용돌이 · 두근 고리의 세로 여유 — 위 끝 · 판 아래 끝에 닿던 것 (픽셀 검사원 #107 작음) · 세로만 납작하게 (폭 · 크기는 그대로)
+        const vRoom = (cy) => Math.max(s * 4, Math.min(cy - Math.max(0, gT) - 4, H - cy - 2));
         // 꽂히는 곳 — 화면 끝에서 조금 안쪽 (물기둥 · 대폭발이 화면 안에 다 보이게) · 게임은 대상 자리 (3:3 은 상대가 화면 끝이 아니라 오른쪽 끝에 꽂히던 것 — 태현 님 #91)
         const aim = ultAimTarget(u);
         const fx = aim ? clamp(aim.x, D * 0.75, W - D * 0.75) : dir > 0 ? W - Math.max(D * 0.75, W * 0.14) : Math.max(D * 0.75, W * 0.14);
@@ -3629,7 +3699,7 @@
             }
             fillPaths(ctx, paths, [DARK[1], '#ffffff'], life < T6 ? 0.85 : hot ? 1 : 1 - (life - T6 - 0.1) / 0.25);
         };
-        sc.add({ max: TB, draw: drawCuts });
+        sc.split({ max: TB, draw: drawCuts }); // 하늘까지 가르는 베인 자국 — 위 끝 띠 위만 위 끝 층 (#107)
         // 꼭두각시 — 물빛 테두리, 뛰고 내릴 때 보랏빛 잔상 (돔이 생기면 돔 위에 다시 그림)
         const ghosts = [];
         let lastGhost = -1;
@@ -3653,7 +3723,8 @@
         };
         sc.add({ max: TB, draw: drawPup });
         // ② 모으기 — 물빛 · 보랏빛 두 줄기씩 소용돌이치며 표창으로 빨려 듦 (점이 안쪽으로 흘러감) + 알갱이, 두 번 두근, 다 되면 반짝
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+        //   (바깥에서 빨려 드는 줄기가 위 끝을 넘는 부분만 위 끝 층 — #107)
+        sc.split({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
             if (life < T1 + 0.05 || life > T2) {
                 return;
@@ -3662,6 +3733,7 @@
             const a = clamp(Math.min(k / 0.15, (1 - k) / 0.1), 0, 1);
             const [cx, cy] = over(life);
             const R0 = D * (1.5 - 0.4 * k);
+            const fy = Math.min(0.8, vRoom(cy) / R0);
             const inner = sizeAt(life) * 0.3;
             const paths = [new Path2D(), new Path2D(), new Path2D(), new Path2D()];
             for (let j = 0; j < 4; j++) {
@@ -3673,7 +3745,7 @@
                     const an = (j / 4) * TAU + f * 4.2 * dir + life * 7 * dir;
                     const th = f < 0.15 ? 1 : f < 0.6 ? 2 : 3;
                     const path = water ? paths[f > 0.6 ? 1 : 0] : paths[f > 0.6 ? 3 : 2];
-                    path.rect(px(cx + Math.cos(an) * r - s), px(cy + Math.sin(an) * r * 0.8 - s), th * s, th * s);
+                    path.rect(px(cx + Math.cos(an) * r - s), px(cy + Math.sin(an) * r * fy - s), th * s, th * s);
                 }
             }
             fillPaths(ctx, paths, [cols[2], cols[0], DARK[1], DARK[0]], 0.95 * a);
@@ -3692,7 +3764,7 @@
                         const [cx, cy] = over(sc.t);
                         const an = p.a0 + k * 5 * dir;
                         p.x = cx + Math.cos(an) * p.r0 * (1 - k);
-                        p.y = cy + Math.sin(an) * p.r0 * (1 - k) * 0.8;
+                        p.y = cy + Math.sin(an) * p.r0 * (1 - k) * Math.min(0.8, vRoom(cy) / p.r0);
                     },
                     draw: DRAW.dot });
             }
@@ -3700,7 +3772,7 @@
         for (const tp of pulses) {
             sc.at(tp, () => {
                 const [cx, cy] = over(tp);
-                ring(sc, cx, cy, D * 1.25, D * 0.4, 0.85, 0.3, [cols[1], DARK[1], '#ffffff'], 2);
+                ring(sc, cx, cy, D * 1.25, D * 0.4, Math.min(0.85, vRoom(cy) / (D * 1.25)), 0.3, [cols[1], DARK[1], '#ffffff'], 2);
                 ultShake(1.5, 150);
             });
         }
@@ -3815,7 +3887,7 @@
             const m = Math.max(10, W * 0.02);
             const x1 = 2 * Rd + 2 * m <= W ? (dir > 0 ? Math.min(fx, W - Rd - m) : Math.max(fx, Rd + m)) : W / 2;
             swirlDome(sc, fx, x1, G, D * 0.4, Rd, vmax, TD, cols, dir, (r) => hit(r, -dir, 'spin'));
-            sc.add({ max: sec, draw: drawCuts });
+            sc.split({ max: sec, draw: drawCuts });
             sc.add({ max: sec, draw: drawPup });
             ring(sc, fx, fy, D * 0.3, Math.max(W, H) * 0.7, 0.8, 0.6, ['#ffffff', cols[1], cols[2]], 3);
             ring(sc, fx, fy, D * 0.2, Math.max(W, H) * 0.45, 0.8, 0.5, ['#ffffff', DARK[1]], 2);
@@ -4137,7 +4209,7 @@
             const x1 = 2 * Rc + 2 * m <= W ? clamp(tx, Rc + m, W - Rc - m) : W / 2;
             swirlDome(sc, tx, x1, G, D * 0.4, Rc, vmax, TDc, cols, real.to[0] < tx ? 1 : -1, (r) => hit(r, r.x < tx ? -1 : 1, 'spin'), PURPLE);
             sc.add({ max: sec, draw: drawDashers });
-            sc.add({ max: sec, draw: drawBigX });
+            sc.split({ max: sec, draw: drawBigX }); // 화면 가르는 X — 위 끝 띠 위만 위 끝 층 (#107)
             ring(sc, tx, ty, D * 0.4, Math.max(W, H) * 0.7, 0.75, 0.6, ['#ffffff', cols[1], cols[2]], 3);
             ring(sc, tx, ty, D * 0.3, Math.max(W, H) * 0.45, 0.75, 0.5, ['#ffffff', DARK[1]], 2);
             debris(tx, ty, s, cols, 60, H * 1.3, { ground: G, size: [1, 2, 2] });
@@ -4688,7 +4760,8 @@
             pops.push({ x: clamp(x + side * R * (0.7 + 0.18 * i + 0.2 * hash(i, 52)), 0, W), t0: 0.1 + i * 0.1, r: R * (0.32 + 0.1 * hash(i, 53)), on: false });
         }
         let spark = 0;
-        return sc.add({ max: dur,
+        // 게임 화면 — 밑동 양옆 불꽃 혀 (기둥 폭 × 1.4 높이) · 불덩이 파편이 위 끝을 넘으면 띠 위만 위 끝 층 (#107 — 기둥 몸은 위 끝에서 이미 끊음)
+        return (top0 > 0 && sc.split ? sc.split : sc.add)({ max: dur,
             update: (it, dt) => {
                 const life = it.life;
                 spark += dt * 100 * (1 - life / dur);
@@ -4871,7 +4944,9 @@
             rocks.push({ x: x + side * off, y: G - s * 2 * hash(i, 72), vx: side * R * (0.04 + 0.16 * hash(i, 73)), vy: -H * (0.05 + 0.18 * hash(i, 74)), t0: (off / R) * 0.45, z: s * (3 + Math.floor(hash(i, 75) * 3)), col: ROCK[Math.floor(hash(i, 76) * 3)] });
         }
         let spark = 0;
-        return sc.add({ max: dur,
+        // 게임 화면 — 반구 몸통은 위 끝 층 (무대보다 커서 위 끝을 넘음 · 크기는 그대로 — 태현 님 10-25 "폭발 크기는 이전하고 똑같이", #107) · 화면 물듦은 큰 캔버스 그대로
+        const soft = (typeof fxStageTop === 'function' ? fxStageTop() : 0) > 0 && !!sc.soft;
+        const main = sc.add({ max: dur,
             update: (it, dt) => {
                 const life = it.life;
                 for (const r of rocks) {
@@ -4892,12 +4967,27 @@
                 const life = it.life;
                 const grow = 1 - (1 - Math.min(1, life / 0.6)) ** 2; // 처음에 확 튀어나가지 않고 서서히 커짐
                 const fade = life > dur - 0.6 ? Math.max(0, (dur - life) / 0.6) : 1;
-                const rr = R * grow;
                 const hol = o.hollow ? o.hollow() : 0;
                 // 화면 전체가 빛에 물듦
                 ctx.globalAlpha = 0.22 * grow * fade * (1 - hol);
                 ctx.fillStyle = cols[1];
                 ctx.fillRect(0, 0, W, H);
+                if (!soft) {
+                    body(ctx, px, life, grow, fade);
+                }
+            } });
+        if (soft) {
+            // 위 끝 띠 아래는 큰 캔버스 (뒤에 넣는 꼭두각시 · 장식이 반구 위 그대로 — 블래스트번 메가리자몽X) · 띠 위만 위 끝 층 (코드 리뷰어 #107)
+            sc.split({ max: dur, draw: (ctx, it, t, px) => {
+                const life = main.life;
+                body(ctx, px, life, 1 - (1 - Math.min(1, life / 0.6)) ** 2, life > dur - 0.6 ? Math.max(0, (dur - life) / 0.6) : 1);
+            } });
+        }
+        return main;
+        // 반구 몸통 · 빛줄기 · 돌덩이 (큰 캔버스 · 위 끝 층 둘 다 — o.hollow 도 같이)
+        function body(ctx, px, life, grow, fade) {
+                const rr = R * grow;
+                const hol = o.hollow ? o.hollow() : 0;
                 domeLight(ctx, px, s, x, G, rr, cols, life, fade, hol > 0.5);
                 // 빛줄기 — 하얀 심 안에서만
                 if (rr > s * 10 && hol <= 0.5) {
@@ -4928,7 +5018,7 @@
                     }
                 }
                 fillPaths(ctx, rp, [ROCK[0], ROCK[1], ROCK[2]], Math.min(1, fade * 1.5));
-            } });
+        }
     }
     // 빛의 반구 그림 — 반지름 R, 하얀 심 · 하늘 · 파랑 테두리(도트 섞기로 부드럽게) · 바깥 빛 무리(반 · 4분의 1 도트로 반투명처럼).
     // 가장자리는 거의 매끈하게, 아주 잘게만 일렁. show(1 → 0)에 따라 색이 한 단계씩 어두워지다(하양 → 연하늘 → 하늘 → 파랑 → 짙은 파랑) 사라짐
@@ -5246,7 +5336,7 @@
             const e = 0.7 * k + 0.3 * k * k;
             return [lerp(m.sx, m.lx, e), lerp(m.sy, G - m.r * 0.5, e)];
         };
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+        sc.soft({ max: sec, draw: (ctx, it, t, px) => { // 하늘에서 쏟아지는 유성 — 위 끝 층 (#107)
             const life = sc.t;
             for (const m of mets) {
                 if (life >= m.t0 && life < m.land) {
@@ -7228,7 +7318,8 @@
         });
         // ④ 거대한 물 폭발 — 물줄기가 그치면 맞는 자리에서 물 구가 확 부풀어 터짐
         const boomR = Math.min(G * 0.7, Math.max(W * 0.22, bw * 3));
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+        // (무대 높이 0.7배 반지름 — 크기 그대로 위 끝 층, #107)
+        sc.soft({ max: sec, draw: (ctx, it, t, px) => {
             const k = sc.t - TN;
             if (k < 0 || k > 0.7) {
                 return;
@@ -7374,6 +7465,9 @@
         const ix = clamp(ahead ? q.x : me.x + dir * W * 0.5, W * 0.08, W * 0.92);
         let mz = [cx + dir * me.w * 0.5, me.b - me.h * 1.1]; // 거대한 대포 포구 (그릴 때마다 갱신)
         let arm = [cx + dir * me.w * 0.5, me.b - me.h * 0.4]; // 팔 대포 포구
+        // 모을 때 대포를 치켜드는 각 (아래 꼭두각시가 위 끝에 맞춰 줄임 — #107)
+        let raise = -0.5;
+        const gTopML = typeof fxStageTop === 'function' ? fxStageTop() : 0;
         const pulses = [0.7, 1.05, 1.35];
         const bpulses = [0.6, 1.0, 1.3, 1.55].map((p) => TM + (p * (TS - TM)) / 1.7);
         const beatAt = (t, list) => list.reduce((m, tp) => Math.max(m, clamp(1 - Math.abs(t - tp) / 0.1, 0, 1)), 0);
@@ -7417,8 +7511,11 @@
                 const paths = [new Path2D(), new Path2D()];
                 for (let i = 0; i < 12; i++) {
                     const a = (i / 12) * TAU + life * 0.9 * dir;
-                    const L = pullR * (0.55 + 0.35 * Math.sin(life * 6 + i * 1.7)) * ramp;
-                    addLine(paths[i % 2], px, s, [[cx + Math.cos(a) * Ro * 0.9, cy + Math.sin(a) * Ro * 0.9], [cx + Math.cos(a) * L, cy + Math.sin(a) * L]], i % 2 ? 1 : 2);
+                    // 게임 화면 — 위로 뻗는 줄은 연출 위 끝 조금 아래에서 멈춤 (#107)
+                    const L = Math.min(pullR * (0.55 + 0.35 * Math.sin(life * 6 + i * 1.7)) * ramp, gTopML > 0 && Math.sin(a) < -0.05 ? (cy - gTopML - 3 * s) / -Math.sin(a) : Infinity);
+                    if (L > Ro * 0.9) {
+                        addLine(paths[i % 2], px, s, [[cx + Math.cos(a) * Ro * 0.9, cy + Math.sin(a) * Ro * 0.9], [cx + Math.cos(a) * L, cy + Math.sin(a) * L]], i % 2 ? 1 : 2);
+                    }
                 }
                 fillPaths(ctx, paths, ['#ffffff', TIDE[1]], 0.8 * ramp);
                 fireOrb(ctx, px, s, cx, cy, Ro, GLOW, life, (0.6 + 0.5 * k) * ramp, G, 0.6);
@@ -7428,7 +7525,11 @@
                 const tT = typeof fxStageTop === 'function' ? fxStageTop() : 0;
                 const swell = Math.min(1.1 + (k > 0.9 ? 0.15 : 0.3 * Math.sin((flips % 1) * Math.PI)), tT > 0 ? Math.max(1, (me.b - tT - 2 * s) / (me.h * 1.3)) : Infinity);
                 if (showMega) {
-                    megaTurtle(ctx, px, s, img, cx, me.b, me.w * swell, left, dir, edge * 2, 1);
+                    const m = megaTurtle(ctx, px, s, img, cx, me.b, me.w * swell, left, dir, edge * 2, 1, raise);
+                    // 치켜든 포신 (굵기 · 테 포함 몸 폭 × 0.25) 이 연출 위 끝을 넘으면 덜 치켜듦 (자세만 — #107)
+                    if (gTopML > 0 && raise < 0 && m[1] - me.w * 0.25 < gTopML) {
+                        raise = Math.min(0, raise + 0.1);
+                    }
                 } else {
                     drawLitMon(ctx, img, cx, me.b, me.w * swell, left, TIDE[1], edge * 2, 1);
                     drawMon(ctx, img, cx, me.b, me.w * swell, left, 1, '#ffffff');
@@ -7439,8 +7540,12 @@
                 drawMon(ctx, img, cx, me.b, me.w, left, 1, '#ffffff');
                 return;
             }
-            const aim = lerp(-0.5, aimAng, easeOut(clamp((life - TS + 0.5) / 0.4, 0, 1))); // 모을 땐 치켜들고 쏘기 직전 과녁으로
+            const aim = lerp(raise, aimAng, easeOut(clamp((life - TS + 0.5) / 0.4, 0, 1))); // 모을 땐 치켜들고 쏘기 직전 과녁으로
             mz = megaTurtle(ctx, px, s, img, cx + kickAt(life), me.b, me.w, left, dir, edge, life > TBack - 0.4 ? 1 : clamp(1 - (life - TM) / 0.35, 0, 0.99), aim);
+            // 게임 화면 — 포구 물 구 (도는 고리 r × 1.85) 가 연출 위 끝을 넘으면 덜 치켜듦 (자세만 · 크기 그대로 — 물 구가 다 크기 전에 맞춰짐, #107)
+            if (gTopML > 0 && life < TS - 0.5 && raise < 0 && mz[1] - Rb * 1.12 * 1.85 - 2 * s < gTopML) {
+                raise = Math.min(0, raise + 0.1);
+            }
             arm = mz.arm || arm;
         } });
         // ① 기 모으기
@@ -7780,8 +7885,8 @@
                 ctx.fillRect(0, 0, W, H);
             }
         } });
-        // 보랏빛 오라 · 돌덩이 (뮤츠 뒤)
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+        // 보랏빛 오라 · 돌덩이 (뮤츠 뒤 — 떠오른 몸 위로 솟는 오라 윗부분만 위 끝 층, #107)
+        sc.split({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
             const k = clamp((life - TC0) / 0.5, 0, 1) * (1 - clamp((life - TD) / 0.4, 0, 1));
             if (k > 0.02) {
@@ -8041,8 +8146,10 @@
         const TSL = TS + 0.3; // 내리치기
         const TI = TSL + 0.2; // 땅에 닿음
         const TBack = sec - 0.5;
-        const lift = me.h * 0.35;
         const Ro = Math.max(me.w, me.h) * 0.75;
+        // 게임 화면 — 떠오른 몸을 감싼 염력 구 (진화 때 r × 1.1 · 불꽃 혀 × 1.3) 가 연출 위 끝 아래에 들도록 덜 떠오름 (#107 — 높이만)
+        const gTop = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+        const lift = Math.min(me.h * 0.35, gTop > 0 ? Math.max(0, me.b - me.h * 0.5 - (gTop + Ro * 1.1 * 1.3 + 2 * s) - 1.5 * s) : Infinity);
         const pullR = Math.max(Ro * 3.5, D * 1.1);
         const bob = (t) => Math.sin(t * 3) * s * 1.5;
         const footAt = (t) => {
@@ -8169,6 +8276,16 @@
                 drawMon(ctx, L.img, x, b, L.w, L.left, 0.25 + 0.1 * Math.sin(life * 14), MEWP[1]);
             }
         } });
+        // 뒤로 보랏빛 오라 (돌릴 때 · 내리칠 때 크게 — 메가뮤츠Y 뒤 · 위 끝을 넘는 윗부분만 위 끝 층, #107)
+        sc.split({ max: sec, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life < TM || life > TBack - 0.2) {
+                return;
+            }
+            const w = megaW();
+            const big = life > TL1 && life < TI + 0.3 ? 1.3 : 1;
+            flameTongue(ctx, px, s, me.x, footAt(life) + s * 2, w * 1.0 * big, w * 1.35 * big, MEWP, life, clamp((life - TM) / 0.3, 0, 1));
+        } });
         // 메가뮤츠Y (꼭두각시) · 진화 모션
         sc.add({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
@@ -8192,8 +8309,11 @@
                 const paths = [new Path2D(), new Path2D()];
                 for (let i = 0; i < 12; i++) {
                     const a = (i / 12) * TAU + life * 0.9 * dir;
-                    const L = pullR * (0.55 + 0.35 * Math.sin(life * 6 + i * 1.7)) * ramp;
-                    addLine(paths[i % 2], px, s, [[me.x + Math.cos(a) * Ro * 0.9, c + Math.sin(a) * Ro * 0.9], [me.x + Math.cos(a) * L, c + Math.sin(a) * L]], i % 2 ? 1 : 2);
+                    // 게임 화면 — 위로 뻗는 줄은 연출 위 끝 조금 아래에서 멈춤 (#107)
+                    const L = Math.min(pullR * (0.55 + 0.35 * Math.sin(life * 6 + i * 1.7)) * ramp, gT > 0 && Math.sin(a) < -0.05 ? (c - gT - 3 * s) / -Math.sin(a) : Infinity);
+                    if (L > Ro * 0.9) {
+                        addLine(paths[i % 2], px, s, [[me.x + Math.cos(a) * Ro * 0.9, c + Math.sin(a) * Ro * 0.9], [me.x + Math.cos(a) * L, c + Math.sin(a) * L]], i % 2 ? 1 : 2);
+                    }
                 }
                 fillPaths(ctx, paths, ['#ffffff', MEWP[1]], 0.8 * ramp);
                 fireOrb(ctx, px, s, me.x, c, Ro, GLOW, life, (0.6 + 0.5 * k) * ramp, G, 0.6);
@@ -8214,9 +8334,6 @@
             }
             const w = megaW();
             const b = footAt(life);
-            // 뒤로 보랏빛 오라 (돌릴 때 · 내리칠 때 크게)
-            const big = life > TL1 && life < TI + 0.3 ? 1.3 : 1;
-            flameTongue(ctx, px, s, me.x, b + s * 2, w * 1.0 * big, w * 1.35 * big, MEWP, life, clamp((life - TM) / 0.3, 0, 1));
             drawLitMon(ctx, megaImg(), me.x, b, w, megaLeft(), MEWP[2], edge, 1);
             const appear = clamp(1 - (life - TM) / 0.35, 0, 1);
             if (appear > 0) {
@@ -8307,7 +8424,8 @@
         });
         // 내리꽂힌 자리마다 작은 보랏빛 폭발 · 메가뮤츠Y 둘레 거대한 염력 폭발
         const bigR = Math.min(G * 0.75, Math.max(D * 1.2, me.w * 3.5));
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+        // (거대한 염력 폭발 — 크기 그대로 위 끝 층, #107)
+        sc.soft({ max: sec, draw: (ctx, it, t, px) => {
             const k = sc.t - TI;
             if (k < 0 || k > 0.8) {
                 return;
@@ -8321,7 +8439,7 @@
         } });
         sc.at(TI, () => {
             for (const L of lifted) {
-                strike(sc, L.x, G - s, L.x + rnd(-1, 1) * L.w, Math.max(s * 2, G - L.h * 4), { mid: MEWP[0], glow: MEWP[2], dur: 0.4, branches: 1, w: 2 }); // 위로 솟는 번개
+                strike(sc, L.x, G - s, L.x + rnd(-1, 1) * L.w, Math.max(s * 2, G - L.h * 4), { mid: MEWP[0], glow: MEWP[2], dur: 0.4, branches: 1, w: 2, soft: true }); // 위로 솟는 번개
             }
             for (let i = 0; i < 8; i++) {
                 const a = -Math.PI + ((i + 0.5) / 8) * Math.PI;
@@ -8689,8 +8807,8 @@
         hideMon(pokemon, true);
         hideUntil(pokemon, ms + 100);
 
-        // 기술 연출 (뮤 뒤)
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+        // 기술 연출 (뮤 뒤 — 불기둥 · 하늘에서 떨어지는 얼음이 위 끝을 넘는 윗부분만 위 끝 층, #107)
+        sc.split({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
             const i = Math.floor((life - T0) / STEP);
             if (life < T0 || i >= KINDS.length) {
@@ -8798,7 +8916,8 @@
         });
         // ⑥ 거품이 펑 — 분홍 대폭발 · 별 반짝이 · 충격파
         const boomR = Math.min(G * 0.6, Math.max(D * 1.1, me.w * 3));
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+        // 대폭발 (무대 높이 0.6배 반지름 — 크기 그대로 위 끝 층, #107)
+        sc.soft({ max: sec, draw: (ctx, it, t, px) => {
             const k = sc.t - TPOP;
             if (k < 0 || k > 0.8) {
                 return;

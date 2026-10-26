@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bandDrawn, bandLeft, duelSpots, faintHoldLeft, faintIsBig, faintShortLine, overLineHold, stackRows, TEAM_ROW_GAP, teamGeometry, viewPopsBack } from './model';
+import { bandDrawn, bandLeft, duelSpots, faintHoldLeft, faintIsBig, faintShortLine, overLineHold, stackRows, TEAM_ROW_GAP, teamGeometry, viewHitChip, viewPopsBack } from './model';
 
 describe('3:3 자리 (디자인팀 4안 시안 geo 그대로)', () => {
   it('860 × 187 = ×2 비스듬히 세 줄 · 앞줄끼리 약 310px · 판 안 잘림', () => {
@@ -215,6 +215,22 @@ describe('장면 전환 — 띠 · 돌아오는 칸 (#96 UX 5바퀴)', () => {
     expect(viewPopsBack(joint, 'me', 2)).toBe(true);
     expect(viewPopsBack(joint, 'foe', 1)).toBe(true);
     expect(viewPopsBack(joint, 'me', 1)).toBe(false);
+  });
+});
+
+describe('장면 전환 피해 칩 (ideas 717)', () => {
+  const pop = (id: number, side: 'me' | 'foe', slot: number, text: string, kind: 'damage' | 'super' | 'weak' | 'crit' | 'heal' | 'info', joint?: true) => ({ id, side, slot, text, ms: 0, kind, ...(joint ? { joint } : {}) });
+  it('장면 뒤 맞는 쪽 피해만 합계 하나 · 센 모양 · 합동', () => {
+    const ps = [pop(3, 'foe', 1, '-9', 'damage'), pop(5, 'foe', 1, '-20', 'super', true), pop(6, 'foe', 2, '-4', 'damage', true), pop(7, 'me', 0, '-3', 'damage'), pop(8, 'foe', 1, '+5', 'heal'), pop(9, 'foe', 1, '효과가 굉장했다!', 'info')];
+    expect(viewHitChip(ps, 'foe', 4)).toEqual({ ids: [5, 6], text: '-24', kind: 'super', joint: true });
+    expect(viewHitChip(ps, 'me', 4)).toEqual({ ids: [7], text: '-3', kind: 'damage', joint: false });
+  });
+  it('장면 앞 숫자 · 회복 · 말뿐이면 칩 없음', () => {
+    expect(viewHitChip([pop(3, 'foe', 1, '-9', 'damage'), pop(8, 'foe', 1, '+5', 'heal')], 'foe', 4)).toBeNull();
+    expect(viewHitChip([], 'foe', 0)).toBeNull();
+  });
+  it('반감 · 급소가 섞이면 급소 모양', () => {
+    expect(viewHitChip([pop(1, 'me', 0, '-2', 'weak'), pop(2, 'me', 0, '-6', 'crit')], 'me', 0)?.kind).toBe('crit');
   });
 });
 

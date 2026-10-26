@@ -616,7 +616,9 @@ function ultTextTop() {
     const top = typeof fxTop === 'function' ? fxTop() : 0;
     if (!top) return 0;
     const map = document.querySelector('#pokemon-game .pg-minimap');
-    return Math.max(top, map ? Math.round(map.getBoundingClientRect().bottom) : 0);
+    // 캔버스를 자르는 줄 (--pg-fx-top — 3:3 장면 전환은 지도 줄 아래) 까지 — 잉어킹 "아무 일도…" 글씨가 그 줄에 걸치던 것 (#107)
+    const cut = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+    return Math.max(top, cut, map ? Math.round(map.getBoundingClientRect().bottom) : 0);
 }
 
 // 인트로 HUD 숨김 손잡이 (하나) — 겹쳐 불리거나 연출이 중간에 끊겨도 (fxGameStop · clear) 되돌림 (코드 리뷰어: 끊기면 숨긴 채 남고 50ms 타이머가 계속 돌며 다음 전투 HP 까지 숨기던 것)
@@ -749,7 +751,8 @@ function ultDimLayer(alphaAt, sec, who = () => ultActive?.pokemon, update, opt) 
         ctx.globalAlpha = Math.min(0.95, a);
         ctx.fillStyle = '#05080f';
         ctx.beginPath();
-        const lit = [].concat(who() || []).filter((u) => u.el.style.visibility !== 'hidden');
+        // 숨긴 그림 (visibility · 꼭두각시 hideMon 의 opacity 0) 은 구멍 없음 — 뛰어오른 꼭두각시 대신 원래 발밑에 밝은 원판만 남던 것 (나무지기 — #108 아트 7바퀴 넘김 6)
+        const lit = [].concat(who() || []).filter((u) => u.el.style.visibility !== 'hidden' && u.el.style.opacity !== '0');
         if (typeof fxInGame === 'function' && fxInGame()) {
             // 게임 모드 — 구멍을 픽셀 줄로 (줄 높이 = 그림 점 1칸 · 반지름 = 그림 반 + 2칸 정수) · 줄마다 구멍을 합쳐 그 사이만 어둡게
             // (매끈한 원이 밝은 시합장에서 연두 원판 · 겹치면 렌즈로 보이던 것 — 아트 디렉터 #80 셋째 ③ · bugs #781)
@@ -821,7 +824,8 @@ const ultFlip = (img, left) => left && !img.src.includes('_left_');
 function ultCutIn(pokemon, left, cols, sec, yc = 0.36, hf = 0.3) {
     const img = pokemon.el;
     const dir = left ? -1 : 1;
-    sigParticle({ x: 0, y: 0, s: 2, max: sec, lines: [], draw: (ctx, p) => {
+    // _ui = 화면 글씨 · 띠 — 위 끝 층 (#107 바둑판 띠) 에 들지 않음 (150 에서 컷인 띠 위 테 · 부제 윗줄에 구멍이 나던 것, 코드 리뷰어)
+    sigParticle({ x: 0, y: 0, s: 2, max: sec, lines: [], _ui: true, draw: (ctx, p) => {
         const W = window.innerWidth;
         const H = window.innerHeight;
         const t = p.life / p.max;
@@ -883,7 +887,7 @@ function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1, at = null) {
     let hud = null; // at.hud — HP 묶음 자리 (첫 장면에 한 번 잼)
     let textTop = null; // 글씨 위 끝 (ultTextTop — 첫 장면에 한 번 잼: 장면마다 DOM 을 재던 것, 코드 리뷰어)
     // 게임 글씨 (at — 패링 · 짧은 필살기 이름) 는 맨 위층 — 솔라빔 모으는 빛이 반격기 이름 끝 0.15초를 덮던 것 (2026-10-21 UX 리뷰어)
-    sigParticle({ x: 0, y: 0, s: 2, max: sec, z: at ? 1 : 0, draw: (ctx, p) => {
+    sigParticle({ x: 0, y: 0, s: 2, max: sec, z: at ? 1 : 0, _ui: true, draw: (ctx, p) => {
         const W = window.innerWidth;
         const H = window.innerHeight;
         const t = p.life;
@@ -1087,7 +1091,10 @@ function ultHit(q, dir = 1, kind = 'tumble') {
     if (kind === 'lift' || kind === 'spin') {
         const ms = 1500;
         ultFreeze(p, ms);
-        const up = Math.min(window.innerHeight * 0.4, w * 2 + 24);
+        // 게임 화면 — 떠오른 몸이 연출 위 끝 (정보줄 · 지도 줄) 아래에서 멈춤 (#107 — 몸 · 감싼 거품이 위 끝 뒤로 들어가던 것) · 일반 모드는 그대로
+        const top0 = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+        const room = top0 > 0 ? Math.max(0, p.el.getBoundingClientRect().top - top0 - 4) : Infinity;
+        const up = Math.min(window.innerHeight * 0.4, w * 2 + 24, room);
         const spin = kind === 'spin';
         p.el.animate([
             { translate: '0 0', rotate: '0deg', easing: 'ease-out' },

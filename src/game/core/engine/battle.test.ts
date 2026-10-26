@@ -362,6 +362,14 @@ describe('패링 — 상대 공격이 맞기 직전 Space · 클릭 (2026-10-19 
     expect(perfect.foe.ult).toBeCloseTo(plain.foe.ult, 9);
   });
 
+  it('필살기 상성 = 쓰는 포켓몬 첫 타입 — 리자몽 (불꽃) 필살기 × 단데기 (벌레) = 효과가 굉장했다 (#112 ② · bugs 1801)', () => {
+    const { b, save } = setup();
+    const ult: BattleState = { ...b, phase: 'anim', me: { ...b.me, types: ['fire', 'flying'] }, foe: { ...b.foe, types: ['bug'] }, anim: { side: 'me', action: { kind: 'ult' }, ms: 0, dur: TIMING.ultAnimMs, counter: false } };
+    const after = run(ult, save, TIMING.ultAnimMs + STEP, fixedRng(0.5));
+    expect(after.popups.find((p) => p.text === '효과가 굉장했다!')?.kind).toBe('super');
+    expect(after.popups.some((p) => p.text === '효과가 별로인 듯하다…')).toBe(false);
+  });
+
   it('글 종류 — 막음 parry · 상성 super (화면이 말 칸 · 숫자 크기로 나눠 씀, 2026-10-20)', () => {
     const { b, save } = setup();
     // 야생 파이리 불꽃세례 → 이상해씨 (풀) = 효과 굉장

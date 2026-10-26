@@ -18,8 +18,9 @@ import time
 import urllib.parse
 import urllib.request
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT = os.path.join(ROOT, "ult", "ult-hit.json")
+# PG_ROOT = 다른 워크트리의 빌드로 잼 (디자인 브랜치 연출) · FX_OUT = 결과 파일 (그 워크트리 파일을 안 건드리게 — 시작 값은 그 파일)
+ROOT = os.environ.get("PG_ROOT") or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+OUT = os.environ.get("FX_OUT") or os.path.join(ROOT, "ult", "ult-hit.json")
 FORMS = list(json.load(open(os.path.join(ROOT, "src", "game", "data", "generated", "forms.json"), encoding="utf-8")).keys())
 # 일반 모드 필살기 앞 — 기 모으기 (게임 첫 필살기) · 컷인 · 끝 밝아짐 (ult/core.js · ult/bridge.js)
 CHARGE_MS, INTRO_MS, OUTRO_MS = 800, 900, 500

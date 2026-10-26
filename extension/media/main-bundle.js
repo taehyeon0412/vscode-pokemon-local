@@ -5838,6 +5838,7 @@ const POKEMON_SHAPE = {"bulbasaur":[0.26,25,20,8,15,27,30],"ivysaur":[0.46,22,21
 const ULT_LIB = [["솔라빔","ultbeam",{"c":"solar","solar":1}],["덩굴채찍","ultbloom",{"mode":"vine","c":"grass","uniq":"bulbasaur"}],["솔라빔","ultbeam",{"c":"solar","solar":1,"sparkle":"grass"}],["잎날가르기","ultswarm",{"shape":"leaf","c":"grass","n":40,"uniq":"ivysaur"}],["솔라빔","ultbeam",{"c":"solar","venus":1,"tc":"solar"}],["하드플랜트","ultpillar",{"kind":"vine","c":"grass","venus":1,"tc":"grass"}],["다이내믹풀플레임","ultorb",{"style":"flame","c":"fire"}],["니트로차지","ultrush",{"c":"fire","flame":1,"uniq":"charmander"}],["다이내믹풀플레임","ultorb",{"style":"flame","c":"fire","size":1.2}],["화염방사","ultbeam",{"c":"fire","width":1.2,"wave":1,"sparkle":"fire","tc":"fire","uniq":"charmeleon"}],["플레어드라이브","ultdive",{"c":"fire","flare":1,"tc":"fire"}],["블래스트번","ultpillar",{"kind":"fire","c":"fire","blast":1,"tc":"aura"}],["로케트박치기","ultrush",{"c":"water","water":1,"uniq":"squirtle"}],["거품광선","ultswarm",{"shape":"ball","c":"water","n":45}],["하이드로보텍스","ultvortex",{"c":"water"}],["아쿠아테일","ultrush",{"c":"water","water":1,"fast":1,"uniq":"wartortle"}],["하이드로캐논","ultbeam",{"c":"water","turtle":1,"tc":"water"}],["메가런처","ultorb",{"c":"water","turtle":1,"tc":"water"}],["절대포식회전참","ultbarrage",{"kind":"slash","spin":1,"c":"bug"}],["실뿜기","ultshadow",{"c":"silk"}],["단단해지기","ultrush",{"c":"steel"}],["몸통박치기","ultdive",{"c":"bug","heavy":1}],["거다이린분","ultstorm",{"kind":"wind","c":"sleep"}],["환상빔","ultbeam",{"c":"psychic","rainbow":1,"wave":1,"sparkle":"petal","tc":"psychic"}],["독침","ultswarm",{"shape":"needle","c":"poison"}],["단단해지기","ultrush",{"c":"bug"}],["독침","ultswarm",{"shape":"needle","c":"poison","n":16}],["바늘미사일","ultswarm",{"shape":"needle","c":"poison"}],["더블니들","ultbarrage",{"kind":"slash","c":"poison","spin":1,"tc":"poison"}],["파이널다이브클래시","ultdive",{"c":"wind"}],["바람일으키기","ultstorm",{"kind":"wind","c":"wind"}],["회오리","ultvortex",{"c":"wind"}],["폭풍","ultvortex",{"c":"wind","n":2}],["브레이브버드","ultrush",{"c":"wind","fast":1,"tc":"wind"}],["필살앞니","ultdive",{"c":"normal"}],["전광석화","ultrush",{"c":"normal","fast":1}],["분노의앞니","ultbarrage",{"kind":"slash","c":"normal"}],["회오리부리","ultrush",{"c":"wind","drill":1}],["마구찌르기","ultbarrage",{"kind":"punch","c":"wind"}],["회오리부리","ultrush",{"c":"wind","drill":1,"fast":1}],["공중날기","ultdive",{"c":"wind"}],["애시드포이즌딜리트","ultstorm",{"kind":"acid","c":"poison"}],["오물폭탄","ultorb",{"style":"energy","c":"sludge"}],["독엄니","ultbarrage",{"kind":"slash","c":"poison"}],["뱀눈초리","ultshadow",{"c":"poison","tc":"poison"}],["100만볼트","ultvolt",{"c":"electric","rainbow":0}],["1000만볼트","ultvolt",{"rainbow":1,"max":1,"uniq":"pikachu","tc":"electric"}],["라이트닝서프라이드","ultrush",{"c":"electric","elec":1,"fast":1}],["스파킹기가볼트","ultthunder",{"mode":"spear","c":"electric"}],["구르기","ultrush",{"c":"ground"}],["모래바람","ultstorm",{"kind":"sand","c":"ground"}],["모래지옥","ultvortex",{"c":"ground"}],["베어가르기","ultbarrage",{"kind":"slash","c":"ground","spin":1}],["깨물어부수기","ultbarrage",{"kind":"slash","c":"poison"}],["대지의힘","ultpillar",{"kind":"rock","c":"ground","n":4}],["누르기","ultdive",{"c":"poison","heavy":1,"tc":"poison"}],["뿔찌르기","ultrush",{"c":"poison"}],["마구찌르기","ultbarrage",{"kind":"punch","c":"poison"}],["뿔드릴","ultrush",{"c":"poison","drill":1}],["독찌르기","ultdive",{"c":"poison"}],["지진","ultquake",{"c":"ground"}],["메가혼","ultrush",{"c":"poison","drill":1,"fast":1,"tc":"poison"}],["손가락흔들기","ultmetronome",{}],["문포스","ultsparkle",{"mode":"moon","c":"moon"}],["메테오빔","ultbeam",{"c":"star","spiral":1,"sparkle":"moon","charge":1.4,"tc":"moon"}],["회오리불꽃","ultvortex",{"c":"fire"}],["도깨비불","ultswarm",{"shape":"ball","c":"ghost"}],["회오리불꽃","ultvortex",{"c":"fire","n":2}],["열풍","ultstorm",{"kind":"fire","c":"fire","tc":"fire"}],["노래하기","ultpsy",{"c":"sleep"}],["러블리스타임팩트","ultsparkle",{"mode":"twinkle","c":"fairy"}],["하이퍼보이스","ultnova",{"c":"fairy"}],["치근거리기","ultbarrage",{"kind":"punch","c":"fairy","tc":"fairy"}],["초음파","ultpsy",{"c":"poison"}],["날개치기","ultdive",{"c":"poison"}],["흡혈","ultbarrage",{"kind":"slash","c":"blood"}],["에어슬래시","ultstorm",{"kind":"wind","c":"poison"}],["블룸샤인엑스트라","ultbloom",{"mode":"bloom"}],["독가루","ultstorm",{"kind":"petal","c":"poison"}],["꽃잎댄스","ultstorm",{"kind":"petal","c":"petal"}],["솔라빔","ultbeam",{"c":"solar","solar":1,"width":1.2,"sparkle":"petal"}],["꽃잎댄스","ultbloom",{"mode":"bloom","c":"petal","tc":"petal"}],["버섯포자","ultstorm",{"kind":"petal","c":"spore"}],["시저크로스","ultbarrage",{"kind":"slash","c":"bug"}],["기가드레인","ultblackhole",{"c":"spore"}],["환상빔","ultbeam",{"c":"psychic","wave":1}],["사이코키네시스","ultpsy",{"c":"psychic"}],["은빛바람","ultstorm",{"kind":"wind","c":"silver"}],["벌레의야단법석","ultnova",{"c":"bug","tc":"bug"}],["라이징랜드오버","ultquake",{"c":"ground"}],["구멍파기","ultrush",{"c":"ground","drill":1}],["땅가르기","ultquake",{"c":"ground","lava":1}],["모래지옥","ultvortex",{"c":"ground","n":2}],["고양이돈받기","ultswarm",{"shape":"coin","c":"gold"}],["마구할퀴기","ultbarrage",{"kind":"slash","c":"gold"}],["베어가르기","ultbarrage",{"kind":"slash","c":"normal"}],["파워젬","ultorb",{"style":"energy","c":"gold","size":1.2,"tc":"gold"}],["염동력","ultpsy",{"c":"psychic"}],["물의파동","ultorb",{"style":"water","c":"water"}],["하이드로펌프","ultbeam",{"c":"water","sparkle":"water"}],["마구할퀴기","ultbarrage",{"kind":"slash","c":"fight"}],["크로스촙","ultdive",{"c":"fight"}],["난동부리기","ultrush",{"c":"fight","fast":1}],["인파이트","ultbarrage",{"kind":"punch","c":"fight","tc":"fight"}],["불꽃엄니","ultbarrage",{"kind":"slash","c":"fire"}],["신속","ultrush",{"c":"hyper","fast":1,"uniq":"arcanine"}],["플레어드라이브","ultdive",{"c":"fire","flame":1,"tc":"fire"}],["비바라기","ultstorm",{"kind":"rain","c":"water"}],["최면술","ultpsy",{"c":"hypno"}],["하이드로펌프","ultpillar",{"kind":"water","c":"water","n":4}],["폭포오르기","ultrush",{"c":"water","water":1,"fast":1}],["폭발펀치","ultbarrage",{"kind":"punch","c":"fight","tc":"fight"}],["맥시멈사이브레이커","ultpsy",{"c":"psychic"}],["사이코쇼크","ultorb",{"style":"energy","c":"psychic"}],["환상빔","ultbeam",{"c":"psychic","wave":1,"sparkle":"psychic"}],["사이코커터","ultbarrage",{"kind":"slash","c":"psychic","spin":1}],["사이코키네시스","ultpsy",{"c":"psychic","uniq":"alakazam"}],["미래예지","ultpillar",{"kind":"light","c":"psychic","n":5,"tc":"psychic"}],["전력무쌍격렬권","ultbarrage",{"kind":"punch","c":"fight"}],["기합구슬","ultorb",{"style":"aura","c":"fight"}],["지구던지기","ultdive",{"c":"fight"}],["크로스촙","ultbarrage",{"kind":"punch","c":"fight"}],["다이너마이트펀치","ultbarrage",{"kind":"punch","c":"fire","uniq":"machamp"}],["덩굴채찍","ultbloom",{"mode":"vine","c":"grass"}],["잎날가르기","ultswarm",{"shape":"leaf","c":"grass"}],["파워휩","ultbloom",{"mode":"vine","c":"grass"}],["리프스톰","ultstorm",{"kind":"leaf","c":"grass"}],["기가드레인","ultblackhole",{"c":"grass","tc":"grass"}],["김밥말이","ultshadow",{"c":"water"}],["오물웨이브","ultstorm",{"kind":"acid","c":"sludge"}],["독찌르기","ultbarrage",{"kind":"slash","c":"poison","spin":1,"tc":"poison"}],["월즈엔드폴","ultskyfall",{"shape":"rock","n":1,"c":"rock"}],["자폭","ultnova",{"c":"rock"}],["구르기","ultrush",{"c":"rock"}],["스톤샤워","ultskyfall",{"shape":"rock","n":8,"c":"rock"}],["대폭발","ultnova",{"c":"hyper"}],["지진","ultquake",{"c":"rock","tc":"rock"}],["화염자동차","ultrush",{"c":"fire","flame":1}],["플레어드라이브","ultrush",{"c":"fire","flame":1,"fast":1}],["불대문자","ultpillar",{"kind":"fire","c":"fire","n":6,"tc":"fire"}],["하품","ultpsy",{"c":"sleep"}],["박치기","ultrush",{"c":"water"}],["열탕","ultpillar",{"kind":"water","c":"water","n":4}],["전자포","ultorb",{"style":"energy","c":"electric"}],["방전","ultthunder",{"mode":"pillar","c":"electric"}],["전자포","ultbeam",{"c":"electric","width":1.2,"sparkle":"electric"}],["10만볼트","ultvolt",{"c":"electric","rainbow":0,"tc":"electric"}],["리프블레이드","ultbarrage",{"kind":"slash","c":"grass"}],["브레이브버드","ultdive",{"c":"wind"}],["난동부리기","ultrush",{"c":"normal","fast":1}],["난동부리기","ultbarrage",{"kind":"kick","c":"normal"}],["회오리부리","ultrush",{"c":"normal","drill":1,"fast":1}],["오로라빔","ultbeam",{"c":"ice","rainbow":1}],["얼다바람","ultstorm",{"kind":"blizzard","c":"ice"}],["냉동빔","ultbeam",{"c":"ice","sparkle":"ice"}],["절대영도","ultnova",{"c":"ice","white":1,"tc":"ice"}],["애시드포이즌딜리트","ultstorm",{"kind":"acid","c":"sludge"}],["오물폭탄","ultswarm",{"shape":"ball","c":"sludge"}],["더스트슈트","ultorb",{"style":"energy","c":"sludge","size":1.4}],["누르기","ultdive",{"c":"sludge","heavy":1,"tc":"sludge"}],["고드름침","ultswarm",{"shape":"needle","c":"ice"}],["셸블레이드","ultbarrage",{"kind":"slash","c":"water"}],["고드름떨구기","ultskyfall",{"shape":"ice","n":10,"c":"ice","tc":"ice"}],["나이트헤드","ultshadow",{"c":"ghost"}],["이상한빛","ultpsy",{"c":"ghost"}],["섀도펀치","ultbarrage",{"kind":"punch","c":"ghost"}],["섀도볼","ultorb",{"style":"shadow","c":"ghost"}],["섀도볼","ultorb",{"style":"shadow","c":"ghost","size":1.3,"uniq":"gengar"}],["무한암야로의유인","ultshadow",{"c":"ghost"}],["스톤에지","ultpillar",{"kind":"rock","c":"rock","n":5}],["아이언테일","ultdive",{"c":"steel","heavy":1}],["꿈먹기","ultblackhole",{"c":"hypno"}],["사이코키네시스","ultpsy",{"c":"hypno"}],["악몽","ultshadow",{"c":"hypno","tc":"hypno"}],["찝게햄머","ultdive",{"c":"water"}],["거품","ultswarm",{"shape":"ball","c":"water","n":30}],["가위자르기","ultbarrage",{"kind":"slash","c":"water","tc":"water"}],["구르기","ultrush",{"c":"electric","elec":1}],["대폭발","ultnova",{"c":"electric","white":1}],["일렉트릭볼","ultorb",{"style":"energy","c":"electric","size":1.3,"tc":"electric"}],["씨폭탄","ultswarm",{"shape":"ball","c":"grass"}],["알폭탄","ultswarm",{"shape":"egg","c":"egg"}],["우드해머","ultdive",{"c":"grass","heavy":1,"tc":"grass"}],["뼈다귀부메랑","ultswarm",{"shape":"bone","c":"bone"}],["뼈몽둥이","ultdive",{"c":"bone"}],["뼈다귀부메랑","ultswarm",{"shape":"bone","c":"bone","giant":1}],["본러시","ultbarrage",{"kind":"slash","c":"bone","spin":1,"tc":"bone"}],["무릎차기","ultdive",{"c":"fight"}],["블레이즈킥","ultbarrage",{"kind":"kick","c":"fire","tc":"fire"}],["불꽃펀치","ultbarrage",{"kind":"punch","c":"fire"}],["냉동펀치","ultbarrage",{"kind":"punch","c":"ice"}],["번개펀치","ultbarrage",{"kind":"punch","c":"electric"}],["핥기","ultbarrage",{"kind":"slash","c":"tongue"}],["누르기","ultdive",{"c":"tongue","heavy":1}],["독가스","ultstorm",{"kind":"acid","c":"gas"}],["자폭","ultnova",{"c":"gas"}],["대폭발","ultnova",{"c":"sludge"}],["오물폭탄","ultorb",{"style":"energy","c":"gas","size":1.3}],["돌진","ultrush",{"c":"ground","fast":1}],["뿔드릴","ultrush",{"c":"rock","drill":1}],["스톤에지","ultpillar",{"kind":"rock","c":"rock","n":6,"tc":"rock"}],["알폭탄","ultorb",{"style":"energy","c":"egg"}],["치유파동","ultsparkle",{"mode":"twinkle","c":"heal","tc":"heal"}],["연속펀치","ultbarrage",{"kind":"punch","c":"normal"}],["이판사판태클","ultrush",{"c":"normal","fast":1}],["거품광선","ultswarm",{"shape":"ball","c":"water","n":36}],["회오리","ultvortex",{"c":"water","n":2}],["하이드로펌프","ultbeam",{"c":"water","width":1.2,"spiral":1,"sparkle":"water","tc":"water"}],["메가혼","ultrush",{"c":"water","drill":1}],["물의파동","ultnova",{"c":"water"}],["메가혼","ultrush",{"c":"water","drill":1,"water":1,"fast":1}],["폭포오르기","ultdive",{"c":"water"}],["스피드스타","ultswarm",{"shape":"star","c":"star"}],["고속스핀","ultrush",{"c":"water","drill":1,"fast":1}],["파워젬","ultswarm",{"shape":"star","c":"psychic"}],["하이드로펌프","ultbeam",{"c":"water","spiral":1,"sparkle":"star","tc":"star"}],["매지컬샤인","ultnova",{"c":"fairy","white":1}],["사이코키네시스","ultpsy",{"c":"fairy"}],["연속자르기","ultbarrage",{"kind":"slash","c":"grass","spin":1}],["제비반환","ultrush",{"c":"grass","fast":1,"tc":"grass"}],["악마의키스","ultsparkle",{"mode":"twinkle","c":"fairy"}],["레이징지오프리즈","ultskyfall",{"shape":"ice","n":1,"c":"ice","tc":"ice"}],["번개","ultstorm",{"kind":"thunder","c":"electric","tc":"electric"}],["대문자","ultpillar",{"kind":"fire","c":"fire","n":5}],["불꽃펀치","ultbarrage",{"kind":"punch","c":"fire","tc":"fire"}],["가위자르기","ultbarrage",{"kind":"slash","c":"bug"}],["지구던지기","ultdive",{"c":"bug"}],["파괴광선","ultbeam",{"c":"hyper","width":1.2,"sparkle":"hyper"}],["기가임팩트","ultrush",{"c":"ground","fast":1}],["튀어오르기","ultsplash",{}],["몸통박치기","ultrush",{"c":"normal"}],["파괴광선","ultbeam",{"c":"hyper","width":1.5,"sparkle":"hyper","uniq":"gyarados"}],["폭포오르기","ultdive",{"c":"water","heavy":1,"tc":"water"}],["냉동빔","ultbeam",{"c":"ice","width":1.3,"sparkle":"ice","uniq":"lapras"}],["눈보라","ultstorm",{"kind":"blizzard","c":"ice","tc":"ice"}],["변신","ultcopy",{}],["나인에볼부스트","ultsparkle",{"mode":"twinkle","c":"star","uniq":"eevee"}],["스피드스타","ultskyfall",{"shape":"star","n":12,"c":"star","tc":"star"}],["하이드로펌프","ultpillar",{"kind":"water","c":"water","n":5}],["하이드로보텍스","ultvortex",{"c":"water","n":2,"tc":"water","uniq":"vaporeon"}],["바늘미사일","ultswarm",{"shape":"needle","c":"electric"}],["번개","ultthunder",{"mode":"pillar","c":"electric","tc":"electric","uniq":"jolteon"}],["오버히트","ultorb",{"style":"flame","c":"fire","size":1.4,"uniq":"flareon"}],["플레어드라이브","ultrush",{"c":"fire","flame":1,"fast":1,"tc":"fire"}],["트라이어택","ultbeam",{"rainbow":1,"sparkle":"electric"}],["10만볼트","ultvolt",{"rainbow":1}],["원시의힘","ultskyfall",{"shape":"rock","n":5,"c":"rock"}],["원시의힘","ultskyfall",{"shape":"rock","n":8,"c":"rock"}],["락블레스트","ultswarm",{"shape":"rock","c":"rock","n":30}],["아쿠아제트","ultrush",{"c":"water","water":1,"fast":1}],["베어가르기","ultbarrage",{"kind":"slash","c":"water"}],["파괴광선","ultbeam",{"c":"hyper","width":1.2,"sparkle":"rock"}],["원시의힘","ultskyfall",{"shape":"rock","n":10,"c":"rock","tc":"rock"}],["기가임팩트","ultdive",{"heavy":1,"c":"normal","uniq":"snorlax"}],["코골기","ultnova",{"c":"sleep"}],["절대영도","ultnova",{"c":"ice","white":1,"uniq":"articuno"}],["눈보라","ultstorm",{"kind":"blizzard","c":"ice"}],["번개","ultstorm",{"kind":"thunder","c":"electric","uniq":"zapdos"}],["불새","ultdive",{"c":"fire","flame":1}],["열풍","ultstorm",{"kind":"fire","c":"fire"}],["얼티메이트드래곤번","ultdive",{"c":"dragon"}],["회오리","ultvortex",{"c":"dragon"}],["용성군","ultskyfall",{"shape":"meteor","n":10,"c":"dragon"}],["용의파동","ultorb",{"style":"energy","c":"dragon","size":1.2}],["파괴광선","ultbeam",{"c":"hyper","width":1.3,"sparkle":"hyper"}],["역린","ultrush",{"c":"dragon","fast":1,"tc":"dragon","uniq":"dragonite"}],["사이코브레이크","ultorb",{"c":"psychic","mewtwo":1,"tc":"hypno"}],["사이코키네시스","ultpsy",{"c":"psychic","mewtwo":1,"tc":"hypno"}],["오리진즈슈퍼노바","ultorb",{"c":"psychic","mew":1,"tc":"fairy"}],["메트로놈","ultpsy",{"c":"fairy","mew":1,"tc":"fairy"}],["매지컬리프","ultswarm",{"shape":"leaf","c":"grass","n":34,"tc":"grass","uniq":"chikorita"}],["하드플랜트","ultbloom",{"mode":"vine"}],["꽃잎댄스","ultstorm",{"kind":"petal","c":"petal","tc":"petal","uniq":"bayleef"}],["하드플랜트","ultbloom",{"mode":"vine","c":"grass","uniq":"meganium"}],["솔라빔","ultbeam",{"solar":1,"c":"solar","width":1.3}],["다이내믹풀플레임","ultorb",{"style":"flame"}],["분연","ultnova",{"c":"fire","tc":"fire","uniq":"cyndaquil"}],["화염자동차","ultrush",{"c":"fire","flame":1,"fast":1,"uniq":"quilava"}],["분연","ultnova",{"c":"fire","tc":"fire"}],["분화","ultpillar",{"kind":"fire","n":5}],["블라스트번","ultnova",{"c":"fire","uniq":"typhlosion"}],["깨물어부수기","ultbarrage",{"kind":"slash","c":"water","tc":"water","uniq":"totodile"}],["하이드로보텍스","ultvortex",{"c":"water","uniq":"croconaw"}],["아쿠아테일","ultrush",{"c":"water","water":1,"fast":1,"tc":"water"}],["하이드로캐논","ultbeam",{"c":"water","width":1.5,"sparkle":"water","uniq":"feraligatr"}],["아쿠아테일","ultrush",{"c":"water","water":1}],["울트라대시어택","ultrush",{"c":"normal"}],["아이언테일","ultdive",{"c":"steel","tc":"steel"}],["울트라대시어택","ultrush",{"c":"normal","fast":1}],["하이퍼보이스","ultnova",{"c":"silver","white":1,"tc":"silver"}],["최면술","ultpsy",{"c":"hypno","tc":"hypno"}],["문포스","ultsparkle",{"mode":"moon"}],["에어슬래시","ultstorm",{"kind":"wind","c":"silver","tc":"silver"}],["마하펀치","ultbarrage",{"kind":"punch","c":"bug"}],["스피드스타","ultskyfall",{"shape":"star","n":10,"c":"star","tc":"star"}],["거미집","ultshadow",{"c":"silk"}],["독침","ultswarm",{"shape":"needle","c":"poison","tc":"poison"}],["애시드포이즌딜리트","ultstorm",{"kind":"acid"}],["브레이브버드","ultrush",{"c":"poison","fast":1}],["크로스포이즌","ultbarrage",{"kind":"slash","c":"poison","spin":1,"tc":"poison"}],["스파킹기가볼트","ultthunder",{"mode":"spear"}],["일렉트릭볼","ultorb",{"c":"electric","style":"energy","tc":"electric"}],["방전","ultnova",{"c":"electric"}],["하이드로펌프","ultbeam",{"c":"water","width":1.3,"wave":1,"sparkle":"electric","tc":"water"}],["볼트태클","ultrush",{"c":"electric","elec":1,"fast":1}],["볼부비부비","ultsparkle",{"mode":"twinkle","c":"electric","tc":"electric"}],["러블리스타임팩트","ultsparkle",{"mode":"twinkle"}],["매지컬샤인","ultnova",{"c":"fairy","tc":"fairy"}],["노래하기","ultpsy",{"c":"fairy"}],["구르기","ultrush",{"c":"fairy","fast":1,"tc":"fairy"}],["매지컬샤인","ultsparkle",{"mode":"twinkle","c":"fairy","tc":"fairy"}],["매지컬샤인","ultnova",{"c":"fairy"}],["맥시멈사이브레이커","ultpsy",{}],["미래예지","ultorb",{"c":"psychic","style":"energy","tc":"psychic"}],["미래예지","ultpillar",{"kind":"light","c":"psychic","n":5}],["사이코키네시스","ultpsy",{"c":"psychic","tc":"psychic"}],["방전","ultnova",{"c":"electric","tc":"electric"}],["방전","ultvolt",{"c":"electric","rainbow":0}],["번개","ultthunder",{"mode":"pillar","tc":"electric"}],["전자포","ultbeam",{"c":"electric","width":1.3,"sparkle":"electric"}],["10만볼트","ultvolt",{"c":"electric","rainbow":0,"max":1,"tc":"electric"}],["꽃잎댄스","ultstorm",{"kind":"petal"}],["구르기","ultrush",{"c":"water","water":1}],["거품광선","ultswarm",{"shape":"ball","c":"water","n":40,"tc":"water"}],["치근거리기","ultbarrage",{"kind":"punch","c":"fairy"}],["아쿠아제트","ultrush",{"c":"water","water":1,"fast":1,"tc":"water"}],["우드해머","ultdive",{"c":"grass","heavy":1}],["따라하기","ultmetronome",{}],["비바라기","ultstorm",{"kind":"rain"}],["바운스","ultdive",{"c":"water"}],["씨뿌리기","ultbloom",{"mode":"vine"}],["씨기관총","ultswarm",{"shape":"ball","c":"grass","tc":"grass"}],["에너지볼","ultorb",{"style":"leaf","c":"grass","tc":"grass"}],["솜포자","ultstorm",{"kind":"wind","c":"silk"}],["애크러뱃","ultdive",{"c":"wind","tc":"petal"}],["마구할퀴기","ultbarrage",{"kind":"slash","c":"normal"}],["스피드스타","ultswarm",{"shape":"star","c":"star","n":40,"tc":"star"}],["쾌청","ultbloom",{"mode":"bloom","c":"solar"}],["솔라빔","ultbeam",{"solar":1,"c":"solar","sparkle":"solar"}],["꽃보라","ultstorm",{"kind":"petal","c":"gold","tc":"gold"}],["소닉붐","ultnova",{"c":"wind"}],["원시의힘","ultskyfall",{"shape":"rock","n":6,"c":"rock"}],["진흙뿌리기","ultswarm",{"shape":"ball","c":"ground"}],["물대포","ultbeam",{"c":"water","width":0.9,"wave":1,"sparkle":"water","tc":"water"}],["지진","ultquake",{}],["탁류","ultvortex",{"c":"ground"}],["사이코키네시스","ultpsy",{"c":"psychic","uniq":"espeon"}],["미래예지","ultorb",{"c":"psychic","style":"energy","sky":1}],["블랙홀이클립스","ultblackhole",{"uniq":"umbreon"}],["검은눈빛","ultshadow",{"c":"dark"}],["블랙홀이클립스","ultblackhole",{}],["브레이브버드","ultdive",{"c":"dark","tc":"dark"}],["썰렁개그","ultstorm",{"kind":"blizzard"}],["사이코키네시스","ultpsy",{}],["멸망의노래","ultshadow",{"c":"ghost"}],["섀도볼","ultorb",{"style":"shadow","c":"ghost","tc":"ghost"}],["잠재파워","ultswarm",{"shape":"ball","c":"hypno","tc":"psychic"}],["잠재파워","ultpsy",{"c":"hypno"}],["잠재파워","ultblackhole",{"c":"psychic","tc":"psychic"}],["잠재파워","ultorb",{"c":"fire","style":"flame","tc":"fire"}],["잠재파워","ultorb",{"c":"ice","style":"ice","tc":"ice"}],["잠재파워","ultorb",{"c":"grass","style":"leaf","tc":"grass"}],["잠재파워","ultswarm",{"shape":"star","c":"electric","tc":"electric"}],["카운터","ultnova",{"c":"psychic","white":1}],["길동무","ultshadow",{"c":"ghost"}],["트윈빔","ultbeam",{"c":"psychic","double":1,"wave":1}],["사념의박치기","ultrush",{"c":"psychic","fast":1,"tc":"psychic"}],["자폭","ultnova",{"c":"fire"}],["바늘미사일","ultswarm",{"shape":"needle","c":"bug","tc":"bug"}],["대폭발","ultnova",{"c":"fire","white":1}],["자이로볼","ultrush",{"c":"steel","drill":1}],["하이퍼드릴","ultrush",{"c":"normal","drill":1}],["드래곤다이브","ultdive",{"c":"dragon","tc":"dragon"}],["공중날기","ultdive",{"c":"ground"}],["시저크로스","ultbarrage",{"kind":"slash","c":"bug","tc":"bug"}],["구멍파기","ultquake",{"c":"steel"}],["아이언테일","ultrush",{"c":"steel","drill":1}],["치근거리기","ultrush",{"c":"fairy","fast":1,"tc":"fairy"}],["깨물어부수기","ultbarrage",{"kind":"slash","c":"dark"}],["러블리스타임팩트","ultsparkle",{"mode":"twinkle","c":"fairy","tc":"fairy"}],["독찌르기","ultrush",{"c":"poison","water":1,"fast":1,"tc":"poison"}],["불릿펀치","ultbarrage",{"kind":"punch","c":"steel","uniq":"scizor"}],["시저크로스","ultrush",{"c":"steel","fast":1,"tc":"blood"}],["스텔스록","ultskyfall",{"shape":"rock","n":6}],["구르기","ultrush",{"c":"rock","drill":1}],["메가혼","ultrush",{"c":"bug","fast":1}],["베어가르기","ultbarrage",{"kind":"slash","c":"ice"}],["고드름떨구기","ultskyfall",{"shape":"ice","n":7,"c":"ice","tc":"ice"}],["애교부리기","ultsparkle",{"mode":"twinkle","c":"fairy"}],["마구할퀴기","ultbarrage",{"kind":"slash","c":"gold","tc":"gold"}],["해머암","ultdive",{"c":"fight","heavy":1}],["기가임팩트","ultrush",{"c":"hyper","fast":1,"tc":"hyper"}],["대지의힘","ultquake",{"c":"fire","lava":1,"tc":"fire"}],["분연","ultstorm",{"kind":"fire"}],["원시의힘","ultskyfall",{"shape":"meteor","n":7,"c":"fire","tc":"fire"}],["눈사태","ultskyfall",{"shape":"ice","n":5}],["얼음뭉치","ultswarm",{"shape":"needle","c":"ice","tc":"ice"}],["눈보라","ultstorm",{"kind":"blizzard"}],["지진","ultquake",{"c":"ice"}],["파워젬","ultpillar",{"kind":"rock","c":"fairy","n":5}],["스파이크캐논","ultswarm",{"shape":"needle","c":"fairy","n":36,"tc":"fairy"}],["물의파동","ultorb",{"style":"water","c":"water","tc":"water"}],["옥타캐논","ultbeam",{"c":"water","width":1.5,"sparkle":"smoke","spiral":1}],["옥타캐논","ultorb",{"style":"water","c":"smoke","size":1.3,"tc":"water"}],["프레젠트","ultswarm",{"shape":"star","c":"gold"}],["파도타기","ultrush",{"c":"water","water":1}],["바운스","ultdive",{"c":"water","tc":"water"}],["강철날개","ultdive",{"c":"steel"}],["에어커터","ultswarm",{"shape":"needle","c":"steel","n":40,"tc":"steel"}],["악의파동","ultpsy",{"c":"dark","tc":"dark"}],["대문자","ultorb",{"style":"flame","c":"fire","size":1.3}],["연옥","ultvortex",{"c":"fire","n":2,"tc":"fire"}],["하이드로보텍스","ultvortex",{"c":"water","n":2}],["용성군","ultskyfall",{"shape":"meteor","n":8,"c":"dragon"}],["라이징랜드오버","ultquake",{}],["애교부리기","ultsparkle",{"mode":"twinkle","c":"fairy","tc":"fairy"}],["구르기","ultrush",{"c":"ground","drill":1,"fast":1}],["트라이어택","ultbeam",{"rainbow":1,"spiral":1}],["전자포","ultorb",{"c":"electric","style":"energy","size":1.2,"tc":"electric"}],["배리어러시","ultrush",{"c":"psychic"}],["스케치","ultmetronome",{}],["용성군","ultskyfall",{"shape":"meteor","n":9,"c":"fairy","tc":"fairy"}],["전력무쌍격렬권","ultbarrage",{"kind":"punch"}],["마하펀치","ultrush",{"c":"fight","fast":1,"tc":"fight"}],["트리플킥","ultbarrage",{"kind":"kick","spin":1,"c":"fight"}],["고속스핀","ultrush",{"c":"fight","drill":1,"fast":1,"tc":"fight"}],["악마의키스","ultswarm",{"shape":"heart","c":"fairy"}],["눈보라","ultstorm",{"kind":"blizzard","tc":"ice"}],["번개펀치","ultbarrage",{"kind":"punch","c":"electric","tc":"electric"}],["화염방사","ultbeam",{"c":"fire","sparkle":"fire","tc":"fire"}],["구르기","ultrush",{"c":"normal","drill":1,"fast":1}],["누르기","ultdive",{"c":"normal","heavy":1}],["치유파동","ultsparkle",{"mode":"twinkle","c":"heal"}],["번개","ultthunder",{"mode":"pillar","uniq":"raikou"}],["전자포","ultbeam",{"c":"electric","width":1.4,"sparkle":"electric"}],["분화","ultquake",{"c":"fire","lava":1,"uniq":"entei"}],["오버히트","ultbeam",{"c":"fire","width":1.4,"sparkle":"fire"}],["오로라빔","ultbeam",{"c":"ice","rainbow":1,"width":1.3,"sparkle":"ice","uniq":"suicune"}],["절대영도","ultskyfall",{"shape":"ice","n":1}],["월즈엔드폴","ultskyfall",{"shape":"rock","n":1}],["돌진","ultrush",{"c":"rock","fast":1}],["모래바람","ultvortex",{"c":"ground","tc":"ground"}],["스톤에지","ultpillar",{"kind":"rock","n":6,"uniq":"tyranitar"}],["모래바람","ultstorm",{"kind":"sand"}],["에어로블라스트","ultbeam",{"c":"wind","width":1.5,"spiral":1,"sparkle":"silver","uniq":"lugia"}],["폭풍","ultvortex",{"c":"wind","n":2,"tc":"silver"}],["성스러운불꽃","ultbeam",{"c":"fire","rainbow":1,"width":1.4,"sparkle":"gold","uniq":"hooh"}],["성스러운불꽃","ultvortex",{"c":"fire","n":2,"tc":"fire"}],["리프스톰","ultstorm",{"kind":"leaf","uniq":"celebi"}],["에너지볼","ultorb",{"style":"leaf","c":"grass","tc":"grass","uniq":"treecko"}],["시저크로스","ultbarrage",{"kind":"slash","c":"grass","uniq":"grovyle"}],["리프스톰","ultstorm",{"kind":"leaf","c":"grass","tc":"grass"}],["리프블레이드","ultbarrage",{"kind":"slash","c":"grass","uniq":"sceptile"}],["하드플랜트","ultbloom",{"mode":"vine","c":"grass"}],["블레이즈킥","ultbarrage",{"kind":"kick","c":"fire"}],["불꽃세례","ultorb",{"style":"flame","c":"fire","tc":"fire","uniq":"torchic"}],["두번킥","ultbarrage",{"kind":"kick","c":"fire","uniq":"combusken"}],["오버히트","ultnova",{"c":"fire","tc":"fire"}],["블레이즈킥","ultbarrage",{"kind":"kick","c":"fire","uniq":"blaziken"}],["하이드로펌프","ultbeam",{"c":"water","wave":1,"sparkle":"water","tc":"water","uniq":"mudkip"}],["머드샷","ultswarm",{"shape":"ball","c":"ground","uniq":"marshtomp"}],["탁류","ultpillar",{"kind":"water","c":"ground","n":5,"tc":"ground"}],["지진","ultquake",{"c":"ground","uniq":"swampert"}],["하이드로캐논","ultbeam",{"c":"water","width":1.4,"sparkle":"water"}],["기습","ultrush",{"c":"dark","fast":1,"tc":"dark"}],["블랙홀이클립스","ultblackhole",{"c":"dark","tc":"dark"}],["신속","ultrush",{"c":"normal","fast":1}],["바늘미사일","ultswarm",{"shape":"needle","c":"normal"}],["베어가르기","ultbarrage",{"kind":"slash","c":"silver","spin":1,"tc":"silver"}],["벌레먹음","ultbarrage",{"kind":"slash","c":"bug"}],["실뿜기","ultbloom",{"mode":"vine","c":"silk","tc":"silk"}],["나비춤","ultsparkle",{"mode":"twinkle","c":"petal","tc":"petal"}],["독가루","ultstorm",{"kind":"acid","c":"poison"}],["단단해지기","ultrush",{"c":"poison"}],["벌레의야단법석","ultpsy",{"c":"poison","tc":"poison"}],["기가드레인","ultbloom",{"mode":"bloom","tc":"grass"}],["마구할퀴기","ultbarrage",{"kind":"slash","c":"water"}],["하이드로펌프","ultbeam",{"c":"water","width":1.3,"rainbow":1,"sparkle":"grass","tc":"grass"}],["리프스톰","ultstorm",{"kind":"leaf"}],["대폭발","ultnova",{"c":"hyper","white":1}],["폭풍","ultvortex",{"c":"wind","n":2,"tc":"grass"}],["브레이브버드","ultrush",{"c":"wind","fast":1}],["제비반환","ultbarrage",{"kind":"slash","c":"wind"}],["파이널다이브클래시","ultdive",{"c":"wind","tc":"wind"}],["폭풍","ultvortex",{"c":"wind"}],["날개치기","ultdive",{"c":"water"}],["비바라기","ultstorm",{"kind":"rain","tc":"water"}],["매지컬리프","ultswarm",{"shape":"leaf","c":"fairy","tc":"fairy"}],["매지컬샤인","ultsparkle",{"mode":"twinkle","c":"fairy"}],["미래예지","ultskyfall",{"shape":"star","c":"psychic","n":6,"tc":"psychic"}],["문포스","ultsparkle",{"mode":"moon","c":"moon","uniq":"gardevoir"}],["사이코키네시스","ultblackhole",{"c":"psychic"}],["거품광선","ultswarm",{"shape":"ball","c":"water"}],["전광석화","ultrush",{"c":"water","water":1,"fast":1}],["벌레의야단법석","ultnova",{"c":"bug"}],["은빛바람","ultstorm",{"kind":"wind","c":"silver","tc":"silver"}],["버섯포자","ultbloom",{"mode":"bloom","c":"spore"}],["씨폭탄","ultswarm",{"shape":"ball","c":"grass","giant":1}],["마하펀치","ultbarrage",{"kind":"punch","c":"fight"}],["씨기관총","ultswarm",{"shape":"ball","c":"grass"}],["기가임팩트","ultrush",{"c":"hyper"}],["하품","ultpsy",{"c":"sleep","tc":"sleep"}],["마구할퀴기","ultbarrage",{"kind":"slash","c":"normal","spin":1}],["기가임팩트","ultrush",{"c":"hyper","fast":1}],["파괴광선","ultbeam",{"c":"hyper","width":1.6,"sparkle":"hyper","tc":"hyper"}],["구멍파기","ultquake",{"c":"ground"}],["연속자르기","ultbarrage",{"kind":"slash","c":"bug"}],["시저크로스","ultrush",{"c":"bug","fast":1}],["절대포식회전참","ultbarrage",{"kind":"slash","c":"bug","spin":1,"tc":"bug"}],["원한","ultblackhole",{"c":"ghost","tc":"ghost"}],["붐버스트","ultnova",{"c":"normal"}],["소란피기","ultpsy",{"c":"normal"}],["짓밟기","ultquake",{"c":"normal"}],["붐버스트","ultnova",{"c":"normal","white":1}],["하이퍼보이스","ultbeam",{"c":"normal","width":1.7,"wave":1,"spiral":1,"sparkle":"hyper","tc":"hyper"}],["손바닥치기","ultbarrage",{"kind":"punch","c":"fight"}],["헤비봄버","ultdive",{"c":"fight","heavy":1,"tc":"fight"}],["거품","ultswarm",{"shape":"ball","c":"water"}],["스톤샤워","ultskyfall",{"shape":"rock","n":5}],["헤롱헤롱","ultswarm",{"shape":"heart","c":"fairy","n":50,"tc":"fairy"}],["파워젬","ultswarm",{"shape":"star","c":"gold"}],["아이언헤드","ultrush",{"c":"steel"}],["헤비봄버","ultdive",{"c":"steel"}],["메탈버스트","ultnova",{"c":"steel"}],["헤비봄버","ultdive",{"c":"steel","heavy":1}],["스톤에지","ultpillar",{"kind":"rock","n":7,"tc":"steel"}],["무릎차기","ultbarrage",{"kind":"kick","c":"psychic"}],["와일드볼트","ultrush",{"c":"electric","elec":1}],["10만볼트","ultvolt",{"rainbow":0,"c":"electric"}],["와일드볼트","ultrush",{"c":"electric","elec":1,"fast":1}],["번개","ultthunder",{"mode":"pillar"}],["번개","ultstorm",{"kind":"thunder"}],["스파킹기가볼트","ultthunder",{"mode":"spear","tc":"fire"}],["방전","ultthunder",{"mode":"pillar"}],["번개","ultstorm",{"kind":"thunder","tc":"water"}],["시그널빔","ultbeam",{"c":"bug","rainbow":1}],["반딧불","ultswarm",{"shape":"star","c":"gold","n":60,"tc":"gold"}],["소원","ultsparkle",{"mode":"twinkle","c":"star"}],["시그널빔","ultbeam",{"c":"bug","rainbow":1,"sparkle":"star"}],["블룸샤인엑스트라","ultbloom",{"mode":"bloom","c":"petal","tc":"petal"}],["토해내기","ultorb",{"c":"sludge","style":"energy"}],["토해내기","ultorb",{"c":"sludge","style":"energy","size":1.3}],["오물웨이브","ultvortex",{"c":"sludge","tc":"poison"}],["폭포오르기","ultdive",{"c":"water","tc":"water"}],["해수스파우팅","ultpillar",{"kind":"water"}],["헤비봄버","ultdive",{"c":"water","heavy":1}],["분화","ultpillar",{"kind":"fire"}],["지진","ultquake",{"c":"fire","lava":1,"tc":"fire"}],["오버히트","ultnova",{"c":"fire"}],["회오리불꽃","ultvortex",{"c":"fire","tc":"fire"}],["파워젬","ultorb",{"c":"psychic","style":"energy"}],["뛰어오르다","ultdive",{"c":"psychic"}],["흔들흔들댄스","ultpsy",{"c":"hypno"}],["난동부리기","ultbarrage",{"kind":"punch","c":"normal","spin":1}],["깨물어부수기","ultbarrage",{"kind":"slash","c":"ground"}],["땅가르기","ultquake",{"c":"ground"}],["용성군","ultskyfall",{"shape":"meteor","n":6}],["바늘미사일","ultswarm",{"shape":"needle","c":"grass"}],["바늘팔","ultbarrage",{"kind":"punch","c":"grass"}],["악의파동","ultshadow",{"c":"dark","tc":"dark"}],["드래곤다이브","ultdive",{"c":"dragon"}],["브레이크크루","ultbarrage",{"kind":"slash","c":"normal"}],["인파이트","ultrush",{"c":"fight","fast":1,"tc":"blood"}],["포이즌테일","ultbarrage",{"kind":"slash","c":"poison","spin":1}],["오물폭탄","ultorb",{"style":"shadow","c":"poison","size":1.2,"tc":"poison"}],["사이코키네시스","ultpsy",{"c":"moon","tc":"moon"}],["플레어드라이브","ultrush",{"c":"solar","flame":1,"drill":1,"tc":"fire"}],["탁류","ultvortex",{"c":"ground","n":2,"tc":"ground"}],["찝게햄머","ultbarrage",{"kind":"punch","c":"water"}],["가위자르기","ultdive",{"c":"dark","tc":"dark"}],["원시의힘","ultskyfall",{"shape":"rock","n":4}],["고속스핀","ultrush",{"c":"ground","drill":1}],["원시의힘","ultskyfall",{"shape":"rock","n":6}],["파괴광선","ultbeam",{"c":"hyper","width":1.4,"spiral":1,"sparkle":"ground"}],["쥐어짜기","ultbloom",{"mode":"vine"}],["원시의힘","ultskyfall",{"shape":"rock","n":3}],["에너지볼","ultorb",{"style":"leaf","c":"grass","size":1.3}],["스톤에지","ultpillar",{"kind":"rock"}],["락블라스트","ultswarm",{"shape":"rock","c":"rock"}],["바둥바둥","ultrush",{"c":"water","water":1}],["하이드로펌프","ultbeam",{"c":"water","width":1.3,"rainbow":1,"sparkle":"water"}],["물의파동","ultorb",{"style":"water","c":"water","size":1.4,"tc":"fairy"}],["웨더볼","ultstorm",{"kind":"fire","tint":"sepia(1) saturate(4) hue-rotate(-25deg)"}],["웨더볼","ultstorm",{"kind":"rain","tint":"sepia(1) saturate(3) hue-rotate(170deg)"}],["웨더볼","ultstorm",{"kind":"blizzard","tint":"sepia(1) saturate(2) hue-rotate(210deg) brightness(1.1)"}],["섀도크루","ultbarrage",{"kind":"slash","c":"ghost","tint":"hue-rotate(140deg) saturate(1.4)"}],["섀도스니크","ultshadow",{"c":"ghost","tint":"hue-rotate(260deg) saturate(1.3)"}],["나이트헤드","ultpsy",{"c":"ghost"}],["저주","ultshadow",{"c":"ghost","tc":"ghost"}],["솔라빔","ultbeam",{"solar":1,"c":"grass"}],["리프스톰","ultswarm",{"shape":"leaf","c":"grass"}],["신통력","ultpsy",{"c":"psychic"}],["소란피기","ultnova",{"c":"psychic"}],["깜짝베기","ultrush",{"c":"dark","fast":1}],["사이코커터","ultbarrage",{"kind":"slash","c":"psychic","spin":1,"tc":"dark"}],["미러코트","ultnova",{"c":"psychic"}],["카운터","ultbarrage",{"kind":"punch","c":"psychic"}],["레이징지오프리즈","ultskyfall",{"shape":"ice","n":1}],["얼다바람","ultstorm",{"kind":"blizzard"}],["절대영도","ultnova",{"c":"ice","white":1}],["눈보라","ultvortex",{"c":"ice","tc":"ice"}],["구르기","ultrush",{"c":"ice"}],["오로라빔","ultbeam",{"c":"ice","rainbow":1,"sparkle":"ice"}],["구르기","ultrush",{"c":"ice","fast":1}],["아이스볼","ultorb",{"style":"ice","c":"ice"}],["레이징지오프리즈","ultskyfall",{"shape":"ice","n":1,"tc":"ice"}],["바다회오리","ultvortex",{"c":"water"}],["물의파동","ultorb",{"style":"water","c":"silver"}],["하이드로펌프","ultbeam",{"c":"water","width":1.2,"sparkle":"water"}],["아쿠아테일","ultbarrage",{"kind":"slash","c":"water","spin":1}],["하이드로펌프","ultbeam",{"c":"water","width":1.3,"wave":1,"sparkle":"fairy","tc":"fairy"}],["양날박치기","ultrush",{"c":"rock"}],["원시의힘","ultskyfall",{"shape":"rock","n":5}],["헤롱헤롱","ultswarm",{"shape":"heart","c":"fairy"}],["하트스탬프","ultsparkle",{"mode":"twinkle","c":"fairy","tc":"fairy"}],["박치기","ultrush",{"c":"dragon"}],["얼티메이트드래곤번","ultdive",{"c":"dragon","tc":"dragon"}],["용성군","ultskyfall",{"shape":"meteor","n":5}],["용의숨결","ultorb",{"style":"flame","c":"dragon"}],["용성군","ultskyfall",{"shape":"meteor","n":8,"uniq":"salamence"}],["파괴광선","ultbeam",{"c":"hyper","width":1.3}],["돌진","ultrush",{"c":"steel"}],["아이언헤드","ultdive",{"c":"steel"}],["코멧펀치","ultdive",{"c":"steel"}],["불릿펀치","ultbarrage",{"kind":"punch","c":"steel","tc":"steel"}],["코멧펀치","ultdive",{"c":"steel","heavy":1,"uniq":"metagross"}],["파괴광선","ultbeam",{"c":"hyper","width":1.3,"sparkle":"rock"}],["스톤에지","ultpillar",{"kind":"rock","n":6}],["냉동빔","ultbeam",{"c":"ice","width":1.3,"sparkle":"ice"}],["절대영도","ultpillar",{"kind":"ice","n":6}],["러스터캐논","ultbeam",{"c":"steel","width":1.3,"sparkle":"steel"}],["미스트볼","ultorb",{"c":"fairy","style":"energy","uniq":"latias"}],["미스트볼","ultbeam",{"c":"psychic","wave":1,"sparkle":"fairy"}],["러스터퍼지","ultbeam",{"c":"psychic","width":1.4,"sparkle":"psychic","uniq":"latios"}],["용성군","ultskyfall",{"shape":"meteor","n":8}],["근원의파동","ultbeam",{"c":"water","width":1.6,"wave":1,"spiral":1,"sparkle":"water","tc":"water","uniq":"kyogre"}],["근원의파동","ultvortex",{"c":"water","n":2,"tc":"water"}],["단애의칼","ultquake",{"c":"fire","lava":1,"tc":"fire","uniq":"groudon"}],["분화","ultpillar",{"kind":"fire","n":6,"tc":"fire"}],["솔라빔","ultbeam",{"solar":1,"c":"solar","width":1.5,"tc":"fire"}],["화룡점정","ultdive",{"c":"dragon","tc":"dragon","uniq":"rayquaza"}],["파괴광선","ultbeam",{"c":"hyper","width":1.5,"sparkle":"dragon","tc":"dragon"}],["파멸의소원","ultskyfall",{"shape":"star","c":"star","n":8,"uniq":"jirachi"}],["소원","ultsparkle",{"mode":"moon","c":"star","tc":"star"}],["사이코부스트","ultbeam",{"c":"psychic","width":1.4,"spiral":1,"sparkle":"psychic","uniq":"deoxys"}],["맥시멈사이브레이커","ultpsy",{"c":"psychic","tc":"psychic"}],["사이코부스트","ultbeam",{"c":"psychic","width":1.3,"spiral":1,"sparkle":"psychic"}],["신속","ultrush",{"c":"psychic","fast":1}],["사이코부스트","ultbeam",{"c":"psychic","width":1.9,"spiral":1,"sparkle":"psychic","charge":0.7}],["엄청난힘","ultbarrage",{"kind":"punch","c":"fight","tc":"psychic"}],["사이코부스트","ultbeam",{"c":"psychic","width":1.1,"spiral":1,"sparkle":"psychic"}],["씨폭탄","ultswarm",{"shape":"ball","c":"grass","uniq":"turtwig"}],["하드플랜트","ultpillar",{"kind":"vine","n":4}],["기가드레인","ultbloom",{"mode":"bloom","c":"heal","tc":"grass","uniq":"grotle"}],["하드플랜트","ultpillar",{"kind":"vine","n":5,"uniq":"torterra"}],["불대문자","ultorb",{"style":"flame","c":"fire","uniq":"chimchar"}],["화염자동차","ultrush",{"c":"fire","flame":1,"drill":1}],["마하펀치","ultbarrage",{"kind":"punch","c":"fire","uniq":"monferno"}],["화염방사","ultbeam",{"c":"fire","width":1.1,"sparkle":"fire"}],["블래스트번","ultnova",{"c":"fire","uniq":"infernape"}],["인파이트","ultbarrage",{"kind":"punch","c":"fire"}],["거품광선","ultswarm",{"shape":"ball","c":"water","uniq":"piplup"}],["하이드로캐논","ultbeam",{"c":"water","width":1.1,"sparkle":"water"}],["메탈클로","ultbarrage",{"kind":"slash","c":"steel","uniq":"prinplup"}],["하이드로캐논","ultbeam",{"c":"water","width":1.5,"sparkle":"water","uniq":"empoleon"}],["초월나선연격","ultrush",{"c":"steel","drill":1,"water":1,"fast":1,"tc":"water"}],["전광석화","ultrush",{"c":"wind","fast":1}],["브레이브버드","ultrush",{"c":"aura","fast":1}],["인파이트","ultbarrage",{"kind":"kick","c":"fight"}],["구르기","ultrush",{"c":"normal","drill":1}],["필살앞니","ultbarrage",{"kind":"slash","c":"normal"}],["폭포오르기","ultpillar",{"kind":"water","n":4}],["참기","ultnova",{"c":"bug"}],["벌레의야단법석","ultpsy",{"c":"bug","tc":"bug"}],["스파크","ultrush",{"c":"electric","elec":1}],["번개엄니","ultbarrage",{"kind":"slash","c":"electric"}],["매지컬리프","ultswarm",{"shape":"leaf","c":"grass"}],["메가드레인","ultbloom",{"mode":"bloom","c":"petal"}],["솔라빔","ultbeam",{"c":"solar","solar":1,"width":1.2,"sparkle":"petal","tc":"petal"}],["원시의힘","ultswarm",{"shape":"rock","c":"rock"}],["박치기","ultrush",{"c":"rock"}],["양날박치기","ultrush",{"c":"rock","fast":1}],["절대포식회전참","ultbarrage",{"kind":"slash","spin":1,"c":"grass"}],["잠재파워","ultorb",{"style":"leaf","c":"grass"}],["절대포식회전참","ultbarrage",{"kind":"slash","spin":1,"c":"ground"}],["잠재파워","ultorb",{"style":"energy","c":"ground"}],["절대포식회전참","ultbarrage",{"kind":"slash","spin":1,"c":"petal"}],["잠재파워","ultorb",{"style":"energy","c":"petal"}],["대지의힘","ultquake",{"c":"ground"}],["러스터캐논","ultbeam",{"c":"steel","sparkle":"steel"}],["메탈버스트","ultnova",{"c":"steel","tc":"petal"}],["사이코키네시스","ultpsy",{"c":"psychic","tc":"silver"}],["절대포식회전참","ultbarrage",{"kind":"slash","spin":1,"c":"gold"}],["바람일으키기","ultvortex",{"c":"gold"}],["공격지령","ultswarm",{"shape":"needle","c":"gold"}],["벌레의야단법석","ultnova",{"c":"gold","tc":"gold"}],["천사의키스","ultsparkle",{"mode":"twinkle","c":"fairy","tc":"electric"}],["아쿠아테일","ultbarrage",{"kind":"slash","c":"water"}],["블룸샤인엑스트라","ultbloom",{"mode":"bloom","c":"petal"}],["매지컬리프","ultswarm",{"shape":"leaf","c":"petal"}],["솔라빔","ultbeam",{"c":"solar","solar":1,"width":1.2}],["꽃잎댄스","ultvortex",{"c":"petal","n":2,"tc":"petal"}],["하이드로보텍스","ultvortex",{"c":"water","tc":"petal"}],["진흙폭탄","ultswarm",{"shape":"ball","c":"ground","tc":"petal"}],["하이드로보텍스","ultvortex",{"c":"water","tc":"water"}],["진흙폭탄","ultswarm",{"shape":"ball","c":"ground","tc":"water"}],["대지의힘","ultquake",{"c":"ground","tc":"petal"}],["탁류","ultpillar",{"kind":"water","n":5,"tc":"petal"}],["대지의힘","ultquake",{"c":"ground","tc":"water"}],["탁류","ultpillar",{"kind":"water","n":5,"tc":"water"}],["더블어택","ultbarrage",{"kind":"punch","c":"normal"}],["대폭발","ultnova",{"c":"ghost"}],["괴상한바람","ultstorm",{"kind":"wind","c":"ghost"}],["뛰어오르다","ultdive",{"c":"normal"}],["메가톤킥","ultbarrage",{"kind":"kick","c":"fight"}],["매지컬리프","ultswarm",{"shape":"leaf","c":"hypno","tc":"hypno"}],["브레이브버드","ultdive",{"c":"dark"}],["소란피기","ultnova",{"c":"gold","tc":"psychic"}],["독가스","ultvortex",{"c":"gas"}],["대폭발","ultnova",{"c":"poison"}],["미래예지","ultpillar",{"kind":"light","c":"psychic","n":6}],["이판사판태클","ultrush",{"c":"rock"}],["흉내내기","ultmetronome",{}],["사이코키네시스","ultpsy",{"c":"psychic","tc":"fairy"}],["알폭탄","ultswarm",{"shape":"egg","c":"egg","giant":1}],["수다","ultnova",{"c":"fairy"}],["하이퍼보이스","ultpsy",{"c":"fairy"}],["블랙홀이클립스","ultblackhole",{"c":"ghost"}],["악의파동","ultpsy",{"c":"dark","tc":"ghost"}],["드래곤크루","ultbarrage",{"kind":"slash","c":"dragon"}],["드래곤다이브","ultdive",{"c":"dragon","uniq":"garchomp"}],["발경","ultbarrage",{"kind":"punch","c":"aura"}],["전광석화","ultrush",{"c":"aura","fast":1}],["진 파동탄","ultorb",{"style":"aura","c":"aura","lucario":1,"tc":"aura"}],["파동 인파이트","ultbarrage",{"kind":"punch","c":"aura","tc":"aura","aura":1}],["크로스포이즌","ultbarrage",{"kind":"slash","c":"poison"}],["더스트슈트","ultorb",{"style":"energy","c":"sludge","size":1.3}],["독찌르기","ultbarrage",{"kind":"punch","c":"poison"}],["기습","ultrush",{"c":"poison","fast":1}],["파워휩","ultbloom",{"mode":"vine"}],["깨물어부수기","ultbarrage",{"kind":"slash","c":"grass"}],["은빛바람","ultstorm",{"kind":"wind","c":"silver","tc":"water"}],["뛰어오르다","ultdive",{"c":"water"}],["얼음뭉치","ultswarm",{"shape":"needle","c":"ice"}],["우드해머","ultrush",{"c":"grass"}],["깜짝베기","ultbarrage",{"kind":"slash","c":"dark"}],["전자포","ultbeam",{"c":"electric","width":1.3,"spiral":1,"sparkle":"electric"}],["방전","ultvolt",{"c":"electric","rainbow":0,"max":1,"tc":"electric"}],["구르기","ultrush",{"c":"tongue","drill":1}],["파워휩","ultbloom",{"mode":"vine","c":"tongue"}],["암석포","ultorb",{"style":"energy","c":"rock"}],["뿔드릴","ultrush",{"c":"rock","drill":1,"fast":1}],["불대문자","ultorb",{"style":"flame","c":"fire"}],["화염방사","ultbeam",{"c":"fire","width":1.3,"sparkle":"fire","tc":"fire"}],["에어슬래시","ultstorm",{"kind":"wind"}],["러블리스타임팩트","ultsparkle",{"mode":"twinkle","c":"fairy","tc":"fairy","uniq":"togekiss"}],["에어슬래시","ultstorm",{"kind":"wind","c":"bug"}],["리프블레이드","ultbarrage",{"kind":"slash","c":"grass","uniq":"leafeon"}],["냉동빔","ultbeam",{"c":"ice","sparkle":"ice","uniq":"glaceon"}],["공중날기","ultdive",{"c":"poison"}],["고드름떨구기","ultskyfall",{"shape":"ice","n":8}],["파괴광선","ultbeam",{"c":"hyper","width":1.5,"sparkle":"hyper"}],["트라이어택","ultvolt",{"rainbow":1}],["사이코커터","ultbarrage",{"kind":"slash","c":"psychic"}],["성스러운칼","ultpillar",{"kind":"light","c":"psychic","n":6}],["스톤에지","ultpillar",{"kind":"rock","n":5}],["전자포","ultorb",{"style":"energy","c":"electric","size":1.3}],["얼다바람","ultvortex",{"c":"ice"}],["번개","ultthunder",{"mode":"pillar","c":"ghost"}],["방전","ultvolt",{"c":"electric","rainbow":0,"tc":"ghost"}],["오버히트","ultbeam",{"c":"fire","width":1.3,"sparkle":"fire"}],["다이내믹풀플레임","ultorb",{"style":"flame","c":"fire","size":1.3,"tc":"fire"}],["하이드로펌프","ultbeam",{"c":"water","width":1.4,"sparkle":"water"}],["하이드로보텍스","ultvortex",{"c":"water","n":2,"tc":"water"}],["냉동빔","ultbeam",{"c":"ice","width":1.3,"sparkle":"ice","tc":"ice"}],["에어슬래시","ultstorm",{"kind":"wind","tc":"wind"}],["잎날가르기","ultswarm",{"shape":"leaf","c":"grass","n":50,"tc":"grass"}],["미래예지","ultpillar",{"kind":"light","c":"gold"}],["신통력","ultpsy",{"c":"gold","tc":"gold"}],["매지컬샤인","ultsparkle",{"mode":"twinkle","c":"psychic","tc":"psychic"}],["대폭발","ultnova",{"c":"aura"}],["미래예지","ultskyfall",{"shape":"star","n":10,"c":"aura","tc":"aura"}],["시간의포효","ultbeam",{"c":"dragon","width":1.6,"spiral":1,"sparkle":"steel","uniq":"dialga"}],["용성군","ultskyfall",{"shape":"meteor","n":12,"c":"dragon","tc":"steel"}],["아공절단","ultbarrage",{"kind":"slash","c":"psychic","uniq":"palkia"}],["하이드로펌프","ultbeam",{"c":"water","width":1.6,"spiral":1,"sparkle":"psychic","tc":"psychic"}],["마그마스톰","ultvortex",{"c":"fire"}],["분화","ultpillar",{"kind":"fire","n":7,"tc":"fire"}],["섀도다이브","ultshadow",{"c":"ghost","uniq":"giratina"}],["섀도볼","ultorb",{"style":"shadow","c":"ghost","size":1.6,"tc":"ghost"}],["섀도다이브","ultdive",{"c":"ghost"}],["원시의힘","ultskyfall",{"shape":"rock","n":10,"c":"ghost","tc":"ghost"}],["초승달춤","ultsparkle",{"mode":"moon","c":"moon"}],["오로라빔","ultbeam",{"c":"ice","rainbow":1,"width":1.4,"sparkle":"moon","tc":"moon"}],["하트스웹","ultsparkle",{"mode":"twinkle","c":"water"}],["바다회오리","ultvortex",{"c":"water","n":2,"tc":"water"}],["다크홀","ultblackhole",{"c":"dark","uniq":"darkrai"}],["악몽","ultshadow",{"c":"dark","tc":"dark"}],["시드플레어","ultbloom",{"mode":"bloom"}],["에너지볼","ultorb",{"style":"leaf","c":"grass","size":1.4,"tc":"grass"}],["심판의뭉치","ultskyfall",{"shape":"star","n":12,"c":"gold","uniq":"arceus"}],["파괴광선","ultbeam",{"c":"hyper","width":1.7,"spiral":1,"sparkle":"gold","tc":"gold"}],["심판의뭉치","ultskyfall",{"shape":"meteor","n":12,"c":"bug","tc":"bug"}],["바늘미사일","ultswarm",{"shape":"needle","c":"bug","n":60,"tc":"bug"}],["심판의뭉치","ultskyfall",{"shape":"meteor","n":12,"c":"dark","tc":"dark"}],["악의파동","ultblackhole",{"c":"dark","tc":"dark"}],["심판의뭉치","ultskyfall",{"shape":"meteor","n":12,"c":"dragon","tc":"dragon"}],["용의파동","ultbeam",{"c":"dragon","width":1.6,"wave":1,"sparkle":"dragon","tc":"dragon"}],["심판의뭉치","ultskyfall",{"shape":"star","n":12,"c":"electric","tc":"electric"}],["심판의뭉치","ultskyfall",{"shape":"meteor","n":12,"c":"fight","tc":"fight"}],["기합구슬","ultorb",{"style":"aura","c":"fight","size":1.5,"tc":"fight"}],["심판의뭉치","ultskyfall",{"shape":"meteor","n":12,"c":"fire","tc":"fire"}],["블래스트번","ultnova",{"c":"fire","tc":"fire"}],["심판의뭉치","ultskyfall",{"shape":"star","n":12,"c":"wind","tc":"wind"}],["폭풍","ultvortex",{"c":"wind","n":2,"tc":"wind"}],["심판의뭉치","ultskyfall",{"shape":"meteor","n":12,"c":"ghost","tc":"ghost"}],["무한암야로의유인","ultshadow",{"c":"ghost","tc":"ghost"}],["심판의뭉치","ultskyfall",{"shape":"star","n":12,"c":"grass","tc":"grass"}],["솔라빔","ultbeam",{"c":"solar","solar":1,"width":1.6,"sparkle":"grass","tc":"grass"}],["심판의뭉치","ultskyfall",{"shape":"rock","n":12,"c":"ground","tc":"ground"}],["지진","ultquake",{"c":"ground","tc":"ground"}],["심판의뭉치","ultskyfall",{"shape":"ice","n":12,"c":"ice","tc":"ice"}],["심판의뭉치","ultskyfall",{"shape":"meteor","n":12,"c":"poison","tc":"poison"}],["오물폭탄","ultorb",{"style":"energy","c":"sludge","size":1.5,"tc":"poison"}],["심판의뭉치","ultskyfall",{"shape":"star","n":12,"c":"psychic","tc":"psychic"}],["심판의뭉치","ultskyfall",{"shape":"rock","n":12,"c":"rock","tc":"rock"}],["스톤에지","ultpillar",{"kind":"rock","n":7,"tc":"rock"}],["심판의뭉치","ultskyfall",{"shape":"meteor","n":12,"c":"steel","tc":"steel"}],["러스터캐논","ultbeam",{"c":"steel","width":1.6,"spiral":1,"sparkle":"steel","tc":"steel"}],["심판의뭉치","ultskyfall",{"shape":"meteor","n":12,"c":"water","tc":"water"}],["하이드로펌프","ultpillar",{"kind":"water","n":7,"tc":"water"}],["V제너레이트","ultrush",{"c":"fire","flame":1,"fast":1,"tc":"fire"}],["오버히트","ultorb",{"style":"flame","c":"fire","sky":1,"size":1.6,"tc":"fire"}],["그래스믹서","ultvortex",{"c":"grass","uniq":"snivy"}],["리프블레이드","ultbarrage",{"kind":"slash","c":"grass","uniq":"servine"}],["리프스톰","ultstorm",{"kind":"leaf","c":"grass","tc":"grass","uniq":"serperior"}],["니트로차지","ultrush",{"c":"fire","flame":1}],["회오리불꽃","ultvortex",{"c":"fire","tc":"fire","uniq":"tepig"}],["불꽃펀치","ultbarrage",{"kind":"punch","c":"fire","uniq":"pignite"}],["플레어드라이브","ultdive",{"c":"fire","flame":1}],["블라스트번","ultnova",{"c":"fire","tc":"fire","uniq":"emboar"}],["해머암","ultbarrage",{"kind":"punch","c":"fire"}],["껍질검","ultbarrage",{"kind":"slash","c":"water","uniq":"oshawott"}],["연속자르기","ultbarrage",{"kind":"slash","c":"water","uniq":"dewott"}],["하이드로펌프","ultbeam",{"c":"water","width":1.3,"sparkle":"water"}],["하이드로캐논","ultbeam",{"c":"water","width":1.6,"sparkle":"water","tc":"water"}],["껍질검","ultbarrage",{"kind":"slash","c":"water","tc":"water","uniq":"samurott"}],["이상한빛","ultorb",{"style":"shadow","c":"ghost","size":1.2,"tc":"ghost"}],["기가임팩트","ultrush",{"c":"normal","fast":1}],["속임수","ultshadow",{"c":"dark"}],["깜짝베기","ultbarrage",{"kind":"slash","c":"dark","spin":1,"tc":"dark"}],["씨폭탄","ultorb",{"style":"leaf","c":"grass","tc":"grass"}],["불꽃튀기기","ultpillar",{"kind":"fire","c":"fire","n":5,"tc":"fire"}],["열탕","ultpillar",{"kind":"water","c":"water"}],["문라이트","ultsparkle",{"mode":"moon","c":"moon"}],["최면술","ultpsy",{"c":"hypno","tc":"psychic"}],["꿈먹기","ultpsy",{"c":"sleep"}],["사이코키네시스","ultorb",{"style":"energy","c":"psychic","size":1.5,"tc":"psychic"}],["불새","ultdive",{"c":"gold"}],["에어슬래시","ultswarm",{"shape":"leaf","c":"wind"}],["번개","ultthunder",{"mode":"pillar","c":"electric","tc":"electric"}],["파워젬","ultbeam",{"c":"gold","sparkle":"gold"}],["스톤에지","ultpillar",{"kind":"rock","c":"gold","n":6,"tc":"gold"}],["하트스탬프","ultswarm",{"shape":"heart","c":"fairy"}],["드릴라이너","ultrush",{"c":"ground","drill":1,"fast":1}],["심플빔","ultbeam",{"c":"fairy","rainbow":1,"spiral":1,"sparkle":"heal","tc":"fairy"}],["해머암","ultdive",{"c":"steel","heavy":1}],["스톤샤워","ultskyfall",{"shape":"rock","n":7,"c":"rock"}],["에코보이스","ultnova",{"c":"water"}],["지구던지기","ultquake",{"c":"fight"}],["엄청난힘","ultdive",{"c":"fight","heavy":1,"tc":"fight"}],["인파이트","ultbarrage",{"kind":"punch","c":"fight"}],["기합구슬","ultorb",{"style":"aura","c":"fight","size":1.3,"tc":"fight"}],["리프블레이드","ultbarrage",{"kind":"slash","c":"grass","spin":1}],["하드롤러","ultrush",{"c":"poison","drill":1,"fast":1}],["애시드포이즌딜리트","ultstorm",{"kind":"acid","c":"poison","tc":"poison"}],["이판사판태클","ultrush",{"c":"water","water":1,"fast":1}],["아쿠아테일","ultdive",{"c":"water"}],["꽃잎댄스","ultstorm",{"kind":"petal","c":"petal","tc":"petal"}],["스톤에지","ultpillar",{"kind":"rock","c":"rock"}],["락블레스트","ultswarm",{"shape":"rock","c":"rock","n":40}],["박치기","ultrush",{"c":"dark","fast":1}],["무릎차기","ultbarrage",{"kind":"kick","c":"fight"}],["불새","ultdive",{"c":"psychic","tc":"psychic"}],["더스트슈트","ultorb",{"style":"energy","c":"sludge","size":1.5,"tc":"poison"}],["일루전","ultcopy",{}],["악의파동","ultblackhole",{"c":"dark"}],["스위프뺨치기","ultbarrage",{"kind":"slash","c":"silk","spin":1}],["하이퍼보이스","ultnova",{"c":"silk"}],["미래예지","ultskyfall",{"shape":"star","n":9,"c":"psychic"}],["사이코키네시스","ultpsy",{"c":"hypno","tc":"psychic"}],["사이코쇼크","ultnova",{"c":"psychic"}],["사이코키네시스","ultorb",{"style":"energy","c":"sleep","size":1.3}],["폭풍","ultstorm",{"kind":"wind","c":"wind"}],["고드름침","ultswarm",{"shape":"needle","c":"ice","n":40,"tc":"ice"}],["아로마테라피","ultbloom",{"mode":"bloom","c":"petal"}],["자연의힘","ultstorm",{"kind":"petal","c":"petal","tc":"petal"}],["자연의힘","ultbloom",{"mode":"vine","c":"grass","tc":"grass"}],["자연의힘","ultstorm",{"kind":"leaf","c":"gold"}],["에너지볼","ultorb",{"style":"leaf","c":"gold","size":1.2,"tc":"gold"}],["자연의힘","ultstorm",{"kind":"blizzard","c":"ice"}],["솔라빔","ultbeam",{"c":"ice","solar":1,"sparkle":"ice","tc":"ice"}],["볼트체인지","ultdive",{"c":"electric","elec":1}],["마구찌르기","ultbarrage",{"kind":"punch","c":"bug"}],["이판사판태클","ultrush",{"c":"bug","fast":1}],["치유파동","ultsparkle",{"mode":"twinkle","c":"fairy","tc":"fairy"}],["일렉트릭네트","ultvolt",{"c":"electric","rainbow":0}],["기어소서","ultswarm",{"shape":"coin","c":"steel","giant":1}],["전자포","ultorb",{"style":"energy","c":"electric","size":1.3,"tc":"electric"}],["환상빔","ultbeam",{"c":"psychic","wave":1,"spiral":1,"sparkle":"psychic","tc":"psychic"}],["싱크로노이즈","ultpsy",{"c":"hypno","tint":"hue-rotate(280deg) saturate(2) brightness(1.15)","tc":"psychic"}],["연옥","ultshadow",{"c":"fire"}],["오버히트","ultpillar",{"kind":"fire","c":"ghost","n":5,"tc":"ghost"}],["역린","ultrush",{"c":"dragon","fast":1}],["고드름떨구기","ultskyfall",{"shape":"ice","n":6,"c":"ice"}],["무릎차기","ultbarrage",{"kind":"kick","c":"fight","spin":1}],["파동탄","ultorb",{"style":"aura","c":"aura"}],["섀도펀치","ultshadow",{"c":"ghost"}],["헤비봄버","ultdive",{"c":"ghost","heavy":1}],["아프로브레이크","ultrush",{"c":"ground","fast":1}],["브레이브버드","ultdive",{"c":"wind","flame":1}],["브레이크크루","ultbarrage",{"kind":"slash","c":"wind","tc":"wind"}],["본러쉬","ultswarm",{"shape":"bone","c":"bone"}],["화염방사","ultbeam",{"c":"fire","width":0.9,"sparkle":"fire"}],["연옥","ultvortex",{"c":"fire"}],["시저크로스","ultbarrage",{"kind":"slash","c":"steel","spin":1}],["초월나선연격","ultrush",{"c":"steel","drill":1,"fast":1,"tc":"steel"}],["성스러운칼","ultpillar",{"kind":"light","c":"steel"}],["아이언헤드","ultrush",{"c":"steel","fast":1,"tc":"steel"}],["스톤에지","ultquake",{"c":"rock"}],["월즈엔드폴","ultskyfall",{"shape":"rock","n":1,"c":"rock","tc":"rock"}],["블룸샤인엑스트라","ultbloom",{"mode":"bloom","c":"grass","tc":"grass"}],["신비의칼","ultbarrage",{"kind":"slash","c":"water"}],["옛노래","ultsparkle",{"mode":"twinkle","c":"psychic"}],["옛노래","ultbarrage",{"kind":"kick","c":"fight","spin":1,"tint":"hue-rotate(215deg) saturate(1.3)"}],["물의파동","ultorb",{"style":"water","c":"water","uniq":"froakie"}],["뛰어오르다","ultdive",{"c":"water","tc":"water"}],["물수리검","ultswarm",{"shape":"shuriken","c":"water","uniq":"frogadier"}],["거대 물수리검","ultswarm",{"shape":"shuriken","c":"water","giant":1,"ninja":1}],["그림자분신 물수리검","ultswarm",{"shape":"shuriken","c":"water","clones":5,"tc":"water"}],["바늘미사일","ultswarm",{"shape":"needle","c":"grass","uniq":"chespin"}],["구르기","ultrush",{"c":"grass","drill":1}],["구르기","ultrush",{"c":"grass","drill":1,"uniq":"quilladin"}],["하드플랜트","ultpillar",{"kind":"vine","n":5,"tc":"grass","uniq":"chesnaught"}],["도깨비불","ultorb",{"style":"flame","c":"fire","uniq":"fennekin"}],["매지컬플레임","ultorb",{"style":"flame","c":"fire","uniq":"braixen"}],["매지컬플레임","ultvortex",{"c":"fire","n":2,"tc":"fire","uniq":"delphox"}],["블라스트번","ultnova",{"c":"fire"}]];
 const POKEMON_ULT = {"bulbasaur":[0,1],"ivysaur":[2,3],"venusaur":[4,5],"venusaur_female":[4,5],"charmander":[6,7],"charmeleon":[8,9],"charizard":[10,11],"squirtle":[12,13],"wartortle":[14,15],"blastoise":[16,17],"caterpie":[18,19],"metapod":[20,21],"butterfree":[22,23],"weedle":[24,19],"kakuna":[25,26],"beedrill":[27,28],"pidgey":[29,30],"pidgeotto":[29,31],"pidgeot":[32,33],"rattata":[34,35],"raticate":[34,36],"spearow":[37,38],"fearow":[39,40],"ekans":[41,42],"arbok":[43,44],"pikachu":[45,46],"pikachu_female":[45,46],"raichu":[47,48],"sandshrew":[49,50],"sandslash":[51,52],"nidoran_female":[41,24],"nidorina":[41,53],"nidoqueen":[54,55],"nidoran_male":[56,57],"nidorino":[58,59],"nidoking":[60,61],"clefairy":[62,63],"clefable":[63,64],"vulpix":[65,66],"ninetales":[67,68],"jigglypuff":[69,70],"wigglytuff":[71,72],"zubat":[73,74],"golbat":[75,76],"oddish":[77,78],"gloom":[79,63],"vileplume":[80,81],"paras":[82,83],"parasect":[82,84],"venonat":[85,86],"venomoth":[87,88],"diglett":[89,90],"dugtrio":[91,92],"meowth":[93,94],"persian":[95,96],"psyduck":[97,98],"golduck":[99,86],"mankey":[100,101],"primeape":[102,103],"growlithe":[6,104],"arcanine":[105,106],"poliwag":[14,107],"poliwhirl":[108,109],"poliwrath":[110,111],"abra":[112,113],"kadabra":[114,115],"alakazam":[116,117],"machop":[118,119],"machoke":[120,121],"machamp":[122,118],"bellsprout":[123,124],"weepinbell":[41,125],"victreebel":[126,127],"tentacool":[14,128],"tentacruel":[129,130],"geodude":[131,132],"graveler":[133,134],"golem":[135,136],"ponyta":[137,65],"rapidash":[138,139],"slowpoke":[140,141],"slowbro":[86,142],"magnemite":[143,144],"magneton":[145,146],"farfetchd":[147,148],"doduo":[149,40],"dodrio":[150,151],"seel":[152,153],"dewgong":[154,155],"grimer":[156,157],"muk":[158,159],"shellder":[160,161],"cloyster":[160,162],"gastly":[163,164],"haunter":[165,166],"gengar":[167,168],"onix":[169,170],"drowzee":[171,108],"hypno":[172,173],"krabby":[174,175],"kingler":[174,176],"voltorb":[48,177],"electrode":[178,179],"exeggcute":[77,180],"exeggutor":[181,182],"cubone":[183,184],"marowak":[185,186],"hitmonlee":[187,188],"hitmonchan":[189,190,191],"lickitung":[192,193],"koffing":[194,195],"weezing":[196,197],"rhyhorn":[89,198],"rhydon":[199,200],"chansey":[201,202],"tangela":[125,126],"kangaskhan":[203,204],"horsea":[14,205],"seadra":[206,207],"goldeen":[208,209],"seaking":[210,211],"staryu":[212,213],"starmie":[214,215],"mrmime":[216,217],"scyther":[218,219],"jynx":[220,221],"electabuzz":[191,222],"magmar":[223,224],"pinsir":[225,226],"tauros":[227,228],"magikarp":[229,230],"gyarados":[231,232],"lapras":[233,234],"ditto":[235],"eevee":[236,237],"vaporeon":[238,239],"jolteon":[240,241],"flareon":[242,243],"porygon":[244,245],"omanyte":[246,109],"omastar":[247,248],"kabuto":[131,249],"kabutops":[250,169],"aerodactyl":[251,252],"snorlax":[253,254],"articuno":[255,256],"zapdos":[257,144],"moltres":[258,259],"dratini":[260,261],"dragonair":[262,263],"dragonite":[264,265],"mewtwo":[266,267],"mew":[268,269],"chikorita":[77,270],"bayleef":[271,272],"meganium":[273,274],"meganium_female":[273,274],"cyndaquil":[275,276],"quilava":[277,278],"typhlosion":[279,280],"totodile":[14,281],"croconaw":[282,283],"feraligatr":[284,285],"sentret":[286,287],"furret":[288,289],"hoothoot":[29,290],"noctowl":[291,292],"ledyba":[87,88],"ledian":[293,294],"spinarak":[295,296],"ariados":[295,297],"crobat":[298,299],"chinchou":[300,301],"lanturn":[302,303],"pichu":[304,146],"pichu_spiky_eared":[304,305],"cleffa":[306,307],"igglybuff":[308,309],"togepi":[62,310],"togetic":[311,62],"natu":[312,313],"xatu":[314,315],"mareep":[300,316],"flaaffy":[317,318],"ampharos":[319,320],"bellossom":[321,77],"marill":[322,323],"azumarill":[324,325],"sudowoodo":[326,327],"politoed":[328,329],"hoppip":[330,331],"skiploom":[77,332],"jumpluff":[333,334],"aipom":[335,336],"sunkern":[337,338],"sunflora":[274,339],"yanma":[340,341],"wooper":[342,343],"quagsire":[344,345],"espeon":[346,347],"umbreon":[348,349],"murkrow":[350,351],"slowking":[352,353],"misdreavus":[354,355],"unown_a":[356,357,358,359,360,361,362],"unown_b":[356,357,358,359,360,361,362],"unown_c":[356,357,358,359,360,361,362],"unown_d":[356,357,358,359,360,361,362],"unown_e":[356,357,358,359,360,361,362],"unown_f":[356,357,358,359,360,361,362],"unown_g":[356,357,358,359,360,361,362],"unown_h":[356,357,358,359,360,361,362],"unown_i":[356,357,358,359,360,361,362],"unown_j":[356,357,358,359,360,361,362],"unown_k":[356,357,358,359,360,361,362],"unown_l":[356,357,358,359,360,361,362],"unown_m":[356,357,358,359,360,361,362],"unown_n":[356,357,358,359,360,361,362],"unown_o":[356,357,358,359,360,361,362],"unown_p":[356,357,358,359,360,361,362],"unown_q":[356,357,358,359,360,361,362],"unown_r":[356,357,358,359,360,361,362],"unown_s":[356,357,358,359,360,361,362],"unown_t":[356,357,358,359,360,361,362],"unown_u":[356,357,358,359,360,361,362],"unown_v":[356,357,358,359,360,361,362],"unown_w":[356,357,358,359,360,361,362],"unown_x":[356,357,358,359,360,361,362],"unown_y":[356,357,358,359,360,361,362],"unown_z":[356,357,358,359,360,361,362],"unown_exclamation":[356,357,358,359,360,361,362],"unown_question":[356,357,358,359,360,361,362],"wobbuffet_male":[363,364],"wobbuffet_female":[363,364],"girafarig":[365,366],"pineco":[367,368],"forretress":[369,370],"dunsparce":[371,372],"gligar":[373,374],"steelix":[375,376],"steelix_female":[375,376],"snubbull":[306,377],"granbull":[378,379],"qwilfish":[27,380],"scizor":[381,382],"shuckle":[383,384],"heracross_male":[385,103],"heracross_female":[385,103],"sneasel":[386,387],"teddiursa":[388,389],"ursaring":[390,391],"slugma":[275,392],"magcargo":[393,394],"swinub":[395,396],"piloswine":[397,398],"corsola":[399,400],"remoraid":[99,401],"octillery":[402,403],"delibird":[404,397],"mantine":[405,406],"skarmory":[407,408],"houndour":[104,409],"houndoom":[410,411],"kingdra":[412,413],"phanpy":[414,415],"donphan":[416,344],"porygon2":[264,417,418],"stantler":[419,108],"smeargle":[420,421],"tyrogue":[422,423],"hitmontop":[424,425],"smoochum":[426,427],"elekid":[300,428],"magby":[275,429],"miltank":[430,431],"blissey":[181,432],"raikou":[433,434],"entei":[435,436],"suicune":[437,438],"larvitar":[439,344],"pupitar":[440,441],"tyranitar":[442,443],"lugia":[444,445],"hooh":[446,447],"celebi":[448,77],"treecko":[147,449],"grovyle":[450,451],"sceptile":[452,453],"torchic":[454,455],"combusken":[456,457],"blaziken":[458,138],"mudkip":[14,459],"marshtomp":[460,461],"swampert":[462,463],"poochyena":[378,464],"mightyena":[378,465],"zigzagoon":[466,467],"linoone":[466,468],"wurmple":[24,469],"silcoon":[87,470],"beautifly":[87,471],"cascoon":[472,473],"dustox":[472,474],"lotad":[328,475],"lombre":[328,476],"ludicolo":[328,477],"seedot":[478,479],"nuzleaf":[478,124],"shiftry":[478,480],"taillow":[481,482],"swellow":[481,483],"wingull":[484,485],"pelipper":[484,486],"ralts":[86,487],"kirlia":[488,489],"gardevoir":[490,491],"surskit":[492,493],"masquerain":[494,495],"shroomish":[496,497],"breloom":[498,499],"slakoth":[500,501],"vigoroth":[502,149],"slaking":[503,504],"nincada":[505,506],"ninjask":[507,508],"shedinja":[364,509],"whismur":[510,511],"loudred":[510,512],"exploud":[513,514],"makuhita":[515,119],"hariyama":[515,516],"azurill":[70,517],"nosepass":[143,518],"skitty":[388,308],"delcatty":[388,519],"sableye":[520,163],"mawile":[324,379],"aron":[521,522],"lairon":[521,523],"aggron":[524,525],"meditite":[526,112],"medicham":[526,366],"electrike":[527,528],"manectric":[529,530],"plusle":[531,532],"minun":[533,534],"volbeat":[535,536],"illumise":[537,538],"roselia":[321,539],"gulpin":[540,194],"swalot":[541,542],"carvanha":[249,378],"sharpedo":[249,543],"wailmer":[544,322],"wailord":[544,545],"numel":[546,6],"camerupt":[546,547],"torkoal":[548,549],"spoink":[550,551],"grumpig":[550,315],"spinda":[552,553],"trapinch":[51,554],"vibrava":[443,555],"flygon":[443,556],"cacnea":[557,558],"cacturne":[557,559],"swablu":[71,63],"altaria":[71,560],"zangoose":[561,562],"seviper":[563,564],"lunatone":[63,565],"solrock":[0,566],"barboach":[60,342],"whiscash":[60,567],"corphish":[568,13],"crawdaunt":[568,569],"baltoy":[570,571],"claydol":[572,573],"lileep":[574,575],"cradily":[574,576],"anorith":[577,83],"armaldo":[577,578],"feebas":[579,14],"milotic":[580,581],"castform":[582,583,584],"kecleon":[585,586],"shuppet":[166,587],"banette":[166,588],"duskull":[168,166],"dusclops":[165,168],"tropius":[589,590],"chimecho":[591,592],"absol":[593,594],"wynaut":[595,596],"snorunt":[597,598],"glalie":[599,600],"spheal":[601,602],"sealeo":[603,604],"walrein":[397,605],"clamperl":[606,607],"huntail":[608,609],"gorebyss":[217,610],"relicanth":[611,612],"luvdisc":[613,614],"bagon":[615,616],"shelgon":[617,618],"salamence":[619,620],"beldum":[621,622],"metang":[623,624],"metagross":[625,620],"regirock":[626,627],"regice":[628,629],"registeel":[630,524],"latias":[631,632],"latios":[633,634],"kyogre":[635,636],"groudon":[637,638,639],"rayquaza":[640,641],"jirachi":[642,643],"deoxys":[644,645],"deoxys_speed":[646,647],"deoxys_attack":[648,649],"deoxys_defense":[650,595],"turtwig":[77,651],"grotle":[652,653],"torterra":[654,60],"chimchar":[655,656],"monferno":[657,658],"infernape":[659,660],"piplup":[14,661],"prinplup":[662,663],"empoleon":[664,665],"starly":[29,666],"staravia":[40,482],"staraptor":[667,668],"bidoof":[669,670],"bibarel":[671,285],"kricketot":[672,469],"kricketune":[83,673],"shinx":[300,674],"luxio":[675,144],"luxray":[529,222],"budew":[676,677],"roserade":[321,678],"cranidos":[679,680],"rampardos":[681,627],"shieldon":[521,341],"bastiodon":[523,630],"burmy_plant":[682,683],"burmy_sandy":[684,685],"burmy_trash":[686,687],"wormadam_plant":[478,77],"wormadam_sandy":[688,51],"wormadam_trash":[689,690],"mothim":[87,691],"combee_male":[692,693],"combee_female":[692,693],"vespiquen":[694,695],"pachirisu":[317,696],"buizel":[606,249],"floatzel":[249,697],"cherubi":[698,699],"cherrim":[700,701],"shellos_west":[702,703],"shellos_east":[704,705],"gastrodon_west":[706,707],"gastrodon_east":[708,709],"ambipom":[710,212],"drifloon":[711,166],"drifblim":[712,168],"buneary":[713,388],"lopunny":[187,714],"mismagius":[166,715],"honchkrow":[716,465],"glameow":[108,335],"purugly":[286,431],"chingling":[112,717],"stunky":[297,718],"skuntank":[42,719],"bronzor":[591,370],"bronzong":[370,720],"bonsly":[439,721],"mimeJr":[722,723],"happiny":[388,724],"chatot":[725,726],"spiritomb":[727,728],"gible":[51,505],"gible_female":[51,505],"gabite":[729,443],"gabite_female":[729,443],"garchomp":[730,262],"garchomp_female":[730,262],"munchlax":[431,669],"riolu":[731,732],"lucario":[733,734],"hippopotas_male":[89,51],"hippopotas_female":[89,51],"hippowdon_male":[443,60],"hippowdon_female":[443,60],"skorupi":[24,297],"drapion":[735,736],"croagunk":[297,737],"toxicroak":[737,738],"carnivine":[739,740],"finneon":[14,98],"lumineon":[209,741],"mantyke":[492,742],"snover":[743,744],"abomasnow":[397,155],"weavile":[745,743],"magnezone":[746,747],"lickilicky":[748,749],"rhyperior":[750,751],"tangrowth":[739,247],"electivire":[191,48],"magmortar":[752,753],"togekiss":[754,62,755],"yanmega":[494,756],"leafeon":[757,0],"glaceon":[758,221],"gliscor":[759,60],"mamoswine":[760,60],"porygonZ":[761,762],"gallade":[763,764],"probopass":[765,766],"dusknoir":[168,165],"froslass":[767,427],"rotom":[768,769],"rotom_heat":[770,771],"rotom_wash":[772,773],"rotom_frost":[397,774],"rotom_fan":[484,775],"rotom_mow":[478,776],"uxie":[777,778],"mesprit":[86,779],"azelf":[780,781],"dialga":[782,783],"palkia":[784,785],"heatran":[786,787],"regigigas":[503,761],"giratina":[788,789],"giratina_origin":[790,791],"cresselia":[792,793],"phione":[328,209],"manaphy":[794,795],"darkrai":[796,797],"shaymin":[798,799],"shaymin_sky":[754,798],"arceus":[800,801],"arceus_bug":[802,803],"arceus_dark":[804,805],"arceus_dragon":[806,807],"arceus_electric":[808,320],"arceus_fighting":[809,810],"arceus_fire":[811,812],"arceus_flying":[813,814],"arceus_ghost":[815,816],"arceus_grass":[817,818],"arceus_ground":[819,820],"arceus_ice":[821,234],"arceus_poison":[822,823],"arceus_psychic":[824,315],"arceus_rock":[825,826],"arceus_steel":[827,828],"arceus_water":[829,830],"victini":[831,832],"snivy":[833,123],"servine":[126,834],"serperior":[835,453],"tepig":[836,837],"pignite":[838,839],"emboar":[840,841],"oshawott":[249,842],"dewott":[843,844],"samurott":[845,846],"patrat":[36,288],"watchog":[108,847],"herdier":[848,378],"liepard":[849,850],"pansage":[123,851],"pansear":[752,852],"panpour":[853,704],"munna":[854,855],"musharna":[856,857],"pidove":[858,859],"zebstrika":[529,860],"boldore":[861,862],"woobat":[863,723],"drilbur":[864,60],"audino":[432,865],"gurdurr":[866,867],"tympole":[492,868],"throh":[869,870],"sawk":[871,872],"leavanny":[873,451],"scolipede":[874,875],"cottonee":[333,379],"petilil":[79,539],"basculin_red_striped":[876,877],"basculin_blue_striped":[876,877],"krokorok":[50,378],"krookodile":[92,820],"maractus":[557,878],"crustle":[879,880],"scraggy":[881,882],"sigilyph":[86,883],"tirtouga":[246,249],"garbodor":[196,884],"zorua":[885,886],"minccino":[887,888],"gothorita":[889,890],"duosion":[891,892],"ducklett":[893,148],"vanillish":[256,894],"deerling_spring":[895,896],"deerling_summer":[0,897],"deerling_autumn":[898,899],"deerling_winter":[900,901],"emolga":[902,146],"karrablast":[903,904],"alomomola":[14,905],"galvantula":[906,222],"klang":[907,908],"elgyem":[909,910],"litwick":[911,912],"axew":[913,729],"cubchoo":[914,155],"shelmet":[494,18],"stunfisk":[555,144],"mienfoo":[915,916],"druddigon":[729,616],"golett":[917,918],"pawniard":[745,523],"bouffalant":[919,60],"braviary":[920,921],"mandibuzz":[922,465],"heatmor":[923,924],"durant":[925,926],"cobalion":[927,928],"terrakion":[929,930],"virizion":[126,931],"keldeo":[932,844],"meloetta":[933,934],"froakie":[935,936],"frogadier":[937,207],"greninja":[938,939],"chespin":[940,941],"quilladin":[942,557],"chesnaught":[943,326],"fennekin":[944,97],"braixen":[945,86],"delphox":[946,947]};
 const ULT_HIT = {"abomasnow|눈보라|ultstorm":[1836,3625,0,1836,3069],"abomasnow|절대영도|ultnova":[1174,3560,0,-1,1835],"abra|맥시멈사이브레이커|ultpsy":[2929,3872,0,2622,-1],"abra|사이코쇼크|ultorb":[1855,3472,0,-1,2808],"absol|깜짝베기|ultrush":[820,3077,0,820,1674],"absol|사이코커터|ultbarrage":[2531,3918,0,2530,2999],"aerodactyl|원시의힘|ultskyfall":[2837,3710,0,2837,3440],"aerodactyl|파괴광선|ultbeam":[1088,3720,0,-1,3648],"aggron|스톤에지|ultpillar":[1916,3888,0,1916,2799],"aggron|헤비봄버|ultdive":[2272,3900,0,2271,3915],"aipom|마구할퀴기|ultbarrage":[2474,3872,0,2473,2897],"aipom|스피드스타|ultswarm":[1557,3008,0,1557,2921],"alakazam|미래예지|ultpillar":[1926,3880,0,1926,2899],"alakazam|사이코키네시스|ultpsy":[930,7334,0,-1,5669],"alomomola|치유파동|ultsparkle":[2048,3780,0,-1,3082],"alomomola|하이드로보텍스|ultvortex":[3183,4100,0,3182,-1],"altaria|드래곤다이브|ultdive":[2008,3628,0,2008,3569],"altaria|하이퍼보이스|ultnova":[1172,3556,0,-1,1690],"ambipom|더블어택|ultbarrage":[2533,3926,0,2532,2891],"ambipom|스피드스타|ultswarm":[1573,3089,0,1573,2836],"ampharos|10만볼트|ultvolt":[3546,5276,0,3545,4644],"ampharos|전자포|ultbeam":[1092,3714,0,-1,3719],"anorith|스톤에지|ultpillar":[1913,3841,0,1913,2700],"anorith|시저크로스|ultbarrage":[2471,3868,0,2470,2863],"arbok|독엄니|ultbarrage":[2512,3910,0,2511,2891],"arbok|뱀눈초리|ultshadow":[3005,4010,0,3004,3380],"arcanine|신속|ultrush":[1427,7158,0,-1,3309],"arcanine|플레어드라이브|ultdive":[2020,3658,0,2019,3623],"arceus_bug|바늘미사일|ultswarm":[1565,3200,0,1565,2935],"arceus_bug|심판의뭉치|ultskyfall":[2838,3800,0,2837,3429],"arceus_dark|심판의뭉치|ultskyfall":[2820,3800,0,2820,3471],"arceus_dark|악의파동|ultblackhole":[3250,4200,0,-1,3706],"arceus_dragon|심판의뭉치|ultskyfall":[2830,3800,0,2829,3414],"arceus_dragon|용의파동|ultbeam":[1035,3900,0,-1,4089],"arceus_electric|10만볼트|ultvolt":[3537,5400,0,3536,4997],"arceus_electric|심판의뭉치|ultskyfall":[2832,3800,0,2831,3479],"arceus_fighting|기합구슬|ultorb":[1929,3700,0,-1,2771],"arceus_fighting|심판의뭉치|ultskyfall":[2817,3800,0,2816,3414],"arceus_fire|블래스트번|ultnova":[1215,3700,0,-1,1794],"arceus_fire|심판의뭉치|ultskyfall":[2840,3800,0,2839,3400],"arceus_flying|심판의뭉치|ultskyfall":[2829,3800,0,2829,3447],"arceus_flying|폭풍|ultvortex":[3384,4300,0,3383,3620],"arceus_ghost|무한암야로의유인|ultshadow":[3012,4100,0,3011,3458],"arceus_ghost|심판의뭉치|ultskyfall":[2819,3800,0,2818,3449],"arceus_grass|솔라빔|ultbeam":[1018,3900,0,-1,3871],"arceus_grass|심판의뭉치|ultskyfall":[2844,3800,0,2843,3457],"arceus_ground|심판의뭉치|ultskyfall":[2824,3800,0,2824,3463],"arceus_ground|지진|ultquake":[1995,4100,0,1995,2194],"arceus_ice|눈보라|ultstorm":[1920,3800,0,1920,3271],"arceus_ice|심판의뭉치|ultskyfall":[2820,3800,0,2819,3412],"arceus_poison|심판의뭉치|ultskyfall":[2823,3800,0,2823,3440],"arceus_poison|오물폭탄|ultorb":[1938,3700,0,-1,2839],"arceus_psychic|사이코키네시스|ultpsy":[3026,4100,0,2725,3037],"arceus_psychic|심판의뭉치|ultskyfall":[2826,3800,0,2825,3478],"arceus_rock|스톤에지|ultpillar":[1926,3920,0,1926,2864],"arceus_rock|심판의뭉치|ultskyfall":[2830,3800,0,2830,3435],"arceus_steel|러스터캐논|ultbeam":[1024,3900,0,-1,3918],"arceus_steel|심판의뭉치|ultskyfall":[2848,3800,0,2847,3452],"arceus_water|심판의뭉치|ultskyfall":[2849,3800,0,2848,3435],"arceus_water|하이드로펌프|ultpillar":[1934,3920,0,1934,2925],"arceus|심판의뭉치|ultskyfall":[3599,7600,0,-1,5810],"arceus|파괴광선|ultbeam":[1043,3900,0,-1,3868],"ariados|거미집|ultshadow":[2992,3988,0,2991,3404],"ariados|애시드포이즌딜리트|ultstorm":[1790,3520,0,1790,1934],"armaldo|락블라스트|ultswarm":[1579,3098,0,1579,2891],"armaldo|스톤에지|ultpillar":[1903,3879,0,1903,2796],"aron|아이언헤드|ultrush":[1321,3387,0,1321,2256],"aron|헤비봄버|ultdive":[2018,3558,0,2017,3518],"articuno|눈보라|ultstorm":[1884,3720,0,1884,3101],"articuno|절대영도|ultnova":[3027,7368,0,-1,4640],"audino|심플빔|ultbeam":[1090,3624,0,-1,3615],"audino|치유파동|ultsparkle":[2038,3762,0,-1,2895],"axew|드래곤크루|ultbarrage":[2443,3854,0,2443,2850],"axew|역린|ultrush":[841,2981,0,841,1737],"azelf|대폭발|ultnova":[1179,3636,0,-1,1726],"azelf|미래예지|ultskyfall":[2812,3752,0,2811,3438],"azumarill|아쿠아제트|ultrush":[831,3047,0,831,1698],"azumarill|치근거리기|ultbarrage":[2489,3898,0,2488,2860],"azurill|거품|ultswarm":[1562,2900,0,1562,2961],"azurill|러블리스타임팩트|ultsparkle":[2050,3600,0,-1,2847],"bagon|박치기|ultrush":[1308,3366,0,1308,2230],"bagon|얼티메이트드래곤번|ultdive":[2017,3544,0,2017,3467],"baltoy|고속스핀|ultrush":[1696,3366,0,1696,2505],"baltoy|원시의힘|ultskyfall":[2825,3566,0,2825,3449],"banette|섀도볼|ultorb":[1875,3571,0,-1,2910],"banette|저주|ultshadow":[3012,4014,0,3011,3433],"barboach|지진|ultquake":[1930,3620,0,1930,2250],"barboach|진흙뿌리기|ultswarm":[1557,2960,0,1557,2904],"basculin_blue_striped|아쿠아테일|ultdive":[2014,3616,0,2013,3549],"basculin_blue_striped|이판사판태클|ultrush":[835,3074,0,835,1690],"basculin_red_striped|아쿠아테일|ultdive":[2011,3616,0,2010,3551],"basculin_red_striped|이판사판태클|ultrush":[825,3074,0,825,1680],"bastiodon|러스터캐논|ultbeam":[1078,3696,0,-1,3745],"bastiodon|메탈버스트|ultnova":[1169,3564,0,-1,1786],"bayleef|꽃잎댄스|ultstorm":[2349,5692,0,-1,3733],"bayleef|하드플랜트|ultbloom":[3232,4084,0,3232,3702],"beautifly|나비춤|ultsparkle":[2045,3729,0,-1,2969],"beautifly|은빛바람|ultstorm":[1788,3515,0,1788,3190],"beedrill|더블니들|ultbarrage":[2477,3886,0,2476,2913],"beedrill|바늘미사일|ultswarm":[1555,3029,0,1555,2999],"beldum|돌진|ultrush":[1321,3366,0,1321,2228],"beldum|아이언헤드|ultdive":[2028,3544,0,2027,3508],"bellossom|꽃잎댄스|ultstorm":[1823,3620,0,1823,2925],"bellossom|블룸샤인엑스트라|ultbloom":[2302,4192,0,2301,4006],"bellsprout|덩굴채찍|ultbloom":[3154,3988,0,3154,3633],"bellsprout|잎날가르기|ultswarm":[1567,2966,0,1567,2944],"bibarel|아쿠아테일|ultrush":[1297,3441,0,1297,2192],"bibarel|폭포오르기|ultpillar":[1720,3666,0,1720,2745],"bidoof|구르기|ultrush":[1708,3333,0,1708,2517],"bidoof|필살앞니|ultbarrage":[2435,3822,0,2434,2868],"blastoise|메가런처|ultorb":[4172,8646,0,2833,6601],"blastoise|하이드로캐논|ultbeam":[6116,8746,0,5045,-1],"blaziken|블레이즈킥|ultbarrage":[2992,7146,0,-1,6917],"blaziken|플레어드라이브|ultrush":[829,3119,0,829,1708],"blissey|알폭탄|ultswarm":[1554,3128,0,1554,2985],"blissey|치유파동|ultsparkle":[2053,3828,0,-1,2927],"boldore|스톤에지|ultpillar":[1909,3850,0,1909,2650],"boldore|파워젬|ultbeam":[1077,3552,0,-1,3543],"bonsly|월즈엔드폴|ultskyfall":[1374,3240,0,1373,2801],"bonsly|이판사판태클|ultrush":[1320,3360,0,1320,2225],"bouffalant|아프로브레이크|ultrush":[820,3092,0,820,1662],"bouffalant|지진|ultquake":[1953,3884,0,1953,2311],"braixen|매지컬플레임|ultorb":[2286,5692,0,-1,3906],"braixen|사이코키네시스|ultpsy":[2962,3938,0,2655,2980],"braviary|브레이브버드|ultdive":[2014,3638,0,2012,3613],"braviary|브레이크크루|ultbarrage":[2549,3938,0,2548,2957],"breloom|마하펀치|ultbarrage":[2509,3916,0,2509,2908],"breloom|씨기관총|ultswarm":[1561,3074,0,1561,2975],"bronzong|미래예지|ultpillar":[1925,3880,0,1925,2731],"bronzong|자이로볼|ultrush":[1642,3501,0,1642,2499],"bronzor|신통력|ultpsy":[2926,3866,0,2623,-1],"bronzor|자이로볼|ultrush":[1695,3366,0,1695,2503],"budew|매지컬리프|ultswarm":[1590,2954,0,1590,2810],"budew|메가드레인|ultbloom":[2303,4054,0,2303,3885],"buizel|바다회오리|ultvortex":[3019,3945,0,3019,-1],"buizel|아쿠아제트|ultrush":[835,2987,0,835,1684],"bulbasaur|덩굴채찍|ultbloom":[1389,4652,0,-1,4309],"bulbasaur|솔라빔|ultbeam":[1029,3456,0,-1,3451],"buneary|뛰어오르다|ultdive":[2002,3566,0,2001,3496],"buneary|애교부리기|ultsparkle":[2044,3699,0,-1,2967],"burmy_plant|잠재파워|ultorb":[1828,3415,0,-1,2814],"burmy_plant|절대포식회전참|ultbarrage":[2424,3810,0,2424,2834],"burmy_sandy|잠재파워|ultorb":[1817,3415,0,-1,2899],"burmy_sandy|절대포식회전참|ultbarrage":[2411,3810,0,2410,2847],"burmy_trash|잠재파워|ultorb":[1829,3415,0,-1,2817],"burmy_trash|절대포식회전참|ultbarrage":[2408,3810,0,2407,2879],"butterfree|거다이린분|ultstorm":[1784,3515,0,1784,3231],"butterfree|환상빔|ultbeam":[1102,3558,0,-1,3474],"cacnea|바늘미사일|ultswarm":[1561,2990,0,1561,2956],"cacnea|바늘팔|ultbarrage":[2450,3860,0,2450,2813],"cacturne|바늘미사일|ultswarm":[1567,3083,0,1567,2865],"cacturne|악의파동|ultshadow":[2998,4022,0,2998,3452],"camerupt|분화|ultpillar":[1920,3870,0,1919,2696],"camerupt|지진|ultquake":[1951,3848,0,1950,2280],"carnivine|깨물어부수기|ultbarrage":[2520,3912,0,2520,2901],"carnivine|파워휩|ultbloom":[3281,4124,0,3281,3753],"carvanha|깨물어부수기|ultbarrage":[2445,3846,0,2444,2847],"carvanha|아쿠아제트|ultrush":[850,2969,0,850,1730],"cascoon|단단해지기|ultrush":[1335,3303,0,1335,2223],"cascoon|독가루|ultstorm":[1683,3305,0,1683,1862],"castform|웨더볼|ultstorm":[1812,3545,0,1812,3014],"caterpie|실뿜기|ultshadow":[2929,3900,0,2928,3353],"caterpie|절대포식회전참|ultbarrage":[2385,3800,0,2384,2857],"celebi|리프스톰|ultstorm":[1974,7578,0,-1,4829],"celebi|블룸샤인엑스트라|ultbloom":[2295,4267,0,2294,4107],"chansey|알폭탄|ultorb":[1894,3568,0,-1,2864],"chansey|치유파동|ultsparkle":[2044,3768,0,-1,3116],"charizard|블래스트번|ultpillar":[4951,8648,0,4633,7294],"charizard|플레어드라이브|ultdive":[3839,7548,0,3838,5830],"charmander|니트로차지|ultrush":[1873,4648,0,-1,-1],"charmander|다이내믹풀플레임|ultorb":[1853,3472,0,-1,2731],"charmeleon|다이내믹풀플레임|ultorb":[1855,3538,0,-1,2911],"charmeleon|화염방사|ultbeam":[2295,5692,0,-1,5497],"chatot|수다|ultnova":[1145,3488,0,-1,1747],"chatot|하이퍼보이스|ultpsy":[2957,3941,0,2644,-1],"cherrim|꽃잎댄스|ultvortex":[3148,4080,0,3147,3384],"cherrim|솔라빔|ultbeam":[1082,3636,0,-1,3574],"cherubi|매지컬리프|ultswarm":[1567,2951,0,1567,2938],"cherubi|블룸샤인엑스트라|ultbloom":[2287,4051,0,2287,3897],"chesnaught|우드해머|ultdive":[2280,3900,0,2279,3874],"chesnaught|하드플랜트|ultpillar":[2523,7346,0,-1,7056],"chespin|구르기|ultrush":[1703,3375,0,1703,2507],"chespin|바늘미사일|ultswarm":[1654,4650,0,-1,4442],"chikorita|매지컬리프|ultswarm":[1816,4652,0,-1,4465],"chikorita|블룸샤인엑스트라|ultbloom":[2290,4078,0,2289,3906],"chimchar|불대문자|ultorb":[2280,4648,0,-1,3603],"chimchar|화염자동차|ultrush":[1685,3372,0,1685,2503],"chimecho|소란피기|ultnova":[1169,3528,0,-1,1754],"chimecho|신통력|ultpsy":[2980,3971,0,2679,2997],"chinchou|스파킹기가볼트|ultthunder":[2559,3787,0,2559,3519],"chinchou|일렉트릭볼|ultorb":[1851,3487,0,-1,2935],"chingling|맥시멈사이브레이커|ultpsy":[2901,3857,0,2605,2942],"chingling|소란피기|ultnova":[1121,3376,0,-1,1719],"clamperl|물의파동|ultorb":[1864,3496,0,-1,2828],"clamperl|바다회오리|ultvortex":[3048,3960,0,3048,-1],"claydol|원시의힘|ultskyfall":[2825,3701,0,2825,3445],"claydol|파괴광선|ultbeam":[1084,3702,0,-1,3744],"clefable|메테오빔|ultbeam":[1588,4178,0,-1,4227],"clefable|문포스|ultsparkle":[1436,4189,0,-1,3719],"clefairy|문포스|ultsparkle":[1428,4081,0,-1,3617],"clefairy|손가락흔들기|ultmetronome":[942,2200,0,942,-1],"cleffa|러블리스타임팩트|ultsparkle":[2046,3612,0,-1,3025],"cleffa|매지컬샤인|ultnova":[1096,3316,0,-1,1690],"cloyster|고드름떨구기|ultskyfall":[2835,3716,0,2834,3456],"cloyster|고드름침|ultswarm":[1573,3116,0,1573,2876],"cobalion|성스러운칼|ultpillar":[1913,3901,0,1912,2899],"cobalion|아이언헤드|ultrush":[802,3152,0,802,1672],"combee_female|바람일으키기|ultvortex":[2907,3850,0,2906,-1],"combee_female|절대포식회전참|ultbarrage":[2402,3820,0,2401,2863],"combee_male|바람일으키기|ultvortex":[2920,3850,0,2919,-1],"combee_male|절대포식회전참|ultbarrage":[2420,3820,0,2419,2879],"combusken|두번킥|ultbarrage":[954,5692,0,-1,3631],"combusken|오버히트|ultnova":[1142,3484,0,-1,1757],"corphish|거품광선|ultswarm":[1562,2972,0,1562,2931],"corphish|찝게햄머|ultbarrage":[2464,3848,0,2463,2817],"corsola|스파이크캐논|ultswarm":[1579,3041,0,1579,2954],"corsola|파워젬|ultpillar":[1925,3856,0,1925,2903],"cottonee|러블리스타임팩트|ultsparkle":[2042,3654,0,-1,2893],"cottonee|솜포자|ultstorm":[1727,3390,0,1727,3139],"cradily|에너지볼|ultorb":[1899,3598,0,-1,2887],"cradily|쥐어짜기|ultbloom":[3339,4164,0,3339,3775],"cranidos|박치기|ultrush":[1288,3399,0,1288,2232],"cranidos|원시의힘|ultswarm":[1566,2999,0,1566,2887],"crawdaunt|가위자르기|ultdive":[2009,3620,0,2008,3536],"crawdaunt|찝게햄머|ultbarrage":[2529,3920,0,2528,2849],"cresselia|오로라빔|ultbeam":[1067,3804,0,-1,3817],"cresselia|초승달춤|ultsparkle":[1450,4252,0,-1,3766],"croagunk|독찌르기|ultbarrage":[2441,3844,0,2440,2861],"croagunk|애시드포이즌딜리트|ultstorm":[1727,3410,0,1727,-1],"crobat|브레이브버드|ultrush":[829,3122,0,829,1678],"crobat|크로스포이즌|ultbarrage":[2558,3948,0,2558,3016],"croconaw|아쿠아테일|ultrush":[843,3038,0,843,1714],"croconaw|하이드로보텍스|ultvortex":[1613,5692,0,-1,3785],"crustle|락블레스트|ultswarm":[1561,3089,0,1561,2858],"crustle|스톤에지|ultpillar":[1912,3876,0,1911,2734],"cubchoo|고드름떨구기|ultskyfall":[2824,3569,0,2823,3434],"cubchoo|절대영도|ultnova":[1122,3392,0,-1,1841],"cubone|뼈다귀부메랑|ultswarm":[1575,2981,0,1575,2936],"cubone|뼈몽둥이|ultdive":[2021,3554,0,2020,3496],"cyndaquil|다이내믹풀플레임|ultorb":[1867,3472,0,-1,2829],"cyndaquil|분연|ultnova":[2390,4648,0,-1,3673],"darkrai|다크홀|ultblackhole":[1714,7378,0,-1,6011],"darkrai|악몽|ultshadow":[3012,4078,0,3012,3455],"deerling_autumn|에너지볼|ultorb":[1848,3490,0,-1,2748],"deerling_autumn|자연의힘|ultstorm":[1765,3450,0,1765,2426],"deerling_spring|아로마테라피|ultbloom":[2308,4090,0,2307,3881],"deerling_spring|자연의힘|ultstorm":[1752,3450,0,1752,2750],"deerling_summer|솔라빔|ultbeam":[1077,3480,0,-1,3601],"deerling_summer|자연의힘|ultbloom":[3190,4020,0,3190,3650],"deerling_winter|솔라빔|ultbeam":[1082,3480,0,-1,3548],"deerling_winter|자연의힘|ultstorm":[1759,3450,0,1759,2971],"delcatty|애교부리기|ultsparkle":[2042,3732,0,-1,2818],"delcatty|헤롱헤롱|ultswarm":[1574,3032,0,1574,2993],"delibird|눈보라|ultstorm":[1750,3445,0,1750,2912],"delibird|프레젠트|ultswarm":[1571,2987,0,1571,2904],"delphox|매지컬플레임|ultvortex":[3049,7348,0,-1,4815],"delphox|블라스트번|ultnova":[1185,3596,0,-1,1773],"deoxys_attack|사이코부스트|ultbeam":[883,3634,0,-1,3631],"deoxys_attack|엄청난힘|ultbarrage":[2592,3978,0,2592,2915],"deoxys_defense|미러코트|ultnova":[1214,3656,0,-1,1800],"deoxys_defense|사이코부스트|ultbeam":[1070,3834,0,-1,3807],"deoxys_speed|사이코부스트|ultbeam":[1093,3834,0,-1,3882],"deoxys_speed|신속|ultrush":[829,3167,0,829,1704],"deoxys|맥시멈사이브레이커|ultpsy":[3010,4067,0,2720,3028],"deoxys|사이코부스트|ultbeam":[2332,7378,0,-1,5589],"dewgong|냉동빔|ultbeam":[1077,3666,0,-1,3656],"dewgong|절대영도|ultnova":[1183,3544,0,-1,1837],"dewott|연속자르기|ultbarrage":[1215,5694,0,-1,3774],"dewott|하이드로펌프|ultbeam":[1083,3582,0,-1,3501],"dialga|시간의포효|ultbeam":[2533,7600,0,-1,5698],"dialga|용성군|ultskyfall":[2847,3800,0,2847,3453],"diglett|구멍파기|ultrush":[1702,3342,0,1702,2527],"diglett|라이징랜드오버|ultquake":[1931,3584,0,1930,2295],"ditto|변신|ultcopy":[920,2200,0,920,-1],"dodrio|난동부리기|ultbarrage":[2512,3920,0,2511,2904],"dodrio|회오리부리|ultrush":[1197,3080,0,1197,1993],"doduo|공중날기|ultdive":[2013,3548,0,2012,3499],"doduo|난동부리기|ultrush":[841,2972,0,841,1709],"donphan|구르기|ultrush":[1199,3101,0,1199,1980],"donphan|지진|ultquake":[1965,3902,0,1964,2253],"dragonair|용성군|ultskyfall":[2825,3647,0,2825,3400],"dragonair|용의파동|ultorb":[1880,3547,0,-1,2782],"dragonite|역린|ultrush":[1986,7778,0,-1,5317],"dragonite|파괴광선|ultbeam":[1081,3834,0,-1,3966],"drapion|더스트슈트|ultorb":[1893,3601,0,-1,2876],"drapion|크로스포이즌|ultbarrage":[2548,3934,0,2547,2914],"dratini|얼티메이트드래곤번|ultdive":[2006,3544,0,2006,3520],"dratini|회오리|ultvortex":[2983,3910,0,2982,-1],"drifblim|괴상한바람|ultstorm":[1845,3630,0,1845,3430],"drifblim|무한암야로의유인|ultshadow":[3003,4032,0,3002,3389],"drifloon|대폭발|ultnova":[1123,3432,0,-1,1731],"drifloon|섀도볼|ultorb":[1859,3499,0,-1,3012],"drilbur|드릴라이너|ultrush":[1220,2984,0,1220,1974],"drilbur|지진|ultquake":[1949,3668,0,1948,2243],"drowzee|꿈먹기|ultblackhole":[3037,3912,0,-1,3502],"drowzee|최면술|ultpsy":[2931,3884,0,2632,2994],"druddigon|드래곤크루|ultbarrage":[2540,3926,0,2540,2927],"druddigon|얼티메이트드래곤번|ultdive":[2026,3626,0,2026,3557],"ducklett|브레이브버드|ultdive":[2005,3546,0,2004,3497],"ducklett|폭풍|ultstorm":[1751,3415,0,1751,3178],"dugtrio|땅가르기|ultquake":[1945,3800,0,1945,2173],"dugtrio|모래지옥|ultvortex":[3145,4050,0,3144,3410],"dunsparce|드래곤다이브|ultdive":[2016,3596,0,2015,3556],"dunsparce|하이퍼드릴|ultrush":[1682,3444,0,1682,2497],"duosion|사이코쇼크|ultnova":[1140,3452,0,-1,1750],"duosion|사이코키네시스|ultorb":[1862,3514,0,-1,2891],"durant|시저크로스|ultbarrage":[2527,3926,0,2526,3006],"durant|초월나선연격|ultrush":[1200,3089,0,1200,1944],"dusclops|무한암야로의유인|ultshadow":[3001,4014,0,3000,3405],"dusclops|섀도펀치|ultbarrage":[2513,3914,0,2512,2867],"dusknoir|무한암야로의유인|ultshadow":[3007,4044,0,3006,3429],"dusknoir|섀도펀치|ultbarrage":[2545,3944,0,2544,2916],"duskull|무한암야로의유인|ultshadow":[2962,3942,0,2961,3376],"duskull|섀도볼|ultorb":[1842,3463,0,-1,2840],"dustox|독가루|ultstorm":[1776,3505,0,1776,-1],"dustox|벌레의야단법석|ultpsy":[2934,3923,0,2631,3020],"eevee|나인에볼부스트|ultsparkle":[3925,7256,0,-1,5708],"eevee|스피드스타|ultskyfall":[2844,3584,0,2843,3466],"ekans|애시드포이즌딜리트|ultstorm":[1721,3400,0,1721,2330],"ekans|오물폭탄|ultorb":[1844,3460,0,-1,2892],"electabuzz|번개|ultstorm":[1823,3620,0,1823,2272],"electabuzz|번개펀치|ultbarrage":[2529,3928,0,2527,2875],"electivire|번개펀치|ultbarrage":[2546,3952,0,2546,2933],"electivire|스파킹기가볼트|ultthunder":[2578,3928,0,2577,3511],"electrike|10만볼트|ultvolt":[1264,3884,0,940,3499],"electrike|와일드볼트|ultrush":[1322,3363,0,1322,2205],"electrode|대폭발|ultnova":[1162,3556,0,-1,1842],"electrode|일렉트릭볼|ultorb":[1887,3592,0,-1,2831],"elekid|번개펀치|ultbarrage":[2477,3872,0,2476,2843],"elekid|스파킹기가볼트|ultthunder":[2578,3808,0,2577,3520],"elgyem|싱크로노이즈|ultpsy":[2917,3890,0,2622,2962],"elgyem|환상빔|ultbeam":[1083,3480,0,-1,3597],"emboar|블라스트번|ultnova":[2980,7346,0,-1,7098],"emboar|해머암|ultbarrage":[2551,3946,0,2550,2939],"emolga|10만볼트|ultvolt":[1270,4004,0,938,3535],"emolga|볼트체인지|ultdive":[1996,3602,0,1995,3576],"empoleon|초월나선연격|ultrush":[1189,3119,0,1189,1949],"empoleon|하이드로캐논|ultbeam":[2633,7146,0,-1,4861],"entei|분화|ultquake":[2701,7368,0,-1,5310],"entei|오버히트|ultbeam":[1068,3804,0,-1,3819],"espeon|미래예지|ultorb":[3065,4416,0,-1,4245],"espeon|사이코키네시스|ultpsy":[1321,7144,0,-1,3440],"exeggcute|블룸샤인엑스트라|ultbloom":[2297,4084,0,2297,3918],"exeggcute|씨폭탄|ultswarm":[1572,2984,0,1572,2896],"exeggutor|알폭탄|ultswarm":[1556,3119,0,1556,2905],"exeggutor|우드해머|ultdive":[2254,3900,0,2253,3904],"exploud|붐버스트|ultnova":[1170,3556,0,-1,1866],"exploud|하이퍼보이스|ultbeam":[1084,3684,0,-1,3637],"farfetchd|리프블레이드|ultbarrage":[2471,3878,0,2470,2904],"farfetchd|브레이브버드|ultdive":[2023,3578,0,2022,3491],"fearow|공중날기|ultdive":[2015,3608,0,2014,3555],"fearow|회오리부리|ultrush":[1227,3062,0,1227,1999],"feebas|바둥바둥|ultrush":[1342,3300,0,1342,2234],"feebas|하이드로보텍스|ultvortex":[2876,3800,0,2875,-1],"fennekin|도깨비불|ultorb":[2129,4648,0,-1,3937],"fennekin|염동력|ultpsy":[2921,3872,0,2620,2938],"feraligatr|아쿠아테일|ultrush":[1289,3519,0,1289,2200],"feraligatr|하이드로캐논|ultbeam":[2880,7146,0,-1,4166],"finneon|물의파동|ultorb":[1840,3487,0,-1,2884],"finneon|하이드로보텍스|ultvortex":[3015,3945,0,3014,-1],"flaaffy|방전|ultvolt":[1260,3948,0,917,1714],"flaaffy|번개|ultthunder":[2143,3411,0,2143,2834],"flareon|오버히트|ultorb":[3234,7344,0,-1,4873],"flareon|플레어드라이브|ultrush":[835,3116,0,835,1693],"floatzel|아쿠아제트|ultrush":[825,3098,0,825,1705],"floatzel|아쿠아테일|ultbarrage":[2549,3932,0,2548,2907],"flygon|모래바람|ultstorm":[1857,3655,0,1857,3428],"flygon|용성군|ultskyfall":[2831,3713,0,2830,3407],"forretress|대폭발|ultnova":[1167,3536,0,-1,1848],"forretress|자이로볼|ultrush":[1648,3477,0,1648,2453],"froakie|뛰어오르다|ultdive":[2012,3550,0,2011,3513],"froakie|물의파동|ultorb":[2796,4650,0,-1,3496],"frogadier|물수리검|ultswarm":[2677,5692,0,-1,3590],"frogadier|하이드로펌프|ultbeam":[1081,3576,0,-1,3578],"froslass|눈보라|ultstorm":[1822,3610,0,1822,3064],"froslass|얼다바람|ultvortex":[3192,4110,0,3192,-1],"furret|울트라대시어택|ultrush":[850,3044,0,850,1675],"furret|하이퍼보이스|ultnova":[1152,3492,0,-1,1839],"gabite_female|드래곤크루|ultbarrage":[2512,3894,0,2512,2952],"gabite_female|모래바람|ultstorm":[1774,3535,0,1774,3399],"gabite|드래곤크루|ultbarrage":[2497,3894,0,2497,2932],"gabite|모래바람|ultstorm":[1803,3535,0,1803,3429],"gallade|사이코커터|ultbarrage":[2536,3942,0,2536,2951],"gallade|성스러운칼|ultpillar":[1902,3885,0,1902,2722],"galvantula|번개|ultstorm":[1834,3600,0,1834,2653],"galvantula|일렉트릭네트|ultvolt":[1268,4040,0,925,1593],"garbodor|대폭발|ultnova":[1164,3544,0,-1,1754],"garbodor|더스트슈트|ultorb":[1882,3583,0,-1,2964],"garchomp_female|드래곤다이브|ultdive":[3248,7378,0,-1,4894],"garchomp_female|용성군|ultskyfall":[2823,3767,0,2822,3460],"garchomp|드래곤다이브|ultdive":[3243,7378,0,-1,4886],"garchomp|용성군|ultskyfall":[2834,3767,0,2834,3409],"gardevoir|문포스|ultsparkle":[3429,7342,0,-1,5056],"gardevoir|사이코키네시스|ultblackhole":[3174,4084,0,-1,3577],"gastly|나이트헤드|ultshadow":[2970,3948,0,2969,3414],"gastly|이상한빛|ultpsy":[2928,3872,0,2627,2963],"gastrodon_east|대지의힘|ultquake":[1961,3866,0,1961,3042],"gastrodon_east|탁류|ultpillar":[1912,3873,0,1912,2960],"gastrodon_west|대지의힘|ultquake":[1962,3866,0,1961,2389],"gastrodon_west|탁류|ultpillar":[1938,3873,0,1937,3016],"gengar|무한암야로의유인|ultshadow":[3002,4034,0,3001,3419],"gengar|섀도볼|ultorb":[2673,6934,0,-1,5645],"geodude|월즈엔드폴|ultskyfall":[1394,3244,0,1376,2736],"geodude|자폭|ultnova":[1110,3388,0,-1,1722],"gible_female|구멍파기|ultquake":[1923,3632,0,1923,2325],"gible_female|모래지옥|ultvortex":[2996,3910,0,2996,-1],"gible|구멍파기|ultquake":[1943,3632,0,1943,2208],"gible|모래지옥|ultvortex":[2975,3910,0,2974,-1],"girafarig|사념의박치기|ultrush":[824,3071,0,824,1674],"girafarig|트윈빔|ultbeam":[1088,3642,0,-1,3552],"giratina_origin|섀도다이브|ultdive":[2003,3700,0,2002,3656],"giratina_origin|원시의힘|ultskyfall":[2839,3800,0,2838,3415],"giratina|섀도다이브|ultshadow":[3470,7400,0,-1,5055],"giratina|섀도볼|ultorb":[1944,3700,0,-1,2840],"glaceon|냉동빔|ultbeam":[3419,7344,0,-1,5757],"glaceon|레이징지오프리즈|ultskyfall":[1376,3344,0,1375,2583],"glalie|눈보라|ultvortex":[3193,4110,0,3192,-1],"glalie|절대영도|ultnova":[1169,3548,0,-1,1848],"glameow|마구할퀴기|ultbarrage":[2454,3848,0,2453,2862],"glameow|최면술|ultpsy":[2913,3872,0,2605,-1],"gligar|공중날기|ultdive":[2005,3602,0,2004,3546],"gligar|시저크로스|ultbarrage":[2511,3902,0,2511,2913],"gliscor|공중날기|ultdive":[2018,3638,0,2017,3593],"gliscor|지진|ultquake":[1961,3914,0,1961,2318],"gloom|꽃잎댄스|ultstorm":[1773,3515,0,1773,2745],"gloom|문포스|ultsparkle":[1431,4129,0,-1,3633],"golbat|에어슬래시|ultstorm":[1822,3585,0,1822,3370],"golbat|흡혈|ultbarrage":[2507,3914,0,2506,2912],"goldeen|메가혼|ultrush":[1706,3381,0,1706,2486],"goldeen|물의파동|ultnova":[1132,3408,0,-1,1629],"golduck|사이코키네시스|ultpsy":[2987,4001,0,2672,3020],"golduck|하이드로펌프|ultbeam":[1075,3702,0,-1,3658],"golem|대폭발|ultnova":[1169,3564,0,-1,1794],"golem|지진|ultquake":[1961,3896,0,1961,3290],"golett|섀도펀치|ultshadow":[2975,3946,0,2974,3392],"golett|헤비봄버|ultdive":[2274,3900,0,2273,3874],"gorebyss|사이코키네시스|ultpsy":[2962,3989,0,2667,3000],"gorebyss|하이드로펌프|ultbeam":[1072,3678,0,-1,3652],"gothorita|미래예지|ultskyfall":[2809,3626,0,2809,3403],"gothorita|사이코키네시스|ultpsy":[2962,3926,0,2650,2955],"granbull|깨물어부수기|ultbarrage":[2517,3912,0,2516,2915],"granbull|러블리스타임팩트|ultsparkle":[2047,3768,0,-1,2785],"graveler|구르기|ultrush":[1310,3426,0,1310,2180],"graveler|스톤샤워|ultskyfall":[2818,3626,0,2818,3399],"greninja|거대 물수리검|ultswarm":[3974,6046,0,2943,5227],"greninja|그림자분신 물수리검|ultswarm":[3650,5546,0,2215,4382],"grimer|애시드포이즌딜리트|ultstorm":[1769,3440,0,1769,2029],"grimer|오물폭탄|ultswarm":[1573,2984,0,1573,2895],"grotle|기가드레인|ultbloom":[913,5692,0,-1,-1],"grotle|하드플랜트|ultpillar":[1712,3665,0,1712,2640],"groudon|단애의칼|ultquake":[2673,7600,0,-1,5694],"groudon|분화|ultpillar":[1913,3920,0,1913,2551],"groudon|솔라빔|ultbeam":[1036,3900,0,-1,3821],"grovyle|리프스톰|ultstorm":[1781,3530,0,1781,2890],"grovyle|시저크로스|ultbarrage":[1221,5692,0,-1,4253],"growlithe|다이내믹풀플레임|ultorb":[1841,3499,0,-1,3064],"growlithe|불꽃엄니|ultbarrage":[2476,3866,0,2475,2891],"grumpig|사이코키네시스|ultpsy":[2966,3980,0,2665,2986],"grumpig|파워젬|ultorb":[1883,3580,0,-1,2875],"gulpin|독가스|ultstorm":[1723,3415,0,1723,1877],"gulpin|토해내기|ultorb":[1852,3469,0,-1,2781],"gurdurr|스톤샤워|ultskyfall":[2819,3638,0,2819,3398],"gurdurr|해머암|ultdive":[2268,3900,0,2268,3882],"gyarados|파괴광선|ultbeam":[3273,7752,0,-1,4287],"gyarados|폭포오르기|ultdive":[2256,3900,0,2254,3890],"happiny|알폭탄|ultswarm":[2589,3300,0,2589,-1],"happiny|애교부리기|ultsparkle":[2048,3612,0,-1,2915],"hariyama|손바닥치기|ultbarrage":[2526,3922,0,2525,2884],"hariyama|헤비봄버|ultdive":[2262,3900,0,2261,3881],"haunter|섀도볼|ultorb":[1886,3538,0,-1,2864],"haunter|섀도펀치|ultbarrage":[2475,3892,0,2474,2839],"heatmor|연옥|ultvortex":[3191,4115,0,3190,-1],"heatmor|화염방사|ultbeam":[1064,3678,0,-1,3697],"heatran|마그마스톰|ultvortex":[3311,4245,0,3311,-1],"heatran|분화|ultpillar":[1918,3907,0,1918,2643],"heracross_female|메가혼|ultrush":[806,3101,0,806,1661],"heracross_female|인파이트|ultbarrage":[2551,3934,0,2550,2898],"heracross_male|메가혼|ultrush":[816,3101,0,816,1676],"heracross_male|인파이트|ultbarrage":[2542,3934,0,2542,2889],"herdier|기가임팩트|ultrush":[853,3014,0,853,1668],"herdier|깨물어부수기|ultbarrage":[2474,3876,0,2473,2884],"hippopotas_female|라이징랜드오버|ultquake":[1927,3674,0,1927,2295],"hippopotas_female|모래지옥|ultvortex":[3027,3945,0,3026,-1],"hippopotas_male|라이징랜드오버|ultquake":[1927,3674,0,1927,2233],"hippopotas_male|모래지옥|ultvortex":[3027,3945,0,3027,-1],"hippowdon_female|모래바람|ultstorm":[1859,3660,0,1858,3434],"hippowdon_female|지진|ultquake":[1948,3932,0,1947,2291],"hippowdon_male|모래바람|ultstorm":[1861,3660,0,1860,3387],"hippowdon_male|지진|ultquake":[1960,3932,0,1959,2408],"hitmonchan|냉동펀치|ultbarrage":[2510,3914,0,2510,2876],"hitmonchan|번개펀치|ultbarrage":[2502,3914,0,2502,2892],"hitmonchan|불꽃펀치|ultbarrage":[2510,3914,0,2509,2888],"hitmonlee|무릎차기|ultdive":[2007,3614,0,2006,3554],"hitmonlee|블레이즈킥|ultbarrage":[2506,3914,0,2506,2839],"hitmontop|고속스핀|ultrush":[1207,3071,0,1207,1976],"hitmontop|트리플킥|ultbarrage":[2520,3914,0,2518,2936],"honchkrow|브레이브버드|ultdive":[2019,3636,0,2019,3598],"honchkrow|블랙홀이클립스|ultblackhole":[3150,4072,0,-1,3643],"hooh|성스러운불꽃|ultbeam":[2661,7400,0,-1,4597],"hooh|성스러운불꽃|ultvortex":[3366,4300,0,3365,3662],"hoothoot|최면술|ultpsy":[2903,3842,0,2611,2946],"hoothoot|파이널다이브클래시|ultdive":[2029,3528,0,2029,3502],"hoppip|씨기관총|ultswarm":[1562,2933,0,1562,2916],"hoppip|씨뿌리기|ultbloom":[3109,3944,0,3109,3531],"horsea|거품광선|ultswarm":[1566,2963,0,1566,2999],"horsea|하이드로보텍스|ultvortex":[2976,3905,0,2975,-1],"houndoom|대문자|ultorb":[1884,3601,0,-1,2831],"houndoom|연옥|ultvortex":[3204,4135,0,3203,3493],"houndour|불꽃엄니|ultbarrage":[2473,3858,0,2472,2862],"houndour|악의파동|ultpsy":[2923,3887,0,2610,-1],"huntail|아쿠아테일|ultbarrage":[2541,3926,0,2541,3008],"huntail|하이드로펌프|ultbeam":[1088,3678,0,-1,3700],"hypno|사이코키네시스|ultpsy":[2992,3989,0,2695,-1],"hypno|악몽|ultshadow":[2994,4026,0,2993,3443],"igglybuff|구르기|ultrush":[854,2906,0,854,1714],"igglybuff|노래하기|ultpsy":[2887,3806,0,2589,-1],"illumise|소원|ultsparkle":[2043,3753,0,-1,2832],"illumise|시그널빔|ultbeam":[1079,3606,0,-1,3518],"infernape|블래스트번|ultnova":[3133,7148,0,-1,4319],"infernape|인파이트|ultbarrage":[2555,3948,0,2554,2894],"ivysaur|솔라빔|ultbeam":[1085,3576,0,-1,3653],"ivysaur|잎날가르기|ultswarm":[2539,5692,0,-1,3045],"jigglypuff|노래하기|ultpsy":[2909,3848,0,2611,-1],"jigglypuff|러블리스타임팩트|ultsparkle":[2041,3648,0,-1,2912],"jirachi|소원|ultsparkle":[1430,4267,0,-1,3767],"jirachi|파멸의소원|ultskyfall":[2728,7578,0,-1,6545],"jolteon|바늘미사일|ultswarm":[1558,3116,0,1558,2966],"jolteon|번개|ultthunder":[1538,7144,0,-1,5180],"jumpluff|솜포자|ultstorm":[1812,3590,0,1812,3378],"jumpluff|애크러뱃|ultdive":[2009,3616,0,2008,3551],"jynx|레이징지오프리즈|ultskyfall":[1374,3314,0,1373,2220],"jynx|악마의키스|ultsparkle":[2044,3771,0,-1,4275],"kabutops|베어가르기|ultbarrage":[2514,3932,0,2514,2945],"kabutops|스톤에지|ultpillar":[1926,3879,0,1925,2899],"kabuto|아쿠아제트|ultrush":[836,3002,0,836,1711],"kabuto|월즈엔드폴|ultskyfall":[1386,3268,0,1385,2786],"kadabra|사이코커터|ultbarrage":[2508,3888,0,2507,2959],"kadabra|환상빔|ultbeam":[1085,3564,0,-1,3595],"kakuna|단단해지기|ultrush":[1335,3303,0,1335,2234],"kakuna|독침|ultswarm":[1230,2903,0,1178,2393],"kangaskhan|연속펀치|ultbarrage":[2538,3928,0,2537,2907],"kangaskhan|이판사판태클|ultrush":[837,3092,0,837,1679],"karrablast|마구찌르기|ultbarrage":[2449,3852,0,2449,2808],"karrablast|이판사판태클|ultrush":[843,2978,0,843,1713],"kecleon|섀도스니크|ultshadow":[2995,4006,0,2994,3401],"kecleon|섀도크루|ultbarrage":[2528,3906,0,2527,2905],"keldeo|신비의칼|ultbarrage":[2569,3968,0,2568,2999],"keldeo|하이드로펌프|ultbeam":[1086,3804,0,-1,3828],"kingdra|용성군|ultskyfall":[2829,3728,0,2828,3415],"kingdra|하이드로보텍스|ultvortex":[3252,4180,0,3249,3518],"kingler|가위자르기|ultbarrage":[2523,3922,0,2523,2951],"kingler|찝게햄머|ultdive":[2024,3622,0,2023,3566],"kirlia|매지컬샤인|ultsparkle":[2052,3651,0,-1,3079],"kirlia|미래예지|ultskyfall":[2809,3551,0,2809,3398],"klang|기어소서|ultswarm":[2587,3300,0,2587,-1],"klang|전자포|ultorb":[1899,3559,0,-1,3032],"koffing|독가스|ultstorm":[1744,3455,0,1744,-1],"koffing|자폭|ultnova":[1141,3424,0,-1,1742],"krabby|거품|ultswarm":[1560,2984,0,1560,2941],"krabby|찝게햄머|ultdive":[2013,3556,0,2012,3505],"kricketot|벌레먹음|ultbarrage":[2373,3800,0,2373,2828],"kricketot|참기|ultnova":[1074,3300,0,-1,1686],"kricketune|벌레의야단법석|ultpsy":[2932,3923,0,2632,2999],"kricketune|시저크로스|ultbarrage":[2483,3882,0,2483,2920],"krokorok|깨물어부수기|ultbarrage":[2456,3868,0,2455,2878],"krokorok|모래바람|ultstorm":[1745,3470,0,1745,3381],"krookodile|모래지옥|ultvortex":[3239,4155,0,3239,3515],"krookodile|지진|ultquake":[1955,3926,0,1955,2289],"kyogre|근원의파동|ultbeam":[2687,7600,0,-1,5871],"kyogre|근원의파동|ultvortex":[3371,4300,0,3371,3626],"lairon|메탈버스트|ultnova":[1144,3504,0,-1,1751],"lairon|아이언헤드|ultrush":[1282,3453,0,1282,2217],"lanturn|방전|ultnova":[1163,3532,0,-1,1769],"lanturn|하이드로펌프|ultbeam":[1037,3648,0,-1,3658],"lapras|냉동빔|ultbeam":[2611,7548,0,-1,5636],"lapras|눈보라|ultstorm":[1869,3670,0,1869,3063],"larvitar|월즈엔드폴|ultskyfall":[1379,3244,0,1361,2859],"larvitar|지진|ultquake":[1939,3632,0,1938,2253],"latias|미스트볼|ultbeam":[1085,3834,0,-1,3782],"latias|미스트볼|ultorb":[3280,7178,0,-1,4812],"latios|러스터퍼지|ultbeam":[2729,7378,0,-1,5892],"latios|용성군|ultskyfall":[2833,3767,0,2833,3406],"leafeon|리프블레이드|ultbarrage":[3053,7144,0,-1,4659],"leafeon|솔라빔|ultbeam":[1070,3732,0,-1,3632],"leavanny|리프블레이드|ultbarrage":[2541,3934,0,2540,2987],"leavanny|리프스톰|ultstorm":[1846,3635,0,1846,3087],"ledian|마하펀치|ultbarrage":[2492,3884,0,2492,2830],"ledian|스피드스타|ultskyfall":[2831,3626,0,2830,3422],"ledyba|벌레의야단법석|ultnova":[1084,3356,0,-1,1699],"ledyba|은빛바람|ultstorm":[1701,3370,0,1701,2992],"lickilicky|구르기|ultrush":[1671,3510,0,1671,2464],"lickilicky|파워휩|ultbloom":[3337,4180,0,3337,3802],"lickitung|누르기|ultdive":[2282,3900,0,2282,3902],"lickitung|핥기|ultbarrage":[2492,3882,0,2491,2875],"liepard|깜짝베기|ultbarrage":[2496,3910,0,2496,2969],"liepard|속임수|ultshadow":[2975,4010,0,2974,3424],"lileep|원시의힘|ultskyfall":[2823,3602,0,2823,3392],"lileep|쥐어짜기|ultbloom":[3185,4036,0,3185,3691],"linoone|베어가르기|ultbarrage":[2501,3898,0,2501,2929],"linoone|신속|ultrush":[845,3047,0,845,1724],"litwick|연옥|ultshadow":[2972,3934,0,2972,3367],"litwick|오버히트|ultpillar":[1929,3820,0,1929,2666],"lombre|마구할퀴기|ultbarrage":[2457,3862,0,2456,2885],"lombre|비바라기|ultstorm":[1772,3455,0,1772,2205],"lopunny|메가톤킥|ultbarrage":[2526,3924,0,2525,2867],"lopunny|무릎차기|ultdive":[2007,3624,0,2005,3565],"lotad|기가드레인|ultbloom":[2299,4012,0,2298,3839],"lotad|비바라기|ultstorm":[1690,3320,0,1690,2150],"loudred|붐버스트|ultnova":[1126,3444,0,-1,1736],"loudred|짓밟기|ultquake":[1945,3716,0,1945,2214],"lucario|진 파동탄|ultorb":[4166,5744,0,4166,4460],"lucario|파동 인파이트|ultbarrage":[3082,5344,0,3082,4499],"ludicolo|비바라기|ultstorm":[1841,3610,0,1841,2293],"ludicolo|하이드로펌프|ultbeam":[1076,3672,0,-1,3654],"lugia|에어로블라스트|ultbeam":[2219,7600,0,-1,5963],"lugia|폭풍|ultvortex":[3384,4300,0,3383,3629],"lumineon|물의파동|ultnova":[1161,3532,0,-1,1754],"lumineon|은빛바람|ultstorm":[1831,3590,0,1831,3394],"lunatone|문포스|ultsparkle":[1420,4174,0,-1,3708],"lunatone|사이코키네시스|ultpsy":[2968,3974,0,2658,3035],"luvdisc|하트스탬프|ultsparkle":[2053,3687,0,-1,2883],"luvdisc|헤롱헤롱|ultswarm":[1560,2987,0,1560,2955],"luxio|방전|ultthunder":[2141,3408,0,2141,2805],"luxio|번개엄니|ultbarrage":[2482,3872,0,2481,2934],"luxray|번개|ultstorm":[1848,3660,0,1848,2652],"luxray|와일드볼트|ultrush":[823,3116,0,823,1695],"machamp|다이너마이트펀치|ultbarrage":[1990,7336,0,-1,5347],"machamp|전력무쌍격렬권|ultbarrage":[2555,3936,0,2555,2893],"machoke|지구던지기|ultdive":[2026,3592,0,2025,3562],"machoke|크로스촙|ultbarrage":[2483,3892,0,2483,2865],"machop|기합구슬|ultorb":[1839,3469,0,-1,2889],"machop|전력무쌍격렬권|ultbarrage":[2430,3846,0,2429,2818],"magby|다이내믹풀플레임|ultorb":[1853,3511,0,-1,2981],"magby|화염방사|ultbeam":[1068,3522,0,-1,3512],"magcargo|분연|ultstorm":[1803,3555,0,1803,3444],"magcargo|원시의힘|ultskyfall":[2841,3653,0,2840,3410],"magikarp|몸통박치기|ultrush":[1342,3300,0,1342,2234],"magikarp|튀어오르기|ultsplash":[2630,5200,0,2630,5235],"magmar|대문자|ultpillar":[1934,3879,0,1933,2695],"magmar|불꽃펀치|ultbarrage":[2550,3932,0,2550,2913],"magmortar|불대문자|ultorb":[1914,3628,0,-1,2899],"magmortar|화염방사|ultbeam":[1085,3756,0,-1,3665],"magnemite|방전|ultthunder":[2152,3384,0,2152,2791],"magnemite|전자포|ultorb":[1860,3484,0,-1,2815],"magneton|10만볼트|ultvolt":[1272,4036,0,934,2211],"magneton|전자포|ultbeam":[1071,3654,0,-1,3662],"magnezone|방전|ultvolt":[3529,5296,0,3528,4711],"magnezone|전자포|ultbeam":[1080,3744,0,-1,3713],"makuhita|기합구슬|ultorb":[1836,3424,0,-1,3094],"makuhita|손바닥치기|ultbarrage":[2396,3816,0,2396,2774],"mamoswine|고드름떨구기|ultskyfall":[2818,3719,0,2817,3457],"mamoswine|지진|ultquake":[1956,3938,0,1956,3284],"manaphy|바다회오리|ultvortex":[3320,4245,0,3319,3582],"manaphy|하트스웹|ultsparkle":[2043,3867,0,-1,2923],"mandibuzz|본러쉬|ultswarm":[1560,3107,0,1560,2882],"mandibuzz|블랙홀이클립스|ultblackhole":[3174,4076,0,-1,3619],"manectric|번개|ultthunder":[2432,3483,0,2432,3060],"manectric|와일드볼트|ultrush":[820,3083,0,820,1695],"mankey|마구할퀴기|ultbarrage":[2442,3846,0,2441,2831],"mankey|크로스촙|ultdive":[2019,3546,0,2018,3509],"mantine|바운스|ultdive":[2000,3626,0,2000,3550],"mantine|파도타기|ultrush":[1267,3489,0,1267,2009],"mantyke|거품광선|ultswarm":[1585,2996,0,1585,2879],"mantyke|뛰어오르다|ultdive":[2020,3564,0,2020,3511],"maractus|꽃잎댄스|ultstorm":[1836,3590,0,1836,2898],"maractus|바늘미사일|ultswarm":[1582,3074,0,1582,2933],"mareep|방전|ultnova":[1117,3372,0,-1,1715],"mareep|스파킹기가볼트|ultthunder":[2590,3754,0,2589,3497],"marill|거품광선|ultswarm":[1566,2933,0,1566,3004],"marill|구르기|ultrush":[1328,3333,0,1328,2253],"marowak|본러시|ultbarrage":[2503,3900,0,2503,2935],"marowak|뼈다귀부메랑|ultswarm":[2588,3300,0,2588,-1],"marshtomp|머드샷|ultswarm":[1374,5692,0,-1,5479],"marshtomp|탁류|ultpillar":[1906,3855,0,1906,2970],"masquerain|벌레의야단법석|ultnova":[1159,3524,0,-1,1784],"masquerain|은빛바람|ultstorm":[1815,3580,0,1815,3360],"mawile|러블리스타임팩트|ultsparkle":[2048,3720,0,-1,3080],"mawile|치근거리기|ultbarrage":[2487,3880,0,2486,2889],"medicham|무릎차기|ultbarrage":[2499,3894,0,2498,2859],"medicham|사념의박치기|ultrush":[826,3041,0,826,1516],"meditite|맥시멈사이브레이커|ultpsy":[2907,3854,0,2612,2927],"meditite|무릎차기|ultbarrage":[2430,3836,0,2430,2763],"meganium_female|솔라빔|ultbeam":[1076,3732,0,-1,3847],"meganium_female|하드플랜트|ultbloom":[2475,7344,0,-1,7013],"meganium|솔라빔|ultbeam":[1088,3732,0,-1,3834],"meganium|하드플랜트|ultbloom":[2492,7344,0,-1,7095],"meloetta|옛노래|ultbarrage":[2577,3978,0,2577,3006],"meloetta|옛노래|ultsparkle":[2052,3867,0,-1,2792],"meowth|고양이돈받기|ultswarm":[1565,2960,0,1565,2840],"meowth|마구할퀴기|ultbarrage":[2437,3840,0,2437,2853],"mesprit|매지컬샤인|ultsparkle":[2042,3852,0,-1,3947],"mesprit|사이코키네시스|ultpsy":[3009,4052,0,2700,3004],"metagross|코멧펀치|ultdive":[3543,7378,0,-1,5157],"metagross|파괴광선|ultbeam":[1093,3834,0,-1,3764],"metang|불릿펀치|ultbarrage":[2496,3898,0,2495,2891],"metang|코멧펀치|ultdive":[2019,3598,0,2018,3572],"metapod|단단해지기|ultrush":[1327,3303,0,1327,2228],"metapod|몸통박치기|ultdive":[2273,3900,0,2273,3905],"mewtwo|사이코브레이크|ultorb":[3680,8800,0,3680,5550],"mewtwo|사이코키네시스|ultpsy":[5725,9000,0,5725,6450],"mew|메트로놈|ultpsy":[6023,8178,0,6023,-1],"mew|오리진즈슈퍼노바|ultorb":[4346,8378,0,4346,6399],"mienfoo|무릎차기|ultbarrage":[2454,3866,0,2454,2950],"mienfoo|파동탄|ultorb":[1848,3499,0,-1,2944],"mightyena|깨물어부수기|ultbarrage":[2502,3898,0,2501,2929],"mightyena|블랙홀이클립스|ultblackhole":[3107,3996,0,-1,3573],"milotic|물의파동|ultorb":[1924,3628,0,-1,2795],"milotic|하이드로펌프|ultbeam":[1076,3756,0,-1,3817],"miltank|구르기|ultrush":[1189,3092,0,1189,1949],"miltank|누르기|ultdive":[2278,3900,0,2278,3876],"mimeJr|사이코키네시스|ultpsy":[2920,3872,0,2623,2988],"mimeJr|흉내내기|ultmetronome":[934,2200,0,934,-1],"minccino|스위프뺨치기|ultbarrage":[2455,3844,0,2454,2923],"minccino|하이퍼보이스|ultnova":[1098,3388,0,-1,1696],"minun|방전|ultthunder":[2147,3438,0,2147,2883],"minun|번개|ultstorm":[1805,3530,0,1805,2749],"misdreavus|멸망의노래|ultshadow":[3001,4004,0,3001,3410],"misdreavus|섀도볼|ultorb":[1893,3556,0,-1,2816],"mismagius|매지컬리프|ultswarm":[1567,3098,0,1567,2887],"mismagius|섀도볼|ultorb":[1898,3598,0,-1,2977],"moltres|불새|ultdive":[1994,3668,0,1993,3603],"moltres|열풍|ultstorm":[1880,3720,0,1880,3251],"monferno|마하펀치|ultbarrage":[1615,5692,0,-1,5669],"monferno|화염방사|ultbeam":[1069,3576,0,-1,3505],"mothim|사이코키네시스|ultpsy":[2967,3950,0,2660,2972],"mothim|은빛바람|ultstorm":[1815,3550,0,1815,3351],"mrmime|매지컬샤인|ultnova":[1149,3532,0,-1,1857],"mrmime|사이코키네시스|ultpsy":[2963,3974,0,2651,3021],"mudkip|하이드로보텍스|ultvortex":[2998,3920,0,2998,-1],"mudkip|하이드로펌프|ultbeam":[2285,4648,0,-1,4046],"muk|누르기|ultdive":[2286,3900,0,2285,3909],"muk|더스트슈트|ultorb":[1895,3601,0,-1,2982],"munchlax|구르기|ultrush":[1679,3426,0,1679,2526],"munchlax|누르기|ultdive":[2265,3900,0,2264,3913],"munna|문라이트|ultsparkle":[1431,4060,0,-1,3556],"munna|최면술|ultpsy":[2929,3860,0,2619,2958],"murkrow|브레이브버드|ultdive":[2005,3592,0,2005,3528],"murkrow|블랙홀이클립스|ultblackhole":[3081,3984,0,-1,3560],"musharna|꿈먹기|ultpsy":[2984,3992,0,2689,-1],"musharna|사이코키네시스|ultorb":[1895,3592,0,-1,2865],"natu|맥시멈사이브레이커|ultpsy":[2929,3881,0,2635,-1],"natu|미래예지|ultorb":[1851,3481,0,-1,2789],"nidoking|메가혼|ultrush":[1204,3104,0,1204,1976],"nidoking|지진|ultquake":[1946,3908,0,1946,2261],"nidoqueen|누르기|ultdive":[2289,3900,0,2289,3867],"nidoqueen|대지의힘|ultpillar":[1729,3692,0,1729,2703],"nidoran_female|독침|ultswarm":[1550,2951,0,1550,2957],"nidoran_female|애시드포이즌딜리트|ultstorm":[1713,3385,0,1713,-1],"nidoran_male|마구찌르기|ultbarrage":[2430,3832,0,2429,2779],"nidoran_male|뿔찌르기|ultrush":[1313,3348,0,1313,2229],"nidorina|깨물어부수기|ultbarrage":[2470,3874,0,2470,2895],"nidorina|애시드포이즌딜리트|ultstorm":[1768,3485,0,1768,-1],"nidorino|독찌르기|ultdive":[2015,3574,0,2014,3530],"nidorino|뿔드릴|ultrush":[1684,3411,0,1684,2485],"nincada|구멍파기|ultquake":[1935,3590,0,1934,2206],"nincada|연속자르기|ultbarrage":[2424,3830,0,2424,2855],"ninetales|열풍|ultstorm":[1833,3640,0,1833,-1],"ninetales|회오리불꽃|ultvortex":[3236,4140,0,3235,3471],"ninjask|시저크로스|ultrush":[807,3071,0,807,1700],"ninjask|절대포식회전참|ultbarrage":[2514,3914,0,2513,2972],"noctowl|문포스|ultsparkle":[1437,4168,0,-1,3688],"noctowl|에어슬래시|ultstorm":[1819,3580,0,1819,3341],"nosepass|스톤샤워|ultskyfall":[2823,3617,0,2823,3414],"nosepass|전자포|ultorb":[1865,3517,0,-1,2948],"numel|다이내믹풀플레임|ultorb":[1843,3469,0,-1,2869],"numel|분화|ultpillar":[1908,3828,0,1908,2673],"nuzleaf|리프스톰|ultstorm":[1756,3455,0,1756,2433],"nuzleaf|잎날가르기|ultswarm":[1562,2993,0,1562,2952],"octillery|옥타캐논|ultbeam":[1092,3672,0,-1,3665],"octillery|옥타캐논|ultorb":[1897,3586,0,-1,2874],"oddish|독가루|ultstorm":[1752,3435,0,1752,2737],"oddish|블룸샤인엑스트라|ultbloom":[2304,4081,0,2304,3918],"omanyte|원시의힘|ultskyfall":[2833,3602,0,2832,3430],"omanyte|하이드로펌프|ultpillar":[1725,3651,0,1725,2728],"omastar|락블레스트|ultswarm":[1564,3098,0,1564,2906],"omastar|원시의힘|ultskyfall":[2826,3698,0,2825,3417],"onix|스톤에지|ultpillar":[1921,3849,0,1921,2763],"onix|아이언테일|ultdive":[2266,3900,0,2265,3895],"oshawott|껍질검|ultbarrage":[1775,4648,0,-1,1913],"oshawott|아쿠아제트|ultrush":[841,2972,0,841,1715],"pachirisu|방전|ultvolt":[1265,3984,0,923,2560],"pachirisu|천사의키스|ultsparkle":[2049,3738,0,-1,4057],"palkia|아공절단|ultbarrage":[2024,7400,0,-1,5717],"palkia|하이드로펌프|ultbeam":[1033,3900,0,-1,3887],"panpour|열탕|ultpillar":[1897,3831,0,1897,2935],"panpour|하이드로보텍스|ultvortex":[3001,3930,0,3000,-1],"pansage|덩굴채찍|ultbloom":[3161,4004,0,3161,3631],"pansage|씨폭탄|ultorb":[1840,3478,0,-1,2831],"pansear|불꽃튀기기|ultpillar":[1920,3831,0,1920,2683],"pansear|불대문자|ultorb":[1846,3478,0,-1,2830],"parasect|기가드레인|ultblackhole":[3101,3984,0,-1,3542],"parasect|버섯포자|ultstorm":[1802,3530,0,1802,2884],"paras|버섯포자|ultstorm":[1724,3395,0,1724,2769],"paras|시저크로스|ultbarrage":[2435,3838,0,2434,2854],"patrat|분노의앞니|ultbarrage":[2430,3824,0,2429,2842],"patrat|울트라대시어택|ultrush":[848,2936,0,848,1730],"pawniard|깜짝베기|ultbarrage":[2451,3862,0,2450,2854],"pawniard|메탈버스트|ultnova":[1138,3424,0,-1,1728],"pelipper|비바라기|ultstorm":[1809,3565,0,1809,2286],"pelipper|폭풍|ultvortex":[3132,4065,0,3131,-1],"persian|베어가르기|ultbarrage":[2500,3906,0,2500,2938],"persian|파워젬|ultorb":[1876,3559,0,-1,2906],"petilil|꽃잎댄스|ultstorm":[1720,3390,0,1720,2786],"petilil|블룸샤인엑스트라|ultbloom":[2304,4054,0,2303,3980],"phanpy|라이징랜드오버|ultquake":[1940,3674,0,1939,2192],"phanpy|애교부리기|ultsparkle":[2051,3687,0,-1,3936],"phione|물의파동|ultnova":[1174,3548,0,-1,1785],"phione|비바라기|ultstorm":[1833,3610,0,1832,2279],"pichu_spiky_eared|볼부비부비|ultsparkle":[2043,3603,0,-1,2832],"pichu_spiky_eared|볼트태클|ultrush":[873,2903,0,873,1731],"pichu|10만볼트|ultvolt":[1267,3804,0,926,3472],"pichu|볼트태클|ultrush":[838,2903,0,838,1530],"pidgeotto|파이널다이브클래시|ultdive":[2014,3566,0,2013,3499],"pidgeotto|회오리|ultvortex":[3048,3965,0,3047,-1],"pidgeot|브레이브버드|ultrush":[811,3086,0,811,1677],"pidgeot|폭풍|ultvortex":[3198,4110,0,3197,3414],"pidgey|바람일으키기|ultstorm":[1701,3355,0,1701,3024],"pidgey|파이널다이브클래시|ultdive":[2018,3522,0,2017,3453],"pidove|불새|ultdive":[2014,3528,0,2013,3458],"pidove|에어슬래시|ultswarm":[1570,2942,0,1570,2891],"pignite|불꽃펀치|ultbarrage":[1481,5696,0,-1,5477],"pignite|플레어드라이브|ultdive":[2023,3596,0,2022,3565],"pikachu_female|1000만볼트|ultvolt":[3425,7654,0,-1,4397],"pikachu_female|100만볼트|ultvolt":[1260,3908,0,917,3054],"pikachu|1000만볼트|ultvolt":[3435,7654,0,-1,4872],"pikachu|100만볼트|ultvolt":[1275,3908,0,934,3412],"piloswine|눈보라|ultstorm":[1831,3580,0,1831,2986],"piloswine|지진|ultquake":[1947,3836,0,1947,2391],"pineco|바늘미사일|ultswarm":[1557,2960,0,1557,2843],"pineco|자폭|ultnova":[1111,3380,0,-1,1689],"pinsir|가위자르기|ultbarrage":[2542,3934,0,2541,2916],"pinsir|지구던지기|ultdive":[2028,3634,0,2027,3612],"piplup|거품광선|ultswarm":[2029,4650,0,-1,3505],"piplup|하이드로보텍스|ultvortex":[3007,3925,0,3006,-1],"plusle|번개|ultstorm":[1781,3530,0,1781,2660],"plusle|스파킹기가볼트|ultthunder":[2598,3838,0,2597,3539],"politoed|바운스|ultdive":[2020,3634,0,2020,3557],"politoed|비바라기|ultstorm":[1860,3635,0,1860,3056],"poliwag|비바라기|ultstorm":[1726,3410,0,1726,2178],"poliwag|하이드로보텍스|ultvortex":[2998,3910,0,2998,-1],"poliwhirl|최면술|ultpsy":[2944,3923,0,2647,2969],"poliwhirl|하이드로펌프|ultpillar":[1732,3659,0,1732,2737],"poliwrath|폭발펀치|ultbarrage":[2556,3938,0,2555,2903],"poliwrath|폭포오르기|ultrush":[820,3107,0,820,1678],"ponyta|화염자동차|ultrush":[1307,3441,0,1307,2220],"ponyta|회오리불꽃|ultvortex":[3123,4035,0,3122,-1],"poochyena|기습|ultrush":[869,2912,0,869,1704],"poochyena|깨물어부수기|ultbarrage":[2397,3808,0,2396,2812],"porygon2|전자포|ultorb":[1894,3610,0,-1,2783],"porygon2|트라이어택|ultbeam":[1084,3720,0,-1,3686],"porygon2|파괴광선|ultbeam":[1085,3720,0,-1,3659],"porygonZ|트라이어택|ultvolt":[1266,4096,0,933,3222],"porygonZ|파괴광선|ultbeam":[1065,3744,0,-1,3707],"porygon|10만볼트|ultvolt":[1252,3972,0,921,3177],"porygon|트라이어택|ultbeam":[1088,3558,0,-1,3561],"primeape|난동부리기|ultrush":[819,3071,0,819,1717],"primeape|인파이트|ultbarrage":[2516,3914,0,2516,2846],"prinplup|메탈클로|ultbarrage":[1926,5692,0,-1,2154],"prinplup|하이드로캐논|ultbeam":[1082,3576,0,-1,3492],"probopass|스톤에지|ultpillar":[1908,3886,0,1908,2747],"probopass|전자포|ultorb":[1912,3616,0,-1,2821],"psyduck|물의파동|ultorb":[1846,3481,0,-1,3015],"psyduck|염동력|ultpsy":[2922,3881,0,2626,2955],"pupitar|돌진|ultrush":[833,3041,0,833,1706],"pupitar|모래바람|ultvortex":[3108,4035,0,3108,-1],"purugly|누르기|ultdive":[2259,3900,0,2258,3891],"purugly|울트라대시어택|ultrush":[1277,3468,0,1277,2171],"quagsire|지진|ultquake":[1948,3806,0,1947,2146],"quagsire|탁류|ultvortex":[3145,4055,0,3144,-1],"quilava|분연|ultnova":[1155,3484,0,-1,1739],"quilava|화염자동차|ultrush":[1671,5692,0,-1,5358],"quilladin|구르기|ultrush":[1476,5692,0,-1,4663],"quilladin|바늘미사일|ultswarm":[1573,3038,0,1573,2895],"qwilfish|독찌르기|ultrush":[849,3059,0,849,1683],"qwilfish|바늘미사일|ultswarm":[1559,3059,0,1559,2991],"raichu|라이트닝서프라이드|ultrush":[819,3089,0,819,1675],"raichu|스파킹기가볼트|ultthunder":[2571,3889,0,2570,3506],"raikou|번개|ultthunder":[2597,7368,0,-1,4780],"raikou|전자포|ultbeam":[1066,3804,0,-1,3748],"ralts|매지컬리프|ultswarm":[1562,2900,0,1562,2892],"ralts|사이코키네시스|ultpsy":[2861,3800,0,2562,2903],"rampardos|스톤에지|ultpillar":[1912,3879,0,1912,2739],"rampardos|양날박치기|ultrush":[817,3098,0,817,1673],"rapidash|불대문자|ultpillar":[1921,3880,0,1921,2486],"rapidash|플레어드라이브|ultrush":[829,3101,0,829,1672],"raticate|분노의앞니|ultbarrage":[2502,3894,0,2501,2906],"raticate|필살앞니|ultdive":[2011,3594,0,2010,3538],"rattata|전광석화|ultrush":[840,2936,0,840,1709],"rattata|필살앞니|ultdive":[2017,3524,0,2016,3498],"rayquaza|파괴광선|ultbeam":[1023,3900,0,-1,3921],"rayquaza|화룡점정|ultdive":[3393,7600,0,-1,5389],"regice|냉동빔|ultbeam":[1066,3804,0,-1,3910],"regice|절대영도|ultpillar":[1908,3901,0,1908,2733],"regigigas|기가임팩트|ultrush":[815,3200,0,815,1667],"regigigas|파괴광선|ultbeam":[1033,3900,0,-1,4015],"regirock|스톤에지|ultpillar":[1927,3901,0,1927,2742],"regirock|파괴광선|ultbeam":[1074,3804,0,-1,3859],"registeel|러스터캐논|ultbeam":[1076,3804,0,-1,3705],"registeel|헤비봄버|ultdive":[2259,3900,0,2258,3891],"relicanth|양날박치기|ultrush":[1293,3489,0,1293,2230],"relicanth|원시의힘|ultskyfall":[2842,3689,0,2842,3425],"remoraid|물의파동|ultorb":[1859,3466,0,-1,2865],"remoraid|하이드로펌프|ultbeam":[1091,3432,0,-1,3486],"rhydon|뿔드릴|ultrush":[1650,3489,0,1650,2482],"rhydon|스톤에지|ultpillar":[1909,3876,0,1909,2744],"rhyhorn|돌진|ultrush":[856,2996,0,856,1720],"rhyhorn|라이징랜드오버|ultquake":[1949,3692,0,1948,2286],"rhyperior|뿔드릴|ultrush":[1205,3122,0,1205,1880],"rhyperior|암석포|ultorb":[1892,3622,0,-1,2949],"riolu|발경|ultbarrage":[2424,3838,0,2423,2788],"riolu|전광석화|ultrush":[850,2957,0,850,1706],"roselia|꽃잎댄스|ultstorm":[1787,3520,0,1787,2882],"roselia|블룸샤인엑스트라|ultbloom":[2305,4132,0,2304,3917],"roserade|꽃잎댄스|ultstorm":[1853,3650,0,1853,2931],"roserade|솔라빔|ultbeam":[1072,3720,0,-1,3656],"rotom_fan|에어슬래시|ultstorm":[1810,3565,0,1810,3336],"rotom_fan|폭풍|ultvortex":[3145,4065,0,3144,-1],"rotom_frost|냉동빔|ultbeam":[1062,3618,0,-1,3540],"rotom_frost|눈보라|ultstorm":[1801,3565,0,1801,2991],"rotom_heat|다이내믹풀플레임|ultorb":[1878,3559,0,-1,2814],"rotom_heat|오버히트|ultbeam":[1079,3618,0,-1,3596],"rotom_mow|리프스톰|ultstorm":[1820,3565,0,1820,2889],"rotom_mow|잎날가르기|ultswarm":[1572,3059,0,1572,2998],"rotom_wash|하이드로보텍스|ultvortex":[3143,4065,0,3142,3406],"rotom_wash|하이드로펌프|ultbeam":[1072,3618,0,-1,3561],"rotom|방전|ultvolt":[1264,4012,0,923,2144],"rotom|번개|ultthunder":[2143,3459,0,2143,2846],"sableye|나이트헤드|ultshadow":[2988,3980,0,2988,3377],"sableye|파워젬|ultswarm":[1570,3020,0,1570,2933],"salamence|용성군|ultskyfall":[4074,7578,0,-1,5856],"salamence|파괴광선|ultbeam":[1069,3834,0,-1,3853],"samurott|껍질검|ultbarrage":[2361,7146,0,-1,4563],"samurott|하이드로캐논|ultbeam":[1023,3738,0,-1,3795],"sandshrew|구르기|ultrush":[1310,3366,0,1310,2224],"sandshrew|모래바람|ultstorm":[1730,3410,0,1730,3424],"sandslash|모래지옥|ultvortex":[3151,4080,0,3150,-1],"sandslash|베어가르기|ultbarrage":[2503,3912,0,2503,2949],"sawk|기합구슬|ultorb":[1901,3577,0,-1,2718],"sawk|인파이트|ultbarrage":[2516,3918,0,2515,2886],"sceptile|리프블레이드|ultbarrage":[1478,7146,0,-1,4730],"sceptile|하드플랜트|ultbloom":[3345,4192,0,3345,3852],"scizor|불릿펀치|ultbarrage":[1473,7134,0,-1,5293],"scizor|시저크로스|ultrush":[833,3101,0,833,1678],"scolipede|애시드포이즌딜리트|ultstorm":[1837,3615,0,1837,-1],"scolipede|하드롤러|ultrush":[1209,3089,0,1209,1976],"scraggy|무릎차기|ultbarrage":[2471,3866,0,2470,2824],"scraggy|박치기|ultrush":[850,2999,0,850,1720],"scyther|연속자르기|ultbarrage":[2548,3934,0,2548,3009],"scyther|제비반환|ultrush":[819,3101,0,819,1672],"seadra|하이드로펌프|ultbeam":[1085,3618,0,-1,3610],"seadra|회오리|ultvortex":[3135,4065,0,3134,3455],"seaking|메가혼|ultrush":[1210,3068,0,1210,1985],"seaking|폭포오르기|ultdive":[2007,3612,0,2007,3548],"sealeo|구르기|ultrush":[835,3041,0,835,1668],"sealeo|아이스볼|ultorb":[1877,3541,0,-1,2950],"seedot|대폭발|ultnova":[1092,3316,0,-1,1795],"seedot|리프스톰|ultstorm":[1694,3320,0,1694,-1],"seel|얼다바람|ultstorm":[1761,3440,0,1761,2998],"seel|오로라빔|ultbeam":[1078,3468,0,-1,3471],"sentret|아이언테일|ultdive":[1993,3506,0,1993,3451],"sentret|울트라대시어택|ultrush":[1330,3309,0,1330,2234],"serperior|리프스톰|ultstorm":[2823,7546,0,-1,5371],"serperior|하드플랜트|ultbloom":[3334,4192,0,3334,3846],"servine|리프블레이드|ultbarrage":[1932,5694,0,-1,3692],"servine|리프스톰|ultstorm":[1787,3535,0,1787,2439],"seviper|오물폭탄|ultorb":[1899,3571,0,-1,2816],"seviper|포이즌테일|ultbarrage":[2525,3914,0,2525,2952],"sharpedo|아쿠아제트|ultrush":[834,3074,0,834,1579],"sharpedo|폭포오르기|ultdive":[2011,3616,0,2010,3558],"shaymin_sky|시드플레어|ultbloom":[2303,4267,0,2302,4097],"shaymin_sky|에어슬래시|ultstorm":[1893,3745,0,1893,3541],"shaymin|시드플레어|ultbloom":[2307,4267,0,2306,4090],"shaymin|에너지볼|ultorb":[1937,3667,0,-1,2815],"shedinja|길동무|ultshadow":[2957,3916,0,2956,3357],"shedinja|원한|ultblackhole":[2978,3832,0,-1,3396],"shelgon|용성군|ultskyfall":[2824,3647,0,2824,3441],"shelgon|용의숨결|ultorb":[1872,3547,0,-1,2834],"shellder|고드름침|ultswarm":[1570,2969,0,1570,2985],"shellder|셸블레이드|ultbarrage":[2450,3846,0,2449,2845],"shellos_east|진흙폭탄|ultswarm":[1559,2984,0,1559,2896],"shellos_east|하이드로보텍스|ultvortex":[3025,3940,0,3025,-1],"shellos_west|진흙폭탄|ultswarm":[1561,2984,0,1561,2948],"shellos_west|하이드로보텍스|ultvortex":[3010,3940,0,3010,-1],"shelmet|벌레의야단법석|ultnova":[1094,3392,0,-1,1629],"shelmet|절대포식회전참|ultbarrage":[2455,3846,0,2455,2888],"shieldon|아이언헤드|ultrush":[1297,3399,0,1297,1981],"shieldon|원시의힘|ultskyfall":[2823,3599,0,2823,3443],"shiftry|리프스톰|ultstorm":[1826,3610,0,1826,2885],"shiftry|폭풍|ultvortex":[3182,4110,0,3181,3468],"shinx|스파크|ultrush":[1322,3342,0,1322,2247],"shinx|스파킹기가볼트|ultthunder":[2580,3742,0,2580,3550],"shroomish|버섯포자|ultbloom":[2289,4063,0,2288,3570],"shroomish|씨폭탄|ultswarm":[2583,3300,0,2583,-1],"shuckle|구르기|ultrush":[1649,3504,0,1649,2491],"shuckle|스텔스록|ultskyfall":[2842,3704,0,2842,3449],"shuppet|나이트헤드|ultpsy":[2907,3863,0,2595,2953],"shuppet|섀도볼|ultorb":[1863,3463,0,-1,2965],"sigilyph|불새|ultdive":[2014,3628,0,2014,3544],"sigilyph|사이코키네시스|ultpsy":[2985,3992,0,2689,2997],"silcoon|실뿜기|ultbloom":[3051,3904,0,3051,3500],"silcoon|은빛바람|ultstorm":[1694,3305,0,1694,3051],"skarmory|강철날개|ultdive":[2012,3618,0,2011,3556],"skarmory|에어커터|ultswarm":[1573,3077,0,1573,2916],"skiploom|블룸샤인엑스트라|ultbloom":[2287,4093,0,2287,3555],"skiploom|에너지볼|ultorb":[1857,3493,0,-1,2768],"skitty|노래하기|ultpsy":[2906,3839,0,2595,2908],"skitty|애교부리기|ultsparkle":[2049,3639,0,-1,2881],"skorupi|독침|ultswarm":[1586,2987,0,1586,2856],"skorupi|애시드포이즌딜리트|ultstorm":[1738,3445,0,1738,2678],"skuntank|대폭발|ultnova":[1162,3548,0,-1,1745],"skuntank|오물폭탄|ultorb":[1882,3586,0,-1,2818],"slaking|기가임팩트|ultrush":[819,3200,0,819,1677],"slaking|파괴광선|ultbeam":[1048,3900,0,-1,3915],"slakoth|기가임팩트|ultrush":[1320,3354,0,1320,2229],"slakoth|하품|ultpsy":[2916,3854,0,2621,2989],"slowbro|사이코키네시스|ultpsy":[2968,3992,0,2673,2992],"slowbro|열탕|ultpillar":[1726,3687,0,1726,2740],"slowking|사이코키네시스|ultpsy":[2987,3992,0,2693,-1],"slowking|썰렁개그|ultstorm":[1842,3620,0,1842,3026],"slowpoke|박치기|ultrush":[1326,3378,0,1326,2230],"slowpoke|하품|ultpsy":[2940,3878,0,2626,2917],"slugma|다이내믹풀플레임|ultorb":[1819,3433,0,-1,2812],"slugma|대지의힘|ultquake":[1938,3566,0,1938,2239],"smeargle|스케치|ultmetronome":[921,2200,0,921,-1],"smeargle|용성군|ultskyfall":[2823,3533,0,2823,3433],"smoochum|눈보라|ultstorm":[1741,3415,0,1741,2960],"smoochum|악마의키스|ultswarm":[1574,2969,0,1574,2958],"sneasel|고드름떨구기|ultskyfall":[2836,3653,0,2835,3403],"sneasel|베어가르기|ultbarrage":[2508,3902,0,2507,2898],"snivy|그래스믹서|ultvortex":[426,4648,0,-1,4387],"snivy|덩굴채찍|ultbloom":[3161,3996,0,3161,3638],"snorlax|기가임팩트|ultdive":[3567,7352,0,-1,5668],"snorlax|코골기|ultnova":[1180,3604,0,-1,1798],"snorunt|레이징지오프리즈|ultskyfall":[1390,3244,0,1389,2576],"snorunt|얼다바람|ultstorm":[1731,3410,0,1731,2959],"snover|얼음뭉치|ultswarm":[1562,2990,0,1562,2945],"snover|우드해머|ultrush":[1300,3390,0,1300,2233],"snubbull|러블리스타임팩트|ultsparkle":[2045,3666,0,-1,2975],"snubbull|치근거리기|ultrush":[842,2966,0,842,1720],"solrock|솔라빔|ultbeam":[1060,3648,0,-1,3597],"solrock|플레어드라이브|ultrush":[1656,3474,0,1656,2490],"spearow|마구찌르기|ultbarrage":[2427,3828,0,2426,2791],"spearow|회오리부리|ultrush":[1689,3342,0,1689,2532],"spheal|구르기|ultrush":[1314,3360,0,1314,2220],"spheal|오로라빔|ultbeam":[1074,3420,0,-1,3518],"spinarak|거미집|ultshadow":[2949,3922,0,2948,3358],"spinarak|독침|ultswarm":[1577,2933,0,1577,2800],"spinda|난동부리기|ultbarrage":[2466,3872,0,2465,2898],"spinda|흔들흔들댄스|ultpsy":[2936,3908,0,2638,-1],"spiritomb|블랙홀이클립스|ultblackhole":[3150,4052,0,-1,3606],"spiritomb|악의파동|ultpsy":[2988,3989,0,2686,3005],"spoink|뛰어오르다|ultdive":[2028,3558,0,2027,3533],"spoink|파워젬|ultorb":[1855,3487,0,-1,2764],"squirtle|거품광선|ultswarm":[1556,2975,0,1556,2961],"squirtle|로케트박치기|ultrush":[1646,4650,0,-1,-1],"stantler|배리어러시|ultrush":[1287,3477,0,1287,2186],"stantler|최면술|ultpsy":[2980,3977,0,2665,2994],"staraptor|브레이브버드|ultrush":[820,3089,0,820,1524],"staraptor|인파이트|ultbarrage":[2547,3926,0,2546,2906],"staravia|공중날기|ultdive":[2009,3562,0,2008,3492],"staravia|제비반환|ultbarrage":[2464,3862,0,2463,2903],"starly|전광석화|ultrush":[867,2930,0,867,1721],"starly|파이널다이브클래시|ultdive":[2018,3520,0,2017,3449],"starmie|파워젬|ultswarm":[1588,3113,0,1588,2944],"starmie|하이드로펌프|ultbeam":[1093,3726,0,-1,3723],"staryu|고속스핀|ultrush":[1222,2993,0,1222,2014],"staryu|스피드스타|ultswarm":[1565,2993,0,1565,2988],"steelix_female|구멍파기|ultquake":[1958,3914,0,1957,3324],"steelix_female|아이언테일|ultrush":[1654,3507,0,1654,2487],"steelix|구멍파기|ultquake":[1959,3914,0,1958,3269],"steelix|아이언테일|ultrush":[1658,3507,0,1658,2490],"stunfisk|땅가르기|ultquake":[1960,3860,0,1959,3214],"stunfisk|방전|ultthunder":[2436,3480,0,2436,3218],"stunky|독가스|ultvortex":[3018,3945,0,3018,-1],"stunky|애시드포이즌딜리트|ultstorm":[1752,3445,0,1752,-1],"sudowoodo|따라하기|ultmetronome":[934,2200,0,934,-1],"sudowoodo|우드해머|ultdive":[2273,3900,0,2273,3893],"suicune|오로라빔|ultbeam":[2508,7368,0,-1,5503],"suicune|절대영도|ultskyfall":[1364,3368,0,1363,2632],"sunflora|꽃보라|ultstorm":[1811,3550,0,1811,2898],"sunflora|솔라빔|ultbeam":[1068,3600,0,-1,3519],"sunkern|솔라빔|ultbeam":[1078,3300,0,-1,3198],"sunkern|쾌청|ultbloom":[2312,4000,0,2312,3821],"surskit|거품광선|ultswarm":[1576,2945,0,1576,2958],"surskit|전광석화|ultrush":[848,2945,0,848,1726],"swablu|문포스|ultsparkle":[1441,4072,0,-1,3577],"swablu|하이퍼보이스|ultnova":[1099,3396,0,-1,1749],"swalot|오물웨이브|ultvortex":[3161,4095,0,3160,-1],"swalot|토해내기|ultorb":[1873,3577,0,-1,2880],"swampert|지진|ultquake":[2321,7148,0,-1,3682],"swampert|하이드로캐논|ultbeam":[1072,3744,0,-1,3655],"swellow|브레이브버드|ultrush":[835,3071,0,835,1666],"swellow|파이널다이브클래시|ultdive":[2012,3614,0,2011,3536],"swinub|눈사태|ultskyfall":[2836,3533,0,2835,3404],"swinub|얼음뭉치|ultswarm":[1584,2933,0,1584,2949],"taillow|브레이브버드|ultrush":[836,2948,0,836,1709],"taillow|제비반환|ultbarrage":[2442,3832,0,2441,2847],"tangela|리프스톰|ultstorm":[1820,3560,0,1820,2891],"tangela|파워휩|ultbloom":[3273,4108,0,3273,3705],"tangrowth|원시의힘|ultskyfall":[2806,3722,0,2805,3406],"tangrowth|파워휩|ultbloom":[3343,4196,0,3343,3813],"tauros|기가임팩트|ultrush":[836,3092,0,836,1678],"tauros|파괴광선|ultbeam":[1084,3684,0,-1,3853],"teddiursa|마구할퀴기|ultbarrage":[2449,3858,0,2449,2844],"teddiursa|애교부리기|ultsparkle":[2052,3687,0,-1,2966],"tentacool|김밥말이|ultshadow":[2966,3960,0,2966,3405],"tentacool|하이드로보텍스|ultvortex":[3026,3950,0,3025,-1],"tentacruel|독찌르기|ultbarrage":[2543,3940,0,2543,3022],"tentacruel|오물웨이브|ultstorm":[1860,3650,0,1860,2131],"tepig|니트로차지|ultrush":[1319,3372,0,1319,2237],"tepig|회오리불꽃|ultvortex":[1635,4648,0,-1,4664],"terrakion|스톤에지|ultquake":[1985,4004,0,1984,2201],"terrakion|월즈엔드폴|ultskyfall":[1381,3368,0,1380,2769],"throh|엄청난힘|ultdive":[2279,3900,0,2278,3880],"throh|지구던지기|ultquake":[1947,3854,0,1946,3187],"tirtouga|아쿠아제트|ultrush":[851,3002,0,851,1677],"tirtouga|원시의힘|ultskyfall":[2826,3602,0,2826,3437],"togekiss|러블리스타임팩트|ultsparkle":[3358,7354,0,-1,5029],"togekiss|손가락흔들기|ultmetronome":[951,2200,0,951,-1],"togekiss|에어슬래시|ultstorm":[1881,3685,0,1881,3444],"togepi|매지컬샤인|ultsparkle":[2049,3630,0,-1,2931],"togepi|손가락흔들기|ultmetronome":[948,2200,0,948,-1],"togetic|매지컬샤인|ultnova":[1149,3484,0,-1,1737],"togetic|손가락흔들기|ultmetronome":[911,2200,0,911,-1],"torchic|불꽃세례|ultorb":[1153,4648,0,-1,2658],"torchic|블레이즈킥|ultbarrage":[2450,3848,0,2450,2781],"torkoal|오버히트|ultnova":[1166,3540,0,-1,1736],"torkoal|회오리불꽃|ultvortex":[3184,4100,0,3183,-1],"torterra|지진|ultquake":[1947,3932,0,1947,2930],"torterra|하드플랜트|ultpillar":[2483,7344,0,-1,6732],"totodile|깨물어부수기|ultbarrage":[2181,4650,0,-1,2481],"totodile|하이드로보텍스|ultvortex":[3004,3925,0,3003,-1],"toxicroak|기습|ultrush":[828,3092,0,828,1669],"toxicroak|독찌르기|ultbarrage":[2533,3928,0,2533,2878],"trapinch|깨물어부수기|ultbarrage":[2444,3840,0,2443,2842],"trapinch|모래지옥|ultvortex":[2993,3900,0,2992,-1],"treecko|리프블레이드|ultbarrage":[2451,3848,0,2450,2852],"treecko|에너지볼|ultorb":[2446,4648,0,-1,3899],"tropius|리프스톰|ultswarm":[1568,3074,0,1568,2917],"tropius|솔라빔|ultbeam":[1086,3648,0,-1,3707],"turtwig|블룸샤인엑스트라|ultbloom":[2289,4078,0,2288,3886],"turtwig|씨폭탄|ultswarm":[1916,4652,0,-1,4353],"tympole|거품광선|ultswarm":[1548,2963,0,1548,2902],"tympole|에코보이스|ultnova":[1118,3384,0,-1,1690],"typhlosion|분화|ultpillar":[1928,3889,0,1928,2700],"typhlosion|블라스트번|ultnova":[3579,7148,0,-1,-1],"tyranitar|모래바람|ultstorm":[1912,3745,0,1912,3406],"tyranitar|스톤에지|ultpillar":[3332,7378,0,-1,5994],"tyrogue|마하펀치|ultrush":[859,2906,0,859,1716],"tyrogue|전력무쌍격렬권|ultbarrage":[2392,3804,0,2392,2777],"umbreon|검은눈빛|ultshadow":[3004,4044,0,3004,3408],"umbreon|블랙홀이클립스|ultblackhole":[3029,7344,0,-1,4035],"unown_a|잠재파워|ultblackhole":[3069,3920,0,-1,3510],"unown_a|잠재파워|ultorb":[1848,3490,0,-1,2887],"unown_a|잠재파워|ultpsy":[2919,3890,0,2628,2932],"unown_a|잠재파워|ultswarm":[1577,2990,0,1577,2992],"unown_b|잠재파워|ultblackhole":[3059,3920,0,-1,3511],"unown_b|잠재파워|ultorb":[1833,3490,0,-1,2885],"unown_b|잠재파워|ultpsy":[2931,3890,0,2622,2929],"unown_b|잠재파워|ultswarm":[1580,2990,0,1580,2900],"unown_c|잠재파워|ultblackhole":[3054,3920,0,-1,3491],"unown_c|잠재파워|ultorb":[1856,3490,0,-1,2797],"unown_c|잠재파워|ultpsy":[2905,3890,0,2610,-1],"unown_c|잠재파워|ultswarm":[1573,2990,0,1573,2946],"unown_d|잠재파워|ultblackhole":[3056,3920,0,-1,3510],"unown_d|잠재파워|ultorb":[1846,3490,0,-1,2916],"unown_d|잠재파워|ultpsy":[2909,3890,0,2611,2959],"unown_d|잠재파워|ultswarm":[1563,2990,0,1563,2849],"unown_exclamation|잠재파워|ultblackhole":[3044,3920,0,-1,3494],"unown_exclamation|잠재파워|ultorb":[1838,3490,0,-1,2859],"unown_exclamation|잠재파워|ultpsy":[2933,3890,0,2641,2961],"unown_exclamation|잠재파워|ultswarm":[1566,2990,0,1566,2894],"unown_e|잠재파워|ultblackhole":[3049,3920,0,-1,3505],"unown_e|잠재파워|ultorb":[1869,3490,0,-1,2861],"unown_e|잠재파워|ultpsy":[2919,3890,0,2620,-1],"unown_e|잠재파워|ultswarm":[1565,2990,0,1565,2902],"unown_f|잠재파워|ultblackhole":[3034,3920,0,-1,3507],"unown_f|잠재파워|ultorb":[1859,3490,0,-1,2839],"unown_f|잠재파워|ultpsy":[2933,3890,0,2634,-1],"unown_f|잠재파워|ultswarm":[1560,2990,0,1560,2937],"unown_g|잠재파워|ultblackhole":[3046,3920,0,-1,3523],"unown_g|잠재파워|ultorb":[1851,3490,0,-1,3098],"unown_g|잠재파워|ultpsy":[2922,3890,0,2626,2959],"unown_g|잠재파워|ultswarm":[1564,2990,0,1564,3051],"unown_h|잠재파워|ultblackhole":[3046,3920,0,-1,3514],"unown_h|잠재파워|ultorb":[1841,3490,0,-1,2876],"unown_h|잠재파워|ultpsy":[2923,3890,0,2631,-1],"unown_h|잠재파워|ultswarm":[1575,2990,0,1575,2945],"unown_i|잠재파워|ultblackhole":[3066,3920,0,-1,3496],"unown_i|잠재파워|ultorb":[1855,3490,0,-1,2898],"unown_i|잠재파워|ultpsy":[2930,3890,0,2636,2938],"unown_i|잠재파워|ultswarm":[1579,2990,0,1579,2939],"unown_j|잠재파워|ultblackhole":[3059,3920,0,-1,3512],"unown_j|잠재파워|ultorb":[1863,3490,0,-1,3007],"unown_j|잠재파워|ultpsy":[2929,3890,0,2630,2962],"unown_j|잠재파워|ultswarm":[1578,2990,0,1578,2992],"unown_k|잠재파워|ultblackhole":[3059,3920,0,-1,3503],"unown_k|잠재파워|ultorb":[1847,3490,0,-1,2816],"unown_k|잠재파워|ultpsy":[2930,3890,0,2636,2929],"unown_k|잠재파워|ultswarm":[1584,2990,0,1584,2880],"unown_l|잠재파워|ultblackhole":[3057,3920,0,-1,3505],"unown_l|잠재파워|ultorb":[1844,3490,0,-1,3025],"unown_l|잠재파워|ultpsy":[2935,3890,0,2640,-1],"unown_l|잠재파워|ultswarm":[1567,2990,0,1567,2883],"unown_m|잠재파워|ultblackhole":[3043,3920,0,-1,3490],"unown_m|잠재파워|ultorb":[1861,3490,0,-1,2824],"unown_m|잠재파워|ultpsy":[2934,3890,0,2640,-1],"unown_m|잠재파워|ultswarm":[1559,2990,0,1559,2966],"unown_n|잠재파워|ultblackhole":[3060,3920,0,-1,3478],"unown_n|잠재파워|ultorb":[1862,3490,0,-1,3003],"unown_n|잠재파워|ultpsy":[2921,3890,0,2621,-1],"unown_n|잠재파워|ultswarm":[1549,2990,0,1549,2946],"unown_o|잠재파워|ultblackhole":[3054,3920,0,-1,3499],"unown_o|잠재파워|ultorb":[1847,3490,0,-1,3009],"unown_o|잠재파워|ultpsy":[2936,3890,0,2627,3002],"unown_o|잠재파워|ultswarm":[1582,2990,0,1582,2862],"unown_p|잠재파워|ultblackhole":[3040,3920,0,-1,3502],"unown_p|잠재파워|ultorb":[1851,3490,0,-1,2864],"unown_p|잠재파워|ultpsy":[2945,3890,0,2636,3012],"unown_p|잠재파워|ultswarm":[1568,2990,0,1568,2890],"unown_question|잠재파워|ultblackhole":[3061,3920,0,-1,3535],"unown_question|잠재파워|ultorb":[1862,3490,0,-1,3027],"unown_question|잠재파워|ultpsy":[2915,3890,0,2618,2961],"unown_question|잠재파워|ultswarm":[1563,2990,0,1563,2951],"unown_q|잠재파워|ultblackhole":[3048,3920,0,-1,3509],"unown_q|잠재파워|ultorb":[1845,3490,0,-1,2858],"unown_q|잠재파워|ultpsy":[2936,3890,0,2642,3016],"unown_q|잠재파워|ultswarm":[1575,2990,0,1575,2863],"unown_r|잠재파워|ultblackhole":[3065,3920,0,-1,3509],"unown_r|잠재파워|ultorb":[1854,3490,0,-1,2749],"unown_r|잠재파워|ultpsy":[2930,3890,0,2632,2951],"unown_r|잠재파워|ultswarm":[1560,2990,0,1560,2895],"unown_s|잠재파워|ultblackhole":[3066,3920,0,-1,3481],"unown_s|잠재파워|ultorb":[1866,3490,0,-1,2770],"unown_s|잠재파워|ultpsy":[2941,3890,0,2647,2972],"unown_s|잠재파워|ultswarm":[1579,2990,0,1579,2792],"unown_t|잠재파워|ultblackhole":[3045,3920,0,-1,3506],"unown_t|잠재파워|ultorb":[1836,3490,0,-1,2874],"unown_t|잠재파워|ultpsy":[2936,3890,0,2632,2975],"unown_t|잠재파워|ultswarm":[1578,2990,0,1578,2916],"unown_u|잠재파워|ultblackhole":[3055,3920,0,-1,3506],"unown_u|잠재파워|ultorb":[1838,3490,0,-1,3114],"unown_u|잠재파워|ultpsy":[2917,3890,0,2620,2964],"unown_u|잠재파워|ultswarm":[1572,2990,0,1572,2889],"unown_v|잠재파워|ultblackhole":[3045,3920,0,-1,3489],"unown_v|잠재파워|ultorb":[1836,3490,0,-1,2818],"unown_v|잠재파워|ultpsy":[2914,3890,0,2616,-1],"unown_v|잠재파워|ultswarm":[1561,2990,0,1561,2942],"unown_w|잠재파워|ultblackhole":[3046,3920,0,-1,3501],"unown_w|잠재파워|ultorb":[1859,3490,0,-1,2888],"unown_w|잠재파워|ultpsy":[2928,3890,0,2631,2967],"unown_w|잠재파워|ultswarm":[1579,2990,0,1579,2928],"unown_x|잠재파워|ultblackhole":[3048,3920,0,-1,3503],"unown_x|잠재파워|ultorb":[1858,3490,0,-1,2910],"unown_x|잠재파워|ultpsy":[2931,3890,0,2636,3023],"unown_x|잠재파워|ultswarm":[1571,2990,0,1571,2988],"unown_y|잠재파워|ultblackhole":[3047,3920,0,-1,3489],"unown_y|잠재파워|ultorb":[1838,3490,0,-1,2858],"unown_y|잠재파워|ultpsy":[2933,3890,0,2636,-1],"unown_y|잠재파워|ultswarm":[1565,2990,0,1565,2856],"unown_z|잠재파워|ultblackhole":[3055,3920,0,-1,3496],"unown_z|잠재파워|ultorb":[1858,3490,0,-1,2915],"unown_z|잠재파워|ultpsy":[2924,3890,0,2613,2969],"unown_z|잠재파워|ultswarm":[1563,2990,0,1563,2844],"ursaring|기가임팩트|ultrush":[826,3101,0,826,1680],"ursaring|해머암|ultdive":[2279,3900,0,2278,3880],"uxie|미래예지|ultpillar":[1923,3901,0,1923,2937],"uxie|신통력|ultpsy":[3015,4052,0,2711,3027],"vanillish|고드름침|ultswarm":[1576,3029,0,1576,2867],"vanillish|눈보라|ultstorm":[1791,3515,0,1791,2966],"vaporeon|하이드로보텍스|ultvortex":[2435,7344,0,-1,5368],"vaporeon|하이드로펌프|ultpillar":[1929,3886,0,1928,2986],"venomoth|벌레의야단법석|ultnova":[1145,3524,0,-1,1754],"venomoth|은빛바람|ultstorm":[1834,3580,0,1834,3343],"venonat|사이코키네시스|ultpsy":[2915,3869,0,2614,2954],"venonat|환상빔|ultbeam":[1063,3438,0,-1,3346],"venusaur_female|솔라빔|ultbeam":[2579,7144,0,2317,5991],"venusaur_female|하드플랜트|ultpillar":[4029,8144,1,2835,6962,[[100,7081],[171,6950],[241,6928],[241,6983],[430,6962]]],"venusaur|솔라빔|ultbeam":[2599,7144,0,2340,6372],"venusaur|하드플랜트|ultpillar":[4024,8144,1,2826,6977,[[100,7127],[171,6981],[241,6953],[241,6965],[430,6977]]],"vespiquen|공격지령|ultswarm":[1577,3083,0,1577,2901],"vespiquen|벌레의야단법석|ultnova":[1165,3544,0,-1,1740],"vibrava|땅가르기|ultquake":[1954,3686,0,1954,2166],"vibrava|모래바람|ultstorm":[1768,3455,0,1768,3416],"victini|V제너레이트|ultrush":[822,3167,0,822,1672],"victini|오버히트|ultorb":[3082,4467,0,-1,4256],"victreebel|기가드레인|ultblackhole":[3150,4056,0,-1,3593],"victreebel|리프스톰|ultstorm":[1832,3620,0,1832,2438],"vigoroth|난동부리기|ultrush":[832,3059,0,832,1704],"vigoroth|마구할퀴기|ultbarrage":[2508,3906,0,2507,2965],"vileplume|꽃잎댄스|ultbloom":[2312,4192,0,2311,4036],"vileplume|솔라빔|ultbeam":[1077,3684,0,-1,3710],"virizion|리프스톰|ultstorm":[1885,3720,0,1885,2977],"virizion|블룸샤인엑스트라|ultbloom":[2288,4252,0,2288,4067],"volbeat|반딧불|ultswarm":[1570,3053,0,1570,3066],"volbeat|시그널빔|ultbeam":[1080,3606,0,-1,3623],"voltorb|구르기|ultrush":[1309,3387,0,1309,2247],"voltorb|스파킹기가볼트|ultthunder":[2591,3787,0,2590,3499],"vulpix|도깨비불|ultswarm":[1583,2966,0,1583,2951],"vulpix|회오리불꽃|ultvortex":[3000,3910,0,2999,-1],"wailmer|구르기|ultrush":[1302,3432,0,1302,2221],"wailmer|해수스파우팅|ultpillar":[1918,3853,0,1917,2949],"wailord|해수스파우팅|ultpillar":[1921,3880,0,1920,2988],"wailord|헤비봄버|ultdive":[2267,3900,0,2266,3897],"walrein|눈보라|ultstorm":[1863,3665,0,1863,3032],"walrein|레이징지오프리즈|ultskyfall":[1373,3346,0,1373,2686],"wartortle|아쿠아테일|ultrush":[2194,5692,0,-1,3646],"wartortle|하이드로보텍스|ultvortex":[3117,4030,0,3116,-1],"watchog|이상한빛|ultorb":[1880,3547,0,-1,2915],"watchog|최면술|ultpsy":[2960,3947,0,2663,-1],"weavile|깜짝베기|ultbarrage":[2552,3938,0,2551,2946],"weavile|얼음뭉치|ultswarm":[1571,3107,0,1571,2969],"weedle|독침|ultswarm":[1570,2900,0,1570,2945],"weedle|실뿜기|ultshadow":[2942,3900,0,2941,3356],"weepinbell|애시드포이즌딜리트|ultstorm":[1784,3510,0,1784,1917],"weepinbell|파워휩|ultbloom":[3220,4068,0,3220,3694],"weezing|대폭발|ultnova":[1165,3556,0,-1,1683],"weezing|오물폭탄|ultorb":[1891,3592,0,-1,2915],"whiscash|지진|ultquake":[1972,3860,0,1972,3119],"whiscash|탁류|ultvortex":[3178,4100,0,3178,3476],"whismur|붐버스트|ultnova":[1099,3336,0,-1,1686],"whismur|소란피기|ultpsy":[2908,3827,0,2604,2959],"wigglytuff|치근거리기|ultbarrage":[2508,3904,0,2507,2850],"wigglytuff|하이퍼보이스|ultnova":[1146,3508,0,-1,1686],"wingull|날개치기|ultdive":[2025,3532,0,2024,3489],"wingull|폭풍|ultvortex":[2971,3880,0,2970,-1],"wobbuffet_female|길동무|ultshadow":[2988,3992,0,2988,3397],"wobbuffet_female|카운터|ultnova":[1160,3484,0,-1,1867],"wobbuffet_male|길동무|ultshadow":[2993,3992,0,2992,3402],"wobbuffet_male|카운터|ultnova":[1142,3484,0,-1,1849],"woobat|사이코키네시스|ultpsy":[2924,3881,0,2623,2952],"woobat|하트스탬프|ultswarm":[1560,2981,0,1560,2956],"wooper|물대포|ultbeam":[1096,3312,0,-1,3301],"wooper|진흙뿌리기|ultswarm":[1573,2906,0,1573,2946],"wormadam_plant|리프스톰|ultstorm":[1800,3550,0,1800,2564],"wormadam_plant|블룸샤인엑스트라|ultbloom":[2300,4150,0,2299,4052],"wormadam_sandy|대지의힘|ultquake":[1936,3800,0,1936,2138],"wormadam_sandy|모래지옥|ultvortex":[3145,4050,0,3145,-1],"wormadam_trash|러스터캐논|ultbeam":[1032,3600,0,-1,3491],"wormadam_trash|메탈버스트|ultnova":[1140,3500,0,-1,1731],"wurmple|독침|ultswarm":[1569,2900,0,1569,2948],"wurmple|벌레먹음|ultbarrage":[2403,3800,0,2403,2792],"wynaut|미러코트|ultnova":[1103,3352,0,-1,1719],"wynaut|카운터|ultbarrage":[2428,3826,0,2427,2771],"xatu|미래예지|ultpillar":[1922,3872,0,1921,2919],"xatu|사이코키네시스|ultpsy":[2962,3980,0,2660,3003],"yanma|소닉붐|ultnova":[1130,3468,0,-1,1737],"yanma|원시의힘|ultskyfall":[2838,3626,0,2837,3438],"yanmega|벌레의야단법석|ultnova":[1167,3580,0,-1,1777],"yanmega|에어슬래시|ultstorm":[1871,3650,0,1871,3446],"zangoose|브레이크크루|ultbarrage":[2525,3914,0,2524,2935],"zangoose|인파이트|ultrush":[839,3071,0,839,1529],"zapdos|방전|ultthunder":[2412,3552,0,2412,3061],"zapdos|번개|ultstorm":[2186,7568,0,-1,5752],"zebstrika|번개|ultthunder":[2408,3498,0,2408,3064],"zebstrika|와일드볼트|ultrush":[831,3098,0,831,1664],"zigzagoon|바늘미사일|ultswarm":[1562,2927,0,1562,2945],"zigzagoon|신속|ultrush":[857,2927,0,857,1624],"zorua|악의파동|ultblackhole":[3064,3916,0,-1,3470],"zorua|일루전|ultcopy":[943,2200,0,943,-1],"zubat|날개치기|ultdive":[2008,3520,0,2008,3480],"zubat|초음파|ultpsy":[2902,3830,0,2618,2937]};
+const ULT_COVER = {"[\"ultbarrage\",[[\"kind\",\"kick\"],[\"spin\",1],[\"tint\",\"hue-rotate(215deg) saturate(1.3)\"]]]":{"j":[[1969,307]]},"[\"ultbarrage\",[[\"kind\",\"kick\"],[\"uniq\",\"blaziken\"]]]":{"o":[[2920,1170]],"j":[[2926,1168]]},"[\"ultbarrage\",[[\"kind\",\"kick\"],[\"uniq\",\"combusken\"]]]":{"o":[[3030,317]],"j":[[3028,306]]},"[\"ultbarrage\",[[\"kind\",\"punch\"],[\"uniq\",\"machamp\"]]]":{"o":[[3579,1744]],"j":[[3579,1771]]},"[\"ultbarrage\",[[\"kind\",\"punch\"],[\"uniq\",\"monferno\"]]]":{"o":[[3519,359],[4184,370]],"j":[[3481,363],[4195,357]]},"[\"ultbarrage\",[[\"kind\",\"punch\"],[\"uniq\",\"scizor\"]]]":{"o":[[3716,1533]],"j":[[3732,1543]]},"[\"ultbarrage\",[[\"kind\",\"slash\"],[\"tc\",\"water\"],[\"uniq\",\"samurott\"]]]":{"o":[[3444,1072]],"j":[[3424,1074]]},"[\"ultbarrage\",[[\"kind\",\"slash\"],[\"tc\",\"wind\"]]]":{"o":[[1882,362]]},"[\"ultbarrage\",[[\"kind\",\"slash\"],[\"tint\",\"hue-rotate(140deg) saturate(1.4)\"]]]":{"j":[[1877,357]]},"[\"ultbarrage\",[[\"kind\",\"slash\"],[\"uniq\",\"leafeon\"]]]":{"o":[[2826,1829]],"j":[[2823,1834]]},"[\"ultbarrage\",[[\"kind\",\"slash\"],[\"uniq\",\"palkia\"]]]":{"o":[[4049,1659]],"j":[[4029,1664]]},"[\"ultbeam\",[[\"charge\",0.7],[\"sparkle\",\"psychic\"],[\"spiral\",1],[\"width\",1.9]]]":{"o":[[820,2508]],"j":[[844,2465]]},"[\"ultbeam\",[[\"charge\",1.4],[\"sparkle\",\"moon\"],[\"spiral\",1],[\"tc\",\"moon\"]]]":{"o":[[1853,1802]],"j":[[1841,1791]]},"[\"ultbeam\",[[\"double\",1],[\"wave\",1]]]":{"o":[[1048,2098]],"j":[[1041,2065]]},"[\"ultbeam\",[[\"rainbow\",1],[\"sparkle\",\"electric\"]]]":{"o":[[1346,774]],"j":[[1395,776]]},"[\"ultbeam\",[[\"rainbow\",1],[\"sparkle\",\"gold\"],[\"uniq\",\"hooh\"],[\"width\",1.4]]]":{"o":[[2689,1722]],"j":[[2680,1711]]},"[\"ultbeam\",[[\"rainbow\",1],[\"sparkle\",\"grass\"],[\"tc\",\"grass\"],[\"width\",1.3]]]":{"o":[[1052,2200]],"j":[[1040,2208]]},"[\"ultbeam\",[[\"rainbow\",1],[\"sparkle\",\"heal\"],[\"spiral\",1],[\"tc\",\"fairy\"]]]":{"o":[[1353,941],[2531,567]],"j":[[1323,924],[2763,346]]},"[\"ultbeam\",[[\"rainbow\",1],[\"sparkle\",\"ice\"],[\"uniq\",\"suicune\"],[\"width\",1.3]]]":{"o":[[3965,1502]],"j":[[3962,1551]]},"[\"ultbeam\",[[\"rainbow\",1],[\"sparkle\",\"ice\"]]]":{"o":[[1350,834]],"j":[[1398,767]]},"[\"ultbeam\",[[\"rainbow\",1],[\"sparkle\",\"moon\"],[\"tc\",\"moon\"],[\"width\",1.4]]]":{"o":[[1034,2359]],"j":[[1037,2368]]},"[\"ultbeam\",[[\"rainbow\",1],[\"sparkle\",\"petal\"],[\"tc\",\"psychic\"],[\"wave\",1]]]":{"o":[[1392,766]],"j":[[1404,818]]},"[\"ultbeam\",[[\"rainbow\",1],[\"sparkle\",\"star\"]]]":{"o":[[1358,872]],"j":[[1408,818]]},"[\"ultbeam\",[[\"rainbow\",1],[\"sparkle\",\"water\"],[\"width\",1.3]]]":{"o":[[1045,2301]],"j":[[1034,2302]]},"[\"ultbeam\",[[\"rainbow\",1],[\"spiral\",1]]]":{"o":[[1349,1817]],"j":[[1355,1792]]},"[\"ultbeam\",[[\"rainbow\",1]]]":{"o":[[1399,722]],"j":[[1393,813]]},"[\"ultbeam\",[[\"solar\",1],[\"sparkle\",\"grass\"],[\"tc\",\"grass\"],[\"width\",1.6]]]":{"o":[[1053,2461]],"j":[[1048,2486]]},"[\"ultbeam\",[[\"solar\",1],[\"sparkle\",\"grass\"]]]":{"o":[[1352,813]],"j":[[1398,817]]},"[\"ultbeam\",[[\"solar\",1],[\"sparkle\",\"ice\"],[\"tc\",\"ice\"]]]":{"o":[[1407,754]],"j":[[1406,816]]},"[\"ultbeam\",[[\"solar\",1],[\"sparkle\",\"petal\"],[\"tc\",\"petal\"],[\"width\",1.2]]]":{"o":[[1043,2238]],"j":[[1047,2234]]},"[\"ultbeam\",[[\"solar\",1],[\"sparkle\",\"petal\"],[\"width\",1.2]]]":{"o":[[1036,2210]],"j":[[1040,2233]]},"[\"ultbeam\",[[\"solar\",1],[\"sparkle\",\"solar\"]]]":{"o":[[1405,761]],"j":[[1396,758]]},"[\"ultbeam\",[[\"solar\",1],[\"tc\",\"fire\"],[\"width\",1.5]]]":{"o":[[1048,2483]],"j":[[1040,2496]]},"[\"ultbeam\",[[\"solar\",1],[\"width\",1.2]]]":{"o":[[1050,2153]],"j":[[1035,2168]]},"[\"ultbeam\",[[\"solar\",1],[\"width\",1.3]]]":{"o":[[1046,2288]],"j":[[1048,2269]]},"[\"ultbeam\",[[\"solar\",1]]]":{"o":[[1408,820]],"j":[[1399,763]]},"[\"ultbeam\",[[\"sparkle\",\"dragon\"],[\"tc\",\"dragon\"],[\"wave\",1],[\"width\",1.6]]]":{"o":[[1036,2500]],"j":[[1042,2509]]},"[\"ultbeam\",[[\"sparkle\",\"dragon\"],[\"tc\",\"dragon\"],[\"width\",1.5]]]":{"o":[[1048,2450]],"j":[[1034,2476]]},"[\"ultbeam\",[[\"sparkle\",\"electric\"],[\"spiral\",1],[\"width\",1.3]]]":{"o":[[1044,2302]],"j":[[1039,2315]]},"[\"ultbeam\",[[\"sparkle\",\"electric\"],[\"tc\",\"water\"],[\"wave\",1],[\"width\",1.3]]]":{"o":[[1037,2191]],"j":[[1038,2186]]},"[\"ultbeam\",[[\"sparkle\",\"electric\"],[\"width\",1.2]]]":{"o":[[1044,2167]],"j":[[1046,2183]]},"[\"ultbeam\",[[\"sparkle\",\"electric\"],[\"width\",1.3]]]":{"o":[[1042,2233]],"j":[[1048,2251]]},"[\"ultbeam\",[[\"sparkle\",\"electric\"],[\"width\",1.4]]]":{"o":[[1049,2343]],"j":[[1044,2341]]},"[\"ultbeam\",[[\"sparkle\",\"fairy\"],[\"tc\",\"fairy\"],[\"wave\",1],[\"width\",1.3]]]":{"o":[[1045,2211]],"j":[[1036,2203]]},"[\"ultbeam\",[[\"sparkle\",\"fairy\"],[\"wave\",1]]]":{"o":[[1400,811]],"j":[[1404,817]]},"[\"ultbeam\",[[\"sparkle\",\"fire\"],[\"tc\",\"fire\"],[\"uniq\",\"charmeleon\"],[\"wave\",1],[\"width\",1.2]]]":{"o":[[1969,366],[3178,2162]],"j":[[1961,370],[3167,2154]]},"[\"ultbeam\",[[\"sparkle\",\"fire\"],[\"tc\",\"fire\"],[\"width\",1.3]]]":{"o":[[1041,2341]],"j":[[1043,2293]]},"[\"ultbeam\",[[\"sparkle\",\"fire\"],[\"tc\",\"fire\"]]]":{"o":[[1396,810]],"j":[[1401,813]]},"[\"ultbeam\",[[\"sparkle\",\"fire\"],[\"width\",0.9]]]":{"o":[[1400,711]],"j":[[1396,761]]},"[\"ultbeam\",[[\"sparkle\",\"fire\"],[\"width\",1.1]]]":{"o":[[1348,914],[2513,562]],"j":[[1050,1962]]},"[\"ultbeam\",[[\"sparkle\",\"fire\"],[\"width\",1.3]]]":{"o":[[1044,2138]],"j":[[1034,2177]]},"[\"ultbeam\",[[\"sparkle\",\"fire\"],[\"width\",1.4]]]":{"o":[[1047,2377]],"j":[[1050,2373]]},"[\"ultbeam\",[[\"sparkle\",\"gold\"],[\"spiral\",1],[\"tc\",\"gold\"],[\"width\",1.7]]]":{"o":[[1038,2530]],"j":[[1050,2537]]},"[\"ultbeam\",[[\"sparkle\",\"gold\"]]]":{"o":[[1357,759]],"j":[[1407,824]]},"[\"ultbeam\",[[\"sparkle\",\"ground\"],[\"spiral\",1],[\"width\",1.4]]]":{"o":[[1050,2259]],"j":[[1049,2261]]},"[\"ultbeam\",[[\"sparkle\",\"hyper\"],[\"spiral\",1],[\"tc\",\"hyper\"],[\"wave\",1],[\"width\",1.7]]]":{"o":[[1043,2311]],"j":[[1042,2276]]},"[\"ultbeam\",[[\"sparkle\",\"hyper\"],[\"tc\",\"hyper\"],[\"width\",1.6]]]":{"o":[[1039,2504]],"j":[[1041,2487]]},"[\"ultbeam\",[[\"sparkle\",\"hyper\"],[\"width\",1.2]]]":{"o":[[1045,2201]],"j":[[1037,2228]]},"[\"ultbeam\",[[\"sparkle\",\"hyper\"],[\"width\",1.3]]]":{"o":[[1048,2348]],"j":[[1034,2342]]},"[\"ultbeam\",[[\"sparkle\",\"hyper\"],[\"width\",1.5]]]":{"o":[[1039,2355]],"j":[[1037,2347]]},"[\"ultbeam\",[[\"sparkle\",\"ice\"],[\"tc\",\"ice\"],[\"width\",1.3]]]":{"o":[[1047,2136]],"j":[[1045,2140]]},"[\"ultbeam\",[[\"sparkle\",\"ice\"],[\"uniq\",\"glaceon\"]]]":{"o":[[4203,1580]],"j":[[4229,1546]]},"[\"ultbeam\",[[\"sparkle\",\"ice\"],[\"width\",1.3]]]":{"o":[[1043,2342]],"j":[[1042,2342]]},"[\"ultbeam\",[[\"sparkle\",\"ice\"]]]":{"o":[[1406,808]],"j":[[1348,808]]},"[\"ultbeam\",[[\"sparkle\",\"psychic\"],[\"spiral\",1],[\"tc\",\"psychic\"],[\"wave\",1]]]":{"o":[[1348,878]],"j":[[1399,824]]},"[\"ultbeam\",[[\"sparkle\",\"psychic\"],[\"spiral\",1],[\"tc\",\"psychic\"],[\"width\",1.6]]]":{"o":[[1042,2517]],"j":[[1051,2514]]},"[\"ultbeam\",[[\"sparkle\",\"psychic\"],[\"spiral\",1],[\"uniq\",\"deoxys\"],[\"width\",1.4]]]":{"o":[[4056,1535]],"j":[[4058,1516]]},"[\"ultbeam\",[[\"sparkle\",\"psychic\"],[\"spiral\",1],[\"width\",1.1]]]":{"o":[[1040,2363]],"j":[[1037,2360]]},"[\"ultbeam\",[[\"sparkle\",\"psychic\"],[\"spiral\",1],[\"width\",1.3]]]":{"o":[[1034,2420]],"j":[[1041,2412]]},"[\"ultbeam\",[[\"sparkle\",\"psychic\"],[\"uniq\",\"latios\"],[\"width\",1.4]]]":{"o":[[4360,1542]],"j":[[4322,1577]]},"[\"ultbeam\",[[\"sparkle\",\"psychic\"],[\"wave\",1]]]":{"o":[[1351,801]],"j":[[1398,770]]},"[\"ultbeam\",[[\"sparkle\",\"rock\"],[\"width\",1.2]]]":{"o":[[1033,2263]],"j":[[1045,2241]]},"[\"ultbeam\",[[\"sparkle\",\"rock\"],[\"width\",1.3]]]":{"o":[[1038,2343]],"j":[[1035,2357]]},"[\"ultbeam\",[[\"sparkle\",\"silver\"],[\"spiral\",1],[\"uniq\",\"lugia\"],[\"width\",1.5]]]":{"o":[[4421,1608]],"j":[[4418,1551]]},"[\"ultbeam\",[[\"sparkle\",\"smoke\"],[\"spiral\",1],[\"width\",1.5]]]":{"o":[[1038,2253]],"j":[[1046,2254]]},"[\"ultbeam\",[[\"sparkle\",\"star\"],[\"spiral\",1],[\"tc\",\"star\"]]]":{"o":[[1340,1812]],"j":[[1350,922],[2525,617]]},"[\"ultbeam\",[[\"sparkle\",\"steel\"],[\"spiral\",1],[\"tc\",\"steel\"],[\"width\",1.6]]]":{"o":[[1051,2516]],"j":[[1034,2527]]},"[\"ultbeam\",[[\"sparkle\",\"steel\"],[\"spiral\",1],[\"uniq\",\"dialga\"],[\"width\",1.6]]]":{"o":[[4112,1563]],"j":[[4097,1606]]},"[\"ultbeam\",[[\"sparkle\",\"steel\"],[\"width\",1.3]]]":{"o":[[1036,2353]],"j":[[1034,2342]]},"[\"ultbeam\",[[\"sparkle\",\"steel\"]]]":{"o":[[1356,881]],"j":[[1388,765]]},"[\"ultbeam\",[[\"sparkle\",\"water\"],[\"spiral\",1],[\"tc\",\"water\"],[\"uniq\",\"kyogre\"],[\"wave\",1],[\"width\",1.6]]]":{"o":[[2853,636],[4154,1715]],"j":[[2852,375],[4044,1843]]},"[\"ultbeam\",[[\"sparkle\",\"water\"],[\"spiral\",1],[\"tc\",\"water\"],[\"width\",1.2]]]":{"o":[[1046,2151]],"j":[[1046,2154]]},"[\"ultbeam\",[[\"sparkle\",\"water\"],[\"tc\",\"water\"],[\"uniq\",\"mudkip\"],[\"wave\",1]]]":{"o":[[2256,1615]],"j":[[2264,1630]]},"[\"ultbeam\",[[\"sparkle\",\"water\"],[\"tc\",\"water\"],[\"wave\",1],[\"width\",0.9]]]":{"o":[[1499,629]],"j":[[1496,654]]},"[\"ultbeam\",[[\"sparkle\",\"water\"],[\"tc\",\"water\"],[\"width\",1.6]]]":{"o":[[1040,2360]],"j":[[1042,2350]]},"[\"ultbeam\",[[\"sparkle\",\"water\"],[\"uniq\",\"feraligatr\"],[\"width\",1.5]]]":{"o":[[3293,364]],"j":[[3296,408]]},"[\"ultbeam\",[[\"sparkle\",\"water\"],[\"width\",1.1]]]":{"o":[[1350,1728]],"j":[[1348,902],[2500,550]]},"[\"ultbeam\",[[\"sparkle\",\"water\"],[\"width\",1.2]]]":{"o":[[1039,2181]],"j":[[1047,2188]]},"[\"ultbeam\",[[\"sparkle\",\"water\"],[\"width\",1.3]]]":{"o":[[1045,2087]],"j":[[1046,2072]]},"[\"ultbeam\",[[\"sparkle\",\"water\"],[\"width\",1.4]]]":{"o":[[1048,2298]],"j":[[1034,2305]]},"[\"ultbeam\",[[\"sparkle\",\"water\"]]]":{"o":[[1350,866]],"j":[[1413,815]]},"[\"ultbeam\",[[\"tc\",\"solar\"],[\"venus\",1]]]":{"o":[[2521,314],[3830,669],[4948,417]],"j":[[2483,370],[3832,664],[4901,459]]},"[\"ultbeam\",[[\"tc\",\"water\"],[\"turtle\",1]]]":{"o":[[2804,2931]],"j":[[2809,2925]]},"[\"ultbeam\",[[\"wave\",1]]]":{"o":[[1404,761]],"j":[[1390,762]]},"[\"ultbeam\",[[\"width\",1.3]]]":{"o":[[1049,2351]],"j":[[1038,2340]]},"[\"ultblackhole\",[[\"uniq\",\"darkrai\"]]]":{"o":[[4721,1188]],"j":[[4718,1187]]},"[\"ultbloom\",[[\"mode\",\"bloom\"],[\"tc\",\"grass\"]]]":{"o":[[2281,1191]],"j":[[2278,1193]]},"[\"ultbloom\",[[\"mode\",\"bloom\"],[\"tc\",\"petal\"]]]":{"o":[[2274,1240]],"j":[[2270,1234]]},"[\"ultbloom\",[[\"mode\",\"bloom\"]]]":{"o":[[2284,1185]],"j":[[2265,1236]]},"[\"ultdive\",[[\"elec\",1]]]":{"o":[[2020,380]],"j":[[1974,397]]},"[\"ultdive\",[[\"flame\",1],[\"tc\",\"fire\"]]]":{"o":[[2006,381]],"j":[[2017,362]]},"[\"ultdive\",[[\"flame\",1]]]":{"o":[[2010,363]],"j":[[2012,368]]},"[\"ultdive\",[[\"flare\",1],[\"tc\",\"fire\"]]]":{"o":[[3806,1759]],"j":[[3809,1758]]},"[\"ultdive\",[[\"heavy\",1],[\"tc\",\"fight\"]]]":{"o":[[2267,331]],"j":[[2224,368]]},"[\"ultdive\",[[\"heavy\",1],[\"tc\",\"grass\"]]]":{"o":[[2281,320]],"j":[[2276,323]]},"[\"ultdive\",[[\"heavy\",1],[\"tc\",\"poison\"]]]":{"o":[[2277,321]],"j":[[2228,368]]},"[\"ultdive\",[[\"heavy\",1],[\"tc\",\"sludge\"]]]":{"o":[[2279,317]],"j":[[2221,378]]},"[\"ultdive\",[[\"heavy\",1],[\"tc\",\"water\"]]]":{"o":[[2264,336]],"j":[[2264,330]]},"[\"ultdive\",[[\"heavy\",1],[\"uniq\",\"metagross\"]]]":{"o":[[3550,1659]],"j":[[3503,1700]]},"[\"ultdive\",[[\"heavy\",1],[\"uniq\",\"snorlax\"]]]":{"o":[[3775,1590]],"j":[[3777,1561]]},"[\"ultdive\",[[\"heavy\",1]]]":{"o":[[2225,376]],"j":[[2257,364]]},"[\"ultdive\",[[\"tc\",\"dark\"]]]":{"o":[[2012,308]]},"[\"ultdive\",[[\"tc\",\"dragon\"],[\"uniq\",\"rayquaza\"]]]":{"o":[[3236,1784]],"j":[[3261,1771]]},"[\"ultdive\",[[\"tc\",\"dragon\"]]]":{"o":[[2013,307]]},"[\"ultdive\",[[\"tc\",\"petal\"]]]":{"j":[[2015,308]]},"[\"ultdive\",[[\"tc\",\"psychic\"]]]":{"j":[[2021,308]]},"[\"ultdive\",[[\"tc\",\"wind\"]]]":{"o":[[2019,308]]},"[\"ultdive\",[[\"uniq\",\"garchomp\"]]]":{"o":[[3234,1653]],"j":[[3233,1646]]},"[\"ultnova\",[[\"tc\",\"fire\"],[\"uniq\",\"cyndaquil\"]]]":{"o":[[2726,710]],"j":[[2714,703]]},"[\"ultnova\",[[\"tc\",\"fire\"],[\"uniq\",\"emboar\"]]]":{"o":[[3317,598]],"j":[[3338,563]]},"[\"ultorb\",[[\"mew\",1],[\"tc\",\"fairy\"]]]":{"o":[[4491,1896]],"j":[[4507,1882]]},"[\"ultorb\",[[\"mewtwo\",1],[\"tc\",\"hypno\"]]]":{"o":[[4206,1362]],"j":[[4401,1150]]},"[\"ultorb\",[[\"size\",1.2],[\"style\",\"energy\"],[\"tc\",\"electric\"]]]":{"o":[[1898,714]],"j":[[2949,670]]},"[\"ultorb\",[[\"size\",1.2],[\"style\",\"energy\"],[\"tc\",\"gold\"]]]":{"o":[[1922,614]],"j":[[2942,662]]},"[\"ultorb\",[[\"size\",1.2],[\"style\",\"energy\"]]]":{"o":[[1901,714]],"j":[[2848,750]]},"[\"ultorb\",[[\"size\",1.2],[\"style\",\"flame\"]]]":{"o":[[1839,766]],"j":[[2846,768]]},"[\"ultorb\",[[\"size\",1.2],[\"style\",\"leaf\"],[\"tc\",\"gold\"]]]":{"o":[[1901,663]],"j":[[2895,703]]},"[\"ultorb\",[[\"size\",1.2],[\"style\",\"shadow\"],[\"tc\",\"ghost\"]]]":{"o":[[1903,713]],"j":[[2918,668]]},"[\"ultorb\",[[\"size\",1.2],[\"style\",\"shadow\"],[\"tc\",\"poison\"]]]":{"o":[[1945,663]],"j":[[2942,661]]},"[\"ultorb\",[[\"size\",1.3],[\"style\",\"aura\"],[\"tc\",\"fight\"]]]":{"o":[[1852,762]],"j":[[2871,767]]},"[\"ultorb\",[[\"size\",1.3],[\"style\",\"energy\"],[\"tc\",\"electric\"]]]":{"o":[[1892,729]],"j":[[2916,700]]},"[\"ultorb\",[[\"size\",1.3],[\"style\",\"energy\"]]]":{"o":[[1858,748]],"j":[[2868,766]]},"[\"ultorb\",[[\"size\",1.3],[\"style\",\"flame\"],[\"tc\",\"fire\"]]]":{"o":[[1866,766]],"j":[[2902,731]]},"[\"ultorb\",[[\"size\",1.3],[\"style\",\"flame\"]]]":{"o":[[1901,716]],"j":[[2868,771]]},"[\"ultorb\",[[\"size\",1.3],[\"style\",\"leaf\"]]]":{"o":[[1855,657]],"j":[[2888,765]]},"[\"ultorb\",[[\"size\",1.3],[\"style\",\"shadow\"],[\"uniq\",\"gengar\"]]]":{"o":[[3908,1743]],"j":[[3924,1707]]},"[\"ultorb\",[[\"size\",1.3],[\"style\",\"water\"],[\"tc\",\"water\"]]]":{"o":[[1900,715]],"j":[[2870,767]]},"[\"ultorb\",[[\"size\",1.4],[\"style\",\"energy\"]]]":{"o":[[1859,789]],"j":[[2947,668]]},"[\"ultorb\",[[\"size\",1.4],[\"style\",\"flame\"],[\"uniq\",\"flareon\"]]]":{"o":[[3098,1789]],"j":[[3097,1792]]},"[\"ultorb\",[[\"size\",1.4],[\"style\",\"leaf\"],[\"tc\",\"grass\"]]]":{"o":[[1883,766]],"j":[[2888,761]]},"[\"ultorb\",[[\"size\",1.4],[\"style\",\"water\"],[\"tc\",\"fairy\"]]]":{"o":[[1886,766]],"j":[[2884,657]]},"[\"ultorb\",[[\"size\",1.5],[\"style\",\"aura\"],[\"tc\",\"fight\"]]]":{"o":[[1901,779]],"j":[[2905,767]]},"[\"ultorb\",[[\"size\",1.5],[\"style\",\"energy\"],[\"tc\",\"poison\"]]]":{"o":[[1910,772]],"j":[[2891,791]]},"[\"ultorb\",[[\"size\",1.5],[\"style\",\"energy\"],[\"tc\",\"psychic\"]]]":{"o":[[1848,766]],"j":[[2901,715]]},"[\"ultorb\",[[\"size\",1.6],[\"sky\",1],[\"style\",\"flame\"],[\"tc\",\"fire\"]]]":{"o":[[3114,1045]],"j":[[3077,1060]]},"[\"ultorb\",[[\"size\",1.6],[\"style\",\"shadow\"],[\"tc\",\"ghost\"]]]":{"o":[[1934,733]],"j":[[2951,747]]},"[\"ultorb\",[[\"sky\",1],[\"style\",\"energy\"]]]":{"o":[[3098,1058]],"j":[[3074,1049]]},"[\"ultorb\",[[\"style\",\"aura\"]]]":{"o":[[1933,665]],"j":[[2873,693]]},"[\"ultorb\",[[\"style\",\"energy\"],[\"tc\",\"electric\"]]]":{"o":[[1900,716]],"j":[[2878,618]]},"[\"ultorb\",[[\"style\",\"energy\"],[\"tc\",\"psychic\"]]]":{"o":[[1887,661]],"j":[[2884,609]]},"[\"ultorb\",[[\"style\",\"energy\"],[\"uniq\",\"latias\"]]]":{"o":[[3301,1538]],"j":[[3306,1548]]},"[\"ultorb\",[[\"style\",\"energy\"]]]":{"o":[[1884,671]],"j":[[2886,627]]},"[\"ultorb\",[[\"style\",\"flame\"]]]":{"o":[[1898,650]],"j":[[2892,657]]},"[\"ultorb\",[[\"style\",\"ice\"],[\"tc\",\"ice\"]]]":{"o":[[1899,666]],"j":[[2891,642]]},"[\"ultorb\",[[\"style\",\"ice\"]]]":{"o":[[1901,692]],"j":[[2898,701]]},"[\"ultorb\",[[\"style\",\"leaf\"],[\"tc\",\"grass\"]]]":{"o":[[1890,572]],"j":[[2897,652]]},"[\"ultorb\",[[\"style\",\"leaf\"]]]":{"o":[[1842,706]],"j":[[2849,611]]},"[\"ultorb\",[[\"style\",\"shadow\"],[\"tc\",\"ghost\"]]]":{"o":[[1936,662]],"j":[[2936,663]]},"[\"ultorb\",[[\"style\",\"shadow\"]]]":{"o":[[1898,726]],"j":[[2898,621]]},"[\"ultorb\",[[\"style\",\"water\"],[\"tc\",\"water\"]]]":{"o":[[1901,564]],"j":[[2884,680]]},"[\"ultorb\",[[\"style\",\"water\"]]]":{"o":[[1886,715]],"j":[[2886,613]]},"[\"ultorb\",[[\"tc\",\"water\"],[\"turtle\",1]]]":{"o":[[5061,1412]],"j":[[5971,1473]]},"[\"ultpillar\",[[\"blast\",1],[\"kind\",\"fire\"],[\"tc\",\"aura\"]]]":{"j":[[6087,2264]]},"[\"ultpillar\",[[\"kind\",\"fire\"],[\"n\",7],[\"tc\",\"fire\"]]]":{"o":[[1513,773]],"j":[[1544,771]]},"[\"ultpillar\",[[\"kind\",\"light\"],[\"n\",6]]]":{"j":[[2092,306]]},"[\"ultpillar\",[[\"kind\",\"rock\"],[\"n\",6],[\"uniq\",\"tyranitar\"]]]":{"o":[[4878,808]],"j":[[4900,801]]},"[\"ultpillar\",[[\"kind\",\"rock\"],[\"n\",7],[\"tc\",\"rock\"]]]":{"o":[[1514,830]],"j":[[1538,825]]},"[\"ultpillar\",[[\"kind\",\"rock\"],[\"n\",7],[\"tc\",\"steel\"]]]":{"o":[[1507,831]],"j":[[1505,1029]]},"[\"ultpillar\",[[\"kind\",\"vine\"],[\"tc\",\"grass\"],[\"venus\",1]]]":{"o":[[5237,1744]],"j":[[6245,1700]]},"[\"ultpillar\",[[\"kind\",\"water\"],[\"n\",7],[\"tc\",\"water\"]]]":{"o":[[1554,739]],"j":[[1557,720]]},"[\"ultpsy\",[[\"mew\",1],[\"tc\",\"fairy\"]]]":{"o":[[1396,306],[2313,704]],"j":[[1405,310],[2315,700]]},"[\"ultpsy\",[[\"mewtwo\",1],[\"tc\",\"hypno\"]]]":{"o":[[5787,586]],"j":[[5824,564]]},"[\"ultpsy\",[[\"uniq\",\"alakazam\"]]]":{"o":[[4068,1591]],"j":[[4066,1579]]},"[\"ultquake\",[[\"lava\",1],[\"tc\",\"fire\"],[\"uniq\",\"groudon\"]]]":{"o":[[4567,691]],"j":[[4495,745]]},"[\"ultquake\",[[\"lava\",1],[\"uniq\",\"entei\"]]]":{"o":[[3152,2111]],"j":[[3151,2129]]},"[\"ultquake\",[[\"uniq\",\"swampert\"]]]":{"o":[[2333,1060]],"j":[[2356,765]]},"[\"ultrush\",[[\"fast\",1],[\"uniq\",\"wartortle\"],[\"water\",1]]]":{"o":[[2481,300]],"j":[[2478,300]]},"[\"ultshadow\",[[\"uniq\",\"giratina\"]]]":{"o":[[3498,1541]],"j":[[3476,1584]]},"[\"ultskyfall\",[[\"n\",10],[\"shape\",\"ice\"],[\"tc\",\"ice\"]]]":{"o":[[2877,470]],"j":[[2901,450]]},"[\"ultskyfall\",[[\"n\",10],[\"shape\",\"meteor\"]]]":{"o":[[2876,460]],"j":[[2910,420]]},"[\"ultskyfall\",[[\"n\",10],[\"shape\",\"rock\"],[\"tc\",\"ghost\"]]]":{"o":[[2874,472]],"j":[[2885,459]]},"[\"ultskyfall\",[[\"n\",10],[\"shape\",\"rock\"],[\"tc\",\"rock\"]]]":{"o":[[2887,462]],"j":[[2883,460]]},"[\"ultskyfall\",[[\"n\",10],[\"shape\",\"star\"],[\"tc\",\"aura\"]]]":{"o":[[2883,470]],"j":[[2893,459]]},"[\"ultskyfall\",[[\"n\",10],[\"shape\",\"star\"],[\"tc\",\"star\"]]]":{"o":[[2869,478]],"j":[[2881,453]]},"[\"ultskyfall\",[[\"n\",12],[\"shape\",\"ice\"],[\"tc\",\"ice\"]]]":{"o":[[2891,458]],"j":[[2882,383]]},"[\"ultskyfall\",[[\"n\",12],[\"shape\",\"meteor\"],[\"tc\",\"bug\"]]]":{"o":[[2895,461]],"j":[[2880,457]]},"[\"ultskyfall\",[[\"n\",12],[\"shape\",\"meteor\"],[\"tc\",\"dark\"]]]":{"o":[[2881,469]],"j":[[2878,465]]},"[\"ultskyfall\",[[\"n\",12],[\"shape\",\"meteor\"],[\"tc\",\"dragon\"]]]":{"o":[[2884,461]],"j":[[2883,466]]},"[\"ultskyfall\",[[\"n\",12],[\"shape\",\"meteor\"],[\"tc\",\"fight\"]]]":{"o":[[2884,470]],"j":[[2882,368]]},"[\"ultskyfall\",[[\"n\",12],[\"shape\",\"meteor\"],[\"tc\",\"fire\"]]]":{"o":[[2891,463]],"j":[[2886,459]]},"[\"ultskyfall\",[[\"n\",12],[\"shape\",\"meteor\"],[\"tc\",\"ghost\"]]]":{"o":[[2882,468]],"j":[[2868,499]]},"[\"ultskyfall\",[[\"n\",12],[\"shape\",\"meteor\"],[\"tc\",\"poison\"]]]":{"o":[[2898,451]],"j":[[2878,406]]},"[\"ultskyfall\",[[\"n\",12],[\"shape\",\"meteor\"],[\"tc\",\"steel\"]]]":{"o":[[2882,467]],"j":[[2867,475]]},"[\"ultskyfall\",[[\"n\",12],[\"shape\",\"meteor\"],[\"tc\",\"water\"]]]":{"o":[[2870,459]],"j":[[2879,468]]},"[\"ultskyfall\",[[\"n\",12],[\"shape\",\"rock\"],[\"tc\",\"ground\"]]]":{"o":[[2889,410]],"j":[[2873,470]]},"[\"ultskyfall\",[[\"n\",12],[\"shape\",\"rock\"],[\"tc\",\"rock\"]]]":{"o":[[2897,459]],"j":[[2879,470]]},"[\"ultskyfall\",[[\"n\",12],[\"shape\",\"star\"],[\"tc\",\"electric\"]]]":{"o":[[2887,461]],"j":[[2849,463]]},"[\"ultskyfall\",[[\"n\",12],[\"shape\",\"star\"],[\"tc\",\"grass\"]]]":{"o":[[2884,465]],"j":[[2888,459]]},"[\"ultskyfall\",[[\"n\",12],[\"shape\",\"star\"],[\"tc\",\"psychic\"]]]":{"o":[[2855,504]],"j":[[2894,458]]},"[\"ultskyfall\",[[\"n\",12],[\"shape\",\"star\"],[\"tc\",\"star\"]]]":{"o":[[2890,469]],"j":[[2885,463]]},"[\"ultskyfall\",[[\"n\",12],[\"shape\",\"star\"],[\"tc\",\"wind\"]]]":{"o":[[2895,453]],"j":[[2891,457]]},"[\"ultskyfall\",[[\"n\",12],[\"shape\",\"star\"],[\"uniq\",\"arceus\"]]]":{"o":[[4026,1765]],"j":[[4014,1795]]},"[\"ultskyfall\",[[\"n\",1],[\"shape\",\"ice\"],[\"tc\",\"ice\"]]]":{"o":[[1298,302]],"j":[[1282,309]]},"[\"ultskyfall\",[[\"n\",1],[\"shape\",\"ice\"]]]":{"j":[[1285,333]]},"[\"ultskyfall\",[[\"n\",1],[\"shape\",\"rock\"],[\"tc\",\"rock\"]]]":{"o":[[1249,1207]],"j":[[1234,625]]},"[\"ultskyfall\",[[\"n\",1],[\"shape\",\"rock\"]]]":{"o":[[1247,608],[2111,304]],"j":[[1249,611]]},"[\"ultskyfall\",[[\"n\",3],[\"shape\",\"rock\"]]]":{"o":[[2870,460]],"j":[[2870,457]]},"[\"ultskyfall\",[[\"n\",4],[\"shape\",\"rock\"]]]":{"o":[[2866,477]],"j":[[2881,485]]},"[\"ultskyfall\",[[\"n\",5],[\"shape\",\"ice\"]]]":{"o":[[2896,394]],"j":[[2883,400]]},"[\"ultskyfall\",[[\"n\",5],[\"shape\",\"meteor\"]]]":{"o":[[2873,453]],"j":[[2874,487]]},"[\"ultskyfall\",[[\"n\",5],[\"shape\",\"rock\"]]]":{"o":[[2877,432]],"j":[[2891,458]]},"[\"ultskyfall\",[[\"n\",6],[\"shape\",\"ice\"]]]":{"o":[[2861,459]],"j":[[2912,360]]},"[\"ultskyfall\",[[\"n\",6],[\"shape\",\"meteor\"]]]":{"o":[[2871,487]],"j":[[2890,458]]},"[\"ultskyfall\",[[\"n\",6],[\"shape\",\"rock\"]]]":{"o":[[2882,477]],"j":[[2906,363]]},"[\"ultskyfall\",[[\"n\",6],[\"shape\",\"star\"],[\"tc\",\"psychic\"]]]":{"o":[[2868,457]],"j":[[2875,398]]},"[\"ultskyfall\",[[\"n\",7],[\"shape\",\"ice\"],[\"tc\",\"ice\"]]]":{"o":[[2902,414]],"j":[[2886,459]]},"[\"ultskyfall\",[[\"n\",7],[\"shape\",\"meteor\"],[\"tc\",\"fire\"]]]":{"o":[[2895,480]],"j":[[2904,463]]},"[\"ultskyfall\",[[\"n\",7],[\"shape\",\"rock\"]]]":{"o":[[2902,415]],"j":[[2872,482]]},"[\"ultskyfall\",[[\"n\",8],[\"shape\",\"ice\"]]]":{"o":[[2883,466]],"j":[[2870,459]]},"[\"ultskyfall\",[[\"n\",8],[\"shape\",\"meteor\"],[\"uniq\",\"salamence\"]]]":{"o":[[4093,1833]],"j":[[4086,1820]]},"[\"ultskyfall\",[[\"n\",8],[\"shape\",\"meteor\"]]]":{"o":[[2869,458]],"j":[[2912,454]]},"[\"ultskyfall\",[[\"n\",8],[\"shape\",\"rock\"]]]":{"o":[[2876,450]],"j":[[2878,454]]},"[\"ultskyfall\",[[\"n\",8],[\"shape\",\"star\"],[\"uniq\",\"jirachi\"]]]":{"o":[[4914,1647]],"j":[[4930,1654]]},"[\"ultskyfall\",[[\"n\",9],[\"shape\",\"meteor\"],[\"tc\",\"fairy\"]]]":{"o":[[2873,402]],"j":[[2904,409]]},"[\"ultskyfall\",[[\"n\",9],[\"shape\",\"star\"]]]":{"o":[[2887,457]],"j":[[2876,469]]},"[\"ultsparkle\",[[\"mode\",\"moon\"],[\"uniq\",\"gardevoir\"]]]":{"o":[[3451,1655]],"j":[[3437,1671]]},"[\"ultsparkle\",[[\"mode\",\"twinkle\"],[\"tc\",\"fairy\"],[\"uniq\",\"togekiss\"]]]":{"o":[[3387,1679]],"j":[[3394,1633]]},"[\"ultsparkle\",[[\"mode\",\"twinkle\"],[\"uniq\",\"eevee\"]]]":{"o":[[3840,1660]],"j":[[3846,1667]]},"[\"ultstorm\",[[\"kind\",\"leaf\"],[\"tc\",\"grass\"],[\"uniq\",\"serperior\"]]]":{"o":[[4168,766]],"j":[[4180,765]]},"[\"ultstorm\",[[\"kind\",\"thunder\"],[\"uniq\",\"zapdos\"]]]":{"o":[[4007,1730]],"j":[[4003,1737]]},"[\"ultswarm\",[[\"clones\",5],[\"shape\",\"shuriken\"],[\"tc\",\"water\"]]]":{"o":[[1903,2408]],"j":[[1905,2398]]},"[\"ultswarm\",[[\"giant\",1],[\"ninja\",1],[\"shape\",\"shuriken\"]]]":{"o":[[2700,2426]],"j":[[2972,2164]]},"[\"ultswarm\",[[\"shape\",\"ball\"],[\"uniq\",\"marshtomp\"]]]":{"o":[[3027,2291]],"j":[[3049,2274]]},"[\"ultswarm\",[[\"shape\",\"shuriken\"],[\"uniq\",\"frogadier\"]]]":{"o":[[2981,511]],"j":[[2979,514]]},"[\"ultthunder\",[[\"mode\",\"pillar\"],[\"tc\",\"electric\"],[\"uniq\",\"jolteon\"]]]":{"o":[[3530,1669]],"j":[[3518,1660]]},"[\"ultthunder\",[[\"mode\",\"spear\"],[\"tc\",\"fire\"]]]":{"o":[[2638,795]],"j":[[2625,807]]},"[\"ultthunder\",[[\"mode\",\"spear\"]]]":{"o":[[2643,791]],"j":[[2634,795]]},"[\"ultvortex\",[[\"n\",2],[\"tc\",\"fire\"],[\"uniq\",\"delphox\"]]]":{"j":[[3404,364]]},"[\"ultvortex\",[[\"n\",2],[\"tc\",\"water\"],[\"uniq\",\"vaporeon\"]]]":{"o":[[3868,1538]],"j":[[3828,1534]]},"[\"ultvortex\",[[\"tc\",\"fire\"],[\"uniq\",\"tepig\"]]]":{"o":[[1652,833],[3285,1273]],"j":[[1652,828],[3280,1271]]},"[\"ultvortex\",[[\"uniq\",\"croconaw\"]]]":{"o":[[1700,2102]],"j":[[1692,2121]]}};
 // 타입별 기술 + 1세대 전용 기술 + 특수 행동 + 드래그 — make-moves.py 가 main-bundle.js 의 handleMouseOver 앞에 표와 같이 넣는다
 // POKEMON_MOVES[키] = [기술, 세기, 입 x, 입 y] / 전기는 [기술, 세기, 왼, 위, 오른, 아래] 몸 테두리
 //   — 좌표는 오른쪽 보는 걷기 그림 첫 프레임 기준 픽셀, 세기는 종족값 기준 0~1 (클수록 크고 길고 화려하게)
@@ -9566,7 +9567,9 @@ function ultTextTop() {
     const top = typeof fxTop === 'function' ? fxTop() : 0;
     if (!top) return 0;
     const map = document.querySelector('#pokemon-game .pg-minimap');
-    return Math.max(top, map ? Math.round(map.getBoundingClientRect().bottom) : 0);
+    // 캔버스를 자르는 줄 (--pg-fx-top — 3:3 장면 전환은 지도 줄 아래) 까지 — 잉어킹 "아무 일도…" 글씨가 그 줄에 걸치던 것 (#107)
+    const cut = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+    return Math.max(top, cut, map ? Math.round(map.getBoundingClientRect().bottom) : 0);
 }
 
 // 인트로 HUD 숨김 손잡이 (하나) — 겹쳐 불리거나 연출이 중간에 끊겨도 (fxGameStop · clear) 되돌림 (코드 리뷰어: 끊기면 숨긴 채 남고 50ms 타이머가 계속 돌며 다음 전투 HP 까지 숨기던 것)
@@ -9699,7 +9702,8 @@ function ultDimLayer(alphaAt, sec, who = () => ultActive?.pokemon, update, opt) 
         ctx.globalAlpha = Math.min(0.95, a);
         ctx.fillStyle = '#05080f';
         ctx.beginPath();
-        const lit = [].concat(who() || []).filter((u) => u.el.style.visibility !== 'hidden');
+        // 숨긴 그림 (visibility · 꼭두각시 hideMon 의 opacity 0) 은 구멍 없음 — 뛰어오른 꼭두각시 대신 원래 발밑에 밝은 원판만 남던 것 (나무지기 — #108 아트 7바퀴 넘김 6)
+        const lit = [].concat(who() || []).filter((u) => u.el.style.visibility !== 'hidden' && u.el.style.opacity !== '0');
         if (typeof fxInGame === 'function' && fxInGame()) {
             // 게임 모드 — 구멍을 픽셀 줄로 (줄 높이 = 그림 점 1칸 · 반지름 = 그림 반 + 2칸 정수) · 줄마다 구멍을 합쳐 그 사이만 어둡게
             // (매끈한 원이 밝은 시합장에서 연두 원판 · 겹치면 렌즈로 보이던 것 — 아트 디렉터 #80 셋째 ③ · bugs #781)
@@ -9771,7 +9775,8 @@ const ultFlip = (img, left) => left && !img.src.includes('_left_');
 function ultCutIn(pokemon, left, cols, sec, yc = 0.36, hf = 0.3) {
     const img = pokemon.el;
     const dir = left ? -1 : 1;
-    sigParticle({ x: 0, y: 0, s: 2, max: sec, lines: [], draw: (ctx, p) => {
+    // _ui = 화면 글씨 · 띠 — 위 끝 층 (#107 바둑판 띠) 에 들지 않음 (150 에서 컷인 띠 위 테 · 부제 윗줄에 구멍이 나던 것, 코드 리뷰어)
+    sigParticle({ x: 0, y: 0, s: 2, max: sec, lines: [], _ui: true, draw: (ctx, p) => {
         const W = window.innerWidth;
         const H = window.innerHeight;
         const t = p.life / p.max;
@@ -9833,7 +9838,7 @@ function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1, at = null) {
     let hud = null; // at.hud — HP 묶음 자리 (첫 장면에 한 번 잼)
     let textTop = null; // 글씨 위 끝 (ultTextTop — 첫 장면에 한 번 잼: 장면마다 DOM 을 재던 것, 코드 리뷰어)
     // 게임 글씨 (at — 패링 · 짧은 필살기 이름) 는 맨 위층 — 솔라빔 모으는 빛이 반격기 이름 끝 0.15초를 덮던 것 (2026-10-21 UX 리뷰어)
-    sigParticle({ x: 0, y: 0, s: 2, max: sec, z: at ? 1 : 0, draw: (ctx, p) => {
+    sigParticle({ x: 0, y: 0, s: 2, max: sec, z: at ? 1 : 0, _ui: true, draw: (ctx, p) => {
         const W = window.innerWidth;
         const H = window.innerHeight;
         const t = p.life;
@@ -10037,7 +10042,10 @@ function ultHit(q, dir = 1, kind = 'tumble') {
     if (kind === 'lift' || kind === 'spin') {
         const ms = 1500;
         ultFreeze(p, ms);
-        const up = Math.min(window.innerHeight * 0.4, w * 2 + 24);
+        // 게임 화면 — 떠오른 몸이 연출 위 끝 (정보줄 · 지도 줄) 아래에서 멈춤 (#107 — 몸 · 감싼 거품이 위 끝 뒤로 들어가던 것) · 일반 모드는 그대로
+        const top0 = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+        const room = top0 > 0 ? Math.max(0, p.el.getBoundingClientRect().top - top0 - 4) : Infinity;
+        const up = Math.min(window.innerHeight * 0.4, w * 2 + 24, room);
         const spin = kind === 'spin';
         p.el.animate([
             { translate: '0 0', rotate: '0deg', easing: 'ease-out' },
@@ -10326,6 +10334,10 @@ window.__ult = {
             ctx.scale(-1, 1);
         }
         ctx.drawImage(img, -w / 2, -h / 2, w, h);
+        // 쓰러진 칸 지우기 뒤 다시 그릴 수 있게 적어 둠 (ult/bridge.js fxMonNote)
+        if (typeof fxMonNote === 'function') {
+            fxMonNote(ctx, o.src ?? img, img, w, h);
+        }
         ctx.restore();
     }
     // 한 색 실루엣 (잔상 · 테두리 · 번쩍) — 움직이는 그림이라 0.08초마다 새로
@@ -10463,10 +10475,16 @@ window.__ult = {
     // 효과 밑으로 깔기 — 같은 프레임에 먼저 그린(= 나중에 만든) 효과 밑, 어둠 위. 겹은 안쪽부터
     const UNDER = 'destination-over';
     // 몸을 감싸는 불꽃 오라 — 가로줄을 쌓은 물방울 모양이 위로 넘실. lean: 꼭대기가 뒤로 쏠림
+    //   게임 화면 — 무대보다 크게 솟으면 위 끝 띠 위만 위 끝 층 (bridge fxSplitTop · 크기 그대로, #107)
     function drawAura(ctx, px, S, cx, bottom, w, h, cols, T, k, lean = 0) {
         if (k <= 0.02) {
             return;
         }
+        splitTop(ctx, (c) => drawAura0(c, px, S, cx, bottom, w, h, cols, T, k, lean));
+    }
+    // 위 끝 띠 아래는 큰 캔버스 · 그 위만 위 끝 층 (bridge fxSplitTop — 일반 모드 · 다리 없으면 그대로)
+    const splitTop = (ctx, fn) => (typeof fxSplitTop === 'function' ? fxSplitTop(ctx, fn) : fn(ctx));
+    function drawAura0(ctx, px, S, cx, bottom, w, h, cols, T, k, lean) {
         const H = h * (1.2 + 0.45 * k);
         const half0 = Math.max(w * (0.45 + 0.22 * k), 8);
         ctx.save();
@@ -10579,11 +10597,25 @@ window.__ult = {
         }) });
     }
     // 튀는 바위 조각 — 땅에 한 번 튀고 구름
+    // 위로 튀는 알갱이의 처음 세로 속도 한도 — 게임 화면은 꼭대기가 위 끝 (정보줄 · 지도 줄) 아래 2칸 (파편 · 불똥 수십 개가 줄줄이 위 끝을 넘어 0.3 ~ 0.6초 걸쳐 머물던 것 — #107 돌진 벽 쾅)
+    // 게임 화면 — 이 입자는 위 끝 층 (위로 튀는 불티 · 김처럼 위 끝 너머로 이어지는 것 — #107)
+    function softTop(ms = 1500) {
+        if (!(typeof fxStageTop === 'function' && fxStageTop() > 0 && typeof fxSoftTopWant === 'function')) {
+            return {};
+        }
+        fxSoftTopWant(ms);
+        return { _softTop: true };
+    }
+    function upCap(y, g, S) {
+        const gT = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+        return gT > 0 ? -Math.sqrt(2 * g * Math.max(0, y - gT - 2 * S)) : -Infinity;
+    }
     function debris(x, y, S, cols, n, spd, ground, bias = 0) {
+        const cap = upCap(y, 640, S);
         for (let i = 0; i < n && roomFor(); i++) {
             const a = -Math.PI / 2 + moveRand(-1.15, 1.15) + bias;
             const v = moveRand(0.35, 1) * spd;
-            sigParticle({ x, y, s: S, vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: 640, drag: 0.4, max: moveRand(0.8, 1.3), color: movePick(cols), size: movePick([1, 2, 2, 3]), ground, hop: 0,
+            sigParticle({ x, y, s: S, vx: Math.cos(a) * v, vy: Math.max(cap, Math.sin(a) * v), g: 640, drag: 0.4, max: moveRand(0.8, 1.3), color: movePick(cols), size: movePick([1, 2, 2, 3]), ground, hop: 0,
                 update: (p) => {
                     const g = p.ground - p.size * p.s;
                     if (p.vy > 0 && p.y >= g) {
@@ -10639,7 +10671,12 @@ window.__ult = {
                 paths.push([at, [at[0] + Math.cos(b) * bl * 0.5, at[1] + Math.sin(b) * bl * 0.5 * flat], [at[0] + Math.cos(b + 0.3) * bl, at[1] + Math.sin(b + 0.3) * bl * flat]]);
             }
         }
-        sigParticle({ x, y, s: S, max: sec, draw: safeDraw((ctx, p, t, px) => {
+        // 게임 화면 — 화면 금 (화면에 가는 금 — 위로 뻗은 금이 위 끝에 걸쳐 머물던 것) 은 위 끝 층 (#107)
+        const soft = typeof fxStageTop === 'function' && fxStageTop() > 0 && typeof fxSoftTopWant === 'function';
+        if (soft) {
+            fxSoftTopWant(sec * 1000 + 300);
+        }
+        sigParticle({ x, y, s: S, max: sec, ...(soft ? { _softTop: true } : {}), draw: safeDraw((ctx, p, t, px) => {
             const grow = Math.min(1, p.life / 0.12);
             ctx.globalAlpha = t > 0.55 ? (1 - t) / 0.45 : 1;
             for (const pts of paths) {
@@ -10682,7 +10719,8 @@ window.__ult = {
         }) });
     }
     // 움푹 팬 자리 — 어두운 타원 + 빛나는 테두리
-    function crater(x, y, S, cols, rx, sec) {
+    //   pp = 쓰는 애 꼭두각시 — 진짜 그림으로 돌아온 뒤에도 구덩이 둘레는 몸을 위에 다시 그림 (진짜 그림은 캔버스 밑이라 아랫몸이 구덩이 윗선 아래로 잘리던 것 — 디자인 #107 UX 3바퀴 헤비봄버)
+    function crater(x, y, S, cols, rx, sec, pp = null) {
         sigParticle({ x, y, s: S, max: sec, draw: safeDraw((ctx, p, t, px) => {
             const R = rx * easeOut(Math.min(1, p.life / 0.12));
             const ry = Math.max(S * 2, R * 0.2);
@@ -10691,11 +10729,31 @@ window.__ult = {
             fillEllipse(ctx, px, S, p.x, p.y, R, ry, '#140b06');
             ctx.globalAlpha *= 0.7 + 0.3 * Math.sin(p.life * 20);
             ellipseDots(ctx, px, S, p.x, p.y, R + S, ry + S * 0.5, [cols[0], '#ffffff', cols[1]], p.life * 2, 3);
+            // 게임이 그림 (<img>) 을 새로 바꿔 넣으면 처음 el 은 문서에서 빠짐 — 칸 상자 안 그림을 다시 찾음 (bridge fxCoverRedraw 와 같게 · 디자인 #107 UX 4바퀴 — 돌아온 뒤 다시 그리기가 안 돌던 것)
+            const pk = pp && !pp.live ? pp.pokemon : null;
+            const box = pk?.collision;
+            const el = pk ? (pk.el?.isConnected ? pk.el : box?.isConnected ? box.querySelector('.pg-sprite') || box.querySelector('img') : null) : null;
+            if (el?.isConnected && el.style.visibility !== 'hidden' && el.style.opacity !== '0' && ready(el)) {
+                const r = el.getBoundingClientRect();
+                ctx.save();
+                ctx.globalAlpha = 1;
+                ctx.beginPath();
+                ctx.rect(p.x - R - S * 3, p.y - ry - S * 2, (R + S * 3) * 2, (ry + S * 2) * 2);
+                ctx.clip();
+                drawSprite(ctx, el, r.left + r.width / 2, r.bottom, r.width, r.height, { flip: flipped(el) });
+                ctx.restore();
+            }
         }) });
     }
     // 짧은 번개 — 0.05초마다 모양을 새로 (지직)
     function zap(x0, y0, x1, y1, S, tint, sec = 0.12, w = 1, jit = 2) {
-        sigParticle({ x: x0, y: y0, s: S, max: sec, draw: safeDraw((ctx, p, t, px) => {
+        // 게임 화면 — 위 끝 띠까지 닿는 번개 (하늘에서 내리치는 줄기 등) 는 위 끝 층 (#107)
+        const gT = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+        const soft = gT > 0 && Math.min(y0, y1) < gT + 8 + jit * S && typeof fxSoftTopWant === 'function';
+        if (soft) {
+            fxSoftTopWant(sec * 1000 + 300);
+        }
+        sigParticle({ x: x0, y: y0, s: S, max: sec, ...(soft ? { _softTop: true } : {}), draw: safeDraw((ctx, p, t, px) => {
             if (!p.path || p.life - p.at > 0.05) {
                 p.at = p.life;
                 p.path = zigzag(x0, y0, x1, y1, S, jit);
@@ -10710,19 +10768,21 @@ window.__ult = {
         for (let i = 0; i < n && roomFor(); i++) {
             const a = moveRand(0, TAU);
             const sp = moveRand(40, 210) * Math.max(0.7, size / 70);
-            sigParticle({ x, y, s: S, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 40, g: -60, drag: 2.3, max: moveRand(0.45, 0.9), cols: fc, grow: 3 + size / 30, smoke: 1, draw: DRAW.stream });
+            sigParticle({ x, y, s: S, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 40, g: -60, drag: 2.3, max: moveRand(0.45, 0.9), cols: fc, grow: 3 + size / 30, smoke: 1, draw: DRAW.stream, ...softTop() });
         }
         for (let i = 0; i < n / 2 && roomFor(); i++) {
             const a = moveRand(0, TAU);
             const sp = moveRand(100, 320);
-            sigParticle({ x, y, s: S, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 80, g: 300, drag: 1, max: moveRand(0.5, 1), color: movePick(['#fff6b3', '#ffc93c', '#ff7a21']), draw: streak });
+            sigParticle({ x, y, s: S, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 80, g: 300, drag: 1, max: moveRand(0.5, 1), color: movePick(['#fff6b3', '#ffc93c', '#ff7a21']), draw: streak, ...softTop() });
         }
     }
     // 물보라
     function splashUp(x, y, S, n, bias, ground, spd = 1) {
         const wc = SIG_PALETTE.water;
+        // 게임 화면 — 솟는 물보라 꼭대기가 연출 위 끝 아래 (debris 와 같음 — #107)
+        const cap = upCap(y, 720, S);
         for (let i = 0; i < n && roomFor(); i++) {
-            sigParticle({ x: x + moveRand(-1, 1) * S * 3, y, s: S, vx: (moveRand(-1, 1) * 0.8 + bias) * 170 * spd, vy: -moveRand(120, 400) * spd, g: 720, drag: 0.3, max: moveRand(0.6, 1.1), color: movePick(wc), size: movePick([1, 2, 2, 3]), ground,
+            sigParticle({ x: x + moveRand(-1, 1) * S * 3, y, s: S, vx: (moveRand(-1, 1) * 0.8 + bias) * 170 * spd, vy: Math.max(cap, -moveRand(120, 400) * spd), g: 720, drag: 0.3, max: moveRand(0.6, 1.1), color: movePick(wc), size: movePick([1, 2, 2, 3]), ground,
                 update: (p) => {
                     if (p.vy > 0 && p.y > p.ground) {
                         p.life = p.max;
@@ -10780,7 +10840,12 @@ window.__ult = {
         const rr = r * moveRand(1, 1.9);
         const x0 = cx() + Math.cos(a) * rr;
         const y0 = cy() + Math.sin(a) * rr * 0.8;
-        sigParticle({ x: x0, y: y0, x0, y0, s: S, max: moveRand(0.22, 0.32), color: movePick([...cols, '#ffffff']),
+        // 게임 화면 — 둘레 (반지름 × 1.9 까지 — 위 끝 너머) 에서 빨려 드는 줄은 위 끝 층 (몸 위 같은 세로줄로 잇달아 지나가 위 끝에 걸쳐 머물던 것 — #107)
+        const soft = typeof fxStageTop === 'function' && fxStageTop() > 0 && typeof fxSoftTopWant === 'function';
+        if (soft) {
+            fxSoftTopWant(400);
+        }
+        sigParticle({ x: x0, y: y0, x0, y0, s: S, max: moveRand(0.22, 0.32), color: movePick([...cols, '#ffffff']), ...(soft ? { _softTop: true } : {}),
             update: (q) => {
                 const f = Math.min(1, (q.life / q.max) ** 2);
                 q.px0 = q.x;
@@ -10960,10 +11025,12 @@ window.__ult = {
                 const tHome = tTurn + D2;
                 const end = ms / 1000;
                 const tDone = Math.min(tHome + 0.5, end - 0.05);
-                const hop = clamp(h * 1.1, 16, u.H * 0.3);
                 const onGround = ys >= u.ground - 4;
                 const aw = Math.max(w, U * 0.75); // 오라 크기
                 const ah = Math.max(h, U * 0.95);
+                // 벽에서 튕겨 나오는 공중제비 높이 — 게임 화면은 오라 끝 (발 위 오라 높이 × 1.65) 이 위 끝 (정보줄 · 지도 줄) 아래 2칸까지만 (187 에서 0.3 ~ 0.4초 걸쳐 머물던 것 — #107)
+                const gT = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+                const hop = Math.max(S * 2, Math.min(clamp(h * 1.1, 16, u.H * 0.3), gT > 0 ? ys - ah * 1.65 - gT - 2 * S : Infinity));
                 const t0 = performance.now();
                 const clock = () => (performance.now() - t0) / 1000;
                 const spin = (T) => dir * TAU * (T < C ? (1.5 * T * T) / C : 1.5 * C + 4.5 * (T - C));
@@ -11063,7 +11130,8 @@ window.__ult = {
                             }
                         }
                         ctx.globalAlpha = 0.9 * pp.k;
-                        arcs.forEach((a) => zapLine(ctx, px, S, a, 1, ac[2]));
+                        // 몸에 두른 번개 — 무대보다 길게 뻗으면 위 끝 띠 위만 위 끝 층 (#107)
+                        splitTop(ctx, (c) => arcs.forEach((a) => zapLine(c, px, S, a, 1, ac[2])));
                     }
                     if (kind === 'water' && T < tHome) {
                         ctx.globalAlpha = 0.8 * pp.k;
@@ -11216,7 +11284,7 @@ window.__ult = {
                 if (o.drill) {
                     later(tHit * 1000, () => {
                         ultShake(2, (G - 0.04) * 1000);
-                        emit((G - 0.04) * 1000, 300, () => roomFor() && sigParticle({ x: wx - dir * S, y: pp.y - h * 0.5 + moveRand(-1, 1) * h * 0.35, s: S, vx: -dir * moveRand(80, 340), vy: moveRand(-300, 60), g: 520, drag: 0.8, max: moveRand(0.3, 0.6), color: movePick(['#ffffff', '#fff6b3', '#ffc93c', cols[0]]), draw: streak }));
+                        emit((G - 0.04) * 1000, 300, () => roomFor() && sigParticle({ x: wx - dir * S, y: pp.y - h * 0.5 + moveRand(-1, 1) * h * 0.35, s: S, vx: -dir * moveRand(80, 340), vy: Math.max(upCap(pp.y - h * 0.85, 520, S), moveRand(-300, 60)), g: 520, drag: 0.8, max: moveRand(0.3, 0.6), color: movePick(['#ffffff', '#fff6b3', '#ffc93c', cols[0]]), draw: streak }));
                         cracks(wx, pp.y - h * 0.5, S, ac, 5, U * 0.9, () => (dir > 0 ? Math.PI : 0) + moveRand(-1.2, 1.2), 1, G + 0.3);
                     });
                 }
@@ -11399,7 +11467,7 @@ window.__ult = {
                         }
                     }
                     ctx.globalAlpha = 0.9;
-                    arcs.forEach((a) => zapLine(ctx, px, S, a, 1, ac[2]));
+                    splitTop(ctx, (c) => arcs.forEach((a) => zapLine(c, px, S, a, 1, ac[2])));
                 };
                 sigParticle({ x: 0, y: 0, s: S, max: end + 0.3, update: safeUpd((p) => {
                     const T = clock();
@@ -11550,7 +11618,7 @@ window.__ult = {
                     ultShake(heavy ? 11 : 5 + 4 * K, heavy ? 1500 : 900);
                     pp.flash = 1;
                     bigBoom(tx, ty - S * 2, S, bc, size, { flat: 0.6 });
-                    crater(tx, ty - S, S, ac, size * 0.75, 1.8);
+                    crater(tx, ty - S, S, ac, size * 0.75, 1.8, pp);
                     const reach = heavy ? W * 1.1 : W * 0.4 + size;
                     groundWave(tx, ty - S, S, ac, reach, heavy ? 0.9 : 0.8);
                     later(heavy ? 260 : 150, () => groundWave(tx, ty - S, S, ac, reach * (heavy ? 0.85 : 0.7), 0.7));
@@ -11776,7 +11844,8 @@ window.__ult = {
                     if (!spinning && i % 2 === 0) {
                         const sd = Math.random() < 0.6 ? -side : side;
                         const cx = b.x - sd * (b.w * 0.5 + w * moveRand(0.3, 0.6));
-                        const cyb = b.bottom - moveRand(0, 0.8) * Math.max(b.h, U * 0.4);
+                        // 게임 화면 — 분신 머리는 연출 위 끝 아래 (#107)
+                        const cyb = Math.max(b.bottom - moveRand(0, 0.8) * Math.max(b.h, U * 0.4), (typeof fxStageTop === 'function' && fxStageTop() > 0 ? fxStageTop() + h + 2 * S : -Infinity));
                         const el = pp.el;
                         const col = movePick([cols[2], cols[3], '#ffffff']);
                         sigParticle({ x: cx, y: cyb, s: 1, max: 0.18, draw: safeDraw((ctx, q, t) => {
@@ -12081,9 +12150,13 @@ window.__ult = {
                 }) });
                 // 다른 포켓몬 — 떠올라 흔들흔들, 쾅
                 const lift = u.others();
+                // 게임 화면 = 떠오른 몸 · 돌멩이 위 끝이 위 끝 (정보줄 · 지도 줄) 아래 2칸까지만 — 187 에서 떠오른 상대 머리가 위 끝 뒤로 숨어 1.6초 걸쳐 머물던 것 (#107 ult-top 걸침)
+                const gT = typeof fxStageTop === 'function' ? fxStageTop() : 0;
                 lift.forEach((q, i) => {
                     ultFreeze(q.pokemon, (tSlam + 0.6) * 1000);
-                    const up = clamp(Math.min(H * 0.4, q.h * 1.6 + 16), 10, Math.max(10, q.bottom - q.h - 6));
+                    // 위 끝까지 남은 높이 = 그린 그림 상자 위 끝부터 (q.h 는 몸 높이라 그림 칸 위 여백만큼 더 올라가던 것) · 흔들림 (−3px) · 쾅 직전 1.06배까지 셈
+                    const room = gT > 0 ? (q.pokemon.el.getBoundingClientRect().top - (gT + 2 * S) - 3) / 1.06 : q.bottom - q.h - 6;
+                    const up = clamp(Math.min(H * 0.4, q.h * 1.6 + 16), 10, Math.max(10, room));
                     levitate(q, (tLift + i * 0.08) * 1000, tSlam * 1000, up);
                 });
                 // 떠 있는 동안 — 보랏빛 테두리 · 묶는 고리
@@ -12114,7 +12187,7 @@ window.__ult = {
                 const rmap = { o: cols[1], '#': ROCK[2], w: ROCK[0] };
                 for (let i = 0; i < nRocks; i++) {
                     const x = moveRand(0.05, 0.95) * W;
-                    const top = Math.max(H * 0.12, u.ground - moveRand(0.25, 0.6) * Math.min(H * 0.8, 260));
+                    const top = Math.max(H * 0.12, gT > 0 ? gT + S : 0, u.ground - moveRand(0.25, 0.6) * Math.min(H * 0.8, 260));
                     const t1 = tLift + moveRand(0, 0.5);
                     const shape = movePick(ROCKS);
                     const rh = shape.length * rs;
@@ -12252,7 +12325,9 @@ window.__ult = {
                     const fade = T > tFling ? Math.max(0, 1 - (T - tFling) / 0.5) : 1;
                     const eyeW = clamp(W * 0.14, 26, 90);
                     const eyeH = eyeW * 0.42;
-                    const ey2 = Math.max(eyeH, H * 0.2);
+                    // 게임 화면 = 눈 위 끝이 위 끝 (정보줄 · 지도 줄) 아래 2칸 — 187 에서 눈 위 반이 위 끝 뒤로 숨어 일자로 잘린 채 2.5초 머물던 것 (#107 ult-top 걸침 · 모양 · 크기는 그대로)
+                    const gT = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+                    const ey2 = Math.max(eyeH, H * 0.2, gT > 0 ? gT + eyeH / 2 + 2 * S : 0);
                     const look = Math.sin(T * 1.3) * eyeW * 0.12;
                     for (const sgn of [-1, 1]) {
                         const exc = W / 2 + sgn * eyeW * 0.85;
@@ -12403,9 +12478,13 @@ window.__ult = {
                     later(70, () => screenFlash(S, 0.3, '#ffffff', 0.16));
                     ultShake(5 + 4 * K, 850);
                     pp.flash = 0.7;
+                    // 게임 화면 = 검은 원판 · 점 고리 (반지름 × 1.25) 위 끝이 위 끝 (정보줄 · 지도 줄) 아래 2칸 — 크기는 그대로 가운데만 내림 (187 에서 원판 윗면이 위 끝에 일자로 0.3초 — #107 · 기획 10-25 "크기 말고 자리로만")
+                    const gT = typeof fxStageTop === 'function' ? fxStageTop() : 0;
                     grabs.forEach((g) => {
                         const b = boxOf(g);
-                        darkBurst(b.x, b.y, S, cols, Math.max(b.w, b.h, U * 0.6) * (1.3 + 0.6 * K));
+                        const size = Math.max(b.w, b.h, U * 0.6) * (1.3 + 0.6 * K);
+                        const by = gT > 0 ? Math.max(b.y, gT + 2 * S + size * 1.25) : b.y;
+                        darkBurst(b.x, by, S, cols, size);
                         for (const sd of [-1, 1]) {
                             for (let i = 0; i < 12 && roomFor(); i++) {
                                 sigParticle({ x: b.x + sd * b.w * 0.5, y: lerp(u.ground, b.y, Math.random()), s: S, vx: sd * moveRand(30, 160), vy: -moveRand(20, 180), g: 120, drag: 1.5, max: moveRand(0.5, 0.9), color: movePick(['#0d0618', cols[2], cols[1]]), size: movePick([1, 2, 2]), draw: DRAW.dot });
@@ -15176,6 +15255,9 @@ let fxOrbPreview = null;
         ctx.globalAlpha = Math.min(1, alpha);
         ctx.fillStyle = color;
         const tick = Math.floor(life * 18);
+        // 게임 화면 — 위로 뻗는 선은 연출 위 끝 (정보줄 · 지도 줄) 조금 아래에서 멈춤 (#107 — 미래예지 집중선이 위 끝에 일자로 걸쳐 머물던 것)
+        const top0 = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+        const yMin = top0 > 0 ? top0 + 3 * s : -Infinity;
         for (let j = 0; j < n; j++) {
             if (hash(j, tick) < 0.3) {
                 continue;
@@ -15184,7 +15266,7 @@ let fxOrbPreview = null;
             const ca = Math.cos(a);
             const sa = Math.sin(a);
             const w = hash(j, 3) < 0.35 ? 2 : 1;
-            for (let r = rIn * (1 + hash(j, tick + 1) * 0.5); r < rOut; r += s * 3) {
+            for (let r = rIn * (1 + hash(j, tick + 1) * 0.5); r < rOut && cy + sa * r >= yMin; r += s * 3) {
                 ctx.fillRect(px(cx + ca * r), px(cy + sa * r), s * w, s * w);
             }
         }
@@ -15399,8 +15481,13 @@ let fxOrbPreview = null;
             });
         }
     }
+    // o.soft = 화면만큼 퍼지는 고리 — 게임 화면은 위 끝 층 (위 끝에 일자로 걸쳐 머물지 않게 — #107)
     function ring(x, y, s, r0, r1, flat, sec, cols, o = {}) {
-        sigParticle({ x, y, s, r0, r1, flat, max: sec, cols, size: o.size ?? 1, step: o.step ?? 1.5, a: o.a ?? 1, life: -(o.delay ?? 0), draw: DR.ring });
+        const soft = !!o.soft && typeof fxStageTop === 'function' && fxStageTop() > 0;
+        if (soft && typeof fxSoftTopWant === 'function') {
+            fxSoftTopWant((sec + (o.delay ?? 0)) * 1000 + 300);
+        }
+        sigParticle({ x, y, s, r0, r1, flat, max: sec, cols, size: o.size ?? 1, step: o.step ?? 1.5, a: o.a ?? 1, life: -(o.delay ?? 0), draw: DR.ring, ...(soft ? { _softTop: true } : {}) });
     }
     // 발밑에서 솟는 기운
     function riseAt(u, cols, Z) {
@@ -15498,7 +15585,10 @@ let fxOrbPreview = null;
         const oy = u.mouth.y;
         const reach = Math.max(1, dir > 0 ? W - ox : ox);
         const span = sep + Tb * 0.68;
-        const yFar = Math.max(Math.min(oy, u.ground - span), Math.min(span, H * 0.5)); // 땅에 묻히지 않는 높이 — 입이 땅에 가까우면 입 앞 위쪽에서 쏨
+        // 게임 화면 = 몸통 윗면 (반 굵기 × 1.1 · 두근 1.11 · 나선 1.38 · 2칸) 이 위 끝 (정보줄 · 지도 줄) 아래 — 높이 쏘는 빔 · 나선이 위 끝에 걸쳐 머물던 것 (#107 ult-top 걸침 · 크기는 그대로)
+        const beamTop = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+        const beamMinY = beamTop > 0 ? beamTop + sep + Tb * 0.5 * 1.1 * 1.11 * 1.38 + 2 * S : 0;
+        const yFar = Math.max(Math.min(oy, u.ground - span), Math.min(span, H * 0.5), Math.min(beamMinY, u.ground - span)); // 땅에 묻히지 않는 높이 — 입이 땅에 가까우면 입 앞 위쪽에서 쏨
         const yMouth = Math.min(oy, u.ground - orbR * 1.3);
         const flare = T * 1.4; // 물결(wave)이 이 거리까지 서서히 커짐
         // 나팔 모양 — 빛 구에서 가늘게 시작해 spreadL 동안 굵어지고, 높이도 입에서 광선 높이로 부드럽게
@@ -15682,7 +15772,9 @@ let fxOrbPreview = null;
                         continue;
                     }
                     const i = Math.min(n - 1, Math.floor(d / (2 * S)));
-                    const y = ys[i] + Math.sin(ph) * hs[i] * 1.38;
+                    // 위쪽 감김은 위 끝 아래 2칸까지만 (높이 쏘는 나선 빔 고리가 위 끝에 걸치던 것 — #107)
+                    const amp = beamTop > 0 ? Math.max(S, Math.min(hs[i] * 1.38, ys[i] - beamTop - 2 * S)) : hs[i] * 1.38;
+                    const y = ys[i] + Math.sin(ph) * (Math.sin(ph) < 0 ? amp : hs[i] * 1.38);
                     const w = frontSide && depth > 0.5 ? sz + 1 : sz;
                     if (frontSide) {
                         // 테두리 (진한 색) — 밝은 광선 위에서도 띠가 보이게
@@ -15765,7 +15857,8 @@ let fxOrbPreview = null;
                         continue;
                     }
                     const i = Math.min(n - 1, Math.floor(d / seg));
-                    const ry = hs[i] * 1.5 + 3 * S;
+                    // 게임 화면 = 고리 위 끝이 위 끝 (정보줄 · 지도 줄) 아래 2칸 — 높이 쏘는 빔의 고리 점선이 위 끝에 걸치던 것 (#107)
+                    const ry = Math.max(2 * S, Math.min(hs[i] * 1.5 + 3 * S, beamTop > 0 ? ys[i] - beamTop - 2 * S : Infinity));
                     ctx.globalAlpha = alpha * (1 - (0.6 * d) / reach);
                     const m = Math.max(16, Math.round(ry / S) * 3);
                     for (let q = 0; q < m; q++) {
@@ -15783,12 +15876,14 @@ let fxOrbPreview = null;
                 } else if (f < fadeAt + 0.1) {
                     // 화면 끝에 부딪혀 튐
                     const ex = dir > 0 ? W : 0;
-                    const er = hs[ie] * (1.4 + 0.25 * Math.random());
+                    // 게임 화면 = 원판 (× 1.25) 위 끝이 위 끝 (정보줄 · 지도 줄) 아래 1칸 · 빛살도 그 아래까지 — 화면 끝 터짐이 2초 위 끝에 걸치던 것 (#107 · 사이코부스트)
+                    const eRoom = beamTop > 0 ? Math.max(2 * S, ys[ie] - beamTop - S) : Infinity;
+                    const er = Math.min(hs[ie] * (1.4 + 0.25 * Math.random()), eRoom / 1.25);
                     discs(ctx, px, S, ex, ys[ie], er, [[1.25, cols[3], 0.4], [1, cols[2], 0.9], [0.75, cols[1], 1], [0.5, cols[0], 1], [0.28, '#ffffff', 1]], alpha);
                     ctx.globalAlpha = alpha;
                     for (let j = 0; j < 9; j++) {
                         const a = (dir > 0 ? Math.PI : 0) + (j - 4) * 0.33 + (Math.random() - 0.5) * 0.2;
-                        const len = er * (1.3 + Math.random() * 1.2);
+                        const len = Math.min(er * (1.3 + Math.random() * 1.2), Math.sin(a) < 0 ? eRoom / -Math.sin(a) : Infinity);
                         for (let d = er * 0.8; d < len; d += S) {
                             const w = d < len * 0.55 ? 2 : 1;
                             dotAt(ctx, px, S, ex + Math.cos(a) * d, ys[ie] + Math.sin(a) * d, d < len * 0.6 ? '#ffffff' : cols[1], w, w);
@@ -16268,7 +16363,10 @@ let fxOrbPreview = null;
     function runOrbSky(u, o, total, el, k) {
         const { P, Z, S, W, H, dir, style, cols, size, flash, rF, C, home, st, channel, growTick } = k;
         const rS = clamp(H * 0.26 * Math.sqrt(size), 18, Math.min(W * 0.28, H * 0.42));
-        const top = { x: W / 2, y: clamp(H * 0.06 + rS, rS + 3, H * 0.5) };
+        // 게임 화면 = 구 윗면 (반지름 × 1.08 두근) 이 위 끝 (정보줄 · 지도 줄) 아래 2칸 — 하늘로 오른 구가 위 끝에 걸쳐 머물던 것 (#107 · 크기는 그대로)
+        const skyTop = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+        //   불꽃 · 그림자 구는 위로 솟는 혀까지 (반지름 × 1.45)
+        const top = { x: W / 2, y: Math.max(clamp(H * 0.06 + rS, rS + 3, H * 0.5), skyTop > 0 ? skyTop + rS * (style === 'flame' || style === 'shadow' ? 1.45 : 1.08) + 2 * S : 0) };
         const r1 = Math.min(rF, rS) * 0.8;
         const G1 = 0.75;
         const R1 = 0.8;
@@ -16423,7 +16521,24 @@ let fxOrbPreview = null;
         tremble(el, 0.3 * S, Tc * 500);
         later(Tc * 500, () => tremble(el, 0.9 * S, Tc * 500));
         ultDark(0.3, Tc * 1000 + 300);
+        // 게임 화면 = 터지는 1.4초 동안 앞장을 터짐 위에 다시 그림 (장 끝 맨 위 — bridge fxOnTop) — 몸 가운데에서 터져 앞장이 안 보이던 것 (#108 아트 1바퀴 ②)
+        const topMon = () => {
+            if (!el || !(typeof fxInGame === 'function' && fxInGame()) || typeof fxOnTop !== 'function' || !ULT_KIT.drawMon) {
+                return;
+            }
+            // 그릴 때마다 지금 그림 — 게임이 그림 (<img>) 을 새로 바꿔 넣으면 처음 el 은 문서에서 빠짐 (칸 상자 안 img 를 다시 찾음)
+            const box = pokemon?.collision;
+            fxOnTop((ctx) => {
+                const img = el.isConnected ? el : box?.isConnected ? box.querySelector('img') : null;
+                if (!img?.naturalWidth) {
+                    return;
+                }
+                const r = img.getBoundingClientRect();
+                ULT_KIT.drawMon(ctx, img, r.left + r.width / 2, r.bottom, r.width, dir < 0);
+            }, 1400);
+        };
         const boom = () => {
+            topMon();
             if (o.white) {
                 flash('#ffffff', 1, 1.1, 0.32);
             } else {
@@ -16941,7 +17056,9 @@ let fxOrbPreview = null;
         const lo = Rm * 1.5;
         const hi = W - Rm * 1.5;
         const mx = lo < hi ? clamp(lerp(u.body.cx, W / 2, 0.55), lo, hi) : W / 2;
-        const my1 = clamp(H * 0.07 + Rm, Rm + 4, H * 0.45);
+        // 게임 화면 = 달 · 빛무리 윗면 (반지름 × 1.4) 이 위 끝 (정보줄 · 지도 줄) 아래 2칸 — 큰 달이 위 끝에 걸쳐 1.4초 머물던 것 (#107 · 크기는 그대로)
+        const moonTop = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+        const my1 = Math.max(clamp(H * 0.07 + Rm, Rm + 4, H * 0.45), moonTop > 0 ? moonTop + Rm * 1.4 + 2 * S : 0);
         const my0 = Math.max(my1, Math.min(u.ground - Rm, my1 + H * 0.35));
         const M = { x: mx, y: my0 };
         const tRise = 1.2;
@@ -17005,14 +17122,19 @@ let fxOrbPreview = null;
         const burst = () => {
             flash(cols[0], 0.75, 0.55, 0.06);
             ultShake(5 + 2 * P, 800);
-            part({ x: M.x, y: M.y, s: S, max: 0.6, far: Math.hypot(W, H), n: 16, r0: Rm * 1.1, a0: 0.1, cols: [cols[1], cols[2], cols[0], cols[3]], draw: DR.rays });
+            // 화면 끝까지 뻗는 빛살 — 게임 화면은 위 끝 층 (#107)
+            const softRays = typeof fxStageTop === 'function' && fxStageTop() > 0 && typeof fxSoftTopWant === 'function';
+            if (softRays) {
+                fxSoftTopWant(900);
+            }
+            part({ x: M.x, y: M.y, s: S, max: 0.6, far: Math.hypot(W, H), n: 16, r0: Rm * 1.1, a0: 0.1, cols: [cols[1], cols[2], cols[0], cols[3]], draw: DR.rays, ...(softRays ? { _softTop: true } : {}) });
             for (let i = 0; i < 40 && room(); i++) {
                 const a = moveRand(0, TAU);
                 const sp = moveRand(120, 360) * Z;
                 sigParticle({ x: M.x, y: M.y, s: Math.random() < 0.35 ? S * 2 : S, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, g: 60 * Z, drag: 1.6, max: moveRand(0.6, 1.1), r: 2, cols: starCols, draw: DR.star });
             }
             for (let j = 0; j < 3; j++) {
-                ring(M.x, M.y, S, Rm, Math.hypot(W, H) * (0.9 + j * 0.15), 1, 0.8 + j * 0.12, j % 2 ? [cols[2], cols[1]] : ['#ffffff', cols[0]], { size: 2, delay: j * 0.1 });
+                ring(M.x, M.y, S, Rm, Math.hypot(W, H) * (0.9 + j * 0.15), 1, 0.8 + j * 0.12, j % 2 ? [cols[2], cols[1]] : ['#ffffff', cols[0]], { size: 2, delay: j * 0.1, soft: true });
             }
             // 다른 포켓몬마다 달빛 기둥이 쾅 — 떠올랐다 툭
             for (const q of u.others()) {
@@ -17044,7 +17166,7 @@ let fxOrbPreview = null;
                 if (!st.glowed && life >= tGlow) {
                     st.glowed = true;
                     flash(cols[1], 0.3, 0.4);
-                    ring(M.x, M.y, S, Rm, Rm * 3.5, 1, 0.6, ['#ffffff', cols[0], cols[2]], { size: 2 });
+                    ring(M.x, M.y, S, Rm, Rm * 3.5, 1, 0.6, ['#ffffff', cols[0], cols[2]], { size: 2, soft: true });
                     spray(M.x, M.y, S, starCols, 24, 60 * Z, 200 * Z, { drag: 2, draw: DRAW.sparkle, cols: starCols });
                 }
                 // 달빛이 비처럼 쏟아짐
@@ -17947,22 +18069,70 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                     }
                 }
             },
-            draw: (ctx, p, t, px) => {
-                for (const it of sc.items) {
-                    if (!it.draw) {
-                        continue;
-                    }
-                    ctx.save();
-                    try {
-                        it.draw(ctx, it, it.life / it.max, px);
-                    } catch (err) {
-                        fail(name, err);
-                        it.max = 0;
-                    }
+            draw: (ctx, p, t, px) => drawItems(ctx, px, false),
+        });
+        const drawItems = (ctx, px, soft) => {
+            for (const it of sc.items) {
+                if (!it.draw || !!it.soft !== soft) {
+                    continue;
+                }
+                ctx.save();
+                try {
+                    it.draw(ctx, it, it.life / it.max, px);
+                } catch (err) {
+                    fail(name, err);
+                    it.max = 0;
+                }
+                ctx.restore();
+            }
+        };
+        // 위 끝 층 (#107) — 무대보다 큰 반구처럼 크기를 줄이지 않고 위 끝 바둑판 띠로 흩어질 것만 따로 한 입자로 그림 (bridge _softTop · 게임 화면에서만 다듬음)
+        let softP = null;
+        sc.soft = (it) => {
+            // 게임 밖 (일반 모드) · 3:3 무대 상자 안은 자를 위 끝이 없어 그대로
+            if (!((typeof fxStageTop === 'function' ? fxStageTop() : 0) > 0)) {
+                return sc.add(it);
+            }
+            it.soft = true;
+            if (!softP) {
+                const left = Math.max(0.1, sec - sc.t);
+                if (typeof fxSoftTopWant === 'function') {
+                    fxSoftTopWant(left * 1000 + 500);
+                }
+                softP = true;
+                sigParticle({ x: 0, y: 0, s: u.S, max: left, _softTop: true, draw: (ctx, p, t, px) => drawItems(ctx, px, true) });
+            }
+            return sc.add(it);
+        };
+        // 몸에 붙은 오라 · 불꽃 혀처럼 몸 뒤에 그려야 하는데 위 끝을 넘는 것 — 위 끝 띠 (8px) 아래는 큰 캔버스 그대로 (몸 뒤) · 그 위만 위 끝 층 (#107)
+        //   위쪽 반도 아래쪽 아이템 (update 가 적는 상태 · 수명) 으로 그림
+        sc.split = (it) => {
+            const top0 = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+            if (!(top0 > 0)) {
+                return sc.add(it);
+            }
+            const cut = top0 + 8;
+            const part = (low) => (ctx, q, t, px) => {
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(0, low ? cut : -u.H, u.W, low ? u.H * 2 : cut + u.H);
+                ctx.clip();
+                try {
+                    it.draw(ctx, q, t, px);
+                } finally {
                     ctx.restore();
                 }
-            },
-        });
+            };
+            const low = sc.add({ ...it, draw: part(true) });
+            // 위쪽 반은 아래쪽 아이템 (low — update 가 적는 상태 · 수명) 으로 그리고, 아래쪽이 빠지면 같이 멈춤 (코드 리뷰어 #107)
+            const up = part(false);
+            sc.soft({ max: it.max, draw: (ctx, q, t, px) => {
+                if (sc.items.includes(low)) {
+                    up(ctx, low, low.life / low.max, px);
+                }
+            } });
+            return low;
+        };
         return sc;
     }
 
@@ -18095,7 +18265,8 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                 q.br.push(branchOf(q.pts, L * rnd(0.15, 0.35), seg));
             }
         };
-        const it = sc.add({ max: o.dur ?? 0.35,
+        // o.soft = 하늘 · 위 끝까지 닿는 번개 — 게임 화면은 위 끝 층 (#107)
+        const it = (o.soft && sc.soft ? sc.soft : sc.add)({ max: o.dur ?? 0.35,
             update: (q) => q.life - q.drawn > 0.05 && make(q),
             draw: (ctx, q, t, px) => {
                 if (t > 0.2 && Math.floor(q.life / 0.035) % 4 === 3) {
@@ -20675,9 +20846,11 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         const D = Math.min(Math.max(H / 3, short(u) * 0.38) * (0.88 + 0.2 * P), W * 0.4, H * 0.6);
         const C = s * Math.max(1, Math.round(D / (26 * s)));
         const sx = clamp(u.body.cx + dir * (u.w * 0.5 + D * 0.55), D * 0.5, W - D * 0.5);
-        const sy = clamp(G - D * 0.5, D * 0.5 + 2, G - D * 0.3);
+        // 게임 화면 — 돌아오는 길 꼭대기 · 나갈 때 솟음까지 연출 위 끝 (정보줄 · 지도 줄) 아래 (#107 — 알폭탄 · 씨폭탄이 위 끝에 걸쳐 0.3초 넘게)
+        const top0 = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+        const sy = clamp(G - D * 0.5, top0 > 0 ? top0 + D * 0.62 + 2 * s : D * 0.5 + 2, G - D * 0.3);
         const fx = dir > 0 ? W - D * 0.3 : D * 0.3;
-        const yr = Math.max(D * 0.55, sy - D * 0.95);
+        const yr = Math.max(top0 + D * 0.55, sy - D * 0.95);
         const tForm = 0.7;
         const tTurn = 1.5;
         const tBack = 1.8;
@@ -20898,7 +21071,11 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         if (faceFlip(img, left)) {
             ctx.scale(-1, 1);
         }
-        ctx.drawImage(color ? silhouette(img, w, h, color) : img, -w / 2, -h / 2, w, h);
+        const pic = color ? silhouette(img, w, h, color) : img;
+        ctx.drawImage(pic, -w / 2, -h / 2, w, h);
+        if (typeof fxMonNote === 'function') {
+            fxMonNote(ctx, img, pic, w, h);
+        }
         ctx.restore();
     }
     // 테두리 두른 그림 — 상하좌우로 d 만큼 밀어 찍은 실루엣 위에 그림
@@ -21026,7 +21203,10 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
     function geyser(sc, x, G, hw, hTop, dur, cols) {
         const s = sc.u.S;
         let spray = 0;
-        const it = sc.add({ max: dur,
+        // 게임 화면 — 연출 위 끝까지 솟는 물기둥은 위 끝 층 (기둥 · 크기 그대로 — #107)
+        const top0 = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+        const tall = top0 > 0 && !!sc.soft && G - hTop * 1.1 < top0 + 4 * s;
+        const it = (tall ? sc.soft : sc.add)({ max: dur,
             update: (it, dt) => {
                 const t = it.life / dur;
                 if (t > 0.55) {
@@ -21041,7 +21221,8 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                     }
                     const a = -Math.PI / 2 + rnd(-0.9, 0.9);
                     const sp = hTop * rnd(0.4, 0.9);
-                    sigParticle({ x: x + rnd(-1, 1) * hw * 0.5, y: top, s, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, g: hTop * 2.4, drag: 0.4, max: rnd(0.5, 0.9), color: pick(cols), size: pick([1, 2, 2]), draw: DRAW.dot });
+                    // 솟는 기둥 끝에서 튀는 물보라도 위 끝 층 (기둥 끝 위로 줄지어 날아 위 끝에 걸쳐 머물던 것 — #107)
+                    sigParticle({ x: x + rnd(-1, 1) * hw * 0.5, y: top, s, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, g: hTop * 2.4, drag: 0.4, max: rnd(0.5, 0.9), color: pick(cols), size: pick([1, 2, 2]), draw: DRAW.dot, ...(tall ? { _softTop: true } : {}) });
                 }
             },
             draw: (ctx, it, t, px) => {
@@ -21107,7 +21288,9 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             return [cx + rot * b * Math.cos(phi) * hw, G - h * R * V + b * Math.sin(phi) * hw * TILT];
         };
         const headOf = (seed, span, speed) => (hash(seed, 6) * (1 + span) + phase * speed) % (1 + span);
-        sc.add({ max: dur,
+        // 게임 화면 — 연출 위 끝까지 솟는 돔은 크기 그대로 위 끝 띠 위만 위 끝 층 (돔 앞에 다시 그리는 꼭두각시 · 베인 자국은 앞 그대로 — #107)
+        const gTop = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+        (gTop > 0 && sc.split && G - Rmax * V < gTop + 4 * s ? sc.split : sc.add)({ max: dur,
             update: (it, dt) => {
                 const life = it.life;
                 const k = grow(life);
@@ -21349,11 +21532,20 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             return [lerp(ax, me.x, easeIn(k)), lerp(aB, me.b, easeIn(k)) - Math.sin(k * Math.PI) * me.h * 0.3, 0];
         };
         // 표창 자리 — 머리 위(뛰어오르는 꼭두각시를 따라감) · 내리꽂힘 · 꽂혀 부르르(달아오를수록 세게)
+        // 게임 화면 — 머리 위에 표창 (반지름 D × 0.5) 이 연출 위 끝 아래로 들어갈 자리가 없으면 (187 3:3 무대 약 121px < 몸 + 표창) 크기는 그대로 몸 앞쪽으로 (ux-rules U4 · #107)
+        const gT = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+        const overMin = gT > 0 ? gT + D * 0.5 + 2 * s : -Infinity;
         const over = (t) => {
             const [x, b] = pup(t);
-            return [clamp(x - dir * me.w * 0.15, D * 0.5, W - D * 0.5), Math.max(D * 0.5 + 2, b - me.h - D * 0.42)];
+            const y = Math.max(D * 0.5 + 2, b - me.h - D * 0.42);
+            if (y >= overMin) {
+                return [clamp(x - dir * me.w * 0.15, D * 0.5, W - D * 0.5), y];
+            }
+            return [clamp(x + dir * (me.w * 0.5 + D * 0.5), D * 0.5, W - D * 0.5), Math.min(G - D * 0.5, Math.max(overMin, b - me.h * 0.5))];
         };
         const [bx, by] = over(T2);
+        // 모으는 소용돌이 · 두근 고리의 세로 여유 — 위 끝 · 판 아래 끝에 닿던 것 (픽셀 검사원 #107 작음) · 세로만 납작하게 (폭 · 크기는 그대로)
+        const vRoom = (cy) => Math.max(s * 4, Math.min(cy - Math.max(0, gT) - 4, H - cy - 2));
         // 꽂히는 곳 — 화면 끝에서 조금 안쪽 (물기둥 · 대폭발이 화면 안에 다 보이게) · 게임은 대상 자리 (3:3 은 상대가 화면 끝이 아니라 오른쪽 끝에 꽂히던 것 — 태현 님 #91)
         const aim = ultAimTarget(u);
         const fx = aim ? clamp(aim.x, D * 0.75, W - D * 0.75) : dir > 0 ? W - Math.max(D * 0.75, W * 0.14) : Math.max(D * 0.75, W * 0.14);
@@ -21472,7 +21664,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             }
             fillPaths(ctx, paths, [DARK[1], '#ffffff'], life < T6 ? 0.85 : hot ? 1 : 1 - (life - T6 - 0.1) / 0.25);
         };
-        sc.add({ max: TB, draw: drawCuts });
+        sc.split({ max: TB, draw: drawCuts }); // 하늘까지 가르는 베인 자국 — 위 끝 띠 위만 위 끝 층 (#107)
         // 꼭두각시 — 물빛 테두리, 뛰고 내릴 때 보랏빛 잔상 (돔이 생기면 돔 위에 다시 그림)
         const ghosts = [];
         let lastGhost = -1;
@@ -21496,7 +21688,8 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         };
         sc.add({ max: TB, draw: drawPup });
         // ② 모으기 — 물빛 · 보랏빛 두 줄기씩 소용돌이치며 표창으로 빨려 듦 (점이 안쪽으로 흘러감) + 알갱이, 두 번 두근, 다 되면 반짝
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+        //   (바깥에서 빨려 드는 줄기가 위 끝을 넘는 부분만 위 끝 층 — #107)
+        sc.split({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
             if (life < T1 + 0.05 || life > T2) {
                 return;
@@ -21505,6 +21698,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             const a = clamp(Math.min(k / 0.15, (1 - k) / 0.1), 0, 1);
             const [cx, cy] = over(life);
             const R0 = D * (1.5 - 0.4 * k);
+            const fy = Math.min(0.8, vRoom(cy) / R0);
             const inner = sizeAt(life) * 0.3;
             const paths = [new Path2D(), new Path2D(), new Path2D(), new Path2D()];
             for (let j = 0; j < 4; j++) {
@@ -21516,7 +21710,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                     const an = (j / 4) * TAU + f * 4.2 * dir + life * 7 * dir;
                     const th = f < 0.15 ? 1 : f < 0.6 ? 2 : 3;
                     const path = water ? paths[f > 0.6 ? 1 : 0] : paths[f > 0.6 ? 3 : 2];
-                    path.rect(px(cx + Math.cos(an) * r - s), px(cy + Math.sin(an) * r * 0.8 - s), th * s, th * s);
+                    path.rect(px(cx + Math.cos(an) * r - s), px(cy + Math.sin(an) * r * fy - s), th * s, th * s);
                 }
             }
             fillPaths(ctx, paths, [cols[2], cols[0], DARK[1], DARK[0]], 0.95 * a);
@@ -21535,7 +21729,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                         const [cx, cy] = over(sc.t);
                         const an = p.a0 + k * 5 * dir;
                         p.x = cx + Math.cos(an) * p.r0 * (1 - k);
-                        p.y = cy + Math.sin(an) * p.r0 * (1 - k) * 0.8;
+                        p.y = cy + Math.sin(an) * p.r0 * (1 - k) * Math.min(0.8, vRoom(cy) / p.r0);
                     },
                     draw: DRAW.dot });
             }
@@ -21543,7 +21737,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         for (const tp of pulses) {
             sc.at(tp, () => {
                 const [cx, cy] = over(tp);
-                ring(sc, cx, cy, D * 1.25, D * 0.4, 0.85, 0.3, [cols[1], DARK[1], '#ffffff'], 2);
+                ring(sc, cx, cy, D * 1.25, D * 0.4, Math.min(0.85, vRoom(cy) / (D * 1.25)), 0.3, [cols[1], DARK[1], '#ffffff'], 2);
                 ultShake(1.5, 150);
             });
         }
@@ -21658,7 +21852,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             const m = Math.max(10, W * 0.02);
             const x1 = 2 * Rd + 2 * m <= W ? (dir > 0 ? Math.min(fx, W - Rd - m) : Math.max(fx, Rd + m)) : W / 2;
             swirlDome(sc, fx, x1, G, D * 0.4, Rd, vmax, TD, cols, dir, (r) => hit(r, -dir, 'spin'));
-            sc.add({ max: sec, draw: drawCuts });
+            sc.split({ max: sec, draw: drawCuts });
             sc.add({ max: sec, draw: drawPup });
             ring(sc, fx, fy, D * 0.3, Math.max(W, H) * 0.7, 0.8, 0.6, ['#ffffff', cols[1], cols[2]], 3);
             ring(sc, fx, fy, D * 0.2, Math.max(W, H) * 0.45, 0.8, 0.5, ['#ffffff', DARK[1]], 2);
@@ -21980,7 +22174,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             const x1 = 2 * Rc + 2 * m <= W ? clamp(tx, Rc + m, W - Rc - m) : W / 2;
             swirlDome(sc, tx, x1, G, D * 0.4, Rc, vmax, TDc, cols, real.to[0] < tx ? 1 : -1, (r) => hit(r, r.x < tx ? -1 : 1, 'spin'), PURPLE);
             sc.add({ max: sec, draw: drawDashers });
-            sc.add({ max: sec, draw: drawBigX });
+            sc.split({ max: sec, draw: drawBigX }); // 화면 가르는 X — 위 끝 띠 위만 위 끝 층 (#107)
             ring(sc, tx, ty, D * 0.4, Math.max(W, H) * 0.7, 0.75, 0.6, ['#ffffff', cols[1], cols[2]], 3);
             ring(sc, tx, ty, D * 0.3, Math.max(W, H) * 0.45, 0.75, 0.5, ['#ffffff', DARK[1]], 2);
             debris(tx, ty, s, cols, 60, H * 1.3, { ground: G, size: [1, 2, 2] });
@@ -22531,7 +22725,8 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             pops.push({ x: clamp(x + side * R * (0.7 + 0.18 * i + 0.2 * hash(i, 52)), 0, W), t0: 0.1 + i * 0.1, r: R * (0.32 + 0.1 * hash(i, 53)), on: false });
         }
         let spark = 0;
-        return sc.add({ max: dur,
+        // 게임 화면 — 밑동 양옆 불꽃 혀 (기둥 폭 × 1.4 높이) · 불덩이 파편이 위 끝을 넘으면 띠 위만 위 끝 층 (#107 — 기둥 몸은 위 끝에서 이미 끊음)
+        return (top0 > 0 && sc.split ? sc.split : sc.add)({ max: dur,
             update: (it, dt) => {
                 const life = it.life;
                 spark += dt * 100 * (1 - life / dur);
@@ -22714,7 +22909,9 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             rocks.push({ x: x + side * off, y: G - s * 2 * hash(i, 72), vx: side * R * (0.04 + 0.16 * hash(i, 73)), vy: -H * (0.05 + 0.18 * hash(i, 74)), t0: (off / R) * 0.45, z: s * (3 + Math.floor(hash(i, 75) * 3)), col: ROCK[Math.floor(hash(i, 76) * 3)] });
         }
         let spark = 0;
-        return sc.add({ max: dur,
+        // 게임 화면 — 반구 몸통은 위 끝 층 (무대보다 커서 위 끝을 넘음 · 크기는 그대로 — 태현 님 10-25 "폭발 크기는 이전하고 똑같이", #107) · 화면 물듦은 큰 캔버스 그대로
+        const soft = (typeof fxStageTop === 'function' ? fxStageTop() : 0) > 0 && !!sc.soft;
+        const main = sc.add({ max: dur,
             update: (it, dt) => {
                 const life = it.life;
                 for (const r of rocks) {
@@ -22735,12 +22932,27 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                 const life = it.life;
                 const grow = 1 - (1 - Math.min(1, life / 0.6)) ** 2; // 처음에 확 튀어나가지 않고 서서히 커짐
                 const fade = life > dur - 0.6 ? Math.max(0, (dur - life) / 0.6) : 1;
-                const rr = R * grow;
                 const hol = o.hollow ? o.hollow() : 0;
                 // 화면 전체가 빛에 물듦
                 ctx.globalAlpha = 0.22 * grow * fade * (1 - hol);
                 ctx.fillStyle = cols[1];
                 ctx.fillRect(0, 0, W, H);
+                if (!soft) {
+                    body(ctx, px, life, grow, fade);
+                }
+            } });
+        if (soft) {
+            // 위 끝 띠 아래는 큰 캔버스 (뒤에 넣는 꼭두각시 · 장식이 반구 위 그대로 — 블래스트번 메가리자몽X) · 띠 위만 위 끝 층 (코드 리뷰어 #107)
+            sc.split({ max: dur, draw: (ctx, it, t, px) => {
+                const life = main.life;
+                body(ctx, px, life, 1 - (1 - Math.min(1, life / 0.6)) ** 2, life > dur - 0.6 ? Math.max(0, (dur - life) / 0.6) : 1);
+            } });
+        }
+        return main;
+        // 반구 몸통 · 빛줄기 · 돌덩이 (큰 캔버스 · 위 끝 층 둘 다 — o.hollow 도 같이)
+        function body(ctx, px, life, grow, fade) {
+                const rr = R * grow;
+                const hol = o.hollow ? o.hollow() : 0;
                 domeLight(ctx, px, s, x, G, rr, cols, life, fade, hol > 0.5);
                 // 빛줄기 — 하얀 심 안에서만
                 if (rr > s * 10 && hol <= 0.5) {
@@ -22771,7 +22983,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                     }
                 }
                 fillPaths(ctx, rp, [ROCK[0], ROCK[1], ROCK[2]], Math.min(1, fade * 1.5));
-            } });
+        }
     }
     // 빛의 반구 그림 — 반지름 R, 하얀 심 · 하늘 · 파랑 테두리(도트 섞기로 부드럽게) · 바깥 빛 무리(반 · 4분의 1 도트로 반투명처럼).
     // 가장자리는 거의 매끈하게, 아주 잘게만 일렁. show(1 → 0)에 따라 색이 한 단계씩 어두워지다(하양 → 연하늘 → 하늘 → 파랑 → 짙은 파랑) 사라짐
@@ -23089,7 +23301,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             const e = 0.7 * k + 0.3 * k * k;
             return [lerp(m.sx, m.lx, e), lerp(m.sy, G - m.r * 0.5, e)];
         };
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+        sc.soft({ max: sec, draw: (ctx, it, t, px) => { // 하늘에서 쏟아지는 유성 — 위 끝 층 (#107)
             const life = sc.t;
             for (const m of mets) {
                 if (life >= m.t0 && life < m.land) {
@@ -25071,7 +25283,8 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         });
         // ④ 거대한 물 폭발 — 물줄기가 그치면 맞는 자리에서 물 구가 확 부풀어 터짐
         const boomR = Math.min(G * 0.7, Math.max(W * 0.22, bw * 3));
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+        // (무대 높이 0.7배 반지름 — 크기 그대로 위 끝 층, #107)
+        sc.soft({ max: sec, draw: (ctx, it, t, px) => {
             const k = sc.t - TN;
             if (k < 0 || k > 0.7) {
                 return;
@@ -25217,6 +25430,9 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         const ix = clamp(ahead ? q.x : me.x + dir * W * 0.5, W * 0.08, W * 0.92);
         let mz = [cx + dir * me.w * 0.5, me.b - me.h * 1.1]; // 거대한 대포 포구 (그릴 때마다 갱신)
         let arm = [cx + dir * me.w * 0.5, me.b - me.h * 0.4]; // 팔 대포 포구
+        // 모을 때 대포를 치켜드는 각 (아래 꼭두각시가 위 끝에 맞춰 줄임 — #107)
+        let raise = -0.5;
+        const gTopML = typeof fxStageTop === 'function' ? fxStageTop() : 0;
         const pulses = [0.7, 1.05, 1.35];
         const bpulses = [0.6, 1.0, 1.3, 1.55].map((p) => TM + (p * (TS - TM)) / 1.7);
         const beatAt = (t, list) => list.reduce((m, tp) => Math.max(m, clamp(1 - Math.abs(t - tp) / 0.1, 0, 1)), 0);
@@ -25260,8 +25476,11 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                 const paths = [new Path2D(), new Path2D()];
                 for (let i = 0; i < 12; i++) {
                     const a = (i / 12) * TAU + life * 0.9 * dir;
-                    const L = pullR * (0.55 + 0.35 * Math.sin(life * 6 + i * 1.7)) * ramp;
-                    addLine(paths[i % 2], px, s, [[cx + Math.cos(a) * Ro * 0.9, cy + Math.sin(a) * Ro * 0.9], [cx + Math.cos(a) * L, cy + Math.sin(a) * L]], i % 2 ? 1 : 2);
+                    // 게임 화면 — 위로 뻗는 줄은 연출 위 끝 조금 아래에서 멈춤 (#107)
+                    const L = Math.min(pullR * (0.55 + 0.35 * Math.sin(life * 6 + i * 1.7)) * ramp, gTopML > 0 && Math.sin(a) < -0.05 ? (cy - gTopML - 3 * s) / -Math.sin(a) : Infinity);
+                    if (L > Ro * 0.9) {
+                        addLine(paths[i % 2], px, s, [[cx + Math.cos(a) * Ro * 0.9, cy + Math.sin(a) * Ro * 0.9], [cx + Math.cos(a) * L, cy + Math.sin(a) * L]], i % 2 ? 1 : 2);
+                    }
                 }
                 fillPaths(ctx, paths, ['#ffffff', TIDE[1]], 0.8 * ramp);
                 fireOrb(ctx, px, s, cx, cy, Ro, GLOW, life, (0.6 + 0.5 * k) * ramp, G, 0.6);
@@ -25271,7 +25490,11 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                 const tT = typeof fxStageTop === 'function' ? fxStageTop() : 0;
                 const swell = Math.min(1.1 + (k > 0.9 ? 0.15 : 0.3 * Math.sin((flips % 1) * Math.PI)), tT > 0 ? Math.max(1, (me.b - tT - 2 * s) / (me.h * 1.3)) : Infinity);
                 if (showMega) {
-                    megaTurtle(ctx, px, s, img, cx, me.b, me.w * swell, left, dir, edge * 2, 1);
+                    const m = megaTurtle(ctx, px, s, img, cx, me.b, me.w * swell, left, dir, edge * 2, 1, raise);
+                    // 치켜든 포신 (굵기 · 테 포함 몸 폭 × 0.25) 이 연출 위 끝을 넘으면 덜 치켜듦 (자세만 — #107)
+                    if (gTopML > 0 && raise < 0 && m[1] - me.w * 0.25 < gTopML) {
+                        raise = Math.min(0, raise + 0.1);
+                    }
                 } else {
                     drawLitMon(ctx, img, cx, me.b, me.w * swell, left, TIDE[1], edge * 2, 1);
                     drawMon(ctx, img, cx, me.b, me.w * swell, left, 1, '#ffffff');
@@ -25282,8 +25505,12 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                 drawMon(ctx, img, cx, me.b, me.w, left, 1, '#ffffff');
                 return;
             }
-            const aim = lerp(-0.5, aimAng, easeOut(clamp((life - TS + 0.5) / 0.4, 0, 1))); // 모을 땐 치켜들고 쏘기 직전 과녁으로
+            const aim = lerp(raise, aimAng, easeOut(clamp((life - TS + 0.5) / 0.4, 0, 1))); // 모을 땐 치켜들고 쏘기 직전 과녁으로
             mz = megaTurtle(ctx, px, s, img, cx + kickAt(life), me.b, me.w, left, dir, edge, life > TBack - 0.4 ? 1 : clamp(1 - (life - TM) / 0.35, 0, 0.99), aim);
+            // 게임 화면 — 포구 물 구 (도는 고리 r × 1.85) 가 연출 위 끝을 넘으면 덜 치켜듦 (자세만 · 크기 그대로 — 물 구가 다 크기 전에 맞춰짐, #107)
+            if (gTopML > 0 && life < TS - 0.5 && raise < 0 && mz[1] - Rb * 1.12 * 1.85 - 2 * s < gTopML) {
+                raise = Math.min(0, raise + 0.1);
+            }
             arm = mz.arm || arm;
         } });
         // ① 기 모으기
@@ -25623,8 +25850,8 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                 ctx.fillRect(0, 0, W, H);
             }
         } });
-        // 보랏빛 오라 · 돌덩이 (뮤츠 뒤)
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+        // 보랏빛 오라 · 돌덩이 (뮤츠 뒤 — 떠오른 몸 위로 솟는 오라 윗부분만 위 끝 층, #107)
+        sc.split({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
             const k = clamp((life - TC0) / 0.5, 0, 1) * (1 - clamp((life - TD) / 0.4, 0, 1));
             if (k > 0.02) {
@@ -25884,8 +26111,10 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         const TSL = TS + 0.3; // 내리치기
         const TI = TSL + 0.2; // 땅에 닿음
         const TBack = sec - 0.5;
-        const lift = me.h * 0.35;
         const Ro = Math.max(me.w, me.h) * 0.75;
+        // 게임 화면 — 떠오른 몸을 감싼 염력 구 (진화 때 r × 1.1 · 불꽃 혀 × 1.3) 가 연출 위 끝 아래에 들도록 덜 떠오름 (#107 — 높이만)
+        const gTop = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+        const lift = Math.min(me.h * 0.35, gTop > 0 ? Math.max(0, me.b - me.h * 0.5 - (gTop + Ro * 1.1 * 1.3 + 2 * s) - 1.5 * s) : Infinity);
         const pullR = Math.max(Ro * 3.5, D * 1.1);
         const bob = (t) => Math.sin(t * 3) * s * 1.5;
         const footAt = (t) => {
@@ -26012,6 +26241,16 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                 drawMon(ctx, L.img, x, b, L.w, L.left, 0.25 + 0.1 * Math.sin(life * 14), MEWP[1]);
             }
         } });
+        // 뒤로 보랏빛 오라 (돌릴 때 · 내리칠 때 크게 — 메가뮤츠Y 뒤 · 위 끝을 넘는 윗부분만 위 끝 층, #107)
+        sc.split({ max: sec, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life < TM || life > TBack - 0.2) {
+                return;
+            }
+            const w = megaW();
+            const big = life > TL1 && life < TI + 0.3 ? 1.3 : 1;
+            flameTongue(ctx, px, s, me.x, footAt(life) + s * 2, w * 1.0 * big, w * 1.35 * big, MEWP, life, clamp((life - TM) / 0.3, 0, 1));
+        } });
         // 메가뮤츠Y (꼭두각시) · 진화 모션
         sc.add({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
@@ -26035,8 +26274,11 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                 const paths = [new Path2D(), new Path2D()];
                 for (let i = 0; i < 12; i++) {
                     const a = (i / 12) * TAU + life * 0.9 * dir;
-                    const L = pullR * (0.55 + 0.35 * Math.sin(life * 6 + i * 1.7)) * ramp;
-                    addLine(paths[i % 2], px, s, [[me.x + Math.cos(a) * Ro * 0.9, c + Math.sin(a) * Ro * 0.9], [me.x + Math.cos(a) * L, c + Math.sin(a) * L]], i % 2 ? 1 : 2);
+                    // 게임 화면 — 위로 뻗는 줄은 연출 위 끝 조금 아래에서 멈춤 (#107)
+                    const L = Math.min(pullR * (0.55 + 0.35 * Math.sin(life * 6 + i * 1.7)) * ramp, gT > 0 && Math.sin(a) < -0.05 ? (c - gT - 3 * s) / -Math.sin(a) : Infinity);
+                    if (L > Ro * 0.9) {
+                        addLine(paths[i % 2], px, s, [[me.x + Math.cos(a) * Ro * 0.9, c + Math.sin(a) * Ro * 0.9], [me.x + Math.cos(a) * L, c + Math.sin(a) * L]], i % 2 ? 1 : 2);
+                    }
                 }
                 fillPaths(ctx, paths, ['#ffffff', MEWP[1]], 0.8 * ramp);
                 fireOrb(ctx, px, s, me.x, c, Ro, GLOW, life, (0.6 + 0.5 * k) * ramp, G, 0.6);
@@ -26057,9 +26299,6 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             }
             const w = megaW();
             const b = footAt(life);
-            // 뒤로 보랏빛 오라 (돌릴 때 · 내리칠 때 크게)
-            const big = life > TL1 && life < TI + 0.3 ? 1.3 : 1;
-            flameTongue(ctx, px, s, me.x, b + s * 2, w * 1.0 * big, w * 1.35 * big, MEWP, life, clamp((life - TM) / 0.3, 0, 1));
             drawLitMon(ctx, megaImg(), me.x, b, w, megaLeft(), MEWP[2], edge, 1);
             const appear = clamp(1 - (life - TM) / 0.35, 0, 1);
             if (appear > 0) {
@@ -26150,7 +26389,8 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         });
         // 내리꽂힌 자리마다 작은 보랏빛 폭발 · 메가뮤츠Y 둘레 거대한 염력 폭발
         const bigR = Math.min(G * 0.75, Math.max(D * 1.2, me.w * 3.5));
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+        // (거대한 염력 폭발 — 크기 그대로 위 끝 층, #107)
+        sc.soft({ max: sec, draw: (ctx, it, t, px) => {
             const k = sc.t - TI;
             if (k < 0 || k > 0.8) {
                 return;
@@ -26164,7 +26404,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         } });
         sc.at(TI, () => {
             for (const L of lifted) {
-                strike(sc, L.x, G - s, L.x + rnd(-1, 1) * L.w, Math.max(s * 2, G - L.h * 4), { mid: MEWP[0], glow: MEWP[2], dur: 0.4, branches: 1, w: 2 }); // 위로 솟는 번개
+                strike(sc, L.x, G - s, L.x + rnd(-1, 1) * L.w, Math.max(s * 2, G - L.h * 4), { mid: MEWP[0], glow: MEWP[2], dur: 0.4, branches: 1, w: 2, soft: true }); // 위로 솟는 번개
             }
             for (let i = 0; i < 8; i++) {
                 const a = -Math.PI + ((i + 0.5) / 8) * Math.PI;
@@ -26532,8 +26772,8 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         hideMon(pokemon, true);
         hideUntil(pokemon, ms + 100);
 
-        // 기술 연출 (뮤 뒤)
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+        // 기술 연출 (뮤 뒤 — 불기둥 · 하늘에서 떨어지는 얼음이 위 끝을 넘는 윗부분만 위 끝 층, #107)
+        sc.split({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
             const i = Math.floor((life - T0) / STEP);
             if (life < T0 || i >= KINDS.length) {
@@ -26641,7 +26881,8 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         });
         // ⑥ 거품이 펑 — 분홍 대폭발 · 별 반짝이 · 충격파
         const boomR = Math.min(G * 0.6, Math.max(D * 1.1, me.w * 3));
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+        // 대폭발 (무대 높이 0.6배 반지름 — 크기 그대로 위 끝 층, #107)
+        sc.soft({ max: sec, draw: (ctx, it, t, px) => {
             const k = sc.t - TPOP;
             if (k < 0 || k > 0.8) {
                 return;
@@ -28562,34 +28803,45 @@ function t11Gather(ctx, q) {
             const prevLate = lateDraw;
             lateDraw = () => {
                 prevLate?.();
-                // 김 (6바퀴 값): 10덩이 · 반지름 3칸 → 2걸음마다 1칸 커져 4칸 (187 에서 12 ~ 16px) · 세 톤 (위 1칸 #ffffff · 몸 #e8eef2 · 밑 1칸 #b8c4cc) · 가장자리 1칸 바둑판 ·
-                // 마지막 두 걸음은 바둑판으로 사라짐 · 몸 위쪽 양옆 (불꽃 혀 끝 높이) 에서 생김 (6 ~ 10px 흰 점이 자갈 · 팝콘처럼 읽히던 것 — #96 아트 6바퀴 2)
-                const f100 = Math.floor(now / 100);
+                // 김 (아트 디렉터 #113 — 흰 덩어리가 같은 자리에 머물러 태현 님이 어색해한 "뭉게 공" 으로 읽히던 것 · ideas 721 · 디자인 값 2판):
+                //   고리 4개 (양옆 2개씩 — 몸 폭 × 0.6 안쪽 · × 0.9 바깥쪽, 같은 쪽 둘은 위 · 아래로 12칸 떨어짐) · 반지름 4칸 · 여덟 자리 중 둘 비움 (걸음마다 돎) · 1칸 점 #e8f6ff + 바깥 점 하나 #8fd8ff ·
+                //   위로 오르는 점 2 ~ 3개 · 100ms 마다 5px 위로 · 시작 0.15초씩 엇갈림 · 마지막 두 걸음은 반씩 사라짐
                 const STEPS = 8;
-                for (let i = 0; i < 10; i++) {
+                const STEAM = '#e8f6ff';
+                const RIM = '#8fd8ff';
+                const rc = 4;
+                // 위 끝 띠 (8px) 에서는 띠 무늬로 남고 위 끝 위는 안 그림 (픽셀 검사원 #107 — 김이 위 끝에 일자로 닿던 것)
+                const sdot = (x, y, col) => {
+                    if (typeof fxBandKeep !== 'function' || fxBandKeep(px(x), px(y))) {
+                        dot(x, y, col);
+                    }
+                };
+                for (let i = 0; i < 4; i++) {
                     const sd = i % 2 ? 1 : -1;
-                    const step = (f100 + i * 3) % STEPS;
-                    const cx = b.x + sd * (b.w * 0.5 + (2 + (i % 3) * 3) * k);
-                    const cy = b.y - b.h * 0.1 - step * 5 - (i % 4) * 2 * k;
-                    const rc = 3 + Math.min(1, Math.floor(step / 4));
+                    const outer = i >= 2;
+                    const upper = i === 1 || i === 2;
+                    const step = ((Math.floor((now - i * 150) / 100) % STEPS) + STEPS) % STEPS;
+                    const cx = b.x + sd * b.w * (outer ? 0.9 : 0.6);
+                    const cy = b.y - b.h * 0.1 - (upper ? 12 * k : 0) - step * 5;
                     const fade = step >= STEPS - 2 ? step - (STEPS - 3) : 0;
-                    for (let dy = -rc; dy <= rc; dy++) {
-                        for (let dx = -rc; dx <= rc; dx++) {
-                            const d2 = dx * dx + dy * dy;
-                            if (d2 > rc * rc + rc) {
-                                continue;
-                            }
-                            const rim = d2 > (rc - 1) * (rc - 1) + (rc - 1);
-                            const gx = Math.round(cx / k) + dx;
-                            const gy = Math.round(cy / k) + dy;
-                            if ((rim || fade) && (((gx + gy + fade) % 2) + 2) % 2 === 0) {
-                                continue;
-                            }
-                            if (fade >= 2 && ((gx + 2 * gy) % 3 + 3) % 3 === 0) {
-                                continue;
-                            }
-                            dot(gx * k, gy * k, dy === -rc || (dy === 1 - rc && !rim) ? '#ffffff' : dy === rc ? '#b8c4cc' : '#e8eef2');
+                    const gx0 = Math.round(cx / k);
+                    const gy0 = Math.round(cy / k);
+                    // 끊긴 점 고리 — 여덟 자리 중 둘은 비움 (걸음마다 돎) · 바깥 점 하나는 하늘색
+                    const blue = (step + i * 3) % 8;
+                    for (let j = 0; j < 8; j++) {
+                        if ((j + i + step) % 4 === 0 || (fade && (j + fade) % 2 === 0)) {
+                            continue;
                         }
+                        const a8 = (j / 8) * Math.PI * 2;
+                        sdot((gx0 + Math.round(Math.cos(a8) * rc)) * k, (gy0 + Math.round(Math.sin(a8) * rc * 0.8)) * k, j === blue ? RIM : STEAM);
+                    }
+                    // 위로 오르는 점 2 ~ 3개
+                    const nUp = 2 + (i % 2);
+                    for (let j = 0; j < nUp; j++) {
+                        if (fade >= 2 && j % 2) {
+                            continue;
+                        }
+                        sdot((gx0 + Math.round((j - (nUp - 1) / 2) * 2)) * k, (gy0 - rc - 2 - ((step + j * 2) % 4)) * k, STEAM);
                     }
                 }
             };
@@ -28907,6 +29159,103 @@ function t11LeafBurst(tb, k, add = sigParticle) {
                 }
             }
         }
+    } });
+}
+
+/**
+ * 장면 전환 합동 — 일반 틀 풀 앞장 (씨기관총 · 씨뿌리기 등) 의 끝 (#108 디자인 — 상대 합동 숲의 분노 마무리가 하트 10개로 약하던 것):
+ * 잎 16장 (8 × 5칸 세 톤 — 나무지기 잎 그림 · 0.12초마다 뒤집힘) + 동료가 페어리면 하트 8 (5 × 5 · 상대 = #ff5a8a) 이
+ * 맞는 몸 둘레에서 사방으로 솟았다가 팔랑이며 발밑에 내려앉음 (1.2 ~ 1.7초 · 반지름 90px · 패널 폭 35% · 무대 위 15% 아래) +
+ * 땅 점선 고리 (2px 점 · 4px 틈) 가 발밑에서 패널 폭 60% 까지 0.5초 (앞장 색 → 동료 색) · 끝 0.2초 바둑판으로 사라짐
+ */
+// [x, y, 톤] 8 × 5칸 · 가운데 (3.5, 2) — 톤 0 = 밝은 위 · 1 = 테 · 잎맥 · 꼭지 · 2 = 아래 (두 톤이면 풀밭과 밝기가 같아 누운 알약처럼 읽히던 것 — 디자인 #108 테 세 톤)
+const T11_LEAF8 = [[2, 0, 1], [3, 0, 0], [4, 0, 0], [5, 0, 0], [6, 0, 1], [0, 1, 1], [1, 1, 0], [2, 1, 0], [3, 1, 0], [4, 1, 0], [5, 1, 0], [6, 1, 0], [7, 1, 1],
+    [0, 2, 1], [1, 2, 2], [2, 2, 1], [3, 2, 1], [4, 2, 1], [5, 2, 1], [6, 2, 2], [7, 2, 1], [1, 3, 1], [2, 3, 2], [3, 3, 2], [4, 3, 2], [5, 3, 2], [6, 3, 1],
+    [2, 4, 1], [3, 4, 1], [4, 4, 1], [5, 4, 1]];
+const T11_LEAF8_C = ['#b8ec6c', '#1f4a1c', '#6cc04a'];
+function t11ForestBurst(tb, k, allyTypes, foe, add = sigParticle) {
+    const W = window.innerWidth;
+    const top0 = t33Top();
+    const floor = tb.y + tb.h / 2;
+    const rx = Math.min(90, W * 0.35);
+    const ry = Math.max(20, Math.min(90, tb.y - (top0 + (window.innerHeight - top0) * 0.15)));
+    const fairy = allyTypes.includes('fairy');
+    const heartC = foe ? ['#ffe0ea', '#ff5a8a'] : [T11_STAR_COLS.fairy[0], T11_STAR_COLS.fairy[2]];
+    const hash = (i, s) => (((i + 1) * 9301 + s * 49297) % 233280) / 233280;
+    const bits = Array.from({ length: fairy ? 24 : 16 }, (_, i) => {
+        const heart = i >= 16;
+        const j = heart ? i - 16 : i;
+        const m = heart ? 8 : 16;
+        return { heart, a: (j / m) * Math.PI * 2 + (heart ? Math.PI / 8 : 0) + (hash(i, 1) - 0.5) * 0.3, d: 0.6 + hash(i, 2) * 0.4, t0: 0.05 + hash(i, 3) * 0.2, life: 1.2 + hash(i, 4) * 0.5, fall: 18 + hash(i, 5) * 14 };
+    });
+    const ringC = [T11_STAR_COLS.grass[2], fairy ? heartC[1] : (T11_STAR_COLS[allyTypes[0]] || T11_STAR_COLS.grass)[2]];
+    add({ x: 0, y: 0, s: k, max: 2, z: 1, draw: (ctx, p) => {
+        const px = (v) => Math.round(v / k) * k;
+        ctx.globalAlpha = 1;
+        ctx.imageSmoothingEnabled = false;
+        // 땅 점선 고리 — 0.5초에 패널 폭 60% (반지름 30%) · 위아래 0.25 · 점 2px · 틈 4px · 앞 0.25초 앞장 색 → 동료 색 · 0.5 ~ 0.7초 바둑판
+        if (p.life < 0.7) {
+            const R = W * 0.3 * Math.min(1, p.life / 0.5);
+            const n = Math.max(8, Math.floor((Math.PI * 2 * R) / 6));
+            ctx.fillStyle = ringC[p.life < 0.25 ? 0 : 1];
+            for (let i = 0; i < n; i++) {
+                if (p.life > 0.5 && (i + Math.floor(p.life / 0.1)) % 2 === 0) {
+                    continue;
+                }
+                const a = (i / n) * Math.PI * 2;
+                const x = px(tb.x + Math.cos(a) * R);
+                const y = px(floor + Math.sin(a) * R * 0.25);
+                if (x >= 0 && x < W && y >= top0) {
+                    ctx.fillRect(x, y, 2, 2);
+                }
+            }
+        }
+        const leaf = T11_LEAF8_C.map(() => new Path2D());
+        const hearts = [new Path2D(), new Path2D()];
+        bits.forEach((b, i) => {
+            const t = p.life - b.t0;
+            if (t < 0 || t >= b.life) {
+                return;
+            }
+            // 솟음 0.35초 (빨리 → 느리게) → 팔랑이며 내려앉음 (좌우 3칸 흔들림) · 끝 0.2초 바둑판
+            const u = Math.min(1, t / 0.35);
+            const out = 1 - (1 - u) * (1 - u);
+            // 다 위로 솟음 (위 0.9 · 옆 0.55 · 아래 0.2 × ry) · 가로는 화면 끝까지 남은 만큼만 (맞는 몸이 끝 가까이면 반이 밖으로 나가던 것 — t11LeafBurst 와 같음)
+            const room = Math.cos(b.a) > 0 ? W - tb.x - 8 * k : tb.x - 8 * k;
+            const x0 = tb.x + Math.cos(b.a) * Math.max(0, Math.min(rx, room)) * b.d * out + (t > 0.35 ? Math.sin(t * 6 + i) * 3 * k : 0);
+            const y0 = Math.min(floor - 2 * k, tb.y + (Math.sin(b.a) * 0.35 - 0.55) * ry * b.d * out + (t > 0.35 ? b.fall * (t - 0.35) * (1 + t) : 0));
+            if (b.life - t < 0.2 && (i + Math.floor(t / 0.1)) % 2 === 0) {
+                return;
+            }
+            if (b.heart) {
+                const rows = T11_SPR.heart;
+                for (let r = 0; r < 5; r++) {
+                    for (let c = 0; c < 5; c++) {
+                        const ch = rows[r][c];
+                        const y = px(y0 + (r - 2) * k);
+                        if (ch !== '.' && y >= top0) {
+                            hearts[ch === '0' ? 0 : 1].rect(px(x0 + (c - 2) * k), y, k, k);
+                        }
+                    }
+                }
+                return;
+            }
+            const flip = (Math.floor(p.life / 0.12) + i) % 2 === 1;
+            for (const [cx, cy, tone] of T11_LEAF8) {
+                const y = px(y0 + (cy - 2) * k);
+                if (y >= top0) {
+                    leaf[tone].rect(px(x0 + (flip ? 3.5 - cx : cx - 3.5) * k), y, k, k);
+                }
+            }
+        });
+        leaf.forEach((path, j) => {
+            ctx.fillStyle = T11_LEAF8_C[j];
+            ctx.fill(path);
+        });
+        ctx.fillStyle = heartC[1];
+        ctx.fill(hearts[1]);
+        ctx.fillStyle = heartC[0];
+        ctx.fill(hearts[0]);
     } });
 }
 
@@ -29450,6 +29799,8 @@ const T11_FINALE = {
     const UNIQ = {}; // 이름 → { fx, ms(P, o), run(u, o, ms, pokemon) }
     // 게임 화면 연출 위 끝 (bridge fxStageTop — 정보줄 · 지도 줄 아래 끝) · 일반 모드 · 3:3 무대 상자 안은 0 — 위로 던지는 불덩이 · 뛰어오른 몸이 그 뒤로 숨지 않게 (#105)
     const gameTop = () => (typeof fxStageTop === 'function' ? fxStageTop() : 0);
+    // 하늘에서 퍼지는 고리 (fx-sky ring 과 같음) — 위 끝 층 (위 끝 위는 지우고 바둑판 띠로 흩어짐 · #107)
+    const ringSoft = (sc, x, y, r0, r1, flat, dur, cols, th = 1) => sc.soft({ max: dur, draw: (ctx, it, t, px) => K.ringDots(ctx, px, sc.u.S, x, y, r0 + (r1 - r0) * easeOut(t), flat, cols, (1 - t) ** 1.2, th) });
     // 3:3 장면 전환 합동 — 전용 구도 구 자리를 알림 (fx-sky jointOrb · #96 아트 5바퀴 1)
     const jointOrb = K.jointOrb;
 
@@ -30224,10 +30575,16 @@ const T11_FINALE = {
         const ew0 = me.w * 0.95;
         // 반원 가운데 — 패널 끝에 선 애라도 일곱이 다 보이게 안쪽으로
         const ax = clamp(me.x, Math.min(W / 2, Rr + ew0 * 0.6), Math.max(W / 2, W - Rr - ew0 * 0.6));
+        // 게임 화면 — 진화형 (점 고리 r = 폭 × 0.62 · 둥실 1.5칸까지) 은 연출 위 끝 아래 (#107 — 위쪽 셋이 정보줄 · 지도 줄에 걸쳐 머물던 것 · 크기 그대로) ·
+        //   위가 막혀 반원이 납작해지면 가로로 넓혀 일곱이 겹치지 않게
+        const bTop = gameTop() > 0 ? gameTop() + ew0 * 1.1 + 4 * s : ew0 * 1.1;
+        const squeezed = gameTop() > 0 && cy0 - Rr * 0.85 + ew0 * 0.45 < bTop;
+        const Rx = squeezed ? Math.max(Rr, Math.min(W * 0.42, ew0 * 2.8)) : Rr;
+        const axw = clamp(me.x, Math.min(W / 2, Rx + ew0 * 0.6), Math.max(W / 2, W - Rx - ew0 * 0.6));
         const evos = EVOS.map(([name, gen, c], i) => {
             const a = -Math.PI * (0.08 + (0.84 * i) / (EVOS.length - 1));
             return { img: evoImg(pokemon.pokemonRoot || '', name, gen), cols: sigPal(c), t0: TA + i * 0.17,
-                x: clamp(ax + Math.cos(a) * Rr, ew0 * 0.6, W - ew0 * 0.6), b: clamp(cy0 + Math.sin(a) * Rr * 0.85 + ew0 * 0.45, ew0 * 1.1, G), w: ew0 };
+                x: clamp((squeezed ? axw : ax) + Math.cos(a) * Rx, ew0 * 0.6, W - ew0 * 0.6), b: clamp(cy0 + Math.sin(a) * Rr * 0.85 + ew0 * 0.45, Math.min(bTop, G), G), w: ew0 };
         });
         const xAt = (t) => (t < TGO + 0.2 ? me.x : t < THIT ? lerp(me.x, tx, easeIn((t - TGO - 0.2) / TDASH)) : t < TBACK ? tx : lerp(tx, me.x, clamp((t - TBACK) / 0.45, 0, 1)));
         const footAt = (t) => (t > TBACK ? me.b - Math.sin(clamp((t - TBACK) / 0.45, 0, 1) * Math.PI) * me.h * 0.4 : me.b);
@@ -30380,7 +30737,8 @@ const T11_FINALE = {
         const cxF = clamp(W / 2, me.w, W - me.w);
         const TDIZZY = TI + 0.5;
         const THOME = sec - 0.6;
-        const topY = Math.max(me.h * 1.2, G * 0.25);
+        // 게임 화면 — 하늘로 솟은 꼭대기에서도 몸은 위 끝 띠 (8px) 아래 (#107 — 오라 윗부분만 위 끝 층)
+        const topY = Math.max(me.h * 1.2, G * 0.25, gameTop() > 0 ? gameTop() + 8 + me.h + 2 * s : 0);
         const xAt = (tt) => {
             if (tt < TR0) {
                 return me.x;
@@ -30436,8 +30794,8 @@ const T11_FINALE = {
                 ctx.fillRect(0, 0, W, H);
             }
         } });
-        // 붉은 분노의 오라 (망나뇽 뒤) — 질주 중엔 뒤로 눕힌 불꽃 꼬리
-        sc.add({ max: TDIZZY, draw: (ctx, it, tt, px) => {
+        // 붉은 분노의 오라 (망나뇽 뒤) — 질주 중엔 뒤로 눕힌 불꽃 꼬리 (위 끝을 넘는 윗부분만 위 끝 층 — #107)
+        sc.split({ max: TDIZZY, draw: (ctx, it, tt, px) => {
             const life = sc.t;
             const k = clamp((life - TC0) / 0.4, 0, 1) * (1 - clamp((life - TI) / 0.4, 0, 1));
             if (k <= 0.02) {
@@ -31072,8 +31430,8 @@ const T11_FINALE = {
                 }
             }
         });
-        // 회오리 — 광선 끝에 솟아 감아올림
-        sc.add({ max: TB + 0.1, draw: (ctx, it, t, px) => {
+        // 회오리 — 광선 끝에 솟아 감아올림 (하늘까지 닿는 회오리 — 위 끝 층 · #107)
+        sc.soft({ max: TB + 0.1, draw: (ctx, it, t, px) => {
             const life = sc.t;
             if (life < TT) {
                 return;
@@ -31143,8 +31501,8 @@ const T11_FINALE = {
         const pw = clamp(Math.max(me.w * 0.6, W * 0.08), 8 * s, W * 0.15);
         const sc = scene(u, sec + 0.4, 'uniq hooh');
         ultDark(0.35, ms - 200);
-        // 무지개
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+        // 무지개 (하늘에 걸린 큰 반원 — 몸 뒤 · 위 끝 띠 위만 위 끝 층 · #107)
+        sc.split({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
             const a = clamp((life - 0.2) / 0.8, 0, 1) * clamp((sec - 0.3 - life) / 0.7, 0, 1);
             if (a <= 0.01) {
@@ -31696,8 +32054,8 @@ const T11_FINALE = {
         const lines = [0.55, -0.55, 0.08].map((a, i) => ({ a: a * dir, t0: cuts[i] }));
         const sc = scene(u, sec + 0.4, 'uniq palkia');
         ultDark(0.45, ms - 200);
-        // 일그러진 공간 — 분홍 격자
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+        // 일그러진 공간 — 분홍 격자 (화면 전체 무늬 — 위 끝 띠만 위 끝 층 · #107)
+        sc.split({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
             const a = clamp((life - 0.2) / 0.6, 0, 1) * clamp((sec - 0.4 - life) / 0.6, 0, 1) * 0.3;
             if (a <= 0.01) {
@@ -31787,7 +32145,8 @@ const T11_FINALE = {
             }
             K.fillPaths(ctx, paths, ['#07020f', SPACEC[2], SPACEC[1], '#ffffff'], 1);
         };
-        sc.add({ max: TCLOSE + 0.1, draw: (ctx, it, t, px) => {
+        // 화면을 가르는 틈 (화면 끝까지 — 위 끝 층 · #107)
+        sc.soft({ max: TCLOSE + 0.1, draw: (ctx, it, t, px) => {
             const life = sc.t;
             const close = clamp((life - TCLOSE + 0.12) / 0.12, 0, 1);
             for (const L of lines) {
@@ -31880,7 +32239,8 @@ const T11_FINALE = {
             ctx.fillStyle = DIST[3];
             ctx.fillRect(0, H * 0.45, W, H);
             for (const isl of isles) {
-                const y = isl.y0 - (life - TWORLD) * H * isl.sp;
+                // 게임 화면 — 떠오르는 바위섬은 연출 위 끝 아래에서 멈춰 뜸 (위 끝을 뚫고 올라가 걸쳐 머물던 것 — #107)
+                const y = Math.max(isl.y0 - (life - TWORLD) * H * isl.sp, gameTop() > 0 ? gameTop() + isl.z + 2 * s : -Infinity);
                 K.psyRock(ctx, px, s, isl.x + Math.sin(life + isl.x) * s * 3, y, isl.z, 0.4 * a, DIST[1]);
             }
             // 검은 줄기 — 땅에서 솟아 일렁임
@@ -32014,8 +32374,10 @@ const T11_FINALE = {
         const TRAIN = TSPLIT + 0.15;
         const TFIN = TRAIN + 1.5; // 금빛 기둥 · 반구
         const footAt = (t) => me.b - lift * easeOut(clamp((t - 0.2) / 0.6, 0, 1)) * (1 - easeIn(clamp((t - (sec - 0.6)) / 0.45, 0, 1))) + Math.sin(t * 2.5) * s * 1.2;
-        const orbAt = (t) => [me.x, footAt(t) - me.h - Math.max(me.w * 0.5, 8 * s)];
         const Ro = clamp(me.w * 0.5, 5 * s, H * 0.12);
+        // 게임 화면 — 머리 위 빛 구 (불꽃 혀까지 r × 1.45) 는 연출 위 끝 아래 (#107 — 크기 그대로)
+        const orbMin = gameTop() > 0 ? gameTop() + Ro * 1.45 + 2 * s : -Infinity;
+        const orbAt = (t) => [me.x, Math.max(footAt(t) - me.h - Math.max(me.w * 0.5, 8 * s), orbMin)];
         const drops = [];
         for (let i = 0; i < NRAIN; i++) {
             drops.push({ x: W * ((i + 0.5) / NRAIN) + (hash(i, 581) - 0.5) * (W / NRAIN), t0: TRAIN + hash(i, 582) * 1.2, T: 0.45 + 0.15 * hash(i, 583), r: Math.max(3 * s, Ro * (0.35 + 0.25 * hash(i, 584))) });
@@ -32056,8 +32418,8 @@ const T11_FINALE = {
             const [x, y] = orbAt(life);
             fireOrb(ctx, px, s, x, y, Ro, JUDGE, life, easeOut((life - TC0) / (TUP - TC0)) * (1 + 0.1 * Math.max(0, Math.sin(life * 9)) ** 4), G, 1, 0, [1, 0.8, 0.6, 0.38], 0.4);
         } });
-        // 쏘아 올림 — 빛 구가 하늘로 (빛줄기)
-        sc.add({ max: TSPLIT + 0.3, draw: (ctx, it, t, px) => {
+        // 쏘아 올림 — 빛 구가 하늘로 (빛줄기 — 하늘로 나가는 빛이라 위 끝 층 · #107)
+        sc.soft({ max: TSPLIT + 0.3, draw: (ctx, it, t, px) => {
             const life = sc.t;
             if (life < TUP) {
                 return;
@@ -32076,7 +32438,7 @@ const T11_FINALE = {
             ultShake(4, 300);
         });
         sc.at(TSPLIT, () => {
-            ring(sc, me.x, s * 4, Ro, W * 0.6, 0.4, 0.6, ['#ffffff', JUDGE[1], JUDGE[2]], 2);
+            ringSoft(sc, me.x, gameTop() + s * 4, Ro, W * 0.6, 0.4, 0.6, ['#ffffff', JUDGE[1], JUDGE[2]], 2);
         });
         // 쏟아지는 빛 구
         drops.forEach((d) => {
@@ -33514,10 +33876,10 @@ const T11_FINALE = {
             ring(sc, cx0, orbY, me.w * 0.3, W * 0.5, 1, 0.5, ['#ffffff', DRACO[1], DRACO[2]], 2);
             ultShake(4, 300);
         });
-        // 용성 — 비스듬히 줄지어
+        // 용성 — 비스듬히 줄지어 (떨어지는 혜성 꼬리가 위 끝 너머로 길게 — 위 끝 층 · #107)
         const fall = (m, big) => {
             const sx = m.x - dir * W * 0.25;
-            sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            sc.soft({ max: sec, draw: (ctx, it, t, px) => {
                 const life = sc.t;
                 const k = (life - m.t0) / m.T;
                 if (k < 0 || k > 1) {
@@ -33581,16 +33943,17 @@ const T11_FINALE = {
         const FLY = 0.5;
         const TB = TFIRE + FLY;
         const mx = clamp(W * 0.5 + dir * W * 0.12, W * 0.2, W * 0.8);
-        const my = Math.max(26, H * 0.2);
         const Rm = clamp(Math.min(W, H) * 0.12, 14, 70);
+        // 게임 화면 — 달 (빛 무리 r × 1.4 까지) 은 연출 위 끝 아래 (#107 — 일반 달 runMoon 과 같은 값 · 크기 그대로)
+        const my = Math.max(26, H * 0.2, gameTop() > 0 ? gameTop() + Rm * 1.4 + 2 * s : 0);
         const footAt = (t) => me.b - lift * easeOut(clamp((t - 0.4) / 0.6, 0, 1)) * (1 - easeIn(clamp((t - (sec - 0.6)) / 0.45, 0, 1))) + Math.sin(t * 2.5) * s * 1.5;
         const hand = (t) => [me.x + dir * me.w * 0.35, footAt(t) - me.h * 0.55];
         const q = nearest(u);
         const tx = clamp(q ? q.x : me.x + dir * W * 0.45, W * 0.1, W * 0.9);
         const sc = scene(u, sec + 0.4, 'uniq gardevoir');
         ultDark(0.5, ms - 200);
-        // 보름달 — 떠오름 · 크게 빛남
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+        // 보름달 — 떠오름 · 크게 빛남 (달 몸은 위 끝 아래 · 빛날 때 커지는 빛 무리 (r × 2.4) 는 위 끝 층에서 흩어짐 — #107)
+        sc.split({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
             const k = easeOut(clamp((life - TMOON) / 0.8, 0, 1)) * clamp((sec - 0.3 - life) / 0.6, 0, 1);
             if (k <= 0.01) {
@@ -33644,7 +34007,7 @@ const T11_FINALE = {
             beamBody(ctx, px, s, mx, my, dx / L, dy / L, L * k, Math.max(3 * s, Rm * 0.35), ['#ffffff', '#fff6fb', MOON[1], MOON[2]], life, 0.7 * fade);
         } });
         sc.at(TBEAM, () => {
-            ring(sc, mx, my, Rm, Rm * 3, 1, 0.5, ['#ffffff', MOON[1]], 2);
+            ringSoft(sc, mx, my, Rm, Rm * 3, 1, 0.5, ['#ffffff', MOON[1]], 2);
             ultShake(2, 200);
         });
         // 손 앞 분홍 빛 구 → 날아감
@@ -34059,8 +34422,9 @@ const T11_FINALE = {
         const TDROP = 2.6; // 블랙홀 내려옴
         const TB = 4.0; // 땅에 닿음
         const mx = clamp(me.x + dir * W * 0.35, W * 0.2, W * 0.8);
-        const my = Math.max(28, H * 0.2);
         const Rm = clamp(Math.min(W, H) * 0.1, 12, 60);
+        // 게임 화면 — 달 · 일식 빛살 (r × 1.9 까지) 은 연출 위 끝 아래 (#107 — 크기 그대로)
+        const my = Math.min(Math.max(28, H * 0.2, gameTop() > 0 ? gameTop() + Rm * 1.9 + 2 * s : 0), G - Rm * 1.2);
         const holeAt = (t) => {
             const k = easeIn(clamp((t - TDROP) / (TB - TDROP), 0, 1));
             return [mx, lerp(my, G - Rm * 1.2, k), Rm * (1 + 0.8 * k)];
@@ -34168,15 +34532,21 @@ const T11_FINALE = {
         };
         const sc = scene(u, sec + 0.4, 'uniq espeon');
         ultDark(0.45, ms - 200);
-        // 거품 (에브이 뒤)
-        sc.add({ max: TB + 0.02, draw: (ctx, it, t, px) => {
+        // 거품 (에브이 뒤 — 몸 가운데에서 무대 높이보다 크게 부풀어 자리를 옮길 수 없음: 크기 그대로 위 끝 층 · #107)
+        //   옅은 속 · 테 · 반짝 · 반사광 모두 위 끝 띠 아래는 큰 캔버스 (몸 뒤 그대로) · 띠 위만 위 끝 층 (sc.split — 코드 리뷰어 #107)
+        sc.split({ max: TB + 0.02, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life >= TBUB) {
+                ellipse(ctx, px, s, me.x, cy, bubR(life), bubR(life) * 0.9, ESPC[2], 0.14 * clamp((life - TBUB) / 0.3, 0, 1));
+            }
+        } });
+        sc.split({ max: TB + 0.02, draw: (ctx, it, t, px) => {
             const life = sc.t;
             if (life < TBUB) {
                 return;
             }
             const R = bubR(life);
             const a = clamp((life - TBUB) / 0.3, 0, 1);
-            ellipse(ctx, px, s, me.x, cy, R, R * 0.9, ESPC[2], 0.14 * a);
             K.ringDots(ctx, px, s, me.x, cy, R, 0.9, [ESPC[1], ESPC[2]], 0.85 * a, 2);
             K.ringDots(ctx, px, s, me.x, cy, R * 0.92, 0.9, [ESPC[3]], 0.35 * a, 1);
             for (let j = 0; j < 10; j++) {
@@ -34253,8 +34623,9 @@ const T11_FINALE = {
         const q = nearest(u);
         const tx = clamp(q ? q.x : me.x + dir * W * 0.45, W * 0.12, W * 0.88);
         const cx0 = W / 2;
-        const cy0 = Math.max(H * 0.28, 40);
         const rr = Math.min(W * 0.3, H * 0.2);
+        // 게임 화면 — 하늘에서 그리는 원 (발 높이 · 위로 rr × 0.6) 은 몸 전체가 연출 위 끝 아래 (#107 — 정보줄 · 지도 줄에 걸쳐 1.3초 돌던 것)
+        const cy0 = Math.min(Math.max(H * 0.28, 40, gameTop() > 0 ? gameTop() + me.h + rr * 0.6 + 2 * s : 0), G - rr * 0.6);
         const posAt = (t) => {
             if (t < TUP) {
                 return [me.x, me.b];
@@ -34285,9 +34656,11 @@ const T11_FINALE = {
             const life = sc.t;
             const a = clamp((life - 0.4) / 0.6, 0, 1) * clamp((sec - 0.3 - life) / 0.6, 0, 1);
             const z = Math.max(s, Math.round(short(u) / 110));
+            // 게임 화면 — 별 · 하트는 연출 위 끝 아래에서만 (#107)
+            const y0 = gameTop() > 0 ? gameTop() + z * 3 : 0;
             for (let j = 0; j < 26; j++) {
                 const x = hash(j, 781) * W;
-                const y = hash(j, 782) * G * 0.7;
+                const y = y0 + hash(j, 782) * Math.max(s, G * 0.7 - y0);
                 const tw = Math.sin(life * (3 + 3 * hash(j, 783)) + j);
                 if (tw < -0.2) {
                     continue;
@@ -34361,9 +34734,10 @@ const T11_FINALE = {
             for (let i = 0; i < 4; i++) {
                 sc.at(TSTAR + 0.7 + i * 0.22, () => {
                     const x = clamp(tx + (hash(i, 791) - 0.5) * W * 0.6, W * 0.08, W * 0.92);
-                    const y = G * (0.25 + 0.2 * hash(i, 792));
+                    // 하트 불꽃놀이 — 터지는 곳은 위 끝 아래 · 퍼지는 고리는 위 끝 층 (#107)
+                    const y = Math.max(G * (0.25 + 0.2 * hash(i, 792)), gameTop() + 4 * s);
                     sparkles(x, y, s, ['#ffffff', LOVELY[2], LOVELY[3], '#ffd6f0'], 18, Math.max(W * 0.06, 12), H * 0.15);
-                    ring(sc, x, y, s * 2, W * 0.07, 1, 0.5, [LOVELY[2], LOVELY[3]], 2);
+                    ringSoft(sc, x, y, s * 2, W * 0.07, 1, 0.5, [LOVELY[2], LOVELY[3]], 2);
                 });
             }
         });
@@ -35082,8 +35456,8 @@ const T11_FINALE = {
                 }
             });
         });
-        // 거대한 잎 칼날 — 화면을 비스듬히 가름
-        sc.add({ max: TB + 0.6, draw: (ctx, it, t, px) => {
+        // 거대한 잎 칼날 — 화면을 비스듬히 가름 (화면 끝에서 끝까지 — 위 끝 층 · #107)
+        sc.soft({ max: TB + 0.6, draw: (ctx, it, t, px) => {
             const life = sc.t;
             if (life < TBIG) {
                 return;
@@ -35499,6 +35873,8 @@ const T11_FINALE = {
         const FIRE = 1.3;
         const TB = TF + FIRE + 0.1;
         const hoverY = me.b - me.h * 0.4;
+        // 게임 화면 — 제트 원 꼭대기에서도 몸 전체가 연출 위 끝 아래 (세로 반지름만 줄임 — #107)
+        const ryMax = gameTop() > 0 ? Math.max(s, (hoverY - gameTop() - me.h - 2 * s) / 1.3) : Infinity;
         const posAt = (t) => {
             if (t < TJ0) {
                 return [me.x, lerp(me.b, hoverY, easeOut(t / TJ0))];
@@ -35507,7 +35883,7 @@ const T11_FINALE = {
                 const k = (t - TJ0) / JET;
                 const an = Math.PI + k * TAU * dir;
                 const rx = W * 0.38;
-                const ry = H * 0.22;
+                const ry = Math.min(H * 0.22, ryMax);
                 const cx = clamp(me.x + dir * rx * 0.95, rx * 0.6, W - rx * 0.6);
                 return [cx + Math.cos(an) * rx * (1 - 0.05 * Math.sin(k * 9)), hoverY - ry * 0.3 + Math.sin(an) * ry];
             }
@@ -35763,12 +36139,14 @@ const T11_FINALE = {
             if (a <= 0.01) {
                 return;
             }
+            // 게임 화면 — 별은 연출 위 끝 아래에서만 (반짝이며 머무는 별이 위 끝에 걸쳐 2초 — #107)
+            const y0 = gameTop() > 0 ? gameTop() + 3 * s : 0;
             for (let j = 0; j < 30; j++) {
                 if (life - TQUIET < j * 0.04) {
                     continue;
                 }
                 const x = hash(j, 851) * W;
-                const y = hash(j, 852) * G * 0.6;
+                const y = y0 + hash(j, 852) * Math.max(s, G * 0.6 - y0);
                 const tw = Math.sin(life * (3 + 3 * hash(j, 853)) + j);
                 glint(ctx, px, s, x, y, s * (1.5 + tw), 0.85 * a);
             }
@@ -35786,8 +36164,8 @@ const T11_FINALE = {
                 glint(ctx, px, s, me.x + sd * me.w * 0.25, footAt(life) - me.h * 0.95, me.w * 0.12 * tg, 0.8 * tg);
             }
         } });
-        // 하늘로 빛줄기
-        sc.add({ max: TQUIET + 0.2, draw: (ctx, it, t, px) => {
+        // 하늘로 빛줄기 (하늘로 나가는 빛 — 위 끝 층 · #107)
+        sc.soft({ max: TQUIET + 0.2, draw: (ctx, it, t, px) => {
             const life = sc.t;
             if (life < TUP) {
                 return;
@@ -35801,10 +36179,10 @@ const T11_FINALE = {
             impactFrames(sc, W, H, 0.5, 0.3);
             ultShake(3, 250);
         });
-        // 빛기둥 비
+        // 빛기둥 비 (하늘에서 내려오는 빛기둥 — 위 끝 층 · #107)
         spots.slice(0, NL).forEach((sp, i) => {
             const t0 = TRAIN + i * 0.14;
-            sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            sc.soft({ max: sec, draw: (ctx, it, t, px) => {
                 const life = sc.t;
                 const k = (life - t0) / 0.5;
                 if (k < 0 || k > 1) {
@@ -35831,8 +36209,8 @@ const T11_FINALE = {
                 }
             });
         });
-        // 커다란 별
-        sc.add({ max: TBIG + 0.05, draw: (ctx, it, t, px) => {
+        // 커다란 별 (하늘에서 떨어짐 — 위 끝에서 나타남: 위 끝 층 · #107)
+        sc.soft({ max: TBIG + 0.05, draw: (ctx, it, t, px) => {
             const life = sc.t;
             if (life < TBIG - 0.6) {
                 return;
@@ -37030,7 +37408,8 @@ const T11_FINALE = {
         const TB = TCUT + 0.3;
         const q = nearest(u);
         const tx = clamp(q ? q.x : me.x + dir * W * 0.4, W * 0.12, W * 0.88);
-        const topY = Math.max(me.h * 1.2, G * 0.2);
+        // 게임 화면 — 뛰어오른 꼭대기 (발 높이) 는 몸 · 꼬리 칼날까지 연출 위 끝 아래 (#107)
+        const topY = Math.max(me.h * 1.2, G * 0.2, gameTop() > 0 ? gameTop() + me.h * 1.15 + 2 * s : 0);
         const posAt = (t) => {
             if (t < TJ) {
                 return [me.x, me.b, 0];
@@ -37052,8 +37431,8 @@ const T11_FINALE = {
         };
         const sc = scene(u, sec + 0.4, 'uniq leafeon');
         ultDark(0.4, ms - 200);
-        // 햇살 줄기 — 하늘에서 꼬리로
-        sc.add({ max: TJ + 0.2, draw: (ctx, it, t, px) => {
+        // 햇살 줄기 — 하늘에서 꼬리로 (하늘에서 내려오는 빛 — 몸 뒤 · 위 끝 띠 위만 위 끝 층 · #107)
+        sc.split({ max: TJ + 0.2, draw: (ctx, it, t, px) => {
             const life = sc.t;
             if (life < TSUN) {
                 return;
@@ -37107,8 +37486,8 @@ const T11_FINALE = {
             ring(sc, me.x, G - s, me.w * 0.4, me.w * 2.5, 0.25, 0.4, ['#ffffff', VINEC[1]], 2);
             ultShake(3, 250);
         });
-        // 거대한 햇빛 잎 칼날 — 위에서 아래로
-        sc.add({ max: TB + 0.6, draw: (ctx, it, t, px) => {
+        // 거대한 햇빛 잎 칼날 — 위에서 아래로 (하늘 끝에서 내리그음 — 위 끝 층 · #107)
+        sc.soft({ max: TB + 0.6, draw: (ctx, it, t, px) => {
             const life = sc.t;
             if (life < TCUT) {
                 return;
@@ -37180,9 +37559,11 @@ const T11_FINALE = {
         const ty = q ? q.y : G - me.h * 0.5;
         const [mx, my] = [u.mouth.x + dir * s * 2, u.mouth.y];
         const mirrors = [];
+        // 게임 화면 — 위쪽 거울 (육각 r 최대 min(W, H) × 0.05 · 번쩍 빛 × 1.6) 은 연출 위 끝 아래 (#107 — 거울 셋이 정보줄 · 지도 줄에 걸쳐 3초 머물던 것)
+        const mTop = gameTop() > 0 ? gameTop() + Math.max(5 * s, Math.min(W, H) * 0.05) * 1.6 + 2 * s : 0;
         for (let i = 0; i < NM; i++) {
             const f = (i + 0.5) / NM;
-            mirrors.push({ x: clamp(lerp(mx, tx, f), W * 0.05, W * 0.95), y: i % 2 ? Math.max(H * 0.15, G - H * 0.65) : G - H * 0.15, t0: TM + i * 0.1 });
+            mirrors.push({ x: clamp(lerp(mx, tx, f), W * 0.05, W * 0.95), y: i % 2 ? Math.max(H * 0.15, G - H * 0.65, mTop) : G - H * 0.15, t0: TM + i * 0.1 });
         }
         const path = [[mx, my], ...mirrors.map((m) => [m.x, m.y]), [tx, ty]];
         const TEND = TF + SEG * (path.length - 1);
@@ -37193,9 +37574,11 @@ const T11_FINALE = {
         sc.add({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
             const a = clamp((life - 0.2) / 0.5, 0, 1) * clamp((sec - 0.3 - life) / 0.5, 0, 1);
+            // 게임 화면 — 가루는 연출 위 끝 아래에서만 (반짝이 한 점이 위 끝에 걸쳐 머물던 것 — #107)
+            const y0 = gameTop() > 0 ? gameTop() + 3 * s : 0;
             for (let j = 0; j < 24; j++) {
                 const x = hash(j, 901) * W;
-                const y = ((hash(j, 902) * G + life * G * 0.06) % G);
+                const y = y0 + ((hash(j, 902) * (G - y0) + life * (G - y0) * 0.06) % (G - y0));
                 if (Math.sin(life * 7 + j * 1.3) > 0.4) {
                     glint(ctx, px, s, x, y, s * 2, 0.8 * a);
                 }
@@ -37644,8 +38027,9 @@ const T11_FINALE = {
         const tx = clamp(q ? q.x : me.x + dir * W * 0.4, W * 0.08, W * 0.92);
         const ty = q ? q.y : G - me.h * 0.5;
         const D = tx - me.x;
-        const hh = Math.max(me.h * 1.2, H * 0.18);
         const LL = Math.max(5 * s, me.w * 0.34);
+        // 게임 화면 — 잎 무리가 그리는 길 꼭대기 (잎 길이까지) 는 연출 위 끝 아래 (#107 — 길 높이만)
+        const hh = Math.min(Math.max(me.h * 1.2, H * 0.18), gameTop() > 0 ? Math.max(me.h * 0.4, cy - gameTop() - LL - 2 * s) : Infinity);
         const leafPos = (i, t) => {
             const ph = (i / N) * TAU;
             if (t < TFLING) {
@@ -37676,8 +38060,8 @@ const T11_FINALE = {
         };
         const sc = scene(u, sec + 0.3, 'uniq ivysaur');
         ultDark(0.3, ms - 200);
-        // 햇빛 줄기 (이상해풀 뒤)
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+        // 햇빛 줄기 (이상해풀 뒤 — 하늘에서 내려오는 빛: 위 끝 띠만 위 끝 층 · #107)
+        sc.split({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
             const a = clamp((life - TOPEN) / 0.5, 0, 1) * clamp((sec - 0.1 - life) / 0.5, 0, 1);
             stSunShaft(ctx, px, s, bud[0], me.b, Math.max(me.w * 0.7, 9 * s), a, life);
@@ -37821,18 +38205,20 @@ const T11_FINALE = {
                 }
             }
             if (t > TD1 && t < THOME) {
-                return me.b - Math.sin(((t - TD1) / (THOME - TD1)) * Math.PI) * me.h * 1.3;
+                return me.b - Math.sin(((t - TD1) / (THOME - TD1)) * Math.PI) * hopH;
             }
             return me.b;
         };
+        // 게임 화면 — 되돌아 공중제비 꼭대기에서도 몸이 연출 위 끝 아래 (#107)
+        const hopH = Math.min(me.h * 1.3, gameTop() > 0 ? Math.max(me.h * 0.3, me.b - me.h - gameTop() - 2 * s) : Infinity);
         const rotAt = (t) => (t > TD1 && t < THOME ? -dd * TAU * easeOut((t - TD1) / (THOME - TD1)) : 0);
         const tailAt = (t) => [xAt(t) - dir * me.w * 0.36, footAt(t) - me.h * 0.42];
         const sc = scene(u, sec + 0.3, 'uniq charmander');
         ultDark(0.32, ms - 200);
-        // 꼬리 불꽃 (파이리 뒤) — 점점 커지다 돌진 땐 작게, 마지막에 하늘 높이
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+        // 꼬리 불꽃 (파이리 뒤) — 점점 커지다 돌진 땐 작게, 마지막에 하늘 높이 (하늘까지 솟는 마지막 불꽃은 위 끝 층 — #107)
+        const tail = (soft) => ({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
-            if (life > TDASH && life < THOME) {
+            if ((life > TDASH && life < THOME) || (life >= TBLAZE) !== soft) {
                 return;
             }
             const [x, y] = tailAt(life);
@@ -37849,8 +38235,10 @@ const T11_FINALE = {
             }
             K.flameTongue(ctx, px, s, x, y + s, w, h, F, life, 1, -dir * 0.15);
         } });
-        // 불꽃 옷 · 돌진 꼬리
-        sc.add({ max: THOME + 0.2, draw: (ctx, it, t, px) => {
+        sc.add(tail(false));
+        sc.split(tail(true));
+        // 불꽃 옷 · 돌진 꼬리 (공중제비 때 위 끝을 넘는 윗부분만 위 끝 층 — #107)
+        sc.split({ max: THOME + 0.2, draw: (ctx, it, t, px) => {
             const life = sc.t;
             if (life < TCOAT) {
                 return;
@@ -37953,8 +38341,8 @@ const T11_FINALE = {
             const a = clamp((sec - 0.2 - life) / 0.6, 0, 1);
             K.groundFlames(ctx, px, s, Math.max(0, hx - spread), Math.min(W, hx + spread), G, me.h * 0.75, life, F, a);
         } });
-        // 불 회오리
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+        // 불 회오리 (무대 높이 0.85배까지 솟음 — 위 끝 띠 위만 위 끝 층, #107)
+        sc.split({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
             if (life < TWH) {
                 return;
@@ -37985,8 +38373,8 @@ const T11_FINALE = {
             const k = 0.5 + 0.5 * clamp((life - TIN) / 1.4, 0, 1);
             K.flameTongue(ctx, px, s, me.x - dir * me.w * 0.42, me.b - me.h * 0.3, me.w * 0.35 * k, me.h * 0.75 * k, F, life, 1, -dir * 0.2, 0.9);
         } });
-        // 불꽃 줄기 — 입에서 굴러 나가는 불꽃 덩이(멀수록 크고 굵게) + 그 밑에 깔리는 긴 불꽃 줄기 세 겹
-        sc.add({ max: TEND + 0.3, draw: (ctx, it, t, px) => {
+        // 불꽃 줄기 — 입에서 굴러 나가는 불꽃 덩이(멀수록 크고 굵게) + 그 밑에 깔리는 긴 불꽃 줄기 세 겹 (위에서 쓸어내려 화면 끝까지 — 위 끝 층, #107)
+        sc.soft({ max: TEND + 0.3, draw: (ctx, it, t, px) => {
             const life = sc.t;
             if (life < TFIRE) {
                 return;
@@ -38436,7 +38824,9 @@ const T11_FINALE = {
                 return [x2 + Math.cos(a) * r, y2 + Math.sin(a) * r * 0.45, a * 2];
             }
             const x1 = head[0] + Math.cos(l.a) * l.out;
-            const y1 = head[1] + Math.sin(l.a) * l.out;
+            // 게임 화면 — 날아가는 길 꼭대기 (곡선 가운데 ≈ (시작 + 2 × 꺾는 점 + 끝) / 4) 가 잎 길이까지 연출 위 끝 아래 (#107 — 길 높이만)
+            const yTop = gameTop() > 0 ? gameTop() + Math.max(5 * s, me.w * 0.32) + 2 * s : -Infinity;
+            const y1 = Math.max(head[1] + Math.sin(l.a) * l.out, 2 * yTop - (head[1] + y2) / 2);
             const e = k * k * (3 - 2 * k);
             const bx = (1 - e) * (1 - e) * head[0] + 2 * (1 - e) * e * x1 + e * e * x2;
             const by = (1 - e) * (1 - e) * head[1] + 2 * (1 - e) * e * y1 + e * e * y2;
@@ -38838,7 +39228,9 @@ const T11_FINALE = {
             }
             return lerp(hx, me.x, clamp((t - TJ) / (TL - TJ), 0, 1));
         };
-        const footAt = (t) => (t > TJ && t < TL ? me.b - Math.sin(((t - TJ) / (TL - TJ)) * Math.PI) * Math.min(H * 0.45, me.h * 3.5) : me.b);
+        // 게임 화면 — 뛰어오른 꼭대기에서도 불꽃 바퀴 (가운데 = 발 − R · 불꽃 구 r × 1.2 · 불꽃 혀까지 × 1.45) 가 연출 위 끝 아래 (#107)
+        const jumpH = Math.min(H * 0.45, me.h * 3.5, gameTop() > 0 ? Math.max(R, me.b - R - R * 1.2 * 1.45 - gameTop() - 2 * s) : Infinity);
+        const footAt = (t) => (t > TJ && t < TL ? me.b - Math.sin(((t - TJ) / (TL - TJ)) * Math.PI) * jumpH : me.b);
         const wheel = (t) => t > TCURL + 0.2 && t < TL;
         let ang = 0;
         let lastT = 0;
@@ -38980,8 +39372,8 @@ const T11_FINALE = {
         const sc = scene(u, sec + 0.3, 'uniq totodile');
         ultDark(0.32, ms - 200);
         puppet(sc, pokemon, u, footAt, TIDE[2], sec - 0.1, { x: xAt, rot: (t) => (t < TJ ? Math.sin(t * 7) * 0.2 : 0), glow: (t) => (t > TA && t < TBITE ? 0.3 : 0), glowColor: TIDE[1] });
-        // 물 이빨 턱 — 벌어졌다 콱
-        sc.add({ max: TBITE + 0.5, draw: (ctx, it, t, px) => {
+        // 물 이빨 턱 — 벌어졌다 콱 (낮은 패널에서 크게 벌린 윗턱이 위 끝을 넘는 부분만 위 끝 층 — #107)
+        sc.split({ max: TBITE + 0.5, draw: (ctx, it, t, px) => {
             const life = sc.t;
             if (life < TA - 0.1) {
                 return;
@@ -39402,8 +39794,41 @@ const T11_FINALE = {
                 }
             }
         });
+        // 잎 흩날림 — 맞은 자리에서 잎 16장이 솟았다가 팔랑이며 (0.12초마다 뒤집힘) 내려앉음 · 8 × 5칸 세 톤 (밝은 위 #b8ec6c · 테 · 잎맥 · 꼭지 #1f4a1c · 아래 #6cc04a) ·
+        //   초록 거품만 보여 "꽃잎 해일" 끝이 거품처럼 읽히던 것 (#108 기획 — 잎 모양이 보이게 키움 · #159 태현 님 "추천대로" 다시 넣음) · 거품은 16 → 8 ·
+        //   게임 화면 — 솟는 꼭대기는 연출 위 끝 아래 (#107 — 솟는 빠르기만 줄임)
+        const LEAF = [[2, 0, 1], [3, 0, 0], [4, 0, 0], [5, 0, 0], [6, 0, 1],
+            [0, 1, 1], [1, 1, 0], [2, 1, 0], [3, 1, 0], [4, 1, 0], [5, 1, 0], [6, 1, 0], [7, 1, 1],
+            [0, 2, 1], [1, 2, 2], [2, 2, 1], [3, 2, 1], [4, 2, 1], [5, 2, 1], [6, 2, 2], [7, 2, 1],
+            [1, 3, 1], [2, 3, 2], [3, 3, 2], [4, 3, 2], [5, 3, 2], [6, 3, 1],
+            [2, 4, 1], [3, 4, 1], [4, 4, 1], [5, 4, 1]];
+        const leafG = H * 1.2;
+        const leafUp = gameTop() > 0 ? Math.sqrt(2 * leafG * Math.max(0, G - Rb - gameTop() - 4 * s - 4)) : Infinity; // 4px 더 — 사라지는 말 줄을 스치던 것 (#107 아트 작음 ②)
+        const leaves = [];
+        for (let i = 0; i < 16; i++) {
+            const a = -Math.PI / 2 + (hash(i, 71) - 0.5) * 2.4;
+            const v0 = H * (0.6 + 0.5 * hash(i, 72));
+            leaves.push({ a, v: Math.min(v0, leafUp / Math.max(0.2, -Math.sin(a))), t0: TSLAM + 0.05 + hash(i, 73) * 0.2, life: 1.2 + hash(i, 74) * 0.5 });
+        }
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            const pl = [new Path2D(), new Path2D(), new Path2D()];
+            leaves.forEach((lf, i) => {
+                const k = life - lf.t0;
+                if (k < 0 || k >= lf.life) {
+                    return;
+                }
+                const x0 = tx + Math.cos(lf.a) * lf.v * k * 0.9 + Math.sin(life * 6 + i) * s * 3;
+                const y0 = Math.min(G - 4 * s, G - Rb + Math.sin(lf.a) * lf.v * k + 0.5 * leafG * k * k);
+                const flip = (Math.floor(life / 0.12) + i) % 2 === 1;
+                for (const [cx, cy, tone] of LEAF) {
+                    pl[tone].rect(px(x0 + (flip ? 3.5 - cx : cx - 3.5) * s), px(y0 + (cy - 2) * s), s, s);
+                }
+            });
+            K.fillPaths(ctx, pl, ['#b8ec6c', '#1f4a1c', '#6cc04a'], 1);
+        } });
         // 초록 거품 — 보글보글 떠올라 톡
-        const NBUB = 16;
+        const NBUB = 8;
         const bubs = [];
         for (let i = 0; i < NBUB; i++) {
             bubs.push({ x: tx + (hash(i, 61) - 0.5) * me.w * 4, t0: TSLAM + 0.15 + hash(i, 62) * 0.9, life: 0.7 + hash(i, 63) * 0.7, r: Math.max(2 * s, me.w * (0.12 + 0.14 * hash(i, 64))), rise: H * (0.12 + 0.16 * hash(i, 65)) });
@@ -39768,8 +40193,8 @@ const T11_FINALE = {
             spin += (t - lastT) * (t > TK2 && t < TBANG ? 22 : 0) * dd;
             lastT = t;
         });
-        // 불꽃 바퀴 (영치코 뒤) — 둘레 불꽃 혀가 바퀴살처럼 돎
-        sc.add({ max: TBANG + 0.1, draw: (ctx, it, t, px) => {
+        // 불꽃 바퀴 (영치코 뒤) — 둘레 불꽃 혀가 바퀴살처럼 돎 (무대보다 커서 위 끝을 넘는 윗부분만 위 끝 층 — #107)
+        sc.split({ max: TBANG + 0.1, draw: (ctx, it, t, px) => {
             const life = sc.t;
             if (life < TUP) {
                 return;
@@ -39927,8 +40352,8 @@ const T11_FINALE = {
         sc.add({ max: TLOCK + 0.1, draw: (ctx, it, t, px) => {
             glint(ctx, px, s, fin[0], fin[1], me.w * 0.35 * (1 + 0.3 * Math.sin(sc.t * 14)), 1);
         } });
-        // 하늘로 뿜는 물줄기 — 입에서 위로 (화면 위까지), 다 쏘면 끝이 끊겨 올라감
-        sc.add({ max: TEND, draw: (ctx, it, t, px) => {
+        // 하늘로 뿜는 물줄기 — 입에서 위로 (화면 위까지), 다 쏘면 끝이 끊겨 올라감 (하늘까지 닿는 기둥 — 위 끝 층 · #107)
+        sc.soft({ max: TEND, draw: (ctx, it, t, px) => {
             const life = sc.t;
             if (life < TUP) {
                 return;
@@ -39940,8 +40365,8 @@ const T11_FINALE = {
                 K.fireTail(ctx, px, s, mx, my - cut - len, 0, -1, len, jw * (1 + 0.1 * Math.sin(life * 30)), TIDE, life, 1);
             }
         } });
-        // 쏟아지는 소나기 기둥 — 위에서 상대 자리로
-        sc.add({ max: TEND + 0.5, draw: (ctx, it, t, px) => {
+        // 쏟아지는 소나기 기둥 — 위에서 상대 자리로 (하늘에서 내려오는 기둥 — 위 끝 층 · #107)
+        sc.soft({ max: TEND + 0.5, draw: (ctx, it, t, px) => {
             const life = sc.t;
             if (life < TDOWN) {
                 return;
@@ -40661,7 +41086,8 @@ const T11_FINALE = {
             scale: (t) => (t > TBL && t < TBLE ? 1 + 0.04 * Math.sin(t * 30) : 1),
             glow: () => 0,
         });
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+        // 거품 (상대를 감싼 큰 거품이 위 끝을 넘는 부분만 위 끝 층 — #107)
+        sc.split({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
             const ty = tyAt(life);
             // 큰 거품 (상대를 감쌈)
@@ -41263,10 +41689,12 @@ const T11_FINALE = {
                 return me.b - Math.abs(Math.sin((t - TRUN) * 14)) * me.h * 0.12;
             }
             if (t > TUP && t < TUP + 0.5) {
-                return me.b - Math.sin(((t - TUP) / 0.5) * Math.PI) * me.h * 0.9;
+                return me.b - Math.sin(((t - TUP) / 0.5) * Math.PI) * upH;
             }
             return me.b;
         };
+        // 게임 화면 — 어퍼컷 뛰어오름 꼭대기에서도 몸이 위 끝 띠 아래 (#107)
+        const upH = Math.min(me.h * 0.9, gameTop() > 0 ? Math.max(me.h * 0.2, me.b - me.h - gameTop() - 8 - 2 * s) : Infinity);
         const fist = (t, side) => [xAt(t) + dd * me.w * (0.45 + (TJ.some((tj) => t > tj - 0.06 && t < tj + 0.06) ? 0.25 : 0)), footAt(t) - me.h * (side ? 0.45 : 0.6)];
         const sc = scene(u, sec + 0.3, 'uniq pignite');
         ultDark(0.35, ms - 200);
@@ -41277,8 +41705,8 @@ const T11_FINALE = {
             glow: (t) => (t > TLIT ? 0.12 + 0.1 * Math.sin(t * 14) : 0),
             glowColor: F[1],
         });
-        // 주먹 불꽃 둘
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+        // 주먹 불꽃 둘 (어퍼컷 때 커진 불꽃 윗부분만 위 끝 층 — #107)
+        sc.split({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
             const k = clamp((life - TLIT) / 0.3, 0, 1) * clamp((sec - 0.2 - life) / 0.4, 0, 1);
             if (k <= 0.02) {
@@ -41312,8 +41740,8 @@ const T11_FINALE = {
                 }
             }
         });
-        // 어퍼컷 불꽃 — 상대를 따라 세 갈래 불꽃이 꼬이며 솟구침
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+        // 어퍼컷 불꽃 — 상대를 따라 세 갈래 불꽃이 꼬이며 솟구침 (하늘로 솟는 불기둥 — 위 끝 층 · #107)
+        sc.soft({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
             const k = (life - TUP) / 1.0;
             if (k <= 0 || k >= 1) {
@@ -41687,8 +42115,8 @@ const T11_FINALE = {
             }
             stNeedles(ctx, px, s, list, 1);
         } });
-        // 오르는 바늘 → 내리꽂히는 바늘 → 꽂혀 있는 바늘밭
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+        // 오르는 바늘 → 내리꽂히는 바늘 → 꽂혀 있는 바늘밭 (하늘 너머로 올라갔다 쏟아지는 바늘 — 위 끝 층 · #107)
+        sc.soft({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
             const fly = [];
             const stuck = [];
@@ -42128,12 +42556,14 @@ const T11_FINALE = {
                 return;
             }
             const [x2, y2] = tgt();
+            const sr = Math.max(3 * s, me.w * 0.3);
             for (let i = 0; i < 5; i++) {
                 const a = -Math.PI / 2 + (i * TAU) / 5;
                 const d = Math.max(me.w * 2.2, H * 0.22) * easeOut(Math.min(1, k * 1.6));
                 const x = x2 + Math.cos(a) * d;
-                const y = y2 + Math.sin(a) * d * 0.8 + H * 0.3 * k * k;
-                starOutline(ctx, px, s, x, y, Math.max(3 * s, me.w * 0.3), k * 5 + i, 1, F, 1 - clamp((k - 0.7) / 0.4, 0, 1));
+                // 게임 화면 — 위로 튄 별은 연출 위 끝 아래에서 멈춤 (#107)
+                const y = Math.max(y2 + Math.sin(a) * d * 0.8 + H * 0.3 * k * k, gameTop() > 0 ? gameTop() + sr + 2 * s : -Infinity);
+                starOutline(ctx, px, s, x, y, sr, k * 5 + i, 1, F, 1 - clamp((k - 0.7) / 0.4, 0, 1));
             }
         } });
     }
@@ -43150,6 +43580,10 @@ function duelStart(D) {
             ctx.scale(-1, 1);
         }
         ctx.drawImage(img, -w / 2, -h / 2, w, h);
+        // 쓰러진 칸 지우기 뒤 다시 그릴 수 있게 적어 둠 (ult/bridge.js fxMonNote)
+        if (typeof fxMonNote === 'function') {
+            fxMonNote(ctx, o.src ?? img, img, w, h);
+        }
         ctx.restore();
     }
     // 한 색 실루엣 (잔상 · 테두리 · 번쩍) — 움직이는 그림이라 0.08초마다 새로. 크기는 배율 1 로 만들고 그릴 때 늘림
@@ -53290,8 +53724,23 @@ function fxInGame() {
     return !!document.body && document.body.classList.contains('pokemon-game-on');
 }
 // 필살기 연출이 넘으면 안 보이는 위 끝 (정보줄 · 지도 줄 아래 끝 — 3:3 은 --pg-fx-top) — 게임 밖 · 3:3 무대 상자 안은 0 (#105 — 던지는 구 · 뛰어오른 몸이 그 뒤로 숨지 않게. fx-energy runOrb · fx-unique 가 씀)
+// 장마다 한 번만 잼 (그리기 루프 안에서 아이템마다 부르던 것 — querySelector · 레이아웃, 코드 리뷰어 #107) · 무대 상자 안 (moveFrame) 은 늘 0
+//   (장이 멈춘 사이 — 1:1 필살기 뒤 3:3 장면 전환처럼 위 끝이 바뀔 때 — 옛 값을 쓰지 않게 50ms 넘으면 다시 잼)
+let fxStageTopAt = -1;
+let fxStageTopT = -1e9;
+let fxStageTopV = 0;
+let fxFrameId = 0;
 function fxStageTop() {
-    return fxInGame() && !moveFrame && typeof t33Top === 'function' ? t33Top() : 0;
+    if (moveFrame) {
+        return 0;
+    }
+    const t = performance.now();
+    if (fxStageTopAt !== fxFrameId || t - fxStageTopT > 50) {
+        fxStageTopAt = fxFrameId;
+        fxStageTopT = t;
+        fxStageTopV = fxInGame() && typeof t33Top === 'function' ? t33Top() : 0;
+    }
+    return fxStageTopV;
 }
 // 연출이 넘지 않는 위 끝 = 게임 정보줄 아래 끝 (px) — 게임 밖이면 0 (game.css 가 캔버스를 여기서 자름)
 function fxTop() {
@@ -53459,8 +53908,32 @@ const fxTagGen = new Map();
 // 번호 붙은 입자 · 발사기가 그 뒤에 만드는 입자에도 같은 번호 (발사기는 매 장면 입자를 만듦 — 기본 발사기는 spawnParticle, 전용기는 e.fx)
 function fxTagNew(from, gen) {
     for (let i = from; i < moveParticles.length; i++) {
-        moveParticles[i]._g ??= gen;
+        const p = moveParticles[i];
+        if (p._g === undefined) {
+            p._g = gen;
+            fxTagUpdate(p, gen);
+        }
     }
+}
+// 위 끝 층 필살기 (fxSoftGens) 는 입자 update 안에서 만든 입자에도 같은 번호 — 하이퍼보이스 큰 터짐처럼 update 에서 터지면 번호가 없어 위 끝 층에 안 들어가던 것 (#107)
+//   (다른 필살기는 그대로 — 합동 줄기 보기 · 층이 번호로 입자를 나눠 그려서)
+function fxTagUpdate(p, gen) {
+    if (!fxSoftGens.has(gen) || typeof p.update !== 'function' || p._gUpd) {
+        return;
+    }
+    const f = p.update;
+    p._gUpd = true;
+    p.update = (...a) => {
+        const n = moveParticles.length;
+        const prev = fxNowGen;
+        fxNowGen = gen;
+        try {
+            return f(...a);
+        } finally {
+            fxNowGen = prev;
+            fxTagNew(n, gen);
+        }
+    };
 }
 function fxTagEmitter(em, gen) {
     if (em._g !== undefined) {
@@ -54192,6 +54665,105 @@ function fxLayerBlit(L) {
     moveCtx.drawImage(L.cv, 0, 0);
     moveCtx.restore();
 }
+// 위 끝 층 (#107 — 디자인 값 10-24 22:30): 하늘까지 닿는 기둥 · 회오리 · 날씨 틀은 그 필살기 입자를 따로 그려, 자르는 줄 (fxStageTop — 정보줄 · 지도 줄 아래) 위는 지우고
+//   그 아래 4칸 (2px 칸) 을 위에서부터 25 · 50 · 75 · 87.5% 채운 Bayer 바둑판 ("위로 이어짐" — 일자로 잘려 정보줄 · 지도 줄에 걸쳐 머물던 것, ux-rules U4) ·
+//   어둠 · 번쩍 · 화면 판 (_full · _flash · _screen) 은 큰 캔버스 그대로 (띠에 줄무늬가 생기지 않게) · 구 · 덩어리 · 큰 터짐 (블래스트번 반구) 은 이 층이 아니라 자리를 옮김
+// ultdive = 하늘에서 내려오는 빛기둥 · 내리꽂는 줄기 · 솟아 사라지는 몸 (리자몽 플레어드라이브 하늘 불꽃 구는 머무는 모양이라 뺌)
+// ultnova = 화면 전체 대폭발 (반지름이 무대보다 커서 자리를 옮겨도 위 끝을 넘음 — 크기는 그대로) · 솔라빔 하늘 햇빛 기둥 (o.solar) · twinkle 화면 가득 별 · 하트 (날씨처럼)
+// ultvolt = 화면 끝까지 뻗는 번개 줄기 (10만볼트 · 1000만볼트 — 위로 뻗은 줄기가 천천히 돌며 위 끝을 넘음) · ultthunder = 하늘에서 내리치는 번개 (스파킹기가볼트 끝 · 번개 기둥)
+const FX_SOFT_TOP = new Set(['ultpillar', 'ultvortex', 'ultstorm', 'ultbloom', 'ultdive', 'ultnova', 'ultvolt', 'ultthunder']);
+const fxSoftTopOk = (e) => (FX_SOFT_TOP.has(e?.[1]) || (e?.[1] === 'ultbeam' && !!e[2]?.solar) || (e?.[1] === 'ultsparkle' && e[2]?.mode !== 'moon' && !e[2]?.uniq)) && !e[2]?.blast && !e[2]?.flare;
+const fxSoftGens = new Set();
+const fxSoftTopL = {};
+// 필살기 하나 전체가 아니라 한 입자만 (_softTop — fx-sky scene sc.soft: 무대보다 큰 반구 등) 위 끝 층에 그릴 때 — 그 입자가 사는 동안 층을 켬
+let fxSoftTopUntil = 0;
+function fxSoftTopWant(ms) {
+    fxSoftTopUntil = Math.max(fxSoftTopUntil, performance.now() + ms);
+}
+const fxSoftTopOn = () => fxSoftGens.size > 0 || performance.now() < fxSoftTopUntil;
+// 한 그림을 둘로 — 큰 캔버스에는 위 끝 띠 (8px) 아래만 (몸 뒤 순서 그대로) · 위 끝 층에는 그 위만 (fx-body 오라처럼 무대보다 큰 몸 뒤 그림 — #107, fx-sky sc.split 과 같음)
+//   큰 캔버스에 그릴 때만 (위 끝 층 · 줄기 보기 캔버스에 그리는 중이면 그대로)
+function fxSplitTop(ctx, fn) {
+    const top0 = fxStageTop();
+    if (!(top0 > 0) || ctx !== moveCtx) {
+        fn(ctx);
+        return;
+    }
+    fxSoftTopWant(250);
+    const cut = top0 + 8;
+    const m = ctx.getTransform();
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.beginPath();
+    ctx.rect(0, Math.round(cut * (window.devicePixelRatio || 1)), ctx.canvas.width, ctx.canvas.height);
+    ctx.clip();
+    ctx.setTransform(m);
+    fn(ctx);
+    ctx.restore();
+    const L = fxSoftTopL.ctx;
+    if (!L) {
+        return;
+    }
+    L.save();
+    L.setTransform(1, 0, 0, 1, 0, 0);
+    L.beginPath();
+    L.rect(0, 0, L.canvas.width, Math.round(cut * (window.devicePixelRatio || 1)));
+    L.clip();
+    L.setTransform(m);
+    L.globalAlpha = ctx.globalAlpha;
+    L.globalCompositeOperation = 'source-over';
+    fn(L);
+    L.restore();
+    fxSoftTopL.drawn = true;
+}
+// 띠 4칸 (2px 칸 · 위에서부터 채움 25 · 50 · 75 · 87.5%) — 줄마다 8칸 순서표를 3칸씩 밀어 남김 (어느 위 끝에서도 8칸 중 정확히 2 · 4 · 6 · 7 ·
+//   줄마다 구멍이 엇갈려 일직선이 안 생김 — 75% 줄 구멍이 불기둥을 가로지르는 점선으로 읽히던 것 · 4 × 4 Bayer 한 줄만 써서 위 끝에 따라 50 · 50 · 100 · 75% 가 되던 것, 픽셀 검사원 #107)
+//   지울 칸 모양은 (폭 · 위 끝 · 칸) 마다 한 번 만들어 둠
+const FX_SOFT_FILL = [0.25, 0.5, 0.75, 0.875];
+const FX_SOFT_ORD8 = [0, 4, 2, 6, 1, 5, 3, 7];
+let fxSoftHoles = null;
+// 위 끝 층을 거치지 않고 큰 캔버스에 점으로 그리는 것 (3:3 합동 김 — 픽셀 검사원 #107 띠 없이 위 끝에 닿던 것) — 그 점 자리가 띠 무늬로 남는 칸인지 (위 끝 위는 안 남음)
+function fxBandKeep(x, y) {
+    const top = fxStageTop();
+    if (!(top > 0) || y >= top + FX_SOFT_FILL.length * 2) {
+        return true;
+    }
+    if (y < top) {
+        return false;
+    }
+    const r = Math.floor((y - top) / 2);
+    return FX_SOFT_ORD8[(Math.floor(x / 2) + 3 * r) % 8] < FX_SOFT_FILL[r] * 8;
+}
+function fxSoftTopTrim(L) {
+    const top = fxStageTop();
+    if (!L.cv || !L.drawn || top <= 0) {
+        return;
+    }
+    const c = L.ctx;
+    const dpr = window.devicePixelRatio || 1;
+    const k = Math.max(1, Math.round(2 * dpr));
+    const y0 = Math.round((top * dpr) / k) * k;
+    const w = L.cv.width;
+    const key = `${k}:${y0}:${w}`;
+    if (fxSoftHoles?.key !== key) {
+        const path = new Path2D();
+        for (let r = 0; r < FX_SOFT_FILL.length; r++) {
+            for (let cx = 0; cx * k < w; cx++) {
+                if (FX_SOFT_ORD8[(cx + 3 * r) % 8] >= FX_SOFT_FILL[r] * 8) {
+                    path.rect(cx * k, y0 + r * k, k, k);
+                }
+            }
+        }
+        fxSoftHoles = { key, path };
+    }
+    c.save();
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.clearRect(0, 0, w, y0);
+    c.globalCompositeOperation = 'destination-out';
+    c.fillStyle = '#000';
+    c.fill(fxSoftHoles.path);
+    c.restore();
+}
 // 맞는 순간 (합동 번쩍이 덮는 장면) — 자기 둘레 참가자 입자 · 발사기를 한 번에 뺌 (진짜 그림이 같은 장면에 돌아옴)
 function fxJointDrop(J) {
     for (let i = moveParticles.length - 1; i >= 0; i--) {
@@ -54262,6 +54834,20 @@ drawParticle = function (ctx, p) {
             fxDrawParticle0(J.top.ctx, p);
             return;
         }
+        // 위 끝 층 (#107 — 기둥 · 회오리 · 날씨) — 장 끝에 위 끝을 다듬어 큰 캔버스로 (fxSoftTopTrim)
+        if (p._softTop) {
+            fxSoftTopWant(250);
+        }
+        if (ctx === moveCtx && !p._full && !p._flash && !p._screen && !p._ui && (fxSoftGens.has(p._g) || p._softTop) && fxSoftTopL.ctx && fxSoftTopOn()) {
+            fxSoftTopL.drawn = true;
+            fxDrawParticle0(fxSoftTopL.ctx, p);
+            return;
+        }
+    } else if (p._softTop && ctx === moveCtx && fxSoftTopL.ctx && (fxSoftTopWant(250), true)) {
+        // 번호 없는 필살기의 위 끝 층 한 입자 (fx-sky sc.soft)
+        fxSoftTopL.drawn = true;
+        fxDrawParticle0(fxSoftTopL.ctx, p);
+        return;
     }
     fxDrawParticle0(ctx, p);
 };
@@ -54632,6 +55218,7 @@ function fxStairBlit(v, now) {
 // 그리기 한 장 — 멈춘 번호는 움직이지 않고 그 자리에 · 줄기 보기 번호는 따로 그려 계단 · 앞끝으로
 const fxMoveTick0 = moveTick;
 moveTick = function (now) {
+    fxFrameId += 1;
     // 그리기가 멈췄다 돌아오면 (패널을 가림) 그 사이는 0.25초까지만
     const dt = fxFrozenLast ? Math.min(250, now - fxFrozenLast) : 0;
     fxFrozenLast = now;
@@ -54675,6 +55262,9 @@ moveTick = function (now) {
     if (J) {
         fxStairCanvas(J.top);
     }
+    if (fxSoftTopOn()) {
+        fxStairCanvas(fxSoftTopL);
+    }
     try {
         fxBackBegin();
         fxMoveTick0(now);
@@ -54698,7 +55288,398 @@ moveTick = function (now) {
     if (J) {
         fxLayerBlit(J.top);
     }
+    if (fxSoftTopOn()) {
+        fxSoftTopTrim(fxSoftTopL);
+        fxLayerBlit(fxSoftTopL);
+    } else if (fxSoftTopL.ctx && fxSoftTopL.drawn) {
+        // 층이 꺼질 때 비움 — 다음에 켜진 첫 장에 옛 그림이 한 장 같이 붙지 않게 (코드 리뷰어 #107)
+        fxSoftTopL.ctx.save();
+        fxSoftTopL.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        fxSoftTopL.ctx.clearRect(0, 0, fxSoftTopL.cv.width, fxSoftTopL.cv.height);
+        fxSoftTopL.ctx.restore();
+        fxSoftTopL.drawn = false;
+    }
+    fxCutDown(now);
+    fxOnTopDraw(now);
+    // 입자가 다 끝나 루프가 멈춰도 맨 위 그리기 (대상 다시 그리기 등) 가 남았으면 한 장 더 — 마지막 장에 덧그린 그림이 지워지지 않고 남던 것 (코드 리뷰어 #107 높음)
+    if (fxOnTops.length && !moveRaf && moveCtx) {
+        moveRaf = requestAnimationFrame(moveTick);
+    }
 };
+// 맨 위 그리기 — 장 끝 (판 · 층을 다 붙인 뒤) 에 그림 (fxOnTop(fn, ms) — fn(ctx) · 화면 좌표). 1:1 필살기 입자는 판 캔버스에 그려 장 끝에 큰 캔버스로 붙어,
+//   큰 캔버스에 z 1 로 그린 꼭두각시도 그 밑에 깔리던 것 (하이퍼보이스 앞장 다시 그리기 — #108 아트 1바퀴 ②)
+// 진화 (S22) 흰 실루엣 옛 ↔ 새 바뀜 — 초당 2.8번 일정하게 (깜빡임 1초 3번 규칙 · fx-sky 메가 넷과 같은 값 — 초당 2 → 12번으로 빨라지던 것, 10-25 결정 · bugs 1800)
+//   시험 fx/evolve-flip.test.ts 가 이 줄을 읽음 (간격 ≥ 0.34초)
+const EVO_FLIP_HZ = 2.8;
+const fxOnTops = [];
+// gen = 그 연출 번호 — 멈춘 (clear · 끊김) 연출 것은 바로 뺌
+function fxOnTop(fn, ms, gen) {
+    fxOnTops.push({ fn, until: performance.now() + ms, gen });
+    if (!moveRaf && moveCtx) {
+        moveRaf = requestAnimationFrame(moveTick);
+    }
+}
+function fxOnTopDraw(now) {
+    if (!fxOnTops.length || !moveCtx) {
+        return;
+    }
+    const dpr = window.devicePixelRatio || 1;
+    for (let i = fxOnTops.length - 1; i >= 0; i--) {
+        const d = fxOnTops[i];
+        if (now >= d.until || (d.gen !== undefined && (d.gen <= fxDeadBelow || fxKilled.has(d.gen)))) {
+            fxOnTops.splice(i, 1);
+            continue;
+        }
+        moveCtx.save();
+        moveCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        moveCtx.globalAlpha = 1;
+        moveCtx.globalCompositeOperation = 'source-over';
+        try {
+            moveInFrame(null, () => d.fn(moveCtx));
+        } catch (err) {
+            ultError('on top', err);
+            fxOnTops.splice(i, 1);
+        } finally {
+            moveCtx.restore();
+        }
+    }
+}
+// ── 쓰러진 포켓몬 위 연출 지우기 (#107 UX 큼 1 — 대상 다시 그리기는 쓰러짐 시작에 끝나서, 그 뒤 연출이 누운 회색 모습을 계속 덮던 것 · #1706 같은 종류 세 번째) ──
+// 쓰러짐이 시작된 그림 (1:1 = pg-fainted · pg-down — 벌러덩은 넘어짐 기다림 --pg-ko-wait 뒤 · 3:3 = pg-team-down) 의 모양 + 1칸 위 연출 캔버스를 지움 ·
+//   테 칸에는 화면 전체 판 · 꼭두각시는 다시 · 모든 필살기 · 기술 공통 · 게임 화면만
+const FX_DOWN_PAD = 1; // 그림 점 칸
+// 1:1 쓰러짐 연출 (game.css pg-ko — --pg-ko-wait 만큼 늦게 시작) 이 시작했는지 = 그 CSS 애니메이션의 지금 시간 ≥ 늦춤 (처음 본 장 + wait 로 세면 늦게 본 경우 어긋나던 것 — 코드 리뷰어 #107)
+function fxKoStarted(body) {
+    if (!body.classList.contains('pg-ko-late')) {
+        return true;
+    }
+    // 늦게 넘어지는 판은 이름이 따로 (game.css pg-ko-late · pg-ko-down-late · pg-faint-late) — 'pg-ko' 만 찾아 1:1 에서 한 번도 안 맞던 것 (디자인 #107 UX 3바퀴 헤비봄버 구덩이)
+    const a = body.getAnimations?.().find((x) => /^pg-(ko|faint)/.test(x.animationName));
+    if (!a) {
+        return false;
+    }
+    const delay = Number(a.effect?.getTiming?.().delay) || 0;
+    return (Number(a.currentTime) || 0) >= delay;
+}
+// 캔버스에 그린 포켓몬 그림 (쓰는 쪽 꼭두각시 · 잔상) — 장마다 적어 두고, 쓰러진 칸을 지운 뒤 지운 칸 안에만 다시 그림
+//   (디자인 #107 UX 2바퀴 — 내리꽂는 리자몽 아랫몸이 지우기 상자 윗변에 일자로 잘리던 것 · 돌진 · 내려찍기 공통) · 쓰러진 포켓몬 그림은 빼고
+const fxMonDraws = [];
+let fxMonDrawsAt = -1;
+// 큰 캔버스로 그대로 붙는 판 — 큰 캔버스 · 위 끝 층 (헤비봄버처럼 번호째 이 층 — 위 끝 위만 다듬음) · 합동 층 · 지금 그리는 무대 상자 판
+//   (같은 크기 · 같은 기기 좌표라 그 변환 그대로 다시 그림) · 계단 상자는 빼고
+function fxMainCtx(ctx) {
+    return ctx === moveCtx || ctx === fxSoftTopL.ctx || (!!fxJointTop && ctx === fxJointTop.top.ctx) || (!!moveFrame && ctx === moveFrame.ctx && !moveFrame.stair?.dy);
+}
+// 그린 판 — null = 그대로 붙음 · 줄기 보기 (1:1 필살기 입자 — 장 끝에 칸마다 계단 dy 로 붙음, fxStairBlit) · undefined = 모르는 판 (안 적음)
+//   (큰 캔버스만 보아 1:1 꼭두각시를 못 적어 헤비봄버 꼭두각시가 지운 칸에서 사라지던 것, #107 개발 확인)
+function fxMonLayer(ctx) {
+    if (fxMainCtx(ctx)) {
+        return null;
+    }
+    if (fxViewDrawing) {
+        for (const v of fxBeamView.values()) {
+            if (v.ctx === ctx) {
+                return v;
+            }
+        }
+    }
+    return undefined;
+}
+function fxMonNote(ctx, src, img, w, h) {
+    const v = fxMonLayer(ctx);
+    if (v === undefined || !fxInGame()) {
+        return;
+    }
+    if (fxMonDrawsAt !== fxFrameId) {
+        fxMonDrawsAt = fxFrameId;
+        fxMonDraws.length = 0;
+    }
+    fxMonDraws.push({ m: ctx.getTransform(), a: ctx.globalAlpha, f: ctx.filter, src, img, w, h, v });
+}
+// 화면 전체 판 (어둠 _full · 번쩍 _flash · 물들임 _screen) 중 이번 장에 그려진 것 — drawParticle 이 빼는 것 (합동 쏘는 쪽 번쩍 · 참가자 어둠 · 덮음 재기) 은 빼고
+function fxScreenLayer(p) {
+    if (!(p._full || p._flash || p._screen) || p.life >= p.max) {
+        return false;
+    }
+    if (window.__fxMeasure && (p._full || p._flash)) {
+        return false;
+    }
+    if (p._g !== undefined && (((p._flash || p._screen) && fxNoFlashGens.has(p._g)) || (fxJointTop && p._full && fxJointTop.gens.has(p._g)))) {
+        return false;
+    }
+    return true;
+}
+function fxCutDown() {
+    if (!moveCtx || !fxInGame()) {
+        return;
+    }
+    const els = [];
+    // 1:1 = 필살기로 쓰러뜨려 늦게 넘어지는 칸만 (덮는 연출이 남는 경우 · 보통 기술로 쓰러뜨린 칸의 쓰러짐 금빛 별빛은 그대로) — 넘어짐이 시작된 뒤부터
+    for (const body of document.querySelectorAll('#pokemon-game .pg-fighter[data-ko] .pg-fx-body.pg-ko-late')) {
+        if (!fxKoStarted(body)) {
+            continue;
+        }
+        const img = body.querySelector('img');
+        if (img) {
+            els.push(img);
+        }
+    }
+    // 3:3 = 필살기 연출이 도는 동안만
+    if (fxGame) {
+        for (const q of fxGameDown()) {
+            els.push(q.el);
+        }
+    }
+    // 다 사라진 몸 (KO 끝 · 볼로 돌아감) 은 뺌 — 그 자리에 단데기 모양 얼룩이 0.3초 남던 것 (디자인 #107 UX 5바퀴 작음 ①)
+    for (let i = els.length - 1; i >= 0; i--) {
+        if (fxDownAlpha(els[i]) < 0.05) {
+            els.splice(i, 1);
+        }
+    }
+    if (!els.length) {
+        return;
+    }
+    const dpr = window.devicePixelRatio || 1;
+    // ① 지울 모양 M — 쓰러진 그림 모양 (지금 기울기 · 방향 그대로) 을 FX_DOWN_PAD 칸 넓힌 것 (네모로 지워 어둠 · 물들임 · 구덩이에 네모 구멍이 나던 것 — 디자인 #107 UX 3바퀴 신속 · 헤비봄버 ·
+    //   2칸째 바둑판 테는 1 ~ 2px 톱니로 보여 뺌 — 4바퀴)
+    const M = fxCutCanvas('m');
+    for (const el of els) {
+        fxDownShape(M, el, FX_DOWN_PAD);
+    }
+    // ② 그 자리에 다시 그릴 것 O — 화면 전체 판 (어둠 · 번쩍 · 물들임 — 같은 때 모습 · 같은 순서 · 어둠은 destination-over 라 번쩍 밑으로 · HP 묶음 · 밝힌 구멍도 그 판 그대로) — 테 칸에만 ·
+    //   쓰러진 그림 자리는 판 없이 (어둠만 다시 깔면 물들임 · 불 속에서 누운 몸이 검은 그림자로 보이다 어둠이 걷히면 갑자기 회색 — 디자인 #107 UX 4바퀴) + 꼭두각시 · 잔상
+    const O = fxCutCanvas('o');
+    for (const layer of [-1, 0, 1]) {
+        for (let i = moveParticles.length - 1; i >= 0; i--) {
+            const p = moveParticles[i];
+            const z = p.z ?? 0;
+            if ((z < 0 ? -1 : z > 0 ? 1 : 0) !== layer || !fxScreenLayer(p)) {
+                continue;
+            }
+            O.save();
+            try {
+                if (p._f) {
+                    O.translate(p._f.x, p._f.y);
+                    moveInFrame(p._f, () => fxDrawParticle0(O, p));
+                } else {
+                    fxDrawParticle0(O, p);
+                }
+            } catch {
+                // 그 판만 — 다음 장에 원래 자리에서 다시 그려짐
+            } finally {
+                O.restore();
+            }
+        }
+    }
+    O.save();
+    O.globalCompositeOperation = 'destination-out';
+    for (const el of els) {
+        // 흐려지는 만큼만 (KO 0.8 → 0.55 → 0.3) — 다 사라진 몸 자리에 판 없는 얼룩이 남지 않게
+        O.globalAlpha = fxDownAlpha(el);
+        fxDownShape(O, el, 0);
+    }
+    O.restore();
+    if (fxMonDrawsAt === fxFrameId) {
+        const down = new Set(els);
+        O.save();
+        for (const d of fxMonDraws) {
+            if (down.has(d.src)) {
+                continue;
+            }
+            let m = d.m;
+            if (d.v) {
+                // 줄기 보기 — 그림 가운데 칸의 계단 dy 만큼 (fxStairBlit 과 같게)
+                const c = m.transformPoint(new DOMPoint(0, 0));
+                m = new DOMMatrix([1, 0, 0, 1, 0, fxStairDy(d.v, c.x / dpr) * dpr]).multiply(m);
+            }
+            O.setTransform(m);
+            O.globalAlpha = d.a;
+            O.filter = d.f;
+            O.drawImage(d.img, -d.w / 2, -d.h / 2, d.w, d.h);
+        }
+        O.restore();
+    }
+    // ③ 큰 캔버스에서 M 모양을 지우고 · M 모양 안의 O 를 붙임
+    O.save();
+    O.setTransform(1, 0, 0, 1, 0, 0);
+    O.globalCompositeOperation = 'destination-in';
+    O.drawImage(M.canvas, 0, 0);
+    O.restore();
+    moveCtx.save();
+    moveCtx.setTransform(1, 0, 0, 1, 0, 0);
+    moveCtx.globalAlpha = 1;
+    moveCtx.globalCompositeOperation = 'destination-out';
+    moveCtx.drawImage(M.canvas, 0, 0);
+    moveCtx.globalCompositeOperation = 'source-over';
+    moveCtx.imageSmoothingEnabled = false;
+    moveCtx.drawImage(O.canvas, 0, 0);
+    moveCtx.restore();
+}
+// 쓰러진 몸이 보이는 정도 — 몸 상자 · 그림의 지금 opacity (KO 애니메이션 값) · 숨김이면 0
+function fxDownAlpha(el) {
+    if (!el.isConnected) {
+        return 0;
+    }
+    let a = 1;
+    for (const n of [el, el.closest('.pg-fx-body')]) {
+        if (!n) {
+            continue;
+        }
+        const cs = getComputedStyle(n);
+        if (cs.visibility === 'hidden' || cs.display === 'none') {
+            return 0;
+        }
+        a *= Number(cs.opacity);
+    }
+    return a;
+}
+// 쓰러진 칸 지우기 판 두 장 (큰 캔버스와 같은 크기 · 장마다 비우고 화면 좌표로)
+const fxCutL = {};
+function fxCutCanvas(key) {
+    const w = moveCtx.canvas.width;
+    const h = moveCtx.canvas.height;
+    if (!fxCutL[key]) {
+        fxCutL[key] = document.createElement('canvas').getContext('2d');
+    }
+    const x = fxCutL[key];
+    if (x.canvas.width !== w || x.canvas.height !== h) {
+        x.canvas.width = w;
+        x.canvas.height = h;
+    }
+    const dpr = window.devicePixelRatio || 1;
+    x.setTransform(1, 0, 0, 1, 0, 0);
+    x.globalCompositeOperation = 'source-over';
+    x.globalAlpha = 1;
+    x.filter = 'none';
+    x.clearRect(0, 0, w, h);
+    x.setTransform(dpr, 0, 0, dpr, 0, 0);
+    x.imageSmoothingEnabled = false;
+    return x;
+}
+// 쓰러진 그림 모양을 n 칸 넓혀 찍음 — 지금 모습 그대로 (벌러덩 기울기 = 몸 상자 transform · 그림 rotate · 방향 · 같은 칸 크기). 그림 도구가 없으면 상자 네모
+function fxDownShape(x, el, n) {
+    const r = fxRect0.call(el);
+    if (r.width < 1 || r.height < 1 || !el.naturalWidth) {
+        return;
+    }
+    const K = ULT_KIT;
+    if (!K.drawMon) {
+        x.fillStyle = '#000';
+        x.fillRect(r.left - n * 2, r.top - n * 2, r.width + n * 4, r.height + n * 4);
+        return;
+    }
+    const body = el.closest('.pg-fx-body');
+    const t = body ? getComputedStyle(body).transform : 'none';
+    const m = t && t !== 'none' ? new DOMMatrix(t) : null;
+    const rot = (m ? Math.atan2(m.b, m.a) : 0) + ((parseFloat(getComputedStyle(el).rotate) || 0) * Math.PI) / 180;
+    const w = el.offsetWidth || r.width;
+    const h = (w * el.naturalHeight) / el.naturalWidth;
+    const cell = Math.max(1, Math.round(w / el.naturalWidth));
+    const cx = r.left + r.width / 2;
+    const bottom = r.top + r.height / 2 + h / 2;
+    const left = el.classList.contains('pg-face-left');
+    for (let dy = -n; dy <= n; dy++) {
+        for (let dx = -n; dx <= n; dx++) {
+            if (Math.abs(dx) + Math.abs(dy) <= n) {
+                K.drawMon(x, el, cx + dx * cell, bottom + dy * cell, w, left, 1, '#000', rot);
+            }
+        }
+    }
+}
+// ── 대상 다시 그리기 (#107 — 기획 10-25: 필살기가 맞는 포켓몬을 0.5초 넘게 덮지 않게 · 크기는 줄이지 않고 대상을 연출 맨 위에) ──
+// 구간 = ULT_COVER (dev/ult-cover.py --data 가 860 × 187 에서 잰 가림 0.3초 넘는 구간 → make-moves) · 열쇠 = 틀 · 옵션 (색 · track 빼고) · o = 1:1 · j = 3:3 장면 전환 합동
+// 맞는 모습 (디자인 10-25): 다시 그리기 시작에 흰 실루엣 0.06초 한 번 · 처음 0.6초만 0.12초마다 좌우 ±2px · 몸 바깥 1칸 밝은 테 (그 연출 cols[1]) + 그 바깥 1칸 #1a1626 ·
+//   쓰러짐 (회색 주저앉기 · 벌러덩 — 1:1 은 넘어짐 기다림 --pg-ko-wait 이 끝날 때 · 3:3 pg-team-down) 이 시작하면 끝
+// 구간 앞 · 뒤 여유 (ms — 패널 폭마다 덮는 때가 조금 다름) · 이만큼 안 떨어진 구간은 하나로 (테가 켜졌다 꺼졌다 하지 않게)
+const FX_COVER_PAD = [150, 250];
+const FX_COVER_JOIN_MS = 600;
+const FX_COVER_RIM = '#1a1626';
+const FX_COVER_SHAKE = { px: 2, step: 0.12, sec: 0.6, white: 0.06 };
+// 구간 끝 뒤 넘어짐을 기다리며 이어 그리는 최대 ms (넘어짐 기다림 0.62초 + 여유)
+const FX_COVER_WAIT_MS = 1500;
+function fxCoverSig(e) {
+    const o = e[2] || {};
+    return JSON.stringify([e[1], Object.keys(o).filter((k) => k !== 'c' && k !== 'track').sort().map((k) => [k, o[k]])]);
+}
+/** 다시 그릴 구간 [[본편 시작부터 ms, 끝 ms] …] — 앞뒤 여유를 붙이고 가까운 것은 하나로 */
+function fxCoverSpans(e) {
+    const t = typeof ULT_COVER !== 'undefined' ? ULT_COVER[fxCoverSig(e)] : null;
+    const runs = (t && (e[2]?.track ? t.j : t.o)) || [];
+    const out = [];
+    for (const [a, n] of runs) {
+        const s0 = Math.max(0, a - FX_COVER_PAD[0]);
+        const s1 = a + n + FX_COVER_PAD[1];
+        if (out.length && s0 <= out[out.length - 1][1] + FX_COVER_JOIN_MS) {
+            out[out.length - 1][1] = Math.max(out[out.length - 1][1], s1);
+        } else {
+            out.push([s0, s1]);
+        }
+    }
+    return out;
+}
+/** B (fxActor) 를 ms 동안 연출 맨 위에 맞는 모습으로 — 칸 상자에 __fxRedrawUntil 을 적음 (dev/ult-cover.py 가 그동안은 가림으로 안 셈) */
+function fxCoverRedraw(gen, B, ms, color) {
+    if (window.__fxNoCoverRedraw || !ULT_KIT.drawMon) {
+        return;
+    }
+    const box = B.collision;
+    const t0 = performance.now();
+    let done = false;
+    let x0 = null;
+    fxOnTop((ctx) => {
+        // 게임이 그림 (<img>) 을 새로 바꿔 넣으면 처음 el 은 문서에서 빠짐 — 칸 상자 안 img 를 다시 찾음
+        const img = done ? null : B.el?.isConnected ? B.el : box?.isConnected ? box.querySelector('.pg-sprite') || box.querySelector('img') : null;
+        if (!img?.naturalWidth) {
+            return;
+        }
+        // 연출이 대상을 숨기고 꼭두각시로 그리는 동안은 안 그림 (뮤츠 사이코키네시스 — 둘로 보이던 것, 코드 리뷰어 #107)
+        if (img.style.visibility === 'hidden' || img.style.opacity === '0') {
+            return;
+        }
+        const now = performance.now();
+        // 쓰러짐이 시작하면 끝 — 1:1 벌러덩은 넘어짐 기다림 (맞은 모습으로 섬) 이 끝날 때 (pg-ko 애니메이션 시간으로)
+        const body = img.closest('.pg-fx-body');
+        const fallen = !!body && (body.classList.contains('pg-fainted') || body.classList.contains('pg-down'));
+        if (img.closest('.pg-team-down') || (fallen && fxKoStarted(body))) {
+            done = true;
+            return;
+        }
+        // 구간이 끝났어도 쓰러져 넘어짐을 기다리는 동안은 이어 그림 (구간 끝 → 넘어짐 사이 0.2초 동안 대상이 구덩이 밑에 사라지던 것 — 디자인 #107 UX 4바퀴 헤비봄버)
+        if (now - t0 > ms && !fallen) {
+            done = true;
+            return;
+        }
+        const r = img.getBoundingClientRect();
+        const w = img.offsetWidth || r.width;
+        if (w < 2) {
+            return;
+        }
+        box.__fxRedrawUntil = now + 120;
+        const t = (now - t0) / 1000;
+        const cell = Math.max(1, Math.round(w / img.naturalWidth));
+        const dx = t < FX_COVER_SHAKE.sec ? (Math.floor(t / FX_COVER_SHAKE.step) % 2 ? 1 : -1) * FX_COVER_SHAKE.px : 0;
+        // 흔들리는 0.6초는 처음 잰 자리 + dx (게임의 맞는 흔들림과 겹쳐 폭 6px 로 넓어지던 것 — 픽셀 검사원 #107 작음) · 그 뒤는 게임 자리를 따라감
+        x0 ??= r.left + r.width / 2;
+        const x = t < FX_COVER_SHAKE.sec ? x0 + dx : r.left + r.width / 2;
+        // 가운데 기준 (기울어진 그림도 — 상자 가운데 = 그림 가운데) · 기울기는 그림의 rotate 그대로
+        const bottom = r.top + r.height / 2 + (w * img.naturalHeight) / img.naturalWidth / 2;
+        const rot = ((parseFloat(getComputedStyle(img).rotate) || 0) * Math.PI) / 180;
+        const left = img.classList.contains('pg-face-left');
+        const K = ULT_KIT;
+        for (const [ox, oy] of [[2, 0], [-2, 0], [0, 2], [0, -2], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+            K.drawMon(ctx, img, x + ox * cell, bottom + oy * cell, w, left, 1, FX_COVER_RIM, rot);
+        }
+        for (const [ox, oy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            K.drawMon(ctx, img, x + ox * cell, bottom + oy * cell, w, left, 1, color, rot);
+        }
+        // 그림은 밝기 85% — 가장 밝은 빛줄기 위에서 원래 색 그대로라 스티커처럼 보이던 것 (#107 아트 작음 ①) · 번쩍 없이
+        if (t >= FX_COVER_SHAKE.white) {
+            ctx.filter = 'brightness(0.85)';
+        }
+        K.drawMon(ctx, img, x, bottom, w, left, 1, t < FX_COVER_SHAKE.white ? '#ffffff' : null, rot);
+        ctx.filter = 'none';
+    }, ms + FX_COVER_WAIT_MS, gen);
+}
 // 멈춘 번호 입자 · 발사기를 그 자리에 그리고 되돌림 (틱이 던져도)
 function fxPutBack(held, heldE) {
     if (held) {
@@ -55222,6 +56203,8 @@ window.__fxDebug = {
     },
     // 번쩍 판 (화면 전체 흰색) 이 떠 있는지 — 덮음 재기에서 그 순간은 뺌 (캔버스 점 수로 재서)
     flashing: () => moveParticles.some((q) => q._flash),
+    // 쓰러진 칸 지우기 — 이번 장에 적은 포켓몬 그림 수 · 화면 전체 판 수 (#107 확인)
+    cut: () => ({ frame: fxFrameId, mon: fxMonDrawsAt === fxFrameId ? fxMonDraws.length : -1, screens: moveParticles.filter(fxScreenLayer).length }),
 };
 
 window.pokemonFx = {
@@ -55357,9 +56340,17 @@ window.pokemonFx = {
         if (o?.stage && !o?.sub && fxTeamOn()) {
             return fxStageUlt(A, B, entry, gen, onHit, o);
         }
+        // 위 끝 층 (#107) — 기둥 · 회오리 · 날씨 필살기 입자에 번호를 붙여 따로 그림 (끝나면 뺌 — 아래 total 뒤)
+        const soft = fxInGame() && fxSoftTopOk(entry);
+        if (soft) {
+            fxTagged.add(gen);
+            fxSoftGens.add(gen);
+        }
         // o.sub = 반격기 — 패널 전체 번쩍 없음 (fxFlashCap)
         fxGame = { A, B, gen, tick: setInterval(fxGameTick, 100), onHit: tm ? null : onHit, hit: false, noFlash: !!o?.sub };
         let total = 0;
+        // 본편 시작 (기 모으기 + 컷인 뒤 — 대상 다시 그리기 구간의 기준)
+        let mainStart = 0;
         try {
             // o.quick = 같은 전투에서 다시 보는 필살기 — 컷인 없이 짧게 (ult/core.js ULT_QUICK_INTRO_MS)
             // 쓰기 전 기 모으기 (일반 모드 꾹 누르기와 같은 연출, 2026-10-20 태현 님) — 첫 필살기 0.8초 · 다시 보는 필살기 0.4초 · 반격기 (sub) 는 바로
@@ -55371,6 +56362,7 @@ window.pokemonFx = {
             const mainAt = typeof o?.mainAt === 'number' ? o.mainAt : null;
             // o.noIntro = 1:1 컷인 없이 (3:3 장면 전환 합동 — 이름은 화면 큰 컷인, #99)
             const introMs = o?.noIntro ? 0 : o?.quick ? ULT_QUICK_INTRO_MS : ULT_INTRO_MS;
+            mainStart = charge + introMs;
             total = fxWithTimers(gen, () => useUltimate(A, entry, { quick: !!o?.quick, charge, ...(shift ? { extraMs: shift } : {}), ...(o?.sub ? { sub: o.sub } : {}), ...(o?.noIntro ? { noIntro: true } : {}) })) || 0;
             if (tmAll && total) {
                 const at0 = charge + introMs + (mainAt ?? tmAll.main) + shift;
@@ -55404,6 +56396,19 @@ window.pokemonFx = {
             }
         } catch (err) {
             ultError('game ult', err);
+        }
+        if (soft) {
+            setTimeout(() => fxSoftGens.delete(gen), (total || 0) + 1500);
+        }
+        // 대상 다시 그리기 (#107) — 덮는 구간 (본편 시작부터) 마다 맞는 포켓몬을 연출 맨 위에
+        if (total && fxInGame()) {
+            const spans = fxCoverSpans(entry);
+            if (spans.length) {
+                const col = ultCols(entry[2] || {}, entry[1])[1];
+                for (const [a, b] of spans) {
+                    setTimeout(fxGuard(gen, () => fxCoverRedraw(gen, B, b - a, col)), mainStart + a);
+                }
+            }
         }
         if (!total) {
             fxGameStop(true);
@@ -55563,11 +56568,15 @@ window.pokemonFx = {
                     return;
                 }
                 try {
-                    // 대비 장면 — 동료 그림을 어둡게 (연출 층 위라 어둠 · 하양에 안 덮임) · 끝나면 되돌림
-                    const contrast = fxJ11?.g === g && fxJ11Contrast(fxJ11);
-                    if (contrast !== st.contrast) {
+                    // 대비 장면 — 동료 그림 (연출 층 위라 어둠 · 하양에 안 덮임): 'dark' = 어둡게 0.35 · 'white' · 'neg' (하양 · 반전 장) = #1a1626 한 색 실루엣
+                    //   (앞장 실루엣은 연출 틀이 그림 — 디자인 #108) · 끝나면 되돌림
+                    const cv = fxJ11?.g === g ? fxJ11?.track?.contrast || false : false;
+                    const contrast = !!cv;
+                    if (cv !== st.contrastV) {
+                        st.contrastV = cv;
                         st.contrast = contrast;
-                        allies.forEach((a) => a.A?.el && (a.A.el.style.filter = contrast ? 'brightness(0.35)' : ''));
+                        const filt = cv === 'white' || cv === 'neg' ? 'brightness(0) invert(0.09)' : cv ? 'brightness(0.35)' : '';
+                        allies.forEach((a) => a.A?.el && (a.A.el.style.filter = filt));
                     }
                     t11Gather(ctx, { now: performance.now(), allies, kL, track, tracked, gatherTo, st, LA, hitEnd: t0 + (hitAt > 0 ? hitAt : 2000), onGather, onGatherEnd, leadType: o.types?.[lead.i] || 'normal', kind, foe, contrast });
                 } catch (err) {
@@ -55577,8 +56586,9 @@ window.pokemonFx = {
         });
         // 대비 장면 중에 그림이 끝나도 (끊김 · 접힘) 동료 어둡게를 되돌림
         setTimeout(() => {
-            if (st.contrast) {
+            if (st.contrastV) {
                 st.contrast = false;
+                st.contrastV = false;
                 allies.forEach((a) => a.A?.el && (a.A.el.style.filter = ''));
             }
         }, total + 400);
@@ -55594,9 +56604,14 @@ window.pokemonFx = {
                 const pairs = [leadC, ...allies.map((a) => a.c)].map((c) => [c[1], c[2]]);
                 // 끝을 동료 타입으로 (합동에서만 — 혼자 판 터짐 + 고리 하나라 "증기 폭발" 인데 김이 안 보이던 것, 아트 #103 ①) — 물 = 김 + 물 왕관 · 풀 = 잎 · 그 밖 = 동료 별
                 try {
-                    t11Finale(allies.map((a) => a.type), tb, k);
-                    if (track.uniq && (o.types?.[lead.i] || 'normal') === 'grass') {
+                    // 일반 틀 풀 앞장 = 잎 16 (+ 페어리 동료 하트 8) · 땅 고리 — 그 동료 몫 (풀 잎 10 · 페어리 하트 10) 은 빼고 (#108 디자인 — 상대 합동 숲의 분노)
+                    const grassLead = (o.types?.[lead.i] || 'normal') === 'grass';
+                    const types = allies.map((a) => a.type);
+                    t11Finale(grassLead && !track.uniq ? types.filter((t) => t !== 'grass' && t !== 'fairy') : types, tb, k);
+                    if (grassLead && track.uniq) {
                         t11LeafBurst(tb, k);
+                    } else if (grassLead) {
+                        t11ForestBurst(tb, k, types, foe);
                     }
                 } catch (err) {
                     ultError('joint11 finale', err);
@@ -56615,8 +57630,8 @@ window.pokemonFx = {
                         const an = (j / dots) * Math.PI * 2;
                         dotAt(ctx, px, s, cx + Math.cos(an) * ring, cy + Math.sin(an) * ring, j % 2 ? '#dfe9ff' : '#ffffff', 1, 1);
                     }
-                    // 하얀 실루엣이 옛 ↔ 새 로 점점 빠르게 (초당 2 → 12번, 끝 10% 는 새 모습) · 바뀔 때마다 부풀었다 줄어듦
-                    const flips = (L - T0) * (2 + 5 * k);
+                    // 하얀 실루엣이 옛 ↔ 새 로 일정하게 (EVO_FLIP_HZ · 끝 10% 는 새 모습) · 바뀔 때마다 부풀었다 줄어듦
+                    const flips = (L - T0) * EVO_FLIP_HZ;
                     const showNew = k > 0.9 || Math.floor(flips) % 2 === 1;
                     const swell = 1 + 0.12 * Math.sin((flips % 1) * Math.PI);
                     evoDraw(ctx, showNew ? newImg : oldImg, showNew ? n : a, swell, '#ffffff', 1);

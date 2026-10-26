@@ -330,8 +330,9 @@ export class TeamFxRunner {
       }
       holdTeamTail(now + total + TEAM_VIEW.outMs);
       this.ultUntil = now + total + TEAM_VIEW.outMs;
+      // 나올 때는 늘 연출을 끊음 — 앞장 꼭두각시가 out 첫 그림에 남아 제자리 바둑판과 한 장면 둘로 보이던 것 (#96 UX 5 · 6바퀴 작음 — #108)
       this.later(total, () => {
-        if (cut) this.fx?.stopUlt?.();
+        this.fx?.stopUlt?.();
         setTeamView({ ...v, phase: 'out', at: performance.now() });
       });
       this.later(total + TEAM_VIEW.outMs, () => {

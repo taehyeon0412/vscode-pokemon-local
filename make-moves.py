@@ -311,6 +311,10 @@ def write_bundle(table, acts, lib, movesets, shape, ult_lib, ults, out):
     hit_path = os.path.join(ULT_DIR, "ult-hit.json")
     ult_hit = json.load(open(hit_path, encoding="utf-8")) if os.path.exists(hit_path) else {}
     moves += "const ULT_HIT = " + json.dumps(ult_hit, ensure_ascii=False, separators=(",", ":")) + ";\n"
+    # 필살기가 맞는 포켓몬을 덮는 구간 (dev/ult-cover.py --data · --write-data — #107 대상을 연출 위에 다시 그림, 열쇠 = 틀 · 옵션)
+    cover_path = os.path.join(ULT_DIR, "ult-cover.json")
+    ult_cover = json.load(open(cover_path, encoding="utf-8")) if os.path.exists(cover_path) else {}
+    moves += "const ULT_COVER = " + json.dumps(ult_cover, ensure_ascii=False, separators=(",", ":")) + ";\n"
     i = src.index(CODE_ANCHOR)
     src = src[:i] + BEGIN + "\n" + moves + code + END + "\n" + src[i:]
     i = src.index(HOOK_ANCHOR) + len(HOOK_ANCHOR)

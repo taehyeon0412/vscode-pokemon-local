@@ -8,8 +8,9 @@
   고르는 필살기 = 전용 (fx-unique uniq · fx-sky 스타팅 특수 키) 전부 + 일반 필살기는 틀 · 옵션 (색 c 빼고) 이 같은 것끼리 하나씩
   --joint = 3:3 장면 전환 합동처럼 (entry 옵션에 o.track — 연출 틀의 합동 갈래 · 구 · 메가진화 늘림) · 결과 파일은 ult-top-joint.json
   걸쳐 머묾 = 위 끝 바로 위 4px · 바로 아래 4px 에 같은 세로줄이 함께 칠해진 (일자로 잘린) 폭이 8px 넘는 장면이 0.3초 넘게 이어짐 (비율 60% 아래라도 — 던진 구 · 머리 위 공이 반쯤 걸친 것, #96 디자인 4바퀴)
-  숨음 · 못 잼이 하나라도 있으면 exit 1 (npm run test:ult-top — 지나감 목록은 빼고 셈) · 걸쳐 머묾은 지금은 보고만 (기획 #107 에서 0 까지 → 그때 실패 기준으로)
-  TOP_REAL=1 = 실제 1:1 전투 화면 그대로 (위 끝 = 정보줄 아래 끝 · 내 칸 자리 그대로) · TOP_DUMP=<폴더> = 가장 많이 숨은 장면 캔버스 PNG · 이름 걸러내기는 쉼표로 여럿
+  숨음 · 못 잼 · 기준선 (dev/ult-top-stay.json) 밖의 새 걸침이 있으면 exit 1 (npm run test:ult-top — 지나감 목록은 빼고 셈) · 기준선 걸침은 보고만 (#107 에서 0 까지)
+  --report <json> = 다시 돌리지 않고 저장된 결과로 셈 · --write-baseline = 이번 걸침으로 기준선을 다시 씀 (고친 뒤 줄일 때)
+  TOP_UNIQ=1 = 전용만 · 0 = 일반만 · TOP_REAL=1 = 실제 1:1 전투 화면 그대로 (위 끝 = 정보줄 아래 끝 · 내 칸 자리 그대로) · TOP_DUMP=<폴더> = 가장 많이 숨은 장면 캔버스 PNG · 이름 걸러내기는 쉼표로 여럿
   dev/ult-fx.py 의 창 · 페이지 도구를 씀"""
 import importlib.util
 import json
@@ -43,7 +44,8 @@ HIDE_FRAC = 0.6
 CUT_BAND = 4
 CUT_MIN = 8
 STAY_MS = 300
-STAY_FAIL = False  # 기획 #107 — 걸쳐 머묾 0 이 되면 True (실패 기준으로)
+# 걸쳐 머묾 기준선 (#107 — 2026-10-24) — 그때 있던 걸침 목록 (1:1 · 합동 따로). 기준선 밖의 새 걸침 = 실패 · 기준선에서 없어진 것 = 고쳐짐 (--write-baseline 로 줄임) · 0 이 목표
+STAY_BASE = os.path.join(ROOT, "dev", "ult-top-stay.json")
 # 지나가는 것 (ux-rules U4 "지나가는 것은 됨" — #96 ④, TOP_DUMP 장면으로 확인) — 숨음으로 세지 않고 따로 적음 · 열쇠 글자가 들어 있으면
 PASSING = {
     "rayquaza|화룡점정|": "땅에서 화면 밖까지 솟는 빛기둥 (무대 쪽은 칠한 줄로 빠져 100% 로 읽힘)",
@@ -241,7 +243,9 @@ def worker(k, n, out, filt):
             if isinstance(keys, dict) and keys:
                 break
             time.sleep(0.5)
-        mine = [key for key in sorted(keys) if any(f in key for f in filt.split(','))][k::n]
+        # TOP_UNIQ=1 = 전용만 · TOP_UNIQ=0 = 일반만 (#107 — 고친 쪽만 다시 잴 때)
+        only = os.environ.get("TOP_UNIQ")
+        mine = [key for key in sorted(keys) if any(f in key for f in filt.split(',')) and (only is None or keys[key][2] == int(only))][k::n]
         for key in mine:
             form, idx, uniq, sig = keys[key]
             res[key] = {"uniq": uniq, "sig": sig}
@@ -287,21 +291,30 @@ if __name__ == "__main__":
         worker(int(sys.argv[2]), int(sys.argv[3]), sys.argv[4], sys.argv[5] if len(sys.argv) > 5 else "")
         sys.exit(0)
     # 머리 없는 브라우저는 세션마다 2개까지 (game-dev-team 3장 정리 ④ · 2026-10-24 — 메모리 0.3 GB) · PG_MAX_BROWSERS 로만 늘림
-    n = min(int(sys.argv[1]) if len(sys.argv) > 1 else 2, int(os.environ.get("PG_MAX_BROWSERS", 2)))
-    filt = sys.argv[2] if len(sys.argv) > 2 else ""
-    tmp = tempfile.mkdtemp()
+    # --report <json> = 다시 돌리지 않고 저장된 결과로 셈 · --write-baseline = 이번 걸침으로 기준선을 다시 씀
+    args = [a for a in sys.argv[1:] if a != "--write-baseline"]
+    write_base = "--write-baseline" in sys.argv
+    report = args[args.index("--report") + 1] if "--report" in args else None
+    if report:
+        args = [a for a in args if a not in ("--report", report)]
     t0 = time.time()
-    procs = [subprocess.Popen([sys.executable, __file__, "--worker", str(k), str(n), os.path.join(tmp, f"w{k}.json"), filt]) for k in range(n)]
-    for q in procs:
-        q.wait()
-    merged = {}
-    for k in range(n):
-        f = os.path.join(tmp, f"w{k}.json")
-        if os.path.exists(f):
-            merged.update(json.load(open(f, encoding="utf-8")))
-    shutil.rmtree(tmp, ignore_errors=True)
-    os.makedirs(os.path.dirname(OUT), exist_ok=True)
-    json.dump(dict(sorted(merged.items())), open(OUT, "w", encoding="utf-8"), ensure_ascii=False, indent=0)
+    if report:
+        merged = json.load(open(report, encoding="utf-8"))
+    else:
+        n = min(int(args[0]) if args else 2, int(os.environ.get("PG_MAX_BROWSERS", 2)))
+        filt = args[1] if len(args) > 1 else ""
+        tmp = tempfile.mkdtemp()
+        procs = [subprocess.Popen([sys.executable, __file__, "--worker", str(k), str(n), os.path.join(tmp, f"w{k}.json"), filt]) for k in range(n)]
+        for q in procs:
+            q.wait()
+        merged = {}
+        for k in range(n):
+            f = os.path.join(tmp, f"w{k}.json")
+            if os.path.exists(f):
+                merged.update(json.load(open(f, encoding="utf-8")))
+        shutil.rmtree(tmp, ignore_errors=True)
+        os.makedirs(os.path.dirname(OUT), exist_ok=True)
+        json.dump(dict(sorted(merged.items())), open(OUT, "w", encoding="utf-8"), ensure_ascii=False, indent=0)
     sys.stdout.reconfigure(encoding="utf-8")
     why_of = lambda key, row: next((why for k, why in PASSING.items() if k in key), None) or next((why for ks, why in PASSING_SIG if all(k in str(row.get("sig", "")) for k in ks)), None)
     hit = lambda row: hid_of(row) >= HIDE_FRAC or stay_of(row) >= STAY_MS
@@ -319,7 +332,19 @@ if __name__ == "__main__":
     for key, why in sorted(passing.items()):
         print("지나감 (숨음으로 안 셈)", key, "—", why)
     print(f"{'합동 (o.track) · ' if JOINT else ''}전용 {nu} 중 숨음 · 걸침 {bu} · 일반 (틀 · 옵션 하나씩) {len(merged) - nu} 중 숨음 · 걸침 {len(bad) - bu} · 지나감 {len(passing)} · 못 잼 {len(miss)} · {time.time() - t0:.0f}초 → {os.path.relpath(OUT, ROOT)}")
-    # 숨음 · 못 잼 = 실패 (npm run test:ult-top) · 걸쳐 머묾은 보고만 (기획 #107 — 0 이 되면 STAY_FAIL = True)
+    # 숨음 · 못 잼 · 기준선 밖의 새 걸침 = 실패 (npm run test:ult-top) · 기준선 걸침은 보고만 (#107 에서 0 까지 줄임)
     hidden = [key for key, row in bad if hid_of(row) >= HIDE_FRAC]
-    print(f"실패 기준 (숨음 60%) {len(hidden)} · 걸쳐 머묾 (보고만) {len(bad) - len(hidden)}")
-    sys.exit(1 if miss or hidden or (STAY_FAIL and bad) else 0)
+    stays = sorted(key for key, row in bad if hid_of(row) < HIDE_FRAC)
+    mode = "joint" if JOINT else "solo"
+    base_all = json.load(open(STAY_BASE, encoding="utf-8")) if os.path.exists(STAY_BASE) else {}
+    if write_base:
+        base_all[mode] = stays
+        json.dump(base_all, open(STAY_BASE, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+        print(f"기준선 다시 씀 ({mode}) {len(stays)} → {os.path.relpath(STAY_BASE, ROOT)}")
+    base = set(base_all.get(mode, []))
+    new = [k for k in stays if k not in base]
+    fixed = sorted(k for k in base if k in merged and k not in stays)
+    for k in new:
+        print("새 걸침 (기준선 밖 — 실패)", k)
+    print(f"실패 기준 (숨음 60%) {len(hidden)} · 걸쳐 머묾 {len(stays)} (기준선 {len(base)} · 새로 생김 {len(new)} · 기준선에서 고쳐짐 {len(fixed)}{' — --write-baseline 로 줄이기' if fixed else ''})")
+    sys.exit(1 if miss or hidden or new else 0)

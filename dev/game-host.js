@@ -13,6 +13,8 @@
 // 확장이 하는 일 중 화면에 보이는 것만 흉내: ready → title · start, title-new · title-continue → start, exit → stop
 (function () {
     const q = new URLSearchParams(location.search);
+    // nocover=1 — 필살기가 맞는 포켓몬을 덮는 동안 다시 그리기 (#107 bridge fxCoverRedraw) 를 끔 (전 · 후 비교 캡처)
+    if (q.get('nocover') === '1') window.__fxNoCoverRedraw = true;
     const screen = q.get('screen') || 'title';
     const saveKind = q.get('save') || 'ok';
     const size = q.get('size') || 'nano';
@@ -211,10 +213,25 @@
             uid: m.uid, species: m.species, form: m.form, level: m.level, shiny: false, types, stats, maxHp: stats.hp, hp, star: 3,
             moves: m.moves.map((x) => ({ ...x })), status: null, gauge: 0, ult: 0, guard: 1, guardStreak: 0, streakMove: null, streakCount: 0, ...extra,
         });
+        // 도감 타입 — 같은 서버의 species.json (시험 창만 · 동기로 한 번)
+        let speciesJson = null;
+        const speciesTypes = (sp) => {
+            try {
+                if (!speciesJson) {
+                    const x = new XMLHttpRequest();
+                    x.open('GET', '../src/game/data/generated/species.json', false);
+                    x.send();
+                    speciesJson = JSON.parse(x.responseText);
+                }
+                return speciesJson[String(sp)]?.types || null;
+            } catch {
+                return null;
+            }
+        };
         const foeMon = (uid, species, form, level) => ({ ...save.monsters.m1, uid, species, form, level, moves: [{ moveId: 33, pp: 35 }], hp: 25, caughtAt: 'trainer' });
         const battle = (kind, foeName, foe, queue) => ({
-            kind, me: fighter(save.monsters.m1, ['grass', 'poison'], { hp: 21, attack: 11, defense: 11, speed: 10, ultimate: 12 }, 15, { gauge: 1 }),
-            foe: fighter(foe, ['bug'], { hp: 25, attack: 12, defense: 10, speed: 12, ultimate: 11 }, 18, { gauge: 0.4 }),
+            kind, me: fighter(save.monsters.m1, speciesTypes(save.monsters.m1.species) || ['grass', 'poison'], { hp: 21, attack: 11, defense: 11, speed: 10, ultimate: 12 }, 15, { gauge: 1 }),
+            foe: fighter(foe, speciesTypes(foe.species) || ['bug'], { hp: 25, attack: 12, defense: 10, speed: 12, ultimate: 11 }, 18, { gauge: 0.4 }),
             foeQueue: queue, foeDown: [], foeUltWait: null, foeName, sendMs: 0,
             bench: {}, bagUsed: {}, phase: 'choose', anim: null, clash: null, result: null, overMs: 0, fleeTries: 0,
             msg: '이상해씨는 무엇을 할까?', popups: [], popupSeq: 0, t: 5000, catch: null, lastMs: 0, fought: ['m1'], ultAt: { me: null, foe: null }, start: 'normal',
@@ -249,7 +266,9 @@
             // tult=1 — 내 필살기로 상대를 쓰러뜨리는 중 (쓰러진 뒤 다음 볼까지 박자 시험, fx=1 · me=<모습>:<도감 번호> 와 같이 — 예 me=charizard:6)
             if (q.get('tult') === '1') {
                 const [tmf, tms] = (q.get('me') || '').split(':');
-                Object.assign(tb, { phase: 'anim', me: { ...tb.me, ult: 0, ...(tmf ? { form: tmf, species: Number(tms) || tb.me.species } : {}) }, foe: { ...tb.foe, hp: 1 }, anim: { side: 'me', action: { kind: 'ult' }, ms: 0, dur: Number(q.get('dur') || 20000), counter: false }, msg: '필살기!', ultAt: { me: 5000, foe: null } });
+                // 모습을 바꾸면 타입도 그 포켓몬 것 (도감 species.json) — 리자몽 필살기가 시험 포켓몬 타입 (풀 · 독) 으로 상성을 세어 단데기 (벌레) 에게 "효과가 별로" 로 나오던 것 (#112 ② · bugs 1801)
+                const tmt = tmf ? speciesTypes(Number(tms)) : null;
+                Object.assign(tb, { phase: 'anim', me: { ...tb.me, ult: 0, ...(tmf ? { form: tmf, species: Number(tms) || tb.me.species, ...(tmt ? { types: tmt } : {}) } : {}) }, foe: { ...tb.foe, hp: 1 }, anim: { side: 'me', action: { kind: 'ult' }, ms: 0, dur: Number(q.get('dur') || 20000), counter: false }, msg: '필살기!', ultAt: { me: 5000, foe: null } });
             }
             stage = place === 'trainer' ? { phase: 'trainer', n: 0, ms: Number(q.get('ms') || 1200) } : { phase: 'battle', battle: tb };
         }

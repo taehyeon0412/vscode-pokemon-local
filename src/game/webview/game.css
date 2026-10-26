@@ -1144,6 +1144,14 @@ body.vscode-light .pg-stage.pg-bg-arena-volcano {
   color: var(--pg-sos-ink);
   text-shadow: 1px 1px 0 #000;
 }
+/* 필살기 동안 쓰는 쪽 UI (HP 판) 는 바둑판 반 — 연출이 판을 덮어 판 줄이 연출 위로 지나가던 것 (#107 UX 큼 2 · 개굴닌자 표창) · 완전히 숨기진 않음 (늘 읽히게) ·
+   2px 칸 체크 (반 투명 없이 칸으로 — design-system 픽셀 원칙) · 끝나면 바로 원래대로 (클래스가 빠짐) */
+.pg-ult-under {
+  -webkit-mask-image: conic-gradient(#000 25%, transparent 0 50%, #000 0 75%, transparent 0);
+  mask-image: conic-gradient(#000 25%, transparent 0 50%, #000 0 75%, transparent 0);
+  -webkit-mask-size: 4px 4px;
+  mask-size: 4px 4px;
+}
 .pg-hprow {
   display: flex;
   align-items: center;

@@ -11,6 +11,8 @@
     const UNIQ = {}; // 이름 → { fx, ms(P, o), run(u, o, ms, pokemon) }
     // 게임 화면 연출 위 끝 (bridge fxStageTop — 정보줄 · 지도 줄 아래 끝) · 일반 모드 · 3:3 무대 상자 안은 0 — 위로 던지는 불덩이 · 뛰어오른 몸이 그 뒤로 숨지 않게 (#105)
     const gameTop = () => (typeof fxStageTop === 'function' ? fxStageTop() : 0);
+    // 하늘에서 퍼지는 고리 (fx-sky ring 과 같음) — 위 끝 층 (위 끝 위는 지우고 바둑판 띠로 흩어짐 · #107)
+    const ringSoft = (sc, x, y, r0, r1, flat, dur, cols, th = 1) => sc.soft({ max: dur, draw: (ctx, it, t, px) => K.ringDots(ctx, px, sc.u.S, x, y, r0 + (r1 - r0) * easeOut(t), flat, cols, (1 - t) ** 1.2, th) });
     // 3:3 장면 전환 합동 — 전용 구도 구 자리를 알림 (fx-sky jointOrb · #96 아트 5바퀴 1)
     const jointOrb = K.jointOrb;
 
@@ -785,10 +787,16 @@
         const ew0 = me.w * 0.95;
         // 반원 가운데 — 패널 끝에 선 애라도 일곱이 다 보이게 안쪽으로
         const ax = clamp(me.x, Math.min(W / 2, Rr + ew0 * 0.6), Math.max(W / 2, W - Rr - ew0 * 0.6));
+        // 게임 화면 — 진화형 (점 고리 r = 폭 × 0.62 · 둥실 1.5칸까지) 은 연출 위 끝 아래 (#107 — 위쪽 셋이 정보줄 · 지도 줄에 걸쳐 머물던 것 · 크기 그대로) ·
+        //   위가 막혀 반원이 납작해지면 가로로 넓혀 일곱이 겹치지 않게
+        const bTop = gameTop() > 0 ? gameTop() + ew0 * 1.1 + 4 * s : ew0 * 1.1;
+        const squeezed = gameTop() > 0 && cy0 - Rr * 0.85 + ew0 * 0.45 < bTop;
+        const Rx = squeezed ? Math.max(Rr, Math.min(W * 0.42, ew0 * 2.8)) : Rr;
+        const axw = clamp(me.x, Math.min(W / 2, Rx + ew0 * 0.6), Math.max(W / 2, W - Rx - ew0 * 0.6));
         const evos = EVOS.map(([name, gen, c], i) => {
             const a = -Math.PI * (0.08 + (0.84 * i) / (EVOS.length - 1));
             return { img: evoImg(pokemon.pokemonRoot || '', name, gen), cols: sigPal(c), t0: TA + i * 0.17,
-                x: clamp(ax + Math.cos(a) * Rr, ew0 * 0.6, W - ew0 * 0.6), b: clamp(cy0 + Math.sin(a) * Rr * 0.85 + ew0 * 0.45, ew0 * 1.1, G), w: ew0 };
+                x: clamp((squeezed ? axw : ax) + Math.cos(a) * Rx, ew0 * 0.6, W - ew0 * 0.6), b: clamp(cy0 + Math.sin(a) * Rr * 0.85 + ew0 * 0.45, Math.min(bTop, G), G), w: ew0 };
         });
         const xAt = (t) => (t < TGO + 0.2 ? me.x : t < THIT ? lerp(me.x, tx, easeIn((t - TGO - 0.2) / TDASH)) : t < TBACK ? tx : lerp(tx, me.x, clamp((t - TBACK) / 0.45, 0, 1)));
         const footAt = (t) => (t > TBACK ? me.b - Math.sin(clamp((t - TBACK) / 0.45, 0, 1) * Math.PI) * me.h * 0.4 : me.b);
@@ -941,7 +949,8 @@
         const cxF = clamp(W / 2, me.w, W - me.w);
         const TDIZZY = TI + 0.5;
         const THOME = sec - 0.6;
-        const topY = Math.max(me.h * 1.2, G * 0.25);
+        // 게임 화면 — 하늘로 솟은 꼭대기에서도 몸은 위 끝 띠 (8px) 아래 (#107 — 오라 윗부분만 위 끝 층)
+        const topY = Math.max(me.h * 1.2, G * 0.25, gameTop() > 0 ? gameTop() + 8 + me.h + 2 * s : 0);
         const xAt = (tt) => {
             if (tt < TR0) {
                 return me.x;
@@ -997,8 +1006,8 @@
                 ctx.fillRect(0, 0, W, H);
             }
         } });
-        // 붉은 분노의 오라 (망나뇽 뒤) — 질주 중엔 뒤로 눕힌 불꽃 꼬리
-        sc.add({ max: TDIZZY, draw: (ctx, it, tt, px) => {
+        // 붉은 분노의 오라 (망나뇽 뒤) — 질주 중엔 뒤로 눕힌 불꽃 꼬리 (위 끝을 넘는 윗부분만 위 끝 층 — #107)
+        sc.split({ max: TDIZZY, draw: (ctx, it, tt, px) => {
             const life = sc.t;
             const k = clamp((life - TC0) / 0.4, 0, 1) * (1 - clamp((life - TI) / 0.4, 0, 1));
             if (k <= 0.02) {
@@ -1633,8 +1642,8 @@
                 }
             }
         });
-        // 회오리 — 광선 끝에 솟아 감아올림
-        sc.add({ max: TB + 0.1, draw: (ctx, it, t, px) => {
+        // 회오리 — 광선 끝에 솟아 감아올림 (하늘까지 닿는 회오리 — 위 끝 층 · #107)
+        sc.soft({ max: TB + 0.1, draw: (ctx, it, t, px) => {
             const life = sc.t;
             if (life < TT) {
                 return;
@@ -1704,8 +1713,8 @@
         const pw = clamp(Math.max(me.w * 0.6, W * 0.08), 8 * s, W * 0.15);
         const sc = scene(u, sec + 0.4, 'uniq hooh');
         ultDark(0.35, ms - 200);
-        // 무지개
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+        // 무지개 (하늘에 걸린 큰 반원 — 몸 뒤 · 위 끝 띠 위만 위 끝 층 · #107)
+        sc.split({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
             const a = clamp((life - 0.2) / 0.8, 0, 1) * clamp((sec - 0.3 - life) / 0.7, 0, 1);
             if (a <= 0.01) {
@@ -2257,8 +2266,8 @@
         const lines = [0.55, -0.55, 0.08].map((a, i) => ({ a: a * dir, t0: cuts[i] }));
         const sc = scene(u, sec + 0.4, 'uniq palkia');
         ultDark(0.45, ms - 200);
-        // 일그러진 공간 — 분홍 격자
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+        // 일그러진 공간 — 분홍 격자 (화면 전체 무늬 — 위 끝 띠만 위 끝 층 · #107)
+        sc.split({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
             const a = clamp((life - 0.2) / 0.6, 0, 1) * clamp((sec - 0.4 - life) / 0.6, 0, 1) * 0.3;
             if (a <= 0.01) {
@@ -2348,7 +2357,8 @@
             }
             K.fillPaths(ctx, paths, ['#07020f', SPACEC[2], SPACEC[1], '#ffffff'], 1);
         };
-        sc.add({ max: TCLOSE + 0.1, draw: (ctx, it, t, px) => {
+        // 화면을 가르는 틈 (화면 끝까지 — 위 끝 층 · #107)
+        sc.soft({ max: TCLOSE + 0.1, draw: (ctx, it, t, px) => {
             const life = sc.t;
             const close = clamp((life - TCLOSE + 0.12) / 0.12, 0, 1);
             for (const L of lines) {
@@ -2441,7 +2451,8 @@
             ctx.fillStyle = DIST[3];
             ctx.fillRect(0, H * 0.45, W, H);
             for (const isl of isles) {
-                const y = isl.y0 - (life - TWORLD) * H * isl.sp;
+                // 게임 화면 — 떠오르는 바위섬은 연출 위 끝 아래에서 멈춰 뜸 (위 끝을 뚫고 올라가 걸쳐 머물던 것 — #107)
+                const y = Math.max(isl.y0 - (life - TWORLD) * H * isl.sp, gameTop() > 0 ? gameTop() + isl.z + 2 * s : -Infinity);
                 K.psyRock(ctx, px, s, isl.x + Math.sin(life + isl.x) * s * 3, y, isl.z, 0.4 * a, DIST[1]);
             }
             // 검은 줄기 — 땅에서 솟아 일렁임
@@ -2575,8 +2586,10 @@
         const TRAIN = TSPLIT + 0.15;
         const TFIN = TRAIN + 1.5; // 금빛 기둥 · 반구
         const footAt = (t) => me.b - lift * easeOut(clamp((t - 0.2) / 0.6, 0, 1)) * (1 - easeIn(clamp((t - (sec - 0.6)) / 0.45, 0, 1))) + Math.sin(t * 2.5) * s * 1.2;
-        const orbAt = (t) => [me.x, footAt(t) - me.h - Math.max(me.w * 0.5, 8 * s)];
         const Ro = clamp(me.w * 0.5, 5 * s, H * 0.12);
+        // 게임 화면 — 머리 위 빛 구 (불꽃 혀까지 r × 1.45) 는 연출 위 끝 아래 (#107 — 크기 그대로)
+        const orbMin = gameTop() > 0 ? gameTop() + Ro * 1.45 + 2 * s : -Infinity;
+        const orbAt = (t) => [me.x, Math.max(footAt(t) - me.h - Math.max(me.w * 0.5, 8 * s), orbMin)];
         const drops = [];
         for (let i = 0; i < NRAIN; i++) {
             drops.push({ x: W * ((i + 0.5) / NRAIN) + (hash(i, 581) - 0.5) * (W / NRAIN), t0: TRAIN + hash(i, 582) * 1.2, T: 0.45 + 0.15 * hash(i, 583), r: Math.max(3 * s, Ro * (0.35 + 0.25 * hash(i, 584))) });
@@ -2617,8 +2630,8 @@
             const [x, y] = orbAt(life);
             fireOrb(ctx, px, s, x, y, Ro, JUDGE, life, easeOut((life - TC0) / (TUP - TC0)) * (1 + 0.1 * Math.max(0, Math.sin(life * 9)) ** 4), G, 1, 0, [1, 0.8, 0.6, 0.38], 0.4);
         } });
-        // 쏘아 올림 — 빛 구가 하늘로 (빛줄기)
-        sc.add({ max: TSPLIT + 0.3, draw: (ctx, it, t, px) => {
+        // 쏘아 올림 — 빛 구가 하늘로 (빛줄기 — 하늘로 나가는 빛이라 위 끝 층 · #107)
+        sc.soft({ max: TSPLIT + 0.3, draw: (ctx, it, t, px) => {
             const life = sc.t;
             if (life < TUP) {
                 return;
@@ -2637,7 +2650,7 @@
             ultShake(4, 300);
         });
         sc.at(TSPLIT, () => {
-            ring(sc, me.x, s * 4, Ro, W * 0.6, 0.4, 0.6, ['#ffffff', JUDGE[1], JUDGE[2]], 2);
+            ringSoft(sc, me.x, gameTop() + s * 4, Ro, W * 0.6, 0.4, 0.6, ['#ffffff', JUDGE[1], JUDGE[2]], 2);
         });
         // 쏟아지는 빛 구
         drops.forEach((d) => {
@@ -4075,10 +4088,10 @@
             ring(sc, cx0, orbY, me.w * 0.3, W * 0.5, 1, 0.5, ['#ffffff', DRACO[1], DRACO[2]], 2);
             ultShake(4, 300);
         });
-        // 용성 — 비스듬히 줄지어
+        // 용성 — 비스듬히 줄지어 (떨어지는 혜성 꼬리가 위 끝 너머로 길게 — 위 끝 층 · #107)
         const fall = (m, big) => {
             const sx = m.x - dir * W * 0.25;
-            sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            sc.soft({ max: sec, draw: (ctx, it, t, px) => {
                 const life = sc.t;
                 const k = (life - m.t0) / m.T;
                 if (k < 0 || k > 1) {
@@ -4142,16 +4155,17 @@
         const FLY = 0.5;
         const TB = TFIRE + FLY;
         const mx = clamp(W * 0.5 + dir * W * 0.12, W * 0.2, W * 0.8);
-        const my = Math.max(26, H * 0.2);
         const Rm = clamp(Math.min(W, H) * 0.12, 14, 70);
+        // 게임 화면 — 달 (빛 무리 r × 1.4 까지) 은 연출 위 끝 아래 (#107 — 일반 달 runMoon 과 같은 값 · 크기 그대로)
+        const my = Math.max(26, H * 0.2, gameTop() > 0 ? gameTop() + Rm * 1.4 + 2 * s : 0);
         const footAt = (t) => me.b - lift * easeOut(clamp((t - 0.4) / 0.6, 0, 1)) * (1 - easeIn(clamp((t - (sec - 0.6)) / 0.45, 0, 1))) + Math.sin(t * 2.5) * s * 1.5;
         const hand = (t) => [me.x + dir * me.w * 0.35, footAt(t) - me.h * 0.55];
         const q = nearest(u);
         const tx = clamp(q ? q.x : me.x + dir * W * 0.45, W * 0.1, W * 0.9);
         const sc = scene(u, sec + 0.4, 'uniq gardevoir');
         ultDark(0.5, ms - 200);
-        // 보름달 — 떠오름 · 크게 빛남
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+        // 보름달 — 떠오름 · 크게 빛남 (달 몸은 위 끝 아래 · 빛날 때 커지는 빛 무리 (r × 2.4) 는 위 끝 층에서 흩어짐 — #107)
+        sc.split({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
             const k = easeOut(clamp((life - TMOON) / 0.8, 0, 1)) * clamp((sec - 0.3 - life) / 0.6, 0, 1);
             if (k <= 0.01) {
@@ -4205,7 +4219,7 @@
             beamBody(ctx, px, s, mx, my, dx / L, dy / L, L * k, Math.max(3 * s, Rm * 0.35), ['#ffffff', '#fff6fb', MOON[1], MOON[2]], life, 0.7 * fade);
         } });
         sc.at(TBEAM, () => {
-            ring(sc, mx, my, Rm, Rm * 3, 1, 0.5, ['#ffffff', MOON[1]], 2);
+            ringSoft(sc, mx, my, Rm, Rm * 3, 1, 0.5, ['#ffffff', MOON[1]], 2);
             ultShake(2, 200);
         });
         // 손 앞 분홍 빛 구 → 날아감
@@ -4620,8 +4634,9 @@
         const TDROP = 2.6; // 블랙홀 내려옴
         const TB = 4.0; // 땅에 닿음
         const mx = clamp(me.x + dir * W * 0.35, W * 0.2, W * 0.8);
-        const my = Math.max(28, H * 0.2);
         const Rm = clamp(Math.min(W, H) * 0.1, 12, 60);
+        // 게임 화면 — 달 · 일식 빛살 (r × 1.9 까지) 은 연출 위 끝 아래 (#107 — 크기 그대로)
+        const my = Math.min(Math.max(28, H * 0.2, gameTop() > 0 ? gameTop() + Rm * 1.9 + 2 * s : 0), G - Rm * 1.2);
         const holeAt = (t) => {
             const k = easeIn(clamp((t - TDROP) / (TB - TDROP), 0, 1));
             return [mx, lerp(my, G - Rm * 1.2, k), Rm * (1 + 0.8 * k)];
@@ -4729,15 +4744,21 @@
         };
         const sc = scene(u, sec + 0.4, 'uniq espeon');
         ultDark(0.45, ms - 200);
-        // 거품 (에브이 뒤)
-        sc.add({ max: TB + 0.02, draw: (ctx, it, t, px) => {
+        // 거품 (에브이 뒤 — 몸 가운데에서 무대 높이보다 크게 부풀어 자리를 옮길 수 없음: 크기 그대로 위 끝 층 · #107)
+        //   옅은 속 · 테 · 반짝 · 반사광 모두 위 끝 띠 아래는 큰 캔버스 (몸 뒤 그대로) · 띠 위만 위 끝 층 (sc.split — 코드 리뷰어 #107)
+        sc.split({ max: TB + 0.02, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            if (life >= TBUB) {
+                ellipse(ctx, px, s, me.x, cy, bubR(life), bubR(life) * 0.9, ESPC[2], 0.14 * clamp((life - TBUB) / 0.3, 0, 1));
+            }
+        } });
+        sc.split({ max: TB + 0.02, draw: (ctx, it, t, px) => {
             const life = sc.t;
             if (life < TBUB) {
                 return;
             }
             const R = bubR(life);
             const a = clamp((life - TBUB) / 0.3, 0, 1);
-            ellipse(ctx, px, s, me.x, cy, R, R * 0.9, ESPC[2], 0.14 * a);
             K.ringDots(ctx, px, s, me.x, cy, R, 0.9, [ESPC[1], ESPC[2]], 0.85 * a, 2);
             K.ringDots(ctx, px, s, me.x, cy, R * 0.92, 0.9, [ESPC[3]], 0.35 * a, 1);
             for (let j = 0; j < 10; j++) {
@@ -4814,8 +4835,9 @@
         const q = nearest(u);
         const tx = clamp(q ? q.x : me.x + dir * W * 0.45, W * 0.12, W * 0.88);
         const cx0 = W / 2;
-        const cy0 = Math.max(H * 0.28, 40);
         const rr = Math.min(W * 0.3, H * 0.2);
+        // 게임 화면 — 하늘에서 그리는 원 (발 높이 · 위로 rr × 0.6) 은 몸 전체가 연출 위 끝 아래 (#107 — 정보줄 · 지도 줄에 걸쳐 1.3초 돌던 것)
+        const cy0 = Math.min(Math.max(H * 0.28, 40, gameTop() > 0 ? gameTop() + me.h + rr * 0.6 + 2 * s : 0), G - rr * 0.6);
         const posAt = (t) => {
             if (t < TUP) {
                 return [me.x, me.b];
@@ -4846,9 +4868,11 @@
             const life = sc.t;
             const a = clamp((life - 0.4) / 0.6, 0, 1) * clamp((sec - 0.3 - life) / 0.6, 0, 1);
             const z = Math.max(s, Math.round(short(u) / 110));
+            // 게임 화면 — 별 · 하트는 연출 위 끝 아래에서만 (#107)
+            const y0 = gameTop() > 0 ? gameTop() + z * 3 : 0;
             for (let j = 0; j < 26; j++) {
                 const x = hash(j, 781) * W;
-                const y = hash(j, 782) * G * 0.7;
+                const y = y0 + hash(j, 782) * Math.max(s, G * 0.7 - y0);
                 const tw = Math.sin(life * (3 + 3 * hash(j, 783)) + j);
                 if (tw < -0.2) {
                     continue;
@@ -4922,9 +4946,10 @@
             for (let i = 0; i < 4; i++) {
                 sc.at(TSTAR + 0.7 + i * 0.22, () => {
                     const x = clamp(tx + (hash(i, 791) - 0.5) * W * 0.6, W * 0.08, W * 0.92);
-                    const y = G * (0.25 + 0.2 * hash(i, 792));
+                    // 하트 불꽃놀이 — 터지는 곳은 위 끝 아래 · 퍼지는 고리는 위 끝 층 (#107)
+                    const y = Math.max(G * (0.25 + 0.2 * hash(i, 792)), gameTop() + 4 * s);
                     sparkles(x, y, s, ['#ffffff', LOVELY[2], LOVELY[3], '#ffd6f0'], 18, Math.max(W * 0.06, 12), H * 0.15);
-                    ring(sc, x, y, s * 2, W * 0.07, 1, 0.5, [LOVELY[2], LOVELY[3]], 2);
+                    ringSoft(sc, x, y, s * 2, W * 0.07, 1, 0.5, [LOVELY[2], LOVELY[3]], 2);
                 });
             }
         });
@@ -5643,8 +5668,8 @@
                 }
             });
         });
-        // 거대한 잎 칼날 — 화면을 비스듬히 가름
-        sc.add({ max: TB + 0.6, draw: (ctx, it, t, px) => {
+        // 거대한 잎 칼날 — 화면을 비스듬히 가름 (화면 끝에서 끝까지 — 위 끝 층 · #107)
+        sc.soft({ max: TB + 0.6, draw: (ctx, it, t, px) => {
             const life = sc.t;
             if (life < TBIG) {
                 return;
@@ -6060,6 +6085,8 @@
         const FIRE = 1.3;
         const TB = TF + FIRE + 0.1;
         const hoverY = me.b - me.h * 0.4;
+        // 게임 화면 — 제트 원 꼭대기에서도 몸 전체가 연출 위 끝 아래 (세로 반지름만 줄임 — #107)
+        const ryMax = gameTop() > 0 ? Math.max(s, (hoverY - gameTop() - me.h - 2 * s) / 1.3) : Infinity;
         const posAt = (t) => {
             if (t < TJ0) {
                 return [me.x, lerp(me.b, hoverY, easeOut(t / TJ0))];
@@ -6068,7 +6095,7 @@
                 const k = (t - TJ0) / JET;
                 const an = Math.PI + k * TAU * dir;
                 const rx = W * 0.38;
-                const ry = H * 0.22;
+                const ry = Math.min(H * 0.22, ryMax);
                 const cx = clamp(me.x + dir * rx * 0.95, rx * 0.6, W - rx * 0.6);
                 return [cx + Math.cos(an) * rx * (1 - 0.05 * Math.sin(k * 9)), hoverY - ry * 0.3 + Math.sin(an) * ry];
             }
@@ -6324,12 +6351,14 @@
             if (a <= 0.01) {
                 return;
             }
+            // 게임 화면 — 별은 연출 위 끝 아래에서만 (반짝이며 머무는 별이 위 끝에 걸쳐 2초 — #107)
+            const y0 = gameTop() > 0 ? gameTop() + 3 * s : 0;
             for (let j = 0; j < 30; j++) {
                 if (life - TQUIET < j * 0.04) {
                     continue;
                 }
                 const x = hash(j, 851) * W;
-                const y = hash(j, 852) * G * 0.6;
+                const y = y0 + hash(j, 852) * Math.max(s, G * 0.6 - y0);
                 const tw = Math.sin(life * (3 + 3 * hash(j, 853)) + j);
                 glint(ctx, px, s, x, y, s * (1.5 + tw), 0.85 * a);
             }
@@ -6347,8 +6376,8 @@
                 glint(ctx, px, s, me.x + sd * me.w * 0.25, footAt(life) - me.h * 0.95, me.w * 0.12 * tg, 0.8 * tg);
             }
         } });
-        // 하늘로 빛줄기
-        sc.add({ max: TQUIET + 0.2, draw: (ctx, it, t, px) => {
+        // 하늘로 빛줄기 (하늘로 나가는 빛 — 위 끝 층 · #107)
+        sc.soft({ max: TQUIET + 0.2, draw: (ctx, it, t, px) => {
             const life = sc.t;
             if (life < TUP) {
                 return;
@@ -6362,10 +6391,10 @@
             impactFrames(sc, W, H, 0.5, 0.3);
             ultShake(3, 250);
         });
-        // 빛기둥 비
+        // 빛기둥 비 (하늘에서 내려오는 빛기둥 — 위 끝 층 · #107)
         spots.slice(0, NL).forEach((sp, i) => {
             const t0 = TRAIN + i * 0.14;
-            sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            sc.soft({ max: sec, draw: (ctx, it, t, px) => {
                 const life = sc.t;
                 const k = (life - t0) / 0.5;
                 if (k < 0 || k > 1) {
@@ -6392,8 +6421,8 @@
                 }
             });
         });
-        // 커다란 별
-        sc.add({ max: TBIG + 0.05, draw: (ctx, it, t, px) => {
+        // 커다란 별 (하늘에서 떨어짐 — 위 끝에서 나타남: 위 끝 층 · #107)
+        sc.soft({ max: TBIG + 0.05, draw: (ctx, it, t, px) => {
             const life = sc.t;
             if (life < TBIG - 0.6) {
                 return;
@@ -7591,7 +7620,8 @@
         const TB = TCUT + 0.3;
         const q = nearest(u);
         const tx = clamp(q ? q.x : me.x + dir * W * 0.4, W * 0.12, W * 0.88);
-        const topY = Math.max(me.h * 1.2, G * 0.2);
+        // 게임 화면 — 뛰어오른 꼭대기 (발 높이) 는 몸 · 꼬리 칼날까지 연출 위 끝 아래 (#107)
+        const topY = Math.max(me.h * 1.2, G * 0.2, gameTop() > 0 ? gameTop() + me.h * 1.15 + 2 * s : 0);
         const posAt = (t) => {
             if (t < TJ) {
                 return [me.x, me.b, 0];
@@ -7613,8 +7643,8 @@
         };
         const sc = scene(u, sec + 0.4, 'uniq leafeon');
         ultDark(0.4, ms - 200);
-        // 햇살 줄기 — 하늘에서 꼬리로
-        sc.add({ max: TJ + 0.2, draw: (ctx, it, t, px) => {
+        // 햇살 줄기 — 하늘에서 꼬리로 (하늘에서 내려오는 빛 — 몸 뒤 · 위 끝 띠 위만 위 끝 층 · #107)
+        sc.split({ max: TJ + 0.2, draw: (ctx, it, t, px) => {
             const life = sc.t;
             if (life < TSUN) {
                 return;
@@ -7668,8 +7698,8 @@
             ring(sc, me.x, G - s, me.w * 0.4, me.w * 2.5, 0.25, 0.4, ['#ffffff', VINEC[1]], 2);
             ultShake(3, 250);
         });
-        // 거대한 햇빛 잎 칼날 — 위에서 아래로
-        sc.add({ max: TB + 0.6, draw: (ctx, it, t, px) => {
+        // 거대한 햇빛 잎 칼날 — 위에서 아래로 (하늘 끝에서 내리그음 — 위 끝 층 · #107)
+        sc.soft({ max: TB + 0.6, draw: (ctx, it, t, px) => {
             const life = sc.t;
             if (life < TCUT) {
                 return;
@@ -7741,9 +7771,11 @@
         const ty = q ? q.y : G - me.h * 0.5;
         const [mx, my] = [u.mouth.x + dir * s * 2, u.mouth.y];
         const mirrors = [];
+        // 게임 화면 — 위쪽 거울 (육각 r 최대 min(W, H) × 0.05 · 번쩍 빛 × 1.6) 은 연출 위 끝 아래 (#107 — 거울 셋이 정보줄 · 지도 줄에 걸쳐 3초 머물던 것)
+        const mTop = gameTop() > 0 ? gameTop() + Math.max(5 * s, Math.min(W, H) * 0.05) * 1.6 + 2 * s : 0;
         for (let i = 0; i < NM; i++) {
             const f = (i + 0.5) / NM;
-            mirrors.push({ x: clamp(lerp(mx, tx, f), W * 0.05, W * 0.95), y: i % 2 ? Math.max(H * 0.15, G - H * 0.65) : G - H * 0.15, t0: TM + i * 0.1 });
+            mirrors.push({ x: clamp(lerp(mx, tx, f), W * 0.05, W * 0.95), y: i % 2 ? Math.max(H * 0.15, G - H * 0.65, mTop) : G - H * 0.15, t0: TM + i * 0.1 });
         }
         const path = [[mx, my], ...mirrors.map((m) => [m.x, m.y]), [tx, ty]];
         const TEND = TF + SEG * (path.length - 1);
@@ -7754,9 +7786,11 @@
         sc.add({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
             const a = clamp((life - 0.2) / 0.5, 0, 1) * clamp((sec - 0.3 - life) / 0.5, 0, 1);
+            // 게임 화면 — 가루는 연출 위 끝 아래에서만 (반짝이 한 점이 위 끝에 걸쳐 머물던 것 — #107)
+            const y0 = gameTop() > 0 ? gameTop() + 3 * s : 0;
             for (let j = 0; j < 24; j++) {
                 const x = hash(j, 901) * W;
-                const y = ((hash(j, 902) * G + life * G * 0.06) % G);
+                const y = y0 + ((hash(j, 902) * (G - y0) + life * (G - y0) * 0.06) % (G - y0));
                 if (Math.sin(life * 7 + j * 1.3) > 0.4) {
                     glint(ctx, px, s, x, y, s * 2, 0.8 * a);
                 }
@@ -8205,8 +8239,9 @@
         const tx = clamp(q ? q.x : me.x + dir * W * 0.4, W * 0.08, W * 0.92);
         const ty = q ? q.y : G - me.h * 0.5;
         const D = tx - me.x;
-        const hh = Math.max(me.h * 1.2, H * 0.18);
         const LL = Math.max(5 * s, me.w * 0.34);
+        // 게임 화면 — 잎 무리가 그리는 길 꼭대기 (잎 길이까지) 는 연출 위 끝 아래 (#107 — 길 높이만)
+        const hh = Math.min(Math.max(me.h * 1.2, H * 0.18), gameTop() > 0 ? Math.max(me.h * 0.4, cy - gameTop() - LL - 2 * s) : Infinity);
         const leafPos = (i, t) => {
             const ph = (i / N) * TAU;
             if (t < TFLING) {
@@ -8237,8 +8272,8 @@
         };
         const sc = scene(u, sec + 0.3, 'uniq ivysaur');
         ultDark(0.3, ms - 200);
-        // 햇빛 줄기 (이상해풀 뒤)
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+        // 햇빛 줄기 (이상해풀 뒤 — 하늘에서 내려오는 빛: 위 끝 띠만 위 끝 층 · #107)
+        sc.split({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
             const a = clamp((life - TOPEN) / 0.5, 0, 1) * clamp((sec - 0.1 - life) / 0.5, 0, 1);
             stSunShaft(ctx, px, s, bud[0], me.b, Math.max(me.w * 0.7, 9 * s), a, life);
@@ -8382,18 +8417,20 @@
                 }
             }
             if (t > TD1 && t < THOME) {
-                return me.b - Math.sin(((t - TD1) / (THOME - TD1)) * Math.PI) * me.h * 1.3;
+                return me.b - Math.sin(((t - TD1) / (THOME - TD1)) * Math.PI) * hopH;
             }
             return me.b;
         };
+        // 게임 화면 — 되돌아 공중제비 꼭대기에서도 몸이 연출 위 끝 아래 (#107)
+        const hopH = Math.min(me.h * 1.3, gameTop() > 0 ? Math.max(me.h * 0.3, me.b - me.h - gameTop() - 2 * s) : Infinity);
         const rotAt = (t) => (t > TD1 && t < THOME ? -dd * TAU * easeOut((t - TD1) / (THOME - TD1)) : 0);
         const tailAt = (t) => [xAt(t) - dir * me.w * 0.36, footAt(t) - me.h * 0.42];
         const sc = scene(u, sec + 0.3, 'uniq charmander');
         ultDark(0.32, ms - 200);
-        // 꼬리 불꽃 (파이리 뒤) — 점점 커지다 돌진 땐 작게, 마지막에 하늘 높이
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+        // 꼬리 불꽃 (파이리 뒤) — 점점 커지다 돌진 땐 작게, 마지막에 하늘 높이 (하늘까지 솟는 마지막 불꽃은 위 끝 층 — #107)
+        const tail = (soft) => ({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
-            if (life > TDASH && life < THOME) {
+            if ((life > TDASH && life < THOME) || (life >= TBLAZE) !== soft) {
                 return;
             }
             const [x, y] = tailAt(life);
@@ -8410,8 +8447,10 @@
             }
             K.flameTongue(ctx, px, s, x, y + s, w, h, F, life, 1, -dir * 0.15);
         } });
-        // 불꽃 옷 · 돌진 꼬리
-        sc.add({ max: THOME + 0.2, draw: (ctx, it, t, px) => {
+        sc.add(tail(false));
+        sc.split(tail(true));
+        // 불꽃 옷 · 돌진 꼬리 (공중제비 때 위 끝을 넘는 윗부분만 위 끝 층 — #107)
+        sc.split({ max: THOME + 0.2, draw: (ctx, it, t, px) => {
             const life = sc.t;
             if (life < TCOAT) {
                 return;
@@ -8514,8 +8553,8 @@
             const a = clamp((sec - 0.2 - life) / 0.6, 0, 1);
             K.groundFlames(ctx, px, s, Math.max(0, hx - spread), Math.min(W, hx + spread), G, me.h * 0.75, life, F, a);
         } });
-        // 불 회오리
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+        // 불 회오리 (무대 높이 0.85배까지 솟음 — 위 끝 띠 위만 위 끝 층, #107)
+        sc.split({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
             if (life < TWH) {
                 return;
@@ -8546,8 +8585,8 @@
             const k = 0.5 + 0.5 * clamp((life - TIN) / 1.4, 0, 1);
             K.flameTongue(ctx, px, s, me.x - dir * me.w * 0.42, me.b - me.h * 0.3, me.w * 0.35 * k, me.h * 0.75 * k, F, life, 1, -dir * 0.2, 0.9);
         } });
-        // 불꽃 줄기 — 입에서 굴러 나가는 불꽃 덩이(멀수록 크고 굵게) + 그 밑에 깔리는 긴 불꽃 줄기 세 겹
-        sc.add({ max: TEND + 0.3, draw: (ctx, it, t, px) => {
+        // 불꽃 줄기 — 입에서 굴러 나가는 불꽃 덩이(멀수록 크고 굵게) + 그 밑에 깔리는 긴 불꽃 줄기 세 겹 (위에서 쓸어내려 화면 끝까지 — 위 끝 층, #107)
+        sc.soft({ max: TEND + 0.3, draw: (ctx, it, t, px) => {
             const life = sc.t;
             if (life < TFIRE) {
                 return;
@@ -8997,7 +9036,9 @@
                 return [x2 + Math.cos(a) * r, y2 + Math.sin(a) * r * 0.45, a * 2];
             }
             const x1 = head[0] + Math.cos(l.a) * l.out;
-            const y1 = head[1] + Math.sin(l.a) * l.out;
+            // 게임 화면 — 날아가는 길 꼭대기 (곡선 가운데 ≈ (시작 + 2 × 꺾는 점 + 끝) / 4) 가 잎 길이까지 연출 위 끝 아래 (#107 — 길 높이만)
+            const yTop = gameTop() > 0 ? gameTop() + Math.max(5 * s, me.w * 0.32) + 2 * s : -Infinity;
+            const y1 = Math.max(head[1] + Math.sin(l.a) * l.out, 2 * yTop - (head[1] + y2) / 2);
             const e = k * k * (3 - 2 * k);
             const bx = (1 - e) * (1 - e) * head[0] + 2 * (1 - e) * e * x1 + e * e * x2;
             const by = (1 - e) * (1 - e) * head[1] + 2 * (1 - e) * e * y1 + e * e * y2;
@@ -9399,7 +9440,9 @@
             }
             return lerp(hx, me.x, clamp((t - TJ) / (TL - TJ), 0, 1));
         };
-        const footAt = (t) => (t > TJ && t < TL ? me.b - Math.sin(((t - TJ) / (TL - TJ)) * Math.PI) * Math.min(H * 0.45, me.h * 3.5) : me.b);
+        // 게임 화면 — 뛰어오른 꼭대기에서도 불꽃 바퀴 (가운데 = 발 − R · 불꽃 구 r × 1.2 · 불꽃 혀까지 × 1.45) 가 연출 위 끝 아래 (#107)
+        const jumpH = Math.min(H * 0.45, me.h * 3.5, gameTop() > 0 ? Math.max(R, me.b - R - R * 1.2 * 1.45 - gameTop() - 2 * s) : Infinity);
+        const footAt = (t) => (t > TJ && t < TL ? me.b - Math.sin(((t - TJ) / (TL - TJ)) * Math.PI) * jumpH : me.b);
         const wheel = (t) => t > TCURL + 0.2 && t < TL;
         let ang = 0;
         let lastT = 0;
@@ -9541,8 +9584,8 @@
         const sc = scene(u, sec + 0.3, 'uniq totodile');
         ultDark(0.32, ms - 200);
         puppet(sc, pokemon, u, footAt, TIDE[2], sec - 0.1, { x: xAt, rot: (t) => (t < TJ ? Math.sin(t * 7) * 0.2 : 0), glow: (t) => (t > TA && t < TBITE ? 0.3 : 0), glowColor: TIDE[1] });
-        // 물 이빨 턱 — 벌어졌다 콱
-        sc.add({ max: TBITE + 0.5, draw: (ctx, it, t, px) => {
+        // 물 이빨 턱 — 벌어졌다 콱 (낮은 패널에서 크게 벌린 윗턱이 위 끝을 넘는 부분만 위 끝 층 — #107)
+        sc.split({ max: TBITE + 0.5, draw: (ctx, it, t, px) => {
             const life = sc.t;
             if (life < TA - 0.1) {
                 return;
@@ -9963,8 +10006,41 @@
                 }
             }
         });
+        // 잎 흩날림 — 맞은 자리에서 잎 16장이 솟았다가 팔랑이며 (0.12초마다 뒤집힘) 내려앉음 · 8 × 5칸 세 톤 (밝은 위 #b8ec6c · 테 · 잎맥 · 꼭지 #1f4a1c · 아래 #6cc04a) ·
+        //   초록 거품만 보여 "꽃잎 해일" 끝이 거품처럼 읽히던 것 (#108 기획 — 잎 모양이 보이게 키움 · #159 태현 님 "추천대로" 다시 넣음) · 거품은 16 → 8 ·
+        //   게임 화면 — 솟는 꼭대기는 연출 위 끝 아래 (#107 — 솟는 빠르기만 줄임)
+        const LEAF = [[2, 0, 1], [3, 0, 0], [4, 0, 0], [5, 0, 0], [6, 0, 1],
+            [0, 1, 1], [1, 1, 0], [2, 1, 0], [3, 1, 0], [4, 1, 0], [5, 1, 0], [6, 1, 0], [7, 1, 1],
+            [0, 2, 1], [1, 2, 2], [2, 2, 1], [3, 2, 1], [4, 2, 1], [5, 2, 1], [6, 2, 2], [7, 2, 1],
+            [1, 3, 1], [2, 3, 2], [3, 3, 2], [4, 3, 2], [5, 3, 2], [6, 3, 1],
+            [2, 4, 1], [3, 4, 1], [4, 4, 1], [5, 4, 1]];
+        const leafG = H * 1.2;
+        const leafUp = gameTop() > 0 ? Math.sqrt(2 * leafG * Math.max(0, G - Rb - gameTop() - 4 * s - 4)) : Infinity; // 4px 더 — 사라지는 말 줄을 스치던 것 (#107 아트 작음 ②)
+        const leaves = [];
+        for (let i = 0; i < 16; i++) {
+            const a = -Math.PI / 2 + (hash(i, 71) - 0.5) * 2.4;
+            const v0 = H * (0.6 + 0.5 * hash(i, 72));
+            leaves.push({ a, v: Math.min(v0, leafUp / Math.max(0.2, -Math.sin(a))), t0: TSLAM + 0.05 + hash(i, 73) * 0.2, life: 1.2 + hash(i, 74) * 0.5 });
+        }
+        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+            const life = sc.t;
+            const pl = [new Path2D(), new Path2D(), new Path2D()];
+            leaves.forEach((lf, i) => {
+                const k = life - lf.t0;
+                if (k < 0 || k >= lf.life) {
+                    return;
+                }
+                const x0 = tx + Math.cos(lf.a) * lf.v * k * 0.9 + Math.sin(life * 6 + i) * s * 3;
+                const y0 = Math.min(G - 4 * s, G - Rb + Math.sin(lf.a) * lf.v * k + 0.5 * leafG * k * k);
+                const flip = (Math.floor(life / 0.12) + i) % 2 === 1;
+                for (const [cx, cy, tone] of LEAF) {
+                    pl[tone].rect(px(x0 + (flip ? 3.5 - cx : cx - 3.5) * s), px(y0 + (cy - 2) * s), s, s);
+                }
+            });
+            K.fillPaths(ctx, pl, ['#b8ec6c', '#1f4a1c', '#6cc04a'], 1);
+        } });
         // 초록 거품 — 보글보글 떠올라 톡
-        const NBUB = 16;
+        const NBUB = 8;
         const bubs = [];
         for (let i = 0; i < NBUB; i++) {
             bubs.push({ x: tx + (hash(i, 61) - 0.5) * me.w * 4, t0: TSLAM + 0.15 + hash(i, 62) * 0.9, life: 0.7 + hash(i, 63) * 0.7, r: Math.max(2 * s, me.w * (0.12 + 0.14 * hash(i, 64))), rise: H * (0.12 + 0.16 * hash(i, 65)) });
@@ -10329,8 +10405,8 @@
             spin += (t - lastT) * (t > TK2 && t < TBANG ? 22 : 0) * dd;
             lastT = t;
         });
-        // 불꽃 바퀴 (영치코 뒤) — 둘레 불꽃 혀가 바퀴살처럼 돎
-        sc.add({ max: TBANG + 0.1, draw: (ctx, it, t, px) => {
+        // 불꽃 바퀴 (영치코 뒤) — 둘레 불꽃 혀가 바퀴살처럼 돎 (무대보다 커서 위 끝을 넘는 윗부분만 위 끝 층 — #107)
+        sc.split({ max: TBANG + 0.1, draw: (ctx, it, t, px) => {
             const life = sc.t;
             if (life < TUP) {
                 return;
@@ -10488,8 +10564,8 @@
         sc.add({ max: TLOCK + 0.1, draw: (ctx, it, t, px) => {
             glint(ctx, px, s, fin[0], fin[1], me.w * 0.35 * (1 + 0.3 * Math.sin(sc.t * 14)), 1);
         } });
-        // 하늘로 뿜는 물줄기 — 입에서 위로 (화면 위까지), 다 쏘면 끝이 끊겨 올라감
-        sc.add({ max: TEND, draw: (ctx, it, t, px) => {
+        // 하늘로 뿜는 물줄기 — 입에서 위로 (화면 위까지), 다 쏘면 끝이 끊겨 올라감 (하늘까지 닿는 기둥 — 위 끝 층 · #107)
+        sc.soft({ max: TEND, draw: (ctx, it, t, px) => {
             const life = sc.t;
             if (life < TUP) {
                 return;
@@ -10501,8 +10577,8 @@
                 K.fireTail(ctx, px, s, mx, my - cut - len, 0, -1, len, jw * (1 + 0.1 * Math.sin(life * 30)), TIDE, life, 1);
             }
         } });
-        // 쏟아지는 소나기 기둥 — 위에서 상대 자리로
-        sc.add({ max: TEND + 0.5, draw: (ctx, it, t, px) => {
+        // 쏟아지는 소나기 기둥 — 위에서 상대 자리로 (하늘에서 내려오는 기둥 — 위 끝 층 · #107)
+        sc.soft({ max: TEND + 0.5, draw: (ctx, it, t, px) => {
             const life = sc.t;
             if (life < TDOWN) {
                 return;
@@ -11222,7 +11298,8 @@
             scale: (t) => (t > TBL && t < TBLE ? 1 + 0.04 * Math.sin(t * 30) : 1),
             glow: () => 0,
         });
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+        // 거품 (상대를 감싼 큰 거품이 위 끝을 넘는 부분만 위 끝 층 — #107)
+        sc.split({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
             const ty = tyAt(life);
             // 큰 거품 (상대를 감쌈)
@@ -11824,10 +11901,12 @@
                 return me.b - Math.abs(Math.sin((t - TRUN) * 14)) * me.h * 0.12;
             }
             if (t > TUP && t < TUP + 0.5) {
-                return me.b - Math.sin(((t - TUP) / 0.5) * Math.PI) * me.h * 0.9;
+                return me.b - Math.sin(((t - TUP) / 0.5) * Math.PI) * upH;
             }
             return me.b;
         };
+        // 게임 화면 — 어퍼컷 뛰어오름 꼭대기에서도 몸이 위 끝 띠 아래 (#107)
+        const upH = Math.min(me.h * 0.9, gameTop() > 0 ? Math.max(me.h * 0.2, me.b - me.h - gameTop() - 8 - 2 * s) : Infinity);
         const fist = (t, side) => [xAt(t) + dd * me.w * (0.45 + (TJ.some((tj) => t > tj - 0.06 && t < tj + 0.06) ? 0.25 : 0)), footAt(t) - me.h * (side ? 0.45 : 0.6)];
         const sc = scene(u, sec + 0.3, 'uniq pignite');
         ultDark(0.35, ms - 200);
@@ -11838,8 +11917,8 @@
             glow: (t) => (t > TLIT ? 0.12 + 0.1 * Math.sin(t * 14) : 0),
             glowColor: F[1],
         });
-        // 주먹 불꽃 둘
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+        // 주먹 불꽃 둘 (어퍼컷 때 커진 불꽃 윗부분만 위 끝 층 — #107)
+        sc.split({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
             const k = clamp((life - TLIT) / 0.3, 0, 1) * clamp((sec - 0.2 - life) / 0.4, 0, 1);
             if (k <= 0.02) {
@@ -11873,8 +11952,8 @@
                 }
             }
         });
-        // 어퍼컷 불꽃 — 상대를 따라 세 갈래 불꽃이 꼬이며 솟구침
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+        // 어퍼컷 불꽃 — 상대를 따라 세 갈래 불꽃이 꼬이며 솟구침 (하늘로 솟는 불기둥 — 위 끝 층 · #107)
+        sc.soft({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
             const k = (life - TUP) / 1.0;
             if (k <= 0 || k >= 1) {
@@ -12248,8 +12327,8 @@
             }
             stNeedles(ctx, px, s, list, 1);
         } });
-        // 오르는 바늘 → 내리꽂히는 바늘 → 꽂혀 있는 바늘밭
-        sc.add({ max: sec, draw: (ctx, it, t, px) => {
+        // 오르는 바늘 → 내리꽂히는 바늘 → 꽂혀 있는 바늘밭 (하늘 너머로 올라갔다 쏟아지는 바늘 — 위 끝 층 · #107)
+        sc.soft({ max: sec, draw: (ctx, it, t, px) => {
             const life = sc.t;
             const fly = [];
             const stuck = [];
@@ -12689,12 +12768,14 @@
                 return;
             }
             const [x2, y2] = tgt();
+            const sr = Math.max(3 * s, me.w * 0.3);
             for (let i = 0; i < 5; i++) {
                 const a = -Math.PI / 2 + (i * TAU) / 5;
                 const d = Math.max(me.w * 2.2, H * 0.22) * easeOut(Math.min(1, k * 1.6));
                 const x = x2 + Math.cos(a) * d;
-                const y = y2 + Math.sin(a) * d * 0.8 + H * 0.3 * k * k;
-                starOutline(ctx, px, s, x, y, Math.max(3 * s, me.w * 0.3), k * 5 + i, 1, F, 1 - clamp((k - 0.7) / 0.4, 0, 1));
+                // 게임 화면 — 위로 튄 별은 연출 위 끝 아래에서 멈춤 (#107)
+                const y = Math.max(y2 + Math.sin(a) * d * 0.8 + H * 0.3 * k * k, gameTop() > 0 ? gameTop() + sr + 2 * s : -Infinity);
+                starOutline(ctx, px, s, x, y, sr, k * 5 + i, 1, F, 1 - clamp((k - 0.7) / 0.4, 0, 1));
             }
         } });
     }

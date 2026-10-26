@@ -239,6 +239,9 @@ let fxOrbPreview = null;
         ctx.globalAlpha = Math.min(1, alpha);
         ctx.fillStyle = color;
         const tick = Math.floor(life * 18);
+        // 게임 화면 — 위로 뻗는 선은 연출 위 끝 (정보줄 · 지도 줄) 조금 아래에서 멈춤 (#107 — 미래예지 집중선이 위 끝에 일자로 걸쳐 머물던 것)
+        const top0 = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+        const yMin = top0 > 0 ? top0 + 3 * s : -Infinity;
         for (let j = 0; j < n; j++) {
             if (hash(j, tick) < 0.3) {
                 continue;
@@ -247,7 +250,7 @@ let fxOrbPreview = null;
             const ca = Math.cos(a);
             const sa = Math.sin(a);
             const w = hash(j, 3) < 0.35 ? 2 : 1;
-            for (let r = rIn * (1 + hash(j, tick + 1) * 0.5); r < rOut; r += s * 3) {
+            for (let r = rIn * (1 + hash(j, tick + 1) * 0.5); r < rOut && cy + sa * r >= yMin; r += s * 3) {
                 ctx.fillRect(px(cx + ca * r), px(cy + sa * r), s * w, s * w);
             }
         }
@@ -462,8 +465,13 @@ let fxOrbPreview = null;
             });
         }
     }
+    // o.soft = 화면만큼 퍼지는 고리 — 게임 화면은 위 끝 층 (위 끝에 일자로 걸쳐 머물지 않게 — #107)
     function ring(x, y, s, r0, r1, flat, sec, cols, o = {}) {
-        sigParticle({ x, y, s, r0, r1, flat, max: sec, cols, size: o.size ?? 1, step: o.step ?? 1.5, a: o.a ?? 1, life: -(o.delay ?? 0), draw: DR.ring });
+        const soft = !!o.soft && typeof fxStageTop === 'function' && fxStageTop() > 0;
+        if (soft && typeof fxSoftTopWant === 'function') {
+            fxSoftTopWant((sec + (o.delay ?? 0)) * 1000 + 300);
+        }
+        sigParticle({ x, y, s, r0, r1, flat, max: sec, cols, size: o.size ?? 1, step: o.step ?? 1.5, a: o.a ?? 1, life: -(o.delay ?? 0), draw: DR.ring, ...(soft ? { _softTop: true } : {}) });
     }
     // 발밑에서 솟는 기운
     function riseAt(u, cols, Z) {
@@ -561,7 +569,10 @@ let fxOrbPreview = null;
         const oy = u.mouth.y;
         const reach = Math.max(1, dir > 0 ? W - ox : ox);
         const span = sep + Tb * 0.68;
-        const yFar = Math.max(Math.min(oy, u.ground - span), Math.min(span, H * 0.5)); // 땅에 묻히지 않는 높이 — 입이 땅에 가까우면 입 앞 위쪽에서 쏨
+        // 게임 화면 = 몸통 윗면 (반 굵기 × 1.1 · 두근 1.11 · 나선 1.38 · 2칸) 이 위 끝 (정보줄 · 지도 줄) 아래 — 높이 쏘는 빔 · 나선이 위 끝에 걸쳐 머물던 것 (#107 ult-top 걸침 · 크기는 그대로)
+        const beamTop = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+        const beamMinY = beamTop > 0 ? beamTop + sep + Tb * 0.5 * 1.1 * 1.11 * 1.38 + 2 * S : 0;
+        const yFar = Math.max(Math.min(oy, u.ground - span), Math.min(span, H * 0.5), Math.min(beamMinY, u.ground - span)); // 땅에 묻히지 않는 높이 — 입이 땅에 가까우면 입 앞 위쪽에서 쏨
         const yMouth = Math.min(oy, u.ground - orbR * 1.3);
         const flare = T * 1.4; // 물결(wave)이 이 거리까지 서서히 커짐
         // 나팔 모양 — 빛 구에서 가늘게 시작해 spreadL 동안 굵어지고, 높이도 입에서 광선 높이로 부드럽게
@@ -745,7 +756,9 @@ let fxOrbPreview = null;
                         continue;
                     }
                     const i = Math.min(n - 1, Math.floor(d / (2 * S)));
-                    const y = ys[i] + Math.sin(ph) * hs[i] * 1.38;
+                    // 위쪽 감김은 위 끝 아래 2칸까지만 (높이 쏘는 나선 빔 고리가 위 끝에 걸치던 것 — #107)
+                    const amp = beamTop > 0 ? Math.max(S, Math.min(hs[i] * 1.38, ys[i] - beamTop - 2 * S)) : hs[i] * 1.38;
+                    const y = ys[i] + Math.sin(ph) * (Math.sin(ph) < 0 ? amp : hs[i] * 1.38);
                     const w = frontSide && depth > 0.5 ? sz + 1 : sz;
                     if (frontSide) {
                         // 테두리 (진한 색) — 밝은 광선 위에서도 띠가 보이게
@@ -828,7 +841,8 @@ let fxOrbPreview = null;
                         continue;
                     }
                     const i = Math.min(n - 1, Math.floor(d / seg));
-                    const ry = hs[i] * 1.5 + 3 * S;
+                    // 게임 화면 = 고리 위 끝이 위 끝 (정보줄 · 지도 줄) 아래 2칸 — 높이 쏘는 빔의 고리 점선이 위 끝에 걸치던 것 (#107)
+                    const ry = Math.max(2 * S, Math.min(hs[i] * 1.5 + 3 * S, beamTop > 0 ? ys[i] - beamTop - 2 * S : Infinity));
                     ctx.globalAlpha = alpha * (1 - (0.6 * d) / reach);
                     const m = Math.max(16, Math.round(ry / S) * 3);
                     for (let q = 0; q < m; q++) {
@@ -846,12 +860,14 @@ let fxOrbPreview = null;
                 } else if (f < fadeAt + 0.1) {
                     // 화면 끝에 부딪혀 튐
                     const ex = dir > 0 ? W : 0;
-                    const er = hs[ie] * (1.4 + 0.25 * Math.random());
+                    // 게임 화면 = 원판 (× 1.25) 위 끝이 위 끝 (정보줄 · 지도 줄) 아래 1칸 · 빛살도 그 아래까지 — 화면 끝 터짐이 2초 위 끝에 걸치던 것 (#107 · 사이코부스트)
+                    const eRoom = beamTop > 0 ? Math.max(2 * S, ys[ie] - beamTop - S) : Infinity;
+                    const er = Math.min(hs[ie] * (1.4 + 0.25 * Math.random()), eRoom / 1.25);
                     discs(ctx, px, S, ex, ys[ie], er, [[1.25, cols[3], 0.4], [1, cols[2], 0.9], [0.75, cols[1], 1], [0.5, cols[0], 1], [0.28, '#ffffff', 1]], alpha);
                     ctx.globalAlpha = alpha;
                     for (let j = 0; j < 9; j++) {
                         const a = (dir > 0 ? Math.PI : 0) + (j - 4) * 0.33 + (Math.random() - 0.5) * 0.2;
-                        const len = er * (1.3 + Math.random() * 1.2);
+                        const len = Math.min(er * (1.3 + Math.random() * 1.2), Math.sin(a) < 0 ? eRoom / -Math.sin(a) : Infinity);
                         for (let d = er * 0.8; d < len; d += S) {
                             const w = d < len * 0.55 ? 2 : 1;
                             dotAt(ctx, px, S, ex + Math.cos(a) * d, ys[ie] + Math.sin(a) * d, d < len * 0.6 ? '#ffffff' : cols[1], w, w);
@@ -1331,7 +1347,10 @@ let fxOrbPreview = null;
     function runOrbSky(u, o, total, el, k) {
         const { P, Z, S, W, H, dir, style, cols, size, flash, rF, C, home, st, channel, growTick } = k;
         const rS = clamp(H * 0.26 * Math.sqrt(size), 18, Math.min(W * 0.28, H * 0.42));
-        const top = { x: W / 2, y: clamp(H * 0.06 + rS, rS + 3, H * 0.5) };
+        // 게임 화면 = 구 윗면 (반지름 × 1.08 두근) 이 위 끝 (정보줄 · 지도 줄) 아래 2칸 — 하늘로 오른 구가 위 끝에 걸쳐 머물던 것 (#107 · 크기는 그대로)
+        const skyTop = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+        //   불꽃 · 그림자 구는 위로 솟는 혀까지 (반지름 × 1.45)
+        const top = { x: W / 2, y: Math.max(clamp(H * 0.06 + rS, rS + 3, H * 0.5), skyTop > 0 ? skyTop + rS * (style === 'flame' || style === 'shadow' ? 1.45 : 1.08) + 2 * S : 0) };
         const r1 = Math.min(rF, rS) * 0.8;
         const G1 = 0.75;
         const R1 = 0.8;
@@ -1486,7 +1505,24 @@ let fxOrbPreview = null;
         tremble(el, 0.3 * S, Tc * 500);
         later(Tc * 500, () => tremble(el, 0.9 * S, Tc * 500));
         ultDark(0.3, Tc * 1000 + 300);
+        // 게임 화면 = 터지는 1.4초 동안 앞장을 터짐 위에 다시 그림 (장 끝 맨 위 — bridge fxOnTop) — 몸 가운데에서 터져 앞장이 안 보이던 것 (#108 아트 1바퀴 ②)
+        const topMon = () => {
+            if (!el || !(typeof fxInGame === 'function' && fxInGame()) || typeof fxOnTop !== 'function' || !ULT_KIT.drawMon) {
+                return;
+            }
+            // 그릴 때마다 지금 그림 — 게임이 그림 (<img>) 을 새로 바꿔 넣으면 처음 el 은 문서에서 빠짐 (칸 상자 안 img 를 다시 찾음)
+            const box = pokemon?.collision;
+            fxOnTop((ctx) => {
+                const img = el.isConnected ? el : box?.isConnected ? box.querySelector('img') : null;
+                if (!img?.naturalWidth) {
+                    return;
+                }
+                const r = img.getBoundingClientRect();
+                ULT_KIT.drawMon(ctx, img, r.left + r.width / 2, r.bottom, r.width, dir < 0);
+            }, 1400);
+        };
         const boom = () => {
+            topMon();
             if (o.white) {
                 flash('#ffffff', 1, 1.1, 0.32);
             } else {
@@ -2004,7 +2040,9 @@ let fxOrbPreview = null;
         const lo = Rm * 1.5;
         const hi = W - Rm * 1.5;
         const mx = lo < hi ? clamp(lerp(u.body.cx, W / 2, 0.55), lo, hi) : W / 2;
-        const my1 = clamp(H * 0.07 + Rm, Rm + 4, H * 0.45);
+        // 게임 화면 = 달 · 빛무리 윗면 (반지름 × 1.4) 이 위 끝 (정보줄 · 지도 줄) 아래 2칸 — 큰 달이 위 끝에 걸쳐 1.4초 머물던 것 (#107 · 크기는 그대로)
+        const moonTop = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+        const my1 = Math.max(clamp(H * 0.07 + Rm, Rm + 4, H * 0.45), moonTop > 0 ? moonTop + Rm * 1.4 + 2 * S : 0);
         const my0 = Math.max(my1, Math.min(u.ground - Rm, my1 + H * 0.35));
         const M = { x: mx, y: my0 };
         const tRise = 1.2;
@@ -2068,14 +2106,19 @@ let fxOrbPreview = null;
         const burst = () => {
             flash(cols[0], 0.75, 0.55, 0.06);
             ultShake(5 + 2 * P, 800);
-            part({ x: M.x, y: M.y, s: S, max: 0.6, far: Math.hypot(W, H), n: 16, r0: Rm * 1.1, a0: 0.1, cols: [cols[1], cols[2], cols[0], cols[3]], draw: DR.rays });
+            // 화면 끝까지 뻗는 빛살 — 게임 화면은 위 끝 층 (#107)
+            const softRays = typeof fxStageTop === 'function' && fxStageTop() > 0 && typeof fxSoftTopWant === 'function';
+            if (softRays) {
+                fxSoftTopWant(900);
+            }
+            part({ x: M.x, y: M.y, s: S, max: 0.6, far: Math.hypot(W, H), n: 16, r0: Rm * 1.1, a0: 0.1, cols: [cols[1], cols[2], cols[0], cols[3]], draw: DR.rays, ...(softRays ? { _softTop: true } : {}) });
             for (let i = 0; i < 40 && room(); i++) {
                 const a = moveRand(0, TAU);
                 const sp = moveRand(120, 360) * Z;
                 sigParticle({ x: M.x, y: M.y, s: Math.random() < 0.35 ? S * 2 : S, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, g: 60 * Z, drag: 1.6, max: moveRand(0.6, 1.1), r: 2, cols: starCols, draw: DR.star });
             }
             for (let j = 0; j < 3; j++) {
-                ring(M.x, M.y, S, Rm, Math.hypot(W, H) * (0.9 + j * 0.15), 1, 0.8 + j * 0.12, j % 2 ? [cols[2], cols[1]] : ['#ffffff', cols[0]], { size: 2, delay: j * 0.1 });
+                ring(M.x, M.y, S, Rm, Math.hypot(W, H) * (0.9 + j * 0.15), 1, 0.8 + j * 0.12, j % 2 ? [cols[2], cols[1]] : ['#ffffff', cols[0]], { size: 2, delay: j * 0.1, soft: true });
             }
             // 다른 포켓몬마다 달빛 기둥이 쾅 — 떠올랐다 툭
             for (const q of u.others()) {
@@ -2107,7 +2150,7 @@ let fxOrbPreview = null;
                 if (!st.glowed && life >= tGlow) {
                     st.glowed = true;
                     flash(cols[1], 0.3, 0.4);
-                    ring(M.x, M.y, S, Rm, Rm * 3.5, 1, 0.6, ['#ffffff', cols[0], cols[2]], { size: 2 });
+                    ring(M.x, M.y, S, Rm, Rm * 3.5, 1, 0.6, ['#ffffff', cols[0], cols[2]], { size: 2, soft: true });
                     spray(M.x, M.y, S, starCols, 24, 60 * Z, 200 * Z, { drag: 2, draw: DRAW.sparkle, cols: starCols });
                 }
                 // 달빛이 비처럼 쏟아짐

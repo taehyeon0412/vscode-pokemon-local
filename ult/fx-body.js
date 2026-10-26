@@ -85,6 +85,10 @@
             ctx.scale(-1, 1);
         }
         ctx.drawImage(img, -w / 2, -h / 2, w, h);
+        // 쓰러진 칸 지우기 뒤 다시 그릴 수 있게 적어 둠 (ult/bridge.js fxMonNote)
+        if (typeof fxMonNote === 'function') {
+            fxMonNote(ctx, o.src ?? img, img, w, h);
+        }
         ctx.restore();
     }
     // 한 색 실루엣 (잔상 · 테두리 · 번쩍) — 움직이는 그림이라 0.08초마다 새로
@@ -222,10 +226,16 @@
     // 효과 밑으로 깔기 — 같은 프레임에 먼저 그린(= 나중에 만든) 효과 밑, 어둠 위. 겹은 안쪽부터
     const UNDER = 'destination-over';
     // 몸을 감싸는 불꽃 오라 — 가로줄을 쌓은 물방울 모양이 위로 넘실. lean: 꼭대기가 뒤로 쏠림
+    //   게임 화면 — 무대보다 크게 솟으면 위 끝 띠 위만 위 끝 층 (bridge fxSplitTop · 크기 그대로, #107)
     function drawAura(ctx, px, S, cx, bottom, w, h, cols, T, k, lean = 0) {
         if (k <= 0.02) {
             return;
         }
+        splitTop(ctx, (c) => drawAura0(c, px, S, cx, bottom, w, h, cols, T, k, lean));
+    }
+    // 위 끝 띠 아래는 큰 캔버스 · 그 위만 위 끝 층 (bridge fxSplitTop — 일반 모드 · 다리 없으면 그대로)
+    const splitTop = (ctx, fn) => (typeof fxSplitTop === 'function' ? fxSplitTop(ctx, fn) : fn(ctx));
+    function drawAura0(ctx, px, S, cx, bottom, w, h, cols, T, k, lean) {
         const H = h * (1.2 + 0.45 * k);
         const half0 = Math.max(w * (0.45 + 0.22 * k), 8);
         ctx.save();
@@ -338,11 +348,25 @@
         }) });
     }
     // 튀는 바위 조각 — 땅에 한 번 튀고 구름
+    // 위로 튀는 알갱이의 처음 세로 속도 한도 — 게임 화면은 꼭대기가 위 끝 (정보줄 · 지도 줄) 아래 2칸 (파편 · 불똥 수십 개가 줄줄이 위 끝을 넘어 0.3 ~ 0.6초 걸쳐 머물던 것 — #107 돌진 벽 쾅)
+    // 게임 화면 — 이 입자는 위 끝 층 (위로 튀는 불티 · 김처럼 위 끝 너머로 이어지는 것 — #107)
+    function softTop(ms = 1500) {
+        if (!(typeof fxStageTop === 'function' && fxStageTop() > 0 && typeof fxSoftTopWant === 'function')) {
+            return {};
+        }
+        fxSoftTopWant(ms);
+        return { _softTop: true };
+    }
+    function upCap(y, g, S) {
+        const gT = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+        return gT > 0 ? -Math.sqrt(2 * g * Math.max(0, y - gT - 2 * S)) : -Infinity;
+    }
     function debris(x, y, S, cols, n, spd, ground, bias = 0) {
+        const cap = upCap(y, 640, S);
         for (let i = 0; i < n && roomFor(); i++) {
             const a = -Math.PI / 2 + moveRand(-1.15, 1.15) + bias;
             const v = moveRand(0.35, 1) * spd;
-            sigParticle({ x, y, s: S, vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: 640, drag: 0.4, max: moveRand(0.8, 1.3), color: movePick(cols), size: movePick([1, 2, 2, 3]), ground, hop: 0,
+            sigParticle({ x, y, s: S, vx: Math.cos(a) * v, vy: Math.max(cap, Math.sin(a) * v), g: 640, drag: 0.4, max: moveRand(0.8, 1.3), color: movePick(cols), size: movePick([1, 2, 2, 3]), ground, hop: 0,
                 update: (p) => {
                     const g = p.ground - p.size * p.s;
                     if (p.vy > 0 && p.y >= g) {
@@ -398,7 +422,12 @@
                 paths.push([at, [at[0] + Math.cos(b) * bl * 0.5, at[1] + Math.sin(b) * bl * 0.5 * flat], [at[0] + Math.cos(b + 0.3) * bl, at[1] + Math.sin(b + 0.3) * bl * flat]]);
             }
         }
-        sigParticle({ x, y, s: S, max: sec, draw: safeDraw((ctx, p, t, px) => {
+        // 게임 화면 — 화면 금 (화면에 가는 금 — 위로 뻗은 금이 위 끝에 걸쳐 머물던 것) 은 위 끝 층 (#107)
+        const soft = typeof fxStageTop === 'function' && fxStageTop() > 0 && typeof fxSoftTopWant === 'function';
+        if (soft) {
+            fxSoftTopWant(sec * 1000 + 300);
+        }
+        sigParticle({ x, y, s: S, max: sec, ...(soft ? { _softTop: true } : {}), draw: safeDraw((ctx, p, t, px) => {
             const grow = Math.min(1, p.life / 0.12);
             ctx.globalAlpha = t > 0.55 ? (1 - t) / 0.45 : 1;
             for (const pts of paths) {
@@ -441,7 +470,8 @@
         }) });
     }
     // 움푹 팬 자리 — 어두운 타원 + 빛나는 테두리
-    function crater(x, y, S, cols, rx, sec) {
+    //   pp = 쓰는 애 꼭두각시 — 진짜 그림으로 돌아온 뒤에도 구덩이 둘레는 몸을 위에 다시 그림 (진짜 그림은 캔버스 밑이라 아랫몸이 구덩이 윗선 아래로 잘리던 것 — 디자인 #107 UX 3바퀴 헤비봄버)
+    function crater(x, y, S, cols, rx, sec, pp = null) {
         sigParticle({ x, y, s: S, max: sec, draw: safeDraw((ctx, p, t, px) => {
             const R = rx * easeOut(Math.min(1, p.life / 0.12));
             const ry = Math.max(S * 2, R * 0.2);
@@ -450,11 +480,31 @@
             fillEllipse(ctx, px, S, p.x, p.y, R, ry, '#140b06');
             ctx.globalAlpha *= 0.7 + 0.3 * Math.sin(p.life * 20);
             ellipseDots(ctx, px, S, p.x, p.y, R + S, ry + S * 0.5, [cols[0], '#ffffff', cols[1]], p.life * 2, 3);
+            // 게임이 그림 (<img>) 을 새로 바꿔 넣으면 처음 el 은 문서에서 빠짐 — 칸 상자 안 그림을 다시 찾음 (bridge fxCoverRedraw 와 같게 · 디자인 #107 UX 4바퀴 — 돌아온 뒤 다시 그리기가 안 돌던 것)
+            const pk = pp && !pp.live ? pp.pokemon : null;
+            const box = pk?.collision;
+            const el = pk ? (pk.el?.isConnected ? pk.el : box?.isConnected ? box.querySelector('.pg-sprite') || box.querySelector('img') : null) : null;
+            if (el?.isConnected && el.style.visibility !== 'hidden' && el.style.opacity !== '0' && ready(el)) {
+                const r = el.getBoundingClientRect();
+                ctx.save();
+                ctx.globalAlpha = 1;
+                ctx.beginPath();
+                ctx.rect(p.x - R - S * 3, p.y - ry - S * 2, (R + S * 3) * 2, (ry + S * 2) * 2);
+                ctx.clip();
+                drawSprite(ctx, el, r.left + r.width / 2, r.bottom, r.width, r.height, { flip: flipped(el) });
+                ctx.restore();
+            }
         }) });
     }
     // 짧은 번개 — 0.05초마다 모양을 새로 (지직)
     function zap(x0, y0, x1, y1, S, tint, sec = 0.12, w = 1, jit = 2) {
-        sigParticle({ x: x0, y: y0, s: S, max: sec, draw: safeDraw((ctx, p, t, px) => {
+        // 게임 화면 — 위 끝 띠까지 닿는 번개 (하늘에서 내리치는 줄기 등) 는 위 끝 층 (#107)
+        const gT = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+        const soft = gT > 0 && Math.min(y0, y1) < gT + 8 + jit * S && typeof fxSoftTopWant === 'function';
+        if (soft) {
+            fxSoftTopWant(sec * 1000 + 300);
+        }
+        sigParticle({ x: x0, y: y0, s: S, max: sec, ...(soft ? { _softTop: true } : {}), draw: safeDraw((ctx, p, t, px) => {
             if (!p.path || p.life - p.at > 0.05) {
                 p.at = p.life;
                 p.path = zigzag(x0, y0, x1, y1, S, jit);
@@ -469,19 +519,21 @@
         for (let i = 0; i < n && roomFor(); i++) {
             const a = moveRand(0, TAU);
             const sp = moveRand(40, 210) * Math.max(0.7, size / 70);
-            sigParticle({ x, y, s: S, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 40, g: -60, drag: 2.3, max: moveRand(0.45, 0.9), cols: fc, grow: 3 + size / 30, smoke: 1, draw: DRAW.stream });
+            sigParticle({ x, y, s: S, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 40, g: -60, drag: 2.3, max: moveRand(0.45, 0.9), cols: fc, grow: 3 + size / 30, smoke: 1, draw: DRAW.stream, ...softTop() });
         }
         for (let i = 0; i < n / 2 && roomFor(); i++) {
             const a = moveRand(0, TAU);
             const sp = moveRand(100, 320);
-            sigParticle({ x, y, s: S, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 80, g: 300, drag: 1, max: moveRand(0.5, 1), color: movePick(['#fff6b3', '#ffc93c', '#ff7a21']), draw: streak });
+            sigParticle({ x, y, s: S, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 80, g: 300, drag: 1, max: moveRand(0.5, 1), color: movePick(['#fff6b3', '#ffc93c', '#ff7a21']), draw: streak, ...softTop() });
         }
     }
     // 물보라
     function splashUp(x, y, S, n, bias, ground, spd = 1) {
         const wc = SIG_PALETTE.water;
+        // 게임 화면 — 솟는 물보라 꼭대기가 연출 위 끝 아래 (debris 와 같음 — #107)
+        const cap = upCap(y, 720, S);
         for (let i = 0; i < n && roomFor(); i++) {
-            sigParticle({ x: x + moveRand(-1, 1) * S * 3, y, s: S, vx: (moveRand(-1, 1) * 0.8 + bias) * 170 * spd, vy: -moveRand(120, 400) * spd, g: 720, drag: 0.3, max: moveRand(0.6, 1.1), color: movePick(wc), size: movePick([1, 2, 2, 3]), ground,
+            sigParticle({ x: x + moveRand(-1, 1) * S * 3, y, s: S, vx: (moveRand(-1, 1) * 0.8 + bias) * 170 * spd, vy: Math.max(cap, -moveRand(120, 400) * spd), g: 720, drag: 0.3, max: moveRand(0.6, 1.1), color: movePick(wc), size: movePick([1, 2, 2, 3]), ground,
                 update: (p) => {
                     if (p.vy > 0 && p.y > p.ground) {
                         p.life = p.max;
@@ -539,7 +591,12 @@
         const rr = r * moveRand(1, 1.9);
         const x0 = cx() + Math.cos(a) * rr;
         const y0 = cy() + Math.sin(a) * rr * 0.8;
-        sigParticle({ x: x0, y: y0, x0, y0, s: S, max: moveRand(0.22, 0.32), color: movePick([...cols, '#ffffff']),
+        // 게임 화면 — 둘레 (반지름 × 1.9 까지 — 위 끝 너머) 에서 빨려 드는 줄은 위 끝 층 (몸 위 같은 세로줄로 잇달아 지나가 위 끝에 걸쳐 머물던 것 — #107)
+        const soft = typeof fxStageTop === 'function' && fxStageTop() > 0 && typeof fxSoftTopWant === 'function';
+        if (soft) {
+            fxSoftTopWant(400);
+        }
+        sigParticle({ x: x0, y: y0, x0, y0, s: S, max: moveRand(0.22, 0.32), color: movePick([...cols, '#ffffff']), ...(soft ? { _softTop: true } : {}),
             update: (q) => {
                 const f = Math.min(1, (q.life / q.max) ** 2);
                 q.px0 = q.x;
@@ -719,10 +776,12 @@
                 const tHome = tTurn + D2;
                 const end = ms / 1000;
                 const tDone = Math.min(tHome + 0.5, end - 0.05);
-                const hop = clamp(h * 1.1, 16, u.H * 0.3);
                 const onGround = ys >= u.ground - 4;
                 const aw = Math.max(w, U * 0.75); // 오라 크기
                 const ah = Math.max(h, U * 0.95);
+                // 벽에서 튕겨 나오는 공중제비 높이 — 게임 화면은 오라 끝 (발 위 오라 높이 × 1.65) 이 위 끝 (정보줄 · 지도 줄) 아래 2칸까지만 (187 에서 0.3 ~ 0.4초 걸쳐 머물던 것 — #107)
+                const gT = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+                const hop = Math.max(S * 2, Math.min(clamp(h * 1.1, 16, u.H * 0.3), gT > 0 ? ys - ah * 1.65 - gT - 2 * S : Infinity));
                 const t0 = performance.now();
                 const clock = () => (performance.now() - t0) / 1000;
                 const spin = (T) => dir * TAU * (T < C ? (1.5 * T * T) / C : 1.5 * C + 4.5 * (T - C));
@@ -822,7 +881,8 @@
                             }
                         }
                         ctx.globalAlpha = 0.9 * pp.k;
-                        arcs.forEach((a) => zapLine(ctx, px, S, a, 1, ac[2]));
+                        // 몸에 두른 번개 — 무대보다 길게 뻗으면 위 끝 띠 위만 위 끝 층 (#107)
+                        splitTop(ctx, (c) => arcs.forEach((a) => zapLine(c, px, S, a, 1, ac[2])));
                     }
                     if (kind === 'water' && T < tHome) {
                         ctx.globalAlpha = 0.8 * pp.k;
@@ -975,7 +1035,7 @@
                 if (o.drill) {
                     later(tHit * 1000, () => {
                         ultShake(2, (G - 0.04) * 1000);
-                        emit((G - 0.04) * 1000, 300, () => roomFor() && sigParticle({ x: wx - dir * S, y: pp.y - h * 0.5 + moveRand(-1, 1) * h * 0.35, s: S, vx: -dir * moveRand(80, 340), vy: moveRand(-300, 60), g: 520, drag: 0.8, max: moveRand(0.3, 0.6), color: movePick(['#ffffff', '#fff6b3', '#ffc93c', cols[0]]), draw: streak }));
+                        emit((G - 0.04) * 1000, 300, () => roomFor() && sigParticle({ x: wx - dir * S, y: pp.y - h * 0.5 + moveRand(-1, 1) * h * 0.35, s: S, vx: -dir * moveRand(80, 340), vy: Math.max(upCap(pp.y - h * 0.85, 520, S), moveRand(-300, 60)), g: 520, drag: 0.8, max: moveRand(0.3, 0.6), color: movePick(['#ffffff', '#fff6b3', '#ffc93c', cols[0]]), draw: streak }));
                         cracks(wx, pp.y - h * 0.5, S, ac, 5, U * 0.9, () => (dir > 0 ? Math.PI : 0) + moveRand(-1.2, 1.2), 1, G + 0.3);
                     });
                 }
@@ -1158,7 +1218,7 @@
                         }
                     }
                     ctx.globalAlpha = 0.9;
-                    arcs.forEach((a) => zapLine(ctx, px, S, a, 1, ac[2]));
+                    splitTop(ctx, (c) => arcs.forEach((a) => zapLine(c, px, S, a, 1, ac[2])));
                 };
                 sigParticle({ x: 0, y: 0, s: S, max: end + 0.3, update: safeUpd((p) => {
                     const T = clock();
@@ -1309,7 +1369,7 @@
                     ultShake(heavy ? 11 : 5 + 4 * K, heavy ? 1500 : 900);
                     pp.flash = 1;
                     bigBoom(tx, ty - S * 2, S, bc, size, { flat: 0.6 });
-                    crater(tx, ty - S, S, ac, size * 0.75, 1.8);
+                    crater(tx, ty - S, S, ac, size * 0.75, 1.8, pp);
                     const reach = heavy ? W * 1.1 : W * 0.4 + size;
                     groundWave(tx, ty - S, S, ac, reach, heavy ? 0.9 : 0.8);
                     later(heavy ? 260 : 150, () => groundWave(tx, ty - S, S, ac, reach * (heavy ? 0.85 : 0.7), 0.7));
@@ -1535,7 +1595,8 @@
                     if (!spinning && i % 2 === 0) {
                         const sd = Math.random() < 0.6 ? -side : side;
                         const cx = b.x - sd * (b.w * 0.5 + w * moveRand(0.3, 0.6));
-                        const cyb = b.bottom - moveRand(0, 0.8) * Math.max(b.h, U * 0.4);
+                        // 게임 화면 — 분신 머리는 연출 위 끝 아래 (#107)
+                        const cyb = Math.max(b.bottom - moveRand(0, 0.8) * Math.max(b.h, U * 0.4), (typeof fxStageTop === 'function' && fxStageTop() > 0 ? fxStageTop() + h + 2 * S : -Infinity));
                         const el = pp.el;
                         const col = movePick([cols[2], cols[3], '#ffffff']);
                         sigParticle({ x: cx, y: cyb, s: 1, max: 0.18, draw: safeDraw((ctx, q, t) => {
@@ -1840,9 +1901,13 @@
                 }) });
                 // 다른 포켓몬 — 떠올라 흔들흔들, 쾅
                 const lift = u.others();
+                // 게임 화면 = 떠오른 몸 · 돌멩이 위 끝이 위 끝 (정보줄 · 지도 줄) 아래 2칸까지만 — 187 에서 떠오른 상대 머리가 위 끝 뒤로 숨어 1.6초 걸쳐 머물던 것 (#107 ult-top 걸침)
+                const gT = typeof fxStageTop === 'function' ? fxStageTop() : 0;
                 lift.forEach((q, i) => {
                     ultFreeze(q.pokemon, (tSlam + 0.6) * 1000);
-                    const up = clamp(Math.min(H * 0.4, q.h * 1.6 + 16), 10, Math.max(10, q.bottom - q.h - 6));
+                    // 위 끝까지 남은 높이 = 그린 그림 상자 위 끝부터 (q.h 는 몸 높이라 그림 칸 위 여백만큼 더 올라가던 것) · 흔들림 (−3px) · 쾅 직전 1.06배까지 셈
+                    const room = gT > 0 ? (q.pokemon.el.getBoundingClientRect().top - (gT + 2 * S) - 3) / 1.06 : q.bottom - q.h - 6;
+                    const up = clamp(Math.min(H * 0.4, q.h * 1.6 + 16), 10, Math.max(10, room));
                     levitate(q, (tLift + i * 0.08) * 1000, tSlam * 1000, up);
                 });
                 // 떠 있는 동안 — 보랏빛 테두리 · 묶는 고리
@@ -1873,7 +1938,7 @@
                 const rmap = { o: cols[1], '#': ROCK[2], w: ROCK[0] };
                 for (let i = 0; i < nRocks; i++) {
                     const x = moveRand(0.05, 0.95) * W;
-                    const top = Math.max(H * 0.12, u.ground - moveRand(0.25, 0.6) * Math.min(H * 0.8, 260));
+                    const top = Math.max(H * 0.12, gT > 0 ? gT + S : 0, u.ground - moveRand(0.25, 0.6) * Math.min(H * 0.8, 260));
                     const t1 = tLift + moveRand(0, 0.5);
                     const shape = movePick(ROCKS);
                     const rh = shape.length * rs;
@@ -2011,7 +2076,9 @@
                     const fade = T > tFling ? Math.max(0, 1 - (T - tFling) / 0.5) : 1;
                     const eyeW = clamp(W * 0.14, 26, 90);
                     const eyeH = eyeW * 0.42;
-                    const ey2 = Math.max(eyeH, H * 0.2);
+                    // 게임 화면 = 눈 위 끝이 위 끝 (정보줄 · 지도 줄) 아래 2칸 — 187 에서 눈 위 반이 위 끝 뒤로 숨어 일자로 잘린 채 2.5초 머물던 것 (#107 ult-top 걸침 · 모양 · 크기는 그대로)
+                    const gT = typeof fxStageTop === 'function' ? fxStageTop() : 0;
+                    const ey2 = Math.max(eyeH, H * 0.2, gT > 0 ? gT + eyeH / 2 + 2 * S : 0);
                     const look = Math.sin(T * 1.3) * eyeW * 0.12;
                     for (const sgn of [-1, 1]) {
                         const exc = W / 2 + sgn * eyeW * 0.85;
@@ -2162,9 +2229,13 @@
                     later(70, () => screenFlash(S, 0.3, '#ffffff', 0.16));
                     ultShake(5 + 4 * K, 850);
                     pp.flash = 0.7;
+                    // 게임 화면 = 검은 원판 · 점 고리 (반지름 × 1.25) 위 끝이 위 끝 (정보줄 · 지도 줄) 아래 2칸 — 크기는 그대로 가운데만 내림 (187 에서 원판 윗면이 위 끝에 일자로 0.3초 — #107 · 기획 10-25 "크기 말고 자리로만")
+                    const gT = typeof fxStageTop === 'function' ? fxStageTop() : 0;
                     grabs.forEach((g) => {
                         const b = boxOf(g);
-                        darkBurst(b.x, b.y, S, cols, Math.max(b.w, b.h, U * 0.6) * (1.3 + 0.6 * K));
+                        const size = Math.max(b.w, b.h, U * 0.6) * (1.3 + 0.6 * K);
+                        const by = gT > 0 ? Math.max(b.y, gT + 2 * S + size * 1.25) : b.y;
+                        darkBurst(b.x, by, S, cols, size);
                         for (const sd of [-1, 1]) {
                             for (let i = 0; i < 12 && roomFor(); i++) {
                                 sigParticle({ x: b.x + sd * b.w * 0.5, y: lerp(u.ground, b.y, Math.random()), s: S, vx: sd * moveRand(30, 160), vy: -moveRand(20, 180), g: 120, drag: 1.5, max: moveRand(0.5, 0.9), color: movePick(['#0d0618', cols[2], cols[1]]), size: movePick([1, 2, 2]), draw: DRAW.dot });

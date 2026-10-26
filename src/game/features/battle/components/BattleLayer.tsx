@@ -88,7 +88,7 @@ export function AutoButton({ save, onInput, short, tip, tipPlace = 'below' }: { 
   );
 }
 
-function HpBlock({ f, side, x, bottom, wide, prefix, noName, dex, panelPx, warn, short }: { f: Fighter; side: Side; x: number; bottom: number; wide: number; prefix: string; noName?: boolean; /** 마지막 기회 — 잡은 적 있음 (볼 그림) · 처음 (NEW) */ dex?: 'caught' | 'new'; /** 패널 폭 — 상대 이름 줄이 오른쪽으로 넘칠 수 있는 끝 (패널 끝 4px 안) */ panelPx?: number; /** 상대 필살기 예고 (R4 — 80% "곧" · 다 차면 "!") */ warn?: { full: boolean; pct: number } | null; /** 좁은 패널 — 예고 칩 글을 짧게 */ short?: boolean }) {
+function HpBlock({ f, side, x, bottom, wide, prefix, noName, dex, panelPx, warn, short, under }: { f: Fighter; side: Side; x: number; bottom: number; wide: number; prefix: string; noName?: boolean; /** 이 쪽이 필살기를 쓰는 중 — 연출이 이 판을 덮으니 판은 바둑판 반 (#107 UX 큼 2 · 개굴닌자 표창이 내 HP 판 아래로 깔리던 것) */ under?: boolean; /** 마지막 기회 — 잡은 적 있음 (볼 그림) · 처음 (NEW) */ dex?: 'caught' | 'new'; /** 패널 폭 — 상대 이름 줄이 오른쪽으로 넘칠 수 있는 끝 (패널 끝 4px 안) */ panelPx?: number; /** 상대 필살기 예고 (R4 — 80% "곧" · 다 차면 "!") */ warn?: { full: boolean; pct: number } | null; /** 좁은 패널 — 예고 칩 글을 짧게 */ short?: boolean }) {
   const status = f.status ? STATUS_LABEL[f.status.kind] : null;
   const title = `${side === 'foe' ? prefix : ''}${nameOf(f)} Lv${f.level} · HP ${f.hp}/${f.maxHp}${status ? ` · ${status}` : ''}`;
   // 내 줄은 오른쪽 끝을 맞추고 왼쪽으로 넘침 — 폭을 올림 정수 px 로 (글자 폭 그대로면 왼쪽 끝이 64.4 처럼 소수 px 라 흐리던 것, 픽셀 검사원 2026-10-21)
@@ -102,7 +102,7 @@ function HpBlock({ f, side, x, bottom, wide, prefix, noName, dex, panelPx, warn,
   });
   // 가운데 x 에 정수 px 로 (translateX(-50%) 는 홀수 폭이면 반 픽셀로 흐려짐 — 아트 디렉터)
   return (
-    <div class={`pg-hpblock pg-hpblock-${side}`} style={{ left: `${x - Math.floor(wide / 2)}px`, bottom: `${bottom}px`, width: `${wide}px`, ...(panelPx ? { '--pg-hp-room': `${panelPx - (x - Math.floor(wide / 2)) - 4}px` } : {}) }} title={title}>
+    <div class={`pg-hpblock pg-hpblock-${side}${under ? ' pg-ult-under' : ''}`} style={{ left: `${x - Math.floor(wide / 2)}px`, bottom: `${bottom}px`, width: `${wide}px`, ...(panelPx ? { '--pg-hp-room': `${panelPx - (x - Math.floor(wide / 2)) - 4}px` } : {}) }} title={title}>
       {side === 'foe' && <Bar value={f.ult} cls={f.ult >= 1 ? 'pg-bar-ult pg-full' : 'pg-bar-ult'} />}
       {/* 이름 · Lv 줄 (내 것은 오른쪽에 HP 숫자) → 얇은 HP 바 → 행동 게이지 (Sea of Stars, 포켓몬 머리 위). 옆 메뉴가 있으면 내 이름은 이름표가 맡음 */}
       {/* 붐빔 = 내 줄에 상태 칩 · Lv100 — 좁은 패널에서 이름 · Lv 를 빼는 기준 (game.css, "이… Lv5 독 15/21" · Lv1 이 패널 밖으로 나가던 것) */}
@@ -788,8 +788,8 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
       <ParryRing b={b} geo={geo} y={midMe} auto={save.settings.autoBattle} />
       <RiposteRing b={b} geo={geo} y={midFoe} auto={save.settings.autoBattle} />
       {hasMe && b.ultDeny && <UltDeny b={b} x={geo.meX} ground={ground} panelPx={geo.widthPx} />}
-      {hasMe && <HpBlock f={b.me} side="me" x={geo.meHpX} bottom={geo.meHpBottom} wide={geo.meHpWide} prefix="" noName={geo.menuSide !== null || geo.tiny} />}
-      {b.phase !== 'send' && <HpBlock f={b.foe} side="foe" x={geo.foeHpX} bottom={geo.foeHpBottom} wide={geo.foeHpWide} prefix={foePrefix(b)} dex={b.phase === 'last' ? (save.dex.caught.includes(b.foe.species) ? 'caught' : 'new') : undefined} panelPx={geo.widthPx} warn={battleFoeUltWarn(b)} short={geo.compact} />}
+      {hasMe && <HpBlock f={b.me} side="me" x={geo.meHpX} bottom={geo.meHpBottom} wide={geo.meHpWide} prefix="" noName={geo.menuSide !== null || geo.tiny} under={b.anim?.action.kind === 'ult' && b.anim.side === 'me'} />}
+      {b.phase !== 'send' && <HpBlock f={b.foe} side="foe" x={geo.foeHpX} bottom={geo.foeHpBottom} wide={geo.foeHpWide} prefix={foePrefix(b)} dex={b.phase === 'last' ? (save.dex.caught.includes(b.foe.species) ? 'caught' : 'new') : undefined} panelPx={geo.widthPx} warn={battleFoeUltWarn(b)} short={geo.compact} under={b.anim?.action.kind === 'ult' && b.anim.side === 'foe'} />}
       {b.phase === 'clash' ? <Clash b={b} geo={geo} y={Math.round((midMe + midFoe) / 2)} native={native} /> : <Effects b={b} geo={geo} ground={ground} midMe={midMe} midFoe={midFoe} native={native} />}
       <Catch b={b} geo={geo} ground={ground} mid={midFoe} handY={handY} />
       {throwMe !== null && <SendBall key={`sm${b.me.uid}`} from={[geo.trainerX, handY]} to={[geo.meX, midMe]} at={throwMe} />}
@@ -913,6 +913,14 @@ function PopSay({ kind, x, bottom, text }: { kind: string; x: number; bottom: nu
       if (t.width > 0 && r.left < t.right && r.right > t.left && r.top < t.bottom && r.bottom > t.top) cx = Math.max(POP_EDGE + half, cx - (r.right - (t.left - POP_EDGE)));
     }
     el.style.left = `${Math.round(cx)}px`;
+    // 위 말 칸 (쓰러짐 · 다음 포켓몬 말) 과 겹치면 말 칸 바로 아래로 — 860 플레어드라이브 끝에 "효과가 별로인 듯하다…" 가 "… 다음 포켓몬을 꺼낸다…" 위에 0.85초 겹쳐 둘 다 읽기 어렵던 것 (#112 ① · U1)
+    el.style.bottom = `${bottom}px`;
+    const p = el.parentElement?.getBoundingClientRect();
+    const r2 = el.getBoundingClientRect();
+    for (const box of document.querySelectorAll('#pokemon-game .pg-bmsg')) {
+      const m = box.getBoundingClientRect();
+      if (p && m.width > 0 && r2.left < m.right && r2.right > m.left && r2.top < m.bottom && r2.bottom > m.top) el.style.bottom = `${Math.round(p.bottom - (m.bottom + POP_EDGE + 2) - r2.height)}px`; // + 2 = 글자 테두리 그림자가 상자 아래 테에 먹던 것 (#107 UX 작음 ⑤)
+    }
   });
   return (
     <span ref={ref} class={`pg-pop pg-pop-say pg-pop-${kind}`} style={{ left: `${x}px`, bottom: `${bottom}px` }}>

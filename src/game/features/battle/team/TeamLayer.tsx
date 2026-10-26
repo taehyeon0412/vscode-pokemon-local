@@ -12,7 +12,7 @@ import { battleSpritePx, koSinkPx, TYPE_COLOR } from '../model';
 import { Sprite } from '../../../ui/Sprite';
 import type { FxActor } from '../fx/bridge';
 import { TEAM_FX, TeamFxRunner, type TeamSlot } from '../fx/team';
-import { bandDrawn, VIEW_WAIT_MS, duelSpots, faintHoldLeft, faintIsBig, faintShortLine, foeWarn, overLineHold, plateState, stackRows, teamGeometry, teamPrompt, viewPopsBack, type TeamGeo } from './model';
+import { bandDrawn, VIEW_CHIP_MS, VIEW_WAIT_MS, duelSpots, faintHoldLeft, faintIsBig, faintShortLine, foeWarn, overLineHold, plateState, stackRows, teamGeometry, teamPrompt, viewHitChip, viewPopsBack, type TeamGeo } from './model';
 import { getTeamView, subscribeTeamView, type TeamView } from '../fx/team-view';
 import { JointNamePlate, TeamCutin } from './TeamCutin';
 import { jointName } from './joint-names';
@@ -118,7 +118,7 @@ function warnPosOf(b: TeamBattle, g: TeamGeo, show: readonly boolean[]): WarnPos
 /** 머리 위 말 · 숫자 쌓는 높이 — 한 줄 15 · 합동 칩 24 (칩 20 + 간격 1단 4 — 2 면 "쓰러졌다!" 가 칩 테두리에 붙던 것, 개발 #80 UX ④) */
 const popGap = (ps: readonly { joint?: boolean }[]) => ps.reduce((h, p) => h + (p.joint ? 24 : 15), 0);
 
-function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, dim, big, warnChip, warnShow, warnPos, blocks, viewAt, vMon, vRest, onUlt }: { /** 장면 전환 (#99 시안) — 1:1 자리 (쏘는 칸 · 맞는 칸, 없으면 3:3 자리) */ viewAt: { x: number; y: number } | null; /** 포켓몬 칸 전환 클래스 (자리 옮김 · 숨김) */ vMon: string; /** 판 · 숫자 숨김 클래스 */ vRest: string; b: TeamBattle; g: TeamGeo; side: Side; slot: number; media: string; topMin: number; final: boolean; autoNext: boolean; fullChip: boolean; /** 다 찬 상대 중 먼저 나갈 한 칸 — 그 칸만 "!" 칩 (셋 다 뜨면 끼어들기 장면이 8 ~ 9개로 붐비던 것, 아트 디렉터 #95 2바퀴) */ warnChip: boolean; /** 상대 예고 칩을 보임 ("!" = 먼저 나갈 칸 · "곧" = 0.3초 이어진 뒤) */ warnShow: boolean; /** 상대 예고 칩 자리 (TeamLayer warnPosOf) */ warnPos: WarnPos; /** 모든 칸의 보이는 그림 · 발밑 판 상자 — 칩을 옆에 둘 때 피함 */ blocks: readonly Block[]; /** 큰 연출 (필살기 · 합동 · 힘겨루기) 중 주인공이 아닌 칸 — 흐리게 · 숫자 · 말 지움 (기획 #95) */ dim: boolean; /** 혼자 필살기에 맞는 칸 — 숫자 하나를 크게 */ big: boolean; onUlt(slot: number): void }) {
+function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, dim, big, warnChip, warnShow, warnPos, blocks, viewAt, vMon, vRest, skip, onUlt }: { /** 장면 전환 (#99 시안) — 1:1 자리 (쏘는 칸 · 맞는 칸, 없으면 3:3 자리) */ viewAt: { x: number; y: number } | null; /** 장면 전환 칩이 이미 보인 숫자 (ideas 717 — 돌아온 뒤 다시 안 띄움) */ skip: ReadonlySet<number>; /** 포켓몬 칸 전환 클래스 (자리 옮김 · 숨김) */ vMon: string; /** 판 · 숫자 숨김 클래스 */ vRest: string; b: TeamBattle; g: TeamGeo; side: Side; slot: number; media: string; topMin: number; final: boolean; autoNext: boolean; fullChip: boolean; /** 다 찬 상대 중 먼저 나갈 한 칸 — 그 칸만 "!" 칩 (셋 다 뜨면 끼어들기 장면이 8 ~ 9개로 붐비던 것, 아트 디렉터 #95 2바퀴) */ warnChip: boolean; /** 상대 예고 칩을 보임 ("!" = 먼저 나갈 칸 · "곧" = 0.3초 이어진 뒤) */ warnShow: boolean; /** 상대 예고 칩 자리 (TeamLayer warnPosOf) */ warnPos: WarnPos; /** 모든 칸의 보이는 그림 · 발밑 판 상자 — 칩을 옆에 둘 때 피함 */ blocks: readonly Block[]; /** 큰 연출 (필살기 · 합동 · 힘겨루기) 중 주인공이 아닌 칸 — 흐리게 · 숫자 · 말 지움 (기획 #95) */ dim: boolean; /** 혼자 필살기에 맞는 칸 — 숫자 하나를 크게 */ big: boolean; onUlt(slot: number): void }) {
   const f = b[side][slot]!;
   const { x, y } = g.pos(side, slot);
   const st = plateState(b, side, slot);
@@ -151,8 +151,9 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, d
   const autoSpot = g.oneRow ? undefined : autoSpots.find(([k, r]) => r.l >= 2 && r.r <= g.W - 2 && r.b <= g.H - 2 && !others.some((o) => hits(r, grow(o.box, 4))) && !(k === ' pg-auto-below' && sameRow(r)))?.[0];
   const autoPos = autoSpot ?? '';
   // 합동 피해 칩 = 같은 때 (ms) 여러 상대면 합계 하나를 가운데 칸에만 (칩 셋이 계단이던 것 — 아트 디렉터 #95 · BW 4)
-  const jointAll = b.popups.filter((p) => p.side === side && p.joint);
-  const pops0 = b.popups.filter((p) => p.side === side && p.slot === slot && !(p.joint && jointAll.some((q) => sameJoint(q.ms, p.ms) && q.slot !== p.slot && jointHome(jointAll, p.ms) !== slot))).map((p) =>
+  const popsAll = skip.size ? b.popups.filter((p) => !skip.has(p.id)) : b.popups;
+  const jointAll = popsAll.filter((p) => p.side === side && p.joint);
+  const pops0 = popsAll.filter((p) => p.side === side && p.slot === slot && !(p.joint && jointAll.some((q) => sameJoint(q.ms, p.ms) && q.slot !== p.slot && jointHome(jointAll, p.ms) !== slot))).map((p) =>
     p.joint && jointHome(jointAll, p.ms) === slot ? { ...p, text: `-${jointAll.filter((q) => sameJoint(q.ms, p.ms) && q.slot !== slot).reduce((t, q) => t + Number(q.text.slice(1)), Number(p.text.slice(1)))}` } : p,
   );
   // 합동 마무리 피해 숫자 = 칩 "합동! −숫자" (같은 걸음 합동 피해끼리 합계 하나) — 엔진이 그 피해 팝업에만 joint 를 닮 (개발 b488a8a · 판 없는 빨강 "−7" "−9" 둘이 240 에서 묻히던 것, #80 아트 디렉터 2바퀴 · design-system 12장).
@@ -603,6 +604,25 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   const overText = b.phase === 'over' && overLineHold(lineYoung, b.overMs, !!b.msg) && !msgOn && !boxTaken && overLine.current?.names.length ? `${overLine.current.names.join(' · ')} 쓰러졌다!` : null;
   const apart = msgOn || (bigOn && panelFaint.current) ? null : (overText ?? apart0);
   // 기다림 · 붙잡기 끝에 다시 그림 (그림은 열쇠가 바뀔 때만 다시 그려져, 띠 기다림이 끝나도 0.05 ~ 0.5초 늦게 뜨던 것 — UX 리뷰어 #95 10바퀴 4)
+  // 장면 전환 피해 칩 (ideas 717 — 장면 동안 판 · 숫자를 숨겨 필살기 · 합동 피해가 안 보이던 것): 장면이 선 뒤 맞는 쪽에 뜬 피해를 합계 칩 하나로 맞는 칸 1:1 자리 머리 위에 ·
+  //   진짜 시계 1.2초 (▶▶ 에서도 — ux-rules 화면 붙잡기) · out 에 바둑판으로 사라짐 · 그 숫자는 돌아온 뒤 3:3 자리에 다시 안 띄움 (skip)
+  const viewChip = useRef<{ inAt: number; afterId: number; ids: number[]; shownAt: number } | null>(null);
+  const chipDone = useRef<ReadonlySet<number>>(new Set());
+  if (view && (!viewChip.current || (view.phase === 'in' && viewChip.current.inAt !== view.at))) {
+    viewChip.current = { inAt: view.phase === 'in' ? view.at : -1, afterId: b.popups.reduce((m, p) => Math.max(m, p.id), -1), ids: [], shownAt: 0 };
+  } else if (!view && viewChip.current) {
+    chipDone.current = new Set([...chipDone.current, ...viewChip.current.ids]);
+    viewChip.current = null;
+  }
+  if (chipDone.current.size && !b.popups.some((p) => chipDone.current.has(p.id))) chipDone.current = new Set();
+  const vc = viewChip.current;
+  const chip = view && vc ? viewHitChip(b.popups, view.to.side, vc.afterId) : null;
+  if (chip && vc) {
+    vc.shownAt ||= bandNow;
+    vc.ids = chip.ids;
+  }
+  const chipOn = !!chip && !!vc && bandNow - vc.shownAt < VIEW_CHIP_MS;
+  const skip: ReadonlySet<number> = vc?.ids.length ? new Set([...chipDone.current, ...vc.ids]) : chipDone.current;
   const [, wakeUp] = useState(0);
   const wakes = [
     bandWait && faintBox.current ? boxLast + 1200 : 0,
@@ -611,6 +631,7 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
     attach.current ? attach.current.at + 1200 : 0,
     lineYoung ? (overLine.current?.last ?? boxLast) + 1200 : 0,
     viewWaitAt !== null ? viewWaitAt + VIEW_WAIT_MS : 0,
+    chipOn && vc ? vc.shownAt + VIEW_CHIP_MS : 0,
   ].filter((t) => t > bandNow);
   const nextWake = wakes.length ? Math.min(...wakes) : 0;
   useEffect(() => {
@@ -828,10 +849,45 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   const warnPos = warnPosOf(b, g, warnShow);
   // 모든 칸의 보이는 그림 · 발밑 판 (머리 위 자리가 없는 칩을 옆에 둘 때 피함)
   const blocks: Block[] = SIDES.flatMap((s) => b[s].flatMap((f, i) => (f ? [{ side: s, slot: i, box: visBoxOf(f.form, g, s, i) }, { side: s, slot: i, box: plateBoxOf(g, s, i), plate: true }] : [])));
+  const popTop = rowsBottom > 0 ? Math.max(topMin, rowsBottom + 2 + 14) : topMin;
+  // 장면 전환 피해 칩 자리 — 맞는 칸 1:1 자리 (vSpots) 머리 위 · 위 끝에 막혀 몸을 덮으면 옆 (바깥쪽 먼저 — 머리 위 숫자 칩과 같은 규칙 · 장면 동안 다른 칸은 숨어 있어 옆이 빔)
+  const chipAt = (() => {
+    if (!chipOn || !chip || !view || !vSpots || !vGroups) return null;
+    const { side, slot } = view.to;
+    const f = b[side][slot];
+    const spot = vSpots[side][vGroups[side].indexOf(slot)];
+    if (!f || !spot) return null;
+    const p0 = g.pos(side, slot);
+    const v0 = visBoxOf(f.form, g, side, slot);
+    const vis = { l: v0.l + spot.x - p0.x, t: v0.t + spot.y - p0.y, r: v0.r + spot.x - p0.x };
+    const tagOn = g.scale !== 1;
+    const cw = Math.ceil(((chip.joint && tagOn ? 35 : 12) + 10 * chip.text.length) * 1.1);
+    const top = Math.max(popTop + 6, vis.t - 4);
+    const head = { left: Math.round(Math.min(g.W - 2 - cw / 2, Math.max(2 + cw / 2, spot.x))), top, cls: '', tagOn };
+    if (top <= vis.t - 2) return head;
+    const ct = Math.max(vis.t + (g.scale === 1 ? -4 : 4), popTop - 14);
+    for (const right of side === 'me' ? [false, true] : [true, false]) {
+      const l = right ? vis.r + 2 : vis.l - 2 - cw;
+      if (l >= 2 && l + cw <= g.W - 2) return { left: right ? l : vis.l - 2, top: ct, cls: right ? ' pg-pop-side' : ' pg-pop-side pg-pop-side-l', tagOn };
+    }
+    return head;
+  })();
   return (
     // 자리는 패널 기준 (시안 geo) — 이 층은 들판 (정보줄 아래) 안이라 정보줄 높이만큼 위로
     <div class={`pg-team pg-team-x${g.scale}${g.oneRow ? ' pg-team-row' : ''}${view ? ' pg-team-viewing' : ''}`} style={{ top: `${-infoBarPx}px` }} ref={root} onClick={b.phase === 'clash' ? () => onInput({ kind: 'team-battle', input: { kind: 'space' } }) : undefined}>
-      {SIDES.map((side) => b[side].map((_, slot) => <Fighter key={`${side}-${slot}`} b={b} g={g} side={side} slot={slot} media={media} topMin={rowsBottom > 0 ? Math.max(topMin, rowsBottom + 2 + 14) : topMin} final={finalKo === `${side}-${slot}`} autoNext={side === 'me' && slot === autoNext} fullChip={side === 'me' && slot === fullFirst} warnChip={side === 'foe' && slot === foeFirstSlot} warnShow={side === 'foe' && (warnShow[slot] ?? false)} warnPos={side === 'foe' ? (warnPos[slot] ?? 'right') : 'right'} blocks={blocks} dim={lit !== null && !lit[side].includes(slot)} big={bigHit === side && (lit?.[side].includes(slot) ?? false)} {...vOf(side, slot)} onUlt={ult} />))}
+      {SIDES.map((side) => b[side].map((_, slot) => <Fighter key={`${side}-${slot}`} b={b} g={g} side={side} slot={slot} media={media} topMin={popTop} final={finalKo === `${side}-${slot}`} autoNext={side === 'me' && slot === autoNext} fullChip={side === 'me' && slot === fullFirst} warnChip={side === 'foe' && slot === foeFirstSlot} warnShow={side === 'foe' && (warnShow[slot] ?? false)} warnPos={side === 'foe' ? (warnPos[slot] ?? 'right') : 'right'} blocks={blocks} dim={lit !== null && !lit[side].includes(slot)} big={bigHit === side && (lit?.[side].includes(slot) ?? false)} {...vOf(side, slot)} skip={skip} onUlt={ult} />))}
+      {/* 장면 전환 피해 칩 (ideas 717) — 합동 "합동! −N" · 혼자 큰 숫자 판 · 숫자 칩 층 (연출 층 위) · 돌아갈 때 (out) 바둑판으로 사라짐 */}
+      {chipAt && chip && (
+        <span class={`pg-team-pop pg-pop-${chip.kind}${chip.joint ? ' pg-team-joint' : ' pg-pop-big'}${chipAt.cls}${view?.phase === 'out' ? ' pg-view-hide-in' : ''}`} style={{ left: `${chipAt.left}px`, top: `${chipAt.top}px` }}>
+          {chip.joint ? (
+            <>
+              {chipAt.tagOn && <b class="pg-team-joint-tag">합동!</b>} {chip.text}
+            </>
+          ) : (
+            chip.text
+          )}
+        </span>
+      )}
       {/* 띠 · 쓰러짐 줄이 떠 있는 동안 머리 위 숫자 · 칩은 그 줄 아래까지만 (240 에서 쓰러짐 줄이 "합동!" 칩을 덮던 것 — 픽셀 검사원 #95) */}
       {/* 장면 전환 동안은 3:3 띠를 안 띄움 — 혼자 = 1:1 캔버스 이름 띠 · 합동 = 큰 컷인이 이름을 말함 (이름 두 번 안 나오게) */}
       {bandShown && <TeamBand view={bandShown} media={media} top={bandTop} faint={inBand?.text ?? null} faintShort={inBand?.short ?? null} wide={widthPx < 400} tight={widthPx < 300} />}

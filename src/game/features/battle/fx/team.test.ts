@@ -252,7 +252,8 @@ describe('장면 전환 (#99 시안) — 들어감 → (합동 컷인) → 1:1 �
       expect(getTeamView()?.quick).toBeUndefined();
       vi.advanceTimersByTime(TEAM_VIEW.inMs + 6000);
       expect(getTeamView()?.phase).toBe('out');
-      expect(calls).toEqual(['ult']);
+      // 처음은 끝까지 (6초) 본 뒤 나올 때 끊음 (꼭두각시 한 장 — #108)
+      expect(calls).toEqual(['ult', 'stopUlt']);
       vi.advanceTimersByTime(TEAM_VIEW.outMs);
       // 두 번째 — 같은 칸 · 같은 판
       runner.update({ ...b, t: 9000, log: [ult(1, 5050), ult(2, 9000)], logSeq: 2 });
@@ -261,7 +262,7 @@ describe('장면 전환 (#99 시안) — 들어감 → (합동 컷인) → 1:1 �
       expect(getTeamView()?.phase).toBe('show');
       vi.advanceTimersByTime(1000 + TEAM_VIEW.repeatTailMs);
       expect(getTeamView()?.phase).toBe('out');
-      expect(calls).toEqual(['ult', 'ult', 'stopUlt']);
+      expect(calls).toEqual(['ult', 'stopUlt', 'ult', 'stopUlt']);
     } finally {
       runner.reset();
     }
