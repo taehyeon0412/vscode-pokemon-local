@@ -242,6 +242,12 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   // 큰 판 (끼어들기 · 모으기) 이 뜨거나 3:3 이 끝나면 바로 내림 (판 위에 안내가 남아 포켓몬을 덮던 것 — #95 10바퀴 규칙 그대로)
   if (!readyTipOn && readyTipAt.current && (readyTipLeft <= 0 || team === null || teamBigPrompt)) readyTipAt.current = null;
   const readyTipShow = readyTipOn || readyTipAt.current !== null;
+  //   높은 패널 = 뒷줄 머리 (발 − 그림 키 ×1.3) 위 − 안내 높이 24 − 6 · 안내 자리 기준은 정보줄 아래 무대 (.pg-first-tip-top — 패널 y 에서 정보줄 높이를 뺌)
+  const readyTipTop = team && layout.heightPx >= 300 ? (() => {
+    const ib = Math.round(INFO_BAR_PX * layout.uiScale);
+    const g = teamGeometry(widthPx, layout.heightPx, ib);
+    return Math.max(fieldTopPx(layout.heightPx), g.pos('me', 0).y - Math.round(32 * g.scale * 1.3) - 24 - 6 - ib);
+  })() : null;
   //   떠 있는 동안은 처음 번호 그대로 (그 칸이 아직 쓸 수 있으면)
   const readyTipKey = readyTipAt.current && team && teamUltOpen(team, readyTipAt.current.key) ? readyTipAt.current.key : readyTipOn && teamReadyKey !== undefined ? teamReadyKey : (readyTipAt.current?.key ?? 0);
   const [, kickReady] = useState(0);
@@ -807,7 +813,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         )}
         {/* 3:3 필살기 다 참 처음 안내 (#82 — 저절로 안 나가니 "3초 뒤 저절로" 대신) · 같은 자리 (위 · 좁으면 내 쪽 왼쪽 위) · 자동 3:3 안내가 떠 있으면 기다림 */}
         {team && readyTipShow && (
-          <FirstTip key={ULT_READY_TIP} ms={4000} seenMs={2500} className="pg-first-tip-top pg-tip-mine" paused={away} onSeen={() => onInput({ kind: 'tip-seen', id: ULT_READY_TIP })}>
+          // 높은 패널 (300 이상) = 내 포켓몬 줄 바로 위 (정보줄 아래 y 63 에 떠 누를 [1] 포켓몬 (y 390) 과 320px 떨어지던 것 — UX 리뷰어 #98 마지막 ③ · 큰 판 자리와 같은 규칙)
+          <FirstTip key={ULT_READY_TIP} ms={4000} seenMs={2500} className="pg-first-tip-top pg-tip-mine" style={readyTipTop !== null ? { top: `${readyTipTop}px` } : undefined} paused={away} onSeen={() => onInput({ kind: 'tip-seen', id: ULT_READY_TIP })}>
             <span class="pg-tip-part pg-tip-long">필살기 다 참 —&nbsp;</span>
             <span class="pg-tip-part pg-tip-long">
               <KeyCap k={String(readyTipKey + 1)} /> 누르면 나가요 (저절로 안 나가요)

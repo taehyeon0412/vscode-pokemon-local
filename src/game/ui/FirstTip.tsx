@@ -10,7 +10,7 @@ const SEEN_MS = 1000;
 
 /** paused = 안 보는 동안 (밖 — 포커스 없음 · 숨김) — 시간을 세지 않음 (밖에서 체육관 첫 알림이 아무도 못 본 채 지나가 다시 안 뜨던 것 — UX 리뷰어 #27). 돌아오면 처음부터 */
 /** seenMs = 이만큼 보였으면 사라져도 본 것 (긴 문장은 더 길게 — 3:3 "필살기 다 참 — [1] 누르면 나가요 (저절로 안 나가요)" 가 끼어들기 판에 1.3초 만에 끊겨도 본 것으로 적히던 것, UX 리뷰어 #82) */
-export function FirstTip({ ms = 4000, seenMs = SEEN_MS, onSeen, className = '', paused = false, children }: { ms?: number; seenMs?: number; onSeen(): void; className?: string; paused?: boolean; children: ComponentChildren }) {
+export function FirstTip({ ms = 4000, seenMs = SEEN_MS, onSeen, className = '', paused = false, style, children }: { ms?: number; seenMs?: number; onSeen(): void; className?: string; paused?: boolean; /** 자리를 직접 (높은 패널 — 누를 포켓몬 가까이) */ style?: Record<string, string>; children: ComponentChildren }) {
   const seen = useRef(onSeen);
   seen.current = onSeen;
   useEffect(() => {
@@ -26,5 +26,9 @@ export function FirstTip({ ms = 4000, seenMs = SEEN_MS, onSeen, className = '', 
       if (!done && performance.now() - from >= seenMs) seen.current();
     };
   }, [ms, paused, seenMs]);
-  return <div class={`pg-first-tip ${className}`}>{children}</div>;
+  return (
+    <div class={`pg-first-tip ${className}`} style={style}>
+      {children}
+    </div>
+  );
 }

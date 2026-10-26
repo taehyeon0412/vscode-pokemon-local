@@ -874,7 +874,14 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   // 저절로 나갈 칸 하나 = 엔진이 기다림을 세는 칸 (teamAutoUltNext — HP 30% 아래 칸 먼저, 아니면 먼저 찬 칸 · 둘째 칸 칩이 1장면만 보이던 것, 개발 4016471)
   const autoNext = teamAutoUltNext(b);
   // "다 참" 칩 = 먼저 찬 한 칸만 (셋 다 뜨면 240 에서 칩이 자기 포켓몬 발을 덮던 것 — UX 리뷰어 #82 · 나머지 찬 칸은 판 금 테두리로 구별)
-  const joinKeys = prompt?.kind === 'mash' ? [0, 1, 2].filter((i) => b.me[i] && plateState(b, 'me', i) === 'join').map((i) => i + 1) : [];
+  const joinKeys0 = prompt?.kind === 'mash' ? [0, 1, 2].filter((i) => b.me[i] && plateState(b, 'me', i) === 'join').map((i) => i + 1) : [];
+  //   힘겨루기 끝 1초 안엔 "· [n] 합류" 를 새로 붙이지 않음 (끝나기 0.4 ~ 0.5초 전에 붙었다 결과 띠로 닫혀 못 읽던 것 — UX 리뷰어 #98 마지막 ⑥) · 이미 붙은 건 끝까지
+  const joinTail = useRef<string | null>(null);
+  const clashKey = b.clash ? `${b.clash.me.join('')}:${b.clash.foe.join('')}` : null;
+  const clashLeft = b.clash ? TIMING.team.ultClashLeadMs + TIMING.team.ultClashMs - b.clash.ms : 0;
+  if (!clashKey) joinTail.current = null;
+  else if (joinKeys0.length > 0 && joinTail.current !== clashKey && clashLeft >= 1000) joinTail.current = clashKey;
+  const joinKeys = joinTail.current === clashKey ? joinKeys0 : [];
   const fullFirst = prompt?.kind === 'join' || prompt?.kind === 'gather' ? undefined : [0, 1, 2].find((i) => b.me[i] && plateState(b, 'me', i) === 'ready');
   // 다 찬 상대 중 먼저 찬 칸 (엔진도 먼저 찬 칸부터 씀) — 그 칸만 "!" 칩
   const foeFirst = b.foe.map((f, i) => ({ i, at: f && f.hp > 0 && f.ult >= 1 ? (b.ultReadyAt.foe[i] ?? 0) : Infinity })).sort((a, c) => a.at - c.at)[0];
@@ -886,7 +893,8 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
     const w0 = foeWarn(b, i);
     if (!w0 || w0.full) soonAt.current[i] = 0;
     else soonAt.current[i] ||= chipNow;
-    return !!w0 && (w0.full ? i === foeFirstSlot : chipNow - (soonAt.current[i] ?? 0) >= 300);
+    //   "곧" 은 0.3초 이어진 뒤 · 다 차기 직전 (92% 넘게) 이면 1초 이어질 때만 — 한 장면 (52 · 155ms) 만 보이고 "!" 로 바뀌던 것 (UX 리뷰어 #98 마지막 ④ — 그런 때는 건너뛰고 바로 "!")
+    return !!w0 && (w0.full ? i === foeFirstSlot : chipNow - (soonAt.current[i] ?? 0) >= (w0.pct >= 92 ? 1000 : 300));
   });
   const warnPos = warnPosOf(b, g, warnShow);
   // 모든 칸의 보이는 그림 · 발밑 판 (머리 위 자리가 없는 칩을 옆에 둘 때 피함)
