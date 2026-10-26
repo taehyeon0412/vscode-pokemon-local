@@ -28,7 +28,7 @@ import { themeKind } from '../../../ui/theme';
 import { typeNameKo } from '../../../ui/format';
 import { InfoBar } from '../../../ui/InfoBar';
 import { TeamLayer } from '../../battle/team/TeamLayer';
-import { teamGeometry, teamPrompt } from '../../battle/team/model';
+import { foeUltSoon, teamGeometry, teamPrompt } from '../../battle/team/model';
 import { TeamChoice, teamChoiceOn, TeamMeet, teamMeetOn } from '../../battle/team/TeamChoice';
 import { Face } from '../../../ui/Face';
 import { resumeLine } from '../../../core/engine/play';
@@ -228,19 +228,25 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   const teamReadyTip = teamReadyKey !== undefined && performance.now() - readySince.current.at >= 500;
   // 다 참 안내 — 안내대로 눌러 내 필살기가 나가면 본 것 (누르자마자 0.2 ~ 0.6초 만에 꺼져 본 것으로 안 적히고 판마다 3번 뜨던 것 — #97 개발 · 기획) ·
   //   그래도 떠 있던 시간은 진짜 시계로 1초 채우고 내림 (U1 — 0.2초 번쩍 없게). 자동 전투로 저절로 나간 건 누른 게 아니라 셈하지 않음
-  const readyTipOn = team !== null && teamReadyKey !== undefined && teamReadyTip && !autoTeamTip && !teamBigPrompt && !(save.tips ?? []).includes(ULT_READY_TIP);
   const readyTipAt = useRef<{ at: number; key: number; told: boolean } | null>(null);
+  //   상대 필살기가 곧 (엔진 foeUltWait — 진짜 시계 1.1초 안) 나가면 새로 띄우지 않고 기다림 (뜨자마자 0.64초 만에 상대 컷인 · 장면 전환에 가려졌다 끝난 뒤 다시 뜨던 것 — 개발 #98 판 자동 검사 7판 · U1) ·
+  //   이미 뜬 안내는 그대로 · 상대 필살기가 끝나 run 으로 돌아오면 0.5초 뒤 처음부터
+  const readyTipOn = team !== null && teamReadyKey !== undefined && teamReadyTip && !autoTeamTip && !teamBigPrompt && !(save.tips ?? []).includes(ULT_READY_TIP) && (readyTipAt.current !== null || !foeUltSoon(team, gameTempo(state)));
   if (readyTipOn && teamReadyKey !== undefined && !readyTipAt.current) readyTipAt.current = { at: realNow(), key: teamReadyKey, told: false };
   const readyTipLeft = readyTipAt.current ? readyTipAt.current.at + 1000 - realNow() : 0;
   // 누름 = 본 것 — 지우기보다 먼저 셈 (누르자마자 합동 모으기 큰 판이 떠 안내를 바로 내리며 "본 것" 을 놓치던 것)
   const readyUsed = team !== null && team.ult?.side === 'me' && !save.settings.autoBattle;
   const readySeenNow = readyTipAt.current !== null && readyUsed && !readyTipAt.current.told && !(save.tips ?? []).includes(ULT_READY_TIP);
-  if (readySeenNow && readyTipAt.current) readyTipAt.current.told = true;
+  //   1초 넘게 보인 뒤 큰 판 (끼어들기 · 모으기) · 상대 필살기에 가려 내려가도 본 것 (본 것 2.5초를 못 채워 상대 필살기 뒤 같은 안내가 다시 뜨던 것 — UX 리뷰어 #98 남은 작음 3)
+  const readyCovered = readyTipAt.current !== null && !readyTipAt.current.told && realNow() - readyTipAt.current.at >= 1000 && (teamBigPrompt || (team !== null && team.phase !== 'run' && team.ult?.side === 'foe'));
+  if ((readySeenNow || readyCovered) && readyTipAt.current) readyTipAt.current.told = true;
   useEffect(() => {
-    if (readySeenNow) onInput({ kind: 'tip-seen', id: ULT_READY_TIP });
-  }, [readySeenNow]);
+    if (readySeenNow || readyCovered) onInput({ kind: 'tip-seen', id: ULT_READY_TIP });
+  }, [readySeenNow, readyCovered]);
   // 큰 판 (끼어들기 · 모으기) 이 뜨거나 3:3 이 끝나면 바로 내림 (판 위에 안내가 남아 포켓몬을 덮던 것 — #95 10바퀴 규칙 그대로)
-  if (!readyTipOn && readyTipAt.current && (readyTipLeft <= 0 || team === null || teamBigPrompt)) readyTipAt.current = null;
+  //   판이 끝나거나 (over) 안내한 칸이 쓰러지면 1초를 안 채우고 바로 (누를 포켓몬이 없는데 "[3] 누르면 나가요" 가 쓰러짐 말 위에 0.45초 남던 것 — UX 리뷰어 #98 남은 작음 4)
+  const readyGone = team !== null && readyTipAt.current !== null && (team.phase === 'over' || (team.me[readyTipAt.current.key]?.hp ?? 0) <= 0);
+  if (!readyTipOn && readyTipAt.current && (readyTipLeft <= 0 || team === null || teamBigPrompt || readyGone)) readyTipAt.current = null;
   const readyTipShow = readyTipOn || readyTipAt.current !== null;
   //   높은 패널 = 뒷줄 머리 (발 − 그림 키 ×1.3) 위 − 안내 높이 24 − 6 · 안내 자리 기준은 정보줄 아래 무대 (.pg-first-tip-top — 패널 y 에서 정보줄 높이를 뺌)
   const readyTipTop = team && layout.heightPx >= 300 ? (() => {

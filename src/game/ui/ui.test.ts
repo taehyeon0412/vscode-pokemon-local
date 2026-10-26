@@ -160,6 +160,11 @@ describe('머리 위 작은 글 자리 (버린 필살기 누름 — 태현 님 1
     expect(pickHeadSpot(a, 60, 13, bounds, [], { team: true })).toEqual({ l: 46, t: 46 });
     expect(pickHeadSpot(a, 60, 13, bounds, [{ l: 0, t: 0, r: 480, b: 187 }], { team: true })).toEqual({ l: 46, t: 46 });
   });
+  it('3:3 — 왼쪽 위가 옆 칸 합동 칩에 막히면 칩 오른쪽 끝 + 2 (칩 숫자를 키 칸이 덮어 −19 가 −12 로 읽히던 것, UX 리뷰어 #98) · 가로 흰 선은 셈 밖', () => {
+    const chip = { l: 20, t: 30, r: 80, b: 50 };
+    expect(pickHeadSpot(a, 60, 13, bounds, [chip], { team: true })).toEqual({ l: 82, t: 46 });
+    expect(pickHeadSpot(a, 60, 13, bounds, [{ l: 0, t: 44, r: 480, b: 47 }], { team: true }).l).toBe(46);
+  });
   it('다 막히면 발밑 (1:1 240 × 150)', () => {
     const wall = [{ l: 0, t: 26, r: 480, b: 99 }];
     expect(pickHeadSpot(a, 60, 13, bounds, wall)).toEqual({ l: 90, t: 101 });

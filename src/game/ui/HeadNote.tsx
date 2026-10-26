@@ -55,6 +55,13 @@ export function pickHeadSpot(a: Rect, w: number, h: number, bounds: Rect, avoid:
         { at: [cx - w / 2, a.b + 1], lift: 0 },
       ];
   const cands = [...left, ...rest];
+  // 3:3 — 왼쪽 위가 떠 있는 칩 · 숫자에 막히면 그 칩 오른쪽 끝 + 2 (옆 칸 "합동! −19" 의 9 를 키 칸 [2] 가 덮어 −12 로 읽히던 것 — UX 리뷰어 #98 남은 작음) · 가로 줄 (흰 선) 은 빼고 셈
+  if (opts.team) {
+    const c0 = left[0]!;
+    const band = { l: c0.at[0], t: c0.at[1] - c0.lift, r: c0.at[0] + w, b: c0.at[1] + h };
+    const block = avoid.filter((o) => o.r - o.l < (bounds.r - bounds.l) / 2 && hits(band, o));
+    if (block.length) cands.push({ at: [Math.max(...block.map((o) => o.r)) + 2, a.t - h - 1], lift: 16 });
+  }
   const body = { l: a.l + 6, t: a.t + 6, r: a.r - 6, b: a.b - 6 };
   // 패널 끝 4px (2 면 첫 획이 끝에서 1 ~ 2px — 아트 디렉터 #97)
   const fit = ([l, t]: [number, number]) => ({

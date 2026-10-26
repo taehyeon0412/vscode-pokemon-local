@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bandDrawn, bandLeft, duelSpots, faintHoldLeft, faintIsBig, faintShortLine, overLineHold, plateBoxOf, stackRows, TEAM_ROW_GAP, teamGeometry, viewHitChip, viewPopsBack, warnPosOf, type WarnPos, viewCrossers, viewMonClass, teamDenyNote } from './model';
+import { bandDrawn, bandLeft, duelSpots, faintHoldLeft, foeUltSoon, JOINT_CHIP_MS, keepJointChips, faintIsBig, faintShortLine, overLineHold, plateBoxOf, stackRows, TEAM_ROW_GAP, teamGeometry, viewHitChip, viewPopsBack, warnPosOf, type WarnPos, viewCrossers, viewMonClass, teamDenyNote } from './model';
 import { sampleMonster, sampleSave } from '../../../../test/fixtures/save';
 import { startTeamBattle, type TeamBattle } from '../../../core/engine/team';
 
@@ -164,6 +164,42 @@ describe('3:3 위 가운데 줄 — 띠 · 쓰러짐 줄 · 결과 줄 (픽셀 �
     const zGo: TeamBattle = { ...full(b0, 0), deny: { slot: -1, ms: 300, why: 'charge', go: true } };
     expect(teamDenyNote(zGo)).toMatchObject({ key: 1, go: true });
     expect(teamDenyNote({ ...zGo, me: zGo.me.map((f, j) => (j === 0 ? { ...f, hp: 0 } : f)) })).toBeNull();
+  });
+
+  it('상대 필살기 곧 (foeUltSoon) — 다음에 나갈 칸의 남은 기다림이 진짜 1.1초 안이면 "필살기 다 참" 처음 안내를 기다림 (개발 #98 판 자동 검사 7판 — 0.64초 만에 가려짐)', () => {
+    const mons = [0, 1, 2].map((i) => sampleMonster({ uid: `m${i}`, species: [1, 4, 7][i]!, form: ['bulbasaur', 'charmander', 'squirtle'][i]!, level: 10 }));
+    const foes = [0, 1, 2].map((i) => sampleMonster({ uid: `f${i}`, species: 10, form: 'caterpie', level: 10 }));
+    const b0 = startTeamBattle(sampleSave({ monsters: Object.fromEntries(mons.map((m) => [m.uid, m])), party: mons.map((m) => m.uid) }), foes, 'trainer', '상대', mons.map((m) => m.uid));
+    const run: TeamBattle = { ...b0, phase: 'run' };
+    // 찬 상대가 없으면 아님
+    expect(foeUltSoon(run, 1)).toBe(false);
+    const full: TeamBattle = { ...run, foe: run.foe.map((f, j) => (j === 1 ? { ...f, ult: 1 } : f)), ultReadyAt: { ...run.ultReadyAt, foe: run.ultReadyAt.foe.map((t, j) => (j === 1 ? run.t : t)) } };
+    const wait = (ms: number | null): TeamBattle => ({ ...full, foeUltWait: full.foeUltWait.map((w, j) => (j === 1 ? ms : w)) });
+    // 기다림을 아직 안 정함 = 가장 짧은 값 (1초) 으로 셈 → 곧
+    expect(foeUltSoon(wait(null), 1)).toBe(true);
+    expect(foeUltSoon(wait(800), 1)).toBe(true);
+    expect(foeUltSoon(wait(2500), 1)).toBe(false);
+    // ▶▶ (게임 배 2) 면 같은 2초 기다림도 진짜 1초 → 곧
+    expect(foeUltSoon(wait(2000), 2)).toBe(true);
+    // run 이 아니면 (다른 필살기 · 힘겨루기 중 — 기다림이 안 줆) 아님
+    expect(foeUltSoon({ ...wait(500), phase: 'ult' }, 1)).toBe(false);
+  });
+
+  it('합동 칩 붙잡기 (keepJointChips) — 진짜 시계 1.2초 · 엔진이 먼저 지워도 남김 · 장면 전환 칩이 가져가면 지움 (개발 #98 판 자동 검사 — "합동!" 0.65 ~ 0.7초)', () => {
+    const kept = new Map<number, { p: { id: number; joint?: boolean; text: string }; at: number }>();
+    const chip = { id: 5, joint: true, text: '-12' };
+    const num = { id: 6, text: '-3' };
+    // 처음 본 때 = 0 · 보통 숫자는 붙잡지 않음
+    expect(keepJointChips(kept, [chip, num], 0, new Set()).gone).toEqual([]);
+    expect([...kept.keys()]).toEqual([5]);
+    // 엔진이 0.8초에 지워도 (▶▶) 남김 · 다음 다시 그리기 = 1.2초
+    expect(keepJointChips(kept, [], 800, new Set())).toEqual({ gone: [chip], end: JOINT_CHIP_MS });
+    // 1.2초가 지나면 없음
+    expect(keepJointChips(kept, [], JOINT_CHIP_MS, new Set()).gone).toEqual([]);
+    expect(kept.size).toBe(0);
+    // 장면 전환 칩이 가져간 숫자 (skip) 는 남기지 않음
+    keepJointChips(kept, [chip], 0, new Set());
+    expect(keepJointChips(kept, [], 300, new Set([5])).gone).toEqual([]);
   });
 
   it('장면 전환 칸 클래스 (viewMonClass) — 앞뒤가 바뀌는 동료는 in 바둑판 사라짐 → 새 자리 나타남 → out 은 다른 키프레임 (코드 리뷰어 #98)', () => {

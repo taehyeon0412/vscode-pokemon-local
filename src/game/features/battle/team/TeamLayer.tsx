@@ -12,7 +12,7 @@ import { battleSpritePx, koSinkPx, TYPE_COLOR } from '../model';
 import { Sprite } from '../../../ui/Sprite';
 import type { FxActor } from '../fx/bridge';
 import { TEAM_FX, TeamFxRunner, type TeamSlot } from '../fx/team';
-import { bandDrawn, DUEL_VS_MS, VIEW_CHIP_MS, VIEW_WAIT_MS, duelSpots, faintHoldLeft, faintIsBig, faintShortLine, foeWarn, overLineHold, plateBoxOf, plateState, stackRows, teamDenyNote, teamGeometry, teamPrompt, viewHitChip, viewPopsBack, warnPosOf, type TeamGeo, type WarnPos, viewCrossers, viewMonClass } from './model';
+import { bandDrawn, DUEL_VS_MS, VIEW_CHIP_MS, VIEW_WAIT_MS, duelSpots, faintHoldLeft, faintIsBig, faintShortLine, foeWarn, overLineHold, keepJointChips, plateBoxOf, plateState, stackRows, teamDenyNote, teamGeometry, teamPrompt, viewHitChip, viewPopsBack, warnPosOf, type TeamGeo, type WarnPos, viewCrossers, viewMonClass } from './model';
 import { HEAD_NOTE_H, HeadNote, headNoteWidth, pickHeadSpot, useHeldNote } from '../../../ui/HeadNote';
 import { getTeamView, subscribeTeamView, type TeamView } from '../fx/team-view';
 import { cutinArtH, JointNamePlate, TeamCutin } from './TeamCutin';
@@ -33,6 +33,17 @@ function Bar({ v, kind }: { v: number; kind: 'hp' | 'ult' | 'ult-full' }) {
       <span class={`pg-team-fill ${tone}`} style={{ width: `${Math.round(pct * 100)}%` }} />
     </span>
   );
+}
+
+/** 무대 (.pg-team) 의 떠 있는 머리 글 상자 — 무대 기준 (칩 자리를 고를 때 피함 · 그린 뒤라 한 그림 전 자리) */
+function headNoteBoxes(): Rect[] {
+  const stage = document.querySelector<HTMLElement>('#pokemon-game .pg-team');
+  if (!stage) return [];
+  const sr = stage.getBoundingClientRect();
+  return [...stage.querySelectorAll<HTMLElement>('.pg-head-note')].map((n) => {
+    const r = n.getBoundingClientRect();
+    return { l: r.left - sr.left - 1, t: r.top - sr.top - 1, r: r.right - sr.left + 1, b: r.bottom - sr.top + 1 };
+  });
 }
 
 /** 그림 칸 (그린 크기 px · 원본 한 점 = s px · 발끝 줄) — 보통 = 32 × k · 발끝 29 (원본 아래 3 위) · 큰 포켓몬 (원본 64) = 1:1 과 같은 보통 키 × 1.3 (battleSpritePx) ·
@@ -135,9 +146,14 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, d
   );
   // 합동 마무리 피해 숫자 = 칩 "합동! −숫자" (같은 걸음 합동 피해끼리 합계 하나) — 엔진이 그 피해 팝업에만 joint 를 닮 (개발 b488a8a · 판 없는 빨강 "−7" "−9" 둘이 240 에서 묻히던 것, #80 아트 디렉터 2바퀴 · design-system 12장).
   //   예전엔 "최근 로그에 합동" 으로 골라 합동 뒤 2 ~ 3초 보통 공격 숫자에도 붙고 창이 끝나면 칩이 글로 바뀌며 깜빡이던 것 (개발 #80 UX 마지막 큼)
-  //   큰 연출 중 주인공이 아닌 칸은 숫자 · 말을 지움 · 쓰러짐 말은 무대 위 한 줄 (TeamLayer) · 같은 칸 0.3초 안 숫자는 합침 (센 쪽 모양) · 숫자는 0.7초만
-  const pops = (dim ? [] : pops0)
-    .filter((p) => !(p.kind === 'info' && FAINT_RE.test(p.text)) && (!NUM_KINDS.has(p.kind) || p.ms < NUM_SHOW_MS))
+  //   큰 연출 중 주인공이 아닌 칸은 숫자 · 말을 지움 · 쓰러짐 말은 무대 위 한 줄 (TeamLayer) · 같은 칸 0.3초 안 숫자는 합침 (센 쪽 모양) · 숫자는 0.7초만 (합동 칩은 1.2초)
+  //   합동 칩만 처음 본 때부터 진짜 시계 1.2초 (keepJointChips) · 엔진이 팝업을 먼저 지워도 마지막 모양 그대로 남김
+  const jointKept = useRef(new Map<number, { p: (typeof pops0)[number]; at: number }>());
+  const { gone: jointGone, end: jointEnd } = keepJointChips(jointKept.current, pops0, realNow(), skip);
+  const [, jointWake] = useState(0);
+  useEffect(() => (Number.isFinite(jointEnd) ? realLater(() => jointWake((n) => n + 1), Math.max(0, jointEnd - realNow()) + 16) : undefined), [jointEnd]);
+  const pops = (dim ? [] : jointGone.length ? [...pops0, ...jointGone].sort((p, q) => p.id - q.id) : pops0)
+    .filter((p) => !(p.kind === 'info' && FAINT_RE.test(p.text)) && (!NUM_KINDS.has(p.kind) || (p.joint ? jointKept.current.has(p.id) : p.ms < NUM_SHOW_MS)))
     .reduce<(typeof pops0[number] & { joint?: boolean })[]>((out, p) => {
       if (p.joint) {
         const same = out.find((q) => q.joint && sameJoint(q.ms, p.ms));
@@ -161,6 +177,8 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, d
   const placed = useRef(new Map<number, { l: number; t: number } | null>());
   // 버린 필살기 누름 글 자리 — 처음 정한 자리를 끝까지 (사라지는 동안 옆걸음 없게 — U2) · 머리 왼쪽 위 → 몸 왼쪽 → 오른쪽 … (다른 칸 그림 · 판 · 자기 판을 피함 · 위 줄 아래)
   const headAt = useRef<{ key: string; l: number; t: number; w: number } | null>(null);
+  // 글이 다 사라지면 자리도 잊음 (같은 칸 · 같은 글을 다시 누르면 열쇠가 같아 칩이 없던 때 고른 옛 자리를 다시 써 옆 칸 칩을 덮던 것 — UX 리뷰어 #98)
+  if (!head) headAt.current = null;
   if (head && headAt.current?.key !== head.key) {
     const hw = headNoteWidth(head.value.text, head.value.key !== null);
     // 시합장 흰 선은 피함 (흰 선이 글 가운데를 지나던 것 — 아트 디렉터 #97)
@@ -168,7 +186,14 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, d
     //   내 편은 오른쪽 자리 빼기 (맞을 때 상대가 달려와 서는 앞자리) · ×1 무대 (400 아래) 는 위쪽 자리만 → 막히면 위 줄 아래 왼쪽 고정 칸 (아트 디렉터 #97 2바퀴 큼 1)
     //   3:3 = 누른 칸 포켓몬 머리 왼쪽 위만 (기획 10-26 — 막혀서 무대 왼쪽 위 구석 고정 칸으로 가 리자몽과 멀던 것) · 흰 선만 피해 올리고 · 글은 그림을 따라감 (follow)
     //   (자기 피해 숫자는 글 아래로만 — popMin)
-    headAt.current = { key: head.key, w: hw, ...pickHeadSpot(vis, hw, HEAD_NOTE_H, { l: 0, t: topMin - 14, r: g.W, b: g.H }, line, { team: true }) };
+    //   떠 있는 피해 숫자 · 합동 칩 (모든 칸 — 그린 자리 · 무대 기준) 도 피함 (옆 칸 "합동! −19" 의 9 를 키 칸 [2] 가 덮어 −12 로 읽히던 것 — UX 리뷰어 #98 남은 작음 큼)
+    const stage = document.querySelector<HTMLElement>('#pokemon-game .pg-team');
+    const sr = stage?.getBoundingClientRect();
+    const popBoxes = stage && sr ? [...stage.querySelectorAll<HTMLElement>('.pg-team-pop')].map((n) => {
+      const r = n.getBoundingClientRect();
+      return { l: r.left - sr.left, t: r.top - sr.top, r: r.right - sr.left, b: r.bottom - sr.top };
+    }) : [];
+    headAt.current = { key: head.key, w: hw, ...pickHeadSpot(vis, hw, HEAD_NOTE_H, { l: 0, t: topMin - 14, r: g.W, b: g.H }, [...line, ...popBoxes], { team: true }) };
   }
   // 글이 떠 있는 동안 이 칸 피해 숫자는 글 아래 끝 + 1 위로 못 올라감 (가로로 겹칠 때 — 위 왼쪽 고정 칸에 리자몽 "-1" 이 올라와 키 칸 [1] 에 겹치던 것, #97 마지막 확인 ·
   //   1:1 "숫자는 말 칸 위로 안 올라감" 과 같은 규칙)
@@ -251,7 +276,9 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, d
         const tagOn = g.scale !== 1;
         const cw = Math.ceil(((p.joint && tagOn ? 35 : 12) + 10 * p.text.length) * 1.1);
         // 머리 위 자리가 옆 칸 그림 · 판에 닿아도 옆 자리를 찾아봄 (240 × 187 에서 머리 위 칩이 통통코 · 이상해꽃을 덮던 것 — 픽셀 검사원 #95 7바퀴 7)
-        const headHit = tall && others.some((o) => hits({ l: x - cw / 2, t: top - 20, r: x + cw / 2, b: top }, o.box));
+        //   떠 있는 머리 글 (버린 필살기 누름 — 다른 칸 · 무대 기준) 도 처음 자리를 고를 때만 피함 (글이 먼저 떠 있고 옆 칸에 칩이 나중에 붙어 글 키 칸이 칩 숫자를 덮던 것 — UX 리뷰어 98b 2바퀴 작음 1)
+        const notes = tall && !placed.current.has(p.id) ? headNoteBoxes() : [];
+        const headHit = tall && (others.some((o) => hits({ l: x - cw / 2, t: top - 20, r: x + cw / 2, b: top }, o.box)) || notes.some((o) => hits({ l: x - cw / 2, t: top - 20, r: x + cw / 2, b: top }, o)));
         if (tall && !placed.current.has(p.id) && (top > vis.t - 2 || headHit)) {
           // ×1 (그림 32 · 보이는 키 약 22) 은 머리 높이 (위 끝 − 4) — 위 끝 + 4 면 칩 아래가 발밑 판에 닿아 옆 자리가 막히고 맞은 몸 위로 돌아오던 것 (픽셀 검사원 #95 11바퀴 3)
           const ct = Math.max(vis.t + (g.scale === 1 ? -4 : 4), topMin - 14);
@@ -259,7 +286,7 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, d
             const l = right ? vis.r + 2 : vis.l - 2 - cw;
             const rect = { l, t: ct, r: l + cw, b: ct + 20 };
             // 자기 발밑 판도 피함 (240 에서 옆 칩이 자기 판 모서리와 1 ~ 2px 겹치던 것 — 픽셀 검사원 #95 10바퀴 6)
-            if (l >= 2 && rect.r <= g.W - 2 && !others.some((o) => hits(rect, o.box)) && !hits(rect, plateB)) {
+            if (l >= 2 && rect.r <= g.W - 2 && !others.some((o) => hits(rect, o.box)) && !hits(rect, plateB) && !notes.some((o) => hits(rect, o))) {
               at = { l, t: ct };
               break;
             }

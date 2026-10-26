@@ -4,8 +4,8 @@
  * 비스듬한 세 줄은 바닥 띠에 모음 — 줄 사이 세로는 패널 높이와 상관없이 고정 (TEAM_ROW_GAP — 태현 님 #93 "대각선으로 너무 각지게 서있는데 각을 줄여서").
  * 칸 0 · 1 · 2 = 위 (뒷줄 · 바깥) → 아래 (앞줄 · 가운데) = 발밑 판 키 1 · 2 · 3.
  */
-import { TIMING } from '../../../core/balance';
-import { teamClashSure, teamGather, teamLayout, teamUltLevel, teamUltOpen, teamZSlot, type Side, type TeamBattle, type TeamPopup } from '../../../core/engine';
+import { BALANCE, TIMING } from '../../../core/balance';
+import { teamClashSure, teamFoeNext, teamGather, teamLayout, teamUltLevel, teamUltOpen, teamZSlot, type Side, type TeamBattle, type TeamPopup } from '../../../core/engine';
 import { speciesOf } from '../../../data';
 
 export interface TeamGeo {
@@ -167,6 +167,25 @@ export function teamDenyNote(b: TeamBattle): { key: number | null; text: string;
   if (d.go) return null;
   const full = b.me.some((f) => f.hp > 0 && f.ult >= 1);
   return { key: null, go: false, text: d.why === 'charge' && !full ? '아직 다 찬 포켓몬이 없어요' : '지금은 못 써요' };
+}
+
+/** 상대 필살기가 곧 나감 — 다음에 나갈 한 칸 (teamFoeNext — 나머지 찬 칸은 기다림 null) 의 남은 기다림 (게임 ms · run 에서만 줆) 이 진짜 시계 realMs 안.
+ *  기다림을 아직 안 정했으면 가장 짧은 값 (foeUltWaitMs 아래 끝) 으로 셈 · tempo = 게임 배 (gameTempo — ▶▶ 면 더 빨리 줆)
+ *  ("필살기 다 참" 처음 안내가 뜨자마자 0.64초 만에 상대 컷인 · 장면 전환에 가려졌다 끝난 뒤 다시 뜨던 것 — 개발 #98 판 자동 검사 7판) */
+export function foeUltSoon(b: TeamBattle, tempo: number, realMs = 1100): boolean {
+  if (b.phase !== 'run') return false;
+  const i = teamFoeNext(b);
+  return i !== null && (b.foeUltWait[i] ?? BALANCE.team.foeUltWaitMs[0]) < realMs * tempo;
+}
+
+/** 합동 칩 ("합동! −N") 붙잡기 — 진짜 시계 1.2초 (숫자 0.7초 규칙에 같이 걸려 "합동!" 글이 0.65 ~ 0.7초만 보이던 것 — 개발 #98 판 자동 검사 6 · 7판 · ux-rules U1 화면 붙잡기) */
+export const JOINT_CHIP_MS = 1200;
+/** 처음 본 때 (진짜 시계) 를 kept 에 적어 1.2초 동안 남김 — 엔진이 팝업을 먼저 지워도 (게임 시계 1.2초 · ▶▶ 에서 더 빨리) 마지막 모양 그대로 (gone) ·
+ *  끝났거나 장면 전환 칩이 가져간 것 (skip) 은 지움 · end = 가장 먼저 끝나는 때 (다시 그리기 타이머) */
+export function keepJointChips<P extends { id: number; joint?: boolean }>(kept: Map<number, { p: P; at: number }>, live: readonly P[], now: number, skip: ReadonlySet<number>): { gone: P[]; end: number } {
+  for (const p of live) if (p.joint) kept.set(p.id, { p, at: kept.get(p.id)?.at ?? now });
+  for (const [id, k] of kept) if (now - k.at >= JOINT_CHIP_MS || skip.has(id)) kept.delete(id);
+  return { gone: [...kept.values()].map((k) => k.p).filter((p) => !live.some((q) => q.id === p.id)), end: Math.min(...[...kept.values()].map((k) => k.at + JOINT_CHIP_MS)) };
 }
 
 /** 상대 필살기 예고 — 80% 부터 % · 다 차면 "곧!" */
