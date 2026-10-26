@@ -176,6 +176,22 @@ function useResultFit(): { box: { current: HTMLDivElement | null }; on: boolean;
 /** next = 이어서 고를 것 (맨 앞) — 버튼에 다음 할 일 · ups = 레벨업한 포켓몬 (result/model levelUps) · onStats = 내 포켓몬 판 (그 포켓몬) */
 export function ResultBox({ summary, next, ups, hint = false, caught = null, ms = 0, introAt = { left: 0, top: 0 }, media, onInput, onStats }: { summary: BattleSummary; next: 'learn' | 'evolve' | null; ups: LevelUpView[]; /** 얼굴 카드 안내 말풍선 (needsStatHint) */ hint?: boolean; /** 잡은 포켓몬 — 처음 caughtIntroMs 동안 소개 카드만 */ caught?: CaughtView | null; /** 결과 단계 지난 ms */ ms?: number; /** 소개 카드 자리 (길 칸 기준 정수 px) */ introAt?: { left: number; top: number; width?: number }; media: string; onInput(i: GameInput): void; onStats(uid: string): void }) {
   const tight = useResultFit();
+  // 제목 없는 상자 (트레이너) 번갈아 칸의 경험치 장면 줄이기 (넘치면 한 단계 · 맥 여유 10%) — 0 = 이름 · 1 = 숫자만 · 2 = "+102 ×3" / "+25 ~ +51"
+  //   (240 × 150 세 자리 경험치 "경험치 +102 · +102 · +1…" 이 버튼 밑으로 잘리던 것 — 개발 #98 11판 3판 · U4 "넘치면 한 단계" · 폭 경계를 손으로 고르지 않음)
+  const [expStep, setExpStep] = useState(0);
+  useLayoutEffect(() => {
+    const inner = tight.box.current?.querySelector<HTMLElement>('.pg-result-alt-in');
+    const bEl = inner?.querySelector<HTMLElement>('.pg-result-alt-b');
+    if (!inner || !bEl || inner.clientWidth === 0 || expStep >= 2) return;
+    const r = document.createRange();
+    r.selectNodeContents(bEl);
+    if (r.getBoundingClientRect().width * 1.1 > inner.clientWidth + 0.5) setExpStep(expStep + 1);
+  });
+  useEffect(() => {
+    const reset = () => setExpStep(0);
+    window.addEventListener('resize', reset);
+    return () => window.removeEventListener('resize', reset);
+  }, []);
   if (caught && ms < TIMING.caughtIntroMs) return <CaughtIntro c={caught} media={media} at={introAt} onSkip={() => onInput({ kind: 'result-continue' })} />;
   const { title, head, body } = summaryLines(summary);
   // 트레이너를 이긴 판 = 제목 없이 숫자만 (띠 · 전투 한 줄이 이미 "…승부에서 이겼다!" — 기획 판단 10-26) · 마우스를 올리면 (title) 전체
@@ -192,8 +208,10 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
     expOnly.length > 1 && firstExp >= 0
       ? [...rest1.slice(0, firstExp).filter((p) => p.kind !== 'exp'), { kind: 'exp' as const, text: `경험치 ${expOnly.map((e) => `${e.name} +${e.gain}`).join(' · ')}` }, ...rest1.slice(firstExp).filter((p) => p.kind !== 'exp')]
       : rest1;
-  // 아주 좁은 제목 없는 상자의 경험치 장면 = 이름 없이 숫자만 (game.css .pg-exp-short)
+  // 좁은 제목 없는 상자의 경험치 장면 = 넘치면 이름 없이 숫자만 → 더 넘치면 "+102 ×3" (모두 같을 때) · "+25 ~ +51" (game.css .pg-exp-s1 · s2)
   const expShort = expOnly.length > 0 ? `경험치 ${expOnly.map((e) => `+${e.gain}`).join(' · ')}` : '';
+  const gains = expOnly.map((e) => e.gain);
+  const expTiny = gains.length === 0 ? '' : gains.every((g) => g === gains[0]) ? `경험치 +${gains[0]}${gains.length > 1 ? ` ×${gains.length}` : ''}` : `경험치 +${Math.min(...gains)} ~ +${Math.max(...gains)}`;
   // 제목 — 좁으면 "야생 " 을 빼고 (pg-title-pre) 낱말 단위로 줄을 바꿈 (줄임표 금지 U4 — "야생 파이리를 …" 로 잘리던 것, 2026-10-21 orders #5)
   const pre = title.startsWith('야생 ') ? '야생 ' : '';
   const restLine = rest.map((p, i) => (
@@ -205,6 +223,7 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
             <Line p={p} />
           </span>
           <span class="pg-exp-short">{expShort}</span>
+          <span class="pg-exp-tiny">{expTiny}</span>
         </>
       ) : (
         <Line p={p} />
@@ -258,7 +277,7 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
   );
   if (ups.length === 0) {
     return (
-      <div ref={tight.box} class={`pg-banner pg-result pg-two${summary.caught ? ' pg-result-caught' : ''}${tight.on ? ' pg-result-tight' : ''}`} title={all}>
+      <div ref={tight.box} class={`pg-banner pg-result pg-two${summary.caught ? ' pg-result-caught' : ''}${tight.on ? ' pg-result-tight' : ''}${expStep ? ` pg-exp-s${expStep}` : ''}`} title={all}>
         {lines}
       </div>
     );

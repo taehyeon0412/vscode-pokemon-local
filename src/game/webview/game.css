@@ -6494,17 +6494,21 @@ body.vscode-high-contrast-light .pg-hpblock > .pg-hprow,
 .pg-result .pg-result-alt.pg-result-alt-in > span {
   white-space: nowrap;
 }
-.pg-result .pg-exp-short {
+.pg-result .pg-exp-short,
+.pg-result .pg-exp-tiny {
   display: none;
 }
-/* 아주 좁으면 경험치 장면은 이름 없이 숫자만 ("경험치 +25 · +51 · +51" — 이름은 상자 title) */
+/* 넘치면 한 단계 (ResultBox expStep — 재서): 1 = 이름 없이 숫자만 ("경험치 +25 · +51 · +51") · 2 = "경험치 +102 ×3" / "+25 ~ +51" (이름 · 낱낱 숫자는 상자 title) */
+.pg-result.pg-exp-s1 .pg-result-alt-in .pg-exp-full,
+.pg-result.pg-exp-s2 .pg-result-alt-in .pg-exp-full,
+.pg-result.pg-exp-s2 .pg-result-alt-in .pg-exp-short {
+  display: none;
+}
+.pg-result.pg-exp-s1 .pg-result-alt-in .pg-exp-short,
+.pg-result.pg-exp-s2 .pg-result-alt-in .pg-exp-tiny {
+  display: inline;
+}
 @media (max-width: 300px) {
-  .pg-result .pg-result-alt-in .pg-exp-full {
-    display: none;
-  }
-  .pg-result .pg-result-alt-in .pg-exp-short {
-    display: inline;
-  }
   .pg-result .pg-result-alt.pg-result-alt-in {
     font-size: 11px;
   }
