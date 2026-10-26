@@ -244,3 +244,53 @@ export function bandLeft(parentW: number, w: number, first: number | null): numb
   // 오른쪽 끝이 패널 8 안을 넘어 어차피 옮겨야 하면 가운데로 (240 에서 왼 36 · 오른 8 로 치우치던 것 — 아트 디렉터 #95 6바퀴 ④)
   return Math.max(8, start + w > parentW - 8 ? mid : start);
 }
+
+/** 패널 위 상자 (px) — 칩 자리 고르기 */
+type ChipRect = { l: number; t: number; r: number; b: number };
+const chipHits = (a: ChipRect, c: ChipRect) => a.l < c.r && a.r > c.l && a.t < c.b && a.b > c.t;
+
+/** 발밑 판 상자 */
+export function plateBoxOf(g: TeamGeo, side: Side, slot: number): ChipRect {
+  const { x, y } = g.pos(side, slot);
+  const w = side === 'me' ? g.pw : g.pw - 16;
+  const l = Math.round(x - w / 2);
+  return { l, t: y + 4, r: l + w, b: y + 18 };
+}
+
+/** 상대 예고 칩 자리 — 판 오른쪽 2px (보통) · 패널 오른쪽 밖이면 ×2 = 판 왼쪽 2px · ×1 (240) = 판 아래 2px (판 왼쪽이면 옆 칸 그림을 15 × 11 덮던 것 — 픽셀 검사원 #95 6바퀴 3) ·
+ *  한 줄 배치에서 왼쪽 옆 상대의 칩과 같은 틈이면 판 위 (가운데 상대 "!" 와 끝 칸 "곧" 이 겹치던 것 — UX 리뷰어 #95 6바퀴 작음 6) */
+export type WarnPos = 'right' | 'left' | 'below' | 'up';
+export function warnPosOf(b: TeamBattle, g: TeamGeo, show: readonly boolean[]): WarnPos[] {
+  const fits = (i: number) => Math.round(g.pos('foe', i).x + (g.pw - 16) / 2) + 2 + 22 <= g.W - 2;
+  // 칩 상자 (판 기준 — team.css .pg-team-warn · -left · -below · -up 과 같은 값 · 22 × 12)
+  const chipAt = (i: number, pos: WarnPos): ChipRect => {
+    const p = plateBoxOf(g, 'foe', i);
+    if (pos === 'right') return { l: p.r + 2, t: p.t + 1, r: p.r + 24, b: p.t + 13 };
+    if (pos === 'left') return { l: p.l - 24, t: p.t + 1, r: p.l - 2, b: p.t + 13 };
+    if (pos === 'below') return { l: p.r - 22, t: p.b + 2, r: p.r, b: p.b + 14 };
+    return { l: p.r - 22, t: p.t - 14, r: p.r, b: p.t - 2 };
+  };
+  // 칸 순서대로 정하며 다른 상대 판 · 먼저 정한 칩과 겹치면 다음 자리 (240 × 187 체육관에서 위 판 "곧" (아래) 이 아래 판 "곧" (오른쪽) 과 66px² 겹치던 것 — #98 R4 8판) ·
+  //   보이든 안 보이든 모든 칸을 같은 순서로 (칩이 새로 떠도 이미 뜬 칩이 옮겨 가지 않게 — U2)
+  const plates = b.foe.map((f, i) => (f ? plateBoxOf(g, 'foe', i) : null));
+  const placed: ChipRect[] = [];
+  const inPanel = (r: ChipRect) => r.l >= 2 && r.r <= g.W - 2 && r.t >= 0 && r.b <= g.H - 2;
+  return b.foe.map((_, i) => {
+    let first: WarnPos = 'left';
+    if (fits(i)) first = 'right';
+    else if (g.scale === 1) first = 'below';
+    else if (g.oneRow) {
+      const x = g.pos('foe', i).x;
+      const near = b.foe.map((__, j) => j).filter((j) => j !== i && g.pos('foe', j).x < x).sort((p, q) => g.pos('foe', q).x - g.pos('foe', p).x)[0];
+      if (near !== undefined && show[near] && fits(near)) first = 'up';
+    }
+    const free = (pos: WarnPos) => {
+      const r = chipAt(i, pos);
+      return inPanel(r) && !plates.some((q, j) => q !== null && j !== i && chipHits(r, q)) && !placed.some((q) => chipHits(r, q));
+    };
+    const pos = [first, ...(['below', 'up', 'left', 'right'] as const).filter((p) => p !== first)].find(free) ?? first;
+    placed.push(chipAt(i, pos));
+    return pos;
+  });
+}
+

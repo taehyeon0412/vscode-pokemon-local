@@ -12,7 +12,7 @@ import { battleSpritePx, koSinkPx, TYPE_COLOR } from '../model';
 import { Sprite } from '../../../ui/Sprite';
 import type { FxActor } from '../fx/bridge';
 import { TEAM_FX, TeamFxRunner, type TeamSlot } from '../fx/team';
-import { bandDrawn, VIEW_CHIP_MS, VIEW_WAIT_MS, duelSpots, faintHoldLeft, faintIsBig, faintShortLine, foeWarn, overLineHold, plateState, stackRows, teamDenyNote, teamGeometry, teamPrompt, viewHitChip, viewPopsBack, type TeamGeo } from './model';
+import { bandDrawn, VIEW_CHIP_MS, VIEW_WAIT_MS, duelSpots, faintHoldLeft, faintIsBig, faintShortLine, foeWarn, overLineHold, plateBoxOf, plateState, stackRows, teamDenyNote, teamGeometry, teamPrompt, viewHitChip, viewPopsBack, warnPosOf, type TeamGeo, type WarnPos } from './model';
 import { HEAD_NOTE_H, HeadNote, headNoteWidth, pickHeadSpot, useHeldNote } from '../../../ui/HeadNote';
 import { getTeamView, subscribeTeamView, type TeamView } from '../fx/team-view';
 import { cutinArtH, JointNamePlate, TeamCutin } from './TeamCutin';
@@ -90,31 +90,7 @@ function visBoxOf(form: string, g: TeamGeo, side: Side, slot: number): Rect {
   const wl = walkBoxOf(form)?.[0] ?? spriteBoxOf(form)?.[0] ?? 0;
   return { l: monLeft + Math.round(wl * art.s), t: y - Math.round(art.foot * art.s) + Math.round((spriteBoxOf(form)?.[1] ?? 0) * art.s), r: monLeft + Math.round((n - wl) * art.s), b: y };
 }
-/** 발밑 판 상자 */
-function plateBoxOf(g: TeamGeo, side: Side, slot: number): Rect {
-  const { x, y } = g.pos(side, slot);
-  const w = side === 'me' ? g.pw : g.pw - 16;
-  const l = Math.round(x - w / 2);
-  return { l, t: y + 4, r: l + w, b: y + 18 };
-}
 type Block = { side: Side; slot: number; box: Rect; plate?: boolean };
-
-/** 상대 예고 칩 자리 — 판 오른쪽 2px (보통) · 패널 오른쪽 밖이면 ×2 = 판 왼쪽 2px · ×1 (240) = 판 아래 2px (판 왼쪽이면 옆 칸 그림을 15 × 11 덮던 것 — 픽셀 검사원 #95 6바퀴 3) ·
- *  한 줄 배치에서 왼쪽 옆 상대의 칩과 같은 틈이면 판 위 (가운데 상대 "!" 와 끝 칸 "곧" 이 겹치던 것 — UX 리뷰어 #95 6바퀴 작음 6) */
-type WarnPos = 'right' | 'left' | 'below' | 'up';
-function warnPosOf(b: TeamBattle, g: TeamGeo, show: readonly boolean[]): WarnPos[] {
-  const fits = (i: number) => Math.round(g.pos('foe', i).x + (g.pw - 16) / 2) + 2 + 22 <= g.W - 2;
-  return b.foe.map((_, i) => {
-    if (fits(i)) return 'right';
-    if (g.scale === 1) return 'below';
-    if (g.oneRow) {
-      const x = g.pos('foe', i).x;
-      const near = b.foe.map((__, j) => j).filter((j) => j !== i && g.pos('foe', j).x < x).sort((p, q) => g.pos('foe', q).x - g.pos('foe', p).x)[0];
-      if (near !== undefined && show[near] && fits(near)) return 'up';
-    }
-    return 'left';
-  });
-}
 
 /** 머리 위 말 · 숫자 쌓는 높이 — 한 줄 15 · 합동 칩 24 (칩 20 + 간격 1단 4 — 2 면 "쓰러졌다!" 가 칩 테두리에 붙던 것, 개발 #80 UX ④) */
 const popGap = (ps: readonly { joint?: boolean }[]) => ps.reduce((h, p) => h + (p.joint ? 24 : 15), 0);

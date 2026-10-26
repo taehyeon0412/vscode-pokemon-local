@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { bandDrawn, bandLeft, duelSpots, faintHoldLeft, faintIsBig, faintShortLine, overLineHold, stackRows, TEAM_ROW_GAP, teamGeometry, viewHitChip, viewPopsBack } from './model';
+import { bandDrawn, bandLeft, duelSpots, faintHoldLeft, faintIsBig, faintShortLine, overLineHold, plateBoxOf, stackRows, TEAM_ROW_GAP, teamGeometry, viewHitChip, viewPopsBack, warnPosOf, type WarnPos } from './model';
+import type { TeamBattle } from '../../../core/engine';
 
 describe('3:3 자리 (디자인팀 4안 시안 geo 그대로)', () => {
   it('860 × 187 = ×2 비스듬히 세 줄 · 앞줄끼리 약 310px · 판 안 잘림', () => {
@@ -241,4 +242,29 @@ describe('장면 전환 띠 기다림 (#96 코드 리뷰 중간 2)', () => {
     expect(bandDrawn({ kind: 'joint' }, false, true, 0)).toBeNull();
     expect(bandDrawn({ kind: 'joint' }, true, true, 500)).toBeNull();
   });
+});
+
+describe('상대 예고 칩 자리 (#98 R4 8판 — 240 × 187 체육관 "곧" 둘이 66px² 겹치던 것)', () => {
+  const chip = (g: ReturnType<typeof teamGeometry>, i: number, pos: WarnPos) => {
+    const p = plateBoxOf(g, 'foe', i);
+    if (pos === 'right') return { l: p.r + 2, t: p.t + 1, r: p.r + 24, b: p.t + 13 };
+    if (pos === 'left') return { l: p.l - 24, t: p.t + 1, r: p.l - 2, b: p.t + 13 };
+    if (pos === 'below') return { l: p.r - 22, t: p.b + 2, r: p.r, b: p.b + 14 };
+    return { l: p.r - 22, t: p.t - 14, r: p.r, b: p.t - 2 };
+  };
+  const over = (a: { l: number; t: number; r: number; b: number }, c: { l: number; t: number; r: number; b: number }) => a.l < c.r && a.r > c.l && a.t < c.b && a.b > c.t;
+  for (const [W, H] of [[240, 187], [240, 150], [300, 187], [480, 187], [480, 150], [860, 187]] as const) {
+    it(`${W} × ${H} — 칩끼리 · 다른 상대 판과 안 겹치고 패널 안`, () => {
+      const g = teamGeometry(W, H, 26);
+      const b = { foe: [{}, {}, {}] } as unknown as TeamBattle;
+      const pos = warnPosOf(b, g, [true, true, true]);
+      const rs = pos.map((p, i) => chip(g, i, p));
+      rs.forEach((r, i) => {
+        expect(r.l).toBeGreaterThanOrEqual(2);
+        expect(r.r).toBeLessThanOrEqual(W - 2);
+        rs.forEach((q, j) => j !== i && expect(over(r, q)).toBe(false));
+        [0, 1, 2].forEach((j) => j !== i && expect(over(r, plateBoxOf(g, 'foe', j))).toBe(false));
+      });
+    });
+  }
 });
