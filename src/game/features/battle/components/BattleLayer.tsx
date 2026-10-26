@@ -703,6 +703,7 @@ function UltDeny({ b }: { b: BattleState }) {
       return { l: r.left - P.left + wl * s, t: r.top - P.top + (spriteBoxOf(form)?.[1] ?? 0) * s, r: r.left - P.left + (n - wl) * s, b: r.bottom - P.top };
     };
     if (img.getBoundingClientRect().width === 0) return;
+    // 그린 자리로 정하고 그 뒤 움직인 만큼 따라감 (HeadNote follow · followFrom start — 달려가 있으면 그 자리 · 돌아오면 같이)
     const a = visOf(img, b.me.form);
     const foeImg = document.querySelector<HTMLElement>('#pokemon-game .pg-fighter-foe img.pg-sprite');
     const rel = (q: DOMRect) => ({ l: q.left - P.left, t: q.top - P.top, r: q.right - P.left, b: q.bottom - P.top });
@@ -718,7 +719,7 @@ function UltDeny({ b }: { b: BattleState }) {
   // 자리를 재기 전 첫 그림은 숨김 (재고 바로 다시 그림 — 그리기 전이라 깜빡임 없음)
   return (
     <span ref={el} class="pg-head-anchor">
-      {at?.key === held.key && <HeadNote text={held.value.text} go={held.value.go} at={at} step={held.step} />}
+      {at?.key === held.key && <HeadNote text={held.value.text} go={held.value.go} at={at} step={held.step} follow={() => document.querySelector<HTMLElement>('#pokemon-game .pg-fighter-me img.pg-sprite')} followFrom="start" />}
     </span>
   );
 }

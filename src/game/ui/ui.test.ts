@@ -148,10 +148,17 @@ describe('머리 위 작은 글 자리 (버린 필살기 누름 — 태현 님 1
     expect(pickHeadSpot({ ...a, l: 10, r: 50 }, 60, 13, bounds, [])).toEqual({ l: 4, t: 46 });
     expect(pickHeadSpot({ ...a, t: 30 }, 60, 13, bounds, []).t).toBe(26);
   });
-  it('왼쪽 위가 막히면 (2px 씩 올려 봐도) 머리 오른쪽 위 → 위가 다 막히면 몸 왼쪽', () => {
+  it('머리 바로 위가 막히면 왼쪽 위 그대로 위로 올림 (24px 까지)', () => {
     const hp = { l: 30, t: 40, r: 110, b: 58 };
-    expect(pickHeadSpot(a, 60, 13, bounds, [hp])).toEqual({ l: 134, t: 46 });
-    expect(pickHeadSpot(a, 60, 13, bounds, [{ l: 0, t: 26, r: 480, b: 59 }])).toEqual({ l: 38, t: 62 });
+    expect(pickHeadSpot(a, 60, 13, bounds, [hp])).toEqual({ l: 46, t: 26 });
+  });
+  it('왼쪽 위 (머리 6px 걸침) 가 막히면 글 오른쪽 끝 = 머리 왼쪽 끝 → 그래도 막히면 그때만 오른쪽 위 (기획 10-26)', () => {
+    expect(pickHeadSpot(a, 60, 13, bounds, [{ l: 101, t: 20, r: 104, b: 59 }])).toEqual({ l: 40, t: 46 });
+    expect(pickHeadSpot(a, 60, 13, bounds, [{ l: 0, t: 0, r: 101, b: 60 }])).toEqual({ l: 134, t: 46 });
+  });
+  it('3:3 은 머리 왼쪽 위만 — 다 막혀도 그 자리 (글이 포켓몬을 따라감)', () => {
+    expect(pickHeadSpot(a, 60, 13, bounds, [], { team: true })).toEqual({ l: 46, t: 46 });
+    expect(pickHeadSpot(a, 60, 13, bounds, [{ l: 0, t: 0, r: 480, b: 187 }], { team: true })).toEqual({ l: 46, t: 46 });
   });
   it('다 막히면 발밑 (1:1 240 × 150)', () => {
     const wall = [{ l: 0, t: 26, r: 480, b: 99 }];

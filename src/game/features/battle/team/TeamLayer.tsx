@@ -187,12 +187,12 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, d
   const headAt = useRef<{ key: string; l: number; t: number; w: number } | null>(null);
   if (head && headAt.current?.key !== head.key) {
     const hw = headNoteWidth(head.value.text, head.value.key !== null);
-    // 자기 피해 숫자 기둥 (머리 위 가운데 ± 14 · 두 줄) · 시합장 흰 선도 피함 (240 · 480 에서 "-1" 이 "안 찼" 을 지나가고 · 흰 선이 글 가운데를 지나던 것 — 아트 디렉터 #97)
-    const vx = (vis.l + vis.r) / 2;
-    const popCol = { l: vx - 14, t: vis.t - 4 - 32, r: vx + 14, b: vis.t - 4 };
+    // 시합장 흰 선은 피함 (흰 선이 글 가운데를 지나던 것 — 아트 디렉터 #97)
     const line = lineBand ? [{ l: 0, t: lineBand.t, r: g.W, b: lineBand.b }] : [];
     //   내 편은 오른쪽 자리 빼기 (맞을 때 상대가 달려와 서는 앞자리) · ×1 무대 (400 아래) 는 위쪽 자리만 → 막히면 위 줄 아래 왼쪽 고정 칸 (아트 디렉터 #97 2바퀴 큼 1)
-    headAt.current = { key: head.key, w: hw, ...pickHeadSpot(vis, hw, HEAD_NOTE_H, { l: 0, t: topMin, r: g.W, b: g.H }, [...others.map((o) => o.box), plateB, popCol, ...line], { noRight: mine, upOnly: g.scale === 1, fallback: { l: 4, t: topMin - 13 } }) };
+    //   3:3 = 누른 칸 포켓몬 머리 왼쪽 위만 (기획 10-26 — 막혀서 무대 왼쪽 위 구석 고정 칸으로 가 리자몽과 멀던 것) · 흰 선만 피해 올리고 · 글은 그림을 따라감 (follow)
+    //   (자기 피해 숫자는 글 아래로만 — popMin)
+    headAt.current = { key: head.key, w: hw, ...pickHeadSpot(vis, hw, HEAD_NOTE_H, { l: 0, t: topMin - 14, r: g.W, b: g.H }, line, { team: true }) };
   }
   // 글이 떠 있는 동안 이 칸 피해 숫자는 글 아래 끝 + 1 위로 못 올라감 (가로로 겹칠 때 — 위 왼쪽 고정 칸에 리자몽 "-1" 이 올라와 키 칸 [1] 에 겹치던 것, #97 마지막 확인 ·
   //   1:1 "숫자는 말 칸 위로 안 올라감" 과 같은 규칙)
@@ -307,7 +307,7 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, d
         );
       })}
       {/* 키 칸 [N] 은 늘 (돌진 중이거나 상대가 앞으로 나와 붙어도 어느 칸 말인지 — UX 리뷰어 #97 작음 3) */}
-      {head && headAt.current && <HeadNote text={head.value.text} go={head.value.go} keyCap={head.value.key !== null ? String(head.value.key) : null} at={headAt.current} step={head.step} />}
+      {head && headAt.current && <HeadNote text={head.value.text} go={head.value.go} keyCap={head.value.key !== null ? String(head.value.key) : null} at={headAt.current} step={head.step} follow={() => document.querySelector<HTMLElement>(`#pokemon-game [data-team="${side}-${slot}"] .pg-team-body`)} />}
     </>
   );
 }

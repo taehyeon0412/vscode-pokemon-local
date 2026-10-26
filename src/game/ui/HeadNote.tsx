@@ -35,20 +35,25 @@ export function headNoteWidth(text: string, keyCap = false): number {
  * 자리 고르기 — a = 보이는 그림 상자 · w × h = 글 · bounds = 둘 수 있는 곳 (위 = 정보줄 · 지도 줄 아래) · avoid = 피할 상자 (이름표 · HP · 판 · 다른 포켓몬).
  * 자기 그림은 모서리 6px 까지만 걸쳐도 됨 (머리 왼쪽 위에 붙여 "이 포켓몬 말" 로 읽히게). 다 막히면 첫 자리 (안쪽으로 당김)
  */
-export function pickHeadSpot(a: Rect, w: number, h: number, bounds: Rect, avoid: readonly Rect[], opts: { /** 보는 쪽 자리 빼기 (3:3 내 편 = 오른쪽 — 맞을 때 상대가 달려와 서는 앞자리라 글이 상대 그림에 얹히던 것, 아트 디렉터 #97 2바퀴) */ noRight?: boolean; /** 위쪽 자리만 (×1 무대) */ upOnly?: boolean; /** 다 막히면 이 자리 (×1 = 위 왼쪽 고정 칸 — 키 칸이 누구 말인지 말함) */ fallback?: { l: number; t: number } } = {}): { l: number; t: number } {
+export function pickHeadSpot(a: Rect, w: number, h: number, bounds: Rect, avoid: readonly Rect[], opts: { /** 3:3 — 머리 왼쪽 위만 (막히면 16px 까지 올리고 그래도 막히면 그 자리 · 글이 포켓몬을 따라감 — 기획 10-26 "누른 칸 포켓몬 머리 왼쪽 위를 따라가게") */ team?: boolean } = {}): { l: number; t: number } {
   const cx = (a.l + a.r) / 2;
-  // 위쪽 자리 먼저 (태현 님 "포켓몬 위쪽" — 1:1 480 에서 몸 왼쪽이 먼저 뽑혀 주인공 말처럼 읽히던 것, 아트 디렉터 #97): 머리 왼쪽 위 → 오른쪽 위 → 머리 위 → 몸 왼쪽 → 몸 오른쪽 → 발밑
-  type Cand = { at: [number, number]; up: boolean; right?: boolean };
-  const all: Cand[] = [
-    { at: [a.l - w + 6, a.t - h - 1], up: true },
-    { at: [a.r - 6, a.t - h - 1], up: true, right: true },
-    { at: [cx - w / 2, a.t - h - 1], up: true },
-    { at: [a.l - w - 2, a.t + 2], up: false },
-    { at: [a.r + 2, a.t + 2], up: false, right: true },
-    // 마지막 = 발밑 (예전 자리) — 1:1 240 × 150 은 머리 위 · 양옆이 HP · 이름표 · 자동 칩 · 주인공 · 상대로 다 막혀서
-    { at: [cx - w / 2, a.b + 1], up: false },
+  // 태현 님 "포켓몬 머리 기준 왼쪽 위" (기획 10-26 — 1:1 이 오른쪽 위로 가던 것): 머리 왼쪽 위 (머리 모서리 6px 걸침) → 막히면 글 오른쪽 끝 = 머리 왼쪽 끝 · 둘 다 24px 까지 올려 봄 →
+  //   그래도 막히면 (1:1 — 트레이너 · 자동 칩 · HP 묶음) 오른쪽 위 → 머리 위 → 몸 왼쪽 → 몸 오른쪽 → 발밑 (1:1 240 × 150 은 다 막혀 발밑)
+  type Cand = { at: [number, number]; lift: number };
+  const left: Cand[] = [
+    { at: [a.l - w + 6, a.t - h - 1], lift: opts.team ? 16 : 24 },
+    ...(opts.team ? [] : [{ at: [a.l - w, a.t - h - 1] as [number, number], lift: 24 }]),
   ];
-  const cands = all.filter((c) => !(opts.noRight && c.right) && !(opts.upOnly && !c.up));
+  const rest: Cand[] = opts.team
+    ? []
+    : [
+        { at: [a.r - 6, a.t - h - 1], lift: 16 },
+        { at: [cx - w / 2, a.t - h - 1], lift: 16 },
+        { at: [a.l - w - 2, a.t + 2], lift: 0 },
+        { at: [a.r + 2, a.t + 2], lift: 0 },
+        { at: [cx - w / 2, a.b + 1], lift: 0 },
+      ];
+  const cands = [...left, ...rest];
   const body = { l: a.l + 6, t: a.t + 6, r: a.r - 6, b: a.b - 6 };
   // 패널 끝 4px (2 면 첫 획이 끝에서 1 ~ 2px — 아트 디렉터 #97)
   const fit = ([l, t]: [number, number]) => ({
@@ -59,15 +64,30 @@ export function pickHeadSpot(a: Rect, w: number, h: number, bounds: Rect, avoid:
     const r = { l: p.l, t: p.t, r: p.l + w, b: p.t + h };
     return !hits(r, body) && !avoid.some((o) => hits(r, { l: o.l - 1, t: o.t - 1, r: o.r + 1, b: o.b + 1 }));
   };
-  // 위쪽 자리는 막히면 2px 씩 16px 까지 올려 봄 — 240 에서 HP 묶음과 머리 사이 틈에 넣게 (다 막혀 첫 자리로 돌아가 자동 칩 · 주인공 머리에 닿던 것)
   for (const c of cands) {
     const p = fit(c.at);
-    for (let dy = 0; dy <= (c.up ? 16 : 0); dy += 2) {
+    for (let dy = 0; dy <= c.lift; dy += 2) {
       const q = { l: p.l, t: Math.max(Math.round(bounds.t), p.t - dy) };
       if (free(q)) return q;
     }
   }
-  return opts.fallback ?? fit(cands[0]!.at);
+  return fit(cands[0]!.at);
+}
+
+/** 그림이 움직인 만큼 (달려가기 · 돌아오기 — transform) = 그린 자리 − 놓인 자리 (offsetLeft · offsetTop 은 transform 을 안 셈) · stop = 글의 offsetParent */
+export function drawnShift(node: HTMLElement, stop: HTMLElement): { dx: number; dy: number } {
+  let x = 0;
+  let y = 0;
+  let n: HTMLElement | null = node;
+  while (n && n !== stop) {
+    x += n.offsetLeft;
+    y += n.offsetTop;
+    n = n.offsetParent instanceof HTMLElement ? n.offsetParent : null;
+  }
+  if (n !== stop) return { dx: 0, dy: 0 };
+  const r = node.getBoundingClientRect();
+  const s = stop.getBoundingClientRect();
+  return { dx: Math.round(r.left - s.left - stop.clientLeft - x), dy: Math.round(r.top - s.top - stop.clientTop - y) };
 }
 
 /**
@@ -95,10 +115,33 @@ export function useHeldNote<T>(key: string | null, value: T | null, cancel = fal
   return live ? { key: live.key, value: live.value, step: Math.min(step, HEAD_FADE_STEPS) } : null;
 }
 
-/** 머리 위 글 하나 — 자리 (l, t) 는 부른 쪽이 정함 (정수 px) */
-export function HeadNote({ text, go, keyCap, at, step, fixed = false }: { text: string; go: boolean; keyCap?: string | null; at: { l: number; t: number }; step: number; /** 고정 자리 (장면 전환 중) — 연출 · 컷인 위 */ fixed?: boolean }) {
+/** 머리 위 글 하나 — 자리 (l, t) 는 부른 쪽이 정함 (정수 px) · follow = 따라갈 그림 (달려가면 그 자리 · 돌아오면 같이 — 글이 떠 있는 동안만 매 장면 잼) */
+export function HeadNote({ text, go, keyCap, at, step, fixed = false, follow, followFrom = 'zero' }: { text: string; go: boolean; keyCap?: string | null; at: { l: number; t: number }; step: number; /** 고정 자리 (장면 전환 중) — 연출 · 컷인 위 */ fixed?: boolean; follow?: () => HTMLElement | null; /** zero = 자리를 놓인 자리 (transform 0) 로 정함 (3:3) · start = 그린 자리로 정함 — 놓은 순간부터 움직인 만큼만 (1:1 — 그림 칸에 가운데 맞춤 transform 이 늘 있음) */ followFrom?: 'zero' | 'start' }) {
+  const el = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!follow) return undefined;
+    let id = 0;
+    let base: { dx: number; dy: number } | null = followFrom === 'zero' ? { dx: 0, dy: 0 } : null;
+    const tick = () => {
+      const me = el.current;
+      const node = follow();
+      const stop = me?.offsetParent;
+      if (me && node && stop instanceof HTMLElement) {
+        const d = drawnShift(node, stop);
+        base ??= d;
+        // 패널 끝 4px 안 (뒤로 밀려 날 때 글이 패널 왼쪽 밖으로 나가던 것)
+        const dx = Math.max(4 - at.l, Math.min(stop.clientWidth - 4 - me.offsetWidth - at.l, d.dx - base.dx));
+        const dy = d.dy - base.dy;
+        const tr = dx || dy ? `translate(${dx}px, ${dy}px)` : '';
+        if (me.style.transform !== tr) me.style.transform = tr;
+      }
+      id = requestAnimationFrame(tick);
+    };
+    tick();
+    return () => cancelAnimationFrame(id);
+  }, [follow ? 1 : 0, at.l, at.t]);
   return (
-    <span class={`pg-head-note${go ? ' pg-head-go' : ''}${fixed ? ' pg-head-fixed' : ''}${step ? ` pg-head-fade${step}` : ''}`} style={{ left: `${at.l}px`, top: `${at.t}px` }}>
+    <span ref={el} class={`pg-head-note${go ? ' pg-head-go' : ''}${fixed ? ' pg-head-fixed' : ''}${step ? ` pg-head-fade${step}` : ''}`} style={{ left: `${at.l}px`, top: `${at.t}px` }}>
       {keyCap && <span class="pg-head-key">{keyCap}</span>}
       {text}
     </span>
