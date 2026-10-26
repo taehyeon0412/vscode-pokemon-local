@@ -1142,6 +1142,10 @@
                 const tDive = heavy ? 1.9 : 1.72;
                 const tImp = tDive + (heavy ? 0.34 : 0.26);
                 const end = ms / 1000;
+                // 게임 화면 — 끝에 제자리로 뒤로 폴짝 (진짜 그림은 제자리에 있어 끝 장면에 약 335px 순간 이동하던 것 — 디자인 #107 UX 5바퀴 · bugs 1818) · 일반 모드는 내리꽂은 자리에 그대로
+                const ret = typeof fxInGame === 'function' && fxInGame() && Math.abs(tx - xs) > w * 0.5;
+                const tRet = end - 0.45;
+                const hop = Math.min(h * 0.6, U);
                 const ang = Math.atan2(ty - yTop, tx - gx);
                 const rotDive = heavy ? 0 : clamp(dT > 0 ? ang : ang - Math.PI, -1.25, 1.25);
                 const aw = Math.max(w, U * 0.75);
@@ -1172,13 +1176,18 @@
                         const e = heavy ? k * k : k ** 1.15;
                         return { x: gx + (tx - gx) * e, y: yTop + (ty - yTop) * e, rot: rotDive, sx: big * (heavy ? 1 : 0.9), sy: big * (heavy ? 1 : 1.1), show: true };
                     }
+                    if (ret && T >= tRet) {
+                        const k = clamp((T - tRet) / (end - 0.05 - tRet), 0, 1);
+                        const e = smooth(k);
+                        return { x: tx + (xs - tx) * e, y: ty + (ys - ty) * e - Math.sin(Math.PI * k) * hop, rot: 0, sx: 1, sy: 1, show: true };
+                    }
                     const k = clamp((T - tImp) / (heavy ? 0.55 : 0.4), 0, 1);
                     const b = easeOut(k);
                     return { x: tx, y: ty, rot: 0, sx: lerp(1.5 * (heavy ? 1.3 : 1), 1, b), sy: lerp(0.55, 1, b) * (heavy ? 1 + 0.06 * Math.sin(k * 9) * (1 - k) : 1), show: true };
                 };
                 pp.ghostCols = [ac[1], ac[2], '#ffffff'];
                 pp.face = u.dir;
-                pp.home = [tx, ty];
+                pp.home = ret ? [xs, ys] : [tx, ty];
                 pp.onFinish = () => groundFly(pokemon);
                 pp.under = (ctx, px) => {
                     const T = clock();
@@ -1233,7 +1242,7 @@
                     pp.ghostN = (T >= tUp && T < tGone) || (T >= tDive && T < tImp) ? 6 : 0;
                     pp.flash = Math.max(0, pp.flash - 0.06);
                     if (T >= end - 0.05) {
-                        pp.finish(tx, ty);
+                        pp.finish(pp.home[0], pp.home[1]);
                         p.life = p.max;
                     }
                 }) });

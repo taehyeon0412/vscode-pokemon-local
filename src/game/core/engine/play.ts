@@ -57,6 +57,8 @@ export type GameInput =
   | { kind: 'fast-walk'; on: boolean }
   /** 빠르게 ▶▶ 켜기 · 끄기 — 3:3 약 1.5배 (보통 공격 두 배 · 알아챌 순간 1초 · 누를 창 그대로 — 화면 위 스위치 · 설정 · C, orders #83). say = 한 줄 알림 (키로 바꿀 때) */
   | { kind: 'battle-fast'; on: boolean; say?: boolean }
+  /** 3:3 필살기 연출 켬 · 끔 (V · 위쪽 줄 버튼 — #97) — 다음 필살기부터 */
+  | { kind: 'team-cutscene'; on: boolean; say?: boolean }
   /** 게임의 동작 줄이기 (설정 — 화면이 움직임을 줄임, OS 설정은 안 봄 · 2026-10-20 태현 님) */
   | { kind: 'reduce-motion'; on: boolean }
   /** 설정 — 자동 전투 상처약 (ideas #65) · 이미 잡은 종은 마지막 기회 건너뛰기 (ideas #35) */
@@ -1482,6 +1484,14 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       const next = { ...save, settings: { ...save.settings, battleFast: input.on } };
       // 1:1 · 걷기에서 눌러도 무엇이 바뀌는지 알게 "3:3" (코드 리뷰어 #83)
       return input.say && !inBattle(state) ? toast(state, next, input.on ? '3:3 빠르게 ▶▶ 켜짐 (C)' : '3:3 빠르게 ▶▶ 꺼짐 (C)') : { ...state, save: next };
+    }
+    case 'team-cutscene': {
+      if ((save.settings.teamCutscene !== false) === input.on) return state;
+      // 켬 = 칸을 지움 (기본) · 끔 = false — 전투 밖에서만 한 줄 알림 (전투 중엔 버튼 옆 한 줄 판 — 디자인)
+      const { teamCutscene: _, ...rest } = save.settings;
+      const next = { ...save, settings: input.on ? rest : { ...rest, teamCutscene: false } };
+      // "3:3" — 걷기 · 1:1 에서 보면 1:1 필살기가 꺼진 줄 읽히던 것 (#83 C 와 같은 지적, 코드 리뷰어 #97)
+      return input.say && !inBattle(state) ? toast(state, next, input.on ? '3:3 필살기 연출 켬 (V)' : '3:3 필살기 연출 끔 (V)') : { ...state, save: next };
     }
     case 'reduce-motion':
       if ((save.settings.reduceMotion === true) === input.on) return state;

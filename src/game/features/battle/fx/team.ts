@@ -214,6 +214,8 @@ function planOne(b: TeamBattle, e: TeamLogEntry, final: boolean, seen: Set<strin
 export interface TeamFxStage {
   actor(who: TeamSlot): FxActor | null;
   layer?(): HTMLElement | null;
+  /** 필살기 연출 켬 (장면 전환) · 끔 (3:3 용 작은 판) — 필살기가 시작할 때마다 읽음 (도는 중인 건 그대로 · 설정 teamCutscene, #97 태현 님). 없으면 켬 */
+  cutscene?(): boolean;
 }
 
 /**
@@ -238,6 +240,11 @@ export class TeamFxRunner {
     private readonly stage: TeamFxStage,
     private readonly fx: PokemonFx | null = pokemonFx(),
   ) {}
+
+  /** 필살기 · 합동을 장면 전환으로 — 끄면 3:3 용 작은 판 (1/4 길 그대로) */
+  private viewOn(): boolean {
+    return TEAM_FX.view11 && this.stage.cutscene?.() !== false;
+  }
 
   update(b: TeamBattle | null): void {
     const fx = this.fx;
@@ -454,7 +461,7 @@ export class TeamFxRunner {
         const dst = a(c.dst);
         fx.stopDuel?.();
         // 장면 전환 (#99) — 들어감 → 1:1 필살기 그대로 → 나옴
-        if (TEAM_FX.view11 && src && dst && fx.ult) {
+        if (this.viewOn() && src && dst && fx.ult) {
           const pick0 = c.name ?? devUltOf(this.last?.[c.src.side][c.src.slot]?.uid);
           this.view({ kind: 'solo', side: c.src.side, from: [c.src.slot], to: c.dst, ...(c.repeat ? { quick: true } : {}) }, c.key, (timing) => {
             const s2 = a(c.src);
@@ -497,7 +504,7 @@ export class TeamFxRunner {
               : '상대 합동 필살기!'
             : undefined;
         // 장면 전환 (#99) — 들어감 → 큰 컷인 (디자인) → 앞장 1:1 필살기 + 동료 기운 → 나옴 · 힘겨루기 마무리 (quick) 는 3:3 용 판 그대로
-        if (TEAM_FX.view11 && !c.quick && ps.length && dst && fx.team11Joint) {
+        if (this.viewOn() && !c.quick && ps.length && dst && fx.team11Joint) {
           this.view({ kind: 'joint', side: c.winners[0]!.side, from: c.winners.map((w) => w.slot), to: c.dst, ...(c.repeat ? { quick: true } : {}) }, c.key, (timing) => {
             const ps2 = c.winners.map((w) => a(w));
             const d2 = a(c.dst);

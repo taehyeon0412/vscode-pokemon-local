@@ -4530,12 +4530,15 @@
         // 윈디 (꼭두각시) — 사라짐 · 마지막 질주 · 돌아옴
         const img = pokemon.el;
         const edge = Math.max(1, Math.round(u.s * 0.75));
+        // 돌아오는 때 — 게임 화면은 늦게 오는 충격파 (TB) 바로 뒤 (끝 0.6초 전까지 화면 밖에 있어 메뉴가 열린 뒤 2초 넘게 내 자리가 비던 것 — UX 리뷰어 #97 큼 1) · 일반 모드는 그대로
+        const TRET = typeof fxInGame === 'function' && fxInGame() ? Math.min(sec - 0.6, TB) : sec - 0.6;
+        const TSHOW = TRET + 0.48;
         hideMon(pokemon, true);
-        hideUntil(pokemon, (sec - 0.1) * 1000 + 100);
-        sc.at(sec - 0.12, () => hideMon(pokemon, false));
+        hideUntil(pokemon, TSHOW * 1000 + 120);
+        sc.at(TSHOW, () => hideMon(pokemon, false));
         sc.add({ max: sec - 0.1, draw: (ctx, it, t, px) => {
             const life = sc.t;
-            if (life >= sec - 0.12) {
+            if (life >= TSHOW) {
                 return;
             }
             let x = me.x;
@@ -4546,10 +4549,10 @@
                 return;
             } else if (life >= TDASH && life < TDASH + DASH) {
                 x = lerp(x0, x1, (life - TDASH) / DASH);
-            } else if (life >= TDASH + DASH && life < sec - 0.6) {
+            } else if (life >= TDASH + DASH && life < TRET) {
                 return;
-            } else if (life >= sec - 0.6) {
-                const k = easeOut(clamp((life - (sec - 0.6)) / 0.35, 0, 1));
+            } else if (life >= TRET) {
+                const k = easeOut(clamp((life - TRET) / 0.35, 0, 1));
                 x = lerp(x0, me.x, k);
             }
             drawLitMon(ctx, img, x, me.b, me.w, dir < 0, SPEED[2], edge, a);

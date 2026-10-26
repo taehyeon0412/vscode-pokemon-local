@@ -577,8 +577,13 @@ function fxTop() {
     if (moveFrame) {
         return 0;
     }
-    const bar = fxInGame() && document.querySelector('#pokemon-game .pg-infobar');
-    return bar ? Math.round(bar.getBoundingClientRect().bottom) : 0;
+    if (!fxInGame()) {
+        return 0;
+    }
+    // 정보줄 아래 끝 · 3:3 에서 연출이 실제로 잘리는 선 (--pg-fx-top = 지도 줄 아래 끝) 중 낮은 쪽 (3:3 에서 26px 위를 보아 맞음 · 하늘 위 끝이 지도 줄에 걸치던 것 — bugs 1703)
+    const bar = document.querySelector('#pokemon-game .pg-infobar');
+    const cut = parseFloat(document.body.style.getPropertyValue('--pg-fx-top')) || 0;
+    return Math.max(bar ? Math.round(bar.getBoundingClientRect().bottom) : 0, Math.round(cut));
 }
 // 필살기 어둠에서 밝게 남길 HP 묶음 자리 — 게임 밖이면 없음
 function fxHudRects() {
@@ -860,6 +865,8 @@ function fxGameTick() {
 }
 // kill = 중간에 멈춤 (남은 타이머 건너뜀) · 아니면 다 끝나서 정리만
 function fxGameStop(kill) {
+    // 숨긴 진짜 그림은 연출이 멈추면 늘 되돌림 (꼭두각시 끝 타이머가 버려져도)
+    fxHideAll();
     // 힘대결 인트로에서 숨긴 HP · 힘대결 상자 되돌림 (끊겨도 — core ultHideHud)
     if (typeof ultHudRestore === 'function') {
         ultHudRestore();
@@ -2043,6 +2050,47 @@ function fxStairBlit(v, now) {
         }
     }
     moveCtx.restore();
+}
+// 게임 배우의 진짜 그림 숨기기 — 고정 칸 상자 (collision = .pg-fighter-*) 를 숨김: 게임이 다시 그려 그림 (<img>) 이 새것으로 바뀌어도 그대로
+//   (img 에만 숨김을 걸어 쓰러짐으로 다시 그려지면 제자리에 진짜 보스로라가 다시 보여 꼭두각시와 둘이던 것 — #97 · bugs 1819, main 에도) ·
+//   풂 = ultHide(false) · 그 필살기 끝 (모르면 12초) 타이머 · 연출을 멈출 때 (fxGameStop — stopUlt · 넘기기 · 반격기 · 마지막 기회 볼 — 코드 리뷰어 #97 높음)
+const fxHidden = new Map();
+const FX_HIDE_MAX_MS = 12000;
+const fxUltHide0 = ultHide;
+ultHide = function (pokemon, on) {
+    fxUltHide0(pokemon, on);
+    if (pokemon?._size !== 'game') {
+        return;
+    }
+    if (!on) {
+        fxHideRelease(pokemon);
+        return;
+    }
+    const box = pokemon.collision;
+    if (pokemon.el.style.visibility !== 'hidden' || !box || box === pokemon.el) {
+        return;
+    }
+    const now = performance.now();
+    const until = ultActive?.pokemon === pokemon && ultActive.until > now ? ultActive.until + 500 : now + FX_HIDE_MAX_MS;
+    fxHideRelease(pokemon);
+    box.style.visibility = 'hidden';
+    fxHidden.set(pokemon, { box, timer: setTimeout(() => fxHideRelease(pokemon), until - now) });
+};
+function fxHideRelease(a) {
+    const h = fxHidden.get(a);
+    if (!h) {
+        return;
+    }
+    fxHidden.delete(a);
+    clearTimeout(h.timer);
+    if (h.box.style.visibility === 'hidden') {
+        h.box.style.visibility = '';
+    }
+}
+function fxHideAll() {
+    for (const a of [...fxHidden.keys()]) {
+        fxHideRelease(a);
+    }
 }
 // 그리기 한 장 — 멈춘 번호는 움직이지 않고 그 자리에 · 줄기 보기 번호는 따로 그려 계단 · 앞끝으로
 const fxMoveTick0 = moveTick;

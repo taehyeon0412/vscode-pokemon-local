@@ -8,18 +8,21 @@
  */
 import type { ComponentChildren } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { useFallWake } from './fallWake';
 import { BALANCE, TIMING } from '../../../core/balance';
 import { battleFoeUltWarn, canParry, canRiposte, canUlt, ultCounterOpen, type BattleState, type GameInput, type Side } from '../../../core/engine';
 import { clashWithTaps, isShooting, type Fighter } from '../../../core/rules/battle';
 import { catchTiming } from '../../../core/rules/catch';
 import type { Save } from '../../../core/save';
-import { moveOf, speciesOf } from '../../../data';
+import { formOf, moveOf, speciesOf } from '../../../data';
+import { spriteBoxOf, walkBoxOf } from '../../../data/sprite-boxes';
 import { Button } from '../../../ui/Button';
 import { AutoTip, type AutoTipPlace } from '../../../ui/AutoTip';
 import { Icon } from '../../../ui/Icon';
+import { HEAD_NOTE_H, HeadNote, headNoteWidth, pickHeadSpot, useHeldNote } from '../../../ui/HeadNote';
 import { Sprite } from '../../../ui/Sprite';
 import { catchFoeClass, catchTone, catchView, duelKind, endSay, fitsPx, koSinkPx, msgFits, slumpPx, sayPhase, ringHint, ringKeyFits, hpColor, introView, moveColor, moveFx, profileOpenable, SEND_FLY_MS, sentenceText, splitPopups, STATUS_LABEL, type BattleGeometry, type CatchTone } from '../model';
-import { battleAnimKey, fxTailLeft, holdWindow, koWaitMs, pickShown } from '../fx/hold';
+import { battleAnimKey, fxTailLeft, holdWindow, koFallAt, koTiming, noteKoActor, pickShown, type KoTiming } from '../fx/hold';
 import { impactOf, ultSkippable } from '../fx/parry';
 import { BattleMenu } from './BattleMenu';
 import { fxCastAt, fxContact, useBattleFx } from './BattleFx';
@@ -151,17 +154,12 @@ function HpBlock({ f, side, x, bottom, wide, prefix, noName, dex, panelPx, warn,
 const CAST_BODY_MS = 600;
 
 /** 포켓몬 그림 + 지금 하는 행동의 몸 움직임 (달려들기 · 들어가기 · 쓰러짐 · 맞음) */
-function FighterBody(props: { b: BattleState; side: Side; x: number; target: number; px: number; media: string; ground: number; onProfile?(side: Side): void; sendAt?: number | null; extra?: string }) {
-  const { b, side, x, target, px, media, ground, onProfile, sendAt, extra } = props;
+function FighterBody(props: { b: BattleState; side: Side; x: number; target: number; px: number; media: string; ground: number; onProfile?(side: Side): void; sendAt?: number | null; extra?: string; ko: KoTiming }) {
+  const { b, side, x, target, px, media, ground, onProfile, sendAt, extra, ko } = props;
   // 볼이 닿을 때 나오는 지연 — 처음 그릴 때 값만 (프레임마다 바꾸면 두 배로 빨라짐)
   const sendAt0 = useRef(sendAt ?? null).current;
   const f = b[side];
-  // 마지막 한 방 (상대의 한 방 · 힘대결에 쓰러짐) = 벌러덩 90° · 자기 행동 (독 · 화상 · 반동) 으로 쓰러짐 = 회색 주저앉기 (2026-10-21 태현 님 B).
-  // 쓰러진 장면엔 행동 (anim) 이 이미 지워져 있어서 바로 앞 행동이 누구 것이었는지 기억해 둠. 모르면 (처음 그릴 때 이미 쓰러짐 — 다시 열기) 회색 주저앉기
-  const lastActor = useRef<Side | 'clash' | null>(null);
-  const koByHit = useRef<boolean | null>(null);
-  // 필살기로 쓰러졌으면 상대를 덮는 연출 (맞힌 뒤의 줄기 · 폭발) 이 걷히기 0.4초 전까지 맞은 번쩍 모습 그대로 → 벌러덩 (fx/hold fxCoverLeft — 덮지 않는 필살기는 바로, 0.62초 기다림은 그대로)
-  const koWait = useRef(0);
+  // 마지막 한 방 (상대의 한 방 · 힘대결에 쓰러짐) = 벌러덩 90° · 자기 행동 (독 · 화상 · 반동) 으로 쓰러짐 = 회색 주저앉기 (2026-10-21 태현 님 B) — 박자는 부모 useKo
   // 마지막 기회에 누워 있었는지 — 시간이 다 돼 결과로 넘어갈 때 다시 일어났다 쓰러지지 않고 누운 채 사라지게 (#448 같은 종류 — UX 리뷰어)
   const wasDown = useRef(false);
   if (f.hp > 0) wasDown.current = false;
@@ -175,14 +173,6 @@ function FighterBody(props: { b: BattleState; side: Side; x: number; target: num
       if (outerRef.current) outerRef.current.style.translate = '';
     }
   });
-  if (f.hp > 0) koByHit.current = null;
-  else if (koByHit.current === null) {
-    koByHit.current = lastActor.current !== null && lastActor.current !== side;
-    // 내 포켓몬도 같은 값 (0.7초 상한이면 상대 필살기가 덮는 동안 넘어지고 누워 쓰러짐이 0ms 이던 것 — UX 리뷰어 7차) · 고르기 목록은 2.3초 + 이 값 (BattleMenu pickWait)
-    koWait.current = koWaitMs(performance.now());
-  }
-  if (b.anim) lastActor.current = b.anim.side;
-  else if (b.phase === 'clash') lastActor.current = 'clash';
   const anim = b.anim?.side === side ? b.anim : null;
   const act = anim?.action;
   const mv = act?.kind === 'move' ? moveOf(act.moveId) : undefined;
@@ -208,10 +198,10 @@ function FighterBody(props: { b: BattleState; side: Side; x: number; target: num
     f.hp <= 0 && !(side === 'foe' && b.phase === 'catch' && b.catch?.caught === false && catchView(b)?.stage === 'end')
       ? (b.phase === 'last' || b.phase === 'catch') && side === 'foe'
         ? // 볼을 던지는 동안 (catch) 은 누운 채 멈춤 — 잡기 연출 (빨려 들어감 · 튀어나옴) 이 몸 움직임을 씀
-          `pg-down${koByHit.current ? (b.phase === 'last' ? ` pg-ko${koWait.current > 0 ? ' pg-ko-late' : ''}` : ' pg-ko-lie') : ''}`
+          `pg-down${ko.byHit ? (b.phase === 'last' ? ` pg-ko${ko.wait > 0 ? ' pg-ko-late' : ''}` : ' pg-ko-lie') : ''}`
         : wasDown.current
-          ? `pg-down pg-gone${koByHit.current ? ' pg-ko-lie' : ''}`
-          : `pg-fainted${koByHit.current ? ` pg-ko${koWait.current > 0 ? ' pg-ko-late' : ''}` : ''}`
+          ? `pg-down pg-gone${ko.byHit ? ' pg-ko-lie' : ''}`
+          : `pg-fainted${ko.byHit ? ` pg-ko${ko.wait > 0 ? ' pg-ko-late' : ''}` : ''}`
       : '',
     f.guard < 1 ? 'pg-guarded' : '',
   ].join(' ');
@@ -227,7 +217,7 @@ function FighterBody(props: { b: BattleState; side: Side; x: number; target: num
       style={{ left: `${x}px`, bottom: `${ground}px`, ...(sendAt0 !== null ? { animationDelay: `${SEND_FLY_MS - sendAt0}ms` } : {}) }} title={`${side === 'foe' ? foePrefix(b) : ''}${nameOf(f)} Lv${f.level}${onProfile ? ' — 누르면 프로필' : ''}`} onClick={onProfile ? () => onProfile(side) : undefined}>
       {/* --pg-back = 맞으면 밀려나는 쪽 (상대 반대쪽) */}
       {/* --pg-ko-y = 벌러덩 누운 그림의 가장 낮은 점 (그림 뒤쪽 끝) 을 서 있던 발끝 높이로 · --pg-slump-y = 회색 주저앉기 (정수 px) */}
-      <span key={animKey(b)} class={cls} style={{ '--pg-dx': `${Math.round((target - x) * 0.75)}px`, '--pg-back': side === 'me' ? '-1' : '1', '--pg-ko-y': `${koSinkPx(f.form, px)}px`, '--pg-slump-y': `${slumpPx(px)}px`, '--pg-ko-wait': `${koWait.current}ms`, ...bodyTiming }}>
+      <span key={animKey(b)} class={cls} style={{ '--pg-dx': `${Math.round((target - x) * 0.75)}px`, '--pg-back': side === 'me' ? '-1' : '1', '--pg-ko-y': `${koSinkPx(f.form, px)}px`, '--pg-slump-y': `${slumpPx(px)}px`, '--pg-ko-wait': `${ko.wait}ms`, ...bodyTiming }}>
         {/* 걷기 그림 (옆모습) 으로 서로 마주 봄 — 서기 그림은 정면이라 가만히 앞만 보는 것처럼 보였음 (2026-10-19 태현 님). 걷기 그림은 오른쪽을 봄 → 상대는 뒤집음 */}
         <Sprite media={media} form={f.form} shiny={f.shiny} scale={1} px={px} action="walk" faceLeft={side === 'foe'} />
       </span>
@@ -689,24 +679,46 @@ function Clash({ b, geo, y, native }: { b: BattleState; geo: BattleGeometry; y: 
 }
 
 /**
- * 버린 Z 한 줄 (#88 — 필살기 예약 없앰, 엔진 b.ultDeny 1.2초) = 내 포켓몬 발밑 가운데 (Z 옆 · 위는 메뉴 버튼 · 상대 필살기 막대를 덮거나 240 에서 패널 밖으로 잘리던 것 — 픽셀 검사원 · UX 리뷰어).
- * 아직 안 참 · 다른 연출 중 · 그 1초 안에 쓸 수 있게 되면 금색 "지금 Z!" (거두면 0.4초 만에 깜빡 지나가던 것). 가운데는 잰 폭으로 정수 자리 (translateX(−50%) 면 반 픽셀)
+ * 버린 Z (#88 — 필살기 예약 없앰, 엔진 b.ultDeny 1.2초) = 내 포켓몬 머리 왼쪽 위 작은 글 (태현 님 10-26 "엄청 작은 글씨로 포켓몬 위쪽 · 머리 기준 왼쪽 위 · 서서히 사라짐" — 발밑 판 한 줄에서 옮김).
+ * 아직 안 참 · 다른 연출 중 · 그 1초 안에 쓸 수 있게 되면 금색 "지금 Z!". 진짜 시계로 1.1초 붙잡고 3걸음으로 사라짐 (ui/HeadNote) · 내 필살기가 나가면 바로 지움.
+ * 자리 = 그린 그림 (걷기 그림 왼쪽 끝 · 대기 그림 위 끝) 기준 · HP 묶음 · 메뉴 · Z · 상대 그림 · 정보줄 · 지도 줄을 피함 — 처음 정한 자리를 끝까지 (U2)
  */
-function UltDeny({ b, x, ground, panelPx }: { b: BattleState; x: number; ground: number; panelPx: number }) {
+function UltDeny({ b }: { b: BattleState }) {
+  const go = !!b.ultDeny && (canUlt(b) || ultCounterOpen(b));
+  const text = go ? '지금 Z!' : b.ultDeny?.why === 'charge' ? '아직 안 찼어요' : '지금은 못 써요';
+  const held = useHeldNote(b.ultDeny ? `${text}|${go}` : null, b.ultDeny ? { text, go } : null, b.anim?.action.kind === 'ult' && b.anim.side === 'me');
   const el = useRef<HTMLSpanElement>(null);
-  const [w, setW] = useState(0);
+  const [at, setAt] = useState<{ key: string; l: number; t: number } | null>(null);
   useLayoutEffect(() => {
-    const r = el.current?.getBoundingClientRect();
-    if (r && Math.ceil(r.width) !== w) setW(Math.ceil(r.width));
+    const box = el.current?.offsetParent;
+    const img = document.querySelector<HTMLElement>('#pokemon-game .pg-fighter-me img.pg-sprite');
+    if (!held || at?.key === held.key || !(box instanceof HTMLElement) || !img) return;
+    const P = box.getBoundingClientRect();
+    // 보이는 그림 상자 (걷기 그림 왼쪽 끝을 양쪽에 · 대기 그림 위 끝 — 3:3 visBoxOf 와 같은 셈) · img 상자는 투명 여백까지라 상대 그림이 오른쪽 위 자리를 막던 것 (240)
+    const visOf = (node: HTMLElement, form: string) => {
+      const r = node.getBoundingClientRect();
+      const n = formOf(form)?.size ?? 32;
+      const s = r.width / n;
+      const wl = walkBoxOf(form)?.[0] ?? spriteBoxOf(form)?.[0] ?? 0;
+      return { l: r.left - P.left + wl * s, t: r.top - P.top + (spriteBoxOf(form)?.[1] ?? 0) * s, r: r.left - P.left + (n - wl) * s, b: r.bottom - P.top };
+    };
+    if (img.getBoundingClientRect().width === 0) return;
+    const a = visOf(img, b.me.form);
+    const foeImg = document.querySelector<HTMLElement>('#pokemon-game .pg-fighter-foe img.pg-sprite');
+    const rel = (q: DOMRect) => ({ l: q.left - P.left, t: q.top - P.top, r: q.right - P.left, b: q.bottom - P.top });
+    // 피함 = HP 묶음 · 메뉴 · Z · 자동 칩 (안 단추까지 — 칩 상자보다 단추가 1 ~ 2px 큼) · 상대 그림 · 내 주인공 · 상대 트레이너 (.pg-hero) · 이름표 (240 × 150 에서 주인공 머리 · 자동 칩에 닿던 것)
+    const avoid = [...document.querySelectorAll<HTMLElement>('#pokemon-game .pg-hpblock, #pokemon-game .pg-bmenu, #pokemon-game .pg-ultz-wrap, #pokemon-game .pg-auto, #pokemon-game .pg-auto > *, #pokemon-game .pg-hero, #pokemon-game .pg-nametag')].map((q) => rel(q.getBoundingClientRect())).filter((q) => q.r > q.l);
+    if (foeImg && foeImg.getBoundingClientRect().width > 0) avoid.push(visOf(foeImg, b.foe.form));
+    // 위 끝 = 정보줄 · 지도 줄 아래 2px (넓은 패널은 창 오른쪽까지 — 무대 폭 720 이면 1860 에서 오른쪽 끝을 일찍 막던 것과 같은 종류, 픽셀 검사원)
+    const top = Math.max(0, ...[...document.querySelectorAll<HTMLElement>('#pokemon-game .pg-infobar, #pokemon-game .pg-maprow')].map((q) => q.getBoundingClientRect().bottom - P.top + 2));
+    const right = Math.max(P.width, document.documentElement.clientWidth - P.left);
+    setAt({ key: held.key, ...pickHeadSpot(a, headNoteWidth(text), HEAD_NOTE_H, { l: 0, t: top, r: right, b: P.height }, avoid) });
   });
-  if (!b.ultDeny) return null;
-  const go = canUlt(b) || ultCounterOpen(b);
-  // 오른쪽 막기는 패널 끝 (무대 폭 panelPx 는 넓은 패널에서 720 이라 1860 에서 한 줄이 포켓몬 가운데를 61 ~ 114px 벗어나던 것 — 픽셀 검사원)
-  const right = Math.max(panelPx, document.documentElement.clientWidth);
-  const left = Math.max(4, Math.min(right - w - 4, Math.round(x - w / 2)));
+  if (!held) return null;
+  // 자리를 재기 전 첫 그림은 숨김 (재고 바로 다시 그림 — 그리기 전이라 깜빡임 없음)
   return (
-    <span ref={el} class={go ? 'pg-ult-deny pg-deny-go' : 'pg-ult-deny'} style={{ left: `${left}px`, bottom: `${Math.max(2, ground - 14)}px` }}>
-      {go ? '지금 Z!' : b.ultDeny.why === 'charge' ? '아직 안 찼어요' : '지금은 못 써요'}
+    <span ref={el} class="pg-head-anchor">
+      {at?.key === held.key && <HeadNote text={held.value.text} go={held.value.go} at={at} step={held.step} />}
     </span>
   );
 }
@@ -725,6 +737,15 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
     const id = setTimeout(() => kickAuto((n) => n + 1), tailLeft + 30);
     return () => clearTimeout(id);
   }, [autoUnder, Math.ceil(tailLeft / 500)]);
+  const reduce = save.settings.reduceMotion === true;
+  // 쓰러짐 박자 (fx/hold koTiming — 그림 · 말이 같은 값) · 끝 말 ("○○가 쓰러졌다!" · 다음 포켓몬 · 고르기 · 마지막 기회 · 끝) 은 실제로 넘어갈 때부터 — 그 전엔 말 칸을 비움
+  const now0 = performance.now();
+  const koMe = koTiming(b, 'me', now0, reduce);
+  const koFoe = koTiming(b, 'foe', now0, reduce);
+  noteKoActor(b);
+  const fallAt = koFallAt(b, now0, reduce);
+  const fallLeft = fallAt - now0;
+  useFallWake(fallAt);
   const profile = onProfile && profileOpenable(b) ? onProfile : undefined;
   const midMe = ground + Math.round(geo.meSpritePx * 0.45);
   const midFoe = ground + Math.round(geo.foeSpritePx * 0.45);
@@ -751,6 +772,7 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
   //     안 들어가면 첫 문장 (진 경우는 끝 문장)
   //   행동 중 · 내 차례 = 안 들어가면 "○○의 기술!" · "○○는 무엇을 할까?" 를 빼고 상성 · 급소 문장을 남김 (240 × 187 "…별로인 듯하…" 로 잘리던 것)
   const ending = b.phase === 'over' || b.phase === 'send' || b.phase === 'pick' || b.phase === 'last';
+  const fallWait = ending && fallLeft > 0;
   // 고르기 — "다음 포켓몬을 골라요" 는 목록이 보일 때 붙음 (그 전엔 "○○가 쓰러졌다!" 만 — 목록보다 5초 먼저 떠서 눌러도 반응이 없던 것, UX 리뷰어 8차)
   const msg0 = b.phase === 'pick' && !pickShown(performance.now()) ? b.msg.replace(/\s*다음 포켓몬을 골라요$/, '') : b.msg;
   //   안 들어가면 트레이너 직함을 뺀 말 → 그래도 안 들어가면 첫 문장 (시작 말 "엘리트 트레이너 소율이 …를 내보냈다! 가랏, …!" 도 — orders #20)
@@ -764,10 +786,11 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
   // 필살기 컷인이 같은 말을 하는 동안 · 둘 곳이 없는 좁은 패널에서는 위 한 줄을 숨김 — 그때 문장은 머리 위 한 줄로
   // 잡기 흔들기 창 (가운데) 이 떠 있는 동안도 숨김 — 창 이름표와 같은 말을 두 번 함 (아트 디렉터 8차)
   const catchShown = catchView(b)?.stage;
-  const showMsg = msgText !== '' && !geo.msgHidden && b.phase !== 'clash' && b.anim?.action.kind !== 'ult' && catchShown !== 'shake' && catchShown !== 'end' && catchShown !== 'held';
+  const showMsg = msgText !== '' && !fallWait && !geo.msgHidden && b.phase !== 'clash' && b.anim?.action.kind !== 'ult' && catchShown !== 'shake' && catchShown !== 'end' && catchShown !== 'held';
   // 머리 위 한 줄에서 "완벽 패링!" · "패링!" 은 뺌 — 캔버스 큰 글씨가 늘 같은 말을 해서 240 에서 두 번 뜨던 것 (개발팀 2026-10-21). "반격 — 조금 빨랐다" 는 캔버스에 없어 남김
   const headSay = sentences.filter((p) => !(p.kind === 'parry' && !p.text.startsWith('반격')));
-  const lastSentence = showMsg ? undefined : headSay[headSay.length - 1];
+  // 넘어지기를 기다리는 동안은 머리 위 한 줄도 안 띄움 — 넘어갈 때 상성 말 (lingering) 로 한 벌만 (같은 말이 두 번 떠오르던 것, 코드 리뷰어 #97)
+  const lastSentence = showMsg || fallWait ? undefined : headSay[headSay.length - 1];
   // 상성 · 급소 말이 다음 기술 연출로 말 칸에서 빠졌는데 아직 1초가 안 됐으면 남은 동안 맞은 쪽 머리 위 한 줄로 (자동 전투에서 "효과가 굉장했다!" 가 0.46초만 보이던 것 — 개발 UX 리뷰어 R14, U1)
   const animMs = b.anim?.ms;
   //   끝 단계 (쓰러짐 · 고르기 · 끝 · 다음 포켓몬) 는 말 칸이 엔진 말만 쓰므로 그 한 방의 상성 말도 머리 위로 (쓰러뜨린 한 방의 "효과가 굉장했다!" 가 0장면이던 것 — UX 리뷰어)
@@ -775,8 +798,8 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
   const lingering =
     animMs !== undefined ? [...b.popups].reverse().find((p) => isTail(p) && p.ms > animMs && p.ms < TAIL_SHOW_MS) : ending ? [...b.popups].reverse().find((p) => isTail(p) && p.ms < TAIL_SHOW_MS) : undefined;
   // 말 칸이 숨을 때 끝 · 다음 포켓몬 · 고르기 말 자리 — 무대 위쪽 메뉴 줄 (한 줄) · 옆 메뉴 판 (두 줄), 자리가 되면 전부 · 아니면 첫 문장
-  const stageSay = !geo.menuSide && !geo.menuInBar ? barSay(b, geo.msgHidden, geo.widthPx - geo.menuLeft - 20, 1) : null;
-  const sideSay = geo.menuSide ? barSay(b, geo.msgHidden, geo.menuSide.maxWidth - 14, 2, 'side') : null;
+  const stageSay = !geo.menuSide && !geo.menuInBar ? barSay(b, geo.msgHidden, geo.widthPx - geo.menuLeft - 20, 1, 'bar', reduce) : null;
+  const sideSay = geo.menuSide ? barSay(b, geo.msgHidden, geo.menuSide.maxWidth - 14, 2, 'side', reduce) : null;
   // 나갈 포켓몬이 없는 채로 시작한 전투 (이상한 세이브) — 내 자리는 비움
   const hasMe = b.me.uid !== 'none';
   // 전투 시작 연출 — 트레이너전 = 볼 던지기 (손 = 사람 키의 55%), 야생 = 화면 닦기
@@ -790,15 +813,15 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
   const catchWin = catchStage === 'shake' || catchStage === 'end';
   return (
     <>
-      {hasMe && <FighterBody key={`me${b.me.uid}`} b={b} side="me" x={geo.meX} target={geo.foeX} px={geo.meSpritePx} media={media} ground={ground} onProfile={profile} sendAt={throwMe} />}
+      {hasMe && <FighterBody key={`me${b.me.uid}`} b={b} side="me" x={geo.meX} target={geo.foeX} px={geo.meSpritePx} media={media} ground={ground} onProfile={profile} sendAt={throwMe} ko={koMe} />}
       {/* 잡기 중 상대 — 원이 줄어드는 동안은 서 있고, 빨려 들어감 · 볼 속 (숨김) · 빠져나와 튀어나옴 (catchFoeClass) */}
-      <FighterBody key={`foe${b.foe.uid}`} b={b} side="foe" x={geo.foeX} target={geo.meX} px={geo.foeSpritePx} media={media} ground={ground} onProfile={profile} sendAt={throwFoe} extra={b.escaped && b.phase === 'over' ? 'pg-catch-run' : catchFoeClass(b)} />
+      <FighterBody key={`foe${b.foe.uid}`} b={b} side="foe" x={geo.foeX} target={geo.meX} px={geo.foeSpritePx} media={media} ground={ground} onProfile={profile} sendAt={throwFoe} extra={b.escaped && b.phase === 'over' ? 'pg-catch-run' : catchFoeClass(b)} ko={koFoe} />
       {/* 패링 원은 HP 줄보다 먼저 (같은 층에서 HP 숫자가 위) */}
       <ParryRing b={b} geo={geo} y={midMe} auto={save.settings.autoBattle} />
       <RiposteRing b={b} geo={geo} y={midFoe} auto={save.settings.autoBattle} />
-      {hasMe && b.ultDeny && <UltDeny b={b} x={geo.meX} ground={ground} panelPx={geo.widthPx} />}
+      {hasMe && <UltDeny b={b} />}
       {hasMe && <HpBlock f={b.me} side="me" x={geo.meHpX} bottom={geo.meHpBottom} wide={geo.meHpWide} prefix="" noName={geo.menuSide !== null || geo.tiny} under={b.anim?.action.kind === 'ult' && b.anim.side === 'me'} />}
-      {b.phase !== 'send' && <HpBlock f={b.foe} side="foe" x={geo.foeHpX} bottom={geo.foeHpBottom} wide={geo.foeHpWide} prefix={foePrefix(b)} dex={b.phase === 'last' ? (save.dex.caught.includes(b.foe.species) ? 'caught' : 'new') : undefined} panelPx={geo.widthPx} warn={battleFoeUltWarn(b)} short={geo.compact} under={b.anim?.action.kind === 'ult' && b.anim.side === 'foe'} />}
+      {b.phase !== 'send' && <HpBlock f={b.foe} side="foe" x={geo.foeHpX} bottom={geo.foeHpBottom} wide={geo.foeHpWide} prefix={foePrefix(b)} dex={b.phase === 'last' && !fallWait ? (save.dex.caught.includes(b.foe.species) ? 'caught' : 'new') : undefined} panelPx={geo.widthPx} warn={battleFoeUltWarn(b)} short={geo.compact} under={b.anim?.action.kind === 'ult' && b.anim.side === 'foe'} />}
       {b.phase === 'clash' ? <Clash b={b} geo={geo} y={Math.round((midMe + midFoe) / 2)} native={native} /> : <Effects b={b} geo={geo} ground={ground} midMe={midMe} midFoe={midFoe} native={native} />}
       <Catch b={b} geo={geo} ground={ground} mid={midFoe} handY={handY} />
       {throwMe !== null && <SendBall key={`sm${b.me.uid}`} from={[geo.trainerX, handY]} to={[geo.meX, midMe]} at={throwMe} />}
@@ -815,10 +838,11 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
             </span>
           )),
           // 말 칸이 없을 때만 문장 한 줄 (가장 최근 것)
-          lastSentence?.side === side && <PopSay key={`s${lastSentence.id}`} kind={lastSentence.kind} x={x} bottom={popAt(side, nums.length)} text={sentenceText(lastSentence, sideName)} />,
+          //   열쇠는 둘이 같게 (p…) — 넘어진 뒤 꼬리 한 줄이 같은 말의 문장 한 줄로 바뀌며 다시 떠오르던 것 (240 × 150, UX 리뷰어 #97 작음 5)
+          lastSentence?.side === side && <PopSay key={`p${lastSentence.id}`} kind={lastSentence.kind} x={x} bottom={popAt(side, nums.length)} text={sentenceText(lastSentence, sideName)} />,
           // 말 칸에서 빠진 상성 · 급소 말의 남은 시간 (1초까지)
           lingering?.side === side && lingering.id !== lastSentence?.id && (
-            <PopSay key={`t${lingering.id}`} kind={lingering.kind} x={x} bottom={popAt(side, nums.length + (lastSentence?.side === side ? 1 : 0))} text={sentenceText(lingering, sideName)} />
+            <PopSay key={`p${lingering.id}`} kind={lingering.kind} x={x} bottom={popAt(side, nums.length + (lastSentence?.side === side ? 1 : 0))} text={sentenceText(lingering, sideName)} />
           ),
         ];
       })}
@@ -872,8 +896,11 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
 /** 말 칸이 숨는 좁고 낮은 패널에서 위 메뉴 줄에 띄울 말 — 전투 끝 · 다음 포켓몬 · 쓰러진 뒤 고르기 (그때 메뉴 줄은 비어 있음, 2026-10-21 UX 리뷰어).
  *  고르기는 칸이 무대 위 세로 목록으로 빠져 (2초 뒤) 위 줄 자리가 비어서 "이상해씨가 쓰러졌다!" 를 다시 띄움.
  *  첫 문장만 ("야생 파이리가 쓰러졌다!") — 뒷말 ("다음 포켓몬을 골라요") 은 고르기 목록 제목이 말함. 마지막 기회는 같은 줄에 "마지막 기회! 6초" · 볼 칸이 있어 자리가 없고, 쓰러진 모습 (회색) 과 그 칸이 뜻을 전함 */
-export function barSay(b: BattleState, msgHidden: boolean, widthPx: number, lines: number, spot: 'bar' | 'side' = 'bar'): string | null {
+export function barSay(b: BattleState, msgHidden: boolean, widthPx: number, lines: number, spot: 'bar' | 'side' = 'bar', reduce = false): string | null {
   if (!msgHidden || !sayPhase(b.phase, spot) || !b.msg) return null;
+  // 실제로 넘어가기 전엔 비움 (말 칸과 같게 — ideas 723 · 정보줄 자리 메뉴 줄도, 코드 리뷰어 #97)
+  const now = performance.now();
+  if (koFallAt(b, now, reduce) > now) return null;
   const lose = b.phase === 'over' && b.result === 'lose';
   // 고르기 — "다음 포켓몬을 골라요" 는 목록이 보일 때 (말 칸과 같게 — 위 줄 말에만 먼저 붙던 것, UX 리뷰어 9차)
   const msg = b.phase === 'pick' && !pickShown(performance.now()) ? b.msg.replace(/\s*다음 포켓몬을 골라요$/, '') : b.msg;

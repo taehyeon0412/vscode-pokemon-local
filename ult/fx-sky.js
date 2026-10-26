@@ -5042,9 +5042,13 @@
                 if (d >= Rm) {
                     continue;
                 }
-                // 쓰러진 칸 (cut) 은 비우고 둘레 2칸은 바둑판 반 — 곧은 네모 구멍이 그림 빠진 버그처럼 읽히던 것 (#114 UX)
-                if (cut && gx + c > cut.l - 2 * c && gx < cut.r + 2 * c && gy + c > cut.t - 2 * c && gy < cut.b + 2 * c) {
-                    if ((gx + c > cut.l && gx < cut.r && gy + c > cut.t && gy < cut.b) || (Math.round((gx + gy) / c) & 1) === 0) {
+                // 쓰러진 칸 (cut) 은 비우고 둘레 2칸은 바둑판 반 — 곧은 네모 구멍이 그림 빠진 버그처럼 읽히던 것 (#114 UX) ·
+                // 구멍은 둥글게 (칸 상자를 감싸는 타원 × 1.2) — 네모면 돔 테두리가 구멍 가장자리에서 곧게 잘려 보이던 것 (#97 남은 작음)
+                if (cut) {
+                    const rx = Math.max(c, ((cut.r - cut.l) / 2) * 1.2);
+                    const ry = Math.max(c, ((cut.b - cut.t) / 2) * 1.2);
+                    const e = Math.hypot((gx + c / 2 - (cut.l + cut.r) / 2) / rx, (gy + c / 2 - (cut.t + cut.b) / 2) / ry);
+                    if (e < 1 || (e < 1 + (2 * c) / Math.min(rx, ry) && (Math.round((gx + gy) / c) & 1) === 0)) {
                         continue;
                     }
                 }

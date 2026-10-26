@@ -490,13 +490,13 @@ describe('6판 — 화산 (orders #75)', () => {
     const r = readSave(v5);
     expect(r.kind === 'ok' && r.migratedFrom).toBe(5);
     if (r.kind !== 'ok') return;
-    expect(viaJson(r.save)).toEqual({ ...v5, version: 6 });
+    expect(viaJson(r.save)).toEqual({ ...v5, version: SAVE_VERSION });
     const hot = validateSave(viaJson({ ...sampleSave(), badges: ['forest', 'beach'], regions: { order: ['forest', 'beach', 'volcano'] }, bag: { 'hyper-potion': 2, 'full-restore': 1 }, location: { screen: 'stage', stageId: 'volcano-2' } }));
     expect(hot.ok && hot.save.regions.order).toEqual(['forest', 'beach', 'volcano']);
     expect(hot.ok && hot.save.bag).toEqual({ 'hyper-potion': 2, 'full-restore': 1 });
     expect(hot.ok && hot.save.location).toEqual({ screen: 'stage', stageId: 'volcano-2' });
     const old = { 1: MIGRATIONS[1]!, 2: MIGRATIONS[2]!, 3: MIGRATIONS[3]!, 4: MIGRATIONS[4]! };
-    expect(migrateSave(viaJson(r.save) as unknown as Record<string, unknown>, old, 5)).toEqual({ ok: false, reason: 'newer', version: 6 });
+    expect(migrateSave(viaJson(r.save) as unknown as Record<string, unknown>, old, 5)).toEqual({ ok: false, reason: 'newer', version: SAVE_VERSION });
     // 지역 3곳까지는 고를 곳이 없음 — 손으로 넣은 next (화산을 해변보다 먼저) 는 빼고 고친 기록 (테스터 #75)
     for (const next of [['volcano'], ['beach', 'volcano']]) {
       const odd = validateSave(viaJson({ ...sampleSave(), badges: ['forest'], regions: { order: ['forest'], next } }));
@@ -520,5 +520,19 @@ describe('5판 칸 — 전투 ×2 (orders #83)', () => {
     expect(bad.ok && bad.save.settings.battleFast).toBe(false);
     const old = { 1: MIGRATIONS[1]!, 2: MIGRATIONS[2]!, 3: MIGRATIONS[3]! };
     expect(migrateSave(viaJson(r.save) as unknown as Record<string, unknown>, old, 4)).toEqual({ ok: false, reason: 'newer', version: SAVE_VERSION });
+  });
+});
+
+describe('7판 — 필살기 연출 설정 (#97)', () => {
+  it('6판 세이브는 칸 그대로 판만 7 · teamCutscene false 를 지킴 · 옛 6판 코드는 7판을 잠금', () => {
+    const v6 = { ...viaJson(createNewSave(0)), version: 6 } as unknown as Record<string, unknown>;
+    const r = readSave(v6);
+    expect(r.kind === 'ok' && r.migratedFrom).toBe(6);
+    if (r.kind !== 'ok') return;
+    expect(viaJson(r.save)).toEqual({ ...v6, version: 7 });
+    const off = validateSave(viaJson({ ...sampleSave(), settings: { ...sampleSave().settings, teamCutscene: false } }));
+    expect(off.ok && off.save.settings.teamCutscene).toBe(false);
+    const old = { 1: MIGRATIONS[1]!, 2: MIGRATIONS[2]!, 3: MIGRATIONS[3]!, 4: MIGRATIONS[4]!, 5: MIGRATIONS[5]! };
+    expect(migrateSave(viaJson(r.save) as unknown as Record<string, unknown>, old, 6)).toEqual({ ok: false, reason: 'newer', version: 7 });
   });
 });

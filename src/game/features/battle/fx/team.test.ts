@@ -323,3 +323,61 @@ describe('합동 연출 타입 — 같은 타입 짝 (#96 아트 5바퀴 4)', ()
     expect(jointFxTypes([['water'], ['fire']])).toEqual(['water', 'fire']);
   });
 });
+
+describe('필살기 연출 끔 (#97 태현 님 — 설정 teamCutscene) — 장면 전환 없이 3:3 용 작은 판', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+  const run = (kind: 'solo' | 'joint', on: () => boolean) => {
+    vi.useFakeTimers();
+    vi.stubGlobal('window', globalThis);
+    const calls: string[] = [];
+    const fx = { version: 4, plan: () => null, team: () => undefined, mount: () => undefined, clear: () => undefined, stopDuel: () => undefined,
+      ult: (...a: unknown[]) => (calls.push(`ult:${JSON.stringify(a[4])}`), 4000),
+      team11Joint: () => (calls.push('joint11'), 5000),
+      teamJoint: (srcs: unknown[]) => (calls.push(`stageJoint:${srcs.length}`), 2000) } as unknown as PokemonFx;
+    const actor = { el: {} as HTMLElement, form: 'charmander', size: 32, left: false } as FxActor;
+    const runner = new TeamFxRunner({ actor: () => actor, cutscene: on }, fx);
+    const b = withLog([]);
+    runner.update(b);
+    const ult = kind === 'solo'
+      ? { t: 'ult' as const, side: 'me' as const, from: 0, id: 1, at: 5050 }
+      : { t: 'ult' as const, side: 'me' as const, from: 0, joint: { winners: [0, 1], losers: [0, 1, 2], sure: false }, id: 1, at: 5050 };
+    runner.update({ ...b, t: 5050, log: [ult as never], logSeq: 1 });
+    return { calls, runner };
+  };
+  it('혼자 — 장면 전환 없이 바로 작은 판 (stage) 필살기', () => {
+    const { calls, runner } = run('solo', () => false);
+    try {
+      expect(getTeamView()).toBeNull();
+      expect(calls).toHaveLength(1);
+      expect(calls[0]).toContain('"stage":true');
+    } finally {
+      runner.reset();
+    }
+  });
+  it('합동 — 큰 컷인 장면 전환 대신 3:3 용 판 합동', () => {
+    const { calls, runner } = run('joint', () => false);
+    try {
+      expect(getTeamView()).toBeNull();
+      expect(calls).toEqual(['stageJoint:2']);
+    } finally {
+      runner.reset();
+    }
+  });
+  it('필살기가 시작할 때마다 읽음 — 켜면 다음 필살기부터 장면 전환', () => {
+    let on = false;
+    const { calls, runner } = run('solo', () => on);
+    try {
+      expect(getTeamView()).toBeNull();
+      on = true;
+      const b = withLog([]);
+      runner.update({ ...b, t: 9000, log: [{ t: 'ult', side: 'me', from: 0, id: 1, at: 5050 } as never, { t: 'ult', side: 'me', from: 1, id: 2, at: 9000 } as never], logSeq: 2 });
+      expect(getTeamView()?.phase).toBe('in');
+      expect(calls).toHaveLength(1);
+    } finally {
+      runner.reset();
+    }
+  });
+});

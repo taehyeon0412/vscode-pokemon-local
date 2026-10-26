@@ -9,13 +9,13 @@
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
-import { AUTO_TEAM_TIP, autoTeamTipDue, battleAutoUltLeft, canOpenMenus, gameTempo, regionsOn, teamUltOpen, canParry, canRiposte, gymLeaderOf, isWalkingFast, itemLeft, teamAutoUltLeft, teamAutoUltNext, teamLock, teamMeetTipDue, TEAM_MEET_TIP, walkLeftMs, type GameInput, type GameState, type TeamBattle } from '../../../core/engine';
+import { AUTO_TEAM_TIP, autoTeamTipDue, battleAutoUltLeft, canOpenMenus, gameTempo, regionsOn, teamUltOpen, canParry, canRiposte, gymLeaderOf, isWalkingFast, itemLeft, teamAutoUltLeft, teamAutoUltNext, teamLock, teamMeetTipDue, TEAM_MEET_TIP, walkLeftMs, type GameInput, type GameState } from '../../../core/engine';
 import { maxHpOf, teamHealth } from '../../../core/rules/bag';
 import { spaceInput, ultSkippable } from '../../battle/fx/parry';
 import { BALLS } from '../../../core/rules/catch';
 import { bestHelper, requestAt } from '../../../core/rules/request';
 import { FACILITY_STAFF } from '../../../core/rules/stage';
-import { gymRoomOf, regionHere } from '../../../core/rules/region';
+import { gymRoomOf, regionHere, stageBackground } from '../../../core/rules/region';
 import { josaOf, withJosa } from '../../../core/text';
 import { speciesOf } from '../../../data';
 import { heroDraw, heroHeightPx, heroLookOf, heroWidthPx, personLook } from '../../../data/heroes';
@@ -28,14 +28,18 @@ import { themeKind } from '../../../ui/theme';
 import { typeNameKo } from '../../../ui/format';
 import { InfoBar } from '../../../ui/InfoBar';
 import { TeamLayer } from '../../battle/team/TeamLayer';
-import { teamDenyNote, teamPrompt } from '../../battle/team/model';
+import { teamGeometry, teamPrompt } from '../../battle/team/model';
 import { TeamChoice, teamChoiceOn, TeamMeet, teamMeetOn } from '../../battle/team/TeamChoice';
 import { Face } from '../../../ui/Face';
 import { resumeLine } from '../../../core/engine/play';
 import { FirstTip } from '../../../ui/FirstTip';
+import { contentWidth, FIT_ROOM } from '../../../ui/useFit';
+import { realLater, realNow } from '../../../ui/real-clock';
 import { KeyCap } from '../../../ui/KeyCap';
 import { fieldTopPx, hasMapRow, INFO_BAR_PX, MAP_ROW_PX, topGapPx, type Layout } from '../../../ui/layout';
 import { barSay, BattleLayer, BattleMenuBar, pickRightOf } from '../../battle/components/BattleLayer';
+import { useFallWake } from '../../battle/components/fallWake';
+import { koFallAt } from '../../battle/fx/hold';
 import { battleGeometry, battleSpritePx, foeTrainerX, placeOnStage, ringHint, trainerBattleFoeX } from '../../battle/model';
 import { MenuButtons } from '../../menu/components/MenuButtons';
 import { ShopPanel } from '../../menu/components/ShopPanel';
@@ -201,6 +205,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   const objects = gym || teamOn ? [] : visibleObjects(state, widthPx, layout.scale);
   const stageRt = state.runtime.stage;
   const battle = stageRt?.phase === 'battle' ? stageRt.battle : null;
+  // 정보줄 자리 메뉴 줄 말 (barSay) 도 쓰러진 포켓몬이 실제로 넘어갈 때 다시 그림 (붙잡힌 엔진은 그동안 다시 안 그려서 — ideas 723 · 코드 리뷰어 #97)
+  useFallWake(battle ? koFallAt(battle, performance.now(), save.settings.reduceMotion === true) : 0);
   // 3:3 (orders #17 — 모두에게, orders #59)
   const team = stageRt?.phase === 'team' ? stageRt.team : null;
   // 저절로 나갈 필살기를 기다리는 중이면 지금 누를 키 (1:1 자동 전투 = Z · 3:3 = 그 칸 번호) — "N초" 칩의 뜻 첫 안내 (ideas #150)
@@ -217,8 +223,29 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   const teamBigPrompt = team !== null && ['join', 'gather'].includes(teamPrompt(team)?.kind ?? '');
   //   다 찬 채 0.5초 이어진 뒤에 띄움 (다 차고 0.1초 만에 끼어들기 판이 떠 안내가 2장면만 비치던 것 — UX 리뷰어 #95 4바퀴 6)
   const readySince = useRef<{ key: number | undefined; at: number }>({ key: undefined, at: 0 });
-  if (teamReadyKey !== readySince.current.key) readySince.current = { key: teamReadyKey, at: performance.now() };
+  //   다 찬 칸이 바뀌기만 하면 (3 → 1) 0.5초를 다시 세지 않음 (안내가 0.35초 꺼졌다 번호만 바꿔 다시 뜨던 것 — UX 리뷰어 #97 작음 7)
+  if (teamReadyKey !== readySince.current.key) readySince.current = { key: teamReadyKey, at: readySince.current.key !== undefined && teamReadyKey !== undefined ? readySince.current.at : performance.now() };
   const teamReadyTip = teamReadyKey !== undefined && performance.now() - readySince.current.at >= 500;
+  // 다 참 안내 — 안내대로 눌러 내 필살기가 나가면 본 것 (누르자마자 0.2 ~ 0.6초 만에 꺼져 본 것으로 안 적히고 판마다 3번 뜨던 것 — #97 개발 · 기획) ·
+  //   그래도 떠 있던 시간은 진짜 시계로 1초 채우고 내림 (U1 — 0.2초 번쩍 없게). 자동 전투로 저절로 나간 건 누른 게 아니라 셈하지 않음
+  const readyTipOn = team !== null && teamReadyKey !== undefined && teamReadyTip && !autoTeamTip && !teamBigPrompt && !(save.tips ?? []).includes(ULT_READY_TIP);
+  const readyTipAt = useRef<{ at: number; key: number; told: boolean } | null>(null);
+  if (readyTipOn && teamReadyKey !== undefined && !readyTipAt.current) readyTipAt.current = { at: realNow(), key: teamReadyKey, told: false };
+  const readyTipLeft = readyTipAt.current ? readyTipAt.current.at + 1000 - realNow() : 0;
+  // 누름 = 본 것 — 지우기보다 먼저 셈 (누르자마자 합동 모으기 큰 판이 떠 안내를 바로 내리며 "본 것" 을 놓치던 것)
+  const readyUsed = team !== null && team.ult?.side === 'me' && !save.settings.autoBattle;
+  const readySeenNow = readyTipAt.current !== null && readyUsed && !readyTipAt.current.told && !(save.tips ?? []).includes(ULT_READY_TIP);
+  if (readySeenNow && readyTipAt.current) readyTipAt.current.told = true;
+  useEffect(() => {
+    if (readySeenNow) onInput({ kind: 'tip-seen', id: ULT_READY_TIP });
+  }, [readySeenNow]);
+  // 큰 판 (끼어들기 · 모으기) 이 뜨거나 3:3 이 끝나면 바로 내림 (판 위에 안내가 남아 포켓몬을 덮던 것 — #95 10바퀴 규칙 그대로)
+  if (!readyTipOn && readyTipAt.current && (readyTipLeft <= 0 || team === null || teamBigPrompt)) readyTipAt.current = null;
+  const readyTipShow = readyTipOn || readyTipAt.current !== null;
+  //   떠 있는 동안은 처음 번호 그대로 (그 칸이 아직 쓸 수 있으면)
+  const readyTipKey = readyTipAt.current && team && teamUltOpen(team, readyTipAt.current.key) ? readyTipAt.current.key : readyTipOn && teamReadyKey !== undefined ? teamReadyKey : (readyTipAt.current?.key ?? 0);
+  const [, kickReady] = useState(0);
+  useEffect(() => (!readyTipOn && readyTipAt.current && readyTipLeft > 0 ? realLater(() => kickReady((n) => n + 1), readyTipLeft + 20) : undefined), [readyTipOn, readyTipAt.current?.at]);
   // 빠르게 ▶▶ (전투 ×2 — 10-22 이름 바뀜) 를 켰는데 지금은 기본 박자 (필살기 · 끼어들기 · 알아챌 순간 — 엔진 teamFastOk) = 스위치 글을 흐리게 (켰는데 안 먹는 것처럼 보이던 것, UX 리뷰어 #83 큼 ②) ·
   //   0.4초 넘게 이어질 때만 바꿈 (0.3초 · 40ms 끼었다 빠지는 박자에 스위치가 깜빡이지 않게 — U2)
   // 안 가 본 새 지역 (정보줄 지도 아이콘 표시 — 대기실 지도 버튼과 같은 규칙 · 개발 UX #70)
@@ -226,24 +253,105 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   //   조건 = 지금 박자 (엔진 gameTempo) 가 빠른 박자보다 느림 — teamFastOk 만 보면 상대 필살기 컷인 1초 뒤 빠른 구간을 쉼으로 읽음 (개발 a01cfeb)
   const fastHeldNow = team !== null && save.settings.battleFast === true && gameTempo(state) < TIMING.team.tempo * TIMING.team.fastScale - 1e-6;
   const fastHeldRef = useRef({ on: false, want: false, since: 0 });
-  // 스위치 이름 "빠르게" — 왼쪽 묶음 (진행 · 지도 줄) 과 사이가 스위치 폭의 10% (맥 여유) + 6px 보다 좁으면 빼고 ▶▶ 만 (오른쪽 붙임이라 오른쪽 끝으로는 못 잼) · 폭이 바뀌면 다시 잼
+  // 스위치 이름 줄이기 단계 (넘치면 한 단계 — U4) — 정보줄이 넘치거나, 지도 줄이 따로면 왼쪽 묶음 (볼) 과 사이가 스위치 폭의 10% (맥 여유) + 6px 보다 좁을 때 ·
+  //   150 한 줄 정보줄이면 가운데 칸 (지역 이름 · 진행) 이 말줄임될 때 (맥 여유 10% 포함 — 가운데 칸이 남는 자리를 먹어 "사이" 는 늘 칸 사이라 못 씀 · 720 × 150 "새싹 오솔길 (1…", #97) ·
+  //   스위치 셋은 같은 단계로 함께 (한 줄에 "□ 자동" · "[C] □ ▶▶" · "[V] ✓" 세 모양이 섞이던 것 — 아트 디렉터 #97 큼 4 · 원칙 2) · 150 은 가운데 칸 글이 먼저 줄음 (폭이 줄수록 이름이 길어지던 것):
+  //   1 = 남은 시간 숨김 → 2 = 지역 이름 숨김 (150 가운데 칸 — game.css .pg-sw-l1 · l2) → 3 = 키 칸 셋 다 뺌 → 4 = 짧은 이름 ("연출") → 5 = 이름 셋 다 빼고 [A]□ [C]□▶▶ [V]✓ →
+  //   6 = 필살기 연출 버튼을 숨김 (V 키 · 설정 판은 그대로 — 240 × 150 진행 "20%" 가 잘리던 것) · 폭이 바뀌면 다시 잼
   const switchesBox = useRef<HTMLSpanElement>(null);
-  const [fastShort, setFastShort] = useState(false);
+  const [swShort, setSwShort] = useState(0);
+  const fastShort = swShort >= 5;
   useEffect(() => {
-    const reset = () => setFastShort(false);
+    const reset = () => setSwShort(0);
     window.addEventListener('resize', reset);
     return () => window.removeEventListener('resize', reset);
   }, []);
   useLayoutEffect(() => {
     const el = switchesBox.current;
-    if (!el || fastShort || !el.querySelector('.pg-fast-name')) return;
+    if (!el || swShort >= 6) return;
     const group = el.closest<HTMLElement>('.pg-infobar-right') ?? el;
     const prev = group.previousElementSibling;
     const bar = el.closest<HTMLElement>('.pg-infobar');
     const r = el.getBoundingClientRect();
     if (r.width === 0) return;
     const free = prev ? r.left - prev.getBoundingClientRect().right : Infinity;
-    if (free < r.width * 0.1 + 6 || (bar !== null && bar.scrollWidth > bar.clientWidth + 0.5)) setFastShort(true);
+    const center = prev instanceof HTMLElement && prev.classList.contains('pg-infobar-center') ? prev : null;
+    const tight = bar !== null && center !== null ? centerTight(bar, center) : free < r.width * 0.1 + 6;
+    if (tight || (bar !== null && bar.scrollWidth > bar.clientWidth + 0.5)) setSwShort(swShort + 1);
+  });
+  // 3:3 이 끝나 결과 상자가 뜨는 동안 오른쪽 칸 = 스위치 폭 빈칸 (150 한 줄 정보줄은 가운데 맞춤이라 오른쪽이 비면 볼 · 지도 묶음이
+  //   480 +129 · 860 +95 · 1860 +41px 옆으로 튀던 것 — 아트 디렉터 #97 · U2) · 결과가 끝나면 (걷기 메뉴가 뜸) 지움
+  const teamRightW = useRef(0);
+  useLayoutEffect(() => {
+    // 오른쪽 칸 너비 그대로 (칸의 max-content — 스위치가 줄어든 폭보다 큼 · 가운데 칸이 그만큼 눌려 있었음)
+    const right = switchesBox.current?.closest<HTMLElement>('.pg-infobar-right');
+    if (team && right) teamRightW.current = Math.round(right.getBoundingClientRect().width * 100) / 100;
+  });
+  if (!team && stageRt?.phase !== 'result') teamRightW.current = 0;
+  const rightGhost = !team && stageRt?.phase === 'result' && teamRightW.current > 0 ? teamRightW.current : 0;
+  // 3:3 필살기 연출 켬 · 끔 (버튼 · V — 태현 님 #97) — 바꾼 순간 정보줄 한 줄 1.2초 (U1 · 진짜 시계) · 3:3 전투 중에만 (밖은 엔진 toast)
+  const cutOn = save.settings.teamCutscene !== false;
+  const cutPrev = useRef(cutOn);
+  const cutSay = useRef<{ on: boolean; until: number } | null>(null);
+  if (cutPrev.current !== cutOn) {
+    cutPrev.current = cutOn;
+    cutSay.current = team ? { on: cutOn, until: performance.now() + 1200 } : null;
+  }
+  const cutNote = cutSay.current && performance.now() < cutSay.current.until ? cutSay.current : null;
+  const [, kickCut] = useState(0);
+  useEffect(() => {
+    if (!cutNote) return undefined;
+    const id = setTimeout(() => kickCut((n) => n + 1), Math.max(0, cutNote.until - performance.now()) + 20);
+    return () => clearTimeout(id);
+  }, [cutNote?.until]);
+  // 정보줄 한 줄 (필살기 연출 켬 · 끔 — 버린 누름은 머리 위 글로 옮김, 태현 님 10-26) 이 가운데에서 스위치를 덮으면 (#98 개발 — 240 에서 "□ 자동" · "빠르게" 를 2초 가림, U1 · U3) 덮지 않는 자리로:
+  //   ① 스위치 왼쪽 빈자리에 붙임 → ② 모자라면 지도 줄 (187 이상 — 볼 · 진행이라 버튼 · 이름 · 막대가 아님) 위 가운데 →
+  //   ③ 지도 줄도 없는 240 × 150 은 스위치 줄을 잠깐 비우고 (visibility — 자리 그대로라 튀지 않음) 그 자리에 (반쯤 가린 글자 조각이 남지 않게). 정수 px
+  useLayoutEffect(() => {
+    const sw = switchesBox.current;
+    const bar = sw?.closest<HTMLElement>('.pg-infobar');
+    const note = bar?.querySelector<HTMLElement>('.pg-infobar-notice');
+    // 한 줄이 덮는 칸 (볼 · 가운데 지도 · 지도 줄) 은 그동안 숨김 — 반쯤 가려 "…분 남음" · 막대 조각이 판 양옆에 남던 것 (아트 디렉터 #97 작음 6 · #98 같은 종류)
+    const row = document.querySelector<HTMLElement>('#pokemon-game .pg-maprow');
+    const unders = [...(bar ? Array.from(bar.querySelectorAll<HTMLElement>(':scope > .pg-infobar-left, :scope > .pg-infobar-center')) : []), ...(row ? [row] : [])];
+    unders.forEach((el) => el.classList.remove('pg-note-under'));
+    if (sw) sw.classList.remove('pg-switches-yield');
+    if (!sw || !bar || !note) return;
+    for (const k of ['left', 'right', 'top', 'bottom', 'height', 'zIndex'] as const) note.style[k] = '';
+    const hide = () => {
+      const r = note.getBoundingClientRect();
+      unders.forEach((el) => {
+        const q = el.getBoundingClientRect();
+        if (q.width > 0 && r.left < q.right && r.right > q.left && r.top < q.bottom && r.bottom > q.top) el.classList.add('pg-note-under');
+      });
+    };
+    const nr = note.getBoundingClientRect();
+    const sr = sw.getBoundingClientRect();
+    const br = bar.getBoundingClientRect();
+    // 스위치와 틈 12px (8 이면 판 끝이 [A] 에 붙어 보이던 것 — 1860)
+    if (nr.width === 0 || sr.width === 0 || nr.right <= sr.left - 12 || nr.left >= sr.right + 12) {
+      hide();
+      return;
+    }
+    if (nr.width <= sr.left - 12 - br.left - 4) {
+      note.style.left = 'auto';
+      note.style.right = `${Math.round(br.right - sr.left + 12)}px`;
+      hide();
+      return;
+    }
+    const rr = row?.getBoundingClientRect();
+    if (rr && rr.height > 0) {
+      note.style.top = `${Math.round(rr.top - br.top + (rr.height - nr.height) / 2)}px`;
+      note.style.bottom = 'auto';
+      note.style.height = `${Math.round(nr.height)}px`;
+      note.style.zIndex = '20';
+      hide();
+      return;
+    }
+    sw.classList.add('pg-switches-yield');
+    note.style.left = 'auto';
+    note.style.right = `${Math.round(br.right - sr.right)}px`;
+    hide();
   });
   {
     const h = fastHeldRef.current;
@@ -297,6 +405,29 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   // 3:3 판이면 시합장 (태현 님 #78 — sceneBackground, 그림이 들어오기 전엔 길 배경)
   //   시합장 + 폭 400 아래 (3:3 포켓몬 ×1 — teamGeometry) = ×1 그림 (-x1) — 포켓몬 1px 점 옆에 울타리 · 풀이 2px 점이던 것 (아트 디렉터 #78 큼 2)
   const arenaX1 = sceneBackground(state).startsWith('arena-') && widthPx < 400;
+  // 지평선 A 안 (아트 디렉터 #92 · bugs 1624 "높은 패널은 시합장 위 풀밭이 넓게 빔") — 시합장 그림 지평선 (흰 줄 바로 위 — ×2 48 · ×1 24) 을 뒷줄 발 − 96 (×1 − 48) 까지 내림 ·
+  //   그 위는 지역 길 배경 (그림 맨 위 하늘 · 나무 줄 12칸을 덮고 울타리부터 보임) · 그림 아래가 모자라면 마지막 풀 색 (240 × 443 · 860 × 600 의 남색 띠 — game.css --pg-arena-grass) ·
+  //   낮은 패널 (내릴 거리 8px 아래) 은 예전대로 (arenaY) · 정수 배율 칸에 맞춤
+  // 체육관 방 (3:3) 그림 점 칸 = 포켓몬 점 칸 — 바닥 윗선 · 바닥 무늬 시작을 뒷줄 발 높이와 같은 칸 (k) 에 (홀수 높이 187 에서 1px 어긋나던 것 — 픽셀 검사원 #75 · bugs 1613)
+  const gymK3 = team && widthPx < 400 ? 1 : buildingDraw('hospital', layout.scale, heroRoom).k;
+  const gymFeet3 = team ? teamGeometry(widthPx, layout.heightPx, Math.round(INFO_BAR_PX * layout.uiScale)).pos('me', 0).y : layout.heightPx;
+  //   높은 패널 3:3 = 바닥 윗선을 뒷줄 발 − 96 (×1 − 48) 까지 내림 (벽 아래 ~ 뒷줄 사이 빈 바닥 200 ~ 270px — 아트 디렉터 #97 · 시합장 지평선 A 안과 같은 틀) · 낮은 패널은 예전대로
+  const gymFloor0 = team ? Math.min(Math.max(Math.round(bodyPx * GYM_FLOOR_SHARE), bodyPx - Math.round(bodyPx * 0.22)), layout.heightPx - gymFeet3 + 48 * gymK3) : Math.max(ground + GYM_FLOOR_ABOVE_GROUND_PX, Math.round(bodyPx * GYM_FLOOR_SHARE));
+  const gymFloor3 = team ? gymFloor0 + ((((layout.heightPx - gymFloor0 - gymFeet3) % gymK3) + gymK3) % gymK3) : gymFloor0;
+  const gymPhase3 = team ? (((layout.heightPx - gymFeet3) % gymK3) + gymK3) % gymK3 : 0;
+  const arenaK = arenaX1 ? 1 : 2;
+  const arenaBarPx = Math.round(INFO_BAR_PX * layout.uiScale);
+  const arenaDrop = (() => {
+    if (gym || !sceneBackground(state).startsWith('arena-')) return 0;
+    const back = teamGeometry(widthPx, layout.heightPx, arenaBarPx).pos('me', 0).y;
+    const d = back - 48 * arenaK - 24 * arenaK - arenaBarPx;
+    return d > 8 ? d - ((((arenaBarPx + d) % arenaK) + arenaK) % arenaK) : 0;
+  })();
+  // 시합장 흰 선 (그림 54 · 55줄 — ×1 27줄) 의 패널 y ± 1 — 머리 위 글이 피함 (TeamLayer)
+  const arenaLine = !gym && sceneBackground(state).startsWith('arena-') ? (() => {
+    const y = arenaBarPx + (arenaDrop > 0 ? arenaDrop : arenaY(layout.heightPx, arenaK, arenaBarPx)) + 27 * arenaK;
+    return { t: y - 1, b: y + arenaK + 1 };
+  })() : null;
   // 배경이 바뀐 횟수 (시합장 ↔ 길 · 체육관 3:3 바닥) — 바뀔 때마다 남색 막 3걸음 (pg-scene-fade, 처음 그릴 땐 없음)
   const sceneKey = gym ? `gym-${teamOn}` : sceneBackground(state);
   const sceneSeen = useRef<string | null>(null);
@@ -414,29 +545,32 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
     // 시합장 (3:3 — pg-bg-arena-*) 은 위에 붙인 그림 · 낮은 패널은 위로 올림 (--pg-arena-y — 150 에서 맨 위 줄 발이 땅 시작에 걸리던 것, 아트 디렉터 #78: 150 −8 · 169 −4 · 187 위 0)
     <div
       class={`pg-screen pg-stage pg-size-${layout.size}${gym ? ' pg-gym' : ` pg-bg-${sceneBackground(state)}`}${covered ? ' pg-covered' : ''}`}
-      style={!gym && sceneBackground(state).startsWith('arena-') ? { '--pg-arena-y': `${arenaY(layout.heightPx, arenaX1 ? 1 : 2, Math.round(INFO_BAR_PX * layout.uiScale))}px` } : undefined}
+      style={!gym && sceneBackground(state).startsWith('arena-') ? { '--pg-arena-y': `${arenaDrop > 0 ? arenaDrop : arenaY(layout.heightPx, arenaX1 ? 1 : 2, Math.round(INFO_BAR_PX * layout.uiScale))}px` } : undefined}
       ref={screen}
     >
       {battle && geo?.menuInBar ? (
-        <BattleMenuBar battle={battle} save={save} onInput={battleInput} withAuto={geo.autoInMenu} compact={geo.tiny ? 'tiny' : geo.compact} say={barSay(battle, geo.msgHidden, geo.widthPx - 48, 2)} hint={ringHint(battle, geo, save.settings.autoBattle)} pickRight={pickRightOf(geo)} autoTip={autoTip} />
+        <BattleMenuBar battle={battle} save={save} onInput={battleInput} withAuto={geo.autoInMenu} compact={geo.tiny ? 'tiny' : geo.compact} say={barSay(battle, geo.msgHidden, geo.widthPx - 48, 2, 'bar', save.settings.reduceMotion === true)} hint={ringHint(battle, geo, save.settings.autoBattle)} pickRight={pickRightOf(geo)} autoTip={autoTip} />
       ) : (
         <InfoBar
           split={mapRow}
-          notice={teamNotice(team)}
+          notice={cutNote ? cutNoteView(cutNote.on, widthPx) : undefined}
           left={ballsOut ? undefined : balls}
           center={mapRow ? undefined : where}
           right={
             team ? (
               // 3:3 정보줄 오른쪽 = 자동 · 빠르게 ▶▶ 스위치 (태현 님 #83 "화면 상단에 전투 x2 를 사용자가 선택" → 10-22 "이름은 빠르게 ▶▶" · 개발 UX — 3:3 에 자동 표시가 없던 것) · 키 C (X = 각성, 기획 10-22) — 빨리 걷기 · 자동 스위치와 같은 모양 (켜짐 = ✓ · 금 테두리)
-              <span class="pg-menu-buttons pg-team-switches" ref={switchesBox}>
+              <span class={`pg-menu-buttons pg-team-switches${swShort >= 1 ? ' pg-sw-l1' : ''}${swShort >= 2 ? ' pg-sw-l2' : ''}`} ref={switchesBox}>
                 <Button
                   secondary
                   extraClass={save.settings.autoBattle ? 'pg-auto-walk pg-on' : 'pg-auto-walk'}
                   onClick={() => onInput({ kind: 'auto-battle', on: !save.settings.autoBattle })}
                   title={save.settings.autoBattle ? '자동 전투 켜짐 — 누르면 끔 (A)' : '자동 전투 꺼짐 — 켜면 알아서 (A · 필살기는 늘 직접)'}
                 >
-                  {menuLabels(widthPx, mapRow) === 'full' && <span class="pg-menu-key">A</span>}
-                  <span class="pg-menu-text">{save.settings.autoBattle ? '✓ 자동' : '□ 자동'}</span>
+                  {((menuLabels(widthPx, mapRow) === 'full' && swShort < 3) || swShort >= 5) && <span class="pg-menu-key">A</span>}
+                  <span class="pg-menu-text">
+                    <span class="pg-sw-mark">{save.settings.autoBattle ? '✓' : '□'}</span>
+                    {swShort >= 5 ? '' : ' 자동'}
+                  </span>
                 </Button>
                 <Button
                   secondary
@@ -445,15 +579,30 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
                   title={fastHeld ? '빠르게 켜짐 (C) — 지금은 누르는 창 · 알아챌 순간이라 기본 박자' : `${save.settings.battleFast ? '켜짐' : '꺼짐'} · 빠르게 (C) — 3:3 을 약 1.5배로: 보통 공격 · 상대 필살기 연출 (컷인 1초 뒤부터) 을 빨리 · 알아챌 순간 1초 · 누르는 창은 그대로`}
                 >
                   {/* 키 칸 C = 글자 메뉴 다 보일 때 · 이름이 빠졌을 때 (□ ▶▶ 만이면 걷기 줄 빨리 걷기와 같은 그림이라 헷갈리던 것 — UX 리뷰어) */}
-                  {(menuLabels(widthPx, mapRow) === 'full' || fastShort) && <span class="pg-menu-key">C</span>}
+                  {((menuLabels(widthPx, mapRow) === 'full' && swShort < 3) || swShort >= 5) && <span class="pg-menu-key">C</span>}
                   {/* "✓ 빠르게 ▶▶" — ▶▶ = 빨리 걷기와 같은 그림 (지금 빠름 = 금 ▶▶) · 정보줄이 넘치면 "✓ ▶▶" (이름 · 키는 title — 재서, 맥 여유 10%) */}
                   <span class="pg-menu-text">
-                    {save.settings.battleFast ? '✓ ' : '□ '}
+                    <span class="pg-sw-mark">{save.settings.battleFast ? '✓' : '□'}</span>{' '}
                     {!fastShort && <span class="pg-fast-name">빠르게 </span>}
                   </span>
                   <Icon name={save.settings.battleFast && !fastHeld ? 'fastOn' : 'fast'} />
                 </Button>
+                {/* 3:3 필살기 연출 켬 / 끔 (태현 님 #97 "위쪽에 버튼 하나를 둬서 필살기 연출 on,off") — 같은 □ / ✓ 모양 · 키 V · 줄이면 "연출" → [V] □ (이름 · 뜻은 title) */}
+                {swShort < 6 && <Button
+                  secondary
+                  extraClass={cutOn ? 'pg-team-cut pg-on' : 'pg-team-cut'}
+                  onClick={() => onInput({ kind: 'team-cutscene', on: !cutOn, say: false })}
+                  title={`3:3 필살기 연출 ${cutOn ? '켜짐' : '꺼짐'} (V) — 켬 = 필살기마다 장면 전환 · 끔 = 장면 전환 없이 무대에서 · 다음 필살기부터`}
+                >
+                  {((menuLabels(widthPx, mapRow) === 'full' && swShort < 3) || swShort >= 5) && <span class="pg-menu-key">V</span>}
+                  <span class="pg-menu-text">
+                    <span class="pg-sw-mark">{cutOn ? '✓' : '□'}</span>
+                    {swShort < 5 && <span class="pg-cut-name">{swShort < 4 ? ' 필살기 연출' : ' 연출'}</span>}
+                  </span>
+                </Button>}
               </span>
+            ) : rightGhost > 0 ? (
+              <span class="pg-infobar-ghost" style={{ width: `${rightGhost}px` }} aria-hidden="true" />
             ) : canOpenMenus(state) ? (
               <MenuButtons
                 onOpen={onOpen}
@@ -486,10 +635,14 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
       >
         {gym ? (
           // 체육관 3:3 = 바닥 윗선을 3:3 무대 지평선 (무대 높이 22% — teamGeometry) 까지 올림 (위 두 줄이 벽 앞에 떠 보이던 것 — #78)
-          <GymRoom media={media} room={gymRoomOf(regionHere(save.location))} k={team && widthPx < 400 ? 1 : buildingDraw('hospital', layout.scale, heroRoom).k} floorPx={team ? Math.max(Math.round(bodyPx * GYM_FLOOR_SHARE), bodyPx - Math.round(bodyPx * 0.22)) : Math.max(ground + GYM_FLOOR_ABOVE_GROUND_PX, Math.round(bodyPx * GYM_FLOOR_SHARE))} dark={themeKind() === 'dark'} team={team !== null} />
+          <GymRoom media={media} room={gymRoomOf(regionHere(save.location))} k={gymK3} floorPx={gymFloor3} dark={themeKind() === 'dark'} team={team !== null} phasePx={gymPhase3} outside={bodyPx - gymFloor3 - 31 * gymK3 > 48} />
         ) : (
           <>
             <ScrollLayer key={`bg-${sceneBackground(state)}`} cls="pg-bg" image={art('background')} start={sceneBackground(state).startsWith('arena-') ? 0 : offset * 0.35} pxPerSec={WALK_PX_PER_SEC * layout.scale * 0.35 * walkK} running={phase === 'walk' && live} />
+            {arenaDrop > 0 && media && save.location.screen === 'stage' && (
+              // ×1 시합장 (400 아래) 은 지역 길 그림 (×2 점) 대신 시합장 그림 맨 윗줄 하늘 색을 위로 이어 칠함 (위 숲만 점이 두 배로 커 화풍이 섞이던 것 — 아트 디렉터 #97 큼 5 · 원칙 4)
+              <div class={arenaX1 ? 'pg-arena-above pg-arena-sky' : 'pg-arena-above'} style={arenaX1 ? { height: `${arenaDrop}px` } : { height: `${arenaDrop + 12 * arenaK}px`, backgroundImage: `url("${media}/backgrounds/${stageBackground(save.location.stageId)}/background-${themeKind()}-${layout.size}.png")` }} />
+            )}
             <ScrollLayer key={`fg-${sceneBackground(state)}`} cls="pg-fg" image={art('foreground')} start={sceneBackground(state).startsWith('arena-') ? 0 : offset * 0.7} pxPerSec={WALK_PX_PER_SEC * layout.scale * 0.7 * walkK} running={phase === 'walk' && live} />
           </>
         )}
@@ -540,7 +693,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
           <BattleLayer battle={battle} save={save} media={media} ground={ground} geo={geo} onInput={battleInput} onProfile={(side) => onOpen({ kind: 'profile', side })} foeTrainerLeft={foeTrainer || gym ? leaderX : undefined} autoTip={autoTip} />
         )}
         {teamChoiceOn(state) && <TeamChoice state={state} media={media} onInput={onInput} />}
-        {team && <TeamLayer team={team} media={media} widthPx={widthPx} heightPx={layout.heightPx} infoBarPx={Math.round(INFO_BAR_PX * layout.uiScale)} fieldTopPx={fieldTopPx(layout.heightPx)} onInput={onInput} />}
+        {team && <TeamLayer team={team} media={media} widthPx={widthPx} heightPx={layout.heightPx} infoBarPx={Math.round(INFO_BAR_PX * layout.uiScale)} fieldTopPx={fieldTopPx(layout.heightPx)} onInput={onInput} cutscene={save.settings.teamCutscene !== false} lineBand={arenaLine} />}
         {/* 체육관으로 — 화면 닦기 (위 → 아래) */}
         {gymEnter && gymEnter.wipe > 0 && (
           <div class={`pg-gym-wipe${gymEnter.wipe > 0 && gymEnter.wipe < 1 ? ' pg-wiping' : ''}`} style={{ '--pg-wipe': String(gymEnter.wipe) }} />
@@ -583,7 +736,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
             <span class="pg-tip-part">자동으로 걸어요 —</span> <span class="pg-tip-part">야생 포켓몬을 만나면 전투가 시작돼요</span>
           </FirstTip>
         )}
-        {battle?.phase === 'last' && !(save.tips ?? []).includes('last') && (
+        {/* 넘어진 뒤부터 (볼 칸과 같은 때 — 코드 리뷰어 #97) */}
+        {battle?.phase === 'last' && !(save.tips ?? []).includes('last') && koFallAt(battle, performance.now(), save.settings.reduceMotion === true) <= performance.now() && (
           <FirstTip key="last" ms={4000} className="pg-first-tip-low" paused={away} onSeen={() => onInput({ kind: 'tip-seen', id: 'last' })}>
             {/* 360px 아래는 짧게 한 줄 — 두 줄이면 잡을 상대 · 내 포켓몬을 가림 (UX 리뷰어) */}
             <span class="pg-tip-long">약해진 포켓몬에게 </span>볼을 던지면 팀이 늘어요
@@ -652,17 +806,17 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
           </FirstTip>
         )}
         {/* 3:3 필살기 다 참 처음 안내 (#82 — 저절로 안 나가니 "3초 뒤 저절로" 대신) · 같은 자리 (위 · 좁으면 내 쪽 왼쪽 위) · 자동 3:3 안내가 떠 있으면 기다림 */}
-        {team && teamReadyKey !== undefined && teamReadyTip && !autoTeamTip && !teamBigPrompt && !(save.tips ?? []).includes(ULT_READY_TIP) && (
+        {team && readyTipShow && (
           <FirstTip key={ULT_READY_TIP} ms={4000} seenMs={2500} className="pg-first-tip-top pg-tip-mine" paused={away} onSeen={() => onInput({ kind: 'tip-seen', id: ULT_READY_TIP })}>
             <span class="pg-tip-part pg-tip-long">필살기 다 참 —&nbsp;</span>
             <span class="pg-tip-part pg-tip-long">
-              <KeyCap k={String(teamReadyKey + 1)} /> 누르면 나가요 (저절로 안 나가요)
+              <KeyCap k={String(readyTipKey + 1)} /> 누르면 나가요 (저절로 안 나가요)
             </span>
             <span class="pg-tip-short">
-              필살기 다 참 · <KeyCap k={String(teamReadyKey + 1)} /> 누르면 나가요
+              필살기 다 참 · <KeyCap k={String(readyTipKey + 1)} /> 누르면 나가요
             </span>
             <span class="pg-tip-tiny">
-              필살기 다 참 · <KeyCap k={String(teamReadyKey + 1)} /> 누르기
+              필살기 다 참 · <KeyCap k={String(readyTipKey + 1)} /> 누르기
             </span>
           </FirstTip>
         )}
@@ -708,17 +862,39 @@ function GymTip({ lock }: { lock: 'few' | 'narrow' | null }) {
 
 /** 체육관 바닥 = 사람이 서는 땅 위로 적어도 이만큼 · 높은 패널은 길 칸의 42% 까지 (위에서 비스듬히 보는 방 — 뒷벽 위가 텅 비지 않게) */
 /** 시합장 그림 세로 자리 — 낮은 패널은 올림 (150 −8 · ×1 −4) · 그림 점 칸 (k) 에 맞춤 (무대 위 끝 + y 가 k 의 배수 — ×3 에서 시작 26 이 포켓몬 칸과 2px 어긋나던 것, 픽셀 검사원) */
-/** 3:3 버린 필살기 누름 한 줄 (#88) — 정보줄 위 가운데 · 누른 키 + 까닭 (그 1초 안에 쓸 수 있게 되면 금색 "[2] 지금!") */
-function teamNotice(team: TeamBattle | null) {
-  const n = team ? teamDenyNote(team) : null;
-  if (!n) return undefined;
+/** 150 한 줄 정보줄의 가운데 칸 (지역 이름 · 진행) 이 말줄임되는가 — 말줄임 칸마다 내용 실제 너비 (Range) 가 안쪽을 넘거나 (0.7px 모자라도 "…" — U4),
+ *  맥 여유 10% 로 늘면 양옆 칸의 남는 자리 (1fr) 까지 넘을 때. 이름 칸이 제 안에서 줄어 (flex) 가운데 칸 바깥 너비로는 안 보여서 말줄임 칸을 직접 잼 */
+function centerTight(bar: HTMLElement, center: HTMLElement): boolean {
+  let slack = 0;
+  for (const col of Array.from(bar.children)) {
+    if (col instanceof HTMLElement && col !== center && (col.classList.contains('pg-infobar-left') || col.classList.contains('pg-infobar-right'))) slack += Math.max(0, col.getBoundingClientRect().width - contentWidth(col));
+  }
+  const range = document.createRange();
+  return [center, ...Array.from(center.querySelectorAll<HTMLElement>('*'))].some((el) => {
+    // 숨은 칸 (display: none) 만 건너뜀 — 너비 0 으로 다 밀린 가운데 칸도 내용이 있으면 잘린 것 (280 · 250 × 150 에서 진행 칸이 통째로 사라지던 것)
+    if (el.getClientRects().length === 0) return false;
+    const cs = getComputedStyle(el);
+    if (cs.textOverflow !== 'ellipsis') return false;
+    range.selectNodeContents(el);
+    const w = range.getBoundingClientRect().width;
+    const room = el.getBoundingClientRect().width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - parseFloat(cs.borderLeftWidth) - parseFloat(cs.borderRightWidth);
+    return w > room + 0.01 || w * FIT_ROOM > room + slack + 0.01;
+  });
+}
+
+/** 필살기 연출 켬 · 끔 한 줄 (정보줄 알림 자리 — 버린 필살기 누름 한 줄과 같은 판) · 좁으면 짧게 */
+function cutNoteView(on: boolean, widthPx: number) {
+  // "작은 판" 은 화면 어디에도 그렇게 부르는 것이 없어 처음 보는 사람이 모름 (UX 리뷰어 #97 작음 6)
+  //   긴 글은 600 이상 (480 에서 긴 글이 스위치 셋 자리를 1.2초 통째로 덮던 것 — UX 리뷰어 #97 2바퀴) · 400 ~ 599 = "필살기 연출 끔" · 그 아래 "연출 끔"
+  const text = widthPx >= 600 ? (on ? '필살기 연출 켬 · 다음부터 장면 전환' : '필살기 연출 끔 · 다음부터 장면 전환 없이') : widthPx >= 400 ? (on ? '필살기 연출 켬' : '필살기 연출 끔') : on ? '연출 켬' : '연출 끔';
   return (
-    <span class={n.go ? 'pg-infobar-notice pg-deny-go' : 'pg-infobar-notice'}>
-      {n.key !== null && <span class="pg-team-key">{n.key}</span>}
-      {n.text}
+    <span class={on ? 'pg-infobar-notice pg-cut-note pg-deny-go' : 'pg-infobar-notice pg-cut-note'}>
+      <span class="pg-team-key">V</span>
+      {text}
     </span>
   );
 }
+
 
 function arenaY(h: number, k: number, top: number): number {
   const y0 = Math.min(0, Math.round(((h - 187) * (k === 1 ? 4 : 8)) / 37));
@@ -733,16 +909,17 @@ const GYM_FLOOR_SHARE = 0.42;
  * 아래부터 풀 바닥 · 뒷벽 창문 줄 (주황 몰딩 + 벽 밑 그늘) · 벽 앞 나무 (띄엄띄엄 — 창문이 보이게), 그 위는 원작 벽 색 · 맨 위 천장 몰딩.
  * 사람 · 건물과 같은 정수 배율 k (예전엔 코드로 그린 초록 줄무늬 + 갈색 바닥)
  */
-function GymRoom({ media, room, k, floorPx, dark, team = false }: { media: string; room: string; k: number; floorPx: number; dark: boolean; /** 3:3 — 맨 위 몰딩을 숨김 (나무 머리는 패널 위 끝에서 잘림) */ team?: boolean }) {
+function GymRoom({ media, room, k, floorPx, dark, team = false, phasePx = 0, outside = false }: { media: string; room: string; k: number; floorPx: number; dark: boolean; /** 3:3 — 맨 위 몰딩을 숨김 (나무 머리는 패널 위 끝에서 잘림) */ team?: boolean; /** 바닥 무늬를 아래에서 이만큼 올림 — 포켓몬 점 칸과 같은 칸 (3:3 홀수 높이 1px) */ phasePx?: number; /** 벽 위가 넓으면 (높은 패널) 벽 위 끝에 몰딩 · 그 위는 방 밖 색 (민벽이 화면에서 가장 밝은 큰 면이던 것 — 아트 디렉터 #97 · FRLG 체육관 방 밖은 검정) */ outside?: boolean }) {
   // room = 지역 표의 체육관 방 그림 이름 앞 (gymRoomOf — 없으면 'gym' = 숲 방, orders #57)
   const url = (f: string) => (media ? `url("${media.replace(/\/+$/, '')}/buildings/${f.replace(/^gym/, room)}.png")` : 'none');
   return (
     // pg-room-<방> = 방마다 바탕색 (위 띠와 벽 사이 빈 줄 — 물 방은 연한 물빛, game.css)
     <div class={`pg-gym-room pg-room-${room}${dark ? ' pg-gym-dark' : ''}`}>
-      <div class="pg-gym-floor" style={{ height: `${floorPx}px`, backgroundImage: url('gym-floor'), backgroundSize: `${48 * k}px ${32 * k}px` }} />
+      <div class="pg-gym-floor" style={{ height: `${floorPx}px`, backgroundImage: url('gym-floor'), backgroundSize: `${48 * k}px ${32 * k}px`, ...(phasePx ? { backgroundPosition: `left 0 bottom ${phasePx}px` } : {}) }} />
       <div class="pg-gym-wall" style={{ bottom: `${floorPx}px`, height: `${31 * k}px`, backgroundImage: url('gym-wall'), backgroundSize: `${96 * k}px ${31 * k}px` }} />
       <div class="pg-gym-trees" style={{ bottom: `${floorPx - 6 * k}px`, height: `${24 * k}px`, backgroundImage: url('gym-trees'), backgroundSize: `${64 * k}px ${24 * k}px` }} />
-      {!team && <div class="pg-gym-top" style={{ height: `${9 * k}px`, backgroundImage: url('gym-top'), backgroundSize: `${96 * k}px ${9 * k}px` }} />}
+      {outside && <div class="pg-gym-out" style={{ bottom: `${floorPx + 31 * k}px` }} />}
+      {(outside || !team) && <div class="pg-gym-top" style={{ height: `${9 * k}px`, backgroundImage: url('gym-top'), backgroundSize: `${96 * k}px ${9 * k}px`, ...(outside ? { top: 'auto', bottom: `${floorPx + 31 * k}px` } : {}) }} />}
     </div>
   );
 }

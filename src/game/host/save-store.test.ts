@@ -73,9 +73,9 @@ describe('읽기', () => {
   });
 
   it('더 새 확장의 세이브: 잠금 → 덮어쓰지 않음, 로그는 한 번만 → 새로 하기(replace)로만 풀림', async () => {
-    const newer = { version: 7, secret: 'future' };
+    const newer = { version: 8, secret: 'future' };
     make(newer);
-    expect(await store.load()).toEqual({ kind: 'newer', version: 7 });
+    expect(await store.load()).toEqual({ kind: 'newer', version: 8 });
     expect(locks).toHaveLength(1);
     expect(await store.saveNow(createNewSave(0))).toBe(false);
     expect(await store.saveNow(createNewSave(0))).toBe(false);

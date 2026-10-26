@@ -120,3 +120,17 @@ describe('맞는 동안 대상 다시 그리기 — 꺼 둠 (#115 태현 님)', 
     expect(existsSync(join(root, 'ult/ult-cover.json'))).toBe(true);
   });
 });
+
+describe('필살기 동안 숨긴 진짜 그림 (#97 · bugs 1819)', () => {
+  it('고정 칸 상자를 숨김 (게임이 그림을 다시 그려도 그대로) · ultHide(false) · 끝 타이머 · 연출 멈춤 (fxGameStop) 에 풂', () => {
+    expect(bridge).toMatch(/ultHide = function \(pokemon, on\)/);
+    expect(bridge).toMatch(/box\.style\.visibility = 'hidden';/);
+    expect(bridge).toMatch(/const FX_HIDE_MAX_MS = \d+;/);
+    expect(bridge).toMatch(/function fxGameStop\(kill\) \{\s*\/\/[^\n]*\n\s*fxHideAll\(\);/);
+  });
+  it('다이브 필살기는 게임 화면에서 끝에 제자리로 (bugs 1818)', () => {
+    const body = readFileSync(join(root, 'ult/fx-body.js'), 'utf8');
+    expect(body).toMatch(/pp\.home = ret \? \[xs, ys\] : \[tx, ty\];/);
+    expect(body).toMatch(/pp\.finish\(pp\.home\[0\], pp\.home\[1\]\)/);
+  });
+});

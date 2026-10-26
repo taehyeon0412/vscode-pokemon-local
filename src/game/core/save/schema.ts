@@ -9,7 +9,8 @@
  *   (설치 뒤 다시 로드 안 한 옛 창이 새 칸을 지우지 못함 — save-store lock). 판 올리기는 "파일 읽기" 만 막음 —
  *   설치 직후 "옛 확장 + 새 웹뷰" 는 웹뷰가 판이 다른 상태를 계산하지 않고 넘겨서 막음 (webview-session start).
  */
-export const SAVE_VERSION = 6;
+export const SAVE_VERSION = 7;
+// 6 → 7 (2026-10-26 #97 태현 님): settings.teamCutscene (옵션 — 3:3 필살기 연출 켬 · 끔) — 옛 6판 창이 지우지 못하게 판만 올림
 // 5 → 6 (2026-10-22 orders #75 화산): 지역 id volcano · 스테이지 volcano-1 ~ 3 · 아이템 hyper-potion · full-restore — 옛 5판 창이 모르는 칸을 지우지 못하게 판만 올림
 // 4 → 5 (2026-10-22 orders #83): settings.battleFast (옵션 — 전투 ×2) — 옛 4판 창이 지우지 못하게 판만 올림
 // 3 → 4 (2026-10-22 orders #30 · dev-log #40 안 A): regions (연 지역 순서 · 다음 고를 곳) · mode · stash (안 하는 모드의 진행) · cleared — 옛 3판 창이 새 칸을 지우지 못하게 판을 올림
@@ -211,6 +212,8 @@ export interface SaveV3 {
     teamMode?: boolean;
     /** 3:3 전투 ×2 — 보통 공격만 두 배 (없으면 꺼짐 — 2026-10-22 orders #83) */
     battleFast?: boolean;
+    /** 3:3 필살기 연출 — 켬 (없음 · true) = 장면 전환 (1:1 필살기 그대로 크게) · 끔 (false) = 3:3 화면 그대로 작은 판 (2026-10-26 #97 태현 님 — 위쪽 줄 버튼 · V) */
+    teamCutscene?: boolean;
   };
   /** 라이벌 전적 (gdd 4.12) — 주인공 id → 내가 이긴 수 · 진 수. 처음 만나기 전 (옛 세이브 포함) 엔 칸이 없음 — 없는 칸을 만들면 옛 세이브가 "고친 세이브" 로 다시 써짐 */
   rivals?: Record<string, { wins: number; losses: number }>;
@@ -297,5 +300,10 @@ export interface SaveV6 extends Omit<SaveV5, 'version'> {
   version: 6;
 }
 
+export interface SaveV7 extends Omit<SaveV6, 'version'> {
+  /** 7 = 6판 + settings.teamCutscene (옵션 — #97) */
+  version: 7;
+}
+
 /** 지금 버전의 세이브 */
-export type Save = SaveV6;
+export type Save = SaveV7;

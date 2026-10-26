@@ -6,4 +6,7 @@ describe('판이 떠 있을 때 받는 입력 (main.ts 가 그 밖은 버림)', 
     expect(OVERLAY_INPUTS).toContain('region-pick');
     expect(OVERLAY_INPUTS).toContain('travel');
   });
+  it('필살기 연출 켬 · 끔 (#97 — 설정 판 · 위쪽 줄 버튼)', () => {
+    expect(OVERLAY_INPUTS).toContain('team-cutscene');
+  });
 });

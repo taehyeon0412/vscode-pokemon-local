@@ -16,7 +16,8 @@ import { BALL_ICON } from '../../../ui/BallCount';
 import { ITEM_ICON } from '../../menu/model';
 import { Icon } from '../../../ui/Icon';
 import { KeyCap } from '../../../ui/KeyCap';
-import { koWaitMs, setPickShow } from '../fx/hold';
+import { KO_FLIP_MS, KO_SLUMP_MS, KO_START_LAG_MS, koFallAt, koTiming, setPickShow } from '../fx/hold';
+import { useFallWake } from './fallWake';
 import { ballTier, catchTone, catchView, hpColor, menuItems, TIER_WORD, TONE_WORD, type MenuItem, type MenuPage } from '../model';
 
 /** 다음 포켓몬 고르기가 보이는 때 (ms) — game.css .pg-pick-list 의 2.3s 와 같은 값 (벌러덩 2.3초 · 쓰러진 모습이 다 사라진 뒤) */
@@ -190,11 +191,22 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
   const ultCounter = ultCounterOpen(b);
   const counter = counterOpen(b);
   const picking = b.phase === 'pick';
+  // 쓰러진 포켓몬이 실제로 넘어가기 전 — 이름표 ("쓰러졌다! 교체") · 마지막 기회 칸은 넘어질 때부터 (말 칸과 같은 박자 fx/hold koTiming —
+  //   맞는 순간 바뀌어 넘어짐보다 0.7 ~ 1.8초 먼저 · 마지막 기회 "6초" 가 3초 넘게 멈춰 있던 것, UX 리뷰어 #97 큼 2)
+  const reduce = save.settings.reduceMotion === true;
+  const now0 = performance.now();
+  const fallAt = koFallAt(b, now0, reduce);
+  const falling = fallAt > now0;
+  useFallWake(fallAt);
   // 필살기에 쓰러졌으면 고르기 목록도 남은 연출 뒤로 (벌러덩이 연출 끝에 넘어가서 — fx/hold fxTailLeft) · 고르기 처음 그릴 때 값만.
   //   누운 그림과 겹치는 아래 목록 (bar 아님) 만 — 위 목록은 겹치지 않아 2.15초 그대로 (4.2초 동안 고를 것이 안 보이던 것, UX 리뷰어)
   const pickWait = useRef<number | null>(null);
   if (!picking) pickWait.current = null;
-  else if (pickWait.current === null) pickWait.current = koWaitMs(performance.now()); // 내 쪽 넘어짐 기다림과 같은 값 (BattleLayer koWait)
+  // 내 쪽 넘어짐 기다림과 같은 값 (fx/hold koTiming) — 남은 만큼 (쓰러진 때 정한 값이라, 다음 볼을 내보내는 동안 같이 쓰러진 경우 이미 지난 기다림을 또 셈 — 코드 리뷰어 #97)
+  else if (pickWait.current === null) {
+    const fall = koTiming(b, 'me', now0, reduce).fallAt;
+    pickWait.current = fall > 0 ? Math.max(0, Math.round(fall - now0 - KO_START_LAG_MS - (reduce ? KO_SLUMP_MS : KO_FLIP_MS))) : 0;
+  }
   // 고르기는 목록이 보이는 때부터 (CSS .pg-pick-list 2.3초 + 넘어짐 기다림 — 같은 값) — 그 전에 숫자를 누르면 내 포켓몬이 넘어지기 전에 다음 포켓몬이 나와
   //   쓰러짐이 0 ~ 0.24초만 보이던 것 (UX 리뷰어 6차 · 옆 메뉴는 바로 떠서 1 이 바로 먹던 것 — 옆 메뉴도 같은 때 열림) · 첫 장면부터 닫힘 (한 장면 보였다 사라지던 것, 7차)
   const [pickReady, setPickReady] = useState(b.phase !== 'pick');
@@ -233,8 +245,8 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
 
   // 단축키: 숫자 = 메뉴 · 다음 포켓몬 · Z = 필살기 · ← / Esc / Backspace = 뒤로 (Space 는 main.ts — 맞받아치기 · 연타)
   // 듣는 건 한 번만 달고, 지금 값은 ref 로 (초당 30번 다시 그려도 다시 달지 않게)
-  const now = useRef({ b, items, page, team, choose, pick, onInput, balls: [] as readonly BallId[], onIdx, enabledIdx, cursor, repeatOn, pickReady });
-  now.current = { b, items, page, team, choose, pick, onInput, balls: BALLS.filter((ball) => itemLeft(b, save, ball) > 0), onIdx, enabledIdx, cursor, repeatOn, pickReady };
+  const now = useRef({ b, items, page, team, choose, pick, onInput, balls: [] as readonly BallId[], onIdx, enabledIdx, cursor, repeatOn, pickReady, falling });
+  now.current = { b, items, page, team, choose, pick, onInput, balls: BALLS.filter((ball) => itemLeft(b, save, ball) > 0), onIdx, enabledIdx, cursor, repeatOn, pickReady, falling };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -246,6 +258,8 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
         return;
       }
       if (c.b.phase === 'last') {
+        // 넘어지기 전엔 칸이 안 보여 키도 안 받음 (보이지 않는 칸에서 볼이 날아가 · 안 던짐으로 끝나던 것 — 코드 리뷰어 #97)
+        if (c.falling) return;
         // 숫자 = 볼 (1 ~) · 그다음 숫자 = 안 던짐 (2026-10-19 태현 님 — 숫자 패드로도) · Esc = 안 던짐 · ↑ ↓ + Enter = 커서 (다른 판과 같게 — 아트 디렉터 5차)
         const rows = c.balls.length + 1;
         const n = /^[1-9]$/.test(e.key) ? Number(e.key) : 0;
@@ -446,7 +460,7 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
         ))}
       </>
     );
-  } else if (b.phase === 'last') {
+  } else if (b.phase === 'last' && !falling) {
     // S11 마지막 기회 — 볼 고르기 (가진 것만) · 안 던짐 · 남은 시간
     row = (
       <>
@@ -684,7 +698,7 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
         <div class="pg-vmenu-tabs">
           {/* 고르는 동안 이름표 = "쓰러졌다! 교체" (쓰러진 포켓몬 이름이 남아 있던 것 · 말 칸이 숨는 150 넓은 패널에서 쓰러졌다는 글이 0ms 이던 것, UX 리뷰어 2026-10-21) */}
           <span class={`pg-vmenu-name${tabWarn && !picking ? ' pg-vmenu-name-warn' : ''}`} title={tabWarn && !picking ? `${vertical} — 이 포켓몬에게 볼을 던질 기회${triesWarn?.includes('마지막') ? ' 마지막 한 번' : triesWarn}` : undefined}>
-            {picking ? '쓰러졌다! 교체' : (tabWarn ?? vertical)}
+            {picking && !falling ? '쓰러졌다! 교체' : (tabWarn ?? vertical)}
           </span>
           {page === 'items' && items.filter((i) => !('back' in i.go)).length > 5 && !fitList && (
             <button type="button" class={`pg-vmenu-back${items[onIdx] && 'back' in items[onIdx].go ? ' pg-on' : ''}`} onClick={() => setPage(backOf(page))} title="뒤로 (Esc · ←)">

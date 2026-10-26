@@ -53,7 +53,7 @@
     document.body.classList.add(theme === 'light' ? 'vscode-light' : 'vscode-dark');
 
     const save = {
-        version: 6, createdAt: 0, updatedAt: 0, playTimeMs: 754000, player: null, regions: { order: ['forest'] },
+        version: 7, createdAt: 0, updatedAt: 0, playTimeMs: 754000, player: null, regions: { order: ['forest'] },
         monsters: { m1: { uid: 'm1', species: 1, form: 'bulbasaur', level: 5, exp: 125, ivs: { hp: 1, attack: 1, defense: 1, speed: 1, ultimate: 1 },
             points: { hp: 0, attack: 0, defense: 0, speed: 0, ultimate: 0 }, unspentPoints: 0, moves: [{ moveId: 33, pp: 35 }], hp: 20, status: null, shiny: false, caughtAt: 'starter' } },
         party: ['m1'], box: [], nextMonsterUid: 2, bag: { 'poke-ball': 3 }, money: 1000, badges: [],
@@ -67,6 +67,8 @@
     if (q.get('fast') === '1') save.settings = { ...save.settings, fastWalk: true };
     // motion=reduce — 게임 설정 "동작 줄이기" 켬 (ux-rules U1 점검, 2026-10-21)
     if (q.get('motion') === 'reduce') save.settings = { ...save.settings, reduceMotion: true };
+    // cutscene=0 — 3:3 필살기 연출 끔 (설정 teamCutscene — #97, 장면 전환 없이 3:3 용 작은 판)
+    if (q.get('cutscene') === '0') save.settings = { ...save.settings, teamCutscene: false };
     // balls=3-2-1 — 몬스터볼 · 슈퍼볼 · 하이퍼볼 개수 (정보줄 볼 칸, 2026-10-20) · pts=4 — 선두 남은 포인트 (정보줄 "포켓몬 +4")
     if (q.get('balls')) { const [p, g, u] = q.get('balls').split('-').map(Number); save.bag = { 'poke-ball': p || 0, ...(g ? { 'great-ball': g } : {}), ...(u ? { 'ultra-ball': u } : {}) }; }
     if (q.get('pts')) save.monsters.m1 = { ...save.monsters.m1, unspentPoints: Number(q.get('pts')) };

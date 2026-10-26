@@ -51,6 +51,14 @@ export function summaryLines(s: BattleSummary): { title: string; head: SummaryPa
   return { title: s.title, head, body };
 }
 
+/**
+ * S12 상자 제목을 보일지 — 트레이너를 이긴 판 ("○○과의 승부에서 이겼다!") 은 숫자만 (기획 판단 2026-10-26 — 3:3 띠 "…3:3 승부에서 이겼다!" · 1:1 전투 한 줄 뒤
+ * 상자 제목이 같은 말을 또 하던 것, 아트 원칙 "글은 반으로"). 관장 ("관장 ○○를 이겼다!" — 배지 순간) · 야생 (잡았다 · 쓰러뜨렸다) · 라이벌 (전적 · 한마디가 붙는 판) 은 그대로
+ */
+export function resultTitleShown(s: BattleSummary): boolean {
+  return !!s.rival || s.badge !== null || !/의 (3:3 )?승부에서 이겼다!$/.test(s.title);
+}
+
 /** S12 레벨업한 포켓몬 — 그림 · 남은 포인트 (누르면 내 포켓몬 판에서 스탯 찍기, 2026-10-20 태현 님) */
 export interface LevelUpView {
   uid: string;

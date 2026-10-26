@@ -55,6 +55,12 @@ export function SettingsPanel({ save, onInput, onExit, onClose, dev = false, onS
           <span class="pg-sub">3:3</span>
           <span class="pg-long">{save.settings.battleFast === true ? ' 켜짐' : ' 꺼짐'}</span>
         </Button>
+        {/* 필살기 연출 (태현 님 #97 — 3:3 정보줄 스위치와 같음 · 키 V · 기본 켬) — "3:3" 칩 = 1:1 필살기는 늘 그대로 (빠르게 칸과 같은 모양) */}
+        <Button secondary extraClass={save.settings.teamCutscene !== false ? 'pg-picked' : undefined} onClick={() => onInput({ kind: 'team-cutscene', on: save.settings.teamCutscene === false })} title="필살기 연출 (V) — 켬 = 3:3 필살기마다 장면 전환 · 끔 = 장면 전환 없이 무대에서 (약 2초) · 다음 필살기부터 (정보줄 스위치와 같음)">
+          {save.settings.teamCutscene !== false ? '✓ 필살기 연출' : '필살기 연출'}
+          <span class="pg-sub">3:3</span>
+          <span class="pg-long">{save.settings.teamCutscene !== false ? ' 켜짐' : ' 꺼짐'}</span>
+        </Button>
         {/* 동작 줄이기 (2026-10-20 태현 님 1안 — 기본 꺼짐 · OS 설정은 안 봄, 맥도 윈도와 같게) — 켜면 꾸밈 움직임 (배지 빛 · +N 깜박 · 레벨업 별 · 말풍선 까딱 · 넓어지기 등) 을 멈춤, 흔들기 · 필살기 꽉 참 같은 게임 정보는 그대로 */}
         <Button secondary extraClass={save.settings.reduceMotion === true ? 'pg-picked' : undefined} onClick={() => onInput({ kind: 'reduce-motion', on: save.settings.reduceMotion !== true })} title="동작 줄이기 — 꾸밈 움직임 (반짝 · 깜박 · 까딱) 을 멈춤. 잡기 흔들기 · 필살기 꽉 참 같은 알림은 그대로">
           {save.settings.reduceMotion === true ? '✓ 동작 줄이기' : '동작 줄이기'}

@@ -6,7 +6,7 @@ import { Rng } from '../../core/engine/rng';
 import type { BattleSummary } from '../../core/engine';
 import { createGameState } from '../../core/engine';
 import { TIMING } from '../../core/balance';
-import { levelUps, needsStatHint, resultViewKey } from './model';
+import { levelUps, needsStatHint, resultTitleShown, resultViewKey } from './model';
 
 const summary = (exp: BattleSummary['exp']): BattleSummary => ({ title: '야생 피죤을 쓰러뜨렸다!', exp, money: 20, item: null, caught: null, learned: [], choices: 0, badge: null });
 
@@ -42,5 +42,19 @@ describe('결과 다시 그리는 열쇠 (2026-10-21 UX 리뷰어)', () => {
     // 소개 카드 안에서는 같음 (PC 부담) · 안 잡았으면 늘 같음
     expect(at(100, caught)).toBe(at(TIMING.caughtIntroMs - 100, caught));
     expect(at(0, summary([]))).toBe(at(TIMING.caughtIntroMs, summary([])));
+  });
+});
+
+describe('S12 상자 제목 (기획 판단 2026-10-26 — 트레이너는 숫자만)', () => {
+  const base: BattleSummary = { title: '', exp: [], money: 120, item: null, caught: null, learned: [], choices: 0, badge: null };
+  it('트레이너 (1:1 · 3:3) 를 이긴 판 = 제목 없음 (띠 · 전투 한 줄이 같은 말)', () => {
+    expect(resultTitleShown({ ...base, title: '반바지 꼬마 민수와의 승부에서 이겼다!' })).toBe(false);
+    expect(resultTitleShown({ ...base, title: '엘리트 트레이너 소율과의 3:3 승부에서 이겼다!' })).toBe(false);
+  });
+  it('관장 · 야생 · 라이벌은 그대로', () => {
+    expect(resultTitleShown({ ...base, title: '나래를 이겼다!', badge: '숲 배지' })).toBe(true);
+    expect(resultTitleShown({ ...base, title: '나래를 이겼다!' })).toBe(true);
+    expect(resultTitleShown({ ...base, title: '야생 파이리를 잡았다!' })).toBe(true);
+    expect(resultTitleShown({ ...base, title: '라이벌 레드와의 승부에서 이겼다!', rival: true })).toBe(true);
   });
 });

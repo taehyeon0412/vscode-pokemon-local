@@ -1363,4 +1363,19 @@ describe('3:3 박자 (orders #83 — 기본 0.8 · 전투 ×2) · 누를 창 (or
     expect(pressed.runtime.toast?.text).toBe('오늘의 목표 ✓');
     expect(applyInput(withToast, { kind: 'auto-battle', on: true, say: true }).runtime.toast?.text).toBe('오늘의 목표 ✓');
   });
+
+  it('필살기 연출 입력 (#97 — V · 위쪽 줄 버튼) — 기본 켬 (칸 없음) · 끄면 false · 다시 켜면 칸을 지움 · 전투 밖만 한 줄 알림', () => {
+    const s = createGameState(team3(), 3);
+    expect(s.save.settings.teamCutscene).toBeUndefined();
+    expect(applyInput(s, { kind: 'team-cutscene', on: true })).toBe(s);
+    const off = applyInput(s, { kind: 'team-cutscene', on: false });
+    expect(off.save.settings.teamCutscene).toBe(false);
+    const back = applyInput(off, { kind: 'team-cutscene', on: true });
+    expect('teamCutscene' in back.save.settings).toBe(false);
+    expect(applyInput(s, { kind: 'team-cutscene', on: false, say: true }).runtime.toast?.text).toBe('3:3 필살기 연출 끔 (V)');
+    const fighting = inTeam(b0);
+    const pressed = applyInput(fighting, { kind: 'team-cutscene', on: false, say: true });
+    expect(pressed.save.settings.teamCutscene).toBe(false);
+    expect(pressed.runtime.toast).toBe(fighting.runtime.toast);
+  });
 });

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { formatMoney, formatPlayTime } from './format';
+import { HEAD_FADE_STEP_MS, HEAD_FADE_STEPS, HEAD_HOLD_MS, pickHeadSpot } from './HeadNote';
 import { fieldTopPx, fitGameLayout, fitLayout, gameSize, hasMapRow, MAP_ROW_PX, minHeightOf, topGapPx } from './layout';
 import { spritePx, spriteSrc } from './sprite-path';
 import { Store } from './store';
@@ -134,5 +135,30 @@ describe('Store', () => {
     off();
     s.set({ b: 'y' });
     expect(n).toBe(1);
+  });
+});
+
+describe('머리 위 작은 글 자리 (버린 필살기 누름 — 태현 님 10-26 "머리 기준 왼쪽 위 · 서서히 사라짐")', () => {
+  const a = { l: 100, t: 60, r: 140, b: 100 };
+  const bounds = { l: 0, t: 26, r: 480, b: 187 };
+  it('빈 무대 = 머리 왼쪽 위 (아래 끝이 머리 위 끝 위 · 오른쪽 끝이 머리 왼쪽 끝 + 6)', () => {
+    expect(pickHeadSpot(a, 60, 13, bounds, [])).toEqual({ l: 46, t: 46 });
+  });
+  it('패널 왼쪽 끝 · 정보줄에 걸리면 자리만 안쪽으로 (4px · 위 끝)', () => {
+    expect(pickHeadSpot({ ...a, l: 10, r: 50 }, 60, 13, bounds, [])).toEqual({ l: 4, t: 46 });
+    expect(pickHeadSpot({ ...a, t: 30 }, 60, 13, bounds, []).t).toBe(26);
+  });
+  it('왼쪽 위가 막히면 (2px 씩 올려 봐도) 머리 오른쪽 위 → 위가 다 막히면 몸 왼쪽', () => {
+    const hp = { l: 30, t: 40, r: 110, b: 58 };
+    expect(pickHeadSpot(a, 60, 13, bounds, [hp])).toEqual({ l: 134, t: 46 });
+    expect(pickHeadSpot(a, 60, 13, bounds, [{ l: 0, t: 26, r: 480, b: 59 }])).toEqual({ l: 38, t: 62 });
+  });
+  it('다 막히면 발밑 (1:1 240 × 150)', () => {
+    const wall = [{ l: 0, t: 26, r: 480, b: 99 }];
+    expect(pickHeadSpot(a, 60, 13, bounds, wall)).toEqual({ l: 90, t: 101 });
+  });
+  it('붙잡기 1.1초 (진짜 시계) + 사라짐 3걸음 — 다 보이는 때가 U1 1초를 넘음', () => {
+    expect(HEAD_HOLD_MS).toBeGreaterThan(1000);
+    expect(HEAD_FADE_STEPS * HEAD_FADE_STEP_MS).toBeLessThan(500);
   });
 });

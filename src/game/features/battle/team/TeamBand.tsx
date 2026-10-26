@@ -8,6 +8,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import type { Side, TeamBattle } from '../../../core/engine';
 import { speciesOf } from '../../../data';
 import { Sprite } from '../../../ui/Sprite';
+import { jointName } from './joint-names';
 import { bandLeft } from './model';
 import { realLater, realNow } from '../../../ui/real-clock';
 
@@ -45,7 +46,9 @@ function bandOf(b: TeamBattle): TeamBandView | null {
   if (!u) return null;
   if (u.joint) {
     if (u.joint.quick) return null;
-    return { key: `joint:${u.side}:${u.joint.winners.join('')}`, kind: 'joint', side: u.side, who: u.joint.winners.map((i) => who(u.side, i)), title: u.joint.winners.map((i) => name(u.side, i)).join(' × '), sub: '합동!' };
+    // 합동 이름 (joint-names — 켬 길은 큰 컷인이 말함 · 끔 길 띠엔 "합동!" 뿐이던 것, UX 리뷰어 #97 작음 4)
+    const jn = jointName(u.joint.winners.map((i) => speciesOf(b[u.side][i]?.species ?? 0)?.types[0] ?? 'normal'));
+    return { key: `joint:${u.side}:${u.joint.winners.join('')}`, kind: 'joint', side: u.side, who: u.joint.winners.map((i) => who(u.side, i)), title: u.joint.winners.map((i) => name(u.side, i)).join(' × '), sub: `합동 ${jn}!` };
   }
   if ((u.gather ?? 0) > 0) return null;
   return { key: `ult:${u.side}${u.from}:${u.name ?? ''}`, kind: 'ult', side: u.side, who: [who(u.side, u.from)], title: name(u.side, u.from), sub: u.name ? `${u.name}!` : '필살기!' };

@@ -21,7 +21,7 @@ export type ValidateResult =
 export const MAX_SPECIES = 1025;
 /** 잠듦 1~3번 (mvp-spec 3.3) */
 const MAX_SLEEP_TURNS = 3;
-/** SaveV6 의 칸 이름 — 모르는 칸은 고칠 때 뺌 */
+/** SaveV7 의 칸 이름 — 모르는 칸은 고칠 때 뺌 */
 const KNOWN_KEYS: readonly (keyof Save)[] = [
   'version', 'createdAt', 'updatedAt', 'playTimeMs', 'player', 'monsters', 'party', 'box', 'nextMonsterUid',
   'bag', 'money', 'badges', 'stages', 'location', 'lastHospital', 'dex', 'pendingEncounter', 'pendingChoices', 'settings', 'rivals', 'laterChoices', 'tips',
@@ -694,6 +694,7 @@ export function validateSave(raw: unknown): ValidateResult {
       ...(settingsRaw.skipCaughtLast === undefined ? {} : { skipCaughtLast: fx.bool(settingsRaw.skipCaughtLast, 'settings.skipCaughtLast', false) }),
       ...(settingsRaw.teamMode === undefined ? {} : { teamMode: fx.bool(settingsRaw.teamMode, 'settings.teamMode', false) }),
       ...(settingsRaw.battleFast === undefined ? {} : { battleFast: fx.bool(settingsRaw.battleFast, 'settings.battleFast', false) }),
+      ...(settingsRaw.teamCutscene === undefined ? {} : { teamCutscene: fx.bool(settingsRaw.teamCutscene, 'settings.teamCutscene', true) }),
     },
     ...(raw.rivals === undefined ? {} : { rivals: readRivals(raw.rivals, 'rivals', fx) }),
     // 쌓아 둔 기술 고르기 — 새 기술 (learn) 만 · 최대 수 (없는 포켓몬 · 모르는 기술은 readChoices 가 뺌)

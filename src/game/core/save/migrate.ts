@@ -19,6 +19,8 @@ export const MIGRATIONS: Migrations = {
   4: (v4) => ({ ...v4, version: 5 }),
   // 5 → 6 (2026-10-22 orders #75 화산): 새 지역 · 스테이지 · 아이템 id — 칸은 그대로 판만
   5: (v5) => ({ ...v5, version: 6 }),
+  // 6 → 7 (2026-10-26 #97): settings.teamCutscene 옵션 칸 — 칸은 그대로 판만
+  6: (v6) => ({ ...v6, version: 7 }),
   3: (v3) => ({ ...v3, version: 4, regions: { order: ['forest', ...(Array.isArray(v3.badges) ? v3.badges.filter((b) => typeof b === 'string' && b !== 'forest') : [])] } }),
 };
 

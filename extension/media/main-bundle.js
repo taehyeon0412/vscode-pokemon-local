@@ -11391,6 +11391,10 @@ window.__ult = {
                 const tDive = heavy ? 1.9 : 1.72;
                 const tImp = tDive + (heavy ? 0.34 : 0.26);
                 const end = ms / 1000;
+                // 게임 화면 — 끝에 제자리로 뒤로 폴짝 (진짜 그림은 제자리에 있어 끝 장면에 약 335px 순간 이동하던 것 — 디자인 #107 UX 5바퀴 · bugs 1818) · 일반 모드는 내리꽂은 자리에 그대로
+                const ret = typeof fxInGame === 'function' && fxInGame() && Math.abs(tx - xs) > w * 0.5;
+                const tRet = end - 0.45;
+                const hop = Math.min(h * 0.6, U);
                 const ang = Math.atan2(ty - yTop, tx - gx);
                 const rotDive = heavy ? 0 : clamp(dT > 0 ? ang : ang - Math.PI, -1.25, 1.25);
                 const aw = Math.max(w, U * 0.75);
@@ -11421,13 +11425,18 @@ window.__ult = {
                         const e = heavy ? k * k : k ** 1.15;
                         return { x: gx + (tx - gx) * e, y: yTop + (ty - yTop) * e, rot: rotDive, sx: big * (heavy ? 1 : 0.9), sy: big * (heavy ? 1 : 1.1), show: true };
                     }
+                    if (ret && T >= tRet) {
+                        const k = clamp((T - tRet) / (end - 0.05 - tRet), 0, 1);
+                        const e = smooth(k);
+                        return { x: tx + (xs - tx) * e, y: ty + (ys - ty) * e - Math.sin(Math.PI * k) * hop, rot: 0, sx: 1, sy: 1, show: true };
+                    }
                     const k = clamp((T - tImp) / (heavy ? 0.55 : 0.4), 0, 1);
                     const b = easeOut(k);
                     return { x: tx, y: ty, rot: 0, sx: lerp(1.5 * (heavy ? 1.3 : 1), 1, b), sy: lerp(0.55, 1, b) * (heavy ? 1 + 0.06 * Math.sin(k * 9) * (1 - k) : 1), show: true };
                 };
                 pp.ghostCols = [ac[1], ac[2], '#ffffff'];
                 pp.face = u.dir;
-                pp.home = [tx, ty];
+                pp.home = ret ? [xs, ys] : [tx, ty];
                 pp.onFinish = () => groundFly(pokemon);
                 pp.under = (ctx, px) => {
                     const T = clock();
@@ -11482,7 +11491,7 @@ window.__ult = {
                     pp.ghostN = (T >= tUp && T < tGone) || (T >= tDive && T < tImp) ? 6 : 0;
                     pp.flash = Math.max(0, pp.flash - 0.06);
                     if (T >= end - 0.05) {
-                        pp.finish(tx, ty);
+                        pp.finish(pp.home[0], pp.home[1]);
                         p.life = p.max;
                     }
                 }) });
@@ -23007,9 +23016,13 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                 if (d >= Rm) {
                     continue;
                 }
-                // 쓰러진 칸 (cut) 은 비우고 둘레 2칸은 바둑판 반 — 곧은 네모 구멍이 그림 빠진 버그처럼 읽히던 것 (#114 UX)
-                if (cut && gx + c > cut.l - 2 * c && gx < cut.r + 2 * c && gy + c > cut.t - 2 * c && gy < cut.b + 2 * c) {
-                    if ((gx + c > cut.l && gx < cut.r && gy + c > cut.t && gy < cut.b) || (Math.round((gx + gy) / c) & 1) === 0) {
+                // 쓰러진 칸 (cut) 은 비우고 둘레 2칸은 바둑판 반 — 곧은 네모 구멍이 그림 빠진 버그처럼 읽히던 것 (#114 UX) ·
+                // 구멍은 둥글게 (칸 상자를 감싸는 타원 × 1.2) — 네모면 돔 테두리가 구멍 가장자리에서 곧게 잘려 보이던 것 (#97 남은 작음)
+                if (cut) {
+                    const rx = Math.max(c, ((cut.r - cut.l) / 2) * 1.2);
+                    const ry = Math.max(c, ((cut.b - cut.t) / 2) * 1.2);
+                    const e = Math.hypot((gx + c / 2 - (cut.l + cut.r) / 2) / rx, (gy + c / 2 - (cut.t + cut.b) / 2) / ry);
+                    if (e < 1 || (e < 1 + (2 * c) / Math.min(rx, ry) && (Math.round((gx + gy) / c) & 1) === 0)) {
                         continue;
                     }
                 }
@@ -34356,12 +34369,15 @@ const T11_FINALE = {
         // 윈디 (꼭두각시) — 사라짐 · 마지막 질주 · 돌아옴
         const img = pokemon.el;
         const edge = Math.max(1, Math.round(u.s * 0.75));
+        // 돌아오는 때 — 게임 화면은 늦게 오는 충격파 (TB) 바로 뒤 (끝 0.6초 전까지 화면 밖에 있어 메뉴가 열린 뒤 2초 넘게 내 자리가 비던 것 — UX 리뷰어 #97 큼 1) · 일반 모드는 그대로
+        const TRET = typeof fxInGame === 'function' && fxInGame() ? Math.min(sec - 0.6, TB) : sec - 0.6;
+        const TSHOW = TRET + 0.48;
         hideMon(pokemon, true);
-        hideUntil(pokemon, (sec - 0.1) * 1000 + 100);
-        sc.at(sec - 0.12, () => hideMon(pokemon, false));
+        hideUntil(pokemon, TSHOW * 1000 + 120);
+        sc.at(TSHOW, () => hideMon(pokemon, false));
         sc.add({ max: sec - 0.1, draw: (ctx, it, t, px) => {
             const life = sc.t;
-            if (life >= sec - 0.12) {
+            if (life >= TSHOW) {
                 return;
             }
             let x = me.x;
@@ -34372,10 +34388,10 @@ const T11_FINALE = {
                 return;
             } else if (life >= TDASH && life < TDASH + DASH) {
                 x = lerp(x0, x1, (life - TDASH) / DASH);
-            } else if (life >= TDASH + DASH && life < sec - 0.6) {
+            } else if (life >= TDASH + DASH && life < TRET) {
                 return;
-            } else if (life >= sec - 0.6) {
-                const k = easeOut(clamp((life - (sec - 0.6)) / 0.35, 0, 1));
+            } else if (life >= TRET) {
+                const k = easeOut(clamp((life - TRET) / 0.35, 0, 1));
                 x = lerp(x0, me.x, k);
             }
             drawLitMon(ctx, img, x, me.b, me.w, dir < 0, SPEED[2], edge, a);
@@ -53786,8 +53802,13 @@ function fxTop() {
     if (moveFrame) {
         return 0;
     }
-    const bar = fxInGame() && document.querySelector('#pokemon-game .pg-infobar');
-    return bar ? Math.round(bar.getBoundingClientRect().bottom) : 0;
+    if (!fxInGame()) {
+        return 0;
+    }
+    // 정보줄 아래 끝 · 3:3 에서 연출이 실제로 잘리는 선 (--pg-fx-top = 지도 줄 아래 끝) 중 낮은 쪽 (3:3 에서 26px 위를 보아 맞음 · 하늘 위 끝이 지도 줄에 걸치던 것 — bugs 1703)
+    const bar = document.querySelector('#pokemon-game .pg-infobar');
+    const cut = parseFloat(document.body.style.getPropertyValue('--pg-fx-top')) || 0;
+    return Math.max(bar ? Math.round(bar.getBoundingClientRect().bottom) : 0, Math.round(cut));
 }
 // 필살기 어둠에서 밝게 남길 HP 묶음 자리 — 게임 밖이면 없음
 function fxHudRects() {
@@ -54069,6 +54090,8 @@ function fxGameTick() {
 }
 // kill = 중간에 멈춤 (남은 타이머 건너뜀) · 아니면 다 끝나서 정리만
 function fxGameStop(kill) {
+    // 숨긴 진짜 그림은 연출이 멈추면 늘 되돌림 (꼭두각시 끝 타이머가 버려져도)
+    fxHideAll();
     // 힘대결 인트로에서 숨긴 HP · 힘대결 상자 되돌림 (끊겨도 — core ultHideHud)
     if (typeof ultHudRestore === 'function') {
         ultHudRestore();
@@ -55252,6 +55275,47 @@ function fxStairBlit(v, now) {
         }
     }
     moveCtx.restore();
+}
+// 게임 배우의 진짜 그림 숨기기 — 고정 칸 상자 (collision = .pg-fighter-*) 를 숨김: 게임이 다시 그려 그림 (<img>) 이 새것으로 바뀌어도 그대로
+//   (img 에만 숨김을 걸어 쓰러짐으로 다시 그려지면 제자리에 진짜 보스로라가 다시 보여 꼭두각시와 둘이던 것 — #97 · bugs 1819, main 에도) ·
+//   풂 = ultHide(false) · 그 필살기 끝 (모르면 12초) 타이머 · 연출을 멈출 때 (fxGameStop — stopUlt · 넘기기 · 반격기 · 마지막 기회 볼 — 코드 리뷰어 #97 높음)
+const fxHidden = new Map();
+const FX_HIDE_MAX_MS = 12000;
+const fxUltHide0 = ultHide;
+ultHide = function (pokemon, on) {
+    fxUltHide0(pokemon, on);
+    if (pokemon?._size !== 'game') {
+        return;
+    }
+    if (!on) {
+        fxHideRelease(pokemon);
+        return;
+    }
+    const box = pokemon.collision;
+    if (pokemon.el.style.visibility !== 'hidden' || !box || box === pokemon.el) {
+        return;
+    }
+    const now = performance.now();
+    const until = ultActive?.pokemon === pokemon && ultActive.until > now ? ultActive.until + 500 : now + FX_HIDE_MAX_MS;
+    fxHideRelease(pokemon);
+    box.style.visibility = 'hidden';
+    fxHidden.set(pokemon, { box, timer: setTimeout(() => fxHideRelease(pokemon), until - now) });
+};
+function fxHideRelease(a) {
+    const h = fxHidden.get(a);
+    if (!h) {
+        return;
+    }
+    fxHidden.delete(a);
+    clearTimeout(h.timer);
+    if (h.box.style.visibility === 'hidden') {
+        h.box.style.visibility = '';
+    }
+}
+function fxHideAll() {
+    for (const a of [...fxHidden.keys()]) {
+        fxHideRelease(a);
+    }
 }
 // 그리기 한 장 — 멈춘 번호는 움직이지 않고 그 자리에 · 줄기 보기 번호는 따로 그려 계단 · 앞끝으로
 const fxMoveTick0 = moveTick;

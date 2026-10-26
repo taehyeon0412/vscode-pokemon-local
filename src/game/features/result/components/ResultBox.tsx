@@ -18,7 +18,7 @@ import { TypeTags } from '../../battle/components/TypeTag';
 import { ITEM_ICON } from '../../menu/model';
 import { itemName, VALUABLES } from '../../../core/rules/items';
 import { ITEM_IDS } from '../../../core/save';
-import { partText, summaryLines, type CaughtView, type LevelUpView, type SummaryPart } from '../model';
+import { partText, resultTitleShown, summaryLines, type CaughtView, type LevelUpView, type SummaryPart } from '../model';
 
 /** 잡은 포켓몬 소개 카드 — 결과 상자 전 3초 (TIMING.caughtIntroMs), 잡기 흔들기 창이 꺼지지 않고 같은 가운데 · 같은 높이에서 가로로 넓어지며 볼이 열리고 포켓몬이 나옴 (2026-10-20 태현 님 "잡았다 창이 너무 빨리 꺼져" → B) · 집중 모양 (둘레 어둡게 · 2px 금색 · 이름표 "잡았다!") · 그림 크게 · "NEW! 처음 잡았다" (도감 화면은 다음 버전) · 이름 Lv · 타입 · 팀 / 보관함. 누르면 넘김 (2026-10-20 태현 님 안 2) */
 function CaughtIntro({ c, media, at, onSkip }: { c: CaughtView; media: string; at: { left: number; top: number; width?: number }; onSkip(): void }) {
@@ -140,23 +140,25 @@ function useResultFit(): { box: { current: HTMLDivElement | null }; on: boolean;
     const el = box.current;
     if (!el) return;
     const line = el.querySelector<HTMLElement>('.pg-line');
-    const title = line?.querySelector<HTMLElement>('.pg-result-title');
-    if (!line || !title || line.clientWidth === 0) return;
+    // 제목 없는 상자 (트레이너 — 숫자만, resultTitleShown) 는 줄의 남는 폭이 칩이 늘 자리
+    const title = line?.querySelector<HTMLElement>('.pg-result-title') ?? null;
+    if (!line || line.clientWidth === 0) return;
     const minW = (c: HTMLElement) => parseFloat(getComputedStyle(c).minWidth) || 0;
+    const kids = [...line.children].filter((c): c is HTMLElement => c instanceof HTMLElement && c.offsetWidth > 0);
+    const gap = parseFloat(getComputedStyle(line).columnGap) || 0;
     if (!on) {
       let need = 0;
       line.querySelectorAll<HTMLElement>(':scope > .pg-reward').forEach((c) => {
         if (c.offsetWidth > 0) need += c.scrollWidth * 1.1 - c.clientWidth;
       });
-      if (need > Math.max(0, title.getBoundingClientRect().width - minW(title)) + 0.5) {
+      const room = title ? title.getBoundingClientRect().width - minW(title) : line.clientWidth - kids.reduce((w, c) => w + c.getBoundingClientRect().width, 0) - gap * Math.max(0, kids.length - 1);
+      if (need > Math.max(0, room) + 0.5) {
         setOn(true);
         return;
       }
     }
     if (one || !el.classList.contains('pg-lvup')) return;
     // 첫 줄 = 제목 (최소 폭까지 줄어듦) + 보이는 칩 · 버튼 (내용 실제 너비 × 1.1) + 칸 사이 gap
-    const kids = [...line.children].filter((c): c is HTMLElement => c instanceof HTMLElement && c.offsetWidth > 0);
-    const gap = parseFloat(getComputedStyle(line).columnGap) || 0;
     const need = kids.reduce((w, c) => w + (c === title ? minW(c) : c.scrollWidth * 1.1), 0) + gap * Math.max(0, kids.length - 1);
     if (need > line.clientWidth + 0.5 || el.getBoundingClientRect().bottom > window.innerHeight - 1) setOne(true);
   });
@@ -176,17 +178,37 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
   const tight = useResultFit();
   if (caught && ms < TIMING.caughtIntroMs) return <CaughtIntro c={caught} media={media} at={introAt} onSkip={() => onInput({ kind: 'result-continue' })} />;
   const { title, head, body } = summaryLines(summary);
+  // 트레이너를 이긴 판 = 제목 없이 숫자만 (띠 · 전투 한 줄이 이미 "…승부에서 이겼다!" — 기획 판단 10-26) · 마우스를 올리면 (title) 전체
+  const showTitle = resultTitleShown(summary);
   // 찍을 포인트가 있는 카드를 앞으로 — 넘쳐서 카드 한 장만 보일 때 (tight.one) 포인트 카드 · 말풍선이 숨지 않게 (2026-10-21)
   const cards = [...ups].sort((a, b) => Number(b.points > 0) - Number(a.points > 0));
   const all = [title, ...head.map(partText), ...body.map(partText)].join(' · ') + (summary.rival ? ` · 라이벌 보상 (돈 ×${BALANCE.rivalMoneyScale} · 아이템)` : '');
   // 카드가 레벨업을 보여 주면 둘째 줄의 "▲ 이상해씨 Lv 5 → 6 (경험치 +28)" 은 빼고 새 기술 (★) 을 앞에 — 같은 말 두 번 · 좁으면 ★ 가 잘리던 것 (아트 디렉터 7차, 전체는 마우스를 올리면)
-  const rest = ups.length === 0 ? body : [...body.filter((p) => p.kind === 'learned'), ...body.filter((p) => p.kind !== 'up' && p.kind !== 'learned')];
+  const rest1 = ups.length === 0 ? body : [...body.filter((p) => p.kind === 'learned'), ...body.filter((p) => p.kind !== 'up' && p.kind !== 'learned')];
+  // 경험치만 오른 포켓몬이 여럿이면 "경험치" 낱말은 한 번 ("경험치 리자몽 +25 · 이상해꽃 +51 · 거북왕 +51" — 세 번 되풀이하던 것, 아트 디렉터 #97 · 원칙 5)
+  const expOnly = summary.exp.filter((e) => e.to <= e.from);
+  const firstExp = rest1.findIndex((p) => p.kind === 'exp');
+  const rest =
+    expOnly.length > 1 && firstExp >= 0
+      ? [...rest1.slice(0, firstExp).filter((p) => p.kind !== 'exp'), { kind: 'exp' as const, text: `경험치 ${expOnly.map((e) => `${e.name} +${e.gain}`).join(' · ')}` }, ...rest1.slice(firstExp).filter((p) => p.kind !== 'exp')]
+      : rest1;
+  // 아주 좁은 제목 없는 상자의 경험치 장면 = 이름 없이 숫자만 (game.css .pg-exp-short)
+  const expShort = expOnly.length > 0 ? `경험치 ${expOnly.map((e) => `+${e.gain}`).join(' · ')}` : '';
   // 제목 — 좁으면 "야생 " 을 빼고 (pg-title-pre) 낱말 단위로 줄을 바꿈 (줄임표 금지 U4 — "야생 파이리를 …" 로 잘리던 것, 2026-10-21 orders #5)
   const pre = title.startsWith('야생 ') ? '야생 ' : '';
   const restLine = rest.map((p, i) => (
     <span key={i}>
       {i > 0 && ' · '}
-      <Line p={p} />
+      {p.kind === 'exp' && expShort ? (
+        <>
+          <span class="pg-exp-full">
+            <Line p={p} />
+          </span>
+          <span class="pg-exp-short">{expShort}</span>
+        </>
+      ) : (
+        <Line p={p} />
+      )}
     </span>
   ));
   // 카드 한 장일 때 빠진 포켓몬 레벨업 (pg-alt-ups — 그때만 보임, 카드에도 글에도 없던 것 · UX 리뷰어)
@@ -201,13 +223,27 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
       {restLine}
     </>
   ) : ups.length > 0 ? <><span class="pg-up">▲</span> {ups.map((u) => `${u.name} Lv\u00a0${u.to}`).join(' · ')}</> : null;
+  const alt = head.length > 0 && (
+    <span class={`${showTitle ? 'pg-line ' : 'pg-result-alt-in '}pg-result-alt${altB ? '' : ' pg-result-alt-solo'}`}>
+      <span class="pg-result-alt-a">
+        {head.map((p) => (
+          <Reward key={p.kind} p={p} rare={!!summary.rival} />
+        ))}
+      </span>
+      {altB && <span class="pg-result-alt-b">{altB}</span>}
+    </span>
+  );
   const lines = (
     <>
       <span class="pg-line">
-        <b class="pg-result-title">
-          {pre && <span class="pg-title-pre">{pre}</span>}
-          {title.slice(pre.length)}
-        </b>
+        {/* 제목 없는 상자 (트레이너 — 숫자만) 는 좁은 번갈아 줄을 제목 자리에 = 한 줄 상자 (240 × 150 에서 둘째 줄로 66px · 왼쪽 위 · 오른쪽 아래가 비고 주인공 머리를 덮던 것 — 아트 디렉터 #97 큼 3) */}
+        {!showTitle && alt}
+        {showTitle && (
+          <b class="pg-result-title">
+            {pre && <span class="pg-title-pre">{pre}</span>}
+            {title.slice(pre.length)}
+          </b>
+        )}
         {head.map((p) => (
           <Reward key={p.kind} p={p} rare={!!summary.rival} />
         ))}
@@ -217,16 +253,7 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
       </span>
       {rest.length > 0 && <span class="pg-line pg-ellipsis pg-result-body">{restLine}</span>}
       {/* 좁은 패널 (360px 아래) — 첫 줄에서 빠진 얻은 것 (돈 · 볼) 2.5초 → 배운 기술 · 경험치 (레벨업 상자면 레벨업) 2.5초 (2026-10-21 태현 님 A — 예전 #437 "얻은 것 숨김" · 아이콘 + … 잘림을 바꿈). 둘째가 없으면 얻은 것만 */}
-      {head.length > 0 && (
-        <span class={`pg-line pg-result-alt${altB ? '' : ' pg-result-alt-solo'}`}>
-          <span class="pg-result-alt-a">
-            {head.map((p) => (
-              <Reward key={p.kind} p={p} rare={!!summary.rival} />
-            ))}
-          </span>
-          {altB && <span class="pg-result-alt-b">{altB}</span>}
-        </span>
-      )}
+      {showTitle && alt}
     </>
   );
   if (ups.length === 0) {

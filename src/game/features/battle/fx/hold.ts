@@ -66,11 +66,63 @@ export function fxCoverLeft(now: number): number {
 
 /** 벌러덩이 넘어가는 때 (game.css pg-ko · pg-ko-late 27% × 2.3초) — 시작 뒤 이만큼 맞은 모습으로 섰다가 넘어감 */
 export const KO_FLIP_MS = 621;
+/** 동작 줄이기 — 회색 주저앉기가 되는 때 (game.css pg-faint-late 12% × 2.3초) */
+export const KO_SLUMP_MS = 276;
+/** 쓰러짐 CSS 움직임이 실제로 시작하기까지 (그린 뒤 스타일 · 시작 — 머리 없는 브라우저 80 ~ 112ms · VS Code 약 1장면) — 끝 말이 넘어짐보다 1 ~ 2장면 먼저 뜨던 것 (UX 리뷰어 #97) · 두 경우 모두 80ms 안 */
+export const KO_START_LAG_MS = 64;
 /** 벌러덩 전체 길이 (game.css pg-ko 2.3s — 흐려져 사라질 때까지) */
 export const KO_ANIM_MS = 2300;
 /** 넘어짐 기다림 (CSS --pg-ko-wait) — 덮음 끝 0.4초 전에 넘어지게 (넘어가는 0.62초를 빼서 — 빼지 않아 덮음 끝보다 0.22초 늦게 넘어지던 것, UX 리뷰어 8차) */
 export function koWaitMs(now: number): number {
   return Math.max(0, Math.round(fxCoverLeft(now)) - 400 - KO_FLIP_MS);
+}
+
+/**
+ * 쓰러짐 박자 (ideas 723 · ux-rules U2 · #97) — byHit (상대의 한 방 · 힘대결 = 벌러덩 / 자기 행동 = 회색 주저앉기) · wait (넘어짐 기다림 ms — CSS --pg-ko-wait) ·
+ * fallAt (실제로 넘어가는 때 — performance.now, 게임 시계 · CSS 와 같은 배 · 0 = 기다림 없음). 쓰러진 포켓몬마다 처음 본 때 한 번 정해
+ * 그림 · 말 칸 · 무대 위 줄 · 옆 판 · 정보줄 말이 같은 값을 씀 (어디서 먼저 불러도 — 정보줄 말 (StageScreen) 은 전투 칸보다 먼저 그려짐)
+ */
+export interface KoTiming {
+  byHit: boolean | null;
+  wait: number;
+  fallAt: number;
+}
+const KO_NONE: KoTiming = { byHit: null, wait: 0, fallAt: 0 };
+/** 바로 앞 행동 — 쓰러진 장면엔 행동 (anim) 이 이미 지워져 있어서 기억해 둠 (BattleLayer 가 그릴 때마다 noteKoActor) · 모르면 (다시 열기) 회색 주저앉기 */
+let koActor: 'me' | 'foe' | 'clash' | null = null;
+const koMemo: Record<'me' | 'foe', { uid: string; t: KoTiming } | null> = { me: null, foe: null };
+export function koTiming(b: BattleState, side: 'me' | 'foe', now: number, reduce: boolean): KoTiming {
+  const f = b[side];
+  let m = koMemo[side];
+  if (f.hp > 0 || (m && m.uid !== f.uid)) {
+    koMemo[side] = null;
+    m = null;
+  }
+  if (f.hp > 0) return KO_NONE;
+  if (!m) {
+    const byHit = koActor !== null && koActor !== side;
+    const wait = koWaitMs(now);
+    m = { uid: f.uid, t: { byHit, wait, fallAt: byHit ? now + KO_START_LAG_MS + wait + (reduce ? KO_SLUMP_MS : KO_FLIP_MS) : 0 } };
+    koMemo[side] = m;
+  }
+  // 이미 누운 모습인 장면은 지금 — 마지막 기회에 볼을 던짐 (catch = 누운 채 멈춤) · 동작 줄이기 마지막 기회 (pg-down 움직임 없음, 코드 리뷰어 #97)
+  if (m.t.fallAt > now && (b.phase === 'catch' || (reduce && b.phase === 'last' && side === 'foe'))) m.t = { ...m.t, fallAt: now };
+  return m.t;
+}
+/** 그릴 때마다 — 다음 쓰러짐의 byHit 을 위해 지금 행동을 적음 (koTiming 다음에 부름) */
+export function noteKoActor(b: BattleState): void {
+  if (b.anim) koActor = b.anim.side;
+  else if (b.phase === 'clash') koActor = 'clash';
+}
+/** 두 쪽 중 늦은 넘어가는 때 (0 = 기다림 없음) */
+export function koFallAt(b: BattleState, now: number, reduce: boolean): number {
+  return Math.max(koTiming(b, 'me', now, reduce).fallAt, koTiming(b, 'foe', now, reduce).fallAt);
+}
+/** 시험용 — 처음 상태 */
+export function resetKo(): void {
+  koActor = null;
+  koMemo.me = null;
+  koMemo.foe = null;
 }
 
 /** 다음 포켓몬 고르기 목록이 보이는 때 (performance.now · 0 = 고르는 중 아님) — BattleMenu 가 정함 · 한 줄 말 "다음 포켓몬을 골라요" 도 그때 붙음 (목록보다 5초 먼저 떠서 눌러도 반응이 없던 것 — UX 리뷰어 8차) */
@@ -105,9 +157,12 @@ export function shouldHoldBattle(state: GameState, dtMs: number, now: number): b
   if (b0 && !b0.anim && (b0.phase === 'over' || b0.phase === 'last') && now < tailEnd) return true;
   // 다음 볼 (send) — 벌러덩이 시작할 때 (넘어짐 기다림 끝 = 덮음 끝 − 0.4 − 0.62초) 부터 내보내기 시간을 셈 → 보통 기술과 같은 박자 (볼은 벌러덩이 끝날 즈음) — 덮음 끝을 모르면 꼬리 끝까지.
   //   꼬리 끝까지 붙잡으면 빈 화면 2.2초 (8차) · 꼬리 동안 세면 넘어지기 전에 볼이 터짐 (9차) · 벌러덩 끝까지 붙잡으면 사라진 뒤 트레이너만 2초 (10차)
-  if (b0 && !b0.anim && b0.phase === 'send' && fxTailUntil > 0) {
-    const koStart = fxCoverUntil > 0 ? Math.min(fxCoverUntil, fxTailUntil) - 400 - KO_FLIP_MS : fxTailUntil;
-    if (now < koStart) return true;
+  //   내 포켓몬이 쓰러진 고르기 (pick) 도 같게 — 자동 전투는 엔진이 1.7초 뒤 저절로 골라서, 넘어지기 전에 다음 포켓몬이 나와 "쓰러졌다!" 가 1초를 못 채우던 것 (코드 리뷰어 #97)
+  if (b0 && !b0.anim && (b0.phase === 'send' || b0.phase === 'pick') && fxTailUntil > 0) {
+    const coverEnd = fxCoverUntil > 0 ? Math.min(fxCoverUntil, fxTailUntil) : fxTailUntil;
+    const koStart = fxCoverUntil > 0 ? coverEnd - 400 - KO_FLIP_MS : fxTailUntil;
+    // 고르기는 실제로 넘어간 뒤 0.2초까지 (koTiming 과 같은 식 — 덮음 끝 − 0.4초 + 시작 지연) — 자동 고르기 (엔진 1.7초) 가 "쓰러졌다!" 를 1초 남짓에 끊던 것 (UX 리뷰어 #97 작음 4)
+    if (now < (b0.phase === 'pick' ? coverEnd - 400 + KO_START_LAG_MS + 200 : koStart)) return true;
   }
   // 3:3 장면 전환 — 맞은 뒤 필살기 끝 걸음을 연출 · 나옴이 끝날 때까지 (holdTeamTail)
   const stT = state.runtime.stage;

@@ -311,6 +311,16 @@ if (!port) {
         return;
       }
     }
+    // V = 3:3 필살기 연출 켜고 끄기 (#97 태현 님 — 위쪽 줄 버튼과 같음 · 다음 필살기부터) · 1:1 전투 중에는 무시 (1:1 엔 없음) · 전투 중엔 알림 없이 (버튼 옆 한 줄 판)
+    if (!overlay && e.code === 'KeyV' && !(e.ctrlKey || e.metaKey || e.altKey)) {
+      const cur = session.current;
+      const oneOnOne = cur ? inBattle(cur) && cur.runtime.stage?.phase !== 'team' : false;
+      if (cur && !oneOnOne && (cur.save.location.screen === 'stage' || cur.save.location.screen === 'gym')) {
+        e.preventDefault();
+        actions.input({ kind: 'team-cutscene', on: cur.save.settings.teamCutscene === false, say: !inBattle(cur) });
+        return;
+      }
+    }
     if (overlay) {
       // 판 (지도 · 내 포켓몬 …) 의 Esc 는 판이 들음 · S21 프로필은 여기서
       if (overlay.kind === 'profile' && e.key === 'Escape') {

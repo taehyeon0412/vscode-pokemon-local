@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { fixedRng } from '../../../../test/fixtures/rng';
 import { sampleMonster, sampleSave } from '../../../../test/fixtures/save';
@@ -6,7 +8,7 @@ import { advance, createGameState, type GameState } from '../../../core/engine';
 import { TIMING } from '../../../core/balance';
 import { Rng } from '../../../core/engine/rng';
 import { startTeamBattle, teamInput, teamStep, type TeamBattle } from '../../../core/engine/team';
-import { battleAnimKey, FX_HOLD_DUEL_MAX_MS, FX_HOLD_MAX_MS, fxCoverLeft, fxTailLeft, holdFx, holdTeamTail, KO_ANIM_MS, KO_FLIP_MS, koWaitMs, pickShown, releaseFx, setFxCover, setFxTail, setPickShow, shouldHoldBattle, teamUltKey } from './hold';
+import { battleAnimKey, FX_HOLD_DUEL_MAX_MS, FX_HOLD_MAX_MS, fxCoverLeft, fxTailLeft, holdFx, holdTeamTail, KO_ANIM_MS, koFallAt, KO_FLIP_MS, KO_SLUMP_MS, KO_START_LAG_MS, koTiming, koWaitMs, noteKoActor, resetKo, pickShown, releaseFx, setFxCover, setFxTail, setPickShow, shouldHoldBattle, teamUltKey } from './hold';
 
 /** 내 포켓몬이 기술을 쓰는 중인 전투 상태 (ms 까지 지남) */
 function inMove(ms: number, dur = 900): { state: GameState; b: BattleState } {
@@ -231,5 +233,78 @@ describe('필살기로 쓰러뜨린 뒤 남은 연출 동안 붙잡음 (2026-10-
     expect(pickShown(2999)).toBe(false);
     expect(pickShown(3000)).toBe(true);
     setPickShow(0);
+  });
+});
+
+describe('쓰러졌다! 말 박자 (ideas 723 · ux-rules U2)', () => {
+  const css = readFileSync(join(__dirname, '../../../webview/game.css'), 'utf8');
+  const pct = (name: string, re: RegExp): number => Number(css.slice(css.indexOf(`@keyframes ${name} {`)).match(re)?.[1]);
+  it('넘어가는 때 = CSS 키프레임 (벌러덩 27% · 동작 줄이기 회색 주저앉기 12%) × 2.3초', () => {
+    expect(KO_ANIM_MS).toBe(2300);
+    expect(KO_FLIP_MS).toBe(Math.round((pct('pg-ko-late', /(\d+)% \{[^}]*--pg-ko-y/) / 100) * KO_ANIM_MS));
+    expect(KO_SLUMP_MS).toBe(Math.round((pct('pg-faint-late', /0%, (\d+)% \{/) / 100) * KO_ANIM_MS));
+  });
+  it('끝 말 · 말 줄은 넘어갈 때까지 비움 — 말 칸 · 무대 위 줄 · 옆 판 · 정보줄 자리 메뉴 줄 (barSay 한 곳) · 정보줄도 깨움', () => {
+    const layer = readFileSync(join(__dirname, '../components/BattleLayer.tsx'), 'utf8');
+    const stage = readFileSync(join(__dirname, '../../stage/components/StageScreen.tsx'), 'utf8');
+    expect(layer).toMatch(/const fallWait = ending && fallLeft > 0;/);
+    expect(layer).toMatch(/showMsg = msgText !== '' && !fallWait/);
+    expect(layer).toMatch(/lastSentence = showMsg \|\| fallWait \? undefined/);
+    expect(layer).toMatch(/if \(koFallAt\(b, now, reduce\) > now\) return null;/);
+    expect(stage).toMatch(/useFallWake\(battle \? koFallAt\(/);
+    expect(stage).toMatch(/barSay\(battle, [^)]*reduceMotion === true\)/);
+    // 옆 메뉴 — 이름표 · 마지막 기회 칸과 그 키도 넘어진 뒤부터 (보이지 않는 칸에서 볼이 날아가던 것)
+    const menu = readFileSync(join(__dirname, '../components/BattleMenu.tsx'), 'utf8');
+    expect(menu).toMatch(/if \(c\.falling\) return;/);
+    expect(menu).toMatch(/b\.phase === 'last' && !falling/);
+    expect(menu).toMatch(/picking && !falling \? '쓰러졌다! 교체'/);
+  });
+  it('koTiming — 상대 한 방 = 넘어짐 기다림 + 0.62초 (동작 줄이기 0.276초) · 자기 행동 = 바로 · 볼 던짐 · 동작 줄이기 마지막 기회 = 지금 · 새 포켓몬은 새로', () => {
+    resetKo();
+    setFxTail(5000);
+    setFxCover(4000);
+    const base = inMove(0).b;
+    const mk = (phase: BattleState['phase'], foeHp: number, uid = base.foe.uid): BattleState => ({ ...base, phase, anim: null, foe: { ...base.foe, uid, hp: foeHp } });
+    // 내 기술 (anim me) 다음 상대가 쓰러짐 → 벌러덩 · 덮음 끝 − 1.02초에 넘어감
+    noteKoActor({ ...base, anim: { ...base.anim!, side: 'me' } });
+    const t = koTiming(mk('send', 0), 'foe', 1000, false);
+    expect(t.byHit).toBe(true);
+    expect(t.wait).toBe(4000 - 1000 - 400 - KO_FLIP_MS);
+    expect(t.fallAt).toBe(1000 + KO_START_LAG_MS + t.wait + KO_FLIP_MS);
+    // 한 번 정하면 같은 값 (어디서 먼저 불러도)
+    expect(koTiming(mk('send', 0), 'foe', 2500, false)).toEqual(t);
+    expect(koFallAt(mk('send', 0), 2500, false)).toBe(t.fallAt);
+    // 볼을 던지면 (catch — 누운 채) 지금
+    expect(koTiming(mk('catch', 0), 'foe', 2600, false).fallAt).toBe(2600);
+    // 살아나면 지움 · 새 포켓몬 (uid) 은 새로
+    expect(koTiming(mk('run', 10), 'foe', 2700, false).fallAt).toBe(0);
+    resetKo();
+    noteKoActor({ ...base, anim: { ...base.anim!, side: 'me' } });
+    expect(koTiming(mk('last', 0), 'foe', 1000, true).fallAt).toBe(1000);
+    resetKo();
+    noteKoActor({ ...base, anim: { ...base.anim!, side: 'me' } });
+    expect(koTiming(mk('send', 0), 'foe', 1000, true).fallAt).toBe(1000 + KO_START_LAG_MS + (4000 - 1000 - 400 - KO_FLIP_MS) + KO_SLUMP_MS);
+    // 자기 행동 (독 · 반동 — 바로 앞 행동이 자기) 이면 기다림 없음
+    resetKo();
+    noteKoActor({ ...base, anim: { ...base.anim!, side: 'foe' } });
+    expect(koTiming(mk('send', 0), 'foe', 1000, false)).toMatchObject({ byHit: false, fallAt: 0 });
+    // 다시 열기 (바로 앞 행동 모름) 도 기다림 없음
+    resetKo();
+    expect(koTiming(mk('send', 0), 'foe', 1000, false).fallAt).toBe(0);
+    resetKo();
+    setFxTail(0);
+    setFxCover(0);
+  });
+  it('내 포켓몬이 쓰러진 고르기 (pick) 도 넘어짐 시작까지 붙잡음 — 자동 전투가 1.7초에 골라 "쓰러졌다!" 가 1초를 못 채우던 것', () => {
+    const { state, b } = inMove(0);
+    const pick: GameState = { ...state, runtime: { ...state.runtime, stage: { phase: 'battle', battle: { ...b, phase: 'pick', anim: null } } } };
+    setFxTail(3200);
+    setFxCover(3000);
+    expect(shouldHoldBattle(pick, 50, 1500)).toBe(true);
+    expect(shouldHoldBattle(pick, 50, 3000 - 400 - KO_FLIP_MS + 10)).toBe(true);
+    expect(shouldHoldBattle(pick, 50, 3000 - 400 + KO_START_LAG_MS + 200 - 10)).toBe(true);
+    expect(shouldHoldBattle(pick, 50, 3000 - 400 + KO_START_LAG_MS + 200 + 10)).toBe(false);
+    setFxTail(0);
+    setFxCover(0);
   });
 });
