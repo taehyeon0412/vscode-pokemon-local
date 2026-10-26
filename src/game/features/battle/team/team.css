@@ -1077,7 +1077,8 @@
   background:
     linear-gradient(90deg, var(--pg-sos-gold) 0 36px, transparent 36px) 0 8% / 220px 2px repeat-x,
     linear-gradient(90deg, var(--pg-cut-c2, var(--pg-sos-ink)) 0 20px, transparent 20px) 70px 22% / 180px 2px repeat-x,
-    linear-gradient(90deg, var(--pg-cut-c1, var(--pg-sos-gold)) 0 52px, transparent 52px) 30px 36% / 260px 2px repeat-x,
+    /* 앞장 색 줄은 크림 쪽으로 밝게 — 앞장 색 바탕 (제목 칸 · 그림 하나) 에 묻히던 것 (아트 디렉터 #98 R5 6) */
+    linear-gradient(90deg, color-mix(in srgb, var(--pg-cut-c1, var(--pg-sos-gold)) 55%, #fff8e0) 0 52px, transparent 52px) 30px 36% / 260px 2px repeat-x,
     linear-gradient(90deg, var(--pg-cut-c3, var(--pg-cut-c2, var(--pg-sos-ink))) 0 28px, transparent 28px) 120px 50% / 200px 2px repeat-x,
     linear-gradient(90deg, var(--pg-sos-gold) 0 40px, transparent 40px) 10px 62% / 240px 2px repeat-x,
     linear-gradient(90deg, var(--pg-cut-c2, var(--pg-sos-ink)) 0 24px, transparent 24px) 90px 72% / 170px 2px repeat-x;
@@ -1173,10 +1174,14 @@
 #pokemon-game .pg-cutin-foe .pg-cutin-title {
   align-items: flex-end;
 }
-/* 그림이 하나만 남은 좁은 컷인 — 동료 얼굴 (24 × 20 띠 얼굴 창) 줄을 제목 위에 */
+/* 그림이 하나만 남은 좁은 컷인 — 동료 얼굴 (24 × 20 띠 얼굴 창) 줄을 제목 위에 · 얼굴 칸 = 남색 바탕 + 1px 선 (바깥 26 × 22 — 3:3 띠 얼굴 칸과 같게 · 판 없이 떠 보이던 것, 아트 디렉터 #98 R5 4) */
 #pokemon-game .pg-cutin-faces {
   display: flex;
   gap: 4px;
+}
+#pokemon-game .pg-cutin-faces .pg-band-face {
+  background: var(--pg-sos-bar);
+  border: 1px solid var(--pg-sos-line);
 }
 /* 같은 짝 두 번째 합동 (quick — 컷 0.6초) — 기다림 · 펼침 · 밀림 없이 띠가 열리며 바로 (큰 이름이 0.08초만 보이던 것, UX 리뷰어 #96 5바퀴 5) */
 #pokemon-game .pg-team-cutin.pg-cutin-quick .pg-cutin-title,

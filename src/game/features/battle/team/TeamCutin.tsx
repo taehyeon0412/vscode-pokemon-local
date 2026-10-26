@@ -105,36 +105,49 @@ export function jointBandBg(colors: readonly string[], foe = false): string {
 
 export function TeamCutin({ who, side, title, sub, media, k, top, height, colors, quick = false }: { who: { form: string; name: string; shiny?: boolean }[]; side: Side; title: string; sub: string; media: string; /** 그림 배율 */ k: 1 | 2 | 3; top: number; height: number; /** 참가자 타입 색 (앞장 = 띠 바탕 · 동료 = 속도선) */ colors: string[]; /** 같은 짝 두 번째 합동 (컷 0.6초 — 들어오기 없이 바로) */ quick?: boolean }) {
   const foe = side === 'foe';
-  // 이음선 = 이웃한 두 그림 사이 가운데 (세로 · 재서 — 칸 비율로 나눠 둘째 포켓몬 몸 위를 지나던 것, 아트 디렉터 #100) · 재기 전엔 칸 비율
+  // 이음선 = 이웃한 두 그림 사이 가운데 (세로 · 재서 — 칸 비율로 나눠 둘째 포켓몬 몸 위를 지나던 것, 아트 디렉터 #100) · 제목 칸 = 앞장 색 (아트 디렉터 #98 2바퀴 5) ·
+  //   그림이 하나만 남으면 앞장 색 하나 (2바퀴 2) · 들어오는 동안 (0.16 + 0.24초) 은 매 장면 그린 자리 (transform 포함) 로 다시 칠함 — offset 으로 재 다 들어온 자리에 칠해
+  //   들어오는 0.24초 동안 거북왕이 리자몽 주황 칸 위를 지나던 것 (아트 디렉터 #98 R5 3) · 바탕은 style 로 직접 (속도선은 그대로 위)
   const box = useRef<HTMLDivElement>(null);
-  const [bg, setBg] = useState<string | null>(null);
   useLayoutEffect(() => {
-    const el = box.current;
-    const wrap = el?.querySelector<HTMLElement>('.pg-cutin-who');
-    const tt = el?.querySelector<HTMLElement>('.pg-cutin-title');
-    if (!el || !wrap || colors.length < 2) return;
-    // offset* 은 들어오는 애니메이션 (transform) 을 안 셈 — 다 들어온 자리 · 숨긴 그림 (좁은 패널 — 앞장 하나) 은 뺌 · 제목 칸 = 앞장 색 (마지막 동료 색 칸이 제목까지 이어지던 것 — 아트 디렉터 #98 2바퀴 5)
-    const monCells = Array.from(wrap.querySelectorAll<HTMLElement>('.pg-cutin-mon'))
-      .map((m, i) => ({ l: wrap.offsetLeft + m.offsetLeft, r: wrap.offsetLeft + m.offsetLeft + m.offsetWidth, w: m.offsetWidth, c: colors[i] ?? colors[0]! }))
-      .filter((cell) => cell.w > 0);
-    const cells = [...monCells, ...(tt && tt.offsetWidth > 0 ? [{ l: tt.offsetLeft, r: tt.offsetLeft + tt.offsetWidth, w: tt.offsetWidth, c: colors[0]! }] : [])];
-    // 그림이 하나만 남으면 (좁은 패널) 앞장 색 하나 (빈 동료 색 칸이 사선으로 셋 나뉘던 것 — 아트 디렉터 #98 2바퀴 2)
-    if (monCells.length < 2) {
-      const one = deep(colors[0]!);
-      if (bg !== one) setBg(one);
-      return;
-    }
-    cells.sort((a, b) => a.l - b.l);
-    const stops = cells.flatMap((cell, i) => {
-      const next = cells[i + 1];
-      const prev = cells[i - 1];
-      const from = prev ? `${Math.round((prev.r + cell.l) / 2) + 1}px` : '0';
-      const to = next ? `${Math.round((cell.r + next.l) / 2) - 1}px` : '100%';
-      const seam = next ? [`var(--pg-sos-gold) ${Math.round((cell.r + next.l) / 2) - 1}px ${Math.round((cell.r + next.l) / 2) + 1}px`] : [];
-      return [`${deep(cell.c)} ${from} ${to}`, ...seam];
-    });
-    const next = `linear-gradient(90deg, ${stops.join(', ')})`;
-    if (next !== bg) setBg(next);
+    const paint = () => {
+      const el = box.current;
+      const wrap = el?.querySelector<HTMLElement>('.pg-cutin-who');
+      const tt = el?.querySelector<HTMLElement>('.pg-cutin-title');
+      if (!el || !wrap) return;
+      const B = el.getBoundingClientRect();
+      const rel = (n: HTMLElement) => {
+        const r = n.getBoundingClientRect();
+        return { l: r.left - B.left, r: r.right - B.left, w: r.width };
+      };
+      const monCells = Array.from(wrap.querySelectorAll<HTMLElement>('.pg-cutin-mon'))
+        .map((m, i) => ({ ...rel(m), c: colors[i] ?? colors[0]! }))
+        .filter((cell) => cell.w > 0);
+      if (monCells.length < 2 || colors.length < 2) {
+        el.style.background = deep(colors[0]!);
+        return;
+      }
+      const cells = [...monCells, ...(tt && tt.offsetWidth > 0 ? [{ ...rel(tt), c: colors[0]! }] : [])].sort((p, q) => p.l - q.l);
+      const stops = cells.flatMap((cell, i) => {
+        const next = cells[i + 1];
+        const prev = cells[i - 1];
+        const from = prev ? `${Math.round((prev.r + cell.l) / 2) + 1}px` : '0';
+        const to = next ? `${Math.round((cell.r + next.l) / 2) - 1}px` : '100%';
+        const seam = next ? [`var(--pg-sos-gold) ${Math.round((cell.r + next.l) / 2) - 1}px ${Math.round((cell.r + next.l) / 2) + 1}px`] : [];
+        return [`${deep(cell.c)} ${from} ${to}`, ...seam];
+      });
+      el.style.background = `linear-gradient(90deg, ${stops.join(', ')})`;
+    };
+    paint();
+    if (quick) return undefined;
+    const until = performance.now() + 600;
+    let id = 0;
+    const tick = () => {
+      paint();
+      if (performance.now() < until) id = requestAnimationFrame(tick);
+    };
+    id = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(id);
   });
   // 넘치면 한 단계 (U4 — 재서 · 맥 여유 10% · 이름은 자르지 않음): 1 = 큰 이름 20px · 2 = 큰 이름 두 줄 (splitName) · 3 = 그림 아래 이름표 뺌 · 4 = 그림은 앞장 하나
   //   (참가자 그림이 컷인의 뜻이라 두 줄 · 이름표를 먼저 — 480 에서 동료 그림까지 빠지던 것 · 240 2인 · 300 3인도 동료가 남게, UX 리뷰어 #96)
@@ -173,7 +186,7 @@ export function TeamCutin({ who, side, title, sub, media, k, top, height, colors
   ) : (
     <b>{big}</b>
   );
-  const vars: Record<string, string> = { top: `${top}px`, height: `${height}px`, background: bg ?? jointBandBg(colors, foe) };
+  const vars: Record<string, string> = { top: `${top}px`, height: `${height}px` };
   colors.forEach((c, i) => (vars[`--pg-cut-c${i + 1}`] = c));
   return (
     <div class={`pg-team-cutin${foe ? ' pg-cutin-foe' : ''}${quick ? ' pg-cutin-quick' : ''}${sub ? '' : ' pg-cutin-narrow'}${step >= 1 ? ' pg-cutin-fit1' : ''}${twoOn ? ' pg-cutin-fit2' : ''}${step >= 3 ? ' pg-cutin-fit3' : ''}${step >= 4 ? ' pg-cutin-fit4' : ''}`} style={vars} ref={box}>

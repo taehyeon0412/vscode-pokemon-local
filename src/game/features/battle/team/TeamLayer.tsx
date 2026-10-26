@@ -317,8 +317,11 @@ function JointCutin({ b, view, media, widthPx, heightPx, infoBarPx, fieldTopPx, 
   const cut = mid + base > monTop && short > 0;
   const height0 = cut && short <= 16 && mid + base + short <= heightPx ? base + short : base;
   const top0 = cut && height0 === base ? Math.min(heightPx - base, feetPx + 4 - base) : mid;
-  const top = Math.max(top0, minTop);
-  const height = Math.max(32, Math.min(height0, heightPx - top));
+  const top1 = Math.max(top0, minTop);
+  //   뜰 때 정한 자리 · 키를 끝까지 (쓰러짐 줄이 닫히며 minTop 이 풀려 큰 이름을 읽는 1.2초 한가운데에 16px 위로 튀던 것 — 아트 디렉터 #98 R5 2 · 칩 "처음 정한 자리" 규칙)
+  const fixedAt = useRef<{ at: number; top: number; height: number } | null>(null);
+  if (!fixedAt.current || fixedAt.current.at !== view.at) fixedAt.current = { at: view.at, top: top1, height: Math.max(32, Math.min(height0, heightPx - top1)) };
+  const { top, height } = fixedAt.current;
   const who = mons.map((f) => ({ form: f.form, shiny: f.shiny, name: speciesOf(f.species)?.name.ko ?? f.form }));
   // 타입 색 — 앞장 = 띠 바탕 (어둡게) · 동료 = 속도선 ("합동" 을 색으로 — 남색 띠가 HUD 판처럼 읽히던 것, 아트 디렉터 #99 · 마스터즈 타입 색 방사선)
   const colors = mons.map((f) => TYPE_COLOR[speciesOf(f.species)?.types[0] ?? 'normal']);
