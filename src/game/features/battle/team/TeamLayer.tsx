@@ -638,6 +638,20 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
     if (text) panelFaint.current = { text, short: faintShortLine(young.map((p) => p.text.replace(FAINT_RE, ''))), ids: young.map((p) => p.id), at: Math.max(...young.map((p) => faintAt.current.get(p.id) ?? bandNow)) };
     apart0 = null;
   }
+  // 쓰러짐 줄은 한 번 늘면 안 줄임 — 앞 이름 말 (엔진 팝업) 이 먼저 끝나 "소미안" → "소미안 · 레디바" → "레디바 쓰러졌다!" 로 1.5초에 세 번 바뀌던 것
+  //   (UX 리뷰어 #98 2바퀴 ⑦ · 1655 같은 종류) · 마지막 이름이 붙은 뒤 1.2초 (진짜 시계) 에 통째로 닫음 · 띠 · 판으로 넘어가면 (take · 접기) 놓음
+  const faintStick = useRef<{ names: string[]; at: number } | null>(null);
+  const liveFaint = apart0 ? apart0.replace(FAINT_RE, '').split(' · ') : [];
+  if (boxTaken || panelFaint.current) faintStick.current = null;
+  else if (liveFaint.length) {
+    const add = liveFaint.filter((nm) => !faintStick.current?.names.includes(nm));
+    if (!faintStick.current) faintStick.current = { names: liveFaint, at: realNow() };
+    else if (add.length) faintStick.current = { names: [...faintStick.current.names, ...add], at: realNow() };
+  } else if (faintStick.current && realNow() - faintStick.current.at >= 1200) faintStick.current = null;
+  if (faintStick.current) apart0 = `${faintStick.current.names.join(' · ')} 쓰러졌다!`;
+  const [, kickStick] = useState(0);
+  const stickLeft = faintStick.current && !liveFaint.length ? faintStick.current.at + 1200 - realNow() : -1;
+  useEffect(() => (stickLeft >= 0 ? realLater(() => kickStick((k) => k + 1), Math.max(16, stickLeft + 20)) : undefined), [faintStick.current?.at, stickLeft >= 0]);
   // 힘겨루기 머릿수가 바뀐 뒤 1초 = 금색 (상대가 끼어들어도 숫자 한 글자만 바뀌어 몰랐던 것 — UX 리뷰어 #95 3바퀴)
   const count = prompt?.kind === 'mash' ? `${prompt.me}:${prompt.foe}` : '';
   const countAt = useRef<{ count: string; at: number }>({ count: '', at: 0 });

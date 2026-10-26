@@ -223,11 +223,12 @@ export function TeamChoice({ state, media, onInput }: { state: GameState; media:
         <Button
           extraClass="pg-team-start"
           onClick={() => onInput(lobby ? { kind: 'challenge' } : { kind: 'space' })}
-          title={lobby ? `고른 셋으로 관장에게 도전 (Enter) ${pick.length}/${n}` : `고른 셋으로 시작 (Enter — 모자라면 상성 좋은 순으로 채움 · 10초 뒤 저절로) ${pick.length}/${n}`}
+          title={pick.length === 0 ? `셋 다 — 상성 좋은 순으로 셋을 골라 ${lobby ? '도전' : '시작'} (Enter)` : lobby ? `고른 셋으로 관장에게 도전 (Enter) ${pick.length}/${n}` : `고른 셋으로 시작 (Enter — 모자라면 상성 좋은 순으로 채움 · 10초 뒤 저절로) ${pick.length}/${n}`}
         >
           {/* 좁으면 64px 칸에 Enter 칸까지는 안 들어가서 글만 (Enter 는 title) */}
           {!narrow && <KeyCap k="Enter" />}
-          {`${lobby ? '도전' : '시작'} ${pick.length}/${n}`}
+          {/* 다 뺐으면 (0/3) "셋 다 ▶" — Enter 가 상성 좋은 순으로 셋을 채워 시작하는데 "시작 0/3" 이라 아무도 안 나가는 줄 알던 것 (UX 리뷰어 #98 2바퀴 ⑧) */}
+          {pick.length === 0 ? '셋 다 ▶' : `${lobby ? '도전' : '시작'} ${pick.length}/${n}`}
           {!lobby && <span class="pg-team-left" style={{ width: `${Math.round(left * 100)}%` }} />}
         </Button>
         )}
