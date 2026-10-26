@@ -90,9 +90,11 @@
   outline: 1px solid var(--pg-sos-line);
   outline-offset: 2px;
 }
+/* 다 참 · 끼어들 수 있음 = 1px 금 (offset 2 — design-system 12장 · 셋이 다 차면 2px 금 셋이 무대에서 가장 세던 것, 아트 디렉터 #98 2바퀴 8) */
 #pokemon-game .pg-plate-ready,
 #pokemon-game .pg-plate-join {
-  outline: 2px solid var(--pg-sos-gold);
+  outline: 1px solid var(--pg-sos-gold);
+  outline-offset: 2px;
 }
 #pokemon-game .pg-plate-down {
   background: repeating-conic-gradient(#1a2131 0 25%, #0c101e 0 50%) 0 0 / 4px 4px;
@@ -1170,6 +1172,11 @@
 }
 #pokemon-game .pg-cutin-foe .pg-cutin-title {
   align-items: flex-end;
+}
+/* 그림이 하나만 남은 좁은 컷인 — 동료 얼굴 (24 × 20 띠 얼굴 창) 줄을 제목 위에 */
+#pokemon-game .pg-cutin-faces {
+  display: flex;
+  gap: 4px;
 }
 /* 같은 짝 두 번째 합동 (quick — 컷 0.6초) — 기다림 · 펼침 · 밀림 없이 띠가 열리며 바로 (큰 이름이 0.08초만 보이던 것, UX 리뷰어 #96 5바퀴 5) */
 #pokemon-game .pg-team-cutin.pg-cutin-quick .pg-cutin-title,

@@ -7086,6 +7086,11 @@ body.vscode-high-contrast-light .pg-hpblock > .pg-hprow,
 /* 장면 전환 중 고정 자리 (위 왼쪽) = 연출 · 컷인 캔버스 위 (컷인 뒤에 숨어 붙잡는 시간을 다 쓰던 것 — UX 리뷰어 #97 큼 1) */
 #pokemon-game .pg-head-note.pg-head-fixed {
   z-index: 30;
+  height: 20px;
+}
+/* 고정 자리 얼굴 (24 × 20 — 띠 얼굴 창) */
+#pokemon-game .pg-head-note .pg-head-face {
+  margin-right: 2px;
 }
 /* 금 "2 지금!" 의 키 = 작은 자판 칸 (어느 키를 누를지) — 1px 테두리 · 남색 속 */
 #pokemon-game .pg-head-key {

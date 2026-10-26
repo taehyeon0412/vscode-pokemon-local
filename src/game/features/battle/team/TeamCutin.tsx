@@ -70,11 +70,19 @@ export function JointNamePlate({ who, side, name, media, top, colors, quick = fa
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import type { Side } from '../../../core/engine';
 import { Sprite } from '../../../ui/Sprite';
+import { spriteBoxOf } from '../../../data/sprite-boxes';
+import { spritePx } from '../../../ui/sprite-path';
 import { FIT_ROOM } from '../../../ui/useFit';
 import { splitName } from './joint-names';
 
-/** 타입 색을 남색 쪽으로 반 (남색 판 언어 안에서 그 필살기 색) */
-const deep = (c: string) => `color-mix(in srgb, ${c} 50%, #0c101e)`;
+/** 타입 색을 남색 쪽으로 30% (남색 판 언어 안에서 그 필살기 색 — 50% 면 불이 흙빛 #85452a 이던 것, 아트 디렉터 #98 2바퀴 5) */
+const deep = (c: string) => `color-mix(in srgb, ${c} 70%, #0c101e)`;
+
+/** 컷인 그림 창 키 = 보이는 키 (대기 그림 위 끝 ~ 발끝) + 2칸 — 큰 그림 빈칸 위를 잘라 띠에 들어가게 (TeamLayer JointCutin 이 띠 높이를 이 값으로 늘림) */
+export function cutinArtH(form: string, k: number): number {
+  const box = spriteBoxOf(form);
+  return box ? (box[4] - box[1]) * k + 2 * k : 32 * k;
+}
 
 /**
  * 합동 띠 바탕 = 참가자 타입 색을 사선으로 나눔 (앞장 | 동료 · 셋이면 세 칸 · 이음선 2px 금 — #100 "반반 색": 합동이 색으로 보이게) · 상대는 오른쪽부터.
@@ -103,13 +111,17 @@ export function TeamCutin({ who, side, title, sub, media, k, top, height, colors
   useLayoutEffect(() => {
     const el = box.current;
     const wrap = el?.querySelector<HTMLElement>('.pg-cutin-who');
+    const tt = el?.querySelector<HTMLElement>('.pg-cutin-title');
     if (!el || !wrap || colors.length < 2) return;
-    // offset* 은 들어오는 애니메이션 (transform) 을 안 셈 — 다 들어온 자리 · 숨긴 그림 (좁은 패널 — 앞장 하나) 은 뺌
-    const cells = Array.from(wrap.querySelectorAll<HTMLElement>('.pg-cutin-mon'))
+    // offset* 은 들어오는 애니메이션 (transform) 을 안 셈 — 다 들어온 자리 · 숨긴 그림 (좁은 패널 — 앞장 하나) 은 뺌 · 제목 칸 = 앞장 색 (마지막 동료 색 칸이 제목까지 이어지던 것 — 아트 디렉터 #98 2바퀴 5)
+    const monCells = Array.from(wrap.querySelectorAll<HTMLElement>('.pg-cutin-mon'))
       .map((m, i) => ({ l: wrap.offsetLeft + m.offsetLeft, r: wrap.offsetLeft + m.offsetLeft + m.offsetWidth, w: m.offsetWidth, c: colors[i] ?? colors[0]! }))
       .filter((cell) => cell.w > 0);
-    if (cells.length < 2) {
-      if (bg !== null) setBg(null);
+    const cells = [...monCells, ...(tt && tt.offsetWidth > 0 ? [{ l: tt.offsetLeft, r: tt.offsetLeft + tt.offsetWidth, w: tt.offsetWidth, c: colors[0]! }] : [])];
+    // 그림이 하나만 남으면 (좁은 패널) 앞장 색 하나 (빈 동료 색 칸이 사선으로 셋 나뉘던 것 — 아트 디렉터 #98 2바퀴 2)
+    if (monCells.length < 2) {
+      const one = deep(colors[0]!);
+      if (bg !== one) setBg(one);
       return;
     }
     cells.sort((a, b) => a.l - b.l);
@@ -134,7 +146,7 @@ export function TeamCutin({ who, side, title, sub, media, k, top, height, colors
     const el = box.current;
     const row = el?.querySelector<HTMLElement>('.pg-cutin-who');
     const tt = el?.querySelector<HTMLElement>('.pg-cutin-title');
-    if (!el || !row || !tt || step >= 4) return;
+    if (!el || !row || !tt || step >= 5) return;
     const cs = getComputedStyle(el);
     const room = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
     const need = (row.scrollWidth + (parseFloat(cs.columnGap) || 0) + tt.scrollWidth) * FIT_ROOM;
@@ -149,7 +161,9 @@ export function TeamCutin({ who, side, title, sub, media, k, top, height, colors
     };
   }, []);
   const big = sub || title;
-  const two = step >= 2 ? splitName(big) : null;
+  //   그림이 하나만 남으면 (4) 제목은 다시 한 줄로 재 봄 — 자리가 생겨 240 안쪽 224 에 20px 한 줄이 들어가는데 "삼색 / 대폭발" 두 줄이 이음선 위에 남던 것 (아트 디렉터 #98 2바퀴 2) · 그래도 넘치면 (5) 두 줄
+  const twoOn = step === 2 || step === 3 || step >= 5;
+  const two = twoOn ? splitName(big) : null;
   const bigEl = two ? (
     <b>
       {two[0]}
@@ -162,13 +176,14 @@ export function TeamCutin({ who, side, title, sub, media, k, top, height, colors
   const vars: Record<string, string> = { top: `${top}px`, height: `${height}px`, background: bg ?? jointBandBg(colors, foe) };
   colors.forEach((c, i) => (vars[`--pg-cut-c${i + 1}`] = c));
   return (
-    <div class={`pg-team-cutin${foe ? ' pg-cutin-foe' : ''}${quick ? ' pg-cutin-quick' : ''}${sub ? '' : ' pg-cutin-narrow'}${step >= 1 ? ' pg-cutin-fit1' : ''}${step >= 2 ? ' pg-cutin-fit2' : ''}${step >= 3 ? ' pg-cutin-fit3' : ''}${step >= 4 ? ' pg-cutin-fit4' : ''}`} style={vars} ref={box}>
+    <div class={`pg-team-cutin${foe ? ' pg-cutin-foe' : ''}${quick ? ' pg-cutin-quick' : ''}${sub ? '' : ' pg-cutin-narrow'}${step >= 1 ? ' pg-cutin-fit1' : ''}${twoOn ? ' pg-cutin-fit2' : ''}${step >= 3 ? ' pg-cutin-fit3' : ''}${step >= 4 ? ' pg-cutin-fit4' : ''}`} style={vars} ref={box}>
       <span class="pg-cutin-lines" />
       <span class="pg-cutin-who">
         {who.map((w, i) => (
           <span key={i} class="pg-cutin-mon">
+            {/* 보이는 키만큼 창 (큰 그림 빈칸 위를 자름 · 발끝은 창 아래 2칸 위) — 키 큰 포켓몬 발 · 이름표가 띠 밖으로 잘리던 것 (아트 디렉터 #98 2바퀴 1) */}
             <span class="pg-cutin-art">
-              <Sprite media={media} form={w.form} shiny={w.shiny} scale={k} action="walk" faceLeft={foe} />
+              <Sprite media={media} form={w.form} shiny={w.shiny} scale={k} action="walk" faceLeft={foe} crop={cutinArtH(w.form, k)} cropWidth={spritePx(w.form, 1) * k} zoom={k} bottom bottomPad={2 * k} />
             </span>
             <b class="pg-cutin-name">{w.name}</b>
           </span>
@@ -178,6 +193,16 @@ export function TeamCutin({ who, side, title, sub, media, k, top, height, colors
       </span>
       {/* 1:1 컷인처럼 — 위 작은 줄 ("합동 필살기!") + 큰 필살기 이름 (좁으면 "합동!" 하나) */}
       <span class="pg-cutin-title">
+        {/* 그림이 하나만 남으면 동료 얼굴 (24 × 20 — 띠 얼굴과 같은 창) 을 제목 앞에 (합동이 누구와인지 — 아트 디렉터 #98 2바퀴 2) */}
+        {step >= 4 && who.length > 1 && (
+          <span class="pg-cutin-faces">
+            {who.slice(1).map((w, i) => (
+              <span key={i} class="pg-band-face">
+                <Sprite media={media} form={w.form} shiny={w.shiny} scale={1} px={32} crop={20} cropWidth={24} center action="walk" faceLeft={foe} />
+              </span>
+            ))}
+          </span>
+        )}
         {sub ? (
           <>
             <span class="pg-cutin-sub">{title}</span>

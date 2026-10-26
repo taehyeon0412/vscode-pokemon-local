@@ -6,6 +6,7 @@
  */
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { realLater, realNow } from './real-clock';
+import { Sprite } from './Sprite';
 
 export type Rect = { l: number; t: number; r: number; b: number };
 
@@ -116,7 +117,7 @@ export function useHeldNote<T>(key: string | null, value: T | null, cancel = fal
 }
 
 /** 머리 위 글 하나 — 자리 (l, t) 는 부른 쪽이 정함 (정수 px) · follow = 따라갈 그림 (달려가면 그 자리 · 돌아오면 같이 — 글이 떠 있는 동안만 매 장면 잼) */
-export function HeadNote({ text, go, keyCap, at, step, fixed = false, follow, followFrom = 'zero' }: { text: string; go: boolean; keyCap?: string | null; at: { l: number; t: number }; step: number; /** 고정 자리 (장면 전환 중) — 연출 · 컷인 위 */ fixed?: boolean; follow?: () => HTMLElement | null; /** zero = 자리를 놓인 자리 (transform 0) 로 정함 (3:3) · start = 그린 자리로 정함 — 놓은 순간부터 움직인 만큼만 (1:1 — 그림 칸에 가운데 맞춤 transform 이 늘 있음) */ followFrom?: 'zero' | 'start' }) {
+export function HeadNote({ text, go, keyCap, at, step, fixed = false, follow, followFrom = 'zero', face }: { text: string; go: boolean; keyCap?: string | null; at: { l: number; t: number }; step: number; /** 고정 자리 (장면 전환 중) — 연출 · 컷인 위 */ fixed?: boolean; /** 얼굴 창 24 × 20 (고정 자리 — 누른 포켓몬이 무대에 없을 때) */ face?: { media: string; form: string }; follow?: () => HTMLElement | null; /** zero = 자리를 놓인 자리 (transform 0) 로 정함 (3:3) · start = 그린 자리로 정함 — 놓은 순간부터 움직인 만큼만 (1:1 — 그림 칸에 가운데 맞춤 transform 이 늘 있음) */ followFrom?: 'zero' | 'start' }) {
   const el = useRef<HTMLSpanElement>(null);
   useEffect(() => {
     if (!follow) return undefined;
@@ -142,6 +143,11 @@ export function HeadNote({ text, go, keyCap, at, step, fixed = false, follow, fo
   }, [follow ? 1 : 0, at.l, at.t]);
   return (
     <span ref={el} class={`pg-head-note${go ? ' pg-head-go' : ''}${fixed ? ' pg-head-fixed' : ''}${step ? ` pg-head-fade${step}` : ''}`} style={{ left: `${at.l}px`, top: `${at.t}px` }}>
+      {face && (
+        <span class="pg-band-face pg-head-face">
+          <Sprite media={face.media} form={face.form} scale={1} px={32} crop={20} cropWidth={24} center action="walk" />
+        </span>
+      )}
       {keyCap && <span class="pg-head-key">{keyCap}</span>}
       {text}
     </span>

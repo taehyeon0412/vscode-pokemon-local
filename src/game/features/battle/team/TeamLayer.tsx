@@ -15,7 +15,7 @@ import { TEAM_FX, TeamFxRunner, type TeamSlot } from '../fx/team';
 import { bandDrawn, VIEW_CHIP_MS, VIEW_WAIT_MS, duelSpots, faintHoldLeft, faintIsBig, faintShortLine, foeWarn, overLineHold, plateState, stackRows, teamDenyNote, teamGeometry, teamPrompt, viewHitChip, viewPopsBack, type TeamGeo } from './model';
 import { HEAD_NOTE_H, HeadNote, headNoteWidth, pickHeadSpot, useHeldNote } from '../../../ui/HeadNote';
 import { getTeamView, subscribeTeamView, type TeamView } from '../fx/team-view';
-import { JointNamePlate, TeamCutin } from './TeamCutin';
+import { cutinArtH, JointNamePlate, TeamCutin } from './TeamCutin';
 import { jointName } from './joint-names';
 import { BAND_PX, TeamBand, useTeamBand, type TeamBandView } from './TeamBand';
 import { topGapPx } from '../../../ui/layout';
@@ -320,22 +320,29 @@ function useTeamView(): TeamView | null {
 }
 
 /** 합동 큰 컷인 자리 · 참가자 */
-function JointCutin({ b, view, media, widthPx, heightPx, infoBarPx, fieldTopPx, scale, feetPx }: { b: TeamBattle; view: TeamView; media: string; widthPx: number; heightPx: number; infoBarPx: number; fieldTopPx: number; scale: 1 | 2; /** 무대 앞줄 발끝 (장면 전환 자리 — duelSpots 앞장) */ feetPx: number }) {
+function JointCutin({ b, view, media, widthPx, heightPx, infoBarPx, fieldTopPx, scale, feetPx, minTop = 0 }: { /** 떠 있는 쓰러짐 줄 아래 + 4 — 띠 위 금선이 줄에 3px 걸치던 것 (아트 디렉터 #98 2바퀴 4) */ minTop?: number; b: TeamBattle; view: TeamView; media: string; widthPx: number; heightPx: number; infoBarPx: number; fieldTopPx: number; scale: 1 | 2; /** 무대 앞줄 발끝 (장면 전환 자리 — duelSpots 앞장) */ feetPx: number }) {
   //   포켓몬은 ×2 까지 (태현 님 10-23 "크게 키운 장면 너무 못생겼는데" — 180 이상 ×3 이던 것) · 작은 무대 (scale 1) 는 ×1
-  const k: 1 | 2 = scale === 1 ? 1 : 2;
-  const base = 32 * k + 28;
+  //   작은 무대 (scale 1) 도 컷인 그림은 ×2 (240 × 150 ×1 그림 18px 이 92px 띠에서 점처럼 보이던 것 — 아트 디렉터 #98 2바퀴 2)
+  const k: 1 | 2 = 2;
+  //   무대 포켓몬 배율 (띠가 무대 포켓몬에 걸치는지 셀 때)
+  const sk: 1 | 2 = scale === 1 ? 1 : 2;
+  const mons = view.from.flatMap((i) => (b[view.side][i] ? [b[view.side][i]!] : []));
+  //   띠 키 = 그림 창 (보이는 키 + 2칸 — cutinArtH) + 이름표 18 + 위아래 여유 10 (32k + 28 보다 작으면 그대로) — 키 큰 포켓몬 발 · 이름표가 띠 밖으로 잘리던 것 (아트 디렉터 #98 2바퀴 1) · 무대 남는 키까지
+  const fieldTop0 = infoBarPx + fieldTopPx - 4;
+  const base = Math.min(Math.max(heightPx - fieldTop0, 32 * k + 28), Math.max(32 * k + 28, ...mons.map((f) => cutinArtH(f.form, k) + 18 + 10)));
   //   지도 줄 아래부터 (지도 줄을 반만 덮던 것) · 남는 자리 가운데
   const fieldTop = infoBarPx + fieldTopPx - 4;
   const mid = fieldTop + Math.max(0, Math.round((heightPx - fieldTop - base) / 2));
   //   띠가 무대 포켓몬에 반쯤 걸치면 띠 아래 끝 = 발끝 + 4 — 240 × 150 은 띠 아래 끝 117 · 발끝 127 이라 머리는 띠 뒤 · 발만 띠 아래로 나와 잘려 보이던 것 (아트 디렉터 #96 5바퀴) ·
   //   걸침 = 큰 포켓몬 (×1.3) 머리 + 동료 지그재그 (위 8 · 12) 까지 · 띠가 포켓몬보다 위에 따로 있으면 (높은 패널) 가운데 그대로 ·
   //   모자람이 16px 까지면 위 끝은 두고 아래로 늘림 (240 × 150 = 58 ~ 130 · 높이 73 — 옮기면 띠가 무대 아래로 몰리고 두 줄 제목 위아래 여유가 4 ~ 5px 이던 것) · 더 모자라면 옮김
-  const monTop = feetPx - Math.round(32 * k * 1.3) - (k === 1 ? 8 : 12);
+  const monTop = feetPx - Math.round(32 * sk * 1.3) - (sk === 1 ? 8 : 12);
   const short = feetPx + 4 - (mid + base);
   const cut = mid + base > monTop && short > 0;
-  const height = cut && short <= 16 && mid + base + short <= heightPx ? base + short : base;
-  const top = cut && height === base ? Math.min(heightPx - base, feetPx + 4 - base) : mid;
-  const mons = view.from.flatMap((i) => (b[view.side][i] ? [b[view.side][i]!] : []));
+  const height0 = cut && short <= 16 && mid + base + short <= heightPx ? base + short : base;
+  const top0 = cut && height0 === base ? Math.min(heightPx - base, feetPx + 4 - base) : mid;
+  const top = Math.max(top0, minTop);
+  const height = Math.max(32, Math.min(height0, heightPx - top));
   const who = mons.map((f) => ({ form: f.form, shiny: f.shiny, name: speciesOf(f.species)?.name.ko ?? f.form }));
   // 타입 색 — 앞장 = 띠 바탕 (어둡게) · 동료 = 속도선 ("합동" 을 색으로 — 남색 띠가 HUD 판처럼 읽히던 것, 아트 디렉터 #99 · 마스터즈 타입 색 방사선)
   const colors = mons.map((f) => TYPE_COLOR[speciesOf(f.species)?.types[0] ?? 'normal']);
@@ -366,7 +373,8 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   //   장면 전환 (1:1 무대 · 컷인) 중에 생긴 글 = 위 왼쪽 고정 자리 · 맨 위 (그 칸 포켓몬이 숨어 있어 숨은 자리 · 다른 포켓몬 옆에 뜨고 컷인 뒤에 0.95초 숨던 것 — UX 리뷰어 #97 큼 1 (c)) · 처음 정한 자리를 끝까지
   const denyFixed = useRef<{ key: string; fixed: boolean } | null>(null);
   if (denyHeld && denyFixed.current?.key !== denyHeld.key) denyFixed.current = { key: denyHeld.key, fixed: view !== null };
-  const denyAtFixed = !!denyHeld && denyFixed.current?.fixed === true;
+  //   고정 자리는 장면 전환 동안만 — 돌아오면 남은 시간 동안 그 포켓몬 머리 왼쪽 위로 한 번 옮김 (구석에 남던 것 — 아트 디렉터 #98 2바퀴 7)
+  const denyAtFixed = !!denyHeld && denyFixed.current?.fixed === true && view !== null;
   const vGroups = view ? { me: view.side === 'me' ? view.from : view.to.side === 'me' ? [view.to.slot] : [], foe: view.side === 'foe' ? view.from : view.to.side === 'foe' ? [view.to.slot] : [] } : null;
   const vSpots = vGroups ? duelSpots(g, vGroups.me.length, vGroups.foe.length) : null;
   //   나머지 포켓몬 = 바둑판 두 걸음으로 사라짐 · 판 · 숫자 = in 에 바로 숨김 (바둑판이 옮겨 가는 몸 위에 겹쳐 어수선하던 것 — 개발 #99) · out 에 바둑판으로 나타남
@@ -933,7 +941,8 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
       {/* 장면 전환 동안은 3:3 띠를 안 띄움 — 혼자 = 1:1 캔버스 이름 띠 · 합동 = 큰 컷인이 이름을 말함 (이름 두 번 안 나오게) */}
       {bandShown && <TeamBand view={bandShown} media={media} top={bandTop} faint={inBand?.text ?? null} faintShort={inBand?.short ?? null} wide={widthPx < 400} tight={widthPx < 300} />}
       {/* 고정 자리 = 위 왼쪽 · 좁은 패널 (400 아래) 은 무대 왼쪽 아래 (위 왼쪽이 컷인 부제 "리자몽의 필살기!" · 합동 이름 판에 붙거나 겹치던 것 — UX 리뷰어 #97 2바퀴 큼 · 장면 전환 동안 발밑 판 · 숫자는 숨어 있음) */}
-      {denyHeld && denyAtFixed && <HeadNote text={denyHeld.value.text} go={denyHeld.value.go} keyCap={denyHeld.value.key !== null ? String(denyHeld.value.key) : null} at={widthPx < 400 ? { l: 4, t: heightPx - 13 - 4 } : { l: 8, t: topMin - 14 }} step={denyHeld.step} fixed />}
+      {/* 고정 자리 글엔 누른 포켓몬 얼굴 (무대에 없어 누구 말인지 모르던 것 — 아트 디렉터 #98 2바퀴 7) */}
+      {denyHeld && denyAtFixed && <HeadNote text={denyHeld.value.text} go={denyHeld.value.go} keyCap={denyHeld.value.key !== null ? String(denyHeld.value.key) : null} at={widthPx < 400 ? { l: 4, t: heightPx - 20 - 4 } : { l: 8, t: topMin - 14 }} step={denyHeld.step} fixed face={b.me[denyHeld.value.slot] ? { media, form: b.me[denyHeld.value.slot]!.form } : undefined} />}
       {/* 쓰러짐 말 한 줄 (기획 #95 — 머리 위에 따로 뜨던 "쓰러졌다!" 둘이 15px 차이로 붙고 숫자에 묻히던 것) · 띠가 있으면 그 아래 · 엔진 결과 한 줄이 있으면 그 아래 */}
       {apart && (
         // 띠 아래 자리 = 보이는 띠가 있거나, 큰 연출 중 (띠가 곧 뜸) — 숨긴 띠까지 세어 낮은 패널에서 28px 빈 줄이 남고 · 0.6초 뒤 띠가 뜨며 28px 내려가던 것 (UX 리뷰어 #95 7바퀴 3 · 8)
@@ -1060,7 +1069,7 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
         const types = mons.map((f) => speciesOf(f.species)?.types[0] ?? 'normal');
         return <JointNamePlate key={view.at} who={mons} side={view.side} name={jointName(types)} media={media} top={bandTop} colors={types.map((t) => TYPE_COLOR[t])} quick={!!view.quick} />;
       })()}
-      {view?.kind === 'joint' && view.phase === 'cut' && <JointCutin b={b} view={view} media={media} widthPx={widthPx} heightPx={heightPx} infoBarPx={infoBarPx} fieldTopPx={fieldTopPx} scale={g.scale} feetPx={g.pos('me', 2).y} />}
+      {view?.kind === 'joint' && view.phase === 'cut' && <JointCutin b={b} view={view} media={media} widthPx={widthPx} heightPx={heightPx} infoBarPx={infoBarPx} fieldTopPx={fieldTopPx} scale={g.scale} feetPx={g.pos('me', 2).y} minTop={apart ? bandTop + (bandShown ? BAND_PX + 4 : 0) + 24 + 4 : 0} />}
     </div>
   );
 }
