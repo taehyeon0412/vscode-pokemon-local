@@ -262,7 +262,8 @@
             save.pendingEncounter = { kind: 'trainer', trainerId: tid, stageId: tst };
             // tname=<직함 이름> · tfoe=<모습>:<도감 번호> · tmsg=<말> · tphase=<단계> — 긴 직함 · 긴 이름 말 잘림 시험 (orders #20, 예: tname=엘리트 트레이너 소율&tfoe=beautifly:267&tphase=send)
             const [tf, ts] = (q.get('tfoe') || 'metapod:11').split(':');
-            const tb = battle('trainer', q.get('tname') || '등산가 민수', foeMon('foe0', Number(ts) || 11, tf, 6), [foeMon('foe1', 14, 'kakuna', 6)]);
+            // 이름은 판의 트레이너 이름 (core/rules/region.ts — forest-1 t0 = 반바지 꼬마 민수) 과 같아야 함 — 다르면 엔진이 전투를 버리고 "다시 켜서 전투를 처음부터!" 로 새로 만듦 (tult · tphase 가 안 먹던 것, 10-26) · 다른 tid 는 tname= 을 같이
+            const tb = battle('trainer', q.get('tname') || '반바지 꼬마 민수', foeMon('foe0', Number(ts) || 11, tf, 6), [foeMon('foe1', 14, 'kakuna', 6)]);
             if (q.get('tmsg')) tb.msg = q.get('tmsg');
             if (q.get('tphase')) tb.phase = q.get('tphase');
             if (q.get('tphase') === 'over') tb.result = 'win';
@@ -366,6 +367,8 @@
     // bt=<ms> — 전투 시간 (0 이면 막 시작 — 볼 던지기 · 화면 닦기 사진, 2026-10-20)
     if (q.get('bt') && runtime.stage && runtime.stage.phase === 'battle') runtime.stage.battle.t = Number(q.get('bt'));
     // 개발 모드 (임시) — dev=1 이면 처음부터 개발 모드 · 타이틀의 개발 모드 줄 (title-dev) 도 흉내
+    // seed=<수> — 엔진 난수 시작값 (같은 판 다시 — dev/team-run.py · #98)
+    if (q.get('seed')) runtime.rngState = (Number(q.get('seed')) >>> 0) || 1;
     const devRt = { team: true, walk: 1, battle: 1, pause: false, foes: [], ults: {} };
     // devult=<필살기 이름> — 내 선두 (m1) 필살기 고르기 (dev=1 과 같이, 예: devult=블래스트번 — 박자 시험)
     if (q.get('devult')) devRt.ults = { m1: q.get('devult') };
@@ -401,6 +404,8 @@
         },
     };
     window.pokemonGameConfig = { media: '../extension/media', size, script: '../extension/media/game/game.js' };
+    // 자동 판 도구 (dev/team-run.py · #98) — 웹뷰가 window.__pgDebug (상태 읽기 · 입력 · 개발 동작) 를 내놓게 (시험 창만)
+    window.__pgDevHost = true;
 
     // 연출 한 장면 멈춰 찍기 (머리 없는 브라우저는 CSS 움직임이 거의 안 흘러서) — animAt=초: 모든 움직임을 그 시점에 멈춤
     if (q.get('animAt')) {

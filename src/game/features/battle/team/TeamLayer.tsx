@@ -5,14 +5,14 @@
  */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { TIMING } from '../../../core/balance';
-import { teamAutoUltLeft, teamAutoUltNext, teamLit, type GameInput, type Side, type TeamBattle } from '../../../core/engine';
+import { teamAutoUltLeft, teamAutoUltNext, teamFoeNext, teamLit, type GameInput, type Side, type TeamBattle } from '../../../core/engine';
 import { formOf, speciesOf } from '../../../data';
 import { spriteBoxOf, walkBoxOf } from '../../../data/sprite-boxes';
 import { battleSpritePx, koSinkPx, TYPE_COLOR } from '../model';
 import { Sprite } from '../../../ui/Sprite';
 import type { FxActor } from '../fx/bridge';
 import { TEAM_FX, TeamFxRunner, type TeamSlot } from '../fx/team';
-import { bandDrawn, VIEW_CHIP_MS, VIEW_WAIT_MS, duelSpots, faintHoldLeft, faintIsBig, faintShortLine, foeWarn, overLineHold, plateBoxOf, plateState, stackRows, teamDenyNote, teamGeometry, teamPrompt, viewHitChip, viewPopsBack, warnPosOf, type TeamGeo, type WarnPos } from './model';
+import { bandDrawn, VIEW_CHIP_MS, VIEW_WAIT_MS, duelSpots, faintHoldLeft, faintIsBig, faintShortLine, foeWarn, overLineHold, plateBoxOf, plateState, stackRows, teamDenyNote, teamGeometry, teamPrompt, viewHitChip, viewPopsBack, warnPosOf, type TeamGeo, type WarnPos, viewCrossers, viewMonClass } from './model';
 import { HEAD_NOTE_H, HeadNote, headNoteWidth, pickHeadSpot, useHeldNote } from '../../../ui/HeadNote';
 import { getTeamView, subscribeTeamView, type TeamView } from '../fx/team-view';
 import { cutinArtH, JointNamePlate, TeamCutin } from './TeamCutin';
@@ -356,6 +356,7 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   const denyAtFixed = !!denyHeld && denyFixed.current?.fixed === true && view !== null;
   const vGroups = view ? { me: view.side === 'me' ? view.from : view.to.side === 'me' ? [view.to.slot] : [], foe: view.side === 'foe' ? view.from : view.to.side === 'foe' ? [view.to.slot] : [] } : null;
   const vSpots = vGroups ? duelSpots(g, vGroups.me.length, vGroups.foe.length) : null;
+  const vCross = vGroups && vSpots ? viewCrossers(g, vGroups, vSpots) : null;
   //   나머지 포켓몬 = 바둑판 두 걸음으로 사라짐 · 판 · 숫자 = in 에 바로 숨김 (바둑판이 옮겨 가는 몸 위에 겹쳐 어수선하던 것 — 개발 #99) · out 에 바둑판으로 나타남
   const vHide = !view ? '' : view.phase === 'in' ? ' pg-view-hide-in' : view.phase === 'out' ? ' pg-view-hide-out' : ' pg-view-hidden';
   const vRestHide = view?.phase === 'in' ? ' pg-view-hidden' : vHide;
@@ -365,12 +366,14 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
     const i = vGroups ? vGroups[side].indexOf(slot) : -1;
     const shooter = !!view && view.kind === 'joint' && side === view.side && i >= 0;
     // 앞장도 연출 층 위 (#103 — 터질 때 흰 막 아래에서 앞장만 반쯤 하얘지던 것, 아트 디렉터) · 앞장을 숨기고 캔버스에 꼭두각시로 그리는 필살기는 상관없음 ·
-    // 돌아갈 때 합동 쏜 무리 · 맞은 칸은 바둑판으로 제자리에 (viewPopsBack) — 쓰러진 칸은 숨겼다가 끝에 제자리 (쓰러짐 사라지기 애니메이션이 바둑판을 덮고
+    // 돌아갈 때 합동 쏜 무리 · 맞은 칸은 바둑판으로 제자리에 (viewPopsBack) — 무리 안에서 쓰러진 칸도 바둑판 (pg-view-down-back — 예전엔 숨겼다가 끝에 툭, #98) · 예전 까닭: (쓰러짐 사라지기 애니메이션이 바둑판을 덮고
     //   장면 전환 동안 멈춰 있어, 회색 레디바가 보이는 채로 38px 옮겨 가던 것 — #96 6바퀴 · 회색 1.2초는 돌아온 뒤 그대로)
     const hideDown = !!view && view.phase === 'out' && viewPopsBack(view, side, slot) && plateState(b, side, slot) === 'down';
-    const vMon = !view ? '' : i < 0 ? vHide : hideDown ? ' pg-view-hidden' : view.phase === 'out' && viewPopsBack(view, side, slot) ? vHide : ` pg-view-move${shooter ? ' pg-view-partner' : ''}`;
-    // 숨긴 쓰러진 칸은 판 · 숫자도 같이 숨김 (빈 자리 위에 "-1" 만 떠 있던 것 — #96 UX 6바퀴 작음 5)
-    return { viewAt: vSpots && i >= 0 && view!.phase !== 'out' ? (vSpots[side][i] ?? null) : null, vMon, vRest: hideDown ? ' pg-view-hidden' : vRestHide };
+    //   들어갈 때 앞뒤가 바뀌는 동료 (viewCrossers) = in 동안 제자리에서 바둑판으로 사라지고 → 새 자리에서 바둑판으로 나타남 (pg-view-pop — 돌아갈 때 pg-view-hide-out 으로 바뀌어 다시 나타남이 돎)
+    const cross = !!view && view.phase !== 'out' && !!vCross?.has(`${side}-${slot}`);
+    const vMon = !view ? '' : viewMonClass(view.phase, { inGroup: i >= 0, hideDown, popsBack: viewPopsBack(view, side, slot), cross, shooter });
+    // 판 · 숫자도 다른 칸처럼 (쓰러진 칸도 이제 바둑판으로 보임 — 예전 숨김은 빈 자리 위에 "-1" 만 떠 있던 것, #96)
+    return { viewAt: vSpots && i >= 0 && view!.phase !== 'out' && !(cross && view!.phase === 'in') ? (vSpots[side][i] ?? null) : null, vMon, vRest: vRestHide };
   };
   const root = useRef<HTMLDivElement>(null);
   const layer = useRef<HTMLDivElement>(null);
@@ -405,7 +408,8 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   );
   // 연출 캔버스 위 끝 = 지도 줄 (스테이지 이름 · 진행 막대) 아래 끝, 없으면 정보줄 아래 끝 (game.css 가 여기서 자름 — 1:1 BattleFx 와 같은 규칙) ·
   //   3:3 엔 이 잼이 없어 블래스트번 돔 · 분화 불기둥 · 합동 폭발 · 컷인 띠가 맨 위 줄 · 지도 줄을 덮던 것 (#80 아트 디렉터 2바퀴 큼 — 레퍼런스 goldensun-1f) · 그릴 때마다 잼 (값이 같으면 안 씀)
-  useEffect(() => {
+  //   useLayoutEffect — 같은 그림에서 연출 실행기 (위 useEffect) 보다 먼저 (지도 줄 자리가 바뀐 그림에서 필살기가 시작하면 한 그림 전 값을 쓰던 것 — 코드 리뷰어 #97 · bugs 1821)
+  useLayoutEffect(() => {
     const game = root.current?.closest('#pokemon-game');
     const rows = [game?.querySelector<HTMLElement>('.pg-infobar'), game?.querySelector<HTMLElement>('.pg-maprow')].filter((e): e is HTMLElement => !!e && e.getClientRects().length > 0);
     const top = `${rows.length ? Math.round(Math.max(...rows.map((e) => e.getBoundingClientRect().bottom))) : 0}px`;
@@ -883,9 +887,9 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   else if (joinKeys0.length > 0 && joinTail.current !== clashKey && clashLeft >= 1000) joinTail.current = clashKey;
   const joinKeys = joinTail.current === clashKey ? joinKeys0 : [];
   const fullFirst = prompt?.kind === 'join' || prompt?.kind === 'gather' ? undefined : [0, 1, 2].find((i) => b.me[i] && plateState(b, 'me', i) === 'ready');
-  // 다 찬 상대 중 먼저 찬 칸 (엔진도 먼저 찬 칸부터 씀) — 그 칸만 "!" 칩
-  const foeFirst = b.foe.map((f, i) => ({ i, at: f && f.hp > 0 && f.ult >= 1 ? (b.ultReadyAt.foe[i] ?? 0) : Infinity })).sort((a, c) => a.at - c.at)[0];
-  const foeFirstSlot = foeFirst && foeFirst.at < Infinity ? foeFirst.i : -1;
+  // 다 찬 상대 중 먼저 찬 칸 (엔진도 이 칸부터 씀 — teamFoeNext) — 그 칸만 "!" 칩
+  //   상대 필살기 · 합동 모으기 동안은 "!" 칩 없음 — 모으는 사이 합동에 안 끼는 다음 칸 (소미안) 으로 옮겨 가 2.3초 "곧 쏜다" 로 읽히던 것 (UX 리뷰어 #98 2)
+  const foeFirstSlot = b.phase === 'ult' && b.ult?.side === 'foe' ? -1 : (teamFoeNext(b) ?? -1);
   // "곧" 은 0.3초 이어진 뒤에 (곧 → ! 가 67 ~ 214ms 만에 바뀌어 한두 장면짜리 글자이던 것 — UX 리뷰어 #95 6바퀴 작음 7) · "!" 는 바로
   const soonAt = useRef<number[]>([]);
   const chipNow = realNow();

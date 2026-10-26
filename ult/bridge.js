@@ -644,6 +644,10 @@ screenFlash = function (s, alpha, color, max) {
         return undefined;
     }
     fxLastFlash = now;
+    // 실제로 그린 번쩍 ('F' — 위 'f' 는 부른 것 모두, 박자 재기용) · 자동 판 도구 (dev/team-run.py) 의 1초 3번 검사
+    if (Array.isArray(window.__fxTrace)) {
+        window.__fxTrace.push(['F', now, Math.min(fxFlashCap(), alpha)]);
+    }
     return fxScreenFlash(s, Math.min(fxFlashCap(), alpha), color, max);
 };
 // 3:3 은 1:1 연출의 흔들기도 끔 — 앞쪽 층 (#foreground) 이 ±1px 흔들려 무대 양 끝에 세로줄이 번갈아 생기던 것 (fxGameShake 는 막았는데 이 길은 그대로, 아트 디렉터 #95 4바퀴 ⑦)
@@ -3244,7 +3248,8 @@ window.pokemonFx = {
             // o.noIntro = 1:1 컷인 없이 (3:3 장면 전환 합동 — 이름은 화면 큰 컷인, #99)
             const introMs = o?.noIntro ? 0 : o?.quick ? ULT_QUICK_INTRO_MS : ULT_INTRO_MS;
             mainStart = charge + introMs;
-            total = fxWithTimers(gen, () => useUltimate(A, entry, { quick: !!o?.quick, charge, ...(shift ? { extraMs: shift } : {}), ...(o?.sub ? { sub: o.sub } : {}), ...(o?.noIntro ? { noIntro: true } : {}) })) || 0;
+            // o.titleFoe = 3:3 장면 전환 상대 혼자 필살기 — 큰 이름을 상대 색 (혼자는 금 · 합동은 빨강으로 한 판에 "상대" 가 둘이던 것, 아트 디렉터 #98 ⑥)
+            total = fxWithTimers(gen, () => useUltimate(A, entry, { quick: !!o?.quick, charge, ...(shift ? { extraMs: shift } : {}), ...(o?.sub ? { sub: o.sub } : {}), ...(o?.noIntro ? { noIntro: true } : {}), ...(o?.titleFoe ? { titleCols: ULT_FOE_TITLE } : {}) })) || 0;
             if (tmAll && total) {
                 const at0 = charge + introMs + (mainAt ?? tmAll.main) + shift;
                 // 부른 쪽에 박자 — main = 큰 맞음 · cover = 상대를 덮는 연출이 끝나는 때 (없으면 −1) · 지금부터 ms

@@ -7,7 +7,7 @@ import type { Monster, Save } from '../save';
 import { applyInput, AUTO_TEAM_TIP, autoTeamTipDue, defeatWaits, gameTempo, step, TEAM_MEET_TIP, teamChoiceMeet, teamFoesOf, teamLock, teamMainOf, teamMeetTipDue, teamPickOf } from './play';
 import { Rng } from './rng';
 import { createGameState, readRuntime, type GameState } from './state';
-import { shotTiming, applyTeamResult, isSpread, pickTeam, readTeam, startTeamBattle, TEAM_BASIC, teamClashSure, teamDone, teamFastOk, teamInput, teamPick, teamPossible, teamScale, teamStep, teamAutoUltLeft, teamAutoUltNext, teamUltLevel, teamUltOpen, type TeamBattle, teamGather, teamJoinOpen, teamLayout, teamLit } from './team';
+import { shotTiming, applyTeamResult, isSpread, pickTeam, readTeam, startTeamBattle, TEAM_BASIC, teamClashSure, teamDone, teamFastOk, teamInput, teamPick, teamPossible, teamScale, teamStep, teamAutoUltLeft, teamAutoUltNext, teamFoeNext, teamZSlot, teamUltLevel, teamUltOpen, type TeamBattle, teamGather, teamJoinOpen, teamLayout, teamLit } from './team';
 import { moveFxOf, moveOf, ultIsSpread, ultNamesOf } from '../../data';
 import { teamHealthy } from '../rules/bag';
 import { leaderTeam, trainerTeam } from '../rules/trainer';
@@ -927,6 +927,17 @@ describe('#17 준비 — 배율 · 잠금 · 3마리 고르기 · 필살기 예�
     expect(teamAutoUltNext({ ...two, me: two.me.map((f) => ({ ...f, ult: 0 })) })).toBeNull();
   });
 
+  it('상대 필살기는 먼저 찬 칸부터 — 화면 "!" 칩 칸 (teamFoeNext) 이 먼저 나감 (bugs 1775)', () => {
+    const b0 = startTeamBattle(team3(), foes(), 'trainer', '상대');
+    // 0 · 2 번이 다 참 · 2 번이 먼저 참 — 0 번 기다림이 더 짧아도 2 번이 먼저
+    const two: TeamBattle = { ...b0, me: b0.me.map((f) => ({ ...f, ult: 0, gauge: 0 })), foe: b0.foe.map((f, i) => ({ ...f, ult: i === 1 ? 0 : 1, gauge: 0 })), ultReadyAt: { me: [null, null, null], foe: [b0.t + 500, null, b0.t] }, foeUltWait: [1, null, 300] };
+    expect(teamFoeNext(two)).toBe(2);
+    let b = two;
+    for (let i = 0; i < 20 && b.phase !== 'ult'; i++) b = teamStep(b, STEP, new Rng(5), { auto: false, away: false });
+    expect(b.ult).toMatchObject({ side: 'foe', from: 2 });
+    expect(teamFoeNext({ ...two, foe: two.foe.map((f) => ({ ...f, ult: 0 })) })).toBeNull();
+  });
+
   it('상대 AI 끼어들기는 1초 뒤부터 (컷인 이름 · 합동 멘트를 1초는 봄) · 상대 동료는 0.5초 안에 모임 (디자인팀 UX R9 ⑥ U1)', () => {
     const b0 = startTeamBattle(team3(), foes(), 'gym', '관장');
     let joins = 0;
@@ -1012,6 +1023,19 @@ describe('#17 준비 — 배율 · 잠금 · 3마리 고르기 · 필살기 예�
     // 도장은 denyMs 뒤 지움 · 다시 읽기 · 틀린 도장은 안 읽음
     expect(run(r, TIMING.team.denyMs - STEP, fixedRng(0.99)).deny?.slot).toBe(0);
     expect(run(r, TIMING.team.denyMs + STEP, fixedRng(0.99)).deny).toBeUndefined();
+    // 끝 무렵에 쓸 수 있게 되면 (금색 "지금!") 그때부터 denyGoMs 넘게 남음 (#98 — 0.2초만 보이던 것)
+    const late = run(r, TIMING.team.denyMs - 4 * STEP, fixedRng(0.99));
+    const lateFull = run(full(late, 0), STEP, fixedRng(0.99));
+    expect(lateFull.deny?.go).toBe(true);
+    expect(run(lateFull, TIMING.team.denyGoMs - 2 * STEP, fixedRng(0.99)).deny?.go).toBe(true);
+    // "지금!" 뒤 그 칸을 못 쓰게 되면 (쓰러짐) 도장을 지움 — "아직 안 찼어요" 로 되돌아가지 않게 (코드 리뷰어 #98) · 값 덫 (denyGoMs ≤ denyMs)
+    const lateDown = run({ ...lateFull, me: lateFull.me.map((f, j) => (j === 0 ? { ...f, hp: 0 } : f)) }, STEP, fixedRng(0.99));
+    expect(lateDown.deny).toBeUndefined();
+    expect(TIMING.team.denyGoMs).toBeLessThanOrEqual(TIMING.team.denyMs);
+    // 칸 없는 Z = 먼저 찬 칸 (teamZSlot) — 번호 작은 칸이 늦게 찼으면 그 칸이 아님
+    const twoFull: TeamBattle = { ...full(full(b, 0), 2), ultReadyAt: { me: [b.t + 500, null, b.t], foe: [null, null, null] } };
+    expect(teamZSlot(twoFull)).toBe(2);
+    expect(readTeam(viaJson(lateFull))).toEqual(viaJson(lateFull));
     expect(readTeam(viaJson(r))).toEqual(viaJson(r));
     expect(readTeam({ ...viaJson(r), deny: { slot: 5, ms: 0, why: 'charge' } })).toBeNull();
     expect(readTeam({ ...viaJson(r), deny: { slot: 0, ms: 0, why: 'later' } })).toBeNull();

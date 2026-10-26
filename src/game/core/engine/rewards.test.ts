@@ -80,7 +80,8 @@ describe('S11 잡기 — 전투 흐름', () => {
     const out = untilOut(once, save, fixedRng(0.99));
     expect(out.phase).toBe('run');
     expect(out.catch).toBeNull();
-    expect(out.msg).toContain('빠져나와 덤벼든다');
+    // 이어 싸우는 놓침은 말 칸을 비움 — 창이 "아깝다!" 를 1.1초 말했고, 상대가 바로 덤벼 말이 0.05초만 번쩍이던 것 (판 도구 #98 11판)
+    expect(out.msg).toBe('');
     // 놓치면 창이 닫힌 뒤 숨 고르기 (catchFailPauseMs) 뒤에 이어 감 · 잡히면 바로
     const tl = catchTimeline(once.catch!)!;
     expect(tl.done - tl.end).toBe(TIMING.catchEndMs + TIMING.catchFailPauseMs);
@@ -143,7 +144,8 @@ describe('S11 잡기 — 전투 흐름', () => {
     expect(fail.foe.hp).toBe(Math.max(1, Math.round(fail.foe.maxHp * BALANCE.catchFailHeal)));
     expect([fail.foe.gauge, fail.me.gauge]).toEqual([1, 0]);
     expect(fail.foeDown).toHaveLength(won.foeDown.length - 1);
-    expect(fail.msg).toContain('다시 일어났다');
+    // 말 칸은 비움 (상대가 바로 덤벼 0.05초만 번쩍이던 것 — 다시 일어남은 그림 · 회복 칩으로)
+    expect(fail.msg).toBe('');
     // 세 번째 기회를 마지막 기회로 써서 놓치면 도망이 아니라 이김 (쓰러뜨린 보상 그대로 — 2026-10-20 태현 님 "추천으로")
     const third = untilOut(battleInput({ ...won, bagUsed: { 'poke-ball': 2 } }, save, { kind: 'ball', ball: 'poke-ball' }, new Rng(1)), save, fixedRng(0.99));
     expect([third.phase, third.result, third.escaped]).toEqual(['over', 'win', undefined]);

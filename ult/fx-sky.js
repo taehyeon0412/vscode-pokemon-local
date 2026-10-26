@@ -522,11 +522,17 @@
         return top0 > 0 ? Math.max(y, top0 + h * 1.35 + 4 * u.S) : y;
     }
     // 구름 띠 — 위에서 내려와 흘러감. gather 면 양옆에서 cx 쪽으로 몰려듦
+    // 구름 번쩍 켜진 때 — 구름 묶음 모두 하나로 (두 필살기 구름이 겹쳐도 합쳐 1초 3번, 테스터 #98) · 그 번쩍 창 (cloudLitUntil) 안이면 다른 묶음도 같이 켬 (구름 반만 번쩍이던 것 — 코드 리뷰어 #98)
+    let cloudLitAt = -1e9;
+    let cloudLitUntil = -1e9;
     function cloudBank(sc, o) {
         const u = sc.u;
         const s = u.S;
         const { y, h, cols, sec, lit = () => 0, gather = false, cx = u.W / 2, speed = 10 * u.dir, alpha = 0.95 } = o;
         const litCols = o.litCols ?? ['#ffffff', '#fffbe0', '#ffe680'];
+        // 구름 번쩍은 켜지는 순간이 0.34초에 한 번까지 (진짜 시계 Date.now — ▶▶ 에서도) = 1초 3번 (원칙 8 · ux-rules U1) —
+        //   체육관 피카츄 번개 구름이 0.7초에 4번 번쩍이던 것 (#98 판 도구 밝기 검사 · screenFlash 상한 밖이라 안 잡혔음)
+        let litOn = false;
         const step = h * 1.45;
         const span = gather ? u.W * (o.width ?? 0.8) : u.W + step * 2;
         const n = Math.max(4, Math.ceil(span / step) + 1);
@@ -552,7 +558,21 @@
                 it.shown = life;
             }
             const dropG = (1 - easeOut((life - (it.shown || 0)) / 0.6)) + easeIn((life - (sec - 0.5)) / 0.5);
-            const L = lit();
+            let L = lit();
+            if (L <= 0) {
+                litOn = false;
+            } else if (!litOn) {
+                const nowR = Date.now();
+                if (nowR < cloudLitUntil) {
+                    litOn = true;
+                } else if (nowR - cloudLitAt < 340) {
+                    L = 0;
+                } else {
+                    cloudLitAt = nowR;
+                    cloudLitUntil = nowR + 150;
+                    litOn = true;
+                }
+            }
             ctx.globalAlpha = alpha;
             for (const pass of [true, false]) {
                 for (const q of lumps) {
@@ -774,6 +794,56 @@
         }
         fillPaths(ctx, bits, ['#c5f07a', '#6fbf3a', '#8a7252'], F.a);
     }
+    // 은빛바람 (wind · silver) — 무대를 덮지 않고 맞는 몸 높이 띠 (F.band) 안에만 짧은 은색 줄 + 은빛 비늘 "+" 반짝
+    //   (아트 디렉터 #98 큼 3 — 무대 전체를 회색 · 흰 가로줄로 3초 덮어 고장 난 화면처럼 보이던 것 · A안)
+    function fieldSilverWind(ctx, px, s, F) {
+        const { W, t, n, dir, band } = F;
+        const [y0, y1] = band;
+        const lines = [new Path2D(), new Path2D(), new Path2D()];
+        const shade = new Path2D();
+        for (let i = 0; i < n; i++) {
+            const d = depth(i);
+            const len = (12 + 20 * hash(i, 2)) * s;
+            const speed = W * (1.3 + 1.2 * hash(i, 3)) * (1 + 0.4 * d);
+            const span = W + len * 2;
+            const x = wrap(hash(i, 4) * span + dir * speed * t, span, -len);
+            const y = y0 + hash(i, 1) * (y1 - y0) + Math.sin(t * 3 + i) * s;
+            const th = d === 2 ? 2 * s : s;
+            const x0 = dir > 0 ? x - len : x;
+            lines[d].rect(px(x0), px(y), px(len), th);
+            if (d === 2) {
+                shade.rect(px(x0), px(y) + th, px(len), s);
+            }
+        }
+        // 반투명 없이 세 톤 차이로만 (반투명 회색이 포켓몬 위에서 팔레트 밖 색이 되던 것 — 아트 디렉터 #98)
+        ctx.globalAlpha = F.a;
+        ctx.fillStyle = '#595f6e';
+        ctx.fill(shade);
+        ['#b8c0d0', '#d8dce5', '#f4f6f8'].forEach((col, d) => {
+            ctx.fillStyle = col;
+            ctx.fill(lines[d]);
+        });
+        // 은빛 비늘 반짝 12 — 심 하양 · 끝 연두 · 하나씩 번갈아 쉼 (한꺼번에 깜빡이지 않게)
+        const core = new Path2D();
+        const tips = new Path2D();
+        for (let i = 0; i < 12; i++) {
+            if (Math.floor(t * 6 + i * 0.7) % 3 === 0) {
+                continue;
+            }
+            const span = W + 20;
+            const x = wrap(hash(i, 41) * span + dir * W * (0.7 + 0.5 * hash(i, 42)) * t, span, -10);
+            const y = y0 + hash(i, 43) * (y1 - y0);
+            core.rect(px(x), px(y), s, s);
+            for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+                tips.rect(px(x + dx * s), px(y + dy * s), s, s);
+            }
+        }
+        ctx.globalAlpha = F.a;
+        ctx.fillStyle = '#a8c830';
+        ctx.fill(tips);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill(core);
+    }
     // 꽃잎 · 잎 폭풍 — 빙글빙글 맴돌며 휩쓸려 감 + 굽이치는 꽃잎 띠
     function fieldPetal(ctx, px, s, F, leaf) {
         const { W, H, G, t, n, dir, cols } = F;
@@ -899,6 +969,11 @@
         const boost = (t) => (kind === 'petal' || kind === 'leaf' ? 1 - 0.55 * bump(t) : 1 + 0.6 * bump(t));
         const sc = scene(u, sec + 0.2, 'ultstorm');
         const others = u.others();
+        // 은빛바람 (A안) = 맞는 몸 높이 띠 (가운데 ± 몸 0.75) 안에만 · 위 하늘 띠 없음 · 줄 0.35배 · 큰 이름이 사라진 뒤 0.1초부터
+        const silver = kind === 'wind' && o.c === 'silver';
+        const live = others.filter((r) => r.w > 0);
+        //   몸 높이 = 발밑에서 몸 폭 0.9배 위까지 (칸 상자 높이로 잡으면 상자가 그림보다 커서 무대 거의 전체를 덮던 것 — 10-26 다시 찍기 · 아트 디렉터)
+        const sband = !silver ? null : live.length ? [Math.max(0, Math.min(...live.map((r) => r.bottom - Math.min(r.h, r.w) * 0.9))), Math.min(G, Math.max(...live.map((r) => r.bottom - 2)))] : [G * 0.6, G * 0.95];
         // 알갱이 칸 — 패널이 크면 굵게
         const c = Math.max(s, Math.round(short(u) / 110));
         const pxc = (v) => Math.round(v / c) * c;
@@ -906,7 +981,9 @@
         sc.tick((t, dt) => {
             lit = Math.max(0, lit - dt);
         });
-        skyBand(sc, o.c ? cols[3] : K.sky, bandH, K.light ? 0.34 : 0.6, sec);
+        if (!silver) {
+            skyBand(sc, o.c ? cols[3] : K.sky, bandH, K.light ? 0.34 : 0.6, sec);
+        }
         // 땅 — 서리 · 독늪 · 불길 · 물결 · 꽃잎 더미
         const grow = (t, from = 0.3, dur = 2.2) => easeOut((t - from) / dur) * clamp((sec - t) / 0.6, 0, 1);
         if (kind === 'blizzard') {
@@ -1035,15 +1112,25 @@
             rain: (ctx, F) => fieldRain(ctx, pxc, c, F, { color: cols[2], near: cols[0], splash: cols[0] }),
             acid: (ctx, F) => fieldRain(ctx, pxc, c, F, { acid: true, color: cols[2], near: cols[1], head: cols[0], splash: cols[1] }),
             blizzard: (ctx, F) => fieldSnow(ctx, pxc, c, F),
-            wind: (ctx, F) => fieldWind(ctx, pxc, c, F),
+            wind: (ctx, F) => (silver ? fieldSilverWind : fieldWind)(ctx, pxc, c, F),
             petal: (ctx, F) => fieldPetal(ctx, pxc, c, F, false),
             leaf: (ctx, F) => fieldPetal(ctx, pxc, c, F, true),
             sand: (ctx, F) => fieldSand(ctx, pxc, c, F),
             fire: (ctx, F) => fieldFire(ctx, pxc, c, F),
         }[kind];
+        let silverAt = null;
         sc.add({ max: sec, draw: (ctx, it) => {
             const life = it.life;
-            field(ctx, { W, H, G, dir, cols, t: life, n: Math.round(N * env(life) * boost(life)), a: 1 });
+            let k = 1;
+            if (silver) {
+                const inGame = (typeof fxStageTop === 'function' ? fxStageTop() : 0) > 0;
+                if (inGame && performance.now() < (typeof ultTitleUntil !== 'undefined' ? ultTitleUntil : 0) + 100) {
+                    return;
+                }
+                silverAt ??= life;
+                k = 0.35 * clamp((life - silverAt) / 0.4, 0, 1);
+            }
+            field(ctx, { W, H, G, dir, cols, t: life, n: Math.round(N * env(life) * boost(life) * k), a: 1, band: sband });
         } });
         // 화면 물들이기 — 아래로 갈수록 진하게 (계단)
         if (K.tint) {
@@ -1183,7 +1270,7 @@
             const gapT = Math.min(0.28, (sec - 1.4) / Math.max(1, others.length));
             others.forEach((q, i) => sc.at(0.7 + i * gapT + rnd(0, 0.2), () => {
                 const r = where(u, q);
-                hit(r, kind === 'wind' ? dir : away(u, r.x), K.hit);
+                hit(r, kind === 'wind' ? dir : away(u, r.x), silver ? 'shake' : K.hit);
                 HITFX[kind]?.(r);
             }));
         }
@@ -1260,17 +1347,21 @@
             }));
         }
         // 폭풍 · 꽃잎 · 모래 — 가끔 큰 돌풍
+        // 돌풍 — 은빛바람 (A안) 은 몸 높이 띠 안 · 0.35배 · 짧은 토막 · 반투명 없이 은색 (무대 전체를 덮던 돌풍 줄 — UX · 아트 #98 다시 찍기)
         const gust = (thick) => sc.add({ max: 0.8, draw: (ctx, it, t, px) => {
+            if (silver && t > 0.8) {
+                return;
+            }
             const paths = [new Path2D(), new Path2D()];
-            const n = Math.round(26 * area);
+            const n = Math.round(26 * area * (silver ? 0.35 : 1));
             for (let j = 0; j < n; j++) {
-                const len = W * (0.25 + 0.35 * hash(j, 40));
+                const len = silver ? (12 + 20 * hash(j, 40)) * s : W * (0.25 + 0.35 * hash(j, 40));
                 const x0 = dir > 0 ? -len : W;
                 const x = x0 + dir * (W + len) * clamp(t * 1.4 - hash(j, 41) * 0.4, 0, 1);
-                const y = hash(j, 42) * G;
+                const y = sband ? sband[0] + hash(j, 42) * (sband[1] - sband[0]) : hash(j, 42) * G;
                 paths[j % 2].rect(px(dir > 0 ? x : x), px(y), px(len), (thick && j % 3 === 0 ? 2 : 1) * s);
             }
-            fillPaths(ctx, paths, ['#ffffff', cols[1]], 0.7 * (1 - t));
+            fillPaths(ctx, paths, silver ? ['#f4f6f8', '#d8dce5'] : ['#ffffff', cols[1]], silver ? 1 : 0.7 * (1 - t));
         } });
         [0.6, 1.5, 2.4].forEach((t) => t < sec - 0.6 && sc.at(t + rnd(-0.1, 0.1), () => {
             if (kind === 'wind' || kind === 'sand' || kind === 'blizzard') {
@@ -1314,7 +1405,8 @@
             } else if (kind === 'wind' || kind === 'sand') {
                 gust(true);
                 gust(false);
-                u.others().forEach((r) => hit(r, dir, kind === 'wind' ? 'spin' : 'tumble'));
+                // 은빛바람은 흔들기만 (빙글 띄우면 맞는 포켓몬이 자기 이름표 · HP 위에 0.6 ~ 1초 올라가 있던 것 — UX #98)
+                u.others().forEach((r) => hit(r, dir, silver ? 'shake' : kind === 'wind' ? 'spin' : 'tumble'));
             } else if (kind === 'petal' || kind === 'leaf') {
                 // 화면 가운데 큰 소용돌이
                 const cx = W / 2;
@@ -7656,10 +7748,14 @@
         // 팔 대포 연사 — 작은 물탄이 앞쪽 곳곳으로 날아가 작은 물기둥 · 합동에선 뺌 (상대 앞에 물기둥이 피해 1.4 ~ 2초 전에 서서 먼저 맞은 것처럼 보이던 것 — #80 UX)
         const bullets = [];
         // 3:3 용 판에서도 뺌 (상대 앞 · 위에 작은 물기둥이 맞기 전에 서던 것 — 아트 디렉터 #95 6바퀴 ③)
-        const volley = !(typeof fxJointTop !== 'undefined' && fxJointTop) && !(typeof moveFrame !== 'undefined' && moveFrame) && !o.track;
+        //   나와 상대 사이가 좁으면 (240 ~ 360 패널 — 물기둥이 한 자리에 몰려 상대를 띄우던 것, 테스터 #98) 연사 없음
+        const vNear = Math.abs(ix - me.x) - (q ? q.w * 0.5 : 0) - Rb;
+        const volley = vNear >= me.w * 1.5 && !(typeof fxJointTop !== 'undefined' && fxJointTop) && !(typeof moveFrame !== 'undefined' && moveFrame) && !o.track;
+        // 앞쪽 = 나와 대상 사이 (대상 몸 반 + 물 구 반지름 앞까지) — 대상 뒤 · 트레이너 자리까지 흩어져 맞기 1.4초 전에 대상을 띄우던 것 (1:1 — 아트 디렉터 #80 ⑥ · bugs 771, 10-26 다시 찍기)
         for (let i = 0; i < (volley ? 6 : 0); i++) {
             const f = (i + 0.5) / 6;
-            const tx = clamp(me.x + dir * (me.w * 1.5 + (Math.abs(ix - me.x) + W * 0.15) * f) + (hash(i, 91) - 0.5) * W * 0.06, W * 0.04, W * 0.96);
+            const d0 = Math.min(vNear, me.w * 1.5 + (vNear - me.w * 1.5) * f + (hash(i, 91) - 0.5) * W * 0.04);
+            const tx = clamp(me.x + dir * d0, W * 0.04, W * 0.96);
             bullets.push({ t0: TM + 0.45 + i * 0.19, tx, x0: 0, y0: 0, on: false, done: false });
         }
         const bulletAt = (b, t) => {

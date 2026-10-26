@@ -5,7 +5,7 @@
  * 필살기 = 일반 모드 필살기 그대로 (번쩍 · 어두워짐 · 컷인 · 큰 글씨 · 전용 연출) · 끝날 때까지 붙잡음 · 맞받아치기로 끊기면 멈춤.
  * 방어 = 방패 · 회복 = 반짝 · 잠 = Z · 마비 = 찌릿. 일반 모드 번들이 없거나 못 그린 행동은 BattleLayer 가 이모지로.
  */
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { TIMING } from '../../../core/balance';
 import type { BattleState, Side } from '../../../core/engine';
 import { clashWithTaps } from '../../../core/rules/battle';
@@ -452,7 +452,8 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
   }, [ripostingAt]);
   // 연출 캔버스 위 끝 = 정보줄 아래 끝 (game.css 가 여기서 자름 — 연출이 정보줄을 덮지 않게, 아트 디렉터).
   // 그릴 때마다 잼 — 처음 그릴 땐 game.css 를 받기 전이라 화면이 숨어 0 이 나오고, 패널 크기도 바뀜 (값이 같으면 안 씀)
-  useEffect(() => {
+  //   useLayoutEffect — 같은 그림에서 연출 효과 (위 useEffect) 보다 먼저 (bugs 1821)
+  useLayoutEffect(() => {
     const bar = document.querySelector<HTMLElement>('#pokemon-game .pg-infobar');
     const top = `${bar ? Math.round(bar.getBoundingClientRect().bottom) : 0}px`;
     if (document.body.style.getPropertyValue('--pg-fx-top') !== top) document.body.style.setProperty('--pg-fx-top', top);

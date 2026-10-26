@@ -5,7 +5,7 @@
  * 칸 0 · 1 · 2 = 위 (뒷줄 · 바깥) → 아래 (앞줄 · 가운데) = 발밑 판 키 1 · 2 · 3.
  */
 import { TIMING } from '../../../core/balance';
-import { teamClashSure, teamGather, teamLayout, teamUltLevel, teamUltOpen, type Side, type TeamBattle, type TeamPopup } from '../../../core/engine';
+import { teamClashSure, teamGather, teamLayout, teamUltLevel, teamUltOpen, teamZSlot, type Side, type TeamBattle, type TeamPopup } from '../../../core/engine';
 import { speciesOf } from '../../../data';
 
 export interface TeamGeo {
@@ -89,6 +89,47 @@ export function duelSpots(g: TeamGeo, nMe: number, nFoe: number): { me: { x: num
   return { me: group(-1, nMe), foe: group(1, nFoe) };
 }
 
+/**
+ * 장면 전환 동안 포켓몬 칸 클래스 (TeamLayer — 단계 in · cut · show · out)
+ * - 무리 밖 (inGroup 아님) = 나머지 — rest (in 바둑판으로 사라짐 · 숨김 · out 바둑판으로 나타남)
+ * - 숨긴 쓰러진 칸 (hideDown) = 숨김 · 돌아갈 때 제자리로 튀어나오는 칸 (popsBack — 합동 쏜 무리 · 맞은 칸) = out 에 rest 와 같이 바둑판
+ * - 앞뒤가 바뀌는 동료 (cross — viewCrossers) = in 에 제자리 바둑판으로 빨리 사라짐 (pg-view-pop-hide) → cut · show 에 새 자리에서 바둑판으로 나타남 (pg-view-pop —
+ *   out 의 pg-view-hide-out 과 키프레임 이름이 달라야 돌아갈 때 다시 돎, 코드 리뷰어 #98)
+ * - 나머지 무리 = 걸어서 자리 옮김 (pg-view-move) · 쏘는 무리는 연출 층 위 (pg-view-partner)
+ */
+export function viewMonClass(phase: 'in' | 'cut' | 'show' | 'out', o: { inGroup: boolean; hideDown: boolean; popsBack: boolean; cross: boolean; shooter: boolean }): string {
+  const rest = phase === 'in' ? ' pg-view-hide-in' : phase === 'out' ? ' pg-view-hide-out' : ' pg-view-hidden';
+  const top = o.shooter ? ' pg-view-partner' : '';
+  if (!o.inGroup) return rest;
+  //   쓰러진 칸 (hideDown — 돌아갈 때만) 은 걷지 않고 제자리에서 다른 칸과 같이 바둑판으로 나타남 (회색 그림만 0.2 ~ 0.3초 늦게 툭 나타나던 것, UX 리뷰어 #98 5 — team.css 가 쓰러짐 사라지기보다 앞에 둠)
+  //   pg-view-down-back = 무리 안에서 쓰러진 칸만 (무리 밖 · 오래전에 쓰러져 사라진 칸에까지 걸리면 장면마다 회색이 2초씩 되살아남 — 코드 리뷰어 #98 높음)
+  if (o.hideDown) return phase === 'out' ? `${rest} pg-view-down-back` : ' pg-view-hidden';
+  if (phase === 'out') return o.popsBack ? rest : ` pg-view-move${top}`;
+  if (o.cross) return phase === 'in' ? ' pg-view-pop-hide' : ` pg-view-pop${top}`;
+  return ` pg-view-move${top}`;
+}
+
+/**
+ * 장면 전환 들어갈 때 앞뒤가 바뀌는 칸 ("side-slot") — 같은 무리에서 3:3 자리 순서와 1:1 자리 (duelSpots) 순서가 다른 짝의 동료 (앞장은 그대로 걸어감).
+ * 이 칸은 걷지 않고 바둑판으로 사라졌다 새 자리에서 나타남 (상대 합동에 들어갈 때 가운데 쪽 소미안이 앞장 통통코를 지나쳐 뒤로 가던 것 — UX 6바퀴 작음 3 · bugs 1794 ③ · 돌아갈 때는 이미 바둑판, #101)
+ */
+export function viewCrossers(g: TeamGeo, groups: Record<Side, number[]>, spots: Record<Side, { x: number; y: number }[]>): Set<string> {
+  const out = new Set<string>();
+  for (const s of ['me', 'foe'] as const) {
+    const grp = groups[s];
+    for (let a = 0; a < grp.length; a++) {
+      for (let c = a + 1; c < grp.length; c++) {
+        const o = g.pos(s, grp[a]!).x - g.pos(s, grp[c]!).x;
+        const t = (spots[s][a]?.x ?? 0) - (spots[s][c]?.x ?? 0);
+        if (o * t >= 0) continue;
+        if (a > 0) out.add(`${s}-${grp[a]}`);
+        out.add(`${s}-${grp[c]}`);
+      }
+    }
+  }
+  return out;
+}
+
 /** 발밑 판 모양 — charge (차는 중 · 판 없음) · ready (쓸 수 있음) · join (끼어들기 · 합류) · down (쓰러짐). 예약 판은 없앰 (태현 님 #88) */
 export type PlateState = 'charge' | 'ready' | 'join' | 'down';
 
@@ -107,12 +148,17 @@ export function plateState(b: TeamBattle, side: Side, slot: number): PlateState 
 export function teamDenyNote(b: TeamBattle): { key: number | null; text: string; go: boolean } | null {
   const d = b.deny;
   if (!d) return null;
+  //   "지금!" 이었다가 같은 걸음 뒤쪽에서 그 칸이 쓰러지거나 판이 끝나면 글 없음 — 엔진은 다음 걸음 맨 앞에서야 도장을 지워
+  //   그 사이 "아직 안 찼어요" 로 되돌아가 1.1초 붙잡히던 것 (테스터 #98 · bugs 1824 고침의 빈틈)
   if (d.slot >= 0) {
     const go = teamUltOpen(b, d.slot);
+    if (d.go && !go) return null;
     return { key: d.slot + 1, go, text: go ? '지금!' : d.why === 'charge' ? '아직 안 찼어요' : '지금은 못 써요' };
   }
-  const open = b.me.findIndex((_, i) => teamUltOpen(b, i));
-  if (open >= 0) return { key: open + 1, go: true, text: '지금!' };
+  // Z 가 실제로 쏠 칸 (teamZSlot — 먼저 찬 칸) 에 "지금!" (번호 작은 칸에 뜨는데 Z 는 먼저 찬 다른 칸이 나가던 것, 코드 리뷰어 #98)
+  const z = teamZSlot(b);
+  if (z !== null && teamUltOpen(b, z)) return { key: z + 1, go: true, text: '지금!' };
+  if (d.go) return null;
   const full = b.me.some((f) => f.hp > 0 && f.ult >= 1);
   return { key: null, go: false, text: d.why === 'charge' && !full ? '아직 다 찬 포켓몬이 없어요' : '지금은 못 써요' };
 }

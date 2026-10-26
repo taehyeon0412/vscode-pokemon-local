@@ -407,7 +407,7 @@ function useUltimate(pokemon, ult, opt = {}) {
         try {
             pre?.start?.();
             if (!opt.noIntro) {
-                ultIntro(pokemon, left, name, sub, o, fx, until, introMs);
+                ultIntro(pokemon, left, name, sub, opt.titleCols ? { ...o, titleCols: opt.titleCols } : o, fx, until, introMs);
             }
         } catch (err) {
             ultError('intro', err);
@@ -574,7 +574,7 @@ function ultVsIntro(a, ultA, leftA, b, ultB, leftB, total) {
     // VS = 맨 위층 (at — 나중에 만든 입자가 아래라 내 필살기 이름 밑에 깔리던 것) · 0.3초에 1.4초 (끝 0.3초 흐려짐 빼고 1초 넘게 — U1, #34 UX 리뷰어)
     setTimeout(() => {
         ultShake(4, 300);
-        ultTitle('VS', null, ['#ffffff', '#ffe0d0', '#ff5a3c', '#7a0a0a'], game ? VS_LEN : sec - 0.35, yVs, 1.25 * L.k, game ? {} : null);
+        ultTitle('VS', null, ULT_FOE_TITLE, game ? VS_LEN : sec - 0.35, yVs, 1.25 * L.k, game ? {} : null);
     }, (game ? VS_AT : 0.45) * 1000);
 }
 
@@ -720,9 +720,9 @@ function ultIntro(pokemon, left, name, sub, o, fx, until, introMs = ULT_INTRO_MS
     // 다시 보는 필살기는 컷인 띠 없이 이름만 짧게
     // 다시 보는 필살기 · 반격기 이름 0.8 → 1.2초 (약 0.7 ~ 0.8초만 보이던 것, 2026-10-21 UX 리뷰어 U1 — 연출 위에 겹쳐 그려 길이는 그대로)
     // 짧은 이름은 컷인 띠가 없어 HP 묶음을 피해 위로 (컷인 띠 위 이름은 그대로)
-    ultTitle(name, sub, o.tc ? sigPal(o.tc) : null, introMs / 1000 + 0.9, 0.36, quick ? 0.6 : 1, quick ? { hud: true } : null);
+    ultTitle(name, sub, o.titleCols || (o.tc ? sigPal(o.tc) : null), introMs / 1000 + 0.9, 0.36, quick ? 0.6 : 1, quick ? { hud: true } : null);
     if (!quick) {
-        ultCutIn(pokemon, left, cols, ULT_INTRO_MS / 1000);
+        ultCutIn(pokemon, left, cols, ULT_INTRO_MS / 1000, 0.36, 0.3, true);
     }
 }
 
@@ -821,18 +821,26 @@ function ultDimLayer(alphaAt, sec, who = () => ultActive?.pokemon, update, opt) 
 const ultFlip = (img, left) => left && !img.src.includes('_left_');
 
 // 컷인 — 가로 띠가 열리고 큰 그림이 휙 지나감 (속도선). yc = 띠 가운데 높이(패널 비율), hf = 띠 굵기
-function ultCutIn(pokemon, left, cols, sec, yc = 0.36, hf = 0.3) {
+// solo = 혼자 필살기 컷인 — 게임 화면에선 띠를 정보줄 · 지도 줄 아래로 (큰 이름 ultTitle 과 같은 자리 — 3:3 은 지도 줄에 띠 위가 잘려 42px 만 보이고 이름이 19px 밖으로 처지던 것, 아트 디렉터 #98)
+function ultCutIn(pokemon, left, cols, sec, yc = 0.36, hf = 0.3, solo = false) {
     const img = pokemon.el;
     const dir = left ? -1 : 1;
+    const game = typeof fxInGame === 'function' && fxInGame();
+    let top = null;
     // _ui = 화면 글씨 · 띠 — 위 끝 층 (#107 바둑판 띠) 에 들지 않음 (150 에서 컷인 띠 위 테 · 부제 윗줄에 구멍이 나던 것, 코드 리뷰어)
     sigParticle({ x: 0, y: 0, s: 2, max: sec, lines: [], _ui: true, draw: (ctx, p) => {
         const W = window.innerWidth;
         const H = window.innerHeight;
         const t = p.life / p.max;
-        const bh = Math.round(ultClamp(H * hf, 40, 120));
+        // 게임 화면 띠 키 60 ~ 96 (높은 패널에서 120 이라 그림이 ×4 로 커지던 것 · 큰 이름 두 줄이 들어가게 60 부터)
+        const bh = Math.round(game ? ultClamp(H * hf, solo ? 60 : 40, 96) : ultClamp(H * hf, 40, 120));
         const open = t < 0.14 ? t / 0.14 : t > 0.86 ? (1 - t) / 0.14 : 1;
         const h = Math.max(2, Math.round(bh * open));
-        const y0 = Math.round(H * yc - h / 2);
+        if (top === null) {
+            top = game && solo ? ultTextTop() : 0;
+        }
+        const yc0 = top ? Math.max(H * yc, top + 2 + bh / 2) : H * yc;
+        const y0 = Math.round(yc0 - h / 2);
         ctx.globalAlpha = 0.92;
         ctx.fillStyle = cols[3];
         ctx.fillRect(0, y0, W, h);
@@ -851,9 +859,11 @@ function ultCutIn(pokemon, left, cols, sec, yc = 0.36, hf = 0.3) {
             ctx.fillRect(Math.round(x), Math.round(ly), len, 2);
         }
         // 큰 그림 — 띠보다 살짝 크게, 천천히 앞으로
-        if (open > 0.6 && img.naturalWidth) {
+        // 좁은 게임 화면 (400 아래) 은 띠 안 큰 그림 없음 — 큰 이름이 띠 폭을 거의 다 써서 미끄러져 지나가는 그림이 "은빛바람" 앞 · 끝 글자를 0.6초 덮던 것 (UX 리뷰어 #98 7 · 240) · 무대에 그 포켓몬이 있음
+        if (open > 0.6 && img.naturalWidth && !(game && W < 400)) {
             const nh = img.naturalHeight;
-            const dh = typeof fxInGame === 'function' && fxInGame() ? nh * Math.max(1, Math.round((bh * 1.25) / nh)) : Math.round(bh * 1.25);
+            // 게임 화면 = 정수 배율 ×2 까지 (포켓몬 그림은 ×2 넘게 키우지 않음 — 태현 님 · 높은 패널 ×4, 아트 디렉터 #98 큼 1)
+            const dh = game ? nh * Math.min(2, Math.max(1, Math.round((bh * 1.25) / nh))) : Math.round(bh * 1.25);
             const dw = Math.round(dh * (img.naturalWidth / img.naturalHeight));
             const slide = ultClamp((t - 0.1) / 0.25, 0, 1);
             const ease = 1 - (1 - slide) ** 3;
@@ -874,6 +884,8 @@ function ultCutIn(pokemon, left, cols, sec, yc = 0.36, hf = 0.3) {
     } });
 }
 
+// 상대 큰 글씨 색 (하양 → 빨강 · 테 짙은 빨강) — VS · 3:3 장면 전환 상대 필살기 이름 (합동 큰 컷인 상대 띠와 같은 빨강, 아트 디렉터 #98 ⑥)
+const ULT_FOE_TITLE = ['#ffffff', '#ffe0d0', '#ff5a3c', '#7a0a0a'];
 // 큰 글씨 — 크게 쾅 박혔다가 자리 잡음, 반짝 지나감. cols 를 주면 그 색으로 (기본 금색), yc = 높이(패널 비율), k = 크기 배수
 // 필살기 글자 글꼴 — 게임 모드는 게임 글꼴 (Pretendard, 가변 굵기라 900 그대로), 일반 모드는 그대로
 const ultFont = () => (typeof fxInGame === 'function' && fxInGame() ? "'Pretendard', sans-serif" : 'sans-serif');

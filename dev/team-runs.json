@@ -1,0 +1,16 @@
+{
+  "_": "dev/team-run.py --all 의 10판 (#98 준비 — 기획 10-26 섞기 표). team = [도감 번호, 레벨] 내 1 ~ 3칸 · events = 판 시작 뒤 at 초에 개발 동작 (gauge-full = 게이지 가득, side foe = 상대) · q = dev/game-host.js 매개변수 (cutscene=0 연출 끔 · motion=reduce · theme=light · style = 맥 +10% 흉내 글 간격) · gym = 관장 3:3 바로 시작. wild = 야생 1:1 (마지막 기회 · 잡기 타이밍 · evolve = 선두 진화 바로 앞 — 기획 10-26 한 판 더함)",
+  "runs": [
+    {"name": "1 기본 860×187 — 1세대 스타팅 (리자몽 메가 X 블래스트번)", "size": "860x187", "seed": 11, "team": [[6, 7], [9, 7], [3, 7]], "events": [{"at": 2.0, "dev": {"kind": "gauge-full"}}]},
+    {"name": "2 연출 끔 1860×187 — 개굴닌자 · 번치코 · 대짱이", "size": "1860x187", "seed": 12, "q": {"cutscene": "0"}, "team": [[658, 7], [257, 7], [260, 7]], "events": [{"at": 2.0, "dev": {"kind": "gauge-full"}}, {"at": 9.0, "dev": {"kind": "gauge-full", "side": "foe"}}]},
+    {"name": "3 좁은 240×150 — 2세대 스타팅", "size": "240x150", "seed": 13, "team": [[154, 7], [157, 7], [160, 7]], "events": [{"at": 2.5, "dev": {"kind": "gauge-full"}}]},
+    {"name": "4 높은 860×443 · 맥 +10% — 4세대 스타팅", "size": "860x443", "seed": 14, "q": {"style": "#pokemon-game{letter-spacing:.06em}"}, "team": [[389, 7], [392, 7], [395, 7]], "events": [{"at": 2.0, "dev": {"kind": "gauge-full"}}]},
+    {"name": "5 동작 줄이기 480×187 · 상대 합동 — 큰 포켓몬 샤로다 · 염무왕 · 대검귀", "size": "480x187", "seed": 15, "q": {"motion": "reduce"}, "team": [[497, 7], [500, 7], [503, 7]], "events": [{"at": 2.0, "dev": {"kind": "gauge-full", "side": "foe"}}, {"at": 10.0, "dev": {"kind": "gauge-full"}}]},
+    {"name": "6 밝은 테마 860×187 · 끼어들기 — 브리가론 · 마폭시 · 개굴닌자 vs Lv 20 (바로 3:3 · 상대 필살기 창에만 누름)", "size": "860x187", "seed": 16, "q": {"theme": "light"}, "team": [[652, 7], [655, 7], [658, 7]], "events": [{"at": 2.0, "dev": {"kind": "gauge-full"}}, {"at": 2.1, "dev": {"kind": "gauge-full", "side": "foe"}}], "interject": true, "direct": true, "foes": [[16, 20], [19, 20], [165, 20]]},
+    {"name": "7 넓은 1860×443 · 힘겨루기 — 리자몽 · 마기라스 · 망나뇽 vs Lv 22 (바로 3:3 · 상대 필살기 창에만 누름)", "size": "1860x443", "seed": 17, "team": [[6, 7], [248, 7], [149, 7]], "events": [{"at": 2.0, "dev": {"kind": "gauge-full", "side": "foe"}}, {"at": 2.0, "dev": {"kind": "gauge-full"}}], "direct": true, "interject": true, "foes": [[16, 22], [19, 22], [165, 22]]},
+    {"name": "8 체육관 240×187 — 관장 3:3 (피카츄 · 이브이 · 잠만보)", "size": "240x187", "seed": 18, "gym": true, "team": [[25, 13], [133, 13], [143, 13]], "events": [{"at": 2.0, "dev": {"kind": "gauge-full"}}, {"at": 12.0, "dev": {"kind": "gauge-full", "side": "foe"}}]},
+    {"name": "9 연출 끔 860×150 · 상대 합동 — 루카리오 · 한카리아스 · 메타그로스", "size": "860x150", "seed": 19, "q": {"cutscene": "0"}, "team": [[448, 7], [445, 7], [376, 7]], "events": [{"at": 2.0, "dev": {"kind": "gauge-full", "side": "foe"}}, {"at": 8.0, "dev": {"kind": "gauge-full"}}]},
+    {"name": "10 480×150 기본 — 1세대 스타팅 · 내 합동 다음 상대 합동", "size": "480x150", "seed": 20, "team": [[3, 7], [6, 7], [9, 7]], "events": [{"at": 2.0, "dev": {"kind": "gauge-full"}}, {"at": 12.0, "dev": {"kind": "gauge-full", "side": "foe"}}]},
+    {"name": "11 야생 1:1 860×187 — 마지막 기회 · 잡기 타이밍 · 진화 (파이리 진화 바로 앞)", "size": "860x187", "seed": 21, "wild": true, "evolve": true, "team": [[4, 15], [7, 15], [1, 15]], "events": []}
+  ]
+}

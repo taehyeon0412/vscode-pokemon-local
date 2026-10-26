@@ -466,7 +466,7 @@ export class TeamFxRunner {
           this.view({ kind: 'solo', side: c.src.side, from: [c.src.slot], to: c.dst, ...(c.repeat ? { quick: true } : {}) }, c.key, (timing) => {
             const s2 = a(c.src);
             const d2 = a(c.dst);
-            return s2 && d2 ? (fx.ult?.(s2, d2, () => releaseFx(), this.learned(c.src), { quick: false, type: c.type, timing, ...(pick0 ? { pick: pick0 } : {}) }) ?? 0) : 0;
+            return s2 && d2 ? (fx.ult?.(s2, d2, () => releaseFx(), this.learned(c.src), { quick: false, type: c.type, timing, ...(pick0 ? { pick: pick0 } : {}), ...(c.src.side === 'foe' ? { titleFoe: true } : {}) }) ?? 0) : 0;
           });
           return;
         }

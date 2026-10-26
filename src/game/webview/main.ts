@@ -4,7 +4,7 @@
  */
 import { h, render } from 'preact';
 import { TIMING } from '../core/balance';
-import { canHeal, canOpenMenus, inBattle, nextStageOf, teamScale } from '../core/engine';
+import { canHeal, canOpenMenus, inBattle, nextStageOf, teamScale, type GameInput } from '../core/engine';
 import { teamHealthy } from '../core/rules/bag';
 import { MENU_PANELS, menuShortcutOf } from '../features/menu/model';
 import { levelUps } from '../features/result/model';
@@ -23,7 +23,7 @@ import './game.css';
 import '../dev/dev.css';
 import { getGameConfig, getGamePort } from './vscode-api';
 import { WebviewSession, type SaveIoView } from './webview-session';
-import { devApply } from '../dev/actions';
+import { devApply, type DevAction } from '../dev/actions';
 import { gameClockFor, gameClockSettle, resetGameClock, setGameClock } from './clock';
 import { setDevUlts } from '../dev/ult-pick';
 
@@ -210,6 +210,17 @@ if (!port) {
       port.postMessage({ command: GAME_COMMAND, type: 'load-failed', message: `화면 오류: ${String(e)}` });
     },
   };
+  // 시험 창 (dev/game-host.js 가 __pgDevHost 를 켬) 만 — 자동 판 도구 (dev/team-run.py · #98) 가 상태를 읽고 입력 · 개발 동작을 보냄 (개발 알림 없이). 확장 웹뷰엔 없음
+  const dbgWin = window as unknown as { __pgDevHost?: boolean; __pgDebug?: unknown };
+  if (dbgWin.__pgDevHost) {
+    dbgWin.__pgDebug = {
+      state: () => session.current,
+      input: (i: GameInput) => actions.input(i),
+      dev: (a: DevAction) => {
+        if (session.devChange((s) => devApply(s, a).state)) store.set({ state: session.current });
+      },
+    };
+  }
 
   const root = document.createElement('div');
   root.id = 'pokemon-game';

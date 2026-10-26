@@ -39,7 +39,11 @@ class WS:
         self.s.sendall(req.encode())
         buf = b""
         while b"\r\n\r\n" not in buf:
-            buf += self.s.recv(1)
+            c = self.s.recv(1)
+            # 브라우저가 인사 중에 끊기면 recv 가 빈 값을 바로 돌려줘 끝없이 돎 (코드 리뷰어 #98)
+            if not c:
+                raise EOFError("브라우저 연결이 끊김")
+            buf += c
         self.n = 0
 
     def _read(self, n):

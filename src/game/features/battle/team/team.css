@@ -1005,6 +1005,40 @@
 #pokemon-game .pg-view-hide-out {
   animation: pg-view-show 350ms linear both;
 }
+/* 들어갈 때 앞뒤가 바뀌는 합동 동료 (model viewMonClass) — 제자리에서 바둑판으로 빨리 사라짐 → 새 자리에서 바둑판으로 나타남.
+   키프레임 이름을 pg-view-show 와 다르게 (같으면 돌아갈 때 pg-view-hide-out 으로 바뀌어도 애니메이션이 다시 안 돎 — 코드 리뷰어 #98) */
+#pokemon-game .pg-view-pop-hide {
+  animation: pg-view-pop-hide 350ms linear both;
+}
+#pokemon-game .pg-view-pop {
+  animation: pg-view-pop 350ms linear both;
+}
+@keyframes pg-view-pop-hide {
+  0%, 49% {
+    -webkit-mask-image: conic-gradient(#000 25%, transparent 0 50%, #000 0 75%, transparent 0);
+    mask-image: conic-gradient(#000 25%, transparent 0 50%, #000 0 75%, transparent 0);
+    -webkit-mask-size: 4px 4px;
+    mask-size: 4px 4px;
+    visibility: visible;
+  }
+  50%, 100% {
+    visibility: hidden;
+  }
+}
+@keyframes pg-view-pop {
+  0%, 50% {
+    -webkit-mask-image: conic-gradient(#000 25%, transparent 0 50%, #000 0 75%, transparent 0);
+    mask-image: conic-gradient(#000 25%, transparent 0 50%, #000 0 75%, transparent 0);
+    -webkit-mask-size: 4px 4px;
+    mask-size: 4px 4px;
+    visibility: visible;
+  }
+  51%, 100% {
+    -webkit-mask-image: none;
+    mask-image: none;
+    visibility: visible;
+  }
+}
 @keyframes pg-view-hide {
   0%, 33% {
     -webkit-mask-image: none;
@@ -1219,6 +1253,12 @@
 #pokemon-game .pg-team-viewing .pg-team-mon.pg-team-down,
 #pokemon-game .pg-team-viewing .pg-team-mon.pg-team-down * {
   animation-play-state: paused;
+}
+/* 돌아갈 때 쓰러진 칸도 다른 칸과 같이 제자리에서 바둑판으로 나타남 — 쓰러짐 사라지기 (.pg-team-mon.pg-team-down) 가 더 세서 바둑판이 안 먹어 숨겼다가
+   장면이 끝난 뒤 회색 그림만 툭 나타나던 것 (UX 리뷰어 #98 5) · 장면이 끝나면 사라지기 (회색 1.2초) 가 처음부터 다시 돎 */
+#pokemon-game .pg-team-viewing .pg-team-mon.pg-team-down.pg-view-down-back {
+  animation: pg-view-show 350ms linear both;
+  animation-play-state: running;
 }
 
 /* 합동 이름 판 (#100 시안) — show 동안 위쪽 띠 자리 1.5초: 반반 색 바탕 · 위아래 2px 금 · 얼굴 24 × 20 · 큰 이름 20 금 2px 남색 테두리 · 4걸음으로 나타났다 · 1.2초 뒤 사라짐 */

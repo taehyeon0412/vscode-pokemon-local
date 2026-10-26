@@ -1668,13 +1668,44 @@
                         const gT = typeof fxStageTop === 'function' ? fxStageTop() : 0;
                         const yMin = Math.max(fs, gT > 0 ? gT + 4 * S + fs * 0.6 + Math.max(3, fs / 4) / 2 : 0); // 게임 화면 = 글씨 윗끝이 위 끝 + 4칸 아래 (위 끝에 반쯤 걸쳐 머물던 것 — #96 디자인 4바퀴 · ult-top 걸쳐 머묾)
                         const y = clamp(b.top - Math.max(U * 0.5, fs) - (fin ? (T - tBlow) * 20 : 0), yMin, u.H - fs);
-                        ctx.globalAlpha = t > 0.85 ? (1 - t) / 0.15 : 1;
-                        ctx.lineJoin = 'round';
-                        ctx.lineWidth = Math.max(3, fs / 4);
-                        ctx.strokeStyle = 'rgba(15, 5, 0, 0.9)';
-                        ctx.strokeText(text, x, y);
-                        ctx.fillStyle = fin ? '#ffe14d' : pop > 0.5 ? '#ffffff' : cols[1];
-                        ctx.fillText(text, x, y);
+                        // 끝은 반투명 대신 바둑판 두 걸음 (다 보임 → 바둑판 반 → 없음) — 풀 위에서 올리브색으로 흐려지던 것 (아트 디렉터 #98 덤 · 반투명 금지)
+                        // 앞 입자가 바꾼 투명도 · 합성을 물려받지 않게 (HIT 글이 장면마다 반투명으로 깜빡이던 것 — 코드 리뷰어 #98)
+                        ctx.globalAlpha = 1;
+                        ctx.globalCompositeOperation = 'source-over';
+                        if (t > 0.93) {
+                            return;
+                        }
+                        const paint = (g, gx, gy) => {
+                            g.font = ctx.font;
+                            g.textAlign = 'center';
+                            g.textBaseline = 'middle';
+                            g.lineJoin = 'round';
+                            g.lineWidth = Math.max(3, fs / 4);
+                            g.strokeStyle = 'rgba(15, 5, 0, 0.9)';
+                            g.strokeText(text, gx, gy);
+                            g.fillStyle = fin ? '#ffe14d' : pop > 0.5 ? '#ffffff' : cols[1];
+                            g.fillText(text, gx, gy);
+                        };
+                        if (t <= 0.85) {
+                            paint(ctx, x, y);
+                            return;
+                        }
+                        const bw = Math.ceil(hw * 2 + 8);
+                        const bh = Math.ceil(fs * 1.6);
+                        // 캔버스는 입자에 한 장 (장마다 새로 만들던 것)
+                        const off = (q._off ??= document.createElement('canvas'));
+                        off.width = bw;
+                        off.height = bh;
+                        const g = off.getContext('2d');
+                        paint(g, bw / 2, bh / 2);
+                        g.globalCompositeOperation = 'destination-out';
+                        const c2 = Math.max(1, S);
+                        for (let yy = 0; yy < bh; yy += c2) {
+                            for (let xx = ((yy / c2) % 2) * c2; xx < bw; xx += c2 * 2) {
+                                g.fillRect(xx, yy, c2, c2);
+                            }
+                        }
+                        ctx.drawImage(off, Math.round(x - bw / 2), Math.round(y - bh / 2));
                     }) });
                 });
                 // 박차고 나감

@@ -9358,7 +9358,7 @@ function useUltimate(pokemon, ult, opt = {}) {
         try {
             pre?.start?.();
             if (!opt.noIntro) {
-                ultIntro(pokemon, left, name, sub, o, fx, until, introMs);
+                ultIntro(pokemon, left, name, sub, opt.titleCols ? { ...o, titleCols: opt.titleCols } : o, fx, until, introMs);
             }
         } catch (err) {
             ultError('intro', err);
@@ -9525,7 +9525,7 @@ function ultVsIntro(a, ultA, leftA, b, ultB, leftB, total) {
     // VS = 맨 위층 (at — 나중에 만든 입자가 아래라 내 필살기 이름 밑에 깔리던 것) · 0.3초에 1.4초 (끝 0.3초 흐려짐 빼고 1초 넘게 — U1, #34 UX 리뷰어)
     setTimeout(() => {
         ultShake(4, 300);
-        ultTitle('VS', null, ['#ffffff', '#ffe0d0', '#ff5a3c', '#7a0a0a'], game ? VS_LEN : sec - 0.35, yVs, 1.25 * L.k, game ? {} : null);
+        ultTitle('VS', null, ULT_FOE_TITLE, game ? VS_LEN : sec - 0.35, yVs, 1.25 * L.k, game ? {} : null);
     }, (game ? VS_AT : 0.45) * 1000);
 }
 
@@ -9671,9 +9671,9 @@ function ultIntro(pokemon, left, name, sub, o, fx, until, introMs = ULT_INTRO_MS
     // 다시 보는 필살기는 컷인 띠 없이 이름만 짧게
     // 다시 보는 필살기 · 반격기 이름 0.8 → 1.2초 (약 0.7 ~ 0.8초만 보이던 것, 2026-10-21 UX 리뷰어 U1 — 연출 위에 겹쳐 그려 길이는 그대로)
     // 짧은 이름은 컷인 띠가 없어 HP 묶음을 피해 위로 (컷인 띠 위 이름은 그대로)
-    ultTitle(name, sub, o.tc ? sigPal(o.tc) : null, introMs / 1000 + 0.9, 0.36, quick ? 0.6 : 1, quick ? { hud: true } : null);
+    ultTitle(name, sub, o.titleCols || (o.tc ? sigPal(o.tc) : null), introMs / 1000 + 0.9, 0.36, quick ? 0.6 : 1, quick ? { hud: true } : null);
     if (!quick) {
-        ultCutIn(pokemon, left, cols, ULT_INTRO_MS / 1000);
+        ultCutIn(pokemon, left, cols, ULT_INTRO_MS / 1000, 0.36, 0.3, true);
     }
 }
 
@@ -9772,18 +9772,26 @@ function ultDimLayer(alphaAt, sec, who = () => ultActive?.pokemon, update, opt) 
 const ultFlip = (img, left) => left && !img.src.includes('_left_');
 
 // 컷인 — 가로 띠가 열리고 큰 그림이 휙 지나감 (속도선). yc = 띠 가운데 높이(패널 비율), hf = 띠 굵기
-function ultCutIn(pokemon, left, cols, sec, yc = 0.36, hf = 0.3) {
+// solo = 혼자 필살기 컷인 — 게임 화면에선 띠를 정보줄 · 지도 줄 아래로 (큰 이름 ultTitle 과 같은 자리 — 3:3 은 지도 줄에 띠 위가 잘려 42px 만 보이고 이름이 19px 밖으로 처지던 것, 아트 디렉터 #98)
+function ultCutIn(pokemon, left, cols, sec, yc = 0.36, hf = 0.3, solo = false) {
     const img = pokemon.el;
     const dir = left ? -1 : 1;
+    const game = typeof fxInGame === 'function' && fxInGame();
+    let top = null;
     // _ui = 화면 글씨 · 띠 — 위 끝 층 (#107 바둑판 띠) 에 들지 않음 (150 에서 컷인 띠 위 테 · 부제 윗줄에 구멍이 나던 것, 코드 리뷰어)
     sigParticle({ x: 0, y: 0, s: 2, max: sec, lines: [], _ui: true, draw: (ctx, p) => {
         const W = window.innerWidth;
         const H = window.innerHeight;
         const t = p.life / p.max;
-        const bh = Math.round(ultClamp(H * hf, 40, 120));
+        // 게임 화면 띠 키 60 ~ 96 (높은 패널에서 120 이라 그림이 ×4 로 커지던 것 · 큰 이름 두 줄이 들어가게 60 부터)
+        const bh = Math.round(game ? ultClamp(H * hf, solo ? 60 : 40, 96) : ultClamp(H * hf, 40, 120));
         const open = t < 0.14 ? t / 0.14 : t > 0.86 ? (1 - t) / 0.14 : 1;
         const h = Math.max(2, Math.round(bh * open));
-        const y0 = Math.round(H * yc - h / 2);
+        if (top === null) {
+            top = game && solo ? ultTextTop() : 0;
+        }
+        const yc0 = top ? Math.max(H * yc, top + 2 + bh / 2) : H * yc;
+        const y0 = Math.round(yc0 - h / 2);
         ctx.globalAlpha = 0.92;
         ctx.fillStyle = cols[3];
         ctx.fillRect(0, y0, W, h);
@@ -9802,9 +9810,11 @@ function ultCutIn(pokemon, left, cols, sec, yc = 0.36, hf = 0.3) {
             ctx.fillRect(Math.round(x), Math.round(ly), len, 2);
         }
         // 큰 그림 — 띠보다 살짝 크게, 천천히 앞으로
-        if (open > 0.6 && img.naturalWidth) {
+        // 좁은 게임 화면 (400 아래) 은 띠 안 큰 그림 없음 — 큰 이름이 띠 폭을 거의 다 써서 미끄러져 지나가는 그림이 "은빛바람" 앞 · 끝 글자를 0.6초 덮던 것 (UX 리뷰어 #98 7 · 240) · 무대에 그 포켓몬이 있음
+        if (open > 0.6 && img.naturalWidth && !(game && W < 400)) {
             const nh = img.naturalHeight;
-            const dh = typeof fxInGame === 'function' && fxInGame() ? nh * Math.max(1, Math.round((bh * 1.25) / nh)) : Math.round(bh * 1.25);
+            // 게임 화면 = 정수 배율 ×2 까지 (포켓몬 그림은 ×2 넘게 키우지 않음 — 태현 님 · 높은 패널 ×4, 아트 디렉터 #98 큼 1)
+            const dh = game ? nh * Math.min(2, Math.max(1, Math.round((bh * 1.25) / nh))) : Math.round(bh * 1.25);
             const dw = Math.round(dh * (img.naturalWidth / img.naturalHeight));
             const slide = ultClamp((t - 0.1) / 0.25, 0, 1);
             const ease = 1 - (1 - slide) ** 3;
@@ -9825,6 +9835,8 @@ function ultCutIn(pokemon, left, cols, sec, yc = 0.36, hf = 0.3) {
     } });
 }
 
+// 상대 큰 글씨 색 (하양 → 빨강 · 테 짙은 빨강) — VS · 3:3 장면 전환 상대 필살기 이름 (합동 큰 컷인 상대 띠와 같은 빨강, 아트 디렉터 #98 ⑥)
+const ULT_FOE_TITLE = ['#ffffff', '#ffe0d0', '#ff5a3c', '#7a0a0a'];
 // 큰 글씨 — 크게 쾅 박혔다가 자리 잡음, 반짝 지나감. cols 를 주면 그 색으로 (기본 금색), yc = 높이(패널 비율), k = 크기 배수
 // 필살기 글자 글꼴 — 게임 모드는 게임 글꼴 (Pretendard, 가변 굵기라 900 그대로), 일반 모드는 그대로
 const ultFont = () => (typeof fxInGame === 'function' && fxInGame() ? "'Pretendard', sans-serif" : 'sans-serif');
@@ -11917,13 +11929,44 @@ window.__ult = {
                         const gT = typeof fxStageTop === 'function' ? fxStageTop() : 0;
                         const yMin = Math.max(fs, gT > 0 ? gT + 4 * S + fs * 0.6 + Math.max(3, fs / 4) / 2 : 0); // 게임 화면 = 글씨 윗끝이 위 끝 + 4칸 아래 (위 끝에 반쯤 걸쳐 머물던 것 — #96 디자인 4바퀴 · ult-top 걸쳐 머묾)
                         const y = clamp(b.top - Math.max(U * 0.5, fs) - (fin ? (T - tBlow) * 20 : 0), yMin, u.H - fs);
-                        ctx.globalAlpha = t > 0.85 ? (1 - t) / 0.15 : 1;
-                        ctx.lineJoin = 'round';
-                        ctx.lineWidth = Math.max(3, fs / 4);
-                        ctx.strokeStyle = 'rgba(15, 5, 0, 0.9)';
-                        ctx.strokeText(text, x, y);
-                        ctx.fillStyle = fin ? '#ffe14d' : pop > 0.5 ? '#ffffff' : cols[1];
-                        ctx.fillText(text, x, y);
+                        // 끝은 반투명 대신 바둑판 두 걸음 (다 보임 → 바둑판 반 → 없음) — 풀 위에서 올리브색으로 흐려지던 것 (아트 디렉터 #98 덤 · 반투명 금지)
+                        // 앞 입자가 바꾼 투명도 · 합성을 물려받지 않게 (HIT 글이 장면마다 반투명으로 깜빡이던 것 — 코드 리뷰어 #98)
+                        ctx.globalAlpha = 1;
+                        ctx.globalCompositeOperation = 'source-over';
+                        if (t > 0.93) {
+                            return;
+                        }
+                        const paint = (g, gx, gy) => {
+                            g.font = ctx.font;
+                            g.textAlign = 'center';
+                            g.textBaseline = 'middle';
+                            g.lineJoin = 'round';
+                            g.lineWidth = Math.max(3, fs / 4);
+                            g.strokeStyle = 'rgba(15, 5, 0, 0.9)';
+                            g.strokeText(text, gx, gy);
+                            g.fillStyle = fin ? '#ffe14d' : pop > 0.5 ? '#ffffff' : cols[1];
+                            g.fillText(text, gx, gy);
+                        };
+                        if (t <= 0.85) {
+                            paint(ctx, x, y);
+                            return;
+                        }
+                        const bw = Math.ceil(hw * 2 + 8);
+                        const bh = Math.ceil(fs * 1.6);
+                        // 캔버스는 입자에 한 장 (장마다 새로 만들던 것)
+                        const off = (q._off ??= document.createElement('canvas'));
+                        off.width = bw;
+                        off.height = bh;
+                        const g = off.getContext('2d');
+                        paint(g, bw / 2, bh / 2);
+                        g.globalCompositeOperation = 'destination-out';
+                        const c2 = Math.max(1, S);
+                        for (let yy = 0; yy < bh; yy += c2) {
+                            for (let xx = ((yy / c2) % 2) * c2; xx < bw; xx += c2 * 2) {
+                                g.fillRect(xx, yy, c2, c2);
+                            }
+                        }
+                        ctx.drawImage(off, Math.round(x - bw / 2), Math.round(y - bh / 2));
                     }) });
                 });
                 // 박차고 나감
@@ -18496,11 +18539,17 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         return top0 > 0 ? Math.max(y, top0 + h * 1.35 + 4 * u.S) : y;
     }
     // 구름 띠 — 위에서 내려와 흘러감. gather 면 양옆에서 cx 쪽으로 몰려듦
+    // 구름 번쩍 켜진 때 — 구름 묶음 모두 하나로 (두 필살기 구름이 겹쳐도 합쳐 1초 3번, 테스터 #98) · 그 번쩍 창 (cloudLitUntil) 안이면 다른 묶음도 같이 켬 (구름 반만 번쩍이던 것 — 코드 리뷰어 #98)
+    let cloudLitAt = -1e9;
+    let cloudLitUntil = -1e9;
     function cloudBank(sc, o) {
         const u = sc.u;
         const s = u.S;
         const { y, h, cols, sec, lit = () => 0, gather = false, cx = u.W / 2, speed = 10 * u.dir, alpha = 0.95 } = o;
         const litCols = o.litCols ?? ['#ffffff', '#fffbe0', '#ffe680'];
+        // 구름 번쩍은 켜지는 순간이 0.34초에 한 번까지 (진짜 시계 Date.now — ▶▶ 에서도) = 1초 3번 (원칙 8 · ux-rules U1) —
+        //   체육관 피카츄 번개 구름이 0.7초에 4번 번쩍이던 것 (#98 판 도구 밝기 검사 · screenFlash 상한 밖이라 안 잡혔음)
+        let litOn = false;
         const step = h * 1.45;
         const span = gather ? u.W * (o.width ?? 0.8) : u.W + step * 2;
         const n = Math.max(4, Math.ceil(span / step) + 1);
@@ -18526,7 +18575,21 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                 it.shown = life;
             }
             const dropG = (1 - easeOut((life - (it.shown || 0)) / 0.6)) + easeIn((life - (sec - 0.5)) / 0.5);
-            const L = lit();
+            let L = lit();
+            if (L <= 0) {
+                litOn = false;
+            } else if (!litOn) {
+                const nowR = Date.now();
+                if (nowR < cloudLitUntil) {
+                    litOn = true;
+                } else if (nowR - cloudLitAt < 340) {
+                    L = 0;
+                } else {
+                    cloudLitAt = nowR;
+                    cloudLitUntil = nowR + 150;
+                    litOn = true;
+                }
+            }
             ctx.globalAlpha = alpha;
             for (const pass of [true, false]) {
                 for (const q of lumps) {
@@ -18748,6 +18811,56 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         }
         fillPaths(ctx, bits, ['#c5f07a', '#6fbf3a', '#8a7252'], F.a);
     }
+    // 은빛바람 (wind · silver) — 무대를 덮지 않고 맞는 몸 높이 띠 (F.band) 안에만 짧은 은색 줄 + 은빛 비늘 "+" 반짝
+    //   (아트 디렉터 #98 큼 3 — 무대 전체를 회색 · 흰 가로줄로 3초 덮어 고장 난 화면처럼 보이던 것 · A안)
+    function fieldSilverWind(ctx, px, s, F) {
+        const { W, t, n, dir, band } = F;
+        const [y0, y1] = band;
+        const lines = [new Path2D(), new Path2D(), new Path2D()];
+        const shade = new Path2D();
+        for (let i = 0; i < n; i++) {
+            const d = depth(i);
+            const len = (12 + 20 * hash(i, 2)) * s;
+            const speed = W * (1.3 + 1.2 * hash(i, 3)) * (1 + 0.4 * d);
+            const span = W + len * 2;
+            const x = wrap(hash(i, 4) * span + dir * speed * t, span, -len);
+            const y = y0 + hash(i, 1) * (y1 - y0) + Math.sin(t * 3 + i) * s;
+            const th = d === 2 ? 2 * s : s;
+            const x0 = dir > 0 ? x - len : x;
+            lines[d].rect(px(x0), px(y), px(len), th);
+            if (d === 2) {
+                shade.rect(px(x0), px(y) + th, px(len), s);
+            }
+        }
+        // 반투명 없이 세 톤 차이로만 (반투명 회색이 포켓몬 위에서 팔레트 밖 색이 되던 것 — 아트 디렉터 #98)
+        ctx.globalAlpha = F.a;
+        ctx.fillStyle = '#595f6e';
+        ctx.fill(shade);
+        ['#b8c0d0', '#d8dce5', '#f4f6f8'].forEach((col, d) => {
+            ctx.fillStyle = col;
+            ctx.fill(lines[d]);
+        });
+        // 은빛 비늘 반짝 12 — 심 하양 · 끝 연두 · 하나씩 번갈아 쉼 (한꺼번에 깜빡이지 않게)
+        const core = new Path2D();
+        const tips = new Path2D();
+        for (let i = 0; i < 12; i++) {
+            if (Math.floor(t * 6 + i * 0.7) % 3 === 0) {
+                continue;
+            }
+            const span = W + 20;
+            const x = wrap(hash(i, 41) * span + dir * W * (0.7 + 0.5 * hash(i, 42)) * t, span, -10);
+            const y = y0 + hash(i, 43) * (y1 - y0);
+            core.rect(px(x), px(y), s, s);
+            for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+                tips.rect(px(x + dx * s), px(y + dy * s), s, s);
+            }
+        }
+        ctx.globalAlpha = F.a;
+        ctx.fillStyle = '#a8c830';
+        ctx.fill(tips);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill(core);
+    }
     // 꽃잎 · 잎 폭풍 — 빙글빙글 맴돌며 휩쓸려 감 + 굽이치는 꽃잎 띠
     function fieldPetal(ctx, px, s, F, leaf) {
         const { W, H, G, t, n, dir, cols } = F;
@@ -18873,6 +18986,11 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         const boost = (t) => (kind === 'petal' || kind === 'leaf' ? 1 - 0.55 * bump(t) : 1 + 0.6 * bump(t));
         const sc = scene(u, sec + 0.2, 'ultstorm');
         const others = u.others();
+        // 은빛바람 (A안) = 맞는 몸 높이 띠 (가운데 ± 몸 0.75) 안에만 · 위 하늘 띠 없음 · 줄 0.35배 · 큰 이름이 사라진 뒤 0.1초부터
+        const silver = kind === 'wind' && o.c === 'silver';
+        const live = others.filter((r) => r.w > 0);
+        //   몸 높이 = 발밑에서 몸 폭 0.9배 위까지 (칸 상자 높이로 잡으면 상자가 그림보다 커서 무대 거의 전체를 덮던 것 — 10-26 다시 찍기 · 아트 디렉터)
+        const sband = !silver ? null : live.length ? [Math.max(0, Math.min(...live.map((r) => r.bottom - Math.min(r.h, r.w) * 0.9))), Math.min(G, Math.max(...live.map((r) => r.bottom - 2)))] : [G * 0.6, G * 0.95];
         // 알갱이 칸 — 패널이 크면 굵게
         const c = Math.max(s, Math.round(short(u) / 110));
         const pxc = (v) => Math.round(v / c) * c;
@@ -18880,7 +18998,9 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         sc.tick((t, dt) => {
             lit = Math.max(0, lit - dt);
         });
-        skyBand(sc, o.c ? cols[3] : K.sky, bandH, K.light ? 0.34 : 0.6, sec);
+        if (!silver) {
+            skyBand(sc, o.c ? cols[3] : K.sky, bandH, K.light ? 0.34 : 0.6, sec);
+        }
         // 땅 — 서리 · 독늪 · 불길 · 물결 · 꽃잎 더미
         const grow = (t, from = 0.3, dur = 2.2) => easeOut((t - from) / dur) * clamp((sec - t) / 0.6, 0, 1);
         if (kind === 'blizzard') {
@@ -19009,15 +19129,25 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             rain: (ctx, F) => fieldRain(ctx, pxc, c, F, { color: cols[2], near: cols[0], splash: cols[0] }),
             acid: (ctx, F) => fieldRain(ctx, pxc, c, F, { acid: true, color: cols[2], near: cols[1], head: cols[0], splash: cols[1] }),
             blizzard: (ctx, F) => fieldSnow(ctx, pxc, c, F),
-            wind: (ctx, F) => fieldWind(ctx, pxc, c, F),
+            wind: (ctx, F) => (silver ? fieldSilverWind : fieldWind)(ctx, pxc, c, F),
             petal: (ctx, F) => fieldPetal(ctx, pxc, c, F, false),
             leaf: (ctx, F) => fieldPetal(ctx, pxc, c, F, true),
             sand: (ctx, F) => fieldSand(ctx, pxc, c, F),
             fire: (ctx, F) => fieldFire(ctx, pxc, c, F),
         }[kind];
+        let silverAt = null;
         sc.add({ max: sec, draw: (ctx, it) => {
             const life = it.life;
-            field(ctx, { W, H, G, dir, cols, t: life, n: Math.round(N * env(life) * boost(life)), a: 1 });
+            let k = 1;
+            if (silver) {
+                const inGame = (typeof fxStageTop === 'function' ? fxStageTop() : 0) > 0;
+                if (inGame && performance.now() < (typeof ultTitleUntil !== 'undefined' ? ultTitleUntil : 0) + 100) {
+                    return;
+                }
+                silverAt ??= life;
+                k = 0.35 * clamp((life - silverAt) / 0.4, 0, 1);
+            }
+            field(ctx, { W, H, G, dir, cols, t: life, n: Math.round(N * env(life) * boost(life) * k), a: 1, band: sband });
         } });
         // 화면 물들이기 — 아래로 갈수록 진하게 (계단)
         if (K.tint) {
@@ -19157,7 +19287,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             const gapT = Math.min(0.28, (sec - 1.4) / Math.max(1, others.length));
             others.forEach((q, i) => sc.at(0.7 + i * gapT + rnd(0, 0.2), () => {
                 const r = where(u, q);
-                hit(r, kind === 'wind' ? dir : away(u, r.x), K.hit);
+                hit(r, kind === 'wind' ? dir : away(u, r.x), silver ? 'shake' : K.hit);
                 HITFX[kind]?.(r);
             }));
         }
@@ -19234,17 +19364,21 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             }));
         }
         // 폭풍 · 꽃잎 · 모래 — 가끔 큰 돌풍
+        // 돌풍 — 은빛바람 (A안) 은 몸 높이 띠 안 · 0.35배 · 짧은 토막 · 반투명 없이 은색 (무대 전체를 덮던 돌풍 줄 — UX · 아트 #98 다시 찍기)
         const gust = (thick) => sc.add({ max: 0.8, draw: (ctx, it, t, px) => {
+            if (silver && t > 0.8) {
+                return;
+            }
             const paths = [new Path2D(), new Path2D()];
-            const n = Math.round(26 * area);
+            const n = Math.round(26 * area * (silver ? 0.35 : 1));
             for (let j = 0; j < n; j++) {
-                const len = W * (0.25 + 0.35 * hash(j, 40));
+                const len = silver ? (12 + 20 * hash(j, 40)) * s : W * (0.25 + 0.35 * hash(j, 40));
                 const x0 = dir > 0 ? -len : W;
                 const x = x0 + dir * (W + len) * clamp(t * 1.4 - hash(j, 41) * 0.4, 0, 1);
-                const y = hash(j, 42) * G;
+                const y = sband ? sband[0] + hash(j, 42) * (sband[1] - sband[0]) : hash(j, 42) * G;
                 paths[j % 2].rect(px(dir > 0 ? x : x), px(y), px(len), (thick && j % 3 === 0 ? 2 : 1) * s);
             }
-            fillPaths(ctx, paths, ['#ffffff', cols[1]], 0.7 * (1 - t));
+            fillPaths(ctx, paths, silver ? ['#f4f6f8', '#d8dce5'] : ['#ffffff', cols[1]], silver ? 1 : 0.7 * (1 - t));
         } });
         [0.6, 1.5, 2.4].forEach((t) => t < sec - 0.6 && sc.at(t + rnd(-0.1, 0.1), () => {
             if (kind === 'wind' || kind === 'sand' || kind === 'blizzard') {
@@ -19288,7 +19422,8 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             } else if (kind === 'wind' || kind === 'sand') {
                 gust(true);
                 gust(false);
-                u.others().forEach((r) => hit(r, dir, kind === 'wind' ? 'spin' : 'tumble'));
+                // 은빛바람은 흔들기만 (빙글 띄우면 맞는 포켓몬이 자기 이름표 · HP 위에 0.6 ~ 1초 올라가 있던 것 — UX #98)
+                u.others().forEach((r) => hit(r, dir, silver ? 'shake' : kind === 'wind' ? 'spin' : 'tumble'));
             } else if (kind === 'petal' || kind === 'leaf') {
                 // 화면 가운데 큰 소용돌이
                 const cx = W / 2;
@@ -25630,10 +25765,14 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         // 팔 대포 연사 — 작은 물탄이 앞쪽 곳곳으로 날아가 작은 물기둥 · 합동에선 뺌 (상대 앞에 물기둥이 피해 1.4 ~ 2초 전에 서서 먼저 맞은 것처럼 보이던 것 — #80 UX)
         const bullets = [];
         // 3:3 용 판에서도 뺌 (상대 앞 · 위에 작은 물기둥이 맞기 전에 서던 것 — 아트 디렉터 #95 6바퀴 ③)
-        const volley = !(typeof fxJointTop !== 'undefined' && fxJointTop) && !(typeof moveFrame !== 'undefined' && moveFrame) && !o.track;
+        //   나와 상대 사이가 좁으면 (240 ~ 360 패널 — 물기둥이 한 자리에 몰려 상대를 띄우던 것, 테스터 #98) 연사 없음
+        const vNear = Math.abs(ix - me.x) - (q ? q.w * 0.5 : 0) - Rb;
+        const volley = vNear >= me.w * 1.5 && !(typeof fxJointTop !== 'undefined' && fxJointTop) && !(typeof moveFrame !== 'undefined' && moveFrame) && !o.track;
+        // 앞쪽 = 나와 대상 사이 (대상 몸 반 + 물 구 반지름 앞까지) — 대상 뒤 · 트레이너 자리까지 흩어져 맞기 1.4초 전에 대상을 띄우던 것 (1:1 — 아트 디렉터 #80 ⑥ · bugs 771, 10-26 다시 찍기)
         for (let i = 0; i < (volley ? 6 : 0); i++) {
             const f = (i + 0.5) / 6;
-            const tx = clamp(me.x + dir * (me.w * 1.5 + (Math.abs(ix - me.x) + W * 0.15) * f) + (hash(i, 91) - 0.5) * W * 0.06, W * 0.04, W * 0.96);
+            const d0 = Math.min(vNear, me.w * 1.5 + (vNear - me.w * 1.5) * f + (hash(i, 91) - 0.5) * W * 0.04);
+            const tx = clamp(me.x + dir * d0, W * 0.04, W * 0.96);
             bullets.push({ t0: TM + 0.45 + i * 0.19, tx, x0: 0, y0: 0, on: false, done: false });
         }
         const bulletAt = (b, t) => {
@@ -53869,6 +54008,10 @@ screenFlash = function (s, alpha, color, max) {
         return undefined;
     }
     fxLastFlash = now;
+    // 실제로 그린 번쩍 ('F' — 위 'f' 는 부른 것 모두, 박자 재기용) · 자동 판 도구 (dev/team-run.py) 의 1초 3번 검사
+    if (Array.isArray(window.__fxTrace)) {
+        window.__fxTrace.push(['F', now, Math.min(fxFlashCap(), alpha)]);
+    }
     return fxScreenFlash(s, Math.min(fxFlashCap(), alpha), color, max);
 };
 // 3:3 은 1:1 연출의 흔들기도 끔 — 앞쪽 층 (#foreground) 이 ±1px 흔들려 무대 양 끝에 세로줄이 번갈아 생기던 것 (fxGameShake 는 막았는데 이 길은 그대로, 아트 디렉터 #95 4바퀴 ⑦)
@@ -56469,7 +56612,8 @@ window.pokemonFx = {
             // o.noIntro = 1:1 컷인 없이 (3:3 장면 전환 합동 — 이름은 화면 큰 컷인, #99)
             const introMs = o?.noIntro ? 0 : o?.quick ? ULT_QUICK_INTRO_MS : ULT_INTRO_MS;
             mainStart = charge + introMs;
-            total = fxWithTimers(gen, () => useUltimate(A, entry, { quick: !!o?.quick, charge, ...(shift ? { extraMs: shift } : {}), ...(o?.sub ? { sub: o.sub } : {}), ...(o?.noIntro ? { noIntro: true } : {}) })) || 0;
+            // o.titleFoe = 3:3 장면 전환 상대 혼자 필살기 — 큰 이름을 상대 색 (혼자는 금 · 합동은 빨강으로 한 판에 "상대" 가 둘이던 것, 아트 디렉터 #98 ⑥)
+            total = fxWithTimers(gen, () => useUltimate(A, entry, { quick: !!o?.quick, charge, ...(shift ? { extraMs: shift } : {}), ...(o?.sub ? { sub: o.sub } : {}), ...(o?.noIntro ? { noIntro: true } : {}), ...(o?.titleFoe ? { titleCols: ULT_FOE_TITLE } : {}) })) || 0;
             if (tmAll && total) {
                 const at0 = charge + introMs + (mainAt ?? tmAll.main) + shift;
                 // 부른 쪽에 박자 — main = 큰 맞음 · cover = 상대를 덮는 연출이 끝나는 때 (없으면 −1) · 지금부터 ms

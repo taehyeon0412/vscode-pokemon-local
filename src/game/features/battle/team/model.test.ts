@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { bandDrawn, bandLeft, duelSpots, faintHoldLeft, faintIsBig, faintShortLine, overLineHold, plateBoxOf, stackRows, TEAM_ROW_GAP, teamGeometry, viewHitChip, viewPopsBack, warnPosOf, type WarnPos } from './model';
-import type { TeamBattle } from '../../../core/engine';
+import { bandDrawn, bandLeft, duelSpots, faintHoldLeft, faintIsBig, faintShortLine, overLineHold, plateBoxOf, stackRows, TEAM_ROW_GAP, teamGeometry, viewHitChip, viewPopsBack, warnPosOf, type WarnPos, viewCrossers, viewMonClass, teamDenyNote } from './model';
+import { sampleMonster, sampleSave } from '../../../../test/fixtures/save';
+import { startTeamBattle, type TeamBattle } from '../../../core/engine/team';
 
 describe('3:3 자리 (디자인팀 4안 시안 geo 그대로)', () => {
   it('860 × 187 = ×2 비스듬히 세 줄 · 앞줄끼리 약 310px · 판 안 잘림', () => {
@@ -145,6 +146,62 @@ describe('3:3 위 가운데 줄 — 띠 · 쓰러짐 줄 · 결과 줄 (픽셀 �
     expect(overLineHold(false, 1000, true)).toBe(false);
     // 결과 줄이 없는 판 끝 = 이름 1.2초만
     expect(overLineHold(false, 300, false)).toBe(false);
+  });
+
+  it('버린 누름 글 — "지금!" 이었다가 같은 걸음에 그 칸이 쓰러지거나 판이 끝나면 글 없음 ("아직 안 찼어요" 로 되돌아가지 않음, 테스터 #98 · bugs 1824)', () => {
+    const mons = [0, 1, 2].map((i) => sampleMonster({ uid: `m${i}`, species: [1, 4, 7][i]!, form: ['bulbasaur', 'charmander', 'squirtle'][i]!, level: 10 }));
+    const foes = [0, 1, 2].map((i) => sampleMonster({ uid: `f${i}`, species: 10, form: 'caterpie', level: 10 }));
+    const b0 = startTeamBattle(sampleSave({ monsters: Object.fromEntries(mons.map((m) => [m.uid, m])), party: mons.map((m) => m.uid) }), foes, 'trainer', '상대', mons.map((m) => m.uid));
+    const full = (b: TeamBattle, i: number): TeamBattle => ({ ...b, me: b.me.map((f, j) => (j === i ? { ...f, ult: 1 } : f)), ultReadyAt: { ...b.ultReadyAt, me: b.ultReadyAt.me.map((t, j) => (j === i ? b.t : t)) } });
+    // 칸 있는 누름 — 차면 "지금!" · 그 칸이 쓰러지면 (도장은 아직 go) 글 없음
+    const go: TeamBattle = { ...full(b0, 1), deny: { slot: 1, ms: 300, why: 'charge', go: true } };
+    expect(teamDenyNote(go)).toMatchObject({ key: 2, go: true, text: '지금!' });
+    expect(teamDenyNote({ ...go, me: go.me.map((f, j) => (j === 1 ? { ...f, hp: 0 } : f)) })).toBeNull();
+    expect(teamDenyNote({ ...go, phase: 'over', result: 'win' })).toBeNull();
+    // 아직 go 가 아니면 그대로 "아직 안 찼어요"
+    expect(teamDenyNote({ ...b0, deny: { slot: 1, ms: 300, why: 'charge' } })).toMatchObject({ go: false, text: '아직 안 찼어요' });
+    // 칸 없는 Z — go 였다가 찬 칸이 쓰러지면 글 없음
+    const zGo: TeamBattle = { ...full(b0, 0), deny: { slot: -1, ms: 300, why: 'charge', go: true } };
+    expect(teamDenyNote(zGo)).toMatchObject({ key: 1, go: true });
+    expect(teamDenyNote({ ...zGo, me: zGo.me.map((f, j) => (j === 0 ? { ...f, hp: 0 } : f)) })).toBeNull();
+  });
+
+  it('장면 전환 칸 클래스 (viewMonClass) — 앞뒤가 바뀌는 동료는 in 바둑판 사라짐 → 새 자리 나타남 → out 은 다른 키프레임 (코드 리뷰어 #98)', () => {
+    const o = { inGroup: true, hideDown: false, popsBack: true, cross: true, shooter: true };
+    expect(viewMonClass('in', o)).toBe(' pg-view-pop-hide');
+    expect(viewMonClass('cut', o)).toBe(' pg-view-pop pg-view-partner');
+    expect(viewMonClass('show', o)).toBe(' pg-view-pop pg-view-partner');
+    // 돌아갈 때 = 클래스 이름이 바뀌어야 (pg-view-pop → pg-view-hide-out) 나타남이 다시 돎
+    expect(viewMonClass('out', o)).toBe(' pg-view-hide-out');
+    // 걷는 무리 · 나머지 · 숨긴 쓰러진 칸 (예전과 같음)
+    const walk = { ...o, cross: false };
+    expect(viewMonClass('in', walk)).toBe(' pg-view-move pg-view-partner');
+    expect(viewMonClass('out', { ...walk, popsBack: false })).toBe(' pg-view-move pg-view-partner');
+    expect(viewMonClass('in', { ...walk, inGroup: false })).toBe(' pg-view-hide-in');
+    expect(viewMonClass('show', { ...walk, inGroup: false })).toBe(' pg-view-hidden');
+    expect(viewMonClass('out', { ...walk, inGroup: false })).toBe(' pg-view-hide-out');
+    expect(viewMonClass('out', { ...walk, hideDown: true })).toBe(' pg-view-hide-out pg-view-down-back');
+    // 무리 밖 (오래전에 쓰러져 사라진 칸 포함) 은 되살리는 클래스 없음 (코드 리뷰어 #98 높음)
+    expect(viewMonClass('out', { ...walk, inGroup: false, hideDown: false })).not.toContain('pg-view-down-back');
+  });
+
+  it('장면 전환 들어갈 때 앞뒤가 바뀌는 동료만 바둑판 (viewCrossers — 소미안이 앞장 통통코를 지나치던 것, bugs 1794 ③)', () => {
+    for (const [W, H] of [[860, 187], [480, 150], [240, 150]] as const) {
+      const g = teamGeometry(W, H, 26);
+      for (const side of ['me', 'foe'] as const) {
+        // 가운데에서 가까운 순서 (3:3 자리)
+        const near = [0, 1, 2].sort((a, c) => Math.abs(g.pos(side, a).x - g.cx) - Math.abs(g.pos(side, c).x - g.cx));
+        if (g.pos(side, near[0]!).x === g.pos(side, near[1]!).x) continue;
+        const two = (lead: number, partner: number) => {
+          const groups = { me: side === 'me' ? [lead, partner] : [0], foe: side === 'foe' ? [lead, partner] : [0] };
+          return viewCrossers(g, groups, duelSpots(g, groups.me.length, groups.foe.length));
+        };
+        // 앞장이 가운데 쪽 → 동료는 바깥으로 걸어감 (안 지나침)
+        expect(two(near[0]!, near[1]!).size).toBe(0);
+        // 동료가 가운데 쪽 → 앞장을 지나쳐야 함 → 동료만 바둑판 (앞장은 걸어감)
+        expect([...two(near[1]!, near[0]!)]).toEqual([`${side}-${near[0]}`]);
+      }
+    }
   });
 
   it('장면 전환 자리 (#99 · #101) — 내 편 왼쪽 · 상대 오른쪽 · 혼자는 가운데 맞춤 · 합동 동료는 바깥으로 넉넉히 · 패널 안 · 배율 칸', () => {

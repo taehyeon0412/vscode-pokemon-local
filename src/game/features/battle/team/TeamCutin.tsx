@@ -103,7 +103,7 @@ export function jointBandBg(colors: readonly string[], foe = false): string {
   return `linear-gradient(105deg, ${stops.join(', ')})`;
 }
 
-export function TeamCutin({ who, side, title, sub, media, k, top, height, colors, quick = false }: { who: { form: string; name: string; shiny?: boolean }[]; side: Side; title: string; sub: string; media: string; /** 그림 배율 */ k: 1 | 2 | 3; top: number; height: number; /** 참가자 타입 색 (앞장 = 띠 바탕 · 동료 = 속도선) */ colors: string[]; /** 같은 짝 두 번째 합동 (컷 0.6초 — 들어오기 없이 바로) */ quick?: boolean }) {
+export function TeamCutin({ who, side, title, sub, media, k, top, height, colors, quick = false }: { who: { form: string; name: string; shiny?: boolean }[]; side: Side; title: string; sub: string; media: string; /** 그림 배율 */ k: 1 | 2 | 3; top: number; height: number; /** 참가자 타입 색 (앞장 = 띠 바탕 · 동료 = 속도선) */ colors: string[]; /** 같은 짝 두 번째 합동 (컷 1.2초 — 들어오기 없이 바로) */ quick?: boolean }) {
   const foe = side === 'foe';
   // 이음선 = 이웃한 두 그림 사이 가운데 (세로 · 재서 — 칸 비율로 나눠 둘째 포켓몬 몸 위를 지나던 것, 아트 디렉터 #100) · 제목 칸 = 앞장 색 (아트 디렉터 #98 2바퀴 5) ·
   //   그림이 하나만 남으면 앞장 색 하나 (2바퀴 2) · 들어오는 동안 (0.16 + 0.24초) 은 매 장면 그린 자리 (transform 포함) 로 다시 칠함 — offset 으로 재 다 들어온 자리에 칠해

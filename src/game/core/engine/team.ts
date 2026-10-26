@@ -155,7 +155,7 @@ export interface TeamBattle {
   /** (옛 기록) 필살기 예약 — 없앰 (2026-10-22 orders #88 "필살기 예약 이라는건 없애자"). 늘 빈 목록 (옛 상태 읽기용) */
   reserve: number[];
   /** 버린 필살기 누름 (내 칸 — slot −1 = 칸 없이 Z) — 지난 ms · 까닭 (charge = 아직 안 참 · busy = 찼지만 다른 필살기 · 연출 중). TIMING.team.denyMs 뒤 지움 */
-  deny?: { slot: number; ms: number; why: 'charge' | 'busy' };
+  deny?: { slot: number; ms: number; why: 'charge' | 'busy'; go?: boolean };
   /** 내 칸마다 다 찬 필살기를 기다린 ms (볼 때 — 쓸 수 있는 걸음에서만 셈, ultAutoWaitMs 가 되면 저절로 · R2) · 옛 상태엔 없음 */
   autoWait?: number[];
   /** 마지막 기술을 쏜 때 (t) — 다음 기술은 staggerMs 뒤 (시작 시각 엇갈림, #117) · 옛 상태엔 없음 */
@@ -813,6 +813,16 @@ function firstReady(b: TeamBattle, side: Side): number | null {
   return best;
 }
 
+/** 칸 없이 Z 를 누르면 쏠 내 칸 — 다 찬 칸 중 먼저 찬 칸 (엔진 · 화면 "지금! [n]" 이 같이 씀) */
+export function teamZSlot(b: TeamBattle): number | null {
+  return firstReady(b, 'me');
+}
+
+/** 다음에 필살기를 쓸 상대 칸 — 다 찬 칸 중 먼저 찬 칸 (엔진 · 화면 "!" 칩이 같이 씀) */
+export function teamFoeNext(b: TeamBattle): number | null {
+  return firstReady(b, 'foe');
+}
+
 /**
  * 볼 때 저절로 나갈 내 칸 하나 — HP 30% 아래 (기다리지 않음) 먼저, 아니면 먼저 찬 칸. 기다림 (autoWait) 은 이 칸만 셈 · 화면 "N초" 칩도 이 칸 (디자인팀 UX R9 ⑥)
  */
@@ -964,7 +974,7 @@ export function teamInput(b0: TeamBattle, input: TeamInput, rng: Rng, ults?: Rea
   // 내 필살기 중 (연타 — 동료가 차 있어도 "지금은 못 써요" 가 컷인 내내 2.5초 남던 것) · 힘겨루기 중 (할 일은 Space) 의 Z 는 조용히 — 합동 멘트 창은 Z 로 합류 그대로 (UX 리뷰어 #88 2차)
   const quiet = b0.phase === 'clash' || (b0.phase === 'ult' && b0.ult?.side === 'me' && !((b0.ult.gather ?? 0) > 0));
   if (input.slot === undefined && quiet) return b0;
-  const slot = input.slot ?? firstReady(b0, 'me');
+  const slot = input.slot ?? teamZSlot(b0);
   // Z (칸 없이) 인데 찬 포켓몬이 없음 — 버린 누름 도장 (아직 안 참)
   if (slot === null) return b0.me.some(alive) ? { ...clone(b0), deny: { slot: -1, ms: 0, why: 'charge' } } : b0;
   if (!teamUltOpen(b0, slot)) {
@@ -1018,9 +1028,18 @@ function teamStepOnce(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamStepOp
   // 예약은 없음 (#88) — 옛 상태의 예약은 지움 · 버린 누름 도장은 1초 뒤 지움
   if (b.reserve.length) b.reserve = [];
   if (b.deny) {
-    const ms = b.deny.ms + stepMs;
-    if (ms >= TIMING.team.denyMs) delete b.deny;
-    else b.deny = { ...b.deny, ms };
+    let ms = b.deny.ms + stepMs;
+    // 그 사이 쓸 수 있게 되면 (화면 금색 "지금!") 그때부터 1초 넘게 — 1.2초 끝 무렵에 바뀌어 "지금!" 이 0.2초만 보이던 것 (#98 자동 판 · ux-rules U1)
+    //   칸 없는 Z 는 Z 가 실제로 쏠 칸 (teamZSlot) 으로 봄 · "지금!" 뒤 그 칸을 못 쓰게 되면 (쓰러짐 · 판 끝) 도장을 지움 ("아직 안 찼어요" 로 되돌아가던 것 — 코드 리뷰어 #98)
+    const d = b.deny;
+    const z = d.slot >= 0 ? d.slot : teamZSlot(b);
+    const go = z !== null && teamUltOpen(b, z);
+    if (d.go && !go) delete b.deny;
+    else {
+      if (go && !d.go) ms = Math.min(ms, Math.max(0, TIMING.team.denyMs - TIMING.team.denyGoMs));
+      if (ms >= TIMING.team.denyMs) delete b.deny;
+      else b.deny = { ...d, ms, ...(go ? { go: true } : {}) };
+    }
   }
   // 찬 때를 모르는 내 필살기 (개발 모드 게이지 가득 · 옛 상태) 는 지금부터 셈 — 저절로 쓰기 3초 (R2)
   b.me.forEach((f, i) => {
@@ -1160,15 +1179,15 @@ function teamStepOnce(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamStepOp
   checkEnd(b);
   if ((b.phase as TeamBattle['phase']) === 'over') return b;
   // 필살기 — 상대 AI 는 차면 조금 기다렸다 · 자동 전투면 내 것도 차는 대로
-  for (let i = 0; i < b.foe.length; i++) {
-    const f = b.foe[i]!;
-    if (!alive(f) || f.ult < 1) continue;
+  //   상대는 먼저 찬 칸부터 (teamFoeNext — 화면 "!" 칩도 이 칸 · 찬 칸마다 따로 기다려 칩이 붙은 칸이 아닌 칸이 먼저 나가던 것, UX 리뷰어 · bugs 1775)
+  const fi = teamFoeNext(b);
+  if (fi !== null) {
     const [lo, hi] = BALANCE.team.foeUltWaitMs;
-    const wait = b.foeUltWait[i] ?? rng.int(lo, hi);
-    b.foeUltWait[i] = wait - stepMs;
+    const wait = b.foeUltWait[fi] ?? rng.int(lo, hi);
+    b.foeUltWait[fi] = wait - stepMs;
     if (wait - stepMs <= 0) {
-      b.foeUltWait[i] = null;
-      startUlt(b, 'foe', i, rng, opts.ults);
+      b.foeUltWait[fi] = null;
+      startUlt(b, 'foe', fi, rng, opts.ults);
       return b;
     }
   }
@@ -1292,7 +1311,7 @@ export function readTeam(raw: unknown): TeamBattle | null {
   if (!Array.isArray(raw.reserve) || !slots(raw.reserve, 'me') || new Set(raw.reserve).size !== raw.reserve.length) return null;
   // 버린 누름 도장 (#88) — 칸 −1 ~ 2 · 지난 ms · 까닭
   const d = raw.deny;
-  if (!(d === undefined || (isObj(d) && Number.isInteger(d.slot) && (d.slot as number) >= -1 && (d.slot as number) < BALANCE.team.size && fin(d.ms, 0, 1e6) && (d.why === 'charge' || d.why === 'busy')))) return null;
+  if (!(d === undefined || (isObj(d) && Number.isInteger(d.slot) && (d.slot as number) >= -1 && (d.slot as number) < BALANCE.team.size && fin(d.ms, 0, 1e6) && (d.why === 'charge' || d.why === 'busy') && (d.go === undefined || d.go === true)))) return null;
   if (!(raw.autoWait === undefined || (Array.isArray(raw.autoWait) && raw.autoWait.length === n.me && raw.autoWait.every((x) => fin(x, 0, 1e6))))) return null;
   // 판 시각보다 뒤면 안 읽음 (아무도 행동하지 않고 상한까지 멈추던 것 — 코드 리뷰어)
   if (!(raw.lastShotAt === undefined || fin(raw.lastShotAt, 0, typeof raw.t === 'number' ? raw.t : 0))) return null;

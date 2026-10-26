@@ -26,7 +26,8 @@ export interface TeamView {
 
 /** 단계 길이 (ms) — show 는 연출 길이 (혼자 약 4 ~ 9초) [임시값] */
 // cutMs 1200 → 1400 — 합동 컷인 머리말 ("합동 필살기!" · "합동!") 이 0.82 ~ 0.92초만 보이던 것 (U1 1초 — #96 UX 작음 5 · 디자인)
-export const TEAM_VIEW = { inMs: 350, cutMs: 1400, outMs: 350, cutQuickMs: 600, repeatTailMs: 1500 } as const;
+// cutQuickMs 600 → 1200 — 같은 짝 두 번째 합동 큰 컷인 머리말 · 이름이 0.55초만 보이던 것 (U1 "quick 포함 1초" — 판 도구 #98 7바퀴 · 디자인 제안 값)
+export const TEAM_VIEW = { inMs: 350, cutMs: 1400, outMs: 350, cutQuickMs: 1200, repeatTailMs: 1500 } as const;
 
 let view: TeamView | null = null;
 const subs = new Set<(v: TeamView | null) => void>();

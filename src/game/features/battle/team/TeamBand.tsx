@@ -19,6 +19,8 @@ export const WIN_MS = 1300;
 export const BAND_PX = 24;
 /** 띠는 큰 연출이 생긴 뒤 이만큼 늦게 — 달려간 칸이 집으로 돌아오는 0.3초 (개발 a6 b751b73 · 아트 디렉터 #95 "달려간 채 판 · 띠가 뜸") */
 export const BAND_DELAY_MS = 300;
+/** 필살기 · 합동 띠가 이만큼 못 보이고 VS 로 바뀌면 이름을 VS 부제에 남김 (ux-rules U1 "보인 띠는 1.2초 넘게") */
+export const VS_CARRY_MS = 1200;
 /** 붙잡기 (쓰러짐 말이 붙어 있는 동안 — 붙은 뒤 1.2초) 의 끝 — 띠 시간 + 이만큼까지 (좁은 패널은 띠가 1.2초 보인 뒤에 말이 붙어 1.5초로는 말이 잘리던 것, UX 리뷰어 #95 8바퀴 1) */
 export const HOLD_MAX_MS = 4000;
 
@@ -59,17 +61,29 @@ function bandOf(b: TeamBattle): TeamBandView | null {
 export function useTeamBand(b: TeamBattle, hold = false): TeamBandView | null {
   // due = 보이기 시작할 때 (게임 시계 — 늦춤 0.3초는 달려간 칸이 돌아오는 그림과 같은 시계) · seen = 처음 보인 때 (진짜 시계 — 보이는 길이는 게임 배와 상관없이,
   //   ▶▶ ×2 에서 1.8초 띠가 0.9초 · 붙잡기가 반이 되던 것 — UX 리뷰어 #95 13바퀴 큼 1)
-  const cur = useRef<{ key: string; due: number; seen: number | null; view: TeamBandView } | null>(null);
+  // carry = VS 부제 앞에 남길 앞 필살기 이름 (아래)
+  const cur = useRef<{ key: string; due: number; seen: number | null; view: TeamBandView; carry?: string } | null>(null);
   // 바로 앞 그림이 합동 멘트 (모으기 판) 였으면 띠를 늦추지 않음 — 달려간 칸이 없고, 이름 띠가 빔이 다 뻗은 뒤 0.4초에 뜨던 것 (아트 디렉터 #95 3바퀴 · bw-triple-7 글이 먼저)
   const gathered = useRef(false);
-  const win = useRef<{ id: number; at: number; view: TeamBandView } | null>(null);
+  // closed = 한 번 닫힌 결과 띠는 다시 안 엶 (쓰러짐 말이 나중에 붙어 hold 가 켜지면 1.2초 비었다가 "졌다…" 가 다시 떠 한 번 더 진 것처럼 읽히던 것 — UX 리뷰어 #98)
+  const win = useRef<{ id: number; at: number; view: TeamBandView; closed?: boolean } | null>(null);
   const [, tick] = useState(0);
   const gnow = performance.now();
   const now = realNow();
   const next = bandOf(b);
   // VS 띠도 늦추지 않음 (720 아래는 1.1초 뒤 연타 안내가 넘겨받아 0.3초 늦으면 0.8 ~ 1.0초만 보이던 것 — UX 리뷰어 #95 7바퀴)
-  if (next && next.key !== cur.current?.key) cur.current = { key: next.key, due: gnow + (next.kind === 'win' || next.kind === 'lose' || next.kind === 'vs' || gathered.current ? 0 : BAND_DELAY_MS), seen: null, view: next };
-  else if (next && cur.current) cur.current.view = next;
+  if (next && next.key !== cur.current?.key) {
+    // 필살기 · 합동 띠가 1.2초 (VS_CARRY_MS) 를 못 채우고 VS (힘겨루기) 로 바뀌면 그 이름을 VS 부제 앞에 남김 ("용성군! 힘겨루기!") —
+    //   상대가 곧바로 받아쳐 "한카리아스 용성군!" 띠가 0.29초만 보이던 것 (연출 끔 860 × 150 · UX 리뷰어 #98 큼 1). VS 를 늦추면 연타 안내 · 누르는 때도 밀려 이름을 옮김
+    const p = cur.current;
+    //   앞 띠의 주인이 그 힘겨루기에 있을 때만 (합동 모으기 동안 남은 엉뚱한 띠 이름이 붙지 않게 — 코드 리뷰어 #98)
+    const own = !!p && p.view.who.some((w) => next.who.some((x) => x.side === w.side && x.slot === w.slot));
+    const short = !!p && own && (p.view.kind === 'ult' || p.view.kind === 'joint') && (p.seen === null || now - p.seen < VS_CARRY_MS);
+    //   혼자 필살기는 누구 것인지도 ("한카리아스 용성군!") · 합동은 이름이 길어 필살기 이름만
+    const carry = next.kind === 'vs' && short ? (p.view.kind === 'ult' ? `${p.view.title} ${p.view.sub}` : p.view.sub) : undefined;
+    cur.current = { key: next.key, due: gnow + (next.kind === 'win' || next.kind === 'lose' || next.kind === 'vs' || gathered.current ? 0 : BAND_DELAY_MS), seen: null, view: next, ...(carry ? { carry } : {}) };
+  } else if (next && cur.current) cur.current.view = next;
+  if (cur.current?.carry && cur.current.view.kind === 'vs' && !cur.current.view.sub.startsWith(cur.current.carry)) cur.current.view = { ...cur.current.view, sub: `${cur.current.carry} ${cur.current.view.sub}` };
   if (cur.current && cur.current.seen === null && gnow >= cur.current.due) cur.current.seen = now;
   const age = cur.current && cur.current.seen !== null ? now - cur.current.seen : -1;
   if (!next && cur.current && age >= (hold ? BAND_MS + HOLD_MAX_MS : BAND_MS)) cur.current = null;
@@ -79,9 +93,12 @@ export function useTeamBand(b: TeamBattle, hold = false): TeamBandView | null {
     // 얼굴 = 그 줄의 주인 (#136 A — 합동 띠와 같은 모양): 이겼다! = 이긴 내 얼굴 · 졌다… = 진 내 얼굴 (상대 얼굴이면 "상대가 졌다" 로 거꾸로 읽히던 것 — UX 리뷰어 #96)
     const mine = end.me.map((i) => ({ side: 'me' as Side, slot: i, form: b.me[i]?.form ?? '' }));
     win.current = { id: end.id, at: now, view: { key: `win:${end.id}`, kind: lose ? 'lose' : 'win', side: end.winner, who: mine, title: lose ? '졌다…' : '이겼다!', sub: '' } };
+    // 이미 지난 결과 (패널을 접었다 펴 웹뷰가 새로 만들어지면 로그에 남은 예전 결과) 는 본 것으로만 — "이겼다! / 졌다…" 가 다시 뜨던 것 (코드 리뷰어 #98)
+    if (b.t - end.at > WIN_MS) win.current.closed = true;
   }
   // "이겼다!" 띠도 쓰러짐 말이 붙어 있는 동안 붙잡음 (0.3초 만에 말이 따로 상자로 옮겨 가던 것 — UX 리뷰어 #95 3바퀴)
-  const winOn = win.current !== null && now - win.current.at < (hold ? WIN_MS + HOLD_MAX_MS : WIN_MS) && win.current.at > 0;
+  const winOn = win.current !== null && !win.current.closed && now - win.current.at < (hold ? WIN_MS + HOLD_MAX_MS : WIN_MS) && win.current.at > 0;
+  if (win.current && !winOn && now - win.current.at >= WIN_MS) win.current.closed = true;
   gathered.current = b.phase === 'ult' && (b.ult?.gather ?? 0) > 0;
   // 합동 · 혼자 필살기 띠는 그 연출이 엔진에 있는 동안 계속 (합동 한 장면 약 3초 > 1.8초라 빔 · 터짐 한가운데에 띠가 꺼졌다 다시 펼쳐지던 것 — 아트 디렉터 #95 3바퀴)
   const live = !!next && next.key === cur.current?.key && (next.kind === 'joint' || next.kind === 'ult');
