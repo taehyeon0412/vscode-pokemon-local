@@ -15,6 +15,8 @@
     const q = new URLSearchParams(location.search);
     // nocover=1 — 필살기가 맞는 포켓몬을 덮는 동안 다시 그리기 (#107 bridge fxCoverRedraw) 를 끔 (전 · 후 비교 캡처)
     if (q.get('nocover') === '1') window.__fxNoCoverRedraw = true;
+    // cover=1 — 꺼 둔 대상 다시 그리기 (bridge FX_COVER_REDRAW · #115) 를 시험 창에서만 켬 (전 · 후 비교)
+    if (q.get('cover') === '1') window.__fxCoverRedraw = true;
     const screen = q.get('screen') || 'title';
     const saveKind = q.get('save') || 'ok';
     const size = q.get('size') || 'nano';

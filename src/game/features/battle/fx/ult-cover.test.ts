@@ -111,3 +111,12 @@ describe('대상 다시 그리기', () => {
     }
   });
 });
+
+describe('맞는 동안 대상 다시 그리기 — 꺼 둠 (#115 태현 님)', () => {
+  it('FX_COVER_REDRAW = false · 데이터 · 그리는 코드는 남김 (켜고 끄는 값 하나)', () => {
+    expect(bridge).toContain('const FX_COVER_REDRAW = false;');
+    expect(bridge).toMatch(/fxInGame\(\) && \(FX_COVER_REDRAW \|\| window\.__fxCoverRedraw\)/);
+    expect(bridge).toContain('function fxCoverRedraw(');
+    expect(existsSync(join(root, 'ult/ult-cover.json'))).toBe(true);
+  });
+});

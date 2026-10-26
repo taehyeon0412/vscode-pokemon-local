@@ -87,6 +87,8 @@ ONE = r"""
   w.__fxMeasure = true;
   // --data = 대상 다시 그리기를 끄고 잼 (가림 구간 데이터 만들기)
   w.__fxNoCoverRedraw = !!cfg.data;
+  // 다시 그리기는 게임에서 꺼 둠 (#115) — 잴 때만 켬 (--data 가 아니면 다시 그린 뒤 가림을 잼)
+  w.__fxCoverRedraw = !cfg.data;
   // 열쇠 = 틀 · 옵션 (색 · track 빼고) — bridge fxCoverSig 와 같음
   const o0 = lib[idx][2] || {};
   const csig = JSON.stringify([lib[idx][1], Object.keys(o0).filter((k) => k !== 'c' && k !== 'track').sort().map((k) => [k, o0[k]])]);
@@ -142,6 +144,7 @@ ONE = r"""
   if (prev !== null && run >= cfg.runMs) runs.push([runAt, run]);
   w.__fxMeasure = false;
   w.__fxNoCoverRedraw = false;
+  w.__fxCoverRedraw = false;
   fx.clear();
   return { cover: best, at: bestAt, peak: +peak.toFixed(2), total: Math.round(total - lead), runs, csig };
 })(%FORM%, %IDX%, %CFG%)

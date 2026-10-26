@@ -2420,6 +2420,10 @@ function fxDownShape(x, el, n) {
 // 맞는 모습 (디자인 10-25): 다시 그리기 시작에 흰 실루엣 0.06초 한 번 · 처음 0.6초만 0.12초마다 좌우 ±2px · 몸 바깥 1칸 밝은 테 (그 연출 cols[1]) + 그 바깥 1칸 #1a1626 ·
 //   쓰러짐 (회색 주저앉기 · 벌러덩 — 1:1 은 넘어짐 기다림 --pg-ko-wait 이 끝날 때 · 3:3 pg-team-down) 이 시작하면 끝
 // 구간 앞 · 뒤 여유 (ms — 패널 폭마다 덮는 때가 조금 다름) · 이만큼 안 떨어진 구간은 하나로 (테가 켜졌다 꺼졌다 하지 않게)
+// 켜고 끄기 — false (태현 님 10-26 "맞는 포켓몬이 보이게는 없애는게 더 나은것 같아" · #115): 효과가 맞는 포켓몬을 덮는 건 예전처럼.
+//   구간 데이터 (ult/ult-cover.json) · 재는 도구 (dev/ult-cover.py) · 그리는 코드는 남김 — true 로 다시 켬 (시험 창 cover=1 · window.__fxCoverRedraw)
+//   쓰러진 뒤 자리 비우기 (fxCutDown) · 쓰는 쪽 HP 판 바둑판 반 · 하이퍼보이스 앞장 다시 그리기는 따로라 그대로
+const FX_COVER_REDRAW = false;
 const FX_COVER_PAD = [150, 250];
 const FX_COVER_JOIN_MS = 600;
 const FX_COVER_RIM = '#1a1626';
@@ -3229,8 +3233,8 @@ window.pokemonFx = {
         if (soft) {
             setTimeout(() => fxSoftGens.delete(gen), (total || 0) + 1500);
         }
-        // 대상 다시 그리기 (#107) — 덮는 구간 (본편 시작부터) 마다 맞는 포켓몬을 연출 맨 위에
-        if (total && fxInGame()) {
+        // 대상 다시 그리기 (#107) — 덮는 구간 (본편 시작부터) 마다 맞는 포켓몬을 연출 맨 위에 · 지금은 꺼 둠 (FX_COVER_REDRAW · #115)
+        if (total && fxInGame() && (FX_COVER_REDRAW || window.__fxCoverRedraw)) {
             const spans = fxCoverSpans(entry);
             if (spans.length) {
                 const col = ultCols(entry[2] || {}, entry[1])[1];
