@@ -8,7 +8,7 @@
 import { BALANCE } from '../balance';
 import { Rng } from '../engine/rng';
 import type { Monster, Save, StageId, Stats } from '../save';
-import { formsOfSpecies, learnsetOf, moveOf, speciesOf, type ReadonlyMove } from '../../data';
+import { formsOfSpecies, itemEvolvedFrom, learnsetOf, learnsetOwnOf, moveOf, speciesOf, type ReadonlyMove } from '../../data';
 import { typeNameKo, withJosa } from '../text';
 import { effectiveness } from './types';
 import { devolveForLevel, evolveForLevel, isBig, regionPool } from './encounter';
@@ -125,10 +125,15 @@ export function gymHint(save: Save): { text: string; good: string[] } {
 /** 관장 포켓몬 개체값 — 늘 같게 (★4 쯤) */
 const LEADER_IVS: Stats = { hp: 20, attack: 20, defense: 20, speed: 20, ultimate: 20 };
 
-/** 관장 기술 — 그 레벨까지 배우는 기술 중 늦게 배우는 것부터 4개 (피해 기술 먼저 — 관장답게) */
+/**
+ * 관장 기술 — 그 레벨까지 배우는 기술 중 늦게 배우는 것부터 4개 (피해 기술 먼저 — 관장답게).
+ * 돌 진화형의 자기 표 Lv 0 · 1 기술은 진화할 때 받는 주력기라 가장 늦게 배운 것으로 셈 — 이어받은 앞 종 기술 (#129) 에 밀려 아쿠스타가 하이드로펌프를 잃던 것 (테스터)
+ */
 function leaderMoves(dex: number, level: number): ReadonlyMove[] {
+  const evolvedMain = itemEvolvedFrom(dex) !== undefined ? new Set(learnsetOwnOf(dex).filter(([lv]) => lv <= 1).map(([, id]) => id)) : null;
+  const table = evolvedMain ? [...learnsetOf(dex).filter(([, id]) => !evolvedMain.has(id)), ...learnsetOf(dex).filter(([, id]) => evolvedMain.has(id))] : learnsetOf(dex);
   const learned: ReadonlyMove[] = [];
-  for (const [lv, id] of learnsetOf(dex)) {
+  for (const [lv, id] of table) {
     // 진화 기술 (Lv 0) 도 (orders #64)
     const m = lv >= 0 && lv <= level ? moveOf(id) : undefined;
     if (m && !learned.some((x) => x.id === m.id)) learned.push(m);

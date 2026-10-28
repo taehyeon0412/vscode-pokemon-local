@@ -160,9 +160,39 @@ export function moveFxOf(id: number): MoveFx | null {
   return r ? { ms: r[0], hitAt: r[1] / 1000, contact: r[2] === 1, fx: r[3] } : null;
 }
 
-/** 레벨업 기술표 (레벨 순서) — 쓸 수 있는 기술이 하나도 없는 종은 빈 목록 */
-export function learnsetOf(dex: number): readonly LearnsetEntry[] {
+/** 원작 레벨업 기술표 (레벨 순서 — 받아 온 그대로) — 쓸 수 있는 기술이 하나도 없는 종은 빈 목록 */
+export function learnsetOwnOf(dex: number): readonly LearnsetEntry[] {
   return hasOwn(learnsets, String(dex)) ? (learnsets[String(dex)] ?? []) : [];
+}
+
+/** 진화의 돌 · 아이템으로 진화해 온 종 → 바로 앞 진화 전 종 (교환 · 레벨 · 친밀도 진화는 없음) */
+let itemFrom: Map<number, number> | null = null;
+export function itemEvolvedFrom(dex: number): number | undefined {
+  if (!itemFrom) {
+    itemFrom = new Map();
+    for (const [from, list] of Object.entries(evolutions)) for (const e of list) if (e.kind === 'item') itemFrom.set(e.to, Number(from));
+  }
+  return itemFrom.get(dex);
+}
+
+/**
+ * 레벨업 기술표 (레벨 순서) — 게임이 쓰는 표 (배우기 · 야생 · 트레이너 · 라이벌 · 진화 기술 모두).
+ * 돌 · 아이템으로 진화한 종은 바로 앞 진화 전 종의 기술도 같은 레벨에 (#129 — 2026-10-28 태현 님 B: 라이츄 · 나인테일 · 라플레시아처럼 원작 표가 Lv 1 몇 개뿐이라
+ * 진화한 뒤 새 기술이 끝까지 끊기던 것) · 같은 기술은 한 번 (자기 표에 있으면 자기 레벨) · 앞 종의 진화 기술 (레벨 0) 은 안 이어받음 · 원작 표는 learnsetOwnOf
+ */
+const mergedLearnsets = new Map<number, readonly LearnsetEntry[]>();
+export function learnsetOf(dex: number): readonly LearnsetEntry[] {
+  const own = learnsetOwnOf(dex);
+  const from = itemEvolvedFrom(dex);
+  if (from === undefined) return own;
+  let out = mergedLearnsets.get(dex);
+  if (!out) {
+    const add = learnsetOwnOf(from).filter(([lv, id]) => lv >= 1 && !own.some(([, x]) => x === id));
+    // 레벨 순서 · 같은 레벨이면 자기 기술 먼저 (sort 는 안정 정렬)
+    out = [...own, ...add].sort((a, b) => a[0] - b[0]);
+    mergedLearnsets.set(dex, out);
+  }
+  return out;
 }
 
 export function evolutionsOf(dex: number): readonly ReadonlyEvolution[] {

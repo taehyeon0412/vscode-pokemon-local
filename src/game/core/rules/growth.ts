@@ -5,7 +5,7 @@
 import { BALANCE } from '../balance';
 import type { Rng } from '../engine/rng';
 import { STAT_KEYS, type Monster, type MoveSlot, type PendingChoice, type StatKey } from '../save';
-import { evolutionsOf, formsOfSpecies, learnsetOf, moveOf, signatureOf, speciesOf, type ReadonlyEvolution, type ReadonlyMove } from '../../data';
+import { evolutionsOf, formsOfSpecies, learnsetOf, learnsetOwnOf, moveOf, signatureOf, speciesOf, type ReadonlyEvolution, type ReadonlyMove } from '../../data';
 import { gameBase, levelForExp, maxHp } from './stats';
 
 /**
@@ -168,8 +168,10 @@ export function evolutionMoves(m: Monster, to: number): number[] {
   };
   for (const id of signatureOf(to)) take(id);
   for (const [lv, id] of learnsetOf(to)) if (lv === 0) take(id);
+  // 앞 종에서 이어받은 기술 (돌 진화형 — #129) 은 아직 안 지난 레벨만 (지나간 약한 기술 · 안 배우기로 한 기술이 다시 끼어 남길 기술이 줄던 것, 테스터)
+  const own = learnsetOwnOf(to);
   const near = learnsetOf(to)
-    .filter(([lv]) => lv >= 1 && lv <= m.level + BALANCE.evolutionMoveReach)
+    .filter(([lv, id]) => lv >= 1 && lv <= m.level + BALANCE.evolutionMoveReach && (lv > m.level || own.some(([, x]) => x === id)))
     .map(([, id]) => moveOf(id))
     .filter((mv): mv is ReadonlyMove => !!mv)
     .sort((a, b) => b.power - a.power);
