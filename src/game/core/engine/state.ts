@@ -191,6 +191,7 @@ function readSummary(raw: unknown): BattleSummary | null {
     // 라이벌 (gdd 4.12) — 웹뷰와 주고받아도 한마디 · 희귀 표시가 남게
     ...(quote !== null ? { quote } : {}),
     ...(raw.rival === true ? { rival: true } : {}),
+    ...(text(raw.evoNote, 80) !== null ? { evoNote: text(raw.evoNote, 80) as string } : {}),
   };
 }
 

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { fixedRng } from '../../../test/fixtures/rng';
 import { sampleMonster, sampleSave, viaJson } from '../../../test/fixtures/save';
 import { BALANCE, TIMING } from '../balance';
-import { NOTIFY_OFF_TIP, validateSave, type PendingChoice, type Save } from '../save';
+import { NOTIFY_OFF_TIP, TIPS_MAX, validateSave, type PendingChoice, type Save } from '../save';
 import { autoPotion, battleStep, startBattle, type BattleState } from './battle';
 import { applyInput, awaySummary, step } from './play';
 import { addChoices, takeLaterChoices } from './rewards';
@@ -287,7 +287,7 @@ describe('세이브 새 칸 — 설정 둘 · laterChoices · tips (디자인팀
     expect(r.ok && r.save.laterChoices).toEqual([learn('m2', 10)]);
     expect(r.ok && r.save.tips).toEqual([NOTIFY_OFF_TIP, 'walk']);
     // 옛 auto-1 ~ 은 뺌 · 옮김 표시는 자르기 전 원본으로 (20개가 넘어 잘려도 알림이 다시 꺼지지 않게 — 코드 리뷰어)
-    const many = Array.from({ length: 22 }, (_, i) => `t-${i}`);
+    const many = Array.from({ length: TIPS_MAX + 2 }, (_, i) => `t-${i}`);
     const kept = validateSave(viaJson({ ...sampleSave(), settings: { notifications: true, autoBattle: false }, tips: ['auto-1', 'auto-2', ...many, NOTIFY_OFF_TIP] }));
     expect(kept.ok && kept.save.settings.notifications).toBe(true);
     expect(kept.ok && kept.save.tips?.[0]).toBe(NOTIFY_OFF_TIP);

@@ -96,6 +96,19 @@
         if (q.get('relwarn') === 'last') { save.box = [...save.party.slice(1), ...save.box]; save.party = [save.party[0]]; }
         if (q.get('relwarn') === 'nofight' && save.monsters.m5) { save.box = [...save.party.filter((u) => u !== 'm1' && u !== 'm5'), ...save.box]; save.party = ['m1', 'm5']; }
     }
+    // evotip=<아이템> — 진화 아이템 처음 안내 (#125): 가방에 그 아이템 1개 (안내 본 기록 없음 → 걷는 중 · 대기실에서 뜸) · evouser=1 = 그 아이템을 쓸 포켓몬을 팀에 (천둥 피카츄 · 불꽃 식스테일 · 물 별가사리 · 리프 냄새꼬 · 달 삐삐 · 끈 근육몬)
+    //   evouser=box = 보관함에 · evoseen=1 = 이미 본 아이템 (두 번째부터 — 얻은 말 뒤 한 줄) · scene=result&evonote=1 = 결과 상자 아이템 옆 한 줄
+    if (q.get('evotip')) {
+        const it = q.get('evotip');
+        save.bag = { ...save.bag, [it]: 1 };
+        const user = { 'thunder-stone': [25, 'pikachu'], 'fire-stone': [37, 'vulpix'], 'water-stone': [120, 'staryu'], 'leaf-stone': [44, 'gloom'], 'moon-stone': [35, 'clefairy'], 'linking-cord': [67, 'machoke'] }[it];
+        if (q.get('evouser') && user) {
+            save.monsters.m9 = { ...save.monsters.m1, uid: 'm9', species: user[0], form: user[1], level: 20, hp: 40, caughtAt: 'forest-1' };
+            if (q.get('evouser') === 'box') save.box = [...save.box, 'm9']; else save.party = [...save.party, 'm9'].slice(0, 5);
+            save.nextMonsterUid = Math.max(save.nextMonsterUid, 10);
+        }
+        if (q.get('evoseen') === '1') save.tips = [...(save.tips || []), `evo-${it}`];
+    }
     // spent=1 — 스탯을 이미 찍어 본 세이브 (말풍선은 이제 레벨업마다 나와서 차이 없음 — 2026-10-20)
     if (q.get('spent') === '1') save.monsters.m1 = { ...save.monsters.m1, points: { ...save.monsters.m1.points, attack: 10 } };
     const info = {
@@ -201,6 +214,7 @@
             stage.summary = { ...stage.summary, title: `야생 ${cname || '파이리'}를 잡았다!`, caught: { name: cname || '파이리', toBox: q.get('cbox') === '1', uid: 'm3', isNew: q.get('new') !== '0' } };
         }
         if (scene === 'result' && q.get('rms')) stage.ms = Number(q.get('rms'));
+        if (scene === 'result' && q.get('evonote')) stage.summary = { ...stage.summary, item: '천둥의돌', evoNote: '피카츄 → 라이츄 진화 가능' };
         if (scene === 'result' && q.get('ups') === '0') stage.summary = { ...stage.summary, exp: [{ uid: 'm1', name: '이상해씨', gain: 28, from: 5, to: 5 }], learned: [] };
         if (scene === 'learn') save.pendingChoices = [{ kind: 'learn', uid: 'm1', moveId: 75 }];
         if (scene === 'evolve' || scene === 'evolve-pick' || scene === 'evolve-wait') save.pendingChoices = [{ kind: 'evolve', uid: 'm1', to: 2, newMoves: [75, 76], level: 16, item: null }];

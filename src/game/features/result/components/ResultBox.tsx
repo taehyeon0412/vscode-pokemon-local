@@ -17,7 +17,7 @@ import { spriteBoxOf } from '../../../data/sprite-boxes';
 import { TypeTags } from '../../battle/components/TypeTag';
 import { ITEM_ICON, stars } from '../../menu/model';
 import { itemName, VALUABLES } from '../../../core/rules/items';
-import { ITEM_IDS } from '../../../core/save';
+import { ITEM_IDS, type ItemId } from '../../../core/save';
 import { partText, resultTitleShown, summaryLines, type CaughtView, type LevelUpView, type SummaryPart } from '../model';
 
 /** 잡은 포켓몬 소개 카드 — 결과 상자 전 3초 (TIMING.caughtIntroMs), 잡기 흔들기 창이 꺼지지 않고 같은 가운데 · 같은 높이에서 가로로 넓어지며 볼이 열리고 포켓몬이 나옴 (2026-10-20 태현 님 "잡았다 창이 너무 빨리 꺼져" → B) · 집중 모양 (둘레 어둡게 · 2px 금색 · 이름표 "잡았다!") · 그림 크게 · 처음 잡았으면 그림 칸 모서리 NEW! 칩 (도감 화면은 다음 버전) · 이름 Lv · 타입 · 팀 / 보관함. 누르면 넘김 (2026-10-20 태현 님 안 2) */
@@ -183,7 +183,7 @@ function useResultFit(): { box: { current: HTMLDivElement | null }; on: boolean;
 }
 
 /** next = 이어서 고를 것 (맨 앞) — 버튼에 다음 할 일 · ups = 레벨업한 포켓몬 (result/model levelUps) · onStats = 내 포켓몬 판 (그 포켓몬) */
-export function ResultBox({ summary, next, ups, hint = false, caught = null, ms = 0, introAt = { left: 0, top: 0 }, media, onInput, onStats }: { summary: BattleSummary; next: 'learn' | 'evolve' | null; ups: LevelUpView[]; /** 얼굴 카드 안내 말풍선 (needsStatHint) */ hint?: boolean; /** 잡은 포켓몬 — 처음 caughtIntroMs 동안 소개 카드만 */ caught?: CaughtView | null; /** 결과 단계 지난 ms */ ms?: number; /** 소개 카드 자리 (길 칸 기준 정수 px) */ introAt?: { left: number; top: number; width?: number }; media: string; onInput(i: GameInput): void; onStats(uid: string): void }) {
+export function ResultBox({ summary, next, ups, hint = false, caught = null, ms = 0, introAt = { left: 0, top: 0 }, evoItem = null, media, onInput, onStats }: { summary: BattleSummary; next: 'learn' | 'evolve' | null; ups: LevelUpView[]; /** 얼굴 카드 안내 말풍선 (needsStatHint) */ hint?: boolean; /** 진화 아이템 두 번째부터 (#125) — 얻은 아이템 id (한 줄 그림) */ evoItem?: ItemId | null; /** 잡은 포켓몬 — 처음 caughtIntroMs 동안 소개 카드만 */ caught?: CaughtView | null; /** 결과 단계 지난 ms */ ms?: number; /** 소개 카드 자리 (길 칸 기준 정수 px) */ introAt?: { left: number; top: number; width?: number }; media: string; onInput(i: GameInput): void; onStats(uid: string): void }) {
   const tight = useResultFit();
   // 제목 없는 상자 (트레이너) 번갈아 칸의 경험치 장면 줄이기 (넘치면 한 단계 · 맥 여유 10%) — 0 = 이름 · 1 = 숫자만 · 2 = "+102 ×3" / "+25 ~ +51"
   //   (240 × 150 세 자리 경험치 "경험치 +102 · +102 · +1…" 이 버튼 밑으로 잘리던 것 — 개발 #98 11판 3판 · U4 "넘치면 한 단계" · 폭 경계를 손으로 고르지 않음)
@@ -207,7 +207,8 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
   const showTitle = resultTitleShown(summary);
   // 찍을 포인트가 있는 카드를 앞으로 — 넘쳐서 카드 한 장만 보일 때 (tight.one) 포인트 카드 · 말풍선이 숨지 않게 (2026-10-21)
   const cards = [...ups].sort((a, b) => Number(b.points > 0) - Number(a.points > 0));
-  const all = [title, ...head.map(partText), ...body.map(partText)].join(' · ') + (summary.rival ? ` · 라이벌 보상 (돈 ×${BALANCE.rivalMoneyScale} · 아이템)` : '');
+  // 진화 한 줄도 (둘째 줄이 넘쳐 잘리는 날 올려서 볼 길 — UX #125 3바퀴)
+  const all = [title, ...head.map(partText), ...(summary.evoNote ? [summary.evoNote] : []), ...body.map(partText)].join(' · ') + (summary.rival ? ` · 라이벌 보상 (돈 ×${BALANCE.rivalMoneyScale} · 아이템)` : '');
   // 카드가 레벨업을 보여 주면 둘째 줄의 "▲ 이상해씨 Lv 5 → 6 (경험치 +28)" 은 빼고 새 기술 (★) 을 앞에 — 같은 말 두 번 · 좁으면 ★ 가 잘리던 것 (아트 디렉터 7차, 전체는 마우스를 올리면)
   const rest1 = ups.length === 0 ? body : [...body.filter((p) => p.kind === 'learned'), ...body.filter((p) => p.kind !== 'up' && p.kind !== 'learned')];
   // 경험치만 오른 포켓몬이 여럿이면 "경험치" 낱말은 한 번 ("경험치 리자몽 +25 · 이상해꽃 +51 · 거북왕 +51" — 세 번 되풀이하던 것, 아트 디렉터 #97 · 원칙 5)
@@ -241,8 +242,17 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
   ));
   // 카드 한 장일 때 빠진 포켓몬 레벨업 (pg-alt-ups — 그때만 보임, 카드에도 글에도 없던 것 · UX 리뷰어)
   const hiddenUps = cards.slice(1).map((u) => `${u.name} Lv\u00a0${u.to}`).join(' · ');
-  const altB = rest.length > 0 ? (
+  // 진화 아이템 두 번째부터 한 줄 (#125) — 넓으면 둘째 줄 맨 앞 · 좁으면 (번갈아 줄) 둘째 차례 맨 앞 ·
+  //   글 = 엔진 evoNote ("피카츄 → 라이츄 진화 가능 외 N · 팀에 넣고" — 처음 안내 · 알림 줄과 같은 말, 개발 9f262eac) · 그림 = 그 아이템 (끈도 돌 그림이던 것 — 아트 #125)
+  const evoNote = summary.evoNote ? (
+    <span class="pg-evo-note">
+      <Icon name={evoItem ? ITEM_ICON[evoItem as keyof typeof ITEM_ICON] : 'stone'} /> {summary.evoNote}
+      {rest.length > 0 && ' · '}
+    </span>
+  ) : null;
+  const altB = rest.length > 0 || evoNote ? (
     <>
+      {evoNote}
       {hiddenUps && (
         <span class="pg-alt-ups">
           <span class="pg-up">▲</span> {hiddenUps} ·{' '}
@@ -279,7 +289,13 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
           <KeyCap k="Enter" /> {next === 'evolve' ? '▶ 어…?' : next === 'learn' ? '▶ 새 기술' : '계속 ▶'}
         </Button>
       </span>
-      {rest.length > 0 && <span class="pg-line pg-ellipsis pg-result-body">{restLine}</span>}
+      {/* 진화 아이템 두 번째부터 (#125 — 관장 첫 승 · 라이벌의 돌 · 끈) = 둘째 줄 맨 앞 "팀의 피카츄가 진화할 수 있어요" (얻은 돌 바로 아래 · 첫 줄은 제목 · 얻은 것 · 버튼으로 꽉 참) */}
+      {(rest.length > 0 || summary.evoNote) && (
+        <span class="pg-line pg-ellipsis pg-result-body">
+          {evoNote}
+          {restLine}
+        </span>
+      )}
       {/* 좁은 패널 (360px 아래) — 첫 줄에서 빠진 얻은 것 (돈 · 볼) 2.5초 → 배운 기술 · 경험치 (레벨업 상자면 레벨업) 2.5초 (2026-10-21 태현 님 A — 예전 #437 "얻은 것 숨김" · 아이콘 + … 잘림을 바꿈). 둘째가 없으면 얻은 것만 */}
       {showTitle && alt}
     </>

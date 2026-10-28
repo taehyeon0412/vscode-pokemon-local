@@ -10,6 +10,7 @@ export {
   canSwapBox,
   canRelease,
   canOpenTeam,
+  evoTipNow,
   canTravel,
   gymUnlocked,
   openNextRegion,

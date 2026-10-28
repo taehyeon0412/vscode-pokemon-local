@@ -18,6 +18,7 @@ import { gymLocation, isRegionLast, REGIONS, regionHere, regionOf, setRegionOrde
 import { facilityFix, spotBetween, spotRng, stageCode, stageLayout, trainerId, walkDelta, type Spot, type StageLayout } from '../rules/stage';
 import { statsOf } from '../rules/stats';
 import { aliveCount, leaderTeam, trainerInfo, trainerNumber, trainerTeam } from '../rules/trainer';
+import { evoGotNote, evoTipItem } from '../rules/evo-tip';
 import { pickRival, rivalLine, rivalLoseMsg, rivalName, rivalRecord, rivalTeam, withRivalResult } from '../rules/rival';
 import { isTipId, ITEM_IDS, REGION_IDS, RUN_SEEN_MAX, TIPS_MAX, type RegionId, type DailyGoal, type FacilitySpot, type ItemId, type Monster, type Save, type StageId, type StageProgress, type StageRun, type StatKey } from '../save';
 import { withJosa } from '../text';
@@ -511,6 +512,7 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
       const spot = ev.spot;
       if (spot.kind === 'item') {
         const p = pickupAt(id, prog.seed, spot);
+        const beforePick = save;
         if (p.item) save = { ...save, bag: { ...save.bag, [p.item]: (save.bag[p.item] ?? 0) + 1 } };
         if (p.money) save = { ...save, money: save.money + p.money };
         save = withProgress(save, id, spot.at);
@@ -518,6 +520,9 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
         // 앞 한 줄 ("그동안: …" 등) 이 떠 있으면 덮지 않고 그 뒤에 (1초 넘게 — U1, 코드 리뷰어)
         const picked = `${withJosa(what, '을/를')} 주웠다!`;
         rt = queueToast(rt, picked);
+        // 진화 아이템 — 안내를 이미 봤으면 쓸 포켓몬 한 줄 (#125 · 처음이면 걷는 중 안내가 대신)
+        const evo = evoGotNote(beforePick, save);
+        if (evo) rt = queueToast(rt, evo);
       } else if (spot.kind === 'wild' && (rt.headless || rt.away) && planWild(id, prog.seed, spot, prog.run.retries).shiny) {
         // 안 볼 때 · VS Code 에 포커스가 없을 때 이로치 흔적 — 바로 앞에서 멈추고 알림 (U9), 다시 보이면 · 돌아오면 이어 감
         save = withProgress(save, id, Math.max(from, spot.at - BEFORE_SPOT));
@@ -1281,6 +1286,19 @@ const inLobby = (state: GameState) => state.save.location.screen === 'gym' && ph
 export function canSwapBox(state: GameState): boolean {
   return inFacility(state, 'hospital') || inLobby(state) || (state.save.location.screen === 'stage' && phaseOf(state) === 'clear');
 }
+/**
+ * 진화 아이템 처음 안내를 지금 띄울지 (#125) — 안내를 못 본 진화 아이템이 가방에 있고, 조용한 장면 (걷기 · 대기실) 이고, 보고 있고, 알림이 없을 때 (줍기 알림 · 결과 상자 · 라이벌 연출이 끝난 뒤 — 덮지 않음).
+ * 띄울 아이템 (없으면 null) — 글 · 쓸 포켓몬은 rules/evo-tip evoTip. 본 기록은 화면이 tip-seen (evoTipId) 으로
+ */
+export function evoTipNow(state: GameState): ItemId | null {
+  const rt = state.runtime;
+  const p = phaseOf(state);
+  if (rt.headless || rt.away || rt.toast || (p !== 'walk' && p !== 'lobby')) return null;
+  // 대기실 — 3마리 고르기 판 위 · 대기실 첫 안내 (gym-team) 가 먼저 뜰 때는 안 띄움 (처음 안내는 한 번에 하나 — 코드 리뷰어)
+  const st = rt.stage;
+  if (st?.phase === 'lobby' && (st.picking || ((BALANCE.team.on || rt.dev?.team === true) && !(state.save.tips ?? []).includes('gym-team')))) return null;
+  return evoTipItem(state.save);
+}
 /** S18 내 포켓몬 판을 열 수 있는 때 (전투 · 만남 · 진화 · 기술 고르기 중 아님) — 판 (webview/app overlayAllowed) 과 놓아주기가 같이 씀 (한 벌 — 코드 리뷰어 #121) */
 export function canOpenTeam(state: GameState): boolean {
   return !inBattle(state) && phaseOf(state) !== 'choice';
@@ -1587,9 +1605,12 @@ export function applyInput(state: GameState, input: GameInput): GameState {
         after = addItem(after, t);
         reward = [reward, itemName(t)].filter(Boolean).join(' · ');
       }
+      // 진화 아이템 보너스 (리프의돌 등) — 안내를 이미 봤으면 쓸 포켓몬 한 줄을 결과 뒤에 (#125)
+      const evo = evoGotNote(save, after);
+      const rt1 = { ...state.runtime, rngState: rng.state, stage: { ...stage, result: { ok: outcome.ok, text: outcome.text, reward }, ms: 0 } };
       return {
         save: withProgress(after, id, stage.at),
-        runtime: { ...state.runtime, rngState: rng.state, stage: { ...stage, result: { ok: outcome.ok, text: outcome.text, reward }, ms: 0 } },
+        runtime: evo ? queueToast(rt1, evo) : rt1,
       };
     }
     case 'facility': {

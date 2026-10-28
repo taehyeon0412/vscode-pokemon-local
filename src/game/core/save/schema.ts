@@ -85,7 +85,8 @@ export type StageId = (typeof REGION_STAGE_IDS)[number];
 export const STAGE_IDS: readonly StageId[] = ['forest-1', 'forest-2', 'forest-3'];
 
 /** 본 첫 안내 id (save.tips) — 짧은 영문 · 최대 수 (디자인팀 orders #12) */
-export const TIPS_MAX = 20;
+/** 본 첫 안내 수 상한 — 20 → 40 (#125 진화 아이템 안내 6종이 더해져 꽉 차면 안내가 매번 뜨던 것을 막으려고) */
+export const TIPS_MAX = 40;
 export const isTipId = (id: unknown): id is string => typeof id === 'string' && /^[a-z0-9-]{1,24}$/.test(id);
 /**
  * 알림 (VS Code 팝업) 처음 값 = 꺼짐 (2026-10-21 태현 님 "추천안으로 해줘" — gdd 4.13). 이 표시가 tips 에 있으면 이미 옮긴 세이브 —

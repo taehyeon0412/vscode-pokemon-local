@@ -11,6 +11,7 @@ import { itemName } from '../rules/items';
 import { freeBall, REGIONS, regionGymMoney, regionHere, regionOf, regionOrder } from '../rules/region';
 import { stageLevelBand } from '../rules/stage';
 import { rivalItem } from '../rules/rival';
+import { evoGotNote } from '../rules/evo-tip';
 import type { ItemId, Monster, PendingChoice, Save, StageId } from '../save';
 import { withJosa } from '../text';
 import { moveOf, speciesOf } from '../../data';
@@ -39,6 +40,8 @@ export interface BattleSummary {
   badge: string | null;
   /** 라이벌 한마디 (gdd 4.12) */
   quote?: string;
+  /** 받은 진화 아이템을 쓸 포켓몬 한 줄 (#125 — 안내를 이미 본 아이템만, "팀의 피카츄가 진화할 수 있어요") — 결과 상자 아이템 옆 */
+  evoNote?: string;
   /** 라이벌에게 이김 — 돈 · 아이템을 "트레이너보다 좋게" 표시 (돈 ×1.5 · 희귀 아이템) */
   rival?: boolean;
 }
@@ -212,7 +215,13 @@ export function battleRewards(save0: Save, b: RewardBattle, wild: Monster | null
   }
   save = { ...save, money: Math.min(999_999_999, save.money + summary.money) };
   summary.choices = save.pendingChoices.length;
-  return { save, summary };
+  return withEvoNote(save0, save, summary);
+}
+
+/** 진화 아이템을 받았으면 쓸 포켓몬 한 줄 (#125) */
+function withEvoNote(before: Save, save: Save, summary: BattleSummary): { save: Save; summary: BattleSummary } {
+  const note = evoGotNote(before, save);
+  return { save, summary: note ? { ...summary, evoNote: note } : summary };
 }
 
 /** 라이벌에게 이김 (gdd 4.12) — battleRewards (트레이너 돈) 다음에: 돈을 rivalMoneyScale 배로 + 아이템 1개 (처음 이기면 진화의 돌) */
@@ -225,10 +234,10 @@ export function rivalWinRewards(save: Save, summary: BattleSummary, rival: strin
   const first = (save.rivals?.[rival]?.wins ?? 0) === 0;
   // 트레이너 15% 로 이미 받았으면 결과 상자에 둘 다 (코드 리뷰어)
   const had = out.treasure;
-  if (!first) return { save: next, summary: out };
+  if (!first) return withEvoNote(save, next, out);
   const got = giveTreasure(next, out, 'nugget');
   if (had) out.treasure = `${had} · ${out.treasure}`;
-  return { save: got, summary: out };
+  return withEvoNote(save, got, out);
 }
 
 /** S23 — 맨 앞 고르기가 새 기술이면: replace 번째 칸과 바꿈 (null = 배우지 않기) */

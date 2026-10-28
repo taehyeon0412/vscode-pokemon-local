@@ -33,6 +33,17 @@ import { TeamChoice, teamChoiceOn, TeamMeet, teamMeetOn } from '../../battle/tea
 import { Face } from '../../../ui/Face';
 import { resumeLine } from '../../../core/engine/play';
 import { FirstTip } from '../../../ui/FirstTip';
+import { evoTipNow } from '../../../core/engine';
+import { EVO_ITEMS, evoTipId } from '../../../core/rules/evo-tip';
+import { itemName } from '../../../core/rules/items';
+import type { ItemId } from '../../../core/save';
+import { EvoTip } from './EvoTip';
+
+/** 결과 상자 진화 아이템 한 줄 (#125) — 얻은 아이템 (이름) 의 id (그 아이템 그림 · 엔진 evoNote 가 있을 때만) */
+function evoItemOf(note: string | undefined, item: string | null | undefined): ItemId | null {
+  if (!note || !item) return null;
+  return EVO_ITEMS.find((i) => itemName(i) === item) ?? null;
+}
 import { contentWidth, FIT_ROOM } from '../../../ui/useFit';
 import { realLater, realNow } from '../../../ui/real-clock';
 import { KeyCap } from '../../../ui/KeyCap';
@@ -497,7 +508,22 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   // 숲 1-1 첫 걷기 안내 (5초) 가 떠 있으면 뒤로 (240 에서 가리던 것 — UX 리뷰어) · 1초 넘게 보이면 tip-seen 'auto' (엔진이 그렸을 때만 셈)
   // 안 보는 동안 (밖 · 숨김) — 처음 안내 · 자동 전투 안내는 시간을 세지 않음 (자동 전투 안내는 그리지 않음 — 밖에서 1초 지나 셈하던 것, UX 리뷰어 R12 재확인)
   const away = state.runtime.away === true || state.runtime.headless === true;
+  // 처음 안내는 보는 동안만 셈 — 밖 · 숨김에 더해 판 (지도 · 가방 · 포켓몬) 아래에 깔린 동안도 멈춤 (관장 첫 승 → [Enter 세계 지도] 에서 진화 안내가 판 아래 숨은 채 6초가 지나
+  //   못 본 채 본 것으로 적히던 것 — UX #125 2바퀴 큼 · U6) · 판이 닫히면 처음부터
+  const tipPaused = away || covered;
   const walkTipOn = save.location.screen === 'stage' && save.location.stageId === 'forest-1' && phase === 'walk' && !(save.tips ?? []).includes('walk');
+  // 진화 아이템 안내 (#125) — 조건이 0.3초 이어질 때만 (대기실에 들어오는 한 걸음 뒤 지역 알림이 생겨 0.02 ~ 0.08초 번쩍이던 것 · 앞 처음 안내와 빈틈 — UX #125 2바퀴)
+  //   판 아래면 내려 둠 — 닫힌 뒤부터 0.3초 (지도 아래에서 기다림이 끝나 닫는 순간 0.05초 번쩍인 뒤 지역 알림에 덮이던 것, UX #125 3바퀴)
+  const evoNow = walkTipOn || covered ? null : evoTipNow(state);
+  const [evoShown, setEvoShown] = useState<ItemId | null>(null);
+  useEffect(() => {
+    if (!evoNow) {
+      setEvoShown(null);
+      return;
+    }
+    const t = window.setTimeout(() => setEvoShown(evoNow), 300);
+    return () => window.clearTimeout(t);
+  }, [evoNow]);
   const tipText = state.runtime.toast?.kind === 'auto-tip' && !walkTipOn && !away ? state.runtime.toast.text : null;
   // 스위치가 있는 곳 (1:1 전투 · 메뉴가 보이는 걷기 · 대기실) 에만 — 없으면 그리지 않음 (머리 위 알림으로 떨어져 병원 앞 · 클리어 카드 상자를 덮고 "[A]" 가 글자로 나오던 것, UX 리뷰어 R12 재확인 큼)
   const autoTip = tipText && (battle || canOpenMenus(state)) ? tipText : null;
@@ -728,7 +754,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         <RequestBox state={state} media={media} onInput={onInput} />
         <FacilityBox state={state} media={media} onInput={onInput} onBox={() => onOpen({ kind: 'team' })} />
         {shopInside && <ShopPanel save={save} note={state.runtime.toast?.text} onInput={onInput} onClose={() => onInput({ kind: 'facility-leave' })} />}
-        {stageRt?.phase === 'result' && <ResultBox summary={stageRt.summary} next={save.pendingChoices[0]?.kind ?? null} ups={levelUps(stageRt.summary, save)} hint={needsStatHint(levelUps(stageRt.summary, save))} caught={caughtView(stageRt.summary, save)} ms={stageRt.ms} introAt={introAt(widthPx, bodyPx)} media={media} onInput={onInput} onStats={(uid) => onOpen({ kind: 'team', uid })} />}
+        {stageRt?.phase === 'result' && <ResultBox summary={stageRt.summary} next={save.pendingChoices[0]?.kind ?? null} ups={levelUps(stageRt.summary, save)} hint={needsStatHint(levelUps(stageRt.summary, save))} caught={caughtView(stageRt.summary, save)} ms={stageRt.ms} introAt={introAt(widthPx, bodyPx)} evoItem={evoItemOf(stageRt.summary.evoNote, stageRt.summary.item)} media={media} onInput={onInput} onStats={(uid) => onOpen({ kind: 'team', uid })} />}
         {choice && <ChoiceBox view={choice} media={media} scale={layout.scale} onInput={onInput} />}
         <DefeatBox state={state} media={media} onInput={onInput} />
         <HoldBox state={state} />
@@ -743,28 +769,42 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         <BadgeCard state={state} media={media} onInput={onInput} onMap={() => onOpen({ kind: 'map' })} />
         {/* 처음 한 번 안내 (orders #12 · 세이브 tips) — 숲 1-1 처음 걷기 · 처음 마지막 기회 · 필살기 처음 꽉 참. 다 보면 tip-seen */}
         {save.location.screen === 'stage' && save.location.stageId === 'forest-1' && phase === 'walk' && !(save.tips ?? []).includes('walk') && (
-          <FirstTip key="walk" ms={5000} className="pg-first-tip-top" paused={away} onSeen={() => onInput({ kind: 'tip-seen', id: 'walk' })}>
+          <FirstTip key="walk" ms={5000} className="pg-first-tip-top" paused={tipPaused} onSeen={() => onInput({ kind: 'tip-seen', id: 'walk' })}>
             {/* 줄은 "—" 뒤에서 바뀜 (좁은 패널에서 "야생 / 포켓몬" 사이로 갈리던 것) */}
             <span class="pg-tip-part">자동으로 걸어요 —</span> <span class="pg-tip-part">야생 포켓몬을 만나면 전투가 시작돼요</span>
           </FirstTip>
         )}
         {/* 넘어진 뒤부터 (볼 칸과 같은 때 — 코드 리뷰어 #97) */}
         {battle?.phase === 'last' && !(save.tips ?? []).includes('last') && koFallAt(battle, performance.now(), save.settings.reduceMotion === true) <= performance.now() && (
-          <FirstTip key="last" ms={4000} className="pg-first-tip-low" paused={away} onSeen={() => onInput({ kind: 'tip-seen', id: 'last' })}>
+          <FirstTip key="last" ms={4000} className="pg-first-tip-low" paused={tipPaused} onSeen={() => onInput({ kind: 'tip-seen', id: 'last' })}>
             {/* 360px 아래는 짧게 한 줄 — 두 줄이면 잡을 상대 · 내 포켓몬을 가림 (UX 리뷰어) */}
             <span class="pg-tip-long">약해진 포켓몬에게 </span>볼을 던지면 팀이 늘어요
           </FirstTip>
         )}
+        {/* 진화 아이템 처음 안내 (#125) — 가졌는데 못 본 돌 · 끈 (엔진 evoTipNow: 걷기 · 대기실 · 보는 동안 · 알림 없음 · 결과 · 라이벌 연출 뒤) · 위 가운데 두 줄 6초 (글이 길어 걷기 안내 5초보다 1초 더) · 보는 동안만 셈 */}
+        {(() => {
+          // 걷기 처음 안내가 떠 있으면 기다림 (같은 위 가운데 자리에 겹치던 것 — evoNow) · 0.3초 이어진 뒤 (evoShown)
+          const evoItem = evoShown !== null && evoShown === evoNow ? evoNow : null;
+          return (
+            evoItem && (
+              // 대기실 = 체육관 첫 알림 자리 (바닥 줄 주인공 ~ 관장 사이 — 위 가운데면 대기실 상자 · 도전 버튼을 6초 덮던 것, UX #125 큼) ·
+              //   본 것 = 2.5초 넘게 (두 줄 안내가 1.5초 만에 꺼져도 본 것으로 적혀 다시 안 뜨던 것 — #82 와 같은 종류)
+              <FirstTip key={`evo-${evoItem}`} ms={6000} seenMs={2500} className={stageRt?.phase === 'lobby' ? 'pg-first-tip-low pg-gym-tip pg-evo-tip pg-evo-low' : 'pg-first-tip-top pg-evo-tip'} paused={tipPaused} onSeen={() => onInput({ kind: 'tip-seen', id: evoTipId(evoItem) })}>
+                <EvoTip save={save} item={evoItem} media={media} onUsed={() => onInput({ kind: 'tip-seen', id: evoTipId(evoItem) })} />
+              </FirstTip>
+            )
+          );
+        })()}
         {/* 체육관 첫 알림 (gdd S16 · 기획 R9 ⑤) — 3:3 을 켠 뒤 대기실에 처음 들어갈 때 3초 · 클리어 보상 · 레벨업 알림 (대기실 첫 5초) 이 끝난 뒤 (겹쳐 가리지 않게 — U1). 그 뒤로는 도전 버튼의 "3:3" 칩만 */}
         {stageRt?.phase === 'lobby' && !stageRt.picking && !state.runtime.toast && (BALANCE.team.on || state.runtime.dev?.team === true) && !(save.tips ?? []).includes('gym-team') && (
           // 5초 (약 30글자 + 키 셋 — 걷기 안내와 같은 시간, 3초는 빠듯하던 것) · 밖 · 숨김이면 안 셈 (UX 리뷰어 #27)
-          <FirstTip key="gym-team" ms={5000} className="pg-first-tip-low pg-gym-tip" paused={away} onSeen={() => onInput({ kind: 'tip-seen', id: 'gym-team' })}>
+          <FirstTip key="gym-team" ms={5000} className="pg-first-tip-low pg-gym-tip" paused={tipPaused} onSeen={() => onInput({ kind: 'tip-seen', id: 'gym-team' })}>
             <GymTip lock={teamLock(state)} />
           </FirstTip>
         )}
         {/* 3:3 처음 안내 (기획 R9 ⑤ — 2026-10-22 태현 님 A "추천안으로") — 3:3 을 고를 수 있는 만남이 처음 나올 때 4초 · 아래 가운데 (위는 "승부다!" 상자 — 1:1 / 3:3 버튼을 가리지 않게) · 보는 동안만 셈 */}
         {teamMeetOn(state) && teamMeetTipDue(state) && (
-          <FirstTip key="team-meet" ms={4000} className="pg-first-tip-low" paused={away} onSeen={() => onInput({ kind: 'tip-seen', id: TEAM_MEET_TIP })}>
+          <FirstTip key="team-meet" ms={4000} className="pg-first-tip-low" paused={tipPaused} onSeen={() => onInput({ kind: 'tip-seen', id: TEAM_MEET_TIP })}>
             <span class="pg-tip-part pg-tip-long">3:3 이 열렸어요 —&nbsp;</span>
             <span class="pg-tip-part pg-tip-long">
               셋이 함께 싸우고 돈 ×{BALANCE.team.moneyScale} · <KeyCap k="3" />
@@ -778,7 +818,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         {/* 필살기 안내 = 고르는 때 · 게이지 차는 때만 (원 · 연출 중엔 원을 가려서) · 자동 전투도 띄움 (#82 — 이제 저절로 안 나가서 눌러야 함 · 개발 코드 리뷰어) —
             자동이면 연출 중에도 (원 안내가 없고 · 고르기 ↔ 연출이 번갈아 1초 안에 끊겼다 다시 뜨지 않게) */}
         {battle && (battle.phase === 'choose' || battle.phase === 'run' || (save.settings.autoBattle && battle.phase === 'anim')) && battle.me.ult >= 1 && !(save.tips ?? []).includes('ult') && (
-          <FirstTip key="ult" ms={3000} className="pg-first-tip-low" paused={away} onSeen={() => onInput({ kind: 'tip-seen', id: 'ult' })}>
+          <FirstTip key="ult" ms={3000} className="pg-first-tip-low" paused={tipPaused} onSeen={() => onInput({ kind: 'tip-seen', id: 'ult' })}>
             필살기 다 참! <KeyCap k="Z" />
           </FirstTip>
         )}
@@ -786,7 +826,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
             저절로 나가면 (3초) 같이 사라짐 · 1초 넘게 보면 셈 · 1:1 = 아래 가운데 · 3:3 = 위 가운데 (아래는 발밑 판), 480 아래 3:3 은 내 쪽 왼쪽 위 (가운데면 상대 쓰러짐 말 · 피해 숫자를 0.7초 덮던 것 — UX 리뷰어) */}
         {/* 자동 전투 3:3 처음 안내 (orders #71 — 자동이면 트레이너전은 3:3 기본) = VS 뒤 3:3 판 첫 12초 · 위 가운데 · 보는 동안만 셈 (U6) · 한 줄만 — 두 줄이면 1번 포켓몬 머리를 덮음 (폭을 재서 세 단계: 520 이상 418 · 361 ~ 519 302 · 360 아래 181, 맥 +10% 포함) */}
         {autoTeamTip && !teamBigPrompt && (
-          <FirstTip key={AUTO_TEAM_TIP} ms={5000} className="pg-first-tip-top pg-tip-auto-team" paused={away} onSeen={() => onInput({ kind: 'tip-seen', id: AUTO_TEAM_TIP })}>
+          <FirstTip key={AUTO_TEAM_TIP} ms={5000} className="pg-first-tip-top pg-tip-auto-team" paused={tipPaused} onSeen={() => onInput({ kind: 'tip-seen', id: AUTO_TEAM_TIP })}>
             <span class="pg-t71-long">
               자동 전투는 3:3 — 셋이 같이 싸우고 돈 ×{BALANCE.team.moneyScale} · 1:1 은 <KeyCap k="A" /> 자동을 끄고 만남에서
             </span>
@@ -800,7 +840,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         )}
         {/* 자동 3:3 안내가 떠 있으면 같은 자리 필살기 안내는 기다림 */}
         {ultWaitKey && !autoTeamTip && !teamBigPrompt && !(save.tips ?? []).includes(ULT_WAIT_TIP) && (
-          <FirstTip key={ULT_WAIT_TIP} ms={BALANCE.ultAutoWaitMs} className={team ? 'pg-first-tip-top pg-tip-mine' : 'pg-first-tip-low'} paused={away} onSeen={() => onInput({ kind: 'tip-seen', id: ULT_WAIT_TIP })}>
+          <FirstTip key={ULT_WAIT_TIP} ms={BALANCE.ultAutoWaitMs} className={team ? 'pg-first-tip-top pg-tip-mine' : 'pg-first-tip-low'} paused={tipPaused} onSeen={() => onInput({ kind: 'tip-seen', id: ULT_WAIT_TIP })}>
             {/* 좁으면 (360 아래 · 480 아래 3:3) 짧은 말 — "필살기" 는 남김 (빼면 무엇이 저절로인지 빠지던 것) */}
             <span class="pg-tip-part pg-tip-long">필살기 다 참 —&nbsp;</span>
             <span class="pg-tip-part pg-tip-long">
@@ -820,7 +860,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         {/* 3:3 필살기 다 참 처음 안내 (#82 — 저절로 안 나가니 "3초 뒤 저절로" 대신) · 같은 자리 (위 · 좁으면 내 쪽 왼쪽 위) · 자동 3:3 안내가 떠 있으면 기다림 */}
         {team && readyTipShow && (
           // 높은 패널 (300 이상) = 내 포켓몬 줄 바로 위 (정보줄 아래 y 63 에 떠 누를 [1] 포켓몬 (y 390) 과 320px 떨어지던 것 — UX 리뷰어 #98 마지막 ③ · 큰 판 자리와 같은 규칙)
-          <FirstTip key={ULT_READY_TIP} ms={4000} seenMs={2500} className="pg-first-tip-top pg-tip-mine" style={readyTipTop !== null ? { top: `${readyTipTop}px` } : undefined} paused={away} onSeen={() => onInput({ kind: 'tip-seen', id: ULT_READY_TIP })}>
+          <FirstTip key={ULT_READY_TIP} ms={4000} seenMs={2500} className="pg-first-tip-top pg-tip-mine" style={readyTipTop !== null ? { top: `${readyTipTop}px` } : undefined} paused={tipPaused} onSeen={() => onInput({ kind: 'tip-seen', id: ULT_READY_TIP })}>
             <span class="pg-tip-part pg-tip-long">필살기 다 참 —&nbsp;</span>
             <span class="pg-tip-part pg-tip-long">
               <KeyCap k={String(readyTipKey + 1)} /> 누르면 나가요 (저절로 안 나가요)
