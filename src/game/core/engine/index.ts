@@ -10,6 +10,8 @@ export {
   canSwapBox,
   canRelease,
   canOpenTeam,
+  gymNext,
+  type GymNext,
   evoTipNow,
   canTravel,
   gymUnlocked,

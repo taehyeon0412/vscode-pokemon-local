@@ -14,7 +14,8 @@ import { buy, canBuyCandy, healBox, healTeam, isShopItem, moveInTeam, release, s
 import { createWild, encounterStart, pickupAt, planWild, wildKey } from '../rules/encounter';
 import { itemName, requestAt, resolveRequest } from '../rules/request';
 import { DAILY_BONUS, dailyAdd, dailyDone, dailyFor, dailyLabel, dayFarAhead, trainersLeft } from '../rules/daily';
-import { gymLocation, isRegionLast, REGIONS, regionHere, regionOf, setRegionOrder, type RegionDef } from '../rules/region';
+import { gymLocation, isRegionLast, REGIONS, regionGymTeam, regionHere, regionOf, setRegionOrder, type RegionDef } from '../rules/region';
+import { effectiveness } from '../rules/types';
 import { facilityFix, spotBetween, spotRng, stageCode, stageLayout, trainerId, walkDelta, type Spot, type StageLayout } from '../rules/stage';
 import { statsOf } from '../rules/stats';
 import { aliveCount, leaderTeam, trainerInfo, trainerNumber, trainerTeam } from '../rules/trainer';
@@ -113,7 +114,9 @@ export type GameInput =
   | { kind: 'challenge' }
   /** S16 3마리 고르기 판 닫기 (Esc — 대기실로) */
   | { kind: 'lobby-back' }
-  | { kind: 'badge-continue' };
+  | { kind: 'badge-continue' }
+  /** 관장을 이긴 카드의 주 버튼 — 다음 지역으로 (#127 · 고르기면 region · 없으면 상성 좋은 쪽) */
+  | { kind: 'badge-next'; region?: RegionId };
 
 /** 밖 · 숨김에서 게임이 사람을 기다리는 이유 — VS Code 알림 (U9, 설정에서 끔) · 기준은 gdd 4.13 멈춤 · 알림 표 (waitReason · STAGE_WAIT) */
 export type { GameNotice } from './state';
@@ -892,7 +895,8 @@ function gymStep(save0: Save, rt0: RuntimeState, stepMs: number): { save: Save; 
         save = r.save;
         if (first && regionsOnRt(rt)) ({ save, rt } = openAndAnnounce(save, rt, rng));
         rt = { ...rt, rngState: rng.state };
-        stage = first ? { phase: 'result', summary: r.summary, ms: 0, then: 'badge' } : { phase: 'result', summary: r.summary, ms: 0 };
+        // 처음 = 배지 카드 · 다시 이김 = 같은 카드 (배지 없음 — 다음 지역 버튼, #127)
+        stage = { phase: 'result', summary: r.summary, ms: 0, then: first ? 'badge' : 'again' };
         break;
       }
       // 관장전 패배 — 돈은 안 잃고 팀 회복, 대기실로 (gdd 4.10)
@@ -918,7 +922,8 @@ function gymStep(save0: Save, rt0: RuntimeState, stepMs: number): { save: Save; 
         save = r.save;
         if (first && regionsOnRt(rt)) ({ save, rt } = openAndAnnounce(save, rt, rng));
         rt = { ...rt, rngState: rng.state };
-        stage = first ? { phase: 'result', summary: r.summary, ms: 0, then: 'badge' } : { phase: 'result', summary: r.summary, ms: 0 };
+        // 처음 = 배지 카드 · 다시 이김 = 같은 카드 (배지 없음 — 다음 지역 버튼, #127)
+        stage = { phase: 'result', summary: r.summary, ms: 0, then: first ? 'badge' : 'again' };
         break;
       }
       save = defeatPenalty(save, true).save;
@@ -934,6 +939,22 @@ function gymStep(save0: Save, rt0: RuntimeState, stepMs: number): { save: Save; 
     case 'defeat':
       stage = defeatStep(stage, rt, stepMs, false);
       break;
+    case 'badge': {
+      // 자동 전투면 10초 뒤 다음 지역 (#127) — 보는 동안만 셈 (숨김 · 밖이면 기다림 — U6) · 다 깼으면 (지도) 기다림
+      //   다시 이긴 관장 (again) 은 10초 뒤 대기실로 — 앞 체육관을 되풀이해 키우는 사람이 다음 지역으로 끌려가지 않게 (예전처럼, 코드 리뷰어) · 버튼 (Enter) 은 다음 지역 그대로
+      //   다 깼어도 다시 이김은 대기실로 갈 수 있어 셈 (끝없이 기다리던 것 — UX 마지막 바퀴)
+      if (!save.settings.autoBattle || rt.headless || rt.away || (!stage.again && gymNext({ save, runtime: rt }).kind === 'map')) break;
+      const ms = (stage.ms ?? 0) + stepMs;
+      if (ms >= TIMING.badgeAutoMs) {
+        const here: GameState = { save, runtime: { ...rt, stage, stageId: null } };
+        let t = stage.again ? here : applyInput(here, { kind: 'badge-next' });
+        // 출발이 막히면 (이상한 세이브) 대기실로 — 매 걸음 다시 해 보며 헛돌지 않게
+        if (t === here) t = applyInput(here, { kind: 'badge-continue' });
+        return { save: t.save, rt: t.runtime, signal: null };
+      }
+      stage = { ...stage, ms };
+      break;
+    }
     default:
       break;
   }
@@ -1305,6 +1326,33 @@ export function canOpenTeam(state: GameState): boolean {
 }
 /** S18 ⑥ 놓아주기 (#121) — 판을 열 수 있으면 됨 */
 export const canRelease = canOpenTeam;
+/** 관장을 이긴 카드의 다음 (#127) — go = 그 지역 (안 깬 첫 스테이지 · 다 깼으면 그 체육관) · pick = 고를 두 곳 (상성 좋은 쪽 먼저 — 자동 전투는 첫째) · map = 다 깸 (지도 버튼) */
+export type GymNext = { kind: 'go'; region: RegionId; to: StageId | 'gym' } | { kind: 'pick'; regions: RegionId[] } | { kind: 'map' };
+export function gymNext(state: GameState): GymNext {
+  const save = state.save;
+  if (!regionsOn(state)) return { kind: 'map' };
+  if (save.regions.next?.length) return { kind: 'pick', regions: [...save.regions.next].sort((a, b) => regionMatchup(save, b) - regionMatchup(save, a)) };
+  // 아직 안 깬 연 지역 중 가장 앞 (지금 지역 빼고 — 다시 이긴 관장이면 앞 지역에서 뒤 지역으로)
+  const here = regionHere(save.location).id;
+  const r = save.regions.order.find((id) => id !== here && !save.badges.includes(REGIONS[id].badge));
+  return r ? { kind: 'go', region: r, to: regionEntry(save, r) } : { kind: 'map' };
+}
+/** 그 지역에서 갈 곳 — 안 깬 첫 스테이지 (새 지역이면 1-1) · 다 깼으면 체육관 */
+function regionEntry(save: Save, r: RegionId): StageId | 'gym' {
+  return REGIONS[r].stages.map((s) => s.id).find((id) => !save.stages[id]?.cleared) ?? 'gym';
+}
+/** 내 팀 (살아 있는) 기술이 그 지역 관장 포켓몬에 얼마나 잘 듣는지 — 고를 두 곳 줄 세우기 */
+function regionMatchup(save: Save, r: RegionId): number {
+  // 그 지역이 다음 번째일 때 나올 관장 팀 (초반 · 중반 · 후반 묶음 — 코드 리뷰어)
+  const foes = regionGymTeam(REGIONS[r], save.regions.order.length + 1).map(([d]) => speciesOf(d)?.types ?? []);
+  let score = 0;
+  for (const uid of save.party) {
+    const m = save.monsters[uid];
+    if (!m || m.hp <= 0) continue;
+    for (const t of foes) score += Math.max(1, ...m.moves.map((x) => moveOf(x.moveId)).filter((mv) => !!mv && mv.power > 0).map((mv) => effectiveness(mv!.type, t)));
+  }
+  return score;
+}
 /** S13 ① 회복 */
 export function canHeal(state: GameState): boolean {
   return inFacility(state, 'hospital') || inLobby(state);
@@ -1766,20 +1814,45 @@ export function applyInput(state: GameState, input: GameInput): GameState {
     case 'badge-continue':
       if (stage?.phase !== 'badge') return state;
       return { ...state, runtime: { ...state.runtime, stage: { phase: 'lobby' } } };
+    case 'badge-next': {
+      // 관장을 이긴 카드에서 바로 다음 지역 (#127 — 태현 님 "세계지도를 눌러서 가야되서 불편") — 고르기면 그 자리에서 고르고 출발 · 다 깼으면 지도 (여기선 아무 일 없음)
+      if (stage?.phase !== 'badge') return state;
+      const n = gymNext(state);
+      if (n.kind === 'map') return state;
+      let s: GameState = { ...state, runtime: { ...state.runtime, stage: { phase: 'lobby' } } };
+      let region: RegionId;
+      let to: StageId | 'gym';
+      if (n.kind === 'pick') {
+        region = input.region && n.regions.includes(input.region) ? input.region : n.regions[0]!;
+        // 고르기 알림은 이미 골랐으니 지움 (새 지역에 가서 뜨지 않게 — 코드 리뷰어)
+        s = applyInput({ ...s, runtime: dropToasts(s.runtime, (x) => x === '다음 지역을 골라요') }, { kind: 'region-pick', region });
+        to = regionEntry(s.save, region);
+      } else {
+        region = n.region;
+        to = n.to;
+      }
+      const t = travel(s, to, to === 'gym' ? region : undefined);
+      if (t === s) return state;
+      // 도착 한 줄 — travel 은 "새 지역이 열렸어요" 를 지우므로 어디로 왔는지를 알림 (카드 · 자동으로 떠나면 말없이 바뀌던 것 — 디자인 UX 리뷰어 · ideas 1635) · 앞머리는 "새 지역" 이 아님 (그 앞머리엔 화면이 [M] 칸을 붙임)
+      syncRegionOrder(t);
+      const arrive = to === 'gym' ? `${REGIONS[region].name} 체육관 도착!` : `${REGIONS[region].name} ${stageCode(to)} 도착!`;
+      return { ...t, runtime: queueToast(t.runtime, arrive) };
+    }
   }
 }
 
 /** S12 다음 — 고를 것 (S23 · S22) 이 있으면 고르기, 없으면: MVP 끝 카드 · 대기실 · 클리어 카드 · 걷기 */
-function afterResult(save: Save, then?: 'badge'): StageRuntime {
+function afterResult(save: Save, then?: 'badge' | 'again'): StageRuntime {
   if (save.pendingChoices.length > 0) return choiceStage(save, then);
   if (then === 'badge') return { phase: 'badge' };
+  if (then === 'again') return { phase: 'badge', again: true };
   if (save.location.screen === 'gym') return { phase: 'lobby' };
   const prog = save.location.screen === 'stage' ? save.stages[save.location.stageId] : undefined;
   return prog && prog.progress >= 1 ? { phase: 'clear' } : { phase: 'walk' };
 }
 
 /** S23 · S22 고르기 시작 — 진화는 "어…? ○○의 모습이…!" 에서 기다렸다 보면 연출 (ms −1, 2026-10-21 ideas #33 — 코딩 중에 4초 연출을 놓치지 않게) */
-function choiceStage(save: Save, then?: 'badge'): StageRuntime {
+function choiceStage(save: Save, then?: 'badge' | 'again'): StageRuntime {
   const ms = save.pendingChoices[0]?.kind === 'evolve' ? -1 : 0;
   return then ? { phase: 'choice', ms, then } : { phase: 'choice', ms };
 }

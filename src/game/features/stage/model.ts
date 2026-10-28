@@ -3,7 +3,7 @@
  * 주인공은 제자리걸음, 배경 · 길 위의 것들이 오른쪽 → 왼쪽으로 흐름 (gdd S06 ③).
  */
 import { BALANCE, TIMING } from '../../core/balance';
-import { teamChoiceMeet, teamViewKey, waitReason, type BattleState, type GameState } from '../../core/engine';
+import { gymNext, teamChoiceMeet, teamViewKey, waitReason, type BattleState, type GameState } from '../../core/engine';
 import { resumeLine } from '../../core/engine/play';
 import { planWild, sceneryAt, type Scenery, type WildPlan } from '../../core/rules/encounter';
 import { requestAt, type RequestTemplate } from '../../core/rules/request';
@@ -291,6 +291,15 @@ export function minimapOf(state: GameState): { progress: number; facilities: rea
   return { progress: prog.progress, facilities: layout.facilities, gym: isRegionLast(save.location.stageId) };
 }
 
+/** 관장 카드 자동 남은 초 (#127) — 자동 전투 · 갈 곳이 있을 때만 (첫 승 다 깸 = 지도는 기다림 · 다시 이김은 대기실로 — 엔진) · ms 가 없는 첫 장면도 10.
+ *  카드 칩 (BadgeCard) 과 다시 그리는 열쇠가 같은 셈 — 칩은 ms 가 있을 때만 그려 1초에 처음 생겨 카드가 튀던 것 (UX 큼 U2).
+ *  버튼이 1초 뒤 뜨므로 badgeAutoMs 11초 · 칩은 10 까지 (뜨자마자 9초이던 것) */
+export function badgeAutoLeft(state: GameState): number | null {
+  const st = state.runtime.stage;
+  if (st?.phase !== 'badge' || !state.save.settings.autoBattle || (!st.again && gymNext(state).kind === 'map')) return null;
+  return Math.min(10, Math.max(1, Math.ceil((TIMING.badgeAutoMs - (st.ms ?? 0)) / 1000)));
+}
+
 /**
  * 화면에 보이는 것이 바뀌었는지 보는 열쇠 — 플레이 시간은 늘 바뀌니 빼고, 진행 · 단계 · 알림 · 볼 · 시작 상태만.
  * 부탁 · 끝처럼 멈춰 있을 때는 초당 30번 다시 그리지 않게 (main.ts)
@@ -309,6 +318,8 @@ export function stageViewKey(state: GameState): string {
     st?.phase === 'request' ? `${st.result?.text ?? ''}:${st.result ? '' : Math.ceil((TIMING.requestAutoMs - st.ms) / 1000)}` : '',
     st?.phase === 'defeat' ? Math.ceil((TIMING.defeatAutoMs - (st.ms ?? 0)) / 1000) : '',
     st?.phase === 'clear' && state.save.settings.autoBattle ? Math.ceil((TIMING.clearAutoMs - (st.ms ?? 0)) / 1000) : '',
+    // 관장을 이긴 카드 (#127) — 다시 이김 · 자동이면 남은 초 (넣어야 남은 초가 다시 그려짐 — 코드 리뷰어)
+    st?.phase === 'badge' ? `${st.again ?? ''}:${badgeAutoLeft(state) ?? ''}` : '',
     // 병원 · 상점 앞: 남은 초 · 들어감 / 트레이너: "!" → "승부다!" / 패배 · 클리어 · 대기실 · 배지는 그대로
     st?.phase === 'facility' ? `${st.inside}:${Math.ceil((TIMING.facilityPromptMs - st.ms) / 1000)}` : '',
     st?.phase === 'trainer' ? `${st.n}:${st.ms >= TIMING.trainerAlertMs}:${st.ms >= meetVsAt(state)}:${st.vsAt ?? ''}` : '',
@@ -386,7 +397,7 @@ export function foldWait(state: GameState): string | null {
     case 'gym':
       return '체육관 대기실에서 기다려요';
     case 'badge':
-      return '관장을 이겼어요! 배지를 받았어요';
+      return st?.phase === 'badge' && st.again ? '관장을 다시 이겼어요 — 다음 지역을 기다려요' : '관장을 이겼어요! 배지를 받았어요';
     default:
       return st?.phase === 'facility' && st.inside ? `${st.kind === 'hospital' ? '병원' : '상점'} 안에서 기다려요` : null;
   }

@@ -4,7 +4,7 @@
  */
 import { h, render } from 'preact';
 import { TIMING } from '../core/balance';
-import { canHeal, canOpenMenus, inBattle, nextStageOf, teamScale, type GameInput } from '../core/engine';
+import { canHeal, canOpenMenus, gymNext, inBattle, nextStageOf, teamScale, type GameInput } from '../core/engine';
 import { teamHealthy } from '../core/rules/bag';
 import { MENU_PANELS, menuShortcutOf } from '../features/menu/model';
 import { levelUps } from '../features/result/model';
@@ -14,7 +14,7 @@ import { GAME_COMMAND, isHostToWebview } from '../shared/messages';
 import { shouldHoldBattle } from '../features/battle/fx/hold';
 import { teamChoiceOn } from '../features/battle/team/TeamChoice';
 import { spaceInput } from '../features/battle/fx/parry';
-import { confirmKey, enterBoxKey, onKeyboardButton, spaceAsEnter, watchKeys } from '../ui/confirm-key';
+import { confirmKey, enterBoxKey, onKeyboardButton, SPACE_BOX_MIN_MS, spaceAsEnter, watchKeys } from '../ui/confirm-key';
 import { realNow } from '../ui/real-clock';
 import { fieldTopPx, fitGameLayout, topGapPx } from '../ui/layout';
 import { Store } from '../ui/store';
@@ -303,6 +303,14 @@ if (!port) {
           return;
         }
       }
+      // 관장 카드 M = 카드의 [지도] 버튼과 같게 (대기실에 남고 지도 — #127 UX: 카드가 떠 있으면 메뉴줄이 숨어 M 이 안 먹던 것 · 좁으면 [지도] 가 빠짐) · 뜬 지 1초 안은 안 받음
+      if (shortcut === 'map' && rs?.phase === 'badge') {
+        e.preventDefault();
+        if (realNow() - boxAt < SPACE_BOX_MIN_MS) return;
+        actions.input({ kind: 'badge-continue' });
+        actions.open({ kind: 'map' });
+        return;
+      }
       if (cur && canOpenMenus(cur)) {
         e.preventDefault();
         if (shortcut !== 'fast') actions.open({ kind: shortcut });
@@ -425,6 +433,28 @@ if (!port) {
       // S16 대기실 Enter = 도전 (주 버튼 — 꾹 누름 반복은 위에서 거름) · 3:3 이면 처음 = 3마리 고르기 판 · 판에서 = 시작
       e.preventDefault();
       actions.input({ kind: 'challenge' });
+    } else if (phase === 'badge' && (e.key === 'Enter' || e.key === 'Escape' || /^Digit[12]$/.test(e.code)) && realNow() - boxAt < SPACE_BOX_MIN_MS) {
+      // 관장을 이긴 카드 (U1 중요한 순간) — 뜬 지 1초 안의 Enter · 숫자 · Esc 는 안 받음 (결과 상자에서 Enter 두 번에 카드가 지나가 체육관을 떠나던 것 — 코드 리뷰어 #127 · Esc 는 0.3초 만에 대기실로 — UX 리뷰어)
+      e.preventDefault();
+    } else if (phase === 'badge' && e.key === 'Escape') {
+      // 관장을 이긴 카드 Esc = 대기실에 남기 (#127)
+      e.preventDefault();
+      actions.input({ kind: 'badge-continue' });
+    } else if (phase === 'badge' && /^Digit[12]$/.test(e.code) && !(e.ctrlKey || e.metaKey || e.altKey) && session.current) {
+      // 고를 두 곳이면 1 · 2 = 그곳으로 출발 (#127 — 카드 위 순서 = gymNext 순서) · 다시 이긴 카드는 2 = 다음 지역 (Enter = 대기실 — 기획 B, 한 카드에 기본이 둘이던 것)
+      const n = gymNext(session.current);
+      const again = stage?.phase === 'badge' && stage.again === true;
+      // 갈 곳이 하나일 때만 — 고르기면 1 · 2 = 그 지역 그대로 (카드 [1 해변 ▶] [2 화산 ▶] — 2 가 첫 지역으로 가던 것)
+      if (again && n.kind === 'go' && e.code === 'Digit2') {
+        e.preventDefault();
+        actions.input({ kind: 'badge-next' });
+        return;
+      }
+      const region = n.kind === 'pick' ? n.regions[Number(e.code.slice(5)) - 1] : undefined;
+      if (region) {
+        e.preventDefault();
+        actions.input({ kind: 'badge-next', region });
+      }
     } else if (phase === 'defeat' && stage.keep !== undefined && e.key === 'Escape') {
       // 3:3 두 번째 패배 상자 Esc = [병원 앞으로] (#152 — 둘째 버튼, Enter = 계속 걷기)
       e.preventDefault();
@@ -434,8 +464,14 @@ if (!port) {
       e.preventDefault();
       if (phase === 'defeat') actions.input({ kind: 'defeat-continue' });
       else if (phase === 'badge') {
-        actions.input({ kind: 'badge-continue' });
-        actions.open({ kind: 'map' });
+        // 관장을 이긴 카드 = 다음 지역으로 (#127 — 고르기면 위쪽 · 상성 좋은 쪽) · 다 깼으면 예전처럼 대기실 + 지도
+        // 다시 이긴 카드 (배지 없음) = 대기실 · 다시 도전 (자동 10초와 같은 곳 — 기획 B) · 다음 지역은 2
+        if (stage?.phase === 'badge' && stage.again) actions.input({ kind: 'badge-continue' });
+        else if (session.current && gymNext(session.current).kind !== 'map') actions.input({ kind: 'badge-next' });
+        else {
+          actions.input({ kind: 'badge-continue' });
+          actions.open({ kind: 'map' });
+        }
       } else if (loc?.screen === 'stage') actions.input({ kind: 'travel', to: nextStageOf(loc.stageId) });
     }
   });

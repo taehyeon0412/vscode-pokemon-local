@@ -99,11 +99,11 @@ export const ICONS = {
   badgeBeach: ['...yy...', '..yYBy..', '.yYBBBy.', 'yYBWBBby', 'yYBBBbby', '.yBBbby.', '..ybby..', '...yy...'],
   /** 화산 배지 (#75) — 숲 초록 · 해변 파랑과 같은 다이아 틀 · 불 빨강 */
   badgeVolcano: ['...yy...', '..yYRy..', '.yYRRRy.', 'yYRWRRry', 'yYRRRrry', '.yRRrry.', '..yrry..', '...yy...'],
-  /** 큰 배지 (MVP 끝 카드 — 16 × 16 칸, 점 크기는 다른 아이콘과 같은 2) */
-  badgeBig: ['.......yy.......', '......yYYy......', '.....yYGGYy.....', '....yYGGGGYy....', '...yYGGWGGGYy...', '..yYGGWWGGGGYy..', '.yYGGGWGGGGgGYy.', 'yYGGGGGGGGggGGYy', 'yYGGGGGGGgggGGYy', '.yYGGGGGgggGGYy.', '..yYGGggggGGYy..', '...yYGgggGGYy...', '....yYGGGGYy....', '.....yYGGYy.....', '......yYYy......', '.......yy.......'],
+  /** 큰 배지 (관장 카드 — 16 × 16 칸, 점 크기는 다른 아이콘과 같은 2) · 무늬 = 작은 배지와 같은 문법 (빛 W 한 덩이 왼쪽 위 + 오른쪽 아래 테 안 그늘 띠 — 가운데 사선이 ✓ 로 읽히던 것, 아트 #127) */
+  badgeBig: ['.......yy.......', '......yYYy......', '.....yYGGYy.....', '....yYGGGGYy....', '...yYGWWGGGYy...', '..yYGGWWGGGGYy..', '.yYGGGGGGGGGGYy.', 'yYGGGGGGGGGGGGYy', 'yYGGGGGGGGGGggYy', '.yYGGGGGGGGggYy.', '..yYGGGGGGggYy..', '...yYGGGGggYy...', '....yYGGggYy....', '.....yYGgYy.....', '......yYYy......', '.......yy.......'],
   // 해변 배지 = 같은 모양 · 잎 초록 → 물 파랑 (orders #67 — 숲 · 해변 배지가 같은 그림이던 것, 아트 디렉터)
-  badgeVolcanoBig: ['.......yy.......', '......yYYy......', '.....yYRRYy.....', '....yYRRRRYy....', '...yYRRWRRRYy...', '..yYRRWWRRRRYy..', '.yYRRRWRRRRrRYy.', 'yYRRRRRRRRrrRRYy', 'yYRRRRRRRrrrRRYy', '.yYRRRRRrrrRRYy.', '..yYRRrrrrRRYy..', '...yYRrrrRRYy...', '....yYRRRRYy....', '.....yYRRYy.....', '......yYYy......', '.......yy.......'],
-  badgeBeachBig: ['.......yy.......', '......yYYy......', '.....yYBBYy.....', '....yYBBBBYy....', '...yYBBWBBBYy...', '..yYBBWWBBBBYy..', '.yYBBBWBBBBbBYy.', 'yYBBBBBBBBbbBBYy', 'yYBBBBBBBbbbBBYy', '.yYBBBBBbbbBBYy.', '..yYBBbbbbBBYy..', '...yYBbbbBBYy...', '....yYBBBBYy....', '.....yYBBYy.....', '......yYYy......', '.......yy.......'],
+  badgeVolcanoBig: ['.......yy.......', '......yYYy......', '.....yYRRYy.....', '....yYRRRRYy....', '...yYRWWRRRYy...', '..yYRRWWRRRRYy..', '.yYRRRRRRRRRRYy.', 'yYRRRRRRRRRRRRYy', 'yYRRRRRRRRRRrrYy', '.yYRRRRRRRRrrYy.', '..yYRRRRRRrrYy..', '...yYRRRRrrYy...', '....yYRRrrYy....', '.....yYRrYy.....', '......yYYy......', '.......yy.......'],
+  badgeBeachBig: ['.......yy.......', '......yYYy......', '.....yYBBYy.....', '....yYBBBBYy....', '...yYBWWBBBYy...', '..yYBBWWBBBBYy..', '.yYBBBBBBBBBBYy.', 'yYBBBBBBBBBBBBYy', 'yYBBBBBBBBBBbbYy', '.yYBBBBBBBBbbYy.', '..yYBBBBBBbbYy..', '...yYBBBBbbYy...', '....yYBBbbYy....', '.....yYBbYy.....', '......yYYy......', '.......yy.......'],
   /** 빨리 걷기 ▶▶ (꺼짐 · 켜졌지만 지금은 보통 빠르기) */
   fast: ['........', 'W...W...', 'WW..WW..', 'WWW.WWW.', 'WWW.WWW.', 'WW..WW..', 'W...W...', '........'],
   /** 빨리 걷기 ▶▶ — 지금 ×3 으로 걷는 중 */

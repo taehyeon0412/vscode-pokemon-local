@@ -389,9 +389,10 @@ describe('S16 체육관 · 관장 (mvp-spec 3.9)', () => {
     expect(phase(applyInput(s, { kind: 'badge-continue' }))).toBe('lobby');
   });
 
-  it('다시 이기면 300원만 · 지면 돈은 그대로 · 팀 회복 · 대기실로', () => {
+  it('다시 이기면 300원만 (카드 again) · 지면 돈은 그대로 · 팀 회복 · 대기실로', () => {
     const rematch = until(applyInput(lobby({ badges: ['forest'] }), { kind: 'challenge' }), (x) => phase(x) === 'result', 600_000);
-    expect(rematch.runtime.stage).not.toHaveProperty('then');
+    // 다시 이김도 결과 뒤 카드 (배지 없음 — 다음 지역 버튼, #127)
+    expect(rematch.runtime.stage).toHaveProperty('then', 'again');
     expect(rematch.save.money - lobby().save.money).toBe(BALANCE.gymRematchMoney);
     const weak = sampleMonster({ level: 2, moves: [{ moveId: 33, pp: 35 }] });
     const lose = until(applyInput(lobby({ monsters: { m1: weak } }), { kind: 'challenge' }), (x) => phase(x) === 'defeat', 600_000);

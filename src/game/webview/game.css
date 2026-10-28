@@ -3860,10 +3860,6 @@ body.vscode-light .pg-stage.pg-bg-arena-volcano {
   flex: none;
   line-height: 0;
 }
-.pg-badge-card {
-  border-color: #e3b341;
-  box-shadow: 0 0 6px rgba(227, 179, 65, 0.5);
-}
 .pg-lv-short {
   color: #f85149;
   font-weight: bold;
@@ -3943,21 +3939,6 @@ body.vscode-light .pg-stage.pg-bg-arena-volcano {
   overflow-x: hidden;
   row-gap: 3px;
   padding: 2px 0;
-}
-/* MVP 끝 카드 — 배지가 천천히 한 번 빛남 (깜빡임 없이) */
-.pg-badge-glow {
-  display: inline-block;
-  animation: pg-badge-glow 2.4s ease-in-out 1 both;
-}
-@keyframes pg-badge-glow {
-  0% { transform: translateY(-40%) scale(0.6); opacity: 0; filter: none; }
-  50% { transform: translateY(0) scale(1.25); opacity: 1; filter: drop-shadow(0 0 6px #e3b341); }
-  100% { transform: none; filter: drop-shadow(0 0 2px #e3b341); }
-}
-/* 동작 줄이기 = 게임 설정 (.pg-reduce-motion, 2026-10-20 태현 님 1안 — OS 설정은 안 봄) */
-.pg-reduce-motion .pg-badge-glow {
-  animation: none;
-  filter: drop-shadow(0 0 2px #e3b341);
 }
 
 /* 오른쪽 위 ◓ 버튼의 선두 포켓몬 그림 */
@@ -4829,7 +4810,7 @@ body.vscode-high-contrast-light .pg-title-body {
 .pg-badge-lines {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
   min-width: 0;
 }
 /* 보상 · 버튼 줄 — 넘치면 버튼 묶음이 다음 줄 (주 버튼 먼저) */
@@ -4841,29 +4822,127 @@ body.vscode-high-contrast-light .pg-title-body {
   display: inline-flex;
   flex-wrap: wrap;
   gap: 6px;
+  /* 배지 · 글이 1초 보인 뒤에 버튼 (#127 — U1 중요한 순간 · 키도 main.ts 가 1초 거름) · 자리는 처음부터 (나타나도 카드가 안 커짐) */
+  animation: pg-caught-show 1ms 1s both;
 }
-/* 좁은 배지 카드 (보상 · 버튼 줄이 넘치면 — FieldBoxes BadgeCard 가 재서 pg-badge-tight · 예전 330 고정) — 대기실과 같게 Enter 키 칸 숨김 · 배지와 글 사이 10 → 6 (두 버튼이 한 줄에 — 네 줄 카드가 주인공 · 관장을 덮던 것) */
+/* 다음 지역 칸 (#127) — 관장 타입은 작은 글 (고르기 두 칸 같은 모양 · 레벨대는 뒷말에 한 번) · 칸 안 그림 없음 (6장 주 버튼 안 아이콘 없음) */
+.pg-badge-facts {
+  white-space: nowrap;
+}
+/* 갈 곳 두 칸 뒤 [지도] · [대기실] 은 한 칸 더 띄움 (6 + 8 = 14 — 둘째 칸이 나머지와 한 묶음으로 읽히던 것, 아트 #127) · 좁으면 6 그대로 */
+.pg-badge-pick + .pg-button:not(.pg-badge-pick) {
+  margin-left: 8px;
+}
+.pg-badge-card.pg-badge-tight .pg-badge-pick + .pg-button:not(.pg-badge-pick) {
+  margin-left: 0;
+}
+/* 자동 남은 초 (AutoSec — 길 위 상자 · 클리어 · 패배 · 관장 카드) — "10초" 와 폭 차이는 AutoSec 이 버튼 양옆 안 여백으로 (잣대는 잴 때만 붙임) */
+.pg-auto-sec {
+  position: relative;
+  font-variant-numeric: tabular-nums;
+}
+/* 버튼 안 작은 글 앞 = 3 (0.25em = 2.75 소수 px — 대기실 3:3 칩과 같게 · 모든 버튼, 아트 3바퀴) */
+.pg-button .pg-sub {
+  margin-left: 3px;
+}
+/* 멈춤 = 기다림 한 줄 (pause 그림 WW.WW) 과 같은 막대 둘 4 × 10 · 사이 2 — 글자색 그대로 (금색 주 버튼 위 크림 그림은 안 보여서) · 버튼 글 끝 "멈춤" 이 "도전을 멈춤" 으로 읽히던 것 (UX 마지막 바퀴) */
+.pg-auto-stop::before {
+  content: '';
+  display: inline-block;
+  width: 4px;
+  height: 10px;
+  margin-right: 9px;
+  vertical-align: -1px;
+  background: currentColor;
+  box-shadow: 6px 0 0 currentColor;
+}
+/* 멈춤 칩은 앞 6 · 막대 뒤 3 — 버튼 글 "다시 도전" 에 붙어 "도전‖멈춤" 으로 읽히던 것 (폭 차이는 AutoSec 이 버튼 여백으로) */
+.pg-button .pg-sub.pg-auto-paused {
+  margin-left: 6px;
+}
+/* 카드 안 작은 글 앞 = 3 (0.25em = 2.75 소수 px — 대기실 3:3 칩과 같은 고침, 아트 2바퀴) · 줄 높이 11 (12px 글과 밑선을 맞추며 첫 줄이 17 로 늘던 것) */
+.pg-badge-card .pg-sub {
+  margin-left: 3px;
+  line-height: 11px;
+}
+/* 다시 이김 갈 곳 칸의 숫자 키 칸 [1] [2] 는 좁아도 남김 — 단계 1 에서 키 칸이 다 빠져 "2 = 다음 지역" 이 title 에만 남던 것 (UX 마지막 바퀴 U5) · Enter 칸 (금색 주 버튼) 만 뺌 */
+.pg-badge-card.pg-badge-again.pg-badge-tight .pg-badge-dest .pg-menu-key {
+  display: inline-block;
+}
+/* 다시 이김 = 머물기 | 떠나기 — 주 버튼 [대기실 · 다시 도전] 뒤 8 더 띄우고 갈 곳 칸 뒤 [지도] 앞은 6 그대로 (아트 2바퀴) */
+.pg-badge-card.pg-badge-again .pg-badge-btns > .pg-button:first-child {
+  margin-right: 8px;
+}
+.pg-badge-card.pg-badge-again .pg-badge-pick + .pg-button:not(.pg-badge-pick),
+.pg-badge-card.pg-badge-tight .pg-badge-btns > .pg-button:first-child {
+  margin-left: 0;
+  margin-right: 0;
+}
+/* [지도] 글은 카드 안에서는 480 media (pg-long) 가 아니라 넘치면 한 단계만 따름 (480 아래 그림만 남아 글 버튼 사이에 끼던 것) */
+.pg-badge-card .pg-badge-map .pg-long {
+  display: inline;
+}
+/* 좁은 배지 카드 (보상 · 버튼 줄이 넘치면 — FieldBoxes BadgeCard 가 재서 pg-badge-tight · 예전 330 고정) — 대기실과 같게 키 칸 숨김 · 배지와 글 사이 10 → 6 (두 버튼이 한 줄에 — 네 줄 카드가 주인공 · 관장을 덮던 것) */
 .pg-badge-card.pg-badge-tight {
   gap: 6px;
 }
 .pg-badge-card.pg-badge-tight .pg-menu-key {
   display: none;
 }
+/* 더 좁으면 (#127 — 240 · 맥 480 에서 버튼이 두 줄로 내려가 카드가 주인공 · 관장을 덮던 것) 2 = "대기실" · 3 = [지도] (카드에서도 [M]) · 4 = 관장 타입 ·
+   5 = 큰 배지 칸 대신 첫 줄 앞 16 배지 (정보줄에도 배지 — 240 고르기에서 버튼 셋이 한 줄에) · 고를 근거 (타입) 를 지도보다 늦게 뺌 */
+.pg-badge-card.pg-badge-tight2 .pg-badge-stay,
+.pg-badge-card.pg-badge-tight3 .pg-badge-map,
+.pg-badge-card.pg-badge-tight4 .pg-badge-facts,
+.pg-badge-card.pg-badge-tight5 .pg-badge-glow,
+.pg-badge-card.pg-badge-again .pg-badge-glow,
+.pg-badge-mini {
+  display: none;
+}
+.pg-badge-card.pg-badge-tight5 .pg-badge-mini,
+.pg-badge-card.pg-badge-again .pg-badge-mini {
+  display: inline-flex;
+}
+/* 6 = 버튼 옆 여백 10 → 4 (맥 10% 240 · 자동 고르기 [해변 ▶ 10초] [화산] [대기실] 이 5단계에도 두 줄이던 것) */
+.pg-badge-card.pg-badge-tight6 .pg-badge-btns .pg-button {
+  padding: 0 4px;
+}
+/* 다시 이긴 관장 = 클리어 카드와 같은 무게 (보통 테두리 · 작은 배지 · 톡 없음 — 첫 배지와 똑같이 축하하던 것, 아트 #127) */
+.pg-badge-card.pg-badge-again {
+  border-color: var(--pg-sos-line);
+}
+.pg-badge-mini .pg-icon {
+  animation: pg-badge-in 0.6s step-end 1 both;
+}
+.pg-reduce-motion .pg-badge-mini .pg-icon,
+.pg-badge-again .pg-badge-mini .pg-icon {
+  animation: none;
+}
+/* 배지 칸 = 42 × 42 얼굴 칸 (레벨업 얼굴 카드 · SoS 2f — 높은 바탕 + 1px 흐린 금선) 안 32 배지, 둘레 4 · 글 두 줄 16 + 4 + 22 = 42 와 같은 높이 (40 이면 가운데가 0.5px — 아트 2바퀴) */
 .pg-badge-glow {
   flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 42px;
+  height: 42px;
   line-height: 0;
-  animation: pg-badge-in 0.6s steps(3) 1 both;
-  filter: none;
+  background: var(--pg-sos-hi);
+  border: 1px solid var(--pg-sos-line-soft);
 }
+.pg-badge-glow .pg-icon {
+  animation: pg-badge-in 0.6s step-end 1 both;
+}
+/* 톡 = 자리만 — 4px 위 → 2px 위 → 제자리 0.2초씩 (8장 크기는 정수 배만 · 0.75 배는 2px 점이 1.5px 로 1 · 2px 섞여 그려지던 것 — 픽셀 #127) */
 @keyframes pg-badge-in {
-  0% { transform: scale(0.5); }
-  66% { transform: scale(1.25); }
-  100% { transform: none; }
+  0% { transform: translateY(-4px); }
+  33% { transform: translateY(-2px); }
+  66%, 100% { transform: none; }
 }
 /* 동작 줄이기 = 게임 설정 (.pg-reduce-motion, 2026-10-20 태현 님 1안 — OS 설정은 안 봄) */
-.pg-reduce-motion .pg-badge-glow {
+.pg-reduce-motion .pg-badge-glow .pg-icon {
   animation: none;
-  filter: none;
 }
 
 /* S03 주인공 칸 — 칸 높이를 가장 큰 그림에 맞춰 같게 (윗선이 들쭉날쭉하던 것) · 줄은 세로 가운데 */
@@ -5026,6 +5105,11 @@ body.vscode-high-contrast-light .pg-title-body {
   color: var(--pg-sos-tab-ink);
   opacity: 0.7;
 }
+/* 클리어 · 관장 카드 주 버튼 안 작은 글 (N초 · 관장 타입) = 짙은 글씨 그대로 · 이름 (700) 과는 굵기 500 으로 (opacity .7 은 팔레트 밖 갈색 #4f4734 — 아트 2바퀴 원칙 6) */
+.pg-banner .pg-button:not(.pg-secondary):not(:disabled) .pg-sub:not(.pg-dim) {
+  opacity: 1;
+  font-weight: 500;
+}
 
 /* 고르는 화면은 넓은 패널에서 가운데 (2026-10-19 태현 님 "패널 가로가 엄청 길어서 중앙 정렬로 보는 게 편할 듯") —
    넘치면 왼쪽 · 위부터 보이게 자동 여백으로 (justify-content: safe center 는 VS Code 1.73 에 없음) */
@@ -5061,10 +5145,9 @@ body.vscode-high-contrast-light .pg-title-body {
 #pokemon-game:has(.pg-banner.pg-request) .pg-npc-mark {
   visibility: hidden;
 }
-@media (max-width: 480px) {
-  #pokemon-game:has(.pg-badge-card) .pg-foe-trainer .pg-nametag {
-    visibility: hidden;
-  }
+/* 관장 이름표가 배지 카드에 깔리면 숨김 — BadgeCard 가 겹침을 재서 pg-badge-overtag (480 고정 경계는 #127 로 카드가 넓어져 500 에서 이름표 윗부분이 잘림 — 아트) */
+#pokemon-game:has(.pg-badge-card.pg-badge-overtag) .pg-foe-trainer .pg-nametag {
+  visibility: hidden;
 }
 @media (max-width: 300px) {
   .pg-gym-word {
@@ -6039,10 +6122,14 @@ body.vscode-high-contrast-light .pg-title-body {
     flex-basis: 100%;
   }
 }
-.pg-badge-tail .pg-tail-short {
+.pg-badge-tail .pg-tail-short,
+.pg-badge-card.pg-badge-tailshort .pg-tail-long {
   display: none;
 }
-/* 첫 줄이 넘치면 뒷말을 뺌 (BadgeCard tailOff — 맥 240 대) */
+.pg-badge-card.pg-badge-tailshort .pg-tail-short {
+  display: inline;
+}
+/* 첫 줄이 넘치면 한 단계 — 긴 말 → 짧은 말 → 뺌 (BadgeCard tailFit — 폭 경계 360 대신 잼, 361 ~ 384 에서 통째로 빠지던 것 · 픽셀 #127) */
 .pg-badge-card.pg-badge-notail .pg-badge-tail {
   display: none !important;
 }
@@ -6056,12 +6143,6 @@ body.vscode-high-contrast-light .pg-title-body {
   }
   /* 새 지역 표 (아래 줄 "[그림] 해변 NEW") 가 없을 때는 뒷말을 남김 — "다음 지역을 골라요" · "모든 지역을 열었어요" 가 333 아래에서 빠지던 것 (UX 리뷰어 #78) */
   .pg-badge-card:not(:has(.pg-badge-newtag)) .pg-badge-tail {
-    display: inline;
-  }
-  .pg-badge-tail .pg-tail-long {
-    display: none;
-  }
-  .pg-badge-tail .pg-tail-short {
     display: inline;
   }
   .pg-badge-newtag {

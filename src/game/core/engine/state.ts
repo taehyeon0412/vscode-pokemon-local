@@ -25,7 +25,7 @@ type FacilityKind = FacilitySpot['kind'];
  * - request: 길 위의 부탁 — 고를 때까지 기다림, 고르면 결과를 잠깐 보여 줌
  * - result: S12 전투 결과 (경험치 · 레벨업 · 돈 · 아이템 · 잡은 포켓몬) — 잠깐 보여 주고 (계속으로 넘김) 고를 게 있으면 choice, 없으면 걷기 · 대기실
  * - choice: S23 새 기술 · S22 진화 — save.pendingChoices 맨 앞을 고를 때까지 기다림 (ms = 진화 연출 시간)
- *   then = 'badge' 면 다 고른 뒤 MVP 끝 카드 (관장을 처음 이김)
+ *   then = 'badge' 면 다 고른 뒤 MVP 끝 카드 (관장을 처음 이김) · 'again' = 다시 이긴 관장 카드 (배지 없음 — 다음 지역 버튼, #127)
  * - defeat: S17 패배 — 돈 · 회복 · 다시 시작 자리는 이미 세이브에, [다시 시작] 을 기다림
  * - clear: S24 스테이지 클리어 카드 (진행 100%) — [다음 스테이지] [지도] [포켓몬 교체] 를 기다림
  * - lobby: S16 체육관 대기실 (병원 · 보관함 · 상점 · 도전 · 세계 지도)
@@ -47,9 +47,9 @@ export type StageRuntime =
   | { phase: 'hold'; why: 'shiny' | 'rival' }
   | { phase: 'request'; at: number; number: number; result: RequestResult | null; ms: number }
   | { phase: 'facility'; kind: FacilityKind; at: number; ms: number; inside: boolean }
-  | { phase: 'result'; summary: BattleSummary; ms: number; then?: 'badge' }
+  | { phase: 'result'; summary: BattleSummary; ms: number; then?: 'badge' | 'again' }
   /** ms = 진화 연출 시간 · −1 = 진화를 보기 전 "어…? ○○의 모습이…!" 에서 기다림 (Space · 클릭으로 시작 — 2026-10-21 ideas #33) */
-  | { phase: 'choice'; ms: number; then?: 'badge' }
+  | { phase: 'choice'; ms: number; then?: 'badge' | 'again' }
   /** ms = 저절로 다시 시작까지 지난 시간 (defeatAutoMs — ideas #49, 옛 상태엔 없음) */
   /** keep = 3:3 으로 진 트레이너 이름 — 같은 판 두 번째 패배라 멈춘 상자 ("○○에게 졌다 — 남은 포켓몬으로 계속", 다시 시작 없음 — 2026-10-21 기획 R8 A) */
   | { phase: 'defeat'; gym: boolean; lost: number; ms?: number; keep?: string; /** 3:3 두 번째 패배 상자 — 남은 (싸울 수 있는) 포켓몬 수 (#152) */ left?: number }
@@ -59,7 +59,8 @@ export type StageRuntime =
   | { phase: 'gym-enter'; ms: number }
   /** pick = 관장 3:3 에 나갈 3마리 (고르지 않았으면 없음 — 상성 좋은 셋) · picking = 도전을 눌러 3마리 고르기 판이 열림 (Enter = 시작 · Esc = 뒤로, 디자인팀 — 판이 대기실 상자를 덮던 것) */
   | { phase: 'lobby'; pick?: string[]; picking?: true }
-  | { phase: 'badge' };
+  /** 관장을 이긴 카드 — 처음 (배지) · again = 다시 이김 (배지 없음) · ms = 자동 전투면 다음 지역까지 센 시간 (#127) */
+  | { phase: 'badge'; ms?: number; again?: true };
 
 // 멈춤 · 알림 이유 — 가져오는 것이 없는 파일에 (shared/messages · boot.js 가 값으로 가져감)
 export { GAME_NOTICES, type GameNotice } from './notices';
@@ -195,7 +196,7 @@ function readSummary(raw: unknown): BattleSummary | null {
   };
 }
 
-const okThen = (v: unknown) => v === undefined || v === 'badge';
+const okThen = (v: unknown) => v === undefined || v === 'badge' || v === 'again';
 /** 3마리 고르기 — uid 3개 이하 · 겹침 없음 (세이브와 맞는지는 시작할 때 다시 봄) */
 const okPick = (v: unknown): v is string[] => Array.isArray(v) && v.length <= 3 && v.every((u) => typeof u === 'string' && u.length <= 64) && new Set(v).size === v.length;
 
@@ -205,8 +206,9 @@ function readStage(raw: unknown): StageRuntime | null {
   const ms = num(raw.ms, 0, 1e9);
   switch (raw.phase) {
     case 'walk':
-    case 'badge':
       return { phase: raw.phase };
+    case 'badge':
+      return { phase: 'badge', ...(ms !== null && ms > 0 ? { ms } : {}), ...(raw.again === true ? { again: true as const } : {}) };
     case 'lobby':
       return { phase: 'lobby', ...(okPick(raw.pick) ? { pick: raw.pick } : {}), ...(raw.picking === true ? { picking: true as const } : {}) };
     case 'clear':
@@ -272,13 +274,13 @@ function readStage(raw: unknown): StageRuntime | null {
     case 'result': {
       const summary = readSummary(raw.summary);
       if (ms === null || !summary || !okThen(raw.then)) return null;
-      return raw.then === 'badge' ? { phase: 'result', summary, ms, then: 'badge' } : { phase: 'result', summary, ms };
+      return raw.then === 'badge' || raw.then === 'again' ? { phase: 'result', summary, ms, then: raw.then } : { phase: 'result', summary, ms };
     }
     case 'choice': {
       // −1 = 진화를 보기 전 기다림
       const cms = raw.ms === -1 ? -1 : ms;
       if (cms === null || !okThen(raw.then)) return null;
-      return raw.then === 'badge' ? { phase: 'choice', ms: cms, then: 'badge' } : { phase: 'choice', ms: cms };
+      return raw.then === 'badge' || raw.then === 'again' ? { phase: 'choice', ms: cms, then: raw.then } : { phase: 'choice', ms: cms };
     }
     default:
       return null;

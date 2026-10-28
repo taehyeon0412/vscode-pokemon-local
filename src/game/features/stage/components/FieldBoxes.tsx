@@ -7,16 +7,16 @@
 import type { ComponentChildren } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
-import { canHeal, gymLeaderOf, regionsOn, teamLock, waitReason, type GameInput, type GameState } from '../../../core/engine';
+import { canHeal, gymLeaderOf, gymNext, regionsOn, teamLock, waitReason, type GameInput, type GameState } from '../../../core/engine';
 import { defeatWaits } from '../../../core/engine/play';
 import { maxHpOf, teamHealth, teamHealthy } from '../../../core/rules/bag';
 import { itemName } from '../../../core/rules/items';
-import { regionGymMoney, regionGymTeam, regionHere, regionOrder } from '../../../core/rules/region';
-import { FACILITY_STAFF } from '../../../core/rules/stage';
+import { REGIONS, regionGymMoney, regionGymTeam, regionHere, regionLevelBand, regionOrder } from '../../../core/rules/region';
+import { FACILITY_STAFF, stageCode } from '../../../core/rules/stage';
 import { aliveCount, gymHint, shortTrainerName } from '../../../core/rules/trainer';
-import { josaOf } from '../../../core/text';
+import { josaOf, typeNameKo } from '../../../core/text';
 import { speciesOf } from '../../../data';
-import type { StageId } from '../../../core/save';
+import type { RegionId, StageId } from '../../../core/save';
 import { Button } from '../../../ui/Button';
 import { Face } from '../../../ui/Face';
 import { Icon } from '../../../ui/Icon';
@@ -26,7 +26,7 @@ import { formatMoney } from '../../../ui/format';
 import { Sprite } from '../../../ui/Sprite';
 import { contentWidth, FIT_ROOM, useFit } from '../../../ui/useFit';
 import { clearView, lobbyView, mapView } from '../../menu/model';
-import { STAGES, VS_MS } from '../model';
+import { badgeAutoLeft, STAGES, VS_MS } from '../model';
 import { TypeTag } from '../../battle/components/TypeTag';
 
 export interface BoxProps {
@@ -84,7 +84,7 @@ export function FacilityBox({ state, media, onInput, onBox }: BoxProps & { onBox
         )}
         <Button secondary extraClass="pg-pass-btn" onClick={() => onInput({ kind: 'facility', enter: false })} title={`Esc · ${left}초 뒤 지나감`}>
           <KeyCap k="Esc" /> <span class="pg-pass-word">지나가기 </span>
-          <span class="pg-sub">{left}초</span>
+          <AutoSec n={left} />
         </Button>
       </div>
     );
@@ -290,7 +290,7 @@ function DefeatPlain({ state, onInput }: BoxProps) {
         <Button onClick={() => onInput({ kind: 'defeat-continue' })} title="Enter">
           {/* 남은 초 — 0 이면 저절로 다시 시작 (다음 버전 1단계 #49). 같은 판 두 번째 패배부터는 기다림 (지고 또 지며 돈이 빠지지 않게 — defeatWaits) 이라 숨김 */}
           <KeyCap k="Enter" /> {st.gym ? '대기실로 ▶' : '다시 시작 ▶'}
-          {!defeatWaits(state.save, st) && <span class="pg-sub">{Math.max(1, Math.ceil((TIMING.defeatAutoMs - (st.ms ?? 0)) / 1000))}초</span>}
+          {!defeatWaits(state.save, st) && <AutoSec n={Math.max(1, Math.ceil((TIMING.defeatAutoMs - (st.ms ?? 0)) / 1000))} />}
         </Button>
       </span>
     </div>
@@ -344,7 +344,7 @@ export function ClearCard({ state, media, onInput, onMap, onTeam }: BoxProps & {
         <Button onClick={() => onInput({ kind: 'travel', to: next })} title="Enter">
           {/* ▶ 는 글 뒤 (계속 ▶ · 도전 ▶ 와 같게) · 주 버튼 안에는 아이콘 없이 (아트 디렉터 4차) */}
           <KeyCap k="Enter" /> <span class="pg-long">{next === 'gym' ? '체육관으로 ' : '다음 스테이지 '}</span>▶
-          {autoLeft !== null && <span class="pg-sub">{autoLeft}초</span>}
+          {autoLeft !== null && <AutoSec n={autoLeft} />}
         </Button>
         <Button secondary onClick={onMap} title="③ 지도">
           <Icon name="map" />
@@ -450,52 +450,136 @@ export function LobbyBox({ state, media, onInput, onBox, onShop, onMap }: BoxPro
 
 /** 관장 첫 승 카드 — 배지 → "숲 클리어! …" → 세계 지도. 배지 이름 · 첫 승 물건 = 지금 지역 표 (해변 관장을 이겨도 "숲 배지 · 리프의돌" 이던 것).
  *  뒷말 = 다음 지역 (orders #67 — 개발 #66): 고를 곳이 있으면 "다음 지역을 골라요" · 바로 열렸으면 "새 지역 해변이 열렸어요" · 꺼져 있으면 (본편) "다음 지역은 준비 중이에요" */
-export function BadgeCard({ state, onInput, onMap }: BoxProps & { onMap(): void }) {
-  // 보상 · 버튼 줄이 넘치면 한 단계 — Enter 키 칸을 빼고 배지와 글 사이 6 (폭 경계 330 고정이라 맥 331 ~ 333 에서 버튼 묶음이 셋째 줄로 내려가 카드가 주인공을 덮던 것, 개발 UX #70 · U4)
-  const card = useRef<HTMLDivElement>(null);
-  const [tight, setTight] = useState(false);
-  // 첫 줄 (배지 이름 + 뒷말) 이 넘치면 뒷말을 뺌 — 맥 240 ~ 274 에서 "모든 지역 열" 로 잘리던 것 (UX 리뷰어 #75 · 맥 여유 1.1)
-  const [tailOff, setTailOff] = useState(false);
+const BADGE_FIT_MAX = 6;
+/** 자동 남은 초 칩 (길 위 상자 · 클리어 · 패배 · 관장 카드 — 같은 부품) · ▶ 와 숫자 사이는 3 그대로 (아트 2바퀴).
+ *  10 → 9 처럼 칩이 "10초" 보다 좁아지면 줄어든 만큼을 버튼 양옆 안 여백에 정수로 나눠 둠 — 버튼 폭 · 카드 자리가 그대로 (카드가 흔들리던 것 #127 UX) 이고 글은 가운데 (숨은 0 을 앞 · 뒤에 두면 ▶ 뒤나 버튼 오른쪽이 한 자리 비던 것, 아트 2 · 3바퀴).
+ *  paused = 보는 동안만 세는 카드 (관장) 가 밖 · 숨김이라 멈춤 → "‖ 멈춤" (U6 — 칩이 "10초" 로 멈춘 채 남아 왜 안 가는지 모르던 것 · 기다림 한 줄과 같은 멈춤 막대, UX 2 · 3바퀴) · 폭 차이는 위 여백으로 */
+function AutoSec({ n, paused = false }: { n: number; paused?: boolean }) {
+  const ref = useRef<HTMLSpanElement>(null);
   useLayoutEffect(() => {
-    const el = card.current;
-    const line = el?.querySelector<HTMLElement>('.pg-badge-lines > .pg-line');
-    if (!el || !line || tailOff || line.clientWidth === 0) return;
-    const kids = [...line.children].filter((c): c is HTMLElement => c instanceof HTMLElement && c.offsetWidth > 0);
-    const need = kids.reduce((w, c) => w + c.scrollWidth * 1.1, 0) + 4 * Math.max(0, kids.length - 1);
-    if (need > line.clientWidth + 0.5 && line.querySelector('.pg-badge-tail')?.getClientRects().length) setTailOff(true);
+    const el = ref.current;
+    const btn = el?.closest<HTMLElement>('.pg-button');
+    if (!el || !btn) return;
+    btn.style.paddingLeft = '';
+    btn.style.paddingRight = '';
+    // 잣대 "10초" 를 잴 때만 잠깐 붙임 (늘 두면 9초일 때 잣대가 버튼 안쪽 끝을 넘어 잘림으로 재짐)
+    const probe = document.createElement('span');
+    probe.textContent = '10초';
+    probe.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap';
+    el.appendChild(probe);
+    const full = probe.getBoundingClientRect().width;
+    probe.remove();
+    // "10초" 보다 좁으면 여백을 늘리고 ("9초") 넓으면 줄임 ("‖ 멈춤") — 여백은 2 아래로 안 내림
+    const extra = full - el.getBoundingClientRect().width;
+    if (Math.abs(extra) >= 0.5) {
+      const cs = getComputedStyle(btn);
+      const half = Math.floor(extra / 2);
+      btn.style.paddingLeft = `${Math.max(2, parseFloat(cs.paddingLeft) + half)}px`;
+      btn.style.paddingRight = `${Math.max(2, parseFloat(cs.paddingRight) + extra - half)}px`;
+    }
+    return () => {
+      btn.style.paddingLeft = '';
+      btn.style.paddingRight = '';
+    };
   });
-  useLayoutEffect(() => {
-    const el = card.current;
-    if (!el || tight) return;
-    const row = el.querySelector<HTMLElement>('.pg-badge-row');
-    const glow = el.querySelector<HTMLElement>('.pg-badge-glow');
-    if (!row || !glow || row.clientWidth === 0) return;
+  return (
+    <span ref={ref} class={`pg-sub pg-auto-sec${paused ? ' pg-auto-paused' : ''}`} title={paused ? '보는 동안만 세요 — 패널을 누르면 이어서' : undefined}>
+      {paused ? <span class="pg-auto-stop">멈춤</span> : `${n}초`}
+    </span>
+  );
+}
+export function BadgeCard({ state, onInput, onMap }: BoxProps & { onMap(): void }) {
+  // 보상 · 버튼 줄이 넘치면 한 단계 (폭 경계 330 고정이라 맥 331 ~ 333 에서 버튼 묶음이 셋째 줄로 내려가 카드가 주인공을 덮던 것, 개발 UX #70 · U4)
+  // 1 = 키 칸을 빼고 배지와 글 사이 6 · 2 = "대기실" · 3 = [지도] (카드에서도 [M]) · 4 = 관장 타입 · 5 = 큰 배지 칸 대신 첫 줄 앞 작은 배지 · 6 = 버튼 옆 여백 10 → 4 (맥 240 자동 고르기 "해변 ▶ 10초") (#127 — 240 · 맥 480 에서 버튼이 두 줄로 내려가 주인공을 덮던 것 · 고를 근거 (타입) 를 지도보다 늦게 뺌)
+  const card = useRef<HTMLDivElement>(null);
+  const [fit, setFit] = useState(0);
+  // 첫 줄 (배지 이름 + 뒷말) 이 넘치면 한 단계 — 0 긴 말 · 1 짧은 말 · 2 뺌 (맥 240 ~ 274 에서 "모든 지역 열" 로 잘리던 것 — UX 리뷰어 #75 · 맥 여유 1.1).
+  //   짧은 말도 폭으로 (360 media 였을 때 361 ~ 384 는 긴 말이 넘쳐 통째로 빠지고 더 좁은 306 ~ 360 은 짧은 말이 보이던 것 — 픽셀 #127)
+  const [tailFit, setTailFit] = useState(0);
+  // 관장 이름표가 카드 밑에 깔리면 숨김 — 폭 경계 (480) 대신 실제 겹침 (#127 아트 — 카드가 넓어져 500 에서 "관장 나래" 윗부분이 잘림)
+  const [overTag, setOverTag] = useState(false);
+  // 카드가 쓸 수 있는 글 폭 = 패널 − 양옆 8 − 카드 테두리 · 안쪽 − 배지 칸 − 사이 (첫 줄 · 버튼 줄 같은 기준 — 줄 자기 폭과 견주면 첫 줄이 가장 긴 카드에서 넓은 패널에서도 늘 뒷말이 빠지던 것, 아트 · UX #127)
+  const roomOf = (el: HTMLElement) => {
     const cs = getComputedStyle(el);
     const edge = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth);
     const parent = el.offsetParent instanceof HTMLElement ? el.offsetParent.clientWidth : window.innerWidth;
-    const room = parent - 16 - edge - glow.offsetWidth - (parseFloat(cs.columnGap) || 0);
-    const kids = [...row.children].filter((c): c is HTMLElement => c instanceof HTMLElement && c.offsetWidth > 0);
-    const gap = parseFloat(getComputedStyle(row).columnGap) || 0;
-    const need = kids.reduce((w, c) => w + c.scrollWidth * 1.1, 0) + gap * Math.max(0, kids.length - 1);
-    if (need > room + 0.5) setTight(true);
+    const glow = el.querySelector<HTMLElement>('.pg-badge-glow');
+    return parent - 16 - edge - (glow?.offsetWidth ? glow.offsetWidth + (parseFloat(cs.columnGap) || 0) : 0);
+  };
+  // 줄 안 낱낱의 폭 × 1.1 (맥) + 바깥 여백 + 사이 — 버튼 묶음은 버튼마다 (묶음이 접히면 묶음 폭이 줄어든 폭이라 넘침을 못 봄)
+  const needOf = (line: HTMLElement) => {
+    const kids = [...line.children].flatMap((c) => (c.classList.contains('pg-badge-btns') ? [...c.children] : [c])).filter((c): c is HTMLElement => c instanceof HTMLElement && c.offsetWidth > 0);
+    const gap = Math.max(parseFloat(getComputedStyle(line).columnGap) || 0, kids.some((c) => c.parentElement !== line) ? 6 : 0);
+    return kids.reduce((w, c) => {
+      const cs = getComputedStyle(c);
+      return w + c.scrollWidth * 1.1 + (parseFloat(cs.marginLeft) || 0) + (parseFloat(cs.marginRight) || 0);
+    }, 0) + gap * Math.max(0, kids.length - 1);
+  };
+  useLayoutEffect(() => {
+    const el = card.current;
+    const line = el?.querySelector<HTMLElement>('.pg-badge-lines > .pg-line');
+    if (!el || !line || tailFit >= 2 || line.clientWidth === 0 || !line.querySelector('.pg-badge-tail')?.getClientRects().length) return;
+    if (needOf(line) > roomOf(el) + 0.5) setTailFit(tailFit + 1);
   });
+  useLayoutEffect(() => {
+    const el = card.current;
+    if (!el || fit >= BADGE_FIT_MAX) return;
+    const row = el.querySelector<HTMLElement>('.pg-badge-row');
+    if (!row || row.clientWidth === 0) return;
+    if (needOf(row) > roomOf(el) + 0.5) setFit(fit + 1);
+  });
+  useLayoutEffect(() => {
+    const el = card.current;
+    const tag = el?.ownerDocument.querySelector<HTMLElement>('#pokemon-game .pg-foe-trainer .pg-nametag');
+    const a = el?.getBoundingClientRect();
+    const b = tag?.getBoundingClientRect();
+    const over = !!a && !!b && b.width > 0 && a.left - 2 < b.right && b.left < a.right + 2 && a.top - 2 < b.bottom && b.top < a.bottom + 2;
+    if (over !== overTag) setOverTag(over);
+  });
+  // 패널 크기가 바뀌거나 글꼴이 늦게 오면 (400ms · fonts.ready) 처음부터 다시 잼 — useFit 과 같게 (새 창 첫 장면에서 늦은 글꼴로 재 240 에서 안 줄던 것)
+  const [, setAgain] = useState(0);
   useEffect(() => {
     const reset = () => {
-      setTight(false);
-      setTailOff(false);
+      setFit(0);
+      setTailFit(0);
+      setAgain((n) => n + 1);
     };
-    window.addEventListener('resize', reset);
-    return () => window.removeEventListener('resize', reset);
+    // 크기가 바뀐 뒤 0.2초에 한 번 더 그림 — 관장 자리는 무대가 늦게 옮겨 이름표 겹침을 옛 자리로 재 숨은 채 남던 것 (픽셀 #127)
+    let late = 0;
+    const onResize = () => {
+      reset();
+      window.clearTimeout(late);
+      late = window.setTimeout(() => setAgain((n) => n + 1), 200);
+    };
+    window.addEventListener('resize', onResize);
+    const t = window.setTimeout(reset, 400);
+    void document.fonts?.ready.then(reset);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      window.clearTimeout(t);
+      window.clearTimeout(late);
+    };
   }, []);
   if (state.runtime.stage?.phase !== 'badge') return null;
   const region = regionHere(state.save.location);
   const map = regionsOn(state) ? mapView(state) : null;
   const opened = map?.regions.find((r) => isNewRegion(r, state.save.stages));
+  const item = region.firstWinItem;
+  const st = state.runtime.stage;
+  // 다시 이긴 관장 (#127) — 배지 · 첫 승 물건 말 없이 · 다음 지역 버튼은 같게 · 클리어 카드와 같은 무게 (보통 테두리 · 작은 배지 · 뒷말 없음 — 새 소식처럼 읽히던 것, 아트 · UX)
+  const again = st.again === true;
+  // 다음 곳 (#127 태현 님 "관장을 깨고 나서 다음판으로 이동하는게 세계지도를 눌러서 가야되서 불편") — 엔진 gymNext: go 한 곳 · pick 두 곳 · map 다 깸
+  const next = gymNext(state);
+  const k = state.save.regions.order.length + 1;
+  // 고를 두 곳의 레벨대는 같음 (k 번째 지역 첫 스테이지) — 칸마다 되풀이하지 않고 뒷말에 한 번 (아트 · UX #127)
+  const [lo, hi] = regionLevelBand(k, 0);
   // 뒷말 — 새 지역 이름만 빨강 (0장 중요한 낱말 · SoS 2f) · 본편 "준비 중" 은 흐리게
   // 360 아래 (새 지역 표가 없을 때만 뒷말이 남음) 는 짧은 말 — 240 에서 "모든 지역을 열었어" 로 잘리던 것 (U4)
-  const tail = map?.next.length ? (
+  const tail = again ? null : map?.next.length ? (
     <>
-      <span class="pg-tail-long">다음 지역을 골라요</span>
+      <span class="pg-tail-long">
+        다음 지역을 골라요 <span class="pg-sub">Lv {lo}~{hi}</span>
+      </span>
       <span class="pg-tail-short">다음 지역 고르기</span>
     </>
   ) : opened ? (
@@ -514,45 +598,135 @@ export function BadgeCard({ state, onInput, onMap }: BoxProps & { onMap(): void 
       <span class="pg-tail-short">다음 지역 준비 중</span>
     </span>
   );
-  const item = region.firstWinItem;
+  // 다시 이긴 관장 = 주 버튼이 대기실 · 다시 도전 (기획 B 10-28 — Enter · 자동 · 금색이 한 곳 · 키는 main.ts 개발 08123f97: Enter = 대기실 · 2 = 다음 지역)
+  const stayMain = again;
+  // 자동 전투면 남은 초 (클리어 카드와 같은 "N초" 칩 · 늘 주 버튼에) — 첫 승 = 다음 지역으로 · 다시 이김 = 대기실로 (엔진) · 처음부터 그림 (ms 가 없는 첫 장면에 빠졌다 1초에 생겨 카드가 튀던 것 — UX 큼 U2, 열쇠 stageViewKey 와 같은 셈)
+  const autoLeft = badgeAutoLeft(state);
+  // 엔진은 보는 동안만 셈 (밖 · 숨김이면 기다림 — play.ts badge) → 칩도 멈춤으로
+  const autoPaused = state.runtime.away === true || state.runtime.headless === true;
+  // 지역 한 칸 — 이름 · 관장이 가장 많이 쓰는 타입 (고를 근거). 그림은 넣지 않음 (금색 주 버튼 위에서 묻혀 둘째 칸이 더 또렷하던 것 — 6장 "주 버튼 안 아이콘 없음", 아트 큼)
+  const regionCell = (id: RegionId) => {
+    const types = regionGymTeam(REGIONS[id], k).flatMap(([dex]) => speciesOf(dex)?.types ?? []);
+    const top = types.sort((a, b) => types.filter((t) => t === b).length - types.filter((t) => t === a).length)[0];
+    return (
+      <>
+        {REGIONS[id].name}
+        {top && <span class="pg-sub pg-badge-facts">{typeNameKo(top)} 관장</span>}
+      </>
+    );
+  };
+  const toLabel = next.kind === 'go' ? (next.to === 'gym' ? `${REGIONS[next.region].name} 체육관` : `${REGIONS[next.region].name} ${stageCode(next.to)}`) : '';
   return (
-    <div class={`pg-banner pg-badge-card${tight ? ' pg-badge-tight' : ''}${tailOff ? ' pg-badge-notail' : ''}`} ref={card}>
+    <div
+      class={`pg-banner pg-badge-card${fit >= 1 ? ' pg-badge-tight' : ''}${Array.from({ length: Math.max(0, fit - 1) }, (_, i) => ` pg-badge-tight${i + 2}`).join('')}${tailFit === 1 ? ' pg-badge-tailshort' : ''}${tailFit >= 2 ? ' pg-badge-notail' : ''}${again ? ' pg-badge-again' : ''}${overTag ? ' pg-badge-overtag' : ''}`}
+      ref={card}
+    >
+      {/* 배지 칸 = 40 × 40 얼굴 칸 (레벨업 얼굴 카드 · SoS 2f) 안 32 배지 */}
       <span class="pg-badge-glow">
         <Icon name={badgeIcon(region.id, true)} title={region.badgeName} />
       </span>
       {/* 좁으면 (480 아래) 첫 줄 뒷말을 빼고, 보상 · 버튼은 넘치면 버튼 묶음이 다음 줄 (240 에서 카드가 패널 밖으로 나가 [Enter 세계 지도] 가 "Ent" 로 잘리던 것 — 아트 디렉터 밤 점검) */}
       <span class="pg-badge-lines">
         <span class="pg-line">
+          <span class="pg-badge-mini">
+            <Icon name={badgeIcon(region.id)} title={region.badgeName} />{' '}
+          </span>
           <b>
-            {region.badgeName}
-            {josaOf(region.badgeName, '을/를')} 받았다!
-          </b>{' '}
-          {/* "숲 클리어!" 만 480 아래에서 빼고 뒷말 (이번 소식) 은 360 아래에서만 뺌 — 480 · 240 에서 새 소식이 통째로 사라지던 것 (아트 디렉터) */}
-          <span class="pg-long">{region.name} 클리어! </span>
-          <span class="pg-badge-tail">{tail}</span>
+            {again ? (
+              '관장을 다시 이겼다!'
+            ) : (
+              <>
+                {region.badgeName}
+                {josaOf(region.badgeName, '을/를')} 받았다!
+              </>
+            )}
+          </b>
+          {/* "숲 클리어!" 는 뺌 — "배지를 받았다" 와 같은 뜻 (원칙 5 글은 반으로, 아트 #127) · 뒷말 (이번 소식) 은 360 아래에서만 뺌 */}
+          {tail && (
+            <>
+              {' '}
+              <span class="pg-badge-tail">{tail}</span>
+            </>
+          )}
         </span>
         {/* 돈 · 첫 승 물건은 바로 앞 결과 상자가 보여 줌 — 카드에서 또 보여 두 번 받은 것처럼 읽히던 것 (#70 개발 UX) · 받은 것은 title 에 */}
-        <span class="pg-line pg-badge-row" title={`받은 것: ${formatMoney(regionGymMoney(regionOrder(region.id)))} · ${itemName(item)}`}>
-          {/* 360 아래 = 뒷말 대신 지도 탭과 같은 표 "[해변 그림] 해변 NEW" (카드 · 알림 · 탭이 같은 표로 이어짐) */}
-          {opened && (
+        <span class="pg-line pg-badge-row" title={again ? '관장을 다시 이겼어요' : `받은 것: ${formatMoney(regionGymMoney(regionOrder(region.id)))} · ${itemName(item)}`}>
+          {/* 360 아래 = 뒷말 대신 지도 탭과 같은 표 "[해변 그림] 해변 NEW" (카드 · 알림 · 탭이 같은 표로 이어짐) — 주 버튼이 그 지역이면 안 띄움 */}
+          {!again && opened && !(next.kind === 'go' && next.region === opened.id) && (
             <span class="pg-reward pg-badge-newtag" title={`새 지역 ${opened.name}`}>
               <Icon name={regionIcon(opened.id)} /> {opened.name}
               <span class="pg-region-new">NEW</span>
             </span>
           )}
+          {/* 버튼 묶음은 배지 · 글이 1초 보인 뒤 (U1 — 결과 상자 Enter 두 번에 카드가 지나가던 것 · 키도 main.ts 가 1초 거름) */}
           <span class="pg-badge-btns">
-            <Button
-              onClick={() => {
-                onInput({ kind: 'badge-continue' });
-                onMap();
-              }}
-              title="Enter"
-            >
-              <KeyCap k="Enter" /> 세계 지도
-            </Button>
-            <Button secondary onClick={() => onInput({ kind: 'badge-continue' })}>
-              대기실로
-            </Button>
+            {/* 다시 이긴 관장 = 주 버튼이 대기실 · 다시 도전 (자동 10초가 가는 곳 · 되풀이해 키우던 흐름 — 기획 B 10-28: 한 카드에 기본이 둘이라 Enter 두 번에 체육관을 떠나던 것) · 다음 지역은 작은 버튼 [2] (고르기면 [1] [2]) */}
+            {stayMain && (
+              <Button onClick={() => onInput({ kind: 'badge-continue' })} title="Enter · Esc — 대기실에 남아 관장에게 다시 도전해요">
+                <KeyCap k="Enter" /> 대기실<span class="pg-badge-stay"> · 다시 도전</span>
+                {autoLeft !== null && <AutoSec n={autoLeft} paused={autoPaused} />}
+              </Button>
+            )}
+            {next.kind === 'go' &&
+              (stayMain ? (
+                <Button secondary extraClass="pg-badge-dest" onClick={() => onInput({ kind: 'badge-next' })} title={`2 — ${toLabel} 으로 떠나요`}>
+                  <KeyCap k="2" /> {toLabel}
+                </Button>
+              ) : (
+                // 주 버튼 하나 = 다음 지역 (클리어 카드 [Enter 다음 스테이지 ▶] 와 같은 부품)
+                <Button onClick={() => onInput({ kind: 'badge-next' })} title={`Enter — ${toLabel} 으로 떠나요`}>
+                  <KeyCap k="Enter" /> {toLabel} ▶{autoLeft !== null && <AutoSec n={autoLeft} paused={autoPaused} />}
+                </Button>
+              ))}
+            {next.kind === 'pick' &&
+              next.regions.map((id, i) =>
+                // 고를 두 곳 = 첫째 (상성 좋은 쪽) 가 주 버튼 Enter · 둘째는 작은 버튼 [2] — 두 칸 뒤 [지도] · [대기실] 과는 한 칸 더 띄움 (갈 곳 둘이 한 묶음으로)
+                i === 0 && !stayMain ? (
+                  <Button key={id} extraClass="pg-badge-pick" onClick={() => onInput({ kind: 'badge-next', region: id })} title={`Enter · 1 — ${REGIONS[id].name} 지역을 열고 떠나요 (상성이 더 좋은 쪽)`}>
+                    <KeyCap k="Enter" /> {regionCell(id)} ▶{autoLeft !== null && <AutoSec n={autoLeft} paused={autoPaused} />}
+                  </Button>
+                ) : (
+                  <Button key={id} secondary extraClass={stayMain ? 'pg-badge-pick pg-badge-dest' : 'pg-badge-pick'} onClick={() => onInput({ kind: 'badge-next', region: id })} title={`${stayMain ? i + 1 : 2} — ${REGIONS[id].name} 지역을 열고 떠나요`}>
+                    <KeyCap k={String(stayMain ? i + 1 : 2)} /> {regionCell(id)}
+                  </Button>
+                ),
+              )}
+            {next.kind === 'map' && !stayMain ? (
+              <Button
+                onClick={() => {
+                  onInput({ kind: 'badge-continue' });
+                  onMap();
+                }}
+                title="Enter · M"
+              >
+                <KeyCap k="Enter" /> 세계 지도
+              </Button>
+            ) : (
+              <Button
+                secondary
+                extraClass="pg-badge-map"
+                onClick={() => {
+                  onInput({ kind: 'badge-continue' });
+                  onMap();
+                }}
+                title="M — 세계 지도 (대기실에 남고 지도를 열어요)"
+              >
+                <Icon name="map" />
+                <span class="pg-long"> 지도</span>
+              </Button>
+            )}
+            {!stayMain && (
+              <Button secondary onClick={() => onInput({ kind: 'badge-continue' })} title="Esc — 대기실에 남기">
+                <KeyCap k="Esc" />{' '}
+                {next.kind === 'map' ? (
+                  '대기실로'
+                ) : (
+                  <>
+                    대기실<span class="pg-badge-stay">에 남기</span>
+                  </>
+                )}
+              </Button>
+            )}
           </span>
         </span>
       </span>

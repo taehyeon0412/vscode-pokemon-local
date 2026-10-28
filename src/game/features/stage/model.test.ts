@@ -8,7 +8,7 @@ import { setRegionOrder } from '../../core/rules/region';
 import { heroLookOf } from '../../data/heroes';
 import { STAGE_IDS } from '../../core/save';
 import { summaryLines } from '../result/model';
-import { BATTLE_STAGE_MAX_PX, battleStage, CONTACT_PX, contactX, foldStatus, foeTrainerView, gymEnterView, gymFrontX, heroX, holdRivalLook, minimapOf, rivalTag, STAGES, sceneBackground, stageLabel, stagePx, stageViewKey, TEAM_ARENA, visibleObjects, WALK_PX_PER_SEC } from './model';
+import { badgeAutoLeft, BATTLE_STAGE_MAX_PX, battleStage, CONTACT_PX, contactX, foldStatus, foeTrainerView, gymEnterView, gymFrontX, heroX, holdRivalLook, minimapOf, rivalTag, STAGES, sceneBackground, stageLabel, stagePx, stageViewKey, TEAM_ARENA, visibleObjects, WALK_PX_PER_SEC } from './model';
 
 function at(progress: number, stage: GameState['runtime']['stage'] = { phase: 'walk' }): GameState {
   const s = createGameState(sampleSave({ stages: { 'forest-1': { seed: 42, progress, cleared: false, defeatedTrainers: [], facilities: [], run: { startMs: 0, caught: 0, trainers: 0, seen: [], reach: 0, retries: 0 } } } }), 1);
@@ -277,5 +277,37 @@ describe('3:3 판 배경 (태현 님 #78 — 시합장)', () => {
       if (was === undefined) delete arena.forest;
       else arena.forest = was;
     }
+  });
+});
+
+describe('관장 카드 자동 남은 초 (#127 UX 큼 — 칩이 1초에 처음 생겨 카드가 튀던 것)', () => {
+  const run0 = { startMs: 0, caught: 0, trainers: 0, seen: [], reach: 0, retries: 0 };
+  const cleared = () => ({ seed: 1, progress: 1, cleared: true, defeatedTrainers: [], facilities: [], run: { ...run0 } });
+  const card = (ms: number | undefined, o: { auto?: boolean; all?: boolean } = {}): GameState => {
+    const base = sampleSave();
+    const save = sampleSave({
+      location: { screen: 'gym' },
+      badges: o.all ? ['forest', 'beach', 'volcano'] : ['forest'],
+      regions: { order: o.all ? ['forest', 'beach', 'volcano'] : ['forest', 'beach'] },
+      stages: { 'forest-1': cleared(), 'forest-2': cleared(), 'forest-3': cleared() },
+      settings: { ...base.settings, autoBattle: o.auto !== false },
+    });
+    const s = createGameState(save, 7);
+    return { ...s, runtime: { ...s.runtime, stage: ms === undefined ? { phase: 'badge' } : { phase: 'badge', ms }, stageId: null } };
+  };
+  it('ms 가 없는 첫 장면도 10초 (칩이 처음부터) — 버튼이 뜨는 1초까지 10 · 그 뒤 1초마다 · 열쇠도 같은 셈', () => {
+    expect(badgeAutoLeft(card(undefined))).toBe(10);
+    expect(badgeAutoLeft(card(16))).toBe(10);
+    expect(badgeAutoLeft(card(1999))).toBe(10);
+    expect(badgeAutoLeft(card(2000))).toBe(9);
+    expect(badgeAutoLeft(card(TIMING.badgeAutoMs - 1))).toBe(1);
+    expect(stageViewKey(card(undefined))).toBe(stageViewKey(card(16)));
+    expect(stageViewKey(card(1999))).not.toBe(stageViewKey(card(2000)));
+  });
+  it('자동 꺼짐 · 첫 승 다 깸 (지도 — 엔진이 기다림) = 칩 없음 · 다시 이김은 다 깸이어도 셈 (대기실로)', () => {
+    expect(badgeAutoLeft(card(0, { auto: false }))).toBeNull();
+    expect(badgeAutoLeft(card(0, { all: true }))).toBeNull();
+    const again = card(0, { all: true });
+    expect(badgeAutoLeft({ ...again, runtime: { ...again.runtime, stage: { phase: 'badge', ms: 0, again: true } } })).toBe(10);
   });
 });

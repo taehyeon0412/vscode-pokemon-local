@@ -343,8 +343,13 @@
             save.stages['forest-3'] = { ...st, progress: 1, cleared: true };
             stageId = null;
             if (place === 'badge') save.badges = ['forest'];
+            // 관장을 이긴 카드 (#127) — 기본 = 해변이 열림 (다음 지역 해변 1-1) · again=1 = 다시 이김 (배지 없음 카드) · nextpick=1 = 고를 두 곳 (해변 · 화산) · badgeall=1 = 다 깸 (지도 버튼)
+            if (place === 'badge') {
+                save.regions = q.get('nextpick') === '1' ? { order: ['forest'], next: ['beach', 'volcano'] } : { order: ['forest', 'beach'] };
+                if (q.get('badgeall') === '1') { save.regions = { order: ['forest', 'beach', 'volcano'] }; save.badges = ['forest', 'beach', 'volcano']; }
+            }
             if (place === 'gym-battle') save.pendingEncounter = { kind: 'gym-leader' };
-            stage = place === 'lobby' ? { phase: 'lobby' } : place === 'badge' ? { phase: 'badge' } : { phase: 'battle', battle: battle('gym', '관장 나래', foeMon('gym0', 46, 'paras', 13), [foeMon('gym1', 44, 'gloom', 14), foeMon('gym2', 12, 'butterfree', 15)]) };
+            stage = place === 'lobby' ? { phase: 'lobby' } : place === 'badge' ? { phase: 'badge', ...(q.get('again') === '1' ? { again: true } : {}) } : { phase: 'battle', battle: battle('gym', '관장 나래', foeMon('gym0', 46, 'paras', 13), [foeMon('gym1', 44, 'gloom', 14), foeMon('gym2', 12, 'butterfree', 15)]) };
         }
         runtime = { rngState: 1, stepAccMs: 0, speed: 1, stage, stageId, toast: null };
     }

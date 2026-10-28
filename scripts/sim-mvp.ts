@@ -12,7 +12,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { BALANCE, TIMING } from '../src/game/core/balance';
 import { canParry, canRiposte, type BattleState } from '../src/game/core/engine/battle';
-import { applyInput, nextStageOf, step } from '../src/game/core/engine/play';
+import { applyInput, gymNext, nextStageOf, step } from '../src/game/core/engine/play';
 import { createGameState, type GameState } from '../src/game/core/engine/state';
 import { maxHpOf } from '../src/game/core/rules/bag';
 import { REGIONS, regionAceLevel } from '../src/game/core/rules/region';
@@ -27,6 +27,9 @@ import { createStartSave, starterList } from '../src/game/features/starter/model
 const STEP = TIMING.simStepMs;
 /** SIM_IDLE=<시간> — 숲 관장 첫 승 뒤 그만큼 1-3 을 되풀이 걷기 (방치 — 선두 Lv · 돈, orders #69 "8시간 방치 35 → 26") */
 const IDLE_H = Number(process.env.SIM_IDLE ?? 0);
+/** SIM_BADGE=next — 관장을 이긴 카드에서 [다음 지역] 을 누름 (#127) */
+const BADGE_NEXT = process.env.SIM_BADGE === 'next';
+let badgeNextUsed = 0;
 // 6시간 넘으면 못 깬 것으로 (해변을 되풀이하면 (SIM_REGIONS) 지역마다 1.5시간 더 · 방치면 그 시간 더)
 // 화산 (SIM_REGION=volcano) = 숲 · 해변 · 화산 세 지역이라 9시간
 const MAX_MS = Math.max(6, process.env.SIM_REGION === 'beach' ? 2 + 1.5 * (Math.max(2, Number(process.env.SIM_REGIONS ?? 2)) - 1) : 0, process.env.SIM_REGION === 'volcano' ? 9 : 0, IDLE_H > 0 ? 3 + IDLE_H : 0) * 60 * 60 * 1000;
@@ -295,6 +298,12 @@ function decide(s: GameState, mem: { resultMs: number; lostGymOnce: boolean; gri
       return applyInput(s, { kind: 'travel', to: nextStageOf(loc.stageId) });
     }
     case 'badge':
+      // SIM_BADGE=next — 관장을 이긴 카드의 [다음 지역] (#127 — 사람이 Enter 를 누르는 길) · 다 깼으면 대기실
+      if (BADGE_NEXT && gymNext(s).kind !== 'map') {
+        const n = applyInput(s, { kind: 'badge-next' });
+        if (n !== s) badgeNextUsed++;
+        return n;
+      }
       return applyInput(s, { kind: 'badge-continue' });
     case 'lobby': {
       // 방치 — 숲 관장을 이긴 뒤 1-3 을 되풀이 (SIM_IDLE)
@@ -549,6 +558,7 @@ for (const sp of START ? starters.slice(0, 1) : starters.filter((x) => ONLY === 
 const ace = Math.max(...leaderTeam(REGIONS.forest).map((m) => m.level));
 console.log(`판 ${results.length} (스타팅 ${starters.length} × ${RUNS}) · ${BALANCE.team.on ? `${modeLabel} (한 판에 3:3 ${avg(results.map((r) => r.teamBattles)).toFixed(1)}번)` : '1:1'}${BALANCE.team.pickLevelGap ? ` · 고르기 레벨 규칙 ${BALANCE.team.pickLevelGap}` : ''} · 잡기 ${CATCH ? '함' : '안 함'} · 연타 ${MASH ? '함' : '안 함'} · 패링 ${PARRY} · 계산 ${((Date.now() - started) / 1000).toFixed(0)}초 · 관장 에이스 Lv ${ace}`);
 console.log(`끝까지 간 판 ${results.filter((r) => r.done).length} / ${results.length}`);
+if (BADGE_NEXT) console.log(`관장 카드 [다음 지역] 으로 바로 간 수 ${badgeNextUsed} (#127)`);
 for (const w of [...STAGE_IDS, 'gym'] as Where[]) {
   const xs = results.map((r) => r.stages[w]);
   console.log(
