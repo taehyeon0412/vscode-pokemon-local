@@ -127,11 +127,13 @@ const LEADER_IVS: Stats = { hp: 20, attack: 20, defense: 20, speed: 20, ultimate
 
 /**
  * 관장 기술 — 그 레벨까지 배우는 기술 중 늦게 배우는 것부터 4개 (피해 기술 먼저 — 관장답게).
- * 돌 진화형의 자기 표 Lv 0 · 1 기술은 진화할 때 받는 주력기라 가장 늦게 배운 것으로 셈 — 이어받은 앞 종 기술 (#129) 에 밀려 아쿠스타가 하이드로펌프를 잃던 것 (테스터)
+ * 돌 진화형의 자기 표 Lv 0 · 1 기술은 진화할 때 받는 주력기라 가장 늦게 배운 것으로 셈 — 이어받은 앞 종 기술 (#129) 에 밀려 아쿠스타가 하이드로펌프를 잃던 것 (테스터).
+ * 교환 · 조건 진화형 (#132) 은 원작 표 그대로 — Lv 1 이 대개 약한 기술 (팬텀 핥기 · 밀로틱 김밥말이) 이라 주력기로 세면 하이드로펌프를 잃고 (코드 리뷰어) ·
+ * 이어받은 표를 쓰면 이어받은 Lv 15 몸통박치기가 자기 Lv 14 회오리를 밀어냄 (테스터) — 관장 기술은 그대로 (기획 orders #132)
  */
-function leaderMoves(dex: number, level: number): ReadonlyMove[] {
+export function leaderMoves(dex: number, level: number): ReadonlyMove[] {
   const evolvedMain = itemEvolvedFrom(dex) !== undefined ? new Set(learnsetOwnOf(dex).filter(([lv]) => lv <= 1).map(([, id]) => id)) : null;
-  const table = evolvedMain ? [...learnsetOf(dex).filter(([, id]) => !evolvedMain.has(id)), ...learnsetOf(dex).filter(([, id]) => evolvedMain.has(id))] : learnsetOf(dex);
+  const table = evolvedMain ? [...learnsetOf(dex).filter(([, id]) => !evolvedMain.has(id)), ...learnsetOf(dex).filter(([, id]) => evolvedMain.has(id))] : learnsetOwnOf(dex);
   const learned: ReadonlyMove[] = [];
   for (const [lv, id] of table) {
     // 진화 기술 (Lv 0) 도 (orders #64)

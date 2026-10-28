@@ -2,11 +2,11 @@
 import { describe, expect, it } from 'vitest';
 import { sampleMonster } from '../../../test/fixtures/save';
 import { Rng } from '../engine/rng';
-import { allSpecies, itemEvolvedFrom, learnsetOf, learnsetOwnOf, moveOf } from '../../data';
+import { allSpecies, evolutionsOf, itemEvolvedFrom, learnsetFrom, learnsetOf, learnsetOwnOf, moveOf, SPARSE_LEARNSET_MAX } from '../../data';
 import { evolutionMoves, levelUpChoices, movesLearnedAt } from './growth';
 import { wildMoves } from './monster';
 import { REGIONS } from './region';
-import { leaderTeam } from './trainer';
+import { leaderMoves, leaderTeam } from './trainer';
 
 const RAICHU = 26;
 const PIKACHU = 25;
@@ -37,15 +37,16 @@ describe('돌 · 아이템 진화형은 바로 앞 진화 전 종의 기술도 �
     }
   });
 
-  it('돌 진화형 목록 — 라이츄 · 픽시 · 나인테일 · 라플레시아 · 윈디 · 샤미드 · 쥬피썬더 · 부스터 … 28종 · 레벨 · 친밀도 · 교환 진화형은 원작 표 그대로', () => {
+  it('돌 진화형 목록 — 라이츄 · 픽시 · 나인테일 · 라플레시아 · 윈디 · 샤미드 · 쥬피썬더 · 부스터 … 28종 · 레벨 진화형 · 표가 넉넉한 친밀도 진화형은 원작 표 그대로', () => {
     const list = itemEvolved();
     expect(list).toHaveLength(28);
     for (const dex of [26, 36, 38, 45, 59, 134, 135, 136]) expect(list, String(dex)).toContain(dex);
     expect(itemEvolvedFrom(38)).toBe(37); // 나인테일 ← 식스테일
     expect(itemEvolvedFrom(135)).toBe(133); // 쥬피썬더 ← 이브이
-    // 이상해풀 (레벨) · 피카츄 (친밀도 — 피츄) · 후딘 (교환) · 에브이 (친밀도)
-    for (const dex of [2, 3, 25, 65, 196]) {
-      expect(itemEvolvedFrom(dex), String(dex)).toBeUndefined();
+    // 이상해풀 · 이상해꽃 (레벨) · 피카츄 (친밀도 — 피츄, 표가 넉넉함) · 후딘 (교환) · 에브이 (친밀도) 는 돌 진화형이 아님 — 후딘 · 에브이는 #132 로 이어받음 (아래)
+    for (const dex of [2, 3, 25, 65, 196]) expect(itemEvolvedFrom(dex), String(dex)).toBeUndefined();
+    for (const dex of [2, 3, 25]) {
+      expect(learnsetFrom(dex), String(dex)).toBeUndefined();
       expect(learnsetOf(dex)).toBe(learnsetOwnOf(dex));
     }
   });
@@ -82,5 +83,54 @@ describe('돌 · 아이템 진화형은 바로 앞 진화 전 종의 기술도 �
       expect(own || lv > 20, `기술 ${id} Lv ${lv}`).toBe(true);
     }
     expect(offered).not.toContain(51); // 용해액 (냄새꼬 Lv 1)
+  });
+});
+
+describe('교환 · 조건 진화형도 자기 표가 모자라면 이어받음 (#132 — 2026-10-28 태현 님 "추천대로" · 기준 SPARSE_LEARNSET_MAX)', () => {
+  const hi = (dex: number) => learnsetOwnOf(dex).filter(([lv]) => lv > 2).length;
+  const kindsTo = (dex: number) => allSpecies().flatMap((from) => evolutionsOf(from).filter((e) => e.to === dex).map((e) => e.kind));
+
+  it('왕구리 · 후딘 · 블래키 · 에브이 · 리피아 · 글레이시아 · 팬텀 · 이어롭 … = 바로 앞 종 · 이브이 진화형은 다 이어받음 (돌 셋 + 조건 넷)', () => {
+    expect([186, 65, 197, 196, 470, 471, 94, 428].map((d) => learnsetFrom(d))).toEqual([61, 64, 133, 133, 133, 133, 93, 427]);
+    for (const d of [134, 135, 136, 196, 197, 470, 471]) expect(learnsetFrom(d), String(d)).toBe(133);
+    // 왕구리 = 슈륙챙이 Lv 2 넘는 기술을 같은 레벨에 (자기 표는 Lv 2 넘는 것 둘뿐)
+    expect(hi(186)).toBeLessThanOrEqual(2);
+    for (const [lv, id] of learnsetOwnOf(61)) if (lv > 2 && !learnsetOwnOf(186).some(([, x]) => x === id)) expect(learnsetOf(186), `기술 ${id}`).toContainEqual([lv, id]);
+  });
+
+  it('기준 = 교환 · 친밀도 · 그 밖 진화형 중 자기 표 Lv 2 넘는 기술이 기준 이하만 · 레벨 진화형은 아님 · 표가 넉넉하면 원작 표 그대로', () => {
+    for (const dex of allSpecies()) {
+      const from = learnsetFrom(dex);
+      if (from === undefined || itemEvolvedFrom(dex) !== undefined) continue;
+      const kinds = kindsTo(dex);
+      expect(kinds.some((k) => k !== 'level' && k !== 'item'), String(dex)).toBe(true);
+      expect(hi(dex), String(dex)).toBeLessThanOrEqual(SPARSE_LEARNSET_MAX);
+    }
+    // 야도킹 · 괴력몬 · 딱구리 (교환 — 표가 넉넉함) 는 그대로
+    for (const dex of [199, 68, 76]) {
+      expect(hi(dex), String(dex)).toBeGreaterThan(SPARSE_LEARNSET_MAX);
+      expect(learnsetOf(dex)).toBe(learnsetOwnOf(dex));
+    }
+  });
+
+  it('관장 기술은 돌 진화형만 이어받은 표 + 진화 주력기 · 교환 · 조건 진화형은 원작 표 그대로 — 밀로틱 하이드로펌프 · 회오리 (코드 리뷰어 · 테스터 — 4번째 지역 mid · late 표)', () => {
+    expect(learnsetFrom(350)).toBe(349);
+    for (const lv of [30, 40, 50, 60]) {
+      const ids = leaderMoves(350, lv).map((m) => m.id);
+      if (lv >= 44) expect(ids, `밀로틱 Lv ${lv}`).toContain(56); // 하이드로펌프 (자기 표 Lv 44)
+      expect(ids, `밀로틱 Lv ${lv}`).not.toContain(35); // 김밥말이 (자기 표 Lv 1)
+      expect(ids, `밀로틱 Lv ${lv}`).not.toContain(33); // 몸통박치기 (빈티나에서 이어받은 Lv 15 — 관장은 원작 표, 테스터)
+    }
+    expect(leaderMoves(350, 60).map((m) => m.id).sort()).toEqual([56, 239, 401, 525].sort()); // 하이드로펌프 · 회오리 · 아쿠아테일 · 드래곤테일
+  });
+
+  it('같은 기술은 한 번 · 자기 레벨 그대로 · 레벨 순서 (이어받는 종 모두)', () => {
+    for (const dex of allSpecies().filter((d) => learnsetFrom(d) !== undefined)) {
+      const merged = learnsetOf(dex);
+      const ids = merged.map(([, id]) => id);
+      expect(new Set(ids).size, String(dex)).toBe(ids.length);
+      for (const [lv, id] of learnsetOwnOf(dex)) expect(merged.find(([, x]) => x === id)?.[0], `${dex} 기술 ${id}`).toBe(lv);
+      for (let i = 1; i < merged.length; i++) expect(merged[i]![0]).toBeGreaterThanOrEqual(merged[i - 1]![0]);
+    }
   });
 });

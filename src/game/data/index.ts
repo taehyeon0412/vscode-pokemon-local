@@ -176,14 +176,36 @@ export function itemEvolvedFrom(dex: number): number | undefined {
 }
 
 /**
+ * 교환 · 친밀도 · 그 밖 조건 진화형이 기술표를 이어받는 기준 [임시값] — 자기 표에 Lv 2 넘는 기술이 이만큼 이하 (#132 — 기획 3 → 5:
+ * 3 이면 이브이 진화형이 갈림 — 블래키 3 은 이어받고 에브이 4 · 리피아 · 글레이시아 5 는 못 받음 · 돌 진화형 셋은 #129 로 늘 받음)
+ */
+export const SPARSE_LEARNSET_MAX = 5;
+let inheritFrom: Map<number, number> | null = null;
+/** 기술표를 이어받는 바로 앞 진화 전 종 — 돌 · 아이템 진화형은 늘 (#129) · 교환 · 친밀도 · 그 밖 조건 진화형은 자기 표가 모자랄 때만 (#132) · 레벨 진화형은 없음 */
+export function learnsetFrom(dex: number): number | undefined {
+  if (!inheritFrom) {
+    const map = new Map<number, number>();
+    for (const [from, list] of Object.entries(evolutions)) for (const e of list) if (e.kind === 'item') map.set(e.to, Number(from));
+    for (const [from, list] of Object.entries(evolutions))
+      for (const e of list) {
+        if (e.kind === 'level' || e.kind === 'item' || map.has(e.to)) continue;
+        if (learnsetOwnOf(e.to).filter(([lv]) => lv > 2).length <= SPARSE_LEARNSET_MAX) map.set(e.to, Number(from));
+      }
+    inheritFrom = map;
+  }
+  return inheritFrom.get(dex);
+}
+
+/**
  * 레벨업 기술표 (레벨 순서) — 게임이 쓰는 표 (배우기 · 야생 · 트레이너 · 라이벌 · 진화 기술 모두).
  * 돌 · 아이템으로 진화한 종은 바로 앞 진화 전 종의 기술도 같은 레벨에 (#129 — 2026-10-28 태현 님 B: 라이츄 · 나인테일 · 라플레시아처럼 원작 표가 Lv 1 몇 개뿐이라
- * 진화한 뒤 새 기술이 끝까지 끊기던 것) · 같은 기술은 한 번 (자기 표에 있으면 자기 레벨) · 앞 종의 진화 기술 (레벨 0) 은 안 이어받음 · 원작 표는 learnsetOwnOf
+ * 진화한 뒤 새 기술이 끝까지 끊기던 것) · 교환 · 조건 진화형도 자기 표가 모자라면 (#132 — 왕구리 · 후딘 · 블래키 …, learnsetFrom) ·
+ * 같은 기술은 한 번 (자기 표에 있으면 자기 레벨) · 앞 종의 진화 기술 (레벨 0) 은 안 이어받음 · 원작 표는 learnsetOwnOf
  */
 const mergedLearnsets = new Map<number, readonly LearnsetEntry[]>();
 export function learnsetOf(dex: number): readonly LearnsetEntry[] {
   const own = learnsetOwnOf(dex);
-  const from = itemEvolvedFrom(dex);
+  const from = learnsetFrom(dex);
   if (from === undefined) return own;
   let out = mergedLearnsets.get(dex);
   if (!out) {
