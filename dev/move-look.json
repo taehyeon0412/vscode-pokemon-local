@@ -1,0 +1,3 @@
+{
+  "_doc": "기술마다 모양 (#122 — 디자인 표). 열쇠 = 게임 기술 id (src/game/data/generated/moves.json) · 값 = { fx?: 틀 이름 (moves.js SIG_FX — 안 적으면 지금 틀), 변주 값 (그 틀이 읽는 o.* — speed · life · smoke · n · every · arc · shape · rise · rate · sparkle · dur …), size?: 효과 크기 0.7 ~ 1.4 (안 적으면 위력 40 이하 0.85 ~ 120 이상 1.25 · 변화 기술 1.0) }. 이름이 같은 일반 모드 기술도 같이 바뀜. 고친 뒤: python dev/move-look.py (묶음 make-moves.py → 3:3 박자 move-fx.py → 바뀐 박자 보고). 표에 없는 기술은 예전 그대로."
+}

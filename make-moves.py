@@ -34,6 +34,11 @@ SIGNATURE_FILE = os.path.join(HERE, "signature-moves.json")
 DATA_DIR = os.path.join(HERE, "moves-data")
 ULT_DIR = os.path.join(HERE, "ult")
 STATS_CACHE = os.path.join(HERE, "pokemon-stats.json")
+# 기술마다 모양 (#122 — 디자인 표: 게임 기술 id → {fx?: 틀, 변주 값 …}) · 게임 기술 이름 · 위력
+LOOK_FILE = os.path.join(HERE, "dev", "move-look.json")
+GAME_MOVES_FILE = os.path.join(HERE, "src", "game", "data", "generated", "moves.json")
+# 위력 → 효과 크기 기본 (size — 포켓몬 그림은 그대로, 효과만) [임시값]: 위력 40 이하 0.85 ~ 120 이상 1.25 · 위력 없는 변화 기술 1.0 · 표에 적은 값은 0.7 ~ 1.4 로 자름
+LOOK_SIZE = {"low": 40, "high": 120, "min": 0.85, "max": 1.25, "clamp": (0.7, 1.4)}
 CSV_BASE = "https://raw.githubusercontent.com/PokeAPI/pokeapi/master/data/v2/csv"
 MOVE_OF_TYPE = {"fire": "fire", "water": "water", "electric": "electric", "grass": "grass"}
 # 멀리뛰기 — 개굴닌자 계열 · 개구리 · 토끼 · 피그점프 · 닌자 · 격투가 (도감 번호)
@@ -287,6 +292,56 @@ def moveset(sig, types, bst):
     return [m for m in pool if not (m[0] in seen or seen.add(m[0]))]
 
 
+def look_size(power):
+    """위력 → 효과 크기 기본 (#122)"""
+    if not power:
+        return 1.0
+    t = min(1, max(0, (power - LOOK_SIZE["low"]) / (LOOK_SIZE["high"] - LOOK_SIZE["low"])))
+    return round(LOOK_SIZE["min"] + (LOOK_SIZE["max"] - LOOK_SIZE["min"]) * t, 2)
+
+
+def bundle_table(src, name):
+    """main-bundle.js 의 GAME-PATCH 표 (const 이름 = { 키: '값', … }) — 게임이 기술을 찾는 규칙 (gameMoveEntry) 과 같게"""
+    m = re.search(r"const " + name + r" = \{([^}]*)\};", src)
+    return dict(re.findall(r"(\w+): '([^']+)'", m.group(1))) if m else {}
+
+
+def apply_move_look(lib):
+    """#122 기술마다 모양 — dev/move-look.json 의 값을 이름이 같은 MOVE_LIB 기술에 덮어씀 (일반 모드 그 기술도 같이 바뀜).
+    MOVE_LIB 에 없는 게임 기술은 새로 더함 — 게임은 이름으로 찾고 (gameMoveEntry), 없으면 타입 기본 기술 (GAME_TYPE_MOVE) 을 빌려 모두 같아 보였음.
+    표에 없는 기술은 그대로 (빈 표 = 예전과 같은 묶음). size 를 안 적으면 위력으로 (look_size)"""
+    if not os.path.exists(LOOK_FILE):
+        return 0
+    looks = {k: v for k, v in json.load(open(LOOK_FILE, encoding="utf-8")).items() if not k.startswith("_")}
+    if not looks:
+        return 0
+    moves = json.load(open(GAME_MOVES_FILE, encoding="utf-8"))
+    src = open(BUNDLE, encoding="utf-8").read()
+    alias = bundle_table(src, "GAME_MOVE_ALIAS")
+    type_move = bundle_table(src, "GAME_TYPE_MOVE")
+    for mid, look in looks.items():
+        mv = moves.get(mid)
+        if not mv or not isinstance(look, dict):
+            sys.exit(f"dev/move-look.json: 게임에 없는 기술 id {mid} (또는 값이 표가 아님)")
+        look = dict(look)
+        fx = look.pop("fx", None)
+        lo, hi = LOOK_SIZE["clamp"]
+        look["size"] = round(min(hi, max(lo, float(look["size"]))), 2) if "size" in look else look_size(mv.get("power"))
+        name = alias.get(mv["name"]["ko"], mv["name"]["ko"])
+        hits = [m for m in lib if m[0] == name]
+        if not hits:
+            base = next((m for m in lib if m[0] == type_move.get(mv["type"], "몸통박치기")), lib[0])
+            hits = [[name, base[1], dict(base[2]) if len(base) > 2 else {}]]
+            lib.append(hits[0])
+        for m in hits:
+            if fx:
+                m[1] = fx
+            if len(m) < 3:
+                m.append({})
+            m[2] = {**m[2], **look}
+    return len(looks)
+
+
 def write_bundle(table, acts, lib, movesets, shape, ult_lib, ults, out):
     src = open(BUNDLE, encoding="utf-8").read()
     # 지난번 블록 지우기 — 한 줄짜리(연결)부터, 그다음 여러 줄(코드)
@@ -416,8 +471,11 @@ def main():
             acts[key] = "jump"
         elif "flying" in types.get(dex, []) and dex not in WINGLESS:
             acts[key] = "fly"
+    looked = apply_move_look(lib)
     write_bundle(table, acts, lib, movesets, shape, ult_lib, ults, out)
     subprocess.run(["node", "--check", out], check=True)
+    if looked:
+        print(f"기술마다 모양 (dev/move-look.json) {looked}개 — 다음은 python dev/move-fx.py (3:3 박자)")
     write_ult_moves(ult_lib, ults)
     counts = {m: sum(1 for v in table.values() if v[0] == m) for m in MOVE_OF_TYPE.values()}
     print(f"기술 {len(table)}종 — " + " · ".join(f"{m} {n}" for m, n in counts.items()))
