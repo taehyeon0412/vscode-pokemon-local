@@ -8,6 +8,8 @@ export {
   canOpenMenus,
   canShop,
   canSwapBox,
+  canRelease,
+  canOpenTeam,
   canTravel,
   gymUnlocked,
   openNextRegion,

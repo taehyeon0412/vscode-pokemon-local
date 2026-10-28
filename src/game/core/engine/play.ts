@@ -10,7 +10,7 @@
  * 상태는 늘 새 객체로 만듦 (그 자리에서 고치지 않음 — 확장 ↔ 웹뷰 · 저장소가 같은 객체를 나눠 써도 안 바뀌게).
  */
 import { BALANCE, TIMING } from '../balance';
-import { buy, canBuyCandy, healTeam, isShopItem, moveInTeam, sell, spendPoint, swapWithBox, teamHealth, toBox, useFieldItem, walkRegen } from '../rules/bag';
+import { buy, canBuyCandy, healTeam, isShopItem, moveInTeam, release, sell, spendPoint, swapWithBox, teamHealth, toBox, useFieldItem, walkRegen } from '../rules/bag';
 import { createWild, encounterStart, pickupAt, planWild, wildKey } from '../rules/encounter';
 import { itemName, requestAt, resolveRequest } from '../rules/request';
 import { DAILY_BONUS, dailyAdd, dailyDone, dailyFor, dailyLabel, dayFarAhead, trainersLeft } from '../rules/daily';
@@ -91,6 +91,8 @@ export type GameInput =
   | { kind: 'team-move'; uid: string; dir: -1 | 1 }
   | { kind: 'team-swap'; boxUid: string; partyUid: string | null }
   | { kind: 'team-to-box'; uid: string }
+  /** S18 ⑥ 놓아주기 (#121) — 팀 · 보관함 어디서나 (전투 · 고르기 중 빼고) · 확인 상자는 화면이 */
+  | { kind: 'release'; uid: string }
   /** n = 한 번에 찍을 포인트 (Shift + 클릭 = 5 — 기획 R16, 남은 만큼까지) */
   | { kind: 'points'; uid: string; stat: StatKey; n?: number }
   /** S19 — 전투 밖에서 아이템 (돌 · 연결의끈은 S22 로) */
@@ -1272,6 +1274,12 @@ const inLobby = (state: GameState) => state.save.location.screen === 'gym' && ph
 export function canSwapBox(state: GameState): boolean {
   return inFacility(state, 'hospital') || inLobby(state) || (state.save.location.screen === 'stage' && phaseOf(state) === 'clear');
 }
+/** S18 내 포켓몬 판을 열 수 있는 때 (전투 · 만남 · 진화 · 기술 고르기 중 아님) — 판 (webview/app overlayAllowed) 과 놓아주기가 같이 씀 (한 벌 — 코드 리뷰어 #121) */
+export function canOpenTeam(state: GameState): boolean {
+  return !inBattle(state) && phaseOf(state) !== 'choice';
+}
+/** S18 ⑥ 놓아주기 (#121) — 판을 열 수 있으면 됨 */
+export const canRelease = canOpenTeam;
 /** S13 ① 회복 */
 export function canHeal(state: GameState): boolean {
   return inFacility(state, 'hospital') || inLobby(state);
@@ -1633,6 +1641,25 @@ export function applyInput(state: GameState, input: GameInput): GameState {
       if (!canSwapBox(state)) return state;
       const next = input.kind === 'team-swap' ? swapWithBox(save, input.boxUid, input.partyUid) : toBox(save, input.uid);
       return next ? { ...state, save: next } : state;
+    }
+    case 'release': {
+      if (!canRelease(state)) return state;
+      const m = save.monsters[input.uid];
+      const next = release(save, input.uid);
+      if (!next || !m) return state;
+      let st = stage;
+      // 대기실 3마리 고르기에 든 칸도 뺌 (빈 자리는 판이 다시 채우지 않음 — 사람이 고름) · 3:3 이 안 되면 고르기 판을 닫음 (도전 Enter 가 아무 일 없던 것 — 코드 리뷰어)
+      if (st?.phase === 'lobby') {
+        if (st.pick?.includes(input.uid)) st = { ...st, pick: st.pick.filter((u) => u !== input.uid) };
+        if (st.picking && teamLockOf(next, state.runtime) === 'few') st = { phase: 'lobby', ...(st.pick ? { pick: st.pick } : {}) };
+      }
+      // 잡은 소개 카드 중에 그 포켓몬을 놓으면 소개를 건너뜀 (카드는 사라졌는데 엔진은 소개 중이라 결과 상자가 3초 더 남던 것 — 코드 리뷰어)
+      if (st?.phase === 'result' && st.summary.caught?.uid === input.uid) st = { ...st, ms: Math.max(st.ms, TIMING.caughtIntroMs) };
+      // 3:3 두 번째 패배 상자의 남은 수 (#152)
+      if (st?.phase === 'defeat' && st.left !== undefined) st = { ...st, left: aliveCount(next) };
+      // 알림 줄은 안 씀 — "○○를 놓아줬다… 잘 지내!" 는 S18 판이 직접 그림 (판이 열린 동안 게임 · 알림이 멈춰, 여럿 놓으면 줄 뒤에 쌓여 앞 알림 (오늘의 목표 ✓) 을 밀어내고
+      //   판을 닫은 뒤 이미 본 말이 2.5초씩 다시 뜨던 것 — 디자인 UX 리뷰어 #121)
+      return { save: next, runtime: { ...state.runtime, stage: st } };
     }
     case 'points': {
       if (inBattle(state)) return state;

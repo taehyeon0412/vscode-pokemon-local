@@ -25,6 +25,8 @@ export const BALANCE = {
   pointOther: 0.7,
   /** ★ 등급 경계 — 개체값 합계 (0~155) 가 이 값 이상이면 ★2 · ★3 · ★4 · ★5 (4장) */
   starThresholds: [32, 63, 94, 125],
+  /** 놓아주기 (#121) 한 번 더 묻는 높은 Lv [임시값] — Lv minLevel 이상이고 (팀에 있음 · 또는 내 포켓몬 가장 높은 Lv 와 nearTop 차이 안) */
+  releaseHigh: { minLevel: 15, nearTop: 5 },
   /** 스타팅 레벨 — 4장. 5 → 6 (2026-10-22 orders #82 — 포인트만 올리면 1-1 에서 풀 · 물 스타팅이 2번 넘게 짐, 6 이면 예전 0.8번과 같음) [임시값] */
   starterLevel: 6,
   /** 스타팅 처음 기술: 후보 수 · 고르는 수 (mvp-spec 3.6 · S04) */

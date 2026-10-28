@@ -4124,6 +4124,73 @@ body.vscode-light .pg-stage.pg-bg-arena-volcano {
   outline: 1px solid var(--pg-sos-gold);
   outline-offset: 1px;
 }
+/* S18 ⑥ 놓아주기 (#121) — 줄 오른쪽 끝 (옮기기 · 바꾸기 버튼과 떨어져 잘못 누르지 않게) · 위험 = 기존 위험 부품 .pg-danger (보조 버튼 + 빨강 글 — 타이틀 [새로 하기] 와 같음)
+   · 못 누름은 모든 버튼과 같은 끊긴 흐린 테두리 · [까닭][버튼] 순서 — 버튼은 늘 오른쪽 끝 (못 누를 때 175px 옮겨 가던 것, 아트 #121) */
+.pg-release {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  /* 까닭 11px · 버튼 글 12px 밑선 맞춤 (까닭이 1px 위에 뜨던 것 — 픽셀 #121) */
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  margin-left: auto;
+}
+/* 까닭 · 묻는 글 · 보관함 안내는 낱말 단위로 줄을 바꿈 (240 에서 "팀의 마지막 한 마리는…" · 맥 "…팀과 바꿔요)" 가 판 밖으로 나가던 것 — U4 · 픽셀 #121) */
+.pg-release-why,
+.pg-release-q,
+.pg-box-only {
+  min-width: 0;
+  white-space: normal;
+  word-break: keep-all;
+}
+.pg-release-why {
+  font-size: 11px;
+}
+/* 확인 줄 — 고른 칸 줄 자리 · 묻는 글 + [아니요] (주 버튼 · 처음 커서) + [놓아주기] · 커서 = 금색 바깥선 */
+.pg-release-ask {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  /* 뜰 때 스크롤로 데려올 때 판 머리 · 아래 "▼ 아래에 더" 띠에 안 걸리게 (240 × 150 맥에서 버튼 아래가 띠에 가리던 것 — UX #121) */
+  scroll-margin: 8px 0 22px;
+}
+/* 커서 = 메뉴와 같은 ▸ 만 (금색 바깥선은 240 에서 줄 상자 밖이라 두 변만 그려지고 · 글과 틈을 3px 로 먹던 것 — 픽셀 #121) (고를 것엔 ▸ — 6장) · 칸 8px 를 늘 두고 커서 쪽만 보임 (자리가 안 흔들림) — 늘 금색 칠인 [아니요] 때문에 커서가 [놓아주기] 에 가도 안 보이던 것 (아트 #121) */
+.pg-release-cur {
+  display: inline-block;
+  width: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--pg-sos-gold);
+  visibility: hidden;
+}
+.pg-on > .pg-release-cur {
+  visibility: visible;
+}
+/* 주 버튼 [아니요] (크림 칠) 위 ▸ 는 글자색 — 금색이면 대비 1.2 : 1 로 거의 안 보이던 것 (UX #121 2바퀴) */
+.pg-button:not(.pg-secondary) > .pg-release-cur {
+  color: currentColor;
+}
+/* 한 번 더 물을 까닭 (이로치 · ★5 · Lv) = 크림 굵게 · ★ 만 금색 (보관함 · 잡은 카드 ★ 와 같은 모양 — 금색 글이면 받은 것 줄처럼 읽히던 것, 아트 #121) */
+.pg-release-warn {
+  color: var(--pg-sos-ink);
+}
+.pg-release-warn .pg-star {
+  letter-spacing: 0;
+}
+/* 놓은 뒤 한 줄 — 상점 note 와 같은 줄 높이 16 · 판 머리와 위 4 (붙어 부제목처럼 보이던 것) */
+.pg-panel-sub:has(.pg-release-note) {
+  padding-top: 4px;
+}
+.pg-release-note {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--pg-sos-ink);
+}
 .pg-sub {
   font-size: 11px;
   font-weight: 500;
@@ -4539,6 +4606,12 @@ body.vscode-high-contrast-light .pg-title-body {
 }
 .pg-button.pg-secondary.pg-danger {
   color: var(--pg-sos-red);
+}
+/* 올리면 — 빨강 그대로 + 밝은 칸 (보조 버튼 올림 규칙이 글을 금색으로 바꿔 위험 표시가 사라지던 것 — 아트 #121 · 타이틀 [새로 하기] · 개발 [끝내기] 도 같이) */
+.pg-button.pg-secondary.pg-danger:hover:not(:disabled) {
+  color: var(--pg-sos-red);
+  border-color: var(--pg-sos-line);
+  background: var(--pg-sos-hi);
 }
 /* 정보줄 아이콘 버튼 = 네모 24px (좁은 패널에서 버튼 넷이 151px 를 먹던 것 → 105px) */
 .pg-infobar .pg-icon-btn {

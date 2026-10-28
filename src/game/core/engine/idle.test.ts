@@ -79,6 +79,11 @@ describe('#35 마지막 기회 — 자동 전투 3초 · 이미 잡은 종 건�
     expect(finish(on, 10)).toBe('over');
     expect(finish(on, 13)).toBe('last');
     expect(finish(save, 10)).toBe('last');
+    // 기준 = 지금 가진 종 (#121 — 2026-10-28 태현 님): 캐터피를 다 놓으면 도감에 잡은 기록이 남아도 다시 볼 기회 · 보관함에만 있어도 건너뜀
+    const released = { ...on, party: ['m1'], monsters: { m1: on.monsters.m1! } };
+    expect(released.dex.caught).toContain(10);
+    expect(finish(released, 10)).toBe('last');
+    expect(finish({ ...on, party: ['m1'], box: ['m2'] }, 10)).toBe('over');
   });
 });
 

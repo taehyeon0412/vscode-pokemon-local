@@ -33,7 +33,7 @@ import {
   type Fighter,
 } from '../rules/battle';
 import { BALLS, catchChance, catchOdds, catchTiming, isBall, type BallId } from '../rules/catch';
-import { healAmount, isHealItem } from '../rules/bag';
+import { healAmount, isHealItem, ownsSpecies } from '../rules/bag';
 import { itemName } from '../rules/items';
 import { effectiveness, effectivenessText } from '../rules/types';
 import { ITEM_IDS, type EncounterStart, type ItemId, type Monster, type MoveSlot, type Save, type StatusCondition } from '../save';
@@ -628,9 +628,9 @@ function afterHits(b0: BattleState, save: Save): BattleState {
     }
     // 볼 기회가 남았을 때만 (3번 다 던졌으면 없음 — 2026-10-20 태현 님)
     const hasBall = BALLS.some((ball) => itemLeft(b, save, ball) > 0) && catchTriesUsed(b) < BALANCE.catchTries;
-    // 이미 잡은 종은 마지막 기회를 건너뜀 (설정, 2026-10-21 ideas #35)
+    // 지금 가진 종 (팀 + 보관함) 은 마지막 기회를 건너뜀 (설정, 2026-10-21 ideas #35 → 2026-10-28 태현 님 "추천으로" — 도감 "잡은 적 있음" 이 아니라 가진 종: 다 놓아준 종은 다시 볼을 던짐 · #121)
     // 이로치는 건너뛰지 않음 (코드 리뷰어)
-    const skip = save.settings.skipCaughtLast === true && save.dex.caught.includes(b.foe.species) && !b.foe.shiny;
+    const skip = save.settings.skipCaughtLast === true && ownsSpecies(save, b.foe.species) && !b.foe.shiny;
     if (b.kind === 'wild' && hasBall && !wiped && !skip) return { ...b, phase: 'last', lastMs: 0, msg: down };
     // 같이 쓰러짐 (반동 · 독) = 진 것 — 트레이너전처럼 내 쪽도 말함 ("야생 ○○이 쓰러졌다!" 만 보이고 패배로 가던 것 — 기획 #25)
     if (wiped) return { ...b, phase: 'over', result: 'lose', overMs: 0, msg: `${down} 내 포켓몬도 다 쓰러졌다… 눈앞이 깜깜해졌다` };

@@ -72,7 +72,8 @@ export function Panel({ icon, title, extra, onClose, closeLabel = '닫기', sub,
       if (e.key !== 'Escape' || e.repeat) return;
       // 세이브 불러오기 확인 상자가 떠 있으면 Esc 는 그 상자 몫 (그만두기 — 판까지 닫히던 것)
       // 세이브 묻는 상자 · 오류 상자가 Esc 를 받음 (결과 한 줄은 아님 — 내보낸 직후 Esc 로 판이 안 닫히던 것, 개발 #48)
-      if (document.querySelector('#pokemon-game .pg-saveio:not(.pg-saveio-result)')) return;
+      // 놓아주기 확인 줄 (#121 TeamPanel) 도 — Esc = 아니요 (판까지 닫히면 놓을 뻔한 포켓몬을 다시 찾아야 함)
+      if (document.querySelector('#pokemon-game .pg-saveio:not(.pg-saveio-result), #pokemon-game .pg-release-ask')) return;
       e.preventDefault();
       e.stopPropagation();
       onClose();

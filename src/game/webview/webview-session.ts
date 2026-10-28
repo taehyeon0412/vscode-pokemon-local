@@ -245,6 +245,8 @@ export class WebviewSession {
     if (next === this.state) return false;
     this.state = next;
     this.dirty = true;
+    // 놓아주기는 되돌릴 수 없음 — 1초 묶음을 기다리지 않고 바로 저장 (곧 꺼지면 놓은 포켓몬이 돌아오던 것 — 코드 리뷰어 #121)
+    if (input.kind === 'release') this.saveNow('release');
     return true;
   }
 

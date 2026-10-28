@@ -2,7 +2,7 @@
  * 전투 밖에서 쓰는 것 (mvp-spec S13 · S14 · S18 · S19 · 3.8) — 화면을 모르는 계산. 세이브는 늘 새 객체로 돌려줌 (못 하면 null).
  *   S13 병원: 팀 전부 회복 (HP · PP · 상태 이상, 무료)
  *   S14 상점: 사기 (값은 4장)
- *   S18 내 포켓몬: 팀 순서 · 보관함과 바꾸기 · 남은 포인트 나누기
+ *   S18 내 포켓몬: 팀 순서 · 보관함과 바꾸기 · 남은 포인트 나누기 · 놓아주기 (#121)
  *   S19 가방: 상처약 · 좋은상처약 · 상태 회복약 · 기력의조각 · 진화의 돌 · 연결의끈 (볼은 전투에서만)
  */
 import { BALANCE } from '../balance';
@@ -10,7 +10,7 @@ import type { ItemId, Monster, Save, StatKey } from '../save';
 import { evolutionsOf, formsOfSpecies, moveOf, speciesOf } from '../../data';
 import { evolutionMoves } from './growth';
 import { VALUABLES } from './items';
-import { maxHp } from './stats';
+import { maxHp, starGrade } from './stats';
 
 export type ShopItem = keyof typeof BALANCE.shopPrices;
 export const SHOP_ITEMS = Object.keys(BALANCE.shopPrices) as ShopItem[];
@@ -151,6 +151,49 @@ export function toBox(save: Save, uid: string): Save | null {
   if (!save.party.includes(uid) || save.party.length <= 1) return null;
   const party = save.party.filter((u) => u !== uid);
   return anyAlive(save, party) ? { ...save, party, box: [...save.box, uid] } : null;
+}
+
+/** S18 ⑥ 놓아주기 (#121 — 2026-10-28 태현 님) 를 못 하는 까닭 — null = 놓을 수 있음 (화면이 버튼을 못 누르게 하고 이 한 줄을 보임). 보관함 포켓몬은 늘 놓을 수 있음 */
+export function releaseWhy(save: Save, uid: string): string | null {
+  if (!save.monsters[uid] || (!save.party.includes(uid) && !save.box.includes(uid))) return '없는 포켓몬이에요';
+  if (!save.party.includes(uid)) return null;
+  if (save.party.length <= 1) return '팀의 마지막 한 마리는 놓아줄 수 없어요';
+  if (!anyAlive(save, save.party.filter((u) => u !== uid))) return '놓으면 팀에 싸울 수 있는 포켓몬이 없어요';
+  return null;
+}
+
+/** 확인 상자에서 한 번 더 물을 까닭 (#121) — 이로치 · ★5 · 높은 Lv (BALANCE.releaseHigh — Lv 15 이상 + 팀에 있거나 가장 높은 Lv 와 5 차이 안: 혼자 높은 한 마리만 보면 Lv 50대 주전이 그냥 놓이던 것, 코드 리뷰어) */
+export type ReleaseWarn = 'shiny' | 'star5' | 'high';
+export function releaseWarns(save: Save, uid: string): ReleaseWarn[] {
+  const m = save.monsters[uid];
+  if (!m) return [];
+  const top = Math.max(0, ...[...save.party, ...save.box].map((u) => save.monsters[u]?.level ?? 0));
+  const out: ReleaseWarn[] = [];
+  if (m.shiny) out.push('shiny');
+  if (starGrade(m.ivs) >= 5) out.push('star5');
+  const hi = BALANCE.releaseHigh;
+  if (m.level >= hi.minLevel && (save.party.includes(uid) || m.level >= top - hi.nearTop)) out.push('high');
+  return out;
+}
+
+/** 지금 가진 종 (팀 + 보관함) — 잡은 종 볼 건너뛰기 (설정 ⑩) 기준 (#121 — 놓아준 종은 도감 기록이 남아도 다시 잡을 수 있게) */
+export function ownsSpecies(save: Save, species: number): boolean {
+  return [...save.party, ...save.box].some((u) => save.monsters[u]?.species === species);
+}
+
+/** 놓아주기 — 세이브에서 지움 (팀 · 보관함 · 포켓몬 · 남은 고르기). 선두를 놓으면 다음 칸이 선두 · 도감 "잡은 적 있음" 은 그대로 · 보상 없음. 못 하면 null */
+export function release(save: Save, uid: string): Save | null {
+  if (releaseWhy(save, uid) !== null) return null;
+  const { [uid]: _gone, ...monsters } = save.monsters;
+  const next: Save = {
+    ...save,
+    monsters,
+    party: save.party.filter((u) => u !== uid),
+    box: save.box.filter((u) => u !== uid),
+    pendingChoices: save.pendingChoices.filter((c) => c.uid !== uid),
+  };
+  if (save.laterChoices) next.laterChoices = save.laterChoices.filter((c) => c.uid !== uid);
+  return next;
 }
 
 /** S18 ⑤ 남은 포인트 하나를 나눔 — HP 에 넣으면 최대 HP 가 는 만큼 지금 HP 도 (레벨업과 같은 규칙, 쓰러진 포켓몬은 그대로) */

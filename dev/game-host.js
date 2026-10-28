@@ -80,6 +80,20 @@
         save.box = ['m6'];
         save.nextMonsterUid = 7;
     }
+    // relwarn=1 (team=5 와 같이) — 놓아주기 한 번 더 물음 (#121): 보관함에 이로치 (m7 피카츄) · ★5 (m8 꼬렛 개체값 31) · 높은 Lv (m6 피카츄 Lv 14 → 18) · 셋 다 (m9 이로치 · 개체값 31 · Lv 19 버터플 — 가장 긴 경고) · 팀 버터플 HP 0
+    //   relwarn=last — 팀 리자드만 ("팀의 마지막 한 마리는…") · relwarn=nofight — 팀 리자드 + 쓰러진 버터플 (리자드를 놓으면 "놓으면 팀에 싸울 수 있는 포켓몬이 없어요" — 가장 긴 까닭)
+    if (q.get('relwarn')) {
+        const base = save.monsters.m6 || save.monsters.m1;
+        save.monsters.m7 = { ...base, uid: 'm7', species: 25, form: 'pikachu', level: 6, shiny: true, caughtAt: 'forest-1' };
+        save.monsters.m8 = { ...base, uid: 'm8', species: 19, form: 'rattata', level: 4, ivs: { hp: 31, attack: 31, defense: 31, speed: 31, ultimate: 31 }, caughtAt: 'forest-1' };
+        if (save.monsters.m6) save.monsters.m6 = { ...save.monsters.m6, level: 18 };
+        if (save.monsters.m5) save.monsters.m5 = { ...save.monsters.m5, hp: 0 };
+        save.monsters.m9 = { ...base, uid: 'm9', species: 12, form: 'butterfree', level: 19, shiny: true, ivs: { hp: 31, attack: 31, defense: 31, speed: 31, ultimate: 31 }, caughtAt: 'forest-1' };
+        save.box = [...save.box, 'm7', 'm8', 'm9'];
+        save.nextMonsterUid = 10;
+        if (q.get('relwarn') === 'last') { save.box = [...save.party.slice(1), ...save.box]; save.party = [save.party[0]]; }
+        if (q.get('relwarn') === 'nofight' && save.monsters.m5) { save.box = [...save.party.filter((u) => u !== 'm1' && u !== 'm5'), ...save.box]; save.party = ['m1', 'm5']; }
+    }
     // spent=1 — 스탯을 이미 찍어 본 세이브 (말풍선은 이제 레벨업마다 나와서 차이 없음 — 2026-10-20)
     if (q.get('spent') === '1') save.monsters.m1 = { ...save.monsters.m1, points: { ...save.monsters.m1.points, attack: 10 } };
     const info = {

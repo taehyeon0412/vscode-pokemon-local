@@ -3,7 +3,7 @@
  * 게임 위에 뜨는 판 (S07 지도 · S18 내 포켓몬 · S19 가방 · S20 설정 · S14 상점 (대기실) · S21 프로필) 도 여기서 — 떠 있는 동안 게임이 멈춤 (main.ts).
  */
 import { Component, type ComponentChildren } from 'preact';
-import { canOpenMenus, canShop, canSwapBox, canTravel, inBattle, type GameInput, type GameState } from '../core/engine';
+import { canOpenMenus, canOpenTeam, canShop, canSwapBox, canTravel, type GameInput, type GameState } from '../core/engine';
 import { profileOpenable } from '../features/battle/model';
 import { BagPanel } from '../features/menu/components/BagPanel';
 import { MapPanel } from '../features/menu/components/MapPanel';
@@ -76,7 +76,7 @@ export function overlayAllowed(o: Overlay, state: GameState): boolean {
     case 'map':
       return canTravel(state) || st?.phase === 'badge';
     case 'team':
-      return !inBattle(state) && st?.phase !== 'choice';
+      return canOpenTeam(state);
     case 'bag':
     case 'settings':
       return canOpenMenus(state);

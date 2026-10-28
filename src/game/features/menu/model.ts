@@ -132,6 +132,13 @@ export function monsterView(m: Monster): MonsterView {
   };
 }
 
+/** S18 ⑥ 놓아준 뒤 고를 칸 (#121) — 같은 목록 옆 칸 (뒤 → 앞) · 없으면 다른 목록 첫 칸. 사라진 칸 대신 선두가 골라져 확인 연타가 선두를 놓던 것 (코드 리뷰어) */
+export function afterRelease(party: readonly string[], box: readonly string[], uid: string): string | null {
+  const list = party.includes(uid) ? party : box;
+  const at = list.indexOf(uid);
+  return list[at + 1] ?? list[at - 1] ?? (list === party ? box[0] : party[0]) ?? null;
+}
+
 /** S18 ① 팀 (맨 앞 = 선두) · ② 보관함 */
 export function teamView(save: Save): { party: MonsterView[]; box: MonsterView[] } {
   const view = (uid: string) => {

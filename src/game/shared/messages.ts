@@ -23,7 +23,7 @@ import type { Save } from '../core/save';
 export const GAME_COMMAND = 'game';
 
 /** 바로 저장하는 까닭 (mvp-spec 3.1) */
-export const SAVE_REASONS = ['catch', 'battle-end', 'stage-clear', 'mode-change', 'new-game'] as const;
+export const SAVE_REASONS = ['catch', 'battle-end', 'stage-clear', 'mode-change', 'new-game', 'release'] as const;
 export type SaveReason = (typeof SAVE_REASONS)[number];
 
 /** 타이틀에서 방금 누른 것이 안 된 까닭 — 문구는 features/title/model.ts 한 곳에서 */

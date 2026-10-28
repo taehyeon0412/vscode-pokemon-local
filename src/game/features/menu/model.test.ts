@@ -4,7 +4,18 @@ import { BALANCE } from '../../core/balance';
 import { regionAceLevel } from '../../core/rules/region';
 import { ICONS } from '../../data/icons';
 import { clearBonusExp } from '../../core/engine';
-import { clearView, ITEM_ICON, lobbyView, mapView, MENU_KEYS, menuLabels, menuShortcutOf, shopView } from './model';
+import { afterRelease, clearView, ITEM_ICON, lobbyView, mapView, MENU_KEYS, menuLabels, menuShortcutOf, shopView } from './model';
+
+describe('S18 ⑥ 놓아준 뒤 고를 칸 (#121)', () => {
+  it('같은 목록 뒤 칸 → 앞 칸 → 다른 목록 첫 칸 — 선두로 떨어지지 않음', () => {
+    expect(afterRelease(['a', 'b', 'c'], ['x'], 'b')).toBe('c');
+    expect(afterRelease(['a', 'b', 'c'], ['x'], 'c')).toBe('b');
+    expect(afterRelease(['a', 'b'], ['x', 'y'], 'y')).toBe('x');
+    expect(afterRelease(['a', 'b'], ['x'], 'x')).toBe('a');
+    expect(afterRelease(['a'], ['x'], 'a')).toBe('x');
+    expect(afterRelease(['a'], [], 'a')).toBeNull();
+  });
+});
 import { createGameState } from '../../core/engine';
 import { devDefault } from '../../dev/runtime';
 
