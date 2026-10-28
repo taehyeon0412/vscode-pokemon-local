@@ -104,6 +104,8 @@
     if (battleKind) {
         const caterpie = { ...save.monsters.m1, uid: 'm2', species: 10, form: 'caterpie', level: 4, moves: [{ moveId: 33, pp: 35 }], hp: 16, caughtAt: 'forest-1' };
         save.monsters.m1 = { ...save.monsters.m1, moves: [{ moveId: 33, pp: 35 }, { moveId: 22, pp: 25 }, { moveId: 75, pp: 25 }] };
+        // moves=<기술 id,…> — 내 기술 (#119 넷 · 가장 긴 이름 · 위력 3자리 · 변화 기술: moves=94,394,47,33) · PP 는 10 남음
+        if (q.get('moves')) save.monsters.m1.moves = q.get('moves').split(',').map((id) => ({ moveId: Number(id), pp: 10 }));
         // me=<모습>:<도감 번호> — 내 포켓몬을 바꿈 (3:3 시안용 실제 필살기 찍기: me=venusaur:3&battle=ult&side=me, 2026-10-21 디자인팀)
         if (q.get('me')) { const [meForm, meSp] = q.get('me').split(':'); save.monsters.m1 = { ...save.monsters.m1, form: meForm, species: Number(meSp) || 1, level: 36 }; }
         save.monsters.m2 = caterpie;
@@ -175,9 +177,12 @@
         }
         // got=1 — 야생 파이리를 잡은 결과 (new=0 이면 도감에 이미 있음 · 소개 카드 1.5초 뒤 결과 상자) · rms=결과 지난 ms (rms=1600 = 소개 카드 지나 결과 상자)
         if (scene === 'result' && q.get('got') === '1') {
-            save.monsters.m3 = { ...save.monsters.m1, uid: 'm3', species: 4, form: 'charmander', level: 5, unspentPoints: 0, caughtAt: 'forest-1' };
+            // cform=<모습>:<도감 번호>:<이름> · clv · civ=<개체값 0 ~ 31 — ★ 등급> · cshiny=1 · cbox=1 (팀이 다 차서 보관함으로) — 소개 카드 ★ (#120)
+            const [cf, csp, cname] = (q.get('cform') || 'charmander:4:파이리').split(':');
+            const civ = q.get('civ') !== null ? Number(q.get('civ')) : null;
+            save.monsters.m3 = { ...save.monsters.m1, uid: 'm3', species: Number(csp) || 4, form: cf, level: Number(q.get('clv') || 5), unspentPoints: 0, caughtAt: 'forest-1', shiny: q.get('cshiny') === '1', ...(civ !== null ? { ivs: { hp: civ, attack: civ, defense: civ, speed: civ, ultimate: civ } } : {}) };
             save.party = [...save.party, 'm3'];
-            stage.summary = { ...stage.summary, title: '야생 파이리를 잡았다!', caught: { name: '파이리', toBox: false, uid: 'm3', isNew: q.get('new') !== '0' } };
+            stage.summary = { ...stage.summary, title: `야생 ${cname || '파이리'}를 잡았다!`, caught: { name: cname || '파이리', toBox: q.get('cbox') === '1', uid: 'm3', isNew: q.get('new') !== '0' } };
         }
         if (scene === 'result' && q.get('rms')) stage.ms = Number(q.get('rms'));
         if (scene === 'result' && q.get('ups') === '0') stage.summary = { ...stage.summary, exp: [{ uid: 'm1', name: '이상해씨', gain: 28, from: 5, to: 5 }], learned: [] };

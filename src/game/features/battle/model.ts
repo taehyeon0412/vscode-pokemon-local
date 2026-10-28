@@ -29,6 +29,8 @@ export interface MenuItem {
   sub?: string;
   /** 옆 메뉴 (좁은 세로 목록) 에서 쓰는 짧은 작은 글 — 없으면 sub (기술은 남은 PP 만, 전체는 title) */
   subShort?: string;
+  /** 기술 위력 "위력 65" · 변화 기술 "변화" — 줄마다 늘 보임 (orders #119 태현 님 "평상시에 위력도 같이 보이게", 올려야만 보이던 것) */
+  power?: string;
   /** 기술 상성 (ideas #24) — 지금 상대에게 효과가 굉장함 ▲ · 별로 ▼ · 없음 ✕ (보통 · 변화 기술은 없음) */
   mark?: 'up' | 'down' | 'none';
   /** 볼 — 지금 던지면 잡기 쉬움 · 보통 · 어려움 (orders #23, 야생만 · % 는 숨김) */
@@ -83,9 +85,10 @@ export function menuItems(b: BattleState, save: Save, page: MenuPage, compact: b
             key: `m${s.moveId}`,
             num: i + 1,
             label: `${i + 1} ${mv?.name.ko ?? '?'}`,
-            sub: `${s.pp}/${mv?.pp ?? '?'}`,
-            // 옆 메뉴 = "PP 35" (숫자만이면 다른 화면의 위력 "노말 40" 과 헷갈림 — 플레이 리뷰어)
+            // 숫자마다 뜻 — "PP 35/35" · "위력 40" (맨 숫자면 위력과 PP 가 헷갈림 — 플레이 리뷰어 · orders #119)
+            sub: `PP ${s.pp}/${mv?.pp ?? '?'}`,
             subShort: `PP ${s.pp}`,
+            power: !mv ? undefined : mv.power > 0 ? `위력 ${mv.power}` : '변화',
             go: { action: { kind: 'move', moveId: s.moveId } },
             enabled: canAct(b, save, { kind: 'move', moveId: s.moveId }),
             mark,

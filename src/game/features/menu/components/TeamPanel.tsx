@@ -77,7 +77,7 @@ function CardMore({ v }: { v: MonsterView }) {
       ) : (
         v.moves.map((mv) => (
           <span key={mv.id} class="pg-move" title={mv.detail}>
-            {mv.name} <span class="pg-sub">{mv.short}</span>
+            {mv.name} <span class="pg-sub"><span class="pg-mv-type">{mv.typeKo} · </span>{mv.short}</span>
           </span>
         ))
       )}

@@ -30,8 +30,16 @@ describe('S09 ⑦ 메뉴 한 줄', () => {
     expect(skills.map((i) => i.label)).toEqual(['1 몸통박치기', '2 덩굴채찍', '← 뒤로']);
     // 옆 메뉴 = "PP 35" (숫자만이면 위력과 헷갈림 — 2026-10-20 플레이 리뷰어)
     expect(skills.map((i) => i.subShort)).toEqual(['PP 35', 'PP 25', undefined]);
-    expect(skills.map((i) => i.sub)).toEqual(['35/35', '25/25', undefined]);
+    // 숫자마다 뜻 + 위력은 늘 보임 (orders #119 — 올려야만 보이던 것)
+    expect(skills.map((i) => i.sub)).toEqual(['PP 35/35', 'PP 25/25', undefined]);
+    expect(skills.map((i) => i.power)).toEqual(['위력 40', '위력 45', undefined]);
     expect(skills.at(-1)?.go).toEqual({ back: true });
+  });
+
+  it('변화 기술은 위력 대신 "변화" (orders #119)', () => {
+    const sing = { ...save, monsters: { ...save.monsters, m1: { ...save.monsters.m1!, moves: [{ moveId: 47, pp: 15 }] } } };
+    const b = myTurn(startBattle(sing, wild, 'normal'));
+    expect(menuItems(b, sing, 'skills')[0]?.power).toBe('변화');
   });
 
   it('바꿀 포켓몬이 없으면 5 = 도망 하나', () => {

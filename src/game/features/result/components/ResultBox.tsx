@@ -15,12 +15,12 @@ import { Sprite } from '../../../ui/Sprite';
 import { speciesOf } from '../../../data';
 import { spriteBoxOf } from '../../../data/sprite-boxes';
 import { TypeTags } from '../../battle/components/TypeTag';
-import { ITEM_ICON } from '../../menu/model';
+import { ITEM_ICON, stars } from '../../menu/model';
 import { itemName, VALUABLES } from '../../../core/rules/items';
 import { ITEM_IDS } from '../../../core/save';
 import { partText, resultTitleShown, summaryLines, type CaughtView, type LevelUpView, type SummaryPart } from '../model';
 
-/** 잡은 포켓몬 소개 카드 — 결과 상자 전 3초 (TIMING.caughtIntroMs), 잡기 흔들기 창이 꺼지지 않고 같은 가운데 · 같은 높이에서 가로로 넓어지며 볼이 열리고 포켓몬이 나옴 (2026-10-20 태현 님 "잡았다 창이 너무 빨리 꺼져" → B) · 집중 모양 (둘레 어둡게 · 2px 금색 · 이름표 "잡았다!") · 그림 크게 · "NEW! 처음 잡았다" (도감 화면은 다음 버전) · 이름 Lv · 타입 · 팀 / 보관함. 누르면 넘김 (2026-10-20 태현 님 안 2) */
+/** 잡은 포켓몬 소개 카드 — 결과 상자 전 3초 (TIMING.caughtIntroMs), 잡기 흔들기 창이 꺼지지 않고 같은 가운데 · 같은 높이에서 가로로 넓어지며 볼이 열리고 포켓몬이 나옴 (2026-10-20 태현 님 "잡았다 창이 너무 빨리 꺼져" → B) · 집중 모양 (둘레 어둡게 · 2px 금색 · 이름표 "잡았다!") · 그림 크게 · 처음 잡았으면 그림 칸 모서리 NEW! 칩 (도감 화면은 다음 버전) · 이름 Lv · 타입 · 팀 / 보관함. 누르면 넘김 (2026-10-20 태현 님 안 2) */
 function CaughtIntro({ c, media, at, onSkip }: { c: CaughtView; media: string; at: { left: number; top: number; width?: number }; onSkip(): void }) {
   const types = speciesOf(c.species)?.types ?? [];
   // 그림 칸 64 — 실제 그림 (sprite-boxes) 이 칸을 채우는 가장 큰 정수 배 (위아래 1칸 여유, 1 ~ 3배)
@@ -45,14 +45,23 @@ function CaughtIntro({ c, media, at, onSkip }: { c: CaughtView; media: string; a
             <Sprite media={media} form={c.form} shiny={c.shiny} scale={1} crop={64} zoom={zoom} center />
           </span>
           <i class="pg-caught-burst" aria-hidden="true" />
+          {/* NEW! = 그림 칸 오른쪽 위 모서리 칩 (레벨업 카드 "+4" 와 같은 부품) · 올리면 "처음 잡았다" — 글 칸 첫 줄 "NEW! 처음 잡았다" 가 탭 "잡았다!" 와 겹쳐 두 번 읽히던 것 (ideas 1619 · 기획 10-28) */}
+          {c.isNew && (
+            <span class="pg-caught-new" title="처음 잡았다">
+              NEW!
+            </span>
+          )}
           <i class="pg-lvup-spark pg-lvup-spark-1" aria-hidden="true" />
           <i class="pg-lvup-spark pg-lvup-spark-2" aria-hidden="true" />
         </span>
         <span class="pg-caught-info">
-          {c.isNew && <span class="pg-caught-new">NEW! 처음 잡았다</span>}
           <b class="pg-caught-name">
             {c.name} <span class="pg-dim">Lv{c.level}</span>
           </b>
+          {/* ★ 등급 (orders #120 — 보관함에 가야 보이던 것) · 이름 바로 아래 · 보관함 · 프로필과 같은 ★ 모양 */}
+          <span class="pg-star pg-caught-star" title="개체값 등급 (★ 많을수록 타고난 힘이 셈)">
+            {stars(c.star)}
+          </span>
           <TypeTags types={types} />
           <span class="pg-caught-where">{c.toBox ? '팀이 다 차서 보관함으로' : '팀에 들어옴'}</span>
         </span>

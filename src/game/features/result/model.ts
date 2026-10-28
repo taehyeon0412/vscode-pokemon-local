@@ -4,6 +4,7 @@
 import { TIMING } from '../../core/balance';
 import type { BattleSummary, GameState } from '../../core/engine';
 import { evolvedForm, keepCount } from '../../core/rules/growth';
+import { starGrade } from '../../core/rules/stats';
 import type { Monster, PendingChoice, Save } from '../../core/save';
 import { typeNameKo, withJosa } from '../../core/text';
 import { moveOf, speciesOf } from '../../data';
@@ -15,15 +16,17 @@ export interface MoveView {
   name: string;
   /** "위력 45 · 풀 · PP 25" */
   detail: string;
-  /** 버튼 옆 작은 글 "풀 45" (변화 기술은 "풀 변화") */
+  /** 버튼 옆 작은 글 "위력 45" (변화 기술은 "변화") — 전투 기술 줄과 같은 말 (orders #119 · "풀 45" 는 숫자 뜻이 없어 PP 와 헷갈림) */
   short: string;
+  /** 타입 "풀" — 넓으면 short 앞에 "풀 · " (잊을 기술을 고를 근거 — 위력만 남기면 넷이 "위력 40 · 45 · 40 · 40" 이던 것, UX #119) */
+  typeKo: string;
 }
 
 export function moveView(id: number, pp?: number): MoveView {
   const mv = moveOf(id);
-  if (!mv) return { id, name: '?', detail: '', short: '' };
+  if (!mv) return { id, name: '?', detail: '', short: '', typeKo: '' };
   const power = mv.power > 0 ? `위력 ${mv.power}` : '변화';
-  return { id, name: mv.name.ko, detail: `${power} · ${typeNameKo(mv.type)} · PP ${pp ?? mv.pp}/${mv.pp}`, short: `${typeNameKo(mv.type)} ${mv.power > 0 ? mv.power : '변화'}` };
+  return { id, name: mv.name.ko, detail: `${power} · ${typeNameKo(mv.type)} · PP ${pp ?? mv.pp}/${mv.pp}`, short: power, typeKo: typeNameKo(mv.type) };
 }
 
 /** S12 한 줄씩 — 첫 줄 (제목 · 잡은 포켓몬 · 돈 · 아이템) · 둘째 줄 (경험치 · 레벨업 · 새 기술) */
@@ -89,6 +92,8 @@ export interface CaughtView {
   species: number;
   toBox: boolean;
   isNew: boolean;
+  /** ★ 등급 1 ~ 5 (개체값 — 보관함 · 프로필과 같은 값, orders #120 "잡고나서 보관함 들어가서 봐야되니까") */
+  star: number;
 }
 
 /** 소개 카드 크기 (테두리 포함) — 잡기 흔들기 창 (104 × 108) 과 같은 높이 · 같은 가운데에서 가로로 넓어짐. 자리는 StageScreen 이 정수 px 로 */
@@ -98,7 +103,7 @@ export const CAUGHT_INTRO_H = 108;
 export function caughtView(s: BattleSummary, save: Save): CaughtView | null {
   const m = s.caught ? save.monsters[s.caught.uid] : undefined;
   if (!s.caught || !m) return null;
-  return { uid: s.caught.uid, name: s.caught.name, form: m.form, shiny: m.shiny, level: m.level, species: m.species, toBox: s.caught.toBox, isNew: s.caught.isNew };
+  return { uid: s.caught.uid, name: s.caught.name, form: m.form, shiny: m.shiny, level: m.level, species: m.species, toBox: s.caught.toBox, isNew: s.caught.isNew, star: starGrade(m.ivs) };
 }
 
 /** S12 얼굴 카드 안내 말풍선 "눌러서 스탯 찍기" — 이번 전투에서 레벨업해 찍을 포인트가 있는 포켓몬이 있으면 매번 (2026-10-20 태현 님 "설명이 없으면 누를까?" → "레벨업 할 때마다 나오게 해줘 그냥", 예전엔 한 번도 안 찍어 본 동안만) */

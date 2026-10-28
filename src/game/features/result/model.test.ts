@@ -6,9 +6,19 @@ import { Rng } from '../../core/engine/rng';
 import type { BattleSummary } from '../../core/engine';
 import { createGameState } from '../../core/engine';
 import { TIMING } from '../../core/balance';
-import { levelUps, needsStatHint, resultTitleShown, resultViewKey } from './model';
+import { caughtView, levelUps, needsStatHint, resultTitleShown, resultViewKey } from './model';
 
 const summary = (exp: BattleSummary['exp']): BattleSummary => ({ title: '야생 피죤을 쓰러뜨렸다!', exp, money: 20, item: null, caught: null, learned: [], choices: 0, badge: null });
+
+describe('잡은 뒤 소개 카드 ★ (orders #120)', () => {
+  it('★ 등급 = 보관함 · 프로필과 같은 개체값 등급 (★1 · ★5)', () => {
+    const iv = (v: number) => ({ hp: v, attack: v, defense: v, speed: v, ultimate: v });
+    const got = { ...summary([]), caught: { name: '파이리', toBox: false, uid: 'm3', isNew: true } };
+    const view = (v: number) => caughtView(got, sampleSave({ monsters: { m3: sampleMonster({ uid: 'm3', ivs: iv(v) }) } }));
+    expect(view(0)?.star).toBe(1);
+    expect(view(31)?.star).toBe(5);
+  });
+});
 
 describe('S12 레벨업 표시 · 안내 말풍선 (2026-10-20 태현 님)', () => {
   // 갓 잡은 포켓몬 (나눈 포인트 0 · 남은 0) — 기본 sampleMonster 는 한 번 레벨업한 값 (hp 2 · 남은 2)

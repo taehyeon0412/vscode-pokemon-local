@@ -1981,13 +1981,20 @@ body.vscode-light .pg-stage.pg-bg-arena-volcano {
   color: var(--pg-sos-gold);
   border-color: var(--pg-sos-gold);
 }
+/* 이름표 바로 뒤 (사이 8 = 탭 줄 gap) · Z 는 오른쪽 끝 — space-between 이라 이름 길이마다 가운데 소수 px 에 떠 있던 것 (픽셀 · 아트 #118) */
+.pg-vmenu-tabs > .pg-vmenu-back {
+  margin-right: auto;
+}
 /* 이름표는 줄지 않음 (경고 "마지막!" 이 "마" 로 눌리던 것) */
 .pg-vmenu-name {
   flex: none;
 }
 .pg-pick-n {
+  /* 숫자 폭 하나 ("1" 5.6 · "4" 7.9px 라 이름 칸 왼쪽 끝이 줄마다 2.3px 흔들리던 것 — 픽셀 #118) */
+  min-width: 8px;
   color: var(--pg-sos-gold);
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 .pg-pick-name {
   flex: 1 1 auto;
@@ -2011,6 +2018,117 @@ body.vscode-light .pg-stage.pg-bg-arena-volcano {
   flex: none;
   min-width: 34px;
   text-align: right;
+}
+/* 기술 목록 위력 · PP 칸 (#119) — 줄마다 같은 폭 · 오른쪽 맞춤 ("위력 150" · "PP 35/35" 가 가장 넓음) → 위력 · PP 가 세로로 한 줄.
+   상성 ▲▼ 는 늘 이름 바로 뒤 (위력 앞이면 "▼ 위력 120" 이 위력이 내려간다로 읽히던 것 · 판마다 자리가 셋이던 것 — 아트 #118): 이름은 늘지 않고 위력 칸이 남는 폭을 가짐 */
+.pg-pick-list > .pg-button:has(.pg-pick-pow) > .pg-pick-name {
+  flex: 0 1 auto;
+}
+.pg-pick-list .pg-sub.pg-pick-pow {
+  min-width: 44px;
+  margin-left: auto;
+}
+.pg-pick-list .pg-pick-pow + .pg-sub {
+  min-width: 48px;
+}
+/* 무대 위 기술 목록 두 층 (#119 — 판이 패널보다 넓거나 줄이 넘칠 때 한 단계, BattleMenu listFit) — 1층 번호 · 이름 · 상성 / 2층 위력 (이름 아래) · PP (오른쪽 끝).
+   240 에서 "1 사이코키네시스 ▲ 위력 120 PP 10/10" 한 줄이 246px 로 패널 밖으로 나가던 것 */
+#pokemon-game .pg-pick-list.pg-pick-2l > .pg-button {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  grid-template-rows: 14px 11px;
+  /* 위아래 사이 0 (줄 칸 규칙 gap 6 이 세로에도 들어가 2층이 버튼 밖으로 밀려 반이 잘리던 것) */
+  gap: 0 6px;
+  align-items: center;
+  height: 26px;
+}
+.pg-pick-2l > .pg-button > .pg-pick-n {
+  grid-area: 1 / 1;
+}
+.pg-pick-2l > .pg-button > .pg-pick-name {
+  grid-area: 1 / 2;
+}
+/* 상성은 이름 바로 뒤 (줄 끝이면 "펼치기 ▼" · 스크롤 "▼ 더" 처럼 읽히던 것 — UX · 아트 #118) */
+.pg-pick-2l > .pg-button > .pg-eff {
+  grid-area: 1 / 3;
+  justify-self: start;
+  margin-left: -2px;
+}
+.pg-pick-2l > .pg-button > .pg-sub.pg-pick-pow {
+  grid-area: 2 / 2 / 3 / 4;
+  min-width: 0;
+  margin-left: 0;
+  text-align: left;
+}
+.pg-pick-2l > .pg-button > .pg-pick-pow + .pg-sub {
+  grid-area: 2 / 4;
+  min-width: 0;
+}
+.pg-pick-2l > .pg-button > .pg-sub {
+  margin: 0;
+  line-height: 11px;
+}
+/* ▸ 커서는 1층 (이름 줄) 높이 */
+#pokemon-game .pg-pick-2l > .pg-button::before {
+  top: 0;
+  line-height: 14px;
+}
+/* 옆 메뉴 기술 줄 두 층 (#118 · #119) — 1층 "1 잎날가르기 ▼" (13px) · 2층 "위력 55 · PP 25/25" (작은 글 11px) · 줄 24px.
+   한 줄이면 옆 칸 (약 125px) 을 넘어 목록 판으로 바뀌던 것 · ▸ 커서는 1층 높이 */
+.pg-vmenu .pg-layer .pg-button.pg-sk2 {
+  height: 25px;
+}
+/* 기술 배우기 · 진화 기술 줄 타입 "풀 · " — 줄이 넘치면 뺌 (위력만 — ChoiceBox useFit, UX #119) · 팀 메뉴는 줄을 바꿔서 늘 */
+.pg-no-type .pg-mv-type {
+  display: none;
+}
+.pg-sk2-name,
+.pg-sk2-sub {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 번호 칸 하나 폭 (숫자 폭이 달라 2층 시작이 흔들리지 않게) — 2층은 이름 시작선 (번호 8 + 사이 3) 에 맞춤 (무대 위 두 층 판과 같은 정렬 · 아트 #118) */
+.pg-sk2-n {
+  display: inline-block;
+  width: 8px;
+  margin-right: 3px;
+  font-variant-numeric: tabular-nums;
+}
+/* 묶음 안 1 · 묶음 사이 3 (안 2 · 사이 1 이라 2층이 아래 기술 것처럼 읽히던 것 — 픽셀 · 아트 #118) */
+.pg-sk2-sub {
+  margin-top: -1px;
+  padding-left: 11px;
+  font-size: 11px;
+  line-height: 11px;
+  color: var(--pg-sos-dim);
+}
+/* 두 층 기술 판은 위아래 여백 1 — 넷 (25 × 4) 이 150 높이 옆 칸에 들어감 */
+.pg-vmenu-box:has(.pg-sk2) {
+  padding: 1px 0;
+}
+/* 옆 칸 줄이기 조이기 단계 (pg-fit-tight — 목록 판 전에 한 단계): 1층 11/600 · 오른쪽 여백 6 → 2 · 2층 시작 10.
+   맥 글자 · 좁은 옆 칸 (620 ~ 699) 에서 2층이 1 ~ 3px 넘쳐 판이 메뉴 밖 목록으로 바뀌던 것 (UX · 아트 #118 큼) */
+.pg-vmenu .pg-fit-tight .pg-layer .pg-button.pg-sk2 {
+  padding-right: 2px;
+}
+.pg-vmenu .pg-fit-tight .pg-sk2-name {
+  font-size: 11px;
+  font-weight: 600;
+}
+.pg-vmenu .pg-fit-tight .pg-sk2-n {
+  width: 7px;
+}
+.pg-vmenu .pg-fit-tight .pg-sk2-sub {
+  padding-left: 10px;
+}
+/* 무대 위 목록 판이 떠 있는 동안 전투 한 줄 말은 숨김 (판 제목이 같은 말 — 판이 반쯤 덮어 "…것을 할까?" 조각이 남던 것, UX · 픽셀 #118) */
+#pokemon-game:has(.pg-pick-list.pg-pick-now) .pg-bmsg {
+  visibility: hidden;
+}
+/* 목록 판 아래 깔린 칸 (Z · 상대 HP · 자동 칩 · 이름표) — 반만 가리지 않고 통째로 숨김 (BattleMenu placeList — 판이 닫히면 되돌림) */
+#pokemon-game .pg-under-list {
+  visibility: hidden;
 }
 /* 좁고 낮은 패널 — 말 칸이 숨는 동안 전투 끝 · 쓰러짐 · 다음 포켓몬 · 마지막 기회 말을 위 메뉴 줄에 (비어 있던 줄, 말이 0ms 이던 것 — UX 리뷰어 2026-10-21).
    두 줄까지 낱말 단위로 바꿈 · 크림 12px */
@@ -3541,7 +3659,6 @@ body.vscode-light .pg-stage.pg-bg-arena-volcano {
 }
 .pg-star {
   flex: none;
-  color: #e3b341;
   letter-spacing: -1px;
 }
 .pg-stat {
@@ -6903,21 +7020,38 @@ body.vscode-high-contrast-light .pg-hpblock > .pg-hprow,
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
+  /* 2 (4 이던 것) — ★ 줄 (#120) 이 생겨 칸이 높아지던 것 */
+  gap: 2px;
   min-width: 0;
+  /* 그림 칸 가운데와 한 선 (NEW! 가 그림 칸 모서리로 가서 탭 ↔ NEW! 를 띄우던 margin-top 4 는 뺌 — 1619) */
 }
+/* NEW! 칩 = 그림 칸 오른쪽 위 모서리 (레벨업 카드 "+4" .pg-lvup-card-pts 와 같은 부품 — 금색 칠 · 짙은 글씨 11/700 · 1px 남색 선 · 위 −5) · 포켓몬과 함께 2초에 (ideas 1619 · 기획 10-28) */
 .pg-caught-new {
-  padding: 0 4px;
+  position: absolute;
+  top: -5px;
+  /* 왼쪽 정수 자리 (그림 칸 64 − 30) — 오른쪽 기준이면 글자 폭이 소수라 칩 왼쪽 · 글자가 359.34 처럼 반 픽셀에 놓임 · 오른쪽으로 약 2 걸침 */
+  left: 34px;
+  padding: 0 2px;
   background: var(--pg-sos-gold);
   color: var(--pg-sos-tab-ink);
   font-size: 11px;
   font-weight: 700;
-  line-height: 14px;
+  line-height: 12px;
+  white-space: nowrap;
+  box-shadow: 0 0 0 1px var(--pg-sos-bar);
+  animation: pg-caught-show 1ms 2s both;
 }
 .pg-caught-name {
   font-size: 13px;
   font-weight: 700;
   color: var(--pg-sos-ink);
+}
+/* ★ 등급 (#120) — 작은 글 한 줄 (11px · 줄 높이 11) · 이름 바로 아래라 사이 1 (한 묶음) */
+.pg-caught-star {
+  /* 보이는 틈 이름 → ★ 2 (다른 줄 사이 3 보다 좁게 — 한 묶음, 픽셀 #120) */
+  margin-top: -3px;
+  font-size: 11px;
+  line-height: 11px;
 }
 .pg-caught-where {
   font-size: 11px;

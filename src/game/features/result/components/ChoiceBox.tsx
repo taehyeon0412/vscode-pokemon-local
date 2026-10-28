@@ -15,6 +15,7 @@ import { Icon } from '../../../ui/Icon';
 import { confirmKey, onKeyboardButton, useShownAt } from '../../../ui/confirm-key';
 import { KeyCap } from '../../../ui/KeyCap';
 import { Sprite } from '../../../ui/Sprite';
+import { useFit } from '../../../ui/useFit';
 import type { ChoiceView } from '../model';
 import { pokemonFx } from '../../battle/fx/bridge';
 
@@ -29,6 +30,9 @@ export interface ChoiceBoxProps {
 }
 
 export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
+  // 기술 줄 타입 "풀 · " — 줄이 넘치면 한 단계 뺌 (위력만 · 맥 여유 1.1 — 600 경계를 손으로 고르면 맥 860 에서 "노말 · 위력 40" 이 잘리던 것, #119)
+  const box = useRef<HTMLDivElement>(null);
+  const noType = useFit(box, 1, ':scope > .pg-line') >= 1;
   const [keep, setKeep] = useState<number[]>([]);
   // S23 — 잊을 기술 (고른 칸 번호, 결정 전)
   const [forget, setForget] = useState<number | null>(null);
@@ -97,13 +101,13 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
 
   if (view.kind === 'learn') {
     return (
-      <div class="pg-banner pg-choice pg-learn pg-two">
+      <div ref={box} class={`pg-banner pg-choice pg-learn pg-two${noType ? ' pg-no-type' : ''}`}>
         {/* 한 줄은 글 하나로 (줄 칸 사이 간격이 글 사이에 끼지 않게) · 좁으면 (600px 아래) "★ 잎날가르기 풀 55 — 잊을 기술을 골라요" 로 (이름 · "배울 수 있어요" 를 뺌 — U4 줄임표 대신) */}
         <span class="pg-line">
           <span class="pg-ellipsis">
             <span class="pg-up">★</span> <span class="pg-learn-long">{withJosa(view.name, '이/가')} </span>
             <b title={view.move.detail}>{view.move.name}</b>
-            <span class="pg-sub">{view.move.short}</span>
+            <span class="pg-sub"><span class="pg-mv-type">{view.move.typeKo} · </span>{view.move.short}</span>
             <span class="pg-learn-long">{josa(view.move.name, '을/를')} 배울 수 있어요</span> —{' '}
             {forget === null ? (
               <>
@@ -122,7 +126,7 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
           {view.current.map((m, i) => (
             <Button key={m.id} secondary extraClass={forget === i ? 'pg-picked' : undefined} onClick={() => setForget(forget === i ? null : i)} title={`${m.detail} — 고른 뒤 [결정] 하면 잊고 ${view.move.name} 를 배워요`}>
               {`${i + 1} ${m.name}`}
-              <span class="pg-sub">{m.short}</span>
+              <span class="pg-sub"><span class="pg-mv-type">{m.typeKo} · </span>{m.short}</span>
             </Button>
           ))}
           <Button extraClass="pg-pin" onClick={() => forget !== null && learn(forget)} disabled={forget === null} title={forget === null ? '먼저 잊을 기술을 골라요 (숫자 1 ~ 4)' : 'Enter'}>
@@ -192,7 +196,7 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
   const choosing = view.keep < view.current.length;
   const ready = !choosing || keep.length === view.keep;
   return (
-    <div class="pg-banner pg-choice pg-two pg-choice-art">
+    <div ref={box} class={`pg-banner pg-choice pg-two pg-choice-art${noType ? ' pg-no-type' : ''}`}>
       {/* gdd S22 ① — 진화한 모습 = 두 줄 높이 왼쪽 칸 48 × 48, 길 위와 같은 크기 (첫 줄 글 앞 작은 그림이라 진화하는 순간 가장 작은 그림이던 것 · 두 줄 글 왼쪽을 한 선에 — 아트 디렉터 4차) */}
       <span class="pg-choice-sprite">
         <Sprite media={media} form={view.toForm} shiny={view.monster.shiny} scale={1} crop={48} fieldSize center />
@@ -206,7 +210,7 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
         {view.fresh.length > 0 && <span class="pg-dim">새로 배움</span>}
         {view.fresh.map((m) => (
           <span key={m.id} class="pg-reward" title={m.detail}>
-            ★ {m.name} <span class="pg-sub">{m.short}</span>
+            ★ {m.name} <span class="pg-sub"><span class="pg-mv-type">{m.typeKo} · </span>{m.short}</span>
           </span>
         ))}
       </span>
@@ -219,7 +223,7 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
         {view.current.map((m, i) => (
           <Button key={m.id} secondary extraClass={!choosing || keep.includes(m.id) ? 'pg-picked' : undefined} onClick={() => choosing && toggle(m.id)} title={m.detail}>
             {`${choosing ? (keep.includes(m.id) ? '✓' : '') : ''}${i + 1} ${m.name}`}
-            <span class="pg-sub">{m.short}</span>
+            <span class="pg-sub"><span class="pg-mv-type">{m.typeKo} · </span>{m.short}</span>
           </Button>
         ))}
         <Button extraClass="pg-pin" onClick={decide} disabled={!ready} title="Enter">
