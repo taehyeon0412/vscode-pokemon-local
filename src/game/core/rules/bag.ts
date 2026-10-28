@@ -1,6 +1,6 @@
 /**
  * 전투 밖에서 쓰는 것 (mvp-spec S13 · S14 · S18 · S19 · 3.8) — 화면을 모르는 계산. 세이브는 늘 새 객체로 돌려줌 (못 하면 null).
- *   S13 병원: 팀 전부 회복 (HP · PP · 상태 이상, 무료)
+ *   S13 병원: 팀 + 보관함 전부 회복 (HP · PP · 상태 이상, 무료) · 보관함에 넣는 순간 회복 (#124)
  *   S14 상점: 사기 (값은 4장)
  *   S18 내 포켓몬: 팀 순서 · 보관함과 바꾸기 · 남은 포인트 나누기 · 놓아주기 (#121)
  *   S19 가방: 상처약 · 좋은상처약 · 상태 회복약 · 기력의조각 · 진화의 돌 · 연결의끈 (볼은 전투에서만)
@@ -44,10 +44,10 @@ export function healed(m: Monster): Monster {
   return { ...m, hp: maxHpOf(m), status: null, moves: m.moves.map((s) => ({ ...s, pp: moveOf(s.moveId)?.pp ?? s.pp })) };
 }
 
-/** S13 ① · S17 — 팀 전부 회복 */
+/** S13 ① · S17 — 팀 + 보관함 전부 회복 (#124 — 2026-10-28 태현 님 "보관함에 있는 포켓몬은 병원에 가도 회복이 안되네") */
 export function healTeam(save: Save): Save {
   const monsters = { ...save.monsters };
-  for (const uid of save.party) {
+  for (const uid of [...save.party, ...save.box]) {
     const m = monsters[uid];
     if (m) monsters[uid] = healed(m);
   }
@@ -146,11 +146,26 @@ export function swapWithBox(save: Save, boxUid: string, partyUid: string | null)
   return anyAlive(save, party) ? { ...save, party, box } : null;
 }
 
-/** 팀 포켓몬을 보관함으로 (팀에 하나는 남김 · 살아 있는 포켓몬이 남아야 함) */
+/** 팀 포켓몬을 보관함으로 (팀에 하나는 남김 · 살아 있는 포켓몬이 남아야 함) — 넣는 순간 회복은 병원 · 대기실에서만 (engine team-to-box · #124 A) */
 export function toBox(save: Save, uid: string): Save | null {
   if (!save.party.includes(uid) || save.party.length <= 1) return null;
   const party = save.party.filter((u) => u !== uid);
   return anyAlive(save, party) ? { ...save, party, box: [...save.box, uid] } : null;
+}
+
+/** 다 나은 포켓몬 (HP 가득 · 상태 이상 없음 · PP 가득) */
+const isHealed = (m: Monster) => m.hp === maxHpOf(m) && m.status === null && m.moves.every((s) => s.pp === (moveOf(s.moveId)?.pp ?? s.pp));
+
+/** 보관함 포켓몬 회복 — HP · PP · 상태 이상 (#124 — 병원 · 대기실에서 넣는 순간, 원작 PC 처럼). 다친 칸만 새로 · 다 건강하면 같은 세이브 */
+export function healBox(save: Save): Save {
+  let monsters: Save['monsters'] | null = null;
+  for (const uid of save.box) {
+    const m = save.monsters[uid];
+    if (!m || isHealed(m)) continue;
+    monsters ??= { ...save.monsters };
+    monsters[uid] = healed(m);
+  }
+  return monsters ? { ...save, monsters } : save;
 }
 
 /** S18 ⑥ 놓아주기 (#121 — 2026-10-28 태현 님) 를 못 하는 까닭 — null = 놓을 수 있음 (화면이 버튼을 못 누르게 하고 이 한 줄을 보임). 보관함 포켓몬은 늘 놓을 수 있음 */

@@ -134,6 +134,7 @@ export function battleRewards(save0: Save, b: RewardBattle, wild: Monster | null
     const isNew = !save.dex.caught.includes(caught.species);
     save = {
       ...save,
+      // 팀이 다 차서 보관함으로 가도 지금 HP 그대로 — 다음 병원에서 (보관함까지 회복, #124 A)
       monsters: { ...save.monsters, [uid]: caught },
       party: toBox ? save.party : [...save.party, uid],
       box: toBox ? [...save.box, uid] : save.box,

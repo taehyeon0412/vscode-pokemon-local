@@ -10,7 +10,7 @@
  * 상태는 늘 새 객체로 만듦 (그 자리에서 고치지 않음 — 확장 ↔ 웹뷰 · 저장소가 같은 객체를 나눠 써도 안 바뀌게).
  */
 import { BALANCE, TIMING } from '../balance';
-import { buy, canBuyCandy, healTeam, isShopItem, moveInTeam, release, sell, spendPoint, swapWithBox, teamHealth, toBox, useFieldItem, walkRegen } from '../rules/bag';
+import { buy, canBuyCandy, healBox, healTeam, isShopItem, moveInTeam, release, sell, spendPoint, swapWithBox, teamHealth, toBox, useFieldItem, walkRegen } from '../rules/bag';
 import { createWild, encounterStart, pickupAt, planWild, wildKey } from '../rules/encounter';
 import { itemName, requestAt, resolveRequest } from '../rules/request';
 import { DAILY_BONUS, dailyAdd, dailyDone, dailyFor, dailyLabel, dayFarAhead, trainersLeft } from '../rules/daily';
@@ -1647,7 +1647,8 @@ export function applyInput(state: GameState, input: GameInput): GameState {
     case 'team-to-box': {
       if (!canSwapBox(state)) return state;
       const next = input.kind === 'team-swap' ? swapWithBox(save, input.boxUid, input.partyUid) : toBox(save, input.uid);
-      return next ? { ...state, save: next } : state;
+      // 넣는 순간 회복은 병원 · 대기실에서만 (#124 A — 태현 님 "추천대로": 클리어 카드 · 지도에서 넣었다 빼면 공짜 회복이 되던 것) · 그 밖은 다음 병원에서
+      return next ? { ...state, save: inFacility(state, 'hospital') || inLobby(state) ? healBox(next) : next } : state;
     }
     case 'release': {
       if (!canRelease(state)) return state;
