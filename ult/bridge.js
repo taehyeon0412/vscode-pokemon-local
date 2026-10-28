@@ -1118,6 +1118,12 @@ const FX_TRAVEL = {
     rings: (g, o) => (o.forward ? fxFly((90 + 40 * g.P) * g.s, 0, 0.7) : 0),
     notes: (g) => fxFly(22 * g.s, 0, 1.1),
 };
+// 날리기 (projectile) 가 상대에 닿는 때 = 연출 길이의 이만큼 — src/game/features/battle/fx/shot-hit.ts shotHitAt('projectile') 와 같은 값 (fx/move-look.test 가 견줌)
+const PROJECTILE_HIT_AT = 0.85;
+// 포물선 날리기 (arc) 가 쓰는 쪽 땅높이로 돌아오는 시간 (초) — moves.js projectile: 처음 위 빠르기 arc × 0.45 · 무게 arc → 2 × 0.45 (fx/move-look.test 가 견줌)
+const PROJECTILE_ARC_SEC = 0.9;
+// 날리기 빠르기 배 끝 [임시값] — 1:1 은 860 넘게 넓어도 상대까지 319px (가운데 축) · 맞는 때까지 0.28 ~ 0.54초라 2 ~ 5배 · 느린 하트 (천사의키스 speed 0.6) 7.9배 (#122 잼)
+const PROJECTILE_K_MAX = 8;
 // run 하는 동안 · 그 뒤 발사기가 만드는 입자의 옆 빠르기를 k 배 — 예전 틀 (물대포: fx 없는 발사기) 은 fx 발사기로 바꿔 감쌈
 function fxScaled(k, run, cap, rateK = 1) {
     const p0 = moveParticles.length;
@@ -1155,7 +1161,7 @@ function fxScaled(k, run, cap, rateK = 1) {
     }
 }
 // 틀마다 상대까지 — { g, o, k, cap, rateK, after } (k = 빠르기 배, cap = 입자마다 고칠 것, rateK = 입자 수 배, after = 더 할 것)
-function fxAim(fx, g, o, t) {
+function fxAim(fx, g, o, t, ms = 0) {
     const clampK = (v) => Math.min(25, Math.max(0.6, v));
     const dense = (k) => Math.min(4, Math.max(1, k));
     // 상대 몸 뒤 (0.3 폭) 를 지나면 사라짐 — 큰 포켓몬의 뿜기가 상대 뒤로 멀리 나가지 않게
@@ -1174,8 +1180,16 @@ function fxAim(fx, g, o, t) {
     };
     switch (fx) {
         case 'breath': {
-            const k = clampK(t.dist / FX_TRAVEL.breath(g));
-            return { g, o: { ...o, speed: (o.speed ?? 1) * k, rate: (o.rate ?? 1) * dense(k) }, k: 1, cap: stopPast };
+            // 닿는 끝 = 상대 몸 앞 끝 (가운데가 아니라) — 앞머리는 몸 앞에서 기다렸다 맞는 때에 감쌈. 가운데를 목표로 하면 좁은 패널 (240) 에서 몸 앞 끝이 길의 75% 자리라
+            //   앞머리가 맞는 때보다 0.26 ~ 0.4초 먼저 몸에 닿고 (화염방사 · 불사르기 — #122 1단계 UX 2바퀴 큼, 태현 님 #457 과 같은 종류) 860 에서는 95% 자리라 늦던 것
+            //   몸 앞 끝에서 불길 굵기만큼 더 앞 (몸 폭 × (0.5 + 0.15 × grow) — 굵은 불사르기 grow 2.3 의 혀 끝이 몸 앞 끝 목표에서도 얼굴에 붙어 보이던 것)
+            //   표의 빠르기 · 수명 (speed · life) 과 상관없이 늘 이 끝까지 — 알갱이가 가는 거리 = 빠르기 × (1 − e^−끌림×수명) 이라 수명은 되돌려 셈 (moves.js breath: 끌림 2.6 − 세기 · 수명 0.475 × (1 + 0.7 × 세기) × life).
+            //   빠르기 · 수명은 일반 모드 모양 · 굵기에만 (불태우기 · 화염탄 · 불꽃채찍 speed 0.8 · life 0.8 이 끝의 64% 에서 멈춰 맞는데도 빗나간 것처럼 보이던 것 — #122 UX 3바퀴 큼)
+            const drag = 2.6 - g.P;
+            const life0 = 0.475 * (1 + 0.7 * g.P);
+            const lifeK = (1 - Math.exp(-drag * life0)) / (1 - Math.exp(-drag * life0 * (o.life ?? 1)));
+            const k = clampK((Math.max(0.4 * t.dist, t.dist - (0.5 + 0.15 * (o.grow ?? 1)) * t.w) / FX_TRAVEL.breath(g)) * lifeK);
+            return { g, o: { ...o, speed: k, rate: (o.rate ?? 1) * dense(k) }, k: 1, cap: stopPast };
         }
         case 'water':
         case 'bubbles':
@@ -1214,13 +1228,44 @@ function fxAim(fx, g, o, t) {
         case 'quake':
             // 흙먼지는 상대 발밑 · 흔들기는 게임 화면 (일반 모드는 숨은 포켓몬 · 앞쪽 풀을 흔듦)
             return { g: fxShift(g, t.cx - g.body.cx), o, after: () => fxGameShake(2 + g.P) };
-        case 'projectile':
+        case 'projectile': {
+            // 마지막 발이 맞는 때 (PROJECTILE_HIT_AT × 길이) 에 상대에 닿게 빠르기를 맞춤 (#122 U2 — 빠르기 1 그대로면 0.5 ~ 1초 늦게 닿아
+            //   피해 숫자 · 맞는 빛이 나온 뒤에도 날아가던 것: 불꽃세례 · 독침 · 바늘미사일 · 섀도볼 …). 게임의 똑바로 나는 날리기 모두 · 표에 reach: 0 = 예전 빠르기
+            let k = 1;
+            let travel = 0;
+            if (o.reach !== 0 && ms > 0) {
+                const n = o.n ?? 1 + Math.round(2 * g.P);
+                travel = Math.max(0.12, (PROJECTILE_HIT_AT * ms - (n - 1) * (o.every ?? 150)) / 1000);
+                k = Math.min(PROJECTILE_K_MAX, Math.max(0.6, t.dist / travel / ((100 + 60 * g.P) * g.s * (o.speed ?? 1))));
+            }
+            // 포물선도 맞는 때에 상대 발밑에 떨어지게 — 옆 빠르기 × k · 처음 위 빠르기 × f · 무게 × f² (f = 0.9초 / 날아갈 시간). 예전엔 빠르기와 상관없이 0.9초에 떨어져
+            //   피해 숫자 · 패링 원보다 0.35 ~ 0.75초 늦게 닿던 것 (씨폭탄 · 진흙폭탄 · 돌떨구기 — #122 1단계 UX 큼, 태현 님 #457 과 같은 종류)
+            if (o.arc && travel > 0) {
+                const f = PROJECTILE_ARC_SEC / travel;
+                return { g, o, k, cap: (p) => {
+                    if (p.g && p.vx) {
+                        p.vy *= f;
+                        p.g *= f * f;
+                        // 상대 자리에서 끝 (터지는 것은 거기서 — 그대로 떨어져 상대 뒤 25 ~ 45px 에 굴러가던 것, UX 2바퀴)
+                        const at = t.dist / Math.abs(p.vx);
+                        p.max = Math.min(p.max, at + 0.02);
+                        if (o.pop) {
+                            p.popAt = Math.min(p.max - 0.02, at);
+                        }
+                    }
+                } };
+            }
             // 똑바로 나는 것은 상대를 지나면 사라짐 (화면 끝까지 안 감) — 부메랑 · 포물선은 그대로
-            return o.boomerang || o.arc ? { g, o } : { g, o, k: 1, cap: (p) => {
+            return o.boomerang || o.arc ? { g, o } : { g, o, k, cap: (p) => {
                 if (p.vx && p.max > 0.3) {
                     p.max = Math.min(p.max, (t.dist + 0.3 * t.w) / Math.abs(p.vx));
+                    // 닿는 때 = 상대까지 (불꽃튀기기 pop — 상대 몸에서 터짐, #122)
+                    if (o.pop) {
+                        p.popAt = Math.min(p.max - 0.02, t.dist / Math.abs(p.vx));
+                    }
                 }
             } };
+        }
         default:
             return { g, o };
     }
@@ -3144,7 +3189,7 @@ window.pokemonFx = {
             let aim = { g: g0, o: FX_CONTACT.has(p.sig[1]) ? { ...p.o, onTarget: true, c: hitColsOfPal(p.o.c ?? 'normal') } : p.o };
             if (dst && fxWidth(dst) >= 1) {
                 const tg = fxTarget(g0, dst);
-                aim = fxAim(p.sig[1], g0, p.o, tg);
+                aim = fxAim(p.sig[1], g0, p.o, tg, p.ms);
                 // 3:3 — 다른 줄 상대 (1:1 은 같은 땅이라 그대로)
                 if (fxTeamOn()) {
                     aim = fxAimRow(p.sig[1], aim, g0, tg);
@@ -3191,7 +3236,10 @@ window.pokemonFx = {
         // o.pick = 짜임 (게임 = 그 포켓몬 기술 칸 순서, 없으면 기술 이름) · scale · light · basic · none (ult/fx-hit.js)
         // 늦게 터지는 고리 · 연타 (setTimeout) 도 기술 연출과 같이 멈추게 (전투가 끝나면 다음 화면에 안 남음)
         // 안 볼 때는 닿는 기술처럼 작게 · 가운데 번쩍 · 고리 · 흔들기 없이
-        const opts = { ...(o || {}), pick: o?.pick ?? hitHash(name), bottom, ...(fxAway ? { light: true } : {}) };
+        // 기술마다 맞는 짜임 (#122) = 그 기술 표 칸의 hit (dev/move-look.json → make-moves 가 MOVE_LIB 옵션에 넣음 · 게임과 같은 이름 찾기)
+        const lib = typeof MOVE_LIB !== 'undefined' ? MOVE_LIB.find((v) => v[0] === ((typeof GAME_MOVE_ALIAS !== 'undefined' && GAME_MOVE_ALIAS[name]) || name)) : null;
+        const hit = lib?.[2]?.hit;
+        const opts = { ...(o || {}), pick: o?.pick ?? hitHash(name), bottom, ...(hit ? { hit } : {}), ...(fxAway ? { light: true } : {}) };
         safeFx({}, () => fxWithTimers(fxMoveGen, () => typeImpact(r.left + r.width / 2, r.top + r.height * 0.55, s, type, P, !!big, dst.left ? 1 : -1, r.width, opts)));
     },
     /** 필살기 — 일반 모드처럼 번쩍 · 어두워짐 · 컷인 · 큰 글씨 · 그 포켓몬의 필살기 (전용 연출 포함). 상대 = dst. 걸리는 시간 (ms), 못 쓰면 0.

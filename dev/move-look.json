@@ -1,3 +1,487 @@
 {
-  "_doc": "기술마다 모양 (#122 — 디자인 표). 열쇠 = 게임 기술 id (src/game/data/generated/moves.json) · 값 = { fx?: 틀 이름 (moves.js SIG_FX — 안 적으면 지금 틀), 변주 값 (그 틀이 읽는 o.* — speed · life · smoke · n · every · arc · shape · rise · rate · sparkle · dur …), size?: 효과 크기 0.7 ~ 1.4 (안 적으면 위력 40 이하 0.85 ~ 120 이상 1.25 · 변화 기술 1.0) }. 이름이 같은 일반 모드 기술도 같이 바뀜. 고친 뒤: python dev/move-look.py (묶음 make-moves.py → 3:3 박자 move-fx.py → 바뀐 박자 보고). 표에 없는 기술은 예전 그대로."
+  "_doc": "기술마다 모양 (#122 — 디자인 표). 열쇠 = 게임 기술 id (src/game/data/generated/moves.json) · 값 = { fx?: 틀 이름 (moves.js SIG_FX — 안 적으면 지금 틀), 변주 값 (그 틀이 읽는 o.* — speed · life · smoke · n · every · arc · shape · rise · rate · sparkle · dur …) } — 크기도 틀 값 (n · big · len · height …) 으로 (size 는 없음 — 틀이 안 읽음). 이름이 같은 일반 모드 기술도 같이 바뀜. 고친 뒤: python dev/move-look.py (묶음 make-moves.py → 3:3 박자 move-fx.py → 바뀐 박자 보고). 표에 없는 기술은 예전 그대로. · hit = 맞는 순간 짜임 (ult/fx-hit.js HIT_MOVES — 안 적으면 타입 짜임 셋 중 하나)",
+  "_0": "#122 0단계 파이리 계열 여섯 — 위력 순으로 크게: 불꽃세례 40 (작은 불티 셋) < 불꽃튀기기 70 (큰 불덩이 하나 · 닿으면 사방으로 튐) < 화염방사 90 (굵은 불길 줄기) < 연옥 100 (상대 둘레 불기둥 + 발밑 터짐) · 할퀴기 40 (짧은 자국 셋) · 베어가르기 70 (긴 자국 하나)",
+  "52": {
+    "fx": "projectile",
+    "shape": "ball",
+    "c": "fire",
+    "n": 3,
+    "every": 110,
+    "speed": 1.15,
+    "hit": "ember"
+  },
+  "481": {
+    "fx": "projectile",
+    "shape": "ball",
+    "c": "fire",
+    "n": 1,
+    "big": 1,
+    "speed": 0.95,
+    "pop": 1,
+    "dur": 1.6,
+    "hit": "flameburst"
+  },
+  "53": {
+    "fx": "breath",
+    "c": "fire",
+    "smoke": 1,
+    "rate": 2.0,
+    "grow": 2.0,
+    "spread": 1.2,
+    "hit": "wrapfire"
+  },
+  "517": {
+    "fx": "vortex",
+    "c": "fire",
+    "height": 1.25,
+    "flare": 1,
+    "hit": "pillar"
+  },
+  "10": {
+    "fx": "slash",
+    "c": "normal",
+    "n": 3,
+    "len": 0.75,
+    "hit": "claw3"
+  },
+  "163": {
+    "fx": "slash",
+    "c": "normal",
+    "n": 1,
+    "len": 1.35,
+    "hit": "slashline"
+  },
+  "_0b": "불꽃 타입 기본 (불꽃세례) 을 빌려 쓰던 기술 셋 (불태우기 · 화염탄 · 불꽃채찍) 은 0단계에서 예전 모양 그대로 (불꽃세례가 불티로 바뀌어 같이 바뀌지 않게) — 1 ~ 3단계에서 기술마다 · 불사르기는 1단계 (리자몽 계열)",
+  "510": {
+    "fx": "breath",
+    "c": "fire",
+    "speed": 0.8,
+    "life": 0.8
+  },
+  "545": {
+    "fx": "breath",
+    "c": "fire",
+    "speed": 0.8,
+    "life": 0.8
+  },
+  "680": {
+    "fx": "breath",
+    "c": "fire",
+    "speed": 0.8,
+    "life": 0.8
+  },
+  "_1": "#122 1단계 — 스타팅 계열 + 피카츄 · 라이츄 (태현 님 10-28 \"추천대로 전부\") · hit = ult/fx-hit.js HIT_MOVES",
+  "33": {
+    "fx": "dash",
+    "c": "normal",
+    "hit": "puffS"
+  },
+  "98": {
+    "fx": "dash",
+    "c": "normal",
+    "fast": 1,
+    "hit": "streak"
+  },
+  "364": {
+    "fx": "dash",
+    "c": "normal",
+    "fast": 1,
+    "hit": "tick"
+  },
+  "229": {
+    "fx": "dash",
+    "c": "normal",
+    "roll": 1,
+    "hit": "spinring"
+  },
+  "99": {
+    "fx": "dash",
+    "c": "fight",
+    "hit": "redpuff"
+  },
+  "35": {
+    "fx": "rings",
+    "c": "normal",
+    "forward": 1,
+    "n": 2,
+    "hit": "squeeze"
+  },
+  "496": {
+    "fx": "notes",
+    "n": 3,
+    "every": 60,
+    "dur": 0.62,
+    "hit": "chime"
+  },
+  "343": {
+    "fx": "dash",
+    "c": "normal",
+    "hit": "heart"
+  },
+  "498": {
+    "fx": "punch",
+    "c": "normal",
+    "n": 3,
+    "hit": "nibble"
+  },
+  "514": {
+    "fx": "dash",
+    "c": "normal",
+    "hit": "double"
+  },
+  "21": {
+    "fx": "punch",
+    "c": "normal",
+    "big": 1,
+    "hit": "puffM"
+  },
+  "34": {
+    "fx": "quake",
+    "c": "normal",
+    "hit": "slam"
+  },
+  "36": {
+    "fx": "dash",
+    "c": "normal",
+    "hit": "puffL"
+  },
+  "130": {
+    "fx": "dash",
+    "c": "normal",
+    "hit": "rocket"
+  },
+  "38": {
+    "fx": "dash",
+    "c": "normal",
+    "hit": "crash"
+  },
+  "172": {
+    "fx": "dash",
+    "c": "fire",
+    "roll": 1,
+    "hit": "flamewheel"
+  },
+  "488": {
+    "fx": "dash",
+    "c": "fire",
+    "fast": 1,
+    "hit": "embers"
+  },
+  "394": {
+    "fx": "dash",
+    "c": "fire",
+    "hit": "flare"
+  },
+  "209": {
+    "fx": "dash",
+    "c": "electric",
+    "hit": "forkbolt"
+  },
+  "528": {
+    "fx": "dash",
+    "c": "electric",
+    "fast": 1,
+    "hit": "bigbolt"
+  },
+  "609": {
+    "fx": "spark",
+    "hit": "cheek"
+  },
+  "205": {
+    "fx": "dash",
+    "c": "rock",
+    "roll": 1,
+    "hit": "rubble"
+  },
+  "457": {
+    "fx": "dash",
+    "c": "rock",
+    "hit": "rockspike"
+  },
+  "75": {
+    "fx": "projectile",
+    "shape": "leaf",
+    "c": "grass",
+    "n": 5,
+    "every": 90,
+    "hit": "leafcut"
+  },
+  "345": {
+    "fx": "projectile",
+    "shape": "leaf",
+    "c": "grass",
+    "n": 3,
+    "every": 160,
+    "speed": 0.9,
+    "hit": "leafglow"
+  },
+  "402": {
+    "fx": "projectile",
+    "shape": "ball",
+    "c": "grass",
+    "n": 2,
+    "arc": 120,
+    "every": 180,
+    "hit": "seedburst"
+  },
+  "126": {
+    "fx": "projectile",
+    "shape": "ball",
+    "c": "fire",
+    "n": 1,
+    "big": 1,
+    "speed": 0.9,
+    "pop": 1,
+    "dur": 1.5,
+    "hit": "bigfire"
+  },
+  "261": {
+    "fx": "projectile",
+    "shape": "ball",
+    "c": "ghost",
+    "n": 1,
+    "speed": 0.6
+  },
+  "55": {
+    "fx": "water",
+    "hit": "splash"
+  },
+  "56": {
+    "fx": "beam",
+    "c": "water",
+    "width": 2.2,
+    "sparkle": "water",
+    "hit": "geyser"
+  },
+  "362": {
+    "fx": "water",
+    "hit": "crown"
+  },
+  "534": {
+    "fx": "slash",
+    "c": "water",
+    "n": 1,
+    "len": 1.3,
+    "hit": "waterslash"
+  },
+  "145": {
+    "fx": "bubbles",
+    "c": "water",
+    "hit": "bubblepop"
+  },
+  "61": {
+    "fx": "bubbles",
+    "c": "water",
+    "many": 1,
+    "hit": "bubblebig"
+  },
+  "71": {
+    "fx": "glow",
+    "c": "grass",
+    "hit": "drainS"
+  },
+  "72": {
+    "fx": "glow",
+    "c": "grass",
+    "hit": "drainM"
+  },
+  "202": {
+    "fx": "glow",
+    "c": "grass",
+    "hit": "drainL"
+  },
+  "44": {
+    "fx": "slash",
+    "c": "dark",
+    "n": 2,
+    "hit": "fang",
+    "len": 0.4
+  },
+  "242": {
+    "fx": "slash",
+    "c": "dark",
+    "n": 2,
+    "x": 1,
+    "hit": "crunch",
+    "len": 0.4
+  },
+  "154": {
+    "fx": "slash",
+    "c": "normal",
+    "n": 5,
+    "len": 0.7,
+    "hit": "claw5"
+  },
+  "1": {
+    "fx": "punch",
+    "c": "normal",
+    "n": 1,
+    "hit": "tap"
+  },
+  "31": {
+    "fx": "punch",
+    "c": "normal",
+    "n": 3,
+    "hit": "peck"
+  },
+  "94": {
+    "fx": "rings",
+    "c": "psychic",
+    "n": 6,
+    "hit": "psywave"
+  },
+  "473": {
+    "fx": "projectile",
+    "shape": "star",
+    "c": "psychic",
+    "n": 3,
+    "every": 120,
+    "hit": "psyshards"
+  },
+  "84": {
+    "fx": "projectile",
+    "shape": "star",
+    "c": "electric",
+    "n": 2,
+    "every": 120,
+    "speed": 1.2,
+    "hit": "zap"
+  },
+  "85": {
+    "fx": "spark",
+    "hit": "thunderbolt"
+  },
+  "435": {
+    "fx": "rings",
+    "c": "electric",
+    "n": 4,
+    "hit": "discharge"
+  },
+  "86": {
+    "fx": "rings",
+    "c": "electric",
+    "forward": 1,
+    "n": 2
+  },
+  "87": {
+    "fx": "thunder",
+    "hit": "thunder"
+  },
+  "682": {
+    "fx": "breath",
+    "c": "fire",
+    "smoke": 1,
+    "rate": 2.4,
+    "grow": 2.3,
+    "spread": 1.3,
+    "hit": "burnup"
+  },
+  "_1b": "1단계 더함 — 진화형이 배우는 15기술 (같은 계열 안 같은 모양 묶음 7 → 0): 나무지기 · 도치마론 · 아차모 · 물짱이 계열",
+  "228": {
+    "fx": "dash",
+    "c": "dark",
+    "fast": 1,
+    "hit": "pursuit"
+  },
+  "400": {
+    "fx": "slash",
+    "c": "dark",
+    "n": 1,
+    "len": 1.25,
+    "hit": "nightslash"
+  },
+  "210": {
+    "fx": "slash",
+    "c": "bug",
+    "n": 2,
+    "len": 0.8,
+    "hit": "furycut"
+  },
+  "404": {
+    "fx": "slash",
+    "c": "bug",
+    "n": 2,
+    "x": 1,
+    "len": 1.2,
+    "hit": "xscissor"
+  },
+  "452": {
+    "fx": "dash",
+    "c": "grass",
+    "hit": "woodhammer"
+  },
+  "302": {
+    "fx": "punch",
+    "c": "grass",
+    "n": 2,
+    "hit": "needlearm"
+  },
+  "24": {
+    "fx": "punch",
+    "c": "fight",
+    "n": 2,
+    "hit": "kick2"
+  },
+  "327": {
+    "fx": "punch",
+    "c": "fight",
+    "big": 1,
+    "hit": "uppercut"
+  },
+  "299": {
+    "fx": "punch",
+    "c": "fire",
+    "big": 1,
+    "hit": "blazekick"
+  },
+  "7": {
+    "fx": "punch",
+    "c": "fire",
+    "n": 1,
+    "hit": "firepunch"
+  },
+  "189": {
+    "fx": "projectile",
+    "shape": "ball",
+    "c": "ground",
+    "n": 3,
+    "every": 80,
+    "speed": 1.2,
+    "hit": "mudsplat"
+  },
+  "341": {
+    "fx": "projectile",
+    "shape": "ball",
+    "c": "ground",
+    "n": 1,
+    "big": 1,
+    "speed": 1.0,
+    "hit": "mudshot"
+  },
+  "426": {
+    "fx": "projectile",
+    "shape": "ball",
+    "c": "ground",
+    "n": 1,
+    "big": 1,
+    "arc": 110,
+    "pop": 1,
+    "speed": 0.9,
+    "hit": "mudbomb"
+  },
+  "88": {
+    "fx": "projectile",
+    "shape": "rock",
+    "c": "rock",
+    "n": 2,
+    "arc": 90,
+    "every": 160,
+    "hit": "rockthrow"
+  },
+  "157": {
+    "fx": "rockfall",
+    "c": "rock",
+    "n": 7,
+    "hit": "rockslide"
+  }
 }

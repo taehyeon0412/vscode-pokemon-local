@@ -37,8 +37,6 @@ STATS_CACHE = os.path.join(HERE, "pokemon-stats.json")
 # 기술마다 모양 (#122 — 디자인 표: 게임 기술 id → {fx?: 틀, 변주 값 …}) · 게임 기술 이름 · 위력
 LOOK_FILE = os.path.join(HERE, "dev", "move-look.json")
 GAME_MOVES_FILE = os.path.join(HERE, "src", "game", "data", "generated", "moves.json")
-# 위력 → 효과 크기 기본 (size — 포켓몬 그림은 그대로, 효과만) [임시값]: 위력 40 이하 0.85 ~ 120 이상 1.25 · 위력 없는 변화 기술 1.0 · 표에 적은 값은 0.7 ~ 1.4 로 자름
-LOOK_SIZE = {"low": 40, "high": 120, "min": 0.85, "max": 1.25, "clamp": (0.7, 1.4)}
 CSV_BASE = "https://raw.githubusercontent.com/PokeAPI/pokeapi/master/data/v2/csv"
 MOVE_OF_TYPE = {"fire": "fire", "water": "water", "electric": "electric", "grass": "grass"}
 # 멀리뛰기 — 개굴닌자 계열 · 개구리 · 토끼 · 피그점프 · 닌자 · 격투가 (도감 번호)
@@ -292,14 +290,6 @@ def moveset(sig, types, bst):
     return [m for m in pool if not (m[0] in seen or seen.add(m[0]))]
 
 
-def look_size(power):
-    """위력 → 효과 크기 기본 (#122)"""
-    if not power:
-        return 1.0
-    t = min(1, max(0, (power - LOOK_SIZE["low"]) / (LOOK_SIZE["high"] - LOOK_SIZE["low"])))
-    return round(LOOK_SIZE["min"] + (LOOK_SIZE["max"] - LOOK_SIZE["min"]) * t, 2)
-
-
 def bundle_table(src, name):
     """main-bundle.js 의 GAME-PATCH 표 (const 이름 = { 키: '값', … }) — 게임이 기술을 찾는 규칙 (gameMoveEntry) 과 같게"""
     m = re.search(r"const " + name + r" = \{([^}]*)\};", src)
@@ -309,7 +299,7 @@ def bundle_table(src, name):
 def apply_move_look(lib):
     """#122 기술마다 모양 — dev/move-look.json 의 값을 이름이 같은 MOVE_LIB 기술에 덮어씀 (일반 모드 그 기술도 같이 바뀜).
     MOVE_LIB 에 없는 게임 기술은 새로 더함 — 게임은 이름으로 찾고 (gameMoveEntry), 없으면 타입 기본 기술 (GAME_TYPE_MOVE) 을 빌려 모두 같아 보였음.
-    표에 없는 기술은 그대로 (빈 표 = 예전과 같은 묶음). size 를 안 적으면 위력으로 (look_size)"""
+    표에 없는 기술은 그대로 (빈 표 = 예전과 같은 묶음). 크기는 틀 값 (n · big · len …) 으로만 — 위력 자동 크기 (size) 는 틀이 안 읽어 뺌 (#122 디자인)"""
     if not os.path.exists(LOOK_FILE):
         return 0
     looks = {k: v for k, v in json.load(open(LOOK_FILE, encoding="utf-8")).items() if not k.startswith("_")}
@@ -324,9 +314,9 @@ def apply_move_look(lib):
         if not mv or not isinstance(look, dict):
             sys.exit(f"dev/move-look.json: 게임에 없는 기술 id {mid} (또는 값이 표가 아님)")
         look = dict(look)
+        if "size" in look:
+            sys.exit(f"dev/move-look.json {mid}: size 는 없음 — 틀이 읽는 값 (n · big · len · height …) 으로 크기를 정하세요")
         fx = look.pop("fx", None)
-        lo, hi = LOOK_SIZE["clamp"]
-        look["size"] = round(min(hi, max(lo, float(look["size"]))), 2) if "size" in look else look_size(mv.get("power"))
         name = alias.get(mv["name"]["ko"], mv["name"]["ko"])
         hits = [m for m in lib if m[0] == name]
         if not hits:
@@ -411,7 +401,11 @@ def write_ult_moves(ult_lib, ults):
         prev = json.load(open(ULT_MOVES_OUT, encoding="utf-8")) if os.path.exists(ULT_MOVES_OUT) else {}
         spread = [n for n in prev.get("spread", []) if n in names]
     data = {"forms": forms, "spread": spread}
-    open(ULT_MOVES_OUT, "w", encoding="utf-8", newline=chr(10)).write(json.dumps(data, ensure_ascii=False, separators=(",", ":")) + chr(10))
+    text = json.dumps(data, ensure_ascii=False, separators=(",", ":")) + chr(10)
+    # 내용이 같으면 안 씀 — 윈도우 작업 사본은 CRLF (core.autocrlf) 라 LF 로 다시 쓰면 내용이 같아도 git 이 바뀜으로 봄 (#122)
+    old = open(ULT_MOVES_OUT, encoding="utf-8").read() if os.path.exists(ULT_MOVES_OUT) else None
+    if old != text:
+        open(ULT_MOVES_OUT, "w", encoding="utf-8", newline=chr(10)).write(text)
     print(f"엔진 필살기 표 — 모습 {len(forms)} · 이름 {len(names)} · 원작 범위기 {len(spread)} → {os.path.relpath(ULT_MOVES_OUT, HERE)}")
 
 

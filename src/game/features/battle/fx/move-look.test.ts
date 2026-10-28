@@ -5,11 +5,13 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import movesJson from '../../../data/generated/moves.json';
+import { shotHitAt } from './shot-hit';
 
 const root = join(__dirname, '../../../../..');
 const look = JSON.parse(readFileSync(join(root, 'dev/move-look.json'), 'utf8')) as Record<string, unknown>;
 const bundle = readFileSync(join(root, 'extension/media/main-bundle.js'), 'utf8');
 const movesJs = readFileSync(join(root, 'moves.js'), 'utf8');
+const bridgeJs = readFileSync(join(root, 'ult/bridge.js'), 'utf8');
 const moves = movesJson as unknown as Record<string, { name: { ko: string }; type: string; power: number | null }>;
 const entries = Object.entries(look).filter(([k]) => !k.startsWith('_')) as [string, Record<string, unknown>][];
 
@@ -37,12 +39,12 @@ describe('기술마다 모양 표 (#122 — 태현 님 "불꽃세례 불꽃 튀�
     expect(lib.length).toBeGreaterThan(100);
   });
 
-  it('표의 값 — 게임 기술 id · 있는 틀 · 크기 0.7 ~ 1.4 · 변주 값은 숫자 · 글 · 참거짓', () => {
+  it('표의 값 — 게임 기술 id · 있는 틀 · size 없음 (틀이 안 읽음 — 크기는 틀 값으로) · 변주 값은 숫자 · 글 · 참거짓', () => {
     for (const [id, v] of entries) {
       expect(moves[id], `없는 기술 id ${id}`).toBeDefined();
       expect(typeof v === 'object' && v !== null && !Array.isArray(v)).toBe(true);
       if (v.fx !== undefined) expect(sigFx.has(String(v.fx)), `${id} 틀 ${String(v.fx)}`).toBe(true);
-      if (v.size !== undefined) expect(Number(v.size)).toBeGreaterThan(0);
+      expect(v.size, `${id} size — make-moves 가 멈춤`).toBeUndefined();
       for (const [k, x] of Object.entries(v)) expect(['number', 'string', 'boolean'], `${id}.${k}`).toContain(typeof x);
     }
   });
@@ -54,13 +56,26 @@ describe('기술마다 모양 표 (#122 — 태현 님 "불꽃세례 불꽃 튀�
       const got = lib.filter((m) => m[0] === name);
       expect(got.length, `${name} (${id}) 가 묶음에 없음 — python dev/move-look.py`).toBeGreaterThan(0);
       for (const m of got) {
-        const { fx, size, ...opts } = v;
+        const { fx, ...opts } = v;
         if (fx !== undefined) expect(m[1], `${name} 틀`).toBe(fx);
-        expect(m[2]?.size, `${name} 크기`).toBeGreaterThanOrEqual(0.7);
-        expect(m[2]?.size, `${name} 크기`).toBeLessThanOrEqual(1.4);
-        if (size !== undefined) expect(m[2]?.size).toBe(Math.round(Math.min(1.4, Math.max(0.7, Number(size))) * 100) / 100);
+        // 예전 위력 자동 크기가 묶음에 남지 않음 (python dev/move-look.py 로 다시 묶음)
+        expect(m[2]?.size, `${name} size — python dev/move-look.py`).toBeUndefined();
         for (const [k, x] of Object.entries(opts)) expect(m[2]?.[k], `${name}.${k} — python dev/move-look.py`).toBe(x);
       }
     }
+  });
+
+  it('날리기는 맞는 때 (shot-hit) 에 상대에 닿게 빠르기를 맞춤 — bridge 의 닿는 때가 shot-hit.ts 와 같음 (#122 U2)', () => {
+    const at = /const PROJECTILE_HIT_AT = ([\d.]+);/.exec(bridgeJs);
+    expect(Number(at?.[1])).toBe(shotHitAt('projectile'));
+    // 표에 적은 기술만이 아니라 게임의 똑바로 나는 날리기 모두 (reach: 0 만 예전 빠르기)
+    expect(bridgeJs).toContain('o.reach !== 0 && ms > 0');
+  });
+  it('포물선 날리기도 맞는 때에 떨어지게 — bridge 의 포물선 시간이 moves.js 포물선 (위 빠르기 arc × 0.45 · 무게 arc) 과 같음 (#122 1단계 UX 큼)', () => {
+    const up = /o\.arc \? o\.arc \* ([\d.]+) \* g\.s/.exec(movesJs);
+    expect(movesJs).toContain('g: (o.arc ?? 0) * g.s');
+    const sec = /const PROJECTILE_ARC_SEC = ([\d.]+);/.exec(bridgeJs);
+    expect(Number(sec?.[1])).toBeCloseTo(2 * Number(up?.[1]), 6);
+    expect(bridgeJs).toContain('if (o.arc && travel > 0)');
   });
 });

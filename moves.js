@@ -1946,7 +1946,8 @@ const SIG_FX = {
     },
     // 날리기 — 독침 · 바늘미사일 · 스피드스타 · 오물폭탄 · 섀도볼 · 알폭탄 · 고양이돈받기 · 뼈다귀부메랑 · 악마의키스 · 트라이어택
     projectile: {
-        ms: (P, o) => ((o.n ?? 1 + Math.round(2 * P)) - 1) * (o.every ?? 150) + 400,
+        // dur = 길이 배 (#122 — 큰 불덩이가 천천히 날아 맞는 때에 닿게)
+        ms: (P, o) => (((o.n ?? 1 + Math.round(2 * P)) - 1) * (o.every ?? 150) + 400) * (o.dur ?? 1),
         run: (g, o) => {
             const n = o.n ?? 1 + Math.round(2 * g.P);
             sigEmitter({ until: performance.now() + (n - 1) * (o.every ?? 150) + 50, shots: n, every: o.every ?? 150, nextShot: performance.now(), fx: (e, i) => {
@@ -1973,6 +1974,18 @@ const SIG_FX = {
                             p.life = p.max;
                         }
                         if (p.x < -30 || p.x > window.innerWidth + 30) {
+                            p.life = p.max;
+                        }
+                        // 닿으면 사방으로 튀는 불꽃 (불꽃튀기기 — #122 pop) · 게임 = 상대에 닿는 때 (다리가 popAt) · 일반 모드 = 수명 끝 · 큰 터짐 + 안쪽 작은 터짐 (도트)
+                        if (o.pop && !p.popped && p.life >= (p.popAt ?? p.max - 0.05)) {
+                            p.popped = true;
+                            // 불티 18 이 사방으로 (1 ~ 2칸 · 0.45 ~ 0.75초 — sigBurst 는 작고 짧아 맞는 빛에 묻히던 것) + 안쪽 작은 터짐
+                            for (let k = 0; k < 18; k++) {
+                                const a = (k / 18) * Math.PI * 2 + moveRand(-0.2, 0.2);
+                                const sp = moveRand(60, 120) * p.s;
+                                sigParticle({ x: p.x, y: p.y, s: p.s, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 20 * p.s, g: 90 * p.s, drag: 1.2, max: moveRand(0.45, 0.75), color: movePick(p.cols.slice(0, 3)), size: movePick([1, 2, 2]), draw: DRAW.dot });
+                            }
+                            sigBurst(p.x, p.y, p.s, p.cols.slice(0, 2), 8, 35);
                             p.life = p.max;
                         }
                         // 잔상 꼬리 — 공 · 별은 많이, 잎 · 바늘 · 하트도 조금 (2026-10-19 "밋밋해")
@@ -2083,6 +2096,15 @@ const SIG_FX = {
             const ground = g.body.bottom;
             const start = performance.now();
             const spin = g.dir * moveRand(9, 12);
+            // 끝무렵 발밑에서 불꽃이 사방으로 터짐 (연옥 — #122 flare) · 기둥 가운데 · 두 번 (1초 3번 넘지 않게 0.25초 사이)
+            if (o.flare) {
+                for (const [at, k] of [[0.62, 1], [0.8, 0.7]]) {
+                    setTimeout(() => {
+                        sigBurst(cx, ground - 0.25 * H, g.s, cols, Math.round(18 * k), 90 * k);
+                        sigBurst(cx, ground - 0.6 * H, g.s, cols.slice(0, 2), Math.round(10 * k), 55 * k);
+                    }, ms * at);
+                }
+            }
             // 바닥 불빛
             sigParticle({ x: cx, y: ground, s: g.s, max: ms / 1000, draw: (ctx, p, t, px) => {
                 ctx.globalAlpha = fadeInOut(t, 0.15, 0.3) * (0.5 + 0.5 * Math.abs(Math.sin(p.life * 14)));
@@ -2317,7 +2339,8 @@ const SIG_FX = {
             const cols = sigPal(o.c);
             const n = o.n ?? 3;
             // 자국 길이 = 몸 높이쯤 (작은 포켓몬도 12칸 이상)
-            const L = Math.max(12, Math.round(((g.body.bottom - g.body.top) * 1.05) / g.s + 3 * g.P));
+            // len = 길이 배 (#122 — 할퀴기 짧은 셋 · 베어가르기 긴 하나)
+            const L = Math.max(12, Math.round((((g.body.bottom - g.body.top) * 1.05) / g.s + 3 * g.P) * (o.len ?? 1)));
             const cx = o.onTarget ? g.body.front - g.dir * 0.15 * g.body.rx * 2 : g.body.front + g.dir * L * g.s * 0.4;
             const cy = g.body.cy;
             sigEmitter({ until: performance.now() + n * 80, shots: n, every: 80, nextShot: performance.now(), fx: (e, i) => {
@@ -2355,12 +2378,15 @@ const SIG_FX = {
     },
     // 음표 — 노래하기
     notes: {
-        ms: () => 1600,
+        // n · every · dur = 음표 수 · 간격 · 길이 배 (#122 — 돌림노래: 7개 1.6초는 앞 음표가 닿고 0.4초 뒤에 맞아서 짧게, UX)
+        ms: (P, o) => 1600 * (o.dur ?? 1),
         run: (g, o) => {
             const cols = sigPal(o.c);
             // 음표 7개 — 하나씩 다른 색 (기술 색 + 무지개) · 크게 물결치며 · 지나간 자리에 반짝이 (2026-10-19 "밋밋해")
             const tints = [cols[2], '#ff7ab8', '#ffd23f', cols[1], '#6fd6ff', '#9bf06a', cols[3]];
-            sigEmitter({ until: performance.now() + 1400, shots: 7, every: 190, nextShot: performance.now(), fx: (e, i) => sigParticle({
+            const n = o.n ?? 7;
+            const every = o.every ?? 190;
+            sigEmitter({ until: performance.now() + (n - 1) * every + 260, shots: n, every, nextShot: performance.now(), fx: (e, i) => sigParticle({
                 x: g.mouth.x, y: g.mouth.y - 3 * g.s, s: g.s, phase: moveRand(0, 6), color: tints[i % tints.length],
                 vx: g.dir * moveRand(18, 34) * g.s, vy: -moveRand(8, 18) * g.s, max: 1.2,
                 update: (p) => {
