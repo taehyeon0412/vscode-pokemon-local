@@ -22,6 +22,21 @@ const LAST_USUM_DEX = 807; // 울트라썬문에 있는 마지막 종 (그 뒤 �
 const LANG_KO = '3';
 const LANG_EN = '9';
 
+// ---------- 진화 레벨 — 우리 게임 속도에 (#126) ----------
+
+/**
+ * 진화 레벨을 우리 게임 속도에 맞춤 (#126 — 2026-10-28 태현 님 "미뇽 → 신뇽 → 망나뇽 30 55는 너무 키우기 힘들것같아" → B 20 넘는 부분 0.6배 + "3정도만 더").
+ * 원작 L ≤ 20 그대로 · L > 20 → 20 + (L − 20) × 0.6 (반올림) · L ≥ 40 이거나 600족 계열이면 −3 (한 번). 원작 값은 origLevel 로 남김.
+ * 게임 안에서 계산하는 진화 레벨 (친밀도 · "이 기술을 알면" · 그 밖 조건) 은 src/game/core/rules/growth.ts fitEvolutionLevel — 같은 식 (테스트가 둘을 견줌)
+ */
+const EVO_FIT = { keep: 20, scale: 0.6, highFrom: 40, cut: 3 };
+/** 600족 계열의 진화 전 (미뇽 · 신뇽 · 애버라스 · 쉘곤 · 아공이 · 데기라스 · 메탕 · 메탕구 · 딥상어동 · 한바이트 · 모노두 · 디헤드) — 두 진화 모두 −3 */
+const PSEUDO_FROM = new Set([147, 148, 246, 247, 371, 372, 374, 375, 443, 444, 633, 634]);
+function fitEvolutionLevel(level, pseudo) {
+  const base = level <= EVO_FIT.keep ? level : EVO_FIT.keep + Math.round((level - EVO_FIT.keep) * EVO_FIT.scale);
+  return Math.max(1, base - (level >= EVO_FIT.highFrom || pseudo ? EVO_FIT.cut : 0));
+}
+
 // ---------- 기술 거르기 (mvp-spec 3.6 · 9장 "빼거나 단순하게") ----------
 
 /** 게임에 있는 상태 이상 (mvp-spec 3.3 U14) — 이것을 거는 변화 기술만 넣음 */
@@ -357,7 +372,10 @@ async function main() {
     else if (trigger === 'level-up' && level !== null && conditions.length === 0 && !e.known_move_id && !e.known_move_type_id && !e.held_item_id) kind = 'level';
     else kind = 'other';
     entry.kind = kind;
-    if (level !== null) entry.level = level;
+    if (level !== null) {
+      entry.level = fitEvolutionLevel(level, PSEUDO_FROM.has(Number(from)));
+      if (entry.level !== level) entry.origLevel = level;
+    }
     if (kind === 'item') entry.item = itemName.get(e.trigger_item_id);
     if (e.time_of_day) entry.time = e.time_of_day;
     if (e.gender_id) entry.gender = e.gender_id === '1' ? 'female' : 'male';

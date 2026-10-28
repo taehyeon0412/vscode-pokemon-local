@@ -8,6 +8,7 @@
  * 스타팅 18종 계열은 야생에 안 나옴 (mvp-spec 9장 [제안] — 처음 고른 포켓몬이 특별하게).
  */
 import { BALANCE } from '../balance';
+import { friendshipEvolutionLevel } from './growth';
 import type { Rng } from '../engine/rng';
 import type { EncounterStart, ItemId, Monster, StageId } from '../save';
 import { allSpecies, evolutionsOf, formOf, formsOfSpecies, learnsetOf, moveOf, speciesOf, type ReadonlySpecies, type TypeName } from '../../data';
@@ -143,7 +144,7 @@ export function devolveForLevel(dex: number, level: number): number {
     const from = speciesOf(current)?.evolvesFrom;
     if (!from || !speciesOf(from) || formsOfSpecies(from).length === 0) return current;
     const e = evolutionsOf(from).find((x) => x.to === current);
-    const reach = !e ? false : e.kind === 'level' ? (e.level ?? 1) <= level : e.kind === 'friendship' ? BALANCE.friendshipLevel <= level : false;
+    const reach = !e ? false : e.kind === 'level' ? (e.level ?? 1) <= level : e.kind === 'friendship' ? friendshipEvolutionLevel() <= level : false;
     if (reach) return current;
     current = from;
   }
@@ -157,7 +158,7 @@ export function evolveForLevel(dex: number, level: number, rng: Rng): number {
       if (formsOfSpecies(e.to).length === 0) return false;
       if (e.item || e.heldItem || e.knownMove || e.knownMoveType || e.time || (e.conditions && e.conditions.length > 0)) return false;
       if (e.kind === 'level') return (e.level ?? 1) <= level;
-      if (e.kind === 'friendship') return BALANCE.friendshipLevel <= level;
+      if (e.kind === 'friendship') return friendshipEvolutionLevel() <= level;
       return false;
     });
     if (options.length === 0) return current;

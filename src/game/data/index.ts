@@ -86,7 +86,10 @@ export interface MoveData {
 export interface Evolution {
   to: number;
   kind: 'level' | 'item' | 'trade' | 'friendship' | 'other';
+  /** 진화 레벨 — 우리 게임 속도에 맞춘 값 (#126, scripts/fetch-pokeapi.mjs fitEvolutionLevel) */
   level?: number;
+  /** 원작 레벨 (맞춰서 바뀐 것만) */
+  origLevel?: number;
   item?: string;
   time?: 'day' | 'night';
   /** 성별 갈래 (도롱충이 · 세꿀버리) — 게임에 성별이 없어 규칙 쪽에서 정함 */

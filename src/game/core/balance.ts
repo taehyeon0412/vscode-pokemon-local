@@ -85,6 +85,8 @@ export const BALANCE = {
   shinyChance: 0.02,
   /** 친밀도 진화 레벨 — 4장 */
   friendshipLevel: 20,
+  /** 진화 레벨을 우리 게임 속도에 (#126 — 2026-10-28 태현 님 B + "3정도만 더"): L ≤ keep 그대로 · 넘는 부분 × scale (반올림) · L ≥ highFrom 이면 −cut. 데이터는 받아 오는 스크립트가 같은 식으로 (fetch-pokeapi.mjs EVO_FIT — 테스트가 견줌) */
+  evolutionFit: { keep: 20, scale: 0.6, highFrom: 40, cut: 3 },
   /** 기습 확률: 상대 스피드가 내 몇 배 이상이면 [배, 확률] (큰 것부터) */
   ambush: [
     [2, 0.2],

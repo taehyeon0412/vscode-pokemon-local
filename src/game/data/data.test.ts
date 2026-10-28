@@ -203,7 +203,7 @@ describe('리뷰에서 찾은 것 (다시 안 생기게)', () => {
 
   it('진화는 울트라썬문 · 기본 모습 것만 (지역 폼 · 뒤 게임 규칙이 섞이지 않음)', () => {
     expect(evolutionsOf(155)).toEqual([{ to: 156, kind: 'level', level: 14 }]); // 브케인 (히스이 17 아님)
-    expect(evolutionsOf(52)).toEqual([{ to: 53, kind: 'level', level: 28 }]); // 나옹 (알로라 친밀도 아님)
+    expect(evolutionsOf(52)).toEqual([{ to: 53, kind: 'level', level: 25, origLevel: 28 }]); // 나옹 (알로라 친밀도 아님) · 레벨은 우리 속도 (#126 — 원작 28)
     expect(evolutionsOf(100).some((e) => e.item === 'leaf-stone')).toBe(false); // 찌리리공 (히스이)
     expect(evolutionsOf(133).some((e) => e.item === 'leaf-stone' || e.item === 'ice-stone')).toBe(false); // 이브이 (8세대 돌)
     expect(evolutionsOf(27).some((e) => e.item === 'ice-stone')).toBe(false); // 모래두지 (알로라)

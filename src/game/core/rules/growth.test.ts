@@ -4,7 +4,7 @@ import { sampleMonster } from '../../../test/fixtures/save';
 import { BALANCE } from '../balance';
 import { Rng } from '../engine/rng';
 import { evolutionsOf, speciesOf } from '../../data';
-import { addExp, evolutionLevel, evolutionMoves, evolve, evolvedForm, expGain, keepCount, learnMove, levelUpChoices, movesLearnedAt, pickEvolution } from './growth';
+import { addExp, evolutionLevel, evolutionMoves, evolve, evolvedForm, expGain, fitEvolutionLevel, keepCount, learnMove, levelUpChoices, movesLearnedAt, pickEvolution } from './growth';
 import { expForLevel, maxHp } from './stats';
 
 const TACKLE = 33;
@@ -99,7 +99,7 @@ describe('진화 (mvp-spec 3.6 · S22)', () => {
     expect(lv(196)).toBe(BALANCE.friendshipLevel); // 에브이 (낮)
     expect(lv(197)).toBeNull(); // 블래키 (밤 — MVP 는 늘 낮)
     expect(lv(134)).toBeNull(); // 샤미드 (물의돌)
-    expect(lv(470)).toBe(BALANCE.otherEvolutionDefault); // 리피아 (장소)
+    expect(lv(470)).toBe(fitEvolutionLevel(BALANCE.otherEvolutionDefault)); // 리피아 (장소) — 같은 식으로 맞춤 (#126 · 30 → 26)
   });
 
   it('성별 갈래: 그림이 암컷 · 수컷이면 맞는 쪽만 (세꿀버리) · 성별 없는 그림은 반반 (도롱충이) · 확률 갈래 (개무소)', () => {

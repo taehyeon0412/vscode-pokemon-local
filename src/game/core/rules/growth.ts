@@ -92,13 +92,28 @@ export function evolvedForm(fromForm: string, fromDex: number, to: number): stri
   return forms[0] ?? fromForm;
 }
 
-/** 그 종으로 진화해 온 레벨 (앞 진화) — 특수 조건 진화의 기준 */
+/**
+ * 진화 레벨을 우리 게임 속도에 (#126) — 데이터의 레벨 진화는 받아 오는 스크립트가 이미 맞춤 (scripts/fetch-pokeapi.mjs fitEvolutionLevel · 600족 −3 은 데이터에만).
+ * 여기는 게임이 계산하는 진화 레벨 (친밀도 · "이 기술을 알면" · 그 밖 조건) 에 같은 식
+ */
+export function fitEvolutionLevel(level: number): number {
+  const f = BALANCE.evolutionFit;
+  const base = level <= f.keep ? level : f.keep + Math.round((level - f.keep) * f.scale);
+  return Math.max(1, base - (level >= f.highFrom ? f.cut : 0));
+}
+
+/** 친밀도 진화 레벨 — 내 포켓몬 · 트레이너 · 야생 (encounter) 이 같은 값 (한 곳 — 코드 리뷰어 #126) */
+export function friendshipEvolutionLevel(): number {
+  return fitEvolutionLevel(BALANCE.friendshipLevel);
+}
+
+/** 그 종으로 진화해 온 원작 레벨 (앞 진화) — 특수 조건 진화의 기준 (맞추기 전 값 + 간격을 맞춤 — 두 번 줄지 않게) */
 function previousEvolutionLevel(dex: number): number | null {
   const from = speciesOf(dex)?.evolvesFrom;
   if (!from) return null;
   const e = evolutionsOf(from).find((x) => x.to === dex);
   if (!e) return null;
-  if (e.level) return e.level;
+  if (e.level) return e.origLevel ?? e.level;
   if (e.kind === 'friendship') return BALANCE.friendshipLevel;
   return null;
 }
@@ -114,13 +129,13 @@ export function evolutionLevel(m: Monster, e: ReadonlyEvolution): number | null 
   // 성별 갈래: 그림이 암컷 · 수컷이면 맞는 쪽만 (세꿀버리 → 비퀸은 combee_female), 성별 없는 그림은 무작위 반반 (pickEvolution)
   if (e.gender && (m.form.endsWith('_female') || m.form.endsWith('_male')) && !m.form.endsWith(`_${e.gender}`)) return null;
   if (e.level) return e.level;
-  if (e.kind === 'friendship') return BALANCE.friendshipLevel;
+  if (e.kind === 'friendship') return friendshipEvolutionLevel();
   if (e.knownMove) {
     const learned = learnsetOf(m.species).find(([, id]) => id === e.knownMove);
-    if (learned && learned[0] >= 1) return learned[0];
+    if (learned && learned[0] >= 1) return fitEvolutionLevel(learned[0]);
   }
   const prev = previousEvolutionLevel(m.species);
-  return prev !== null ? prev + BALANCE.otherEvolutionGap : BALANCE.otherEvolutionDefault;
+  return fitEvolutionLevel(prev !== null ? prev + BALANCE.otherEvolutionGap : BALANCE.otherEvolutionDefault);
 }
 
 /** 그 레벨에서 할 수 있는 진화 하나 (갈래는 확률 · 없으면 반반) — 없으면 null */
