@@ -6825,13 +6825,15 @@ body.vscode-high-contrast-light .pg-hpblock > .pg-hprow,
 .pg-starter-chain {
   overflow: visible;
 }
-/* 진화 줄 넘치면 한 단계 (StarterPick chainFit — 폭 규칙 420 · 300 대신 재서, 2637): 1 뒤 단계 이름 뺌 (칸이 그림만큼 줄어듦) · 2 타입 뺌 + 이름 밑 여백 0 (2640) */
+/* 진화 줄 넘치면 한 단계 (StarterPick chainFit — 폭 규칙 420 · 300 대신 재서, 2637): 1 뒤 단계 이름 뺌 (칸이 그림만큼 줄어듦) · 2 타입 뺌 (이름은 남김) · 3 둘 다 · 타입을 빼면 이름 밑 여백 0 (2640) */
 .pg-chain-fit1 .pg-chain-label.pg-dim,
-.pg-chain-fit2 .pg-chain-label.pg-dim,
-.pg-chain-fit2 .pg-chain-types {
+.pg-chain-fit3 .pg-chain-label.pg-dim,
+.pg-chain-fit2 .pg-chain-types,
+.pg-chain-fit3 .pg-chain-types {
   display: none;
 }
-.pg-chain-fit2 .pg-chain-grid {
+.pg-chain-fit2 .pg-chain-grid,
+.pg-chain-fit3 .pg-chain-grid {
   padding-bottom: 0;
 }
 /* S04 넘치면 한 단계 (StarterPick barFit · moveFit — #128 픽셀 큼): 정보줄 1 제목 짧게 · 2 [←] · 3 바뀌어 뜨는 숲 안내 뺌 ("첫 포켓몬" 은 남김) · 4 제목 뺌 / 기술 줄 1 "위력" 뺌 · 2 "기술 n/2" 뺌 */

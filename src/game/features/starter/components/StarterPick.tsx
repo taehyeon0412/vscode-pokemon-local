@@ -65,7 +65,8 @@ export function StarterPick({ media, pending, onBack, onDone }: StarterPickProps
   const rootRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const chainRef = useRef<HTMLDivElement>(null);
-  // 진화 줄 넘치면 한 단계 (2637 — 420 · 300px 폭 규칙이 자리가 남아도 "라이츄" 이름 · 타입을 숨기던 것, U4 폭 경계를 손으로 고르지 않음): 1 뒤 단계 이름 뺌 · 2 타입 뺌
+  // 진화 줄 넘치면 한 단계 (2637 — 420 · 300px 폭 규칙이 자리가 남아도 "라이츄" 이름 · 타입을 숨기던 것, U4 폭 경계를 손으로 고르지 않음):
+  //   1 뒤 단계 이름 뺌 (이름이 제 그림 칸보다 넓어 빼면 줄이 줄 때만) · 2 타입 뺌 (이름은 남김) · 3 둘 다 — 187 의 ×2 그림 칸은 이름보다 넓어 이름을 빼도 안 줄어드는데 단계만 올라 숨던 것 (UX)
   const [chainFit, setChainFit] = useState(0);
   const [barFit, setBarFit] = useState(0);
   const [moveFit, setMoveFit] = useState(0);
@@ -94,20 +95,36 @@ export function StarterPick({ media, pending, onBack, onDone }: StarterPickProps
       if (need > row.clientWidth + 0.5) setMoveFit(moveFit + 1);
       // 기술 줄이 둘 넘게 감겨 판 아래에서 잘리면 "위력" 을 빼 줄 수를 줄임 (2638 — 480 × 187 셋째 · 넷째 기술이 판 끝에 반쯤 걸리던 것)
       const items = [...row.children].filter((c): c is HTMLElement => c instanceof HTMLElement && c.offsetWidth > 0);
-      if (moveFit === 0 && body && new Set(items.map((c) => c.offsetTop)).size > 1 && row.getBoundingClientRect().bottom > body.getBoundingClientRect().bottom + 0.5) setMoveFit(1);
+      //   "위력" 을 빼서 실제로 줄 수가 줄 때만 (미리 줄바꿈을 셈 — 줄이 그대로인 폭에서도 빠져 숫자만 남던 것, UX)
+      if (moveFit === 0 && body && row.getBoundingClientRect().bottom > body.getBoundingClientRect().bottom + 0.5) {
+        const gap = parseFloat(getComputedStyle(row).columnGap) || 0;
+        const linesOf = (ws: number[]) => ws.reduce((acc, w) => (acc.x > 0 && acc.x + gap + w > row.clientWidth + 0.5 ? { n: acc.n + 1, x: w } : { n: acc.n, x: acc.x > 0 ? acc.x + gap + w : w }), { n: 1, x: 0 }).n;
+        const now = items.map((c) => c.getBoundingClientRect().width);
+        const less = items.map((c, i) => now[i]! - (c.querySelector<HTMLElement>('.pg-pow-word')?.getBoundingClientRect().width ?? 0) * FIT_ROOM);
+        if (linesOf(less) < linesOf(now)) setMoveFit(1);
+      }
     }
     // 진화 줄 — 격자 (가운데) + 오른쪽 옆 타입이 판 안쪽 폭에 드는지 (글 × 맥 여유 1.1 · 진화 줄 칸은 격자만큼만 넓어 판과 견줌)
     const crow = chainRef.current;
-    if (crow && body && chainFit < 2 && crow.clientWidth > 0) {
+    if (crow && body && chainFit < 3 && crow.clientWidth > 0) {
       const bcs = getComputedStyle(body);
       const bb = body.getBoundingClientRect();
       const rr = { left: bb.left + (parseFloat(bcs.paddingLeft) || 0), right: bb.left + body.clientWidth - (parseFloat(bcs.paddingRight) || 0) };
       const grid = crow.querySelector('.pg-chain-grid')?.getBoundingClientRect();
       const tr = crow.querySelector('.pg-chain-types')?.getBoundingClientRect();
-      const labels = [...crow.querySelectorAll<HTMLElement>('.pg-chain-label')].reduce((w, l) => w + l.getBoundingClientRect().width, 0);
-      const room = (FIT_ROOM - 1) * (labels / 2 + (tr?.width ?? 0));
+      // 이름이 제 그림 칸보다 넓은 만큼 (빼면 줄이 주는 만큼 · 맥 여유는 그만큼에만)
+      const pics = [...crow.querySelectorAll<HTMLElement>('.pg-chain-pic')].map((p) => p.getBoundingClientRect().width);
+      const excess = [...crow.querySelectorAll<HTMLElement>('.pg-chain-label')].reduce((w, l, i) => w + Math.max(0, l.getBoundingClientRect().width * FIT_ROOM - (pics[i] ?? 0)), 0);
+      const room = (FIT_ROOM - 1) * (tr?.width ?? 0) + excess / 2;
       const right = Math.max(grid?.right ?? 0, tr && tr.width > 0 ? tr.right : 0) + room;
-      if (grid && (right > rr.right + 0.5 || grid.left < rr.left - 0.5)) setChainFit(chainFit + 1);
+      if (grid && (right > rr.right + 0.5 || grid.left < rr.left - 0.5)) {
+        // 이름을 빼서 줄이 줄 때만 이름 단계 (0 → 1 · 2 → 3) · 타입은 그다음 (1 → 3 · 0 → 2) · 더 줄일 게 없으면 그대로 (판 스크롤)
+        //   넘친 만큼을 타입만 빼서 풀 수 있으면 타입부터 (이름은 남김 — 420 × 187 이상해씨처럼 맥 여유로 몇 px 넘칠 때)
+        const namesHelp = excess > 0.5;
+        const typesFix = tr !== undefined && tr.width > 0 && right - rr.right <= tr.width * FIT_ROOM + 0.5;
+        const next = chainFit === 0 ? (typesFix || !namesHelp ? 2 : 1) : chainFit === 1 ? 3 : namesHelp ? 3 : chainFit;
+        if (next !== chainFit) setChainFit(next);
+      }
     }
   });
   useEffect(() => {
@@ -193,7 +210,11 @@ export function StarterPick({ media, pending, onBack, onDone }: StarterPickProps
     if (!el) return;
     const r = el.getBoundingClientRect();
     const chips = [...el.querySelectorAll<HTMLElement>('.pg-starter-chip')].map((c) => c.getBoundingClientRect());
-    const n: [number, number] = el.scrollWidth > el.clientWidth + 0.5 ? [chips.filter((c) => c.left < r.left - 0.5).length, chips.filter((c) => c.right > r.right + 0.5).length] : [0, 0];
+    // 탭 아래 칸도 "안 보임" 으로 셈 (탭 폭 28 + 사이 6 — 숫자가 늘 하나 적던 것, UX)
+    const max = el.scrollWidth - el.clientWidth;
+    const l0 = r.left + (el.scrollLeft > 0.5 ? 34 : 0);
+    const r0 = r.left + el.clientWidth - (el.scrollLeft < max - 0.5 ? 34 : 0);
+    const n: [number, number] = max > 0.5 ? [chips.filter((c) => c.left < l0 - 0.5).length, chips.filter((c) => c.right > r0 + 0.5).length] : [0, 0];
     setMore((m) => (m[0] === n[0] && m[1] === n[1] ? m : n));
   };
   // 탭 = 한 화면씩 · 칸 단위 (보이는 칸 − 탭 아래 두 칸 — 반 칸씩 건너뛰어 다 안 보이는 칩이 생기던 것, UX 2바퀴)
