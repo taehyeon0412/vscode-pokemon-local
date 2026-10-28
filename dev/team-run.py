@@ -574,6 +574,8 @@ def judge(K, flashes, lum=()):
         presses = K.get("inputs", [])
         # 판이 끝나며 (team:over) 지워진 글 (다 참 · 칩) 은 판 끝 때문 — 쓰러짐 말은 끝까지 남아야 해서 그대로 셈
         overs = [p[0] for p in K.get("phases", []) if str(p[1]).endswith(":over")]
+        # 필살기 · 힘겨루기 장면이 열리며 (team:ult · team:clash) 가려진 "다 참" 칩은 참고 — 상태 칩 (한 번 뜨는 알림 아님) · 상대 필살기면 끼어들기 창 (금 키) 이 넘겨받음 (bugs 1876)
+        scenes = [p[0] for p in K.get("phases", []) if str(p[1]) in ("team:ult", "team:clash")] if txt.startswith("다 참") else []
         for a, b in merged:
             # 누른 뒤 0.4초 안에 사라진 글 (메뉴 · 고르기 · 던지기 안내) 은 사람이 닫은 것 — 뺌
             # 마지막으로 본 때는 누르기 바로 앞 (다음 장면엔 없음) — 누른 때 −0.15 ~ +0.4초
@@ -581,8 +583,10 @@ def judge(K, flashes, lum=()):
             if 0 < b - a < 1000 and not ended and not any(-150 <= b - t <= 400 for t in presses):
                 # 기록기는 50ms 마다 봄 — 잰 값 950 ~ 999 는 실제 1초일 수 있어 참고로 (잡기 타이밍 결과 1.1초가 997 로 잡히던 것)
                 isu1 = txt in u1 or re.search(U1_WORDS, txt)
-                big = isu1 and b - a < 950
-                out["1초" if big else "1초 참고"].append({"글": txt, "보인 ms": b - a, "때": a, **({} if big or not isu1 else {"뜻": "재는 간격 안"})})
+                cut = any(-100 <= b - t <= 700 for t in scenes)
+                big = isu1 and b - a < 950 and not cut
+                why = {"뜻": "필살기 장면이 열려 가려짐 (상태 칩 — 1876)"} if cut else {} if big or not isu1 else {"뜻": "재는 간격 안"}
+                out["1초" if big else "1초 참고"].append({"글": txt, "보인 ms": b - a, "때": a, **why})
     for key, c in (K.get("clip") or {}).items():
         # 패널 밖은 0.3초 넘게 머문 것만 (VS · 띠가 미끄러져 들어오는 동안은 뺌)
         if c.get("out") and c["last"] - c["first"] < 300:
