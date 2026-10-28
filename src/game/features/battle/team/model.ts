@@ -7,6 +7,7 @@
 import { BALANCE, TIMING } from '../../../core/balance';
 import { teamClashSure, teamFoeNext, teamGather, teamLayout, teamUltLevel, teamUltOpen, teamZSlot, type Side, type TeamBattle, type TeamPopup } from '../../../core/engine';
 import { speciesOf } from '../../../data';
+import { FX_DUEL_MS } from '../fx/bridge';
 
 export interface TeamGeo {
   W: number;
@@ -261,7 +262,7 @@ export function faintIsBig(createdMs: number, litStartMs: number | null, lastLit
  *  띠를 그림 (이름이 아예 안 보이던 것 — #96 코드 리뷰 중간 2) · waitedMs = 그 띠가 생긴 뒤 (한 번이라도 장면 전환이 섰으면 0 — 끝까지 안 그림) */
 export const VIEW_WAIT_MS = 150;
 /** 힘겨루기 장면 (#116) 의 1:1 VS 컷인 (위아래 두 이름 · ult/core.js ULT_VS_MS 1.5초 + 걷힘 0.6초 — 1.6 이면 걷히는 VS 글자 위에 떴음) — 이 뒤에 연타 안내 (컷인 아래 띠의 상대 필살기 이름을 덮던 것) */
-export const DUEL_VS_MS = 2100;
+export const DUEL_VS_MS = FX_DUEL_MS.vs + 600;
 export function bandDrawn<T extends { kind: string }>(band: T | null, viewing: boolean, view11: boolean, waitedMs = Number.POSITIVE_INFINITY): T | null {
   if (!band || viewing) return null;
   // 힘겨루기 VS 띠도 (#116 — 힘겨루기도 장면 전환 · 장면이 서기 전 한 틱에 예전 "VS · 힘겨루기!" 띠가 번쩍이던 것, UX 리뷰어 2바퀴 큼 1 · #96 5바퀴 큼 1 과 같은 종류)

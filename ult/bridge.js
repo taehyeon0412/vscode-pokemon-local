@@ -3842,6 +3842,9 @@ window.pokemonFx = {
     },
     /** 힘대결 시작 — a = 내 포켓몬 (왼쪽), b = 상대. spec = { kind: 'ult' | 'move', a: 기술 | null, b: 기술 | null }, live() = 내가 이길 확률 (연타 반영, 0 ~ 1).
      *  필살기 대결은 VS 연출 (1.5초) 뒤에. { meetMs: 시작에서 가운데서 만나는 때 } · 못 하면 null */
+    duelReady(a, b) {
+        return !!POKEMON_SHAPE[a.form] && !!POKEMON_SHAPE[b.form] && fxWidth(a) >= 1 && fxWidth(b) >= 1;
+    },
     duel(a, b, spec, live) {
         fxGameStop(true);
         if (!POKEMON_SHAPE[a.form] || !POKEMON_SHAPE[b.form] || ultActive || fxWidth(a) < 1 || fxWidth(b) < 1) {

@@ -3,6 +3,12 @@
  * 일반 모드 번들이 없으면 (미리보기 · 테스트 · 옛 번들) null → 전투는 예전 모양 (이모지) 그대로.
  */
 
+/**
+ * 1:1 힘대결 연출 박자 (ms) — ult/core.js ULT_VS_MS (VS 컷인) · ult/duel.js DUEL_SEC (밀고 밀리기) · DUEL_THROUGH (이긴 쪽이 뚫고 나감) · DUEL_AFTER (터진 뒤 여운) 와 같은 값.
+ * 1:1 전투 (BattleFx) · 3:3 힘겨루기 장면 (fx/team · team/model) 이 함께 씀 — JS 쪽을 바꾸면 fx/duel-timing.test 가 알려 줌 (같은 값이 세 곳에 따로 있던 것, 코드 리뷰어 #116)
+ */
+export const FX_DUEL_MS = { vs: 1500, push: 3600, through: 400, after: 1500 } as const;
+
 /** 연출에 넘기는 포켓몬 — 그림 요소 · 위치를 읽을 요소 · 모습 id (= 일반 모드 label) · 원본 크기 · 왼쪽을 보는지 */
 export interface FxActor {
   el: HTMLElement;
@@ -101,6 +107,8 @@ export interface PokemonFx {
   fadeUlt?(ms: number, steps?: number): void;
   /** 힘대결 (version 3) — a = 나, b = 상대 · live() = 내가 이길 확률 · { meetMs } 또는 null */
   duel?(a: FxActor, b: FxActor, spec: FxDuel, live: () => number): { meetMs: number } | null;
+  /** 1:1 힘겨루기 연출을 쓸 수 있는지 (두 그림 모양 · 폭) — 3:3 힘겨루기 장면을 열기 전에 물음 (#116 — 열고 나서 못 쓰면 연출 없이 지나감, bugs 1851) */
+  duelReady?(a: FxActor, b: FxActor): boolean;
   /** 1:1 힘겨루기에 동료 합류 (#116 3:3 힘겨루기 장면) — 쪽 (a = 왼쪽 · b) · 동료 타입 (섞임 · 굵기 모양은 연출이 그림) */
   duelJoin?(side: 'a' | 'b', type: string, who?: FxActor): void;
   duelWin?(who: 'a' | 'b'): void;

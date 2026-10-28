@@ -9,7 +9,7 @@ import type { Side, TeamBattle, TeamLogEntry } from '../../../core/engine';
 import { shotTiming } from '../../../core/engine/team';
 import { clashChance, clashWithTaps } from '../../../core/rules/battle';
 import { moveOf } from '../../../data';
-import { pokemonFx, type FxActor, type FxImpact, type FxMove, type PokemonFx } from './bridge';
+import { FX_DUEL_MS, pokemonFx, type FxActor, type FxImpact, type FxMove, type PokemonFx } from './bridge';
 import { FX_HOLD_DUEL_MAX_MS, FX_HOLD_ULT_MAX_MS, holdFx, holdTeamTail, releaseFx, teamClashKey, teamUltKey } from './hold';
 import { TEAM_VIEW, getTeamView, setTeamView, type TeamView } from './team-view';
 import { shotHitAt } from './shot-hit';
@@ -59,10 +59,6 @@ export const TEAM_KNOCK = { cells: 0.5, ms: 140, finalCells: 1, finalMs: 260 };
 // stage = 3:3 용 필살기 판 (2026-10-22 태현 님 #122 · #125 기본 — 무대 안 · 크기 절반 · 2초 안팎, ult/bridge.js fxStageUlt · 설정 "처음만 크게 · 늘 크게" 는 3/4)
 // impactScale = 보통 기술 맞음 크기 (빛살 길이 ×0.6 — 보통 공격 장면이 한 화면에 9 ~ 12개 · 큰 효과 둘이던 것, 아트 디렉터 #95 3바퀴 ④) · koLagMs = 큰 맞음과 쓰러뜨림 터짐이 겹치면 두 번째를 미룸
 // view11 = 필살기 · 합동은 장면 전환 (#99 시안 — 1:1 필살기를 그대로 크게, fx/team-view) · 힘겨루기 마무리 (quick) · 힘겨루기는 3:3 용 판 그대로
-/** 1:1 힘겨루기 연출 박자 (ult/duel.js — 밀기 · 뚫고 나감 · 터진 여운, BattleFx DUEL_PUSH_MS 와 같음) — #116 힘겨루기 장면 */
-const DUEL_PUSH_MS = 3600;
-const DUEL_THROUGH_MS = 400;
-const DUEL_AFTER_MS = 1500;
 /** 뚫고 나간 줄기가 앞장 뒤 칸까지 가는 때 (어림 — 2장면 남짓) */
 const DUEL_BACK_MS = 150;
 export const TEAM_FX = { quickRepeat: false, contactImpactLagMs: 90, stage: true, impactScale: 0.6, koLagMs: 300, view11: true };
@@ -386,9 +382,9 @@ export class TeamFxRunner {
   /**
    * 힘겨루기 장면 (#116 — 태현 님 "끼어들기해서 힘싸움하는거 왜이렇게 허접해??? 일반모드처럼 되는거 아니었어?"):
    * 맞붙는 두 무리를 1:1 자리로 (다른 장면이 열려 있으면 이어받아 · 끼어든 포켓몬도 보이게) → 1:1 힘겨루기 연출 그대로 (마주 본 두 줄기 · 밀고 밀림 · 에너지 튀기)
-   * → 결과 (ult-clash-end) 뒤 이긴 줄기가 뚫고 나가 진 쪽에서 터짐 → 3:3 으로 돌아옴. 엔진 승패 걸음은 밀기 (DUEL_PUSH_MS) 가 끝날 때까지 붙잡음 (1:1 과 같음)
+   * → 결과 (ult-clash-end) 뒤 이긴 줄기가 뚫고 나가 진 쪽에서 터짐 → 3:3 으로 돌아옴. 엔진 승패 걸음은 밀기 (FX_DUEL_MS.push) 가 끝날 때까지 붙잡음 (1:1 과 같음)
    */
-  private openDuel(fx: PokemonFx, c: Extract<TeamFxCall, { do: 'ult-clash' }>): boolean {
+  private openDuel(fx: PokemonFx, c: Extract<TeamFxCall, { do: 'ult-clash' }>): void {
     const gen = ++this.viewGen;
     const now0 = performance.now();
     const v: Omit<TeamView, 'phase' | 'at'> = { kind: 'duel', side: c.by ?? 'me', from: [...c.me], to: { side: 'foe', slot: c.foe[0]! }, duel: { me: [...c.me], foe: [...c.foe] }, ...(getTeamView() ? { cont: true } : {}) };
@@ -425,9 +421,8 @@ export class TeamFxRunner {
       for (const side of ['me', 'foe'] as const) {
         for (const slot of (d0.v.duel?.[side] ?? c[side]).slice(1)) this.duelJoinAt(fx, gen, side, slot);
       }
-      holdFx(teamClashKey((this.last?.t ?? 0) - elapsed), plan.meetMs + DUEL_PUSH_MS - elapsed, now, FX_HOLD_DUEL_MAX_MS, now - elapsed);
+      holdFx(teamClashKey((this.last?.t ?? 0) - elapsed), plan.meetMs + FX_DUEL_MS.push - elapsed, now, FX_HOLD_DUEL_MAX_MS, now - elapsed);
     });
-    return true;
   }
 
   /** 힘겨루기 장면에서 앞장 뒤에 선 같은 편 그림 (도중 합류 포함) */
@@ -674,7 +669,11 @@ export class TeamFxRunner {
         const foe = a({ side: 'foe', slot: c.foe[0]! });
         fx.stopUlt?.();
         // 장면 전환 (#116) — 1:1 힘겨루기 그대로 (연출 끔이면 아래 3:3 용 판)
-        if (this.viewOn() && fx.duel && this.openDuel(fx, c)) return;
+        // 1:1 연출을 쓸 수 없으면 (그림 모양이 없음 등) 장면을 열지 않고 3:3 용 판 (열고 나서 못 쓰면 연출도 VS 띠도 없이 지나가던 것 — bugs 1851)
+        if (this.viewOn() && fx.duel && me && foe && (fx.duelReady?.(me, foe) ?? true)) {
+          this.openDuel(fx, c);
+          return;
+        }
         // 3:3 용 판 힘겨루기 (#132 — 두 줄기가 무대 가운데서 · VS · 이름은 화면 3:3 띠)
         if (TEAM_FX.stage && fx.teamDuel) {
           const b = this.last;
@@ -719,9 +718,9 @@ export class TeamFxRunner {
             d.v = { ...d.v, to: { side: lose, slot: lead } };
             if (cur) setTeamView({ ...d.v, phase: cur.phase, at: cur.at });
           }
-          const lag = Math.max(0, TIMING.team.clashJointHitMs - DUEL_THROUGH_MS);
+          const lag = Math.max(0, TIMING.team.clashJointHitMs - FX_DUEL_MS.through);
           this.later(lag, () => gen === this.viewGen && fx.duelWin?.(c.winner === 'me' ? 'a' : 'b'));
-          this.closeDuel(gen, lag + DUEL_THROUGH_MS + DUEL_AFTER_MS);
+          this.closeDuel(gen, lag + FX_DUEL_MS.through + FX_DUEL_MS.after);
           return;
         }
         // 3:3 용 판 — 진 쪽 줄기를 거둠 (이긴 쪽 마무리는 곧 joint quick 이 그림)

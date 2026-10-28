@@ -438,6 +438,27 @@ describe('힘겨루기 장면 (#116 코드 리뷰어) — 끝 기록을 못 받�
       runner.reset();
     }
   });
+  it('1:1 연출을 못 쓰면 (그림 모양이 없음 — duelReady false) 장면을 열지 않고 3:3 용 판 힘겨루기 (bugs 1851)', () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('window', globalThis);
+    const calls: string[] = [];
+    const fx = { version: 4, plan: () => null, team: () => undefined, mount: () => undefined, clear: () => undefined, stopUlt: () => undefined, stopDuel: () => undefined,
+      duelReady: () => false,
+      duel: () => (calls.push('duel'), { meetMs: 500 }),
+      teamDuel: () => (calls.push('teamDuel'), { meetMs: 500 }) } as unknown as PokemonFx;
+    const actor = { el: {} as HTMLElement, form: 'charmander', size: 32, left: false } as FxActor;
+    const runner = new TeamFxRunner({ actor: () => actor }, fx);
+    try {
+      const b0 = withLog([]);
+      runner.update(b0);
+      runner.update({ ...b0, phase: 'clash', t: 5050, log: [{ t: 'ult-clash', me: [0], foe: [0], id: 1, at: 5050 }], logSeq: 1 });
+      expect(getTeamView()).toBeNull();
+      vi.advanceTimersByTime(TEAM_VIEW.inMs);
+      expect(calls).toEqual(['teamDuel']);
+    } finally {
+      runner.reset();
+    }
+  });
   it('상대가 이기면 장면 피해 칩 자리 (to) 는 내 앞장', () => {
     const { runner, b1 } = run();
     try {

@@ -11,7 +11,7 @@ import type { BattleState, Side } from '../../../core/engine';
 import { clashWithTaps } from '../../../core/rules/battle';
 import { effectiveness } from '../../../core/rules/types';
 import { formOf, moveOf, speciesOf } from '../../../data';
-import { pokemonFx, type FxActor, type FxImpact, type FxMove } from '../fx/bridge';
+import { FX_DUEL_MS, pokemonFx, type FxActor, type FxImpact, type FxMove } from '../fx/bridge';
 import { battleAnimKey, FX_HOLD_DUEL_MAX_MS, FX_HOLD_ULT_MAX_MS, fxTailLeft, holdFx, releaseFx, setFxCover, setFxTail } from '../fx/hold';
 import { shotHitAt } from '../fx/shot-hit';
 import { clearImpact, impactOf, setImpact, setUltSkip } from '../fx/parry';
@@ -32,8 +32,6 @@ const ULT_RETRY_MS = 50;
 /** 반격기 — 맞힌 뒤 줄기를 보여 주는 가장 짧은 시간 · 그다음 흐리게 끄는 시간. 흐림은 엔진 행동이 끝나는 때 (= 피해) 에 끝나게 맞춤, 그동안 엔진을 붙잡음 (2026-10-21 orders #7 — 처음 맞힌 순간 = 줄기 시작이라 바로 끄면 줄기가 안 보임) */
 const RIPOSTE_BEAM_MS = 500;
 const RIPOSTE_FADE_MS = 200;
-/** 힘대결 밀고 밀리기 — 일반 모드 대결과 같은 3.6초 (가운데서 만난 뒤부터, 연타는 그동안 계속) */
-const DUEL_PUSH_MS = 3600;
 /** 이미 지난 순간은 이만큼까지만 늦게라도 그림 (화면이 다시 붙는 사이) */
 const LATE_OK_MS = 50;
 
@@ -191,7 +189,8 @@ export function useBattleFx(b: BattleState, layer?: { current: HTMLElement | nul
         // 승자를 정하는 걸음을 밀고 밀리기가 3.6초 될 때까지 붙잡음 (그동안 연타는 계속 셈)
         const t = performance.now();
         const elapsed = now.current.clash?.ms ?? c.ms;
-        holdFx(key, plan.meetMs + DUEL_PUSH_MS - elapsed, t, FX_HOLD_DUEL_MAX_MS, t - elapsed);
+        // 밀고 밀리기 — 일반 모드 대결과 같은 3.6초 (가운데서 만난 뒤부터, 연타는 그동안 계속)
+        holdFx(key, plan.meetMs + FX_DUEL_MS.push - elapsed, t, FX_HOLD_DUEL_MAX_MS, t - elapsed);
       };
       begin(0);
       // 힘대결이 끝나면 (피해가 들어가고 전투가 이어짐) 터지는 여운까지 그리고 정리
