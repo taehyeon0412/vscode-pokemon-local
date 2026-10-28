@@ -375,6 +375,9 @@
     // away=1 — VS Code 포커스 없음 (밖 — 기다림 한 줄 사진, 없으면 다음 걸음에 hold → 걷기) · 확장의 focus 알림을 흉내 (시작 알림 뒤) · shiny=1 — 전투 상대가 이로치 (밖에서 이로치 전투 멈춤)
     // (시작 알림보다 먼저 닿으면 무시돼서 — 240 에서 가끔 안 먹던 것 — 몇 번 보냄)
     if (q.get('away') === '1') { runtime.away = true; for (const ms of [30, 300, 800]) setTimeout(() => window.postMessage({ command: 'game', type: 'focus', focused: false }, '*'), ms); }
+    // hidden=1 — 패널이 숨어 확장이 계산 중 (runtime.headless — ideas 1652) · 숨김에 따라 갈리는 모양 (관장 카드 자동 칩 "멈춤" · 접힌 줄 · 기다림 한 줄 · 처음 안내 멈춤) 을 찍는 흉내 —
+    //   실제로는 그동안 웹뷰가 안 보임 · away=1 과 같이 쓰면 밖 + 숨김 (예: place=badge again=1 hidden=1 = 다시 이긴 카드도 멈춤, #130 badgeAutoHeld)
+    if (q.get('hidden') === '1') runtime.headless = true;
     if (q.get('shiny') === '1' && runtime.stage && runtime.stage.phase === 'battle') runtime.stage.battle.foe.shiny = true;
     // autotip=1|2 — 자동 전투 첫 안내 (R12 · toast kind auto-tip) ① 내 차례 10초 · ② 안 보다 돌아옴 (사진용 — 10초 동안)
     if (q.get('autotip')) runtime.toast = { text: q.get('autotip') === '2' ? '안 보는 동안 멈춰 있었어요 — [A] 자동 전투면 계속 걸어요' : '자리를 비울 땐 [A] 자동 전투 — 알아서 싸워요', ms: 10000, kind: 'auto-tip' };
