@@ -5,6 +5,8 @@
 import { GAME_NOTICES, type GameNotice } from './notices';
 import { TIMING } from '../balance';
 import { isHeroLookId } from '../../data/heroes';
+import { speciesOf } from '../../data';
+import { STONES } from '../rules/bag';
 import { ITEM_IDS, REGION_STAGE_IDS, type FacilitySpot, type ItemId, type Save, type StageId } from '../save';
 import { readBattle, type BattleState } from './battle';
 import { readTeam, type TeamBattle } from './team';
@@ -177,7 +179,17 @@ function readSummary(raw: unknown): BattleSummary | null {
     .map((l) => ({ name: text(l.name, 30) ?? '', move: text(l.move, 30) ?? '' }));
   const c = raw.caught;
   // uid · isNew (S12 소개 카드, 2026-10-20) — 옛 상태에는 없음 → 빈 uid (소개 카드 없이 결과 상자) · NEW 없음
-  const caught = isObj(c) && text(c.name, 30) !== null && typeof c.toBox === 'boolean' ? { name: text(c.name, 30) as string, toBox: c.toBox, uid: text(c.uid, 20) ?? '', isNew: c.isNew === true } : null;
+  // stones = 막 잡은 포켓몬을 진화시킬 가방의 돌 (#131) — 웹뷰와 주고받아도 남게 · 진화의 돌 · 있는 종만 (이상한 칸은 버림 — 코드 리뷰어)
+  const stones = isObj(c) && Array.isArray(c.stones)
+    ? c.stones
+        .slice(0, STONES.length)
+        .filter(isObj)
+        .flatMap((s) => ((STONES as readonly unknown[]).includes(s.item) && Number.isInteger(s.to) && speciesOf(s.to as number) && text(s.toName, 30) !== null ? [{ item: s.item as ItemId, to: s.to as number, toName: text(s.toName, 30) as string }] : []))
+    : [];
+  const caught =
+    isObj(c) && text(c.name, 30) !== null && typeof c.toBox === 'boolean'
+      ? { name: text(c.name, 30) as string, toBox: c.toBox, uid: text(c.uid, 20) ?? '', isNew: c.isNew === true, ...(stones.length > 0 ? { stones } : {}) }
+      : null;
   const quote = text(raw.quote, 120);
   return {
     title: text(raw.title) as string,

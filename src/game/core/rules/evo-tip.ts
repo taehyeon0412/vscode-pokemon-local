@@ -108,6 +108,26 @@ export function evoTip(save: Save, item: ItemId): EvoTip {
   };
 }
 
+/** 막 잡은 포켓몬을 진화시킬 수 있는 가방의 진화의 돌 하나 — item · 진화한 종 (to · toName) */
+export interface CaughtStone {
+  item: ItemId;
+  to: number;
+  toName: string;
+}
+
+/**
+ * 막 잡은 포켓몬이 가방에 있는 진화의 돌로 진화할 수 있으면 — 어느 돌 · 어느 종 (#131 — 2026-10-28 태현 님 "추천대로", 잡기 결과 한 줄 · 글 · 자리 · 돌 그림은 디자인).
+ * 돌 차례 (STONES) 대로 · 이브이처럼 여럿이면 다 (보통 하나) · 연결의끈 (교환) 은 빼고 · 없으면 []
+ */
+export function caughtStones(save: Save, uid: string): CaughtStone[] {
+  const m = save.monsters[uid];
+  if (!m) return [];
+  return STONES.filter((item) => (save.bag[item] ?? 0) > 0).flatMap((item) => {
+    const to = itemEvolution(m, item);
+    return to === null ? [] : [{ item, to, toName: nameOf(to) }];
+  });
+}
+
 /** 두 번째부터 얻은 말 뒤 한 줄 — before → after 에서 늘어난 진화 아이템 중 안내를 이미 본 것 · 쓸 포켓몬이 있을 때만 (처음이면 안내가 대신) */
 export function evoGotNote(before: Save, after: Save): string | null {
   for (const item of EVO_ITEMS) {

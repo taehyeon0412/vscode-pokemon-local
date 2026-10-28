@@ -214,6 +214,12 @@
             save.monsters.m3 = { ...save.monsters.m1, uid: 'm3', species: Number(csp) || 4, form: cf, level: Number(q.get('clv') || 5), unspentPoints: 0, caughtAt: 'forest-1', shiny: q.get('cshiny') === '1', ...(civ !== null ? { ivs: { hp: civ, attack: civ, defense: civ, speed: civ, ultimate: civ } } : {}) };
             save.party = [...save.party, 'm3'];
             stage.summary = { ...stage.summary, title: `야생 ${cname || '파이리'}를 잡았다!`, caught: { name: cname || '파이리', toBox: q.get('cbox') === '1', uid: 'm3', isNew: q.get('new') !== '0' } };
+            // cstone=1 (천둥의돌 → 라이츄) · cstone=<돌>:<도감 번호>:<이름>[,…] — 막 잡은 포켓몬을 가방의 진화의 돌로 진화시킬 수 있음 (#131 — 엔진 summary.caught.stones) · 가방에 그 돌 1 개 넘게
+            if (q.get('cstone')) {
+                const stones = (q.get('cstone') === '1' ? 'thunder-stone:26:라이츄' : q.get('cstone')).split(',').map((x) => x.split(':')).map(([item, to, toName]) => ({ item, to: Number(to), toName }));
+                for (const st of stones) save.bag[st.item] = Math.max(1, save.bag[st.item] ?? 0);
+                stage.summary.caught = { ...stage.summary.caught, stones };
+            }
         }
         if (scene === 'result' && q.get('rms')) stage.ms = Number(q.get('rms'));
         if (scene === 'result' && q.get('evonote')) stage.summary = { ...stage.summary, item: '천둥의돌', evoNote: '피카츄 → 라이츄 진화 가능' };

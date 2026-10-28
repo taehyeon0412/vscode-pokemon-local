@@ -11,7 +11,7 @@ import { itemName } from '../rules/items';
 import { freeBall, REGIONS, regionGymMoney, regionHere, regionOf, regionOrder } from '../rules/region';
 import { stageLevelBand } from '../rules/stage';
 import { rivalItem } from '../rules/rival';
-import { evoGotNote } from '../rules/evo-tip';
+import { caughtStones, evoGotNote, type CaughtStone } from '../rules/evo-tip';
 import type { ItemId, Monster, PendingChoice, Save, StageId } from '../save';
 import { withJosa } from '../text';
 import { moveOf, speciesOf } from '../../data';
@@ -31,7 +31,7 @@ export interface BattleSummary {
   /** 받은 팔 물건 (이름 — 2026-10-21 ideas #125, 없으면 null · 옛 상태엔 칸이 없음) */
   treasure?: string | null;
   /** 잡은 포켓몬 — uid · isNew = 도감 (잡음) 에 처음 (S12 소개 카드 "NEW! 처음 잡았다", 2026-10-20 태현 님 안 2 — 도감 화면이 생기면 "도감 등록") */
-  caught: { name: string; toBox: boolean; uid: string; isNew: boolean } | null;
+  caught: { name: string; toBox: boolean; uid: string; isNew: boolean; stones?: CaughtStone[] } | null;
   /** 빈칸이라 바로 배운 기술 */
   learned: { name: string; move: string }[];
   /** 이어서 고를 것 (S23 · S22) 수 */
@@ -215,7 +215,10 @@ export function battleRewards(save0: Save, b: RewardBattle, wild: Monster | null
   }
   save = { ...save, money: Math.min(999_999_999, save.money + summary.money) };
   summary.choices = save.pendingChoices.length;
-  return withEvoNote(save0, save, summary);
+  const out = withEvoNote(save0, save, summary);
+  // 막 잡은 포켓몬을 가방의 진화의 돌로 진화시킬 수 있으면 (#131 — 이번 전투에서 얻은 돌까지 · 화면 한 줄은 디자인)
+  const stones = out.summary.caught ? caughtStones(out.save, out.summary.caught.uid) : [];
+  return stones.length > 0 && out.summary.caught ? { save: out.save, summary: { ...out.summary, caught: { ...out.summary.caught, stones } } } : out;
 }
 
 /** 진화 아이템을 받았으면 쓸 포켓몬 한 줄 (#125) */

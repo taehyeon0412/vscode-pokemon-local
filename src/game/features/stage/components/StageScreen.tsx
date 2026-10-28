@@ -16,6 +16,7 @@ import { BALLS } from '../../../core/rules/catch';
 import { bestHelper, requestAt } from '../../../core/rules/request';
 import { FACILITY_STAFF } from '../../../core/rules/stage';
 import { gymRoomOf, regionHere, stageBackground } from '../../../core/rules/region';
+import { caughtStones } from '../../../core/rules/evo-tip';
 import { josaOf, withJosa } from '../../../core/text';
 import { speciesOf } from '../../../data';
 import { heroDraw, heroHeightPx, heroLookOf, heroWidthPx, personLook } from '../../../data/heroes';
@@ -754,7 +755,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         <RequestBox state={state} media={media} onInput={onInput} />
         <FacilityBox state={state} media={media} onInput={onInput} onBox={() => onOpen({ kind: 'team' })} />
         {shopInside && <ShopPanel save={save} note={state.runtime.toast?.text} onInput={onInput} onClose={() => onInput({ kind: 'facility-leave' })} />}
-        {stageRt?.phase === 'result' && <ResultBox summary={stageRt.summary} next={save.pendingChoices[0]?.kind ?? null} ups={levelUps(stageRt.summary, save)} hint={needsStatHint(levelUps(stageRt.summary, save))} caught={caughtView(stageRt.summary, save)} ms={stageRt.ms} introAt={introAt(widthPx, bodyPx)} evoItem={evoItemOf(stageRt.summary.evoNote, stageRt.summary.item)} media={media} onInput={onInput} onStats={(uid) => onOpen({ kind: 'team', uid })} />}
+        {stageRt?.phase === 'result' && <ResultBox summary={stageRt.summary} next={save.pendingChoices[0]?.kind ?? null} ups={levelUps(stageRt.summary, save)} hint={needsStatHint(levelUps(stageRt.summary, save))} caught={caughtView(stageRt.summary, save)} stones={stageRt.summary.caught ? caughtStones(save, stageRt.summary.caught.uid) : []} ms={stageRt.ms} introAt={introAt(widthPx, bodyPx)} evoItem={evoItemOf(stageRt.summary.evoNote, stageRt.summary.item)} media={media} onInput={onInput} onStats={(uid) => onOpen({ kind: 'team', uid })} />}
         {choice && <ChoiceBox view={choice} media={media} scale={layout.scale} onInput={onInput} />}
         <DefeatBox state={state} media={media} onInput={onInput} />
         <HoldBox state={state} />

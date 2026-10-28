@@ -7087,6 +7087,28 @@ body.vscode-high-contrast-light .pg-hpblock > .pg-hprow,
 .pg-result-one .pg-alt-ups {
   display: inline;
 }
+/* 그래도 넘치면 (ResultBox useResultFit short — #131 UX 큼 1: 돌 줄이 둘째 차례에 두 줄을 더해 240 × 150 맥에서 상자 아래가 패널 밖) 둘째 차례에서 1 = 빠진 레벨업 · 2 = ★ · 경험치까지 뺌 (진화 줄만 · 전부는 상자 title) */
+.pg-result-short1 .pg-result-alt-b .pg-alt-ups,
+.pg-result-short2 .pg-result-alt-b .pg-alt-ups,
+.pg-result-short2 .pg-result-alt-b .pg-alt-rest,
+.pg-result-short2 .pg-result-alt-b .pg-evo-sep {
+  display: none;
+}
+/* 막 잡은 포켓몬 돌 줄 (#131) 끝 "[B] 가방" — 넓은 둘째 줄에서만 · 줄이 맥 여유로 안 들어가면 뺌 (howoff) · 좁은 번갈아 줄은 자리가 없어 늘 뺌. 할 일이라 진하게 (#125 처음 안내 할 일과 같은 600) */
+.pg-evo-how {
+  font-weight: 600;
+}
+.pg-result-howoff .pg-evo-how,
+.pg-result .pg-result-alt .pg-evo-how {
+  display: none;
+}
+/* 돌 줄이 있으면 번갈아 줄은 돌 줄 먼저 2.5초 → 얻은 것 (할 일 먼저 — 앞 2.5초 안에 Enter 를 누르면 좁은 패널에서 못 보던 것, #131 UX) · 끝 모습 = 얻은 것 */
+.pg-result.pg-two .pg-result-alt.pg-result-alt-first-b:not(.pg-result-alt-solo) > .pg-result-alt-a {
+  animation-name: pg-alt-b;
+}
+.pg-result.pg-two .pg-result-alt.pg-result-alt-first-b:not(.pg-result-alt-solo) > .pg-result-alt-b {
+  animation-name: pg-alt-a;
+}
 @keyframes pg-alt-a {
   0% { visibility: visible; }
   50%, 100% { visibility: hidden; }

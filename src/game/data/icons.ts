@@ -47,6 +47,12 @@ export const ICONS = {
   fullRestore: ['...yy...', '...YY...', '..wWWw..', '.GGGGGG.', '.GWGWGg.', '.GGWWWg.', '.GGGWGg.', '..gggg..'],
   revive: ['...YY...', '..YWYy..', '.YWYYyy.', 'YWYYYYyy', 'yYYYYYyy', '.yYYYyy.', '..yyyy..', '...yy...'],
   stone: ['..wwww..', '.wWWWWw.', 'wWWWwWWw', 'wWWwwWww', 'wWWWWwww', '.wWWwww.', '..wwww..', '........'],
+  /** 진화의 돌 다섯 (#131 · ideas 1632 아트 디렉터 안) — 위 stone 과 같은 실루엣 · 색과 가운데 무늬만 다름 (불꽃 = 빨강 + 노랑 불꽃 · 물 = 파랑 + 흰 물방울 · 천둥 = 초록 + 노랑 번개 (원작처럼) · 리프 = 갈색 + 초록 잎 · 달 = 보라 + 흰 초승달) */
+  fireStone: ['..rrrr..', '.rRRRRr.', 'rRRRYRRr', 'rRRYYRrr', 'rRYYYrrr', '.rRYYrr.', '..rrrr..', '........'],
+  waterStone: ['..bbbb..', '.bBBBBb.', 'bBBBWBBb', 'bBBWWWbb', 'bBBWWWbb', '.bBBWbb.', '..bbbb..', '........'],
+  thunderStone: ['..gggg..', '.gGGGGg.', 'gGGGGYGg', 'gGGGYYgg', 'gGGYYggg', '.gGYggg.', '..gggg..', '........'],
+  leafStone: ['..nnnn..', '.nNNNNn.', 'nNNNGGNn', 'nNNGGGnn', 'nNGGGnnn', '.nGNnnn.', '..nnnn..', '........'],
+  moonStone: ['..pppp..', '.pPPPPp.', 'pPPPWWPp', 'pPPWPPpp', 'pPPWPppp', '.pPPWWp.', '..pppp..', '........'],
   cord: ['.YY..BB.', 'Y..YB..B', 'Y..YB..B', '.YYYBBB.', '..YB.B..', '..Y..B..', '.YY..BB.', '........'],
   /** 다음 버전 2단계 물건 (2026-10-21) — 이상한사탕 (포장 사탕) · 경험 부적 (금 고리 + 빨간 보석) · 팔 물건 여덟: 작은버섯 · 큰버섯 · 진주 · 큰진주 · 별의모래 · 별의조각 · 금구슬 · 큰금구슬 (작은 것 = 작게, 큰 것 = 8칸 가득 · 금구슬은 울퉁불퉁한 덩어리 — 둥근 돈 아이콘과 헷갈리지 않게) */
   rareCandy: ['........', '........', 'Ww.BB.wW', '.WBWBBW.', '.wBBBbw.', 'Ww.bb.wW', '........', '........'],

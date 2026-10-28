@@ -33,11 +33,12 @@ export const ITEM_ICON: Record<ItemId, IconName> = {
   'full-restore': 'fullRestore',
   'full-heal': 'fullHeal',
   revive: 'revive',
-  'fire-stone': 'stone',
-  'water-stone': 'stone',
-  'thunder-stone': 'stone',
-  'leaf-stone': 'stone',
-  'moon-stone': 'stone',
+  // 진화의 돌 = 돌마다 그림 (#131 — 가방 · 상점 · 처음 안내 · 결과 줄에서 어느 돌인지 그림으로)
+  'fire-stone': 'fireStone',
+  'water-stone': 'waterStone',
+  'thunder-stone': 'thunderStone',
+  'leaf-stone': 'leafStone',
+  'moon-stone': 'moonStone',
   'linking-cord': 'cord',
   // 다음 버전 2단계 (2026-10-21) — 디자인팀 8 × 8 아이콘 (data/icons.ts)
   'rare-candy': 'rareCandy',
