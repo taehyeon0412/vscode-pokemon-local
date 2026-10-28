@@ -229,8 +229,10 @@ function readFacilities(v: unknown, path: string, fx: Fixer): FacilitySpot[] {
   }
   const out: FacilitySpot[] = [];
   v.forEach((f, i) => {
-    if (isObj(f) && (f.kind === 'hospital' || f.kind === 'shop')) out.push({ kind: f.kind, at: fx.ratio(f.at, `${path}[${i}].at`) });
-    else fx.note(`${path}[${i}]`, '병원 · 상점이 아니어서 뺌');
+    if (!isObj(f) || (f.kind !== 'hospital' && f.kind !== 'shop')) fx.note(`${path}[${i}]`, '병원 · 상점이 아니어서 뺌');
+    // 종류마다 스테이지에 나오는 수까지 (손댄 큰 세이브가 시설 자리 고치기를 무겁게 하지 않게 — 코드 리뷰어 #123)
+    else if (out.filter((x) => x.kind === f.kind).length >= (f.kind === 'hospital' ? BALANCE.stageHospitals[1] : BALANCE.stageShops[1])) fx.note(`${path}[${i}]`, '같은 종류가 많아 뺌');
+    else out.push({ kind: f.kind, at: fx.ratio(f.at, `${path}[${i}].at`) });
   });
   return out;
 }

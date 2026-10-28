@@ -15,7 +15,7 @@ import { createWild, encounterStart, pickupAt, planWild, wildKey } from '../rule
 import { itemName, requestAt, resolveRequest } from '../rules/request';
 import { DAILY_BONUS, dailyAdd, dailyDone, dailyFor, dailyLabel, dayFarAhead, trainersLeft } from '../rules/daily';
 import { gymLocation, isRegionLast, REGIONS, regionHere, regionOf, setRegionOrder, type RegionDef } from '../rules/region';
-import { spotBetween, spotRng, stageCode, stageLayout, trainerId, walkDelta, type Spot, type StageLayout } from '../rules/stage';
+import { facilityFix, spotBetween, spotRng, stageCode, stageLayout, trainerId, walkDelta, type Spot, type StageLayout } from '../rules/stage';
 import { statsOf } from '../rules/stats';
 import { aliveCount, leaderTeam, trainerInfo, trainerNumber, trainerTeam } from '../rules/trainer';
 import { pickRival, rivalLine, rivalLoseMsg, rivalName, rivalRecord, rivalTeam, withRivalResult } from '../rules/rival';
@@ -134,6 +134,8 @@ export function leadSpeed(save: Save): number {
 }
 
 const newSeed = (rng: Rng) => rng.int(0, 0xffffffff);
+/** 옛 세이브의 붙은 시설을 옮기려면 그 자리보다 이만큼 앞이어야 함 (시설 앞에 막 선 판 · 들어간 판을 흔들지 않게 — #123) */
+const FACILITY_FIX_MARGIN = 0.01;
 
 /** 새 판 — 새 시드 (떨어진 아이템 · 부탁 · 야생이 새로, #62 2026-10-18 태현 님) · 병원 · 상점 자리 · 이긴 트레이너 · 깬 표시는 그대로 */
 function freshRun(prev: StageProgress | undefined, seed: number, playTimeMs: number): StageProgress {
@@ -152,6 +154,11 @@ function ensureStage(save: Save, rt: RuntimeState, id: StageId): { save: Save; r
   if (prog.facilities.length === 0) {
     const fresh = stageLayout(id, prog.seed);
     if (fresh.facilities.length > 0) prog = { ...prog, facilities: fresh.facilities.map((f) => ({ ...f })) };
+  } else {
+    // 같은 종류 둘이 붙어 적힌 옛 자리 (#123) — 바뀌는 자리 (시설 · 따라 밀리는 길 자리 · 라이벌) 를 이번 판에 아직 안 갔으면 지금 고침, 갔으면 다음 판 처음에.
+    //   간 곳 = 지금 진행과 이번 판 가장 멀리 간 곳 (졌다 병원 앞으로 돌아와도 들른 상점이 옮겨 다시 나오지 않게 — 코드 리뷰어)
+    const fix = facilityFix(id, prog.seed, prog.facilities);
+    if (fix && Math.max(prog.progress, prog.run.reach) < fix.firstMoved - FACILITY_FIX_MARGIN) prog = { ...prog, facilities: fix.facilities.map((f) => ({ ...f })) };
   }
   const layout = stageLayout(id, prog.seed, prog.facilities);
   const out = prog === save.stages[id] ? save : { ...save, stages: { ...save.stages, [id]: prog } };

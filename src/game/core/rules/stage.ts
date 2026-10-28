@@ -115,7 +115,8 @@ function buildLayout(stageId: StageId, seed: number, saved: readonly FacilitySpo
   };
   for (let i = between(rng, BALANCE.stageHospitals); i > 0; i--) place('hospital');
   for (let i = between(rng, BALANCE.stageShops); i > 0; i--) place('shop');
-  facilities.sort((a, b) => a.at - b.at);
+  // 같은 종류 둘은 앞쪽 하나 · 뒤쪽 하나 (#123) — 다른 랜덤으로 옮겨서 위 뽑기 · 아래 자리들은 그대로
+  facilities = [...spreadFacilities(stageId, seed, facilities.sort((a, b) => a.at - b.at))];
   if (saved.length > 0) facilities = [...saved].sort((a, b) => a.at - b.at);
 
   // 만나는 것 — 고르게 나눈 칸마다 하나 (칸 안에서 조금 흔들어 놓음), 종류는 섞음
@@ -152,6 +153,106 @@ function buildLayout(stageId: StageId, seed: number, saved: readonly FacilitySpo
     index: 1000 + i,
   }));
   return { spots, facilities, scenery };
+}
+
+/**
+ * 같은 종류 시설 (병원 둘 · 상점 둘) 은 앞쪽 하나 · 뒤쪽 하나 — 사이 stageSameFacilityGap 넘게 (#123 — 태현 님 "이미 첫번에 상점에서 돈을 다 썼는데
+ * 두번째 상점이 의미가 있을까" → B 멀리). 붙어 있으면 앞 것은 앞쪽 구간으로 · 뒤 것은 그보다 간격 넘게 뒤로. 다른 종류끼리 · 트레이너와는 지금처럼 떨어짐 (자리가 없으면 가장 덜 붙는 곳).
+ * 수 · 종류는 그대로. 시드마다 같은 결과 (따로 뽑는 랜덤 — 길의 다른 자리는 안 바뀜). 세이브에 적힌 옛 자리도 이걸로 고침 (play ensureStage)
+ */
+export function spreadFacilities(stageId: StageId, seed: number, facilities: readonly FacilitySpot[]): readonly FacilitySpot[] {
+  // 붙은 짝이 없으면 받은 목록 그대로 (같은 객체 — 매 걸음 부르는 ensureStage 가 바로 끝남, 코드 리뷰어)
+  if (FACILITY_KINDS.every((k) => farEnough(facilities, k))) return facilities;
+  const key = `${stageId}:${seed >>> 0}:${facilities.map((f) => `${f.kind}@${f.at}`).join(',')}`;
+  const hit = spreadCache.get(key);
+  if (hit) return hit;
+  const out = spreadNow(stageId, seed, facilities);
+  if (spreadCache.size > 16) spreadCache.clear();
+  spreadCache.set(key, out);
+  return out;
+}
+
+const FACILITY_KINDS = ['hospital', 'shop'] as const;
+const spreadCache = new Map<string, readonly FacilitySpot[]>();
+/** 같은 종류가 붙지 않음 — 둘일 때만 봄 (셋 넘는 손댄 세이브는 그대로) · 소수 넷째 자리로 적어 0.1799 가 되어도 다시 옮기지 않게 반올림만큼 봐 줌 (코드 리뷰어) */
+function farEnough(list: readonly FacilitySpot[], kind: FacilitySpot['kind']): boolean {
+  const same = list.filter((f) => f.kind === kind);
+  return same.length !== 2 || Math.abs(same[1]!.at - same[0]!.at) >= BALANCE.stageSameFacilityGap - 1e-4;
+}
+
+function spreadNow(stageId: StageId, seed: number, facilities: readonly FacilitySpot[]): FacilitySpot[] {
+  const gap = BALANCE.stageSameFacilityGap;
+  const [lo, hi] = BALANCE.stageFacilityRange;
+  const front = lo + (hi - lo - gap) / 2;
+  const trainers = trainerSpots(stageId);
+  const sorted = [...facilities].sort((a, b) => a.at - b.at);
+  const kinds = FACILITY_KINDS;
+  const pairOf = (list: readonly FacilitySpot[], kind: FacilitySpot['kind']) => list.filter((f) => f.kind === kind);
+  const rng = new Rng(mixSeed(seed, 0x5a3e1));
+  // 떨어진 정도 (1 넘으면 됨) — 다른 시설 0.05 · 트레이너 TRAINER_GAP × 2 (같은 종류 둘은 뽑을 때 gap 을 지킴)
+  const room = (list: readonly FacilitySpot[]) => {
+    let r = Infinity;
+    list.forEach((f, i) => {
+      for (const t of trainers) r = Math.min(r, Math.abs(t - f.at) / (TRAINER_GAP * 2));
+      for (const g of list.slice(i + 1)) if (g.kind !== f.kind) r = Math.min(r, Math.abs(g.at - f.at) / 0.05);
+    });
+    return r;
+  };
+  const pair = (keep: number | null) => {
+    const first = keep ?? lo + rng.next() * (front - lo);
+    return [first, first + gap + rng.next() * Math.max(0, hi - first - gap)] as const;
+  };
+  const at = (x: number) => Math.round(x * 10000) / 10000;
+  let best: { list: FacilitySpot[]; room: number } = { list: sorted, room: -1 };
+  const tryList = (list: FacilitySpot[]) => {
+    const r = room(list);
+    if (r > best.room) best = { list: list.map((f) => ({ kind: f.kind, at: at(f.at) })).sort((a, b) => a.at - b.at), room: r };
+  };
+  // ① 붙은 짝만 앞쪽 하나 · 뒤쪽 하나로 (앞 것이 앞쪽 구간이면 처음엔 그대로) — 다른 시설은 그대로
+  for (let i = 0; i < 60 && best.room <= 1; i++) {
+    let list = [...sorted];
+    for (const k of kinds) {
+      const same = pairOf(list, k);
+      if (farEnough(list, k)) continue;
+      const [a, b] = pair(i < 20 && same[0]!.at <= front ? same[0]!.at : null);
+      list = [...list.filter((f) => f.kind !== k), { kind: k, at: a }, { kind: k, at: b }];
+    }
+    tryList(list);
+  }
+  // ② 그래도 다른 시설 · 트레이너와 붙으면 이 판 시설을 모두 다시 (수 · 종류 그대로 — 둘인 종류는 앞 · 뒤, 하나는 구간 아무 데나) · 없으면 가장 덜 붙는 것
+  for (let i = 0; i < 600 && best.room <= 1; i++) {
+    const list: FacilitySpot[] = [];
+    for (const k of kinds) {
+      const n = pairOf(sorted, k).length;
+      if (n === 2) pair(null).forEach((x) => list.push({ kind: k, at: x }));
+      else if (n === 1) list.push({ kind: k, at: lo + rng.next() * (hi - lo) });
+      else list.push(...pairOf(sorted, k)); // 셋 넘는 손댄 세이브는 그대로 (수 그대로)
+    }
+    tryList(list);
+  }
+  return best.list;
+}
+
+/**
+ * 세이브에 붙어 적힌 옛 시설 자리 고침 (#123) — 고친 목록과 바뀌는 자리 중 가장 앞 (시설 옛 · 새 자리 + 시설 옆으로 밀리거나 라이벌처럼 시설 따라 바뀌는 길 자리 — 코드 리뷰어).
+ * 고칠 게 없으면 null. play ensureStage 가 그 자리를 아직 안 지났을 때만 씀
+ */
+export function facilityFix(stageId: StageId, seed: number, facilities: readonly FacilitySpot[]): { facilities: readonly FacilitySpot[]; firstMoved: number } | null {
+  const spread = spreadFacilities(stageId, seed, facilities);
+  if (spread === facilities) return null;
+  const key = (f: FacilitySpot) => `${f.kind}@${f.at}`;
+  const before = new Set(facilities.map(key));
+  const after = new Set(spread.map(key));
+  const moved = [...facilities.filter((f) => !after.has(key(f))), ...spread.filter((f) => !before.has(key(f)))].map((f) => f.at);
+  const oldSpots = new Map(stageLayout(stageId, seed, facilities).spots.map((x) => [x.index, x.at]));
+  const newSpots = stageLayout(stageId, seed, spread).spots;
+  for (const x of newSpots) {
+    const was = oldSpots.get(x.index);
+    if (was !== x.at) moved.push(x.at, ...(was === undefined ? [] : [was]));
+    oldSpots.delete(x.index);
+  }
+  moved.push(...oldSpots.values());
+  return moved.length > 0 ? { facilities: spread, firstMoved: Math.min(...moved) } : null;
 }
 
 /** 라이벌 자리 — 없으면 null. 범위 안에서 다른 자리 · 병원 · 상점과 rivalGap, 트레이너와 TRAINER_GAP 떨어진 곳 (16번 뽑아도 없으면 이 판엔 없음 — 자리가 0.04 쯤마다 있어 거의 다 찾음) */

@@ -80,6 +80,8 @@
         save.box = ['m6'];
         save.nextMonsterUid = 7;
     }
+    // fac=shop@0.42,shop@0.47,hospital@0.62 — 숲 1-1 에 적힌 시설 자리 (옛 세이브 흉내 — #123 붙은 상점 둘이 엔진에서 앞 · 뒤로 고쳐지는지 지도 막대로 봄)
+    if (q.get('fac')) save.stages['forest-1'].facilities = q.get('fac').split(',').map((x) => { const [kind, at] = x.split('@'); return { kind, at: Number(at) }; });
     // relwarn=1 (team=5 와 같이) — 놓아주기 한 번 더 물음 (#121): 보관함에 이로치 (m7 피카츄) · ★5 (m8 꼬렛 개체값 31) · 높은 Lv (m6 피카츄 Lv 14 → 18) · 셋 다 (m9 이로치 · 개체값 31 · Lv 19 버터플 — 가장 긴 경고) · 팀 버터플 HP 0
     //   relwarn=last — 팀 리자드만 ("팀의 마지막 한 마리는…") · relwarn=nofight — 팀 리자드 + 쓰러진 버터플 (리자드를 놓으면 "놓으면 팀에 싸울 수 있는 포켓몬이 없어요" — 가장 긴 까닭)
     if (q.get('relwarn')) {
