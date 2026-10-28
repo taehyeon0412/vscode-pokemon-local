@@ -37,6 +37,8 @@ class WS:
     def __init__(self, url):
         u = urllib.parse.urlparse(url)
         self.s = socket.create_connection((u.hostname, u.port))
+        # 브라우저가 답하지 않으면 (페이지가 멈춤) 끝없이 기다리지 않음 — 한 번 받기가 120초를 넘으면 TimeoutError → finally 가 브라우저를 끔 (bugs 1885 · cdp-frames 와 같은 종류)
+        self.s.settimeout(120)
         key = base64.b64encode(os.urandom(16)).decode()
         self.s.sendall(f"GET {u.path} HTTP/1.1\r\nHost: {u.hostname}:{u.port}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n\r\n".encode())
         buf = b""

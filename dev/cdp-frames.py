@@ -2,7 +2,8 @@
   python dev/cdp-frames.py <out_dir> <win> <start_ms> <dur_ms> k=v ...
   예) python dev/cdp-frames.py out 860x187 600 1500 battle=move side=foe mv=10 parry=perfect
   dev/frame.html → game.html (k=v = dev/game-host.js 매개변수). 찍은 장면 = <out_dir>/f_<불러온 뒤 ms>.png (0.05 ~ 0.08초 간격)
-  game-shots.py 처럼 장면마다 새로 불러 찍으면 불러오는 시간이 0.2 ~ 0.4초씩 달라 짧은 순간 (닿는 때 · 패링) 이 어긋남 — 이건 한 번만 불러서 안 어긋남"""
+  game-shots.py 처럼 장면마다 새로 불러 찍으면 불러오는 시간이 0.2 ~ 0.4초씩 달라 짧은 순간 (닿는 때 · 패링) 이 어긋남 — 이건 한 번만 불러서 안 어긋남
+  브라우저가 (시작 + 길이) + 60초 안에 답하지 않으면 "멈춤" 한 줄을 찍고 브라우저 · 임시 폴더를 정리한 뒤 끝 코드 2 로 끝냄"""
 import base64
 import importlib.util
 import json
@@ -30,15 +31,23 @@ for f in os.listdir(out):
         os.remove(os.path.join(out, f))
 
 
+class Stalled(Exception):
+    """브라우저가 답하지 않거나 찍기를 거절함 (페이지가 멈춤 — bugs 1885)"""
+
+
 class WS:
-    def __init__(self, url):
+    def __init__(self, url, end):
         u = urllib.parse.urlparse(url)
         self.s = socket.create_connection((u.hostname, u.port))
+        # 브라우저가 답하지 않으면 (페이지가 멈춤) 끝없이 기다리지 않음 — end (time.time()) 를 넘으면 Stalled (2026-10-28 bugs 1885 — 디자인 다시 찍기 하나가 2시간 동안 Edge 9개를 띄운 채 멈춤 · team-run.py 와 같은 종류)
+        self.end = end
+        self._wait()
         key = base64.b64encode(os.urandom(16)).decode()
         req = f"GET {u.path} HTTP/1.1\r\nHost: {u.hostname}:{u.port}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n\r\n"
         self.s.sendall(req.encode())
         buf = b""
         while b"\r\n\r\n" not in buf:
+            self._wait()
             c = self.s.recv(1)
             # 브라우저가 인사 중에 끊기면 recv 가 빈 값을 바로 돌려줘 끝없이 돎 (코드 리뷰어 #98)
             if not c:
@@ -46,9 +55,16 @@ class WS:
             buf += c
         self.n = 0
 
+    def _wait(self):
+        left = self.end - time.time()
+        if left <= 0:
+            raise Stalled("답이 없음")
+        self.s.settimeout(left)
+
     def _read(self, n):
         b = b""
         while len(b) < n:
+            self._wait()
             c = self.s.recv(n - len(b))
             if not c:
                 raise EOFError
@@ -89,6 +105,8 @@ class WS:
         while True:
             m = self.recv()
             if m.get("id") == i:
+                if "error" in m:
+                    raise Stalled(f"{method} 오류 {m['error'].get('message', '')}")
                 return m.get("result", {})
 
 
@@ -101,10 +119,14 @@ _dbg_sock = socket.socket()
 _dbg_sock.bind(("127.0.0.1", 0))
 dbg = _dbg_sock.getsockname()[1]
 _dbg_sock.close()
+limit_s = (start_ms + dur_ms) / 1000 + 60
+n = 0
+code = 0
 # 브라우저를 끈 뒤에도 잠깐 파일을 잡고 있어 지우기가 실패할 수 있음 — 무시 (임시 폴더)
 with tempfile.TemporaryDirectory(prefix=gs.PROF_PREFIX, ignore_cleanup_errors=True) as prof:
     p = subprocess.Popen([gs.browser(), "--headless=new", "--disable-gpu", "--edge-skip-compat-layer-relaunch", f"--remote-debugging-port={dbg}", f"--user-data-dir={prof}", f"--window-size={w},{h}", *gs.hide_scrollbars(), "about:blank"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
+        end = time.time() + limit_s
         ws_url = None
         for _ in range(100):
             try:
@@ -116,12 +138,13 @@ with tempfile.TemporaryDirectory(prefix=gs.PROF_PREFIX, ignore_cleanup_errors=Tr
             except Exception:
                 pass
             time.sleep(0.1)
-        ws = WS(ws_url)
+        if not ws_url:
+            raise Stalled("브라우저가 안 뜸")
+        ws = WS(ws_url, end)
         ws.call("Page.enable")
         ws.call("Emulation.setDeviceMetricsOverride", {"width": int(w), "height": int(h), "deviceScaleFactor": 1, "mobile": False})
         ws.call("Page.navigate", {"url": url})
         t0 = time.time()
-        n = 0
         while True:
             el = (time.time() - t0) * 1000
             if el > start_ms + dur_ms:
@@ -134,6 +157,11 @@ with tempfile.TemporaryDirectory(prefix=gs.PROF_PREFIX, ignore_cleanup_errors=Tr
             open(os.path.join(out, f"f_{ms:05d}.png"), "wb").write(base64.b64decode(r["data"]))
             n += 1
         print("frames", n)
+    except (Stalled, TimeoutError) as e:
+        # 끝 코드만 2 — 여러 장면을 이어 찍는 스크립트는 다음 장면으로 넘어가고, 이 줄을 보고 그 장면을 다시 찍음
+        print(f"멈춤 — {e if isinstance(e, Stalled) else '답이 없음'} · 상한 {limit_s:.0f}초 · 찍은 장면 {n} · 페이지가 멈췄을 수 있음: {win} {' '.join(a[4:])}")
+        code = 2
     finally:
         gs.kill_browser(p, prof)
         httpd.shutdown()
+sys.exit(code)
