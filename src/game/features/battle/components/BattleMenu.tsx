@@ -13,6 +13,7 @@ import type { Save } from '../../../core/save';
 import { moveOf, speciesOf } from '../../../data';
 import { Button } from '../../../ui/Button';
 import { BALL_ICON } from '../../../ui/BallCount';
+import { confirmKey, onKeyboardButton, useShownAt } from '../../../ui/confirm-key';
 import { ITEM_ICON } from '../../menu/model';
 import { Icon } from '../../../ui/Icon';
 import { KeyCap } from '../../../ui/KeyCap';
@@ -67,6 +68,9 @@ export interface BattleMenuProps {
 
 /** ← · Esc — 기력의조각에서 고르던 포켓몬 목록은 아이템으로, 나머지는 처음 메뉴로 */
 const backOf = (page: MenuPage): MenuPage => (page === 'revive' ? 'items' : 'main');
+
+/** 목록 고르기 키 — Enter (키보드로 간 버튼에 포커스가 있으면 그 버튼이 받음) · Space (#117 — 전투의 Space 는 main.ts 가 버튼 누름을 막고 포커스를 빼서 버튼과 상관없음 · 목록이 보인 지 1초 뒤부터) */
+const enterOrSpace = (e: KeyboardEvent, shownAt: number) => (e.key === 'Enter' ? !onKeyboardButton(e) : confirmKey(e, shownAt));
 
 /** 볼 잡기 어려움 칸 (orders #23) — 글 + 색 + 테두리 모양 (쉬움 실선 · 보통 끊긴 선 · 어려움 점선 — 잡기 원과 같은 말, 색 하나에만 맡기지 않음) */
 function Tier({ tier }: { tier: MenuItem['tier'] }) {
@@ -244,9 +248,12 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
   const pick = (uid: string) => onInput({ kind: 'battle', input: { kind: 'pick', uid } });
 
   // 단축키: 숫자 = 메뉴 · 다음 포켓몬 · Z = 필살기 · ← / Esc / Backspace = 뒤로 (Space 는 main.ts — 맞받아치기 · 연타)
+  //   다음 포켓몬 · 마지막 기회 볼 고르기는 Space 도 Enter 처럼 (#117 — 연타 묶음 둘째부터는 아님) · 메뉴 (고르기 · 게이지) 의 Space 는 막기 그대로
   // 듣는 건 한 번만 달고, 지금 값은 ref 로 (초당 30번 다시 그려도 다시 달지 않게)
-  const now = useRef({ b, items, page, team, choose, pick, onInput, balls: [] as readonly BallId[], onIdx, enabledIdx, cursor, repeatOn, pickReady, falling });
-  now.current = { b, items, page, team, choose, pick, onInput, balls: BALLS.filter((ball) => itemLeft(b, save, ball) > 0), onIdx, enabledIdx, cursor, repeatOn, pickReady, falling };
+  // 고르기 목록이 보인 때 (#117 — Space 는 1초 넘게 보인 뒤부터)
+  const shownAt = useShownAt(`${b.phase}:${pickReady ? 1 : 0}:${falling ? 1 : 0}`);
+  const now = useRef({ b, items, page, team, choose, pick, onInput, balls: [] as readonly BallId[], onIdx, enabledIdx, cursor, repeatOn, pickReady, falling, shownAt });
+  now.current = { b, items, page, team, choose, pick, onInput, balls: BALLS.filter((ball) => itemLeft(b, save, ball) > 0), onIdx, enabledIdx, cursor, repeatOn, pickReady, falling, shownAt };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -269,7 +276,7 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
         else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
           e.preventDefault();
           setCursor((Math.min(c.cursor, rows - 1) + (e.key === 'ArrowDown' ? 1 : rows - 1)) % rows);
-        } else if (e.key === 'Enter' && !(e.target instanceof HTMLButtonElement)) {
+        } else if (enterOrSpace(e, c.shownAt)) {
           e.preventDefault();
           const at = c.balls[Math.min(c.cursor, rows - 1)];
           c.onInput({ kind: 'battle', input: at ? { kind: 'ball', ball: at } : { kind: 'no-ball' } });
@@ -286,7 +293,7 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
         } else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && n > 0) {
           e.preventDefault();
           setCursor((Math.min(c.cursor, n - 1) + (e.key === 'ArrowDown' ? 1 : n - 1)) % n);
-        } else if (e.key === 'Enter' && !(e.target instanceof HTMLButtonElement)) {
+        } else if (enterOrSpace(e, c.shownAt)) {
           const m = c.team[Math.min(c.cursor, n - 1)];
           if (m) {
             e.preventDefault();

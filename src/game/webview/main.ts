@@ -14,6 +14,8 @@ import { GAME_COMMAND, isHostToWebview } from '../shared/messages';
 import { shouldHoldBattle } from '../features/battle/fx/hold';
 import { teamChoiceOn } from '../features/battle/team/TeamChoice';
 import { spaceInput } from '../features/battle/fx/parry';
+import { confirmKey, enterBoxKey, onKeyboardButton, spaceAsEnter, watchKeys } from '../ui/confirm-key';
+import { realNow } from '../ui/real-clock';
 import { fieldTopPx, fitGameLayout, topGapPx } from '../ui/layout';
 import { Store } from '../ui/store';
 import { App, OVERLAY_INPUTS, overlayAllowed, type AppActions, type ViewState } from './app';
@@ -131,6 +133,16 @@ if (!port) {
     const v = store.get();
     if (v.overlay && v.state && !overlayAllowed(v.overlay, v.state)) store.set({ overlay: null });
     session.setPaused(store.get().overlay !== null || saveIoAsking(store.get().saveIO));
+  });
+
+  // 길 위 상자가 뜬 때 (#117 — Enter 자리의 Space 는 1초 넘게 보인 뒤부터, ui/confirm-key)
+  let boxKey = '';
+  let boxAt = 0;
+  store.subscribe(() => {
+    const k = enterBoxKey(store.get().state?.runtime.stage);
+    if (k === boxKey) return;
+    boxKey = k;
+    boxAt = realNow();
   });
 
   store.subscribe(() => document.body.classList.toggle(GAME_ON_CLASS, store.get().screen !== 'none'));
@@ -255,10 +267,13 @@ if (!port) {
   };
   css.onerror = show;
   document.head.appendChild(css);
+  // Space 연타 묶음 · 마우스로 누른 버튼 적기 (#117 — Enter 자리의 Space) — 상자 · 메뉴가 키를 듣기 전에 (capture 는 단 순서대로)
+  watchKeys(window);
   render(h(App, { store, media: config.media, actions }), root);
 
   // 단축키 (mvp-spec 1장: 패널을 클릭해 둔 상태에서만 — 웹뷰 안 키보드라 VS Code 전역 단축키 아님)
-  //   Space = 전투 중 막기 · 힘대결 연타 · 트레이너 만남 · 결과 넘기기 · Enter / Esc = 부탁 [도와준다] / [지나간다]
+  //   Space = 전투 중 막기 · 힘대결 연타 · 트레이너 만남 · 진화 보기 · Enter / Esc = 부탁 [도와준다] / [지나간다]
+  //   Enter 자리는 Space 도 (#117 — Space 가 따로 뜻이 없는 상자: 부탁 · 시설 · 결과 · 대기실 · 패배 · 클리어 · 배지, ui/confirm-key)
   //   전투 메뉴 숫자 · Z 는 BattleMenu 가 들음 · 3:3 의 1 · 2 · 3 · Z (필살기 · 예약) 와 트레이너 만남 3마리 고르기 1 ~ 5 는 아래 (orders #17 — 화면의 발밑 판 클릭도 같은 입력)
   window.addEventListener('keydown', (e) => {
     if (store.get().screen !== 'game' || e.repeat) return;
@@ -343,14 +358,22 @@ if (!port) {
     const stage = session.current?.runtime.stage;
     const phase = stage?.phase;
     const loc = session.current?.save.location;
-    // 버튼에 포커스가 있으면 Enter · Space 는 그 버튼이 받음 (Tab 으로 [지나간다] 에 두고 Enter)
-    const onButton = e.target instanceof HTMLButtonElement;
-    if (e.code === 'Space' && !(onButton && phase !== 'appear' && phase !== 'battle' && phase !== 'team')) {
+    // 키보드로 간 버튼에 포커스가 있으면 Enter · Space 는 그 버튼이 받음 (Tab 으로 [지나간다] 에 두고 Enter) — 마우스로 누른 뒤 남은 포커스는 아님 (#117 코드 리뷰어)
+    const onButton = onKeyboardButton(e);
+    // Enter 자리의 Space (#117) — 연타 묶음 둘째부터 · 상자가 뜬 지 1초 안은 아무 일 없음 (화면은 스크롤되지 않게)
+    const spaceEnter = e.code === 'Space' && spaceAsEnter(phase);
+    if (spaceEnter && !onButton) e.preventDefault();
+    const enter = !onButton && (e.key === 'Enter' || (spaceEnter && confirmKey(e, boxAt)));
+    if (e.code === 'Space' && !spaceEnter && !(onButton && phase !== 'appear' && phase !== 'battle' && phase !== 'team')) {
       e.preventDefault(); // 화면이 스크롤되지 않게
       // 전투 중에는 방금 누른 메뉴 버튼에 포커스가 남아 있어도 Space 는 게임으로 (버튼이 또 눌리지 않게 포커스를 뺌)
-      if (onButton) e.target.blur();
+      if (e.target instanceof HTMLButtonElement) e.target.blur();
       // 상대 공격 중이면 패링 (맞기까지 남은 ms — fx/parry, 2026-10-19), 아니면 그냥 Space
+      const before = session.current;
       actions.input(spaceInput(session.current, performance.now()));
+      // 이 누름으로 장면이 바뀌었으면 상자 · 메뉴가 같은 누름을 또 쓰지 않게 — 진화 넘기기 (main) 뒤 다시 그린 ChoiceBox 가 같은 Space 로 결정까지 해
+      //   "진화했다!" 가 0초 만에 지나가던 것 (#117 코드 리뷰어 — 진짜 키는 듣는 것 사이에 다시 그림이 돎)
+      if (session.current !== before) e.stopImmediatePropagation();
     } else if (phase === 'team' && /^Digit[123]$/.test(e.code) && !(e.ctrlKey || e.metaKey || e.altKey)) {
       // 3:3 필살기 1 · 2 · 3 — 찼으면 씀 · 끼어듦 · 합류, 못 쓰면 엔진이 버리고 한 줄 (예약 없음 — #88) — 발밑 판 클릭과 같음
       e.preventDefault();
@@ -374,31 +397,31 @@ if (!port) {
         e.preventDefault();
         actions.input({ kind: 'team-pick', uid });
       }
-    } else if (phase === 'request' && ((e.key === 'Enter' && !onButton) || e.key === 'Escape')) {
+    } else if (phase === 'request' && (enter || e.key === 'Escape')) {
       e.preventDefault();
-      actions.input({ kind: 'request', help: e.key === 'Enter' });
+      actions.input({ kind: 'request', help: enter });
     } else if ((phase === 'trainer' || phase === 'rival') && e.key === 'Enter' && !onButton) {
       // 트레이너 · 라이벌 만남 Enter = 바로 전투 (Space · 클릭과 같음, 2026-10-20 태현 님)
       e.preventDefault();
       actions.input({ kind: 'space' });
-    } else if (phase === 'result' && e.key === 'Enter' && !onButton) {
-      // S12 계속 (S23 · S22 의 숫자 · Enter · Esc 는 ChoiceBox 가 들음)
+    } else if (phase === 'result' && enter) {
+      // S12 계속 (S23 · S22 의 숫자 · Enter · Esc 는 ChoiceBox 가 들음) · Space 도 — 힘대결 연타가 이어진 Space 는 결과를 넘기지 않음 (#117)
       e.preventDefault();
       actions.input({ kind: 'result-continue' });
-    } else if (stage?.phase === 'facility' && ((e.key === 'Enter' && !onButton) || e.key === 'Escape')) {
+    } else if (stage?.phase === 'facility' && (enter || e.key === 'Escape')) {
       // 병원 · 상점 앞: Enter = 들어가기 (병원 앞은 회복하고 가기 — ideas #43, 주 버튼) · Esc = 지나가기 / 병원 안: Enter = 회복 (주 버튼 Enter 칸 — 아트 디렉터 4차, 다 나았으면 그대로) · Esc = 나가기
       e.preventDefault();
       const cur = session.current;
       if (stage.inside) {
         if (e.key === 'Escape') actions.input({ kind: 'facility-leave' });
         else if (cur && canHeal(cur) && !teamHealthy(cur.save)) actions.input({ kind: 'heal' });
-      } else if (e.key === 'Enter' && stage.kind === 'hospital' && cur && !teamHealthy(cur.save)) actions.input({ kind: 'facility-heal' });
-      else actions.input({ kind: 'facility', enter: e.key === 'Enter' });
+      } else if (enter && stage.kind === 'hospital' && cur && !teamHealthy(cur.save)) actions.input({ kind: 'facility-heal' });
+      else actions.input({ kind: 'facility', enter });
     } else if (phase === 'lobby' && stage.picking && e.key === 'Escape') {
       // S16 3마리 고르기 판 Esc = 뒤로 (대기실 상자)
       e.preventDefault();
       actions.input({ kind: 'lobby-back' });
-    } else if (phase === 'lobby' && e.key === 'Enter' && !onButton) {
+    } else if (phase === 'lobby' && enter) {
       // S16 대기실 Enter = 도전 (주 버튼 — 꾹 누름 반복은 위에서 거름) · 3:3 이면 처음 = 3마리 고르기 판 · 판에서 = 시작
       e.preventDefault();
       actions.input({ kind: 'challenge' });
@@ -406,7 +429,7 @@ if (!port) {
       // 3:3 두 번째 패배 상자 Esc = [병원 앞으로] (#152 — 둘째 버튼, Enter = 계속 걷기)
       e.preventDefault();
       actions.input({ kind: 'defeat-retreat' });
-    } else if (e.key === 'Enter' && !onButton && (phase === 'defeat' || phase === 'clear' || phase === 'badge')) {
+    } else if (enter && (phase === 'defeat' || phase === 'clear' || phase === 'badge')) {
       // S17 다시 시작 · S24 다음 스테이지 · MVP 끝 카드 → 세계 지도
       e.preventDefault();
       if (phase === 'defeat') actions.input({ kind: 'defeat-continue' });

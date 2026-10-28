@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { HERO_LOOKS, type HeroLook } from '../../../data/heroes';
 import { Button } from '../../../ui/Button';
+import { confirmKey, onKeyboardButton, useShownAt } from '../../../ui/confirm-key';
 import { InfoBar } from '../../../ui/InfoBar';
 import { Hero } from '../../stage/components/Hero';
 
@@ -37,8 +38,9 @@ export function HeroPick({ px, media, bodyPx, initial, onBack, onPick }: { px: n
   const drawPx = Math.max(px, zoom * 2);
   // S04 에서 ← 뒤로 오면 고른 칸 그대로
   const [focus, setFocus] = useState(() => Math.max(0, HERO_LOOKS.findIndex((l) => l.id === initial)));
-  const now = useRef({ focus, onBack, onPick });
-  now.current = { focus, onBack, onPick };
+  const shownAt = useShownAt('hero');
+  const now = useRef({ focus, onBack, onPick, shownAt });
+  now.current = { focus, onBack, onPick, shownAt };
   const rootRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -49,7 +51,8 @@ export function HeroPick({ px, media, bodyPx, initial, onBack, onPick }: { px: n
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         e.preventDefault();
         setFocus((f) => (f + (e.key === 'ArrowLeft' ? -1 : 1) + HERO_LOOKS.length) % HERO_LOOKS.length);
-      } else if (e.key === 'Enter' && !(e.target instanceof HTMLButtonElement)) {
+      } else if (confirmKey(e, c.shownAt) && !onKeyboardButton(e)) {
+        // Enter · Space (#117) — 키보드로 간 버튼에 포커스가 있으면 그 버튼이 받음 · Space 는 화면이 뜬 지 1초 뒤부터
         e.preventDefault();
         c.onPick(HERO_LOOKS[c.focus]!);
       } else if (e.key === 'Escape') {

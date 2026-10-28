@@ -2,6 +2,8 @@
  * S23 기술 배우기 · S22 진화 (gdd S22 · S23) — save.pendingChoices 맨 앞을 고를 때까지 기다림.
  *   S23: 바꿀 기술 하나 (숫자 1 ~ 4 · 클릭 = 고르기) → 결정 (Enter — 숫자 하나로 기술이 영영 사라지지 않게, ideas #40) · 배우지 않기 (Esc)
  *   S22: 진화 연출 약 4초 (Space 빨리 넘기기 · Esc 멈추기 = 다음 레벨업 때 다시) → 남길 지금 기술 고르기 (숫자로 켜고 끄기) · 결정 (Enter)
+ *   결정 (Enter) 은 Space 도 (#117 — 연타 묶음 둘째부터 · 상자가 뜬 지 1초 안은 아님 · 진화 보기 · 넘기기의 Space 는 그대로)
+ *   마우스로 누른 기술 버튼에 포커스가 남아도 Enter · Space = 결정 (고른 기술이 다시 눌려 풀리던 것 — #117 테스터)
  * 임시 디자인 — 단계 12 에서 다시.
  */
 import type { ComponentChildren } from 'preact';
@@ -10,6 +12,7 @@ import type { GameInput } from '../../../core/engine';
 import { withJosa } from '../../../core/text';
 import { Button } from '../../../ui/Button';
 import { Icon } from '../../../ui/Icon';
+import { confirmKey, onKeyboardButton, useShownAt } from '../../../ui/confirm-key';
 import { KeyCap } from '../../../ui/KeyCap';
 import { Sprite } from '../../../ui/Sprite';
 import type { ChoiceView } from '../model';
@@ -46,9 +49,11 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
     setKeep((k) => (k.includes(moveId) ? k.filter((x) => x !== moveId) : view.kind === 'evolve' && k.length >= view.keep ? k : [...k, moveId]));
   };
 
+  // 결정 상자가 뜬 때 (#117 — Space 는 1초 넘게 보인 뒤부터: 진화했다! · 배울 기술)
+  const shownAt = useShownAt(`${id}:${view.kind === 'evolve' && view.animating ? 'anim' : 'box'}`);
   // 단축키 (듣는 건 한 번만 — 지금 값은 ref)
-  const now = useRef({ view, keep, decide, toggle, onInput, forget, learn });
-  now.current = { view, keep, decide, toggle, onInput, forget, learn };
+  const now = useRef({ view, keep, decide, toggle, onInput, forget, learn, shownAt });
+  now.current = { view, keep, decide, toggle, onInput, forget, learn, shownAt };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -59,7 +64,7 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
           e.preventDefault();
           const n = Number(e.key) - 1;
           setForget((f) => (f === n ? null : n));
-        } else if (e.key === 'Enter' && c.forget !== null && !(e.target instanceof HTMLButtonElement)) {
+        } else if (confirmKey(e, c.shownAt) && c.forget !== null && !onKeyboardButton(e)) {
           e.preventDefault();
           c.learn(c.forget);
         } else if (e.key === 'Escape') {
@@ -73,7 +78,7 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
           e.preventDefault();
           c.onInput({ kind: 'evolve-cancel', uid: c.view.monster.uid, to: c.view.to });
         }
-        return; // Space (빨리 넘기기) 는 main.ts
+        return; // Space (진화 보기 · 빨리 넘기기) 는 main.ts
       }
       if (/^[1-4]$/.test(e.key)) {
         const m = c.view.current[Number(e.key) - 1];
@@ -81,7 +86,7 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
           e.preventDefault();
           c.toggle(m.id);
         }
-      } else if (e.key === 'Enter' && !(e.target instanceof HTMLButtonElement)) {
+      } else if (confirmKey(e, c.shownAt) && !onKeyboardButton(e)) {
         e.preventDefault();
         c.decide();
       }

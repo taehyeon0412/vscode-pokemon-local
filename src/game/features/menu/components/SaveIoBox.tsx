@@ -7,6 +7,7 @@
 import { useEffect } from 'preact/hooks';
 import { speciesOf } from '../../../data';
 import { Button } from '../../../ui/Button';
+import { confirmKey, onKeyboardButton, useShownAt } from '../../../ui/confirm-key';
 import { formatMoney, formatPlayTime } from '../../../ui/format';
 import { KeyCap } from '../../../ui/KeyCap';
 import type { TitleInfo } from '../../../shared/messages';
@@ -28,20 +29,25 @@ export function SaveIoBox({ io, onAct, inPanel = false }: { io: SaveIoState; onA
   // 묻는 상자 · 오류 상자만 키를 받음 (판 (설정) 의 Esc 닫기 · 게임 키보다 먼저 — capture): Enter · Esc = 고름, 그 밖의 키는 게임에 안 넘김 (Tab 은 버튼 사이 이동).
   //   결과 한 줄 (3초) 은 안 받음 — 내보낸 직후 Esc 가 설정 판을 안 닫고 게임 Enter 가 먹히던 것 (개발 #48)
   const asking = !!(io.ask || io.error || (io.result && !io.result.ok));
+  const shownAt = useShownAt(io.ask ? `ask:${io.ask.name}` : io.error !== undefined ? 'error' : io.result ? 'result' : '');
   useEffect(() => {
     if (!asking) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Tab') return;
       e.stopPropagation();
-      if (e.key !== 'Enter' && e.key !== 'Escape') return;
+      // 키보드로 간 버튼 (Tab 으로 [그만두기]) 에 포커스가 있으면 Enter · Space 는 그 버튼이 받음 — Tab 으로 [그만두기] 에 두고 Enter 가 불러오기 (덮어쓰기) 가 되던 것 (#117 테스터)
+      if ((e.key === 'Enter' || e.code === 'Space') && onKeyboardButton(e)) return;
+      // Space 도 Enter 처럼 (#117 — 연타 묶음 둘째부터 · 상자가 뜬 지 1초 안은 아님)
+      const space = e.code === 'Space';
+      if (e.key !== 'Enter' && e.key !== 'Escape' && !space) return;
       e.preventDefault();
-      if (e.repeat) return;
-      if (io.ask) onAct(e.key === 'Enter' ? 'import-confirm' : 'import-cancel');
+      if (e.repeat || (space && !confirmKey(e, shownAt))) return;
+      if (io.ask) onAct(e.key === 'Escape' ? 'import-cancel' : 'import-confirm');
       else onAct('dismiss');
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [asking, io, onAct]);
+  }, [asking, io, onAct, shownAt]);
   useEffect(() => {
     // 실패는 저절로 안 닫힘 ([확인] 까지 — 사람이 할 일이 있는데 3초 뒤 사라져 다시 못 읽던 것, UX 새 화면 한 바퀴)
     if (!io.result || !io.result.ok) return;

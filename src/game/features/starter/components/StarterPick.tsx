@@ -7,6 +7,7 @@ import { BALANCE } from '../../../core/balance';
 import { typeNameKo } from '../../../core/text';
 import { speciesOf } from '../../../data';
 import { Button } from '../../../ui/Button';
+import { confirmKey, onKeyboardButton, useShownAt } from '../../../ui/confirm-key';
 import { KeyCap } from '../../../ui/KeyCap';
 import { InfoBar } from '../../../ui/InfoBar';
 import { TypeTags } from '../../battle/components/TypeTag';
@@ -52,8 +53,9 @@ export function StarterPick({ media, pending, onBack, onDone }: StarterPickProps
     setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : p.length >= BALANCE.starterMoves ? [...p.slice(1), id] : [...p, id]));
 
   // ← → 스타팅 · 1 ~ 4 기술 · Enter 결정 · Esc 뒤로 (듣는 건 한 번만 — 지금 값은 ref)
-  const now = useRef({ list, cands, ready, sel, picked, toggle, onBack, onDone });
-  now.current = { list, cands, ready, sel, picked, toggle, onBack, onDone };
+  const shownAt = useShownAt('starter');
+  const now = useRef({ list, cands, ready, sel, picked, toggle, onBack, onDone, shownAt });
+  now.current = { list, cands, ready, sel, picked, toggle, onBack, onDone, shownAt };
   const stripRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -68,10 +70,11 @@ export function StarterPick({ media, pending, onBack, onDone }: StarterPickProps
       } else if (/^[1-4]$/.test(e.key) && c.cands[Number(e.key) - 1]) {
         e.preventDefault();
         c.toggle(c.cands[Number(e.key) - 1]!.id);
-      } else if (e.key === 'Enter') {
-        // 버튼에 포커스가 있어도 Enter = 결정 (방금 누른 기술 버튼이 다시 눌려 빠지지 않게 — 플레이 리뷰)
+      } else if (e.key === 'Enter' || (e.code === 'Space' && !onKeyboardButton(e))) {
+        // 버튼에 포커스가 있어도 Enter = 결정 (방금 누른 기술 버튼이 다시 눌려 빠지지 않게 — 플레이 리뷰) · Space 도 결정 (#117 — 마우스로 누른 칩 · 기술 버튼이 Space 로 또 눌려
+        //   기술이 빠지던 것 막음 (테스터 · 코드 리뷰어) · Tab 으로 간 버튼은 Space 가 그 버튼 · 화면이 뜬 지 1초 안 · 연타 둘째부터는 결정 안 함)
         e.preventDefault();
-        if (c.ready) c.onDone(c.sel.dex, c.picked);
+        if (c.ready && confirmKey(e, c.shownAt)) c.onDone(c.sel.dex, c.picked);
       } else if (e.key === 'Escape') {
         e.preventDefault();
         c.onBack();
