@@ -4,7 +4,7 @@ import { sampleMonster, sampleSave, viaJson } from '../../../test/fixtures/save'
 import { BALANCE } from '../balance';
 import { Rng } from '../engine/rng';
 import { validateSave } from '../save';
-import { counterStarter, pickRival, recordText, rivalItem, rivalName, rivalPartner, rivalRecord, rivalTeam, rivalTeamSize, withRivalResult } from './rival';
+import { counterStarter, pickRival, recordText, rivalItem, rivalName, rivalPartner, rivalRecord, rivalTeam, rivalTeamSize, starterStone, withRivalResult } from './rival';
 import { stageLayout } from './stage';
 
 const STONES = ['fire-stone', 'water-stone', 'thunder-stone', 'leaf-stone', 'moon-stone'];
@@ -113,6 +113,22 @@ describe('이기면 받는 아이템 — 트레이너 (돈만) 보다 좋게', (
     }
     for (const [k, p] of Object.entries(BALANCE.rivalItems)) expect(Math.abs((count[k] ?? 0) / n - p)).toBeLessThan(0.03);
     expect(Object.values(BALANCE.rivalItems).reduce((a, b) => a + b, 0)).toBeCloseTo(1);
+  });
+
+  it('스타팅이 피카츄면 처음 이기면 천둥의돌 — 가방에 있거나 · 라이츄로 진화했거나 · 잡은 피카츄면 예전처럼 5종 중 (#128)', () => {
+    const pika = (o: Parameters<typeof sampleMonster>[0] = {}, s = sampleSave()) => ({ ...s, monsters: { ...s.monsters, m1: sampleMonster({ uid: 'm1', species: 25, form: 'pikachu', ...o }) } });
+    for (let seed = 1; seed < 60; seed++) expect(rivalItem(pika(), 'boy', new Rng(seed))).toBe('thunder-stone');
+    // 다른 라이벌도 처음 이기면 (아직 천둥의돌이 없으면)
+    expect(rivalItem({ ...pika(), rivals: { boy: { wins: 1, losses: 0 } } }, 'blue', new Rng(3))).toBe('thunder-stone');
+    expect(starterStone(pika({}, sampleSave({ bag: { 'thunder-stone': 1 } })))).toBeNull();
+    expect(starterStone(pika({ species: 26, form: 'raichu' }))).toBeNull();
+    expect(starterStone(pika({ caughtAt: 'forest-1' }))).toBeNull();
+    expect(starterStone(sampleSave())).toBeNull();
+    // 가방에 있으면 무작위 5종 · 두 번째 승부터는 예전 비율 그대로
+    const got = new Set<string>();
+    for (let seed = 1; seed < 200; seed++) got.add(rivalItem(pika({}, sampleSave({ bag: { 'thunder-stone': 1 } })), 'boy', new Rng(seed)));
+    expect([...got].sort()).toEqual([...STONES].sort());
+    expect(rivalItem({ ...pika(), rivals: { boy: { wins: 1, losses: 0 } } }, 'boy', new Rng(1))).toBe(rivalItem(met({ boy: { wins: 1, losses: 0 } }), 'boy', new Rng(1)));
   });
 });
 

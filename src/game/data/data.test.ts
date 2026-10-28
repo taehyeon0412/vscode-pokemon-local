@@ -81,6 +81,16 @@ describe('스타팅 18종 (S04)', () => {
   }
 });
 
+describe('스타팅 피카츄 (#128 — 2026-10-28 태현 님)', () => {
+  it('1단계 전기 · 천둥의돌로 라이츄 (2단계 — 피츄는 아기) · 그림 · 처음부터 배우는 전기 피해 기술', () => {
+    expect(speciesOf(25)).toMatchObject({ name: { ko: '피카츄' }, types: ['electric'], stage: 1, baby: false });
+    expect(evolutionsOf(25)).toEqual([{ to: 26, kind: 'item', item: 'thunder-stone' }]);
+    for (const d of [25, 26]) expect(formsOfSpecies(d).length).toBeGreaterThan(0);
+    const damaging = learnsetOf(25).map(([, id]) => moveOf(id)!).filter((m) => m.class !== 'status');
+    expect(damaging.some((m) => m.type === 'electric')).toBe(true);
+  });
+});
+
 describe('숲 관장 (mvp-spec 3.9)', () => {
   it('파라스 · 냄새꼬 · 버터플이 있고, 냄새꼬 → 라플레시아는 리프의 돌', () => {
     for (const d of [46, 44, 12]) expect(formsOfSpecies(d).length).toBeGreaterThan(0);

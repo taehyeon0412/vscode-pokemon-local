@@ -6,7 +6,7 @@ import { moveOf, speciesOf } from '../../data';
 import { spriteBoxOf } from '../../data/sprite-boxes';
 import { CHAIN_MAX_ART, chainRowPx, chosenStarterMoves, pickLayout, createStartSave, defaultStarterMoves, evolutionChain, starterList, starterMoveCandidates } from './model';
 
-const STARTERS = [1, 152, 252, 387, 495, 650, 4, 155, 255, 390, 498, 653, 7, 158, 258, 393, 501, 656];
+const STARTERS = [1, 152, 252, 387, 495, 650, 4, 155, 255, 390, 498, 653, 7, 158, 258, 393, 501, 656, 25];
 
 describe('스타팅 처음 기술 (mvp-spec 3.6 · S04)', () => {
   it.each(STARTERS)('#%i: 후보 4개 이하 · 서로 다름 · 피해 기술 · 자기 타입 포함, 기본 2개도 자기 타입 포함', (dex) => {
@@ -48,13 +48,13 @@ describe('새로 하기 세이브', () => {
     expect(createStartSave(0, 7).monsters.m1!.ivs).not.toEqual(createStartSave(0, 8).monsters.m1!.ivs);
   });
 
-  it('스타팅 18종 모두 만들 수 있음 (단계 10 S04 에서 고름)', () => {
+  it('스타팅 19종 모두 만들 수 있음 (단계 10 S04 에서 고름 · #128 피카츄)', () => {
     for (const dex of STARTERS) expect(validateSave(createStartSave(0, dex, dex)).ok, String(dex)).toBe(true);
   });
 });
 
 describe('S03 · S04 고르기 (단계 10)', () => {
-  it('스타팅 줄 18마리 · 진화 단계는 1 → 2 → 3 (그림이 있는 것만)', () => {
+  it('스타팅 줄 19마리 · 진화 단계는 1 → 2 → 3 (그림이 있는 것만 · 피카츄는 2단계)', () => {
     expect(starterList().map((s) => s.dex)).toEqual(STARTERS);
     for (const dex of STARTERS) {
       const chain = evolutionChain(dex);
@@ -63,6 +63,19 @@ describe('S03 · S04 고르기 (단계 10)', () => {
       expect(chain.length).toBeLessThanOrEqual(3);
     }
     expect(evolutionChain(1).map((c) => c.dex)).toEqual([1, 2, 3]);
+    // 피카츄 → 라이츄 (피츄는 아기라 앞에 안 둠 · 줄 끝 — #128)
+    expect(starterList()[starterList().length - 1]!.dex).toBe(25);
+    expect(evolutionChain(25).map((c) => c.dex)).toEqual([25, 26]);
+  });
+
+  it('피카츄로 새로 하기 — 처음 기술 후보에 전기 · 기본 2개에 전기 기술 하나 (같은 규칙) · 숲 1-1 (#128)', () => {
+    const save = createStartSave(0, 9, 25);
+    expect(save.monsters.m1!.species).toBe(25);
+    expect(save.monsters.m1!.caughtAt).toBe('starter');
+    expect(save.dex).toEqual({ seen: [25], caught: [25] });
+    expect(save.location).toEqual({ screen: 'stage', stageId: 'forest-1' });
+    expect(save.monsters.m1!.moves.some((m) => moveOf(m.moveId)?.type === 'electric')).toBe(true);
+    expect(validateSave(JSON.parse(JSON.stringify(save))).ok).toBe(true);
   });
 
   it('고른 처음 기술 2개 · 주인공 남 · 여가 세이브에 — 후보 밖 · 1개 · 같은 것 두 번이면 기본 2개', () => {
@@ -89,7 +102,7 @@ describe('S03 · S04 고르기 (단계 10)', () => {
 });
 
 describe('S04 ② 진화 줄 그림 (2026-10-20 태현 님 "크기가 제각각 · 바닥 정렬 · 이름은 밑에")', () => {
-  it('18종 모든 진화 단계의 실제 그림이 CHAIN_MAX_ART 안 · ×2 는 들어갈 때만 (187px 은 ×2 · 150px 은 ×1)', () => {
+  it('19종 모든 진화 단계의 실제 그림이 CHAIN_MAX_ART 안 · ×2 는 들어갈 때만 (187px 은 ×2 · 150px 은 ×1)', () => {
     for (const s of starterList()) {
       for (const c of evolutionChain(s.dex)) {
         const box = spriteBoxOf(c.form);
@@ -137,7 +150,7 @@ describe('S04 ② 진화 줄 그림 (2026-10-20 태현 님 "크기가 제각각 
   it('바닥 = 가장 오래 보이는 장면의 발끝 — 브리가론은 첫 장면 (0.67초) 발끝 60 · 다른 장면 63 이라 "가장 아래" 로 맞추면 떠 보였음 (태현 님)', () => {
     expect(spriteBoxOf('chesnaught')![4]).toBe(60);
     expect(spriteBoxOf('chesnaught')![3]).toBe(63);
-    // 18종 진화 줄 모두 (바닥 위 키 + 아래로 내려가는 만큼) 이 CHAIN_MAX_ART 안 — 크기 단계 계산이 맞게
+    // 19종 진화 줄 모두 (바닥 위 키 + 아래로 내려가는 만큼) 이 CHAIN_MAX_ART 안 — 크기 단계 계산이 맞게
     for (const st of starterList()) {
       const bs = evolutionChain(st.dex).map((c) => spriteBoxOf(c.form)!);
       expect(Math.max(...bs.map((b) => b[4] - b[1])) + Math.max(...bs.map((b) => b[3] - b[4])), st.name).toBeLessThanOrEqual(CHAIN_MAX_ART);

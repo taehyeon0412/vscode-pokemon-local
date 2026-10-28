@@ -5,7 +5,7 @@
  *   (공격 기술이 있는 것 — 단계 11, 2026-10-19 태현 님 · 숲은 스테이지마다 3종) · 그 나머지의 10% 는 드묾 (마지막 스테이지 목록 · 앞 스테이지는 드문 타입 2종).
  * 종족값 합 450 이 넘는 1단계 (스라크 · 헤라크로스 등) 는 지역 마지막 스테이지에만 (야생에서만 — 트레이너 · 라이벌은 거름). 레벨이 진화 레벨을 넘으면 진화형 (돌 · 교환은 안 나옴) —
  *   진화는 그 스테이지 레벨대 위 끝까지만 봄 (센 흔적 +2 로는 진화 안 함 — orders #64 B). 섞기 · 드문 종은 레벨대 아래 끝에서 피해 기술을 배우는 종만 (learnsDamage).
- * 스타팅 18종 계열은 야생에 안 나옴 (mvp-spec 9장 [제안] — 처음 고른 포켓몬이 특별하게).
+ * 스타팅 계열은 야생에 안 나옴 (mvp-spec 9장 [제안] — 처음 고른 포켓몬이 특별하게) · 피카츄 계열만 야생에도 (#128).
  */
 import { BALANCE } from '../balance';
 import { friendshipEvolutionLevel } from './growth';
@@ -30,11 +30,17 @@ export interface WildPlan {
   trace: TraceKind;
 }
 
-/** 스타팅 18종 (S04 · mvp-spec 2장) — 이 진화 계열은 야생에서 뺌 */
-export const STARTER_SPECIES: readonly number[] = [1, 152, 252, 387, 495, 650, 4, 155, 255, 390, 498, 653, 7, 158, 258, 393, 501, 656];
+/** 스타팅 19종 (S04 · mvp-spec 2장) — 풀 · 불꽃 · 물 6종씩 + 피카츄 (#128 — 2026-10-28 태현 님). 이 진화 계열은 야생에서 뺌 (WILD_STARTERS 빼고) */
+export const STARTER_SPECIES: readonly number[] = [1, 152, 252, 387, 495, 650, 4, 155, 255, 390, 498, 653, 7, 158, 258, 393, 501, 656, 25];
+/** 스타팅이지만 야생에도 나오는 계열 — 피카츄 (원작처럼 숲 · 들에서도 만남, #128 — 2026-10-28 태현 님 추천대로) */
+const WILD_STARTERS: readonly number[] = [25];
 let starterChains: Set<number> | null = null;
-const isStarterLine = (s: ReadonlySpecies) => {
-  starterChains ??= new Set(STARTER_SPECIES.map((d) => speciesOf(d)?.chain).filter((c): c is number => c !== undefined));
+export const isStarterLine = (s: ReadonlySpecies) => {
+  starterChains ??= new Set(
+    STARTER_SPECIES.filter((d) => !WILD_STARTERS.includes(d))
+      .map((d) => speciesOf(d)?.chain)
+      .filter((c): c is number => c !== undefined),
+  );
   return starterChains.has(s.chain);
 };
 

@@ -374,6 +374,12 @@ def browser():
     return exe
 
 
+def hide_scrollbars():
+    """스크롤 막대 숨김 — PG_SCROLLBARS=1 이면 뺌 (실제 VS Code 윈도우처럼 막대를 그려 찍음 · 막대 높이가 배치를 밀어내는지 보기, #128 UX 리뷰어:
+    숨긴 채 찍어 S04 칩 줄 막대 10px 가 기술 줄을 자르는 것을 못 봄 — #429 · #430 처럼 "VS Code 에서만 잘림")"""
+    return [] if os.environ.get("PG_SCROLLBARS") == "1" else ["--hide-scrollbars"]
+
+
 def kill_browser(p, prof):
     """머리 없는 브라우저 끄기 — p 나무 + 같은 임시 프로필을 쓰는 남은 것까지 PID 로 (2026-10-24 — Edge 가 호환성 층을 피하려 스스로 다시 띄워 p 로는 taskkill 이 못 찾음 (128) · 장면마다 브라우저 + 자식 약 16개가 남아 남은 메모리 0.3 GB. 띄울 때 --edge-skip-compat-layer-relaunch 로 막고 이건 안전망)"""
     if p:
@@ -396,7 +402,7 @@ def png_size(path):
 
 def shoot(url, win, path, budget=3500):
     with tempfile.TemporaryDirectory(prefix=PROF_PREFIX, ignore_cleanup_errors=True) as prof:
-        cmd = [browser(), "--headless=new", "--disable-gpu", "--edge-skip-compat-layer-relaunch", "--no-first-run", "--no-default-browser-check", "--hide-scrollbars", "--mute-audio",
+        cmd = [browser(), "--headless=new", "--disable-gpu", "--edge-skip-compat-layer-relaunch", "--no-first-run", "--no-default-browser-check", *hide_scrollbars(), "--mute-audio",
                "--force-device-scale-factor=1", f"--user-data-dir={prof}", f"--window-size={win.replace('x', ',')}", f"--virtual-time-budget={budget}",
                f"--screenshot={path}", url]
         if os.path.exists(path):

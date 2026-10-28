@@ -1,6 +1,6 @@
 /**
  * S03 주인공 · S04 스타팅 · 새로 하기 — 화면을 모르는 규칙 부분 (gdd S03 · S04 · 4.2).
- * 새로 하기 → S03 주인공 (남 · 여 여러 명, data/heroes.ts) → S04 스타팅 18종 · 진화 단계 보기 · 처음 기술 4개 중 2개 → 숲 1-1 (S05 는 MVP 에 없음)
+ * 새로 하기 → S03 주인공 (남 · 여 여러 명, data/heroes.ts) → S04 스타팅 19종 · 진화 단계 보기 · 처음 기술 4개 중 2개 → 숲 1-1 (S05 는 MVP 에 없음)
  */
 import { BALANCE } from '../../core/balance';
 import { Rng } from '../../core/engine';
@@ -85,7 +85,7 @@ export function evolutionChain(dex: number): { dex: number; form: string; name: 
  * 배율 = 패널 크기에 따라 ×1 ~ ×4 (pickLayout — 들어가는 가장 큰 단계).
  * 그림 칸 높이 = 이 진화 줄에서 가장 큰 그림 × 배율 — 바닥을 맞춰도 위 · 아래 보이는 간격이 같게 (줄마다 높이가 다름)
  */
-/** 18종 진화 단계 중 가장 큰 그림 키 (칸) — 150px 에서도 들어가는지 계산하는 기준 (model.test) */
+/** 19종 진화 단계 중 가장 큰 그림 키 (칸) — 150px 에서도 들어가는지 계산하는 기준 (model.test) */
 export const CHAIN_MAX_ART = 33;
 /** 진화 묶음 아래쪽 (그림 ↔ 이름 4 + 이름 · 타입 표 20 + 이름 밑 4 — game.css .pg-chain-grid) · 기술 줄 22 */
 export const CHAIN_NAMES_PX = 4 + 20 + 4;
@@ -167,7 +167,7 @@ export function chainArtWidth(form: string, zoom: number): number {
   return box ? (box[2] - box[0]) * zoom + 4 : 32 * zoom;
 }
 
-/** S04 ① 스타팅 줄 — 18종 (풀 · 불꽃 · 물 순서, 세대 상관없음) */
+/** S04 ① 스타팅 줄 — 19종 (풀 · 불꽃 · 물 순서, 세대 상관없음 · 끝에 피카츄 — #128) */
 export function starterList(): { dex: number; form: string; name: string }[] {
   return STARTER_SPECIES.map((dex) => ({ dex, form: formsOfSpecies(dex)[0] ?? '', name: speciesOf(dex)?.name.ko ?? String(dex) })).filter((s) => s.form);
 }

@@ -1,7 +1,7 @@
 /**
  * 라이벌 (gdd 4.12 · mvp-spec 3.10, U11 — 2026-10-19 태현 님) — 고르지 않은 주인공 7명이 숲에서 깜짝 승부.
- * 누가 = 가장 덜 만난 라이벌 · 팀 = 만날수록 1 → 3마리, 에이스 = 라이벌마다 파트너 (그린만 내 스타팅에 상성 유리) ·
- * 레벨 = 내 팀 가장 높은 레벨 (나머지는 rivalLevelGap 낮게) · 이기면 돈 1.5배 + 아이템 (처음 = 진화의 돌), 지면 싸우기 전으로 (play.ts).
+ * 누가 = 가장 덜 만난 라이벌 · 팀 = 만날수록 1 → 3마리, 에이스 = 라이벌마다 파트너 (그린만 내 스타팅에 상성 유리 — 풀 · 불꽃 · 물, 피카츄 같은 그 밖은 이브이) ·
+ * 레벨 = 내 팀 가장 높은 레벨 (나머지는 rivalLevelGap 낮게) · 이기면 돈 1.5배 + 아이템 (처음 = 진화의 돌 · 스타팅이 돌로 진화하면 그 돌), 지면 싸우기 전으로 (play.ts).
  * 시드로 정해서 껐다 켜도 같은 상대.
  */
 import { BALANCE } from '../balance';
@@ -9,7 +9,7 @@ import type { Rng } from '../engine/rng';
 import type { ItemId, Monster, Save, StageId } from '../save';
 import { HERO_LOOKS, heroLookOf } from '../../data/heroes';
 import { speciesOf } from '../../data';
-import { STONES } from './bag';
+import { itemEvolution, STONES } from './bag';
 import { evolveForLevel, isBig, regionPool } from './encounter';
 import { regionOf, regionOrder } from './region';
 import { createMonster, wildMoves } from './monster';
@@ -124,10 +124,20 @@ export function rivalTeam(save: Save, id: string, stageId: StageId, stageSeed: n
   return out;
 }
 
-/** 이기면 받는 아이템 — 그 라이벌을 처음 이기면 진화의 돌 (5종 중), 그 뒤 rivalItems 비율 (stone = 진화의 돌) */
+/**
+ * 스타팅을 진화시키는 돌 — 피카츄 → 천둥의돌 (#128 — 2026-10-28 태현 님 추천대로). 가방에 이미 있거나 · 진화했거나 · 놓아줬으면 null (무작위 돌로).
+ * 스타팅 = 새로 하기 때 받은 포켓몬 (caughtAt 'starter' — 잡은 피카츄는 아님)
+ */
+export function starterStone(save: Save): ItemId | null {
+  const st = Object.values(save.monsters).find((m) => m.caughtAt === 'starter');
+  const stone = st ? STONES.find((item) => itemEvolution(st, item) !== null) : undefined;
+  return stone && !(save.bag[stone] ?? 0) ? stone : null;
+}
+
+/** 이기면 받는 아이템 — 그 라이벌을 처음 이기면 진화의 돌 (스타팅이 돌로 진화하면 그 돌 · 아니면 5종 중), 그 뒤 rivalItems 비율 (stone = 진화의 돌) */
 export function rivalItem(save: Save, id: string, rng: Rng): ItemId {
   const stone = () => STONES[rng.int(0, STONES.length - 1)]!;
-  if (rivalRecord(save, id).wins === 0) return stone();
+  if (rivalRecord(save, id).wins === 0) return starterStone(save) ?? stone();
   let roll = rng.next();
   for (const [item, p] of Object.entries(BALANCE.rivalItems)) {
     roll -= p;

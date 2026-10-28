@@ -6698,6 +6698,68 @@ body.vscode-high-contrast-light .pg-hpblock > .pg-hprow,
 .pg-pick-starter > .pg-starter-strip {
   margin-top: 0;
 }
+/* 칩 줄 막대는 숨기고 양 끝 탭 ◀ N · N ▶ 으로 (#128 UX 큼 — 윈도우 막대 10px 가 기술 줄을 밀어 150 에서 잘림 · 맥 겹침 막대는 안 보임).
+   탭 = 칩 줄 안 sticky (흐름 폭 0 — 폭 28 + 사이 6 만큼 음수 여백, 칩 자리는 그대로) · 판 바탕 · 금 삼각형 + 크림 숫자 (고른 칩의 금과 다투지 않게 — 아트 디렉터) ·
+   넘칠 때 칩 줄 폭 = 칸 단위 (StarterPick stripW) + 칸에 맞춰 멈춤 → 탭 옆 칩 조각 0 */
+.pg-starter-strip {
+  scrollbar-width: none;
+  /* ← → 로 고른 칩을 데려올 때 탭 아래에 서지 않게 (탭 28 + 사이 6) */
+  scroll-padding-inline: 34px;
+  scroll-snap-type: x mandatory;
+}
+.pg-starter-strip > .pg-starter-chip {
+  scroll-snap-align: start;
+}
+.pg-starter-strip::-webkit-scrollbar {
+  display: none;
+}
+.pg-strip-tab {
+  position: sticky;
+  z-index: 1;
+  flex: none;
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 28px;
+  padding: 0;
+  border: 1px solid var(--pg-sos-line-soft);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--pg-sos-ink);
+  background: var(--pg-sos-bar);
+  cursor: pointer;
+}
+/* 올림 = 테두리 · 숫자 금 (보조 버튼 올림 문법) · 바탕은 그대로 (pokemon.css button:hover 의 VS Code 파랑을 막음 — UX 2바퀴) */
+#pokemon-game .pg-strip-tab:hover {
+  border-color: var(--pg-sos-gold);
+  color: var(--pg-sos-gold);
+  background: var(--pg-sos-bar);
+}
+/* 금 삼각형 4 × 8 (글자 ◀ ▶ 대신 — 맥 10% 에서 "◀13" 이 안쪽 26 을 넘던 것 · 정수 px 라 또렷함) */
+.pg-strip-arrow {
+  flex: none;
+  width: 0;
+  height: 0;
+  border-block: 4px solid transparent;
+}
+.pg-strip-arrow-l {
+  border-right: 4px solid var(--pg-sos-gold);
+}
+.pg-strip-arrow-r {
+  border-left: 4px solid var(--pg-sos-gold);
+}
+.pg-strip-tab-l {
+  left: 0;
+  margin-right: -34px;
+}
+.pg-strip-tab-r {
+  right: 0;
+  margin-left: -34px;
+}
 .pg-starter-strip.pg-panel-wrap {
   row-gap: 6px;
   column-gap: 6px;
@@ -6763,15 +6825,32 @@ body.vscode-high-contrast-light .pg-hpblock > .pg-hprow,
 .pg-starter-chain {
   overflow: visible;
 }
-@media (max-width: 420px) {
-  .pg-starter-chain .pg-chain-label.pg-dim {
-    visibility: hidden;
-  }
+/* 진화 줄 넘치면 한 단계 (StarterPick chainFit — 폭 규칙 420 · 300 대신 재서, 2637): 1 뒤 단계 이름 뺌 (칸이 그림만큼 줄어듦) · 2 타입 뺌 + 이름 밑 여백 0 (2640) */
+.pg-chain-fit1 .pg-chain-label.pg-dim,
+.pg-chain-fit2 .pg-chain-label.pg-dim,
+.pg-chain-fit2 .pg-chain-types {
+  display: none;
 }
-@media (max-width: 300px) {
-  .pg-starter-chain .pg-chain-types {
-    display: none;
-  }
+.pg-chain-fit2 .pg-chain-grid {
+  padding-bottom: 0;
+}
+/* S04 넘치면 한 단계 (StarterPick barFit · moveFit — #128 픽셀 큼): 정보줄 1 제목 짧게 · 2 [←] · 3 바뀌어 뜨는 숲 안내 뺌 ("첫 포켓몬" 은 남김) · 4 제목 뺌 / 기술 줄 1 "위력" 뺌 · 2 "기술 n/2" 뺌 */
+.pg-bar-fit1 .pg-tag-long,
+.pg-bar-fit2 .pg-tag-long,
+.pg-bar-fit3 .pg-tag-long,
+.pg-bar-fit4 .pg-tag-long,
+.pg-bar-fit2 .pg-back-word,
+.pg-bar-fit3 .pg-back-word,
+.pg-bar-fit4 .pg-back-word,
+.pg-bar-fit3 .pg-starter-tag-b,
+.pg-bar-fit4 .pg-starter-tag,
+.pg-move-fit1 .pg-pow-word,
+.pg-move-fit2 .pg-pow-word,
+.pg-move-fit2 .pg-move-count {
+  display: none;
+}
+.pg-bar-fit3 .pg-starter-tag-a {
+  animation: none;
 }
 /* 스타팅 첫 안내 (#63) — 넓으면 정보줄 제목 옆 흐린 한 줄 · 600px 아래는 정보줄 제목이 3초 뒤 안내로 한 번 바뀜 (아래 줄 자리가 없어서) */
 .pg-starter-tip {

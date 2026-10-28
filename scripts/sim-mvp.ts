@@ -6,7 +6,7 @@
  * - 자동 전투 켬 · 선제공격 (Space) 안 누름 · 힘대결 연타는 옵션
  * - 이긴 뒤 마지막 기회: 아직 안 잡은 종이고 팀이 5마리보다 적으면 몬스터볼 (좋은 타이밍에 누름)
  * - 병원: 팀 HP 가 60% 아래거나 쓰러진 포켓몬이 있으면 들어가 회복 · 상점: 상처약 3개 · 몬스터볼 5개까지 (300원은 남김)
- * - 부탁: 늘 도움 · 결과: 1.5초 보고 계속 · 새 기술: 위력이 더 세면 가장 약한 기술 대신 · 진화: 함 (센 기술을 남김)
+ * - 부탁: 늘 도움 · 결과: 1.5초 보고 계속 · 새 기술: 위력이 더 세면 가장 약한 기술 대신 · 진화: 함 (센 기술을 남김 · 스타팅을 진화시키는 돌은 얻는 대로 — #128)
  * - 포인트: 공격 · HP 번갈아 · 대기실: 처음엔 바로 도전, 지면 1-3 을 한 번 더 걷고 다시 도전
  */
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -14,7 +14,7 @@ import { BALANCE, TIMING } from '../src/game/core/balance';
 import { canParry, canRiposte, type BattleState } from '../src/game/core/engine/battle';
 import { applyInput, gymNext, nextStageOf, step } from '../src/game/core/engine/play';
 import { createGameState, type GameState } from '../src/game/core/engine/state';
-import { maxHpOf } from '../src/game/core/rules/bag';
+import { itemEvolution, maxHpOf, STONES } from '../src/game/core/rules/bag';
 import { REGIONS, regionAceLevel } from '../src/game/core/rules/region';
 import { planWild } from '../src/game/core/rules/encounter';
 import { stageLayout } from '../src/game/core/rules/stage';
@@ -191,6 +191,11 @@ function decide(s: GameState, mem: { resultMs: number; lostGymOnce: boolean; gri
       // 포인트 — 공격 · HP 번갈아
       for (const m of party(save)) {
         if (m.unspentPoints > 0) return applyInput(s, { kind: 'points', uid: m.uid, stat: m.unspentPoints % 2 ? 'attack' : 'hp' });
+      }
+      // 진화의 돌 — 스타팅이 그 돌로 진화하면 얻는 대로 씀 (피카츄 → 천둥의돌 · 진화 아이템 안내 #125 를 본 사람, #128)
+      for (const m of party(save)) {
+        const stone = m.caughtAt === 'starter' ? STONES.find((it) => (save.bag[it] ?? 0) > 0 && itemEvolution(m, it) !== null) : undefined;
+        if (stone) return applyInput(s, { kind: 'use-item', item: stone, uid: m.uid });
       }
       return s;
     }
@@ -572,7 +577,7 @@ console.log(`관장 도전 ${avg(results.map((r) => r.gymTries)).toFixed(1)}번 
 const ultMins = results.map((r) => r.firstUltMin).filter((m) => m >= 0);
 console.log(`첫 필살기 ${ultMins.length ? min(avg(ultMins) * 60000) : '-'}분 (늦게 ${ultMins.length ? min(Math.max(...ultMins) * 60000) : '-'} · 한 바퀴 동안 안 쓴 판 ${results.length - ultMins.length})`);
 console.log(`첫 도전 때 돈 ${avg(results.map((r) => r.moneyAtGym)).toFixed(0)}원 · 쓴 돈 (진 것 포함) ${avg(results.map((r) => r.spent)).toFixed(0)}원 · 상처약 쓴 수 ${avg(results.map((r) => r.potionsUsed)).toFixed(1)} · 끝날 때 팀 ${avg(results.map((r) => r.team)).toFixed(1)}마리`);
-for (const [g, from, to] of [['풀', 0, 6], ['불꽃', 6, 12], ['물', 12, 18]] as const) {
+for (const [g, from, to] of [['풀', 0, 6], ['불꽃', 6, 12], ['물', 12, 18], ['전기', 18, 19]] as const) {
   const names = starters.slice(from, to).map((x) => speciesOf(x.dex)?.name.ko ?? '');
   const rs = results.filter((r) => names.includes(r.starter));
   console.log(`  ${g} 스타팅: ${[...STAGE_IDS, 'gym'].map((w) => `${w} ${avg(rs.map((r) => r.stages[w as Where].defeats)).toFixed(1)} (트 ${avg(rs.map((r) => r.stages[w as Where].trainerDefeats)).toFixed(1)})`).join(' · ')} · 전체 ${min(avg(rs.map((r) => r.totalMs)))}분`);
@@ -600,7 +605,7 @@ if (VOLCANO) {
   console.log(`화산 (3번째) — 끝까지 간 판 ${done.length} / ${results.length} · 화산 한 바퀴 ${min(avgOf(done.map(vMs)))}분 (길게 ${min(Math.max(0, ...done.map(vMs)))}) · 화산 관장 도전 ${avgOf(results.map((r) => r.volcanoGymTries)).toFixed(1)}번 (최대 ${Math.max(0, ...results.map((r) => r.volcanoGymTries))}) · 해변 관장 도전 ${avgOf(results.map((r) => r.beachGymTries)).toFixed(1)}번`);
   console.log(`  화산 진 수: ${VOLCANO_STAGES.map((w) => `${w} ${avgOf(results.map((r) => r.stages[w].defeats)).toFixed(1)} (트 ${avgOf(results.map((r) => r.stages[w].trainerDefeats)).toFixed(1)} · 최대 ${Math.max(0, ...results.map((r) => r.stages[w].defeats))})`).join(' · ')}`);
   console.log(`  화산 스테이지 시간: ${VOLCANO_STAGES.map((w) => `${w} ${min(avgOf(results.map((r) => r.stages[w].ms)))}분`).join(' · ')} · 잡음 ${VOLCANO_STAGES.slice(0, 3).map((w) => avgOf(results.map((r) => r.stages[w].caught)).toFixed(1)).join(' · ')}`);
-  for (const [g, from, to] of [['풀', 0, 6], ['불꽃', 6, 12], ['물', 12, 18]] as const) {
+  for (const [g, from, to] of [['풀', 0, 6], ['불꽃', 6, 12], ['물', 12, 18], ['전기', 18, 19]] as const) {
     const names = starters.slice(from, to).map((x) => speciesOf(x.dex)?.name.ko ?? '');
     const rs = results.filter((r) => names.includes(r.starter));
     console.log(`  ${g} 스타팅 화산: ${VOLCANO_STAGES.map((w) => `${w} ${avgOf(rs.map((r) => r.stages[w].defeats)).toFixed(1)}`).join(' · ')} · 관장 도전 ${avgOf(rs.map((r) => r.volcanoGymTries)).toFixed(1)} · 화산 한 바퀴 ${min(avgOf(rs.filter((r) => r.done).map(vMs)))}분 · 못 깸 ${rs.filter((r) => !r.done).length}`);

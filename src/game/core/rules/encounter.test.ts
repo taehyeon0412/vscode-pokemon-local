@@ -3,7 +3,7 @@ import { BALANCE } from '../balance';
 import { Rng } from '../engine/rng';
 import { fixedRng } from '../../../test/fixtures/rng';
 import { formOf, moveOf, speciesOf } from '../../data';
-import { ambushChance, createWild, encounterStart, evolveForLevel, forestPool, pickupAt, planWild, preemptiveChance, sceneryAt, STARTER_SPECIES, traceKindOf } from './encounter';
+import { ambushChance, createWild, encounterStart, evolveForLevel, forestPool, isStarterLine, pickupAt, planWild, preemptiveChance, sceneryAt, STARTER_SPECIES, traceKindOf } from './encounter';
 import { mixSeed, stageLayout, stageLevelBand, type Spot } from './stage';
 
 const [LO1, HI1] = stageLevelBand('forest-1');
@@ -38,10 +38,14 @@ describe('숲 포켓몬 (mvp-spec 3.2)', () => {
     expect(pool.mixed).not.toContain(278); // 갈모매 (물 · 비행 — 숲길에 물결 흔적)
   });
 
-  it('스타팅 18종 계열은 야생에 안 나옴 (mvp-spec 9장 [제안])', () => {
+  it('스타팅 계열은 야생에 안 나옴 (mvp-spec 9장 [제안]) — 피카츄 계열만 야생에도 (#128 확정 — 야생 피카츄는 그대로)', () => {
     const all = [...forestPool('forest-3').common, ...forestPool('forest-3').rare];
     for (const dex of [1, 152, 252, 387, 495, 650]) expect(all, String(dex)).not.toContain(dex);
-    for (const dex of STARTER_SPECIES) expect(all).not.toContain(dex);
+    for (const dex of STARTER_SPECIES.filter((d) => isStarterLine(speciesOf(d)!))) expect(all).not.toContain(dex);
+    expect(STARTER_SPECIES).toHaveLength(19);
+    // 계열 전체 — 이상해씨 · 이상해풀 · 이상해꽃은 빼고 피츄 · 피카츄 · 라이츄는 안 뺌 (전기 지역 목록에 들면 나옴)
+    for (const dex of [1, 2, 3, 4, 7, 656]) expect(isStarterLine(speciesOf(dex)!), String(dex)).toBe(true);
+    for (const dex of [172, 25, 26]) expect(isStarterLine(speciesOf(dex)!), String(dex)).toBe(false);
   });
 
   it('종족값 합 450 이 넘는 1단계 (스라크) 는 1-3 에만', () => {
