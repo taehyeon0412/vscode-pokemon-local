@@ -495,6 +495,7 @@ export function BadgeCard({ state, onInput, onMap }: BoxProps & { onMap(): void 
   const [fit, setFit] = useState(0);
   // 첫 줄 (배지 이름 + 뒷말) 이 넘치면 한 단계 — 0 긴 말 · 1 짧은 말 · 2 뺌 (맥 240 ~ 274 에서 "모든 지역 열" 로 잘리던 것 — UX 리뷰어 #75 · 맥 여유 1.1).
   //   짧은 말도 폭으로 (360 media 였을 때 361 ~ 384 는 긴 말이 넘쳐 통째로 빠지고 더 좁은 306 ~ 360 은 짧은 말이 보이던 것 — 픽셀 #127)
+  //   고르기면 2 = 짧은 제목 + 짧은 말 "숲 배지! 다음 지역 고르기" · 3 = "숲 배지! 고르기" (240 ~ 280 · 맥에서 "고르는 자리" 라는 말이 사라지던 것 — ideas 1638 기획 OK · 사이 단계 UX) · 그다음 뺌
   const [tailFit, setTailFit] = useState(0);
   // 관장 이름표가 카드 밑에 깔리면 숨김 — 폭 경계 (480) 대신 실제 겹침 (#127 아트 — 카드가 넓어져 500 에서 "관장 나래" 윗부분이 잘림)
   const [overTag, setOverTag] = useState(false);
@@ -518,7 +519,8 @@ export function BadgeCard({ state, onInput, onMap }: BoxProps & { onMap(): void 
   useLayoutEffect(() => {
     const el = card.current;
     const line = el?.querySelector<HTMLElement>('.pg-badge-lines > .pg-line');
-    if (!el || !line || tailFit >= 2 || line.clientWidth === 0 || !line.querySelector('.pg-badge-tail')?.getClientRects().length) return;
+    const tailMax = el?.querySelector('.pg-tail-mini') ? 4 : 2;
+    if (!el || !line || tailFit >= tailMax || line.clientWidth === 0 || !line.querySelector('.pg-badge-tail')?.getClientRects().length) return;
     if (needOf(line) > roomOf(el) + 0.5) setTailFit(tailFit + 1);
   });
   useLayoutEffect(() => {
@@ -575,12 +577,14 @@ export function BadgeCard({ state, onInput, onMap }: BoxProps & { onMap(): void 
   const [lo, hi] = regionLevelBand(k, 0);
   // 뒷말 — 새 지역 이름만 빨강 (0장 중요한 낱말 · SoS 2f) · 본편 "준비 중" 은 흐리게
   // 360 아래 (새 지역 표가 없을 때만 뒷말이 남음) 는 짧은 말 — 240 에서 "모든 지역을 열었어" 로 잘리던 것 (U4)
+  const pickTail = !again && !!map?.next.length;
   const tail = again ? null : map?.next.length ? (
     <>
       <span class="pg-tail-long">
         다음 지역을 골라요 <span class="pg-sub">Lv {lo}~{hi}</span>
       </span>
       <span class="pg-tail-short">다음 지역 고르기</span>
+      <span class="pg-tail-mini">고르기</span>
     </>
   ) : opened ? (
     <>
@@ -618,7 +622,7 @@ export function BadgeCard({ state, onInput, onMap }: BoxProps & { onMap(): void 
   const toLabel = next.kind === 'go' ? (next.to === 'gym' ? `${REGIONS[next.region].name} 체육관` : `${REGIONS[next.region].name} ${stageCode(next.to)}`) : '';
   return (
     <div
-      class={`pg-banner pg-badge-card${fit >= 1 ? ' pg-badge-tight' : ''}${Array.from({ length: Math.max(0, fit - 1) }, (_, i) => ` pg-badge-tight${i + 2}`).join('')}${tailFit === 1 ? ' pg-badge-tailshort' : ''}${tailFit >= 2 ? ' pg-badge-notail' : ''}${again ? ' pg-badge-again' : ''}${overTag ? ' pg-badge-overtag' : ''}`}
+      class={`pg-banner pg-badge-card${fit >= 1 ? ' pg-badge-tight' : ''}${Array.from({ length: Math.max(0, fit - 1) }, (_, i) => ` pg-badge-tight${i + 2}`).join('')}${tailFit === 1 || (tailFit === 2 && pickTail) ? ' pg-badge-tailshort' : ''}${tailFit === 2 && pickTail ? ' pg-badge-titleshort' : ''}${tailFit === 3 && pickTail ? ' pg-badge-tailmini' : ''}${tailFit >= (pickTail ? 4 : 2) ? ' pg-badge-notail' : ''}${again ? ' pg-badge-again' : ''}${overTag ? ' pg-badge-overtag' : ''}`}
       ref={card}
     >
       {/* 배지 칸 = 40 × 40 얼굴 칸 (레벨업 얼굴 카드 · SoS 2f) 안 32 배지 */}
@@ -636,8 +640,11 @@ export function BadgeCard({ state, onInput, onMap }: BoxProps & { onMap(): void 
               '관장을 다시 이겼다!'
             ) : (
               <>
-                {region.badgeName}
-                {josaOf(region.badgeName, '을/를')} 받았다!
+                <span class="pg-badge-tlong">
+                  {region.badgeName}
+                  {josaOf(region.badgeName, '을/를')} 받았다!
+                </span>
+                <span class="pg-badge-tshort">{region.badgeName}!</span>
               </>
             )}
           </b>

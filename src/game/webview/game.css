@@ -4180,11 +4180,22 @@ body.vscode-light .pg-stage.pg-bg-arena-volcano {
   background: transparent;
   box-shadow: none;
 }
+/* 못 누름 = 끊긴 테두리 — 3칸 칠 · 2칸 빔을 네 변에 배경 그라데이션으로 (왼쪽 · 위 끝에서 시작 — 늘이거나 가운데 맞추지 않아 늘 정수 칸)
+   border dashed 는 길이에 맞춰 대시를 늘여 그려 끝이 중간색 · 5n+3 길이만 깨끗하던 것 · border-image repeat 는 가운데 맞춤이라 0.5px 어긋남 (원칙 4 — bugs 2604)
+   옆 변은 1px 아래부터 (모서리가 두 번 칠해져 밝던 것) · 테두리가 없는 버튼 (옆 메뉴 줄) 은 아래 .pg-vmenu 규칙이 배경을 끔 */
 .pg-button:disabled {
+  --pg-dash: var(--pg-sos-line-soft);
   opacity: 1;
   color: var(--pg-sos-dim);
-  border-style: dashed;
-  border-color: var(--pg-sos-line-soft);
+  border-style: solid;
+  border-color: transparent;
+  background:
+    repeating-linear-gradient(90deg, var(--pg-dash) 0 3px, transparent 3px 5px) left top / 100% 1px no-repeat border-box,
+    repeating-linear-gradient(90deg, var(--pg-dash) 0 3px, transparent 3px 5px) left bottom / 100% 1px no-repeat border-box,
+    repeating-linear-gradient(180deg, var(--pg-dash) 0 3px, transparent 3px 5px) left 0 top 1px / 1px calc(100% - 2px) no-repeat border-box,
+    repeating-linear-gradient(180deg, var(--pg-dash) 0 3px, transparent 3px 5px) right 0 top 1px / 1px calc(100% - 2px) no-repeat border-box;
+}
+.pg-vmenu .pg-layer .pg-button:disabled {
   background: transparent;
 }
 .pg-button:focus-visible {
@@ -4835,6 +4846,10 @@ body.vscode-high-contrast-light .pg-title-body {
 }
 .pg-badge-card.pg-badge-tight .pg-badge-pick + .pg-button:not(.pg-badge-pick) {
   margin-left: 0;
+}
+/* 결과 상자 보관함 칸이 넘치면 앞말 "팀이 다 차서" 뺌 (ResultBox whyOff — 240 ~ 280 에서 이름이 잘리던 것, bugs 2630 UX) */
+.pg-result-nowhy .pg-caught-why {
+  display: none;
 }
 /* 자동 남은 초 (AutoSec — 길 위 상자 · 클리어 · 패배 · 관장 카드) — "10초" 와 폭 차이는 AutoSec 이 버튼 양옆 안 여백으로 (잣대는 잴 때만 붙임) */
 .pg-auto-sec {
@@ -6123,10 +6138,18 @@ body.vscode-high-contrast-light .pg-title-body {
   }
 }
 .pg-badge-tail .pg-tail-short,
-.pg-badge-card.pg-badge-tailshort .pg-tail-long {
+.pg-badge-tail .pg-tail-mini,
+.pg-badge-tshort,
+.pg-badge-card.pg-badge-tailshort .pg-tail-long,
+.pg-badge-card.pg-badge-tailmini .pg-tail-long,
+.pg-badge-card.pg-badge-tailmini .pg-badge-tlong,
+.pg-badge-card.pg-badge-titleshort .pg-badge-tlong {
   display: none;
 }
-.pg-badge-card.pg-badge-tailshort .pg-tail-short {
+.pg-badge-card.pg-badge-tailshort .pg-tail-short,
+.pg-badge-card.pg-badge-tailmini .pg-tail-mini,
+.pg-badge-card.pg-badge-tailmini .pg-badge-tshort,
+.pg-badge-card.pg-badge-titleshort .pg-badge-tshort {
   display: inline;
 }
 /* 첫 줄이 넘치면 한 단계 — 긴 말 → 짧은 말 → 뺌 (BadgeCard tailFit — 폭 경계 360 대신 잼, 361 ~ 384 에서 통째로 빠지던 것 · 픽셀 #127) */
@@ -7268,7 +7291,8 @@ body.vscode-high-contrast-light .pg-hpblock > .pg-hprow,
 /* NEW! 칩 = 그림 칸 오른쪽 위 모서리 (레벨업 카드 "+4" .pg-lvup-card-pts 와 같은 부품 — 금색 칠 · 짙은 글씨 11/700 · 1px 남색 선 · 위 −5) · 포켓몬과 함께 2초에 (ideas 1619 · 기획 10-28) */
 .pg-caught-new {
   position: absolute;
-  top: -5px;
+  /* −9 = 칩 대부분이 칸 테두리 위 (안쪽은 3px 만) — −5 는 칸 안쪽 위 7px 을 덮어 키 큰 포켓몬 볏 끝에 닿던 것 (bugs 2629 · UX) */
+  top: -9px;
   /* 왼쪽 정수 자리 (그림 칸 64 − 30) — 오른쪽 기준이면 글자 폭이 소수라 칩 왼쪽 · 글자가 359.34 처럼 반 픽셀에 놓임 · 오른쪽으로 약 2 걸침 */
   left: 34px;
   padding: 0 2px;

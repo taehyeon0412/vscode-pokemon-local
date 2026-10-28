@@ -107,10 +107,13 @@ export function TitleScreen({ info, media, pending, onNew, onContinue, onDev, he
     setConfirming(false);
     setStep('title');
   }, [info]);
-  // 확인이 뜨면 취소에 포커스 — Enter 를 눌러도 세이브가 지워지지 않게
+  // 확인이 뜨면 취소에 포커스 — Enter 를 눌러도 세이브가 지워지지 않게 · 닫히면 [새로 하기] 줄로 돌려줌 (포커스가 body 로 빠져 키보드만으로 못 이어 가던 것 — UX)
   const rootRef = useRef<HTMLDivElement>(null);
+  const wasConfirming = useRef(false);
   useEffect(() => {
     if (confirming) rootRef.current?.querySelector<HTMLButtonElement>('[data-name="cancel"]')?.focus();
+    else if (wasConfirming.current) rootRef.current?.querySelector<HTMLButtonElement>('.pg-title-new-row')?.focus();
+    wasConfirming.current = confirming;
   }, [confirming]);
 
   const locked = pending || !view.canStart;
@@ -158,12 +161,13 @@ export function TitleScreen({ info, media, pending, onNew, onContinue, onDev, he
                 {lead && <span class="pg-ask-what">{`${lead.name} Lv ${lead.level} · ${formatPlayTime(view.summary?.playTimeMs ?? 0)} `}</span>}
                 <b class="pg-danger-text">지금 저장이 지워져요.</b> 새로 할까요?
               </span>
+              {/* 확인 줄 차례 = 묻는 글 · 주 (안 함) · 위험 (오른쪽 끝) — S18 놓아주기와 같게 (ideas 1628 · design-system 6장) */}
               <span class="pg-title-confirm-btns">
-                <Button secondary extraClass="pg-danger" onClick={startNew} disabled={locked} key="confirm-new">
-                  새로 하기
-                </Button>
                 <Button onClick={() => setConfirming(false)} disabled={pending} name="cancel" key="confirm-cancel">
                   취소
+                </Button>
+                <Button secondary extraClass="pg-danger" onClick={startNew} disabled={locked} key="confirm-new">
+                  새로 하기
                 </Button>
               </span>
             </div>
@@ -173,7 +177,7 @@ export function TitleScreen({ info, media, pending, onNew, onContinue, onDev, he
               <MenuRow on onClick={onContinue} disabled={locked} title={view.continueHint ?? undefined}>
                 이어 하기 {view.summary && <Summary summary={view.summary} />}
               </MenuRow>
-              <MenuRow on={false} onClick={clickNew} disabled={locked}>
+              <MenuRow on={false} onClick={clickNew} disabled={locked} extraClass="pg-title-new-row">
                 새로 하기
               </MenuRow>
             </>

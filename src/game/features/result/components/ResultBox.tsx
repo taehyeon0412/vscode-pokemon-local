@@ -76,13 +76,25 @@ const treasureIcon = (name: string) => {
   return id ? ITEM_ICON[id] : 'gift';
 };
 
+/** 잡은 포켓몬이 보관함으로 갈 때 칸 앞말 (result/model summaryLines 와 같은 글) */
+const TO_BOX_LEAD = '팀이 다 차서 ';
+
 /** 첫 줄 받은 것 — 라이벌 보상 (돈 ×1.5 · 아이템) 은 ★ 금색 (gdd 4.12 — 글을 늘리면 좁은 패널에서 잘려서 표시로만) */
 function Reward({ p, rare }: { p: SummaryPart; rare: boolean }) {
   // 받은 물건 (첫 승 리프의돌 · 보물) = 그 물건 그림 + 쓰는 곳 (공통 선물 그림 · 설명 없음이던 것 — 개발 UX #70, 배지 카드에서 칩을 뺀 f5b4ea5 뒤)
   const id = p.kind === 'item' || p.kind === 'treasure' ? ITEM_IDS.find((i) => itemName(i) === p.text) : undefined;
   return (
     <span class={rare && p.kind !== 'caught' ? 'pg-reward pg-reward-rare' : 'pg-reward'} title={id ? `${p.text} — ${VALUABLES.includes(id) ? '상점에서 팔아요' : '가방에서 써요'}` : undefined}>
-      <Icon name={p.kind === 'caught' ? 'ball' : p.kind === 'money' ? 'coin' : p.kind === 'treasure' || p.kind === 'item' ? treasureIcon(p.text) : 'gift'} /> {p.text}
+      <Icon name={p.kind === 'caught' ? 'ball' : p.kind === 'money' ? 'coin' : p.kind === 'treasure' || p.kind === 'item' ? treasureIcon(p.text) : 'gift'} />{' '}
+      {/* 팀이 다 차서 — 칸이 넘치면 "뷰티플라이 → 보관함" 만 (ResultBox whyOff · 240 에서 "팀이 다 차서 뷰티플라이 …" 로 잘리던 것 — UX U4) */}
+      {p.kind === 'caught' && p.text.startsWith(TO_BOX_LEAD) ? (
+        <>
+          <span class="pg-caught-why">{TO_BOX_LEAD}</span>
+          {p.text.slice(TO_BOX_LEAD.length)}
+        </>
+      ) : (
+        p.text
+      )}
     </span>
   );
 }
@@ -196,8 +208,29 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
     r.selectNodeContents(bEl);
     if (r.getBoundingClientRect().width * 1.1 > inner.clientWidth + 0.5) setExpStep(expStep + 1);
   });
+  // 보관함 칸이 넘치면 앞말 "팀이 다 차서" 를 뺌 ("뷰티플라이 → 보관함") — 넘치면 한 단계 · 내용 실제 너비 (240 ~ 280 에서 "팀이 다 차서 뷰티플라이 …" 로 이름이 잘리던 것, bugs 2630 UX U4)
+  const [whyOff, setWhyOff] = useState(false);
+  useLayoutEffect(() => {
+    if (whyOff) return;
+    for (const why of tight.box.current?.querySelectorAll<HTMLElement>('.pg-caught-why') ?? []) {
+      const cell = why.closest<HTMLElement>('.pg-reward');
+      if (!cell || cell.clientWidth === 0) continue;
+      // 잘리는 곳은 칸 자신이 아니라 바깥 칸 (번갈아 줄 · 첫 줄) — 내용 실제 오른쪽 끝을 바깥 칸 안쪽 끝과 견줌
+      const host = cell.closest<HTMLElement>('.pg-result-alt-a, .pg-line') ?? cell;
+      const r = document.createRange();
+      r.selectNodeContents(cell);
+      const hostRight = host.getBoundingClientRect().right - parseFloat(getComputedStyle(host).paddingRight);
+      if (cell.scrollWidth > cell.clientWidth + 0.5 || r.getBoundingClientRect().right > Math.min(hostRight, cell.getBoundingClientRect().right) + 0.02) {
+        setWhyOff(true);
+        return;
+      }
+    }
+  });
   useEffect(() => {
-    const reset = () => setExpStep(0);
+    const reset = () => {
+      setExpStep(0);
+      setWhyOff(false);
+    };
     window.addEventListener('resize', reset);
     return () => window.removeEventListener('resize', reset);
   }, []);
@@ -280,6 +313,13 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
           <b class="pg-result-title">
             {pre && <span class="pg-title-pre">{pre}</span>}
             {title.slice(pre.length)}
+            {/* 처음 잡은 종 = 제목 끝 NEW! (소개 카드를 2초 전에 넘기면 "처음" 이 사라지던 것 — bugs 2630 · 볼 칸에 붙이면 240 에서 5글자 이름이 잘려 줄바꿈되는 제목으로, UX · 작은 자리라 빨강 글자 NEW) */}
+            {summary.caught?.isNew && (
+              <span class="pg-new" title="처음 잡았다">
+                {' '}
+                NEW!
+              </span>
+            )}
           </b>
         )}
         {head.map((p) => (
@@ -302,13 +342,13 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
   );
   if (ups.length === 0) {
     return (
-      <div ref={tight.box} class={`pg-banner pg-result pg-two${summary.caught ? ' pg-result-caught' : ''}${tight.on ? ' pg-result-tight' : ''}${expStep ? ` pg-exp-s${expStep}` : ''}`} title={all}>
+      <div ref={tight.box} class={`pg-banner pg-result pg-two${summary.caught ? ' pg-result-caught' : ''}${whyOff ? ' pg-result-nowhy' : ''}${tight.on ? ' pg-result-tight' : ''}${expStep ? ` pg-exp-s${expStep}` : ''}`} title={all}>
         {lines}
       </div>
     );
   }
   return (
-    <div ref={tight.box} class={`pg-banner pg-result pg-two pg-lvup${tight.on ? ' pg-result-tight' : ''}${tight.one ? ' pg-result-one' : ''}`} title={all}>
+    <div ref={tight.box} class={`pg-banner pg-result pg-two pg-lvup${whyOff ? ' pg-result-nowhy' : ''}${tight.on ? ' pg-result-tight' : ''}${tight.one ? ' pg-result-one' : ''}`} title={all}>
       <span class="pg-lvup-cards">
         <FaceCards ups={cards} media={media} hint={hint} onStats={onStats} />
       </span>
