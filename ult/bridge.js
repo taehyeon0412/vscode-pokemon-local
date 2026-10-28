@@ -13,6 +13,18 @@ const FX_TYPE_PAL = {
 
 // spec = { el: 그림 <img>, box: 위치 · 크기를 읽을 요소 (없으면 el), form: 게임 모습 id (= 일반 모드 label), size: 원본 크기 (32 · 64), left: 왼쪽을 보는지, name }
 // 필살기가 몸을 옮기면 (돌진 · 다이브 · 밀려 벌러덩) box 를 translate 로 옮김 — 끝나면 fxReset 으로 제자리
+// 크기 변환을 뺀 그림 자리 — 내보내기 크기 애니 (pg-sendout scale 0.2 → 1.08 → 1) 도중에 기술이 시작되면 s = 폭 / 32 가 2.10 처럼 정수가 아니어서
+//   효과 점이 전부 반 픽셀로 흐리던 것 (디자인 #122 픽셀 검사원 · bugs 1884). 변환 기준점 (transform-origin) 은 그대로 두고 크기만 1 로 · translate (fxActor) 는 transform 밖이라 그대로
+function fxRestRect(el) {
+    const r = el.getBoundingClientRect();
+    const cs = getComputedStyle(el);
+    const k = cs.transform && cs.transform !== 'none' ? new DOMMatrixReadOnly(cs.transform).a : 1;
+    if (!(k > 0) || Math.abs(k - 1) < 0.001) {
+        return r;
+    }
+    const [ox, oy] = cs.transformOrigin.split(' ').map(parseFloat);
+    return new DOMRect(r.x - ox * (1 - k), r.y - oy * (1 - k), r.width / k, r.height / k);
+}
 const fxIdle = (left) => ({ horizontalDirection: left ? states_1.HorizontalDirection.left : states_1.HorizontalDirection.right, nextFrame: () => states_1.FrameResult.stateContinue });
 function fxActor(spec) {
     const box = () => spec.box || spec.el;
@@ -32,6 +44,7 @@ function fxActor(spec) {
         _originalSpriteSize: spec.size || 32,
         _size: 'game',
         calculateSpriteWidth: () => box().getBoundingClientRect().width,
+        restRect: () => fxRestRect(box()),
         // 무대 상자 안 (3:3 필살기 판 — moveFrame) 에서는 상자 기준 자리 (왼쪽 = 상자 왼쪽 · 아래 = 상자 아래 끝에서)
         get left() {
             return base.left + tx - (moveFrame ? moveFrame.x : 0);

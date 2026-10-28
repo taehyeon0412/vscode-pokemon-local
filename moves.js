@@ -1090,7 +1090,8 @@ const sigEntry = (key) => {
 function sigGeometry(pokemon, left) {
     const [P, mx, my, l, t, r, b] = POKEMON_SHAPE[pokemon.label];
     const size = pokemon._originalSpriteSize || 32;
-    const rect = pokemon.collision.getBoundingClientRect();
+    // 게임 (ult/bridge.js fxActor) 은 크기 변환을 뺀 자리 — 내보내기 크기 애니 도중에도 s 가 정수 (bugs 1884) · 일반 모드는 그대로
+    const rect = pokemon.restRect ? pokemon.restRect() : pokemon.collision.getBoundingClientRect();
     const s = rect.width / size;
     const dir = left ? -1 : 1;
     const sx = (v) => rect.left + (left ? size - v : v) * s;
