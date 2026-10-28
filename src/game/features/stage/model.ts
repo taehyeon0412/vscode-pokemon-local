@@ -397,7 +397,10 @@ export function foldWait(state: GameState): string | null {
     case 'gym':
       return '체육관 대기실에서 기다려요';
     case 'badge':
-      return st?.phase === 'badge' && st.again ? '관장을 다시 이겼어요 — 다음 지역을 기다려요' : '관장을 이겼어요! 배지를 받았어요';
+      // 다시 이김 = 할 일 — 카드 버튼 차례 그대로 (주 버튼 [Enter 대기실 · 다시 도전] · 작은 [2] 다음 지역 — 기획 B 10-28 · "기다려요" 는 누가 기다리는지 헷갈리고
+      //   "다음 지역을 골라요" 는 주 버튼과 반대 길이라 같은 체육관을 키우던 사람이 헷갈리던 것, #130 UX 큼) · 숨김일 때만 (밖은 자동이면 10초 뒤 대기실)
+      //   할 일 먼저 (U6) — 맥 240 × 30 에서 "관장을 … — 대기실 ·" 까지만 보이고 "다음 지역" 이 둘째 줄로 숨던 것 · 뒷말은 한 덩이 (줄이 바뀌면 통째로)
+      return st?.phase === 'badge' && st.again ? '대기실 · 다음 지역 — 관장을 또 이겼어요' : '관장을 이겼어요! 배지를 받았어요';
     default:
       return st?.phase === 'facility' && st.inside ? `${st.kind === 'hospital' ? '병원' : '상점'} 안에서 기다려요` : null;
   }

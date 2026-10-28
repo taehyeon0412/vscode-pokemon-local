@@ -609,6 +609,17 @@ describe('멈춤 · 알림 표 (gdd 4.13 · U6 — orders #27 R13)', () => {
     const gym = { ...base, save: { ...base.save, location: { screen: 'gym' as const } }, runtime: { ...base.runtime, stage: { phase: 'lobby' as const }, stageId: null } };
     expect(advance(away(gym), 200).notices).toEqual(['gym']);
     expect(advance(away({ ...gym, runtime: { ...gym.runtime, stage: { phase: 'badge' as const } } }), 200).notices).toEqual(['badge']);
+    // 다시 이긴 카드 + 자동 = 밖에서도 대기실로 넘어가니 알림 없음 · 자동이 아니면 기다림 알림 (#130)
+    const againCard = { ...gym, runtime: { ...gym.runtime, stage: { phase: 'badge' as const, again: true as const } } };
+    expect(advance(away({ ...againCard, save: { ...againCard.save, settings: { ...againCard.save.settings, autoBattle: true } } }), 200).notices).toEqual([]);
+    expect(advance(away({ ...againCard, save: { ...againCard.save, settings: { ...againCard.save.settings, autoBattle: false } } }), 200).notices).toEqual(['badge']);
+    // 다시 이긴 카드 + 자동 — 숨김 (멈춤 · 알림) → 봄 (셈 · 기다림 아님) → 다시 숨김 = 알림은 한 번 (숨길 때마다 쌓이던 것 — 테스터)
+    const hide = (g: GameState, on: boolean): GameState => ({ ...g, runtime: { ...g.runtime, headless: on } });
+    const againAuto = { ...againCard, save: { ...againCard.save, settings: { ...againCard.save.settings, autoBattle: true } } };
+    const h1 = advance(hide(againAuto, true), 200);
+    const seen = advance(hide(h1.state, false), 2000);
+    const h2 = advance(hide(seen.state, true), 200);
+    expect([h1.notices, seen.notices, h2.notices]).toEqual([['badge'], [], []]);
     const sm = { ...base.save.monsters[base.save.party[0]!]!, uid: 'w', shiny: true, caughtAt: 'forest-1' as const };
     const shiny = startBattle(base.save, sm, 'normal');
     expect(advance(away(at(base, { phase: 'battle', battle: shiny }, { pendingEncounter: { kind: 'wild', monster: sm, start: 'normal' } })), 200).notices).toEqual(['shiny']);

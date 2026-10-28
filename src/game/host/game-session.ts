@@ -970,7 +970,8 @@ export class GameSession {
       this.state = { ...this.state, save: { ...this.state.save, tips: [...tips, `paused-${n + 1}`] } };
       this.persist(this.state.save);
     }
-    const text = noticeText(notice, this.webviewCollapsed, away);
+    const st = this.state.runtime.stage;
+    const text = noticeText(notice, this.webviewCollapsed, away, st?.phase === 'badge' && st.again === true);
     this.deps.log(`알림: ${text}`);
     try {
       this.deps.notify?.(text);
@@ -1061,7 +1062,7 @@ export class GameSession {
  * 알림 문구 (gdd 4.13 표 — U9 · U6) — 이어서 하는 법: 밖 (away — 패널은 보이는데 VS Code 에 포커스 없음, 웹뷰가 알림) = "VS Code 로 돌아오면" ·
  * 접힘 (보이지만 너무 낮음) = "150px 이상으로 올리면" (#299 — 패널은 이미 열려 있어서 헷갈림) · 숨김 = "패널을 열면"
  */
-export function noticeText(notice: GameNotice, collapsed: boolean, away = false): string {
+export function noticeText(notice: GameNotice, collapsed: boolean, away = false, again = false): string {
   const back = away ? 'VS Code 로 돌아오면' : collapsed ? `포켓몬 패널을 ${GAME_MIN_HEIGHT_PX}px 이상으로 올리면` : '포켓몬 패널을 열면';
   const open = away ? 'VS Code 로 돌아와' : collapsed ? `포켓몬 패널을 ${GAME_MIN_HEIGHT_PX}px 이상으로 올려` : '포켓몬 패널을 열어';
   const TEXT: Record<GameNotice, string> = {
@@ -1072,7 +1073,8 @@ export function noticeText(notice: GameNotice, collapsed: boolean, away = false)
     defeat: `😵 포켓몬들이 쓰러졌어요… ${open} 이어 가 주세요.`,
     clear: `🎉 스테이지를 깼어요! ${open} 다음 스테이지를 골라 주세요.`,
     gym: `🏟 체육관 대기실에서 기다려요! ${open} 관장에게 도전해 보세요.`,
-    badge: `🏅 관장을 이겼어요! 배지를 받았어요 — ${open} 보세요.`,
+    // 다시 이긴 관장 (#127 · #130) 은 배지가 없음 — 자동이면 보는 동안 10초 뒤 대기실로 (테스터)
+    badge: again ? `🏅 관장을 다시 이겼어요! ${back} 대기실로 이어 가요.` : `🏅 관장을 이겼어요! 배지를 받았어요 — ${open} 보세요.`,
     paused: '⏸ 자동 전투가 꺼져 있어 멈춰 있어요. 자동 전투를 켜면 안 볼 때도 계속 걸어요.',
   };
   return TEXT[notice];

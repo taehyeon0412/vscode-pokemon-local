@@ -852,6 +852,14 @@ function resultOrChoiceStep(stage: Extract<StageRuntime, { phase: 'result' | 'ch
   return { ...stage, ms: Math.min(TIMING.evolveAnimMs, stage.ms + stepMs) };
 }
 
+/**
+ * 관장 카드 자동 셈을 멈추는지 — 숨김 (접힘 · 다른 탭) 이면 늘 멈춤 · 밖 (패널은 보이고 다른 곳에 손) 이면 첫 승 카드만 멈춤 (배지 · 제목을 보는 동안만 — U6).
+ * 다시 이긴 카드 (again) 는 밖에서도 셈 — 앞 체육관을 되풀이해 키우며 다른 일을 하는 동안 카드에서 멈춰 있지 않고 대기실로 (#130 — 2026-10-28 태현 님 "추천대로")
+ */
+export function badgeAutoHeld(rt: Pick<RuntimeState, 'headless' | 'away'>, again: boolean): boolean {
+  return rt.headless || (rt.away === true && !again);
+}
+
 /** S16 체육관 — 대기실 · 관장전 · 결과 · 고르기 · 패배 · MVP 끝 카드 */
 function gymStep(save0: Save, rt0: RuntimeState, stepMs: number): { save: Save; rt: RuntimeState; signal: SaveSignal | null } {
   let save = save0;
@@ -940,10 +948,10 @@ function gymStep(save0: Save, rt0: RuntimeState, stepMs: number): { save: Save; 
       stage = defeatStep(stage, rt, stepMs, false);
       break;
     case 'badge': {
-      // 자동 전투면 10초 뒤 다음 지역 (#127) — 보는 동안만 셈 (숨김 · 밖이면 기다림 — U6) · 다 깼으면 (지도) 기다림
-      //   다시 이긴 관장 (again) 은 10초 뒤 대기실로 — 앞 체육관을 되풀이해 키우는 사람이 다음 지역으로 끌려가지 않게 (예전처럼, 코드 리뷰어) · 버튼 (Enter) 은 다음 지역 그대로
-      //   다 깼어도 다시 이김은 대기실로 갈 수 있어 셈 (끝없이 기다리던 것 — UX 마지막 바퀴)
-      if (!save.settings.autoBattle || rt.headless || rt.away || (!stage.again && gymNext({ save, runtime: rt }).kind === 'map')) break;
+      // 자동 전투면 10초 뒤 다음 지역 (#127) — 첫 승 카드는 보는 동안만 셈 (숨김 · 밖이면 기다림 — U6) · 다 깼으면 (지도) 기다림
+      //   다시 이긴 관장 (again) 은 10초 뒤 대기실로 — 앞 체육관을 되풀이해 키우는 사람이 다음 지역으로 끌려가지 않게 (예전처럼, 코드 리뷰어) · 버튼도 Enter = 대기실 · 2 = 다음 지역 (기획 B 10-28 · main.ts)
+      //   다 깼어도 다시 이김은 대기실로 갈 수 있어 셈 (끝없이 기다리던 것 — UX 마지막 바퀴) · 밖에서도 셈 (#130 — badgeAutoHeld)
+      if (!save.settings.autoBattle || badgeAutoHeld(rt, stage.again === true) || (!stage.again && gymNext({ save, runtime: rt }).kind === 'map')) break;
       const ms = (stage.ms ?? 0) + stepMs;
       if (ms >= TIMING.badgeAutoMs) {
         const here: GameState = { save, runtime: { ...rt, stage, stageId: null } };
@@ -1036,10 +1044,12 @@ export function step(state: GameState, stepMs: number): StepOut {
   let told: GameNotice | null = null;
   const watching = !rt.headless && !rt.away;
   const wait = waitReason({ save, runtime: rt });
+  // 다시 이긴 카드 + 자동은 볼 때 · 밖에선 기다림이 아니라 (#130) wait 가 null — 카드가 그대로인 동안은 알린 기록을 남김 (지우면 숨길 때마다 다시 알림 — 테스터)
+  const sameCard = rt.noticed === 'badge' && wait === null && rt.stage?.phase === 'badge';
   if (!watching && wait && wait !== rt.noticed) {
     told = wait;
     rt = { ...rt, noticed: wait };
-  } else if (rt.noticed !== undefined && (rt.noticed === 'paused' ? watching || wait !== null : wait !== rt.noticed)) {
+  } else if (!sameCard && rt.noticed !== undefined && (rt.noticed === 'paused' ? watching || wait !== null : wait !== rt.noticed)) {
     const { noticed: _n, ...rest } = rt;
     rt = rest;
   }
@@ -1212,7 +1222,8 @@ export function waitReason(state: GameState): GameNotice | null {
     case 'lobby':
       return 'gym';
     case 'badge':
-      return 'badge';
+      // 다시 이긴 카드 + 자동은 밖에서도 대기실로 넘어감 (#130) — 멈추지 않으니 알리지 않음 (U6) · 대기실에 닿으면 'gym' 으로 알림
+      return state.save.settings.autoBattle && st.again === true && !badgeAutoHeld(state.runtime, true) ? null : 'badge';
     default:
       return null;
   }

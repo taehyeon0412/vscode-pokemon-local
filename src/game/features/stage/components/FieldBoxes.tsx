@@ -8,7 +8,7 @@ import type { ComponentChildren } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
 import { canHeal, gymLeaderOf, gymNext, regionsOn, teamLock, waitReason, type GameInput, type GameState } from '../../../core/engine';
-import { defeatWaits } from '../../../core/engine/play';
+import { badgeAutoHeld, defeatWaits } from '../../../core/engine/play';
 import { maxHpOf, teamHealth, teamHealthy } from '../../../core/rules/bag';
 import { itemName } from '../../../core/rules/items';
 import { REGIONS, regionGymMoney, regionGymTeam, regionHere, regionLevelBand, regionOrder } from '../../../core/rules/region';
@@ -606,8 +606,8 @@ export function BadgeCard({ state, onInput, onMap }: BoxProps & { onMap(): void 
   const stayMain = again;
   // 자동 전투면 남은 초 (클리어 카드와 같은 "N초" 칩 · 늘 주 버튼에) — 첫 승 = 다음 지역으로 · 다시 이김 = 대기실로 (엔진) · 처음부터 그림 (ms 가 없는 첫 장면에 빠졌다 1초에 생겨 카드가 튀던 것 — UX 큼 U2, 열쇠 stageViewKey 와 같은 셈)
   const autoLeft = badgeAutoLeft(state);
-  // 엔진은 보는 동안만 셈 (밖 · 숨김이면 기다림 — play.ts badge) → 칩도 멈춤으로
-  const autoPaused = state.runtime.away === true || state.runtime.headless === true;
+  // 엔진이 멈춘 동안 (숨김 · 첫 승 카드의 밖 — play.ts badgeAutoHeld, 다시 이김은 밖에서도 셈 #130) → 칩도 멈춤으로
+  const autoPaused = badgeAutoHeld(state.runtime, again);
   // 지역 한 칸 — 이름 · 관장이 가장 많이 쓰는 타입 (고를 근거). 그림은 넣지 않음 (금색 주 버튼 위에서 묻혀 둘째 칸이 더 또렷하던 것 — 6장 "주 버튼 안 아이콘 없음", 아트 큼)
   const regionCell = (id: RegionId) => {
     const types = regionGymTeam(REGIONS[id], k).flatMap(([dex]) => speciesOf(dex)?.types ?? []);

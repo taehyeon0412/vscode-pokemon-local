@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { sampleSave, viaJson } from '../../../test/fixtures/save';
 import { TIMING } from '../balance';
 import type { Save, StageProgress } from '../save';
-import { applyInput, gymNext, step } from './play';
+import { applyInput, badgeAutoHeld, gymNext, step } from './play';
 import { createGameState, readRuntime, type GameState, type StageRuntime } from './state';
 
 const run0 = { startMs: 0, caught: 0, trainers: 0, seen: [], reach: 0, retries: 0 };
@@ -68,7 +68,7 @@ describe('관장을 이긴 뒤 바로 다음 지역 (#127 — 태현 님 "세계
     expect(where(applyInput(card, { kind: 'badge-next' }))).toBe('beach-1');
   });
 
-  it('자동 전투면 10초 뒤 다음 지역 — 보는 동안만 셈 (밖 · 숨김이면 기다림) · 자동이 아니면 기다림 · 다 깼으면 기다림', () => {
+  it('자동 전투면 10초 뒤 다음 지역 — 첫 승 카드는 보는 동안만 셈 (밖 · 숨김이면 기다림) · 자동이 아니면 기다림 · 다 깼으면 기다림', () => {
     const run = (g: GameState, ms: number) => {
       let s = g;
       for (let t = 0; t < ms; t += TIMING.simStepMs) s = step(s, TIMING.simStepMs).state;
@@ -88,6 +88,32 @@ describe('관장을 이긴 뒤 바로 다음 지역 (#127 — 태현 님 "세계
     // 다 깼어도 다시 이김은 대기실로 (지도를 기다리며 끝없이 서 있던 것 — UX #127 마지막 바퀴)
     const againDone = run(at(auto(gymSave({ badges: ['forest', 'beach', 'volcano'], regions: { order: ['forest', 'beach', 'volcano'] } })), { phase: 'badge', again: true }), TIMING.badgeAutoMs + 500);
     expect([where(againDone), againDone.runtime.stage?.phase]).toEqual(['gym', 'lobby']);
+  });
+
+  it('다시 이긴 카드는 밖에서도 10초를 셈 → 대기실 · 숨김이면 멈춤 · 첫 승 카드는 밖이면 멈춤 그대로 · 다 깬 뒤도 (#130 — 태현 님 "추천대로")', () => {
+    const run = (g: GameState, ms: number) => {
+      let s = g;
+      for (let t = 0; t < ms; t += TIMING.simStepMs) s = step(s, TIMING.simStepMs).state;
+      return s;
+    };
+    const look = (g: GameState, o: { away?: boolean; headless?: boolean }): GameState => ({ ...g, runtime: { ...g.runtime, ...o } });
+    const again = at(auto(gymSave()), { phase: 'badge', again: true });
+    // 밖 — 10초 전엔 카드 · 10초 뒤 대기실
+    expect(run(look(again, { away: true }), TIMING.badgeAutoMs - 500).runtime.stage?.phase).toBe('badge');
+    const out = run(look(again, { away: true }), TIMING.badgeAutoMs + 500);
+    expect([where(out), out.runtime.stage?.phase]).toEqual(['gym', 'lobby']);
+    // 숨김 (접힘 · 다른 탭) 은 멈춤 — 밖이면서 숨김이어도
+    expect(run(look(again, { headless: true }), TIMING.badgeAutoMs + 2000).runtime.stage).toEqual({ phase: 'badge', again: true });
+    expect(run(look(again, { away: true, headless: true }), TIMING.badgeAutoMs + 2000).runtime.stage?.phase).toBe('badge');
+    // 첫 승 카드는 보는 동안만 그대로 (배지 · 제목을 놓치지 않게)
+    const first = at(auto(gymSave()));
+    expect(run(look(first, { away: true }), TIMING.badgeAutoMs + 2000).runtime.stage).toEqual({ phase: 'badge' });
+    // 다 깬 뒤 다시 이김도 밖에서 대기실로
+    const done = at(auto(gymSave({ badges: ['forest', 'beach', 'volcano'], regions: { order: ['forest', 'beach', 'volcano'] } })), { phase: 'badge', again: true });
+    expect(run(look(done, { away: true }), TIMING.badgeAutoMs + 500).runtime.stage?.phase).toBe('lobby');
+    // 칩 (FieldBoxes "멈춤") 과 엔진이 같은 판단
+    expect([badgeAutoHeld({ headless: false }, true), badgeAutoHeld({ headless: false, away: true }, true), badgeAutoHeld({ headless: true }, true)]).toEqual([false, false, true]);
+    expect([badgeAutoHeld({ headless: false }, false), badgeAutoHeld({ headless: false, away: true }, false), badgeAutoHeld({ headless: true }, false)]).toEqual([false, true, true]);
   });
 
   it('고르기에서 출발하면 "다음 지역을 골라요" 알림은 지움 (새 지역에 가서 뜨지 않게)', () => {
