@@ -57,7 +57,7 @@ export type GameInput =
   | { kind: 'auto-battle'; on: boolean; say?: boolean }
   /** 빨리 걷기 켜기 · 끄기 (S06 정보줄 · S20, 2026-10-19) */
   | { kind: 'fast-walk'; on: boolean }
-  /** 빠르게 ▶▶ 켜기 · 끄기 — 3:3 약 1.5배 (보통 공격 두 배 · 알아챌 순간 1초 · 누를 창 그대로 — 화면 위 스위치 · 설정 · C, orders #83). say = 한 줄 알림 (키로 바꿀 때) */
+  /** 빠르게 ▶▶ 켜기 · 끄기 — 3:3 약 2배 (보통 공격 세 배 — 기본은 두 배 #134 · 알아챌 순간 1초 · 누를 창 그대로 — 화면 위 스위치 · 설정 · C, orders #83). say = 한 줄 알림 (키로 바꿀 때) */
   | { kind: 'battle-fast'; on: boolean; say?: boolean }
   /** 3:3 필살기 연출 켬 · 끔 (V · 위쪽 줄 버튼 — #97) — 다음 필살기부터 */
   | { kind: 'team-cutscene'; on: boolean; say?: boolean }
@@ -1397,8 +1397,9 @@ export function inBattle(state: GameState): boolean {
   return p === 'battle' || p === 'appear' || p === 'trainer' || p === 'rival' || p === 'team';
 }
 /**
- * 웹뷰 시계 배 (orders #83 · #81 · #89) — 3:3 은 기본 박자 (TIMING.team.tempo 1.0 — #89) · 빠르게 ▶▶ (settings.battleFast — 태현 님 C 안, 약 1.5배) 를 켜면 보통 공격 (run) 두 배 ·
- * 알아챌 순간 1.0 (딱 1초 — U1, teamFastOk) · 상대 필살기 연출은 컷인 1초 뒤 두 배 · 누를 창 (끼어들기 joinSlow · 합동 멘트) 그대로. 그 밖 (1:1 · 걷기 · 타이틀) = 1
+ * 웹뷰 시계 배 (orders #83 · #81 · #89 · #134) — 3:3 기본 = 예전 빠르게 (보통 공격 (run) ×2 · 상대 필살기 연출은 컷인 1초 뒤 ×2 — 약 1.5배) ·
+ * 빠르게 ▶▶ (settings.battleFast) 를 켜면 그 둘이 ×3 (약 2배). 알아챌 순간은 늘 1.0 (딱 1초 — U1, teamFastOk) · 누를 창 (끼어들기 joinSlow · 합동 멘트) 그대로.
+ * 그 밖 (1:1 · 걷기 · 타이틀) = 1
  */
 export function gameTempo(state: GameState): number {
   const st = state.runtime.stage;
@@ -1408,16 +1409,17 @@ export function gameTempo(state: GameState): number {
   if (join && !join.gathering) return t.joinSlow;
   // "다시 켜서 …" 칩이 떠 있는 동안은 알아챌 순간 — 1.2초를 게임 시계로 세어 ▶▶ 에서 0.7 ~ 0.8초만 보이던 것 (#133 UX 1 · #95 13바퀴와 같은 종류)
   if (resumeLine(state) !== null) return t.fastNotice;
-  if (state.save.settings.battleFast !== true) return t.tempo;
-  // 빠르게 ▶▶ (C 안 — 2026-10-22 태현 님): 보통 공격 = 두 배 · 누를 창 (합동 멘트 — 내 것 · 상대 것) 은 기본 박자 그대로 ·
-  // 상대 필살기 연출 (합동 빼고) 은 컷인 1초 뒤부터 두 배 · 그 밖 알아챌 순간 (내 필살기 · 힘겨루기 · 다 참 · 쓰러짐 · 안내 · 합동 · 결과) 은 1.0 (딱 1초 — U1)
+  // 3:3 기본 박자 = 예전 빠르게 ▶▶ (2026-10-29 태현 님 #134 "3:3에서 기본 속도를 빠르게를 켠 속도가 되게 · 빠르게는 지금보다 더 빠르게"):
+  // 보통 공격 = fastScale · 빠르게 ▶▶ 면 fasterScale · 누를 창 (합동 멘트 — 내 것 · 상대 것) 은 기본 박자 그대로 ·
+  // 상대 필살기 연출 (합동 빼고) 은 컷인 1초 뒤부터 같은 배 · 그 밖 알아챌 순간 (내 필살기 · 힘겨루기 · 다 참 · 쓰러짐 · 안내 · 합동 · 결과) 은 1.0 (딱 1초 — U1)
+  const fast = t.tempo * (state.save.settings.battleFast === true ? t.fasterScale : t.fastScale);
   const b = st.team;
-  if (teamFastOk(b)) return t.tempo * t.fastScale;
-  // 버린 누름 한 줄 (#88) 은 알아챌 순간 — 상대 컷인 뒤 ×2 가지에서도 (0.7초만 보이던 것, UX 리뷰어 2차)
+  if (teamFastOk(b)) return fast;
+  // 버린 누름 한 줄 (#88) 은 알아챌 순간 — 상대 컷인 뒤 빠른 가지에서도 (0.7초만 보이던 것, UX 리뷰어 2차)
   if (b.deny) return t.fastNotice;
   const u = b.phase === 'ult' ? b.ult : null;
   if (u && (u.gather ?? 0) > 0) return t.tempo;
-  if (u && u.side === 'foe' && !u.joint && u.ms > t.fastFoeUltMs) return t.tempo * t.fastScale;
+  if (u && u.side === 'foe' && !u.joint && u.ms > t.fastFoeUltMs) return fast;
   return t.fastNotice;
 }
 /** S06 ⑦ ~ ⑩ 오른쪽 위 버튼 · S19 가방 — 걷는 중 (그동안 화면은 걸음을 멈춤) · 체육관 대기실 (관장에게 받은 리프의 돌을 바로) */

@@ -275,7 +275,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   // 안 가 본 새 지역 (정보줄 지도 아이콘 표시 — 대기실 지도 버튼과 같은 규칙 · 개발 UX #70)
   const newRegionName = regionsOn(state) ? (mapView(state).regions.find((r) => isNewRegion(r, save.stages))?.name ?? null) : null;
   //   조건 = 지금 박자 (엔진 gameTempo) 가 빠른 박자보다 느림 — teamFastOk 만 보면 상대 필살기 컷인 1초 뒤 빠른 구간을 쉼으로 읽음 (개발 a01cfeb)
-  const fastHeldNow = team !== null && save.settings.battleFast === true && gameTempo(state) < TIMING.team.tempo * TIMING.team.fastScale - 1e-6;
+  const fastHeldNow = team !== null && save.settings.battleFast === true && gameTempo(state) < TIMING.team.tempo * TIMING.team.fasterScale - 1e-6;
   const fastHeldRef = useRef({ on: false, want: false, since: 0 });
   // 스위치 이름 줄이기 단계 (넘치면 한 단계 — U4) — 정보줄이 넘치거나, 지도 줄이 따로면 왼쪽 묶음 (볼) 과 사이가 스위치 폭의 10% (맥 여유) + 6px 보다 좁을 때 ·
   //   150 한 줄 정보줄이면 가운데 칸 (지역 이름 · 진행) 이 말줄임될 때 (맥 여유 10% 포함 — 가운데 칸이 남는 자리를 먹어 "사이" 는 늘 칸 사이라 못 씀 · 720 × 150 "새싹 오솔길 (1…", #97) ·
@@ -615,7 +615,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
                   secondary
                   extraClass={save.settings.battleFast ? `pg-battle-fast pg-on${fastHeld ? ' pg-held' : ''}` : 'pg-battle-fast'}
                   onClick={() => onInput({ kind: 'battle-fast', on: save.settings.battleFast !== true })}
-                  title={fastHeld ? '빠르게 켜짐 (C) — 지금은 누르는 창 · 알아챌 순간이라 기본 박자' : `${save.settings.battleFast ? '켜짐' : '꺼짐'} · 빠르게 (C) — 3:3 을 약 1.5배로: 보통 공격 · 상대 필살기 연출 (컷인 1초 뒤부터) 을 빨리 · 알아챌 순간 1초 · 누르는 창은 그대로`}
+                  title={fastHeld ? '빠르게 켜짐 (C) — 지금은 누르는 창 · 알아챌 순간이라 보통 박자 (1배)' : `${save.settings.battleFast ? '켜짐' : '꺼짐'} · 빠르게 (C) — 3:3 보통 공격 3배 (끄면 2배) · 상대 필살기 연출도 컷인 1초 뒤부터 같은 배 · 알아챌 순간 1초 · 누르는 창은 그대로`}
                 >
                   {/* 키 칸 C = 글자 메뉴 다 보일 때 · 이름이 빠졌을 때 (□ ▶▶ 만이면 걷기 줄 빨리 걷기와 같은 그림이라 헷갈리던 것 — UX 리뷰어) */}
                   {((menuLabels(widthPx, mapRow) === 'full' && swShort < 3) || swShort >= 5) && <span class="pg-menu-key">C</span>}

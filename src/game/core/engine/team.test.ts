@@ -1311,31 +1311,46 @@ describe('3:3 박자 (orders #83 — 기본 0.8 · 전투 ×2) · 누를 창 (or
     expect(gameTempo(s(b0))).toBe(TIMING.team.fastNotice);
     const fast = inTeam(b0, true);
     expect(gameTempo({ ...fast, runtime: { ...fast.runtime, resumed: TIMING.resumeLineMs } })).toBe(TIMING.team.fastNotice);
-    expect(gameTempo(fast)).toBeCloseTo(TIMING.team.tempo * TIMING.team.fastScale, 10);
+    expect(gameTempo(fast)).toBeCloseTo(TIMING.team.tempo * TIMING.team.fasterScale, 10);
   });
 
-  it('시계 배 — 3:3 기본 1.0 (#89) · 빠르게 ▶▶ 면 보통 공격 2.0 · 알아챌 순간 (내 필살기 · 힘겨루기 · 결과 · 다 참 · 쓰러짐 · 안내) 은 1.0 (딱 1초) · 3:3 밖은 1', () => {
-    // 기본 박자 1.0 (2026-10-22 태현 님 "원래대로 1.0으로" — orders #89)
+  it('#134 — 3:3 기본 = 예전 빠르게 (보통 공격 ×2 · 약 1.5배) · 빠르게 ▶▶ = ×3 (약 2배) · 알아챌 순간은 기본에서도 1.0 · 옛 세이브 battleFast 켬 = 새 빠르게', () => {
+    expect(TIMING.team.fastScale).toBe(2);
+    expect(TIMING.team.fasterScale).toBe(3);
+    const meFull = { ...b0, me: b0.me.map((f, i) => ({ ...f, ult: i === 0 ? 1 : 0 })), ultReadyAt: { me: [b0.t, null, null], foe: [null, null, null] } };
+    const ko = { ...b0, log: [{ id: 1, at: b0.t, t: 'faint' as const, side: 'foe' as const, slot: 2 }], logSeq: 1 };
+    for (const fast of [undefined, false, true]) {
+      expect(gameTempo(inTeam(meFull, fast))).toBe(1);
+      expect(gameTempo(inTeam(ko, fast))).toBe(1);
+    }
+    // 옛 세이브 (판 5 — battleFast 칸) 는 그대로 읽힘 → 켠 사람은 ×3
+    const old = viaJson(inTeam(b0, true));
+    expect(old.save.settings.battleFast).toBe(true);
+    expect(gameTempo(old)).toBeCloseTo(TIMING.team.tempo * TIMING.team.fasterScale, 10);
+  });
+
+  it('시계 배 — 3:3 박자 1.0 (#89) 위에 보통 공격 기본 ×2 · 빠르게 ▶▶ 면 ×3 (#134) · 알아챌 순간 (내 필살기 · 힘겨루기 · 결과 · 다 참 · 쓰러짐 · 안내) 은 1.0 (딱 1초) · 3:3 밖은 1', () => {
+    // 기본 박자 1.0 (2026-10-22 태현 님 "원래대로 1.0으로" — orders #89) · 보통 공격은 기본 = 예전 빠르게 ×2 (2026-10-29 태현 님 #134)
     expect(TIMING.team.tempo).toBe(1);
     expect(gameTempo(createGameState(team3(), 3))).toBe(1);
-    expect(gameTempo(inTeam(b0))).toBe(TIMING.team.tempo);
-    expect(gameTempo(inTeam(b0, false))).toBe(TIMING.team.tempo);
-    expect(gameTempo(inTeam(b0, true))).toBeCloseTo(TIMING.team.tempo * TIMING.team.fastScale, 10);
+    expect(gameTempo(inTeam(b0))).toBeCloseTo(TIMING.team.tempo * TIMING.team.fastScale, 10);
+    expect(gameTempo(inTeam(b0, false))).toBeCloseTo(TIMING.team.tempo * TIMING.team.fastScale, 10);
+    expect(gameTempo(inTeam(b0, true))).toBeCloseTo(TIMING.team.tempo * TIMING.team.fasterScale, 10);
     // ×2 여도 알아챌 순간은 기본 박자 (코드 리뷰어 #83 — U1): 상대 다 참 (곧!) · 내 다 참 1초 · 쓰러짐 1초 · 안내 팝업
     const foeFull = { ...b0, foe: b0.foe.map((f, i) => ({ ...f, ult: i === 1 ? 1 : 0 })), ultReadyAt: { me: [null, null, null], foe: [null, b0.t, null] } };
     expect(gameTempo(inTeam(foeFull, true))).toBe(1);
     // 상대 "!" 도 찬 뒤 1초만 (기다림 내내 0.8 이면 ×2 가 1.16배뿐 — 디자인 UX #83)
-    expect(gameTempo(inTeam({ ...foeFull, t: b0.t + TIMING.team.fastKeepMs }, true))).toBeCloseTo(TIMING.team.tempo * TIMING.team.fastScale, 10);
+    expect(gameTempo(inTeam({ ...foeFull, t: b0.t + TIMING.team.fastKeepMs }, true))).toBeCloseTo(TIMING.team.tempo * TIMING.team.fasterScale, 10);
     const meFull = { ...b0, me: b0.me.map((f, i) => ({ ...f, ult: i === 0 ? 1 : 0 })), ultReadyAt: { me: [b0.t, null, null], foe: [null, null, null] } };
     expect(gameTempo(inTeam(meFull, true))).toBe(1);
-    expect(gameTempo(inTeam({ ...meFull, t: b0.t + TIMING.team.fastKeepMs }, true))).toBeCloseTo(TIMING.team.tempo * TIMING.team.fastScale, 10);
+    expect(gameTempo(inTeam({ ...meFull, t: b0.t + TIMING.team.fastKeepMs }, true))).toBeCloseTo(TIMING.team.tempo * TIMING.team.fasterScale, 10);
     const ko = { ...b0, log: [{ id: 1, at: b0.t, t: 'faint' as const, side: 'foe' as const, slot: 2 }], logSeq: 1 };
     expect(gameTempo(inTeam(ko, true))).toBe(1);
-    expect(gameTempo(inTeam({ ...ko, t: b0.t + TIMING.team.fastKeepMs }, true))).toBeCloseTo(TIMING.team.tempo * TIMING.team.fastScale, 10);
+    expect(gameTempo(inTeam({ ...ko, t: b0.t + TIMING.team.fastKeepMs }, true))).toBeCloseTo(TIMING.team.tempo * TIMING.team.fasterScale, 10);
     const info = { ...b0, popups: [{ id: 1, side: 'me' as const, slot: 0, text: '2:1', ms: 0, kind: 'info' as const }] };
     expect(gameTempo(inTeam(info, true))).toBe(1);
     const dmg = { ...b0, popups: [{ id: 1, side: 'me' as const, slot: 0, text: '-12', ms: 0, kind: 'damage' as const }] };
-    expect(gameTempo(inTeam(dmg, true))).toBeCloseTo(TIMING.team.tempo * TIMING.team.fastScale, 10);
+    expect(gameTempo(inTeam(dmg, true))).toBeCloseTo(TIMING.team.tempo * TIMING.team.fasterScale, 10);
     // 기술 힘겨루기 (run 안 1.5초) 도 기본 박자 (명세 검사관 — "힘겨루기는 기본 박자")
     const clash = { ...b0, moveClashes: [{ kind: 'move' as const, me: [0], foe: [0], ms: 0, dur: TIMING.team.moveClashMs, taps: 0, winner: null, shots: [1, 2] }] } as unknown as TeamBattle;
     expect(gameTempo(inTeam(clash, true))).toBe(1);
@@ -1369,7 +1384,10 @@ describe('3:3 박자 (orders #83 — 기본 0.8 · 전투 ×2) · 누를 창 (or
     // 3:3 용 판 필살기는 1초 안팎이라 (ultMs) 긴 필살기 (늘 크게 — 3/4 설정) 로 ×2 가지를 봄
     const late = run({ ...none, ult: { ...none.ult!, dur: TIMING.team.fastFoeUltMs + 1000 } }, TIMING.team.fastFoeUltMs + STEP);
     expect(late.phase === 'ult' && late.ult?.side).toBe('foe');
-    expect(gameTempo(inTeam(late, true))).toBeCloseTo(TIMING.team.tempo * TIMING.team.fastScale, 10);
+    expect(gameTempo(inTeam(late, true))).toBeCloseTo(TIMING.team.tempo * TIMING.team.fasterScale, 10);
+    // 기본 (#134 — 예전 빠르게) 도 컷인 1초 동안 1.0 · 그 뒤 ×2
+    expect(gameTempo(inTeam(none))).toBe(1);
+    expect(gameTempo(inTeam(late))).toBeCloseTo(TIMING.team.tempo * TIMING.team.fastScale, 10);
     // 상대 합동 멘트 (상대 동료도 참) — 창 = gatherMs · 기본 박자로 2초 넘게
     const both = foeUlt({ ...foeFull, me: foeFull.me.map((f, i) => ({ ...f, ult: i === 2 ? 1 : 0 })), foe: foeFull.foe.map((f, i) => ({ ...f, ult: i < 2 ? 1 : 0 })) });
     expect(both.ult?.gather).toBeGreaterThan(0);
