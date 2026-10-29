@@ -16,14 +16,21 @@ const FX_TYPE_PAL = {
 // 크기 변환을 뺀 그림 자리 — 내보내기 크기 애니 (pg-sendout scale 0.2 → 1.08 → 1) 도중에 기술이 시작되면 s = 폭 / 32 가 2.10 처럼 정수가 아니어서
 //   효과 점이 전부 반 픽셀로 흐리던 것 (디자인 #122 픽셀 검사원 · bugs 1884). 변환 기준점 (transform-origin) 은 그대로 두고 크기만 1 로 · translate (fxActor) 는 transform 밖이라 그대로
 function fxRestRect(el) {
-    const r = el.getBoundingClientRect();
-    const cs = getComputedStyle(el);
+    return fxUnscale(el.getBoundingClientRect(), el);
+}
+// host 의 크기 변환을 그 안 자리 r 에서 뺌 — 맞는 쪽 · 몸 모양 상자도 (bugs 1895 — 1884 는 쓰는 쪽만이라 트레이너전 첫 장면 맞는 짜임 점이 흐렸음).
+//   변환 기준점은 크기 변환 뒤에도 제자리 (화면 = 상자 왼쪽 + 기준점 × k) · translate (pg-sendout translateX(-50%)) 는 늘 같아 그대로 · raw = 무대 상자 (moveFrame) 밖 화면 px
+function fxUnscale(r, host, raw) {
+    const cs = getComputedStyle(host);
     const k = cs.transform && cs.transform !== 'none' ? new DOMMatrixReadOnly(cs.transform).a : 1;
     if (!(k > 0) || Math.abs(k - 1) < 0.001) {
         return r;
     }
+    const b = raw ? fxRect0.call(host) : host.getBoundingClientRect();
     const [ox, oy] = cs.transformOrigin.split(' ').map(parseFloat);
-    return new DOMRect(r.x - ox * (1 - k), r.y - oy * (1 - k), r.width / k, r.height / k);
+    const cx = b.x + ox * k;
+    const cy = b.y + oy * k;
+    return new DOMRect(cx + (r.x - cx) / k, cy + (r.y - cy) / k, r.width / k, r.height / k);
 }
 const fxIdle = (left) => ({ horizontalDirection: left ? states_1.HorizontalDirection.left : states_1.HorizontalDirection.right, nextFrame: () => states_1.FrameResult.stateContinue });
 function fxActor(spec) {
@@ -525,7 +532,8 @@ function fxShapeBox(q) {
     if (!sh || !img) {
         return null;
     }
-    const r = fxRect0.call(img);
+    const host = q.collision || q.box;
+    const r = host ? fxUnscale(fxRect0.call(img), host, true) : fxRect0.call(img);
     if (r.width < 1) {
         return null;
     }
@@ -938,7 +946,7 @@ function fxGameStop(kill) {
 // ── 상대까지 닿게 (2026-10-19 테스터 #327: 번개는 제자리 · 회오리 · 돌떨구기는 가운데 · 물대포 · 거품 · 노래는 입 앞에서 끝 · 광선은 화면 끝까지) ──
 // 일반 모드 틀은 "쓰는 쪽 앞 몇 칸" 기준이라 — 자리형은 상대 자리로 옮기고, 날아가는 것은 빠르기를 거리에 맞추고, 광선은 상대 몸 뒤에서 멈춤
 function fxTarget(g, dst) {
-    const r = (dst.box || dst.el).getBoundingClientRect();
+    const r = fxRestRect(dst.box || dst.el);
     const cx = r.left + r.width / 2;
     // 그 둘레 HP 묶음 아래 끝 (회오리처럼 높은 연출이 HP 를 덮지 않게)
     const hud = fxHudRects().filter((h) => h.right > r.left - r.width && h.left < r.right + r.width);
@@ -3306,7 +3314,7 @@ window.pokemonFx = {
     },
     /** 맞는 곳에 타입별 도트 임팩트 (ult/fx-hit.js — 불꽃 = 감아 올라가는 불길 회오리 · 물 = 물보라 왕관 · 얼음 = 결정 조각 …) — dst = 맞는 포켓몬 spec, type = 기술 타입 (게임), big = 세게 */
     impact(dst, type, big, name, o) {
-        const r = (dst.box || dst.el).getBoundingClientRect();
+        const r = fxRestRect(dst.box || dst.el);
         if (r.width < 1) {
             return;
         }
