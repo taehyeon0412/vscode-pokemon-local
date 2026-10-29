@@ -181,6 +181,15 @@ export function foeUltSoon(b: TeamBattle, tempo: number, realMs = 1100): boolean
 
 /** 합동 칩 ("합동! −N") 붙잡기 — 진짜 시계 1.2초 (숫자 0.7초 규칙에 같이 걸려 "합동!" 글이 0.65 ~ 0.7초만 보이던 것 — 개발 #98 판 자동 검사 6 · 7판 · ux-rules U1 화면 붙잡기) */
 export const JOINT_CHIP_MS = 1200;
+/** 3:3 숫자 (피해 · 회복) 보이는 시간 — 게임 시계 NUM_SHOW_MS 또는 처음 본 때부터 진짜 시계 NUM_MIN_REAL_MS 중 긴 쪽 (빠르게 ×3 에서 0.7초가 0.23초뿐이던 것 — bugs 1899 · U1) */
+export const NUM_SHOW_MS = 700;
+export const NUM_MIN_REAL_MS = 400;
+/** seen = 숫자 id → 처음 본 진짜 시각 (없으면 지금으로 적음) */
+export function numShown(seen: Map<number, number>, p: { id: number; ms: number }, now: number): boolean {
+  if (!seen.has(p.id)) seen.set(p.id, now);
+  return p.ms < NUM_SHOW_MS || now - seen.get(p.id)! < NUM_MIN_REAL_MS;
+}
+
 /** 처음 본 때 (진짜 시계) 를 kept 에 적어 1.2초 동안 남김 — 엔진이 팝업을 먼저 지워도 (게임 시계 1.2초 · ▶▶ 에서 더 빨리) 마지막 모양 그대로 (gone) ·
  *  장면 전환 칩이 가져간 것 (skip) 은 지움 · 1.2초가 지난 칩은 엔진 팝업이 살아 있는 동안 끝난 채로 적어 둠 (지우면 다음 그림에 at = 지금으로 다시 들어가
  *  한 장면 꺼졌다 1.2초 다시 켜지던 것 — 3:3 박자 0.8 에서 엔진 팝업은 실제 약 1.5초, 코드 리뷰어 #116 · bugs 1852) · on = 지금 보이는 칩 · end = 가장 먼저 끝나는 때 (다시 그리기 타이머) */

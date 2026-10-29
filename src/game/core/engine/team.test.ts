@@ -1349,6 +1349,12 @@ describe('3:3 박자 (orders #83 — 기본 0.8 · 전투 ×2) · 누를 창 (or
     expect(gameTempo(inTeam({ ...ko, t: b0.t + TIMING.team.fastKeepMs }, true))).toBeCloseTo(TIMING.team.tempo * TIMING.team.fasterScale, 10);
     const info = { ...b0, popups: [{ id: 1, side: 'me' as const, slot: 0, text: '2:1', ms: 0, kind: 'info' as const }] };
     expect(gameTempo(inTeam(info, true))).toBe(1);
+    // 상태 이상 · 빗나감 말도 알아챌 순간 (게임 시계 1.2초라 빠르게 0.4초만 보이던 것 — bugs 1899)
+    for (const [text, kind] of [['독에 걸렸다!', 'status'], ['빗나갔다!', 'miss']] as const) {
+      const said = { ...b0, popups: [{ id: 1, side: 'foe' as const, slot: 1, text, ms: 0, kind }] };
+      expect(gameTempo(inTeam(said, true))).toBe(1);
+      expect(gameTempo(inTeam(said))).toBe(1);
+    }
     const dmg = { ...b0, popups: [{ id: 1, side: 'me' as const, slot: 0, text: '-12', ms: 0, kind: 'damage' as const }] };
     expect(gameTempo(inTeam(dmg, true))).toBeCloseTo(TIMING.team.tempo * TIMING.team.fasterScale, 10);
     // 기술 힘겨루기 (run 안 1.5초) 도 기본 박자 (명세 검사관 — "힘겨루기는 기본 박자")

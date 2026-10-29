@@ -12,7 +12,7 @@ import { battleSpritePx, koSinkPx, TYPE_COLOR } from '../model';
 import { Sprite } from '../../../ui/Sprite';
 import type { FxActor } from '../fx/bridge';
 import { TEAM_FX, TeamFxRunner, type TeamSlot } from '../fx/team';
-import { bandDrawn, DUEL_VS_MS, VIEW_CHIP_MS, VIEW_WAIT_MS, duelSpots, faintHoldLeft, faintIsBig, faintShortLine, foeWarn, overLineHold, keepJointChips, plateBoxOf, plateState, stackRows, teamDenyNote, teamGeometry, teamPrompt, viewHitChip, viewPopsBack, warnPosOf, type TeamGeo, type WarnPos, viewCrossers, viewMonClass } from './model';
+import { bandDrawn, DUEL_VS_MS, VIEW_CHIP_MS, VIEW_WAIT_MS, duelSpots, faintHoldLeft, faintIsBig, faintShortLine, foeWarn, NUM_MIN_REAL_MS, numShown, overLineHold, keepJointChips, plateBoxOf, plateState, stackRows, teamDenyNote, teamGeometry, teamPrompt, viewHitChip, viewPopsBack, warnPosOf, type TeamGeo, type WarnPos, viewCrossers, viewMonClass } from './model';
 import { HEAD_NOTE_H, HeadNote, headNoteWidth, pickHeadSpot, useHeldNote } from '../../../ui/HeadNote';
 import { getTeamView, subscribeTeamView, type TeamView } from '../fx/team-view';
 import { cutinArtH, JointNamePlate, TeamCutin } from './TeamCutin';
@@ -84,7 +84,6 @@ function jointHome(all: readonly { ms: number; slot: number }[], ms: number): nu
 /** 숫자 (피해 · 회복) — 같은 칸 0.3초 안 숫자는 하나로 합쳐 0.7초만 (기획 #95 — 숫자 4개 · 말 둘이 몰려 한 화면 15개이던 것, 3:3 점검 · 원작은 숫자 0) */
 const NUM_KINDS = new Set(['damage', 'super', 'weak', 'crit', 'heal']);
 const NUM_MERGE_MS = 300;
-const NUM_SHOW_MS = 700;
 const NUM_RANK: Record<string, number> = { weak: 0, damage: 1, crit: 2, super: 3 };
 /** 쓰러짐 말 — 머리 위에서 빼고 무대 위 한 줄로 (여럿이면 "통통코 · 소미안 쓰러졌다!") */
 const FAINT_RE = /\s*쓰러졌다!$/;
@@ -152,8 +151,12 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, d
   const { gone: jointGone, end: jointEnd, on: jointOn } = keepJointChips(jointKept.current, pops0, realNow(), skip);
   const [, jointWake] = useState(0);
   useEffect(() => (Number.isFinite(jointEnd) ? realLater(() => jointWake((n) => n + 1), Math.max(0, jointEnd - realNow()) + 16) : undefined), [jointEnd]);
+  // 숫자는 게임 시계 0.7초 또는 처음 본 때부터 진짜 시계 0.4초 중 긴 쪽 (빠르게 ×3 에서 0.23초만 보이던 것 — bugs 1899) · 엔진에서 사라진 숫자는 지움
+  const numSeen = useRef(new Map<number, number>());
+  const nowReal = realNow();
+  for (const id of [...numSeen.current.keys()]) if (!pops0.some((p) => p.id === id)) numSeen.current.delete(id);
   const pops = (dim ? [] : jointGone.length ? [...pops0, ...jointGone].sort((p, q) => p.id - q.id) : pops0)
-    .filter((p) => !(p.kind === 'info' && FAINT_RE.test(p.text)) && (!NUM_KINDS.has(p.kind) || (p.joint ? jointOn.has(p.id) : p.ms < NUM_SHOW_MS)))
+    .filter((p) => !(p.kind === 'info' && FAINT_RE.test(p.text)) && (!NUM_KINDS.has(p.kind) || (p.joint ? jointOn.has(p.id) : numShown(numSeen.current, p, nowReal))))
     .reduce<(typeof pops0[number] & { joint?: boolean })[]>((out, p) => {
       if (p.joint) {
         const same = out.find((q) => q.joint && sameJoint(q.ms, p.ms));
@@ -167,6 +170,10 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, d
       const kind = heal ? 'heal' : (NUM_RANK[p.kind] ?? 1) > (NUM_RANK[same.kind] ?? 1) ? p.kind : same.kind;
       return out.map((q) => (q === same ? { ...q, kind, text: `${heal ? '+' : '-'}${Number(q.text.slice(1)) + Number(p.text.slice(1))}` } : q));
     }, []);
+  // 진짜 시계로만 남은 숫자가 끝나는 때 다시 그림 (엔진 팝업이 그동안 안 바뀌면 그림이 안 바뀌어 남던 것)
+  const numEnd = Math.min(Infinity, ...[...numSeen.current.values()].map((at) => at + NUM_MIN_REAL_MS).filter((e) => e > nowReal));
+  const [, numWake] = useState(0);
+  useEffect(() => (Number.isFinite(numEnd) ? realLater(() => numWake((n) => n + 1), Math.max(0, numEnd - realNow()) + 16) : undefined), [numEnd]);
   const name = speciesOf(f.species)?.name.ko ?? f.form;
   // 그림 칸 = 그린 크기 (큰 포켓몬 ×1.3) · 발끝이 (x, y) — 보통은 예전 그대로 (칸 sp · 위 = y − sp + 3k)
   const art = artOf(f.form, g.scale);

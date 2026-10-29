@@ -936,7 +936,7 @@ export function teamJoinOpen(b: TeamBattle): { gathering: boolean } | null {
 
 /**
  * 전투 ×2 를 걸어도 되는 때 (orders #83) — 보통 공격 (run) 중 알아챌 순간이 화면에 없을 때만 (U1 — ×2 로 1초 아래가 되던 것, 코드 리뷰어 #83):
- * 상대 필살기 예고 (다 참 · "곧!") · 내 필살기 다 참 말풍선 (찬 지 1초) · 쓰러짐 (1초) · 안내 팝업 (머릿수 등 info) · 기술 힘겨루기 (1.5초 — "힘겨루기는 기본 박자", 명세 검사관)
+ * 상대 필살기 예고 (다 참 · "곧!") · 내 필살기 다 참 말풍선 (찬 지 1초) · 쓰러짐 (1초) · 말 팝업 (머릿수 등 info · 상태 이상 · 빗나감 — 1899) · 기술 힘겨루기 (1.5초 — "힘겨루기는 기본 박자", 명세 검사관)
  */
 export function teamFastOk(b: TeamBattle): boolean {
   if (b.phase !== 'run' || b.moveClashes.length > 0) return false;
@@ -947,8 +947,11 @@ export function teamFastOk(b: TeamBattle): boolean {
   const freshFull = (side: Side) => b[side].some((f, i) => teamUltLevel(f) === 'full' && b.t - (b.ultReadyAt[side][i] ?? -Infinity) < keep);
   if (freshFull('foe') || freshFull('me')) return false;
   if (b.log.some((e) => e.t === 'faint' && b.t - e.at < keep)) return false;
-  return !b.popups.some((p) => p.kind === 'info');
+  // 말 팝업 (안내 info · 상태 이상 · 빗나감 · 효과 없음 · 막음) 은 알아챌 순간 — 게임 시계 1.2초라 빠르게 (×3) 에서 0.4초만 보이던 것 (bugs 1899 · UX #134)
+  return !b.popups.some((p) => WORD_POPUPS.has(p.kind));
 }
+/** 숫자가 아닌 말 팝업 — 떠 있는 동안 3:3 박자를 붙잡음 (teamFastOk) */
+const WORD_POPUPS: ReadonlySet<string> = new Set(['info', 'immune', 'miss', 'parry', 'status']);
 
 /** 지금 그 칸 필살기를 쓸 · 끼어들 · 합류할 수 있는지 (화면이 아이콘을 밝게) */
 export function teamUltOpen(b: TeamBattle, slot: number): boolean {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bandDrawn, bandLeft, duelSpots, faintHoldLeft, foeUltSoon, JOINT_CHIP_MS, keepJointChips, faintIsBig, faintShortLine, overLineHold, plateBoxOf, stackRows, TEAM_ROW_GAP, teamGeometry, viewHitChip, viewPopsBack, warnPosOf, type WarnPos, viewCrossers, viewMonClass, teamDenyNote } from './model';
+import { numShown, NUM_MIN_REAL_MS, NUM_SHOW_MS, bandDrawn, bandLeft, duelSpots, faintHoldLeft, foeUltSoon, JOINT_CHIP_MS, keepJointChips, faintIsBig, faintShortLine, overLineHold, plateBoxOf, stackRows, TEAM_ROW_GAP, teamGeometry, viewHitChip, viewPopsBack, warnPosOf, type WarnPos, viewCrossers, viewMonClass, teamDenyNote } from './model';
 import { sampleMonster, sampleSave } from '../../../../test/fixtures/save';
 import { startTeamBattle, type TeamBattle } from '../../../core/engine/team';
 
@@ -395,4 +395,18 @@ describe('상대 예고 칩 자리 (#98 R4 8판 — 240 × 187 체육관 "곧" �
       });
     });
   }
+});
+
+describe('3:3 숫자 보이는 시간 (bugs 1899)', () => {
+  it('게임 시계 0.7초 또는 처음 본 때부터 진짜 시계 0.4초 중 긴 쪽 — 빠르게 ×3 에서 0.23초만 보이던 것', () => {
+    const seen = new Map<number, number>();
+    expect(numShown(seen, { id: 1, ms: 0 }, 1000)).toBe(true);
+    // 게임 시계는 지났어도 (×3 — 0.7초가 진짜 0.23초) 진짜 시계 0.4초 안이면 보임
+    expect(numShown(seen, { id: 1, ms: NUM_SHOW_MS + 10 }, 1000 + 250)).toBe(true);
+    expect(numShown(seen, { id: 1, ms: NUM_SHOW_MS + 300 }, 1000 + NUM_MIN_REAL_MS + 1)).toBe(false);
+    // 보통 박자 (×1) 는 게임 시계 0.7초 그대로
+    expect(numShown(seen, { id: 2, ms: 0 }, 5000)).toBe(true);
+    expect(numShown(seen, { id: 2, ms: NUM_SHOW_MS - 10 }, 5000 + 690)).toBe(true);
+    expect(numShown(seen, { id: 2, ms: NUM_SHOW_MS + 10 }, 5000 + 710)).toBe(false);
+  });
 });
