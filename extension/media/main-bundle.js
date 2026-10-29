@@ -10554,6 +10554,10 @@ window.__ult = {
         if (!ready(img) || w < 1 || h < 1) {
             return;
         }
+        // 필살기를 멈춘 뒤 남은 꼭두각시는 안 그림 (진짜 그림이 돌아옴 — ult/bridge.js fxMonSkip)
+        if (typeof fxMonSkip === 'function' && fxMonSkip(o.src ?? img)) {
+            return;
+        }
         ctx.save();
         ctx.imageSmoothingEnabled = false;
         ctx.globalAlpha *= o.alpha ?? 1;
@@ -22273,6 +22277,10 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
     // 포켓몬 그림 (발 가운데 x · bottom, 몸 가운데를 축으로 rot 만큼 기울임) — color 면 그 색 실루엣
     function drawMon(ctx, img, x, bottom, w, left, alpha = 1, color = null, rot = 0) {
         if (!img?.naturalWidth || w < 2 || alpha <= 0.01) {
+            return;
+        }
+        // 필살기를 멈춘 뒤 남은 꼭두각시 · 테두리는 안 그림 (진짜 그림이 돌아옴 — ult/bridge.js fxMonSkip)
+        if (typeof fxMonSkip === 'function' && fxMonSkip(img)) {
             return;
         }
         const h = w * (img.naturalHeight / img.naturalWidth);
@@ -44892,6 +44900,10 @@ function duelStart(D) {
         if (!ready(img) || w < 1 || h < 1) {
             return;
         }
+        // 필살기를 멈춘 뒤 남은 꼭두각시는 안 그림 (진짜 그림이 돌아옴 — ult/bridge.js fxMonSkip)
+        if (typeof fxMonSkip === 'function' && fxMonSkip(o.src ?? img)) {
+            return;
+        }
         ctx.save();
         ctx.imageSmoothingEnabled = false;
         ctx.globalAlpha *= o.alpha ?? 1;
@@ -56767,7 +56779,7 @@ const FX_JOINT_AREA = new Set(['ultpillar', 'ultquake', 'ultbloom', 'ultnova']);
 // 줄기 보기 캔버스에 그리는 중 — 화면 전체를 칠하는 입자 (빔이 화면을 물들이는 판 등) 는 이때 안 칠함 (계단 · 앞끝으로 잘려 회색 네모가 되던 것 — #80 진단 ④)
 let fxViewDrawing = false;
 const fxDrawParticle0 = drawParticle;
-drawParticle = function (ctx, p) {
+const fxDrawParticleRoute = function (ctx, p) {
     // 개발 창 덮음 재기 (dev/ult-fx.py) — 화면 전체 어두워짐 · 번쩍 판은 그리지 않음 (캔버스 점 수로 상대를 덮는 연출만 셈)
     if (window.__fxMeasure && (p._full || p._flash)) {
         return;
@@ -56816,6 +56828,25 @@ drawParticle = function (ctx, p) {
         return;
     }
     fxDrawParticle0(ctx, p);
+};
+// 필살기 멈춤 (stopUlt — 3:3 장면 전환 나옴 등) 때 살아 있던 입자 (_noMon) 는 포켓몬 그림 (꼭두각시 · 테두리) 을 더 안 그림 — 진짜 그림이 이미 돌아와 제자리 바둑판 · 자리 옮김을 함
+//   (합동 앞장 하이드로캐논 꼭두각시가 나옴 동안 1:1 자리에 0.2초 남다 3:3 자리로 튀던 것, bugs 2707) · 그 뒤에 시작한 연출 (힘겨루기 꼭두각시 등) 은 그대로
+let fxNoMonNow = false;
+function fxMonSkip(img) {
+    // 진짜 그림이 아직 숨어 있으면 꼭두각시를 그대로 (둘 다 안 보이는 장면이 없게)
+    return fxNoMonNow && !(img instanceof HTMLElement && (img.style.opacity === '0' || img.style.visibility === 'hidden'));
+}
+drawParticle = function (ctx, p) {
+    if (!p._noMon) {
+        fxDrawParticleRoute(ctx, p);
+        return;
+    }
+    fxNoMonNow = true;
+    try {
+        fxDrawParticleRoute(ctx, p);
+    } finally {
+        fxNoMonNow = false;
+    }
 };
 // 장면 전환 합동 — 앞장 연출이 알린 대비 장면 (track.contrast — 하이드로캐논 압축 어둠 → 하양) 인지. 어둠 진하기로 셈하던 것은 섀도볼 밤 어둠 전체에 걸려
 //   동료가 6.4초 꺼진 것처럼 보이고 (#96 아트 7바퀴 — 6바퀴 ① 고침의 회귀) 틀이 직접 칠하는 어둠은 못 잡아 뺌 · 오라 · 구 앞장은 6바퀴 모습 (제 색 + 1칸 테) 그대로
@@ -59282,6 +59313,10 @@ window.pokemonFx = {
     },
     stopUlt() {
         const was = !!fxGame;
+        // 연출이 이미 끝나 (fxGame 없음) 입자를 안 비울 때도 남은 꼭두각시는 그만 그림 (fxMonSkip — bugs 2707)
+        for (const q of moveParticles) {
+            q._noMon = true;
+        }
         fxGameStop(true);
         if (was) {
             moveEmitters.length = 0;

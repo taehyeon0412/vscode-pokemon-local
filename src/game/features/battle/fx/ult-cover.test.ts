@@ -134,3 +134,13 @@ describe('필살기 동안 숨긴 진짜 그림 (#97 · bugs 1819)', () => {
     expect(body).toMatch(/pp\.finish\(pp\.home\[0\], pp\.home\[1\]\)/);
   });
 });
+
+describe('필살기를 멈춘 뒤 남은 꼭두각시 (bugs 2707)', () => {
+  it('stopUlt 때 살아 있던 입자는 포켓몬 그림을 안 그림 (진짜 그림이 숨어 있으면 그대로) — 그리는 곳 셋 (fx-sky drawMon · fx-body · duel-body drawSprite) 모두', () => {
+    expect(bridge).toMatch(/stopUlt\(\) \{[\s\S]{0,300}q\._noMon = true;[\s\S]{0,80}fxGameStop\(true\);/);
+    expect(bridge).toContain("img.style.opacity === '0' || img.style.visibility === 'hidden'");
+    for (const f of ['ult/fx-sky.js', 'ult/fx-body.js', 'ult/duel-body.js']) {
+      expect(readFileSync(join(root, f), 'utf8'), f).toMatch(/typeof fxMonSkip === 'function' && fxMonSkip\(/);
+    }
+  });
+});

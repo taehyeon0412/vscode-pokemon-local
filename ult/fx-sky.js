@@ -3187,6 +3187,10 @@
         if (!img?.naturalWidth || w < 2 || alpha <= 0.01) {
             return;
         }
+        // 필살기를 멈춘 뒤 남은 꼭두각시 · 테두리는 안 그림 (진짜 그림이 돌아옴 — ult/bridge.js fxMonSkip)
+        if (typeof fxMonSkip === 'function' && fxMonSkip(img)) {
+            return;
+        }
         const h = w * (img.naturalHeight / img.naturalWidth);
         ctx.save();
         ctx.imageSmoothingEnabled = false;

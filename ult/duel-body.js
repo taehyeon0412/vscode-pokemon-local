@@ -184,6 +184,10 @@
         if (!ready(img) || w < 1 || h < 1) {
             return;
         }
+        // 필살기를 멈춘 뒤 남은 꼭두각시는 안 그림 (진짜 그림이 돌아옴 — ult/bridge.js fxMonSkip)
+        if (typeof fxMonSkip === 'function' && fxMonSkip(o.src ?? img)) {
+            return;
+        }
         ctx.save();
         ctx.imageSmoothingEnabled = false;
         ctx.globalAlpha *= o.alpha ?? 1;

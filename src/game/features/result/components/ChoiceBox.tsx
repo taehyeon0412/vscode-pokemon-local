@@ -125,10 +125,13 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
             )}
             <span class="pg-learn-long">{withJosa(view.name, '이/가')} </span>
             <b title={view.move.detail}>{view.move.name}</b>
+            {/* 긴 줄은 괄호로 — 조사가 이름에 붙어 읽힘 ("위력 120를" 처럼 숫자 뒤에 붙던 것, bugs 2707) */}
             {tight < 1 && (
               <span class="pg-sub">
+                <span class="pg-learn-long">(</span>
                 <span class="pg-mv-type">{view.move.typeKo} · </span>
                 {view.move.short}
+                <span class="pg-learn-long">)</span>
               </span>
             )}
             <span class="pg-learn-long">{josa(view.move.name, '을/를')} 배울 수 있어요</span>
@@ -148,7 +151,7 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
         <span class="pg-line pg-choice-row pg-learn-row">
           {/* 고른 칸 = 금색 테두리 (pg-picked) — 결정 전에는 아무것도 잊지 않음 */}
           {view.current.map((m, i) => (
-            <Button key={m.id} secondary extraClass={forget === i ? 'pg-picked' : undefined} onClick={() => setForget(forget === i ? null : i)} title={`${m.detail} — 고른 뒤 [결정] 하면 잊고 ${view.move.name} 를 배워요`}>
+            <Button key={m.id} secondary extraClass={forget === i ? 'pg-picked' : undefined} onClick={() => setForget(forget === i ? null : i)} title={`${m.detail} — 고른 뒤 [결정] 하면 잊고 ${withJosa(view.move.name, '을/를')} 배워요`}>
               {`${i + 1} ${m.name}`}
               <span class="pg-sub"><span class="pg-mv-type">{m.typeKo} · </span>{m.short}</span>
             </Button>
