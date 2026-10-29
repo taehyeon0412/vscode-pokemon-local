@@ -4,7 +4,7 @@ import { fixedRng } from '../../../test/fixtures/rng';
 import { sampleMonster, sampleSave, viaJson } from '../../../test/fixtures/save';
 import { BALANCE, TIMING } from '../balance';
 import type { Monster, Save } from '../save';
-import { applyInput, AUTO_TEAM_TIP, autoTeamTipDue, defeatWaits, gameTempo, step, TEAM_MEET_TIP, teamChoiceMeet, teamFoesOf, teamLock, teamMainOf, teamMeetTipDue, teamPickOf } from './play';
+import { advance, applyInput, AUTO_TEAM_TIP, autoTeamTipDue, defeatWaits, gameTempo, RESUME_BATTLE_MSG, resumeLine, step, TEAM_MEET_TIP, teamChoiceMeet, teamFoesOf, teamLock, teamMainOf, teamMeetTipDue, teamPickOf } from './play';
 import { Rng } from './rng';
 import { createGameState, readRuntime, type GameState } from './state';
 import { shotTiming, applyTeamResult, isSpread, pickTeam, readTeam, startTeamBattle, TEAM_BASIC, teamClashSure, teamDone, teamFastOk, teamInput, teamPick, teamPossible, teamScale, teamStep, teamAutoUltLeft, teamAutoUltNext, teamFoeNext, teamZSlot, teamUltLevel, teamUltOpen, type TeamBattle, teamGather, teamJoinOpen, teamLayout, teamLit } from './team';
@@ -1292,6 +1292,27 @@ describe('3:3 박자 (orders #83 — 기본 0.8 · 전투 ×2) · 누를 창 (or
     return { ...s, save, runtime: { ...s.runtime, stage: { ...s.runtime.stage!, phase: 'team', team: b } as never } };
   };
   const b0 = startTeamBattle(team3(), foes(), 'trainer', '상대');
+
+  it('"다시 켜서 …" 3:3 — 늘 흐르니 밖 · 숨김이어도 2초 안에 지움 · 첫 기술이 나가면 지움 · 필살기 · 힘겨루기 · 끝 동안은 숨김 (#133 — 컷인 이름 · "힘대결에서 졌다…" 를 가리며 판 내내 남던 것)', () => {
+    const s = (b: TeamBattle = b0, rt: Partial<GameState['runtime']> = {}): GameState => {
+      const g = inTeam(b);
+      return { ...g, runtime: { ...g.runtime, resumed: TIMING.resumeLineMs, ...rt } };
+    };
+    expect(resumeLine(s())).toBe(RESUME_BATTLE_MSG);
+    expect(resumeLine(advance(s(b0, { away: true }), TIMING.resumeLineMs + STEP).state)).toBeNull();
+    expect(resumeLine(advance(s(b0, { headless: true }), TIMING.resumeLineMs + STEP).state)).toBeNull();
+    // 첫 기술 (lastShotAt) 이 나간 판 — 숨김이면 바로 · 밖 (패널은 보임) 은 1.2초 보인 뒤 (0.1 ~ 0.35초 번쩍이던 것 — UX 3)
+    expect(step(s({ ...b0, lastShotAt: 0 }, { headless: true }), STEP).state.runtime.resumed).toBeUndefined();
+    const awayShot = step(s({ ...b0, lastShotAt: 0 }, { away: true }), STEP).state;
+    expect(awayShot.runtime.resumed).toBe(TIMING.resumeLineMs - STEP);
+    expect(advance(awayShot, TIMING.resumeLineMinMs).state.runtime.resumed).toBeUndefined();
+    for (const phase of ['ult', 'clash', 'over'] as const) expect(resumeLine(s({ ...b0, phase }))).toBeNull();
+    // 칩이 떠 있는 동안은 알아챌 순간 박자 (▶▶ 에서도 1.0 — 1.2초를 게임 시계로 세어 0.7 ~ 0.8초만 보이던 것, UX 1)
+    expect(gameTempo(s(b0))).toBe(TIMING.team.fastNotice);
+    const fast = inTeam(b0, true);
+    expect(gameTempo({ ...fast, runtime: { ...fast.runtime, resumed: TIMING.resumeLineMs } })).toBe(TIMING.team.fastNotice);
+    expect(gameTempo(fast)).toBeCloseTo(TIMING.team.tempo * TIMING.team.fastScale, 10);
+  });
 
   it('시계 배 — 3:3 기본 1.0 (#89) · 빠르게 ▶▶ 면 보통 공격 2.0 · 알아챌 순간 (내 필살기 · 힘겨루기 · 결과 · 다 참 · 쓰러짐 · 안내) 은 1.0 (딱 1초) · 3:3 밖은 1', () => {
     // 기본 박자 1.0 (2026-10-22 태현 님 "원래대로 1.0으로" — orders #89)

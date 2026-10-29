@@ -112,8 +112,10 @@ export interface RuntimeState {
   today?: string;
   /** 밖 · 숨김에서 이미 알린 기다림 (gdd 4.13 — 같은 기다림은 안 보는 동안 한 번) · 보는 중이면 지움 */
   noticed?: GameNotice;
-  /** "다시 켜서 전투를 처음부터!" 남은 ms — 세이브의 전투를 처음부터 다시 만든 때 (껐다 켬 · 이어 하기, R15). 말 칸 (msg) 과 따로 — 선제 · 기습 · 관장 · 3:3 · 좁은 패널에서 0 장면이던 것 (UX 리뷰어). 보는 동안만 줄어듦 */
+  /** "다시 켜서 전투를 처음부터!" 남은 ms — 세이브의 전투를 처음부터 다시 만든 때 (껐다 켬 · 이어 하기, R15). 말 칸 (msg) 과 따로 — 선제 · 기습 · 관장 · 3:3 · 좁은 패널에서 0 장면이던 것 (UX 리뷰어). 보거나 전투가 흐르는 동안 줄어듦 (#133) */
   resumed?: number;
+  /** 그 뒤 첫 기술이 나갔음 — 보는 중이면 1초 보인 때 지움 (첫 기술이 1초 안에 끝나도 잊지 않게 · #133). resumed 와 같이 지움 */
+  resumeActed?: boolean;
   /** 1:1 내 차례 (고르기) 가 입력 없이 기다린 ms — 자동 전투 첫 안내 (R12). 넘기기에는 안 남음 */
   chooseMs?: number;
   /** 자동 전투 첫 안내 ② ("안 보는 동안 멈춰 있었어요") 를 띄울 차례 — 화면이 그릴 수 있는 장면 (1:1 전투 · 걷기 · 클리어 카드 · 대기실 · 시설 앞) 까지 미룸 (디자인팀 — 3:3 · 만남 · 결과 등에서는 못 그림) */
@@ -319,7 +321,7 @@ export function readRuntime(raw: unknown, fallbackSeed: number, stepMs: number =
     headless: false, // 웹뷰에서 온 상태는 늘 보이는 쪽 — 확장이 넘겨받을 때 다시 켬
     ...(readAwayLog(r.awayLog) ? { awayLog: readAwayLog(r.awayLog)! } : {}),
     ...((GAME_NOTICES as readonly unknown[]).includes(r.noticed) ? { noticed: r.noticed as GameNotice } : {}),
-    ...(num(r.resumed, 1, 10_000) !== null ? { resumed: r.resumed as number } : {}),
+    ...(num(r.resumed, 1, 10_000) !== null ? { resumed: r.resumed as number, ...(r.resumeActed === true ? { resumeActed: true } : {}) } : {}),
     ...(r.backTip === true ? { backTip: true as const } : {}),
     ...(typeof r.today === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(r.today) ? { today: r.today } : {}),
     ...(num(r.chooseMs, 0, 1e6) !== null ? { chooseMs: r.chooseMs as number } : {}),

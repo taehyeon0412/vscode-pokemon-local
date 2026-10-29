@@ -762,7 +762,11 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         {/* 다시 켜기 한 줄 (기획 R15 — 전투 중에 껐다가 들어오면 2초 "다시 켜서 전투를 처음부터!", 엔진 resumeLine) — 1:1 = 아래 끝 (말 칸이 숨는 240 × 150 · 320 × 150 · 360 × 170 에서도 · 위 메뉴 · HP 밖) · 3:3 = 위 가운데 (아래는 앞줄 발밑 판) */}
         {resumeLine(state) && (
           <div class={`pg-banner pg-hold pg-resume${team ? ' pg-resume-top' : ' pg-hold-low'}`} role="status">
-            <b>{resumeLine(state)}</b>
+            {/* 360 아래 짧게 — 240 × 150 3:3 에서 폭을 거의 다 써 첫 기술 피해 숫자 옆까지 덮던 것 (#133 UX 5) */}
+            <b>
+              <span class="pg-tip-long">{resumeLine(state)}</span>
+              <span class="pg-tip-short">다시 켜서 처음부터!</span>
+            </b>
           </div>
         )}
         <ClearCard state={state} media={media} onInput={onInput} onMap={() => onOpen({ kind: 'map' })} onTeam={() => onOpen({ kind: 'team' })} />
@@ -826,7 +830,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         {/* "N초" 칩의 뜻 (ideas #150 · orders #34) — 볼 때 저절로 나가는 필살기가 처음 다 찼을 때 한 번: 1:1 자동 전투 (Z 모서리 3 · 2 · 1) · 3:3 (발밑 판 3 · 2 · 1 — 자동 전투가 꺼져도).
             저절로 나가면 (3초) 같이 사라짐 · 1초 넘게 보면 셈 · 1:1 = 아래 가운데 · 3:3 = 위 가운데 (아래는 발밑 판), 480 아래 3:3 은 내 쪽 왼쪽 위 (가운데면 상대 쓰러짐 말 · 피해 숫자를 0.7초 덮던 것 — UX 리뷰어) */}
         {/* 자동 전투 3:3 처음 안내 (orders #71 — 자동이면 트레이너전은 3:3 기본) = VS 뒤 3:3 판 첫 12초 · 위 가운데 · 보는 동안만 셈 (U6) · 한 줄만 — 두 줄이면 1번 포켓몬 머리를 덮음 (폭을 재서 세 단계: 520 이상 418 · 361 ~ 519 302 · 360 아래 181, 맥 +10% 포함) */}
-        {autoTeamTip && !teamBigPrompt && (
+        {/* 다시 켠 판은 "다시 켜서 …" 칩 (같은 위 가운데) 이 사라진 뒤에 — 칩이 안내 한가운데를 덮던 것 (#133 ③) · FirstTip 은 보이는 동안만 셈 */}
+        {autoTeamTip && !teamBigPrompt && !resumeLine(state) && (
           <FirstTip key={AUTO_TEAM_TIP} ms={5000} className="pg-first-tip-top pg-tip-auto-team" paused={tipPaused} onSeen={() => onInput({ kind: 'tip-seen', id: AUTO_TEAM_TIP })}>
             <span class="pg-t71-long">
               자동 전투는 3:3 — 셋이 같이 싸우고 돈 ×{BALANCE.team.moneyScale} · 1:1 은 <KeyCap k="A" /> 자동을 끄고 만남에서

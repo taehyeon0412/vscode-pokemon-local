@@ -410,10 +410,24 @@ function checkedStage(rt: RuntimeState, save: Save, id: StageId, layout: StageLa
 
 /** 세이브의 전투를 처음부터 다시 만든 때 (껐다 켬 · 이어 하기, 기획 R15) 한 줄 — runtime.resumed 동안 화면이 따로 띄움 (말 칸과 따로) */
 export const RESUME_BATTLE_MSG = '다시 켜서 전투를 처음부터!';
-/** 지금 띄울 "다시 켜서 전투를 처음부터!" — 없으면 null */
+/** 지금 띄울 "다시 켜서 전투를 처음부터!" — 없으면 null. 필살기 컷인 · 힘겨루기 · 합동 · 결과 동안은 숨김 (그 이름 · 큰 글을 가리지 않게 — U1 · #133) */
 export function resumeLine(state: GameState): string | null {
-  const p = state.runtime.stage?.phase;
-  return (state.runtime.resumed ?? 0) > 0 && (p === 'battle' || p === 'team') ? RESUME_BATTLE_MSG : null;
+  const st = state.runtime.stage;
+  if ((state.runtime.resumed ?? 0) <= 0 || !st) return null;
+  // 밖에서 이로치 앞에 멈춤 — 같은 아래 자리의 기다림 한 줄 ("반짝이는 포켓몬! 클릭하면 이어서") 이 먼저 (시간도 멈춰 돌아오면 그대로 보임 — #133 UX 2)
+  if (waitReason(state) === 'shiny') return null;
+  if (st.phase === 'team') return st.team.phase === 'run' ? RESUME_BATTLE_MSG : null;
+  if (st.phase !== 'battle') return null;
+  const b = st.battle;
+  const big = b.phase === 'clash' || b.phase === 'over' || b.phase === 'riposte' || (b.phase === 'anim' && (b.anim?.action.kind === 'ult' || b.anim?.action.kind === 'riposte'));
+  return big ? null : RESUME_BATTLE_MSG;
+}
+
+/** 다시 만든 전투에서 첫 기술이 나갔는지 — 1:1 = 행동 연출 · 힘겨루기 · 결과 쪽으로 넘어감 · 3:3 = 첫 기술 (lastShotAt) · 필살기 · 힘겨루기 · 끝 */
+function resumeActed(st: StageRuntime | null | undefined): boolean {
+  if (st?.phase === 'team') return st.team.lastShotAt !== undefined || st.team.phase !== 'run';
+  if (st?.phase === 'battle') return !['run', 'choose', 'send'].includes(st.battle.phase);
+  return false;
 }
 
 /** 진행 중 상태가 없을 때 세이브를 보고 정함 — 고르다 껐으면 그 고르기부터 · 전투 중에 껐다 켜면 그 전투를 처음부터 (mvp-spec 9장) */
@@ -976,13 +990,18 @@ export function step(state: GameState, stepMs: number): StepOut {
   let rt: RuntimeState = state.runtime;
   // 알림 시간은 보는 동안 · 그 알림을 그리는 장면에서만 셈 — 밖 · 숨김에서 흘러가 돌아오면 없던 것 (디자인팀 UX #27 큼 1) · 만남 · 전투 중에 흘러가 요약 둘째 장이 0ms 이던 것 (UX 리뷰어 R14)
   if (rt.toast && toastShown(rt, save)) rt = { ...rt, toast: rt.toast.ms > stepMs ? { ...rt.toast, ms: rt.toast.ms - stepMs } : nextToast(rt.toast) };
-  // "다시 켜서 전투를 처음부터!" — 보는 동안 전투 · 3:3 에서만 줄어듦 · 전투가 끝나면 지움
+  // "다시 켜서 전투를 처음부터!" — 전투 · 3:3 에서만 · 보는 동안이나 전투가 흐르는 동안 줄어듦 (밖 · 숨김에서 자동 전투 · 3:3 이 흘러도 — 전투 내내 남던 것, #133 · 놓친 규칙 U6 · U1)
+  //   사람을 기다리며 멈춘 동안 (내 차례 · 고르기 — isWaitingForInput) 만 멈춤 · 첫 기술이 나가면 늦어도 지움 — 패널이 보이면 (밖 = 포커스만 없음도) 1.2초는 보인 뒤 ·
+  //   숨김 (확장이 계산 — 그릴 화면이 없음) 이면 바로 (밖에서 0.1 ~ 0.35초 번쩍이던 것 — #133 UX 3) · 전투가 끝나면 지움
   if (rt.resumed !== undefined) {
     const p = rt.stage?.phase;
-    const left = p === 'battle' || p === 'team' ? rt.resumed - (!rt.headless && !rt.away ? stepMs : 0) : 0;
-    if (left > 0) rt = { ...rt, resumed: left };
+    const flowing = (!rt.headless && !rt.away) || !isWaitingForInput(state);
+    let left = p === 'battle' || p === 'team' ? rt.resumed - (flowing ? stepMs : 0) : 0;
+    const acted = rt.resumeActed === true || resumeActed(rt.stage);
+    if (acted && (rt.headless || TIMING.resumeLineMs - left >= TIMING.resumeLineMinMs)) left = 0;
+    if (left > 0) rt = { ...rt, resumed: left, ...(acted ? { resumeActed: true } : {}) };
     else {
-      const { resumed: _r, ...rest } = rt;
+      const { resumed: _r, resumeActed: _a, ...rest } = rt;
       rt = rest;
     }
   }
@@ -1387,6 +1406,8 @@ export function gameTempo(state: GameState): number {
   const t = TIMING.team;
   const join = teamJoinOpen(st.team);
   if (join && !join.gathering) return t.joinSlow;
+  // "다시 켜서 …" 칩이 떠 있는 동안은 알아챌 순간 — 1.2초를 게임 시계로 세어 ▶▶ 에서 0.7 ~ 0.8초만 보이던 것 (#133 UX 1 · #95 13바퀴와 같은 종류)
+  if (resumeLine(state) !== null) return t.fastNotice;
   if (state.save.settings.battleFast !== true) return t.tempo;
   // 빠르게 ▶▶ (C 안 — 2026-10-22 태현 님): 보통 공격 = 두 배 · 누를 창 (합동 멘트 — 내 것 · 상대 것) 은 기본 박자 그대로 ·
   // 상대 필살기 연출 (합동 빼고) 은 컷인 1초 뒤부터 두 배 · 그 밖 알아챌 순간 (내 필살기 · 힘겨루기 · 다 참 · 쓰러짐 · 안내 · 합동 · 결과) 은 1.0 (딱 1초 — U1)

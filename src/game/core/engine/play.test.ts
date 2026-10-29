@@ -370,12 +370,52 @@ describe('전투 (단계 5 · 6) — 스테이지 쪽', () => {
     expect(resumeLine(again)).toBe(RESUME_BATTLE_MSG);
     expect(battleOf(again)?.msg).not.toBe(RESUME_BATTLE_MSG);
     expect(battleOf(again)?.foe.species).toBe(battleOf(met)?.foe.species);
-    // 보는 동안 2초 (안 볼 때 · 포커스 없을 때는 안 줄어듦) · 넘기기에도 남음 · 이어진 전투 (넘겨받은 상태) 에는 안 생김
-    expect(advance({ ...again, runtime: { ...again.runtime, away: true } }, 5000).state.runtime.resumed).toBe(again.runtime.resumed);
+    // 보는 동안 2초 (밖 · 숨김은 아래 #133) · 넘기기에도 남음 · 이어진 전투 (넘겨받은 상태) 에는 안 생김
     expect(readRuntime(viaJson(again.runtime), 1).resumed).toBe(again.runtime.resumed);
     const seen = advance(again, TIMING.resumeLineMs + 100).state;
     expect(resumeLine(seen)).toBeNull();
     expect(step(met, STEP).state.runtime.resumed).toBeUndefined();
+  });
+
+  it('"다시 켜서 …" — 밖 · 숨김이어도 전투가 흐르면 같이 셈 · 내 차례를 기다리는 동안만 남음 · 첫 기술이 나가면 지움 · 힘겨루기 · 필살기 · 결과 동안 숨김 (#133 — 전투 내내 남던 것)', () => {
+    const { state } = nearSpot(start(), 'wild');
+    const met = until(state, (x) => battleOf(x) !== null);
+    const reopen = (auto: boolean) => step(withAutoBattle(createGameState(viaJson(met.save), 9), auto), STEP).state;
+    const away = (s: GameState): GameState => ({ ...s, runtime: { ...s.runtime, away: true } });
+    const auto = reopen(true);
+    expect(resumeLine(auto)).toBe(RESUME_BATTLE_MSG);
+    // 밖 (다른 창을 누른 채 봄) · 숨김 (확장이 계산) + 자동 전투 — 전투가 흐르니 2초 안에 지움
+    expect(resumeLine(advance(away(auto), TIMING.resumeLineMs + STEP).state)).toBeNull();
+    expect(resumeLine(advance({ ...auto, runtime: { ...auto.runtime, headless: true } }, TIMING.resumeLineMs + STEP).state)).toBeNull();
+    // 숨김 (그릴 화면이 없음) + 첫 기술 — 늦어도 그때 지움 (2초를 다 기다리지 않음)
+    const hiddenActed = until({ ...auto, runtime: { ...auto.runtime, headless: true } }, (x) => battleOf(x)?.phase === 'anim', 10_000);
+    expect(battleOf(hiddenActed)?.phase).toBe('anim');
+    expect(hiddenActed.runtime.resumed).toBeUndefined();
+    // 보는 중 · 밖 (포커스만 없음 — 패널은 보임) 첫 기술 — 1.2초는 보인 뒤에 지움 (U1 · 밖에서 0.1 ~ 0.35초 번쩍이던 것 — UX 3)
+    for (const s0 of [auto, away(auto)]) {
+      const acted = until(s0, (x) => battleOf(x)?.phase === 'anim', 10_000);
+      const shown = TIMING.resumeLineMs - (acted.runtime.resumed ?? 0);
+      expect(acted.runtime.resumed === undefined ? shown : shown < TIMING.resumeLineMinMs).toBeTruthy();
+      expect(advance(acted, TIMING.resumeLineMinMs).state.runtime.resumed).toBeUndefined();
+    }
+    // 밖 + 내 차례 기다림 (자동 꺼짐) — 멈춘 동안은 남음 (돌아와 보면 그때부터 셈)
+    const turn = until(reopen(false), (x) => battleOf(x)?.phase === 'choose');
+    expect(isWaitingForInput(turn)).toBe(true);
+    const waiting = away({ ...turn, runtime: { ...turn.runtime, resumed: 1500 } });
+    expect(advance(waiting, 5000).state.runtime.resumed).toBe(1500);
+    expect(advance({ ...waiting, runtime: { ...waiting.runtime, away: false } }, 1600).state.runtime.resumed).toBeUndefined();
+    // 힘겨루기 · 필살기 · 반격 · 결과 동안은 숨김 (컷인 이름 · 큰 글을 가리지 않게 — U1) · 시간은 그대로 셈
+    const b = battleOf(auto)!;
+    const as = (patch: Partial<typeof b>): GameState => ({ ...auto, runtime: { ...auto.runtime, stage: { phase: 'battle', battle: { ...b, ...patch } } } });
+    expect(resumeLine(as({ phase: 'clash' }))).toBeNull();
+    expect(resumeLine(as({ phase: 'over' }))).toBeNull();
+    expect(resumeLine(as({ phase: 'anim', anim: { side: 'foe', action: { kind: 'ult' }, ms: 0, dur: 1000, counter: false } }))).toBeNull();
+    expect(resumeLine(as({ phase: 'anim', anim: { side: 'me', action: { kind: 'attack' }, ms: 0, dur: 1000, counter: false } }))).toBe(RESUME_BATTLE_MSG);
+    // 밖에서 이로치 앞에 멈춤 — 같은 자리 기다림 한 줄이 먼저 (칩은 숨고 시간도 멈춤 → 돌아오면 그대로 — UX 2)
+    const shiny = away(as({ foe: { ...b.foe, shiny: true } }));
+    expect(waitReason(shiny)).toBe('shiny');
+    expect(resumeLine(shiny)).toBeNull();
+    expect(advance(shiny, 3000).state.runtime.resumed).toBe(auto.runtime.resumed);
   });
 
   it('메뉴 입력 → 전투가 이어짐 · 전투가 아닐 때 전투 입력은 무시', () => {
