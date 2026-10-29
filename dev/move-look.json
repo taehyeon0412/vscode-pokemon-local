@@ -483,5 +483,480 @@
     "c": "rock",
     "n": 7,
     "hit": "rockslide"
+  },
+  "_2": "#122 2단계 — 지금 지역 (숲 · 해변 · 화산) 야생 · 트레이너 · 관장 계열 67기술 (태현 님 10-28 \"추천대로\"). 같은 계열 안에서 겹치지 않게 · 위력이 크면 크게 · 기술 뜻에 안 맞던 틀은 바꿈 (드래곤클로 뿜기 → 할퀴기 · 더블촙 → 주먹 둘 · 벌레먹기 → 이빨 · 덤벼들기 → 돌진 · 휘감기 · 조이기 → 조이는 고리 · 칼등치기 · 칼바람 → 베기 · 얼어붙은바람 → 눈 뿜기 · 암석봉인 → 바위 떨어뜨리기 · 파워젬 → 빛줄기 · 분함의발구르기 → 땅 구르기 · 본러시 → 뼈 날리기 · 놀래키기 → 주먹 · 야습 · 고스트다이브 → 돌진 · 분연 → 불바위 떨어뜨리기 · 뛰어오르기 → 돌진 · 배대뒤치기 · 지옥의바퀴 → 돌진 · 잠깨움뺨치기 → 주먹 둘 · 기어오르기 → 주먹)",
+  "611": {
+    "fx": "projectile",
+    "shape": "ball",
+    "c": "bug",
+    "n": 6,
+    "every": 12,
+    "speed": 1.4,
+    "hit": "swarm"
+  },
+  "522": {
+    "fx": "rings",
+    "c": "bug",
+    "forward": 1,
+    "n": 3,
+    "hit": "bugbuzz"
+  },
+  "565": {
+    "fx": "projectile",
+    "shape": "needle",
+    "c": "bug",
+    "n": 1,
+    "big": 1,
+    "speed": 1.4,
+    "hit": "stinger"
+  },
+  "41": {
+    "fx": "projectile",
+    "shape": "needle",
+    "c": "bug",
+    "n": 2,
+    "big": 1,
+    "every": 60,
+    "speed": 1.2,
+    "hit": "needle2"
+  },
+  "450": {
+    "fx": "slash",
+    "c": "bug",
+    "n": 1,
+    "len": 0.3,
+    "hit": "bugbite"
+  },
+  "42": {
+    "fx": "projectile",
+    "shape": "needle",
+    "c": "bug",
+    "n": 5,
+    "every": 15,
+    "speed": 1.4,
+    "hit": "pins"
+  },
+  "679": {
+    "fx": "dash",
+    "c": "bug",
+    "hit": "lunge"
+  },
+  "454": {
+    "fx": "projectile",
+    "shape": "ball",
+    "c": "bug",
+    "n": 7,
+    "every": 10,
+    "arc": 40,
+    "speed": 1.1,
+    "hit": "beeswarm"
+  },
+  "132": {
+    "fx": "rings",
+    "c": "normal",
+    "forward": 1,
+    "n": 1,
+    "hit": "constrict"
+  },
+  "20": {
+    "fx": "rings",
+    "c": "normal",
+    "forward": 1,
+    "n": 3,
+    "hit": "bind"
+  },
+  "206": {
+    "fx": "slash",
+    "c": "normal",
+    "n": 1,
+    "len": 0.9,
+    "hit": "falseswipe"
+  },
+  "13": {
+    "fx": "slash",
+    "c": "wind",
+    "n": 3,
+    "len": 1.1,
+    "hit": "razorwind"
+  },
+  "30": {
+    "fx": "dash",
+    "c": "normal",
+    "fast": 1,
+    "hit": "horn"
+  },
+  "29": {
+    "fx": "dash",
+    "c": "normal",
+    "hit": "headbutt"
+  },
+  "416": {
+    "fx": "dash",
+    "c": "hyper",
+    "hit": "gigaimpact"
+  },
+  "479": {
+    "fx": "projectile",
+    "shape": "rock",
+    "c": "rock",
+    "n": 1,
+    "big": 1,
+    "arc": 60,
+    "speed": 1.1,
+    "hit": "smackdown"
+  },
+  "317": {
+    "fx": "rockfall",
+    "c": "rock",
+    "n": 4,
+    "hit": "rocktomb"
+  },
+  "350": {
+    "fx": "projectile",
+    "shape": "rock",
+    "c": "rock",
+    "n": 4,
+    "every": 20,
+    "speed": 1.3,
+    "hit": "rockblast"
+  },
+  "408": {
+    "fx": "beam",
+    "c": "gold",
+    "width": 0.6,
+    "gems": 1,
+    "hit": "gemshine"
+  },
+  "439": {
+    "fx": "projectile",
+    "shape": "rock",
+    "c": "rock",
+    "n": 1,
+    "big": 1,
+    "speed": 0.85,
+    "dur": 1.4,
+    "hit": "wrecker"
+  },
+  "681": {
+    "fx": "punch",
+    "c": "dark",
+    "n": 2,
+    "hit": "powertrip"
+  },
+  "372": {
+    "fx": "slash",
+    "c": "dark",
+    "n": 2,
+    "len": 0.9,
+    "hit": "assurance"
+  },
+  "282": {
+    "fx": "punch",
+    "c": "dark",
+    "n": 1,
+    "hit": "knockoff"
+  },
+  "492": {
+    "fx": "slash",
+    "c": "dark",
+    "n": 2,
+    "x": 1,
+    "len": 1.3,
+    "hit": "foulplay"
+  },
+  "310": {
+    "fx": "punch",
+    "c": "ghost",
+    "n": 1,
+    "hit": "boo"
+  },
+  "425": {
+    "fx": "dash",
+    "c": "ghost",
+    "fast": 1,
+    "hit": "sneak"
+  },
+  "566": {
+    "fx": "dash",
+    "c": "ghost",
+    "hit": "phantom"
+  },
+  "506": {
+    "fx": "rings",
+    "c": "ghost",
+    "n": 3,
+    "hit": "hex"
+  },
+  "91": {
+    "fx": "quake",
+    "c": "ground",
+    "hit": "dig"
+  },
+  "414": {
+    "fx": "quake",
+    "c": "ground",
+    "hit": "earthpower"
+  },
+  "89": {
+    "fx": "quake",
+    "c": "rock",
+    "hit": "earthquake"
+  },
+  "707": {
+    "fx": "quake",
+    "c": "ground",
+    "hit": "tantrum"
+  },
+  "314": {
+    "fx": "slash",
+    "c": "wind",
+    "n": 2,
+    "len": 0.8,
+    "hit": "aircutter"
+  },
+  "332": {
+    "fx": "dash",
+    "c": "wind",
+    "fast": 1,
+    "hit": "aerialace"
+  },
+  "403": {
+    "fx": "slash",
+    "c": "wind",
+    "n": 2,
+    "x": 1,
+    "len": 1.25,
+    "hit": "airslash"
+  },
+  "183": {
+    "fx": "punch",
+    "c": "fight",
+    "n": 1,
+    "hit": "machpunch"
+  },
+  "395": {
+    "fx": "punch",
+    "c": "fight",
+    "n": 1,
+    "big": 1,
+    "hit": "forcepalm"
+  },
+  "223": {
+    "fx": "punch",
+    "c": "fight",
+    "n": 1,
+    "big": 1,
+    "hit": "dynamicpunch"
+  },
+  "40": {
+    "fx": "projectile",
+    "shape": "needle",
+    "c": "poison",
+    "n": 1,
+    "speed": 1.4,
+    "hit": "poisonsting"
+  },
+  "491": {
+    "fx": "projectile",
+    "shape": "ball",
+    "c": "sludge",
+    "n": 3,
+    "every": 30,
+    "arc": 50,
+    "hit": "acidspray"
+  },
+  "474": {
+    "fx": "projectile",
+    "shape": "ball",
+    "c": "poison",
+    "n": 1,
+    "big": 1,
+    "speed": 1.0,
+    "hit": "venoshock"
+  },
+  "420": {
+    "fx": "projectile",
+    "shape": "rock",
+    "c": "ice",
+    "n": 1,
+    "speed": 1.5,
+    "hit": "iceshard"
+  },
+  "196": {
+    "fx": "breath",
+    "c": "ice",
+    "snow": 1,
+    "speed": 1.3,
+    "spread": 0.6,
+    "hit": "icywind"
+  },
+  "333": {
+    "fx": "projectile",
+    "shape": "needle",
+    "c": "ice",
+    "n": 4,
+    "every": 20,
+    "speed": 1.3,
+    "hit": "icicles"
+  },
+  "181": {
+    "fx": "breath",
+    "c": "ice",
+    "snow": 1,
+    "rate": 0.6,
+    "life": 0.8,
+    "hit": "powdersnow"
+  },
+  "59": {
+    "fx": "breath",
+    "c": "ice",
+    "snow": 1,
+    "rate": 1.6,
+    "grow": 1.4,
+    "spread": 1.1,
+    "hit": "blizzard"
+  },
+  "62": {
+    "fx": "beam",
+    "c": "aurora",
+    "bands": 1,
+    "width": 1.2,
+    "rainbow": 0,
+    "hit": "aurora"
+  },
+  "58": {
+    "fx": "beam",
+    "c": "ice",
+    "width": 1.4,
+    "sparkle": "ice",
+    "hit": "icebeam"
+  },
+  "225": {
+    "fx": "breath",
+    "c": "dragon",
+    "rate": 1.2,
+    "spread": 0.9,
+    "hit": "dragonbreath"
+  },
+  "337": {
+    "fx": "slash",
+    "c": "dragon",
+    "n": 3,
+    "len": 1.0,
+    "hit": "dragonclaw"
+  },
+  "530": {
+    "fx": "slash",
+    "c": "dragon",
+    "n": 2,
+    "x": 1,
+    "len": 1.0,
+    "hit": "dualchop"
+  },
+  "525": {
+    "fx": "dash",
+    "c": "dragon",
+    "hit": "dragontail"
+  },
+  "407": {
+    "fx": "dash",
+    "c": "dragon",
+    "fast": 1,
+    "hit": "dragonrush"
+  },
+  "509": {
+    "fx": "dash",
+    "c": "fight",
+    "hit": "circlethrow"
+  },
+  "358": {
+    "fx": "dash",
+    "c": "normal",
+    "hit": "slap"
+  },
+  "66": {
+    "fx": "dash",
+    "c": "fight",
+    "roll": 1,
+    "hit": "submission"
+  },
+  "125": {
+    "fx": "punch",
+    "c": "bone",
+    "n": 1,
+    "hit": "boneclub"
+  },
+  "198": {
+    "fx": "projectile",
+    "shape": "bone",
+    "c": "bone",
+    "n": 3,
+    "every": 30,
+    "speed": 1.3,
+    "hit": "bonerush"
+  },
+  "155": {
+    "fx": "projectile",
+    "shape": "bone",
+    "c": "bone",
+    "n": 1,
+    "boomerang": 1,
+    "hit": "bonemerang"
+  },
+  "22": {
+    "fx": "beam",
+    "c": "vine",
+    "len": 1,
+    "width": 0.7,
+    "vine": 1,
+    "wave": 0,
+    "sag": 1,
+    "hit": "vinewhip"
+  },
+  "438": {
+    "fx": "beam",
+    "c": "vine",
+    "len": 1,
+    "width": 1.0,
+    "wave": 1,
+    "vine": 1,
+    "hit": "powerwhip"
+  },
+  "93": {
+    "fx": "rings",
+    "c": "psychic",
+    "n": 3,
+    "hit": "confusion"
+  },
+  "326": {
+    "fx": "rings",
+    "c": "hypno",
+    "n": 5,
+    "hit": "extrasensory"
+  },
+  "16": {
+    "fx": "rings",
+    "c": "wind",
+    "forward": 1,
+    "n": 2,
+    "hit": "gust"
+  },
+  "340": {
+    "fx": "dash",
+    "c": "wind",
+    "hit": "bounce"
+  },
+  "436": {
+    "fx": "rockfall",
+    "c": "fire",
+    "n": 5,
+    "hit": "eruption"
+  },
+  "257": {
+    "fx": "rings",
+    "c": "fire",
+    "forward": 1,
+    "n": 4,
+    "hit": "heatwave"
   }
 }

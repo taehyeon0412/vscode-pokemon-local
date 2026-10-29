@@ -78,4 +78,18 @@ describe('기술마다 모양 표 (#122 — 태현 님 "불꽃세례 불꽃 튀�
     expect(Number(sec?.[1])).toBeCloseTo(2 * Number(up?.[1]), 6);
     expect(bridgeJs).toContain('if (o.arc && travel > 0)');
   });
+  it('1:1 뿜기 기울임이 큰 포켓몬에서 켜짐 · 작은 포켓몬끼리는 그대로 — 몸 모양 기준 (#122 2단계 UX 6바퀴: 칸 기준 문턱이 한 번도 안 켜졌음)', () => {
+    const shape = JSON.parse(/const POKEMON_SHAPE = (\{.*?\});\r?\n/.exec(bundle)?.[1] ?? '{}') as Record<string, number[]>;
+    const above = Number(/const BREATH_TILT_ABOVE = ([\d.]+);/.exec(bridgeJs)?.[1]);
+    // bridge 와 같은 셈 (1:1 = 같은 땅 · 같은 칸 크기라 그림 칸 단위로): 입 = my + 0.5 · 몸 위 = t · 몸 높이 = b − t
+    const tilts = (who: string, dst: string): boolean => {
+      const [, , my] = shape[who]!;
+      const [, , , , t, , b] = shape[dst]!;
+      return my! + 0.5 < t! + above * (b! - t!);
+    };
+    const foes = ['bulbasaur', 'charmander', 'squirtle', 'pikachu', 'caterpie'];
+    for (const big of ['onix', 'dragonite', 'lapras', 'charizard']) for (const f of foes) expect(tilts(big, f), `${big} → ${f}`).toBe(true);
+    for (const small of ['bulbasaur', 'charmander', 'squirtle']) for (const f of foes) expect(tilts(small, f), `${small} → ${f}`).toBe(false);
+    expect(bridgeJs).toContain('g0.mouth.y < sb.top + BREATH_TILT_ABOVE * bh');
+  });
 });

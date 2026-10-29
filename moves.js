@@ -1079,6 +1079,8 @@ const SIG_PALETTE = {
     egg: ['#ffffff', '#fff8e8', '#f0e0c0', '#c9b48a'], star: ['#ffffff', '#fff8b0', '#ffe14d', '#f5b300'],
     aura: ['#ffffff', '#d8ecff', '#7ab8ff', '#3a7ae0'], bug: ['#f4ffd0', '#d6f06a', '#a8c93a', '#6f8f1f'],
     dark: ['#e6dcff', '#8f78c9', '#4f3a85', '#261a45'],
+    // #122 2단계 — 덩굴 (덩굴채찍 · 파워휩 — 위 1칸 · 잎 · 몸 · 테) · 오로라 (오로라빔 3색 띠 + 흰 심)
+    vine: ['#7cd050', '#4cae3c', '#2f7a2c', '#1a3a18'], aurora: ['#ffffff', '#9fe8ff', '#9ff0d0', '#ff9ad5'],
 };
 const sigPal = (c) => (Array.isArray(c) ? c : SIG_PALETTE[c] || SIG_PALETTE.normal);
 const sigEntry = (key) => {
@@ -1192,6 +1194,21 @@ const DRAW = {
             }
             return;
         }
+        if (p.flake) {
+            ctx.globalAlpha = t < 0.85 ? 1 : (1 - t) / 0.15;
+            const c = p.cols[Math.min(n - 1, Math.floor((t / 0.85) * n))];
+            if (p.star5) {
+                dotAt(ctx, px, p.s, p.x, p.y, p.cols[0]);
+                for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+                    dotAt(ctx, px, p.s, p.x + dx * p.s, p.y + dy * p.s, c);
+                }
+                return;
+            }
+            const k = t < 0.5 ? 2 : 1;
+            ctx.fillStyle = c;
+            ctx.fillRect(px(p.x - (k * p.s) / 2), px(p.y - (k * p.s) / 2), k * p.s, k * p.s);
+            return;
+        }
         const size = p.s * Math.round(1 + t * p.grow);
         if (t < 0.85 || !p.smoke) {
             ctx.globalAlpha = t < 0.85 ? 1 : (1 - t) / 0.15;
@@ -1245,6 +1262,10 @@ const SHAPES = {
         const len = p.big ? 7 : 5;
         for (let k = 0; k < len; k++) {
             dotAt(ctx, px, p.s, p.x - p.dir * k * p.s, p.y, k === 0 ? p.cols[0] : k < 3 ? p.cols[2] : p.cols[3]);
+            // 큰 바늘 = 7 × 2칸 (1칸 굵기는 숲에 묻혀서 — #122 2단계 아트)
+            if (p.big && k > 0) {
+                dotAt(ctx, px, p.s, p.x - p.dir * k * p.s, p.y + p.s, p.cols[3]);
+            }
         }
     },
     star: (ctx, p, px) => {
@@ -1490,6 +1511,8 @@ function sigQuakeCrack(x, y, s, reach, cols) {
             cy = y + Math.round(moveRand(-1.4, 1.4)) * s;
             pts.push([cx, cy]);
         }
+        // 마지막 걸음 (3 ~ 6칸) 이 reach 를 넘지 않게 (240 에서 패널 끝에 4 ~ 8px 닿던 것 — #122 2단계 픽셀 3바퀴)
+        pts[pts.length - 1][0] = x + side * Math.min(reach, Math.abs(cx - x));
         return pts;
     });
     sigParticle({ x, y, s, max: 0.9, paths, cols, draw: (ctx, p, t, px) => {
@@ -1640,8 +1663,15 @@ const SIG_FX = {
                     sigParticle({ x: g.mouth.x, y: g.mouth.y, s: g.s, vx: g.dir * moveRand(50, 80) * (1 + 0.5 * g.P) * g.s, vy: moveRand(-20, -5) * g.s, g: 25 * g.s, drag: 1.2, max: moveRand(0.5, 0.9), color: movePick(cols.slice(0, 2)), draw: DRAW.dot });
                     return;
                 }
-                if (o.snow && Math.random() < 0.3) {
-                    sigParticle({ x: g.mouth.x, y: g.mouth.y, s: g.s, vx: g.dir * moveRand(30, 60) * g.s, vy: moveRand(-10, 15) * g.s, g: 20 * g.s, drag: 0.6, max: moveRand(0.6, 1.0), cols: ['#ffffff', '#ffffff', '#cfefff'], draw: DRAW.sparkle });
+                if (o.snow && Math.random() < 0.12) {
+                    // 〔#122 2단계 아트 2바퀴〕 30% · 수명 0.6 ~ 1초 · 끌림 0.6 이라 입 앞에 흰 + 무더기가 남던 것 → 12% · 줄기 빠르기 · 0.35 ~ 0.6초 · 땅에서 지움
+                    sigParticle({ x: g.mouth.x, y: g.mouth.y, s: g.s, vx: g.dir * moveRand(28, 48) * (1 + 0.8 * g.P) * g.s * (o.speed ?? 1), vy: moveRand(-10, 15) * g.s, g: 20 * g.s, drag: 2.6 - g.P, max: moveRand(0.35, 0.6), cols: ['#ffffff', '#cfefff', '#9fe8ff'], ground: g.body.bottom,
+                        update: (p) => {
+                            if (p.y >= p.ground) {
+                                p.life = p.max;
+                            }
+                        },
+                        draw: DRAW.sparkle });
                     return;
                 }
                 sigParticle({
@@ -1651,6 +1681,8 @@ const SIG_FX = {
                     g: -14 * g.s * (o.rise ?? 1), drag: 2.6 - g.P,
                     max: moveRand(0.35, 0.6) * (1 + 0.7 * g.P) * (o.life ?? 1),
                     grow: (2 + 2.5 * g.P) * (o.grow ?? 1), tongue: o.c === 'fire' || o.c === 'dragon', draw: DRAW.stream,
+                    // 눈 (o.snow) = 2 × 2 알갱이 · 가끔 5칸 눈송이 (4 ~ 6px 하늘색 네모가 줄지어 가던 것 — #122 2단계 아트)
+                    flake: !!o.snow, star5: !!o.snow && Math.random() < 0.15,
                 });
             } });
         },
@@ -1735,13 +1767,48 @@ const SIG_FX = {
                     for (let k = 0; k < L; k += p.s) {
                         const x = p.x + p.dir * k;
                         const curl = o.c === 'tongue' && k > L - 3 * p.s ? Math.round((k - (L - 3 * p.s)) / p.s) * p.s : 0;
-                        const yo = (o.wave ? Math.sin(k / (5 * p.s) - p.life * 25) * p.s * 1.5 : 0) + curl;
+                        // o.sag = 채찍 처짐 하나 (덩굴채찍 — 곧은 줄이 자 눈금처럼 읽히던 것, #122 2단계 아트 2바퀴)
+                        const sag = o.sag ? Math.round(Math.sin(Math.PI * Math.min(1, k / Math.max(1, L))) * 2) * p.s : 0;
+                        const yo = (o.wave ? Math.sin(k / (5 * p.s) - p.life * 25) * p.s * 1.5 : 0) + curl + sag;
+                        // o.vine = 덩굴 (테 cols[3] · 몸 cols[2] · 위 1칸 cols[0] · 흰 심 없음 · 10칸마다 잎) · o.bands = 띠 넷 (오로라빔 3색 2칸 + 흰 심) · o.gems = 14칸마다 마름모 보석 (파워젬) — #122 2단계 아트 (형광 관 · 무지개 · 금 막대가 AI 티)
                         const layers = o.rainbow
                             ? [[p.W + 2, `hsl(${(k / p.s) * 12 + p.life * 60}, 100%, 70%)`], [Math.max(1, p.W - 1), '#ffffff']]
-                            : [[p.W + 2, p.cols[3]], [p.W, p.cols[2]], [Math.max(1, p.W - 2), p.cols[0]]];
+                            : o.vine
+                              ? [[p.W + 2, p.cols[3]], [p.W, p.cols[2]]]
+                              : o.bands
+                                ? [[p.W + 2, p.cols[3]], [p.W, p.cols[2]], [Math.max(1, p.W - 2), p.cols[1]], [Math.max(1, p.W - 4), p.cols[0]]]
+                                : [[p.W + 2, p.cols[3]], [p.W, p.cols[2]], [Math.max(1, p.W - 2), p.cols[0]]];
                         for (const [th, color] of layers) {
                             ctx.fillStyle = color;
                             ctx.fillRect(px(x), px(p.y + yo - (th * p.s) / 2), p.s, th * p.s);
+                        }
+                        const cell = Math.round(k / p.s);
+                        if (o.vine) {
+                            ctx.fillStyle = p.cols[0];
+                            ctx.fillRect(px(x), px(p.y + yo - (p.W * p.s) / 2), p.s, p.s);
+                            if (cell % 11 === 5 || cell % 13 === 9) {
+                                // 잎 3 × 2 칸 — 위 · 아래 번갈아 (테 cols[3] 1칸)
+                                const up = cell % 11 === 5 ? -1 : 1;
+                                const ly = p.y + yo + up * ((p.W / 2 + 1) * p.s) - (up < 0 ? 2 * p.s : 0);
+                                ctx.fillStyle = p.cols[3];
+                                ctx.fillRect(px(x - p.s), px(ly - p.s), 5 * p.s, 4 * p.s);
+                                ctx.fillStyle = p.cols[1];
+                                ctx.fillRect(px(x), px(ly), 3 * p.s, 2 * p.s);
+                                ctx.fillStyle = p.cols[0];
+                                ctx.fillRect(px(x), px(ly), p.s, p.s);
+                            }
+                        }
+                        if (o.gems && cell % 14 === 7) {
+                            const gem = ['#ffffff', '#9fe8ff', '#ff9ad5', '#ffe680'][Math.floor(cell / 14) % 4];
+                            const gy = p.y + yo;
+                            [[2, -3], [4, -2], [6, -1], [6, 0], [4, 1], [2, 2]].forEach(([w, r]) => {
+                                ctx.fillStyle = '#3a2e20';
+                                ctx.fillRect(px(x - ((w / 2) - 1) * p.s), px(gy + r * p.s), w * p.s, p.s);
+                            });
+                            [[2, -2], [4, -1], [4, 0], [2, 1]].forEach(([w, r]) => {
+                                ctx.fillStyle = gem;
+                                ctx.fillRect(px(x - ((w / 2) - 1) * p.s), px(gy + r * p.s), w * p.s, p.s);
+                            });
                         }
                     }
                     // 입 앞 작은 빛 구 — 쏘는 순간 크게 터졌다 줄어듦
@@ -2039,7 +2106,10 @@ const SIG_FX = {
         run: (g, o) => {
             const cols = sigPal(o.c);
             const n = o.n ?? 3;
-            sigEmitter({ until: performance.now() + n * 140, shots: n, every: 140, nextShot: performance.now(), fx: (e, i) => sigParticle({
+            // 게임 (다리 fxAim) = 고리 사이 o.every · 첫 고리 o.delay ms 뒤 (앞 끝이 맞는 때에 몸 앞 — #122 2단계 UX)
+            const every = o.every ?? 140;
+            const t0 = performance.now() + (o.delay ?? 0);
+            sigEmitter({ until: t0 + n * every, shots: n, every, nextShot: t0, fx: (e, i) => sigParticle({
                 x: o.forward ? g.mouth.x : g.body.cx, y: o.forward ? g.mouth.y : g.body.cy, s: g.s, dir: g.dir, i,
                 vx: o.forward ? g.dir * (90 + 40 * g.P) * g.s : 0, max: o.forward ? 0.7 : 0.55, cols,
                 r0: o.forward ? 3 : 0.4 * Math.max(g.body.rx, g.body.ry) / g.s, r1: o.forward ? 12 + 5 * g.P : (1.6 + 0.4 * g.P) * Math.max(g.body.rx, g.body.ry) / g.s,
@@ -2269,17 +2339,20 @@ const SIG_FX = {
             const shake = (el) => el?.animate([{ translate: `-${amp}px 0` }, { translate: `${amp}px 0` }], { duration: 80, iterations: 6, direction: 'alternate', composite: 'add' });
             exports.allPokemon.pokemonCollection.forEach((element) => shake(element.el));
             shake(document.getElementById('foreground'));
+            // 게임 (다리 fxAim) = 반 길이를 패널 끝까지 (o.half) — 흙 점 · 튀는 돌도 같은 비율로 좁힘 · 일반 모드는 예전 그대로
+            const half = (v) => Math.min(v, o.half ?? Infinity);
+            const narrow = Math.min(1, half((1.3 + 0.6 * g.P) * g.w) / ((1.3 + 0.6 * g.P) * g.w));
             for (let i = 0; i < 18 + 18 * g.P; i++) {
                 const side = Math.random() < 0.5 ? -1 : 1;
-                sigParticle({ x: g.body.cx + side * moveRand(0, 0.8) * g.w, y: g.body.bottom, s: g.s, vx: side * moveRand(20, 60) * g.s, vy: -moveRand(10, 45) * g.s, g: 140 * g.s, drag: 0.5, max: moveRand(0.4, 0.8), color: movePick(cols.slice(1)), size: Math.random() < 0.3 ? 2 : 1, draw: DRAW.dot });
+                sigParticle({ x: g.body.cx + side * moveRand(0, 0.8) * g.w * narrow, y: g.body.bottom, s: g.s, vx: side * moveRand(20, 60) * g.s * narrow, vy: -moveRand(10, 45) * g.s, g: 140 * g.s, drag: 0.5, max: moveRand(0.4, 0.8), color: movePick(cols.slice(1)), size: Math.random() < 0.3 ? 2 : 1, draw: DRAW.dot });
             }
             // 땅이 갈라짐 (2026-10-19 "밋밋해") — 발밑에서 양옆으로 지그재그 금이 쫙 + 흙먼지 물결 두 번 + 튀는 돌
-            sigQuakeCrack(g.body.cx, g.body.bottom, g.s, (1.3 + 0.6 * g.P) * g.w, cols);
-            sigRing(g.body.cx, g.body.bottom, g.s, 0.3 * g.w, (1.4 + 0.5 * g.P) * g.w, 0.22, 0.6, [cols[1], cols[2], cols[0]]);
-            setTimeout(() => sigRing(g.body.cx, g.body.bottom, g.s, 0.2 * g.w, (1.1 + 0.4 * g.P) * g.w, 0.22, 0.5, [cols[2], cols[1]]), 220);
+            sigQuakeCrack(g.body.cx, g.body.bottom, g.s, half((1.3 + 0.6 * g.P) * g.w), cols);
+            sigRing(g.body.cx, g.body.bottom, g.s, 0.3 * g.w, half((1.4 + 0.5 * g.P) * g.w), 0.22, 0.6, [cols[1], cols[2], cols[0]]);
+            setTimeout(() => sigRing(g.body.cx, g.body.bottom, g.s, 0.2 * g.w, half((1.1 + 0.4 * g.P) * g.w), 0.22, 0.5, [cols[2], cols[1]]), 220);
             for (let i = 0; i < 5 + 4 * g.P; i++) {
                 const side = i % 2 ? -1 : 1;
-                sigParticle({ x: g.body.cx + side * moveRand(0.2, 1) * g.w, y: g.body.bottom, s: g.s, vx: side * moveRand(10, 30) * g.s, vy: -moveRand(60, 100) * g.s, g: 260 * g.s, max: moveRand(0.5, 0.8), big: Math.random() < 0.4, cols, ground: g.body.bottom,
+                sigParticle({ x: g.body.cx + side * moveRand(0.2, 1) * g.w * narrow, y: g.body.bottom, s: g.s, vx: side * moveRand(10, 30) * g.s * narrow, vy: -moveRand(60, 100) * g.s, g: 260 * g.s, max: moveRand(0.5, 0.8), big: Math.random() < 0.4, cols, ground: g.body.bottom,
                     update: (q) => {
                         if (q.vy > 0 && q.y >= q.ground) {
                             q.life = q.max;
@@ -2299,8 +2372,29 @@ const SIG_FX = {
         run: (g, o) => {
             const cols = sigPal(o.c ?? 'rock');
             const n = o.n ?? 3;
-            sigEmitter({ until: performance.now() + n * 150, shots: n, every: 150, nextShot: performance.now(), fx: () => sigParticle({
-                x: g.body.front + g.dir * moveRand(0.3, 2.5) * g.w, y: -10, s: g.s, vy: moveRand(30, 60) * g.s, g: 500 * g.s, max: 2,
+            // 게임 (다리 fxAim) = o.fall 초에 땅에 닿게 처음 빠르기 0 · 무게를 맞춤 · 돌 사이 o.every (맞는 때 앞뒤로 모음 — #122 2단계 UX) · 일반 모드는 예전 그대로
+            const every = o.every ?? 150;
+            const drop = () => (o.fall ? { vy: 0, g: (2 * (g.body.bottom + 10)) / (o.fall * o.fall) } : { vy: moveRand(30, 60) * g.s, g: 500 * g.s });
+            // 게임에선 떨어질 자리를 패널 안 (땅 고리 18 칸 + 여백) 범위에서 고름 — 끝에 붙잡으면 240 에서 돌이 한 기둥에 몰리고 땅 고리가 잘리던 것 (#122 2단계 픽셀 2바퀴)
+            //   범위를 n칸으로 나눠 칸마다 하나 (순서 섞음) — 따로 무작위면 240 (72px 에 7개) 에서 3개가 한 줄로 겹치던 것 (#122 2단계 픽셀 3바퀴)
+            const slots = [...Array(n).keys()];
+            for (let i = n - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [slots[i], slots[j]] = [slots[j], slots[i]];
+            }
+            const rockX = (i) => {
+                const a = g.body.front + g.dir * 0.3 * g.w;
+                const b = g.body.front + g.dir * 2.5 * g.w;
+                if (!o.fall) {
+                    return a + (b - a) * Math.random();
+                }
+                const m = 21 * g.s;
+                const hi = Math.min(window.innerWidth - m, Math.max(a, b));
+                const lo = Math.max(m, Math.min(a, b));
+                return lo < hi ? lo + ((hi - lo) * (slots[i % n] + moveRand(0.2, 0.8))) / n : (lo + hi) / 2;
+            };
+            sigEmitter({ until: performance.now() + n * every, shots: n, every, nextShot: performance.now(), fx: (e, i) => sigParticle({
+                x: rockX(i), y: -10, s: g.s, ...drop(), max: o.fall ? o.fall + 0.3 : 2,
                 big: g.P > 0.5 || Math.random() < 0.4, cols, ground: g.body.bottom, top: -10,
                 update: (p) => {
                     // 떨어지는 동안 위로 흙 꼬리 (2026-10-19 "밋밋해")

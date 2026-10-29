@@ -1133,6 +1133,15 @@ const FX_TRAVEL = {
 };
 // 날리기 (projectile) 가 상대에 닿는 때 = 연출 길이의 이만큼 — src/game/features/battle/fx/shot-hit.ts shotHitAt('projectile') 와 같은 값 (fx/move-look.test 가 견줌)
 const PROJECTILE_HIT_AT = 0.85;
+// 고리 (rings) 가 닿는 때 — shot-hit.ts SHOT_HIT_AT.rings 와 같은 값
+const RINGS_HIT_AT = 0.7;
+// 뿜기 (breath) 가 닿는 때 — shot-hit.ts SHOT_HIT_AT.breath 와 같은 값
+const BREATH_HIT_AT = 0.87;
+// 1:1 뿜기 기울임 — 입이 상대 몸 위쪽 이만큼 (몸 높이 비) 보다 높으면 켬 · 겨누는 곳 = 몸 가운데 + 몸 높이 × LOW (알갱이가 위로 뜨는 만큼 낮게, UX 6바퀴 — fx/move-look.test 가 큰 포켓몬에서 켜지는지 봄)
+const BREATH_TILT_ABOVE = 0.3;
+const BREATH_TILT_LOW = 0.1;
+// 돌 떨구기 (rockfall) — 돌 사이 (ms) · 맞는 때 앞뒤로 모아 떨굼 (#122 2단계 UX 큼: 150ms 마다 0.45초에 떨어져 맞는 때보다 0.2 ~ 1초 먼저 땅에 닿던 것 — 암석봉인 · 분연 · 암석미사일)
+const ROCKFALL_EVERY = 30;
 // 포물선 날리기 (arc) 가 쓰는 쪽 땅높이로 돌아오는 시간 (초) — moves.js projectile: 처음 위 빠르기 arc × 0.45 · 무게 arc → 2 × 0.45 (fx/move-look.test 가 견줌)
 const PROJECTILE_ARC_SEC = 0.9;
 // 날리기 빠르기 배 끝 [임시값] — 1:1 은 860 넘게 넓어도 상대까지 319px (가운데 축) · 맞는 때까지 0.28 ~ 0.54초라 2 ~ 5배 · 느린 하트 (천사의키스 speed 0.6) 7.9배 (#122 잼)
@@ -1179,35 +1188,59 @@ function fxAim(fx, g, o, t, ms = 0) {
     const dense = (k) => Math.min(4, Math.max(1, k));
     // 상대 몸 뒤 (0.3 폭) 를 지나면 사라짐 — 큰 포켓몬의 뿜기가 상대 뒤로 멀리 나가지 않게
     const lim = t.far + g.dir * 0.3 * t.w;
-    const stopPast = (p) => {
+    const stopAt = (front, line = () => lim) => (p) => {
         const prev = p.update;
         // 쳐내기 (swat) 가 튕길 때 원래 update 로 되돌림 — 방향이 바뀌면 "상대 뒤를 지나면 사라짐" 이 필요 없음
         p.aimPrev = prev;
         p.aimStop = true;
         p.update = (q, dt) => {
             prev?.(q, dt);
-            if ((q.x - lim) * g.dir > 0) {
+            if ((q.x + g.dir * front(q) - line()) * g.dir > 0) {
                 q.life = q.max;
             }
         };
     };
+    const stopPast = stopAt(() => 0);
+    // 앞으로 가는 고리는 그려지는 앞 끝 (가운데 + 반지름 — moves.js rings r0 → r1) 으로 잼 — 가운데로 재면 860 에서 앞 끝이 몸 뒤로 56 ~ 68px 넘어감 (#122 2단계 픽셀 2바퀴)
+    const stopRing = stopAt((q) => (q.r1 !== undefined ? (q.r0 + (q.r1 - q.r0) * Math.min(1, q.life / q.max)) * q.s : 0));
     switch (fx) {
         case 'breath': {
-            // 닿는 끝 = 상대 몸 앞 끝 (가운데가 아니라) — 앞머리는 몸 앞에서 기다렸다 맞는 때에 감쌈. 가운데를 목표로 하면 좁은 패널 (240) 에서 몸 앞 끝이 길의 75% 자리라
-            //   앞머리가 맞는 때보다 0.26 ~ 0.4초 먼저 몸에 닿고 (화염방사 · 불사르기 — #122 1단계 UX 2바퀴 큼, 태현 님 #457 과 같은 종류) 860 에서는 95% 자리라 늦던 것
-            //   몸 앞 끝에서 불길 굵기만큼 더 앞 (몸 폭 × (0.5 + 0.15 × grow) — 굵은 불사르기 grow 2.3 의 혀 끝이 몸 앞 끝 목표에서도 얼굴에 붙어 보이던 것)
-            //   표의 빠르기 · 수명 (speed · life) 과 상관없이 늘 이 끝까지 — 알갱이가 가는 거리 = 빠르기 × (1 − e^−끌림×수명) 이라 수명은 되돌려 셈 (moves.js breath: 끌림 2.6 − 세기 · 수명 0.475 × (1 + 0.7 × 세기) × life).
-            //   빠르기 · 수명은 일반 모드 모양 · 굵기에만 (불태우기 · 화염탄 · 불꽃채찍 speed 0.8 · life 0.8 이 끝의 64% 에서 멈춰 맞는데도 빗나간 것처럼 보이던 것 — #122 UX 3바퀴 큼)
+            // 앞머리는 몸 앞에서 기다렸다 맞는 때에 감쌈 — 끝을 몸 가운데 · 몸 앞 · 평균 알갱이로 맞추던 것은 폭마다 먼저 · 늦게 닿음 (#122 1단계 UX 2 · 3바퀴 · 2단계 UX 2 · 3 · 4바퀴, 태현 님 #457 과 같은 종류)
+            //   표의 빠르기 (speed) 와 상관없이 늘 이 끝까지 — 알갱이가 가는 거리 = 빠르기 / 끌림 × (1 − e^−끌림×수명) (moves.js breath: 끌림 2.6 − 세기)
+            //   〔#122 2단계 UX 4바퀴〕 앞머리 (가장 빠르고 오래 사는 알갱이 — moves.js breath 48 칸/초 · 수명 0.6 × (1 + 0.7 세기) × life) 를 몸 뒤 (가운데 + 0.5 폭) 에 겨눠
+            //   몸 앞을 빠르게 지나게 하고 (끝에 천천히 다가가는 구간이라 860 에서 맞는 때보다 0.2 ~ 0.3초 늦게 닿던 것), 맞는 때 (0.87 × 길이) 까지는 몸 앞 멈춤 줄 · 그 뒤 몸 가운데 멈춤 줄
+            //   (늦게 시작하면 큰 포켓몬이 몸을 내민 뒤 0.3초 서 있다 뿜던 것 · 평균으로 맞추면 860 에서 0.1 ~ 0.3초 먼저 · 몸을 뚫고 지나가던 것 — UX 3 · 4바퀴)
             const drag = 2.6 - g.P;
-            const life0 = 0.475 * (1 + 0.7 * g.P);
-            const lifeK = (1 - Math.exp(-drag * life0)) / (1 - Math.exp(-drag * life0 * (o.life ?? 1)));
-            const k = clampK((Math.max(0.4 * t.dist, t.dist - (0.5 + 0.15 * (o.grow ?? 1)) * t.w) / FX_TRAVEL.breath(g)) * lifeK);
-            return { g, o: { ...o, speed: k, rate: (o.rate ?? 1) * dense(k) }, k: 1, cap: stopPast };
+            const head = ((48 * (1 + 0.8 * g.P) * g.s) / drag) * (1 - Math.exp(-drag * 0.6 * (1 + 0.7 * g.P) * (o.life ?? 1)));
+            const k = clampK((t.dist + 0.5 * t.w) / head);
+            // 줄은 맞는 때보다 60ms 먼저 옮김 — 멈춤 줄에 닿은 알갱이는 느려져 3 ~ 9px 틈을 메우는 데 0.03 ~ 0.18초 (UX 5바퀴)
+            const hitAt = performance.now() + BREATH_HIT_AT * ms - 60;
+            const hold = t.cx - g.dir * (0.35 * t.w + 3 * g.s);
+            // 멈춤 자리는 알갱이마다 ±2칸 흔들림 — 같은 x 에서 지우면 용의숨결 덩어리가 곧은 세로선으로 잘려 보이던 것 (픽셀 4바퀴)
+            const stop = stopAt((q) => q.cutJ ?? 0, () => (performance.now() < hitAt ? hold : t.cx));
+            return { g, o: { ...o, speed: k, rate: (o.rate ?? 1) * dense(k) }, k: 1, cap: (p) => {
+                p.cutJ = (Math.random() * 4 - 2) * g.s;
+                stop(p);
+            } };
         }
+        case 'rings':
+            // 앞으로 가는 고리 — 첫 고리가 맞는 때 (shot-hit rings 0.7 × 길이) 에 상대에 닿게 (#122 2단계 UX 큼: 수명 0.7초 끝에 닿게 셈이라 휘감기 n1 은 0.2초 늦고,
+            //   하한 0.6 때문에 240 에선 조이기 · 기존 고리가 0.3초 먼저 닿던 것) — 하한 0.15
+            //   〔UX 2바퀴〕 그려지는 앞 끝 (가운데 + 반지름 — moves.js 3 → 12 + 5P 칸) 이 몸 앞 (가운데 − 0.3 폭) 에 닿게 · 날아가는 시간은 수명 (0.7초) 의 0.6 안 · 남는 시간은 첫 고리를 늦게 (o.delay)
+            //   고리 사이 (o.every) 합 60ms 안 · 가운데 고리가 맞는 때 — 가운데를 맞춰 앞 끝이 240 에서 0.15 ~ 0.3초 먼저 · 길이가 수명보다 긴 고리는 닿기 전에 사라지던 것
+            if (o.forward && ms > 0) {
+                const n = o.n ?? 3;
+                const every = n > 1 ? Math.min(140, 60 / (n - 1)) : 140;
+                const first = (RINGS_HIT_AT * ms) / 1000 - ((n - 1) * every) / 2000;
+                const fly = Math.max(0.1, Math.min(0.42, first));
+                const rAt = (3 + (9 + 5 * g.P) * (fly / 0.7)) * g.s;
+                const k = Math.min(25, Math.max(0.05, (t.dist - 0.3 * t.w - rAt) / ((90 + 40 * g.P) * g.s * fly)));
+                return { g, o: { ...o, every, delay: Math.max(0, first - fly) * 1000 }, k, rateK: dense(k), cap: stopRing };
+            }
+        // falls through
         case 'water':
         case 'bubbles':
-        case 'notes':
-        case 'rings': {
+        case 'notes': {
             const d = FX_TRAVEL[fx](g, o);
             const k = d > 0 ? clampK(t.dist / d) : 1;
             return d > 0 ? { g, o, k, rateK: dense(k), cap: stopPast } : { g, o };
@@ -1222,8 +1255,13 @@ function fxAim(fx, g, o, t, ms = 0) {
             const height = t.hudBottom ? Math.min(o.height ?? 1, Math.max(0.4, (t.ground - t.hudBottom - 2) / full)) : o.height;
             return { g: fxShift(g, t.cx - (g.body.front + g.dir * ((0.55 + 0.3 * g.P) * g.w + 0.2 * g.w))), o: { ...o, height } };
         }
-        case 'rockfall':
-            return { g: fxShift(g, t.cx - (g.body.front + g.dir * 1.4 * g.w)), o };
+        case 'rockfall': {
+            // 가운데 돌이 맞는 때 (0.85 × 길이) 에 땅에 닿게 — 처음부터 떨어지되 천천히 (그림자가 커지며 미리 보임) · 돌 사이 40ms
+            const n = o.n ?? 3;
+            // 〔UX 3 · 4바퀴〕 + 0.01초 · 펼침 90ms (가운데 돌이 먼저 땅 → +0.03 은 마지막 돌이 0.08 ~ 0.1초 늦음)
+            const fall = ms > 0 ? Math.max(0.25, (PROJECTILE_HIT_AT * ms) / 1000 + 0.01 - ((n - 1) * Math.min(ROCKFALL_EVERY, 90 / Math.max(1, n - 1))) / 2000) : 0;
+            return { g: fxShift(g, t.cx - (g.body.front + g.dir * 1.4 * g.w)), o: fall ? { ...o, fall, every: n > 1 ? Math.min(ROCKFALL_EVERY, 90 / (n - 1)) : ROCKFALL_EVERY } : o };
+        }
         case 'thunder': {
             // 상대 위에 · 구름은 정보줄 아래 · 둘레 줄기는 좁게 (트레이너 · 패널 끝을 피함) · 둘레 줄기는 번쩍 없이
             const W = Math.max(g.w, 40) * (1.1 + 0.6 * g.P);
@@ -1240,7 +1278,8 @@ function fxAim(fx, g, o, t, ms = 0) {
             return { g, o, after: () => fxSparkArc(g, t) };
         case 'quake':
             // 흙먼지는 상대 발밑 · 흔들기는 게임 화면 (일반 모드는 숨은 포켓몬 · 앞쪽 풀을 흔듦)
-            return { g: fxShift(g, t.cx - g.body.cx), o, after: () => fxGameShake(2 + g.P) };
+            //   땅 금 · 흙 고리 반 길이 = 가까운 패널 끝까지 (o.half — 240 에서 지진 · 분함의발구르기 금이 오른쪽 끝 밖으로 잘리던 것, #122 2단계 픽셀 2바퀴)
+            return { g: fxShift(g, t.cx - g.body.cx), o: { ...o, half: Math.max(0.5 * g.w, Math.min(t.cx, window.innerWidth - t.cx) - 4 * g.s) }, after: () => fxGameShake(2 + g.P) };
         case 'projectile': {
             // 마지막 발이 맞는 때 (PROJECTILE_HIT_AT × 길이) 에 상대에 닿게 빠르기를 맞춤 (#122 U2 — 빠르기 1 그대로면 0.5 ~ 1초 늦게 닿아
             //   피해 숫자 · 맞는 빛이 나온 뒤에도 날아가던 것: 불꽃세례 · 독침 · 바늘미사일 · 섀도볼 …). 게임의 똑바로 나는 날리기 모두 · 표에 reach: 0 = 예전 빠르기
@@ -1248,8 +1287,10 @@ function fxAim(fx, g, o, t, ms = 0) {
             let travel = 0;
             if (o.reach !== 0 && ms > 0) {
                 const n = o.n ?? 1 + Math.round(2 * g.P);
-                travel = Math.max(0.12, (PROJECTILE_HIT_AT * ms - (n - 1) * (o.every ?? 150)) / 1000);
-                k = Math.min(PROJECTILE_K_MAX, Math.max(0.6, t.dist / travel / ((100 + 60 * g.P) * g.s * (o.speed ?? 1))));
+                // 〔#122 2단계 UX 2바퀴〕 가운데 발이 맞는 때에 · 몸 앞 (가운데 − 0.3 폭) 에 닿게 — 마지막 발 · 몸 가운데를 맞춰 240 에서 첫 발 앞 끝이 0.09 ~ 0.12초 먼저 닿던 것
+                travel = Math.max(0.12, (PROJECTILE_HIT_AT * ms - ((n - 1) * (o.every ?? 150)) / 2) / 1000);
+                // 〔UX 3바퀴〕 하한 0.6 → 0.3 (240 암석포는 0.49 가 필요해 0.12 ~ 0.16초 먼저 닿던 것) — 큰 것 6칸 덜은 걷음 (모양마다 앞 끝이 달라 240 에서 0.15 ~ 0.24초 늦던 것, UX 4바퀴)
+                k = Math.min(PROJECTILE_K_MAX, Math.max(0.3, Math.max(0.5 * t.dist, t.dist - 0.3 * t.w) / travel / ((100 + 60 * g.P) * g.s * (o.speed ?? 1))));
             }
             // 포물선도 맞는 때에 상대 발밑에 떨어지게 — 옆 빠르기 × k · 처음 위 빠르기 × f · 무게 × f² (f = 0.9초 / 날아갈 시간). 예전엔 빠르기와 상관없이 0.9초에 떨어져
             //   피해 숫자 · 패링 원보다 0.35 ~ 0.75초 늦게 닿던 것 (씨폭탄 · 진흙폭탄 · 돌떨구기 — #122 1단계 UX 큼, 태현 님 #457 과 같은 종류)
@@ -1260,13 +1301,20 @@ function fxAim(fx, g, o, t, ms = 0) {
                         p.vy *= f;
                         p.g *= f * f;
                         // 상대 자리에서 끝 (터지는 것은 거기서 — 그대로 떨어져 상대 뒤 25 ~ 45px 에 굴러가던 것, UX 2바퀴)
-                        const at = t.dist / Math.abs(p.vx);
+                        const at = Math.max(0.5 * t.dist, t.dist - 0.3 * t.w) / Math.abs(p.vx);
                         p.max = Math.min(p.max, at + 0.02);
                         if (o.pop) {
                             p.popAt = Math.min(p.max - 0.02, at);
                         }
                     }
                 } };
+            }
+            // 부메랑 — x = v0/π · sin(πt) (moves.js · 1초에 돌아옴) 가 맞는 때에 상대 가운데가 되게 v0 × k (#122 2단계 UX 큼: 빠르기 배를 안 받아 860 에서 115px 모자라 돌아오던 것 — 뼈다귀부메랑)
+            if (o.boomerang && o.reach !== 0 && ms > 0) {
+                const at = Math.min(0.5, (PROJECTILE_HIT_AT * ms) / 1000);
+                // 〔UX 3바퀴〕 몸 가운데가 아니라 몸 앞 — 240 에서 0.085초 먼저 닿던 것
+                const kb = Math.min(PROJECTILE_K_MAX, Math.max(0.3, (Math.PI * Math.max(0.5 * t.dist, t.dist - 0.3 * t.w)) / Math.sin(Math.PI * at) / ((100 + 60 * g.P) * g.s * (o.speed ?? 1))));
+                return { g, o, k: kb };
             }
             // 똑바로 나는 것은 상대를 지나면 사라짐 (화면 끝까지 안 감) — 부메랑 · 포물선은 그대로
             return o.boomerang || o.arc ? { g, o } : { g, o, k, cap: (p) => {
@@ -3206,6 +3254,14 @@ window.pokemonFx = {
                 // 3:3 — 다른 줄 상대 (1:1 은 같은 땅이라 그대로)
                 if (fxTeamOn()) {
                     aim = fxAimRow(p.sig[1], aim, g0, tg);
+                } else if (p.sig[1] === 'breath') {
+                    // 1:1 뿜기도 입이 상대 몸 위쪽 30% 보다 높으면 (큰 포켓몬) 몸 가운데 조금 아래로 기울임 — 머리 위로 지나가 맞는 때에 몸에 안 닿던 것 (롱스톤 · 망나뇽 · 라프라스 · 리자몽, #122 2단계 UX 5바퀴)
+                    // 칸 (64px) 이 아니라 보이는 몸 모양으로 셈 — 칸 55% · 칸 높이 15% 문턱은 큰 포켓몬 입 높이 차 (4 ~ 6px) 로 한 번도 안 켜졌음 (UX 6바퀴)
+                    const sb = fxShapeBox(dst);
+                    const bh = sb ? sb.bottom - sb.top : 0;
+                    if (sb && g0.mouth.y < sb.top + BREATH_TILT_ABOVE * bh) {
+                        aim = fxAimRow('breath', aim, g0, { ...tg, cy: (sb.top + sb.bottom) / 2 + BREATH_TILT_LOW * bh });
+                    }
                 }
             } else if (p.sig[1] === 'breath' && reach > 0) {
                 aim = { g: g0, o: { ...p.o, speed: (p.o.speed ?? 1) * Math.min(25, Math.max(1, reach / FX_TRAVEL.breath(g0))) } };
