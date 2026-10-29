@@ -7,6 +7,7 @@ export {
   canHeal,
   canOpenMenus,
   resultBagOk,
+  resultThenCard,
   canShop,
   canSwapBox,
   canRelease,

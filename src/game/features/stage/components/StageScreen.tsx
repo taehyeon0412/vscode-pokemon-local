@@ -9,7 +9,7 @@
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
-import { AUTO_TEAM_TIP, autoTeamTipDue, battleAutoUltLeft, canOpenMenus, gameTempo, regionsOn, resultBagOk, teamUltOpen, canParry, canRiposte, gymLeaderOf, isWalkingFast, itemLeft, teamAutoUltLeft, teamAutoUltNext, teamLock, teamMeetTipDue, TEAM_MEET_TIP, walkLeftMs, type GameInput, type GameState } from '../../../core/engine';
+import { AUTO_TEAM_TIP, autoTeamTipDue, battleAutoUltLeft, canOpenMenus, gameTempo, regionsOn, resultBagOk, resultThenCard, teamUltOpen, canParry, canRiposte, gymLeaderOf, isWalkingFast, itemLeft, teamAutoUltLeft, teamAutoUltNext, teamLock, teamMeetTipDue, TEAM_MEET_TIP, walkLeftMs, type GameInput, type GameState } from '../../../core/engine';
 import { maxHpOf, teamHealth } from '../../../core/rules/bag';
 import { spaceInput, ultSkippable } from '../../battle/fx/parry';
 import { BALLS } from '../../../core/rules/catch';
@@ -755,7 +755,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         <RequestBox state={state} media={media} onInput={onInput} />
         <FacilityBox state={state} media={media} onInput={onInput} onBox={() => onOpen({ kind: 'team' })} />
         {shopInside && <ShopPanel save={save} note={state.runtime.toast?.text} onInput={onInput} onClose={() => onInput({ kind: 'facility-leave' })} />}
-        {stageRt?.phase === 'result' && <ResultBox summary={stageRt.summary} next={save.pendingChoices[0]?.kind ?? null} ups={levelUps(stageRt.summary, save)} hint={needsStatHint(levelUps(stageRt.summary, save))} caught={caughtView(stageRt.summary, save)} stones={stageRt.summary.caught ? caughtStones(save, stageRt.summary.caught.uid) : []} bagOk={resultBagOk(state)} ms={stageRt.ms} introAt={introAt(widthPx, bodyPx)} evoItem={evoItemOf(stageRt.summary.evoNote, stageRt.summary.item)} media={media} onInput={onInput} onStats={(uid) => onOpen({ kind: 'team', uid })} />}
+        {stageRt?.phase === 'result' && <ResultBox summary={stageRt.summary} next={save.pendingChoices[0]?.kind ?? null} ups={levelUps(stageRt.summary, save)} hint={needsStatHint(levelUps(stageRt.summary, save))} caught={caughtView(stageRt.summary, save)} stones={stageRt.summary.caught ? caughtStones(save, stageRt.summary.caught.uid) : []} bagOk={resultBagOk(state)} bagLater={resultThenCard(state)} ms={stageRt.ms} introAt={introAt(widthPx, bodyPx)} evoItem={evoItemOf(stageRt.summary.evoNote, stageRt.summary.item)} media={media} onInput={onInput} onStats={(uid) => onOpen({ kind: 'team', uid })} />}
         {choice && <ChoiceBox view={choice} media={media} scale={layout.scale} onInput={onInput} />}
         <DefeatBox state={state} media={media} onInput={onInput} />
         <HoldBox state={state} />

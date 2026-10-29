@@ -5,7 +5,7 @@ import { validateSave, type Save } from '../save';
 import { sampleSave, viaJson } from '../../../test/fixtures/save';
 import { shinyWildSeed } from '../../../test/fixtures/stage';
 import { startBattle } from './battle';
-import { advance, applyInput, AUTO_TIP_BACK, AUTO_TIP_TURN, autoTipLeft, isWaitingForInput, RESUME_BATTLE_MSG, resultBagOk, resumeLine, TEAM_MEET_TIP, teamMeetTipDue, isWalkingFast, leadSpeed, STAGE_WAIT, step, waitReason, withSpeed } from './play';
+import { advance, applyInput, AUTO_TIP_BACK, AUTO_TIP_TURN, autoTipLeft, isWaitingForInput, RESUME_BATTLE_MSG, resultBagOk, resultThenCard, resumeLine, TEAM_MEET_TIP, teamMeetTipDue, isWalkingFast, leadSpeed, STAGE_WAIT, step, waitReason, withSpeed } from './play';
 import { createGameState, readRuntime, STAGE_PHASES, type GameState } from './state';
 
 const STEP = TIMING.simStepMs;
@@ -575,6 +575,17 @@ describe('S12 결과 · S23 · S22 — 스테이지 쪽 (단계 7)', () => {
     // 결과가 아니면 아님 · 계속한 뒤 (걷기) 는 가방이 열림 (main.ts 가 이어서 open)
     expect(resultBagOk(base)).toBe(false);
     expect(phase(applyInput(box, { kind: 'result-continue' }))).toBe('walk');
+    // 다시 이긴 관장 카드 (again) · 체육관 대기실로 돌아가는 결과 (테스터 빈 곳)
+    expect(resultBagOk({ ...box, runtime: { ...box.runtime, stage: { ...st, then: 'again' } } })).toBe(false);
+    expect(resultBagOk({ ...box, save: { ...box.save, location: { screen: 'gym' } } })).toBe(true);
+    // 계속하면 클리어 · 관장 카드 = "다음 스테이지에서 [B] 가방" (그 카드에서도 B 가 안 먹음 — bugs 1897) · 걷기 · 고르기 · 대기실은 아님
+    expect(resultThenCard({ ...box, save: done })).toBe(true);
+    expect(resultThenCard({ ...box, runtime: { ...box.runtime, stage: { ...st, then: 'badge' } } })).toBe(true);
+    expect(resultThenCard({ ...box, runtime: { ...box.runtime, stage: { ...st, then: 'again' } } })).toBe(true);
+    expect(resultThenCard(box)).toBe(false);
+    expect(resultThenCard({ ...box, save: { ...box.save, pendingChoices: [{ kind: 'learn', uid: 'm1', moveId: 22 }] } })).toBe(false);
+    expect(resultThenCard({ ...box, save: { ...box.save, location: { screen: 'gym' } } })).toBe(false);
+    expect(resultThenCard(base)).toBe(false);
   });
 
   it('고르다 껐다 켜면 그 고르기부터 (세이브에 남아 있음)', () => {

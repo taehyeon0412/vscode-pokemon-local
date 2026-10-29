@@ -1435,6 +1435,13 @@ export function resultBagOk(state: GameState): boolean {
   if (st?.phase !== 'result' || (st.summary.caught && st.ms < TIMING.caughtIntroMs)) return false;
   return canOpenMenus({ ...state, runtime: { ...state.runtime, stage: afterResult(state.save, st.then) } });
 }
+/** 결과 상자 뒤가 클리어 카드 · 관장 카드인지 — 그 카드에선 B 가 안 먹어 돌 줄 할 일을 "다음 스테이지에서 [B] 가방" 으로 ("계속 뒤" 가 두 단계 뒤 키를 가리키던 것 — bugs 1897 · U5) */
+export function resultThenCard(state: GameState): boolean {
+  const st = state.runtime.stage;
+  if (st?.phase !== 'result') return false;
+  const next = afterResult(state.save, st.then).phase;
+  return next === 'clear' || next === 'badge';
+}
 /** 스테이지 · 체육관으로 갈 수 있는 때 — 걷는 중 (지도) · 클리어 카드 · 대기실 */
 export function canTravel(state: GameState): boolean {
   const p = phaseOf(state);
