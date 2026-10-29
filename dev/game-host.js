@@ -221,6 +221,8 @@
                 stage.summary.caught = { ...stage.summary.caught, stones };
             }
         }
+        // trainer=1 — 제목 없는 결과 상자 (트레이너 · "…의 승부에서 이겼다!" — resultTitleShown 거짓, 숫자만) · trainer=3 = 3:3 승부 (1898 UX — 제목 있는 상자만 재서 놓친 것)
+        if (scene === 'result' && q.get('trainer')) stage.summary = { ...stage.summary, badge: null, title: q.get('trainer') === '3' ? '반바지 꼬마 민수와의 3:3 승부에서 이겼다!' : '반바지 꼬마 민수와의 승부에서 이겼다!' };
         if (scene === 'result' && q.get('rms')) stage.ms = Number(q.get('rms'));
         if (scene === 'result' && q.get('evonote')) stage.summary = { ...stage.summary, item: '천둥의돌', evoNote: '피카츄 → 라이츄 진화 가능' };
         if (scene === 'result' && q.get('ups') === '0') stage.summary = { ...stage.summary, exp: [{ uid: 'm1', name: '이상해씨', gain: 28, from: 5, to: 5 }], learned: [] };

@@ -171,12 +171,17 @@ function useResultFit(): { box: { current: HTMLDivElement | null }; on: boolean;
     const minW = (c: HTMLElement) => parseFloat(getComputedStyle(c).minWidth) || 0;
     const kids = [...line.children].filter((c): c is HTMLElement => c instanceof HTMLElement && c.offsetWidth > 0);
     const gap = parseFloat(getComputedStyle(line).columnGap) || 0;
+    // 상자가 더 넓어질 수 있는 폭 — 상자는 내용만큼 (fit-content · 최대 = 무대 − 16px) 이라 제목 없는 상자 (트레이너 · 3:3) 는 남는 폭이 늘 0 으로 재져
+    //   모든 폭에서 늘 한 단계 (tight · one) 줄던 것 (1898 UX 큼 — 다시 재기를 넣자 드러남) · 내용이 넘쳐 이미 최대 폭이면 0
+    const host = (el.offsetParent as HTMLElement | null) ?? el.parentElement;
+    const maxW = getComputedStyle(el).maxWidth;
+    const grow = host ? Math.max(0, (maxW.endsWith('px') ? parseFloat(maxW) : host.clientWidth - 16) - el.getBoundingClientRect().width) : 0;
     if (!on) {
       let need = 0;
       line.querySelectorAll<HTMLElement>(':scope > .pg-reward').forEach((c) => {
         if (c.offsetWidth > 0) need += c.scrollWidth * 1.1 - c.clientWidth;
       });
-      const room = title ? title.getBoundingClientRect().width - minW(title) : line.clientWidth - kids.reduce((w, c) => w + c.getBoundingClientRect().width, 0) - gap * Math.max(0, kids.length - 1);
+      const room = grow + (title ? title.getBoundingClientRect().width - minW(title) : line.clientWidth - kids.reduce((w, c) => w + c.getBoundingClientRect().width, 0) - gap * Math.max(0, kids.length - 1));
       if (need > Math.max(0, room) + 0.5) {
         setOn(true);
         return;
@@ -186,7 +191,7 @@ function useResultFit(): { box: { current: HTMLDivElement | null }; on: boolean;
     if (!one && el.classList.contains('pg-lvup')) {
       // 첫 줄 = 제목 (최소 폭까지 줄어듦) + 보이는 칩 · 버튼 (내용 실제 너비 × 1.1) + 칸 사이 gap
       const need = kids.reduce((w, c) => w + (c === title ? minW(c) : c.scrollWidth * 1.1), 0) + gap * Math.max(0, kids.length - 1);
-      if (need > line.clientWidth + 0.5 || over()) {
+      if (need > line.clientWidth + grow + 0.5 || over()) {
         setOne(true);
         return;
       }
@@ -204,6 +209,32 @@ function useResultFit(): { box: { current: HTMLDivElement | null }; on: boolean;
     window.addEventListener('resize', reset);
     return () => window.removeEventListener('resize', reset);
   }, []);
+  // 글꼴이 늦게 붙거나 (픽셀 글꼴) 키 칸이 나타나 상자 · 첫 줄 · 칩 크기가 바뀌면 다시 잼 — 결과 상자는 다시 그리는 열쇠가 안 바뀌면 다시 안 그려져
+  //   처음 잰 값에 머물러 500 × 150 첫 줄 칩이 "피카츄 팀에 들…" 로 잘리고 제목이 4줄이던 것 (bugs 1898 · 1897 howOff 와 같은 뿌리)
+  //   감시는 상자 요소가 바뀔 때만 다시 붙임 (그릴 때마다 끊고 붙이면 새 감시의 첫 알림이 다시 그리기를 불러 끝없이 돎) · 끊기는 사라질 때
+  const [, remeasure] = useState(0);
+  const watch = useRef<{ el: Element; ro: ResizeObserver } | null>(null);
+  useEffect(() => {
+    const el = box.current;
+    if (!el || watch.current?.el === el || typeof ResizeObserver === 'undefined') return;
+    watch.current?.ro.disconnect();
+    const ro = new ResizeObserver(() => remeasure((n) => n + 1));
+    ro.observe(el);
+    const line = el.querySelector('.pg-line');
+    if (line) {
+      ro.observe(line);
+      for (const c of line.children) ro.observe(c);
+    }
+    watch.current = { el, ro };
+    void document.fonts?.ready.then(() => watch.current?.el === el && remeasure((n) => n + 1));
+  });
+  useEffect(
+    () => () => {
+      watch.current?.ro.disconnect();
+      watch.current = null;
+    },
+    [],
+  );
   return { box, on, one, short };
 }
 
