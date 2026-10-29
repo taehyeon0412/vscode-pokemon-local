@@ -13,9 +13,10 @@
   고리 first · last = 고리 앞 끝 (가운데 + 반지름) · 돌 first · last = 땅에 닿은 때 · 뿜기 t2 = 같은 높이 줄에서 앞머리가 실루엣 겉면을 2px 들어감 (rep 번 중 가장 이름 —
   기다리는 동안 겉면을 0 ~ 1px 스치는 touch 는 참고, UX 리뷰어 7바퀴와 같게)
   광선 · 그 밖 = px1 · 땅 흔들기 (quake) gpeak = 발밑 점 수가 가장 많은 장면 · shake = 맞는 쪽 그림이 가장 멀리 흔들린 첫 장면 (가장 큰 순간 = 맞는 때 — 기획 10-29)
-  회오리 (vortex) vpeak · 가루 (powder) ppeak = 상대 둘레 (그림 폭 양옆 반씩 · 키 60% 위 ~ 발 아래 25%) 점 수가 가장 많은 장면 (상대 자리에 처음부터 놓이는 틀 — 디자인 10-29)
+  회오리 (vortex) vtop = 상대 폭 안 기둥 위 끝이 가장 높은 첫 장면 (눈에 보이는 가장 큰 순간 — 고리 · 바닥 빛 점이 기둥보다 먼저 다 차 점 수로는 일찍, 디자인 10-29) ·
+  가루 (powder) ppeak = 상대 둘레 (그림 폭 양옆 반씩 · 키 60% 위 ~ 발 아래 25%) 점 수가 가장 많은 장면 (상대 자리에 처음부터 놓이는 틀)
   상대 것은 pring (패링 원이 닫힌 때) 도 · 판정 밖: aura = 쓰는 쪽 둘레에서 퍼지는 고리 (상대엔 맞는 짜임만) · status = 변화 기술 (위력 0 — 맞는 때 없음)
-  참고 (판정 밖): touch · cov1 · mask2 실루엣 0px · 1% · 2% · vtop 회오리 기둥이 가장 높은 첫 장면 · pop 피해 숫자 · len 시전 → 맞는 때
+  참고 (판정 밖): touch · cov1 · mask2 실루엣 0px · 1% · 2% · vpeak 회오리 둘레 점 수가 가장 많은 장면 · pop 피해 숫자 · len 시전 → 맞는 때
 머리 없는 브라우저 1개 (빈 디버그 포트 · 40판마다 새로) · 판마다 20초 안에 답이 없으면 "멈춤" 한 줄 · 남은 메모리 4 GB 아래면 시작 안 함 · 3 GB 아래면 멈추고 그때까지 표를 씀 (끝 코드 2)
 게임 코드는 바꾸지 않음 — 맞는 짜임 (impact) 은 그리지 않고 부른 시각만 적음 (날아온 것 · 뿜기 그림만 남게)"""
 import base64
@@ -306,8 +307,8 @@ def analyze(c, L):
 
 JUDGE = {"single": ["first", "px1"], "multi": ["first", "last", "px1"], "boomer": ["first", "px1"],
          "ring": ["first", "last", "px1"], "rock": ["first", "last"], "breath": ["t2"], "px": ["px1"], "ground": ["gpeak", "shake"],
-         "vortex": ["vpeak"], "powder": ["ppeak"], "aura": [], "status": []}
-NOTE = ["touch", "vtop", "px1", "cov1", "mask2", "pop", "len"]
+         "vortex": ["vtop"], "powder": ["ppeak"], "aura": [], "status": []}
+NOTE = ["touch", "vpeak", "px1", "cov1", "mask2", "pop", "len"]
 
 
 def judge(kind, side, v):
