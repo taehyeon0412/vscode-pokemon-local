@@ -216,7 +216,7 @@ def plan(opt):
                     for r in range(reps):
                         cid = f"{side}-{w}x{h}-{mid}-{form}" + (f"-r{r + 1}" if reps > 1 else "")
                         q = {"screen": "game", "look": "may", "size": "medium", "dur": "900", "fx": "1", "shim": "1",
-                             "battle": "move", "side": side, "mv": mid, "fhp": "500", ("me" if side == "me" else "foe"): f"{form}:{dex}"}
+                             "battle": "move", "side": side, "mv": mid, "fhp": "500", "mhp": "500", ("me" if side == "me" else "foe"): f"{form}:{dex}"}
                         cases.append(dict(id=cid, group=f"{side}-{w}x{h}-{mid}-{form}", mv=mid, name=name, tmpl=tmpl, side=side, w=w, h=h, form=form, q=q))
     return cases, skipped, unknown
 
@@ -261,14 +261,25 @@ def analyze(c, L):
         v["gpeak"] = rel(peak(win, "foot"), imp)
         # 그림 왼쪽 끝 — 0.1px (sx) 가 있으면 그것 (1px 반올림이면 세기가 커지는 흔들림이 일찍 최댓값에 닿음 — 디자인 3a 상대 쪽 −0.55)
         x_of = lambda r: r["sx"] if r.get("sx") is not None else r["spr"][0]  # noqa: E731
-        rest = sorted(x_of(r) for r in fr if r["t"] < cast and r.get("spr") and r["spr"][2] > r["spr"][0])
+        # 기준점 = 맞는 때 −0.4 ~ −0.25초 가운데 자리 (상대가 쓸 때 내 포켓몬이 0.25초 물러서는 것 (225 → 209px) 을 가장 센 흔들림으로 잡던 것 — 디자인 3a) ·
+        #   흔들림은 그 뒤 (맞는 때 −0.4초부터) 만 · 없으면 시전 전 가운데
+        has = lambda r: r.get("spr") and r["spr"][2] > r["spr"][0]  # noqa: E731
+        rest = sorted(x_of(r) for r in fr if imp - 400 <= r["t"] <= imp - 250 and has(r)) or sorted(x_of(r) for r in fr if r["t"] < cast and has(r))
         if rest:
             x0 = rest[len(rest) // 2]
             # 피해 숫자가 뜨면 맞은 쪽이 밀려남 (+11px 한쪽 — 흔들림 아님) → 그 전까지만 (숫자가 없으면 맞는 때 + 80ms)
             end = next((r["t"] for r in fr if r["t"] >= imp and r.get("pop")), imp + TOL)
-            off = [(r["t"], abs(x_of(r) - x0)) for r in win if r["t"] < end and r.get("spr") and r["spr"][2] > r["spr"][0]]
+            off = [(r["t"], abs(x_of(r) - x0)) for r in win if imp - 400 <= r["t"] < end and has(r)]
+            if max((d for t_, d in off), default=0) < 1:
+                # 맞는 때 근처엔 흔들림이 없음 (일찍 끝남) — 시전부터 · 시전 전 기준으로 (언제 가장 셌는지 남김)
+                pre = sorted(x_of(r) for r in fr if r["t"] < cast and has(r))
+                x0 = pre[len(pre) // 2] if pre else x0
+                off = [(r["t"], abs(x_of(r) - x0)) for r in win if r["t"] < end and has(r)]
             far = max((d for t_, d in off), default=0)
             v["shake"] = rel(next((t_ for t_, d in off if far >= 1 and d >= far - 0.25), None), imp)
+    elif c["tmpl"] in ("beam", "solarbeam"):
+        # 광선 — 반짝이 알갱이가 날리기 (shape · v0) 로 잡혀도 광선 머리 (px1) 로 판정 (전자포 상대 쪽 "first 없음", 디자인 3a)
+        kind = "px"
     elif c["tmpl"] in ("vortex", "powder"):
         # 상대 자리에 처음부터 놓이는 틀 (회오리 기둥 · 가루) — 가장 큰 순간 = 상대 둘레 점 수가 가장 많은 장면 (디자인 10-29 · 땅 흔들기와 같은 규칙)
         #   vtop (회오리 참고) = 상대 폭 안 그림 위 끝이 가장 높은 첫 장면 (기둥이 가장 높음)

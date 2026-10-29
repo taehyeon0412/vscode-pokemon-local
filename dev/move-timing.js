@@ -94,6 +94,8 @@
       const sx = cv.width / Math.max(1, cr.width), sy = cv.height / Math.max(1, cr.height);
       const W = cv.width, H = cv.height;
       const d = ctx.getImageData(0, 0, W, H).data;
+      // 그린 점 = 알파 40 넘고 어두운 막 (솔라빔 모으기 #05080f 등 — 패널 전체를 덮어 몸 상자에 처음부터 점이 잡히던 것, 디자인 3a) 이 아닌 것
+      const ink = (i) => d[i + 3] > 40 && !(d[i] < 16 && d[i + 1] < 20 && d[i + 2] < 28);
       const cxm = (s[0] + s[2]) / 2, w = s[2] - s[0], h = s[3] - s[1];
       const B = [cxm - 0.3 * w, s[1] + 0.15 * h, cxm + 0.3 * w, s[3]];
       try { track(s, B, t); } catch (e) { L.terr = String(e); }
@@ -108,7 +110,7 @@
         if (Y < top) continue;
         const inB = Y >= B[1] && Y < B[3];
         for (let x = 0; x < W; x++) {
-          if (d[(y * W + x) * 4 + 3] <= 40) continue;
+          if (!ink((y * W + x) * 4)) continue;
           const X = x / sx + cr.left;
           n++;
           if (X > rHi[y]) rHi[y] = X;
@@ -164,7 +166,7 @@
         for (let i = 0; i < L.mask.length; i += 2) {
           const X = s[0] + L.mask[i] + 0.5, Y = s[1] + L.mask[i + 1] + 0.5;
           const px = Math.floor((X - cr.left) * sx), py = Math.floor((Y - cr.top) * sy);
-          if (px >= 0 && py >= 0 && px < W && py < H && Y >= top && d[(py * W + px) * 4 + 3] > 100) cov++;
+          if (px >= 0 && py >= 0 && px < W && py < H && Y >= top && d[(py * W + px) * 4 + 3] > 100 && ink((py * W + px) * 4)) cov++;
         }
         row.mcov = Math.round((1000 * cov) / (L.mask.length / 2)) / 1000;
       }
