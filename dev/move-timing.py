@@ -444,4 +444,6 @@ def main():
 
 LOGGER = open(os.path.join(ROOT, "dev", "move-timing.js"), encoding="utf-8").read()
 LOOK = {k: v for k, v in json.load(open(os.path.join(DATA, "dev", "move-look.json"), encoding="utf-8")).items() if not k.startswith("_")}
-main()
+# dev/move-load.py 가 기술 고르기 · 브라우저 도구를 빌려 씀 (불러오기만 할 땐 돌지 않음)
+if __name__ == "__main__":
+    main()
