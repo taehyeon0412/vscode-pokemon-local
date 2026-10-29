@@ -23,7 +23,7 @@ import { HEAD_NOTE_H, HeadNote, headNoteWidth, pickHeadSpot, useHeldNote } from 
 import { Sprite } from '../../../ui/Sprite';
 import { catchFoeClass, catchTone, catchView, duelKind, endSay, fitsPx, koSinkPx, msgFits, slumpPx, sayPhase, ringHint, ringKeyFits, hpColor, introView, moveColor, moveFx, profileOpenable, SEND_FLY_MS, sentenceText, splitPopups, STATUS_LABEL, type BattleGeometry, type CatchTone } from '../model';
 import { battleAnimKey, fxTailLeft, holdWindow, koFallAt, koTiming, noteKoActor, pickShown, type KoTiming } from '../fx/hold';
-import { impactOf, ultSkippable } from '../fx/parry';
+import { hurtEarlyAt, impactOf, onHurtEarly, ultSkippable } from '../fx/parry';
 import { BattleMenu } from './BattleMenu';
 import { fxCastAt, fxContact, useBattleFx } from './BattleFx';
 
@@ -49,6 +49,8 @@ const foePrefix = (b: BattleState) => (b.kind === 'wild' ? '야생 ' : '상대 '
 const nameOf = (f: Fighter) => speciesOf(f.species)?.name.ko ?? '???';
 /** 맞은 쪽 그림이 깜빡이는 시간 */
 const HURT_MS = 420;
+/** 닿는 기술 맞은 빛 뒤 이만큼 안에 쓰러지면 그 한 방에 쓰러진 것 (엔진 피해는 행동 끝 — 맞은 빛 뒤 약 0.15 ~ 0.2초) */
+const KO_AFTER_HURT_MS = 600;
 /** 머리 위 숫자 줄 사이 (글자 13 ~ 16px — 예전 11 이라 세 줄이 붙거나 겹침) · 한 줄 높이 */
 const POP_STACK_PX = 16;
 const MAX_TAPS = Math.round(BALANCE.clashTapMax / BALANCE.clashTap);
@@ -184,7 +186,17 @@ function FighterBody(props: { b: BattleState; side: Side; x: number; target: num
   // 내미는 순간 (pg-cast 45%) = 입에서 쏘는 때 — 짧은 기술은 늦게 쏘니 몸짓도 늦춤 (CAST_BODY_MS 길이로)
   const castAt = cast && anim ? fxCastAt(b) : null;
   const bodyTiming = castAt !== null ? { animationDuration: `${CAST_BODY_MS}ms`, animationDelay: `${Math.max(0, Math.round(castAt - CAST_BODY_MS * 0.45))}ms` } : { animationDuration: anim ? `${anim.dur}ms` : undefined };
-  const hurt = b.popups.some((p) => p.side === side && p.kind === 'damage' && p.ms < HURT_MS);
+  // 닿는 기술은 맞는 빛 때부터 (BattleFx setHurtEarly — 적을 때 바로 다시 그림) — 피해 숫자 (행동 끝) 로 켜지는 것과 이어져 한 번만 (bugs 1906)
+  const [, wakeHurt] = useState(0);
+  useEffect(() => onHurtEarly(() => wakeHurt((n) => n + 1)), []);
+  const now = performance.now();
+  const early = hurtEarlyAt(side);
+  const hurt = (early !== null && now >= early && now - early < HURT_MS) || b.popups.some((p) => p.side === side && p.kind === 'damage' && p.ms < HURT_MS);
+  // 그 한 방에 쓰러지면 쓰러짐은 맞은 모습부터 (-late — 번쩍 · 밀림을 다시 하지 않게) · 쓰러진 첫 그림에서 정해 끝까지 (중간에 바뀌면 처음부터 다시 돎)
+  const koAfterHit = useRef<boolean | null>(null);
+  if (f.hp > 0) koAfterHit.current = null;
+  else if (koAfterHit.current === null) koAfterHit.current = early !== null && now - early < KO_AFTER_HURT_MS;
+  const koLate = ko.wait > 0 || koAfterHit.current === true;
   const cls = [
     'pg-fx-body',
     lunge ? 'pg-lunge' : '',
@@ -198,10 +210,10 @@ function FighterBody(props: { b: BattleState; side: Side; x: number; target: num
     f.hp <= 0 && !(side === 'foe' && b.phase === 'catch' && b.catch?.caught === false && catchView(b)?.stage === 'end')
       ? (b.phase === 'last' || b.phase === 'catch') && side === 'foe'
         ? // 볼을 던지는 동안 (catch) 은 누운 채 멈춤 — 잡기 연출 (빨려 들어감 · 튀어나옴) 이 몸 움직임을 씀
-          `pg-down${ko.byHit ? (b.phase === 'last' ? ` pg-ko${ko.wait > 0 ? ' pg-ko-late' : ''}` : ' pg-ko-lie') : ''}`
+          `pg-down${ko.byHit ? (b.phase === 'last' ? ` pg-ko${koLate ? ' pg-ko-late' : ''}` : ' pg-ko-lie') : ''}`
         : wasDown.current
           ? `pg-down pg-gone${ko.byHit ? ' pg-ko-lie' : ''}`
-          : `pg-fainted${ko.byHit ? ` pg-ko${ko.wait > 0 ? ' pg-ko-late' : ''}` : ''}`
+          : `pg-fainted${ko.byHit ? ` pg-ko${koLate ? ' pg-ko-late' : ''}` : ''}`
       : '',
     f.guard < 1 ? 'pg-guarded' : '',
   ].join(' ');
@@ -217,7 +229,8 @@ function FighterBody(props: { b: BattleState; side: Side; x: number; target: num
       style={{ left: `${x}px`, bottom: `${ground}px`, ...(sendAt0 !== null ? { animationDelay: `${SEND_FLY_MS - sendAt0}ms` } : {}) }} title={`${side === 'foe' ? foePrefix(b) : ''}${nameOf(f)} Lv${f.level}${onProfile ? ' — 누르면 프로필' : ''}`} onClick={onProfile ? () => onProfile(side) : undefined}>
       {/* --pg-back = 맞으면 밀려나는 쪽 (상대 반대쪽) */}
       {/* --pg-ko-y = 벌러덩 누운 그림의 가장 낮은 점 (그림 뒤쪽 끝) 을 서 있던 발끝 높이로 · --pg-slump-y = 회색 주저앉기 (정수 px) */}
-      <span key={animKey(b)} class={cls} style={{ '--pg-dx': `${Math.round((target - x) * 0.75)}px`, '--pg-back': side === 'me' ? '-1' : '1', '--pg-ko-y': `${koSinkPx(f.form, px)}px`, '--pg-slump-y': `${slumpPx(px)}px`, '--pg-ko-wait': `${ko.wait}ms`, ...bodyTiming }}>
+      {/* 열쇠 = 내 행동마다 새로 (달려들기 · 젖히기를 처음부터) · 상대 행동 중 · 끝난 뒤엔 그대로 — 맞은 빛 때 켠 번쩍 · 밀림이 행동 끝에 처음부터 다시 돌지 않게 (bugs 1906) */}
+      <span key={b.anim && b.anim.side !== side ? '' : animKey(b)} class={cls} style={{ '--pg-dx': `${Math.round((target - x) * 0.75)}px`, '--pg-back': side === 'me' ? '-1' : '1', '--pg-ko-y': `${koSinkPx(f.form, px)}px`, '--pg-slump-y': `${slumpPx(px)}px`, '--pg-ko-wait': `${ko.wait}ms`, ...bodyTiming }}>
         {/* 걷기 그림 (옆모습) 으로 서로 마주 봄 — 서기 그림은 정면이라 가만히 앞만 보는 것처럼 보였음 (2026-10-19 태현 님). 걷기 그림은 오른쪽을 봄 → 상대는 뒤집음 */}
         <Sprite media={media} form={f.form} shiny={f.shiny} scale={1} px={px} action="walk" faceLeft={side === 'foe'} />
       </span>

@@ -3,7 +3,7 @@
  * Space · 클릭을 그 순간까지 남은 ms 를 담은 패링 입력으로 바꿈. 등급은 엔진 (core/rules/battle parryGrade) 이 매김.
  * 연출이 없으면 (일반 모드 번들이 없음) 맞는 순간을 몰라서 그냥 Space — 엔진이 엔진 시간으로 어림함.
  */
-import { canParry, type BattleState, type GameInput, type GameState } from '../../../core/engine';
+import { canParry, type BattleState, type GameInput, type GameState, type Side } from '../../../core/engine';
 import { battleAnimKey } from './hold';
 
 /** 지금 상대 공격이 맞는 순간 — key = battleAnimKey, at = 맞는 때 (performance.now 기준), set = 적은 때 */
@@ -21,6 +21,27 @@ export function impactOf(key: string): { at: number; set: number } | null {
 
 export function clearImpact(): void {
   impact = { key: '', at: 0, set: 0 };
+}
+
+/** 닿는 기술이 맞는 빛을 그린 때 (맞는 쪽 · performance.now) — 맞는 쪽 번쩍 · 밀림 (pg-hurt) 을 엔진 피해 숫자 (행동 끝 — 0.15 ~ 0.2초 뒤) 를 기다리지 않고 이때 켬 (bugs 1906) */
+let hurtEarly: { side: Side | ''; at: number } = { side: '', at: 0 };
+/** 적은 때 바로 다시 그릴 몸 — 엔진은 50ms 걸음마다만 다시 그려서 그 사이 늦게 켜지던 것 (최대 50ms) */
+const hurtWake = new Set<() => void>();
+
+export function setHurtEarly(side: Side, at: number): void {
+  hurtEarly = { side, at };
+  for (const wake of hurtWake) wake();
+}
+
+export function onHurtEarly(wake: () => void): () => void {
+  hurtWake.add(wake);
+  return () => {
+    hurtWake.delete(wake);
+  };
+}
+
+export function hurtEarlyAt(side: Side): number | null {
+  return hurtEarly.side === side ? hurtEarly.at : null;
 }
 
 /** 필살기 건너뛰기 (2026-10-20 ideas #101 — 관장 3:1 에서 4 ~ 6초 필살기를 여러 번 봄) — 필살기 연출이 도는 동안 BattleFx 가 걸어 둠, Space 가 부름.

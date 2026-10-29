@@ -983,9 +983,12 @@ body.vscode-light .pg-stage.pg-bg-arena-volcano {
 }
 /* 맞는 순간 = 연출 끝쪽 (피해 숫자 · HP 가 그때 바뀜) */
 /* 끝에서 제자리로 돌아옴 — 예전엔 100% 가 0.6 칸이라 행동이 끝나는 순간 제자리로 뚝 순간이동 (플레이 리뷰어) */
+/* 78% 에 닿고 80% 부터 0.14초 (900ms 의 16%) 에 걸쳐 돌아옴 — 82% 닿고 0.09초에 돌아와 한 장면에 다가갈 때의 4.5배 (55px) 를 옮기던 것 · 닿는 것도 자국 · 패링 원 (BattleFx CONTACT_AT 0.8) 보다 35 ~ 55ms 늦던 것 (bugs 1904 · 1903) */
 @keyframes pg-lunge {
-  0%, 35% { transform: translateX(0); }
-  82%, 86% { transform: translateX(var(--pg-dx, 0)); }
+  0%, 36% { transform: translateX(0); }
+  78% { transform: translateX(var(--pg-dx, 0)); }
+  /* 돌아가기는 고른 빠르기 — ease-in-out 이면 가운데 한 장면 (50ms) 에 다가갈 때의 3배 (124px) 를 옮김 (bugs 1904 UX) */
+  80% { transform: translateX(var(--pg-dx, 0)); animation-timing-function: linear; }
   /* 96% 에 다 돌아옴 — 몸짓이 엔진보다 한두 프레임 늦게 시작해서, 100% 에 맞추면 돌아오는 도중에 행동이 끝나 뚝 튐 (fxdbg 기록) */
   96%, 100% { transform: translateX(0); }
 }
@@ -1025,14 +1028,22 @@ body.vscode-light .pg-stage.pg-bg-arena-volcano {
 }
 /* 맞으면 상대 반대쪽으로 튕겨 밀렸다 돌아오고 하얗게 번쩍 (전엔 제자리 3px 떨림 — 2026-10-19) */
 .pg-hurt {
-  animation: pg-hurt 0.42s cubic-bezier(0.2, 0.7, 0.3, 1) both !important;
+  animation: pg-hurt-x 0.42s step-end both, pg-hurt 0.42s cubic-bezier(0.2, 0.7, 0.3, 1) both !important;
 }
 /* 기울이기 (rotate) 는 픽셀 그림을 계단처럼 깨뜨려 뺌 · 깜빡임은 한 번만 (아트 디렉터) */
 @keyframes pg-hurt {
-  0% { transform: translateX(0); filter: brightness(3) saturate(0); }
-  18% { transform: translateX(calc(var(--pg-back, -1) * 12px)); filter: brightness(2.2) saturate(0.3); }
+  0% { filter: brightness(3) saturate(0); }
+  18% { filter: brightness(2.2) saturate(0.3); }
   45% { filter: none; opacity: 0.6; }
-  60%, 100% { transform: translateX(0); filter: none; opacity: 1; }
+  60%, 100% { filter: none; opacity: 1; }
+}
+/* 밀림은 걸음마다 정수 px (8 → 12 → 8 → 4 → 0 · 첫 장면부터 8 — 0 으로 25ms 서 있으면 맞은 반응이 늦어 보임, 1906) — 부드러운 곡선이면 4.23px 같은 소수 자리에 그려져 그림이 반 픽셀로 흐려짐 (bugs 1905 · 픽셀 검사원) */
+@keyframes pg-hurt-x {
+  0% { transform: translateX(calc(var(--pg-back, -1) * 8px)); }
+  12% { transform: translateX(calc(var(--pg-back, -1) * 12px)); }
+  30% { transform: translateX(calc(var(--pg-back, -1) * 8px)); }
+  42% { transform: translateX(calc(var(--pg-back, -1) * 4px)); }
+  60%, 100% { transform: translateX(0); }
 }
 /* 쓰러짐 — 맞은 번쩍 · 밀림 (0.27초) → 회색으로 낮게 내려앉은 모습 1.5초 → 흐려지며 사라짐 (2.2초). 다음 포켓몬 (send 1.9초) 은 큰 기술에 처음 0.6초 가려져도 바뀌기 전까지 1초 넘게 (UX 리뷰어 2026-10-21 — 1.8초일 땐 0.95초).
    예전엔 맞음 (.pg-hurt, !important) 이 이겨 선 모습이 0.5초 남았다가 한 장면에 사라져 쓰러진 모습이 0ms 였음 (UX 리뷰어 2026-10-21 · #448 같은 종류) → 두 클래스로 이김.
