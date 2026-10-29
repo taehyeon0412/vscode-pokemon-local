@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { sampleSave, viaJson } from '../../../test/fixtures/save';
 import { TIMING } from '../balance';
 import type { Save, StageProgress } from '../save';
-import { applyInput, badgeAutoHeld, gymNext, step } from './play';
+import { AGAIN_WON_TOAST, applyInput, badgeAutoHeld, gymNext, step } from './play';
 import { createGameState, readRuntime, type GameState, type StageRuntime } from './state';
 
 const run0 = { startMs: 0, caught: 0, trainers: 0, seen: [], reach: 0, retries: 0 };
@@ -102,6 +102,11 @@ describe('관장을 이긴 뒤 바로 다음 지역 (#127 — 태현 님 "세계
     expect(run(look(again, { away: true }), TIMING.badgeAutoMs - 500).runtime.stage?.phase).toBe('badge');
     const out = run(look(again, { away: true }), TIMING.badgeAutoMs + 500);
     expect([where(out), out.runtime.stage?.phase]).toEqual(['gym', 'lobby']);
+    // 돌아와 보면 대기실 첫 알림 "관장을 또 이겼어요" (ideas 1651) — 밖에 있는 동안은 셈 안 함 · 보는 동안 2.5초 · 보고 있었으면 안 띄움 (카드를 봤으니)
+    expect(out.runtime.toast?.text).toBe(AGAIN_WON_TOAST);
+    expect(run(out, 3000).runtime.toast?.text).toBe(AGAIN_WON_TOAST);
+    expect(run(look(out, { away: false }), TIMING.toastMs + 200).runtime.toast?.text).not.toBe(AGAIN_WON_TOAST);
+    expect(run(again, TIMING.badgeAutoMs + 500).runtime.toast?.text).not.toBe(AGAIN_WON_TOAST);
     // 숨김 (접힘 · 다른 탭) 은 멈춤 — 밖이면서 숨김이어도
     expect(run(look(again, { headless: true }), TIMING.badgeAutoMs + 2000).runtime.stage).toEqual({ phase: 'badge', again: true });
     expect(run(look(again, { away: true, headless: true }), TIMING.badgeAutoMs + 2000).runtime.stage?.phase).toBe('badge');

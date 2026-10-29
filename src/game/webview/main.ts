@@ -459,8 +459,9 @@ if (!port) {
       // 고를 두 곳이면 1 · 2 = 그곳으로 출발 (#127 — 카드 위 순서 = gymNext 순서) · 다시 이긴 카드는 2 = 다음 지역 (Enter = 대기실 — 기획 B, 한 카드에 기본이 둘이던 것)
       const n = gymNext(session.current);
       const again = stage?.phase === 'badge' && stage.again === true;
-      // 갈 곳이 하나일 때만 — 고르기면 1 · 2 = 그 지역 그대로 (카드 [1 해변 ▶] [2 화산 ▶] — 2 가 첫 지역으로 가던 것)
-      if (again && n.kind === 'go' && e.code === 'Digit2') {
+      // 갈 곳이 하나일 때만 — 고르기면 1 · 2 = 그 지역 그대로 (카드 [1 해변 ▶] [2 화산 ▶] — 2 가 첫 지역으로 가던 것) ·
+      //   하나뿐이면 1 도 그곳 (카드엔 [Enter 대기실] [2 해변] 만이라 1 을 누르면 반응이 없던 것 — ideas 1640)
+      if (again && n.kind === 'go' && (e.code === 'Digit2' || e.code === 'Digit1')) {
         e.preventDefault();
         actions.input({ kind: 'badge-next' });
         return;

@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { sampleMonster, sampleSave, viaJson } from '../../../test/fixtures/save';
 import { BALANCE, TIMING } from '../balance';
-import { maxHpOf } from '../rules/bag';
+import { leaderPotion, maxHpOf } from '../rules/bag';
 import { planWild } from '../rules/encounter';
 import { stageLayout, stageLevelBand } from '../rules/stage';
 import type { Monster, Save, StageProgress } from '../save';
@@ -182,8 +182,13 @@ describe('1:1 토너먼트 · 상대 AI 필살기 (gdd S08 ③ · 4.7)', () => {
     expect(gym.foePotions).toBe(BALANCE.gymPotions);
     const low = { ...gym, phase: 'run' as const, foe: { ...gym.foe, hp: Math.floor(gym.foe.maxHp * 0.4), gauge: 1, ult: 0 }, me: { ...gym.me, gauge: 0 } };
     const used = battleStep(low, save, STEP, new Rng(1), { auto: true });
+    // 약은 에이스 최대 HP 에 맞춤 (ideas 713 — 숲 HP 46 상처약 · 해변 65 상처약 · 화산 87 좋은상처약) · 이 판의 약한 에이스는 상처약
+    expect(leaderPotion(gym.foe.maxHp)).toBe('potion');
+    expect([46, 65, 87, 200].map(leaderPotion)).toEqual(['potion', 'potion', 'super-potion', 'hyper-potion']);
     expect(used.anim?.action).toEqual({ kind: 'item', item: 'potion' });
     expect(used.msg).toBe('관장 웅이는 상처약을 썼다!');
+    const big = { ...low, foe: { ...low.foe, maxHp: 87, hp: 30 } };
+    expect(battleStep(big, save, STEP, new Rng(1), { auto: true }).anim?.action).toEqual({ kind: 'item', item: 'super-potion' });
     expect(used.foePotions).toBe(0);
     // 상처약 연출이 끝난 직후 — HP 가 상처약만큼 · 내 가방에서는 안 빠짐
     let h = used;

@@ -125,6 +125,11 @@ export function regionPool(stageId: StageId): Pool {
     // 숲 — 노말 · 비행도 스테이지마다 3종 (gdd 5.4)
     if (mixedPick) pool.mixed = pickFixed(pool.mixed, mixedPick, stageId, 1);
   }
+  // 지역 첫 스테이지엔 경험치 많이 주는 종 (럭키 395 · 다부니 390) 을 빼고 둘째부터 — 한 번 잡거나 이기면 Lv 2 ~ 3 이 한꺼번에 오르던 것 (ideas 76) · 뽑은 뒤에 걸러 다른 종은 그대로
+  if (index === 0) {
+    const calm = (d: number) => (speciesOf(d)?.baseExp ?? 0) < BALANCE.luckyBaseExp;
+    pool = { common: pool.common.filter(calm), rare: pool.rare.filter(calm), mixed: pool.mixed.filter(calm) };
+  }
   pools.set(key, pool);
   return pool;
 }

@@ -974,7 +974,8 @@ function gymStep(save0: Save, rt0: RuntimeState, stepMs: number): { save: Save; 
         let t = stage.again ? here : applyInput(here, { kind: 'badge-next' });
         // 출발이 막히면 (이상한 세이브) 대기실로 — 매 걸음 다시 해 보며 헛돌지 않게
         if (t === here) t = applyInput(here, { kind: 'badge-continue' });
-        return { save: t.save, rt: t.runtime, signal: null };
+        // 밖에 있는 동안 다시 이긴 카드가 저절로 대기실로 갔으면 돌아와 보는 첫 2.5초에 한 줄 (방금 이겼는지 모르고 대기실에 서 있던 것 — ideas 1651 · 알림은 보는 동안만 셈)
+        return { save: t.save, rt: stage.again && rt.away ? queueToast(t.runtime, AGAIN_WON_TOAST) : t.runtime, signal: null };
       }
       stage = { ...stage, ms };
       break;
@@ -1212,6 +1213,7 @@ const AUTO_TIP_MAX = 3;
 const AUTO_TIP_SEEN = /^autotip-\d$/;
 export const AUTO_TIP_TURN = '자리를 비울 땐 [A] 자동 전투 — 알아서 싸워요';
 export const AUTO_HINT_TURN = '[A] 자동 전투 — 알아서 싸워요';
+export const AGAIN_WON_TOAST = '관장을 또 이겼어요 — 대기실';
 export const AUTO_TIP_BACK = '안 보는 동안 멈춰 있었어요 — [A] 자동 전투면 계속 걸어요';
 /** ① 은 내 차례가 끝날 때까지 — 알림 길이 끝 (readRuntime 60초) 까지 */
 const AUTO_TIP_TURN_MS = 60_000;

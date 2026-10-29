@@ -33,7 +33,7 @@ import {
   type Fighter,
 } from '../rules/battle';
 import { BALLS, catchChance, catchOdds, catchTiming, isBall, type BallId } from '../rules/catch';
-import { healAmount, isHealItem, ownsSpecies } from '../rules/bag';
+import { healAmount, isHealItem, leaderPotion, ownsSpecies } from '../rules/bag';
 import { itemName } from '../rules/items';
 import { effectiveness, effectivenessText } from '../rules/types';
 import { ITEM_IDS, type EncounterStart, type ItemId, type Monster, type MoveSlot, type Save, type StatusCondition } from '../save';
@@ -726,7 +726,7 @@ export function battleStep(b0: BattleState, save: Save, stepMs: number, rng: Rng
       if (foeReady) {
         // 관장 — 에이스 (마지막 포켓몬) HP 가 절반 아래면 상처약 (한 판에 BALANCE.gymPotions 번) — 첫 포켓몬에게 쓰면 긴장이 첫 판에서 끝나서 (플레이 리뷰어)
         if (b.kind === 'gym' && b.foeQueue.length === 0 && (b.foePotions ?? 0) > 0 && b.foe.hp > 0 && b.foe.hp <= b.foe.maxHp * BALANCE.gymPotionAt) {
-          return startAction({ ...b, foePotions: (b.foePotions ?? 0) - 1 }, 'foe', { kind: 'item', item: 'potion' }, rng);
+          return startAction({ ...b, foePotions: (b.foePotions ?? 0) - 1 }, 'foe', { kind: 'item', item: leaderPotion(b.foe.maxHp) }, rng);
         }
         return startAction(b, 'foe', aiPick(b.foe, b.me, foeStyle(b), rng), rng);
       }

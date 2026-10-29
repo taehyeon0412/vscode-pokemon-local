@@ -242,6 +242,17 @@ export function teamHealth(save: Save): { hpPct: number; fainted: number; health
 // ---------- S19 가방 (전투 밖)
 
 /** 전투 밖에서 쓰는 아이템 (볼은 전투에서만) */
+/** 관장 AI 상처약 — 에이스 최대 HP × gymPotionShare 에 가장 가까이 낫는 것 (지역마다 에이스가 커져도 비율이 비슷하게 — ideas 713) */
+export function leaderPotion(maxHp: number): 'potion' | 'super-potion' | 'hyper-potion' {
+  const want = maxHp * BALANCE.gymPotionShare;
+  const opts = [
+    ['potion', BALANCE.potionHeal],
+    ['super-potion', BALANCE.superPotionHeal],
+    ['hyper-potion', BALANCE.hyperPotionHeal],
+  ] as const;
+  return opts.reduce((best, o) => (Math.abs(o[1] - want) < Math.abs(best[1] - want) ? o : best))[0];
+}
+
 export const FIELD_ITEMS: readonly ItemId[] = ['potion', 'super-potion', 'hyper-potion', 'full-restore', 'full-heal', 'revive', 'rare-candy', 'fire-stone', 'water-stone', 'thunder-stone', 'leaf-stone', 'moon-stone', 'linking-cord'];
 /** 진화의 돌 5종 (라이벌 보상도 여기서 — rules/rival.ts) */
 export const STONES: readonly ItemId[] = ['fire-stone', 'water-stone', 'thunder-stone', 'leaf-stone', 'moon-stone'];

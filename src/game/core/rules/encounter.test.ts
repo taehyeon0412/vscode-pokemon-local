@@ -3,7 +3,7 @@ import { BALANCE } from '../balance';
 import { Rng } from '../engine/rng';
 import { fixedRng } from '../../../test/fixtures/rng';
 import { formOf, moveOf, speciesOf } from '../../data';
-import { ambushChance, createWild, encounterStart, evolveForLevel, forestPool, isStarterLine, pickupAt, planWild, preemptiveChance, sceneryAt, STARTER_SPECIES, traceKindOf } from './encounter';
+import { ambushChance, createWild, encounterStart, evolveForLevel, forestPool, regionPool, isStarterLine, pickupAt, planWild, preemptiveChance, sceneryAt, STARTER_SPECIES, traceKindOf } from './encounter';
 import { mixSeed, stageLayout, stageLevelBand, type Spot } from './stage';
 
 const [LO1, HI1] = stageLevelBand('forest-1');
@@ -189,5 +189,16 @@ describe('걷는 동안 발견 (gdd 4.6)', () => {
       expect(formOf(a.form)).toBeDefined();
       expect(['tree', 'sky']).toContain(a.place);
     }
+  });
+});
+
+describe('지역 첫 스테이지 — 경험치 많이 주는 종 빼기 (ideas 76)', () => {
+  it('해변 2-1 엔 럭키 (113) · 다부니 (531) 가 없고 2-2 부터 · 숲 섞기 뽑기는 그대로', () => {
+    const all = (id: Parameters<typeof regionPool>[0]) => { const p = regionPool(id); return [...p.common, ...p.rare, ...p.mixed]; };
+    expect(all('beach-1')).not.toContain(113);
+    expect(all('beach-1')).not.toContain(531);
+    expect(all('beach-2')).toEqual(expect.arrayContaining([113, 531]));
+    for (const d of all('forest-1')) expect(speciesOf(d)!.baseExp).toBeLessThan(BALANCE.luckyBaseExp);
+    expect(regionPool('forest-1').mixed).toEqual([190, 293, 163]);
   });
 });

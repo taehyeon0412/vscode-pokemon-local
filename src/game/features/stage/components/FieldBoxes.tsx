@@ -676,7 +676,7 @@ export function BadgeCard({ state, onInput, onMap }: BoxProps & { onMap(): void 
             )}
             {next.kind === 'go' &&
               (stayMain ? (
-                <Button secondary extraClass="pg-badge-dest" onClick={() => onInput({ kind: 'badge-next' })} title={`2 — ${toLabel} 으로 떠나요`}>
+                <Button secondary extraClass="pg-badge-dest" onClick={() => onInput({ kind: 'badge-next' })} title={`2 (1 도) — ${toLabel} 으로 떠나요`}>
                   <KeyCap k="2" /> {toLabel}
                 </Button>
               ) : (
