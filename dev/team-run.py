@@ -269,6 +269,8 @@ STATE = r"""
   const st = s.runtime.stage; const now = window.__tr ? Date.now() - window.__tr.t0 : 0;
   // pn = 게임 시계 (performance.now — webview/clock 배를 따름) · now 와 견주면 그때 배 (#136 빠르게 ▶▶ 장면 전환 확인)
   const o = { now, pn: Math.round(performance.now()), phase: st ? st.phase : 'walk', screen: s.save.location.screen };
+  // 본 것으로 적힌 처음 안내 (세이브 tips — 1910 판 끝에 끊긴 안내가 본 것으로 적히는지)
+  o.tips = (s.save.tips || []).slice();
   if (st && st.phase === 'trainer') { o.ms = st.ms; o.pick = !!st.pick; o.vs = st.vsAt !== undefined; o.picked = st.pick ? st.pick.length : 0; }
   if (st && st.phase === 'team') {
     const b = st.team;
