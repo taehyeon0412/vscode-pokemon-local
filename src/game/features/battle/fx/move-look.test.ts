@@ -78,6 +78,12 @@ describe('기술마다 모양 표 (#122 — 태현 님 "불꽃세례 불꽃 튀�
     expect(Number(sec?.[1])).toBeCloseTo(2 * Number(up?.[1]), 6);
     expect(bridgeJs).toContain('if (o.arc && travel > 0)');
   });
+  it('광선 · 땅 흔들기도 맞는 때에 — bridge 의 닿는 때가 shot-hit.ts 와 같음 (#122 3단계: bugs 1886 광선 240 0.1초 먼저 · 땅 흔들기 가장 큰 순간이 0.7초 먼저)', () => {
+    expect(Number(/const BEAM_HIT_AT = ([\d.]+);/.exec(bridgeJs)?.[1])).toBe(shotHitAt('beam'));
+    expect(Number(/const QUAKE_HIT_AT = ([\d.]+);/.exec(bridgeJs)?.[1])).toBe(shotHitAt('quake'));
+    expect(movesJs).toContain('p.life * (o.v ?? 1600)');
+    expect(bridgeJs).toContain('wait: ms > 0 ? Math.max(0, QUAKE_HIT_AT * ms - QUAKE_PEAK_MS) : 0');
+  });
   it('1:1 뿜기 기울임이 큰 포켓몬에서 켜짐 · 작은 포켓몬끼리는 그대로 — 몸 모양 기준 (#122 2단계 UX 6바퀴: 칸 기준 문턱이 한 번도 안 켜졌음)', () => {
     const shape = JSON.parse(/const POKEMON_SHAPE = (\{.*?\});\r?\n/.exec(bundle)?.[1] ?? '{}') as Record<string, number[]>;
     const above = Number(/const BREATH_TILT_ABOVE = ([\d.]+);/.exec(bridgeJs)?.[1]);

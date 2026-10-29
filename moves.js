@@ -1751,17 +1751,17 @@ const SIG_FX = {
             sigParticle({ x: g.mouth.x, y: g.mouth.y, s: g.s, max: ms / 1000, dir: g.dir, cols, W, reach,
                 update: (p) => {
                     if (Math.random() < sparkleRate) {
-                        const k = Math.min(p.reach, p.life * 1600) * Math.random();
+                        const k = Math.min(p.reach, p.life * (o.v ?? 1600)) * Math.random();
                         sigParticle({ x: p.x + p.dir * k, y: p.y + moveRand(-1, 1) * p.W * p.s, s: p.s, vy: moveRand(-20, 20) * p.s, max: 0.3, cols: sparkle, draw: DRAW.sparkle });
                     }
                     // 덩굴 · 풀 광선 — 잎이 떨어짐
                     if (o.c === 'grass' && Math.random() < 0.25) {
-                        const k = Math.min(p.reach, p.life * 1600) * Math.random();
+                        const k = Math.min(p.reach, p.life * (o.v ?? 1600)) * Math.random();
                         sigParticle({ x: p.x + p.dir * k, y: p.y, s: p.s, vx: moveRand(-10, 10) * p.s, vy: moveRand(5, 20) * p.s, g: 20 * p.s, max: 0.5, color: movePick(p.cols.slice(1)), draw: DRAW.dot });
                     }
                 },
                 draw: (ctx, p, t, px) => {
-                    const L = Math.min(p.reach, p.life * 1600);
+                    const L = Math.min(p.reach, p.life * (o.v ?? 1600));
                     const alpha = (t > 0.8 ? (1 - t) / 0.2 : 1) * (0.92 + 0.08 * (Math.floor(p.life * 6) % 2));
                     ctx.globalAlpha = alpha;
                     for (let k = 0; k < L; k += p.s) {
@@ -1830,17 +1830,21 @@ const SIG_FX = {
         run: (g, o, ms, pokemon) => {
             const P = g.P;
             const cols = sigPal('solar');
-            const charge = 1200;
-            const fire = ms - charge;
+            // 게임 (다리 fxAim) = o.charge · o.fire — 줄기 앞머리가 맞는 때 (틀 끝) 에 닿게 모으기를 늘리고 맞은 뒤 0.3초만 (1.2초에 쏘아 0.9초 먼저 닿던 것 — #122 3a UX 큼 · 태현 님 #457 과 같은 종류) · 일반 모드는 그대로
+            const charge = o.charge ?? 1200;
+            const fire = o.fire ?? ms - charge;
             const R = Math.max(g.w, 40);
             const cx = g.mouth.x + g.dir * 7 * g.s;
             const cy = g.mouth.y;
+            // 게임 (다리 o.room) = 모으는 빛이 닿아도 되는 거리 (상대 몸 앞까지) · 일반 모드는 끝없음
+            const room = o.room ?? Infinity;
             const now = performance.now();
             const hw = R * 0.7;
             // 0~1 모으기 진행
             const progress = () => Math.min(1, (performance.now() - now) / charge);
             // 화면이 어두워짐 — 햇빛 기둥 자리만 빼고, 먼저 그린 효과 밑으로 깔림
-            sigParticle({ x: g.body.cx, y: 0, s: g.s, max: ms / 1000, draw: (ctx, p, t, px) => {
+            // 수명 = 모으기 + 쏘기 (게임은 ms + 0.3초 — ms 에서 끊으면 맞는 때에 패널 전체가 한 장면에 밝아짐, #122 3a)
+            sigParticle({ x: g.body.cx, y: 0, s: g.s, max: (charge + fire) / 1000, draw: (ctx, p, t, px) => {
                 const c = charge / 1000;
                 const f = fire / 1000;
                 const a = p.life < c ? Math.min(1, p.life / (0.7 * c)) : p.life < c + 0.6 * f ? 1 : 1 - (p.life - c - 0.6 * f) / (0.4 * f);
@@ -1874,7 +1878,9 @@ const SIG_FX = {
                 const k0 = progress();
                 e.rate = (40 + 40 * P) * (1 + 3 * k0);
                 const a = moveRand(0, Math.PI * 2);
-                const r = R * moveRand(1.1, 2);
+                // 앞쪽 (상대 쪽) 알갱이는 room 안에서 생김 — 좁은 패널에서 상대 몸 위에서 생겨 빛줄기보다 1.7 ~ 2초 먼저 닿아 보이던 것 (박자 표 240 px1, #122 3a)
+                const fwd = Math.cos(a) * g.dir;
+                const r = Math.min(R * moveRand(1.1, 2), fwd > 0.05 ? room / fwd : Infinity);
                 const x0 = cx + Math.cos(a) * r;
                 const y0 = cy + Math.sin(a) * r * 0.8;
                 sigParticle({ x: x0, y: y0, x0, y0, s: g.s, max: moveRand(0.3, 0.4) * (1 - 0.4 * k0), color: movePick(cols), size: Math.random() < 0.35 ? 2 : 1,
@@ -1894,7 +1900,7 @@ const SIG_FX = {
             // 두근 세 번 — 고리가 좁혀 들고 반짝
             const beats = [0.25, 0.5, 0.72];
             beats.forEach((b) => setTimeout(() => {
-                sigRing(cx, cy, g.s, R * 1.5, R * 0.15, 1, 0.3, [cols[2], cols[0]]);
+                sigRing(cx, cy, g.s, Math.min(R * 1.5, room), R * 0.15, 1, 0.3, [cols[2], cols[0]]);
                 sigBurst(cx, cy, g.s, cols, 8, 50);
             }, b * charge));
             // 몸 떨림 — 뒤쪽 절반 동안 점점 세게
@@ -1923,7 +1929,7 @@ const SIG_FX = {
                 const rays = 8;
                 for (let j = 0; j < rays; j++) {
                     const a = p.life * (3 + 6 * T) + (j * Math.PI * 2) / rays;
-                    const len = r * (j % 2 ? 2.2 : 3.4) * (0.8 + 0.2 * Math.sin(p.life * 30 + j)) * (hot ? 1.4 : 1);
+                    const len = Math.min(room, r * (j % 2 ? 2.2 : 3.4) * (0.8 + 0.2 * Math.sin(p.life * 30 + j)) * (hot ? 1.4 : 1));
                     const w = j % 2 ? 1 : 2;
                     ctx.globalAlpha = 0.4 + 0.6 * T;
                     for (let d = r * 1.2; d < len; d += p.s) {
@@ -1937,7 +1943,10 @@ const SIG_FX = {
                 }
             } });
             setTimeout(() => {
-                screenFlash(g.s, 0.55, '#f4ffd6', 0.35);
+                // 게임은 패널 전체 번쩍 없음 (넓은 패널이 한 장면에 밝아지던 것 — 정식 필살기만, design 6장) · 줄기 둘레 빛은 그대로
+                if (!(typeof fxInGame === 'function' && fxInGame())) {
+                    screenFlash(g.s, 0.55, '#f4ffd6', 0.35);
+                }
                 // 화면 흔들림 · 반동
                 const amp = 2 + 2 * P;
                 const shake = (el) => el?.animate([{ translate: `-${amp}px 0` }, { translate: `${amp}px 0` }], { duration: 55, iterations: 8, direction: 'alternate', composite: 'add' });
@@ -2109,7 +2118,7 @@ const SIG_FX = {
             // 게임 (다리 fxAim) = 고리 사이 o.every · 첫 고리 o.delay ms 뒤 (앞 끝이 맞는 때에 몸 앞 — #122 2단계 UX)
             const every = o.every ?? 140;
             const t0 = performance.now() + (o.delay ?? 0);
-            sigEmitter({ until: t0 + n * every, shots: n, every, nextShot: t0, fx: (e, i) => sigParticle({
+            sigEmitter({ until: t0 + (n + 1) * every, shots: n, every, nextShot: t0, fx: (e, i) => sigParticle({
                 x: o.forward ? g.mouth.x : g.body.cx, y: o.forward ? g.mouth.y : g.body.cy, s: g.s, dir: g.dir, i,
                 vx: o.forward ? g.dir * (90 + 40 * g.P) * g.s : 0, max: o.forward ? 0.7 : 0.55, cols,
                 r0: o.forward ? 3 : 0.4 * Math.max(g.body.rx, g.body.ry) / g.s, r1: o.forward ? 12 + 5 * g.P : (1.6 + 0.4 * g.P) * Math.max(g.body.rx, g.body.ry) / g.s,
@@ -2167,6 +2176,16 @@ const SIG_FX = {
             const ground = g.body.bottom;
             const start = performance.now();
             const spin = g.dir * moveRand(9, 12);
+            // o.peak = 다 자라는 때 (초 · 게임 다리 fxAim — 맞는 때에 가장 크게, #122 3단계 U2) · 없으면 0.25초 (일반 모드 그대로) · 줄어듦은 다 자란 뒤부터
+            const peak = o.peak ?? 0.25;
+            // 게임은 다 자란 바로 그때부터 줄어듦 — 가장 높은 때가 맞는 때 하나 (꼭대기가 판판히 머물면 띠가 돌며 1 ~ 2px 오르내려 가장 높은 장면이 맞은 뒤 0.05 ~ 0.2초로 흩어짐, 박자 표 vtop)
+            const shrinkAt = o.peak !== undefined ? Math.min(0.95, peak / (ms / 1000)) : Math.max(0.8, Math.min(0.95, peak / (ms / 1000) + 0.03));
+            // 지금 기둥 높이 (0 ~ 1) — 나선 띠와 같은 셈 · 게임은 오르는 알갱이 · 불똥도 이 아래만 (줄어드는 기둥 위로 알갱이가 처음 높이까지 계속 올라 맞은 뒤 0.1 ~ 0.25초가 가장 높던 것 — 박자 표 vtop, #122 3a)
+            const topNow = () => {
+                const life = (performance.now() - start) / 1000;
+                const t = life / (ms / 1000);
+                return Math.min(1, life / peak) * (t > shrinkAt ? Math.max(0, 1 - (t - shrinkAt) / (1 - shrinkAt)) : 1);
+            };
             // 끝무렵 발밑에서 불꽃이 사방으로 터짐 (연옥 — #122 flare) · 기둥 가운데 · 두 번 (1초 3번 넘지 않게 0.25초 사이)
             if (o.flare) {
                 for (const [at, k] of [[0.62, 1], [0.8, 0.7]]) {
@@ -2187,8 +2206,8 @@ const SIG_FX = {
             } });
             // 기둥을 감고 올라가는 나선 띠 두 줄 — 꼬인 회오리 모양
             sigParticle({ x: cx, y: ground, s: g.s, max: ms / 1000, draw: (ctx, p, t, px) => {
-                const grow = Math.min(1, p.life / 0.25);
-                const top = H * grow * (t > 0.8 ? 1 - (t - 0.8) / 0.2 : 1);
+                const grow = Math.min(1, p.life / peak);
+                const top = H * grow * (t > shrinkAt ? 1 - (t - shrinkAt) / (1 - shrinkAt) : 1);
                 for (let strand = 0; strand < 2; strand++) {
                     for (let h = 0; h < top; h += p.s) {
                         const frac = h / H;
@@ -2201,11 +2220,16 @@ const SIG_FX = {
                 }
             } });
             sigEmitter({ until: start + ms - 300, rate: 110 + 110 * g.P, fx: () => {
-                const grow = Math.min(1, (performance.now() - start) / 250); // 처음엔 솟아오르며 커짐
+                const grow = Math.min(1, (performance.now() - start) / (peak * 1000)); // 처음엔 솟아오르며 커짐 (맞는 때에 다 큼)
+                // 게임 (o.peak) 은 내뿜는 양도 자라는 만큼 — 처음부터 같은 양이면 기둥보다 알갱이 수가 먼저 가장 많아져서 (박자 표 vpeak −0.1 ~ −0.3초)
+                if (o.peak !== undefined && Math.random() > 0.3 + 0.7 * grow) {
+                    return;
+                }
                 if (Math.random() < 0.12 + 0.1 * g.P) {
                     // 회오리 밖으로 튀는 불똥
                     const a = moveRand(0, Math.PI * 2);
-                    sigParticle({ x: cx + Math.cos(a) * rTop * 0.6, y: ground - moveRand(0.2, 0.9) * H * grow, s: g.s, vx: Math.cos(a) * moveRand(30, 70) * g.s, vy: -moveRand(10, 50) * g.s, g: 60 * g.s, drag: 1, max: moveRand(0.4, 0.8), color: movePick(cols.slice(0, 2)), draw: DRAW.dot });
+                    const game = o.peak !== undefined;
+                    sigParticle({ x: cx + Math.cos(a) * rTop * 0.6, y: ground - moveRand(0.2, game ? 0.6 : 0.9) * H * grow, s: g.s, vx: Math.cos(a) * moveRand(30, 70) * g.s, vy: -moveRand(10, game ? 30 : 50) * g.s, g: 60 * g.s, drag: 1, max: moveRand(0.4, 0.8), color: movePick(cols.slice(0, 2)), draw: DRAW.dot });
                     return;
                 }
                 sigParticle({
@@ -2220,7 +2244,7 @@ const SIG_FX = {
                         p.y = ground - p.h + p.depth * r * 0.15;
                     },
                     draw: (ctx, p, t, px) => {
-                        if (p.frac === undefined) {
+                        if (p.frac === undefined || (o.peak !== undefined && p.h > topNow() * H)) {
                             return;
                         }
                         const front = p.depth > 0;
@@ -2393,7 +2417,7 @@ const SIG_FX = {
                 const lo = Math.max(m, Math.min(a, b));
                 return lo < hi ? lo + ((hi - lo) * (slots[i % n] + moveRand(0.2, 0.8))) / n : (lo + hi) / 2;
             };
-            sigEmitter({ until: performance.now() + n * every, shots: n, every, nextShot: performance.now(), fx: (e, i) => sigParticle({
+            sigEmitter({ until: performance.now() + (n + 1) * every, shots: n, every, nextShot: performance.now(), fx: (e, i) => sigParticle({
                 x: rockX(i), y: -10, s: g.s, ...drop(), max: o.fall ? o.fall + 0.3 : 2,
                 big: g.P > 0.5 || Math.random() < 0.4, cols, ground: g.body.bottom, top: -10,
                 update: (p) => {

@@ -950,6 +950,17 @@ function PopSay({ kind, x, bottom, text }: { kind: string; x: number; bottom: nu
       if (t.width > 0 && r.left < t.right && r.right > t.left && r.top < t.bottom && r.bottom > t.top) cx = Math.max(POP_EDGE + half, cx - (r.right - (t.left - POP_EDGE)));
     }
     el.style.left = `${Math.round(cx)}px`;
+    // 자동 칩 ("A 자동 꺼짐") 과 겹치면 칩 오른쪽으로 · 자리가 없으면 칩 위로 (아래 말 칸 다음) — 240 × 187 · 150 에서 "효과가 굉장했다!" 가 칩 글자를 말이 뜬 내내 덮던 것 (bugs 2687 · U4)
+    let chipTop: number | null = null;
+    const ra = el.getBoundingClientRect();
+    for (const chip of document.querySelectorAll('#pokemon-game .pg-auto')) {
+      const a = chip.getBoundingClientRect();
+      if (!(a.width > 0 && ra.left < a.right && ra.right > a.left && ra.top < a.bottom && ra.bottom > a.top)) continue;
+      const moved = cx + (a.right + POP_EDGE - ra.left);
+      if (moved <= W - POP_EDGE - half) cx = moved;
+      else chipTop = a.top;
+    }
+    el.style.left = `${Math.round(cx)}px`;
     // 위 말 칸 (쓰러짐 · 다음 포켓몬 말) 과 겹치면 말 칸 바로 아래로 — 860 플레어드라이브 끝에 "효과가 별로인 듯하다…" 가 "… 다음 포켓몬을 꺼낸다…" 위에 0.85초 겹쳐 둘 다 읽기 어렵던 것 (#112 ① · U1)
     el.style.bottom = `${bottom}px`;
     const p = el.parentElement?.getBoundingClientRect();
@@ -958,6 +969,7 @@ function PopSay({ kind, x, bottom, text }: { kind: string; x: number; bottom: nu
       const m = box.getBoundingClientRect();
       if (p && m.width > 0 && r2.left < m.right && r2.right > m.left && r2.top < m.bottom && r2.bottom > m.top) el.style.bottom = `${Math.round(p.bottom - (m.bottom + POP_EDGE + 2) - r2.height)}px`; // + 2 = 글자 테두리 그림자가 상자 아래 테에 먹던 것 (#107 UX 작음 ⑤)
     }
+    if (p && chipTop !== null && el.getBoundingClientRect().bottom > chipTop) el.style.bottom = `${Math.round(p.bottom - (chipTop - POP_EDGE))}px`;
   });
   return (
     <span ref={ref} class={`pg-pop pg-pop-say pg-pop-${kind}`} style={{ left: `${x}px`, bottom: `${bottom}px` }}>

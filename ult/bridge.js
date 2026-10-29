@@ -640,7 +640,8 @@ function fxGameShake(amp) {
     const a = Math.max(2, Math.min(3, Math.round(amp)));
     document.querySelectorAll('#pokemon-game .pg-bg, #pokemon-game .pg-fg, #pokemon-game .pg-fighter, #pokemon-game .pg-hero-wrap, #pokemon-game .pg-foe-trainer').forEach((el) => {
         el.fxShake?.cancel();
-        el.fxShake = el.animate([{ translate: `-${a}px 0` }, { translate: `${a}px 0` }], { duration: 80, iterations: 4, direction: 'alternate', composite: 'add' });
+        // steps(2, jump-none) = −a · +a 두 자리만 (정수 px) — 선형이면 0.2 · 0.5 · 1.6px 같은 소수 자리를 지나 포켓몬 · 배경이 다시 그려지며 뭉개지던 것 (bugs 2692 · 원칙 4)
+        el.fxShake = el.animate([{ translate: `-${a}px 0` }, { translate: `${a}px 0` }], { duration: 80, iterations: 4, direction: 'alternate', composite: 'add', easing: 'steps(2, jump-none)' });
     });
 }
 // 화면 번쩍 상한 — 게임 중엔 0.3 (넓은 패널 전체가 하얗게 번쩍이지 않게) · 반격기 (짧은 필살기, fxGame.noFlash) 는 0 (2026-10-21 orders #7 — 솔라빔이 860 전체를 0.2초 밝게)
@@ -950,7 +951,7 @@ function fxTarget(g, dst) {
     const cx = r.left + r.width / 2;
     // 그 둘레 HP 묶음 아래 끝 (회오리처럼 높은 연출이 HP 를 덮지 않게)
     const hud = fxHudRects().filter((h) => h.right > r.left - r.width && h.left < r.right + r.width);
-    return { cx, cy: r.top + r.height * 0.55, w: r.width, far: g.dir > 0 ? r.right : r.left, dist: Math.abs(cx - g.mouth.x), ground: r.bottom, hudBottom: hud.length ? Math.max(...hud.map((h) => h.bottom)) : 0 };
+    return { cx, cy: r.top + r.height * 0.55, w: r.width, far: g.dir > 0 ? r.right : r.left, dist: Math.abs(cx - g.mouth.x), ground: r.bottom, hudBottom: hud.length ? Math.max(...hud.map((h) => h.bottom)) : 0, shape: fxShapeBox(dst) };
 }
 // ── 진화 연출 도우미 — 그림 그대로 / 한 색 실루엣 (0.1초마다 새로 — 움직이는 그림) ──
 const evoSilCache = new Map();
@@ -1145,6 +1146,13 @@ const PROJECTILE_HIT_AT = 0.85;
 const RINGS_HIT_AT = 0.7;
 // 뿜기 (breath) 가 닿는 때 — shot-hit.ts SHOT_HIT_AT.breath 와 같은 값
 const BREATH_HIT_AT = 0.87;
+// 광선 (beam) 이 닿는 때 — shot-hit.ts SHOT_HIT_AT.beam 와 같은 값 (fx/move-look.test 가 견줌)
+const BEAM_HIT_AT = 0.25;
+// 땅 흔들기 (quake) 가 맞는 때 — shot-hit.ts SHOT_HIT_DEFAULT 와 같은 값 · 틀 시작 → 가장 큰 순간 (땅 금이 다 자람 0.2초 · 첫 흙 고리) 까지 ms
+const QUAKE_HIT_AT = 0.85;
+// 회오리 — 다 자라는 때를 맞는 때보다 이만큼 (초) 늦게 · 0 (판정이 vpeak 알갱이 수 → vtop 기둥 위 끝으로 바뀜 — 0.18 은 기둥이 맞은 뒤에도 자라 vtop +0.05 ~ 0.2초, #122 3a)
+const VORTEX_PEAK_LAG = 0;
+const QUAKE_PEAK_MS = 200; // 150 이면 발밑 점이 가장 많은 때가 +0.08 ~ +0.23초 · 300 이면 −0.08 ~ −0.14초 (개발 박자 표 gpeak) — 흙 고리 · 튀는 돌이 금보다 늦게 커져서
 // 1:1 뿜기 기울임 — 입이 상대 몸 위쪽 이만큼 (몸 높이 비) 보다 높으면 켬 · 겨누는 곳 = 몸 가운데 + 몸 높이 × LOW (알갱이가 위로 뜨는 만큼 낮게, UX 6바퀴 — fx/move-look.test 가 큰 포켓몬에서 켜지는지 봄)
 const BREATH_TILT_ABOVE = 0.3;
 const BREATH_TILT_LOW = 0.1;
@@ -1223,9 +1231,13 @@ function fxAim(fx, g, o, t, ms = 0) {
             const k = clampK((t.dist + 0.5 * t.w) / head);
             // 줄은 맞는 때보다 60ms 먼저 옮김 — 멈춤 줄에 닿은 알갱이는 느려져 3 ~ 9px 틈을 메우는 데 0.03 ~ 0.18초 (UX 5바퀴)
             const hitAt = performance.now() + BREATH_HIT_AT * ms - 60;
-            const hold = t.cx - g.dir * (0.35 * t.w + 3 * g.s);
+            // 멈춤 자리 = 보이는 몸 (모양 상자) 앞 끝 − 3칸 — 그림 칸 폭 (0.35 × 64px) 으로 재면 큰 포켓몬이 상대 쪽에서 기울여 뿜을 때 몸이 가장 넓은 아래 줄에 먼저 닿던 것 (마그마 · 펄기아 · 비크티니 · 파이어, 개발 박자 표)
+            // 상대 쪽 (←) 큰 포켓몬은 (2 + 4 × 세기) 칸 더 — 입이 높아 기울인 앞머리가 짧은 거리 (240) 에서 몸 앞에 못 서고 들어가던 것 (스모그 · 불사르기 · 화염탄, #122 3a UX 큼)
+            const hold = (t.shape ? (g.dir > 0 ? t.shape.left : t.shape.right) - g.dir * 3 * g.s : t.cx - g.dir * (0.35 * t.w + 3 * g.s)) - (g.dir < 0 ? g.dir * (1 + 2 * g.P) * g.s : 0);
             // 멈춤 자리는 알갱이마다 ±2칸 흔들림 — 같은 x 에서 지우면 용의숨결 덩어리가 곧은 세로선으로 잘려 보이던 것 (픽셀 4바퀴)
-            const stop = stopAt((q) => q.cutJ ?? 0, () => (performance.now() < hitAt ? hold : t.cx));
+            // 멈춤 줄은 그려지는 반 크기만큼 몸에서 물림 — 자라는 연기 덩이 (1 + grow 칸) · 눈 반짝 십자 (1.5칸) 를 가운데로만 재면 몸 겉면을 2 ~ 8px 넘어 맞는 때보다 0.1 ~ 0.4초 먼저 덮던 것
+            //   (bugs 1887 · 상대 롱스톤 얼음 뿜기 — 기울임으로 몸이 가장 넓은 아래 줄에 와서 · 3a 스모그 · 클리어스모그, 개발 박자 표)
+            const stop = stopAt((q) => (q.cutJ ?? 0) + q.s * (q.grow && !q.tongue && !q.flake ? (1 + q.grow) / 2 : 1.5), () => (performance.now() < hitAt ? hold : t.cx));
             return { g, o: { ...o, speed: k, rate: (o.rate ?? 1) * dense(k) }, k: 1, cap: (p) => {
                 p.cutJ = (Math.random() * 4 - 2) * g.s;
                 stop(p);
@@ -1251,17 +1263,36 @@ function fxAim(fx, g, o, t, ms = 0) {
         case 'notes': {
             const d = FX_TRAVEL[fx](g, o);
             const k = d > 0 ? clampK(t.dist / d) : 1;
-            return d > 0 ? { g, o, k, rateK: dense(k), cap: stopPast } : { g, o };
+            // 파도타기 (탁류 · o.surf) 는 쓰는 쪽 발 높이 → 상대 발 높이로 기울여 감 — 쓰는 쪽 발 높이 그대로면 위쪽에 선 상대 그림 아래로 지나가 닿지 않던 것 (bugs 1888 · 개발 박자 표)
+            const dxs = t.cx - g.body.front;
+            const slope = o.surf && Math.abs(dxs) > 20 ? (t.ground - g.body.bottom) / dxs : 0;
+            const cap = slope ? (p) => {
+                stopPast(p);
+                p.vy = (p.vy ?? 0) + (p.vx ?? 0) * slope;
+            } : stopPast;
+            return d > 0 ? { g, o, k, rateK: dense(k), cap } : { g, o };
         }
         case 'beam':
             // 덩굴채찍 · 핥기 (len) = 상대 가운데까지 · 광선 = 상대 몸 뒤 윤곽까지 (화면 끝까지 뚫고 가지 않게)
             // 진짜 광선만 닿는 끝 빛 (채찍 · 혀 · 실 = 원래 len 이 있는 것은 없이)
-            return { g, o: { ...o, len: (o.len ? t.dist : t.dist + 0.3 * t.w) / Math.max(1, g.w), hitGlow: !o.len } };
+            //   진짜 광선은 자라는 빠르기 (v px/초) 를 거리에 맞춰 앞 끝이 맞는 때 (BEAM_HIT_AT × 길이) 에 몸 앞에 닿게 — 1600 하나면 240 에서 0.1초 먼저 닿던 것 (bugs 1886 · 오로라빔 · 냉동빔 · 파워젬)
+            return { g, o: { ...o, len: (o.len ? t.dist : t.dist + 0.3 * t.w) / Math.max(1, g.w), hitGlow: !o.len, ...(!o.len && ms > 0 ? { v: Math.max(300, Math.min(4000, Math.max(0.5 * t.dist, t.dist - 0.3 * t.w) / ((BEAM_HIT_AT * ms) / 1000))) } : {}) } };
+        case 'solarbeam': {
+            // 줄기 (2400px/초) 앞머리가 맞는 때 (SHOT_HIT_AT.solarbeam = 1 → 틀 끝) 에 몸 앞에 닿게 모으기를 늘림 · 맞은 뒤 0.3초 (#122 3a UX 큼)
+            if (!(ms > 0)) {
+                return { g, o };
+            }
+            const travel = (Math.max(0, t.dist - 0.3 * t.w) / 2400) * 1000;
+            // room = 모으는 빛 (고리 · 알갱이 · 빛살) 이 닿아도 되는 거리 — 상대 몸 앞 3칸까지 (240 에서 두근 고리 · 반짝이가 상대 몸에 1.6 ~ 1.9초 먼저 닿던 것, 박자 표 px1)
+            const front = t.shape ? Math.abs((g.dir > 0 ? t.shape.left : t.shape.right) - g.mouth.x) : t.dist - 0.35 * t.w;
+            return { g, o: { ...o, charge: Math.max(1200, ms - travel - 30), fire: travel + 330, room: Math.max(16, front - 10 * g.s) } };
+        }
         case 'vortex': {
             // 높이는 HP 묶음 아래까지 (불 기둥이 HP 를 덮지 않게)
             const full = (1.7 + 0.6 * g.P) * g.h;
             const height = t.hudBottom ? Math.min(o.height ?? 1, Math.max(0.4, (t.ground - t.hudBottom - 2) / full)) : o.height;
-            return { g: fxShift(g, t.cx - (g.body.front + g.dir * ((0.55 + 0.3 * g.P) * g.w + 0.2 * g.w))), o: { ...o, height } };
+            // 〔#122 3단계 — 땅 흔들기와 같은 규칙〕 회오리는 시전부터 작게 솟아 맞는 때 (QUAKE_HIT_AT × 길이) 에 가장 크게 — 0.25초에 다 자라 1.1 ~ 1.3초 서 있다 맞던 것 (박자 표 px1 −1.1 ~ −1.3초, U2)
+            return { g: fxShift(g, t.cx - (g.body.front + g.dir * ((0.55 + 0.3 * g.P) * g.w + 0.2 * g.w))), o: { ...o, height, ...(ms > 0 ? { peak: Math.max(0.25, (QUAKE_HIT_AT * ms) / 1000 + VORTEX_PEAK_LAG) } : {}) } };
         }
         case 'rockfall': {
             // 가운데 돌이 맞는 때 (0.85 × 길이) 에 땅에 닿게 — 처음부터 떨어지되 천천히 (그림자가 커지며 미리 보임) · 돌 사이 40ms
@@ -1287,7 +1318,8 @@ function fxAim(fx, g, o, t, ms = 0) {
         case 'quake':
             // 흙먼지는 상대 발밑 · 흔들기는 게임 화면 (일반 모드는 숨은 포켓몬 · 앞쪽 풀을 흔듦)
             //   땅 금 · 흙 고리 반 길이 = 가까운 패널 끝까지 (o.half — 240 에서 지진 · 분함의발구르기 금이 오른쪽 끝 밖으로 잘리던 것, #122 2단계 픽셀 2바퀴)
-            return { g: fxShift(g, t.cx - g.body.cx), o: { ...o, half: Math.max(0.5 * g.w, Math.min(t.cx, window.innerWidth - t.cx) - 4 * g.s) }, after: () => fxGameShake(2 + g.P) };
+            //   〔#122 3단계 기획〕 땅 금 · 흙 고리 · 흔들림의 가장 큰 순간을 맞는 때에 — 틀을 맞는 때 (QUAKE_HIT_AT × 길이) 보다 QUAKE_PEAK_MS 먼저 시작 · 화면 흔들림은 맞는 때에 (시전하자마자 다 지나가고 0.7초 뒤에 맞던 것 — 개발 박자 표 gpeak −0.44 ~ −0.60 · shake −0.74초, U2)
+            return { g: fxShift(g, t.cx - g.body.cx), o: { ...o, half: Math.max(0.5 * g.w, Math.min(t.cx, window.innerWidth - t.cx) - 4 * g.s) }, wait: ms > 0 ? Math.max(0, QUAKE_HIT_AT * ms - QUAKE_PEAK_MS) : 0, after: () => (ms > 0 ? setTimeout(() => fxGameShake(2 + g.P), QUAKE_PEAK_MS) : fxGameShake(2 + g.P)) };
         case 'projectile': {
             // 마지막 발이 맞는 때 (PROJECTILE_HIT_AT × 길이) 에 상대에 닿게 빠르기를 맞춤 (#122 U2 — 빠르기 1 그대로면 0.5 ~ 1초 늦게 닿아
             //   피해 숫자 · 맞는 빛이 나온 뒤에도 날아가던 것: 불꽃세례 · 독침 · 바늘미사일 · 섀도볼 …). 게임의 똑바로 나는 날리기 모두 · 표에 reach: 0 = 예전 빠르기
@@ -3288,12 +3320,20 @@ window.pokemonFx = {
                 aim = { g: g0, o: { ...p.o, speed: (p.o.speed ?? 1) * Math.min(25, Math.max(1, reach / FX_TRAVEL.breath(g0))) } };
             }
             const go = () => p.T.run(aim.g, aim.o, p.ms, A);
-            if (aim.k !== undefined || aim.cap) {
-                fxScaled(aim.k ?? 1, go, aim.cap, aim.rateK);
+            const start = () => {
+                if (aim.k !== undefined || aim.cap) {
+                    fxScaled(aim.k ?? 1, go, aim.cap, aim.rateK);
+                } else {
+                    go();
+                }
+                aim.after?.();
+            };
+            // aim.wait = 틀을 늦춰 시작 (땅 흔들기 — 가장 큰 순간을 맞는 때에)
+            if (aim.wait > 0) {
+                setTimeout(start, aim.wait);
             } else {
-                go();
+                start();
             }
-            aim.after?.();
         }));
         return ok ? p.ms : 0;
     },

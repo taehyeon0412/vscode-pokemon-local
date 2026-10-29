@@ -1067,7 +1067,9 @@ function ultShake(amp = 3, ms = 600) {
             return;
         }
         el.ultShakeAnim?.cancel();
-        el.ultShakeAnim = el.animate([{ translate: `-${a}px 0` }, { translate: `${a}px ${a * 0.3}px` }], { duration: 50, iterations: n, direction: 'alternate', composite: 'add' });
+        // 정수 px 두 자리만 (steps) — 선형 · 소수 진폭이면 그림이 반 픽셀에 서서 흐려짐 (bugs 2692 · 원칙 4)
+        const q = Math.max(1, Math.round(a));
+        el.ultShakeAnim = el.animate([{ translate: `-${q}px 0` }, { translate: `${q}px ${Math.round(q * 0.3)}px` }], { duration: 50, iterations: n, direction: 'alternate', composite: 'add', easing: 'steps(2, jump-none)' });
     };
     exports.allPokemon.pokemonCollection.forEach((el) => el.pokemon !== ultActive?.pokemon && shake(el.el));
     shake(document.getElementById('foreground'), amp / 2); // 앞쪽 풀은 반만 — 화면 끝이 덜 비게
