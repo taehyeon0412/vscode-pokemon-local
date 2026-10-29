@@ -673,6 +673,13 @@ export function ringKeyFits(geo: BattleGeometry, side: Side): boolean {
 }
 
 /** 메뉴 줄 원 안내 (키 칸이 숨었을 때만) — 막기 (상대 공격 중) · 반격 (완벽 패링 뒤) */
+/**
+ * 마지막 기회 남은 초 (S11 "기회 5초") — 맨 처음 수 (6 · 자동 3) 는 쓰러지는 동안 (칸이 안 보임) 다 지나가 0.2초만 보이고 바로 하나 줄던 것 (ideas 727) → 한 칸 아래 수부터
+ */
+export function lastChanceSec(limitMs: number, lastMs: number): number {
+  return Math.max(0, Math.min(Math.ceil(limitMs / 1000) - 1, Math.ceil((limitMs - lastMs) / 1000)));
+}
+
 export function ringHint(b: BattleState, geo: BattleGeometry, auto: boolean): '막기' | '반격' | null {
   if (auto) return null;
   if (canParry(b) && !ringKeyFits(geo, 'me')) return '막기';

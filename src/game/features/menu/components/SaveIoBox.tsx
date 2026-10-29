@@ -25,6 +25,11 @@ const RESULT_MS = 3000;
 
 type Act = 'import-confirm' | 'import-cancel' | 'dismiss';
 
+/** 묻는 상자 키 → 할 일 — 빠지는 포켓몬이 있으면 (lost) Enter · Space 도 그만두기 · 불러오기는 버튼을 눌러야 (ideas 166 — 덮어쓰기 + 빠짐을 Enter 한 번에 하지 않게) */
+export function askKeyAct(key: string, lost: number): 'import-confirm' | 'import-cancel' {
+  return key === 'Escape' || lost > 0 ? 'import-cancel' : 'import-confirm';
+}
+
 export function SaveIoBox({ io, onAct, inPanel = false }: { io: SaveIoState; onAct(kind: Act): void; /** 설정 판이 열려 있음 — 결과 한 줄은 판이 보여 줌 (여기서는 3초 타이머만) */ inPanel?: boolean }) {
   // 묻는 상자 · 오류 상자만 키를 받음 (판 (설정) 의 Esc 닫기 · 게임 키보다 먼저 — capture): Enter · Esc = 고름, 그 밖의 키는 게임에 안 넘김 (Tab 은 버튼 사이 이동).
   //   결과 한 줄 (3초) 은 안 받음 — 내보낸 직후 Esc 가 설정 판을 안 닫고 게임 Enter 가 먹히던 것 (개발 #48)
@@ -42,7 +47,7 @@ export function SaveIoBox({ io, onAct, inPanel = false }: { io: SaveIoState; onA
       if (e.key !== 'Enter' && e.key !== 'Escape' && !space) return;
       e.preventDefault();
       if (e.repeat || (space && !confirmKey(e, shownAt))) return;
-      if (io.ask) onAct(e.key === 'Escape' ? 'import-cancel' : 'import-confirm');
+      if (io.ask) onAct(askKeyAct(e.key, io.ask.lost ?? 0));
       else onAct('dismiss');
     };
     window.addEventListener('keydown', onKey, true);
@@ -111,13 +116,27 @@ export function SaveIoBox({ io, onAct, inPanel = false }: { io: SaveIoState; onA
             <span class="pg-dim pg-long">플레이 {formatPlayTime(s.playTimeMs)}</span>
           </span>
         )}
+        {/* 빠지는 포켓몬이 있으면 주 버튼 (Enter) = 그만두기 · 불러오기는 눌러야 (ideas 166) — 자리는 그대로 */}
         <span class="pg-line pg-saveio-act">
-          <Button onClick={() => onAct('import-confirm')} title="Enter — 이 세이브로 바꾸고 게임에 다시 들어가요">
-            <KeyCap k="Enter" /> 불러오기
-          </Button>
-          <Button secondary onClick={() => onAct('import-cancel')} title="Esc — 지금 세이브 그대로">
-            <KeyCap k="Esc" /> 그만두기
-          </Button>
+          {io.ask.lost ? (
+            <>
+              <Button secondary onClick={() => onAct('import-confirm')} title={`누르면 이 세이브로 바꿔요 — 포켓몬 ${io.ask.lost}마리가 빠져요`}>
+                불러오기
+              </Button>
+              <Button onClick={() => onAct('import-cancel')} title="Enter · Esc — 지금 세이브 그대로">
+                <KeyCap k="Enter" /> 그만두기
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button onClick={() => onAct('import-confirm')} title="Enter — 이 세이브로 바꾸고 게임에 다시 들어가요">
+                <KeyCap k="Enter" /> 불러오기
+              </Button>
+              <Button secondary onClick={() => onAct('import-cancel')} title="Esc — 지금 세이브 그대로">
+                <KeyCap k="Esc" /> 그만두기
+              </Button>
+            </>
+          )}
         </span>
       </div>
     );

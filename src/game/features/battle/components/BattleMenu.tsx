@@ -19,7 +19,7 @@ import { Icon } from '../../../ui/Icon';
 import { KeyCap } from '../../../ui/KeyCap';
 import { KO_FLIP_MS, KO_SLUMP_MS, KO_START_LAG_MS, koFallAt, koTiming, setPickShow } from '../fx/hold';
 import { useFallWake } from './fallWake';
-import { ballTier, catchTone, catchView, hpColor, menuItems, TIER_WORD, TONE_WORD, type MenuItem, type MenuPage } from '../model';
+import { ballTier, catchTone, catchView, hpColor, lastChanceSec, menuItems, TIER_WORD, TONE_WORD, type MenuItem, type MenuPage } from '../model';
 
 /** 다음 포켓몬 고르기가 보이는 때 (ms) — game.css .pg-pick-list 의 2.3s 와 같은 값 (벌러덩 2.3초 · 쓰러진 모습이 다 사라진 뒤) */
 const PICK_SHOW_MS = 2300;
@@ -298,13 +298,20 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
   const triesSeen = useRef(catchTriesUsed(b));
   // 커서를 ↑ ↓ 로 옮겼는지 — 안 옮겼으면 Enter = 지난번 행동 다시 (ideas #22), 옮겼으면 그 줄 (볼을 놓친 차례는 처음부터 커서)
   const [moved, setMoved] = useState(false);
+  const pagePrev = useRef(page);
   useLayoutEffect(() => {
+    // 기술 · 아이템 판에서 뒤로 (Esc · ←) 오면 판을 연 줄 ("3 기술") 에 커서 — "1 공격" 으로 가 Enter 가 공격이 되던 것 (ideas 1621) · 그 줄을 고른 것으로 침 (다시 하기 대신 그 줄)
+    const from = pagePrev.current;
+    pagePrev.current = page;
+    const opener = page === 'main' && from !== 'main' && b.phase === 'choose' ? items.findIndex((i) => 'page' in i.go && i.go.page === from && i.enabled) : -1;
     const tries = catchTriesUsed(b);
     const missed = page === 'main' && b.phase === 'choose' && tries > triesSeen.current;
     if (b.phase === 'choose') triesSeen.current = tries;
     const itemsAt = items.findIndex((i) => i.key === 'items' && i.enabled);
-    setCursor(missed && itemsAt >= 0 ? itemsAt : 0);
-    setMoved(missed);
+    // 아이템 목록 — 내 HP 가 절반 아래면 첫 쓸 수 있는 회복 줄로 (탭이면 회복 탭 · 트레이너전처럼 — 야생전에서 상처약까지 ↓ 세 번이던 것, ideas 163)
+    const healAt = page === 'items' && b.me.hp * 2 < b.me.maxHp ? items.findIndex((i) => tabOf(i) === 'heal' && i.enabled) : -1;
+    setCursor(missed && itemsAt >= 0 ? itemsAt : opener >= 0 ? opener : healAt >= 0 ? healAt : 0);
+    setMoved(missed || opener >= 0);
     setItemTab(null);
   }, [page, b.phase]);
   const enabledIdx = items.map((it, k) => (it.enabled ? k : -1)).filter((k) => k >= 0);
@@ -618,7 +625,7 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
 
           <span class="pg-last-sec" title="안 고르면 그냥 지나가요">
             {/* 자동 전투 (이로치 아님) 는 3초 — 엔진과 같은 lastChanceLimitMs (UX 리뷰어: 6초로 세다 4초에서 끝나던 것) */}
-            {Math.max(0, Math.ceil((lastChanceLimitMs(b, save.settings.autoBattle) - b.lastMs) / 1000))}초
+            {lastChanceSec(lastChanceLimitMs(b, save.settings.autoBattle), b.lastMs)}초
           </span>
           {/* 300px 아래 — 볼마다의 잡기 어려움 칸은 빼고 고른 볼의 것 하나만 여기 (orders #23 · 칸 셋이 "1 ◓…" 로 잘리던 것) */}
           {/* 자리는 늘 같은 폭 (안 던짐 · 단계가 바뀌어도 볼 줄이 옆으로 튀지 않게 — 마우스 밑 버튼이 바뀌어 다른 볼이 날아가던 것, UX 리뷰어 2차) */}

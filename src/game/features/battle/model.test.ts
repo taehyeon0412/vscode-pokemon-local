@@ -6,7 +6,7 @@ import { Rng } from '../../core/engine/rng';
 import { counterMove, isShooting } from '../../core/rules/battle';
 import { hasMapRow, MAP_ROW_PX, topGapPx } from '../../ui/layout';
 import { allForms, allMoves, formOf, moveOf } from '../../data';
-import { battleGeometry, battleSpritePx, endSay, firstSentence, koSinkPx, slumpPx, msgFits, sayPhase, battleViewKey, catchFoeClass, catchView, duelKind, hpColor, menuItems, placeOnStage, sentenceText, splitPopups, introView, SEND_FLY_MS, SEND_BURST_MS, WIPE_MS, type DuelKind } from './model';
+import { battleGeometry, battleSpritePx, endSay, lastChanceSec, firstSentence, koSinkPx, slumpPx, msgFits, sayPhase, battleViewKey, catchFoeClass, catchView, duelKind, hpColor, menuItems, placeOnStage, sentenceText, splitPopups, introView, SEND_FLY_MS, SEND_BURST_MS, WIPE_MS, type DuelKind } from './model';
 
 const wild = sampleMonster({ uid: 'wild', species: 4, form: 'charmander', level: 5, moves: [{ moveId: 52, pp: 25 }], hp: 999 });
 const save = sampleSave();
@@ -533,5 +533,20 @@ describe('마지막 한 방 벌러덩 (2026-10-21 태현 님 B)', () => {
     expect(Number.isInteger(koSinkPx('bulbasaur', 48))).toBe(true);
     // 그림 범위를 모르면 회색 주저앉기와 같은 15%
     expect(koSinkPx('no-such-form', 60)).toBe(9);
+  });
+});
+
+describe('마지막 기회 남은 초 (ideas 727)', () => {
+  it('맨 처음 수 (6 · 자동 3) 는 쓰러지는 동안 지나가 0.2초만 보이던 것 → 한 칸 아래부터 · 그 뒤는 1초씩 · 끝 0', () => {
+    expect(lastChanceSec(6000, 0)).toBe(5);
+    expect(lastChanceSec(6000, 800)).toBe(5);
+    expect(lastChanceSec(6000, 2000)).toBe(4);
+    expect(lastChanceSec(6000, 2001)).toBe(4);
+    expect(lastChanceSec(6000, 3001)).toBe(3);
+    expect(lastChanceSec(6000, 5999)).toBe(1);
+    expect(lastChanceSec(6000, 6000)).toBe(0);
+    expect(lastChanceSec(6000, 7000)).toBe(0);
+    expect(lastChanceSec(3000, 800)).toBe(2);
+    expect(lastChanceSec(3000, 2500)).toBe(1);
   });
 });
