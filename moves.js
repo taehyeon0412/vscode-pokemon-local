@@ -1390,6 +1390,15 @@ function zapBranch(path, len, angle, s) {
     return zigzag(at[0], at[1], at[0] + Math.cos(b) * len, at[1] + Math.sin(b) * len, s, 1.5);
 }
 // 화면 전체 번쩍
+// 둘레만 번쩍 — x 를 가운데로 좌우 half px (패널 높이 전체)
+function localFlash(x, s, alpha, half, color = '#fffbe0', max = 0.28) {
+    sigParticle({ x, y: 0, s, max, draw: (ctx, p, t) => {
+        ctx.globalAlpha = alpha * (1 - t);
+        ctx.fillStyle = color;
+        const x0 = Math.max(0, Math.round(p.x - half));
+        ctx.fillRect(x0, 0, Math.min(window.innerWidth, Math.round(p.x + half)) - x0, window.innerHeight);
+    } });
+}
 function screenFlash(s, alpha, color = '#fffbe0', max = 0.28) {
     sigParticle({ x: 0, y: 0, s, max, draw: (ctx, p, t) => {
         ctx.globalAlpha = alpha * (1 - t);
@@ -1757,7 +1766,9 @@ const SIG_FX = {
             const cols = sigPal(o.c);
             // 가는 광선 (덩굴채찍 · 실뿜기 · 핥기) 도 2칸은 되게 — 1칸은 배경에 묻힘 (2026-10-19 "밋밋해")
             const W = Math.max(2, Math.round((2 + 2 * g.P) * (o.width ?? 1)));
-            const reach = o.len ? o.len * g.w : g.dir > 0 ? window.innerWidth - g.mouth.x : g.mouth.x;
+            // 일반 모드 (펫 — 겨눌 상대 없음) 는 몸 6개 폭까지 — 패널 끝까지 0.6초 옆 펫을 꿰뚫던 것 (bugs 2660 하이드로펌프) · 게임은 다리가 len 을 줌
+            const edge = g.dir > 0 ? window.innerWidth - g.mouth.x : g.mouth.x;
+            const reach = o.len ? o.len * g.w : typeof fxInGame === 'function' && fxInGame() ? edge : Math.min(edge, 6 * Math.max(g.w, 32));
             // 반짝이 — 옵션이 없으면 광선 제 색으로 조금
             const sparkle = sigPal(o.sparkle ?? o.c);
             const sparkleRate = o.sparkle ? 0.6 : 0.3;
@@ -2645,7 +2656,8 @@ const SIG_FX = {
                     const x = k.main ? g.body.cx : k.x;
                     const y1 = k.main ? g.body.cy : ground;
                     if (k.main || !o.calm) {
-                        screenFlash(g.s, k.main ? 0.4 : 0.2);
+                        // 친 자리 둘레 (좌우 몸 4개 폭) 만 — 넓은 패널 전체가 두 번 번쩍이던 것 (bugs 2660 · 아트 6장 넓은 번쩍은 필살기만)
+                        localFlash(x, g.s, k.main ? 0.4 : 0.2, 4 * Math.max(g.w, 32));
                     }
                     // 지직거리는 굵은 번개 + 가지 둘
                     sigParticle({ x, y: cloudY, s: g.s, max: k.main ? 0.4 : 0.3, y1, w: k.main ? 3 : 2,

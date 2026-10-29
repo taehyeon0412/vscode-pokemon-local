@@ -113,6 +113,9 @@ describe('기술마다 모양 표 (#122 — 태현 님 "불꽃세례 불꽃 튀�
     expect(bridgeJs).toContain('getComputedStyle(el).translate');
     expect(bridgeJs).toContain('shape: fxShapeAt(dst, tx, ty)');
   });
+  it('닿는 기술 자국은 밀린 몸을 따라감 (맞는 짜임은 그대로 — 따라가면 240 오른쪽 끝에 닿음) — 게임은 닿는 기술을 src = 맞는 쪽으로 부름 (bugs 1908 — 1906 밀림 뒤 주먹 자국이 몸에서 8 ~ 12px 떨어짐)', () => {
+    expect(bridgeJs).toContain('fxFollowCap(dst || src, aim.cap)');
+  });
   it('1:1 뿜기 기울임이 큰 포켓몬에서 켜짐 · 작은 포켓몬끼리는 그대로 — 몸 모양 기준 (#122 2단계 UX 6바퀴: 칸 기준 문턱이 한 번도 안 켜졌음)', () => {
     const shape = JSON.parse(/const POKEMON_SHAPE = (\{.*?\});\r?\n/.exec(bundle)?.[1] ?? '{}') as Record<string, number[]>;
     const above = Number(/const BREATH_TILT_ABOVE = ([\d.]+);/.exec(bridgeJs)?.[1]);

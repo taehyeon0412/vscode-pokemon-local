@@ -7,7 +7,7 @@
  * 임시 디자인 — 단계 12 에서 다시.
  */
 import type { ComponentChildren } from 'preact';
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useRef, useState, useLayoutEffect } from 'preact/hooks';
 import type { GameInput } from '../../../core/engine';
 import { withJosa } from '../../../core/text';
 import { Button } from '../../../ui/Button';
@@ -33,6 +33,19 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
   // 기술 줄 타입 "풀 · " — 줄이 넘치면 한 단계 뺌 (위력만 · 맥 여유 1.1 — 600 경계를 손으로 고르면 맥 860 에서 "노말 · 위력 40" 이 잘리던 것, #119)
   const box = useRef<HTMLDivElement>(null);
   const noType = useFit(box, 1, ':scope > .pg-line') >= 1;
+  // 타입을 뺀 뒤에도 윗줄이 넘치면 한 단계씩 — 위력 (숫자만 남기면 뜻이 없어 PP 와 헷갈림 — #119 · UX #137) → "★" 와 "—" (240 맥 · 잊을 기술 고른 뒤 7글자 이름에서 "대신?" 이 잘리던 것, bugs 1689 · U4)
+  //   그래도 넘치면 (맥 · 240 ~ 252 · 7글자 이름 둘 · 고른 뒤 — "플레어드라이브 아프로브레이크 대신?" 12.6px) 두 줄로 (뜻을 지움 대신 — 150 높이에서도 한 줄 들어감)
+  const tight = useFit(box, 3, ':scope.pg-no-type > .pg-line:first-child');
+  // 600 넘는 폭의 버튼 줄 (한 줄 여섯 칸) 이 넘치면 한 단계씩 — 버튼 안 위력 → 두 칸 두 줄 (600 고정 경계 바로 위 602 ~ 720 에서 "1 몸통박치기 위…" 로 잘리던 것, UX #137 · #429)
+  const wide = window.innerWidth > 600;
+  const rowFit = useFit(box, 2, ':scope.pg-wide > .pg-learn-row');
+  // 두 칸 두 줄 (좁은 패널) 에서 긴 이름 (7글자) 버튼이 넘치면 버튼 안쪽 여백을 줄임 (240 ~ 250 에서 "1 아프로브레이…", UX #137)
+  const [padTight, setPadTight] = useState(false);
+  useLayoutEffect(() => {
+    if (padTight || !box.current) return;
+    const over = Array.from(box.current.querySelectorAll<HTMLElement>('.pg-learn-row .pg-button')).some((b) => b.clientWidth > 0 && b.scrollWidth > b.clientWidth + 0.5);
+    if (over) setPadTight(true);
+  });
   const [keep, setKeep] = useState<number[]>([]);
   // S23 — 잊을 기술 (고른 칸 번호, 결정 전)
   const [forget, setForget] = useState<number | null>(null);
@@ -101,14 +114,25 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
 
   if (view.kind === 'learn') {
     return (
-      <div ref={box} class={`pg-banner pg-choice pg-learn pg-two${noType ? ' pg-no-type' : ''}`}>
+      <div ref={box} class={`pg-banner pg-choice pg-learn pg-two${noType ? ' pg-no-type' : ''}${wide ? ' pg-wide' : ''}${rowFit >= 1 ? ' pg-learn-nosub' : ''}${rowFit >= 2 ? ' pg-learn-grid' : ''}${padTight ? ' pg-learn-pad' : ''}${tight >= 3 ? ' pg-learn-wrap' : ''}`}>
         {/* 한 줄은 글 하나로 (줄 칸 사이 간격이 글 사이에 끼지 않게) · 좁으면 (600px 아래) "★ 잎날가르기 풀 55 — 잊을 기술을 골라요" 로 (이름 · "배울 수 있어요" 를 뺌 — U4 줄임표 대신) */}
         <span class="pg-line">
           <span class="pg-ellipsis">
-            <span class="pg-up">★</span> <span class="pg-learn-long">{withJosa(view.name, '이/가')} </span>
+            {tight < 2 && (
+              <>
+                <span class="pg-up">★</span>{' '}
+              </>
+            )}
+            <span class="pg-learn-long">{withJosa(view.name, '이/가')} </span>
             <b title={view.move.detail}>{view.move.name}</b>
-            <span class="pg-sub"><span class="pg-mv-type">{view.move.typeKo} · </span>{view.move.short}</span>
-            <span class="pg-learn-long">{josa(view.move.name, '을/를')} 배울 수 있어요</span> —{' '}
+            {tight < 1 && (
+              <span class="pg-sub">
+                <span class="pg-mv-type">{view.move.typeKo} · </span>
+                {view.move.short}
+              </span>
+            )}
+            <span class="pg-learn-long">{josa(view.move.name, '을/를')} 배울 수 있어요</span>
+            {tight < 2 ? ' — ' : ' '}
             {forget === null ? (
               <>
                 <span class="pg-learn-long">잊을 기술을 골라요</span>

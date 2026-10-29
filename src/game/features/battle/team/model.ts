@@ -111,7 +111,9 @@ export function viewMonClass(phase: 'in' | 'cut' | 'show' | 'out', o: { inGroup:
   //   쓰러진 칸 (hideDown — 돌아갈 때만) 은 걷지 않고 제자리에서 다른 칸과 같이 바둑판으로 나타남 (회색 그림만 0.2 ~ 0.3초 늦게 툭 나타나던 것, UX 리뷰어 #98 5 — team.css 가 쓰러짐 사라지기보다 앞에 둠)
   //   pg-view-down-back = 무리 안에서 쓰러진 칸만 (무리 밖 · 오래전에 쓰러져 사라진 칸에까지 걸리면 장면마다 회색이 2초씩 되살아남 — 코드 리뷰어 #98 높음)
   if (o.hideDown) return phase === 'out' ? `${rest} pg-view-down-back` : ' pg-view-hidden';
-  if (phase === 'out') return o.popsBack ? rest : ` pg-view-move${top}`;
+  //   돌아갈 때 제자리로 튀어나오는 칸 (popsBack) = 1:1 자리에서 바둑판으로 사라진 뒤 숨은 순간에 3:3 자리로 옮겨 바둑판으로 나타남 (pg-view-pop-back) —
+  //   rest (pg-view-hide-out) 그대로면 곧바로 3:3 자리에서 반쯤 보여 한 장면에 약 112px 튀던 것 (bugs 1909)
+  if (phase === 'out') return o.popsBack ? ` pg-view-pop-back${top}` : ` pg-view-move${top}`;
   if (o.cross) return phase === 'in' ? ' pg-view-pop-hide' : ` pg-view-pop${top}`;
   return ` pg-view-move${top}`;
 }

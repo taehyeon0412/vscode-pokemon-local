@@ -743,9 +743,35 @@ function ultIntro(pokemon, left, name, sub, o, fx, until, introMs = ULT_INTRO_MS
 
 // 어둠 한 겹 — alphaAt(life) 로 진하기, 쓰는 애 둘레만 동그랗게 비움. 먼저 그린 효과 밑으로 깔림
 // opt (게임 모드만) — edge = 구멍 가장자리 바둑판 칸 수 · minA = 이 진하기 아래면 구멍 없이 고르게 (3:3 장면 전환 합동 — 매끈한 연두 원판이 어둠이 걷혀도 남던 것, 아트 #100 ①)
+// 어둠 진하기를 화면 글 (DOM) 에도 알림 — #pokemon-game 의 --pg-fx-dim (0 ~ 1) · 0.12초 동안 새 값이 없으면 0 (진짜 시계 · rAF — 상자 시계 · 타이머 바꿈과 상관없이)
+//   3:3 장면 전환 피해 칩이 마무리 어두워짐에도 밝게 남던 것 (bugs 1673 — game.css .pg-view-chip 이 그만큼 어두워짐)
+let ultDimAt = 0;
+function ultDimSignal(a) {
+    const root = typeof document !== 'undefined' ? document.getElementById('pokemon-game') : null;
+    if (!root) {
+        return;
+    }
+    root.style.setProperty('--pg-fx-dim', String(Math.round(Math.min(1, Math.max(0, a)) * 100) / 100));
+    const first = !ultDimAt;
+    ultDimAt = Date.now();
+    if (first) {
+        const tick = () => {
+            if (Date.now() - ultDimAt > 120) {
+                root.style.setProperty('--pg-fx-dim', '0');
+                ultDimAt = 0;
+                return;
+            }
+            requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+    }
+}
 function ultDimLayer(alphaAt, sec, who = () => ultActive?.pokemon, update, opt) {
     sigParticle({ x: 0, y: 0, s: 1, max: sec, update, draw: (ctx, p) => {
         const a = alphaAt(p.life);
+        if (typeof fxInGame === 'function' && fxInGame()) {
+            ultDimSignal(a);
+        }
         if (a <= 0.005) {
             return;
         }

@@ -1060,6 +1060,62 @@
   }
 }
 /* 돌아올 때 = 처음부터 바둑판 반 (0 ~ 50%) → 다 보임 — 0 ~ 33% 숨김이면 1:1 연출이 끊긴 뒤 무대가 1 ~ 2장 통째로 비던 것 (UX 7바퀴 작음 3 · bugs 1798) */
+/* 돌아갈 때 제자리로 튀어나오는 칸 (합동 쏜 무리 · 맞은 칸 — model viewMonClass) — 1:1 자리에서 바둑판으로 사라짐 → 숨은 동안 (0.14 ~ 0.21초 · 가운데 0.175초) 에 3:3 자리로 → 바둑판으로 나타남
+   (곧바로 3:3 자리에서 반쯤 보여 한 장면에 약 112px 튀던 것, bugs 1909) · 옮김은 transition 지연 (steps 없이 한 번) */
+#pokemon-game .pg-team-mon.pg-view-pop-back {
+  transition: left 0s linear 175ms, top 0s linear 175ms;
+  animation: pg-view-pop-back 350ms linear both;
+}
+@keyframes pg-view-pop-back {
+  0%, 19% {
+    -webkit-mask-image: none;
+    mask-image: none;
+    visibility: visible;
+  }
+  20%, 39% {
+    -webkit-mask-image: conic-gradient(#000 25%, transparent 0 50%, #000 0 75%, transparent 0);
+    mask-image: conic-gradient(#000 25%, transparent 0 50%, #000 0 75%, transparent 0);
+    -webkit-mask-size: 4px 4px;
+    mask-size: 4px 4px;
+    visibility: visible;
+  }
+  40%, 60% {
+    visibility: hidden;
+  }
+  61%, 80% {
+    -webkit-mask-image: conic-gradient(#000 25%, transparent 0 50%, #000 0 75%, transparent 0);
+    mask-image: conic-gradient(#000 25%, transparent 0 50%, #000 0 75%, transparent 0);
+    -webkit-mask-size: 4px 4px;
+    mask-size: 4px 4px;
+    visibility: visible;
+  }
+  81%, 100% {
+    -webkit-mask-image: none;
+    mask-image: none;
+    visibility: visible;
+  }
+}
+/* 나오기 판 · 숫자 · 칸 번호 — 제자리로 튀어나오는 포켓몬 (pg-view-pop-back · 61% 부터) 과 같은 때에 나타남 (판이 0.15 ~ 0.2초 먼저 3:3 자리에 떠 짝이 틀려 보이던 것, UX #137) */
+#pokemon-game .pg-view-plate-late {
+  animation: pg-view-plate-late 350ms linear both;
+}
+@keyframes pg-view-plate-late {
+  0%, 60% {
+    visibility: hidden;
+  }
+  61%, 80% {
+    -webkit-mask-image: conic-gradient(#000 25%, transparent 0 50%, #000 0 75%, transparent 0);
+    mask-image: conic-gradient(#000 25%, transparent 0 50%, #000 0 75%, transparent 0);
+    -webkit-mask-size: 4px 4px;
+    mask-size: 4px 4px;
+    visibility: visible;
+  }
+  81%, 100% {
+    -webkit-mask-image: none;
+    mask-image: none;
+    visibility: visible;
+  }
+}
 @keyframes pg-view-show {
   0%, 50% {
     -webkit-mask-image: conic-gradient(#000 25%, transparent 0 50%, #000 0 75%, transparent 0);

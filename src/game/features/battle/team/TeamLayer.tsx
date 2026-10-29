@@ -412,7 +412,8 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   const vCross = vGroups && vSpots ? viewCrossers(g, vGroups, vSpots) : null;
   //   나머지 포켓몬 = 바둑판 두 걸음으로 사라짐 · 판 · 숫자 = in 에 바로 숨김 (바둑판이 옮겨 가는 몸 위에 겹쳐 어수선하던 것 — 개발 #99) · out 에 바둑판으로 나타남
   const vHide = !view ? '' : view.phase === 'in' ? ' pg-view-hide-in' : view.phase === 'out' ? ' pg-view-hide-out' : ' pg-view-hidden';
-  const vRestHide = view?.phase === 'in' ? ' pg-view-hidden' : vHide;
+  //   나오기 판 · 숫자는 튀어나오는 포켓몬과 같은 때에 (pg-view-plate-late — 먼저 떠 짝이 틀려 보이던 것, UX #137)
+  const vRestHide = view?.phase === 'in' ? ' pg-view-hidden' : view?.phase === 'out' ? ' pg-view-plate-late' : vHide;
   //   합동 쏘는 무리는 돌아갈 때 걷지 않고 바둑판으로 사라졌다 제자리에서 나타남 (동료 왼쪽 · 앞장 오른쪽 순서가 줄과 달라 돌아가는 길에 서로를 지나쳐 0.3초 겹치던 것 — 아트 디렉터 #101) ·
   //   합동 동료는 연출 층 위 (1:1 불 혜성 · 불벽이 동료 몸을 덮어 "앞장이 동료를 친다" 로 보이던 것 — 아트 디렉터 #101)
   const vOf = (side: Side, slot: number) => {
@@ -1017,9 +1018,10 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
     const p0 = g.pos(side, slot);
     const v0 = visBoxOf(f.form, g, side, slot);
     let vis = { l: v0.l + spot.x - p0.x, t: v0.t + spot.y - p0.y, r: v0.r + spot.x - p0.x };
-    // 힘겨루기 장면은 실제 그린 그림 자리 (1:1 연출이 진 쪽을 밀고 · 마지막 한 방은 눕혀서 장면 자리와 다름 — 지는 판 칩이 쓰러진 내 앞장 몸에 15 ~ 20px 걸치던 것, bugs 1683) ·
-    //   눕힌 그림 (pg-team-ko — 90°) 은 보이는 높이 = 원래 폭
-    if (view.kind === 'duel') {
+    // 실제 그린 그림 자리 (1:1 연출이 진 쪽을 밀고 · 마지막 한 방은 눕혀서 장면 자리와 다름 — 지는 판 칩이 쓰러진 내 앞장 몸에 15 ~ 20px 걸치던 것, bugs 1683) ·
+    //   합동 · 필살기 장면도 (바위 끝에 들려 올라간 상대 몸을 처음 자리 칩이 0.6초 가리던 것, bugs 1673) · 눕힌 그림 (pg-team-ko — 90°) 은 보이는 높이 = 원래 폭
+    let measured = false;
+    {
       const st = document.querySelector<HTMLElement>('#pokemon-game .pg-team');
       const mon = document.querySelector<HTMLElement>(`#pokemon-game [data-team="${side}-${slot}"]`);
       const body = mon?.querySelector<HTMLElement>('.pg-team-body');
@@ -1032,9 +1034,11 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
         if (r.width > 0 && mon.classList.contains('pg-team-ko')) {
           const l = r.left - sr.left + (r.width - vh) / 2;
           vis = { l, t: r.top - sr.top + Math.max(0, (r.height - vw) / 2), r: l + vh };
+          measured = true;
         } else if (r.width > 0) {
           const l = r.left - sr.left + (v0.l - (Math.round((p0.x - a.px / 2) / g.scale) * g.scale));
           vis = { l, t: r.top - sr.top + (v0.t - (p0.y - Math.round(a.foot * a.s))), r: l + vw };
+          measured = true;
         }
       }
     }
@@ -1042,7 +1046,7 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
     const cw = Math.ceil(((chip.joint && tagOn ? 35 : 12) + 10 * chip.text.length) * 1.1);
     // 힘겨루기 장면 (#116) — 1:1 큰 결과 글 ("힘대결에서 이겼다!" · ult/core.js ultTitle — 크기 W ÷ 9 (18 ~ 40) · 가운데 H × 0.36 · 부제 자리만큼 아래) 아래로 (칩이 끝 글자 "다!" 를 덮던 것 — 480 × 150 · 187)
     // 칩 가로 가운데 = 그림 가운데 (힘겨루기 장면은 잰 자리)
-    const cxC = view.kind === 'duel' ? (vis.l + vis.r) / 2 : spot.x;
+    const cxC = measured ? (vis.l + vis.r) / 2 : spot.x;
     const tSize = Math.min(40, Math.max(18, widthPx / 9));
     //   결과 글과 가로로 겹칠 때만 (글 폭 ≈ 9.5 글자 · 패널 90% 까지 — 지는 판 칩이 가운데 글과 떨어져 있는데도 몸 높이까지 내려와 쓰러진 거북왕을 덮던 것, UX 리뷰어 bugs 1852 확인)
     const tHalf = Math.min(widthPx * 0.45, (9.5 * tSize) / 2) + 4;
@@ -1070,7 +1074,7 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
       {SIDES.map((side) => b[side].map((_, slot) => <Fighter key={`${side}-${slot}`} b={b} g={g} side={side} slot={slot} media={media} topMin={popTop} final={finalKo === `${side}-${slot}`} autoNext={side === 'me' && slot === autoNext} fullChip={side === 'me' && slot === fullFirst} warnChip={side === 'foe' && slot === foeFirstSlot} warnShow={side === 'foe' && (warnShow[slot] ?? false)} warnPos={side === 'foe' ? (warnPos[slot] ?? 'right') : 'right'} blocks={blocks} dim={lit !== null && !lit[side].includes(slot)} big={bigHit === side && (lit?.[side].includes(slot) ?? false)} {...vOf(side, slot)} skip={skip} head={side === 'me' && denyHeld && !denyAtFixed && denyHeld.value.slot === slot ? denyHeld : null} lineBand={lineBand} onUlt={ult} />))}
       {/* 장면 전환 피해 칩 (ideas 717) — 합동 "합동! −N" · 혼자 큰 숫자 판 · 숫자 칩 층 (연출 층 위) · 돌아갈 때 (out) 바둑판으로 사라짐 */}
       {chipAt && chip && (
-        <span class={`pg-team-pop pg-pop-${chip.kind}${chip.joint ? ' pg-team-joint' : ' pg-pop-big'}${chipAt.cls}${view?.phase === 'out' ? ' pg-view-hide-in' : ''}`} style={{ left: `${chipAt.left}px`, top: `${chipAt.top}px` }}>
+        <span class={`pg-team-pop pg-view-chip pg-pop-${chip.kind}${chip.joint ? ' pg-team-joint' : ' pg-pop-big'}${chipAt.cls}${view?.phase === 'out' ? ' pg-view-hide-in' : ''}`} style={{ left: `${chipAt.left}px`, top: `${chipAt.top}px` }}>
           {chip.joint ? (
             <>
               {chipAt.tagOn && <b class="pg-team-joint-tag">합동!</b>} {chip.text}

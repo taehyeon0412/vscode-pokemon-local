@@ -1187,6 +1187,46 @@ const PROJECTILE_ARC_SEC = 0.9;
 // 날리기 빠르기 배 끝 [임시값] — 1:1 은 860 넘게 넓어도 상대까지 319px (가운데 축) · 맞는 때까지 0.28 ~ 0.54초라 2 ~ 5배 · 느린 하트 (천사의키스 speed 0.6) 7.9배 (#122 잼)
 const PROJECTILE_K_MAX = 8;
 // run 하는 동안 · 그 뒤 발사기가 만드는 입자의 옆 빠르기를 k 배 — 예전 틀 (물대포: fx 없는 발사기) 은 fx 발사기로 바꿔 감쌈
+// 맞는 몸에 붙임 — 맞는 쪽 밀림 (game.css pg-hurt-x · .pg-fx-body translateX 걸음 — 1906 이 맞는 빛 때로 앞당김) 만큼 그림도 옮김 (cap — fxScaled)
+//   닿는 기술 자국 · 맞는 짜임이 그린 자리에 남아 몸에서 8 ~ 12px 떨어지던 것 (bugs 1908) · 몸이 안 밀리면 0 이라 그대로 · 한 장면에 한 번만 잼
+function fxFollowCap(dst, prev) {
+    const el = dst && dst.el;
+    if (!el) {
+        return prev;
+    }
+    const x0 = fxRect0.call(el).left;
+    let at = -1;
+    let dx = 0;
+    const dxNow = () => {
+        const t = performance.now();
+        if (t !== at) {
+            at = t;
+            dx = Math.round(fxRect0.call(el).left - x0);
+        }
+        return dx;
+    };
+    return (q) => {
+        prev?.(q);
+        const d0 = q.draw;
+        if (typeof d0 !== 'function' || q.followed) {
+            return;
+        }
+        q.followed = true;
+        q.draw = (ctx, ...rest) => {
+            const d = dxNow();
+            if (!d) {
+                return d0(ctx, ...rest);
+            }
+            ctx.save();
+            ctx.translate(d, 0);
+            try {
+                return d0(ctx, ...rest);
+            } finally {
+                ctx.restore();
+            }
+        };
+    };
+}
 function fxScaled(k, run, cap, rateK = 1) {
     const p0 = moveParticles.length;
     const e0 = moveEmitters.length;
@@ -1311,6 +1351,16 @@ function fxAim(fx, g, o, t, ms = 0) {
                 // 음표 그림은 p.x 에서 오른쪽으로 그려져 오른쪽으로 갈 때만 앞 끝이 그림 폭 (6칸) 만큼 앞섬 — 상대 것 (←) 240 이 0.1초 늦던 것
                 const reach = Math.max(8, t.dist - 0.3 * t.w - (g.dir > 0 ? 6 : 0) * g.s);
                 return { g, o: { ...o, delay: (hitAt - fly) * 1000, vx: reach / fly }, k: 1, cap };
+            }
+            // 물줄기 (water · surf 아님) 는 가장 빠른 줄기 앞머리 (moves.js 물줄기 심 vx 66 ~ 74 · 끌림 0.4) 가 맞는 때 (WATER_HIT_AT × 길이) 에 몸 상자 앞 (가운데 − 0.3 폭) 에 닿게 빠르기를 거꾸로 셈
+            //   수명 끝에 상대 가운데로 맞추던 것은 240 에서 0.09 ~ 0.1초 먼저 · 860 은 +0.05 · 3:3 먼 칸 +0.1초 (bugs 2706) · 수명 (0.6 × (1 + 0.4 세기)) 이 모자라면 시작을 늦춤
+            if (fx === 'water' && !o.surf && ms > 0) {
+                // 0.05초 일찍 겨눔 — 줄기 빠르기가 무작위 (66 ~ 74) 라 가장 빠른 알갱이가 드물고 첫 알갱이는 한 틱 뒤 (박자 표 +0.03 ~ +0.07초)
+                const T = Math.max(0.15, (WATER_HIT_AT * ms) / 1000 - 0.05);
+                const Tf = Math.min(T, 0.9 * 0.6 * (1 + 0.4 * g.P));
+                const reach = Math.max(8, t.dist - 0.3 * t.w);
+                const kw = clampK((reach * 0.4) / (72 * (1 + 0.6 * g.P) * g.s * (1 - Math.exp(-0.4 * Tf))));
+                return { g, o, k: kw, rateK: dense(kw), cap, wait: (T - Tf) * 1000 };
             }
             return d > 0 ? { g, o, k, rateK: dense(k), cap } : { g, o };
         }
@@ -3360,6 +3410,10 @@ window.pokemonFx = {
                 }
             } else if (p.sig[1] === 'breath' && reach > 0) {
                 aim = { g: g0, o: { ...p.o, speed: (p.o.speed ?? 1) * Math.min(25, Math.max(1, reach / FX_TRAVEL.breath(g0))) } };
+            }
+            // 닿는 기술 자국은 밀린 몸을 따라감 (bugs 1908) — 게임은 닿는 기술을 맞는 쪽에 그리게 src = 맞는 쪽 · dst 없이 부름 (BattleFx move(dst, m, 0, form))
+            if (FX_CONTACT.has(p.sig[1])) {
+                aim = { ...aim, cap: fxFollowCap(dst || src, aim.cap) };
             }
             const go = () => p.T.run(aim.g, aim.o, p.ms, A);
             const start = () => {

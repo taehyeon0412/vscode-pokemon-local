@@ -220,8 +220,9 @@ describe('3:3 위 가운데 줄 — 띠 · 쓰러짐 줄 · 결과 줄 (픽셀 �
     expect(viewMonClass('in', o)).toBe(' pg-view-pop-hide');
     expect(viewMonClass('cut', o)).toBe(' pg-view-pop pg-view-partner');
     expect(viewMonClass('show', o)).toBe(' pg-view-pop pg-view-partner');
-    // 돌아갈 때 = 클래스 이름이 바뀌어야 (pg-view-pop → pg-view-hide-out) 나타남이 다시 돎
-    expect(viewMonClass('out', o)).toBe(' pg-view-hide-out');
+    // 돌아갈 때 = 클래스 이름이 바뀌어야 (pg-view-pop → pg-view-pop-back) 다시 돎 · 제자리에서 사라진 뒤 3:3 자리에서 나타남 (곧바로 3:3 자리에서 반쯤 보여 112px 튀던 것, bugs 1909)
+    expect(viewMonClass('out', o)).toBe(' pg-view-pop-back pg-view-partner');
+    expect(viewMonClass('out', { ...o, cross: false, shooter: false })).toBe(' pg-view-pop-back');
     // 걷는 무리 · 나머지 · 숨긴 쓰러진 칸 (예전과 같음)
     const walk = { ...o, cross: false };
     expect(viewMonClass('in', walk)).toBe(' pg-view-move pg-view-partner');
