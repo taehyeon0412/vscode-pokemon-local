@@ -35,6 +35,12 @@ export interface TeamView {
 // cutMs 1200 → 1400 — 합동 컷인 머리말 ("합동 필살기!" · "합동!") 이 0.82 ~ 0.92초만 보이던 것 (U1 1초 — #96 UX 작음 5 · 디자인)
 // cutQuickMs 600 → 1200 — 같은 짝 두 번째 합동 큰 컷인 머리말 · 이름이 0.55초만 보이던 것 (U1 "quick 포함 1초" — 판 도구 #98 7바퀴 · 디자인 제안 값)
 export const TEAM_VIEW = { inMs: 350, cutMs: 1400, outMs: 350, cutQuickMs: 1200, repeatTailMs: 1500 } as const;
+/**
+ * 빠르게 ▶▶ 상대 혼자 필살기 (#136 A — ×3) 에서 기본 박자로 두는 구간 (show 시작부터 ms) — 큰 이름 (ult/core.js ultTitle) 이 기 모으기 0.8초 뒤 나와
+ * 0.16초에 커지고 다 보이는 때 1초 넘게 (U1) + 0.14초 여유. 그 앞 (기 모으기) · 뒤 (본편) 는 ×3
+ */
+export const FOE_TITLE_AT_MS = 800;
+export const FOE_TITLE_KEEP_MS = 1300;
 
 let view: TeamView | null = null;
 const subs = new Set<(v: TeamView | null) => void>();

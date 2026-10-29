@@ -26,7 +26,8 @@ import '../dev/dev.css';
 import { getGameConfig, getGamePort } from './vscode-api';
 import { WebviewSession, type SaveIoView } from './webview-session';
 import { devApply, type DevAction } from '../dev/actions';
-import { gameClockFor, gameClockSettle, resetGameClock, setGameClock } from './clock';
+import { gameClockFor, gameClockNow, gameClockScale, resetGameClock, setGameClock } from './clock';
+import { getTeamView } from '../features/battle/fx/team-view';
 import { setDevUlts } from '../dev/ult-pick';
 
 /** 게임 화면이 보이는 동안 body 에 붙임 — game.css 가 일반 모드 층을 숨기고, 일반 모드는 포켓몬을 멈춤 (main-bundle.js GAME-PATCH) */
@@ -83,7 +84,7 @@ if (!port) {
       // 접힌 상태 (150px 아래) 면 그리지 않음 — 게임은 확장이 맡음 (sync)
       if (store.get().layout.tooSmall) return;
       // 게임 시계 — 3:3 박자 (0.8 · 전투 ×2 · 끼어들 창) · 개발 모드 (임시) 전투 느리게 · 멈춤 / 개발 모드 고른 필살기
-      setGameClock(gameClockSettle(gameClockFor(session.current, true)));
+      setGameClock(gameClockNow(session.current, true));
       setDevUlts(session.current?.runtime.dev?.ults);
       session.frame(dt);
       // 판이 떠 있는 동안은 게임이 멈춤 — 판에서 누른 것은 input 이 바로 그림 (초당 30번 열쇠 계산을 쉼)
@@ -231,6 +232,9 @@ if (!port) {
       dev: (a: DevAction) => {
         if (session.devChange((s) => devApply(s, a).state)) store.set({ state: session.current });
       },
+      // 3:3 장면 전환 단계 · 지금 시계 배 — 판 도구가 빠르게 ▶▶ 시간을 까닭별로 나눔 (#136)
+      view: () => getTeamView(),
+      scale: () => gameClockScale(),
     };
   }
 

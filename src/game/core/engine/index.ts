@@ -25,6 +25,7 @@ export {
   syncRegionOrder,
   inBattle,
   gameTempo,
+  teamSceneFastOk,
   defeatWaits,
   isWaitingForInput,
   stageUnlocked,

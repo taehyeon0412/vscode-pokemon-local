@@ -108,8 +108,9 @@ COLLECT = r"""
   const K = { texts: {}, clip: {}, overlap: {}, straddle: [], hidden: [], down: {}, koText: {}, phases: [] };
   window.__fxTrace = [];
   const t0 = Date.now();
-  // 번쩍 기록 (__fxTrace — performance.now · 게임 시계) 을 기록기 시각 (Date.now − t0) 에 맞추는 기준 (3:3 기본 박자 1 이면 같은 흐름)
-  const perf0 = performance.now();
+  // 번쩍 기록 (__fxTrace 'F' — 진짜 시계 __fxRealNow, #136) 을 기록기 시각 (Date.now − t0) 에 맞추는 기준 (빠르게 ▶▶ ×3 에서도 같은 흐름)
+  const realNow = window.__fxRealNow || performance.now.bind(performance);
+  const perf0 = realNow();
   const game = () => document.getElementById('pokemon-game');
   const hangul = /[가-힣]/;
   let lastPhase = '';
@@ -253,11 +254,23 @@ STATE = r"""
   const d = window.__pgDebug; if (!d) return null;
   const s = d.state(); if (!s) return null;
   const st = s.runtime.stage; const now = window.__tr ? Date.now() - window.__tr.t0 : 0;
-  const o = { now, phase: st ? st.phase : 'walk', screen: s.save.location.screen };
+  // pn = 게임 시계 (performance.now — webview/clock 배를 따름) · now 와 견주면 그때 배 (#136 빠르게 ▶▶ 장면 전환 확인)
+  const o = { now, pn: Math.round(performance.now()), phase: st ? st.phase : 'walk', screen: s.save.location.screen };
   if (st && st.phase === 'trainer') { o.ms = st.ms; o.pick = !!st.pick; o.vs = st.vsAt !== undefined; o.picked = st.pick ? st.pick.length : 0; }
   if (st && st.phase === 'team') {
     const b = st.team;
     o.tp = b.phase; o.t = b.t; o.result = b.result;
+    // 떠 있는 팝업 종류 · 버린 누름 (#136 — 알아챌 말이 장면 전환 박자를 붙잡는지)
+    o.pops = b.popups.map((p) => p.kind); o.deny = !!b.deny;
+    // 시계 배 · 장면 전환 [종류 · 쪽 · 단계 · 단계 시작부터 ms] · 누를 창 (합동 멘트 모으기 · 끼어들기 — 내 찬 칸이 있을 때) · 쓰러짐 수 · 찬 칸 수 (#136 시간 나누기)
+    o.scale = d.scale ? d.scale() : null;
+    const v = d.view ? d.view() : null;
+    o.view = v ? [v.kind, v.side, v.phase, Math.round(performance.now() - v.at)] : null;
+    const u = b.phase === 'ult' ? b.ult : null;
+    o.gather = !!u && (u.gather || 0) > 0;
+    o.join = !!u && u.side === 'foe' && u.window > 0 && !u.hit && b.me.some((f) => !!f && f.hp > 0 && f.ult >= 1);
+    o.faintN = b.log.reduce((m, e) => (e.t === 'faint' ? Math.max(m, e.id) : m), 0);
+    o.readyN = [...b.ultReadyAt.me, ...b.ultReadyAt.foe].filter((x) => x !== null).length;
     o.meFull = b.me.map((f, i) => !!f && f.hp > 0 && b.ultReadyAt.me[i] !== null);
     o.meSp = b.me.map((f) => (f ? f.species : 0));
     o.meAlive = b.me.map((f) => !!f && f.hp > 0);

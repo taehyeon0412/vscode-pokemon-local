@@ -3,6 +3,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { Script } from 'node:vm';
 import { describe, expect, it } from 'vitest';
 import moveFxJson from '../../../data/generated/move-fx.json';
 import movesJson from '../../../data/generated/moves.json';
@@ -11,6 +12,12 @@ import { shotHitAt } from './shot-hit';
 const root = join(__dirname, '../../../../..');
 const look = JSON.parse(readFileSync(join(root, 'dev/move-look.json'), 'utf8')) as Record<string, unknown>;
 const bundle = readFileSync(join(root, 'extension/media/main-bundle.js'), 'utf8');
+
+describe('묶음 (main-bundle.js)', () => {
+  it('구문 오류 없이 읽힘 — 같은 이름 const 두 번 (#136 fxRealNow) 이면 묶음 전체가 불러올 때 깨져 연출이 하나도 안 나옴 (테스트 · 판 도구는 그대로 지나감)', () => {
+    expect(() => new Script(bundle, { filename: 'main-bundle.js' })).not.toThrow();
+  });
+});
 const movesJs = readFileSync(join(root, 'moves.js'), 'utf8');
 const bridgeJs = readFileSync(join(root, 'ult/bridge.js'), 'utf8');
 const moves = movesJson as unknown as Record<string, { name: { ko: string }; type: string; power: number | null }>;

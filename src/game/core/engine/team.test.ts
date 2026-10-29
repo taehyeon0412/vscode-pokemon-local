@@ -4,7 +4,7 @@ import { fixedRng } from '../../../test/fixtures/rng';
 import { sampleMonster, sampleSave, viaJson } from '../../../test/fixtures/save';
 import { BALANCE, TIMING } from '../balance';
 import type { Monster, Save } from '../save';
-import { advance, applyInput, AUTO_TEAM_TIP, autoTeamTipDue, defeatWaits, gameTempo, RESUME_BATTLE_MSG, resumeLine, step, TEAM_MEET_TIP, teamChoiceMeet, teamFoesOf, teamLock, teamMainOf, teamMeetTipDue, teamPickOf } from './play';
+import { advance, applyInput, AUTO_TEAM_TIP, autoTeamTipDue, defeatWaits, gameTempo, RESUME_BATTLE_MSG, resumeLine, step, TEAM_MEET_TIP, teamChoiceMeet, teamFoesOf, teamLock, teamMainOf, teamMeetTipDue, teamPickOf, teamSceneFastOk } from './play';
 import { Rng } from './rng';
 import { createGameState, readRuntime, type GameState } from './state';
 import { shotTiming, applyTeamResult, isSpread, pickTeam, readTeam, startTeamBattle, TEAM_BASIC, teamClashSure, teamDone, teamFastOk, teamInput, teamPick, teamPossible, teamScale, teamStep, teamAutoUltLeft, teamAutoUltNext, teamFoeNext, teamZSlot, teamUltLevel, teamUltOpen, type TeamBattle, teamGather, teamJoinOpen, teamLayout, teamLit } from './team';
@@ -1312,6 +1312,31 @@ describe('3:3 박자 (orders #83 — 기본 0.8 · 전투 ×2) · 누를 창 (or
     const fast = inTeam(b0, true);
     expect(gameTempo({ ...fast, runtime: { ...fast.runtime, resumed: TIMING.resumeLineMs } })).toBe(TIMING.team.fastNotice);
     expect(gameTempo(fast)).toBeCloseTo(TIMING.team.tempo * TIMING.team.fasterScale, 10);
+  });
+
+  it('#136 빠르게 ▶▶ 장면 전환 · 상대 필살기 ×3 을 걸어도 되는 때 — 빠르게 켬 · 필살기 중 · 누를 창 (합동 멘트 · 끼어들기) · 알아챌 순간 (쓰러짐 · 다 참 · 말 팝업) 없을 때만 · 붙잡기 1.0초', () => {
+    expect(TIMING.team.fastKeepMs).toBe(1000);
+    const ult = (side: 'me' | 'foe', b: TeamBattle = b0): TeamBattle => ({ ...b, phase: 'ult', ult: { side, from: 0, ms: 300, dur: TIMING.ultAnimMs, hitMs: 800, hit: false, window: 0, joinAt: null, joiners: [] } });
+    expect(teamSceneFastOk(inTeam(ult('me'), true))).toBe(true);
+    expect(teamSceneFastOk(inTeam(ult('foe'), true))).toBe(true);
+    // 빠르게 끔 (기본 박자 그대로) · 보통 공격 (run — 장면 전환 없음)
+    for (const fast of [undefined, false]) expect(teamSceneFastOk(inTeam(ult('foe'), fast))).toBe(false);
+    expect(teamSceneFastOk(inTeam(b0, true))).toBe(false);
+    // 누를 창 — 합동 멘트 (모으는 중) · 상대 필살기에 끼어들 창 (찬 내 포켓몬)
+    const gather = ult('me');
+    expect(teamSceneFastOk(inTeam({ ...gather, ult: { ...gather.ult!, gather: 500 } }, true))).toBe(false);
+    const meFull = { ...b0, me: b0.me.map((f, i) => ({ ...f, ult: i === 0 ? 1 : 0 })) };
+    const window = ult('foe', meFull);
+    const open = { ...window, ult: { ...window.ult!, ms: 0, window: 1200 } };
+    expect(teamJoinOpen(open)).not.toBeNull();
+    expect(teamSceneFastOk(inTeam(open, true))).toBe(false);
+    // 알아챌 순간 (쓰러짐 · 다 참 · 말 팝업 · 버린 누름) 붙잡기는 화면이 진짜 시계로 셈 — 붙잡힌 동안 엔진 시간이 멈춰 "쓰러졌다!" 가 연출 끝까지 남던 것 (UX 큼 · webview/clock.test)
+    const ko = { ...ult('foe'), log: [{ id: 1, at: b0.t, t: 'faint' as const, side: 'me' as const, slot: 2 }], logSeq: 1 };
+    expect(teamSceneFastOk(inTeam(ko, true))).toBe(true);
+    const info = { ...ult('foe'), popups: [{ id: 1, side: 'me' as const, slot: 0, text: '2:1', ms: 0, kind: 'info' as const }] };
+    expect(teamSceneFastOk(inTeam(info, true))).toBe(true);
+    // 보통 공격 (run) 은 그대로 엔진 ms 로 붙잡음
+    expect(teamFastOk({ ...info, phase: 'run', ult: null })).toBe(false);
   });
 
   it('#134 — 3:3 기본 = 예전 빠르게 (보통 공격 ×2 · 약 1.5배) · 빠르게 ▶▶ = ×3 (약 2배) · 알아챌 순간은 기본에서도 1.0 · 옛 세이브 battleFast 켬 = 새 빠르게', () => {

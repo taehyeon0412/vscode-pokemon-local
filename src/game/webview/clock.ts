@@ -6,7 +6,10 @@
  * 일반 모드 포켓몬이 멈춤) 부른 쪽이 들고 있는 타이머 번호를 못 끔 (코드 리뷰어 #83). 0ms 타이머는 그대로 (Preact 그리기 · "다음 차례" 가 멈춤에 막히지 않게).
  * main-bundle.js 는 fxGuard 를 건너뛰는 타이머로 window.__pgSetTimeout (배를 따름) 을 씀 — 불러올 때 잡아 둔 진짜 setTimeout 이 0.8배를 무시하던 것.
  */
-import { gameTempo, inBattle, type GameState } from '../core/engine';
+import { TIMING } from '../core/balance';
+import { gameTempo, inBattle, teamSceneFastOk, type GameState } from '../core/engine';
+import { isWordPopup, type TeamBattle } from '../core/engine/team';
+import { FOE_TITLE_AT_MS, FOE_TITLE_KEEP_MS, getTeamView } from '../features/battle/fx/team-view';
 
 type Fn = (...args: unknown[]) => void;
 interface Timer {
@@ -174,4 +177,56 @@ export function gameClockFor(state: GameState | null, playing: boolean): number 
   const dev = state.runtime.dev;
   if (dev?.pause) return 0;
   return (dev && inBattle(state) ? dev.battle : 1) * gameTempo(state);
+}
+
+/**
+ * 빠르게 ▶▶ 3:3 장면 전환 (2026-10-29 태현 님 #136 A) — 들어가기 · 나오기 · 상대 혼자 필살기 (기 모으기 · 본편) 는 fasterScale, 상대 필살기 큰 이름 동안은 기본 박자.
+ * 내 필살기 · 합동 (큰 컷인 · 본편) · 힘겨루기 · 걸면 안 될 때 (누를 창 · 알아챌 순간 — core teamSceneFastOk) 는 null (gameTempo 그대로)
+ */
+export function teamSceneTempo(state: GameState | null, now = performance.now()): number | null {
+  const st = state?.runtime.stage;
+  const keep = st?.phase === 'team' && teamKeepNow(st.team);
+  if (!state || keep || !teamSceneFastOk(state)) return null;
+  const v = getTeamView();
+  if (!v || v.kind === 'duel') return null;
+  const fast = TIMING.team.tempo * TIMING.team.fasterScale;
+  if (v.phase === 'in' || v.phase === 'out') return fast;
+  if (v.phase !== 'show' || v.kind !== 'solo' || v.side !== 'foe') return null;
+  const t = now - v.at;
+  return t >= FOE_TITLE_AT_MS && t < FOE_TITLE_AT_MS + FOE_TITLE_KEEP_MS ? TIMING.team.tempo : fast;
+}
+
+/**
+ * 알아챌 순간을 처음 본 뒤 — 진짜 시계로 셈 (#136 "진짜 시계 1초"): 쓰러짐 · 다 참 (새로 찬 칸) fastKeepMs · 말 팝업 (쓰러졌다 · 머릿수 안내 · 상태 · 빗나감) · 버린 누름 WORD_KEEP_MS.
+ * 장면 전환 동안은 엔진이 붙잡혀 엔진 시간이 멈춰서 엔진 ms (teamFastOk) 로 세면 "쓰러졌다!" 말이 연출 끝까지 남아 기본 박자로 남던 것 (UX 큼 — 꼬리 2.2초)
+ */
+const WORD_KEEP_MS = 1200;
+let keepSeen: { faint: number; ready: (number | null)[]; word: number; deny: number } | null = null;
+let keepUntil = 0;
+function teamKeepNow(b: TeamBattle): boolean {
+  const faint = b.log.reduce((m, e) => (e.t === 'faint' ? Math.max(m, e.id) : m), 0);
+  const ready = [...b.ultReadyAt.me, ...b.ultReadyAt.foe];
+  // 말 팝업 · 버린 누름 = 게임 시계 1.2초 붙잡던 것 (bugs 1899 · #88)
+  const word = b.popups.reduce((m, p) => (isWordPopup(p.kind) ? Math.max(m, p.id) : m), 0);
+  const deny = b.deny ? b.deny.slot + 2 : 0;
+  const prev = keepSeen;
+  keepSeen = { faint, ready, word, deny };
+  if (!prev) return real.now() < keepUntil;
+  const now = real.now();
+  // 새 쓰러짐 · 새로 찬 칸 (비었다 참) 만 — 필살기를 써서 비는 것은 아님
+  if (faint > prev.faint || ready.some((t, i) => t !== null && t !== prev.ready[i])) keepUntil = Math.max(keepUntil, now + TIMING.team.fastKeepMs);
+  if (word > prev.word || (deny && deny !== prev.deny)) keepUntil = Math.max(keepUntil, now + WORD_KEEP_MS);
+  return now < keepUntil;
+}
+
+/** 이번 프레임 배 — 장면 전환 빠르게 (#136) 는 바로 (0.5초 기다리면 0.35초 들어가기 · 나오기가 다 지나서야 빨라짐), 그 밖은 gameClockSettle */
+export function gameClockNow(state: GameState | null, playing: boolean): number {
+  const target = gameClockFor(state, playing);
+  const scene = playing && state && target > 0 ? teamSceneTempo(state) : null;
+  if (scene === null) return gameClockSettle(target);
+  const dev = state!.runtime.dev;
+  const next = (dev && inBattle(state!) ? dev.battle : 1) * scene;
+  settleWant = next;
+  settleSince = real.now();
+  return next;
 }

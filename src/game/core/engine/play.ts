@@ -1422,6 +1422,18 @@ export function gameTempo(state: GameState): number {
   if (u && u.side === 'foe' && !u.joint && u.ms > t.fastFoeUltMs) return fast;
   return t.fastNotice;
 }
+/**
+ * 빠르게 ▶▶ 3:3 장면 전환 (2026-10-29 태현 님 #136 A — 들어가기 · 나오기 · 상대 필살기 연출 ×3) 을 걸어도 되는 때 — 빠르게 켬 · 3:3 · 필살기 중이고
+ * 누를 창 (합동 멘트 · 끼어들기) · 다시 켜기 칩이 없을 때. 어느 단계를 빠르게 할지 · 알아챌 순간 (쓰러짐 · 다 참 · 말 팝업 · 버린 누름) 붙잡기는
+ * 화면 (webview/clock — 장면 전환 단계를 알고 진짜 시계로 셈 · 붙잡힌 동안 엔진 시간이 멈춰 엔진 ms 로 세면 "쓰러졌다!" 말이 연출 끝까지 남아 1 로 남던 것 — #136 UX 큼)
+ */
+export function teamSceneFastOk(state: GameState): boolean {
+  const st = state.runtime.stage;
+  if (st?.phase !== 'team' || state.save.settings.battleFast !== true || resumeLine(state) !== null) return false;
+  const b = st.team;
+  const u = b.phase === 'ult' ? b.ult : null;
+  return !!u && !((u.gather ?? 0) > 0) && !teamJoinOpen(b);
+}
 /** S06 ⑦ ~ ⑩ 오른쪽 위 버튼 · S19 가방 — 걷는 중 (그동안 화면은 걸음을 멈춤) · 체육관 대기실 (관장에게 받은 리프의 돌을 바로) */
 export function canOpenMenus(state: GameState): boolean {
   return (state.save.location.screen === 'stage' && phaseOf(state) === 'walk') || inLobby(state);

@@ -55502,7 +55502,12 @@ function fxGameShake(amp) {
 // 화면 번쩍 상한 — 게임 중엔 0.3 (넓은 패널 전체가 하얗게 번쩍이지 않게) · 반격기 (짧은 필살기, fxGame.noFlash) 는 0 (2026-10-21 orders #7 — 솔라빔이 860 전체를 0.2초 밝게)
 const fxFlashCap = () => (fxInGame() ? (fxGame && fxGame.noFlash ? 0 : fxAway ? 0.15 : 0.3) : 1);
 // 게임 중 화면 번쩍 — 0.34초에 한 번 · 진하기 0.3 까지 (1초 3번 규칙). 일반 모드는 그대로
-let fxLastFlash = 0;
+// 간격은 진짜 시계 (불러올 때 잡아 둔 performance.now) — 게임 시계 (webview/clock) 로 세면 빠르게 ▶▶ ×3 (#136) 에서 진짜 1초에 9번까지 됨
+// (fxRealNow 는 다른 뜻 — 기술 박자 어긋남을 뺀 게임 시계 · 이름이 겹치면 묶음 전체가 불러올 때 깨짐)
+const fxWallNow = performance.now.bind(performance);
+// 개발 도구 (dev/team-run.py) 가 'F' 기록과 같은 진짜 시계로 맞춤
+window.__fxRealNow = fxWallNow;
+let fxLastFlash = -Infinity;
 const fxScreenFlash = screenFlash;
 screenFlash = function (s, alpha, color, max) {
     // 개발 창 — 필살기 박자 재기 (dev/ult-fx.py): window.__fxTrace 가 배열이면 번쩍을 적음
@@ -55517,13 +55522,14 @@ screenFlash = function (s, alpha, color, max) {
         return undefined;
     }
     const now = performance.now();
-    if (now - fxLastFlash < 340) {
+    const real = fxWallNow();
+    if (real - fxLastFlash < 340) {
         return undefined;
     }
-    fxLastFlash = now;
+    fxLastFlash = real;
     // 실제로 그린 번쩍 ('F' — 위 'f' 는 부른 것 모두, 박자 재기용) · 자동 판 도구 (dev/team-run.py) 의 1초 3번 검사
     if (Array.isArray(window.__fxTrace)) {
-        window.__fxTrace.push(['F', now, Math.min(fxFlashCap(), alpha)]);
+        window.__fxTrace.push(['F', real, Math.min(fxFlashCap(), alpha)]);
     }
     return fxScreenFlash(s, Math.min(fxFlashCap(), alpha), color, max);
 };

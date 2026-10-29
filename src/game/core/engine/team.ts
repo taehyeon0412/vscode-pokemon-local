@@ -940,18 +940,26 @@ export function teamJoinOpen(b: TeamBattle): { gathering: boolean } | null {
  */
 export function teamFastOk(b: TeamBattle): boolean {
   if (b.phase !== 'run' || b.moveClashes.length > 0) return false;
-  // 버린 누름 한 줄 (#88) 은 알아챌 순간 — 기본 박자 (빠르게면 ×2 시계로 세어 0.4초만 보이던 것, UX 리뷰어)
-  if (b.deny) return false;
+  if (teamNoticeShown(b)) return false;
   const keep = TIMING.team.fastKeepMs;
   // 다 참 (상대 "!" · 내 말풍선) 은 찬 뒤 1초만 — 상대 "!" 기다림 내내 0.8 이라 ×2 를 켜도 관장 판이 1.16배밖에 안 빨라지던 것 (디자인 UX #83 큼 — "!" 칩은 화면에 남아 U1 은 지켜짐)
+  // 쓰러짐 · 다 참 1초는 엔진 시간 — 보통 공격 (run) 은 엔진이 붙잡히지 않아 그동안 박자 1 = 진짜 1초. 장면 전환 (붙잡힌 동안 엔진 시간이 멈춤) 은 webview/clock 이 진짜 시계로 셈 (#136)
   const freshFull = (side: Side) => b[side].some((f, i) => teamUltLevel(f) === 'full' && b.t - (b.ultReadyAt[side][i] ?? -Infinity) < keep);
   if (freshFull('foe') || freshFull('me')) return false;
-  if (b.log.some((e) => e.t === 'faint' && b.t - e.at < keep)) return false;
-  // 말 팝업 (안내 info · 상태 이상 · 빗나감 · 효과 없음 · 막음) 은 알아챌 순간 — 게임 시계 1.2초라 빠르게 (×3) 에서 0.4초만 보이던 것 (bugs 1899 · UX #134)
-  return !b.popups.some((p) => WORD_POPUPS.has(p.kind));
+  return !b.log.some((e) => e.t === 'faint' && b.t - e.at < keep);
 }
-/** 숫자가 아닌 말 팝업 — 떠 있는 동안 3:3 박자를 붙잡음 (teamFastOk) */
+/** 화면에 떠 있는 알아챌 말 — 버린 누름 한 줄 · 말 팝업. 이때는 ×2 · ×3 를 걸지 않음 (보통 공격 teamFastOk · 빠르게 ▶▶ 장면 전환 · 상대 필살기 #136) */
+export function teamNoticeShown(b: TeamBattle): boolean {
+  // 버린 누름 한 줄 (#88) 은 알아챌 순간 — 기본 박자 (빠르게면 ×2 시계로 세어 0.4초만 보이던 것, UX 리뷰어)
+  if (b.deny) return true;
+  // 말 팝업 (안내 info · 상태 이상 · 빗나감 · 효과 없음 · 막음) 은 알아챌 순간 — 게임 시계 1.2초라 빠르게 (×3) 에서 0.4초만 보이던 것 (bugs 1899 · UX #134)
+  return b.popups.some((p) => WORD_POPUPS.has(p.kind));
+}
+/** 숫자가 아닌 말 팝업 — 떠 있는 동안 3:3 박자를 붙잡음 (teamFastOk · 장면 전환은 webview/clock 이 진짜 시계로) */
 const WORD_POPUPS: ReadonlySet<string> = new Set(['info', 'immune', 'miss', 'parry', 'status']);
+export function isWordPopup(kind: string): boolean {
+  return WORD_POPUPS.has(kind);
+}
 
 /** 지금 그 칸 필살기를 쓸 · 끼어들 · 합류할 수 있는지 (화면이 아이콘을 밝게) */
 export function teamUltOpen(b: TeamBattle, slot: number): boolean {
