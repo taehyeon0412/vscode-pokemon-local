@@ -580,6 +580,11 @@ describe('다음 지역 열기 (orders #66 · #70 — BALANCE.region.open 본편
     const s = win(s0);
     expect(s.save.regions).toEqual({ order: ['forest', 'beach'] });
     expect(toasts(s)).toContain('새 지역이 열렸어요 — 해변');
+    // 지도를 열면 (연 지역을 다 봄) 알림을 지움 — 닫은 뒤 다시 뜨던 것 (ideas 178) · 다른 알림은 그대로 · 지울 게 없으면 상태 그대로
+    const mapped = applyInput(s, { kind: 'map-seen' });
+    expect(toasts(mapped).some((t) => String(t).startsWith('새 지역이 열렸어요'))).toBe(false);
+    expect(toasts(mapped).length).toBe(toasts(s).length - 1);
+    expect(applyInput(mapped, { kind: 'map-seen' })).toBe(mapped);
     const there = applyInput(s, { kind: 'travel', to: 'beach-1' });
     expect(there.save.location).toEqual({ screen: 'stage', stageId: 'beach-1' });
     // 다시 이김 (배지 있음) — 열 곳도 알림도 없음

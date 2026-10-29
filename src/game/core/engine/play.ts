@@ -68,6 +68,8 @@ export type GameInput =
   | { kind: 'skip-caught-last'; on: boolean }
   /** 첫 안내를 다 보여 줌 — 본 안내 id 를 세이브에 (디자인팀 orders #12) */
   | { kind: 'tip-seen'; id: string }
+  /** 지도를 엶 — 연 지역을 다 봤으니 "새 지역이 열렸어요" 알림을 지움 (닫은 뒤 다시 뜨던 것 — ideas 178) */
+  | { kind: 'map-seen' }
   /** S22 "어…? ○○의 모습이…!" 에서 진화 연출 시작 (Space · 클릭 — ideas #33) */
   | { kind: 'evolve-watch' }
   /** S12 계속 (Space · Enter · 클릭) */
@@ -1035,6 +1037,8 @@ export function step(state: GameState, stepMs: number): StepOut {
     const ms = (rt.chooseMs ?? 0) + stepMs;
     // 다른 알림이 떠 있으면 이번 차례는 건너뜀 (붙잡혀 있던 요약 · 주운 것을 덮어 지우던 것 — 코드 리뷰어)
     if ((rt.chooseMs ?? 0) < TIMING.autoTipWaitMs && ms >= TIMING.autoTipWaitMs && autoTipLeft(save) && !rt.toast) rt = { ...rt, toast: { text: AUTO_TIP_TURN, ms: AUTO_TIP_TURN_MS, kind: 'auto-tip' } };
+    // 첫 안내가 다 지난 뒤 · 이번 차례는 건너뛴 뒤에도 30초 넘게 기다리면 짧게 (ideas 158 — 같은 알림 줄 · 그 차례 끝까지)
+    else if ((rt.chooseMs ?? 0) < TIMING.autoHintWaitMs && ms >= TIMING.autoHintWaitMs && !rt.toast) rt = { ...rt, toast: { text: AUTO_HINT_TURN, ms: AUTO_TIP_TURN_MS, kind: 'auto-tip' } };
     rt = { ...rt, chooseMs: ms };
   } else {
     if (rt.chooseMs !== undefined) {
@@ -1042,7 +1046,7 @@ export function step(state: GameState, stepMs: number): StepOut {
       rt = rest;
     }
     // ① 은 내 차례가 끝나면 (골랐거나 · 자동을 켬 · 떠남) 지움 (5초 만에 사라져 코드를 보다 돌아오면 놓치던 것 — UX 리뷰어)
-    if (rt.toast?.kind === 'auto-tip' && rt.toast.text === AUTO_TIP_TURN) rt = { ...rt, toast: nextToast(rt.toast) };
+    if (rt.toast?.kind === 'auto-tip' && (rt.toast.text === AUTO_TIP_TURN || rt.toast.text === AUTO_HINT_TURN)) rt = { ...rt, toast: nextToast(rt.toast) };
   }
   // ② 는 화면이 그릴 수 있는 장면에서 (다른 알림이 끝난 뒤) — 3:3 · 만남 · 결과 · 고르기 등에서 돌아오면 그 장면까지 미룸 · 5초는 띄운 뒤부터 (디자인팀 R12 큼 2)
   if (watchingNow && rt.noticed === 'paused' && autoTipLeft(save)) rt = { ...rt, backTip: true };
@@ -1207,6 +1211,7 @@ const AUTO_TIP_MAX = 3;
 /** 셈 (tips 'autotip-1' ~) — 화면이 그렸을 때만 ('tip-seen' auto). 옛 'auto-1' ~ 은 안 그린 채 세던 것이라 안 셈 (UX 리뷰어) */
 const AUTO_TIP_SEEN = /^autotip-\d$/;
 export const AUTO_TIP_TURN = '자리를 비울 땐 [A] 자동 전투 — 알아서 싸워요';
+export const AUTO_HINT_TURN = '[A] 자동 전투 — 알아서 싸워요';
 export const AUTO_TIP_BACK = '안 보는 동안 멈춰 있었어요 — [A] 자동 전투면 계속 걸어요';
 /** ① 은 내 차례가 끝날 때까지 — 알림 길이 끝 (readRuntime 60초) 까지 */
 const AUTO_TIP_TURN_MS = 60_000;
@@ -1645,6 +1650,10 @@ export function applyInput(state: GameState, input: GameInput): GameState {
     case 'skip-caught-last':
       if ((save.settings.skipCaughtLast === true) === input.on) return state;
       return { ...state, save: { ...save, settings: { ...save.settings, skipCaughtLast: input.on } } };
+    case 'map-seen': {
+      const rt = dropToasts(state.runtime, (x) => x.startsWith('새 지역이 열렸어요 — '));
+      return rt === state.runtime ? state : { save, runtime: rt };
+    }
     case 'tip-seen':
       // 자동 전투 첫 안내 (R12) — 화면이 그렸을 때 셈 (전투 화면이 안 그린 채 세어 세 번이 끝나던 것 — UX 리뷰어)
       // 떠 있는 안내 하나에 한 번만 — 장면이 바뀌어 다시 그리면 또 와서 두 번 세던 것 (디자인팀 UX R12 재확인)

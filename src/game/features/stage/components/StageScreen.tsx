@@ -183,6 +183,8 @@ function leadOf(save: GameState['save']): { form: string; shiny: boolean } | nul
 const ULT_WAIT_TIP = 'ult-wait';
 /** 3:3 필살기 다 참 처음 안내 (태현 님 #82 — 필살기는 눌러야만 나감) */
 const ULT_READY_TIP = 'ult-ready';
+/** 3:3 첫 판 시작 처음 안내 "필살기가 차면 [1][2][3]" (ideas 703 — 첫 다 참까지 약 6초 동안 할 일이 안 보이던 것) */
+const TEAM_START_TIP = 'team-start';
 
 export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, live = true, covered = false }: StageScreenProps) {
   const save = state.save;
@@ -861,6 +863,22 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
                 필살기 {ultWaitSec}초 뒤 · <KeyCap k={ultWaitKey} /> 바로
               </span>
             )}
+          </FirstTip>
+        )}
+        {/* 3:3 첫 판 시작 처음 안내 (ideas 703) — 다 참 안내와 같은 자리 · 같은 규칙: 판 처음 12초 · 아직 다 찬 칸 없음 · 자동 · 큰 판 · 다시 켜기 칩 · 저절로 필살기 안내가 있으면 안 띄움 · 보는 동안만 셈 (U6) ·
+            다 찬 칸이 생기면 다 참 안내에 자리를 넘김 (1초 넘게 보였으면 본 것 — FirstTip) */}
+        {team && team.phase === 'run' && team.t < 12000 && teamReadyKey === undefined && !ultWaitKey && !autoTeamTip && !teamBigPrompt && !resumeLine(state) && !save.settings.autoBattle && !(save.tips ?? []).includes(TEAM_START_TIP) && (
+          <FirstTip key={TEAM_START_TIP} ms={4000} className="pg-first-tip-top pg-tip-mine" style={readyTipTop !== null ? { top: `${readyTipTop}px` } : undefined} paused={tipPaused} onSeen={() => onInput({ kind: 'tip-seen', id: TEAM_START_TIP })}>
+            <span class="pg-tip-part pg-tip-long">필살기 게이지가 차면 —&nbsp;</span>
+            <span class="pg-tip-part pg-tip-long">
+              <KeyCap k="1" /> <KeyCap k="2" /> <KeyCap k="3" /> 눌러 써요
+            </span>
+            <span class="pg-tip-short">
+              필살기가 차면 <KeyCap k="1" /> <KeyCap k="2" /> <KeyCap k="3" />
+            </span>
+            <span class="pg-tip-tiny">
+              차면 <KeyCap k="1" /> <KeyCap k="2" /> <KeyCap k="3" />
+            </span>
           </FirstTip>
         )}
         {/* 3:3 필살기 다 참 처음 안내 (#82 — 저절로 안 나가니 "3초 뒤 저절로" 대신) · 같은 자리 (위 · 좁으면 내 쪽 왼쪽 위) · 자동 3:3 안내가 떠 있으면 기다림 */}

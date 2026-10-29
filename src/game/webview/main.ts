@@ -180,7 +180,10 @@ if (!port) {
     },
     open: (overlay) => {
       const cur = session.current;
-      if (cur && overlayAllowed(overlay, cur)) store.set({ overlay });
+      if (!cur || !overlayAllowed(overlay, cur)) return;
+      // 지도를 열면 "새 지역이 열렸어요" 알림은 본 것 (판이 뜨기 전에 — 판이 뜬 뒤엔 판 입력만 받음 · ideas 178)
+      if (overlay.kind === 'map' && session.input({ kind: 'map-seen' })) store.set({ overlay, state: session.current });
+      else store.set({ overlay });
     },
     // 지도에서 연 내 포켓몬 (④ 팀 바꾸기) 을 닫으면 지도로 ("부른 화면으로")
     close: () => {

@@ -5,7 +5,7 @@ import { validateSave, type Save } from '../save';
 import { sampleSave, viaJson } from '../../../test/fixtures/save';
 import { shinyWildSeed } from '../../../test/fixtures/stage';
 import { startBattle } from './battle';
-import { advance, applyInput, AUTO_TIP_BACK, AUTO_TIP_TURN, autoTipLeft, isWaitingForInput, RESUME_BATTLE_MSG, resultBagOk, resultThenCard, resumeLine, TEAM_MEET_TIP, teamMeetTipDue, isWalkingFast, leadSpeed, STAGE_WAIT, step, waitReason, withSpeed } from './play';
+import { advance, applyInput, AUTO_HINT_TURN, AUTO_TIP_BACK, AUTO_TIP_TURN, autoTipLeft, isWaitingForInput, RESUME_BATTLE_MSG, resultBagOk, resultThenCard, resumeLine, TEAM_MEET_TIP, teamMeetTipDue, isWalkingFast, leadSpeed, STAGE_WAIT, step, waitReason, withSpeed } from './play';
 import { createGameState, readRuntime, STAGE_PHASES, type GameState } from './state';
 
 const STEP = TIMING.simStepMs;
@@ -727,6 +727,17 @@ describe('멈춤 · 알림 표 (gdd 4.13 · U6 — orders #27 R13)', () => {
     expect(autoTipLeft({ ...base.save, tips: ['auto-1', 'auto-2', 'auto-3'] })).toBe(true);
     // 밖에서는 안 띄움
     expect(tipOf(advance(away(myTurn), 20_000).state)).not.toBe(AUTO_TIP_TURN);
+    // 첫 안내 세 번이 지난 뒤에도 30초 넘게 기다리면 짧은 한 줄 (ideas 158) · 그 차례 끝까지 · 고르면 지움
+    const used = { ...myTurn, save: { ...myTurn.save, tips: ['autotip-1', 'autotip-2', 'autotip-3'] } };
+    expect(autoTipLeft(used.save)).toBe(false);
+    const quiet = advance(used, TIMING.autoHintWaitMs - 100).state;
+    expect(tipOf(quiet)).not.toContain('[A] 자동 전투');
+    const hinted = advance(quiet, 200).state;
+    expect(tipOf(hinted)).toBe(AUTO_HINT_TURN);
+    expect(tipOf(advance(hinted, 20_000).state)).toBe(AUTO_HINT_TURN);
+    expect(tipOf(advance(applyInput(hinted, { kind: 'battle', input: { kind: 'act', action: { kind: 'attack' } } }), 100).state)).not.toBe(AUTO_HINT_TURN);
+    // 첫 안내가 떠 있는 차례엔 그대로 (30초에 바꿔 끼우지 않음)
+    expect(tipOf(advance(tipped, TIMING.autoHintWaitMs).state)).toBe(AUTO_TIP_TURN);
     // 자동 꺼짐으로 멈췄다 (확장이 'paused' 알림) 다시 보면 한 번 — 그동안 요약 (R14) 은 그 뒤에
     // 그동안 요약이 먼저 · ② 는 요약이 끝난 뒤 따로 (겹치지 않게)
     const seenWalk = { ...base, save: { ...base.save, tips: [...(base.save.tips ?? []), 'walk'] } };
