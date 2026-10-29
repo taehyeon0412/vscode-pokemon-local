@@ -252,8 +252,12 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
     r.selectNodeContents(bEl);
     if (r.getBoundingClientRect().width * 1.1 > inner.clientWidth + 0.5) setExpStep(expStep + 1);
   });
-  // 넓은 둘째 줄 돌 줄 끝 " · [B] 가방" (#131 UX — 할 일) — 줄이 맥 여유 1.1 로 안 들어가면 뺌 (★ · 경험치가 … 로 잘리지 않게 · 넘치면 한 단계)
-  const [howOff, setHowOff] = useState(false);
+  // 넓은 둘째 줄 돌 줄 끝 " · [B] 가방" (#131 UX — 할 일) — 줄이 맥 여유 1.1 로 안 들어가면 한 단계씩 짧은 글 → 마지막도 넘치면 뺌 (★ · 경험치가 … 로 잘리지 않게)
+  //   클리어 · 관장 카드로 이어지는 상자 = "다음 스테이지에서 [B] 가방" → "다음 판에서 [B] 가방" → "[B] 가방은 다음에" (디자인 문구 — 상자 폭이 첫 줄로 정해져
+  //   860 · 1860 에서도 할 일 칸이 통째로 빠지던 것, bugs 1901)
+  const howTexts = bagOk ? ['\u00a0· [B]\u00a0가방'] : bagLater ? ['\u00a0· 다음 스테이지에서 [B]\u00a0가방', '\u00a0· 다음 판에서 [B]\u00a0가방', '\u00a0· [B]\u00a0가방은 다음에'] : ['\u00a0· 계속\u00a0뒤 [B]\u00a0가방'];
+  const [howStep, setHowStep] = useState(0);
+  const howOff = howStep >= howTexts.length;
   useLayoutEffect(() => {
     if (howOff) return;
     const box = tight.box.current;
@@ -265,7 +269,7 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
       return r.getBoundingClientRect().width * 1.1 > body.clientWidth + 0.5;
     };
     if (over()) {
-      setHowOff(true);
+      setHowStep(howStep + 1);
       return;
     }
     // 상자가 나중에 나타나거나 좁아지면 (소개 카드 뒤 · tight 단계) 다시 잼 — 다시 그리는 열쇠가 안 바뀌어 처음 잰 값에 머물러
@@ -274,7 +278,7 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
     const ro = new ResizeObserver(() => {
       if (!over()) return;
       ro.disconnect();
-      setHowOff(true);
+      setHowStep((n) => n + 1);
     });
     ro.observe(box);
     const body = box.querySelector<HTMLElement>('.pg-result-body');
@@ -303,7 +307,7 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
     const reset = () => {
       setExpStep(0);
       setWhyOff(false);
-      setHowOff(false);
+      setHowStep(0);
     };
     window.addEventListener('resize', reset);
     return () => window.removeEventListener('resize', reset);
@@ -362,7 +366,7 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
   const evoNote = stoneText ? (
     <span class="pg-evo-note">
       <Icon name={ITEM_ICON[stones[0]!.item as keyof typeof ITEM_ICON] ?? 'stone'} /> {stoneText}
-      <span class="pg-evo-how">{bagOk ? '\u00a0· [B]\u00a0가방' : bagLater ? '\u00a0· 다음 스테이지에서 [B]\u00a0가방' : '\u00a0· 계속\u00a0뒤 [B]\u00a0가방'}</span>
+      <span class="pg-evo-how">{howTexts[Math.min(howStep, howTexts.length - 1)]}</span>
       {rest.length > 0 && <span class="pg-evo-sep">{' · '}</span>}
     </span>
   ) : summary.evoNote ? (
