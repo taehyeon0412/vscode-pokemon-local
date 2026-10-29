@@ -2396,8 +2396,21 @@ function fxScreenLayer(p) {
     }
     return true;
 }
+// 〔#135 태현 님 "처음에 우리가 만든것처럼 안보이게"〕 맞는 쪽을 덮는 돔 (blastDome · swirlDome) 이 있는 동안은 쓰러진 자리를 비우지 않음 — 누운 모습은 돔이 걷힌 뒤
+//   돔마다 fxCutHold(+1) · 걷히면 (−1) · 장면이 끊겨 −1 을 못 불러도 안전하게 끝 시각 (진짜 시계) 도 둠
+let fxCutHoldN = 0;
+let fxCutHoldUntil = 0;
+function fxCutHold(on, sec = 3) {
+    fxCutHoldN = Math.max(0, fxCutHoldN + (on ? 1 : -1));
+    if (on) {
+        fxCutHoldUntil = Math.max(fxCutHoldUntil, performance.now() + sec * 1000 + 500);
+    }
+}
 function fxCutDown() {
     if (!moveCtx || !fxInGame()) {
+        return;
+    }
+    if (fxCutHoldN > 0 && performance.now() < fxCutHoldUntil) {
         return;
     }
     const els = [];

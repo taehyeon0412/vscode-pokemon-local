@@ -3385,6 +3385,12 @@
     // 가장자리에서 물보라가 도는 쪽으로 흩날림 → 다 돌면 물보라로 터지며 사라짐.
     // x0 에서 솟아 커지면서 가운데가 x1 로 옮겨 감. 높이는 vmax 까지 (넘으면 옆으로 넓게). touch(r) — 커지는 돔에 닿은 애 (휘말리게)
     function swirlDome(sc, x0, x1, G, R0, Rmax, vmax, dur, cols, rot, touch, pal = null) {
+        // 돔이 있는 동안 쓰러진 자리 비우기 멈춤 (#135 · bridge fxCutHold)
+        if (typeof fxCutHold === 'function') {
+            fxCutHold(true, dur);
+            const t0 = sc.t ?? 0;
+            sc.at(t0 + dur, () => fxCutHold(false));
+        }
         const u = sc.u;
         // 색 — 기본은 물빛(하얀 속 · 보랏빛 테두리), pal 을 주면 그 색으로 (그림자분신은 보랏빛)
         pal = pal || { rim: DARK[1], body: [cols[2], cols[1], '#ffffff', '#ffffff'], tail: cols[2], mid: cols[1], head: '#ffffff', accent: DARK[0], wind: '#ffffff', back: cols[1], spray: cols, spray2: [DARK[0], DARK[1]] };
@@ -3402,11 +3408,8 @@
         let spray = 0;
         let broke = false;
         let look = 0;
-        // 3:3 — 돔 밑에서 새로 쓰러지면 (돔이 솟을 때 이미 쓰러져 있던 칸은 빼고) 0.2초에 속빛을 빼 옅은 물 껍질로 (쓰러짐 · 회색 주저앉기가 하얀 속에 가려 안 보이던 것 — UX 리뷰어 #91 U1)
-        const downAt0 = new Set(typeof fxGameDown === 'function' ? fxGameDown().map((q) => q.el) : []);
-        let downAt = -1;
-        let downLook = 0;
-        const soft = (life) => (downAt < 0 ? 0 : clamp((life - downAt) / 0.2, 0, 1));
+        // 〔#135〕 돔은 맞는 쪽을 가림 — 3:3 에서 돔 밑에서 쓰러지면 속빛을 빼던 것 (soft) 을 뺌 · 누운 모습은 돔이 걷힌 뒤 (bridge fxCutHold)
+        const soft = () => 0;
         // 높이 h(0 바닥 → 1 꼭대기) 고리 위 한 점 — f 0 → 1 이 앞면을 rot 쪽으로 가로지름, back 이면 뒷면(거꾸로 · 위쪽)
         const ringAt = (h, f, back = false) => {
             const hw = R * Math.sqrt(Math.max(0, 1 - h * h));
@@ -3424,13 +3427,6 @@
                 cx = lerp(x0, x1, easeOut(k));
                 R = lerp(R0, Rmax, easeOut(k)) * (life > tBreak ? 1 + 0.12 * ((life - tBreak) / (dur - tBreak)) : 1);
                 phase += dt * (1.0 + 1.4 * k);
-                downLook -= dt;
-                if (downAt < 0 && downLook <= 0 && typeof fxGameDown === 'function') {
-                    downLook = 0.05;
-                    if (fxGameDown().some((q) => !downAt0.has(q.el) && Math.abs(q.r.left + q.r.width / 2 - cx) < R + q.r.width / 2 && q.r.top < G)) {
-                        downAt = life;
-                    }
-                }
                 if (life < tBreak) {
                     // 닿은 애 휘말림
                     look -= dt;
@@ -5024,6 +5020,12 @@
     // o.cut (함수 → { l, t, r, b } | null) = 속 빈 돔일 때 그 사각형 (쓰러진 칸) 은 점 · 테 · 돌을 안 그리고 둘레 2칸은 바둑판 반 (1:1 누운 모습이 점 · 돌에 덮이던 것 — #114 UX)
     function blastDome(sc, x, G, R, dur, cols, o = {}) {
         const { S: s, H, W } = sc.u;
+        // 돔이 있는 동안 쓰러진 자리 비우기 멈춤 (#135 — 돔이 맞는 쪽을 가림 · bridge fxCutHold)
+        if (typeof fxCutHold === 'function') {
+            fxCutHold(true, dur);
+            const t0 = sc.t ?? 0;
+            sc.at(t0 + dur, () => fxCutHold(false));
+        }
         // 빛줄기 — 반구 안에서 오른쪽 위로 천천히 흐르는 옅은 줄
         const streaks = [];
         for (let i = 0; i < 14; i++) {
@@ -5979,49 +5981,14 @@
             ring(sc, cx, cy, s * 4, Math.max(W, H) * 0.45, 1, 0.45, ['#ffffff', BLUE[1], BLUE[2]], 2);
             fireBits(cx, cy, s, BLUE, 40, { spread: TAU, speed: H * 0.9, drag: 2.4, life: 0.6 });
         });
-        // 돔 밑에서 새로 쓰러지면 (쏠 때 쓰러져 있던 칸은 빼고) 0.2초에 속 빈 돔으로 (#113 UX 큼 1 — 3:3 쓰러짐 회색이 하얀 속에 1.8초 숨던 것)
-        // 쓰러진 칸 — 3:3 = fxGameDown (pg-team-down) · 1:1 = 쓰러진 전투 그림 안쪽 칸 (pg-fainted · pg-down — 1:1 에서 속 빈 돔이 안 켜지던 것, #114)
-        const downNow = () => {
-            const team = typeof fxGameDown === 'function' ? fxGameDown() : [];
-            if (team.length) {
-                return team;
-            }
-            return [...document.querySelectorAll('#pokemon-game .pg-fighter .pg-fainted, #pokemon-game .pg-fighter .pg-down')].map((el) => ({ el, r: el.getBoundingClientRect() })).filter((q) => q.r.width > 0);
-        };
-        let downAt0 = null;
-        let downAt = -1;
-        let downEl = null;
-        sc.at(TF, () => {
-            downAt0 = new Set(downNow().map((q) => q.el));
-        });
-        let downLook = 0;
-        sc.tick((t, dt) => {
-            downLook -= dt;
-            if (t < TX || downAt >= 0 || !downAt0 || downLook > 0) {
-                return;
-            }
-            downLook = 0.05;
-            const q = downNow().find((d) => !downAt0.has(d.el) && Math.abs(d.r.left + d.r.width / 2 - tx) < R + d.r.width / 2 && d.r.top < G);
-            if (q) {
-                downAt = t;
-                downEl = q.el;
-            }
-        });
-        const domeHollow = () => (downAt < 0 ? 0 : clamp((sc.t - downAt) / 0.2, 0, 1));
-        // 쓰러진 칸 (2칸 여유) — 속 빈 돔의 점 · 테 · 돌 · 땅 불길을 이 자리만 비움 (누운 모습 · 회색 · 사라지기가 그대로 보이게 — #114 UX 큼)
-        const downCut = () => {
-            if (!downEl || !downEl.isConnected) {
-                return null;
-            }
-            const r = downEl.getBoundingClientRect();
-            return r.width > 0 ? { l: r.left - 2 * s, t: r.top - 2 * s, r: r.right + 2 * s, b: r.bottom + 2 * s } : null;
-        };
+        // 〔#135 태현 님 "처음에 우리가 만든것처럼 안보이게"〕 끝 돔은 맞는 쪽을 가림 — 돔 밑에서 쓰러지면 속을 비우고 쓰러진 칸을 오려내던 것 (#113 · #114 hollow · cut) 을 뺌
+        //   누운 모습은 돔이 걷힌 뒤 (1:1 = 넘어짐이 필살기 뒤 · 3:3 = 쓰러진 자리 비우기가 돔 동안 멈춤 — bridge fxCutHold)
         // ⑤ 파란 반구 대폭발 (대상 자리 — #113) · 돌 파편 · 먼지 · 충격파 · 화면 끝까지 번지는 파란 땅 불길
         const spread = W * 0.64;
         const fireEnd = Math.min(TX + 2.75, sec + 0.25); // 장면 끝 (+ 0.3초) 안에서 사그라듦 (#114)
         sc.at(TX, () => {
             ultShake(10, 1000);
-            blastDome(sc, tx, G, R, DOME, BLUE, { hollow: domeHollow, cut: downCut });
+            blastDome(sc, tx, G, R, DOME, BLUE);
             sc.add({ max: sec, draw: drawMon2 }); // 반구 위 층 — 쏜 뒤에도 메가리자몽X 그대로
             ring(sc, tx, G - R * 0.4, R * 0.4, Math.max(W, H) * 0.9, 0.7, 0.6, ['#ffffff', BLUE[1], BLUE[2]], 3);
             ring(sc, tx, G - s, R * 0.5, Math.max(W, H), 0.16, 0.7, [BLUE[1], '#ffffff'], 2);
@@ -6046,15 +6013,7 @@
             const fh = Math.max(6 * s, H * 0.13) * clamp(k / 0.2, 0, 1);
             const x0 = clamp(tx - reach, 0, W);
             const x1 = clamp(tx + reach, 0, W);
-            const cut = domeHollow() > 0.5 ? downCut() : null;
-            if (cut) {
-                // 쓰러진 칸 앞은 낮게 (35%) 남김 — 띠가 끊기지 않게 · 누운 모습은 가리지 않게
-                groundFlames(ctx, px, s, x0, Math.max(x0, cut.l), G, fh, life, BLUE, 0.92 * fade);
-                groundFlames(ctx, px, s, Math.max(x0, cut.l), Math.min(x1, cut.r), G, fh * 0.35, life, BLUE, 0.92 * fade);
-                groundFlames(ctx, px, s, Math.min(x1, cut.r), x1, G, fh, life, BLUE, 0.92 * fade);
-            } else {
-                groundFlames(ctx, px, s, x0, x1, G, fh, life, BLUE, 0.92 * fade);
-            }
+            groundFlames(ctx, px, s, x0, x1, G, fh, life, BLUE, 0.92 * fade);
         } });
         sc.tick((t) => {
             if (t < TX || t > fireEnd - 0.4) {

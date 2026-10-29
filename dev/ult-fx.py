@@ -195,8 +195,7 @@ ONE = r"""
   // 입자 개수는 안 봄 — 큰 돔 하나 (블래스트번, 가운데는 쓴 쪽) 는 상대 칸 안 입자가 0 이라 덮지 않는 것으로 재던 것 (240 에서 돔 밑에 넘어짐 — 디자인팀 UX 9차)
   const covered = samples.filter((s) => s[0] >= main && s[3] >= cfg.coverArea);
   let cover = main >= 0 && covered.length ? Math.round(covered[covered.length - 1][0]) : -1;
-  // 블래스트번 — 돔 밑에서 쓰러지면 속 빈 돔 · 쓰러진 몸 모양 지우기로 비쳐 보여 (fx-sky blastDome o.hollow · bridge fxCutDown) 덮음을 기다리지 않음 (맞은 뒤 메뉴까지 4.0 → 약 2.5초 — 디자인 #114)
-  if (['블래스트번'].includes(lib[idx][0])) cover = -1;
+  // 〔#135〕 블래스트번도 덮음 끝을 잼 — 끝 돔이 맞는 쪽을 다시 가려 (속 빈 돔 · 오려내기 뺌) 쓰러진 포켓몬은 돔이 걷힌 뒤 넘어져야 함 (−1 로 두면 트레이너전에서 누운 모습 0초 · 다음 볼이 돔 위로 — UX #135 · U519 와 같은 종류)
   // [큰 맞음, 본편 길이, 자기 둘레, 가장 센 번쩍 (없으면 -1), 덮음 끝 (없으면 -1)]
   return [main, Math.round(total - lead - cfg.outro), self, big ? Math.round(big[1]) : -1, cover];
 })(%FORM%, %IDX%, %CFG%)
