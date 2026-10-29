@@ -6182,11 +6182,24 @@ function spawnParticle(e) {
             p.grow = 2 + 2.5 * P;
             break;
         case 'water':
-            p.vx = e.dir * moveRand(55, 78) * (1 + 0.6 * P) * s;
-            p.vy = moveRand(-16, -4) * s;
             p.g = 130 * (1 - 0.3 * P) * s;
-            p.drag = 0.4;
-            p.max = moveRand(0.5, 0.8) * (1 + 0.4 * P);
+            if (e.aimDx !== undefined) {
+                // 게임 파도타기 (다리 fxAim) — 쓰는 쪽 발에서 출발해 fly 초 (1 ~ 1.25배) 뒤 상대 몸 아래쪽 (aimY) 에 닿는 포물선 · 처음 vy 를 거꾸로 셈 — 중력으로 땅 아래로 내려가 상대 발보다 10 ~ 20px 아래를 지나던 것 (bugs 1888)
+                const T = e.fly * moveRand(1, 1.25);
+                p.vx = (e.dir * e.aimDx) / T;
+                // 닿는 높이는 몸 아래쪽 둘레로 조금 흩음 (물결 높이) · 물방울 2 ~ 3칸 (1칸은 점으로만 보임)
+                p.vy = (e.aimY + moveRand(-8, 3) * s - e.y - 0.5 * p.g * T * T) / T;
+                p.drag = 0;
+                p.max = T + 0.2;
+                p.color = movePick(['#e8f7ff', '#8fd3ff', '#8fd3ff', '#3fa2f0']);
+                p.size = Math.random() < 0.6 ? 2 : 3;
+                break;
+            } else {
+                p.vx = e.dir * moveRand(55, 78) * (1 + 0.6 * P) * s;
+                p.vy = moveRand(-16, -4) * s;
+                p.drag = 0.4;
+                p.max = moveRand(0.5, 0.8) * (1 + 0.4 * P);
+            }
             p.color = movePick(['#e8f7ff', '#8fd3ff', '#8fd3ff', '#3fa2f0']);
             p.size = Math.random() < 0.2 + 0.5 * P ? (P > 0.6 ? 3 : 2) : 1;
             break;
@@ -7532,7 +7545,7 @@ const SIG_FX = {
     water: {
         ms: (P) => 550 + 650 * P,
         run: (g, o, ms) => {
-            sigEmitter({ move: 'water', power: g.P, dir: g.dir, s: g.s, until: performance.now() + ms, x: o.surf ? g.body.front : g.mouth.x, y: o.surf ? g.body.bottom - 3 * g.s : g.mouth.y });
+            sigEmitter({ move: 'water', power: g.P, dir: g.dir, s: g.s, until: performance.now() + (o.dur ?? ms), x: o.surf ? g.body.front : g.mouth.x, y: o.surf ? g.body.bottom - 3 * g.s : g.mouth.y, ...(o.surf && o.aimDx !== undefined ? { aimDx: o.aimDx, aimY: o.aimY, fly: o.fly } : {}) });
             if (o.surf) {
                 return;
             }
@@ -55362,6 +55375,11 @@ moveBackHook = () => {
     return b;
 };
 /** 보이는 몸 상자 (화면 px) — 그림 모양 (POKEMON_SHAPE 왼 · 위 · 오른 · 아래) · 3:3 칸 (FxActor) · 게임 배우 (fxActor) 둘 다 · 모르면 null */
+// 몸 모양 상자를 (tx, ty) 만큼 되돌림 — 대상 본 자리 (fxTarget)
+function fxShapeAt(q, tx, ty) {
+    const b = fxShapeBox(q);
+    return b && (tx || ty) ? { left: b.left - tx, right: b.right - tx, top: b.top - ty, bottom: b.bottom - ty } : b;
+}
 function fxShapeBox(q) {
     const form = q && (q.form || q.label);
     const sh = form && typeof POKEMON_SHAPE !== 'undefined' ? POKEMON_SHAPE[form] : null;
@@ -55784,11 +55802,16 @@ function fxGameStop(kill) {
 // ── 상대까지 닿게 (2026-10-19 테스터 #327: 번개는 제자리 · 회오리 · 돌떨구기는 가운데 · 물대포 · 거품 · 노래는 입 앞에서 끝 · 광선은 화면 끝까지) ──
 // 일반 모드 틀은 "쓰는 쪽 앞 몇 칸" 기준이라 — 자리형은 상대 자리로 옮기고, 날아가는 것은 빠르기를 거리에 맞추고, 광선은 상대 몸 뒤에서 멈춤
 function fxTarget(g, dst) {
-    const r = fxRestRect(dst.box || dst.el);
+    // 대상의 본 자리 — 3:3 달려가기 (team.ts dash · CSS translate) 로 자기 공격 중 나가 있으면 그 자리를 겨눠, 돌아와서 맞을 때 물줄기 · 뿜기가 230 ~ 300px 못 미치던 것 (bugs 1900)
+    const el = dst.box || dst.el;
+    const tr = getComputedStyle(el).translate;
+    const [tx = 0, ty = 0] = tr && tr !== 'none' ? tr.split(' ').map((v) => parseFloat(v) || 0) : [];
+    const r0 = fxRestRect(el);
+    const r = tx || ty ? new DOMRect(r0.x - tx, r0.y - ty, r0.width, r0.height) : r0;
     const cx = r.left + r.width / 2;
     // 그 둘레 HP 묶음 아래 끝 (회오리처럼 높은 연출이 HP 를 덮지 않게)
     const hud = fxHudRects().filter((h) => h.right > r.left - r.width && h.left < r.right + r.width);
-    return { cx, cy: r.top + r.height * 0.55, w: r.width, far: g.dir > 0 ? r.right : r.left, dist: Math.abs(cx - g.mouth.x), ground: r.bottom, hudBottom: hud.length ? Math.max(...hud.map((h) => h.bottom)) : 0, shape: fxShapeBox(dst) };
+    return { cx, cy: r.top + r.height * 0.55, w: r.width, far: g.dir > 0 ? r.right : r.left, dist: Math.abs(cx - g.mouth.x), ground: r.bottom, hudBottom: hud.length ? Math.max(...hud.map((h) => h.bottom)) : 0, shape: fxShapeAt(dst, tx, ty) };
 }
 // ── 진화 연출 도우미 — 그림 그대로 / 한 색 실루엣 (0.1초마다 새로 — 움직이는 그림) ──
 const evoSilCache = new Map();
@@ -55989,6 +56012,12 @@ const BEAM_HIT_AT = 0.25;
 const QUAKE_HIT_AT = 0.85;
 // 음표 — 게임에서 음표가 상대 몸 앞까지 날아가는 시간 (초)
 const NOTES_FLY_SEC = 0.6;
+// 파도타기 — 물방울이 쓰는 쪽 발에서 상대 몸 아래쪽까지 가는 가장 짧은 시간 (초)
+const SURF_FLY_SEC = 0.3;
+// 파도타기 — 첫 물방울이 생기기까지 (내장 물결은 한 틱 뒤 · 발 앞에서 몸 상자 앞까지) 박자 표로 잰 늦음 (+0.05 ~ 0.07초)
+const SURF_LEAD_SEC = 0.06;
+// 물 (water 틀) 맞는 때 — shot-hit.ts SHOT_HIT_AT.water 와 같게 (move-look.test)
+const WATER_HIT_AT = 0.8;
 // 회오리 — 다 자라는 때를 맞는 때보다 이만큼 (초) 늦게 · 0 (판정이 vpeak 알갱이 수 → vtop 기둥 위 끝으로 바뀜 — 0.18 은 기둥이 맞은 뒤에도 자라 vtop +0.05 ~ 0.2초, #122 3a)
 const VORTEX_PEAK_LAG = 0;
 const QUAKE_PEAK_MS = 200; // 150 이면 발밑 점이 가장 많은 때가 +0.08 ~ +0.23초 · 300 이면 −0.08 ~ −0.14초 (개발 박자 표 gpeak) — 흙 고리 · 튀는 돌이 금보다 늦게 커져서
@@ -56109,6 +56138,16 @@ function fxAim(fx, g, o, t, ms = 0) {
                 stopPast(p);
                 p.vy = (p.vy ?? 0) + (p.vx ?? 0) * slope;
             } : stopPast;
+            // 파도타기 (탁류 · o.surf) 는 물방울이 상대 몸 아래쪽에 SURF_FLY_SEC 뒤 닿게 처음 빠르기를 거꾸로 셈 (moves.js spawnParticle water) · 맞는 때 − 그 시간에 시작 — 내장 물결 (move: 'water') 은 알갱이 cap 을 안 받아 기울임이 안 먹던 것 (bugs 1888)
+            if (fx === 'water' && o.surf && ms > 0) {
+                const sb = t.shape;
+                const aimY = sb ? sb.bottom - 0.3 * (sb.bottom - sb.top) : t.ground - 0.3 * t.w;
+                // 닿음 = 몸 상자 앞 (가운데 − 0.3 폭 — 다른 날리기 · 박자 표와 같게)
+                const aimDx = Math.max(8, Math.abs(t.cx - g.dir * 0.3 * t.w - g.body.front));
+                // 늦춘 만큼 길이를 줄여 예전처럼 시전 + 길이에 끝남 — 길이를 그대로 두면 맞은 뒤 0.8 ~ 1초 (가이오가 1.2초) 물이 계속 쏟아지고 메뉴가 뜬 뒤에도 남던 것 (UX 1888 확인)
+                const wait = Math.max(0, (WATER_HIT_AT * ms) / 1000 - SURF_FLY_SEC - SURF_LEAD_SEC) * 1000;
+                return { g, o: { ...o, aimY, aimDx, fly: SURF_FLY_SEC, dur: Math.max(200, ms - wait) }, k: 1, rateK: 2.5, cap: stopPast, wait };
+            }
             // 음표는 게임에서 빠르기를 직접 (몸 앞까지 거리 ÷ 0.6초 · 거리 배 k 없음) · 맞는 때 − 0.6초에 내보냄 — 7개를 0.19초씩 무작위 빠르기로 내보내 첫 음표가 0.5 ~ 1초 먼저 닿던 것 (수다 · 돌림노래, #122 3b 박자 표)
             if (fx === 'notes' && ms > 0) {
                 const hitAt = (PROJECTILE_HIT_AT * ms) / 1000;

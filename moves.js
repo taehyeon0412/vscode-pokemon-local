@@ -341,11 +341,24 @@ function spawnParticle(e) {
             p.grow = 2 + 2.5 * P;
             break;
         case 'water':
-            p.vx = e.dir * moveRand(55, 78) * (1 + 0.6 * P) * s;
-            p.vy = moveRand(-16, -4) * s;
             p.g = 130 * (1 - 0.3 * P) * s;
-            p.drag = 0.4;
-            p.max = moveRand(0.5, 0.8) * (1 + 0.4 * P);
+            if (e.aimDx !== undefined) {
+                // 게임 파도타기 (다리 fxAim) — 쓰는 쪽 발에서 출발해 fly 초 (1 ~ 1.25배) 뒤 상대 몸 아래쪽 (aimY) 에 닿는 포물선 · 처음 vy 를 거꾸로 셈 — 중력으로 땅 아래로 내려가 상대 발보다 10 ~ 20px 아래를 지나던 것 (bugs 1888)
+                const T = e.fly * moveRand(1, 1.25);
+                p.vx = (e.dir * e.aimDx) / T;
+                // 닿는 높이는 몸 아래쪽 둘레로 조금 흩음 (물결 높이) · 물방울 2 ~ 3칸 (1칸은 점으로만 보임)
+                p.vy = (e.aimY + moveRand(-8, 3) * s - e.y - 0.5 * p.g * T * T) / T;
+                p.drag = 0;
+                p.max = T + 0.2;
+                p.color = movePick(['#e8f7ff', '#8fd3ff', '#8fd3ff', '#3fa2f0']);
+                p.size = Math.random() < 0.6 ? 2 : 3;
+                break;
+            } else {
+                p.vx = e.dir * moveRand(55, 78) * (1 + 0.6 * P) * s;
+                p.vy = moveRand(-16, -4) * s;
+                p.drag = 0.4;
+                p.max = moveRand(0.5, 0.8) * (1 + 0.4 * P);
+            }
             p.color = movePick(['#e8f7ff', '#8fd3ff', '#8fd3ff', '#3fa2f0']);
             p.size = Math.random() < 0.2 + 0.5 * P ? (P > 0.6 ? 3 : 2) : 1;
             break;
@@ -1691,7 +1704,7 @@ const SIG_FX = {
     water: {
         ms: (P) => 550 + 650 * P,
         run: (g, o, ms) => {
-            sigEmitter({ move: 'water', power: g.P, dir: g.dir, s: g.s, until: performance.now() + ms, x: o.surf ? g.body.front : g.mouth.x, y: o.surf ? g.body.bottom - 3 * g.s : g.mouth.y });
+            sigEmitter({ move: 'water', power: g.P, dir: g.dir, s: g.s, until: performance.now() + (o.dur ?? ms), x: o.surf ? g.body.front : g.mouth.x, y: o.surf ? g.body.bottom - 3 * g.s : g.mouth.y, ...(o.surf && o.aimDx !== undefined ? { aimDx: o.aimDx, aimY: o.aimY, fly: o.fly } : {}) });
             if (o.surf) {
                 return;
             }

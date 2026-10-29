@@ -97,6 +97,15 @@ describe('기술마다 모양 표 (#122 — 태현 님 "불꽃세례 불꽃 튀�
     expect(movesJs).toContain('o.vx !== undefined ? o.vx : moveRand(18, 34) * g.s');
     expect(movesJs).toContain('nextShot: t0');
   });
+  it('파도타기 물방울이 상대 몸 아래쪽에 맞는 때에 — 게임은 처음 빠르기를 거꾸로 셈 (bugs 1888 — 내장 물결이 cap 을 안 받아 기울임이 안 먹던 것)', () => {
+    expect(Number(/const WATER_HIT_AT = ([\d.]+);/.exec(bridgeJs)?.[1])).toBe(shotHitAt('water'));
+    expect(bridgeJs).toContain("if (fx === 'water' && o.surf && ms > 0)");
+    expect(movesJs).toContain('- e.y - 0.5 * p.g * T * T) / T;');
+  });
+  it('대상은 본 자리로 겨눔 — 3:3 달려가기 (CSS translate) 로 나가 있는 자리를 겨누지 않음 (bugs 1900 — 거북왕 물줄기가 먼 칸 상대에 230 ~ 300px 못 미침)', () => {
+    expect(bridgeJs).toContain('getComputedStyle(el).translate');
+    expect(bridgeJs).toContain('shape: fxShapeAt(dst, tx, ty)');
+  });
   it('1:1 뿜기 기울임이 큰 포켓몬에서 켜짐 · 작은 포켓몬끼리는 그대로 — 몸 모양 기준 (#122 2단계 UX 6바퀴: 칸 기준 문턱이 한 번도 안 켜졌음)', () => {
     const shape = JSON.parse(/const POKEMON_SHAPE = (\{.*?\});\r?\n/.exec(bundle)?.[1] ?? '{}') as Record<string, number[]>;
     const above = Number(/const BREATH_TILT_ABOVE = ([\d.]+);/.exec(bridgeJs)?.[1]);
