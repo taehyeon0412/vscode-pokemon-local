@@ -133,6 +133,19 @@ COLLECT = r"""
     const ph = st ? (st.runtime.stage ? st.runtime.stage.phase : 'walk') + (st.runtime.stage && st.runtime.stage.phase === 'team' ? ':' + st.runtime.stage.team.phase : '') : '?';
     if (ph !== lastPhase) { K.phases.push([now, ph]); lastPhase = ph; }
     if (!g) return;
+    // 숫자 · 말 칩이 처음 뜬 자리 ↔ 칸마다 지금 가운데 · 달려나간 거리 (bugs 1907 — 달려나간 칸이 맞으면 그 자리 위에)
+    for (const el of g.querySelectorAll('.pg-team-pop')) {
+      if (el.__seen) continue;
+      const r = el.getBoundingClientRect();
+      if (r.width < 1) continue;
+      el.__seen = 1;
+      const cells = [...g.querySelectorAll('[data-team]')].map((c) => {
+        const cr = c.getBoundingClientRect();
+        const tr = getComputedStyle(c).translate;
+        return [c.dataset.team, Math.round(cr.left + cr.width / 2), Math.round(tr && tr !== 'none' ? parseFloat(tr) || 0 : 0)];
+      });
+      (K.pops = K.pops || []).push([now, Math.round(r.left + r.width / 2), el.textContent.trim().slice(0, 12), cells]);
+    }
     // 글 — 보인 때 · 잘림 · 겹침
     const boxes = [];
     for (const el of g.querySelectorAll('*')) {

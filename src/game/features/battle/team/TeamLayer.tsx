@@ -83,6 +83,14 @@ function jointHome(all: readonly { ms: number; slot: number }[], ms: number): nu
 
 /** 숫자 (피해 · 회복) — 같은 칸 0.3초 안 숫자는 하나로 합쳐 0.7초만 (기획 #95 — 숫자 4개 · 말 둘이 몰려 한 화면 15개이던 것, 3:3 점검 · 원작은 숫자 0) */
 const NUM_KINDS = new Set(['damage', 'super', 'weak', 'crit', 'heal']);
+
+/** 칸 상자 (data-team) 가 지금 달려나간 가로 거리 (px) — 달려가기 (fx/team dash) 는 칸 상자를 WAAPI translate 로 옮김 */
+function dashShift(side: Side, slot: number): number {
+  const el = document.querySelector<HTMLElement>(`#pokemon-game [data-team="${side}-${slot}"]`);
+  const t = el ? getComputedStyle(el).translate : 'none';
+  const dx = t && t !== 'none' ? parseFloat(t) : 0;
+  return Number.isFinite(dx) ? Math.round(dx) : 0;
+}
 const NUM_MERGE_MS = 300;
 const NUM_RANK: Record<string, number> = { weak: 0, damage: 1, crit: 2, super: 3 };
 /** 쓰러짐 말 — 머리 위에서 빼고 무대 위 한 줄로 (여럿이면 "통통코 · 소미안 쓰러졌다!") */
@@ -182,6 +190,8 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, d
   const mTop = mp.y - Math.round(art.foot * art.s);
   // 칩마다 처음 정한 자리 (옆 · 머리 위) 를 끝까지 — 이겼다 띠가 닫히는 장면에 옆 자리에서 머리 위로 47 ~ 61px 옆걸음하던 것 (UX 리뷰어 #95 7바퀴 4)
   const placed = useRef(new Map<number, { l: number; t: number } | null>());
+  // 맞을 때 달려나가 있던 칸은 숫자 · 말도 그 자리 위에 — 본 자리에 떠 0.27초 동안 옆 칸이 맞은 것으로 읽히던 것 (bugs 1907 · U5) · 처음 뜰 때 한 번 재서 끝까지 (돌아가도 맞은 자리에 남음)
+  const popShift = useRef(new Map<number, number>());
   // 버린 필살기 누름 글 자리 — 처음 정한 자리를 끝까지 (사라지는 동안 옆걸음 없게 — U2) · 머리 왼쪽 위 → 몸 왼쪽 → 오른쪽 … (다른 칸 그림 · 판 · 자기 판을 피함 · 위 줄 아래)
   const headAt = useRef<{ key: string; l: number; t: number; w: number } | null>(null);
   // 글이 다 사라지면 자리도 잊음 (같은 칸 · 같은 글을 다시 누르면 열쇠가 같아 칩이 없던 때 고른 옛 자리를 다시 써 옆 칸 칩을 덮던 것 — UX 리뷰어 #98)
@@ -277,6 +287,13 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, d
       {pops.map((p, i) => {
         const tall = !!p.joint || (big && NUM_KINDS.has(p.kind) && p.kind !== 'heal');
         const top = Math.max(popMin + (tall ? 6 : 0) + popGap(pops.slice(i + 1)) + stagger, popBase - popGap(pops.slice(0, i)));
+        let dx = popShift.current.get(p.id);
+        if (dx === undefined) {
+          dx = dashShift(side, slot);
+          if (popShift.current.size > 24) popShift.current = new Map([...popShift.current].slice(-8));
+          popShift.current.set(p.id, dx);
+        }
+        const px = x + dx;
         let at: { l: number; t: number } | null = placed.current.get(p.id) ?? null;
         // 칩 폭 어림 (합동 = 판 + "합동!" + 16px 숫자 · 큰 숫자 판) — 실측 (합동 −5 = 52 · −23 = 63 · 큰 −7 = 25) 보다 늘 크게 잡아 겹침을 놓치지 않게 (아트 디렉터 #95 8바퀴 2)
         // ×1 무대 (400 아래) 합동 칩은 숫자만 ("합동!" 은 띠가 말함 · 폭 62 → 약 30 — 옆 두 자리가 막혀 머리 위로 가 옆 칸 그림을 덮던 것, UX 리뷰어 #95 8바퀴 5)
@@ -285,8 +302,9 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, d
         // 머리 위 자리가 옆 칸 그림 · 판에 닿아도 옆 자리를 찾아봄 (240 × 187 에서 머리 위 칩이 통통코 · 이상해꽃을 덮던 것 — 픽셀 검사원 #95 7바퀴 7)
         //   떠 있는 머리 글 (버린 필살기 누름 — 다른 칸 · 무대 기준) 도 처음 자리를 고를 때만 피함 (글이 먼저 떠 있고 옆 칸에 칩이 나중에 붙어 글 키 칸이 칩 숫자를 덮던 것 — UX 리뷰어 98b 2바퀴 작음 1)
         const notes = tall && !placed.current.has(p.id) ? headNoteBoxes() : [];
-        const headHit = tall && (others.some((o) => hits({ l: x - cw / 2, t: top - 20, r: x + cw / 2, b: top }, o.box)) || notes.some((o) => hits({ l: x - cw / 2, t: top - 20, r: x + cw / 2, b: top }, o)));
-        if (tall && !placed.current.has(p.id) && (top > vis.t - 2 || headHit)) {
+        const headHit = tall && (others.some((o) => hits({ l: px - cw / 2, t: top - 20, r: px + cw / 2, b: top }, o.box)) || notes.some((o) => hits({ l: px - cw / 2, t: top - 20, r: px + cw / 2, b: top }, o)));
+        // 달려나간 칸 (dx) 은 옆 자리를 찾지 않고 그 자리 머리 위 (옆 자리는 본 자리 그림 상자 기준)
+        if (tall && dx === 0 && !placed.current.has(p.id) && (top > vis.t - 2 || headHit)) {
           // ×1 (그림 32 · 보이는 키 약 22) 은 머리 높이 (위 끝 − 4) — 위 끝 + 4 면 칩 아래가 발밑 판에 닿아 옆 자리가 막히고 맞은 몸 위로 돌아오던 것 (픽셀 검사원 #95 11바퀴 3)
           const ct = Math.max(vis.t + (g.scale === 1 ? -4 : 4), topMin - 14);
           for (const right of mine ? [false, true] : [true, false]) {
@@ -305,7 +323,7 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, d
         }
         return (
           // 그림 왼쪽에 둘 때는 오른쪽 끝 = 그림 왼쪽 − 2 (left 로 잡으면 폭 어림 차이가 그대로 그림 쪽 틈이 되어 0 ~ 7px 로 들쭉날쭉하던 것 — 아트 디렉터 #95 8바퀴 2)
-          <span key={p.id} class={`pg-team-pop${vRest} pg-pop-${p.kind}${p.joint ? ' pg-team-joint' : ''}${tall && !p.joint ? ' pg-pop-big' : ''}${at ? (at.l < vis.l ? ' pg-pop-side pg-pop-side-l' : ' pg-pop-side') : ''}`} style={at ? { left: `${at.l < vis.l ? vis.l - 2 : at.l}px`, top: `${at.t}px` } : { left: `${x}px`, top: `${top}px` }}>
+          <span key={p.id} class={`pg-team-pop${vRest} pg-pop-${p.kind}${p.joint ? ' pg-team-joint' : ''}${tall && !p.joint ? ' pg-pop-big' : ''}${at ? (at.l < vis.l ? ' pg-pop-side pg-pop-side-l' : ' pg-pop-side') : ''}`} style={at ? { left: `${at.l < vis.l ? vis.l - 2 : at.l}px`, top: `${at.t}px` } : { left: `${px}px`, top: `${top}px` }}>
             {p.joint ? (
               <>
                 {tagOn && <b class="pg-team-joint-tag">합동!</b>} {p.text}
