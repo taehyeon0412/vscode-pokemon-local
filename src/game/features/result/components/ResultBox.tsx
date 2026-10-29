@@ -208,7 +208,7 @@ function useResultFit(): { box: { current: HTMLDivElement | null }; on: boolean;
 }
 
 /** next = 이어서 고를 것 (맨 앞) — 버튼에 다음 할 일 · ups = 레벨업한 포켓몬 (result/model levelUps) · onStats = 내 포켓몬 판 (그 포켓몬) */
-export function ResultBox({ summary, next, ups, hint = false, caught = null, ms = 0, introAt = { left: 0, top: 0 }, evoItem = null, stones = [], media, onInput, onStats }: { summary: BattleSummary; next: 'learn' | 'evolve' | null; ups: LevelUpView[]; /** 얼굴 카드 안내 말풍선 (needsStatHint) */ hint?: boolean; /** 진화 아이템 두 번째부터 (#125) — 얻은 아이템 id (한 줄 그림) */ evoItem?: ItemId | null; /** 막 잡은 포켓몬을 진화시킬 가방의 돌 (#131 — 그릴 때 지금 세이브로 다시 센 것 · summary.caught.stones 는 결과가 났을 때 신호라 놓아주거나 돌을 쓰면 낡음) */ stones?: readonly CaughtStone[]; /** 잡은 포켓몬 — 처음 caughtIntroMs 동안 소개 카드만 */ caught?: CaughtView | null; /** 결과 단계 지난 ms */ ms?: number; /** 소개 카드 자리 (길 칸 기준 정수 px) */ introAt?: { left: number; top: number; width?: number }; media: string; onInput(i: GameInput): void; onStats(uid: string): void }) {
+export function ResultBox({ summary, next, ups, hint = false, caught = null, ms = 0, introAt = { left: 0, top: 0 }, evoItem = null, stones = [], bagOk = false, media, onInput, onStats }: { summary: BattleSummary; next: 'learn' | 'evolve' | null; ups: LevelUpView[]; /** 얼굴 카드 안내 말풍선 (needsStatHint) */ hint?: boolean; /** 진화 아이템 두 번째부터 (#125) — 얻은 아이템 id (한 줄 그림) */ evoItem?: ItemId | null; /** 막 잡은 포켓몬을 진화시킬 가방의 돌 (#131 — 그릴 때 지금 세이브로 다시 센 것 · summary.caught.stones 는 결과가 났을 때 신호라 놓아주거나 돌을 쓰면 낡음) */ stones?: readonly CaughtStone[]; /** 이 상자에서 B = 계속 + 가방이 먹는 때 (엔진 resultBagOk — ideas 1656) — 돌 줄 할 일을 "[B] 가방" 으로 */ bagOk?: boolean; /** 잡은 포켓몬 — 처음 caughtIntroMs 동안 소개 카드만 */ caught?: CaughtView | null; /** 결과 단계 지난 ms */ ms?: number; /** 소개 카드 자리 (길 칸 기준 정수 px) */ introAt?: { left: number; top: number; width?: number }; media: string; onInput(i: GameInput): void; onStats(uid: string): void }) {
   const tight = useResultFit();
   // 제목 없는 상자 (트레이너) 번갈아 칸의 경험치 장면 줄이기 (넘치면 한 단계 · 맥 여유 10%) — 0 = 이름 · 1 = 숫자만 · 2 = "+102 ×3" / "+25 ~ +51"
   //   (240 × 150 세 자리 경험치 "경험치 +102 · +102 · +1…" 이 버튼 밑으로 잘리던 것 — 개발 #98 11판 3판 · U4 "넘치면 한 단계" · 폭 경계를 손으로 고르지 않음)
@@ -306,12 +306,12 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
   // 진화 아이템 두 번째부터 한 줄 (#125) — 넓으면 둘째 줄 맨 앞 · 좁으면 (번갈아 줄) 둘째 차례 맨 앞 ·
   //   글 = 엔진 evoNote ("피카츄 → 라이츄 진화 가능 외 N · 팀에 넣고" — 처음 안내 · 알림 줄과 같은 말, 개발 9f262eac) · 그림 = 그 아이템 (끈도 돌 그림이던 것 — 아트 #125)
   //   막 잡은 포켓몬 줄 (#131) 이 있으면 그것이 먼저 (지금 막 잡은 포켓몬 일 · 팀 진화 알림은 올리면 보이는 전체 글에) — 둘 다 같은 날은 드묾 (이번 전투에서 돌을 얻고 + 그 돌로 진화할 종을 잡음)
-  //   넓으면 끝에 " · 계속 뒤 [B] 가방" (pg-evo-how — 결과 상자에서는 B 가 안 먹어서 "계속 뒤" · UX #131 2바퀴 · 좁은 번갈아 줄 · 넘치면 뺌)
+  //   넓으면 끝에 " · [B] 가방" (pg-evo-how — 이 상자에서 B 가 먹는 때 = bagOk · ideas 1656) · 계속하면 고르기 · 클리어 · 관장 카드로 이어지는 상자는 B 가 안 먹어서 " · 계속 뒤 [B] 가방" (UX #131 2바퀴) · 좁은 번갈아 줄 · 넘치면 뺌
   //   사이 " · " 는 pg-evo-sep (넘쳐서 ★ · 경험치를 뺄 때 같이 · 점을 앞 낱말에 붙여 줄이 "·" 로 시작하지 않게)
   const evoNote = stoneText ? (
     <span class="pg-evo-note">
       <Icon name={ITEM_ICON[stones[0]!.item as keyof typeof ITEM_ICON] ?? 'stone'} /> {stoneText}
-      <span class="pg-evo-how">{' · 계속 뒤 [B] 가방'}</span>
+      <span class="pg-evo-how">{bagOk ? '\u00a0· [B]\u00a0가방' : '\u00a0· 계속\u00a0뒤 [B]\u00a0가방'}</span>
       {rest.length > 0 && <span class="pg-evo-sep">{' · '}</span>}
     </span>
   ) : summary.evoNote ? (

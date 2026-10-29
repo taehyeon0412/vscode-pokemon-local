@@ -5,7 +5,7 @@ import { validateSave, type Save } from '../save';
 import { sampleSave, viaJson } from '../../../test/fixtures/save';
 import { shinyWildSeed } from '../../../test/fixtures/stage';
 import { startBattle } from './battle';
-import { advance, applyInput, AUTO_TIP_BACK, AUTO_TIP_TURN, autoTipLeft, isWaitingForInput, RESUME_BATTLE_MSG, resumeLine, TEAM_MEET_TIP, teamMeetTipDue, isWalkingFast, leadSpeed, STAGE_WAIT, step, waitReason, withSpeed } from './play';
+import { advance, applyInput, AUTO_TIP_BACK, AUTO_TIP_TURN, autoTipLeft, isWaitingForInput, RESUME_BATTLE_MSG, resultBagOk, resumeLine, TEAM_MEET_TIP, teamMeetTipDue, isWalkingFast, leadSpeed, STAGE_WAIT, step, waitReason, withSpeed } from './play';
 import { createGameState, readRuntime, STAGE_PHASES, type GameState } from './state';
 
 const STEP = TIMING.simStepMs;
@@ -512,6 +512,29 @@ describe('S12 결과 · S23 · S22 — 스테이지 쪽 (단계 7)', () => {
     const skipped = applyInput(result, { kind: 'space' });
     expect(skipped.runtime.stage).toMatchObject({ phase: 'result', ms: TIMING.caughtIntroMs });
     expect(phase(applyInput(skipped, { kind: 'result-continue' }))).toBe('walk');
+  });
+
+  it('결과 상자 B = 계속 + 가방 (ideas 1656) — 소개 카드 뒤 · 계속하면 걷기일 때만 · 고르기 · 클리어 카드 · 관장 카드로 이어지면 아님', () => {
+    const base = start();
+    const summary = { title: '야생 구구를 잡았다!', exp: [], money: 0, item: null, caught: { name: '구구', toBox: false, uid: 'm1', isNew: true }, learned: [], choices: 0, badge: null };
+    const result: GameState = { ...base, runtime: { ...base.runtime, stageId: 'forest-1', stage: { phase: 'result', summary, ms: 0 } } };
+    // 소개 카드 동안은 아님 (B 를 눌러도 소개만 넘기지 않음) · 상자가 보이면 됨
+    expect(resultBagOk(result)).toBe(false);
+    const box = applyInput(result, { kind: 'space' });
+    expect(resultBagOk(box)).toBe(true);
+    // 잡지 않은 결과는 처음부터
+    expect(resultBagOk({ ...result, runtime: { ...result.runtime, stage: { phase: 'result', summary: { ...summary, caught: null }, ms: 0 } } })).toBe(true);
+    // 계속하면 기술 · 진화 고르기 — 가방을 못 엶
+    expect(resultBagOk({ ...box, save: { ...box.save, pendingChoices: [{ kind: 'learn', uid: 'm1', moveId: 22 }] } })).toBe(false);
+    // 스테이지 끝 (클리어 카드) · 관장 카드로 이어짐
+    const done = { ...box.save, stages: { ...box.save.stages, 'forest-1': { ...box.save.stages['forest-1']!, progress: 1 } } };
+    expect(resultBagOk({ ...box, save: done })).toBe(false);
+    const st = box.runtime.stage!;
+    if (st.phase !== 'result') throw new Error('result');
+    expect(resultBagOk({ ...box, runtime: { ...box.runtime, stage: { ...st, then: 'badge' } } })).toBe(false);
+    // 결과가 아니면 아님 · 계속한 뒤 (걷기) 는 가방이 열림 (main.ts 가 이어서 open)
+    expect(resultBagOk(base)).toBe(false);
+    expect(phase(applyInput(box, { kind: 'result-continue' }))).toBe('walk');
   });
 
   it('고르다 껐다 켜면 그 고르기부터 (세이브에 남아 있음)', () => {

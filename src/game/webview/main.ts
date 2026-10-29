@@ -4,7 +4,7 @@
  */
 import { h, render } from 'preact';
 import { TIMING } from '../core/balance';
-import { canHeal, canOpenMenus, gymNext, inBattle, nextStageOf, teamScale, type GameInput } from '../core/engine';
+import { canHeal, canOpenMenus, gymNext, inBattle, nextStageOf, resultBagOk, teamScale, type GameInput } from '../core/engine';
 import { teamHealthy } from '../core/rules/bag';
 import { MENU_PANELS, menuShortcutOf } from '../features/menu/model';
 import { levelUps } from '../features/result/model';
@@ -302,6 +302,14 @@ if (!port) {
           actions.open({ kind: 'team', uid: t.uid });
           return;
         }
+      }
+      // 결과 상자 B = [계속] + 가방 (ideas 1656 — 잡은 포켓몬 "X → Y 진화 가능" 줄의 돌을 바로 · 관장 카드 M 처럼) · 뜬 지 1초 안은 안 받음 · 계속하면 고르기 · 클리어 카드면 안 먹음 (resultBagOk)
+      if (shortcut === 'bag' && cur && resultBagOk(cur)) {
+        e.preventDefault();
+        if (realNow() - boxAt < SPACE_BOX_MIN_MS) return;
+        actions.input({ kind: 'result-continue' });
+        actions.open({ kind: 'bag' });
+        return;
       }
       // 관장 카드 M = 카드의 [지도] 버튼과 같게 (대기실에 남고 지도 — #127 UX: 카드가 떠 있으면 메뉴줄이 숨어 M 이 안 먹던 것 · 좁으면 [지도] 가 빠짐) · 뜬 지 1초 안은 안 받음
       if (shortcut === 'map' && rs?.phase === 'badge') {

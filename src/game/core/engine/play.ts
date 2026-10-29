@@ -1403,6 +1403,15 @@ export function gameTempo(state: GameState): number {
 export function canOpenMenus(state: GameState): boolean {
   return (state.save.location.screen === 'stage' && phaseOf(state) === 'walk') || inLobby(state);
 }
+/**
+ * 결과 상자에서 B = [계속] + 가방 (ideas 1656 — 잡은 포켓몬을 가방의 진화의 돌로 바로 · 관장 카드 M 처럼) — 상자가 보이고 (잡은 소개 카드 뒤)
+ * 계속하면 바로 가방을 열 수 있는 때 (걷기 · 대기실) 만 — 기술 · 진화 고르기 · 클리어 카드 · 관장 카드로 이어지면 아님 (계속만 되고 가방이 안 열리던 일 없게)
+ */
+export function resultBagOk(state: GameState): boolean {
+  const st = state.runtime.stage;
+  if (st?.phase !== 'result' || (st.summary.caught && st.ms < TIMING.caughtIntroMs)) return false;
+  return canOpenMenus({ ...state, runtime: { ...state.runtime, stage: afterResult(state.save, st.then) } });
+}
 /** 스테이지 · 체육관으로 갈 수 있는 때 — 걷는 중 (지도) · 클리어 카드 · 대기실 */
 export function canTravel(state: GameState): boolean {
   const p = phaseOf(state);

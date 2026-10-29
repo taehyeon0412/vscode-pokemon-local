@@ -6,6 +6,7 @@ export {
   applyInput,
   canHeal,
   canOpenMenus,
+  resultBagOk,
   canShop,
   canSwapBox,
   canRelease,
