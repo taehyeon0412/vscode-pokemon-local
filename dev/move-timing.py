@@ -12,8 +12,8 @@
   날리기 first · last = 앞 끝 (가운데) 이 몸 상자 (그림 가운데 60% 폭 · 위 15% 아래) 에 처음 든 때 (다발은 첫 발 · 마지막 발) · px1 = 그린 점이 몸 상자에 처음 4개
   고리 first · last = 고리 앞 끝 (가운데 + 반지름) · 돌 first · last = 땅에 닿은 때 · 뿜기 t2 = 같은 높이 줄에서 앞머리가 실루엣 겉면을 2px 들어감 (rep 번 중 가장 이름 —
   기다리는 동안 겉면을 0 ~ 1px 스치는 touch 는 참고, UX 리뷰어 7바퀴와 같게)
-  광선 · 그 밖 = px1 · 상대 것은 pring (패링 원이 닫힌 때) 도
-  판정 밖 (닿는 때가 없음): ground = 땅 흔들기 (시전부터 상대 발밑) · aura = 쓰는 쪽 둘레에서 퍼지는 고리 (상대엔 맞는 짜임만)
+  광선 · 그 밖 = px1 · 땅 흔들기 (quake) gpeak = 발밑 점 수가 가장 많은 장면 · shake = 맞는 쪽 그림이 가장 멀리 흔들린 첫 장면 (가장 큰 순간 = 맞는 때 — 기획 10-29)
+  상대 것은 pring (패링 원이 닫힌 때) 도 · 판정 밖 (닿는 때가 없음): aura = 쓰는 쪽 둘레에서 퍼지는 고리 (상대엔 맞는 짜임만)
   참고 (판정 밖): touch · cov1 · mask2 실루엣 0px · 1% · 2% · pop 피해 숫자 · len 시전 → 맞는 때
 머리 없는 브라우저 1개 (빈 디버그 포트 · 40판마다 새로) · 판마다 20초 안에 답이 없으면 "멈춤" 한 줄 · 남은 메모리 4 GB 아래면 시작 안 함 · 3 GB 아래면 멈추고 그때까지 표를 씀 (끝 코드 2)
 게임 코드는 바꾸지 않음 — 맞는 짜임 (impact) 은 그리지 않고 부른 시각만 적음 (날아온 것 · 뿜기 그림만 남게)"""
@@ -243,8 +243,20 @@ def analyze(c, L):
     K = [u for u in tr if u["k"] == "rock"]
     look = LOOK.get(c["mv"], {})
     if c["tmpl"] == "quake":
-        # 땅 흔들기 — 날아가는 것 없이 시전부터 상대 발밑 (흔들림 · 금 · 고리) 이라 닿는 때가 없음 → 판정 밖 (px1 은 참고)
+        # 땅 흔들기 — 날아가는 것 없이 시전부터 상대 발밑이라 "가장 큰 순간" 을 잼 (기획 10-29: 금 · 튀어 오름 · 가장 센 흔들림 = 맞는 때 ±80)
+        #   gpeak = 발밑 띠 점 수가 가장 많은 장면 (90% 에 처음 닿은 때) · shake = 맞는 쪽 그림이 제자리 (시전 전) 에서 가장 멀리 간 때 (가장 센 흔들림의 첫 장면)
         kind = "ground"
+        win = [r for r in after if r["t"] <= imp + AFTER_MS]
+        top = max((r.get("foot") or 0 for r in win), default=0)
+        v["gpeak"] = rel(next((r["t"] for r in win if top and (r.get("foot") or 0) >= 0.9 * top), None), imp)
+        rest = sorted(r["spr"][0] for r in fr if r["t"] < cast and r.get("spr") and r["spr"][2] > r["spr"][0])
+        if rest:
+            x0 = rest[len(rest) // 2]
+            # 피해 숫자가 뜨면 맞은 쪽이 밀려남 (+11px 한쪽 — 흔들림 아님) → 그 전까지만 (숫자가 없으면 맞는 때 + 80ms)
+            end = next((r["t"] for r in fr if r["t"] >= imp and r.get("pop")), imp + TOL)
+            off = [(r["t"], abs(r["spr"][0] - x0)) for r in win if r["t"] < end and r.get("spr") and r["spr"][2] > r["spr"][0]]
+            far = max((d for t_, d in off), default=0)
+            v["shake"] = rel(next((t_ for t_, d in off if far >= 1 and d >= far), None), imp)
     elif RG and all(u.get("vx") == 0 for u in RG):
         # 쓰는 쪽 둘레에서 퍼지는 고리 (moves.js rings — forward 아님) — 상대에 닿는 것 없이 맞는 짜임만 맞는 때에 → 판정 밖
         kind = "aura"
@@ -275,7 +287,7 @@ def analyze(c, L):
 
 
 JUDGE = {"single": ["first", "px1"], "multi": ["first", "last", "px1"], "boomer": ["first", "px1"],
-         "ring": ["first", "last", "px1"], "rock": ["first", "last"], "breath": ["t2"], "px": ["px1"], "ground": [], "aura": []}
+         "ring": ["first", "last", "px1"], "rock": ["first", "last"], "breath": ["t2"], "px": ["px1"], "ground": ["gpeak", "shake"], "aura": []}
 NOTE = ["touch", "px1", "cov1", "mask2", "pop", "len"]
 
 
