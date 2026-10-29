@@ -13,8 +13,9 @@
   고리 first · last = 고리 앞 끝 (가운데 + 반지름) · 돌 first · last = 땅에 닿은 때 · 뿜기 t2 = 같은 높이 줄에서 앞머리가 실루엣 겉면을 2px 들어감 (rep 번 중 가장 이름 —
   기다리는 동안 겉면을 0 ~ 1px 스치는 touch 는 참고, UX 리뷰어 7바퀴와 같게)
   광선 · 그 밖 = px1 · 땅 흔들기 (quake) gpeak = 발밑 점 수가 가장 많은 장면 · shake = 맞는 쪽 그림이 가장 멀리 흔들린 첫 장면 (가장 큰 순간 = 맞는 때 — 기획 10-29)
-  상대 것은 pring (패링 원이 닫힌 때) 도 · 판정 밖 (닿는 때가 없음): aura = 쓰는 쪽 둘레에서 퍼지는 고리 (상대엔 맞는 짜임만)
-  참고 (판정 밖): touch · cov1 · mask2 실루엣 0px · 1% · 2% · pop 피해 숫자 · len 시전 → 맞는 때
+  회오리 (vortex) vpeak · 가루 (powder) ppeak = 상대 둘레 (그림 폭 양옆 반씩 · 키 60% 위 ~ 발 아래 25%) 점 수가 가장 많은 장면 (상대 자리에 처음부터 놓이는 틀 — 디자인 10-29)
+  상대 것은 pring (패링 원이 닫힌 때) 도 · 판정 밖: aura = 쓰는 쪽 둘레에서 퍼지는 고리 (상대엔 맞는 짜임만) · status = 변화 기술 (위력 0 — 맞는 때 없음)
+  참고 (판정 밖): touch · cov1 · mask2 실루엣 0px · 1% · 2% · vtop 회오리 기둥이 가장 높은 첫 장면 · pop 피해 숫자 · len 시전 → 맞는 때
 머리 없는 브라우저 1개 (빈 디버그 포트 · 40판마다 새로) · 판마다 20초 안에 답이 없으면 "멈춤" 한 줄 · 남은 메모리 4 GB 아래면 시작 안 함 · 3 GB 아래면 멈추고 그때까지 표를 씀 (끝 코드 2)
 게임 코드는 바꾸지 않음 — 맞는 짜임 (impact) 은 그리지 않고 부른 시각만 적음 (날아온 것 · 뿜기 그림만 남게)"""
 import base64
@@ -223,11 +224,20 @@ def rel(x, imp):
     return None if x is None or imp is None else x - imp
 
 
+def peak(win, key):
+    """그 값이 가장 큰 장면 — 90% 에 처음 닿은 때 (한 장면 튐에 안 끌리게)"""
+    top = max((r.get(key) or 0 for r in win), default=0)
+    return next((r["t"] for r in win if top and (r.get(key) or 0) >= 0.9 * top), None)
+
+
 def analyze(c, L):
     """한 판 → 값 (맞는 때 기준 ms) · 종류"""
     ev, fr = L["ev"], L["fr"]
     cast = next((e["t"] for e in ev if e["k"] == "move"), None)
     imp = next((e["t"] for e in ev if e["k"] in ("impact", "swat", "contactParry")), None)
+    if POWER.get(c["mv"]) == 0:
+        # 변화 기술 (독실 · 맹독 · 저리가루 — 위력 0) — 맞는 때가 없음 (상대 것은 패링 원 · 부름이 남아도) → 판정 밖
+        return dict(kind="status", v={})
     if cast is None or imp is None:
         return dict(err="연출 부름 없음 (move · impact)")
     after = [r for r in fr if r["t"] >= cast]
@@ -247,8 +257,7 @@ def analyze(c, L):
         #   gpeak = 발밑 띠 점 수가 가장 많은 장면 (90% 에 처음 닿은 때) · shake = 맞는 쪽 그림이 제자리 (시전 전) 에서 가장 멀리 간 때 (가장 센 흔들림의 첫 장면)
         kind = "ground"
         win = [r for r in after if r["t"] <= imp + AFTER_MS]
-        top = max((r.get("foot") or 0 for r in win), default=0)
-        v["gpeak"] = rel(next((r["t"] for r in win if top and (r.get("foot") or 0) >= 0.9 * top), None), imp)
+        v["gpeak"] = rel(peak(win, "foot"), imp)
         rest = sorted(r["spr"][0] for r in fr if r["t"] < cast and r.get("spr") and r["spr"][2] > r["spr"][0])
         if rest:
             x0 = rest[len(rest) // 2]
@@ -257,6 +266,15 @@ def analyze(c, L):
             off = [(r["t"], abs(r["spr"][0] - x0)) for r in win if r["t"] < end and r.get("spr") and r["spr"][2] > r["spr"][0]]
             far = max((d for t_, d in off), default=0)
             v["shake"] = rel(next((t_ for t_, d in off if far >= 1 and d >= far), None), imp)
+    elif c["tmpl"] in ("vortex", "powder"):
+        # 상대 자리에 처음부터 놓이는 틀 (회오리 기둥 · 가루) — 가장 큰 순간 = 상대 둘레 점 수가 가장 많은 장면 (디자인 10-29 · 땅 흔들기와 같은 규칙)
+        #   vtop (회오리 참고) = 상대 폭 안 그림 위 끝이 가장 높은 첫 장면 (기둥이 가장 높음)
+        kind = c["tmpl"]
+        win = [r for r in after if r["t"] <= imp + AFTER_MS]
+        v["vpeak" if kind == "vortex" else "ppeak"] = rel(peak(win, "near"), imp)
+        if kind == "vortex":
+            hi = min((r["ctop"] for r in win if r.get("ctop") is not None), default=None)
+            v["vtop"] = rel(next((r["t"] for r in win if hi is not None and r.get("ctop") == hi), None), imp)
     elif RG and all(u.get("vx") == 0 for u in RG):
         # 쓰는 쪽 둘레에서 퍼지는 고리 (moves.js rings — forward 아님) — 상대에 닿는 것 없이 맞는 짜임만 맞는 때에 → 판정 밖
         kind = "aura"
@@ -287,12 +305,13 @@ def analyze(c, L):
 
 
 JUDGE = {"single": ["first", "px1"], "multi": ["first", "last", "px1"], "boomer": ["first", "px1"],
-         "ring": ["first", "last", "px1"], "rock": ["first", "last"], "breath": ["t2"], "px": ["px1"], "ground": ["gpeak", "shake"], "aura": []}
-NOTE = ["touch", "px1", "cov1", "mask2", "pop", "len"]
+         "ring": ["first", "last", "px1"], "rock": ["first", "last"], "breath": ["t2"], "px": ["px1"], "ground": ["gpeak", "shake"],
+         "vortex": ["vpeak"], "powder": ["ppeak"], "aura": [], "status": []}
+NOTE = ["touch", "vtop", "px1", "cov1", "mask2", "pop", "len"]
 
 
 def judge(kind, side, v):
-    keys = JUDGE[kind] + (["pring"] if side == "foe" else [])
+    keys = JUDGE[kind] + (["pring"] if side == "foe" and kind != "status" else [])
     bad = [k for k in keys if v.get(k) is None or abs(v[k]) > TOL]
     return keys, bad
 
@@ -303,6 +322,8 @@ def fmt(x):
 
 def run(cases, out):
     httpd, port = gs.serve()
+    # 판을 넘기는 중 받다 끊긴 파일 (ConnectionReset) 은 결과와 상관없음 — 긴 오류 글을 안 찍음
+    httpd.handle_error = lambda *_: None
     rawd = os.path.join(out, "raw")
     os.makedirs(rawd, exist_ok=True)
     res, stop = {}, None
@@ -444,6 +465,7 @@ def main():
 
 LOGGER = open(os.path.join(ROOT, "dev", "move-timing.js"), encoding="utf-8").read()
 LOOK = {k: v for k, v in json.load(open(os.path.join(DATA, "dev", "move-look.json"), encoding="utf-8")).items() if not k.startswith("_")}
+POWER = {k: m.get("power") for k, m in load("moves.json").items()}
 # dev/move-load.py 가 기술 고르기 · 브라우저 도구를 빌려 씀 (불러오기만 할 땐 돌지 않음)
 if __name__ == "__main__":
     main()

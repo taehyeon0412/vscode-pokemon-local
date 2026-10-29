@@ -97,7 +97,9 @@
       try { track(s, B, t); } catch (e) { L.terr = String(e); }
       // 캔버스 그림: n 정보줄 아래 모두 · body 몸 상자 안 · foot 발밑 띠 (그림 폭 양옆 반씩 · 키 55% ~ 발 아래 25% — 땅 흔들기 금 · 흙 · 튀는 돌) · rHi / rLo 줄마다 가장 오른쪽 · 왼쪽 (뿜기 앞머리)
       const FT = [s[0] - 0.5 * w, s[1] + 0.55 * h, s[2] + 0.5 * w, s[3] + 0.25 * h];
-      let n = 0, body = 0, foot = 0;
+      // near 상대 둘레 (그림 폭 양옆 반씩 · 키 60% 위 ~ 발 아래 25% — 회오리 기둥 · 가루가 상대 자리에 놓이는 틀) · col 상대 폭 안 점 수 · ctop / cbot 그 점의 위 끝 · 아래 끝 (기둥 높이 · 물결 높이)
+      const NZ = [s[0] - 0.5 * w, s[1] - 0.6 * h, s[2] + 0.5 * w, s[3] + 0.25 * h];
+      let n = 0, body = 0, foot = 0, near = 0, col = 0, ctop = 1e9, cbot = -1e9;
       const rHi = new Float32Array(H).fill(-1e9), rLo = new Float32Array(H).fill(1e9);
       for (let y = 0; y < H; y++) {
         const Y = y / sy + cr.top;
@@ -111,6 +113,8 @@
           if (X < rLo[y]) rLo[y] = X;
           if (inB && X >= B[0] && X < B[2]) body++;
           if (Y >= FT[1] && Y < FT[3] && X >= FT[0] && X < FT[2]) foot++;
+          if (Y >= NZ[1] && Y < NZ[3] && X >= NZ[0] && X < NZ[2]) near++;
+          if (X >= s[0] && X < s[2]) { col++; if (Y < ctop) ctop = Y; if (Y > cbot) cbot = Y; }
         }
       }
       // 맞는 쪽 실루엣 (그림 알파) — 줄마다 쓰는 쪽을 향한 겉면 (rowF) · 덮음 (mcov)
@@ -162,7 +166,8 @@
         }
         row.mcov = Math.round((1000 * cov) / (L.mask.length / 2)) / 1000;
       }
-      Object.assign(row, { n, body, foot });
+      Object.assign(row, { n, body, foot, near, col });
+      if (col) Object.assign(row, { ctop: Math.round(ctop), cbot: Math.round(cbot) });
     }
     const pe = document.querySelectorAll("#pokemon-game .pg-pop-damage");
     if (pe.length) row.pop = [...pe].map((p) => p.textContent.trim()).join("|");
