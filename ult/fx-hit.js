@@ -189,6 +189,9 @@ function hitRing(x, y, s, r0, r1, flat, max, cols) {
     if (hitQuiet) {
         return;
     }
+    // 고리는 가까운 패널 끝 안 (240 근원의파동 +30px 등 — 픽셀 3b)
+    r1 = Math.min(r1, hitRoom(x, s));
+    r0 = Math.min(r0, r1);
     const a0 = moveRand(0, (Math.PI * 2) / 3);
     const fl = Math.min(flat, 0.35);
     sigParticle({ x, y, s, max, cols, draw: (ctx, p, t, px) => {
@@ -243,7 +246,7 @@ function hitCore(x, y, s, R, cols) {
 
 // ── 짜임: 회오리 — 세 줄 나선 띠가 몸을 감고 + 조각이 돌며 피어오름 (회오리불꽃 · 물기둥 · 회오리바람 · 모래 회오리 — 4타입만)
 function hitHelix(x, ground, s, R, H, cols, shape, sec, spin, big) {
-    const rTop = R * 1.25;
+    const rTop = Math.min(R * 1.25, hitRoom(x, s));
     const rBottom = R * 0.3;
     sigParticle({ x, y: ground, s, max: sec, draw: (ctx, p, t, px) => {
         const grow = Math.min(1, p.life / 0.18);
@@ -290,9 +293,11 @@ function hitHelix(x, ground, s, R, H, cols, shape, sec, spin, big) {
 //   opt.n = 처음 큰 조각 수 (기본 6) · opt.only = 큰 조각만 (내뿜기 없음 — 큰 별 · 돌 몇 개만, 뭉게 덩이가 안 되게) · opt.rate = 내뿜기 1초 수 (#122 2단계 아트)
 function hitBloom(x, y, s, R, cols, shape, sec, big, opt = {}) {
     const n0 = opt.n ?? 6;
+    // 가로로 퍼지는 거리 (가장 먼 알갱이 약 1.9R) 를 가까운 패널 끝 안으로 (240 효과 굉장에서 오물폭탄 +12px · 알폭탄 +2px — 픽셀 3b 리드 다시 재기)
+    const kx = Math.min(1, hitRoom(x, s) / (R * 1.9));
     for (let i = 0; i < n0; i++) {
         const a = (i / n0) * Math.PI * 2 + moveRand(-0.2, 0.2);
-        sigParticle({ x, y, s, a, vx: Math.cos(a) * R * 5, vy: Math.sin(a) * R * 5 * (opt.flat ?? 0.85), drag: 7, max: 0.5 * (sec / 0.7) + 0.1, cols, shape, draw: (ctx, p, t, px) => {
+        sigParticle({ x, y, s, a, vx: Math.cos(a) * R * 5 * kx, vy: Math.sin(a) * R * 5 * (opt.flat ?? 0.85), drag: 7, max: 0.5 * (sec / 0.7) + 0.1, cols, shape, draw: (ctx, p, t, px) => {
             ctx.globalAlpha = hitFade(t, 0.05, 0.35);
             if (p.shape === 'shard') {
                 // 바깥을 향한 결정 1 × 3 (심 밝게 → 끝 진하게)
@@ -311,7 +316,7 @@ function hitBloom(x, y, s, R, cols, shape, sec, big, opt = {}) {
     sigEmitter({ until, rate: opt.rate ?? (big ? 130 : 90), fx: () => {
         const a = moveRand(0, Math.PI * 2);
         const v = moveRand(1, 1.8) * R * 3.2;
-        sigParticle({ x, y, s, vx: Math.cos(a) * v, vy: Math.sin(a) * v * (opt.flat ?? 0.85), g: (opt.g ?? 30) * s, drag: opt.drag ?? 3.2, max: moveRand(0.45, 0.75) * (sec / 0.7), cols, shape, big: Math.random() < 0.7, draw: (ctx, p, t, px) => {
+        sigParticle({ x, y, s, vx: Math.cos(a) * v * kx, vy: Math.sin(a) * v * (opt.flat ?? 0.85), g: (opt.g ?? 30) * s, drag: opt.drag ?? 3.2, max: moveRand(0.45, 0.75) * (sec / 0.7), cols, shape, big: Math.random() < 0.7, draw: (ctx, p, t, px) => {
             ctx.globalAlpha = hitFade(t, 0.05, 0.4);
             hitBit(ctx, px, p.s, p.x, p.y, p.shape, p.cols, t, p.big);
         } });
@@ -355,7 +360,7 @@ function hitFountain(x, y, s, R, cols, shape, sec, big, dir, opt = {}) {
     sigEmitter({ until: performance.now() + 260, rate: opt.rate ?? (rock ? 60 : big ? 260 : 190), fx: () => {
         const a = -Math.PI / 2 + moveRand(-(opt.spread ?? 1.15), opt.spread ?? 1.15) + dir * (opt.spread ? 0 : 0.2);
         const v = moveRand(1, 1.5) * R * 4.6;
-        sigParticle({ x: x + moveRand(-0.3, 0.3) * R, y: y + R * (rock ? 0.7 : 0.3), s, vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: R * 9, drag: 0.5, max: moveRand(0.5, 0.8) * (sec / 0.7), cols, shape, big: Math.random() < (rock ? (big ? 0.25 : 0.15) : big ? 0.6 : 0.35), draw: (ctx, p, t, px) => {
+        sigParticle({ x: x + moveRand(-0.3, 0.3) * R, y: y + R * (rock ? 0.7 : 0.3), s, vx: Math.cos(a) * v * Math.min(1, hitRoom(x, s) / (R * 3)), vy: Math.sin(a) * v, g: R * 9, drag: 0.5, max: moveRand(0.5, 0.8) * (sec / 0.7), cols, shape, big: Math.random() < (rock ? (big ? 0.25 : 0.15) : big ? 0.6 : 0.35), draw: (ctx, p, t, px) => {
             ctx.globalAlpha = t > 0.8 ? 0.5 : 1;
             hitBit(ctx, px, p.s, p.x, p.y, p.shape, p.cols, t, p.big, dir);
         } });
@@ -768,6 +773,9 @@ function hitNeedles(x, y, s, R, cols, n, spread, len, sec, dir) {
 
 // 반쪽 호 — 2칸 굵기 납작 반원이 r0 → r1 로 퍼짐 (part 'top' = 위 반 — 배대뒤치기 몸을 넘겨 메침 · 'front' = 앞 (아래) 반 — 드래곤테일 발밑 쓸기)
 function hitArc(x, y, s, r0, r1, flat, sec, cols, part) {
+    // 호는 가까운 패널 끝에서 2칸 안 (240 효과 굉장 일렉트릭네트가 끝 0px 에 0.22초 — 픽셀 3b 리드 다시 재기)
+    r1 = Math.min(r1, hitRoom(x, s) - 2 * s);
+    r0 = Math.min(r0, r1);
     sigParticle({ x, y, s, max: sec, cols, draw: (ctx, p, t, px) => {
         const r = r0 + (r1 - r0) * Math.min(1, t / 0.6);
         ctx.globalAlpha = hitStep(t > 0.6 ? (1 - t) / 0.4 : 1);
@@ -784,7 +792,7 @@ function hitOrbit(x, y, s, R, cols, shape, n, sec, big, inward = false) {
         const a0 = (i / n) * Math.PI * 2;
         sigParticle({ x, y, s, max: sec * moveRand(0.85, 1.1), a0, R, cols, shape, spin: moveRand(6, 9), big, draw: (ctx, p, t, px) => {
             const a = p.a0 + t * p.spin * (inward ? 1.4 : 1);
-            const r = inward ? p.R * (1.8 - 1.5 * t) : p.R * (0.6 + (t < 0.55 ? 0.6 * t : 0.33 + 1.8 * (t - 0.55)));
+            const r = Math.min(hitRoom(p.x, p.s), inward ? p.R * (1.8 - 1.5 * t) : p.R * (0.6 + (t < 0.55 ? 0.6 * t : 0.33 + 1.8 * (t - 0.55))));
             ctx.globalAlpha = hitFade(t, 0.1, 0.3);
             hitBit(ctx, px, p.s, p.x + Math.cos(a) * r, p.y + Math.sin(a) * r * 0.7, p.shape, p.cols, t, p.big && i % 2 === 0);
         } });
@@ -803,7 +811,8 @@ function hitBolts(x, y, s, R, cols, n, sec, opt = {}) {
         p.paths = [];
         for (let i = 0; i < p.n; i++) {
             const a = (i / p.n) * Math.PI * 2 + moveRand(-0.35, 0.35);
-            const L = p.R * moveRand(l0, l1);
+            // 번개 길이는 가까운 패널 끝 안 (240 차지빔 · 전격파 +14px — 픽셀 3b)
+            const L = Math.min(p.R * moveRand(l0, l1), hitRoom(p.x, p.s) / Math.max(0.2, Math.abs(Math.cos(a))));
             const path = zigzag(p.x, p.y, p.x + Math.cos(a) * L, Math.max(opt.top ?? -Infinity, p.y + Math.sin(a) * L), p.s, 3, 5);
             p.paths.push(path, zapBranch(path, L * 0.4, a, p.s));
         }
@@ -852,8 +861,9 @@ function hitLines(x, y, s, R, cols, n, sec, opt = {}) {
         ctx.globalAlpha = hitStep(1 - t);
         for (let i = 0; i < p.n; i++) {
             const a = opt.dir ? (opt.dir > 0 ? 0 : Math.PI) + (p.n > 1 ? (i / (p.n - 1) - 0.5) * 2 * opt.spread : 0) : (i / p.n) * Math.PI * 2 + (i % 2) * 0.2;
-            const r0 = p.R * (0.2 + 0.8 * t);
-            const r1 = p.R * (0.9 + 1.2 * t);
+            // 빛살 끝은 가까운 패널 끝 안 (240 에서 에어로블라스트 +54px · 심판의뭉치 +46px 등 잘리던 것 — 픽셀 3b)
+            const r1 = Math.min(p.R * (0.9 + 1.2 * t), hitRoom(p.x, p.s) / Math.max(0.2, Math.abs(Math.cos(a))));
+            const r0 = Math.min(p.R * (0.2 + 0.8 * t), r1);
             for (let r = r0; r <= r1; r += p.s) {
                 const root = r < hitLerp(r0, r1, 0.5);
                 dotAt(ctx, px, p.s, p.x + Math.cos(a) * r, p.y + Math.sin(a) * r, r > r1 - 2 * p.s ? p.cols[0] : p.cols[2], root ? 2 : 1, root ? 2 : 1);
@@ -929,7 +939,7 @@ function hitWaves(x, y, s, R, cols, n, sec) {
 // 피어오르는 혼 — 물결치며 떠오르는 꼬리 (고스트 · 독 안개)
 function hitWisps(x, y, s, R, cols, n, sec) {
     for (let i = 0; i < n; i++) {
-        sigParticle({ x: x + moveRand(-0.9, 0.9) * R, y: y + moveRand(-0.2, 0.6) * R, s, max: sec * moveRand(0.8, 1.1), cols, ph: moveRand(0, 6), R, draw: (ctx, p, t, px) => {
+        sigParticle({ x: x + moveRand(-0.9, 0.9) * Math.min(R, hitRoom(x, s) / 1.3), y: y + moveRand(-0.2, 0.6) * R, s, max: sec * moveRand(0.8, 1.1), cols, ph: moveRand(0, 6), R, draw: (ctx, p, t, px) => {
             ctx.globalAlpha = hitStep(t < 0.2 ? t / 0.2 : (1 - t) * 1.2);
             for (let j = 0; j < 6; j++) {
                 const k = t - j * 0.035;
@@ -1253,7 +1263,7 @@ const HIT_MOVES = {
     foulplay: { core: 0.8, run: (x, y, s, R, c, big, dir, g, n) => { hitClaws(x, y, s, R * 1.1, c, 2, true); hitWisps(x, y + R * 0.2, s, R * 0.6, c, n(5), 0.6); } },
     // 고스트: 놀래키기 = 깜짝 줄 + 혼 셋 · 야습 = 발밑 그림자에서 가시 · 고스트다이브 = 혼이 피어오르며 퍽 + 고리 · 병상첨병 = 안으로 감기는 점 + 혼
     boo: { core: 0.3, run: (x, y, s, R, c, big, dir, g, n) => { hitLines(x, y - R * 0.5, s, R * 0.7, c, n(6), 0.3); hitWisps(x, y, s, R * 0.7, c, n(3), 0.5); } },
-    sneak: { core: 0.2, run: (x, y, s, R, c, big, dir, g) => { hitPuddle(x, g, s, R, sigPal('dark'), 0.55); hitSpikes(x, g, s, R * 0.8, c, 3, 0.45); } },
+    sneak: { core: 0.2, run: (x, y, s, R, c, big, dir, g) => { hitPuddle(x, g, s, R, sigPal('dark'), 0.55); hitSpikes(x, g, s, Math.min(R * 0.8, hitRoom(x, s) / 1.6), c, 3, 0.45, { slim: true }); } },
     phantom: { core: 0.5, run: (x, y, s, R, c, big, dir, g, n) => { hitWisps(x, y, s, R, c, n(7), 0.7); sigPow(x, y, s, c, 0.4, false); hitRing(x, y, s, R * 0.3, R * 1.2, 0.35, 0.4, c); } },
     hex: { core: 0.4, run: (x, y, s, R, c, big, dir, g, n) => { hitOrbit(x, y, s, R * 1.1, c, 'sparkle', n(8), 0.7, true, true); hitWisps(x, y, s, R * 0.8, c, n(4), 0.6); } },
     // 땅: 구멍파기 = 발밑 구멍 + 흙 분수 · 대지의힘 = 땅에서 가늘게 솟구치는 흙빛 불똥 + 금 + 충격파 (꽉 찬 기둥은 상대를 덮어서) · 지진 = 넓은 금 + 충격파 셋 + 돌 (흔들림) · 분함의발구르기 = 쿵쿵쿵 세 번 충격파
@@ -1422,6 +1432,86 @@ const HIT_MOVES = {
     muddywater: { core: 0.5, run: (x, y, s, R, c, big, dir, g) => { hitWaves(x, y, s, R, sigPal('ground'), 3, 0.6); hitPuddle(x, g, s, Math.min(R * 1.4, hitRoom(x, s) / 1.2), sigPal('ground'), 0.8); hitFountain(x, y, s, R * 0.6, sigPal('ground'), 'drop', 0.5, false, dir); } },
     aquatail: { core: 0.6, run: (x, y, s, R, c, big, dir, g, n) => { hitLines(x, y, s, R * 1.2, c, n(6), 0.32, { dir, spread: 0.2 }); hitFountain(x, y, s, R * 0.7, c, 'drop', 0.55, true, dir); } },
     crabhammer: { core: 0.8, shake: true, run: (x, y, s, R, c, big, dir, g) => { sigPow(x - dir * R * 0.5, y, s, c, 0.5, false); hitFountain(x, y, s, Math.min(R * 0.9, hitRoom(x, s) / 2.2), c, 'drop', 0.6, true, dir); hitGroundRings(x, g, s, R, c, [1.3, 1.6], 100, 0.5); } },
+    // ── 3b단계 (3a 밖 나머지 67 — 2026-10-29) — 같은 틀을 같이 쓰던 무리를 나눔 · 위력이 크면 크게 · 흔들림은 위력 100 넘는 것만 · 큰 퍽은 몸 앞 (R × 0.4 ~ 0.5) · 기둥 · 땅은 패널 끝 안 (hitRoom)
+    // 악: 바크아웃 = 물결 + 앞으로 퍼지는 줄 · 도둑질 = 할퀸 자국 + 금빛 반짝 · 나이트버스트 = 어두운 반짝 터짐 + 최면 고리 + 땅 고리
+    snarl: { core: 0.4, run: (x, y, s, R, c, big, dir, g, n) => { hitWaves(x, y, s, R * 0.8, c, 2, 0.45); hitLines(x, y, s, R, c, 6, 0.3, { dir, spread: 0.5 }); } },
+    thief: { core: 0.4, run: (x, y, s, R, c, big, dir, g, n) => { hitClaws(x, y, s, R * 0.8, c, 1, false); hitCling(x, y - R * 0.3, s, R * 0.6, sigPal('gold'), 'sparkle', n(3), 0.45); } },
+    nightdaze: { core: 0.7, run: (x, y, s, R, c, big, dir, g, n) => { hitBloom(x, y, s, R * 1.1, c, 'sparkle', 0.55, true, { only: true, n: 10 }); hitRing(x, y, s, R * 0.3, R * 1.4, 0.35, 0.45, sigPal('hypno')); hitGroundRings(x, g, s, R, c, [1.3], 0, 0.45); } },
+    // 드래곤: 공간절단 = 분홍 X 자국 + 위 반 호 + 줄 · 시간의포효 = 큰 물결 + 강철 땅 고리 + 감도는 반짝 (흔들림)
+    spacialrend: { core: 0.7, run: (x, y, s, R, c, big, dir, g, n) => { hitClaws(x, y, s, R * 1.1, sigPal('hypno'), 2, true); hitArc(x, y, s, R * 0.5, R * 1.3, 1, 0.5, c, 'top'); hitLines(x, y, s, R * 1.2, sigPal('hypno'), n(6), 0.3); } },
+    roaroftime: { core: 0.9, shake: true, run: (x, y, s, R, c, big, dir, g, n) => { hitWaves(x, y, s, R, c, 3, 0.6); hitGroundRings(x, g, s, R * 1.2, sigPal('steel'), [1.4, 1.8], 110, 0.6); hitOrbit(x, y, s, R * 1.1, sigPal('steel'), 'sparkle', n(8), 0.6, false); } },
+    // 전기: 차지빔 = 작은 번개 둘 + 점 · 일렉트릭네트 = 위 · 아래 호 그물 + 감도는 점 · 전격파 = 고리 + 번개 넷 · 볼트체인지 = 퍽 + 번개 + 되돌아가는 줄
+    chargebeam: { core: 0.4, run: (x, y, s, R, c, big, dir, g, n) => { hitBolts(x, y, s, R * 0.9, c, 3, 0.4); hitCling(x, y, s, R * 0.7, c, 'dot', n(5), 0.4); } },
+    electroweb: { core: 0.4, run: (x, y, s, R, c, big, dir, g, n) => { hitArc(x, y, s, R * 0.4, R * 1.1, 1, 0.55, c, 'top'); hitArc(x, y, s, R * 0.3, R * 0.9, 1, 0.55, c, 'front'); hitOrbit(x, y, s, R * 0.8, c, 'dot', n(6), 0.6, false); hitBolts(x, y, s, R * 0.8, c, 3, 0.35); } },
+    shockwave: { core: 0.5, run: (x, y, s, R, c) => { hitRing(x, y, s, R * 0.3, R * 1.3, 0.35, 0.4, c); hitBolts(x, y, s, R * 0.9, c, 3, 0.3); } },
+    voltswitch: { core: 0.5, run: (x, y, s, R, c, big, dir) => { sigPow(x - dir * R * 0.4, y, s, c, 0.4, false); hitBolts(x, y, s, R * 0.7, c, 2, 0.3); hitLines(x, y, s, R, c, 5, 0.3, { dir: -dir, spread: 0.6 }); } },
+    // 격투: 바위깨기 = 퍽 + 돌 조각 · 그로우펀치 = 퍽 + 솟는 빛 · 태권당수 = 내리친 자국 + 줄 · 돌려차기 = 위 반 호 + 퍽 · 트리플킥 = 연타 + 커지는 고리 셋 · 업어후리기 = 위 반 호 + 별 · 로킥 = 발밑 줄 + 먼지 · 받아던지기 = 큰 호 + 땅 고리 + 먼지 · 드레인펀치 = 퍽 + 빨려 드는 빛 · 파동탄 = 파란 반짝 터짐 + 고리 둘 · 성스러운칼 = 금빛 긴 줄 + 반짝 + 고리 · 크로스촙 = X 자국 + 퍽
+    rocksmash: { core: 0.4, run: (x, y, s, R, c, big, dir) => { sigPow(x - dir * R * 0.4, y, s, c, 0.4, false); hitBloom(x, y, s, R * 0.7, sigPal('rock'), 'rock', 0.45, false, { only: true, n: 5 }); } },
+    poweruppunch: { core: 0.4, run: (x, y, s, R, c, big, dir, g, n, h) => { sigPow(x - dir * R * 0.4, y, s, c, 0.4, false); hitRise(x, y, s, R * 0.8, c, 3, 0.5, g - h(100)); } },
+    karatechop: { core: 0.4, run: (x, y, s, R, c, big, dir) => { hitClaws(x, y, s, R * 0.9, c, 1, false); hitLines(x, y - R * 0.2, s, R * 0.8, c, 3, 0.25, { dir, spread: 0.2 }); } },
+    rollingkick: { core: 0.5, run: (x, y, s, R, c, big, dir) => { hitArc(x, y, s, R * 0.5, R * 1.2, 1, 0.45, c, 'top'); sigPow(x - dir * R * 0.5, y - R * 0.2, s, c, 0.45, false); } },
+    triplekick: { core: 0.5, run: (x, y, s, R, c) => { hitFlurry(x, y, s, R * 0.8, c, 3); hitRing(x, y, s, R * 0.2, R * 0.8, 0.35, 0.3, c); hitQuiet || setTimeout(() => hitRing(x, y, s, R * 0.2, R, 0.35, 0.3, c), 110); hitQuiet || setTimeout(() => hitRing(x, y, s, R * 0.2, R * 1.2, 0.35, 0.3, c), 220); } },
+    stormthrow: { core: 0.5, run: (x, y, s, R, c, big, dir, g, n) => { hitArc(x, y, s, R * 0.5, R * 1.1, 1, 0.5, c, 'top'); hitCling(x, y - R * 0.4, s, R * 0.6, sigPal('star'), 'star', n(3), 0.5); } },
+    lowkick: { core: 0.4, run: (x, y, s, R, c, big, dir, g, n) => { hitLines(x, g - R * 0.3, s, R * 0.9, c, 4, 0.28, { dir, spread: 0.25 }); hitDust(x, g, s, Math.min(R * 0.8, hitRoom(x, s) / 1.5), c, n(6)); } },
+    vitalthrow: { core: 0.5, run: (x, y, s, R, c, big, dir, g, n) => { hitArc(x, y, s, R * 0.5, R * 1.3, 1, 0.5, c, 'top'); hitGroundRings(x, g, s, R * 0.9, c, [1.3], 0, 0.45); hitDust(x, g, s, Math.min(R, hitRoom(x, s) / 1.5), c, n(8)); } },
+    drainpunch: { core: 0.4, run: (x, y, s, R, c, big, dir, g, n) => { sigPow(x - dir * R * 0.4, y, s, sigPal('fight'), 0.4, false); hitOrbit(x, y, s, R * 0.9, c, 'sparkle', n(6), 0.6, false, true); } },
+    aurasphere: { core: 0.7, run: (x, y, s, R, c) => { hitBloom(x, y, s, R * 1.1, c, 'sparkle', 0.55, true, { only: true, n: 10 }); hitRing(x, y, s, R * 0.3, R * 1.3, 0.35, 0.45, c); hitQuiet || setTimeout(() => hitRing(x, y, s, R * 0.3, R * 1.6, 0.35, 0.45, c), 120); } },
+    sacredsword: { core: 0.6, run: (x, y, s, R, c, big, dir, g, n) => { hitLines(x, y, s, R * 1.1, sigPal('gold'), n(5), 0.32, { dir, spread: 0.4 }); hitCling(x, y, s, R * 0.8, sigPal('gold'), 'sparkle', n(5), 0.5); hitRing(x, y, s, R * 0.3, R * 1.2, 0.35, 0.4, sigPal('gold')); } },
+    crosschop: { core: 0.6, run: (x, y, s, R, c, big, dir) => { hitClaws(x, y, s, R * 1.1, c, 2, true); sigPow(x - dir * R * 0.5, y, s, c, 0.5, false); } },
+    // 불꽃: 마그마스톰 = 불꽃 소용돌이 + 용암 웅덩이 + 돌 먼지 · 성스러운불꽃 = 감싸는 불꽃 + 금빛 고리 + 양옆 금빛 불기둥
+    magmastorm: { core: 0.6, run: (x, y, s, R, c, big, dir, g, n, h) => { hitHelix(x, g, s, R * 1.4, h(2.2), c, 'flame', 0.3, dir * 10, false); const off = Math.max(0, Math.min(R * 0.9, hitRoom(x, s) - R * 0.3 - 2 * s)); if (off >= R * 0.6) { hitPillar(x - off, g, s, R * 0.3, h(1.6), c, 'flame', 0.55, false, g - h(100)); hitPillar(x + off, g, s, R * 0.3, h(1.6), c, 'flame', 0.55, false, g - h(100)); } hitPuddle(x, g, s, Math.min(R * 0.9, hitRoom(x, s) / 1.2), sigPal('fire'), 0.7); hitDust(x, g, s, Math.min(R, hitRoom(x, s) / 1.5), sigPal('rock'), n(8)); } },
+    sacredfire: { core: 0.8, run: (x, y, s, R, c, big, dir, g, n, h) => { hitLines(x, y, s, R * 1.1, sigPal('fire'), 10, 0.35); hitCling(x, y, s, R * 1.05, c, 'flame', n(6), 0.6, true); hitRing(x, y, s, R * 0.3, R * 1.4, 0.35, 0.45, sigPal('gold')); const off = Math.max(0, Math.min(R * 0.8, hitRoom(x, s) - R * 0.3 - 2 * s)); hitPillar(x - off, g, s, R * 0.3, h(1.8), sigPal('gold'), 'flame', 0.55, false, g - h(100)); hitPillar(x + off, g, s, R * 0.3, h(1.8), sigPal('gold'), 'flame', 0.55, false, g - h(100)); } },
+    // 비행: 프리폴 = 땅에 떨어뜨린 퍽 + 땅 고리 + 먼지 · 쪼아대기 = 연타 + 열매 잎 · 공중날기 = 줄 + 깃털 + 먼지 · 불새 = 퍽 + 줄 + 불 깃털 + 고리 · 에어로블라스트 = 물결 + 은빛 줄 + 고리
+    skydrop: { core: 0.5, run: (x, y, s, R, c, big, dir, g, n) => { hitLines(x, y, s, R, c, 8, 0.3); hitOrbit(x, y, s, R * 0.9, c, 'feather', n(4), 0.5, false); sigPow(x - dir * R * 0.4, g - R * 0.4, s, c, 0.5, false); hitGroundRings(x, g, s, R * 1.1, c, [1.3, 1.6], 100, 0.5); hitDust(x, g, s, Math.min(R, hitRoom(x, s) / 1.5), sigPal('ground'), n(10)); } },
+    pluck: { core: 0.4, run: (x, y, s, R, c, big, dir, g, n) => { hitFlurry(x, y, s, R * 0.7, c, 2); hitLines(x, y, s, R * 0.9, c, 6, 0.28); hitCling(x, y - R * 0.3, s, R * 0.6, sigPal('grass'), 'leaf', n(3), 0.45); } },
+    fly: { core: 0.5, run: (x, y, s, R, c, big, dir, g, n) => { hitLines(x, y, s, R * 1.2, c, n(6), 0.3, { dir, spread: 0.35 }); hitOrbit(x, y, s, R * 0.9, c, 'feather', n(4), 0.5, false); hitDust(x, g, s, Math.min(R * 0.8, hitRoom(x, s) / 1.5), c, n(5)); } },
+    chatter: { core: 0.3, run: (x, y, s, R, c) => { hitWaves(x, y, s, R * 0.7, c, 2, 0.4); hitDizzy(x, y - R * 0.8, s, R, 0.6); } },
+    skyattack: { core: 0.8, run: (x, y, s, R, c, big, dir, g, n) => { sigPow(x - dir * R * 0.5, y, s, c, 0.55, false); hitLines(x, y, s, R * 1.3, c, n(8), 0.45, { dir, spread: 0.4 }); hitOrbit(x, y, s, R, sigPal('fire'), 'feather', n(5), 0.6, false); hitRing(x, y, s, R * 0.3, R * 1.4, 0.35, 0.55, c); } },
+    aeroblast: { core: 0.8, run: (x, y, s, R, c, big, dir, g, n) => { hitWaves(x, y, s, R, c, 3, 0.55); hitLines(x, y, s, R * 1.3, sigPal('silver'), n(8), 0.35, { dir, spread: 0.5 }); hitRing(x, y, s, R * 0.3, R * 1.4, 0.35, 0.45, c); } },
+    // 고스트 · 풀 · 땅: 섀도다이브 = 어두운 퍽 + 혼 + 땅 고리 · 시드플레어 = 땅 고리 셋 + 잎 터짐 + 줄 (흔들림) · 10만마력 = 퍽 + 금 + 먼지 · 단애의칼 = 가는 바위 가시 넷 (줄무늬 피라미드 아님) + 불 금 + 불꽃 + 땅 고리 (흔들림)
+    shadowforce: { core: 0.7, run: (x, y, s, R, c, big, dir, g, n) => { sigPow(x - dir * R * 0.5, y, s, sigPal('dark'), 0.5, false); hitWisps(x, y, s, R * 0.9, c, n(6), 0.6); hitGroundRings(x, g, s, R, c, [1.3, 1.6], 100, 0.5); } },
+    seedflare: { core: 0.9, shake: true, run: (x, y, s, R, c, big, dir, g, n) => { hitGroundRings(x, g, s, R * 1.2, c, [1.2, 1.6, 2], 100, 0.6); hitBloom(x, y, s, R * 1.2, sigPal('grass'), 'leaf', 0.6, true, { only: true, n: 10 }); hitLines(x, y, s, R * 1.2, c, n(10), 0.35); } },
+    highhorsepower: { core: 0.7, run: (x, y, s, R, c, big, dir, g, n) => { sigPow(x - dir * R * 0.5, y, s, c, 0.5, false); hitCracks(x, g + 3 * s, s, Math.min(R * 1.2, hitRoom(x, s) / 1.45), sigPal('rock'), 0.8); hitDust(x, g, s, Math.min(R * 1.5, hitRoom(x, s) / 1.5), c, n(16)); hitGroundRings(x, g, s, R, c, [1.3], 0, 0.45); } },
+    precipice: { core: 0.9, shake: true, run: (x, y, s, R, c, big, dir, g, n) => { hitSpikes(x, g, s, Math.min(R * 1.2, hitRoom(x, s) / 1.6), sigPal('rock'), n(4), 0.7, { slim: true }); hitCracks(x, g + 3 * s, s, Math.min(R * 1.3, hitRoom(x, s) / 1.45), c, 0.7); hitCling(x, g - R * 0.3, s, R * 0.9, c, 'flame', n(4), 0.5); hitGroundRings(x, g, s, R * 1.2, c, [1.4, 1.8], 110, 0.6); } },
+    // 얼음: 아이스볼 = 얼음 조각 + 작은 고리 · 얼음숨결 = 얼음 조각 + 감도는 반짝 · 눈사태 = 얼음 터짐 + 눈 먼지 + 땅 고리 · 프리즈드라이 = 얼음 + 물 고리 + 반짝 · 냉동펀치 = 퍽 + 얼음 조각
+    iceball: { core: 0.3, run: (x, y, s, R, c, big, dir, g, n) => { hitCling(x, y, s, R * 0.6, c, 'shard', n(4), 0.4); hitRing(x, y, s, R * 0.2, R * 0.9, 0.35, 0.35, c); } },
+    frostbreath: { core: 0.5, run: (x, y, s, R, c, big, dir, g, n) => { hitCling(x, y, s, R * 0.9, c, 'shard', n(6), 0.55); hitOrbit(x, y, s, R, c, 'sparkle', n(6), 0.55, false); } },
+    avalanche: { core: 0.6, run: (x, y, s, R, c, big, dir, g, n) => { hitCling(x, y, s, R * 0.9, c, 'shard', n(5), 0.5); hitDust(x, g, s, Math.min(R * 1.2, hitRoom(x, s) / 1.5), c, n(12)); hitGroundRings(x, g, s, R, c, [1.3], 0, 0.45); } },
+    freezedry: { core: 0.5, run: (x, y, s, R, c, big, dir, g, n) => { hitCling(x, y, s, R * 0.8, c, 'shard', n(5), 0.5); hitRing(x, y, s, R * 0.3, R * 1.2, 0.35, 0.4, sigPal('water')); hitOrbit(x, y, s, R * 0.9, c, 'sparkle', n(5), 0.5, false); } },
+    icepunch: { core: 0.5, run: (x, y, s, R, c, big, dir, g, n) => { sigPow(x - dir * R * 0.4, y, s, c, 0.45, false); hitCling(x, y, s, R * 0.8, c, 'shard', n(5), 0.5); } },
+    // 노말: 고양이돈받기 = 튀는 금빛 + 반짝 · 에코보이스 = 물결 + 고리 둘 (메아리) · 구슬던지기 = 연타 · 정신차리기 = 퍽 + 솟는 노란 빛 · 비밀의힘 = 퍽 + 잎 + 흙먼지 · 잼잼펀치 = 퍽 + 어질 · 스위프뺨치기 = 연타 + 줄 · 필살앞니 = 큰 이빨 + 퍽 · 괴력 = 주황 퍽 + 땅 고리 + 흙먼지 · 록클라임 = 돌 터짐 + 먼지 + 줄 · 알폭탄 = 껍질 터짐 + 고리 + 연기 · 심판의뭉치 = 금빛 땅 고리 + 반짝 터짐 · 메가톤킥 = 큰 퍽 + 고리 + 줄 (흔들림) · 아프로브레이크 = 흙 퍽 + 줄 + 땅 고리 + 먼지 (흔들림)
+    payday: { core: 0.3, run: (x, y, s, R, c, big, dir, g, n) => { hitLines(x, y, s, R * 0.9, c, 8, 0.3); hitFountain(x, y - R * 0.2, s, R * 0.6, c, 'dot', 0.5, false, dir); hitCling(x, y, s, R * 0.7, c, 'sparkle', n(4), 0.45); } },
+    echoedvoice: { core: 0.3, run: (x, y, s, R, c) => { hitLines(x, y, s, R * 0.9, c, 8, 0.3); hitWaves(x, y, s, R * 0.8, c, 2, 0.45); hitRing(x, y, s, R * 0.3, R * 1.1, 0.35, 0.35, c); hitQuiet || setTimeout(() => hitRing(x, y, s, R * 0.3, R * 1.3, 0.35, 0.35, c), 160); } },
+    barrage: { core: 0.3, run: (x, y, s, R, c) => { hitFlurry(x, y, s, R * 0.7, c, 3); hitLines(x, y, s, R * 0.9, c, 6, 0.28); } },
+    smellingsalts: { core: 0.4, run: (x, y, s, R, c, big, dir, g, n, h) => { sigPow(x - dir * R * 0.4, y, s, c, 0.45, false); hitRise(x, y, s, R * 0.7, sigPal('paralyze'), 3, 0.45, g - h(100)); } },
+    secretpower: { core: 0.5, run: (x, y, s, R, c, big, dir, g, n) => { sigPow(x - dir * R * 0.4, y, s, c, 0.45, false); hitBloom(x, y, s, R * 0.8, sigPal('grass'), 'leaf', 0.5, false, { only: true, n: 6 }); hitDust(x, g, s, Math.min(R * 0.8, hitRoom(x, s) / 1.5), sigPal('ground'), n(6)); } },
+    dizzypunch: { core: 0.4, run: (x, y, s, R, c, big, dir) => { sigPow(x - dir * R * 0.4, y, s, c, 0.45, false); hitDizzy(x, y - R * 0.8, s, R, 0.7); } },
+    tailslap: { core: 0.4, run: (x, y, s, R, c, big, dir) => { hitFlurry(x, y, s, R * 0.8, c, 3); hitLines(x, y, s, R, c, 5, 0.28, { dir, spread: 0.6 }); } },
+    hyperfang: { core: 0.6, run: (x, y, s, R, c, big, dir) => { hitFangs(x, y, s, R * 0.95, c, 1.1, 0.45); sigPow(x - dir * R * 0.5, y, s, c, 0.45, false); } },
+    strength: { core: 0.7, run: (x, y, s, R, c, big, dir, g, n) => { sigPow(x - dir * R * 0.5, y, s, sigPal('fight'), 0.55, false); hitGroundRings(x, g, s, R, c, [1.3, 1.6], 100, 0.5); hitDust(x, g, s, Math.min(R, hitRoom(x, s) / 1.5), sigPal('ground'), n(10)); } },
+    rockclimb: { core: 0.6, run: (x, y, s, R, c, big, dir, g, n) => { hitBloom(x, y, s, R * 0.9, c, 'rock', 0.5, false, { only: true, n: 7 }); hitDust(x, g, s, Math.min(R, hitRoom(x, s) / 1.5), c, n(10)); hitLines(x, y, s, R, c, 5, 0.3, { dir, spread: 0.4 }); } },
+    eggbomb: { core: 0.7, run: (x, y, s, R, c, big, dir, g, n) => { hitBloom(x, y, s, R * 1.1, c, 'rock', 0.55, true, { only: true, n: 9 }); hitRing(x, y, s, R * 0.3, R * 1.3, 0.35, 0.45, sigPal('hyper')); hitQuiet || setTimeout(() => hitWisps(x, y, s, R * 0.8, sigPal('smoke'), n(5), 0.6), 150); } },
+    judgment: { core: 0.8, run: (x, y, s, R, c, big, dir, g) => { hitLines(x, y, s, R * 1.2, c, 12, 0.35); hitGroundRings(x, g, s, R * 1.2, c, [1.3, 1.7], 110, 0.55); hitBloom(x, y, s, R * 1.1, c, 'sparkle', 0.55, true, { only: true, n: 10 }); } },
+    megakick: { core: 0.9, shake: true, run: (x, y, s, R, c, big, dir, g, n) => { sigPow(x - dir * R * 0.5, y, s, c, 0.6, false); hitRing(x, y, s, R * 0.3, R * 1.5, 0.35, 0.45, c); hitLines(x, y, s, R * 1.3, c, n(8), 0.35); } },
+    headcharge: { core: 0.9, shake: true, run: (x, y, s, R, c, big, dir, g, n) => { sigPow(x - dir * R * 0.5, y, s, sigPal('ground'), 0.6, false); hitLines(x, y, s, R * 1.3, c, n(7), 0.35, { dir, spread: 0.5 }); hitGroundRings(x, g, s, R * 1.1, sigPal('ground'), [1.4, 1.8], 100, 0.55); hitDust(x, g, s, Math.min(R * 1.1, hitRoom(x, s) / 1.5), sigPal('ground'), n(10)); } },
+    // 독: 포이즌테일 = 긴 줄 + 독방울 · 오물공격 = 튀는 오물 + 웅덩이 · 오물폭탄 = 거품 터짐 + 큰 웅덩이 + 튀는 오물
+    poisontail: { core: 0.4, run: (x, y, s, R, c, big, dir, g, n) => { hitLines(x, y, s, R * 1.2, c, n(4), 0.3, { dir, spread: 0.2 }); hitCling(x, y, s, R * 0.6, c, 'drop', n(4), 0.45); } },
+    sludge: { core: 0.4, run: (x, y, s, R, c, big, dir, g) => { hitFountain(x, y, s, R * 0.5, c, 'drop', 0.45, false, dir); hitPuddle(x, g, s, Math.min(R * 0.7, hitRoom(x, s) / 1.2), c, 0.55); } },
+    sludgebomb: { core: 0.7, run: (x, y, s, R, c, big, dir, g) => { hitBloom(x, y, s, R * 1.6, c, 'bubble', 0.55, true, { only: true, n: 14 }); hitPuddle(x, g, s, Math.min(R, hitRoom(x, s) / 1.2), c, 0.7); hitFountain(x, y, s, R * 0.8, c, 'drop', 0.5, false, dir); } },
+    // 에스퍼: 어시스트파워 = 빨려 드는 반짝 + 작은 고리 · 하트스탬프 = 퍽 + 하트 · 미스트볼 = 분홍 안개 + 고리 + 반짝 · 사이코커터 = 곧은 줄 + 조각 · 러스터퍼지 = 반짝 터짐 + 은빛 고리 + 땅 고리 · 사이코브레이크 = 물결 넷 + 조각 + 큰 고리
+    storedpower: { core: 0.3, run: (x, y, s, R, c, big, dir, g, n) => { hitOrbit(x, y, s, R, c, 'sparkle', n(6), 0.55, false, true); hitRing(x, y, s, R * 0.2, R * 0.9, 0.35, 0.35, c); } },
+    heartstamp: { core: 0.4, run: (x, y, s, R, c, big, dir, g, n) => { sigPow(x - dir * R * 0.4, y, s, c, 0.4, false); hitCling(x, y, s, R * 0.7, c, 'heart', n(4), 0.5); } },
+    mistball: { core: 0.6, run: (x, y, s, R, c, big, dir, g, n) => { hitWisps(x, y, s, R * 0.9, sigPal('fairy'), n(6), 0.6); hitRing(x, y, s, R * 0.3, R * 1.3, 0.35, 0.45, c); hitOrbit(x, y, s, R, sigPal('fairy'), 'sparkle', n(5), 0.55, false); } },
+    psychocut: { core: 0.5, run: (x, y, s, R, c, big, dir, g, n) => { hitLines(x, y, s, R * 1.3, c, n(4), 0.3, { dir, spread: 0.15 }); hitCling(x, y, s, R * 0.7, c, 'shard', n(4), 0.45); } },
+    lusterpurge: { core: 0.8, run: (x, y, s, R, c, big, dir, g) => { hitBloom(x, y, s, R * 1.1, c, 'sparkle', 0.55, true, { only: true, n: 10 }); hitRing(x, y, s, R * 0.3, R * 1.4, 0.35, 0.45, sigPal('silver')); hitGroundRings(x, g, s, R, c, [1.3, 1.6], 100, 0.5); } },
+    psystrike: { core: 0.9, run: (x, y, s, R, c, big, dir, g, n) => { hitWaves(x, y, s, R, c, 4, 0.55); hitCling(x, y, s, R * 0.9, c, 'shard', n(6), 0.5); hitRing(x, y, s, R * 0.3, R * 1.5, 0.35, 0.45, c); } },
+    // 강철 · 물: 마그넷봄 = 연타 + 고리 · 강철날개 = 줄 + 깃털 + 반짝 · 코멧펀치 = 퍽 + 별 + 강철 고리 · 기어소서 = 감도는 점 + 번개 + 고리 · 열탕 = 튀는 물 + 김 · 근원의파동 = 물결 넷 + 땅 고리 + 오로라 고리 (흔들림)
+    magnetbomb: { core: 0.4, run: (x, y, s, R, c) => { hitFlurry(x, y, s, R * 0.8, c, 3); hitBolts(x, y, s, R * 0.6, sigPal('electric'), 2, 0.3); hitRing(x, y, s, R * 0.2, R * 1.2, 0.35, 0.4, c); } },
+    steelwing: { core: 0.5, run: (x, y, s, R, c, big, dir, g, n) => { hitLines(x, y, s, R * 1.2, c, n(6), 0.3, { dir, spread: 0.3 }); hitOrbit(x, y, s, R * 0.9, c, 'feather', n(4), 0.5, false); hitCling(x, y, s, R * 0.6, c, 'sparkle', n(3), 0.4); } },
+    meteormash: { core: 0.7, run: (x, y, s, R, c, big, dir, g, n) => { sigPow(x - dir * R * 0.5, y, s, c, 0.55, false); hitCling(x, y, s, R * 0.9, c, 'star', n(5), 0.5); hitRing(x, y, s, R * 0.3, R * 1.3, 0.35, 0.45, sigPal('steel')); } },
+    geargrind: { core: 0.6, run: (x, y, s, R, c, big, dir, g, n) => { hitOrbit(x, y, s, R * 1.2, c, 'star', n(6), 0.8, true); hitBolts(x, y, s, R * 0.6, sigPal('electric'), 2, 0.3); hitRing(x, y, s, R * 0.3, R * 1.5, 0.35, 0.45, c); } },
+    scald: { core: 0.5, run: (x, y, s, R, c, big, dir, g, n) => { hitFountain(x, y, s, R * 0.6, c, 'drop', 0.5, false, dir); hitWisps(x, y - R * 0.2, s, R * 0.8, sigPal('smoke'), n(5), 0.6); } },
+    originpulse: { core: 0.9, shake: true, run: (x, y, s, R, c, big, dir, g) => { hitWaves(x, y, s, R, c, 4, 0.6); hitGroundRings(x, g, s, R * 1.2, c, [1.4, 1.8], 110, 0.6); hitRing(x, y, s, R * 0.3, R * 1.5, 0.35, 0.45, sigPal('aurora')); } },
 };
 
 // 기술이 맞는 순간 — 타입 · 기술마다 다른 도트 임팩트 (위 설명). 크기 R = 맞는 포켓몬 몸 반쯤 (작은 패널에서도 보이게 최소 12칸) × 상성 · 막음 배

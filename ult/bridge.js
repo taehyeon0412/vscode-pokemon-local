@@ -1150,6 +1150,8 @@ const BREATH_HIT_AT = 0.87;
 const BEAM_HIT_AT = 0.25;
 // 땅 흔들기 (quake) 가 맞는 때 — shot-hit.ts SHOT_HIT_DEFAULT 와 같은 값 · 틀 시작 → 가장 큰 순간 (땅 금이 다 자람 0.2초 · 첫 흙 고리) 까지 ms
 const QUAKE_HIT_AT = 0.85;
+// 음표 — 게임에서 음표가 상대 몸 앞까지 날아가는 시간 (초)
+const NOTES_FLY_SEC = 0.6;
 // 회오리 — 다 자라는 때를 맞는 때보다 이만큼 (초) 늦게 · 0 (판정이 vpeak 알갱이 수 → vtop 기둥 위 끝으로 바뀜 — 0.18 은 기둥이 맞은 뒤에도 자라 vtop +0.05 ~ 0.2초, #122 3a)
 const VORTEX_PEAK_LAG = 0;
 const QUAKE_PEAK_MS = 200; // 150 이면 발밑 점이 가장 많은 때가 +0.08 ~ +0.23초 · 300 이면 −0.08 ~ −0.14초 (개발 박자 표 gpeak) — 흙 고리 · 튀는 돌이 금보다 늦게 커져서
@@ -1270,6 +1272,14 @@ function fxAim(fx, g, o, t, ms = 0) {
                 stopPast(p);
                 p.vy = (p.vy ?? 0) + (p.vx ?? 0) * slope;
             } : stopPast;
+            // 음표는 게임에서 빠르기를 직접 (몸 앞까지 거리 ÷ 0.6초 · 거리 배 k 없음) · 맞는 때 − 0.6초에 내보냄 — 7개를 0.19초씩 무작위 빠르기로 내보내 첫 음표가 0.5 ~ 1초 먼저 닿던 것 (수다 · 돌림노래, #122 3b 박자 표)
+            if (fx === 'notes' && ms > 0) {
+                const hitAt = (PROJECTILE_HIT_AT * ms) / 1000;
+                const fly = Math.min(NOTES_FLY_SEC, hitAt);
+                // 음표 그림은 p.x 에서 오른쪽으로 그려져 오른쪽으로 갈 때만 앞 끝이 그림 폭 (6칸) 만큼 앞섬 — 상대 것 (←) 240 이 0.1초 늦던 것
+                const reach = Math.max(8, t.dist - 0.3 * t.w - (g.dir > 0 ? 6 : 0) * g.s);
+                return { g, o: { ...o, delay: (hitAt - fly) * 1000, vx: reach / fly }, k: 1, cap };
+            }
             return d > 0 ? { g, o, k, rateK: dense(k), cap } : { g, o };
         }
         case 'beam':

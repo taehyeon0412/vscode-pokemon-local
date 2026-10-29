@@ -2505,11 +2505,20 @@ const SIG_FX = {
             const tints = [cols[2], '#ff7ab8', '#ffd23f', cols[1], '#6fd6ff', '#9bf06a', cols[3]];
             const n = o.n ?? 7;
             const every = o.every ?? 190;
-            sigEmitter({ until: performance.now() + (n - 1) * every + 260, shots: n, every, nextShot: performance.now(), fx: (e, i) => sigParticle({
+            // o.delay = 첫 음표를 늦게 (게임 다리 fxAim — 가장 빠른 음표가 맞는 때에 닿게, #122 3b 수다 박자 표 −0.5 ~ −1초)
+            const t0 = performance.now() + (o.delay ?? 0);
+            sigEmitter({ until: t0 + (n - 1) * every + 260, shots: n, every, nextShot: t0, fx: (e, i) => sigParticle({
                 x: g.mouth.x, y: g.mouth.y - 3 * g.s, s: g.s, phase: moveRand(0, 6), color: tints[i % tints.length],
-                vx: g.dir * moveRand(18, 34) * g.s, vy: -moveRand(8, 18) * g.s, max: 1.2,
+                // 게임 (o.vx — 다리가 정한 빠르기 px/초) 은 빠르기 하나 · 입 높이로 곧게 — 무작위면 가장 빠른 음표가 판마다 달라 ±0.15초 흔들리고, 오르는 빠르기도 거리 배를 받아 먼 상대 머리 위로 지나감
+                vx: g.dir * (o.vx !== undefined ? o.vx : moveRand(18, 34) * g.s), vy: o.vx !== undefined ? 0 : -moveRand(8, 18) * g.s, max: 1.2,
                 update: (p) => {
-                    p.x += Math.sin(p.phase + p.life * 7) * 0.7 * p.s;
+                    // 게임 (o.vx) 은 물결을 세로로 — 가로 물결 (무작위 위상 · 약 12px) 이 닿는 때를 ±0.07초 흔듦
+                    const wob = Math.sin(p.phase + p.life * 7) * 0.7 * p.s;
+                    if (o.vx !== undefined) {
+                        p.y += 0.6 * wob;
+                    } else {
+                        p.x += wob;
+                    }
                     if (Math.random() < 0.35) {
                         sigParticle({ x: p.x + moveRand(0, 3) * p.s, y: p.y + 5 * p.s, s: p.s, vy: 6 * p.s, max: 0.35, color: Math.random() < 0.5 ? '#ffffff' : p.color, draw: DRAW.dot });
                     }

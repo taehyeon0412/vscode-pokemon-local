@@ -1602,5 +1602,484 @@
     "n": 1,
     "big": 1,
     "hit": "crabhammer"
+  },
+  "_3b": "#122 3b단계 (2026-10-29 디자인) — 3a 밖 나머지 71 (공격 67 · 변화 4) · 같은 틀을 같이 쓰던 무리 (격투 slash 9 · 노말 dash 6 · 얼음 rock 날리기 3 등) 를 틀 · 변주 · 맞는 짜임으로 나눔",
+  "464": {
+    "fx": "powder",
+    "c": "dark",
+    "drift": 1
+  },
+  "555": {
+    "fx": "rings",
+    "c": "dark",
+    "forward": 1,
+    "n": 3,
+    "hit": "snarl"
+  },
+  "168": {
+    "fx": "slash",
+    "c": "dark",
+    "n": 1,
+    "len": 0.7,
+    "hit": "thief"
+  },
+  "539": {
+    "fx": "projectile",
+    "shape": "ball",
+    "c": "dark",
+    "n": 1,
+    "big": 1,
+    "speed": 0.9,
+    "hit": "nightdaze"
+  },
+  "460": {
+    "fx": "slash",
+    "c": "dragon",
+    "n": 3,
+    "len": 1.6,
+    "hit": "spacialrend"
+  },
+  "459": {
+    "fx": "beam",
+    "c": "dragon",
+    "width": 1.8,
+    "wave": 1,
+    "sparkle": "steel",
+    "hit": "roaroftime"
+  },
+  "451": {
+    "fx": "beam",
+    "c": "electric",
+    "width": 0.6,
+    "sparkle": "electric",
+    "hit": "chargebeam"
+  },
+  "527": {
+    "fx": "beam",
+    "c": "electric",
+    "width": 0.5,
+    "wave": 1,
+    "len": 4,
+    "hit": "electroweb"
+  },
+  "351": {
+    "fx": "projectile",
+    "shape": "star",
+    "c": "electric",
+    "n": 1,
+    "big": 1,
+    "speed": 1.3,
+    "hit": "shockwave"
+  },
+  "521": {
+    "fx": "dash",
+    "c": "electric",
+    "fast": 1,
+    "hit": "voltswitch"
+  },
+  "249": {
+    "fx": "punch",
+    "c": "fight",
+    "n": 1,
+    "hit": "rocksmash"
+  },
+  "612": {
+    "fx": "punch",
+    "c": "fight",
+    "n": 2,
+    "hit": "poweruppunch"
+  },
+  "2": {
+    "fx": "slash",
+    "c": "fight",
+    "n": 1,
+    "len": 0.8,
+    "hit": "karatechop"
+  },
+  "27": {
+    "fx": "slash",
+    "c": "fight",
+    "n": 1,
+    "len": 1.2,
+    "hit": "rollingkick"
+  },
+  "167": {
+    "fx": "punch",
+    "c": "fight",
+    "n": 3,
+    "hit": "triplekick"
+  },
+  "480": {
+    "fx": "slash",
+    "c": "fight",
+    "n": 1,
+    "len": 1,
+    "hit": "stormthrow"
+  },
+  "490": {
+    "fx": "slash",
+    "c": "fight",
+    "n": 2,
+    "len": 0.5,
+    "hit": "lowkick"
+  },
+  "233": {
+    "fx": "slash",
+    "c": "fight",
+    "n": 1,
+    "len": 1.3,
+    "hit": "vitalthrow"
+  },
+  "409": {
+    "fx": "punch",
+    "c": "heal",
+    "n": 2,
+    "hit": "drainpunch"
+  },
+  "396": {
+    "fx": "projectile",
+    "shape": "ball",
+    "c": "aura",
+    "n": 1,
+    "big": 1,
+    "hit": "aurasphere"
+  },
+  "533": {
+    "fx": "slash",
+    "c": "fight",
+    "n": 1,
+    "len": 1.6,
+    "hit": "sacredsword"
+  },
+  "238": {
+    "fx": "slash",
+    "c": "fight",
+    "x": 1,
+    "hit": "crosschop"
+  },
+  "463": {
+    "fx": "vortex",
+    "c": "fire",
+    "height": 1.5,
+    "hit": "magmastorm"
+  },
+  "221": {
+    "fx": "beam",
+    "c": "fire",
+    "width": 1.5,
+    "sparkle": "gold",
+    "hit": "sacredfire"
+  },
+  "507": {
+    "fx": "dash",
+    "c": "wind",
+    "hit": "skydrop"
+  },
+  "365": {
+    "fx": "punch",
+    "c": "normal",
+    "n": 2,
+    "hit": "pluck"
+  },
+  "19": {
+    "fx": "dash",
+    "c": "wind",
+    "fast": 1,
+    "hit": "fly"
+  },
+  "448": {
+    "fx": "notes",
+    "c": "fairy",
+    "n": 4,
+    "every": 60,
+    "dur": 0.7,
+    "hit": "chatter"
+  },
+  "143": {
+    "fx": "dash",
+    "c": "fire",
+    "fast": 1,
+    "hit": "skyattack"
+  },
+  "177": {
+    "fx": "beam",
+    "c": "wind",
+    "width": 1.4,
+    "wave": 1,
+    "sparkle": "silver",
+    "hit": "aeroblast"
+  },
+  "467": {
+    "fx": "dash",
+    "c": "ghost",
+    "hit": "shadowforce"
+  },
+  "465": {
+    "fx": "rings",
+    "c": "solar",
+    "n": 5,
+    "hit": "seedflare"
+  },
+  "667": {
+    "fx": "dash",
+    "c": "ground",
+    "hit": "highhorsepower"
+  },
+  "619": {
+    "fx": "quake",
+    "c": "fire",
+    "hit": "precipice"
+  },
+  "301": {
+    "fx": "projectile",
+    "shape": "ball",
+    "c": "ice",
+    "n": 1,
+    "speed": 1.2,
+    "hit": "iceball"
+  },
+  "524": {
+    "fx": "breath",
+    "c": "ice",
+    "speed": 1.1,
+    "grow": 0.6,
+    "hit": "frostbreath"
+  },
+  "419": {
+    "fx": "rockfall",
+    "c": "ice",
+    "n": 6,
+    "hit": "avalanche"
+  },
+  "573": {
+    "fx": "projectile",
+    "shape": "star",
+    "c": "ice",
+    "n": 3,
+    "every": 20,
+    "hit": "freezedry"
+  },
+  "8": {
+    "fx": "punch",
+    "c": "ice",
+    "n": 2,
+    "hit": "icepunch"
+  },
+  "137": {
+    "fx": "rings",
+    "c": "paralyze",
+    "n": 2
+  },
+  "142": {
+    "fx": "projectile",
+    "shape": "heart",
+    "c": "fairy",
+    "n": 1,
+    "big": 1,
+    "speed": 0.6
+  },
+  "6": {
+    "fx": "projectile",
+    "shape": "coin",
+    "c": "gold",
+    "n": 4,
+    "every": 20,
+    "arc": 100,
+    "hit": "payday"
+  },
+  "497": {
+    "fx": "rings",
+    "c": "normal",
+    "forward": 1,
+    "n": 3,
+    "hit": "echoedvoice"
+  },
+  "140": {
+    "fx": "projectile",
+    "shape": "ball",
+    "c": "normal",
+    "n": 3,
+    "every": 20,
+    "hit": "barrage"
+  },
+  "265": {
+    "fx": "punch",
+    "c": "normal",
+    "n": 1,
+    "hit": "smellingsalts"
+  },
+  "290": {
+    "fx": "dash",
+    "c": "normal",
+    "hit": "secretpower"
+  },
+  "146": {
+    "fx": "punch",
+    "c": "normal",
+    "n": 2,
+    "hit": "dizzypunch"
+  },
+  "541": {
+    "fx": "slash",
+    "c": "normal",
+    "n": 5,
+    "len": 0.6,
+    "hit": "tailslap"
+  },
+  "158": {
+    "fx": "slash",
+    "c": "normal",
+    "n": 2,
+    "len": 0.4,
+    "hit": "hyperfang"
+  },
+  "70": {
+    "fx": "dash",
+    "c": "normal",
+    "hit": "strength"
+  },
+  "431": {
+    "fx": "dash",
+    "c": "rock",
+    "hit": "rockclimb"
+  },
+  "121": {
+    "fx": "projectile",
+    "shape": "egg",
+    "c": "egg",
+    "n": 1,
+    "arc": 100,
+    "hit": "eggbomb"
+  },
+  "449": {
+    "fx": "rockfall",
+    "c": "gold",
+    "n": 6,
+    "hit": "judgment"
+  },
+  "25": {
+    "fx": "punch",
+    "c": "fight",
+    "n": 1,
+    "big": 1,
+    "hit": "megakick"
+  },
+  "543": {
+    "fx": "dash",
+    "c": "normal",
+    "fast": 1,
+    "hit": "headcharge"
+  },
+  "139": {
+    "fx": "powder",
+    "c": "poison",
+    "drift": 1
+  },
+  "342": {
+    "fx": "slash",
+    "c": "poison",
+    "n": 1,
+    "len": 1.3,
+    "hit": "poisontail"
+  },
+  "124": {
+    "fx": "projectile",
+    "shape": "ball",
+    "c": "sludge",
+    "n": 1,
+    "arc": 120,
+    "hit": "sludge"
+  },
+  "188": {
+    "fx": "projectile",
+    "shape": "ball",
+    "c": "sludge",
+    "n": 1,
+    "big": 1,
+    "arc": 80,
+    "hit": "sludgebomb"
+  },
+  "500": {
+    "fx": "rings",
+    "c": "psychic",
+    "n": 2,
+    "hit": "storedpower"
+  },
+  "531": {
+    "fx": "punch",
+    "c": "fairy",
+    "n": 1,
+    "hit": "heartstamp"
+  },
+  "296": {
+    "fx": "projectile",
+    "shape": "ball",
+    "c": "psychic",
+    "n": 1,
+    "big": 1,
+    "speed": 0.9,
+    "hit": "mistball"
+  },
+  "427": {
+    "fx": "slash",
+    "c": "psychic",
+    "n": 1,
+    "len": 1.5,
+    "hit": "psychocut"
+  },
+  "295": {
+    "fx": "beam",
+    "c": "psychic",
+    "width": 1.3,
+    "sparkle": "psychic",
+    "hit": "lusterpurge"
+  },
+  "540": {
+    "fx": "rings",
+    "c": "psychic",
+    "forward": 1,
+    "n": 5,
+    "hit": "psystrike"
+  },
+  "443": {
+    "fx": "projectile",
+    "shape": "ball",
+    "c": "steel",
+    "n": 3,
+    "every": 20,
+    "hit": "magnetbomb"
+  },
+  "211": {
+    "fx": "dash",
+    "c": "steel",
+    "hit": "steelwing"
+  },
+  "309": {
+    "fx": "punch",
+    "c": "star",
+    "n": 1,
+    "big": 1,
+    "hit": "meteormash"
+  },
+  "544": {
+    "fx": "projectile",
+    "shape": "coin",
+    "c": "steel",
+    "n": 2,
+    "every": 150,
+    "boomerang": 1,
+    "hit": "geargrind",
+    "big": 1
+  },
+  "503": {
+    "fx": "water",
+    "hit": "scald"
+  },
+  "618": {
+    "fx": "rings",
+    "c": "water",
+    "forward": 1,
+    "n": 6,
+    "hit": "originpulse"
   }
 }

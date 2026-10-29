@@ -4,6 +4,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import moveFxJson from '../../../data/generated/move-fx.json';
 import movesJson from '../../../data/generated/moves.json';
 import { shotHitAt } from './shot-hit';
 
@@ -65,6 +66,12 @@ describe('기술마다 모양 표 (#122 — 태현 님 "불꽃세례 불꽃 튀�
     }
   });
 
+  it('3:3 박자 데이터 (move-fx.json) 의 틀이 표와 같음 — 표만 고치고 move-fx.json 을 커밋 안 한 것을 잡음 (#122 3b UX 큼: 18기술이 옛 틀로 3:3 달려가기 · 맞는 때)', () => {
+    const moveFx = moveFxJson as unknown as Record<string, [number, number, number, string]>;
+    for (const [id, v] of entries) {
+      if (v.fx !== undefined && moveFx[id]) expect(moveFx[id]![3], `${id} move-fx 틀 — python dev/move-look.py 뒤 move-fx.json 도 커밋`).toBe(v.fx);
+    }
+  });
   it('날리기는 맞는 때 (shot-hit) 에 상대에 닿게 빠르기를 맞춤 — bridge 의 닿는 때가 shot-hit.ts 와 같음 (#122 U2)', () => {
     const at = /const PROJECTILE_HIT_AT = ([\d.]+);/.exec(bridgeJs);
     expect(Number(at?.[1])).toBe(shotHitAt('projectile'));
@@ -83,6 +90,12 @@ describe('기술마다 모양 표 (#122 — 태현 님 "불꽃세례 불꽃 튀�
     expect(Number(/const QUAKE_HIT_AT = ([\d.]+);/.exec(bridgeJs)?.[1])).toBe(shotHitAt('quake'));
     expect(movesJs).toContain('p.life * (o.v ?? 1600)');
     expect(bridgeJs).toContain('wait: ms > 0 ? Math.max(0, QUAKE_HIT_AT * ms - QUAKE_PEAK_MS) : 0');
+  });
+  it('음표도 맞는 때에 — 게임은 다리가 빠르기를 정하고 (거리 ÷ NOTES_FLY_SEC) 맞는 때 − 그 시간에 내보냄 · 무작위 빠르기 · 가로 물결 없음 (#122 3b 수다 · 돌림노래 −0.5 ~ −1초)', () => {
+    expect(bridgeJs).toContain('vx: reach / fly');
+    expect(Number(/const NOTES_FLY_SEC = ([\d.]+);/.exec(bridgeJs)?.[1])).toBeGreaterThan(0);
+    expect(movesJs).toContain('o.vx !== undefined ? o.vx : moveRand(18, 34) * g.s');
+    expect(movesJs).toContain('nextShot: t0');
   });
   it('1:1 뿜기 기울임이 큰 포켓몬에서 켜짐 · 작은 포켓몬끼리는 그대로 — 몸 모양 기준 (#122 2단계 UX 6바퀴: 칸 기준 문턱이 한 번도 안 켜졌음)', () => {
     const shape = JSON.parse(/const POKEMON_SHAPE = (\{.*?\});\r?\n/.exec(bundle)?.[1] ?? '{}') as Record<string, number[]>;
