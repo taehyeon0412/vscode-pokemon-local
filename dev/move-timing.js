@@ -86,6 +86,8 @@
     if (ts && cv && ctx && cv.width) {
       const s = R(ts);
       row.spr = s.map(Math.round);
+      // 맞는 쪽 그림 왼쪽 끝 0.1px — 땅 흔들기 세기가 점점 커질 때 1px 반올림이면 최댓값에 맞는 때보다 일찍 닿던 것 (shake)
+      row.sx = Math.round(s[0] * 10) / 10;
       const bar = document.querySelector("#pokemon-game .pg-infobar");
       const top = Math.max(bar ? bar.getBoundingClientRect().bottom : 0, parseFloat(document.body.style.getPropertyValue("--pg-fx-top")) || 0);
       const cr = cv.getBoundingClientRect();

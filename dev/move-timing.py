@@ -259,14 +259,16 @@ def analyze(c, L):
         kind = "ground"
         win = [r for r in after if r["t"] <= imp + AFTER_MS]
         v["gpeak"] = rel(peak(win, "foot"), imp)
-        rest = sorted(r["spr"][0] for r in fr if r["t"] < cast and r.get("spr") and r["spr"][2] > r["spr"][0])
+        # 그림 왼쪽 끝 — 0.1px (sx) 가 있으면 그것 (1px 반올림이면 세기가 커지는 흔들림이 일찍 최댓값에 닿음 — 디자인 3a 상대 쪽 −0.55)
+        x_of = lambda r: r["sx"] if r.get("sx") is not None else r["spr"][0]  # noqa: E731
+        rest = sorted(x_of(r) for r in fr if r["t"] < cast and r.get("spr") and r["spr"][2] > r["spr"][0])
         if rest:
             x0 = rest[len(rest) // 2]
             # 피해 숫자가 뜨면 맞은 쪽이 밀려남 (+11px 한쪽 — 흔들림 아님) → 그 전까지만 (숫자가 없으면 맞는 때 + 80ms)
             end = next((r["t"] for r in fr if r["t"] >= imp and r.get("pop")), imp + TOL)
-            off = [(r["t"], abs(r["spr"][0] - x0)) for r in win if r["t"] < end and r.get("spr") and r["spr"][2] > r["spr"][0]]
+            off = [(r["t"], abs(x_of(r) - x0)) for r in win if r["t"] < end and r.get("spr") and r["spr"][2] > r["spr"][0]]
             far = max((d for t_, d in off), default=0)
-            v["shake"] = rel(next((t_ for t_, d in off if far >= 1 and d >= far), None), imp)
+            v["shake"] = rel(next((t_ for t_, d in off if far >= 1 and d >= far - 0.25), None), imp)
     elif c["tmpl"] in ("vortex", "powder"):
         # 상대 자리에 처음부터 놓이는 틀 (회오리 기둥 · 가루) — 가장 큰 순간 = 상대 둘레 점 수가 가장 많은 장면 (디자인 10-29 · 땅 흔들기와 같은 규칙)
         #   vtop (회오리 참고) = 상대 폭 안 그림 위 끝이 가장 높은 첫 장면 (기둥이 가장 높음)
