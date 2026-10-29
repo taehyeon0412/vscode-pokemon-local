@@ -255,8 +255,11 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
   // 넓은 둘째 줄 돌 줄 끝 " · [B] 가방" (#131 UX — 할 일) — 줄이 맥 여유 1.1 로 안 들어가면 한 단계씩 짧은 글 → 마지막도 넘치면 뺌 (★ · 경험치가 … 로 잘리지 않게)
   //   클리어 · 관장 카드로 이어지는 상자 = "다음 스테이지에서 [B] 가방" → "다음 판에서 [B] 가방" → "[B] 가방은 다음에" (디자인 문구 — 상자 폭이 첫 줄로 정해져
   //   860 · 1860 에서도 할 일 칸이 통째로 빠지던 것, bugs 1901)
-  const howTexts = bagOk ? ['\u00a0· [B]\u00a0가방'] : bagLater ? ['\u00a0· 다음 스테이지에서 [B]\u00a0가방', '\u00a0· 다음 판에서 [B]\u00a0가방', '\u00a0· [B]\u00a0가방은 다음에'] : ['\u00a0· 계속\u00a0뒤 [B]\u00a0가방'];
+  const howTexts = bagOk ? ['\u00a0· [B]\u00a0가방'] : bagLater ? ['\u00a0· 다음 스테이지에서 [B]\u00a0가방', '\u00a0· 다음 판에서 [B]\u00a0가방', '\u00a0· 다음에 [B]\u00a0가방'] : ['\u00a0· 계속\u00a0뒤 [B]\u00a0가방'];
   const [howStep, setHowStep] = useState(0);
+  // 할 일이 안 들어가면 짧은 글보다 먼저 상자를 패널 안에서 넓힘 — 상자는 left 50% 라 저절로는 패널 반까지만 늘어 상자 폭 = 첫 줄이었고, 넓은 패널 · 맥 글꼴에서도
+  //   짧은 글로 가거나 할 일 칸이 빠지던 것 (bugs 1902) · 가운데 축 그대로 (translateX −50%) · 양옆 8px (최대 = 무대 − 16px)
+  const [howWide, setHowWide] = useState<number | null>(null);
   const howOff = howStep >= howTexts.length;
   useLayoutEffect(() => {
     if (howOff) return;
@@ -268,8 +271,24 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
       r.selectNodeContents(body);
       return r.getBoundingClientRect().width * 1.1 > body.clientWidth + 0.5;
     };
+    const next = () => {
+      const body = box?.querySelector<HTMLElement>('.pg-result-body');
+      const host = box ? ((box.offsetParent as HTMLElement | null) ?? box.parentElement) : null;
+      // 넓힐 자리가 남아 있으면 넓힘 (글꼴이 늦게 붙어 다시 넘쳐도 — 맥 글꼴에서 한 번 넓힌 뒤 바로 짧은 글로 가던 것) · 자리가 없을 때만 짧은 글
+      if (box && body && host) {
+        const r = document.createRange();
+        r.selectNodeContents(body);
+        const cur = box.getBoundingClientRect().width;
+        const want = Math.min(host.clientWidth - 16, Math.ceil(cur + r.getBoundingClientRect().width * 1.1 - body.clientWidth + 1));
+        if (want > cur + 0.5) {
+          setHowWide(want);
+          return;
+        }
+      }
+      setHowStep((n) => n + 1);
+    };
     if (over()) {
-      setHowStep(howStep + 1);
+      next();
       return;
     }
     // 상자가 나중에 나타나거나 좁아지면 (소개 카드 뒤 · tight 단계) 다시 잼 — 다시 그리는 열쇠가 안 바뀌어 처음 잰 값에 머물러
@@ -278,7 +297,7 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
     const ro = new ResizeObserver(() => {
       if (!over()) return;
       ro.disconnect();
-      setHowStep((n) => n + 1);
+      next();
     });
     ro.observe(box);
     const body = box.querySelector<HTMLElement>('.pg-result-body');
@@ -308,6 +327,7 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
       setExpStep(0);
       setWhyOff(false);
       setHowStep(0);
+      setHowWide(null);
     };
     window.addEventListener('resize', reset);
     return () => window.removeEventListener('resize', reset);
@@ -434,13 +454,13 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
   );
   if (ups.length === 0) {
     return (
-      <div ref={tight.box} class={`pg-banner pg-result pg-two${summary.caught ? ' pg-result-caught' : ''}${whyOff ? ' pg-result-nowhy' : ''}${howOff ? ' pg-result-howoff' : ''}${tight.on ? ' pg-result-tight' : ''}${tight.short ? ` pg-result-short${tight.short}` : ''}${expStep ? ` pg-exp-s${expStep}` : ''}`} title={all}>
+      <div ref={tight.box} class={`pg-banner pg-result pg-two${summary.caught ? ' pg-result-caught' : ''}${whyOff ? ' pg-result-nowhy' : ''}${howOff ? ' pg-result-howoff' : ''}${tight.on ? ' pg-result-tight' : ''}${tight.short ? ` pg-result-short${tight.short}` : ''}${expStep ? ` pg-exp-s${expStep}` : ''}`} style={howWide ? { minWidth: `${howWide}px` } : undefined} title={all}>
         {lines}
       </div>
     );
   }
   return (
-    <div ref={tight.box} class={`pg-banner pg-result pg-two pg-lvup${whyOff ? ' pg-result-nowhy' : ''}${howOff ? ' pg-result-howoff' : ''}${tight.on ? ' pg-result-tight' : ''}${tight.one ? ' pg-result-one' : ''}${tight.short ? ` pg-result-short${tight.short}` : ''}`} title={all}>
+    <div ref={tight.box} class={`pg-banner pg-result pg-two pg-lvup${whyOff ? ' pg-result-nowhy' : ''}${howOff ? ' pg-result-howoff' : ''}${tight.on ? ' pg-result-tight' : ''}${tight.one ? ' pg-result-one' : ''}${tight.short ? ` pg-result-short${tight.short}` : ''}`} style={howWide ? { minWidth: `${howWide}px` } : undefined} title={all}>
       <span class="pg-lvup-cards">
         <FaceCards ups={cards} media={media} hint={hint} onStats={onStats} />
       </span>
