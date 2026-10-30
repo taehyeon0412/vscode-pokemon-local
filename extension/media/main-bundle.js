@@ -5855,6 +5855,121 @@ const MOVE_SPECIAL = {
     greninja: { kind: 'shuriken', chance: 0.6, sprite: 'shoot', first: 180, every: 420, count: 3 }, // 물수리검
 };
 
+// 같은 색 네모 묶기 (#139 · #140 최적화 2/5) — 합동 본편이 한 프레임에 점 (색 바꾸기 + fillRect) 을 3,000번 넘게 그려 GPU 를 쓰는 VS Code ·
+// 화면 배율 1.5 에서 0.15 ~ 0.36초씩 멈춤 (시험 창은 GPU 끔이라 안 보였음). 이어서 그리는 같은 불투명 색 · 같은 상태의 fillRect 를 Path2D 하나로 모아 한 번에 칠함 —
+// 다른 그리기 · 상태 바꾸기 · 그 캔버스를 읽거나 옮겨 그리기 · 크기 바꾸기 · 이번 일 끝 (microtask) 전에 내보내 그리는 차례 · 모양 그대로 (반투명 · 그라데이션은 그대로 바로)
+(function fxBatchRects() {
+    if (typeof CanvasRenderingContext2D === 'undefined' || typeof Path2D !== 'function' || CanvasRenderingContext2D.prototype.__fxBatch) {
+        return;
+    }
+    const P = CanvasRenderingContext2D.prototype;
+    P.__fxBatch = true;
+    const pend = new WeakMap(); // ctx → { path, q }
+    const byCanvas = new WeakMap(); // canvas → ctx (옮겨 그리기 · 크기 바꾸기 전에 내보내려고)
+    const fillP = P.fill;
+    const fillRectP = P.fillRect;
+    const flush = (ctx) => {
+        const s = pend.get(ctx);
+        if (s && s.path) {
+            const path = s.path;
+            s.path = null;
+            fillP.call(ctx, path);
+        }
+    };
+    const flushCanvas = (cv) => {
+        const ctx = cv && byCanvas.get(cv);
+        if (ctx) {
+            flush(ctx);
+        }
+    };
+    const opaque = /^#[0-9a-f]{6}$/;
+    P.fillRect = function (x, y, w, h) {
+        const st = this.fillStyle;
+        // window.__fxBatchOff = 묶지 않음 (같은 그림인지 견주는 시험 — dev/perf-run 퀄리티)
+        if (window.__fxBatchOff || this.globalAlpha !== 1 || typeof st !== 'string' || !opaque.test(st)) {
+            flush(this);
+            return fillRectP.call(this, x, y, w, h);
+        }
+        let s = pend.get(this);
+        if (!s) {
+            s = { path: null, q: false };
+            pend.set(this, s);
+            byCanvas.set(this.canvas, this);
+        }
+        if (!s.path) {
+            s.path = new Path2D();
+        }
+        s.path.rect(x, y, w, h);
+        if (!s.q) {
+            s.q = true;
+            queueMicrotask(() => {
+                s.q = false;
+                flush(this);
+            });
+        }
+    };
+    for (const name of Object.getOwnPropertyNames(P)) {
+        if (name === 'constructor' || name === 'fillRect' || name === '__fxBatch') {
+            continue;
+        }
+        const d = Object.getOwnPropertyDescriptor(P, name);
+        if (typeof d.value === 'function') {
+            const f = d.value;
+            // 다른 캔버스를 옮겨 그리거나 무늬로 쓰면 그 캔버스 것도 먼저 (겹친 층 캔버스)
+            const src = name === 'drawImage' || name === 'createPattern';
+            P[name] = function (...a) {
+                flush(this);
+                if (src) {
+                    flushCanvas(a[0]);
+                }
+                return f.apply(this, a);
+            };
+        } else if (d.set) {
+            Object.defineProperty(P, name, {
+                configurable: true,
+                enumerable: d.enumerable,
+                get: d.get,
+                set(v) {
+                    const s = pend.get(this);
+                    if (s && s.path) {
+                        // 같은 색을 다시 넣는 것은 묶음을 끊지 않음 (점마다 색을 넣는 그리기가 대부분)
+                        if (name === 'fillStyle') {
+                            const before = d.get.call(this);
+                            d.set.call(this, v);
+                            if (d.get.call(this) === before) {
+                                return;
+                            }
+                            d.set.call(this, before);
+                        }
+                        flush(this);
+                    }
+                    d.set.call(this, v);
+                },
+            });
+        }
+    }
+    // 캔버스 크기 바꾸기 (지워짐) · 읽기 전에 내보냄
+    const C = HTMLCanvasElement.prototype;
+    for (const name of ['width', 'height']) {
+        const d = Object.getOwnPropertyDescriptor(C, name);
+        if (d && d.set) {
+            Object.defineProperty(C, name, { configurable: true, enumerable: d.enumerable, get: d.get, set(v) {
+                flushCanvas(this);
+                d.set.call(this, v);
+            } });
+        }
+    }
+    for (const name of ['toDataURL', 'toBlob']) {
+        const f = C[name];
+        if (typeof f === 'function') {
+            C[name] = function (...a) {
+                flushCanvas(this);
+                return f.apply(this, a);
+            };
+        }
+    }
+})();
+
 const moveEmitters = [];
 // 히트스톱 — 이 시각 (performance.now) 까지 입자가 멈춤 (ult/bridge.js hitStop)
 let moveFreezeUntil = 0;
