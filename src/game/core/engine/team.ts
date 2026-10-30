@@ -183,8 +183,8 @@ export interface TeamStepOptions {
 export type TeamInput =
   /** 1 · 2 · 3 = 그 칸 · 없으면 Z (먼저 찬 포켓몬) — 쓰기 · 상대 필살기에 끼어들기 · 힘겨루기에 합류 */
   | { kind: 'ult'; slot?: number }
-  /** Space · 클릭 — 필살기 힘겨루기 연타 */
-  | { kind: 'space' };
+  /** Space · 클릭 — 필살기 힘겨루기 연타 · n = 한 번의 값 (빠르게 ▶▶ 밀기 ×3 이면 3 — 누를 시간이 1/3 이어도 연타 힘이 그대로, #138) */
+  | { kind: 'space'; n?: number };
 
 /**
  * 범위 기술 — 원작 대상이 상대 모두 · 나 빼고 모두 (PokeAPI 데이터 spread — 손 목록 대신, 2026-10-21 기획).
@@ -981,7 +981,8 @@ export function teamInput(b0: TeamBattle, input: TeamInput, rng: Rng, ults?: Rea
   if (input.kind === 'space') {
     // 필살기 힘겨루기는 맞닿은 뒤부터 셈 (VS 연출 동안 누른 것은 안 셈 — 화면도 그때부터 "연타")
     if (b0.phase !== 'clash' || !b0.clash || (b0.clash.kind === 'ult' && b0.clash.ms < TIMING.team.ultClashLeadMs)) return b0;
-    return { ...b0, clash: { ...b0.clash, taps: b0.clash.taps + 1 } };
+    const n = Math.min(TIMING.team.fasterScale, Math.max(1, Number(input.n) || 1));
+    return { ...b0, clash: { ...b0.clash, taps: b0.clash.taps + n } };
   }
   // 내 필살기 중 (연타 — 동료가 차 있어도 "지금은 못 써요" 가 컷인 내내 2.5초 남던 것) · 힘겨루기 중 (할 일은 Space) 의 Z 는 조용히 — 합동 멘트 창은 Z 로 합류 그대로 (UX 리뷰어 #88 2차)
   const quiet = b0.phase === 'clash' || (b0.phase === 'ult' && b0.ult?.side === 'me' && !((b0.ult.gather ?? 0) > 0));

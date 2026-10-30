@@ -458,7 +458,8 @@ def step(ws, W, s, acts, el, rnd, cfg):
         if s.get("tp") == "clash":
             if el - acts["mash"] > 0.12:
                 acts["mash"] = el
-                inp({"kind": "team-battle", "input": {"kind": "space"}}, note=False)
+                # 화면 Space 와 같은 길 (main actions.input — 빠르게 ▶▶ 밀기 ×3 이면 연타 한 번 = 3, #138)
+                inp({"kind": "space"}, note=False)
             return
         # only = 누를 칸만 (혼자 필살기 장면 — 나머지 찬 칸은 안 누름)
         # leadDex = 앞장 도감 번호 (고르기 순서로 칸이 바뀌어도 그 포켓몬) → lead 칸
@@ -751,6 +752,10 @@ def main():
         return
     if "run" in kv:
         cfg = load_runs(kv.get("file"))[int(kv["run"]) - 1]
+        # 남은 k=v 는 그 판 시험 창 매개변수에 더함 (bfast=1 — 빠르게 ▶▶ 켬 · 끔 판 길이 견주기, #138)
+        extra = {k: v for k, v in kv.items() if k not in ("run", "file")}
+        if extra:
+            cfg = {**cfg, "q": {**cfg.get("q", {}), **extra}}
     else:
         cfg = {"name": "한 판", "size": kv.pop("size", "860x187"), "seed": int(kv.pop("seed", 1)), "q": kv}
     c = run_one(out, cfg)

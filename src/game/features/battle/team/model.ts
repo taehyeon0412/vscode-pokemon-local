@@ -313,6 +313,9 @@ export function overLineHold(lineYoung: boolean, overMs: number, hasMsg: boolean
   return lineYoung || (hasMsg && overMs < 1000);
 }
 
+/** 판 끝 결과 줄이 처음 보인 뒤 결과 화면으로 넘어가기까지 (진짜 ms — fx/hold holdTeamOver · U1 1초 + 여유, bugs 1914) */
+export const OVER_MSG_MS = 1100;
+
 /** 띠 끝 쓰러짐 말을 줄인 것 — 둘 넘게면 "2마리 쓰러졌다!" (240 "이겼다! · 2마리 쓰러졌다!" — 아트 디렉터 #95 4바퀴 ②) · 하나면 줄이지 않음 */
 export function faintShortLine(names: readonly string[]): string | null {
   const n = new Set(names).size;

@@ -3,8 +3,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { sampleMonster, sampleSave } from '../../test/fixtures/save';
 import { TIMING } from '../core/balance';
 import { createGameState, type GameState } from '../core/engine';
+import { teamGatherIdle } from '../core/engine/play';
 import { startTeamBattle, type TeamBattle } from '../core/engine/team';
-import { FOE_TITLE_AT_MS, FOE_TITLE_KEEP_MS, setTeamView, type TeamView } from '../features/battle/fx/team-view';
+import { JOINT_PLATE_MS, JOINT_PLATE_QUICK_MS, ULT_TITLE_AT_MS, ULT_TITLE_KEEP_MS, setTeamView, type TeamView } from '../features/battle/fx/team-view';
 import type * as Clock from './clock';
 
 const nowReal = performance.now.bind(performance);
@@ -78,7 +79,7 @@ describe('웹뷰 게임 시계', () => {
     clock.setGameClock(1);
   });
 
-  it('#136 빠르게 ▶▶ 장면 전환 — 들어가기 · 나오기 ×3 · 상대 혼자 필살기 = 기 모으기 ×3 → 큰 이름 동안 1 → 본편 ×3 · 내 필살기 · 합동 큰 컷인 · 힘겨루기 · 빠르게 끔은 그대로 (null) · 바로 (0.5초 기다림 없음)', () => {
+  it('#136 빠르게 ▶▶ 장면 전환 — 들어가기 · 나오기 ×3 · 상대 혼자 필살기 = 기 모으기 ×3 → 큰 이름 동안 1 → 본편 ×3 · 합동 큰 컷인 · 빠르게 끔은 그대로 (null) · 바로 (0.5초 기다림 없음)', () => {
     const ms = ['m1', 'm2', 'm3'].map((uid) => sampleMonster({ uid, level: 12 }));
     const save = sampleSave({ monsters: Object.fromEntries(ms.map((m) => [m.uid, { ...m, hp: 999 }])), party: ms.map((m) => m.uid) });
     const b0 = startTeamBattle(save, [10, 13, 16].map((species, i) => sampleMonster({ uid: `f${i}`, species, level: 10 })), 'trainer', '상대');
@@ -97,23 +98,17 @@ describe('웹뷰 게임 시계', () => {
     expect(clock.teamSceneTempo(foe, at + 10)).toBe(fast);
     view({ phase: 'show' });
     expect(clock.teamSceneTempo(foe, at + 100)).toBe(fast);
-    expect(clock.teamSceneTempo(foe, at + FOE_TITLE_AT_MS)).toBe(TIMING.team.tempo);
-    expect(clock.teamSceneTempo(foe, at + FOE_TITLE_AT_MS + FOE_TITLE_KEEP_MS - 1)).toBe(TIMING.team.tempo);
-    expect(clock.teamSceneTempo(foe, at + FOE_TITLE_AT_MS + FOE_TITLE_KEEP_MS)).toBe(fast);
+    expect(clock.teamSceneTempo(foe, at + ULT_TITLE_AT_MS)).toBe(TIMING.team.tempo);
+    expect(clock.teamSceneTempo(foe, at + ULT_TITLE_AT_MS + ULT_TITLE_KEEP_MS - 1)).toBe(TIMING.team.tempo);
+    expect(clock.teamSceneTempo(foe, at + ULT_TITLE_AT_MS + ULT_TITLE_KEEP_MS)).toBe(fast);
     // 큰 이름 (0.16초에 커짐) 이 다 보이는 때 1초 넘게 기본 박자 (U1) — 여유 0.1초
-    expect(FOE_TITLE_KEEP_MS - 160).toBeGreaterThanOrEqual(1100);
-    // 내 필살기 본편 · 합동 큰 컷인 · 상대 합동 본편 · 힘겨루기 = 그대로 · 내 필살기도 들어가기는 ×3
+    expect(ULT_TITLE_KEEP_MS - 160).toBeGreaterThanOrEqual(1100);
+    // 합동 큰 컷인 = 그대로 · 내 필살기도 들어가기는 ×3
     const mine = inUlt('me');
-    view({ side: 'me', phase: 'show' });
-    expect(clock.teamSceneTempo(mine, at + 3000)).toBeNull();
     view({ side: 'me' });
     expect(clock.teamSceneTempo(mine, at + 10)).toBe(fast);
     view({ kind: 'joint', side: 'me', phase: 'cut' });
     expect(clock.teamSceneTempo(mine, at + 10)).toBeNull();
-    view({ kind: 'joint', phase: 'show' });
-    expect(clock.teamSceneTempo(foe, at + 3000)).toBeNull();
-    view({ kind: 'duel' });
-    expect(clock.teamSceneTempo(foe, at + 10)).toBeNull();
     // 빠르게 끔 · 장면 없음
     view();
     expect(clock.teamSceneTempo(inUlt('foe', false), at + 10)).toBeNull();
@@ -124,6 +119,105 @@ describe('웹뷰 게임 시계', () => {
     clock.setGameClock(1);
     view({ at: performance.now() });
     expect(clock.gameClockNow(foe, true)).toBe(fast);
+    setTeamView(null);
+    clock.setGameClock(1);
+  });
+
+  it('#138 ① 빠르게 ▶▶ 더 — 힘겨루기 밀기 ×3 (VS · 결과 그대로) · 내 필살기 · 합동 본편 ×2 (큰 이름 1.3초 · 합동 큰 컷인 그대로) · 할 일 없는 상대 합동 멘트 ×3 · 연타 한 번 = 시계 배 · 빠르게 끔 그대로', async () => {
+    const ms = ['m1', 'm2', 'm3'].map((uid) => sampleMonster({ uid, level: 12 }));
+    const save = sampleSave({ monsters: Object.fromEntries(ms.map((m) => [m.uid, { ...m, hp: 999 }])), party: ms.map((m) => m.uid) });
+    const b0 = startTeamBattle(save, [10, 13, 16].map((species, i) => sampleMonster({ uid: `f${i}`, species, level: 10 })), 'trainer', '상대');
+    const s0 = createGameState(save, 3);
+    const inTeam = (b: TeamBattle, fast: boolean | undefined = true): GameState => ({ ...s0, save: { ...s0.save, settings: { ...s0.save.settings, battleFast: fast } }, runtime: { ...s0.runtime, stage: { ...s0.runtime.stage!, phase: 'team', team: b } as never } });
+    const ult = (side: 'me' | 'foe', o: Partial<NonNullable<TeamBattle['ult']>> = {}): TeamBattle => ({ ...b0, phase: 'ult', ult: { side, from: 0, ms: 300, dur: TIMING.ultAnimMs, hitMs: 800, hit: false, window: 0, joinAt: null, joiners: [], ...o } });
+    const clash = (ms: number): TeamBattle => ({ ...b0, phase: 'clash', ult: null, clash: { kind: 'ult', me: [0], foe: [0], shots: null, ms, dur: TIMING.team.ultClashMs, taps: 0, winner: null } });
+    const { tempo, fasterScale, ultFasterScale } = TIMING.team;
+    const fast = tempo * fasterScale;
+    const half = tempo * ultFasterScale;
+    expect(ultFasterScale).toBe(2);
+    expect(fasterScale).toBe(3);
+    const at = 60_000;
+    const view = (o: Partial<TeamView> = {}) => setTeamView({ kind: 'solo', side: 'me', from: [0], to: { side: 'foe', slot: 0 }, phase: 'show', at, ...o });
+    // ② 내 혼자 필살기 — 기 모으기 ×2 → 큰 이름 1.3초 기본 박자 → 본편 ×2 · 들어가기 · 나오기 ×3
+    const mine = inTeam(ult('me'));
+    view();
+    expect(clock.teamSceneTempo(mine, at + 100)).toBe(half);
+    expect(clock.teamSceneTempo(mine, at + ULT_TITLE_AT_MS)).toBe(tempo);
+    expect(clock.teamSceneTempo(mine, at + ULT_TITLE_AT_MS + ULT_TITLE_KEEP_MS - 1)).toBe(tempo);
+    expect(clock.teamSceneTempo(mine, at + ULT_TITLE_AT_MS + ULT_TITLE_KEEP_MS)).toBe(half);
+    expect(clock.teamSceneTempo(mine, at + 6000)).toBe(half);
+    view({ phase: 'out' });
+    expect(clock.teamSceneTempo(mine, at + 10)).toBe(fast);
+    // ② 합동 (내 것 · 상대 것) — 큰 컷인 (cut) 은 그대로 · 본편 ×2
+    view({ kind: 'joint', phase: 'cut' });
+    expect(clock.teamSceneTempo(mine, at + 10)).toBeNull();
+    view({ kind: 'joint' });
+    expect(clock.teamSceneTempo(mine, at + 3000)).toBe(half);
+    view({ kind: 'joint', side: 'foe' });
+    expect(clock.teamSceneTempo(inTeam(ult('foe')), at + 3000)).toBe(half);
+    // 합동 이름 판 (본편 앞 1.5초 · 같은 짝 두 번째 1.0초) 동안은 그대로 — ×2 에서 0.6초만 보이던 것 (UX 큼 2)
+    view({ kind: 'joint' });
+    expect(clock.teamSceneTempo(mine, at + JOINT_PLATE_MS - 1)).toBe(tempo);
+    expect(clock.teamSceneTempo(mine, at + JOINT_PLATE_MS)).toBe(half);
+    view({ kind: 'joint', quick: true });
+    expect(clock.teamSceneTempo(mine, at + JOINT_PLATE_QUICK_MS - 1)).toBe(tempo);
+    expect(clock.teamSceneTempo(mine, at + JOINT_PLATE_QUICK_MS)).toBe(half);
+    // ① 힘겨루기 — 들어가기 ×3 · VS (맞닿기 전) 그대로 · 밀기 ×3 · 결과 (엔진이 승패를 낸 뒤 — 합동 마무리) 그대로 · 나오기 ×3
+    const duel = (o: Partial<TeamView> = {}) => view({ kind: 'duel', duel: { me: [0], foe: [0] }, ...o });
+    const pushing = inTeam(clash(2000));
+    duel({ phase: 'in' });
+    expect(clock.teamSceneTempo(pushing, at + 10)).toBe(fast);
+    duel();
+    expect(clock.teamSceneTempo(pushing, at + 500)).toBeNull();
+    duel({ meetAt: at + 1800 });
+    expect(clock.teamSceneTempo(pushing, at + 1799)).toBeNull();
+    expect(clock.teamSceneTempo(pushing, at + 1800)).toBe(fast);
+    expect(clock.teamSceneTempo(pushing, at + 5000)).toBe(fast);
+    const won = inTeam(ult('me', { joint: { winners: [0], losers: [0], sure: false, quick: true } }));
+    expect(clock.teamSceneTempo(won, at + 5000)).toBeNull();
+    // 승패가 난 뒤 이긴 줄기가 뚫고 나갈 때 (wonAt) 까지는 밀기 그대로 ×3 · "이겼다!" 부터 그대로
+    duel({ meetAt: at + 1800, wonAt: at + 6000 });
+    expect(clock.teamSceneTempo(won, at + 5999)).toBe(fast);
+    expect(clock.teamSceneTempo(won, at + 6000)).toBeNull();
+    duel({ phase: 'out', meetAt: at + 1800 });
+    expect(clock.teamSceneTempo(won, at + 10)).toBe(fast);
+    // 3:3 용 판 (장면 전환 끔) 은 그대로 — VS 띠 1.2초 뒤에 뜨는 연타 안내가 ×3 밀기 0.78초 안에 끝나던 것 (UX 큼 1)
+    setTeamView(null);
+    expect(clock.teamSceneTempo(inTeam(clash(TIMING.team.ultClashLeadMs - 1)), at)).toBeNull();
+    expect(clock.teamSceneTempo(inTeam(clash(TIMING.team.ultClashLeadMs + 500)), at)).toBeNull();
+    // 내가 합류할 찬 칸이 있으면 누를 창 — 밀기도 그대로 (UX 작음 3 "[3] 합류" 1.2초)
+    duel({ meetAt: at + 1800 });
+    const canJoinClash = inTeam({ ...clash(2000), me: b0.me.map((f, i) => ({ ...f, ult: i === 2 ? 1 : 0 })) });
+    expect(clock.teamSceneTempo(canJoinClash, at + 5000)).toBeNull();
+    // ③ 할 일 없는 상대 합동 멘트 ×3 — 내가 끼어들 칸 있음 (누를 창) · 상대 동료가 모임 · 내 멘트 (합류 창) 는 그대로
+    const idle = ult('foe', { gather: 2000, window: 2000, windowMs: TIMING.team.gatherMs, team: [] });
+    expect(teamGatherIdle(idle)).toBe(true);
+    expect(clock.teamSceneTempo(inTeam(idle), at)).toBe(fast);
+    const allies = { ...idle, ult: { ...idle.ult!, allyAt: [{ slot: 1, at: 400 }] } };
+    expect(teamGatherIdle(allies)).toBe(false);
+    expect(clock.teamSceneTempo(inTeam(allies), at)).toBeNull();
+    const canJoin = { ...idle, me: idle.me.map((f, i) => ({ ...f, ult: i === 0 ? 1 : 0 })) };
+    expect(teamGatherIdle(canJoin)).toBe(false);
+    expect(clock.teamSceneTempo(inTeam(canJoin), at)).toBeNull();
+    expect(clock.teamSceneTempo(inTeam(ult('me', { gather: 2000, window: 2000, team: [] })), at)).toBeNull();
+    // 빠르게 끔 — 모두 그대로
+    expect(clock.teamSceneTempo(inTeam(idle, false), at)).toBeNull();
+    expect(clock.teamSceneTempo(inTeam(clash(2000), false), at)).toBeNull();
+    view();
+    expect(clock.teamSceneTempo(inTeam(ult('me'), false), at + 100)).toBeNull();
+    // 연타 한 번 = 밀기가 빨라진 배 (진짜 시간당 같은 힘) · 힘겨루기 밖 · 기본 박자 = 1
+    clock.setGameClock(fast);
+    expect(clock.teamTapWeight(pushing)).toBe(fasterScale);
+    expect(clock.teamTapWeight(mine)).toBe(1);
+    clock.setGameClock(tempo);
+    expect(clock.teamTapWeight(pushing)).toBe(1);
+    // 알아챌 순간 (쓰러짐) 은 내 필살기 ×2 중에도 진짜 1초 기본 박자 (U1)
+    view();
+    expect(clock.teamSceneTempo(mine, at + 3000)).toBe(half);
+    const ko = inTeam({ ...ult('me'), log: [{ id: 3, at: b0.t, t: 'faint', side: 'foe', slot: 1 }], logSeq: 3 });
+    expect(clock.teamSceneTempo(ko, at + 3000)).toBeNull();
+    await sleep(TIMING.team.fastKeepMs + 100);
+    expect(clock.teamSceneTempo(ko, at + 3000)).toBe(half);
     setTeamView(null);
     clock.setGameClock(1);
   });

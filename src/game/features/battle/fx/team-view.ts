@@ -29,6 +29,10 @@ export interface TeamView {
   at: number;
   /** 같은 판에서 다시 나온 필살기 · 같은 짝 합동 — 맞고 1.5초 뒤 끊고 나옴 · 큰 컷인도 짧게 (#140 A) */
   quick?: boolean;
+  /** 힘겨루기 두 줄기가 맞닿는 때 (performance.now — VS 가 걷힌 뒤 · 밀기 시작) — kind 'duel' 의 show 만. 빠르게 ▶▶ 밀기 ×3 은 이때부터 (#138) */
+  meetAt?: number;
+  /** 힘겨루기 승패가 난 뒤 이긴 줄기가 다 뚫고 나가는 때 (performance.now — "이겼다!" 글 바로 앞) — 밀기 ×3 은 여기까지 (#138) */
+  wonAt?: number;
 }
 
 /** 단계 길이 (ms) — show 는 연출 길이 (혼자 약 4 ~ 9초) [임시값] */
@@ -36,11 +40,17 @@ export interface TeamView {
 // cutQuickMs 600 → 1200 — 같은 짝 두 번째 합동 큰 컷인 머리말 · 이름이 0.55초만 보이던 것 (U1 "quick 포함 1초" — 판 도구 #98 7바퀴 · 디자인 제안 값)
 export const TEAM_VIEW = { inMs: 350, cutMs: 1400, outMs: 350, cutQuickMs: 1200, repeatTailMs: 1500 } as const;
 /**
- * 빠르게 ▶▶ 상대 혼자 필살기 (#136 A — ×3) 에서 기본 박자로 두는 구간 (show 시작부터 ms) — 큰 이름 (ult/core.js ultTitle) 이 기 모으기 0.8초 뒤 나와
- * 0.16초에 커지고 다 보이는 때 1초 넘게 (U1) + 0.14초 여유. 그 앞 (기 모으기) · 뒤 (본편) 는 ×3
+ * 빠르게 ▶▶ 혼자 필살기 (상대 #136 A — ×3 · 내 것 #138 ① — ×2) 에서 기본 박자로 두는 구간 (show 시작부터 ms) — 큰 이름 (ult/core.js ultTitle) 이 기 모으기 0.8초 뒤 나와
+ * 0.16초에 커지고 다 보이는 때 1초 넘게 (U1) + 0.14초 여유. 그 앞 (기 모으기) · 뒤 (본편) 는 빠르게
  */
-export const FOE_TITLE_AT_MS = 800;
-export const FOE_TITLE_KEEP_MS = 1300;
+export const ULT_TITLE_AT_MS = 800;
+export const ULT_TITLE_KEEP_MS = 1300;
+/**
+ * 합동 이름 판 (team/TeamCutin JointNamePlate · game.css — show 시작부터 1.5초 · 같은 짝 두 번째 1.0초) 이 떠 있는 동안 — 빠르게 ▶▶ 합동 본편 ×2 에서도 기본 박자
+ * (게임 시계로 세는 판이 ×2 에서 0.6초만 보이던 것 — #138 UX 큼 2 · U1 "보인 띠는 1.2초 넘게")
+ */
+export const JOINT_PLATE_MS = 1500;
+export const JOINT_PLATE_QUICK_MS = 1000;
 
 let view: TeamView | null = null;
 const subs = new Set<(v: TeamView | null) => void>();

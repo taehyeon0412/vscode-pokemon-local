@@ -12,7 +12,7 @@ import { battleSpritePx, koSinkPx, TYPE_COLOR } from '../model';
 import { Sprite } from '../../../ui/Sprite';
 import type { FxActor } from '../fx/bridge';
 import { TEAM_FX, TeamFxRunner, type TeamSlot } from '../fx/team';
-import { bandDrawn, DUEL_VS_MS, VIEW_CHIP_MS, VIEW_WAIT_MS, duelSpots, faintHoldLeft, faintIsBig, faintShortLine, foeWarn, NUM_MIN_REAL_MS, numShown, overLineHold, keepJointChips, plateBoxOf, plateState, stackRows, teamDenyNote, teamGeometry, teamPrompt, viewHitChip, viewPopsBack, warnPosOf, type TeamGeo, type WarnPos, viewCrossers, viewMonClass } from './model';
+import { bandDrawn, DUEL_VS_MS, OVER_MSG_MS, VIEW_CHIP_MS, VIEW_WAIT_MS, duelSpots, faintHoldLeft, faintIsBig, faintShortLine, foeWarn, NUM_MIN_REAL_MS, numShown, overLineHold, keepJointChips, plateBoxOf, plateState, stackRows, teamDenyNote, teamGeometry, teamPrompt, viewHitChip, viewPopsBack, warnPosOf, type TeamGeo, type WarnPos, viewCrossers, viewMonClass } from './model';
 import { HEAD_NOTE_H, HeadNote, headNoteWidth, pickHeadSpot, useHeldNote } from '../../../ui/HeadNote';
 import { getTeamView, subscribeTeamView, type TeamView } from '../fx/team-view';
 import { cutinArtH, JointNamePlate, TeamCutin } from './TeamCutin';
@@ -20,6 +20,7 @@ import { jointName } from './joint-names';
 import { BAND_PX, TeamBand, useTeamBand, type TeamBandView } from './TeamBand';
 import { topGapPx } from '../../../ui/layout';
 import { realLater, realNow } from '../../../ui/real-clock';
+import { holdTeamOver } from '../fx/hold';
 import { withJosa } from '../../../core/text';
 import './team.css';
 
@@ -612,6 +613,11 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   }
   const lineYoung = b.phase === 'over' && faintHoldLeft(overLine.current ? [overLine.current.last] : boxAt, bandNow) > 0;
   const msgOn = b.phase === 'over' && b.overMs >= 1000 && !!b.msg && !(attach.current !== null && realNow() - attach.current.at < 1200) && !lineYoung;
+  // 결과 줄이 진짜 OVER_MSG_MS 보인 뒤에 결과 화면으로 — 엔진 끝 걸음을 붙잡음 (fx/hold holdTeamOver · bugs 1914: 띠 · 쓰러짐 줄 · 힘겨루기 장면을 기다리다 0.4 ~ 0.5초 만에 넘어가던 것)
+  const overMsgAt = useRef<number | null>(null);
+  if (b.phase !== 'over') overMsgAt.current = null;
+  else if (msgOn) overMsgAt.current ??= bandNow;
+  holdTeamOver(b.phase === 'over' && b.msg ? (overMsgAt.current !== null ? overMsgAt.current + OVER_MSG_MS : Number.POSITIVE_INFINITY) : 0);
   // VS 띠는 쓰러짐 줄을 기다리지 않고 그 말을 띠 끝에 붙임 (기다리다 720 아래에서 연타 안내에 넘겨 VS 가 0.38 ~ 0.72초만 보이던 것 — UX 리뷰어 #95 10바퀴 2 · 태현 님 #431 같은 종류)
   //   장면 전환 (view) 동안은 띠가 안 보이므로 붙이지 않음 (힘겨루기 장면의 숨은 VS 띠가 쓰러짐 말을 가져가 돌아온 뒤 줄에서 0.8초 만에 빠지던 것 — #116)
   if (!view && band?.kind === 'vs' && !seenBand0(band.key) && boxYoung && boxText && !bigHide) {

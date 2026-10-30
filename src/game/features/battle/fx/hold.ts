@@ -5,6 +5,7 @@
  */
 import { TIMING } from '../../../core/balance';
 import { MAX_SPEED, takeSteps, type BattleState, type GameState } from '../../../core/engine';
+import { realNow } from '../../../ui/real-clock';
 
 /** 한 행동을 붙잡는 상한 (ms) — 기술 · 필살기 (일반 모드 필살기는 0.9 + 3.6 ~ 10 + 0.5초) */
 export const FX_HOLD_MAX_MS = 4000;
@@ -147,6 +148,19 @@ export function holdTeamTail(until: number): void {
   teamTailUntil = until;
 }
 
+/**
+ * 3:3 판 끝 (over) — 결과 줄 ("… 이겼다!" · "내 포켓몬이 다 쓰러졌다…") 이 진짜 1초 넘게 보일 때까지 결과 화면으로 넘어가는 끝 걸음을 붙잡음
+ * (띠 · 쓰러짐 줄 · 힘겨루기 장면을 기다리다 결과 줄이 0.4 ~ 0.5초 · 쓰러짐 줄이 0.3초 만에 넘어가던 것 — bugs 1914 · U1).
+ * 화면 (team/TeamLayer) 이 그릴 때마다 알림 — until = 결과 줄을 처음 그린 진짜 시각 + OVER_MSG_MS · 아직 안 그렸으면 Infinity · 판 끝이 아니면 0. 진짜 시계 · 상한 TEAM_OVER_MAX_MS
+ */
+export const TEAM_OVER_MAX_MS = 3000;
+let teamOverUntil = 0;
+let teamOverHeldAt = 0;
+export function holdTeamOver(until: number): void {
+  teamOverUntil = until;
+  if (!until) teamOverHeldAt = 0;
+}
+
 /** 이번 걸음을 미룰지 — 같은 행동 · 이번 프레임에 끝날 수 있음 · 연출이 아직.
  *  엔진 (advance) 은 모아 둔 시간 (stepAccMs) + 이번 시간 × 배속 만큼 걸어서 — 이번 시간만 보면 끝 걸음이 빠져나감 (2026-10-19 필살기가 2.2초에 끊김) */
 export function shouldHoldBattle(state: GameState, dtMs: number, now: number): boolean {
@@ -168,6 +182,16 @@ export function shouldHoldBattle(state: GameState, dtMs: number, now: number): b
   }
   // 3:3 장면 전환 — 맞은 뒤 필살기 끝 걸음을 연출 · 나옴이 끝날 때까지 (holdTeamTail)
   const stT = state.runtime.stage;
+  // 3:3 판 끝 — 결과 줄이 진짜 1초 보일 때까지 결과 화면으로 넘어가는 걸음 (holdTeamOver) · 안 볼 때는 그대로
+  if (stT?.phase === 'team' && stT.team.phase === 'over' && teamOverUntil > 0 && !state.runtime.away && !state.runtime.headless) {
+    const speed = Math.min(MAX_SPEED, Math.max(1, state.runtime.speed || 1));
+    const { steps } = takeSteps(state.runtime.stepAccMs, dtMs * speed, TIMING.simStepMs);
+    if (steps > 0 && stT.team.overMs + steps * TIMING.simStepMs >= TIMING.battleOverMs) {
+      const real = realNow();
+      teamOverHeldAt ||= real;
+      if (real < teamOverUntil && real - teamOverHeldAt < TEAM_OVER_MAX_MS) return true;
+    }
+  }
   if (stT?.phase === 'team' && now < teamTailUntil) {
     const u = stT.team.ult;
     if (stT.team.phase === 'ult' && u && u.hit) {

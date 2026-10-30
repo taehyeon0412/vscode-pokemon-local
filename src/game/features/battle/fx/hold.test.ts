@@ -8,7 +8,9 @@ import { advance, createGameState, type GameState } from '../../../core/engine';
 import { TIMING } from '../../../core/balance';
 import { Rng } from '../../../core/engine/rng';
 import { startTeamBattle, teamInput, teamStep, type TeamBattle } from '../../../core/engine/team';
-import { battleAnimKey, FX_HOLD_DUEL_MAX_MS, FX_HOLD_MAX_MS, fxCoverLeft, fxTailLeft, holdFx, holdTeamTail, KO_ANIM_MS, koFallAt, KO_FLIP_MS, KO_SLUMP_MS, KO_START_LAG_MS, koTiming, koWaitMs, noteKoActor, resetKo, pickShown, releaseFx, setFxCover, setFxTail, setPickShow, shouldHoldBattle, teamUltKey } from './hold';
+import { battleAnimKey, FX_HOLD_DUEL_MAX_MS, FX_HOLD_MAX_MS, fxCoverLeft, fxTailLeft, holdFx, holdTeamTail, KO_ANIM_MS, koFallAt, KO_FLIP_MS, KO_SLUMP_MS, KO_START_LAG_MS, koTiming, koWaitMs, noteKoActor, resetKo, pickShown, releaseFx, setFxCover, setFxTail, setPickShow, shouldHoldBattle, teamUltKey, holdTeamOver, TEAM_OVER_MAX_MS } from './hold';
+import { OVER_MSG_MS } from '../team/model';
+import { realNow } from '../../../ui/real-clock';
 
 /** 내 포켓몬이 기술을 쓰는 중인 전투 상태 (ms 까지 지남) */
 function inMove(ms: number, dur = 900): { state: GameState; b: BattleState } {
@@ -154,6 +156,34 @@ describe('3:3 필살기 · 합동 마무리 — 연출이 맞힐 때까지 맞�
       expect(shouldHoldBattle(at(save, tb), 50, 1500)).toBe(false);
     } finally {
       holdTeamTail(0);
+    }
+  });
+
+  it('판 끝 (bugs 1914) — 결과 줄이 진짜 1초 넘게 보일 때까지 결과로 넘어가는 끝 걸음만 붙잡음 · 아직 안 그림 = 상한까지 · 안 볼 때 · 판 끝 아님 · 0 이면 안 붙잡음', () => {
+    const { save, b } = team();
+    const over: TeamBattle = { ...b, phase: 'over', result: 'lose', msg: '내 포켓몬이 다 쓰러졌다…', overMs: TIMING.battleOverMs - 30 };
+    const real = realNow();
+    try {
+      holdTeamOver(real + 500);
+      expect(shouldHoldBattle(at(save, over), 50, 0)).toBe(true);
+      // 끝 걸음이 아니면 · 안 볼 때 (밖 · 숨김) · 판 끝이 아니면 안 붙잡음
+      expect(shouldHoldBattle(at(save, { ...over, overMs: 1000 }), 50, 0)).toBe(false);
+      const s = at(save, over);
+      expect(shouldHoldBattle({ ...s, runtime: { ...s.runtime, away: true } }, 50, 0)).toBe(false);
+      expect(shouldHoldBattle({ ...s, runtime: { ...s.runtime, headless: true } }, 50, 0)).toBe(false);
+      expect(shouldHoldBattle(at(save, { ...over, phase: 'run' }), 50, 0)).toBe(false);
+      // 결과 줄이 보인 지 OVER_MSG_MS 가 지남 · 붙잡기 없음
+      holdTeamOver(real - 1);
+      expect(shouldHoldBattle(at(save, over), 50, 0)).toBe(false);
+      holdTeamOver(0);
+      expect(shouldHoldBattle(at(save, over), 50, 0)).toBe(false);
+      // 아직 결과 줄을 못 그림 (Infinity) — 처음 붙잡은 때부터 상한까지
+      holdTeamOver(Number.POSITIVE_INFINITY);
+      expect(shouldHoldBattle(at(save, over), 50, 0)).toBe(true);
+      expect(TEAM_OVER_MAX_MS).toBeLessThanOrEqual(3000);
+      expect(OVER_MSG_MS).toBeGreaterThanOrEqual(1000);
+    } finally {
+      holdTeamOver(0);
     }
   });
 });

@@ -67,6 +67,8 @@
     if (q.get('fast') === '1') save.settings = { ...save.settings, fastWalk: true };
     // motion=reduce — 게임 설정 "동작 줄이기" 켬 (ux-rules U1 점검, 2026-10-21)
     if (q.get('motion') === 'reduce') save.settings = { ...save.settings, reduceMotion: true };
+    // bfast=1 — 전투 빠르게 ▶▶ 켬 (설정 battleFast — #134 · #138 3:3 판 길이 켬 · 끔 견주기)
+    if (q.get('bfast') === '1') save.settings = { ...save.settings, battleFast: true };
     // cutscene=0 — 3:3 필살기 연출 끔 (설정 teamCutscene — #97, 장면 전환 없이 3:3 용 작은 판)
     if (q.get('cutscene') === '0') save.settings = { ...save.settings, teamCutscene: false };
     // balls=3-2-1 — 몬스터볼 · 슈퍼볼 · 하이퍼볼 개수 (정보줄 볼 칸, 2026-10-20) · pts=4 — 선두 남은 포인트 (정보줄 "포켓몬 +4")

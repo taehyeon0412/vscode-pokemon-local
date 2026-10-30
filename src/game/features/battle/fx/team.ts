@@ -418,6 +418,10 @@ export class TeamFxRunner {
       const now = performance.now();
       // 처음부터 무리에 든 동료 (2:1 · 상대 합동 끼어들기) 도 합류로 — 두 줄기가 맞닿는 때 (VS 가 걷힌 뒤 — 그 전엔 별 · 굵어짐이 컷인에 가려 안 보임, #116 UX 큼 3)
       d0.meetAt = now + plan.meetMs;
+      // 맞닿는 때를 장면에도 — 빠르게 ▶▶ 밀기 ×3 은 그때부터 (VS 는 기본 박자, #138 · webview/clock)
+      d0.v = { ...d0.v, meetAt: d0.meetAt };
+      const cur = getTeamView();
+      if (cur?.kind === 'duel') setTeamView({ ...d0.v, phase: cur.phase, at: cur.at });
       for (const side of ['me', 'foe'] as const) {
         for (const slot of (d0.v.duel?.[side] ?? c[side]).slice(1)) this.duelJoinAt(fx, gen, side, slot);
       }
@@ -714,11 +718,10 @@ export class TeamFxRunner {
           const lose: Side = c.winner === 'me' ? 'foe' : 'me';
           const lead = d.v.duel?.[lose][0];
           const cur = getTeamView();
-          if (lead !== undefined) {
-            d.v = { ...d.v, to: { side: lose, slot: lead } };
-            if (cur) setTeamView({ ...d.v, phase: cur.phase, at: cur.at });
-          }
           const lag = Math.max(0, TIMING.team.clashJointHitMs - FX_DUEL_MS.through);
+          // 이긴 줄기가 다 뚫고 나간 때 — 빠르게 ▶▶ 밀기 ×3 은 그때까지 ("이겼다!" 부터 기본 박자, #138)
+          d.v = { ...d.v, ...(lead !== undefined ? { to: { side: lose, slot: lead } } : {}), wonAt: performance.now() + lag + FX_DUEL_MS.through };
+          if (cur) setTeamView({ ...d.v, phase: cur.phase, at: cur.at });
           this.later(lag, () => gen === this.viewGen && fx.duelWin?.(c.winner === 'me' ? 'a' : 'b'));
           this.closeDuel(gen, lag + FX_DUEL_MS.through + FX_DUEL_MS.after);
           return;

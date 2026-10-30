@@ -4,7 +4,7 @@ import { fixedRng } from '../../../test/fixtures/rng';
 import { sampleMonster, sampleSave, viaJson } from '../../../test/fixtures/save';
 import { BALANCE, TIMING } from '../balance';
 import type { Monster, Save } from '../save';
-import { advance, applyInput, AUTO_TEAM_TIP, autoTeamTipDue, defeatWaits, gameTempo, RESUME_BATTLE_MSG, resumeLine, step, TEAM_MEET_TIP, teamChoiceMeet, teamFoesOf, teamLock, teamMainOf, teamMeetTipDue, teamPickOf, teamSceneFastOk } from './play';
+import { advance, applyInput, AUTO_TEAM_TIP, autoTeamTipDue, defeatWaits, gameTempo, RESUME_BATTLE_MSG, resumeLine, step, TEAM_MEET_TIP, teamChoiceMeet, teamFoesOf, teamLock, teamMainOf, teamMeetTipDue, teamPickOf, teamGatherIdle, teamSceneFastOk } from './play';
 import { Rng } from './rng';
 import { createGameState, readRuntime, type GameState } from './state';
 import { shotTiming, applyTeamResult, isSpread, pickTeam, readTeam, startTeamBattle, TEAM_BASIC, teamClashSure, teamDone, teamFastOk, teamInput, teamPick, teamPossible, teamScale, teamStep, teamAutoUltLeft, teamAutoUltNext, teamFoeNext, teamZSlot, teamUltLevel, teamUltOpen, type TeamBattle, teamGather, teamJoinOpen, teamLayout, teamLit } from './team';
@@ -1337,6 +1337,39 @@ describe('3:3 박자 (orders #83 — 기본 0.8 · 전투 ×2) · 누를 창 (or
     expect(teamSceneFastOk(inTeam(info, true))).toBe(true);
     // 보통 공격 (run) 은 그대로 엔진 ms 로 붙잡음
     expect(teamFastOk({ ...info, phase: 'run', ult: null })).toBe(false);
+  });
+
+  it('#138 ① 빠르게 ▶▶ 더 — 필살기 힘겨루기 · 할 일 없는 상대 합동 멘트도 장면 빠르게 · 내 멘트 · 끼어들 창 · 상대 동료가 모이면 그대로 · 연타 한 번의 값 (1 ~ 3)', () => {
+    const clash: TeamBattle = { ...b0, phase: 'clash', ult: null, clash: { kind: 'ult', me: [0], foe: [0], shots: null, ms: 2000, dur: TIMING.team.ultClashMs, taps: 0, winner: null } };
+    expect(teamSceneFastOk(inTeam(clash, true))).toBe(true);
+    expect(teamSceneFastOk(inTeam(clash, false))).toBe(false);
+    // 기술 힘겨루기 (보통 공격 중) 는 장면이 아님 · 내가 합류할 찬 칸이 있으면 누를 창 (UX 작음 3)
+    expect(teamSceneFastOk(inTeam({ ...clash, clash: { ...clash.clash!, kind: 'move' } }, true))).toBe(false);
+    const joinable = { ...clash, me: clash.me.map((f, i) => ({ ...f, ult: i === 2 ? 1 : 0 })) };
+    expect(teamUltOpen(joinable, 2)).toBe(true);
+    expect(teamSceneFastOk(inTeam(joinable, true))).toBe(false);
+    const ult = (side: 'me' | 'foe', b: TeamBattle = b0): TeamBattle => ({ ...b, phase: 'ult', ult: { side, from: 0, ms: 0, dur: TIMING.ultAnimMs, hitMs: 800, hit: false, window: TIMING.team.gatherMs, windowMs: TIMING.team.gatherMs, joinAt: null, joiners: [], gather: TIMING.team.gatherMs, team: [] } });
+    const idle = ult('foe');
+    expect(teamGatherIdle(idle)).toBe(true);
+    expect(teamSceneFastOk(inTeam(idle, true))).toBe(true);
+    expect(teamSceneFastOk(inTeam(idle, false))).toBe(false);
+    // 상대 동료가 모임 (allyAt) · 내가 끼어들 수 있음 (찬 칸 — 누를 창) · 내 멘트 (합류 창)
+    expect(teamGatherIdle({ ...idle, ult: { ...idle.ult!, allyAt: [{ slot: 1, at: 300 }] } })).toBe(false);
+    const meFull = ult('foe', { ...b0, me: b0.me.map((f, i) => ({ ...f, ult: i === 0 ? 1 : 0 })) });
+    expect(teamJoinOpen(meFull)).not.toBeNull();
+    expect(teamGatherIdle(meFull)).toBe(false);
+    expect(teamSceneFastOk(inTeam(meFull, true))).toBe(false);
+    expect(teamGatherIdle(ult('me'))).toBe(false);
+    expect(teamSceneFastOk(inTeam(ult('me'), true))).toBe(false);
+    // 연타 — 맞닿은 뒤 한 번의 값 n (빠르게 밀기 ×3 = 3) · 없으면 1 · 1 ~ fasterScale 안 · VS 동안은 안 셈 · 화면 입력 (space n) 이 그대로 엔진까지
+    const rng = new Rng(1);
+    expect(teamInput(clash, { kind: 'space' }, rng).clash!.taps).toBe(1);
+    expect(teamInput(clash, { kind: 'space', n: 3 }, rng).clash!.taps).toBe(3);
+    expect(teamInput(clash, { kind: 'space', n: 99 }, rng).clash!.taps).toBe(TIMING.team.fasterScale);
+    expect(teamInput(clash, { kind: 'space', n: 0.2 }, rng).clash!.taps).toBe(1);
+    expect(teamInput({ ...clash, clash: { ...clash.clash!, ms: TIMING.team.ultClashLeadMs - 1 } }, { kind: 'space', n: 3 }, rng).clash!.taps).toBe(0);
+    const sent = applyInput(inTeam(clash, true), { kind: 'space', n: 3 }).runtime.stage;
+    expect(sent?.phase === 'team' && sent.team.clash?.taps).toBe(3);
   });
 
   it('#134 — 3:3 기본 = 예전 빠르게 (보통 공격 ×2 · 약 1.5배) · 빠르게 ▶▶ = ×3 (약 2배) · 알아챌 순간은 기본에서도 1.0 · 옛 세이브 battleFast 켬 = 새 빠르게', () => {

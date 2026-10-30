@@ -26,7 +26,7 @@ import '../dev/dev.css';
 import { getGameConfig, getGamePort } from './vscode-api';
 import { WebviewSession, type SaveIoView } from './webview-session';
 import { devApply, type DevAction } from '../dev/actions';
-import { gameClockFor, gameClockNow, gameClockScale, resetGameClock, setGameClock } from './clock';
+import { gameClockFor, gameClockNow, gameClockScale, resetGameClock, setGameClock, teamTapWeight } from './clock';
 import { getTeamView } from '../features/battle/fx/team-view';
 import { setDevUlts } from '../dev/ult-pick';
 
@@ -175,6 +175,11 @@ if (!port) {
     input: (input) => {
       // 판이 떠 있으면 판에서 누른 것만 (전투 숫자 키 · Space 가 뒤에서 눌리지 않게)
       if (store.get().overlay && !OVERLAY_INPUTS.includes(input.kind)) return;
+      // 3:3 힘겨루기 밀기가 빨라진 만큼 연타 한 번의 값을 (빠르게 ▶▶ ×3 — #138)
+      if (input.kind === 'space') {
+        const n = teamTapWeight(session.current);
+        if (n > 1) input = { kind: 'space', n };
+      }
       // 받은 입력은 바로 화면에 (다음 새로 그림을 기다리지 않게)
       if (session.input(input)) store.set({ state: session.current });
     },

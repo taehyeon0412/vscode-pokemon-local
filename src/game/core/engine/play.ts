@@ -30,7 +30,7 @@ import { Rng } from './rng';
 // 개발 모드 (임시)
 import { devTeam, devWalk } from '../../dev/runtime';
 import { MAX_SPEED, type AwayLog, type GameNotice, type GameState, type RuntimeState, type StageRuntime } from './state';
-import { applyTeamResult, pickTeam, startTeamBattle, teamDone, teamFastOk, teamInput, teamJoinOpen, teamPossible, teamRewardBattle, teamScale, teamStep, type TeamBattle, type TeamInput } from './team';
+import { applyTeamResult, pickTeam, startTeamBattle, teamDone, teamFastOk, teamInput, teamJoinOpen, teamPossible, teamRewardBattle, teamScale, teamStep, teamUltOpen, type TeamBattle, type TeamInput } from './team';
 import { takeSteps } from './step';
 
 /** 바로 저장해야 하는 일 (mvp-spec 3.1) — 웹뷰는 save-now 로, 확장은 바로 씀 */
@@ -39,7 +39,8 @@ export type SaveSignal = 'catch' | 'battle-end' | 'stage-clear';
 /** 사용자 입력 (웹뷰에서만 옴) */
 export type GameInput =
   /** Space 또는 길 (패널) 클릭 — 전투 · 결과 · 트레이너 만남 · 체육관 장면 넘기기 (튀어나올 때 선제공격은 뺌, 2026-10-21) */
-  | { kind: 'space' }
+  /** n = 3:3 힘겨루기 연타 한 번의 값 (#138 — 밀기가 빨라진 배 · webview/clock teamTapWeight) */
+  | { kind: 'space'; n?: number }
   | { kind: 'request'; help: boolean }
   /** 전투 메뉴 · 필살기 · 다음 포켓몬 (Space 는 위 'space' 로 — 힘대결 연타 · 맞받아치기) */
   | { kind: 'battle'; input: BattleInput }
@@ -1430,16 +1431,27 @@ export function gameTempo(state: GameState): number {
   return t.fastNotice;
 }
 /**
- * 빠르게 ▶▶ 3:3 장면 전환 (2026-10-29 태현 님 #136 A — 들어가기 · 나오기 · 상대 필살기 연출 ×3) 을 걸어도 되는 때 — 빠르게 켬 · 3:3 · 필살기 중이고
- * 누를 창 (합동 멘트 · 끼어들기) · 다시 켜기 칩이 없을 때. 어느 단계를 빠르게 할지 · 알아챌 순간 (쓰러짐 · 다 참 · 말 팝업 · 버린 누름) 붙잡기는
+ * 빠르게 ▶▶ 3:3 장면 전환 (2026-10-29 태현 님 #136 A — 들어가기 · 나오기 · 상대 필살기 연출 ×3 · #138 ① 힘겨루기 밀기 ×3 · 내 필살기 · 합동 본편 ×2 ·
+ * 할 일 없는 상대 합동 멘트 ×3) 을 걸어도 되는 때 — 빠르게 켬 · 3:3 · 필살기 중 · 필살기 힘겨루기 중이고 누를 창 (합동 멘트 · 끼어들기) · 다시 켜기 칩이 없을 때.
+ * 어느 단계를 빠르게 할지 · 알아챌 순간 (쓰러짐 · 다 참 · 말 팝업 · 버린 누름) 붙잡기는
  * 화면 (webview/clock — 장면 전환 단계를 알고 진짜 시계로 셈 · 붙잡힌 동안 엔진 시간이 멈춰 엔진 ms 로 세면 "쓰러졌다!" 말이 연출 끝까지 남아 1 로 남던 것 — #136 UX 큼)
  */
 export function teamSceneFastOk(state: GameState): boolean {
   const st = state.runtime.stage;
   if (st?.phase !== 'team' || state.save.settings.battleFast !== true || resumeLine(state) !== null) return false;
   const b = st.team;
+  // 필살기 힘겨루기 — 내가 합류할 찬 칸이 있는 동안은 누를 창 ("[3] 합류" 가 ×3 밀기 1.2초에 줄던 것 — #138 UX 작음 3)
+  if (b.phase === 'clash') return b.clash?.kind === 'ult' && !b.me.some((_, i) => teamUltOpen(b, i));
   const u = b.phase === 'ult' ? b.ult : null;
-  return !!u && !((u.gather ?? 0) > 0) && !teamJoinOpen(b);
+  return !!u && (!((u.gather ?? 0) > 0) || teamGatherIdle(b)) && !teamJoinOpen(b);
+}
+/**
+ * 할 일 없는 상대 합동 멘트 (ideas 731 · #138 ③) — 상대가 합동 필살기 멘트로 모으는데 내가 끼어들 칸이 없고 (찬 포켓몬 없음) 상대 동료도 안 모임 (allyAt 비었음):
+ * 2.5초 동안 아무 일도 안 일어나는 기다림
+ */
+export function teamGatherIdle(b: TeamBattle): boolean {
+  const u = b.phase === 'ult' ? b.ult : null;
+  return !!u && u.side === 'foe' && (u.gather ?? 0) > 0 && !(u.allyAt?.length ?? 0) && !teamJoinOpen(b);
 }
 /** S06 ⑦ ~ ⑩ 오른쪽 위 버튼 · S19 가방 — 걷는 중 (그동안 화면은 걸음을 멈춤) · 체육관 대기실 (관장에게 받은 리프의 돌을 바로) */
 export function canOpenMenus(state: GameState): boolean {
@@ -1561,7 +1573,7 @@ export function applyInput(state: GameState, input: GameInput): GameState {
   switch (input.kind) {
     case 'space':
       if (stage?.phase === 'battle') return withBattleInput(state, { kind: 'space', extraMs: state.runtime.stepAccMs });
-      if (stage?.phase === 'team') return applyInput(state, { kind: 'team-battle', input: { kind: 'space' } });
+      if (stage?.phase === 'team') return applyInput(state, { kind: 'team-battle', input: { kind: 'space', ...(input.n !== undefined ? { n: input.n } : {}) } });
       // S12 계속 · S22 진화 연출 빨리 넘기기
       if (stage?.phase === 'result') return applyInput(state, { kind: 'result-continue' });
       if (stage?.phase === 'choice') return applyInput(state, { kind: stage.ms < 0 ? 'evolve-watch' : 'evolve-skip' });

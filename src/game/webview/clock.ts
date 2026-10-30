@@ -9,7 +9,7 @@
 import { TIMING } from '../core/balance';
 import { gameTempo, inBattle, teamSceneFastOk, type GameState } from '../core/engine';
 import { isWordPopup, type TeamBattle } from '../core/engine/team';
-import { FOE_TITLE_AT_MS, FOE_TITLE_KEEP_MS, getTeamView } from '../features/battle/fx/team-view';
+import { JOINT_PLATE_MS, JOINT_PLATE_QUICK_MS, ULT_TITLE_AT_MS, ULT_TITLE_KEEP_MS, getTeamView } from '../features/battle/fx/team-view';
 
 type Fn = (...args: unknown[]) => void;
 interface Timer {
@@ -180,20 +180,47 @@ export function gameClockFor(state: GameState | null, playing: boolean): number 
 }
 
 /**
- * 빠르게 ▶▶ 3:3 장면 전환 (2026-10-29 태현 님 #136 A) — 들어가기 · 나오기 · 상대 혼자 필살기 (기 모으기 · 본편) 는 fasterScale, 상대 필살기 큰 이름 동안은 기본 박자.
- * 내 필살기 · 합동 (큰 컷인 · 본편) · 힘겨루기 · 걸면 안 될 때 (누를 창 · 알아챌 순간 — core teamSceneFastOk) 는 null (gameTempo 그대로)
+ * 빠르게 ▶▶ 3:3 장면 전환 (2026-10-29 태현 님 #136 A · #138 ①) — 들어가기 · 나오기 · 상대 혼자 필살기 (기 모으기 · 본편) · 장면 힘겨루기 밀기 (맞닿은 뒤 ~ 이긴 줄기가 뚫고 나갈 때) ·
+ * 할 일 없는 상대 합동 멘트 (ideas 731) 는 fasterScale, 내 혼자 필살기 (기 모으기 · 본편) · 합동 본편 (이름 판 뒤) 은 ultFasterScale.
+ * 기본 박자 (null — gameTempo 그대로): 필살기 큰 이름 (ULT_TITLE) · 합동 큰 컷인 (cut) · 합동 이름 판 (JOINT_PLATE) · 힘겨루기 VS · 결과 · 3:3 용 판 힘겨루기 ·
+ * 걸면 안 될 때 (누를 창 — 합동 멘트 · 끼어들기 · 힘겨루기 합류 · 알아챌 순간 — core teamSceneFastOk)
  */
 export function teamSceneTempo(state: GameState | null, now = performance.now()): number | null {
   const st = state?.runtime.stage;
   const keep = st?.phase === 'team' && teamKeepNow(st.team);
-  if (!state || keep || !teamSceneFastOk(state)) return null;
+  if (!state || st?.phase !== 'team' || keep || !teamSceneFastOk(state)) return null;
+  const b = st.team;
+  const { tempo, fasterScale, ultFasterScale } = TIMING.team;
+  const fast = tempo * fasterScale;
+  // 할 일 없는 상대 합동 멘트 — 장면 전환은 멘트가 끝난 뒤에 열림 (teamSceneFastOk 가 할 일 없을 때만 들임)
+  if (b.phase === 'ult' && (b.ult?.gather ?? 0) > 0) return fast;
   const v = getTeamView();
-  if (!v || v.kind === 'duel') return null;
-  const fast = TIMING.team.tempo * TIMING.team.fasterScale;
+  if (b.phase === 'clash') {
+    // 장면 힘겨루기 — 두 줄기가 맞닿은 뒤부터 (들어가기 · 나오기는 아래). 3:3 용 판 (장면 전환 끔) 은 그대로 — VS 띠 1.2초 뒤에 뜨는 연타 안내가 ×3 밀기 0.78초 안에 끝나던 것 (#138 UX 큼 1)
+    if (!v) return null;
+    if (v.kind === 'duel' && v.phase === 'show') return v.meetAt !== undefined && now >= v.meetAt ? fast : null;
+  }
+  if (!v) return null;
   if (v.phase === 'in' || v.phase === 'out') return fast;
-  if (v.phase !== 'show' || v.kind !== 'solo' || v.side !== 'foe') return null;
+  if (v.phase !== 'show') return null;
+  // 힘겨루기 승패가 난 뒤 — 이긴 줄기가 뚫고 나갈 때까지 밀기 그대로 ×3 · 결과 ("이겼다!") 는 기본 박자
+  if (v.kind === 'duel') return v.wonAt !== undefined && now < v.wonAt ? fast : null;
+  if (v.kind === 'joint') return now - v.at < (v.quick ? JOINT_PLATE_QUICK_MS : JOINT_PLATE_MS) ? tempo : tempo * ultFasterScale;
   const t = now - v.at;
-  return t >= FOE_TITLE_AT_MS && t < FOE_TITLE_AT_MS + FOE_TITLE_KEEP_MS ? TIMING.team.tempo : fast;
+  if (t >= ULT_TITLE_AT_MS && t < ULT_TITLE_AT_MS + ULT_TITLE_KEEP_MS) return tempo;
+  return v.side === 'foe' ? fast : tempo * ultFasterScale;
+}
+
+/**
+ * 3:3 힘겨루기 연타 한 번의 값 (#138) — 지금 시계 배 ÷ (3:3 박자 × 개발 모드 전투 배). 밀기 ×3 이면 3 — 진짜 시간으로 누를 틈이 1/3 이라도 같은 빠르기로 누르면 같은 힘.
+ * 그 밖 (VS · 빠르게 끔 · 1:1) 은 1
+ */
+export function teamTapWeight(state: GameState | null): number {
+  const st = state?.runtime.stage;
+  if (!state || st?.phase !== 'team' || st.team.phase !== 'clash') return 1;
+  const dev = state.runtime.dev;
+  const base = (dev ? dev.battle : 1) * TIMING.team.tempo;
+  return base > 0 ? Math.min(TIMING.team.fasterScale, Math.max(1, scale / base)) : 1;
 }
 
 /**
