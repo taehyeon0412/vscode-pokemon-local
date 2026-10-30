@@ -1782,6 +1782,10 @@ body.vscode-light .pg-stage.pg-bg-arena-volcano {
 .pg-evo-user + .pg-evo-user {
   margin-left: 8px;
 }
+/* 묶음 칸 (돌 그림 16 + 이름) 은 위 맞춤 — 그림이 칸의 기준선이 되어 둘째 줄이 16 → 20px 로 커져 361 ~ 399 볼 칸 무대에서 주인공 머리에 닿던 것 (1631) */
+.pg-evo-many .pg-evo-user {
+  vertical-align: top;
+}
 .pg-evo-face {
   display: inline-block;
   width: 22px;
@@ -1810,6 +1814,24 @@ body.vscode-light .pg-stage.pg-bg-arena-volcano {
   .pg-evo-low .pg-evo-b1 {
     display: inline;
   }
+}
+/* 넘치면 한 단계 (EvoTip useTipFit — 1631 UX 큼 둘 · 폭 경계를 손으로 고르지 않음): 1 = 둘째 줄 짧은 꼴 (쓸 포켓몬 하나 + 외 N · 얼굴 없이)
+   2 = 한 줄 "… · [B] 진화" (대기실 좁은 꼴과 같음) · 3 = 묶음 돌 그림까지 뺌 ("진화의 돌 3개 · [B] 진화" — 그림 셋이면 240 대기실에서 접혀 두 줄로 주인공 발끝에 닿던 것) */
+.pg-evo-s1 .pg-evo-who .pg-tip-long {
+  display: none;
+}
+.pg-evo-s1 .pg-evo-who .pg-tip-short {
+  display: inline;
+}
+.pg-evo-s2 .pg-evo-who,
+.pg-evo-s2 .pg-evo-line .pg-evo-what {
+  display: none;
+}
+.pg-evo-s2 .pg-evo-b1 {
+  display: inline;
+}
+.pg-evo-s3.pg-evo-many .pg-evo-line .pg-icon {
+  display: none;
 }
 /* 아래 = 패널 끝 0 (bottom 4 면 23px 안내가 포켓몬 · 주인공 발끝 3 ~ 5줄을 덮던 것 — 기다림 한 줄과 같은 0, 픽셀 검사원) */
 .pg-first-tip-low {

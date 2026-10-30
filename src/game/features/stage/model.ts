@@ -12,7 +12,8 @@ import { stageCode, stageLayout, trainerId } from '../../core/rules/stage';
 import { aliveCount, shortTrainerName, trainerInfo, trainerNumber, trainerTeamSize, type TrainerInfo } from '../../core/rules/trainer';
 import { pickRival, recordText, rivalName, rivalRecord, rivalTeamSize } from '../../core/rules/rival';
 import { heroLookOf } from '../../data/heroes';
-import type { FacilitySpot, RegionId, Save, StageId } from '../../core/save';
+import { TIPS_MAX, type FacilitySpot, type ItemId, type RegionId, type Save, type StageId } from '../../core/save';
+import { EVO_ITEMS, evoTipId } from '../../core/rules/evo-tip';
 import type { IconName } from '../../data/icons';
 import { battleViewKey } from '../battle/model';
 import { resultViewKey } from '../result/model';
@@ -420,4 +421,15 @@ export function sceneBackground(state: GameState): string {
   const arena = state.runtime.stage?.phase === 'team' ? TEAM_ARENA[regionHere(loc).id] : undefined;
   if (arena) return arena;
   return stageBackground(loc.screen === 'stage' ? loc.stageId : null);
+}
+
+/**
+ * 진화 아이템 처음 안내에 묶을 아이템 (ideas 1631 — 한꺼번에 얻은 돌마다 6초 안내가 차례로 이어지던 것) — 엔진이 알려 준 첫째 (evoTipNow) + 같은 규칙의 나머지 (가방에 있고 본 기록 없음).
+ * 둘 넘으면 화면이 한 상자로 그리고 보면 모두 본 것 · 본 안내 칸 (TIPS_MAX) 이 남는 만큼만 (못 적을 아이템을 묶으면 다음에 또 뜸) · first 가 없으면 []
+ */
+export function evoTipItems(save: Save, first: ItemId | null): ItemId[] {
+  if (!first) return [];
+  const tips = save.tips ?? [];
+  const rest = EVO_ITEMS.filter((i) => i !== first && (save.bag[i] ?? 0) > 0 && !tips.includes(evoTipId(i)));
+  return [first, ...rest].slice(0, Math.max(1, TIPS_MAX - tips.length));
 }

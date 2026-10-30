@@ -6,9 +6,9 @@ import { pickRival } from '../../core/rules/rival';
 import { stageLayout } from '../../core/rules/stage';
 import { setRegionOrder } from '../../core/rules/region';
 import { heroLookOf } from '../../data/heroes';
-import { STAGE_IDS } from '../../core/save';
+import { STAGE_IDS, TIPS_MAX } from '../../core/save';
 import { summaryLines } from '../result/model';
-import { badgeAutoLeft, BATTLE_STAGE_MAX_PX, battleStage, CONTACT_PX, contactX, foldStatus, foeTrainerView, gymEnterView, gymFrontX, heroX, holdRivalLook, minimapOf, rivalTag, STAGES, sceneBackground, stageLabel, stagePx, stageViewKey, TEAM_ARENA, visibleObjects, WALK_PX_PER_SEC } from './model';
+import { badgeAutoLeft, evoTipItems, BATTLE_STAGE_MAX_PX, battleStage, CONTACT_PX, contactX, foldStatus, foeTrainerView, gymEnterView, gymFrontX, heroX, holdRivalLook, minimapOf, rivalTag, STAGES, sceneBackground, stageLabel, stagePx, stageViewKey, TEAM_ARENA, visibleObjects, WALK_PX_PER_SEC } from './model';
 
 function at(progress: number, stage: GameState['runtime']['stage'] = { phase: 'walk' }): GameState {
   const s = createGameState(sampleSave({ stages: { 'forest-1': { seed: 42, progress, cleared: false, defeatedTrainers: [], facilities: [], run: { startMs: 0, caught: 0, trainers: 0, seen: [], reach: 0, retries: 0 } } } }), 1);
@@ -309,5 +309,23 @@ describe('관장 카드 자동 남은 초 (#127 UX 큼 — 칩이 1초에 처음
     expect(badgeAutoLeft(card(0, { all: true }))).toBeNull();
     const again = card(0, { all: true });
     expect(badgeAutoLeft({ ...again, runtime: { ...again.runtime, stage: { phase: 'badge', ms: 0, again: true } } })).toBe(10);
+  });
+});
+
+describe('진화 아이템 안내 묶기 (ideas 1631)', () => {
+  const withBag = (bag: Record<string, number>, tips: string[] = []) => ({ ...sampleSave(), bag: { 'poke-ball': 3, ...bag }, tips });
+  it('하나면 그것만 · 없으면 빈 목록', () => {
+    expect(evoTipItems(withBag({ 'thunder-stone': 1 }), 'thunder-stone')).toEqual(['thunder-stone']);
+    expect(evoTipItems(withBag({ 'thunder-stone': 1 }), null)).toEqual([]);
+  });
+  it('못 본 것을 모두 묶음 — 엔진이 준 첫째가 앞 · 본 것 · 0개는 뺌', () => {
+    const save = withBag({ 'fire-stone': 1, 'thunder-stone': 2, 'water-stone': 0, 'linking-cord': 1, 'leaf-stone': 1 }, ['evo-leaf-stone']);
+    const got = evoTipItems(save, 'fire-stone');
+    expect(got[0]).toBe('fire-stone');
+    expect([...got].sort()).toEqual(['fire-stone', 'linking-cord', 'thunder-stone']);
+  });
+  it('본 안내 칸이 하나 남으면 첫째만 (못 적을 것을 묶지 않음)', () => {
+    const tips = Array.from({ length: TIPS_MAX - 1 }, (_, i) => `x${i}`);
+    expect(evoTipItems(withBag({ 'fire-stone': 1, 'thunder-stone': 1 }, tips), 'fire-stone')).toEqual(['fire-stone']);
   });
 });

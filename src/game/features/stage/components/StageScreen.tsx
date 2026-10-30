@@ -59,7 +59,7 @@ import { mapView, menuLabels, type Overlay, unspentPoints } from '../../menu/mod
 import { ChoiceBox } from '../../result/components/ChoiceBox';
 import { ResultBox } from '../../result/components/ResultBox';
 import { CAUGHT_INTRO_H, CAUGHT_INTRO_W, caughtView, choiceView, levelUps, needsStatHint } from '../../result/model';
-import { battleStage, buildingDraw, BUILDINGS, TEAM_ARENA, contactX, foeTrainerView, gymEnterView, holdRivalLook, gymFrontX, gymRestX, heroX, minimapOf, sceneBackground, staffLeftPx, type StageObject, stagePx, STAGES, visibleObjects, meetVsAt, vsStartMs, WALK_PX_PER_SEC } from '../model';
+import { battleStage, buildingDraw, BUILDINGS, TEAM_ARENA, contactX, foeTrainerView, gymEnterView, holdRivalLook, gymFrontX, gymRestX, heroX, minimapOf, evoTipItems, sceneBackground, staffLeftPx, type StageObject, stagePx, STAGES, visibleObjects, meetVsAt, vsStartMs, WALK_PX_PER_SEC } from '../model';
 import { BadgeCard, ClearCard, DefeatBox, FacilityBox, HoldBox, LobbyBox, TrainerBanner, VsCutIn, type VsArt } from './FieldBoxes';
 import { GymFront } from './GymFront';
 import { StageToast } from './StageToast';
@@ -527,6 +527,11 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
     const t = window.setTimeout(() => setEvoShown(evoNow), 300);
     return () => window.clearTimeout(t);
   }, [evoNow]);
+  // 걷기 처음 안내가 떠 있으면 기다림 (같은 위 가운데 자리에 겹치던 것 — evoNow) · 0.3초 이어진 뒤 (evoShown)
+  const evoItem = evoShown !== null && evoShown === evoNow ? evoNow : null;
+  // 못 본 진화 아이템이 둘 넘으면 한 상자 (ideas 1631 — 6초 안내가 차례로 이어지던 것) · 보면 모두 본 것
+  const evoItems = evoTipItems(save, evoItem);
+  const evoSeen = () => evoItems.forEach((i) => onInput({ kind: 'tip-seen', id: evoTipId(i) }));
   const tipText = state.runtime.toast?.kind === 'auto-tip' && !walkTipOn && !away ? state.runtime.toast.text : null;
   // 스위치가 있는 곳 (1:1 전투 · 메뉴가 보이는 걷기 · 대기실) 에만 — 없으면 그리지 않음 (머리 위 알림으로 떨어져 병원 앞 · 클리어 카드 상자를 덮고 "[A]" 가 글자로 나오던 것, UX 리뷰어 R12 재확인 큼)
   const autoTip = tipText && (battle || canOpenMenus(state)) ? tipText : null;
@@ -646,7 +651,11 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
               <span class="pg-infobar-ghost" style={{ width: `${rightGhost}px` }} aria-hidden="true" />
             ) : canOpenMenus(state) ? (
               <MenuButtons
-                onOpen={onOpen}
+                // 진화 안내가 떠 있을 때 가방을 마우스로 열어도 본 것 ([B] 키와 같게 — 닫으면 같은 안내가 6초 처음부터 다시 뜨던 것, UX 1631 작음 3)
+                onOpen={(o) => {
+                  if (o.kind === 'bag' && evoItem) evoSeen();
+                  onOpen(o);
+                }}
                 points={unspentPoints(save)}
                 later={save.laterChoices?.length ?? 0}
                 media={media}
@@ -789,19 +798,13 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
           </FirstTip>
         )}
         {/* 진화 아이템 처음 안내 (#125) — 가졌는데 못 본 돌 · 끈 (엔진 evoTipNow: 걷기 · 대기실 · 보는 동안 · 알림 없음 · 결과 · 라이벌 연출 뒤) · 위 가운데 두 줄 6초 (글이 길어 걷기 안내 5초보다 1초 더) · 보는 동안만 셈 */}
-        {(() => {
-          // 걷기 처음 안내가 떠 있으면 기다림 (같은 위 가운데 자리에 겹치던 것 — evoNow) · 0.3초 이어진 뒤 (evoShown)
-          const evoItem = evoShown !== null && evoShown === evoNow ? evoNow : null;
-          return (
-            evoItem && (
-              // 대기실 = 체육관 첫 알림 자리 (바닥 줄 주인공 ~ 관장 사이 — 위 가운데면 대기실 상자 · 도전 버튼을 6초 덮던 것, UX #125 큼) ·
-              //   본 것 = 2.5초 넘게 (두 줄 안내가 1.5초 만에 꺼져도 본 것으로 적혀 다시 안 뜨던 것 — #82 와 같은 종류)
-              <FirstTip key={`evo-${evoItem}`} ms={6000} seenMs={2500} className={stageRt?.phase === 'lobby' ? 'pg-first-tip-low pg-gym-tip pg-evo-tip pg-evo-low' : 'pg-first-tip-top pg-evo-tip'} paused={tipPaused} onSeen={() => onInput({ kind: 'tip-seen', id: evoTipId(evoItem) })}>
-                <EvoTip save={save} item={evoItem} media={media} onUsed={() => onInput({ kind: 'tip-seen', id: evoTipId(evoItem) })} />
-              </FirstTip>
-            )
-          );
-        })()}
+        {evoItem && (
+          // 대기실 = 체육관 첫 알림 자리 (바닥 줄 주인공 ~ 관장 사이 — 위 가운데면 대기실 상자 · 도전 버튼을 6초 덮던 것, UX #125 큼) ·
+          //   본 것 = 2.5초 넘게 (두 줄 안내가 1.5초 만에 꺼져도 본 것으로 적혀 다시 안 뜨던 것 — #82 와 같은 종류)
+          <FirstTip key={`evo-${evoItems.join(',')}`} ms={6000} seenMs={2500} className={stageRt?.phase === 'lobby' ? 'pg-first-tip-low pg-gym-tip pg-evo-tip pg-evo-low' : 'pg-first-tip-top pg-evo-tip'} paused={tipPaused} onSeen={evoSeen}>
+            <EvoTip save={save} items={evoItems} media={media} onUsed={evoSeen} />
+          </FirstTip>
+        )}
         {/* 체육관 첫 알림 (gdd S16 · 기획 R9 ⑤) — 3:3 을 켠 뒤 대기실에 처음 들어갈 때 3초 · 클리어 보상 · 레벨업 알림 (대기실 첫 5초) 이 끝난 뒤 (겹쳐 가리지 않게 — U1). 그 뒤로는 도전 버튼의 "3:3" 칩만 */}
         {stageRt?.phase === 'lobby' && !stageRt.picking && !state.runtime.toast && (BALANCE.team.on || state.runtime.dev?.team === true) && !(save.tips ?? []).includes('gym-team') && (
           // 5초 (약 30글자 + 키 셋 — 걷기 안내와 같은 시간, 3초는 빠듯하던 것) · 밖 · 숨김이면 안 셈 (UX 리뷰어 #27)
