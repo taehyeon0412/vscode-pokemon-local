@@ -45,6 +45,11 @@ LIGHT = r"""
   if (window.__tr) return 'again';
   const t0 = Date.now();
   const K = { phases: [], texts: {}, clip: {}, overlap: {}, cover: {}, straddle: [], hidden: [], down: {}, koText: {}, dts: [], long: [], heap: [], views: [], boot: Math.round(Date.now() - performance.timeOrigin) };
+  // 프레임 사이는 고정 크기 조각 (Float64Array 8192 쌍) 에 — 프레임마다 배열을 새로 만들면 30분 켜 두기에서 기록기 자신이 힙을 늘림 (10-30 힙 스냅샷: 늘어난 28,000 배열 = 이것)
+  const CH = 8192; const chunks = []; let cur = new Float64Array(CH * 2); let ci = 0;
+  // 캔버스 — 기록기를 넣은 뒤 만든 것을 약한 참조로 적음 · 끝에 GC 뒤 살아 있는 것 (크기 · 만든 곳) 을 냄 (4/5 — 새는 캔버스 찾기)
+  const live = []; const ce = Document.prototype.createElement;
+  Document.prototype.createElement = function (tag, ...a) { const el = ce.call(this, tag, ...a); if (String(tag).toLowerCase() === 'canvas' && typeof WeakRef === 'function') { const st = (new Error().stack || '').split('\n').slice(2, 4).map((x) => x.trim().replace(/\(.*\/([^/]+):(\d+):\d+\)/, '($1:$2)')).join(' < '); live.push({ r: new WeakRef(el), t: Date.now() - t0, st }); } return el; };
   let lastPhase = '', lastView = '';
   const tick = () => {
     const now = Date.now() - t0;
@@ -58,7 +63,7 @@ LIGHT = r"""
   };
   const id = setInterval(() => { try { tick(); } catch (e) { K.err = String(e); } }, 100);
   let prev = 0;
-  const loop = (t) => { if (prev) K.dts.push([Date.now() - t0, Math.round((t - prev) * 10) / 10]); prev = t; requestAnimationFrame(loop); };
+  const loop = (t) => { if (prev) { if (ci === CH) { chunks.push(cur); cur = new Float64Array(CH * 2); ci = 0; } cur[ci * 2] = Date.now() - t0; cur[ci * 2 + 1] = Math.round((t - prev) * 10) / 10; ci++; } prev = t; requestAnimationFrame(loop); };
   requestAnimationFrame(loop);
   try { new PerformanceObserver((l) => l.getEntries().forEach((e) => K.long.push([Math.round(Date.now() - t0 - (performance.now() - e.startTime)), Math.round(e.duration)]))).observe({ type: 'longtask', buffered: true }); } catch (e) { K.longErr = String(e); }
   const mem = () => {
@@ -71,7 +76,9 @@ LIGHT = r"""
   const hid = setInterval(mem, 1000);
   // 그림을 그리는 GPU (머리 없는 브라우저가 진짜 그래픽 카드인지 · SwiftShader (CPU 흉내) 인지 — 큰 칠하기 값이 크게 달라짐)
   try { const g = document.createElement('canvas').getContext('webgl'); const x = g && g.getExtension('WEBGL_debug_renderer_info'); K.gl = g ? (x ? g.getParameter(x.UNMASKED_RENDERER_WEBGL) : g.getParameter(g.RENDERER)) : 'webgl 없음'; } catch (e) { K.gl = String(e); }
-  window.__tr = { K, t0, stop: () => { clearInterval(id); clearInterval(hid); mem(); return K; }, fx: () => [] };
+  const flushDts = () => { const all = [...chunks, cur.subarray(0, ci * 2)]; K.dts = []; for (const c of all) for (let i = 0; i < c.length; i += 2) K.dts.push([c[i], c[i + 1]]); };
+  const canv = () => live.map((x) => { const c = x.r.deref(); return c ? [x.t, x.st, c.width, c.height, c.isConnected] : null; }).filter(Boolean);
+  window.__tr = { K, t0, stop: () => { clearInterval(id); clearInterval(hid); mem(); flushDts(); K.canvases = canv(); K.canvasMade = live.length; return K; }, fx: () => [] };
   return 'ok';
 })()
 """
@@ -116,6 +123,8 @@ def recv(self):
             state["trace"].write(json.dumps(e) + "\n")
     elif meth == "Tracing.tracingComplete":
         state["done"] = True
+    elif meth == "HeapProfiler.addHeapSnapshotChunk" and state.get("heapf"):
+        state["heapf"].write(m["params"]["chunk"])
     return m
 
 
@@ -143,6 +152,16 @@ def proc_mem():
 
 
 def call(self, method, params=None):
+    if method == "Page.captureScreenshot" and state.get("heap_at") and state.get("ready") and time.time() - state["ready"] >= state["heap_at"][0]:
+        sec = state["heap_at"].pop(0)
+        _orig_call(self, "HeapProfiler.enable")
+        _orig_call(self, "HeapProfiler.collectGarbage")
+        state["heapf"] = open(os.path.join(state["out"], f"heap_{int(sec)}.heapsnapshot"), "w", encoding="utf-8")
+        try:
+            _orig_call(self, "HeapProfiler.takeHeapSnapshot", {"reportProgress": False})
+        finally:
+            state["heapf"].close()
+            state["heapf"] = None
     if method == "Page.captureScreenshot":
         # 1초에 한 장만 진짜로 (찍기가 프레임을 흔들지 않게) — 나머지는 1 × 1 빈 그림
         # 진짜로 안 찍음 — GPU 켬에서 찍기가 가끔 30초 안에 안 돌아와 판이 깨지고 (10-30 그리기 셈 넷 중 셋 · 3인 합동 둘 다) 찍기 자체가 프레임을 흔듦. 퀄리티 그림은 따로 (같은 순간 찍기)
@@ -158,6 +177,10 @@ def call(self, method, params=None):
         if "__tr ? " in ex and ".stop()" in ex:
             # 끝 — 메모리 (기록기를 멈추기 전 · 같은 때) · Tracing 끝
             state["mem"] = proc_mem()
+            try:
+                _orig_call(self, "HeapProfiler.collectGarbage")
+            except Exception:
+                pass
             if state["draws"]:
                 r = _orig_call(self, "Runtime.evaluate", {"expression": f"{W}.eval({json.dumps(DRAWDUMP)})", "returnByValue": True})
                 state["dc"] = r.get("result", {}).get("value")
@@ -231,6 +254,8 @@ def metrics(K):
 
 
 MSAMP_S = float(kv.get("msamp", "3"))
+# heap=120,580 — 기록기를 넣은 뒤 그 초에 힙 스냅샷 (GC 뒤 · <판>/heap_<초>.heapsnapshot — 4/5 무엇이 늘어나나)
+HEAP_AT = [float(x) for x in kv.get("heap", "").split(",") if x]
 
 
 def sampler(stop, rows, t0):
@@ -243,7 +268,7 @@ def sampler(stop, rows, t0):
 
 def run(cfg, out, draws=False):
     os.makedirs(out, exist_ok=True)
-    state.update(out=out, shot=0.0, mem=None, draws=draws, dc=None)
+    state.update(out=out, shot=0.0, mem=None, draws=draws, dc=None, ready=None, heap_at=list(HEAP_AT), heapf=None)
     import threading
     stop, rows = threading.Event(), []
     th = threading.Thread(target=sampler, args=(stop, rows, time.time()), daemon=True)
@@ -264,7 +289,9 @@ def run(cfg, out, draws=False):
         fr = json.loads(state["dc"]) if isinstance(state.get("dc"), str) else []
         fr = [n for n in fr if n > 0]
         m = {"draw_avg": round(statistics.mean(fr), 1) if fr else 0, "draw_max": max(fr) if fr else 0}
-    json.dump({"cfg": cfg, "m": m, "views": K.get("views"), "phases": K.get("phases"), "long": K.get("long"), "stalls": [x for x in K.get("dts", []) if x[1] > 50]}, open(os.path.join(out, "perf.json"), "w", encoding="utf-8"), ensure_ascii=False)
+    m["canvas_live"] = len(K.get("canvases") or [])
+    m["canvas_made"] = K.get("canvasMade")
+    json.dump({"cfg": cfg, "canvases": K.get("canvases"), "m": m, "views": K.get("views"), "phases": K.get("phases"), "long": K.get("long"), "stalls": [x for x in K.get("dts", []) if x[1] > 50]}, open(os.path.join(out, "perf.json"), "w", encoding="utf-8"), ensure_ascii=False)
     return m
 
 
