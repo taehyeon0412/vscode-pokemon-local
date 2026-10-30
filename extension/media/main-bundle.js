@@ -57802,7 +57802,25 @@ function fxDownAlpha(el) {
 }
 // 쓰러진 칸 지우기 판 두 장 (큰 캔버스와 같은 크기 · 장마다 비우고 화면 좌표로)
 const fxCutL = {};
+// 안 쓰는 동안은 0 × 0 (#140 4/5 — 화면 크기 × 배율 캔버스 둘 · 1.4 MB씩이 판 내내 남던 것) · 2초 넘게 안 부르면 비움 · 다시 부르면 그 크기로 다시 만듦 (1ms 안)
+let fxCutUsed = 0;
+let fxCutTimer = 0;
+function fxCutIdle() {
+    fxCutTimer = 0;
+    if (Date.now() - fxCutUsed < 2000) {
+        fxCutTimer = setTimeout(fxCutIdle, 2100);
+        return;
+    }
+    for (const k of Object.keys(fxCutL)) {
+        fxCutL[k].canvas.width = 0;
+        fxCutL[k].canvas.height = 0;
+    }
+}
 function fxCutCanvas(key) {
+    fxCutUsed = Date.now();
+    if (!fxCutTimer) {
+        fxCutTimer = setTimeout(fxCutIdle, 2100);
+    }
     const w = moveCtx.canvas.width;
     const h = moveCtx.canvas.height;
     if (!fxCutL[key]) {

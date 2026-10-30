@@ -197,6 +197,9 @@ def call(self, method, params=None):
             state["ready"] = time.time()
             if state["draws"]:
                 _orig_call(self, "Runtime.evaluate", {"expression": f"{W}.eval({json.dumps(DRAWJS)})", "returnByValue": True})
+            # 판 표의 initJs — 기록기를 넣을 때 게임 창에서 한 번 (걷기 · 대기실처럼 3:3 이 없는 판도 — 예: 배경 그림 빼고 메모리 견주기)
+            if state.get("init_js"):
+                _orig_call(self, "Runtime.evaluate", {"expression": f"{W}.eval({json.dumps(state['init_js'])})", "returnByValue": True})
             if TRACE and not state["tracing"]:
                 state["trace"] = open(os.path.join(state["out"], "trace.jsonl"), "w", encoding="utf-8")
                 state["done"] = False
@@ -268,7 +271,7 @@ def sampler(stop, rows, t0):
 
 def run(cfg, out, draws=False):
     os.makedirs(out, exist_ok=True)
-    state.update(out=out, shot=0.0, mem=None, draws=draws, dc=None, ready=None, heap_at=list(HEAP_AT), heapf=None)
+    state.update(out=out, shot=0.0, mem=None, draws=draws, dc=None, ready=None, heap_at=list(HEAP_AT), heapf=None, init_js=cfg.get("initJs"))
     import threading
     stop, rows = threading.Event(), []
     th = threading.Thread(target=sampler, args=(stop, rows, time.time()), daemon=True)
