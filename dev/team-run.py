@@ -1,6 +1,7 @@
 """3:3 한 판을 처음부터 끝까지 자동으로 돌려 연속 캡처 + 자동 검사 (2026-10-26 #98 준비 — "팀 10판 큼 0 → 태현 님 10판")
   python dev/team-run.py <out_dir> run=<번호>        dev/team-runs.json 의 그 판 (1 ~)
-  python dev/team-run.py <out_dir> --all [from=<번호>]   10판 차례로 (<out_dir>/run01 …) · 브라우저는 한 번에 1개
+  python dev/team-run.py <out_dir> --all [from=<번호>] [to=<번호>]   표의 판 차례로 (<out_dir>/run01 … · 12 · 13 = 내 혼자 필살기 only 0) · 브라우저는 한 번에 1개
+  python dev/team-run.py <out_dir> run=<번호> bfast=1   남은 k=v 는 그 판 시험 창 매개변수에 더함 (bfast=1 빠르게 켬 — 켬 · 끔 견주기는 dev/team-breakdown.py)
   python dev/team-run.py <out_dir> [size=860x187] [seed=7] [k=v …]   표 없이 한 판 (k=v = dev/game-host.js 매개변수)
   python dev/team-run.py <out_dir> --rejudge   돌리지 않고 저장된 기록 (판 폴더의 raw.json) 으로 검사만 다시
   흐름 = 트레이너 만남 → 3:3 고르기 → 3마리 → VS → 3:3 판 → 결과 상자 (체육관 판 = 개발 메뉴 "관장 3:3" 바로 시작).
@@ -726,7 +727,7 @@ def main():
         start = int(kv.get("from", 1))
         rows = []
         for i, cfg in enumerate(runs, 1):
-            if i < start:
+            if i < start or i > int(kv.get("to", len(runs))):
                 continue
             print(f"run{i:02d} {cfg.get('name')}", flush=True)
             try:

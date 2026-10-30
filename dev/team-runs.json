@@ -11,6 +11,8 @@
     {"name": "8 체육관 240×187 — 관장 3:3 (피카츄 · 이브이 · 잠만보)", "size": "240x187", "seed": 18, "gym": true, "team": [[25, 13], [133, 13], [143, 13]], "events": [{"at": 2.0, "dev": {"kind": "gauge-full"}}, {"at": 12.0, "dev": {"kind": "gauge-full", "side": "foe"}}]},
     {"name": "9 연출 끔 860×150 · 상대 합동 — 루카리오 · 한카리아스 · 메타그로스", "size": "860x150", "seed": 19, "q": {"cutscene": "0"}, "team": [[448, 7], [445, 7], [376, 7]], "events": [{"at": 2.0, "dev": {"kind": "gauge-full", "side": "foe"}}, {"at": 8.0, "dev": {"kind": "gauge-full"}}]},
     {"name": "10 480×150 기본 — 1세대 스타팅 · 내 합동 다음 상대 합동", "size": "480x150", "seed": 20, "team": [[3, 7], [6, 7], [9, 7]], "events": [{"at": 2.0, "dev": {"kind": "gauge-full"}}, {"at": 12.0, "dev": {"kind": "gauge-full", "side": "foe"}}]},
-    {"name": "11 야생 1:1 860×187 — 마지막 기회 · 잡기 타이밍 · 진화 (파이리 진화 바로 앞)", "size": "860x187", "seed": 21, "wild": true, "evolve": true, "team": [[4, 15], [7, 15], [1, 15]], "events": []}
+    {"name": "11 야생 1:1 860×187 — 마지막 기회 · 잡기 타이밍 · 진화 (파이리 진화 바로 앞)", "size": "860x187", "seed": 21, "wild": true, "evolve": true, "team": [[4, 15], [7, 15], [1, 15]], "events": []},
+    {"name": "12 내 혼자 필살기 860×187 — 1세대 스타팅 · 선두 칸만 누름 (only 0 — 내 필살기 큰 이름 · 본편 박자, #138)", "size": "860x187", "seed": 11, "team": [[6, 7], [9, 7], [3, 7]], "events": [{"at": 2.0, "dev": {"kind": "gauge-full"}}], "only": [0]},
+    {"name": "13 내 혼자 필살기 240×150 — 2세대 스타팅 · 선두 칸만 누름 (only 0 — #138)", "size": "240x150", "seed": 13, "team": [[154, 7], [157, 7], [160, 7]], "events": [{"at": 2.5, "dev": {"kind": "gauge-full"}}], "only": [0]}
   ]
 }
