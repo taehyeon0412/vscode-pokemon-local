@@ -12,7 +12,7 @@ import { battleSpritePx, koSinkPx, TYPE_COLOR } from '../model';
 import { Sprite } from '../../../ui/Sprite';
 import type { FxActor } from '../fx/bridge';
 import { TEAM_FX, TeamFxRunner, type TeamSlot } from '../fx/team';
-import { bandDrawn, DUEL_VS_MS, OVER_MSG_MS, VIEW_CHIP_MS, VIEW_WAIT_MS, duelSpots, faintHoldLeft, faintIsBig, faintShortLine, foeWarn, NUM_MIN_REAL_MS, numShown, overLineHold, keepJointChips, plateBoxOf, plateState, stackRows, teamDenyNote, teamGeometry, teamPrompt, viewHitChip, viewPopsBack, warnPosOf, type TeamGeo, type WarnPos, viewCrossers, viewMonClass } from './model';
+import { bandDrawn, DUEL_VS_MS, FAINT_HOLD_MS, FAINT_PANEL_HOLD_MS, FAINT_UNSEEN_MS, OVER_MSG_MS, VIEW_CHIP_MS, VIEW_WAIT_MS, duelSpots, faintHoldLeft, faintIsBig, faintShortLine, foeWarn, NUM_MIN_REAL_MS, numShown, overLineHold, keepJointChips, plateBoxOf, plateState, stackRows, teamDenyNote, teamGeometry, teamPrompt, viewHitChip, viewPopsBack, warnPosOf, type TeamGeo, type WarnPos, viewCrossers, viewMonClass } from './model';
 import { HEAD_NOTE_H, HeadNote, headNoteWidth, pickHeadSpot, useHeldNote } from '../../../ui/HeadNote';
 import { getTeamView, subscribeTeamView, type TeamView } from '../fx/team-view';
 import { cutinArtH, JointNamePlate, TeamCutin } from './TeamCutin';
@@ -541,19 +541,47 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   };
   const bigOnes = faints.filter((p) => faintSeen.current.get(p.id) === true);
   const faintBig = line(bigOnes);
+  const bandNow = realNow();
+  // 쓰러짐 말 한 시계 (ideas 1602 — 띠에 붙인 때 · 판을 연 때 · 줄이 붙은 때 · 힘겨루기 장면 뒤 다시 잡은 때를 따로 세어 #131 "1초 넘게" 가 여섯 번 다시 나온 것):
+  //   말 (엔진 팝업 번호) 마다 실제로 처음 보인 진짜 시각 (띠 끝 · 따로 줄 · 큰 판 · 판 끝 줄 어디든 — 이 그림 끝에서 적음) · 붙잡기는 모두 이것 + FAINT_HOLD_MS (큰 판 접기 FAINT_PANEL_HOLD_MS) ·
+  //   아직 안 보인 말은 "막 보임" (힘겨루기 장면 동안 숨긴 말 — 장면이 끝나 보이는 때부터 셈, 돌아온 뒤 0.8 ~ 0.9초만 보이던 #116 2바퀴) · 이름만 든 곳 (남는 줄 · 판 끝 줄 · 띠) 은 이름 → 번호
+  const faintShown = useRef(new Map<number, number>());
+  const faintSeenAt = useRef(new Map<number, number>());
+  const faintIdOf = useRef(new Map<string, number>());
+  faints.forEach((p) => {
+    faintIdOf.current.set(p.text.replace(FAINT_RE, ''), p.id);
+    if (!faintSeenAt.current.has(p.id)) faintSeenAt.current.set(p.id, bandNow);
+  });
+  for (const [id, at] of faintSeenAt.current) if (!faintShown.current.has(id) && bandNow - at > FAINT_UNSEEN_MS) faintShown.current.set(id, at);
+  // 힘겨루기 장면 (#116) 은 쓰러짐 말을 숨김 — 1.2초를 못 채우고 숨은 말은 "아직 안 보임" 으로 돌려 장면 뒤 줄에서 다시 1.2초 (쓰러짐 직후 끼어들기 → 힘겨루기면
+  //   장면 동안 흐른 시간이 1.2초를 다 먹어 돌아온 뒤 안 뜨던 것 — 1602 UX 큼 · 리자몽 0.4 ~ 0.6초)
+  if (view?.kind === 'duel') {
+    for (const [id, at] of faintShown.current) {
+      if (bandNow - at >= FAINT_HOLD_MS) continue;
+      faintShown.current.delete(id);
+      faintSeenAt.current.set(id, bandNow);
+    }
+  }
+  for (const m of [faintShown, faintSeenAt]) if (m.current.size > 24) m.current = new Map([...m.current].slice(-12));
+  if (faintIdOf.current.size > 24) faintIdOf.current = new Map([...faintIdOf.current].slice(-12));
+  const shownOf = (id: number | undefined) => (id === undefined ? bandNow : (faintShown.current.get(id) ?? bandNow));
+  const faintLeft = (names: readonly string[], hold = FAINT_HOLD_MS) => faintHoldLeft(names.map((nm) => shownOf(faintIdOf.current.get(nm))), bandNow, hold);
+  const namesOf = (ps: typeof faints) => ps.map((p) => p.text.replace(FAINT_RE, ''));
+  // 쓰러짐 줄은 한 번 늘면 안 줄임 (아래 faintStick) — 이름만 들고 시계는 위 한 시계
+  const faintStick = useRef<{ names: string[] } | null>(null);
   // 쓰러짐 말은 모든 폭에서 띠 끝 같은 줄 (240 에서 띠 아래 따로 상자가 "합동! −23" 칩의 앞을 덮고 · 띠 + 상자 + 칩 판 셋이 쌓이던 것 — 아트 디렉터 #95 4바퀴 ② ⑧ · bw-triple-4 쓰러짐 글은 한 자리)
   //   좁아 넘치면 띠가 "N마리 쓰러졌다!" 로 줄임 (TeamBand) · 띠가 닫힐 때까지 그대로
   //   띠 붙잡기 = 엔진 말이 살아 있는 동안 + 띠에 말이 붙은 때부터 1.2초 (좁은 패널은 1.2초 늦게 붙여 말이 0.8초만 보이던 것 — UX 리뷰어 #95 8바퀴 1 · 기획 #131 "쓰러짐 말 1초 넘게")
-  const attach = useRef<{ key: string; at: number } | null>(null);
+  const attach = useRef<{ key: string; names: string[] } | null>(null);
   // 필살기 · 합동 띠가 생긴 때 · 장면 전환이 섰는지 (bandDrawn — 150ms 안에 장면 전환이 안 서면 띠를 그림, #96 코드 리뷰 중간 2)
   const viewWait = useRef<{ key: string; at: number; viewed: boolean } | null>(null);
-  const band = useTeamBand(b, faintBig !== null || (attach.current !== null && realNow() - attach.current.at < 1200));
+  const band = useTeamBand(b, faintBig !== null || (attach.current !== null && faintLeft(attach.current.names) > 0));
   // 띠에 붙은 쓰러짐 말은 띠가 닫힐 때까지 그대로 (글자가 먼저 빠져 띠가 줄며 왼쪽 끝이 50px 튀던 것 — UX 리뷰어 #95 3바퀴)
-  const bandFaint = useRef<{ key: string; text: string; short: string | null } | null>(null);
-  const seenBand = useRef<{ view: TeamBandView; faint: { text: string; short: string | null } | null; at: number } | null>(null);
+  const bandFaint = useRef<{ key: string; text: string; short: string | null; names: string[] } | null>(null);
+  const seenBand = useRef<{ view: TeamBandView; faint: { text: string; short: string | null; names: string[] } | null; at: number } | null>(null);
   const seenBand0 = (key: string) => seenBand.current?.view.key === key;
   if (!band) bandFaint.current = null;
-  else if (faintBig) bandFaint.current = { key: band.key, text: faintBig, short: faintShortLine(bigOnes.map((p) => p.text.replace(FAINT_RE, ''))) };
+  else if (faintBig) bandFaint.current = { key: band.key, text: faintBig, short: faintShortLine(namesOf(bigOnes)), names: namesOf(bigOnes) };
   else if (bandFaint.current && bandFaint.current.key !== band.key) bandFaint.current = null;
   const bandTop0 = infoBarPx + fieldTopPx - topGapPx(heightPx) + 4;
   // 높은 패널 (300 이상) 띠 = 맨 위 그림 칸 위 끝 − 30 (칩 20 + 2 + 8 — 머리 위 숫자 · 합동 칩 자리를 남김. 8 이면 위 빈 풀밭이 200px 인데도 칩이 옆으로 밀리던 것, 아트 디렉터 #95 7바퀴 ① ·
@@ -609,23 +637,13 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   if (faintTaken.current.size > 24) faintTaken.current = new Set([...faintTaken.current].slice(-12));
   const take = (ps: typeof faints) => ps.forEach((p) => faintTaken.current.add(p.id));
   const faintBox = useRef<{ text: string; at: number } | null>(null);
-  const panelFaint = useRef<{ text: string; short: string | null; ids: number[]; at: number } | null>(null);
+  const panelFaint = useRef<{ text: string; short: string | null; ids: number[]; names: string[] } | null>(null);
   // 붙잡기 · 기다림 시간은 진짜 시계 (게임 시계면 ▶▶ ×2 에서 1.2초가 0.6초 — 상대 필살기 띠가 0.85 ~ 0.96초만 보이던 것, UX 리뷰어 #95 13바퀴 큼 1 · 같은 띠 세 번째)
-  const bandNow = realNow();
-  // 쓰러짐 말마다 처음 본 때 — 큰 판이 뜰 때 이미 1초 넘게 보인 말은 접지 않고 넘김 (아래)
-  const faintAt = useRef(new Map<number, number>());
-  // 힘겨루기 장면 (#116) — 쓰러짐 말을 붙잡아 두므로 (아래 duelFaintHold) 뜬 때를 계속 새로 잡고 · 장면이 끝난 첫 그림에서 한 번 더 (장면 끝무렵은 엔진이 붙잡혀
-  //   그림이 드물어 마지막으로 잡은 때가 돌아오기 0.5초 전 — 돌아온 뒤 0.8 ~ 0.9초만 보이던 것, #116 2바퀴)
-  const wasDuel = useRef(false);
-  const duelEnd = view?.kind !== 'duel' && wasDuel.current;
-  wasDuel.current = view?.kind === 'duel';
-  faints.forEach((p) => (view?.kind === 'duel' || duelEnd || !faintAt.current.has(p.id)) && faintAt.current.set(p.id, bandNow));
-  if (faintAt.current.size > 24) faintAt.current = new Map([...faintAt.current].slice(-12));
   // 판이 닫히면 접혀 있던 쓰러짐 말을 넘김 — 처음 보인 지 1.2초가 넘었을 때만 (안 됐으면 줄로 남겨 1.2초를 채움) · 이 그림의 줄 계산보다 먼저
   //   (판이 닫히는 장면에 접힌 말이 줄로 한 장면 다시 뜨고 · 빨리 누르면 0.92 ~ 0.97초만 보이던 것 — UX 리뷰어 #95 11바퀴 2)
   if (!bigOn && panelFaint.current) {
     // (1.0초 — #131 "1초 넘게" · 1.2 로 잡으면 판을 빨리 닫을 때 줄로 0.13 ~ 0.25초 다시 뜨고 합동 띠가 그만큼 늦던 것, UX 리뷰어 #95 12바퀴 6)
-    if (bandNow - panelFaint.current.at >= 1000) take(faints.filter((p) => panelFaint.current!.ids.includes(p.id)));
+    if (faintLeft(panelFaint.current.names, FAINT_PANEL_HOLD_MS) === 0) take(faints.filter((p) => panelFaint.current!.ids.includes(p.id)));
     panelFaint.current = null;
   }
   const freeFaints = faints.filter((p) => !faintTaken.current.has(p.id));
@@ -635,26 +653,25 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   else if (!faintBox.current) faintBox.current = { text: boxText, at: bandNow };
   // 넘겨받기 문턱은 모두 1.2초 (1.0 이면 쓰러짐 줄이 0.95 ~ 1.0초에 넘겨지던 것 — UX 리뷰어 #95 10바퀴 5 · 8바퀴 6 과 같은 종류)
   //   줄에 든 이름 중 가장 늦게 뜬 것부터 셈 (첫 이름으로 세어 뒤에 붙은 "통통코" 가 0.78 ~ 0.87초만 보이던 것 — UX 리뷰어 #95 14바퀴 큼 1 · 진짜 시계로 바꾸며 드러남, #131)
-  const boxAt = boxPs.map((p) => faintAt.current.get(p.id) ?? bandNow);
+  const boxAt = boxPs.map((p) => shownOf(p.id));
   const boxLast = boxAt.length ? Math.max(...boxAt) : bandNow;
   const boxYoung = faintBox.current !== null && faintHoldLeft(boxAt, bandNow) > 0;
   //   결과 줄도 떠 있는 쓰러짐 줄의 가장 늦은 이름이 1.2초 된 뒤 (판 끝 합동으로 셋을 연달아 쓰러뜨리면 마지막 이름이 0.98 ~ 1.0초에 결과 줄로 바뀌던 것 — UX 리뷰어 #95 15바퀴 큼 1 ·
   //   #131 일곱 번째 · 띠에 붙은 말은 attach 가 기다림)
   // 판 끝 (over) 쓰러짐 줄은 한 번 늘어난 글을 줄이지 않고 가장 늦은 이름 + 1.2초에 결과 줄로 한 번에 바꿈 (앞 이름부터 하나씩 빠지며 1.2초 안에 글이 네 번 바뀌고
   //   남은 이름이 앞으로 당겨지던 것 — 아트 디렉터 · UX 리뷰어 #95 16바퀴 작음 · bugs 1655 · BW 말 상자는 통째로 바뀜)
-  const overLine = useRef<{ names: string[]; last: number } | null>(null);
+  const overLine = useRef<{ names: string[] } | null>(null);
   if (b.phase !== 'over') overLine.current = null;
   else if (boxPs.length) {
-    const ol = overLine.current ?? { names: [], last: Number.NEGATIVE_INFINITY };
-    boxPs.forEach((p) => {
-      const nm = p.text.replace(FAINT_RE, '');
-      if (!ol.names.includes(nm)) ol.names.push(nm);
-    });
-    ol.last = Math.max(ol.last, boxLast);
+    const ol = overLine.current ?? { names: [] };
+    namesOf(boxPs).forEach((nm) => ol.names.includes(nm) || ol.names.push(nm));
     overLine.current = ol;
   }
-  const lineYoung = b.phase === 'over' && faintHoldLeft(overLine.current ? [overLine.current.last] : boxAt, bandNow) > 0;
-  const msgOn = b.phase === 'over' && b.overMs >= 1000 && !!b.msg && !(attach.current !== null && realNow() - attach.current.at < 1200) && !lineYoung;
+  const lineYoung = b.phase === 'over' && (overLine.current ? faintLeft(overLine.current.names) : faintHoldLeft(boxAt, bandNow)) > 0;
+  // 결과 줄은 띠에 붙은 말 · 남은 쓰러짐 줄 (faintStick — 힘겨루기 장면 뒤 · 엔진 말이 먼저 끝난 이름) 도 1.2초 된 뒤 (판 끝 "망나뇽 쓰러졌다!" 가 0.3초 만에 결과 줄로 바뀌던 것 — 1602 · run7)
+  const attachYoung = attach.current !== null && faintLeft(attach.current.names) > 0;
+  const stickYoung = faintStick.current !== null && faintLeft(faintStick.current.names) > 0;
+  const msgOn = b.phase === 'over' && b.overMs >= 1000 && !!b.msg && !attachYoung && !stickYoung && !lineYoung;
   // 결과 줄이 진짜 OVER_MSG_MS 보인 뒤에 결과 화면으로 — 엔진 끝 걸음을 붙잡음 (fx/hold holdTeamOver · bugs 1914: 띠 · 쓰러짐 줄 · 힘겨루기 장면을 기다리다 0.4 ~ 0.5초 만에 넘어가던 것)
   const overMsgAt = useRef<number | null>(null);
   if (b.phase !== 'over') overMsgAt.current = null;
@@ -662,8 +679,9 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   holdTeamOver(b.phase === 'over' && b.msg ? (overMsgAt.current !== null ? overMsgAt.current + OVER_MSG_MS : Number.POSITIVE_INFINITY) : 0);
   // VS 띠는 쓰러짐 줄을 기다리지 않고 그 말을 띠 끝에 붙임 (기다리다 720 아래에서 연타 안내에 넘겨 VS 가 0.38 ~ 0.72초만 보이던 것 — UX 리뷰어 #95 10바퀴 2 · 태현 님 #431 같은 종류)
   //   장면 전환 (view) 동안은 띠가 안 보이므로 붙이지 않음 (힘겨루기 장면의 숨은 VS 띠가 쓰러짐 말을 가져가 돌아온 뒤 줄에서 0.8초 만에 빠지던 것 — #116)
-  if (!view && band?.kind === 'vs' && !seenBand0(band.key) && boxYoung && boxText && !bigHide) {
-    bandFaint.current = { key: band.key, text: boxText, short: faintShortLine(boxPs.map((p) => p.text.replace(FAINT_RE, ''))) };
+  //   연출 켬 (장면 전환) 이면 VS 띠는 안 그려지니 (힘겨루기 장면) 가져가지 않고 줄에 남김 — 장면 동안 숨었다 돌아와 다시 1.2초 (가져간 이름이 어디에도 안 남던 것 — 1602 UX 큼 · ▶▶ 480)
+  if (!view && band?.kind === 'vs' && !seenBand0(band.key) && boxYoung && boxText && !bigHide && !(TEAM_FX.view11 && cutscene)) {
+    bandFaint.current = { key: band.key, text: boxText, short: faintShortLine(namesOf(boxPs)), names: namesOf(boxPs) };
     take(boxPs);
   }
   const bandWait = !!band && band.kind !== 'vs' && !seenBand0(band.key) && boxYoung;
@@ -707,7 +725,7 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   //   (이겼다 · 졌다 · VS 는 바로 — 제목이 짧아 같이 들어가고, 늦게 붙이면 결과 줄에 닫혀 말이 1초가 안 됨, UX 리뷰어 #95 11바퀴 4)
   const narrowWait = widthPx < 400 && (bandVis0?.kind === 'ult' || bandVis0?.kind === 'joint') && seenBand.current !== null && bandNow - seenBand.current.at < 1200;
   const inBand = narrowWait ? null : bandVis0 ? bandFaint.current : bandKept ? seenBand.current!.faint : null;
-  if (bandVis && inBand && attach.current?.key !== bandVis.key) attach.current = { key: bandVis.key, at: bandNow };
+  if (bandVis && inBand && attach.current?.key !== bandVis.key) attach.current = { key: bandVis.key, names: inBand.names };
   else if (!bandVis) attach.current = null;
   // 띠가 쓰러짐 줄 자리를 넘겨받은 뒤 (1초 넘게 보인 줄) · 낮은 패널 큰 판이 뜨면 (바로) 쓰러짐 줄을 닫음
   //   (낮은 패널 큰 판도 바로 지우지 않음 — 기획 #131 "쓰러짐 말 1초 넘게 보인 뒤" · 판이 줄 아래에 서고 1.2초 뒤 줄 자리를 넘겨받음)
@@ -727,32 +745,28 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
     const ps = bandShown ? freeNow.filter((p) => faintSeen.current.get(p.id) !== true) : freeNow;
     // 이미 1초 넘게 보인 말은 접지 않고 넘김 (#131 을 채움 — 판 맨 앞에서 2.4초 더 보이며 한 줄 판 제목 앞을 밀어내 "통통코 쓰러졌다! │ 같이 쓰기! [2] 이상해꽃" 으로 읽히고 ·
     //   400 × 187 세로 판이 94 높이로 [3] 거북왕을 덮던 것 — UX 리뷰어 #95 13바퀴 3 · 4 · 5)
-    const young = ps.filter((p) => bandNow - (faintAt.current.get(p.id) ?? bandNow) < 1000);
+    const young = ps.filter((p) => bandNow - shownOf(p.id) < FAINT_PANEL_HOLD_MS);
     take(ps.filter((p) => !young.includes(p)));
     const text = line(young);
     // "N마리" 는 넘칠 때만 (판 자리 효과가 재서 바꿈 — 재지 않고 바꿔 240 에서 이름이 0.13 ~ 0.6초만 보이던 것, UX 리뷰어 #95 12바퀴 3)
-    if (text) panelFaint.current = { text, short: faintShortLine(young.map((p) => p.text.replace(FAINT_RE, ''))), ids: young.map((p) => p.id), at: Math.max(...young.map((p) => faintAt.current.get(p.id) ?? bandNow)) };
+    if (text) panelFaint.current = { text, short: faintShortLine(namesOf(young)), ids: young.map((p) => p.id), names: namesOf(young) };
     apart0 = null;
   }
   // 쓰러짐 줄은 한 번 늘면 안 줄임 — 앞 이름 말 (엔진 팝업) 이 먼저 끝나 "소미안" → "소미안 · 레디바" → "레디바 쓰러졌다!" 로 1.5초에 세 번 바뀌던 것
   //   (UX 리뷰어 #98 2바퀴 ⑦ · 1655 같은 종류) · 마지막 이름이 붙은 뒤 1.2초 (진짜 시계) 에 통째로 닫음 · 띠 · 판으로 넘어가면 (take · 접기) 놓음
-  const faintStick = useRef<{ names: string[]; at: number } | null>(null);
   const liveFaint = apart0 ? apart0.replace(FAINT_RE, '').split(' · ') : [];
   if (boxTaken || panelFaint.current) faintStick.current = null;
   else if (liveFaint.length) {
     const add = liveFaint.filter((nm) => !faintStick.current?.names.includes(nm));
-    if (!faintStick.current) faintStick.current = { names: liveFaint, at: realNow() };
-    else if (add.length) faintStick.current = { names: [...faintStick.current.names, ...add], at: realNow() };
+    if (!faintStick.current) faintStick.current = { names: liveFaint };
+    else if (add.length) faintStick.current = { names: [...faintStick.current.names, ...add] };
   }
   // 힘겨루기 장면 (#116) — 쓰러짐 말이 장면 끝 1:1 큰 글씨 ("힘대결에서 이겼다!" · "거북왕의 하이드로캐논!") 를 덮던 것 → 장면 동안은 안 띄우고 붙잡아 두었다가 돌아온 뒤 그때부터 1.2초
   //   (아래 가운데에 두면 합류 나선 아래 끝 · 줄기를 11 ~ 16줄 덮던 것 — 픽셀 검사원 #116 큼 1 · 위는 결과 글)
   const duelFaintHold = duelView !== null;
-  if ((duelFaintHold || duelEnd) && faintStick.current) faintStick.current = { ...faintStick.current, at: realNow() };
-  else if (!liveFaint.length && faintStick.current && realNow() - faintStick.current.at >= 1200) faintStick.current = null;
+  // 장면 동안 숨긴 이름은 한 시계에서 "막 보임" — 돌아와 보이는 때부터 1.2초 (장면 끝에 시각을 다시 잡던 것을 뺌)
+  if (!duelFaintHold && !liveFaint.length && faintStick.current && faintLeft(faintStick.current.names) === 0) faintStick.current = null;
   if (faintStick.current) apart0 = `${faintStick.current.names.join(' · ')} 쓰러졌다!`;
-  const [, kickStick] = useState(0);
-  const stickLeft = faintStick.current && !liveFaint.length ? faintStick.current.at + 1200 - realNow() : -1;
-  useEffect(() => (stickLeft >= 0 ? realLater(() => kickStick((k) => k + 1), Math.max(16, stickLeft + 20)) : undefined), [faintStick.current?.at, stickLeft >= 0]);
   // 힘겨루기 머릿수가 바뀐 뒤 1초 = 금색 (상대가 끼어들어도 숫자 한 글자만 바뀌어 몰랐던 것 — UX 리뷰어 #95 3바퀴)
   const count = prompt?.kind === 'mash' ? `${prompt.me}:${prompt.foe}` : '';
   const countAt = useRef<{ count: string; at: number }>({ count: '', at: 0 });
@@ -782,6 +796,12 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   const overNames = [...new Set([...(faintStick.current?.names ?? []), ...(overLine.current?.names ?? [])])];
   const overText = b.phase === 'over' && overLineHold(lineYoung, b.overMs, !!b.msg) && !msgOn && !boxTaken && overLine.current?.names.length ? `${overNames.join(' · ')} 쓰러졌다!` : null;
   const apart = duelFaintHold || msgOn || (bigOn && panelFaint.current) ? null : (overText ?? apart0);
+  // 한 시계 (ideas 1602) — 이 그림에 실제로 보이는 쓰러짐 말 (따로 줄 · 판 끝 줄 · 띠 끝 · 큰 판) 의 처음 보인 때를 적음
+  const shownNow = [...(apart ? apart.replace(FAINT_RE, '').split(' · ') : []), ...(bandShown && inBand ? inBand.names : []), ...(bigOn && panelFaint.current ? panelFaint.current.names : [])];
+  for (const nm of shownNow) {
+    const id = faintIdOf.current.get(nm);
+    if (id !== undefined && !faintShown.current.has(id)) faintShown.current.set(id, bandNow);
+  }
   // 기다림 · 붙잡기 끝에 다시 그림 (그림은 열쇠가 바뀔 때만 다시 그려져, 띠 기다림이 끝나도 0.05 ~ 0.5초 늦게 뜨던 것 — UX 리뷰어 #95 10바퀴 4)
   // 장면 전환 피해 칩 (ideas 717 — 장면 동안 판 · 숫자를 숨겨 필살기 · 합동 피해가 안 보이던 것): 장면이 선 뒤 맞는 쪽에 뜬 피해를 합계 칩 하나로 맞는 칸 1:1 자리 머리 위에 ·
   //   진짜 시계 1.2초 (▶▶ 에서도 — ux-rules 화면 붙잡기) · out 에 바둑판으로 사라짐 · 그 숫자는 돌아온 뒤 3:3 자리에 다시 안 띄움 (skip)
@@ -823,8 +843,9 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
     bandWait && faintBox.current ? boxLast + 1200 : 0,
     mashOn && !mashShow && vsSeenAt !== null ? vsSeenAt + 1200 : 0,
     (narrowWait || bandKept) && seenBand.current ? seenBand.current.at + 1200 : 0,
-    attach.current ? attach.current.at + 1200 : 0,
-    lineYoung ? (overLine.current?.last ?? boxLast) + 1200 : 0,
+    // 쓰러짐 말 한 시계 — 보인 말마다 1.2초 · 큰 판 1.0초 끝 · 아직 못 보인 말의 넘김 (띠 붙잡기 · 판 끝 줄 · 남은 줄 · 결과 줄 기다림이 모두 이것)
+    ...[...faintShown.current.values()].flatMap((at) => [at + FAINT_HOLD_MS, at + FAINT_PANEL_HOLD_MS]),
+    ...[...faintSeenAt.current].filter(([id]) => !faintShown.current.has(id)).map(([, at]) => at + FAINT_UNSEEN_MS + 1),
     viewWaitAt !== null ? viewWaitAt + VIEW_WAIT_MS : 0,
     chipOn && vc ? vc.shownAt + VIEW_CHIP_MS : 0,
     // 머릿수 새 표시 1초 끝 (장면 동안 엔진이 붙잡혀 다시 안 그려져 금색이 남던 것)

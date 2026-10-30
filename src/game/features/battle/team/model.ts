@@ -303,6 +303,10 @@ export function viewHitChip(popups: readonly TeamPopup[], side: Side, afterId: n
 /** 쓰러짐 말 넘겨받기 문턱 (1.2초) 까지 남은 ms — 줄에 든 이름 중 가장 늦게 뜬 것부터 셈 (첫 이름으로 세어 뒤 이름이 0.78초 · 판 끝 결과 줄이 마지막 이름을 0.98초에
  *  덮던 것 — UX 리뷰어 #95 14 · 15바퀴, 기획 #131 "쓰러짐 말 1초 넘게") · 이름이 없으면 0 */
 export const FAINT_HOLD_MS = 1200;
+/** 쓰러짐 말을 큰 판 (끼어들기 · 모으기) 에 접을 때 · 판이 닫힐 때 넘기는 문턱 (1.0초 — 1.2 면 판을 빨리 닫을 때 줄로 다시 뜨던 것, UX 리뷰어 #95 12바퀴 6) */
+export const FAINT_PANEL_HOLD_MS = 1000;
+/** 엔진 말을 본 뒤 이만큼 넘게 한 번도 안 보인 쓰러짐 이름은 그때 본 것으로 (한 시계 ideas 1602 — 숨은 이름이 붙잡기를 끝없이 잇지 않게 · 힘겨루기 장면 약 9초보다 길게) */
+export const FAINT_UNSEEN_MS = 12_000;
 export function faintHoldLeft(shownAt: readonly number[], now: number, hold = FAINT_HOLD_MS): number {
   return shownAt.length ? Math.max(0, Math.max(...shownAt) + hold - now) : 0;
 }
