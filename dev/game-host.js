@@ -149,7 +149,21 @@
         save.nextMonsterUid = 3;
         save.settings.autoBattle = battleKind === 'auto';
         // foe=<모습>:<도감 번호> — 상대 포켓몬을 바꿈 (연출 시험: foe=pikachu:25&battle=move&side=foe&mv=87)
-        const [foeForm, foeSp] = (q.get('foe') || 'charmander:4').split(':');
+        // 기본 상대 (foe 를 안 줬을 때) = battle=move 의 기술 타입에 따라 (ideas 1649 — 늘 파이리라 불꽃 기술이 주황 몸에 묻히고 상성도 늘 "별로" 이던 것):
+        //   불 · 얼음 · 벌레 · 강철 = 이상해씨 · 풀 · 전기 = 꼬부기 · 격투 · 페어리 = 꼬렛 · 그 밖 = 파이리 (내가 쓰는 장면만 — 맞는 쪽이 상대 · 그 상대 타입은 종 타입 그대로 · foe= 를 준 시험 · side=foe 는 예전대로 파이리 불 타입)
+        const genJson = (name) => {
+            try {
+                const x = new XMLHttpRequest();
+                x.open('GET', `../src/game/data/generated/${name}.json`, false);
+                x.send();
+                return JSON.parse(x.responseText);
+            } catch {
+                return null;
+            }
+        };
+        const FOE_BY_TYPE = { fire: 'bulbasaur:1', ice: 'bulbasaur:1', bug: 'bulbasaur:1', steel: 'bulbasaur:1', grass: 'squirtle:7', electric: 'squirtle:7', fighting: 'rattata:19', fairy: 'rattata:19' };
+        const autoFoe = !q.get('foe') && battleKind === 'move' && (q.get('side') || 'me') === 'me' ? FOE_BY_TYPE[genJson('moves')?.[String(Number(q.get('mv') || 75))]?.type] : undefined;
+        const [foeForm, foeSp] = (q.get('foe') || autoFoe || 'charmander:4').split(':');
         const wild = { ...save.monsters.m1, uid: 'wild', species: Number(foeSp) || 4, form: foeForm, level: 5, moves: [{ moveId: 52, pp: 25 }], hp: 20, caughtAt: 'forest-1' };
         save.pendingEncounter = { kind: 'wild', monster: wild, start: 'normal' };
         save.dex.seen = [1, 4, 10];
@@ -162,7 +176,7 @@
         const me = fighter(save.monsters.m1, ['grass', 'poison'], { hp: Math.max(21, mhp), attack: 11, defense: 11, speed: 10, ultimate: 12 }, mhp || 15, { gauge: 0.7, ult: q.get('myult') !== null ? Number(q.get('myult')) : 0.45 }); // myult=1 — 필살기 꽉 참 (Z 반짝 사진)
         // fhp=<HP> — 상대 HP (기본 13 · 최대 20) · 크게 주면 한 방에 안 쓰러져 맞는 연출을 끝까지 봄 (#122 — 쓰러짐 연출이 기술마다 맞는 짜임을 가리던 것)
         const fhp = Number(q.get('fhp') || 0);
-        const foe = fighter(wild, ['fire'], { hp: Math.max(20, fhp), attack: 12, defense: 10, speed: 12, ultimate: 11 }, fhp || 13, { gauge: 0.6, ult: q.get('foeult') !== null ? Number(q.get('foeult')) : 0.3 }); // foeult=0.85 · 1 — 상대 필살기 예고 "곧" · "!" 사진 (기획 R4)
+        const foe = fighter(wild, (autoFoe && genJson('species')?.[String(wild.species)]?.types) || ['fire'], { hp: Math.max(20, fhp), attack: 12, defense: 10, speed: 12, ultimate: 11 }, fhp || 13, { gauge: 0.6, ult: q.get('foeult') !== null ? Number(q.get('foeult')) : 0.3 }); // foeult=0.85 · 1 — 상대 필살기 예고 "곧" · "!" 사진 (기획 R4)
         const dur = Number(q.get('dur') || 20000);
         const b = {
             kind: 'wild', me, foe, foeQueue: [], foeDown: [], foeUltWait: null, foeName: null, sendMs: 0, bench: {}, bagUsed: {}, phase: 'run', anim: null, clash: null, result: null, overMs: 0, fleeTries: 0,

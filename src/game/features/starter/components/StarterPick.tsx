@@ -11,6 +11,7 @@ import { confirmKey, onKeyboardButton, useShownAt } from '../../../ui/confirm-ke
 import { KeyCap } from '../../../ui/KeyCap';
 import { InfoBar } from '../../../ui/InfoBar';
 import { contentWidth, FIT_ROOM } from '../../../ui/useFit';
+import { realNow } from '../../../ui/real-clock';
 import { TypeTags } from '../../battle/components/TypeTag';
 import { Sprite } from '../../../ui/Sprite';
 import { moveView } from '../../result/model';
@@ -148,6 +149,12 @@ export function StarterPick({ media, pending, onBack, onDone }: StarterPickProps
 
   // ← → 스타팅 · 1 ~ 4 기술 · Enter 결정 · Esc 뒤로 (듣는 건 한 번만 — 지금 값은 ref)
   const shownAt = useShownAt('starter');
+  // 칩 줄 끝 탭 (‹ ›) 을 마우스로 누른 때 — 그 뒤 1초는 Space 를 결정으로 안 받음 (넘겨 보다 Space 로 한 번 더 넘기려다 그 포켓몬으로 시작하던 것 — ideas 1646 · Enter 는 그대로)
+  const tabAt = useRef(Number.NEGATIVE_INFINITY);
+  const flip = (dir: 1 | -1) => {
+    tabAt.current = realNow();
+    page(dir);
+  };
   const now = useRef({ list, cands, ready, sel, picked, toggle, onBack, onDone, shownAt });
   now.current = { list, cands, ready, sel, picked, toggle, onBack, onDone, shownAt };
   useEffect(() => {
@@ -166,7 +173,7 @@ export function StarterPick({ media, pending, onBack, onDone }: StarterPickProps
         // 버튼에 포커스가 있어도 Enter = 결정 (방금 누른 기술 버튼이 다시 눌려 빠지지 않게 — 플레이 리뷰) · Space 도 결정 (#117 — 마우스로 누른 칩 · 기술 버튼이 Space 로 또 눌려
         //   기술이 빠지던 것 막음 (테스터 · 코드 리뷰어) · Tab 으로 간 버튼은 Space 가 그 버튼 · 화면이 뜬 지 1초 안 · 연타 둘째부터는 결정 안 함)
         e.preventDefault();
-        if (c.ready && confirmKey(e, c.shownAt)) c.onDone(c.sel.dex, c.picked);
+        if (c.ready && confirmKey(e, Math.max(c.shownAt, tabAt.current))) c.onDone(c.sel.dex, c.picked);
       } else if (e.key === 'Escape') {
         e.preventDefault();
         c.onBack();
@@ -280,7 +287,7 @@ export function StarterPick({ media, pending, onBack, onDone }: StarterPickProps
           onScroll={countMore}
         >
           {more[0] > 0 && (
-            <button type="button" class="pg-strip-tab pg-strip-tab-l" tabIndex={-1} onClick={() => page(-1)} aria-label={`왼쪽에 ${more[0]}마리 더`} title={`왼쪽에 ${more[0]}마리 더 — 누르면 넘김 (← →)`}>
+            <button type="button" class="pg-strip-tab pg-strip-tab-l" tabIndex={-1} onClick={() => flip(-1)} aria-label={`왼쪽에 ${more[0]}마리 더`} title={`왼쪽에 ${more[0]}마리 더 — 누르면 넘김 (← →)`}>
               <span class="pg-strip-arrow pg-strip-arrow-l" />
               {more[0]}
             </button>
@@ -291,7 +298,7 @@ export function StarterPick({ media, pending, onBack, onDone }: StarterPickProps
             </button>
           ))}
           {more[1] > 0 && (
-            <button type="button" class="pg-strip-tab pg-strip-tab-r" tabIndex={-1} onClick={() => page(1)} aria-label={`오른쪽에 ${more[1]}마리 더`} title={`오른쪽에 ${more[1]}마리 더 — 누르면 넘김 (← →)`}>
+            <button type="button" class="pg-strip-tab pg-strip-tab-r" tabIndex={-1} onClick={() => flip(1)} aria-label={`오른쪽에 ${more[1]}마리 더`} title={`오른쪽에 ${more[1]}마리 더 — 누르면 넘김 (← →)`}>
               {more[1]}
               <span class="pg-strip-arrow pg-strip-arrow-r" />
             </button>

@@ -73,4 +73,12 @@ describe('Enter 자리의 Space (#117 — 태현 님 "스페이스를 눌러도 
     expect(enterBoxKey({ phase: 'walk' })).toBe('');
     expect(enterBoxKey(null)).toBe('');
   });
+
+  it('S04 칩 줄 끝 탭을 마우스로 누른 뒤도 1초는 Space 결정 아님 (ideas 1646 — StarterPick 은 뜬 때 · 탭 누른 때 중 늦은 것을 넘김) · Enter 는 그대로', () => {
+    const shown = 980_000;
+    const tab = shown + 5000;
+    expect(press(tab + 600, Math.max(shown, tab))).toBe(false);
+    expect(press(tab + SPACE_BOX_MIN_MS + SPACE_RUN_GAP_MS + 100, Math.max(shown, tab))).toBe(true);
+    expect(confirmKey({ ...ENTER, timeStamp: tab + 100 }, Math.max(shown, tab))).toBe(true);
+  });
 });
