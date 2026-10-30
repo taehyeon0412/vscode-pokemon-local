@@ -35,6 +35,9 @@ GPU = kv.get("gpu", "1") == "1"
 DRAWS = kv.get("draws", "1") == "1"
 TRACE = kv.get("trace", "0") == "1"
 CATS = "toplevel,devtools.timeline,disabled-by-default-devtools.timeline,disabled-by-default-devtools.timeline.frame,v8,disabled-by-default-v8.gc,blink.user_timing"
+# prof=1 — JS 표본 (함수마다 걸린 시간 — 무엇이 메인 스레드를 쓰나)
+if kv.get("prof", "0") == "1":
+    CATS += ",disabled-by-default-v8.cpu_profiler"
 
 # 검사기 대신 가벼운 기록기 — 장면 · 프레임 사이 (rAF 시각 = 진짜 시계) 모두 · 긴 일 · 힙 · 켜기 (탐색 시작 → 기록기 = 게임 손잡이가 뜬 뒤)
 LIGHT = r"""
@@ -50,7 +53,8 @@ LIGHT = r"""
     if (ph !== lastPhase) { K.phases.push([now, ph]); lastPhase = ph; }
     const v = d && d.view ? d.view() : null;
     const vk = v ? v.kind + ':' + v.side + ':' + v.phase : '';
-    if (vk !== lastView) { K.views.push([now, vk]); lastView = vk; }
+    if (vk !== lastView) { K.views.push([now, vk]); lastView = vk; try { performance.mark('pg-view:' + (vk || '-')); } catch (e) {} }
+    if (ph !== K.markPh) { K.markPh = ph; try { performance.mark('pg-phase:' + ph); } catch (e) {} }
   };
   const id = setInterval(() => { try { tick(); } catch (e) { K.err = String(e); } }, 100);
   let prev = 0;
@@ -65,6 +69,8 @@ LIGHT = r"""
     K.heap.push([Date.now() - t0, m ? Math.round(m.usedJSHeapSize / 1048576 * 10) / 10 : null, Math.round(cv / 1048576 * 10) / 10, Math.round(img / 1048576 * 10) / 10]);
   };
   const hid = setInterval(mem, 1000);
+  // 그림을 그리는 GPU (머리 없는 브라우저가 진짜 그래픽 카드인지 · SwiftShader (CPU 흉내) 인지 — 큰 칠하기 값이 크게 달라짐)
+  try { const g = document.createElement('canvas').getContext('webgl'); const x = g && g.getExtension('WEBGL_debug_renderer_info'); K.gl = g ? (x ? g.getParameter(x.UNMASKED_RENDERER_WEBGL) : g.getParameter(g.RENDERER)) : 'webgl 없음'; } catch (e) { K.gl = String(e); }
   window.__tr = { K, t0, stop: () => { clearInterval(id); clearInterval(hid); mem(); return K; }, fx: () => [] };
   return 'ok';
 })()
@@ -235,6 +241,7 @@ def run(cfg, out, draws=False):
         fr = json.loads(state["dc"]) if isinstance(state.get("dc"), str) else []
         fr = [n for n in fr if n > 0]
         m = {"draw_avg": round(statistics.mean(fr), 1) if fr else 0, "draw_max": max(fr) if fr else 0}
+    m["gl"] = K.get("gl")
     json.dump({"cfg": cfg, "m": m, "views": K.get("views"), "phases": K.get("phases"), "long": K.get("long"), "stalls": [x for x in K.get("dts", []) if x[1] > 50]}, open(os.path.join(out, "perf.json"), "w", encoding="utf-8"), ensure_ascii=False)
     return m
 

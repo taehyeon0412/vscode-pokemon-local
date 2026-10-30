@@ -691,6 +691,20 @@ function ultEnd(pokemon) {
     pokemon.el.style.visibility = '';
 }
 
+// 한 장 안에서는 같은 몸 상자를 다시 재지 않음 — 시작 연출 기운 발사기가 알갱이마다 getBoundingClientRect 를 불러 빠르게 ▶▶ 에서 레이아웃을 되풀이하던 것
+//   (#140 3/5 — 빠르게 합동 JS 표본에서 getBoundingClientRect 가 둘째로 큼 · 무대 상자 (moveFrame) 가 바뀌면 다시 잼)
+const ultBoxCache = new WeakMap();
+function ultBoxNow(pokemon) {
+    const el = pokemon.collision;
+    const c = ultBoxCache.get(el);
+    if (c && c.n === moveFrameNo && c.f === moveFrame) {
+        return c.r;
+    }
+    const r = el.getBoundingClientRect();
+    ultBoxCache.set(el, { n: moveFrameNo, f: moveFrame, r });
+    return r;
+}
+
 // 쓰는 순간의 위치 · 크기 (SPEC.md 의 u)
 function ultGeometry(pokemon, left) {
     const g = sigGeometry(pokemon, left);
@@ -725,7 +739,7 @@ function ultIntro(pokemon, left, name, sub, o, fx, until, introMs = ULT_INTRO_MS
     ultDimLayer((life) => ULT_DIM * Math.min(1, life / 0.25) * (life > total - outro ? Math.max(0, (total - life) / outro) : 1), total, who);
     // 몸에서 피어오르는 기운 (시작 연출 동안)
     sigEmitter({ until: performance.now() + introMs + 300, rate: 50, fx: () => {
-        const b = pokemon.collision.getBoundingClientRect();
+        const b = ultBoxNow(pokemon);
         sigParticle({ x: b.left + moveRand(0, b.width), y: b.bottom - moveRand(0, 0.3) * b.height, s: S, vy: -moveRand(40, 90) * S / 2, vx: moveRand(-6, 6), max: moveRand(0.4, 0.7), color: movePick(cols), size: movePick([1, 1, 2]), draw: (ctx, p, t, px) => {
             ctx.globalAlpha = fadeInOut(t, 0.1, 0.5);
             dotAt(ctx, px, p.s, p.x, p.y, p.color, p.size, p.size * 2);

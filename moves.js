@@ -22,10 +22,29 @@ const MOVE_SPECIAL = {
     }
     const P = CanvasRenderingContext2D.prototype;
     P.__fxBatch = true;
-    const pend = new WeakMap(); // ctx → { path, q }
+    // ctx → { path, q, col (지금 fillStyle 정리된 글 · 무늬면 null · 모르면 undefined), alpha, op (불투명 #rrggbb 인지) }
+    //   색 · 투명도를 점마다 읽지 않고 기억 (#140 3/5 — 빠르게 합동 JS 가장 큰 몫이 fillStyle 읽기 · 0.49초 / 10초) · restore · reset · 크기 바꾸기 뒤는 다시 읽음
+    const pend = new WeakMap();
     const byCanvas = new WeakMap(); // canvas → ctx (옮겨 그리기 · 크기 바꾸기 전에 내보내려고)
+    const norm = new Map(); // 넣은 색 글 → 캔버스가 정리한 글 ('#FFF' → '#ffffff')
     const fillP = P.fill;
     const fillRectP = P.fillRect;
+    const colD = Object.getOwnPropertyDescriptor(P, 'fillStyle');
+    const alphaD = Object.getOwnPropertyDescriptor(P, 'globalAlpha');
+    const state = (ctx) => {
+        let s = pend.get(ctx);
+        if (!s) {
+            s = { path: null, q: false, col: undefined, alpha: undefined, op: undefined };
+            pend.set(ctx, s);
+            byCanvas.set(ctx.canvas, ctx);
+        }
+        return s;
+    };
+    const forget = (s) => {
+        s.col = undefined;
+        s.alpha = undefined;
+        s.op = undefined;
+    };
     const flush = (ctx) => {
         const s = pend.get(ctx);
         if (s && s.path) {
@@ -42,17 +61,21 @@ const MOVE_SPECIAL = {
     };
     const opaque = /^#[0-9a-f]{6}$/;
     P.fillRect = function (x, y, w, h) {
-        const st = this.fillStyle;
+        const s = state(this);
+        if (s.col === undefined) {
+            s.col = colD.get.call(this);
+            s.op = undefined;
+        }
+        if (s.alpha === undefined) {
+            s.alpha = alphaD.get.call(this);
+        }
+        if (s.op === undefined) {
+            s.op = typeof s.col === 'string' && opaque.test(s.col);
+        }
         // window.__fxBatchOff = 묶지 않음 (같은 그림인지 견주는 시험 — dev/perf-run 퀄리티)
-        if (window.__fxBatchOff || this.globalAlpha !== 1 || typeof st !== 'string' || !opaque.test(st)) {
+        if (window.__fxBatchOff || s.alpha !== 1 || !s.op) {
             flush(this);
             return fillRectP.call(this, x, y, w, h);
-        }
-        let s = pend.get(this);
-        if (!s) {
-            s = { path: null, q: false };
-            pend.set(this, s);
-            byCanvas.set(this.canvas, this);
         }
         if (!s.path) {
             s.path = new Path2D();
@@ -75,33 +98,80 @@ const MOVE_SPECIAL = {
             const f = d.value;
             // 다른 캔버스를 옮겨 그리거나 무늬로 쓰면 그 캔버스 것도 먼저 (겹친 층 캔버스)
             const src = name === 'drawImage' || name === 'createPattern';
+            // 상태를 되돌리는 것 — 기억한 색 · 투명도를 버림
+            const resets = name === 'restore' || name === 'reset';
             P[name] = function (...a) {
                 flush(this);
                 if (src) {
                     flushCanvas(a[0]);
                 }
-                return f.apply(this, a);
+                const r = f.apply(this, a);
+                if (resets) {
+                    const s = pend.get(this);
+                    if (s) {
+                        forget(s);
+                    }
+                }
+                return r;
             };
-        } else if (d.set) {
+        } else if (d.set && name === 'fillStyle') {
             Object.defineProperty(P, name, {
                 configurable: true,
                 enumerable: d.enumerable,
                 get: d.get,
                 set(v) {
-                    const s = pend.get(this);
-                    if (s && s.path) {
-                        // 같은 색을 다시 넣는 것은 묶음을 끊지 않음 (점마다 색을 넣는 그리기가 대부분)
-                        if (name === 'fillStyle') {
-                            const before = d.get.call(this);
+                    const s = state(this);
+                    const known = typeof v === 'string' ? norm.get(v) : undefined;
+                    // 같은 색을 다시 넣는 것은 아무것도 안 함 (점마다 색을 넣는 그리기가 대부분 — 묶음도 안 끊음)
+                    if (known !== undefined && s.col === known) {
+                        return;
+                    }
+                    if (s.path) {
+                        if (known === undefined) {
+                            const before = s.col !== undefined ? s.col : d.get.call(this);
                             d.set.call(this, v);
-                            if (d.get.call(this) === before) {
+                            const now = d.get.call(this);
+                            if (now === before) {
+                                s.col = now;
                                 return;
                             }
                             d.set.call(this, before);
                         }
                         flush(this);
                     }
+                    const prev = s.col;
                     d.set.call(this, v);
+                    let col = known;
+                    if (col === undefined) {
+                        col = d.get.call(this);
+                        // 틀린 색 글은 캔버스가 무시해 앞 색이 남음 — 그런 글은 기억하지 않음 (바뀌었거나 그대로 같은 글일 때만)
+                        if (typeof v === 'string' && norm.size < 2048 && (col !== prev || v.toLowerCase() === col)) {
+                            norm.set(v, col);
+                        }
+                    }
+                    s.col = typeof col === 'string' ? col : null;
+                    s.op = undefined;
+                },
+            });
+        } else if (d.set) {
+            const isAlpha = name === 'globalAlpha';
+            Object.defineProperty(P, name, {
+                configurable: true,
+                enumerable: d.enumerable,
+                get: d.get,
+                set(v) {
+                    const s = pend.get(this);
+                    // 같은 투명도를 다시 넣는 것은 묶음을 끊지 않음
+                    if (isAlpha && s && s.alpha === v) {
+                        return;
+                    }
+                    if (s && s.path) {
+                        flush(this);
+                    }
+                    d.set.call(this, v);
+                    if (isAlpha && s) {
+                        s.alpha = d.get.call(this);
+                    }
                 },
             });
         }
@@ -114,6 +184,11 @@ const MOVE_SPECIAL = {
             Object.defineProperty(C, name, { configurable: true, enumerable: d.enumerable, get: d.get, set(v) {
                 flushCanvas(this);
                 d.set.call(this, v);
+                const ctx = byCanvas.get(this);
+                const st = ctx && pend.get(ctx);
+                if (st) {
+                    forget(st);
+                }
             } });
         }
     }
@@ -136,6 +211,8 @@ let moveCanvas;
 let moveCtx;
 let moveRaf = 0;
 let moveLast = 0;
+// 그린 장 번호 (moveTick 마다 +1) — 한 장 안에서 같은 몸 상자를 다시 재지 않으려고 (ult/core.js ultBoxNow)
+let moveFrameNo = 0;
 let moveAutoStarted = false;
 // 무대 상자 (게임 3:3 필살기 판 — ult/bridge.js, 2026-10-22 orders #95) — { x, y, W, H }: 이 안에서 만든 입자 · 발사기는 상자를 화면으로 알고 그림
 // (상자 왼쪽 위 = 0, 0 · 크기 = W × H). 그 입자를 움직이고 그릴 때 상자로 옮김. 없으면 (일반 모드 · 1:1) 그대로
@@ -620,6 +697,7 @@ function drawParticle(ctx, p) {
 }
 
 function moveTick(now) {
+    moveFrameNo++;
     // 한 장 사이 시간 — 0.25초까지는 실제 시간대로 (2026-10-19: 0.05초로 막았더니 VS Code 가 초당 20장 아래로 느려지면
     // 필살기 장면이 실제 시간보다 몇 초씩 늦어져, 타이머로 먼저 다시 보인 진짜 그림과 아직 그려지는 그림이 둘로 보이고 순간이동처럼 보였음)
     const gap = moveLast ? (now - moveLast) / 1000 : 0;
