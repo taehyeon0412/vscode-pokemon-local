@@ -80,11 +80,13 @@ body.pokemon-game-on {
 }
 
 /* 게임 모드 글꼴 (2026-10-19 태현 님 "맥 글씨처럼 동글동글") — Pretendard 가변 하나로 굵기 45 ~ 920, SIL OFL 1.1 (scripts/fetch-fonts.mjs).
+   PG Sans = 게임에 나오는 글자 + 상용 한글 2,350자만 남긴 Pretendard (2.06 MB → 0.46 MB · 글자 모양 · 굵기 그대로 — dev/font-subset.py, #140 최적화) ·
+   OFL 의 Reserved Font Name 때문에 바꾼 판은 Pretendard 이름을 못 써 이름을 바꿈
    주소는 묶은 game.css (extension/media/game/) 기준 — build.mjs 가 *.woff2 를 묶지 않고 그대로 둠.
    block: 같은 PC 의 파일이라 금방 오는데, 그 사이 맑은 고딕이 보였다가 바뀌며 번쩍이지 않게 */
 @font-face {
-  font-family: 'Pretendard';
-  src: url('../fonts/PretendardVariable.woff2') format('woff2-variations');
+  font-family: 'PG Sans';
+  src: url('../fonts/PGSansVariable.woff2') format('woff2-variations');
   font-weight: 45 920;
   font-style: normal;
   font-display: block;
@@ -101,7 +103,7 @@ body.pokemon-game-on {
   overflow: hidden;
   background: var(--vscode-editor-background);
   color: var(--vscode-foreground);
-  font-family: 'Pretendard', var(--vscode-font-family), sans-serif;
+  font-family: 'PG Sans', var(--vscode-font-family), sans-serif;
   /* 정수 12px (게임 모드는 늘 150px 이상 · 배율 1.3 이라 곱하지 않음 — design-system 4장) */
   font-size: 12px;
   line-height: 1.3;
@@ -4628,7 +4630,7 @@ body.vscode-light .pg-stage.pg-bg-arena-volcano {
   overflow: visible;
 }
 .pg-logo text {
-  font-family: 'Pretendard', sans-serif;
+  font-family: 'PG Sans', sans-serif;
   font-size: 30px;
   font-weight: 900;
 }
@@ -7735,7 +7737,7 @@ body.vscode-high-contrast-light .pg-hpblock > .pg-hprow,
   align-items: center;
   gap: 2px;
   height: 13px;
-  font: 700 11px / 13px Pretendard, sans-serif;
+  font: 700 11px / 13px 'PG Sans', sans-serif;
   white-space: nowrap;
   color: var(--pg-sos-ink);
   text-shadow: 0 1px 0 var(--pg-sos-bar), 1px 0 0 var(--pg-sos-bar), -1px 0 0 var(--pg-sos-bar), 0 -1px 0 var(--pg-sos-bar);

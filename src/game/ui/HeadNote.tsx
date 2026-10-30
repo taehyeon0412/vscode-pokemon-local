@@ -26,7 +26,7 @@ export function headNoteWidth(text: string, keyCap = false): number {
   if (measureCtx === undefined) measureCtx = typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d');
   let w = text.length * 11;
   if (measureCtx) {
-    measureCtx.font = '700 11px Pretendard, sans-serif';
+    measureCtx.font = "700 11px 'PG Sans', sans-serif";
     w = measureCtx.measureText(text).width;
   }
   return Math.ceil(w) + 2 + (keyCap ? 14 : 0);

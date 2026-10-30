@@ -273,9 +273,9 @@ if (!port) {
   const show = () => {
     root.hidden = false;
   };
-  // 글꼴 (Pretendard — game.css @font-face) 까지 받은 뒤에 보임: 글자 없는 버튼이 잠깐 보였다가 글자가 나타나지 않게. 늦어도 0.5초면 보임
+  // 글꼴 (PG Sans — 줄인 Pretendard · game.css @font-face) 까지 받은 뒤에 보임: 글자 없는 버튼이 잠깐 보였다가 글자가 나타나지 않게. 늦어도 0.5초면 보임
   css.onload = () => {
-    void Promise.race([document.fonts.load('600 12px Pretendard'), new Promise((r) => setTimeout(r, 500))]).then(show, show);
+    void Promise.race([document.fonts.load("600 12px 'PG Sans'"), new Promise((r) => setTimeout(r, 500))]).then(show, show);
   };
   css.onerror = show;
   document.head.appendChild(css);

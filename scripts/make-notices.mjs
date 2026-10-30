@@ -4,7 +4,7 @@
 //
 // - PMD SpriteCollab 그림 (CC BY-NC 4.0): pokemon.json 의 포켓몬마다 작가 이름 (sprite/<번호>/credits.txt + credit_names.txt)
 // - PokeAPI 데이터 (BSD 3-Clause): 고정된 커밋의 LICENSE.md 전문 (src/game/data/generated/meta.json 의 ref)
-// - 게임 모드 글꼴 Pretendard (SIL OFL 1.1): extension/media/fonts/Pretendard-LICENSE.txt 전문 (scripts/fetch-fonts.mjs)
+// - 게임 모드 글꼴 PG Sans = 줄인 Pretendard (SIL OFL 1.1): extension/media/fonts/Pretendard-LICENSE.txt 전문 (scripts/fetch-fonts.mjs · dev/font-subset.py)
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -94,8 +94,10 @@ ${sprites.join('\n')}
 ${pokeapiLicense.trim()}
 
 ------------------------------------------------------------
-4. 게임 모드 글꼴 — Pretendard (https://github.com/orioncactus/pretendard), SIL Open Font License 1.1
-   media/fonts/PretendardVariable.woff2 — 버전 1.3.9 의 가변 글꼴을 바꾸지 않고 그대로 넣음 (scripts/fetch-fonts.mjs).
+4. 게임 모드 글꼴 — PG Sans = Pretendard (https://github.com/orioncactus/pretendard) 를 줄인 판, SIL Open Font License 1.1
+   media/fonts/PGSansVariable.woff2 — 버전 1.3.9 의 가변 글꼴에서 게임에 나오는 글자와 상용 한글 2,350자만 남김 (글자 모양 · 굵기는 그대로).
+   바꾼 판 (Modified Version) 이라 OFL 3조 · Reserved Font Name "Pretendard" 에 따라 글꼴 이름을 "PG Sans" 로 바꿈 (scripts/fetch-fonts.mjs · dev/font-subset.py).
+   This font is a subset of Pretendard 1.3.9 (Copyright (c) 2021, Kil Hyung-jin, with Reserved Font Name Pretendard), renamed "PG Sans" as required by the OFL.
 
 ${fontLicense.trim()}
 `;

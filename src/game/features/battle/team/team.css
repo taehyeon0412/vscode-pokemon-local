@@ -109,7 +109,7 @@
   min-width: 14px;
   height: 14px;
   padding: 0 2px;
-  font: 700 11px / 12px Pretendard, sans-serif;
+  font: 700 11px / 12px 'PG Sans', sans-serif;
   text-align: center;
   color: var(--pg-sos-dim);
   background: var(--pg-sos-panel);
@@ -169,7 +169,7 @@
   box-sizing: border-box;
   width: 22px;
   height: 12px;
-  font: 700 11px / 10px Pretendard, sans-serif;
+  font: 700 11px / 10px 'PG Sans', sans-serif;
   text-align: center;
   color: var(--pg-sos-ult);
   background: var(--pg-sos-bar);
@@ -241,7 +241,7 @@
   margin: 0 auto;
   padding: 0 8px 0 2px;
   overflow: hidden;
-  font: 700 13px / 16px Pretendard, sans-serif;
+  font: 700 13px / 16px 'PG Sans', sans-serif;
   white-space: nowrap;
   color: var(--pg-sos-gold);
   background: var(--pg-sos-bar);
@@ -368,7 +368,7 @@
 #pokemon-game .pg-team-pop {
   position: absolute;
   transform: translate(-50%, -100%);
-  font: 700 13px / 1 Pretendard, sans-serif;
+  font: 700 13px / 1 'PG Sans', sans-serif;
   color: var(--pg-sos-red);
   /* 2칸 짙은 테 (game.css --pg-num-ring — 1:1 .pg-pop 과 같은 값 · bugs 2707 ③) */
   text-shadow: var(--pg-num-ring);
@@ -432,7 +432,7 @@
   /* 한 줄 24 = 띠 · 쓰러짐 줄과 같은 높이 (결과 줄 · 연타 안내만 28 이라 240 에서 VS 띠가 연타 안내로 바뀌면 아래 끝이 4px 내려가던 것 — 아트 디렉터 #95 13바퀴 2) · 큰 판은 따로 */
   padding: 3px 8px;
   /* 13 = 띠와 같은 크기 (쓰러짐 줄 · 결과 줄 · 연타 안내가 12 라 같은 말이 띠 안 13 · 따로 12 이던 것 — 아트 디렉터 #95 12바퀴 4 · design-system 4장 한 줄 말 13) */
-  font: 700 13px / 16px Pretendard, sans-serif;
+  font: 700 13px / 16px 'PG Sans', sans-serif;
   color: var(--pg-sos-ink);
   background: var(--pg-sos-bar);
   border: 1px solid var(--pg-sos-gold);
@@ -510,7 +510,7 @@
   /* 한 줄 고정 · 아래 틈 5 (선 ↔ 제목 틈과 같게 — 3 이면 밑줄처럼 보이던 것, 아트 디렉터 #95 11바퀴 2) */
   white-space: nowrap;
   padding-bottom: 5px;
-  font: 500 13px / 16px Pretendard, sans-serif;
+  font: 500 13px / 16px 'PG Sans', sans-serif;
   color: var(--pg-sos-ink);
   border-bottom: 1px solid var(--pg-sos-line-soft);
 }
@@ -926,7 +926,7 @@
   box-sizing: border-box;
   height: 12px;
   padding: 0 2px;
-  font: 700 11px / 10px Pretendard, sans-serif;
+  font: 700 11px / 10px 'PG Sans', sans-serif;
   white-space: nowrap;
   color: var(--pg-sos-gold);
   background: var(--pg-sos-bar);
@@ -985,7 +985,7 @@
   max-width: calc(100% - 8px);
   margin: 0 auto;
   padding: 0 8px;
-  font: 700 12px / 14px Pretendard, sans-serif;
+  font: 700 12px / 14px 'PG Sans', sans-serif;
   white-space: nowrap;
   color: var(--pg-sos-ink);
   background: var(--pg-sos-bar);
@@ -1290,7 +1290,7 @@
   /* 남색 바탕 — 속도선이 글자 뒤를 지나 "-이상해꽃" 처럼 보이던 것 */
   padding: 0 4px;
   background: var(--pg-sos-bar);
-  font: 700 13px / 16px Pretendard, sans-serif;
+  font: 700 13px / 16px 'PG Sans', sans-serif;
   color: var(--pg-sos-ink);
   white-space: nowrap;
 }
@@ -1328,7 +1328,7 @@
 /* 큰 필살기 이름 — 1:1 컷인 큰 글씨 (ult/core.js ultTitle) 와 같은 모양: 900 · 칠 = 하양 → 금 세로 그라데이션 · 안쪽 1px 짙은 금 테 + 바깥 2px 검은 테 (1px 단위 · 흐림 없음) ·
    상대 = VS 빨강 (ultTitle VS 색) · 위 작은 줄 = 크림 13 + 2px 남색 테 */
 #pokemon-game .pg-cutin-title b {
-  font: 900 28px / 32px Pretendard, sans-serif;
+  font: 900 28px / 32px 'PG Sans', sans-serif;
   color: transparent;
   /* 줄 높이마다 되풀이 — 두 줄 이름 (splitName) 도 줄마다 하양 → 금 */
   background: linear-gradient(180deg, #ffffff 0%, #fffbe0 30%, #ffe680 62%, #f5c400 100%) 0 0 / 100% 32px repeat-y;
@@ -1346,7 +1346,7 @@
     drop-shadow(1px 0 0 #0a0500) drop-shadow(-1px 0 0 #0a0500) drop-shadow(0 1px 0 #0a0500) drop-shadow(0 -1px 0 #0a0500);
 }
 #pokemon-game .pg-cutin-sub {
-  font: 700 13px / 16px Pretendard, sans-serif;
+  font: 700 13px / 16px 'PG Sans', sans-serif;
   color: var(--pg-sos-ink);
   text-shadow: 2px 0 0 #0c101e, -2px 0 0 #0c101e, 0 2px 0 #0c101e, 0 -2px 0 #0c101e, 2px 2px 0 #0c101e, -2px 2px 0 #0c101e, 2px -2px 0 #0c101e, -2px -2px 0 #0c101e;
 }
@@ -1404,7 +1404,7 @@
 /* 이름 = 컷인 큰 제목과 같은 칠 (하양 → 금 네 단계 · 줄 높이마다) · 판이 남색이라 바깥 테도 남색 (1px 짙은 금 + 2px #0c101e — filter 로 칠 아래에, 아트 디렉터 #96 5바퀴 B) */
 #pokemon-game .pg-jname-text {
   margin-left: 6px;
-  font: 700 20px / 24px Pretendard, sans-serif;
+  font: 700 20px / 24px 'PG Sans', sans-serif;
   color: transparent;
   background: linear-gradient(180deg, #ffffff 0%, #fffbe0 30%, #ffe680 62%, #f5c400 100%) 0 0 / 100% 24px repeat-y;
   -webkit-background-clip: text;

@@ -10267,8 +10267,8 @@ function ultCutIn(pokemon, left, cols, sec, yc = 0.36, hf = 0.3, solo = false, h
 // 상대 큰 글씨 색 (하양 → 빨강 · 테 짙은 빨강) — VS · 3:3 장면 전환 상대 필살기 이름 (합동 큰 컷인 상대 띠와 같은 빨강, 아트 디렉터 #98 ⑥)
 const ULT_FOE_TITLE = ['#ffffff', '#ffe0d0', '#ff5a3c', '#7a0a0a'];
 // 큰 글씨 — 크게 쾅 박혔다가 자리 잡음, 반짝 지나감. cols 를 주면 그 색으로 (기본 금색), yc = 높이(패널 비율), k = 크기 배수
-// 필살기 글자 글꼴 — 게임 모드는 게임 글꼴 (Pretendard, 가변 굵기라 900 그대로), 일반 모드는 그대로
-const ultFont = () => (typeof fxInGame === 'function' && fxInGame() ? "'Pretendard', sans-serif" : 'sans-serif');
+// 필살기 글자 글꼴 — 게임 모드는 게임 글꼴 (PG Sans — 줄인 Pretendard, 가변 굵기라 900 그대로), 일반 모드는 그대로
+const ultFont = () => (typeof fxInGame === 'function' && fxInGame() ? "'PG Sans', sans-serif" : 'sans-serif');
 // 큰 이름 글씨가 사라지는 때 (performance.now) — 게임 화면 먹구름이 그 뒤에 나타남 (글씨가 반투명으로 구름 위에 남던 것, #96 아트 3바퀴 4)
 let ultTitleUntil = 0;
 function ultTitle(text, sub, cols, sec, yc = 0.36, k0 = 1, at = null) {
