@@ -36,7 +36,7 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
   //   첫 줄만 잼 — 버튼 줄까지 재면 버튼 줄이 넘칠 때 (그건 rowFit 몫) 자리가 있는 첫 줄에서 이름 · 타입이 빠지고 처음 열기와 크기 바꾼 뒤가 달랐음 (UX 작음 묶음 3 큼 2)
   const learnFit = useFit(box, 2, ':scope > .pg-line:first-child');
   const noType = learnFit >= 2;
-  // 타입을 뺀 뒤에도 윗줄이 넘치면 한 단계씩 — 위력 (숫자만 남기면 뜻이 없어 PP 와 헷갈림 — #119 · UX #137) → "★" 와 "—" (240 맥 · 잊을 기술 고른 뒤 7글자 이름에서 "대신?" 이 잘리던 것, bugs 1689 · U4)
+  // 타입을 뺀 뒤에도 윗줄이 넘치면 한 단계씩 — 위력 (숫자만 남기면 뜻이 없어 PP 와 헷갈림 — #119 · UX #137) → "—" (★ 는 1671 에서 얼굴로 바뀜 · 240 맥 · 잊을 기술 고른 뒤 7글자 이름에서 "대신?" 이 잘리던 것, bugs 1689 · U4)
   //   그래도 넘치면 (맥 · 240 ~ 252 · 7글자 이름 둘 · 고른 뒤 — "플레어드라이브 아프로브레이크 대신?" 12.6px) 두 줄로 (뜻을 지움 대신 — 150 높이에서도 한 줄 들어감)
   const tight = useFit(box, 3, ':scope.pg-no-type > .pg-line:first-child');
   // 600 넘는 폭의 버튼 줄 (한 줄 여섯 칸) 이 넘치면 한 단계씩 — 버튼 안 위력 → 두 칸 두 줄 (600 고정 경계 바로 위 602 ~ 720 에서 "1 몸통박치기 위…" 로 잘리던 것, UX #137 · #429)
@@ -49,6 +49,12 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
     const over = Array.from(box.current.querySelectorAll<HTMLElement>('.pg-learn-row .pg-button')).some((b) => b.clientWidth > 0 && b.scrollWidth > b.clientWidth + 0.5);
     if (over) setPadTight(true);
   });
+  // 패널 크기가 바뀌면 처음부터 다시 잼 (601 넘게 한 번 거친 뒤 줄여도 좁은 여백이 남던 것 — UX 1671 작음 4 · useFit 과 같은 규칙)
+  useEffect(() => {
+    const reset = () => setPadTight(false);
+    window.addEventListener('resize', reset);
+    return () => window.removeEventListener('resize', reset);
+  }, []);
   const [keep, setKeep] = useState<number[]>([]);
   // S23 — 잊을 기술 (고른 칸 번호, 결정 전)
   const [forget, setForget] = useState<number | null>(null);
@@ -121,11 +127,11 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
         {/* 한 줄은 글 하나로 (줄 칸 사이 간격이 글 사이에 끼지 않게) · 좁으면 (600px 아래) "★ 잎날가르기 풀 55 — 잊을 기술을 골라요" 로 (이름 · "배울 수 있어요" 를 뺌 — U4 줄임표 대신) */}
         <span class="pg-line">
           <span class="pg-ellipsis">
-            {tight < 2 && (
-              <>
-                <span class="pg-up">★</span>{' '}
-              </>
-            )}
+            {/* 배우는 포켓몬 얼굴 (ideas 1671 — 600 아래 · 넘치면 이름이 빠져 누가 배우는지 안 보이던 것 · 팀 경험치로 둘이 연달아 배울 때) · 진화 아이템 안내 얼굴과 같은 22px ·
+                얼굴이 맨 앞을 맡아 ★ 는 뺌 (★ 뒤 얼굴이 "★ 등급 포켓몬" 으로 읽히고 · ★ 자리 14px 로 좁은 폭에서 위력 · 타입이 일찍 빠지던 것 — UX 1671 작음 1 · 2) */}
+            <span class="pg-learn-face" title={view.name}>
+              <Sprite media={media} form={view.monster.form} shiny={view.monster.shiny} scale={1} crop={22} center />
+            </span>
             <span class="pg-learn-long pg-learn-name">{withJosa(view.name, '이/가')} </span>
             <b title={view.move.detail}>{view.move.name}</b>
             {/* 긴 줄은 괄호로 — 조사가 이름에 붙어 읽힘 ("위력 120를" 처럼 숫자 뒤에 붙던 것, bugs 2707) */}

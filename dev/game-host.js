@@ -258,6 +258,13 @@
         if (scene === 'result' && q.get('evonote')) stage.summary = { ...stage.summary, item: '천둥의돌', evoNote: '피카츄 → 라이츄 진화 가능' };
         if (scene === 'result' && q.get('ups') === '0') stage.summary = { ...stage.summary, exp: [{ uid: 'm1', name: '이상해씨', gain: 28, from: 5, to: 5 }], learned: [] };
         if (scene === 'learn') save.pendingChoices = [{ kind: 'learn', uid: 'm1', moveId: 75 }];
+        // learn2=1 — 둘째 포켓몬 (뷰티플라이 · 이로치) 이 7글자 기술 (플레어드라이브) 을 배우는 장면 (팀 경험치로 연달아 배울 때 둘째 차례 — ideas 1671 얼굴 칸)
+        if (scene === 'learn' && q.get('learn2') === '1') {
+            save.monsters.m2 = { ...save.monsters.m1, uid: 'm2', species: 12, form: 'butterfree', level: 15, shiny: true, caughtAt: 'forest-1' };
+            save.party = [...save.party, 'm2'];
+            save.nextMonsterUid = Math.max(save.nextMonsterUid, 3);
+            save.pendingChoices = [{ kind: 'learn', uid: 'm2', moveId: 394 }];
+        }
         if (scene === 'evolve' || scene === 'evolve-pick' || scene === 'evolve-wait') save.pendingChoices = [{ kind: 'evolve', uid: 'm1', to: 2, newMoves: [75, 76], level: 16, item: null }];
         runtime = { rngState: 1, stepAccMs: 0, speed: 1, stage, stageId: 'forest-1', toast: null };
     }

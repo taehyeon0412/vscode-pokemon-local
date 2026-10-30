@@ -7211,6 +7211,16 @@ body.vscode-high-contrast-light .pg-hpblock > .pg-hprow,
 .pg-result-nokey .pg-button .pg-menu-key {
   display: none;
 }
+/* 기술 배우기 — 배우는 포켓몬 얼굴 22px (ideas 1671) · 위아래 3px 씩 줄 밖으로 넘겨 첫 줄 높이 16 그대로 (150 높이에서 상자가 커져 주인공을 덮지 않게) */
+.pg-learn-face {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  margin: -3px 3px -3px 0;
+  overflow: hidden;
+  vertical-align: middle;
+  line-height: 0;
+}
 /* 기술 배우기 넘치면 한 단계 1 = 배우는 포켓몬 이름 뺌 (타입은 남김 — ideas 1664) */
 .pg-learn-noname .pg-learn-name {
   display: none;
