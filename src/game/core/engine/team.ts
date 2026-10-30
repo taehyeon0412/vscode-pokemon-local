@@ -431,10 +431,9 @@ function damage(b: TeamBattle, side: Side, from: number, to: number, power: numb
 function faint(b: TeamBattle, side: Side, slot: number): void {
   const f = b[side][slot]!;
   f.gauge = 0;
-  // 양쪽에 같은 종이 있으면 (거울 대결) 상대 쪽은 "상대 ○○" — 같은 이름 둘이 한 줄 ("꼬렛 쓰러졌다!") 로 합쳐져 어느 쪽인지 모르던 것 (ideas 742)
-  //   거울 대결이면 상대 이름은 모두 — 섞인 줄에서 "상대" 없는 이름 = 내 포켓몬 (ideas 743 · 줄 순서는 team/model faintLine)
-  const mirror = side === 'foe' && b.foe.some((o) => o && b.me.some((m) => m?.species === o.species));
-  popup(b, side, slot, `${mirror ? '상대 ' : ''}${nameOf(f)} 쓰러졌다!`, 'info');
+  // 상대 쪽은 늘 "상대 ○○" (3:3 = 트레이너 · 관장전 — 원작 트레이너전과 같은 말 · ideas 748, 거울 대결에서만 붙어 판마다 규칙이 달라 보이던 것) ·
+  //   같은 이름 둘이 한 줄로 합쳐지지 않고 (742) · 섞인 줄에서 "상대" 없는 이름 = 내 포켓몬 (743 · 줄 순서는 team/model faintLine)
+  popup(b, side, slot, `${side === 'foe' ? '상대 ' : ''}${nameOf(f)} 쓰러졌다!`, 'info');
   note(b, { t: 'faint', side, slot });
   if (side === 'foe') b.foeDown = [...b.foeDown, { species: f.species, level: f.level }];
   b.ultReadyAt[side][slot] = null;

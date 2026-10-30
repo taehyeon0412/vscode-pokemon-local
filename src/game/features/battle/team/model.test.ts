@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { numShown, NUM_MIN_REAL_MS, NUM_SHOW_MS, bandDrawn, bandLeft, duelSpots, faintHoldLeft, foeUltSoon, JOINT_CHIP_MS, keepJointChips, faintIsBig, faintLine, faintShortLine, faintShow, overLineHold, plateBoxOf, stackRows, TEAM_ROW_GAP, teamGeometry, viewHitChip, viewPopsBack, warnPosOf, type WarnPos, viewCrossers, viewMonClass, teamDenyNote } from './model';
+import { numShown, NUM_MIN_REAL_MS, NUM_SHOW_MS, bandDrawn, bandLeft, duelSpots, faintHoldLeft, foeUltSoon, JOINT_CHIP_MS, keepJointChips, faintFold, faintFresh, faintIsBig, faintLine, faintUnsee, faintShortLine, faintShow, overLineHold, plateBoxOf, stackRows, TEAM_ROW_GAP, teamGeometry, viewHitChip, viewPopsBack, warnPosOf, type WarnPos, viewCrossers, viewMonClass, teamDenyNote } from './model';
 import { sampleMonster, sampleSave } from '../../../../test/fixtures/save';
 import { startTeamBattle, type TeamBattle } from '../../../core/engine/team';
 
@@ -296,10 +296,53 @@ describe('3:3 위 가운데 줄 — 띠 · 쓰러짐 줄 · 결과 줄 (픽셀 �
     }
   });
 
+  it('1922 · 748 — 쓰러짐 줄 접기: 1 = 상대 이름 둘 넘으면 "상대 N마리" · 2 = 내 이름도 · 한 마리는 이름 그대로 · 바뀌는 게 없으면 null', () => {
+    const four = ['아리아도스', '상대 헤라크로스', '상대 장크로다일', '상대 메타그로스'];
+    expect(faintFold(four, 1)).toBe('아리아도스 · 상대 3마리 쓰러졌다!');
+    expect(faintFold(four, 2)).toBe('아리아도스 · 상대 3마리 쓰러졌다!');
+    expect(faintFold(['상대 피죤', '아리아도스', '뷰티플라이'], 1)).toBeNull();
+    expect(faintFold(['상대 피죤', '아리아도스', '뷰티플라이'], 2)).toBe('2마리 · 상대 피죤 쓰러졌다!');
+    expect(faintFold(['통통코', '소미안', '상대 피죤', '상대 꼬렛'], 2)).toBe('2마리 · 상대 2마리 쓰러졌다!');
+    expect(faintFold(['통통코'], 2)).toBeNull();
+  });
+
+  it('748 — 숨은 이름은 1.2초를 못 채웠을 때만 "아직 안 보임" 으로 (판이 접힌 말을 뺄 때 · 힘겨루기 장면)', () => {
+    // 1 = 판 앞 0.14초 보임 (돌림) · 2 = 1.3초 보임 (그대로) · 3 = 아직 안 보임 (그대로 없음)
+    const shown = new Map([
+      [1, 10_000],
+      [2, 8_840],
+    ]);
+    const seenAt = new Map([
+      [1, 10_000],
+      [2, 8_800],
+      [3, 10_100],
+    ]);
+    expect(faintUnsee(shown, seenAt, [1, 2, 3], 10_140)).toEqual([1]);
+    expect([...shown.keys()]).toEqual([2]);
+    expect(seenAt.get(1)).toBe(10_140);
+    expect(seenAt.get(3)).toBe(10_100);
+    // 판이 닫혀 줄로 돌아온 때부터 다시 1.2초 — 줄이 0.6초 만에 닫히지 않음
+    expect(faintHoldLeft([shown.get(1) ?? 10_640], 10_640)).toBe(1200);
+  });
+
+  it('748 UX 큼 2 — 줄이 넘치면 1.2초 넘게 본 이름부터 뺌 (0.3초 본 이름을 "상대 N마리" 로 묶지 않게)', () => {
+    const names = ['아리아도스', '상대 헤라크로스', '상대 장크로다일', '상대 메타그로스'];
+    // 아리아도스 · 헤라크로스 = 1.2초 넘게 봄 · 장크로다일 0.3초 · 메타그로스 막 붙음 (아직 안 셈)
+    expect(faintFresh(names, [8_000, 8_700, 9_700, undefined], 10_000)).toEqual(['상대 장크로다일', '상대 메타그로스']);
+    expect(faintLine(faintFresh(names, [8_000, 8_700, 9_700, undefined], 10_000)!)).toBe('상대 장크로다일 · 상대 메타그로스 쓰러졌다!');
+    // 다 어리면 그대로 (접기로) · 다 1.2초 넘으면 그대로 (줄이 곧 닫힘)
+    expect(faintFresh(names, [9_500, 9_600, 9_700, 9_800], 10_000)).toBeNull();
+    expect(faintFresh(names, [1_000, 1_000, 1_000, 1_000], 10_000)).toBeNull();
+  });
+
   it('띠 끝 쓰러짐 말을 줄이면 "2마리 쓰러졌다!" · 하나면 줄이지 않음', () => {
     expect(faintShortLine(['통통코', '소미안'])).toBe('2마리 쓰러졌다!');
     expect(faintShortLine(['통통코', '통통코'])).toBeNull();
     expect(faintShortLine(['레디바'])).toBeNull();
+    // 748 — 한 마리 상대는 내 팀에 같은 이름이 없으면 "상대" 를 뺀 이름 (240 판에서 통째로 빠지지 않게) · 같은 이름이 있으면 줄이지 않음
+    expect(faintShortLine(['상대 통통코'], new Set(['치코리타', '브케인']))).toBe('통통코 쓰러졌다!');
+    expect(faintShortLine(['상대 리자몽'], new Set(['리자몽']))).toBeNull();
+    expect(faintShortLine(['상대 통통코', '상대 레디바'], new Set())).toBe('2마리 쓰러졌다!');
   });
 
   it('ideas 743 — 쓰러짐 한 줄은 내 이름 먼저 · "상대 ○○" 는 뒤로 (거울 대결 "상대 리자몽 · 망나뇽" 의 "상대" 가 망나뇽에도 걸려 읽히던 것) · 같은 이름 하나', () => {

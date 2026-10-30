@@ -287,8 +287,13 @@
   color: var(--pg-sos-ink);
 }
 #pokemon-game .pg-band-short .pg-band-sub,
-#pokemon-game .pg-band-shorter .pg-band-title {
+#pokemon-game .pg-band-shorter .pg-band-title,
+#pokemon-game .pg-band-carry {
   display: none;
+}
+/* VS 띠가 뒷말을 빼도 넘겨받은 앞 필살기 이름 ("용성군!") 은 남김 — 720 아래 "한카리아스 용성군!" 이 0.33초로 끝나던 것 (bugs 1925 · U1 보인 띠 1.2초) */
+#pokemon-game .pg-band-vs.pg-band-short .pg-band-sub.pg-band-carry {
+  display: inline;
 }
 /* 합동 · 혼자 필살기 띠는 줄일 때 포켓몬 이름 (얼굴이 말함) 을 먼저 빼고 뜻 ("합동!" · 필살기 이름) 을 남김 — 240 에서 얼굴 셋만 남던 것 (아트 디렉터 #95 3바퀴 · 원칙 5) ·
    쓰러짐 말이 붙어 넘치면 필살기 이름이 빠져 0.56 ~ 0.93초만 보이던 것 (UX 리뷰어 #95 6바퀴 큼 1 — "[얼굴] 플레어드라이브! │ 레디바 쓰러졌다!") */

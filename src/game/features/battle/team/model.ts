@@ -311,6 +311,27 @@ export function faintHoldLeft(shownAt: readonly number[], now: number, hold = FA
   return shownAt.length ? Math.max(0, Math.max(...shownAt) + hold - now) : 0;
 }
 
+/** 쓰러짐 줄이 넘칠 때 먼저 뺄 이름 = 처음 보인 지 1.2초가 넘은 이름 (#131 을 채움) · 남는 이름 = 아직 안 보였거나 1.2초 안 · 바뀌는 게 없거나 다 빠지면 null
+ *  (748 UX 큼 2 — 넷째 이름이 붙자 0.3초 본 "상대 메타그로스" 까지 "상대 3마리" 로 묶이던 것 · 접기 (faintFold) 는 남은 이름으로도 넘칠 때만) */
+export function faintFresh(names: readonly string[], shownAt: readonly (number | undefined)[], now: number): string[] | null {
+  const keep = names.filter((_, i) => shownAt[i] === undefined || now - shownAt[i]! < FAINT_HOLD_MS);
+  return keep.length && keep.length < names.length ? keep : null;
+}
+
+/** 숨은 쓰러짐 이름을 한 시계에서 "아직 안 보임" 으로 돌림 — 처음 보인 지 1.2초가 안 된 것만 (다시 보이는 때부터 1.2초) · 안 보인 채 흐른 시간도 처음부터 · 돌린 번호
+ *  (힘겨루기 장면 #116 · 큰 판이 넘쳐 접힌 말을 뺄 때 748 — 판 앞 0.14초부터 세어 판이 닫힌 뒤 줄이 0.6초 만에 닫히던 것) */
+export function faintUnsee(shown: Map<number, number>, seenAt: Map<number, number>, ids: Iterable<number>, now: number): number[] {
+  const out: number[] = [];
+  for (const id of [...ids]) {
+    const at = shown.get(id);
+    if (at === undefined || now - at >= FAINT_HOLD_MS) continue;
+    shown.delete(id);
+    seenAt.set(id, now);
+    out.push(id);
+  }
+  return out;
+}
+
 /** 판 끝 (over) 쓰러짐 줄을 붙잡을지 — 가장 늦은 이름이 1.2초 안 됐거나, 결과 줄 ("…이겼다!" · "내 포켓몬이 다 쓰러졌다…") 이 아직 안 떴을 때 (판 끝 1초)
  *  (지는 판은 결과 줄이 이름 1.2초보다 0.3 ~ 0.6초 늦게 와서 그 사이 줄이 마지막 이름 하나로 줄던 것 — UX 리뷰어 #95 17바퀴 2 · bugs 1655 같은 종류) */
 export function overLineHold(lineYoung: boolean, overMs: number, hasMsg: boolean): boolean {
@@ -331,10 +352,25 @@ export function faintLine(names: readonly string[]): string | null {
  *  가운뎃점은 앞 이름에 붙임 (300 에서 아랫줄이 "· 상대 메타그로스" 로 시작하던 것) · 한 시계는 그리기 전 글을 split(' · ') 로 나눠 이름 열쇠와 맞추므로 글 자체는 그대로 둠 */
 export const faintShow = (text: string): string => text.replace(/상대 /g, '상대\u00a0').replace(/ · /g, '\u00a0· ');
 
+/** 쓰러짐 한 줄 접기 — 넘치면 한 단계 (1922 · 748: 240 맥에서 이름 넷 줄이 3줄로 늘어 [1] 판을 덮던 것): 1 = 상대 이름 둘 넘으면 "상대 N마리" · 2 = 내 이름도 둘 넘으면 "N마리" ·
+ *  바뀌는 게 없으면 null (한 마리는 이름 그대로) · 순서는 faintLine 과 같음 (내 쪽 먼저) */
+export function faintFold(names: readonly string[], step: 1 | 2): string | null {
+  const u = [...new Set(names)];
+  const foe = u.filter((n) => n.startsWith('상대 '));
+  const mine = u.filter((n) => !foe.includes(n));
+  const foldFoe = foe.length > 1;
+  const foldMine = step === 2 && mine.length > 1;
+  if (!foldFoe && !foldMine) return null;
+  return `${[...(foldMine ? [`${mine.length}마리`] : mine), ...(foldFoe ? [`상대 ${foe.length}마리`] : foe)].join(' · ')} 쓰러졌다!`;
+}
+
 /** 띠 끝 쓰러짐 말을 줄인 것 — 둘 넘게면 "2마리 쓰러졌다!" (240 "이겼다! · 2마리 쓰러졌다!" — 아트 디렉터 #95 4바퀴 ②) · 하나면 줄이지 않음 */
-export function faintShortLine(names: readonly string[]): string | null {
+export function faintShortLine(names: readonly string[], mine: ReadonlySet<string> = new Set()): string | null {
   const n = new Set(names).size;
-  return n > 1 ? `${n}마리 쓰러졌다!` : null;
+  if (n > 1) return `${n}마리 쓰러졌다!`;
+  // 한 마리 = 내 팀에 같은 이름이 없으면 "상대" 를 뺀 이름 (748 — 240 모으기 판 · 띠에서 "상대" 석 자로 넘쳐 접힌 말이 통째로 빠져 이름이 0.6초만 보이던 것) · 같은 이름이 있으면 줄이지 않음
+  const one = names[0];
+  return one?.startsWith('상대 ') && !mine.has(one.slice(3)) ? `${one.slice(3)} 쓰러졌다!` : null;
 }
 
 /** 위 가운데 줄 (띠 · 쓰러짐 줄 · 결과 줄) 의 위 끝 — 위에서부터 앞 줄 아래 + 4 · 처음 안내와 겹치면 안내 아래 + 2 · 떠 있는 동안은 전보다 위로 안 감 (min)

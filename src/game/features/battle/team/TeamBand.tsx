@@ -4,6 +4,7 @@
  * 힘겨루기 끝 = "이겼다!" (금) / "졌다…" (빨강) 1초. 상대 필살기는 빨강 테두리.
  * 시작 = 엔진 상태가 바뀐 때 (혼자 = 합동 멘트가 끝난 뒤 · 합동 = joint 가 생긴 때 · 힘겨루기 = clash 가 생긴 때 — 개발 a6), 길이는 진짜 시계 (늦춤 0.3초만 게임 시계 · 엔진 ult.ms 는 맞는 때 연출을 기다리며 멈춤).
  */
+import { Fragment } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import type { Side, TeamBattle } from '../../../core/engine';
 import { speciesOf } from '../../../data';
@@ -35,6 +36,8 @@ export interface TeamBandView {
   sub: string;
   /** VS — 얼굴 줄을 나누는 자리 (내 편 얼굴 수) */
   split?: number;
+  /** VS — 넘겨받은 앞 필살기 이름만 ("용성군!") · 뒷말을 뺀 단계에서도 남김 (720 아래 VS 띠가 부제를 통째로 빼 "한카리아스 용성군!" 이 0.33초로 끝나던 것 — bugs 1925) */
+  carry?: string;
 }
 
 function bandOf(b: TeamBattle): TeamBandView | null {
@@ -62,7 +65,7 @@ export function useTeamBand(b: TeamBattle, hold = false): TeamBandView | null {
   // due = 보이기 시작할 때 (게임 시계 — 늦춤 0.3초는 달려간 칸이 돌아오는 그림과 같은 시계) · seen = 처음 보인 때 (진짜 시계 — 보이는 길이는 게임 배와 상관없이,
   //   ▶▶ ×2 에서 1.8초 띠가 0.9초 · 붙잡기가 반이 되던 것 — UX 리뷰어 #95 13바퀴 큼 1)
   // carry = VS 부제 앞에 남길 앞 필살기 이름 (아래)
-  const cur = useRef<{ key: string; due: number; seen: number | null; view: TeamBandView; carry?: string } | null>(null);
+  const cur = useRef<{ key: string; due: number; seen: number | null; view: TeamBandView; carry?: string; carryShort?: string } | null>(null);
   // 바로 앞 그림이 합동 멘트 (모으기 판) 였으면 띠를 늦추지 않음 — 달려간 칸이 없고, 이름 띠가 빔이 다 뻗은 뒤 0.4초에 뜨던 것 (아트 디렉터 #95 3바퀴 · bw-triple-7 글이 먼저)
   const gathered = useRef(false);
   // closed = 한 번 닫힌 결과 띠는 다시 안 엶 (쓰러짐 말이 나중에 붙어 hold 가 켜지면 1.2초 비었다가 "졌다…" 가 다시 떠 한 번 더 진 것처럼 읽히던 것 — UX 리뷰어 #98)
@@ -81,9 +84,9 @@ export function useTeamBand(b: TeamBattle, hold = false): TeamBandView | null {
     const short = !!p && own && (p.view.kind === 'ult' || p.view.kind === 'joint') && (p.seen === null || now - p.seen < VS_CARRY_MS);
     //   혼자 필살기는 누구 것인지도 ("한카리아스 용성군!") · 합동은 이름이 길어 필살기 이름만
     const carry = next.kind === 'vs' && short ? (p.view.kind === 'ult' ? `${p.view.title} ${p.view.sub}` : p.view.sub) : undefined;
-    cur.current = { key: next.key, due: gnow + (next.kind === 'win' || next.kind === 'lose' || next.kind === 'vs' || gathered.current ? 0 : BAND_DELAY_MS), seen: null, view: next, ...(carry ? { carry } : {}) };
+    cur.current = { key: next.key, due: gnow + (next.kind === 'win' || next.kind === 'lose' || next.kind === 'vs' || gathered.current ? 0 : BAND_DELAY_MS), seen: null, view: next, ...(carry && p ? { carry, carryShort: p.view.sub } : {}) };
   } else if (next && cur.current) cur.current.view = next;
-  if (cur.current?.carry && cur.current.view.kind === 'vs' && !cur.current.view.sub.startsWith(cur.current.carry)) cur.current.view = { ...cur.current.view, sub: `${cur.current.carry} ${cur.current.view.sub}` };
+  if (cur.current?.carry && cur.current.view.kind === 'vs' && !cur.current.view.sub.startsWith(cur.current.carry)) cur.current.view = { ...cur.current.view, sub: `${cur.current.carry} ${cur.current.view.sub}`, carry: cur.current.carryShort };
   if (cur.current && cur.current.seen === null && gnow >= cur.current.due) cur.current.seen = now;
   const age = cur.current && cur.current.seen !== null ? now - cur.current.seen : -1;
   if (!next && cur.current && age >= (hold ? BAND_MS + HOLD_MAX_MS : BAND_MS)) cur.current = null;
@@ -170,9 +173,13 @@ export function TeamBand({ view, media, top, faint, faintShort, wide = false, ti
   return (
     <div key={view.key} ref={box} class={cls} style={{ top: `${top}px` }}>
       {view.who.slice(0, 6).map((w, i) => (
-        <span key={`${w.side}${w.slot}`} class={view.split !== undefined && i === view.split ? 'pg-band-face pg-band-vs-gap' : 'pg-band-face'} aria-hidden="true">
-          <Sprite media={media} form={w.form} scale={1} px={32} crop={20} cropWidth={24} center action="walk" faceLeft={w.side === 'foe'} />
-        </span>
+        <Fragment key={`${w.side}${w.slot}`}>
+          <span class={view.split !== undefined && i === view.split ? 'pg-band-face pg-band-vs-gap' : 'pg-band-face'} aria-hidden="true">
+            <Sprite media={media} form={w.form} scale={1} px={32} crop={20} cropWidth={24} center action="walk" faceLeft={w.side === 'foe'} />
+          </span>
+          {/* 넘겨받은 이름은 내 얼굴 바로 뒤 ("[한카리아스] 용성군! VS [레디바]" — 끝에 두면 상대 얼굴 옆이라 상대 기술로 읽힘) */}
+          {view.carry && view.split !== undefined && i === view.split - 1 && <span class="pg-band-sub pg-band-carry">{view.carry}</span>}
+        </Fragment>
       ))}
       {view.kind !== 'vs' && <b class="pg-band-title">{view.title}</b>}
       {view.sub && <span class="pg-band-sub">{view.sub}</span>}

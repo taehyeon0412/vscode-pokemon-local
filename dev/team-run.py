@@ -672,6 +672,8 @@ def judge(K, flashes, lum=()):
         runs.setdefault(txt, []).extend(k.get("runs", []))
     # 그 글을 품은 다른 글로 이어지면 이어서 셈 (VS 부제 "용성군! 힘겨루기!" 가 "용성군!" 을 이어받음 — #98 띠 고침)
     runs = {t: rs + [r for t2, rs2 in runs.items() if t2 != t and len(t) >= 3 and t in t2 for r in rs2] for t, rs in runs.items()}
+    # "상대 ○○ 쓰러졌다!" 는 "상대" 를 뺀 줄인 말 (좁은 판 · 띠 — 748) 로 이어져도 같은 이름 (붙은 구간만 합쳐지므로 거울 대결의 내 ○○ 와 섞이지 않음)
+    runs = {t: rs + (runs.get(t[3:], []) if t.startswith("상대 ") and t.endswith("쓰러졌다!") else []) for t, rs in runs.items()}
     for txt, rs in runs.items():
         rs.sort()
         merged = []

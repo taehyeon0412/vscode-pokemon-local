@@ -12,7 +12,7 @@ import { battleSpritePx, koSinkPx, TYPE_COLOR } from '../model';
 import { Sprite } from '../../../ui/Sprite';
 import type { FxActor } from '../fx/bridge';
 import { TEAM_FX, TeamFxRunner, type TeamSlot } from '../fx/team';
-import { bandDrawn, DUEL_VS_MS, FAINT_HOLD_MS, FAINT_PANEL_HOLD_MS, FAINT_UNSEEN_MS, OVER_MSG_MS, VIEW_CHIP_MS, VIEW_WAIT_MS, duelSpots, faintHoldLeft, faintIsBig, faintLine, faintShortLine, faintShow, foeWarn, NUM_MIN_REAL_MS, numShown, overLineHold, keepJointChips, plateBoxOf, plateState, stackRows, teamDenyNote, teamGeometry, teamPrompt, viewHitChip, viewPopsBack, warnPosOf, type TeamGeo, type WarnPos, viewCrossers, viewMonClass } from './model';
+import { bandDrawn, DUEL_VS_MS, FAINT_HOLD_MS, FAINT_PANEL_HOLD_MS, FAINT_UNSEEN_MS, OVER_MSG_MS, VIEW_CHIP_MS, VIEW_WAIT_MS, duelSpots, faintHoldLeft, faintFold, faintFresh, faintIsBig, faintUnsee, faintLine, faintShortLine, faintShow, foeWarn, NUM_MIN_REAL_MS, numShown, overLineHold, keepJointChips, plateBoxOf, plateState, stackRows, teamDenyNote, teamGeometry, teamPrompt, viewHitChip, viewPopsBack, warnPosOf, type TeamGeo, type WarnPos, viewCrossers, viewMonClass } from './model';
 import { HEAD_NOTE_H, HeadNote, headNoteWidth, pickHeadSpot, useHeldNote } from '../../../ui/HeadNote';
 import { getTeamView, subscribeTeamView, type TeamView } from '../fx/team-view';
 import { cutinArtH, JointNamePlate, TeamCutin } from './TeamCutin';
@@ -553,18 +553,14 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   for (const [id, at] of faintSeenAt.current) if (!faintShown.current.has(id) && bandNow - at > FAINT_UNSEEN_MS) faintShown.current.set(id, at);
   // 힘겨루기 장면 (#116) 은 쓰러짐 말을 숨김 — 1.2초를 못 채우고 숨은 말은 "아직 안 보임" 으로 돌려 장면 뒤 줄에서 다시 1.2초 (쓰러짐 직후 끼어들기 → 힘겨루기면
   //   장면 동안 흐른 시간이 1.2초를 다 먹어 돌아온 뒤 안 뜨던 것 — 1602 UX 큼 · 리자몽 0.4 ~ 0.6초)
-  if (view?.kind === 'duel') {
-    for (const [id, at] of faintShown.current) {
-      if (bandNow - at >= FAINT_HOLD_MS) continue;
-      faintShown.current.delete(id);
-      faintSeenAt.current.set(id, bandNow);
-    }
-  }
+  if (view?.kind === 'duel') faintUnsee(faintShown.current, faintSeenAt.current, faintShown.current.keys(), bandNow);
   for (const m of [faintShown, faintSeenAt]) if (m.current.size > 24) m.current = new Map([...m.current].slice(-12));
   if (faintIdOf.current.size > 24) faintIdOf.current = new Map([...faintIdOf.current].slice(-12));
   const shownOf = (id: number | undefined) => (id === undefined ? bandNow : (faintShown.current.get(id) ?? bandNow));
   const faintLeft = (names: readonly string[], hold = FAINT_HOLD_MS) => faintHoldLeft(names.map((nm) => shownOf(faintIdOf.current.get(nm))), bandNow, hold);
   const namesOf = (ps: typeof faints) => ps.map((p) => p.text.replace(FAINT_RE, ''));
+  // 내 팀 이름 — 줄인 쓰러짐 말이 "상대" 를 빼도 되는지 (같은 이름이 없을 때만 — 748)
+  const myNames = new Set(b.me.flatMap((f) => (f ? [speciesOf(f.species)?.name.ko ?? f.form] : [])));
   // 쓰러짐 줄은 한 번 늘면 안 줄임 (아래 faintStick) — 이름만 들고 시계는 위 한 시계
   const faintStick = useRef<{ names: string[] } | null>(null);
   // 쓰러짐 말은 모든 폭에서 띠 끝 같은 줄 (240 에서 띠 아래 따로 상자가 "합동! −23" 칩의 앞을 덮고 · 띠 + 상자 + 칩 판 셋이 쌓이던 것 — 아트 디렉터 #95 4바퀴 ② ⑧ · bw-triple-4 쓰러짐 글은 한 자리)
@@ -579,7 +575,7 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   const seenBand = useRef<{ view: TeamBandView; faint: { text: string; short: string | null; names: string[] } | null; at: number } | null>(null);
   const seenBand0 = (key: string) => seenBand.current?.view.key === key;
   if (!band) bandFaint.current = null;
-  else if (faintBig) bandFaint.current = { key: band.key, text: faintBig, short: faintShortLine(namesOf(bigOnes)), names: namesOf(bigOnes) };
+  else if (faintBig) bandFaint.current = { key: band.key, text: faintBig, short: faintShortLine(namesOf(bigOnes), myNames), names: namesOf(bigOnes) };
   else if (bandFaint.current && bandFaint.current.key !== band.key) bandFaint.current = null;
   const bandTop0 = infoBarPx + fieldTopPx - topGapPx(heightPx) + 4;
   // 높은 패널 (300 이상) 띠 = 맨 위 그림 칸 위 끝 − 30 (칩 20 + 2 + 8 — 머리 위 숫자 · 합동 칩 자리를 남김. 8 이면 위 빈 풀밭이 200px 인데도 칩이 옆으로 밀리던 것, 아트 디렉터 #95 7바퀴 ① ·
@@ -636,6 +632,11 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   const take = (ps: typeof faints) => ps.forEach((p) => faintTaken.current.add(p.id));
   const faintBox = useRef<{ text: string; at: number } | null>(null);
   const panelFaint = useRef<{ text: string; short: string | null; ids: number[]; names: string[] } | null>(null);
+  // 판이 넘쳐 접힌 말을 뺐는지 (f3 — 판 자리 효과가 정함) · 1.2초를 못 채우고 빠진 말은 한 시계에서 "아직 안 보임" — 판이 닫혀 줄로 돌아온 때부터 1.2초 (힘겨루기 장면과 같은 규칙)
+  //   (748 — 240 맥 모으기 판이 "통통코 쓰러졌다!" 를 빼고도 판 앞 0.14초부터 세어, 판이 닫힌 뒤 줄이 0.6초 만에 닫히던 것)
+  const panelHid = useRef(false);
+  // 판이 뺀 이름 — 판이 닫히면 줄 (faintStick) 로 돌려놓음 · 엔진 말이 이미 끝났어도 (판이 1.2초 넘게 떠 있으면 줄이 엔진 말로만 다시 생겨 이름이 0.36초로 끝나던 것, 748 UX 큼 1)
+  const panelLost = useRef<string[]>([]);
   // 붙잡기 · 기다림 시간은 진짜 시계 (게임 시계면 ▶▶ ×2 에서 1.2초가 0.6초 — 상대 필살기 띠가 0.85 ~ 0.96초만 보이던 것, UX 리뷰어 #95 13바퀴 큼 1 · 같은 띠 세 번째)
   // 판이 닫히면 접혀 있던 쓰러짐 말을 넘김 — 처음 보인 지 1.2초가 넘었을 때만 (안 됐으면 줄로 남겨 1.2초를 채움) · 이 그림의 줄 계산보다 먼저
   //   (판이 닫히는 장면에 접힌 말이 줄로 한 장면 다시 뜨고 · 빨리 누르면 0.92 ~ 0.97초만 보이던 것 — UX 리뷰어 #95 11바퀴 2)
@@ -643,6 +644,12 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
     // (1.0초 — #131 "1초 넘게" · 1.2 로 잡으면 판을 빨리 닫을 때 줄로 0.13 ~ 0.25초 다시 뜨고 합동 띠가 그만큼 늦던 것, UX 리뷰어 #95 12바퀴 6)
     if (faintLeft(panelFaint.current.names, FAINT_PANEL_HOLD_MS) === 0) take(faints.filter((p) => panelFaint.current!.ids.includes(p.id)));
     panelFaint.current = null;
+    panelHid.current = false;
+    if (panelLost.current.length) {
+      const back = panelLost.current.filter((nm) => !faintStick.current?.names.includes(nm));
+      faintStick.current = { names: [...(faintStick.current?.names ?? []), ...back] };
+    }
+    panelLost.current = [];
   }
   const freeFaints = faints.filter((p) => !faintTaken.current.has(p.id));
   const boxPs = band && seenBand0(band.key) ? freeFaints.filter((p) => faintSeen.current.get(p.id) !== true) : freeFaints;
@@ -679,7 +686,7 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   //   장면 전환 (view) 동안은 띠가 안 보이므로 붙이지 않음 (힘겨루기 장면의 숨은 VS 띠가 쓰러짐 말을 가져가 돌아온 뒤 줄에서 0.8초 만에 빠지던 것 — #116)
   //   연출 켬 (장면 전환) 이면 VS 띠는 안 그려지니 (힘겨루기 장면) 가져가지 않고 줄에 남김 — 장면 동안 숨었다 돌아와 다시 1.2초 (가져간 이름이 어디에도 안 남던 것 — 1602 UX 큼 · ▶▶ 480)
   if (!view && band?.kind === 'vs' && !seenBand0(band.key) && boxYoung && boxText && !bigHide && !(TEAM_FX.view11 && cutscene)) {
-    bandFaint.current = { key: band.key, text: boxText, short: faintShortLine(namesOf(boxPs)), names: namesOf(boxPs) };
+    bandFaint.current = { key: band.key, text: boxText, short: faintShortLine(namesOf(boxPs), myNames), names: namesOf(boxPs) };
     take(boxPs);
   }
   const bandWait = !!band && band.kind !== 'vs' && !seenBand0(band.key) && boxYoung;
@@ -747,7 +754,10 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
     take(ps.filter((p) => !young.includes(p)));
     const text = line(young);
     // "N마리" 는 넘칠 때만 (판 자리 효과가 재서 바꿈 — 재지 않고 바꿔 240 에서 이름이 0.13 ~ 0.6초만 보이던 것, UX 리뷰어 #95 12바퀴 3)
-    if (text) panelFaint.current = { text, short: faintShortLine(namesOf(young)), ids: young.map((p) => p.id), names: namesOf(young) };
+    if (text) {
+      panelFaint.current = { text, short: faintShortLine(namesOf(young), myNames), ids: young.map((p) => p.id), names: namesOf(young) };
+      panelHid.current = false;
+    }
     apart0 = null;
   }
   // 쓰러짐 줄은 한 번 늘면 안 줄임 — 앞 이름 말 (엔진 팝업) 이 먼저 끝나 "소미안" → "소미안 · 레디바" → "레디바 쓰러졌다!" 로 1.5초에 세 번 바뀌던 것
@@ -795,11 +805,19 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   const overText = b.phase === 'over' && overLineHold(lineYoung, b.overMs, !!b.msg) && !msgOn && !boxTaken && overLine.current?.names.length ? faintLine(overNames) : null;
   const apart = duelFaintHold || msgOn || (bigOn && panelFaint.current) ? null : (overText ?? apart0);
   // 한 시계 (ideas 1602) — 이 그림에 실제로 보이는 쓰러짐 말 (따로 줄 · 판 끝 줄 · 띠 끝 · 큰 판) 의 처음 보인 때를 적음
-  const shownNow = [...(apart ? apart.replace(FAINT_RE, '').split(' · ') : []), ...(bandShown && inBand ? inBand.names : []), ...(bigOn && panelFaint.current ? panelFaint.current.names : [])];
+  const apartNames = apart ? apart.replace(FAINT_RE, '').split(' · ') : [];
+  const shownNow = [...apartNames, ...(bandShown && inBand ? inBand.names : []), ...(bigOn && panelFaint.current && !panelHid.current ? panelFaint.current.names : [])];
   for (const nm of shownNow) {
     const id = faintIdOf.current.get(nm);
     if (id !== undefined && !faintShown.current.has(id)) faintShown.current.set(id, bandNow);
   }
+  // 쓰러짐 줄이 넘칠 때 먼저 뺄 이름 (f0 — 1.2초 넘게 본 이름 · 748 UX 큼 2) · 새 이름이 붙을 때만 정함 (이름이 나이 들 때마다 다시 정하면 글이 0.05 ~ 0.2초씩 바뀜) ·
+  //   접기 (f1 · f2) 는 남은 이름으로 · faintLeftMs = 줄이 닫히기까지 (곧 닫힐 줄은 새로 접지 않음 — 띠가 뜨는 마지막 장면에 "상대 2마리" 가 0.05초 비치던 것)
+  const apartKey = apartNames.join(' · ');
+  const faintFreshAt = useRef<{ key: string; names: string[] | null }>({ key: '', names: null });
+  if (faintFreshAt.current.key !== apartKey) faintFreshAt.current = { key: apartKey, names: faintFresh(apartNames, apartNames.map((nm) => faintShown.current.get(faintIdOf.current.get(nm) ?? -1)), bandNow) };
+  const foldNames = faintFreshAt.current.names ?? apartNames;
+  const faintLeftMs = apart && !overText ? faintLeft(apartNames) : FAINT_HOLD_MS;
   // 기다림 · 붙잡기 끝에 다시 그림 (그림은 열쇠가 바뀔 때만 다시 그려져, 띠 기다림이 끝나도 0.05 ~ 0.5초 늦게 뜨던 것 — UX 리뷰어 #95 10바퀴 4)
   // 장면 전환 피해 칩 (ideas 717 — 장면 동안 판 · 숫자를 숨겨 필살기 · 합동 피해가 안 보이던 것): 장면이 선 뒤 맞는 쪽에 뜬 피해를 합계 칩 하나로 맞는 칸 1:1 자리 머리 위에 ·
   //   진짜 시계 1.2초 (▶▶ 에서도 — ux-rules 화면 붙잡기) · out 에 바둑판으로 사라짐 · 그 숫자는 돌아온 뒤 3:3 자리에 다시 안 띄움 (skip)
@@ -860,6 +878,31 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   const ult = (slot: number) => onInput({ kind: 'team-battle', input: { kind: 'ult', slot } });
   // 큰 판 (끼어들기 · 합동) 은 무대 한가운데 — 폭 · 높이를 재서 왼쪽 · 위를 정수 px 로 (translate −50% 는 홀수 폭이면 반 픽셀)
   const bigBox = useRef<HTMLDivElement>(null);
+  // 쓰러짐 줄 — 넘치면 한 단계 (1922 · 748): 줄이 둘 넘으면 (줄 높이 16 · 위아래 여백 3) 상대 이름 → "상대 N마리" → 내 이름도 "N마리" · 그리기 전에 바꿈 (이름이 한 장면 비치지 않게 — 큰 판 접기와 같은 길)
+  //   그린 글만 바꿈 — 한 시계는 apart (이름 그대로) 로 셈 · 판마다 처음 글부터 다시 잼
+  //   단계 = f0 (1.2초 넘게 본 이름 뺌 — 748 UX 큼 2) → f1 → f2 · 줄 수 (여기) 와 발밑 판 덮음 (위 줄 쌓기 뒤 — 748 UX 큼 3) 둘 다 이 차례로
+  const faintEl = useRef<HTMLDivElement>(null);
+  // 판 덮음으로 접은 단계 (곧 닫힐 줄은 이것을 그대로 — 다시 재면 마지막 0.2초에 글이 바뀜)
+  const faintPlateStep = useRef('');
+  const faintNext = (el: HTMLElement): boolean => {
+    const order = ['f0', 'f1', 'f2'] as const;
+    for (let i = order.indexOf(el.dataset.step as (typeof order)[number]) + 1; i < order.length; i++) {
+      const t = el.dataset[order[i]!];
+      if (!t) continue;
+      el.textContent = faintShow(t);
+      el.dataset.step = order[i];
+      return true;
+    }
+    return false;
+  };
+  useLayoutEffect(() => {
+    const el = faintEl.current;
+    if (!el?.dataset.full) return;
+    if (el.textContent !== el.dataset.full) el.textContent = el.dataset.full;
+    el.dataset.step = '';
+    const lines = () => Math.round((el.clientHeight - 6) / 16);
+    for (let k = 0; k < 3 && lines() > 2; k++) if (!faintNext(el)) break;
+  });
   // 쓰러짐 말을 피해 내린 판의 위 (판이 떠 있는 동안만 기억)
   const bigLow = useRef<number | null>(null);
   const bigLeft = useRef<number | null>(null);
@@ -944,7 +987,43 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
       stackMin.current.set(el, want);
       if (want !== rows[i]!.base) el.style.marginTop = `${Math.round(want - rows[i]!.base)}px`;
     });
+    // 쓰러짐 줄이 발밑 판 (키 칸 · HP) 을 덮으면 한 단계 더 접음 — 자리를 재서 (처음 안내 아래로 밀린 두 줄이 [1] 판 · 상대 HP 판을 1초 덮던 것, 748 UX 큼 3) · 줄은 위 끝 그대로라 다시 안 쌓음 ·
+    //   곧 닫힐 줄 (0.2초 안) 은 접지 않음 · 접을 것이 없으면 (이름 둘) 처음 안내 자리로 올리고 그동안 안내를 숨김 (쓰러짐 말 1초가 먼저 — 안내는 줄이 닫히면 다시)
+    const fEl = faintEl.current;
+    const tipEl = host.closest('#pokemon-game')?.querySelector<HTMLElement>('.pg-first-tip.pg-first-tip-top') ?? null;
+    let tipYield = false;
+    if (fEl) fEl.style.visibility = '';
+    if (fEl?.dataset.full && fEl.parentElement === host) {
+      const plates = Array.from(host.querySelectorAll<HTMLElement>('.pg-team-plate'))
+        .filter((p) => getComputedStyle(p).visibility !== 'hidden')
+        .map((p) => p.getBoundingClientRect());
+      const hits = () => {
+        const r = fEl.getBoundingClientRect();
+        return plates.some((p) => p.width > 0 && r.bottom > p.top - 2 && r.top < p.bottom && r.right > p.left && r.left < p.right);
+      };
+      const order = ['', 'f0', 'f1', 'f2'];
+      const at = () => order.indexOf(fEl.dataset.step ?? '');
+      const closing = Number(fEl.dataset.left ?? FAINT_HOLD_MS) < 200;
+      if (closing) {
+        for (let k = 0; k < 3 && at() < order.indexOf(faintPlateStep.current); k++) if (!faintNext(fEl)) break;
+      } else {
+        for (let k = 0; k < 3 && hits(); k++) if (!faintNext(fEl)) break;
+        faintPlateStep.current = fEl.dataset.step ?? '';
+      }
+      const r = fEl.getBoundingClientRect();
+      if (hits() && tip && tip.height > 0 && r.top >= tip.bottom) {
+        const up = Math.round(r.top - tip.top);
+        fEl.style.marginTop = `${Math.round((parseFloat(fEl.style.marginTop) || 0) - up)}px`;
+        stackMin.current.set(fEl, (stackMin.current.get(fEl) ?? r.top - o.top) - up);
+        tipYield = true;
+      }
+      // 마지막 0.2초에 띠가 떠 줄이 밀려 판을 덮게 되면 그대로 닫음 (이름은 이미 1초 넘게 봄 — 접힌 글이 한 장면 비치거나 판을 덮지 않게)
+      if (closing && hits()) fEl.style.visibility = 'hidden';
+    }
+    tipEl?.classList.toggle('pg-tip-yield', tipYield);
   });
+  // 처음 안내를 숨긴 채 3:3 층이 사라지면 (판 끝 · 패널 접기) 안내를 돌려놓음
+  useEffect(() => () => document.querySelector('#pokemon-game .pg-tip-yield')?.classList.remove('pg-tip-yield'), []);
   // 큰 판 (끼어들기 · 모으기) 자리 — 위 줄 쌓기 뒤에 정함 (그 자리를 읽어야 해서). 위 줄 (띠 · 쓰러짐 줄) 과 가로로 겹치면 그 아래 + 4 · 큰 연출 중 아직 띠가 없으면 띠 자리 (24 + 4) 를 미리 비움 ·
   //   떠 있는 동안 위로 안 옮김 · 숨기지 않음 (아래 자리가 모자라면 패널 아래 끝에 붙임) — 240 · 480 × 150 에서 쓰러짐 말이 1초 안이면 판을 숨겨 0.8 ~ 1초 늦게 뜨고 (빨리 누르면 한 장면도 안 보임),
   //   띠가 뜨며 쓰러짐 줄이 내려와 판과 겹치던 것 (UX 리뷰어 #95 6바퀴 큼 2 · #81 "2초 넘게 확실히")
@@ -980,6 +1059,12 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
       else if (fold?.dataset.short) fold.textContent = fold.dataset.short;
     }
     if (fold && !el.classList.contains('pg-big-f3')) foldShown.current = true;
+    // 접힌 말을 뺐으면 1.2초를 못 채운 이름은 "아직 안 보임" 으로 (748 · 위 panelHid)
+    if (fold && el.classList.contains('pg-big-f3') && !panelHid.current && panelFaint.current) {
+      panelHid.current = true;
+      faintUnsee(faintShown.current, faintSeenAt.current, panelFaint.current.ids, realNow());
+      panelLost.current = panelFaint.current.names.filter((_, i) => !faintShown.current.has(panelFaint.current!.ids[i]!));
+    }
     const r = el.getBoundingClientRect();
     const o = host.getBoundingClientRect();
     const midY = infoBarPx + (heightPx - infoBarPx) / 2;
@@ -1165,7 +1250,16 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
       {/* 쓰러짐 말 한 줄 (기획 #95 — 머리 위에 따로 뜨던 "쓰러졌다!" 둘이 15px 차이로 붙고 숫자에 묻히던 것) · 띠가 있으면 그 아래 · 엔진 결과 한 줄이 있으면 그 아래 */}
       {apart && (
         // 띠 아래 자리 = 보이는 띠가 있거나, 큰 연출 중 (띠가 곧 뜸) — 숨긴 띠까지 세어 낮은 패널에서 28px 빈 줄이 남고 · 0.6초 뒤 띠가 뜨며 28px 내려가던 것 (UX 리뷰어 #95 7바퀴 3 · 8)
-        <div class="pg-team-msg pg-team-faint" style={{ top: `${bandTop + (bandShown ? BAND_PX + 4 : 0)}px` }}>
+        <div
+          ref={faintEl}
+          class="pg-team-msg pg-team-faint"
+          data-full={faintShow(apart)}
+          data-f0={faintFreshAt.current.names ? (faintLine(faintFreshAt.current.names) ?? undefined) : undefined}
+          data-left={Math.round(faintLeftMs)}
+          data-f1={faintFold(foldNames, 1) ?? undefined}
+          data-f2={faintFold(foldNames, 2) ?? undefined}
+          style={{ top: `${bandTop + (bandShown ? BAND_PX + 4 : 0)}px` }}
+        >
           {faintShow(apart)}
         </div>
       )}

@@ -5745,6 +5745,10 @@ body.vscode-high-contrast-light .pg-title-body {
 .pg-covered .pg-bmsg,
 .pg-covered .pg-clash-info,
 .pg-covered .pg-toast,
+/* 3:3 쓰러짐 줄이 처음 안내 아래로 밀려 발밑 판을 덮게 되면 그동안 안내 자리를 줄이 씀 (TeamLayer — 쓰러짐 말 1초가 먼저 · 줄이 닫히면 안내가 다시, 748 UX 큼 3) */
+.pg-first-tip.pg-tip-yield {
+  visibility: hidden;
+}
 .pg-covered .pg-first-tip {
   visibility: hidden;
 }
