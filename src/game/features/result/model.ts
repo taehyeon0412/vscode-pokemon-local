@@ -48,7 +48,8 @@ export function summaryLines(s: BattleSummary): { title: string; head: SummaryPa
   // 레벨이 오른 포켓몬을 앞에 (묻히지 않게) · 나머지는 뒤에
   const body: SummaryPart[] = [
     ...s.exp.filter((e) => e.to > e.from).map((e): SummaryPart => ({ kind: 'up', text: `${e.name} Lv ${e.from} → ${e.to} (경험치 +${e.gain})` })),
-    ...s.exp.filter((e) => e.to <= e.from).map((e): SummaryPart => ({ kind: 'exp', text: `${e.name} 경험치 +${e.gain}` })),
+    // 이름 · 경험치 · 숫자는 한 덩어리 (낱말 단위 줄 바꿈에서 "▲ 잠만보 Lv 15 · 피카츄 / 경험치 +260" 으로 갈려 피카츄가 레벨업 목록처럼 읽히던 것 — 개발 713 UX)
+    ...s.exp.filter((e) => e.to <= e.from).map((e): SummaryPart => ({ kind: 'exp', text: `${e.name}\u00a0경험치\u00a0+${e.gain}` })),
   ];
   for (const l of s.learned) body.push({ kind: 'learned', text: `${withJosa(l.name, '이/가')} ${withJosa(l.move, '을/를')} 배웠다`, short: l.move });
   // 라이벌 한마디 (gdd 4.12) — 둘째 줄 맨 끝 (좁은 패널에서 레벨업이 잘리지 않게)

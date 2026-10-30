@@ -395,6 +395,14 @@ body.pokemon-game-on {
 .pg-field-balls .pg-ball-one {
   gap: 2px;
 }
+/* 알림 상자와 겹치는 동안 숨김 (StageToast — 240 세 줄 "그동안" 요약 판 밑에 비치던 것, bugs 1917) */
+.pg-field-balls.pg-under-toast {
+  visibility: hidden;
+}
+/* 결과 상자가 떠 있는 동안 필드 이름표 숨김 — 반투명 판 너머로 "관장 나래" 가 비치던 것 (240 × 187 체육관 결과 · 개발 713 UX) */
+.pg-stage:has(.pg-banner.pg-result) .pg-nametag {
+  visibility: hidden;
+}
 /* 지도 줄 맨 앞 볼 칸 (좁은 패널 · 지도 줄이 있을 때) — 지도와 12px */
 .pg-maprow > .pg-balls {
   flex: none;
@@ -7178,11 +7186,17 @@ body.vscode-high-contrast-light .pg-hpblock > .pg-hprow,
 .pg-learned-short {
   display: none;
 }
-.pg-result-learnshort .pg-result-body .pg-learned-full {
+.pg-result-learnshort .pg-result-body .pg-learned-full,
+.pg-result-learnshort .pg-result-alt-b .pg-learned-full {
   display: none;
 }
-.pg-result-learnshort .pg-result-body .pg-learned-short {
+.pg-result-learnshort .pg-result-body .pg-learned-short,
+.pg-result-learnshort .pg-result-alt-b .pg-learned-short {
   display: inline;
+}
+/* 레벨업 상자가 주인공을 덮으면 제목 앞 "야생 " 뺌 (useResultFit noPre — 카드를 빼는 대신, UX 1917 큼 1 · bugs 2716) */
+.pg-result-nopre .pg-title-pre {
+  display: none;
 }
 /* 막 잡은 포켓몬 돌 줄 (#131) 끝 "[B] 가방" — 넓은 둘째 줄에서만 · 줄이 맥 여유로 안 들어가면 뺌 (howoff) · 좁은 번갈아 줄은 자리가 없어 늘 뺌. 할 일이라 진하게 (#125 처음 안내 할 일과 같은 600) */
 .pg-evo-how {

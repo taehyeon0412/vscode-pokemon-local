@@ -460,7 +460,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   const sceneKey = gym ? `gym-${teamOn}` : sceneBackground(state);
   const sceneSeen = useRef<string | null>(null);
   const sceneSwaps = useRef(0);
-  if (sceneSeen.current !== null && sceneSeen.current !== sceneKey) sceneSwaps.current += 1;
+  // 체육관 3:3 이 끝나 결과 상자가 뜰 때는 막 없이 (상자 밑에서 0.27초 막이 깔렸다 걷히던 것 — 개발 713 UX · ideas 740)
+  if (sceneSeen.current !== null && sceneSeen.current !== sceneKey && !(gym && stageRt?.phase === 'result')) sceneSwaps.current += 1;
   sceneSeen.current = sceneKey;
   // 작음 5 — 이 지역 시합장 그림을 미리 받아 둠 (처음 3:3 판에서 그림이 오기 전 빈 남색이 2장면 보이던 것 — UX 리뷰어)
   const arenaHere = TEAM_ARENA[regionHere(save.location).id];

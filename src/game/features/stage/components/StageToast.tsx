@@ -48,7 +48,15 @@ export function StageToast({ text, center, bottom, room, avoid }: { text: string
       const h = Math.ceil(el.getBoundingClientRect().height);
       if (parent.height - bottom - h < minTop) el.style.bottom = `${Math.max(0, Math.floor(parent.height - minTop - h))}px`;
     }
-    return undefined;
+    // 숲 위 볼 칸 (좁은 패널 .pg-field-balls) 과 겹치면 알림 동안 볼 칸을 숨김 — 240 에서 세 줄 "그동안" 요약 판 밑에 볼 · 숫자가 비치던 것 (bugs 1917 · U3)
+    //   겹칠 때만 (볼을 주운 한 줄 알림은 주인공 머리 위라 볼 칸이 그대로 보여야 함)
+    const balls = el.closest('#pokemon-game')?.querySelector<HTMLElement>('.pg-field-balls') ?? null;
+    if (balls) {
+      const a = el.getBoundingClientRect();
+      const o = balls.getBoundingClientRect();
+      balls.classList.toggle('pg-under-toast', a.left < o.right && o.left < a.right && a.top < o.bottom && o.top < a.bottom);
+    }
+    return () => balls?.classList.remove('pg-under-toast');
   });
   const newRegion = /^(새 지역이 열렸어요 — )(\S+)$/.exec(text);
   return (
