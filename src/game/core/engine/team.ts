@@ -431,7 +431,9 @@ function damage(b: TeamBattle, side: Side, from: number, to: number, power: numb
 function faint(b: TeamBattle, side: Side, slot: number): void {
   const f = b[side][slot]!;
   f.gauge = 0;
-  popup(b, side, slot, `${nameOf(f)} 쓰러졌다!`, 'info');
+  // 양쪽에 같은 종이 있으면 (거울 대결) 상대 쪽은 "상대 ○○" — 같은 이름 둘이 한 줄 ("꼬렛 쓰러졌다!") 로 합쳐져 어느 쪽인지 모르던 것 (ideas 742)
+  const mirror = side === 'foe' && b.me.some((m) => m?.species === f.species);
+  popup(b, side, slot, `${mirror ? '상대 ' : ''}${nameOf(f)} 쓰러졌다!`, 'info');
   note(b, { t: 'faint', side, slot });
   if (side === 'foe') b.foeDown = [...b.foeDown, { species: f.species, level: f.level }];
   b.ultReadyAt[side][slot] = null;

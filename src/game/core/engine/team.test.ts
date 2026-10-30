@@ -562,6 +562,18 @@ describe('명세 검사관 · 코드 리뷰어 (2026-10-21)', () => {
     expect(again.boost!).toBeGreaterThan(first.boost!);
   });
 
+  it('ideas 742 — 거울 대결 (내 팀에 같은 종) 이면 상대 쓰러짐 말은 "상대 ○○ 쓰러졌다!" · 아니면 그대로', () => {
+    const b0 = startTeamBattle(team3(), foes(), 'trainer', '상대');
+    const ready = fighters(fighters(b0, 'me', (x) => ({ stats: { ...x.stats, attack: 400 } })), 'foe', () => ({ hp: 1 }));
+    const faintText = (b: TeamBattle) => b.popups.find((p) => p.side === 'foe' && p.text.endsWith('쓰러졌다!'))?.text;
+    const plain = faintText(run({ ...ready, shots: [shot({})] }, STEP * 2, fixedRng(0.5)));
+    expect(plain).toBeDefined();
+    expect(plain!.startsWith('상대 ')).toBe(false);
+    const me0 = ready.me[0]!;
+    const same = fighters(ready, 'foe', (_x, i) => (i === 0 ? { species: me0.species, form: me0.form } : {}));
+    expect(faintText(run({ ...same, shots: [shot({})] }, STEP * 2, fixedRng(0.5)))).toMatch(/^상대 .+ 쓰러졌다!$/);
+  });
+
   it('3:1 필살기 힘겨루기 = 셋 쪽 100% (연타 · 스탯과 상관없이) · 2:1 · 3:2 는 합 + 연타', () => {
     expect(teamClashSure({ me: [0, 1, 2], foe: [0] })).toBe('me');
     expect(teamClashSure({ me: [0], foe: [0, 1, 2] })).toBe('foe');
