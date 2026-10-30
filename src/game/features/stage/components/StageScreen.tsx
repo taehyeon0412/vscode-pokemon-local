@@ -489,10 +489,12 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   // 1-3 길 끝 체육관 (2026-10-20 태현 님 A안) — gym-enter 동안 주인공이 문 앞까지 걸어가 들어가며 사라지고 화면 닦기 (stage/model gymEnterView)
   const gymX = gymFrontX(state, widthPx, layout.scale);
   const gymK = Math.max(1, Math.floor(layout.scale));
-  const gymEnter = stageRt?.phase === 'gym-enter' ? gymEnterView(stageRt.ms) : null;
   // heroLeft 는 주인공 가운데 (.pg-obj translateX(-50%)) — 문 옆 = 주인공 오른쪽 끝이 문틀 (문 가운데 − 8칸) 왼쪽 네 칸 (팔이 문을 가리지 않게) · 문 가운데 = 주인공 가운데가 문 가운데
   const gymBeside = gymX !== null ? gymX - 12 * gymK - Math.round(heroW / 2) : heroStand;
   const gymInto = gymX ?? heroStand;
+  // 문 옆까지 걸음 수 = 걷는 거리 ÷ 들어가기 한 걸음 (세 걸음) 폭 — 걸음 폭이 같게 (U506 · 2 ~ 8걸음)
+  const gymWalkSteps = Math.min(8, Math.max(2, Math.round(Math.abs(gymBeside - heroStand) / Math.max(1, (gymInto - gymBeside) / 3))));
+  const gymEnter = stageRt?.phase === 'gym-enter' ? gymEnterView(stageRt.ms, gymWalkSteps) : null;
   const heroLeft = gymEnter && gymX !== null ? Math.round(heroStand + (gymBeside - heroStand) * gymEnter.walk + (gymInto - gymBeside) * gymEnter.enter) : heroStand;
   // 큰 주인공이 위쪽 띠 (트레이너 · 만남 · 병원 상자, 상자 자리 fieldTop + 한 줄) 자리까지 올라오면 띠를 주인공 오른쪽 옆으로 — 옆자리가 넉넉할 때만
   //   병원 · 상점 앞 · 안이면 간호순 · 점원 오른쪽 옆으로 ("간호순:" 이 말하는데 띠에 가려지지 않게 — 아트 디렉터)

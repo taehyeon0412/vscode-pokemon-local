@@ -138,12 +138,15 @@ export function gymFrontX(state: GameState, widthPx: number, scale: number): num
   return x < widthPx + GYM_FRONT.w * scale ? x : null;
 }
 
-/** gym-enter 장면 (엔진은 TIMING.gymEnterMs 만 지킴) — 0 ~ 0.6초 문 옆까지 걸음 (여섯 걸음 · 문을 가리지 않게) · 0.6 ~ 1.4 문이 열림 (3장) ·
+/** gym-enter 장면 (엔진은 TIMING.gymEnterMs 만 지킴) — 0 ~ 0.6초 문 옆까지 걸음 (walkSteps 걸음 · 반 걸음 앞당김 · 문을 가리지 않게) · 0.6 ~ 1.4 문이 열림 (3장) ·
  *  1.4 ~ 1.85 문 안으로 세 걸음 (한 칸씩 위로 · 흐려짐) · 2.0 ~ 2.4 화면 닦기 (여섯 걸음).
  *  walk = 문 옆까지 · enter = 문 옆 → 문 가운데 · wipe = 0 ~ 1, door = 0 (닫힘) ~ 3 (다 열림), rise = 위로 몇 칸, fade = 불투명도 */
-export function gymEnterView(ms: number): { walk: number; enter: number; walking: boolean; door: 0 | 1 | 2 | 3; rise: number; fade: number; wipe: number } {
+/** walkSteps = 문 옆까지 걸음 수 (0.6초 동안) — 들어가기 세 걸음과 한 걸음 폭이 같게 화면이 거리로 정함 (짧은 거리를 늘 6걸음으로 걸어 문 앞 세 걸음이 2배 폭으로 튀던 것 — UX U506 · U2) */
+export function gymEnterView(ms: number, walkSteps = 6): { walk: number; enter: number; walking: boolean; door: 0 | 1 | 2 | 3; rise: number; fade: number; wipe: number } {
   const step = (t: number, n: number) => Math.min(1, Math.floor(Math.max(0, t) * n) / n);
-  const walk = step(ms / 600, 6);
+  // 걸음은 반 걸음 앞당김 (구간 가운데에 옮김 — 3걸음이면 0.1 · 0.3 · 0.5초) — 구간 끝에 옮기면 다가오던 체육관이 멈춘 뒤 첫 걸음까지 0.2초 다리만 움직이던 것 (UX U506 작음 1)
+  const n = Math.max(1, Math.round(walkSteps));
+  const walk = Math.min(1, Math.round(Math.max(0, ms / 600) * n) / n);
   const door = ms < 600 ? 0 : ms < 867 ? 1 : ms < 1133 ? 2 : 3;
   const into = ms < 1400 ? 0 : Math.min(3, Math.floor((ms - 1400) / 150) + 1);
   const fade = into <= 1 ? 1 : into === 2 ? 0.66 : ms < 1850 ? 0.33 : 0;
@@ -330,7 +333,8 @@ export function stageViewKey(state: GameState): string {
     // 대기실 3마리 고르기 판 · 고른 셋
     st?.phase === 'lobby' ? `${st.picking ?? ''}:${(st.pick ?? []).join(',')}` : '',
     // 체육관 들어가기: 걸음 · 문 · 들어감 · 닦기가 한 걸음 바뀔 때마다 (빠지면 장면 내내 안 그려져 서 있다가 대기실로 — 2026-10-20 연속 캡처로 찾음)
-    st?.phase === 'gym-enter' ? JSON.stringify(gymEnterView(st.ms)) : '',
+    //   걷는 동안 (0.6초 안) 은 0.05초마다 — 걸음 수 (walkSteps · 화면이 거리로 정함) 를 열쇠가 몰라도 걸음 경계를 놓치지 않게 (UX U506 작음 2)
+    st?.phase === 'gym-enter' ? `${JSON.stringify(gymEnterView(st.ms))}:${st.ms < 600 ? Math.floor(st.ms / 50) : ''}` : '',
     // 기다리는 이유 (밖 · 숨김 — 이로치 전투가 멈추면 걸음이 안 바뀌어 기다림 한 줄이 안 그려지던 것)
     waitReason(state) ?? '',
     // 보는 상태 (밖 · 숨김) — 멈춘 장면 (대기실 등) 에서 돌아와도 안 그려져 처음 안내가 멈춘 채 남던 것 (다시 그리는 열쇠 네 번째, UX 리뷰어 R12 재확인)

@@ -187,6 +187,13 @@ describe('1-3 끝 체육관 들어가기 (2026-10-20 태현 님 A안)', () => {
     expect(gymEnterView(1900)).toMatchObject({ enter: 1, fade: 0, wipe: 0 });
     expect(gymEnterView(2200).wipe).toBeGreaterThan(0);
     expect(gymEnterView(TIMING.gymEnterMs).wipe).toBe(1);
+    // 걸음 수를 화면이 정함 (U506) — 3걸음이면 반 걸음 앞당겨 0.1 · 0.3 · 0.5초 · 끝은 늘 1
+    expect(gymEnterView(99, 3).walk).toBe(0);
+    expect(gymEnterView(100, 3).walk).toBeCloseTo(1 / 3);
+    expect(gymEnterView(250, 3).walk).toBeCloseTo(1 / 3);
+    expect(gymEnterView(500, 3).walk).toBe(1);
+    expect(gymEnterView(600, 3).walk).toBe(1);
+    expect(gymEnterView(100, 0).walk).toBe(0);
   });
 
   it('체육관 건물은 1-3 에서만 · 길 끝에 가까울 때만 보임 (멀면 null)', () => {
@@ -214,6 +221,8 @@ describe('1-3 끝 체육관 들어가기 (2026-10-20 태현 님 A안)', () => {
     expect(new Set(keys).size).toBe(keys.length);
     // 같은 걸음 안에서는 안 그림 (PC 부담)
     expect(stageViewKey(g(610))).toBe(stageViewKey(g(650)));
+    // 걷는 동안은 0.05초마다 — 걸음 수가 몇이든 걸음 경계 (4걸음 = 0.075 · 0.225 …) 를 한 장면 안에 그림 (U506 작음 2)
+    expect(stageViewKey(g(60))).not.toBe(stageViewKey(g(110)));
   });
 });
 
