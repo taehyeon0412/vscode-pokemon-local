@@ -59,7 +59,7 @@ import { mapView, menuLabels, type Overlay, unspentPoints } from '../../menu/mod
 import { ChoiceBox } from '../../result/components/ChoiceBox';
 import { ResultBox } from '../../result/components/ResultBox';
 import { CAUGHT_INTRO_H, CAUGHT_INTRO_W, caughtView, choiceView, levelUps, needsStatHint } from '../../result/model';
-import { battleStage, buildingDraw, BUILDINGS, TEAM_ARENA, contactX, foeTrainerView, gymEnterView, holdRivalLook, gymFrontX, gymRestX, heroX, minimapOf, evoTipItems, sceneBackground, staffLeftPx, type StageObject, stagePx, STAGES, visibleObjects, meetVsAt, vsStartMs, WALK_PX_PER_SEC } from '../model';
+import { battleStage, buildingDraw, BUILDINGS, TEAM_ARENA, contactX, foeTrainerView, gymEnterView, holdRivalLook, gymFrontX, gymRestX, heroX, minimapOf, evoTipItems, sceneBackground, staffLeftPx, teamScene, type StageObject, stagePx, STAGES, visibleObjects, meetVsAt, vsStartMs, WALK_PX_PER_SEC } from '../model';
 import { BadgeCard, ClearCard, DefeatBox, FacilityBox, HoldBox, LobbyBox, TrainerBanner, VsCutIn, type VsArt } from './FieldBoxes';
 import { GymFront } from './GymFront';
 import { StageToast } from './StageToast';
@@ -215,7 +215,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   // 머리 위 알림 — 패널이 낮으면 머리 위 자리가 알림 한 줄보다 좁음 → 칸 안으로, 위는 상자 자리 (16px = 글자 11 + 위아래 여백, 글자 배율만큼)
   const toastBottom = Math.max(0, Math.min(ground + heroH + 4, bodyPx - Math.ceil(16 * layout.uiScale) - fieldTop));
   // 3:3 동안은 길 위 물건 · 주인공을 숨김 (무대 = 여섯 마리 — 디자인 4안)
-  const teamOn = state.runtime.stage?.phase === 'team';
+  //   3:3 으로 이긴 결과 상자 동안도 (시합장 그대로 — stage/model teamScene · ideas 713)
+  const teamOn = teamScene(state);
   const objects = gym || teamOn ? [] : visibleObjects(state, widthPx, layout.scale);
   const stageRt = state.runtime.stage;
   const battle = stageRt?.phase === 'battle' ? stageRt.battle : null;

@@ -416,9 +416,18 @@ export function foldWait(state: GameState): string | null {
 export const TEAM_ARENA: Partial<Record<RegionId, string>> = { forest: 'arena-forest', beach: 'arena-beach', volcano: 'arena-volcano' };
 
 /** 지금 그릴 길 배경 폴더 — 3:3 판이면 시합장 (#78 — VS 가 끝나 판이 시작될 때 바뀌고 결과 뒤 걷기로 돌아오면 길) · 아니면 스테이지 배경 (지역 표 #57) */
+/**
+ * 3:3 장면 (시합장 · 길 위 물건 · 주인공 숨김) — 3:3 판 동안 + 길에서 3:3 으로 이긴 결과 상자 동안 (ideas 713 — 결과가 뜨는 순간 길로 바뀌어 남색 막이 상자 밑에서 번쩍이던 것 · [계속] 에 길로).
+ * 체육관 결과는 그대로 (3:3 바닥 높이가 판 자리에 묶여 결과 상자에선 못 둠)
+ */
+export function teamScene(state: GameState): boolean {
+  const st = state.runtime.stage;
+  return st?.phase === 'team' || (st?.phase === 'result' && st.summary.team === true && state.save.location.screen === 'stage');
+}
+
 export function sceneBackground(state: GameState): string {
   const loc = state.save.location;
-  const arena = state.runtime.stage?.phase === 'team' ? TEAM_ARENA[regionHere(loc).id] : undefined;
+  const arena = teamScene(state) ? TEAM_ARENA[regionHere(loc).id] : undefined;
   if (arena) return arena;
   return stageBackground(loc.screen === 'stage' ? loc.stageId : null);
 }

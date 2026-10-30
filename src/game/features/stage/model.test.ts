@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { sampleSave } from '../../../test/fixtures/save';
+import { sampleSave, viaJson } from '../../../test/fixtures/save';
 import { BALANCE, TIMING } from '../../core/balance';
-import { createGameState, type GameState } from '../../core/engine';
+import { createGameState, readRuntime, type GameState } from '../../core/engine';
 import { pickRival } from '../../core/rules/rival';
 import { stageLayout } from '../../core/rules/stage';
 import { setRegionOrder } from '../../core/rules/region';
 import { heroLookOf } from '../../data/heroes';
 import { STAGE_IDS, TIPS_MAX } from '../../core/save';
 import { summaryLines } from '../result/model';
-import { badgeAutoLeft, evoTipItems, BATTLE_STAGE_MAX_PX, battleStage, CONTACT_PX, contactX, foldStatus, foeTrainerView, gymEnterView, gymFrontX, heroX, holdRivalLook, minimapOf, rivalTag, STAGES, sceneBackground, stageLabel, stagePx, stageViewKey, TEAM_ARENA, visibleObjects, WALK_PX_PER_SEC } from './model';
+import { badgeAutoLeft, evoTipItems, BATTLE_STAGE_MAX_PX, battleStage, CONTACT_PX, contactX, foldStatus, foeTrainerView, gymEnterView, gymFrontX, heroX, holdRivalLook, minimapOf, rivalTag, STAGES, sceneBackground, stageLabel, stagePx, stageViewKey, TEAM_ARENA, teamScene, visibleObjects, WALK_PX_PER_SEC } from './model';
 
 function at(progress: number, stage: GameState['runtime']['stage'] = { phase: 'walk' }): GameState {
   const s = createGameState(sampleSave({ stages: { 'forest-1': { seed: 42, progress, cleared: false, defeatedTrainers: [], facilities: [], run: { startMs: 0, caught: 0, trainers: 0, seen: [], reach: 0, retries: 0 } } } }), 1);
@@ -277,6 +277,20 @@ describe('3:3 판 배경 (태현 님 #78 — 시합장)', () => {
       if (was === undefined) delete arena.forest;
       else arena.forest = was;
     }
+  });
+
+  it('ideas 713 — 길에서 3:3 으로 이긴 결과 상자 동안은 3:3 장면 그대로 (시합장 · 물건 · 주인공 숨김) · 1:1 결과 · 체육관 결과 · 걷기는 아님 · 넘기기에도 남음', () => {
+    const s = createGameState(sampleSave(), 1);
+    const result = (team: boolean): GameState => ({ ...s, runtime: { ...s.runtime, stage: { phase: 'result', ms: 0, summary: { title: '', exp: [], money: 0, item: null, caught: null, learned: [], choices: 0, badge: null, ...(team ? { team: true } : {}) } } } });
+    expect(teamScene({ ...s, runtime: { ...s.runtime, stage: { phase: 'team' } as never } })).toBe(true);
+    expect(teamScene(result(true))).toBe(true);
+    expect(sceneBackground(result(true))).toBe(sceneBackground({ ...s, runtime: { ...s.runtime, stage: { phase: 'team' } as never } }));
+    expect(teamScene(result(false))).toBe(false);
+    expect(teamScene(s)).toBe(false);
+    const gym = result(true);
+    expect(teamScene({ ...gym, save: { ...gym.save, location: { screen: 'gym' } } })).toBe(false);
+    const back = readRuntime(viaJson(result(true).runtime), 1).stage;
+    expect(back?.phase === 'result' && back.summary.team).toBe(true);
   });
 });
 

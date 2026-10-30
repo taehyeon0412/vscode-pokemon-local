@@ -1970,7 +1970,7 @@ function teamRewards(save: Save, team: TeamBattle, where: StageId | 'gym', rng: 
   const r = battleRewards(save, teamRewardBattle(team), null, where, rng);
   // 트레이너전만 ×1.5 (관장 돈은 처음 3000 · 다시 300 그대로 — 명세 검사관)
   const extra = where === 'gym' ? 0 : Math.round(r.summary.money * (BALANCE.team.moneyScale - 1));
-  return { save: { ...r.save, money: Math.min(999_999_999, r.save.money + extra) }, summary: { ...r.summary, money: r.summary.money + extra } };
+  return { save: { ...r.save, money: Math.min(999_999_999, r.save.money + extra) }, summary: { ...r.summary, money: r.summary.money + extra, team: true } };
 }
 
 /** 진행 막대 끝 "약 N분 남음" — 남은 걷기 시간 (전투 · 부탁 빼고, 빨리 걷기면 그 빠르기로 어림 — 2026-10-21 ideas #118). 스테이지가 아니면 null */
@@ -2072,6 +2072,9 @@ const pct = (p: number) => Math.floor(p * 100);
  */
 export function awaySummary(log: AwayLog, save: Save): string[] {
   const grow: string[] = [];
+  // 다시 켜서 처음부터 한 전투 (ideas 730) — 숨김에서 "다시 켜서 전투를 처음부터!" 를 못 본 채 지나간 수 · "패배 N번" 과 같은 꼴 · 첫 장 맨 앞 (둘째 장은 물건 · 돈 · 야생으로 이미 꽉 차
+  //   맥 240 × 150 가장 긴 물건 이름 조합에서 4줄 — 첫 줄이 정보줄 뒤로 숨던 것, UX 리뷰어 작음 묶음 4 큼)
+  if ((log.restarts ?? 0) > 0) grow.push(`전투${NB}다시${NB}시작${NB}${log.restarts}번`);
   if (log.at) {
     const now = placeOf(save);
     const code = (p: StageId | 'gym') => (p === 'gym' ? '체육관' : stageCode(p));
@@ -2095,9 +2098,6 @@ export function awaySummary(log: AwayLog, save: Save): string[] {
     if (save.regions.next?.length && save.regions.order.length === log.regions) grow.push(`다음${NB}지역${NB}고르기`);
   }
   const gain: string[] = [];
-  // 다시 켜서 처음부터 한 전투 (ideas 730) — 숨김에서 "다시 켜서 전투를 처음부터!" 를 못 본 채 지나간 수
-  const rs = log.restarts ?? 0;
-  if (rs > 0) gain.push(rs === 1 ? `다시${NB}켜서${NB}처음부터${NB}한${NB}전투` : `다시${NB}켜서${NB}처음부터${NB}${rs}번`);
   if ((log.lost ?? 0) > 0) gain.push(`패배${NB}${log.lost}번`);
   // 물건은 두 가지까지 · 나머지는 "외 N가지" (7종이면 240 × 150 에서 4줄로 자라 메뉴 줄 밑으로 잘리던 것 — UX 리뷰어 R14, U4)
   const items = ITEM_IDS.flatMap((id) => {

@@ -44,6 +44,8 @@ export interface BattleSummary {
   evoNote?: string;
   /** 라이벌에게 이김 — 돈 · 아이템을 "트레이너보다 좋게" 표시 (돈 ×1.5 · 희귀 아이템) */
   rival?: boolean;
+  /** 3:3 판에서 이김 — 결과 상자 동안 시합장을 그대로 두고 [계속] 에 길로 (ideas 713) */
+  team?: boolean;
 }
 
 const nameOf = (dex: number) => speciesOf(dex)?.name.ko ?? '???';

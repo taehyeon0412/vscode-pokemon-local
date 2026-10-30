@@ -209,6 +209,7 @@ function readSummary(raw: unknown): BattleSummary | null {
     ...(quote !== null ? { quote } : {}),
     ...(raw.rival === true ? { rival: true } : {}),
     ...(text(raw.evoNote, 80) !== null ? { evoNote: text(raw.evoNote, 80) as string } : {}),
+    ...(raw.team === true ? { team: true } : {}),
   };
 }
 
