@@ -17248,7 +17248,7 @@ let fxOrbPreview = null;
         // 분홍빛 — 화면 전체 (밑에 깔림)
         part({ x: 0, y: 0, s: S, max: total, draw: (ctx, p, t) => {
             ctx.globalCompositeOperation = 'destination-over';
-            ctx.globalAlpha = 0.16 * fadeInOut(t, 0.1, 0.25);
+            ctx.globalAlpha = 0.16 * fadeInOut(t, 0.1, 0.25) * (typeof fxReduceMotion === 'function' && fxReduceMotion() ? 0.5 : 1); // 동작 줄이기면 반 밝기 (ideas 738)
             ctx.fillStyle = '#ff7ab8';
             ctx.fillRect(0, 0, W, H);
         } });
@@ -20480,7 +20480,8 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                 }
             } else if (kind === 'blizzard') {
                 sc.add({ max: 0.7, draw: (ctx, it, t) => {
-                    ctx.globalAlpha = 0.45 * (1 - t);
+                    // 동작 줄이기면 반 밝기 (ideas 738)
+                    ctx.globalAlpha = 0.45 * (1 - t) * (typeof fxReduceMotion === 'function' && fxReduceMotion() ? 0.5 : 1);
                     ctx.fillStyle = '#f2fbff';
                     ctx.fillRect(0, 0, W, H);
                 } });
@@ -24160,8 +24161,8 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                 const grow = 1 - (1 - Math.min(1, life / 0.6)) ** 2; // 처음에 확 튀어나가지 않고 서서히 커짐
                 const fade = life > dur - 0.6 ? Math.max(0, (dur - life) / 0.6) : 1;
                 const hol = o.hollow ? o.hollow() : 0;
-                // 화면 전체가 빛에 물듦
-                ctx.globalAlpha = 0.22 * grow * fade * (1 - hol);
+                // 화면 전체가 빛에 물듦 (동작 줄이기면 반 밝기 — ideas 738)
+                ctx.globalAlpha = 0.22 * grow * fade * (1 - hol) * (typeof fxReduceMotion === 'function' && fxReduceMotion() ? 0.5 : 1);
                 ctx.fillStyle = cols[1];
                 ctx.fillRect(0, 0, W, H);
                 if (!soft) {
@@ -24271,7 +24272,8 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             }
         }
         const pal = [cols[3], cols[2], cols[1], cols[0], '#ffffff']; // 어두운 → 밝은
-        const step = Math.floor((1 - show) * 5.99); // 사라지는 단계
+        // 사라지는 단계 · 동작 줄이기면 고리마다 한 단계 어둡게 시작 (패널 가득 밝아지는 돔을 반 밝기로, ideas 738 · 옅게 하면 하양이 회색으로 탁해져서 팔레트 한 칸 — 첫 색이 하양인 돔은 심은 하양 그대로 · 바깥 고리만 어두워짐)
+        const step = Math.floor((1 - show) * 5.99) + (typeof fxReduceMotion === 'function' && fxReduceMotion() ? 1 : 0);
         [[2, 0.6], [2, 0.9], [1, 1], [2, 1], [3, 1], [4, 1], [2, 0.55]].forEach(([base, a], k) => {
             const i = base - step;
             if (i >= 0) {
@@ -26416,7 +26418,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                 return;
             }
             if (life < TF + 0.06) {
-                ctx.globalAlpha = 0.92;
+                ctx.globalAlpha = 0.92 * (typeof fxReduceMotion === 'function' && fxReduceMotion() ? 0.5 : 1); // 동작 줄이기면 반 밝기 (ideas 738)
                 ctx.fillStyle = '#ffffff';
                 ctx.fillRect(0, 0, W, H);
                 return;
@@ -27074,7 +27076,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             const a = clamp((life - TC0) / 1.5, 0, 1) * 0.14 + (life > TX && life < TB ? 0.18 : 0);
             const fade = 1 - clamp((life - TB) / 0.3, 0, 1);
             if (a * fade > 0.01) {
-                ctx.globalAlpha = a * fade;
+                ctx.globalAlpha = a * fade * (typeof fxReduceMotion === 'function' && fxReduceMotion() ? 0.5 : 1); // 동작 줄이기면 반 밝기 (ideas 738)
                 ctx.fillStyle = MEWP[3];
                 ctx.fillRect(0, 0, W, H);
             }
@@ -27755,7 +27757,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
             const life = sc.t;
             const a = clamp((life - TC1) / 0.6, 0, 1) * (1 - clamp((life - TX) / 0.3, 0, 1));
             if (a > 0) {
-                ctx.globalAlpha = 0.18 * a;
+                ctx.globalAlpha = 0.18 * a * (typeof fxReduceMotion === 'function' && fxReduceMotion() ? 0.5 : 1); // 동작 줄이기면 반 밝기 (ideas 738)
                 ctx.fillStyle = MEWPK[2];
                 ctx.fillRect(0, 0, W, H);
             }
@@ -28222,7 +28224,8 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
     // 임팩트 프레임(하양 · 검정 한순간) — 번쩍은 적당히
     function impactFrames(sc, W, H, white = 0.7, black = 0.45) {
         sc.add({ max: 0.05, draw: (ctx) => {
-            ctx.globalAlpha = white;
+            // 동작 줄이기면 흰 칠 반 밝기 — 전용 필살기 (fx-unique) 114곳이 같이 (ideas 738 · UX 작음 1)
+            ctx.globalAlpha = white * (typeof fxReduceMotion === 'function' && fxReduceMotion() ? 0.5 : 1);
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, W, H);
         } });
@@ -55551,7 +55554,9 @@ function fxGameShake(amp) {
     });
 }
 // 화면 번쩍 상한 — 게임 중엔 0.3 (넓은 패널 전체가 하얗게 번쩍이지 않게) · 반격기 (짧은 필살기, fxGame.noFlash) 는 0 (2026-10-21 orders #7 — 솔라빔이 860 전체를 0.2초 밝게)
-const fxFlashCap = () => (fxInGame() ? (fxGame && fxGame.noFlash ? 0 : fxAway ? 0.15 : 0.3) : 1);
+/** 게임 설정 "동작 줄이기" (#pokemon-game.pg-reduce-motion) — 패널 가득 밝아지는 그림 빛도 반 밝기 (ideas 738 · screenFlash 는 712 에서 안 함) */
+const fxReduceMotion = () => !!document.querySelector('#pokemon-game.pg-reduce-motion');
+const fxFlashCap = () => (fxInGame() ? (fxGame && fxGame.noFlash ? 0 : fxAway || fxReduceMotion() ? 0.15 : 0.3) : 1);
 // 게임 중 화면 번쩍 — 0.34초에 한 번 · 진하기 0.3 까지 (1초 3번 규칙). 일반 모드는 그대로
 // 간격은 진짜 시계 (불러올 때 잡아 둔 performance.now) — 게임 시계 (webview/clock) 로 세면 빠르게 ▶▶ ×3 (#136) 에서 진짜 1초에 9번까지 됨
 // (fxRealNow 는 다른 뜻 — 기술 박자 어긋남을 뺀 게임 시계 · 이름이 겹치면 묶음 전체가 불러올 때 깨짐)

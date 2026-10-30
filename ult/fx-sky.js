@@ -1387,7 +1387,8 @@
                 }
             } else if (kind === 'blizzard') {
                 sc.add({ max: 0.7, draw: (ctx, it, t) => {
-                    ctx.globalAlpha = 0.45 * (1 - t);
+                    // 동작 줄이기면 반 밝기 (ideas 738)
+                    ctx.globalAlpha = 0.45 * (1 - t) * (typeof fxReduceMotion === 'function' && fxReduceMotion() ? 0.5 : 1);
                     ctx.fillStyle = '#f2fbff';
                     ctx.fillRect(0, 0, W, H);
                 } });
@@ -5067,8 +5068,8 @@
                 const grow = 1 - (1 - Math.min(1, life / 0.6)) ** 2; // 처음에 확 튀어나가지 않고 서서히 커짐
                 const fade = life > dur - 0.6 ? Math.max(0, (dur - life) / 0.6) : 1;
                 const hol = o.hollow ? o.hollow() : 0;
-                // 화면 전체가 빛에 물듦
-                ctx.globalAlpha = 0.22 * grow * fade * (1 - hol);
+                // 화면 전체가 빛에 물듦 (동작 줄이기면 반 밝기 — ideas 738)
+                ctx.globalAlpha = 0.22 * grow * fade * (1 - hol) * (typeof fxReduceMotion === 'function' && fxReduceMotion() ? 0.5 : 1);
                 ctx.fillStyle = cols[1];
                 ctx.fillRect(0, 0, W, H);
                 if (!soft) {
@@ -5178,7 +5179,8 @@
             }
         }
         const pal = [cols[3], cols[2], cols[1], cols[0], '#ffffff']; // 어두운 → 밝은
-        const step = Math.floor((1 - show) * 5.99); // 사라지는 단계
+        // 사라지는 단계 · 동작 줄이기면 고리마다 한 단계 어둡게 시작 (패널 가득 밝아지는 돔을 반 밝기로, ideas 738 · 옅게 하면 하양이 회색으로 탁해져서 팔레트 한 칸 — 첫 색이 하양인 돔은 심은 하양 그대로 · 바깥 고리만 어두워짐)
+        const step = Math.floor((1 - show) * 5.99) + (typeof fxReduceMotion === 'function' && fxReduceMotion() ? 1 : 0);
         [[2, 0.6], [2, 0.9], [1, 1], [2, 1], [3, 1], [4, 1], [2, 0.55]].forEach(([base, a], k) => {
             const i = base - step;
             if (i >= 0) {
@@ -7323,7 +7325,7 @@
                 return;
             }
             if (life < TF + 0.06) {
-                ctx.globalAlpha = 0.92;
+                ctx.globalAlpha = 0.92 * (typeof fxReduceMotion === 'function' && fxReduceMotion() ? 0.5 : 1); // 동작 줄이기면 반 밝기 (ideas 738)
                 ctx.fillStyle = '#ffffff';
                 ctx.fillRect(0, 0, W, H);
                 return;
@@ -7981,7 +7983,7 @@
             const a = clamp((life - TC0) / 1.5, 0, 1) * 0.14 + (life > TX && life < TB ? 0.18 : 0);
             const fade = 1 - clamp((life - TB) / 0.3, 0, 1);
             if (a * fade > 0.01) {
-                ctx.globalAlpha = a * fade;
+                ctx.globalAlpha = a * fade * (typeof fxReduceMotion === 'function' && fxReduceMotion() ? 0.5 : 1); // 동작 줄이기면 반 밝기 (ideas 738)
                 ctx.fillStyle = MEWP[3];
                 ctx.fillRect(0, 0, W, H);
             }
@@ -8662,7 +8664,7 @@
             const life = sc.t;
             const a = clamp((life - TC1) / 0.6, 0, 1) * (1 - clamp((life - TX) / 0.3, 0, 1));
             if (a > 0) {
-                ctx.globalAlpha = 0.18 * a;
+                ctx.globalAlpha = 0.18 * a * (typeof fxReduceMotion === 'function' && fxReduceMotion() ? 0.5 : 1); // 동작 줄이기면 반 밝기 (ideas 738)
                 ctx.fillStyle = MEWPK[2];
                 ctx.fillRect(0, 0, W, H);
             }
@@ -9129,7 +9131,8 @@
     // 임팩트 프레임(하양 · 검정 한순간) — 번쩍은 적당히
     function impactFrames(sc, W, H, white = 0.7, black = 0.45) {
         sc.add({ max: 0.05, draw: (ctx) => {
-            ctx.globalAlpha = white;
+            // 동작 줄이기면 흰 칠 반 밝기 — 전용 필살기 (fx-unique) 114곳이 같이 (ideas 738 · UX 작음 1)
+            ctx.globalAlpha = white * (typeof fxReduceMotion === 'function' && fxReduceMotion() ? 0.5 : 1);
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, W, H);
         } });

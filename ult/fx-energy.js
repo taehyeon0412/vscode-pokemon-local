@@ -1951,7 +1951,7 @@ let fxOrbPreview = null;
         // 분홍빛 — 화면 전체 (밑에 깔림)
         part({ x: 0, y: 0, s: S, max: total, draw: (ctx, p, t) => {
             ctx.globalCompositeOperation = 'destination-over';
-            ctx.globalAlpha = 0.16 * fadeInOut(t, 0.1, 0.25);
+            ctx.globalAlpha = 0.16 * fadeInOut(t, 0.1, 0.25) * (typeof fxReduceMotion === 'function' && fxReduceMotion() ? 0.5 : 1); // 동작 줄이기면 반 밝기 (ideas 738)
             ctx.fillStyle = '#ff7ab8';
             ctx.fillRect(0, 0, W, H);
         } });

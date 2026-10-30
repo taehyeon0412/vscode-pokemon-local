@@ -650,7 +650,9 @@ function fxGameShake(amp) {
     });
 }
 // 화면 번쩍 상한 — 게임 중엔 0.3 (넓은 패널 전체가 하얗게 번쩍이지 않게) · 반격기 (짧은 필살기, fxGame.noFlash) 는 0 (2026-10-21 orders #7 — 솔라빔이 860 전체를 0.2초 밝게)
-const fxFlashCap = () => (fxInGame() ? (fxGame && fxGame.noFlash ? 0 : fxAway ? 0.15 : 0.3) : 1);
+/** 게임 설정 "동작 줄이기" (#pokemon-game.pg-reduce-motion) — 패널 가득 밝아지는 그림 빛도 반 밝기 (ideas 738 · screenFlash 는 712 에서 안 함) */
+const fxReduceMotion = () => !!document.querySelector('#pokemon-game.pg-reduce-motion');
+const fxFlashCap = () => (fxInGame() ? (fxGame && fxGame.noFlash ? 0 : fxAway || fxReduceMotion() ? 0.15 : 0.3) : 1);
 // 게임 중 화면 번쩍 — 0.34초에 한 번 · 진하기 0.3 까지 (1초 3번 규칙). 일반 모드는 그대로
 // 간격은 진짜 시계 (불러올 때 잡아 둔 performance.now) — 게임 시계 (webview/clock) 로 세면 빠르게 ▶▶ ×3 (#136) 에서 진짜 1초에 9번까지 됨
 // (fxRealNow 는 다른 뜻 — 기술 박자 어긋남을 뺀 게임 시계 · 이름이 겹치면 묶음 전체가 불러올 때 깨짐)
