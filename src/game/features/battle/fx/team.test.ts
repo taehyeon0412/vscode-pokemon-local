@@ -274,7 +274,7 @@ describe('장면 전환 (#99 시안) — 들어감 → (합동 컷인) → 1:1 �
     vi.useFakeTimers();
     vi.stubGlobal('window', globalThis);
     const calls: string[] = [];
-    let main = 3000;
+    const main = 3000;
     let still = -1;
     let total = 9000;
     const fx = { version: 4, plan: () => null, team: () => undefined, mount: () => undefined, clear: () => undefined, stopDuel: () => undefined,

@@ -320,6 +320,17 @@ export function overLineHold(lineYoung: boolean, overMs: number, hasMsg: boolean
 /** 판 끝 결과 줄이 처음 보인 뒤 결과 화면으로 넘어가기까지 (진짜 ms — fx/hold holdTeamOver · U1 1초 + 여유, bugs 1914) */
 export const OVER_MSG_MS = 1100;
 
+/** 쓰러짐 한 줄 — 내 이름 먼저 · "상대 ○○" 는 뒤로 (거울 대결 섞인 줄 "상대 리자몽 · 망나뇽 쓰러졌다!" 의 "상대" 가 망나뇽에도 걸려 읽히던 것, ideas 743) · 같은 쪽 안은 온 순서 · 같은 이름은 하나 */
+export function faintLine(names: readonly string[]): string | null {
+  const u = [...new Set(names)];
+  const foe = u.filter((n) => n.startsWith('상대 '));
+  return u.length ? `${[...u.filter((n) => !foe.includes(n)), ...foe].join(' · ')} 쓰러졌다!` : null;
+}
+
+/** 쓰러짐 말을 그릴 때만 "상대" 와 이름을 붙임 (붙는 띄어쓰기) — 240 에서 "… · 상대" / "장크로다일 · …" 로 꺾여 아랫줄 이름이 내 것으로 읽히던 것 (743 UX 큼 1).
+ *  가운뎃점은 앞 이름에 붙임 (300 에서 아랫줄이 "· 상대 메타그로스" 로 시작하던 것) · 한 시계는 그리기 전 글을 split(' · ') 로 나눠 이름 열쇠와 맞추므로 글 자체는 그대로 둠 */
+export const faintShow = (text: string): string => text.replace(/상대 /g, '상대\u00a0').replace(/ · /g, '\u00a0· ');
+
 /** 띠 끝 쓰러짐 말을 줄인 것 — 둘 넘게면 "2마리 쓰러졌다!" (240 "이겼다! · 2마리 쓰러졌다!" — 아트 디렉터 #95 4바퀴 ②) · 하나면 줄이지 않음 */
 export function faintShortLine(names: readonly string[]): string | null {
   const n = new Set(names).size;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { numShown, NUM_MIN_REAL_MS, NUM_SHOW_MS, bandDrawn, bandLeft, duelSpots, faintHoldLeft, foeUltSoon, JOINT_CHIP_MS, keepJointChips, faintIsBig, faintShortLine, overLineHold, plateBoxOf, stackRows, TEAM_ROW_GAP, teamGeometry, viewHitChip, viewPopsBack, warnPosOf, type WarnPos, viewCrossers, viewMonClass, teamDenyNote } from './model';
+import { numShown, NUM_MIN_REAL_MS, NUM_SHOW_MS, bandDrawn, bandLeft, duelSpots, faintHoldLeft, foeUltSoon, JOINT_CHIP_MS, keepJointChips, faintIsBig, faintLine, faintShortLine, faintShow, overLineHold, plateBoxOf, stackRows, TEAM_ROW_GAP, teamGeometry, viewHitChip, viewPopsBack, warnPosOf, type WarnPos, viewCrossers, viewMonClass, teamDenyNote } from './model';
 import { sampleMonster, sampleSave } from '../../../../test/fixtures/save';
 import { startTeamBattle, type TeamBattle } from '../../../core/engine/team';
 
@@ -300,6 +300,18 @@ describe('3:3 위 가운데 줄 — 띠 · 쓰러짐 줄 · 결과 줄 (픽셀 �
     expect(faintShortLine(['통통코', '소미안'])).toBe('2마리 쓰러졌다!');
     expect(faintShortLine(['통통코', '통통코'])).toBeNull();
     expect(faintShortLine(['레디바'])).toBeNull();
+  });
+
+  it('ideas 743 — 쓰러짐 한 줄은 내 이름 먼저 · "상대 ○○" 는 뒤로 (거울 대결 "상대 리자몽 · 망나뇽" 의 "상대" 가 망나뇽에도 걸려 읽히던 것) · 같은 이름 하나', () => {
+    expect(faintLine(['상대 리자몽', '망나뇽'])).toBe('망나뇽 · 상대 리자몽 쓰러졌다!');
+    expect(faintLine(['통통코', '상대 리자몽', '소미안', '상대 피죤'])).toBe('통통코 · 소미안 · 상대 리자몽 · 상대 피죤 쓰러졌다!');
+    expect(faintLine(['통통코', '통통코'])).toBe('통통코 쓰러졌다!');
+    expect(faintLine([])).toBeNull();
+    // 그릴 때만 "상대" 와 이름을 붙임 (240 꺾임 — UX 큼 1) · 이름 나누기 (' · ') 는 그대로
+    const shown = faintShow('아리아도스 · 상대 헤라크로스 · 상대 장크로다일 쓰러졌다!');
+    expect(shown).toBe('아리아도스\u00a0· 상대\u00a0헤라크로스\u00a0· 상대\u00a0장크로다일 쓰러졌다!');
+    expect(shown.split(/\s·\s/)).toHaveLength(3);
+    expect(faintShow('통통코 쓰러졌다!')).toBe('통통코 쓰러졌다!');
   });
 
   it('위에서부터 앞 줄 아래 + 4 로 쌓음 · 띠 (24) 아래 쓰러짐 줄 (28) 아래 결과 줄', () => {
