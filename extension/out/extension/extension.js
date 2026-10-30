@@ -1,4 +1,22 @@
 "use strict";
+// 설치본은 줄인 일반 모드 묶음 (media/main-bundle.min.js — scripts/build.mjs --release · #140 4/5 처음 켜기 · 메모리) — 첫 줄의 원본 크기가 지금 원본과 같을 때만
+//   (make-moves.py 로 원본을 다시 만든 뒤 빌드 전이면 원본을 씀)
+function mainBundleName(root) {
+    try {
+        const fs = require('fs');
+        const path = require('path');
+        const dir = path.join(root, 'media');
+        const fd = fs.openSync(path.join(dir, 'main-bundle.min.js'), 'r');
+        const head = Buffer.alloc(64);
+        fs.readSync(fd, head, 0, 64, 0);
+        fs.closeSync(fd);
+        const m = /^\/\/ main-bundle\.js (\d+)/.exec(head.toString('utf8'));
+        return m && Number(m[1]) === fs.statSync(path.join(dir, 'main-bundle.js')).size ? 'main-bundle.min.js' : 'main-bundle.js';
+    }
+    catch (_a) {
+        return 'main-bundle.js';
+    }
+}
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.spawnPokemonDeactivate = exports.activate = exports.storeCollectionAsMemento = exports.PokemonSpecification = exports.shouldSpawnInitialCollection = void 0;
 const vscode = require("vscode");
@@ -1067,7 +1085,7 @@ class PokemonWebviewContainer {
     update() { }
     _getHtmlForWebview(webview) {
         // Local path to main script run in the webview
-        const scriptPathOnDisk = vscode.Uri.joinPath(this._extensionUri, 'media', 'main-bundle.js');
+        const scriptPathOnDisk = vscode.Uri.joinPath(this._extensionUri, 'media', mainBundleName(this._extensionUri.fsPath));
         // And the uri we use to load this script in the webview
         const scriptUri = webview.asWebviewUri(scriptPathOnDisk);
         // Local path to css styles
@@ -1141,7 +1159,7 @@ function watchInstall(context) {
     const path = require('path');
     const crypto = require('crypto');
     const root = context.extensionPath;
-    const web = ['media/main-bundle.js', 'media/game/boot.js', 'media/game/game.js'];
+    const web = ['media/main-bundle.js', 'media/main-bundle.min.js', 'media/game/boot.js', 'media/game/game.js'];
     const code = ['out/extension/extension.js', 'out/extension/game-loader.js', 'out/game/host.js', 'package.json'];
     const digest = (rel) => {
         try {

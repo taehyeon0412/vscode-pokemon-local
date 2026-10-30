@@ -6,7 +6,7 @@
 //   node scripts/build.mjs --tests     + 실제 VS Code 테스트 묶음 (.test-out/)
 //   node scripts/build.mjs --release --tests --host-only   확장 쪽 (host.js) + 테스트 묶음만 — 웹뷰 묶음 (media/game) 은 그대로 (시험 창 캡처가 도는 중에도 dev/vscode-shot.py 를 돌리게)
 import * as esbuild from 'esbuild';
-import { rmSync } from 'node:fs';
+import { rmSync, statSync } from 'node:fs';
 import { relative } from 'node:path';
 
 const args = new Set(process.argv.slice(2));
@@ -123,4 +123,14 @@ if (watch) {
   await Promise.all(contexts.map((ctx) => ctx.watch()));
 } else {
   await Promise.all(targets.map((t) => esbuild.build(t)));
+  // 일반 모드 묶음 (media/main-bundle.js — make-moves.py 가 만드는 3.4 MB · 주석 그대로) 을 설치본용으로 줄여 따로 (#140 4/5 — 처음 켜기 · 메모리):
+  //   이름은 그대로 (띄어쓰기 · 주석 · 문법만 줄임) · 저장소에는 안 올림 (.gitignore) · 첫 줄에 원본 크기 — 확장은 크기가 같을 때만 줄인 판을 씀 (extension.js mainBundleName)
+  const minOut = 'extension/media/main-bundle.min.js';
+  if (release && !hostOnly) {
+    const size = statSync('extension/media/main-bundle.js').size;
+    await esbuild.build({ entryPoints: ['extension/media/main-bundle.js'], outfile: minOut, bundle: false, minifyWhitespace: true, minifySyntax: true, charset: 'utf8', legalComments: 'none', logLevel: 'error', target: 'chrome102', banner: { js: `// main-bundle.js ${size}` } });
+  } else if (!hostOnly) {
+    // 개발 빌드 — 줄인 판을 지워 원본을 씀 (make-moves 로 고친 연출이 바로 보이게)
+    rmSync(minOut, { force: true });
+  }
 }

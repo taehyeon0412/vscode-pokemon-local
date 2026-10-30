@@ -462,7 +462,8 @@ def run_one(out, cfg):
                 if s:
                     log.write(json.dumps({"el": round(el, 3), **s}, ensure_ascii=False) + "\n")
                     step(ws, W, s, acts, el, rnd, cfg)
-                    if acts["resultAt"] is not None and el - acts["resultAt"] > 3.5 and not cfg.get("wild"):
+                    # soak = 오래 켜 두기 (perf-run 30분) — 결과 상자에서 끝내지 않고 넘기며 계속 놂
+                    if acts["resultAt"] is not None and el - acts["resultAt"] > 3.5 and not cfg.get("wild") and not cfg.get("soak"):
                         break
                     if cfg.get("wild") and acts.get("walkAt") is not None and el - acts["walkAt"] > 2.0:
                         break
@@ -575,10 +576,23 @@ def step(ws, W, s, acts, el, rnd, cfg):
     if s["phase"] == "result":
         if acts["resultAt"] is None:
             acts["resultAt"] = el
-        # 야생 — 결과 · 진화를 읽고 넘김 (4초)
-        if cfg.get("wild") and el - acts["resultAt"] > 4.0 and el - acts.get("contAt", 0) > 2.0:
+        # 야생 · 오래 켜 두기 — 결과 · 진화를 읽고 넘김 (4초 · 켜 두기는 상자마다 다시 셈)
+        if (cfg.get("wild") or cfg.get("soak")) and el - acts["resultAt"] > 4.0 and el - acts.get("contAt", 0) > 2.0:
             acts["contAt"] = el
             inp({"kind": "result-continue"})
+            if cfg.get("soak"):
+                acts["resultAt"] = None
+        return
+    # 오래 켜 두기 — 진화 · 새 기술 고르기 (자동 전투가 안 넘기는 것) 는 야생 판과 같이
+    if cfg.get("soak") and s["phase"] == "choice":
+        acts.setdefault("choiceAt", el)
+        if el - acts.get("choiceTry", 0) < 1.0 or el - acts["choiceAt"] < 1.5:
+            return
+        acts["choiceTry"] = el
+        if s.get("ck") == "evolve":
+            inp({"kind": "evolve-watch"} if s.get("cms", 0) < 0 else {"kind": "evolve", "keep": list(range(min(4, s.get("nMoves", 0))))})
+        elif s.get("ck") == "learn":
+            inp({"kind": "learn", "replace": None})
         return
     if cfg.get("wild"):
         if s["phase"] == "appear" and s.get("ms", 0) > 1800 and not acts.get("appearGo"):

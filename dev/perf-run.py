@@ -230,18 +230,40 @@ def metrics(K):
     }
 
 
+MSAMP_S = float(kv.get("msamp", "3"))
+
+
+def sampler(stop, rows, t0):
+    """프로세스 메모리 (렌더러 · GPU · 전체) 를 몇 초마다 — 판 끝 한 번이 아니라 흐름으로 (4/5 메모리 · 30분 켜 두기)"""
+    while not stop.wait(MSAMP_S):
+        m = proc_mem()
+        if m and m.get("all"):
+            rows.append([round(time.time() - t0, 1), m["renderer"], m["gpu"], m["all"]])
+
+
 def run(cfg, out, draws=False):
     os.makedirs(out, exist_ok=True)
     state.update(out=out, shot=0.0, mem=None, draws=draws, dc=None)
-    tr.run_one(out, dict(cfg))
+    import threading
+    stop, rows = threading.Event(), []
+    th = threading.Thread(target=sampler, args=(stop, rows, time.time()), daemon=True)
+    th.start()
+    try:
+        tr.run_one(out, dict(cfg))
+    finally:
+        stop.set()
+        th.join(timeout=10)
     K = json.load(open(os.path.join(out, "raw.json"), encoding="utf-8"))["K"]
     m = metrics(K)
+    m["gl"] = K.get("gl")
     m["mem"] = state.get("mem")
+    if rows:
+        m["mem_max"] = {"renderer": max(r[1] for r in rows), "gpu": max(r[2] for r in rows), "all": max(r[3] for r in rows)}
+        m["msamp"] = rows
     if draws:
         fr = json.loads(state["dc"]) if isinstance(state.get("dc"), str) else []
         fr = [n for n in fr if n > 0]
         m = {"draw_avg": round(statistics.mean(fr), 1) if fr else 0, "draw_max": max(fr) if fr else 0}
-    m["gl"] = K.get("gl")
     json.dump({"cfg": cfg, "m": m, "views": K.get("views"), "phases": K.get("phases"), "long": K.get("long"), "stalls": [x for x in K.get("dts", []) if x[1] > 50]}, open(os.path.join(out, "perf.json"), "w", encoding="utf-8"), ensure_ascii=False)
     return m
 
@@ -282,6 +304,9 @@ def main():
             mems = [r["mem"] for r in reps if r.get("mem")]
             if mems:
                 row["median"]["mem"] = {k: statistics.median([x[k] for x in mems]) for k in mems[0]}
+            peaks = [r["mem_max"] for r in reps if r.get("mem_max")]
+            if peaks:
+                row["median"]["mem_max"] = {k: statistics.median([x[k] for x in peaks]) for k in peaks[0]}
         if DRAWS:
             try:
                 row["draws"] = run(cfg, os.path.join(out_root, f"run{i:02d}", "draws"), draws=True)
@@ -298,11 +323,11 @@ def main():
 
 def write_md(summary, path):
     keys = ["stall50", "stall100", "max_ms", "avg_ms", "fps_avg", "fps_low1", "long_tasks", "heap_mb", "canvas_mb", "img_mb", "boot_ms"]
-    lines = [f"# 성능 — 배율 {DPR} · GPU {'켬' if GPU else '끔'} · {REP}번 가운데 값", "", "| 판 | " + " | ".join(keys) + " | 렌더러 MB | GPU MB | 전체 MB | 그리기 평균 | 그리기 최대 |", "|" + "---|" * (len(keys) + 6)]
+    lines = [f"# 성능 — 배율 {DPR} · GPU {'켬' if GPU else '끔'} · {REP}번 가운데 값", "", "| 판 | " + " | ".join(keys) + " | 렌더러 MB (최대) | GPU MB (최대) | 전체 MB (최대) | 그리기 평균 | 그리기 최대 |", "|" + "---|" * (len(keys) + 6)]
     for k in sorted(summary):
         r = summary[k]
         m = r.get("median", {})
-        mem = m.get("mem", {}) if isinstance(m.get("mem"), dict) else {}
+        mem = m.get("mem_max") or (m.get("mem", {}) if isinstance(m.get("mem"), dict) else {})
         d = r.get("draws") or {}
         lines.append(f"| {r['name']} | " + " | ".join(str(m.get(x, "")) for x in keys) + f" | {mem.get('renderer', '')} | {mem.get('gpu', '')} | {mem.get('all', '')} | {d.get('draw_avg', '')} | {d.get('draw_max', '')} |")
     open(path, "w", encoding="utf-8").write("\n".join(lines) + "\n")

@@ -28,3 +28,5 @@ docs/ux-rules.md
 
 # 팀 워크트리 (2026-10-22 태현 님 — 워크트리로 나눠 고치고 주제마다 squash 로 합침, docs/game-design/collab-worktree.md)
 .claude/worktrees/
+# 설치본용 줄인 일반 모드 묶음 (scripts/build.mjs --release — #140 4/5)
+extension/media/main-bundle.min.js
