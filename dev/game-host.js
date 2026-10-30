@@ -233,6 +233,12 @@
         // trainer=1 — 제목 없는 결과 상자 (트레이너 · "…의 승부에서 이겼다!" — resultTitleShown 거짓, 숫자만) · trainer=3 = 3:3 승부 (1898 UX — 제목 있는 상자만 재서 놓친 것)
         if (scene === 'result' && q.get('trainer')) stage.summary = { ...stage.summary, badge: null, title: q.get('trainer') === '3' ? '반바지 꼬마 민수와의 3:3 승부에서 이겼다!' : '반바지 꼬마 민수와의 승부에서 이겼다!' };
         if (scene === 'result' && q.get('rms')) stage.ms = Number(q.get('rms'));
+        // teamme=1 — 길 3:3 을 이긴 결과 (시합장 그대로 · 판 끝 내 칸 셋 중 가운데 쓰러짐 · 셋째 이로치 — ideas 739 멈춘 셋) · teamme=2 = 둘만 (1 · 2칸)
+        if (scene === 'result' && q.get('teamme')) {
+            const mk = (uid, species, form, hp, maxHp, shiny) => ({ uid, species, form, shiny, hp, maxHp, down: hp <= 0 });
+            const three = [mk('m1', 1, 'bulbasaur', 12, 21, false), mk('t2', 4, 'charmander', 0, 20, false), mk('t3', 7, 'squirtle', 18, 20, true)];
+            stage.summary = { ...stage.summary, badge: null, team: true, title: '반바지 꼬마 민수와의 3:3 승부에서 이겼다!', teamMe: q.get('teamme') === '2' ? [three[0], mk('t3', 7, 'squirtle', 18, 20, true)] : three };
+        }
         if (scene === 'result' && q.get('evonote')) stage.summary = { ...stage.summary, item: '천둥의돌', evoNote: '피카츄 → 라이츄 진화 가능' };
         if (scene === 'result' && q.get('ups') === '0') stage.summary = { ...stage.summary, exp: [{ uid: 'm1', name: '이상해씨', gain: 28, from: 5, to: 5 }], learned: [] };
         if (scene === 'learn') save.pendingChoices = [{ kind: 'learn', uid: 'm1', moveId: 75 }];

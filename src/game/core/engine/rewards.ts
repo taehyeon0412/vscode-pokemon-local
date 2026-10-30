@@ -46,6 +46,8 @@ export interface BattleSummary {
   rival?: boolean;
   /** 3:3 판에서 이김 — 결과 상자 동안 시합장을 그대로 두고 [계속] 에 길로 (ideas 713) */
   team?: boolean;
+  /** 3:3 판 끝 내 칸 (0 ~ 2 순서) — 결과 상자 동안 시합장에 판 끝 자리 · 모습 그대로 세움 (ideas 739 — 이긴 셋이 한꺼번에 사라져 빈 시합장) · down = 쓰러짐 */
+  teamMe?: { uid: string; species: number; form: string; shiny: boolean; hp: number; maxHp: number; down: boolean }[];
 }
 
 const nameOf = (dex: number) => speciesOf(dex)?.name.ko ?? '???';

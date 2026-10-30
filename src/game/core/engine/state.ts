@@ -210,7 +210,21 @@ function readSummary(raw: unknown): BattleSummary | null {
     ...(raw.rival === true ? { rival: true } : {}),
     ...(text(raw.evoNote, 80) !== null ? { evoNote: text(raw.evoNote, 80) as string } : {}),
     ...(raw.team === true ? { team: true } : {}),
+    ...(readTeamMe(raw.teamMe) ? { teamMe: readTeamMe(raw.teamMe)! } : {}),
   };
+}
+
+/** 3:3 결과 내 칸 (ideas 739) — 1 ~ 3칸 · 있는 종 · 모습 이름 (이상한 칸이 하나라도 있으면 통째로 버림 — 자리가 어긋나지 않게) */
+function readTeamMe(v: unknown): BattleSummary['teamMe'] | null {
+  if (!Array.isArray(v) || v.length === 0 || v.length > 3) return null;
+  const out = v.map((m) => {
+    if (!isObj(m) || !Number.isInteger(m.species) || !speciesOf(m.species as number) || text(m.form, 40) === null) return null;
+    const maxHp = num(m.maxHp, 1, 1e6);
+    const hp = num(m.hp, 0, 1e6);
+    if (maxHp === null || hp === null) return null;
+    return { uid: text(m.uid, 20) ?? '', species: m.species as number, form: text(m.form, 40) as string, shiny: m.shiny === true, hp: Math.min(hp, maxHp), maxHp, down: m.down === true };
+  });
+  return out.every((m) => m !== null) ? (out as NonNullable<BattleSummary['teamMe']>) : null;
 }
 
 const okThen = (v: unknown) => v === undefined || v === 'badge' || v === 'again';

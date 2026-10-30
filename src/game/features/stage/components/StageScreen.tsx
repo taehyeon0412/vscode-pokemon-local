@@ -28,7 +28,8 @@ import { badgeIcon, isNewRegion } from '../../../ui/regionArt';
 import { themeKind } from '../../../ui/theme';
 import { typeNameKo } from '../../../ui/format';
 import { InfoBar } from '../../../ui/InfoBar';
-import { TeamLayer } from '../../battle/team/TeamLayer';
+import { TeamLayer, TeamRest } from '../../battle/team/TeamLayer';
+import { getTeamView } from '../../battle/fx/team-view';
 import { foeUltSoon, teamGeometry, teamPrompt } from '../../battle/team/model';
 import { TeamChoice, teamChoiceOn, TeamMeet, teamMeetOn } from '../../battle/team/TeamChoice';
 import { Face } from '../../../ui/Face';
@@ -463,6 +464,13 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   // 체육관 3:3 이 끝나 결과 상자가 뜰 때는 막 없이 (상자 밑에서 0.27초 막이 깔렸다 걷히던 것 — 개발 713 UX · ideas 740)
   if (sceneSeen.current !== null && sceneSeen.current !== sceneKey && !(gym && stageRt?.phase === 'result')) sceneSwaps.current += 1;
   sceneSeen.current = sceneKey;
+  // 3:3 판이 장면 전환 (1:1 줄 자리 — 필살기 · 합동) 중에 끝나 결과로 넘어가면 남색 막으로 덮음 — 결과 첫 장면에 판 끝 내 칸 (TeamRest) 이 3:3 자리로 한 번에 옮겨 붙던 것
+  //   (240 · 860 에서 60 ~ 180px · 순서도 바뀜 — UX 739 큼 · U2) · 장면 전환은 화면 모듈 값이라 판 동안 그릴 때마다 적어 둠
+  const viewAtEnd = useRef(false);
+  const phaseSeen = useRef<string | undefined>(undefined);
+  if (stageRt?.phase === 'team') viewAtEnd.current = getTeamView() !== null;
+  if (phaseSeen.current === 'team' && stageRt?.phase === 'result' && viewAtEnd.current && !gym) sceneSwaps.current += 1;
+  phaseSeen.current = stageRt?.phase;
   // 작음 5 — 이 지역 시합장 그림을 미리 받아 둠 (처음 3:3 판에서 그림이 오기 전 빈 남색이 2장면 보이던 것 — UX 리뷰어)
   const arenaHere = TEAM_ARENA[regionHere(save.location).id];
   const preload = useRef<HTMLImageElement[]>([]);
@@ -746,6 +754,10 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
           <BattleLayer battle={battle} save={save} media={media} ground={ground} geo={geo} onInput={battleInput} onProfile={(side) => onOpen({ kind: 'profile', side })} foeTrainerLeft={foeTrainer || gym ? leaderX : undefined} autoTip={autoTip} />
         )}
         {teamChoiceOn(state) && <TeamChoice state={state} media={media} onInput={onInput} />}
+        {/* 3:3 을 이긴 뒤 결과 상자 동안 판 끝 내 칸이 그 자리에 (ideas 739 — 빈 시합장이던 것 · 길 3:3 결과만, teamOn) */}
+        {!team && teamOn && stageRt?.phase === 'result' && stageRt.summary.teamMe && (
+          <TeamRest mons={stageRt.summary.teamMe} media={media} widthPx={widthPx} heightPx={layout.heightPx} infoBarPx={Math.round(INFO_BAR_PX * layout.uiScale)} />
+        )}
         {team && <TeamLayer team={team} media={media} widthPx={widthPx} heightPx={layout.heightPx} infoBarPx={Math.round(INFO_BAR_PX * layout.uiScale)} fieldTopPx={fieldTopPx(layout.heightPx)} onInput={onInput} cutscene={save.settings.teamCutscene !== false} lineBand={arenaLine} />}
         {/* 체육관으로 — 화면 닦기 (위 → 아래) */}
         {gymEnter && gymEnter.wipe > 0 && (

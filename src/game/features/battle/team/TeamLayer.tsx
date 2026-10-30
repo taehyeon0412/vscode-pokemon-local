@@ -386,6 +386,47 @@ function JointCutin({ b, view, media, widthPx, heightPx, infoBarPx, fieldTopPx, 
 
 
 
+/** 판 끝 내 칸 (엔진 BattleSummary.teamMe — 칸 번호 = 배열 순서) */
+export type TeamRestMon = { uid: string; form: string; shiny: boolean; down: boolean };
+
+/**
+ * 3:3 을 이긴 뒤 결과 상자 동안 — 판 끝 내 칸이 그 자리에 서 있음 (ideas 739 — 결과 상자가 뜨는 장면에 셋이 한꺼번에 사라져 빈 시합장이던 것 · 개발 엔진 teamMe).
+ * 판 · HP · 게이지 · 키 칸 없이 그림 + 발밑 그림자만 (판 끝 자리 그대로 — teamGeometry) · 쓰러진 칸은 비움 · 누를 것 없음 (결과 상자 버튼을 가리지 않게 pointer-events 없음)
+ */
+export function TeamRest({ mons, media, widthPx, heightPx, infoBarPx }: { mons: readonly TeamRestMon[]; media: string; widthPx: number; heightPx: number; infoBarPx: number }) {
+  const g = useMemo(() => teamGeometry(widthPx, heightPx, infoBarPx), [widthPx, heightPx, infoBarPx]);
+  // 결과 상자에 반 넘게 덮인 칸은 숨김 — 240 × 187 에서 얼굴 카드 바로 아래로 발 · 그림자 조각만 삐져나와 카드 속 포켓몬에 다리가 달린 것처럼 읽히던 것 (UX 739 작음 3)
+  const root = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = root.current;
+    const box = el?.closest('#pokemon-game')?.querySelector('.pg-banner.pg-result')?.getBoundingClientRect();
+    el?.querySelectorAll<HTMLElement>('.pg-team-mon').forEach((m) => {
+      const r = m.getBoundingClientRect();
+      const w = box ? Math.max(0, Math.min(r.right, box.right) - Math.max(r.left, box.left)) : 0;
+      const h = box ? Math.max(0, Math.min(r.bottom, box.bottom) - Math.max(r.top, box.top)) : 0;
+      m.style.visibility = r.width > 0 && w * h > (r.width * r.height) / 2 ? 'hidden' : '';
+    });
+  });
+  return (
+    <div ref={root} class={`pg-team pg-team-rest pg-team-x${g.scale}${g.oneRow ? ' pg-team-row' : ''}`} style={{ top: `${-infoBarPx}px` }}>
+      {mons.map((m, i) => {
+        if (m.down) return null;
+        const { x, y } = g.pos('me', i);
+        const art = artOf(m.form, g.scale);
+        const mTop = y - Math.round(art.foot * art.s);
+        return (
+          <span key={`${i}-${m.uid}`} class="pg-team-mon pg-team-me" style={{ left: `${Math.round((x - art.px / 2) / g.scale) * g.scale}px`, top: `${mTop}px`, width: `${art.px}px`, height: `${art.px}px` }}>
+            <span class="pg-team-shadow" style={shadowStyle(m.form, g, false, mTop)} />
+            <span class="pg-team-body">
+              <Sprite media={media} form={m.form} shiny={m.shiny} scale={g.scale} px={art.px} action="walk" />
+            </span>
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldTopPx = 0, onInput, cutscene = true, lineBand = null }: { team: TeamBattle; media: string; widthPx: number; heightPx: number; infoBarPx: number; fieldTopPx?: number; onInput(i: GameInput): void; /** 시합장 흰 선 (패널 y) — 머리 위 글이 피함 */ lineBand?: { t: number; b: number } | null; /** 필살기 연출 켬 (장면 전환) · 끔 (작은 판) — 설정 teamCutscene (#97) */ cutscene?: boolean }) {
   const g = useMemo(() => teamGeometry(widthPx, heightPx, infoBarPx), [widthPx, heightPx, infoBarPx]);
   // 장면 전환 (#99 시안 — 개발 fx/team-view): 필살기 · 합동 동안 무대가 잠깐 1:1 처럼 (내 편 무리 왼쪽 · 상대 무리 오른쪽 · 나머지 숨김) → 1:1 필살기 연출 그대로 → 3:3 으로 돌아옴

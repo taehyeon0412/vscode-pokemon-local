@@ -394,6 +394,19 @@ describe('연결 — 트레이너 만남 · 관장전 (BALANCE.team.on 이 켜�
       if (s.runtime.stage?.phase === 'result') {
         expect(s.save.stages['forest-1']!.defeatedTrainers).toContain('forest-1:t0');
         expect(s.runtime.stage.summary.money % 1).toBe(0);
+        // 결과 상자 동안 시합장 · 판 끝 내 칸 (ideas 713 · 739) — 칸 순서 · 모습 · HP · 쓰러짐 · 넘기기에도 남음
+        const sm = s.runtime.stage.summary;
+        expect(sm.team).toBe(true);
+        expect(sm.teamMe?.length).toBe(st!.team.me.length);
+        expect(sm.teamMe?.map((m) => m.uid)).toEqual(st!.team.me.map((f) => f.uid));
+        expect(sm.teamMe?.every((m) => m.down === m.hp <= 0 && m.hp <= m.maxHp)).toBe(true);
+        expect(sm.teamMe?.some((m) => !m.down)).toBe(true);
+        const back = readRuntime(viaJson(s.runtime), 1).stage;
+        expect(back?.phase === 'result' ? back.summary.teamMe : null).toEqual(sm.teamMe);
+        // 이상한 칸이 있으면 통째로 버림 (자리가 어긋나지 않게)
+        const bad = viaJson({ ...s.runtime, stage: { ...s.runtime.stage, summary: { ...sm, teamMe: [...sm.teamMe!.slice(1), { species: -1 }] } } });
+        const badBack = readRuntime(bad, 1).stage;
+        expect(badBack?.phase === 'result' ? badBack.summary.teamMe : 'x').toBeUndefined();
       }
       expect(s.save.pendingEncounter).toBeNull();
     } finally {

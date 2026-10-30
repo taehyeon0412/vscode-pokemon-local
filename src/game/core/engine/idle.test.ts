@@ -5,7 +5,7 @@ import { sampleMonster, sampleSave, viaJson } from '../../../test/fixtures/save'
 import { BALANCE, TIMING } from '../balance';
 import { NOTIFY_OFF_TIP, TIPS_MAX, validateSave, type PendingChoice, type Save } from '../save';
 import { autoPotion, battleStep, startBattle, type BattleState } from './battle';
-import { applyInput, awaySummary, step } from './play';
+import { applyInput, awayCardMs, awaySummary, step } from './play';
 import { addChoices, takeLaterChoices } from './rewards';
 import { createGameState, readRuntime, type GameState, type StageRuntime } from './state';
 
@@ -145,6 +145,12 @@ describe('#16 자리 비운 동안 요약', () => {
     expect(sp(two.runtime.toast?.text)).toBe(`그동안: 1-1 12% → 63% · 이상해씨 Lv ${m1.level + 2} · 포인트 +6`);
     expect(two.runtime.toast?.ms).toBe(TIMING.awaySummaryMs);
     expect(sp(two.runtime.toast?.then as string)).toBe('그동안: 패배 1번 · 상처약 1 · 60원 · 야생 3마리');
+    // 장 시간 = 글자 수에 맞춤 (ideas 737) — 짧은 장은 최소 awaySummaryMs · 긴 장은 더 오래 · 최대 awaySummaryMaxMs
+    expect(awayCardMs('그동안: 1-1 12%')).toBe(TIMING.awaySummaryMs);
+    const long = '그동안: 패배 3번 · 하이퍼볼 12 · 좋은상처약 2 · 외 2가지 · 23,456원 · 야생 64마리';
+    expect(awayCardMs(long)).toBe(long.length * TIMING.awaySummaryCharMs);
+    expect(awayCardMs(long)).toBeGreaterThan(TIMING.awaySummaryMs);
+    expect(awayCardMs('가'.repeat(200))).toBe(TIMING.awaySummaryMaxMs);
     let later = two;
     for (let t = 0; t < TIMING.awaySummaryMs + 100; t += STEP) later = step(later, STEP).state;
     expect(sp(later.runtime.toast?.text)).toBe('그동안: 패배 1번 · 상처약 1 · 60원 · 야생 3마리');

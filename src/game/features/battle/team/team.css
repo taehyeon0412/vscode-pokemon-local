@@ -5,6 +5,11 @@
   pointer-events: none;
   z-index: 5;
 }
+/* 결과 상자 동안 판 끝 내 칸 (TeamRest — ideas 739) 은 누를 것 없음 (손가락 커서가 떠도 아무 일 없던 것 — UX 739 작음 2) */
+#pokemon-game .pg-team-rest .pg-team-mon {
+  pointer-events: none;
+  cursor: default;
+}
 /* 한 줄 판이 지도 줄 자리에 떠 있는 동안 지도 줄 숨김 (TeamLayer — 판 양옆 잘린 글) */
 #pokemon-game .pg-maprow.pg-maprow-under {
   visibility: hidden;

@@ -1970,7 +1970,7 @@ function teamRewards(save: Save, team: TeamBattle, where: StageId | 'gym', rng: 
   const r = battleRewards(save, teamRewardBattle(team), null, where, rng);
   // 트레이너전만 ×1.5 (관장 돈은 처음 3000 · 다시 300 그대로 — 명세 검사관)
   const extra = where === 'gym' ? 0 : Math.round(r.summary.money * (BALANCE.team.moneyScale - 1));
-  return { save: { ...r.save, money: Math.min(999_999_999, r.save.money + extra) }, summary: { ...r.summary, money: r.summary.money + extra, team: true } };
+  return { save: { ...r.save, money: Math.min(999_999_999, r.save.money + extra) }, summary: { ...r.summary, money: r.summary.money + extra, team: true, teamMe: team.me.map((f) => ({ uid: f.uid, species: f.species, form: f.form, shiny: f.shiny, hp: f.hp, maxHp: f.maxHp, down: f.hp <= 0 })) } };
 }
 
 /** 진행 막대 끝 "약 N분 남음" — 남은 걷기 시간 (전투 · 부탁 빼고, 빨리 걷기면 그 빠르기로 어림 — 2026-10-21 ideas #118). 스테이지가 아니면 null */
@@ -2032,9 +2032,16 @@ function awayCards(rest: RuntimeState, rt: RuntimeState, awayLog: AwayLog, first
   if (kept) {
     const q = queueToast({ ...rest, toast: kept }, first);
     const both = second ? queueToast(q, second) : q;
-    return both.toast ? { ...both, toast: { ...both.toast, thenMs: TIMING.awaySummaryMs } } : both;
+    // 줄 선 장은 한 값 (thenMs) — 둘 중 긴 장에 맞춤
+    return both.toast ? { ...both, toast: { ...both.toast, thenMs: Math.max(awayCardMs(first), second ? awayCardMs(second) : 0) } } : both;
   }
-  return { ...rest, toast: { text: first, ms: TIMING.awaySummaryMs, ...(second ? { then: second, thenMs: TIMING.awaySummaryMs } : {}) } };
+  return { ...rest, toast: { text: first, ms: awayCardMs(first), ...(second ? { then: second, thenMs: awayCardMs(second) } : {}) } };
+}
+
+/** 그동안 요약 한 장을 띄우는 시간 — 글자 수 × awaySummaryCharMs (3줄 넘게 자란 장이 다른 장과 같은 3초라 빠듯하던 것 — ideas 737) · 최소 awaySummaryMs · 최대 awaySummaryMaxMs */
+export function awayCardMs(text: string): number {
+  const t = TIMING;
+  return Math.min(t.awaySummaryMaxMs, Math.max(t.awaySummaryMs, text.length * t.awaySummaryCharMs));
 }
 
 /** 떠날 때 — 돈 · 가방 · 자리 · 레벨 · 포인트 (그동안 요약의 기준) */

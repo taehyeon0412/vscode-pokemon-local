@@ -551,4 +551,7 @@ export const TIMING = {
   requestAutoMs: 10000,
   /** 그동안 요약 첫 장 (ideas #16 · R14 A 두 장 2.5초씩 — 다음 장은 toastMs 2.5초, 1초 넘게 U1) */
   awaySummaryMs: 3000, // 2500 → 3000 (2026-10-22 태현 님 "추천은 다 해주고" — 45 ~ 50글자에 2.5초는 빠듯, UX 리뷰어) · 둘째 장도 같음 (toast.thenMs)
+  /** 그동안 요약 장 — 글자마다 이만큼 (긴 장은 더 오래 · 위 값이 최소 · 아래 값이 최대 — ideas 737 "3줄이면 3초", 기획 R14 A 두 장 그대로) [임시값] */
+  awaySummaryCharMs: 65,
+  awaySummaryMaxMs: 4500,
 } as const;
