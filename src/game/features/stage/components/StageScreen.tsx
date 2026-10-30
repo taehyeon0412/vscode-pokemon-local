@@ -594,10 +594,15 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   };
   useLayoutEffect(tagUnder);
   // 넓힌 뒤 (상자가 넘치면 한 단계를 다시 잰 다음 장면) 에도 다시 잼 — 480 → 860 으로 넓혀도 이름표가 숨은 채 남던 것 (UX 리뷰어 · 실제 VS Code)
+  // 글꼴이 늦게 와 상자 높이가 바뀐 뒤에도 다시 잼 — 2 MB 글꼴이 처음 잰 뒤에 와 옛 배치로 재 이름표가 상자에 반쯤 깔린 채 남던 것 (#140 글꼴 줄이기 전 · 후 비교)
   useEffect(() => {
     const on = () => requestAnimationFrame(() => requestAnimationFrame(tagUnder));
     window.addEventListener('resize', on);
-    return () => window.removeEventListener('resize', on);
+    document.fonts?.addEventListener('loadingdone', on);
+    return () => {
+      window.removeEventListener('resize', on);
+      document.fonts?.removeEventListener('loadingdone', on);
+    };
   }, []);
   return (
     // pg-bg-<배경> = 배경 시간에 맞춰 건물 빛을 맞춤 (밤 · 노을 해변 — 원작 낮 그림 건물이 가장 밝은 덩어리였던 것, game.css · orders #61 아트 디렉터)
