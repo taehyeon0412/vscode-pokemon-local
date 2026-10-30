@@ -38,7 +38,13 @@ export interface TeamView {
 /** 단계 길이 (ms) — show 는 연출 길이 (혼자 약 4 ~ 9초) [임시값] */
 // cutMs 1200 → 1400 — 합동 컷인 머리말 ("합동 필살기!" · "합동!") 이 0.82 ~ 0.92초만 보이던 것 (U1 1초 — #96 UX 작음 5 · 디자인)
 // cutQuickMs 600 → 1200 — 같은 짝 두 번째 합동 큰 컷인 머리말 · 이름이 0.55초만 보이던 것 (U1 "quick 포함 1초" — 판 도구 #98 7바퀴 · 디자인 제안 값)
-export const TEAM_VIEW = { inMs: 350, cutMs: 1400, outMs: 350, cutQuickMs: 1200, repeatTailMs: 1500 } as const;
+// jointTail* — 처음 보는 합동은 큰 맞음 뒤 마지막 움직임 (연출 박자표 ult-tail · 서서히 사라짐 포함) + pad 에서 끊고 나옴 · min ~ max · 모르면 끝까지 (ideas 725 ① — 기획:
+//   움직이는 마무리는 끝까지 · 멈춘 여운만 줄임 · #140 A "처음 보는 합동은 끝까지" 뜻 그대로 · 상한 4 → 5초 — 기획 "움직임을 자르면 안 맞음") · jointFadeMs = 끊기 전 어둠 · 남은 연출을 3걸음으로 걷음 [임시값]
+export const TEAM_VIEW = { inMs: 350, cutMs: 1400, outMs: 350, cutQuickMs: 1200, repeatTailMs: 1500, jointTailPadMs: 300, jointTailMinMs: 2000, jointTailMaxMs: 5000, jointFadeMs: 300 } as const;
+/** 합동 꼬리 — 큰 맞음 뒤 마지막 움직임 still (ms) 에 pad 를 더해 min ~ max 로 */
+export function jointTailMs(still: number): number {
+  return Math.min(TEAM_VIEW.jointTailMaxMs, Math.max(TEAM_VIEW.jointTailMinMs, still + TEAM_VIEW.jointTailPadMs));
+}
 /**
  * 빠르게 ▶▶ 혼자 필살기 (상대 #136 A — ×3 · 내 것 #138 ① — ×2) 에서 기본 박자로 두는 구간 (show 시작부터 ms) — 큰 이름 (ult/core.js ultTitle) 이 기 모으기 0.8초 뒤 나와
  * 0.16초에 커지고 다 보이는 때 1초 넘게 (U1) + 0.14초 여유. 그 앞 (기 모으기) · 뒤 (본편) 는 빠르게

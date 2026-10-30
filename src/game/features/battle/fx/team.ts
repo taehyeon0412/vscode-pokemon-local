@@ -11,7 +11,7 @@ import { clashChance, clashWithTaps } from '../../../core/rules/battle';
 import { moveOf } from '../../../data';
 import { FX_DUEL_MS, pokemonFx, type FxActor, type FxImpact, type FxMove, type PokemonFx } from './bridge';
 import { FX_HOLD_DUEL_MAX_MS, FX_HOLD_ULT_MAX_MS, holdFx, holdTeamTail, releaseFx, teamClashKey, teamUltKey } from './hold';
-import { TEAM_VIEW, getTeamView, setTeamView, type TeamView } from './team-view';
+import { TEAM_VIEW, getTeamView, jointTailMs, setTeamView, type TeamView } from './team-view';
 import { shotHitAt } from './shot-hit';
 // 개발 모드 (임시) 에서 고른 필살기
 import { devUltOf } from '../../../dev/ult-pick';
@@ -330,7 +330,7 @@ export class TeamFxRunner {
    * 장면 전환 (#99) — in (TEAM_VIEW.inMs — 화면이 1:1 자리로) → cut (합동만) → show (start() 가 1:1 연출을 시작 · 돌려준 길이만큼) → out → 끝.
    * 맞는 걸음은 연출이 맞힐 때까지 (holdFx — 시작이 늦으니 상한을 넉넉히) · 필살기 끝 걸음은 나옴이 끝날 때까지 (holdTeamTail) 붙잡음
    */
-  private view(v: Omit<TeamView, 'phase' | 'at'>, key: string, start: (timing: (t: { main: number }) => void) => number): void {
+  private view(v: Omit<TeamView, 'phase' | 'at'>, key: string, start: (timing: (t: { main: number; still?: number }) => void) => number): void {
     const gen = ++this.viewGen;
     this.duelView = null;
     const now0 = performance.now();
@@ -346,16 +346,23 @@ export class TeamFxRunner {
       setTeamView({ ...v, phase: 'show', at: now });
       let total = 0;
       let hitAt = -1;
+      let stillAt = -1;
       try {
         total = start((t) => {
           hitAt = t.main;
+          stillAt = t.still ?? -1;
         });
       } catch (err) {
         console.warn('[pokemon-game] 3:3 장면 전환 연출', err);
       }
-      // 같은 판에서 다시 나온 필살기 · 같은 짝 합동 — 맞고 1.5초 뒤 연출을 끊고 나옴 (#140 A — 처음 보는 건 끝까지)
-      const cut = v.quick && hitAt > 0 && hitAt + TEAM_VIEW.repeatTailMs < total;
-      if (cut) total = hitAt + TEAM_VIEW.repeatTailMs;
+      // 같은 판에서 다시 나온 필살기 · 같은 짝 합동 — 맞고 1.5초 뒤 연출을 끊고 나옴 (#140 A — 처음 보는 혼자 필살기는 끝까지) ·
+      // 처음 보는 합동 = 큰 맞음 뒤 마지막 움직임 + 0.3초 (2 ~ 4초 — ideas 725 ①: 움직이는 마무리 · 서서히 사라짐은 끝까지, 멈춘 여운만 줄임 · 박자표에 없으면 끝까지)
+      const tail = v.quick ? TEAM_VIEW.repeatTailMs : v.kind === 'joint' && hitAt > 0 && stillAt >= hitAt ? jointTailMs(stillAt - hitAt) : 0;
+      if (tail > 0 && hitAt > 0 && hitAt + tail < total) {
+        total = hitAt + tail;
+        // 처음 보는 합동은 끊기 전 어둠 · 남은 연출을 3걸음으로 걷음 (한 장면에 꺼지며 밝아지던 것 — 725 UX 작음 2)
+        if (!v.quick) this.later(Math.max(0, total - TEAM_VIEW.jointFadeMs), () => gen === this.viewGen && this.fx?.fadeUlt?.(TEAM_VIEW.jointFadeMs));
+      }
       if (total <= 0) {
         // 연출을 못 씀 — 바로 피해 · 나옴
         releaseFx();

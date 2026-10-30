@@ -356,6 +356,10 @@ def write_bundle(table, acts, lib, movesets, shape, ult_lib, ults, out):
     hit_path = os.path.join(ULT_DIR, "ult-hit.json")
     ult_hit = json.load(open(hit_path, encoding="utf-8")) if os.path.exists(hit_path) else {}
     moves += "const ULT_HIT = " + json.dumps(ult_hit, ensure_ascii=False, separators=(",", ":")) + ";\n"
+    # 큰 맞음 뒤 마지막 움직임 ms (FX_TAIL=1 dev/ult-fx.py — 3:3 합동 장면 꼬리 = 움직임 끝 + 0.3초, ideas 725 ① · 열쇠 = "모습|이름|틀" · 값 [큰 맞음, 마지막 움직임])
+    tail_path = os.path.join(ULT_DIR, "ult-tail.json")
+    ult_tail = json.load(open(tail_path, encoding="utf-8")) if os.path.exists(tail_path) else {}
+    moves += "const ULT_TAIL = " + json.dumps(ult_tail, ensure_ascii=False, separators=(",", ":")) + ";\n"
     # 필살기가 맞는 포켓몬을 덮는 구간 (dev/ult-cover.py --data · --write-data — #107 대상을 연출 위에 다시 그림, 열쇠 = 틀 · 옵션)
     cover_path = os.path.join(ULT_DIR, "ult-cover.json")
     ult_cover = json.load(open(cover_path, encoding="utf-8")) if os.path.exists(cover_path) else {}

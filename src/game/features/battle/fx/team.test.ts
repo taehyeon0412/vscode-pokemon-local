@@ -7,7 +7,7 @@ import { startTeamBattle, teamStep } from '../../../core/engine/team';
 import type { Monster, Save } from '../../../core/save';
 import type { FxActor, PokemonFx } from './bridge';
 import { dashSteps, jointFxTypes, planTeamFx, TEAM_FX, TEAM_FX_LATE_MS, TEAM_KNOCK, TeamFxRunner, type TeamFxCall } from './team';
-import { getTeamView, subscribeTeamView, TEAM_VIEW, type TeamViewPhase } from './team-view';
+import { getTeamView, jointTailMs, subscribeTeamView, TEAM_VIEW, type TeamViewPhase } from './team-view';
 
 const mon = (uid: string, o: Partial<Monster> = {}) => sampleMonster({ uid, level: 12, ...o });
 function team3(): Save {
@@ -265,6 +265,73 @@ describe('장면 전환 (#99 시안) — 들어감 → (합동 컷인) → 1:1 �
       vi.advanceTimersByTime(1000 + TEAM_VIEW.repeatTailMs);
       expect(getTeamView()?.phase).toBe('out');
       expect(calls).toEqual(['ult', 'stopUlt', 'ult', 'stopUlt']);
+    } finally {
+      runner.reset();
+    }
+  });
+
+  it('ideas 725 ① — 처음 보는 합동은 큰 맞음 뒤 마지막 움직임 + 0.3초 (2 ~ 4초) 에서 끊고 out · 끊기 0.3초 전 3걸음 흐려짐 · 박자표에 없거나 꼬리가 짧으면 끝까지', () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('window', globalThis);
+    const calls: string[] = [];
+    let main = 3000;
+    let still = -1;
+    let total = 9000;
+    const fx = { version: 4, plan: () => null, team: () => undefined, mount: () => undefined, clear: () => undefined, stopDuel: () => undefined,
+      stopUlt: () => calls.push('stopUlt'),
+      fadeUlt: (ms: number) => calls.push(`fade:${ms}`),
+      team11Joint: (...a: unknown[]) => {
+        const o = a[3] as { timing?: (t: { main: number; cover: number; total: number; still?: number }) => void };
+        o.timing?.({ main, cover: -1, total, still: still >= 0 ? main + still : -1 });
+        calls.push('joint');
+        return total;
+      } } as unknown as PokemonFx;
+    const actor = { el: {} as HTMLElement, form: 'charmander', size: 32, left: false } as FxActor;
+    const runner = new TeamFxRunner({ actor: () => actor }, fx);
+    const b = withLog([]);
+    runner.update(b);
+    let n = 0;
+    const log: ReturnType<typeof joint>[] = [];
+    // 짝마다 처음 (같은 짝 두 번째는 1.5초 — 다른 시험) — 셋 · 상대 쪽까지 다섯 짝
+    const pairs: ['me' | 'foe', number[]][] = [['me', [0, 1]], ['me', [1, 2]], ['me', [0, 2]], ['me', [0, 1, 2]], ['foe', [0, 1]]];
+    function joint(id: number, t: number, [side, winners]: ['me' | 'foe', number[]]) {
+      return { t: 'ult' as const, side, from: winners[0]!, joint: { winners, losers: [0, 1, 2], sure: false }, id, at: t };
+    }
+    const showFor = (ms: number) => {
+      n += 1;
+      log.push(joint(n, 5050 + 5000 * (n - 1), pairs[n - 1]!));
+      calls.length = 0;
+      runner.update({ ...b, t: 5050 + 5000 * (n - 1), log: [...log], logSeq: n });
+      vi.advanceTimersByTime(TEAM_VIEW.inMs + TEAM_VIEW.cutMs);
+      expect(getTeamView()?.phase).toBe('show');
+      vi.advanceTimersByTime(ms - 1);
+      expect(getTeamView()?.phase).toBe('show');
+      vi.advanceTimersByTime(1);
+      expect(getTeamView()?.phase).toBe('out');
+      vi.advanceTimersByTime(TEAM_VIEW.outMs);
+    };
+    try {
+      expect(jointTailMs(1000)).toBe(TEAM_VIEW.jointTailMinMs);
+      expect(jointTailMs(3000)).toBe(3000 + TEAM_VIEW.jointTailPadMs);
+      expect(jointTailMs(9000)).toBe(TEAM_VIEW.jointTailMaxMs);
+      // 움직임이 맞고 3초에 끝남 → 3.3초 · 끊기 0.3초 전 흐려짐
+      still = 3000;
+      showFor(main + 3300);
+      expect(calls).toContain(`fade:${TEAM_VIEW.jointFadeMs}`);
+      // 움직임이 맞고 1초에 끝남 → 최소 2초
+      still = 1000;
+      showFor(main + TEAM_VIEW.jointTailMinMs);
+      // 끝까지 움직임 → 최대 4초
+      still = 8000;
+      showFor(main + TEAM_VIEW.jointTailMaxMs);
+      // 박자표에 없음 → 끝까지 (흐려짐 없음)
+      still = -1;
+      showFor(total);
+      expect(calls.some((c) => c.startsWith('fade'))).toBe(false);
+      // 꼬리가 짧음 (맞고 1초에 연출 끝) → 끝까지
+      still = 500;
+      total = main + 1000;
+      showFor(total);
     } finally {
       runner.reset();
     }

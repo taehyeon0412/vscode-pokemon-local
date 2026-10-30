@@ -95,13 +95,13 @@ export interface PokemonFx {
   /** onHit = 상대를 처음 맞힌 순간 (그때 피해를 넣음) */
   /** o.quick = 같은 전투에서 다시 보는 필살기 — 컷인 없이 짧게 (2026-10-20) */
   /** o.others = 나머지 맞을 상대 (3:3 — 자기 둘레 필살기의 기운 줄기가 모두에게) · o.type = 쓴 포켓몬 타입 (기운이 닿을 때 임팩트) */
-  ult?(src: FxActor, dst: FxActor, onHit?: () => void, avoid?: string[], o?: { quick?: boolean; sub?: string; others?: FxActor[]; type?: string; pick?: string; stage?: boolean; hitMs?: number; noIntro?: boolean; /** 3:3 장면 전환 상대 필살기 — 큰 이름 상대 색 */ titleFoe?: boolean; timing?: (t: { main: number; cover: number; total: number }) => void }): number;
+  ult?(src: FxActor, dst: FxActor, onHit?: () => void, avoid?: string[], o?: { quick?: boolean; sub?: string; others?: FxActor[]; type?: string; pick?: string; stage?: boolean; hitMs?: number; noIntro?: boolean; /** 3:3 장면 전환 상대 필살기 — 큰 이름 상대 색 */ titleFoe?: boolean; timing?: (t: { main: number; cover: number; total: number; still?: number }) => void }): number;
   /** 그 모습이 가진 필살기 이름 (개발 모드 (임시) — 필살기 고르기) */
   ults?(form: string): string[];
   /** 3:3 합동 필살기 마무리 — 참가자 필살기가 같은 때 닿아 한 점에서 합쳐 터짐. onHit = 합쳐진 순간 · 걸리는 시간 (ms), 못 쓰면 0 */
   ultJoint?(srcs: FxActor[], dst: FxActor, onHit?: () => void, o?: { types?: string[]; avoid?: string[][]; pick?: (string | null)[]; sure?: boolean; sub?: string; others?: FxActor[]; tailMs?: number; quick?: boolean }): number;
   /** 3:3 장면 전환 합동 (#99) — 앞장 1:1 필살기 하나 (컷인 없이) + 동료 기운이 기 모으는 동안 앞장 입으로 + 맞을 때 동료 색 고리 · 걸리는 시간 (ms) */
-  team11Joint?(srcs: FxActor[], dst: FxActor, onHit?: () => void, o?: { types?: string[]; avoid?: string[][]; pick?: (string | null)[]; timing?: (t: { main: number; cover: number; total: number }) => void }): number;
+  team11Joint?(srcs: FxActor[], dst: FxActor, onHit?: () => void, o?: { types?: string[]; avoid?: string[][]; pick?: (string | null)[]; timing?: (t: { main: number; cover: number; total: number; still?: number }) => void }): number;
   stopUlt?(): void;
   /** 남은 필살기 연출을 ms 동안 흐리게 한 뒤 끔 (반격기 — 맞힌 뒤 줄기가 메뉴 위로 남지 않게) */
   fadeUlt?(ms: number, steps?: number): void;

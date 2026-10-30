@@ -1564,7 +1564,9 @@ function fxUltTiming(form, e, dist) {
         const near = m[5].reduce((a, b) => (Math.abs(b[0] - dist) < Math.abs(a[0] - dist) ? b : a), m[5][0]);
         cover = near[1];
     }
-    return { main: m[0], run: m[1], self: m[2] === 1, flash: m[3] ?? -1, cover };
+    // still = 큰 맞음 뒤 마지막 움직임 ms (ult-tail.json — 서서히 사라짐 포함 · 없으면 −1 · 본편 2초 넘는 필살기만 잼) — 3:3 합동 장면 꼬리 (ideas 725 ①)
+    const tt = typeof ULT_TAIL !== 'undefined' ? ULT_TAIL[`${form}|${e[0]}|${e[1]}`] : undefined;
+    return { main: m[0], run: m[1], self: m[2] === 1, flash: m[3] ?? -1, cover, still: Array.isArray(tt) && tt[0] >= 0 ? tt[1] : -1 };
 }
 /** 내 · 상대 가운데 사이 가로 px (박자표 덮음 끝 고르기) — 모르면 0 */
 function fxGap(a, b) {
@@ -3548,7 +3550,8 @@ window.pokemonFx = {
                 const at0 = charge + introMs + (mainAt ?? tmAll.main) + shift;
                 // 부른 쪽에 박자 — main = 큰 맞음 · cover = 상대를 덮는 연출이 끝나는 때 (없으면 −1) · 지금부터 ms
                 try {
-                    o?.timing?.({ main: at0, cover: tmAll.cover >= 0 ? at0 - tmAll.main + tmAll.cover : -1, total });
+                    // still = 큰 맞음 뒤 마지막 움직임이 끝나는 때 (지금부터 ms · 모르면 −1 — 3:3 합동 장면 꼬리, ideas 725 ①)
+                    o?.timing?.({ main: at0, cover: tmAll.cover >= 0 ? at0 - tmAll.main + tmAll.cover : -1, total, still: tmAll.still >= 0 ? at0 + tmAll.still : -1 });
                 } catch (err) {
                     ultError('ult timing', err);
                 }

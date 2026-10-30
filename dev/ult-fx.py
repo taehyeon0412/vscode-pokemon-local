@@ -3,7 +3,9 @@
   개발 창 (머리 없는 크롬) 여러 개에서 필살기 모음 (ULT_LIB) 한 줄씩 window.pokemonFx.ult(…, { entry }) 로 돌려,
   디자인팀 6판 3:3 자리에서 필살기 본편 (기 모으기 0.8 + 컷인 0.9초 뒤) 이 시작한 때부터 큰 맞음 (가장 센 번쩍 뒤 처음 맞음 — 빛줄기 닿음 · 대폭발) 까지 · 본편 길이 · 자기 둘레 터짐 (1/0).
   처음 맞음으로 재면 솔라빔의 하늘 빛기둥처럼 작은 닿음이 잡혀 합동 박자가 어긋났음 (디자인팀 6판). 같은 필살기도 모습마다 박자가 달라 "모습|이름|틀" 로 잼.
-  필살기 연출을 고치면 다시 돌림 → make-moves.py 가 묶음에 ULT_HIT 로 넣음"""
+  필살기 연출을 고치면 다시 돌림 → make-moves.py 가 묶음에 ULT_HIT 로 넣음
+  FX_TAIL=1 python dev/ult-fx.py [창 수] [걸러내기] — 큰 맞음 뒤 본편이 2초 넘는 줄만 "큰 맞음 뒤 마지막 움직임" (ms · 캔버스 작은 그림 차이 — 서서히 사라짐 포함 ·
+    어두워짐 · 번쩍 판은 안 그림) 을 재어 ult/ult-tail.json (ideas 725 ① — 3:3 합동 장면 꼬리 = 움직임 끝 + 0.3초, 멈춘 여운만 줄임 · ULT_HIT 은 안 건드림)"""
 import base64
 import importlib.util
 import json
@@ -20,7 +22,11 @@ import urllib.request
 
 # PG_ROOT = 다른 워크트리의 빌드로 잼 (디자인 브랜치 연출) · FX_OUT = 결과 파일 (그 워크트리 파일을 안 건드리게 — 시작 값은 그 파일)
 ROOT = os.environ.get("PG_ROOT") or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT = os.environ.get("FX_OUT") or os.path.join(ROOT, "ult", "ult-hit.json")
+TAIL = os.environ.get("FX_TAIL") == "1"
+OUT = os.environ.get("FX_OUT") or os.path.join(ROOT, "ult", "ult-tail.json" if TAIL else "ult-hit.json")
+# 꼬리 재기 — 작은 그림 (가로 96 · 세로 24) 의 장마다 바뀐 정도 (0 ~ 255 평균) 가 이 값을 넘으면 움직임 (반짝이 몇 점은 0.1 아래 · 큰 그림이 서서히 사라지면 1 안팎)
+TAIL_MOVE = 0.25
+TAIL_MIN_MS = 2000
 FORMS = list(json.load(open(os.path.join(ROOT, "src", "game", "data", "generated", "forms.json"), encoding="utf-8")).keys())
 # 일반 모드 필살기 앞 — 기 모으기 (게임 첫 필살기) · 컷인 · 끝 밝아짐 (ult/core.js · ult/bridge.js)
 CHARGE_MS, INTRO_MS, OUTRO_MS = 800, 900, 500
@@ -136,7 +142,24 @@ ONE = r"""
     return [-2, 0, 0];
   }
   const lead = cfg.charge + cfg.intro;
-  const until = Math.min(total, lead + cfg.wait);
+  // 꼬리 재기 (cfg.tail) 는 연출 끝까지 (16초 상한) — 큰 맞음 뒤 마지막 움직임을 보려고
+  const until = cfg.tail ? Math.min(total, lead + 16000) : Math.min(total, lead + cfg.wait);
+  // 꼬리 재기 — 캔버스 (어두워짐 · 번쩍 판 빼고 그린 연출) 를 작은 그림으로 줄여 앞 장과의 차이 (서서히 사라짐 · 밝기 바뀜도 셈)
+  const thumb = d.createElement('canvas');
+  thumb.width = 96;
+  thumb.height = 24;
+  const tctx = thumb.getContext('2d', { willReadFrequently: true });
+  let prevPx = null;
+  const moved = () => {
+    if (!cfg.tail) return 0;
+    tctx.clearRect(0, 0, 96, 24);
+    for (const c of d.querySelectorAll('canvas')) if (c.width && c.height) tctx.drawImage(c, 0, 0, 96, 24);
+    const px = tctx.getImageData(0, 0, 96, 24).data;
+    let sum = 0;
+    if (prevPx) for (let i = 0; i < px.length; i += 1) sum += Math.abs(px[i] - prevPx[i]);
+    prevPx = px;
+    return sum / px.length;
+  };
   // 상대 둘레 (몸 폭만큼 넓힌 칸) — 덮는 연출 재기
   const fr = foeBox.getBoundingClientRect();
   const box = [fr.left - fr.width * 0.5, fr.top - fr.height * 0.5, fr.right + fr.width * 0.5, fr.bottom + fr.height * 0.25];
@@ -166,7 +189,7 @@ ONE = r"""
   };
   while (w.performance.now() - t0 < until) {
     await new Promise((r) => w.setTimeout(r, 40));
-    samples.push([w.performance.now() - t0 - lead, w.__fxDebug.centroid(), w.__fxDebug.near(...box), painted() / cellArea, w.__fxDebug.flashing?.() === true]);
+    samples.push([w.performance.now() - t0 - lead, w.__fxDebug.centroid(), w.__fxDebug.near(...box), painted() / cellArea, w.__fxDebug.flashing?.() === true, moved()]);
   }
   const tr = w.__fxTrace.map((x) => [x[0], x[1] - t0 - lead, x[2]]);
   w.__fxTrace = null;
@@ -197,6 +220,11 @@ ONE = r"""
   let cover = main >= 0 && covered.length ? Math.round(covered[covered.length - 1][0]) : -1;
   // 〔#135〕 블래스트번도 덮음 끝을 잼 — 끝 돔이 맞는 쪽을 다시 가려 (속 빈 돔 · 오려내기 뺌) 쓰러진 포켓몬은 돔이 걷힌 뒤 넘어져야 함 (−1 로 두면 트레이너전에서 누운 모습 0초 · 다음 볼이 돔 위로 — UX #135 · U519 와 같은 종류)
   // [큰 맞음, 본편 길이, 자기 둘레, 가장 센 번쩍 (없으면 -1), 덮음 끝 (없으면 -1)]
+  // 꼬리 재기 — [큰 맞음, 큰 맞음 뒤 마지막 움직임 ms (없으면 0)]
+  if (cfg.tail) {
+    const moving = samples.filter((s) => s[0] >= main && s[5] > cfg.tailMove);
+    return [main, main >= 0 && moving.length ? Math.round(moving[moving.length - 1][0] - main) : 0];
+  }
   return [main, Math.round(total - lead - cfg.outro), self, big ? Math.round(big[1]) : -1, cover];
 })(%FORM%, %IDX%, %CFG%)
 """
@@ -285,13 +313,18 @@ def worker(k, n, out, filt=""):
     res = {}
     try:
         keys = page_keys(ws, FORMS)
-        mine = [key for key in sorted(keys) if not filt or any(f in key for f in filt.split(","))][k::n]
-        cfg = json.dumps({"charge": CHARGE_MS, "intro": INTRO_MS, "outro": OUTRO_MS, "wait": WAIT_MAX_MS, "coverArea": COVER_AREA, "meX": 215, "foeX": 645})
+        mine = [key for key in sorted(keys) if not filt or any(f in key for f in filt.split(","))]
+        if TAIL:
+            # 큰 맞음 뒤 본편이 2초 넘는 줄만 (그 아래는 꼬리 최소 2초라 안 끊음)
+            hit = json.load(open(os.path.join(ROOT, "ult", "ult-hit.json"), encoding="utf-8"))
+            mine = [key for key in mine if key in hit and hit[key][0] >= 0 and hit[key][1] - hit[key][0] > TAIL_MIN_MS]
+        mine = mine[k::n]
+        cfg = json.dumps({"charge": CHARGE_MS, "intro": INTRO_MS, "outro": OUTRO_MS, "wait": WAIT_MAX_MS, "coverArea": COVER_AREA, "meX": 215, "foeX": 645, "tail": TAIL, "tailMove": TAIL_MOVE})
         for key in mine:
             form, idx = keys[key]
             r = ws.call("Runtime.evaluate", {"expression": ONE.replace("%FORM%", json.dumps(form)).replace("%IDX%", str(idx)).replace("%CFG%", cfg), "awaitPromise": True, "returnByValue": True})
             res[key] = r.get("result", {}).get("value") or [-3, 0, 0]
-            if len(res[key]) >= 5 and res[key][2] == 1:
+            if not TAIL and len(res[key]) >= 5 and res[key][2] == 1:
                 res[key] = res[key][:5] + [self_covers(ws, form, idx, res[key][4])]
     finally:
         # 도중에 끊겨도 잰 데까지는 남김
