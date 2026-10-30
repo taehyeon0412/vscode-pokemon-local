@@ -1,7 +1,8 @@
 """3:3 한 판을 처음부터 끝까지 자동으로 돌려 연속 캡처 + 자동 검사 (2026-10-26 #98 준비 — "팀 10판 큼 0 → 태현 님 10판")
   python dev/team-run.py <out_dir> run=<번호>        dev/team-runs.json 의 그 판 (1 ~)
-  python dev/team-run.py <out_dir> --all [from=<번호>] [to=<번호>]   표의 판 차례로 (<out_dir>/run01 … · 12 · 13 = 내 혼자 필살기 only 0) · 브라우저는 한 번에 1개
+  python dev/team-run.py <out_dir> --all [from=<번호>] [to=<번호>]   표의 판 차례로 (<out_dir>/run01 … · 12 · 13 = 내 혼자 필살기 only 0 · 14 = 쓰러짐 직후 바로 끼어들기 #131) · 브라우저는 한 번에 1개
   python dev/team-run.py <out_dir> run=<번호> bfast=1   남은 k=v 는 그 판 시험 창 매개변수에 더함 (bfast=1 빠르게 켬 — 켬 · 끔 견주기는 dev/team-breakdown.py)
+  python dev/team-run.py <out_dir> run=<번호> size=240x150 seed=5   그 판을 다른 크기 · seed 로 (size 가 가로x세로일 때만 — 아니면 시험 창 포켓몬 크기)
   python dev/team-run.py <out_dir> [size=860x187] [seed=7] [k=v …]   표 없이 한 판 (k=v = dev/game-host.js 매개변수)
   python dev/team-run.py <out_dir> --rejudge   돌리지 않고 저장된 기록 (판 폴더의 raw.json) 으로 검사만 다시
   흐름 = 트레이너 만남 → 3:3 고르기 → 3마리 → VS → 3:3 판 → 결과 상자 (체육관 판 = 개발 메뉴 "관장 3:3" 바로 시작).
@@ -10,13 +11,15 @@
   판마다 <out>/f_<ms>.png (0.07초 안팎) · log.jsonl (상태) · checks.json · summary.md · sheet.png (걸린 장면 모음)
   자동 검사 (페이지 안에서 진짜 시계 Date.now 로 잼 — ux-rules):
     걸침 = 연출 캔버스 위 끝 (--pg-fx-top · 정보줄) 위아래 4px 에 같은 세로줄 8px 넘게 0.3초 넘게 (U4) · 숨음 = 위 끝 위 40px 띠 점이 아래보다 많음 (60% · 1500px² 넘게)
-    1초 = 한글 글이 1초 안에 나타났다 사라짐 (U1 — 숫자 · 키 칸 · 짧은 낱말은 뺌) · 잘림 = 글 실제 너비가 칸보다 넓음 (U4) · 겹침 말 = 글 상자끼리 30px² 넘게 (U1 가림)
+    3:3 없음 = 3:3 판인데 3:3 장면이 한 번도 없음 (만남 · 고르기에서 멈춤 · 1:1 로 감 — 판 표 · 매개변수 확인, 야생 판은 뺌)
+    1초 = 한글 글이 1초 안에 나타났다 사라짐 (U1 — 숫자 · 키 칸 · 짧은 낱말은 뺌) · 쓰러짐 이름은 필살기 · 힘겨루기 장면이 가린 뒤 다시 1초 넘게 뜨면 참고 (bugs 1919) · 잘림 = 글 실제 너비가 칸보다 넓음 (U4) · 겹침 말 = 글 상자끼리 30px² 넘게 (U1 가림)
     깜빡임 = 실제로 그린 화면 번쩍 (__fxTrace 'F' — 0.34초 상한을 지난 것) 이 1초에 3번 넘게 · 쓰러짐 박자 = "쓰러졌다" 글이 그 칸이 쓰러진 모습보다 80ms 넘게 먼저 (U2)
   dev/game-shots.py 의 시험 서버 · 브라우저 도구를 씀 · 끝나면 브라우저를 PID 로 끔 (정리 — python dev/cleanup.py --mine dev)"""
 import base64
 import importlib.util
 import json
 import os
+import re
 import socket
 import struct
 import subprocess
@@ -416,6 +419,9 @@ def run_one(out, cfg):
     with open(os.path.join(out, "raw.json"), "w", encoding="utf-8") as f:
         json.dump({"cfg": cfg, "K": K, "flashes": flashes}, f, ensure_ascii=False)
     checks = judge(K, flashes, lum_series(out))
+    checks["3:3 없음"] = team_missing(K, cfg)
+    if checks["3:3 없음"]:
+        print(f"  ⚠ 3:3 없음 — {checks['3:3 없음'][0]['흐름']}", flush=True)
     with open(os.path.join(out, "checks.json"), "w", encoding="utf-8") as f:
         json.dump({"cfg": cfg, "checks": checks, "phases": K.get("phases", []), "err": K.get("err")}, f, ensure_ascii=False, indent=1)
     write_summary(out, cfg, checks, K)
@@ -574,7 +580,6 @@ def judge(K, flashes, lum=()):
             out["깜빡임"].append({"밝기 번": j - i + 1, "때": ons[i], "번쩍 ms": [x - ons[i] for x in ons[i:j + 1]]})
             break
     # 1초 — 글마다 (자리를 옮겨 다녀도 같은 글 · 숫자만 바뀌는 "시작 2/3" 은 한 글) 이어 보인 구간 (ux-rules — 쓰러짐 말은 이름마다)
-    import re
     runs = {}
     u1 = set()
     for key, k in (K.get("texts") or {}).items():
@@ -605,7 +610,7 @@ def judge(K, flashes, lum=()):
         # 판이 끝나며 (team:over) 지워진 글 (다 참 · 칩) 은 판 끝 때문 — 쓰러짐 말은 끝까지 남아야 해서 그대로 셈
         overs = [p[0] for p in K.get("phases", []) if str(p[1]).endswith(":over")]
         # 필살기 · 힘겨루기 장면이 열리며 (team:ult · team:clash) 가려진 "다 참" 칩은 참고 — 상태 칩 (한 번 뜨는 알림 아님) · 상대 필살기면 끼어들기 창 (금 키) 이 넘겨받음 (bugs 1876)
-        scenes = [p[0] for p in K.get("phases", []) if str(p[1]) in ("team:ult", "team:clash")] if txt.startswith("다 참") else []
+        scenes = [p[0] for p in K.get("phases", []) if str(p[1]) in ("team:ult", "team:clash")] if txt.startswith("다 참") or txt.endswith("쓰러졌다!") else []
         for a, b in merged:
             # 누른 뒤 0.4초 안에 사라진 글 (메뉴 · 고르기 · 던지기 안내) 은 사람이 닫은 것 — 뺌
             # 마지막으로 본 때는 누르기 바로 앞 (다음 장면엔 없음) — 누른 때 −0.15 ~ +0.4초
@@ -614,8 +619,11 @@ def judge(K, flashes, lum=()):
                 # 기록기는 50ms 마다 봄 — 잰 값 950 ~ 999 는 실제 1초일 수 있어 참고로 (잡기 타이밍 결과 1.1초가 997 로 잡히던 것)
                 isu1 = txt in u1 or re.search(U1_WORDS, txt)
                 cut = any(-100 <= b - t <= 700 for t in scenes)
+                # 쓰러짐 이름은 장면이 가린 뒤 다시 1초 넘게 떠야 참고 (bugs 1919 — 1.2초 못 채운 이름은 장면 뒤에 다시 · 안 뜨면 그대로 걸림, 14판)
+                back = next((b2 - a2 for a2, b2 in merged if a2 > b and b2 - a2 >= 950), None) if txt.endswith("쓰러졌다!") else None
+                cut = cut and (not txt.endswith("쓰러졌다!") or back is not None)
                 big = isu1 and b - a < 950 and not cut
-                why = {"뜻": "필살기 장면이 열려 가려짐 (상태 칩 — 1876)"} if cut else {} if big or not isu1 else {"뜻": "재는 간격 안"}
+                why = ({"뜻": f"장면이 가림 → 장면 뒤 다시 {back} ms (1919)"} if back else {"뜻": "필살기 장면이 열려 가려짐 (상태 칩 — 1876)"}) if cut else {} if big or not isu1 else {"뜻": "재는 간격 안"}
                 out["1초" if big else "1초 참고"].append({"글": txt, "보인 ms": b - a, "때": a, **why})
     for key, c in (K.get("clip") or {}).items():
         # 패널 밖은 0.3초 넘게 머문 것만 (VS · 띠가 미끄러져 들어오는 동안은 뺌)
@@ -639,7 +647,17 @@ def judge(K, flashes, lum=()):
     if hid:
         out["숨음"].append({"때": hid[0][0], "장면": len(hid), "최대 px²": max(h[1] for h in hid)})
     downs = K.get("down", {})
+    # 이름마다 처음 뜬 때 — 장면 뒤 다시 뜬 이름 (bugs 1919 — 이미 쓰러진 포켓몬) 은 다음 쓰러짐과 견주지 않음 (14판)
+    def ko_names(key):
+        m = re.match(r"^(.*) 쓰러졌다!", key.split(" @")[0])
+        return [n.strip() for n in m.group(1).split(" · ")] if m else []
+    seen = {}
+    for key, at in sorted((K.get("koText") or {}).items(), key=lambda kv: kv[1]):
+        for n in ko_names(key):
+            seen.setdefault(n, at)
     for key, at in (K.get("koText") or {}).items():
+        if ko_names(key) and all(seen[n] < at for n in ko_names(key)):
+            continue
         first_down = min(downs.values()) if downs else None
         near = [d for d in downs.values() if abs(d - at) < 3000]
         if near and min(near) - at > 80:
@@ -647,6 +665,13 @@ def judge(K, flashes, lum=()):
         elif first_down is None:
             pass
     return out
+
+
+def team_missing(K, cfg):
+    """3:3 판인데 3:3 장면 (team) 이 한 번도 없음 — 걸린 것 0 이 "통과" 로 읽히지 않게 (ideas 741 — 400 ~ 479 판이 1:1 로 끝나고 0 으로 보이던 것)"""
+    if cfg.get("wild") or any(str(p[1]).startswith("team") for p in K.get("phases", [])):
+        return []
+    return [{"흐름": " → ".join(str(p[1]) for p in K.get("phases", [])[:8]) or "기록 없음"}]
 
 
 def write_summary(out, cfg, checks, K):
@@ -719,6 +744,7 @@ def main():
         for d in dirs:
             raw = json.load(open(os.path.join(out, d, "raw.json"), encoding="utf-8"))
             c = judge(raw["K"], raw["flashes"], lum_series(os.path.join(out, d)))
+            c["3:3 없음"] = team_missing(raw["K"], raw["cfg"])
             write_summary(os.path.join(out, d), raw["cfg"], c, raw["K"])
             print(d, json.dumps({k: len(v) for k, v in c.items()}, ensure_ascii=False))
         return
@@ -745,7 +771,7 @@ def main():
                 print(f"  실패: {type(err).__name__} {err}", flush=True)
                 rows.append((i, f"{cfg.get('name')} — 실패 ({type(err).__name__})", {}))
         with open(os.path.join(out, "all.md"), "w", encoding="utf-8") as f:
-            keys = ["걸침", "숨음", "1초", "잘림", "깜빡임", "겹침", "쓰러짐 박자", "1초 참고"]
+            keys = ["3:3 없음", "걸침", "숨음", "1초", "잘림", "깜빡임", "겹침", "쓰러짐 박자", "1초 참고"]
             f.write("| 판 | 이름 | " + " | ".join(keys) + " |\n|" + "---|" * (len(keys) + 2) + "\n")
             for i, name, c in rows:
                 f.write(f"| {i} | {name} | " + " | ".join(str(c.get(k, 0)) for k in keys) + " |\n")
@@ -755,6 +781,11 @@ def main():
         cfg = load_runs(kv.get("file"))[int(kv["run"]) - 1]
         # 남은 k=v 는 그 판 시험 창 매개변수에 더함 (bfast=1 — 빠르게 ▶▶ 켬 · 끔 판 길이 견주기, #138)
         extra = {k: v for k, v in kv.items() if k not in ("run", "file")}
+        # size=가로x세로 · seed= 는 판 크기 · seed (ideas 741 — 시험 창 매개변수로 들어가 판은 860 그대로 · 400 ~ 479 판이 1:1 이던 것)
+        if re.fullmatch(r"\d+x\d+", extra.get("size", "")):
+            cfg = {**cfg, "size": extra.pop("size")}
+        if "seed" in extra:
+            cfg = {**cfg, "seed": int(extra.pop("seed"))}
         if extra:
             cfg = {**cfg, "q": {**cfg.get("q", {}), **extra}}
     else:
