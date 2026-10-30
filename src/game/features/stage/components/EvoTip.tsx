@@ -1,8 +1,8 @@
 /**
  * 진화 아이템 처음 안내 본문 (#125 — 2026-10-28 태현 님 "천둥의돌 같은 아이템을 얻으면 화면에 듀토리얼처럼 팁이 나왔으면 좋겠어 이걸로 특정 포켓몬을 진화시킬수 있다 이런식?").
- * FirstTip 안 두 줄 — ① 돌 그림 · 이름 · 무엇 ② 쓸 포켓몬 (작은 그림 · 이름 → 진화형) + [B] 가방, 없으면 "지금은 쓸 포켓몬이 없어요 · 예 …".
+ * FirstTip 안 두 줄 — ① 돌 그림 · 이름 · 무엇 ② 쓸 포켓몬 (작은 그림 · 이름 → 진화형) + [B] 가방, 없으면 "지금은 쓸 포켓몬이 없어요 · 냄새꼬 등".
  * 못 본 아이템이 둘 넘게 한꺼번에면 한 상자 (ideas 1631 — 6초 안내가 차례로 뜨던 것): ① 돌 그림들 · "진화의 돌 2개" ② 아이템마다 쓸 포켓몬 하나 — 얼굴 대신 그 돌 그림 (어느 돌이 누구 것인지 · 폭도 좁음, UX 1631 아이디어) (없으면 예 하나).
- * 글은 엔진 기본 문장 (rules/evo-tip evoTip) 을 반으로 (원칙 5) · 좁으면 (360 아래) 쓸 포켓몬 하나 + 외 N · 예 하나 · 넘치면 한 단계 (fitStep).
+ * 글은 엔진 기본 문장 (rules/evo-tip evoTip) 을 반으로 (원칙 5) · 좁으면 (360 아래) 쓸 포켓몬 하나 + 외 N · 예 하나 ("… 등") · 넘치면 한 단계 (fitStep).
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { evoTip, type EvoUser } from '../../../core/rules/evo-tip';
@@ -82,7 +82,12 @@ export function EvoTip({ save, items, media, onUsed }: { save: Save; items: read
   const boxOnly = users.length > 0 && users.every((u) => u.where === 'box');
   const how = (
     <span class="pg-tip-part pg-evo-how">
-      {boxOnly ? '팀에 넣고 ' : ''}
+      {/* 앞 " · " — "외 2 팀에 넣고" 가 "외 2팀" 으로 읽히던 것 (기획 10-30) */}
+      {boxOnly && (
+        <>
+          <span class="pg-evo-dot">·</span> 팀에 넣고{' '}
+        </>
+      )}
       <KeyCap k="B" /> 가방<span class="pg-tip-long">에서</span>
     </span>
   );
@@ -153,12 +158,14 @@ export function EvoTip({ save, items, media, onUsed }: { save: Save; items: read
             <span class="pg-dim pg-tip-long">지금은 쓸 포켓몬이 없어요</span>
             <span class="pg-dim pg-tip-short">아직 쓸 포켓몬 없음</span>
             {/* 예는 이름만 (진화형까지 쓰면 화살표가 줄줄이 이어져 둘째 줄이 첫 줄의 1.8배 — 아트 #125 큼) · 진화형은 올리면 */}
+            {/*   "예 냄새꼬" 의 "예" 가 "네 (yes)" 로 읽혀 → "냄새꼬 등" (기획 10-30) */}
             {examples.length > 0 && (
               <>
                 <span class="pg-tip-long pg-dim" title={examples.map((e) => `${e.name} → ${e.toName}`).join(' · ')}>
-                  · 예 {examples.map((e) => e.name).join(' · ')}
+                  {' · '}
+                  {examples.map((e) => e.name).join(' · ')} 등
                 </span>
-                <span class="pg-tip-short pg-dim">예 {examples[0]!.name}</span>
+                <span class="pg-tip-short pg-dim"> · {examples[0]!.name} 등</span>
               </>
             )}
           </>

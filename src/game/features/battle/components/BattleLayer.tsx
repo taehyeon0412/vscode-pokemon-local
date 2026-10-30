@@ -21,6 +21,7 @@ import { AutoTip, type AutoTipPlace } from '../../../ui/AutoTip';
 import { Icon } from '../../../ui/Icon';
 import { HEAD_NOTE_H, HeadNote, headNoteWidth, pickHeadSpot, useHeldNote } from '../../../ui/HeadNote';
 import { Sprite } from '../../../ui/Sprite';
+import { contentWidth, FIT_ROOM } from '../../../ui/useFit';
 import { catchFoeClass, catchTone, catchView, duelKind, endSay, fitsPx, koSinkPx, msgFits, slumpPx, sayPhase, ringHint, ringKeyFits, hpColor, introView, moveColor, moveFx, profileOpenable, SEND_FLY_MS, sentenceText, splitPopups, STATUS_LABEL, type BattleGeometry, type CatchTone } from '../model';
 import { battleAnimKey, fxTailLeft, holdWindow, koFallAt, koTiming, noteKoActor, pickShown, type KoTiming } from '../fx/hold';
 import { hurtEarlyAt, impactOf, onHurtEarly, ultSkippable } from '../fx/parry';
@@ -105,13 +106,26 @@ function HpBlock({ f, side, x, bottom, wide, prefix, noName, dex, panelPx, warn,
     const w = el.getBoundingClientRect().width;
     if (w % 1 !== 0) el.style.width = `${Math.ceil(w)}px`;
   });
+  // 상대 이름 줄 — 넘치면 한 단계 (이름은 자르지 않음 · Lv 는 title): 줄 내용 × 맥 여유 1.1 이 넘칠 수 있는 끝 (--pg-hp-room) 보다 넓으면
+  //   1 = Lv 뺌 (240 맥에서 "아리아…" 로 잘리던 것 — bugs 2708 · U4) · 2 = 줄을 왼쪽으로 넘김 (예고 칩 "곧" 이 붙으면 Lv 를 빼도 "아리아도…" — UX 2708 큼 2 · 마지막 기회 NEW 와 같은 규칙)
+  //   상대 · 패널 폭 · 예고 칩이 바뀌면 다시 잼
+  const foeKey = `${nameOf(f)}|${f.level}|${panelPx ?? 0}|${warn ? (warn.full ? 2 : 1) : 0}`;
+  const [tight, setTight] = useState<{ key: string; step: number } | null>(null);
+  const foeStep = tight?.key === foeKey ? tight.step : 0;
+  useLayoutEffect(() => {
+    const el = rowRef.current;
+    if (!el || side !== 'foe' || foeStep >= 2) return;
+    const max = getComputedStyle(el).maxWidth;
+    const room = max.endsWith('px') ? parseFloat(max) : (el.parentElement?.clientWidth ?? 0);
+    if (room > 0 && contentWidth(el) * FIT_ROOM > room + 0.5) setTight({ key: foeKey, step: foeStep + 1 });
+  });
   // 가운데 x 에 정수 px 로 (translateX(-50%) 는 홀수 폭이면 반 픽셀로 흐려짐 — 아트 디렉터)
   return (
     <div class={`pg-hpblock pg-hpblock-${side}${under ? ' pg-ult-under' : ''}`} style={{ left: `${x - Math.floor(wide / 2)}px`, bottom: `${bottom}px`, width: `${wide}px`, ...(panelPx ? { '--pg-hp-room': `${panelPx - (x - Math.floor(wide / 2)) - 4}px` } : {}) }} title={title}>
       {side === 'foe' && <Bar value={f.ult} cls={f.ult >= 1 ? 'pg-bar-ult pg-full' : 'pg-bar-ult'} />}
       {/* 이름 · Lv 줄 (내 것은 오른쪽에 HP 숫자) → 얇은 HP 바 → 행동 게이지 (Sea of Stars, 포켓몬 머리 위). 옆 메뉴가 있으면 내 이름은 이름표가 맡음 */}
       {/* 붐빔 = 내 줄에 상태 칩 · Lv100 — 좁은 패널에서 이름 · Lv 를 빼는 기준 (game.css, "이… Lv5 독 15/21" · Lv1 이 패널 밖으로 나가던 것) */}
-      <span ref={rowRef} class={side === 'me' && (status || f.level >= 100) ? 'pg-hprow pg-hprow-crowd' : 'pg-hprow'}>
+      <span ref={rowRef} class={side === 'me' && (status || f.level >= 100) ? 'pg-hprow pg-hprow-crowd' : foeStep >= 2 ? 'pg-hprow pg-hprow-left' : 'pg-hprow'}>
         {/* 이로치 = 이름 앞 작은 반짝 (어느 쪽이 이로치인지 이름표에서 안 보이던 것 — ideas #153 · 길 위 흔적과 같은 그림 1배) */}
         {f.shiny && (
           <span class="pg-hp-shiny" title="반짝이는 포켓몬 (이로치)">
@@ -131,7 +145,7 @@ function HpBlock({ f, side, x, bottom, wide, prefix, noName, dex, panelPx, warn,
           </span>
         )}
         {/* 좁은 패널에서 예고 칩이 뜨면 Lv 를 뺌 — 칩이 들어가며 이름이 "파…" 로 잘리던 것 (U4 · Lv 는 title) */}
-        {!(short && warn) && <span class="pg-lv">Lv{f.level}</span>}
+        {!(short && warn) && foeStep < 1 && <span class="pg-lv">Lv{f.level}</span>}
         {/* 상대 필살기 예고 (기획 R4) = 이름 줄 안 칩 — 80% 부터 "필살기 곧" · 다 차면 빨강 칠 "필살기!" (좁으면 "곧" · "!") · 다 찬 뒤 쓰기까지 늘 1초 넘게 (엔진).
             게이지 위에 띄우면 가로 메뉴 줄 · 내 Z · 정보줄 선에 깔려 160 ~ 187 높이에서 0ms 이던 것 (UX · 픽셀) */}
         {side === 'foe' && warn && (

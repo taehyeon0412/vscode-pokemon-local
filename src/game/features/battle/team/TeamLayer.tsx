@@ -112,7 +112,8 @@ function visBoxOf(form: string, g: TeamGeo, side: Side, slot: number): Rect {
 type Block = { side: Side; slot: number; box: Rect; plate?: boolean };
 
 /** 머리 위 말 · 숫자 쌓는 높이 — 한 줄 15 · 합동 칩 24 (칩 20 + 간격 1단 4 — 2 면 "쓰러졌다!" 가 칩 테두리에 붙던 것, 개발 #80 UX ④) */
-const popGap = (ps: readonly { joint?: boolean }[]) => ps.reduce((h, p) => h + (p.joint ? 24 : 15), 0);
+// 글 15 → 17 = 2칸 테 (--pg-num-ring) 가 위아래로 2px 씩 늘어 쌓인 숫자 테끼리 맞닿아 한 덩어리로 보이던 것 (UX 2708 작음 3)
+const popGap = (ps: readonly { joint?: boolean }[]) => ps.reduce((h, p) => h + (p.joint ? 24 : 17), 0);
 
 function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, dim, big, warnChip, warnShow, warnPos, blocks, viewAt, vMon, vRest, skip, head, lineBand, onUlt }: { /** 버린 필살기 누름 — 이 칸 머리 왼쪽 위 작은 글 (TeamLayer 가 붙잡은 것 · 없으면 null) */ head: { key: string; value: { text: string; go: boolean; key: number | null }; step: number } | null; /** 머리 위 글이 피할 가로 줄 (시합장 흰 선 — 글 가운데를 지나 글자가 흐트러지던 것) */ lineBand: { t: number; b: number } | null; /** 장면 전환 (#99 시안) — 1:1 자리 (쏘는 칸 · 맞는 칸, 없으면 3:3 자리) */ viewAt: { x: number; y: number } | null; /** 장면 전환 칩이 이미 보인 숫자 (ideas 717 — 돌아온 뒤 다시 안 띄움) */ skip: ReadonlySet<number>; /** 포켓몬 칸 전환 클래스 (자리 옮김 · 숨김) */ vMon: string; /** 판 · 숫자 숨김 클래스 */ vRest: string; b: TeamBattle; g: TeamGeo; side: Side; slot: number; media: string; topMin: number; final: boolean; autoNext: boolean; fullChip: boolean; /** 다 찬 상대 중 먼저 나갈 한 칸 — 그 칸만 "!" 칩 (셋 다 뜨면 끼어들기 장면이 8 ~ 9개로 붐비던 것, 아트 디렉터 #95 2바퀴) */ warnChip: boolean; /** 상대 예고 칩을 보임 ("!" = 먼저 나갈 칸 · "곧" = 0.3초 이어진 뒤) */ warnShow: boolean; /** 상대 예고 칩 자리 (TeamLayer warnPosOf) */ warnPos: WarnPos; /** 모든 칸의 보이는 그림 · 발밑 판 상자 — 칩을 옆에 둘 때 피함 */ blocks: readonly Block[]; /** 큰 연출 (필살기 · 합동 · 힘겨루기) 중 주인공이 아닌 칸 — 흐리게 · 숫자 · 말 지움 (기획 #95) */ dim: boolean; /** 혼자 필살기에 맞는 칸 — 숫자 하나를 크게 */ big: boolean; onUlt(slot: number): void }) {
   const f = b[side][slot]!;

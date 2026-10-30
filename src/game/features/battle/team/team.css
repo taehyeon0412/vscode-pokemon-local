@@ -360,7 +360,8 @@
   transform: translate(-50%, -100%);
   font: 700 13px / 1 Pretendard, sans-serif;
   color: var(--pg-sos-red);
-  text-shadow: 0 1px 0 #0c101e, 1px 0 0 #0c101e, -1px 0 0 #0c101e, 0 -1px 0 #0c101e;
+  /* 2칸 짙은 테 (game.css --pg-num-ring — 1:1 .pg-pop 과 같은 값 · bugs 2707 ③) */
+  text-shadow: var(--pg-num-ring);
   white-space: nowrap;
   z-index: 7;
 }

@@ -11,6 +11,7 @@ import type { BattleSummary, GameInput } from '../../../core/engine';
 import { Button } from '../../../ui/Button';
 import { KeyCap } from '../../../ui/KeyCap';
 import { Icon } from '../../../ui/Icon';
+import { contentWidth, FIT_ROOM } from '../../../ui/useFit';
 import { Sprite } from '../../../ui/Sprite';
 import { speciesOf } from '../../../data';
 import { spriteBoxOf } from '../../../data/sprite-boxes';
@@ -108,7 +109,15 @@ function Line({ p }: { p: SummaryPart }) {
         {/* ▲ · ★ 와 글을 줄 바꿈으로 떼지 않게 */}
         <span class="pg-up">{p.kind === 'up' ? '▲' : '★'}</span>
         {'\u00a0'}
-        {p.text}
+        {/* 배운 기술 짧은 말 (기술 이름만) — 넓은 둘째 줄이 넘칠 때 (useResultFit learnShort · bugs 2711) */}
+        {p.short ? (
+          <>
+            <span class="pg-learned-full">{p.text}</span>
+            <span class="pg-learned-short">{p.short}</span>
+          </>
+        ) : (
+          p.text
+        )}
       </>
     );
   }
@@ -155,11 +164,13 @@ function FaceCards({ ups, media, hint, onStats }: { ups: LevelUpView[]; media: s
  * 그래도 상자가 패널 아래로 넘치고 둘째 차례에 진화 줄이 있으면 (short) 둘째 차례에서 1 = 빠진 레벨업 · 2 = ★ · 경험치까지 뺌 (진화 줄만 — 전부는 상자 title) —
  * 돌 줄 (#131) 이 둘째 차례에 두 줄을 더해 240 × 150 맥 · 보관함 이브이 + 레벨업 둘에서 5줄 → 상자 아래가 패널 밖이던 것 (#131 UX 큼 1)
  */
-function useResultFit(): { box: { current: HTMLDivElement | null }; on: boolean; one: boolean; short: number } {
+function useResultFit(): { box: { current: HTMLDivElement | null }; on: boolean; one: boolean; short: number; split: boolean; learnShort: boolean } {
   const box = useRef<HTMLDivElement>(null);
   const [on, setOn] = useState(false);
   const [one, setOne] = useState(false);
   const [short, setShort] = useState(0);
+  const [split, setSplit] = useState(false);
+  const [learnShort, setLearnShort] = useState(false);
   // 한 번에 한 단계 — 칩 번갈아 줄 (on) 이 먼저, 그 판에서도 첫 줄이 넘치면 카드 한 장 (one) (카드를 먼저 빼면 461 ~ 598 에서 칩이 첫 줄에 남고 카드 둘이 빠지던 것)
   useLayoutEffect(() => {
     const el = box.current;
@@ -196,6 +207,19 @@ function useResultFit(): { box: { current: HTMLDivElement | null }; on: boolean;
         return;
       }
     }
+    // 넓은 둘째 줄 (진화 한 줄 + ★ 배운 기술 · 경험치) 이 맥 여유로 안 들어가면 (bugs 2711 · U4 — 480 맥에서 배운 기술이 "…" 로 잘리던 것)
+    //   ① 배운 기술을 기술 이름만 ("★ 덩굴채찍") → ② 그래도 넘치면 진화 줄을 따로 한 줄 (split — 상자가 한 줄 커져 150 에서 주인공 모자를 덮을 수 있어 나중 단계)
+    //   상자가 더 넓어질 수 있는 폭 (grow) 까지 견줌 — 상자 자기 폭만 보면 내용만큼 넓어지는 상자라 1860 · 제목 없는 상자에서도 늘 넘친 것으로 재지던 것 (UX 2708 큼 1 · 1898 과 같은 뿌리)
+    const body = el.querySelector<HTMLElement>('.pg-result-body');
+    const bodyOver = () => !!body && body.clientWidth > 0 && !!body.querySelector('.pg-evo-note') && contentWidth(body) * FIT_ROOM > body.clientWidth + grow + 0.5;
+    if (!learnShort && body?.querySelector('.pg-learned-short') && bodyOver()) {
+      setLearnShort(true);
+      return;
+    }
+    if (!split && bodyOver()) {
+      setSplit(true);
+      return;
+    }
     // 둘째 차례가 보일 때만 (넓으면 번갈아 줄이 display none — 줄 수가 아니라 상자 아래로 잼, 맥 글꼴도 그 자리에서 잰 값)
     const altB = el.querySelector<HTMLElement>('.pg-result-alt-b');
     if (short < 2 && altB && altB.getClientRects().length > 0 && altB.querySelector('.pg-evo-note') && over()) setShort(short + 1);
@@ -205,6 +229,8 @@ function useResultFit(): { box: { current: HTMLDivElement | null }; on: boolean;
       setOn(false);
       setOne(false);
       setShort(0);
+      setSplit(false);
+      setLearnShort(false);
     };
     window.addEventListener('resize', reset);
     return () => window.removeEventListener('resize', reset);
@@ -235,7 +261,7 @@ function useResultFit(): { box: { current: HTMLDivElement | null }; on: boolean;
     },
     [],
   );
-  return { box, on, one, short };
+  return { box, on, one, short, split, learnShort };
 }
 
 /** next = 이어서 고를 것 (맨 앞) — 버튼에 다음 할 일 · ups = 레벨업한 포켓몬 (result/model levelUps) · onStats = 내 포켓몬 판 (그 포켓몬) */
@@ -392,7 +418,7 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
   ) : summary.evoNote ? (
     <span class="pg-evo-note">
       <Icon name={evoItem ? ITEM_ICON[evoItem as keyof typeof ITEM_ICON] : 'stone'} /> {summary.evoNote}
-      {rest.length > 0 && ' · '}
+      {rest.length > 0 && <span class="pg-evo-sep">{' · '}</span>}
     </span>
   ) : null;
   const altB = rest.length > 0 || evoNote ? (
@@ -454,13 +480,13 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
   );
   if (ups.length === 0) {
     return (
-      <div ref={tight.box} class={`pg-banner pg-result pg-two${summary.caught ? ' pg-result-caught' : ''}${whyOff ? ' pg-result-nowhy' : ''}${howOff ? ' pg-result-howoff' : ''}${tight.on ? ' pg-result-tight' : ''}${tight.short ? ` pg-result-short${tight.short}` : ''}${expStep ? ` pg-exp-s${expStep}` : ''}`} style={howWide ? { minWidth: `${howWide}px` } : undefined} title={all}>
+      <div ref={tight.box} class={`pg-banner pg-result pg-two${summary.caught ? ' pg-result-caught' : ''}${whyOff ? ' pg-result-nowhy' : ''}${howOff ? ' pg-result-howoff' : ''}${tight.on ? ' pg-result-tight' : ''}${tight.short ? ` pg-result-short${tight.short}` : ''}${tight.split ? ' pg-result-split' : ''}${tight.learnShort ? ' pg-result-learnshort' : ''}${expStep ? ` pg-exp-s${expStep}` : ''}`} style={howWide ? { minWidth: `${howWide}px` } : undefined} title={all}>
         {lines}
       </div>
     );
   }
   return (
-    <div ref={tight.box} class={`pg-banner pg-result pg-two pg-lvup${whyOff ? ' pg-result-nowhy' : ''}${howOff ? ' pg-result-howoff' : ''}${tight.on ? ' pg-result-tight' : ''}${tight.one ? ' pg-result-one' : ''}${tight.short ? ` pg-result-short${tight.short}` : ''}`} style={howWide ? { minWidth: `${howWide}px` } : undefined} title={all}>
+    <div ref={tight.box} class={`pg-banner pg-result pg-two pg-lvup${whyOff ? ' pg-result-nowhy' : ''}${howOff ? ' pg-result-howoff' : ''}${tight.on ? ' pg-result-tight' : ''}${tight.one ? ' pg-result-one' : ''}${tight.short ? ` pg-result-short${tight.short}` : ''}${tight.split ? ' pg-result-split' : ''}${tight.learnShort ? ' pg-result-learnshort' : ''}`} style={howWide ? { minWidth: `${howWide}px` } : undefined} title={all}>
       <span class="pg-lvup-cards">
         <FaceCards ups={cards} media={media} hint={hint} onStats={onStats} />
       </span>

@@ -34,7 +34,7 @@ import { TeamChoice, teamChoiceOn, TeamMeet, teamMeetOn } from '../../battle/tea
 import { Face } from '../../../ui/Face';
 import { resumeLine } from '../../../core/engine/play';
 import { FirstTip } from '../../../ui/FirstTip';
-import { evoTipNow } from '../../../core/engine';
+import { evoTipNow, teamSceneFastOk } from '../../../core/engine';
 import { EVO_ITEMS, evoTipId } from '../../../core/rules/evo-tip';
 import { itemName } from '../../../core/rules/items';
 import type { ItemId } from '../../../core/save';
@@ -278,7 +278,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   // 안 가 본 새 지역 (정보줄 지도 아이콘 표시 — 대기실 지도 버튼과 같은 규칙 · 개발 UX #70)
   const newRegionName = regionsOn(state) ? (mapView(state).regions.find((r) => isNewRegion(r, save.stages))?.name ?? null) : null;
   //   조건 = 지금 박자 (엔진 gameTempo) 가 빠른 박자보다 느림 — teamFastOk 만 보면 상대 필살기 컷인 1초 뒤 빠른 구간을 쉼으로 읽음 (개발 a01cfeb)
-  const fastHeldNow = team !== null && save.settings.battleFast === true && gameTempo(state) < TIMING.team.tempo * TIMING.team.fasterScale - 1e-6;
+  //   + 장면 빠르게가 걸리는 때 (core teamSceneFastOk — 필살기 · 합동 ×2 · 힘겨루기 밀기 ×3, 웹뷰 시계가 빠름) 는 엔진 박자가 느려도 켜진 것 (#138 뒤 "지금은 보통 박자" 로 흐려지던 것 — 개발)
+  const fastHeldNow = team !== null && save.settings.battleFast === true && gameTempo(state) < TIMING.team.tempo * TIMING.team.fasterScale - 1e-6 && !teamSceneFastOk(state);
   const fastHeldRef = useRef({ on: false, want: false, since: 0 });
   // 스위치 이름 줄이기 단계 (넘치면 한 단계 — U4) — 정보줄이 넘치거나, 지도 줄이 따로면 왼쪽 묶음 (볼) 과 사이가 스위치 폭의 10% (맥 여유) + 6px 보다 좁을 때 ·
   //   150 한 줄 정보줄이면 가운데 칸 (지역 이름 · 진행) 이 말줄임될 때 (맥 여유 10% 포함 — 가운데 칸이 남는 자리를 먹어 "사이" 는 늘 칸 사이라 못 씀 · 720 × 150 "새싹 오솔길 (1…", #97) ·
@@ -623,7 +624,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
                   secondary
                   extraClass={save.settings.battleFast ? `pg-battle-fast pg-on${fastHeld ? ' pg-held' : ''}` : 'pg-battle-fast'}
                   onClick={() => onInput({ kind: 'battle-fast', on: save.settings.battleFast !== true })}
-                  title={fastHeld ? '빠르게 켜짐 (C) — 지금은 누르는 창 · 알아챌 순간이라 보통 박자 (1배)' : `${save.settings.battleFast ? '켜짐' : '꺼짐'} · 빠르게 (C) — 3:3 보통 공격 3배 (끄면 2배) · 상대 필살기 연출도 컷인 1초 뒤부터 같은 배 · 알아챌 순간 1초 · 누르는 창은 그대로`}
+                  title={fastHeld ? '빠르게 켜짐 (C) — 지금은 누르는 창 · 알아챌 순간이라 보통 박자 (1배)' : `${save.settings.battleFast ? '켜짐' : '꺼짐'} · 빠르게 (C) — 3:3 공격 3배 · 필살기 · 합동 2배 · 힘겨루기 3배 · 알아챌 순간 · 누르는 창은 그대로`}
                 >
                   {/* 키 칸 C = 글자 메뉴 다 보일 때 · 이름이 빠졌을 때 (□ ▶▶ 만이면 걷기 줄 빨리 걷기와 같은 그림이라 헷갈리던 것 — UX 리뷰어) */}
                   {((menuLabels(widthPx, mapRow) === 'full' && swShort < 3) || swShort >= 5) && <span class="pg-menu-key">C</span>}
@@ -810,7 +811,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         {stageRt?.phase === 'lobby' && !stageRt.picking && !state.runtime.toast && (BALANCE.team.on || state.runtime.dev?.team === true) && !(save.tips ?? []).includes('gym-team') && (
           // 5초 (약 30글자 + 키 셋 — 걷기 안내와 같은 시간, 3초는 빠듯하던 것) · 밖 · 숨김이면 안 셈 (UX 리뷰어 #27)
           <FirstTip key="gym-team" ms={5000} className="pg-first-tip-low pg-gym-tip" paused={tipPaused} onSeen={() => onInput({ kind: 'tip-seen', id: 'gym-team' })}>
-            <GymTip lock={teamLock(state)} />
+            <GymTip lock={teamLock(state)} heal={save.party.length >= 3} />
           </FirstTip>
         )}
         {/* 3:3 처음 안내 (기획 R9 ⑤ — 2026-10-22 태현 님 A "추천안으로") — 3:3 을 고를 수 있는 만남이 처음 나올 때 4초 · 아래 가운데 (위는 "승부다!" 상자 — 1:1 / 3:3 버튼을 가리지 않게) · 보는 동안만 셈 */}
@@ -916,14 +917,15 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
 
 /** 체육관 첫 알림 글 (gdd S16 — 문구 = 기획) · 큰 줄 + 작은 줄 (좁으면 작은 줄은 키 칸만 — 줄은 낱말 묶음 사이에서만 바뀜) · 3:3 을 못 하면 이유 + "이번엔 1:1 승부" */
 // 360 아래는 짧은 말 한 줄 (두 줄 38px 가 240 대기실 바닥 줄 주인공 · 관장 아래 15px 를 덮던 것 — 픽셀 검사원 새 화면 한 바퀴)
-function GymTip({ lock }: { lock: 'few' | 'narrow' | null }) {
+function GymTip({ lock, heal }: { lock: 'few' | 'narrow' | null; /** 팀은 3마리 넘는데 싸울 수 있는 게 모자람 — 짧은 말 "회복하면 3:3" */ heal: boolean }) {
   if (lock !== null)
     return (
       <>
         <span class="pg-tip-long">
           <span class="pg-tip-part">{lock === 'few' ? '싸울 수 있는 포켓몬이 3마리면 3:3 —' : '패널을 넓히면 3:3 —'}</span> <span class="pg-tip-part">이번엔 1:1 승부</span>
         </span>
-        <span class="pg-tip-short">{lock === 'few' ? '싸울 3마리면 3:3 — 이번엔 1:1' : '넓히면 3:3 — 이번엔 1:1'}</span>
+        {/* 짧은 말 = "싸울" 뺌 — 240 맥 폭에서 두 줄로 접혀 주인공 · 관장 윗몸을 덮던 것 (bugs 2710 · 대기실 줄) · 3마리는 있는데 쓰러져 모자라면 "회복하면" ("3마리 있는데?" 로 읽히지 않게 — UX 2708 작음 6) */}
+        <span class="pg-tip-short">{lock === 'few' ? `${heal ? '회복하면' : '3마리면'} 3:3 — 이번엔 1:1` : '넓히면 3:3 — 이번엔 1:1'}</span>
       </>
     );
   return (

@@ -48,7 +48,7 @@ export function SettingsPanel({ save, onInput, onExit, onClose, dev = false, onS
           <span class="pg-long">{save.settings.fastWalk === true ? ` ×${BALANCE.fastWalkSpeed}` : ' 꺼짐'}</span>
         </Button>
         {/* 빠르게 ▶▶ (태현 님 #83 — 10-22 "이름은 빠르게 ▶▶" · 3:3 정보줄 스위치와 같음 · 키 C) */}
-        <Button secondary extraClass={save.settings.battleFast === true ? 'pg-picked' : undefined} onClick={() => onInput({ kind: 'battle-fast', on: save.settings.battleFast !== true })} title="빠르게 (C) — 3:3 보통 공격 3배 (끄면 2배) · 상대 필살기 연출도 컷인 1초 뒤부터 같은 배 · 알아챌 순간 1초 · 누르는 창은 그대로 (정보줄 스위치와 같음)">
+        <Button secondary extraClass={save.settings.battleFast === true ? 'pg-picked' : undefined} onClick={() => onInput({ kind: 'battle-fast', on: save.settings.battleFast !== true })} title="빠르게 (C) — 3:3 공격 3배 · 필살기 · 합동 2배 · 힘겨루기 3배 · 알아챌 순간 · 누르는 창은 그대로 (정보줄 스위치와 같음)">
           {save.settings.battleFast === true ? '✓ 빠르게 ' : '빠르게 '}
           <Icon name="fast" />
           {/* "3:3" 작은 칩 — 위 빨리 걷기와 같은 ▶▶ 라 무엇을 빠르게 하는지 (UX 리뷰어 #78 아이디어) */}

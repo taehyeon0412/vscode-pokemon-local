@@ -307,13 +307,13 @@ export function ClearCard({ state, media, onInput, onMap, onTeam }: BoxProps & {
   const stage = state.runtime.stage;
   const autoLeft = state.save.settings.autoBattle ? Math.max(1, Math.ceil((TIMING.clearAutoMs - (stage.ms ?? 0)) / 1000)) : null;
   // 넘치면 한 단계 (줄임표 · 300px 손 경계 대신 — 301 ~ 414 · 482 ~ 563 에서 "잡은 포켓몬 2 · 이긴 …" 로 잘리던 것, UX 리뷰어 · U4 · 맥 여유 10%):
-  //   1 = 스테이지 이름 뺌 "(1-1) 클리어!" · 2 = 요약 짧게 "잡은 2 · 트레이너 1 · 38분" · 3 = 요약 뺌
+  //   1 = 스테이지 이름 뺌 "(1-1) 클리어!" · 2 = 요약 짧게 "잡은 2 · 트레이너 1 · 38분" · 3 = 요약 뺌 · 4 = 첫 줄 숲 그림 뺌 (240 맥에서 볼 "+1" 이 상자 밖 10px — bugs 2709)
   const clearBox = useRef<HTMLDivElement>(null);
-  const fit = useFit(clearBox, 3);
+  const fit = useFit(clearBox, 4);
   return (
     <div class="pg-banner pg-clear pg-two" ref={clearBox}>
       <span class="pg-line">
-        <Icon name={STAGES[loc.stageId].icon} />
+        {fit < 4 && <Icon name={STAGES[loc.stageId].icon} />}
         <b>
           {v.title.startsWith(STAGES[loc.stageId].name) ? (
             <>

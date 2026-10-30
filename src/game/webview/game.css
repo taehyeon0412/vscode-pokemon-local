@@ -1169,6 +1169,8 @@ body.vscode-light .pg-stage.pg-bg-arena-volcano {
   --pg-sos-ult: #ff9f5a;
   --pg-sos-track: #283044;
   --pg-sos-bar: #0c101e;
+  /* 머리 위 숫자 · 한 줄 말 테 = 2칸 짙은 남색 (1:1 .pg-pop · 3:3 .pg-team-pop 같이) — 1칸이면 연출 (불꽃 · 물보라) 위에서 빨강 글자가 주황 불꽃과 섞여 묻히던 것 (bugs 2707 ③ · 숫자는 이미 연출 위 층, 대비 문제) */
+  --pg-num-ring: 1px 0px 0 #0c101e, -1px 0px 0 #0c101e, 0px 1px 0 #0c101e, 0px -1px 0 #0c101e, 1px 1px 0 #0c101e, -1px 1px 0 #0c101e, 1px -1px 0 #0c101e, -1px -1px 0 #0c101e, 2px 0px 0 #0c101e, -2px 0px 0 #0c101e, 0px 2px 0 #0c101e, 0px -2px 0 #0c101e, 2px 2px 0 #0c101e, -2px 2px 0 #0c101e, 2px -2px 0 #0c101e, -2px -2px 0 #0c101e;
   --pg-sos-tab-ink: #1a1406;
   /* 고른 줄 · 주 버튼 바탕 (판보다 한 단계 밝은 남색) */
   --pg-sos-hi: #1f2a44;
@@ -1795,6 +1797,10 @@ body.vscode-light .pg-stage.pg-bg-arena-volcano {
 /* 할 일 ([B] 가방에서) 은 진하게 — 흐리면 무엇을 누를지 덜 보임 (UX #125 · 위계는 굵기 600 > 500 으로) */
 .pg-evo-how {
   color: var(--pg-sos-ink);
+}
+/* "외 2 · 팀에 넣고" 의 점 — 칸 사이 8px 중 4px 를 당겨 점 앞뒤 틈을 같게 (점이 "팀에" 쪽에 붙어 보이던 것 — UX 2708 작음 7) */
+.pg-evo-dot {
+  margin-left: -4px;
 }
 .pg-evo-b1 {
   display: none;
@@ -2532,8 +2538,8 @@ body.vscode-light .pg-stage.pg-bg-arena-volcano {
   pointer-events: none;
   font-weight: bold;
   font-size: 13px;
-  /* 네 방향 1px 짙은 테 — 3:3 숫자 (team.css pg-team-pop) 와 한 화풍 (예전 세 방향 검정은 오른쪽 위가 비어 불꽃 위에서 글자가 번짐, bugs 2707 ③) */
-  text-shadow: 1px 0 0 var(--pg-sos-bar), -1px 0 0 var(--pg-sos-bar), 0 1px 0 var(--pg-sos-bar), 0 -1px 0 var(--pg-sos-bar);
+  /* 2칸 짙은 테 (--pg-num-ring — 3:3 과 같은 값 · bugs 2707 ③) */
+  text-shadow: var(--pg-num-ring);
   animation: pg-num-rise 1.2s ease-out both;
 }
 .pg-pop-damage { color: var(--pg-sos-red); }
@@ -2801,6 +2807,11 @@ body.vscode-light .pg-stage.pg-bg-arena-volcano {
   max-width: var(--pg-hp-room, 100%);
 }
 .pg-hpblock-foe > .pg-hprow > .pg-hpname {
+  max-width: none;
+}
+/* 상대 줄 넘치면 한 단계 2 (BattleLayer HpBlock — Lv 를 빼도 예고 칩 "곧" 과 함께 넘칠 때) = 왼쪽으로 넘김 (마지막 기회 NEW 와 같음 · UX 2708 큼 2) */
+.pg-hpblock-foe > .pg-hprow.pg-hprow-left {
+  align-self: flex-end;
   max-width: none;
 }
 /* 내 이름도 줄이지 않음 — 4 ~ 5글자 이름 + Lv 10 넘으면 "개…" 로 잘리던 것 (480 · 600, U4 · #440 같은 종류 — UX 리뷰어 2026-10-21). 넘침은 왼쪽 (주인공 머리 위는 비어 있음) */
@@ -5745,12 +5756,13 @@ body.vscode-high-contrast-light .pg-title-body {
 .pg-pop.pg-pop-num-big {
   font-size: 16px;
 }
+/* 별로 = 크기만 (11px) — 반투명이면 연출 위에서 불꽃이 글자 속으로 비쳐 안 읽히던 것 (bugs 2707 ③) */
 .pg-pop.pg-pop-num-small {
   font-size: 11px;
-  opacity: 0.85;
 }
 .pg-pop.pg-pop-num-crit {
-  text-shadow: 1px 0 0 var(--pg-sos-gold), -1px 0 0 var(--pg-sos-gold), 0 1px 0 var(--pg-sos-gold), 0 -1px 0 var(--pg-sos-gold);
+  /* 급소 = 안 짙은 한 칸 + 바깥 금 한 칸 (금이 안쪽이면 숫자 사이 틈을 메워 1배에서 "-12!" 가 금빛 덩어리 — UX 2708 작음 4) */
+  text-shadow: 1px 0px 0 var(--pg-sos-bar), -1px 0px 0 var(--pg-sos-bar), 0px 1px 0 var(--pg-sos-bar), 0px -1px 0 var(--pg-sos-bar), 1px 1px 0 var(--pg-sos-bar), -1px 1px 0 var(--pg-sos-bar), 1px -1px 0 var(--pg-sos-bar), -1px -1px 0 var(--pg-sos-bar), 2px 0px 0 var(--pg-sos-gold), -2px 0px 0 var(--pg-sos-gold), 0px 2px 0 var(--pg-sos-gold), 0px -2px 0 var(--pg-sos-gold), 2px 2px 0 var(--pg-sos-gold), -2px 2px 0 var(--pg-sos-gold), 2px -2px 0 var(--pg-sos-gold), -2px -2px 0 var(--pg-sos-gold);
   color: var(--pg-sos-red);
 }
 .pg-pop.pg-pop-say {
@@ -7154,6 +7166,23 @@ body.vscode-high-contrast-light .pg-hpblock > .pg-hprow,
 .pg-result-short2 .pg-result-alt-b .pg-alt-rest,
 .pg-result-short2 .pg-result-alt-b .pg-evo-sep {
   display: none;
+}
+/* 넓은 둘째 줄이 넘치면 (ResultBox useResultFit split — bugs 2711) 진화 한 줄은 따로 한 줄 · 사이 점은 뺌 (480 맥에서 "★ 이상해씨가 덩굴채찍을 …" 로 잘리던 것) */
+.pg-result-split .pg-result-body .pg-evo-note {
+  display: block;
+}
+.pg-result-split .pg-result-body .pg-evo-sep {
+  display: none;
+}
+/* 배운 기술 짧은 말 (기술 이름만 — useResultFit learnShort · 나누기 전 단계, UX 2708 큼 1) */
+.pg-learned-short {
+  display: none;
+}
+.pg-result-learnshort .pg-result-body .pg-learned-full {
+  display: none;
+}
+.pg-result-learnshort .pg-result-body .pg-learned-short {
+  display: inline;
 }
 /* 막 잡은 포켓몬 돌 줄 (#131) 끝 "[B] 가방" — 넓은 둘째 줄에서만 · 줄이 맥 여유로 안 들어가면 뺌 (howoff) · 좁은 번갈아 줄은 자리가 없어 늘 뺌. 할 일이라 진하게 (#125 처음 안내 할 일과 같은 600) */
 .pg-evo-how {

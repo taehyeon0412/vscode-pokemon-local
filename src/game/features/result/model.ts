@@ -34,6 +34,8 @@ export function moveView(id: number, pp?: number): MoveView {
 export interface SummaryPart {
   kind: 'caught' | 'money' | 'item' | 'treasure' | 'up' | 'exp' | 'learned' | 'quote';
   text: string;
+  /** 넘칠 때 짧은 말 (배운 기술 = 기술 이름만 — ResultBox learnShort) */
+  short?: string;
 }
 
 export function summaryLines(s: BattleSummary): { title: string; head: SummaryPart[]; body: SummaryPart[] } {
@@ -48,7 +50,7 @@ export function summaryLines(s: BattleSummary): { title: string; head: SummaryPa
     ...s.exp.filter((e) => e.to > e.from).map((e): SummaryPart => ({ kind: 'up', text: `${e.name} Lv ${e.from} → ${e.to} (경험치 +${e.gain})` })),
     ...s.exp.filter((e) => e.to <= e.from).map((e): SummaryPart => ({ kind: 'exp', text: `${e.name} 경험치 +${e.gain}` })),
   ];
-  for (const l of s.learned) body.push({ kind: 'learned', text: `${withJosa(l.name, '이/가')} ${withJosa(l.move, '을/를')} 배웠다` });
+  for (const l of s.learned) body.push({ kind: 'learned', text: `${withJosa(l.name, '이/가')} ${withJosa(l.move, '을/를')} 배웠다`, short: l.move });
   // 라이벌 한마디 (gdd 4.12) — 둘째 줄 맨 끝 (좁은 패널에서 레벨업이 잘리지 않게)
   if (s.quote) body.push({ kind: 'quote', text: s.quote });
   return { title: s.title, head, body };
