@@ -102,7 +102,11 @@ function Reward({ p, rare }: { p: SummaryPart; rare: boolean }) {
 }
 
 /** 둘째 줄 — 레벨업 ▲ · 새 기술 ★ (금색) · 라이벌 한마디는 따옴표 */
-function Line({ p }: { p: SummaryPart }) {
+/** 3:3 결과 경험치 줄 — 판 끝에 쓰러져 있던 칸은 이름 뒤 작은 "기절" 칩 (멈춘 셋 빈칸이 "누가 쓰러졌나" 로 읽히게 — ideas 1669 · 가운데 줄은 "못 받음" 으로 읽혀 바꿈, 엔진은 싸운 셋 모두에게 줌) */
+const Ko = () => <span class="pg-exp-ko">기절</span>;
+
+/** down = 판 끝에 쓰러져 있던 칸 uid (이름 글자 맞추기면 같은 종 둘 · "코일 ⊂ 레어코일" 에서 엉뚱한 이름에 붙던 것 — UX 작음 4) */
+function Line({ p, down = new Set<string>() }: { p: SummaryPart; down?: ReadonlySet<string> }) {
   if (p.kind === 'up' || p.kind === 'learned') {
     return (
       <>
@@ -121,6 +125,28 @@ function Line({ p }: { p: SummaryPart }) {
       </>
     );
   }
+  if (p.kind === 'exp' && p.entries)
+    return (
+      <>
+        경험치{' '}
+        {p.entries.map((e, i) => (
+          <span key={e.uid}>
+            {i > 0 && ' · '}
+            {e.name}
+            {down.has(e.uid) && <Ko />}
+            {`\u00a0+${e.gain}`}
+          </span>
+        ))}
+      </>
+    );
+  if (p.kind === 'exp' && p.uid && p.name && down.has(p.uid))
+    return (
+      <>
+        {p.name}
+        <Ko />
+        {p.text.slice(p.name.length)}
+      </>
+    );
   return <>{p.kind === 'quote' ? `“${p.text}”` : p.text}</>;
 }
 
@@ -164,7 +190,7 @@ function FaceCards({ ups, media, hint, onStats }: { ups: LevelUpView[]; media: s
  * 그래도 상자가 패널 아래로 넘치고 둘째 차례에 진화 줄이 있으면 (short) 둘째 차례에서 1 = 빠진 레벨업 · 2 = ★ · 경험치까지 뺌 (진화 줄만 — 전부는 상자 title) —
  * 돌 줄 (#131) 이 둘째 차례에 두 줄을 더해 240 × 150 맥 · 보관함 이브이 + 레벨업 둘에서 5줄 → 상자 아래가 패널 밖이던 것 (#131 UX 큼 1)
  */
-function useResultFit(): { box: { current: HTMLDivElement | null }; on: boolean; one: boolean; short: number; split: boolean; learnShort: boolean; noPre: boolean } {
+function useResultFit(): { box: { current: HTMLDivElement | null }; on: boolean; one: boolean; short: number; split: boolean; learnShort: boolean; noPre: boolean; noKey: boolean } {
   const box = useRef<HTMLDivElement>(null);
   const [on, setOn] = useState(false);
   const [one, setOne] = useState(false);
@@ -172,6 +198,7 @@ function useResultFit(): { box: { current: HTMLDivElement | null }; on: boolean;
   const [split, setSplit] = useState(false);
   const [learnShort, setLearnShort] = useState(false);
   const [noPre, setNoPre] = useState(false);
+  const [noKey, setNoKey] = useState(false);
   // 한 번에 한 단계 — 칩 번갈아 줄 (on) 이 먼저, 그 판에서도 첫 줄이 넘치면 카드 한 장 (one) (카드를 먼저 빼면 461 ~ 598 에서 칩이 첫 줄에 남고 카드 둘이 빠지던 것)
   useLayoutEffect(() => {
     const el = box.current;
@@ -210,13 +237,20 @@ function useResultFit(): { box: { current: HTMLDivElement | null }; on: boolean;
       // 첫 줄 = 제목 (최소 폭까지 줄어듦) + 보이는 칩 · 버튼 (내용 실제 너비 × 1.1) + 칸 사이 gap
       const need = kids.reduce((w, c) => w + (c === title ? minW(c) : c.scrollWidth * 1.1), 0) + gap * Math.max(0, kids.length - 1);
       if (need > line.clientWidth + grow + 0.5 || over()) {
-        setOne(true);
+        // 카드를 빼기 전에 "계속" 버튼 Enter 키 칸부터 뺌 — 카드 한 장은 넓은 모양에서 빠진 레벨업이 어디에도 안 보여서 (맥 481 ~ 482 에서 키 칸이 다시 생겨 첫 줄이 넘치던 것 — UX 작음 묶음 3 큼 1 · bugs 2718 과 같은 뿌리)
+        if (!noKey && Array.from(el.querySelectorAll<HTMLElement>('.pg-button .pg-menu-key')).some((k) => k.offsetWidth > 0)) setNoKey(true);
+        else setOne(true);
         return;
       }
     }
     // 레벨업 상자가 주인공을 덮으면 카드를 빼지 않고 제목 앞 "야생 " 을 뺌 — 카드 한 장은 넓은 모양에서 빠진 레벨업이 어디에도 안 보여서 (UX 1917 큼 1 · bugs 2716)
     if (!noPre && el.classList.contains('pg-lvup') && el.querySelector('.pg-title-pre') && onHero()) {
       setNoPre(true);
+      return;
+    }
+    // 그래도 덮으면 "계속" 버튼의 Enter 키 칸을 뺌 (Space · Enter 는 버튼 title) — 488 ~ 504 맥에서 키 칸이 생겨 제목이 두 줄 그대로 2px 덮던 것 (bugs 2716 남은 것)
+    if (!noKey && (noPre || !el.querySelector('.pg-title-pre')) && el.classList.contains('pg-lvup') && onHero() && Array.from(el.querySelectorAll<HTMLElement>('.pg-button .pg-menu-key')).some((k) => k.offsetWidth > 0)) {
+      setNoKey(true);
       return;
     }
     // 넓은 둘째 줄 (진화 한 줄 + ★ 배운 기술 · 경험치) 이 맥 여유로 안 들어가면 (bugs 2711 · U4 — 480 맥에서 배운 기술이 "…" 로 잘리던 것)
@@ -247,6 +281,7 @@ function useResultFit(): { box: { current: HTMLDivElement | null }; on: boolean;
       setSplit(false);
       setLearnShort(false);
       setNoPre(false);
+      setNoKey(false);
     };
     window.addEventListener('resize', reset);
     return () => window.removeEventListener('resize', reset);
@@ -277,7 +312,7 @@ function useResultFit(): { box: { current: HTMLDivElement | null }; on: boolean;
     },
     [],
   );
-  return { box, on, one, short, split, learnShort, noPre };
+  return { box, on, one, short, split, learnShort, noPre, noKey };
 }
 
 /** next = 이어서 고를 것 (맨 앞) — 버튼에 다음 할 일 · ups = 레벨업한 포켓몬 (result/model levelUps) · onStats = 내 포켓몬 판 (그 포켓몬) */
@@ -394,7 +429,7 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
   const firstExp = rest1.findIndex((p) => p.kind === 'exp');
   const rest =
     expOnly.length > 1 && firstExp >= 0
-      ? [...rest1.slice(0, firstExp).filter((p) => p.kind !== 'exp'), { kind: 'exp' as const, text: `경험치 ${expOnly.map((e) => `${e.name}\u00a0+${e.gain}`).join(' · ')}` }, ...rest1.slice(firstExp).filter((p) => p.kind !== 'exp')]
+      ? [...rest1.slice(0, firstExp).filter((p) => p.kind !== 'exp'), { kind: 'exp' as const, text: `경험치 ${expOnly.map((e) => `${e.name}\u00a0+${e.gain}`).join(' · ')}`, entries: expOnly.map((e) => ({ uid: e.uid, name: e.name, gain: e.gain })) }, ...rest1.slice(firstExp).filter((p) => p.kind !== 'exp')]
       : rest1;
   // 좁은 제목 없는 상자의 경험치 장면 = 넘치면 이름 없이 숫자만 → 더 넘치면 "+102 ×3" (모두 같을 때) · "+25 ~ +51" (game.css .pg-exp-s1 · s2)
   const expShort = expOnly.length > 0 ? `경험치 ${expOnly.map((e) => `+${e.gain}`).join(' · ')}` : '';
@@ -402,19 +437,21 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
   const expTiny = gains.length === 0 ? '' : gains.every((g) => g === gains[0]) ? `경험치 +${gains[0]}${gains.length > 1 ? ` ×${gains.length}` : ''}` : `경험치 +${Math.min(...gains)} ~ +${Math.max(...gains)}`;
   // 제목 — 좁으면 "야생 " 을 빼고 (pg-title-pre) 낱말 단위로 줄을 바꿈 (줄임표 금지 U4 — "야생 파이리를 …" 로 잘리던 것, 2026-10-21 orders #5)
   const pre = title.startsWith('야생 ') ? '야생 ' : '';
+  // 판 끝에 쓰러져 있던 내 칸 이름 (엔진 teamMe — 3:3 결과만)
+  const downUids = new Set((summary.teamMe ?? []).filter((m) => m.down).map((m) => m.uid));
   const restLine = rest.map((p, i) => (
     <span key={i}>
       {i > 0 && ' · '}
       {p.kind === 'exp' && expShort ? (
         <>
           <span class="pg-exp-full">
-            <Line p={p} />
+            <Line p={p} down={downUids} />
           </span>
           <span class="pg-exp-short">{expShort}</span>
           <span class="pg-exp-tiny">{expTiny}</span>
         </>
       ) : (
-        <Line p={p} />
+        <Line p={p} down={downUids} />
       )}
     </span>
   ));
@@ -497,13 +534,13 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
   );
   if (ups.length === 0) {
     return (
-      <div ref={tight.box} class={`pg-banner pg-result pg-two${summary.caught ? ' pg-result-caught' : ''}${whyOff ? ' pg-result-nowhy' : ''}${howOff ? ' pg-result-howoff' : ''}${tight.on ? ' pg-result-tight' : ''}${tight.short ? ` pg-result-short${tight.short}` : ''}${tight.split ? ' pg-result-split' : ''}${tight.learnShort ? ' pg-result-learnshort' : ''}${tight.noPre ? ' pg-result-nopre' : ''}${expStep ? ` pg-exp-s${expStep}` : ''}`} style={howWide ? { minWidth: `${howWide}px` } : undefined} title={all}>
+      <div ref={tight.box} class={`pg-banner pg-result pg-two${summary.caught ? ' pg-result-caught' : ''}${whyOff ? ' pg-result-nowhy' : ''}${howOff ? ' pg-result-howoff' : ''}${tight.on ? ' pg-result-tight' : ''}${tight.short ? ` pg-result-short${tight.short}` : ''}${tight.split ? ' pg-result-split' : ''}${tight.learnShort ? ' pg-result-learnshort' : ''}${tight.noPre ? ' pg-result-nopre' : ''}${tight.noKey ? ' pg-result-nokey' : ''}${expStep ? ` pg-exp-s${expStep}` : ''}`} style={howWide ? { minWidth: `${howWide}px` } : undefined} title={all}>
         {lines}
       </div>
     );
   }
   return (
-    <div ref={tight.box} class={`pg-banner pg-result pg-two pg-lvup${whyOff ? ' pg-result-nowhy' : ''}${howOff ? ' pg-result-howoff' : ''}${tight.on ? ' pg-result-tight' : ''}${tight.one ? ' pg-result-one' : ''}${tight.short ? ` pg-result-short${tight.short}` : ''}${tight.split ? ' pg-result-split' : ''}${tight.learnShort ? ' pg-result-learnshort' : ''}${tight.noPre ? ' pg-result-nopre' : ''}`} style={howWide ? { minWidth: `${howWide}px` } : undefined} title={all}>
+    <div ref={tight.box} class={`pg-banner pg-result pg-two pg-lvup${whyOff ? ' pg-result-nowhy' : ''}${howOff ? ' pg-result-howoff' : ''}${tight.on ? ' pg-result-tight' : ''}${tight.one ? ' pg-result-one' : ''}${tight.short ? ` pg-result-short${tight.short}` : ''}${tight.split ? ' pg-result-split' : ''}${tight.learnShort ? ' pg-result-learnshort' : ''}${tight.noPre ? ' pg-result-nopre' : ''}${tight.noKey ? ' pg-result-nokey' : ''}`} style={howWide ? { minWidth: `${howWide}px` } : undefined} title={all}>
       <span class="pg-lvup-cards">
         <FaceCards ups={cards} media={media} hint={hint} onStats={onStats} />
       </span>

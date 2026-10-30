@@ -251,7 +251,9 @@
         if (scene === 'result' && q.get('teamme')) {
             const mk = (uid, species, form, hp, maxHp, shiny) => ({ uid, species, form, shiny, hp, maxHp, down: hp <= 0 });
             const three = [mk('m1', 1, 'bulbasaur', 12, 21, false), mk('t2', 4, 'charmander', 0, 20, false), mk('t3', 7, 'squirtle', 18, 20, true)];
-            stage.summary = { ...stage.summary, badge: null, team: true, title: '반바지 꼬마 민수와의 3:3 승부에서 이겼다!', teamMe: q.get('teamme') === '2' ? [three[0], mk('t3', 7, 'squirtle', 18, 20, true)] : three };
+            // 경험치 줄도 셋 (쓰러진 파이리 이름은 흐림 — ideas 1669) · 레벨업 없음
+            const exp = [{ uid: 'm1', name: '이상해씨', gain: 102, from: 5, to: 5 }, { uid: 't2', name: '파이리', gain: 102, from: 5, to: 5 }, { uid: 't3', name: '꼬부기', gain: 102, from: 5, to: 5 }];
+            stage.summary = { ...stage.summary, badge: null, team: true, title: '반바지 꼬마 민수와의 3:3 승부에서 이겼다!', exp, learned: [], teamMe: q.get('teamme') === '2' ? [three[0], mk('t3', 7, 'squirtle', 18, 20, true)] : three };
         }
         if (scene === 'result' && q.get('evonote')) stage.summary = { ...stage.summary, item: '천둥의돌', evoNote: '피카츄 → 라이츄 진화 가능' };
         if (scene === 'result' && q.get('ups') === '0') stage.summary = { ...stage.summary, exp: [{ uid: 'm1', name: '이상해씨', gain: 28, from: 5, to: 5 }], learned: [] };

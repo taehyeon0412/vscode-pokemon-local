@@ -36,6 +36,10 @@ export interface SummaryPart {
   text: string;
   /** 넘칠 때 짧은 말 (배운 기술 = 기술 이름만 — ResultBox learnShort) */
   short?: string;
+  /** 경험치 칸 — 누구 (3:3 결과 쓰러진 칸 "기절" 칩을 uid 로 붙임) · 여럿을 한 줄로 묶은 칸은 entries */
+  uid?: string;
+  name?: string;
+  entries?: readonly { uid: string; name: string; gain: number }[];
 }
 
 export function summaryLines(s: BattleSummary): { title: string; head: SummaryPart[]; body: SummaryPart[] } {
@@ -49,7 +53,7 @@ export function summaryLines(s: BattleSummary): { title: string; head: SummaryPa
   const body: SummaryPart[] = [
     ...s.exp.filter((e) => e.to > e.from).map((e): SummaryPart => ({ kind: 'up', text: `${e.name} Lv ${e.from} → ${e.to} (경험치 +${e.gain})` })),
     // 이름 · 경험치 · 숫자는 한 덩어리 (낱말 단위 줄 바꿈에서 "▲ 잠만보 Lv 15 · 피카츄 / 경험치 +260" 으로 갈려 피카츄가 레벨업 목록처럼 읽히던 것 — 개발 713 UX)
-    ...s.exp.filter((e) => e.to <= e.from).map((e): SummaryPart => ({ kind: 'exp', text: `${e.name}\u00a0경험치\u00a0+${e.gain}` })),
+    ...s.exp.filter((e) => e.to <= e.from).map((e): SummaryPart => ({ kind: 'exp', text: `${e.name}\u00a0경험치\u00a0+${e.gain}`, uid: e.uid, name: e.name })),
   ];
   for (const l of s.learned) body.push({ kind: 'learned', text: `${withJosa(l.name, '이/가')} ${withJosa(l.move, '을/를')} 배웠다`, short: l.move });
   // 라이벌 한마디 (gdd 4.12) — 둘째 줄 맨 끝 (좁은 패널에서 레벨업이 잘리지 않게)

@@ -2219,6 +2219,15 @@ body.vscode-light .pg-stage.pg-bg-arena-volcano {
 .pg-no-type .pg-mv-type {
   display: none;
 }
+/* 3:3 결과 경험치 줄 — 판 끝에 쓰러져 있던 칸 이름 뒤 "기절" 칩 (글 + 테 — 색 하나에만 맡기지 않음, 원칙 7 · ideas 1669 · 가운데 줄은 "못 받음" 으로 읽혀 바꿈) */
+.pg-exp-ko {
+  margin-left: 2px;
+  padding: 0 2px;
+  border: 1px solid var(--pg-sos-line-soft);
+  font-size: 11px;
+  line-height: 12px;
+  color: var(--pg-sos-dim);
+}
 .pg-sk2-name,
 .pg-sk2-sub {
   display: block;
@@ -7196,6 +7205,14 @@ body.vscode-high-contrast-light .pg-hpblock > .pg-hprow,
 }
 /* 레벨업 상자가 주인공을 덮으면 제목 앞 "야생 " 뺌 (useResultFit noPre — 카드를 빼는 대신, UX 1917 큼 1 · bugs 2716) */
 .pg-result-nopre .pg-title-pre {
+  display: none;
+}
+/* 그래도 덮으면 "계속" 버튼 Enter 키 칸 뺌 (useResultFit noKey · bugs 2716) */
+.pg-result-nokey .pg-button .pg-menu-key {
+  display: none;
+}
+/* 기술 배우기 넘치면 한 단계 1 = 배우는 포켓몬 이름 뺌 (타입은 남김 — ideas 1664) */
+.pg-learn-noname .pg-learn-name {
   display: none;
 }
 /* 막 잡은 포켓몬 돌 줄 (#131) 끝 "[B] 가방" — 넓은 둘째 줄에서만 · 줄이 맥 여유로 안 들어가면 뺌 (howoff) · 좁은 번갈아 줄은 자리가 없어 늘 뺌. 할 일이라 진하게 (#125 처음 안내 할 일과 같은 600) */

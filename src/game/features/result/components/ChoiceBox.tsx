@@ -32,7 +32,10 @@ export interface ChoiceBoxProps {
 export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
   // 기술 줄 타입 "풀 · " — 줄이 넘치면 한 단계 뺌 (위력만 · 맥 여유 1.1 — 600 경계를 손으로 고르면 맥 860 에서 "노말 · 위력 40" 이 잘리던 것, #119)
   const box = useRef<HTMLDivElement>(null);
-  const noType = useFit(box, 1, ':scope > .pg-line') >= 1;
+  // 넘치면 한 단계 — 1 = 배우는 포켓몬 이름 뺌 (얼굴 카드에 있음) · 2 = 타입 뺌 (잊을 기술을 고를 때 타입이 판단 근거라 나중 — ideas 1664 · 600 ~ 860 에서 타입이 먼저 빠지던 것)
+  //   첫 줄만 잼 — 버튼 줄까지 재면 버튼 줄이 넘칠 때 (그건 rowFit 몫) 자리가 있는 첫 줄에서 이름 · 타입이 빠지고 처음 열기와 크기 바꾼 뒤가 달랐음 (UX 작음 묶음 3 큼 2)
+  const learnFit = useFit(box, 2, ':scope > .pg-line:first-child');
+  const noType = learnFit >= 2;
   // 타입을 뺀 뒤에도 윗줄이 넘치면 한 단계씩 — 위력 (숫자만 남기면 뜻이 없어 PP 와 헷갈림 — #119 · UX #137) → "★" 와 "—" (240 맥 · 잊을 기술 고른 뒤 7글자 이름에서 "대신?" 이 잘리던 것, bugs 1689 · U4)
   //   그래도 넘치면 (맥 · 240 ~ 252 · 7글자 이름 둘 · 고른 뒤 — "플레어드라이브 아프로브레이크 대신?" 12.6px) 두 줄로 (뜻을 지움 대신 — 150 높이에서도 한 줄 들어감)
   const tight = useFit(box, 3, ':scope.pg-no-type > .pg-line:first-child');
@@ -114,7 +117,7 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
 
   if (view.kind === 'learn') {
     return (
-      <div ref={box} class={`pg-banner pg-choice pg-learn pg-two${noType ? ' pg-no-type' : ''}${wide ? ' pg-wide' : ''}${rowFit >= 1 ? ' pg-learn-nosub' : ''}${rowFit >= 2 ? ' pg-learn-grid' : ''}${padTight ? ' pg-learn-pad' : ''}${tight >= 3 ? ' pg-learn-wrap' : ''}`}>
+      <div ref={box} class={`pg-banner pg-choice pg-learn pg-two${learnFit >= 1 ? ' pg-learn-noname' : ''}${noType ? ' pg-no-type' : ''}${wide ? ' pg-wide' : ''}${rowFit >= 1 ? ' pg-learn-nosub' : ''}${rowFit >= 2 ? ' pg-learn-grid' : ''}${padTight ? ' pg-learn-pad' : ''}${tight >= 3 ? ' pg-learn-wrap' : ''}`}>
         {/* 한 줄은 글 하나로 (줄 칸 사이 간격이 글 사이에 끼지 않게) · 좁으면 (600px 아래) "★ 잎날가르기 풀 55 — 잊을 기술을 골라요" 로 (이름 · "배울 수 있어요" 를 뺌 — U4 줄임표 대신) */}
         <span class="pg-line">
           <span class="pg-ellipsis">
@@ -123,7 +126,7 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
                 <span class="pg-up">★</span>{' '}
               </>
             )}
-            <span class="pg-learn-long">{withJosa(view.name, '이/가')} </span>
+            <span class="pg-learn-long pg-learn-name">{withJosa(view.name, '이/가')} </span>
             <b title={view.move.detail}>{view.move.name}</b>
             {/* 긴 줄은 괄호로 — 조사가 이름에 붙어 읽힘 ("위력 120를" 처럼 숫자 뒤에 붙던 것, bugs 2707) */}
             {tight < 1 && (
