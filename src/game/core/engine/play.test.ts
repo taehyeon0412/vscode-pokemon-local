@@ -5,7 +5,7 @@ import { validateSave, type Save } from '../save';
 import { sampleSave, viaJson } from '../../../test/fixtures/save';
 import { shinyWildSeed } from '../../../test/fixtures/stage';
 import { startBattle } from './battle';
-import { advance, applyInput, AUTO_HINT_TURN, AUTO_TIP_BACK, AUTO_TIP_TURN, autoTipLeft, isWaitingForInput, RESUME_BATTLE_MSG, resultBagOk, resultThenCard, resumeLine, TEAM_MEET_TIP, teamMeetTipDue, isWalkingFast, leadSpeed, STAGE_WAIT, step, waitReason, withSpeed } from './play';
+import { advance, applyInput, AUTO_HINT_TURN, AUTO_TIP_BACK, AUTO_TIP_TURN, autoTipLeft, awaySummary, isWaitingForInput, RESUME_BATTLE_MSG, resultBagOk, resultThenCard, resumeLine, TEAM_MEET_TIP, teamMeetTipDue, isWalkingFast, leadSpeed, STAGE_WAIT, step, waitReason, withSpeed } from './play';
 import { createGameState, readRuntime, STAGE_PHASES, type GameState } from './state';
 
 const STEP = TIMING.simStepMs;
@@ -391,6 +391,12 @@ describe('전투 (단계 5 · 6) — 스테이지 쪽', () => {
     const hiddenActed = until({ ...auto, runtime: { ...auto.runtime, headless: true } }, (x) => battleOf(x)?.phase === 'anim', 10_000);
     expect(battleOf(hiddenActed)?.phase).toBe('anim');
     expect(hiddenActed.runtime.resumed).toBeUndefined();
+    // 숨김에서 못 본 채 지나간 다시 켜기 — 그동안 기록에 셈 → 돌아오면 요약 "다시 켜서 처음부터 한 전투" (ideas 730) · 넘기기에도 남음 · 보는 중 · 밖에서 지운 것은 안 셈
+    expect(hiddenActed.runtime.awayLog?.restarts).toBe(1);
+    expect(awaySummary(hiddenActed.runtime.awayLog!, hiddenActed.save).join(' ').replace(/\u00a0/g, ' ')).toContain('다시 켜서 처음부터 한 전투');
+    expect(readRuntime(viaJson(hiddenActed.runtime), 1).awayLog?.restarts).toBe(1);
+    expect(awaySummary({ ...hiddenActed.runtime.awayLog!, restarts: 2 }, hiddenActed.save).join(' ').replace(/\u00a0/g, ' ')).toContain('다시 켜서 처음부터 2번');
+    expect(advance(away(auto), TIMING.resumeLineMs + STEP).state.runtime.awayLog?.restarts).toBeUndefined();
     // 보는 중 · 밖 (포커스만 없음 — 패널은 보임) 첫 기술 — 1.2초는 보인 뒤에 지움 (U1 · 밖에서 0.1 ~ 0.35초 번쩍이던 것 — UX 3)
     for (const s0 of [auto, away(auto)]) {
       const acted = until(s0, (x) => battleOf(x)?.phase === 'anim', 10_000);

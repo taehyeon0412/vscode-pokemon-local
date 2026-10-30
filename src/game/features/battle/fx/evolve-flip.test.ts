@@ -15,6 +15,11 @@ describe('진화 흰 실루엣 바뀜', () => {
     expect(1 / hz).toBeGreaterThanOrEqual(0.34);
   });
 
+  it('게임 설정 동작 줄이기면 게임 화면 번쩍을 안 함 (ideas 712 — 참가자 필살기 · 메가진화 번쩍)', () => {
+    const wrap = bridge.slice(bridge.indexOf('screenFlash = function'), bridge.indexOf('const fxUltShake0'));
+    expect(wrap).toMatch(/document\.querySelector\('#pokemon-game\.pg-reduce-motion'\)\) \{\s*return undefined;/);
+  });
+
   it('바뀜 수는 그 값만 곱함 (시간에 따라 빨라지는 몫 없음)', () => {
     expect(bridge).toMatch(/const flips = \(L - T0\) \* EVO_FLIP_HZ;/);
     expect(bridge).not.toMatch(/const flips = \(L - T0\) \* \(2 \+ 5 \* k\)/);

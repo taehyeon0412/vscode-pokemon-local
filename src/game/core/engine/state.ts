@@ -147,6 +147,8 @@ export interface AwayLog {
   thenAtLeave?: number;
   /** 떠날 때 연 지역 수 — 안 보는 동안 연 지역을 요약에 한 줄 (U6 — orders #70) */
   regions?: number;
+  /** 안 보는 동안 다시 켜서 처음부터 한 전투 수 — "다시 켜서 전투를 처음부터!" 줄이 숨김에서 못 본 채 지나감 (ideas 730) */
+  restarts?: number;
 }
 
 export interface GameState {
@@ -369,6 +371,7 @@ function readAwayLog(v: unknown): AwayLog | null {
     ...(num(v.dailyDone, 0, 3) !== null ? { dailyDone: Math.floor(v.dailyDone as number) } : {}),
     ...(num(v.thenAtLeave, 0, 4) !== null ? { thenAtLeave: Math.floor(v.thenAtLeave as number) } : {}),
     ...(num(v.regions, 1, 16) !== null ? { regions: Math.floor(v.regions as number) } : {}),
+    ...(num(v.restarts, 1, 1e6) !== null ? { restarts: Math.floor(v.restarts as number) } : {}),
   };
 }
 

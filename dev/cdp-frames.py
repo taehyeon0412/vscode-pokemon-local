@@ -26,6 +26,8 @@ spec.loader.exec_module(gs)
 out, win, start_ms, dur_ms = a[0], a[1], int(a[2]), int(a[3])
 extra = dict(kv.split("=", 1) for kv in a[4:])
 os.makedirs(out, exist_ok=True)
+PROBE = os.environ.get("PG_PROBE_JS")
+probe_log = open(os.path.join(out, "probe.jsonl"), "w", encoding="utf-8") if PROBE else None
 for f in os.listdir(out):
     if f.startswith("f_"):
         os.remove(os.path.join(out, f))
@@ -155,6 +157,10 @@ with tempfile.TemporaryDirectory(prefix=gs.PROF_PREFIX, ignore_cleanup_errors=Tr
             r = ws.call("Page.captureScreenshot", {"format": "png"})
             ms = int((time.time() - t0) * 1000)
             open(os.path.join(out, f"f_{ms:05d}.png"), "wb").write(base64.b64decode(r["data"]))
+            # PG_PROBE_JS = 장면마다 페이지 (frame.html) 에서 돌릴 식 → <out>/probe.jsonl (게임은 document.getElementById('f').contentWindow — 캔버스 자리 · 층 재기, bugs 2707)
+            if PROBE:
+                pr = ws.call("Runtime.evaluate", {"expression": PROBE, "returnByValue": True})
+                probe_log.write(json.dumps({"ms": ms, "v": pr.get("result", {}).get("value")}, ensure_ascii=False) + "\n")
             n += 1
         print("frames", n)
     except (Stalled, TimeoutError) as e:

@@ -1007,6 +1007,11 @@ export function step(state: GameState, stepMs: number): StepOut {
     else {
       const { resumed: _r, resumeActed: _a, ...rest } = rt;
       rt = rest;
+      // 숨김 (그릴 화면이 없음) 에서 못 본 채 지나감 — 돌아오면 그동안 요약에 한 줄 (ideas 730 — 밖에서 흘러간 판도 나중에 알게)
+      if (rt.headless) {
+        const log = awayLogOf(state.save, state.runtime);
+        rt = { ...rt, awayLog: { ...log, restarts: (log.restarts ?? 0) + 1 } };
+      }
     }
   }
   let signal: SaveSignal | null = null;
@@ -1999,9 +2004,7 @@ function awayStep(before: GameState, save: Save, rt: RuntimeState, signal: SaveS
       prev?.phase === 'team' && rt.stage?.phase !== 'team' && rt.stage?.phase !== 'defeat' && met?.kind === 'trainer' && !save.pendingEncounter && save.stages[met.stageId]?.defeatedTrainers.includes(met.trainerId) !== true;
     const lostNow = (rt.stage?.phase === 'defeat' && prev?.phase !== 'defeat') || teamLost;
     if (rt.awayLog && !wildEnd && !lostNow) return rt;
-    const leaveToast = before.runtime.toast;
-    const leaveThen = leaveToast?.then === undefined ? 0 : Array.isArray(leaveToast.then) ? leaveToast.then.length : 1;
-    const log: AwayLog = rt.awayLog ?? { ...awayStart(before.save, leaveToast?.text), ...(leaveToast ? { thenAtLeave: leaveThen } : {}) };
+    const log = rt.awayLog ?? awayLogOf(before.save, before.runtime);
     return { ...rt, awayLog: { ...log, ...(wildEnd ? { wild: log.wild + 1 } : {}), ...(lostNow ? { lost: (log.lost ?? 0) + 1 } : {}) } };
   }
   if (!rt.awayLog || rt.away) return rt;
@@ -2035,6 +2038,14 @@ function awayCards(rest: RuntimeState, rt: RuntimeState, awayLog: AwayLog, first
 }
 
 /** 떠날 때 — 돈 · 가방 · 자리 · 레벨 · 포인트 (그동안 요약의 기준) */
+/** 지금 그동안 기록 — 없으면 떠날 때 (이 걸음 앞) 로 새로 (떠 있던 알림 · 그 뒤 줄 선 수 포함) */
+function awayLogOf(save: Save, rt: RuntimeState): AwayLog {
+  if (rt.awayLog) return rt.awayLog;
+  const leaveToast = rt.toast;
+  const leaveThen = leaveToast?.then === undefined ? 0 : Array.isArray(leaveToast.then) ? leaveToast.then.length : 1;
+  return { ...awayStart(save, leaveToast?.text), ...(leaveToast ? { thenAtLeave: leaveThen } : {}) };
+}
+
 function awayStart(save: Save, toastAtLeave?: string): AwayLog {
   const levels: Record<string, number> = {};
   for (const uid of save.party) {
@@ -2084,6 +2095,9 @@ export function awaySummary(log: AwayLog, save: Save): string[] {
     if (save.regions.next?.length && save.regions.order.length === log.regions) grow.push(`다음${NB}지역${NB}고르기`);
   }
   const gain: string[] = [];
+  // 다시 켜서 처음부터 한 전투 (ideas 730) — 숨김에서 "다시 켜서 전투를 처음부터!" 를 못 본 채 지나간 수
+  const rs = log.restarts ?? 0;
+  if (rs > 0) gain.push(rs === 1 ? `다시${NB}켜서${NB}처음부터${NB}한${NB}전투` : `다시${NB}켜서${NB}처음부터${NB}${rs}번`);
   if ((log.lost ?? 0) > 0) gain.push(`패배${NB}${log.lost}번`);
   // 물건은 두 가지까지 · 나머지는 "외 N가지" (7종이면 240 × 150 에서 4줄로 자라 메뉴 줄 밑으로 잘리던 것 — UX 리뷰어 R14, U4)
   const items = ITEM_IDS.flatMap((id) => {

@@ -55568,7 +55568,8 @@ screenFlash = function (s, alpha, color, max) {
         return fxScreenFlash(s, alpha, color, max);
     }
     // 3:3 판 상자 안 — 번쩍은 상자만 하얗게 되어 네모로 보여서 끔 (#95 — 무대 흰 줄 · 판 지적)
-    if ((fxGame && fxGame.noFlash) || fxTeamQuiet() || fxSeeking || moveFrame?.quiet) {
+    // 게임 설정 "동작 줄이기" — 화면 번쩍도 끔 (참가자 필살기 · 메가진화 번쩍 — ideas 712 · 알아챌 것은 이름 · 글이 남김)
+    if ((fxGame && fxGame.noFlash) || fxTeamQuiet() || fxSeeking || moveFrame?.quiet || document.querySelector('#pokemon-game.pg-reduce-motion')) {
         return undefined;
     }
     const now = performance.now();
