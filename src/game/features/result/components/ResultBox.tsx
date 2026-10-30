@@ -110,6 +110,8 @@ function Line({ p, down = new Set<string>() }: { p: SummaryPart; down?: Readonly
   if (p.kind === 'up' || p.kind === 'learned') {
     return (
       <>
+        {/* 짧은 말의 누가는 ★ 앞 (★ 바로 뒤 이름은 ★ 등급 · 이로치로 읽혀서 — UX 2725 작음 3) */}
+        {p.shortWho && <span class="pg-learned-short">{p.shortWho}{'\u00a0'}</span>}
         {/* ▲ · ★ 와 글을 줄 바꿈으로 떼지 않게 */}
         <span class="pg-up">{p.kind === 'up' ? '▲' : '★'}</span>
         {'\u00a0'}
@@ -320,14 +322,29 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
   const tight = useResultFit();
   // 제목 없는 상자 (트레이너) 번갈아 칸의 경험치 장면 줄이기 (넘치면 한 단계 · 맥 여유 10%) — 0 = 이름 · 1 = 숫자만 · 2 = "+102 ×3" / "+25 ~ +51"
   //   (240 × 150 세 자리 경험치 "경험치 +102 · +102 · +1…" 이 버튼 밑으로 잘리던 것 — 개발 #98 11판 3판 · U4 "넘치면 한 단계" · 폭 경계를 손으로 고르지 않음)
+  //   레벨업 상자 (얼굴 카드 — 상자 높이가 카드 44) 는 그다음 3 = 카드 높이 안에서 줄 바꿈 · 4 = 배운 기술은 기술 이름만 · 5 = 경험치 뺌 · 6 = ★ 기술 · 남은 줄도 뺌 ·
+  //   7 = 빠진 레벨업의 "Lv N" 뺌 ("▲ 이상해씨 · 독침붕" — 셋이 같이 오른 3:3 240 맥에서 세 줄로 카드보다 커지던 것) (전부는 상자 title) ·
+  //   빠진 레벨업 ("▲ 뷰티플라이 Lv 11") 은 끝까지 남김 — 레벨업은 중요한 순간 (U1 · 레벨업을 숨겨 큼이던 2718 과 같은 종류가 되지 않게, 기획 2725)
+  //   (240 · 300 × 150 맥 3:3 결과 — "▲ 뷰티플라이 Lv 11 · ★ 아리아도스가 엉겨붙기를 배웠다" 가 한 줄 고정이라 "계속 ▶" 아래로 깔려 잘리던 것, bugs 2725 · U4 · 레벨업 상자엔 1 · 2 단계 칸도 안 붙던 것)
   const [expStep, setExpStep] = useState(0);
   useLayoutEffect(() => {
-    const inner = tight.box.current?.querySelector<HTMLElement>('.pg-result-alt-in');
+    const box = tight.box.current;
+    const inner = box?.querySelector<HTMLElement>('.pg-result-alt-in');
     const bEl = inner?.querySelector<HTMLElement>('.pg-result-alt-b');
-    if (!inner || !bEl || inner.clientWidth === 0 || expStep >= 2) return;
-    const r = document.createRange();
-    r.selectNodeContents(bEl);
-    if (r.getBoundingClientRect().width * 1.1 > inner.clientWidth + 0.5) setExpStep(expStep + 1);
+    const card = box?.querySelector<HTMLElement>('.pg-lvup-card');
+    if (!inner || !bEl || inner.clientWidth === 0 || expStep >= (card ? 7 : 2)) return;
+    if (expStep < 3 || !card) {
+      const r = document.createRange();
+      r.selectNodeContents(bEl);
+      if (r.getBoundingClientRect().width * 1.1 > inner.clientWidth + 0.5) setExpStep(expStep + 1);
+      return;
+    }
+    // 줄 바꿈 단계 — 맥 글꼴 (+10% — 글자 사이 0.06em 로 흉내) 로 감은 높이가 카드를 넘으면 다음 단계 (줄 수를 어림하면 두 줄에 드는 "★ 덩굴채찍" 까지 빼던 것)
+    const ls = bEl.style.letterSpacing;
+    bEl.style.letterSpacing = '0.06em';
+    const h = bEl.getBoundingClientRect().height;
+    bEl.style.letterSpacing = ls;
+    if (h > card.getBoundingClientRect().height + 0.5) setExpStep(expStep + 1);
   });
   // 넓은 둘째 줄 돌 줄 끝 " · [B] 가방" (#131 UX — 할 일) — 줄이 맥 여유 1.1 로 안 들어가면 한 단계씩 짧은 글 → 마지막도 넘치면 뺌 (★ · 경험치가 … 로 잘리지 않게)
   //   클리어 · 관장 카드로 이어지는 상자 = "다음 스테이지에서 [B] 가방" → "다음 판에서 [B] 가방" → "[B] 가방은 다음에" (디자인 문구 — 상자 폭이 첫 줄로 정해져
@@ -427,10 +444,18 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
   // 경험치만 오른 포켓몬이 여럿이면 "경험치" 낱말은 한 번 ("경험치 리자몽 +25 · 이상해꽃 +51 · 거북왕 +51" — 세 번 되풀이하던 것, 아트 디렉터 #97 · 원칙 5)
   const expOnly = summary.exp.filter((e) => e.to <= e.from);
   const firstExp = rest1.findIndex((p) => p.kind === 'exp');
-  const rest =
+  // 배운 기술 짧은 말에 누가 배웠는지 — 레벨업한 포켓몬이 둘 넘거나 배운 포켓몬과 다르면 ("★ 아리아도스 엉겨붙기") · 같은 하나면 기술 이름만
+  //   ("▲ 뷰티플라이 Lv 11 · ★ 엉겨붙기" 가 뷰티플라이가 배운 것처럼 읽히던 것 — 기획 2725 · U5)
+  //   바로 앞에 빠진 레벨업 ("▲ 이상해씨 Lv 6 ·") 이 같은 포켓몬이면 붙이지 않음 (되풀이 · 두 줄로 감겨 상자가 주인공 모자를 덮던 것 — UX 2725 작음 1)
+  //   카드 수로 정함 (카드 한 장 단계는 나중에 켜져, 처음 그림에 이름이 붙은 채 넘치면 한 단계가 끝까지 가던 것)
+  const lastHidden = cards.length > 1 ? cards[cards.length - 1]!.name : null;
+  const learnWho = (p: SummaryPart): SummaryPart =>
+    p.kind === 'learned' && p.short && p.name && (ups.length !== 1 || ups[0]!.name !== p.name) && lastHidden !== p.name ? { ...p, shortWho: p.name } : p;
+  const rest2 =
     expOnly.length > 1 && firstExp >= 0
       ? [...rest1.slice(0, firstExp).filter((p) => p.kind !== 'exp'), { kind: 'exp' as const, text: `경험치 ${expOnly.map((e) => `${e.name}\u00a0+${e.gain}`).join(' · ')}`, entries: expOnly.map((e) => ({ uid: e.uid, name: e.name, gain: e.gain })) }, ...rest1.slice(firstExp).filter((p) => p.kind !== 'exp')]
       : rest1;
+  const rest = rest2.map(learnWho);
   // 좁은 제목 없는 상자의 경험치 장면 = 넘치면 이름 없이 숫자만 → 더 넘치면 "+102 ×3" (모두 같을 때) · "+25 ~ +51" (game.css .pg-exp-s1 · s2)
   const expShort = expOnly.length > 0 ? `경험치 ${expOnly.map((e) => `+${e.gain}`).join(' · ')}` : '';
   const gains = expOnly.map((e) => e.gain);
@@ -440,7 +465,7 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
   // 판 끝에 쓰러져 있던 내 칸 이름 (엔진 teamMe — 3:3 결과만)
   const downUids = new Set((summary.teamMe ?? []).filter((m) => m.down).map((m) => m.uid));
   const restLine = rest.map((p, i) => (
-    <span key={i}>
+    <span key={i} class={p.kind === 'exp' ? 'pg-rest-exp' : undefined}>
       {i > 0 && ' · '}
       {p.kind === 'exp' && expShort ? (
         <>
@@ -456,7 +481,15 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
     </span>
   ));
   // 카드 한 장일 때 빠진 포켓몬 레벨업 (pg-alt-ups — 그때만 보임, 카드에도 글에도 없던 것 · UX 리뷰어)
-  const hiddenUps = cards.slice(1).map((u) => `${u.name} Lv\u00a0${u.to}`).join(' · ');
+  const hiddenUps = cards.slice(1).map((u) => `${u.name} Lv\u00a0${u.to}`).join('\u00a0· ');
+  // 그리는 모양 — 이름 뒤 "Lv N" 은 따로 (넘치면 마지막 단계에서 뺌 · pg-alt-nolv)
+  const hiddenUpsEl = cards.slice(1).map((u, i) => (
+    <span key={u.uid}>
+      {i > 0 && '\u00a0· '}
+      {u.name}
+      <span class="pg-alt-ups-lv">{` Lv\u00a0${u.to}`}</span>
+    </span>
+  ));
   // 진화 아이템 두 번째부터 한 줄 (#125) — 넓으면 둘째 줄 맨 앞 · 좁으면 (번갈아 줄) 둘째 차례 맨 앞 ·
   //   글 = 엔진 evoNote ("피카츄 → 라이츄 진화 가능 외 N · 팀에 넣고" — 처음 안내 · 알림 줄과 같은 말, 개발 9f262eac) · 그림 = 그 아이템 (끈도 돌 그림이던 것 — 아트 #125)
   //   막 잡은 포켓몬 줄 (#131) 이 있으면 그것이 먼저 (지금 막 잡은 포켓몬 일 · 팀 진화 알림은 올리면 보이는 전체 글에) — 둘 다 같은 날은 드묾 (이번 전투에서 돌을 얻고 + 그 돌로 진화할 종을 잡음)
@@ -479,7 +512,9 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
       {evoNote}
       {hiddenUps && (
         <span class="pg-alt-ups">
-          <span class="pg-up">▲</span> {hiddenUps} ·{' '}
+          <span class="pg-up">▲</span> {hiddenUpsEl}
+          {/* 점은 앞 낱말에 붙임 (240 맥에서 둘째 줄이 "· ★ 덩굴채찍" 으로 시작하던 것) */}
+          <span class="pg-alt-ups-sep">{'\u00a0·'}</span>{' '}
         </span>
       )}
       <span class="pg-alt-rest">{restLine}</span>
@@ -540,7 +575,7 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
     );
   }
   return (
-    <div ref={tight.box} class={`pg-banner pg-result pg-two pg-lvup${whyOff ? ' pg-result-nowhy' : ''}${howOff ? ' pg-result-howoff' : ''}${tight.on ? ' pg-result-tight' : ''}${tight.one ? ' pg-result-one' : ''}${tight.short ? ` pg-result-short${tight.short}` : ''}${tight.split ? ' pg-result-split' : ''}${tight.learnShort ? ' pg-result-learnshort' : ''}${tight.noPre ? ' pg-result-nopre' : ''}${tight.noKey ? ' pg-result-nokey' : ''}`} style={howWide ? { minWidth: `${howWide}px` } : undefined} title={all}>
+    <div ref={tight.box} class={`pg-banner pg-result pg-two pg-lvup${whyOff ? ' pg-result-nowhy' : ''}${howOff ? ' pg-result-howoff' : ''}${tight.on ? ' pg-result-tight' : ''}${tight.one ? ' pg-result-one' : ''}${tight.short ? ` pg-result-short${tight.short}` : ''}${tight.split ? ' pg-result-split' : ''}${tight.learnShort || expStep >= 4 ? ' pg-result-learnshort' : ''}${tight.noPre ? ' pg-result-nopre' : ''}${tight.noKey ? ' pg-result-nokey' : ''}${expStep ? ` pg-exp-s${Math.min(2, expStep)}` : ''}${expStep >= 3 ? ' pg-alt-wrap' : ''}${expStep >= 5 ? ' pg-alt-noexp' : ''}${expStep >= 6 ? ' pg-alt-norest' : ''}${expStep >= 7 ? ' pg-alt-nolv' : ''}`} style={howWide ? { minWidth: `${howWide}px` } : undefined} title={all}>
       <span class="pg-lvup-cards">
         <FaceCards ups={cards} media={media} hint={hint} onStats={onStats} />
       </span>

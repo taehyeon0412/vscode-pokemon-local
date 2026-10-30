@@ -6,7 +6,7 @@ import { Rng } from '../../core/engine/rng';
 import type { BattleSummary } from '../../core/engine';
 import { createGameState } from '../../core/engine';
 import { TIMING } from '../../core/balance';
-import { caughtView, levelUps, needsStatHint, resultTitleShown, resultViewKey } from './model';
+import { caughtView, levelUps, needsStatHint, resultTitleShown, resultViewKey, summaryLines } from './model';
 
 const summary = (exp: BattleSummary['exp']): BattleSummary => ({ title: '야생 피죤을 쓰러뜨렸다!', exp, money: 20, item: null, caught: null, learned: [], choices: 0, badge: null });
 
@@ -66,5 +66,13 @@ describe('S12 상자 제목 (기획 판단 2026-10-26 — 트레이너는 숫자
     expect(resultTitleShown({ ...base, title: '나래를 이겼다!' })).toBe(true);
     expect(resultTitleShown({ ...base, title: '야생 파이리를 잡았다!' })).toBe(true);
     expect(resultTitleShown({ ...base, title: '라이벌 레드와의 승부에서 이겼다!', rival: true })).toBe(true);
+  });
+});
+
+describe('배운 기술 줄 (2725)', () => {
+  it('배운 포켓몬 이름을 칸에 남김 — 짧은 말 앞에 누가 배웠는지 붙일 수 있게 ("▲ 뷰티플라이 Lv 11 · ★ 엉겨붙기" 가 뷰티플라이가 배운 것처럼 읽히던 것)', () => {
+    const s: BattleSummary = { title: '', exp: [], money: 0, item: null, caught: null, learned: [{ name: '아리아도스', move: '엉겨붙기' }], choices: 0, badge: null };
+    const learned = summaryLines(s).body.find((p) => p.kind === 'learned');
+    expect(learned).toMatchObject({ short: '엉겨붙기', name: '아리아도스', text: '아리아도스가 엉겨붙기를 배웠다' });
   });
 });

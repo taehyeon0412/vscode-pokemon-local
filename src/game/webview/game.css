@@ -7080,6 +7080,19 @@ body.vscode-high-contrast-light .pg-hpblock > .pg-hprow,
     font-size: 11px;
   }
 }
+/* 레벨업 상자 (얼굴 카드 44) 의 번갈아 칸 — 넘치면 카드 높이 안에서 줄을 바꿈 (3) → 배운 기술 이름만 (4 · pg-result-learnshort) → 경험치 뺌 (5) → ★ 기술 · 남은 줄 뺌 (6) · 전부는 상자 title ·
+   빠진 레벨업 "▲ ○○" 은 끝까지 남김 (레벨업 = 중요한 순간 · 2718 과 같은 종류가 되지 않게) — 그래도 넘치면 (7) "Lv N" 만 뺌
+   (ResultBox expStep — 240 · 300 × 150 맥 3:3 결과 "▲ 뷰티플라이 Lv 11 · ★ 아리아도스가 엉겨붙기를 배웠다" 가 한 줄 고정이라 "계속 ▶" 아래로 깔리던 것, bugs 2725) */
+.pg-result.pg-alt-wrap .pg-result-alt.pg-result-alt-in > span {
+  white-space: normal;
+  word-break: keep-all;
+}
+.pg-result.pg-alt-noexp .pg-result-alt-in .pg-result-alt-b .pg-rest-exp,
+.pg-result.pg-alt-norest .pg-result-alt-in .pg-result-alt-b .pg-alt-rest,
+.pg-result.pg-alt-norest .pg-result-alt-in .pg-result-alt-b .pg-alt-ups-sep,
+.pg-result.pg-alt-nolv .pg-result-alt-in .pg-result-alt-b .pg-alt-ups-lv {
+  display: none;
+}
 /* 좁은 패널 — 첫 줄 얻은 것 칸 (아이콘 + … 로 잘리던 것) 을 빼고 둘째 줄에서 얻은 것 2.5초 → 배운 기술 · 경험치 · 레벨업 2.5초 (2026-10-21 태현 님 A — 예전엔 레벨업 상자에서 얻은 것을 숨겨 0초).
    폭 = 레벨업 · 잡은 결과 상자 460px 아래 (얼굴 카드 · "팀이 다 차서 ○○ → 보관함" 칩만큼 첫 줄이 짧음) · 다른 상자 400px 아래 (맥 글꼴 10% 여유 — UX 리뷰어 361 ~ 480 에서 잘림 잼) */
 @media (max-width: 400px) {

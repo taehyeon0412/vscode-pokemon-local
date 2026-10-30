@@ -224,10 +224,16 @@
         let stage = { phase: 'choice', ms: scene === 'evolve-pick' ? 4000 : scene === 'evolve-wait' ? -1 : 0 };
         if (scene === 'result') stage = { phase: 'result', ms: 0, summary: { title: '야생 피죤을 쓰러뜨렸다!', exp: [{ uid: 'm1', name: '이상해씨', gain: 28, from: 5, to: 6 }], money: 20, item: '몬스터볼', caught: null, learned: [{ name: '이상해씨', move: '덩굴채찍' }], choices: 1 } };
         // ups=2 — 둘이 같이 레벨업 (팀 경험치) · ups=0 — 레벨업 없음 (경험치만)
-        if (scene === 'result' && q.get('ups') === '2') {
+        if (scene === 'result' && (q.get('ups') === '2' || q.get('ups') === '3')) {
             save.monsters.m2 = { ...save.monsters.m1, uid: 'm2', species: 4, form: 'charmander', level: 7, unspentPoints: 2, caughtAt: 'forest-1' };
             save.party = ['m1', 'm2'];
             stage.summary.exp.push({ uid: 'm2', name: '파이리', gain: 14, from: 6, to: 7 });
+        }
+        // ups=3 — 셋이 같이 레벨업 (3:3 팀 경험치 — 빠진 레벨업 이름 둘, UX 2725)
+        if (scene === 'result' && q.get('ups') === '3') {
+            save.monsters.m4 = { ...save.monsters.m1, uid: 'm4', species: 15, form: 'beedrill', level: 11, unspentPoints: 0, caughtAt: 'forest-1' };
+            save.party = [...save.party, 'm4'];
+            stage.summary.exp.push({ uid: 'm4', name: '독침붕', gain: 30, from: 10, to: 11 });
         }
         // got=1 — 야생 파이리를 잡은 결과 (new=0 이면 도감에 이미 있음 · 소개 카드 1.5초 뒤 결과 상자) · rms=결과 지난 ms (rms=1600 = 소개 카드 지나 결과 상자)
         if (scene === 'result' && q.get('got') === '1') {

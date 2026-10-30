@@ -884,6 +884,8 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   const faintEl = useRef<HTMLDivElement>(null);
   // 판 덮음으로 접은 단계 (곧 닫힐 줄은 이것을 그대로 — 다시 재면 마지막 0.2초에 글이 바뀜)
   const faintPlateStep = useRef('');
+  // 처음 안내 (위) 가 처음 보인 때 — 자리를 내주는 것은 안내가 1초 넘게 보인 뒤 (안내도 중요한 순간 — 0.94초 만에 쓰러짐 줄에 가려지던 것, 2725 판 재기)
+  const tipSince = useRef<{ el: Element; at: number } | null>(null);
   const faintNext = (el: HTMLElement): boolean => {
     const order = ['f0', 'f1', 'f2'] as const;
     for (let i = order.indexOf(el.dataset.step as (typeof order)[number]) + 1; i < order.length; i++) {
@@ -992,6 +994,10 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
     const fEl = faintEl.current;
     const tipEl = host.closest('#pokemon-game')?.querySelector<HTMLElement>('.pg-first-tip.pg-first-tip-top') ?? null;
     let tipYield = false;
+    // 처음 안내가 처음 보인 때 — 쓰러짐 줄이 없어도 매번 적음 (줄이 생긴 때부터 세어 이미 1.2초 보인 안내 앞에서 1초를 더 기다리며 판을 덮던 것, UX 2725 작음 2)
+    const tipNow = realNow();
+    if (tipEl && tipSince.current?.el !== tipEl) tipSince.current = { el: tipEl, at: tipNow };
+    if (!tipEl) tipSince.current = null;
     if (fEl) fEl.style.visibility = '';
     if (fEl?.dataset.full && fEl.parentElement === host) {
       const plates = Array.from(host.querySelectorAll<HTMLElement>('.pg-team-plate'))
@@ -1004,18 +1010,24 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
       const order = ['', 'f0', 'f1', 'f2'];
       const at = () => order.indexOf(fEl.dataset.step ?? '');
       const closing = Number(fEl.dataset.left ?? FAINT_HOLD_MS) < 200;
-      if (closing) {
-        for (let k = 0; k < 3 && at() < order.indexOf(faintPlateStep.current); k++) if (!faintNext(fEl)) break;
-      } else {
-        for (let k = 0; k < 3 && hits(); k++) if (!faintNext(fEl)) break;
-        faintPlateStep.current = fEl.dataset.step ?? '';
-      }
-      const r = fEl.getBoundingClientRect();
-      if (hits() && tip && tip.height > 0 && r.top >= tip.bottom) {
+      // 처음 안내 자리를 먼저 씀 → 그래도 덮으면 접음 (이름이 안내보다 먼저 — 260 맥에서 이름 둘이 안내 자리보다 먼저 "상대 2마리" 로 접혀 첫 이름이 0.5초이던 것, 2725 판 재기) ·
+      //   안내가 뜬 지 1초 안이면 자리를 기다림 (그동안은 접지도 않음 — 판을 잠깐 덮는 것이 이름 · 안내를 1초 안에 빼는 것보다 덜 나쁨) · 이미 내준 자리는 그대로
+      const tipWait = !!tipEl && !tipEl.classList.contains('pg-tip-yield') && tipNow - (tipSince.current?.at ?? tipNow) < 1000 && !!tip && fEl.getBoundingClientRect().top >= tip.bottom;
+      const yieldTip = () => {
+        const r = fEl.getBoundingClientRect();
+        if (tipWait || !hits() || !tip || tip.height <= 0 || r.top < tip.bottom) return;
         const up = Math.round(r.top - tip.top);
         fEl.style.marginTop = `${Math.round((parseFloat(fEl.style.marginTop) || 0) - up)}px`;
         stackMin.current.set(fEl, (stackMin.current.get(fEl) ?? r.top - o.top) - up);
         tipYield = true;
+      };
+      if (closing) {
+        for (let k = 0; k < 3 && at() < order.indexOf(faintPlateStep.current); k++) if (!faintNext(fEl)) break;
+        yieldTip();
+      } else if (!tipWait) {
+        yieldTip();
+        for (let k = 0; k < 3 && hits(); k++) if (!faintNext(fEl)) break;
+        faintPlateStep.current = fEl.dataset.step ?? '';
       }
       // 마지막 0.2초에 띠가 떠 줄이 밀려 판을 덮게 되면 그대로 닫음 (이름은 이미 1초 넘게 봄 — 접힌 글이 한 장면 비치거나 판을 덮지 않게)
       if (closing && hits()) fEl.style.visibility = 'hidden';
