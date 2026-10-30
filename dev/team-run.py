@@ -12,6 +12,7 @@
   자동 검사 (페이지 안에서 진짜 시계 Date.now 로 잼 — ux-rules):
     걸침 = 연출 캔버스 위 끝 (--pg-fx-top · 정보줄) 위아래 4px 에 같은 세로줄 8px 넘게 0.3초 넘게 (U4) · 숨음 = 위 끝 위 40px 띠 점이 아래보다 많음 (60% · 1500px² 넘게)
     3:3 없음 = 3:3 판인데 3:3 장면이 한 번도 없음 (만남 · 고르기에서 멈춤 · 1:1 로 감 — 판 표 · 매개변수 확인, 야생 판은 뺌)
+    가림 = 3:3 판 · 글 상자가 발밑 판 (키 칸 · HP) · 다른 판의 키 칸 ([2] [3]) 위에 0.1초 넘게 그려짐 (ideas 745 — 겹친 곳 가운데 점에서 위에 그린 것으로 봄) · 서 있는 포켓몬 몸 가운데는 "가림 참고"
     1초 = 한글 글이 1초 안에 나타났다 사라짐 (U1 — 숫자 · 키 칸 · 짧은 낱말은 뺌) · 쓰러짐 이름은 필살기 · 힘겨루기 장면이 가린 뒤 다시 1초 넘게 뜨면 참고 (bugs 1919) · 잘림 = 글 실제 너비가 칸보다 넓음 (U4) · 겹침 말 = 글 상자끼리 30px² 넘게 (U1 가림)
     깜빡임 = 실제로 그린 화면 번쩍 (__fxTrace 'F' — 0.34초 상한을 지난 것) 이 1초에 3번 넘게 · 쓰러짐 박자 = "쓰러졌다" 글이 그 칸이 쓰러진 모습보다 80ms 넘게 먼저 (U2)
   dev/game-shots.py 의 시험 서버 · 브라우저 도구를 씀 · 끝나면 브라우저를 PID 로 끔 (정리 — python dev/cleanup.py --mine dev)"""
@@ -109,7 +110,7 @@ class WS:
 COLLECT = r"""
 (() => {
   if (window.__tr) return 'again';
-  const K = { texts: {}, clip: {}, overlap: {}, straddle: [], hidden: [], down: {}, koText: {}, phases: [] };
+  const K = { texts: {}, clip: {}, overlap: {}, cover: {}, straddle: [], hidden: [], down: {}, koText: {}, phases: [] };
   window.__fxTrace = [];
   const t0 = Date.now();
   // 번쩍 기록 (__fxTrace 'F' — 진짜 시계 __fxRealNow, #136) 을 기록기 시각 (Date.now − t0) 에 맞추는 기준 (빠르게 ▶▶ ×3 에서도 같은 흐름)
@@ -129,6 +130,69 @@ COLLECT = r"""
     return r;
   };
   const ownText = (el) => [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join('').trim();
+  const opaque = (e) => { const c = getComputedStyle(e).backgroundColor; const m = c.match(/[\d.]+/g); return !!m && (m.length < 4 ? true : +m[3] > 0.85); };
+  // 가림 (ideas 745) — 3:3 판 · 글 상자가 서 있는 포켓몬 몸 가운데 · 발밑 판 (키 칸 · HP) 위에 그려짐 (bugs 1643 판 아래 줄이 [2][3] · 1922 이름 넷 줄이 [1] 을 UX 리뷰어 눈으로만 찾던 것)
+  //   덮는 것 = 바탕이 불투명하거나 한글이 있는 3:3 상자 (포켓몬 · 발밑 판 · 피해 숫자 안은 뺌 · 가장 바깥 상자 하나) · 겹친 곳 가운데 점에서 그 상자가 위에 그려졌을 때만
+  const coverCheck = (now, g) => {
+    const gr = g.getBoundingClientRect();
+    const targets = [];
+    for (const m of g.querySelectorAll('.pg-team-mon[data-team]')) {
+      if (m.classList.contains('pg-team-down')) continue;
+      const b = m.querySelector('.pg-team-body');
+      const r = b && visible(b);
+      // 몸 가운데 (그림 칸 가장자리는 대개 빈 칸 — 가로 가운데 50% · 세로 30 ~ 90%)
+      if (r) targets.push({ id: 'mon ' + m.dataset.team, own: m, r: { left: r.left + r.width * 0.25, right: r.right - r.width * 0.25, top: r.top + r.height * 0.3, bottom: r.bottom - r.height * 0.1 } });
+    }
+    const plateN = { me: 0, foe: 0 };
+    for (const p of g.querySelectorAll('.pg-team-plate')) {
+      const side = p.classList.contains('pg-team-plate-me') ? 'me' : 'foe';
+      const i = plateN[side]++;
+      if (p.classList.contains('pg-plate-down')) continue;
+      const r = visible(p);
+      if (r) targets.push({ id: 'plate ' + side + '-' + i, own: p, r });
+    }
+    // 판 안 키 칸 ([2] [3] — 같이 쓰기 · 끼어들기 판) — 다른 상자가 덮으면 누를 것이 안 보임 (bugs 1643)
+    g.querySelectorAll('.pg-team-key').forEach((k, i) => {
+      if (k.closest('.pg-team-plate')) return;
+      const r = visible(k);
+      if (r) targets.push({ id: 'key 「' + k.textContent.trim() + '」 ' + i, own: k, r });
+    });
+    if (!targets.length) return;
+    let covers = [];
+    for (const el of g.querySelectorAll('[class*="pg-team-"], [class*="pg-band"], [class*="pg-head"]')) {
+      // 합동 컷인 (pg-team-cutin) 은 무대를 일부러 덮는 큰 연출이라 뺌
+      if (el.closest('[data-team], .pg-team-plate, .pg-team-pop, .pg-team-cutin, [class*="pg-dev"]')) continue;
+      if (!opaque(el) && !hangul.test(ownText(el))) continue;
+      const r = visible(el);
+      if (!r || r.width * r.height > gr.width * gr.height * 0.5) continue;
+      covers.push({ el, r });
+    }
+    covers = covers.filter((c) => !covers.some((o) => o !== c && o.el.contains(c.el)));
+    if (!covers.length) return;
+    const pe = document.createElement('style');
+    pe.textContent = '#pokemon-game, #pokemon-game * { pointer-events: auto !important; }';
+    document.head.appendChild(pe);
+    try {
+      for (const c of covers) for (const t of targets) {
+        if (c.el.contains(t.own)) continue;
+        const w = Math.min(c.r.right, t.r.right) - Math.max(c.r.left, t.r.left);
+        const h = Math.min(c.r.bottom, t.r.bottom) - Math.max(c.r.top, t.r.top);
+        if (w < 2 || h < 2 || w * h < 8) continue;
+        const cx = Math.max(c.r.left, t.r.left) + w / 2, cy = Math.max(c.r.top, t.r.top) + h / 2;
+        let top = null;
+        for (const e of document.elementsFromPoint(cx, cy)) {
+          if (c.el === e || c.el.contains(e)) { top = 'cover'; break; }
+          if (t.own === e || t.own.contains(e)) { top = 'target'; break; }
+        }
+        if (top !== 'cover') continue;
+        const tx = (c.el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 30);
+        const ck = String(c.el.className).split(' ')[0] + (tx ? ' 「' + tx + '」' : '');
+        const pk = ck + ' → ' + t.id;
+        const o = K.cover[pk] || (K.cover[pk] = { first: now, last: now, area: 0, h: 0 });
+        o.last = now; o.area = Math.max(o.area, Math.round(w * h)); o.h = Math.max(o.h, Math.round(h));
+      }
+    } finally { pe.remove(); }
+  };
   const tick = () => {
     const now = Date.now() - t0;
     const g = game();
@@ -191,7 +255,6 @@ COLLECT = r"""
       const pe = document.createElement('style');
       pe.textContent = '#pokemon-game, #pokemon-game * { pointer-events: auto !important; }';
       document.head.appendChild(pe);
-      const opaque = (e) => { const c = getComputedStyle(e).backgroundColor; const m = c.match(/[\d.]+/g); return !!m && (m.length < 4 ? true : +m[3] > 0.85); };
       const hid = new Map();
       const covered = (bx) => {
         if (hid.has(bx.el)) return hid.get(bx.el);
@@ -217,6 +280,7 @@ COLLECT = r"""
       pe.remove();
     }
     for (const b of boxes) if (b.key.includes('쓰러졌다') && K.koText[b.key] === undefined) K.koText[b.key] = now;
+    if (ph.startsWith('team')) coverCheck(now, g);
     // 쓰러진 칸 (3:3 회색 · 1:1 벌러덩)
     for (const el of g.querySelectorAll('.pg-team-down, .pg-fx-body.pg-fainted, .pg-fx-body.pg-down')) {
       const id = (el.closest('[data-team]') && el.closest('[data-team]').getAttribute('data-team')) || (el.closest('.pg-fighter-me') ? 'me' : 'foe');
@@ -568,7 +632,7 @@ def lum_series(out):
 
 def judge(K, flashes, lum=()):
     """기록 → 걸린 것 (ux-rules)"""
-    out = {"1초": [], "잘림": [], "겹침": [], "깜빡임": [], "걸침": [], "숨음": [], "쓰러짐 박자": [], "1초 참고": []}
+    out = {"1초": [], "잘림": [], "겹침": [], "가림": [], "깜빡임": [], "걸침": [], "숨음": [], "쓰러짐 박자": [], "1초 참고": [], "가림 참고": []}
     # 깜빡임 (밝기) — 앞 장보다 평균 밝기가 25 넘게 오른 장 = 번쩍 시작 · 1초 안에 3번 넘게면 걸림 (ux-rules U1 · 'F' 는 screenFlash 상한 안이라 늘 3 이하 — 코드 리뷰어 #98)
     #   캡처 간격 (약 70ms) 보다 짧은 번쩍은 못 볼 수 있음 · 정식 필살기 패널 번쩍은 규칙상 됨 (1초 3번만 지킴)
     ons = [lum[i][0] for i in range(1, len(lum)) if lum[i][1] - lum[i - 1][1] > 25]
@@ -583,7 +647,8 @@ def judge(K, flashes, lum=()):
     runs = {}
     u1 = set()
     for key, k in (K.get("texts") or {}).items():
-        txt = re.sub(r"\d+", "#", key.split(" @")[0])
+        # 붙는 띄어쓰기 (쓰러짐 줄 "상대\u00a0○○" · "\u00a0· " — 743) 는 띄어쓰기로 (이름마다 나누기가 깨져 같은 이름이 따로 셈되던 것)
+        txt = re.sub(r"\d+", "#", key.split(" @")[0].replace("\xa0", " "))
         # 3:3 띠 · 컷인 글 (필살기 이름 "용성군!" 등) 은 U1 목록 (3:3 띠 · 필살기 이름) — 이름만으로는 U1 낱말에 안 걸려 못 보던 것 (UX 리뷰어 #98)
         if re.search(r"@\S*(band|cutin)", key):
             u1.add(txt)
@@ -641,6 +706,10 @@ def judge(K, flashes, lum=()):
         if j - i + 1 > 3:
             out["깜빡임"].append({"번": j - i + 1, "때": round(fs[i]), "번쩍 ms": [round(x - fs[i]) for x in fs[i:j + 1]]})
             break
+    # 발밑 판 (키 칸 · HP) · 판 안 키 칸 = 가림 · 포켓몬 몸 = 가림 참고 (240 무대가 좁아 쓰러짐 줄이 뒷줄 머리를 덮는 것 · 머리 위 작은 글이 제 몸에 걸치는 것은 늘 있음)
+    for pk, o in sorted((K.get("cover") or {}).items(), key=lambda kv: -kv[1]["area"]):
+        if o["last"] - o["first"] >= 100:
+            out["가림 참고" if " → mon " in pk else "가림"].append({"둘": pk, "px²": o["area"], "높이 px": o["h"], "때": o["first"], "ms": o["last"] - o["first"]})
     for s in K.get("straddle", []):
         out["걸침"].append({"때": s["from"], "ms": s["to"] - s["from"], "px": round(s["px"])})
     hid = K.get("hidden", [])
@@ -649,7 +718,7 @@ def judge(K, flashes, lum=()):
     downs = K.get("down", {})
     # 이름마다 처음 뜬 때 — 장면 뒤 다시 뜬 이름 (bugs 1919 — 이미 쓰러진 포켓몬) 은 다음 쓰러짐과 견주지 않음 (14판)
     def ko_names(key):
-        m = re.match(r"^(.*) 쓰러졌다!", key.split(" @")[0])
+        m = re.match(r"^(.*) 쓰러졌다!", key.split(" @")[0].replace("\xa0", " "))
         return [n.strip() for n in m.group(1).split(" · ")] if m else []
     seen = {}
     for key, at in sorted((K.get("koText") or {}).items(), key=lambda kv: kv[1]):
@@ -771,7 +840,7 @@ def main():
                 print(f"  실패: {type(err).__name__} {err}", flush=True)
                 rows.append((i, f"{cfg.get('name')} — 실패 ({type(err).__name__})", {}))
         with open(os.path.join(out, "all.md"), "w", encoding="utf-8") as f:
-            keys = ["3:3 없음", "걸침", "숨음", "1초", "잘림", "깜빡임", "겹침", "쓰러짐 박자", "1초 참고"]
+            keys = ["3:3 없음", "걸침", "숨음", "1초", "잘림", "깜빡임", "겹침", "가림", "쓰러짐 박자", "1초 참고"]
             f.write("| 판 | 이름 | " + " | ".join(keys) + " |\n|" + "---|" * (len(keys) + 2) + "\n")
             for i, name, c in rows:
                 f.write(f"| {i} | {name} | " + " | ".join(str(c.get(k, 0)) for k in keys) + " |\n")
