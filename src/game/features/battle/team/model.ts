@@ -5,7 +5,7 @@
  * 칸 0 · 1 · 2 = 위 (뒷줄 · 바깥) → 아래 (앞줄 · 가운데) = 발밑 판 키 1 · 2 · 3.
  */
 import { BALANCE, TIMING } from '../../../core/balance';
-import { teamClashSure, teamFoeNext, teamGather, teamLayout, teamUltLevel, teamUltOpen, teamZSlot, type Side, type TeamBattle, type TeamPopup } from '../../../core/engine';
+import { teamClashSure, teamFoeNext, teamGather, teamGatherNow, teamLayout, teamUltLevel, teamUltOpen, teamZSlot, type Side, type TeamBattle, type TeamPopup } from '../../../core/engine';
 import { speciesOf } from '../../../data';
 import { FX_DUEL_MS } from '../fx/bridge';
 
@@ -223,7 +223,7 @@ export type TeamPrompt =
   /** user = 상대 필살기를 쓴 포켓몬 이름 (판 제목 "소미안 필살기" — 누구 필살기에 끼어드는지, UX 3:3 점검 8) */
   | { kind: 'join'; keys: number[]; left: number; me: number; foe: number; sure: Side | null; foeJoint: boolean; user: string }
   /** lead = 앞장 (처음 누른 포켓몬) 이름 · who = 낄 수 있는 칸 · joined = 이미 낀 칸 (✓ 로 남김 — 합류하면 목록에서 사라져 취소된 것처럼 보이던 것, UX 3:3 점검 3) */
-  | { kind: 'gather'; who: { key: number; name: string }[]; joined: { key: number; name: string }[]; lead: string; left: number }
+  | { kind: 'gather'; who: { key: number; name: string }[]; joined: { key: number; name: string }[]; lead: string; left: number; /** Space = 지금 합동 (ideas 711 — engine teamGatherNow) */ now: boolean; /** "[Space] 바로" 칩이 뜰 수 있는 판 — 내 쪽 · 상대 끼어들기 예약 없음 · 낄 동료 둘 넘음 (판이 열릴 때부터 칩 자리를 비워 둠 — 칩이 뜨며 판 · 막대가 튀던 것, UX 711 큼 1 · 2) */ chip: boolean }
   | { kind: 'mash'; sure: Side | null; me: number; foe: number }
   | null;
 
@@ -233,7 +233,7 @@ export function teamPrompt(b: TeamBattle): TeamPrompt {
     const g = teamGather(b);
     if (g && g.side === 'me') {
       const nm = (i: number) => speciesOf(b.me[i]!.species)?.name.ko ?? '';
-      return { kind: 'gather', who: g.can.map((i) => ({ key: i + 1, name: nm(i) })), joined: g.team.map((i) => ({ key: i + 1, name: nm(i) })), lead: nm(g.from), left: Math.max(0, g.leftMs / g.totalMs) };
+      return { kind: 'gather', who: g.can.map((i) => ({ key: i + 1, name: nm(i) })), joined: g.team.map((i) => ({ key: i + 1, name: nm(i) })), lead: nm(g.from), left: Math.max(0, g.leftMs / g.totalMs), now: teamGatherNow(b), chip: g.side === 'me' && b.ult?.joinAt === null && g.team.length + g.can.length >= 2 };
     }
     if (b.ult.side === 'foe' && b.ult.window > 0 && !b.ult.hit && keys.length > 0) {
       // 막대 = 실제 창 (상대 합동 멘트면 1.5초) 대로 (U2 — 1.2초로 셈하던 것, 기획 #24) · 머릿수 = 나 1 : 상대 (쓴 포켓몬 + 모인 동료)

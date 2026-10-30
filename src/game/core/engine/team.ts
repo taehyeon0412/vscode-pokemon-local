@@ -870,6 +870,15 @@ export function teamAutoUltLeft(b: TeamBattle, slot: number): number | null {
  * 합동 필살기 멘트 — 같은 편이 필살기를 쓰고 모이는 동안 (화면: "합동 필살기! [2] 이상해꽃" · 남은 시간 막대). 없으면 null.
  * can = 지금 누르면 합류하는 칸 (키 = 칸 + 1) · team = 이미 모인 칸 (쓴 포켓몬 빼고)
  */
+/**
+ * 내 합동 멘트에서 Space = 지금 합동 (ideas 711 — 둘만 모을 때 남은 약 1.5초를 안 기다리게): 동료가 하나 넘게 모였고 상대 끼어들기가 예약되지 않았을 때만
+ * (예약됐으면 그 창을 지킴 — 저절로 끝내는 allIn 과 같은 조건 · 다 모이면 엔진이 저절로 끝냄)
+ */
+export function teamGatherNow(b: TeamBattle): boolean {
+  const u = b.phase === 'ult' ? b.ult : null;
+  return !!u && u.side === 'me' && (u.gather ?? 0) > 0 && u.joinAt === null && (u.team ?? []).some((i) => alive(b.me[i]!));
+}
+
 export function teamGather(b: TeamBattle): { side: Side; from: number; leftMs: number; totalMs: number; team: number[]; can: number[] } | null {
   const u = b.ult;
   if (b.phase !== 'ult' || !u || !((u.gather ?? 0) > 0)) return null;
@@ -982,6 +991,12 @@ export function teamUltOpen(b: TeamBattle, slot: number): boolean {
 export function teamInput(b0: TeamBattle, input: TeamInput, rng: Rng, ults?: Readonly<Record<string, string>>): TeamBattle {
   if (b0.phase === 'over') return b0;
   if (input.kind === 'space') {
+    // 내 합동 멘트에서 동료가 모였으면 지금 합동 (ideas 711)
+    if (teamGatherNow(b0)) {
+      const b = clone(b0);
+      finishGather(b, rng, ults);
+      return b;
+    }
     // 필살기 힘겨루기는 맞닿은 뒤부터 셈 (VS 연출 동안 누른 것은 안 셈 — 화면도 그때부터 "연타")
     if (b0.phase !== 'clash' || !b0.clash || (b0.clash.kind === 'ult' && b0.clash.ms < TIMING.team.ultClashLeadMs)) return b0;
     const n = Math.min(TIMING.team.fasterScale, Math.max(1, Number(input.n) || 1));

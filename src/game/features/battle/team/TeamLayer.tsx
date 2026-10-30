@@ -20,6 +20,7 @@ import { jointName } from './joint-names';
 import { BAND_PX, TeamBand, useTeamBand, type TeamBandView } from './TeamBand';
 import { topGapPx } from '../../../ui/layout';
 import { realLater, realNow } from '../../../ui/real-clock';
+import { KeyCap } from '../../../ui/KeyCap';
 import { holdTeamOver } from '../fx/hold';
 import { withJosa } from '../../../core/text';
 import './team.css';
@@ -956,7 +957,7 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
     const maxW = widthPx - 16;
     const fold = el.querySelector<HTMLElement>('.pg-team-big-faint');
     const title = el.querySelector<HTMLElement>('.pg-team-big-title');
-    el.classList.remove('pg-big-f1', 'pg-big-f2', 'pg-big-f3', 'pg-big-f4', 'pg-big-f5', 'pg-big-f6', 'pg-big-f7', 'pg-big-f8', 'pg-big-f9');
+    el.classList.remove('pg-big-f1', 'pg-big-f2', 'pg-big-f3', 'pg-big-f4', 'pg-big-f5', 'pg-big-f6', 'pg-big-f7', 'pg-big-f8', 'pg-big-f9', 'pg-big-n1', 'pg-big-n2');
     if (fold?.dataset.full && fold.textContent !== fold.dataset.full) fold.textContent = fold.dataset.full;
     //   제목 앞은 지우지 않고 먼저 줄임 ("리자몽 필살기 · 같이 쓰기!" → "리자몽과 같이 쓰기!" · "소미안 필살기 · 끼어들기" → "소미안에 끼어들기" — 지우면 "같이 쓰기! [2] 이상해꽃" 이
     //   "이 둘이 합동한다" 로 읽히던 것, UX 리뷰어 #95 13바퀴 3 · UX 3:3 점검 3) · 세로 판은 제목도 잼 (띠를 숨긴 높은 패널은 제목에 이름)
@@ -970,7 +971,9 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
     //   끼어들기 한 줄 판은 N마리 앞에 상대 얼굴 빼기 (f7 — 쓰러짐 이름이 먼저 · 누구 필살기인지는 판이 닫힌 뒤 띠가 말함, 400 · 맥 440 에서 얼굴 28px 로 다시 "2마리" 가 되던 것)
     //   한 줄 판은 N마리 앞에 간격 줄이기 (f6 — 판 안 여백 · 틈 10 → 6 · 키 사이 12 → 6: 400 ~ 419 에서 접힌 이름이 처음부터 "2마리" 이던 것 · 240 상대 합동 판 여백 1 ~ 2px — UX · 아트 #95 15 · 16바퀴, ideas 1605)
     //   모으기 한 줄 판은 키 옆 이름보다 간격 줄이기 (f6) 가 먼저 — 240 에서도 "합동! [2] 이상해꽃 [3] 거북왕" (#135 A — 이름이 먼저 빠져 "합동! [2] [3]" 이던 것)
-    const steps = (!row ? ['short', 'pg-big-f2', 'pg-big-f4'] : prompt?.kind === 'join' ? ['pg-big-f1', 'pg-big-f2', 'pg-big-f4', 'pg-big-f6', 'pg-big-f7', 'pg-big-f8', 'pg-big-f9', 'short', 'pg-big-f3'] : ['pg-big-f2', 'pg-big-f6', 'pg-big-f5', 'short', 'pg-big-f4', 'pg-big-f3']).filter((k) => k !== 'pg-big-f3' || !foldShown.current);
+    //   "[Space] 바로" 칩 (ideas 711 — 칩 자리가 있는 판만) 은 맨 먼저 키 칸 (n1 — 금색 "바로" 만 · 키는 올림 글) → 칩 (n2) 순으로 뺌 —
+    //   "[Space]" 만 남아 [2] [3] 키 줄 옆에서 "또 하나 합류" 로 읽히던 것 (UX 711 작음 5) · 합류한 ✓ 이름을 빼면 이름이 0.5초만 보여 안 뺌 · 제목 · 누가 남았는지가 기다림 줄이기보다 먼저
+    const steps = (!row ? ['short', 'pg-big-f2', 'pg-big-f4'] : prompt?.kind === 'join' ? ['pg-big-f1', 'pg-big-f2', 'pg-big-f4', 'pg-big-f6', 'pg-big-f7', 'pg-big-f8', 'pg-big-f9', 'short', 'pg-big-f3'] : [...(el.querySelector('.pg-team-now') ? ['pg-big-n1', 'pg-big-n2'] : []), 'pg-big-f2', 'pg-big-f6', 'pg-big-f5', 'short', 'pg-big-f4', 'pg-big-f3']).filter((k) => k !== 'pg-big-f3' || !foldShown.current);
     for (const k of steps) {
       if (!over()) break;
       if (k !== 'short') el.classList.add(k);
@@ -989,8 +992,11 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
     const left0 = mid < myRight && myRight + r.width <= Math.min(widthPx - 8, foeLeft) ? myRight : mid;
     // 왼쪽은 처음 자리 그대로 (키 "1" → "✓" 처럼 글이 바뀌어 폭이 달라질 때 1 ~ 3px 옮겨 가던 것 — 픽셀 검사원 #95 8바퀴 10) · 패널 밖으로 나갈 때만 당김
     // 판 폭이 8px 넘게 바뀌면 (줄이는 단계 · ✓) 가운데 다시 (왼쪽 고정이라 줄어든 판이 가운데보다 52px 왼쪽에 서던 것 — UX 리뷰어 #95 14바퀴 2 · 1 ~ 3px 는 그대로)
-    if (bigLeft.current !== null && bigW.current !== null && Math.abs(r.width - bigW.current) > 8) bigLeft.current = null;
-    if (bigLeft.current === null) bigW.current = r.width;
+    //   "[Space] 지금" 칩 (ideas 711) 폭은 빼고 견줌 — 칩이 뜨며 판이 넓어질 때 가운데로 다시 옮겨 판 전체가 30 ~ 40px 튀지 않게 (오른쪽으로만 늘어남 · 패널 밖이면 아래 줄이 당김)
+    const nowW = el.querySelector<HTMLElement>('.pg-team-now')?.getBoundingClientRect().width ?? 0;
+    const baseW = r.width - (nowW > 0 ? nowW + 10 : 0);
+    if (bigLeft.current !== null && bigW.current !== null && Math.abs(baseW - bigW.current) > 8) bigLeft.current = null;
+    if (bigLeft.current === null) bigW.current = baseW;
     const left = Math.max(8, Math.min(bigLeft.current ?? left0, widthPx - 8 - Math.ceil(r.width)));
     bigLeft.current = bigLeft.current ?? left0;
     // (띠 자리를 미리 비우지 않음 — 새 띠는 떠 있는 쓰러짐 줄이 1초 채울 때까지 기다렸다 같은 줄을 넘겨받음, UX 리뷰어 #95 8바퀴 2) ·
@@ -1240,6 +1246,15 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
               </span>
             ))}
           </span>
+          {/* Space = 지금 합동 — 지금 합동이 될 때만 (ideas 711 · 모양 · 넘치면 한 단계는 디자인) */}
+          {/* 칩 자리는 뜰 수 있는 판이면 처음부터 (안 보이게) — 뜰 때 판 폭 · 남은 막대 · 가운데가 튀지 않게 (UX 711 큼 1 · 2) · 남은 시간 0.6초 아래면 안 띄움 (반짝 잡음 — 작음 6) ·
+              클릭 = Space ([2] · [3] 칸처럼 — 작음 3) · 낱말 "바로" ("지금" 은 금색 타이밍 신호 "지금!" 과 겹쳐 "지금 눌러" 로 읽혀 남은 동료를 빼게 됨 — 작음 4) */}
+          {prompt.chip && (
+            <span class={`pg-team-now${prompt.now && prompt.left * TIMING.team.gatherMs > 600 ? '' : ' pg-team-now-off'}`} title="Space — 남은 동료를 기다리지 않고 바로 합동" onClick={() => onInput({ kind: 'team-battle', input: { kind: 'space' } })}>
+              <KeyCap k="Space" />
+              <span class="pg-team-now-t">바로</span>
+            </span>
+          )}
           <span class="pg-team-left" style={{ width: `${Math.round(prompt.left * 100)}%` }} />
         </div>
       )}

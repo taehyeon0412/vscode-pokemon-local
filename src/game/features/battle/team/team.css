@@ -601,6 +601,38 @@
 #pokemon-game .pg-team-prompt-big .pg-team-left {
   height: 4px;
 }
+/* 모으기 판 "[Space] 바로" 칩 (ideas 711 — 동료가 모였으면 기다리지 않고 바로 합동 · 그때만 보임 · 자리는 판이 열릴 때부터) = 금 1px 테 · 금 글 13/700 · 높이 22 (키 칸과 같은 줄) · 움직임 없음
+   넘치면 한 단계 (TeamLayer 큰 판 차례): n1 = 키 칸 뺌 ("바로" 만) → n2 = 칩 뺌 (남은 막대만) */
+#pokemon-game .pg-team-now {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  box-sizing: border-box;
+  height: 22px;
+  padding: 0 5px 0 3px;
+  border: 1px solid var(--pg-sos-gold);
+  color: var(--pg-sos-gold);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+/* 칩 자리만 (뜰 수 있는 판 — 지금은 아님) */
+#pokemon-game .pg-team-now.pg-team-now-off {
+  visibility: hidden;
+}
+#pokemon-game .pg-team-prompt-big .pg-team-now {
+  cursor: pointer;
+}
+/* n1 = 키 칸 뺌 (금색 "바로" 만 — 누르면 Space 와 같음) */
+#pokemon-game .pg-big-n1 .pg-team-now .pg-menu-key {
+  display: none;
+}
+#pokemon-game .pg-big-n1 .pg-team-now {
+  padding-left: 5px;
+}
+#pokemon-game .pg-big-n2 .pg-team-now {
+  display: none;
+}
 #pokemon-game .pg-team-sure {
   color: var(--pg-sos-gold);
 }

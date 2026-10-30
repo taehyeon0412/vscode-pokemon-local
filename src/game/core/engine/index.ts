@@ -78,7 +78,7 @@ export {
   type Side,
 } from './battle';
 export { clearBonusExp, FOREST_BADGE, runExpScale, stageClearExp, stageClearGain, type BattleSummary } from './rewards';
-export { readTeam, TEAM_BASIC, TEAM_LOG_MAX, teamClashSure, teamFastOk, teamGather, teamJoinOpen, teamLayout, teamLit, teamScale, teamAutoUltLeft, teamAutoUltNext, teamFoeNext, teamZSlot, teamUltLevel, teamUltOpen, teamViewKey, type TeamBattle, type TeamClash, type TeamInput, type TeamLogEntry, type TeamNote, type TeamPopup, type TeamShot, type TeamUlt } from './team';
+export { readTeam, TEAM_BASIC, TEAM_LOG_MAX, teamClashSure, teamFastOk, teamGather, teamGatherNow, teamJoinOpen, teamLayout, teamLit, teamScale, teamAutoUltLeft, teamAutoUltNext, teamFoeNext, teamZSlot, teamUltLevel, teamUltOpen, teamViewKey, type TeamBattle, type TeamClash, type TeamInput, type TeamLogEntry, type TeamNote, type TeamPopup, type TeamShot, type TeamUlt } from './team';
 export {
   createGameState,
   MAX_SPEED,

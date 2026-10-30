@@ -7,7 +7,7 @@ import type { Monster, Save } from '../save';
 import { advance, applyInput, AUTO_TEAM_TIP, autoTeamTipDue, defeatWaits, gameTempo, RESUME_BATTLE_MSG, resumeLine, step, TEAM_MEET_TIP, teamChoiceMeet, teamFoesOf, teamLock, teamMainOf, teamMeetTipDue, teamPickOf, teamGatherIdle, teamSceneFastOk } from './play';
 import { Rng } from './rng';
 import { createGameState, readRuntime, type GameState } from './state';
-import { shotTiming, applyTeamResult, isSpread, pickTeam, readTeam, startTeamBattle, TEAM_BASIC, teamClashSure, teamDone, teamFastOk, teamInput, teamPick, teamPossible, teamScale, teamStep, teamAutoUltLeft, teamAutoUltNext, teamFoeNext, teamZSlot, teamUltLevel, teamUltOpen, type TeamBattle, teamGather, teamJoinOpen, teamLayout, teamLit } from './team';
+import { shotTiming, applyTeamResult, isSpread, pickTeam, readTeam, startTeamBattle, TEAM_BASIC, teamClashSure, teamDone, teamFastOk, teamInput, teamPick, teamPossible, teamScale, teamStep, teamAutoUltLeft, teamAutoUltNext, teamFoeNext, teamZSlot, teamUltLevel, teamUltOpen, type TeamBattle, teamGather, teamGatherNow, teamJoinOpen, teamLayout, teamLit } from './team';
 import { moveFxOf, moveOf, ultIsSpread, ultNamesOf } from '../../data';
 import { teamHealthy } from '../rules/bag';
 import { leaderTeam, trainerTeam } from '../rules/trainer';
@@ -1533,5 +1533,28 @@ describe('3:3 박자 (orders #83 — 기본 0.8 · 전투 ×2) · 누를 창 (or
     const pressed = applyInput(fighting, { kind: 'team-cutscene', on: false, say: true });
     expect(pressed.save.settings.teamCutscene).toBe(false);
     expect(pressed.runtime.toast).toBe(fighting.runtime.toast);
+  });
+});
+
+describe('ideas 711 — 내 합동 멘트에서 Space = 지금 합동', () => {
+  it('동료가 하나 넘게 모였으면 남은 멘트를 안 기다리고 바로 합동 · 아무도 안 모였거나 상대 끼어들기가 예약됐으면 Space 안 받음', () => {
+    const b0 = startTeamBattle(team3(), foes(), 'trainer', '상대');
+    const full: TeamBattle = { ...b0, me: b0.me.map((f) => ({ ...f, ult: 1 })), foe: b0.foe.map((f) => ({ ...f, ult: 0 })) };
+    const g = teamInput(full, { kind: 'ult', slot: 0 }, new Rng(9));
+    expect(teamGather(g)?.can).toEqual([1, 2]);
+    expect(teamGatherNow(g)).toBe(false);
+    expect(teamInput(g, { kind: 'space' }, new Rng(9))).toBe(g);
+    const one = teamInput(g, { kind: 'ult', slot: 1 }, new Rng(9));
+    expect(teamGather(one)?.team).toEqual([1]);
+    expect(teamGatherNow(one)).toBe(true);
+    const now = teamInput(one, { kind: 'space' }, new Rng(9));
+    expect(now.ult?.joint?.winners).toEqual([0, 1]);
+    expect(now.ult?.gather ?? 0).toBe(0);
+    expect(now.log.some((e) => e.t === 'ult' && !!e.joint)).toBe(true);
+    // 상대 끼어들기가 예약된 멘트 — 그 창을 지킴
+    expect(teamGatherNow({ ...one, ult: { ...one.ult!, joinAt: 500 } })).toBe(false);
+    // 상대 멘트 · 힘겨루기 · 보통 공격은 아님
+    expect(teamGatherNow({ ...one, ult: { ...one.ult!, side: 'foe' } })).toBe(false);
+    expect(teamGatherNow(b0)).toBe(false);
   });
 });
