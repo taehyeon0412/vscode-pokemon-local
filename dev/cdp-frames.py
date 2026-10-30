@@ -126,7 +126,9 @@ n = 0
 code = 0
 # 브라우저를 끈 뒤에도 잠깐 파일을 잡고 있어 지우기가 실패할 수 있음 — 무시 (임시 폴더)
 with tempfile.TemporaryDirectory(prefix=gs.PROF_PREFIX, ignore_cleanup_errors=True) as prof:
-    p = subprocess.Popen([gs.browser(), "--headless=new", "--disable-gpu", "--edge-skip-compat-layer-relaunch", f"--remote-debugging-port={dbg}", f"--user-data-dir={prof}", f"--window-size={w},{h}", *gs.hide_scrollbars(), "about:blank"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    p = subprocess.Popen([gs.browser(), "--headless=new", "--disable-gpu", "--edge-skip-compat-layer-relaunch", f"--remote-debugging-port={dbg}", f"--user-data-dir={prof}", f"--window-size={w},{h}", *gs.hide_scrollbars(),
+                          # 머리 없는 창을 배경으로 여겨 그림을 멈추지 않게 (team-run 과 같음 — 10-30 Edge 에서 첫 캡처가 "Not attached to an active page" 로 0장이던 것)
+                          "--disable-background-timer-throttling", "--disable-backgrounding-occluded-windows", "--disable-renderer-backgrounding", "about:blank"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
         end = time.time() + limit_s
         ws_url = None
@@ -144,6 +146,7 @@ with tempfile.TemporaryDirectory(prefix=gs.PROF_PREFIX, ignore_cleanup_errors=Tr
             raise Stalled("브라우저가 안 뜸")
         ws = WS(ws_url, end)
         ws.call("Page.enable")
+        ws.call("Page.bringToFront")
         ws.call("Emulation.setDeviceMetricsOverride", {"width": int(w), "height": int(h), "deviceScaleFactor": 1, "mobile": False})
         ws.call("Page.navigate", {"url": url})
         t0 = time.time()
@@ -154,7 +157,14 @@ with tempfile.TemporaryDirectory(prefix=gs.PROF_PREFIX, ignore_cleanup_errors=Tr
             if el < start_ms:
                 time.sleep(0.005)
                 continue
-            r = ws.call("Page.captureScreenshot", {"format": "png"})
+            # 불러오는 사이 (about:blank → 시험 창, 렌더러가 바뀌는 틈) 찍으면 "Not attached to an active page" — 0.1초 쉬고 다시 (10-30: 첫 장면에서 바로 멈춤으로 끝나 0장이던 것)
+            try:
+                r = ws.call("Page.captureScreenshot", {"format": "png"})
+            except Stalled as e:
+                if "Not attached" not in str(e) or el > start_ms + 5000:
+                    raise
+                time.sleep(0.1)
+                continue
             ms = int((time.time() - t0) * 1000)
             open(os.path.join(out, f"f_{ms:05d}.png"), "wb").write(base64.b64decode(r["data"]))
             # PG_PROBE_JS = 장면마다 페이지 (frame.html) 에서 돌릴 식 → <out>/probe.jsonl (게임은 document.getElementById('f').contentWindow — 캔버스 자리 · 층 재기, bugs 2707)

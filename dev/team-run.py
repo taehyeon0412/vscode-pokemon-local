@@ -499,6 +499,15 @@ def step(ws, W, s, acts, el, rnd, cfg):
         if note:
             acts.setdefault("inputs", []).append(s.get("now", 0))
         ws.ev(f"{W}.__pgDebug.input({json.dumps(i)})")
+    # 1:1 야생 판도 정해진 장면 (events — 필살기 게이지 가득 등) 을 전투 시작부터 셈 (#140 perf-run 1:1 필살기 판)
+    if s["phase"] == "battle" and cfg.get("wild") and acts["events"]:
+        acts.setdefault("battleAt", el)
+        while acts["events"] and el - acts["battleAt"] >= acts["events"][0]["at"]:
+            e = acts["events"].pop(0)
+            if "js" in e:
+                acts.setdefault("probe", []).append({"at": e["at"], "out": ws.ev(f"{W}.eval({json.dumps(e['js'])})")})
+            else:
+                ws.ev(f"{W}.__pgDebug.dev({json.dumps(e['dev'])})")
     if s["phase"] == "trainer":
         # 사람 박자 — 만남 상자를 2.5초 읽고 3:3 · 고르기 판이 뜬 뒤 1초 · 한 마리씩 0.5초 · 다 고르고 0.8초 뒤 시작 (도구가 너무 빨라 "1초" 에 걸리던 것)
         if not s.get("pick") and not acts["meet"] and s.get("ms", 0) > 2700:

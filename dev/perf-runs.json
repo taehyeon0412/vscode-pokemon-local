@@ -1,0 +1,610 @@
+{
+ "_": "#140 최적화 성능 판 (dev/perf-run.py) — 장면 묶음 × 860 · 1860 · seed 고정 · limit = 판 길이 (초) · drawsAt = 그리기 셈 끝 · 합동 = 샤로다 · 이상해씨 · 리자몽 Lv 30 vs 잠만보 셋 Lv 30 (첫 합동 + 14초에 두 번째) · 힘겨루기 = team-runs 14판",
+ "runs": [
+  {
+   "name": "걷기 860",
+   "seed": 1,
+   "q": {
+    "place": "walk"
+   },
+   "team": [
+    [
+     6,
+     30
+    ],
+    [
+     9,
+     30
+    ],
+    [
+     3,
+     30
+    ]
+   ],
+   "events": [],
+   "limit": 12,
+   "size": "860x187",
+   "drawsAt": 9.0
+  },
+  {
+   "name": "걷기 1860",
+   "seed": 1,
+   "q": {
+    "place": "walk"
+   },
+   "team": [
+    [
+     6,
+     30
+    ],
+    [
+     9,
+     30
+    ],
+    [
+     3,
+     30
+    ]
+   ],
+   "events": [],
+   "limit": 12,
+   "size": "1860x187",
+   "drawsAt": 9.0
+  },
+  {
+   "name": "대기실 860",
+   "seed": 1,
+   "q": {
+    "place": "lobby"
+   },
+   "team": [
+    [
+     6,
+     30
+    ],
+    [
+     9,
+     30
+    ],
+    [
+     3,
+     30
+    ]
+   ],
+   "events": [],
+   "limit": 10,
+   "size": "860x187",
+   "drawsAt": 7.0
+  },
+  {
+   "name": "1:1 필살기 860",
+   "seed": 21,
+   "wild": true,
+   "team": [
+    [
+     6,
+     30
+    ],
+    [
+     9,
+     30
+    ],
+    [
+     3,
+     30
+    ]
+   ],
+   "events": [
+    {
+     "at": 1.0,
+     "dev": {
+      "kind": "gauge-full"
+     }
+    }
+   ],
+   "limit": 22,
+   "size": "860x187",
+   "drawsAt": 19.0
+  },
+  {
+   "name": "1:1 필살기 1860",
+   "seed": 21,
+   "wild": true,
+   "team": [
+    [
+     6,
+     30
+    ],
+    [
+     9,
+     30
+    ],
+    [
+     3,
+     30
+    ]
+   ],
+   "events": [
+    {
+     "at": 1.0,
+     "dev": {
+      "kind": "gauge-full"
+     }
+    }
+   ],
+   "limit": 22,
+   "size": "1860x187",
+   "drawsAt": 19.0
+  },
+  {
+   "name": "3:3 혼자 필살기 860",
+   "size": "860x187",
+   "seed": 11,
+   "team": [
+    [
+     6,
+     7
+    ],
+    [
+     9,
+     7
+    ],
+    [
+     3,
+     7
+    ]
+   ],
+   "events": [
+    {
+     "at": 2.0,
+     "dev": {
+      "kind": "gauge-full"
+     }
+    }
+   ],
+   "only": [
+    0
+   ],
+   "limit": 20,
+   "drawsAt": 17.0
+  },
+  {
+   "name": "3:3 혼자 필살기 1860",
+   "size": "1860x187",
+   "seed": 11,
+   "team": [
+    [
+     6,
+     7
+    ],
+    [
+     9,
+     7
+    ],
+    [
+     3,
+     7
+    ]
+   ],
+   "events": [
+    {
+     "at": 2.0,
+     "dev": {
+      "kind": "gauge-full"
+     }
+    }
+   ],
+   "only": [
+    0
+   ],
+   "limit": 20,
+   "drawsAt": 17.0
+  },
+  {
+   "name": "합동 2인 860",
+   "size": "860x187",
+   "seed": 11,
+   "team": [
+    [
+     497,
+     30
+    ],
+    [
+     3,
+     30
+    ],
+    [
+     6,
+     30
+    ]
+   ],
+   "leadDex": 497,
+   "direct": true,
+   "foes": [
+    [
+     143,
+     30
+    ],
+    [
+     143,
+     30
+    ],
+    [
+     143,
+     30
+    ]
+   ],
+   "events": [
+    {
+     "at": 0.2,
+     "dev": {
+      "kind": "ult",
+      "uid": "m1",
+      "name": "리프스톰"
+     }
+    },
+    {
+     "at": 1.0,
+     "dev": {
+      "kind": "gauge-full"
+     }
+    }
+   ],
+   "limit": 20,
+   "only": [
+    0,
+    1
+   ],
+   "drawsAt": 17.0
+  },
+  {
+   "name": "합동 2인 1860",
+   "size": "1860x187",
+   "seed": 11,
+   "team": [
+    [
+     497,
+     30
+    ],
+    [
+     3,
+     30
+    ],
+    [
+     6,
+     30
+    ]
+   ],
+   "leadDex": 497,
+   "direct": true,
+   "foes": [
+    [
+     143,
+     30
+    ],
+    [
+     143,
+     30
+    ],
+    [
+     143,
+     30
+    ]
+   ],
+   "events": [
+    {
+     "at": 0.2,
+     "dev": {
+      "kind": "ult",
+      "uid": "m1",
+      "name": "리프스톰"
+     }
+    },
+    {
+     "at": 1.0,
+     "dev": {
+      "kind": "gauge-full"
+     }
+    }
+   ],
+   "limit": 20,
+   "only": [
+    0,
+    1
+   ],
+   "drawsAt": 17.0
+  },
+  {
+   "name": "합동 3인 + 두 번째 860",
+   "size": "860x187",
+   "seed": 11,
+   "team": [
+    [
+     497,
+     30
+    ],
+    [
+     3,
+     30
+    ],
+    [
+     6,
+     30
+    ]
+   ],
+   "leadDex": 497,
+   "direct": true,
+   "foes": [
+    [
+     143,
+     30
+    ],
+    [
+     143,
+     30
+    ],
+    [
+     143,
+     30
+    ]
+   ],
+   "events": [
+    {
+     "at": 0.2,
+     "dev": {
+      "kind": "ult",
+      "uid": "m1",
+      "name": "리프스톰"
+     }
+    },
+    {
+     "at": 1.0,
+     "dev": {
+      "kind": "gauge-full"
+     }
+    },
+    {
+     "at": 14.0,
+     "dev": {
+      "kind": "gauge-full"
+     }
+    }
+   ],
+   "limit": 32,
+   "drawsAt": 29.0
+  },
+  {
+   "name": "합동 3인 + 두 번째 1860",
+   "size": "1860x187",
+   "seed": 11,
+   "team": [
+    [
+     497,
+     30
+    ],
+    [
+     3,
+     30
+    ],
+    [
+     6,
+     30
+    ]
+   ],
+   "leadDex": 497,
+   "direct": true,
+   "foes": [
+    [
+     143,
+     30
+    ],
+    [
+     143,
+     30
+    ],
+    [
+     143,
+     30
+    ]
+   ],
+   "events": [
+    {
+     "at": 0.2,
+     "dev": {
+      "kind": "ult",
+      "uid": "m1",
+      "name": "리프스톰"
+     }
+    },
+    {
+     "at": 1.0,
+     "dev": {
+      "kind": "gauge-full"
+     }
+    },
+    {
+     "at": 14.0,
+     "dev": {
+      "kind": "gauge-full"
+     }
+    }
+   ],
+   "limit": 32,
+   "drawsAt": 29.0
+  },
+  {
+   "name": "합동 3인 + 두 번째 860 빠르게",
+   "size": "860x187",
+   "seed": 11,
+   "team": [
+    [
+     497,
+     30
+    ],
+    [
+     3,
+     30
+    ],
+    [
+     6,
+     30
+    ]
+   ],
+   "leadDex": 497,
+   "direct": true,
+   "foes": [
+    [
+     143,
+     30
+    ],
+    [
+     143,
+     30
+    ],
+    [
+     143,
+     30
+    ]
+   ],
+   "events": [
+    {
+     "at": 0.2,
+     "dev": {
+      "kind": "ult",
+      "uid": "m1",
+      "name": "리프스톰"
+     }
+    },
+    {
+     "at": 1.0,
+     "dev": {
+      "kind": "gauge-full"
+     }
+    },
+    {
+     "at": 14.0,
+     "dev": {
+      "kind": "gauge-full"
+     }
+    }
+   ],
+   "limit": 32,
+   "q": {
+    "bfast": "1"
+   },
+   "drawsAt": 29.0
+  },
+  {
+   "name": "힘겨루기 860",
+   "size": "860x187",
+   "seed": 17,
+   "team": [
+    [
+     6,
+     7
+    ],
+    [
+     248,
+     7
+    ],
+    [
+     149,
+     7
+    ]
+   ],
+   "events": [
+    {
+     "at": 0.3,
+     "js": "(() => { if (window.__qw) return 'again'; window.__qw = { log: [], done: 0 }; setInterval(() => { const d = window.__pgDebug; if (!d) return; const s = d.state(); const st = s && s.runtime.stage; if (!st || st.phase !== 'team') return; const b = st.team; const fp = b.popups.some((p) => p.kind === 'info' && /쓰러졌다/.test(p.text)); const join = b.phase === 'ult' && b.ult && b.ult.side === 'foe' && b.ult.window > 0 && !b.ult.hit; if (join && fp && !window.__qw.done) { const i = b.me.findIndex((f, k) => f && f.hp > 0 && b.ultReadyAt.me[k] !== null); if (i >= 0) { d.input({ kind: 'team-battle', input: { kind: 'ult', slot: i } }); window.__qw.done = Date.now(); window.__qw.log.push([Date.now(), i]); } } }, 20); return 'ok'; })()"
+    },
+    {
+     "at": 2.0,
+     "dev": {
+      "kind": "gauge-full",
+      "side": "foe"
+     }
+    },
+    {
+     "at": 2.0,
+     "dev": {
+      "kind": "gauge-full"
+     }
+    }
+   ],
+   "direct": true,
+   "interject": true,
+   "foes": [
+    [
+     16,
+     22
+    ],
+    [
+     19,
+     22
+    ],
+    [
+     165,
+     22
+    ]
+   ],
+   "limit": 24,
+   "drawsAt": 21.0
+  },
+  {
+   "name": "힘겨루기 1860",
+   "size": "1860x187",
+   "seed": 17,
+   "team": [
+    [
+     6,
+     7
+    ],
+    [
+     248,
+     7
+    ],
+    [
+     149,
+     7
+    ]
+   ],
+   "events": [
+    {
+     "at": 0.3,
+     "js": "(() => { if (window.__qw) return 'again'; window.__qw = { log: [], done: 0 }; setInterval(() => { const d = window.__pgDebug; if (!d) return; const s = d.state(); const st = s && s.runtime.stage; if (!st || st.phase !== 'team') return; const b = st.team; const fp = b.popups.some((p) => p.kind === 'info' && /쓰러졌다/.test(p.text)); const join = b.phase === 'ult' && b.ult && b.ult.side === 'foe' && b.ult.window > 0 && !b.ult.hit; if (join && fp && !window.__qw.done) { const i = b.me.findIndex((f, k) => f && f.hp > 0 && b.ultReadyAt.me[k] !== null); if (i >= 0) { d.input({ kind: 'team-battle', input: { kind: 'ult', slot: i } }); window.__qw.done = Date.now(); window.__qw.log.push([Date.now(), i]); } } }, 20); return 'ok'; })()"
+    },
+    {
+     "at": 2.0,
+     "dev": {
+      "kind": "gauge-full",
+      "side": "foe"
+     }
+    },
+    {
+     "at": 2.0,
+     "dev": {
+      "kind": "gauge-full"
+     }
+    }
+   ],
+   "direct": true,
+   "interject": true,
+   "foes": [
+    [
+     16,
+     22
+    ],
+    [
+     19,
+     22
+    ],
+    [
+     165,
+     22
+    ]
+   ],
+   "limit": 24,
+   "drawsAt": 21.0
+  }
+ ]
+}
