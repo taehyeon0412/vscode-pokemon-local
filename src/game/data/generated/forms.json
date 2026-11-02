@@ -548,7 +548,7 @@
 "shaymin":{"species":492,"gen":4,"size":32,"shiny":true},
 "shaymin_sky":{"species":492,"gen":4,"size":32,"shiny":true},
 "arceus":{"species":493,"gen":4,"size":64,"shiny":true},
-"arceus_bug":{"species":493,"gen":4,"size":32,"shiny":true},
+"arceus_bug":{"species":493,"gen":4,"size":64,"shiny":true},
 "arceus_dark":{"species":493,"gen":4,"size":64,"shiny":true},
 "arceus_dragon":{"species":493,"gen":4,"size":64,"shiny":true},
 "arceus_electric":{"species":493,"gen":4,"size":64,"shiny":true},

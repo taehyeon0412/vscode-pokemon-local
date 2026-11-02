@@ -3918,6 +3918,7 @@ const POKEMON_DATA_RAW = {
         generation: types_1.PokemonGeneration.Gen4,
         cry: 'Arceus!',
         possibleColors: ["default" /* PokemonColor.default */, "shiny" /* PokemonColor.shiny */],
+        originalSpriteSize: 64,
     },
     arceus_dark: {
         id: 493,
