@@ -13,7 +13,7 @@
     걸침 = 연출 캔버스 위 끝 (--pg-fx-top · 정보줄) 위아래 4px 에 같은 세로줄 8px 넘게 0.3초 넘게 (U4) · 숨음 = 위 끝 위 40px 띠 점이 아래보다 많음 (60% · 1500px² 넘게)
     3:3 없음 = 3:3 판인데 3:3 장면이 한 번도 없음 (만남 · 고르기에서 멈춤 · 1:1 로 감 — 판 표 · 매개변수 확인, 야생 판은 뺌)
     가림 = 3:3 판 · 글 상자가 발밑 판 (키 칸 · HP) · 다른 판의 키 칸 ([2] [3]) 위에 0.1초 넘게 그려짐 (ideas 745 — 겹친 곳 가운데 점에서 위에 그린 것으로 봄) · 서 있는 포켓몬 몸 가운데는 "가림 참고"
-    1초 = 한글 글이 1초 안에 나타났다 사라짐 (U1 — 숫자 · 키 칸 · 짧은 낱말은 뺌) · 쓰러짐 이름은 필살기 · 힘겨루기 장면이 가린 뒤 다시 1초 넘게 뜨면 참고 (bugs 1919) · 잘림 = 글 실제 너비가 칸보다 넓음 (U4) · 겹침 말 = 글 상자끼리 30px² 넘게 (U1 가림)
+    1초 = 한글 글이 1초 안에 나타났다 사라짐 (U1 — 숫자 · 키 칸 · 짧은 낱말은 뺌) · 발밑 판 칩 (상대 "!" · 다 참) 은 글자 수와 상관없이 칩 열쇠로 (ideas 1683 · "곧" · N초 는 참고) · 쓰러짐 이름은 필살기 · 힘겨루기 장면이 가린 뒤 다시 1초 넘게 뜨면 참고 (bugs 1919) · 잘림 = 글 실제 너비가 칸보다 넓음 (U4) · 겹침 말 = 글 상자끼리 30px² 넘게 (U1 가림)
     깜빡임 = 실제로 그린 화면 번쩍 (__fxTrace 'F' — 0.34초 상한을 지난 것) 이 1초에 3번 넘게 · 쓰러짐 박자 = "쓰러졌다" 글이 그 칸이 쓰러진 모습보다 80ms 넘게 먼저 (U2)
   dev/game-shots.py 의 시험 서버 · 브라우저 도구를 씀 · 끝나면 브라우저를 PID 로 끔 (정리 — python dev/cleanup.py --mine dev)"""
 import base64
@@ -110,7 +110,7 @@ class WS:
 COLLECT = r"""
 (() => {
   if (window.__tr) return 'again';
-  const K = { texts: {}, clip: {}, overlap: {}, cover: {}, straddle: [], hidden: [], down: {}, koText: {}, phases: [] };
+  const K = { texts: {}, chips: {}, clip: {}, overlap: {}, cover: {}, straddle: [], hidden: [], down: {}, koText: {}, phases: [] };
   window.__fxTrace = [];
   const t0 = Date.now();
   // 번쩍 기록 (__fxTrace 'F' — 진짜 시계 __fxRealNow, #136) 을 기록기 시각 (Date.now − t0) 에 맞추는 기준 (빠르게 ▶▶ ×3 에서도 같은 흐름)
@@ -213,6 +213,18 @@ COLLECT = r"""
         return [c.dataset.team, Math.round(cr.left + cr.width / 2), Math.round(tr && tr !== 'none' ? parseFloat(tr) || 0 : 0)];
       });
       (K.pops = K.pops || []).push([now, Math.round(r.left + r.width / 2), el.textContent.trim().slice(0, 12), cells]);
+    }
+    // 칩 줄 (ideas 1683) — 발밑 판 칩 (상대 예고 "곧" · "!" · 다 참 · N초) 은 글자 수 · 한글과 상관없이 칩 열쇠 (종류 · 편 · 칸 · 글) 로 이어 봄
+    //   (글 줄은 한글 3자 넘는 것만 1초 검사라 "!" 가 0.96초인 것을 손으로 붙인 기록으로만 찾던 것 — bugs 2732)
+    for (const el of g.querySelectorAll('.pg-team-warn, .pg-team-auto')) {
+      if (!visible(el)) continue;
+      const plate = el.closest('.pg-team-plate');
+      const side = plate && plate.classList.contains('pg-team-plate-me') ? 'me' : 'foe';
+      const idx = plate ? [...g.querySelectorAll('.pg-team-plate-' + side)].indexOf(plate) : -1;
+      const key = `${el.classList.contains('pg-team-warn') ? 'warn' : 'auto'} ${side}${idx} ${el.textContent.trim().replace(/\d+/g, '#')}`;
+      const k = K.chips[key] || (K.chips[key] = { first: now, last: now, runs: [] });
+      if (now - k.last > 160) { k.runs.push([k.first, k.last]); k.first = now; }
+      k.last = now;
     }
     // 글 — 보인 때 · 잘림 · 겹침
     const boxes = [];
@@ -332,7 +344,7 @@ COLLECT = r"""
     }
   };
   const id = setInterval(() => { try { tick(); } catch (e) { K.err = String(e); } }, 50);
-  window.__tr = { K, t0, stop: () => { clearInterval(id); if (strOn && strOn.to - strOn.from > 300) K.straddle.push(strOn); for (const k of Object.values(K.texts)) k.runs.push([k.first, k.last]); return K; },
+  window.__tr = { K, t0, stop: () => { clearInterval(id); if (strOn && strOn.to - strOn.from > 300) K.straddle.push(strOn); for (const k of [...Object.values(K.texts), ...Object.values(K.chips)]) k.runs.push([k.first, k.last]); return K; },
     fx: () => (window.__fxTrace || []).filter((e) => e[0] === 'F').map((e) => Math.round(e[1] - perf0)) };
   return 'ok';
 })()
@@ -731,6 +743,23 @@ def judge(K, flashes, lum=()):
                 big = isu1 and b - a < 950 and not cut
                 why = ({"뜻": f"장면이 가림 → 장면 뒤 다시 {back} ms (1919)"} if back else {"뜻": "필살기 장면이 열려 가려짐 (상태 칩 — 1876)"}) if cut else {} if big or not isu1 else {"뜻": "재는 간격 안"}
                 out["1초" if big else "1초 참고"].append({"글": txt, "보인 ms": b - a, "때": a, **why})
+    # 칩 줄 (ideas 1683) — 발밑 판 칩은 칩 열쇠로 이어 봄 · 상대 "!" · 다 참 은 U1 1초 (bugs 2732) · "곧" · N초 는 참고 ("곧" 은 0.3초 뒤 "!" 로 넘어가는 것이 정한 박자)
+    #   판 끝 (team:over) 에 지워진 칩 · 누른 뒤 0.4초 안에 사라진 칩 (사람이 쓴 것) 은 뺌
+    c_overs = [p[0] for p in K.get("phases", []) if str(p[1]).endswith(":over")]
+    c_presses = K.get("inputs", [])
+    for key, k in (K.get("chips") or {}).items():
+        merged = []
+        for a, b in sorted(k.get("runs", [])):
+            if merged and a - merged[-1][1] <= 200:
+                merged[-1][1] = max(merged[-1][1], b)
+            else:
+                merged.append([a, b])
+        txt = key.split(" ", 2)[-1]
+        for a, b in merged:
+            if not 0 < b - a < 1000 or any(-100 <= b - t <= 700 for t in c_overs) or any(-150 <= b - t <= 400 for t in c_presses):
+                continue
+            big = txt in ("!", "다 참") and b - a < 950
+            out["1초" if big else "1초 참고"].append({"글": f"칩 {key}", "보인 ms": b - a, "때": a, **({} if big else {"뜻": "칩 — 참고 (곧 · N초 · 재는 간격 안)"})})
     for key, c in (K.get("clip") or {}).items():
         # 패널 밖은 0.3초 넘게 머문 것만 (VS · 띠가 미끄러져 들어오는 동안은 뺌)
         if c.get("out") and c["last"] - c["first"] < 300:
