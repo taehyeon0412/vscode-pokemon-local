@@ -217,6 +217,20 @@ export function foeWarn(b: TeamBattle, slot: number): { full: boolean; pct: numb
   return lv === 'none' ? null : { full: lv === 'full', pct: Math.min(99, Math.floor(f.ult * 100)) };
 }
 
+/**
+ * 상대 필살기 예고 "곧" 칩 한 칸의 다음 상태 — s = 지금까지 (since = 예고가 이어진 첫 때 · 진짜 시계 ms, 0 = 없음 · on = 보였나) · w = foeWarn · first = 먼저 찬 칸 ("!" 칩 차례).
+ * 0.3초 이어진 뒤에 (곧 → ! 가 67 ~ 214ms 만에 바뀌어 한두 장면짜리 글자이던 것 — UX 리뷰어 #95 6바퀴 작음 7) · 다 차기 직전 (92% 넘게) 이면 1초 이어질 때만
+ * (한 장면만 보이고 "!" 로 바뀌던 것 — #98 마지막 ④) · 한 번 보이면 다 찰 때까지 그대로 (보이던 "곧" 이 92% 를 넘는 순간 문턱이 1초로 바뀌어 숨었다가
+ * 1초에 한 장면 번쩍인 뒤 "!" 로 바뀌던 것 — bugs 1927) · 다 찼는데 먼저 찬 다른 칸이 있으면 (first 아님 — "!" 는 그 칸만) 차례를 기다리는 "곧"
+ * (보이던 "곧" 이 0.1 ~ 0.2초 만에 사라지던 것 · 지나온 길에 따라 같은 "다 참 · 기다림" 이 "곧" 칩 / 빨강 테두리만 둘로 보이던 것 — 1927 다시 재기 · UX 리뷰어) ·
+ * first 가 되면 "!" 칩이 넘겨받음
+ */
+export function soonChip(s: { since: number; on: boolean }, w: { full: boolean; pct: number } | null, now: number, first: boolean): { since: number; on: boolean } {
+  if (!w || (w.full && first)) return { since: 0, on: false };
+  const since = s.since || now;
+  return { since, on: s.on || now - since >= (w.pct >= 92 ? 1000 : 300) };
+}
+
 /** 무대 가운데 위 안내 — 끼어들기 (상대 필살기 창) · 합동 멘트 (내 필살기에 같은 편 모임) · 연타 (필살기 힘겨루기) · 3:1 / 1:3 */
 export type TeamPrompt =
   /** 끼어들기 — me : foe = 머릿수 (받아치면 힘겨루기) · sure = 1:3 이면 'foe' (받아치면 짐) · foeJoint = 상대가 합동으로 모이는 중 ("상대 합동!") */

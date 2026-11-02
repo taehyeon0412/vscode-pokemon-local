@@ -12,7 +12,7 @@ import { battleSpritePx, koSinkPx, TYPE_COLOR } from '../model';
 import { Sprite } from '../../../ui/Sprite';
 import type { FxActor } from '../fx/bridge';
 import { TEAM_FX, TeamFxRunner, type TeamSlot } from '../fx/team';
-import { bandDrawn, DUEL_VS_MS, FAINT_HOLD_MS, FAINT_PANEL_HOLD_MS, FAINT_UNSEEN_MS, OVER_MSG_MS, VIEW_CHIP_MS, VIEW_WAIT_MS, duelSpots, faintHoldLeft, faintFold, faintFresh, faintIsBig, faintUnsee, faintLine, faintShortLine, faintCountLine, faintShow, foeWarn, NUM_MIN_REAL_MS, numShown, overLineHold, keepJointChips, plateBoxOf, plateState, stackRows, teamDenyNote, teamGeometry, teamPrompt, viewHitChip, viewPopsBack, warnPosOf, type TeamGeo, type WarnPos, viewCrossers, viewMonClass } from './model';
+import { bandDrawn, DUEL_VS_MS, FAINT_HOLD_MS, FAINT_PANEL_HOLD_MS, FAINT_UNSEEN_MS, OVER_MSG_MS, VIEW_CHIP_MS, VIEW_WAIT_MS, duelSpots, faintHoldLeft, faintFold, faintFresh, faintIsBig, faintUnsee, faintLine, faintShortLine, faintCountLine, faintShow, foeWarn, soonChip, NUM_MIN_REAL_MS, numShown, overLineHold, keepJointChips, plateBoxOf, plateState, stackRows, teamDenyNote, teamGeometry, teamPrompt, viewHitChip, viewPopsBack, warnPosOf, type TeamGeo, type WarnPos, viewCrossers, viewMonClass } from './model';
 import { HEAD_NOTE_H, HeadNote, headNoteWidth, pickHeadSpot, useHeldNote } from '../../../ui/HeadNote';
 import { getTeamView, subscribeTeamView, type TeamView } from '../fx/team-view';
 import { cutinArtH, JointNamePlate, TeamCutin } from './TeamCutin';
@@ -259,9 +259,10 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, d
           {st !== 'down' && <Bar v={f.ult} kind={st === 'charge' ? 'ult' : 'ult-full'} />}
         </span>
         {/* 상대 필살기 예고 = 상대 발밑 판 오른쪽 칩 (1:1 이 상대 HP 줄 안인 것과 같은 자리 — 머리 위에 두면 그 상대의 피해 숫자를 덮어 "−1" 이 0px 이던 것, 픽셀 검사원 2차) */}
+        {/* 다 찼어도 먼저 찬 다른 칸이 있으면 (warnChip 아님) 보이던 "곧" 그대로 (bugs 1927) */}
         {warn && (
-          <span class={`pg-team-warn${warn.full ? ' pg-team-warn-full' : ''}${warnPos === 'right' ? '' : ` pg-team-warn-${warnPos}`}`} title={warn.full ? '상대 필살기가 다 찼어요' : `상대 필살기 ${warn.pct}% — 곧`}>
-            {warn.full ? '!' : '곧'}
+          <span class={`pg-team-warn${warn.full && warnChip ? ' pg-team-warn-full' : ''}${warnPos === 'right' ? '' : ` pg-team-warn-${warnPos}`}`} title={warn.full ? (warnChip ? '상대 필살기가 다 찼어요' : '상대 필살기 다 참 — 앞 칸 다음') : `상대 필살기 ${warn.pct}% — 곧`}>
+            {warn.full && warnChip ? '!' : '곧'}
           </span>
         )}
         {/* 다 찬 필살기 누를 틈 (기획 R2 — 볼 때 3초 뒤 저절로) = 판 오른쪽 숫자 3 · 2 · 1 (1:1 Z 모서리와 같은 칩 · 나갈 때까지 1 — 게이지를 줄이면 "필살기가 빠져나간다" 로 읽히던 것, UX 리뷰어) */}
@@ -1166,15 +1167,13 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   // 다 찬 상대 중 먼저 찬 칸 (엔진도 이 칸부터 씀 — teamFoeNext) — 그 칸만 "!" 칩
   //   상대 필살기 · 합동 모으기 동안은 "!" 칩 없음 — 모으는 사이 합동에 안 끼는 다음 칸 (소미안) 으로 옮겨 가 2.3초 "곧 쏜다" 로 읽히던 것 (UX 리뷰어 #98 2)
   const foeFirstSlot = b.phase === 'ult' && b.ult?.side === 'foe' ? -1 : (teamFoeNext(b) ?? -1);
-  // "곧" 은 0.3초 이어진 뒤에 (곧 → ! 가 67 ~ 214ms 만에 바뀌어 한두 장면짜리 글자이던 것 — UX 리뷰어 #95 6바퀴 작음 7) · "!" 는 바로
-  const soonAt = useRef<number[]>([]);
+  // "곧" 은 0.3초 이어진 뒤에 · 92% 넘게면 1초 · 한 번 보이면 "!" 차례 (먼저 찬 칸) 가 될 때까지 그대로 (model soonChip — bugs 1927) · "!" 는 바로
+  const soon = useRef<{ since: number; on: boolean }[]>([]);
   const chipNow = realNow();
   const warnShow = b.foe.map((_, i) => {
     const w0 = foeWarn(b, i);
-    if (!w0 || w0.full) soonAt.current[i] = 0;
-    else soonAt.current[i] ||= chipNow;
-    //   "곧" 은 0.3초 이어진 뒤 · 다 차기 직전 (92% 넘게) 이면 1초 이어질 때만 — 한 장면 (52 · 155ms) 만 보이고 "!" 로 바뀌던 것 (UX 리뷰어 #98 마지막 ④ — 그런 때는 건너뛰고 바로 "!")
-    return !!w0 && (w0.full ? i === foeFirstSlot : chipNow - (soonAt.current[i] ?? 0) >= (w0.pct >= 92 ? 1000 : 300));
+    soon.current[i] = soonChip(soon.current[i] ?? { since: 0, on: false }, w0, chipNow, i === foeFirstSlot);
+    return !!w0 && ((w0.full && i === foeFirstSlot) || soon.current[i]!.on);
   });
   const warnPos = warnPosOf(b, g, warnShow);
   // 모든 칸의 보이는 그림 · 발밑 판 (머리 위 자리가 없는 칩을 옆에 둘 때 피함)
@@ -1337,6 +1336,12 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
               <>
                 <span class="pg-big-lead">{`${prompt.lead} 필살기 · `}</span>
                 <span class="pg-big-lead-s">{`${withJosa(prompt.lead, '과/와')} `}</span>
+                {/* 한 줄 판에서 앞장 이름까지 빠지면 (f4) 앞장 얼굴 — 누가 앞장인지 글이 없던 것 (아트 디렉터 #95 17바퀴 작음 4 · bugs 1657) · 끼어들기 판 얼굴과 같은 창 · 오른쪽 봄 */}
+                {b.ult?.side === 'me' && b.me[b.ult.from] && (
+                  <span class="pg-band-face pg-big-face">
+                    <Sprite media={media} form={b.me[b.ult.from]!.form} scale={1} px={32} crop={20} cropWidth={24} center action="walk" />
+                  </span>
+                )}
                 같이 쓰기!
               </>
             )}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { numShown, NUM_MIN_REAL_MS, NUM_SHOW_MS, bandDrawn, bandLeft, duelSpots, faintHoldLeft, foeUltSoon, JOINT_CHIP_MS, keepJointChips, faintFold, faintFresh, faintIsBig, faintLine, faintUnsee, faintShortLine, faintCountLine, faintShow, overLineHold, plateBoxOf, stackRows, TEAM_ROW_GAP, teamGeometry, viewHitChip, viewPopsBack, warnPosOf, type WarnPos, viewCrossers, viewMonClass, teamDenyNote } from './model';
+import { numShown, NUM_MIN_REAL_MS, NUM_SHOW_MS, bandDrawn, bandLeft, duelSpots, faintHoldLeft, foeUltSoon, soonChip, JOINT_CHIP_MS, keepJointChips, faintFold, faintFresh, faintIsBig, faintLine, faintUnsee, faintShortLine, faintCountLine, faintShow, overLineHold, plateBoxOf, stackRows, TEAM_ROW_GAP, teamGeometry, viewHitChip, viewPopsBack, warnPosOf, type WarnPos, viewCrossers, viewMonClass, teamDenyNote } from './model';
 import { sampleMonster, sampleSave } from '../../../../test/fixtures/save';
 import { startTeamBattle, type TeamBattle } from '../../../core/engine/team';
 
@@ -470,5 +470,42 @@ describe('3:3 숫자 보이는 시간 (bugs 1899)', () => {
     expect(numShown(seen, { id: 2, ms: 0 }, 5000)).toBe(true);
     expect(numShown(seen, { id: 2, ms: NUM_SHOW_MS - 10 }, 5000 + 690)).toBe(true);
     expect(numShown(seen, { id: 2, ms: NUM_SHOW_MS + 10 }, 5000 + 710)).toBe(false);
+  });
+});
+
+describe('상대 필살기 예고 "곧" 칩 (bugs 1927)', () => {
+  // 0.07초마다 그린다고 치고 보이는 장면을 셈 — [ms, % (100 = 다 참), 먼저 찬 칸인가] 표를 따라감
+  const run = (rows: [number, number, boolean?][], until: number) => {
+    let s = { since: 0, on: false };
+    const seen: number[] = [];
+    for (let t = 70; t <= until; t += 70) {
+      const [, pct, first] = [...rows].reverse().find(([at]) => t >= at)!;
+      s = soonChip(s, pct >= 100 ? { full: true, pct: 99 } : pct >= 80 ? { full: false, pct } : null, t, !!first);
+      if (s.on) seen.push(t);
+    }
+    return seen;
+  };
+  const unbroken = (seen: number[]) => seen.every((t, i) => i === 0 || t - seen[i - 1]! === 70);
+  it('0.3초 뒤 보이고 · 92% 를 넘어도 숨지 않음 (숨었다 1초에 한 장면 번쩍이던 것)', () => {
+    const seen = run([[0, 85], [500, 93]], 1400);
+    expect(seen[0]! - 70).toBeGreaterThanOrEqual(300);
+    expect(seen[0]! - 70).toBeLessThan(380);
+    expect(unbroken(seen)).toBe(true);
+  });
+  it('처음부터 92% 넘게 = 1초 이어질 때만 (다 차기 직전 한 장면짜리 "곧" 은 건너뜀)', () => {
+    expect(run([[0, 95]], 900)).toEqual([]);
+    expect(run([[0, 95]], 1200)[0]! - 70).toBeGreaterThanOrEqual(1000);
+  });
+  it('다 찼는데 먼저 찬 칸이 따로 있으면 보이던 "곧" 은 남음 (0.1 ~ 0.2초 뜨고 사라지던 것) · 이 칸이 먼저 찬 칸이 되면 "곧" 끝 ("!" 가 넘겨받음)', () => {
+    const seen = run([[0, 85], [500, 100], [3000, 100, true]], 4000);
+    expect(seen.at(-1)).toBeLessThan(3000);
+    expect(seen.at(-1)).toBeGreaterThan(2900);
+    expect(unbroken(seen)).toBe(true);
+  });
+  it('곧 없이 바로 다 찬 칸 (먼저 찬 칸 아님) 도 1초 뒤 "곧" — 같은 "다 참 · 기다림" 은 늘 같은 모양', () => {
+    const seen = run([[0, 100]], 2000);
+    expect(seen[0]! - 70).toBeGreaterThanOrEqual(1000);
+    expect(seen[0]! - 70).toBeLessThan(1080);
+    expect(unbroken(seen)).toBe(true);
   });
 });
