@@ -10,6 +10,7 @@ import { BALANCE, TIMING } from '../../../core/balance';
 import type { BattleSummary, GameInput } from '../../../core/engine';
 import { Button } from '../../../ui/Button';
 import { KeyCap } from '../../../ui/KeyCap';
+import { afterFonts } from '../../../ui/fonts';
 import { Icon } from '../../../ui/Icon';
 import { contentWidth, FIT_ROOM } from '../../../ui/useFit';
 import { Sprite } from '../../../ui/Sprite';
@@ -292,11 +293,12 @@ function useResultFit(): { box: { current: HTMLDivElement | null }; on: boolean;
   //   처음 잰 값에 머물러 500 × 150 첫 줄 칩이 "피카츄 팀에 들…" 로 잘리고 제목이 4줄이던 것 (bugs 1898 · 1897 howOff 와 같은 뿌리)
   //   감시는 상자 요소가 바뀔 때만 다시 붙임 (그릴 때마다 끊고 붙이면 새 감시의 첫 알림이 다시 그리기를 불러 끝없이 돎) · 끊기는 사라질 때
   const [, remeasure] = useState(0);
-  const watch = useRef<{ el: Element; ro: ResizeObserver } | null>(null);
+  const watch = useRef<{ el: Element; ro: ResizeObserver; offFonts: () => void } | null>(null);
   useEffect(() => {
     const el = box.current;
     if (!el || watch.current?.el === el || typeof ResizeObserver === 'undefined') return;
     watch.current?.ro.disconnect();
+    watch.current?.offFonts();
     const ro = new ResizeObserver(() => remeasure((n) => n + 1));
     ro.observe(el);
     const line = el.querySelector('.pg-line');
@@ -304,12 +306,12 @@ function useResultFit(): { box: { current: HTMLDivElement | null }; on: boolean;
       ro.observe(line);
       for (const c of line.children) ro.observe(c);
     }
-    watch.current = { el, ro };
-    void document.fonts?.ready.then(() => watch.current?.el === el && remeasure((n) => n + 1));
+    watch.current = { el, ro, offFonts: afterFonts(() => remeasure((n) => n + 1)) };
   });
   useEffect(
     () => () => {
       watch.current?.ro.disconnect();
+      watch.current?.offFonts();
       watch.current = null;
     },
     [],

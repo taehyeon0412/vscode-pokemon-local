@@ -72,6 +72,7 @@ import type { Side } from '../../../core/engine';
 import { Sprite } from '../../../ui/Sprite';
 import { spriteBoxOf } from '../../../data/sprite-boxes';
 import { spritePx } from '../../../ui/sprite-path';
+import { afterFonts } from '../../../ui/fonts';
 import { FIT_ROOM } from '../../../ui/useFit';
 import { splitName } from './joint-names';
 
@@ -166,13 +167,7 @@ export function TeamCutin({ who, side, title, sub, media, k, top, height, colors
     if (need > room + 0.02) setFit({ key: fitKey, step: step + 1 });
   });
   // 글꼴이 늦게 오면 다시 잼
-  useEffect(() => {
-    let live = true;
-    document.fonts?.ready.then(() => live && setFit({ key: '', step: 0 }));
-    return () => {
-      live = false;
-    };
-  }, []);
+  useEffect(() => afterFonts(() => setFit({ key: '', step: 0 })), []);
   const big = sub || title;
   //   그림이 하나만 남으면 (4) 제목은 다시 한 줄로 재 봄 — 자리가 생겨 240 안쪽 224 에 20px 한 줄이 들어가는데 "삼색 / 대폭발" 두 줄이 이음선 위에 남던 것 (아트 디렉터 #98 2바퀴 2) · 그래도 넘치면 (5) 두 줄
   const twoOn = step === 2 || step === 3 || step >= 5;

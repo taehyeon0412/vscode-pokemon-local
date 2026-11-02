@@ -8,6 +8,7 @@ import { typeNameKo } from '../../../core/text';
 import { speciesOf } from '../../../data';
 import { Button } from '../../../ui/Button';
 import { confirmKey, onKeyboardButton, useShownAt } from '../../../ui/confirm-key';
+import { afterFonts } from '../../../ui/fonts';
 import { KeyCap } from '../../../ui/KeyCap';
 import { InfoBar } from '../../../ui/InfoBar';
 import { contentWidth, FIT_ROOM } from '../../../ui/useFit';
@@ -137,10 +138,11 @@ export function StarterPick({ media, pending, onBack, onDone }: StarterPickProps
     };
     window.addEventListener('resize', reset);
     const t = window.setTimeout(reset, 400);
-    void document.fonts?.ready.then(reset);
+    const offFonts = afterFonts(reset);
     return () => {
       window.removeEventListener('resize', reset);
       window.clearTimeout(t);
+      offFonts();
     };
   }, []);
 

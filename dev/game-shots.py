@@ -356,6 +356,13 @@ class Quiet(SimpleHTTPRequestHandler):
     def log_message(self, *a):
         pass
 
+    # PG_FONT_DELAY_MS = 글꼴 (.woff2) 만 그만큼 늦게 줌 — 글꼴 늦게 온 판 흉내 (ux-rules 확인 방법 · bugs 2728 · 2729: 2 MB 글꼴이 잰 뒤에 와 옛 배치로 잰 채 남던 것)
+    def do_GET(self):
+        ms = os.environ.get("PG_FONT_DELAY_MS")
+        if ms and self.path.split("?")[0].endswith(".woff2"):
+            time.sleep(int(ms) / 1000)
+        super().do_GET()
+
 
 def serve():
     s = socket.socket()

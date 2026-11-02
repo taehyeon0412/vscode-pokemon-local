@@ -15,6 +15,7 @@ import { shouldHoldBattle } from '../features/battle/fx/hold';
 import { teamChoiceOn } from '../features/battle/team/TeamChoice';
 import { spaceInput } from '../features/battle/fx/parry';
 import { confirmKey, enterBoxKey, onKeyboardButton, SPACE_BOX_MIN_MS, spaceAsEnter, watchKeys } from '../ui/confirm-key';
+import { fontsSettled } from '../ui/fonts';
 import { realNow } from '../ui/real-clock';
 import { fieldTopPx, fitGameLayout, topGapPx } from '../ui/layout';
 import { Store } from '../ui/store';
@@ -272,6 +273,8 @@ if (!port) {
   css.href = config.script.replace(/game\.js(?=$|[?#])/, 'game.css');
   const show = () => {
     root.hidden = false;
+    // 숨긴 동안 잰 크기는 0 — 보인 뒤 다시 재게 (ui/fonts)
+    fontsSettled();
   };
   // 글꼴 (PG Sans — 줄인 Pretendard · game.css @font-face) 까지 받은 뒤에 보임: 글자 없는 버튼이 잠깐 보였다가 글자가 나타나지 않게. 늦어도 0.5초면 보임
   css.onload = () => {

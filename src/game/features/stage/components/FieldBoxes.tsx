@@ -19,6 +19,7 @@ import { speciesOf } from '../../../data';
 import type { RegionId, StageId } from '../../../core/save';
 import { Button } from '../../../ui/Button';
 import { Face } from '../../../ui/Face';
+import { afterFonts } from '../../../ui/fonts';
 import { Icon } from '../../../ui/Icon';
 import { badgeIcon, isNewRegion, regionIcon } from '../../../ui/regionArt';
 import { KeyCap } from '../../../ui/KeyCap';
@@ -538,7 +539,7 @@ export function BadgeCard({ state, onInput, onMap }: BoxProps & { onMap(): void 
     const over = !!a && !!b && b.width > 0 && a.left - 2 < b.right && b.left < a.right + 2 && a.top - 2 < b.bottom && b.top < a.bottom + 2;
     if (over !== overTag) setOverTag(over);
   });
-  // 패널 크기가 바뀌거나 글꼴이 늦게 오면 (400ms · fonts.ready) 처음부터 다시 잼 — useFit 과 같게 (새 창 첫 장면에서 늦은 글꼴로 재 240 에서 안 줄던 것)
+  // 패널 크기가 바뀌거나 글꼴이 늦게 오면 (400ms · ui/fonts afterFonts) 처음부터 다시 잼 — useFit 과 같게 (새 창 첫 장면에서 늦은 글꼴로 재 240 에서 안 줄던 것)
   const [, setAgain] = useState(0);
   useEffect(() => {
     const reset = () => {
@@ -555,11 +556,12 @@ export function BadgeCard({ state, onInput, onMap }: BoxProps & { onMap(): void 
     };
     window.addEventListener('resize', onResize);
     const t = window.setTimeout(reset, 400);
-    void document.fonts?.ready.then(reset);
+    const offFonts = afterFonts(reset);
     return () => {
       window.removeEventListener('resize', onResize);
       window.clearTimeout(t);
       window.clearTimeout(late);
+      offFonts();
     };
   }, []);
   if (state.runtime.stage?.phase !== 'badge') return null;

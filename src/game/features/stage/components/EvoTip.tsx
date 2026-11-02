@@ -7,6 +7,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { evoTip, type EvoUser } from '../../../core/rules/evo-tip';
 import type { ItemId, Save } from '../../../core/save';
+import { afterFonts } from '../../../ui/fonts';
 import { Icon } from '../../../ui/Icon';
 import { KeyCap } from '../../../ui/KeyCap';
 import { Sprite } from '../../../ui/Sprite';
@@ -53,8 +54,11 @@ function useTipFit(body: { current: HTMLElement | null }): number {
   useEffect(() => {
     const reset = () => setStep(0);
     window.addEventListener('resize', reset);
-    void document.fonts?.ready.then(() => remeasure((n) => n + 1));
-    return () => window.removeEventListener('resize', reset);
+    const offFonts = afterFonts(() => remeasure((n) => n + 1));
+    return () => {
+      window.removeEventListener('resize', reset);
+      offFonts();
+    };
   }, []);
   return step;
 }

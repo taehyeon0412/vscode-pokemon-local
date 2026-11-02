@@ -18,6 +18,7 @@ import { formOf, moveOf, speciesOf } from '../../../data';
 import { spriteBoxOf, walkBoxOf } from '../../../data/sprite-boxes';
 import { Button } from '../../../ui/Button';
 import { AutoTip, type AutoTipPlace } from '../../../ui/AutoTip';
+import { afterFonts } from '../../../ui/fonts';
 import { Icon } from '../../../ui/Icon';
 import { HEAD_NOTE_H, HeadNote, headNoteWidth, pickHeadSpot, useHeldNote } from '../../../ui/HeadNote';
 import { Sprite } from '../../../ui/Sprite';
@@ -99,13 +100,16 @@ function HpBlock({ f, side, x, bottom, wide, prefix, noName, dex, panelPx, warn,
   const title = `${side === 'foe' ? prefix : ''}${nameOf(f)} Lv${f.level} · HP ${f.hp}/${f.maxHp}${status ? ` · ${status}` : ''}`;
   // 내 줄은 오른쪽 끝을 맞추고 왼쪽으로 넘침 — 폭을 올림 정수 px 로 (글자 폭 그대로면 왼쪽 끝이 64.4 처럼 소수 px 라 흐리던 것, 픽셀 검사원 2026-10-21)
   const rowRef = useRef<HTMLSpanElement>(null);
-  useLayoutEffect(() => {
+  const roundRow = () => {
     const el = rowRef.current;
     if (!el || side !== 'me') return;
     el.style.width = '';
     const w = el.getBoundingClientRect().width;
     if (w % 1 !== 0) el.style.width = `${Math.ceil(w)}px`;
-  });
+  };
+  useLayoutEffect(roundRow);
+  //   글꼴이 자리 잡은 뒤에도 — 2 MB 글꼴이 잰 뒤에 와 폭 55.578 (왼쪽 끝 반 픽셀) 로 남던 것 (bugs 2729 · ui/fonts)
+  useEffect(() => afterFonts(roundRow), []);
   // 상대 이름 줄 — 넘치면 한 단계 (이름은 자르지 않음 · Lv 는 title): 줄 내용 × 맥 여유 1.1 이 넘칠 수 있는 끝 (--pg-hp-room) 보다 넓으면
   //   1 = Lv 뺌 (240 맥에서 "아리아…" 로 잘리던 것 — bugs 2708 · U4) · 2 = 줄을 왼쪽으로 넘김 (예고 칩 "곧" 이 붙으면 Lv 를 빼도 "아리아도…" — UX 2708 큼 2 · 마지막 기회 NEW 와 같은 규칙)
   //   상대 · 패널 폭 · 예고 칩이 바뀌면 다시 잼

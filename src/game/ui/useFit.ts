@@ -2,9 +2,10 @@
  * 넘치면 한 단계 (ux-rules U4 — 폭 경계를 손으로 고르지 않음) — 길 위 상자 (.pg-banner, ref) 의 줄 (자식) 마다 내용의 실제 너비 × 여유 가 상자가 커질 수 있는 안쪽 폭을 넘으면 단계를 하나 올림.
  * 상자 · 줄은 내용만큼 줄어드는 판이라 줄 폭이 아니라 최대 폭 (패널 − 16 · 높은 주인공이면 --pg-banner-max) 과 비교 (줄 폭과 견주면 넓은 패널에서도 늘 넘친 것으로 재지던 것).
  * 여유 1.1 = 맥 글꼴이 윈도우보다 넓은 만큼 (ux-rules U4 "가로 여유 10%" — 1.0 이면 맥에서 버튼 끝이 잘리던 것, UX 리뷰어 #27).
- * 패널 크기가 바뀌면 0 단계부터 다시 잼 (한 번 줄면 넓혀도 안 돌아오던 것) · 글꼴이 늦게 오면 400ms · fonts.ready 에 다시 잼.
+ * 패널 크기가 바뀌면 0 단계부터 다시 잼 (한 번 줄면 넓혀도 안 돌아오던 것) · 글꼴이 늦게 오면 400ms · 글꼴이 자리 잡은 뒤 (ui/fonts afterFonts) 다시 잼.
  */
 import { useEffect, useLayoutEffect, useState } from 'preact/hooks';
+import { afterFonts } from './fonts';
 
 const ROOM = 1.1;
 /** 맥 가로 여유 — 다른 재기 (VS 컷인) 도 같은 값 */
@@ -65,10 +66,11 @@ export function useFit(box: { current: HTMLElement | null }, max: number, lines?
       check();
     };
     const t = window.setTimeout(again, 400);
-    void document.fonts?.ready.then(again);
+    const offFonts = afterFonts(again);
     return () => {
       window.removeEventListener('resize', onResize);
       window.clearTimeout(t);
+      offFonts();
     };
   }, [size]);
   return step;

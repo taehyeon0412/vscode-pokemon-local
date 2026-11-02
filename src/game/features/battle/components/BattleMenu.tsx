@@ -13,6 +13,7 @@ import type { Save } from '../../../core/save';
 import { moveOf, speciesOf } from '../../../data';
 import { Button } from '../../../ui/Button';
 import { BALL_ICON } from '../../../ui/BallCount';
+import { afterFonts } from '../../../ui/fonts';
 import { confirmKey, onKeyboardButton, useShownAt } from '../../../ui/confirm-key';
 import { ITEM_ICON } from '../../menu/model';
 import { Icon } from '../../../ui/Icon';
@@ -175,21 +176,18 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
     const id = setTimeout(again, 400);
     return () => clearTimeout(id);
   }, [fitKey]);
-  useEffect(() => {
-    let alive = true;
-    void document.fonts?.ready.then(() => {
-      if (!alive) return;
-      fitRef.current.n = 0;
-      setMainTiny(false);
-      refit((v) => v + 1);
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
+  useEffect(
+    () =>
+      afterFonts(() => {
+        fitRef.current.n = 0;
+        setMainTiny(false);
+        refit((v) => v + 1);
+      }),
+    [],
+  );
   const rowLayer = useRef<HTMLSpanElement>(null);
   // 처음 메뉴 줄 (가로) 도 넘치면 한 단계 — 번호 없는 짧은 낱말 (240 의 그것). 줄이기 단계는 아래 줄만 재서, 300 ~ 320 · 맥 글자에서 "1 …" "4 아…" 로 다섯 버튼이 다 잘리던 것 (UX 리뷰어 1px 훑기 — U4)
-  //   폭이 바뀌거나 글꼴이 들어오면 다시 잼 (fitKey 의 win · fonts.ready)
+  //   폭이 바뀌거나 글꼴이 들어오면 다시 잼 (fitKey 의 win · ui/fonts afterFonts)
   const mainLayer = useRef<HTMLSpanElement>(null);
   const [mainTiny, setMainTiny] = useState(false);
   useEffect(() => setMainTiny(false), [win, compact]);

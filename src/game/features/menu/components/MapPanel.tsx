@@ -8,6 +8,7 @@ import { dailyView, type GameInput, type GameState } from '../../../core/engine'
 import { regionHere, type RegionId } from '../../../core/rules/region';
 import type { StageId } from '../../../core/save';
 import { Button } from '../../../ui/Button';
+import { afterFonts } from '../../../ui/fonts';
 import { Icon } from '../../../ui/Icon';
 import { badgeIcon, isNewRegion, regionIcon } from '../../../ui/regionArt';
 import { formatPlayTime } from '../../../ui/format';
@@ -101,11 +102,12 @@ export function MapPanel({ state, swap, midStage, onInput, onTeam, onClose }: Ma
       again();
     };
     const t = window.setTimeout(again, 400);
-    void document.fonts?.ready.then(again);
+    const offFonts = afterFonts(again);
     window.addEventListener('resize', reset);
     return () => {
       window.clearTimeout(t);
       window.removeEventListener('resize', reset);
+      offFonts();
     };
   }, []);
   const go = (to: StageId | 'gym', region?: RegionId) => {
