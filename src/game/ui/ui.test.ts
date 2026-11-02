@@ -219,6 +219,13 @@ describe('머리 위 작은 글 자리 (버린 필살기 누름 — 태현 님 1
     expect(pickHeadSpot(a, 60, 13, bounds, [chip], { team: true })).toEqual({ l: 82, t: 46 });
     expect(pickHeadSpot(a, 60, 13, bounds, [{ l: 0, t: 44, r: 480, b: 47 }], { team: true }).l).toBe(46);
   });
+  it('3:3 — 위 가운데 넓은 줄 (쓰러짐 줄 · 띠) 에 막히면 같은 왼쪽 · 그 줄 아래 · 발밑 판 (키 칸 · HP) 을 덮으면 그 자리 (bugs 1928)', () => {
+    const row = { l: 0, t: 30, r: 480, b: 50 };
+    expect(pickHeadSpot(a, 60, 13, bounds, [row], { team: true })).toEqual({ l: 46, t: 51 });
+    expect(pickHeadSpot(a, 60, 13, bounds, [row], { team: true, under: [{ l: 40, t: 50, r: 110, b: 70 }] })).toEqual({ l: 46, t: 46 });
+    // 줄이 머리 왼쪽 위에 안 걸리면 전과 같음
+    expect(pickHeadSpot(a, 60, 13, bounds, [{ l: 0, t: 0, r: 480, b: 20 }], { team: true })).toEqual({ l: 46, t: 46 });
+  });
   it('다 막히면 발밑 (1:1 240 × 150)', () => {
     const wall = [{ l: 0, t: 26, r: 480, b: 99 }];
     expect(pickHeadSpot(a, 60, 13, bounds, wall)).toEqual({ l: 90, t: 101 });

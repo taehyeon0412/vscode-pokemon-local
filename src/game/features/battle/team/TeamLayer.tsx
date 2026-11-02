@@ -196,10 +196,21 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, d
   // 맞을 때 달려나가 있던 칸은 숫자 · 말도 그 자리 위에 — 본 자리에 떠 0.27초 동안 옆 칸이 맞은 것으로 읽히던 것 (bugs 1907 · U5) · 처음 뜰 때 한 번 재서 끝까지 (돌아가도 맞은 자리에 남음)
   const popShift = useRef(new Map<number, number>());
   // 버린 필살기 누름 글 자리 — 처음 정한 자리를 끝까지 (사라지는 동안 옆걸음 없게 — U2) · 머리 왼쪽 위 → 몸 왼쪽 → 오른쪽 … (다른 칸 그림 · 판 · 자기 판을 피함 · 위 줄 아래)
-  const headAt = useRef<{ key: string; l: number; t: number; w: number } | null>(null);
+  const headAt = useRef<{ key: string; l: number; t: number; w: number; again?: number } | null>(null);
   // 글이 다 사라지면 자리도 잊음 (같은 칸 · 같은 글을 다시 누르면 열쇠가 같아 칩이 없던 때 고른 옛 자리를 다시 써 옆 칸 칩을 덮던 것 — UX 리뷰어 #98)
   if (!head) headAt.current = null;
-  if (head && headAt.current?.key !== head.key) {
+  //   위 가운데 줄 (쓰러짐 줄 · 띠 · 결과 줄 — 무대 바로 아래 줄들) 이 글이 떠 있는 동안 새로 그 자리에 오면 다시 잡음 (bugs 1928 — 글이 먼저 뜬 뒤 0.85초 만에 쓰러짐 줄이 위에 떠
+  //   줄 아랫부분을 덮던 것) · 열쇠는 그대로라 붙잡기 시간은 이어서 셈 · 한 글에 두 번까지 (다 막혀 그 자리면 매 장면 다시 재지 않게)
+  const stage = head ? document.querySelector<HTMLElement>('#pokemon-game .pg-team') : null;
+  const sr = stage?.getBoundingClientRect();
+  const rel = (n: Element) => {
+    const r = n.getBoundingClientRect();
+    return { l: r.left - sr!.left, t: r.top - sr!.top, r: r.right - sr!.left, b: r.bottom - sr!.top };
+  };
+  const rows = stage && sr ? [...stage.querySelectorAll(':scope > .pg-team-band, :scope > .pg-team-faint, :scope > .pg-team-msg-over')].map(rel).filter((r) => r.r > r.l && r.b > r.t) : [];
+  const ha0 = head && headAt.current?.key === head.key ? headAt.current : null;
+  const rowOver = !!ha0 && (ha0.again ?? 0) < 2 && rows.some((r) => ha0.l < r.r && ha0.l + ha0.w > r.l && ha0.t < r.b && ha0.t + HEAD_NOTE_H > r.t);
+  if (head && (headAt.current?.key !== head.key || rowOver)) {
     const hw = headNoteWidth(head.value.text, head.value.key !== null);
     // 시합장 흰 선은 피함 (흰 선이 글 가운데를 지나던 것 — 아트 디렉터 #97)
     const line = lineBand ? [{ l: 0, t: lineBand.t, r: g.W, b: lineBand.b }] : [];
@@ -207,13 +218,11 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, d
     //   3:3 = 누른 칸 포켓몬 머리 왼쪽 위만 (기획 10-26 — 막혀서 무대 왼쪽 위 구석 고정 칸으로 가 리자몽과 멀던 것) · 흰 선만 피해 올리고 · 글은 그림을 따라감 (follow)
     //   (자기 피해 숫자는 글 아래로만 — popMin)
     //   떠 있는 피해 숫자 · 합동 칩 (모든 칸 — 그린 자리 · 무대 기준) 도 피함 (옆 칸 "합동! −19" 의 9 를 키 칸 [2] 가 덮어 −12 로 읽히던 것 — UX 리뷰어 #98 남은 작음 큼)
-    const stage = document.querySelector<HTMLElement>('#pokemon-game .pg-team');
-    const sr = stage?.getBoundingClientRect();
-    const popBoxes = stage && sr ? [...stage.querySelectorAll<HTMLElement>('.pg-team-pop')].map((n) => {
-      const r = n.getBoundingClientRect();
-      return { l: r.left - sr.left, t: r.top - sr.top, r: r.right - sr.left, b: r.bottom - sr.top };
-    }) : [];
-    headAt.current = { key: head.key, w: hw, ...pickHeadSpot(vis, hw, HEAD_NOTE_H, { l: 0, t: topMin - 14, r: g.W, b: g.H }, [...line, ...popBoxes], { team: true }) };
+    //   위 가운데 줄도 피함 — 막히면 그 줄 아래 (발밑 판 · 키 칸 · HP 를 덮으면 다음 후보, bugs 1928)
+    const popBoxes = stage && sr ? [...stage.querySelectorAll('.pg-team-pop')].map(rel) : [];
+    const plates = stage && sr ? [...stage.querySelectorAll('.pg-team-plate')].map(rel) : [];
+    const again = rowOver ? (ha0!.again ?? 0) + 1 : 0;
+    headAt.current = { key: head.key, w: hw, again, ...pickHeadSpot(vis, hw, HEAD_NOTE_H, { l: 0, t: topMin - 14, r: g.W, b: g.H }, [...line, ...popBoxes, ...rows], { team: true, under: plates }) };
   }
   // 글이 떠 있는 동안 이 칸 피해 숫자는 글 아래 끝 + 1 위로 못 올라감 (가로로 겹칠 때 — 위 왼쪽 고정 칸에 리자몽 "-1" 이 올라와 키 칸 [1] 에 겹치던 것, #97 마지막 확인 ·
   //   1:1 "숫자는 말 칸 위로 안 올라감" 과 같은 규칙)
