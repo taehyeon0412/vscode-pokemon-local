@@ -392,6 +392,12 @@ export function faintShortLine(names: readonly string[], mine: ReadonlySet<strin
   return one?.startsWith('상대 ') && !mine.has(one.slice(3)) ? `${one.slice(3)} 쓰러졌다!` : null;
 }
 
+/** 3:3 칸 머리 위 칩 (숫자 · 짧은 말) 의 위치 바닥 — 이 칸 머리 위 글 (note = 자리 l · t · 폭 w) 이 떠 있고 칩 (가운데 x · 폭 반 half) 과 가로로 겹치면
+ *  글 아래 끝 + 1 + 칩 높이 14 아래로만 · 아니면 topMin. 겹침은 칩 폭 그대로 (±16 으로 어림해 넓은 말 "화상을 입었다!" 이 머리 옆 글과 겹치던 것 — bugs 1929) */
+export function popFloor(note: { l: number; t: number; w: number } | null, x: number, half: number, topMin: number, noteH: number): number {
+  return note && note.l < x + half && note.l + note.w > x - half ? Math.max(topMin, note.t + noteH + 1 + 14) : topMin;
+}
+
 /** 편을 말하는 줄인 말도 넘칠 때 — 편 없이 "N마리 쓰러졌다!" (747 앞 그대로 · 띠 · 큰 판은 faintShortLine 다음 단계로 — 줄인 말이 길어져 말 빼기가 앞당겨지지 않게) · 하나면 null */
 export function faintCountLine(names: readonly string[]): string | null {
   const n = new Set(names).size;

@@ -12,7 +12,7 @@ import { battleSpritePx, koSinkPx, TYPE_COLOR } from '../model';
 import { Sprite } from '../../../ui/Sprite';
 import type { FxActor } from '../fx/bridge';
 import { TEAM_FX, TeamFxRunner, type TeamSlot } from '../fx/team';
-import { bandDrawn, DUEL_VS_MS, FAINT_HOLD_MS, FAINT_PANEL_HOLD_MS, FAINT_UNSEEN_MS, OVER_MSG_MS, VIEW_CHIP_MS, VIEW_WAIT_MS, duelSpots, faintHoldLeft, faintFold, faintFresh, faintIsBig, faintUnsee, faintLine, faintShortLine, faintCountLine, faintShow, foeWarn, soonChip, NUM_MIN_REAL_MS, numShown, overLineHold, keepJointChips, plateBoxOf, plateState, stackRows, teamDenyNote, teamGeometry, teamPrompt, viewHitChip, viewPopsBack, warnPosOf, type TeamGeo, type WarnPos, viewCrossers, viewMonClass } from './model';
+import { bandDrawn, DUEL_VS_MS, FAINT_HOLD_MS, FAINT_PANEL_HOLD_MS, FAINT_UNSEEN_MS, OVER_MSG_MS, VIEW_CHIP_MS, VIEW_WAIT_MS, duelSpots, faintHoldLeft, faintFold, faintFresh, faintIsBig, faintUnsee, faintLine, faintShortLine, faintCountLine, faintShow, popFloor, foeWarn, soonChip, NUM_MIN_REAL_MS, numShown, overLineHold, keepJointChips, plateBoxOf, plateState, stackRows, teamDenyNote, teamGeometry, teamPrompt, viewHitChip, viewPopsBack, warnPosOf, type TeamGeo, type WarnPos, viewCrossers, viewMonClass } from './model';
 import { HEAD_NOTE_H, HeadNote, headNoteWidth, pickHeadSpot, useHeldNote } from '../../../ui/HeadNote';
 import { getTeamView, subscribeTeamView, type TeamView } from '../fx/team-view';
 import { cutinArtH, JointNamePlate, TeamCutin } from './TeamCutin';
@@ -227,7 +227,8 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, d
   // 글이 떠 있는 동안 이 칸 피해 숫자는 글 아래 끝 + 1 위로 못 올라감 (가로로 겹칠 때 — 위 왼쪽 고정 칸에 리자몽 "-1" 이 올라와 키 칸 [1] 에 겹치던 것, #97 마지막 확인 ·
   //   1:1 "숫자는 말 칸 위로 안 올라감" 과 같은 규칙)
   const ha = head ? headAt.current : null;
-  const popMin = ha && ha.l < x + 16 && ha.l + ha.w > x - 16 ? Math.max(topMin, ha.t + HEAD_NOTE_H + 1 + 14) : topMin;
+  //   가로 겹침은 칩 폭 그대로 (half = 칩 폭 반 — bugs 1929 · model popFloor)
+  const popMinFor = (half: number) => popFloor(ha, x, half, topMin, HEAD_NOTE_H);
   // 머리 위 숫자 바닥 = 보이는 그림 위 끝 − 4 (맞은 몸에 붙임 — 그림 칸 위 끝으로 잡아 860 에서 머리 18px 위에 뜨고 · ×1 은 #92 때 쓰러짐 말 (폭 약 90) 을 앞 칸 더미 위로 쌓던 규칙이 남아
   //   숫자가 다른 포켓몬 옆 45px 위에 뜨던 것 — 아트 디렉터 #95 9바퀴 1 · 쓰러짐 말은 이제 위 줄이라 더미엔 숫자 (폭 14 ~ 25) 만 · 칸 사이 24 ~ 60 이라 안 겹침)
   const popBase = vis.t - 4;
@@ -299,7 +300,11 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, d
           세로 = 머리 위 끝 + 4 (위 줄 아래 + 2 보다 위로는 안 감) — 240 에서 칩이 맞은 레디바 위 14px 를 덮고 (6바퀴 ①) · 옆 자리가 다른 포켓몬 머리 위에 붙어 그쪽이 맞은 것처럼 읽히던 것 (아트 디렉터 #95 7바퀴 ① · bw-triple-8 숫자는 그림을 덮지 않음) */}
       {pops.map((p, i) => {
         const tall = !!p.joint || (big && NUM_KINDS.has(p.kind) && p.kind !== 'heal');
-        const top = Math.max(popMin + (tall ? 6 : 0) + popGap(pops.slice(i + 1)) + stagger, popBase - popGap(pops.slice(0, i)));
+        // 칩 폭 어림 (합동 = 판 + "합동!" + 16px 숫자 · 큰 숫자 판) — 실측 (합동 −5 = 52 · −23 = 63 · 큰 −7 = 25) 보다 늘 크게 잡아 겹침을 놓치지 않게 (아트 디렉터 #95 8바퀴 2)
+        // ×1 무대 (400 아래) 합동 칩은 숫자만 ("합동!" 은 띠가 말함 · 폭 62 → 약 30 — 옆 두 자리가 막혀 머리 위로 가 옆 칸 그림을 덮던 것, UX 리뷰어 #95 8바퀴 5)
+        const tagOn = g.scale !== 1;
+        const cw = Math.ceil(((p.joint && tagOn ? 35 : 12) + 10 * p.text.length) * 1.1);
+        const top = Math.max(popMinFor(cw / 2) + (tall ? 6 : 0) + popGap(pops.slice(i + 1)) + stagger, popBase - popGap(pops.slice(0, i)));
         let dx = popShift.current.get(p.id);
         if (dx === undefined) {
           dx = dashShift(side, slot);
@@ -308,10 +313,6 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, d
         }
         const px = x + dx;
         let at: { l: number; t: number } | null = placed.current.get(p.id) ?? null;
-        // 칩 폭 어림 (합동 = 판 + "합동!" + 16px 숫자 · 큰 숫자 판) — 실측 (합동 −5 = 52 · −23 = 63 · 큰 −7 = 25) 보다 늘 크게 잡아 겹침을 놓치지 않게 (아트 디렉터 #95 8바퀴 2)
-        // ×1 무대 (400 아래) 합동 칩은 숫자만 ("합동!" 은 띠가 말함 · 폭 62 → 약 30 — 옆 두 자리가 막혀 머리 위로 가 옆 칸 그림을 덮던 것, UX 리뷰어 #95 8바퀴 5)
-        const tagOn = g.scale !== 1;
-        const cw = Math.ceil(((p.joint && tagOn ? 35 : 12) + 10 * p.text.length) * 1.1);
         // 머리 위 자리가 옆 칸 그림 · 판에 닿아도 옆 자리를 찾아봄 (240 × 187 에서 머리 위 칩이 통통코 · 이상해꽃을 덮던 것 — 픽셀 검사원 #95 7바퀴 7)
         //   떠 있는 머리 글 (버린 필살기 누름 — 다른 칸 · 무대 기준) 도 처음 자리를 고를 때만 피함 (글이 먼저 떠 있고 옆 칸에 칩이 나중에 붙어 글 키 칸이 칩 숫자를 덮던 것 — UX 리뷰어 98b 2바퀴 작음 1)
         const notes = tall && !placed.current.has(p.id) ? headNoteBoxes() : [];

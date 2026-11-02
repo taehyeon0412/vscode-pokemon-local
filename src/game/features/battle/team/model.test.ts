@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { numShown, NUM_MIN_REAL_MS, NUM_SHOW_MS, bandDrawn, bandLeft, duelSpots, faintHoldLeft, foeUltSoon, soonChip, JOINT_CHIP_MS, keepJointChips, faintFold, faintFresh, faintIsBig, faintLine, faintUnsee, faintShortLine, faintCountLine, faintShow, overLineHold, plateBoxOf, stackRows, TEAM_ROW_GAP, teamGeometry, viewHitChip, viewPopsBack, warnPosOf, type WarnPos, viewCrossers, viewMonClass, teamDenyNote } from './model';
+import { numShown, NUM_MIN_REAL_MS, NUM_SHOW_MS, bandDrawn, bandLeft, duelSpots, faintHoldLeft, foeUltSoon, soonChip, JOINT_CHIP_MS, keepJointChips, faintFold, faintFresh, faintIsBig, faintLine, faintUnsee, faintShortLine, faintCountLine, faintShow, popFloor, overLineHold, plateBoxOf, stackRows, TEAM_ROW_GAP, teamGeometry, viewHitChip, viewPopsBack, warnPosOf, type WarnPos, viewCrossers, viewMonClass, teamDenyNote } from './model';
 import { sampleMonster, sampleSave } from '../../../../test/fixtures/save';
 import { startTeamBattle, type TeamBattle } from '../../../core/engine/team';
 
@@ -350,6 +350,17 @@ describe('3:3 위 가운데 줄 — 띠 · 쓰러짐 줄 · 결과 줄 (픽셀 �
     expect(faintCountLine(['리자몽', '상대 리자몽', '상대 망나뇽'])).toBe('3마리 쓰러졌다!');
     expect(faintCountLine(['통통코', '통통코'])).toBeNull();
     expect(faintCountLine(['상대 통통코'])).toBeNull();
+  });
+
+  it('칩 바닥 (popFloor) — 같은 칸 머리 위 글과 가로로 겹치면 글 아래로 · 겹침은 칩 폭 그대로 (bugs 1929 — 넓은 말 "화상을 입었다!" 이 머리 옆 글과 겹치던 것)', () => {
+    // 머리 옆 글 (1928 — 줄 아래로 간 자리) · 칸 가운데 x 100 · 글 오른쪽 끝 = 머리 왼쪽 + 6
+    const note = { l: 30, t: 50, w: 50 };
+    // 숫자 (폭 반 16) 는 가로로 안 겹쳐 그대로 · 넓은 말 (폭 반 44) 은 글 아래로 (50 + 13 + 1 + 14)
+    expect(popFloor(note, 100, 16, 30, 13)).toBe(30);
+    expect(popFloor(note, 100, 44, 30, 13)).toBe(78);
+    // 글이 없으면 · 위 줄 바닥이 더 아래면 그대로
+    expect(popFloor(null, 100, 44, 30, 13)).toBe(30);
+    expect(popFloor(note, 100, 44, 90, 13)).toBe(90);
   });
 
   it('ideas 743 — 쓰러짐 한 줄은 내 이름 먼저 · "상대 ○○" 는 뒤로 (거울 대결 "상대 리자몽 · 망나뇽" 의 "상대" 가 망나뇽에도 걸려 읽히던 것) · 같은 이름 하나', () => {

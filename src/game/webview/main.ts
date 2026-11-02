@@ -241,6 +241,17 @@ if (!port) {
       dev: (a: DevAction) => {
         if (session.devChange((s) => devApply(s, a).state)) store.set({ state: session.current });
       },
+      // 3:3 말 칩 하나 넣기 (엔진 popup 과 같은 모양 — 화면이 실제 자리 규칙으로 놓음 · 드문 장면 흉내 사진, bugs 1929)
+      teamPop: (side: 'me' | 'foe', slot: number, text: string) => {
+        const changed = session.devChange((s) => {
+          const st = s.runtime.stage;
+          if (st?.phase !== 'team') return s;
+          const id = st.team.popupSeq + 1;
+          const team = { ...st.team, popupSeq: id, popups: [...st.team.popups.slice(-11), { id, side, slot, text, ms: 0, kind: 'status' as const }] };
+          return { ...s, runtime: { ...s.runtime, stage: { ...st, team } } };
+        });
+        if (changed) store.set({ state: session.current });
+      },
       // 3:3 장면 전환 단계 · 지금 시계 배 — 판 도구가 빠르게 ▶▶ 시간을 까닭별로 나눔 (#136)
       view: () => getTeamView(),
       scale: () => gameClockScale(),
