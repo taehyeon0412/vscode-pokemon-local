@@ -6,14 +6,11 @@
  */
 import { Fragment } from 'preact';
 import { useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { toastMapTail } from '../../../core/engine/play';
 import { KeyCap } from '../../../ui/KeyCap';
 
 const EDGE = 8;
-/** 오늘의 목표 알림 (엔진 play.ts "오늘의 목표 ✓ …" · "오늘의 목표 다 했어요!") — 끝에 어디서 보는지 "· [M] 지도" (모두에게 켰는데 목표가 생긴 걸 알 곳이 없던 것 — 개발 UX #59) */
-/** 새 지역 알림 (개발 #66 — "새 지역이 열렸어요 — 해변" · "다음 지역을 골라요") 도 지도에서 보니 같은 꼬리 (orders #67) */
-const MAP_TOASTS = ['오늘의 목표', '새 지역', '다음 지역'];
-/** 그동안 요약 (엔진 awaySummary — "… · 새 지역 해변" · "다음 지역 고르기", 낱말 사이 줄 안 바뀌는 칸) 에 새 지역이 있어도 같은 꼬리 (요약이 지나면 알 곳이 없던 것 — 개발 UX #70) */
-const MAP_IN_SUMMARY = ['새 지역', '다음 지역'];
+/** 끝에 "· [M] 지도" 꼬리를 붙이는 글 — 오늘의 목표 · 새 지역 · 다음 지역 알림 (orders #67) · 새 지역이 든 그동안 요약 · 규칙은 엔진 toastMapTail 한 곳 (그동안 요약 장 시간도 꼬리를 셈 — ideas 1670) */
 
 export function StageToast({ text, center, bottom, room, avoid }: { text: string; center: number; bottom: number; room?: number; /** 덮으면 안 되는 상자 (선택자) — 줄이 늘어 그 상자에 닿으면 아래로 내림 */ avoid?: string }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -80,7 +77,7 @@ export function StageToast({ text, center, bottom, room, avoid }: { text: string
           </Fragment>
         ))
       )}
-      {(MAP_TOASTS.some((p) => text.startsWith(p)) || MAP_IN_SUMMARY.some((p) => text.includes(p))) && (
+      {toastMapTail(text) && (
         <span class="pg-nw">
           {' · '}
           <KeyCap k="M" /> 지도

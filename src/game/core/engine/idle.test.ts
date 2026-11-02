@@ -5,7 +5,7 @@ import { sampleMonster, sampleSave, viaJson } from '../../../test/fixtures/save'
 import { BALANCE, TIMING } from '../balance';
 import { NOTIFY_OFF_TIP, TIPS_MAX, validateSave, type PendingChoice, type Save } from '../save';
 import { autoPotion, battleStep, startBattle, type BattleState } from './battle';
-import { applyInput, awayCardMs, awaySummary, step } from './play';
+import { applyInput, awayCardMs, awaySummary, MAP_TAIL_CHARS, step, thenMsAt, toastMapTail } from './play';
 import { addChoices, takeLaterChoices } from './rewards';
 import { createGameState, readRuntime, type GameState, type StageRuntime } from './state';
 
@@ -174,6 +174,20 @@ describe('#16 자리 비운 동안 요약', () => {
     const returned = step(picked, STEP).state;
     expect(JSON.stringify(returned.runtime.toast?.then)).not.toContain('주웠다');
     expect(JSON.stringify(returned.runtime.toast?.then)).toContain('Lv 6!');
+    // 줄 선 장마다 길이 (ideas 1670) — 떠날 때 남은 "Lv 6!" 은 보통 알림 길이 · 요약 장은 글 수만큼 (한 값을 같이 써 "Lv 6!" 도 요약 장 길이이던 것) · 넘겨도 남음
+    const rt0 = returned.runtime.toast!;
+    const q0 = Array.isArray(rt0.then) ? rt0.then : [rt0.then!];
+    expect(thenMsAt(rt0, q0.indexOf('Lv 6!'))).toBe(TIMING.toastMs);
+    q0.forEach((x, i) => {
+      if (x.includes('그동안')) expect(thenMsAt(rt0, i)).toBe(awayCardMs(x));
+    });
+    expect(readRuntime(viaJson(returned.runtime), 1).toast?.thenMs).toEqual(rt0.thenMs);
+    // 화면이 붙이는 "· [M] 지도" 꼬리도 장 시간에 (ideas 1670) — 새 지역이 든 요약 (낱말 사이 NBSP)
+    const withMap = '그동안: 1-1 12% → 63% · 이상해씨 Lv 12 · 포인트 +6 · 새 지역 해변';
+    expect(toastMapTail(withMap)).toBe(true);
+    expect(awayCardMs(withMap)).toBe(Math.min(TIMING.awaySummaryMaxMs, (withMap.length + MAP_TAIL_CHARS) * TIMING.awaySummaryCharMs));
+    expect(awayCardMs(withMap)).toBeGreaterThan(withMap.length * TIMING.awaySummaryCharMs);
+    expect(toastMapTail('그동안: 1-1 12%')).toBe(false);
     // 안 보는 동안 생긴 알림은 요약이 대신 (네 장 10초 — UX 리뷰어)
     const stale = step({ ...back, runtime: { ...back.runtime, toast: { text: '1-3 클리어!', ms: 2500, then: '이상해씨 Lv 6!' } } }, STEP).state;
     expect(sp(stale.runtime.toast?.text)).toContain('그동안');

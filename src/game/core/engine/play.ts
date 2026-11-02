@@ -1180,7 +1180,13 @@ function nextToast(t: NonNullable<RuntimeState['toast']>): RuntimeState['toast']
   const q = t.then === undefined ? [] : Array.isArray(t.then) ? t.then : [t.then];
   if (q.length === 0) return null;
   const rest = q.slice(1);
-  return { text: q[0]!, ms: t.thenMs ?? TIMING.toastMs, ...(rest.length ? { then: rest.length === 1 ? rest[0]! : rest, ...(t.thenMs ? { thenMs: t.thenMs } : {}) } : {}) };
+  const restMs = Array.isArray(t.thenMs) ? t.thenMs.slice(1) : t.thenMs;
+  return { text: q[0]!, ms: thenMsAt(t, 0), ...(rest.length ? { then: rest.length === 1 ? rest[0]! : rest, ...(restMs !== undefined ? { thenMs: restMs } : {}) } : {}) };
+}
+
+/** 줄 선 i 번째 알림의 길이 — thenMs 가 배열이면 칸마다 (ideas 1670) · 수 하나면 모두 · 없으면 TIMING.toastMs */
+export function thenMsAt(t: NonNullable<RuntimeState['toast']>, i: number): number {
+  return Array.isArray(t.thenMs) ? (t.thenMs[i] ?? TIMING.toastMs) : (t.thenMs ?? TIMING.toastMs);
 }
 
 /** 알림 줄 세우기 — 떠 있는 알림이 있으면 그 뒤에 (덮지 않음, U1 · 최대 4) */
@@ -1193,19 +1199,27 @@ function dropToasts(rt: RuntimeState, drop: (text: string) => boolean): RuntimeS
   if (left.length === 1 + then.length) return rt;
   if (left.length === 0) return { ...rt, toast: null };
   const [head, ...rest] = left;
-  const tail = rest.length === 0 ? {} : { then: rest.length === 1 ? rest[0]! : rest };
+  // 줄마다 길이 (배열 — ideas 1670) 는 남은 글과 같이 걸러 냄
+  const msOf = [t.ms, ...then.map((_, i) => thenMsAt(t, i))].filter((_, i) => !drop([t.text, ...then][i]!));
+  const restMs = Array.isArray(t.thenMs) && rest.length ? { thenMs: msOf.slice(1) } : {};
+  const tail = rest.length === 0 ? {} : { then: rest.length === 1 ? rest[0]! : rest, ...restMs };
   if (head === t.text) {
-    const { then: _then, ...keep } = t;
-    return { ...rt, toast: { ...keep, ...tail } };
+    const { then: _then, thenMs: _ms, ...keep } = t;
+    return { ...rt, toast: { ...keep, ...(Array.isArray(t.thenMs) ? {} : t.thenMs !== undefined ? { thenMs: t.thenMs } : {}), ...tail } };
   }
-  return { ...rt, toast: { text: head!, ms: t.thenMs ?? TIMING.toastMs, ...tail } };
+  return { ...rt, toast: { text: head!, ms: Array.isArray(t.thenMs) ? msOf[0]! : (t.thenMs ?? TIMING.toastMs), ...tail } };
 }
 
-function queueToast(rt: RuntimeState, text: string): RuntimeState {
-  if (!rt.toast) return { ...rt, toast: { text, ms: TIMING.toastMs } };
+function queueToast(rt: RuntimeState, text: string, ms: number = TIMING.toastMs): RuntimeState {
+  if (!rt.toast) return { ...rt, toast: { text, ms } };
   const q = rt.toast.then === undefined ? [] : Array.isArray(rt.toast.then) ? rt.toast.then : [rt.toast.then];
   const next = [...q, text].slice(-4);
-  return { ...rt, toast: { ...rt.toast, then: next.length === 1 ? next[0]! : next } };
+  // 줄 선 알림마다 길이 — 새 글은 제 길이 (thenMs 하나를 같이 써 뒤에 선 보통 알림도 요약 장 길이 4.5초이던 것, ideas 1670) · 모두 기본이면 안 적음
+  const ms0 = q.map((_, i) => thenMsAt(rt.toast!, i));
+  const msNext = [...ms0, ms].slice(-4);
+  const thenMs = msNext.every((x) => x === TIMING.toastMs) ? undefined : msNext.length === 1 ? msNext[0]! : msNext;
+  const { thenMs: _old, ...keep } = rt.toast;
+  return { ...rt, toast: { ...keep, then: next.length === 1 ? next[0]! : next, ...(thenMs !== undefined ? { thenMs } : {}) } };
 }
 
 /** 자동 전투 첫 안내를 화면이 그릴 수 있는 장면 — 1:1 전투 (늘 자동 스위치) · 걷기 · 클리어 카드 · 대기실 · 시설 앞 (정보줄 스위치) (디자인팀) */
@@ -2030,10 +2044,9 @@ function awayCards(rest: RuntimeState, rt: RuntimeState, awayLog: AwayLog, first
   const kept = rt.toast && awayLog.toastAtLeave === rt.toast.text ? { ...rt.toast, then: keptThen.length === 0 ? undefined : keptThen.length === 1 ? keptThen[0]! : keptThen } : null;
   if (!first) return { ...rest, toast: rt.toast };
   if (kept) {
-    const q = queueToast({ ...rest, toast: kept }, first);
-    const both = second ? queueToast(q, second) : q;
-    // 줄 선 장은 한 값 (thenMs) — 둘 중 긴 장에 맞춤
-    return both.toast ? { ...both, toast: { ...both.toast, thenMs: Math.max(awayCardMs(first), second ? awayCardMs(second) : 0) } } : both;
+    // 줄 선 장마다 제 길이 — 떠날 때 남은 알림은 그대로 · 요약 장은 글 수만큼 (ideas 1670 — 한 값을 같이 써 보통 알림도 4.5초이던 것)
+    const q = queueToast({ ...rest, toast: kept }, first, awayCardMs(first));
+    return second ? queueToast(q, second, awayCardMs(second)) : q;
   }
   return { ...rest, toast: { text: first, ms: awayCardMs(first), ...(second ? { then: second, thenMs: awayCardMs(second) } : {}) } };
 }
@@ -2041,7 +2054,18 @@ function awayCards(rest: RuntimeState, rt: RuntimeState, awayLog: AwayLog, first
 /** 그동안 요약 한 장을 띄우는 시간 — 글자 수 × awaySummaryCharMs (3줄 넘게 자란 장이 다른 장과 같은 3초라 빠듯하던 것 — ideas 737) · 최소 awaySummaryMs · 최대 awaySummaryMaxMs */
 export function awayCardMs(text: string): number {
   const t = TIMING;
-  return Math.min(t.awaySummaryMaxMs, Math.max(t.awaySummaryMs, text.length * t.awaySummaryCharMs));
+  // 화면이 끝에 붙이는 "· [M] 지도" 꼬리도 글 수에 (ideas 1670 — 꼬리 7자가 빠져 첫 장이 0.45초 빠듯하던 것)
+  const n = text.length + (toastMapTail(text) ? MAP_TAIL_CHARS : 0);
+  return Math.min(t.awaySummaryMaxMs, Math.max(t.awaySummaryMs, n * t.awaySummaryCharMs));
+}
+
+/** 알림 끝에 화면 (StageToast) 이 "· [M] 지도" 꼬리를 붙이는 글 — 오늘의 목표 · 새 지역 · 다음 지역으로 시작하거나 (orders #67) 그동안 요약에 새 지역이 든 글 · 꼬리 글 수 */
+const MAP_TOASTS = ['오늘의 목표', '새 지역', '다음 지역'];
+// 그동안 요약은 낱말 사이가 줄 안 바뀌는 칸 (NBSP)
+const MAP_IN_SUMMARY = ['새 지역', '다음 지역'];
+export const MAP_TAIL_CHARS = 7;
+export function toastMapTail(text: string): boolean {
+  return MAP_TOASTS.some((p) => text.startsWith(p)) || MAP_IN_SUMMARY.some((p) => text.includes(p));
 }
 
 /** 떠날 때 — 돈 · 가방 · 자리 · 레벨 · 포인트 (그동안 요약의 기준) */

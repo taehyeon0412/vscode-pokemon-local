@@ -82,8 +82,9 @@ export interface Toast {
   ms: number;
   /** 이 알림이 끝나면 이어서 띄울 글 (TIMING.toastMs) — 긴 알림을 둘로 나눠 차례로 (2026-10-21 1-3 클리어) · 여럿이면 줄 (앞 것을 덮지 않음 — 주운 것이 요약 둘째 장을 덮던 것, UX 리뷰어) */
   then?: string | string[];
-  /** 이어 띄울 알림의 길이 (없으면 TIMING.toastMs) — 그동안 요약 둘째 장도 첫 장과 같게 (3초) */
-  thenMs?: number;
+  /** 이어 띄울 알림의 길이 (없으면 TIMING.toastMs) — 그동안 요약 둘째 장도 첫 장과 같게 (3초) · 배열이면 줄 선 알림마다 (then 과 같은 차례 — 하나를 같이 써
+   *  떠날 때 남은 보통 알림도 요약 장 길이 4.5초이던 것, ideas 1670) */
+  thenMs?: number | number[];
   /** 알림 종류 — 'auto-tip' = 자동 전투 첫 안내 (R12, 화면이 자동 스위치 옆에 둠). 없으면 머리 위 보통 알림 */
   kind?: 'auto-tip';
   /** 자동 전투 안내를 이미 셈 (화면이 그렸다고 알림 — tip-seen auto 는 안내 하나에 한 번) */
@@ -327,7 +328,7 @@ export function readRuntime(raw: unknown, fallbackSeed: number, stepMs: number =
   const acc = r.stepAccMs;
   const toast =
     isObj(r.toast) && typeof r.toast.text === 'string' && num(r.toast.ms, 0, 60_000) !== null
-      ? { text: r.toast.text.slice(0, 300), ms: r.toast.ms as number, ...readThen(r.toast.then), ...(num(r.toast.thenMs, 500, 60_000) !== null ? { thenMs: r.toast.thenMs as number } : {}), ...(r.toast.kind === 'auto-tip' ? { kind: 'auto-tip' as const, ...(r.toast.counted === true ? { counted: true as const } : {}) } : {}), ...(typeof r.toast.short === 'string' ? { short: r.toast.short.slice(0, 120) } : {}) }
+      ? { text: r.toast.text.slice(0, 300), ms: r.toast.ms as number, ...readThen(r.toast.then), ...readThenMs(r.toast.thenMs), ...(r.toast.kind === 'auto-tip' ? { kind: 'auto-tip' as const, ...(r.toast.counted === true ? { counted: true as const } : {}) } : {}), ...(typeof r.toast.short === 'string' ? { short: r.toast.short.slice(0, 120) } : {}) }
       : null;
   return {
     rngState: typeof rng === 'number' && Number.isInteger(rng) && rng >= 0 && rng <= 0xffffffff ? rng : fallbackSeed >>> 0,
@@ -348,6 +349,13 @@ export function readRuntime(raw: unknown, fallbackSeed: number, stepMs: number =
     // 개발 모드 (임시) — 확장이 개발 모드가 아니면 다시 뗌 (game-session)
     ...(readDev(r.dev) ? { dev: readDev(r.dev)! } : {}),
   };
+}
+
+/** 이어 띄울 알림 길이 — 수 하나 (모두) 또는 줄마다 (최대 4 · ideas 1670) · 0.5 ~ 60초 밖이면 버림 */
+function readThenMs(v: unknown): { thenMs?: number | number[] } {
+  if (num(v, 500, 60_000) !== null) return { thenMs: v as number };
+  if (Array.isArray(v) && v.length > 0 && v.length <= 4 && v.every((x) => num(x, 500, 60_000) !== null)) return { thenMs: v as number[] };
+  return {};
 }
 
 /** 이어 띄울 알림 — 글 하나 또는 줄 (최대 4) */
