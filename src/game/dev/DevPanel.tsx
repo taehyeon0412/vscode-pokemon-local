@@ -104,6 +104,27 @@ export function DevPanel({ state, media, onDev, onEnd, onClose }: { state: GameS
   // 판 몸통이 아래로 더 있는지 — 반만 보이는 줄이 고장 난 배치처럼 보이던 것 (아트 디렉터 · 픽셀 검사원) → 아래 줄 왼쪽 "▼ 아래에 더"
   const probe = useRef<HTMLSpanElement>(null);
   const [more, setMore] = useState(false);
+  // 아래 줄은 늘 한 줄 (U514 — 두 줄 알림이 아래 줄을 54px 로 늘려 몸통이 절반 · 뜨고 질 때 판 끝이 3 ~ 13px 오르내리던 것) · 넘치면 한 단계 (그리기 전 · 맥 여유 10%):
+  //   "저장 안 됨" 숨김 → "▼ 아래에 더" 숨김 → 줄인 말 (알림마다 손으로 쓴 것 — DevResult.short) → 그래도면 두 줄 (마지막). 몸통 자르기보다 먼저 (아래 줄 높이를 정한 뒤 잼)
+  //   [개발 끝내기] 는 숨기지 않음 — 판이 열린 동안은 게임이 멈춰 알림이 안 사라져, 숨기면 판 내내 끝낼 수 없던 것 (U514 UX 큼)
+  const foot = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    const f = foot.current;
+    const el = f?.querySelector<HTMLElement>('.pg-dev-say');
+    f?.classList.remove('pg-dev-foot-1', 'pg-dev-foot-2', 'pg-dev-foot-wrap');
+    if (!f || !el?.dataset.full) return;
+    if (el.textContent !== el.dataset.full) el.textContent = el.dataset.full;
+    const over = () => {
+      const rg = document.createRange();
+      rg.selectNodeContents(el);
+      return rg.getBoundingClientRect().width * 1.1 > el.clientWidth;
+    };
+    for (const k of ['pg-dev-foot-1', 'pg-dev-foot-2', 'short', 'pg-dev-foot-wrap']) {
+      if (!over()) break;
+      if (k !== 'short') f.classList.add(k);
+      else if (el.dataset.short) el.textContent = el.dataset.short;
+    }
+  });
   useLayoutEffect(() => {
     const body = probe.current?.closest<HTMLElement>('.pg-panel-body');
     if (!body) return;
@@ -162,8 +183,12 @@ export function DevPanel({ state, media, onDev, onEnd, onClose }: { state: GameS
   const toast = state.runtime.toast ?? null;
   if (say0 !== sayAt.current.text) sayAt.current = { text: say0, tab, toast, n: 1 };
   else if (say0 && toast !== sayAt.current.toast) sayAt.current = { ...sayAt.current, toast, n: sayAt.current.n + 1 };
-  // 같은 버튼을 또 누르면 ×2 · ×3 (두 번째로 눌렸는지 알 수 없던 것 — UX 리뷰어 3차) · "Lv 20" 은 줄이 안 갈라지게
-  const say = say0 && sayAt.current.tab === tab ? `${say0}${sayAt.current.n > 1 ? ` ×${sayAt.current.n}` : ''}`.replace(/Lv (\d)/g, 'Lv\u00a0$1') : '';
+  // 같은 버튼을 또 누르면 (2번째) · (3번째) (두 번째로 눌렸는지 알 수 없던 것 — UX 리뷰어 3차 · "×2" 는 "3마리 ×2" 처럼 숫자에 붙어 읽혀서 바꿈, U514) · "Lv 20" 은 줄이 안 갈라지게
+  const sayN = sayAt.current.n > 1 ? ` (${sayAt.current.n}번째)` : '';
+  const lvGlue = (t: string) => t.replace(/Lv (\d)/g, 'Lv\u00a0$1');
+  const say = say0 && sayAt.current.tab === tab ? lvGlue(`${say0}${sayN}`) : '';
+  const say0Short = say0 ? state.runtime.toast?.short : undefined;
+  const sayShort = say && say0Short ? lvGlue(`${say0Short}${sayN}`) : '';
   const sayShown = useRef('');
   // 3:3 이 모두에게 켜져 있으면 (BALANCE.team.on — orders #59) 끌 수 없어 숨김 (꺼짐이라 써도 3:3 이 그대로이던 것 — 코드 리뷰어)
   const teamSwitch = (cls: string) => BALANCE.team.on ? null : (
@@ -199,9 +224,14 @@ export function DevPanel({ state, media, onDev, onEnd, onClose }: { state: GameS
         </>
       }
       foot={
-        <span class="pg-dev-foot">
-          {say && <span class="pg-dev-say">{say}</span>}
+        <span ref={foot} class="pg-dev-foot">
+          {/* ▼ 는 줄 왼쪽 끝 (알림이 한 줄이 되며 알림 뒤 가운데로 밀리던 것 — U514 UX) */}
           {more && <span class="pg-dev-more">▼ 아래에 더</span>}
+          {say && (
+            <span class="pg-dev-say" data-full={say} data-short={sayShort || undefined} title={say}>
+              {say}
+            </span>
+          )}
           {/* 판이 열린 동안은 구석 꼬리표를 숨기고 (판 몸통이 반 줄 모자라던 것) "저장 안 됨" 을 여기 — UX 리뷰어 */}
           <span class="pg-dev-nosave">저장 안 됨</span>
           <Button secondary extraClass="pg-dev-btn pg-danger pg-dev-end" onClick={onEnd} title="개발 모드 끝내기 — 타이틀로 (개발 모드에서 한 것은 저장되지 않아요)">

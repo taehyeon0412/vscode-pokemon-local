@@ -88,6 +88,8 @@ export interface Toast {
   kind?: 'auto-tip';
   /** 자동 전투 안내를 이미 셈 (화면이 그렸다고 알림 — tip-seen auto 는 안내 하나에 한 번) */
   counted?: true;
+  /** 개발 메뉴 아래 줄이 좁을 때 대신 쓸 짧은 말 (개발 알림만 — U514: 글을 " · " 에서 잘라 상대 둘째 마리를 떨구던 것 → 알림마다 따로 씀) */
+  short?: string;
 }
 
 export interface RuntimeState {
@@ -325,7 +327,7 @@ export function readRuntime(raw: unknown, fallbackSeed: number, stepMs: number =
   const acc = r.stepAccMs;
   const toast =
     isObj(r.toast) && typeof r.toast.text === 'string' && num(r.toast.ms, 0, 60_000) !== null
-      ? { text: r.toast.text.slice(0, 300), ms: r.toast.ms as number, ...readThen(r.toast.then), ...(num(r.toast.thenMs, 500, 60_000) !== null ? { thenMs: r.toast.thenMs as number } : {}), ...(r.toast.kind === 'auto-tip' ? { kind: 'auto-tip' as const, ...(r.toast.counted === true ? { counted: true as const } : {}) } : {}) }
+      ? { text: r.toast.text.slice(0, 300), ms: r.toast.ms as number, ...readThen(r.toast.then), ...(num(r.toast.thenMs, 500, 60_000) !== null ? { thenMs: r.toast.thenMs as number } : {}), ...(r.toast.kind === 'auto-tip' ? { kind: 'auto-tip' as const, ...(r.toast.counted === true ? { counted: true as const } : {}) } : {}), ...(typeof r.toast.short === 'string' ? { short: r.toast.short.slice(0, 120) } : {}) }
       : null;
   return {
     rngState: typeof rng === 'number' && Number.isInteger(rng) && rng >= 0 && rng <= 0xffffffff ? rng : fallbackSeed >>> 0,

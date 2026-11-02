@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { advance, createGameState, readRuntime, type GameState } from '../core/engine';
 import { validateSave, type Save } from '../core/save';
@@ -149,5 +151,41 @@ describe('해변 미리 보기 — 4판 연 지역 (orders #30)', () => {
       const checked = validateSave(viaJson(s.save));
       expect(checked.ok && checked.save.location).toEqual(s.save.location);
     }
+  });
+});
+
+describe('개발 메뉴 알림 줄인 말 (U514 — 아래 줄은 늘 한 줄 · 넘치면 알림마다 손으로 쓴 짧은 말)', () => {
+  it('긴 알림만 짧은 말이 있고 더 짧음 · 상대 여럿은 마릿수 (첫 " · " 자르기가 꼬부기를 몰래 떨구던 것)', () => {
+    const s = three(start());
+    const foes = apply(s, { kind: 'foe', slot: 0, dex: 4, level: 20 });
+    const r = devApply(foes, { kind: 'foe', slot: 1, dex: 7, level: 20 });
+    expect(r.say).toBe('상대 파이리 Lv 20 · 꼬부기 Lv 20');
+    expect(r.short).toBe('상대 2마리 Lv 20');
+    const mixed = devApply(r.state, { kind: 'foe', slot: 2, dex: 1, level: 30 });
+    expect(mixed.say).toBe('상대 파이리 Lv 20 · 꼬부기 Lv 20 · 이상해씨 Lv 30');
+    expect(mixed.short).toBe('상대 3마리');
+    const one = devApply(s, { kind: 'foe', slot: 0, dex: 4, level: 20 });
+    expect(one.short).toBeUndefined();
+    const lonely = devApply(apply(devState(start())), { kind: 'scene', scene: 'trainer-team' });
+    expect(lonely.say).toContain('3:3 은 살아 있는');
+    expect(lonely.short).toBe('3마리 필요 — 팀 탭');
+    for (const x of [r, mixed, lonely]) expect(x.short!.length).toBeLessThan(x.say.length);
+  });
+
+  it('짧은 말은 알림에 실려 다시 불러와도 남음 (readRuntime) · 이상한 값은 버림', () => {
+    const s = start();
+    const rt = viaJson({ ...s.runtime, toast: { text: '개발 — 돈 +10000 → 10500', ms: 1000, short: '돈 +10000' } });
+    expect(readRuntime(rt, 1)?.toast).toMatchObject({ short: '돈 +10000' });
+    const bad = viaJson({ ...s.runtime, toast: { text: 'a', ms: 1000, short: 3 } });
+    expect(readRuntime(bad, 1)?.toast).not.toHaveProperty('short');
+  });
+
+  it('[개발 끝내기] 는 넘쳐도 숨기지 않음 (판이 열린 동안 알림이 안 사라져 판 내내 숨던 것 — U514 UX 큼)', () => {
+    const css = readFileSync(join(__dirname, 'dev.css'), 'utf8');
+    const hide = [...css.matchAll(/([^{}]+)\{[^}]*display:\s*none/g)].map((m) => m[1]!);
+    expect(hide.filter((sel) => sel.includes('.pg-dev-end'))).toEqual([]);
+    const panel = readFileSync(join(__dirname, 'DevPanel.tsx'), 'utf8');
+    expect(panel).toContain('pg-dev-end');
+    expect(panel).not.toContain('pg-dev-foot-3');
   });
 });

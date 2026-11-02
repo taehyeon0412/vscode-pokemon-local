@@ -176,15 +176,26 @@
   padding: 2px 0;
   box-sizing: border-box;
 }
-/* 알림은 줄이지 않고 두 줄까지 (240 에서 "… 한 번 이기면…" 으로 잘리던 것 — 픽셀 검사원) */
+/* 알림은 버튼 옆 한 줄 — 남은 자리만 씀 (줄을 늘리지 않음 · U514: 두 줄 알림이 아래 줄을 54px 로 늘려 240 × 150 몸통이 절반이 되고 뜨고 질 때 판 끝이 오르내리던 것).
+   넘치면 한 단계 (DevPanel — 재서): 저장 안 됨 → ▼ 아래에 더 → 줄인 말 (알림마다 손으로) → 그래도면 두 줄. [개발 끝내기] 는 늘 둠. 잘라 "…" 로 안 줄임 (240 에서 "… 한 번 이기면…" 이던 것 — 픽셀 검사원) */
 #pokemon-game .pg-dev-say {
-  /* 들어가면 버튼 옆 · 안 들어가면 혼자 한 줄 (폭 경계 360 · 480 을 손으로 고르면 401 ~ 480 에서 짧은 알림도 혼자 줄을 쓰던 것 — UX 리뷰어 4차) */
-  flex: 1 0 auto;
+  flex: 1 1 0;
+  min-width: 0;
   max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
   font-size: 11px;
   line-height: 13px;
   color: var(--pg-sos-gold);
   word-break: keep-all;
+}
+#pokemon-game .pg-dev-foot-1 .pg-dev-nosave,
+#pokemon-game .pg-dev-foot-2 .pg-dev-more {
+  display: none;
+}
+#pokemon-game .pg-dev-foot-wrap .pg-dev-say {
+  flex: 1 0 auto;
+  white-space: normal;
 }
 #pokemon-game .pg-dev-more {
   flex: none;

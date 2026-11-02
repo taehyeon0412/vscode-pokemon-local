@@ -51,6 +51,8 @@ export type DevAction =
 export interface DevResult {
   state: GameState;
   say: string;
+  /** 아래 줄이 좁을 때 (240 × 150) 대신 쓸 짧은 말 — 긴 알림만 · 뜻이 남게 손으로 씀 (U514 — 첫 " · " 에서 잘라 상대 둘째 마리를 떨구던 것) */
+  short?: string;
 }
 
 const devOf = (rt: RuntimeState): DevRuntime => rt.dev ?? devDefault();
@@ -191,7 +193,7 @@ function scene(state: GameState, sc: DevScene, rng: Rng): DevResult {
         return m && evolveAt(m) !== null;
       });
       const m = uid ? save0.monsters[uid] : undefined;
-      if (!m) return { state, say: '레벨로 진화하는 포켓몬이 없어요 — 팀 탭에서 더하기' };
+      if (!m) return { state, say: '레벨로 진화하는 포켓몬이 없어요 — 팀 탭에서 더하기', short: '진화할 포켓몬 없음' };
       const level = Math.max(m.level, evolveAt(m)!);
       const to = pickEvolution({ ...m, level }, level, rng);
       if (to === null) return { state, say: '진화할 모습을 못 찾았어요' };
@@ -210,7 +212,7 @@ function scene(state: GameState, sc: DevScene, rng: Rng): DevResult {
     case 'trainer-team':
     case 'gym-team': {
       const alive = save0.party.filter((u) => (save0.monsters[u]?.hp ?? 0) > 0);
-      if (alive.length < BALANCE.team.size) return { state, say: `3:3 은 살아 있는 ${BALANCE.team.size}마리 — 팀 탭 더하기 · 바꾸기 탭 모두 회복` };
+      if (alive.length < BALANCE.team.size) return { state, say: `3:3 은 살아 있는 ${BALANCE.team.size}마리 — 팀 탭 더하기 · 바꾸기 탭 모두 회복`, short: `${BALANCE.team.size}마리 필요 — 팀 탭` };
       if (sc === 'gym-team') {
         const foes = devFoes(state, rng, BALANCE.team.size) ?? leaderTeam(REGIONS.forest);
         const save: Save = { ...save0, location: { screen: 'gym' }, pendingEncounter: { kind: 'gym-leader' }, pendingChoices: [] };
@@ -335,7 +337,14 @@ function devApplyRaw(state: GameState, action: DevAction): DevResult {
         if (action.slot < foes.length) foes[action.slot] = mon;
         else foes.push(mon);
       } else foes.splice(action.slot, 1);
-      return { state: withDev(state, (d) => ({ ...d, foes })), say: foes.length ? `상대 ${foes.map((f) => `${nameOf(f.dex)} Lv ${f.level}`).join(' · ')}` : '상대 = 장면 원래 상대' };
+      if (!foes.length) return { state: withDev(state, (d) => ({ ...d, foes })), say: '상대 = 장면 원래 상대', short: '상대 = 원래 상대' };
+      // 여럿이면 줄인 말 = 마릿수 (레벨이 같으면 한 번) — 이름 하나를 몰래 떨구지 않음 · 이름은 바로 위 칸 · 올림 글에
+      const lvs = new Set(foes.map((f) => f.level));
+      return {
+        state: withDev(state, (d) => ({ ...d, foes })),
+        say: `상대 ${foes.map((f) => `${nameOf(f.dex)} Lv ${f.level}`).join(' · ')}`,
+        ...(foes.length > 1 ? { short: `상대 ${foes.length}마리${lvs.size === 1 ? ` Lv ${foes[0]!.level}` : ''}` } : {}),
+      };
     }
     case 'gauge-full': {
       const foe = action.side === 'foe';
@@ -373,7 +382,7 @@ function devApplyRaw(state: GameState, action: DevAction): DevResult {
       return { state: { ...state, save: { ...state.save, monsters: { ...state.save.monsters, [m.uid]: { ...m, hp: 1 } } } }, say: '선두 HP 1' };
     }
     case 'money':
-      return { state: { ...state, save: { ...state.save, money: state.save.money + 10_000 } }, say: `돈 +10000 → ${state.save.money + 10_000}` };
+      return { state: { ...state, save: { ...state.save, money: state.save.money + 10_000 } }, say: `돈 +10000 → ${state.save.money + 10_000}`, short: '돈 +10000' };
     case 'balls':
       return { state: { ...state, save: addItems(state.save, ['poke-ball', 'great-ball', 'ultra-ball'], 10) }, say: '볼 +10씩' };
     case 'items':
@@ -388,10 +397,10 @@ function devApplyRaw(state: GameState, action: DevAction): DevResult {
       const grown = r.state.save.monsters[m.uid]!;
       // 다음 레벨 바로 앞 경험치 — 한 번 이기면 레벨업 → 진화
       const near: Monster = { ...grown, exp: Math.max(expForLevel(level), expForLevel(level + 1) - 1) };
-      return { state: { ...r.state, save: { ...r.state.save, monsters: { ...r.state.save.monsters, [m.uid]: near } } }, say: `${nameOf(m.species)} Lv ${level} — 한 번 이기면 진화` };
+      return { state: { ...r.state, save: { ...r.state.save, monsters: { ...r.state.save.monsters, [m.uid]: near } } }, say: `${nameOf(m.species)} Lv ${level} — 한 번 이기면 진화`, short: `Lv ${level} — 이기면 진화` };
     }
     case 'team':
-      return { state: withDev(state, (d) => ({ ...d, team: action.on })), say: action.on ? '3:3 켜짐 (개발 모드에서만)' : '3:3 꺼짐' };
+      return { state: withDev(state, (d) => ({ ...d, team: action.on })), say: action.on ? '3:3 켜짐 (개발 모드에서만)' : '3:3 꺼짐', ...(action.on ? { short: '3:3 켜짐' } : {}) };
     case 'walk': {
       const walk = cycle(DEV_WALKS, devOf(state.runtime).walk as (typeof DEV_WALKS)[number]);
       return { state: withDev(state, (d) => ({ ...d, walk })), say: `걷기 ×${walk}` };

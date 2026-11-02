@@ -218,7 +218,7 @@ if (!port) {
       const changed = session.devChange((s) => {
         const r = devApply(s, action);
         say = r.say;
-        return say ? { ...r.state, runtime: { ...r.state.runtime, toast: { text: `개발 — ${say}`, ms: TIMING.toastMs } } } : r.state;
+        return say ? { ...r.state, runtime: { ...r.state.runtime, toast: { text: `개발 — ${say}`, ms: TIMING.toastMs, ...(r.short ? { short: r.short } : {}) } } } : r.state;
       });
       if (!changed) return;
       setGameClock(gameClockFor(session.current, true));
