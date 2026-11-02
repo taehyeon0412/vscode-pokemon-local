@@ -6,7 +6,6 @@
   사진: dev/shots/game/<이름>.png (저장소에 안 올라감)
 """
 import argparse
-import io
 import os
 import socket
 import struct
@@ -18,7 +17,8 @@ import time
 import urllib.parse
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+# 새로 감싸지 않고 바꿈 — 두 번 불러오면 (perf-run 이 옛 빌드 것 · 지금 것) 앞 감싸개가 지워지며 버퍼를 닫아 print 가 깨짐
+sys.stdout.reconfigure(encoding="utf-8")
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EDGE_CANDIDATES = [
     r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",

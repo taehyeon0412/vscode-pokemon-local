@@ -3,6 +3,7 @@
  * VS Code 를 받아 (.vscode-test/) 띄우고 shot-suite.ts 를 돌린다 — 개발 PC 의 VS Code 설정 · 확장 · 저장과 섞이지 않음.
  *   SHOT_USER_DIR  --user-data-dir (파이썬이 settings.json · 패널 높이를 미리 넣음)
  *   SHOT_VERSION   VS Code 버전 (기본 stable — .vscode-test 에 받아 둔 것)
+ *   SHOT_EXT_ROOT  다른 빌드 폴더의 extension 을 띄움 (dev/vscode-perf.py — 44df08b3 기준 판 ↔ 지금 판, 설치 없이 · #140 ⑤)
  */
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -24,11 +25,12 @@ async function main(): Promise<void> {
   try {
     await runTests({
       version: process.env.SHOT_VERSION ?? 'stable',
-      extensionDevelopmentPath: q(join(root, 'extension')),
+      extensionDevelopmentPath: q(join(process.env.SHOT_EXT_ROOT || root, 'extension')),
       extensionTestsPath: q(join(root, '.test-out', 'shot-suite.cjs')),
       // 실제 사용자와 같은 최소 높이 (테스트 창의 68px 이 아니라 150px) — extension host index.ts
-      extensionTestsEnv: { POKEMON_SHOT: '1', SHOT_DIR: process.env.SHOT_DIR ?? '', SHOT_SAVE: process.env.SHOT_SAVE ?? '', SHOT_IMPORT: process.env.SHOT_IMPORT ?? '', SHOT_WAIT_MS: process.env.SHOT_WAIT_MS ?? '' },
-      launchArgs: [q(workspace), '--disable-extensions', '--user-data-dir', q(user), '--extensions-dir', q(join(tmp, 'extensions'))],
+      extensionTestsEnv: { POKEMON_SHOT: '1', SHOT_DIR: process.env.SHOT_DIR ?? '', SHOT_SAVE: process.env.SHOT_SAVE ?? '', SHOT_IMPORT: process.env.SHOT_IMPORT ?? '', SHOT_WAIT_MS: process.env.SHOT_WAIT_MS ?? '', SHOT_GO: process.env.SHOT_GO ?? '', SHOT_HOLD_MS: process.env.SHOT_HOLD_MS ?? '' },
+      // SHOT_DEBUG_PORT — dev/vscode-shot.py probe=1 이 웹뷰 안 게임 문서를 CDP 로 읽음 (#140 ⑤ 문서 시계)
+      launchArgs: [q(workspace), '--disable-extensions', '--user-data-dir', q(user), '--extensions-dir', q(join(tmp, 'extensions')), ...(process.env.SHOT_DEBUG_PORT ? [`--remote-debugging-port=${process.env.SHOT_DEBUG_PORT}`] : [])],
     });
   } finally {
     rmSync(tmp, { recursive: true, force: true });

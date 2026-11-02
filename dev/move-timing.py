@@ -379,6 +379,7 @@ def run(cases, out):
                     raise Stalled("브라우저가 안 뜸")
                 ws = WS(ws_url)
                 ws.call("Page.enable")
+                ws.call("Emulation.setFocusEmulationEnabled", {"enabled": True})  # 포커스 없이 뜨면 document.timeline 이 0 에 멈춰 CSS 애니메이션이 안 끝나고 쌓임 (#140)
                 ws.call("Page.addScriptToEvaluateOnNewDocument", {"source": LOGGER})
             ws.end = time.time() + CASE_S
             url = f"http://127.0.0.1:{port}/dev/frame.html?" + urllib.parse.urlencode({"w": c["w"], "h": c["h"], "page": "game.html", "q": urllib.parse.urlencode(c["q"])})

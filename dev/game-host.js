@@ -539,7 +539,11 @@
     if (q.get('fx') === '1') {
         window.acquireVsCodeApi = () => ({ getState: () => undefined, setState: () => {}, postMessage: () => {} });
         const nb = document.createElement('script');
-        nb.src = '../extension/media/main-bundle.js';
+        // minb=1 — 설치본처럼 줄인 일반 모드 묶음 (main-bundle.min.js — build:release) 을 띄움 · 없으면 원본 (켜기 · 힙 재기 #142 — 설치본은 확장이 min 을 고름)
+        nb.src = q.get('minb') === '1' ? '../extension/media/main-bundle.min.js' : '../extension/media/main-bundle.js';
+        nb.onerror = () => {
+            if (nb.src.endsWith('.min.js')) nb.src = '../extension/media/main-bundle.js';
+        };
         nb.onload = () => {
             try {
                 pokemonApp.pokemonPanelApp('../extension/media', 'none', 2, 'default', 'nano', 'pikachu', 'false', 'gen1', '32', window.acquireVsCodeApi());

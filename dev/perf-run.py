@@ -4,6 +4,10 @@
   dpr    화면 배율 (태현 님 윈도우 1.5 · 맥 2) · gpu 1 = GPU 켬 (VS Code 처럼 — 0 이면 지금까지 찍던 시험 창 · 멈칫이 안 보임, #139)
   draws  1 = 한 번 더 돌려 프레임마다 캔버스 그리기 수를 셈 (세는 동안은 느려져 시간 지표엔 안 씀)
   trace  1 = CDP Tracing (devtools.timeline · v8.gc) 을 <판>/trace.jsonl 로 (크다 — 원인 찾을 때만)
+  cats   trace 에 더할 분류 (쉼표 — GPU 프로세스 쪽 무슨 일인지 볼 때 gpu,viz,cc …)
+  shim   0 (기본) = 게임이 진짜 화면 박자 (rAF) 로 그림 — VS Code 처럼 · 1 = team-run 처럼 16ms 타이머 (11-02 전 표들)
+  gpucache 1 (기본) = 셰이더 캐시를 판마다 넘김 (%TEMP%/pokemon-perf-gpucache) — VS Code 처럼 처음 쓰는 그림에서만 셰이더를 엮음 · 0 = 판마다 차가운 캐시
+  warmup 1 = 판마다 재기 전에 한 번 돌리고 버림 (그 판 그림의 셰이더를 캐시에 — 전 · 후 빌드를 같은 조건으로)
   잴 빌드: PG_ROOT 의 dev/ · extension/media 를 띄움 (도구는 늘 이 파일 옆 team-run.py) — 기준 판 = dev/perf-base.md 의 해시
 결과: <out>/<판>/r<k>/perf.json · <out>/summary.json · <out>/summary.md (판마다 가운데 값 표)
 지표: 50ms 넘는 멈칫 수 · 가장 긴 프레임 ms · 평균 프레임 ms · 1초 장 수 (평균 · 가장 나쁜 1%) · 그리기 수 (평균 · 최대) · JS 힙 · 캔버스 · 그림 · 렌더러 · GPU 프로세스 메모리 · 켜기 (불러옴 → 게임 손잡이) ms
@@ -12,9 +16,11 @@ import base64
 import importlib.util
 import json
 import os
+import shutil
 import statistics
 import subprocess
 import sys
+import tempfile
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -23,6 +29,12 @@ sys.argv = [sys.argv[0]]
 spec = importlib.util.spec_from_file_location("tr", os.path.join(HERE, "team-run.py"))
 tr = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(tr)
+# 옛 빌드 (PG_ROOT=44df08b3 — perf-base.md) 의 game-shots 에는 headless_flags (#141) 가 없음 → 지금 판 것을 빌려 씀
+if not hasattr(tr.gs, "headless_flags"):
+    _spec = importlib.util.spec_from_file_location("gs_now", os.path.join(HERE, "game-shots.py"))
+    _now = importlib.util.module_from_spec(_spec)
+    _spec.loader.exec_module(_now)
+    tr.gs.headless_flags = _now.headless_flags
 
 if not argv:
     print(__doc__)
@@ -32,14 +44,24 @@ kv = dict(a.split("=", 1) for a in argv[1:] if "=" in a)
 REP = int(kv.get("rep", 3))
 DPR = float(kv.get("dpr", "1.5"))
 GPU = kv.get("gpu", "1") == "1"
+# shim=0 (기본) — 게임 창 requestAnimationFrame 을 진짜 화면 박자 (vsync) 로. team-run 기본 shim=1 은 rAF 를 16ms 타이머로 바꿔 (game-host.js — 가상 시간 사진용)
+#   게임이 화면과 상관없이 60Hz 타이머로 그려 실제 VS Code 와 다름 — 타이머로 그린 캔버스가 GPU 를 기다리며 합동 컷인에서 60 ~ 106ms 멈칫이 나던 것 (#140 ③ 2026-11-02 · VS Code 는 화면 박자)
+SHIM = kv.get("shim", "0")
+# gpucache=1 (기본) — 셰이더 캐시를 판마다 넘김. 판마다 새 임시 프로필이라 처음 쓰는 그림마다 셰이더를 새로 엮어 (ANGLE) 한 프레임 60ms 남짓 멈췄음 (1:1 잡기 시작 · 합동 컷인 시작 —
+#   전 · 후 빌드 모두) · 실제 VS Code 는 GPUCache 를 디스크에 두어 처음 한 번뿐. 첫 판은 차가운 캐시라 table 앞에 warmup 을 돌림
+GPUCACHE = os.path.join(tempfile.gettempdir(), "pokemon-perf-gpucache") if kv.get("gpucache", "1") == "1" else None
+GPU_CACHE_DIRS = ("GrShaderCache", "ShaderCache", "GraphiteDawnCache", "GPUPersistentCache", "GPUCache", "DawnGraphiteCache", "DawnWebGPUCache")
 DRAWS = kv.get("draws", "1") == "1"
 TRACE = kv.get("trace", "0") == "1"
 CATS = "toplevel,devtools.timeline,disabled-by-default-devtools.timeline,disabled-by-default-devtools.timeline.frame,v8,disabled-by-default-v8.gc,blink.user_timing"
 # prof=1 — JS 표본 (함수마다 걸린 시간 — 무엇이 메인 스레드를 쓰나)
 if kv.get("prof", "0") == "1":
     CATS += ",disabled-by-default-v8.cpu_profiler"
+# cats=<더할 분류,…> — GPU · 그리기 쪽 (예: gpu,viz,cc,disabled-by-default-gpu.service,disabled-by-default-skia.gpu) 을 더 볼 때
+if kv.get("cats"):
+    CATS += "," + kv["cats"]
 
-# 검사기 대신 가벼운 기록기 — 장면 · 프레임 사이 (rAF 시각 = 진짜 시계) 모두 · 긴 일 · 힙 · 켜기 (탐색 시작 → 기록기 = 게임 손잡이가 뜬 뒤)
+# 검사기 대신 가벼운 기록기 — 장면 · 프레임 사이 (바깥 창 rAF 시각 = 진짜 시계) 모두 · 긴 일 · 힙 · 켜기 (탐색 시작 → 기록기 = 게임 손잡이가 뜬 뒤)
 LIGHT = r"""
 (() => {
   if (window.__tr) return 'again';
@@ -62,10 +84,14 @@ LIGHT = r"""
     if (ph !== K.markPh) { K.markPh = ph; try { performance.mark('pg-phase:' + ph); } catch (e) {} }
   };
   const id = setInterval(() => { try { tick(); } catch (e) { K.err = String(e); } }, 100);
+  // 프레임 사이 · 긴 일 시각은 진짜 시계 (Performance.prototype.now) 로 — 게임 창 performance.now · rAF 시각은 webview/clock 게임 시계로 감싸여 3:3 ×2 · ▶▶ ×3 으로
+  // 부풀던 것 (#140 2026-11-02 — ▶▶ "51 ~ 55ms" 가 진짜 17 ~ 20ms). 박자는 게임 창 rAF 그대로 (바깥 창 rAF 는 165Hz · 게임 창은 60Hz 라 바깥 것으로 재면 게임 프레임이 아님)
+  const realNow = () => Performance.prototype.now.call(performance);
   let prev = 0;
-  const loop = (t) => { if (prev) { if (ci === CH) { chunks.push(cur); cur = new Float64Array(CH * 2); ci = 0; } cur[ci * 2] = Date.now() - t0; cur[ci * 2 + 1] = Math.round((t - prev) * 10) / 10; ci++; } prev = t; requestAnimationFrame(loop); };
+  const loop = () => { const t = realNow(); if (prev) { if (ci === CH) { chunks.push(cur); cur = new Float64Array(CH * 2); ci = 0; } cur[ci * 2] = Date.now() - t0; cur[ci * 2 + 1] = Math.round((t - prev) * 10) / 10; ci++; } prev = t; requestAnimationFrame(loop); };
   requestAnimationFrame(loop);
-  try { new PerformanceObserver((l) => l.getEntries().forEach((e) => K.long.push([Math.round(Date.now() - t0 - (performance.now() - e.startTime)), Math.round(e.duration)]))).observe({ type: 'longtask', buffered: true }); } catch (e) { K.longErr = String(e); }
+  K.clock = { scaleAtStart: window.__pgDebug && window.__pgDebug.scale ? window.__pgDebug.scale() : null, wrapped: !String(performance.now).includes('[native code]') };
+  try { new PerformanceObserver((l) => l.getEntries().forEach((e) => K.long.push([Math.round(Date.now() - t0 - (realNow() - e.startTime)), Math.round(e.duration)]))).observe({ type: 'longtask', buffered: true }); } catch (e) { K.longErr = String(e); }
   const mem = () => {
     const m = performance.memory;
     let cv = 0, img = 0;
@@ -78,7 +104,9 @@ LIGHT = r"""
   try { const g = document.createElement('canvas').getContext('webgl'); const x = g && g.getExtension('WEBGL_debug_renderer_info'); K.gl = g ? (x ? g.getParameter(x.UNMASKED_RENDERER_WEBGL) : g.getParameter(g.RENDERER)) : 'webgl 없음'; } catch (e) { K.gl = String(e); }
   const flushDts = () => { const all = [...chunks, cur.subarray(0, ci * 2)]; K.dts = []; for (const c of all) for (let i = 0; i < c.length; i += 2) K.dts.push([c[i], c[i + 1]]); };
   const canv = () => live.map((x) => { const c = x.r.deref(); return c ? [x.t, x.st, c.width, c.height, c.isConnected] : null; }).filter(Boolean);
-  window.__tr = { K, t0, stop: () => { clearInterval(id); clearInterval(hid); mem(); flushDts(); K.canvases = canv(); K.canvasMade = live.length; return K; }, fx: () => [] };
+  // 문서 시계 (게임 창 · 바깥 창) — 머리 없는 Edge 가 가끔 시계가 0 에 멈춘 채 떠 CSS 애니메이션이 안 끝나고 쌓임 (#140 — 포커스 흉내로 줄었지만 18판 중 1판 남음) → 그런 판은 perf-run 이 버리고 다시 잼
+  const clocks = () => [document.timeline.currentTime, window.parent.document.timeline.currentTime].map((x) => (x == null ? 0 : Math.round(x)));
+  window.__tr = { K, t0, stop: () => { clearInterval(id); clearInterval(hid); mem(); flushDts(); K.canvases = canv(); K.canvasMade = live.length; K.timeline = clocks(); return K; }, fx: () => [] };
   return 'ok';
 })()
 """
@@ -216,13 +244,30 @@ def popen(args, *a, **k):
             args = [x for x in args if x != "--disable-gpu"]
         if DPR != 1:
             args = args[:1] + [f"--force-device-scale-factor={DPR}"] + args[1:]
-        state["tag"] = next((os.path.basename(x.split("=", 1)[1]) for x in args if str(x).startswith("--user-data-dir=")), None)
+        prof = next((x.split("=", 1)[1] for x in args if str(x).startswith("--user-data-dir=")), None)
+        state["tag"] = os.path.basename(prof) if prof else None
+        state["prof"] = prof
+        if GPUCACHE and prof:
+            for d in GPU_CACHE_DIRS:
+                if os.path.isdir(os.path.join(GPUCACHE, d)):
+                    shutil.copytree(os.path.join(GPUCACHE, d), os.path.join(prof, d), dirs_exist_ok=True)
     return _orig_popen(args, *a, **k)
+
+
+def kill_browser(p, prof):
+    _orig_kill(p, prof)
+    # 셰이더 캐시를 다음 판에 넘김 (브라우저가 꺼진 뒤 — 파일이 닫힌 다음)
+    if GPUCACHE and prof:
+        for d in GPU_CACHE_DIRS:
+            if os.path.isdir(os.path.join(prof, d)):
+                shutil.copytree(os.path.join(prof, d), os.path.join(GPUCACHE, d), dirs_exist_ok=True)
 
 
 tr.WS.recv = recv
 tr.WS.call = call
 tr.subprocess.Popen = popen
+_orig_kill = tr.gs.kill_browser
+tr.gs.kill_browser = kill_browser
 
 
 def pct(xs, p):
@@ -269,6 +314,10 @@ def sampler(stop, rows, t0):
             rows.append([round(time.time() - t0, 1), m["renderer"], m["gpu"], m["all"]])
 
 
+class TimelineStuck(Exception):
+    pass
+
+
 def run(cfg, out, draws=False):
     os.makedirs(out, exist_ok=True)
     state.update(out=out, shot=0.0, mem=None, draws=draws, dc=None, ready=None, heap_at=list(HEAP_AT), heapf=None, init_js=cfg.get("initJs"))
@@ -277,11 +326,13 @@ def run(cfg, out, draws=False):
     th = threading.Thread(target=sampler, args=(stop, rows, time.time()), daemon=True)
     th.start()
     try:
-        tr.run_one(out, dict(cfg))
+        tr.run_one(out, {**cfg, "q": {**cfg.get("q", {}), "shim": SHIM}})
     finally:
         stop.set()
         th.join(timeout=10)
     K = json.load(open(os.path.join(out, "raw.json"), encoding="utf-8"))["K"]
+    if 0 in (K.get("timeline") or [1]):
+        raise TimelineStuck(f"문서 시계 멈춘 판 {K.get('timeline')} — 버리고 다시")
     m = metrics(K)
     m["gl"] = K.get("gl")
     m["mem"] = state.get("mem")
@@ -316,8 +367,13 @@ def main():
         name = cfg["name"]
         print(f"run{i:02d} {name}", flush=True)
         reps = []
+        if kv.get("warmup") == "1":
+            try:
+                run(cfg, os.path.join(out_root, f"run{i:02d}", "warmup"))
+            except Exception as err:
+                print(f"  warmup 실패: {type(err).__name__} {err}", flush=True)
         for k in range(REP):
-            for attempt in range(2):
+            for attempt in range(3):
                 try:
                     m = run(cfg, os.path.join(out_root, f"run{i:02d}", f"r{k + 1}"))
                     break

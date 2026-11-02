@@ -5,6 +5,8 @@
  *   SHOT_SAVE     넣을 세이브 JSON 경로 (없으면 새 스타팅 세이브)
  *   SHOT_WAIT_MS  게임에 들어간 뒤 찍기 전까지 기다림 (기본 3000)
  *   SHOT_IMPORT   이 세이브 파일로 "불러오기" 를 눌러 확인 상자를 띄운 채 찍음 (파일 창 대신 정해 둔 경로 — orders #49 · #50)
+ *   SHOT_GO       1 = 게임에 들어가기 전에 SHOT_DIR/go 를 기다림 (dev/vscode-perf.py 가 웹뷰에 CDP 로 붙은 뒤 만듦 — #140 ⑤)
+ *   SHOT_HOLD_MS  done 을 기다리는 최대 ms (기본 10분 — 재기는 더 김)
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -42,6 +44,7 @@ export async function run(): Promise<void> {
   // 패널을 최대화 — 창 높이 = 패널 높이가 되어 파이썬이 창 높이로 웹뷰 높이를 px 로 맞춤 (패널 높이는 저장값 · 명령 60px 단위로는 못 맞춤)
   await vscode.commands.executeCommand('workbench.action.toggleMaximizedPanel');
   await waitFor('포켓몬 보기 boot', () => game.debug().stats.boots >= 1);
+  if (process.env.SHOT_GO === '1') await waitFor('파이썬이 웹뷰에 붙음 (go)', () => existsSync(join(dir, 'go')), 120_000);
   const r = await game.enterGame();
   if (r !== 'entered') throw new Error(`게임에 못 들어감: ${r}`);
   await waitFor('웹뷰가 게임을 맡음', () => game.debug().owner === 'webview');
@@ -58,7 +61,7 @@ export async function run(): Promise<void> {
   const d = game.debug();
   writeFileSync(join(dir, 'ready.json'), JSON.stringify({ mode: d.mode, owner: d.owner, progress: d.progress, view: d.view, version: vscode.version }));
   // 파이썬이 다 찍을 때까지 (최대 10분) — 그동안 웹뷰 크기를 view.json 으로 (창 크기를 바꾸면 웹뷰가 알림)
-  const end = Date.now() + 600_000;
+  const end = Date.now() + Number(process.env.SHOT_HOLD_MS ?? 600_000);
   let cleared = Date.now();
   while (!existsSync(join(dir, 'done')) && Date.now() < end) {
     if (Date.now() - cleared > 1000) {

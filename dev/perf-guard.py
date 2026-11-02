@@ -1,29 +1,33 @@
 """설치 전 성능 지키기 (#140 5/5) — 합동 · 빠르게 판을 GPU 켬 · 화면 배율 1.5 로 한 번씩 돌려 문턱을 넘으면 실패 (끝 코드 1)
   PG_ROOT=<잴 빌드 폴더> python dev/perf-guard.py [out_dir]
   판 = dev/perf-runs.json 의 합동 2인 860 (8) · 합동 3인 + 두 번째 860 (10) · 빠르게 (12) — 연출 · 그리기 길 (ult/ · moves.js) 을 고친 주제는 설치 전에 돌림
-  문턱 = 2026-10-30 최적화 뒤 값 + 여유 (판 흐름이 판마다 달라 50ms 넘는 수는 넉넉히 · 100ms 넘는 멈칫은 0 이어야)
+  문턱 = 2026-11-02 바로잡은 재기 (진짜 시계 · 진짜 화면 박자 · 셰이더 캐시 넘김 — dev/perf-base.md) 의 최적화 뒤 값 + 여유
+    (후 빌드 3번 중 가장 나쁜 번: 합동 50.5 ~ 53.7ms · 빠르게 39ms → 가장 긴 80ms · 50ms 넘는 3 · 100ms 넘는 0. 빠르게도 같은 문턱 — 옛 160ms 는 게임 시계로 ×3 부풀던 것)
+  셰이더 캐시 (%TEMP%/pokemon-perf-gpucache) 가 없으면 판마다 warmup 한 번 (처음 쓰는 그림의 셰이더 엮기 60ms 남짓은 VS Code 에선 업데이트 뒤 처음 한 번뿐)
   약 2분 · 머리 없는 브라우저 1개 (끝나면 dev/cleanup.py 로 0 확인)"""
 import json
 import os
 import subprocess
 import sys
+import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.environ.get("TEMP", "."), "perf-guard")
 
 # (판 번호, 이름, 문턱) — stall100 · max_ms 는 넘으면 실패 · stall50 은 넉넉히 · 메모리는 브라우저 전체 최대
 GUARDS = [
-    (8, "합동 2인 860", {"stall100": 0, "max_ms": 100, "stall50": 6, "mem_all": 1200}),
-    (10, "합동 3인 + 두 번째 860", {"stall100": 0, "max_ms": 100, "stall50": 6, "mem_all": 1200}),
-    (12, "합동 3인 + 두 번째 860 빠르게", {"stall100": 2, "max_ms": 160, "mem_all": 1200}),
+    (8, "합동 2인 860", {"stall100": 0, "max_ms": 80, "stall50": 3, "mem_all": 1200}),
+    (10, "합동 3인 + 두 번째 860", {"stall100": 0, "max_ms": 80, "stall50": 3, "mem_all": 1200}),
+    (12, "합동 3인 + 두 번째 860 빠르게", {"stall100": 0, "max_ms": 80, "stall50": 3, "mem_all": 1200}),
 ]
 
 
 def main():
     os.makedirs(out, exist_ok=True)
     fails = []
+    warm = "warmup=0" if os.path.isdir(os.path.join(tempfile.gettempdir(), "pokemon-perf-gpucache")) else "warmup=1"
     for idx, name, lim in GUARDS:
-        subprocess.run([sys.executable, os.path.join(HERE, "perf-run.py"), out, f"from={idx}", f"to={idx}", "rep=1", "draws=0", "dpr=1.5", "gpu=1", "msamp=5"],
+        subprocess.run([sys.executable, os.path.join(HERE, "perf-run.py"), out, f"from={idx}", f"to={idx}", "rep=1", "draws=0", "dpr=1.5", "gpu=1", "msamp=5", warm],
                        check=False, capture_output=True, text=True, encoding="utf-8", errors="replace")
         path = os.path.join(out, f"run{idx:02d}", "r1", "perf.json")
         if not os.path.exists(path):

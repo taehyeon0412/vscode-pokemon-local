@@ -146,6 +146,7 @@ with tempfile.TemporaryDirectory(prefix=gs.PROF_PREFIX, ignore_cleanup_errors=Tr
             raise Stalled("브라우저가 안 뜸")
         ws = WS(ws_url, end)
         ws.call("Page.enable")
+        ws.call("Emulation.setFocusEmulationEnabled", {"enabled": True})  # 포커스 없이 뜨면 document.timeline 이 0 에 멈춰 CSS 애니메이션이 안 끝나고 쌓임 (#140)
         ws.call("Page.bringToFront")
         ws.call("Emulation.setDeviceMetricsOverride", {"width": int(w), "height": int(h), "deviceScaleFactor": 1, "mobile": False})
         ws.call("Page.navigate", {"url": url})

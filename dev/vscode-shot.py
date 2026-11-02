@@ -3,7 +3,7 @@
 시험 창 (dev/game-host.js) 이 아니라 진짜 VS Code (.vscode-test 에 받아 둔 것) 를 따로 띄워 — 진짜 글꼴 · 테마 · 웹뷰 CSS · 패널 테두리 —
 세이브를 넣고 게임에 들어간 뒤 패널 너비마다 창 전체를 찍는다. 개발 PC 의 VS Code 설정 · 확장 · 세이브와 섞이지 않음 (임시 사용자 폴더).
 
-    python dev/vscode-shot.py <폴더> [h=187] [w=480,860,1860] [theme=dark|light|both] [save=<세이브.json>] [import=<세이브.json>] [wait=3000] [version=stable] [nobuild=1]
+    python dev/vscode-shot.py <폴더> [h=187] [w=480,860,1860] [theme=dark|light|both] [save=<세이브.json>] [import=<세이브.json>] [wait=3000] [version=stable] [nobuild=1] [probe=1]
 
   h       웹뷰 높이 (px) — 패널을 최대화하고 창 높이로 맞춤 (웹뷰가 알린 크기로 px 까지). VS Code 창 최소 높이 때문에 약 175 아래는 못 맞춤 → 그때는 맞춘 크기를 알림
   w       웹뷰 너비 (px) 들 — 창 너비로 맞춤 (옆 칸을 닫음). 창 최소 너비 때문에 약 340 아래는 못 맞춤 → 건너뜀
@@ -12,6 +12,8 @@
   save    넣을 세이브 (없으면 새 스타팅) — 전투 장면은 pendingEncounter 가 있는 세이브로
   import  이 세이브로 "불러오기" 를 눌러 확인 상자를 띄운 채 찍음 (파일 창 대신 — orders #50)
   wait    게임에 들어간 뒤 찍기 전까지 ms
+  probe   1 = 찍을 때마다 웹뷰 안 게임 문서 시계 (document.timeline) 가 도는지 · 포커스 · 보임을 CDP 로 읽어 <폴더>/probe.json (#140 ⑤ —
+          머리 없는 Edge 는 포커스 없이 뜨면 시계가 멈췄음 · 실제 VS Code 도 그런지). 뜬 그대로 · 웹뷰 밖으로 포커스 (blur) · 다른 창을 앞으로 (bg)
 결과: <폴더>/<theme>_<w>x<h>.png — 창 전체 (패널을 최대화해서 거의 게임 화면 · 제목 줄 · 패널 탭 · 상태 줄 포함).
 
 웹뷰 묶음 (extension/media/game) 은 지금 있는 그대로 씀 (도구는 확장 쪽 · 테스트 묶음만 다시 묶음 — 다른 세션의 시험 창 캡처를 깨지 않게) → 고친 화면을 보려면 install.py 를 먼저.
@@ -46,7 +48,7 @@ except Exception:
 
 
 def args():
-    out = {'h': '187', 'w': '480,860,1860', 'theme': 'dark', 'save': '', 'wait': '3000', 'version': 'stable', 'nobuild': '', 'import': ''}
+    out = {'h': '187', 'w': '480,860,1860', 'theme': 'dark', 'save': '', 'wait': '3000', 'version': 'stable', 'nobuild': '', 'import': '', 'probe': ''}
     if len(sys.argv) < 2:
         sys.exit(__doc__)
     for a in sys.argv[2:]:
@@ -163,6 +165,48 @@ def fit(hwnd, talk, w, h):
     return got
 
 
+# 웹뷰 (vscode-webview:// — 바깥 iframe) 안 active-frame 이 게임 문서
+PROBE_JS = """(() => { const f = document.getElementById('active-frame'); const d = f && f.contentDocument; if (!d || !d.getElementById('pokemon-game')) return null;
+  return { timeline: d.timeline.currentTime == null ? null : Math.round(d.timeline.currentTime), focus: d.hasFocus(), outerFocus: document.hasFocus(), visible: d.visibilityState, anims: d.getAnimations().length }; })()"""
+
+
+def probe_timeline(port, label):
+    """게임 문서 시계를 1.5초 사이 두 번 읽음 — 돌면 두 번째가 큼 (#140 ⑤) · label blur = 게임 문서 포커스를 뺀 뒤"""
+    import importlib.util
+    import urllib.request
+    spec = importlib.util.spec_from_file_location('tr', os.path.join(ROOT, 'dev', 'team-run.py'))
+    tr = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(tr)
+    rows = []
+    targets = json.load(urllib.request.urlopen(f'http://127.0.0.1:{port}/json/list', timeout=5))
+    # blur = 웹뷰 밖 (workbench) 으로 포커스를 옮김 · bg = 다른 창 (바탕 화면 셸) 을 앞으로 — VS Code 창이 뒤
+    if label == 'blur':
+        for t in targets:
+            if t.get('type') == 'page' and t.get('webSocketDebuggerUrl'):
+                ws = tr.WS(t['webSocketDebuggerUrl'])
+                try:
+                    ws.ev("(() => { const a = document.activeElement; if (a && a.blur) a.blur(); const e = document.querySelector('.monaco-workbench'); if (e) { e.setAttribute('tabindex', '-1'); e.focus(); } return 1; })()")
+                finally:
+                    ws.s.close()
+    if label == 'bg':
+        user32.SetForegroundWindow(user32.GetShellWindow())
+        time.sleep(0.5)
+    for t in targets:
+        if not t.get('url', '').startswith('vscode-webview://') or not t.get('webSocketDebuggerUrl'):
+            continue
+        ws = tr.WS(t['webSocketDebuggerUrl'])
+        try:
+            a = ws.ev(PROBE_JS)
+            if not a:
+                continue
+            time.sleep(1.5)
+            b = ws.ev(PROBE_JS)
+            rows.append({'label': label, 'first': a, 'after1500': b, 'runs': bool(b and a['timeline'] is not None and b['timeline'] is not None and b['timeline'] - a['timeline'] > 1000)})
+        finally:
+            ws.s.close()
+    return rows
+
+
 def shoot(out, theme, h, widths, o):
     talk = tempfile.mkdtemp(prefix='pokemon-shot-talk-')
     user = user_dir(theme)
@@ -170,6 +214,15 @@ def shoot(out, theme, h, widths, o):
     name_tag = 'pokemon-shot-' + os.urandom(4).hex()
     hwnd, code_pid = None, None
     env = dict(os.environ, SHOT_DIR=talk, SHOT_USER_DIR=user, SHOT_SAVE=os.path.abspath(o['save']) if o['save'] else '', SHOT_IMPORT=os.path.abspath(o['import']) if o['import'] else '', SHOT_WAIT_MS=o['wait'], SHOT_VERSION=o['version'], SHOT_NAME=name_tag)
+    port = None
+    if o['probe']:
+        import socket
+        s = socket.socket()
+        s.bind(('127.0.0.1', 0))
+        port = s.getsockname()[1]
+        s.close()
+        env['SHOT_DEBUG_PORT'] = str(port)
+    probes = []
     env.pop('ELECTRON_RUN_AS_NODE', None)
     proc = subprocess.Popen(['node', os.path.join(ROOT, '.test-out', 'run-shot.cjs')], cwd=ROOT, env=env)
     try:
@@ -197,6 +250,14 @@ def shoot(out, theme, h, widths, o):
             img.save(os.path.join(out, name + '.png'))
             note = '' if got == (w, h) else f' (맞추지 못함 — 웹뷰 {got[0]}x{got[1]}, 창 최소 크기 등)' if got else ' (웹뷰 크기를 못 받음)'
             print(f'찍음 {name} — 창 {img.width}x{img.height} · VS Code {info.get("version")} · {info.get("mode")}/{info.get("owner")}{note}')
+            if port:
+                for label in ('as-is', 'blur', 'bg'):
+                    for row in probe_timeline(port, label):
+                        probes.append({'shot': name, **row})
+                        print(f'  시계 {label}: {row["first"]} → 1.5초 뒤 {row["after1500"]} · {"돈다" if row["runs"] else "안 돈다"}')
+        if port:
+            with open(os.path.join(out, 'probe.json'), 'w', encoding='utf-8') as f:
+                json.dump(probes, f, ensure_ascii=False, indent=1)
         open(os.path.join(talk, 'done'), 'w').close()
         proc.wait(timeout=60)
     finally:
