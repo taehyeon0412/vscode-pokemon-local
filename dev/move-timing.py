@@ -17,7 +17,7 @@
   가루 (powder) ppeak = 상대 둘레 (그림 폭 양옆 반씩 · 키 60% 위 ~ 발 아래 25%) 점 수가 가장 많은 장면 (상대 자리에 처음부터 놓이는 틀)
   상대 것은 pring (패링 원이 닫힌 때) 도 · 판정 밖: aura = 쓰는 쪽 둘레에서 퍼지는 고리 (상대엔 맞는 짜임만) · status = 변화 기술 (위력 0 — 맞는 때 없음)
   참고 (판정 밖): touch · cov1 · mask2 실루엣 0px · 1% · 2% · vpeak 회오리 둘레 점 수가 가장 많은 장면 · pop 피해 숫자 · len 시전 → 맞는 때
-머리 없는 브라우저 1개 (빈 디버그 포트 · 40판마다 새로) · 판마다 20초 안에 답이 없으면 "멈춤" 한 줄 · 남은 메모리 4 GB 아래면 시작 안 함 · 3 GB 아래면 멈추고 그때까지 표를 씀 (끝 코드 2)
+머리 없는 브라우저 1개 (빈 디버그 포트 · 40판마다 새로) · 판마다 20초 안에 답이 없으면 "멈춤" 한 줄 · 남은 메모리 2 GB 아래면 시작 안 함 · 찍는 중 2 GB 아래로 떨어지면 멈추고 그때까지 표를 씀 (끝 코드 2)
 게임 코드는 바꾸지 않음 — 맞는 짜임 (impact) 은 그리지 않고 부른 시각만 적음 (날아온 것 · 뿜기 그림만 남게)"""
 import base64
 import ctypes
@@ -349,8 +349,8 @@ def run(cases, out):
     take = "JSON.stringify(document.querySelector('iframe').contentWindow.__moveTiming || null)"
     try:
         for i, c in enumerate(cases):
-            if free_gb() < 3:
-                stop = f"멈춤 — 남은 메모리 {free_gb():.1f} GB (3 GB 아래) · {i}/{len(cases)} 판에서"
+            if free_gb() < 2:
+                stop = f"멈춤 — 남은 메모리 {free_gb():.1f} GB (2 GB 아래) · {i}/{len(cases)} 판에서"
                 break
             if ws is None or i % RESTART == 0:
                 if p:
@@ -362,7 +362,7 @@ def run(cases, out):
                 s0.bind(("127.0.0.1", 0))
                 dbg = s0.getsockname()[1]
                 s0.close()
-                p = subprocess.Popen([gs.browser(), "--headless=new", "--disable-gpu", "--edge-skip-compat-layer-relaunch", f"--remote-debugging-port={dbg}",
+                p = subprocess.Popen([gs.browser(), *gs.headless_flags(), f"--remote-debugging-port={dbg}",
                                       f"--user-data-dir={prof}", "--window-size=1900,400", *gs.hide_scrollbars(), "about:blank"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 ws_url = None
                 for _ in range(100):
@@ -441,8 +441,8 @@ def main():
     opt = dict(kv.split("=", 1) for kv in a[1:])
     os.makedirs(out, exist_ok=True)
     g = free_gb()
-    if g < 4 and opt.get("raw") != "1":
-        print(f"멈춤 — 남은 메모리 {g:.1f} GB (4 GB 아래 · 정리부터: python dev/cleanup.py)")
+    if g < 2 and opt.get("raw") != "1":
+        print(f"멈춤 — 남은 메모리 {g:.1f} GB (2 GB 아래 · 정리부터: python dev/cleanup.py)")
         sys.exit(2)
     cases, skipped, unknown = plan(opt)
     nmv = len({c["mv"] for c in cases})

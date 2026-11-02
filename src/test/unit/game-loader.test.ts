@@ -2,11 +2,11 @@
  * extension/out/extension/game-loader.js (원래 확장 쪽 GAME-PATCH) —
  * 게임 빌드가 없거나 게임 코드가 던져도 일반 모드가 그대로인지.
  */
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { tempDir } from '../fixtures/temp';
 
 const require = createRequire(import.meta.url);
 const { loadGame } = require('../../../extension/out/extension/game-loader.js') as {
@@ -20,7 +20,7 @@ interface LoadedGame {
   exports: unknown;
 }
 
-const dir = mkdtempSync(join(tmpdir(), 'pokemon-loader-'));
+const dir = tempDir('pokemon-loader-');
 function fakeHost(name: string, body: string): string {
   const p = join(dir, `${name}.js`);
   writeFileSync(p, body);

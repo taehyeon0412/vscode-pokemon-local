@@ -1,10 +1,10 @@
-import { mkdtempSync, readdirSync, readFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { tempDir } from '../../test/fixtures/temp';
 import { FileSaveArchive } from './save-archive';
 
-const fresh = () => join(mkdtempSync(join(tmpdir(), 'pokemon-archive-')), 'save-archive');
+const fresh = () => join(tempDir('pokemon-archive-'), 'save-archive');
 
 describe('세이브 보관함 (파일)', () => {
   it('원본을 파일로 두고, 까닭 · 메모 · 원본이 그대로 들어 있음', async () => {

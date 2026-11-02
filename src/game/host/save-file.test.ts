@@ -1,10 +1,10 @@
-import { mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { tempDir } from '../../test/fixtures/temp';
 import { FileSaveStorage } from './save-file';
 
-const fresh = () => join(mkdtempSync(join(tmpdir(), 'pokemon-save-')), 'globalStorage');
+const fresh = () => join(tempDir('pokemon-save-'), 'globalStorage');
 
 describe('세이브 파일', () => {
   it('없으면 undefined · 쓰고 읽으면 그대로 · 폴더가 없어도 만듦', () => {

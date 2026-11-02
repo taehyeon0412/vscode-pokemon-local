@@ -1,6 +1,7 @@
 """남은 리소스 한눈에 보기 · 내 팀 것만 끄기 (#109 — 2026-10-24 태현 님 "필요없는 리소스 다 정리하게 해줘 … 컴퓨터가 터질뻔했어")
   python dev/cleanup.py              남은 메모리 · CPU · 머리 없는 브라우저 (임시 프로필 묶음마다 팀 · 개수 · 메모리) · 이 저장소의 node · python · 남은 임시 프로필 폴더
   python dev/cleanup.py --mine dev   그 팀의 부모 잃은 머리 없는 브라우저 (띄운 도구가 끝났는데 남은 것 — 임시 프로필 이름 pg-<팀>-) 만 PID 로 끔 + 5분 넘게 안 쓴 임시 프로필 폴더 (pg-<팀>- · 이름 붙이기 전 tmp*) 지움
+                                     + %TEMP% 우리 찌꺼기 2시간 넘은 것 (TEMP_PATTERNS) · 이 프로젝트 Claude scratchpad 안 24시간 넘은 것 지움 (#141 — 쓰는 중이면 건너뜀)
   python dev/cleanup.py --mine dev --force   + 살아 있는 그 팀 브라우저 · 명령줄에 그 워크트리 경로가 든 node · python 도 (같은 팀 다른 직원 · 리드의 캡처까지 끄니 다 끝난 뒤에만)
   팀 = game-shots team() (PG_TEAM > PG_ROOT 워크트리 이름 > main). 이름으로 끄지 않음 (다른 python) · node · python 은 나무째 (/T) 안 끔 · 이 명령을 띄운 쪽 (조상) 은 건드리지 않음"""
 import glob
@@ -17,8 +18,13 @@ import time
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPO = ROOT.replace("\\", "/").split("/.claude/worktrees/")[0].lower()
-LOW_GB, HIGH_CPU = 4.0, 90  # game-dev-team.md 3장 정리 ⑤
+LOW_GB, HIGH_CPU = 2.0, 90  # game-dev-team.md 3장 정리 ⑤ (2026-10-30 태현 님 4 → 2 GB)
 BROWSERS = ("msedge.exe", "chrome.exe")
+# %TEMP% 에 쌓이던 우리 찌꺼기 (#141 2026-11-02 태현 님 "%temp%에 엄청나게 많은 임시 파일들이 생기는데") — 이름 · 나이로만 고름 (태현 님 Edge 파일은 이 이름 · 2시간 넘음 · 안 쓰는 중일 때만)
+# 테스트 임시 폴더 (test/fixtures/temp 전에 안 지운 것 · 통합 테스트가 실패해 남긴 것) · 머리 없는 Edge 부품 받기 · 풀기 (headless_flags 전)
+TEMP_PATTERNS = ("pokemon-archive-*", "pokemon-save-*", "pokemon-lease-*", "pokemon-loader-*", "pokemon-it-*", "pokemon-shot-*", "pokemon-io-*",
+                 "msedge_url_fetcher_*", "msedge_chrome_Unpacker_*", "scoped_dir*")
+TEMP_KEEP_S, SCRATCH_KEEP_S = 2 * 3600, 24 * 3600
 SCRIPTS = ("node.exe", "python.exe", "pythonw.exe")
 
 PS = r"""
@@ -137,6 +143,73 @@ def leftover_profiles(procs, min_age=0):
     return out
 
 
+def old_size(path, keep_s):
+    """(바이트, 오래됨) — 안의 파일 중 하나라도 keep_s 안에 고쳤으면 오래되지 않음 (찾으면 바로 멈춤)"""
+    now = time.time()
+    try:
+        newest, total = os.path.getmtime(path), (os.path.getsize(path) if os.path.isfile(path) else 0)
+    except OSError:
+        return 0, False
+    for base, _, files in os.walk(path):
+        for f in files:
+            try:
+                st = os.stat(os.path.join(base, f))
+            except OSError:
+                continue
+            total += st.st_size
+            newest = max(newest, st.st_mtime)
+        if now - newest < keep_s:
+            return total, False
+    return total, now - newest >= keep_s
+
+
+def remove_old(paths, keep_s):
+    """오래된 것만 지움 — (개수, 바이트) · 쓰는 중 (이름 바꾸기가 막힘) 이면 건너뜀"""
+    n = size = 0
+    for p in paths:
+        b, old = old_size(p, keep_s)
+        if not old:
+            continue
+        gone = p if p.endswith(".pg-del") else p + ".pg-del"
+        try:
+            os.rename(p, gone)
+        except OSError:
+            continue
+        if os.path.isdir(gone):
+            shutil.rmtree(gone, ignore_errors=True)
+        else:
+            try:
+                os.remove(gone)
+            except OSError:
+                pass
+        if not os.path.exists(gone):
+            n += 1
+            size += b
+    return n, size
+
+
+def temp_junk():
+    t = tempfile.gettempdir()
+    return sorted({d for pat in TEMP_PATTERNS for d in glob.glob(os.path.join(t, pat))})
+
+
+def scratch_entries():
+    """이 프로젝트 Claude scratchpad 안의 것 — %TEMP%/claude/<저장소 경로 이름>(--claude-worktrees-<팀>)/<세션>/scratchpad/* (다른 프로젝트 폴더 · 세션 폴더 · scratchpad 자체는 안 지움)"""
+    base = os.path.join(tempfile.gettempdir(), "claude")
+    slug = re.sub(r"[^a-z0-9]", "-", REPO)
+    try:
+        projects = [d for d in os.listdir(base) if d.lower() == slug or d.lower().startswith(slug + "--claude-worktrees-")]
+    except OSError:
+        return []
+    out = []
+    for proj in projects:
+        for sess in os.listdir(os.path.join(base, proj)):
+            sp = os.path.join(base, proj, sess, "scratchpad")
+            if os.path.isdir(sp):
+                out += [os.path.join(sp, x) for x in os.listdir(sp)]
+    return out
+
+
 def show(snap):
     procs = snap["procs"]
     free, total = snap["free"] / 2**20, snap["total"] / 2**20
@@ -194,6 +267,10 @@ def mine(team, force=False):
             shutil.rmtree(d, ignore_errors=True)
             nd += 0 if os.path.exists(d) else 1
     print(f"끔 ({team}{' · force' if force else ''}): 브라우저 {nb}묶음 (프로세스 {npk}) · node · python {ns} · 임시 폴더 {nd}")
+    n, b = remove_old(temp_junk(), TEMP_KEEP_S)
+    print(f"임시 정리 {n}개 · {b / 2**30:.2f} GB")
+    n, b = remove_old(scratch_entries(), SCRATCH_KEEP_S)
+    print(f"scratchpad 정리 {n}개 · {b / 2**30:.2f} GB")
     snap = snapshot()
     bs, ss = show(snap)
     orphans = sum(1 for g in bs if g["team"] == team and g["orphan"])

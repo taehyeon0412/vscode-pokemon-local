@@ -381,6 +381,13 @@ def browser():
     return exe
 
 
+def headless_flags():
+    """머리 없는 브라우저 띄우는 깃발 — dev 도구는 모두 이것으로 띄움 (#141 2026-11-02 태현 님 "%temp%에 엄청나게 많은 임시 파일들이 생기는데":
+    띄울 때마다 Edge 가 부품을 받고 풀어 (GUID.tmp crx · msedge_url_fetcher · msedge_chrome_Unpacker · scoped_dir) %TEMP% 에 쌓이던 것 →
+    부품 받기 · 뒤에서 하는 통신을 끔 · --edge-skip-compat-layer-relaunch = 스스로 다시 띄우지 않게 (bugs 1769)"""
+    return ["--headless=new", "--disable-gpu", "--edge-skip-compat-layer-relaunch", "--disable-component-update", "--disable-background-networking"]
+
+
 def hide_scrollbars():
     """스크롤 막대 숨김 — PG_SCROLLBARS=1 이면 뺌 (실제 VS Code 윈도우처럼 막대를 그려 찍음 · 막대 높이가 배치를 밀어내는지 보기, #128 UX 리뷰어:
     숨긴 채 찍어 S04 칩 줄 막대 10px 가 기술 줄을 자르는 것을 못 봄 — #429 · #430 처럼 "VS Code 에서만 잘림")"""
@@ -409,7 +416,7 @@ def png_size(path):
 
 def shoot(url, win, path, budget=3500):
     with tempfile.TemporaryDirectory(prefix=PROF_PREFIX, ignore_cleanup_errors=True) as prof:
-        cmd = [browser(), "--headless=new", "--disable-gpu", "--edge-skip-compat-layer-relaunch", "--no-first-run", "--no-default-browser-check", *hide_scrollbars(), "--mute-audio",
+        cmd = [browser(), *headless_flags(), "--no-first-run", "--no-default-browser-check", *hide_scrollbars(), "--mute-audio",
                "--force-device-scale-factor=1", f"--user-data-dir={prof}", f"--window-size={win.replace('x', ',')}", f"--virtual-time-budget={budget}",
                f"--screenshot={path}", url]
         if os.path.exists(path):

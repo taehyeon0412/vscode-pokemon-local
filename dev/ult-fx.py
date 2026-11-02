@@ -253,7 +253,7 @@ def browser_page():
     prof = tempfile.mkdtemp(prefix=gs.PROF_PREFIX)
     browser_page.prof = prof
     browser_page.gs = gs
-    p = subprocess.Popen([gs.browser(), "--headless=new", "--disable-gpu", "--edge-skip-compat-layer-relaunch", f"--remote-debugging-port={dbg}", f"--user-data-dir={prof}", "--window-size=860,187", "about:blank"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    p = subprocess.Popen([gs.browser(), *gs.headless_flags(), f"--remote-debugging-port={dbg}", f"--user-data-dir={prof}", "--window-size=860,187", "about:blank"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     ws_url = None
     for _ in range(150):
         try:

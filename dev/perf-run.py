@@ -197,7 +197,7 @@ def call(self, method, params=None):
             state["ready"] = time.time()
             if state["draws"]:
                 _orig_call(self, "Runtime.evaluate", {"expression": f"{W}.eval({json.dumps(DRAWJS)})", "returnByValue": True})
-            # 판 표의 initJs — 기록기를 넣을 때 게임 창에서 한 번 (걷기 · 대기실처럼 3:3 이 없는 판도 — 예: 배경 그림 빼고 메모리 견주기)
+            # 판 표의 initJs — 기록기를 넣을 때 게임 창에서 한 번 (걷기 · 대기실처럼 3:3 이 없는 판도 — 예: 배경 그림 빼고 메모리 견주기) · window.__tr.K.extra 에 넣은 것은 perf.json "extra" 로
             if state.get("init_js"):
                 _orig_call(self, "Runtime.evaluate", {"expression": f"{W}.eval({json.dumps(state['init_js'])})", "returnByValue": True})
             if TRACE and not state["tracing"]:
@@ -294,7 +294,7 @@ def run(cfg, out, draws=False):
         m = {"draw_avg": round(statistics.mean(fr), 1) if fr else 0, "draw_max": max(fr) if fr else 0}
     m["canvas_live"] = len(K.get("canvases") or [])
     m["canvas_made"] = K.get("canvasMade")
-    json.dump({"cfg": cfg, "canvases": K.get("canvases"), "m": m, "views": K.get("views"), "phases": K.get("phases"), "long": K.get("long"), "stalls": [x for x in K.get("dts", []) if x[1] > 50]}, open(os.path.join(out, "perf.json"), "w", encoding="utf-8"), ensure_ascii=False)
+    json.dump({"cfg": cfg, "canvases": K.get("canvases"), "m": m, "views": K.get("views"), "phases": K.get("phases"), "long": K.get("long"), "stalls": [x for x in K.get("dts", []) if x[1] > 50], "extra": K.get("extra")}, open(os.path.join(out, "perf.json"), "w", encoding="utf-8"), ensure_ascii=False)
     return m
 
 

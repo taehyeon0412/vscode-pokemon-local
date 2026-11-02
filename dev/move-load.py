@@ -8,7 +8,7 @@
 판마다 첫 연출 부름부터 3초: fx = 효과 고리 (moveTick — 기술 · 맞는 짜임 · 필살기 알갱이) 가 한 장면에 쓴 ms (최대 · 95%) · all = rAF 모두 · parts = 살아 있는 알갱이 최대 ·
   slow = 장면 사이 50ms 넘음 · ✗ = fx 최대 8ms 넘음 (한 장면 16.7ms 의 절반) 또는 연출을 안 부름
 결과: <폴더>/load.json · 화면에 판마다 한 줄 (무거운 순) + 끝 요약. 머리 없는 브라우저 · GPU 끔이라 실제 VS Code 보다 느림 — 기술끼리 · 크기끼리 견줌.
-브라우저 1개 · 판마다 20초 상한 · 남은 메모리 4 GB 아래면 시작 안 함 (dev/move-timing.py 의 도구를 빌려 씀)"""
+브라우저 1개 · 판마다 20초 상한 · 남은 메모리 2 GB 아래면 시작 안 함 (dev/move-timing.py 의 도구를 빌려 씀)"""
 import importlib.util
 import json
 import os
@@ -84,8 +84,8 @@ def run(cases, out):
     take = "JSON.stringify(document.querySelector('iframe').contentWindow.__moveLoad || null)"
     try:
         for i, c in enumerate(cases):
-            if mt.free_gb() < 3:
-                stop = f"멈춤 — 남은 메모리 {mt.free_gb():.1f} GB (3 GB 아래) · {i}/{len(cases)} 판에서"
+            if mt.free_gb() < 2:
+                stop = f"멈춤 — 남은 메모리 {mt.free_gb():.1f} GB (2 GB 아래) · {i}/{len(cases)} 판에서"
                 break
             if ws is None or i % mt.RESTART == 0:
                 if p:
@@ -97,7 +97,7 @@ def run(cases, out):
                 s0.bind(("127.0.0.1", 0))
                 dbg = s0.getsockname()[1]
                 s0.close()
-                p = subprocess.Popen([gs.browser(), "--headless=new", "--disable-gpu", "--edge-skip-compat-layer-relaunch", f"--remote-debugging-port={dbg}",
+                p = subprocess.Popen([gs.browser(), *gs.headless_flags(), f"--remote-debugging-port={dbg}",
                                       f"--user-data-dir={prof}", "--window-size=1900,400", *gs.hide_scrollbars(), "about:blank"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 ws_url = None
                 for _ in range(100):
@@ -149,8 +149,8 @@ def main():
     opt = dict(kv.split("=", 1) for kv in a[1:])
     os.makedirs(out, exist_ok=True)
     g = mt.free_gb()
-    if g < 4:
-        print(f"멈춤 — 남은 메모리 {g:.1f} GB (4 GB 아래 · 정리부터: python dev/cleanup.py)")
+    if g < 2:
+        print(f"멈춤 — 남은 메모리 {g:.1f} GB (2 GB 아래 · 정리부터: python dev/cleanup.py)")
         sys.exit(2)
     cases = plan(opt)
     print(f"기술 {len({c['mv'] for c in cases})} · 판 {len(cases)}", flush=True)

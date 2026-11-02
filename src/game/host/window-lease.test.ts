@@ -1,8 +1,8 @@
-import { mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryLeaseFile } from '../../test/fixtures/save';
+import { tempDir } from '../../test/fixtures/temp';
 import { FileLeaseFile, processAlive, WindowLease } from './window-lease';
 
 let now = 0;
@@ -75,7 +75,7 @@ describe('게임 모드는 한 번에 창 하나', () => {
 
 describe('잠금 파일 (실제 파일)', () => {
   it('없을 때만 만들어짐 — 두 번째 만들기는 false', () => {
-    const f = new FileLeaseFile(join(mkdtempSync(join(tmpdir(), 'pokemon-lease-')), 'sub', 'game-window.lock'));
+    const f = new FileLeaseFile(join(tempDir('pokemon-lease-'), 'sub', 'game-window.lock'));
     expect(f.read()).toBeNull();
     expect(f.create({ owner: 'A', pid: 1, until: 5 })).toBe(true);
     expect(f.create({ owner: 'B', pid: 2, until: 5 })).toBe(false);
@@ -87,7 +87,7 @@ describe('잠금 파일 (실제 파일)', () => {
   });
 
   it('잠금 파일이 깨졌으면 조금 지난 뒤 치우고 가져감 (영원히 못 들어가지 않게)', () => {
-    const path = join(mkdtempSync(join(tmpdir(), 'pokemon-lease-')), 'game-window.lock');
+    const path = join(tempDir('pokemon-lease-'), 'game-window.lock');
     let t = Date.now();
     const f = new FileLeaseFile(path, () => t);
     writeFileSync(path, '\0\0');
@@ -99,7 +99,7 @@ describe('잠금 파일 (실제 파일)', () => {
   });
 
   it('끝난 잠금은 읽은 그대로일 때만 치움 (그 사이 남이 새로 만들었으면 지우지 않음)', () => {
-    const f = new FileLeaseFile(join(mkdtempSync(join(tmpdir(), 'pokemon-lease-')), 'game-window.lock'));
+    const f = new FileLeaseFile(join(tempDir('pokemon-lease-'), 'game-window.lock'));
     f.create({ owner: 'dead', pid: 2 ** 30, until: 1 });
     expect(f.discard({ owner: 'someone-else', pid: 1, until: 1 })).toBe(false);
     expect(f.discard({ owner: 'dead', pid: 2 ** 30, until: 1 })).toBe(true);

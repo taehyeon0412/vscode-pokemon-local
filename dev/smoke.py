@@ -15,7 +15,7 @@
 """
 import argparse
 import html
-import io
+import importlib.util
 import json
 import os
 import re
@@ -27,8 +27,11 @@ import threading
 import urllib.parse
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# 띄우는 깃발은 game-shots 한 군데 (#141) — game-shots 가 sys.stdout 을 utf-8 로 바꿔 둠
+_spec = importlib.util.spec_from_file_location("gs", os.path.join(HERE, "dev", "game-shots.py"))
+gs = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(gs)
 EDGE_CANDIDATES = [
     r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
     r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
@@ -69,7 +72,7 @@ def run(url, win, budget, extra):
     k = root.find("/.claude/worktrees/")
     team = os.environ.get("PG_TEAM") or (root[k + len("/.claude/worktrees/"):].split("/")[0] if k >= 0 else "main")
     with tempfile.TemporaryDirectory(prefix=f"pg-{team}-") as prof:
-        cmd = [browser(), "--headless=new", "--disable-gpu", "--edge-skip-compat-layer-relaunch", "--no-first-run", "--no-default-browser-check", "--hide-scrollbars", "--mute-audio",
+        cmd = [browser(), *gs.headless_flags(), "--no-first-run", "--no-default-browser-check", "--hide-scrollbars", "--mute-audio",
                f"--user-data-dir={prof}", f"--window-size={win}", f"--virtual-time-budget={budget}", *extra, url]
         r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=max(120, budget // 1000 * 3))
         return r.stdout
