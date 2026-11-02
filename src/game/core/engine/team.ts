@@ -602,7 +602,8 @@ function pickUlt(b: TeamBattle, side: Side, slot: number, rng: Rng, ults?: Reado
   const f = b[side][slot]!;
   const names = ultNamesOf(f.form);
   const learned = new Set(f.moves.map((m) => moveOf(m.moveId)?.name.ko).filter((n): n is string => !!n));
-  const dev = f.uid ? ults?.[f.uid] : undefined;
+  // 개발 모드에서 고른 것 — 칸 (uid) 먼저 · 없으면 "*" (모든 칸 — 시험 창 ult=, ideas 1673) · 그 모습 필살기가 아니면 무시
+  const dev = (f.uid ? ults?.[f.uid] : undefined) ?? ults?.['*'];
   const fresh = names.filter((n) => !learned.has(n));
   const pool = fresh.length ? fresh : names;
   const name = dev && names.includes(dev) ? dev : pool.length ? pool[rng.int(0, pool.length - 1)] : undefined;

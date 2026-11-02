@@ -470,6 +470,12 @@
     const devRt = { team: true, walk: 1, battle: 1, pause: false, foes: [], ults: {} };
     // devult=<필살기 이름> — 내 선두 (m1) 필살기 고르기 (dev=1 과 같이, 예: devult=블래스트번 — 박자 시험)
     if (q.get('devult')) devRt.ults = { m1: q.get('devult') };
+    // ult=<필살기 이름> — 모든 칸 (내 편 · 상대, 그 모습의 필살기일 때만) 을 그 필살기로 고정 (ideas 1673 — 필살기 주머니가 무작위라 찍을 때마다 다른 필살기를 재던 것) ·
+    //   개발 진행 값을 켬 (dev=1 없이도 — 고른 필살기는 개발 진행 값에 들어 있어서) · devult 와 같이 쓰면 선두는 devult
+    if (q.get('ult')) {
+      devRt.ults = { '*': q.get('ult'), ...devRt.ults };
+      runtime.dev = devRt;
+    }
     if (q.get('dev') === '1') runtime.dev = devRt;
     let epoch = 0;
     const toWebview = (m) => setTimeout(() => window.postMessage({ command: 'game', ...m }, '*'), 0);

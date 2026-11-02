@@ -8,7 +8,8 @@ export function setDevUlts(next: Readonly<Record<string, string>> | undefined): 
   picks = next ?? {};
 }
 
-/** 그 포켓몬 (uid) 에 고른 필살기 이름 — 없으면 undefined (돌아가며) */
+/** 그 포켓몬 (uid) 에 고른 필살기 이름 — 없으면 "*" (모든 칸 — 시험 창 ult=, ideas 1673) · 그것도 없으면 undefined (돌아가며).
+ *  그 모습의 필살기가 아니면 연출이 무시함 (ult/bridge — 그 모습 목록에서 찾음) */
 export function devUltOf(uid: string | undefined): string | undefined {
-  return uid ? picks[uid] : undefined;
+  return (uid ? picks[uid] : undefined) ?? picks['*'];
 }

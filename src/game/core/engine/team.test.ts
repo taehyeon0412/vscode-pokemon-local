@@ -1587,3 +1587,16 @@ describe('ideas 711 — 내 합동 멘트에서 Space = 지금 합동', () => {
     expect(teamGatherNow(b0)).toBe(false);
   });
 });
+describe('개발 모드 고른 필살기 — "*" = 모든 칸 (시험 창 ult= · ideas 1673)', () => {
+  it('칸 (uid) 이 먼저 · 없으면 "*" · 그 모습의 필살기가 아니면 무작위 (그 모습 목록 안)', () => {
+    const b = startTeamBattle(team3(), foes(), 'trainer', '상대');
+    const full = { ...b, me: b.me.map((f, i) => (i === 1 ? { ...f, ult: 1 } : f)) };
+    const names = ultNamesOf(full.me[1]!.form);
+    expect(names.length).toBeGreaterThan(1);
+    const want = names[names.length - 1]!;
+    for (let seed = 1; seed <= 6; seed++) expect(teamInput(full, { kind: 'ult', slot: 1 }, new Rng(seed), { '*': want }).ult?.name).toBe(want);
+    const uid = full.me[1]!.uid!;
+    expect(teamInput(full, { kind: 'ult', slot: 1 }, new Rng(1), { '*': want, [uid]: names[0]! }).ult?.name).toBe(names[0]);
+    expect(names).toContain(teamInput(full, { kind: 'ult', slot: 1 }, new Rng(1), { '*': '없는필살기' }).ult?.name);
+  });
+});
