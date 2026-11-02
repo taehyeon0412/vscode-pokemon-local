@@ -221,7 +221,16 @@ COLLECT = r"""
       if (!tx || !hangul.test(tx) || el.closest('[class*="pg-dev"]')) continue;
       const r = visible(el);
       if (!r) continue;
-      const key = (tx.length > 60 ? tx.slice(0, 60) : tx) + ' @' + (el.className && el.className.baseVal === undefined ? String(el.className).split(' ')[0] : el.tagName);
+      // 줄 열쇠 = 그 줄의 원래 글 (ideas 746 — 같은 줄 안에서 글만 바뀐 것을 새 글로 세어 1초가 거짓으로 걸리던 것):
+      //   쓰러짐 줄 · 판 접힌 말은 data-full (넘쳐 "상대 3마리 쓰러졌다!" 로 접혀도 이름 줄이 이어짐) · 머리 위 글은 같은 상자가 떠 있는 동안 처음 글 ("아직 안 찼어요" → "지금!")
+      let kt = tx;
+      if (el.dataset && el.dataset.full && hangul.test(el.dataset.full)) kt = el.dataset.full;
+      else if (el.classList && el.classList.contains('pg-head-note')) {
+        if (!el.__tk || now - el.__tkLast > 160) el.__tk = tx;
+        el.__tkLast = now;
+        kt = el.__tk;
+      }
+      const key = (kt.length > 60 ? kt.slice(0, 60) : kt) + ' @' + (el.className && el.className.baseVal === undefined ? String(el.className).split(' ')[0] : el.tagName);
       const k = K.texts[key] || (K.texts[key] = { first: now, last: now, runs: [] });
       if (now - k.last > 160) { k.runs.push([k.first, k.last]); k.first = now; }
       k.last = now;
@@ -561,7 +570,13 @@ def step(ws, W, s, acts, el, rnd, cfg):
                 if cfg.get("lead") is not None and not acts.get("leadDone") and i != cfg["lead"]:
                     acts["press"][i] += 0.7
             elif el >= due:
+                # 사람 박자 — 앞 누름과 0.15 ~ 0.3초 사이를 둠 (찬 칸 둘 · 셋을 거의 같은 틱에 몰아 눌러 같이 쓰기 판이 0.25초 만에 닫히는 장면이 사람보다 자주 나오던 것 — ideas 744)
+                last = acts.get("lastPress")
+                if last is not None and el - last < 0.15:
+                    acts["press"][i] = last + rnd.uniform(0.15, 0.3)
+                    continue
                 acts["press"].pop(i)
+                acts["lastPress"] = el
                 if i == cfg.get("lead"):
                     acts["leadDone"] = True
                 inp({"kind": "team-battle", "input": {"kind": "ult", "slot": i}})
