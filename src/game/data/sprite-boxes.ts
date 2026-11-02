@@ -14,11 +14,17 @@ export function spriteBoxOf(form: string): SpriteBox | undefined {
   return BOXES[form];
 }
 
-/** 전투 그림 (걷기) 의 [왼쪽 끝, 발끝] — 가장 오래 보이는 값 (scripts/sprite-boxes.py). 마지막 한 방 벌러덩 90° 의 누운 높이 (battle/model koSinkPx) */
+/** 전투 그림 (걷기) 의 [왼쪽 끝, 발끝] — 가장 오래 보이는 값 (scripts/sprite-boxes.py · 뒤에 그림 범위 넷이 더 있음 — walkArtBoxOf). 마지막 한 방 벌러덩 90° 의 누운 높이 (battle/model koSinkPx) */
 export type WalkBox = readonly [number, number];
 
 const WALK: Readonly<Record<string, WalkBox>> = walkJson as unknown as Record<string, WalkBox>;
 
 export function walkBoxOf(form: string): WalkBox | undefined {
   return WALK[form];
+}
+
+/** 걷기 그림 모든 장면을 합친 그림 범위 [왼, 위, 오른, 아래, 바닥] (sprite-walk.json 셋째 칸부터 — 바닥 = 가장 오래 보이는 발끝) — 3:3 띠 · 컷인 · 머리 위 글의 걷기 얼굴 창 (ui/Sprite) */
+export function walkArtBoxOf(form: string): SpriteBox | undefined {
+  const w = WALK[form] as readonly number[] | undefined;
+  return w && w.length >= 6 ? [w[2]!, w[3]!, w[4]!, w[5]!, w[1]!] : undefined;
 }

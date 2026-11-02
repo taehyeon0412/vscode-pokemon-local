@@ -3,7 +3,8 @@
 → src/game/data/generated/sprite-boxes.json ({모습: [왼, 위, 오른, 아래, 바닥]} — 원본 칸 기준, 오른 · 아래 · 바닥은 끝 다음 칸. 바닥 = 가장 오래 보이는 장면의 발끝
 쓰는 곳: ui/Sprite (crop + center) — 그림 칸 안에서 실제 그림을 한가운데에 둬서, 포켓몬마다 빈칸 크기가 달라도 줄 위 · 아래 간격이 같게
 (스타팅 진화 줄 · 포켓몬 카드 · 진화 상자 — 태현 님 "진화 줄 위아래 간격 동일하게").
-+ sprite-walk.json ({모습: [왼, 바닥]}) — 전투 그림 (default_walk_8fps.gif) 의 왼쪽 끝 · 발끝 (보이는 시간이 가장 긴 값) — 마지막 한 방 벌러덩 90° 의 누운 높이 (battle/model koSinkPx, 2026-10-21 — 대기 그림 기준이면 −8 ~ +12px 어긋남, 픽셀 검사원)
++ sprite-walk.json ({모습: [왼, 바닥, 범위 왼, 위, 오른, 아래]}) — 전투 그림 (default_walk_8fps.gif) 의 왼쪽 끝 · 발끝 (보이는 시간이 가장 긴 값) — 마지막 한 방 벌러덩 90° 의 누운 높이 (battle/model koSinkPx, 2026-10-21 — 대기 그림 기준이면 −8 ~ +12px 어긋남, 픽셀 검사원)
+  + 모든 장면을 합친 그림 범위 — 3:3 띠 · 컷인 · 머리 위 글의 걷기 얼굴 창 (ui/Sprite — 대기 그림 범위로 맞추면 걷기 그림과 3 ~ 6px 어긋나던 것, 2026-11-02 아트 디렉터 1675)
 """
 import glob
 import json
@@ -45,15 +46,17 @@ for path in sorted(glob.glob(os.path.join(MEDIA, "gen*", "*", "default_walk_8fps
     form = os.path.basename(os.path.dirname(path))
     im = Image.open(path)
     lefts, feet = {}, {}
+    u = None
     for frame in ImageSequence.Iterator(im):
         b = frame.convert("RGBA").getbbox()
         if not b:
             continue
+        u = b if u is None else (min(u[0], b[0]), min(u[1], b[1]), max(u[2], b[2]), max(u[3], b[3]))
         d = frame.info.get("duration", im.info.get("duration", 0)) or 1
         lefts[b[0]] = lefts.get(b[0], 0) + d
         feet[b[3]] = feet.get(b[3], 0) + d
     if lefts:
-        walk[form] = [max(lefts, key=lambda k: (lefts[k], -k)), max(feet, key=lambda k: (feet[k], k))]
+        walk[form] = [max(lefts, key=lambda k: (lefts[k], -k)), max(feet, key=lambda k: (feet[k], k))] + list(u)
 OUT_WALK = os.path.join(ROOT, "src", "game", "data", "generated", "sprite-walk.json")
 with open(OUT_WALK, "w", encoding="utf-8") as f:
     json.dump(walk, f, separators=(",", ":"), sort_keys=True)

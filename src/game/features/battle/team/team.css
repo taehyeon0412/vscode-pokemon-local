@@ -1386,13 +1386,17 @@
   white-space: nowrap;
   animation: pg-jname 1500ms steps(1, end) both;
 }
-/* 얼굴 칸 = 그 타입 색 (판 높이 꽉 · 얼굴 24 × 20 가운데) */
+/* 얼굴 칸 = 그 타입 색 (판 높이 꽉 · 얼굴 창 = 칸 크기 30 × 28 — 잘리는 선이 칸 끝 · 금선에 겹치게, 아트 디렉터 1675b) */
 #pokemon-game .pg-jname-cell {
   display: flex;
   align-items: center;
   justify-content: center;
   align-self: stretch;
   width: 30px;
+}
+#pokemon-game .pg-jname-cell .pg-jname-face {
+  width: 30px;
+  height: 28px;
 }
 #pokemon-game .pg-team-jname.pg-jname-foe {
   border-color: var(--pg-sos-red);

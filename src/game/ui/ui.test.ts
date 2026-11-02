@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import boxesJson from '../data/generated/sprite-boxes.json';
+import { spriteBoxOf, walkArtBoxOf } from '../data/sprite-boxes';
 import { formatMoney, formatPlayTime } from './format';
 import { HEAD_FADE_STEP_MS, HEAD_FADE_STEPS, HEAD_HOLD_MS, pickHeadSpot } from './HeadNote';
 import { fieldTopPx, fitGameLayout, fitLayout, gameSize, hasMapRow, MAP_ROW_PX, minHeightOf, topGapPx } from './layout';
 import { spritePx, spriteSrc } from './sprite-path';
-import { faceCrop } from './Sprite';
+import { cropPlace, faceCrop } from './Sprite';
 import { Store } from './store';
 
 describe('화면 틀 (mvp-spec 1장)', () => {
@@ -131,6 +133,46 @@ describe('포켓몬 그림', () => {
     }
     expect(faceCrop('bulbasaur', 22)).toBeUndefined();
     expect(faceCrop('frogadier', 48)).toBeUndefined();
+  });
+
+  it('걷기 얼굴 (3:3 띠 · 컷인 · 머리 위 글) — 고르는 포켓몬은 대기 그림과 같고 (한 포켓몬 한 배율) · 자리는 걷기 그림 범위 (아트 디렉터 1675 다음)', () => {
+    const forms = Object.keys(boxesJson);
+    expect(forms.filter((f) => !walkArtBoxOf(f))).toEqual([]);
+    expect(forms.filter((f) => !!faceCrop(f, 20) !== !!faceCrop(f, 20, true))).toEqual([]);
+    // 개굴반장 걷기 그림은 대기보다 한 칸 아래부터 (39 ↔ 38) · 범위 = 걷기 그림
+    expect(faceCrop('frogadier', 20, true)).toEqual(walkArtBoxOf('frogadier'));
+    expect(walkArtBoxOf('frogadier')?.[1]).toBe(39);
+    expect(spriteBoxOf('frogadier')?.[1]).toBe(38);
+  });
+
+  it('걷기 얼굴 창 (띠 24 × 20 · 합동 이름표 30 × 28) — 모든 포켓몬 · 내 쪽 · 상대 쪽 (좌우 뒤집음): 머리가 창 위로 안 잘리고 · 창보다 좁으면 가로 가운데 1칸 안 · 넓으면 얼굴 쪽 앞 끝이 창 안 한 칸 (마폭시 머리 6칸 잘림 · 차오꿀 3.5칸 치우침 · 라이츄 상대 5칸 밀림 · 차오꿀 얼굴 앞 8줄 잘림이던 것)', () => {
+    const bad: string[] = [];
+    for (const [crop, cw] of [
+      [20, 24],
+      [28, 30],
+    ] as const) {
+      for (const f of Object.keys(boxesJson)) {
+        const wb = walkArtBoxOf(f)!;
+        const n = spritePx(f, 1);
+        for (const faceLeft of [false, true]) {
+          const { s, left, top } = cropPlace(f, crop, cw, { action: 'walk', center: true, faceLeft });
+          const k = s / n;
+          // 창 안 그림 범위 [왼, 오른] (뒤집으면 좌우가 바뀜)
+          const [l, r] = faceLeft ? [left + s - wb[2] * k, left + s - wb[0] * k] : [left + wb[0] * k, left + wb[2] * k];
+          const wide = (wb[2] - wb[0]) * k > cw - 2;
+          const ok = wide ? (faceLeft ? l >= 0 && l <= 1.5 : r <= cw && r >= cw - 1.5) : Math.abs((l + r) / 2 - cw / 2) <= 1;
+          if (top + wb[1] * k < 0 || !ok) bad.push(`${f} ${cw}${faceLeft ? ' 상대' : ''} 위 ${top + wb[1] * k} 가로 ${l}~${r}`);
+        }
+      }
+    }
+    expect(bad).toEqual([]);
+    // 키가 창보다 큰 그림 = 머리를 창 위 끝 한 칸 아래 · 작은 그림 = 한가운데 (그대로)
+    expect(cropPlace('delphox', 20, 24, { action: 'walk', center: true }).top + walkArtBoxOf('delphox')![1]).toBe(1);
+    const bw = walkArtBoxOf('bulbasaur')!;
+    expect(cropPlace('bulbasaur', 20, 24, { action: 'walk', center: true }).top).toBe(Math.round(10 - (bw[1] + bw[3]) / 2));
+    // 대기 그림 창 (포켓몬 판 칩 · 메뉴 버튼) 은 그대로 한가운데 (1675 판)
+    const idle = spriteBoxOf('delphox')!;
+    expect(cropPlace('delphox', 22, 22, { center: true }).top).toBe(Math.round(11 - (idle[1] + idle[3]) / 2));
   });
 });
 

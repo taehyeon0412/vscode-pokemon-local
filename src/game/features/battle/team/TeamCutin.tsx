@@ -43,8 +43,9 @@ export function JointNamePlate({ who, side, name, media, top, colors, quick = fa
     <div ref={plate} class={cls} style={{ top: `${top}px` }}>
       {who.map((w, i) => (
         <span key={i} class="pg-jname-cell" style={{ background: deep(colors[i] ?? '#2a3a6a') }}>
-          <span class="pg-band-face">
-            <Sprite media={media} form={w.form} scale={1} px={32} crop={20} cropWidth={24} center action="walk" faceLeft={foe} />
+          {/* 얼굴 창 = 칸 크기 30 × 28 (판 32 − 금선 2 × 2) — 24 × 20 이면 ×1 얼굴이 타입색 칸 한가운데에서 네 변이 잘린 네모 스티커처럼 보이던 것 (아트 디렉터 1675b) · 잘리는 선 = 칸 끝 · 금선 */}
+          <span class="pg-band-face pg-jname-face">
+            <Sprite media={media} form={w.form} scale={1} px={32} crop={28} cropWidth={30} center action="walk" faceLeft={foe} />
           </span>
         </span>
       ))}
@@ -70,7 +71,7 @@ export function JointNamePlate({ who, side, name, media, top, colors, quick = fa
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import type { Side } from '../../../core/engine';
 import { Sprite } from '../../../ui/Sprite';
-import { spriteBoxOf } from '../../../data/sprite-boxes';
+import { spriteBoxOf, walkArtBoxOf } from '../../../data/sprite-boxes';
 import { spritePx } from '../../../ui/sprite-path';
 import { afterFonts } from '../../../ui/fonts';
 import { FIT_ROOM } from '../../../ui/useFit';
@@ -79,9 +80,10 @@ import { splitName } from './joint-names';
 /** 타입 색을 남색 쪽으로 30% (남색 판 언어 안에서 그 필살기 색 — 50% 면 불이 흙빛 #85452a 이던 것, 아트 디렉터 #98 2바퀴 5) */
 const deep = (c: string) => `color-mix(in srgb, ${c} 70%, #0c101e)`;
 
-/** 컷인 그림 창 키 = 보이는 키 (대기 그림 위 끝 ~ 발끝) + 2칸 — 큰 그림 빈칸 위를 잘라 띠에 들어가게 (TeamLayer JointCutin 이 띠 높이를 이 값으로 늘림) */
+/** 컷인 그림 창 키 = 보이는 키 (걷기 그림 모든 장면 위 끝 ~ 발끝) + 2칸 — 큰 그림 빈칸 위를 잘라 띠에 들어가게 (TeamLayer JointCutin 이 띠 높이를 이 값으로 늘림) ·
+ *  걷기 그림이라 걷기 범위로 (대기 그림 위 끝으로 재면 장면에 따라 머리 위가 1 ~ 3칸 × k 잘리던 것 — 아트 디렉터 1675b) */
 export function cutinArtH(form: string, k: number): number {
-  const box = spriteBoxOf(form);
+  const box = walkArtBoxOf(form) ?? spriteBoxOf(form);
   return box ? (box[4] - box[1]) * k + 2 * k : 32 * k;
 }
 
