@@ -93,10 +93,10 @@ describe('S09 화면 자리 (gdd S09)', () => {
     expect(g.meHpBottom + g.hpBlockPx).toBeLessThanOrEqual(48);
   });
 
-  it('높이가 넉넉하면 메뉴는 내 HP 바 바로 위 · 자동 스위치는 트레이너 머리 위', () => {
+  it('높이가 넉넉하면 메뉴는 내 HP 바 바로 위 (상대 HP 묶음이 메뉴 밑에 걸치고 위 자리가 넉넉하면 그 위 끝 — bugs 634) · 자동 스위치는 트레이너 머리 위', () => {
     const g = geo(200);
     expect(g.menuInBar).toBe(false);
-    expect(g.menuBottom).toBe(g.meHpBottom + g.hpBlockPx);
+    expect([g.meHpBottom + g.hpBlockPx, g.foeHpBottom + g.hpBlockPx + 4]).toContain(g.menuBottom);
     expect(g.msgSide).toBeNull();
     expect(g.autoInMenu).toBe(false);
   });
@@ -548,5 +548,45 @@ describe('마지막 기회 남은 초 (ideas 727)', () => {
     expect(lastChanceSec(6000, 7000)).toBe(0);
     expect(lastChanceSec(3000, 800)).toBe(2);
     expect(lastChanceSec(3000, 2500)).toBe(1);
+  });
+});
+
+describe('가로 메뉴 줄 ↔ 상대 HP 묶음 (bugs 634)', () => {
+  it('240 ~ 720 × 150 ~ 315 · 작은 · 큰 포켓몬: 가로 메뉴 줄이 상대 HP 묶음 (위 필살기 게이지 줄 포함) 을 덮지 않음 — 위에 두 줄 말 자리가 넉넉할 때 (모자라면 말이 먼저)', () => {
+    const bad: string[] = [];
+    for (let w = 240; w <= 720; w += 20) {
+      for (const h of [150, 170, 187, 220, 260, 315]) {
+        for (const px of [64, 83]) {
+          const scale = 2;
+          const uiScale = 1.3;
+          const g = battleGeometry({ widthPx: w, bodyPx: h - 26, scale, uiScale, ground: 23, foeX: Math.max(48, Math.round(w * 0.45)) + 44 * scale, meSpritePx: px, foeSpritePx: px, heroPx: 40, heroWidthPx: 32 });
+          if (g.menuSide || g.menuInBar) continue;
+          const room = h - 26;
+          const menuPx = Math.round(19 * uiScale);
+          const foeTop = g.foeHpBottom + g.hpBlockPx + 4;
+          const under = g.foeHpX - g.foeHpWide / 2 < w - 6 && g.foeHpX + g.foeHpWide / 2 > g.menuLeft;
+          if (under && g.menuBottom < foeTop && room - (foeTop + menuPx) >= Math.round(18 * uiScale) + 3 + 1 + 15) bad.push(`${w}x${h} ${px} 메뉴 아래 ${g.menuBottom} < 상대 HP 위 ${foeTop}`);
+        }
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it('메뉴를 올려도 위 한 줄 말 자리는 그대로 — 숨김 · 줄 수 · 띄움 · 위 붐빔 · 말 자리 (240 ~ 720 × 150 ~ 320 · 1px 높이 · 64 / 83 · 야생 · 트레이너 — UX 리뷰어 634 큼: 186 ~ 189 에서 말이 숨던 것)', () => {
+    const bad: string[] = [];
+    for (let w = 240; w <= 720; w += 16) {
+      for (let h = 150; h <= 320; h += 1) {
+        for (const px of [64, 83]) {
+          for (const foeTrainer of [false, true]) {
+            const input = { widthPx: w, bodyPx: h - 26, scale: 2, uiScale: 1.3, ground: 23, foeX: Math.max(48, Math.round(w * 0.45)) + 44 * 2, meSpritePx: 64, foeSpritePx: px, heroPx: 40, heroWidthPx: 32, gapPx: 8, foeTrainer };
+            const a = battleGeometry(input);
+            const z = battleGeometry({ ...input, liftMenu: false });
+            const pick = (g: typeof a) => JSON.stringify([g.msgHidden, g.msgLines, g.msgTop, g.topBusy, g.msgSide, g.msgRight, g.menuInBar]);
+            if (pick(a) !== pick(z)) bad.push(`${w}x${h} ${px}${foeTrainer ? ' 트레이너' : ''}`);
+          }
+        }
+      }
+    }
+    expect(bad).toEqual([]);
   });
 });

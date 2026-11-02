@@ -961,6 +961,8 @@ export function BattleMenuBar({ battle, save, onInput, withAuto, compact, say, h
 
 /** 머리 위 문장 한 줄 (말 칸이 없는 좁은 패널) — 긴 문장 ("효과가 별로인 듯하다…") 이 패널 끝에서 잘리지 않게 폭을 재서 가운데를 안쪽으로 당김 (240px "듯하ㄷ" · 트레이너 이름표와 겹치던 것, 2026-10-21 UX 리뷰어) */
 const POP_EDGE = 4;
+/** 머리 위 숫자 · 한 줄 떠오를 때 가장 커지는 배율 (game.css pg-num-rise 15%) */
+const POP_PEAK = 1.1;
 /** 상성 · 급소 말이 보이는 최소 시간 (ux-rules U1 — 1초 · 첫 그린 장면부터 1초가 되게 여유 0.2초, 240 에서 982ms 이던 것) */
 const TAIL_SHOW_MS = 1200;
 
@@ -970,9 +972,11 @@ function PopSay({ kind, x, bottom, text }: { kind: string; x: number; bottom: nu
     const el = ref.current;
     const W = el?.parentElement?.clientWidth;
     if (!el || !W) return;
-    // translateX(-50%) 는 그대로 — 가운데만 [끝 + 반폭, 폭 − 끝 − 반폭] 안으로 (offsetWidth = 움직임 배율과 상관없는 폭)
-    const half = Math.ceil(el.offsetWidth / 2);
-    let cx = Math.min(W - POP_EDGE - half, Math.max(POP_EDGE + half, x));
+    // translateX(-50%) 는 그대로 — 가운데만 [끝 + 반폭, 폭 − 끝 − 반폭] 안으로 (offsetWidth = 움직임 배율과 상관없는 폭) ·
+    //   반폭은 떠오를 때 가장 커진 배율 (pg-num-rise 1.1) 로 — 240 에서 커지는 동안 오른쪽 끝이 240.5 로 판 밖이던 것 (bugs 597)
+    const half = Math.ceil((el.offsetWidth * POP_PEAK) / 2);
+    //   커진 글이 판보다 넓으면 (범위가 뒤집힘) 판 가운데 — 왼쪽 끝이 판 밖으로 나가던 것 (UX 리뷰어 597)
+    let cx = 2 * half > W - 2 * POP_EDGE ? W / 2 : Math.min(W - POP_EDGE - half, Math.max(POP_EDGE + half, x));
     el.style.left = `${Math.round(cx)}px`;
     // 상대 트레이너 이름표 ("반바지 꼬마 민수") 와 겹치면 그 왼쪽으로 (240px 트레이너전 처음 0.2초, 2026-10-21 UX 리뷰어)
     const r = el.getBoundingClientRect();

@@ -427,6 +427,8 @@ export interface GeometryInput {
   gapPx?: number;
   /** 상대 트레이너가 오른쪽 끝에 서 있음 (트레이너 · 관장 · 라이벌전) — 두 줄 말이 그 이름표에 걸치지 않게 */
   foeTrainer?: boolean;
+  /** false = 가로 메뉴를 상대 HP 묶음 위로 올리지 않음 (테스트 — 올려도 말 자리가 그대로인지 견줌, bugs 634) */
+  liftMenu?: boolean;
 }
 
 export function battleGeometry(g: GeometryInput): BattleGeometry {
@@ -454,10 +456,21 @@ export function battleGeometry(g: GeometryInput): BattleGeometry {
   // 그림 바로 위 — 패널이 낮으면 그림 위에 겹쳐서라도 화면 안에 (정보줄 · 지도 줄과 4px 띄움)
   const meHpBottom = Math.max(0, Math.min(g.ground + g.meSpritePx + 1, room - hpBlockPx - HP_TOP_GAP_PX));
   const foeHpBottom = Math.max(0, Math.min(g.ground + g.foeSpritePx + 1, room - hpBlockPx - foeExtra - HP_TOP_GAP_PX));
-  const menuBottom = meHpBottom + hpBlockPx;
   const menuPx = Math.round(MENU_PX * u);
   const compact = g.widthPx < COMPACT_WIDTH_PX;
   const tiny = g.widthPx < TINY_WIDTH_PX;
+  // 내 HP 바 왼쪽 끝 (또는 그림 왼쪽 끝) 부터 — 오른쪽으로 넘치지 않게 당김
+  const menuLeft = compact ? 6 : Math.round(Math.max(6, Math.min(meX - g.meSpritePx / 2, meHpX - meHpWide / 2, g.widthPx - MENU_EST_PX * u - 6)));
+  // 가로 메뉴 줄 = 내 HP 묶음 바로 위 · 메뉴가 뻗는 쪽에 상대 HP 묶음이 걸치면 그 위 끝 (필살기 게이지 줄만큼 더 높음) 까지 올림
+  //   (240 × 315 에서 메뉴 줄이 상대 HP 이름 줄을 3px 덮던 것 — bugs 634 · 메뉴 오른쪽 끝은 어림 (좁으면 패널 끝)) · 위 자리가 남는 만큼만 (정보줄로 옮기는 기준은 그대로 —
+  //   상대 묶음까지 넣으면 720 × 161 (상대가 가까움) 메뉴가 정보줄 안으로 옮겨 감, bugs #289 배치) · 상대 묶음 위 끝에 딱 (틈을 3 더 주면 480 × 190 에서
+  //   한 줄 말 자리가 모자라 말이 숨음 — 아트 디렉터 634 제안을 말 자리가 이김) ·
+  //   올린 뒤에도 위에 두 줄 말 + 원래 띄움이 그대로 들어갈 때만 (말 자리가 줄면 240 ~ 656 × 186 ~ 189 에서 "무엇을 할까?" 가 숨던 것 — UX 리뷰어 634 큼 · 말이 먼저)
+  const menuBase = meHpBottom + hpBlockPx;
+  const foeHpTop = foeHpBottom + hpBlockPx + foeExtra;
+  const foeUnderMenu = foeHpX - foeHpWide / 2 < Math.min(g.widthPx - 6, menuLeft + MENU_EST_PX * u) && foeHpX + foeHpWide / 2 > menuLeft;
+  const lift = g.liftMenu !== false && foeUnderMenu && foeHpTop > menuBase && room - (foeHpTop + menuPx) >= msgH + (g.gapPx ?? MSG_MIN_GAP_PX) + 1 + MSG_LINE_PX;
+  const menuBottom = lift ? foeHpTop : menuBase;
   // 옆 메뉴: 내 포켓몬 · 내 HP 묶음 오른쪽 ~ 상대 그림 · 상대 HP 묶음 왼쪽 사이에 세로 목록이 들어가면 그쪽 (위 정보줄은 그대로 보임)
   const sideLeft0 = Math.round(Math.max(meX + g.meSpritePx / 2, meHpX + meHpWide / 2) + 6);
   const sideRight0 = Math.round(Math.min(g.foeX - g.foeSpritePx / 2, foeHpX - foeHpWide / 2) - 6);
@@ -470,9 +483,7 @@ export function battleGeometry(g: GeometryInput): BattleGeometry {
     !compact && sideRight0 - sideLeft0 >= SIDE_MIN_W_PX && top + SIDE_TAB_PX + 1 + sidePanelH + 2 <= g.bodyPx
       ? { left: sideLeft0, top: panelTop - SIDE_TAB_PX, maxWidth: sideRight0 - sideLeft0, maxHeight: g.bodyPx - (panelTop - SIDE_TAB_PX) - 2 }
       : null;
-  const menuInBar = !menuSide && menuBottom + menuPx > room;
-  // 내 HP 바 왼쪽 끝 (또는 그림 왼쪽 끝) 부터 — 오른쪽으로 넘치지 않게 당김
-  const menuLeft = compact ? 6 : Math.round(Math.max(6, Math.min(meX - g.meSpritePx / 2, meHpX - meHpWide / 2, g.widthPx - MENU_EST_PX * u - 6)));
+  const menuInBar = !menuSide && menuBase + menuPx > room;
   const autoBottom = g.ground + g.heroPx + 2;
   // 트레이너 머리 위에 자리가 없거나, 내 HP 묶음과 겹치면 (좁은 패널) 메뉴 줄 맨 앞으로
   const autoTop = autoBottom + Math.round(AUTO_PX * u);

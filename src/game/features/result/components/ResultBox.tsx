@@ -342,6 +342,26 @@ function macWrap(el: HTMLElement): { h: number; lines: number; torn: boolean } {
 /** next = 이어서 고를 것 (맨 앞) — 버튼에 다음 할 일 · ups = 레벨업한 포켓몬 (result/model levelUps) · onStats = 내 포켓몬 판 (그 포켓몬) */
 export function ResultBox({ summary, next, ups, hint = false, caught = null, ms = 0, introAt = { left: 0, top: 0 }, evoItem = null, stones = [], bagOk = false, bagLater = false, media, onInput, onStats }: { summary: BattleSummary; next: 'learn' | 'evolve' | null; ups: LevelUpView[]; /** 얼굴 카드 안내 말풍선 (needsStatHint) */ hint?: boolean; /** 진화 아이템 두 번째부터 (#125) — 얻은 아이템 id (한 줄 그림) */ evoItem?: ItemId | null; /** 막 잡은 포켓몬을 진화시킬 가방의 돌 (#131 — 그릴 때 지금 세이브로 다시 센 것 · summary.caught.stones 는 결과가 났을 때 신호라 놓아주거나 돌을 쓰면 낡음) */ stones?: readonly CaughtStone[]; /** 이 상자에서 B = 계속 + 가방이 먹는 때 (엔진 resultBagOk — ideas 1656) — 돌 줄 할 일을 "[B] 가방" 으로 */ bagOk?: boolean; /** 계속하면 클리어 · 관장 카드 (엔진 resultThenCard — 그 카드에선 B 가 안 먹음, bugs 1897) — 할 일을 "다음 스테이지에서 [B] 가방" 으로 */ bagLater?: boolean; /** 잡은 포켓몬 — 처음 caughtIntroMs 동안 소개 카드만 */ caught?: CaughtView | null; /** 결과 단계 지난 ms */ ms?: number; /** 소개 카드 자리 (길 칸 기준 정수 px) */ introAt?: { left: number; top: number; width?: number }; media: string; onInput(i: GameInput): void; onStats(uid: string): void }) {
   const tight = useResultFit();
+  // 얼굴 카드 묶음 세로 자리를 정수 px 로 — 상자 (align-items: center) 안 높이가 홀수면 카드 · "스탯 찍기" 말풍선이 반 픽셀 (y 38.5 · 94.5) 에 서서 흐리던 것 (bugs 634) ·
+  //   margin-top 1px = 가운데 맞춤이라 0.5px 아래로 · 상자 위 끝 기준 (카드 들어오는 움직임과 상관없이) · 글꼴이 늦게 와도 다시 (ui/fonts)
+  const cardsRef = useRef<HTMLSpanElement>(null);
+  const roundCards = () => {
+    const el = cardsRef.current;
+    const box = el?.parentElement;
+    if (!el || !box) return;
+    el.style.marginTop = '';
+    const y = el.getBoundingClientRect().top - box.getBoundingClientRect().top;
+    if (Math.abs(y - Math.round(y)) > 0.25) el.style.marginTop = '1px';
+    //   "스탯 찍기" 말풍선 폭도 올림 정수 — 글자 폭 그대로면 54.58 이라 오른쪽 금색 1px 선이 두 열로 번짐 (아트 디렉터 634)
+    for (const hint of el.querySelectorAll<HTMLElement>('.pg-lvup-hint')) {
+      hint.style.paddingRight = '';
+      const w = hint.getBoundingClientRect().width;
+      if (w % 1 !== 0) hint.style.paddingRight = `${parseFloat(getComputedStyle(hint).paddingRight) + Math.ceil(w) - w}px`;
+    }
+  };
+  //   다시 재는 때 = 카드 수 · 말풍선 · 줄이는 단계가 바뀔 때만 (결과 단계는 ms 마다 다시 그려져 그때마다 강제 배치가 일던 것 — UX 리뷰어 634)
+  useLayoutEffect(roundCards, [ups.length, hint, tight.on, tight.one, tight.short, tight.split, tight.learnShort, tight.noPre, tight.noKey]);
+  useEffect(() => afterFonts(roundCards), []);
   // 제목 없는 상자 (트레이너) 번갈아 칸의 경험치 장면 줄이기 (넘치면 한 단계 · 맥 여유 10%) — 0 = 이름 · 1 = 숫자만 · 2 = "+102 ×3" / "+25 ~ +51"
   //   (240 × 150 세 자리 경험치 "경험치 +102 · +102 · +1…" 이 버튼 밑으로 잘리던 것 — 개발 #98 11판 3판 · U4 "넘치면 한 단계" · 폭 경계를 손으로 고르지 않음)
   //   레벨업 상자 (얼굴 카드 — 상자 높이가 카드 44) 는 그다음 3 = 카드 높이 안에서 줄 바꿈 · 4 = 배운 기술은 기술 이름만 · 5 = 경험치 뺌 · 6 = ★ 기술 · 남은 줄도 뺌 ·
@@ -610,7 +630,7 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
   }
   return (
     <div ref={tight.box} class={`pg-banner pg-result pg-two pg-lvup${whyOff ? ' pg-result-nowhy' : ''}${howOff ? ' pg-result-howoff' : ''}${tight.on ? ' pg-result-tight' : ''}${tight.one ? ' pg-result-one' : ''}${tight.short ? ` pg-result-short${tight.short}` : ''}${tight.split ? ' pg-result-split' : ''}${tight.learnShort || expStep >= 4 ? ' pg-result-learnshort' : ''}${tight.noPre ? ' pg-result-nopre' : ''}${tight.noKey ? ' pg-result-nokey' : ''}${expStep ? ` pg-exp-s${Math.min(2, expStep)}` : ''}${expStep >= 3 ? ' pg-alt-wrap' : ''}${expStep >= 5 ? ' pg-alt-noexp' : ''}${expStep >= 6 ? ' pg-alt-norest' : ''}${expStep >= 7 ? ' pg-alt-nolv' : ''}`} style={howWide ? { minWidth: `${howWide}px` } : undefined} title={all}>
-      <span class="pg-lvup-cards">
+      <span ref={cardsRef} class="pg-lvup-cards">
         <FaceCards ups={cards} media={media} hint={hint} onStats={onStats} />
       </span>
       <span class="pg-result-lines">{lines}</span>

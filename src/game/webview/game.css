@@ -898,8 +898,8 @@ body.vscode-light .pg-stage.pg-bg-arena-volcano {
   border-color: #2ea043;
 }
 .pg-helper {
-  opacity: 0.85;
-  font-size: 0.92em;
+  /* 글자 단계 11 · 팔레트 색 그대로 (0.92em = 11.04px · 반투명이면 팔레트 밖 섞인 색 — bugs 634 · 아트 디렉터) */
+  font-size: 11px;
 }
 .pg-toast {
   position: absolute;
@@ -1178,6 +1178,8 @@ body.vscode-light .pg-stage.pg-bg-arena-volcano {
   --pg-sos-gauge: #7fb8ff;
   --pg-sos-ult: #ff9f5a;
   --pg-sos-track: #283044;
+  /* 길 위 (판 없이 그림 위에 뜬) 1:1 HP 묶음 막대 빈 칸 — 어두운 숲 바탕 (#1c2436) 위 #283044 는 대비 1.1 ~ 1.2 라 빈 막대 · 상대 필살기 게이지가 안 보이던 것 (bugs 673) */
+  --pg-sos-track-field: #46506c;
   --pg-sos-bar: #0c101e;
   /* 머리 위 숫자 · 한 줄 말 테 = 2칸 짙은 남색 (1:1 .pg-pop · 3:3 .pg-team-pop 같이) — 1칸이면 연출 (불꽃 · 물보라) 위에서 빨강 글자가 주황 불꽃과 섞여 묻히던 것 (bugs 2707 ③ · 숫자는 이미 연출 위 층, 대비 문제) */
   --pg-num-ring: 1px 0px 0 #0c101e, -1px 0px 0 #0c101e, 0px 1px 0 #0c101e, 0px -1px 0 #0c101e, 1px 1px 0 #0c101e, -1px 1px 0 #0c101e, 1px -1px 0 #0c101e, -1px -1px 0 #0c101e, 2px 0px 0 #0c101e, -2px 0px 0 #0c101e, 0px 2px 0 #0c101e, 0px -2px 0 #0c101e, 2px 2px 0 #0c101e, -2px 2px 0 #0c101e, 2px -2px 0 #0c101e, -2px -2px 0 #0c101e;
@@ -1254,6 +1256,10 @@ body.vscode-light .pg-stage.pg-bg-arena-volcano {
 .pg-bar-hp {
   flex: none;
   height: 4px;
+}
+/* 1:1 머리 위 HP 묶음은 판 없이 길 그림 위 — 빈 칸 = 길 위 트랙 (숲 1.9 · 밝은 풀 3.2 · 채움 색과 2.9 ~ 5.1, bugs 673) */
+.pg-hpblock .pg-bar {
+  background: var(--pg-sos-track-field);
 }
 .pg-hp-ok .pg-bar-fill {
   background: var(--pg-sos-hp);
@@ -3915,7 +3921,6 @@ body.vscode-light .pg-stage.pg-bg-arena-volcano {
   line-height: 1;
   font-weight: 900;
   color: #e0362c;
-  text-shadow: 0 0 2px #fff;
   animation: pg-pop-in 0.25s ease-out both;
 }
 @keyframes pg-pop-in {
@@ -7373,7 +7378,8 @@ body.vscode-high-contrast-light .pg-hpblock > .pg-hprow,
 /* 안내 말풍선 (스탯을 한 번도 안 찍어 본 동안만 — result/model needsStatHint) — 카드 바로 아래에서 위로 카드를 가리킴 (남색 판 + 1px 금색 선 + 금색 11/700 · 꼭지 = 금색 · 남색 두 겹 삼각형). 2px 위아래로 세 번 까딱이고 멈춤 */
 .pg-lvup-hint {
   position: absolute;
-  top: calc(100% + 12px);
+  /* 15 = 꼭지 (6) 끝과 상자 아래 선 사이 2px (12 면 꼭지 끝이 상자 선과 같은 줄이라 금색 선 둘이 붙던 것 — 아트 디렉터 634) */
+  top: calc(100% + 15px);
   left: -2px;
   padding: 2px 6px;
   border: 1px solid var(--pg-sos-gold);
