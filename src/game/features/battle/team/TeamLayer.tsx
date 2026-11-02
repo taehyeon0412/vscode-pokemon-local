@@ -207,7 +207,9 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, d
     const r = n.getBoundingClientRect();
     return { l: r.left - sr!.left, t: r.top - sr!.top, r: r.right - sr!.left, b: r.bottom - sr!.top };
   };
-  const rows = stage && sr ? [...stage.querySelectorAll(':scope > .pg-team-band, :scope > .pg-team-faint, :scope > .pg-team-msg-over')].map(rel).filter((r) => r.r > r.l && r.b > r.t) : [];
+  //   위 처음 안내 상자 (.pg-team 밖 — 240 에서 1번 칸 머리 글이 그 뒤에 깔려 "[" 만 보이던 것, bugs 1930 ① · 디자인) 도 같은 줄로 셈
+  const tip = stage ? stage.closest('#pokemon-game')?.querySelector('.pg-first-tip.pg-first-tip-top') : null;
+  const rows = stage && sr ? [...stage.querySelectorAll(':scope > .pg-team-band, :scope > .pg-team-faint, :scope > .pg-team-msg-over'), ...(tip ? [tip] : [])].map(rel).filter((r) => r.r > r.l && r.b > r.t) : [];
   const ha0 = head && headAt.current?.key === head.key ? headAt.current : null;
   const rowOver = !!ha0 && (ha0.again ?? 0) < 2 && rows.some((r) => ha0.l < r.r && ha0.l + ha0.w > r.l && ha0.t < r.b && ha0.t + HEAD_NOTE_H > r.t);
   if (head && (headAt.current?.key !== head.key || rowOver)) {
