@@ -1434,7 +1434,30 @@ describe('3:3 박자 (orders #83 — 기본 0.8 · 전투 ×2) · 누를 창 (or
     expect(gameTempo(inTeam(foeFull, true))).toBe(1);
     // 상대 "!" 도 찬 뒤 1초만 (기다림 내내 0.8 이면 ×2 가 1.16배뿐 — 디자인 UX #83)
     expect(gameTempo(inTeam({ ...foeFull, t: b0.t + TIMING.team.fastKeepMs }, true))).toBeCloseTo(TIMING.team.tempo * TIMING.team.fasterScale, 10);
-    const meFull = { ...b0, me: b0.me.map((f, i) => ({ ...f, ult: i === 0 ? 1 : 0 })), ultReadyAt: { me: [b0.t, null, null], foe: [null, null, null] } };
+    // bugs 2732 — 차례를 기다리다 "!" 가 된 칸 (다 찬 지 오래) 도 "!" 가 시작된 뒤 foeWarnKeepMs 는 기본 박자 (빠르게 ▶▶ 에서 0.4초만 보이던 것) · 기다림 아래 끝도 그만큼
+    const queued = { ...foeFull, t: b0.t + 5000, foeUltWait: [null, 2000, null], foeWarnAt: b0.t + 5000 };
+    expect(gameTempo(inTeam(queued, true))).toBe(1);
+    expect(gameTempo(inTeam({ ...queued, t: queued.t + TIMING.team.foeWarnKeepMs - 1 }, true))).toBe(1);
+    expect(gameTempo(inTeam({ ...queued, t: queued.t + TIMING.team.foeWarnKeepMs }, true))).toBeCloseTo(TIMING.team.tempo * TIMING.team.fasterScale, 10);
+    expect(TIMING.team.foeWarnKeepMs).toBeGreaterThan(1000);
+    expect(BALANCE.team.foeUltWaitMs[0]).toBeGreaterThanOrEqual(TIMING.team.foeWarnKeepMs);
+    expect(readTeam(viaJson(queued))?.foeWarnAt).toBe(queued.foeWarnAt);
+    expect(readTeam(viaJson({ ...queued, foeWarnAt: -5 }))).toBeNull();
+    // 엔진을 걸음으로 — 기다림이 아래 끝 (fixedRng → lo) 이어도 필살기가 나갈 때까지 진짜 시간 (걸음 ÷ 그때 박자 · 빠르게 ▶▶) 이 1.2초 넘음:
+    //   혼자 바로 다 찬 칸 (다 찬 때 = 지금 — bugs 2732 의 0.96초) · 차례를 기다린 칸 (다 찬 지 오래 — 엔진이 "!" 시작을 적은 걸음부터)
+    const realToUlt = (ready: number) => {
+      let w: TeamBattle = { ...b0, t: 5000, me: b0.me.map((f) => ({ ...f, ult: 0, gauge: 0 })), foe: b0.foe.map((f, i) => ({ ...f, ult: i === 1 ? 1 : 0, gauge: 0 })), ultReadyAt: { me: [null, null, null], foe: [null, ready, null] }, foeUltWait: [null, null, null] };
+      let real = 0;
+      for (let i = 0; i < 400 && w.phase === 'run'; i++) {
+        w = teamStep(w, STEP, fixedRng(0.99), { auto: false, away: false });
+        if (w.phase === 'run') real += STEP / gameTempo(inTeam(w, true));
+      }
+      expect(w.ult?.side).toBe('foe');
+      return real;
+    };
+    expect(realToUlt(5000)).toBeGreaterThanOrEqual(BALANCE.team.foeUltWaitMs[0] - STEP);
+    expect(realToUlt(0)).toBeGreaterThanOrEqual(BALANCE.team.foeUltWaitMs[0] - STEP);
+    const meFull ={ ...b0, me: b0.me.map((f, i) => ({ ...f, ult: i === 0 ? 1 : 0 })), ultReadyAt: { me: [b0.t, null, null], foe: [null, null, null] } };
     expect(gameTempo(inTeam(meFull, true))).toBe(1);
     expect(gameTempo(inTeam({ ...meFull, t: b0.t + TIMING.team.fastKeepMs }, true))).toBeCloseTo(TIMING.team.tempo * TIMING.team.fasterScale, 10);
     const ko = { ...b0, log: [{ id: 1, at: b0.t, t: 'faint' as const, side: 'foe' as const, slot: 2 }], logSeq: 1 };

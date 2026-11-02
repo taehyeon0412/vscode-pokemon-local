@@ -175,8 +175,9 @@ describe('3:3 위 가운데 줄 — 띠 · 쓰러짐 줄 · 결과 줄 (픽셀 �
     expect(foeUltSoon(run, 1)).toBe(false);
     const full: TeamBattle = { ...run, foe: run.foe.map((f, j) => (j === 1 ? { ...f, ult: 1 } : f)), ultReadyAt: { ...run.ultReadyAt, foe: run.ultReadyAt.foe.map((t, j) => (j === 1 ? run.t : t)) } };
     const wait = (ms: number | null): TeamBattle => ({ ...full, foeUltWait: full.foeUltWait.map((w, j) => (j === 1 ? ms : w)) });
-    // 기다림을 아직 안 정함 = 가장 짧은 값 (1초) 으로 셈 → 곧
-    expect(foeUltSoon(wait(null), 1)).toBe(true);
+    // 기다림을 아직 안 정함 = 가장 짧은 값 (1.2초 — bugs 2732) 으로 셈 → 안내 1.1초보다 길어 곧 아님 · 더 긴 안내 (1.3초) 면 곧
+    expect(foeUltSoon(wait(null), 1)).toBe(false);
+    expect(foeUltSoon(wait(null), 1, 1300)).toBe(true);
     expect(foeUltSoon(wait(800), 1)).toBe(true);
     expect(foeUltSoon(wait(2500), 1)).toBe(false);
     // ▶▶ (게임 배 2) 면 같은 2초 기다림도 진짜 1초 → 곧

@@ -142,6 +142,8 @@ export interface TeamBattle {
   clash: TeamClash | null;
   /** 상대 필살기 기다림 (칸마다 남은 ms, null = 안 기다림) */
   foeUltWait: (number | null)[];
+  /** 상대 "!" 가 시작된 때 (t — 먼저 찬 칸이 기다리기 시작) · 그 뒤 foeWarnKeepMs 는 기본 박자 (bugs 2732) */
+  foeWarnAt?: number;
   /** 필살기 게이지가 꽉 찬 때 (t) — Z = 먼저 찬 포켓몬 */
   ultReadyAt: { me: (number | null)[]; foe: (number | null)[] };
   result: 'win' | 'lose' | null;
@@ -957,6 +959,8 @@ export function teamFastOk(b: TeamBattle): boolean {
   // 쓰러짐 · 다 참 1초는 엔진 시간 — 보통 공격 (run) 은 엔진이 붙잡히지 않아 그동안 박자 1 = 진짜 1초. 장면 전환 (붙잡힌 동안 엔진 시간이 멈춤) 은 webview/clock 이 진짜 시계로 셈 (#136)
   const freshFull = (side: Side) => b[side].some((f, i) => teamUltLevel(f) === 'full' && b.t - (b.ultReadyAt[side][i] ?? -Infinity) < keep);
   if (freshFull('foe') || freshFull('me')) return false;
+  // 상대 "!" 는 시작된 뒤 foeWarnKeepMs (차례를 기다리다 "!" 가 된 칸 — 다 찬 지 오래라 바로 ×2 · ×3 로 흘러 0.4 ~ 0.6초만 보이던 것, bugs 2732)
+  if (b.foeWarnAt !== undefined && b.t - b.foeWarnAt < TIMING.team.foeWarnKeepMs && teamFoeNext(b) !== null) return false;
   return !b.log.some((e) => e.t === 'faint' && b.t - e.at < keep);
 }
 /** 화면에 떠 있는 알아챌 말 — 버린 누름 한 줄 · 말 팝업. 이때는 ×2 · ×3 를 걸지 않음 (보통 공격 teamFastOk · 빠르게 ▶▶ 장면 전환 · 상대 필살기 #136) */
@@ -1213,6 +1217,8 @@ function teamStepOnce(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamStepOp
   const fi = teamFoeNext(b);
   if (fi !== null) {
     const [lo, hi] = BALANCE.team.foeUltWaitMs;
+    // "!" 가 이 칸에서 시작 — 그때부터 기본 박자 (teamFastOk · bugs 2732)
+    if (b.foeUltWait[fi] === null || b.foeUltWait[fi] === undefined) b.foeWarnAt = b.t;
     const wait = b.foeUltWait[fi] ?? rng.int(lo, hi);
     b.foeUltWait[fi] = wait - stepMs;
     if (wait - stepMs <= 0) {
@@ -1333,6 +1339,7 @@ export function readTeam(raw: unknown): TeamBattle | null {
   if (!(u === null || (isObj(u) && okUlt(u)))) return null;
   if ((raw.phase === 'ult') !== (u !== null)) return null;
   if (!waits(raw.foeUltWait, n.foe) || !isObj(raw.ultReadyAt) || !waits(raw.ultReadyAt.me, n.me) || !waits(raw.ultReadyAt.foe, n.foe)) return null;
+  if (!(raw.foeWarnAt === undefined || fin(raw.foeWarnAt, 0))) return null;
   const okPopup = (p: unknown) => isObj(p) && fin(p.id, 0) && isSide(p.side) && slot(p.slot, p.side) && typeof p.text === 'string' && p.text.length <= 200 && fin(p.ms, 0) && POPUP_KINDS.includes(p.kind as string) && (p.joint === undefined || p.joint === true);
   if (!Array.isArray(raw.popups) || raw.popups.length > 12 || !raw.popups.every(okPopup)) return null;
   // 쓰러뜨린 상대 (보상 계산 — level 이 없으면 돈 · 경험치가 NaN → 세이브 검사에서 0 이 됨)
