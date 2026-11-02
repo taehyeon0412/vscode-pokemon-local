@@ -12,7 +12,7 @@ import { battleSpritePx, koSinkPx, TYPE_COLOR } from '../model';
 import { Sprite } from '../../../ui/Sprite';
 import type { FxActor } from '../fx/bridge';
 import { TEAM_FX, TeamFxRunner, type TeamSlot } from '../fx/team';
-import { bandDrawn, DUEL_VS_MS, FAINT_HOLD_MS, FAINT_PANEL_HOLD_MS, FAINT_UNSEEN_MS, OVER_MSG_MS, VIEW_CHIP_MS, VIEW_WAIT_MS, duelSpots, faintHoldLeft, faintFold, faintFresh, faintIsBig, faintUnsee, faintLine, faintShortLine, faintShow, foeWarn, NUM_MIN_REAL_MS, numShown, overLineHold, keepJointChips, plateBoxOf, plateState, stackRows, teamDenyNote, teamGeometry, teamPrompt, viewHitChip, viewPopsBack, warnPosOf, type TeamGeo, type WarnPos, viewCrossers, viewMonClass } from './model';
+import { bandDrawn, DUEL_VS_MS, FAINT_HOLD_MS, FAINT_PANEL_HOLD_MS, FAINT_UNSEEN_MS, OVER_MSG_MS, VIEW_CHIP_MS, VIEW_WAIT_MS, duelSpots, faintHoldLeft, faintFold, faintFresh, faintIsBig, faintUnsee, faintLine, faintShortLine, faintCountLine, faintShow, foeWarn, NUM_MIN_REAL_MS, numShown, overLineHold, keepJointChips, plateBoxOf, plateState, stackRows, teamDenyNote, teamGeometry, teamPrompt, viewHitChip, viewPopsBack, warnPosOf, type TeamGeo, type WarnPos, viewCrossers, viewMonClass } from './model';
 import { HEAD_NOTE_H, HeadNote, headNoteWidth, pickHeadSpot, useHeldNote } from '../../../ui/HeadNote';
 import { getTeamView, subscribeTeamView, type TeamView } from '../fx/team-view';
 import { cutinArtH, JointNamePlate, TeamCutin } from './TeamCutin';
@@ -571,11 +571,11 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   const viewWait = useRef<{ key: string; at: number; viewed: boolean } | null>(null);
   const band = useTeamBand(b, faintBig !== null || (attach.current !== null && faintLeft(attach.current.names) > 0));
   // 띠에 붙은 쓰러짐 말은 띠가 닫힐 때까지 그대로 (글자가 먼저 빠져 띠가 줄며 왼쪽 끝이 50px 튀던 것 — UX 리뷰어 #95 3바퀴)
-  const bandFaint = useRef<{ key: string; text: string; short: string | null; names: string[] } | null>(null);
-  const seenBand = useRef<{ view: TeamBandView; faint: { text: string; short: string | null; names: string[] } | null; at: number } | null>(null);
+  const bandFaint = useRef<{ key: string; text: string; short: string | null; count: string | null; names: string[] } | null>(null);
+  const seenBand = useRef<{ view: TeamBandView; faint: { text: string; short: string | null; count: string | null; names: string[] } | null; at: number } | null>(null);
   const seenBand0 = (key: string) => seenBand.current?.view.key === key;
   if (!band) bandFaint.current = null;
-  else if (faintBig) bandFaint.current = { key: band.key, text: faintBig, short: faintShortLine(namesOf(bigOnes), myNames), names: namesOf(bigOnes) };
+  else if (faintBig) bandFaint.current = { key: band.key, text: faintBig, short: faintShortLine(namesOf(bigOnes), myNames), count: faintCountLine(namesOf(bigOnes)), names: namesOf(bigOnes) };
   else if (bandFaint.current && bandFaint.current.key !== band.key) bandFaint.current = null;
   const bandTop0 = infoBarPx + fieldTopPx - topGapPx(heightPx) + 4;
   // 높은 패널 (300 이상) 띠 = 맨 위 그림 칸 위 끝 − 30 (칩 20 + 2 + 8 — 머리 위 숫자 · 합동 칩 자리를 남김. 8 이면 위 빈 풀밭이 200px 인데도 칩이 옆으로 밀리던 것, 아트 디렉터 #95 7바퀴 ① ·
@@ -631,7 +631,7 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   if (faintTaken.current.size > 24) faintTaken.current = new Set([...faintTaken.current].slice(-12));
   const take = (ps: typeof faints) => ps.forEach((p) => faintTaken.current.add(p.id));
   const faintBox = useRef<{ text: string; at: number } | null>(null);
-  const panelFaint = useRef<{ text: string; short: string | null; ids: number[]; names: string[] } | null>(null);
+  const panelFaint = useRef<{ text: string; short: string | null; count: string | null; ids: number[]; names: string[] } | null>(null);
   // 판이 넘쳐 접힌 말을 뺐는지 (f3 — 판 자리 효과가 정함) · 1.2초를 못 채우고 빠진 말은 한 시계에서 "아직 안 보임" — 판이 닫혀 줄로 돌아온 때부터 1.2초 (힘겨루기 장면과 같은 규칙)
   //   (748 — 240 맥 모으기 판이 "통통코 쓰러졌다!" 를 빼고도 판 앞 0.14초부터 세어, 판이 닫힌 뒤 줄이 0.6초 만에 닫히던 것)
   const panelHid = useRef(false);
@@ -686,7 +686,7 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   //   장면 전환 (view) 동안은 띠가 안 보이므로 붙이지 않음 (힘겨루기 장면의 숨은 VS 띠가 쓰러짐 말을 가져가 돌아온 뒤 줄에서 0.8초 만에 빠지던 것 — #116)
   //   연출 켬 (장면 전환) 이면 VS 띠는 안 그려지니 (힘겨루기 장면) 가져가지 않고 줄에 남김 — 장면 동안 숨었다 돌아와 다시 1.2초 (가져간 이름이 어디에도 안 남던 것 — 1602 UX 큼 · ▶▶ 480)
   if (!view && band?.kind === 'vs' && !seenBand0(band.key) && boxYoung && boxText && !bigHide && !(TEAM_FX.view11 && cutscene)) {
-    bandFaint.current = { key: band.key, text: boxText, short: faintShortLine(namesOf(boxPs), myNames), names: namesOf(boxPs) };
+    bandFaint.current = { key: band.key, text: boxText, short: faintShortLine(namesOf(boxPs), myNames), count: faintCountLine(namesOf(boxPs)), names: namesOf(boxPs) };
     take(boxPs);
   }
   const bandWait = !!band && band.kind !== 'vs' && !seenBand0(band.key) && boxYoung;
@@ -755,7 +755,7 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
     const text = line(young);
     // "N마리" 는 넘칠 때만 (판 자리 효과가 재서 바꿈 — 재지 않고 바꿔 240 에서 이름이 0.13 ~ 0.6초만 보이던 것, UX 리뷰어 #95 12바퀴 3)
     if (text) {
-      panelFaint.current = { text, short: faintShortLine(namesOf(young), myNames), ids: young.map((p) => p.id), names: namesOf(young) };
+      panelFaint.current = { text, short: faintShortLine(namesOf(young), myNames), count: faintCountLine(namesOf(young)), ids: young.map((p) => p.id), names: namesOf(young) };
       panelHid.current = false;
     }
     apart0 = null;
@@ -1064,11 +1064,14 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
     //   모으기 한 줄 판은 키 옆 이름보다 간격 줄이기 (f6) 가 먼저 — 240 에서도 "합동! [2] 이상해꽃 [3] 거북왕" (#135 A — 이름이 먼저 빠져 "합동! [2] [3]" 이던 것)
     //   "[Space] 바로" 칩 (ideas 711 — 칩 자리가 있는 판만) 은 맨 먼저 키 칸 (n1 — 금색 "바로" 만 · 키는 올림 글) → 칩 (n2) 순으로 뺌 —
     //   "[Space]" 만 남아 [2] [3] 키 줄 옆에서 "또 하나 합류" 로 읽히던 것 (UX 711 작음 5) · 합류한 ✓ 이름을 빼면 이름이 0.5초만 보여 안 뺌 · 제목 · 누가 남았는지가 기다림 줄이기보다 먼저
-    const steps = (!row ? ['short', 'pg-big-f2', 'pg-big-f4'] : prompt?.kind === 'join' ? ['pg-big-f1', 'pg-big-f2', 'pg-big-f4', 'pg-big-f6', 'pg-big-f7', 'pg-big-f8', 'pg-big-f9', 'short', 'pg-big-f3'] : [...(el.querySelector('.pg-team-now') ? ['pg-big-n1', 'pg-big-n2'] : []), 'pg-big-f2', 'pg-big-f6', 'pg-big-f5', 'short', 'pg-big-f4', 'pg-big-f3']).filter((k) => k !== 'pg-big-f3' || !foldShown.current);
+    const steps = (!row ? ['short', 'short2', 'pg-big-f2', 'pg-big-f4'] : prompt?.kind === 'join' ? ['pg-big-f1', 'pg-big-f2', 'pg-big-f4', 'pg-big-f6', 'pg-big-f7', 'pg-big-f8', 'pg-big-f9', 'short', 'short2', 'pg-big-f3'] : [...(el.querySelector('.pg-team-now') ? ['pg-big-n1', 'pg-big-n2'] : []), 'pg-big-f2', 'pg-big-f6', 'pg-big-f5', 'short', 'short2', 'pg-big-f4', 'pg-big-f3']).filter((k) => k !== 'pg-big-f3' || !foldShown.current);
+    //   쓰러짐 말 줄이기는 두 걸음 — short = 편을 말하는 말 ("내 1 · 상대 2 쓰러졌다!") → short2 = 편 없는 "N마리" (747 — 앞 단계 순서 그대로)
     for (const k of steps) {
       if (!over()) break;
-      if (k !== 'short') el.classList.add(k);
-      else if (fold?.dataset.short) fold.textContent = fold.dataset.short;
+      if (k === 'short' || k === 'short2') {
+        const t = k === 'short' ? fold?.dataset.short : fold?.dataset.short2;
+        if (fold && t) fold.textContent = t;
+      } else el.classList.add(k);
     }
     if (fold && !el.classList.contains('pg-big-f3')) foldShown.current = true;
     // 접힌 말을 뺐으면 1.2초를 못 채운 이름은 "아직 안 보임" 으로 (748 · 위 panelHid)
@@ -1255,7 +1258,7 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
       )}
       {/* 띠 · 쓰러짐 줄이 떠 있는 동안 머리 위 숫자 · 칩은 그 줄 아래까지만 (240 에서 쓰러짐 줄이 "합동!" 칩을 덮던 것 — 픽셀 검사원 #95) */}
       {/* 장면 전환 동안은 3:3 띠를 안 띄움 — 혼자 = 1:1 캔버스 이름 띠 · 합동 = 큰 컷인이 이름을 말함 (이름 두 번 안 나오게) */}
-      {bandShown && <TeamBand view={bandShown} media={media} top={bandTop} faint={inBand?.text ? faintShow(inBand.text) : null} faintShort={inBand?.short ?? null} wide={widthPx < 400} tight={widthPx < 300} />}
+      {bandShown && <TeamBand view={bandShown} media={media} top={bandTop} faint={inBand?.text ? faintShow(inBand.text) : null} faintShort={inBand?.short ?? null} faintCount={inBand?.count ?? null} wide={widthPx < 400} tight={widthPx < 300} />}
       {/* 고정 자리 = 위 왼쪽 · 좁은 패널 (400 아래) 은 무대 왼쪽 아래 (위 왼쪽이 컷인 부제 "리자몽의 필살기!" · 합동 이름 판에 붙거나 겹치던 것 — UX 리뷰어 #97 2바퀴 큼 · 장면 전환 동안 발밑 판 · 숫자는 숨어 있음) */}
       {/* 고정 자리 글엔 누른 포켓몬 얼굴 (무대에 없어 누구 말인지 모르던 것 — 아트 디렉터 #98 2바퀴 7) */}
       {denyHeld && denyAtFixed && <HeadNote text={denyHeld.value.text} go={denyHeld.value.go} keyCap={denyHeld.value.key !== null ? String(denyHeld.value.key) : null} at={widthPx < 400 ? { l: 4, t: heightPx - 20 - 4 } : { l: 8, t: topMin - 14 }} step={denyHeld.step} fixed face={b.me[denyHeld.value.slot] ? { media, form: b.me[denyHeld.value.slot]!.form } : undefined} />}
@@ -1282,7 +1285,7 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
           금 제목 · 큰 키 칸 · 아래 4px 남은 막대 · 누를 틈은 엔진 (합동 약 2.5초 · 끼어들기 약 2.2초) · 자리는 재서 정수 px (반 픽셀이면 2px 금 테두리가 흐림) */}
       {prompt?.kind === 'join' && (
         <div class={`pg-team-prompt pg-team-prompt-join pg-team-prompt-big${bigRow ? ' pg-team-big-row' : ''}`} ref={bigBox}>
-          {panelFaint.current && <span class="pg-team-big-faint" data-full={faintShow(panelFaint.current.text)} data-short={panelFaint.current.short ?? undefined}>{faintShow(panelFaint.current.text)}</span>}
+          {panelFaint.current && <span class="pg-team-big-faint" data-full={faintShow(panelFaint.current.text)} data-short={panelFaint.current.short ?? undefined} data-short2={panelFaint.current.count ?? undefined}>{faintShow(panelFaint.current.text)}</span>}
           <b class="pg-team-big-title">
             {/* 상대가 합동으로 모이는 중 = 빨강 "상대 합동!" (내 편 멘트와 같은 말이던 것 — 기획 #24-4) */}
             {prompt.foeJoint ? (
@@ -1325,7 +1328,7 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
       )}
       {prompt?.kind === 'gather' && (
         <div class={`pg-team-prompt pg-team-prompt-gather pg-team-prompt-big${bigRow ? ' pg-team-big-row' : ''}`} ref={bigBox}>
-          {panelFaint.current && <span class="pg-team-big-faint" data-full={faintShow(panelFaint.current.text)} data-short={panelFaint.current.short ?? undefined}>{faintShow(panelFaint.current.text)}</span>}
+          {panelFaint.current && <span class="pg-team-big-faint" data-full={faintShow(panelFaint.current.text)} data-short={panelFaint.current.short ?? undefined} data-short2={panelFaint.current.count ?? undefined}>{faintShow(panelFaint.current.text)}</span>}
           {/* 앞장 이름 먼저 ("이 둘이 합동한다" 로 읽히던 것 — UX 3:3 점검 3) · 좁으면 "합동!" */}
           <b class="pg-team-big-title">
             {widthPx < 400 ? (

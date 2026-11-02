@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { numShown, NUM_MIN_REAL_MS, NUM_SHOW_MS, bandDrawn, bandLeft, duelSpots, faintHoldLeft, foeUltSoon, JOINT_CHIP_MS, keepJointChips, faintFold, faintFresh, faintIsBig, faintLine, faintUnsee, faintShortLine, faintShow, overLineHold, plateBoxOf, stackRows, TEAM_ROW_GAP, teamGeometry, viewHitChip, viewPopsBack, warnPosOf, type WarnPos, viewCrossers, viewMonClass, teamDenyNote } from './model';
+import { numShown, NUM_MIN_REAL_MS, NUM_SHOW_MS, bandDrawn, bandLeft, duelSpots, faintHoldLeft, foeUltSoon, JOINT_CHIP_MS, keepJointChips, faintFold, faintFresh, faintIsBig, faintLine, faintUnsee, faintShortLine, faintCountLine, faintShow, overLineHold, plateBoxOf, stackRows, TEAM_ROW_GAP, teamGeometry, viewHitChip, viewPopsBack, warnPosOf, type WarnPos, viewCrossers, viewMonClass, teamDenyNote } from './model';
 import { sampleMonster, sampleSave } from '../../../../test/fixtures/save';
 import { startTeamBattle, type TeamBattle } from '../../../core/engine/team';
 
@@ -335,14 +335,20 @@ describe('3:3 위 가운데 줄 — 띠 · 쓰러짐 줄 · 결과 줄 (픽셀 �
     expect(faintFresh(names, [1_000, 1_000, 1_000, 1_000], 10_000)).toBeNull();
   });
 
-  it('띠 끝 쓰러짐 말을 줄이면 "2마리 쓰러졌다!" · 하나면 줄이지 않음', () => {
-    expect(faintShortLine(['통통코', '소미안'])).toBe('2마리 쓰러졌다!');
+  it('띠 끝 쓰러짐 말을 줄이면 어느 편인지 말함 (747 — 거울 대결 "2마리" 가 누구 것인지) · 그래도 넘치면 "2마리" · 하나면 줄이지 않음', () => {
+    expect(faintShortLine(['통통코', '소미안'])).toBe('내 2마리 쓰러졌다!');
+    expect(faintShortLine(['상대 통통코', '상대 레디바'], new Set())).toBe('상대 2마리 쓰러졌다!');
+    // 거울 대결 — 같은 이름이 양쪽에
+    expect(faintShortLine(['리자몽', '상대 리자몽', '상대 망나뇽'], new Set(['리자몽']))).toBe('내 1 · 상대 2 쓰러졌다!');
     expect(faintShortLine(['통통코', '통통코'])).toBeNull();
     expect(faintShortLine(['레디바'])).toBeNull();
     // 748 — 한 마리 상대는 내 팀에 같은 이름이 없으면 "상대" 를 뺀 이름 (240 판에서 통째로 빠지지 않게) · 같은 이름이 있으면 줄이지 않음
     expect(faintShortLine(['상대 통통코'], new Set(['치코리타', '브케인']))).toBe('통통코 쓰러졌다!');
     expect(faintShortLine(['상대 리자몽'], new Set(['리자몽']))).toBeNull();
-    expect(faintShortLine(['상대 통통코', '상대 레디바'], new Set())).toBe('2마리 쓰러졌다!');
+    // 다음 단계 (747 앞 그대로) — 편 없이 마릿수 · 하나면 null
+    expect(faintCountLine(['리자몽', '상대 리자몽', '상대 망나뇽'])).toBe('3마리 쓰러졌다!');
+    expect(faintCountLine(['통통코', '통통코'])).toBeNull();
+    expect(faintCountLine(['상대 통통코'])).toBeNull();
   });
 
   it('ideas 743 — 쓰러짐 한 줄은 내 이름 먼저 · "상대 ○○" 는 뒤로 (거울 대결 "상대 리자몽 · 망나뇽" 의 "상대" 가 망나뇽에도 걸려 읽히던 것) · 같은 이름 하나', () => {

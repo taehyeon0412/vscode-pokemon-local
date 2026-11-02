@@ -364,13 +364,24 @@ export function faintFold(names: readonly string[], step: 1 | 2): string | null 
   return `${[...(foldMine ? [`${mine.length}마리`] : mine), ...(foldFoe ? [`상대 ${foe.length}마리`] : foe)].join(' · ')} 쓰러졌다!`;
 }
 
-/** 띠 끝 쓰러짐 말을 줄인 것 — 둘 넘게면 "2마리 쓰러졌다!" (240 "이겼다! · 2마리 쓰러졌다!" — 아트 디렉터 #95 4바퀴 ②) · 하나면 줄이지 않음 */
+/** 띠 끝 쓰러짐 말을 줄인 것 — 둘 넘게면 어느 편인지 ("상대 2마리 쓰러졌다!" · "내 1 · 상대 2 쓰러졌다!" — ideas 747: 거울 대결에서 "2마리" 가 누구 것인지 말하지 않던 것) ·
+ *  그래도 넘치면 다음 단계가 faintCountLine (240 "이겼다! · 2마리 쓰러졌다!" — 아트 디렉터 #95 4바퀴 ②) · 하나면 줄이지 않음 */
 export function faintShortLine(names: readonly string[], mine: ReadonlySet<string> = new Set()): string | null {
-  const n = new Set(names).size;
-  if (n > 1) return `${n}마리 쓰러졌다!`;
+  const u = [...new Set(names)];
+  if (u.length > 1) {
+    const foe = u.filter((n) => n.startsWith('상대 ')).length;
+    const my = u.length - foe;
+    return foe && my ? `내 ${my} · 상대 ${foe} 쓰러졌다!` : `${foe ? '상대' : '내'} ${u.length}마리 쓰러졌다!`;
+  }
   // 한 마리 = 내 팀에 같은 이름이 없으면 "상대" 를 뺀 이름 (748 — 240 모으기 판 · 띠에서 "상대" 석 자로 넘쳐 접힌 말이 통째로 빠져 이름이 0.6초만 보이던 것) · 같은 이름이 있으면 줄이지 않음
   const one = names[0];
   return one?.startsWith('상대 ') && !mine.has(one.slice(3)) ? `${one.slice(3)} 쓰러졌다!` : null;
+}
+
+/** 편을 말하는 줄인 말도 넘칠 때 — 편 없이 "N마리 쓰러졌다!" (747 앞 그대로 · 띠 · 큰 판은 faintShortLine 다음 단계로 — 줄인 말이 길어져 말 빼기가 앞당겨지지 않게) · 하나면 null */
+export function faintCountLine(names: readonly string[]): string | null {
+  const n = new Set(names).size;
+  return n > 1 ? `${n}마리 쓰러졌다!` : null;
 }
 
 /** 위 가운데 줄 (띠 · 쓰러짐 줄 · 결과 줄) 의 위 끝 — 위에서부터 앞 줄 아래 + 4 · 처음 안내와 겹치면 안내 아래 + 2 · 떠 있는 동안은 전보다 위로 안 감 (min)
