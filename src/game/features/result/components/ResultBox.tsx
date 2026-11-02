@@ -21,7 +21,7 @@ import { ITEM_ICON, stars } from '../../menu/model';
 import { itemName, VALUABLES } from '../../../core/rules/items';
 import type { CaughtStone } from '../../../core/rules/evo-tip';
 import { ITEM_IDS, type ItemId } from '../../../core/save';
-import { partText, resultTitleShown, summaryLines, type CaughtView, type LevelUpView, type SummaryPart } from '../model';
+import { easyMark, partText, resultTitleShown, summaryLines, type CaughtView, type LevelUpView, type SummaryPart } from '../model';
 
 /** 잡은 포켓몬 소개 카드 — 결과 상자 전 3초 (TIMING.caughtIntroMs), 잡기 흔들기 창이 꺼지지 않고 같은 가운데 · 같은 높이에서 가로로 넓어지며 볼이 열리고 포켓몬이 나옴 (2026-10-20 태현 님 "잡았다 창이 너무 빨리 꺼져" → B) · 집중 모양 (둘레 어둡게 · 2px 금색 · 이름표 "잡았다!") · 그림 크게 · 처음 잡았으면 그림 칸 모서리 NEW! 칩 (도감 화면은 다음 버전) · 이름 Lv · 타입 · 팀 / 보관함. 누르면 넘김 (2026-10-20 태현 님 안 2) */
 function CaughtIntro({ c, media, at, onSkip }: { c: CaughtView; media: string; at: { left: number; top: number; width?: number }; onSkip(): void }) {
@@ -138,6 +138,7 @@ function Line({ p, down = new Set<string>() }: { p: SummaryPart; down?: Readonly
             {e.name}
             {down.has(e.uid) && <Ko />}
             {`\u00a0+${e.gain}`}
+            {e.easy && <span class="pg-exp-easy">▼</span>}
           </span>
         ))}
       </>
@@ -376,12 +377,27 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
     // 제목 있는 상자 (야생) 의 둘째 줄 (pg-line 번갈아 — 빠진 레벨업 · ★) 은 주인공을 덮은 채 두 줄 넘게 감기면 4 부터 같은 단계를 한 단계씩 — 한 줄이 되면 멈춤
     //   (야생 + 레벨업 셋 240 맥에서 "이름 Lv N" 을 한 덩이로 하자 한 줄 더 커져 주인공을 다 덮던 것 · 300 은 전부터 덮던 것, 2726 · useResultFit 의 주인공 덮음 noPre · noKey 다음)
     if (!inner) {
+      // 레벨업 카드 없는 제목 있는 상자 (야생) 의 넓은 둘째 줄 (pg-result-body — 한 줄 고정 · 넘치면 …) 도 경험치를 1 · 2 단계로 (경험치만 오른 5 ~ 6마리 ·
+      //   401 ~ 529 에서 "… · 아리아도스 +2…" 로 잘리던 것 — 전부터 · UX 678 "팀 6마리" · 맥 여유 1.1)
+      const body = box?.querySelector<HTMLElement>('.pg-result-body');
+      if (!card && body && body.getClientRects().length > 0 && body.querySelector('.pg-rest-exp')) {
+        if (expStep >= 2) return;
+        const r = document.createRange();
+        r.selectNodeContents(body);
+        if (r.getBoundingClientRect().width * 1.1 > body.clientWidth + 0.5) setExpStep(expStep + 1);
+        return;
+      }
       const tEl = box?.querySelector<HTMLElement>('.pg-result-alt.pg-line .pg-result-alt-b');
-      if (!box || !card || !tEl || tEl.getClientRects().length === 0 || expStep >= 7) return;
+      if (!box || !tEl || tEl.getClientRects().length === 0 || expStep >= 7) return;
       const hero = box.closest('#pokemon-game')?.querySelector('.pg-hero-wrap')?.getBoundingClientRect();
       const r = box.getBoundingClientRect();
       const onHero = !!hero && hero.width > 0 && r.bottom > hero.top + 0.5 && r.left < hero.right && r.right > hero.left;
       const m = macWrap(tEl);
+      //   카드 없는 상자의 좁은 번갈아 줄은 경험치만 1 · 2 단계 (경험치만 오른 셋 넘게 — 이름이 감겨 상자가 주인공을 10 ~ 26px 덮던 것, 전부터 · UX 678)
+      if (!card) {
+        if (expStep < 2 && tEl.querySelector('.pg-rest-exp') && ((onHero && m.lines > 1) || m.torn)) setExpStep(expStep + 1);
+        return;
+      }
       if ((onHero && m.lines > 1) || m.torn) setExpStep(Math.max(4, expStep + 1));
       return;
     }
@@ -490,7 +506,9 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
   //   "진화 가능" · "팀에 넣고" 는 붙여 씀 (240 에서 "라플레시아 진화 / 가능" 으로 나뉘던 것 — UX #131)
   const stoneText = summary.caught && stones.length > 0 ? `${summary.caught.name} → ${stones[0]!.toName} 진화\u00a0가능${stones.length > 1 ? ` 외\u00a0${stones.length - 1}` : ''}${summary.caught.toBox ? '\u00a0· 팀에\u00a0넣고' : ''}` : '';
   const stoneAll = summary.caught && stones.length > 0 ? `${summary.caught.name} 진화 가능: ${stones.map((s) => `${s.toName} (${itemName(s.item)})`).join(' · ')}` : '';
-  const all = [title, ...head.map(partText), ...(stoneAll ? [stoneAll] : []), ...(summary.evoNote ? [summary.evoNote] : []), ...body.map(partText)].join(' · ') + (summary.rival ? ` · 라이벌 보상 (돈 ×${BALANCE.rivalMoneyScale} · 아이템)` : '');
+  // 방치 경험치가 줄었으면 (gdd 5.2 · bugs 678) — 한 마리면 경험치 칸 끝 "▼1/2 Lv 높음" (기획 1688 — "쉬운 길" 은 "쉬운 모드" 로도 읽혀서) · 여럿이면 줄어든 포켓몬 숫자 뒤 "▼" · 뜻은 상자 title (좁아 빠져도 올리면 보임 — UX 678)
+  const easy = easyMark(summary.exp);
+  const all = [title, ...head.map(partText), ...(stoneAll ? [stoneAll] : []), ...(summary.evoNote ? [summary.evoNote] : []), ...body.map(partText), ...(easy ? [easy.title] : [])].join(' · ') + (summary.rival ? ` · 라이벌 보상 (돈 ×${BALANCE.rivalMoneyScale} · 아이템)` : '');
   // 카드가 레벨업을 보여 주면 둘째 줄의 "▲ 이상해씨 Lv 5 → 6 (경험치 +28)" 은 빼고 새 기술 (★) 을 앞에 — 같은 말 두 번 · 좁으면 ★ 가 잘리던 것 (아트 디렉터 7차, 전체는 마우스를 올리면)
   const rest1 = ups.length === 0 ? body : [...body.filter((p) => p.kind === 'learned'), ...body.filter((p) => p.kind !== 'up' && p.kind !== 'learned')];
   // 경험치만 오른 포켓몬이 여럿이면 "경험치" 낱말은 한 번 ("경험치 리자몽 +25 · 이상해꽃 +51 · 거북왕 +51" — 세 번 되풀이하던 것, 아트 디렉터 #97 · 원칙 5)
@@ -505,11 +523,11 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
     p.kind === 'learned' && p.short && p.name && (ups.length !== 1 || ups[0]!.name !== p.name) && lastHidden !== p.name ? { ...p, shortWho: p.name } : p;
   const rest2 =
     expOnly.length > 1 && firstExp >= 0
-      ? [...rest1.slice(0, firstExp).filter((p) => p.kind !== 'exp'), { kind: 'exp' as const, text: `경험치 ${expOnly.map((e) => `${e.name}\u00a0+${e.gain}`).join(' · ')}`, entries: expOnly.map((e) => ({ uid: e.uid, name: e.name, gain: e.gain })) }, ...rest1.slice(firstExp).filter((p) => p.kind !== 'exp')]
+      ? [...rest1.slice(0, firstExp).filter((p) => p.kind !== 'exp'), { kind: 'exp' as const, text: `경험치 ${expOnly.map((e) => `${e.name}\u00a0+${e.gain}`).join(' · ')}`, entries: expOnly.map((e) => ({ uid: e.uid, name: e.name, gain: e.gain, easy: easy?.per.get(e.uid) })) }, ...rest1.slice(firstExp).filter((p) => p.kind !== 'exp')]
       : rest1;
   const rest = rest2.map(learnWho);
   // 좁은 제목 없는 상자의 경험치 장면 = 넘치면 이름 없이 숫자만 → 더 넘치면 "+102 ×3" (모두 같을 때) · "+25 ~ +51" (game.css .pg-exp-s1 · s2)
-  const expShort = expOnly.length > 0 ? `경험치 ${expOnly.map((e) => `+${e.gain}`).join(' · ')}` : '';
+  const expShort = expOnly.length > 0 ? `경험치 ${expOnly.map((e) => `+${e.gain}${expOnly.length > 1 && easy?.per.has(e.uid) ? '▼' : ''}`).join(' · ')}` : '';
   const gains = expOnly.map((e) => e.gain);
   const expTiny = gains.length === 0 ? '' : gains.every((g) => g === gains[0]) ? `경험치 +${gains[0]}${gains.length > 1 ? ` ×${gains.length}` : ''}` : `경험치 +${Math.min(...gains)} ~ +${Math.max(...gains)}`;
   // 제목 — 좁으면 "야생 " 을 빼고 (pg-title-pre) 낱말 단위로 줄을 바꿈 (줄임표 금지 U4 — "야생 파이리를 …" 로 잘리던 것, 2026-10-21 orders #5)
@@ -529,6 +547,12 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
         </>
       ) : (
         <Line p={p} down={downUids} />
+      )}
+      {p.kind === 'exp' && easy && expOnly.length === 1 && (
+        <span class="pg-exp-easy" title={easy.title}>
+          {`\u00a0${easy.short}`}
+          <span class="pg-easy-word">{'\u00a0Lv\u00a0높음'}</span>
+        </span>
       )}
     </span>
   ));

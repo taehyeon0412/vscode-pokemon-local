@@ -6,7 +6,7 @@ import { Rng } from '../../core/engine/rng';
 import type { BattleSummary } from '../../core/engine';
 import { createGameState } from '../../core/engine';
 import { TIMING } from '../../core/balance';
-import { caughtView, levelUps, needsStatHint, resultTitleShown, resultViewKey, summaryLines } from './model';
+import { caughtView, easyMark, levelUps, needsStatHint, resultTitleShown, resultViewKey, summaryLines } from './model';
 
 const summary = (exp: BattleSummary['exp']): BattleSummary => ({ title: '야생 피죤을 쓰러뜨렸다!', exp, money: 20, item: null, caught: null, learned: [], choices: 0, badge: null });
 
@@ -74,5 +74,29 @@ describe('배운 기술 줄 (2725)', () => {
     const s: BattleSummary = { title: '', exp: [], money: 0, item: null, caught: null, learned: [{ name: '아리아도스', move: '엉겨붙기' }], choices: 0, badge: null };
     const learned = summaryLines(s).body.find((p) => p.kind === 'learned');
     expect(learned).toMatchObject({ short: '엉겨붙기', name: '아리아도스', text: '아리아도스가 엉겨붙기를 배웠다' });
+  });
+});
+
+describe('방치 경험치 쉬운 길 표시 (gdd 5.2 · bugs 678)', () => {
+  it('경험치만 오른 포켓몬 중 가장 크게 줄어든 배율 · 1 이면 없음 · 레벨업한 포켓몬은 안 셈 (카드라 숫자가 안 보임)', () => {
+    expect(easyMark([{ from: 5, to: 5 }])).toBeNull();
+    expect(easyMark([{ from: 5, to: 5, easy: 1 }])).toBeNull();
+    expect(easyMark([{ from: 5, to: 5, easy: 0.5 }])?.short).toBe('▼1/2');
+    expect(easyMark([{ from: 5, to: 5, easy: 0.5 }, { from: 9, to: 9, easy: 0.1 }])?.short).toBe('▼1/10');
+    expect(easyMark([{ from: 5, to: 6, easy: 0.25 }])).toBeNull();
+    expect(easyMark([{ from: 5, to: 5, easy: 0.25 }])?.title).toContain('1/4');
+  });
+  it('여럿이면 포켓몬마다 (줄어든 포켓몬만 · 뜻에 누가 얼마나)', () => {
+    const m = easyMark([
+      { uid: 'a', name: '리자몽', from: 30, to: 30, easy: 0.5 },
+      { uid: 'b', name: '피카츄', from: 12, to: 12 },
+      { uid: 'c', name: '거북왕', from: 33, to: 33, easy: 0.25 },
+    ])!;
+    expect([...m.per.entries()]).toEqual([
+      ['a', '1/2'],
+      ['c', '1/4'],
+    ]);
+    expect(m.title).toContain('리자몽 1/2 · 거북왕 1/4');
+    expect(m.title).toContain('길');
   });
 });

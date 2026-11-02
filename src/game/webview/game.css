@@ -7068,6 +7068,15 @@ body.vscode-high-contrast-light .pg-hpblock > .pg-hprow,
 .pg-result .pg-result-alt.pg-result-alt-in > span {
   white-space: nowrap;
 }
+/* 방치 경험치가 줄어든 표시 "▼1/2 Lv 높음" (gdd 5.2 · bugs 678 · 기획 1688) — 흐린 글 (경험치 숫자보다 뒤) · 경험치를 줄이는 단계면 낱말 "Lv 높음" 부터 뺌 ·
+   숫자만 남는 마지막 단계 (s2 — "+102 ×3") 면 표시도 뺌 (그 줄은 한 줄 고정이라 넘쳐도 다음 단계가 안 켜져 240 3:3 결과에서 [Enter 계속] 에 닿던 것) */
+.pg-exp-easy {
+  color: var(--pg-sos-dim);
+}
+.pg-result.pg-exp-s1 .pg-easy-word,
+.pg-result.pg-exp-s2 .pg-exp-easy {
+  display: none;
+}
 .pg-result .pg-exp-short,
 .pg-result .pg-exp-tiny {
   display: none;
@@ -7075,11 +7084,22 @@ body.vscode-high-contrast-light .pg-hpblock > .pg-hprow,
 /* 넘치면 한 단계 (ResultBox expStep — 재서): 1 = 이름 없이 숫자만 ("경험치 +25 · +51 · +51") · 2 = "경험치 +102 ×3" / "+25 ~ +51" (이름 · 낱낱 숫자는 상자 title) */
 .pg-result.pg-exp-s1 .pg-result-alt-in .pg-exp-full,
 .pg-result.pg-exp-s2 .pg-result-alt-in .pg-exp-full,
-.pg-result.pg-exp-s2 .pg-result-alt-in .pg-exp-short {
+.pg-result.pg-exp-s2 .pg-result-alt-in .pg-exp-short,
+.pg-result.pg-exp-s1 .pg-result-body .pg-exp-full,
+.pg-result.pg-exp-s2 .pg-result-body .pg-exp-full,
+.pg-result.pg-exp-s2 .pg-result-body .pg-exp-short,
+.pg-result:not(.pg-lvup).pg-exp-s1 .pg-result-alt .pg-exp-full,
+.pg-result:not(.pg-lvup).pg-exp-s2 .pg-result-alt .pg-exp-full,
+.pg-result:not(.pg-lvup).pg-exp-s2 .pg-result-alt .pg-exp-short {
   display: none;
 }
+/* 제목 있는 상자 (야생) 의 넓은 둘째 줄도 같은 단계 (경험치만 오른 5 ~ 6마리 — UX 678) */
 .pg-result.pg-exp-s1 .pg-result-alt-in .pg-exp-short,
-.pg-result.pg-exp-s2 .pg-result-alt-in .pg-exp-tiny {
+.pg-result.pg-exp-s2 .pg-result-alt-in .pg-exp-tiny,
+.pg-result.pg-exp-s1 .pg-result-body .pg-exp-short,
+.pg-result.pg-exp-s2 .pg-result-body .pg-exp-tiny,
+.pg-result:not(.pg-lvup).pg-exp-s1 .pg-result-alt .pg-exp-short,
+.pg-result:not(.pg-lvup).pg-exp-s2 .pg-result-alt .pg-exp-tiny {
   display: inline;
 }
 @media (max-width: 300px) {
@@ -7245,6 +7265,20 @@ body.vscode-high-contrast-light .pg-hpblock > .pg-hprow,
   overflow: hidden;
   vertical-align: middle;
   line-height: 0;
+}
+/* 연달아 배울 때 배우는 포켓몬이 바뀌면 얼굴 칸 2px 금색 테 1초 — 한 번만 · 깜빡임 없이 steps (ideas 1676 · 상자를 다시 써 바뀐 걸 모르던 것) */
+.pg-learn-face.pg-learn-swap {
+  animation: pg-learn-swap 1s steps(1, end) both;
+}
+/* 테 = outline (그림 위에 그려짐 — 안쪽 그림자면 얼굴 그림이 덮음) */
+@keyframes pg-learn-swap {
+  0% {
+    outline: 2px solid var(--pg-sos-gold);
+    outline-offset: -2px;
+  }
+  100% {
+    outline: none;
+  }
 }
 /* 기술 배우기 넘치면 한 단계 1 = 배우는 포켓몬 이름 뺌 (타입은 남김 — ideas 1664) */
 .pg-learn-noname .pg-learn-name {

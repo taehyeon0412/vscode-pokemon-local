@@ -41,7 +41,7 @@ export interface SummaryPart {
   /** 경험치 칸 — 누구 (3:3 결과 쓰러진 칸 "기절" 칩을 uid 로 붙임) · 여럿을 한 줄로 묶은 칸은 entries */
   uid?: string;
   name?: string;
-  entries?: readonly { uid: string; name: string; gain: number }[];
+  entries?: readonly { uid: string; name: string; gain: number; /** 방치 경험치로 줄었으면 "1/N" (숫자 뒤 ▼ — bugs 678) */ easy?: string }[];
 }
 
 export function summaryLines(s: BattleSummary): { title: string; head: SummaryPart[]; body: SummaryPart[] } {
@@ -61,6 +61,23 @@ export function summaryLines(s: BattleSummary): { title: string; head: SummaryPa
   // 라이벌 한마디 (gdd 4.12) — 둘째 줄 맨 끝 (좁은 패널에서 레벨업이 잘리지 않게)
   if (s.quote) body.push({ kind: 'quote', text: s.quote });
   return { title: s.title, head, body };
+}
+
+/**
+ * 방치 경험치가 줄어든 표시 (gdd 5.2 "▼1/2 Lv 높음" — bugs 678 · 기획 1688) — 경험치만 오른 포켓몬 (레벨업은 카드라 숫자가 안 보임) 중 줄어든 것 · 없으면 null.
+ * short = 한 마리일 때 끝에 붙일 "▼1/N" · per = 포켓몬마다 "1/N" (여럿이면 줄어든 포켓몬 숫자 뒤 "▼" 만 — 끝에 하나면 마지막 포켓몬 것으로 읽히고 줄이 넘치면 가장 먼저 잘리던 것, UX 678) ·
+ * title = 뜻 (상자에 올리면 — 견주는 것은 그 길 (스테이지) 의 레벨대). 1/2 · 1/4 · 1/10 모두 ASCII 분수 (줄인 글꼴에 4분의 1 · 10분의 1 분수 글자가 없어 한 모양으로)
+ */
+export function easyMark(
+  exp: readonly { uid?: string; name?: string; to: number; from: number; easy?: number }[],
+): { short: string; title: string; per: ReadonlyMap<string, string> } | null {
+  const xs = exp.filter((e) => e.to <= e.from && e.easy !== undefined && e.easy < 1);
+  if (xs.length === 0) return null;
+  const frac = (k: number) => `1/${Math.round(1 / k)}`;
+  const per = new Map(xs.map((e, i) => [e.uid ?? String(i), frac(e.easy!)] as const));
+  const n = Math.round(1 / Math.min(...xs.map((e) => e.easy!)));
+  const who = xs.length > 1 || exp.filter((e) => e.to <= e.from).length > 1 ? `▼ = 줄어든 포켓몬 (${xs.map((e) => `${e.name ?? ''} ${frac(e.easy!)}`).join(' · ')}) — ` : '';
+  return { short: `▼1/${n}`, title: `Lv 높음 — ${who}레벨이 이 길보다 높아 경험치가 줄어요 (${who ? '' : `1/${n} · `}레벨대가 높은 길에서는 다 받아요)`, per };
 }
 
 /**

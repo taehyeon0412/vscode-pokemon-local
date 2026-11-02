@@ -7,7 +7,7 @@
  * 임시 디자인 — 단계 12 에서 다시.
  */
 import type { ComponentChildren } from 'preact';
-import { useEffect, useRef, useState, useLayoutEffect } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState, useLayoutEffect } from 'preact/hooks';
 import type { GameInput } from '../../../core/engine';
 import { withJosa } from '../../../core/text';
 import { Button } from '../../../ui/Button';
@@ -64,6 +64,13 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
     setKeep([]);
     setForget(null);
   }, [id]);
+  // 연달아 배울 때 배우는 포켓몬이 바뀌면 얼굴 칸 금색 테 1초 (상자를 다시 써 들어오는 움직임이 없어 바뀐 걸 모르던 것 — ideas 1676) · 첫 상자 · 같은 포켓몬은 없음
+  const learnUid = view.kind === 'learn' ? view.monster.uid : null;
+  const prevUid = useRef<string | null>(null);
+  const swapped = useMemo(() => learnUid !== null && prevUid.current !== null && prevUid.current !== learnUid, [learnUid]);
+  useEffect(() => {
+    if (learnUid) prevUid.current = learnUid;
+  }, [learnUid]);
   const learn = (replace: number | null) => view.kind === 'learn' && onInput({ kind: 'learn', replace, uid: view.monster.uid, moveId: view.move.id });
 
   const decide = () => {
@@ -129,7 +136,7 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
           <span class="pg-ellipsis">
             {/* 배우는 포켓몬 얼굴 (ideas 1671 — 600 아래 · 넘치면 이름이 빠져 누가 배우는지 안 보이던 것 · 팀 경험치로 둘이 연달아 배울 때) · 진화 아이템 안내 얼굴과 같은 22px ·
                 얼굴이 맨 앞을 맡아 ★ 는 뺌 (★ 뒤 얼굴이 "★ 등급 포켓몬" 으로 읽히고 · ★ 자리 14px 로 좁은 폭에서 위력 · 타입이 일찍 빠지던 것 — UX 1671 작음 1 · 2) */}
-            <span class="pg-learn-face" title={view.name}>
+            <span key={view.monster.uid} class={swapped ? 'pg-learn-face pg-learn-swap' : 'pg-learn-face'} title={view.name}>
               <Sprite media={media} form={view.monster.form} shiny={view.monster.shiny} scale={1} crop={22} center />
             </span>
             <span class="pg-learn-long pg-learn-name">{withJosa(view.name, '이/가')} </span>
