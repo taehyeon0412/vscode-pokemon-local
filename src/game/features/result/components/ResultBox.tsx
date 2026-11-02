@@ -211,7 +211,8 @@ function useResultFit(): { box: { current: HTMLDivElement | null }; on: boolean;
     const title = line?.querySelector<HTMLElement>('.pg-result-title') ?? null;
     if (!line || line.clientWidth === 0) return;
     const minW = (c: HTMLElement) => parseFloat(getComputedStyle(c).minWidth) || 0;
-    const kids = [...line.children].filter((c): c is HTMLElement => c instanceof HTMLElement && c.offsetWidth > 0);
+    // 보이는 칸 (display none 만 뺌) — 폭 0 으로 접힌 칸도 셈 (256 ~ 259 맥에서 번갈아 줄이 min-width 0 으로 0px 이 되어 빠지고 버튼만 재 넘치면 한 단계가 안 켜지던 것, 2726)
+    const kids = [...line.children].filter((c): c is HTMLElement => c instanceof HTMLElement && c.getClientRects().length > 0);
     const gap = parseFloat(getComputedStyle(line).columnGap) || 0;
     // 상자가 더 넓어질 수 있는 폭 — 상자는 내용만큼 (fit-content · 최대 = 무대 − 16px) 이라 제목 없는 상자 (트레이너 · 3:3) 는 남는 폭이 늘 0 으로 재져
     //   모든 폭에서 늘 한 단계 (tight · one) 줄던 것 (1898 UX 큼 — 다시 재기를 넣자 드러남) · 내용이 넘쳐 이미 최대 폭이면 0
@@ -319,6 +320,25 @@ function useResultFit(): { box: { current: HTMLDivElement | null }; on: boolean;
   return { box, on, one, short, split, learnShort, noPre, noKey };
 }
 
+/** 맥 글꼴 (+10% — 글자 사이 0.06em 로 흉내) 로 감았을 때 높이 · 줄 수 · 빠진 레벨업 덩이 (pg-alt-up) 가 줄 끝에서 쪼개졌는지 (ResultBox expStep) */
+function macWrap(el: HTMLElement): { h: number; lines: number; torn: boolean } {
+  const ls = el.style.letterSpacing;
+  el.style.letterSpacing = '0.06em';
+  const h = el.getBoundingClientRect().height;
+  const r = document.createRange();
+  r.selectNodeContents(el);
+  const rs = Array.from(r.getClientRects())
+    .filter((x) => x.width > 0)
+    .sort((a, b) => a.top - b.top);
+  const lines = rs.reduce((n, x, i) => (i > 0 && x.top > rs[i - 1]!.top + rs[i - 1]!.height / 2 ? n + 1 : n), rs.length > 0 ? 1 : 0);
+  const torn = Array.from(el.querySelectorAll('.pg-alt-up')).some((u) => {
+    const us = Array.from(u.getClientRects());
+    return us.some((x) => x.top > us[0]!.top + us[0]!.height / 2);
+  });
+  el.style.letterSpacing = ls;
+  return { h, lines, torn };
+}
+
 /** next = 이어서 고를 것 (맨 앞) — 버튼에 다음 할 일 · ups = 레벨업한 포켓몬 (result/model levelUps) · onStats = 내 포켓몬 판 (그 포켓몬) */
 export function ResultBox({ summary, next, ups, hint = false, caught = null, ms = 0, introAt = { left: 0, top: 0 }, evoItem = null, stones = [], bagOk = false, bagLater = false, media, onInput, onStats }: { summary: BattleSummary; next: 'learn' | 'evolve' | null; ups: LevelUpView[]; /** 얼굴 카드 안내 말풍선 (needsStatHint) */ hint?: boolean; /** 진화 아이템 두 번째부터 (#125) — 얻은 아이템 id (한 줄 그림) */ evoItem?: ItemId | null; /** 막 잡은 포켓몬을 진화시킬 가방의 돌 (#131 — 그릴 때 지금 세이브로 다시 센 것 · summary.caught.stones 는 결과가 났을 때 신호라 놓아주거나 돌을 쓰면 낡음) */ stones?: readonly CaughtStone[]; /** 이 상자에서 B = 계속 + 가방이 먹는 때 (엔진 resultBagOk — ideas 1656) — 돌 줄 할 일을 "[B] 가방" 으로 */ bagOk?: boolean; /** 계속하면 클리어 · 관장 카드 (엔진 resultThenCard — 그 카드에선 B 가 안 먹음, bugs 1897) — 할 일을 "다음 스테이지에서 [B] 가방" 으로 */ bagLater?: boolean; /** 잡은 포켓몬 — 처음 caughtIntroMs 동안 소개 카드만 */ caught?: CaughtView | null; /** 결과 단계 지난 ms */ ms?: number; /** 소개 카드 자리 (길 칸 기준 정수 px) */ introAt?: { left: number; top: number; width?: number }; media: string; onInput(i: GameInput): void; onStats(uid: string): void }) {
   const tight = useResultFit();
@@ -332,9 +352,21 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
   useLayoutEffect(() => {
     const box = tight.box.current;
     const inner = box?.querySelector<HTMLElement>('.pg-result-alt-in');
-    const bEl = inner?.querySelector<HTMLElement>('.pg-result-alt-b');
     const card = box?.querySelector<HTMLElement>('.pg-lvup-card');
-    if (!inner || !bEl || inner.clientWidth === 0 || expStep >= (card ? 7 : 2)) return;
+    // 제목 있는 상자 (야생) 의 둘째 줄 (pg-line 번갈아 — 빠진 레벨업 · ★) 은 주인공을 덮은 채 두 줄 넘게 감기면 4 부터 같은 단계를 한 단계씩 — 한 줄이 되면 멈춤
+    //   (야생 + 레벨업 셋 240 맥에서 "이름 Lv N" 을 한 덩이로 하자 한 줄 더 커져 주인공을 다 덮던 것 · 300 은 전부터 덮던 것, 2726 · useResultFit 의 주인공 덮음 noPre · noKey 다음)
+    if (!inner) {
+      const tEl = box?.querySelector<HTMLElement>('.pg-result-alt.pg-line .pg-result-alt-b');
+      if (!box || !card || !tEl || tEl.getClientRects().length === 0 || expStep >= 7) return;
+      const hero = box.closest('#pokemon-game')?.querySelector('.pg-hero-wrap')?.getBoundingClientRect();
+      const r = box.getBoundingClientRect();
+      const onHero = !!hero && hero.width > 0 && r.bottom > hero.top + 0.5 && r.left < hero.right && r.right > hero.left;
+      const m = macWrap(tEl);
+      if ((onHero && m.lines > 1) || m.torn) setExpStep(Math.max(4, expStep + 1));
+      return;
+    }
+    const bEl = inner.querySelector<HTMLElement>('.pg-result-alt-b');
+    if (!bEl || inner.clientWidth === 0 || expStep >= (card ? 7 : 2)) return;
     if (expStep < 3 || !card) {
       const r = document.createRange();
       r.selectNodeContents(bEl);
@@ -342,11 +374,9 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
       return;
     }
     // 줄 바꿈 단계 — 맥 글꼴 (+10% — 글자 사이 0.06em 로 흉내) 로 감은 높이가 카드를 넘으면 다음 단계 (줄 수를 어림하면 두 줄에 드는 "★ 덩굴채찍" 까지 빼던 것)
-    const ls = bEl.style.letterSpacing;
-    bEl.style.letterSpacing = '0.06em';
-    const h = bEl.getBoundingClientRect().height;
-    bEl.style.letterSpacing = ls;
-    if (h > card.getBoundingClientRect().height + 0.5) setExpStep(expStep + 1);
+    //   빠진 레벨업 덩이 ("▲ 이름 Lv N ·") 가 한 줄보다 넓어 억지로 쪼개져도 다음 단계 (240 맥에서 둘째 줄이 "· 독침붕 Lv 11" 로 시작하던 것 — bugs 2726)
+    const { h, torn } = macWrap(bEl);
+    if (h > card.getBoundingClientRect().height + 0.5 || torn) setExpStep(expStep + 1);
   });
   // 넓은 둘째 줄 돌 줄 끝 " · [B] 가방" (#131 UX — 할 일) — 줄이 맥 여유 1.1 로 안 들어가면 한 단계씩 짧은 글 → 마지막도 넘치면 뺌 (★ · 경험치가 … 로 잘리지 않게)
   //   클리어 · 관장 카드로 이어지는 상자 = "다음 스테이지에서 [B] 가방" → "다음 판에서 [B] 가방" → "[B] 가방은 다음에" (디자인 문구 — 상자 폭이 첫 줄로 정해져
@@ -483,13 +513,17 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
     </span>
   ));
   // 카드 한 장일 때 빠진 포켓몬 레벨업 (pg-alt-ups — 그때만 보임, 카드에도 글에도 없던 것 · UX 리뷰어)
-  const hiddenUps = cards.slice(1).map((u) => `${u.name} Lv\u00a0${u.to}`).join('\u00a0· ');
+  const hiddenUps = cards.slice(1).map((u) => `${u.name}\u00a0Lv\u00a0${u.to}`).join('\u00a0· ');
   // 그리는 모양 — 이름 뒤 "Lv N" 은 따로 (넘치면 마지막 단계에서 뺌 · pg-alt-nolv)
-  const hiddenUpsEl = cards.slice(1).map((u, i) => (
-    <span key={u.uid}>
-      {i > 0 && '\u00a0· '}
+  //   "▲ 이름 Lv N ·" 은 한 덩이 (pg-alt-up) — 끊을 곳은 " · " 뒤만 (300 × 150 맥에서 "독침붕 / Lv 11" 로 끊기던 것 · bugs 2726) · 덩이가 쪼개지면 다음 단계 (expStep)
+  //   점은 앞 낱말에 붙임 (240 맥에서 둘째 줄이 "· ★ 덩굴채찍" 으로 시작하던 것) · 마지막 점은 뒤에 남은 줄이 없으면 뺌 (pg-alt-ups-sep)
+  const hiddenUpsEl = cards.slice(1).map((u, i, all) => (
+    <span key={u.uid} class="pg-alt-up">
+      {i === 0 && <span class="pg-up">▲</span>}
+      {i === 0 && '\u00a0'}
       {u.name}
-      <span class="pg-alt-ups-lv">{` Lv\u00a0${u.to}`}</span>
+      <span class="pg-alt-ups-lv">{`\u00a0Lv\u00a0${u.to}`}</span>
+      {i < all.length - 1 ? '\u00a0· ' : <span class="pg-alt-ups-sep">{'\u00a0·'}</span>}
     </span>
   ));
   // 진화 아이템 두 번째부터 한 줄 (#125) — 넓으면 둘째 줄 맨 앞 · 좁으면 (번갈아 줄) 둘째 차례 맨 앞 ·
@@ -514,14 +548,12 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
       {evoNote}
       {hiddenUps && (
         <span class="pg-alt-ups">
-          <span class="pg-up">▲</span> {hiddenUpsEl}
-          {/* 점은 앞 낱말에 붙임 (240 맥에서 둘째 줄이 "· ★ 덩굴채찍" 으로 시작하던 것) */}
-          <span class="pg-alt-ups-sep">{'\u00a0·'}</span>{' '}
+          {hiddenUpsEl}{' '}
         </span>
       )}
       <span class="pg-alt-rest">{restLine}</span>
     </>
-  ) : ups.length > 0 ? <><span class="pg-up">▲</span> {ups.map((u) => `${u.name} Lv\u00a0${u.to}`).join(' · ')}</> : null;
+  ) : ups.length > 0 ? <><span class="pg-up">▲</span>{'\u00a0'}{ups.map((u) => `${u.name}\u00a0Lv\u00a0${u.to}`).join('\u00a0· ')}</> : null;
   // 좁은 번갈아 줄은 할 일 (돌 줄 · 진화 아이템 줄) 이 있으면 그 차례 먼저 — 얻은 것 나중 (ideas 1654 · 1.5초 찍기에 "진화 가능" 이 안 보이던 것, 기획 10-30)
   const alt = head.length > 0 && (
     <span class={`${showTitle ? 'pg-line ' : 'pg-result-alt-in '}pg-result-alt${altB ? '' : ' pg-result-alt-solo'}${stoneText || summary.evoNote ? ' pg-result-alt-first-b' : ''}`}>
