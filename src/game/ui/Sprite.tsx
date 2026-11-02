@@ -1,4 +1,4 @@
-import { spriteBoxOf } from '../data/sprite-boxes';
+import { spriteBoxOf, type SpriteBox } from '../data/sprite-boxes';
 import { BASE_SPRITE_PX } from './layout';
 import { spritePx, spriteSrc, type SpriteAction } from './sprite-path';
 
@@ -35,6 +35,20 @@ export interface SpriteProps {
 /** 길 위 · 전투 그림 크기 (원본 32px × 2) */
 const FIELD_SPRITE_PX = BASE_SPRITE_PX * 2;
 
+/** 작은 창 얼굴을 ×1 로 자르는 그림 범위 긴 변 상한 (원본 칸) — 강철톤 32 · 개굴반장 33 · 염무왕 · 브리가론 34 까지 · 고래왕 36 · 그란돈 38 · 전설은 반 */
+const FACE_MAX = 34;
+
+/**
+ * 작은 창 얼굴 — 64px 원본 중 실제 그림 범위가 작은 것 (샤로다 · 염무왕 · 대검귀 · 브리가론 · 개굴반장 — 반으로 줄이면 12 ~ 17px 로 뭉쳐
+ * 개굴반장이 어두운 덩어리, ideas 1675) 은 줄이지 않고 ×1 로 얼굴 쪽을 자름 → 그 그림 범위 · 반으로도 창을 채우는 큰 그림 (전설) 은 그대로 반 (undefined)
+ * 창 크기와 상관없이 포켓몬마다 정함 — 창마다 문턱이 다르면 포켓몬 판 선두 칩 (22) 은 ×1 · 메뉴 버튼 (20) 은 반으로 한 화면에 두 배율 (아트 디렉터 1675 · 원칙 4)
+ */
+export function faceCrop(form: string, crop: number): SpriteBox | undefined {
+  const box = spriteBoxOf(form);
+  if (!box || spritePx(form, 1) <= crop * 2) return undefined;
+  return Math.max(box[2] - box[0], box[3] - box[1]) <= FACE_MAX ? box : undefined;
+}
+
 /** 포켓몬 그림 하나 — 픽셀이 뭉개지지 않게, 키는 원본 × 배율 */
 export function Sprite({ media, form, scale, shiny, action, faceLeft, title, px: fixedPx, crop, fieldSize, center, bottom, bottomPad, cropWidth, zoom }: SpriteProps) {
   const src = spriteSrc(media, form, { shiny, action });
@@ -43,12 +57,21 @@ export function Sprite({ media, form, scale, shiny, action, faceLeft, title, px:
   if (!src) return <span class="pg-sprite pg-sprite-missing" style={{ width: `${cw ?? px}px`, height: `${crop ?? px}px` }} title={title} />;
   if (crop && cw) {
     const natural = spritePx(form, 1);
-    const s = zoom ? natural * zoom : fieldSize ? FIELD_SPRITE_PX : natural > crop * 2 ? natural / 2 : natural;
-    const box = center || bottom ? spriteBoxOf(form) : undefined;
+    // 걷기 그림은 범위 자료 (대기 동작) 와 안 맞아 얼굴 자르기 없이 그대로 반
+    const face = zoom || fieldSize || action === 'walk' ? undefined : faceCrop(form, crop);
+    const s = zoom ? natural * zoom : fieldSize ? FIELD_SPRITE_PX : face ? natural : natural > crop * 2 ? natural / 2 : natural;
+    const box = face ?? (center || bottom ? spriteBoxOf(form) : undefined);
     const k = s / natural;
     // center = 실제 그림 범위가 창 한가운데 · 아니면 가로 가운데 · 세로는 발 쪽 (그림 위쪽은 대개 빈칸). 자리는 정수 px (점이 흐려지지 않게)
+    //   face = 가로 가운데 · 세로는 그림 위 끝 (머리) 을 창 위 끝에서 한 칸 아래 (창보다 낮은 그림이면 한가운데)
     const left = box ? Math.round(cw / 2 - ((box[0] + box[2]) / 2) * k) : Math.round((cw - s) / 2);
-    const top = box ? (bottom ? crop - box[4] * k - (bottomPad ?? k) : Math.round(crop / 2 - ((box[1] + box[3]) / 2) * k)) : Math.round((crop - s) * 0.8);
+    const top = face
+      ? Math.max(1 - face[1], Math.round(crop / 2 - (face[1] + face[3]) / 2))
+      : box
+        ? bottom
+          ? crop - box[4] * k - (bottomPad ?? k)
+          : Math.round(crop / 2 - ((box[1] + box[3]) / 2) * k)
+        : Math.round((crop - s) * 0.8);
     return (
       <span class="pg-sprite-crop" style={{ width: `${cw}px`, height: `${crop}px` }} title={title}>
         <img class={faceLeft ? 'pg-sprite pg-face-left' : 'pg-sprite'} src={src} width={s} height={s} alt={title ?? ''} draggable={false} style={{ left: `${left}px`, top: `${top}px` }} />

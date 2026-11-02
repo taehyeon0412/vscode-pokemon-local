@@ -3,6 +3,7 @@ import { formatMoney, formatPlayTime } from './format';
 import { HEAD_FADE_STEP_MS, HEAD_FADE_STEPS, HEAD_HOLD_MS, pickHeadSpot } from './HeadNote';
 import { fieldTopPx, fitGameLayout, fitLayout, gameSize, hasMapRow, MAP_ROW_PX, minHeightOf, topGapPx } from './layout';
 import { spritePx, spriteSrc } from './sprite-path';
+import { faceCrop } from './Sprite';
 import { Store } from './store';
 
 describe('화면 틀 (mvp-spec 1장)', () => {
@@ -119,6 +120,17 @@ describe('포켓몬 그림', () => {
     expect(spritePx('bulbasaur', 2)).toBe(64);
     expect(spritePx('frogadier', 1)).toBe(64);
     expect(spritePx('???', 1.5)).toBe(48);
+  });
+
+  it('작은 창 얼굴 — 64px 스타팅 다섯은 반으로 뭉치지 않고 ×1 (ideas 1675) · 창 20 · 22 · 24 모두 같은 배율 · 반으로도 창을 채우는 큰 그림 · 32px · 큰 창은 그대로', () => {
+    for (const f of ['serperior', 'emboar', 'samurott', 'chesnaught', 'frogadier']) {
+      expect([faceCrop(f, 20), faceCrop(f, 22), faceCrop(f, 24)]).not.toContain(undefined);
+    }
+    for (const f of ['rayquaza', 'lugia', 'kyogre', 'giratina', 'dialga', 'palkia', 'arceus', 'wailord', 'groudon']) {
+      expect([faceCrop(f, 20), faceCrop(f, 22), faceCrop(f, 24)]).toEqual([undefined, undefined, undefined]);
+    }
+    expect(faceCrop('bulbasaur', 22)).toBeUndefined();
+    expect(faceCrop('frogadier', 48)).toBeUndefined();
   });
 });
 
