@@ -119,6 +119,29 @@ function EvoText({ text }: { text: string }) {
   );
 }
 
+/** 결과 상자가 더 넓어질 수 있는 폭 — 상자는 내용만큼 (fit-content · 최대 = 무대 − 16px) 이라 남는 폭을 상자 자기 폭으로만 재면 제목 없는 상자 (트레이너 · 3:3) 가
+ *  모든 폭에서 늘 넘친 것으로 재지던 것 (1898 UX 큼 · 2708) · 내용이 넘쳐 이미 최대 폭이면 0 */
+function growOf(box: HTMLElement): number {
+  const host = (box.offsetParent as HTMLElement | null) ?? box.parentElement;
+  const maxW = getComputedStyle(box).maxWidth;
+  return host ? Math.max(0, (maxW.endsWith('px') ? parseFloat(maxW) : host.clientWidth - 16) - box.getBoundingClientRect().width) : 0;
+}
+
+/** 줄 내용의 실제 너비 — flex · grid 줄은 칸 합 + gap (줄 전체 Range 는 space-between 이면 줄 끝까지 재짐) · 글 줄은 Range (칸 사이 띄어쓰기까지) */
+function lineWidth(line: HTMLElement): number {
+  const display = getComputedStyle(line).display;
+  if (display.includes('flex') || display.includes('grid')) return contentWidth(line);
+  const r = document.createRange();
+  r.selectNodeContents(line);
+  return r.getBoundingClientRect().width;
+}
+
+/** 넘침 판정 하나 (ideas 1666 — 단계마다 따로 재다 같은 실수가 세 번: 2708 상자가 넓어질 폭 (grow) 빠짐 · 2740 숨은 번갈아 줄만 봄) —
+ *  보이는 줄의 내용 실제 너비 × 맥 여유 (FIT_ROOM) 가 줄 폭 + 상자가 더 넓어질 수 있는 폭을 넘는가 */
+function overflows(line: HTMLElement | null | undefined, grow: number): boolean {
+  return !!line && line.getClientRects().length > 0 && line.clientWidth > 0 && lineWidth(line) * FIT_ROOM > line.clientWidth + grow + 0.5;
+}
+
 /** 글 칸의 줄 수 (글자 상자를 위 끝 순서로 · 앞 상자 높이 반보다 아래면 새 줄 — 아이콘 상자는 같은 줄로 셈) */
 function linesOf(el: HTMLElement): number {
   const r = document.createRange();
@@ -244,11 +267,8 @@ function useResultFit(): { box: { current: HTMLDivElement | null }; on: boolean;
     // 보이는 칸 (display none 만 뺌) — 폭 0 으로 접힌 칸도 셈 (256 ~ 259 맥에서 번갈아 줄이 min-width 0 으로 0px 이 되어 빠지고 버튼만 재 넘치면 한 단계가 안 켜지던 것, 2726)
     const kids = [...line.children].filter((c): c is HTMLElement => c instanceof HTMLElement && c.getClientRects().length > 0);
     const gap = parseFloat(getComputedStyle(line).columnGap) || 0;
-    // 상자가 더 넓어질 수 있는 폭 — 상자는 내용만큼 (fit-content · 최대 = 무대 − 16px) 이라 제목 없는 상자 (트레이너 · 3:3) 는 남는 폭이 늘 0 으로 재져
-    //   모든 폭에서 늘 한 단계 (tight · one) 줄던 것 (1898 UX 큼 — 다시 재기를 넣자 드러남) · 내용이 넘쳐 이미 최대 폭이면 0
-    const host = (el.offsetParent as HTMLElement | null) ?? el.parentElement;
-    const maxW = getComputedStyle(el).maxWidth;
-    const grow = host ? Math.max(0, (maxW.endsWith('px') ? parseFloat(maxW) : host.clientWidth - 16) - el.getBoundingClientRect().width) : 0;
+    // 상자가 더 넓어질 수 있는 폭 (growOf — 1898 · 2708)
+    const grow = growOf(el);
     if (!on) {
       let need = 0;
       line.querySelectorAll<HTMLElement>(':scope > .pg-reward').forEach((c) => {
@@ -291,7 +311,7 @@ function useResultFit(): { box: { current: HTMLDivElement | null }; on: boolean;
     //   ① 배운 기술을 기술 이름만 ("★ 덩굴채찍") → ② 그래도 넘치면 진화 줄을 따로 한 줄 (split — 상자가 한 줄 커져 150 에서 주인공 모자를 덮을 수 있어 나중 단계)
     //   상자가 더 넓어질 수 있는 폭 (grow) 까지 견줌 — 상자 자기 폭만 보면 내용만큼 넓어지는 상자라 1860 · 제목 없는 상자에서도 늘 넘친 것으로 재지던 것 (UX 2708 큼 1 · 1898 과 같은 뿌리)
     const body = el.querySelector<HTMLElement>('.pg-result-body');
-    const bodyOver = () => !!body && body.clientWidth > 0 && !!body.querySelector('.pg-evo-note') && contentWidth(body) * FIT_ROOM > body.clientWidth + grow + 0.5;
+    const bodyOver = () => !!body?.querySelector('.pg-evo-note') && overflows(body, grow);
     // 번갈아 둘째 차례 (좁은 모양) 에서 "★ 이상해씨가 / 덩굴채찍을 배웠다" 가 두 줄로 접혀 주인공을 덮으면 그 차례도 짧은 말 (400 ~ 460 — UX 1917 작음 2)
     const alt2 = el.querySelector<HTMLElement>('.pg-result-alt-b');
     const altLong = !!alt2 && alt2.getClientRects().length > 0 && !!alt2.querySelector('.pg-learned-short') && onHero();
@@ -426,17 +446,17 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
     const box = tight.box.current;
     const inner = box?.querySelector<HTMLElement>('.pg-result-alt-in');
     const card = box?.querySelector<HTMLElement>('.pg-lvup-card');
+    const grow = box ? growOf(box) : 0;
     // 제목 있는 상자 (야생) 의 둘째 줄 (pg-line 번갈아 — 빠진 레벨업 · ★) 은 주인공을 덮은 채 두 줄 넘게 감기면 4 부터 같은 단계를 한 단계씩 — 한 줄이 되면 멈춤
     //   (야생 + 레벨업 셋 240 맥에서 "이름 Lv N" 을 한 덩이로 하자 한 줄 더 커져 주인공을 다 덮던 것 · 300 은 전부터 덮던 것, 2726 · useResultFit 의 주인공 덮음 noPre · noKey 다음)
-    if (!inner) {
-      // 레벨업 카드 없는 제목 있는 상자 (야생) 의 넓은 둘째 줄 (pg-result-body — 한 줄 고정 · 넘치면 …) 도 경험치를 1 · 2 단계로 (경험치만 오른 5 ~ 6마리 ·
+    // 좁은 번갈아 줄이 없거나 숨은 넓은 폭 (제목 없는 상자는 첫 줄에 늘 있어 넓으면 display none — 그 길만 타 넓은 둘째 줄을 안 재
+    //   트레이너 결과 + 경험치만 6마리가 402 ~ 592 에서 "… 거북왕 +213 · 아리아…" 로 잘리던 것, bugs 2740)
+    if (!inner || inner.getClientRects().length === 0) {
+      // 레벨업 카드 없는 상자의 넓은 둘째 줄 (pg-result-body — 한 줄 고정 · 넘치면 …) 도 경험치를 1 · 2 단계로 (경험치만 오른 5 ~ 6마리 ·
       //   401 ~ 529 에서 "… · 아리아도스 +2…" 로 잘리던 것 — 전부터 · UX 678 "팀 6마리" · 맥 여유 1.1)
       const body = box?.querySelector<HTMLElement>('.pg-result-body');
       if (!card && body && body.getClientRects().length > 0 && body.querySelector('.pg-rest-exp')) {
-        if (expStep >= 2) return;
-        const r = document.createRange();
-        r.selectNodeContents(body);
-        if (r.getBoundingClientRect().width * 1.1 > body.clientWidth + 0.5) setExpStep(expStep + 1);
+        if (expStep < 2 && overflows(body, grow)) setExpStep(expStep + 1);
         return;
       }
       const tEl = box?.querySelector<HTMLElement>('.pg-result-alt.pg-line .pg-result-alt-b');
@@ -454,11 +474,9 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
       return;
     }
     const bEl = inner.querySelector<HTMLElement>('.pg-result-alt-b');
-    if (!bEl || inner.clientWidth === 0 || expStep >= (card ? 7 : 2)) return;
+    if (!bEl || expStep >= (card ? 7 : 2)) return;
     if (expStep < 3 || !card) {
-      const r = document.createRange();
-      r.selectNodeContents(bEl);
-      if (r.getBoundingClientRect().width * 1.1 > inner.clientWidth + 0.5) setExpStep(expStep + 1);
+      if (overflows(bEl, grow)) setExpStep(expStep + 1);
       return;
     }
     // 줄 바꿈 단계 — 맥 글꼴 (+10% — 글자 사이 0.06em 로 흉내) 로 감은 높이가 카드를 넘으면 다음 단계 (줄 수를 어림하면 두 줄에 드는 "★ 덩굴채찍" 까지 빼던 것)
