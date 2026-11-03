@@ -14,6 +14,8 @@
 // 확장이 하는 일 중 화면에 보이는 것만 흉내: ready → title · start, title-new · title-continue → start, exit → stop
 // place=appear 흔적 자리 — 흔적 종류 · 크게 (strong) · 반짝 (shiny) 마다 처음 찾은 [스테이지, 시드, 자리, 그 자리 야생 (엔진 createWild 그대로)]
 //   (bugs 636 — 길 위치를 흔적 자리에 맞춰야 화면이 튀어나온 포켓몬을 그림 · 길 · 만남 규칙이 바뀌면 src/test/unit/dev-appear-spots.test.ts 가 틀린 줄을 알려 줌)
+//   연 지역 순서 = APPEAR_REGIONS 앞에서 그 지역까지 (지역 번째가 레벨대 · 진화를 바꿈 — 표도 같은 순서로 찾음)
+const APPEAR_REGIONS = ['forest', 'beach', 'volcano'];
 const APPEAR_SPOTS = {
     "grass": ["forest-1", 42, 0.10643, {"uid": "wild", "species": 546, "form": "cottonee", "level": 2, "exp": 8, "ivs": {"hp": 10, "attack": 10, "defense": 24, "speed": 31, "ultimate": 0}, "points": {"hp": 0, "attack": 0, "defense": 0, "speed": 0, "ultimate": 0}, "unspentPoints": 0, "moves": [{"moveId": 71, "pp": 25}, {"moveId": 584, "pp": 30}], "hp": 13, "status": null, "shiny": false, "caughtAt": "forest-1"}],
     "grass-strong": ["forest-1", 42, 0.0477, {"uid": "wild", "species": 546, "form": "cottonee", "level": 6, "exp": 216, "ivs": {"hp": 6, "attack": 9, "defense": 0, "speed": 5, "ultimate": 0}, "points": {"hp": 0, "attack": 0, "defense": 0, "speed": 0, "ultimate": 0}, "unspentPoints": 0, "moves": [{"moveId": 71, "pp": 25}, {"moveId": 584, "pp": 30}], "hp": 21, "status": null, "shiny": false, "caughtAt": "forest-1"}],
@@ -380,8 +382,9 @@ const APPEAR_SPOTS = {
             else {
                 save.stages[sid] = { ...st, seed, progress: at, facilities: [] };
                 save.location = { screen: 'stage', stageId: sid };
+                // 연 지역 순서 = 만드는 순서 (숲 · 해변 · 화산) 앞에서 그 지역까지 — 화산만 덧붙이면 2번째 지역이 되어 레벨대 · 진화가 표와 달라짐 (악비아르 → 악비르, 디자인 11-04)
                 const region = sid.slice(0, sid.lastIndexOf('-'));
-                if (!save.regions.order.includes(region)) save.regions.order.push(region);
+                save.regions.order = APPEAR_REGIONS.slice(0, APPEAR_REGIONS.indexOf(region) + 1);
             }
             save.pendingEncounter = { kind: 'wild', monster: { ...wild }, start: q.get('start') || 'normal' };
             stage = { phase: 'appear', ms: Number(q.get('ms') || 0), isNew: true };
