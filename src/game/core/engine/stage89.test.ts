@@ -113,11 +113,28 @@ describe('트레이너 (S08 · 2026-10-18 태현 님)', () => {
   it('트레이너 만남 — "!" 뒤 Space · 클릭이면 VS 를 다 기다리지 않고 바로 전투 ("!" 동안은 안 넘김, 2026-10-20 태현 님)', () => {
     const spot = trainerSpot();
     const met = until(game({ stages: { 'forest-1': stageAt(spot.at - 0.00001) } }), (x) => phase(x) === 'trainer', 5000);
-    expect(applyInput(met, { kind: 'space' })).toBe(met); // "!" 0.8초 동안은 그대로 (누구인지 보이게)
+    expect(applyInput(met, { kind: 'space' })).toBe(met); // "!" 1초 동안은 그대로 (누구인지 보이게)
     const talking = advance(met, TIMING.trainerAlertMs + 50).state;
     expect(phase(talking)).toBe('trainer');
     const skipped = step(applyInput(talking, { kind: 'space' }), STEP).state;
     expect(phase(skipped)).toBe('battle');
+  });
+
+  it('만남 박자 U1 (ideas 2704 · 2026-11-03) — "!" 1초 이상 · "승부다!" (라이벌은 대사) 1초 이상 · VS 2초 · "!" 가 끝나기 직전까지 눌러도 안 넘어감', () => {
+    expect(TIMING.trainerAlertMs).toBeGreaterThanOrEqual(1000);
+    // VS 는 만남 끝 2초 (stage/model vsStartMs = 끝 − VS_MS) — "!" 와 VS 사이 말이 1초 넘게
+    expect(TIMING.trainerMeetMs - TIMING.vsMs - TIMING.trainerAlertMs).toBeGreaterThanOrEqual(1000);
+    expect(TIMING.rivalMeetMs - TIMING.vsMs - TIMING.trainerAlertMs).toBeGreaterThanOrEqual(2000);
+    expect(TIMING.vsMs).toBe(2000);
+    const spot = trainerSpot();
+    const met = until(game({ stages: { 'forest-1': stageAt(spot.at - 0.00001) } }), (x) => phase(x) === 'trainer', 5000);
+    // "!" 끝 바로 앞 (한 걸음 전) 에 눌러도 그대로 — 0.95초에 넘겨 "!" 가 1초를 못 채우지 않게
+    const almost = advance(met, TIMING.trainerAlertMs - STEP * 2).state;
+    expect(phase(almost)).toBe('trainer');
+    expect(step(applyInput(almost, { kind: 'space' }), STEP).state.runtime.stage).toMatchObject({ phase: 'trainer' });
+    // 안 누르면 만남 끝에 전투 (그 전엔 만남 그대로)
+    expect(phase(advance(met, TIMING.trainerMeetMs - STEP * 2).state)).toBe('trainer');
+    expect(phase(advance(met, TIMING.trainerMeetMs + STEP).state)).toBe('battle');
   });
 
   it('트레이너 전투 중에 껐다 켜면 같은 상대와 처음부터', () => {
