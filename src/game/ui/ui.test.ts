@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import boxesJson from '../data/generated/sprite-boxes.json';
-import { spriteBoxOf, walkArtBoxOf } from '../data/sprite-boxes';
+import { spriteBoxOf, walkArtBoxOf, walkFaceOf } from '../data/sprite-boxes';
 import { formatMoney, formatPlayTime } from './format';
 import { HEAD_FADE_STEP_MS, HEAD_FADE_STEPS, HEAD_HOLD_MS, pickHeadSpot } from './HeadNote';
 import { fieldTopPx, fitGameLayout, fitLayout, gameSize, hasMapRow, MAP_ROW_PX, minHeightOf, topGapPx } from './layout';
@@ -151,7 +151,8 @@ describe('포켓몬 그림', () => {
       [20, 24],
       [28, 30],
     ] as const) {
-      for (const f of Object.keys(boxesJson)) {
+      // 얼굴 자리가 있는 것 (꽃 · 나무 · 껍데기가 위 끝 — ideas 1682) 은 다음 시험에서 따로
+      for (const f of Object.keys(boxesJson).filter((x) => !walkFaceOf(x))) {
         const wb = walkArtBoxOf(f)!;
         const n = spritePx(f, 1);
         for (const faceLeft of [false, true]) {
@@ -173,6 +174,44 @@ describe('포켓몬 그림', () => {
     // 대기 그림 창 (포켓몬 판 칩 · 메뉴 버튼) 은 그대로 한가운데 (1675 판)
     const idle = spriteBoxOf('delphox')!;
     expect(cropPlace('delphox', 22, 22, { center: true }).top).toBe(Math.round(11 - (idle[1] + idle[3]) / 2));
+  });
+
+  it('걷기 얼굴 창 얼굴 자리 (ideas 1682) — 이상해꽃 · 토대부기 · 브리가론 등: 얼굴이 창 가운데 쪽 (끝에서 4칸 넘게 안) · 그림 끝 밖은 한 칸까지만 · 정수 px · 대기 그림 창은 그대로', () => {
+    const forms = Object.keys(boxesJson).filter((f) => walkFaceOf(f));
+    expect(forms.length).toBeGreaterThanOrEqual(10);
+    const bad: string[] = [];
+    for (const [crop, cw] of [
+      [20, 24],
+      [28, 30],
+    ] as const) {
+      for (const f of forms) {
+        const wb = walkArtBoxOf(f)!;
+        const [fx, fy] = walkFaceOf(f)!;
+        const n = spritePx(f, 1);
+        // 얼굴 자리는 그림 범위 안
+        if (fx < wb[0] || fx > wb[2] || fy < wb[1] || fy > wb[3]) bad.push(`${f} 얼굴 자리가 그림 밖`);
+        for (const faceLeft of [false, true]) {
+          const { s, left, top } = cropPlace(f, crop, cw, { action: 'walk', center: true, faceLeft });
+          const k = s / n;
+          const x = left + (faceLeft ? n - fx : fx) * k;
+          const y = top + fy * k;
+          const [l, r] = faceLeft ? [left + s - wb[2] * k, left + s - wb[0] * k] : [left + wb[0] * k, left + wb[2] * k];
+          const where = `${f} ${cw}${faceLeft ? ' 상대' : ''}`;
+          if (!Number.isInteger(left) || !Number.isInteger(top)) bad.push(`${where} 소수 자리 ${left} ${top}`);
+          if (x < 4 || x > cw - 4 || y < 4 || y > crop - 4) bad.push(`${where} 얼굴 ${x},${y}`);
+          // 창보다 큰 쪽은 그림이 창을 채움 (끝 밖 빈칸 한 칸까지)
+          if (r - l > cw - 2 && (l > 1.5 || r < cw - 1.5)) bad.push(`${where} 가로 빈칸 ${l}~${r}`);
+          if ((wb[3] - wb[1]) * k > crop - 2 && (top + wb[1] * k > 1.5 || top + wb[3] * k < crop - 1.5)) bad.push(`${where} 세로 빈칸`);
+        }
+      }
+    }
+    expect(bad).toEqual([]);
+    // 이상해꽃 = 꽃 위 끝에서 얼굴 쪽으로 내려옴 (머리 위 끝 맞춤이면 얼굴이 창 아래 끝 4칸 안)
+    const vb = walkArtBoxOf('venusaur')!;
+    expect(cropPlace('venusaur', 20, 24, { action: 'walk', center: true }).top + vb[1]).toBeLessThan(0);
+    // 대기 그림 창 (칩 · 메뉴 버튼) 은 얼굴 자리를 안 씀 (대기 그림은 다른 장면 · 다른 자리)
+    const vi = spriteBoxOf('venusaur')!;
+    expect(cropPlace('venusaur', 20, 20, { center: true }).top).toBe(Math.round(10 - (vi[1] + vi[3]) / 2));
   });
 });
 

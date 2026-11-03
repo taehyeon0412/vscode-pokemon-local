@@ -1,4 +1,4 @@
-import { spriteBoxOf, walkArtBoxOf, type SpriteBox } from '../data/sprite-boxes';
+import { spriteBoxOf, walkArtBoxOf, walkFaceOf, type SpriteBox } from '../data/sprite-boxes';
 import { BASE_SPRITE_PX } from './layout';
 import { spritePx, spriteSrc, type SpriteAction } from './sprite-path';
 
@@ -85,7 +85,16 @@ export function cropPlace(
           ? crop - box[4] * k - (bottomPad ?? k)
           : Math.round(crop / 2 - ((box[1] + box[3]) / 2) * k)
         : Math.round((crop - s) * 0.8);
-  return { s, left, top };
+  // 얼굴 자리가 있는 걷기 얼굴 창 (꽃 · 나무 · 껍데기가 위 끝 — data/sprite-boxes walkFaceOf · ideas 1682) = 창보다 큰 쪽만 얼굴을 창 한가운데로 · 그림 끝 밖은 한 칸까지만
+  const at = box && walk && (face || center) ? walkFaceOf(form) : undefined;
+  if (!box || !at) return { s, left, top };
+  const [a0, a1] = faceLeft ? [s - box[2] * k, s - box[0] * k] : [box[0] * k, box[2] * k];
+  const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
+  return {
+    s,
+    left: a1 - a0 > cw - 2 ? clamp(Math.round(cw / 2 - (faceLeft ? natural - at[0] : at[0]) * k), Math.round(cw - 1 - a1), Math.round(1 - a0)) : left,
+    top: (box[3] - box[1]) * k > crop - 2 ? clamp(Math.round(crop / 2 - at[1] * k), Math.round(crop - 1 - box[3] * k), Math.round(1 - box[1] * k)) : top,
+  };
 }
 
 /** 포켓몬 그림 하나 — 픽셀이 뭉개지지 않게, 키는 원본 × 배율 */
