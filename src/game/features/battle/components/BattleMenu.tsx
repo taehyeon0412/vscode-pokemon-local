@@ -752,9 +752,9 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
     // 원 옆 키 칸이 안 들어가는 좁은 패널 — 원이 뜬 동안 메뉴 줄이 키를 말함 (잡기 원 "원이 딱 맞을 때 (Space)" 와 같은 자리)
     row = <span class="pg-ring-hint">{`${hint} — 원이 좁혀질 때 ${document.hasFocus() ? 'Space' : '클릭'}`}</span>;
   } else if (page !== 'main' && b.phase !== 'clash' && b.phase !== 'over') {
-    // 옆 메뉴에서 아이템이 다섯 넘으면 "← 뒤로" 줄은 뺌 (Esc · ← 그대로) — 다섯 줄 한 칸에 들어가게 (두 칸이 되며 볼 칸이 "1 ◓…" 로 잘리던 것, orders #23 UX 리뷰어)
-    //   두 층 기술 줄도 "← 뒤로" 줄을 빼고 탭 줄 ← (넷이 150 높이 옆 칸에 들어가게 — #118)
-    row = renderItems((vertical !== undefined && page === 'items' && items.filter((i) => !('back' in i.go)).length > 5) || twoLine ? items.filter((i) => !('back' in i.go)) : items, true);
+    // 옆 메뉴는 "← 뒤로" 줄을 빼고 늘 탭 줄 뒤로 (ideas 1624 — 기술 = 탭 줄 · 아이템 · 교체 = 목록 아래 줄로 판마다 뒤로 자리가 달랐던 것 · 무대 위 목록 판도 위 줄 오른쪽 칩).
+    //   다섯 줄 한 칸에 들어가고 (두 칸이 되며 볼 칸이 "1 ◓…" 로 잘리던 것, orders #23) · 두 층 기술 넷이 150 높이 옆 칸에 들어감 (#118) · Esc · ← 그대로
+    row = renderItems(vertical !== undefined ? items.filter((i) => !('back' in i.go)) : items, true);
   }
 
   // 옆 메뉴에서 다음 포켓몬 · 마지막 기회 · 잡기 원은 처음 메뉴 층을 아예 빼서 판이 줄 수 · 글 길이만큼 (5줄 높이에 한 줄이 떠 있고 "원이 딱 맞을 때 (…" 로 잘리던 것)
@@ -856,7 +856,7 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
           <span class={`pg-vmenu-name${tabWarn && !picking ? ' pg-vmenu-name-warn' : ''}`} title={tabWarn && !picking ? `${vertical} — 이 포켓몬에게 볼을 던질 기회${triesWarn?.includes('마지막') ? ' 마지막 한 번' : triesWarn}` : undefined}>
             {picking && !falling ? '쓰러졌다! 교체' : (tabWarn ?? vertical)}
           </span>
-          {((page === 'items' && items.filter((i) => !('back' in i.go)).length > 5) || twoLine) && !fitList && (
+          {page !== 'main' && items.some((i) => 'back' in i.go) && !fitList && (
             <button type="button" class={`pg-vmenu-back${items[onIdx] && 'back' in items[onIdx].go ? ' pg-on' : ''}`} onClick={() => setPage(backOf(page))} title="뒤로 (Esc · ←)">
               {backShort ? '←' : '← 뒤로'}
             </button>

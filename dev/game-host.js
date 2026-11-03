@@ -7,7 +7,7 @@
 //   st=3 (숲 1-3 · 길 끝 체육관) · gms=<ms> (체육관 들어가기 장면)
 //   motion=reduce (게임 설정 동작 줄이기 켬)
 //   ms=<만난 뒤 ms> — place=trainer · rival 의 시작 시각 (VS 컷인 사진: trainer 3000 · rival 3800)
-//   place=rival|rival-talk|rival-battle|rival-over|rival-result|rival-lose  rival=<주인공 id, 기본 may>  record=<이김-짐, 기본 2-1> (라이벌 gdd 4.12)  click=map|team|bag|settings|profile|item
+//   place=rival|rival-talk|rival-battle|rival-over|rival-result|rival-lose  rival=<주인공 id, 기본 may>  record=<이김-짐, 기본 2-1> (라이벌 gdd 4.12)  click=map|team|bag|settings|profile|item  (전투: click=skills|items|switch — 3 기술 · 4 아이템 · 5 교체 판)
 //   style=<CSS> (시안 비교 — 임시 CSS 를 얹음)
 //   scene=result|learn|evolve|evolve-pick  battle=choose|skills|items|catch|last|counter|clash|ult-cut|ult-beam|attack|pick|over|auto  dur=연출 ms (전투 장면을 바로 — 아래 battleKind)  animAt=초 (CSS 움직임을 그 시점에 멈춤)
 // 확장이 하는 일 중 화면에 보이는 것만 흉내: ready → title · start, title-new · title-continue → start, exit → stop
@@ -649,8 +649,9 @@
     const click = q.get('click');
     if (click) {
         // map|team|bag|settings = 오른쪽 위 버튼 (S07 · S18 · S19 · S20) · profile = 상대 포켓몬 누르기 (S21) · item = 가방에서 상처약 고르기
-        const label = { new: '새로 하기', continue: '이어 하기', exit: '일반 모드', skills: '3 기술', items: '4 아이템', map: '🗺', team: '◓', bag: '🎒', settings: '⚙', item: '상처약', dev: '개발 저장 안 됨', devtitle: '개발 모드 (임시)' }[click];
-        const alt = { skills: '3✨' }[click];
+        const label = { new: '새로 하기', continue: '이어 하기', exit: '일반 모드', skills: '3 기술', items: '4 아이템', switch: '5 교체', map: '🗺', team: '◓', bag: '🎒', settings: '⚙', item: '상처약', dev: '개발 저장 안 됨', devtitle: '개발 모드 (임시)' }[click];
+        // 좁은 패널 (240) 메뉴 줄은 번호 없는 글 (기술 · 아이템 · 교체)
+        const alt = { skills: ['3✨', '기술'], items: ['아이템'], switch: ['교체'] }[click];
         // game.js 를 받아 화면이 그려질 때까지 기다렸다가
         const tryClick = (left) => {
             if (click === 'profile') {
@@ -684,7 +685,7 @@
                 return;
             }
             const byTitle = { team: '내 포켓몬', map: '세계 지도', bag: '가방', settings: '설정' }[click];
-            const b = [...document.querySelectorAll('#pokemon-game button')].find((x) => (byTitle && (x.title || '').includes(byTitle)) || x.textContent.includes(label) || (alt && x.textContent.includes(alt)));
+            const b = [...document.querySelectorAll('#pokemon-game button')].find((x) => (byTitle && (x.title || '').includes(byTitle)) || x.textContent.includes(label) || (alt && alt.some((a) => x.textContent.trim() === a || (a === '3✨' && x.textContent.includes(a)))));
             if (b && !document.getElementById('pokemon-game').hidden) b.click();
             else if (left > 0) setTimeout(() => tryClick(left - 1), 100);
         };

@@ -2118,7 +2118,7 @@ body.vscode-light .pg-stage.pg-bg-arena-volcano {
   scrollbar-width: thin;
   scrollbar-color: var(--pg-sos-line-soft) transparent;
 }
-/* 옆 메뉴 뒤로 "←" — 이름표 줄 작은 탭 (아이템 다섯 넘어 "← 뒤로" 줄을 뺐을 때 · 마우스로 나갈 길) */
+/* 옆 메뉴 뒤로 "← 뒤로" (넘치면 "←") — 이름표 줄 작은 탭 · 기술 · 아이템 · 교체 · 살릴 포켓몬 모두 이 자리 (ideas 1624 — 목록 아래 줄이던 판이 있어 자리가 둘이던 것) */
 /* 폭 = 내용만큼 (늘어나 이름표를 12px 로 누르던 것 · font 줄임 선언이 inherit 때문에 통째로 무시되던 것 — UX 리뷰어 #23 4차) */
 .pg-vmenu-back {
   flex: none;
