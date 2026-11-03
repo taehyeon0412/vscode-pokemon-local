@@ -36,7 +36,7 @@ import { TeamChoice, teamChoiceOn, TeamMeet, teamMeetOn } from '../../battle/tea
 import { Face } from '../../../ui/Face';
 import { resumeLine } from '../../../core/engine/play';
 import { FirstTip } from '../../../ui/FirstTip';
-import { evoTipNow, teamSceneFastOk } from '../../../core/engine';
+import { evoTipNow, teamSceneFastOk, teamZSlot } from '../../../core/engine';
 import { EVO_ITEMS, evoTipId } from '../../../core/rules/evo-tip';
 import { itemName } from '../../../core/rules/items';
 import { TIPS_MAX, type ItemId } from '../../../core/save';
@@ -234,8 +234,8 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
   const ultWaitSec = Math.ceil(ultWaitMs / 1000);
   // 자동 전투로 3:3 이 시작된 판의 처음 안내 (orders #71 — 엔진 autoTeamTipDue) · 판 첫 12초만 (중간에 갑자기 뜨지 않게 — 못 보고 지나가면 다음 판에)
   const autoTeamTip = team !== null && autoTeamTipDue(state) && team.t < 12000;
-  // 3:3 에서 먼저 다 찬 칸 (필살기는 눌러야만 나감 — #82) — 처음 한 번 "필살기 다 참 — [1] 누르면 나가요"
-  const teamReadyKey = team && team.phase === 'run' ? [0, 1, 2].find((i) => teamUltOpen(team, i)) : undefined;
+  // 3:3 에서 먼저 다 찬 칸 (필살기는 눌러야만 나감 — #82) — 처음 한 번 "필살기 다 참 — [1] 누르면 나가요" · Z · "다 참" 칩과 같은 칸 (teamZSlot — 번호 순이던 것, UX 리뷰어 1935)
+  const teamReadyKey = team && team.phase === 'run' ? (teamZSlot(team) ?? undefined) : undefined;
   // 3:3 끼어들기 · 모으기 큰 판이 떠 있는 동안 위 처음 안내는 내림 (판이 안내 · 쓰러짐 줄 아래로 밀려 포켓몬을 2.5초 덮던 것 — UX · 픽셀 검사원 #95 10바퀴 · 안내는 1초 안이면 다음에 다시 뜸)
   const teamBigPrompt = team !== null && ['join', 'gather'].includes(teamPrompt(team)?.kind ?? '');
   //   다 찬 채 0.5초 이어진 뒤에 띄움 (다 차고 0.1초 만에 끼어들기 판이 떠 안내가 2장면만 비치던 것 — UX 리뷰어 #95 4바퀴 6)

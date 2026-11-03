@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { numShown, NUM_MIN_REAL_MS, NUM_SHOW_MS, bandDrawn, bandLeft, duelSpots, faintHoldLeft, foeUltSoon, soonChip, JOINT_CHIP_MS, keepJointChips, faintFold, faintFresh, faintIsBig, faintLine, faintUnsee, faintShortLine, faintCountLine, faintShow, popFloor, overLineHold, plateBoxOf, stackRows, TEAM_ROW_GAP, teamGeometry, viewHitChip, viewPopsBack, warnPosOf, type WarnPos, viewCrossers, viewMonClass, teamDenyNote } from './model';
+import { numShown, NUM_MIN_REAL_MS, NUM_SHOW_MS, bandDrawn, bandLeft, duelSpots, faintHoldLeft, foeUltSoon, fullChipSlot, soonChip, JOINT_CHIP_MS, keepJointChips, faintFold, faintFresh, faintIsBig, faintLine, faintUnsee, faintShortLine, faintCountLine, faintShow, popFloor, overLineHold, plateBoxOf, stackRows, TEAM_ROW_GAP, teamGeometry, viewHitChip, viewPopsBack, warnPosOf, type WarnPos, viewCrossers, viewMonClass, teamDenyNote } from './model';
 import { sampleMonster, sampleSave } from '../../../../test/fixtures/save';
 import { startTeamBattle, type TeamBattle } from '../../../core/engine/team';
 
@@ -184,6 +184,30 @@ describe('3:3 위 가운데 줄 — 띠 · 쓰러짐 줄 · 결과 줄 (픽셀 �
     expect(foeUltSoon(wait(2000), 2)).toBe(true);
     // run 이 아니면 (다른 필살기 · 힘겨루기 중 — 기다림이 안 줆) 아님
     expect(foeUltSoon({ ...wait(500), phase: 'ult' }, 1)).toBe(false);
+  });
+
+  it('"다 참" 칩 칸 (fullChipSlot) — 한 번 보이면 상대 필살기 창 (판 join) 에도 그대로 · 새로는 달릴 때만 · 창이 닫히면 뺌 (bugs 1935 — 0.44초)', () => {
+    const mons = [0, 1, 2].map((i) => sampleMonster({ uid: `m${i}`, species: [1, 4, 7][i]!, form: ['bulbasaur', 'charmander', 'squirtle'][i]!, level: 10 }));
+    const foes = [0, 1, 2].map((i) => sampleMonster({ uid: `f${i}`, species: 10, form: 'caterpie', level: 10 }));
+    const b0 = startTeamBattle(sampleSave({ monsters: Object.fromEntries(mons.map((m) => [m.uid, m])), party: mons.map((m) => m.uid) }), foes, 'trainer', '상대', mons.map((m) => m.uid));
+    const run: TeamBattle = { ...b0, phase: 'run', me: b0.me.map((f, j) => (j === 1 ? { ...f, ult: 1 } : f)) };
+    const foeUlt = (o: { window: number; hit: boolean }): TeamBattle => ({ ...run, phase: 'ult', ult: { side: 'foe', from: 0, ms: 0, dur: 2000, hitMs: 1200, joinAt: null, joiners: [], ...o } });
+    // 달리는 중 — 먼저 찬 칸 (2번 · 칸 1)
+    expect(fullChipSlot(run, null)).toBe(1);
+    // 둘이 찼으면 번호가 아니라 먼저 찬 칸 (Z 와 같은 칸 — teamZSlot) · 같은 때면 번호 순
+    const both = (at0: number, at2: number): TeamBattle => ({ ...run, me: run.me.map((f, j) => (j === 0 || j === 2 ? { ...f, ult: 1 } : { ...f, ult: 0 })), ultReadyAt: { ...run.ultReadyAt, me: [at0, null, at2] } });
+    expect(fullChipSlot(both(900, 300), null)).toBe(2);
+    expect(fullChipSlot(both(300, 900), null)).toBe(0);
+    // 상대 필살기 창이 열려 판이 join 이 돼도 보이던 칩은 그대로 (같은 금 판)
+    expect(fullChipSlot(foeUlt({ window: 800, hit: false }), 1)).toBe(1);
+    // 창 안에서 새로 띄우지는 않음 (끼어들기 안내가 키를 말함)
+    expect(fullChipSlot(foeUlt({ window: 800, hit: false }), null)).toBeNull();
+    // 창이 닫히거나 맞은 뒤 (금 판이 아님) = 뺌
+    expect(fullChipSlot(foeUlt({ window: 0, hit: false }), 1)).toBeNull();
+    expect(fullChipSlot(foeUlt({ window: 800, hit: true }), 1)).toBeNull();
+    // 그 칸을 썼거나 쓰러짐 = 다음 찬 칸 (없으면 없음)
+    expect(fullChipSlot({ ...run, me: run.me.map((f, j) => (j === 1 ? { ...f, ult: 0 } : j === 2 ? { ...f, ult: 1 } : f)) }, 1)).toBe(2);
+    expect(fullChipSlot({ ...run, me: run.me.map((f, j) => (j === 1 ? { ...f, hp: 0 } : f)) }, 1)).toBeNull();
   });
 
   it('합동 칩 붙잡기 (keepJointChips) — 진짜 시계 1.2초 · 엔진이 먼저 지워도 남김 · 장면 전환 칩이 가져가면 지움 (개발 #98 판 자동 검사 — "합동!" 0.65 ~ 0.7초)', () => {

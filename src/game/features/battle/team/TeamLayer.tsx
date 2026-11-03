@@ -13,7 +13,7 @@ import { Sprite } from '../../../ui/Sprite';
 import { spriteSrc } from '../../../ui/sprite-path';
 import type { FxActor } from '../fx/bridge';
 import { TEAM_FX, TeamFxRunner, type TeamSlot } from '../fx/team';
-import { bandDrawn, DUEL_VS_MS, FAINT_HOLD_MS, FAINT_PANEL_HOLD_MS, FAINT_UNSEEN_MS, OVER_MSG_MS, VIEW_CHIP_MS, VIEW_WAIT_MS, duelSpots, faintHoldLeft, faintFold, faintFresh, faintIsBig, faintUnsee, faintLine, faintShortLine, faintCountLine, faintShow, popFloor, foeWarn, soonChip, NUM_MIN_REAL_MS, numShown, overLineHold, keepJointChips, plateBoxOf, plateState, stackRows, teamDenyNote, teamGeometry, teamPrompt, viewHitChip, viewPopsBack, warnPosOf, type TeamGeo, type WarnPos, viewCrossers, viewMonClass } from './model';
+import { bandDrawn, DUEL_VS_MS, FAINT_HOLD_MS, FAINT_PANEL_HOLD_MS, FAINT_UNSEEN_MS, OVER_MSG_MS, VIEW_CHIP_MS, VIEW_WAIT_MS, duelSpots, faintHoldLeft, faintFold, faintFresh, faintIsBig, faintUnsee, faintLine, faintShortLine, faintCountLine, faintShow, popFloor, foeWarn, fullChipSlot, soonChip, NUM_MIN_REAL_MS, numShown, overLineHold, keepJointChips, plateBoxOf, plateState, stackRows, teamDenyNote, teamGeometry, teamPrompt, viewHitChip, viewPopsBack, warnPosOf, type TeamGeo, type WarnPos, viewCrossers, viewMonClass } from './model';
 import { HEAD_NOTE_H, HeadNote, headNoteWidth, pickHeadSpot, useHeldNote } from '../../../ui/HeadNote';
 import { getTeamView, subscribeTeamView, type TeamView } from '../fx/team-view';
 import { cutinArtH, JointNamePlate, TeamCutin } from './TeamCutin';
@@ -265,8 +265,8 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, d
           <Sprite media={media} form={f.form} shiny={f.shiny} scale={g.scale} px={art.px} action="walk" faceLeft={!mine} />
         </span>
       </span>
-      {/* 발밑 판 — 키 칸 (내 편) + HP + 필살기 게이지 */}
-      <span class={`pg-team-plate pg-team-plate-${side} pg-plate-${st}${deny ? ' pg-plate-deny' : ''}${dim ? ' pg-team-dim' : ''}${warnPlate ? ' pg-plate-warn' : ''}${vRest}`} style={{ left: `${Math.round(x - w / 2)}px`, top: `${y + 4}px`, width: `${w}px` }} onClick={click}>
+      {/* 발밑 판 — 키 칸 (내 편) + HP + 필살기 게이지 · 지금 누를 수 있는 판 (join — 끼어들기 · 모으기 · 합류) 은 흐리지 않음 (몸만 흐림 — 흐린 판 위 "다 참" 칩이 못 누름처럼 읽히던 것, UX 리뷰어 1935) */}
+      <span class={`pg-team-plate pg-team-plate-${side} pg-plate-${st}${deny ? ' pg-plate-deny' : ''}${dim && st !== 'join' ? ' pg-team-dim' : ''}${warnPlate ? ' pg-plate-warn' : ''}${vRest}`} style={{ left: `${Math.round(x - w / 2)}px`, top: `${y + 4}px`, width: `${w}px` }} onClick={click}>
         {mine && <span class="pg-team-key">{slot + 1}</span>}
         <span class="pg-team-bars">
           <Bar v={f.hp / Math.max(1, f.maxHp)} kind="hp" />
@@ -289,7 +289,7 @@ function Fighter({ b, g, side, slot, media, topMin, final, autoNext, fullChip, d
           </span>
         ) : (
           // 필살기는 눌러야만 나감 (태현 님 #82) — 다 찬 칸 = 같은 자리 "다 참" (남은 초 대신 · 내 편만)
-          mine && st === 'ready' && fullChip && autoSpot !== undefined && (
+          mine && (st === 'ready' || st === 'join') && fullChip && autoSpot !== undefined && (
             <span class={`pg-team-auto pg-team-full${autoPos}`} title={`필살기 다 참 — ${slot + 1} 누르면 나가요`}>
               다 참
             </span>
@@ -1189,7 +1189,10 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   if (!clashKey) joinTail.current = null;
   else if (joinKeys0.length > 0 && joinTail.current !== clashKey && clashLeft >= 1000) joinTail.current = clashKey;
   const joinKeys = joinTail.current === clashKey ? joinKeys0 : [];
-  const fullFirst = prompt?.kind === 'join' || prompt?.kind === 'gather' ? undefined : [0, 1, 2].find((i) => b.me[i] && plateState(b, 'me', i) === 'ready');
+  //   한 번 보이면 판이 금 테두리인 동안 그대로 — 상대 필살기 창 · 모으기 · 힘겨루기 (판 join) 에도 (bugs 1935 · model fullChipSlot)
+  const fullKept = useRef<number | null>(null);
+  fullKept.current = fullChipSlot(b, fullKept.current);
+  const fullFirst = fullKept.current ?? undefined;
   // 다 찬 상대 중 먼저 찬 칸 (엔진도 이 칸부터 씀 — teamFoeNext) — 그 칸만 "!" 칩
   //   상대 필살기 · 합동 모으기 동안은 "!" 칩 없음 — 모으는 사이 합동에 안 끼는 다음 칸 (소미안) 으로 옮겨 가 2.3초 "곧 쏜다" 로 읽히던 것 (UX 리뷰어 #98 2)
   const foeFirstSlot = b.phase === 'ult' && b.ult?.side === 'foe' ? -1 : (teamFoeNext(b) ?? -1);

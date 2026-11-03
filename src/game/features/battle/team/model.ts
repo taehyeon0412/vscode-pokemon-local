@@ -232,6 +232,22 @@ export function soonChip(s: { since: number; on: boolean }, w: { full: boolean; 
   return { since, on: s.on || now - since >= (w.pct >= 92 ? 1000 : 300) };
 }
 
+/**
+ * 내 편 "다 참" 칩 칸 (먼저 찬 한 칸) — kept = 지금까지 칩이 있던 칸. 한 번 보이면 그 판이 금 테두리 (ready · join) 인 동안 그대로
+ * (상대 필살기 창 · 합동 모으기 · 힘겨루기로 같은 금 판이 ready → join 이 되는 순간 칩만 빠져 0.44초만 보이던 것 — bugs 1935, 1927 · 1933 과 같은 틀) ·
+ * 새로 띄우는 것은 달리는 중 (run) 에만 (창 · 모으기 안내가 누를 키를 이미 말함) · 먼저 찬 칸 = Z · 처음 안내와 같은 칸 (teamZSlot — 번호 순으로 골라
+ * 모으기 뒤 칩이 Z 와 다른 1번 칸으로 옮겨 가던 것, UX 리뷰어 1935 작음 2)
+ */
+export function fullChipSlot(b: TeamBattle, kept: number | null): number | null {
+  if (kept !== null) {
+    const st = plateState(b, 'me', kept);
+    if (st === 'ready' || st === 'join') return kept;
+  }
+  if (b.phase !== 'run') return null;
+  const z = teamZSlot(b);
+  return z !== null && plateState(b, 'me', z) === 'ready' ? z : null;
+}
+
 /** 무대 가운데 위 안내 — 끼어들기 (상대 필살기 창) · 합동 멘트 (내 필살기에 같은 편 모임) · 연타 (필살기 힘겨루기) · 3:1 / 1:3 */
 export type TeamPrompt =
   /** 끼어들기 — me : foe = 머릿수 (받아치면 힘겨루기) · sure = 1:3 이면 'foe' (받아치면 짐) · foeJoint = 상대가 합동으로 모이는 중 ("상대 합동!") */
