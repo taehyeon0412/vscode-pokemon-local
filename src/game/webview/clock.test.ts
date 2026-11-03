@@ -5,7 +5,7 @@ import { TIMING } from '../core/balance';
 import { createGameState, type GameState } from '../core/engine';
 import { teamGatherIdle } from '../core/engine/play';
 import { startTeamBattle, type TeamBattle } from '../core/engine/team';
-import { JOINT_PLATE_MS, JOINT_PLATE_QUICK_MS, ULT_TITLE_AT_MS, ULT_TITLE_KEEP_MS, setTeamView, type TeamView } from '../features/battle/fx/team-view';
+import { DUEL_VS_FAST_AT_MS, JOINT_PLATE_MS, JOINT_PLATE_QUICK_MS, ULT_TITLE_AT_MS, ULT_TITLE_KEEP_MS, setTeamView, type TeamView } from '../features/battle/fx/team-view';
 import type * as Clock from './clock';
 
 const nowReal = performance.now.bind(performance);
@@ -162,22 +162,26 @@ describe('웹뷰 게임 시계', () => {
     view({ kind: 'joint', quick: true });
     expect(clock.teamSceneTempo(mine, at + JOINT_PLATE_QUICK_MS - 1)).toBe(tempo);
     expect(clock.teamSceneTempo(mine, at + JOINT_PLATE_QUICK_MS)).toBe(half);
-    // ① 힘겨루기 — 들어가기 ×3 · VS (맞닿기 전) 그대로 · 밀기 ×3 · 결과 (엔진이 승패를 낸 뒤 — 합동 마무리) 그대로 · 나오기 ×3
+    // ① 힘겨루기 — 들어가기 ×3 · VS 는 다 보인 지 1.2초까지 그대로 → 맞닿기까지 ×3 · 밀기 ×2 · 결과 (엔진이 승패를 낸 뒤 — 합동 마무리) 그대로 · 나오기 ×3 (#143 · ideas 734)
     const duel = (o: Partial<TeamView> = {}) => view({ kind: 'duel', duel: { me: [0], foe: [0] }, ...o });
     const pushing = inTeam(clash(2000));
     duel({ phase: 'in' });
     expect(clock.teamSceneTempo(pushing, at + 10)).toBe(fast);
     duel();
     expect(clock.teamSceneTempo(pushing, at + 500)).toBeNull();
-    duel({ meetAt: at + 1800 });
-    expect(clock.teamSceneTempo(pushing, at + 1799)).toBeNull();
-    expect(clock.teamSceneTempo(pushing, at + 1800)).toBe(fast);
-    expect(clock.teamSceneTempo(pushing, at + 5000)).toBe(fast);
+    duel({ meetAt: at + 2300 });
+    expect(clock.teamSceneTempo(pushing, at + DUEL_VS_FAST_AT_MS - 1)).toBeNull();
+    expect(clock.teamSceneTempo(pushing, at + DUEL_VS_FAST_AT_MS)).toBe(fast);
+    expect(clock.teamSceneTempo(pushing, at + 2299)).toBe(fast);
+    expect(clock.teamSceneTempo(pushing, at + 2300)).toBe(half);
+    expect(clock.teamSceneTempo(pushing, at + 5000)).toBe(half);
+    // VS 가 다 보인 지 1.2초 넘게 (VS 0.3초에 나와 0.16초에 커짐 — 그동안 기본 박자라 진짜 시간과 같음) — U1 VS 1초
+    expect(DUEL_VS_FAST_AT_MS - (300 + 160)).toBeGreaterThanOrEqual(1200);
     const won = inTeam(ult('me', { joint: { winners: [0], losers: [0], sure: false, quick: true } }));
     expect(clock.teamSceneTempo(won, at + 5000)).toBeNull();
-    // 승패가 난 뒤 이긴 줄기가 뚫고 나갈 때 (wonAt) 까지는 밀기 그대로 ×3 · "이겼다!" 부터 그대로
-    duel({ meetAt: at + 1800, wonAt: at + 6000 });
-    expect(clock.teamSceneTempo(won, at + 5999)).toBe(fast);
+    // 승패가 난 뒤 이긴 줄기가 뚫고 나갈 때 (wonAt) 까지는 밀기와 같은 ×2 (#143 · ideas 735 — 이긴 쪽 손맛) · "이겼다!" 부터 그대로
+    duel({ meetAt: at + 2300, wonAt: at + 6000 });
+    expect(clock.teamSceneTempo(won, at + 5999)).toBe(half);
     expect(clock.teamSceneTempo(won, at + 6000)).toBeNull();
     duel({ phase: 'out', meetAt: at + 1800 });
     expect(clock.teamSceneTempo(won, at + 10)).toBe(fast);

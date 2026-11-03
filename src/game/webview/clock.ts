@@ -9,7 +9,7 @@
 import { TIMING } from '../core/balance';
 import { gameTempo, inBattle, teamSceneFastOk, type GameState } from '../core/engine';
 import { isWordPopup, type TeamBattle } from '../core/engine/team';
-import { JOINT_PLATE_MS, JOINT_PLATE_QUICK_MS, ULT_TITLE_AT_MS, ULT_TITLE_KEEP_MS, getTeamView } from '../features/battle/fx/team-view';
+import { DUEL_VS_FAST_AT_MS, JOINT_PLATE_MS, JOINT_PLATE_QUICK_MS, ULT_TITLE_AT_MS, ULT_TITLE_KEEP_MS, getTeamView } from '../features/battle/fx/team-view';
 
 type Fn = (...args: unknown[]) => void;
 interface Timer {
@@ -198,13 +198,14 @@ export function teamSceneTempo(state: GameState | null, now = performance.now())
   if (b.phase === 'clash') {
     // 장면 힘겨루기 — 두 줄기가 맞닿은 뒤부터 (들어가기 · 나오기는 아래). 3:3 용 판 (장면 전환 끔) 은 그대로 — VS 띠 1.2초 뒤에 뜨는 연타 안내가 ×3 밀기 0.78초 안에 끝나던 것 (#138 UX 큼 1)
     if (!v) return null;
-    if (v.kind === 'duel' && v.phase === 'show') return v.meetAt !== undefined && now >= v.meetAt ? fast : null;
+    // #143 (ideas 734) — 맞닿은 뒤 밀기 = ×2 (×3 이면 1.2초로 VS 보다 짧던 것) · 맞닿기 전 VS 는 다 보인 지 1.2초 뒤부터 ×3 (총길이는 그대로쯤)
+    if (v.kind === 'duel' && v.phase === 'show') return v.meetAt !== undefined && now >= v.meetAt ? tempo * ultFasterScale : now - v.at >= DUEL_VS_FAST_AT_MS ? fast : null;
   }
   if (!v) return null;
   if (v.phase === 'in' || v.phase === 'out') return fast;
   if (v.phase !== 'show') return null;
-  // 힘겨루기 승패가 난 뒤 — 이긴 줄기가 뚫고 나갈 때까지 밀기 그대로 ×3 · 결과 ("이겼다!") 는 기본 박자
-  if (v.kind === 'duel') return v.wonAt !== undefined && now < v.wonAt ? fast : null;
+  // 힘겨루기 승패가 난 뒤 — 이긴 줄기가 뚫고 나갈 때까지 밀기와 같은 ×2 (#143 · ideas 735 — ×3 에서 0.13초로 이긴 쪽 손맛이 없던 것) · 결과 ("이겼다!") 는 기본 박자
+  if (v.kind === 'duel') return v.wonAt !== undefined && now < v.wonAt ? tempo * ultFasterScale : null;
   if (v.kind === 'joint') return now - v.at < (v.quick ? JOINT_PLATE_QUICK_MS : JOINT_PLATE_MS) ? tempo : tempo * ultFasterScale;
   const t = now - v.at;
   if (t >= ULT_TITLE_AT_MS && t < ULT_TITLE_AT_MS + ULT_TITLE_KEEP_MS) return tempo;

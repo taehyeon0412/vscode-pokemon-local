@@ -56,6 +56,11 @@ export const ULT_TITLE_KEEP_MS = 1300;
  * (게임 시계로 세는 판이 ×2 에서 0.6초만 보이던 것 — #138 UX 큼 2 · U1 "보인 띠는 1.2초 넘게")
  */
 export const JOINT_PLATE_MS = 1500;
+/**
+ * 빠르게 ▶▶ 힘겨루기 장면 — VS 가 다 보인 지 1.2초 뒤부터 맞닿을 때까지 ×3 (#143 · ideas 734 — VS 2.3초를 기본 박자로 두어 밀기 ×3 1.2초보다 길던 것).
+ * show 시작부터 ms (VS 동안은 기본 박자라 진짜 시간과 같음) = VS 나옴 0.3초 + 커짐 0.16초 (ult/core.js VS_AT · ultTitle) + 1.2초
+ */
+export const DUEL_VS_FAST_AT_MS = 300 + 160 + 1200;
 export const JOINT_PLATE_QUICK_MS = 1000;
 
 let view: TeamView | null = null;

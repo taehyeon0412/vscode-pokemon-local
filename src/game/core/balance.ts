@@ -470,7 +470,8 @@ export const TIMING = {
     fasterScale: 3,
     /**
      * 빠르게 ▶▶ 켬 — 내 필살기 · 합동 필살기 장면 전환 본편 (show) 배 (2026-10-29 태현 님 #138 ① "내 필살기 · 합동은 2배로 빠르게 해요 · 내 필살기는 반만 줄여서 화려한 맛이 남아요").
-     * 필살기 큰 이름 1.3초 · 합동 큰 컷인은 기본 박자 · 힘겨루기 밀기 · 할 일 없는 상대 합동 멘트는 fasterScale (webview/clock teamSceneTempo) [임시값]
+     * 필살기 큰 이름 1.3초 · 합동 큰 컷인은 기본 박자 · 할 일 없는 상대 합동 멘트는 fasterScale · 힘겨루기는 VS 가 다 보인 지 1.2초 뒤 ~ 맞닿기 fasterScale · 밀기 · 뚫고 나감은 이 배
+     * (#143 · ideas 734 · 735 — 2026-11-03 태현 님 "추천대로") (webview/clock teamSceneTempo) [임시값]
      */
     ultFasterScale: 2,
     /**
