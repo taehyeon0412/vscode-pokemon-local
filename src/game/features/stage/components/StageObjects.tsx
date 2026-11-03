@@ -85,7 +85,13 @@ export function StageObjects({ objects, media, scale, ground, roomPx, buildRoomP
           case 'trainer':
             return (
               <span key={o.key} class={o.alert ? 'pg-obj pg-trainer pg-trainer-alert' : 'pg-obj pg-trainer'} style={style} title={o.info.name}>
-                {o.alert ? <span class="pg-trainer-mark">!</span> : <span class="pg-nametag">{o.info.name}</span>}
+                {o.alert ? (
+                  <span class="pg-trainer-mark">
+                    <Icon name="markBang" px={scale} />
+                  </span>
+                ) : (
+                  <span class="pg-nametag">{o.info.name}</span>
+                )}
                 <Hero px={2 * scale} walking={false} hat={o.info.hat} shirt={o.info.shirt} faceLeft label={o.info.name} look={personLook(o.info.look)} media={media} roomPx={roomPx} />
               </span>
             );
@@ -98,7 +104,9 @@ export function StageObjects({ objects, media, scale, ground, roomPx, buildRoomP
           case 'request':
             return (
               <span key={o.key} class={o.active ? 'pg-obj pg-npc pg-npc-active' : 'pg-obj pg-npc'} style={style} title={`${o.template.who.name}`}>
-                <span class="pg-npc-mark">?</span>
+                <span class="pg-npc-mark">
+                  <Icon name="markQuestion" px={scale} />
+                </span>
                 {personLook(o.template.who.look) ? (
                   <Hero px={2 * scale} walking={false} faceLeft label={o.template.who.name} look={personLook(o.template.who.look)} media={media} roomPx={roomPx} />
                 ) : (
@@ -118,7 +126,9 @@ export function StageObjects({ objects, media, scale, ground, roomPx, buildRoomP
             return (
               <span key={o.key} class={cls} style={style} title={TRACE_TITLE[o.plan.trace] + (o.plan.strong ? ' (크게!)' : '')}>
                 {/* 모든 흔적에 같은 신호 — 배경 나무 · 풀과 헷갈리지 않게 */}
-                <span class={o.plan.strong ? 'pg-trace-dots pg-trace-big' : 'pg-trace-dots'}>{o.plan.strong ? '!!' : '…'}</span>
+                <span class={o.plan.strong ? 'pg-trace-dots pg-trace-big' : 'pg-trace-dots'}>
+                  <Icon name={o.plan.strong ? 'markBang2' : 'markDots'} px={scale} />
+                </span>
                 <Icon name={TRACE_ICON[o.plan.trace]} px={scale} />
                 {o.plan.shiny && (
                   <span class="pg-sparkle">

@@ -737,7 +737,13 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         {((battle && foeTrainer) || (gym && !battle && !teamOn) || (stageRt?.phase === 'rival' && foeTrainer)) && (
           <span class="pg-obj pg-foe-trainer" style={{ left: `${leaderX}px`, bottom: `${ground}px` }} title={foeTrainer?.name ?? gymLeader.name}>
             {/* 머리 위 이름표 (decisions 2026-10-17) · 라이벌 장면은 VS 전까지 "!" (gdd 4.12 — 트레이너와 같게, 대사 상자가 뜨면 0.8초에 이름표로 바뀌어 1초가 안 되던 것 · UX 리뷰어 2026-10-21) */}
-            {stageRt?.phase === 'rival' && !vsOn ? <span class="pg-trainer-mark">!</span> : !vsOn && <span class="pg-nametag">{foeTrainer?.name ?? gymLeader.name}</span>}
+            {stageRt?.phase === 'rival' && !vsOn ? (
+              <span class="pg-trainer-mark">
+                <Icon name="markBang" px={layout.scale} />
+              </span>
+            ) : (
+              !vsOn && <span class="pg-nametag">{foeTrainer?.name ?? gymLeader.name}</span>
+            )}
             {foeTrainer && stageRt?.phase !== 'rival' && (
               <span class="pg-foe-balls">
                 {Array.from({ length: foeTrainer.balls }, (_, i) => (
@@ -754,7 +760,9 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         {rivalShadow && (
           // 테두리 두께 = 그림 한 칸 (--pg-dot — 1px 이면 ×2 그림 격자의 반 칸, 원칙 4)
           <span class="pg-obj pg-foe-trainer pg-rival-shadow" style={{ left: `${leaderX}px`, bottom: `${ground}px`, '--pg-dot': `${shadowDot}px` }} title="라이벌이 기다려요">
-            <span class="pg-trainer-mark">!</span>
+            <span class="pg-trainer-mark">
+              <Icon name="markBang" px={layout.scale} />
+            </span>
             <Hero px={heroPx} walking={false} faceLeft label="라이벌" look={personLook(rivalShadow)} media={media} roomPx={heroRoom} />
           </span>
         )}

@@ -623,13 +623,7 @@ body.vscode-light .pg-stage.pg-bg-arena-volcano {
   left: 50%;
   bottom: 100%;
   transform: translateX(-50%);
-  font-size: 0.6em;
-  opacity: 0.85;
   animation: pg-bob 1.2s steps(1, end) infinite;
-}
-/* 흔적 글자 (… · !!) 테두리 1px — 화산 용암 줄 위 "!!" (1.2:1) · 회색 땅 윗줄 위 "…" 이 묻히던 것 (UX 리뷰어 #75 · 피해 숫자와 같은 테두리) */
-.pg-trace-dots {
-  text-shadow: 1px 0 0 #0c101e, -1px 0 0 #0c101e, 0 1px 0 #0c101e, 0 -1px 0 #0c101e;
 }
 .pg-trace-shiny {
   filter: drop-shadow(0 0 3px gold);
@@ -747,7 +741,6 @@ body.vscode-light .pg-stage.pg-bg-arena-volcano {
   left: 50%;
   bottom: 100%;
   transform: translateX(-50%);
-  font-size: 0.7em;
   animation: pg-bob 1s steps(1, end) infinite;
 }
 .pg-npc-active .pg-npc-mark {
@@ -3932,15 +3925,12 @@ body.vscode-light .pg-stage.pg-bg-arena-volcano {
   left: 50%;
   bottom: 100%;
   transform: translateX(-50%);
-  font-size: calc(14px * var(--pg-scale, 1));
-  line-height: 1;
-  font-weight: 900;
-  color: #e0362c;
-  animation: pg-pop-in 0.25s ease-out both;
+  /* 나타나기 = 크기가 아니라 자리를 정수 px 로 (2칸 위 → 1칸 → 제자리 · 0.2초 두 걸음) — 크기를 키우면 0.2 · 0.47 · 0.73 배로 그려져 점이 흐렸음 (원칙 4 · 8 · 아트 #1685 큼) */
+  animation: pg-mark-in 0.2s steps(2, end) both;
 }
-@keyframes pg-pop-in {
-  0% { transform: translateX(-50%) scale(0.2); }
-  100% { transform: translateX(-50%) scale(1); }
+@keyframes pg-mark-in {
+  0% { transform: translateX(-50%) translateY(-4px); }
+  100% { transform: translateX(-50%); }
 }
 /* 상대 몬스터볼 개수 (S08 ⑧) · 쓰러뜨린 만큼 흐리게 */
 .pg-foe-balls {
@@ -4696,29 +4686,12 @@ body.vscode-light .pg-stage.pg-bg-arena-volcano {
 .pg-facility > .pg-icon {
   display: block;
 }
-.pg-trace-dots {
-  font-size: calc(11px * var(--pg-scale, 1));
-  line-height: 1;
-  color: var(--pg-sos-ink);
-  text-shadow: 1px 1px 0 var(--pg-sos-tab-ink);
-}
-/* 센 흔적 = 빨간 !! (예전 💢) */
-.pg-trace-big {
-  font-weight: 900;
-  color: var(--pg-sos-red);
-}
 .pg-sparkle {
   line-height: 0;
 }
 /* 이로치 흔적 = 반짝 그림만 (흐린 금색 빛 번짐은 뺌 — 흐린 그림자 0) */
 .pg-trace-shiny {
   filter: none;
-}
-/* 길 위의 부탁 = 금색 ? (예전 ❓) — 테두리는 글자 그림자 네 방향 */
-.pg-npc-mark {
-  font-weight: 900;
-  color: var(--pg-sos-gold);
-  text-shadow: 1px 0 0 var(--pg-sos-tab-ink), -1px 0 0 var(--pg-sos-tab-ink), 0 1px 0 var(--pg-sos-tab-ink), 0 -1px 0 var(--pg-sos-tab-ink);
 }
 
 /* 상태 이상 칩 (HP 묶음 이름 줄) — 이름표처럼 밝은 바탕 + 짙은 글씨 · 11px (글자 단계 최소 — 예전 10px 흰 글씨 · 웹 색) */
@@ -4893,24 +4866,28 @@ body.vscode-high-contrast-light .pg-title-body {
 .pg-banner.pg-two > .pg-line > .pg-button:first-of-type {
   margin-left: auto;
 }
-/* 머리 위 표시 셋 (트레이너 ! · 센 흔적 !! · 부탁 ?) = 같은 테두리 (네 방향 1px 짙은 색) · 색만 다르게 */
+/* 머리 위 표시 넷 (트레이너 ! · 센 흔적 !! · 부탁 ? · 흔적 …) = 픽셀 그림 (data/icons mark* — 짙은 테두리 4방향 1칸 · 그림 배율, ideas 1685) ·
+   줄높이 0 · 그림 block (글자 기준선 틈 없이 칸 = 그림) · 단단한 색 (흔적 … 0.85 반투명이던 것 — 글자 스타일은 지움) */
 .pg-trainer-mark,
+.pg-npc-mark,
 .pg-trace-dots {
-  text-shadow: 1px 0 0 var(--pg-sos-tab-ink), -1px 0 0 var(--pg-sos-tab-ink), 0 1px 0 var(--pg-sos-tab-ink), 0 -1px 0 var(--pg-sos-tab-ink);
+  line-height: 0;
 }
+.pg-trainer-mark > .pg-icon,
+.pg-npc-mark > .pg-icon,
+.pg-trace-dots > .pg-icon {
+  display: block;
+}
+/* 트레이너 "!" 는 머리 위 한 칸 띄움 (글자는 줄 상자 여백으로 떠 있던 것 — 그림은 모자에 붙어서) */
 .pg-trainer-mark {
-  color: var(--pg-sos-red);
+  margin-bottom: 2px;
 }
-/* 트레이너 · 라이벌 대사 상자 앞 "!" — 좁은 패널에서만 (상자가 길 위 "!" 를 덮어서) · 길 위 "!" 와 같은 빨강 + 네 방향 테두리 */
+/* 트레이너 · 라이벌 대사 상자 앞 "!" — 좁은 패널에서만 (상자가 길 위 "!" 를 덮어서) · 길 위 "!" 와 같은 그림 (markBangUi — 상자 안 아이콘 높이 16 · 아트 #1685) */
 .pg-bang-in {
   display: none;
   flex: none;
   margin-right: 4px;
-  font-size: 14px;
-  font-weight: 900;
-  line-height: 1;
-  color: var(--pg-sos-red);
-  text-shadow: 1px 0 0 var(--pg-sos-tab-ink), -1px 0 0 var(--pg-sos-tab-ink), 0 1px 0 var(--pg-sos-tab-ink), 0 -1px 0 var(--pg-sos-tab-ink);
+  line-height: 0;
 }
 @media (max-width: 399px) {
   .pg-bang-in {

@@ -135,6 +135,14 @@ export const ICONS = {
   pause: ['WW.WW', 'WW.WW', 'WW.WW', 'WW.WW', 'WW.WW'],
   /** 반짝 (떨어진 아이템 · 이로치 힌트) */
   sparkle: ['...W...', '...Y...', '..YWY..', 'WYWWWYW', '..YWY..', '...Y...', '...W...'],
+  /** 길 위 머리 위 기호 넷 (ideas 1685 — 글자 대신 그림: 28px 글자 "!" 는 획이 약 4.8px 소수라 자리를 정수로 해도 양 끝 열이 반쯤 칠해져 흐리던 것 · bugs 596) —
+   *  길 위 그림 규칙대로 짙은 테두리 D (4방향 1칸 — 예전 글자 테두리와 같은 굵기) · 그늘 = 오른쪽 아래 한 칸 · 그림 배율 (옆 포켓몬 · 사람과 같은 점 크기) · 폭 짝수 ·
+   *  트레이너 ! · 센 흔적 !! = 빨강 · 부탁 ? = 금 · 흔적 … = 크림 (점마다 테두리 · 사이 한 칸 빔) · markBangUi = 좁은 패널 대사 상자 앞 "!" (×2 = 16px · 상자 안 아이콘 높이) */
+  markBang: ['.DD.', 'DRRD', 'DRRD', 'DRRD', 'DRRD', 'DRRD', 'DRRD', 'DRrD', '.DD.', 'DRRD', 'DRrD', '.DD.'],
+  markBang2: ['.DD..DD.', 'DRRDDRRD', 'DRRDDRRD', 'DRRDDRRD', 'DRRDDRRD', 'DRRDDRRD', 'DRRDDRRD', 'DRrDDRrD', '.DD..DD.', 'DRRDDRRD', 'DRrDDRrD', '.DD..DD.'],
+  markQuestion: ['..DDDD..', '.DYYYYD.', 'DYYDDYYD', '.DD.DYYD', '...DYYD.', '..DYYD..', '..DYyD..', '...DD...', '..DYYD..', '..DYyD..', '...DD...'],
+  markBangUi: ['.DD.', 'DRRD', 'DRRD', 'DRrD', '.DD.', 'DRRD', 'DRrD', '.DD.'],
+  markDots: ['.DD...DD...DD.', 'DWWD.DWWD.DWWD', 'DWwD.DWwD.DWwD', '.DD...DD...DD.'],
 } satisfies Record<string, readonly string[]>;
 
 export type IconName = keyof typeof ICONS;
