@@ -331,6 +331,14 @@ const SIDE_EST_W_PX = 170;
 const NAMETAG_PX = 16;
 /** 메뉴 줄 대략 너비 (버튼 6개 + 필살기 게이지) — 오른쪽으로 넘치지 않게 왼쪽 끝을 당김 */
 const MENU_EST_PX = 380;
+/**
+ * 좁은 가로 메뉴 (compact) 실제 폭 — 버튼 다섯 + Z 를 잰 값 (×1.3 에서 두 글자 184 · 번호 284 · 맥 글자 폭 흉내도 같음 — 버튼 폭이 정해져 있어서) + 방어 추천 ▲ 가 붙은 몫 (204 · 303 — UX 리뷰어 2733) (ideas 1687):
+ * 380 × 1.3 하나로 재면 240 ~ 559 에서 늘 패널 끝까지라 메뉴가 안 닿는 상대 HP 묶음까지 걸친 셈이었음. 자동 버튼이 메뉴 앞에 붙으면 AUTO_EST_PX 더
+ */
+const MENU_TINY_EST_PX = 153;
+const MENU_COMPACT_EST_PX = 233;
+/** 메뉴 줄 아래로 내린 상대 HP 묶음 ↔ 메뉴 줄 틈 (보이는 틈 4px — 1px 이면 상대 필살기 띠가 Z 밑줄로 읽히고 메뉴 · 내 묶음 · 상대 묶음이 한 덩이로 보이던 것, 아트 · UX 2733) */
+const FOE_LOW_GAP_PX = 3;
 /** 이보다 좁은 패널은 메뉴를 짧게 (번호 + 그림 글자) · 패널 왼쪽 끝부터 */
 export const COMPACT_WIDTH_PX = 560;
 /** 이 폭 아래면 메뉴를 두 글자로 (아트 디렉터 5차 — 240) */
@@ -461,6 +469,14 @@ export function battleGeometry(g: GeometryInput): BattleGeometry {
   const tiny = g.widthPx < TINY_WIDTH_PX;
   // 내 HP 바 왼쪽 끝 (또는 그림 왼쪽 끝) 부터 — 오른쪽으로 넘치지 않게 당김
   const menuLeft = compact ? 6 : Math.round(Math.max(6, Math.min(meX - g.meSpritePx / 2, meHpX - meHpWide / 2, g.widthPx - MENU_EST_PX * u - 6)));
+  // 트레이너 머리 위에 자리가 없거나, 내 HP 묶음과 겹치면 (좁은 패널) 자동 버튼은 메뉴 줄 맨 앞으로
+  const autoBottom = g.ground + g.heroPx + 2;
+  const autoTop = autoBottom + Math.round(AUTO_PX * u);
+  const hitsMyHp = meHpX - meHpWide / 2 < AUTO_LEFT_PX + AUTO_EST_PX * u && autoBottom < meHpBottom + hpBlockPx && autoTop > meHpBottom;
+  const autoInMenu = autoTop > room || hitsMyHp;
+  // 가로 메뉴 줄 오른쪽 끝 (좁은 메뉴는 잰 폭 · 넓으면 어림 — 패널 끝까지)
+  const menuEstPx = compact ? Math.round(((tiny ? MENU_TINY_EST_PX : MENU_COMPACT_EST_PX) + (autoInMenu ? AUTO_EST_PX : 0)) * u) : Math.round(MENU_EST_PX * u);
+  const menuEnd = Math.min(g.widthPx - 6, menuLeft + menuEstPx);
   // 가로 메뉴 줄 = 내 HP 묶음 바로 위 · 메뉴가 뻗는 쪽에 상대 HP 묶음이 걸치면 그 위 끝 (필살기 게이지 줄만큼 더 높음) 까지 올림
   //   (240 × 315 에서 메뉴 줄이 상대 HP 이름 줄을 3px 덮던 것 — bugs 634 · 메뉴 오른쪽 끝은 어림 (좁으면 패널 끝)) · 위 자리가 남는 만큼만 (정보줄로 옮기는 기준은 그대로 —
   //   상대 묶음까지 넣으면 720 × 161 (상대가 가까움) 메뉴가 정보줄 안으로 옮겨 감, bugs #289 배치) · 상대 묶음 위 끝에 딱 (틈을 3 더 주면 480 × 190 에서
@@ -468,7 +484,7 @@ export function battleGeometry(g: GeometryInput): BattleGeometry {
   //   올린 뒤에도 위에 두 줄 말 + 원래 띄움이 그대로 들어갈 때만 (말 자리가 줄면 240 ~ 656 × 186 ~ 189 에서 "무엇을 할까?" 가 숨던 것 — UX 리뷰어 634 큼 · 말이 먼저)
   const menuBase = meHpBottom + hpBlockPx;
   const foeHpTop = foeHpBottom + hpBlockPx + foeExtra;
-  const foeUnderMenu = foeHpX - foeHpWide / 2 < Math.min(g.widthPx - 6, menuLeft + MENU_EST_PX * u) && foeHpX + foeHpWide / 2 > menuLeft;
+  const foeUnderMenu = foeHpX - foeHpWide / 2 < menuEnd && foeHpX + foeHpWide / 2 > menuLeft;
   const lift = g.liftMenu !== false && foeUnderMenu && foeHpTop > menuBase && room - (foeHpTop + menuPx) >= msgH + (g.gapPx ?? MSG_MIN_GAP_PX) + 1 + MSG_LINE_PX;
   const menuBottom = lift ? foeHpTop : menuBase;
   // 옆 메뉴: 내 포켓몬 · 내 HP 묶음 오른쪽 ~ 상대 그림 · 상대 HP 묶음 왼쪽 사이에 세로 목록이 들어가면 그쪽 (위 정보줄은 그대로 보임)
@@ -484,20 +500,19 @@ export function battleGeometry(g: GeometryInput): BattleGeometry {
       ? { left: sideLeft0, top: panelTop - SIDE_TAB_PX, maxWidth: sideRight0 - sideLeft0, maxHeight: g.bodyPx - (panelTop - SIDE_TAB_PX) - 2 }
       : null;
   const menuInBar = !menuSide && menuBase + menuPx > room;
-  const autoBottom = g.ground + g.heroPx + 2;
-  // 트레이너 머리 위에 자리가 없거나, 내 HP 묶음과 겹치면 (좁은 패널) 메뉴 줄 맨 앞으로
-  const autoTop = autoBottom + Math.round(AUTO_PX * u);
-  const hitsMyHp = meHpX - meHpWide / 2 < AUTO_LEFT_PX + AUTO_EST_PX * u && autoBottom < meHpBottom + hpBlockPx && autoTop > meHpBottom;
-  const autoInMenu = autoTop > room || hitsMyHp;
+  // 메뉴를 못 올렸는데 상대 HP 묶음이 메뉴 줄에 걸치면 (위 말 자리가 모자란 낮은 패널 · 큰 상대) 상대 묶음을 메뉴 줄 아래로 — 상대 그림 머리 쪽에 겹침
+  //   (bugs 2733 — 메뉴가 상대 필살기 띠 · 이름 · HP 바를 4 ~ 23px 덮던 것 · 큰 상대는 이름 줄까지) · 내려가면 위 끝이 낮아져 말 자리도 남음
+  const foeLow = !menuSide && !menuInBar && !lift && foeUnderMenu && foeHpTop > menuBase;
+  const foeHpAt = foeLow ? Math.max(0, menuBase - hpBlockPx - foeExtra - FOE_LOW_GAP_PX) : foeHpBottom;
   // 위 가운데 한 줄이 HP 바 · 메뉴 줄과 겹치는지 — 겹치면 상대 오른쪽 빈 곳에 (자리가 있으면)
   // 옆 메뉴는 위 가운데를 차지하지 않음 (내 포켓몬 오른쪽 세로 목록)
-  const highest = Math.max(meHpBottom + hpBlockPx, foeHpBottom + hpBlockPx + foeExtra, menuInBar || menuSide ? 0 : menuBottom + menuPx);
+  const highest = Math.max(meHpBottom + hpBlockPx, foeHpAt + hpBlockPx + foeExtra, menuInBar || menuSide ? 0 : menuBottom + menuPx);
   // 한 줄 말 위 띄움 — 자리가 모자라면 줄임 (최소 예전 3px · 띄움 8px 때문에 480 × 190 에서 말이 숨던 것) · 말 자리 = 띄움 + 한 줄 + 1
   const msgGap = Math.max(MSG_MIN_GAP_PX, Math.min(g.gapPx ?? MSG_MIN_GAP_PX, room - highest - msgH - 1));
   const msgRoom = msgH + msgGap + 1;
   // 메뉴 줄이 위 한 줄 자리까지 올라와 있으면 (정보줄 바로 밑) 옆자리는 메뉴 오른쪽 끝 뒤부터 — 160px 에서 게이지 · 💥Z 위에 겹치던 것 (2026-10-19)
   const menuAtTop = !menuSide && !menuInBar && room - (menuBottom + menuPx) < msgRoom;
-  const menuRight = menuSide ? menuSide.left + Math.min(menuSide.maxWidth, SIDE_EST_W_PX) : menuLeft + Math.round(MENU_EST_PX * u);
+  const menuRight = menuSide ? menuSide.left + Math.min(menuSide.maxWidth, SIDE_EST_W_PX) : menuLeft + menuEstPx;
   const sideLeft = Math.round(Math.max(g.foeX + Math.max(g.foeSpritePx, foeHpWide) / 2 + 6, menuAtTop || menuSide ? menuRight + 8 : 0));
   const sideRoom = g.widthPx - sideLeft - 8;
   const topBusy = room - highest < msgRoom;
@@ -521,7 +536,7 @@ export function battleGeometry(g: GeometryInput): BattleGeometry {
   const msgRight = menuSide && msgRightRoom >= MSG_SIDE_MIN_PX ? { right: msgRightPx, maxWidth: msgRightRoom } : null;
   // 둘 곳이 없으면 (좁고 낮은 패널) 한 줄은 숨김 — HP 바가 더 중요, 내 차례는 메뉴 테두리로 보임
   const msgHidden = menuSide ? !msgRight : topBusy && !msgSide;
-  return { trainerX, meX, foeX: Math.round(g.foeX), meSpritePx: g.meSpritePx, foeSpritePx: g.foeSpritePx, meHpWide, foeHpWide, meHpX, foeHpX, msgHidden, meHpBottom, foeHpBottom, hpBlockPx, menuInBar, menuBottom, menuLeft, autoInMenu, autoBottom, autoLeft: AUTO_LEFT_PX, compact, tiny, msgSide, menuSide, msgRight, msgLines, topBusy, msgTop: Math.max(top + msgGap, menuSide && !topBusy ? Math.min(menuSide.top, g.bodyPx - (foeHpBottom + hpBlockPx + foeExtra)) - MSG_NEAR_GAP_PX - msgH - (msgLines - 1) * MSG_LINE_PX : 0), bodyPx: g.bodyPx, scale: g.scale, widthPx: g.widthPx, stageLeft: 0 };
+  return { trainerX, meX, foeX: Math.round(g.foeX), meSpritePx: g.meSpritePx, foeSpritePx: g.foeSpritePx, meHpWide, foeHpWide, meHpX, foeHpX, msgHidden, meHpBottom, foeHpBottom: foeHpAt, hpBlockPx, menuInBar, menuBottom, menuLeft, autoInMenu, autoBottom, autoLeft: AUTO_LEFT_PX, compact, tiny, msgSide, menuSide, msgRight, msgLines, topBusy, msgTop: Math.max(top + msgGap, menuSide && !topBusy ? Math.min(menuSide.top, g.bodyPx - (foeHpAt + hpBlockPx + foeExtra)) - MSG_NEAR_GAP_PX - msgH - (msgLines - 1) * MSG_LINE_PX : 0), bodyPx: g.bodyPx, scale: g.scale, widthPx: g.widthPx, stageLeft: 0 };
 }
 
 /**

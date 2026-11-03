@@ -246,7 +246,17 @@ function FaceCards({ ups, media, hint, starOff, onStats }: { ups: LevelUpView[];
  * 그래도 상자가 패널 아래로 넘치고 둘째 차례에 진화 줄이 있으면 (short) 둘째 차례에서 1 = 빠진 레벨업 · 2 = ★ · 경험치까지 뺌 (진화 줄만 — 전부는 상자 title) —
  * 돌 줄 (#131) 이 둘째 차례에 두 줄을 더해 240 × 150 맥 · 보관함 이브이 + 레벨업 둘에서 5줄 → 상자 아래가 패널 밖이던 것 (#131 UX 큼 1)
  */
-function useResultFit(): { box: { current: HTMLDivElement | null }; on: boolean; one: boolean; short: number; split: boolean; learnShort: boolean; noPre: boolean; noKey: boolean } {
+/** 결과 상자가 주인공 그림 칸을 이만큼 넘게 덮으면 (줄이는 단계를 다 거친 뒤) 주인공을 숨김 — 240 은 20 ~ 22 (머리 전체 · 다리만 남음) · 260 ~ 300 은 4 ~ 10 (모자 끝 — 상자 뒤에 선 사람) 사이 (아트 · UX 2739) */
+const HERO_HIDE_PX = 14;
+
+/** 결과 상자가 주인공 그림 칸을 HERO_HIDE_PX 넘게 덮나 (숨겨도 자리는 그대로라 같은 값) */
+function coversHero(el: HTMLElement): boolean {
+  const h = el.closest('#pokemon-game')?.querySelector('.pg-hero-wrap')?.getBoundingClientRect();
+  const r = el.getBoundingClientRect();
+  return !!h && h.width > 0 && r.left < h.right && r.right > h.left && r.bottom - h.top >= HERO_HIDE_PX;
+}
+
+function useResultFit(): { box: { current: HTMLDivElement | null }; on: boolean; one: boolean; short: number; split: boolean; learnShort: boolean; noPre: boolean; noKey: boolean; heroOff: boolean } {
   const box = useRef<HTMLDivElement>(null);
   const [on, setOn] = useState(false);
   const [one, setOne] = useState(false);
@@ -255,6 +265,10 @@ function useResultFit(): { box: { current: HTMLDivElement | null }; on: boolean;
   const [learnShort, setLearnShort] = useState(false);
   const [noPre, setNoPre] = useState(false);
   const [noKey, setNoKey] = useState(false);
+  const [heroOff, setHeroOff] = useState(false);
+  const heroCheck = useRef(false);
+  const heroOffNow = useRef(false);
+  heroOffNow.current = heroOff;
   // 한 번에 한 단계 — 칩 번갈아 줄 (on) 이 먼저, 그 판에서도 첫 줄이 넘치면 카드 한 장 (one) (카드를 먼저 빼면 461 ~ 598 에서 칩이 첫 줄에 남고 카드 둘이 빠지던 것)
   useLayoutEffect(() => {
     const el = box.current;
@@ -325,7 +339,21 @@ function useResultFit(): { box: { current: HTMLDivElement | null }; on: boolean;
     }
     // 둘째 차례가 보일 때만 (넓으면 번갈아 줄이 display none — 줄 수가 아니라 상자 아래로 잼, 맥 글꼴도 그 자리에서 잰 값)
     const altB = el.querySelector<HTMLElement>('.pg-result-alt-b');
-    if (short < 2 && altB && altB.getClientRects().length > 0 && altB.querySelector('.pg-evo-note') && over()) setShort(short + 1);
+    if (short < 2 && altB && altB.getClientRects().length > 0 && altB.querySelector('.pg-evo-note') && over()) {
+      setShort(short + 1);
+      return;
+    }
+    // 다 줄인 뒤에도 주인공 그림 칸을 HERO_HIDE_PX 넘게 덮으면 (150 높이 240 — 카드 44 + 제목 두 줄이라 상자를 더 못 낮추고, 옆으로 옮기면 폭이 약 104px 라 안 들어감) 주인공을 숨김
+    //   (bugs 2739 — 상자 아래 선이 목을 가로질러 다리만 나오고 반투명 바탕에 머리가 비치던 것) · visibility 라 자리는 그대로 (재기가 안 흔들림) · 상자가 닫히면 바로 보임
+    //   맨 끝에서만 잼 (단계를 밟는 도중의 큰 상자로 켜면 다 줄인 280 · 300 — 4 ~ 10px 에서도 숨던 것) · 한 번 켜면 그 상자 동안 그대로 (번갈아 줄로 높이가 바뀌어도 깜빡이지 않게)
+    //   다음 장면에 한 번 더 재서 그때도 넘을 때만 (진화 줄 · 경험치 단계는 다른 훅이 같은 그리기에서 늦게 정해 — 그 전의 큰 상자로 켜지던 것)
+    if (!heroOff && !heroCheck.current && coversHero(el)) {
+      heroCheck.current = true;
+      requestAnimationFrame(() => {
+        heroCheck.current = false;
+        if (el.isConnected && coversHero(el)) setHeroOff(true);
+      });
+    }
   });
   useEffect(() => {
     const reset = () => {
@@ -336,6 +364,7 @@ function useResultFit(): { box: { current: HTMLDivElement | null }; on: boolean;
       setLearnShort(false);
       setNoPre(false);
       setNoKey(false);
+      setHeroOff(false);
     };
     window.addEventListener('resize', reset);
     return () => window.removeEventListener('resize', reset);
@@ -357,7 +386,17 @@ function useResultFit(): { box: { current: HTMLDivElement | null }; on: boolean;
       ro.observe(line);
       for (const c of line.children) ro.observe(c);
     }
-    watch.current = { el, ro, offFonts: afterFonts(() => remeasure((n) => n + 1)) };
+    watch.current = {
+      el,
+      ro,
+      offFonts: afterFonts(() => {
+        remeasure((n) => n + 1);
+        // 글꼴이 오기 전 큰 상자로 켠 주인공 숨김은 글꼴 뒤 다시 재서 안 덮으면 풂 (2739 — 글꼴 늦게 온 판 260 · 280 에서 10px 인데 숨은 채 남던 것) · 번갈아 줄로는 안 풂 (깜빡임)
+        requestAnimationFrame(() => {
+          if (heroOffNow.current && el.isConnected && el instanceof HTMLElement && !coversHero(el)) setHeroOff(false);
+        });
+      }),
+    };
   });
   useEffect(
     () => () => {
@@ -367,7 +406,7 @@ function useResultFit(): { box: { current: HTMLDivElement | null }; on: boolean;
     },
     [],
   );
-  return { box, on, one, short, split, learnShort, noPre, noKey };
+  return { box, on, one, short, split, learnShort, noPre, noKey, heroOff };
 }
 
 /** 맥 글꼴 (+10% — 글자 사이 0.06em 로 흉내) 로 감았을 때 높이 · 줄 수 · 빠진 레벨업 덩이 (pg-alt-up) 가 줄 끝에서 쪼개졌는지 (ResultBox expStep) */
@@ -727,13 +766,13 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
   );
   if (ups.length === 0) {
     return (
-      <div ref={tight.box} class={`pg-banner pg-result pg-two${summary.caught ? ' pg-result-caught' : ''}${whyOff ? ' pg-result-nowhy' : ''}${howOff ? ' pg-result-howoff' : ''}${tight.on ? ' pg-result-tight' : ''}${tight.short ? ` pg-result-short${tight.short}` : ''}${tight.split ? ' pg-result-split' : ''}${tight.learnShort ? ' pg-result-learnshort' : ''}${tight.noPre ? ' pg-result-nopre' : ''}${tight.noKey ? ' pg-result-nokey' : ''}${expStep ? ` pg-exp-s${expStep}` : ''}${evoStep ? ` pg-evo-s${evoStep}` : ''}`} style={howWide ? { minWidth: `${howWide}px` } : undefined} title={all}>
+      <div ref={tight.box} class={`pg-banner pg-result pg-two${summary.caught ? ' pg-result-caught' : ''}${whyOff ? ' pg-result-nowhy' : ''}${howOff ? ' pg-result-howoff' : ''}${tight.on ? ' pg-result-tight' : ''}${tight.short ? ` pg-result-short${tight.short}` : ''}${tight.split ? ' pg-result-split' : ''}${tight.learnShort ? ' pg-result-learnshort' : ''}${tight.noPre ? ' pg-result-nopre' : ''}${tight.noKey ? ' pg-result-nokey' : ''}${tight.heroOff ? ' pg-result-herooff' : ''}${expStep ? ` pg-exp-s${expStep}` : ''}${evoStep ? ` pg-evo-s${evoStep}` : ''}`} style={howWide ? { minWidth: `${howWide}px` } : undefined} title={all}>
         {lines}
       </div>
     );
   }
   return (
-    <div ref={tight.box} class={`pg-banner pg-result pg-two pg-lvup${whyOff ? ' pg-result-nowhy' : ''}${howOff ? ' pg-result-howoff' : ''}${tight.on ? ' pg-result-tight' : ''}${tight.one ? ' pg-result-one' : ''}${tight.short ? ` pg-result-short${tight.short}` : ''}${tight.split ? ' pg-result-split' : ''}${tight.learnShort || expStep >= 4 ? ' pg-result-learnshort' : ''}${tight.noPre ? ' pg-result-nopre' : ''}${tight.noKey ? ' pg-result-nokey' : ''}${expStep ? ` pg-exp-s${Math.min(2, expStep)}` : ''}${expStep >= 3 ? ' pg-alt-wrap' : ''}${expStep >= 5 ? ' pg-alt-noexp' : ''}${expStep >= 6 ? ' pg-alt-norest' : ''}${expStep >= 7 ? ' pg-alt-nolv' : ''}${evoStep ? ` pg-evo-s${evoStep}` : ''}`} style={howWide ? { minWidth: `${howWide}px` } : undefined} title={all}>
+    <div ref={tight.box} class={`pg-banner pg-result pg-two pg-lvup${whyOff ? ' pg-result-nowhy' : ''}${howOff ? ' pg-result-howoff' : ''}${tight.on ? ' pg-result-tight' : ''}${tight.one ? ' pg-result-one' : ''}${tight.short ? ` pg-result-short${tight.short}` : ''}${tight.split ? ' pg-result-split' : ''}${tight.learnShort || expStep >= 4 ? ' pg-result-learnshort' : ''}${tight.noPre ? ' pg-result-nopre' : ''}${tight.noKey ? ' pg-result-nokey' : ''}${tight.heroOff ? ' pg-result-herooff' : ''}${expStep ? ` pg-exp-s${Math.min(2, expStep)}` : ''}${expStep >= 3 ? ' pg-alt-wrap' : ''}${expStep >= 5 ? ' pg-alt-noexp' : ''}${expStep >= 6 ? ' pg-alt-norest' : ''}${expStep >= 7 ? ' pg-alt-nolv' : ''}${evoStep ? ` pg-evo-s${evoStep}` : ''}`} style={howWide ? { minWidth: `${howWide}px` } : undefined} title={all}>
       <span ref={cardsRef} class="pg-lvup-cards">
         <FaceCards ups={cards} media={media} hint={hint} starOff={starOff} onStats={onStats} />
       </span>

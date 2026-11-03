@@ -4,20 +4,20 @@
 240x150 83 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=bar menuB=108 over=0
 240x160 64 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
 240x160 64 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
-240x160 83 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=1
-240x160 83 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=1
+240x160 83 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
+240x160 83 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
 240x170 64 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
 240x170 64 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
-240x170 83 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=1
-240x170 83 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=1
+240x170 83 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
+240x170 83 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
 240x187 64 | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=0
 240x187 64 T | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=0
-240x187 83 | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=1
-240x187 83 T | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=1
+240x187 83 | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=0
+240x187 83 T | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=0
 240x200 64 | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=0
 240x200 64 T | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=0
-240x200 83 | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=1
-240x200 83 T | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=1
+240x200 83 | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=0
+240x200 83 T | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=0
 240x230 64 | hide=0 lines=2 msgTop=8 busy=0 msg=top menu=top menuB=112 over=0
 240x230 64 T | hide=0 lines=2 msgTop=8 busy=0 msg=top menu=top menuB=112 over=0
 240x230 83 | hide=0 lines=2 msgTop=8 busy=0 msg=top menu=top menuB=131 over=0
@@ -36,20 +36,20 @@
 260x150 83 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=bar menuB=108 over=0
 260x160 64 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
 260x160 64 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
-260x160 83 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=1
-260x160 83 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=1
+260x160 83 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
+260x160 83 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
 260x170 64 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
 260x170 64 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
-260x170 83 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=1
-260x170 83 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=1
+260x170 83 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
+260x170 83 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
 260x187 64 | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=0
 260x187 64 T | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=0
-260x187 83 | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=1
-260x187 83 T | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=1
+260x187 83 | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=0
+260x187 83 T | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=0
 260x200 64 | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=0
 260x200 64 T | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=0
-260x200 83 | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=1
-260x200 83 T | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=1
+260x200 83 | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=0
+260x200 83 T | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=0
 260x230 64 | hide=0 lines=2 msgTop=8 busy=0 msg=top menu=top menuB=112 over=0
 260x230 64 T | hide=0 lines=2 msgTop=8 busy=0 msg=top menu=top menuB=112 over=0
 260x230 83 | hide=0 lines=2 msgTop=8 busy=0 msg=top menu=top menuB=131 over=0
@@ -68,20 +68,20 @@
 300x150 83 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=bar menuB=108 over=0
 300x160 64 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
 300x160 64 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
-300x160 83 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=1
-300x160 83 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=1
+300x160 83 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
+300x160 83 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
 300x170 64 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
 300x170 64 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
-300x170 83 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=1
-300x170 83 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=1
+300x170 83 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
+300x170 83 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
 300x187 64 | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=0
 300x187 64 T | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=0
-300x187 83 | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=1
-300x187 83 T | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=1
+300x187 83 | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=0
+300x187 83 T | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=0
 300x200 64 | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=0
 300x200 64 T | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=0
-300x200 83 | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=1
-300x200 83 T | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=1
+300x200 83 | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=0
+300x200 83 T | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=0
 300x230 64 | hide=0 lines=2 msgTop=8 busy=0 msg=top menu=top menuB=112 over=0
 300x230 64 T | hide=0 lines=2 msgTop=8 busy=0 msg=top menu=top menuB=112 over=0
 300x230 83 | hide=0 lines=2 msgTop=8 busy=0 msg=top menu=top menuB=131 over=0
@@ -100,20 +100,20 @@
 340x150 83 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=bar menuB=108 over=0
 340x160 64 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
 340x160 64 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
-340x160 83 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=1
-340x160 83 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=1
+340x160 83 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
+340x160 83 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
 340x170 64 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
 340x170 64 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
-340x170 83 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=1
-340x170 83 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=1
+340x170 83 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
+340x170 83 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
 340x187 64 | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=0
 340x187 64 T | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=0
-340x187 83 | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=1
-340x187 83 T | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=1
+340x187 83 | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=0
+340x187 83 T | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=0
 340x200 64 | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=0
 340x200 64 T | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=0
-340x200 83 | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=1
-340x200 83 T | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=1
+340x200 83 | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=0
+340x200 83 T | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=0
 340x230 64 | hide=0 lines=2 msgTop=8 busy=0 msg=top menu=top menuB=112 over=0
 340x230 64 T | hide=0 lines=2 msgTop=8 busy=0 msg=top menu=top menuB=112 over=0
 340x230 83 | hide=0 lines=2 msgTop=8 busy=0 msg=top menu=top menuB=131 over=0
@@ -132,20 +132,20 @@
 400x150 83 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=bar menuB=108 over=0
 400x160 64 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
 400x160 64 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
-400x160 83 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=1
-400x160 83 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=1
+400x160 83 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
+400x160 83 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
 400x170 64 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
 400x170 64 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
-400x170 83 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=1
-400x170 83 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=1
+400x170 83 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
+400x170 83 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
 400x187 64 | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=0
 400x187 64 T | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=0
-400x187 83 | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=1
-400x187 83 T | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=1
+400x187 83 | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=0
+400x187 83 T | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=0
 400x200 64 | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=0
 400x200 64 T | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=0
-400x200 83 | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=1
-400x200 83 T | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=1
+400x200 83 | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=0
+400x200 83 T | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=0
 400x230 64 | hide=0 lines=2 msgTop=8 busy=0 msg=top menu=top menuB=112 over=0
 400x230 64 T | hide=0 lines=2 msgTop=8 busy=0 msg=top menu=top menuB=112 over=0
 400x230 83 | hide=0 lines=2 msgTop=8 busy=0 msg=top menu=top menuB=131 over=0
@@ -162,22 +162,22 @@
 480x150 64 T | hide=0 lines=2 msgTop=3 busy=1 msg=side menu=bar menuB=108 over=0
 480x150 83 | hide=0 lines=5 msgTop=3 busy=1 msg=side menu=bar menuB=108 over=0
 480x150 83 T | hide=0 lines=2 msgTop=3 busy=1 msg=side menu=bar menuB=108 over=0
-480x160 64 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
-480x160 64 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
-480x160 83 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=1
-480x160 83 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=1
-480x170 64 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
-480x170 64 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
-480x170 83 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=1
-480x170 83 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=1
+480x160 64 | hide=0 lines=5 msgTop=3 busy=1 msg=side menu=top menuB=108 over=0
+480x160 64 T | hide=0 lines=2 msgTop=3 busy=1 msg=side menu=top menuB=108 over=0
+480x160 83 | hide=0 lines=5 msgTop=3 busy=1 msg=side menu=top menuB=108 over=0
+480x160 83 T | hide=0 lines=2 msgTop=3 busy=1 msg=side menu=top menuB=108 over=0
+480x170 64 | hide=0 lines=5 msgTop=3 busy=1 msg=side menu=top menuB=108 over=0
+480x170 64 T | hide=0 lines=3 msgTop=3 busy=1 msg=side menu=top menuB=108 over=0
+480x170 83 | hide=0 lines=5 msgTop=3 busy=1 msg=side menu=top menuB=108 over=0
+480x170 83 T | hide=0 lines=3 msgTop=3 busy=1 msg=side menu=top menuB=108 over=0
 480x187 64 | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=0
 480x187 64 T | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=0
-480x187 83 | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=1
-480x187 83 T | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=1
+480x187 83 | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=0
+480x187 83 T | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=0
 480x200 64 | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=0
 480x200 64 T | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=0
-480x200 83 | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=1
-480x200 83 T | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=1
+480x200 83 | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=0
+480x200 83 T | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=0
 480x230 64 | hide=0 lines=2 msgTop=8 busy=0 msg=top menu=top menuB=112 over=0
 480x230 64 T | hide=0 lines=2 msgTop=8 busy=0 msg=top menu=top menuB=112 over=0
 480x230 83 | hide=0 lines=2 msgTop=8 busy=0 msg=top menu=top menuB=131 over=0
@@ -196,20 +196,20 @@
 560x150 83 T | hide=0 lines=2 msgTop=3 busy=1 msg=side menu=bar menuB=108 over=0
 560x160 64 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
 560x160 64 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
-560x160 83 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=1
-560x160 83 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=1
+560x160 83 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
+560x160 83 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
 560x170 64 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
 560x170 64 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
-560x170 83 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=1
-560x170 83 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=1
+560x170 83 | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
+560x170 83 T | hide=1 lines=2 msgTop=3 busy=1 msg=top menu=top menuB=108 over=0
 560x187 64 | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=0
 560x187 64 T | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=0
-560x187 83 | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=1
-560x187 83 T | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=1
+560x187 83 | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=0
+560x187 83 T | hide=0 lines=1 msgTop=4 busy=0 msg=top menu=top menuB=108 over=0
 560x200 64 | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=0
 560x200 64 T | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=0
-560x200 83 | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=1
-560x200 83 T | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=1
+560x200 83 | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=0
+560x200 83 T | hide=0 lines=1 msgTop=8 busy=0 msg=top menu=top menuB=108 over=0
 560x230 64 | hide=0 lines=2 msgTop=8 busy=0 msg=top menu=top menuB=112 over=0
 560x230 64 T | hide=0 lines=2 msgTop=8 busy=0 msg=top menu=top menuB=112 over=0
 560x230 83 | hide=0 lines=2 msgTop=8 busy=0 msg=top menu=top menuB=131 over=0

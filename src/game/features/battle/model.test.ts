@@ -572,6 +572,28 @@ describe('가로 메뉴 줄 ↔ 상대 HP 묶음 (bugs 634)', () => {
     expect(bad).toEqual([]);
   });
 
+  it('메뉴를 못 올려도 (위 말 자리가 모자란 낮은 패널) 가로 메뉴 줄이 상대 HP 묶음 (필살기 띠 · 이름 · HP 바) 을 덮지 않음 — 상대 묶음이 메뉴 줄 아래로 · 메뉴 오른쪽 끝은 잰 폭 (두 글자 188 · 번호 289) (bugs 2733 · ideas 1687 — 64 는 띠 4px · 큰 상대는 이름 줄까지 23px 덮던 것)', () => {
+    const bad: string[] = [];
+    for (let w = 240; w <= 720; w += 10) {
+      for (let h = 150; h <= 220; h += 1) {
+        for (const px of [64, 83]) {
+          for (const foeTrainer of [false, true]) {
+            const g = battleGeometry({ widthPx: w, bodyPx: h - 26, scale: 2, uiScale: 1.3, ground: 23, foeX: Math.max(48, Math.round(w * 0.45)) + 44 * 2, meSpritePx: 64, foeSpritePx: px, heroPx: 40, heroWidthPx: 32, gapPx: 8, foeTrainer });
+            if (g.menuSide || g.menuInBar) continue;
+            const menuW = g.compact ? (g.tiny ? 184 : 284) : Math.round(380 * 1.3);
+            const right = Math.min(w - 6, g.menuLeft + menuW);
+            const under = g.foeHpX - g.foeHpWide / 2 < right && g.foeHpX + g.foeHpWide / 2 > g.menuLeft;
+            const foeTop = g.foeHpBottom + g.hpBlockPx + 4;
+            const menuTop = g.menuBottom + Math.round(19 * 1.3);
+            if (under && foeTop > g.menuBottom && g.foeHpBottom < menuTop) bad.push(`${w}x${h} ${px}${foeTrainer ? ' T' : ''} 겹침 ${Math.min(foeTop, menuTop) - Math.max(g.menuBottom, g.foeHpBottom)}`);
+            if (g.foeHpBottom < 0) bad.push(`${w}x${h} ${px} 상대 묶음이 바닥 밖`);
+          }
+        }
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
   it('메뉴를 올려도 위 한 줄 말 자리는 그대로 — 숨김 · 줄 수 · 띄움 · 위 붐빔 · 말 자리 (240 ~ 720 × 150 ~ 320 · 1px 높이 · 64 / 83 · 야생 · 트레이너 — UX 리뷰어 634 큼: 186 ~ 189 에서 말이 숨던 것)', () => {
     const bad: string[] = [];
     for (let w = 240; w <= 720; w += 16) {

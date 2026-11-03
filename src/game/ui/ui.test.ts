@@ -258,12 +258,32 @@ describe('머리 위 작은 글 자리 (버린 필살기 누름 — 태현 님 1
     expect(pickHeadSpot(a, 60, 13, bounds, [chip], { team: true })).toEqual({ l: 82, t: 46 });
     expect(pickHeadSpot(a, 60, 13, bounds, [{ l: 0, t: 44, r: 480, b: 47 }], { team: true }).l).toBe(46);
   });
-  it('3:3 — 위 가운데 넓은 줄 (쓰러짐 줄 · 띠) 에 막히면 같은 왼쪽 · 그 줄 아래 · 발밑 판 (키 칸 · HP) 을 덮으면 그 자리 (bugs 1928)', () => {
+  it('3:3 — 위 가운데 넓은 줄 (쓰러짐 줄 · 띠) 에 막히면 같은 왼쪽 · 그 줄 아래 · 발밑 판 (키 칸 · HP) 을 덮으면 몸 오른쪽 (bugs 1928 · 1930)', () => {
     const row = { l: 0, t: 30, r: 480, b: 50 };
     expect(pickHeadSpot(a, 60, 13, bounds, [row], { team: true })).toEqual({ l: 46, t: 51 });
-    expect(pickHeadSpot(a, 60, 13, bounds, [row], { team: true, under: [{ l: 40, t: 50, r: 110, b: 70 }] })).toEqual({ l: 46, t: 46 });
+    expect(pickHeadSpot(a, 60, 13, bounds, [row], { team: true, under: [{ l: 40, t: 50, r: 110, b: 70 }] })).toEqual({ l: 142, t: 62 });
     // 줄이 머리 왼쪽 위에 안 걸리면 전과 같음
     expect(pickHeadSpot(a, 60, 13, bounds, [{ l: 0, t: 0, r: 480, b: 20 }], { team: true })).toEqual({ l: 46, t: 46 });
+  });
+  it('3:3 240 × 150 붐빔 (처음 안내 + 쓰러짐 줄 두 줄 · bugs 1930) — 글 위에 글 0: 몸 오른쪽 → 몸 왼쪽 → 발밑 판 오른쪽 → 자기 그림 위 (다른 것은 계속 피함)', () => {
+    const tip = { l: 8, t: 26, r: 200, b: 44 };
+    const row = { l: 20, t: 44, r: 220, b: 58 };
+    // 발밑 판 (키 칸 [1] · HP) — 넓은 줄 바로 아래 자리를 덮음 (1928 대책이 막히던 것)
+    const plate = { l: 40, t: 60, r: 110, b: 74 };
+    const at = (avoid: { l: number; t: number; r: number; b: number }[]) => pickHeadSpot(a, 60, 13, { l: 0, t: 26, r: 240, b: 150 }, [tip, row, ...avoid], { team: true, under: [plate] });
+    const free = (p: { l: number; t: number }, avoid: { l: number; t: number; r: number; b: number }[]) =>
+      [tip, row, plate, ...avoid].every((o) => p.l + 60 <= o.l || p.l >= o.r || p.t + 13 <= o.t || p.t >= o.b);
+    // 몸 오른쪽 (상대 쪽 풀밭)
+    expect(at([])).toEqual({ l: 142, t: 62 });
+    // 오른쪽에 2번 칸 · 피해 숫자 → 몸 왼쪽 (키 칸이 머리 왼쪽 아래에만 걸칠 때)
+    const right = { l: 141, t: 40, r: 240, b: 120 };
+    const key = { l: 99, t: 60, r: 140, b: 74 };
+    expect(pickHeadSpot(a, 60, 13, { l: 0, t: 26, r: 240, b: 150 }, [tip, row, right], { team: true, under: [key] })).toEqual({ l: 38, t: 62 });
+    // 양옆이 다 막히면 자기 그림 가운데 (발밑 판 · 다른 칸 · 넓은 줄은 계속 피함)
+    const walls = [{ l: 0, t: 40, r: 80, b: 150 }, { l: 160, t: 40, r: 240, b: 150 }];
+    const mid = pickHeadSpot(a, 60, 13, { l: 0, t: 26, r: 240, b: 150 }, [tip, row, ...walls], { team: true, under: [{ l: 96, t: 100, r: 144, b: 112 }] });
+    expect(mid).toEqual({ l: 90, t: 74 });
+    expect(free(mid, walls)).toBe(true);
   });
   it('다 막히면 발밑 (1:1 240 × 150)', () => {
     const wall = [{ l: 0, t: 26, r: 480, b: 99 }];

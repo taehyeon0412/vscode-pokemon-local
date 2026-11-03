@@ -34,13 +34,13 @@ export function headNoteWidth(text: string, keyCap = false): number {
 
 /**
  * 자리 고르기 — a = 보이는 그림 상자 · w × h = 글 · bounds = 둘 수 있는 곳 (위 = 정보줄 · 지도 줄 아래) · avoid = 피할 상자 (이름표 · HP · 판 · 다른 포켓몬).
- * 자기 그림은 모서리 6px 까지만 걸쳐도 됨 (머리 왼쪽 위에 붙여 "이 포켓몬 말" 로 읽히게). 다 막히면 첫 자리 (안쪽으로 당김)
+ * 자기 그림은 모서리 6px 까지만 걸쳐도 됨 (머리 왼쪽 위에 붙여 "이 포켓몬 말" 로 읽히게). 다 막히면 첫 자리 (안쪽으로 당김) — 3:3 은 그 전에 몸 오른쪽 · 왼쪽 · 발밑 판 오른쪽 · 자기 그림 가운데 (bugs 1930)
  */
-export function pickHeadSpot(a: Rect, w: number, h: number, bounds: Rect, avoid: readonly Rect[], opts: { /** 3:3 — 머리 왼쪽 위만 (막히면 16px 까지 올리고 그래도 막히면 그 자리 · 글이 포켓몬을 따라감 — 기획 10-26 "누른 칸 포켓몬 머리 왼쪽 위를 따라가게") */ team?: boolean; /** 3:3 넓은 줄 아래 자리가 덮으면 안 되는 것 (발밑 판 — 키 칸 · HP) */ under?: readonly Rect[] } = {}): { l: number; t: number } {
+export function pickHeadSpot(a: Rect, w: number, h: number, bounds: Rect, avoid: readonly Rect[], opts: { /** 3:3 — 머리 왼쪽 위가 먼저 (막히면 16px 까지 올림 · 글이 포켓몬을 따라감 — 기획 10-26 "누른 칸 포켓몬 머리 왼쪽 위를 따라가게") · 위가 다 막히면 몸 옆 · 자기 그림 위 (1930) */ team?: boolean; /** 3:3 넓은 줄 아래 자리가 덮으면 안 되는 것 (발밑 판 — 키 칸 · HP) */ under?: readonly Rect[] } = {}): { l: number; t: number } {
   const cx = (a.l + a.r) / 2;
   // 태현 님 "포켓몬 머리 기준 왼쪽 위" (기획 10-26 — 1:1 이 오른쪽 위로 가던 것): 머리 왼쪽 위 (머리 모서리 6px 걸침) → 막히면 글 오른쪽 끝 = 머리 왼쪽 끝 · 둘 다 24px 까지 올려 봄 →
   //   그래도 막히면 (1:1 — 트레이너 · 자동 칩 · HP 묶음) 오른쪽 위 → 머리 위 → 몸 왼쪽 → 몸 오른쪽 → 발밑 (1:1 240 × 150 은 다 막혀 발밑)
-  type Cand = { at: [number, number]; lift: number; under?: boolean };
+  type Cand = { at: [number, number]; lift: number; under?: boolean; /** 자기 그림 위도 됨 (3:3 마지막 자리 — 1930) */ onBody?: boolean };
   const left: Cand[] = [
     { at: [a.l - w + 6, a.t - h - 1], lift: opts.team ? 16 : 24 },
     ...(opts.team ? [] : [{ at: [a.l - w, a.t - h - 1] as [number, number], lift: 24 }]),
@@ -65,6 +65,12 @@ export function pickHeadSpot(a: Rect, w: number, h: number, bounds: Rect, avoid:
     if (wide.length) cands.push({ at: [c0.at[0], Math.max(...wide.map((o) => o.b)) + 1], lift: 0, under: true });
     const block = avoid.filter((o) => o.r - o.l < (bounds.r - bounds.l) / 2 && hits(band, o));
     if (block.length) cands.push({ at: [Math.max(...block.map((o) => o.r)) + 2, a.t - h - 1], lift: 16 });
+    // 그래도 막히면 (240 × 150 — 처음 안내 + 쓰러짐 줄 두 줄이 위를 다 덮고 그 아래는 발밑 판) 첫 자리에 겹쳐 그리지 않고 (글 위에 글 — 쓰러짐 줄을 0.7초 덮던 것, bugs 1930 · 아트 · UX B)
+    //   몸 오른쪽 (상대 쪽 풀밭) → 몸 왼쪽 → 발밑 판 오른쪽 → 자기 그림 위 (다른 것은 계속 피함) — 위 끝은 넓은 줄 아래
+    const below = Math.max(a.t + 2, ...wide.map((o) => o.b + 1));
+    cands.push({ at: [a.r + 2, below], lift: 0, under: true }, { at: [a.l - w - 2, below], lift: 0, under: true });
+    for (const u of opts.under ?? []) if (u.l < a.r && u.r > a.l) cands.push({ at: [u.r + 4, Math.round((u.t + u.b - h) / 2)], lift: 0, under: true });
+    cands.push({ at: [cx - w / 2, Math.max(below, Math.round((a.t + a.b - h) / 2))], lift: 0, under: true, onBody: true });
   }
   const body = { l: a.l + 6, t: a.t + 6, r: a.r - 6, b: a.b - 6 };
   // 패널 끝 4px (2 면 첫 획이 끝에서 1 ~ 2px — 아트 디렉터 #97)
@@ -72,15 +78,15 @@ export function pickHeadSpot(a: Rect, w: number, h: number, bounds: Rect, avoid:
     l: Math.round(Math.max(bounds.l + 4, Math.min(bounds.r - 4 - w, l))),
     t: Math.round(Math.max(bounds.t, Math.min(bounds.b - 2 - h, t))),
   });
-  const free = (p: { l: number; t: number }, under = false) => {
+  const free = (p: { l: number; t: number }, under = false, onBody = false) => {
     const r = { l: p.l, t: p.t, r: p.l + w, b: p.t + h };
-    return !hits(r, body) && ![...avoid, ...(under ? (opts.under ?? []) : [])].some((o) => hits(r, { l: o.l - 1, t: o.t - 1, r: o.r + 1, b: o.b + 1 }));
+    return (onBody || !hits(r, body)) && ![...avoid, ...(under ? (opts.under ?? []) : [])].some((o) => hits(r, { l: o.l - 1, t: o.t - 1, r: o.r + 1, b: o.b + 1 }));
   };
   for (const c of cands) {
     const p = fit(c.at);
     for (let dy = 0; dy <= c.lift; dy += 2) {
       const q = { l: p.l, t: Math.max(Math.round(bounds.t), p.t - dy) };
-      if (free(q, c.under)) return q;
+      if (free(q, c.under, c.onBody)) return q;
     }
   }
   return fit(cands[0]!.at);

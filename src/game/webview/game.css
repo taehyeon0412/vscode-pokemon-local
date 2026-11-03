@@ -3374,6 +3374,10 @@ body.vscode-light .pg-stage.pg-bg-arena-volcano {
 .pg-result {
   border-color: #2ea043;
 }
+/* 결과 상자가 다 줄여도 주인공을 14px 넘게 덮으면 (150 높이 240 — ResultBox heroOff · bugs 2739) 주인공 숨김 — 자리는 그대로 · 상자가 닫히면 바로 */
+#pokemon-game:has(.pg-result-herooff) .pg-hero-wrap {
+  visibility: hidden;
+}
 .pg-result-body {
   display: block;
   opacity: 0.9;
