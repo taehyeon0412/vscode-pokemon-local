@@ -24436,10 +24436,23 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
         for (let gy = Math.floor((G - Rm) / c) * c; gy < G; gy += c) {
             const dy = gy + c / 2 - G;
             const by = ((gy / c) & 3) * 4;
+            // 한 줄에서 붙은 같은 색 칸은 긴 네모 하나로 (칠하는 칸은 그대로) — 칸마다 네모면 한 장에 1만 5천 개 (위 끝 층까지 두 번) 라
+            // 크롬이 GPU 로 보내기 전 경로를 쌓아 쿵 한 번에 렌더러 메모리가 300 ~ 460 MB 튐 (bugs 1932)
+            let runK = -1;
+            let run0 = 0;
+            let runEnd = 0;
+            const flush = () => {
+                if (runK >= 0) {
+                    const x0 = px(run0);
+                    paths[runK].rect(x0, px(gy), px(runEnd) + c - x0, c);
+                }
+                runK = -1;
+            };
             for (let gx = Math.floor((x - Rm) / c) * c; gx < x + Rm; gx += c) {
                 const dx = gx + c / 2 - x;
                 const d = Math.hypot(dx, dy);
                 if (d >= Rm) {
+                    flush();
                     continue;
                 }
                 // 쓰러진 칸 (cut) 은 비우고 둘레 2칸은 바둑판 반 — 곧은 네모 구멍이 그림 빠진 버그처럼 읽히던 것 (#114 UX) ·
@@ -24449,6 +24462,7 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                     const ry = Math.max(c, ((cut.b - cut.t) / 2) * 1.2);
                     const e = Math.hypot((gx + c / 2 - (cut.l + cut.r) / 2) / rx, (gy + c / 2 - (cut.t + cut.b) / 2) / ry);
                     if (e < 1 || (e < 1 + (2 * c) / Math.min(rx, ry) && (Math.round((gx + gy) / c) & 1) === 0)) {
+                        flush();
                         continue;
                     }
                 }
@@ -24474,10 +24488,18 @@ function typeImpact(x, y, s, type, P = 0.5, big = false, dir = 1, w = 0, o = {})
                 } else if (f < 1.13 && dith < 0.25) {
                     k = 0; // 바깥 빛 무리 — 4분의 1만
                 }
-                if (k >= 0) {
-                    paths[k].rect(px(gx), px(gy), c, c);
+                if (k >= 0 && k === runK) {
+                    runEnd = gx;
+                } else {
+                    flush();
+                    if (k >= 0) {
+                        runK = k;
+                        run0 = gx;
+                        runEnd = gx;
+                    }
                 }
             }
+            flush();
         }
         const pal = [cols[3], cols[2], cols[1], cols[0], '#ffffff']; // 어두운 → 밝은
         // 사라지는 단계 · 동작 줄이기면 고리마다 한 단계 어둡게 시작 (패널 가득 밝아지는 돔을 반 밝기로, ideas 738 · 옅게 하면 하양이 회색으로 탁해져서 팔레트 한 칸 — 첫 색이 하양인 돔은 심은 하양 그대로 · 바깥 고리만 어두워짐)
