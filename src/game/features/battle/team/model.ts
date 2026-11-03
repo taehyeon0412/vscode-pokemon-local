@@ -223,10 +223,11 @@ export function foeWarn(b: TeamBattle, slot: number): { full: boolean; pct: numb
  * (한 장면만 보이고 "!" 로 바뀌던 것 — #98 마지막 ④) · 한 번 보이면 다 찰 때까지 그대로 (보이던 "곧" 이 92% 를 넘는 순간 문턱이 1초로 바뀌어 숨었다가
  * 1초에 한 장면 번쩍인 뒤 "!" 로 바뀌던 것 — bugs 1927) · 다 찼는데 먼저 찬 다른 칸이 있으면 (first 아님 — "!" 는 그 칸만) 차례를 기다리는 "곧"
  * (보이던 "곧" 이 0.1 ~ 0.2초 만에 사라지던 것 · 지나온 길에 따라 같은 "다 참 · 기다림" 이 "곧" 칩 / 빨강 테두리만 둘로 보이던 것 — 1927 다시 재기 · UX 리뷰어) ·
- * first 가 되면 "!" 칩이 넘겨받음
+ * first 가 되면 "!" 칩이 넘겨받음 · hidden = 칩이 가려진 동안 (장면 전환 — 무리 밖 발밑 판이 숨음) 은 시간을 안 셈 — 가려진 사이 흘러 돌아오자마자 "곧" 이 켜지고
+ * 0.05 ~ 0.1초 뒤 "!" 로 바뀌던 것 (bugs 1933 · ux-rules U6 "보는 동안만 셈" 과 같은 뜻)
  */
-export function soonChip(s: { since: number; on: boolean }, w: { full: boolean; pct: number } | null, now: number, first: boolean): { since: number; on: boolean } {
-  if (!w || (w.full && first)) return { since: 0, on: false };
+export function soonChip(s: { since: number; on: boolean }, w: { full: boolean; pct: number } | null, now: number, first: boolean, hidden = false): { since: number; on: boolean } {
+  if (!w || (w.full && first) || hidden) return { since: 0, on: false };
   const since = s.since || now;
   return { since, on: s.on || now - since >= (w.pct >= 92 ? 1000 : 300) };
 }

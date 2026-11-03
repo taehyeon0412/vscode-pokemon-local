@@ -514,6 +514,20 @@ describe('상대 필살기 예고 "곧" 칩 (bugs 1927)', () => {
     expect(seen.at(-1)).toBeGreaterThan(2900);
     expect(unbroken(seen)).toBe(true);
   });
+  it('가려진 동안 (장면 전환) 은 시간을 안 셈 — 돌아온 뒤 0.3초 이어져야 "곧" · 그 안에 먼저 찬 칸이 되면 "곧" 없이 "!" (bugs 1933)', () => {
+    let s = { since: 0, on: false };
+    // 장면 동안 2초 85% (가려짐) → 돌아온 순간 · 0.1초 뒤 다 참 (먼저 찬 칸)
+    for (let t = 0; t <= 2000; t += 70) s = soonChip(s, { full: false, pct: 85 }, t, false, true);
+    expect(s.on).toBe(false);
+    s = soonChip(s, { full: false, pct: 85 }, 2070, false);
+    expect(s.on).toBe(false);
+    s = soonChip(s, { full: true, pct: 99 }, 2170, true);
+    expect(s.on).toBe(false);
+    // 가려짐이 없으면 예전처럼 이어진 시간대로
+    let u = { since: 0, on: false };
+    for (let t = 0; t <= 2000; t += 70) u = soonChip(u, { full: false, pct: 85 }, t, false);
+    expect(u.on).toBe(true);
+  });
   it('곧 없이 바로 다 찬 칸 (먼저 찬 칸 아님) 도 1초 뒤 "곧" — 같은 "다 참 · 기다림" 은 늘 같은 모양', () => {
     const seen = run([[0, 100]], 2000);
     expect(seen[0]! - 70).toBeGreaterThanOrEqual(1000);

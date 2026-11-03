@@ -1197,7 +1197,7 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
   const chipNow = realNow();
   const warnShow = b.foe.map((_, i) => {
     const w0 = foeWarn(b, i);
-    soon.current[i] = soonChip(soon.current[i] ?? { since: 0, on: false }, w0, chipNow, i === foeFirstSlot);
+    soon.current[i] = soonChip(soon.current[i] ?? { since: 0, on: false }, w0, chipNow, i === foeFirstSlot, view !== null);
     return !!w0 && ((w0.full && i === foeFirstSlot) || soon.current[i]!.on);
   });
   const warnPos = warnPosOf(b, g, warnShow);
