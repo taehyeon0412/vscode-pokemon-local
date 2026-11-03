@@ -196,10 +196,14 @@ function planOne(b: TeamBattle, e: TeamLogEntry, final: boolean, seen: Set<strin
     case 'ult-clash-end':
       out.push({ do: 'ult-clash-end', winner: e.winner, joint: e[e.winner].length > 1, sure: e.sure });
       return;
-    case 'faint':
+    case 'faint': {
       // 쓰러짐 연출은 그 한 방 (hit.ko) 이 그림 — 독 · 반동으로 쓰러지면 여기서
-      if (!b.log.some((x) => x.id < e.id && x.id >= e.id - 3 && x.t === 'hit' && x.ko && x.side === other(e.side) && x.to === e.slot)) out.push({ do: 'ko', dst: { side: e.side, slot: e.slot } });
+      if (b.log.some((x) => x.id < e.id && x.id >= e.id - 3 && x.t === 'hit' && x.ko && x.side === other(e.side) && x.to === e.slot)) return;
+      // 반동 (방금 그 포켓몬이 맞힌 한 방과 같은 때) 이면 터짐을 0.3초 뒤 — 상대 맞음 터짐과 같이 나와 눈이 둘로 갈리던 것 (ideas 1648 · 큰 효과 한 번에 하나)
+      const recoil = b.log.some((x) => x.id < e.id && x.id >= e.id - 3 && x.t === 'hit' && x.side === e.side && x.from === e.slot);
+      out.push({ do: 'ko', dst: { side: e.side, slot: e.slot }, ...(recoil ? { delayMs: TEAM_FX.koLagMs } : {}) });
       return;
+    }
     case 'status':
       out.push({ do: 'status', dst: { side: e.side, slot: e.slot }, kind: e.kind });
       return;

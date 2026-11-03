@@ -96,6 +96,13 @@ describe('계획', () => {
     expect(one(calls, 'end')).toHaveLength(1);
     // 독으로 쓰러지면 (맞은 한 방 없이) 별빛
     expect(plan([{ t: 'faint', side: 'me', slot: 0 }])).toEqual([{ do: 'ko', dst: { side: 'me', slot: 0 } }]);
+    // 반동 (양날박치기 — 내가 맞힌 한 방과 같은 때 내가 쓰러짐) = 별빛을 0.3초 뒤 (상대 맞음 터짐과 같이 나오지 않게 — ideas 1648) · 다른 칸의 쓰러짐은 그대로
+    const recoil = plan([
+      { t: 'hit', side: 'me', from: 1, to: 0, moveId: 457, ult: false, effect: 'damage', dmg: 40, ko: false },
+      { t: 'faint', side: 'me', slot: 1 },
+      { t: 'faint', side: 'me', slot: 2 },
+    ]);
+    expect(one(recoil, 'ko')).toEqual([{ do: 'ko', dst: { side: 'me', slot: 1 }, delayMs: TEAM_FX.koLagMs }, { do: 'ko', dst: { side: 'me', slot: 2 } }]);
   });
 
   it('기술 힘겨루기 = 두 기술 멈춤 · 필살기 두 번째부터 짧게 · 힘겨루기 · 합류 · 합동 · 3:1 마무리', () => {
