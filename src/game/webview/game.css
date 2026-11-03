@@ -1683,6 +1683,14 @@ body.vscode-light .pg-stage.pg-bg-arena-volcano {
   font-weight: 700;
   color: var(--pg-sos-ink);
   white-space: nowrap;
+  /* 판 = 메뉴 줄 안 말 상자와 같은 짙은 남색 반투명 + 1px 흐린 금선 (테두리 글자만이면 밝은 테마 숲의 흰 나무 줄기 위에서 뒷부분이 안 읽히던 것 — bugs 1934)
+     메뉴 줄은 HP 묶음 위에 아래 맞춤이라 판이 줄 높이를 다 차지해 아래가 HP 묶음에 붙고 240 맥에서 상대 필살기 게이지 줄에 3px 겹침 →
+     줄높이 14 (판 18) · 아래 4px 띄움 (상대 게이지 줄과 1 · 내 HP 묶음과 4) */
+  padding: 1px 6px;
+  line-height: 14px;
+  margin-bottom: 4px;
+  background: var(--pg-sos-panel);
+  border: 1px solid var(--pg-sos-line-soft);
 }
 /* S23 잊을 기술 이름 = 빨강 (결정하면 사라짐) */
 .pg-forget {
