@@ -102,6 +102,33 @@ function Reward({ p, rare }: { p: SummaryPart; rare: boolean }) {
   );
 }
 
+/** 진화 줄 글 "피카츄 → 라이츄 진화 가능 …" — 넘치면 짧은 글 (상자 pg-evo-s1 = 화살표 양옆 띄어쓰기 뺌 "피카츄→라이츄" · s2 = 앞 이름 뺌 "→ 라이츄" · s3 = "→라이츄" —
+ *  이름은 자르지 않음 · 화살표는 남김 ("라이츄 진화 가능" 은 라이츄가 진화한다로 거꾸로 읽혀서 — UX 1697) */
+const EVO_HIDE: readonly (readonly ('from' | 'sp1' | 'sp2')[])[] = [[], ['sp1', 'sp2'], ['from', 'sp1'], ['from', 'sp1', 'sp2']];
+function EvoText({ text }: { text: string }) {
+  const i = text.indexOf(' → ');
+  if (i < 0) return <span class="pg-evo-text">{text}</span>;
+  return (
+    <span class="pg-evo-text">
+      <span class="pg-evo-from">{text.slice(0, i)}</span>
+      <span class="pg-evo-sp1">{' '}</span>
+      {'→'}
+      <span class="pg-evo-sp2">{' '}</span>
+      {text.slice(i + 3)}
+    </span>
+  );
+}
+
+/** 글 칸의 줄 수 (글자 상자를 위 끝 순서로 · 앞 상자 높이 반보다 아래면 새 줄 — 아이콘 상자는 같은 줄로 셈) */
+function linesOf(el: HTMLElement): number {
+  const r = document.createRange();
+  r.selectNodeContents(el);
+  const rs = Array.from(r.getClientRects())
+    .filter((x) => x.width > 0)
+    .sort((a, b) => a.top - b.top);
+  return rs.reduce((n, x, i) => (i > 0 && x.top > rs[i - 1]!.top + rs[i - 1]!.height / 2 ? n + 1 : n), rs.length > 0 ? 1 : 0);
+}
+
 /** 둘째 줄 — 레벨업 ▲ · 새 기술 ★ (금색) · 라이벌 한마디는 따옴표 */
 /** 3:3 결과 경험치 줄 — 판 끝에 쓰러져 있던 칸은 이름 뒤 작은 "기절" 칩 (멈춘 셋 빈칸이 "누가 쓰러졌나" 로 읽히게 — ideas 1669 · 가운데 줄은 "못 받음" 으로 읽혀 바꿈, 엔진은 싸운 셋 모두에게 줌) */
 const Ko = () => <span class="pg-exp-ko">기절</span>;
@@ -371,8 +398,31 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
   //   7 = 빠진 레벨업의 "Lv N" 뺌 ("▲ 이상해씨 · 독침붕" — 셋이 같이 오른 3:3 240 맥에서 세 줄로 카드보다 커지던 것) (전부는 상자 title) ·
   //   빠진 레벨업 ("▲ 뷰티플라이 Lv 11") 은 끝까지 남김 — 레벨업은 중요한 순간 (U1 · 레벨업을 숨겨 큼이던 2718 과 같은 종류가 되지 않게, 기획 2725)
   //   (240 · 300 × 150 맥 3:3 결과 — "▲ 뷰티플라이 Lv 11 · ★ 아리아도스가 엉겨붙기를 배웠다" 가 한 줄 고정이라 "계속 ▶" 아래로 깔려 잘리던 것, bugs 2725 · U4 · 레벨업 상자엔 1 · 2 단계 칸도 안 붙던 것)
+  // 진화 줄 (돌 줄 · 진화 아이템 줄) 이 맥 여유로 두 줄이 되면 짧은 글 한 단계씩 — 0 = "피카츄 → 라이츄 진화 가능" · 1 = "→ 라이츄 …" · 2 = "라이츄 …"
+  //   (240 ~ 300 × 150 맥 둘째 차례에서 "피카츄 → 라이츄 / 진화 가능" 두 줄로 상자가 주인공 머리를 덮던 것 — 1697 · 이름은 자르지 않음) · 줄이는 동안은 경험치 단계 (아래) 가 먼저 빼지 않게 기다림
+  //   단계는 그릴 때마다 지금 폭 · 그 PC 글꼴로 다시 고름 — 단계마다 둘째 줄 (진화 줄이 든 줄 전체) 줄 수를 재서 가장 적은 것 중 (줄여도 줄 수가 안 줄면 안 줄임)
+  //   (내리기만 하면 처음 그림 (카드 두 장일 때) 에서 감겨 내려간 채 260 에서도 "피카츄" 가 빠지던 것 · 마지막 단계를 재지 않고 골라 240 꼬리 글 "… 외 1 · 팀에 넣고" 가 두 줄인 채 이름만 빠지던 것 ·
+  //   맥 여유 (+0.06em) 로 재 윈도우에서 들어가는데도 이름이 빠지던 것 — UX 1697 큼 1 · 작음 2 · 3)
+  const [evoStep, setEvoStep] = useState(0);
+  const evoSettled = useRef(true);
+  useLayoutEffect(() => {
+    const t = Array.from(tight.box.current?.querySelectorAll<HTMLElement>('.pg-evo-text') ?? []).find((e) => e.getClientRects().length > 0);
+    if (!t || !t.querySelector('.pg-evo-from')) return;
+    const host = t.closest<HTMLElement>('.pg-result-alt-b, .pg-result-body') ?? t;
+    const part = { from: t.querySelector<HTMLElement>('.pg-evo-from'), sp1: t.querySelector<HTMLElement>('.pg-evo-sp1'), sp2: t.querySelector<HTMLElement>('.pg-evo-sp2') };
+    //   줄 수가 같으면 진화 글이 안 나뉘는 쪽 ("피카츄→라이츄 진화 가능 · / ▲ 이상해씨" — "피카츄 → 라이츄 / 진화 가능 · ▲ 이상해씨" 보다 읽힘) · 그다음 긴 글
+    const score = EVO_HIDE.map((hide) => {
+      for (const k of ['from', 'sp1', 'sp2'] as const) part[k]!.style.display = hide.includes(k) ? 'none' : 'inline';
+      return linesOf(host) * 10 + linesOf(t);
+    });
+    for (const k of ['from', 'sp1', 'sp2'] as const) part[k]!.style.display = '';
+    const need = score.indexOf(Math.min(...score));
+    evoSettled.current = need === evoStep;
+    if (need !== evoStep) setEvoStep(need);
+  });
   const [expStep, setExpStep] = useState(0);
   useLayoutEffect(() => {
+    if (!evoSettled.current) return;
     const box = tight.box.current;
     const inner = box?.querySelector<HTMLElement>('.pg-result-alt-in');
     const card = box?.querySelector<HTMLElement>('.pg-lvup-card');
@@ -489,6 +539,7 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
   useEffect(() => {
     const reset = () => {
       setExpStep(0);
+      setEvoStep(0);
       setWhyOff(false);
       setHowStep(0);
       setHowWide(null);
@@ -588,14 +639,14 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
   //   사이 " · " 는 pg-evo-sep (넘쳐서 ★ · 경험치를 뺄 때 같이 · 점을 앞 낱말에 붙여 줄이 "·" 로 시작하지 않게)
   const evoNote = stoneText ? (
     <span class="pg-evo-note">
-      <Icon name={ITEM_ICON[stones[0]!.item as keyof typeof ITEM_ICON] ?? 'stone'} /> {stoneText}
+      <Icon name={ITEM_ICON[stones[0]!.item as keyof typeof ITEM_ICON] ?? 'stone'} /> <EvoText text={stoneText} />
       <span class="pg-evo-how">{howTexts[Math.min(howStep, howTexts.length - 1)]}</span>
-      {rest.length > 0 && <span class="pg-evo-sep">{' · '}</span>}
+      {rest.length > 0 && <span class="pg-evo-sep">{'\u00a0· '}</span>}
     </span>
   ) : summary.evoNote ? (
     <span class="pg-evo-note">
-      <Icon name={evoItem ? ITEM_ICON[evoItem as keyof typeof ITEM_ICON] : 'stone'} /> {summary.evoNote}
-      {rest.length > 0 && <span class="pg-evo-sep">{' · '}</span>}
+      <Icon name={evoItem ? ITEM_ICON[evoItem as keyof typeof ITEM_ICON] : 'stone'} /> <EvoText text={summary.evoNote} />
+      {rest.length > 0 && <span class="pg-evo-sep">{'\u00a0· '}</span>}
     </span>
   ) : null;
   const altB = rest.length > 0 || evoNote ? (
@@ -658,13 +709,13 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
   );
   if (ups.length === 0) {
     return (
-      <div ref={tight.box} class={`pg-banner pg-result pg-two${summary.caught ? ' pg-result-caught' : ''}${whyOff ? ' pg-result-nowhy' : ''}${howOff ? ' pg-result-howoff' : ''}${tight.on ? ' pg-result-tight' : ''}${tight.short ? ` pg-result-short${tight.short}` : ''}${tight.split ? ' pg-result-split' : ''}${tight.learnShort ? ' pg-result-learnshort' : ''}${tight.noPre ? ' pg-result-nopre' : ''}${tight.noKey ? ' pg-result-nokey' : ''}${expStep ? ` pg-exp-s${expStep}` : ''}`} style={howWide ? { minWidth: `${howWide}px` } : undefined} title={all}>
+      <div ref={tight.box} class={`pg-banner pg-result pg-two${summary.caught ? ' pg-result-caught' : ''}${whyOff ? ' pg-result-nowhy' : ''}${howOff ? ' pg-result-howoff' : ''}${tight.on ? ' pg-result-tight' : ''}${tight.short ? ` pg-result-short${tight.short}` : ''}${tight.split ? ' pg-result-split' : ''}${tight.learnShort ? ' pg-result-learnshort' : ''}${tight.noPre ? ' pg-result-nopre' : ''}${tight.noKey ? ' pg-result-nokey' : ''}${expStep ? ` pg-exp-s${expStep}` : ''}${evoStep ? ` pg-evo-s${evoStep}` : ''}`} style={howWide ? { minWidth: `${howWide}px` } : undefined} title={all}>
         {lines}
       </div>
     );
   }
   return (
-    <div ref={tight.box} class={`pg-banner pg-result pg-two pg-lvup${whyOff ? ' pg-result-nowhy' : ''}${howOff ? ' pg-result-howoff' : ''}${tight.on ? ' pg-result-tight' : ''}${tight.one ? ' pg-result-one' : ''}${tight.short ? ` pg-result-short${tight.short}` : ''}${tight.split ? ' pg-result-split' : ''}${tight.learnShort || expStep >= 4 ? ' pg-result-learnshort' : ''}${tight.noPre ? ' pg-result-nopre' : ''}${tight.noKey ? ' pg-result-nokey' : ''}${expStep ? ` pg-exp-s${Math.min(2, expStep)}` : ''}${expStep >= 3 ? ' pg-alt-wrap' : ''}${expStep >= 5 ? ' pg-alt-noexp' : ''}${expStep >= 6 ? ' pg-alt-norest' : ''}${expStep >= 7 ? ' pg-alt-nolv' : ''}`} style={howWide ? { minWidth: `${howWide}px` } : undefined} title={all}>
+    <div ref={tight.box} class={`pg-banner pg-result pg-two pg-lvup${whyOff ? ' pg-result-nowhy' : ''}${howOff ? ' pg-result-howoff' : ''}${tight.on ? ' pg-result-tight' : ''}${tight.one ? ' pg-result-one' : ''}${tight.short ? ` pg-result-short${tight.short}` : ''}${tight.split ? ' pg-result-split' : ''}${tight.learnShort || expStep >= 4 ? ' pg-result-learnshort' : ''}${tight.noPre ? ' pg-result-nopre' : ''}${tight.noKey ? ' pg-result-nokey' : ''}${expStep ? ` pg-exp-s${Math.min(2, expStep)}` : ''}${expStep >= 3 ? ' pg-alt-wrap' : ''}${expStep >= 5 ? ' pg-alt-noexp' : ''}${expStep >= 6 ? ' pg-alt-norest' : ''}${expStep >= 7 ? ' pg-alt-nolv' : ''}${evoStep ? ` pg-evo-s${evoStep}` : ''}`} style={howWide ? { minWidth: `${howWide}px` } : undefined} title={all}>
       <span ref={cardsRef} class="pg-lvup-cards">
         <FaceCards ups={cards} media={media} hint={hint} starOff={starOff} onStats={onStats} />
       </span>

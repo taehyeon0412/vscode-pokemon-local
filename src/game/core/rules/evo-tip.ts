@@ -71,7 +71,8 @@ export function evoUsersLine(save: Save, item: ItemId): string | null {
   const users = evoItemUsers(save, item);
   const first = users[0];
   if (!first) return null;
-  return `${first.name} → ${first.toName} 진화 가능${users.length > 1 ? ` 외 ${users.length - 1}` : ''}${users.every((u) => u.where === 'box') ? ' · 팀에 넣고' : ''}`;
+  // "진화 가능" · "외 N" · "팀에 넣고" 는 붙여 씀 — 결과 상자 돌 줄 (ResultBox stoneText) 과 같게 (280 맥에서 "진화 / 가능" 두 줄로 상자가 주인공 머리를 덮던 것 — 디자인 1697)
+  return `${first.name} → ${first.toName} 진화\u00a0가능${users.length > 1 ? ` 외\u00a0${users.length - 1}` : ''}${users.every((u) => u.where === 'box') ? '\u00a0· 팀에\u00a0넣고' : ''}`;
 }
 
 /** 아직 안내를 못 본 진화 아이템 (가방에 있는 것 중 첫째) — 없으면 null · 본 안내가 꽉 차 (TIPS_MAX) 적을 수 없으면 안 띄움 (매번 다시 뜨지 않게 — 코드 리뷰어) */

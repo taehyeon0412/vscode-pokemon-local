@@ -7125,6 +7125,17 @@ body.vscode-high-contrast-light .pg-hpblock > .pg-hprow,
   white-space: normal;
   word-break: keep-all;
 }
+/* 진화 줄이 둘째 줄을 늘리면 짧은 글 (ResultBox evoStep — 1697): 1 = 화살표 양옆 띄어쓰기 뺌 "피카츄→라이츄 진화 가능" · 2 = 앞 이름 뺌 "→ 라이츄 …" · 3 = "→라이츄 …"
+   (이름은 자르지 않음 · 화살표는 남김 — "라이츄 진화 가능" 은 거꾸로 읽혀서, UX 1697) */
+.pg-result.pg-evo-s1 .pg-evo-sp1,
+.pg-result.pg-evo-s1 .pg-evo-sp2,
+.pg-result.pg-evo-s2 .pg-evo-from,
+.pg-result.pg-evo-s2 .pg-evo-sp1,
+.pg-result.pg-evo-s3 .pg-evo-from,
+.pg-result.pg-evo-s3 .pg-evo-sp1,
+.pg-result.pg-evo-s3 .pg-evo-sp2 {
+  display: none;
+}
 .pg-result.pg-alt-noexp .pg-result-alt .pg-result-alt-b .pg-rest-exp,
 .pg-result.pg-alt-norest .pg-result-alt .pg-result-alt-b .pg-alt-rest,
 /* 진화 줄 뒤 남은 줄이 다 빠지면 끝 " · " 도 (한 장 단계는 빠진 레벨업이 뒤에 와서 남김 — "… 진화 가능 ·" 로 끝나던 것, UX #144) */

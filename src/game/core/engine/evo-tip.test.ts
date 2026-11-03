@@ -32,9 +32,9 @@ describe('진화 아이템 처음 안내 (#125 — 태현 님 "천둥의돌 같�
 
   it('쓸 포켓몬 — 팀 · 보관함 (팀 먼저) · 한 줄 · 셋 넘으면 "외 N마리"', () => {
     expect(evoItemUsers(withStone('team'), 'thunder-stone')).toEqual([{ uid: 'm3', name: '피카츄', toName: '라이츄', where: 'team' }]);
-    expect(evoUsersLine(withStone('team'), 'thunder-stone')).toBe('피카츄 → 라이츄 진화 가능');
+    expect(evoUsersLine(withStone('team'), 'thunder-stone')).toBe('피카츄 → 라이츄 진화\u00a0가능');
     const many = withStone('team', { monsters: { ...withStone('team').monsters, m4: { ...pikachu, uid: 'm4' }, m5: { ...pikachu, uid: 'm5' } }, box: ['m4', 'm5'] });
-    expect(evoUsersLine(many, 'thunder-stone')).toBe('피카츄 → 라이츄 진화 가능 외 2');
+    expect(evoUsersLine(many, 'thunder-stone')).toBe('피카츄 → 라이츄 진화\u00a0가능 외\u00a02');
     expect(evoUsersLine(withStone(), 'thunder-stone')).toBeNull();
   });
 
@@ -51,13 +51,13 @@ describe('진화 아이템 처음 안내 (#125 — 태현 님 "천둥의돌 같�
     expect(evoItemExamples(caught, 'thunder-stone')[0]).toEqual({ name: '피카츄', toName: '라이츄' });
     expect(evoItemExamples(sampleSave(), 'linking-cord').map((e) => e.name)).toContain('근육몬');
     // 쓸 포켓몬이 있으면 예 없이 그 포켓몬
-    expect(evoTip(withStone('team'), 'thunder-stone')).toMatchObject({ examples: [], who: '피카츄 → 라이츄 진화 가능' });
+    expect(evoTip(withStone('team'), 'thunder-stone')).toMatchObject({ examples: [], who: '피카츄 → 라이츄 진화\u00a0가능' });
   });
 
   it('두 번째부터 얻은 말 뒤 한 줄 — 안내를 본 아이템 · 늘어났을 때 · 쓸 포켓몬이 있을 때만', () => {
     const before = withStone('team', { bag: {}, tips: [evoTipId('thunder-stone')] });
     const after = { ...before, bag: { 'thunder-stone': 1 } };
-    expect(evoGotNote(before, after)).toBe('피카츄 → 라이츄 진화 가능');
+    expect(evoGotNote(before, after)).toBe('피카츄 → 라이츄 진화\u00a0가능');
     expect(evoGotNote(before, { ...after, tips: [] })).toBeNull(); // 처음 = 안내가 대신
     expect(evoGotNote(after, after)).toBeNull(); // 안 늘어남
     const noUser = withStone('none', { bag: {}, tips: [evoTipId('thunder-stone')] });
@@ -70,9 +70,9 @@ describe('진화 아이템 처음 안내 (#125 — 태현 님 "천둥의돌 같�
     const summary: BattleSummary = { title: '라이벌', exp: [], money: 100, item: null, caught: null, learned: [], choices: 0, badge: null };
     const r = rivalWinRewards(s, summary, 'may', fixedRng(0));
     expect(r.save.bag['fire-stone']).toBe(1);
-    expect(r.summary.evoNote).toBe('식스테일 → 나인테일 진화 가능');
+    expect(r.summary.evoNote).toBe('식스테일 → 나인테일 진화\u00a0가능');
     const rt = readRuntime(viaJson({ ...createGameState(r.save, 1).runtime, stage: { phase: 'result', ms: 0, summary: r.summary } }), 1);
-    expect(rt.stage?.phase === 'result' && rt.stage.summary.evoNote).toBe('식스테일 → 나인테일 진화 가능');
+    expect(rt.stage?.phase === 'result' && rt.stage.summary.evoNote).toBe('식스테일 → 나인테일 진화\u00a0가능');
     // 안내를 아직 못 봤으면 한 줄 없음 (걷는 중 안내가 대신)
     expect(rivalWinRewards({ ...s, tips: [] }, summary, 'may', fixedRng(0)).summary.evoNote).toBeUndefined();
   });
@@ -91,7 +91,7 @@ describe('진화 아이템 처음 안내 (#125 — 태현 님 "천둥의돌 같�
   });
 
   it('코드 리뷰어 — 보관함에만 있으면 "팀에 넣으면" · 본 안내가 꽉 차면 안 띄움 · 안내 id 는 짧은 영문 (24자) · 대기실 고르기 판 · 첫 안내 먼저', () => {
-    expect(evoUsersLine(withStone('box'), 'thunder-stone')).toBe('피카츄 → 라이츄 진화 가능 · 팀에 넣고');
+    expect(evoUsersLine(withStone('box'), 'thunder-stone')).toBe('피카츄 → 라이츄 진화\u00a0가능\u00a0· 팀에\u00a0넣고');
     // 가장 긴 실제 조합도 짧게 (240 × 150 알림 줄 — 디자인 UX 리뷰어)
     expect((evoUsersLine(withStone('box'), 'thunder-stone') ?? '').length).toBeLessThanOrEqual(30);
     expect(evoTip(withStone('box'), 'thunder-stone').how).toBe('팀에 넣은 뒤 [B] 가방에서 골라 써요');

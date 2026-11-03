@@ -263,7 +263,8 @@
             const exp = [{ uid: 'm1', name: '이상해씨', gain: 102, from: 5, to: 5 }, { uid: 't2', name: '파이리', gain: 102, from: 5, to: 5 }, { uid: 't3', name: '꼬부기', gain: 102, from: 5, to: 5 }];
             stage.summary = { ...stage.summary, badge: null, team: true, title: '반바지 꼬마 민수와의 3:3 승부에서 이겼다!', exp, learned: [], teamMe: q.get('teamme') === '2' ? [three[0], mk('t3', 7, 'squirtle', 18, 20, true)] : three };
         }
-        if (scene === 'result' && q.get('evonote')) stage.summary = { ...stage.summary, item: '천둥의돌', evoNote: '피카츄 → 라이츄 진화 가능' };
+        // evonote=1 · box (보관함 — " · 팀에 넣고") · 2 (" 외 1") · 2box — 엔진 evoUsersLine 과 같은 붙임 띄어쓰기 (1697 · 꼬리 글 장면 — UX 1697)
+        if (scene === 'result' && q.get('evonote')) { const ev = q.get('evonote'); stage.summary = { ...stage.summary, item: '천둥의돌', evoNote: `피카츄 → 라이츄 진화\u00a0가능${ev.startsWith('2') ? ' 외\u00a01' : ''}${ev.endsWith('box') ? '\u00a0· 팀에\u00a0넣고' : ''}` }; }
         if (scene === 'result' && q.get('ups') === '0') stage.summary = { ...stage.summary, exp: [{ uid: 'm1', name: '이상해씨', gain: 28, from: 5, to: 5 }], learned: [] };
         // easy=<배율> — 경험치 칸에 방치 경험치 줄어든 표시 ("▼1/2 Lv 높음" · gdd 5.2 · bugs 678 — ups=0 · teamme 와 같이)
         // expn=<2 ~ 6> — 경험치만 오른 포켓몬 N 마리 (긴 이름 뷰티플라이 · 세 자리 경험치 — 둘째 줄 넘침 · U4 팀 6마리) · easy=<a,b,…> 는 포켓몬마다 (모자라면 1)
