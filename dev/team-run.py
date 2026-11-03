@@ -495,7 +495,10 @@ def run_one(out, cfg):
                 n += 1
                 time.sleep(max(0, TICK_S - (time.time() - t0 - el)))
             K = ws.ev(f"{W}.__tr ? {W}.__tr.stop() : null") or {}
-            K["inputs"] = acts.get("inputs", [])
+            # 판 표 js 가 페이지 안에서 직접 누른 것 (window.__qw.log [Date.now(), 칸] — 14판 쓰러짐 직후 끼어들기) 도 같은 시계로 누름에 셈
+            #   (그 칸 "다 참" 칩이 누른 뒤 사라진 것이 1초 걸림으로 잡히던 것 — 11-03 16판 훑기)
+            qw = ws.ev(f"(() => {{ const w = {W}; return w.__qw && w.__tr ? w.__qw.log.map((x) => x[0] - w.__tr.t0) : []; }})()") or []
+            K["inputs"] = sorted(acts.get("inputs", []) + qw)
             K["probe"] = acts.get("probe", [])
             flashes = ws.ev(f"{W}.__tr ? {W}.__tr.fx() : []") or []
             print(f"  frames {n} · {round(time.time() - t0, 1)}s", flush=True)
