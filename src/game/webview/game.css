@@ -471,6 +471,14 @@ body.vscode-light .pg-stage .pg-maprow > .pg-balls + .pg-minimap .pg-stage-name 
 .pg-fg {
   opacity: 0.9;
 }
+/* 먼 층 (해 · 달 · 등대 — StageScreen FarLayer · bugs 660) = 흐르지 않음 · 한 장 · 바닥 맞춤 (배경과 같은 높이 그림이라 수평선이 맞음) */
+.pg-bg-far {
+  position: absolute;
+  inset: 0;
+  background-repeat: no-repeat;
+  background-position-y: bottom;
+  pointer-events: none;
+}
 /* 배경이 바뀌는 순간 (3:3 시합장 ↔ 길 · 체육관 3:3 바닥 올림) = 남색 막 0.8 → 0 세 걸음 0.2초 (한 장면에 뚝 바뀌던 것 — UX 리뷰어 #78 U2) · 배경 위 · 사람 · 포켓몬 아래 */
 .pg-scene-fade {
   position: absolute;

@@ -484,7 +484,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
       return img;
     });
   }, [media, arenaHere, layout.size, widthPx < 400]);
-  const art = (layer: 'background' | 'foreground') => (media && !gym ? `url("${media}/backgrounds/${sceneBackground(state)}/${layer}-${themeKind()}-${arenaX1 ? 'x1' : layout.size}.png")` : 'none');
+  const art = (layer: 'background' | 'foreground' | 'far') => (media && !gym ? `url("${media}/backgrounds/${sceneBackground(state)}/${layer}-${themeKind()}-${arenaX1 ? 'x1' : layout.size}.png")` : 'none');
   // 체육관: 주인공은 무대 왼쪽 (대기실) · 관장은 무대 오른쪽 끝
   const heroStand = geo ? geo.trainerX : gym ? stage.left + Math.round(stage.width * 0.18) : hero;
   // 1-3 길 끝 체육관 (2026-10-20 태현 님 A안) — gym-enter 동안 주인공이 문 앞까지 걸어가 들어가며 사라지고 화면 닦기 (stage/model gymEnterView)
@@ -712,6 +712,9 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
               // ×1 시합장 (400 아래) 은 지역 길 그림 (×2 점) 대신 시합장 그림 맨 윗줄 하늘 색을 위로 이어 칠함 (위 숲만 점이 두 배로 커 화풍이 섞이던 것 — 아트 디렉터 #97 큼 5 · 원칙 4)
               <div class={arenaX1 ? 'pg-arena-above pg-arena-sky' : 'pg-arena-above'} style={arenaX1 ? { height: `${arenaDrop}px` } : { height: `${arenaDrop + 12 * arenaK}px`, backgroundImage: `url("${media}/backgrounds/${stageBackground(save.location.stageId)}/background-${themeKind()}-${layout.size}.png")` }} />
             )}
+            {/* 먼 층 (해 · 달 · 등대 — bugs 660) = 배경과 앞 그림 사이 · 흐르지 않음 · 전투 중엔 안 그림 (HP 묶음이 수평선 높이라 늘 그 뒤 · 사이에 등대 · 해 조각이 겹쳐
+                240 전투 HP 줄 뒤가 지저분하던 것 — #61 아트와 같은 자리 · 전투 시작 화면 닦기가 사라지는 순간을 가림) */}
+            {FAR_ART.has(sceneBackground(state)) && media && !battle && <FarLayer image={art('far')} widthPx={widthPx} />}
             <ScrollLayer key={`fg-${sceneBackground(state)}`} cls="pg-fg" image={art('foreground')} start={sceneBackground(state).startsWith('arena-') ? 0 : offset * 0.7} pxPerSec={WALK_PX_PER_SEC * layout.scale * 0.7 * walkK} running={phase === 'walk' && live} />
           </>
         )}
@@ -1054,6 +1057,34 @@ const SCROLL_DISTANCE_PX = 1_000_000;
  * 배경 · 앞 수풀 — 걷는 동안 CSS 애니메이션으로 일정하게 흐름 (화면 새로 고침마다 매끈하게 · 2026-10-19 태현 님 "뚝뚝 끊겨 눈이 아파").
  * 처음 위치는 지금 진행 위치에서 (음수 지연), 멈추면 (만남 · 전투 · 병원 앞 …) 같이 멈춤. 크기가 바뀌면 다시 맞춤. 길 위의 것과 딱 맞을 필요는 없는 겹 (패럴랙스)
  */
+/** 먼 층이 있는 배경 (그림 스크립트 make_pixel2.py far — 해변 노을 = 해 · 밤 = 달 + 등대 작은 곶) */
+const FAR_ART: ReadonlySet<string> = new Set(['beach-dusk', 'beach-night']);
+/** 먼 층 그림 가운데 = 패널 폭의 이 자리 */
+const FAR_AT = 0.62;
+
+/**
+ * 먼 층 (bugs 660) — 해 · 달 · 등대가 흐르는 배경 한 바퀴 (1920px · 약 48초) 에 한 번이라 240 에서 약 15% 만 보이던 것 ("등대 곶" 인데 등대가 거의 없음) →
+ * 흐르지 않는 따로 층으로 패널 폭 62% 자리에 늘 (먼 것은 걸어도 거의 안 움직여 보임 · 두 번 넣으면 넓은 패널에서 둘이 같이 보여서 한 장만) ·
+ * 바닥 맞춤 (그림 높이 = 배경 높이라 수평선이 맞음) · 왼쪽 끝 정수 px (그림 폭 짝수 — 가운데 맞춤이 반 픽셀에 서지 않게 · 폭을 몰라 받기 전엔 숨김)
+ */
+function FarLayer({ image, widthPx }: { image: string; widthPx: number }) {
+  const [w, setW] = useState(0);
+  const src = image.startsWith('url("') ? image.slice(5, -2) : '';
+  useEffect(() => {
+    if (!src) return undefined;
+    let live = true;
+    const img = new Image();
+    img.onload = () => {
+      if (live) setW(img.naturalWidth);
+    };
+    img.src = src;
+    return () => {
+      live = false;
+    };
+  }, [src]);
+  return <div class="pg-bg-far" style={{ backgroundImage: image, backgroundPositionX: `${Math.round(widthPx * FAR_AT) - Math.round(w / 2)}px`, visibility: w ? undefined : 'hidden' }} />;
+}
+
 function ScrollLayer({ cls, image, start, pxPerSec, running }: { cls: string; image: string; start: number; pxPerSec: number; running: boolean }) {
   // 애니메이션 시작점은 처음 그릴 때 (또는 빠르기가 바뀔 때) 한 번만 — 매번 바꾸면 그때마다 튐.
   // 빠르기가 바뀌면 (빨리 걷기 켜고 끔 · 일이 다가와 보통 빠르기로) 엔진 진행 자리 (start) 로 다시 맞추지 않고 지금 보이는 자리에서 새 빠르기로 이어 감 —
