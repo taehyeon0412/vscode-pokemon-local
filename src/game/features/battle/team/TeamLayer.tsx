@@ -22,6 +22,7 @@ import { BAND_PX, TeamBand, useTeamBand, type TeamBandView } from './TeamBand';
 import { topGapPx } from '../../../ui/layout';
 import { realLater, realNow } from '../../../ui/real-clock';
 import { KeyCap } from '../../../ui/KeyCap';
+import { FIT_ROOM } from '../../../ui/useFit';
 import { holdTeamOver } from '../fx/hold';
 import { withJosa } from '../../../core/text';
 import './team.css';
@@ -1079,7 +1080,7 @@ export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldT
     //   제목 앞은 지우지 않고 먼저 줄임 ("리자몽 필살기 · 같이 쓰기!" → "리자몽과 같이 쓰기!" · "소미안 필살기 · 끼어들기" → "소미안에 끼어들기" — 지우면 "같이 쓰기! [2] 이상해꽃" 이
     //   "이 둘이 합동한다" 로 읽히던 것, UX 리뷰어 #95 13바퀴 3 · UX 3:3 점검 3) · 세로 판은 제목도 잼 (띠를 숨긴 높은 패널은 제목에 이름)
     const row = el.classList.contains('pg-team-big-row');
-    const over = () => (row ? el.scrollWidth * 1.1 : Math.max(fold?.scrollWidth ?? 0, title?.scrollWidth ?? 0) * 1.1 + 32) > maxW;
+    const over = () => (row ? el.scrollWidth * FIT_ROOM : Math.max(fold?.scrollWidth ?? 0, title?.scrollWidth ?? 0) * FIT_ROOM + 32) > maxW;
     //   끼어들기 한 줄 판은 이름 (띠를 숨겨 넣은 것 — 판이 닫히면 띠가 1.2초 말함) 을 쓰러짐 말보다 먼저 뺌 (400 × 187 에서 접힌 말이 빠져 0 ~ 0.43초만 보이던 것 — #131) ·
     //   모으기 판은 앞장 이름을 마지막까지 (빼면 "이 둘이 합동한다" 로 읽힘)
     //   모으기 한 줄 판은 키 옆 이름 ("이상해꽃 · 거북왕" — 칸 번호판이 말함) 을 앞장 이름 · 접힌 말보다 먼저 뺌 · 접힌 말 빼기는 늘 마지막, 한 번 보인 말은 판이 떠 있는 동안 안 뺌

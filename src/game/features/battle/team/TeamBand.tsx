@@ -9,6 +9,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import type { Side, TeamBattle } from '../../../core/engine';
 import { speciesOf } from '../../../data';
 import { Sprite } from '../../../ui/Sprite';
+import { afterFonts } from '../../../ui/fonts';
+import { FIT_ROOM } from '../../../ui/useFit';
 import { jointName } from './joint-names';
 import { bandLeft } from './model';
 import { realLater, realNow } from '../../../ui/real-clock';
@@ -148,9 +150,12 @@ export function TeamBand({ view, media, top, faint, faintShort, faintCount, wide
   //   VS 는 쓰러짐 말 N마리를 "힘겨루기!" 빼기보다 먼저 (240 · 300 에서 쓰러짐 말이 붙으면 "힘겨루기!" 가 한 번도 안 보이던 것 — UX 리뷰어 #95 13바퀴 7)
   //   이겼다 · 졌다 는 얼굴을 빼도 "이겼다!" 는 남김 (뜻이 먼저 — #136 얼굴) · 얼굴은 첫 얼굴 하나 → 없음 (240 에서 쓰러짐 말이 붙는 순간 얼굴 셋이 다 빠져 글이 90px 옮겨 가던 것)
   const stages = bandStages(view.kind);
-  const content = `${view.key}|${view.title}|${view.who.length}|${faint ?? ''}`;
+  // 패널 폭이 바뀌어도 0 단계부터 다시 (내리기만 하면 넓혀도 줄인 글이 남던 것 — ux-rules U4 "그릴 때마다 다시 고름" · ideas 1698)
+  const content = `${view.key}|${view.title}|${view.who.length}|${faint ?? ''}|${typeof window === 'undefined' ? 0 : window.innerWidth}`;
   const [fit, setFit] = useState<{ content: string; step: number }>({ content, step: 0 });
   const step = fit.content === content ? fit.step : 0;
+  // 글꼴이 늦게 오면 다시 잼 (옛 글꼴로 잰 단계가 남지 않게 — 1698)
+  useEffect(() => afterFonts(() => setFit({ content: '', step: 0 })), []);
   // 왼쪽 끝 — 처음 뜬 자리 (가운데) 에 고정하고 글이 붙으면 오른쪽으로만 늘림 (쓰러짐 말이 붙는 순간 띠가 양쪽으로 50px 씩 벌어져 · "이겼다!" 64 → 208 로 튀던 것 — 픽셀 검사원 #95 4바퀴 ⑤ ⑨) ·
   //   오른쪽 끝이 패널 8px 안을 넘을 때만 왼쪽으로 · 정수 px (margin auto 면 37.813 처럼 소수)
   const anchor = useRef<{ key: string; left: number } | null>(null);
@@ -163,7 +168,7 @@ export function TeamBand({ view, media, top, faint, faintShort, faintCount, wide
       const kids = Array.from(el.children).filter((c) => (c as HTMLElement).getBoundingClientRect().width > 0);
       const need = kids.reduce((w, c) => w + (c as HTMLElement).getBoundingClientRect().width, 0) + 6 * Math.max(0, kids.length - 1) + 14;
       const avail = wide || first === null ? parent - 16 : parent - 8 - first;
-      if (need * 1.1 > avail) {
+      if (need * FIT_ROOM > avail) {
         setFit({ content, step: bandNextStep(stages, step, faint, faintShort, faintCount) });
         return;
       }

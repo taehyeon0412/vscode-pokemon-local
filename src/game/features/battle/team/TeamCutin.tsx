@@ -27,9 +27,11 @@ export function JointNamePlate({ who, side, name, media, top, colors, quick = fa
   }, [quick]);
   // 넘치면 한 단계 (U4 — 재서 · 맥 여유 10% · 이름은 자르지 않음 · 디자인 #148 잼): 1 = 얼굴은 앞장 하나 · 2 = 얼굴 없음 · 3 = 이름 16px · 4 = 두 줄 (마지막 띄어쓰기에서)
   //   — 240 에서 "삼중 빙염 소용돌이" 가 "…소용돌" 까지 잘리던 것 (개발 #96)
-  const fitKey = `${name}|${who.length}`;
+  // 패널 폭이 바뀌거나 글꼴이 늦게 와도 0 단계부터 다시 (ux-rules U4 "그릴 때마다 다시 고름" · ideas 1698)
+  const fitKey = `${name}|${who.length}|${typeof window === 'undefined' ? 0 : window.innerWidth}`;
   const [fit, setFit] = useState({ key: '', step: 0 });
   const step = fit.key === fitKey ? fit.step : 0;
+  useEffect(() => afterFonts(() => setFit({ key: '', step: 0 })), []);
   useLayoutEffect(() => {
     const el = plate.current;
     if (!el || step >= 4) return;
@@ -155,7 +157,7 @@ export function TeamCutin({ who, side, title, sub, media, k, top, height, colors
   // 넘치면 한 단계 (U4 — 재서 · 맥 여유 10% · 이름은 자르지 않음): 1 = 큰 이름 20px · 2 = 큰 이름 두 줄 (splitName) · 3 = 그림 아래 이름표 뺌 · 4 = 그림은 앞장 하나
   //   (참가자 그림이 컷인의 뜻이라 두 줄 · 이름표를 먼저 — 480 에서 동료 그림까지 빠지던 것 · 240 2인 · 300 3인도 동료가 남게, UX 리뷰어 #96)
   //   — 240 에서 "삼중 빙염 소용돌이" 가 "삼중 빙염 소" 까지 잘리던 것 (개발 #96 · 합동 이름 표 10글자)
-  const fitKey = `${title}|${sub}|${who.length}|${k}`;
+  const fitKey = `${title}|${sub}|${who.length}|${k}|${typeof window === 'undefined' ? 0 : window.innerWidth}`;
   const [fit, setFit] = useState({ key: '', step: 0 });
   const step = fit.key === fitKey ? fit.step : 0;
   useLayoutEffect(() => {

@@ -4,7 +4,7 @@
  * 주 버튼 (Enter) = 지난번 고른 방식 (처음 1:1) · 3:3 = 키 3 · 3:3 을 고르면 상성 좋은 셋이 미리 체크 → 1 ~ 5 로 넣고 빼기 · Enter = 시작 (늦어도 teamPickAutoMs 뒤 저절로).
  * 엔진 입력은 그대로 (team-mode · team-pick · space) — 키는 main.ts.
  */
-import { useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { BALANCE, TIMING } from '../../../core/balance';
 import { teamChoiceMeet, teamFoesOf, teamLock, teamMainOf, teamPickOf, type GameInput, type GameState } from '../../../core/engine';
 import { speciesOf } from '../../../data';
@@ -13,6 +13,7 @@ import { Button } from '../../../ui/Button';
 import { KeyCap } from '../../../ui/KeyCap';
 import { FirstTip } from '../../../ui/FirstTip';
 import { Sprite } from '../../../ui/Sprite';
+import { afterFonts } from '../../../ui/fonts';
 
 /** 3:3 을 고를 수 있는 만남인지 (본편 스위치 · 개발 모드 (임시) 3:3 미리 켜기) */
 export function teamChoiceOn(state: GameState): boolean {
@@ -98,6 +99,11 @@ export function TeamChoice({ state, media, onInput }: { state: GameState; media:
   const fitRef = useRef({ key: '', cell: 0, head: 0 });
   if (fitRef.current.key !== fitKey) fitRef.current = { key: fitKey, cell: 0, head: 0 };
   const [, refit] = useState(0);
+  // 글꼴이 늦게 오면 0 단계부터 다시 잼 (옛 글꼴로 줄인 단계가 남지 않게 — ux-rules U4 "그릴 때마다 다시 고름" · ideas 1698)
+  useEffect(() => afterFonts(() => {
+    fitRef.current = { key: '', cell: 0, head: 0 };
+    refit((v) => v + 1);
+  }), []);
   const cut: readonly string[] = [...CELL_STEPS.slice(0, fitRef.current.cell), ...HEAD_STEPS.slice(0, fitRef.current.head)];
   // 넘치면 한 단계 + 정수 px — 칸 폭 = 가장 넓은 칸 (올림) · 판 폭은 (패널 − 판) 이 짝수가 되게 (minmax(0, 1fr) · translateX(−50%) 면 소수 px 로 1px 테두리 · 글이 흐리던 것 — 아트 디렉터)
   const box = useRef<HTMLDivElement>(null);
