@@ -10,6 +10,7 @@ import { formOf, speciesOf } from '../../../data';
 import { spriteBoxOf, walkBoxOf } from '../../../data/sprite-boxes';
 import { battleSpritePx, koSinkPx, TYPE_COLOR } from '../model';
 import { Sprite } from '../../../ui/Sprite';
+import { spriteSrc } from '../../../ui/sprite-path';
 import type { FxActor } from '../fx/bridge';
 import { TEAM_FX, TeamFxRunner, type TeamSlot } from '../fx/team';
 import { bandDrawn, DUEL_VS_MS, FAINT_HOLD_MS, FAINT_PANEL_HOLD_MS, FAINT_UNSEEN_MS, OVER_MSG_MS, VIEW_CHIP_MS, VIEW_WAIT_MS, duelSpots, faintHoldLeft, faintFold, faintFresh, faintIsBig, faintUnsee, faintLine, faintShortLine, faintCountLine, faintShow, popFloor, foeWarn, soonChip, NUM_MIN_REAL_MS, numShown, overLineHold, keepJointChips, plateBoxOf, plateState, stackRows, teamDenyNote, teamGeometry, teamPrompt, viewHitChip, viewPopsBack, warnPosOf, type TeamGeo, type WarnPos, viewCrossers, viewMonClass } from './model';
@@ -443,6 +444,18 @@ export function TeamRest({ mons, media, widthPx, heightPx, infoBarPx }: { mons: 
 
 export function TeamLayer({ team: b, media, widthPx, heightPx, infoBarPx, fieldTopPx = 0, onInput, cutscene = true, lineBand = null }: { team: TeamBattle; media: string; widthPx: number; heightPx: number; infoBarPx: number; fieldTopPx?: number; onInput(i: GameInput): void; /** 시합장 흰 선 (패널 y) — 머리 위 글이 피함 */ lineBand?: { t: number; b: number } | null; /** 필살기 연출 켬 (장면 전환) · 끔 (작은 판) — 설정 teamCutscene (#97) */ cutscene?: boolean }) {
   const g = useMemo(() => teamGeometry(widthPx, heightPx, infoBarPx), [widthPx, heightPx, infoBarPx]);
+  // 결과 카드 얼굴 (대기 그림) 을 미리 받아 둠 — 3:3 은 걷기 그림만 써서 결과 첫 장면에 카드 얼굴이 빈 채 1장면이던 것 (ideas 1668 · 시합장 그림 미리 받기와 같은 방식)
+  const faceKey = b.me.map((f) => `${f.form}:${f.shiny ? 1 : 0}`).join(',');
+  const faces = useRef<HTMLImageElement[]>([]);
+  useEffect(() => {
+    faces.current = b.me.flatMap((f) => {
+      const src = spriteSrc(media, f.form, { shiny: f.shiny });
+      if (!src) return [];
+      const img = new Image();
+      img.src = src;
+      return [img];
+    });
+  }, [media, faceKey]);
   // 장면 전환 (#99 시안 — 개발 fx/team-view): 필살기 · 합동 동안 무대가 잠깐 1:1 처럼 (내 편 무리 왼쪽 · 상대 무리 오른쪽 · 나머지 숨김) → 1:1 필살기 연출 그대로 → 3:3 으로 돌아옴
   const view = useTeamView();
   // 버린 필살기 누름 (#88) = 그 칸 포켓몬 머리 왼쪽 위 작은 글 (태현 님 10-26 "엄청 작은 글씨로 포켓몬 위쪽 · 머리 기준 왼쪽 위 · 서서히 사라짐" — 정보줄 위 가운데에서 옮김) ·
