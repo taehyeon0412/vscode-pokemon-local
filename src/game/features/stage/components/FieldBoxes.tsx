@@ -308,13 +308,14 @@ export function ClearCard({ state, media, onInput, onMap, onTeam }: BoxProps & {
   const stage = state.runtime.stage;
   const autoLeft = state.save.settings.autoBattle ? Math.max(1, Math.ceil((TIMING.clearAutoMs - (stage.ms ?? 0)) / 1000)) : null;
   // 넘치면 한 단계 (줄임표 · 300px 손 경계 대신 — 301 ~ 414 · 482 ~ 563 에서 "잡은 포켓몬 2 · 이긴 …" 로 잘리던 것, UX 리뷰어 · U4 · 맥 여유 10%):
-  //   1 = 스테이지 이름 뺌 "(1-1) 클리어!" · 2 = 요약 짧게 "잡은 2 · 트레이너 1 · 38분" · 3 = 요약 뺌 · 4 = 첫 줄 숲 그림 뺌 (240 맥에서 볼 "+1" 이 상자 밖 10px — bugs 2709)
+  //   1 = 스테이지 이름 뺌 "(1-1) 클리어!" · 2 = 요약 짧게 "잡은 2 · 트레이너 1 · 38분" · 3 = 요약 뺌 · 4 = 보너스 "▼1/10" 의 "1/10" 뺌 ("▼" 는 남김 — 결과 상자 여럿 "+25▼" 와 같은 모양 · ideas 1690 · 240 맥에서 볼 "+1" 이 21px 잘리던 것) ·
+  //   5 = 첫 줄 숲 그림 뺌 (240 맥에서 볼 "+1" 이 상자 밖 10px — bugs 2709) · 6 = "▼" 도 뺌 (뜻은 보너스 칸에 올리면)
   const clearBox = useRef<HTMLDivElement>(null);
-  const fit = useFit(clearBox, 4);
+  const fit = useFit(clearBox, 6);
   return (
     <div class="pg-banner pg-clear pg-two" ref={clearBox}>
       <span class="pg-line">
-        {fit < 4 && <Icon name={STAGES[loc.stageId].icon} />}
+        {fit < 5 && <Icon name={STAGES[loc.stageId].icon} />}
         <b>
           {v.title.startsWith(STAGES[loc.stageId].name) ? (
             <>
@@ -325,8 +326,15 @@ export function ClearCard({ state, media, onInput, onMap, onTeam }: BoxProps & {
             v.title
           )}
         </b>
-        <span class="pg-reward">
+        <span class="pg-reward" title={v.bonusEasy ? `Lv 높음 — 선두 레벨이 이 길보다 높아 보너스 경험치 ${v.bonusEasy} (레벨대가 높은 길에서는 다 받아요)` : undefined}>
           <span class="pg-long">보너스 </span>경험치 +{v.bonus}
+          {/* 선두 레벨이 이 길보다 높아 보너스가 줄었으면 (ideas 1690 — 숫자만 작아져 왜인지 몰랐던 것) · 좁으면 "Lv 높음" 은 "보너스" 와 같이 빠짐 */}
+          {v.bonusEasy && fit < 6 && (
+            <span class="pg-exp-easy">
+              {fit < 4 ? `\u00a0▼${v.bonusEasy}` : '▼'}
+              {fit < 4 && <span class="pg-long">{'\u00a0Lv\u00a0높음'}</span>}
+            </span>
+          )}
         </span>
         <span class="pg-reward">
           <Icon name="ball" /> +{v.balls}

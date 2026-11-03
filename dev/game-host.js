@@ -401,6 +401,8 @@
             }
         }
         if (place === 'defeat') { st.progress = 0.4724 - 1e-7; st.run.reach = 0.61; st.run.retries = Number(q.get('retries') || 0); save.lastHospital = { stageId: 'forest-1', at: 0.4724 }; stage = { phase: 'defeat', gym: false, lost: 100 }; }
+        // leadlv=<레벨> — 선두 레벨 (클리어 카드 보너스 "▼1/10 Lv 높음" — ideas 1690 · 방치 경험치 5.2)
+        if (q.get('leadlv')) save.monsters[save.party[0]] = { ...save.monsters[save.party[0]], level: Number(q.get('leadlv')) };
         if (place === 'clear') { st.progress = 1; st.cleared = true; save.playTimeMs = 2280000; stage = { phase: 'clear' }; }
         // keep=<트레이너 이름> — 같은 판 두 번째 3:3 패배 멈춤 상자 (R8 A, 예: keep=엘리트 트레이너 소율 · lost=1234) · place=hold&why=shiny|rival — 기다림 한 줄 (gdd 4.13 R13 ②)
         if (place === 'defeat' && q.get('keep')) stage = { phase: 'defeat', gym: false, lost: Number(q.get('lost') || 100), keep: q.get('keep'), ...(q.get('left') ? { left: Number(q.get('left')) } : {}) };

@@ -66,6 +66,15 @@ describe('S24 클리어 카드 보너스 — 경험 부적 판이면 받은 그�
     expect(clearView(sampleSave({ stages: { 'forest-2': { ...p, run: { ...run, boost: true } } } }), 'forest-2').bonus).toBe(Math.round(clearBonusExp('forest-2') * BALANCE.expCharmScale));
     expect(clearView(sampleSave({ stages: { 'forest-2': { ...p, run } } }), 'forest-2').bonus).toBe(clearBonusExp('forest-2'));
   });
+  it('선두 레벨이 길보다 높아 보너스가 줄면 "1/N" 표시 (ideas 1690) · 아니면 없음', () => {
+    const run = { startMs: 0, caught: 0, trainers: 0, seen: [], reach: 1, retries: 0 };
+    const p = { seed: 1, progress: 1, cleared: true, defeatedTrainers: [], facilities: [] };
+    const low = sampleSave({ stages: { 'forest-2': { ...p, run } } });
+    expect(clearView(low, 'forest-2').bonusEasy).toBeNull();
+    const lead = low.party[0]!;
+    const high = { ...low, monsters: { ...low.monsters, [lead]: { ...low.monsters[lead]!, level: 60 } } };
+    expect(clearView(high, 'forest-2').bonusEasy).toBe('1/10');
+  });
 });
 
 describe('세계 지도 (S07) — 지금 있는 지역 (지역 표, 디자인 UX 리뷰어)', () => {

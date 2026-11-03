@@ -6,7 +6,7 @@ import { Rng } from '../../core/engine/rng';
 import type { BattleSummary } from '../../core/engine';
 import { createGameState } from '../../core/engine';
 import { TIMING } from '../../core/balance';
-import { caughtView, easyMark, levelUps, needsStatHint, resultTitleShown, resultViewKey, summaryLines } from './model';
+import { caughtView, easyMark, expLvTipDue, EXP_LV_TIP, levelUps, needsStatHint, resultTitleShown, resultViewKey, summaryLines } from './model';
 
 const summary = (exp: BattleSummary['exp']): BattleSummary => ({ title: '야생 피죤을 쓰러뜨렸다!', exp, money: 20, item: null, caught: null, learned: [], choices: 0, badge: null });
 
@@ -98,5 +98,17 @@ describe('방치 경험치 쉬운 길 표시 (gdd 5.2 · bugs 678)', () => {
     ]);
     expect(m.title).toContain('리자몽 1/2 · 거북왕 1/4');
     expect(m.title).toContain('길');
+  });
+});
+
+describe('경험치가 처음 줄어든 결과 안내 (ideas 1689)', () => {
+  const s = { exp: [{ from: 30, to: 30, easy: 0.5 }] };
+  it('줄어든 판 · 못 본 안내 · 잡은 판 아님 · tips 가 안 찼을 때만', () => {
+    expect(expLvTipDue(s, [], 40)).toBe(true);
+    expect(expLvTipDue({ exp: [{ from: 30, to: 30 }] }, [], 40)).toBe(false);
+    expect(expLvTipDue(s, [EXP_LV_TIP], 40)).toBe(false);
+    expect(expLvTipDue({ ...s, caught: { name: '꼬렛' } }, [], 40)).toBe(false);
+    expect(expLvTipDue(s, Array.from({ length: 40 }, (_, i) => `t${i}`), 40)).toBe(false);
+    expect(/^[a-z0-9-]{1,24}$/.test(EXP_LV_TIP)).toBe(true);
   });
 });

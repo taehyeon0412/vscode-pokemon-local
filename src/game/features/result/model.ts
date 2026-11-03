@@ -80,6 +80,17 @@ export function easyMark(
   return { short: `▼1/${n}`, title: `Lv 높음 — ${who}레벨이 이 길보다 높아 경험치가 줄어요 (${who ? '' : `1/${n} · `}레벨대가 높은 길에서는 다 받아요)`, per };
 }
 
+/** 경험치가 처음 줄어든 결과 안내 (ideas 1689) — 세이브 tips 에 적는 이름 (isTipId — 소문자 · 숫자 · - · 24자 안) */
+export const EXP_LV_TIP = 'exp-lv-high';
+
+/**
+ * 그 안내를 띄울지 — 결과 상자에 "▼ Lv 높음" 이 있고 · 못 본 안내 · 잡은 포켓몬 소개 카드가 뜨는 판이 아님 (다음 판으로) ·
+ * tips 가 꽉 차면 (tipsMax) 안 띄움 (적지 못해 매번 뜨지 않게 — 개발 알림 · rules/evo-tip 과 같은 규칙)
+ */
+export function expLvTipDue(s: { caught?: unknown; exp: readonly { to: number; from: number; easy?: number }[] }, tips: readonly string[], tipsMax: number): boolean {
+  return !s.caught && easyMark(s.exp) !== null && !tips.includes(EXP_LV_TIP) && tips.length < tipsMax;
+}
+
 /**
  * S12 상자 제목을 보일지 — 트레이너를 이긴 판 ("○○과의 승부에서 이겼다!") 은 숫자만 (기획 판단 2026-10-26 — 3:3 띠 "…3:3 승부에서 이겼다!" · 1:1 전투 한 줄 뒤
  * 상자 제목이 같은 말을 또 하던 것, 아트 원칙 "글은 반으로"). 관장 ("관장 ○○를 이겼다!" — 배지 순간) · 야생 (잡았다 · 쓰러뜨렸다) · 라이벌 (전적 · 한마디가 붙는 판) 은 그대로

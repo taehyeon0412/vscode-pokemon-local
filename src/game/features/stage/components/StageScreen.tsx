@@ -39,7 +39,7 @@ import { FirstTip } from '../../../ui/FirstTip';
 import { evoTipNow, teamSceneFastOk } from '../../../core/engine';
 import { EVO_ITEMS, evoTipId } from '../../../core/rules/evo-tip';
 import { itemName } from '../../../core/rules/items';
-import type { ItemId } from '../../../core/save';
+import { TIPS_MAX, type ItemId } from '../../../core/save';
 import { EvoTip } from './EvoTip';
 
 /** 결과 상자 진화 아이템 한 줄 (#125) — 얻은 아이템 (이름) 의 id (그 아이템 그림 · 엔진 evoNote 가 있을 때만) */
@@ -60,7 +60,7 @@ import { ShopPanel } from '../../menu/components/ShopPanel';
 import { mapView, menuLabels, type Overlay, unspentPoints } from '../../menu/model';
 import { ChoiceBox } from '../../result/components/ChoiceBox';
 import { ResultBox } from '../../result/components/ResultBox';
-import { CAUGHT_INTRO_H, CAUGHT_INTRO_W, caughtView, choiceView, levelUps, needsStatHint } from '../../result/model';
+import { CAUGHT_INTRO_H, CAUGHT_INTRO_W, caughtView, choiceView, EXP_LV_TIP, expLvTipDue, levelUps, needsStatHint } from '../../result/model';
 import { battleStage, buildingDraw, BUILDINGS, TEAM_ARENA, contactX, foeTrainerView, gymEnterView, holdRivalLook, gymFrontX, gymRestX, heroX, minimapOf, evoTipItems, sceneBackground, staffLeftPx, teamScene, type StageObject, stagePx, STAGES, visibleObjects, meetVsAt, vsStartMs, WALK_PX_PER_SEC } from '../model';
 import { BadgeCard, ClearCard, DefeatBox, FacilityBox, HoldBox, LobbyBox, TrainerBanner, VsCutIn, type VsArt } from './FieldBoxes';
 import { GymFront } from './GymFront';
@@ -818,6 +818,17 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
           <FirstTip key="last" ms={4000} className="pg-first-tip-low" paused={tipPaused} onSeen={() => onInput({ kind: 'tip-seen', id: 'last' })}>
             {/* 360px 아래는 짧게 한 줄 — 두 줄이면 잡을 상대 · 내 포켓몬을 가림 (UX 리뷰어) */}
             <span class="pg-tip-long">약해진 포켓몬에게 </span>볼을 던지면 팀이 늘어요
+          </FirstTip>
+        )}
+        {/* 경험치가 처음 줄어든 결과 상자 (ideas 1689 · 기획 — "▼1/2 Lv 높음" 은 올려야 뜻이 보여서) = 아래 가운데 한 번 6초 · 보는 동안만 · 잡은 포켓몬 소개 카드가 뜨는 판은 다음으로 ·
+            360 아래는 짧게 한 줄 "Lv 높아 경험치 ▼" (두 줄이면 주인공을 덮음 — 맥 240 까지 한 줄) · 결과 상자 · 말풍선은 위라 안 덮음 */}
+        {stageRt?.phase === 'result' && expLvTipDue(stageRt.summary, save.tips ?? [], TIPS_MAX) && (
+          <FirstTip key={EXP_LV_TIP} ms={6000} seenMs={2500} className="pg-first-tip-low" paused={tipPaused} onSeen={() => onInput({ kind: 'tip-seen', id: EXP_LV_TIP })}>
+            {/* 키 없이 지금 상태 · 규칙만 — 결과 단계엔 M 이 안 먹고 (보이는 키는 그때 먹어야 — 1897 · #127 과 같은 종류) 더 높은 길이 아직 잠긴 판도 있어서 (UX 리뷰어 1689) */}
+            {/* 한 문장 한 줄 — 규칙 ("높은 길에선 다 받아요") 까지 붙이면 240 ~ 280 · 380 맥에서 두 줄로 감겨 주인공을 15px 덮음 (규칙은 결과 상자 title) */}
+            <span class="pg-tip-long">레벨이 이 길보다 높아 경험치가 줄어요</span>
+            {/* 360 아래 — "경험치 ▼" (▼ = 줄어듦 · 다른 ▼ (모자람 · 약함) 와 같은 뜻 — "▼ = Lv 높음" 은 거꾸로 읽혀서) */}
+            <span class="pg-tip-short">Lv&nbsp;높아 경험치&nbsp;▼</span>
           </FirstTip>
         )}
         {/* 진화 아이템 처음 안내 (#125) — 가졌는데 못 본 돌 · 끈 (엔진 evoTipNow: 걷기 · 대기실 · 보는 동안 · 알림 없음 · 결과 · 라이벌 연출 뒤) · 위 가운데 두 줄 6초 (글이 길어 걷기 안내 5초보다 1초 더) · 보는 동안만 셈 */}

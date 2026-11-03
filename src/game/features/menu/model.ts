@@ -5,7 +5,9 @@ import { BALANCE } from '../../core/balance';
 import { gymUnlocked, nextStageOf, regionGymUnlocked, regionsOn, stageClearGain, stageUnlocked, type GameState } from '../../core/engine';
 import { canBuyCandy, FIELD_ITEMS, fieldUseBlock, isEvolutionItem, maxHpOf, priceOf, sellPrice, shopItemsFor, type ShopItem } from '../../core/rules/bag';
 import { itemName, VALUABLES } from '../../core/rules/items';
+import { idleExpScale } from '../../core/rules/growth';
 import { isRegionLast, regionAceLevel, regionHere, regionOrder, REGIONS, type RegionDef } from '../../core/rules/region';
+import { stageLevelBand } from '../../core/rules/stage';
 import { expForLevel, starGrade, statsOf } from '../../core/rules/stats';
 import { ITEM_IDS, REGION_IDS, STAT_KEYS, type ItemId, type Monster, type RegionId, type Save, type StageId, type StatKey } from '../../core/save';
 import { typeNameKo } from '../../core/text';
@@ -314,7 +316,7 @@ function mapStages(save: Save, region: RegionDef): MapStage[] {
 }
 
 /** S24 ① 클리어 안내 — 세이브의 이번 판 기록으로 (껐다 켜도 같은 카드) */
-export function clearView(save: Save, id: StageId): { title: string; bonus: number; balls: number; caught: number; trainers: number; minutes: number; seen: { dex: number; form: string }[]; next: StageId | null } {
+export function clearView(save: Save, id: StageId): { title: string; bonus: number; /** 방치 경험치로 줄었으면 "1/N" (ideas 1690 — 결과 상자 "▼1/2 Lv 높음" 과 같은 표시) */ bonusEasy: string | null; balls: number; caught: number; trainers: number; minutes: number; seen: { dex: number; form: string }[]; next: StageId | null } {
   const p = save.stages[id];
   const run = p?.run ?? { startMs: save.playTimeMs, caught: 0, trainers: 0, seen: [] };
   return {
@@ -322,6 +324,7 @@ export function clearView(save: Save, id: StageId): { title: string; bonus: numb
     // 경험 부적 판이면 ×1.5 (받은 그대로 — 2026-10-21 ideas #70)
     // 선두가 받는 값 (방치면 줄어든 값 — 코드 리뷰어 #70)
     bonus: stageClearGain(save, id),
+    bonusEasy: ((k) => (k < 1 ? `1/${Math.round(1 / k)}` : null))(BALANCE.draft52.idleExp && save.monsters[save.party[0] ?? ''] ? idleExpScale(save.monsters[save.party[0]!]!.level, stageLevelBand(id)[1]) : 1),
     balls: BALANCE.clearBalls,
     caught: run.caught,
     trainers: run.trainers,
