@@ -210,16 +210,26 @@ export function levelUpChoices(
       break;
     }
   }
-  return { monster: m, learned, choices };
+  return { monster: markNewMoves(m, learned), learned, choices };
+}
+
+/** 새 기술 표시 (#144) — add 를 더하고 지금 칸에 없는 id (잊은 · 바꾼 기술) 는 뺌 · 같은 id 한 번 · 비면 칸을 지움 */
+export function markNewMoves(m: Monster, add: readonly number[]): Monster {
+  const out: number[] = [];
+  for (const id of [...(m.newMoves ?? []), ...add]) if (!out.includes(id) && m.moves.some((s) => s.moveId === id)) out.push(id);
+  if (out.length > 0) return { ...m, newMoves: out };
+  if (m.newMoves === undefined) return m;
+  const { newMoves: _, ...rest } = m;
+  return rest;
 }
 
 /** S23 — 새 기술을 replace 번째 칸에 (null = 배우지 않기) */
 export function learnMove(m: Monster, moveId: number, replace: number | null): Monster {
   const mv = moveOf(moveId);
   if (!mv || m.moves.some((s) => s.moveId === moveId)) return m;
-  if (m.moves.length < BALANCE.moveSlots) return { ...m, moves: [...m.moves, full(mv)] };
+  if (m.moves.length < BALANCE.moveSlots) return markNewMoves({ ...m, moves: [...m.moves, full(mv)] }, [moveId]);
   if (replace === null || replace < 0 || replace >= m.moves.length) return m;
-  return { ...m, moves: m.moves.map((s, i) => (i === replace ? full(mv) : { ...s })) };
+  return markNewMoves({ ...m, moves: m.moves.map((s, i) => (i === replace ? full(mv) : { ...s })) }, [moveId]);
 }
 
 /** S22 — 남길 수 있는 지금 기술 수 (지금 2개 이하면 다 · 새 기술이 모자라면 그만큼 더) */
@@ -244,6 +254,6 @@ export function evolve(m: Monster, to: number, newMoves: readonly number[], keep
   const next: Monster = { ...m, species: to, form: evolvedForm(m.form, m.species, to), moves: [...kept.map((s) => ({ ...s })), ...fresh].slice(0, BALANCE.moveSlots) };
   const newMax = maxHpOf(next);
   next.hp = m.hp > 0 ? Math.min(newMax, Math.max(1, m.hp + (newMax - oldMax))) : 0;
-  return next;
+  return markNewMoves(next, fresh.map((s) => s.moveId));
 }
 

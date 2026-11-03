@@ -71,6 +71,8 @@ export type GameInput =
   | { kind: 'tip-seen'; id: string }
   /** 지도를 엶 — 연 지역을 다 봤으니 "새 지역이 열렸어요" 알림을 지움 (닫은 뒤 다시 뜨던 것 — ideas 178) */
   | { kind: 'map-seen' }
+  /** S18 포켓몬 판에서 그 포켓몬의 기술을 봄 — 새 기술 표시 (NEW 칩) 를 지움 (#144) */
+  | { kind: 'moves-seen'; uid: string }
   /** S22 "어…? ○○의 모습이…!" 에서 진화 연출 시작 (Space · 클릭 — ideas #33) */
   | { kind: 'evolve-watch' }
   /** S12 계속 (Space · Enter · 클릭) */
@@ -1683,6 +1685,12 @@ export function applyInput(state: GameState, input: GameInput): GameState {
     case 'skip-caught-last':
       if ((save.settings.skipCaughtLast === true) === input.on) return state;
       return { ...state, save: { ...save, settings: { ...save.settings, skipCaughtLast: input.on } } };
+    case 'moves-seen': {
+      const m = save.monsters[input.uid];
+      if (!m?.newMoves) return state;
+      const { newMoves: _, ...seen } = m;
+      return { ...state, save: { ...save, monsters: { ...save.monsters, [input.uid]: seen } } };
+    }
     case 'map-seen': {
       const rt = dropToasts(state.runtime, (x) => x.startsWith('새 지역이 열렸어요 — '));
       return rt === state.runtime ? state : { save, runtime: rt };

@@ -183,7 +183,8 @@ function readSummary(raw: unknown): BattleSummary | null {
   const learned = raw.learned
     .slice(0, 12)
     .filter(isObj)
-    .map((l) => ({ name: text(l.name, 30) ?? '', move: text(l.move, 30) ?? '' }));
+    // uid = 배운 포켓몬 (#144 — 옛 상태엔 없음 → 이름으로 찾던 대로)
+    .map((l) => ({ name: text(l.name, 30) ?? '', move: text(l.move, 30) ?? '', ...(text(l.uid, 20) ? { uid: text(l.uid, 20) as string } : {}) }));
   const c = raw.caught;
   // uid · isNew (S12 소개 카드, 2026-10-20) — 옛 상태에는 없음 → 빈 uid (소개 카드 없이 결과 상자) · NEW 없음
   // stones = 막 잡은 포켓몬을 진화시킬 가방의 돌 (#131) — 웹뷰와 주고받아도 남게 · 진화의 돌 · 있는 종만 (이상한 칸은 버림 — 코드 리뷰어)

@@ -60,6 +60,8 @@ export interface Monster {
   shiny: boolean;
   /** 잡은 곳: 'starter' 또는 스테이지 id */
   caughtAt: string;
+  /** 새로 배운 기술 — S18 에서 아직 안 본 것 (NEW 칩 #144) · 지금 기술 칸에 있는 id 만 · 같은 id 한 번 · 비면 칸 없음 */
+  newMoves?: number[];
 }
 
 /** 아이템 (mvp-spec S14 · 3.6) — PokeAPI 아이템 이름과 같은 꼴 */

@@ -33,7 +33,7 @@ export interface BattleSummary {
   /** 잡은 포켓몬 — uid · isNew = 도감 (잡음) 에 처음 (S12 소개 카드 "NEW! 처음 잡았다", 2026-10-20 태현 님 안 2 — 도감 화면이 생기면 "도감 등록") */
   caught: { name: string; toBox: boolean; uid: string; isNew: boolean; stones?: CaughtStone[] } | null;
   /** 빈칸이라 바로 배운 기술 */
-  learned: { name: string; move: string }[];
+  learned: { name: string; move: string; uid?: string }[];
   /** 이어서 고를 것 (S23 · S22) 수 */
   choices: number;
   /** 관장을 처음 이겨 받은 배지 ("숲 배지") */
@@ -105,7 +105,7 @@ function giveTeamExp(save: Save, gain0: number, rng: Rng, cap?: number): { save:
     const r = levelUpChoices(grown, m.level, grown.level, rng);
     monsters[uid] = r.monster;
     exp.push({ uid, name: nameOf(m.species), gain, from: m.level, to: grown.level });
-    for (const id of r.learned) learned.push({ name: nameOf(m.species), move: moveOf(id)?.name.ko ?? '?' });
+    for (const id of r.learned) learned.push({ name: nameOf(m.species), move: moveOf(id)?.name.ko ?? '?', uid });
     choices.push(...r.choices);
   }
   return { save: addChoices({ ...save, monsters }, choices), exp, learned };
@@ -166,7 +166,7 @@ export function battleRewards(save0: Save, b: RewardBattle, wild: Monster | null
     save.monsters[uid] = r.monster;
     const easy = BALANCE.draft52.idleExp ? idleExpScale(m.level, cap) : 1;
     summary.exp.push({ uid, name: nameOf(m.species), gain, from: m.level, to: grown.level, ...(easy < 1 ? { easy } : {}) });
-    for (const id of r.learned) summary.learned.push({ name: nameOf(m.species), move: moveOf(id)?.name.ko ?? '?' });
+    for (const id of r.learned) summary.learned.push({ name: nameOf(m.species), move: moveOf(id)?.name.ko ?? '?', uid });
     choices.push(...r.choices);
   }
   save = addChoices(save, choices);

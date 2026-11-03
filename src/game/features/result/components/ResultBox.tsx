@@ -154,18 +154,20 @@ function Line({ p, down = new Set<string>() }: { p: SummaryPart; down?: Readonly
   return <>{p.kind === 'quote' ? `“${p.text}”` : p.text}</>;
 }
 
-/** 얼굴 카드 (최대 셋) — 포켓몬 그림 (길 위 크기) · 왼쪽 아래 Lv · 오른쪽 위 +남은 포인트 · 2px 금색 테두리 = 버튼. hint = 첫 포인트 카드 아래 말풍선 */
-function FaceCards({ ups, media, hint, onStats }: { ups: LevelUpView[]; media: string; hint: boolean; onStats(uid: string): void }) {
+/** 얼굴 카드 (최대 셋) — 포켓몬 그림 (길 위 크기) · 왼쪽 아래 Lv · 오른쪽 위 +남은 포인트 · 2px 금색 테두리 = 버튼. hint = 첫 포인트 카드 아래 말풍선 ·
+ *  starOff = 둘째 줄 ★ 배운 기술이 빠진 단계 — 배운 포켓몬 카드 왼쪽 위 새 것 N (240 · 260 에서 누가 배웠는지 사라지던 것 — ideas 1679 · 누르면 판에서 NEW 기술 줄 · 팀 칸과 같은 N) */
+function FaceCards({ ups, media, hint, starOff, onStats }: { ups: LevelUpView[]; media: string; hint: boolean; starOff: boolean; onStats(uid: string): void }) {
   const shown = ups.slice(0, 3);
   const hintAt = shown.find((u) => u.points > 0)?.uid;
   return (
     <>
       {shown.map((u) => (
-        <button key={u.uid} type="button" class="pg-lvup-card" onClick={() => onStats(u.uid)} title={`${u.name} Lv ${u.from} → ${u.to} — 스탯 찍기 (P)`}>
+        <button key={u.uid} type="button" class="pg-lvup-card" onClick={() => onStats(u.uid)} title={`${u.name} Lv ${u.from} → ${u.to}${u.learned.length > 0 ? ` · 새 기술 ${u.learned.join(' · ')}` : ''} — 스탯 찍기${u.learned.length > 0 ? ' · 기술 보기' : ''} (P)`}>
           <Sprite media={media} form={u.form} shiny={u.shiny} scale={1} crop={40} fieldSize center />
           {/* "Lv7" — ▲7 은 +7 로도 읽혀서 (아트 디렉터 7차 제안 · 2026-10-20 태현 님) */}
           <span class="pg-lvup-card-lv">Lv{u.to}</span>
           {u.points > 0 && <span class="pg-lvup-card-pts">+{u.points}</span>}
+          {starOff && u.learned.length > 0 && <span class={`pg-new-dot pg-lvup-card-new${u.points > 0 ? ' pg-lvup-card-new-l' : ''}`} />}
           <i class="pg-lvup-spark pg-lvup-spark-1" aria-hidden="true" />
           <i class="pg-lvup-spark pg-lvup-spark-2" aria-hidden="true" />
           {/* 처음 배울 때까지 — 카드 아래 말풍선이 카드를 가리킴 (스탯을 한 번 찍으면 안 나옴) */}
@@ -561,11 +563,20 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
   // 그리는 모양 — 이름 뒤 "Lv N" 은 따로 (넘치면 마지막 단계에서 뺌 · pg-alt-nolv)
   //   "▲ 이름 Lv N ·" 은 한 덩이 (pg-alt-up) — 끊을 곳은 " · " 뒤만 (300 × 150 맥에서 "독침붕 / Lv 11" 로 끊기던 것 · bugs 2726) · 덩이가 쪼개지면 다음 단계 (expStep)
   //   점은 앞 낱말에 붙임 (240 맥에서 둘째 줄이 "· ★ 덩굴채찍" 으로 시작하던 것) · 마지막 점은 뒤에 남은 줄이 없으면 뺌 (pg-alt-ups-sep)
+  // ★ 배운 기술이 빠진 단계 (5 ~ 7 · short 2) — 누가 배웠는지 = 그 포켓몬 카드 왼쪽 위 새 것 N · 카드가 빠졌으면 (한 장 단계 — 240 ~ 324 레벨업 둘 · 셋에서 포인트 카드만 남음) 빠진 레벨업 이름 뒤 같은 N (ideas 1679 · #144)
+  const starOff = expStep >= 6 || tight.short >= 2;
   const hiddenUpsEl = cards.slice(1).map((u, i, all) => (
     <span key={u.uid} class="pg-alt-up">
       {i === 0 && <span class="pg-up">▲</span>}
       {i === 0 && '\u00a0'}
-      {u.name}
+      {starOff && u.learned.length > 0 ? (
+        <span class="pg-alt-up-name">
+          {u.name}
+          <span class="pg-new-dot pg-alt-up-new" title={`새 기술 ${u.learned.join(' · ')}`} />
+        </span>
+      ) : (
+        u.name
+      )}
       <span class="pg-alt-ups-lv">{`\u00a0Lv\u00a0${u.to}`}</span>
       {i < all.length - 1 ? '\u00a0· ' : <span class="pg-alt-ups-sep">{'\u00a0·'}</span>}
     </span>
@@ -655,7 +666,7 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
   return (
     <div ref={tight.box} class={`pg-banner pg-result pg-two pg-lvup${whyOff ? ' pg-result-nowhy' : ''}${howOff ? ' pg-result-howoff' : ''}${tight.on ? ' pg-result-tight' : ''}${tight.one ? ' pg-result-one' : ''}${tight.short ? ` pg-result-short${tight.short}` : ''}${tight.split ? ' pg-result-split' : ''}${tight.learnShort || expStep >= 4 ? ' pg-result-learnshort' : ''}${tight.noPre ? ' pg-result-nopre' : ''}${tight.noKey ? ' pg-result-nokey' : ''}${expStep ? ` pg-exp-s${Math.min(2, expStep)}` : ''}${expStep >= 3 ? ' pg-alt-wrap' : ''}${expStep >= 5 ? ' pg-alt-noexp' : ''}${expStep >= 6 ? ' pg-alt-norest' : ''}${expStep >= 7 ? ' pg-alt-nolv' : ''}`} style={howWide ? { minWidth: `${howWide}px` } : undefined} title={all}>
       <span ref={cardsRef} class="pg-lvup-cards">
-        <FaceCards ups={cards} media={media} hint={hint} onStats={onStats} />
+        <FaceCards ups={cards} media={media} hint={hint} starOff={starOff} onStats={onStats} />
       </span>
       <span class="pg-result-lines">{lines}</span>
     </div>

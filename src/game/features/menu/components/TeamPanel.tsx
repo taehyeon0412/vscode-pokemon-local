@@ -12,7 +12,8 @@ import { STAT_KEYS, type Save } from '../../../core/save';
 import { withJosa } from '../../../core/text';
 import { Button } from '../../../ui/Button';
 import { confirmKey, onKeyboardButton, SPACE_BOX_MIN_MS, useShownAt } from '../../../ui/confirm-key';
-import { realNow } from '../../../ui/real-clock';
+import { afterFonts } from '../../../ui/fonts';
+import { realLater, realNow } from '../../../ui/real-clock';
 import { Icon } from '../../../ui/Icon';
 import { Sprite } from '../../../ui/Sprite';
 import { afterRelease, STAT_LABEL, teamView, type MonsterView } from '../model';
@@ -27,6 +28,8 @@ export interface TeamPanelProps {
   swap: boolean;
   /** 처음 고를 포켓몬 (없으면 선두) */
   first?: string;
+  /** 패널 밖 · 숨김 — 새 기술 "봤음" 1초를 안 셈 (ux-rules U6) */
+  away?: boolean;
   onInput(i: GameInput): void;
   onClose(): void;
 }
@@ -54,14 +57,19 @@ interface Drag {
   onDrop(uid: string): void;
 }
 
-function Chip({ m, media, selected, lead, onClick, drag }: { m: MonsterView; media: string; selected: boolean; lead: boolean; onClick(): void; drag?: Drag }) {
+/** 새 기술을 봤다고 적기까지 NEW 칩이 판 안에 다 보이는 시간 (U1 — 열자마자 닫거나 지나치거나 스크롤 아래에 있으면 NEW 가 남음) */
+const MOVES_SEEN_MS = 1000;
+/** 칩이 이만큼 보이면 보인 것 — 다 보여도 글꼴 상자 (13px) 가 판 스크롤 끝에서 반 픽셀 잘려 0.96 이던 것 */
+const NEW_SHOWN_RATIO = 0.75;
+
+function Chip({ m, media, selected, lead, fresh, onClick, drag }: { m: MonsterView; media: string; selected: boolean; lead: boolean; fresh: number; onClick(): void; drag?: Drag }) {
   const hpCls = m.hp <= 0 ? ' pg-chip-down' : '';
   return (
     <button
       type="button"
       class={`pg-chip pg-team-chip${selected ? ' pg-chip-on' : ''}${hpCls}`}
       onClick={onClick}
-      title={`${m.name} Lv${m.level} · HP ${m.hp}/${m.maxHp}${m.status ? ` · ${m.status}` : ''}${drag ? ' — 끌어다 놓아 순서 바꾸기' : ''}`}
+      title={`${m.name} Lv${m.level} · HP ${m.hp}/${m.maxHp}${m.status ? ` · ${m.status}` : ''}${fresh > 0 ? ` · 새 기술 ${fresh}` : ''}${drag ? ' — 끌어다 놓아 순서 바꾸기' : ''}`}
       draggable={!!drag}
       onDragStart={drag ? () => drag.onStart(m.uid) : undefined}
       onDragOver={drag ? (e) => e.preventDefault() : undefined}
@@ -79,12 +87,14 @@ function Chip({ m, media, selected, lead, onClick, drag }: { m: MonsterView; med
       <span class="pg-ellipsis">{m.name}</span>
       <span class="pg-dim">Lv{m.level}</span>
       {m.unspent > 0 && <span class="pg-dot" title={`남은 포인트 ${m.unspent}`} />}
+      {/* 새 기술 = 새 것 표시 (대기실 지도 버튼 · 정보줄 지도와 같은 빨간 N 칸 — 판을 열면 누가 배웠는지) */}
+      {fresh > 0 && <span class="pg-new-dot" />}
     </button>
   );
 }
 
-/** 카드 뒤 — 경험치 (이름 + 가는 막대, 아트 디렉터 4차) · 상태 · 기술 (막대 뒤 "·" 는 없앰 — 경험치 없음처럼 읽혀서, 5차) */
-function CardMore({ v }: { v: MonsterView }) {
+/** 카드 뒤 — 경험치 (이름 + 가는 막대, 아트 디렉터 4차) · 상태 · 기술 (막대 뒤 "·" 는 없앰 — 경험치 없음처럼 읽혀서, 5차) · 새로 배운 기술은 이름 뒤 NEW 칩 (#144 · ideas 1681) */
+function CardMore({ v, fresh }: { v: MonsterView; fresh: readonly number[] }) {
   return (
     <>
       <span class="pg-exp" title={`다음 레벨까지 경험치 ${v.expToNext}`}>
@@ -98,8 +108,9 @@ function CardMore({ v }: { v: MonsterView }) {
         <span class="pg-dim">기술 없음 (1 공격만)</span>
       ) : (
         v.moves.map((mv) => (
-          <span key={mv.id} class="pg-move" title={mv.detail}>
-            {mv.name} <span class="pg-sub"><span class="pg-mv-type">{mv.typeKo} · </span>{mv.short}</span>
+          <span key={mv.id} class="pg-move" title={fresh.includes(mv.id) ? `${mv.detail} · 새로 배운 기술` : mv.detail}>
+            {mv.name}
+            {fresh.includes(mv.id) && <span class="pg-move-new">NEW</span>} <span class="pg-sub"><span class="pg-mv-type">{mv.typeKo} · </span>{mv.short}</span>
           </span>
         ))
       )}
@@ -113,12 +124,71 @@ function cardOf(v: MonsterView): StatCardData {
   return { name: v.name, form: v.form, shiny: v.shiny, level: v.level, hp: v.hp, maxHp: v.maxHp, star: v.star, attack: st('attack'), defense: st('defense'), speed: st('speed'), ultimate: st('ultimate') };
 }
 
-export function TeamPanel({ save, media, swap, first, onInput, onClose }: TeamPanelProps) {
+export function TeamPanel({ save, media, swap, first, away = false, onInput, onClose }: TeamPanelProps) {
   const { party, box } = teamView(save);
   const [sel, setSel] = useState<string | null>(first ?? party[0]?.uid ?? null);
   const selected = [...party, ...box].find((m) => m.uid === sel) ?? party[0] ?? null;
   const inParty = selected ? party.some((m) => m.uid === selected.uid) : false;
   const idx = selected ? party.findIndex((m) => m.uid === selected.uid) : -1;
+
+  // 새 기술 NEW (#144) — 고른 포켓몬의 NEW 칩이 판 안에 다 보인 채 1초 넘으면 봤음 (moves-seen) · 판을 연 동안은 처음 본 표시를 그대로 둠 (봤음을 보내면 다음 그림에서 칩이 바로 사라지던 것 — 코드 리뷰어 #144 ①) · 닫으면 다음엔 없음
+  //   150 · 187 에서는 기술 줄이 포인트 줄 · 칩 줄 아래 (판 스크롤 — "▼ 아래에 더") 라 칩이 안 보인 채 1초 뒤 봤음이 되던 것 → 보이는 동안만 셈 (IntersectionObserver — 판 스크롤 · 패널 밖은 잘린 만큼 안 보임)
+  const [kept, setKept] = useState<Record<string, readonly number[]>>({});
+  const freshOf = (m: MonsterView): readonly number[] => kept[m.uid] ?? m.newMoves;
+  const seenInput = useRef(onInput);
+  seenInput.current = onInput;
+  const selFresh = selected?.newMoves.join(',') ?? '';
+  const tall = window.innerHeight >= MAP_ROW_MIN_HEIGHT_PX;
+  useEffect(() => {
+    const uid = selected?.uid;
+    if (!uid || !selFresh || away) return;
+    const ids = selFresh.split(',').map(Number);
+    setKept((k) => (k[uid] ? k : { ...k, [uid]: ids }));
+    const seen = () => seenInput.current({ kind: 'moves-seen', uid });
+    if (typeof IntersectionObserver === 'undefined') return realLater(seen, MOVES_SEEN_MS);
+    let stop: (() => void) | null = null;
+    const shown = new Set<Element>();
+    //   새 기술이 둘이면 (진화) 둘 다 보여야 셈 — 하나만 보인 채 1초면 moves-seen 이 둘 다 지우던 것 (UX #144)
+    const chips = [...document.querySelectorAll('#pokemon-game .pg-move-new')];
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.intersectionRatio >= NEW_SHOWN_RATIO) shown.add(e.target);
+          else shown.delete(e.target);
+        }
+        const all = chips.length > 0 && shown.size === chips.length;
+        if (all && !stop) stop = realLater(seen, MOVES_SEEN_MS);
+        if (!all && stop) {
+          stop();
+          stop = null;
+        }
+      },
+      { threshold: [0, NEW_SHOWN_RATIO] },
+    );
+    for (const el of chips) io.observe(el);
+    return () => {
+      io.disconnect();
+      stop?.();
+    };
+  }, [selected?.uid, selFresh, away, tall]);
+  // 새 기술이 있는 포켓몬을 고르면 (칸을 누름 · 처음 열림 — 결과 카드 · P) 그 NEW 칩을 판 안으로 — 150 · 187 에서 기술 줄이 포인트 줄 · 칩 줄 아래 (판 스크롤) 라
+  //   칸의 N 을 눌러도 화면이 그대로 · NEW 0% 이던 것 (UX #144 큼) · 남은 포인트가 있으면 포인트 줄이 먼저 (맨 위 그대로) · 글꼴이 늦게 와 줄이 밀려도 처음 3초는 다시
+  const [revealAt, setRevealAt] = useState(1);
+  const pick = (uid: string) => {
+    setSel(uid);
+    setRevealAt((n) => n + 1);
+  };
+  useLayoutEffect(() => {
+    if (!selected || selected.unspent > 0 || freshOf(selected).length === 0) return;
+    const go = () => document.querySelector<HTMLElement>('#pokemon-game .pg-move-new')?.scrollIntoView({ block: 'nearest' });
+    go();
+    const off = afterFonts(go);
+    const stop = realLater(off, 3000);
+    return () => {
+      off();
+      stop();
+    };
+  }, [revealAt]);
 
   // S18 ⑥ 놓아주기 (#121) — 고른 칸 줄 끝 작은 버튼 → 그 줄 자리가 확인 줄 (기본 = 아니요 · 이로치 · ★5 · 높은 Lv 은 한 번 더)
   const [ask, setAsk] = useState<{ uid: string; step: 1 | 2 } | null>(null);
@@ -269,12 +339,12 @@ export function TeamPanel({ save, media, swap, first, onInput, onClose }: TeamPa
       {/* 라벨 열 없음 — 칩 줄만 봐도 팀 · 보관함 (아트 디렉터 3차 "라벨: 값 양식") · 넘치면 다음 줄 (480 에서 다섯째 칩 · 240 에서 "보관함이 비었어요" 가 잘리던 것 — UX · 픽셀 밤 점검) */}
       <Row wrap>
         {party.map((m, i) => (
-          <Chip key={m.uid} m={m} media={media} selected={selected?.uid === m.uid} lead={i === 0} onClick={() => setSel(m.uid)} drag={drag} />
+          <Chip key={m.uid} m={m} media={media} selected={selected?.uid === m.uid} lead={i === 0} fresh={freshOf(m).length} onClick={() => pick(m.uid)} drag={drag} />
         ))}
         <span class="pg-panel-sep">
           <Icon name="box" title="보관함" />
         </span>
-        {box.length === 0 ? <span class="pg-dim">보관함이 비었어요</span> : box.map((m) => <Chip key={m.uid} m={m} media={media} selected={selected?.uid === m.uid} lead={false} onClick={() => setSel(m.uid)} />)}
+        {box.length === 0 ? <span class="pg-dim">보관함이 비었어요</span> : box.map((m) => <Chip key={m.uid} m={m} media={media} selected={selected?.uid === m.uid} lead={false} fresh={freshOf(m).length} onClick={() => pick(m.uid)} />)}
       </Row>
       {selected && ask && askMon && (
         // 확인 줄 = 고른 칸 줄 자리 (위로 떠 다른 것을 덮는 상자가 아니라) · 주 버튼 = 아니요 (기본 커서) · 놓아주기 = 위험 부품 .pg-danger · 커서 = ▸ (메뉴와 같은 말)
@@ -344,20 +414,20 @@ export function TeamPanel({ save, media, swap, first, onInput, onClose }: TeamPa
             <ReleaseButton why={releaseWhy(save, selected.uid)} name={selected.name} onClick={() => openAsk(selected.uid)} />
           </Row>}
           {/* 180px 이상 = 두 줄 카드 (왼쪽 48 그림 · 1줄 이름 · HP · 스탯 / 2줄 경험치 · 기술 — 아트 디렉터 5차), 낮으면 한 줄 (판 안 스크롤) · 좁으면 다음 줄로 */}
-          {window.innerHeight >= MAP_ROW_MIN_HEIGHT_PX ? (
+          {tall ? (
             <div class="pg-card2 pg-team-card">
               <CardArt media={media} form={selected.form} shiny={selected.shiny} />
               <Row wrap>
                 <StatCard d={cardOf(selected)} media={media} art={false} />
               </Row>
               <Row wrap>
-                <CardMore v={selected} />
+                <CardMore v={selected} fresh={freshOf(selected)} />
               </Row>
             </div>
           ) : (
             <Row wrap>
               <StatCard d={cardOf(selected)} media={media} />
-              <CardMore v={selected} />
+              <CardMore v={selected} fresh={freshOf(selected)} />
             </Row>
           )}
         </>

@@ -34,6 +34,7 @@ import {
 } from '../rules/battle';
 import { BALLS, catchChance, catchOdds, catchTiming, isBall, type BallId } from '../rules/catch';
 import { healAmount, isHealItem, leaderPotion, ownsSpecies } from '../rules/bag';
+import { markNewMoves } from '../rules/growth';
 import { itemName } from '../rules/items';
 import { effectiveness, effectivenessText } from '../rules/types';
 import { ITEM_IDS, type EncounterStart, type ItemId, type Monster, type MoveSlot, type Save, type StatusCondition } from '../save';
@@ -1154,7 +1155,8 @@ export function applyBattleResult(save: Save, b: BattleState): Save {
   for (const [uid, c] of Object.entries(changed)) {
     const m = monsters[uid];
     // HP 는 그 포켓몬 최대 HP 까지 (다른 쪽에서 온 값이 이상해도 세이브에 넘치지 않게)
-    if (m) monsters[uid] = { ...m, hp: Math.min(c.hp, fighterOf({ ...m, hp: 1e6 }).maxHp), moves: c.moves.map((s) => ({ ...s })), status: c.status };
+    // 새 기술 표시 (#144) 는 돌아온 칸에 있는 것만 — 지금은 전투 중 칸이 안 바뀌지만 바뀌는 길이 생겨도 칸에 없는 id 가 안 남게 (코드 리뷰어)
+    if (m) monsters[uid] = markNewMoves({ ...m, hp: Math.min(c.hp, fighterOf({ ...m, hp: 1e6 }).maxHp), moves: c.moves.map((s) => ({ ...s })), status: c.status }, []);
   }
   const bag = { ...save.bag };
   for (const [item, n] of Object.entries(b.bagUsed) as [ItemId, number][]) bag[item] = Math.max(0, (bag[item] ?? 0) - n);

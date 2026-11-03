@@ -191,6 +191,19 @@ function readStatus(v: unknown, path: string, fx: Fixer): StatusCondition | null
   return { kind: v.kind as 'poison' | 'burn' | 'paralysis' };
 }
 
+/** 새 기술 표시 (#144) — 지금 기술 칸에 있는 id 만 · 같은 id 한 번 (이상한 값은 빈 것 — 옛 세이브엔 칸이 없음) */
+function readNewMoves(v: unknown, moves: readonly MoveSlot[], path: string, fx: Fixer): number[] {
+  if (v === undefined) return [];
+  if (!Array.isArray(v)) {
+    fx.note(path, '목록이 아님 → 새 기술 표시 없음');
+    return [];
+  }
+  const out: number[] = [];
+  for (const id of v) if (typeof id === 'number' && !out.includes(id) && moves.some((s) => s.moveId === id)) out.push(id);
+  if (out.length < v.length) fx.note(path, '기술 칸에 없는 · 겹친 표시를 뺌');
+  return out;
+}
+
 /** 포켓몬 한 마리 — 종 · 그림 이름이 없으면 살릴 수 없어 null. uid 가 없으면 fallbackUid */
 function readMonster(v: unknown, path: string, fx: Fixer, fallbackUid: string): Monster | null {
   if (!isObj(v)) {
@@ -205,6 +218,8 @@ function readMonster(v: unknown, path: string, fx: Fixer, fallbackUid: string): 
     fx.note(path, '그림 이름(form)이 없어 뺌');
     return null;
   }
+  const moves = readMoves(v.moves, `${path}.moves`, fx);
+  const newMoves = readNewMoves(v.newMoves, moves, `${path}.newMoves`, fx);
   return {
     uid: fx.text(v.uid, `${path}.uid`, fallbackUid),
     species: v.species,
@@ -214,11 +229,12 @@ function readMonster(v: unknown, path: string, fx: Fixer, fallbackUid: string): 
     ivs: readStats(v.ivs, `${path}.ivs`, fx, BALANCE.maxIv),
     points: readStats(v.points, `${path}.points`, fx, 10_000),
     unspentPoints: fx.int(v.unspentPoints, `${path}.unspentPoints`, 0, 10_000, 0),
-    moves: readMoves(v.moves, `${path}.moves`, fx),
+    moves,
     hp: fx.int(v.hp, `${path}.hp`, 0, 100_000, 0),
     status: readStatus(v.status, `${path}.status`, fx),
     shiny: fx.bool(v.shiny, `${path}.shiny`, false),
     caughtAt: fx.text(v.caughtAt, `${path}.caughtAt`, 'unknown'),
+    ...(newMoves.length > 0 ? { newMoves } : {}),
   };
 }
 

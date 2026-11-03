@@ -25,7 +25,8 @@ export interface MoveView {
 export function moveView(id: number, pp?: number): MoveView {
   const mv = moveOf(id);
   if (!mv) return { id, name: '?', detail: '', short: '', typeKo: '' };
-  const power = mv.power > 0 ? `위력 ${mv.power}` : '변화';
+  // "위력 N" 은 한 덩이 (좁은 판에서 기술 칸이 줄을 바꿀 때 "위력 / 90" 으로 숫자만 넘어가던 것 — #144)
+  const power = mv.power > 0 ? `위력\u00a0${mv.power}` : '변화';
   return { id, name: mv.name.ko, detail: `${power} · ${typeNameKo(mv.type)} · PP ${pp ?? mv.pp}/${mv.pp}`, short: power, typeKo: typeNameKo(mv.type) };
 }
 
@@ -109,13 +110,16 @@ export interface LevelUpView {
   shiny: boolean;
   /** 지금 남은 포인트 (이번 레벨업 + 전에 안 쓴 것) */
   points: number;
+  /** 이번 전투에서 배운 기술 이름 (★ 칩 — ideas 1679) */
+  learned: string[];
 }
 
-/** 레벨이 오른 팀 포켓몬 (결과 순서대로) — 팀에서 빠졌거나 없는 포켓몬은 뺌 */
+/** 레벨이 오른 팀 포켓몬 (결과 순서대로) — 팀에서 빠졌거나 없는 포켓몬은 뺌 · 배운 기술은 uid 로 (옛 결과 상태엔 없어 이름으로 — #144) */
 export function levelUps(s: BattleSummary, save: Save): LevelUpView[] {
   return s.exp.flatMap((e) => {
     const m = save.monsters[e.uid];
-    return e.to > e.from && m ? [{ uid: e.uid, name: e.name, from: e.from, to: e.to, form: m.form, shiny: m.shiny, points: m.unspentPoints }] : [];
+    const learned = s.learned.filter((l) => (l.uid !== undefined ? l.uid === e.uid : l.name === e.name)).map((l) => l.move);
+    return e.to > e.from && m ? [{ uid: e.uid, name: e.name, from: e.from, to: e.to, form: m.form, shiny: m.shiny, points: m.unspentPoints, learned }] : [];
   });
 }
 

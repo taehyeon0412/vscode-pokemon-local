@@ -4575,6 +4575,12 @@ body.vscode-light .pg-stage.pg-bg-arena-volcano {
   border-radius: 0;
   background: transparent;
 }
+/* 기술 한 칸이 줄보다 넓으면 (240 맥 + NEW · 긴 이름) 칸 안에서 낱말 단위로 줄을 바꿈 — 줄 칸이 nowrap 이라 오른쪽 끝이 "위력 ·" 로 잘리던 것 (#144) · 줄에 들어가면 그대로 한 줄 */
+.pg-panel-wrap > .pg-move {
+  flex: 0 1 auto;
+  white-space: normal;
+  word-break: keep-all;
+}
 .pg-expbar {
   border-radius: 0;
   background: var(--pg-sos-track);
@@ -4832,11 +4838,13 @@ body.vscode-high-contrast-light .pg-title-body {
   background: var(--pg-sos-red);
   transform: translate(-4px, -4px);
 }
+/* 남은 포인트 점 = 금색 + 1px 남색 선 (정보줄 · 결과 카드 "+2" 와 같은 금색 — 빨강이면 새 기술 N 칸과 한 덩어리로 읽히던 것, 아트 #144) */
 .pg-dot {
   width: 6px;
   height: 6px;
   border-radius: 0;
-  background: var(--pg-sos-red);
+  background: var(--pg-sos-gold);
+  box-shadow: 0 0 0 1px var(--pg-sos-bar);
 }
 /* 볼 아이콘 칸 (쓰러뜨린 상대 볼은 흐리게) */
 .pg-ball-slot {
@@ -6277,7 +6285,9 @@ body.vscode-high-contrast-light .pg-title-body {
 .pg-region-tabs .pg-button > .pg-icon {
   margin-left: 2px;
 }
-.pg-region-new {
+/* 지도 판 지역 NEW · S18 새로 배운 기술 NEW (#144 · ideas 1681 — 칩이 판 안에 1초 보일 때까지 · 칠 칩은 기술 줄에서 버튼 조각처럼 튀어 빨간 낱말로, 아트 #144) */
+.pg-region-new,
+.pg-move-new {
   margin-left: 4px;
   color: var(--pg-sos-red);
   font-size: 11px;
@@ -7117,6 +7127,8 @@ body.vscode-high-contrast-light .pg-hpblock > .pg-hprow,
 }
 .pg-result.pg-alt-noexp .pg-result-alt .pg-result-alt-b .pg-rest-exp,
 .pg-result.pg-alt-norest .pg-result-alt .pg-result-alt-b .pg-alt-rest,
+/* 진화 줄 뒤 남은 줄이 다 빠지면 끝 " · " 도 (한 장 단계는 빠진 레벨업이 뒤에 와서 남김 — "… 진화 가능 ·" 로 끝나던 것, UX #144) */
+.pg-result.pg-alt-norest:not(.pg-result-one) .pg-result-alt .pg-result-alt-b .pg-evo-sep,
 .pg-result.pg-alt-norest .pg-result-alt .pg-result-alt-b .pg-alt-ups-sep,
 .pg-result.pg-alt-nolv .pg-result-alt .pg-result-alt-b .pg-alt-ups-lv {
   display: none;
@@ -7387,6 +7399,31 @@ body.vscode-high-contrast-light .pg-hpblock > .pg-hprow,
   font-weight: 700;
   line-height: 12px;
   box-shadow: 0 0 0 1px var(--pg-sos-bar);
+}
+/* 새 기술 N (팀 칸 · 대기실 지도와 같은 .pg-new-dot) — 둘째 줄 ★ 배운 기술이 빠진 단계에서만 (ideas 1679 · #144): 카드 = 왼쪽 위 모서리 (+포인트의 거울) ·
+   카드가 빠진 포켓몬은 둘째 차례 "▲ 이름 N Lv N" — 이름 뒤 글 밑선 (이름과 N 사이에서 줄이 나뉘지 않게) · ★ 칩은 이름 옆에서 개체값 등급으로 읽혀서 (아트 #144) */
+.pg-lvup-card .pg-lvup-card-new {
+  top: -3px;
+  right: -3px;
+}
+/* +포인트 칩이 있으면 왼쪽 위 (거울) — 없으면 오른쪽 위 (+포인트 자리 · 왼쪽 위면 앞 카드 +2 와 4px 붙어 "+2 N" 한 덩이로 읽히던 것, UX #144) */
+.pg-lvup-card .pg-lvup-card-new-l {
+  right: auto;
+  left: -3px;
+}
+.pg-alt-up-name {
+  white-space: nowrap;
+}
+.pg-new-dot.pg-alt-up-new {
+  position: static;
+  display: inline-block;
+  margin-left: 2px;
+  vertical-align: 0;
+}
+/* 팀 칸 N = 칸 테두리 모서리에 얹음 (위로 3px 넘쳐 판 스크롤 끝 · 윗줄 칸 쪽으로 빨간 조각이 보이던 것 — 아트 #144) */
+.pg-team-chip .pg-new-dot {
+  top: -1px;
+  right: -1px;
 }
 .pg-lvup-spark {
   position: absolute;

@@ -149,6 +149,22 @@ describe('웹뷰 세션', () => {
     expect(s.current?.runtime.away).toBe(false);
   });
 
+  it('판이 떠 멈춘 동안에도 포커스가 바뀌면 away 를 맞추고 다시 그리게 알림 (S18 새 기술 봤음 — 밖에서 1초를 세지 않게 · UX #144)', () => {
+    const { s, frames } = make();
+    s.handleMessage(start(5));
+    frames(50);
+    s.setPaused(true);
+    let calls = 0;
+    s.subscribe(() => calls++);
+    s.handleMessage({ command: 'game', type: 'focus', focused: false });
+    frames(50);
+    expect(s.current?.runtime.away).toBe(true);
+    expect(calls).toBeGreaterThan(0);
+    s.handleMessage({ command: 'game', type: 'focus', focused: true });
+    frames(50);
+    expect(s.current?.runtime.away).toBe(false);
+  });
+
   it('계산을 넘기면 (hidden) 화면에도 알림 — 멈춘 그림이 걷는 척 (배경 흐름 · 제자리걸음) 하지 않게 (테스터)', () => {
     const { s, frames } = make();
     s.handleMessage(start(5));

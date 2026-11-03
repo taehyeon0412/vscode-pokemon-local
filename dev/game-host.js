@@ -235,6 +235,8 @@
             save.party = [...save.party, 'm4'];
             stage.summary.exp.push({ uid: 'm4', name: '독침붕', gain: 30, from: 10, to: 11 });
         }
+        // lname=<이름> — 배운 포켓몬 이름 (기본 이상해씨 · 옛 결과 상태처럼 uid 없음 → 이름으로) — 예: ups=3 lname=파이리 = 카드로 남는 포인트 포켓몬이 배움 (#144 카드 모서리 N)
+        if (scene === 'result' && q.get('lname')) stage.summary.learned = [{ name: q.get('lname'), move: '덩굴채찍' }];
         // got=1 — 야생 파이리를 잡은 결과 (new=0 이면 도감에 이미 있음 · 소개 카드 1.5초 뒤 결과 상자) · rms=결과 지난 ms (rms=1600 = 소개 카드 지나 결과 상자)
         if (scene === 'result' && q.get('got') === '1') {
             // cform=<모습>:<도감 번호>:<이름> · clv · civ=<개체값 0 ~ 31 — ★ 등급> · cshiny=1 · cbox=1 (팀이 다 차서 보관함으로) — 소개 카드 ★ (#120)
@@ -478,6 +480,8 @@
         st.textContent = css;
         document.head.appendChild(st);
     }
+    // newmv=1 — 팀 포켓몬마다 마지막 기술 칸이 새로 배운 기술 (세이브 newMoves — #144 S18 NEW 칩 · 팀 칸 새 것 표시)
+    if (q.get('newmv') === '1') for (const uid of save.party) { const m = save.monsters[uid]; const last = m && m.moves[m.moves.length - 1]; if (last) save.monsters[uid] = { ...m, newMoves: [last.moveId] }; }
     // bt=<ms> — 전투 시간 (0 이면 막 시작 — 볼 던지기 · 화면 닦기 사진, 2026-10-20)
     if (q.get('bt') && runtime.stage && runtime.stage.phase === 'battle') runtime.stage.battle.t = Number(q.get('bt'));
     // 개발 모드 (임시) — dev=1 이면 처음부터 개발 모드 · 타이틀의 개발 모드 줄 (title-dev) 도 흉내
@@ -685,4 +689,8 @@
         };
         tryClick(30);
     }
+    // scrollnew=<ms> — 불러온 뒤 ms 에 판 안 첫 NEW 기술 칩을 판 스크롤 안으로 (click=team newmv=1 과 같이 — #144 칩이 보인 뒤에만 1초를 세는지)
+    if (q.get('scrollnew')) setTimeout(() => document.querySelector('#pokemon-game .pg-move-new')?.scrollIntoView({ block: 'nearest' }), Number(q.get('scrollnew')));
+    // teamsel=<n>@<ms> — 불러온 뒤 ms 에 판의 n 번째 팀 칸 (1 부터) 을 누름 (#144 — 새 기술 있는 포켓몬을 고르면 NEW 칩이 판 안으로 오는지)
+    if (q.get('teamsel')) { const [n, ms] = q.get('teamsel').split('@').map(Number); setTimeout(() => document.querySelectorAll('#pokemon-game .pg-team-chip')[n - 1]?.click(), ms || 1500); }
 })();

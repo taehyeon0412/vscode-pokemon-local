@@ -105,6 +105,8 @@ export interface MonsterView {
   stats: { key: StatKey; label: string; value: number }[];
   unspent: number;
   moves: MoveView[];
+  /** 새로 배운 기술 id (세이브 newMoves — 지금 칸에 있는 것만 · #144 NEW 칩) */
+  newMoves: number[];
   types: string;
 }
 
@@ -131,6 +133,7 @@ export function monsterView(m: Monster): MonsterView {
     stats: STAT_KEYS.map((key) => ({ key, label: STAT_LABEL[key], value: st ? Math.floor(key === 'hp' ? maxHpOf(m) : st[key]) : 0 })),
     unspent: m.unspentPoints,
     moves: m.moves.map((x) => moveView(x.moveId, x.pp)),
+    newMoves: (m.newMoves ?? []).filter((id) => m.moves.some((x) => x.moveId === id)),
     types: (s?.types ?? []).map(typeNameKo).join(' · '),
   };
 }

@@ -4,7 +4,17 @@ import { BALANCE } from '../../core/balance';
 import { regionAceLevel } from '../../core/rules/region';
 import { ICONS } from '../../data/icons';
 import { clearBonusExp } from '../../core/engine';
-import { afterRelease, clearView, ITEM_ICON, lobbyView, mapView, MENU_KEYS, menuLabels, menuShortcutOf, shopView } from './model';
+import { afterRelease, clearView, ITEM_ICON, lobbyView, mapView, MENU_KEYS, menuLabels, menuShortcutOf, monsterView, shopView } from './model';
+
+describe('S18 새 기술 NEW 칩 (#144 · ideas 1681)', () => {
+  it('세이브 newMoves 중 지금 칸에 있는 기술만 · 없으면 빈 목록', () => {
+    const m = sampleMonster({ uid: 'm1' });
+    const [a, b] = m.moves.map((x) => x.moveId);
+    expect(monsterView(m).newMoves).toEqual([]);
+    expect(monsterView({ ...m, newMoves: [b!] }).newMoves).toEqual([b]);
+    expect(monsterView({ ...m, newMoves: [999999, a!] }).newMoves).toEqual([a]);
+  });
+});
 
 describe('S18 ⑥ 놓아준 뒤 고를 칸 (#121)', () => {
   it('같은 목록 뒤 칸 → 앞 칸 → 다른 목록 첫 칸 — 선두로 떨어지지 않음', () => {

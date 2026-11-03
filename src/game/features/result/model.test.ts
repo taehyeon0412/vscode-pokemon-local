@@ -28,8 +28,17 @@ describe('S12 레벨업 표시 · 안내 말풍선 (2026-10-20 태현 님)', () 
   it('레벨업 목록 = 레벨이 오른 팀 포켓몬 + 남은 포인트 · 레벨이 안 오른 것 · 없는 포켓몬은 뺌', () => {
     const save = sampleSave({ monsters: { m1: grown }, party: ['m1'] });
     const ups = levelUps(summary([{ uid: 'm1', name: '이상해씨', gain: 40, from: 5, to: 7 }, { uid: 'm9', name: '파이리', gain: 20, from: 3, to: 4 }]), save);
-    expect(ups).toEqual([{ uid: 'm1', name: '이상해씨', from: 5, to: 7, form: grown.form, shiny: grown.shiny, points: 4 }]);
+    expect(ups).toEqual([{ uid: 'm1', name: '이상해씨', from: 5, to: 7, form: grown.form, shiny: grown.shiny, points: 4, learned: [] }]);
     expect(levelUps(summary([{ uid: 'm1', name: '이상해씨', gain: 5, from: 7, to: 7 }]), save)).toEqual([]);
+  });
+
+  it('얼굴 카드 ★ 칩 (ideas 1679) — 배운 기술은 uid 로 그 카드에 · 옛 결과 상태 (uid 없음) 는 이름으로 · 다른 포켓몬 것은 안 붙음 (#144)', () => {
+    const save = sampleSave({ monsters: { m1: grown, m2: { ...grown, uid: 'm2' } }, party: ['m1', 'm2'] });
+    const s = (learned: BattleSummary['learned']) => ({ ...summary([{ uid: 'm1', name: '이상해씨', gain: 40, from: 5, to: 7 }, { uid: 'm2', name: '이상해씨', gain: 40, from: 5, to: 7 }]), learned });
+    const got = (l: BattleSummary['learned']) => levelUps(s(l), save).map((u) => u.learned);
+    expect(got([{ name: '이상해씨', move: '덩굴채찍', uid: 'm2' }])).toEqual([[], ['덩굴채찍']]);
+    expect(got([{ name: '이상해씨', move: '덩굴채찍' }])).toEqual([['덩굴채찍'], ['덩굴채찍']]);
+    expect(got([{ name: '파이리', move: '불꽃세례' }])).toEqual([[], []]);
   });
 
   it('말풍선은 이번 전투에서 레벨업해 찍을 포인트가 있으면 매번 (스탯을 찍어 봤어도) · 포인트가 없으면 안 나옴 — 2026-10-20 태현 님 "레벨업 할 때마다"', () => {

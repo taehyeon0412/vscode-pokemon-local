@@ -195,13 +195,17 @@ export class WebviewSession {
   /** 그리기 한 번마다 — 지난 시간만큼 계산하고, 바뀌었으면 1초에 한 번 확장에 보냄 */
   frame(dtMs: number): void {
     if (this.epoch === null || !this.state) return;
+    // VS Code 에 포커스가 없으면 엔진이 이로치 흔적 앞에서 멈춤 (state.runtime.away) — 판이 떠 멈춘 동안에도 맞춤 (판의 "보는 동안만 셈" — S18 새 기술 봤음 1초가
+    //   판을 연 채 밖으로 나가도 세지고 · 밖에서 연 판은 돌아와도 away 가 남던 것, UX #144 · U6) · 멈춘 동안은 다시 그리게 알림 (걸음이 없어 그림이 안 바뀜)
+    if ((this.state.runtime.away === true) !== this.away) {
+      this.state = { ...this.state, runtime: { ...this.state.runtime, away: this.away } };
+      if (this.paused) this.changed();
+    }
     if (this.paused) {
       // 멈춘 동안에도 판에서 바꾼 것 (산 물건 · 팀 순서) 은 보냄 — 껐다 켜도 남게
       this.sendIfDue();
       return;
     }
-    // VS Code 에 포커스가 없으면 엔진이 이로치 흔적 앞에서 멈춤 (state.runtime.away)
-    if ((this.state.runtime.away === true) !== this.away) this.state = { ...this.state, runtime: { ...this.state.runtime, away: this.away } };
     const dt = clampFrameDelta(dtMs);
     // 일반 모드 연출이 아직 — 피해가 들어가는 걸음을 미룸 (features/battle/fx/hold, 웹뷰에서만). 그동안에도 상태는 보냄 (필살기는 12초까지)
     if (this.deps.hold?.(this.state, dt)) {
