@@ -1,15 +1,19 @@
 /**
  * S06 ⑦ ~ ⑩ 정보줄 버튼 — 빨리 걷기 ▶▶ (2026-10-19) · 지도 · 내 포켓몬 (선두 그림) · 가방 · 설정 (2026-10-18 태현 님, 픽셀 아이콘 = 단계 12).
- * 단축키 + 아이콘 + 이름 (2026-10-19 태현 님 "아이콘만 있어 무슨 메뉴인지 모름") — 좁으면 아이콘 + 이름 → 아이콘만 (menuLabels).
+ * 단축키 + 아이콘 + 이름 (2026-10-19 태현 님 "아이콘만 있어 무슨 메뉴인지 모름") — 좁으면 아이콘 + 이름 → 아이콘만 (menuLabels = 위 끝 · 넘치면 한 단계 더).
  * 걷는 중에만 보임 (판이 떠 있는 동안 걸음이 멈춤).
  */
 import type { ComponentChildren } from 'preact';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { BALANCE } from '../../../core/balance';
 import { AutoTip } from '../../../ui/AutoTip';
 import { Button } from '../../../ui/Button';
+import { afterFonts } from '../../../ui/fonts';
 import { Icon, type IconName } from '../../../ui/Icon';
 import { Sprite } from '../../../ui/Sprite';
 import { MENU_KEYS, type MenuLabels, type MenuShortcut, type Overlay } from '../model';
+
+const LABEL_STEPS: readonly MenuLabels[] = ['full', 'text', 'icon'];
 
 const BUTTONS: { kind: Overlay['kind'] & ('map' | 'team' | 'bag' | 'settings'); icon: IconName | null; label: string; title: string }[] = [
   { kind: 'map', icon: 'map', label: '지도', title: '⑦ 세계 지도' },
@@ -65,7 +69,7 @@ export function MenuButtons({
   lead,
   fast,
   auto,
-  labels = 'icon',
+  labels: labelsMax = 'icon',
   later = 0,
   newRegion = null,
 }: {
@@ -85,9 +89,40 @@ export function MenuButtons({
   /** 안 가 본 새 지역 이름 — 지도 아이콘에 새 것 표시 (대기실 지도 버튼과 같은 표 · 알림 · 그동안 요약이 지나면 남는 곳이 없던 것, 개발 UX #70) */
   newRegion?: string | null;
 }) {
+  // 넘치면 한 단계 (ux-rules U4 — 폭 경계를 손으로 고르지 않음 · 1698) — labelsMax (패널 폭 menuLabels) 를 위 끝으로, 메뉴가 담긴 칸 (정보줄 오른쪽 — 넘치면 왼쪽이 잘림) 보다
+  //   넓으면 한 단계씩 (키 칸 → 이름 → 아이콘) · 그 PC 글꼴로 잼 (560 ~ 585 × 187 에서 첫 버튼 "빨리 걷기" 의 [F] 키 칸만 잘리던 것 — 손으로 고른 경계 560, bugs 2738)
+  //   다시 재는 때 = 칸 내용 · 패널 크기 · 글꼴 · 옆 칸 (정보줄 왼쪽 · 가운데) 크기가 바뀔 때만 (정보줄은 장면마다 다시 그려져서) — 크기 · 글꼴 · 옆 칸이 바뀌면 위 끝부터 다시
+  //   (처음 그림에서 옆 칸이 자리 잡기 전에 잠깐 넘쳐 내려간 채 600 에서도 키 칸이 빠지던 것) · 메뉴 자기 칸은 안 지켜봄 (단계를 바꾸면 칸이 줄어 다시 재는 고리가 되므로)
+  const box = useRef<HTMLSpanElement>(null);
+  const [down, setDown] = useState(0);
+  const [size, setSize] = useState(0);
+  const labels = LABEL_STEPS[Math.min(LABEL_STEPS.length - 1, LABEL_STEPS.indexOf(labelsMax) + down)]!;
+  useEffect(() => {
+    const again = () => {
+      setDown(0);
+      setSize((n) => n + 1);
+    };
+    window.addEventListener('resize', again);
+    const offFonts = afterFonts(again);
+    const host = box.current?.parentElement;
+    const row = host?.parentElement;
+    const ro = typeof ResizeObserver !== 'undefined' && row ? new ResizeObserver(again) : null;
+    if (ro && row && host) for (const c of row.children) if (c !== host) ro.observe(c);
+    return () => {
+      window.removeEventListener('resize', again);
+      offFonts();
+      ro?.disconnect();
+    };
+  }, []);
+  useLayoutEffect(() => {
+    const el = box.current;
+    const host = el?.parentElement;
+    if (!el || !host || labels === 'icon') return;
+    if (el.getBoundingClientRect().width > host.clientWidth + 0.5) setDown((d) => d + 1);
+  }, [labels, size, points > 0, later > 0, newRegion, fast?.on, fast?.active, auto?.on]);
   const cls = labels === 'icon' ? 'pg-icon-btn' : 'pg-icon-btn pg-menu-item';
   return (
-    <span class="pg-menu-buttons">
+    <span class="pg-menu-buttons" ref={box}>
       {/* 켜짐 = 눌린 모양 (금색 테두리 + 밝은 남색) · 지금 빨리 걷는 중이면 ▶▶ 가 금색 */}
       {fast && (
         <Button
