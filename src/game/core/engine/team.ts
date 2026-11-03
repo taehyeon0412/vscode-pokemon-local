@@ -104,8 +104,8 @@ export type TeamNote =
   /** 맞음 — 기술 · 1 공격 (moveId 0) · 필살기 (ult, moveId −1). effect = 팝업 종류 (super · weak · immune · crit · damage) · ko = 이 한 방에 쓰러짐 */
   | { t: 'hit'; side: Side; from: number; to: number; moveId: number; ult: boolean; effect: BattlePopup['kind']; dmg: number; ko: boolean }
   | { t: 'miss'; side: Side; from: number; to: number; moveId: number }
-  /** 쏜 포켓몬이 쓰러져 날아가던 기술이 사라짐 */
-  | { t: 'stop'; shot: number }
+  /** 날아가던 기술이 사라짐 — ko = 쏜 포켓몬이 맞는 때 전에 쓰러져서 (맞아서 끊김 — 화면이 "끊김" 조각, ideas 1650) · 없으면 큰 연출이 달려가기를 거둠 */
+  | { t: 'stop'; shot: number; ko?: true }
   /** 기술 힘겨루기 시작 (두 기술이 멈춤) · 끝 */
   | { t: 'clash'; shots: [number, number]; me: number; foe: number }
   | { t: 'clash-end'; shots: [number, number]; me: number; foe: number; winner: Side }
@@ -1200,7 +1200,7 @@ function teamStepOnce(b0: TeamBattle, stepMs: number, rng: Rng, opts: TeamStepOp
     if (!s.hit && s.ms >= s.hitMs) {
       s.hit = true;
       if (alive(b[s.side][s.from]!)) land(b, s, rng);
-      else note(b, { t: 'stop', shot: s.id });
+      else note(b, { t: 'stop', shot: s.id, ko: true });
     }
   }
   b.shots = b.shots.filter((s) => s.clash || s.ms < s.dur);

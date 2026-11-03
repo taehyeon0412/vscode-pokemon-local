@@ -60,8 +60,9 @@ export interface PokemonFx {
   plan(form: string, m: FxMove): FxPlan | null;
   /** reach = 입에서 상대까지 px (dst 가 없을 때 뿜기만) · form = 기술 모양을 고를 포켓몬 (없으면 src — 닿는 기술 자국은 쓰는 쪽 모양) · dst = 맞는 포켓몬 (틀마다 상대까지 닿게) */
   move(src: FxActor, m: FxMove, reach?: number, form?: string, dst?: FxActor, tag?: number): number;
-  /** 3:3 (2026-10-21) — tag 로 쏜 기술 하나만 멈춤 (soft = 남은 입자가 0.12초에 사라짐 · 걸어 둔 타이머 · 발사기는 바로) */
-  stopMove?(tag: number, soft?: boolean): void;
+  /** 3:3 (2026-10-21) — tag 로 쏜 기술 하나만 멈춤 (soft = 남은 입자가 0.12초에 사라짐 · 걸어 둔 타이머 · 발사기는 바로) ·
+   *  cut = 맞아서 끊김 — 남은 입자 중 날아가던 쪽 (dir) 앞 끝 (없으면 at) 에 "끊김" 점 셋 · col = 입자 색이 없을 때 · edge = 맞을 상대 칸 앞 끝 x (점이 넘지 않게) (ideas 1650) */
+  stopMove?(tag: number, soft?: boolean, cut?: { dir: 1 | -1; at: { x: number; y: number }; col: string; edge?: number }): void;
   /** 3:3 모드 — 켜면 기술은 패널 번쩍 · 흔들기 · 전체 멈춤 없이 (필살기만 번쩍, 1초 3번 이하) */
   team?(on: boolean): void;
   cast(src: FxActor, fx: string, o?: Record<string, unknown>): number;

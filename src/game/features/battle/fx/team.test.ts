@@ -105,6 +105,12 @@ describe('계획', () => {
     expect(one(recoil, 'ko')).toEqual([{ do: 'ko', dst: { side: 'me', slot: 1 }, delayMs: TEAM_FX.koLagMs }, { do: 'ko', dst: { side: 'me', slot: 2 } }]);
   });
 
+  it('맞아서 끊긴 기술 (쏜 포켓몬이 쓰러짐 — stop ko) 만 "끊김" 조각 — 쏜 칸 · 기술 (ideas 1650) · 거둔 달려가기는 그대로', () => {
+    const shoot = { t: 'shoot' as const, shot: 7, side: 'foe' as const, from: 2, targets: [0], moveId: 53, hitMs: 600, contact: false };
+    expect(one(plan([shoot, { t: 'stop', shot: 7, ko: true }]), 'stop')).toEqual([{ do: 'stop', tag: 7, cut: { src: { side: 'foe', slot: 2 }, dst: { side: 'me', slot: 0 }, moveId: 53 } }]);
+    expect(one(plan([shoot, { t: 'stop', shot: 7 }]), 'stop')).toEqual([{ do: 'stop', tag: 7 }]);
+  });
+
   it('기술 힘겨루기 = 두 기술 멈춤 · 필살기 두 번째부터 짧게 · 힘겨루기 · 합류 · 합동 · 3:1 마무리', () => {
     expect(plan([{ t: 'clash', shots: [3, 4], me: 1, foe: 2 }])).toEqual([
       { do: 'stop', tag: 3 },

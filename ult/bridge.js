@@ -2084,6 +2084,31 @@ function fxFlow(a, b, cols, u, ms, lift = 36) {
         }
     } });
 }
+// 끊김 (ideas 1650 · 디자인 값 design-system 6장) — 맞아서 끊긴 3:3 기술: 2 × 2 점 셋 (1px 짙은 테) 이 날아가던 반대쪽으로 위 · 뒤 · 아래 (사이 45°) 부채꼴 ("막혀 끊김" — 앞으로 튀면 맞음으로 읽혀서) ·
+//   시작 = 앞 끝에서 쓰는 쪽으로 6px · 상대 칸 앞 끝 (edge) 과 겹치면 겹치지 않는 데까지 · 0.36초 3걸음 (0.12초씩) 에 6 → 9 → 12px · 투명도 1 → 0.66 → 0.33 (번쩍 없음 · 정수 px) · 동작 줄이기면 퍼짐 없이 제자리 6px
+const FX_CUT = { dot: 2, steps: [6, 9, 12], alpha: [1, 0.66, 0.33], stepMs: 120, back: 6 };
+function fxCutMark(x, y, dir, col, edge) {
+    const rim = getComputedStyle(document.body).getPropertyValue('--pg-sos-bar').trim() || '#0c101e';
+    const still = fxReduceMotion();
+    // 점 (테 포함 한쪽 2px) 이 상대 칸 앞 끝을 넘지 않게
+    const x1 = x - dir * FX_CUT.back;
+    const x0 = Math.round(typeof edge === 'number' ? (dir > 0 ? Math.min(x1, edge - 2) : Math.max(x1, edge + 2)) : x1);
+    const y0 = Math.round(y);
+    sigParticle({ x: 0, y: 0, s: 1, max: (FX_CUT.stepMs * FX_CUT.steps.length) / 1000, draw: (ctx, q) => {
+        const k = Math.min(FX_CUT.steps.length - 1, Math.floor((q.life * 1000) / FX_CUT.stepMs));
+        const d = still ? FX_CUT.steps[0] : FX_CUT.steps[k];
+        const D = FX_CUT.dot;
+        ctx.globalAlpha = FX_CUT.alpha[k];
+        for (const an of [-Math.PI / 4, 0, Math.PI / 4]) {
+            const px = x0 - Math.round(Math.cos(an) * d) * dir - D / 2;
+            const py = y0 + Math.round(Math.sin(an) * d) - D / 2;
+            ctx.fillStyle = rim;
+            ctx.fillRect(px - 1, py - 1, D + 2, D + 2);
+            ctx.fillStyle = col;
+            ctx.fillRect(px, py, D, D);
+        }
+    } });
+}
 // 불꽃 맞음 (혼자 — 기운 줄기가 닿은 곳) — 1칸 폭 혀 12개 3걸음 (150ms) 에 4 → 7 → 9칸 (위쪽 +2) · 흰 심 원 3 → 4 → 3칸 · 0.45초
 function fxFlameHit(x, y, cols, u) {
     sigParticle({ x: 0, y: 0, s: 1, max: 0.45, draw: (ctx, q) => {
@@ -4923,11 +4948,25 @@ window.pokemonFx = {
             home.appendChild(moveCanvas);
         }
     },
-    /** 3:3 — 쏜 기술 하나만 멈춤 (기술 힘겨루기에 들어감 · 쏜 포켓몬이 쓰러짐). soft = 남은 입자는 0.12초에 사라짐, 아니면 바로 */
-    stopMove(tag, soft) {
+    /** 3:3 — 쏜 기술 하나만 멈춤 (기술 힘겨루기에 들어감 · 쏜 포켓몬이 쓰러짐). soft = 남은 입자는 0.12초에 사라짐, 아니면 바로 ·
+     *  cut = 맞아서 끊김 { dir, at, col } — 날아가던 쪽 앞 끝 입자 (없으면 at = 쓴 쪽 몸 앞) 에 "끊김" 점 셋 (ideas 1650) */
+    stopMove(tag, soft, cut) {
         const gen = fxTagGen.get(tag);
         if (gen === undefined) {
+            if (cut) {
+                fxCutMark(cut.at.x, cut.at.y, cut.dir, cut.col, cut.edge);
+            }
             return;
+        }
+        if (cut) {
+            // 장면 그림 입자 (x · y 가 0 — 그리기 안에서 자리를 셈) 는 빼고 앞 끝 하나
+            let front = null;
+            for (const q of moveParticles) {
+                if (q._g === gen && typeof q.x === 'number' && typeof q.y === 'number' && (q.x !== 0 || q.y !== 0) && (!front || (q.x - front.x) * cut.dir > 0)) {
+                    front = q;
+                }
+            }
+            fxCutMark(front ? front.x : cut.at.x, front ? front.y : cut.at.y, cut.dir, front && typeof front.color === 'string' ? front.color : cut.col, cut.edge);
         }
         fxTagGen.delete(tag);
         fxTagged.delete(gen);

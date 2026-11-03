@@ -184,7 +184,18 @@ describe('실시간 — 게이지가 차면 바로 · 겹쳐도', () => {
     expect(u.phase).toBe('ult');
     expect(u.shots.map((s) => s.id)).toEqual([51]);
     expect(u.log.some((e) => e.t === 'stop' && e.shot === 50)).toBe(true);
+    // 거둔 달려가기는 "맞아서 끊김" 이 아님 (ko 없음 — 화면 끊김 조각은 쏜 포켓몬이 쓰러졌을 때만, ideas 1650)
+    expect(u.log.find((e) => e.t === 'stop' && e.shot === 50)).not.toHaveProperty('ko');
     expect(u.me[0]!.gauge).toBeCloseTo(0.9, 5);
+  });
+
+  it('쏜 포켓몬이 맞는 때 전에 쓰러지면 그 기술은 사라짐 — stop 에 ko (화면 "끊김" 조각, ideas 1650 · bugs 2663 규칙)', () => {
+    const b0 = startTeamBattle(team3(), foes(), 'trainer', '상대');
+    const flying = { id: 60, side: 'me' as const, from: 0, targets: [1], moveId: 52, ms: 300, dur: 980, hitMs: 320, hit: false, shooting: false, clash: false, contact: false as const };
+    const b = { ...b0, me: b0.me.map((f, i) => ({ ...f, gauge: 0, hp: i === 0 ? 0 : f.hp })), foe: b0.foe.map((f) => ({ ...f, gauge: 0 })), shots: [flying], seq: 60 };
+    const u = teamStep(b, 50, new Rng(1), { auto: false, away: false });
+    expect(u.log.find((e) => e.t === 'stop' && e.shot === 60)).toMatchObject({ ko: true });
+    expect(u.log.some((e) => e.t === 'hit' && e.side === 'me' && e.from === 0)).toBe(false);
   });
 
   it('큰 연출이 겹치지 않음 (#117) — 같은 상대 앞 달려가기는 한 마리씩 (바쁘면 비어 있는 다른 상대로) · 범위 기술은 앞 범위 기술이 끝난 뒤', () => {

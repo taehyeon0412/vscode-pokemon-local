@@ -13,6 +13,7 @@ import { FX_DUEL_MS, pokemonFx, type FxActor, type FxImpact, type FxMove, type P
 import { FX_HOLD_DUEL_MAX_MS, FX_HOLD_ULT_MAX_MS, holdFx, holdTeamTail, releaseFx, teamClashKey, teamUltKey } from './hold';
 import { TEAM_VIEW, getTeamView, jointTailMs, setTeamView, type TeamView } from './team-view';
 import { shotHitAt } from './shot-hit';
+import { moveColor } from '../model';
 // 개발 모드 (임시) 에서 고른 필살기
 import { devUltOf } from '../../../dev/ult-pick';
 
@@ -29,7 +30,8 @@ export type TeamFxCall =
   | { do: 'dash'; tag: number; src: TeamSlot; dst: TeamSlot; moveId: number }
   /** 닿는 기술이 맞는 순간 — 맞는 쪽 몸에 그 기술 자국 (1:1 과 같음, 쓰는 쪽 모양) */
   | { do: 'strike'; dst: TeamSlot; src: TeamSlot; move: FxMove }
-  | { do: 'stop'; tag: number }
+  /** cut = 맞아서 끊김 (쏜 포켓몬이 쓰러짐) — 그 자리에 "끊김" 조각 (ideas 1650 · 쏜 칸 · 기술 색) */
+  | { do: 'stop'; tag: number; cut?: { src: TeamSlot; dst?: TeamSlot; moveId: number } }
   /** 맞음 — 타입 임팩트 · 맞은 포켓몬만 멈춤 + 밀림 (cells = 칸 수, 반 칸 = 0.5) */
   | { do: 'impact'; dst: TeamSlot; type: string; big: boolean; name: string; o: FxImpact; delayMs?: number }
   | { do: 'knock'; dst: TeamSlot; cells: number; ms: number }
@@ -151,9 +153,12 @@ function planOne(b: TeamBattle, e: TeamLogEntry, final: boolean, seen: Set<strin
     case 'miss':
       out.push({ do: 'dodge', dst: { side: other(e.side), slot: e.to } });
       return;
-    case 'stop':
-      out.push({ do: 'stop', tag: e.shot });
+    case 'stop': {
+      // 맞아서 끊긴 기술 (쏜 포켓몬이 맞는 때 전에 쓰러짐 — bugs 2663 규칙) 만 "끊김" 조각 · 큰 연출이 거둔 달려가기 · 힘겨루기는 그대로
+      const shot = e.ko ? b.log.find((x) => x.t === 'shoot' && x.shot === e.shot) : undefined;
+      out.push({ do: 'stop', tag: e.shot, ...(shot?.t === 'shoot' ? { cut: { src: { side: shot.side, slot: shot.from }, ...(shot.targets[0] !== undefined ? { dst: { side: other(shot.side), slot: shot.targets[0] } } : {}), moveId: shot.moveId } } : {}) });
       return;
+    }
     case 'clash':
       out.push({ do: 'stop', tag: e.shots[0] }, { do: 'stop', tag: e.shots[1] }, { do: 'clash', me: e.me, foe: e.foe });
       return;
@@ -535,7 +540,15 @@ export class TeamFxRunner {
           window.clearTimeout(t);
           this.pending.delete(c.tag);
         }
-        fx.stopMove?.(c.tag, true);
+        // 맞아서 끊김 (ideas 1650) — 날아가던 것의 앞 끝 (없으면 쓴 쪽 몸 앞) 에 점 셋 · 기술 색 (디자인 design-system 6장)
+        const cutBy = c.cut ? a(c.cut.src) : null;
+        const cutBox = cutBy ? (cutBy.box ?? cutBy.el).getBoundingClientRect() : null;
+        const cutDir: 1 | -1 = c.cut?.src.side === 'foe' ? -1 : 1;
+        // 맞을 상대 칸 앞 끝 — 점이 그 몸 위에 얹혀 "맞음" 으로 읽히지 않게 (디자인 1650)
+        const cutTo = c.cut?.dst ? a(c.cut.dst) : null;
+        const toBox = cutTo ? (cutTo.box ?? cutTo.el).getBoundingClientRect() : null;
+        const cut = c.cut && cutBox ? { dir: cutDir, at: { x: cutDir > 0 ? cutBox.right : cutBox.left, y: cutBox.top + cutBox.height * 0.45 }, col: moveColor(c.cut.moveId, null), ...(toBox ? { edge: cutDir > 0 ? toBox.left : toBox.right } : {}) } : undefined;
+        fx.stopMove?.(c.tag, true, cut);
         // 거둔 달려가기 (큰 연출 시작 — 엔진 settleDashes) — 그 자리에서 0.3초에 집으로 (뚝 끊겨 순간이동하지 않게, 아트 디렉터 #95 ③)
         const d = this.dashes.get(c.tag);
         if (d) homeDash(d.an);
