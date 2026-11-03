@@ -377,12 +377,12 @@ describe('필살기가 그린 상대에는 큰 임팩트를 또 안 그림 (#80 
   const hit = (to: number, ko: boolean): TeamNote => ({ t: 'hit', side: 'me', from: 0, to, moveId: -1, ult: true, effect: 'damage', dmg: 30, ko });
 
   it('합동 — 진 쪽 가운데가 쓰러져도 그 상대는 합동이 그림 (나머지만 임팩트)', () => {
-    // 3:3 용 판 (TEAM_FX.stage) 은 나머지 대상도 임팩트 없이 밀림만 (터짐 하나 — 아트 디렉터 #95 ④)
-    expect(impacts([{ t: 'ult', side: 'me', from: 0, joint: { winners: [0, 2], losers: [0, 1, 2], sure: false } }, hit(0, false), hit(1, true), hit(2, false)], [1])).toEqual(TEAM_FX.stage ? [] : [0, 2]);
+    // 3:3 용 판은 나머지 대상도 임팩트 없이 밀림만 (터짐 하나 — 아트 디렉터 #95 ④)
+    expect(impacts([{ t: 'ult', side: 'me', from: 0, joint: { winners: [0, 2], losers: [0, 1, 2], sure: false } }, hit(0, false), hit(1, true), hit(2, false)], [1])).toEqual([]);
   });
 
   it('범위기 — 그때 살아 있던 상대 가운데 (쓰러진 상대 포함해 셈) · 고른 대상은 그 상대', () => {
-    expect(impacts([{ t: 'ult', side: 'me', from: 0 }, hit(0, false), hit(1, true), hit(2, false)], [1])).toEqual(TEAM_FX.stage ? [] : [0, 2]);
+    expect(impacts([{ t: 'ult', side: 'me', from: 0 }, hit(0, false), hit(1, true), hit(2, false)], [1])).toEqual([]);
     expect(impacts([{ t: 'ult', side: 'me', from: 0, spread: false, target: 2 }, hit(2, true)], [2])).toEqual([]);
   });
 });

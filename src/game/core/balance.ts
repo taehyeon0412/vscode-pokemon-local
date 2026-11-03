@@ -446,7 +446,7 @@ export const TIMING = {
     strikeHitMs: 80,
     strikeMs: 320,
     backMs: 300,
-    /** 합동 필살기 마무리 (여럿이 힘겨루기를 이김 · 같은 편이 모임) — 엔진의 최소 길이 · 맞는 때. 보는 중엔 연출 (ult/bridge.js ultJoint — 기 모으기 + 컷인 + 가장 늦은 큰 맞음) 이 맞힐 때까지 붙잡아 그때 피해,
+    /** 합동 필살기 마무리 (여럿이 힘겨루기를 이김 · 같은 편이 모임) — 엔진의 최소 길이 · 맞는 때. 보는 중엔 연출 (장면 전환 team11Joint · 연출 끔 teamJoint) 이 맞힐 때까지 붙잡아 그때 피해,
      *  그 뒤 엔진은 (jointMs − jointHitMs) 만에 다시 달리고 남은 연출은 흘러감. 안 볼 때는 이 값 그대로 [임시값] */
     jointMs: 3800,
     jointHitMs: 2250,

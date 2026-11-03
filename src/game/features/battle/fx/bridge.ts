@@ -99,8 +99,6 @@ export interface PokemonFx {
   ult?(src: FxActor, dst: FxActor, onHit?: () => void, avoid?: string[], o?: { quick?: boolean; sub?: string; others?: FxActor[]; type?: string; pick?: string; stage?: boolean; hitMs?: number; noIntro?: boolean; /** 3:3 장면 전환 상대 필살기 — 큰 이름 상대 색 */ titleFoe?: boolean; timing?: (t: { main: number; cover: number; total: number; still?: number }) => void }): number;
   /** 그 모습이 가진 필살기 이름 (개발 모드 (임시) — 필살기 고르기) */
   ults?(form: string): string[];
-  /** 3:3 합동 필살기 마무리 — 참가자 필살기가 같은 때 닿아 한 점에서 합쳐 터짐. onHit = 합쳐진 순간 · 걸리는 시간 (ms), 못 쓰면 0 */
-  ultJoint?(srcs: FxActor[], dst: FxActor, onHit?: () => void, o?: { types?: string[]; avoid?: string[][]; pick?: (string | null)[]; sure?: boolean; sub?: string; others?: FxActor[]; tailMs?: number; quick?: boolean }): number;
   /** 3:3 장면 전환 합동 (#99) — 앞장 1:1 필살기 하나 (컷인 없이) + 동료 기운이 기 모으는 동안 앞장 입으로 + 맞을 때 동료 색 고리 · 걸리는 시간 (ms) */
   team11Joint?(srcs: FxActor[], dst: FxActor, onHit?: () => void, o?: { types?: string[]; avoid?: string[][]; pick?: (string | null)[]; timing?: (t: { main: number; cover: number; total: number; still?: number }) => void }): number;
   stopUlt?(): void;
