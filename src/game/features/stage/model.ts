@@ -150,7 +150,9 @@ export function gymEnterView(ms: number, walkSteps = 6): { walk: number; enter: 
   const door = ms < 600 ? 0 : ms < 867 ? 1 : ms < 1133 ? 2 : 3;
   const into = ms < 1400 ? 0 : Math.min(3, Math.floor((ms - 1400) / 150) + 1);
   const fade = into <= 1 ? 1 : into === 2 ? 0.66 : ms < 1850 ? 0.33 : 0;
-  const wipe = ms < 2000 ? 0 : step((ms - 2000) / 400, 6);
+  // 닦기 여섯 걸음 = 2.0 ~ 2.3초 50ms 씩 (엔진 걸음 50ms 와 같게 — 66.7ms 면 49 ~ 84ms 로 들쭉날쭉하고 6/6 이 되는 2.4초에 대기실로 넘어가 마지막 걸음이
+  //   안 그려지던 것, bugs 1931 · 개발 raf-log) · 6/6 은 2.3 ~ 2.4초 (gymEnterMs) 0.1초 보임
+  const wipe = ms < 2000 ? 0 : step((ms - 2000) / 300, 6);
   return { walk, enter: into / 3, walking: ms < 600 || (ms >= 1400 && ms < 1850), door, rise: Math.max(0, into - 1), fade, wipe };
 }
 

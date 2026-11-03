@@ -187,6 +187,10 @@ describe('1-3 끝 체육관 들어가기 (2026-10-20 태현 님 A안)', () => {
     expect(gymEnterView(1900)).toMatchObject({ enter: 1, fade: 0, wipe: 0 });
     expect(gymEnterView(2200).wipe).toBeGreaterThan(0);
     expect(gymEnterView(TIMING.gymEnterMs).wipe).toBe(1);
+    // 닦기 여섯 걸음이 엔진 걸음 (50ms) 마다 하나씩 · 다 닦인 모양이 대기실 전에 보임 (bugs 1931)
+    const steps = [2000, 2050, 2100, 2150, 2200, 2250, 2300].map((t) => gymEnterView(t).wipe);
+    expect(steps.map((w) => Math.round(w * 6))).toEqual([0, 1, 2, 3, 4, 5, 6]);
+    expect(gymEnterView(TIMING.gymEnterMs - 50).wipe).toBe(1);
     // 걸음 수를 화면이 정함 (U506) — 3걸음이면 반 걸음 앞당겨 0.1 · 0.3 · 0.5초 · 끝은 늘 1
     expect(gymEnterView(99, 3).walk).toBe(0);
     expect(gymEnterView(100, 3).walk).toBeCloseTo(1 / 3);
