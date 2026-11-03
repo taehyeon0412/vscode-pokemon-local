@@ -339,6 +339,8 @@ const MENU_TINY_EST_PX = 153;
 const MENU_COMPACT_EST_PX = 233;
 /** 메뉴 줄 아래로 내린 상대 HP 묶음 ↔ 메뉴 줄 틈 (보이는 틈 4px — 1px 이면 상대 필살기 띠가 Z 밑줄로 읽히고 메뉴 · 내 묶음 · 상대 묶음이 한 덩이로 보이던 것, 아트 · UX 2733) */
 const FOE_LOW_GAP_PX = 3;
+/** 상대 오른쪽 말 상자 ↔ 상대 그림 · HP 묶음 ("Lv5") 틈 — 다른 옆자리 규칙 (bannerLeft + 8) 과 같게 (아트 디렉터 2733 · ideas 2705 — 6px 라 480 × 160 · 170 에서 Lv5 와 붙어 읽히던 것) */
+const SIDE_GAP_PX = 8;
 /** 이보다 좁은 패널은 메뉴를 짧게 (번호 + 그림 글자) · 패널 왼쪽 끝부터 */
 export const COMPACT_WIDTH_PX = 560;
 /** 이 폭 아래면 메뉴를 두 글자로 (아트 디렉터 5차 — 240) */
@@ -513,7 +515,9 @@ export function battleGeometry(g: GeometryInput): BattleGeometry {
   // 메뉴 줄이 위 한 줄 자리까지 올라와 있으면 (정보줄 바로 밑) 옆자리는 메뉴 오른쪽 끝 뒤부터 — 160px 에서 게이지 · 💥Z 위에 겹치던 것 (2026-10-19)
   const menuAtTop = !menuSide && !menuInBar && room - (menuBottom + menuPx) < msgRoom;
   const menuRight = menuSide ? menuSide.left + Math.min(menuSide.maxWidth, SIDE_EST_W_PX) : menuLeft + menuEstPx;
-  const sideLeft = Math.round(Math.max(g.foeX + Math.max(g.foeSpritePx, foeHpWide) / 2 + 6, menuAtTop || menuSide ? menuRight + 8 : 0));
+  // 틈 8 (SIDE_GAP_PX) 로 옆 칸이 MSG_SIDE_MIN_PX 아래가 되는 폭은 예전 6 — 말 숨김이 먼저 (8 이면 461 등 경계 폭 576칸에서 말이 숨던 것, ideas 2705 훑기)
+  const sideAt = (gap: number) => Math.round(Math.max(g.foeX + Math.max(g.foeSpritePx, foeHpWide) / 2 + gap, menuAtTop || menuSide ? menuRight + 8 : 0));
+  const sideLeft = g.widthPx - sideAt(SIDE_GAP_PX) - 8 >= MSG_SIDE_MIN_PX ? sideAt(SIDE_GAP_PX) : sideAt(6);
   const sideRoom = g.widthPx - sideLeft - 8;
   const topBusy = room - highest < msgRoom;
   // 옆 메뉴가 한 줄 말 (lines 줄) 아래에서 시작하면 말은 왼쪽으로 무대 끝까지 늘어나도 됨 — 예전엔 옆 메뉴 자리 (상대 왼쪽까지) 를 늘 피해서
