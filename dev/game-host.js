@@ -2,6 +2,7 @@
 //   ?screen=title|game  save=none|ok|broken|newer  busy=1  notice=글  size=nano|small|medium|large  theme=dark|light  click=new|continue|exit
 //   progress=0~1 (숲 1-1 진행, 스테이지 시드 42 — 그 자리 바로 앞에서 시작해 흔적 · 조우 · 부탁을 찍음)
 //   place=facility|hospital|shop|shop-front|trainer|trainer-battle|defeat|clear|lobby|gym-battle|badge (단계 8 · 9)
+//   place=appear trace=<grass|tree|water|ground|sky|shadow>[-strong|-shiny] (야생 튀어나옴 — 그 흔적 자리 · 아래 APPEAR_SPOTS)
 //   balls=<몬스터-슈퍼-하이퍼 개수, 예 3-0-2>  pts=<선두 남은 포인트>
 //   scene=result 와 같이: ups=2 (둘이 레벨업) · ups=0 (레벨업 없음) · spent=1 (스탯을 찍어 본 세이브) · click=lvup|lvup2 (얼굴 카드 누르기)
 //   st=3 (숲 1-3 · 길 끝 체육관) · gms=<ms> (체육관 들어가기 장면)
@@ -11,6 +12,28 @@
 //   style=<CSS> (시안 비교 — 임시 CSS 를 얹음)
 //   scene=result|learn|evolve|evolve-pick  battle=choose|skills|items|catch|last|counter|clash|ult-cut|ult-beam|attack|pick|over|auto  dur=연출 ms (전투 장면을 바로 — 아래 battleKind)  animAt=초 (CSS 움직임을 그 시점에 멈춤)
 // 확장이 하는 일 중 화면에 보이는 것만 흉내: ready → title · start, title-new · title-continue → start, exit → stop
+// place=appear 흔적 자리 — 흔적 종류 · 크게 (strong) · 반짝 (shiny) 마다 처음 찾은 [스테이지, 시드, 자리, 그 자리 야생 (엔진 createWild 그대로)]
+//   (bugs 636 — 길 위치를 흔적 자리에 맞춰야 화면이 튀어나온 포켓몬을 그림 · 길 · 만남 규칙이 바뀌면 src/test/unit/dev-appear-spots.test.ts 가 틀린 줄을 알려 줌)
+const APPEAR_SPOTS = {
+    "grass": ["forest-1", 42, 0.10643, {"uid": "wild", "species": 546, "form": "cottonee", "level": 2, "exp": 8, "ivs": {"hp": 10, "attack": 10, "defense": 24, "speed": 31, "ultimate": 0}, "points": {"hp": 0, "attack": 0, "defense": 0, "speed": 0, "ultimate": 0}, "unspentPoints": 0, "moves": [{"moveId": 71, "pp": 25}, {"moveId": 584, "pp": 30}], "hp": 13, "status": null, "shiny": false, "caughtAt": "forest-1"}],
+    "grass-strong": ["forest-1", 42, 0.0477, {"uid": "wild", "species": 546, "form": "cottonee", "level": 6, "exp": 216, "ivs": {"hp": 6, "attack": 9, "defense": 0, "speed": 5, "ultimate": 0}, "points": {"hp": 0, "attack": 0, "defense": 0, "speed": 0, "ultimate": 0}, "unspentPoints": 0, "moves": [{"moveId": 71, "pp": 25}, {"moveId": 584, "pp": 30}], "hp": 21, "status": null, "shiny": false, "caughtAt": "forest-1"}],
+    "grass-shiny": ["volcano-1", 1, 0.61426, {"uid": "wild", "species": 20, "form": "raticate", "level": 28, "exp": 21952, "ivs": {"hp": 31, "attack": 18, "defense": 29, "speed": 5, "ultimate": 22}, "points": {"hp": 0, "attack": 0, "defense": 0, "speed": 0, "ultimate": 0}, "unspentPoints": 0, "moves": [{"moveId": 33, "pp": 35}, {"moveId": 98, "pp": 30}, {"moveId": 44, "pp": 25}, {"moveId": 372, "pp": 10}], "hp": 77, "status": null, "shiny": true, "caughtAt": "volcano-1"}],
+    "tree": ["forest-1", 42, 0.14016, {"uid": "wild", "species": 10, "form": "caterpie", "level": 3, "exp": 27, "ivs": {"hp": 1, "attack": 29, "defense": 3, "speed": 18, "ultimate": 25}, "points": {"hp": 0, "attack": 0, "defense": 0, "speed": 0, "ultimate": 0}, "unspentPoints": 0, "moves": [{"moveId": 33, "pp": 35}], "hp": 15, "status": null, "shiny": false, "caughtAt": "forest-1"}],
+    "tree-strong": ["forest-3", 42, 0.23891, {"uid": "wild", "species": 214, "form": "heracross_male", "level": 15, "exp": 3375, "ivs": {"hp": 0, "attack": 5, "defense": 30, "speed": 11, "ultimate": 19}, "points": {"hp": 0, "attack": 0, "defense": 0, "speed": 0, "ultimate": 0}, "unspentPoints": 0, "moves": [{"moveId": 331, "pp": 30}, {"moveId": 33, "pp": 35}, {"moveId": 332, "pp": 20}], "hp": 49, "status": null, "shiny": false, "caughtAt": "forest-3"}],
+    "tree-shiny": ["forest-1", 64, 0.8815, {"uid": "wild", "species": 13, "form": "weedle", "level": 4, "exp": 64, "ivs": {"hp": 13, "attack": 31, "defense": 18, "speed": 22, "ultimate": 4}, "points": {"hp": 0, "attack": 0, "defense": 0, "speed": 0, "ultimate": 0}, "unspentPoints": 0, "moves": [{"moveId": 40, "pp": 35}], "hp": 17, "status": null, "shiny": true, "caughtAt": "forest-1"}],
+    "water": ["beach-1", 42, 0.10945, {"uid": "wild", "species": 129, "form": "magikarp", "level": 15, "exp": 3375, "ivs": {"hp": 10, "attack": 10, "defense": 24, "speed": 31, "ultimate": 0}, "points": {"hp": 0, "attack": 0, "defense": 0, "speed": 0, "ultimate": 0}, "unspentPoints": 0, "moves": [{"moveId": 33, "pp": 35}], "hp": 32, "status": null, "shiny": false, "caughtAt": "beach-1"}],
+    "water-strong": ["forest-2", 42, 0.58808, {"uid": "wild", "species": 183, "form": "marill", "level": 12, "exp": 1728, "ivs": {"hp": 16, "attack": 6, "defense": 20, "speed": 8, "ultimate": 0}, "points": {"hp": 0, "attack": 0, "defense": 0, "speed": 0, "ultimate": 0}, "unspentPoints": 0, "moves": [{"moveId": 55, "pp": 25}, {"moveId": 145, "pp": 30}, {"moveId": 205, "pp": 20}], "hp": 40, "status": null, "shiny": false, "caughtAt": "forest-2"}],
+    "water-shiny": ["beach-2", 64, 0.88567, {"uid": "wild", "species": 90, "form": "shellder", "level": 21, "exp": 9261, "ivs": {"hp": 13, "attack": 31, "defense": 18, "speed": 22, "ultimate": 4}, "points": {"hp": 0, "attack": 0, "defense": 0, "speed": 0, "ultimate": 0}, "unspentPoints": 0, "moves": [{"moveId": 33, "pp": 35}, {"moveId": 55, "pp": 25}, {"moveId": 333, "pp": 30}], "hp": 46, "status": null, "shiny": true, "caughtAt": "beach-2"}],
+    "ground": ["volcano-1", 42, 0.10643, {"uid": "wild", "species": 104, "form": "cubone", "level": 23, "exp": 12167, "ivs": {"hp": 10, "attack": 10, "defense": 24, "speed": 31, "ultimate": 0}, "points": {"hp": 0, "attack": 0, "defense": 0, "speed": 0, "ultimate": 0}, "unspentPoints": 0, "moves": [{"moveId": 125, "pp": 20}, {"moveId": 29, "pp": 15}, {"moveId": 155, "pp": 10}], "hp": 58, "status": null, "shiny": false, "caughtAt": "volcano-1"}],
+    "ground-strong": ["forest-2", 42, 0.19507, {"uid": "wild", "species": 290, "form": "nincada", "level": 12, "exp": 1728, "ivs": {"hp": 0, "attack": 5, "defense": 30, "speed": 11, "ultimate": 19}, "points": {"hp": 0, "attack": 0, "defense": 0, "speed": 0, "ultimate": 0}, "unspentPoints": 0, "moves": [{"moveId": 10, "pp": 35}, {"moveId": 71, "pp": 25}], "hp": 29, "status": null, "shiny": false, "caughtAt": "forest-2"}],
+    "ground-shiny": ["volcano-1", 64, 0.6798, {"uid": "wild", "species": 51, "form": "dugtrio", "level": 26, "exp": 17576, "ivs": {"hp": 7, "attack": 19, "defense": 5, "speed": 27, "ultimate": 31}, "points": {"hp": 0, "attack": 0, "defense": 0, "speed": 0, "ultimate": 0}, "unspentPoints": 0, "moves": [{"moveId": 328, "pp": 15}, {"moveId": 400, "pp": 15}, {"moveId": 161, "pp": 10}, {"moveId": 523, "pp": 20}], "hp": 56, "status": null, "shiny": true, "caughtAt": "volcano-1"}],
+    "sky": ["forest-1", 42, 0.2497, {"uid": "wild", "species": 165, "form": "ledyba", "level": 3, "exp": 27, "ivs": {"hp": 31, "attack": 8, "defense": 24, "speed": 10, "ultimate": 7}, "points": {"hp": 0, "attack": 0, "defense": 0, "speed": 0, "ultimate": 0}, "unspentPoints": 0, "moves": [{"moveId": 33, "pp": 35}], "hp": 16, "status": null, "shiny": false, "caughtAt": "forest-1"}],
+    "sky-strong": ["forest-2", 42, 0.4945, {"uid": "wild", "species": 163, "form": "hoothoot", "level": 12, "exp": 1728, "ivs": {"hp": 21, "attack": 29, "defense": 1, "speed": 6, "ultimate": 24}, "points": {"hp": 0, "attack": 0, "defense": 0, "speed": 0, "ultimate": 0}, "unspentPoints": 0, "moves": [{"moveId": 33, "pp": 35}, {"moveId": 95, "pp": 20}, {"moveId": 93, "pp": 25}], "hp": 38, "status": null, "shiny": false, "caughtAt": "forest-2"}],
+    "sky-shiny": ["forest-3", 84, 0.9293, {"uid": "wild", "species": 415, "form": "combee_male", "level": 12, "exp": 1728, "ivs": {"hp": 5, "attack": 10, "defense": 4, "speed": 10, "ultimate": 9}, "points": {"hp": 0, "attack": 0, "defense": 0, "speed": 0, "ultimate": 0}, "unspentPoints": 0, "moves": [{"moveId": 16, "pp": 35}], "hp": 29, "status": null, "shiny": true, "caughtAt": "forest-3"}],
+    "shadow": ["volcano-3", 42, 0.65656, {"uid": "wild", "species": 553, "form": "krookodile", "level": 30, "exp": 27000, "ivs": {"hp": 23, "attack": 7, "defense": 7, "speed": 13, "ultimate": 25}, "points": {"hp": 0, "attack": 0, "defense": 0, "speed": 0, "ultimate": 0}, "unspentPoints": 0, "moves": [{"moveId": 99, "pp": 20}, {"moveId": 44, "pp": 25}, {"moveId": 328, "pp": 15}, {"moveId": 189, "pp": 10}], "hp": 103, "status": null, "shiny": false, "caughtAt": "volcano-3"}],
+    "shadow-strong": ["volcano-2", 42, 0.23507, {"uid": "wild", "species": 622, "form": "golett", "level": 31, "exp": 29791, "ivs": {"hp": 0, "attack": 5, "defense": 30, "speed": 11, "ultimate": 19}, "points": {"hp": 0, "attack": 0, "defense": 0, "speed": 0, "ultimate": 0}, "unspentPoints": 0, "moves": [{"moveId": 310, "pp": 15}, {"moveId": 205, "pp": 20}, {"moveId": 325, "pp": 20}, {"moveId": 5, "pp": 20}], "hp": 77, "status": null, "shiny": false, "caughtAt": "volcano-2"}],
+    "shadow-shiny": ["volcano-3", 400, 0.13137, {"uid": "wild", "species": 229, "form": "houndoom", "level": 28, "exp": 21952, "ivs": {"hp": 10, "attack": 10, "defense": 29, "speed": 20, "ultimate": 30}, "points": {"hp": 0, "attack": 0, "defense": 0, "speed": 0, "ultimate": 0}, "unspentPoints": 0, "moves": [{"moveId": 517, "pp": 5}, {"moveId": 52, "pp": 25}, {"moveId": 123, "pp": 20}, {"moveId": 44, "pp": 25}], "hp": 82, "status": null, "shiny": true, "caughtAt": "volcano-3"}]
+};
 (function () {
     const q = new URLSearchParams(location.search);
     // nocover=1 — 필살기가 맞는 포켓몬을 덮는 동안 다시 그리기 (#107 bridge fxCoverRedraw) 를 끔 (전 · 후 비교 캡처)
@@ -350,9 +373,17 @@
         if (place === 'facility' || place === 'hospital') { st.progress = 0.4724 - 1e-7; stage = { phase: 'facility', kind: 'hospital', at: 0.4724, ms: 0, inside: place === 'hospital' }; }
         if (place === 'shop') { st.progress = 0.6132; stage = { phase: 'facility', kind: 'shop', at: 0.6132, ms: 0, inside: true }; }
         // place=appear — 야생이 튀어나옴 "나타났다!" (ms= 지난 시간 · start=preemptive|ambush|normal → 전투 첫 말, 2026-10-21 선제공격은 스피드로)
+        //   trace=<종류>[-strong|-shiny] — 병원 · 상점 자리는 시드대로 (표를 찾은 길과 같게) · 그 흔적 자리로 길 위치를 맞추고 상대 = 그 자리 야생 (없으면 grass-strong = 숲 1-1 첫 흔적 소미안 · bugs 636 — 예전엔 위치를 안 맞춰 튀어나온 포켓몬이 안 그려짐)
         if (place === 'appear') {
-            const wild = { ...save.monsters.m1, uid: 'wild', species: 4, form: 'charmander', level: 5, moves: [{ moveId: 52, pp: 25 }], hp: 20, caughtAt: 'forest-1' };
-            save.pendingEncounter = { kind: 'wild', monster: wild, start: q.get('start') || 'normal' };
+            const [sid, seed, at, wild] = APPEAR_SPOTS[q.get('trace')] || APPEAR_SPOTS['grass-strong'];
+            if (sid === 'forest-1') Object.assign(st, { seed, progress: at, facilities: [] });
+            else {
+                save.stages[sid] = { ...st, seed, progress: at, facilities: [] };
+                save.location = { screen: 'stage', stageId: sid };
+                const region = sid.slice(0, sid.lastIndexOf('-'));
+                if (!save.regions.order.includes(region)) save.regions.order.push(region);
+            }
+            save.pendingEncounter = { kind: 'wild', monster: { ...wild }, start: q.get('start') || 'normal' };
             stage = { phase: 'appear', ms: Number(q.get('ms') || 0), isNew: true };
         }
         if (place === 'shop-front') { st.progress = 0.6132 - 1e-7; stage = { phase: 'facility', kind: 'shop', at: 0.6132, ms: 0, inside: false }; }
