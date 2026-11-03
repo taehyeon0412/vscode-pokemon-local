@@ -1457,6 +1457,13 @@ body.vscode-light .pg-stage.pg-bg-arena-volcano {
 .pg-tip-short {
   display: none;
 }
+/* 덮으면 짧은 글 (FirstTip fit — ideas 1665 · ui/tip-fit): 주인공 · 관장 · 트레이너 · 대기실 상자를 덮는 폭에서 360 위라도 짧은 말 */
+.pg-tip-fit .pg-tip-long {
+  display: none;
+}
+.pg-tip-fit .pg-tip-short {
+  display: inline;
+}
 @media (max-width: 360px) {
   .pg-tip-long {
     display: none;

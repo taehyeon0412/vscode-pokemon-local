@@ -815,7 +815,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         )}
         {/* 넘어진 뒤부터 (볼 칸과 같은 때 — 코드 리뷰어 #97) */}
         {battle?.phase === 'last' && !(save.tips ?? []).includes('last') && koFallAt(battle, performance.now(), save.settings.reduceMotion === true) <= performance.now() && (
-          <FirstTip key="last" ms={4000} className="pg-first-tip-low" paused={tipPaused} onSeen={() => onInput({ kind: 'tip-seen', id: 'last' })}>
+          <FirstTip key="last" ms={4000} className="pg-first-tip-low" paused={tipPaused} fit onSeen={() => onInput({ kind: 'tip-seen', id: 'last' })}>
             {/* 360px 아래는 짧게 한 줄 — 두 줄이면 잡을 상대 · 내 포켓몬을 가림 (UX 리뷰어) */}
             <span class="pg-tip-long">약해진 포켓몬에게 </span>볼을 던지면 팀이 늘어요
           </FirstTip>
@@ -823,7 +823,7 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         {/* 경험치가 처음 줄어든 결과 상자 (ideas 1689 · 기획 — "▼1/2 Lv 높음" 은 올려야 뜻이 보여서) = 아래 가운데 한 번 6초 · 보는 동안만 · 잡은 포켓몬 소개 카드가 뜨는 판은 다음으로 ·
             360 아래는 짧게 한 줄 "Lv 높아 경험치 ▼" (두 줄이면 주인공을 덮음 — 맥 240 까지 한 줄) · 결과 상자 · 말풍선은 위라 안 덮음 */}
         {stageRt?.phase === 'result' && expLvTipDue(stageRt.summary, save.tips ?? [], TIPS_MAX) && (
-          <FirstTip key={EXP_LV_TIP} ms={6000} seenMs={2500} className="pg-first-tip-low" paused={tipPaused} onSeen={() => onInput({ kind: 'tip-seen', id: EXP_LV_TIP })}>
+          <FirstTip key={EXP_LV_TIP} ms={6000} seenMs={2500} className="pg-first-tip-low" paused={tipPaused} fit onSeen={() => onInput({ kind: 'tip-seen', id: EXP_LV_TIP })}>
             {/* 키 없이 지금 상태 · 규칙만 — 결과 단계엔 M 이 안 먹고 (보이는 키는 그때 먹어야 — 1897 · #127 과 같은 종류) 더 높은 길이 아직 잠긴 판도 있어서 (UX 리뷰어 1689) */}
             {/* 한 문장 한 줄 — 규칙 ("높은 길에선 다 받아요") 까지 붙이면 240 ~ 280 · 380 맥에서 두 줄로 감겨 주인공을 15px 덮음 (규칙은 결과 상자 title) */}
             <span class="pg-tip-long">레벨이 이 길보다 높아 경험치가 줄어요</span>
@@ -842,13 +842,13 @@ export function StageScreen({ state, layout, widthPx, media, onInput, onOpen, li
         {/* 체육관 첫 알림 (gdd S16 · 기획 R9 ⑤) — 3:3 을 켠 뒤 대기실에 처음 들어갈 때 3초 · 클리어 보상 · 레벨업 알림 (대기실 첫 5초) 이 끝난 뒤 (겹쳐 가리지 않게 — U1). 그 뒤로는 도전 버튼의 "3:3" 칩만 */}
         {stageRt?.phase === 'lobby' && !stageRt.picking && !state.runtime.toast && (BALANCE.team.on || state.runtime.dev?.team === true) && !(save.tips ?? []).includes('gym-team') && (
           // 5초 (약 30글자 + 키 셋 — 걷기 안내와 같은 시간, 3초는 빠듯하던 것) · 밖 · 숨김이면 안 셈 (UX 리뷰어 #27)
-          <FirstTip key="gym-team" ms={5000} className="pg-first-tip-low pg-gym-tip" paused={tipPaused} onSeen={() => onInput({ kind: 'tip-seen', id: 'gym-team' })}>
+          <FirstTip key="gym-team" ms={5000} className="pg-first-tip-low pg-gym-tip" paused={tipPaused} fit onSeen={() => onInput({ kind: 'tip-seen', id: 'gym-team' })}>
             <GymTip lock={teamLock(state)} heal={save.party.length >= 3} />
           </FirstTip>
         )}
         {/* 3:3 처음 안내 (기획 R9 ⑤ — 2026-10-22 태현 님 A "추천안으로") — 3:3 을 고를 수 있는 만남이 처음 나올 때 4초 · 아래 가운데 (위는 "승부다!" 상자 — 1:1 / 3:3 버튼을 가리지 않게) · 보는 동안만 셈 */}
         {teamMeetOn(state) && teamMeetTipDue(state) && (
-          <FirstTip key="team-meet" ms={4000} className="pg-first-tip-low" paused={tipPaused} onSeen={() => onInput({ kind: 'tip-seen', id: TEAM_MEET_TIP })}>
+          <FirstTip key="team-meet" ms={4000} className="pg-first-tip-low" paused={tipPaused} fit onSeen={() => onInput({ kind: 'tip-seen', id: TEAM_MEET_TIP })}>
             <span class="pg-tip-part pg-tip-long">3:3 이 열렸어요 —&nbsp;</span>
             <span class="pg-tip-part pg-tip-long">
               셋이 함께 싸우고 돈 ×{BALANCE.team.moneyScale} · <KeyCap k="3" />

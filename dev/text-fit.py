@@ -12,6 +12,7 @@
   check=result (ideas 1667) — 결과 상자 장면에서 폭마다 엔진 결과 (레벨업 · 배운 기술 · 돈 · 물건 · 보물 · 잡은 포켓몬) 가 상자 안 글 · 얼굴 카드 · 새 기술 N 어디에도
     없으면 "빠짐" (번갈아 숨은 차례 글도 보이는 것으로 셈 — display:none 만 빠짐 · 경험치만 오른 포켓몬 숫자는 빠져도 되는 단계가 있어 참고) · 상자가 패널 밖으로 나간 px
     예) python dev/text-fit.py out w=240-720 check=result scene=result ups=3 trainer=3
+  cover=<A 선택자>@<B 선택자> (ideas 1665 · ux-rules U3) — 폭마다 보이는 A 가 보이는 B 를 덮은 넓이 (px²) · 예) cover=.pg-first-tip@.pg-hero-wrap,.pg-foe-trainer,.pg-banner.pg-lobby
   reload=<n> — n 폭마다 다시 불러옴 (시간이 지나면 넘어가는 장면 — 결과 상자는 resultMs 5초 · check=result 는 기본 8폭마다 · at 600)
   나온 것 = <out_dir>/fit.json (변형 → 폭 → 글 칸) · summary.md (걸린 것을 글 칸마다 폭 구간으로 · win 보다 줄이 는 곳 · check=result 면 빠진 것) · 머리 없는 브라우저 1개 (끝나면 PID 로 끔)"""
 import importlib.util
@@ -53,6 +54,9 @@ AT_ARG = kv.pop("at", None)
 SETTLE = int(kv.pop("settle", 6))
 ROOT_SEL = kv.pop("root", "#pokemon-game")
 CHECK = kv.pop("check", "")
+COVER = kv.pop("cover", "")
+if COVER and "@" not in COVER:
+    sys.exit("cover=<A 선택자>@<B 선택자>")
 AT = int(AT_ARG) if AT_ARG is not None else (600 if CHECK == "result" else 2500)
 RELOAD = int(kv.pop("reload", 8 if CHECK == "result" else 0))
 CUSTOM = {k[4:]: kv.pop(k) for k in list(kv) if k.startswith("css.")}
@@ -182,6 +186,26 @@ CHECK_RESULT = r"""(() => {
 })()"""
 
 
+# A 가 B 를 덮은 넓이 (cover= — 둘 다 보이는 것만 · 서로 안에 든 것은 뺌)
+COVER_JS = r"""((A, B) => {
+  const w = document.getElementById('f').contentWindow, d = w.document;
+  const shown = (e) => { for (let p = e; p && p !== d.documentElement; p = p.parentElement) { const cs = w.getComputedStyle(p); if (cs.display === 'none' || cs.visibility === 'hidden') return false; } return true; };
+  const name = (e) => { const c = [...e.classList].filter((x) => x.startsWith('pg-')).slice(0, 3).join('.'); return e.tagName.toLowerCase() + (c ? '.' + c : ''); };
+  const as = [...d.querySelectorAll(A)].filter(shown), bs = [...d.querySelectorAll(B)].filter(shown);
+  const out = [];
+  for (const a of as) {
+    const r = a.getBoundingClientRect();
+    for (const b of bs) {
+      if (a.contains(b) || b.contains(a)) continue;
+      const q = b.getBoundingClientRect();
+      const ox = Math.min(r.right, q.right) - Math.max(r.left, q.left), oy = Math.min(r.bottom, q.bottom) - Math.max(r.top, q.top);
+      if (ox > 0.5 && oy > 0.5) out.push([name(a), name(b), Math.round(ox * oy)]);
+    }
+  }
+  return out;
+})"""
+
+
 def settle(ws):
     ws.call("Runtime.evaluate", {"expression": f"new Promise((r) => {{ const w = {GW}; let k = 0; const f = () => (++k >= {SETTLE} ? r(1) : w.requestAnimationFrame(f)); w.requestAnimationFrame(f); }})", "awaitPromise": True, "returnByValue": True})
 
@@ -204,7 +228,7 @@ def load(ws, port, name, W):
 
 
 def run_variant(ws, port, name):
-    res, chk = {}, {}
+    res, chk, cov = {}, {}, {}
     for i, W in enumerate(WIDTHS):
         if i == 0 or (RELOAD and i % RELOAD == 0):
             load(ws, port, name, W)
@@ -213,7 +237,10 @@ def run_variant(ws, port, name):
         res[W] = ws.ev(f"{MEASURE}({json.dumps(ROOT_SEL)})") or []
         if CHECK == "result":
             chk[W] = ws.ev(CHECK_RESULT)
-    return res, chk
+        if COVER:
+            a, b = COVER.split("@", 1)
+            cov[W] = ws.ev(f"{COVER_JS}({json.dumps(a)}, {json.dumps(b)})") or []
+    return res, chk, cov
 
 
 def ranges(ws):
@@ -258,6 +285,21 @@ def summarize_check(chk):
     return "\n".join(lines)
 
 
+def summarize_cover(cov):
+    """cover= — 변형마다 (A · B) 짝이 덮은 폭 구간 · 가장 큰 넓이"""
+    lines = [f"# 덮음 (cover={COVER})", ""]
+    for v in VARS:
+        pairs = {}
+        for W, items in cov.get(v, {}).items():
+            for a, b, area in items:
+                pairs.setdefault((a, b), []).append((W, area))
+        lines.append(f"## {v} — 덮은 짝 {len(pairs)}")
+        for (a, b), ws in sorted(pairs.items(), key=lambda x: x[1][0][0]):
+            lines.append(f"- `{a}` → `{b}` · 가장 큰 {max(x[1] for x in ws)}px² · 폭 {ranges([x[0] for x in ws])}")
+        lines.append("")
+    return "\n".join(lines)
+
+
 def summarize(data):
     lines = [f"# 글자 맞춤 — {' '.join(f'{k}={v}' for k, v in kv.items())} · h={H_} · w={WIDTHS[0]} ~ {WIDTHS[-1]} (간격 {STEP}) · 변형 {', '.join(VARS)}", ""]
     base = data.get("win")
@@ -297,7 +339,7 @@ def main():
     s.bind(("127.0.0.1", 0))
     dbg = s.getsockname()[1]
     s.close()
-    data, chk = {}, {}
+    data, chk, cov = {}, {}, {}
     t0 = time.time()
     with tempfile.TemporaryDirectory(prefix=gs.PROF_PREFIX, ignore_cleanup_errors=True) as prof:
         p = subprocess.Popen([gs.browser(), *gs.headless_flags(), f"--remote-debugging-port={dbg}", f"--user-data-dir={prof}", f"--window-size={max(WIDTHS)},{H_}", *gs.hide_scrollbars(),
@@ -321,12 +363,12 @@ def main():
             ws.call("Page.bringToFront")
             ws.call("Emulation.setDeviceMetricsOverride", {"width": max(WIDTHS), "height": H_, "deviceScaleFactor": 1, "mobile": False})
             for v in VARS:
-                data[v], chk[v] = run_variant(ws, port, v)
+                data[v], chk[v], cov[v] = run_variant(ws, port, v)
                 print(f"{v} — 폭 {len(WIDTHS)}개 잼 ({time.time() - t0:.0f}초)")
         finally:
             gs.kill_browser(p, prof)
-    json.dump({"q": kv, "h": H_, "widths": WIDTHS, "vars": VARS, "data": data, **({"check": chk} if CHECK else {})}, open(os.path.join(out, "fit.json"), "w", encoding="utf-8"), ensure_ascii=False)
-    text = summarize(data) + ("\n" + summarize_check(chk) if CHECK == "result" else "")
+    json.dump({"q": kv, "h": H_, "widths": WIDTHS, "vars": VARS, "data": data, **({"check": chk} if CHECK else {}), **({"cover": cov} if COVER else {})}, open(os.path.join(out, "fit.json"), "w", encoding="utf-8"), ensure_ascii=False)
+    text = summarize(data) + ("\n" + summarize_check(chk) if CHECK == "result" else "") + ("\n" + summarize_cover(cov) if COVER else "")
     open(os.path.join(out, "summary.md"), "w", encoding="utf-8").write(text + "\n")
     print(text)
 

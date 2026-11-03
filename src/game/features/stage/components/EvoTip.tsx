@@ -11,6 +11,7 @@ import { afterFonts } from '../../../ui/fonts';
 import { Icon } from '../../../ui/Icon';
 import { KeyCap } from '../../../ui/KeyCap';
 import { Sprite } from '../../../ui/Sprite';
+import { coversStage } from '../../../ui/tip-fit';
 import { contentWidth, FIT_ROOM } from '../../../ui/useFit';
 import { ITEM_ICON } from '../../menu/model';
 
@@ -33,14 +34,8 @@ function tipOverflows(body: HTMLElement): boolean {
   const lines = Array.from(body.querySelectorAll<HTMLElement>(':scope > .pg-evo-line')).filter((l) => l.getClientRects().length > 0);
   if (lines.some((l, i) => contentWidth(l) * FIT_ROOM + (i === 0 ? chipW : parseFloat(getComputedStyle(l).paddingLeft) || 0) > room + 0.5)) return true;
   if (!tip.classList.contains('pg-evo-low') || lines.length < 2) return false;
-  const r = tip.getBoundingClientRect();
-  const mid = r.left + r.width / 2;
-  const half = (r.width * FIT_ROOM) / 2;
-  const game = tip.closest('#pokemon-game') ?? document;
-  return [game.querySelector('.pg-hero-wrap'), game.querySelector('.pg-foe-trainer')].some((el) => {
-    const o = el?.getBoundingClientRect();
-    return !!o && o.width > 0 && mid - half < o.right + 2 && mid + half > o.left - 2 && r.top < o.bottom;
-  });
+  // 덮음 판정은 공통 (ui/tip-fit — ideas 1665 · FirstTip fit 과 같은 판정) · 맥 폭으로 늘려 잼
+  return coversStage(tip, FIT_ROOM);
 }
 
 /** 넘치면 한 단계씩 올림 · 패널 크기가 바뀌면 0 부터 · 글꼴이 늦게 오면 다시 잼 (ui/useFit 과 같은 틀) */
