@@ -13,7 +13,7 @@
     걸침 = 연출 캔버스 위 끝 (--pg-fx-top · 정보줄) 위아래 4px 에 같은 세로줄 8px 넘게 0.3초 넘게 (U4) · 숨음 = 위 끝 위 40px 띠 점이 아래보다 많음 (60% · 1500px² 넘게)
     3:3 없음 = 3:3 판인데 3:3 장면이 한 번도 없음 (만남 · 고르기에서 멈춤 · 1:1 로 감 — 판 표 · 매개변수 확인, 야생 판은 뺌)
     가림 = 3:3 판 · 글 상자가 발밑 판 (키 칸 · HP) · 다른 판의 키 칸 ([2] [3]) 위에 0.1초 넘게 그려짐 (ideas 745 — 겹친 곳 가운데 점에서 위에 그린 것으로 봄) · 서 있는 포켓몬 몸 가운데는 "가림 참고"
-    1초 = 한글 글이 1초 안에 나타났다 사라짐 (U1 — 숫자 · 키 칸 · 짧은 낱말은 뺌) · 발밑 판 칩 (상대 "!" · 다 참) 은 글자 수와 상관없이 칩 열쇠로 (ideas 1683 · "곧" · N초 는 참고) · 쓰러짐 이름은 필살기 · 힘겨루기 장면이 가린 뒤 다시 1초 넘게 뜨면 참고 (bugs 1919) · 잘림 = 글 실제 너비가 칸보다 넓음 (U4) · 겹침 말 = 글 상자끼리 30px² 넘게 (U1 가림)
+    1초 = 한글 글이 1초 안에 나타났다 사라짐 (U1 — 숫자 · 키 칸 · 짧은 낱말은 뺌 · 짧은 예고 "곧" 은 0.25초 아래 번쩍만 — ideas 1680) · 발밑 판 칩 (상대 "!" · 다 참) 은 글자 수와 상관없이 칩 열쇠로 (ideas 1683 · "곧" · N초 는 참고) · 쓰러짐 이름은 필살기 · 힘겨루기 장면이 가린 뒤 다시 1초 넘게 뜨면 참고 (bugs 1919) · 잘림 = 글 실제 너비가 칸보다 넓음 (U4) · 겹침 말 = 글 상자끼리 30px² 넘게 (U1 가림)
     깜빡임 = 실제로 그린 화면 번쩍 (__fxTrace 'F' — 0.34초 상한을 지난 것) 이 1초에 3번 넘게 · 쓰러짐 박자 = "쓰러졌다" 글이 그 칸이 쓰러진 모습보다 80ms 넘게 먼저 (U2)
   dev/game-shots.py 의 시험 서버 · 브라우저 도구를 씀 · 끝나면 브라우저를 PID 로 끔 (정리 — python dev/cleanup.py --mine dev)"""
 import base64
@@ -662,6 +662,9 @@ def step(ws, W, s, acts, el, rnd, cfg):
 
 
 SKIP_SHORT = ("Lv", "HP")
+# 짧은 예고 낱말 (U1 목록 "곧!") — 3자 아래라도 셈 · 정한 박자 ("곧" → 0.3초 뒤 "!") 보다 훨씬 짧게 (FLASH_MS 아래) 보였다 사라지면 번쩍으로 걸림 (ideas 1680 — 0.05초 번쩍을 못 보던 것)
+SHORT_U1 = ("곧", "곧!")
+FLASH_MS = 250
 # ux-rules U1 "중요한 순간" 목록에 드는 글 — 나머지 (기술 말 · 상태 말 · 잡는 중) 는 "1초 참고" 로만
 # (던졌다 ≠ 졌다 · "클릭해 막기" 는 막기 창 길이 그대로인 안내라 뺌)
 U1_WORDS = r"쓰러졌|다 참|필살기|합동|끼어들|압도|VS|승부|이겼|(?<!던)졌다|잡았|아깝|도망|NEW|처음|완벽|좋아!|조금 (빨|늦)|레벨|진화|스탯|얻었|클리어|보상|관장|체육관|곧!|마지막|반격|쳐내|받아쳐|못 써|안 찼|지금!|힘겨루기|목표|다 했|기회"
@@ -703,6 +706,11 @@ def judge(K, flashes, lum=()):
         # 3:3 띠 · 컷인 글 (필살기 이름 "용성군!" 등) 은 U1 목록 (3:3 띠 · 필살기 이름) — 이름만으로는 U1 낱말에 안 걸려 못 보던 것 (UX 리뷰어 #98)
         if re.search(r"@\S*(band|cutin)", key):
             u1.add(txt)
+        if txt.strip() in SHORT_U1:
+            # 발밑 판 예고 칩 (pg-team-warn) 은 아래 칩 줄이 칩 열쇠로 셈 — 두 번 세지 않게
+            if "@pg-team-warn" not in key:
+                runs.setdefault(txt.strip(), []).extend(k.get("runs", []))
+            continue
         if len(txt) < 3 or txt.startswith(SKIP_SHORT):
             continue
         # 쓰러짐 줄은 이름마다 ("통통코 · 레디바 쓰러졌다!" — 이름이 늘어도 같은 이름은 이어 봄, ux-rules #131)
@@ -740,8 +748,10 @@ def judge(K, flashes, lum=()):
                 # 쓰러짐 이름은 장면이 가린 뒤 다시 1초 넘게 떠야 참고 (bugs 1919 — 1.2초 못 채운 이름은 장면 뒤에 다시 · 안 뜨면 그대로 걸림, 14판)
                 back = next((b2 - a2 for a2, b2 in merged if a2 > b and b2 - a2 >= 950), None) if txt.endswith("쓰러졌다!") else None
                 cut = cut and (not txt.endswith("쓰러졌다!") or back is not None)
-                big = isu1 and b - a < 950 and not cut
-                why = ({"뜻": f"장면이 가림 → 장면 뒤 다시 {back} ms (1919)"} if back else {"뜻": "필살기 장면이 열려 가려짐 (상태 칩 — 1876)"}) if cut else {} if big or not isu1 else {"뜻": "재는 간격 안"}
+                # 짧은 예고 낱말은 번쩍 (FLASH_MS 아래) 만 걸림 — 그보다 긴 것은 정한 박자 ("곧" → "!") 라 참고
+                short = txt in SHORT_U1
+                big = (b - a < FLASH_MS if short else isu1 and b - a < 950) and not cut
+                why = ({"뜻": f"장면이 가림 → 장면 뒤 다시 {back} ms (1919)"} if back else {"뜻": "필살기 장면이 열려 가려짐 (상태 칩 — 1876)"}) if cut else {"뜻": f"짧은 예고 번쩍 ({FLASH_MS}ms 아래 — 1680)"} if big and short else {"뜻": "짧은 예고 — 정한 박자 (참고)"} if short else {} if big or not isu1 else {"뜻": "재는 간격 안"}
                 out["1초" if big else "1초 참고"].append({"글": txt, "보인 ms": b - a, "때": a, **why})
     # 칩 줄 (ideas 1683) — 발밑 판 칩은 칩 열쇠로 이어 봄 · 상대 "!" · 다 참 은 U1 1초 (bugs 2732) · "곧" · N초 는 참고 ("곧" 은 0.3초 뒤 "!" 로 넘어가는 것이 정한 박자)
     #   판 끝 (team:over) 에 지워진 칩 · 누른 뒤 0.4초 안에 사라진 칩 (사람이 쓴 것) 은 뺌
@@ -758,8 +768,10 @@ def judge(K, flashes, lum=()):
         for a, b in merged:
             if not 0 < b - a < 1000 or any(-100 <= b - t <= 700 for t in c_overs) or any(-150 <= b - t <= 400 for t in c_presses):
                 continue
-            big = txt in ("!", "다 참") and b - a < 950
-            out["1초" if big else "1초 참고"].append({"글": f"칩 {key}", "보인 ms": b - a, "때": a, **({} if big else {"뜻": "칩 — 참고 (곧 · N초 · 재는 간격 안)"})})
+            # "곧" 칩도 FLASH_MS 아래 번쩍이면 걸림 (1680 — 정한 박자 0.3초 → "!" 는 참고 그대로)
+            flash = txt.startswith("곧") and b - a < FLASH_MS
+            big = (txt in ("!", "다 참") and b - a < 950) or flash
+            out["1초" if big else "1초 참고"].append({"글": f"칩 {key}", "보인 ms": b - a, "때": a, **({"뜻": f"짧은 예고 번쩍 ({FLASH_MS}ms 아래 — 1680)"} if flash else {} if big else {"뜻": "칩 — 참고 (곧 · N초 · 재는 간격 안)"})})
     for key, c in (K.get("clip") or {}).items():
         # 패널 밖은 0.3초 넘게 머문 것만 (VS · 띠가 미끄러져 들어오는 동안은 뺌)
         if c.get("out") and c["last"] - c["first"] < 300:
