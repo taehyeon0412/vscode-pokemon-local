@@ -110,6 +110,9 @@ def main():
     params = {"size": a.size, "theme": a.theme, "shim": 1}
     if a.bundle:
         params["bundle"] = "/" + os.path.relpath(os.path.abspath(a.bundle), HERE).replace(os.sep, "/")
+    else:
+        # 묶음 그대로면 ult/ 보다 옛것인지 (game-shots build_check — game.js 는 이 도구가 안 씀)
+        gs.build_check(HERE, game=False)
     if a.p:
         params["p"] = a.p
     if a.slow:

@@ -364,12 +364,59 @@ class Quiet(SimpleHTTPRequestHandler):
         super().do_GET()
 
 
+def newest(top, ok):
+    """top 아래에서 ok(파일 이름) 인 파일 가운데 가장 늦게 고친 것 (시각, 경로) — 없으면 (0, None) · 테스트 판 모음 (__snapshots__) 은 뺌"""
+    t, who = 0.0, None
+    for d, dirs, fs in os.walk(top):
+        dirs[:] = [x for x in dirs if x != "__snapshots__"]
+        for f in fs:
+            if ok(f):
+                m = os.path.getmtime(os.path.join(d, f))
+                if m > t:
+                    t, who = m, os.path.join(d, f)
+    return t, who
+
+
+# 같이 쓴 파일끼리 (git 체크아웃 · rebase 가 한 번에 씀) 밀리초 차이로 옛것이 되지 않게
+BUILD_SLACK_S = 2.0
+
+
+def build_check(root=None, game=True):
+    """시험 창 빌드가 고친 코드보다 옛것인지 — 찍기 · 재기 도구가 빌드를 안 해 TS 를 고친 뒤에도 옛 game.js 로 판 · perf-guard 를 찍던 것 (bugs 1937 · 783 B)
+    main-bundle.js 가 ult/*.js 보다 옛것 = 멈춤 (커밋하는 파일이라 도구가 대신 만들지 않음 — make-moves.py 먼저) ·
+    game.js · game.css 가 src/game 보다 옛것 = 스스로 npm run build (저장소에 안 올라가는 결과물) · PG_BUILD_CHECK=0 이면 건너뜀"""
+    if os.environ.get("PG_BUILD_CHECK") == "0":
+        return
+    root = root or HERE
+    media = os.path.join(root, "extension", "media")
+    ult_t, ult_f = newest(os.path.join(root, "ult"), lambda f: f.endswith(".js"))
+    bundle = os.path.join(media, "main-bundle.js")
+    if ult_f and (not os.path.exists(bundle) or ult_t > os.path.getmtime(bundle) + BUILD_SLACK_S):
+        sys.exit(f"빌드 먼저 — main-bundle.js 가 {os.path.relpath(ult_f, root)} 보다 옛것: python make-moves.py 뒤 다시 (건너뛰기 PG_BUILD_CHECK=0)")
+    if not game:
+        return
+    src_t, src_f = newest(os.path.join(root, "src", "game"), lambda f: f.endswith((".ts", ".tsx", ".css", ".json")) and ".test." not in f)
+    outs = [os.path.join(media, "game", n) for n in ("game.js", "game.css")]
+    out_t = min((os.path.getmtime(p) if os.path.exists(p) else 0.0) for p in outs)
+    if src_t > out_t + BUILD_SLACK_S:
+        print(f"  빌드가 옛 판 ({os.path.relpath(src_f, root)} 이 game.js 보다 새것) → npm run build", flush=True)
+        r = subprocess.run(["node", "scripts/build.mjs"], cwd=root, capture_output=True, text=True, encoding="utf-8", errors="replace")
+        if r.returncode != 0:
+            sys.exit("빌드 먼저 — npm run build 실패: " + (r.stderr or r.stdout)[-800:])
+
+
+class Server(ThreadingHTTPServer):
+    # 대기열 64 — 기본 5 면 3:3 시작 때 그림 요청이 한꺼번에 몰려 윈도우가 연결을 거절해 그림 하나가 깨진 채 (깨진 그림 상자) 찍히던 것 (bugs 1936)
+    request_queue_size = 64
+
+
 def serve():
+    build_check()
     s = socket.socket()
     s.bind(("127.0.0.1", 0))
     port = s.getsockname()[1]
     s.close()
-    httpd = ThreadingHTTPServer(("127.0.0.1", port), Quiet)
+    httpd = Server(("127.0.0.1", port), Quiet)
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     return httpd, port
 
