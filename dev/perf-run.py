@@ -1,5 +1,5 @@
 """게임 성능 재기 (orders #139 · #140 최적화 — 2026-10-30): team-run 판을 검사 · 연속 캡처 없이 돌려 프레임 · 멈칫 · 그리기 수 · 메모리 · 켜기 시간을 잼
-  PG_ROOT=<잴 빌드 폴더> python dev/perf-run.py <out_dir> [file=dev/perf-runs.json] [from=1] [to=N] [rep=3] [dpr=1.5] [gpu=1] [draws=1] [trace=0]
+  PG_ROOT=<잴 빌드 폴더> python dev/perf-run.py <out_dir> [file=dev/perf-runs.json] [from=1] [to=N] [rep=3] [dpr=1.5] [gpu=1] [draws=1] [trace=0] [msamp=3] [mdump=0]
   rep    판마다 몇 번 (가운데 값을 표에 — 기획 #140 "3번 재서 가운데")
   dpr    화면 배율 (태현 님 윈도우 1.5 · 맥 2) · gpu 1 = GPU 켬 (VS Code 처럼 — 0 이면 지금까지 찍던 시험 창 · 멈칫이 안 보임, #139)
   draws  1 = 한 번 더 돌려 프레임마다 캔버스 그리기 수를 셈 (세는 동안은 느려져 시간 지표엔 안 씀)
@@ -60,6 +60,10 @@ if kv.get("prof", "0") == "1":
 # cats=<더할 분류,…> — GPU · 그리기 쪽 (예: gpu,viz,cc,disabled-by-default-gpu.service,disabled-by-default-skia.gpu) 을 더 볼 때
 if kv.get("cats"):
     CATS += "," + kv["cats"]
+# mdump=<ms> — 크롬 메모리 분류 기록 (memory-infra 가벼운 덤프) 을 그 간격으로 · trace.jsonl 에 (렌더러 · GPU 가 순간 튈 때 어느 부품인지 — bugs 1932) · trace=1 을 켬
+MDUMP_MS = int(kv.get("mdump", "0"))
+if MDUMP_MS:
+    TRACE = True
 
 # 검사기 대신 가벼운 기록기 — 장면 · 프레임 사이 (바깥 창 rAF 시각 = 진짜 시계) 모두 · 긴 일 · 힙 · 켜기 (탐색 시작 → 기록기 = 게임 손잡이가 뜬 뒤)
 LIGHT = r"""
@@ -231,7 +235,11 @@ def call(self, method, params=None):
             if TRACE and not state["tracing"]:
                 state["trace"] = open(os.path.join(state["out"], "trace.jsonl"), "w", encoding="utf-8")
                 state["done"] = False
-                _orig_call(self, "Tracing.start", {"categories": CATS, "transferMode": "ReportEvents"})
+                if MDUMP_MS:
+                    cfg = {"recordMode": "recordAsMuchAsPossible", "includedCategories": ["disabled-by-default-memory-infra"], "excludedCategories": ["toplevel", "sequence_manager", "blink", "loading", "devtools", "v8", "cc", "gpu", "viz", "benchmark", "renderer.scheduler", "mojom", "ipc", "base", "browser", "navigation", "net", "__metadata"], "memoryDumpConfig": {"triggers": [{"mode": "light", "periodicIntervalMs": MDUMP_MS}]}}
+                    _orig_call(self, "Tracing.start", {"traceConfig": cfg, "transferMode": "ReportEvents"})
+                else:
+                    _orig_call(self, "Tracing.start", {"categories": CATS, "transferMode": "ReportEvents"})
                 state["tracing"] = True
             return r
     return _orig_call(self, method, params)
@@ -323,7 +331,8 @@ def run(cfg, out, draws=False):
     state.update(out=out, shot=0.0, mem=None, draws=draws, dc=None, ready=None, heap_at=list(HEAP_AT), heapf=None, init_js=cfg.get("initJs"))
     import threading
     stop, rows = threading.Event(), []
-    th = threading.Thread(target=sampler, args=(stop, rows, time.time()), daemon=True)
+    t0 = time.time()
+    th = threading.Thread(target=sampler, args=(stop, rows, t0), daemon=True)
     th.start()
     try:
         tr.run_one(out, {**cfg, "q": {**cfg.get("q", {}), "shim": SHIM}})
@@ -339,6 +348,8 @@ def run(cfg, out, draws=False):
     if rows:
         m["mem_max"] = {"renderer": max(r[1] for r in rows), "gpu": max(r[2] for r in rows), "all": max(r[3] for r in rows)}
         m["msamp"] = rows
+        # 표본 시각 (판 시작부터 초) 에서 이 값을 빼면 기록기 시각 (views · phases ms ÷ 1000) — 튄 표본이 어느 장면인지 (bugs 1932)
+        m["msamp_ready"] = round(state["ready"] - t0, 2) if state.get("ready") else None
     if draws:
         fr = json.loads(state["dc"]) if isinstance(state.get("dc"), str) else []
         fr = [n for n in fr if n > 0]
