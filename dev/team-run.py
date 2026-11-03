@@ -1,6 +1,6 @@
 """3:3 한 판을 처음부터 끝까지 자동으로 돌려 연속 캡처 + 자동 검사 (2026-10-26 #98 준비 — "팀 10판 큼 0 → 태현 님 10판")
   python dev/team-run.py <out_dir> run=<번호>        dev/team-runs.json 의 그 판 (1 ~)
-  python dev/team-run.py <out_dir> --all [from=<번호>] [to=<번호>]   표의 판 차례로 (<out_dir>/run01 … · 12 · 13 = 내 혼자 필살기 only 0 · 14 = 쓰러짐 직후 바로 끼어들기 #131) · 브라우저는 한 번에 1개
+  python dev/team-run.py <out_dir> --all [from=<번호>] [to=<번호>]   표의 판 차례로 (<out_dir>/run01 … · 12 · 13 = 내 혼자 필살기 only 0 · 14 = 쓰러짐 직후 바로 끼어들기 #131 · 15 · 16 = "다 참" 칩이 있는 칸은 안 누르고 다른 칸으로 모으기 · 끼어들기 → 힘겨루기 — 칩이 금 판으로 남는지 1935) · 브라우저는 한 번에 1개
   python dev/team-run.py <out_dir> run=<번호> bfast=1   남은 k=v 는 그 판 시험 창 매개변수에 더함 (bfast=1 빠르게 켬 — 켬 · 끔 견주기는 dev/team-breakdown.py)
   python dev/team-run.py <out_dir> run=<번호> size=240x150 seed=5   그 판을 다른 크기 · seed 로 (size 가 가로x세로일 때만 — 아니면 시험 창 포켓몬 크기)
   python dev/team-run.py <out_dir> [size=860x187] [seed=7] [k=v …]   표 없이 한 판 (k=v = dev/game-host.js 매개변수)
