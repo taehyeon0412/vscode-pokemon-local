@@ -683,11 +683,14 @@ body.vscode-light .pg-stage.pg-bg-arena-volcano {
   50% { opacity: 0.4; }
 }
 
-/* 튀어나옴 — 타입 · 지형별로 (gdd 4.6: 풀숲 · 물 · 하늘 급강하 · 땅 뚫고 · 나무 떨어짐 · 그림자 스르륵) */
+/* 튀어나옴 — 타입 · 지형별로 (gdd 4.6: 풀숲 · 물 · 하늘 급강하 · 땅 뚫고 · 나무 떨어짐 · 그림자 스르륵)
+   픽셀 박자 = 50ms 장면 8장 (steps(1) — 장면마다 멈춘 그림) · 옮김 · 자름은 그림 점 (--pg-px = 길 그림 배율) 의 정수배만 · 크기 · 돌림 · 색 돌림 안 씀
+   (예전 ease-out · scale 0.6 → 1.05 · scaleY 0.4 · rotate · hue-rotate 는 0.4초 동안 그림이 소수 배율로 흐려짐 — 원칙 4 · 8, 2026-11-04 기획).
+   자름 (clip-path 아래쪽) = 땅 · 풀 · 물 밑에 있는 몫 — 내린 만큼 아래를 잘라 땅선 위만 보임 */
 .pg-wild {
   line-height: 0;
   z-index: 3;
-  animation: pg-pop-up 0.4s ease-out both;
+  animation: pg-pop-up 0.4s steps(1, end) both;
 }
 .pg-pop-tree {
   animation-name: pg-pop-down;
@@ -704,31 +707,99 @@ body.vscode-light .pg-stage.pg-bg-arena-volcano {
 .pg-pop-shadow {
   animation-name: pg-pop-fade;
 }
+/* 풀 솟음 — 풀숲 밑에서 뛰어올라 내려앉음 (첫 장면부터 머리 끝이 보임 — 흔적 → 포켓몬 사이 빈 장면 없게, 11-04 UX 작음 1) */
 @keyframes pg-pop-up {
-  0% { transform: translateX(-50%) translateY(60%) scale(0.6); opacity: 0; }
-  60% { transform: translateX(-50%) translateY(-25%) scale(1.05); opacity: 1; }
-  100% { transform: translateX(-50%) translateY(0) scale(1); }
+  0% { transform: translateX(-50%) translateY(calc(var(--pg-px) * 16)); clip-path: inset(0 0 calc(var(--pg-px) * 16) 0); }
+  12.5% { transform: translateX(-50%) translateY(calc(var(--pg-px) * 10)); clip-path: inset(0 0 calc(var(--pg-px) * 10) 0); }
+  25% { transform: translateX(-50%) translateY(calc(var(--pg-px) * 3)); clip-path: inset(0 0 calc(var(--pg-px) * 3) 0); }
+  37.5% { transform: translateX(-50%) translateY(calc(var(--pg-px) * -5)); clip-path: inset(0); }
+  50% { transform: translateX(-50%) translateY(calc(var(--pg-px) * -8)); }
+  62.5% { transform: translateX(-50%) translateY(calc(var(--pg-px) * -7)); }
+  75% { transform: translateX(-50%) translateY(calc(var(--pg-px) * -3)); }
+  87.5%, 100% { transform: translateX(-50%); clip-path: inset(0); }
 }
+/* 나무에서 떨어짐 — 위에서 빨라지며 떨어져 한 번 튐 · 시작 34칸 (44 칸이면 240 × 150 에서 앞 두 장면이 띠 밑에 매달린 발로 보임, 11-04 UX 작음 3) */
 @keyframes pg-pop-down {
-  0% { transform: translateX(-50%) translateY(-220%); opacity: 0; }
-  100% { transform: translateX(-50%) translateY(0); opacity: 1; }
+  0% { transform: translateX(-50%) translateY(calc(var(--pg-px) * -34)); opacity: 0; }
+  12.5% { transform: translateX(-50%) translateY(calc(var(--pg-px) * -28)); opacity: 1; }
+  25% { transform: translateX(-50%) translateY(calc(var(--pg-px) * -17)); }
+  37.5% { transform: translateX(-50%) translateY(calc(var(--pg-px) * -7)); }
+  50% { transform: translateX(-50%); }
+  62.5% { transform: translateX(-50%) translateY(calc(var(--pg-px) * -4)); }
+  75% { transform: translateX(-50%) translateY(calc(var(--pg-px) * -2)); }
+  87.5%, 100% { transform: translateX(-50%); opacity: 1; }
 }
+/* 땅 뚫고 — 땅 밑에서 천천히 솟으며 좌우 1칸 흔들 (두 장면 = 0.1초마다 · 한 칸씩 — 빠른 떨림 아님, 11-04 UX 작음 4) */
 @keyframes pg-pop-rise {
-  0% { transform: translateX(-50%) translateY(100%); clip-path: inset(0 0 100% 0); }
-  100% { transform: translateX(-50%) translateY(0); clip-path: inset(0 0 0 0); }
+  0% { transform: translateX(-50%) translateY(calc(var(--pg-px) * 30)); clip-path: inset(0 0 calc(var(--pg-px) * 30) 0); }
+  12.5% { transform: translateX(calc(-50% - var(--pg-px))) translateY(calc(var(--pg-px) * 24)); clip-path: inset(0 0 calc(var(--pg-px) * 24) 0); }
+  25% { transform: translateX(calc(-50% - var(--pg-px))) translateY(calc(var(--pg-px) * 18)); clip-path: inset(0 0 calc(var(--pg-px) * 18) 0); }
+  37.5% { transform: translateX(-50%) translateY(calc(var(--pg-px) * 12)); clip-path: inset(0 0 calc(var(--pg-px) * 12) 0); }
+  50% { transform: translateX(calc(-50% + var(--pg-px))) translateY(calc(var(--pg-px) * 7)); clip-path: inset(0 0 calc(var(--pg-px) * 7) 0); }
+  62.5% { transform: translateX(calc(-50% + var(--pg-px))) translateY(calc(var(--pg-px) * 3)); clip-path: inset(0 0 calc(var(--pg-px) * 3) 0); }
+  75%, 100% { transform: translateX(-50%); clip-path: inset(0); }
 }
+/* 하늘에서 급강하 — 오른쪽 위에서 비스듬히 내려와 한 번 날갯짓 (돌림 없음) */
 @keyframes pg-pop-swoop {
-  0% { transform: translateX(150%) translateY(-260%) rotate(-20deg); opacity: 0; }
-  100% { transform: translateX(-50%) translateY(0) rotate(0deg); opacity: 1; }
+  0% { transform: translateX(calc(-50% + var(--pg-px) * 36)) translateY(calc(var(--pg-px) * -32)); opacity: 0; }
+  12.5% { transform: translateX(calc(-50% + var(--pg-px) * 30)) translateY(calc(var(--pg-px) * -27)); opacity: 1; }
+  25% { transform: translateX(calc(-50% + var(--pg-px) * 22)) translateY(calc(var(--pg-px) * -19)); }
+  37.5% { transform: translateX(calc(-50% + var(--pg-px) * 13)) translateY(calc(var(--pg-px) * -11)); }
+  50% { transform: translateX(calc(-50% + var(--pg-px) * 5)) translateY(calc(var(--pg-px) * -3)); }
+  62.5% { transform: translateX(-50%); }
+  75% { transform: translateX(-50%) translateY(calc(var(--pg-px) * -3)); }
+  87.5%, 100% { transform: translateX(-50%); opacity: 1; }
+}
+/* 물에서 솟음 — 물 밑에서 솟아 한 번 출렁 (물에 살짝 다시 잠김) + 물방울 점 셋이 튀었다 떨어짐 (풀과 다른 맛 — 11-04 UX 작음 2) */
+.pg-pop-water::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--pg-px) * 6);
+  width: calc(var(--pg-px) * 2);
+  height: calc(var(--pg-px) * 2);
+  animation: pg-pop-drops 0.4s steps(1, end) both;
+}
+/* 물방울 = 2칸 네모 셋 (게이지 파랑 · 글자 흰색 — 단단한 칸, 흐림 없음) · 몸 칸 안 (±13칸 — clip-path 가 몸 칸 밖을 자름) */
+@keyframes pg-pop-drops {
+  0%, 25% { opacity: 0; box-shadow: none; }
+  37.5% { opacity: 1; box-shadow: calc(var(--pg-px) * -9) calc(var(--pg-px) * -1) var(--pg-sos-gauge), calc(var(--pg-px) * 8) calc(var(--pg-px) * -2) var(--pg-sos-gauge), calc(var(--pg-px) * -5) calc(var(--pg-px) * -5) var(--pg-sos-ink); }
+  50% { box-shadow: calc(var(--pg-px) * -11) calc(var(--pg-px) * -5) var(--pg-sos-gauge), calc(var(--pg-px) * 10) calc(var(--pg-px) * -6) var(--pg-sos-gauge), calc(var(--pg-px) * -7) calc(var(--pg-px) * -9) var(--pg-sos-ink); }
+  62.5% { box-shadow: calc(var(--pg-px) * -12) calc(var(--pg-px) * -3) var(--pg-sos-gauge), calc(var(--pg-px) * 12) calc(var(--pg-px) * -4) var(--pg-sos-gauge), calc(var(--pg-px) * -8) calc(var(--pg-px) * -7) var(--pg-sos-ink); }
+  75% { box-shadow: calc(var(--pg-px) * -13) var(--pg-px) var(--pg-sos-gauge), calc(var(--pg-px) * 13) 0 var(--pg-sos-gauge), calc(var(--pg-px) * -9) calc(var(--pg-px) * -3) var(--pg-sos-ink); }
+  87.5%, 100% { opacity: 0; box-shadow: none; }
+}
+.pg-reduce-motion .pg-pop-water::after {
+  animation: none;
 }
 @keyframes pg-pop-splash {
-  0% { transform: translateX(-50%) translateY(40%) scaleY(0.4); opacity: 0; filter: hue-rotate(90deg); }
-  50% { transform: translateX(-50%) translateY(-30%) scaleY(1.15); opacity: 1; }
-  100% { transform: translateX(-50%) translateY(0) scaleY(1); filter: none; }
+  0% { transform: translateX(-50%) translateY(calc(var(--pg-px) * 18)); clip-path: inset(0 0 calc(var(--pg-px) * 18) 0); }
+  12.5% { transform: translateX(-50%) translateY(calc(var(--pg-px) * 10)); clip-path: inset(0 0 calc(var(--pg-px) * 10) 0); }
+  25% { transform: translateX(-50%) translateY(calc(var(--pg-px) * 2)); clip-path: inset(0 0 calc(var(--pg-px) * 2) 0); }
+  37.5% { transform: translateX(-50%) translateY(calc(var(--pg-px) * -6)); clip-path: inset(0); }
+  50% { transform: translateX(-50%) translateY(calc(var(--pg-px) * -7)); }
+  62.5% { transform: translateX(-50%) translateY(calc(var(--pg-px) * -2)); }
+  75% { transform: translateX(-50%) translateY(calc(var(--pg-px) * 3)); clip-path: inset(0 0 calc(var(--pg-px) * 3) 0); }
+  87.5% { transform: translateX(-50%) translateY(var(--pg-px)); clip-path: inset(0 0 var(--pg-px) 0); }
+  100% { transform: translateX(-50%); clip-path: inset(0); }
 }
+/* 그림자 스르륵 — 검은 그림자가 짙어진 뒤 색이 두 걸음에 들어옴 (점마다 칠 — 흐림 없음) */
 @keyframes pg-pop-fade {
   0% { opacity: 0; filter: brightness(0); }
-  100% { opacity: 1; filter: none; }
+  12.5% { opacity: 0.33; }
+  25% { opacity: 0.66; }
+  37.5% { opacity: 1; filter: brightness(0); }
+  50% { filter: brightness(0.35); }
+  62.5% { filter: brightness(0.7); }
+  75%, 100% { opacity: 1; filter: none; }
+}
+/* 동작 줄이기 — 옮기지 않고 제자리 그림자 0.2초 → 색 (모양 · 색으로 알아챔, ux-rules U1) */
+.pg-reduce-motion .pg-wild {
+  animation-name: pg-pop-still;
+}
+@keyframes pg-pop-still {
+  0% { filter: brightness(0); }
+  50%, 100% { filter: none; }
 }
 
 /* ⑭ 떨어진 아이템 · ⑯ 부탁하는 사람 · ⑥ 시설 */

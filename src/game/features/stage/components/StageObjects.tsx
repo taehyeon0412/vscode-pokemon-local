@@ -117,7 +117,8 @@ export function StageObjects({ objects, media, scale, ground, roomPx, buildRoomP
           case 'wild': {
             if (o.met) {
               return (
-                <span key={o.key} class={`pg-obj pg-wild pg-pop-${o.plan.trace}`} style={style}>
+                // --pg-px = 그림 점 하나 (튀어나옴 옮김 · 자름 — game.css pg-pop-*) · 크기 설정 1.5 · 2.5 배도 정수 px 로 (반 픽셀 옮김이 흐림을 더하지 않게)
+                <span key={o.key} class={`pg-obj pg-wild pg-pop-${o.plan.trace}`} style={{ ...style, '--pg-px': `${Math.max(1, Math.round(scale))}px` }}>
                   <Sprite media={media} form={o.plan.form} shiny={o.plan.shiny} scale={scale} faceLeft />
                 </span>
               );
