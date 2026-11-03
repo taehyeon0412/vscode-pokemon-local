@@ -765,8 +765,14 @@ def judge(K, flashes, lum=()):
             else:
                 merged.append([a, b])
         txt = key.split(" ", 2)[-1]
+        # 그 칸이 쓰러져 끝난 칩 (상대 "!" 가 필살기 전에 쓰러짐 — 위험이 사라진 것) 은 뺌 (bugs 2732 다시 보기 — 체육관 3:3 team-run 8 의 0.8초 "!" 가 거짓 걸림이던 것)
+        m_slot = re.search(r"(me|foe)(\d)", key)
+        down_at = (K.get("down") or {}).get(f"{m_slot.group(1)}-{m_slot.group(2)}") if m_slot else None
         for a, b in merged:
             if not 0 < b - a < 1000 or any(-100 <= b - t <= 700 for t in c_overs) or any(-150 <= b - t <= 400 for t in c_presses):
+                continue
+            if down_at is not None and -150 <= down_at - b <= 300:
+                out["1초 참고"].append({"글": f"칩 {key}", "보인 ms": b - a, "때": a, "뜻": "그 칸이 쓰러져 끝남 (위험이 사라짐)"})
                 continue
             # "곧" 칩도 FLASH_MS 아래 번쩍이면 걸림 (1680 — 정한 박자 0.3초 → "!" 는 참고 그대로)
             flash = txt.startswith("곧") and b - a < FLASH_MS
