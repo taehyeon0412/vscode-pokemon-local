@@ -332,7 +332,7 @@ def apply_move_look(lib):
     return len(looks)
 
 
-def write_bundle(table, acts, lib, movesets, shape, ult_lib, ults, out):
+def write_bundle(table, acts, lib, movesets, shape, ult_lib, ults, ult_type_lib, ult_type, out):
     src = open(BUNDLE, encoding="utf-8").read()
     # 지난번 블록 지우기 — 한 줄짜리(연결)부터, 그다음 여러 줄(코드)
     src = re.sub(" " + re.escape(BEGIN) + r" [^\n]*?" + re.escape(END), "", src)
@@ -352,6 +352,9 @@ def write_bundle(table, acts, lib, movesets, shape, ult_lib, ults, out):
     moves += "const POKEMON_SHAPE = " + json.dumps(shape, separators=(",", ":")) + ";\n"
     moves += "const ULT_LIB = " + json.dumps(ult_lib, ensure_ascii=False, separators=(",", ":")) + ";\n"
     moves += "const POKEMON_ULT = " + json.dumps(ults, separators=(",", ":")) + ";\n"
+    # 필살기 후보가 다 배운 기술과 이름이 같을 때 쓰는 타입 기본 필살기 (ULT_TYPE_LIB 번호 — 게임만 · 일반 모드 주머니 · 손가락흔들기엔 안 넣음, ideas 102 · orders #149)
+    moves += "const ULT_TYPE_LIB = " + json.dumps(ult_type_lib, ensure_ascii=False, separators=(",", ":")) + ";\n"
+    moves += "const POKEMON_ULT_TYPE = " + json.dumps(ult_type, separators=(",", ":")) + ";\n"
     # 필살기마다 본편 시작에서 처음 맞는 때 · 본편 길이 (dev/ult-fx.py 가 잼 — 3:3 합동 필살기가 같은 때 맞게, 열쇠 = "이름|틀")
     hit_path = os.path.join(ULT_DIR, "ult-hit.json")
     ult_hit = json.load(open(hit_path, encoding="utf-8")) if os.path.exists(hit_path) else {}
@@ -396,15 +399,17 @@ def ult_spread_names(names):
     return sorted(n for n in names if ko.get(n.replace(" ", "")) in spread_ids)
 
 
-def write_ult_moves(ult_lib, ults):
+def write_ult_moves(ult_lib, ults, ult_type_lib, ult_type):
     forms = {key: [ult_lib[i][0] for i in ids] for key, ids in sorted(ults.items())}
+    # 후보가 다 배운 기술이면 이 이름 (타입 기본 필살기 — 연출 POKEMON_ULT_TYPE 과 같은 표, ideas 102 · orders #149)
+    fallback = {key: ult_type_lib[i][0] for key, i in sorted(ult_type.items())}
     names = sorted({n for v in forms.values() for n in v})
     spread = ult_spread_names(names)
     if spread is None:
         # 캐시가 없으면 지난번 범위기 목록 그대로
         prev = json.load(open(ULT_MOVES_OUT, encoding="utf-8")) if os.path.exists(ULT_MOVES_OUT) else {}
         spread = [n for n in prev.get("spread", []) if n in names]
-    data = {"forms": forms, "spread": spread}
+    data = {"forms": forms, "spread": spread, "fallback": fallback}
     text = json.dumps(data, ensure_ascii=False, separators=(",", ":")) + chr(10)
     # 내용이 같으면 안 씀 — 윈도우 작업 사본은 CRLF (core.autocrlf) 라 LF 로 다시 쓰면 내용이 같아도 git 이 바뀜으로 봄 (#122)
     old = open(ULT_MOVES_OUT, encoding="utf-8").read() if os.path.exists(ULT_MOVES_OUT) else None
@@ -432,6 +437,7 @@ def main():
     ult_lib = []
     ult_index = {}
     ults = {}
+    type_of = {}
     for key, (dex, gen) in pokemon.items():
         move = next((MOVE_OF_TYPE[t] for t in types.get(dex, []) if t in MOVE_OF_TYPE), None)
         gif = os.path.join(EXT, "media", f"gen{gen}", key, "default_walk_8fps.gif")
@@ -465,16 +471,26 @@ def main():
                 ult_lib.append(m)
             ids.append(ult_index[k])
         ults[key] = ids
+        type_of[key] = primary_type(types.get(dex, []))
         if dex in JUMPERS:
             acts[key] = "jump"
         elif "flying" in types.get(dex, []) and dex not in WINGLESS:
             acts[key] = "fly"
+    # 필살기 후보가 다 배운 기술과 이름이 같을 때 (게임) — 타입 기본 필살기 (primary_type) · 따로 표 (ULT_TYPE_LIB — 일반 모드 ULT_LIB · 손가락흔들기 후보는 그대로, ideas 102 · orders #149)
+    ult_type_lib = []
+    ult_type = {}
+    for key, t in type_of.items():
+        m = TYPE_ULTS[t]
+        m = [m[0], m[1], m[2] if len(m) > 2 else {}]
+        if m not in ult_type_lib:
+            ult_type_lib.append(m)
+        ult_type[key] = ult_type_lib.index(m)
     looked = apply_move_look(lib)
-    write_bundle(table, acts, lib, movesets, shape, ult_lib, ults, out)
+    write_bundle(table, acts, lib, movesets, shape, ult_lib, ults, ult_type_lib, ult_type, out)
     subprocess.run(["node", "--check", out], check=True)
     if looked:
         print(f"기술마다 모양 (dev/move-look.json) {looked}개 — 다음은 python dev/move-fx.py (3:3 박자)")
-    write_ult_moves(ult_lib, ults)
+    write_ult_moves(ult_lib, ults, ult_type_lib, ult_type)
     counts = {m: sum(1 for v in table.values() if v[0] == m) for m in MOVE_OF_TYPE.values()}
     print(f"기술 {len(table)}종 — " + " · ".join(f"{m} {n}" for m, n in counts.items()))
     sizes = [len(v) for v in movesets.values()]

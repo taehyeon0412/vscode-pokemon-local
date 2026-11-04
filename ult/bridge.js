@@ -1471,8 +1471,12 @@ function fxAim(fx, g, o, t, ms = 0) {
 }
 
 // 게임에서는 그 포켓몬이 배운 기술과 이름이 같은 필살기를 피함 (이상해씨 "덩굴채찍" = 3 스킬의 덩굴채찍 — 필살기가 기술보다 약해 보임, 플레이 리뷰어 · ideas #102).
-// 일반 모드 주머니 순서 그대로 꺼내고, 이름이 겹칠 때만 겹치지 않는 것 중에서 — 다 겹치면 그대로
+// 일반 모드 주머니 순서 그대로 꺼내고, 이름이 겹칠 때만 겹치지 않는 것 중에서 — 다 겹치면 타입 기본 필살기 (꼬렛 필살앞니 · 전광석화 → 울트라대시어택, orders #149)
 const fxName = (s) => String(s || '').replace(/\s+/g, '');
+// 그 모습의 타입 기본 필살기 (make-moves.py ULT_TYPE_LIB · POKEMON_ULT_TYPE — 엔진 ult-moves.json fallback 과 같은 표) · 없으면 null
+const fxTypeUlt = (form) => (typeof POKEMON_ULT_TYPE !== 'undefined' && POKEMON_ULT_TYPE[form] !== undefined ? ULT_TYPE_LIB[POKEMON_ULT_TYPE[form]] || null : null);
+// 엔진이 고른 이름 → 그 모습 필살기 (다 겹쳐 엔진이 타입 기본으로 바꾼 것 포함)
+const fxUltNamed = (form, name) => (POKEMON_ULT[form] || []).map((k) => ULT_LIB[k]).find((v) => v && v[0] === name) || (fxTypeUlt(form)?.[0] === name ? fxTypeUlt(form) : null);
 function fxUltPick(form, avoid) {
     const e = ultEntry(form);
     const bad = new Set((avoid || []).map(fxName));
@@ -1481,7 +1485,8 @@ function fxUltPick(form, avoid) {
     }
     const list = (POKEMON_ULT[form] || []).map((i) => ULT_LIB[i]).filter((v) => v && !bad.has(fxName(v[0])));
     const plain = list.filter((v) => !ULT_SPECIALS.includes(v[1]));
-    return plain.length ? movePick(plain) : list.length ? movePick(list) : e;
+    const type = fxTypeUlt(form);
+    return plain.length ? movePick(plain) : list.length ? movePick(list) : type && !bad.has(fxName(type[0])) ? type : e;
 }
 
 function fxPlan(form, m) {
@@ -1514,8 +1519,8 @@ const FX_DUEL_FX = {
 const FX_DUEL_LONG = 59.75;
 function fxDuelEntry(kind, form, m, avoid, name) {
     if (kind === 'ult') {
-        const named = name && (POKEMON_ULT[form] || []).map((k) => ULT_LIB[k]).find((v) => v && v[0] === name && !ULT_SPECIALS.includes(v[1]));
-        if (named) {
+        const named = name && fxUltNamed(form, name);
+        if (named && !ULT_SPECIALS.includes(named[1])) {
             return named;
         }
         // 필살기 대결 — 그 포켓몬 필살기 (일반 모드 주머니 순서, 배운 기술과 이름이 같으면 다른 것), 특수 필살기 (튀어오르기 · 변신 · 손가락흔들기) 면 다른 것
@@ -1523,8 +1528,11 @@ function fxDuelEntry(kind, form, m, avoid, name) {
         if (e && !ULT_SPECIALS.includes(e[1])) {
             return e;
         }
-        const list = (POKEMON_ULT[form] || []).map((i) => ULT_LIB[i]).filter((v) => v && !ULT_SPECIALS.includes(v[1]));
-        return list.length ? movePick(list) : ['필살기', 'ultbeam', {}];
+        // 남은 것도 배운 기술과 같은 이름은 빼고 → 타입 기본 필살기 (잉어킹 튀어오르기가 빠지면 "몸통박치기" 가 대결 이름이 되던 것 — #149 테스터)
+        const bad = new Set((avoid || []).map(fxName));
+        const list = (POKEMON_ULT[form] || []).map((i) => ULT_LIB[i]).filter((v) => v && !ULT_SPECIALS.includes(v[1]) && !bad.has(fxName(v[0])));
+        const type = fxTypeUlt(form);
+        return list.length ? movePick(list) : type && !ULT_SPECIALS.includes(type[1]) && !bad.has(fxName(type[0])) ? type : ['필살기', 'ultbeam', {}];
     }
     const p = m && fxPlan(form, m);
     return [m ? m.name : '기술', FX_DUEL_FX[p && p.sig[1]] || 'ultbeam', { c: FX_TYPE_PAL[m && m.type] || 'normal' }];
@@ -1840,6 +1848,13 @@ function fxSoftTopTrim(L) {
 // 메가런처 (o.turtle · ultorb — runMegaLauncher): 박자표 번쩍 2833 = 메가진화 펑 · main 4172 → 구슬이 피해 0.6 ~ 0.8초 뒤에 닿던 것 → 발사 TS 4.5초 · 맞음 TX 4.9초 (#80 다시 찍기 ③)
 const FX_JOINT_FIRE = { hydro: [2720, 2880], launcher: [4500, 4900] };
 const fxTurtleFire = (e) => (e?.[2]?.turtle ? (e[1] === 'ultbeam' ? FX_JOINT_FIRE.hydro : e[1] === 'ultorb' ? FX_JOINT_FIRE.launcher : null) : null);
+// 3:3 장면 전환도 1:1 처럼 처음 닿는 때 피해 — 이상해꽃 하드플랜트 (o.venus · runHardPlant): 덩굴이 솟는 자리가 패널 폭으로 정해져 (상대 자리 아님) 박자표 한 값이 화면마다 어긋나고,
+// 메가진화 펑을 자기 둘레 터짐으로 재 기운 줄기에 피해 · 쓰러짐이 들어간 뒤 큰 덩굴이 1초 늦게 쓰러진 상대를 치던 것 (ideas 719 · U2).
+// 못 닿으면 (피해가 안 들어가 멈추지 않게) 덩굴 파도 끝 (runHardPlant 마지막 덩굴 = 본편 3.65 + 0.17 × 5초) 과 박자표 큰 맞음 가운데 늦은 쪽 1초 뒤 —
+// 박자표를 다시 재 큰 맞음이 메가진화 펑으로 바뀌어도 덩굴보다 먼저 쓰러지지 않게 (#149 코드 리뷰 작음 2)
+const fxContactHit = (e) => !!e?.[2]?.venus && e[1] === 'ultpillar';
+const FX_CONTACT_WAVE_MS = 4500;
+const FX_CONTACT_LATE_MS = 1000;
 // 줄기 보기 캔버스에 그리는 중 — 화면 전체를 칠하는 입자 (빔이 화면을 물들이는 판 등) 는 이때 안 칠함 (계단 · 앞끝으로 잘려 회색 네모가 되던 것 — #80 진단 ④)
 let fxViewDrawing = false;
 const fxDrawParticle0 = drawParticle;
@@ -2990,7 +3005,7 @@ window.pokemonFx = {
             return 0;
         }
         // o.entry = 이 필살기로 (ULT_LIB 한 줄 — 개발 창 dev/ult-fx.py 가 필살기마다 맞는 때를 잼) · o.pick = 이 이름으로 (게임 개발 모드 (임시) — 그 포켓몬이 가진 것만)
-        let entry = o?.entry || (o?.pick && (POKEMON_ULT[src.form] || []).map((k) => ULT_LIB[k]).find((v) => v && v[0] === o.pick)) || fxUltPick(src.form, avoid);
+        let entry = o?.entry || (o?.pick && fxUltNamed(src.form, o.pick)) || fxUltPick(src.form, avoid);
         if (!entry) {
             return 0;
         }
@@ -3003,6 +3018,8 @@ window.pokemonFx = {
         const gen = ++fxGen;
         // 3:3 — 큰 맞음 (빛줄기 닿음 · 대폭발 번쩍) 에 피해 (처음 닿음이 아니라), 자기 둘레 터짐은 그때 상대 자리로 (1:1 은 그대로 처음 닿음)
         const tm = fxTeamOn() && !o?.sub ? fxUltTiming(src.form, entry) : null;
+        // 처음 닿는 때 피해 (하드플랜트 덩굴 파도 — fxContactHit)
+        const contact = !!tm && fxContactHit(entry);
         // 박자표 — 1:1 · 3:3 모두 (반격기 빼고): 부른 쪽에 큰 맞음 · 덮음 끝을 알림 (쓰러진 포켓몬이 연출이 걷힌 뒤 넘어지게 — 디자인팀). 피해 때는 3:3 (tm) 만
         // 덮음 끝은 실제 내 · 상대 거리로 (자기 둘레 터짐)
         const tmAll = !o?.sub ? fxUltTiming(src.form, entry, fxGap(src, dst)) : null;
@@ -3020,7 +3037,7 @@ window.pokemonFx = {
             fxSoftGens.add(gen);
         }
         // o.sub = 반격기 — 패널 전체 번쩍 없음 (fxFlashCap)
-        fxGame = { A, B, gen, tick: setInterval(fxGameTick, 100), onHit: tm ? null : onHit, hit: false, noFlash: !!o?.sub };
+        fxGame = { A, B, gen, tick: setInterval(fxGameTick, 100), onHit: tm && !contact ? null : onHit, hit: false, noFlash: !!o?.sub };
         let total = 0;
         // 본편 시작 (기 모으기 + 컷인 뒤 — 대상 다시 그리기 구간의 기준)
         let mainStart = 0;
@@ -3059,7 +3076,15 @@ window.pokemonFx = {
                         ultError('game hit', err);
                     }
                 };
-                if (tm.self && tm.flash >= 0) {
+                if (contact) {
+                    const g = fxGame;
+                    setTimeout(fxGuard(gen, () => {
+                        if (fxGame === g && !g.hit) {
+                            g.hit = true;
+                            hitNow();
+                        }
+                    }), Math.max(at, charge + introMs + shift + FX_CONTACT_WAVE_MS) + FX_CONTACT_LATE_MS);
+                } else if (tm.self && tm.flash >= 0) {
                     const targets = [B, ...(o?.others || []).filter((x) => x && fxWidth(x) >= 1)];
                     const flowAt = at - tm.main + tm.flash + FX_FLOW_DELAY_MS;
                     // 줄기 색 = 그 대폭발 색 (캔버스에서 뽑음 — 메가리자몽X 파란 불, 디자인팀 7판) · 피해는 닿는 때 타이머 (그리기에 묶지 않음 — 코드 리뷰어)
@@ -3110,7 +3135,7 @@ window.pokemonFx = {
         }
         const lead = list[0];
         const want = o.pick?.[lead.i];
-        const e = (want && (POKEMON_ULT[lead.s.form] || []).map((k) => ULT_LIB[k]).find((v) => v && v[0] === want)) || fxUltPick(lead.s.form, o.avoid?.[lead.i]);
+        const e = (want && fxUltNamed(lead.s.form, want)) || fxUltPick(lead.s.form, o.avoid?.[lead.i]);
         if (!e) {
             return 0;
         }
@@ -3134,7 +3159,14 @@ window.pokemonFx = {
         let hitAt = -1;
         // 메가런처 합동 = 연사 없음 (fx-sky runMegaLauncher volley) → 큰 맞음 = 물 구가 닿는 때 (발사 TS 4.5초 + 날아감 0.4초)
         const mainAt = e[1] === 'ultorb' && e[2]?.turtle ? 4900 : undefined;
-        const total = this.ult(lead.s, dst, onHit, o.avoid?.[lead.i], { noIntro: true, hitShift: extra, ...(mainAt ? { mainAt } : {}), charge: 800 + (extra ? 0 : gather), entry: [e[0], e[1], { ...(e[2] || {}), track }], timing: (t) => {
+        // 닿는 때 피해 (하드플랜트 — fxContactHit) 는 아래 마무리 고리 · 파편도 실제로 닿을 때 (박자표 시각은 덩굴과 0.15 ~ 0.5초 어긋남 — #149 코드 리뷰 작음 1)
+        const contact = fxContactHit(e);
+        let finale = null;
+        const onHitJ = contact ? () => {
+            onHit?.();
+            finale?.();
+        } : onHit;
+        const total = this.ult(lead.s, dst, onHitJ, o.avoid?.[lead.i], { noIntro: true, hitShift: extra, ...(mainAt ? { mainAt } : {}), charge: 800 + (extra ? 0 : gather), entry: [e[0], e[1], { ...(e[2] || {}), track }], timing: (t) => {
             hitAt = t.main;
             try {
                 o.timing?.(t);
@@ -3267,9 +3299,9 @@ window.pokemonFx = {
                 allies.forEach((a) => a.A?.el && (a.A.el.style.filter = ''));
             }
         }, total + 400);
-        // 맞을 때 — 참가자 색 고리 (번갈아) · 파편
-        if (hitAt > 0) {
-            setTimeout(fxGuard(gen, () => {
+        // 맞을 때 — 참가자 색 고리 (번갈아) · 파편 (닿는 때 피해면 onHitJ 가 부름)
+        if (contact || hitAt > 0) {
+            const ring = fxGuard(gen, () => {
                 if (fxWidth(dst) < 1) {
                     return;
                 }
@@ -3306,7 +3338,12 @@ window.pokemonFx = {
                         ctx.fillRect(Math.round((tb.x + Math.cos(a) * (12 * k + fly) * 1.4) / k) * k, Math.round((tb.y + Math.sin(a) * (8 * k + fly * 0.7)) / k) * k, 2 * k, 2 * k);
                     }
                 } });
-            }), hitAt);
+            });
+            if (contact) {
+                finale = ring;
+            } else {
+                setTimeout(ring, hitAt);
+            }
         }
         return total - cut;
     },

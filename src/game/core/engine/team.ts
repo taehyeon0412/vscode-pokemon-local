@@ -11,7 +11,7 @@ import { markNewMoves } from '../rules/growth';
 import { effectiveness } from '../rules/types';
 import type { Monster, Save } from '../save';
 import { withJosa } from '../text';
-import { moveFxOf, moveOf, speciesOf, ultIsSpread, ultNamesOf, type ReadonlyMove, type TypeName } from '../../data';
+import { moveFxOf, moveOf, speciesOf, ultFallbackOf, ultIsSpread, ultNamesOf, type ReadonlyMove, type TypeName } from '../../data';
 import { okFighter, okTried, POPUP_KINDS, POPUP_MS, withTried, type BattlePopup, type Side } from './battle';
 import type { Rng } from './rng';
 
@@ -611,11 +611,18 @@ function pickUlt(b: TeamBattle, side: Side, slot: number, rng: Rng, ults?: Reado
   const learned = new Set(f.moves.map((m) => moveOf(m.moveId)?.name.ko).filter((n): n is string => !!n));
   // 개발 모드에서 고른 것 — 칸 (uid) 먼저 · 없으면 "*" (모든 칸 — 시험 창 ult=, ideas 1673) · 그 모습 필살기가 아니면 무시
   const dev = (f.uid ? ults?.[f.uid] : undefined) ?? ults?.['*'];
-  const fresh = names.filter((n) => !learned.has(n));
-  const pool = fresh.length ? fresh : names;
+  const pool = ultPool(f.form, learned);
   const name = dev && names.includes(dev) ? dev : pool.length ? pool[rng.int(0, pool.length - 1)] : undefined;
   const target = bestUltTarget(b[other(side)], f.types[0] ?? 'normal') ?? 0;
   return { ...(name ? { name } : {}), spread: !!name && ultIsSpread(name), target };
+}
+
+/** 고를 수 있는 필살기 이름 — 배운 기술과 같은 이름은 빼고, 다 겹치면 타입 기본 필살기 (꼬렛 필살앞니 · 전광석화 → 울트라대시어택 — 연출 fxUltPick 과 같은 규칙, orders #149) */
+export function ultPool(form: string, learned: ReadonlySet<string>): readonly string[] {
+  const names = ultNamesOf(form);
+  const fresh = names.filter((n) => !learned.has(n));
+  const type = ultFallbackOf(form);
+  return fresh.length ? fresh : type && !learned.has(type) ? [type] : names;
 }
 
 /** 한 마리 필살기 대상 — 상성 좋은 · HP 비율이 적은 상대 (bestTarget 과 같은 규칙, 필살기는 제 첫 타입) */

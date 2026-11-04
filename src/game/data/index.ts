@@ -241,12 +241,17 @@ export function allForms(): string[] {
 const signature = signatureJson as unknown as Readonly<Record<string, readonly number[]>>;
 
 /** 모습마다 필살기 이름 · 원작 범위기 이름 (make-moves.py 가 연출 표 · PokeAPI 기술 대상에서 만듦 — 3:3 필살기 대상, 2026-10-21 기획 R7) */
-const ultMoves = ultMovesJson as unknown as { forms: Readonly<Record<string, readonly string[]>>; spread: readonly string[] };
+const ultMoves = ultMovesJson as unknown as { forms: Readonly<Record<string, readonly string[]>>; spread: readonly string[]; fallback: Readonly<Record<string, string>> };
 const ultSpread = new Set(ultMoves.spread);
 
 /** 그 모습의 필살기 이름들 (연출과 같은 이름) — 없으면 빈 목록 */
 export function ultNamesOf(form: string): readonly string[] {
   return hasOwn(ultMoves.forms, form) ? (ultMoves.forms[form] ?? []) : [];
+}
+
+/** 필살기 후보가 다 배운 기술과 이름이 같을 때 쓰는 타입 기본 필살기 이름 (첫 타입 · 노말+X 면 X — make-moves.py primary_type) (연출 POKEMON_ULT_TYPE 과 같은 표 — orders #149) · 없으면 undefined */
+export function ultFallbackOf(form: string): string | undefined {
+  return hasOwn(ultMoves.fallback, form) ? ultMoves.fallback[form] : undefined;
 }
 
 /** 원작에서 상대 모두를 치는 기술 이름인지 (대상 = 상대 모두 · 나 빼고 모두) — 원작 기술이 아닌 필살기는 false */

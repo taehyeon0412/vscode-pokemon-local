@@ -6759,13 +6759,16 @@
                 vine(ctx, px, s, sp.x, G, sp.h, sp.w, life, g, vd, sp.seed); // 굵은 덩굴
             }
         } });
-        for (const sp of spots) {
+        for (const [i, sp] of spots.entries()) {
+            const next = spots[i + 1];
             sc.at(sp.t0, () => {
                 ultShake(4, 180);
                 debris(sp.x, G - s, s, ['#6b5a3e', '#8a7350', '#4f8a2e', '#7cc24a'], 16, H * 0.8, { ground: G, angle: -Math.PI / 2, spread: 1.8 });
                 fireBits(sp.x, G - s, s, VINE, 10, { angle: -Math.PI / 2, spread: 1.4, speed: H * 0.6, drag: 2.2, life: 0.6 });
                 for (const r of u.others()) {
-                    if (Math.abs(r.x - sp.x) < sp.w * 3 + r.w * 0.5) {
+                    const dx = Math.abs(r.x - sp.x);
+                    // 맞는 덩굴 = 몸 밑에서 솟는 것 (다음 덩굴이 더 가까우면 그때) — 한 칸 앞 덩굴에 맞아 큰 덩굴이 몸에 닿기 0.15초 전에 피해 · 쓰러짐이 뜨던 것 (ideas 719 · 240)
+                    if (dx < sp.w * 3 + r.w * 0.5 && !(next && Math.abs(r.x - next.x) < dx)) {
                         hit(r, vd, 'lift');
                     }
                 }
