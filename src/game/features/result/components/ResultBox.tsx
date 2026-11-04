@@ -14,6 +14,7 @@ import { afterFonts } from '../../../ui/fonts';
 import { Icon } from '../../../ui/Icon';
 import { contentWidth, FIT_ROOM } from '../../../ui/useFit';
 import { Sprite } from '../../../ui/Sprite';
+import { useWholeLeft, wholeExtra } from '../../../ui/whole-left';
 import { speciesOf } from '../../../data';
 import { spriteBoxOf } from '../../../data/sprite-boxes';
 import { TypeTags } from '../../battle/components/TypeTag';
@@ -124,7 +125,7 @@ function EvoText({ text }: { text: string }) {
 function growOf(box: HTMLElement): number {
   const host = (box.offsetParent as HTMLElement | null) ?? box.parentElement;
   const maxW = getComputedStyle(box).maxWidth;
-  return host ? Math.max(0, (maxW.endsWith('px') ? parseFloat(maxW) : host.clientWidth - 16) - box.getBoundingClientRect().width) : 0;
+  return host ? Math.max(0, (maxW.endsWith('px') ? parseFloat(maxW) : host.clientWidth - 16) - (box.getBoundingClientRect().width - wholeExtra(box))) : 0;
 }
 
 /** 줄 내용의 실제 너비 — flex · grid 줄은 칸 합 + gap (줄 전체 Range 는 space-between 이면 줄 끝까지 재짐) · 글 줄은 Range (칸 사이 띄어쓰기까지) */
@@ -431,6 +432,8 @@ function macWrap(el: HTMLElement): { h: number; lines: number; torn: boolean } {
 /** next = 이어서 고를 것 (맨 앞) — 버튼에 다음 할 일 · ups = 레벨업한 포켓몬 (result/model levelUps) · onStats = 내 포켓몬 판 (그 포켓몬) */
 export function ResultBox({ summary, next, ups, hint = false, caught = null, ms = 0, introAt = { left: 0, top: 0 }, evoItem = null, stones = [], bagOk = false, bagLater = false, media, onInput, onStats }: { summary: BattleSummary; next: 'learn' | 'evolve' | null; ups: LevelUpView[]; /** 얼굴 카드 안내 말풍선 (needsStatHint) */ hint?: boolean; /** 진화 아이템 두 번째부터 (#125) — 얻은 아이템 id (한 줄 그림) */ evoItem?: ItemId | null; /** 막 잡은 포켓몬을 진화시킬 가방의 돌 (#131 — 그릴 때 지금 세이브로 다시 센 것 · summary.caught.stones 는 결과가 났을 때 신호라 놓아주거나 돌을 쓰면 낡음) */ stones?: readonly CaughtStone[]; /** 이 상자에서 B = 계속 + 가방이 먹는 때 (엔진 resultBagOk — ideas 1656) — 돌 줄 할 일을 "[B] 가방" 으로 */ bagOk?: boolean; /** 계속하면 클리어 · 관장 카드 (엔진 resultThenCard — 그 카드에선 B 가 안 먹음, bugs 1897) — 할 일을 "다음 스테이지에서 [B] 가방" 으로 */ bagLater?: boolean; /** 잡은 포켓몬 — 처음 caughtIntroMs 동안 소개 카드만 */ caught?: CaughtView | null; /** 결과 단계 지난 ms */ ms?: number; /** 소개 카드 자리 (길 칸 기준 정수 px) */ introAt?: { left: number; top: number; width?: number }; media: string; onInput(i: GameInput): void; onStats(uid: string): void }) {
   const tight = useResultFit();
+  // 왼쪽 끝 = 정수 px (가운데 맞춤 + 글자 폭이 소수라 반 픽셀에 서던 것 — bugs 2734)
+  useWholeLeft(tight.box);
   // 얼굴 카드 묶음 세로 자리를 정수 px 로 — 상자 (align-items: center) 안 높이가 홀수면 카드 · "스탯 찍기" 말풍선이 반 픽셀 (y 38.5 · 94.5) 에 서서 흐리던 것 (bugs 634) ·
   //   margin-top 1px = 가운데 맞춤이라 0.5px 아래로 · 상자 위 끝 기준 (카드 들어오는 움직임과 상관없이) · 글꼴이 늦게 와도 다시 (ui/fonts)
   const cardsRef = useRef<HTMLSpanElement>(null);
@@ -549,7 +552,7 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
       if (box && body && host) {
         const r = document.createRange();
         r.selectNodeContents(body);
-        const cur = box.getBoundingClientRect().width;
+        const cur = box.getBoundingClientRect().width - wholeExtra(box);
         const want = Math.min(host.clientWidth - 16, Math.ceil(cur + r.getBoundingClientRect().width * 1.1 - body.clientWidth + 1));
         if (want > cur + 0.5) {
           setHowWide(want);
@@ -766,13 +769,13 @@ export function ResultBox({ summary, next, ups, hint = false, caught = null, ms 
   );
   if (ups.length === 0) {
     return (
-      <div ref={tight.box} class={`pg-banner pg-result pg-two${summary.caught ? ' pg-result-caught' : ''}${whyOff ? ' pg-result-nowhy' : ''}${howOff ? ' pg-result-howoff' : ''}${tight.on ? ' pg-result-tight' : ''}${tight.short ? ` pg-result-short${tight.short}` : ''}${tight.split ? ' pg-result-split' : ''}${tight.learnShort ? ' pg-result-learnshort' : ''}${tight.noPre ? ' pg-result-nopre' : ''}${tight.noKey ? ' pg-result-nokey' : ''}${tight.heroOff ? ' pg-result-herooff' : ''}${expStep ? ` pg-exp-s${expStep}` : ''}${evoStep ? ` pg-evo-s${evoStep}` : ''}`} style={howWide ? { minWidth: `${howWide}px` } : undefined} title={all}>
+      <div ref={tight.box} class={`pg-banner pg-result pg-two${summary.caught ? ' pg-result-caught' : ''}${whyOff ? ' pg-result-nowhy' : ''}${howOff ? ' pg-result-howoff' : ''}${tight.on ? ' pg-result-tight' : ''}${tight.short ? ` pg-result-short${tight.short}` : ''}${tight.split ? ' pg-result-split' : ''}${tight.learnShort ? ' pg-result-learnshort' : ''}${tight.noPre ? ' pg-result-nopre' : ''}${tight.noKey ? ' pg-result-nokey' : ''}${tight.heroOff ? ' pg-result-herooff' : ''}${expStep ? ` pg-exp-s${expStep}` : ''}${evoStep ? ` pg-evo-s${evoStep}` : ''}`} style={howWide ? { '--pg-how-w': `${howWide}px` } : undefined} title={all}>
         {lines}
       </div>
     );
   }
   return (
-    <div ref={tight.box} class={`pg-banner pg-result pg-two pg-lvup${whyOff ? ' pg-result-nowhy' : ''}${howOff ? ' pg-result-howoff' : ''}${tight.on ? ' pg-result-tight' : ''}${tight.one ? ' pg-result-one' : ''}${tight.short ? ` pg-result-short${tight.short}` : ''}${tight.split ? ' pg-result-split' : ''}${tight.learnShort || expStep >= 4 ? ' pg-result-learnshort' : ''}${tight.noPre ? ' pg-result-nopre' : ''}${tight.noKey ? ' pg-result-nokey' : ''}${tight.heroOff ? ' pg-result-herooff' : ''}${expStep ? ` pg-exp-s${Math.min(2, expStep)}` : ''}${expStep >= 3 ? ' pg-alt-wrap' : ''}${expStep >= 5 ? ' pg-alt-noexp' : ''}${expStep >= 6 ? ' pg-alt-norest' : ''}${expStep >= 7 ? ' pg-alt-nolv' : ''}${evoStep ? ` pg-evo-s${evoStep}` : ''}`} style={howWide ? { minWidth: `${howWide}px` } : undefined} title={all}>
+    <div ref={tight.box} class={`pg-banner pg-result pg-two pg-lvup${whyOff ? ' pg-result-nowhy' : ''}${howOff ? ' pg-result-howoff' : ''}${tight.on ? ' pg-result-tight' : ''}${tight.one ? ' pg-result-one' : ''}${tight.short ? ` pg-result-short${tight.short}` : ''}${tight.split ? ' pg-result-split' : ''}${tight.learnShort || expStep >= 4 ? ' pg-result-learnshort' : ''}${tight.noPre ? ' pg-result-nopre' : ''}${tight.noKey ? ' pg-result-nokey' : ''}${tight.heroOff ? ' pg-result-herooff' : ''}${expStep ? ` pg-exp-s${Math.min(2, expStep)}` : ''}${expStep >= 3 ? ' pg-alt-wrap' : ''}${expStep >= 5 ? ' pg-alt-noexp' : ''}${expStep >= 6 ? ' pg-alt-norest' : ''}${expStep >= 7 ? ' pg-alt-nolv' : ''}${evoStep ? ` pg-evo-s${evoStep}` : ''}`} style={howWide ? { '--pg-how-w': `${howWide}px` } : undefined} title={all}>
       <span ref={cardsRef} class="pg-lvup-cards">
         <FaceCards ups={cards} media={media} hint={hint} starOff={starOff} onStats={onStats} />
       </span>

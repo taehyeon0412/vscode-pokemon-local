@@ -17,6 +17,7 @@ import { confirmKey, onKeyboardButton, useShownAt } from '../../../ui/confirm-ke
 import { KeyCap } from '../../../ui/KeyCap';
 import { Sprite } from '../../../ui/Sprite';
 import { useFit } from '../../../ui/useFit';
+import { useWholeLeft } from '../../../ui/whole-left';
 import type { ChoiceView } from '../model';
 import { pokemonFx } from '../../battle/fx/bridge';
 
@@ -33,6 +34,8 @@ export interface ChoiceBoxProps {
 export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
   // 기술 줄 타입 "풀 · " — 줄이 넘치면 한 단계 뺌 (위력만 · 맥 여유 1.1 — 600 경계를 손으로 고르면 맥 860 에서 "노말 · 위력 40" 이 잘리던 것, #119)
   const box = useRef<HTMLDivElement>(null);
+  // 왼쪽 끝 = 정수 px (가운데 맞춤 + 글자 폭이 소수라 반 픽셀에 서던 것 — bugs 2734)
+  useWholeLeft(box);
   // 넘치면 한 단계 — 1 = 배우는 포켓몬 이름 뺌 (얼굴 카드에 있음) · 2 = 타입 뺌 (잊을 기술을 고를 때 타입이 판단 근거라 나중 — ideas 1664 · 600 ~ 860 에서 타입이 먼저 빠지던 것)
   //   첫 줄만 잼 — 버튼 줄까지 재면 버튼 줄이 넘칠 때 (그건 rowFit 몫) 자리가 있는 첫 줄에서 이름 · 타입이 빠지고 처음 열기와 크기 바꾼 뒤가 달랐음 (UX 작음 묶음 3 큼 2)
   const learnFit = useFit(box, 2, ':scope > .pg-line:first-child');

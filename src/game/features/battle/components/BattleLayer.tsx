@@ -23,6 +23,7 @@ import { Icon } from '../../../ui/Icon';
 import { HEAD_NOTE_H, HeadNote, headNoteWidth, pickHeadSpot, useHeldNote } from '../../../ui/HeadNote';
 import { Sprite } from '../../../ui/Sprite';
 import { contentWidth, FIT_ROOM } from '../../../ui/useFit';
+import { useWholeLeft } from '../../../ui/whole-left';
 import { catchFoeClass, catchTone, catchView, duelKind, endSay, fitsPx, koSinkPx, msgFits, slumpPx, sayPhase, ringHint, ringKeyFits, hpColor, introView, moveColor, moveFx, profileOpenable, SEND_FLY_MS, sentenceText, splitPopups, STATUS_LABEL, type BattleGeometry, type CatchTone } from '../model';
 import { battleAnimKey, fxTailLeft, holdWindow, koFallAt, koTiming, noteKoActor, pickShown, type KoTiming } from '../fx/hold';
 import { hurtEarlyAt, impactOf, onHurtEarly, ultSkippable } from '../fx/parry';
@@ -760,6 +761,9 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
   // 연출 층 (포켓몬 위 · HUD 아래, #350) — 일반 모드 연출 캔버스를 전투 중 이 안으로 옮김
   const fxLayer = useRef<HTMLDivElement>(null);
   const native = useBattleFx(b, fxLayer);
+  // 한 줄 말 상자 왼쪽 끝 = 정수 px (가운데 맞춤 + 글자 폭이 소수라 x 167.39 로 흐리던 것 — bugs 2734 · 말마다 key 로 새 상자)
+  const msgBox = useRef<HTMLDivElement>(null);
+  useWholeLeft(msgBox);
   // 필살기 동안 따로 선 자동 칩은 바둑판 반 (.pg-ult-under — 240 에서 메가리자몽X 날개 · 큰 연출이 칩 밑에 가려지던 것, #114) · 메뉴가 뜨면 바로 풂 · 연출 꼬리가 끝나면 한 번 다시 그려 돌아옴
   const tailLeft = fxTailLeft(performance.now());
   const autoUnder = b.phase !== 'choose' && (b.anim?.action.kind === 'ult' || tailLeft > 0);
@@ -891,7 +895,7 @@ export function BattleLayer({ battle: b, save, media, ground, geo, onInput, onPr
         </span>
       )}
       {showMsg && (
-        <div key={b.msg} class={['pg-bmsg', b.phase === 'over' ? 'pg-bmsg-over' : '', geo.msgLines >= 2 ? 'pg-bmsg-2' : '', geo.msgSide && geo.msgLines >= 2 ? 'pg-bmsg-side' : ''].filter(Boolean).join(' ')} style={msgStyle(geo)} title={msgFull}>
+        <div key={b.msg} ref={msgBox} class={['pg-bmsg', b.phase === 'over' ? 'pg-bmsg-over' : '', geo.msgLines >= 2 ? 'pg-bmsg-2' : '', geo.msgSide && geo.msgLines >= 2 ? 'pg-bmsg-side' : ''].filter(Boolean).join(' ')} style={msgStyle(geo)} title={msgFull}>
           {/* 여러 줄은 안쪽 글 칸에서 자름 — 바깥 칸에서 자르면 다음 줄 윗부분이 아래 여백 3px 에 비침 (480 × 150, U4) */}
           <span class="pg-bmsg-text">{emphasize(msgText, [nameOf(b.me), nameOf(b.foe)])}</span>
         </div>

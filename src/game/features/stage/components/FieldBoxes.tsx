@@ -26,6 +26,7 @@ import { KeyCap } from '../../../ui/KeyCap';
 import { formatMoney } from '../../../ui/format';
 import { Sprite } from '../../../ui/Sprite';
 import { contentWidth, FIT_ROOM, useFit } from '../../../ui/useFit';
+import { useWholeLeft } from '../../../ui/whole-left';
 import { clearView, lobbyView, mapView } from '../../menu/model';
 import { badgeAutoLeft, STAGES, VS_MS } from '../model';
 import { TypeTag } from '../../battle/components/TypeTag';
@@ -210,6 +211,8 @@ export function HoldBox({ state }: { state: GameState }) {
 function DefeatKeep({ keep, lost, left, hospital, onInput }: { keep: string; lost: number; left: number; /** 이 스테이지에서 병원을 지났나 — 아니면 [처음부터] (스테이지 처음 0% — 테스터 #B) */ hospital: boolean; onInput(i: GameInput): void }) {
   const box = useRef<HTMLDivElement>(null);
   const short = useFit(box, 1, ':scope > .pg-line:first-child') >= 1;
+  // 왼쪽 끝 = 정수 px (가운데 맞춤 + 글자 폭이 소수라 반 픽셀에 서던 것 — bugs 2734)
+  useWholeLeft(box);
   return (
     <div class="pg-banner pg-defeat pg-defeat-keep pg-two" ref={box}>
       <span class="pg-line">
@@ -249,6 +252,8 @@ export function DefeatBox({ state, media, onInput }: BoxProps) {
 function DefeatPlain({ state, onInput }: BoxProps) {
   const box = useRef<HTMLDivElement>(null);
   const short = useFit(box, 1, ':scope > .pg-line:first-child') >= 1;
+  // 왼쪽 끝 = 정수 px (가운데 맞춤 + 글자 폭이 소수라 반 픽셀에 서던 것 — bugs 2734)
+  useWholeLeft(box);
   const st = state.runtime.stage;
   if (st?.phase !== 'defeat') return null;
   const lh = state.save.lastHospital;
@@ -312,6 +317,8 @@ export function ClearCard({ state, media, onInput, onMap, onTeam }: BoxProps & {
   //   5 = 첫 줄 숲 그림 뺌 (240 맥에서 볼 "+1" 이 상자 밖 10px — bugs 2709) · 6 = "▼" 도 뺌 (뜻은 보너스 칸에 올리면)
   const clearBox = useRef<HTMLDivElement>(null);
   const fit = useFit(clearBox, 6);
+  // 왼쪽 끝 = 정수 px (가운데 맞춤 + 글자 폭이 소수라 반 픽셀에 서던 것 — bugs 2734)
+  useWholeLeft(clearBox);
   return (
     <div class="pg-banner pg-clear pg-two" ref={clearBox}>
       <span class="pg-line">
@@ -393,6 +400,8 @@ export function LobbyBox({ state, media, onInput, onBox, onShop, onMap }: BoxPro
   const modeWhy = lock === 'few' ? '싸울 수 있는 포켓몬이 3마리면 3:3' : lock === 'narrow' ? '패널을 넓히면 3:3' : null;
   // 버튼 줄이 넘치면 도전의 ▶ 를 뺌 (240 에서 "3:3" 칩까지 2px 넘쳐 상자 여백을 먹던 것 — UX 리뷰어 #27, 맥 여유 10%)
   const lobbyBox = useRef<HTMLDivElement>(null);
+  // 왼쪽 끝 = 정수 px (가운데 맞춤 + 글자 폭이 소수라 반 픽셀에 서던 것 — bugs 2734)
+  useWholeLeft(lobbyBox);
   // 2 단계 = Enter 키 칸도 뺌 (맥 +10% 에서 331 ~ 335 에 도전 버튼이 여백을 먹던 것 — UX 리뷰어 R12 재확인)
   // 새 지역 (지역이 켜졌을 때 — 가 본 기록이 없는 연 지역)
   const newRegion = regionsOn(state) ? mapView(state).regions.find((r) => isNewRegion(r, state.save.stages)) : undefined;
