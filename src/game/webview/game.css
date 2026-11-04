@@ -5621,6 +5621,13 @@ body.vscode-high-contrast-light .pg-title-body {
   border-color: var(--pg-sos-line-soft);
   color: var(--pg-sos-gold);
 }
+/* 미니맵 넘치면 한 단계 (Minimap — 이름이 말줄임되면): 1 = 남은 시간 · 2 = 번호 · 3 = 팀 HP 칸 "팀" · 4 = 이름 (bugs 2754) */
+.pg-minimap.pg-map-cut1 .pg-mapleft,
+.pg-minimap.pg-map-cut2 .pg-stage-code,
+.pg-minimap.pg-map-cut3 .pg-team-word,
+.pg-minimap.pg-map-cut4 .pg-stage-label {
+  display: none;
+}
 /* 3:3 정보줄 줄이기 1 · 2 단계 (StageScreen swShort — 스위치보다 150 가운데 칸 글이 먼저): 1 = 남은 시간 · 2 = 지역 이름 (나무 아이콘 · 막대 · % 는 남음) */
 .pg-infobar:has(.pg-sw-l1) .pg-infobar-center .pg-mapleft,
 .pg-infobar:has(.pg-sw-l2) .pg-infobar-center .pg-stage-label {
