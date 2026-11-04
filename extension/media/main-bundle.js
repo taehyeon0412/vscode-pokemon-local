@@ -7217,6 +7217,28 @@ function showMoveName(g, text) {
 }
 
 // 입자 그리기 모음
+// 여러 발 날리기 앞 발 튐 (#145 ideas 1647 — 날아오는 불똥 꼬리 점과 모양으로 구별: 기획 방향 · 디자인 값 11-04) — 칸 단위 (× s) · [앞 (나아가는 쪽 +), 아래 +]
+//   0 ~ 0.1초 "십자 심" = 흰 심 1칸 + 상하좌우 1칸 (그 기술 가장 밝은 색) → 0.1 ~ 0.2초 "별꼴 6점" = 심 끔 · 위 · 아래 · 뒤 3칸 · 뒤 대각선 (2, 2) · 앞 1칸 (주 색)
+//   장면마다 멈춘 그림 (투명 없음) · 가장 넓을 때 반지름 3칸 (마지막 맞는 빛보다 작게) · 상대 것은 거울 · 잎 · 바늘 · 풀 · 벌레는 팔 · 점 모두 밝은 연두 하나 (짙은 초록은 잎 꼬리 · 풀숲과 섞임)
+const TOUCH_SPARK = {
+    sec: 0.2,
+    core: '#ffffff',
+    arms: [[1, 0], [-1, 0], [0, 1], [0, -1]],
+    star: [[0, -3], [0, 3], [-3, 0], [-2, -2], [-2, 2], [1, 0]],
+};
+// 그 기술 가장 밝은 색 (순백이면 다음 — 심과 구별) · 주 색 (팔레트 셋째)
+const touchBright = (cols) => (cols[0].toLowerCase() === '#ffffff' ? cols[1] : cols[0]);
+function drawTouchSpark(ctx, p, t, px) {
+    ctx.globalAlpha = 1;
+    const first = t < 0.5;
+    const bright = touchBright(p.cols);
+    if (first) {
+        dotAt(ctx, px, p.s, p.x, p.y, TOUCH_SPARK.core);
+    }
+    for (const [fx, dy] of first ? TOUCH_SPARK.arms : TOUCH_SPARK.star) {
+        dotAt(ctx, px, p.s, p.x + fx * p.dir * p.s, p.y + dy * p.s, first || p.light ? bright : p.cols[2] || bright);
+    }
+}
 const DRAW = {
     // 불길 — 시간에 따라 색이 바뀌며 커짐, 끝은 연기
     stream: (ctx, p, t, px) => {
@@ -8101,7 +8123,7 @@ const SIG_FX = {
                     x: g.mouth.x, y: g.mouth.y + moveRand(-1, 1) * g.s, s: g.s, dir: g.dir,
                     vx: g.dir * speed, v0: g.dir * speed, vy: moveRand(-6, 6) * g.s - (o.arc ? o.arc * 0.45 * g.s : 0), g: (o.arc ?? 0) * g.s,
                     max: o.boomerang ? 1.0 : 2.2, big: o.big || g.P > 0.75, ground: g.body.bottom,
-                    cols: o.tri ? sigPal(['fire', 'ice', 'electric'][i % 3]) : sigPal(o.c), shape: SHAPES[o.shape] || SHAPES.ball,
+                    cols: o.tri ? sigPal(['fire', 'ice', 'electric'][i % 3]) : sigPal(o.c), shape: SHAPES[o.shape] || SHAPES.ball, shot: i, shots: n,
                     update: (p) => {
                         if (o.boomerang) {
                             p.vx = p.v0 * Math.cos((Math.PI * p.life) / 1.0);
@@ -8123,6 +8145,12 @@ const SIG_FX = {
                                 sigParticle({ x: p.x, y: p.y, s: p.s, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 20 * p.s, g: 90 * p.s, drag: 1.2, max: moveRand(0.45, 0.75), color: movePick(p.cols.slice(0, 3)), size: movePick([1, 2, 2]), draw: DRAW.dot });
                             }
                             sigBurst(p.x, p.y, p.s, p.cols.slice(0, 2), 8, 35);
+                            p.life = p.max;
+                        }
+                        // 앞 발이 상대 몸 앞에 닿으면 그 자리에서 작은 튐 (TOUCH_SPARK — #145 ideas 1647 — 앞 발이 상대 몸에서 그냥 사라지던 것)
+                        //   마지막 발은 게임의 맞는 빛 그대로 · 게임만 (다리가 touchAt — 일반 모드는 그대로)
+                        if (p.touchAt !== undefined && p.shot < p.shots - 1 && p.life >= p.touchAt) {
+                            sigParticle({ x: p.x, y: p.y, s: p.s, dir: p.dir, light: o.shape === 'leaf' || o.shape === 'needle' || o.c === 'grass' || o.c === 'bug', max: TOUCH_SPARK.sec, cols: p.cols, spark: true, draw: drawTouchSpark });
                             p.life = p.max;
                         }
                         // 잔상 꼬리 — 공 · 별은 많이, 잎 · 바늘 · 하트도 조금 (2026-10-19 "밋밋해")
@@ -56592,6 +56620,9 @@ function fxAim(fx, g, o, t, ms = 0) {
                     // 닿는 때 = 상대까지 (불꽃튀기기 pop — 상대 몸에서 터짐, #122)
                     if (o.pop) {
                         p.popAt = Math.min(p.max - 0.02, t.dist / Math.abs(p.vx));
+                    } else {
+                        // 몸 앞 (빠르기를 맞춘 자리 — 위 k 와 같은 거리) 에 닿는 때 — 앞 발은 거기서 작은 튐 (moves.js · #145 ideas 1647) · 마지막 발은 그대로 지나가 게임의 맞는 빛
+                        p.touchAt = Math.min(p.max - 0.02, Math.max(0.5 * t.dist, t.dist - 0.3 * t.w) / Math.abs(p.vx));
                     }
                 }
             } };

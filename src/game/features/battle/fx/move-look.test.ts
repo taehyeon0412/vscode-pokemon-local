@@ -85,6 +85,22 @@ describe('기술마다 모양 표 (#122 — 태현 님 "불꽃세례 불꽃 튀�
     // 표에 적은 기술만이 아니라 게임의 똑바로 나는 날리기 모두 (reach: 0 만 예전 빠르기)
     expect(bridgeJs).toContain('o.reach !== 0 && ms > 0');
   });
+  it('여러 발 날리기 — 앞 발은 몸 앞에 닿는 때 (빠르기를 맞춘 거리와 같음) 흰 심 + 별꼴 점 6개 두 걸음 튐 · 마지막 발 · 불꽃튀기기는 그대로 · 일반 모드는 다리가 없어 그대로 (#145 ideas 1647)', () => {
+    const reach = 'Math.max(0.5 * t.dist, t.dist - 0.3 * t.w)';
+    expect(bridgeJs).toContain(`k = Math.min(PROJECTILE_K_MAX, Math.max(0.3, ${reach} / travel`);
+    expect(bridgeJs).toContain(`p.touchAt = Math.min(p.max - 0.02, ${reach} / Math.abs(p.vx));`);
+    expect(movesJs).toContain('shot: i, shots: n');
+    expect(movesJs).toContain('p.touchAt !== undefined && p.shot < p.shots - 1 && p.life >= p.touchAt');
+    // 꼬리 점과 모양으로 구별 — 흰 심 + 점 6개 두 걸음 (기획 11-04)
+    expect(movesJs).toContain('max: TOUCH_SPARK.sec, cols: p.cols, spark: true, draw: drawTouchSpark });');
+    // 디자인 값 — 십자 (상하좌우 1칸) → 별꼴 6점 (가장 넓을 때 반지름 3칸 · 7 × 7 안)
+    expect(movesJs).toContain('arms: [[1, 0], [-1, 0], [0, 1], [0, -1]],');
+    const star = /star: (\[\[.*\]\]),/.exec(movesJs)?.[1];
+    const pts = JSON.parse(star ?? '[]') as [number, number][];
+    expect(pts).toHaveLength(6);
+    expect(Math.max(...pts.flat().map(Math.abs))).toBe(3);
+    expect(bundle).toContain('p.touchAt !== undefined && p.shot < p.shots - 1');
+  });
   it('포물선 날리기도 맞는 때에 떨어지게 — bridge 의 포물선 시간이 moves.js 포물선 (위 빠르기 arc × 0.45 · 무게 arc) 과 같음 (#122 1단계 UX 큼)', () => {
     const up = /o\.arc \? o\.arc \* ([\d.]+) \* g\.s/.exec(movesJs);
     expect(movesJs).toContain('g: (o.arc ?? 0) * g.s');

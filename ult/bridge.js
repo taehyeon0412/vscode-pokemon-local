@@ -1458,6 +1458,9 @@ function fxAim(fx, g, o, t, ms = 0) {
                     // 닿는 때 = 상대까지 (불꽃튀기기 pop — 상대 몸에서 터짐, #122)
                     if (o.pop) {
                         p.popAt = Math.min(p.max - 0.02, t.dist / Math.abs(p.vx));
+                    } else {
+                        // 몸 앞 (빠르기를 맞춘 자리 — 위 k 와 같은 거리) 에 닿는 때 — 앞 발은 거기서 작은 튐 (moves.js · #145 ideas 1647) · 마지막 발은 그대로 지나가 게임의 맞는 빛
+                        p.touchAt = Math.min(p.max - 0.02, Math.max(0.5 * t.dist, t.dist - 0.3 * t.w) / Math.abs(p.vx));
                     }
                 }
             } };
