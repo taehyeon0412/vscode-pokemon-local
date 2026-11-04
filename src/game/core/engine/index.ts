@@ -53,6 +53,7 @@ export {
 export {
   battleCatchOdds,
   battleUntried,
+  battleMenuNew,
   battleAutoUltLeft,
   battleFoeUltWarn,
   battleDone,

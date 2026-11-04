@@ -1,11 +1,11 @@
-/** 전투 기술 메뉴 NEW (#146 · ideas 1692) — 세이브 untried: 배울 때 넣고 · 손 · 자동 · 3:3 어디서든 한 번 나가면 지움 · S18 을 봐도 남음 */
+/** 전투 기술 메뉴 NEW (#146 · ideas 1692) — 세이브 untried: 배울 때 넣고 · 손 · 자동 · 3:3 어디서든 한 번 나가면 지움 · S18 을 봐도 남음 · 첫 메뉴 N 은 기술 판을 열면 그 전투 동안 끔 (#147 · ideas 2709) */
 import { describe, expect, it } from 'vitest';
 import { sampleMonster, sampleSave, viaJson } from '../../../test/fixtures/save';
 import { BALANCE, TIMING } from '../balance';
 import { evolve, learnMove, levelUpChoices, markNewMoves } from '../rules/growth';
 import { expForLevel } from '../rules/stats';
 import { validateSave, type Monster, type Save } from '../save';
-import { applyBattleResult, battleInput, battleStep, battleUntried, readBattle, startBattle, type BattleState } from './battle';
+import { applyBattleResult, battleInput, battleMenuNew, battleStep, battleUntried, readBattle, startBattle, type BattleState } from './battle';
 import { applyInput } from './play';
 import { resolveEvolve, resolveLearn } from './rewards';
 import { Rng } from './rng';
@@ -208,5 +208,101 @@ describe('3:3 — PP 가 안 닳아도 쏜 기술을 적어 지움', () => {
     expect(readTeam(viaJson({ ...b, tried: undefined }))).not.toBeNull();
     expect(readTeam(viaJson({ ...b, tried: { f0: [52] } }))).toBeNull();
     expect(readTeam(viaJson({ ...b, tried: { m2: ['52'] } }))).toBeNull();
+  });
+});
+
+describe('첫 메뉴 3 기술 N — 기술 판을 열면 그 전투 동안 끔 (#147 · ideas 2709)', () => {
+  const seen = (b: BattleState, save: Save) => battleInput(b, save, { kind: 'skills-seen' }, new Rng(1));
+  /** 이상해씨 (덩굴채찍 NEW) · 파이리 (불꽃세례 NEW) */
+  const pair = (): Save => {
+    const s = withM1(bulba({ level: 20, moves: TWO, untried: [VINE_WHIP], hp: 999 }));
+    const m2 = sampleMonster({ uid: 'm2', level: 20, species: 4, form: 'charmander', moves: [{ moveId: 52, pp: 25 }], untried: [52], hp: 999 });
+    return { ...s, monsters: { ...s.monsters, m2 }, party: ['m1', 'm2'] };
+  };
+  /** 내 차례에 교체해 연출이 끝날 때까지 */
+  function switchTo(save: Save, b0: BattleState, uid: string): BattleState {
+    const rng = new Rng(1);
+    let b = battleInput(myTurn(b0), save, { kind: 'act', action: { kind: 'switch', uid } }, rng);
+    for (let i = 0; i < 400 && b.me.uid !== uid; i++) b = battleStep(b, save, TIMING.simStepMs, rng, { auto: false });
+    return b;
+  }
+
+  it('판을 열면 첫 메뉴 N 만 꺼지고 기술 줄 N 은 남음 · 세이브는 그대로 · 같은 포켓몬 두 번 = 같은 상태 (다시 그리기 없음)', () => {
+    const save = pair();
+    const b0 = startBattle(save, wild({ hp: 999 }), 'normal');
+    expect(battleMenuNew(b0, save)).toBe(true);
+    const b = seen(b0, save);
+    expect(b.skillsSeen).toEqual(['m1']);
+    expect(battleMenuNew(b, save)).toBe(false);
+    expect(battleUntried(b, save)).toEqual([VINE_WHIP]);
+    expect(seen(b, save)).toBe(b);
+    expect(applyBattleResult(save, b).monsters.m1!.untried).toEqual([VINE_WHIP]);
+    // 게이지가 차는 동안 (3 = 미리 엶) 에도 받음
+    expect(seen({ ...b0, phase: 'run' }, save).skillsSeen).toEqual(['m1']);
+  });
+
+  it('포켓몬마다 셈 — 교체로 나온 포켓몬은 다시 켬 · 돌아온 처음 포켓몬은 끈 채', () => {
+    const save = pair();
+    const b1 = seen(startBattle(save, wild({ level: 2, hp: 999 }), 'normal'), save);
+    const b2 = switchTo(save, b1, 'm2');
+    expect(b2.me.uid).toBe('m2');
+    expect(battleMenuNew(b2, save)).toBe(true);
+    const b3 = switchTo(save, seen(b2, save), 'm1');
+    expect(b3.me.uid).toBe('m1');
+    expect(b3.skillsSeen).toEqual(['m1', 'm2']);
+    expect(battleMenuNew(b3, save)).toBe(false);
+    expect(battleUntried(b3, save)).toEqual([VINE_WHIP]);
+  });
+
+  it('다음 전투에는 다시 (아직 안 쓴 새 기술이 있으면) · 다 쓰면 첫 메뉴 · 기술 줄 둘 다 없음', () => {
+    const save = pair();
+    const b0 = startBattle(save, wild({ hp: 999 }), 'normal');
+    const after = applyBattleResult(save, seen(b0, save));
+    const next = startBattle(after, wild({ hp: 999 }), 'normal');
+    expect('skillsSeen' in next).toBe(false);
+    expect(battleMenuNew(next, after)).toBe(true);
+    const used = useMove(save, b0, VINE_WHIP).done;
+    expect([battleMenuNew(used, save), battleUntried(used, save)]).toEqual([false, []]);
+    const later = applyBattleResult(save, used);
+    expect([battleMenuNew(startBattle(later, wild({ hp: 999 }), 'normal'), later), 'untried' in later.monsters.m1!]).toEqual([false, false]);
+  });
+
+  it('자동 — 판을 안 열어도 자동이 쓰면 둘 다 꺼짐 · 판을 열면 쓰기 전에도 첫 메뉴 N 만 꺼짐', () => {
+    const save = pair();
+    // 상대 = 꼬부기 (풀에 약함 — 자동이 덩굴채찍을 고름)
+    const b0 = startBattle(save, wild({ species: 7, form: 'squirtle', level: 20, hp: 999 }), 'normal');
+    let b = b0;
+    const rng = new Rng(3);
+    for (let t = 0; t < 60_000 && b.phase !== 'over' && !b.tried?.m1?.includes(VINE_WHIP); t += TIMING.simStepMs) {
+      expect(battleMenuNew(b, save)).toBe(true);
+      b = battleStep(b, save, TIMING.simStepMs, rng, { auto: true });
+    }
+    expect(b.tried?.m1).toContain(VINE_WHIP);
+    expect([battleMenuNew(b, save), battleUntried(b, save)]).toEqual([false, []]);
+    const opened = seen(battleStep(b0, save, TIMING.simStepMs, new Rng(3), { auto: true }), save);
+    expect([battleMenuNew(opened, save), battleUntried(opened, save)]).toEqual([false, [VINE_WHIP]]);
+  });
+
+  it('3:3 — 기술 판이 없어 판을 지나도 다음 1:1 은 다시 · 3:3 에서 쏜 기술은 둘 다 없음', () => {
+    const save = pair();
+    const team = startTeamBattle(save, [sampleMonster({ uid: 'f0', species: 7, form: 'squirtle', level: 10 })], 'trainer', '상대', ['m1', 'm2']);
+    expect('skillsSeen' in team).toBe(false);
+    const idle = applyTeamResult(save, team);
+    expect(battleMenuNew(startBattle(idle, wild({ hp: 999 }), 'normal'), idle)).toBe(true);
+    const shot = applyTeamResult(save, { ...team, tried: { m1: [VINE_WHIP] } });
+    const next = startBattle(shot, wild({ hp: 999 }), 'normal');
+    expect([battleMenuNew(next, shot), battleUntried(next, shot)]).toEqual([false, []]);
+  });
+
+  it('웹뷰와 주고받기 — 다시 켜도 끈 채 · 옛 상태 (칸 없음) 도 읽힘 · 이상한 값이면 그 전투를 처음부터 (null)', () => {
+    const save = pair();
+    const b0 = startBattle(save, wild({ hp: 999 }), 'normal');
+    const b = seen(b0, save);
+    expect(readBattle(viaJson(b))?.skillsSeen).toEqual(['m1']);
+    expect(readBattle(viaJson(b0))).not.toBeNull();
+    const many = Array.from({ length: BALANCE.partySize + 1 }, (_, i) => `m${i}`);
+    for (const skillsSeen of [5, 'm1', [1], ['m1', 'm1'], [null], { 0: 'm1' }, many]) {
+      expect(readBattle(viaJson({ ...b, skillsSeen })), JSON.stringify(skillsSeen)).toBeNull();
+    }
   });
 });

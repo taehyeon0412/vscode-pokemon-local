@@ -68,6 +68,12 @@ describe('S09 ⑦ 메뉴 한 줄', () => {
     expect(menuItems(used, s, 'main').some((i) => i.untried)).toBe(false);
     // 표시가 없으면 칸도 없음 (예전 메뉴와 같은 모양)
     expect(menuItems(b, save, 'main').some((i) => 'untried' in i)).toBe(false);
+    expect(menuItems(b, s, 'main').find((i) => i.key === 'skills')?.title).toBe(`3 기술 — 아직 안 쓴 새 기술: ${moveOf(22)!.name.ko}`);
+    // 기술 판을 열면 (#147) 첫 메뉴 칸만 없어지고 기술 줄은 그대로 · 올리면 글도 "3 기술"
+    const opened = { ...b, skillsSeen: ['m1'] };
+    for (const compact of [false, true, 'tiny'] as const) expect(menuItems(opened, s, 'main', compact).some((i) => 'untried' in i)).toBe(false);
+    expect(menuItems(opened, s, 'main').find((i) => i.key === 'skills')?.title).toBe('3 기술');
+    expect(menuItems(opened, s, 'skills').filter((i) => i.untried).map((i) => i.key)).toEqual(['m22']);
   });
 });
 

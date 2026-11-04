@@ -14,6 +14,7 @@ import { moveOf, speciesOf } from '../../../data';
 import { Button } from '../../../ui/Button';
 import { BALL_ICON } from '../../../ui/BallCount';
 import { afterFonts } from '../../../ui/fonts';
+import { realLater } from '../../../ui/real-clock';
 import { confirmKey, onKeyboardButton, useShownAt } from '../../../ui/confirm-key';
 import { ITEM_ICON } from '../../menu/model';
 import { Icon } from '../../../ui/Icon';
@@ -130,6 +131,9 @@ export interface BattleMenuProps {
 /** ← · Esc — 기력의조각에서 고르던 포켓몬 목록은 아이템으로, 나머지는 처음 메뉴로 */
 const backOf = (page: MenuPage): MenuPage => (page === 'revive' ? 'items' : 'main');
 
+/** 3 기술 N 을 단 채 연 기술 판이 이만큼 (진짜 시계) 보이면 봤음 (#147 — S18 NEW MOVES_SEEN_MS 와 같은 1초) */
+const SKILLS_SEEN_MS = 1000;
+
 /** 목록 고르기 키 — Enter (키보드로 간 버튼에 포커스가 있으면 그 버튼이 받음) · Space (#117 — 전투의 Space 는 main.ts 가 버튼 누름을 막고 포커스를 빼서 버튼과 상관없음 · 목록이 보인 지 1초 뒤부터) */
 const enterOrSpace = (e: KeyboardEvent, shownAt: number) => (e.key === 'Enter' ? !onKeyboardButton(e) : confirmKey(e, shownAt));
 
@@ -192,8 +196,21 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
   const mainLayer = useRef<HTMLSpanElement>(null);
   const [mainTiny, setMainTiny] = useState(false);
   useEffect(() => setMainTiny(false), [win, compact]);
-  // 3 기술 N 여백 (pg-new-pad) — 이 전투에서 한 번 N 이 붙으면 끝까지 (메뉴는 전투마다 새로 그려짐)
+  // 3 기술 N 여백 (pg-new-pad) — 이 전투에서 한 번 N 이 붙으면 끝까지 (기술을 써서 · 판을 열어 N 이 꺼져도 버튼이 안 옮김 · 메뉴는 전투마다 새로 그려짐)
   const newPad = useRef(false);
+  // 3 기술 N 을 단 채 연 기술 판 — 1초 넘게 열려 있으면 그 N 을 이 전투 동안 끔 (#147 · 여는 손이 표시 · 117ms 만 비치고 상대 차례로 닫힌 판을 본 것으로 치던 것, UX 리뷰어)
+  const seenWait = useRef(false);
+  useEffect(() => {
+    if (page !== 'skills') {
+      seenWait.current = false;
+      return;
+    }
+    if (!seenWait.current) return;
+    return realLater(() => {
+      seenWait.current = false;
+      onInput({ kind: 'battle', input: { kind: 'skills-seen' } });
+    }, SKILLS_SEEN_MS);
+  }, [page]);
   const lastBalls = b.phase === 'last' ? BALLS.filter((ball) => itemLeft(b, save, ball) > 0) : [];
   const sameTier = lastBalls.length > 1 && lastBalls.every((ball) => ballTier(b, ball) === ballTier(b, lastBalls[0]!));
   const fitSteps = b.phase === 'last' ? (sameTier ? FIT_LAST_SAME : FIT_LAST) : vertical !== undefined ? FIT_SIDE : FIT_ROW;
@@ -364,7 +381,11 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
 
   const choose = (i: MenuItem) => {
     if (!i.enabled) return;
-    if ('page' in i.go) setPage(i.go.page);
+    if ('page' in i.go) {
+      // 3 기술 N 이 붙은 채 기술 판을 열면 1초 뒤 그 N 은 이 전투 동안 끔 (#147 — 여는 손에서만 표시, 그리기 안에서 보내면 계속 돎)
+      if (i.untried) seenWait.current = true;
+      setPage(i.go.page);
+    }
     else if ('back' in i.go) setPage(backOf(page));
     else {
       onInput({ kind: 'battle', input: { kind: 'act', action: i.go.action } });
@@ -437,6 +458,7 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
             c.onInput({ kind: 'battle', input: { kind: 'act', action: it.go.action } });
           } else if (it && 'page' in it.go && it.go.page === 'skills') {
             e.preventDefault();
+            if (it.untried) seenWait.current = true;
             setPage('skills');
           }
         } else if (e.key === 'Enter' && !(e.target instanceof HTMLButtonElement) && c.page === 'main' && c.b.lastMe) {

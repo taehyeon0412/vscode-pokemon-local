@@ -4,7 +4,7 @@
 import { BALANCE, TIMING } from '../../core/balance';
 import { pickShown } from './fx/hold';
 import type { BattleAction, BattlePopup, BattleState, Side } from '../../core/engine';
-import { battleAutoUltLeft, battleCatchOdds, battleFoeUltWarn, battleUntried, canAct, canParry, canRiposte, catchTimeline, catchTriesUsed, counterOpen, faintedTeam, itemLeft, moveEffect, switchable, ultCounterOpen } from '../../core/engine';
+import { battleAutoUltLeft, battleCatchOdds, battleFoeUltWarn, battleMenuNew, battleUntried, canAct, canParry, canRiposte, catchTimeline, catchTriesUsed, counterOpen, faintedTeam, itemLeft, moveEffect, switchable, ultCounterOpen } from '../../core/engine';
 import { isShooting } from '../../core/rules/battle';
 import { maxHpOf } from '../../core/rules/bag';
 import { BALLS, isBall, type BallId, type CatchTier } from '../../core/rules/catch';
@@ -39,7 +39,7 @@ export interface MenuItem {
   ball?: BallId;
   /** 볼 남은 기회 " · 기회 2" · " · 마지막!" — 개수 (sub) 와 따로 (좁을 때 개수만 빼도 경고는 남게, UX 리뷰어 2026-10-21) */
   warn?: string;
-  /** 아직 안 쓴 새 기술 (#146 NEW) — 기술 줄은 그 기술 · 첫 메뉴 3 기술은 하나라도 있으면 (그때만 칸이 생김) */
+  /** 아직 안 쓴 새 기술 (#146 NEW) — 기술 줄은 그 기술 · 첫 메뉴 3 기술은 하나라도 있고 이 전투에서 그 포켓몬의 기술 판을 아직 안 열었으면 (#147 — 그때만 칸이 생김) */
   untried?: true;
   /** 누르면 — 페이지를 바꾸거나 행동 */
   go: { page: MenuPage } | { action: BattleAction } | { back: true };
@@ -59,7 +59,9 @@ export function menuItems(b: BattleState, save: Save, page: MenuPage, compact: b
   switch (page) {
     case 'main': {
       const skillsOk = b.me.moves.some((s) => s.pp > 0);
-      const untried = battleUntried(b, save).length > 0;
+      const untried = battleMenuNew(b, save);
+      // 올리면 새 기술 이름 (#147 UX 리뷰어 — "새 기술이 있어요" 만으로는 무엇인지 모름 · U5)
+      const newNames = untried ? battleUntried(b, save).map((id) => moveOf(id)?.name.ko ?? '?').join(' · ') : '';
       const itemsOk = MENU_ITEMS.some((i) => canAct(b, save, { kind: 'item', item: i }));
       const anyItem = MENU_ITEMS.some((i) => itemLeft(b, save, i) > 0);
       const switchOk = switchable(b, save).length > 0;
@@ -69,7 +71,7 @@ export function menuItems(b: BattleState, save: Save, page: MenuPage, compact: b
       const items: MenuItem[] = [
         { key: 'attack', num: 1, label: '1 공격', go: { action: { kind: 'attack' } }, enabled: canAct(b, save, { kind: 'attack' }), title: '1 공격 — 약한 기본기, 횟수 제한 없음' },
         { key: 'guard', num: 2, label: '2 방어', go: { action: { kind: 'guard' } }, enabled: canAct(b, save, { kind: 'guard' }), title: '2 방어 — 다음 내 행동까지 받는 피해 절반 (연달아 쓰면 줄어듦)' },
-        { key: 'skills', num: 3, label: '3 기술', go: { page: 'skills' }, enabled: b.phase === 'choose' && skillsOk, title: skillsOk ? (untried ? '3 기술 — 아직 안 쓴 새 기술이 있어요' : '3 기술') : '쓸 수 있는 기술이 없어요 (1 공격만)', ...(untried ? { untried: true as const } : {}) },
+        { key: 'skills', num: 3, label: '3 기술', go: { page: 'skills' }, enabled: b.phase === 'choose' && skillsOk, title: skillsOk ? (untried ? `3 기술 — 아직 안 쓴 새 기술: ${newNames}` : '3 기술') : '쓸 수 있는 기술이 없어요 (1 공격만)', ...(untried ? { untried: true as const } : {}) },
         { key: 'items', num: 4, label: '4 아이템', go: { page: 'items' }, enabled: b.phase === 'choose' && itemsOk, title: itemsOk ? '4 아이템 (볼 · 상처약 …)' : anyItem ? '지금 쓸 수 있는 아이템이 없어요 (HP 가득 · 상태 이상 없음 · 쓰러진 포켓몬 없음)' : '가방에 쓸 아이템이 없어요' },
         { key: 'more', num: 5, label: switchOk ? (fleeOk ? '5 교체·도망' : '5 교체') : fleeOk ? '5 도망' : '5 교체', go: switchOk ? { page: 'switch' } : { action: { kind: 'flee' } }, enabled: b.phase === 'choose' && (switchOk || fleeOk), title: moreTitle },
       ];
