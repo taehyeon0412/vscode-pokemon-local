@@ -3,8 +3,9 @@
  */
 import { BALANCE } from '../../core/balance';
 import { gymUnlocked, nextStageOf, regionGymUnlocked, regionsOn, stageClearGain, stageUnlocked, type GameState } from '../../core/engine';
-import { canBuyCandy, FIELD_ITEMS, fieldUseBlock, isEvolutionItem, maxHpOf, priceOf, sellPrice, shopItemsFor, type ShopItem } from '../../core/rules/bag';
+import { canBuyCandy, FIELD_ITEMS, fieldUseBlock, isEvolutionItem, itemEvolution, maxHpOf, priceOf, sellPrice, shopItemsFor, type ShopItem } from '../../core/rules/bag';
 import { itemName, VALUABLES } from '../../core/rules/items';
+import { evoItemUsers, evoUsersLine } from '../../core/rules/evo-tip';
 import { idleExpScale } from '../../core/rules/growth';
 import { isRegionLast, regionAceLevel, regionHere, regionOrder, REGIONS, type RegionDef } from '../../core/rules/region';
 import { stageLevelBand } from '../../core/rules/stage';
@@ -162,6 +163,8 @@ export interface BagRow {
   field: boolean;
   /** 진화의 돌 · 연결의끈 */
   evolution: boolean;
+  /** 지금 이것으로 진화할 수 있는 내 포켓몬 한 줄 (팀 · 보관함 — 처음 안내 #125 와 같은 기준 · "피카츄 → 라이츄 진화 가능") — 칩 ▲ 표시 (#148 · ideas 1653) · 없으면 칸 없음 */
+  evolve?: string;
   /** 전투 밖에서 못 쓰는 것의 안내 (볼 · 팔 물건 · 경험 부적 — 2026-10-21 UX 리뷰어: 진주가 "전투에서 써요" 로 나오던 것) */
   note?: string;
 }
@@ -179,18 +182,31 @@ export function bagView(save: Save): BagRow[] {
         : item === 'exp-charm'
           ? `다음 스테이지를 새로 시작하면 저절로 써요 (경험치 ×${BALANCE.expCharmScale})`
           : '볼은 전투에서 써요 (야생 포켓몬에게)';
-    rows.push({ item, name: itemName(item), count, field, evolution: isEvolutionItem(item), note });
+    const evolve = isEvolutionItem(item) ? evoUsersLine(save, item) : null;
+    rows.push({ item, name: itemName(item), count, field, evolution: isEvolutionItem(item), ...(evolve ? { evolve } : {}), note });
   }
   // 쓰는 물건 먼저 · 그 안은 쓰는 순서 (상처약 → 좋은 → 고급 → 풀회복 · 상태 · 기력 …) — 세이브에 들어온 순서라 "고급 · 풀회복 · 상처약 · 좋은" 처럼 섞이던 것 (UX 리뷰어 #75)
   return rows.sort((a, b) => Number(b.field) - Number(a.field) || FIELD_ITEMS.indexOf(a.item) - FIELD_ITEMS.indexOf(b.item));
 }
 
-/** 그 아이템을 팀 포켓몬마다 쓸 수 있는지 (흐리게 + 까닭) */
-export function bagTargets(save: Save, item: ItemId): { view: MonsterView; block: string | null }[] {
+/** 그 아이템을 팀 포켓몬마다 쓸 수 있는지 (흐리게 + 까닭) · 진화의 돌 · 끈 = 진화할 모습 이름 (to — 버튼 작은 글 "→ 라이츄" · 돌에 HP 는 뜻이 없어서, #148 UX) */
+export function bagTargets(save: Save, item: ItemId): { view: MonsterView; block: string | null; to?: string }[] {
   return save.party
     .map((uid) => save.monsters[uid])
     .filter((m): m is Monster => !!m)
-    .map((m) => ({ view: monsterView(m), block: fieldUseBlock(m, item) }));
+    .map((m) => {
+      const block = fieldUseBlock(m, item);
+      const to = !block && isEvolutionItem(item) ? itemEvolution(m, item) : null;
+      return { view: monsterView(m), block, ...(to !== null ? { to: speciesOf(to)?.name.ko ?? '?' } : {}) };
+    });
+}
+
+/** 고른 돌 · 끈으로 진화할 포켓몬이 보관함에만 있으면 그 한 줄 ("보관함 피카츄 → 라이츄 · 팀에 넣으면 써요" — 가방은 팀에만 쓰여서 팀이 모두 흐리면 "된다더니 안 된다" 로 읽히던 것, #148 UX 큼 2) · 아니면 null */
+export function bagBoxNote(save: Save, item: ItemId): string | null {
+  const users = isEvolutionItem(item) ? evoItemUsers(save, item) : [];
+  const first = users[0];
+  if (!first || users.some((u) => u.where === 'team')) return null;
+  return `보관함 ${first.name} → ${first.toName}${users.length > 1 ? ` 외\u00a0${users.length - 1}` : ''} · 팀에 넣으면 써요`;
 }
 
 export interface ShopRow {

@@ -9,6 +9,7 @@
 import type { ComponentChildren } from 'preact';
 import { useEffect, useMemo, useRef, useState, useLayoutEffect } from 'preact/hooks';
 import type { GameInput } from '../../../core/engine';
+import { itemName } from '../../../core/rules/items';
 import { withJosa } from '../../../core/text';
 import { Button } from '../../../ui/Button';
 import { Icon } from '../../../ui/Icon';
@@ -227,7 +228,7 @@ export function ChoiceBox({ view, media, scale, onInput }: ChoiceBoxProps) {
           <Button secondary onClick={() => onInput({ kind: 'evolve-skip' })} title="진화 연출 빨리 넘기기 (Space)">
             <KeyCap k="Space" /> 넘기기
           </Button>
-          <Button secondary onClick={() => onInput({ kind: 'evolve-cancel', uid: view.monster.uid, to: view.to })} title="이번엔 진화하지 않아요 — 다음 레벨업 때 다시 (Esc)">
+          <Button secondary onClick={() => onInput({ kind: 'evolve-cancel', uid: view.monster.uid, to: view.to })} title={view.item ? `이번엔 진화하지 않아요 — ${withJosa(itemName(view.item), '은/는')} 가방으로 · 언제든 다시 (Esc)` : '이번엔 진화하지 않아요 — 다음 레벨업 때 다시 (Esc)'}>
             <KeyCap k="Esc" /> 진화 취소
           </Button>
           </span>

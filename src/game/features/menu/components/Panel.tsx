@@ -114,9 +114,9 @@ export function Panel({ icon, title, extra, onClose, closeLabel = '닫기', sub,
 }
 
 /** 줄 하나 (넘치면 옆으로 스크롤 · wrap 이면 다음 줄로) */
-export function Row({ children, label, wrap }: { children: ComponentChildren; label?: ComponentChildren; /** 높이가 되면 여러 줄로 (상점) */ wrap?: boolean }) {
+export function Row({ children, label, wrap, extraClass }: { children: ComponentChildren; label?: ComponentChildren; /** 높이가 되면 여러 줄로 (상점) */ wrap?: boolean; extraClass?: string }) {
   return (
-    <div class={wrap ? 'pg-panel-row pg-panel-wrap' : 'pg-panel-row'}>
+    <div class={`${wrap ? 'pg-panel-row pg-panel-wrap' : 'pg-panel-row'}${extraClass ? ` ${extraClass}` : ''}`}>
       {label && <span class="pg-panel-label pg-dim">{label}</span>}
       {children}
     </div>

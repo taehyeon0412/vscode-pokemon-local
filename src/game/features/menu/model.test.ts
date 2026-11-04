@@ -4,7 +4,12 @@ import { BALANCE } from '../../core/balance';
 import { regionAceLevel } from '../../core/rules/region';
 import { ICONS } from '../../data/icons';
 import { clearBonusExp } from '../../core/engine';
-import { afterRelease, clearView, ITEM_ICON, lobbyView, mapView, MENU_KEYS, menuLabels, menuShortcutOf, monsterView, shopView } from './model';
+import { Rng } from '../../core/engine/rng';
+import { resolveEvolve } from '../../core/engine/rewards';
+import { STONES, useFieldItem } from '../../core/rules/bag';
+import type { ItemId, Save } from '../../core/save';
+import { allSpecies, evolutionsOf, formsOfSpecies } from '../../data';
+import { afterRelease, bagBoxNote, bagTargets, bagView, clearView, ITEM_ICON, lobbyView, mapView, MENU_KEYS, menuLabels, menuShortcutOf, monsterView, shopView } from './model';
 
 describe('S18 새 기술 NEW 칩 (#144 · ideas 1681)', () => {
   it('세이브 newMoves 중 지금 칸에 있는 기술만 · 없으면 빈 목록', () => {
@@ -13,6 +18,71 @@ describe('S18 새 기술 NEW 칩 (#144 · ideas 1681)', () => {
     expect(monsterView(m).newMoves).toEqual([]);
     expect(monsterView({ ...m, newMoves: [b!] }).newMoves).toEqual([b]);
     expect(monsterView({ ...m, newMoves: [999999, a!] }).newMoves).toEqual([a]);
+  });
+});
+
+describe('S19 가방 돌 · 끈 ▲ 진화 가능 (#148 · ideas 1653)', () => {
+  /** 그 아이템으로 진화하는 종 하나 (그림 있는 진화만 — 처음 안내와 같은 기준) */
+  const evolverOf = (item: ItemId): number =>
+    allSpecies().find((dex) => formsOfSpecies(dex).length > 0 && evolutionsOf(dex).some((e) => (item === 'linking-cord' ? e.kind === 'trade' : e.kind === 'item' && e.item === item) && formsOfSpecies(e.to).length > 0))!;
+  const withMon = (species: number, bag: Partial<Record<ItemId, number>>, where: 'team' | 'box' = 'team'): Save => {
+    const s = sampleSave();
+    const m9 = sampleMonster({ uid: 'm9', species, form: formsOfSpecies(species)[0]!, level: 30 });
+    return { ...s, monsters: { ...s.monsters, m9 }, party: where === 'team' ? [...s.party, 'm9'] : s.party, box: where === 'box' ? [...s.box, 'm9'] : s.box, bag };
+  };
+  const row = (save: Save, item: ItemId) => bagView(save).find((r) => r.item === item);
+  /** 돌을 써서 S22 진화를 마침 (기술은 그대로) */
+  const evolveWith = (save: Save, item: ItemId): Save => {
+    const used = useFieldItem(save, item, 'm9');
+    expect(used?.evolve).toBe(true);
+    return resolveEvolve(used!.save, save.monsters.m9!.moves.map((s) => s.moveId), new Rng(1));
+  };
+
+  it('돌 다섯 + 연결의끈 — 쓸 포켓몬이 팀에 있으면 ▲ (그 포켓몬 한 줄) · 없으면 칸 없음 · 다른 돌은 없음', () => {
+    for (const item of [...STONES, 'linking-cord'] as ItemId[]) {
+      const dex = evolverOf(item);
+      expect(dex, item).toBeGreaterThan(0);
+      const bag = Object.fromEntries([...STONES, 'linking-cord'].map((x) => [x, 1]));
+      const marked = bagView(withMon(dex, bag)).filter((r) => r.evolve).map((r) => r.item);
+      expect(marked, item).toContain(item);
+      expect(row(withMon(dex, bag), item)?.evolve, item).toMatch(/진화\u00a0가능/);
+      expect('evolve' in row(sampleSave({ bag }), item)!, item).toBe(false);
+    }
+  });
+
+  it('보관함에만 있어도 ▲ (팀에 넣고) · 돌이 아닌 것 (상처약) 은 늘 칸 없음', () => {
+    const dex = evolverOf('thunder-stone');
+    const box = row(withMon(dex, { 'thunder-stone': 1, potion: 2 }, 'box'), 'thunder-stone');
+    expect(box?.evolve).toMatch(/팀에\u00a0넣고$/);
+    expect('evolve' in row(withMon(dex, { 'thunder-stone': 1, potion: 2 }), 'potion')!).toBe(false);
+  });
+
+  it('고른 돌 줄 — 보관함에만 쓸 포켓몬이 있으면 그 한 줄 · 팀에 있으면 없음 · 쓸 팀 포켓몬 버튼은 HP 대신 진화할 모습 (#148 UX)', () => {
+    const dex = evolverOf('thunder-stone');
+    const box = withMon(dex, { 'thunder-stone': 1 }, 'box');
+    expect(bagBoxNote(box, 'thunder-stone')).toMatch(/^보관함 .+ → .+ · 팀에 넣으면 써요$/);
+    expect(bagTargets(box, 'thunder-stone').every((x) => x.block && !('to' in x))).toBe(true);
+    const team = withMon(dex, { 'thunder-stone': 1 });
+    expect(bagBoxNote(team, 'thunder-stone')).toBeNull();
+    const m9 = bagTargets(team, 'thunder-stone').find((x) => x.view.uid === 'm9');
+    expect([m9?.block, m9?.to]).toEqual([null, row(team, 'thunder-stone')!.evolve!.split(' → ')[1]!.split(' ')[0]]);
+    expect(bagBoxNote(team, 'potion')).toBeNull();
+    expect(bagTargets({ ...team, bag: { potion: 1 } }, 'potion').some((x) => 'to' in x)).toBe(false);
+  });
+
+  it('진화하면 바로 꺼짐 — 돌을 써서 S22 를 마치면 돌이 남아도 쓸 포켓몬이 없어 ▲ 없음 · 다 쓰면 칸도 없음', () => {
+    const dex = evolverOf('thunder-stone');
+    const save = withMon(dex, { 'thunder-stone': 2 });
+    expect(row(save, 'thunder-stone')?.evolve).toBeTruthy();
+    const done = evolveWith(save, 'thunder-stone');
+    expect(done.monsters.m9!.species).not.toBe(dex);
+    expect(row(done, 'thunder-stone')?.count).toBe(1);
+    expect('evolve' in row(done, 'thunder-stone')!).toBe(false);
+    const one = withMon(dex, { 'thunder-stone': 1 });
+    expect(row(evolveWith(one, 'thunder-stone'), 'thunder-stone')).toBeUndefined();
+    // 진화를 멈추면 돌이 돌아오고 ▲ 도 다시
+    const stop = resolveEvolve(useFieldItem(one, 'thunder-stone', 'm9')!.save, null, new Rng(1));
+    expect(row(stop, 'thunder-stone')?.evolve).toBeTruthy();
   });
 });
 

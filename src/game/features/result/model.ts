@@ -5,7 +5,7 @@ import { TIMING } from '../../core/balance';
 import type { BattleSummary, GameState } from '../../core/engine';
 import { evolvedForm, keepCount } from '../../core/rules/growth';
 import { starGrade } from '../../core/rules/stats';
-import type { Monster, PendingChoice, Save } from '../../core/save';
+import type { ItemId, Monster, PendingChoice, Save } from '../../core/save';
 import { typeNameKo, withJosa } from '../../core/text';
 import { moveOf, speciesOf } from '../../data';
 
@@ -166,6 +166,8 @@ export type ChoiceView =
       to: number;
       toName: string;
       toForm: string;
+      /** 진화의 돌 · 끈으로 시작한 진화 (멈추면 가방으로 돌아옴 — 진화 취소 title) · 레벨업이면 null */
+      item: ItemId | null;
       /** 진화 연출 중 (Space 넘기기 · Esc 멈추기) */
       animating: boolean;
       /** 진화를 보기 전 "어…? ○○의 모습이…!" 에서 기다림 (Space · 클릭으로 시작 — 2026-10-21 ideas #33) */
@@ -193,6 +195,7 @@ export function choiceView(state: GameState): ChoiceView | null {
     to: c.to,
     toName: nameOf(c.to),
     toForm: evolvedForm(m.form, m.species, c.to),
+    item: c.item,
     animating: st.ms < TIMING.evolveAnimMs,
     waiting: st.ms < 0,
     current,

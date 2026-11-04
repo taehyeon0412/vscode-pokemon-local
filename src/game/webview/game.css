@@ -6261,6 +6261,43 @@ body.vscode-high-contrast-light .pg-title-body {
 .pg-infobar .pg-new-dot {
   top: -1px;
 }
+/* 가방 — 지금 진화할 수 있는 포켓몬이 있는 돌 · 끈 (#148 · ideas 1653): 새 것 N 칸과 같은 7 × 7 · 금색 칠 + 짙은 ▲ 밑변 5 (위로 = 진화 · 줄기를 단 화살표는 1배에서 "+" 로 읽혀서).
+   칩 모서리 top −1 · right −1 (팀 칸 N 과 같은 자리 — 칩 오른쪽 여백 6 · 글자 위 5 안이라 개수 글자에 안 닿음) · 폭 0 이라 칩 폭 · 줄 바꿈이 그대로 · 머리 줄에 같은 ▲ + "진화 가능" (뜻) */
+:root {
+  --pg-evo-dot-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='7' height='7' shape-rendering='crispEdges'%3E%3Crect width='7' height='7' fill='%23ffd76a'/%3E%3Cpath d='M3 2h1v1H3zM2 3h3v1H2zM1 4h5v1H1z' fill='%231a1406'/%3E%3C/svg%3E");
+}
+.pg-chip.pg-evo-mark::after {
+  content: '';
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 7px;
+  height: 7px;
+  background: var(--pg-evo-dot-img) no-repeat;
+  pointer-events: none;
+}
+/* 칩 줄은 줄 바꿈이라 옆으로 넘칠 일이 없음 — 줄 끝 칩의 ▲ 1px (right −1) 이 줄 자르기에 0.25 ~ 0.81px 잘리던 것 (306 · 412 · 714) · 몸통 좌우 여백 8 안 */
+.pg-panel-row.pg-bag-chips {
+  overflow: visible;
+}
+/* 고른 돌의 보관함 안내 한 줄 — 좁으면 줄을 바꿈 (낱말은 안 끊음 · 옆 스크롤 없이 다 보임) */
+.pg-panel-row.pg-bag-note {
+  white-space: normal;
+  word-break: keep-all;
+  overflow: visible;
+}
+.pg-evo-key {
+  white-space: nowrap;
+}
+/* 머리 줄 뜻 그림 (.pg-evo-dot 는 처음 안내의 가운뎃점 — 이름이 겹쳐 −4 가 붙어 왼쪽 4px 이 잘리던 것) */
+.pg-evo-sign {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 3px;
+  vertical-align: 1px;
+  background: var(--pg-evo-dot-img) no-repeat;
+}
 .pg-new-dot::before {
   left: 0;
   top: 3px;
