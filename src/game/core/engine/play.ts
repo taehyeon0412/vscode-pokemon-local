@@ -24,7 +24,7 @@ import { pickRival, rivalLine, rivalLoseMsg, rivalName, rivalRecord, rivalTeam, 
 import { isTipId, ITEM_IDS, REGION_IDS, RUN_SEEN_MAX, TIPS_MAX, type RegionId, type DailyGoal, type FacilitySpot, type ItemId, type Monster, type Save, type StageId, type StageProgress, type StageRun, type StatKey } from '../save';
 import { withJosa } from '../text';
 import { moveOf, speciesOf } from '../../data';
-import { applyBattleResult, battleDone, battleInput, battleStep, battleWaiting, firstAlive, startBattle, startTrainerBattle, switchable, type BattleInput, type BattleState } from './battle';
+import { applyBattleResult, battleDone, battleInput, battleStep, battleWaiting, firstAlive, startBattle, startTrainerBattle, switchable, withTriedMoves, type BattleInput, type BattleState } from './battle';
 import { addItem, battleRewards, clearStage, defeatLoss, defeatPenalty, stageClearGain, pickTreasure, resolveEvolve, resolveLearn, rivalWinRewards, takeLaterChoices, useRareCandy, type BattleSummary } from './rewards';
 import { Rng } from './rng';
 // 개발 모드 (임시)
@@ -689,8 +689,8 @@ function stageStep(save0: Save, rt0: RuntimeState, id: StageId, stepMs: number):
       const before = save;
       const rivalP = before.pendingEncounter?.kind === 'rival' ? before.pendingEncounter : null;
       if (rivalP && (battle.result !== 'win' || wiped)) {
-        // 라이벌에게 짐 (gdd 4.12) — 연습 경기: 세이브를 싸우기 전 그대로 (HP · PP · 상태 · 가방) + 전적 1패 · 돈 · 병원 없음 · 계속 걸음
-        save = withRivalResult({ ...before, pendingEncounter: null }, rivalP.rival, false);
+        // 라이벌에게 짐 (gdd 4.12) — 연습 경기: 세이브를 싸우기 전 그대로 (HP · PP · 상태 · 가방) + 전적 1패 · 돈 · 병원 없음 · 계속 걸음 · 써 본 기술만 NEW 를 끔 (#146)
+        save = withRivalResult({ ...withTriedMoves(before, battle.tried), pendingEncounter: null }, rivalP.rival, false);
         rt = { ...rt, rngState: rng.state, toast: { text: rivalLine(rivalP.rival, false, rivalRecord(save, rivalP.rival)), ms: TIMING.toastMs * 2 } };
         signal = 'battle-end';
         stage = { phase: 'walk' };

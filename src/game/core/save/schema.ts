@@ -62,6 +62,8 @@ export interface Monster {
   caughtAt: string;
   /** 새로 배운 기술 — S18 에서 아직 안 본 것 (NEW 칩 #144) · 지금 기술 칸에 있는 id 만 · 같은 id 한 번 · 비면 칸 없음 */
   newMoves?: number[];
+  /** 배웠지만 아직 전투에서 안 쓴 기술 (전투 기술 메뉴 NEW #146) — 손 · 자동 · 3:3 어디서든 한 번 나가면 빠짐 · S18 을 봐도 남음 · newMoves 와 같은 규칙 (칸에 있는 id 만 · 한 번 · 비면 칸 없음) */
+  untried?: number[];
 }
 
 /** 아이템 (mvp-spec S14 · 3.6) — PokeAPI 아이템 이름과 같은 꼴 */

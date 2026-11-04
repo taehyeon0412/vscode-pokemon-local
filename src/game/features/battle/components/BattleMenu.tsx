@@ -44,7 +44,8 @@ const LIST_HEAD_PX = 30;
 function textOver(x: HTMLElement): boolean {
   // 아직 안 그려진 칸 (폭 0 — 처음 장면) 은 안 잼 (그때 넘침으로 세어 단계가 쌓여 "마지막 기회!" 가 빠지던 것 — UX 리뷰어 #23 4차)
   if (x.clientWidth === 0) return false;
-  if (x.scrollWidth > x.clientWidth) return true;
+  // 새 기술 N (#146 .pg-new-mark::after) 이 줄 밖 판 여백에 얹힌 목록 줄은 scrollWidth 가 그 N 을 넘침으로 셈 → 글 실제 너비 (아래 Range) 로만 잼 (N 하나로 두 층 판이 되던 것 — UX #146 큼)
+  if (!x.classList.contains('pg-new-mark') && x.scrollWidth > x.clientWidth) return true;
   const cs = getComputedStyle(x);
   const inner = x.getBoundingClientRect().right - parseFloat(cs.paddingRight) - parseFloat(cs.borderRightWidth);
   const r = document.createRange();
@@ -162,7 +163,7 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
     window.addEventListener('resize', on);
     return () => window.removeEventListener('resize', on);
   }, []);
-  const fitKey = `${page}|${b.phase}|${vertical === undefined ? 'h' : 'v'}|${compact}|${bar}|${win}|${items.map((i) => `${i.key}${i.enabled ? 1 : 0}${i.tier ?? ''}${i.warn ?? ''}`).join(',')}`;
+  const fitKey = `${page}|${b.phase}|${vertical === undefined ? 'h' : 'v'}|${compact}|${bar}|${win}|${items.map((i) => `${i.key}${i.enabled ? 1 : 0}${i.tier ?? ''}${i.warn ?? ''}${i.untried ? '*' : ''}`).join(',')}`;
   const fitRef = useRef({ key: '', n: 0 });
   if (fitRef.current.key !== fitKey) fitRef.current = { key: fitKey, n: 0 };
   const fit = fitRef.current.n;
@@ -191,6 +192,8 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
   const mainLayer = useRef<HTMLSpanElement>(null);
   const [mainTiny, setMainTiny] = useState(false);
   useEffect(() => setMainTiny(false), [win, compact]);
+  // 3 기술 N 여백 (pg-new-pad) — 이 전투에서 한 번 N 이 붙으면 끝까지 (메뉴는 전투마다 새로 그려짐)
+  const newPad = useRef(false);
   const lastBalls = b.phase === 'last' ? BALLS.filter((ball) => itemLeft(b, save, ball) > 0) : [];
   const sameTier = lastBalls.length > 1 && lastBalls.every((ball) => ballTier(b, ball) === ballTier(b, lastBalls[0]!));
   const fitSteps = b.phase === 'last' ? (sameTier ? FIT_LAST_SAME : FIT_LAST) : vertical !== undefined ? FIT_SIDE : FIT_ROW;
@@ -500,10 +503,14 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
     list.map((i) => {
       const two = twoLine && cur && i.power !== undefined;
       const on = isQueued(i) ? 'pg-queued' : b.phase === 'choose' && cur && i.key === items[onIdx]?.key && !repeatOn ? 'pg-on' : '';
+      // 안 쓴 새 기술 (#146) = 모든 자리 N 칸 하나 (game.css .pg-new-mark::after — 폭 0 · 넘침 재기 · 줄이기 단계 · 두 층 판과 상관없음, UX #146 큼 둘).
+      //   가로 줄 버튼은 오른쪽 여백 +3 (pg-new-pad — 모서리 N 이 글 윗부분을 덮지 않게) · 3 기술은 N 이 지워져도 그 전투 내내 여백을 남김 (맞는 순간 버튼이 6px 줄어 줄이 3px 옮던 것 — UX 작음 4)
+      if (i.key === 'skills' && i.untried) newPad.current = true;
+      const pad = i.key === 'skills' ? newPad.current : !!i.untried && !two;
       return (
       <Button
         key={i.key}
-        extraClass={[on, two ? 'pg-sk2' : ''].filter(Boolean).join(' ') || undefined}
+        extraClass={[on, two ? 'pg-sk2' : '', i.untried ? 'pg-new-mark' : '', pad ? 'pg-new-pad' : ''].filter(Boolean).join(' ') || undefined}
         onClick={() => choose(i)}
         disabled={!i.enabled && !isQueued(i)}
         secondary={'back' in i.go}
@@ -731,7 +738,13 @@ export function BattleMenu({ battle: b, save, onInput, lead, compact = false, ve
             ))}
         </span>
         {shown.map((i) => (
-          <Button key={i.key} extraClass={isQueued(i) ? 'pg-queued' : i.key === items[onIdx]?.key ? 'pg-on' : undefined} onClick={() => choose(i)} disabled={!i.enabled && !isQueued(i)} title={i.title}>
+          <Button
+            key={i.key}
+            extraClass={[isQueued(i) ? 'pg-queued' : i.key === items[onIdx]?.key ? 'pg-on' : '', i.untried ? 'pg-new-mark' : ''].filter(Boolean).join(' ') || undefined}
+            onClick={() => choose(i)}
+            disabled={!i.enabled && !isQueued(i)}
+            title={i.title}
+          >
             {
               <>
                 <span class="pg-pick-n">{i.num}</span>

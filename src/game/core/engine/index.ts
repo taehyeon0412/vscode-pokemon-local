@@ -52,6 +52,7 @@ export {
 } from './play';
 export {
   battleCatchOdds,
+  battleUntried,
   battleAutoUltLeft,
   battleFoeUltWarn,
   battleDone,

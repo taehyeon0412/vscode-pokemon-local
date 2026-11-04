@@ -191,7 +191,7 @@ function readStatus(v: unknown, path: string, fx: Fixer): StatusCondition | null
   return { kind: v.kind as 'poison' | 'burn' | 'paralysis' };
 }
 
-/** 새 기술 표시 (#144) — 지금 기술 칸에 있는 id 만 · 같은 id 한 번 (이상한 값은 빈 것 — 옛 세이브엔 칸이 없음) */
+/** 새 기술 표시 (#144 newMoves · #146 untried) — 지금 기술 칸에 있는 id 만 · 같은 id 한 번 (이상한 값은 빈 것 — 옛 세이브엔 칸이 없음) */
 function readNewMoves(v: unknown, moves: readonly MoveSlot[], path: string, fx: Fixer): number[] {
   if (v === undefined) return [];
   if (!Array.isArray(v)) {
@@ -220,6 +220,7 @@ function readMonster(v: unknown, path: string, fx: Fixer, fallbackUid: string): 
   }
   const moves = readMoves(v.moves, `${path}.moves`, fx);
   const newMoves = readNewMoves(v.newMoves, moves, `${path}.newMoves`, fx);
+  const untried = readNewMoves(v.untried, moves, `${path}.untried`, fx);
   return {
     uid: fx.text(v.uid, `${path}.uid`, fallbackUid),
     species: v.species,
@@ -235,6 +236,7 @@ function readMonster(v: unknown, path: string, fx: Fixer, fallbackUid: string): 
     shiny: fx.bool(v.shiny, `${path}.shiny`, false),
     caughtAt: fx.text(v.caughtAt, `${path}.caughtAt`, 'unknown'),
     ...(newMoves.length > 0 ? { newMoves } : {}),
+    ...(untried.length > 0 ? { untried } : {}),
   };
 }
 

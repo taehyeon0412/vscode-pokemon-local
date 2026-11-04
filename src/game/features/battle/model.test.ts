@@ -56,6 +56,19 @@ describe('S09 ⑦ 메뉴 한 줄', () => {
     expect(hpColor(5, 40)).toBe('low');
     expect(hpColor(0, 0)).toBe('low');
   });
+
+  it('아직 안 쓴 새 기술 (#146 NEW) — 기술 줄은 그 기술만 · 첫 메뉴 3 기술은 하나라도 있으면 (좁은 · 아주 좁은 메뉴도) · 이 전투에서 쓰면 바로 꺼짐', () => {
+    const moves = [{ moveId: 33, pp: 35 }, { moveId: 22, pp: 25 }];
+    const s = sampleSave({ monsters: { m1: sampleMonster({ moves, untried: [22] }) }, party: ['m1'] });
+    const b = myTurn(startBattle(s, wild, 'normal'));
+    expect(menuItems(b, s, 'skills').filter((i) => i.untried).map((i) => i.key)).toEqual(['m22']);
+    for (const compact of [false, true, 'tiny'] as const) expect(menuItems(b, s, 'main', compact).filter((i) => i.untried).map((i) => i.key)).toEqual(['skills']);
+    const used = { ...b, tried: { m1: [22] } };
+    expect(menuItems(used, s, 'skills').some((i) => i.untried)).toBe(false);
+    expect(menuItems(used, s, 'main').some((i) => i.untried)).toBe(false);
+    // 표시가 없으면 칸도 없음 (예전 메뉴와 같은 모양)
+    expect(menuItems(b, save, 'main').some((i) => 'untried' in i)).toBe(false);
+  });
 });
 
 describe('쏘는 기술 짝짓기 표 (mvp-spec S10 · 9장)', () => {

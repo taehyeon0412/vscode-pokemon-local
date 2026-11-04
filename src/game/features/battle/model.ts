@@ -4,7 +4,7 @@
 import { BALANCE, TIMING } from '../../core/balance';
 import { pickShown } from './fx/hold';
 import type { BattleAction, BattlePopup, BattleState, Side } from '../../core/engine';
-import { battleAutoUltLeft, battleCatchOdds, battleFoeUltWarn, canAct, canParry, canRiposte, catchTimeline, catchTriesUsed, counterOpen, faintedTeam, itemLeft, moveEffect, switchable, ultCounterOpen } from '../../core/engine';
+import { battleAutoUltLeft, battleCatchOdds, battleFoeUltWarn, battleUntried, canAct, canParry, canRiposte, catchTimeline, catchTriesUsed, counterOpen, faintedTeam, itemLeft, moveEffect, switchable, ultCounterOpen } from '../../core/engine';
 import { isShooting } from '../../core/rules/battle';
 import { maxHpOf } from '../../core/rules/bag';
 import { BALLS, isBall, type BallId, type CatchTier } from '../../core/rules/catch';
@@ -39,6 +39,8 @@ export interface MenuItem {
   ball?: BallId;
   /** 볼 남은 기회 " · 기회 2" · " · 마지막!" — 개수 (sub) 와 따로 (좁을 때 개수만 빼도 경고는 남게, UX 리뷰어 2026-10-21) */
   warn?: string;
+  /** 아직 안 쓴 새 기술 (#146 NEW) — 기술 줄은 그 기술 · 첫 메뉴 3 기술은 하나라도 있으면 (그때만 칸이 생김) */
+  untried?: true;
   /** 누르면 — 페이지를 바꾸거나 행동 */
   go: { page: MenuPage } | { action: BattleAction } | { back: true };
   enabled: boolean;
@@ -57,6 +59,7 @@ export function menuItems(b: BattleState, save: Save, page: MenuPage, compact: b
   switch (page) {
     case 'main': {
       const skillsOk = b.me.moves.some((s) => s.pp > 0);
+      const untried = battleUntried(b, save).length > 0;
       const itemsOk = MENU_ITEMS.some((i) => canAct(b, save, { kind: 'item', item: i }));
       const anyItem = MENU_ITEMS.some((i) => itemLeft(b, save, i) > 0);
       const switchOk = switchable(b, save).length > 0;
@@ -66,7 +69,7 @@ export function menuItems(b: BattleState, save: Save, page: MenuPage, compact: b
       const items: MenuItem[] = [
         { key: 'attack', num: 1, label: '1 공격', go: { action: { kind: 'attack' } }, enabled: canAct(b, save, { kind: 'attack' }), title: '1 공격 — 약한 기본기, 횟수 제한 없음' },
         { key: 'guard', num: 2, label: '2 방어', go: { action: { kind: 'guard' } }, enabled: canAct(b, save, { kind: 'guard' }), title: '2 방어 — 다음 내 행동까지 받는 피해 절반 (연달아 쓰면 줄어듦)' },
-        { key: 'skills', num: 3, label: '3 기술', go: { page: 'skills' }, enabled: b.phase === 'choose' && skillsOk, title: skillsOk ? '3 기술' : '쓸 수 있는 기술이 없어요 (1 공격만)' },
+        { key: 'skills', num: 3, label: '3 기술', go: { page: 'skills' }, enabled: b.phase === 'choose' && skillsOk, title: skillsOk ? (untried ? '3 기술 — 아직 안 쓴 새 기술이 있어요' : '3 기술') : '쓸 수 있는 기술이 없어요 (1 공격만)', ...(untried ? { untried: true as const } : {}) },
         { key: 'items', num: 4, label: '4 아이템', go: { page: 'items' }, enabled: b.phase === 'choose' && itemsOk, title: itemsOk ? '4 아이템 (볼 · 상처약 …)' : anyItem ? '지금 쓸 수 있는 아이템이 없어요 (HP 가득 · 상태 이상 없음 · 쓰러진 포켓몬 없음)' : '가방에 쓸 아이템이 없어요' },
         { key: 'more', num: 5, label: switchOk ? (fleeOk ? '5 교체·도망' : '5 교체') : fleeOk ? '5 도망' : '5 교체', go: switchOk ? { page: 'switch' } : { action: { kind: 'flee' } }, enabled: b.phase === 'choose' && (switchOk || fleeOk), title: moreTitle },
       ];
@@ -75,7 +78,8 @@ export function menuItems(b: BattleState, save: Save, page: MenuPage, compact: b
       const labels = compact === 'tiny' ? TINY_LABEL : COMPACT_LABEL;
       return items.map((i) => ({ ...i, label: labels[i.key === 'more' ? (switchOk && fleeOk ? 'more' : switchOk || !fleeOk ? 'switch' : 'flee') : i.key] ?? i.label }));
     }
-    case 'skills':
+    case 'skills': {
+      const untried = battleUntried(b, save);
       return [
         ...b.me.moves.map((s, i): MenuItem => {
           const mv = moveOf(s.moveId);
@@ -92,11 +96,13 @@ export function menuItems(b: BattleState, save: Save, page: MenuPage, compact: b
             go: { action: { kind: 'move', moveId: s.moveId } },
             enabled: canAct(b, save, { kind: 'move', moveId: s.moveId }),
             mark,
-            title: mv ? `${mv.name.ko} · PP ${s.pp}/${mv.pp} · ${mv.power > 0 ? `위력 ${mv.power}` : '변화'} · ${typeNameKo(mv.type)}${isShooting(mv) ? ' · 쏘는 기술' : ''}${mv.streak ? ' · 연달아 쓰면 +10%' : ''}${mark && eff !== null ? ` · ${mark === 'up' ? '효과가 굉장함' : mark === 'down' ? '효과가 별로' : '효과가 없음'} ×${eff}` : ''}` : undefined,
+            ...(untried.includes(s.moveId) ? { untried: true as const } : {}),
+            title: mv ? `${untried.includes(s.moveId) ? '새 기술 · ' : ''}${mv.name.ko} · PP ${s.pp}/${mv.pp} · ${mv.power > 0 ? `위력 ${mv.power}` : '변화'} · ${typeNameKo(mv.type)}${isShooting(mv) ? ' · 쏘는 기술' : ''}${mv.streak ? ' · 연달아 쓰면 +10%' : ''}${mark && eff !== null ? ` · ${mark === 'up' ? '효과가 굉장함' : mark === 'down' ? '효과가 별로' : '효과가 없음'} ×${eff}` : ''}` : undefined,
           };
         }),
         back,
       ];
+    }
     case 'items':
       // 가진 것만 (볼 먼저 — S11 ① 볼 고르기) · 번호는 그 순서대로
       return [

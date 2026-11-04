@@ -6245,13 +6245,17 @@ body.vscode-high-contrast-light .pg-title-body {
   color: var(--pg-sos-ink);
 }
 /* 새 것 표시 = 빨간 칸 7 × 7 + 흰 N ("새 것" — 금 십자는 아이콘 반짝임으로 읽혀 뜻이 약하던 것, UX 리뷰어 #78 · 내 위치 = 글자 없는 빨간 네모라 같은 뜻으로 안 읽힘) · 대기실 지도 버튼 · 정보줄 지도 아이콘 */
+:root {
+  /* 새 것 N 그림 하나 — .pg-new-dot 칸 · 전투 메뉴 3 기술 모서리 (::after, #146) 가 같이 씀 */
+  --pg-new-dot-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='7' height='7' shape-rendering='crispEdges'%3E%3Crect width='7' height='7' fill='%23ff6b5a'/%3E%3Cpath d='M1 1h1v5H1zM5 1h1v5H5zM2 2h1v1H2zM3 3h1v1H3zM4 4h1v1H4z' fill='%23ffffff'/%3E%3C/svg%3E");
+}
 .pg-new-dot {
   position: absolute;
   right: -3px;
   top: -3px;
   width: 7px;
   height: 7px;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='7' height='7' shape-rendering='crispEdges'%3E%3Crect width='7' height='7' fill='%23ff6b5a'/%3E%3Cpath d='M1 1h1v5H1zM5 1h1v5H5zM2 2h1v1H2zM3 3h1v1H3zM4 4h1v1H4z' fill='%23ffffff'/%3E%3C/svg%3E") no-repeat;
+  background: var(--pg-new-dot-img) no-repeat;
   pointer-events: none;
 }
 .pg-infobar .pg-new-dot {
@@ -6369,6 +6373,38 @@ body.vscode-high-contrast-light .pg-title-body {
   color: var(--pg-sos-red);
   font-size: 11px;
   font-weight: 700;
+}
+/* 전투 메뉴 안 쓴 새 기술 (#146) = 모든 자리 같은 N 칸 하나 (::after — 폭 0 · 넘침 재기 (Range) · 줄이기 단계 · 두 층 판과 상관없어 표시가 판 모양을 안 바꿈, UX #146 큼 둘).
+   전투 메뉴엔 "NEW" 낱말을 안 씀 (옆 칸이 좁아 크기 · PC 마다 NEW / N 이 갈리던 것 — UX 작음 3 · 낱말은 S18 기술 줄만).
+   첫 메뉴 3 기술 · 가로 줄 기술 = 버튼 안 오른쪽 위 모서리 (버튼이 넘침을 자름 — 바깥 모서리는 잘림) · 가로 줄 버튼은 오른쪽 여백 6 → 9 (N 7 + 틈 2 — 6 이면 "기술" 의 "술" 윗부분을 3 ~ 4px 덮던 것) */
+.pg-button.pg-new-mark {
+  position: relative;
+}
+.pg-button.pg-new-mark::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 7px;
+  height: 7px;
+  background: var(--pg-new-dot-img) no-repeat;
+  pointer-events: none;
+}
+.pg-bmenu-items .pg-button.pg-new-pad {
+  padding-right: 9px;
+}
+/* 옆 칸 두 층 기술 줄 = 오른쪽 끝 · 2층 (위력 · PP 줄) 높이 — 1층은 긴 이름 + 상성으로 칸 끝까지 차서 (플레어드라이브 ▼ 가 1.7px 넘쳐 잘리던 것), 2층은 늘 짧음 */
+.pg-button.pg-sk2.pg-new-mark::after {
+  top: auto;
+  bottom: 2px;
+}
+/* 무대 위 목록 판 = PP 글 뒤 판 안 여백 (줄 여백 4 + 판 여백 6 — PP 와 틈 2 · 판 테와 1) · 첫 줄 높이 — 줄은 넘침을 자르지 않게 (판 폭 · 두 층은 그대로) */
+.pg-pick-list > .pg-button.pg-new-mark {
+  overflow: visible;
+}
+.pg-pick-list > .pg-button.pg-new-mark::after {
+  top: 4px;
+  right: -5px;
 }
 .pg-region-pick-title {
   color: var(--pg-sos-gold);

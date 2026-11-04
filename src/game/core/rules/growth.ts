@@ -213,14 +213,26 @@ export function levelUpChoices(
   return { monster: markNewMoves(m, learned), learned, choices };
 }
 
-/** 새 기술 표시 (#144) — add 를 더하고 지금 칸에 없는 id (잊은 · 바꾼 기술) 는 뺌 · 같은 id 한 번 · 비면 칸을 지움 */
-export function markNewMoves(m: Monster, add: readonly number[]): Monster {
+/** 표시 목록 하나 — old + add 에서 drop 을 빼고 지금 칸에 있는 id 만 · 같은 id 한 번 */
+function markList(m: Monster, old: readonly number[] | undefined, add: readonly number[], drop: readonly number[]): number[] {
   const out: number[] = [];
-  for (const id of [...(m.newMoves ?? []), ...add]) if (!out.includes(id) && m.moves.some((s) => s.moveId === id)) out.push(id);
-  if (out.length > 0) return { ...m, newMoves: out };
-  if (m.newMoves === undefined) return m;
-  const { newMoves: _, ...rest } = m;
-  return rest;
+  for (const id of [...(old ?? []), ...add]) if (!out.includes(id) && !drop.includes(id) && m.moves.some((s) => s.moveId === id)) out.push(id);
+  return out;
+}
+
+/** 칸이 그대로인지 — 없는 칸 = 빈 목록 (빈 배열이 남아 있으면 지우게 다름으로 봄) */
+const sameList = (out: readonly number[], old: readonly number[] | undefined) => (old === undefined ? out.length === 0 : out.length > 0 && out.length === old.length && out.every((id, i) => id === old[i]));
+
+/**
+ * 새 기술 표시 — 배운 기술 add 를 S18 NEW (#144 newMoves) · 전투 기술 메뉴 NEW (#146 untried) 둘 다에 더하고,
+ * 전투에서 나간 기술 used 는 untried 에서만 뺌 · 지금 칸에 없는 id (잊은 · 바꾼 기술) 는 둘 다 뺌 · 같은 id 한 번 · 비면 칸을 지움 · 바뀐 게 없으면 같은 객체
+ */
+export function markNewMoves(m: Monster, add: readonly number[], used: readonly number[] = []): Monster {
+  const newMoves = markList(m, m.newMoves, add, []);
+  const untried = markList(m, m.untried, add, used);
+  if (sameList(newMoves, m.newMoves) && sameList(untried, m.untried)) return m;
+  const { newMoves: _n, untried: _u, ...rest } = m;
+  return { ...rest, ...(newMoves.length > 0 ? { newMoves } : {}), ...(untried.length > 0 ? { untried } : {}) };
 }
 
 /** S23 — 새 기술을 replace 번째 칸에 (null = 배우지 않기) */

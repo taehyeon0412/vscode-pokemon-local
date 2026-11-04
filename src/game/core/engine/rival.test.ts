@@ -142,6 +142,20 @@ describe('라이벌 깜짝 등장 (gdd 4.12)', () => {
     expect(s.save.monsters.m1).toEqual(me);
   });
 
+  it('지면 — HP · PP 는 싸우기 전으로 되돌려도 써 본 기술의 메뉴 NEW (untried) 는 꺼짐 · 안 쓴 것은 남음 (#146 · 코드 리뷰어 · 테스터)', () => {
+    const me = { ...full(sampleMonster()), untried: [33, 22] };
+    const start = meet(auto(game({ monsters: { m1: me }, party: ['m1'] })));
+    const b = battleOf(start)!;
+    const used = { ...start, runtime: { ...start.runtime, stage: { phase: 'battle' as const, battle: { ...b, me: { ...b.me, hp: 1 }, tried: { m1: [22] } } } } };
+    const s = until(used, (x) => phase(x) !== 'battle', 60_000);
+    expect(s.save.rivals).toEqual({ boy: { wins: 0, losses: 1 } });
+    // 자동 전투가 그 사이 몸통박치기를 쓸 수도 있음 — 덩굴채찍만 확실히 빠지고 나머지는 싸우기 전 그대로
+    const { untried, ...rest } = s.save.monsters.m1!;
+    expect(untried ?? []).not.toContain(22);
+    const { untried: _, ...before } = me;
+    expect(rest).toEqual(before);
+  });
+
   it('이겼어도 내 팀이 다 쓰러졌으면 (반동 · 독) 진 것과 같음 — 보상 없음 · 1패', () => {
     const start = meet(auto(game({ monsters: { m1: full(sampleMonster()) }, party: ['m1'], money: 500 })));
     const b = battleOf(start)!;

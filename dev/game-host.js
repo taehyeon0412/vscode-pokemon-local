@@ -517,6 +517,8 @@ const APPEAR_SPOTS = {
     }
     // newmv=1 — 팀 포켓몬마다 마지막 기술 칸이 새로 배운 기술 (세이브 newMoves — #144 S18 NEW 칩 · 팀 칸 새 것 표시)
     if (q.get('newmv') === '1') for (const uid of save.party) { const m = save.monsters[uid]; const last = m && m.moves[m.moves.length - 1]; if (last) save.monsters[uid] = { ...m, newMoves: [last.moveId] }; }
+    // untried=1 · all — 팀 포켓몬마다 마지막 기술 칸 (all = 모든 칸) 이 아직 안 쓴 새 기술 (세이브 untried — #146 전투 기술 메뉴 NEW · 첫 메뉴 3 기술 N)
+    if (q.get('untried') === '1' || q.get('untried') === 'all') for (const uid of save.party) { const m = save.monsters[uid]; if (m && m.moves.length > 0) save.monsters[uid] = { ...m, untried: (q.get('untried') === 'all' ? m.moves : m.moves.slice(-1)).map((s) => s.moveId) }; }
     // bt=<ms> — 전투 시간 (0 이면 막 시작 — 볼 던지기 · 화면 닦기 사진, 2026-10-20)
     if (q.get('bt') && runtime.stage && runtime.stage.phase === 'battle') runtime.stage.battle.t = Number(q.get('bt'));
     // 개발 모드 (임시) — dev=1 이면 처음부터 개발 모드 · 타이틀의 개발 모드 줄 (title-dev) 도 흉내

@@ -159,6 +159,8 @@ export interface BattleState {
   bench: Record<string, { hp: number; moves: MoveSlot[]; status: StatusCondition | null; ult?: number }>;
   /** 이 전투에서 쓴 아이템 (끝나면 가방에서 뺌) */
   bagUsed: Partial<Record<ItemId, number>>;
+  /** 이 전투에서 한 번이라도 맞는 때까지 간 내 기술 (uid → 기술 id — 손 · 자동 모두 · 빗나감 포함 · 끼어들기로 취소된 것 빼고) — 끝나면 세이브 untried 에서 뺌 · 메뉴 NEW 는 바로 꺼짐 (#146) · 옛 상태엔 없음 */
+  tried?: Record<string, number[]>;
   /** catch = 볼을 던짐 (S11) · last = 이긴 뒤 마지막 기회 (볼을 고르거나 그냥 지나감) */
   phase: 'run' | 'choose' | 'anim' | 'clash' | 'pick' | 'catch' | 'last' | 'send' | 'over' | 'riposte';
   anim: BattleAnim | null;
@@ -320,6 +322,12 @@ function popup(b: BattleState, side: Side, text: string, kind: BattlePopup['kind
 
 function moveName(id: number): string {
   return moveOf(id)?.name.ko ?? '기술';
+}
+
+/** 나간 기술 기록에 하나 더함 (1:1 · 3:3 같이 씀 — #146) · 이미 있으면 같은 객체 */
+export function withTried(tried: Record<string, number[]> | undefined, uid: string, moveId: number): Record<string, number[]> {
+  if (tried?.[uid]?.includes(moveId)) return tried;
+  return { ...tried, [uid]: [...(tried?.[uid] ?? []), moveId] };
 }
 
 /** 행동 하나 시작 — 게이지 0 · PP · 방어 · 연달아 세짐 · 맞받아치기 창 · 연출 시간 */
@@ -520,6 +528,8 @@ function finishAnim(b0: BattleState, save: Save, rng: Rng): BattleState {
       break;
     case 'move': {
       const mv = moveOf(anim.action.moveId);
+      // 써 본 기술 (#146) — 맞는 때에 적음 (시작할 때 적으면 관장 필살기 끼어들기로 0.15초 만에 취소된 기술도 NEW 가 꺼짐 — 코드 리뷰어) · 빗나가도 써 본 것
+      if (side === 'me') b.tried = withTried(b.tried, actor.uid, anim.action.moveId);
       // 연달아 세지는 기술: 이번이 n 번째 연달아면 × (1 + 0.1 × (n − 1))
       resolveMove(b, side, mv, rng, mv?.streak ? streakMultiplier(actor.streakCount) : 1, anim.miss);
       break;
@@ -999,6 +1009,13 @@ export function moveEffect(b: BattleState, moveId: number): number | null {
   return mv && mv.power > 0 ? effectiveness(mv.type, b.foe.types) : null;
 }
 
+/** 지금 내 포켓몬의 아직 안 쓴 새 기술 (기술 메뉴 NEW #146) — 세이브 untried 에서 이 전투에 나간 것을 뺀 · 지금 칸 순서 (전투 중엔 세이브가 안 바뀜) */
+export function battleUntried(b: BattleState, save: Save): number[] {
+  const untried = save.monsters[b.me.uid]?.untried ?? [];
+  const tried = b.tried?.[b.me.uid] ?? [];
+  return b.me.moves.map((s) => s.moveId).filter((id) => untried.includes(id) && !tried.includes(id));
+}
+
 /** 마지막 기회 길이 — 자동 전투 3초 (이로치는 6초 그대로) · 손으로 6초 (화면의 남은 초도 이걸로, 2026-10-21 디자인팀) */
 export function lastChanceLimitMs(b: BattleState, auto: boolean): number {
   return auto && !b.foe.shiny ? TIMING.lastChanceAutoMs : TIMING.lastChanceMs;
@@ -1148,6 +1165,17 @@ export function battleInput(b: BattleState, save: Save, input: BattleInput, rng:
   }
 }
 
+/** 써 본 기술을 세이브 메뉴 NEW (untried) 에서만 뺌 (#146) — 라이벌에게 진 판처럼 HP · PP 는 싸우기 전으로 되돌려도 써 본 기술은 써 본 것 (코드 리뷰어) */
+export function withTriedMoves(save: Save, tried: Readonly<Record<string, readonly number[]>> | undefined): Save {
+  if (!tried) return save;
+  const monsters = { ...save.monsters };
+  for (const [uid, ids] of Object.entries(tried)) {
+    const m = monsters[uid];
+    if (m) monsters[uid] = markNewMoves(m, [], ids);
+  }
+  return { ...save, monsters };
+}
+
 /** 전투 끝 — 내 포켓몬 HP · PP · 상태 이상과 쓴 아이템을 세이브에 (지면 S17 패배 — 돈 · 회복 · 다시 시작은 play.ts) */
 export function applyBattleResult(save: Save, b: BattleState): Save {
   const monsters = { ...save.monsters };
@@ -1155,8 +1183,8 @@ export function applyBattleResult(save: Save, b: BattleState): Save {
   for (const [uid, c] of Object.entries(changed)) {
     const m = monsters[uid];
     // HP 는 그 포켓몬 최대 HP 까지 (다른 쪽에서 온 값이 이상해도 세이브에 넘치지 않게)
-    // 새 기술 표시 (#144) 는 돌아온 칸에 있는 것만 — 지금은 전투 중 칸이 안 바뀌지만 바뀌는 길이 생겨도 칸에 없는 id 가 안 남게 (코드 리뷰어)
-    if (m) monsters[uid] = markNewMoves({ ...m, hp: Math.min(c.hp, fighterOf({ ...m, hp: 1e6 }).maxHp), moves: c.moves.map((s) => ({ ...s })), status: c.status }, []);
+    // 새 기술 표시 (#144) 는 돌아온 칸에 있는 것만 — 지금은 전투 중 칸이 안 바뀌지만 바뀌는 길이 생겨도 칸에 없는 id 가 안 남게 (코드 리뷰어) · 나간 기술은 메뉴 NEW (untried) 에서 뺌 (#146)
+    if (m) monsters[uid] = markNewMoves({ ...m, hp: Math.min(c.hp, fighterOf({ ...m, hp: 1e6 }).maxHp), moves: c.moves.map((s) => ({ ...s })), status: c.status }, [], b.tried?.[uid]);
   }
   const bag = { ...save.bag };
   for (const [item, n] of Object.entries(b.bagUsed) as [ItemId, number][]) bag[item] = Math.max(0, (bag[item] ?? 0) - n);
@@ -1233,6 +1261,15 @@ function okBag(bag: unknown): boolean {
   return isObj(bag) && Object.entries(bag).every(([k, n]) => (ITEM_IDS as readonly string[]).includes(k) && fin(n, 0, 9999) && Number.isInteger(n));
 }
 
+/** 나간 기술 기록 (#146) — 없거나 uid 마다 겹침 없는 기술 id 1 ~ 4개 · uids 가 있으면 그 포켓몬만 (3:3) · 없으면 팀 수 안 (1:1 — 교체로 나온 포켓몬까지) */
+export function okTried(v: unknown, uids?: readonly string[]): boolean {
+  if (v === undefined) return true;
+  if (!isObj(v) || Object.keys(v).length > (uids?.length ?? BALANCE.partySize)) return false;
+  return Object.entries(v).every(
+    ([uid, ids]) => (!uids || uids.includes(uid)) && Array.isArray(ids) && ids.length >= 1 && ids.length <= BALANCE.moveSlots && ids.every((id) => fin(id, 1, 100000) && Number.isInteger(id)) && new Set(ids).size === ids.length,
+  );
+}
+
 /** 아직 안 나온 상대 포켓몬 — fighterOf 가 쓰는 칸만 봄 (세이브에는 안 들어감) */
 function okFoeMonster(m: unknown): boolean {
   if (!isObj(m) || typeof m.uid !== 'string' || !fin(m.species, 1, 2000) || typeof m.form !== 'string' || !fin(m.level, 1, 100) || typeof m.shiny !== 'boolean') return false;
@@ -1253,7 +1290,7 @@ export function readBattle(raw: unknown): BattleState | null {
   if (!(rp === undefined || rp === null || (isObj(rp) && fin(rp.ms, -60_000) && fin(rp.dur, 1, 60_000)))) return null;
   if (raw.phase === 'riposte' && !isObj(rp)) return null;
   if (raw.kind !== 'wild' && typeof raw.foeName !== 'string') return null;
-  if (!PHASES.includes(raw.phase as string) || !okBench(raw.bench) || !okBag(raw.bagUsed)) return null;
+  if (!PHASES.includes(raw.phase as string) || !okBench(raw.bench) || !okBag(raw.bagUsed) || !okTried(raw.tried)) return null;
   if (!Array.isArray(raw.popups) || !raw.popups.every((p) => isObj(p) && fin(p.id, 0) && SIDES.includes(p.side as string) && typeof p.text === 'string' && fin(p.ms, 0) && POPUP_KINDS.includes(p.kind as string))) return null;
   const anim = raw.anim;
   if (anim !== null && !(isObj(anim) && SIDES.includes(anim.side as string) && okAction(anim.action) && fin(anim.ms, 0) && fin(anim.dur, 0, 60_000) && typeof anim.counter === 'boolean' && (anim.parry === undefined || PARRY_GRADES.includes(anim.parry as string)) && (anim.miss === undefined || typeof anim.miss === 'boolean'))) return null;

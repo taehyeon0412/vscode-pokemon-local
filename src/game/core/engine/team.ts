@@ -7,11 +7,12 @@
  */
 import { BALANCE, TIMING } from '../balance';
 import { canInflict, clashChance, clashWithTaps, computeDamage, fighterOf, isShooting, streakMultiplier, ultGain, type Fighter } from '../rules/battle';
+import { markNewMoves } from '../rules/growth';
 import { effectiveness } from '../rules/types';
 import type { Monster, Save } from '../save';
 import { withJosa } from '../text';
 import { moveFxOf, moveOf, speciesOf, ultIsSpread, ultNamesOf, type ReadonlyMove, type TypeName } from '../../data';
-import { okFighter, POPUP_KINDS, POPUP_MS, type BattlePopup, type Side } from './battle';
+import { okFighter, okTried, POPUP_KINDS, POPUP_MS, withTried, type BattlePopup, type Side } from './battle';
 import type { Rng } from './rng';
 
 /** 날아가는 기술 하나 — 겹쳐도 바로 나감 */
@@ -168,6 +169,8 @@ export interface TeamBattle {
    * 걸음마다 다시 고르면 막히기 쉬운 센 기술 (범위 · 닿는) 이 약한 기술로 바뀌고 (지진 93 → 29%) · 칸 번호 순이면 뒤 칸이 20초 굶던 것 (테스터 #95). 옛 상태엔 없음
    */
   ready?: { me: (TeamReady | null)[]; foe: (TeamReady | null)[] };
+  /** 이 판에서 한 번이라도 닿은 내 기술 (uid → 기술 id · 1 공격 · 거둔 달려가기 빼고 · 힘겨루기 포함) — 끝나면 세이브 untried 에서 뺌 (#146 — 3:3 은 PP 가 안 닳아 따로 적음) · 옛 상태엔 없음 */
+  tried?: Record<string, number[]>;
   /** 연출 다리 — 일어난 일 (TeamNote) 과 마지막 번호 */
   log: TeamLogEntry[];
   logSeq: number;
@@ -461,6 +464,8 @@ function land(b: TeamBattle, s: TeamShot, rng: Rng): void {
     if (t !== null) damage(b, s.side, s.from, t, BALANCE.attackPower, null, rng, false);
     return;
   }
+  // 써 본 기술 (#146) — 닿을 때 적음 (쏠 때 적으면 큰 연출이 거둔 달려가기 · 맞기 전에 쓰러진 탄도 NEW 가 꺼짐 — 쏠 때 쓴 것을 돌려주는 settleDashes 와 같게, 코드 리뷰어)
+  if (s.side === 'me') b.tried = withTried(b.tried, b.me[s.from]!.uid, s.moveId);
   const mv = moveOf(s.moveId);
   if (!mv) return;
   const targets = s.targets.length > 1 ? s.targets.filter((i) => alive(foes[i]!)) : [alive(foes[s.targets[0]!]!) ? s.targets[0]! : bestTarget(foes, mv)].filter((i): i is number => i !== null);
@@ -580,6 +585,8 @@ function endMoveClash(b: TeamBattle, c: TeamClash, rng: Rng): void {
   const f = b.shots.find((s) => s.id === fId);
   b.shots = b.shots.filter((s) => s.id !== aId && s.id !== fId);
   if (!a || !f) return;
+  // 힘겨루기 탄은 land 를 안 거침 — 여기서 써 본 기술로 (#146 · 빠뜨리면 영영 NEW)
+  if (a.moveId !== TEAM_BASIC) b.tried = withTried(b.tried, b.me[a.from]!.uid, a.moveId);
   const am = moveOf(a.moveId);
   const fm = moveOf(f.moveId);
   const pa = b.me[a.from]!.stats.attack * (am?.power ?? 1);
@@ -1280,12 +1287,12 @@ export function teamDone(b: TeamBattle): boolean {
 
 // ---------- 끝 — 세이브 · 보상
 
-/** HP · 상태 이상을 세이브에 (3:3 은 PP 가 안 닳음) */
+/** HP · 상태 이상을 세이브에 (3:3 은 PP 가 안 닳음) · 쏜 기술은 메뉴 NEW (untried) 에서 뺌 (#146) */
 export function applyTeamResult(save: Save, b: TeamBattle): Save {
   const monsters = { ...save.monsters };
   for (const f of b.me) {
     const m = monsters[f.uid];
-    if (m) monsters[f.uid] = { ...m, hp: Math.min(f.hp, fighterOf({ ...m, hp: 1e6 }).maxHp), status: f.status ? { ...f.status } : null };
+    if (m) monsters[f.uid] = markNewMoves({ ...m, hp: Math.min(f.hp, fighterOf({ ...m, hp: 1e6 }).maxHp), status: f.status ? { ...f.status } : null }, [], b.tried?.[f.uid]);
   }
   return { ...save, monsters, pendingEncounter: null };
 }
@@ -1350,6 +1357,8 @@ export function readTeam(raw: unknown): TeamBattle | null {
   // 버린 누름 도장 (#88) — 칸 −1 ~ 2 · 지난 ms · 까닭
   const d = raw.deny;
   if (!(d === undefined || (isObj(d) && Number.isInteger(d.slot) && (d.slot as number) >= -1 && (d.slot as number) < BALANCE.team.size && fin(d.ms, 0, 1e6) && (d.why === 'charge' || d.why === 'busy') && (d.go === undefined || d.go === true)))) return null;
+  // 쏜 기술 기록 (#146) — 이 판 내 포켓몬 uid 만
+  if (!okTried(raw.tried, (raw.me as Obj[]).map((f) => f.uid as string))) return null;
   if (!(raw.autoWait === undefined || (Array.isArray(raw.autoWait) && raw.autoWait.length === n.me && raw.autoWait.every((x) => fin(x, 0, 1e6))))) return null;
   // 판 시각보다 뒤면 안 읽음 (아무도 행동하지 않고 상한까지 멈추던 것 — 코드 리뷰어)
   if (!(raw.lastShotAt === undefined || fin(raw.lastShotAt, 0, typeof raw.t === 'number' ? raw.t : 0))) return null;
