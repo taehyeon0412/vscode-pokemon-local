@@ -125,6 +125,20 @@ describe('S19 가방 — 전투 밖 (mvp-spec S19 막는 것 [제안])', () => {
     expect(itemEvolution(sampleMonster({ species: 95, form: 'onix' }), 'linking-cord')).toBe(208);
   });
 
+  it('다른 돌 · 끈으로는 진화하는 포켓몬에 안 맞는 것 = "이 돌로는 · 이 끈으로는" (ideas 2716 — 이브이에게 리프의돌) · 아이템으로 진화 안 하면 "이 포켓몬은"', () => {
+    const eevee = sampleMonster({ species: 133, form: 'eevee' });
+    const onix = sampleMonster({ species: 95, form: 'onix' });
+    const gloom = sampleMonster({ species: GLOOM, form: 'gloom' });
+    expect(fieldUseBlock(eevee, 'water-stone')).toBeNull();
+    expect(fieldUseBlock(eevee, 'leaf-stone')).toBe('이 돌로는 진화하지 않아요');
+    expect(fieldUseBlock(eevee, 'linking-cord')).toBe('이 끈으로는 진화하지 않아요');
+    expect(fieldUseBlock(onix, 'fire-stone')).toBe('이 돌로는 진화하지 않아요');
+    expect(fieldUseBlock(gloom, 'moon-stone')).toBe('이 돌로는 진화하지 않아요');
+    // 이상해씨 = 레벨로만
+    expect(fieldUseBlock(sampleMonster(), 'leaf-stone')).toBe('이 포켓몬은 진화하지 않아요');
+    expect(fieldUseBlock(sampleMonster(), 'linking-cord')).toBe('이 포켓몬은 진화하지 않아요');
+  });
+
   it('상처약 · 기력의조각 — 가방에서 하나 빼고 회복', () => {
     const s = { ...sampleSave(), bag: { potion: 2, revive: 1 } };
     const r = useFieldItem(s, 'potion', 'm1')!;

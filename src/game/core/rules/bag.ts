@@ -287,7 +287,13 @@ export function fieldUseBlock(m: Monster, item: ItemId): string | null {
       return '스테이지를 새로 시작할 때 저절로 써요';
     default:
       if (VALUABLES.includes(item)) return '상점에서 팔 수 있어요';
-      if (isEvolutionItem(item)) return itemEvolution(m, item) !== null ? null : '이 포켓몬은 진화하지 않아요';
+      if (isEvolutionItem(item)) {
+        if (itemEvolution(m, item) !== null) return null;
+        // 다른 돌 · 끈으로는 진화하면 그 아이템 탓 (이브이에게 리프의돌 — 같은 가방에 이브이용 ▲ 돌이 셋, ideas 2716)
+        const other = [...STONES, 'linking-cord' as const].some((i) => itemEvolution(m, i) !== null);
+        if (!other) return '이 포켓몬은 진화하지 않아요';
+        return item === 'linking-cord' ? '이 끈으로는 진화하지 않아요' : '이 돌로는 진화하지 않아요';
+      }
       return '전투에서만 써요';
   }
 }
